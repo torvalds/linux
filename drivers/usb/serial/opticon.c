@@ -208,7 +208,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	memcpy(buffer, buf, count);
 
-	usb_serial_debug_data(&port->dev, __func__, count, buffer);
+	usb_serial_de_data(&port->dev, __func__, count, buffer);
 
 	/* The connected devices do not have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */

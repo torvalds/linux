@@ -270,7 +270,7 @@ get_host_devfn(acpi_handle device_handle, acpi_handle rootbus_handle)
 	if (!child) {
 		printk(KERN_ERR "%s: Unable to find root bus for: %s\n",
 		       __func__, (char *)name_buffer.pointer);
-		BUG();
+		();
 	}
 
 	status = acpi_evaluate_integer(child, METHOD_NAME__ADR, NULL, &adr);

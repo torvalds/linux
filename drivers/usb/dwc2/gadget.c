@@ -4725,7 +4725,7 @@ static int dwc2_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
  */
 static void dwc2_hsotg_dump(struct dwc2_hsotg *hsotg)
 {
-#ifdef DEBUG
+#ifdef DE
 	struct device *dev = hsotg->dev;
 	u32 val;
 	int idx;

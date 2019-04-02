@@ -16,7 +16,7 @@
  * http://www.usb.org/developers/devclass_docs/midi10.pdf
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/kernel.h>
 #include <linux/module.h>

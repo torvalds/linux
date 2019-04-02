@@ -12,7 +12,7 @@ musb_hdrc-y := musb_core.o musb_trace.o
 
 musb_hdrc-$(CONFIG_USB_MUSB_HOST)$(CONFIG_USB_MUSB_DUAL_ROLE) += musb_virthub.o musb_host.o
 musb_hdrc-$(CONFIG_USB_MUSB_GADGET)$(CONFIG_USB_MUSB_DUAL_ROLE) += musb_gadget_ep0.o musb_gadget.o
-musb_hdrc-$(CONFIG_DEBUG_FS)			+= musb_debugfs.o
+musb_hdrc-$(CONFIG_DE_FS)			+= musb_defs.o
 
 # Hardware Glue Layer
 obj-$(CONFIG_USB_MUSB_OMAP2PLUS)		+= omap2430.o

@@ -1,5 +1,5 @@
 /*
- * polling mode stateless debugging stuff, originally for NS16550 Serial Ports
+ * polling mode stateless deging stuff, originally for NS16550 Serial Ports
  *
  * c 2001 PPC 64 Team, IBM Corp
  *
@@ -23,58 +23,58 @@ int (*udbg_getc)(void);
 int (*udbg_getc_poll)(void);
 
 /*
- * Early debugging facilities. You can enable _one_ of these via .config,
+ * Early deging facilities. You can enable _one_ of these via .config,
  * if you do so your kernel _will not boot_ on anything else. Be careful.
  */
 void __init udbg_early_init(void)
 {
-#if defined(CONFIG_PPC_EARLY_DEBUG_LPAR)
+#if defined(CONFIG_PPC_EARLY_DE_LPAR)
 	/* For LPAR machines that have an HVC console on vterm 0 */
-	udbg_init_debug_lpar();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI)
+	udbg_init_de_lpar();
+#elif defined(CONFIG_PPC_EARLY_DE_LPAR_HVSI)
 	/* For LPAR machines that have an HVSI console on vterm 0 */
-	udbg_init_debug_lpar_hvsi();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_G5)
+	udbg_init_de_lpar_hvsi();
+#elif defined(CONFIG_PPC_EARLY_DE_G5)
 	/* For use on Apple G5 machines */
 	udbg_init_pmac_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS_PANEL)
-	/* RTAS panel debug */
+#elif defined(CONFIG_PPC_EARLY_DE_RTAS_PANEL)
+	/* RTAS panel de */
 	udbg_init_rtas_panel();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_RTAS_CONSOLE)
-	/* RTAS console debug */
+#elif defined(CONFIG_PPC_EARLY_DE_RTAS_CONSOLE)
+	/* RTAS console de */
 	udbg_init_rtas_console();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_MAPLE)
-	/* Maple real mode debug */
+#elif defined(CONFIG_PPC_EARLY_DE_MAPLE)
+	/* Maple real mode de */
 	udbg_init_maple_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE)
+#elif defined(CONFIG_PPC_EARLY_DE_PAS_REALMODE)
 	udbg_init_pas_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_BOOTX)
+#elif defined(CONFIG_PPC_EARLY_DE_BOOTX)
 	udbg_init_btext();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_44x)
-	/* PPC44x debug */
+#elif defined(CONFIG_PPC_EARLY_DE_44x)
+	/* PPC44x de */
 	udbg_init_44x_as1();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_40x)
-	/* PPC40x debug */
+#elif defined(CONFIG_PPC_EARLY_DE_40x)
+	/* PPC40x de */
 	udbg_init_40x_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_CPM)
+#elif defined(CONFIG_PPC_EARLY_DE_CPM)
 	udbg_init_cpm();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_USBGECKO)
+#elif defined(CONFIG_PPC_EARLY_DE_USBGECKO)
 	udbg_init_usbgecko();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_MEMCONS)
+#elif defined(CONFIG_PPC_EARLY_DE_MEMCONS)
 	/* In memory console */
 	udbg_init_memcons();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_EHV_BC)
+#elif defined(CONFIG_PPC_EARLY_DE_EHV_BC)
 	udbg_init_ehv_bc();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_PS3GELIC)
+#elif defined(CONFIG_PPC_EARLY_DE_PS3GELIC)
 	udbg_init_ps3gelic();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_RAW)
-	udbg_init_debug_opal_raw();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_HVSI)
-	udbg_init_debug_opal_hvsi();
+#elif defined(CONFIG_PPC_EARLY_DE_OPAL_RAW)
+	udbg_init_de_opal_raw();
+#elif defined(CONFIG_PPC_EARLY_DE_OPAL_HVSI)
+	udbg_init_de_opal_hvsi();
 #endif
 
-#ifdef CONFIG_PPC_EARLY_DEBUG
-	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+#ifdef CONFIG_PPC_EARLY_DE
+	console_loglevel = CONSOLE_LOGLEVEL_DE;
 
 	register_early_udbg_console();
 #endif

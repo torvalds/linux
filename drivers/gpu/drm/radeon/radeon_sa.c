@@ -318,8 +318,8 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	unsigned tries[RADEON_NUM_RINGS];
 	int i, r;
 
-	BUG_ON(align > sa_manager->align);
-	BUG_ON(size > sa_manager->size);
+	_ON(align > sa_manager->align);
+	_ON(size > sa_manager->size);
 
 	*sa_bo = kmalloc(sizeof(struct radeon_sa_bo), GFP_KERNEL);
 	if ((*sa_bo) == NULL) {
@@ -396,8 +396,8 @@ void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo,
 	*sa_bo = NULL;
 }
 
-#if defined(CONFIG_DEBUG_FS)
-void radeon_sa_bo_dump_debug_info(struct radeon_sa_manager *sa_manager,
+#if defined(CONFIG_DE_FS)
+void radeon_sa_bo_dump_de_info(struct radeon_sa_manager *sa_manager,
 				  struct seq_file *m)
 {
 	struct radeon_sa_bo *i;

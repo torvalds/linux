@@ -1204,7 +1204,7 @@ static int uvd_v6_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	bool int_handled = true;
-	DRM_DEBUG("IH: UVD TRAP\n");
+	DRM_DE("IH: UVD TRAP\n");
 
 	switch (entry->src_id) {
 	case 124:

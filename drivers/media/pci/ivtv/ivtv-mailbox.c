@@ -204,7 +204,7 @@ static void clear_all_mailboxes(struct ivtv *itv, struct ivtv_mailbox_data *mbda
 	int i;
 
 	for (i = 0; i <= mbdata->max_mbox; i++) {
-		IVTV_DEBUG_WARN("Clearing mailbox %d: cmd 0x%08x flags 0x%08x\n",
+		IVTV_DE_WARN("Clearing mailbox %d: cmd 0x%08x flags 0x%08x\n",
 			i, readl(&mbdata->mbox[i].cmd), readl(&mbdata->mbox[i].flags));
 		write_sync(0, &mbdata->mbox[i].flags);
 		clear_bit(i, &mbdata->busy);
@@ -231,10 +231,10 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	}
 
 	if (api_info[cmd].flags & API_HIGH_VOL) {
-	    IVTV_DEBUG_HI_MB("MB Call: %s\n", api_info[cmd].name);
+	    IVTV_DE_HI_MB("MB Call: %s\n", api_info[cmd].name);
 	}
 	else {
-	    IVTV_DEBUG_MB("MB Call: %s\n", api_info[cmd].name);
+	    IVTV_DE_MB("MB Call: %s\n", api_info[cmd].name);
 	}
 
 	/* clear possibly uninitialized part of data array */
@@ -263,7 +263,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 				clear_bit(mb, &mbdata->busy);
 				return 0;
 			}
-			IVTV_DEBUG_WARN("%s: mailbox %d not free %08x\n",
+			IVTV_DE_WARN("%s: mailbox %d not free %08x\n",
 					api_info[cmd].name, mb, readl(&mbdata->mbox[mb].flags));
 		}
 		IVTV_WARN("Could not find free DMA mailbox for %s\n", api_info[cmd].name);
@@ -276,7 +276,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 
 	mb = get_mailbox(itv, mbdata, flags);
 	if (mb < 0) {
-		IVTV_DEBUG_WARN("No free mailbox found (%s)\n", api_info[cmd].name);
+		IVTV_DE_WARN("No free mailbox found (%s)\n", api_info[cmd].name);
 		clear_all_mailboxes(itv, mbdata);
 		return -EBUSY;
 	}
@@ -303,7 +303,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	}
 	while (!(readl(&mbox->flags) & IVTV_MBOX_FIRMWARE_DONE)) {
 		if (time_after(jiffies, then + api_timeout)) {
-			IVTV_DEBUG_WARN("Could not get result (%s)\n", api_info[cmd].name);
+			IVTV_DE_WARN("Could not get result (%s)\n", api_info[cmd].name);
 			/* reset the mailbox, but it is likely too late already */
 			write_sync(0, &mbox->flags);
 			clear_bit(mb, &mbdata->busy);
@@ -315,7 +315,7 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 			ivtv_msleep_timeout(1, 0);
 	}
 	if (time_after(jiffies, then + msecs_to_jiffies(100)))
-		IVTV_DEBUG_WARN("%s took %u jiffies\n",
+		IVTV_DE_WARN("%s took %u jiffies\n",
 				api_info[cmd].name,
 				jiffies_to_msecs(jiffies - then));
 

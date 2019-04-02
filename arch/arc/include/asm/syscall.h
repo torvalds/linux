@@ -60,7 +60,7 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 	unsigned long *inside_ptregs = &(regs->r0);
 	inside_ptregs -= i;
 
-	BUG_ON((i + n) > 6);
+	_ON((i + n) > 6);
 
 	while (n--) {
 		args[i++] = (*inside_ptregs);

@@ -72,7 +72,7 @@ static __always_inline unsigned long __fls(unsigned long x)
 #include <asm-generic/bitops/atomic.h>
 
 /*
- * bug fix, why only could use atomic!!!!
+ *  fix, why only could use atomic!!!!
  */
 #include <asm-generic/bitops/non-atomic.h>
 #define __clear_bit(nr, vaddr) clear_bit(nr, vaddr)

@@ -1009,7 +1009,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	struct nf_udp_net *un = nf_udp_pernet(net);
 	struct ctl_table *table;
 
-	BUILD_BUG_ON(ARRAY_SIZE(nf_ct_sysctl_table) != NF_SYSCTL_CT_LAST_SYSCTL);
+	BUILD__ON(ARRAY_SIZE(nf_ct_sysctl_table) != NF_SYSCTL_CT_LAST_SYSCTL);
 
 	table = kmemdup(nf_ct_sysctl_table, sizeof(nf_ct_sysctl_table),
 			GFP_KERNEL);
@@ -1146,8 +1146,8 @@ static int __init nf_conntrack_standalone_init(void)
 	if (ret < 0)
 		goto out_start;
 
-	BUILD_BUG_ON(SKB_NFCT_PTRMASK != NFCT_PTRMASK);
-	BUILD_BUG_ON(NFCT_INFOMASK <= IP_CT_NUMBER);
+	BUILD__ON(SKB_NFCT_PTRMASK != NFCT_PTRMASK);
+	BUILD__ON(NFCT_INFOMASK <= IP_CT_NUMBER);
 
 #ifdef CONFIG_SYSCTL
 	nf_ct_netfilter_header =

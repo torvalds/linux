@@ -371,7 +371,7 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
 		return;
 	}
-	BUG_ON(!sads);
+	_ON(!sads);
 
 	if (radeon_encoder->audio && radeon_encoder->audio->write_sad_regs)
 		radeon_encoder->audio->write_sad_regs(encoder, sads, sad_count);
@@ -392,7 +392,7 @@ static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 	sad_count = drm_edid_to_speaker_allocation(radeon_connector_edid(connector),
 						   &sadb);
 	if (sad_count < 0) {
-		DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n",
+		DRM_DE("Couldn't read Speaker Allocation Data Block: %d\n",
 			  sad_count);
 		sad_count = 0;
 	}
@@ -579,7 +579,7 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 	*N = n;
 	*CTS = cts;
 
-	DRM_DEBUG("Calculated ACR timing N=%d CTS=%d for frequency %d\n",
+	DRM_DE("Calculated ACR timing N=%d CTS=%d for frequency %d\n",
 		*N, *CTS, freq);
 }
 

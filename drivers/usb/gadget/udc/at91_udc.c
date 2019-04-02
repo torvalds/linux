@@ -7,7 +7,7 @@
  * Copyright (C) 2005 by David Brownell
  */
 
-#undef	VERBOSE_DEBUG
+#undef	VERBOSE_DE
 #undef	PACKET_TRACE
 
 #include <linux/kernel.h>
@@ -93,11 +93,11 @@ static const struct {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 
 #include <linux/seq_file.h>
 
-static const char debug_filename[] = "driver/udc";
+static const char de_filename[] = "driver/udc";
 
 #define FOURBITS "%s%s%s%s"
 #define EIGHTBITS FOURBITS FOURBITS
@@ -234,22 +234,22 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static void create_debug_file(struct at91_udc *udc)
+static void create_de_file(struct at91_udc *udc)
 {
-	udc->pde = proc_create_single_data(debug_filename, 0, NULL,
+	udc->pde = proc_create_single_data(de_filename, 0, NULL,
 			proc_udc_show, udc);
 }
 
-static void remove_debug_file(struct at91_udc *udc)
+static void remove_de_file(struct at91_udc *udc)
 {
 	if (udc->pde)
-		remove_proc_entry(debug_filename, NULL);
+		remove_proc_entry(de_filename, NULL);
 }
 
 #else
 
-static inline void create_debug_file(struct at91_udc *udc) {}
-static inline void remove_debug_file(struct at91_udc *udc) {}
+static inline void create_de_file(struct at91_udc *udc) {}
+static inline void remove_de_file(struct at91_udc *udc) {}
 
 #endif
 
@@ -597,7 +597,7 @@ static void at91_ep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	struct at91_request *req;
 
 	req = container_of(_req, struct at91_request, req);
-	BUG_ON(!list_empty(&req->queue));
+	_ON(!list_empty(&req->queue));
 	kfree(req);
 }
 
@@ -1928,7 +1928,7 @@ static int at91udc_probe(struct platform_device *pdev)
 		goto err_unprepare_iclk;
 	dev_set_drvdata(dev, udc);
 	device_init_wakeup(dev, 1);
-	create_debug_file(udc);
+	create_de_file(udc);
 
 	INFO("%s version %s\n", driver_name, DRIVER_VERSION);
 	return 0;
@@ -1959,7 +1959,7 @@ static int at91udc_remove(struct platform_device *pdev)
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	device_init_wakeup(&pdev->dev, 0);
-	remove_debug_file(udc);
+	remove_de_file(udc);
 	clk_unprepare(udc->fclk);
 	clk_unprepare(udc->iclk);
 

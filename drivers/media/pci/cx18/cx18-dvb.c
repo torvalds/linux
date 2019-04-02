@@ -253,7 +253,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 		return -EINVAL;
 
 	cx = stream->cx;
-	CX18_DEBUG_INFO("Start feed: pid = 0x%x index = %d\n",
+	CX18_DE_INFO("Start feed: pid = 0x%x index = %d\n",
 			feed->pid, feed->index);
 
 	mutex_lock(&cx->serialize_lock);
@@ -293,12 +293,12 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 
 	mutex_lock(&stream->dvb->feedlock);
 	if (stream->dvb->feeding++ == 0) {
-		CX18_DEBUG_INFO("Starting Transport DMA\n");
+		CX18_DE_INFO("Starting Transport DMA\n");
 		mutex_lock(&cx->serialize_lock);
 		set_bit(CX18_F_S_STREAMING, &stream->s_flags);
 		ret = cx18_start_v4l2_encode_stream(stream);
 		if (ret < 0) {
-			CX18_DEBUG_INFO("Failed to start Transport DMA\n");
+			CX18_DE_INFO("Failed to start Transport DMA\n");
 			stream->dvb->feeding--;
 			if (stream->dvb->feeding == 0)
 				clear_bit(CX18_F_S_STREAMING, &stream->s_flags);
@@ -321,12 +321,12 @@ static int cx18_dvb_stop_feed(struct dvb_demux_feed *feed)
 
 	if (stream) {
 		cx = stream->cx;
-		CX18_DEBUG_INFO("Stop feed: pid = 0x%x index = %d\n",
+		CX18_DE_INFO("Stop feed: pid = 0x%x index = %d\n",
 				feed->pid, feed->index);
 
 		mutex_lock(&stream->dvb->feedlock);
 		if (--stream->dvb->feeding == 0) {
-			CX18_DEBUG_INFO("Stopping Transport DMA\n");
+			CX18_DE_INFO("Stopping Transport DMA\n");
 			mutex_lock(&cx->serialize_lock);
 			ret = cx18_stop_v4l2_encode_stream(stream, 0);
 			mutex_unlock(&cx->serialize_lock);

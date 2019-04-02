@@ -1,5 +1,5 @@
 /// Unsigned expressions cannot be lesser than zero. Presence of
-/// comparisons 'unsigned (<|<=|>|>=) 0' often indicates a bug,
+/// comparisons 'unsigned (<|<=|>|>=) 0' often indicates a ,
 /// usually wrong type of variable.
 ///
 /// To reduce number of false positives following tests have been added:

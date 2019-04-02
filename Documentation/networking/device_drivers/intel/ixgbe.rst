@@ -265,12 +265,12 @@ allow_unsupported_sfp
 This parameter allows unsupported and untested SFP+ modules on 82599-based
 adapters, as long as the type of module is known to the driver.
 
-debug
+de
 -----
 :Valid Range: 0-16 (0=none,...,16=all)
 :Default Value: 0
 
-This parameter adjusts the level of debug messages displayed in the system
+This parameter adjusts the level of de messages displayed in the system
 logs.
 
 

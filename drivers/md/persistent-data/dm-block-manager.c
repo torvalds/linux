@@ -19,7 +19,7 @@
 
 /*----------------------------------------------------------------*/
 
-#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
+#ifdef CONFIG_DM_DE_BLOCK_MANAGER_LOCKING
 
 /*
  * This is a read/write semaphore with a couple of differences.
@@ -43,7 +43,7 @@ struct block_lock {
 	struct list_head waiters;
 	struct task_struct *holders[MAX_HOLDERS];
 
-#ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+#ifdef CONFIG_DM_DE_BLOCK_STACK_TRACING
 	struct stack_trace traces[MAX_HOLDERS];
 	stack_entries entries[MAX_HOLDERS];
 #endif
@@ -64,7 +64,7 @@ static unsigned __find_holder(struct block_lock *lock,
 		if (lock->holders[i] == task)
 			break;
 
-	BUG_ON(i == MAX_HOLDERS);
+	_ON(i == MAX_HOLDERS);
 	return i;
 }
 
@@ -72,14 +72,14 @@ static unsigned __find_holder(struct block_lock *lock,
 static void __add_holder(struct block_lock *lock, struct task_struct *task)
 {
 	unsigned h = __find_holder(lock, NULL);
-#ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+#ifdef CONFIG_DM_DE_BLOCK_STACK_TRACING
 	struct stack_trace *t;
 #endif
 
 	get_task_struct(task);
 	lock->holders[h] = task;
 
-#ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+#ifdef CONFIG_DM_DE_BLOCK_STACK_TRACING
 	t = lock->traces + h;
 	t->nr_entries = 0;
 	t->max_entries = MAX_STACK;
@@ -104,7 +104,7 @@ static int __check_holder(struct block_lock *lock)
 	for (i = 0; i < MAX_HOLDERS; i++) {
 		if (lock->holders[i] == current) {
 			DMERR("recursive lock detected in metadata");
-#ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
+#ifdef CONFIG_DM_DE_BLOCK_STACK_TRACING
 			DMERR("previously held here:");
 			print_stack_trace(lock->traces + i, 4);
 
@@ -150,7 +150,7 @@ static void __wake_many(struct block_lock *lock)
 {
 	struct waiter *w, *tmp;
 
-	BUG_ON(lock->count < 0);
+	_ON(lock->count < 0);
 	list_for_each_entry_safe(w, tmp, &lock->waiters, list) {
 		if (lock->count >= MAX_HOLDERS)
 			return;
@@ -244,7 +244,7 @@ out:
 static void bl_up_read(struct block_lock *lock)
 {
 	spin_lock(&lock->lock);
-	BUG_ON(lock->count <= 0);
+	_ON(lock->count <= 0);
 	__del_holder(lock, current);
 	--lock->count;
 	if (!list_empty(&lock->waiters))
@@ -298,14 +298,14 @@ static void bl_up_write(struct block_lock *lock)
 	spin_unlock(&lock->lock);
 }
 
-static void report_recursive_bug(dm_block_t b, int r)
+static void report_recursive_(dm_block_t b, int r)
 {
 	if (r == -EINVAL)
 		DMERR("recursive acquisition of block %llu requested.",
 		      (unsigned long long) b);
 }
 
-#else  /* !CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+#else  /* !CONFIG_DM_DE_BLOCK_MANAGER_LOCKING */
 
 #define bl_init(x) do { } while (0)
 #define bl_down_read(x) 0
@@ -313,9 +313,9 @@ static void report_recursive_bug(dm_block_t b, int r)
 #define bl_up_read(x) do { } while (0)
 #define bl_down_write(x) 0
 #define bl_up_write(x) do { } while (0)
-#define report_recursive_bug(x, y) do { } while (0)
+#define report_recursive_(x, y) do { } while (0)
 
-#endif /* CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING */
+#endif /* CONFIG_DM_DE_BLOCK_MANAGER_LOCKING */
 
 /*----------------------------------------------------------------*/
 
@@ -347,7 +347,7 @@ struct buffer_aux {
 	struct dm_block_validator *validator;
 	int write_locked;
 
-#ifdef CONFIG_DM_DEBUG_BLOCK_MANAGER_LOCKING
+#ifdef CONFIG_DM_DE_BLOCK_MANAGER_LOCKING
 	struct block_lock lock;
 #endif
 };
@@ -469,7 +469,7 @@ int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
 	r = bl_down_read(&aux->lock);
 	if (unlikely(r)) {
 		dm_bufio_release(to_buffer(*result));
-		report_recursive_bug(b, r);
+		report_recursive_(b, r);
 		return r;
 	}
 
@@ -505,7 +505,7 @@ int dm_bm_write_lock(struct dm_block_manager *bm,
 	r = bl_down_write(&aux->lock);
 	if (r) {
 		dm_bufio_release(to_buffer(*result));
-		report_recursive_bug(b, r);
+		report_recursive_(b, r);
 		return r;
 	}
 
@@ -540,7 +540,7 @@ int dm_bm_read_try_lock(struct dm_block_manager *bm,
 	r = bl_down_read_nonblock(&aux->lock);
 	if (r < 0) {
 		dm_bufio_release(to_buffer(*result));
-		report_recursive_bug(b, r);
+		report_recursive_(b, r);
 		return r;
 	}
 	aux->write_locked = 0;

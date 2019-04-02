@@ -21,7 +21,7 @@
 #include <linux/mmu_notifier.h>	/* set_pte_at_notify */
 #include <linux/swap.h>		/* try_to_free_swap */
 #include <linux/ptrace.h>	/* user_enable_single_step */
-#include <linux/kdebug.h>	/* notifier mechanism */
+#include <linux/kde.h>	/* notifier mechanism */
 #include "../../mm/internal.h"	/* munlock_vma_page */
 #include <linux/percpu-rwsem.h>
 #include <linux/task_work.h>
@@ -163,7 +163,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	mmu_notifier_range_init(&range, mm, addr, addr + PAGE_SIZE);
 
-	VM_BUG_ON_PAGE(PageTransHuge(old_page), old_page);
+	VM__ON_PAGE(PageTransHuge(old_page), old_page);
 
 	err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL, &memcg,
 			false);
@@ -179,7 +179,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 		mem_cgroup_cancel_charge(new_page, memcg, false);
 		goto unlock;
 	}
-	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
+	VM__ON_PAGE(addr != pvmw.address, old_page);
 
 	get_page(new_page);
 	page_add_new_anon_rmap(new_page, vma, addr, false);
@@ -815,7 +815,7 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 		goto out;
 
 	/* uprobe_write_opcode() assumes we don't cross page boundary */
-	BUG_ON((uprobe->offset & ~PAGE_MASK) +
+	_ON((uprobe->offset & ~PAGE_MASK) +
 			UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
 
 	smp_wmb(); /* pairs with the smp_rmb() in handle_swbp() */

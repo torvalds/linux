@@ -954,7 +954,7 @@ static void flctl_select_chip(struct nand_chip *chip, int chipnr)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

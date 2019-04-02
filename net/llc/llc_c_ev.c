@@ -42,7 +42,7 @@
 #include <net/llc_pdu.h>
 
 #if 1
-#define dprintk(args...) printk(KERN_DEBUG args)
+#define dprintk(args...) printk(KERN_DE args)
 #else
 #define dprintk(args...)
 #endif

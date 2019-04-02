@@ -72,7 +72,7 @@ EXPORT_SYMBOL(mpc85xx_cache_sram_alloc);
 void mpc85xx_cache_sram_free(void *ptr)
 {
 	unsigned long flags;
-	BUG_ON(!ptr);
+	_ON(!ptr);
 
 	spin_lock_irqsave(&cache_sram->lock, flags);
 	rh_free(cache_sram->rh, ptr - cache_sram->base_virt);
@@ -145,7 +145,7 @@ out_free:
 
 void remove_cache_sram(struct platform_device *dev)
 {
-	BUG_ON(!cache_sram);
+	_ON(!cache_sram);
 
 	rh_detach_region(cache_sram->rh, 0, cache_sram->size);
 	rh_destroy(cache_sram->rh);

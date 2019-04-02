@@ -129,7 +129,7 @@ lockdep_count_backward_deps(struct lock_class *class)
 }
 #endif
 
-#ifdef CONFIG_DEBUG_LOCKDEP
+#ifdef CONFIG_DE_LOCKDEP
 
 #include <asm/local.h>
 /*
@@ -167,20 +167,20 @@ struct lockdep_stats {
 DECLARE_PER_CPU(struct lockdep_stats, lockdep_stats);
 extern struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
 
-#define __debug_atomic_inc(ptr)					\
+#define __de_atomic_inc(ptr)					\
 	this_cpu_inc(lockdep_stats.ptr);
 
-#define debug_atomic_inc(ptr)			{		\
+#define de_atomic_inc(ptr)			{		\
 	WARN_ON_ONCE(!irqs_disabled());				\
 	__this_cpu_inc(lockdep_stats.ptr);			\
 }
 
-#define debug_atomic_dec(ptr)			{		\
+#define de_atomic_dec(ptr)			{		\
 	WARN_ON_ONCE(!irqs_disabled());				\
 	__this_cpu_dec(lockdep_stats.ptr);			\
 }
 
-#define debug_atomic_read(ptr)		({				\
+#define de_atomic_read(ptr)		({				\
 	struct lockdep_stats *__cpu_lockdep_stats;			\
 	unsigned long long __total = 0;					\
 	int __cpu;							\
@@ -191,15 +191,15 @@ extern struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
 	__total;							\
 })
 
-static inline void debug_class_ops_inc(struct lock_class *class)
+static inline void de_class_ops_inc(struct lock_class *class)
 {
 	int idx;
 
 	idx = class - lock_classes;
-	__debug_atomic_inc(lock_class_ops[idx]);
+	__de_atomic_inc(lock_class_ops[idx]);
 }
 
-static inline unsigned long debug_class_ops_read(struct lock_class *class)
+static inline unsigned long de_class_ops_read(struct lock_class *class)
 {
 	int idx, cpu;
 	unsigned long ops = 0;
@@ -211,9 +211,9 @@ static inline unsigned long debug_class_ops_read(struct lock_class *class)
 }
 
 #else
-# define __debug_atomic_inc(ptr)	do { } while (0)
-# define debug_atomic_inc(ptr)		do { } while (0)
-# define debug_atomic_dec(ptr)		do { } while (0)
-# define debug_atomic_read(ptr)		0
-# define debug_class_ops_inc(ptr)	do { } while (0)
+# define __de_atomic_inc(ptr)	do { } while (0)
+# define de_atomic_inc(ptr)		do { } while (0)
+# define de_atomic_dec(ptr)		do { } while (0)
+# define de_atomic_read(ptr)		0
+# define de_class_ops_inc(ptr)	do { } while (0)
 #endif

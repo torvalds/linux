@@ -583,7 +583,7 @@ extern int zlib_deflateInit2(z_streamp strm, int  level, int  method,
 extern int zlib_inflateInit2(z_streamp strm, int  windowBits);
 
 #if !defined(_Z_UTIL_H) && !defined(NO_DUMMY_DECL)
-    struct internal_state {int dummy;}; /* hack for buggy compilers */
+    struct internal_state {int dummy;}; /* hack for gy compilers */
 #endif
 
 /* Utility function: initialize zlib, unpack binary blob, clean up zlib,

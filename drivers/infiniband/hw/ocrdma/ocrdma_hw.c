@@ -417,7 +417,7 @@ static int ocrdma_mbx_delete_q(struct ocrdma_dev *dev,
 		opcode = OCRDMA_CMD_DELETE_EQ;
 		break;
 	default:
-		BUG();
+		();
 	}
 	memset(cmd, 0, sizeof(*cmd));
 	ocrdma_init_mch(&cmd->req, opcode, OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
@@ -668,7 +668,7 @@ static void ocrdma_process_qpcat_error(struct ocrdma_dev *dev,
 	enum ib_qp_state old_ib_qps;
 
 	if (qp == NULL)
-		BUG();
+		();
 	ocrdma_qp_state_change(qp, new_ib_qps, &old_ib_qps);
 }
 
@@ -968,7 +968,7 @@ static void ocrdma_qp_cq_handler(struct ocrdma_dev *dev, u16 cq_idx)
 	struct ocrdma_cq *cq;
 
 	if (cq_idx >= OCRDMA_MAX_CQ)
-		BUG();
+		();
 
 	cq = dev->cq_tbl[cq_idx];
 	if (cq == NULL)
@@ -1121,7 +1121,7 @@ static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
 
 	if ((mqe->hdr.spcl_sge_cnt_emb & OCRDMA_MQE_HDR_EMB_MASK) >>
 				OCRDMA_MQE_HDR_EMB_SHIFT)
-		BUG();
+		();
 
 	status = ocrdma_mbx_cmd(dev, mqe);
 	if (!status)
@@ -1778,7 +1778,7 @@ static void ocrdma_unbind_eq(struct ocrdma_dev *dev, u16 eq_id)
 	mutex_lock(&dev->dev_lock);
 	i = ocrdma_get_eq_table_index(dev, eq_id);
 	if (i == -EINVAL)
-		BUG();
+		();
 	dev->eq_tbl[i].cq_cnt -= 1;
 	mutex_unlock(&dev->dev_lock);
 }

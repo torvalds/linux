@@ -55,7 +55,7 @@ static inline void set_vtimer(u64 expires)
 
 static inline int virt_timer_forward(u64 elapsed)
 {
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	if (list_empty(&virt_timer_list))
 		return 0;
@@ -374,7 +374,7 @@ static int __mod_vtimer(struct vtimer_list *timer, u64 expires, int periodic)
 	unsigned long flags;
 	int rc;
 
-	BUG_ON(!timer->function);
+	_ON(!timer->function);
 
 	if (timer->expires == expires && vtimer_pending(timer))
 		return 1;

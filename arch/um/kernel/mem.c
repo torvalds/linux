@@ -73,7 +73,7 @@ static void __init one_page_table_init(pmd_t *pmd)
 		set_pmd(pmd, __pmd(_KERNPG_TABLE +
 					   (unsigned long) __pa(pte)));
 		if (pte != pte_offset_kernel(pmd, 0))
-			BUG();
+			();
 	}
 }
 
@@ -87,7 +87,7 @@ static void __init one_md_table_init(pud_t *pud)
 
 	set_pud(pud, __pud(_KERNPG_TABLE + (unsigned long) __pa(pmd_table)));
 	if (pmd_table != pmd_offset(pud, 0))
-		BUG();
+		();
 #endif
 }
 

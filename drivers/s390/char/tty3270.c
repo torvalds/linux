@@ -281,7 +281,7 @@ tty3270_alloc_string(struct tty3270 *tp, size_t size)
 	if (s)
 		return s;
 	list_for_each_entry_safe(s, n, &tp->lines, list) {
-		BUG_ON(tp->nr_lines <= tp->view.rows - 2);
+		_ON(tp->nr_lines <= tp->view.rows - 2);
 		list_del(&s->list);
 		if (!list_empty(&s->update))
 			list_del(&s->update);
@@ -290,7 +290,7 @@ tty3270_alloc_string(struct tty3270 *tp, size_t size)
 			break;
 	}
 	s = alloc_string(&tp->freemem, size);
-	BUG_ON(!s);
+	_ON(!s);
 	if (tp->nr_up != 0 &&
 	    tp->nr_up + tp->view.rows - 2 >= tp->nr_lines) {
 		tp->nr_up = tp->nr_lines - tp->view.rows + 2;

@@ -274,7 +274,7 @@ DECLARE_PER_CPU(int, disable_stack_tracer);
 static inline void stack_tracer_disable(void)
 {
 	/* Preemption or interupts must be disabled */
-	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
+	if (IS_ENABLED(CONFIG_DE_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_inc(disable_stack_tracer);
 }
@@ -287,7 +287,7 @@ static inline void stack_tracer_disable(void)
  */
 static inline void stack_tracer_enable(void)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT))
+	if (IS_ENABLED(CONFIG_DE_PREEMPT))
 		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
 	this_cpu_dec(disable_stack_tracer);
 }
@@ -303,22 +303,22 @@ int ftrace_arch_code_modify_post_process(void);
 
 struct dyn_ftrace;
 
-enum ftrace_bug_type {
-	FTRACE_BUG_UNKNOWN,
-	FTRACE_BUG_INIT,
-	FTRACE_BUG_NOP,
-	FTRACE_BUG_CALL,
-	FTRACE_BUG_UPDATE,
+enum ftrace__type {
+	FTRACE__UNKNOWN,
+	FTRACE__INIT,
+	FTRACE__NOP,
+	FTRACE__CALL,
+	FTRACE__UPDATE,
 };
-extern enum ftrace_bug_type ftrace_bug_type;
+extern enum ftrace__type ftrace__type;
 
 /*
  * Archs can set this to point to a variable that holds the value that was
- * expected at the call site before calling ftrace_bug().
+ * expected at the call site before calling ftrace_().
  */
 extern const void *ftrace_expected;
 
-void ftrace_bug(int err, struct dyn_ftrace *rec);
+void ftrace_(int err, struct dyn_ftrace *rec);
 
 struct seq_file;
 

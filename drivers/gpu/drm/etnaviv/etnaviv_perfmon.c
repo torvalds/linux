@@ -60,16 +60,16 @@ static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	unsigned i;
 
 	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
-		clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-		clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(i);
+		clock &= ~(VIVS_HI_CLOCK_CONTROL_DE_PIXEL_PIPE__MASK);
+		clock |= VIVS_HI_CLOCK_CONTROL_DE_PIXEL_PIPE(i);
 		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
 		gpu_write(gpu, domain->profile_config, signal->data);
 		value += gpu_read(gpu, domain->profile_read);
 	}
 
 	/* switch back to pixel pipe 0 to prevent GPU hang */
-	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(0);
+	clock &= ~(VIVS_HI_CLOCK_CONTROL_DE_PIXEL_PIPE__MASK);
+	clock |= VIVS_HI_CLOCK_CONTROL_DE_PIXEL_PIPE(0);
 	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
 
 	return value;

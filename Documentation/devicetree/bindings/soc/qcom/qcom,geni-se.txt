@@ -46,7 +46,7 @@ Child nodes should conform to I2C bus binding as described in i2c.txt.
 Qualcomm Technologies Inc. GENI Serial Engine based UART Controller
 
 Required properties:
-- compatible:		Must be "qcom,geni-debug-uart" or "qcom,geni-uart".
+- compatible:		Must be "qcom,geni-de-uart" or "qcom,geni-uart".
 - reg: 			Must contain UART register location and length.
 - interrupts: 		Must contain UART core interrupts.
 - clock-names:		Must contain "se".
@@ -81,7 +81,7 @@ Example:
 		};
 
 		uart0: serial@a88000 {
-			compatible = "qcom,geni-debug-uart";
+			compatible = "qcom,geni-de-uart";
 			reg = <0xa88000 0x7000>;
 			interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "se";

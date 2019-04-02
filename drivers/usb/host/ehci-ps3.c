@@ -106,7 +106,7 @@ static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
 	if (result) {
 		dev_dbg(&dev->core, "%s:%d: ps3_dma_region_create failed: "
 			"(%d)\n", __func__, __LINE__, result);
-		BUG_ON("check region type");
+		_ON("check region type");
 		goto fail_dma_region;
 	}
 
@@ -205,7 +205,7 @@ static int ps3_ehci_remove(struct ps3_system_bus_device *dev)
 	unsigned int tmp;
 	struct usb_hcd *hcd = ps3_system_bus_get_drvdata(dev);
 
-	BUG_ON(!hcd);
+	_ON(!hcd);
 
 	dev_dbg(&dev->core, "%s:%d: regs %p\n", __func__, __LINE__, hcd->regs);
 	dev_dbg(&dev->core, "%s:%d: irq %u\n", __func__, __LINE__, hcd->irq);
@@ -216,7 +216,7 @@ static int ps3_ehci_remove(struct ps3_system_bus_device *dev)
 
 	ps3_system_bus_set_drvdata(dev, NULL);
 
-	BUG_ON(!hcd->regs);
+	_ON(!hcd->regs);
 	iounmap(hcd->regs);
 
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);

@@ -14,7 +14,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/list.h>

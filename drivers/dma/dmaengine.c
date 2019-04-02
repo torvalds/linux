@@ -661,7 +661,7 @@ struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 	}
 	mutex_unlock(&dma_list_mutex);
 
-	pr_debug("%s: %s (%s)\n",
+	pr_de("%s: %s (%s)\n",
 		 __func__,
 		 chan ? "success" : "fail",
 		 chan ? dma_chan_name(chan) : NULL);
@@ -845,7 +845,7 @@ void dmaengine_put(void)
 
 	mutex_lock(&dma_list_mutex);
 	dmaengine_ref_count--;
-	BUG_ON(dmaengine_ref_count < 0);
+	_ON(dmaengine_ref_count < 0);
 	/* drop channel references */
 	list_for_each_entry(device, &dma_device_list, global_node) {
 		if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
@@ -1202,7 +1202,7 @@ static struct dmaengine_unmap_pool *__get_unmap_pool(int nr)
 		return &unmap_pool[3];
 #endif
 	default:
-		BUG();
+		();
 		return NULL;
 	}
 }

@@ -13,7 +13,7 @@
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 
-#undef DEBUG_PROM_TREE
+#undef DE_PROM_TREE
 
 pcomponent * __init
 ArcGetPeer(pcomponent *Current)
@@ -64,7 +64,7 @@ ArcGetComponent(CHAR *Path)
 	return (pcomponent *)ARC_CALL1(component_by_path, Path);
 }
 
-#ifdef DEBUG_PROM_TREE
+#ifdef DE_PROM_TREE
 
 static char *classes[] = {
 	"system", "processor", "cache", "adapter", "controller", "peripheral",
@@ -124,4 +124,4 @@ prom_testtree(void)
 	}
 }
 
-#endif /* DEBUG_PROM_TREE  */
+#endif /* DE_PROM_TREE  */

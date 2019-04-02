@@ -787,7 +787,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		}
 	}
 ex_err:
-	BUG_ON(retry == 3 && task != NULL);
+	_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
 	return res;
 }
@@ -861,7 +861,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 		}
 	}
 ex_err:
-	BUG_ON(retry == 3 && task != NULL);
+	_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
 	return res;
 }

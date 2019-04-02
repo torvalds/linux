@@ -13,7 +13,7 @@
 /*
  * Functions Config
  */
-/* define DEBUG_CFG80211 */
+/* define DE_CFG80211 */
 
 #ifndef CONFIG_WIRELESS_EXT
 #error CONFIG_WIRELESS_EXT needs to be enabled for this driver to work
@@ -46,19 +46,19 @@
 #endif /* CONFIG_WOWLAN */
 
 /*
- * Debug Related Config
+ * De Related Config
  */
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
-#define DBG	1	/*  for ODM & BTCOEX debug */
-/*#define DEBUG_RTL871X */
-#else /*  !DEBUG */
-#define DBG	0	/*  for ODM & BTCOEX debug */
-#endif /*  !DEBUG */
+#ifdef DE
+#define DBG	1	/*  for ODM & BTCOEX de */
+/*#define DE_RTL871X */
+#else /*  !DE */
+#define DBG	0	/*  for ODM & BTCOEX de */
+#endif /*  !DE */
 
 #ifdef CONFIG_PROC_FS
-#define PROC_DEBUG
+#define PROC_DE
 #endif
 
 /* define DBG_XMIT_BUF */

@@ -42,7 +42,7 @@
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/asm-prototypes.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -188,10 +188,10 @@ const char *regs_query_register_name(unsigned int offset)
 /*
  * Set of msr bits that gdb can change on behalf of a process.
  */
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-#define MSR_DEBUGCHANGE	0
+#ifdef CONFIG_PPC_ADV_DE_REGS
+#define MSR_DECHANGE	0
 #else
-#define MSR_DEBUGCHANGE	(MSR_SE | MSR_BE)
+#define MSR_DECHANGE	(MSR_SE | MSR_BE)
 #endif
 
 /*
@@ -210,8 +210,8 @@ static unsigned long get_user_msr(struct task_struct *task)
 
 static int set_user_msr(struct task_struct *task, unsigned long msr)
 {
-	task->thread.regs->msr &= ~MSR_DEBUGCHANGE;
-	task->thread.regs->msr |= msr & MSR_DEBUGCHANGE;
+	task->thread.regs->msr &= ~MSR_DECHANGE;
+	task->thread.regs->msr |= msr & MSR_DECHANGE;
 	return 0;
 }
 
@@ -223,8 +223,8 @@ static unsigned long get_user_ckpt_msr(struct task_struct *task)
 
 static int set_user_ckpt_msr(struct task_struct *task, unsigned long msr)
 {
-	task->thread.ckpt_regs.msr &= ~MSR_DEBUGCHANGE;
-	task->thread.ckpt_regs.msr |= msr & MSR_DEBUGCHANGE;
+	task->thread.ckpt_regs.msr &= ~MSR_DECHANGE;
+	task->thread.ckpt_regs.msr |= msr & MSR_DECHANGE;
 	return 0;
 }
 
@@ -359,7 +359,7 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 					  sizeof(msr));
 	}
 
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+	BUILD__ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct pt_regs, msr) + sizeof(long));
 
 	if (!ret)
@@ -398,7 +398,7 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 			ret = set_user_msr(target, reg);
 	}
 
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+	BUILD__ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct pt_regs, msr) + sizeof(long));
 
 	if (!ret)
@@ -457,7 +457,7 @@ static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 	buf[32] = target->thread.fp_state.fpscr;
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
 #else
-	BUILD_BUG_ON(offsetof(struct thread_fp_state, fpscr) !=
+	BUILD__ON(offsetof(struct thread_fp_state, fpscr) !=
 		     offsetof(struct thread_fp_state, fpr[32]));
 
 	flush_fp_to_thread(target);
@@ -504,7 +504,7 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 	target->thread.fp_state.fpscr = buf[32];
 	return 0;
 #else
-	BUILD_BUG_ON(offsetof(struct thread_fp_state, fpscr) !=
+	BUILD__ON(offsetof(struct thread_fp_state, fpscr) !=
 		     offsetof(struct thread_fp_state, fpr[32]));
 
 	flush_fp_to_thread(target);
@@ -557,7 +557,7 @@ static int vr_get(struct task_struct *target, const struct user_regset *regset,
 
 	flush_altivec_to_thread(target);
 
-	BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr) !=
+	BUILD__ON(offsetof(struct thread_vr_state, vscr) !=
 		     offsetof(struct thread_vr_state, vr[32]));
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -607,7 +607,7 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 
 	flush_altivec_to_thread(target);
 
-	BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr) !=
+	BUILD__ON(offsetof(struct thread_vr_state, vscr) !=
 		     offsetof(struct thread_vr_state, vr[32]));
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -753,7 +753,7 @@ static int evr_get(struct task_struct *target, const struct user_regset *regset,
 				  &target->thread.evr,
 				  0, sizeof(target->thread.evr));
 
-	BUILD_BUG_ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
+	BUILD__ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
 		     offsetof(struct thread_struct, spefscr));
 
 	if (!ret)
@@ -776,7 +776,7 @@ static int evr_set(struct task_struct *target, const struct user_regset *regset,
 				 &target->thread.evr,
 				 0, sizeof(target->thread.evr));
 
-	BUILD_BUG_ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
+	BUILD__ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
 		     offsetof(struct thread_struct, spefscr));
 
 	if (!ret)
@@ -858,7 +858,7 @@ static int tm_cgpr_get(struct task_struct *target,
 					  sizeof(msr));
 	}
 
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+	BUILD__ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct pt_regs, msr) + sizeof(long));
 
 	if (!ret)
@@ -923,7 +923,7 @@ static int tm_cgpr_set(struct task_struct *target,
 			ret = set_user_ckpt_msr(target, reg);
 	}
 
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+	BUILD__ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct pt_regs, msr) + sizeof(long));
 
 	if (!ret)
@@ -1122,7 +1122,7 @@ static int tm_cvmx_get(struct task_struct *target,
 {
 	int ret;
 
-	BUILD_BUG_ON(TVSO(vscr) != TVSO(vr[32]));
+	BUILD__ON(TVSO(vscr) != TVSO(vr[32]));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
 		return -ENODEV;
@@ -1184,7 +1184,7 @@ static int tm_cvmx_set(struct task_struct *target,
 {
 	int ret;
 
-	BUILD_BUG_ON(TVSO(vscr) != TVSO(vr[32]));
+	BUILD__ON(TVSO(vscr) != TVSO(vr[32]));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
 		return -ENODEV;
@@ -1382,9 +1382,9 @@ static int tm_spr_get(struct task_struct *target,
 	int ret;
 
 	/* Build tests */
-	BUILD_BUG_ON(TSO(tm_tfhar) + sizeof(u64) != TSO(tm_texasr));
-	BUILD_BUG_ON(TSO(tm_texasr) + sizeof(u64) != TSO(tm_tfiar));
-	BUILD_BUG_ON(TSO(tm_tfiar) + sizeof(u64) != TSO(ckpt_regs));
+	BUILD__ON(TSO(tm_tfhar) + sizeof(u64) != TSO(tm_texasr));
+	BUILD__ON(TSO(tm_texasr) + sizeof(u64) != TSO(tm_tfiar));
+	BUILD__ON(TSO(tm_tfiar) + sizeof(u64) != TSO(ckpt_regs));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
 		return -ENODEV;
@@ -1438,9 +1438,9 @@ static int tm_spr_set(struct task_struct *target,
 	int ret;
 
 	/* Build tests */
-	BUILD_BUG_ON(TSO(tm_tfhar) + sizeof(u64) != TSO(tm_texasr));
-	BUILD_BUG_ON(TSO(tm_texasr) + sizeof(u64) != TSO(tm_tfiar));
-	BUILD_BUG_ON(TSO(tm_tfiar) + sizeof(u64) != TSO(ckpt_regs));
+	BUILD__ON(TSO(tm_tfhar) + sizeof(u64) != TSO(tm_texasr));
+	BUILD__ON(TSO(tm_texasr) + sizeof(u64) != TSO(tm_tfiar));
+	BUILD__ON(TSO(tm_tfiar) + sizeof(u64) != TSO(ckpt_regs));
 
 	if (!cpu_has_feature(CPU_FTR_TM))
 		return -ENODEV;
@@ -1686,8 +1686,8 @@ static int ebb_get(struct task_struct *target,
 		      void *kbuf, void __user *ubuf)
 {
 	/* Build tests */
-	BUILD_BUG_ON(TSO(ebbrr) + sizeof(unsigned long) != TSO(ebbhr));
-	BUILD_BUG_ON(TSO(ebbhr) + sizeof(unsigned long) != TSO(bescr));
+	BUILD__ON(TSO(ebbrr) + sizeof(unsigned long) != TSO(ebbhr));
+	BUILD__ON(TSO(ebbhr) + sizeof(unsigned long) != TSO(bescr));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return -ENODEV;
@@ -1707,8 +1707,8 @@ static int ebb_set(struct task_struct *target,
 	int ret = 0;
 
 	/* Build tests */
-	BUILD_BUG_ON(TSO(ebbrr) + sizeof(unsigned long) != TSO(ebbhr));
-	BUILD_BUG_ON(TSO(ebbhr) + sizeof(unsigned long) != TSO(bescr));
+	BUILD__ON(TSO(ebbrr) + sizeof(unsigned long) != TSO(ebbhr));
+	BUILD__ON(TSO(ebbhr) + sizeof(unsigned long) != TSO(bescr));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return -ENODEV;
@@ -1746,10 +1746,10 @@ static int pmu_get(struct task_struct *target,
 		      void *kbuf, void __user *ubuf)
 {
 	/* Build tests */
-	BUILD_BUG_ON(TSO(siar) + sizeof(unsigned long) != TSO(sdar));
-	BUILD_BUG_ON(TSO(sdar) + sizeof(unsigned long) != TSO(sier));
-	BUILD_BUG_ON(TSO(sier) + sizeof(unsigned long) != TSO(mmcr2));
-	BUILD_BUG_ON(TSO(mmcr2) + sizeof(unsigned long) != TSO(mmcr0));
+	BUILD__ON(TSO(siar) + sizeof(unsigned long) != TSO(sdar));
+	BUILD__ON(TSO(sdar) + sizeof(unsigned long) != TSO(sier));
+	BUILD__ON(TSO(sier) + sizeof(unsigned long) != TSO(mmcr2));
+	BUILD__ON(TSO(mmcr2) + sizeof(unsigned long) != TSO(mmcr0));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return -ENODEV;
@@ -1767,10 +1767,10 @@ static int pmu_set(struct task_struct *target,
 	int ret = 0;
 
 	/* Build tests */
-	BUILD_BUG_ON(TSO(siar) + sizeof(unsigned long) != TSO(sdar));
-	BUILD_BUG_ON(TSO(sdar) + sizeof(unsigned long) != TSO(sier));
-	BUILD_BUG_ON(TSO(sier) + sizeof(unsigned long) != TSO(mmcr2));
-	BUILD_BUG_ON(TSO(mmcr2) + sizeof(unsigned long) != TSO(mmcr0));
+	BUILD__ON(TSO(siar) + sizeof(unsigned long) != TSO(sdar));
+	BUILD__ON(TSO(sdar) + sizeof(unsigned long) != TSO(sier));
+	BUILD__ON(TSO(sier) + sizeof(unsigned long) != TSO(mmcr2));
+	BUILD__ON(TSO(mmcr2) + sizeof(unsigned long) != TSO(mmcr0));
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return -ENODEV;
@@ -1817,8 +1817,8 @@ static int pkey_get(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    void *kbuf, void __user *ubuf)
 {
-	BUILD_BUG_ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
-	BUILD_BUG_ON(TSO(iamr) + sizeof(unsigned long) != TSO(uamor));
+	BUILD__ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
+	BUILD__ON(TSO(iamr) + sizeof(unsigned long) != TSO(uamor));
 
 	if (!arch_pkeys_enabled())
 		return -ENODEV;
@@ -2303,9 +2303,9 @@ void user_enable_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-		task->thread.debug.dbcr0 &= ~DBCR0_BT;
-		task->thread.debug.dbcr0 |= DBCR0_IDM | DBCR0_IC;
+#ifdef CONFIG_PPC_ADV_DE_REGS
+		task->thread.de.dbcr0 &= ~DBCR0_BT;
+		task->thread.de.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 		regs->msr |= MSR_DE;
 #else
 		regs->msr &= ~MSR_BE;
@@ -2320,9 +2320,9 @@ void user_enable_block_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-		task->thread.debug.dbcr0 &= ~DBCR0_IC;
-		task->thread.debug.dbcr0 = DBCR0_IDM | DBCR0_BT;
+#ifdef CONFIG_PPC_ADV_DE_REGS
+		task->thread.de.dbcr0 &= ~DBCR0_IC;
+		task->thread.de.dbcr0 = DBCR0_IDM | DBCR0_BT;
 		regs->msr |= MSR_DE;
 #else
 		regs->msr &= ~MSR_SE;
@@ -2337,23 +2337,23 @@ void user_disable_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 		/*
 		 * The logic to disable single stepping should be as
 		 * simple as turning off the Instruction Complete flag.
-		 * And, after doing so, if all debug flags are off, turn
+		 * And, after doing so, if all de flags are off, turn
 		 * off DBCR0(IDM) and MSR(DE) .... Torez
 		 */
-		task->thread.debug.dbcr0 &= ~(DBCR0_IC|DBCR0_BT);
+		task->thread.de.dbcr0 &= ~(DBCR0_IC|DBCR0_BT);
 		/*
 		 * Test to see if any of the DBCR_ACTIVE_EVENTS bits are set.
 		 */
-		if (!DBCR_ACTIVE_EVENTS(task->thread.debug.dbcr0,
-					task->thread.debug.dbcr1)) {
+		if (!DBCR_ACTIVE_EVENTS(task->thread.de.dbcr0,
+					task->thread.de.dbcr1)) {
 			/*
-			 * All debug events were off.....
+			 * All de events were off.....
 			 */
-			task->thread.debug.dbcr0 &= ~DBCR0_IDM;
+			task->thread.de.dbcr0 &= ~DBCR0_IDM;
 			regs->msr &= ~MSR_DE;
 		}
 #else
@@ -2381,7 +2381,7 @@ void ptrace_triggered(struct perf_event *bp,
 }
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 
-static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
+static int ptrace_set_dereg(struct task_struct *task, unsigned long addr,
 			       unsigned long data)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -2390,7 +2390,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+#ifndef CONFIG_PPC_ADV_DE_REGS
 	bool set_bp = true;
 	struct arch_hw_breakpoint hw_brk;
 #endif
@@ -2406,7 +2406,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if ((data & ~0x7UL) >= TASK_SIZE)
 		return -EIO;
 
-#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+#ifndef CONFIG_PPC_ADV_DE_REGS
 	/* For processors using DABR (i.e. 970), the bottom 3 bits are flags.
 	 *  It was assumed, on previous implementations, that 3 bits were
 	 *  passed together with the data address, fitting the design of the
@@ -2471,21 +2471,21 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		return -ENODEV;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 	task->thread.hw_brk = hw_brk;
-#else /* CONFIG_PPC_ADV_DEBUG_REGS */
+#else /* CONFIG_PPC_ADV_DE_REGS */
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed
 	 *  as to not cause alignment restrictions for DAC-based processors.
 	 */
 
 	/* DAC's hold the whole address without any mode flags */
-	task->thread.debug.dac1 = data & ~0x3UL;
+	task->thread.de.dac1 = data & ~0x3UL;
 
-	if (task->thread.debug.dac1 == 0) {
+	if (task->thread.de.dac1 == 0) {
 		dbcr_dac(task) &= ~(DBCR_DAC1R | DBCR_DAC1W);
-		if (!DBCR_ACTIVE_EVENTS(task->thread.debug.dbcr0,
-					task->thread.debug.dbcr1)) {
+		if (!DBCR_ACTIVE_EVENTS(task->thread.de.dbcr0,
+					task->thread.de.dbcr1)) {
 			task->thread.regs->msr &= ~MSR_DE;
-			task->thread.debug.dbcr0 &= ~DBCR0_IDM;
+			task->thread.de.dbcr0 &= ~DBCR0_IDM;
 		}
 		return 0;
 	}
@@ -2495,9 +2495,9 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if (!(data & 0x3UL))
 		return -EINVAL;
 
-	/* Set the Internal Debugging flag (IDM bit 1) for the DBCR0
+	/* Set the Internal Deging flag (IDM bit 1) for the DBCR0
 	   register */
-	task->thread.debug.dbcr0 |= DBCR0_IDM;
+	task->thread.de.dbcr0 |= DBCR0_IDM;
 
 	/* Check for write and read flags and set DBCR0
 	   accordingly */
@@ -2507,7 +2507,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if (data & 0x2UL)
 		dbcr_dac(task) |= DBCR_DAC1W;
 	task->thread.regs->msr |= MSR_DE;
-#endif /* CONFIG_PPC_ADV_DEBUG_REGS */
+#endif /* CONFIG_PPC_ADV_DE_REGS */
 	return 0;
 }
 
@@ -2523,15 +2523,15 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 static long set_instruction_bp(struct task_struct *child,
 			      struct ppc_hw_breakpoint *bp_info)
 {
 	int slot;
-	int slot1_in_use = ((child->thread.debug.dbcr0 & DBCR0_IAC1) != 0);
-	int slot2_in_use = ((child->thread.debug.dbcr0 & DBCR0_IAC2) != 0);
-	int slot3_in_use = ((child->thread.debug.dbcr0 & DBCR0_IAC3) != 0);
-	int slot4_in_use = ((child->thread.debug.dbcr0 & DBCR0_IAC4) != 0);
+	int slot1_in_use = ((child->thread.de.dbcr0 & DBCR0_IAC1) != 0);
+	int slot2_in_use = ((child->thread.de.dbcr0 & DBCR0_IAC2) != 0);
+	int slot3_in_use = ((child->thread.de.dbcr0 & DBCR0_IAC3) != 0);
+	int slot4_in_use = ((child->thread.de.dbcr0 & DBCR0_IAC4) != 0);
 
 	if (dbcr_iac_range(child) & DBCR_IAC12MODE)
 		slot2_in_use = 1;
@@ -2550,20 +2550,20 @@ static long set_instruction_bp(struct task_struct *child,
 		/* We need a pair of IAC regsisters */
 		if ((!slot1_in_use) && (!slot2_in_use)) {
 			slot = 1;
-			child->thread.debug.iac1 = bp_info->addr;
-			child->thread.debug.iac2 = bp_info->addr2;
-			child->thread.debug.dbcr0 |= DBCR0_IAC1;
+			child->thread.de.iac1 = bp_info->addr;
+			child->thread.de.iac2 = bp_info->addr2;
+			child->thread.de.dbcr0 |= DBCR0_IAC1;
 			if (bp_info->addr_mode ==
 					PPC_BREAKPOINT_MODE_RANGE_EXCLUSIVE)
 				dbcr_iac_range(child) |= DBCR_IAC12X;
 			else
 				dbcr_iac_range(child) |= DBCR_IAC12I;
-#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+#if CONFIG_PPC_ADV_DE_IACS > 2
 		} else if ((!slot3_in_use) && (!slot4_in_use)) {
 			slot = 3;
-			child->thread.debug.iac3 = bp_info->addr;
-			child->thread.debug.iac4 = bp_info->addr2;
-			child->thread.debug.dbcr0 |= DBCR0_IAC3;
+			child->thread.de.iac3 = bp_info->addr;
+			child->thread.de.iac4 = bp_info->addr2;
+			child->thread.de.dbcr0 |= DBCR0_IAC3;
 			if (bp_info->addr_mode ==
 					PPC_BREAKPOINT_MODE_RANGE_EXCLUSIVE)
 				dbcr_iac_range(child) |= DBCR_IAC34X;
@@ -2583,30 +2583,30 @@ static long set_instruction_bp(struct task_struct *child,
 			 */
 			if (slot2_in_use || (slot3_in_use == slot4_in_use)) {
 				slot = 1;
-				child->thread.debug.iac1 = bp_info->addr;
-				child->thread.debug.dbcr0 |= DBCR0_IAC1;
+				child->thread.de.iac1 = bp_info->addr;
+				child->thread.de.dbcr0 |= DBCR0_IAC1;
 				goto out;
 			}
 		}
 		if (!slot2_in_use) {
 			slot = 2;
-			child->thread.debug.iac2 = bp_info->addr;
-			child->thread.debug.dbcr0 |= DBCR0_IAC2;
-#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+			child->thread.de.iac2 = bp_info->addr;
+			child->thread.de.dbcr0 |= DBCR0_IAC2;
+#if CONFIG_PPC_ADV_DE_IACS > 2
 		} else if (!slot3_in_use) {
 			slot = 3;
-			child->thread.debug.iac3 = bp_info->addr;
-			child->thread.debug.dbcr0 |= DBCR0_IAC3;
+			child->thread.de.iac3 = bp_info->addr;
+			child->thread.de.dbcr0 |= DBCR0_IAC3;
 		} else if (!slot4_in_use) {
 			slot = 4;
-			child->thread.debug.iac4 = bp_info->addr;
-			child->thread.debug.dbcr0 |= DBCR0_IAC4;
+			child->thread.de.iac4 = bp_info->addr;
+			child->thread.de.dbcr0 |= DBCR0_IAC4;
 #endif
 		} else
 			return -ENOSPC;
 	}
 out:
-	child->thread.debug.dbcr0 |= DBCR0_IDM;
+	child->thread.de.dbcr0 |= DBCR0_IDM;
 	child->thread.regs->msr |= MSR_DE;
 
 	return slot;
@@ -2616,49 +2616,49 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 {
 	switch (slot) {
 	case 1:
-		if ((child->thread.debug.dbcr0 & DBCR0_IAC1) == 0)
+		if ((child->thread.de.dbcr0 & DBCR0_IAC1) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC12MODE) {
 			/* address range - clear slots 1 & 2 */
-			child->thread.debug.iac2 = 0;
+			child->thread.de.iac2 = 0;
 			dbcr_iac_range(child) &= ~DBCR_IAC12MODE;
 		}
-		child->thread.debug.iac1 = 0;
-		child->thread.debug.dbcr0 &= ~DBCR0_IAC1;
+		child->thread.de.iac1 = 0;
+		child->thread.de.dbcr0 &= ~DBCR0_IAC1;
 		break;
 	case 2:
-		if ((child->thread.debug.dbcr0 & DBCR0_IAC2) == 0)
+		if ((child->thread.de.dbcr0 & DBCR0_IAC2) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC12MODE)
 			/* used in a range */
 			return -EINVAL;
-		child->thread.debug.iac2 = 0;
-		child->thread.debug.dbcr0 &= ~DBCR0_IAC2;
+		child->thread.de.iac2 = 0;
+		child->thread.de.dbcr0 &= ~DBCR0_IAC2;
 		break;
-#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+#if CONFIG_PPC_ADV_DE_IACS > 2
 	case 3:
-		if ((child->thread.debug.dbcr0 & DBCR0_IAC3) == 0)
+		if ((child->thread.de.dbcr0 & DBCR0_IAC3) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC34MODE) {
 			/* address range - clear slots 3 & 4 */
-			child->thread.debug.iac4 = 0;
+			child->thread.de.iac4 = 0;
 			dbcr_iac_range(child) &= ~DBCR_IAC34MODE;
 		}
-		child->thread.debug.iac3 = 0;
-		child->thread.debug.dbcr0 &= ~DBCR0_IAC3;
+		child->thread.de.iac3 = 0;
+		child->thread.de.dbcr0 &= ~DBCR0_IAC3;
 		break;
 	case 4:
-		if ((child->thread.debug.dbcr0 & DBCR0_IAC4) == 0)
+		if ((child->thread.de.dbcr0 & DBCR0_IAC4) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC34MODE)
 			/* Used in a range */
 			return -EINVAL;
-		child->thread.debug.iac4 = 0;
-		child->thread.debug.dbcr0 &= ~DBCR0_IAC4;
+		child->thread.de.iac4 = 0;
+		child->thread.de.dbcr0 &= ~DBCR0_IAC4;
 		break;
 #endif
 	default:
@@ -2688,18 +2688,18 @@ static int set_dac(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 			dbcr_dac(child) |= DBCR_DAC1R;
 		if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
 			dbcr_dac(child) |= DBCR_DAC1W;
-		child->thread.debug.dac1 = (unsigned long)bp_info->addr;
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
+		child->thread.de.dac1 = (unsigned long)bp_info->addr;
+#if CONFIG_PPC_ADV_DE_DVCS > 0
 		if (byte_enable) {
-			child->thread.debug.dvc1 =
+			child->thread.de.dvc1 =
 				(unsigned long)bp_info->condition_value;
-			child->thread.debug.dbcr2 |=
+			child->thread.de.dbcr2 |=
 				((byte_enable << DBCR2_DVC1BE_SHIFT) |
 				 (condition_mode << DBCR2_DVC1M_SHIFT));
 		}
 #endif
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
-	} else if (child->thread.debug.dbcr2 & DBCR2_DAC12MODE) {
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
+	} else if (child->thread.de.dbcr2 & DBCR2_DAC12MODE) {
 		/* Both dac1 and dac2 are part of a range */
 		return -ENOSPC;
 #endif
@@ -2709,19 +2709,19 @@ static int set_dac(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 			dbcr_dac(child) |= DBCR_DAC2R;
 		if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
 			dbcr_dac(child) |= DBCR_DAC2W;
-		child->thread.debug.dac2 = (unsigned long)bp_info->addr;
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
+		child->thread.de.dac2 = (unsigned long)bp_info->addr;
+#if CONFIG_PPC_ADV_DE_DVCS > 0
 		if (byte_enable) {
-			child->thread.debug.dvc2 =
+			child->thread.de.dvc2 =
 				(unsigned long)bp_info->condition_value;
-			child->thread.debug.dbcr2 |=
+			child->thread.de.dbcr2 |=
 				((byte_enable << DBCR2_DVC2BE_SHIFT) |
 				 (condition_mode << DBCR2_DVC2M_SHIFT));
 		}
 #endif
 	} else
 		return -ENOSPC;
-	child->thread.debug.dbcr0 |= DBCR0_IDM;
+	child->thread.de.dbcr0 |= DBCR0_IDM;
 	child->thread.regs->msr |= MSR_DE;
 
 	return slot + 4;
@@ -2733,41 +2733,41 @@ static int del_dac(struct task_struct *child, int slot)
 		if ((dbcr_dac(child) & (DBCR_DAC1R | DBCR_DAC1W)) == 0)
 			return -ENOENT;
 
-		child->thread.debug.dac1 = 0;
+		child->thread.de.dac1 = 0;
 		dbcr_dac(child) &= ~(DBCR_DAC1R | DBCR_DAC1W);
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
-		if (child->thread.debug.dbcr2 & DBCR2_DAC12MODE) {
-			child->thread.debug.dac2 = 0;
-			child->thread.debug.dbcr2 &= ~DBCR2_DAC12MODE;
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
+		if (child->thread.de.dbcr2 & DBCR2_DAC12MODE) {
+			child->thread.de.dac2 = 0;
+			child->thread.de.dbcr2 &= ~DBCR2_DAC12MODE;
 		}
-		child->thread.debug.dbcr2 &= ~(DBCR2_DVC1M | DBCR2_DVC1BE);
+		child->thread.de.dbcr2 &= ~(DBCR2_DVC1M | DBCR2_DVC1BE);
 #endif
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-		child->thread.debug.dvc1 = 0;
+#if CONFIG_PPC_ADV_DE_DVCS > 0
+		child->thread.de.dvc1 = 0;
 #endif
 	} else if (slot == 2) {
 		if ((dbcr_dac(child) & (DBCR_DAC2R | DBCR_DAC2W)) == 0)
 			return -ENOENT;
 
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
-		if (child->thread.debug.dbcr2 & DBCR2_DAC12MODE)
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
+		if (child->thread.de.dbcr2 & DBCR2_DAC12MODE)
 			/* Part of a range */
 			return -EINVAL;
-		child->thread.debug.dbcr2 &= ~(DBCR2_DVC2M | DBCR2_DVC2BE);
+		child->thread.de.dbcr2 &= ~(DBCR2_DVC2M | DBCR2_DVC2BE);
 #endif
-#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
-		child->thread.debug.dvc2 = 0;
+#if CONFIG_PPC_ADV_DE_DVCS > 0
+		child->thread.de.dvc2 = 0;
 #endif
-		child->thread.debug.dac2 = 0;
+		child->thread.de.dac2 = 0;
 		dbcr_dac(child) &= ~(DBCR_DAC2R | DBCR_DAC2W);
 	} else
 		return -EINVAL;
 
 	return 0;
 }
-#endif /* CONFIG_PPC_ADV_DEBUG_REGS */
+#endif /* CONFIG_PPC_ADV_DE_REGS */
 
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
 static int set_dac_range(struct task_struct *child,
 			 struct ppc_hw_breakpoint *bp_info)
 {
@@ -2800,29 +2800,29 @@ static int set_dac_range(struct task_struct *child,
 			return -EIO;
 	}
 
-	if (child->thread.debug.dbcr0 &
+	if (child->thread.de.dbcr0 &
 	    (DBCR0_DAC1R | DBCR0_DAC1W | DBCR0_DAC2R | DBCR0_DAC2W))
 		return -ENOSPC;
 
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
-		child->thread.debug.dbcr0 |= (DBCR0_DAC1R | DBCR0_IDM);
+		child->thread.de.dbcr0 |= (DBCR0_DAC1R | DBCR0_IDM);
 	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
-		child->thread.debug.dbcr0 |= (DBCR0_DAC1W | DBCR0_IDM);
-	child->thread.debug.dac1 = bp_info->addr;
-	child->thread.debug.dac2 = bp_info->addr2;
+		child->thread.de.dbcr0 |= (DBCR0_DAC1W | DBCR0_IDM);
+	child->thread.de.dac1 = bp_info->addr;
+	child->thread.de.dac2 = bp_info->addr2;
 	if (mode == PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE)
-		child->thread.debug.dbcr2  |= DBCR2_DAC12M;
+		child->thread.de.dbcr2  |= DBCR2_DAC12M;
 	else if (mode == PPC_BREAKPOINT_MODE_RANGE_EXCLUSIVE)
-		child->thread.debug.dbcr2  |= DBCR2_DAC12MX;
+		child->thread.de.dbcr2  |= DBCR2_DAC12MX;
 	else	/* PPC_BREAKPOINT_MODE_MASK */
-		child->thread.debug.dbcr2  |= DBCR2_DAC12MM;
+		child->thread.de.dbcr2  |= DBCR2_DAC12MM;
 	child->thread.regs->msr |= MSR_DE;
 
 	return 5;
 }
-#endif /* CONFIG_PPC_ADV_DEBUG_DAC_RANGE */
+#endif /* CONFIG_PPC_ADV_DE_DAC_RANGE */
 
-static long ppc_set_hwdebug(struct task_struct *child,
+static long ppc_set_hwde(struct task_struct *child,
 		     struct ppc_hw_breakpoint *bp_info)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -2831,13 +2831,13 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	struct perf_event *bp;
 	struct perf_event_attr attr;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+#ifndef CONFIG_PPC_ADV_DE_REGS
 	struct arch_hw_breakpoint brk;
 #endif
 
 	if (bp_info->version != 1)
 		return -ENOTSUPP;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 	/*
 	 * Check for invalid flags and combinations
 	 */
@@ -2849,7 +2849,7 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	     ~(PPC_BREAKPOINT_CONDITION_MODE |
 	       PPC_BREAKPOINT_CONDITION_BE_ALL)))
 		return -EINVAL;
-#if CONFIG_PPC_ADV_DEBUG_DVCS == 0
+#if CONFIG_PPC_ADV_DE_DVCS == 0
 	if (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE)
 		return -EINVAL;
 #endif
@@ -2863,12 +2863,12 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	if (bp_info->addr_mode == PPC_BREAKPOINT_MODE_EXACT)
 		return set_dac(child, bp_info);
 
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
 	return set_dac_range(child, bp_info);
 #else
 	return -EINVAL;
 #endif
-#else /* !CONFIG_PPC_ADV_DEBUG_DVCS */
+#else /* !CONFIG_PPC_ADV_DE_DVCS */
 	/*
 	 * We only support one data breakpoint
 	 */
@@ -2930,17 +2930,17 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	child->thread.hw_brk = brk;
 
 	return 1;
-#endif /* !CONFIG_PPC_ADV_DEBUG_DVCS */
+#endif /* !CONFIG_PPC_ADV_DE_DVCS */
 }
 
-static long ppc_del_hwdebug(struct task_struct *child, long data)
+static long ppc_del_hwde(struct task_struct *child, long data)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	int ret = 0;
 	struct thread_struct *thread = &(child->thread);
 	struct perf_event *bp;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 	int rc;
 
 	if (data <= 4)
@@ -2949,9 +2949,9 @@ static long ppc_del_hwdebug(struct task_struct *child, long data)
 		rc = del_dac(child, (int)data - 4);
 
 	if (!rc) {
-		if (!DBCR_ACTIVE_EVENTS(child->thread.debug.dbcr0,
-					child->thread.debug.dbcr1)) {
-			child->thread.debug.dbcr0 &= ~DBCR0_IDM;
+		if (!DBCR_ACTIVE_EVENTS(child->thread.de.dbcr0,
+					child->thread.de.dbcr1)) {
+			child->thread.de.dbcr0 &= ~DBCR0_IDM;
 			child->thread.regs->msr &= ~MSR_DE;
 		}
 	}
@@ -3057,23 +3057,23 @@ long arch_ptrace(struct task_struct *child, long request,
 	}
 
 	case PPC_PTRACE_GETHWDBGINFO: {
-		struct ppc_debug_info dbginfo;
+		struct ppc_de_info dbginfo;
 
 		dbginfo.version = 1;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-		dbginfo.num_instruction_bps = CONFIG_PPC_ADV_DEBUG_IACS;
-		dbginfo.num_data_bps = CONFIG_PPC_ADV_DEBUG_DACS;
-		dbginfo.num_condition_regs = CONFIG_PPC_ADV_DEBUG_DVCS;
+#ifdef CONFIG_PPC_ADV_DE_REGS
+		dbginfo.num_instruction_bps = CONFIG_PPC_ADV_DE_IACS;
+		dbginfo.num_data_bps = CONFIG_PPC_ADV_DE_DACS;
+		dbginfo.num_condition_regs = CONFIG_PPC_ADV_DE_DVCS;
 		dbginfo.data_bp_alignment = 4;
 		dbginfo.sizeof_condition = 4;
-		dbginfo.features = PPC_DEBUG_FEATURE_INSN_BP_RANGE |
-				   PPC_DEBUG_FEATURE_INSN_BP_MASK;
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
+		dbginfo.features = PPC_DE_FEATURE_INSN_BP_RANGE |
+				   PPC_DE_FEATURE_INSN_BP_MASK;
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
 		dbginfo.features |=
-				   PPC_DEBUG_FEATURE_DATA_BP_RANGE |
-				   PPC_DEBUG_FEATURE_DATA_BP_MASK;
+				   PPC_DE_FEATURE_DATA_BP_RANGE |
+				   PPC_DE_FEATURE_DATA_BP_MASK;
 #endif
-#else /* !CONFIG_PPC_ADV_DEBUG_REGS */
+#else /* !CONFIG_PPC_ADV_DE_REGS */
 		dbginfo.num_instruction_bps = 0;
 		if (ppc_breakpoint_available())
 			dbginfo.num_data_bps = 1;
@@ -3087,44 +3087,44 @@ long arch_ptrace(struct task_struct *child, long request,
 #endif
 		dbginfo.sizeof_condition = 0;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-		dbginfo.features = PPC_DEBUG_FEATURE_DATA_BP_RANGE;
+		dbginfo.features = PPC_DE_FEATURE_DATA_BP_RANGE;
 		if (cpu_has_feature(CPU_FTR_DAWR))
-			dbginfo.features |= PPC_DEBUG_FEATURE_DATA_BP_DAWR;
+			dbginfo.features |= PPC_DE_FEATURE_DATA_BP_DAWR;
 #else
 		dbginfo.features = 0;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-#endif /* CONFIG_PPC_ADV_DEBUG_REGS */
+#endif /* CONFIG_PPC_ADV_DE_REGS */
 
 		if (copy_to_user(datavp, &dbginfo,
-				 sizeof(struct ppc_debug_info)))
+				 sizeof(struct ppc_de_info)))
 			return -EFAULT;
 		return 0;
 	}
 
-	case PPC_PTRACE_SETHWDEBUG: {
+	case PPC_PTRACE_SETHWDE: {
 		struct ppc_hw_breakpoint bp_info;
 
 		if (copy_from_user(&bp_info, datavp,
 				   sizeof(struct ppc_hw_breakpoint)))
 			return -EFAULT;
-		return ppc_set_hwdebug(child, &bp_info);
+		return ppc_set_hwde(child, &bp_info);
 	}
 
-	case PPC_PTRACE_DELHWDEBUG: {
-		ret = ppc_del_hwdebug(child, data);
+	case PPC_PTRACE_DELHWDE: {
+		ret = ppc_del_hwde(child, data);
 		break;
 	}
 
-	case PTRACE_GET_DEBUGREG: {
-#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+	case PTRACE_GET_DEREG: {
+#ifndef CONFIG_PPC_ADV_DE_REGS
 		unsigned long dabr_fake;
 #endif
 		ret = -EINVAL;
 		/* We only support one DABR and no IABRS at the moment */
 		if (addr > 0)
 			break;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-		ret = put_user(child->thread.debug.dac1, datalp);
+#ifdef CONFIG_PPC_ADV_DE_REGS
+		ret = put_user(child->thread.de.dac1, datalp);
 #else
 		dabr_fake = ((child->thread.hw_brk.address & (~HW_BRK_TYPE_DABR)) |
 			     (child->thread.hw_brk.type & HW_BRK_TYPE_DABR));
@@ -3133,8 +3133,8 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 	}
 
-	case PTRACE_SET_DEBUGREG:
-		ret = ptrace_set_debugreg(child, addr, data);
+	case PTRACE_SET_DEREG:
+		ret = ptrace_set_dereg(child, addr, data);
 		break;
 
 #ifdef CONFIG_PPC64
@@ -3363,39 +3363,39 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 
 void __init pt_regs_check(void)
 {
-	BUILD_BUG_ON(offsetof(struct pt_regs, gpr) !=
+	BUILD__ON(offsetof(struct pt_regs, gpr) !=
 		     offsetof(struct user_pt_regs, gpr));
-	BUILD_BUG_ON(offsetof(struct pt_regs, nip) !=
+	BUILD__ON(offsetof(struct pt_regs, nip) !=
 		     offsetof(struct user_pt_regs, nip));
-	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+	BUILD__ON(offsetof(struct pt_regs, msr) !=
 		     offsetof(struct user_pt_regs, msr));
-	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+	BUILD__ON(offsetof(struct pt_regs, msr) !=
 		     offsetof(struct user_pt_regs, msr));
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+	BUILD__ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct user_pt_regs, orig_gpr3));
-	BUILD_BUG_ON(offsetof(struct pt_regs, ctr) !=
+	BUILD__ON(offsetof(struct pt_regs, ctr) !=
 		     offsetof(struct user_pt_regs, ctr));
-	BUILD_BUG_ON(offsetof(struct pt_regs, link) !=
+	BUILD__ON(offsetof(struct pt_regs, link) !=
 		     offsetof(struct user_pt_regs, link));
-	BUILD_BUG_ON(offsetof(struct pt_regs, xer) !=
+	BUILD__ON(offsetof(struct pt_regs, xer) !=
 		     offsetof(struct user_pt_regs, xer));
-	BUILD_BUG_ON(offsetof(struct pt_regs, ccr) !=
+	BUILD__ON(offsetof(struct pt_regs, ccr) !=
 		     offsetof(struct user_pt_regs, ccr));
 #ifdef __powerpc64__
-	BUILD_BUG_ON(offsetof(struct pt_regs, softe) !=
+	BUILD__ON(offsetof(struct pt_regs, softe) !=
 		     offsetof(struct user_pt_regs, softe));
 #else
-	BUILD_BUG_ON(offsetof(struct pt_regs, mq) !=
+	BUILD__ON(offsetof(struct pt_regs, mq) !=
 		     offsetof(struct user_pt_regs, mq));
 #endif
-	BUILD_BUG_ON(offsetof(struct pt_regs, trap) !=
+	BUILD__ON(offsetof(struct pt_regs, trap) !=
 		     offsetof(struct user_pt_regs, trap));
-	BUILD_BUG_ON(offsetof(struct pt_regs, dar) !=
+	BUILD__ON(offsetof(struct pt_regs, dar) !=
 		     offsetof(struct user_pt_regs, dar));
-	BUILD_BUG_ON(offsetof(struct pt_regs, dsisr) !=
+	BUILD__ON(offsetof(struct pt_regs, dsisr) !=
 		     offsetof(struct user_pt_regs, dsisr));
-	BUILD_BUG_ON(offsetof(struct pt_regs, result) !=
+	BUILD__ON(offsetof(struct pt_regs, result) !=
 		     offsetof(struct user_pt_regs, result));
 
-	BUILD_BUG_ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
+	BUILD__ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
 }

@@ -18,7 +18,7 @@
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/seqlock.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/cpu.h>
 #include <asm/fpu/api.h>
 #include <asm/isc.h>
@@ -609,20 +609,20 @@ struct kvm_hw_bp_info_arch {
 };
 
 /*
- * Only the upper 16 bits of kvm_guest_debug->control are arch specific.
+ * Only the upper 16 bits of kvm_guest_de->control are arch specific.
  * Further KVM_GUESTDBG flags which an be used from userspace can be found in
  * arch/s390/include/uapi/asm/kvm.h
  */
 #define KVM_GUESTDBG_EXIT_PENDING 0x10000000
 
 #define guestdbg_enabled(vcpu) \
-		(vcpu->guest_debug & KVM_GUESTDBG_ENABLE)
+		(vcpu->guest_de & KVM_GUESTDBG_ENABLE)
 #define guestdbg_sstep_enabled(vcpu) \
-		(vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		(vcpu->guest_de & KVM_GUESTDBG_SINGLESTEP)
 #define guestdbg_hw_bp_enabled(vcpu) \
-		(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+		(vcpu->guest_de & KVM_GUESTDBG_USE_HW_BP)
 #define guestdbg_exit_pending(vcpu) (guestdbg_enabled(vcpu) && \
-		(vcpu->guest_debug & KVM_GUESTDBG_EXIT_PENDING))
+		(vcpu->guest_de & KVM_GUESTDBG_EXIT_PENDING))
 
 struct kvm_guestdbg_info_arch {
 	unsigned long cr0;
@@ -835,7 +835,7 @@ struct kvm_arch{
 	void *sca;
 	int use_esca;
 	rwlock_t sca_lock;
-	debug_info_t *dbf;
+	de_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
 	struct kvm_device *flic;
 	struct gmap *gmap;

@@ -33,7 +33,7 @@ static void sst_compr_fragment_elapsed(void *arg)
 {
 	struct snd_compr_stream *cstream = (struct snd_compr_stream *)arg;
 
-	pr_debug("fragment elapsed by driver\n");
+	pr_de("fragment elapsed by driver\n");
 	if (cstream)
 		snd_compr_fragment_elapsed(cstream);
 }
@@ -42,7 +42,7 @@ static void sst_drain_notify(void *arg)
 {
 	struct snd_compr_stream *cstream = (struct snd_compr_stream *)arg;
 
-	pr_debug("drain notify by driver\n");
+	pr_de("drain notify by driver\n");
 	if (cstream)
 		snd_compr_drain_notify(cstream);
 }
@@ -95,7 +95,7 @@ static int sst_platform_compr_free(struct snd_compr_stream *cstream)
 		ret_val = stream->compr_ops->close(sst->dev, str_id);
 	module_put(sst->dev->driver->owner);
 	kfree(stream);
-	pr_debug("%s: %d\n", __func__, ret_val);
+	pr_de("%s: %d\n", __func__, ret_val);
 	return 0;
 }
 
@@ -116,7 +116,7 @@ static int sst_platform_compr_set_params(struct snd_compr_stream *cstream,
 
 	/* fill the device type and stream id to pass to SST driver */
 	retval = sst_fill_stream_params(cstream, ctx, &str_params, true);
-	pr_debug("compr_set_params: fill stream params ret_val = 0x%x\n", retval);
+	pr_de("compr_set_params: fill stream params ret_val = 0x%x\n", retval);
 	if (retval < 0)
 		return retval;
 
@@ -216,7 +216,7 @@ static int sst_platform_compr_pointer(struct snd_compr_stream *cstream,
 	stream->compr_ops->tstamp(sst->dev, stream->id, tstamp);
 	tstamp->byte_offset = tstamp->copied_total %
 				 (u32)cstream->runtime->buffer_size;
-	pr_debug("calc bytes offset/copied bytes as %d\n", tstamp->byte_offset);
+	pr_de("calc bytes offset/copied bytes as %d\n", tstamp->byte_offset);
 	return 0;
 }
 

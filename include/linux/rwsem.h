@@ -39,7 +39,7 @@ struct rw_semaphore {
 	 */
 	struct task_struct *owner;
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
 };
@@ -71,7 +71,7 @@ static inline int rwsem_is_locked(struct rw_semaphore *sem)
 
 /* Common initializer macros and functions */
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
 #else
 # define __RWSEM_DEP_MAP_INIT(lockname)
@@ -151,7 +151,7 @@ extern void up_write(struct rw_semaphore *sem);
  */
 extern void downgrade_write(struct rw_semaphore *sem);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 /*
  * nested locking. NOTE: rwsems are not allowed to recurse
  * (which occurs if the same task tries to acquire the same

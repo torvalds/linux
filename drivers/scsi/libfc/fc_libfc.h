@@ -29,11 +29,11 @@
 #define FC_EXCH_LOGGING	 0x40 /* Exchange/Sequence logging */
 #define FC_SCSI_LOGGING	 0x80 /* SCSI logging (mostly error handling) */
 
-extern unsigned int fc_debug_logging;
+extern unsigned int fc_de_logging;
 
 #define FC_CHECK_LOGGING(LEVEL, CMD)			\
 	do {						\
-		if (unlikely(fc_debug_logging & LEVEL))	\
+		if (unlikely(fc_de_logging & LEVEL))	\
 			do {				\
 				CMD;			\
 			} while (0);			\

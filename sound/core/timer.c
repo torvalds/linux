@@ -258,7 +258,7 @@ int snd_timer_open(struct snd_timer_instance **ti,
 		/* open a slave instance */
 		if (tid->dev_sclass <= SNDRV_TIMER_SCLASS_NONE ||
 		    tid->dev_sclass > SNDRV_TIMER_SCLASS_OSS_SEQUENCER) {
-			pr_debug("ALSA: timer: invalid slave class %i\n",
+			pr_de("ALSA: timer: invalid slave class %i\n",
 				 tid->dev_sclass);
 			return -EINVAL;
 		}
@@ -417,7 +417,7 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 {
 	int err;
 
-	if (snd_BUG_ON(!timeri))
+	if (snd__ON(!timeri))
 		return -ENXIO;
 
 	mutex_lock(&register_mutex);
@@ -464,7 +464,7 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 		ktime_get_ts(&tstamp);
 	else
 		getnstimeofday(&tstamp);
-	if (snd_BUG_ON(event < SNDRV_TIMER_EVENT_START ||
+	if (snd__ON(event < SNDRV_TIMER_EVENT_START ||
 		       event > SNDRV_TIMER_EVENT_PAUSE))
 		return;
 	if (timer &&
@@ -881,7 +881,7 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 		.dev_disconnect = snd_timer_dev_disconnect,
 	};
 
-	if (snd_BUG_ON(!tid))
+	if (snd__ON(!tid))
 		return -EINVAL;
 	if (tid->dev_class == SNDRV_TIMER_CLASS_CARD ||
 	    tid->dev_class == SNDRV_TIMER_CLASS_PCM) {
@@ -959,7 +959,7 @@ static int snd_timer_dev_register(struct snd_device *dev)
 	struct snd_timer *timer = dev->device_data;
 	struct snd_timer *timer1;
 
-	if (snd_BUG_ON(!timer || !timer->hw.start || !timer->hw.stop))
+	if (snd__ON(!timer || !timer->hw.start || !timer->hw.stop))
 		return -ENXIO;
 	if (!(timer->hw.flags & SNDRV_TIMER_HW_SLAVE) &&
 	    !timer->hw.resolution && timer->hw.c_resolution == NULL)
@@ -1020,7 +1020,7 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 		return;
 	if (! (timer->hw.flags & SNDRV_TIMER_HW_SLAVE))
 		return;
-	if (snd_BUG_ON(event < SNDRV_TIMER_EVENT_MSTART ||
+	if (snd__ON(event < SNDRV_TIMER_EVENT_MSTART ||
 		       event > SNDRV_TIMER_EVENT_MRESUME))
 		return;
 	spin_lock_irqsave(&timer->lock, flags);

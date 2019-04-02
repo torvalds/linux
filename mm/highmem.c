@@ -181,7 +181,7 @@ static void flush_all_zero_pkmaps(void)
 		pkmap_count[i] = 0;
 
 		/* sanity check */
-		BUG_ON(pte_none(pkmap_page_table[i]));
+		_ON(pte_none(pkmap_page_table[i]));
 
 		/*
 		 * Don't need an atomic fetch-and-clear op here;
@@ -285,7 +285,7 @@ void *kmap_high(struct page *page)
 	if (!vaddr)
 		vaddr = map_new_virtual(page);
 	pkmap_count[PKMAP_NR(vaddr)]++;
-	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+	_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
 	unlock_kmap();
 	return (void*) vaddr;
 }
@@ -310,7 +310,7 @@ void *kmap_high_get(struct page *page)
 	lock_kmap_any(flags);
 	vaddr = (unsigned long)page_address(page);
 	if (vaddr) {
-		BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 1);
+		_ON(pkmap_count[PKMAP_NR(vaddr)] < 1);
 		pkmap_count[PKMAP_NR(vaddr)]++;
 	}
 	unlock_kmap_any(flags);
@@ -336,7 +336,7 @@ void kunmap_high(struct page *page)
 
 	lock_kmap_any(flags);
 	vaddr = (unsigned long)page_address(page);
-	BUG_ON(!vaddr);
+	_ON(!vaddr);
 	nr = PKMAP_NR(vaddr);
 
 	/*
@@ -346,7 +346,7 @@ void kunmap_high(struct page *page)
 	need_wakeup = 0;
 	switch (--pkmap_count[nr]) {
 	case 0:
-		BUG();
+		();
 	case 1:
 		/*
 		 * Avoid an unnecessary wake_up() function call.
@@ -445,7 +445,7 @@ void set_page_address(struct page *page, void *virtual)
 	struct page_address_slot *pas;
 	struct page_address_map *pam;
 
-	BUG_ON(!PageHighMem(page));
+	_ON(!PageHighMem(page));
 
 	pas = page_slot(page);
 	if (virtual) {		/* Add */

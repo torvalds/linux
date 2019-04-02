@@ -150,8 +150,8 @@ enum {
 #define dmz_dev_warn(dev, format, args...)	\
 	DMWARN("(%s): " format, (dev)->name, ## args)
 
-#define dmz_dev_debug(dev, format, args...)	\
-	DMDEBUG("(%s): " format, (dev)->name, ## args)
+#define dmz_dev_de(dev, format, args...)	\
+	DMDE("(%s): " format, (dev)->name, ## args)
 
 struct dmz_metadata;
 struct dmz_reclaim;

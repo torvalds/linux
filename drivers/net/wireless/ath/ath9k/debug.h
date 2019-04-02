@@ -14,22 +14,22 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef DEBUG_H
-#define DEBUG_H
+#ifndef DE_H
+#define DE_H
 
 #include "hw.h"
-#include "dfs_debug.h"
+#include "dfs_de.h"
 
 struct ath_txq;
 struct ath_buf;
 struct fft_sample_tlv;
 
-#ifdef CONFIG_ATH9K_DEBUGFS
-#define TX_STAT_INC(sc, q, c)	 do { (sc)->debug.stats.txstats[q].c++; } while (0)
-#define RX_STAT_INC(sc, c)	 do { (sc)->debug.stats.rxstats.c++; } while (0)
-#define RESET_STAT_INC(sc, type) do { (sc)->debug.stats.reset[type]++; } while (0)
-#define ANT_STAT_INC(sc, i, c)	 do { (sc)->debug.stats.ant_stats[i].c++; } while (0)
-#define ANT_LNA_INC(sc, i, c)	 do { (sc)->debug.stats.ant_stats[i].lna_recv_cnt[c]++; } while (0)
+#ifdef CONFIG_ATH9K_DEFS
+#define TX_STAT_INC(sc, q, c)	 do { (sc)->de.stats.txstats[q].c++; } while (0)
+#define RX_STAT_INC(sc, c)	 do { (sc)->de.stats.rxstats.c++; } while (0)
+#define RESET_STAT_INC(sc, type) do { (sc)->de.stats.reset[type]++; } while (0)
+#define ANT_STAT_INC(sc, i, c)	 do { (sc)->de.stats.ant_stats[i].c++; } while (0)
+#define ANT_LNA_INC(sc, i, c)	 do { (sc)->de.stats.ant_stats[i].lna_recv_cnt[c]++; } while (0)
 #else
 #define TX_STAT_INC(sc, q, c)	 do { (void)(sc); } while (0)
 #define RX_STAT_INC(sc, c)	 do { (void)(sc); } while (0)
@@ -55,7 +55,7 @@ enum ath_reset_type {
 	__RESET_TYPE_MAX
 };
 
-#ifdef CONFIG_ATH9K_DEBUGFS
+#ifdef CONFIG_ATH9K_DEFS
 
 /**
  * struct ath_interrupt_stats - Contains statistics about interrupts
@@ -193,7 +193,7 @@ struct ath_tx_stats {
  * Various utility macros to print TX/Queue counters.
  */
 #define PR_QNUM(_n) sc->tx.txq_map[_n]->axq_qnum
-#define TXSTATS sc->debug.stats.txstats
+#define TXSTATS sc->de.stats.txstats
 #define PR(str, elem)							\
 	do {								\
 		seq_printf(file, "%s%13u%11u%10u%10u\n", str,		\
@@ -245,20 +245,20 @@ struct ath_stats {
 	u32 reset[__RESET_TYPE_MAX];
 };
 
-struct ath9k_debug {
-	struct dentry *debugfs_phy;
+struct ath9k_de {
+	struct dentry *defs_phy;
 	u32 regidx;
 	struct ath_stats stats;
 };
 
-int ath9k_init_debug(struct ath_hw *ah);
-void ath9k_deinit_debug(struct ath_softc *sc);
+int ath9k_init_de(struct ath_hw *ah);
+void ath9k_deinit_de(struct ath_softc *sc);
 
-void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
-void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
+void ath_de_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
+void ath_de_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
 		       unsigned int flags);
-void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
+void ath_de_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif, int sset);
 void ath9k_get_et_stats(struct ieee80211_hw *hw,
@@ -267,41 +267,41 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 void ath9k_get_et_strings(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
 			  u32 sset, u8 *data);
-void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
+void ath9k_sta_add_defs(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
 			   struct dentry *dir);
-void ath9k_debug_stat_ant(struct ath_softc *sc,
+void ath9k_de_stat_ant(struct ath_softc *sc,
 			  struct ath_hw_antcomb_conf *div_ant_conf,
 			  int main_rssi_avg, int alt_rssi_avg);
-void ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause);
+void ath9k_de_sync_cause(struct ath_softc *sc, u32 sync_cause);
 
 #else
 
-static inline int ath9k_init_debug(struct ath_hw *ah)
+static inline int ath9k_init_de(struct ath_hw *ah)
 {
 	return 0;
 }
 
-static inline void ath9k_deinit_debug(struct ath_softc *sc)
+static inline void ath9k_deinit_de(struct ath_softc *sc)
 {
 }
-static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
+static inline void ath_de_stat_interrupt(struct ath_softc *sc,
 					    enum ath9k_int status)
 {
 }
-static inline void ath_debug_stat_tx(struct ath_softc *sc,
+static inline void ath_de_stat_tx(struct ath_softc *sc,
 				     struct ath_buf *bf,
 				     struct ath_tx_status *ts,
 				     struct ath_txq *txq,
 				     unsigned int flags)
 {
 }
-static inline void ath_debug_stat_rx(struct ath_softc *sc,
+static inline void ath_de_stat_rx(struct ath_softc *sc,
 				     struct ath_rx_status *rs)
 {
 }
-static inline void ath9k_debug_stat_ant(struct ath_softc *sc,
+static inline void ath9k_de_stat_ant(struct ath_softc *sc,
 					struct ath_hw_antcomb_conf *div_ant_conf,
 					int main_rssi_avg, int alt_rssi_avg)
 {
@@ -309,22 +309,22 @@ static inline void ath9k_debug_stat_ant(struct ath_softc *sc,
 }
 
 static inline void
-ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause)
+ath9k_de_sync_cause(struct ath_softc *sc, u32 sync_cause)
 {
 }
 
-#endif /* CONFIG_ATH9K_DEBUGFS */
+#endif /* CONFIG_ATH9K_DEFS */
 
 #ifdef CONFIG_ATH9K_STATION_STATISTICS
-void ath_debug_rate_stats(struct ath_softc *sc,
+void ath_de_rate_stats(struct ath_softc *sc,
 			  struct ath_rx_status *rs,
 			  struct sk_buff *skb);
 #else
-static inline void ath_debug_rate_stats(struct ath_softc *sc,
+static inline void ath_de_rate_stats(struct ath_softc *sc,
 					struct ath_rx_status *rs,
 					struct sk_buff *skb)
 {
 }
 #endif /* CONFIG_ATH9K_STATION_STATISTICS */
 
-#endif /* DEBUG_H */
+#endif /* DE_H */

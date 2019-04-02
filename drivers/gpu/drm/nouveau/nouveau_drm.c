@@ -58,7 +58,7 @@
 #include "nouveau_abi16.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
-#include "nouveau_debugfs.h"
+#include "nouveau_defs.h"
 #include "nouveau_usif.h"
 #include "nouveau_connector.h"
 #include "nouveau_platform.h"
@@ -69,9 +69,9 @@ MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
 module_param_named(config, nouveau_config, charp, 0400);
 
-MODULE_PARM_DESC(debug, "debug string to pass to driver core");
-static char *nouveau_debug;
-module_param_named(debug, nouveau_debug, charp, 0400);
+MODULE_PARM_DESC(de, "de string to pass to driver core");
+static char *nouveau_de;
+module_param_named(de, nouveau_de, charp, 0400);
 
 MODULE_PARM_DESC(noaccel, "disable kernel/abi16 acceleration");
 static int nouveau_noaccel = 0;
@@ -223,7 +223,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	mutex_init(&cli->lock);
 
 	if (cli == &drm->master) {
-		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
+		ret = nvif_driver_init(NULL, nouveau_config, nouveau_de,
 				       cli->name, device, &cli->base);
 	} else {
 		mutex_lock(&drm->master.lock);
@@ -514,8 +514,8 @@ nouveau_drm_device_init(struct drm_device *dev)
 
 	dev->irq_enabled = true;
 
-	nvxx_client(&drm->client.base)->debug =
-		nvkm_dbgopt(nouveau_debug, "DRM");
+	nvxx_client(&drm->client.base)->de =
+		nvkm_dbgopt(nouveau_de, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
@@ -549,7 +549,7 @@ nouveau_drm_device_init(struct drm_device *dev)
 			goto fail_dispinit;
 	}
 
-	nouveau_debugfs_init(drm);
+	nouveau_defs_init(drm);
 	nouveau_hwmon_init(dev);
 	nouveau_svm_init(drm);
 	nouveau_dmem_init(drm);
@@ -599,7 +599,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	nouveau_dmem_fini(drm);
 	nouveau_svm_fini(drm);
 	nouveau_hwmon_fini(dev);
-	nouveau_debugfs_fini(drm);
+	nouveau_defs_fini(drm);
 
 	if (dev->mode_config.num_crtc)
 		nouveau_display_fini(dev, false, false);
@@ -665,7 +665,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		drm_fb_helper_remove_conflicting_framebuffers(aper, "nouveaufb", boot);
 	kfree(aper);
 
-	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_debug,
+	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_de,
 				  true, true, ~0ULL, &device);
 	if (ret)
 		return ret;
@@ -748,18 +748,18 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	nouveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_DEBUG(drm, "suspending console...\n");
+		NV_DE(drm, "suspending console...\n");
 		nouveau_fbcon_set_suspend(dev, 1);
-		NV_DEBUG(drm, "suspending display...\n");
+		NV_DE(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev, runtime);
 		if (ret)
 			return ret;
 	}
 
-	NV_DEBUG(drm, "evicting buffers...\n");
+	NV_DE(drm, "evicting buffers...\n");
 	ttm_bo_evict_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 
-	NV_DEBUG(drm, "waiting for kernel channels to go idle...\n");
+	NV_DE(drm, "waiting for kernel channels to go idle...\n");
 	if (drm->cechan) {
 		ret = nouveau_channel_idle(drm->cechan);
 		if (ret)
@@ -772,7 +772,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 			goto fail_display;
 	}
 
-	NV_DEBUG(drm, "suspending fence...\n");
+	NV_DE(drm, "suspending fence...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
 		if (!nouveau_fence(drm)->suspend(drm)) {
 			ret = -ENOMEM;
@@ -780,7 +780,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 		}
 	}
 
-	NV_DEBUG(drm, "suspending object tree...\n");
+	NV_DE(drm, "suspending object tree...\n");
 	ret = nvif_client_suspend(&drm->master.base);
 	if (ret)
 		goto fail_client;
@@ -793,7 +793,7 @@ fail_client:
 
 fail_display:
 	if (dev->mode_config.num_crtc) {
-		NV_DEBUG(drm, "resuming display...\n");
+		NV_DE(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
 	}
 	return ret;
@@ -804,19 +804,19 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	NV_DEBUG(drm, "resuming object tree...\n");
+	NV_DE(drm, "resuming object tree...\n");
 	nvif_client_resume(&drm->master.base);
 
-	NV_DEBUG(drm, "resuming fence...\n");
+	NV_DE(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
 		nouveau_fence(drm)->resume(drm);
 
 	nouveau_run_vbios_init(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_DEBUG(drm, "resuming display...\n");
+		NV_DE(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
-		NV_DEBUG(drm, "resuming console...\n");
+		NV_DE(drm, "resuming console...\n");
 		nouveau_fbcon_set_suspend(dev, 0);
 	}
 
@@ -1101,8 +1101,8 @@ driver_stub = {
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = nouveau_drm_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = nouveau_drm_defs_init,
 #endif
 
 	.enable_vblank = nouveau_display_vblank_enable,
@@ -1162,19 +1162,19 @@ nouveau_drm_pci_table[] = {
 
 static void nouveau_display_options(void)
 {
-	DRM_DEBUG_DRIVER("Loading Nouveau with parameters:\n");
+	DRM_DE_DRIVER("Loading Nouveau with parameters:\n");
 
-	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
-	DRM_DEBUG_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
-	DRM_DEBUG_DRIVER("... duallink     : %d\n", nouveau_duallink);
-	DRM_DEBUG_DRIVER("... nofbaccel    : %d\n", nouveau_nofbaccel);
-	DRM_DEBUG_DRIVER("... config       : %s\n", nouveau_config);
-	DRM_DEBUG_DRIVER("... debug        : %s\n", nouveau_debug);
-	DRM_DEBUG_DRIVER("... noaccel      : %d\n", nouveau_noaccel);
-	DRM_DEBUG_DRIVER("... modeset      : %d\n", nouveau_modeset);
-	DRM_DEBUG_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
-	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
-	DRM_DEBUG_DRIVER("... hdmimhz      : %d\n", nouveau_hdmimhz);
+	DRM_DE_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
+	DRM_DE_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
+	DRM_DE_DRIVER("... duallink     : %d\n", nouveau_duallink);
+	DRM_DE_DRIVER("... nofbaccel    : %d\n", nouveau_nofbaccel);
+	DRM_DE_DRIVER("... config       : %s\n", nouveau_config);
+	DRM_DE_DRIVER("... de        : %s\n", nouveau_de);
+	DRM_DE_DRIVER("... noaccel      : %d\n", nouveau_noaccel);
+	DRM_DE_DRIVER("... modeset      : %d\n", nouveau_modeset);
+	DRM_DE_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
+	DRM_DE_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
+	DRM_DE_DRIVER("... hdmimhz      : %d\n", nouveau_hdmimhz);
 }
 
 static const struct dev_pm_ops nouveau_pm_ops = {
@@ -1206,7 +1206,7 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 	struct drm_device *drm;
 	int err;
 
-	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_debug,
+	err = nvkm_device_tegra_new(func, pdev, nouveau_config, nouveau_de,
 				    true, true, ~0ULL, pdevice);
 	if (err)
 		goto err_free;

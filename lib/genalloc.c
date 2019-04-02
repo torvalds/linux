@@ -250,7 +250,7 @@ void gen_pool_destroy(struct gen_pool *pool)
 
 		end_bit = chunk_size(chunk) >> order;
 		bit = find_next_bit(chunk->bits, end_bit, 0);
-		BUG_ON(bit < end_bit);
+		_ON(bit < end_bit);
 
 		vfree(chunk);
 	}
@@ -296,7 +296,7 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
 	int nbits, start_bit, end_bit, remain;
 
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-	BUG_ON(in_nmi());
+	_ON(in_nmi());
 #endif
 
 	if (size == 0)
@@ -319,7 +319,7 @@ retry:
 		if (remain) {
 			remain = bitmap_clear_ll(chunk->bits, start_bit,
 						 nbits - remain);
-			BUG_ON(remain);
+			_ON(remain);
 			goto retry;
 		}
 
@@ -379,17 +379,17 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 	int start_bit, nbits, remain;
 
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
-	BUG_ON(in_nmi());
+	_ON(in_nmi());
 #endif
 
 	nbits = (size + (1UL << order) - 1) >> order;
 	rcu_read_lock();
 	list_for_each_entry_rcu(chunk, &pool->chunks, next_chunk) {
 		if (addr >= chunk->start_addr && addr <= chunk->end_addr) {
-			BUG_ON(addr + size - 1 > chunk->end_addr);
+			_ON(addr + size - 1 > chunk->end_addr);
 			start_bit = (addr - chunk->start_addr) >> order;
 			remain = bitmap_clear_ll(chunk->bits, start_bit, nbits);
-			BUG_ON(remain);
+			_ON(remain);
 			size = nbits << order;
 			atomic_long_add(size, &chunk->avail);
 			rcu_read_unlock();
@@ -397,7 +397,7 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 		}
 	}
 	rcu_read_unlock();
-	BUG();
+	();
 }
 EXPORT_SYMBOL(gen_pool_free);
 

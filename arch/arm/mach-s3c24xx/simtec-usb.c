@@ -7,7 +7,7 @@
 //
 // Simtec BAST and Thorcom VR1000 USB port support functions
 
-#define DEBUG
+#define DE
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -42,7 +42,7 @@ static unsigned int power_state[2];
 static void
 usb_simtec_powercontrol(int port, int to)
 {
-	pr_debug("usb_simtec_powercontrol(%d,%d)\n", port, to);
+	pr_de("usb_simtec_powercontrol(%d,%d)\n", port, to);
 
 	power_state[port] = to;
 
@@ -58,10 +58,10 @@ usb_simtec_ocirq(int irq, void *pw)
 	struct s3c2410_hcd_info *info = pw;
 
 	if (gpio_get_value(S3C2410_GPG(10)) == 0) {
-		pr_debug("usb_simtec: over-current irq (oc detected)\n");
+		pr_de("usb_simtec: over-current irq (oc detected)\n");
 		s3c2410_usb_report_oc(info, 3);
 	} else {
-		pr_debug("usb_simtec: over-current irq (oc cleared)\n");
+		pr_de("usb_simtec: over-current irq (oc cleared)\n");
 		s3c2410_usb_report_oc(info, 0);
 	}
 

@@ -15,7 +15,7 @@
 
 #include "hif.h"
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "wmi.h"
 #include "htt.h"
 #include "txrx.h"
@@ -1944,7 +1944,7 @@ static int ath10k_mac_vif_disable_keepalive(struct ath10k_vif *arvif)
 	if (!test_bit(WMI_SERVICE_STA_KEEP_ALIVE, ar->wmi.svc_map))
 		return 0;
 
-	/* Some firmware revisions have a bug and ignore the `enabled` field.
+	/* Some firmware revisions have a  and ignore the `enabled` field.
 	 * Instead use the interval to disable the keepalive.
 	 */
 	arg.vdev_id = arvif->vdev_id;
@@ -2886,7 +2886,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	arvif->is_up = true;
 
 	/* Workaround: Some firmware revisions (tested with qca6174
-	 * WLAN.RM.2.0-00073) have buggy powersave state machine and must be
+	 * WLAN.RM.2.0-00073) have gy powersave state machine and must be
 	 * poked with peer param command.
 	 */
 	ret = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, arvif->bssid,
@@ -4511,7 +4511,7 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 		vht_cap.cap |= val;
 	}
 
-	/* Currently the firmware seems to be buggy, don't enable 80+80
+	/* Currently the firmware seems to be gy, don't enable 80+80
 	 * mode until that's resolved.
 	 */
 	if ((ar->vht_cap_info & IEEE80211_VHT_CAP_SHORT_GI_160) &&
@@ -6415,7 +6415,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			goto exit;
 		}
 
-		if (ath10k_debug_is_extd_tx_stats_enabled(ar)) {
+		if (ath10k_de_is_extd_tx_stats_enabled(ar)) {
 			arsta->tx_stats = kzalloc(sizeof(*arsta->tx_stats),
 						  GFP_KERNEL);
 			if (!arsta->tx_stats) {
@@ -6531,7 +6531,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		}
 		spin_unlock_bh(&ar->data_lock);
 
-		if (ath10k_debug_is_extd_tx_stats_enabled(ar)) {
+		if (ath10k_de_is_extd_tx_stats_enabled(ar)) {
 			kfree(arsta->tx_stats);
 			arsta->tx_stats = NULL;
 		}
@@ -8022,9 +8022,9 @@ static const struct ieee80211_ops ath10k_ops = {
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.offset_tsf			= ath10k_offset_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
-	.get_et_sset_count		= ath10k_debug_get_et_sset_count,
-	.get_et_stats			= ath10k_debug_get_et_stats,
-	.get_et_strings			= ath10k_debug_get_et_strings,
+	.get_et_sset_count		= ath10k_de_get_et_sset_count,
+	.get_et_stats			= ath10k_de_get_et_stats,
+	.get_et_strings			= ath10k_de_get_et_strings,
 	.add_chanctx			= ath10k_mac_op_add_chanctx,
 	.remove_chanctx			= ath10k_mac_op_remove_chanctx,
 	.change_chanctx			= ath10k_mac_op_change_chanctx,
@@ -8041,8 +8041,8 @@ static const struct ieee80211_ops ath10k_ops = {
 	.resume				= ath10k_wow_op_resume,
 	.set_wakeup			= ath10k_wow_op_set_wakeup,
 #endif
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.sta_add_debugfs		= ath10k_sta_add_debugfs,
+#ifdef CONFIG_MAC80211_DEFS
+	.sta_add_defs		= ath10k_sta_add_defs,
 #endif
 };
 
@@ -8519,7 +8519,7 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	SET_IEEE80211_DEV(ar->hw, ar->dev);
 
-	BUILD_BUG_ON((ARRAY_SIZE(ath10k_2ghz_channels) +
+	BUILD__ON((ARRAY_SIZE(ath10k_2ghz_channels) +
 		      ARRAY_SIZE(ath10k_5ghz_channels)) !=
 		     ATH10K_NUM_CHANS);
 
@@ -8758,7 +8758,7 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		/* Init ath dfs pattern detector */
-		ar->ath_common.debug_mask = ATH_DBG_DFS;
+		ar->ath_common.de_mask = ATH_DBG_DFS;
 		ar->dfs_detector = dfs_pattern_detector_init(&ar->ath_common,
 							     NL80211_DFS_UNSET);
 

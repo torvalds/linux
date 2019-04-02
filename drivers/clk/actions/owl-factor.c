@@ -87,7 +87,7 @@ static int clk_val_best(struct clk_hw *hw, unsigned long rate,
 		try_parent_rate = rate * clkt->div / clkt->mul;
 
 		if (try_parent_rate == parent_rate_saved) {
-			pr_debug("%s: [%d %d %d] found try_parent_rate %ld\n",
+			pr_de("%s: [%d %d %d] found try_parent_rate %ld\n",
 				__func__, clkt->val, clkt->mul, clkt->div,
 				try_parent_rate);
 			/*

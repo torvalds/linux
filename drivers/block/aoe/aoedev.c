@@ -114,10 +114,10 @@ minor_free(ulong minor)
 	ulong flags;
 
 	minor /= AOE_PARTITIONS;
-	BUG_ON(minor >= N_DEVS);
+	_ON(minor >= N_DEVS);
 
 	spin_lock_irqsave(&used_minors_lock, flags);
-	BUG_ON(!test_bit(minor, used_minors));
+	_ON(!test_bit(minor, used_minors));
 	clear_bit(minor, used_minors);
 	spin_unlock_irqrestore(&used_minors_lock, flags);
 }
@@ -275,7 +275,7 @@ freedev(struct aoedev *d)
 
 	del_timer_sync(&d->timer);
 	if (d->gd) {
-		aoedisk_rm_debugfs(d);
+		aoedisk_rm_defs(d);
 		del_gendisk(d->gd);
 		put_disk(d->gd);
 		blk_mq_free_tag_set(&d->tag_set);

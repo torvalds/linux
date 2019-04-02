@@ -32,8 +32,8 @@
  *		Eric		:	Fast Retransmit.
  *		Randy Scott	:	MSS option defines.
  *		Eric Schenk	:	Fixes to slow start algorithm.
- *		Eric Schenk	:	Yet another double ACK bug.
- *		Eric Schenk	:	Delayed ACK bug fixes.
+ *		Eric Schenk	:	Yet another double ACK .
+ *		Eric Schenk	:	Delayed ACK  fixes.
  *		Eric Schenk	:	Floyd style fast retrans war avoidance.
  *		David S. Miller	:	Don't allow zero congestion window.
  *		Eric Schenk	:	Fix retransmitter so that it sends
@@ -58,7 +58,7 @@
  *	 	Andrei Gurtov,
  *		Pasi Sarolahti,
  *		Panu Kuhlberg:		Experimental audit of TCP (re)transmission
- *					engine. Lots of bugs are found.
+ *					engine. Lots of s are found.
  *		Pasi Sarolahti:		F-RTO for dealing with spurious RTOs
  */
 
@@ -882,8 +882,8 @@ static void tcp_check_sack_reordering(struct sock *sk, const u32 low_seq,
 
 	metric = fack - low_seq;
 	if ((metric > tp->reordering * mss) && mss) {
-#if FASTRETRANS_DEBUG > 1
-		pr_debug("Disorder%d %d %u f%u s%u rr%d\n",
+#if FASTRETRANS_DE > 1
+		pr_de("Disorder%d %d %u f%u s%u rr%d\n",
 			 tp->rx_opt.sack_ok, inet_csk(sk)->icsk_ca_state,
 			 tp->reordering,
 			 0,
@@ -1276,7 +1276,7 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 	u32 start_seq = TCP_SKB_CB(skb)->seq;	/* start of newly-SACKed */
 	u32 end_seq = start_seq + shifted;	/* end of newly-SACKed */
 
-	BUG_ON(!pcount);
+	_ON(!pcount);
 
 	/* Adjust counters and hints for the newly sacked sequence
 	 * range but discard the return value since prev is already
@@ -1296,7 +1296,7 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 	TCP_SKB_CB(skb)->seq += shifted;
 
 	tcp_skb_pcount_add(prev, pcount);
-	BUG_ON(tcp_skb_pcount(skb) < pcount);
+	_ON(tcp_skb_pcount(skb) < pcount);
 	tcp_skb_pcount_add(skb, -pcount);
 
 	/* When we're adding to gso_segs == 1, gso_size will be zero,
@@ -1315,7 +1315,7 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
 
 	if (skb->len > 0) {
-		BUG_ON(!tcp_skb_pcount(skb));
+		_ON(!tcp_skb_pcount(skb));
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_SACKSHIFTED);
 		return false;
 	}
@@ -1438,8 +1438,8 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 		}
 
 		len = end_seq - TCP_SKB_CB(skb)->seq;
-		BUG_ON(len < 0);
-		BUG_ON(len > skb->len);
+		_ON(len < 0);
+		_ON(len > skb->len);
 
 		/* MSS boundaries should be honoured or else pcount will
 		 * severely break even though it makes things bit trickier.
@@ -1816,7 +1816,7 @@ advance_sp:
 	tcp_verify_left_out(tp);
 out:
 
-#if FASTRETRANS_DEBUG > 0
+#if FASTRETRANS_DE > 0
 	WARN_ON((int)tp->sacked_out < 0);
 	WARN_ON((int)tp->lost_out < 0);
 	WARN_ON((int)tp->retrans_out < 0);
@@ -1844,7 +1844,7 @@ static bool tcp_limit_reno_sacked(struct tcp_sock *tp)
 
 /* If we receive more dupacks than we expected counting segments
  * in assumption of absent reordering, interpret this as reordering.
- * The only another reason could be bug in receiver TCP.
+ * The only another reason could be  in receiver TCP.
  */
 static void tcp_check_reno_reordering(struct sock *sk, const int addend)
 {
@@ -2001,7 +2001,7 @@ void tcp_enter_loss(struct sock *sk)
 
 /* If ACK arrived pointing to a remembered SACK, it means that our
  * remembered SACKs do not reflect real state of receiver i.e.
- * receiver _host_ is heavily congested (or buggy).
+ * receiver _host_ is heavily congested (or gy).
  *
  * To avoid big spurious retransmission bursts due to transient SACK
  * scoreboard oddities that look like reneging, we give the receiver a
@@ -2289,12 +2289,12 @@ static bool tcp_any_retrans_done(const struct sock *sk)
 
 static void DBGUNDO(struct sock *sk, const char *msg)
 {
-#if FASTRETRANS_DEBUG > 1
+#if FASTRETRANS_DE > 1
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 
 	if (sk->sk_family == AF_INET) {
-		pr_debug("Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
+		pr_de("Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
 			 msg,
 			 &inet->inet_daddr, ntohs(inet->inet_dport),
 			 tp->snd_cwnd, tcp_left_out(tp),
@@ -2303,7 +2303,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (sk->sk_family == AF_INET6) {
-		pr_debug("Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
+		pr_de("Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
 			 msg,
 			 &sk->sk_v6_daddr, ntohs(inet->inet_dport),
 			 tp->snd_cwnd, tcp_left_out(tp),
@@ -3000,7 +3000,7 @@ static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 packets_acked;
 
-	BUG_ON(!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una));
+	_ON(!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una));
 
 	packets_acked = tcp_skb_pcount(skb);
 	if (tcp_trim_head(sk, skb, tp->snd_una - TCP_SKB_CB(skb)->seq))
@@ -3008,8 +3008,8 @@ static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
 	packets_acked -= tcp_skb_pcount(skb);
 
 	if (packets_acked) {
-		BUG_ON(tcp_skb_pcount(skb) == 0);
-		BUG_ON(!before(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq));
+		_ON(tcp_skb_pcount(skb) == 0);
+		_ON(!before(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq));
 	}
 
 	return packets_acked;
@@ -3214,24 +3214,24 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 		icsk->icsk_ca_ops->pkts_acked(sk, &sample);
 	}
 
-#if FASTRETRANS_DEBUG > 0
+#if FASTRETRANS_DE > 0
 	WARN_ON((int)tp->sacked_out < 0);
 	WARN_ON((int)tp->lost_out < 0);
 	WARN_ON((int)tp->retrans_out < 0);
 	if (!tp->packets_out && tcp_is_sack(tp)) {
 		icsk = inet_csk(sk);
 		if (tp->lost_out) {
-			pr_debug("Leak l=%u %d\n",
+			pr_de("Leak l=%u %d\n",
 				 tp->lost_out, icsk->icsk_ca_state);
 			tp->lost_out = 0;
 		}
 		if (tp->sacked_out) {
-			pr_debug("Leak s=%u %d\n",
+			pr_de("Leak s=%u %d\n",
 				 tp->sacked_out, icsk->icsk_ca_state);
 			tp->sacked_out = 0;
 		}
 		if (tp->retrans_out) {
-			pr_debug("Leak r=%u %d\n",
+			pr_de("Leak r=%u %d\n",
 				 tp->retrans_out, icsk->icsk_ca_state);
 			tp->retrans_out = 0;
 		}
@@ -3461,7 +3461,7 @@ static void tcp_store_ts_recent(struct tcp_sock *tp)
 static void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
 {
 	if (tp->rx_opt.saw_tstamp && !after(seq, tp->rcv_wup)) {
-		/* PAWS bug workaround wrt. ACK frames, the PAWS discard
+		/* PAWS  workaround wrt. ACK frames, the PAWS discard
 		 * extra check below makes sure this can only happen
 		 * for pure ACK frames.  -DaveM
 		 *
@@ -3971,9 +3971,9 @@ EXPORT_SYMBOL(tcp_parse_md5sig_option);
  * on networks with high bandwidth, when sequence space is recycled fastly,
  * but it guarantees that such events will be very rare and do not affect
  * connection seriously. This doesn't look nice, but alas, PAWS is really
- * buggy extension.
+ * gy extension.
  *
- * [ Later note. Even worse! It is buggy for segments _with_ data. RFC
+ * [ Later note. Even worse! It is gy for segments _with_ data. RFC
  * states that events when retransmit arrives after original data are rare.
  * It is a blatant lie. VJ forgot about fast retransmit! 8)8) It is
  * the biggest problem on large power networks even with minor reordering.
@@ -4905,11 +4905,11 @@ restart:
 			int offset = start - TCP_SKB_CB(skb)->seq;
 			int size = TCP_SKB_CB(skb)->end_seq - start;
 
-			BUG_ON(offset < 0);
+			_ON(offset < 0);
 			if (size > 0) {
 				size = min(copy, size);
 				if (skb_copy_bits(skb, offset, skb_put(nskb, size), size))
-					BUG();
+					();
 				TCP_SKB_CB(nskb)->end_seq += size;
 				copy -= size;
 				start += size;
@@ -5270,10 +5270,10 @@ static void tcp_check_urg(struct sock *sk, const struct tcphdr *th)
 	 * above did something sort of 	send("A", MSG_OOB); send("B", MSG_OOB);
 	 * and expect that both A and B disappear from stream. This is _wrong_.
 	 * Though this happens in BSD with high probability, this is occasional.
-	 * Any application relying on this is buggy. Note also, that fix "works"
+	 * Any application relying on this is gy. Note also, that fix "works"
 	 * only in this artificial test. Insert some normal data between A and B and we will
 	 * decline of BSD again. Verdict: it is better to remove to trap
-	 * buggy users.
+	 * gy users.
 	 */
 	if (tp->urg_seq == tp->copied_seq && tp->urg_data &&
 	    !sock_flag(sk, SOCK_URGINLINE) && tp->copied_seq != tp->rcv_nxt) {
@@ -5310,7 +5310,7 @@ static void tcp_urg(struct sock *sk, struct sk_buff *skb, const struct tcphdr *t
 		if (ptr < skb->len) {
 			u8 tmp;
 			if (skb_copy_bits(skb, ptr, &tmp, 1))
-				BUG();
+				();
 			tp->urg_data = TCP_URG_VALID | tmp;
 			if (!sock_flag(sk, SOCK_DEAD))
 				sk->sk_data_ready(sk);

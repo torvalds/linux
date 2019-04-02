@@ -814,7 +814,7 @@ void dvb_frontend_reinitialise(struct dvb_frontend *fe);
  *
  * NOTE: it should not be used at the drivers, as the emulation for the
  * legacy callback is provided by the Kernel. The only situation where this
- * should be at the drivers is when there are some bugs at the hardware that
+ * should be at the drivers is when there are some s at the hardware that
  * would prevent the core emulation to work. On such cases, the driver would
  * be writing a &dvb_frontend_ops.dishnetwork_send_legacy_command\(\) and
  * calling this function directly.

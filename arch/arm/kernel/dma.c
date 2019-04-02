@@ -199,7 +199,7 @@ void enable_dma (unsigned int chan)
 
 free_dma:
 	pr_err("dma%d: trying to enable free DMA\n", chan);
-	BUG();
+	();
 }
 EXPORT_SYMBOL(enable_dma);
 
@@ -220,7 +220,7 @@ void disable_dma (unsigned int chan)
 
 free_dma:
 	pr_err("dma%d: trying to disable free DMA\n", chan);
-	BUG();
+	();
 }
 EXPORT_SYMBOL(disable_dma);
 

@@ -70,28 +70,28 @@ Interrupt moderation
   IPoIB doesn't use events for TX completion signaling so only RX
   moderation is supported.
 
-Debugging Information
+Deging Information
 
-  By compiling the IPoIB driver with CONFIG_INFINIBAND_IPOIB_DEBUG set
+  By compiling the IPoIB driver with CONFIG_INFINIBAND_IPOIB_DE set
   to 'y', tracing messages are compiled into the driver.  They are
-  turned on by setting the module parameters debug_level and
-  mcast_debug_level to 1.  These parameters can be controlled at
+  turned on by setting the module parameters de_level and
+  mcast_de_level to 1.  These parameters can be controlled at
   runtime through files in /sys/module/ib_ipoib/.
 
-  CONFIG_INFINIBAND_IPOIB_DEBUG also enables files in the debugfs
+  CONFIG_INFINIBAND_IPOIB_DE also enables files in the defs
   virtual filesystem.  By mounting this filesystem, for example with
 
-    mount -t debugfs none /sys/kernel/debug
+    mount -t defs none /sys/kernel/de
 
   it is possible to get statistics about multicast groups from the
-  files /sys/kernel/debug/ipoib/ib0_mcg and so on.
+  files /sys/kernel/de/ipoib/ib0_mcg and so on.
 
   The performance impact of this option is negligible, so it
-  is safe to enable this option with debug_level set to 0 for normal
+  is safe to enable this option with de_level set to 0 for normal
   operation.
 
-  CONFIG_INFINIBAND_IPOIB_DEBUG_DATA enables even more debug output in
-  the data path when data_debug_level is set to 1.  However, even with
+  CONFIG_INFINIBAND_IPOIB_DE_DATA enables even more de output in
+  the data path when data_de_level is set to 1.  However, even with
   the output disabled, enabling this configuration option will affect
   performance, because it adds tests to the fast path.
 

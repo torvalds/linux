@@ -585,7 +585,7 @@ static int mtk_drm_sys_suspend(struct device *dev)
 	int ret;
 
 	ret = drm_mode_config_helper_suspend(drm);
-	DRM_DEBUG_DRIVER("mtk_drm_sys_suspend\n");
+	DRM_DE_DRIVER("mtk_drm_sys_suspend\n");
 
 	return ret;
 }
@@ -597,7 +597,7 @@ static int mtk_drm_sys_resume(struct device *dev)
 	int ret;
 
 	ret = drm_mode_config_helper_resume(drm);
-	DRM_DEBUG_DRIVER("mtk_drm_sys_resume\n");
+	DRM_DE_DRIVER("mtk_drm_sys_resume\n");
 
 	return ret;
 }

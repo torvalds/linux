@@ -223,11 +223,11 @@ int __ipi_send_single(struct irq_desc *desc, unsigned int cpu)
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 * Minimise the overhead by omitting the checks for Linux SMP IPIs.
 	 * Since the callers should be arch or core code which is generally
-	 * trusted, only check for errors when debugging.
+	 * trusted, only check for errors when deging.
 	 */
 	if (WARN_ON_ONCE(ipi_send_verify(chip, data, NULL, cpu)))
 		return -EINVAL;
@@ -266,11 +266,11 @@ int __ipi_send_mask(struct irq_desc *desc, const struct cpumask *dest)
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	unsigned int cpu;
 
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 * Minimise the overhead by omitting the checks for Linux SMP IPIs.
 	 * Since the callers should be arch or core code which is generally
-	 * trusted, only check for errors when debugging.
+	 * trusted, only check for errors when deging.
 	 */
 	if (WARN_ON_ONCE(ipi_send_verify(chip, data, dest, 0)))
 		return -EINVAL;

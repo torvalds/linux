@@ -45,7 +45,7 @@
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
 #include <xen/page.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 typedef unsigned int pending_ring_idx_t;
 #define INVALID_PENDING_RING_IDX (~0U)
@@ -285,7 +285,7 @@ struct xenvif {
 
 	spinlock_t lock;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *xenvif_dbg_root;
 #endif
 
@@ -383,7 +383,7 @@ extern unsigned int rx_stall_timeout_msecs;
 extern unsigned int xenvif_max_queues;
 extern unsigned int xenvif_hash_cache_size;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 extern struct dentry *xen_netback_dbg_root;
 #endif
 
@@ -409,7 +409,7 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 
 void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m);
 #endif
 

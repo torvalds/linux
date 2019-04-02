@@ -368,7 +368,7 @@ static inline void complete_tx(struct sdma_engine *sde,
 	struct iowait *wait = tx->wait;
 	callback_t complete = tx->complete;
 
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 	trace_hfi1_sdma_out_sn(sde, tx->sn);
 	if (WARN_ON_ONCE(sde->head_sn != tx->sn))
 		dd_dev_err(sde->dd, "expected %llu got %llu\n",
@@ -665,7 +665,7 @@ static void sdma_set_state(struct sdma_engine *sde,
 		sdma_state_names[ss->current_state],
 		sdma_state_names[next_state]);
 
-	/* debugging bookkeeping */
+	/* deging bookkeeping */
 	ss->previous_state = ss->current_state;
 	ss->previous_op = ss->current_op;
 	ss->current_state = next_state;
@@ -1092,7 +1092,7 @@ static void sdma_rht_free(void *ptr, void *arg)
 }
 
 /**
- * sdma_seqfile_dump_cpu_list() - debugfs dump the cpu to sdma mappings
+ * sdma_seqfile_dump_cpu_list() - defs dump the cpu to sdma mappings
  * @s: seq file
  * @dd: hfi1_devdata
  * @cpuid: cpu id
@@ -2185,7 +2185,7 @@ static void dump_sdma_state(struct sdma_engine *sde)
 #define SDE_FMT \
 	"SDE %u CPU %d STE %s C 0x%llx S 0x%016llx E 0x%llx T(HW) 0x%llx T(SW) 0x%x H(HW) 0x%llx H(SW) 0x%x H(D) 0x%llx DM 0x%llx GL 0x%llx R 0x%llx LIS 0x%llx AHGI 0x%llx TXT %u TXH %u DT %u DH %u FLNE %d DQF %u SLC 0x%llx\n"
 /**
- * sdma_seqfile_dump_sde() - debugfs dump of sde
+ * sdma_seqfile_dump_sde() - defs dump of sde
  * @s: seq file
  * @sde: send dma engine to dump
  *
@@ -2321,7 +2321,7 @@ static inline u16 submit_tx(struct sdma_engine *sde, struct sdma_txreq *tx)
 		tail = ++sde->descq_tail & sde->sdma_mask;
 	}
 	tx->next_descq_idx = tail;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 	tx->sn = sde->tail_sn++;
 	trace_hfi1_sdma_in_sn(sde, tx->sn);
 	WARN_ON_ONCE(sde->tx_ring[sde->tx_tail & sde->sdma_mask]);
@@ -2405,7 +2405,7 @@ unlock_noconn:
 	if (wait)
 		iowait_sdma_inc(iowait_ioww_to_iow(wait));
 	tx->next_descq_idx = 0;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 	tx->sn = sde->tail_sn++;
 	trace_hfi1_sdma_in_sn(sde, tx->sn);
 #endif
@@ -2502,7 +2502,7 @@ unlock_noconn:
 		tx->wait = iowait_ioww_to_iow(wait);
 		list_del_init(&tx->list);
 		tx->next_descq_idx = 0;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 		tx->sn = sde->tail_sn++;
 		trace_hfi1_sdma_in_sn(sde, tx->sn);
 #endif

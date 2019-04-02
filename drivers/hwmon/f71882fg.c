@@ -2635,7 +2635,7 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 
 	devid = superio_inw(sioaddr, SIO_REG_MANID);
 	if (devid != SIO_FINTEK_ID) {
-		pr_debug("Not a Fintek device\n");
+		pr_de("Not a Fintek device\n");
 		err = -ENODEV;
 		goto exit;
 	}

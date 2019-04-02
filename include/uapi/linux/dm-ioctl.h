@@ -30,7 +30,7 @@
  *
  * DM_REMOVE_ALL:
  * Remove all dm devices, destroy all tables.  Only really used
- * for debug.
+ * for de.
  *
  * DM_LIST_DEVICES:
  * Get a list of all the dm device names.

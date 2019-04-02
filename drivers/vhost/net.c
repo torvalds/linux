@@ -839,7 +839,7 @@ static void handle_tx_copy(struct vhost_net *net, struct socket *sock)
 			break;
 		}
 		if (err != len)
-			pr_debug("Truncated TX packet: len %d != %zd\n",
+			pr_de("Truncated TX packet: len %d != %zd\n",
 				 err, len);
 done:
 		vq->heads[nvq->done_idx].id = cpu_to_vhost32(vq, head);
@@ -944,7 +944,7 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 			break;
 		}
 		if (err != len)
-			pr_debug("Truncated TX packet: "
+			pr_de("Truncated TX packet: "
 				 " len %d != %zd\n", err, len);
 		if (!zcopy_used)
 			vhost_add_used_and_signal(&net->dev, vq, head, 0);
@@ -1185,7 +1185,7 @@ static void handle_rx(struct vhost_net *net)
 			iov_iter_init(&msg.msg_iter, READ, vq->iov, 1, 1);
 			err = sock->ops->recvmsg(sock, &msg,
 						 1, MSG_DONTWAIT | MSG_TRUNC);
-			pr_debug("Discarded rx packet: len %zd\n", sock_len);
+			pr_de("Discarded rx packet: len %zd\n", sock_len);
 			continue;
 		}
 		/* We don't need to be notified again. */
@@ -1203,7 +1203,7 @@ static void handle_rx(struct vhost_net *net)
 		 * it's not supposed to do this usually, but might be hard
 		 * to prevent. Discard data we got (if any) and keep going. */
 		if (unlikely(err != sock_len)) {
-			pr_debug("Discarded rx packet: "
+			pr_de("Discarded rx packet: "
 				 " len %d, expected %zd\n", err, sock_len);
 			vhost_discard_vq_desc(vq, headcount);
 			continue;

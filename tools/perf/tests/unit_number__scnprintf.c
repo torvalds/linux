@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include "tests.h"
 #include "units.h"
-#include "debug.h"
+#include "de.h"
 
 int test__unit_number__scnprint(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
@@ -26,7 +26,7 @@ int test__unit_number__scnprint(struct test *t __maybe_unused, int subtest __may
 
 		unit_number__scnprintf(buf, sizeof(buf), test[i].n);
 
-		pr_debug("n %" PRIu64 ", str '%s', buf '%s'\n",
+		pr_de("n %" PRIu64 ", str '%s', buf '%s'\n",
 			 test[i].n, test[i].str, buf);
 
 		if (strcmp(test[i].str, buf))

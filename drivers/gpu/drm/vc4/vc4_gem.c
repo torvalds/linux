@@ -733,7 +733,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		/* See comment on bo_index for why we have to check
 		 * this.
 		 */
-		DRM_DEBUG("Rendering requires BOs to validate\n");
+		DRM_DE("Rendering requires BOs to validate\n");
 		return -EINVAL;
 	}
 
@@ -764,7 +764,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
 						     handles[i]);
 		if (!bo) {
-			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
+			DRM_DE("Failed to look up GEM BO %d: %d\n",
 				  i, handles[i]);
 			ret = -EINVAL;
 			break;
@@ -833,7 +833,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	    args->shader_rec_count >= (UINT_MAX /
 					  sizeof(struct vc4_shader_state)) ||
 	    temp_size < exec_size) {
-		DRM_DEBUG("overflow in exec arguments\n");
+		DRM_DE("overflow in exec arguments\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -1087,7 +1087,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
 	}
 	bo = to_vc4_bo(gem_obj);
@@ -1128,12 +1128,12 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			     VC4_SUBMIT_CL_FIXED_RCL_ORDER |
 			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X |
 			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y)) != 0) {
-		DRM_DEBUG("Unknown flags: 0x%02x\n", args->flags);
+		DRM_DE("Unknown flags: 0x%02x\n", args->flags);
 		return -EINVAL;
 	}
 
 	if (args->pad2 != 0) {
-		DRM_DEBUG("Invalid pad: 0x%08x\n", args->pad2);
+		DRM_DE("Invalid pad: 0x%08x\n", args->pad2);
 		return -EINVAL;
 	}
 
@@ -1319,7 +1319,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 
@@ -1327,7 +1327,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	/* Only BOs exposed to userspace can be purged. */
 	if (bo->madv == __VC4_MADV_NOTSUPP) {
-		DRM_DEBUG("madvise not supported on this BO\n");
+		DRM_DE("madvise not supported on this BO\n");
 		ret = -EINVAL;
 		goto out_put_gem;
 	}
@@ -1336,7 +1336,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	 * not until proven otherwise.
 	 */
 	if (gem_obj->import_attach) {
-		DRM_DEBUG("madvise not supported on imported BOs\n");
+		DRM_DE("madvise not supported on imported BOs\n");
 		ret = -EINVAL;
 		goto out_put_gem;
 	}

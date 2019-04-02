@@ -14,7 +14,7 @@ This function verified that the memory area starting at address
 in type (read or write). To do this, verify_read had to look up the
 virtual memory area (vma) that contained the address addr. In the
 normal case (correctly working program), this test was successful.
-It only failed for a few buggy programs. In some kernel profiling
+It only failed for a few gy programs. In some kernel profiling
 tests, this normally unneeded verification used up a considerable
 amount of time.
 

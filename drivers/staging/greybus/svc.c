@@ -6,7 +6,7 @@
  * Copyright 2015 Linaro Ltd.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/workqueue.h>
 
 #include "greybus.h"
@@ -673,10 +673,10 @@ static int gb_svc_version_request(struct gb_operation *op)
 	return 0;
 }
 
-static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
+static ssize_t pwr_defs_voltage_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
+	struct svc_defs_pwrmon_rail *pwrmon_rails =
 		file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
@@ -697,10 +697,10 @@ static ssize_t pwr_debugfs_voltage_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, len, offset, buff, desc);
 }
 
-static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
+static ssize_t pwr_defs_current_read(struct file *file, char __user *buf,
 					size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
+	struct svc_defs_pwrmon_rail *pwrmon_rails =
 		file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
@@ -721,10 +721,10 @@ static ssize_t pwr_debugfs_current_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, len, offset, buff, desc);
 }
 
-static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
+static ssize_t pwr_defs_power_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
-	struct svc_debugfs_pwrmon_rail *pwrmon_rails =
+	struct svc_defs_pwrmon_rail *pwrmon_rails =
 		file_inode(file)->i_private;
 	struct gb_svc *svc = pwrmon_rails->svc;
 	int ret, desc;
@@ -744,19 +744,19 @@ static ssize_t pwr_debugfs_power_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, len, offset, buff, desc);
 }
 
-static const struct file_operations pwrmon_debugfs_voltage_fops = {
-	.read		= pwr_debugfs_voltage_read,
+static const struct file_operations pwrmon_defs_voltage_fops = {
+	.read		= pwr_defs_voltage_read,
 };
 
-static const struct file_operations pwrmon_debugfs_current_fops = {
-	.read		= pwr_debugfs_current_read,
+static const struct file_operations pwrmon_defs_current_fops = {
+	.read		= pwr_defs_current_read,
 };
 
-static const struct file_operations pwrmon_debugfs_power_fops = {
-	.read		= pwr_debugfs_power_read,
+static const struct file_operations pwrmon_defs_power_fops = {
+	.read		= pwr_defs_power_read,
 };
 
-static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
+static void gb_svc_pwrmon_defs_init(struct gb_svc *svc)
 {
 	int i;
 	size_t bufsize;
@@ -764,34 +764,34 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 	struct gb_svc_pwrmon_rail_names_get_response *rail_names;
 	u8 rail_count;
 
-	dent = debugfs_create_dir("pwrmon", svc->debugfs_dentry);
+	dent = defs_create_dir("pwrmon", svc->defs_dentry);
 	if (IS_ERR_OR_NULL(dent))
 		return;
 
 	if (gb_svc_pwrmon_rail_count_get(svc, &rail_count))
-		goto err_pwrmon_debugfs;
+		goto err_pwrmon_defs;
 
 	if (!rail_count || rail_count > GB_SVC_PWRMON_MAX_RAIL_COUNT)
-		goto err_pwrmon_debugfs;
+		goto err_pwrmon_defs;
 
 	bufsize = sizeof(*rail_names) +
 		GB_SVC_PWRMON_RAIL_NAME_BUFSIZE * rail_count;
 
 	rail_names = kzalloc(bufsize, GFP_KERNEL);
 	if (!rail_names)
-		goto err_pwrmon_debugfs;
+		goto err_pwrmon_defs;
 
 	svc->pwrmon_rails = kcalloc(rail_count, sizeof(*svc->pwrmon_rails),
 				    GFP_KERNEL);
 	if (!svc->pwrmon_rails)
-		goto err_pwrmon_debugfs_free;
+		goto err_pwrmon_defs_free;
 
 	if (gb_svc_pwrmon_rail_names_get(svc, rail_names, bufsize))
-		goto err_pwrmon_debugfs_free;
+		goto err_pwrmon_defs_free;
 
 	for (i = 0; i < rail_count; i++) {
 		struct dentry *dir;
-		struct svc_debugfs_pwrmon_rail *rail = &svc->pwrmon_rails[i];
+		struct svc_defs_pwrmon_rail *rail = &svc->pwrmon_rails[i];
 		char fname[GB_SVC_PWRMON_RAIL_NAME_BUFSIZE];
 
 		snprintf(fname, sizeof(fname), "%s",
@@ -800,37 +800,37 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 		rail->id = i;
 		rail->svc = svc;
 
-		dir = debugfs_create_dir(fname, dent);
-		debugfs_create_file("voltage_now", 0444, dir, rail,
-				    &pwrmon_debugfs_voltage_fops);
-		debugfs_create_file("current_now", 0444, dir, rail,
-				    &pwrmon_debugfs_current_fops);
-		debugfs_create_file("power_now", 0444, dir, rail,
-				    &pwrmon_debugfs_power_fops);
+		dir = defs_create_dir(fname, dent);
+		defs_create_file("voltage_now", 0444, dir, rail,
+				    &pwrmon_defs_voltage_fops);
+		defs_create_file("current_now", 0444, dir, rail,
+				    &pwrmon_defs_current_fops);
+		defs_create_file("power_now", 0444, dir, rail,
+				    &pwrmon_defs_power_fops);
 	}
 
 	kfree(rail_names);
 	return;
 
-err_pwrmon_debugfs_free:
+err_pwrmon_defs_free:
 	kfree(rail_names);
 	kfree(svc->pwrmon_rails);
 	svc->pwrmon_rails = NULL;
 
-err_pwrmon_debugfs:
-	debugfs_remove(dent);
+err_pwrmon_defs:
+	defs_remove(dent);
 }
 
-static void gb_svc_debugfs_init(struct gb_svc *svc)
+static void gb_svc_defs_init(struct gb_svc *svc)
 {
-	svc->debugfs_dentry = debugfs_create_dir(dev_name(&svc->dev),
-						 gb_debugfs_get());
-	gb_svc_pwrmon_debugfs_init(svc);
+	svc->defs_dentry = defs_create_dir(dev_name(&svc->dev),
+						 gb_defs_get());
+	gb_svc_pwrmon_defs_init(svc);
 }
 
-static void gb_svc_debugfs_exit(struct gb_svc *svc)
+static void gb_svc_defs_exit(struct gb_svc *svc)
 {
-	debugfs_remove_recursive(svc->debugfs_dentry);
+	defs_remove_recursive(svc->defs_dentry);
 	kfree(svc->pwrmon_rails);
 	svc->pwrmon_rails = NULL;
 }
@@ -865,7 +865,7 @@ static int gb_svc_hello(struct gb_operation *op)
 		goto err_unregister_device;
 	}
 
-	gb_svc_debugfs_init(svc);
+	gb_svc_defs_init(svc);
 
 	return gb_svc_queue_deferred_request(op);
 
@@ -1380,7 +1380,7 @@ void gb_svc_del(struct gb_svc *svc)
 	 * The SVC device may have been registered from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
-		gb_svc_debugfs_exit(svc);
+		gb_svc_defs_exit(svc);
 		gb_svc_watchdog_destroy(svc);
 		device_del(&svc->dev);
 	}

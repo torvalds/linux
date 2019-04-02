@@ -36,10 +36,10 @@ MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("tda9840 driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 #define	SWITCH		0x00
 #define	LEVEL_ADJUST	0x02
@@ -61,7 +61,7 @@ static void tda9840_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (i2c_smbus_write_byte_data(client, reg, val))
-		v4l2_dbg(1, debug, sd, "error writing %02x to %02x\n",
+		v4l2_dbg(1, de, sd, "error writing %02x to %02x\n",
 				val, reg);
 }
 
@@ -73,7 +73,7 @@ static int tda9840_status(struct v4l2_subdev *sd)
 
 	rc = i2c_master_recv(client, &byte, 1);
 	if (rc != 1) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"i2c_master_recv() failed\n");
 		if (rc < 0)
 			return rc;
@@ -81,12 +81,12 @@ static int tda9840_status(struct v4l2_subdev *sd)
 	}
 
 	if (byte & 0x80) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"TDA9840_DETECT: register contents invalid\n");
 		return -EINVAL;
 	}
 
-	v4l2_dbg(1, debug, sd, "TDA9840_DETECT: byte: 0x%02x\n", byte);
+	v4l2_dbg(1, de, sd, "TDA9840_DETECT: byte: 0x%02x\n", byte);
 	return byte & 0x60;
 }
 
@@ -117,7 +117,7 @@ static int tda9840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *t)
 			break;
 		}
 	}
-	v4l2_dbg(1, debug, sd, "TDA9840_SWITCH: 0x%02x\n", byte);
+	v4l2_dbg(1, de, sd, "TDA9840_SWITCH: 0x%02x\n", byte);
 	tda9840_write(sd, SWITCH, byte);
 	return 0;
 }

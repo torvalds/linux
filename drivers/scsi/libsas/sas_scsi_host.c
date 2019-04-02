@@ -131,12 +131,12 @@ static void sas_scsi_task_done(struct sas_task *task)
 
 	if (unlikely(!task)) {
 		/* task will be completed by the error handler */
-		pr_debug("task done but aborted\n");
+		pr_de("task done but aborted\n");
 		return;
 	}
 
 	if (unlikely(!sc)) {
-		pr_debug("task_done called with non existing SCSI cmnd!\n");
+		pr_de("task_done called with non existing SCSI cmnd!\n");
 		sas_free_task(task);
 		return;
 	}
@@ -159,7 +159,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	ASSIGN_SAS_TASK(cmd, task);
 
 	task->dev = dev;
-	task->task_proto = task->dev->tproto; /* BUG_ON(!SSP) */
+	task->task_proto = task->dev->tproto; /* _ON(!SSP) */
 
 	task->ssp_task.retry_count = 1;
 	int_to_scsilun(cmd->device->lun, &lun);
@@ -207,7 +207,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	return 0;
 
 out_free_task:
-	pr_debug("lldd_execute_task returned: %d\n", res);
+	pr_de("lldd_execute_task returned: %d\n", res);
 	ASSIGN_SAS_TASK(cmd, NULL);
 	sas_free_task(task);
 	if (res == -SAS_QUEUE_FULL)
@@ -306,7 +306,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
-			pr_debug("%s: task 0x%p is done\n", __func__, task);
+			pr_de("%s: task 0x%p is done\n", __func__, task);
 			return TASK_IS_DONE;
 		}
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -392,7 +392,7 @@ struct sas_phy *sas_get_local_phy(struct domain_device *dev)
 	/* a published domain device always has a valid phy, it may be
 	 * stale, but it is never NULL
 	 */
-	BUG_ON(!dev->phy);
+	_ON(!dev->phy);
 
 	spin_lock_irqsave(&ha->phy_port_lock, flags);
 	phy = dev->phy;
@@ -614,7 +614,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			goto reset;
 		}
 
-		pr_debug("trying to find task 0x%p\n", task);
+		pr_de("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
 		switch (res) {
@@ -659,7 +659,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			try_to_reset_cmd_device(cmd);
 			if (i->dft->lldd_clear_nexus_port) {
 				struct asd_sas_port *port = task->dev->port;
-				pr_debug("clearing nexus for port:%d\n",
+				pr_de("clearing nexus for port:%d\n",
 					  port->id);
 				res = i->dft->lldd_clear_nexus_port(port);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
@@ -672,7 +672,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				}
 			}
 			if (i->dft->lldd_clear_nexus_ha) {
-				pr_debug("clear nexus ha\n");
+				pr_de("clear nexus ha\n");
 				res = i->dft->lldd_clear_nexus_ha(ha);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					pr_notice("clear nexus ha succeeded\n");
@@ -698,7 +698,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	return;
 
  clear_q:
-	pr_debug("--- Exit %s -- clear_q\n", __func__);
+	pr_de("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 	goto out;
@@ -857,7 +857,7 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
 
-	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
+	_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
 	if (dev_is_sata(dev)) {
 		ata_sas_slave_configure(scsi_dev, dev->sata_dev.ap);

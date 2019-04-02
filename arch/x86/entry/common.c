@@ -73,8 +73,8 @@ static long syscall_trace_enter(struct pt_regs *regs)
 	bool emulated = false;
 	u32 work;
 
-	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
-		BUG_ON(regs != task_pt_regs(current));
+	if (IS_ENABLED(CONFIG_DE_ENTRY))
+		_ON(regs != task_pt_regs(current));
 
 	work = READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
 

@@ -18,7 +18,7 @@
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -121,7 +121,7 @@
 
 enum dbg_channels {
 	dbg_err   = (1 << 0),
-	dbg_debug = (1 << 1),
+	dbg_de = (1 << 1),
 	dbg_info  = (1 << 2),
 	dbg_irq   = (1 << 3),
 	dbg_sg    = (1 << 4),
@@ -133,7 +133,7 @@ enum dbg_channels {
 
 static const int dbgmap_err   = dbg_fail;
 static const int dbgmap_info  = dbg_info | dbg_conf;
-static const int dbgmap_debug = dbg_err | dbg_debug;
+static const int dbgmap_de = dbg_err | dbg_de;
 
 #define dbg(host, channels, args...)		  \
 	do {					  \
@@ -141,7 +141,7 @@ static const int dbgmap_debug = dbg_err | dbg_debug;
 		dev_err(&host->pdev->dev, args);  \
 	else if (dbgmap_info & channels)	  \
 		dev_info(&host->pdev->dev, args); \
-	else if (dbgmap_debug & channels)	  \
+	else if (dbgmap_de & channels)	  \
 		dev_dbg(&host->pdev->dev, args);  \
 	} while (0)
 
@@ -149,7 +149,7 @@ static void finalize_request(struct s3cmci_host *host);
 static void s3cmci_send_request(struct mmc_host *mmc);
 static void s3cmci_reset(struct s3cmci_host *host);
 
-#ifdef CONFIG_MMC_DEBUG
+#ifdef CONFIG_MMC_DE
 
 static void dbg_dumpregs(struct s3cmci_host *host, char *prefix)
 {
@@ -173,17 +173,17 @@ static void dbg_dumpregs(struct s3cmci_host *host, char *prefix)
 	fsta 	= readl(host->base + S3C2410_SDIFSTA);
 	imask   = readl(host->base + host->sdiimsk);
 
-	dbg(host, dbg_debug, "%s  CON:[%08x]  PRE:[%08x]  TMR:[%08x]\n",
+	dbg(host, dbg_de, "%s  CON:[%08x]  PRE:[%08x]  TMR:[%08x]\n",
 				prefix, con, pre, timer);
 
-	dbg(host, dbg_debug, "%s CCON:[%08x] CARG:[%08x] CSTA:[%08x]\n",
+	dbg(host, dbg_de, "%s CCON:[%08x] CARG:[%08x] CSTA:[%08x]\n",
 				prefix, cmdcon, cmdarg, cmdsta);
 
-	dbg(host, dbg_debug, "%s DCON:[%08x] FSTA:[%08x]"
+	dbg(host, dbg_de, "%s DCON:[%08x] FSTA:[%08x]"
 			       " DSTA:[%08x] DCNT:[%08x]\n",
 				prefix, datcon, fsta, datsta, datcnt);
 
-	dbg(host, dbg_debug, "%s   R0:[%08x]   R1:[%08x]"
+	dbg(host, dbg_de, "%s   R0:[%08x]   R1:[%08x]"
 			       "   R2:[%08x]   R3:[%08x]\n",
 				prefix, r0, r1, r2, r3);
 }
@@ -210,7 +210,7 @@ static void prepare_dbgmsg(struct s3cmci_host *host, struct mmc_command *cmd,
 static void dbg_dumpcmd(struct s3cmci_host *host, struct mmc_command *cmd,
 			int fail)
 {
-	unsigned int dbglvl = fail ? dbg_fail : dbg_debug;
+	unsigned int dbglvl = fail ? dbg_fail : dbg_de;
 
 	if (!cmd)
 		return;
@@ -243,7 +243,7 @@ static void prepare_dbgmsg(struct s3cmci_host *host, struct mmc_command *cmd,
 
 static void dbg_dumpregs(struct s3cmci_host *host, char *prefix) { }
 
-#endif /* CONFIG_MMC_DEBUG */
+#endif /* CONFIG_MMC_DE */
 
 /**
  * s3cmci_host_usedma - return whether the host is using dma or pio
@@ -311,7 +311,7 @@ static void s3cmci_check_sdio_irq(struct s3cmci_host *host)
 {
 	if (host->sdio_irqen) {
 		if (gpio_get_value(S3C2410_GPE(8)) == 0) {
-			pr_debug("%s: signalling irq\n", __func__);
+			pr_de("%s: signalling irq\n", __func__);
 			mmc_signal_sdio_irq(host->mmc);
 		}
 	}
@@ -329,7 +329,7 @@ static inline int get_data_buffer(struct s3cmci_host *host,
 		return -EINVAL;
 
 	if (host->pio_sgptr >= host->mrq->data->sg_len) {
-		dbg(host, dbg_debug, "no more buffers (%i/%i)\n",
+		dbg(host, dbg_de, "no more buffers (%i/%i)\n",
 		      host->pio_sgptr, host->mrq->data->sg_len);
 		return -EBUSY;
 	}
@@ -408,7 +408,7 @@ static void s3cmci_disable_irq(struct s3cmci_host *host, bool transfer)
 
 	local_irq_save(flags);
 
-	/* pr_debug("%s: transfer %d\n", __func__, transfer); */
+	/* pr_de("%s: transfer %d\n", __func__, transfer); */
 
 	host->irq_disabled = transfer;
 
@@ -815,8 +815,8 @@ static void s3cmci_dma_done_callback(void *arg)
 	struct s3cmci_host *host = arg;
 	unsigned long iflags;
 
-	BUG_ON(!host->mrq);
-	BUG_ON(!host->mrq->data);
+	_ON(!host->mrq);
+	_ON(!host->mrq->data);
 
 	spin_lock_irqsave(&host->complete_lock, iflags);
 
@@ -834,7 +834,7 @@ static void finalize_request(struct s3cmci_host *host)
 {
 	struct mmc_request *mrq = host->mrq;
 	struct mmc_command *cmd;
-	int debug_as_failure = 0;
+	int de_as_failure = 0;
 
 	if (host->complete_what != COMPLETION_FINALIZE)
 		return;
@@ -861,12 +861,12 @@ static void finalize_request(struct s3cmci_host *host)
 	writel(host->prescaler, host->base + S3C2410_SDIPRE);
 
 	if (cmd->error)
-		debug_as_failure = 1;
+		de_as_failure = 1;
 
 	if (cmd->data && cmd->data->error)
-		debug_as_failure = 1;
+		de_as_failure = 1;
 
-	dbg_dumpcmd(host, cmd, debug_as_failure);
+	dbg_dumpcmd(host, cmd, de_as_failure);
 
 	/* Cleanup controller */
 	writel(0, host->base + S3C2410_SDICMDARG);
@@ -1052,7 +1052,7 @@ static int s3cmci_prepare_pio(struct s3cmci_host *host, struct mmc_data *data)
 {
 	int rw = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
 
-	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
+	_ON((data->flags & BOTH_DIR) == BOTH_DIR);
 
 	host->pio_sgptr = 0;
 	host->pio_bytes = 0;
@@ -1081,7 +1081,7 @@ static int s3cmci_prepare_dma(struct s3cmci_host *host, struct mmc_data *data)
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
 	};
 
-	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
+	_ON((data->flags & BOTH_DIR) == BOTH_DIR);
 
 	/* Restore prescaler value */
 	writel(host->prescaler, host->base + S3C2410_SDIPRE);
@@ -1383,7 +1383,7 @@ static inline void s3cmci_cpufreq_deregister(struct s3cmci_host *host)
 #endif
 
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int s3cmci_state_show(struct seq_file *seq, void *v)
 {
@@ -1414,7 +1414,7 @@ struct s3cmci_reg {
 	unsigned char	*name;
 };
 
-static const struct s3cmci_reg debug_regs[] = {
+static const struct s3cmci_reg de_regs[] = {
 	DBG_REG(CON),
 	DBG_REG(PRE),
 	DBG_REG(CMDARG),
@@ -1436,7 +1436,7 @@ static const struct s3cmci_reg debug_regs[] = {
 static int s3cmci_regs_show(struct seq_file *seq, void *v)
 {
 	struct s3cmci_host *host = seq->private;
-	const struct s3cmci_reg *rptr = debug_regs;
+	const struct s3cmci_reg *rptr = de_regs;
 
 	for (; rptr->name; rptr++)
 		seq_printf(seq, "SDI%s\t=0x%08x\n", rptr->name,
@@ -1449,43 +1449,43 @@ static int s3cmci_regs_show(struct seq_file *seq, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(s3cmci_regs);
 
-static void s3cmci_debugfs_attach(struct s3cmci_host *host)
+static void s3cmci_defs_attach(struct s3cmci_host *host)
 {
 	struct device *dev = &host->pdev->dev;
 
-	host->debug_root = debugfs_create_dir(dev_name(dev), NULL);
-	if (IS_ERR(host->debug_root)) {
-		dev_err(dev, "failed to create debugfs root\n");
+	host->de_root = defs_create_dir(dev_name(dev), NULL);
+	if (IS_ERR(host->de_root)) {
+		dev_err(dev, "failed to create defs root\n");
 		return;
 	}
 
-	host->debug_state = debugfs_create_file("state", 0444,
-						host->debug_root, host,
+	host->de_state = defs_create_file("state", 0444,
+						host->de_root, host,
 						&s3cmci_state_fops);
 
-	if (IS_ERR(host->debug_state))
-		dev_err(dev, "failed to create debug state file\n");
+	if (IS_ERR(host->de_state))
+		dev_err(dev, "failed to create de state file\n");
 
-	host->debug_regs = debugfs_create_file("regs", 0444,
-					       host->debug_root, host,
+	host->de_regs = defs_create_file("regs", 0444,
+					       host->de_root, host,
 					       &s3cmci_regs_fops);
 
-	if (IS_ERR(host->debug_regs))
-		dev_err(dev, "failed to create debug regs file\n");
+	if (IS_ERR(host->de_regs))
+		dev_err(dev, "failed to create de regs file\n");
 }
 
-static void s3cmci_debugfs_remove(struct s3cmci_host *host)
+static void s3cmci_defs_remove(struct s3cmci_host *host)
 {
-	debugfs_remove(host->debug_regs);
-	debugfs_remove(host->debug_state);
-	debugfs_remove(host->debug_root);
+	defs_remove(host->de_regs);
+	defs_remove(host->de_state);
+	defs_remove(host->de_root);
 }
 
 #else
-static inline void s3cmci_debugfs_attach(struct s3cmci_host *host) { }
-static inline void s3cmci_debugfs_remove(struct s3cmci_host *host) { }
+static inline void s3cmci_defs_attach(struct s3cmci_host *host) { }
+static inline void s3cmci_defs_remove(struct s3cmci_host *host) { }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int s3cmci_probe_pdata(struct s3cmci_host *host)
 {
@@ -1697,7 +1697,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 
 	mmc->max_segs		= 128;
 
-	dbg(host, dbg_debug,
+	dbg(host, dbg_de,
 	    "probe: mode:%s mapped mci_base:%p irq:%u irq_cd:%u dma:%p.\n",
 	    (host->is2440?"2440":""),
 	    host->base, host->irq, host->irq_cd, host->dma);
@@ -1714,7 +1714,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 		goto free_cpufreq;
 	}
 
-	s3cmci_debugfs_attach(host);
+	s3cmci_defs_attach(host);
 
 	platform_set_drvdata(pdev, mmc);
 	dev_info(&pdev->dev, "%s - using %s, %s SDIO IRQ\n", mmc_hostname(mmc),
@@ -1765,7 +1765,7 @@ static void s3cmci_shutdown(struct platform_device *pdev)
 	if (host->irq_cd >= 0)
 		free_irq(host->irq_cd, host);
 
-	s3cmci_debugfs_remove(host);
+	s3cmci_defs_remove(host);
 	s3cmci_cpufreq_deregister(host);
 	mmc_remove_host(mmc);
 	clk_disable_unprepare(host->clk);

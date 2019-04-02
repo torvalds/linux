@@ -236,7 +236,7 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	unsigned long reg;
 	u32 val, bit, virq;
 
-	/* INT for debug */
+	/* INT for de */
 	val = readl(priv->base + PCL_RCV_INT);
 
 	if (val & PCL_CFG_BW_MGT_STATUS)

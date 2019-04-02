@@ -29,7 +29,7 @@ static int tda8261_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 			pr_err("%s: Invalid parameter\n", __func__);
 			return err;
 		}
-		pr_debug("%s: Frequency=%d\n", __func__, *frequency);
+		pr_de("%s: Frequency=%d\n", __func__, *frequency);
 	}
 	return 0;
 }
@@ -48,7 +48,7 @@ static int tda8261_set_frequency(struct dvb_frontend *fe, u32 frequency)
 			return err;
 		}
 	}
-	pr_debug("%s: Frequency=%d\n", __func__, c->frequency);
+	pr_de("%s: Frequency=%d\n", __func__, c->frequency);
 	return 0;
 }
 

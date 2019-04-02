@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../debug.h"
+#include "../de.h"
 #include "helpline.h"
 #include "ui.h"
 #include "../util.h"

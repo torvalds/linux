@@ -113,7 +113,7 @@ u32 rv740_get_dll_speed(bool is_gddr5, u32 memory_clock)
 		}
 	}
 
-	DRM_DEBUG_KMS("Target MCLK greater than largest MCLK in DLL speed table\n");
+	DRM_DE_KMS("Target MCLK greater than largest MCLK in DLL speed table\n");
 
 	return 0x0f;
 }

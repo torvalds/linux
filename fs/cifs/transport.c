@@ -37,7 +37,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "smb2proto.h"
 #include "smbdirect.h"
 
@@ -120,7 +120,7 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	 * busy server. Note that this calc is unlikely or impossible to wrap
 	 * as long as slow_rsp_threshold is not set way above recommended max
 	 * value (32767 ie 9 hours) and is generally harmless even if wrong
-	 * since only affects debug counters - so leaving the calc as simple
+	 * since only affects de counters - so leaving the calc as simple
 	 * comparison rather than doing multiple conversions and overflow
 	 * checks
 	 */
@@ -138,7 +138,7 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 			       midEntry->mid, midEntry->pid,
 			       midEntry->when_sent, midEntry->when_received);
 		if (cifsFYI & CIFS_TIMER) {
-			pr_debug(" CIFS slow rsp: cmd %d mid %llu",
+			pr_de(" CIFS slow rsp: cmd %d mid %llu",
 			       midEntry->command, midEntry->mid);
 			cifs_info(" A: 0x%lx S: 0x%lx R: 0x%lx\n",
 			       now - midEntry->when_alloc,

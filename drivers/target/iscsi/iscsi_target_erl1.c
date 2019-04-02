@@ -565,7 +565,7 @@ int iscsit_handle_data_ack(
 	cmd->cmd_flags |= ICF_GOT_DATACK_SNACK;
 	cmd->acked_data_sn = (begrun - 1);
 
-	pr_debug("Received Data ACK SNACK for ITT: 0x%08x,"
+	pr_de("Received Data ACK SNACK for ITT: 0x%08x,"
 		" updated acked DataSN to 0x%08x.\n",
 			cmd->init_task_tag, cmd->acked_data_sn);
 
@@ -871,7 +871,7 @@ int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
 		cmd->i_state = cmd->deferred_i_state;
 		ooo_count++;
 		sess->exp_cmd_sn++;
-		pr_debug("Executing out of order CmdSN: 0x%08x,"
+		pr_de("Executing out of order CmdSN: 0x%08x,"
 			" incremented ExpCmdSN to 0x%08x.\n",
 			cmd->cmd_sn, sess->exp_cmd_sn);
 
@@ -1168,7 +1168,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 			&r2t_offset, &r2t_length) < 0)
 		goto failure;
 
-	pr_debug("Command ITT: 0x%08x timed out waiting for"
+	pr_de("Command ITT: 0x%08x timed out waiting for"
 		" completion of %sDataOUT Sequence Offset: %u, Length: %u\n",
 		cmd->init_task_tag, (cmd->unsolicited_data) ? "Unsolicited " :
 		"", r2t_offset, r2t_length);
@@ -1203,7 +1203,7 @@ void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
 
 	mod_timer(&cmd->dataout_timer,
 		(get_jiffies_64() + na->dataout_timeout * HZ));
-	pr_debug("Updated DataOUT timer for ITT: 0x%08x",
+	pr_de("Updated DataOUT timer for ITT: 0x%08x",
 			cmd->init_task_tag);
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
 }
@@ -1220,7 +1220,7 @@ void iscsit_start_dataout_timer(
 	if (cmd->dataout_timer_flags & ISCSI_TF_RUNNING)
 		return;
 
-	pr_debug("Starting DataOUT timer for ITT: 0x%08x on"
+	pr_de("Starting DataOUT timer for ITT: 0x%08x on"
 		" CID: %hu.\n", cmd->init_task_tag, conn->cid);
 
 	cmd->dataout_timer_flags &= ~ISCSI_TF_STOP;
@@ -1242,7 +1242,7 @@ void iscsit_stop_dataout_timer(struct iscsi_cmd *cmd)
 
 	spin_lock_bh(&cmd->dataout_timeout_lock);
 	cmd->dataout_timer_flags &= ~ISCSI_TF_RUNNING;
-	pr_debug("Stopped DataOUT Timer for ITT: 0x%08x\n",
+	pr_de("Stopped DataOUT Timer for ITT: 0x%08x\n",
 			cmd->init_task_tag);
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
 }

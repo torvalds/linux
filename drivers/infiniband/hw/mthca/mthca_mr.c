@@ -336,14 +336,14 @@ static void mthca_arbel_write_mtt_seg(struct mthca_dev *dev,
 	int s = start_index * sizeof (u64);
 
 	/* For Arbel, all MTTs must fit in the same page. */
-	BUG_ON(s / PAGE_SIZE != (s + list_len * sizeof(u64) - 1) / PAGE_SIZE);
+	_ON(s / PAGE_SIZE != (s + list_len * sizeof(u64) - 1) / PAGE_SIZE);
 	/* Require full segments */
-	BUG_ON(s % dev->limits.mtt_seg_size);
+	_ON(s % dev->limits.mtt_seg_size);
 
 	mtts = mthca_table_find(dev->mr_table.mtt_table, mtt->first_seg +
 				s / dev->limits.mtt_seg_size, &dma_handle);
 
-	BUG_ON(!mtts);
+	_ON(!mtts);
 
 	dma_sync_single_for_cpu(&dev->pdev->dev, dma_handle,
 				list_len * sizeof (u64), DMA_TO_DEVICE);
@@ -599,7 +599,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 			goto err_out_mpt_free;
 
 		mr->mem.arbel.mpt = mthca_table_find(dev->mr_table.mpt_table, key, NULL);
-		BUG_ON(!mr->mem.arbel.mpt);
+		_ON(!mr->mem.arbel.mpt);
 	} else
 		mr->mem.tavor.mpt = dev->mr_table.tavor_fmr.mpt_base +
 			sizeof *(mr->mem.tavor.mpt) * idx;
@@ -616,7 +616,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		mr->mem.arbel.mtts = mthca_table_find(dev->mr_table.mtt_table,
 						      mr->mtt->first_seg,
 						      &mr->mem.arbel.dma_handle);
-		BUG_ON(!mr->mem.arbel.mtts);
+		_ON(!mr->mem.arbel.mtts);
 	} else
 		mr->mem.tavor.mtts = dev->mr_table.tavor_fmr.mtt_base + mtt_seg;
 

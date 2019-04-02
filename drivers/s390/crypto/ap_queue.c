@@ -14,7 +14,7 @@
 #include <asm/facility.h>
 
 #include "ap_bus.h"
-#include "ap_debug.h"
+#include "ap_de.h"
 
 static void __ap_flush_queue(struct ap_queue *aq);
 
@@ -668,7 +668,7 @@ void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg)
 	/* For asynchronous message handling a valid receive-callback
 	 * is required.
 	 */
-	BUG_ON(!ap_msg->receive);
+	_ON(!ap_msg->receive);
 
 	spin_lock_bh(&aq->lock);
 	/* Queue the message. */

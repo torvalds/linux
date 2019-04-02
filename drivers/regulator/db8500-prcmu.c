@@ -518,7 +518,7 @@ static int db8500_regulator_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = ux500_regulator_debug_init(pdev,
+	err = ux500_regulator_de_init(pdev,
 					 dbx500_regulator_info,
 					 ARRAY_SIZE(dbx500_regulator_info));
 	return 0;
@@ -526,7 +526,7 @@ static int db8500_regulator_probe(struct platform_device *pdev)
 
 static int db8500_regulator_remove(struct platform_device *pdev)
 {
-	ux500_regulator_debug_exit();
+	ux500_regulator_de_exit();
 
 	return 0;
 }

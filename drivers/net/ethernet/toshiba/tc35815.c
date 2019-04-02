@@ -440,7 +440,7 @@ static inline dma_addr_t fd_virt_to_bus(struct tc35815_local *lp, void *virt)
 {
 	return lp->fd_buf_dma + ((u8 *)virt - (u8 *)lp->fd_buf);
 }
-#ifdef DEBUG
+#ifdef DE
 static inline void *fd_bus_to_virt(struct tc35815_local *lp, dma_addr_t bus)
 {
 	return (void *)((u8 *)lp->fd_buf + (bus - lp->fd_buf_dma));
@@ -494,7 +494,7 @@ static const struct ethtool_ops tc35815_ethtool_ops;
 static void	tc35815_chip_reset(struct net_device *dev);
 static void	tc35815_chip_init(struct net_device *dev);
 
-#ifdef DEBUG
+#ifdef DE
 static void	panic_queues(struct net_device *dev);
 #endif
 
@@ -597,7 +597,7 @@ static void tc_handle_link_change(struct net_device *dev)
 
 	if (status_change && netif_msg_link(lp)) {
 		phy_print_status(phydev);
-		pr_debug("%s: MII BMCR %04x BMSR %04x LPA %04x\n",
+		pr_de("%s: MII BMCR %04x BMSR %04x LPA %04x\n",
 			 dev->name,
 			 phy_read(phydev, MII_BMCR),
 			 phy_read(phydev, MII_BMSR),
@@ -770,7 +770,7 @@ static int tc35815_init_one(struct pci_dev *pdev,
 	static int printed_version;
 	if (!printed_version++) {
 		printk(version);
-		dev_printk(KERN_DEBUG, &pdev->dev,
+		dev_printk(KERN_DE, &pdev->dev,
 			   "speed:%d duplex:%d\n",
 			   options.speed, options.duplex);
 	}
@@ -871,7 +871,7 @@ tc35815_init_queues(struct net_device *dev)
 	unsigned long fd_addr;
 
 	if (!lp->fd_buf) {
-		BUG_ON(sizeof(struct FDesc) +
+		_ON(sizeof(struct FDesc) +
 		       sizeof(struct BDesc) * RX_BUF_NUM +
 		       sizeof(struct FDesc) * RX_FD_NUM +
 		       sizeof(struct TxFD) * TX_FD_NUM >
@@ -901,7 +901,7 @@ tc35815_init_queues(struct net_device *dev)
 				return -ENOMEM;
 			}
 		}
-		printk(KERN_DEBUG "%s: FD buf %p DataBuf",
+		printk(KERN_DE "%s: FD buf %p DataBuf",
 		       dev->name, lp->fd_buf);
 		printk("\n");
 	} else {
@@ -966,7 +966,7 @@ tc35815_init_queues(struct net_device *dev)
 				    RX_BUF_SIZE);
 	}
 
-	printk(KERN_DEBUG "%s: TxFD %p RxFD %p FrFD %p\n",
+	printk(KERN_DE "%s: TxFD %p RxFD %p FrFD %p\n",
 	       dev->name, lp->tfd_base, lp->rfd_base, lp->fbl_ptr);
 	return 0;
 }
@@ -982,13 +982,13 @@ tc35815_clear_queues(struct net_device *dev)
 		struct sk_buff *skb =
 			fdsystem != 0xffffffff ?
 			lp->tx_skbs[fdsystem].skb : NULL;
-#ifdef DEBUG
+#ifdef DE
 		if (lp->tx_skbs[i].skb != skb) {
 			printk("%s: tx_skbs mismatch(%d).\n", dev->name, i);
 			panic_queues(dev);
 		}
 #else
-		BUG_ON(lp->tx_skbs[i].skb != skb);
+		_ON(lp->tx_skbs[i].skb != skb);
 #endif
 		if (skb) {
 			pci_unmap_single(lp->pci_dev, lp->tx_skbs[i].skb_dma, skb->len, PCI_DMA_TODEVICE);
@@ -1014,13 +1014,13 @@ tc35815_free_queues(struct net_device *dev)
 			struct sk_buff *skb =
 				fdsystem != 0xffffffff ?
 				lp->tx_skbs[fdsystem].skb : NULL;
-#ifdef DEBUG
+#ifdef DE
 			if (lp->tx_skbs[i].skb != skb) {
 				printk("%s: tx_skbs mismatch(%d).\n", dev->name, i);
 				panic_queues(dev);
 			}
 #else
-			BUG_ON(lp->tx_skbs[i].skb != skb);
+			_ON(lp->tx_skbs[i].skb != skb);
 #endif
 			if (skb) {
 				pci_unmap_single(lp->pci_dev, lp->tx_skbs[i].skb_dma, skb->len, PCI_DMA_TODEVICE);
@@ -1088,7 +1088,7 @@ dump_rxfd(struct RxFD *fd)
 	return bd_count;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void
 dump_frfd(struct FrFD *fd)
 {
@@ -1130,8 +1130,8 @@ panic_queues(struct net_device *dev)
 
 static void print_eth(const u8 *add)
 {
-	printk(KERN_DEBUG "print_eth(%p)\n", add);
-	printk(KERN_DEBUG " %pM => %pM : %02x%02x\n",
+	printk(KERN_DE "print_eth(%p)\n", add);
+	printk(KERN_DE " %pM => %pM : %02x%02x\n",
 		add + 6, add, add[12], add[13]);
 }
 
@@ -1284,13 +1284,13 @@ tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (netif_msg_pktdata(lp))
 		print_eth(skb->data);
-#ifdef DEBUG
+#ifdef DE
 	if (lp->tx_skbs[lp->tfd_start].skb) {
 		printk("%s: tx_skbs conflict.\n", dev->name);
 		panic_queues(dev);
 	}
 #else
-	BUG_ON(lp->tx_skbs[lp->tfd_start].skb);
+	_ON(lp->tx_skbs[lp->tfd_start].skb);
 #endif
 	lp->tx_skbs[lp->tfd_start].skb = skb;
 	lp->tx_skbs[lp->tfd_start].skb_dma = pci_map_single(lp->pci_dev, skb->data, skb->len, PCI_DMA_TODEVICE);
@@ -1435,7 +1435,7 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 		else {
 			printk(KERN_ERR "%s: interrupt taken in poll\n",
 			       dev->name);
-			BUG();
+			();
 		}
 		(void)tc_readl(&tr->Int_Src);	/* flush */
 		return IRQ_HANDLED;
@@ -1465,7 +1465,7 @@ tc35815_rx(struct net_device *dev, int limit)
 		int status = le32_to_cpu(lp->rfd_cur->fd.FDStat);
 		int pkt_len = fdctl & FD_FDLength_MASK;
 		int bd_count = (fdctl & FD_BDCnt_MASK) >> FD_BDCnt_SHIFT;
-#ifdef DEBUG
+#ifdef DE
 		struct RxFD *next_rfd;
 #endif
 #if (RX_CTL_CMD & Rx_StripCRC) == 0
@@ -1481,22 +1481,22 @@ tc35815_rx(struct net_device *dev, int limit)
 
 			if (--limit < 0)
 				break;
-			BUG_ON(bd_count > 1);
+			_ON(bd_count > 1);
 			cur_bd = (le32_to_cpu(lp->rfd_cur->bd[0].BDCtl)
 				  & BD_RxBDID_MASK) >> BD_RxBDID_SHIFT;
-#ifdef DEBUG
+#ifdef DE
 			if (cur_bd >= RX_BUF_NUM) {
 				printk("%s: invalid BDID.\n", dev->name);
 				panic_queues(dev);
 			}
-			BUG_ON(lp->rx_skbs[cur_bd].skb_dma !=
+			_ON(lp->rx_skbs[cur_bd].skb_dma !=
 			       (le32_to_cpu(lp->rfd_cur->bd[0].BuffData) & ~3));
 			if (!lp->rx_skbs[cur_bd].skb) {
 				printk("%s: NULL skb.\n", dev->name);
 				panic_queues(dev);
 			}
 #else
-			BUG_ON(cur_bd >= RX_BUF_NUM);
+			_ON(cur_bd >= RX_BUF_NUM);
 #endif
 			skb = lp->rx_skbs[cur_bd].skb;
 			prefetch(skb->data);
@@ -1540,13 +1540,13 @@ tc35815_rx(struct net_device *dev, int limit)
 			int bdctl = le32_to_cpu(lp->rfd_cur->bd[bd_count - 1].BDCtl);
 			unsigned char id =
 				(bdctl & BD_RxBDID_MASK) >> BD_RxBDID_SHIFT;
-#ifdef DEBUG
+#ifdef DE
 			if (id >= RX_BUF_NUM) {
 				printk("%s: invalid BDID.\n", dev->name);
 				panic_queues(dev);
 			}
 #else
-			BUG_ON(id >= RX_BUF_NUM);
+			_ON(id >= RX_BUF_NUM);
 #endif
 			/* free old buffers */
 			lp->fbl_count--;
@@ -1555,7 +1555,7 @@ tc35815_rx(struct net_device *dev, int limit)
 				unsigned char curid =
 					(id + 1 + lp->fbl_count) % RX_BUF_NUM;
 				struct BDesc *bd = &lp->fbl_ptr->bd[curid];
-#ifdef DEBUG
+#ifdef DE
 				bdctl = le32_to_cpu(bd->BDCtl);
 				if (bdctl & BD_CownsBD) {
 					printk("%s: Freeing invalid BD.\n",
@@ -1582,7 +1582,7 @@ tc35815_rx(struct net_device *dev, int limit)
 		}
 
 		/* put RxFD back to controller */
-#ifdef DEBUG
+#ifdef DE
 		next_rfd = fd_bus_to_virt(lp,
 					  le32_to_cpu(lp->rfd_cur->fd.FDNext));
 		if (next_rfd < lp->rfd_base || next_rfd > lp->rfd_limit) {
@@ -1592,7 +1592,7 @@ tc35815_rx(struct net_device *dev, int limit)
 #endif
 		for (i = 0; i < (bd_count + 1) / 2 + 1; i++) {
 			/* pass FD to controller */
-#ifdef DEBUG
+#ifdef DE
 			lp->rfd_cur->fd.FDNext = cpu_to_le32(0xdeaddead);
 #else
 			lp->rfd_cur->fd.FDNext = cpu_to_le32(FD_Next_EOL);
@@ -1602,7 +1602,7 @@ tc35815_rx(struct net_device *dev, int limit)
 		}
 		if (lp->rfd_cur > lp->rfd_limit)
 			lp->rfd_cur = lp->rfd_base;
-#ifdef DEBUG
+#ifdef DE
 		if (lp->rfd_cur != next_rfd)
 			printk("rfd_cur = %p, next_rfd %p\n",
 			       lp->rfd_cur, next_rfd);
@@ -1747,13 +1747,13 @@ tc35815_txdone(struct net_device *dev)
 
 		skb = fdsystem != 0xffffffff ?
 			lp->tx_skbs[fdsystem].skb : NULL;
-#ifdef DEBUG
+#ifdef DE
 		if (lp->tx_skbs[lp->tfd_end].skb != skb) {
 			printk("%s: tx_skbs mismatch.\n", dev->name);
 			panic_queues(dev);
 		}
 #else
-		BUG_ON(lp->tx_skbs[lp->tfd_end].skb != skb);
+		_ON(lp->tx_skbs[lp->tfd_end].skb != skb);
 #endif
 		if (skb) {
 			dev->stats.tx_bytes += skb->len;
@@ -1766,7 +1766,7 @@ tc35815_txdone(struct net_device *dev)
 
 		lp->tfd_end = (lp->tfd_end + 1) % TX_FD_NUM;
 		txfd = &lp->tfd_base[lp->tfd_end];
-#ifdef DEBUG
+#ifdef DE
 		if ((fdnext & ~FD_Next_EOL) != fd_virt_to_bus(lp, txfd)) {
 			printk("%s: TxFD FDNext invalid.\n", dev->name);
 			panic_queues(dev);
@@ -1782,7 +1782,7 @@ tc35815_txdone(struct net_device *dev)
 				int qlen = (lp->tfd_start + TX_FD_NUM
 					    - lp->tfd_end) % TX_FD_NUM;
 
-#ifdef DEBUG
+#ifdef DE
 				if (!(le32_to_cpu(txfd->fd.FDCtl) & FD_CownsFD)) {
 					printk("%s: TxFD FDCtl invalid.\n", dev->name);
 					panic_queues(dev);
@@ -1864,7 +1864,7 @@ static void tc35815_set_cam_entry(struct net_device *dev, int index, unsigned ch
 	saved_addr = tc_readl(&tr->CAM_Adr);
 
 	if (netif_msg_hw(lp))
-		printk(KERN_DEBUG "%s: CAM %d: %pM\n",
+		printk(KERN_DE "%s: CAM %d: %pM\n",
 			dev->name, index, addr);
 	if (index & 1) {
 		/* read modify write */

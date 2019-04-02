@@ -97,7 +97,7 @@
 #define KPF_READAHEAD		48
 #define KPF_SLOB_FREE		49
 #define KPF_SLUB_FROZEN		50
-#define KPF_SLUB_DEBUG		51
+#define KPF_SLUB_DE		51
 #define KPF_FILE		61
 #define KPF_SWAP		62
 #define KPF_MMAP_EXCLUSIVE	63
@@ -151,7 +151,7 @@ static const char * const page_flag_names[] = {
 	[KPF_READAHEAD]		= "I:readahead",
 	[KPF_SLOB_FREE]		= "P:slob_free",
 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
-	[KPF_SLUB_DEBUG]	= "E:slub_debug",
+	[KPF_SLUB_DE]	= "E:slub_de",
 
 	[KPF_FILE]		= "F:file",
 	[KPF_SWAP]		= "w:swap",
@@ -200,7 +200,7 @@ static int		page_idle_fd = -1;
 static int		opt_hwpoison;
 static int		opt_unpoison;
 
-static const char	*hwpoison_debug_fs;
+static const char	*hwpoison_de_fs;
 static int		hwpoison_inject_fd;
 static int		hwpoison_forget_fd;
 
@@ -489,7 +489,7 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 		if (flags & BIT(ACTIVE))
 			flags ^= BIT(ACTIVE) | BIT(SLUB_FROZEN);
 		if (flags & BIT(ERROR))
-			flags ^= BIT(ERROR) | BIT(SLUB_DEBUG);
+			flags ^= BIT(ERROR) | BIT(SLUB_DE);
 	}
 
 	/* PG_reclaim is overloaded as PG_readahead in the read path */
@@ -538,21 +538,21 @@ static void prepare_hwpoison_fd(void)
 {
 	char buf[MAX_PATH + 1];
 
-	hwpoison_debug_fs = debugfs__mount();
-	if (!hwpoison_debug_fs) {
-		perror("mount debugfs");
+	hwpoison_de_fs = defs__mount();
+	if (!hwpoison_de_fs) {
+		perror("mount defs");
 		exit(EXIT_FAILURE);
 	}
 
 	if (opt_hwpoison && !hwpoison_inject_fd) {
 		snprintf(buf, MAX_PATH, "%s/hwpoison/corrupt-pfn",
-			hwpoison_debug_fs);
+			hwpoison_de_fs);
 		hwpoison_inject_fd = checked_open(buf, O_WRONLY);
 	}
 
 	if (opt_unpoison && !hwpoison_forget_fd) {
 		snprintf(buf, MAX_PATH, "%s/hwpoison/unpoison-pfn",
-			hwpoison_debug_fs);
+			hwpoison_de_fs);
 		hwpoison_forget_fd = checked_open(buf, O_WRONLY);
 	}
 }

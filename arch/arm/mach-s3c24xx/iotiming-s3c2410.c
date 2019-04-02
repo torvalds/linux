@@ -24,7 +24,7 @@
 #define print_ns(x) ((x) / 10), ((x) % 10)
 
 /**
- * s3c2410_print_timing - print bank timing data for debug purposes
+ * s3c2410_print_timing - print bank timing data for de purposes
  * @pfx: The prefix to put on the output
  * @timings: The timing inforamtion to print.
 */
@@ -39,7 +39,7 @@ static void s3c2410_print_timing(const char *pfx,
 		if (!bt)
 			continue;
 
-		printk(KERN_DEBUG "%s %d: Tacs=%d.%d, Tcos=%d.%d, Tacc=%d.%d, "
+		printk(KERN_DE "%s %d: Tacs=%d.%d, Tcos=%d.%d, Tacc=%d.%d, "
 		       "Tcoh=%d.%d, Tcah=%d.%d\n", pfx, bank,
 		       print_ns(bt->tacs),
 		       print_ns(bt->tcos),
@@ -302,12 +302,12 @@ void s3c2410_iotiming_getbank(struct s3c_cpufreq_config *cfg,
 }
 
 /**
- * s3c2410_iotiming_debugfs - debugfs show io bank timing information
+ * s3c2410_iotiming_defs - defs show io bank timing information
  * @seq: The seq_file to write output to using seq_printf().
  * @cfg: The current configuration.
  * @iob: The IO bank information to decode.
  */
-void s3c2410_iotiming_debugfs(struct seq_file *seq,
+void s3c2410_iotiming_defs(struct seq_file *seq,
 			      struct s3c_cpufreq_config *cfg,
 			      union s3c_iobank *iob)
 {

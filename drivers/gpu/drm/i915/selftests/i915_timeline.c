@@ -17,7 +17,7 @@ static struct page *hwsp_page(struct i915_timeline *tl)
 {
 	struct drm_i915_gem_object *obj = tl->hwsp_ggtt->obj;
 
-	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	GEM__ON(!i915_gem_object_has_pinned_pages(obj));
 	return sg_page(obj->mm.pages->sgl);
 }
 
@@ -135,7 +135,7 @@ static int mock_hwsp_freelist(void *arg)
 
 	mutex_lock(&state.i915->drm.struct_mutex);
 	for (p = phases; p->name; p++) {
-		pr_debug("%s(%s)\n", __func__, p->name);
+		pr_de("%s(%s)\n", __func__, p->name);
 		for_each_prime_number_from(na, 1, 2 * CACHELINES_PER_PAGE) {
 			err = __mock_hwsp_timeline(&state, na, p->flags);
 			if (err)
@@ -272,7 +272,7 @@ static int bench_sync(void *arg)
 		count++;
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
-	pr_debug("%s: %lu random evaluations, %lluns/prng\n",
+	pr_de("%s: %lu random evaluations, %lluns/prng\n",
 		 __func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 	prng32_1M = div64_ul(ktime_to_ns(kt) << 20, count);
 

@@ -143,7 +143,7 @@ void context_clock_trace(
 #define PERFORMANCE_TRACE_END() \
 	do { \
 		unsigned long long perf_trc_end_stmp = dm_get_timestamp(dc->ctx); \
-		if (dc->debug.performance_trace) { \
+		if (dc->de.performance_trace) { \
 			DC_LOG_PERF_TRACE("%s duration: %lld ticks\n", __func__, \
 				perf_trc_end_stmp - perf_trc_start_stmp); \
 		} \

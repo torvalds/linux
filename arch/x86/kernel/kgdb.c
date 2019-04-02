@@ -32,7 +32,7 @@
  *  X86_64 changes from Andi Kleen's patch merged by Jim Houston
  */
 #include <linux/spinlock.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -46,7 +46,7 @@
 #include <linux/memory.h>
 
 #include <asm/text-patching.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/apicdef.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
@@ -215,11 +215,11 @@ static void kgdb_correct_hw_break(void)
 		if (!breakinfo[breakno].enabled)
 			continue;
 		if (dbg_is_early) {
-			set_debugreg(breakinfo[breakno].addr, breakno);
+			set_dereg(breakinfo[breakno].addr, breakno);
 			early_dr7 |= encode_dr7(breakno,
 						breakinfo[breakno].len,
 						breakinfo[breakno].type);
-			set_debugreg(early_dr7, 7);
+			set_dereg(early_dr7, 7);
 			continue;
 		}
 		bp = *per_cpu_ptr(breakinfo[breakno].pev, cpu);
@@ -281,7 +281,7 @@ static int hw_break_release_slot(int breakno)
 		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
 		if (dbg_release_bp_slot(*pevent))
 			/*
-			 * The debugger is responsible for handing the retry on
+			 * The deger is responsible for handing the retry on
 			 * remove failure.
 			 */
 			return -1;
@@ -388,21 +388,21 @@ kgdb_set_hw_break(unsigned long addr, int len, enum kgdb_bptype bptype)
 }
 
 /**
- *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
+ *	kgdb_disable_hw_de - Disable hardware deging while we in kgdb.
  *	@regs: Current &struct pt_regs.
  *
  *	This function will be called if the particular architecture must
- *	disable hardware debugging while it is processing gdb packets or
+ *	disable hardware deging while it is processing gdb packets or
  *	handling exception.
  */
-static void kgdb_disable_hw_debug(struct pt_regs *regs)
+static void kgdb_disable_hw_de(struct pt_regs *regs)
 {
 	int i;
 	int cpu = raw_smp_processor_id();
 	struct perf_event *bp;
 
-	/* Disable hardware debugging while we are in kgdb: */
-	set_debugreg(0UL, 7);
+	/* Disable hardware deging while we are in kgdb: */
+	set_dereg(0UL, 7);
 	for (i = 0; i < HBP_NUM; i++) {
 		if (!breakinfo[i].enabled)
 			continue;
@@ -508,7 +508,7 @@ single_step_cont(struct pt_regs *regs, struct die_args *args)
 	return NOTIFY_STOP;
 }
 
-static DECLARE_BITMAP(was_in_debug_nmi, NR_CPUS);
+static DECLARE_BITMAP(was_in_de_nmi, NR_CPUS);
 
 static int kgdb_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 {
@@ -520,7 +520,7 @@ static int kgdb_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 			/* KGDB CPU roundup */
 			cpu = raw_smp_processor_id();
 			kgdb_nmicallback(cpu, regs);
-			set_bit(cpu, was_in_debug_nmi);
+			set_bit(cpu, was_in_de_nmi);
 			touch_nmi_watchdog();
 
 			return NMI_HANDLED;
@@ -530,7 +530,7 @@ static int kgdb_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 	case NMI_UNKNOWN:
 		cpu = raw_smp_processor_id();
 
-		if (__test_and_clear_bit(cpu, was_in_debug_nmi))
+		if (__test_and_clear_bit(cpu, was_in_de_nmi))
 			return NMI_HANDLED;
 
 		break;
@@ -546,7 +546,7 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 	struct pt_regs *regs = args->regs;
 
 	switch (cmd) {
-	case DIE_DEBUG:
+	case DIE_DE:
 		if (atomic_read(&kgdb_cpu_doing_single_step) != -1) {
 			if (user_mode(regs))
 				return single_step_cont(regs, args);
@@ -648,7 +648,7 @@ static void kgdb_hw_overflow_handler(struct perf_event *event,
 
 	for (i = 0; i < 4; i++)
 		if (breakinfo[i].enabled)
-			tsk->thread.debugreg6 |= (DR_TRAP0 << i);
+			tsk->thread.dereg6 |= (DR_TRAP0 << i);
 }
 
 void kgdb_arch_late(void)
@@ -673,7 +673,7 @@ void kgdb_arch_late(void)
 		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL, NULL);
 		if (IS_ERR((void * __force)breakinfo[i].pev)) {
 			printk(KERN_ERR "kgdb: Could not allocate hw"
-			       "breakpoints\nDisabling the kernel debugger\n");
+			       "breakpoints\nDisabling the kernel deger\n");
 			breakinfo[i].pev = NULL;
 			kgdb_arch_exit();
 			return;
@@ -806,7 +806,7 @@ const struct kgdb_arch arch_kgdb_ops = {
 	.flags			= KGDB_HW_BREAKPOINT,
 	.set_hw_breakpoint	= kgdb_set_hw_break,
 	.remove_hw_breakpoint	= kgdb_remove_hw_break,
-	.disable_hw_break	= kgdb_disable_hw_debug,
+	.disable_hw_break	= kgdb_disable_hw_de,
 	.remove_all_hw_break	= kgdb_remove_all_hw_break,
 	.correct_hw_break	= kgdb_correct_hw_break,
 };

@@ -27,7 +27,7 @@ static void
 intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])
 {
 
-	DRM_DEBUG_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
+	DRM_DE_KMS("ln0_1:0x%x ln2_3:0x%x align:0x%x sink:0x%x adj_req0_1:0x%x adj_req2_3:0x%x",
 		      link_status[0], link_status[1], link_status[2],
 		      link_status[3], link_status[4], link_status[5]);
 }
@@ -141,9 +141,9 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 			      &link_bw, &rate_select);
 
 	if (link_bw)
-		DRM_DEBUG_KMS("Using LINK_BW_SET value %02x\n", link_bw);
+		DRM_DE_KMS("Using LINK_BW_SET value %02x\n", link_bw);
 	else
-		DRM_DEBUG_KMS("Using LINK_RATE_SET value %02x\n", rate_select);
+		DRM_DE_KMS("Using LINK_RATE_SET value %02x\n", rate_select);
 
 	/* Write the link configuration data */
 	link_config[0] = link_bw;
@@ -196,17 +196,17 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		}
 
 		if (drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
-			DRM_DEBUG_KMS("clock recovery OK\n");
+			DRM_DE_KMS("clock recovery OK\n");
 			return true;
 		}
 
 		if (voltage_tries == 5) {
-			DRM_DEBUG_KMS("Same voltage tried 5 times\n");
+			DRM_DE_KMS("Same voltage tried 5 times\n");
 			return false;
 		}
 
 		if (max_vswing_reached) {
-			DRM_DEBUG_KMS("Max Voltage Swing reached\n");
+			DRM_DE_KMS("Max Voltage Swing reached\n");
 			return false;
 		}
 
@@ -254,9 +254,9 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 		return DP_TRAINING_PATTERN_4;
 	} else if (intel_dp->link_rate == 810000) {
 		if (!source_tps4)
-			DRM_DEBUG_KMS("8.1 Gbps link rate without source HBR3/TPS4 support\n");
+			DRM_DE_KMS("8.1 Gbps link rate without source HBR3/TPS4 support\n");
 		if (!sink_tps4)
-			DRM_DEBUG_KMS("8.1 Gbps link rate without sink TPS4 support\n");
+			DRM_DE_KMS("8.1 Gbps link rate without sink TPS4 support\n");
 	}
 	/*
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
@@ -269,9 +269,9 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 		return  DP_TRAINING_PATTERN_3;
 	} else if (intel_dp->link_rate >= 540000) {
 		if (!source_tps3)
-			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without source HBR2/TPS3 support\n");
+			DRM_DE_KMS(">=5.4/6.48 Gbps link rate without source HBR2/TPS3 support\n");
 		if (!sink_tps3)
-			DRM_DEBUG_KMS(">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
+			DRM_DE_KMS(">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
 	}
 
 	return DP_TRAINING_PATTERN_2;
@@ -309,7 +309,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      intel_dp->lane_count)) {
 			intel_dp_dump_link_status(link_status);
-			DRM_DEBUG_KMS("Clock recovery check failed, cannot "
+			DRM_DE_KMS("Clock recovery check failed, cannot "
 				      "continue channel equalization\n");
 			break;
 		}
@@ -317,7 +317,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 		if (drm_dp_channel_eq_ok(link_status,
 					 intel_dp->lane_count)) {
 			channel_eq = true;
-			DRM_DEBUG_KMS("Channel EQ done. DP Training "
+			DRM_DE_KMS("Channel EQ done. DP Training "
 				      "successful\n");
 			break;
 		}
@@ -333,7 +333,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 	/* Try 5 times, else fail and try at lower BW */
 	if (tries == 5) {
 		intel_dp_dump_link_status(link_status);
-		DRM_DEBUG_KMS("Channel equalization failed 5 times\n");
+		DRM_DE_KMS("Channel equalization failed 5 times\n");
 	}
 
 	intel_dp_set_idle_link_train(intel_dp);
@@ -360,14 +360,14 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	if (!intel_dp_link_training_channel_equalization(intel_dp))
 		goto failure_handling;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training Passed at Link Rate = %d, Lane count = %d",
+	DRM_DE_KMS("[CONNECTOR:%d:%s] Link Training Passed at Link Rate = %d, Lane count = %d",
 		      intel_connector->base.base.id,
 		      intel_connector->base.name,
 		      intel_dp->link_rate, intel_dp->lane_count);
 	return;
 
  failure_handling:
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
+	DRM_DE_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
 		      intel_connector->base.base.id,
 		      intel_connector->base.name,
 		      intel_dp->link_rate, intel_dp->lane_count);

@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include <linux/errno.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"

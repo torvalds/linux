@@ -4,7 +4,7 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -461,7 +461,7 @@ int rpmh_flush(const struct device *dev)
 	int ret;
 
 	if (!ctrlr->dirty) {
-		pr_debug("Skipping flush, TCS has latest data.\n");
+		pr_de("Skipping flush, TCS has latest data.\n");
 		return 0;
 	}
 
@@ -476,7 +476,7 @@ int rpmh_flush(const struct device *dev)
 	 */
 	list_for_each_entry(p, &ctrlr->cache, list) {
 		if (!is_req_valid(p)) {
-			pr_debug("%s: skipping RPMH req: a:%#x s:%#x w:%#x",
+			pr_de("%s: skipping RPMH req: a:%#x s:%#x w:%#x",
 				 __func__, p->addr, p->sleep_val, p->wake_val);
 			continue;
 		}

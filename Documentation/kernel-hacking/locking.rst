@@ -139,7 +139,7 @@ equivalent to SMP, and not worry about it separately.
 
 You should always test your locking code with ``CONFIG_SMP`` and
 ``CONFIG_PREEMPT`` enabled, even if you don't have an SMP test box,
-because it will still catch some kinds of locking bugs.
+because it will still catch some kinds of locking s.
 
 Mutexes still exist, because they are required for synchronization
 between user contexts, as we will see below.
@@ -424,7 +424,7 @@ to protect the cache and all the objects within it. Here's the code::
     /* Must be holding cache_lock */
     static void __cache_delete(struct object *obj)
     {
-            BUG_ON(!obj);
+            _ON(!obj);
             list_del(&obj->list);
             kfree(obj);
             cache_num--;
@@ -653,7 +653,7 @@ Here is the code::
      {
     @@ -35,6 +65,7 @@
      {
-             BUG_ON(!obj);
+             _ON(!obj);
              list_del(&obj->list);
     +        __object_put(obj);
              cache_num--;
@@ -766,7 +766,7 @@ the lock is no longer used to protect the reference count itself.
      /* Must be holding cache_lock */
     @@ -65,7 +47,7 @@
      {
-             BUG_ON(!obj);
+             _ON(!obj);
              list_del(&obj->list);
     -        __object_put(obj);
     +        object_put(obj);
@@ -880,7 +880,7 @@ Common Problems
 Deadlock: Simple and Advanced
 -----------------------------
 
-There is a coding bug where a piece of code tries to grab a spinlock
+There is a coding  where a piece of code tries to grab a spinlock
 twice: it will spin forever, waiting for the lock to be released
 (spinlocks, rwlocks and mutexes are not recursive in Linux). This is
 trivial to diagnose: not a
@@ -898,7 +898,7 @@ on kernel compiles with ``CONFIG_SMP``\ =n. You'll still get data
 corruption in the second example).
 
 This complete lockup is easy to diagnose: on SMP boxes the watchdog
-timer or compiling with ``DEBUG_SPINLOCK`` set
+timer or compiling with ``DE_SPINLOCK`` set
 (``include/linux/spinlock.h``) will show this up immediately when it
 happens.
 
@@ -1190,7 +1190,7 @@ this is the fundamental idea.
      /* Must be holding cache_lock */
      static void __cache_delete(struct object *obj)
      {
-             BUG_ON(!obj);
+             _ON(!obj);
     -        list_del(&obj->list);
     -        object_put(obj);
     +        list_del_rcu(&obj->list);

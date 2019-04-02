@@ -1108,7 +1108,7 @@ static void preview_config_input_size(struct isp_prev_device *prev, u32 active)
  * @offset: Line offset
  *
  * According to the TRM, the line offset must be aligned on a 32 bytes boundary.
- * However, a hardware bug requires the memory start address to be aligned on a
+ * However, a hardware  requires the memory start address to be aligned on a
  * 64 bytes boundary, so the offset probably should be aligned on 64 bytes as
  * well.
  */
@@ -2294,7 +2294,7 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	preview_init_formats(sd, NULL);
 
 	/* According to the OMAP34xx TRM, video buffers need to be aligned on a
-	 * 32 bytes boundary. However, an undocumented hardware bug requires a
+	 * 32 bytes boundary. However, an undocumented hardware  requires a
 	 * 64 bytes boundary at the preview engine input.
 	 */
 	prev->video_in.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;

@@ -14,7 +14,7 @@ config MESON_CLK_MEASURE
 	select REGMAP_MMIO
 	help
 	  Say yes to support of Measuring a set of internal SoC clocks
-	  from the debugfs interface.
+	  from the defs interface.
 
 config MESON_GX_SOCINFO
 	bool "Amlogic Meson GX SoC Information driver"

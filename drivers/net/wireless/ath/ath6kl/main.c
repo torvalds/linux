@@ -21,7 +21,7 @@
 #include "hif-ops.h"
 #include "cfg80211.h"
 #include "target.h"
-#include "debug.h"
+#include "de.h"
 
 struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *node_addr)
 {
@@ -270,9 +270,9 @@ int ath6kl_diag_write(struct ath6kl *ar, u32 address, void *data, u32 length)
 
 int ath6kl_read_fwlogs(struct ath6kl *ar)
 {
-	struct ath6kl_dbglog_hdr debug_hdr;
-	struct ath6kl_dbglog_buf debug_buf;
-	u32 address, length, firstbuf, debug_hdr_addr;
+	struct ath6kl_dbglog_hdr de_hdr;
+	struct ath6kl_dbglog_buf de_buf;
+	u32 address, length, firstbuf, de_hdr_addr;
 	int ret, loop;
 	u8 *buf;
 
@@ -284,26 +284,26 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 			    ath6kl_get_hi_item_addr(ar,
 						    HI_ITEM(hi_dbglog_hdr)));
 
-	ret = ath6kl_diag_read32(ar, address, &debug_hdr_addr);
+	ret = ath6kl_diag_read32(ar, address, &de_hdr_addr);
 	if (ret)
 		goto out;
 
 	/* Get the contents of the ring buffer */
-	if (debug_hdr_addr == 0) {
-		ath6kl_warn("Invalid address for debug_hdr_addr\n");
+	if (de_hdr_addr == 0) {
+		ath6kl_warn("Invalid address for de_hdr_addr\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	address = TARG_VTOP(ar->target_type, debug_hdr_addr);
-	ret = ath6kl_diag_read(ar, address, &debug_hdr, sizeof(debug_hdr));
+	address = TARG_VTOP(ar->target_type, de_hdr_addr);
+	ret = ath6kl_diag_read(ar, address, &de_hdr, sizeof(de_hdr));
 	if (ret)
 		goto out;
 
 	address = TARG_VTOP(ar->target_type,
-			    le32_to_cpu(debug_hdr.dbuf_addr));
+			    le32_to_cpu(de_hdr.dbuf_addr));
 	firstbuf = address;
-	ret = ath6kl_diag_read(ar, address, &debug_buf, sizeof(debug_buf));
+	ret = ath6kl_diag_read(ar, address, &de_buf, sizeof(de_buf));
 	if (ret)
 		goto out;
 
@@ -311,11 +311,11 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 
 	do {
 		address = TARG_VTOP(ar->target_type,
-				    le32_to_cpu(debug_buf.buffer_addr));
-		length = le32_to_cpu(debug_buf.length);
+				    le32_to_cpu(de_buf.buffer_addr));
+		length = le32_to_cpu(de_buf.length);
 
-		if (length != 0 && (le32_to_cpu(debug_buf.length) <=
-				    le32_to_cpu(debug_buf.bufsize))) {
+		if (length != 0 && (le32_to_cpu(de_buf.length) <=
+				    le32_to_cpu(de_buf.bufsize))) {
 			length = ALIGN(length, 4);
 
 			ret = ath6kl_diag_read(ar, address,
@@ -323,13 +323,13 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 			if (ret)
 				goto out;
 
-			ath6kl_debug_fwlog_event(ar, buf, length);
+			ath6kl_de_fwlog_event(ar, buf, length);
 		}
 
 		address = TARG_VTOP(ar->target_type,
-				    le32_to_cpu(debug_buf.next));
-		ret = ath6kl_diag_read(ar, address, &debug_buf,
-				       sizeof(debug_buf));
+				    le32_to_cpu(de_buf.next));
+		ret = ath6kl_diag_read(ar, address, &de_buf,
+				       sizeof(de_buf));
 		if (ret)
 			goto out;
 

@@ -3,7 +3,7 @@
  *
  * This traverses the kernel pagetables and dumps the
  * information about the used sections of memory to
- * /sys/kernel/debug/kernel_pagetables.
+ * /sys/kernel/de/kernel_pagetables.
  *
  * Derived from the arm64 implementation:
  * Copyright (c) 2014, The Linux Foundation, Laura Abbott.
@@ -14,7 +14,7 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/hugetlb.h>
 #include <linux/io.h>
@@ -368,12 +368,12 @@ static void build_pgtable_complete_mask(void)
 
 static int ptdump_init(void)
 {
-	struct dentry *debugfs_file;
+	struct dentry *defs_file;
 
 	populate_markers();
 	build_pgtable_complete_mask();
-	debugfs_file = debugfs_create_file("kernel_page_tables", 0400, NULL,
+	defs_file = defs_create_file("kernel_page_tables", 0400, NULL,
 			NULL, &ptdump_fops);
-	return debugfs_file ? 0 : -ENOMEM;
+	return defs_file ? 0 : -ENOMEM;
 }
 device_initcall(ptdump_init);

@@ -38,7 +38,7 @@
 #include <linux/avf/virtchnl.h>
 #include "iavf_txrx.h"
 
-#define DEFAULT_DEBUG_LEVEL_SHIFT 3
+#define DEFAULT_DE_LEVEL_SHIFT 3
 #define PFX "iavf: "
 
 /* VSI state flags shared with common code */

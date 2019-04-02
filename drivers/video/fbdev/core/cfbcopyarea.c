@@ -52,7 +52,7 @@ bitcpy(struct fb_info *p, unsigned long __iomem *dst, unsigned dst_idx,
 
 #if 0
 	/*
-	 * If you suspect bug in this function, compare it with this simple
+	 * If you suspect  in this function, compare it with this simple
 	 * memmove implementation.
 	 */
 	memmove((char *)dst + ((dst_idx & (bits - 1))) / 8,
@@ -218,7 +218,7 @@ bitcpy_rev(struct fb_info *p, unsigned long __iomem *dst, unsigned dst_idx,
 
 #if 0
 	/*
-	 * If you suspect bug in this function, compare it with this simple
+	 * If you suspect  in this function, compare it with this simple
 	 * memmove implementation.
 	 */
 	memmove((char *)dst + ((dst_idx & (bits - 1))) / 8,

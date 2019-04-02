@@ -152,7 +152,7 @@ static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
 					      struct kernfs_node *parent)
 {
 	if (child == parent) {
-		pr_crit_once("BUG in find_next_ancestor: called with parent == child");
+		pr_crit_once(" in find_next_ancestor: called with parent == child");
 		return NULL;
 	}
 
@@ -176,7 +176,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 	struct dentry *dentry;
 	struct kernfs_node *knparent = NULL;
 
-	BUG_ON(sb->s_op != &kernfs_sops);
+	_ON(sb->s_op != &kernfs_sops);
 
 	dentry = dget(sb->s_root);
 
@@ -237,14 +237,14 @@ static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *k
 	inode = kernfs_get_inode(sb, info->root->kn);
 	mutex_unlock(&kernfs_mutex);
 	if (!inode) {
-		pr_debug("kernfs: could not get root inode\n");
+		pr_de("kernfs: could not get root inode\n");
 		return -ENOMEM;
 	}
 
 	/* instantiate and link root dentry */
 	root = d_make_root(inode);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n", __func__);
+		pr_de("%s: could not get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
 	sb->s_root = root;

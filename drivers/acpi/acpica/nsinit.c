@@ -50,11 +50,11 @@ acpi_status acpi_ns_initialize_objects(void)
 
 	ACPI_FUNCTION_TRACE(ns_initialize_objects);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "[Init] Completing Initialization of ACPI Objects\n"));
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 			      "Completing Region/Field/Buffer/Package initialization:\n"));
 
 	/* Set all init info to zero */
@@ -70,7 +70,7 @@ acpi_status acpi_ns_initialize_objects(void)
 		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 			      "    Initialized %u/%u Regions %u/%u Fields %u/%u "
 			      "Buffers %u/%u Packages (%u nodes)\n",
 			      info.op_region_init, info.op_region_count,
@@ -79,7 +79,7 @@ acpi_status acpi_ns_initialize_objects(void)
 			      info.package_init, info.package_count,
 			      info.object_count));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "%u Control Methods found\n%u Op Regions found\n",
 			  info.method_count, info.op_region_count));
 
@@ -111,7 +111,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 	ACPI_FUNCTION_TRACE(ns_initialize_devices);
 
 	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "[Init] Initializing ACPI Devices\n"));
 
 		/* Init counters */
@@ -120,7 +120,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 		info.num_STA = 0;
 		info.num_INI = 0;
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+		ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 				      "Initializing Device/Processor/Thermal objects "
 				      "and executing _INI/_STA methods:\n"));
 
@@ -194,7 +194,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 	 * in order not to break things.
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "[Init] Executing _REG OpRegion methods\n"));
 
 		status = acpi_ev_initialize_op_regions();
@@ -226,7 +226,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 			goto error_exit;
 		}
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+		ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 				      "    Executed %u _INI methods requiring %u _STA executions "
 				      "(examined %u objects)\n",
 				      info.num_INI, info.num_STA,
@@ -566,7 +566,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 * The _STA method is not required to be present under the device, we
 	 * assume the device is present if _STA does not exist.
 	 */
-	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+	ACPI_DE_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_METHOD, device_node, METHOD_NAME__STA));
 
 	status = acpi_ut_execute_STA(device_node, &flags);
@@ -643,7 +643,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 */
 	if (!ACPI_COMPARE_NAME(device_node->name.ascii, "_SB_") ||
 	    device_node->parent != acpi_gbl_root_node) {
-		ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+		ACPI_DE_EXEC(acpi_ut_display_init_pathname
 				(ACPI_TYPE_METHOD, device_node,
 				 METHOD_NAME__INI));
 
@@ -657,7 +657,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 		if (ACPI_SUCCESS(status)) {
 			walk_info->num_INI++;
 		}
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 		else if (status != AE_NOT_FOUND) {
 
 			/* Ignore error and move on to next device */

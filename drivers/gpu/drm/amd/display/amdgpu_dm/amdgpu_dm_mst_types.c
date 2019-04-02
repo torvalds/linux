@@ -64,7 +64,7 @@ static void log_dpcd(uint8_t type,
 		     uint32_t size,
 		     bool res)
 {
-	DRM_DEBUG_KMS("Op: %s, addr: %04x, SideBand Msg: %s, Op res: %s\n",
+	DRM_DE_KMS("Op: %s, addr: %04x, SideBand Msg: %s, Op res: %s\n",
 			(type == DP_AUX_NATIVE_READ) ||
 			(type == DP_AUX_I2C_READ) ?
 					"Read" : "Write",
@@ -320,7 +320,7 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	drm_dp_mst_get_port_malloc(port);
 
-	DRM_DEBUG_KMS(":%d\n", connector->base.id);
+	DRM_DE_KMS(":%d\n", connector->base.id);
 
 	return connector;
 }

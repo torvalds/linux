@@ -27,14 +27,14 @@ config NVM_PBLK
 
 if NVM_PBLK
 
-config NVM_PBLK_DEBUG
-	bool "PBlk Debug Support"
+config NVM_PBLK_DE
+	bool "PBlk De Support"
 	default n
 	help
-	  Enables debug support for pblk. This includes extra checks, more
+	  Enables de support for pblk. This includes extra checks, more
 	  vocal error messages, and extra tracking fields in the pblk sysfs
 	  entries.
 
-endif # NVM_PBLK_DEBUG
+endif # NVM_PBLK_DE
 
 endif # NVM

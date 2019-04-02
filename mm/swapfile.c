@@ -478,7 +478,7 @@ static void alloc_cluster(struct swap_info_struct *si, unsigned long idx)
 {
 	struct swap_cluster_info *ci = si->cluster_info;
 
-	VM_BUG_ON(cluster_list_first(&si->free_clusters) != idx);
+	VM__ON(cluster_list_first(&si->free_clusters) != idx);
 	cluster_list_del_first(&si->free_clusters, ci);
 	cluster_set_count_flag(ci + idx, 0, 0);
 }
@@ -487,7 +487,7 @@ static void free_cluster(struct swap_info_struct *si, unsigned long idx)
 {
 	struct swap_cluster_info *ci = si->cluster_info + idx;
 
-	VM_BUG_ON(cluster_count(ci) != 0);
+	VM__ON(cluster_count(ci) != 0);
 	/*
 	 * If the swap is discardable, prepare discard the cluster
 	 * instead of free it immediately. The cluster will be freed
@@ -516,7 +516,7 @@ static void inc_cluster_info_page(struct swap_info_struct *p,
 	if (cluster_is_free(&cluster_info[idx]))
 		alloc_cluster(p, idx);
 
-	VM_BUG_ON(cluster_count(&cluster_info[idx]) >= SWAPFILE_CLUSTER);
+	VM__ON(cluster_count(&cluster_info[idx]) >= SWAPFILE_CLUSTER);
 	cluster_set_count(&cluster_info[idx],
 		cluster_count(&cluster_info[idx]) + 1);
 }
@@ -534,7 +534,7 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
 	if (!cluster_info)
 		return;
 
-	VM_BUG_ON(cluster_count(&cluster_info[idx]) == 0);
+	VM__ON(cluster_count(&cluster_info[idx]) == 0);
 	cluster_set_count(&cluster_info[idx],
 		cluster_count(&cluster_info[idx]) - 1);
 
@@ -1020,7 +1020,7 @@ start_over:
 		spin_unlock(&si->lock);
 		if (n_ret || size == SWAPFILE_CLUSTER)
 			goto check_out;
-		pr_debug("scan_swap_map of si %d failed to find offset\n",
+		pr_de("scan_swap_map of si %d failed to find offset\n",
 			si->type);
 
 		spin_lock(&swap_avail_lock);
@@ -1162,7 +1162,7 @@ static unsigned char __swap_entry_free_locked(struct swap_info_struct *p,
 	count &= ~SWAP_HAS_CACHE;
 
 	if (usage == SWAP_HAS_CACHE) {
-		VM_BUG_ON(!has_cache);
+		VM__ON(!has_cache);
 		has_cache = 0;
 	} else if (count == SWAP_MAP_SHMEM) {
 		/*
@@ -1209,7 +1209,7 @@ static void swap_entry_free(struct swap_info_struct *p, swp_entry_t entry)
 
 	ci = lock_cluster(p, offset);
 	count = p->swap_map[offset];
-	VM_BUG_ON(count != SWAP_HAS_CACHE);
+	VM__ON(count != SWAP_HAS_CACHE);
 	p->swap_map[offset] = 0;
 	dec_cluster_info_page(p, p->cluster_info, offset);
 	unlock_cluster(ci);
@@ -1251,11 +1251,11 @@ void put_swap_page(struct page *page, swp_entry_t entry)
 
 	ci = lock_cluster_or_swap_info(si, offset);
 	if (size == SWAPFILE_CLUSTER) {
-		VM_BUG_ON(!cluster_is_huge(ci));
+		VM__ON(!cluster_is_huge(ci));
 		map = si->swap_map + offset;
 		for (i = 0; i < SWAPFILE_CLUSTER; i++) {
 			val = map[i];
-			VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+			VM__ON(!(val & SWAP_HAS_CACHE));
 			if (val == SWAP_HAS_CACHE)
 				free_entries++;
 		}
@@ -1422,7 +1422,7 @@ int swp_swapcount(swp_entry_t entry)
 
 	page = vmalloc_to_page(p->swap_map + offset);
 	offset &= ~PAGE_MASK;
-	VM_BUG_ON(page_private(page) != SWP_CONTINUED);
+	VM__ON(page_private(page) != SWP_CONTINUED);
 
 	do {
 		page = list_next_entry(page, lru);
@@ -1492,7 +1492,7 @@ static int page_trans_huge_map_swapcount(struct page *page, int *total_mapcount,
 	int mapcount, swapcount = 0;
 
 	/* hugetlbfs shouldn't call it */
-	VM_BUG_ON_PAGE(PageHuge(page), page);
+	VM__ON_PAGE(PageHuge(page), page);
 
 	if (!IS_ENABLED(CONFIG_THP_SWAP) || likely(!PageTransCompound(page))) {
 		mapcount = page_trans_huge_mapcount(page, total_mapcount);
@@ -1557,7 +1557,7 @@ bool reuse_swap_page(struct page *page, int *total_map_swapcount)
 {
 	int count, total_mapcount, total_swapcount;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 	if (unlikely(PageKsm(page)))
 		return false;
 	count = page_trans_huge_map_swapcount(page, &total_mapcount,
@@ -1595,7 +1595,7 @@ bool reuse_swap_page(struct page *page, int *total_map_swapcount)
  */
 int try_to_free_swap(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	if (!PageSwapCache(page))
 		return 0;
@@ -2176,7 +2176,7 @@ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
 		}
 		se = list_next_entry(se, list);
 		sis->curr_swap_extent = se;
-		BUG_ON(se == start_se);		/* It *must* be present */
+		_ON(se == start_se);		/* It *must* be present */
 	}
 }
 
@@ -2238,7 +2238,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
 	} else {
 		lh = sis->first_swap_extent.list.prev;	/* Highest extent */
 		se = list_entry(lh, struct swap_extent, list);
-		BUG_ON(se->start_page + se->nr_pages != start_page);
+		_ON(se->start_page + se->nr_pages != start_page);
 		if (se->start_block + se->nr_pages == start_block) {
 			/* Merge it */
 			se->nr_pages += nr_pages;
@@ -2427,7 +2427,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	BUG_ON(!current->mm);
+	_ON(!current->mm);
 
 	pathname = getname(specialfile);
 	if (IS_ERR(pathname))
@@ -3416,7 +3416,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 	unsigned char count;
 
 	/*
-	 * When debugging, it's easier to use __GFP_ZERO here; but it's better
+	 * When deging, it's easier to use __GFP_ZERO here; but it's better
 	 * for latency not to zero a page while GFP_ATOMIC and holding locks.
 	 */
 	page = alloc_page(gfp_mask | __GFP_HIGHMEM);
@@ -3466,7 +3466,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
 	 * but it does always reset its private field.
 	 */
 	if (!page_private(head)) {
-		BUG_ON(count & COUNT_CONTINUED);
+		_ON(count & COUNT_CONTINUED);
 		INIT_LIST_HEAD(&head->lru);
 		set_page_private(head, SWP_CONTINUED);
 		si->flags |= SWP_CONTINUED;
@@ -3526,7 +3526,7 @@ static bool swap_count_continued(struct swap_info_struct *si,
 
 	head = vmalloc_to_page(si->swap_map + offset);
 	if (page_private(head) != SWP_CONTINUED) {
-		BUG_ON(count & COUNT_CONTINUED);
+		_ON(count & COUNT_CONTINUED);
 		return false;		/* need to add count continuation */
 	}
 
@@ -3545,7 +3545,7 @@ static bool swap_count_continued(struct swap_info_struct *si,
 		while (*map == (SWAP_CONT_MAX | COUNT_CONTINUED)) {
 			kunmap_atomic(map);
 			page = list_entry(page->lru.next, struct page, lru);
-			BUG_ON(page == head);
+			_ON(page == head);
 			map = kmap_atomic(page) + offset;
 		}
 		if (*map == SWAP_CONT_MAX) {
@@ -3573,14 +3573,14 @@ init_map:		*map = 0;		/* we didn't zero the page */
 		/*
 		 * Think of how you subtract 1 from 1000
 		 */
-		BUG_ON(count != COUNT_CONTINUED);
+		_ON(count != COUNT_CONTINUED);
 		while (*map == COUNT_CONTINUED) {
 			kunmap_atomic(map);
 			page = list_entry(page->lru.next, struct page, lru);
-			BUG_ON(page == head);
+			_ON(page == head);
 			map = kmap_atomic(page) + offset;
 		}
-		BUG_ON(*map == 0);
+		_ON(*map == 0);
 		*map -= 1;
 		if (*map == 0)
 			count = 0;

@@ -67,7 +67,7 @@ void __init arch_init_clk_ops(struct sh_clk_ops **ops, int idx)
 	else if (test_mode_pin(MODE_PIN0) || test_mode_pin(MODE_PIN1))
 		pll2_mult = 4;
 
-	BUG_ON(!pll2_mult);
+	_ON(!pll2_mult);
 
 	if (idx < ARRAY_SIZE(sh7619_clk_ops))
 		*ops = sh7619_clk_ops[idx];

@@ -71,7 +71,7 @@ enum {
 	UFS_AH8_CFG				= 0xFC,
 };
 
-/* QCOM UFS host controller vendor specific debug registers */
+/* QCOM UFS host controller vendor specific de registers */
 enum {
 	UFS_DBG_RD_REG_UAWM			= 0x100,
 	UFS_DBG_RD_REG_UARM			= 0x200,
@@ -129,7 +129,7 @@ enum {
 	MASK_CLK_NS_REG                     = 0xFFFC00,
 };
 
-/* QCOM UFS debug print bit mask */
+/* QCOM UFS de print bit mask */
 #define UFS_QCOM_DBG_PRINT_REGS_EN	BIT(0)
 #define UFS_QCOM_DBG_PRINT_ICE_REGS_EN	BIT(1)
 #define UFS_QCOM_DBG_PRINT_TEST_BUS_EN	BIT(2)
@@ -234,13 +234,13 @@ struct ufs_qcom_host {
 
 	u32 dev_ref_clk_en_mask;
 
-	/* Bitmask for enabling debug prints */
+	/* Bitmask for enabling de prints */
 	u32 dbg_print_en;
 	struct ufs_qcom_testbus testbus;
 };
 
 static inline u32
-ufs_qcom_get_debug_reg_offset(struct ufs_qcom_host *host, u32 reg)
+ufs_qcom_get_de_reg_offset(struct ufs_qcom_host *host, u32 reg)
 {
 	if (host->hw_ver.major <= 0x02)
 		return UFS_CNTLR_2_x_x_VEN_REGS_OFFSET(reg);

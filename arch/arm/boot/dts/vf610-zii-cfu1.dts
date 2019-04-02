@@ -22,11 +22,11 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = <&pinctrl_leds_debug>;
+		pinctrl-0 = <&pinctrl_leds_de>;
 		pinctrl-names = "default";
 
-		led-debug {
-			label = "zii:green:debug1";
+		led-de {
+			label = "zii:green:de1";
 			gpios = <&gpio2 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			max-brightness = <1>;
@@ -46,15 +46,15 @@
 			max-brightness = <1>;
 		};
 
-		led-debug-a {
-			label = "zii:green:debug_a";
+		led-de-a {
+			label = "zii:green:de_a";
 			gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			max-brightness = <1>;
 		};
 
-		led-debug-b {
-			label = "zii:green:debug_b";
+		led-de-b {
+			label = "zii:green:de_b";
 			gpios = <&gpio3 15 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			max-brightness = <1>;
@@ -300,7 +300,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_de: pinctrl-leds-de {
 		fsl,pins = <
 			VF610_PAD_PTD3__GPIO_82			0x31c2
 			VF610_PAD_PTE3__GPIO_108		0x31c2

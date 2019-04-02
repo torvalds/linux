@@ -65,7 +65,7 @@
 #include "fw/api/coex.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 
 /* 20MHz / 40MHz below / 40Mhz above*/
 static const __le64 iwl_ci_mask[][3] = {
@@ -255,7 +255,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	if (enable)
 		value |= BT_REDUCED_TX_POWER_BIT;
 
-	IWL_DEBUG_COEX(mvm, "%sable reduced Tx Power for sta %d\n",
+	IWL_DE_COEX(mvm, "%sable reduced Tx Power for sta %d\n",
 		       enable ? "en" : "dis", sta_id);
 
 	cmd.reduced_txp = cpu_to_le32(value);
@@ -374,7 +374,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	    (mvm->last_bt_notif.rrc_status & BIT(mvmvif->phy_ctxt->id)))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
-	IWL_DEBUG_COEX(data->mvm,
+	IWL_DE_COEX(data->mvm,
 		       "mac %d: bt_activity_grading %d smps_req %d\n",
 		       mvmvif->id, bt_activity_grading, smps_mode);
 
@@ -546,13 +546,13 @@ void iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
 
-	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
-	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
-	IWL_DEBUG_COEX(mvm, "\tBT primary_ch_lut %d\n",
+	IWL_DE_COEX(mvm, "BT Coex Notification received\n");
+	IWL_DE_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
+	IWL_DE_COEX(mvm, "\tBT primary_ch_lut %d\n",
 		       le32_to_cpu(notif->primary_ch_lut));
-	IWL_DEBUG_COEX(mvm, "\tBT secondary_ch_lut %d\n",
+	IWL_DE_COEX(mvm, "\tBT secondary_ch_lut %d\n",
 		       le32_to_cpu(notif->secondary_ch_lut));
-	IWL_DEBUG_COEX(mvm, "\tBT activity grading %d\n",
+	IWL_DE_COEX(mvm, "\tBT activity grading %d\n",
 		       le32_to_cpu(notif->bt_activity_grading));
 
 	/* remember this notification for future use: rssi fluctuations */
@@ -584,7 +584,7 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF)
 		return;
 
-	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
+	IWL_DE_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
 		       rssi_event == RSSI_EVENT_HIGH ? "HIGH" : "LOW");
 
 	/*

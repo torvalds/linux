@@ -130,7 +130,7 @@ static unsigned int
 xchk_iallocbt_freecount(
 	xfs_inofree_t			freemask)
 {
-	BUILD_BUG_ON(sizeof(freemask) != sizeof(__u64));
+	BUILD__ON(sizeof(freemask) != sizeof(__u64));
 	return hweight64(freemask);
 }
 

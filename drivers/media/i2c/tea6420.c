@@ -39,10 +39,10 @@ MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("tea6420 driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* make a connection between the input 'i' and the output 'o'
@@ -56,7 +56,7 @@ static int tea6420_s_routing(struct v4l2_subdev *sd,
 	int ret;
 
 	o &= 0xf;
-	v4l2_dbg(1, debug, sd, "i=%d, o=%d, g=%d\n", i, o, g);
+	v4l2_dbg(1, de, sd, "i=%d, o=%d, g=%d\n", i, o, g);
 
 	/* check if the parameters are valid */
 	if (i < 1 || i > 6 || o < 1 || o > 4 || g < 0 || g > 6 || g % 2 != 0)
@@ -82,7 +82,7 @@ static int tea6420_s_routing(struct v4l2_subdev *sd,
 
 	ret = i2c_smbus_write_byte(client, byte);
 	if (ret) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"i2c_smbus_write_byte() failed, ret:%d\n", ret);
 		return -EIO;
 	}
@@ -122,7 +122,7 @@ static int tea6420_probe(struct i2c_client *client,
 	for (i = 1; i < 5; i++)
 		err += tea6420_s_routing(sd, 6, i, 0);
 	if (err) {
-		v4l_dbg(1, debug, client, "could not initialize tea6420\n");
+		v4l_dbg(1, de, client, "could not initialize tea6420\n");
 		return -ENODEV;
 	}
 	return 0;

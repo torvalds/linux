@@ -681,8 +681,8 @@ static void vc4_dsi_dump_regs(struct vc4_dsi *dsi)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_dsi_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *drm = node->minor->dev;
@@ -883,7 +883,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
-	bool debug_dump_regs = false;
+	bool de_dump_regs = false;
 	unsigned long hs_clock;
 	u32 ui_ns;
 	/* Minimum LP state duration in escape clock cycles. */
@@ -899,7 +899,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		return;
 	}
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("DSI regs before:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
@@ -1134,7 +1134,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	drm_bridge_enable(dsi->bridge);
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("DSI regs after:\n");
 		vc4_dsi_dump_regs(dsi);
 	}

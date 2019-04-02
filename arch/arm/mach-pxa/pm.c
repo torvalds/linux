@@ -59,7 +59,7 @@ int pxa_pm_enter(suspend_state_t state)
 		pxa_cpu_pm_fns->restore(sleep_save);
 	}
 
-	pr_debug("*** made it back from resume\n");
+	pr_de("*** made it back from resume\n");
 
 	return 0;
 }

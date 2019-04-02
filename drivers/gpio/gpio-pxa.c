@@ -438,7 +438,7 @@ static int pxa_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	update_edge_detect(c);
 
-	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, d->irq, gpio,
+	pr_de("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, d->irq, gpio,
 		((type & IRQ_TYPE_EDGE_RISING)  ? " rising"  : ""),
 		((type & IRQ_TYPE_EDGE_FALLING) ? " falling" : ""));
 	return 0;

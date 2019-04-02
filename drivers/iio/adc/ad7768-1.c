@@ -420,7 +420,7 @@ static const struct iio_info ad7768_info = {
 	.attrs = &ad7768_group,
 	.read_raw = &ad7768_read_raw,
 	.write_raw = &ad7768_write_raw,
-	.debugfs_reg_access = &ad7768_reg_access,
+	.defs_reg_access = &ad7768_reg_access,
 };
 
 static int ad7768_setup(struct ad7768_state *st)

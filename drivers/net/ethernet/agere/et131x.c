@@ -571,7 +571,7 @@ static int eeprom_write(struct et131x_adapter *adapter, u32 addr, u8 data)
 
 		/* Check bit 3 of the LBCIF Status Register.  If  equal to 1,
 		 * an error has occurred.Don't break here if we are revision
-		 * 1, this is so we do a blind write for load bug.
+		 * 1, this is so we do a blind write for load .
 		 */
 		if ((status & LBCIF_STATUS_GENERAL_ERROR) &&
 		    adapter->pdev->revision == 0)
@@ -2261,7 +2261,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	rfd->bufferindex = buff_index;
 	rfd->ringindex = ring_index;
 
-	/* In V1 silicon, there is a bug which screws up filtering of runt
+	/* In V1 silicon, there is a  which screws up filtering of runt
 	 * packets. Therefore runt packet filtering is disabled in the MAC and
 	 * the packets are dropped here. They are also counted here.
 	 */
@@ -2437,7 +2437,7 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	 */
 
 	/* nr_frags should be no more than 18. */
-	BUILD_BUG_ON(MAX_SKB_FRAGS + 1 > 23);
+	BUILD__ON(MAX_SKB_FRAGS + 1 > 23);
 
 	memset(desc, 0, sizeof(struct tx_desc) * (nr_frags + 1));
 
@@ -3510,7 +3510,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 		dev_warn(&adapter->pdev->dev, "TXMAC interrupt, error 0x%08x\n",
 			 err);
 
-		/* If we are debugging, we want to see this error, otherwise we
+		/* If we are deging, we want to see this error, otherwise we
 		 * just want the device to be reset and continue
 		 */
 	}
@@ -3529,7 +3529,7 @@ static irqreturn_t et131x_isr(int irq, void *dev_id)
 			 readl(&iomem->rxmac.ctrl),
 			 readl(&iomem->rxmac.rxq_diag));
 
-		/* If we are debugging, we want to see this error, otherwise we
+		/* If we are deging, we want to see this error, otherwise we
 		 * just want the device to be reset and continue
 		 */
 	}

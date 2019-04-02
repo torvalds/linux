@@ -1010,7 +1010,7 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	if (ifa->ifa_flags & IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
 		if (!prim) {
-			pr_warn("%s: bug: prim == NULL\n", __func__);
+			pr_warn("%s: : prim == NULL\n", __func__);
 			return;
 		}
 	}
@@ -1095,11 +1095,11 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 			 * address promotion
 			 */
 			if (!in_dev->dead)
-				pr_warn("%s: bug: prim == NULL\n", __func__);
+				pr_warn("%s: : prim == NULL\n", __func__);
 			return;
 		}
 		if (iprim && iprim != prim) {
-			pr_warn("%s: bug: iprim != prim\n", __func__);
+			pr_warn("%s: : iprim != prim\n", __func__);
 			return;
 		}
 	} else if (!ipv4_is_zeronet(any) &&

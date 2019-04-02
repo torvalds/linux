@@ -89,7 +89,7 @@ typedef enum {
   // fills parameters with the picture dimensions and the pixel aspect ratio
   // returns 0 on success
   OSD_Test,       // ()
-  // draws a test picture. for debugging purposes only
+  // draws a test picture. for deging purposes only
   // returns 0 on success
 // TODO: remove "test" in final version
   OSD_Text,       // (x0,y0,size,color,text)

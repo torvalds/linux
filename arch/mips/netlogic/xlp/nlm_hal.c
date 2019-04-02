@@ -202,7 +202,7 @@ static int xlp_irq_to_irt(int irq)
 		}
 	} else if (irq >= PIC_PCIE_LINK_LEGACY_IRQ(0) &&
 			irq <= PIC_PCIE_LINK_LEGACY_IRQ(3)) {
-		/* HW bug, PCI IRT entries are bad on early silicon, fix */
+		/* HW , PCI IRT entries are bad on early silicon, fix */
 		irt = PIC_IRT_PCIE_LINK_INDEX(irq -
 					PIC_PCIE_LINK_LEGACY_IRQ_BASE);
 	} else {

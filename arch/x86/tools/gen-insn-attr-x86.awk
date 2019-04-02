@@ -108,8 +108,8 @@ function semantic_error(msg) {
 	exit 1
 }
 
-function debug(msg) {
-	print "DEBUG: " msg
+function de(msg) {
+	print "DE: " msg
 }
 
 function array_size(arr,   i,c) {

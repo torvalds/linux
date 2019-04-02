@@ -20,7 +20,7 @@
 #include "pvrusb2-util.h"
 #include "pvrusb2-encoder.h"
 #include "pvrusb2-hdw-internal.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include "pvrusb2-fx2-cmd.h"
 
 

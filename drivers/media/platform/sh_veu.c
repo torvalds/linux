@@ -203,7 +203,7 @@ static enum v4l2_colorspace sh_veu_4cc2cspace(u32 fourcc)
 {
 	switch (fourcc) {
 	default:
-		BUG();
+		();
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV24:
@@ -454,7 +454,7 @@ static int sh_veu_try_fmt(struct v4l2_format *f, const struct sh_veu_format *fmt
 	pix->pixelformat	= fmt->fourcc;
 	pix->colorspace		= sh_veu_4cc2cspace(pix->pixelformat);
 
-	pr_debug("%s(): type: %d, size %u\n", __func__, f->type, pix->sizeimage);
+	pr_de("%s(): type: %d, size %u\n", __func__, f->type, pix->sizeimage);
 
 	return 0;
 }
@@ -464,7 +464,7 @@ static const struct sh_veu_format *sh_veu_find_fmt(const struct v4l2_format *f)
 	const int *fmt;
 	int i, n, dflt;
 
-	pr_debug("%s(%d;%d)\n", __func__, f->type, f->fmt.pix.field);
+	pr_de("%s(%d;%d)\n", __func__, f->type, f->fmt.pix.field);
 
 	switch (f->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -539,7 +539,7 @@ static void sh_veu_colour_offset(struct sh_veu_dev *veu, struct sh_veu_vfmt *vfm
 		vfmt->offset_c = 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -563,7 +563,7 @@ static int sh_veu_s_fmt(struct sh_veu_file *veu_file, struct v4l2_format *f)
 	}
 
 	vfmt = sh_veu_get_vfmt(veu, f->type);
-	/* called after try_fmt(), hence vfmt != NULL. Implicit BUG_ON() below */
+	/* called after try_fmt(), hence vfmt != NULL. Implicit _ON() below */
 
 	vfmt->fmt		= sh_veu_find_fmt(f);
 	/* vfmt->fmt != NULL following the same argument as above */

@@ -9,7 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL COOKIE
+#define FSCACHE_DE_LEVEL COOKIE
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -61,7 +61,7 @@ void fscache_objlist_add(struct fscache_object *obj)
 		else if (obj > xobj)
 			p = &(*p)->rb_right;
 		else
-			BUG();
+			();
 	}
 
 	rb_link_node(&obj->objlist_link, parent, p);
@@ -80,7 +80,7 @@ void fscache_objlist_remove(struct fscache_object *obj)
 
 	write_lock(&fscache_object_list_lock);
 
-	BUG_ON(RB_EMPTY_ROOT(&fscache_object_list));
+	_ON(RB_EMPTY_ROOT(&fscache_object_list));
 	rb_erase(&obj->objlist_link, &fscache_object_list);
 
 	write_unlock(&fscache_object_list_lock);
@@ -235,8 +235,8 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "%8x %8x %s %5u %3u %3u %3u %2u %5u %2lx %2lx %2lx %1x | ",
-		   obj->debug_id,
-		   obj->parent ? obj->parent->debug_id : -1,
+		   obj->de_id,
+		   obj->parent ? obj->parent->de_id : -1,
 		   obj->state->short_name,
 		   obj->n_children,
 		   obj->n_ops,

@@ -915,7 +915,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 
 	/*
 	 * Turn off pacing of analog output channel.
-	 * NOTE: hardware bug in daqcard-1200 means pacing cannot
+	 * NOTE: hardware  in daqcard-1200 means pacing cannot
 	 * be independently enabled/disabled for its the two channels.
 	 */
 	spin_lock_irqsave(&dev->spinlock, flags);

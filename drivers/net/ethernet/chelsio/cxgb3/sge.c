@@ -761,7 +761,7 @@ static inline unsigned int sgl_len(unsigned int n)
  */
 static inline unsigned int flits_to_desc(unsigned int n)
 {
-	BUG_ON(n >= ARRAY_SIZE(flit_desc_map));
+	_ON(n >= ARRAY_SIZE(flit_desc_map));
 	return flit_desc_map[n];
 }
 

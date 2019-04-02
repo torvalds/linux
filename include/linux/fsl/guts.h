@@ -36,7 +36,7 @@ struct ccsr_guts {
 				 *           Control Register
 				 */
 	u32	pordevsr;	/* 0x.000c - POR I/O Device Status Register */
-	u32	pordbgmsr;	/* 0x.0010 - POR Debug Mode Status Register */
+	u32	pordbgmsr;	/* 0x.0010 - POR De Mode Status Register */
 	u32	pordevsr2;	/* 0x.0014 - POR device status register 2 */
 	u8	res018[0x20 - 0x18];
 	u32	porcir;		/* 0x.0020 - POR Configuration Information

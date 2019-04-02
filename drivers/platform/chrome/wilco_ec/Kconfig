@@ -9,12 +9,12 @@ config WILCO_EC
 	  To compile this driver as a module, choose M here: the
 	  module will be called wilco_ec.
 
-config WILCO_EC_DEBUGFS
-	tristate "Enable raw access to EC via debugfs"
+config WILCO_EC_DEFS
+	tristate "Enable raw access to EC via defs"
 	depends on WILCO_EC
 	help
 	  If you say Y here, you get support for sending raw commands to
-	  the Wilco EC via debugfs.  These commands do not do any byte
+	  the Wilco EC via defs.  These commands do not do any byte
 	  manipulation and allow for testing arbitrary commands.  This
-	  interface is intended for debug only and will not be present
+	  interface is intended for de only and will not be present
 	  on production devices.

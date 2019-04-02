@@ -24,7 +24,7 @@
  * This file implements the scan which is a general-purpose function for
  * determining what nodes are in an eraseblock. The scan is used to replay the
  * journal, to do garbage collection. for the TNC in-the-gaps method, and by
- * debugging functions.
+ * deging functions.
  */
 
 #include "ubifs.h"
@@ -244,7 +244,7 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
 	if (len > 8192)
 		len = 8192;
 	ubifs_err(c, "first %d bytes from LEB %d:%d", len, lnum, offs);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 4, buf, len, 1);
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 4, buf, len, 1);
 }
 
 /**

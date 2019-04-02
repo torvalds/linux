@@ -697,7 +697,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 			 * they drift.
 			 * for (i = 0; i < 4; i++)
 				input_report_abs(dev, gc_psx_abs[i + 2], 128);
-			 * This needs to be debugged properly,
+			 * This needs to be deged properly,
 			 * maybe fuzz processing needs to be done
 			 * in input_sync()
 			 *				 --vojtech
@@ -948,7 +948,7 @@ static void gc_attach(struct parport *pp)
 	}
 
 	if (port_idx == GC_MAX_PORTS) {
-		pr_debug("Not using parport%d.\n", pp->number);
+		pr_de("Not using parport%d.\n", pp->number);
 		return;
 	}
 	pads = gc_cfg[port_idx].args + 1;

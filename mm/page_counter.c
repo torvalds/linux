@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/page.h>
 
 static void propagate_protected_usage(struct page_counter *c,

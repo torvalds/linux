@@ -252,7 +252,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	//char *stop = ev + IW_SCAN_MAX_DATA;
 	int i = 0;
 	int err = 0;
-	IEEE80211_DEBUG_WX("Getting scan\n");
+	IEEE80211_DE_WX("Getting scan\n");
 	mutex_lock(&ieee->wx_mutex);
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -267,7 +267,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
 			ev = rtl819x_translate_scan(ieee, ev, stop, network, info);
 		else
-			IEEE80211_DEBUG_SCAN(
+			IEEE80211_DE_SCAN(
 				"Not showing network '%s ("
 				"%pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
@@ -281,7 +281,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	wrqu->data.length = ev -  extra;
 	wrqu->data.flags = 0;
 
-	IEEE80211_DEBUG_WX("exit: %d networks returned.\n", i);
+	IEEE80211_DE_WX("exit: %d networks returned.\n", i);
 
 	return err;
 }
@@ -299,7 +299,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	int i, key, key_provided, len;
 	struct ieee80211_crypt_data **crypt;
 
-	IEEE80211_DEBUG_WX("SET_ENCODE\n");
+	IEEE80211_DE_WX("SET_ENCODE\n");
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
@@ -312,17 +312,17 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		key = ieee->tx_keyidx;
 	}
 
-	IEEE80211_DEBUG_WX("Key: %d [%s]\n", key, key_provided ?
+	IEEE80211_DE_WX("Key: %d [%s]\n", key, key_provided ?
 			   "provided" : "default");
 	crypt = &ieee->crypt[key];
 
 	if (erq->flags & IW_ENCODE_DISABLED) {
 		if (key_provided && *crypt) {
-			IEEE80211_DEBUG_WX("Disabling encryption on key %d.\n",
+			IEEE80211_DE_WX("Disabling encryption on key %d.\n",
 					   key);
 			ieee80211_crypt_delayed_deinit(ieee, crypt);
 		} else
-			IEEE80211_DEBUG_WX("Disabling encryption.\n");
+			IEEE80211_DE_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
@@ -388,7 +388,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		if (len > erq->length)
 			memset(sec.keys[key] + erq->length, 0,
 			       len - erq->length);
-		IEEE80211_DEBUG_WX("Setting key %d to '%s' (%d:%d bytes)\n",
+		IEEE80211_DE_WX("Setting key %d to '%s' (%d:%d bytes)\n",
 				   key, escape_essid(sec.keys[key], len),
 				   erq->length, len);
 		sec.key_sizes[key] = len;
@@ -409,7 +409,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			printk("Setting key %d to all zero.\n",
 					   key);
 
-			IEEE80211_DEBUG_WX("Setting key %d to all zero.\n",
+			IEEE80211_DE_WX("Setting key %d to all zero.\n",
 					   key);
 			memset(sec.keys[key], 0, 13);
 			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
@@ -420,7 +420,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			IEEE80211_DEBUG_WX(
+			IEEE80211_DE_WX(
 				"Setting key %d to default Tx key.\n", key);
 			ieee->tx_keyidx = key;
 			sec.active_key = key;
@@ -433,7 +433,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	ieee->auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN : WLAN_AUTH_SHARED_KEY;
 	sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN : WLAN_AUTH_SHARED_KEY;
 	sec.flags |= SEC_AUTH_MODE;
-	IEEE80211_DEBUG_WX("Auth: %s\n", sec.auth_mode == WLAN_AUTH_OPEN ?
+	IEEE80211_DE_WX("Auth: %s\n", sec.auth_mode == WLAN_AUTH_OPEN ?
 			   "OPEN" : "SHARED KEY");
 
 	/* For now we just support WEP, so only set that security level...
@@ -452,7 +452,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
-		printk(KERN_DEBUG "%s: reset_port failed\n", dev->name);
+		printk(KERN_DE "%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
 	return 0;
@@ -467,7 +467,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	int len, key;
 	struct ieee80211_crypt_data *crypt;
 
-	IEEE80211_DEBUG_WX("GET_ENCODE\n");
+	IEEE80211_DE_WX("GET_ENCODE\n");
 
 	if(ieee->iw_mode == IW_MODE_MONITOR)
 		return -1;
@@ -581,7 +581,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		module = "ieee80211_crypt_ccmp";
 		break;
 	default:
-		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+		IEEE80211_DE_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -590,7 +590,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 	ops = try_then_request_module(ieee80211_get_crypto_ops(alg), module);
 	if (!ops) {
-		IEEE80211_DEBUG_WX("%s: unknown crypto alg %d\n",
+		IEEE80211_DE_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		printk("========>unknown crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
@@ -621,7 +621,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
-		IEEE80211_DEBUG_WX("%s: key setting failed\n", dev->name);
+		IEEE80211_DE_WX("%s: key setting failed\n", dev->name);
 		printk("key setting failed\n");
 		ret = -EINVAL;
 		goto done;
@@ -661,7 +661,7 @@ done:
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
-		IEEE80211_DEBUG_WX("%s: reset_port failed\n", dev->name);
+		IEEE80211_DE_WX("%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
 	return ret;

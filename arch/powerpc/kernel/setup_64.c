@@ -35,7 +35,7 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -71,7 +71,7 @@
 
 #include "setup.h"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -97,7 +97,7 @@ void __init setup_tlb_core_data(void)
 {
 	int cpu;
 
-	BUILD_BUG_ON(offsetof(struct tlb_core_data, lock) != 0);
+	BUILD__ON(offsetof(struct tlb_core_data, lock) != 0);
 
 	for_each_possible_cpu(cpu) {
 		int first = cpu_first_thread_sibling(cpu);
@@ -305,7 +305,7 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* -------- printk is now safe to use ------- */
 
-	/* Enable early debugging if any specified (see udbg.h) */
+	/* Enable early deging if any specified (see udbg.h) */
 	udbg_early_init();
 
  	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
@@ -361,7 +361,7 @@ void __init early_setup(unsigned long dt_ptr)
 
 	DBG(" <- early_setup()\n");
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
+#ifdef CONFIG_PPC_EARLY_DE_BOOTX
 	/*
 	 * This needs to be done *last* (after the above DBG() even)
 	 *
@@ -371,7 +371,7 @@ void __init early_setup(unsigned long dt_ptr)
 	 * mapping. This call will ensure that it does
 	 */
 	btext_map();
-#endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
+#endif /* CONFIG_PPC_EARLY_DE_BOOTX */
 }
 
 #ifdef CONFIG_SMP
@@ -548,7 +548,7 @@ void __init initialize_cache_info(void)
 	DBG(" -> initialize_cache_info()\n");
 
 	/*
-	 * All shipping POWER8 machines have a firmware bug that
+	 * All shipping POWER8 machines have a firmware  that
 	 * puts incorrect information in the device-tree. This will
 	 * be (hopefully) fixed for future chips but for now hard
 	 * code the values if we are running on one of these
@@ -636,7 +636,7 @@ static void *__init alloc_stack(unsigned long limit, int cpu)
 {
 	void *ptr;
 
-	BUILD_BUG_ON(STACK_INT_FRAME_SIZE % 16);
+	BUILD__ON(STACK_INT_FRAME_SIZE % 16);
 
 	ptr = memblock_alloc_try_nid(THREAD_SIZE, THREAD_SIZE,
 				     MEMBLOCK_LOW_LIMIT, limit,
@@ -684,8 +684,8 @@ void __init exc_lvl_early_init(void)
 		paca_ptrs[i]->mc_kstack = sp + THREAD_SIZE;
 	}
 
-	if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
-		patch_exception(0x040, exc_debug_debug_book3e);
+	if (cpu_has_feature(CPU_FTR_DE_LVL_EXC))
+		patch_exception(0x040, exc_de_de_book3e);
 }
 #endif
 
@@ -936,7 +936,7 @@ void setup_rfi_flush(enum l1d_flush_type types, bool enable)
 		rfi_flush_enable(enable);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int rfi_flush_set(void *data, u64 val)
 {
 	bool enable;
@@ -963,11 +963,11 @@ static int rfi_flush_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
 
-static __init int rfi_flush_debugfs_init(void)
+static __init int rfi_flush_defs_init(void)
 {
-	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	defs_create_file("rfi_flush", 0600, powerpc_defs_root, NULL, &fops_rfi_flush);
 	return 0;
 }
-device_initcall(rfi_flush_debugfs_init);
+device_initcall(rfi_flush_defs_init);
 #endif
 #endif /* CONFIG_PPC_BOOK3S_64 */

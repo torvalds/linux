@@ -18,7 +18,7 @@
 #include <linux/ktime.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/lockdep.h>
 
 struct module;

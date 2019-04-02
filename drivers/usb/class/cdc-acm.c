@@ -15,8 +15,8 @@
  * Sponsored by SuSE
  */
 
-#undef DEBUG
-#undef VERBOSE_DEBUG
+#undef DE
+#undef VERBOSE_DE
 
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
@@ -1440,7 +1440,7 @@ skip_countries:
 	usb_fill_int_urb(acm->ctrlurb, usb_dev,
 			 usb_rcvintpipe(usb_dev, epctrl->bEndpointAddress),
 			 acm->ctrl_buffer, ctrlsize, acm_ctrl_irq, acm,
-			 /* works around buggy devices */
+			 /* works around gy devices */
 			 epctrl->bInterval ? epctrl->bInterval : 16);
 	acm->ctrlurb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	acm->ctrlurb->transfer_dma = acm->ctrl_dma;
@@ -1678,10 +1678,10 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = SINGLE_RX_URB,
 	},
 	{ USB_DEVICE(0x0ace, 0x1608), /* ZyDAS 56K USB MODEM */
-	.driver_info = SINGLE_RX_URB, /* firmware bug */
+	.driver_info = SINGLE_RX_URB, /* firmware  */
 	},
 	{ USB_DEVICE(0x0ace, 0x1611), /* ZyDAS 56K USB MODEM - new version */
-	.driver_info = SINGLE_RX_URB, /* firmware bug */
+	.driver_info = SINGLE_RX_URB, /* firmware  */
 	},
 	{ USB_DEVICE(0x11ca, 0x0201), /* VeriFone Mx870 Gadget Serial */
 	.driver_info = SINGLE_RX_URB,

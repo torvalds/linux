@@ -25,7 +25,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -58,9 +58,9 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 						enum sctp_state state);
 
 
-static const struct sctp_sm_table_entry bug = {
-	.fn = sctp_sf_bug,
-	.name = "sctp_sf_bug"
+static const struct sctp_sm_table_entry  = {
+	.fn = sctp_sf_,
+	.name = "sctp_sf_"
 };
 
 #define DO_LOOKUP(_max, _type, _table)					\
@@ -70,7 +70,7 @@ static const struct sctp_sm_table_entry bug = {
 	if ((event_subtype._type > (_max))) {				\
 		pr_warn("table %p possible attack: event %d exceeds max %d\n", \
 			_table, event_subtype._type, _max);		\
-		rtn = &bug;						\
+		rtn = &;						\
 	} else								\
 		rtn = &_table[event_subtype._type][(int)state];		\
 									\
@@ -97,7 +97,7 @@ const struct sctp_sm_table_entry *sctp_sm_lookup_event(
 				 primitive_event_table);
 	default:
 		/* Yikes!  We got an illegal event type.  */
-		return &bug;
+		return &;
 	}
 }
 
@@ -755,28 +755,28 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
 
 #define TYPE_SCTP_EVENT_TIMEOUT_NONE { \
 	/* SCTP_STATE_CLOSED */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_ESTABLISHED */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_SHUTDOWN_PENDING */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_SHUTDOWN_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 }
 
 #define TYPE_SCTP_EVENT_TIMEOUT_T1_COOKIE { \
 	/* SCTP_STATE_CLOSED */ \
 	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	TYPE_SCTP_FUNC(sctp_sf_bug), \
+	TYPE_SCTP_FUNC(sctp_sf_), \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
 	TYPE_SCTP_FUNC(sctp_sf_t1_cookie_timer_expire), \
 	/* SCTP_STATE_ESTABLISHED */ \
@@ -983,7 +983,7 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 						enum sctp_state state)
 {
 	if (state > SCTP_STATE_MAX)
-		return &bug;
+		return &;
 
 	if (cid == SCTP_CID_I_DATA)
 		cid = SCTP_CID_DATA;

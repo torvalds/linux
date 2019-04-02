@@ -203,7 +203,7 @@ static int vmw_overlay_send_stop(struct vmw_private *dev_priv,
 		if (interruptible && ret == -ERESTARTSYS)
 			return ret;
 		else
-			BUG_ON(ret != 0);
+			_ON(ret != 0);
 	}
 
 	fill_escape(&cmds->escape, sizeof(cmds->body));
@@ -274,7 +274,7 @@ static int vmw_overlay_stop(struct vmw_private *dev_priv,
 		if (interruptible && ret == -ERESTARTSYS)
 			return ret;
 		else
-			BUG_ON(ret != 0);
+			_ON(ret != 0);
 	}
 
 	if (!pause) {
@@ -308,7 +308,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 	if (!buf)
 		return -EINVAL;
 
-	DRM_DEBUG("   %s: old %p, new %p, %spaused\n", __func__,
+	DRM_DE("   %s: old %p, new %p, %spaused\n", __func__,
 		  stream->buf, buf, stream->paused ? "" : "not ");
 
 	if (stream->buf != buf) {
@@ -324,7 +324,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		if (ret == 0)
 			stream->saved = *arg;
 		else
-			BUG_ON(!interruptible);
+			_ON(!interruptible);
 
 		return ret;
 	}
@@ -341,7 +341,7 @@ static int vmw_overlay_update_stream(struct vmw_private *dev_priv,
 		/* This one needs to happen no matter what. We only remove
 		 * the NO_EVICT flag so this is safe from -ENOMEM.
 		 */
-		BUG_ON(vmw_overlay_move_buffer(dev_priv, buf, false, false)
+		_ON(vmw_overlay_move_buffer(dev_priv, buf, false, false)
 		       != 0);
 		return ret;
 	}
@@ -555,7 +555,7 @@ int vmw_overlay_unref(struct vmw_private *dev_priv, uint32_t stream_id)
 {
 	struct vmw_overlay *overlay = dev_priv->overlay_priv;
 
-	BUG_ON(stream_id >= VMW_MAX_NUM_STREAMS);
+	_ON(stream_id >= VMW_MAX_NUM_STREAMS);
 
 	if (!overlay)
 		return -ENOSYS;

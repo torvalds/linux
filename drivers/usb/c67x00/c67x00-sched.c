@@ -200,7 +200,7 @@ static void c67x00_release_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 	struct c67x00_td *td;
 	struct c67x00_urb_priv *urbp;
 
-	BUG_ON(!urb);
+	_ON(!urb);
 
 	c67x00->urb_count--;
 
@@ -746,7 +746,7 @@ static int c67x00_add_iso_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 		char *td_buf;
 		int len, pid, ret;
 
-		BUG_ON(urbp->cnt >= urb->number_of_packets);
+		_ON(urbp->cnt >= urb->number_of_packets);
 
 		td_buf = urb->transfer_buffer +
 		    urb->iso_frame_desc[urbp->cnt].offset;

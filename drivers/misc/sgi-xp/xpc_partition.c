@@ -154,7 +154,7 @@ xpc_setup_rsvd_page(void)
 		/* SAL_versions < 3 had a SAL_partid defined as a u8 */
 		rp->SAL_partid &= 0xff;
 	}
-	BUG_ON(rp->SAL_partid != xp_partition_id);
+	_ON(rp->SAL_partid != xp_partition_id);
 
 	if (rp->SAL_partid < 0 || rp->SAL_partid >= xp_max_npartitions) {
 		dev_err(xpc_part, "the reserved page's partid of %d is outside "
@@ -296,7 +296,7 @@ xpc_partition_disengaged(struct xpc_partition *part)
 		if (!in_interrupt())
 			del_singleshot_timer_sync(&part->disengage_timer);
 
-		DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING &&
+		D_ON(part->act_state != XPC_P_AS_DEACTIVATING &&
 			part->act_state != XPC_P_AS_INACTIVE);
 		if (part->act_state != XPC_P_AS_INACTIVE)
 			xpc_wakeup_channel_mgr(part);
@@ -322,7 +322,7 @@ xpc_mark_partition_active(struct xpc_partition *part)
 		part->act_state = XPC_P_AS_ACTIVE;
 		ret = xpSuccess;
 	} else {
-		DBUG_ON(part->reason == xpSuccess);
+		D_ON(part->reason == xpSuccess);
 		ret = part->reason;
 	}
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
@@ -452,7 +452,7 @@ xpc_discovery(void)
 		case 32:
 			max_regions *= 2;
 			region_size = 16;
-			DBUG_ON(!is_shub2());
+			D_ON(!is_shub2());
 		}
 	}
 

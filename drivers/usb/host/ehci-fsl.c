@@ -53,7 +53,7 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 	int retval;
 	u32 tmp;
 
-	pr_debug("initializing FSL-SOC USB Controller\n");
+	pr_de("initializing FSL-SOC USB Controller\n");
 
 	/* Need platform data for setup */
 	pdata = dev_get_platdata(&pdev->dev);
@@ -307,7 +307,7 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 
 		/* Deal with USB Erratum #14 on MPC834x Rev 1.0 & 1.1 chips */
 		if (pdata->has_fsl_erratum_14 == 1)
-			ehci->has_fsl_port_bug = 1;
+			ehci->has_fsl_port_ = 1;
 
 		if (pdata->port_enables & FSL_USB2_PORT0_ENABLED)
 			if (ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0))
@@ -405,7 +405,7 @@ static int ehci_fsl_mpc512x_drv_suspend(struct device *dev)
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(dev);
 	u32 tmp;
 
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 	u32 mode = ehci_readl(ehci, hcd->regs + FSL_SOC_USB_USBMODE);
 	mode &= USBMODE_CM_MASK;
 	tmp = ehci_readl(ehci, hcd->regs + 0x140);	/* usbcmd */

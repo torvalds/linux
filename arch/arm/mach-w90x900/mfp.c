@@ -53,7 +53,7 @@ void mfp_set_groupf(struct device *dev)
 	unsigned long mfpen;
 	const char *dev_id;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	mutex_lock(&mfp_mutex);
 
@@ -77,7 +77,7 @@ void mfp_set_groupc(struct device *dev)
 	unsigned long mfpen;
 	const char *dev_id;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	mutex_lock(&mfp_mutex);
 
@@ -107,7 +107,7 @@ void mfp_set_groupi(struct device *dev)
 	unsigned long mfpen;
 	const char *dev_id;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	mutex_lock(&mfp_mutex);
 
@@ -135,7 +135,7 @@ void mfp_set_groupg(struct device *dev, const char *subname)
 	unsigned long mfpen;
 	const char *dev_id;
 
-	BUG_ON((!dev) && (!subname));
+	_ON((!dev) && (!subname));
 
 	mutex_lock(&mfp_mutex);
 
@@ -176,7 +176,7 @@ void mfp_set_groupd(struct device *dev, const char *subname)
 	unsigned long mfpen;
 	const char *dev_id;
 
-	BUG_ON((!dev) && (!subname));
+	_ON((!dev) && (!subname));
 
 	mutex_lock(&mfp_mutex);
 

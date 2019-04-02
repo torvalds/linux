@@ -739,7 +739,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		.coherent_flag = is_coherent ? COHERENT : NORMAL,
 	};
 
-#ifdef CONFIG_DMA_API_DEBUG
+#ifdef CONFIG_DMA_API_DE
 	u64 limit = (mask + 1) & ~mask;
 	if (limit && size >= limit) {
 		dev_warn(dev, "coherent allocation too big (requested %#x mask %#llx)\n",
@@ -1246,7 +1246,7 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 		return;
 
 	bitmap_index = (u32) (addr - mapping->base) / (u32) mapping_size;
-	BUG_ON(addr < mapping->base || bitmap_index > mapping->extensions);
+	_ON(addr < mapping->base || bitmap_index > mapping->extensions);
 
 	bitmap_base = mapping->base + mapping_size * bitmap_index;
 
@@ -1259,7 +1259,7 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 		 * we don't allow this in __alloc_iova (at the
 		 * moment).
 		 */
-		BUG();
+		();
 	} else
 		count = size >> PAGE_SHIFT;
 
@@ -2243,7 +2243,7 @@ static int __arm_iommu_attach_device(struct device *dev,
 	kref_get(&mapping->kref);
 	to_dma_iommu_mapping(dev) = mapping;
 
-	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
+	pr_de("Attached IOMMU controller to %s device.\n", dev_name(dev));
 	return 0;
 }
 
@@ -2296,7 +2296,7 @@ void arm_iommu_detach_device(struct device *dev)
 	to_dma_iommu_mapping(dev) = NULL;
 	set_dma_ops(dev, arm_get_dma_map_ops(dev->archdata.dma_coherent));
 
-	pr_debug("Detached IOMMU controller from %s device.\n", dev_name(dev));
+	pr_de("Detached IOMMU controller from %s device.\n", dev_name(dev));
 }
 EXPORT_SYMBOL_GPL(arm_iommu_detach_device);
 

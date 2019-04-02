@@ -118,7 +118,7 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -239,7 +239,7 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -327,7 +327,7 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	kfree(skips);
 	return 0;
 }
@@ -402,7 +402,7 @@ bttv_calc_geo		(struct bttv *                  btv,
 		return;
 	}
 
-	/* For bug compatibility the image size checks permit scale
+	/* For  compatibility the image size checks permit scale
 	   factors > 16. See bttv_crop_calc_limits(). */
 	c_width = min((unsigned int) crop->width, width * 16);
 	c_height = min((unsigned int) crop->height, height * 16);
@@ -584,7 +584,7 @@ bttv_dma_free(struct videobuf_queue *q,struct bttv *btv, struct bttv_buffer *buf
 {
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
@@ -748,7 +748,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 					 bpf,bpl,0,0,buf->vb.height >> 1);
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -839,7 +839,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 					 0);
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -894,7 +894,7 @@ bttv_overlay_risc(struct bttv *btv,
 		bttv_risc_overlay(btv, &buf->bottom, fmt, ov, 1, 0);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	/* copy format info */

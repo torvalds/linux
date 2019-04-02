@@ -53,13 +53,13 @@ static const u32 tahiti_golden_registers[] =
 {
 	mmAZALIA_SCLK_CONTROL, 0x00000030, 0x00000011,
 	mmCB_HW_CONTROL, 0x00010000, 0x00018208,
-	mmDB_DEBUG, 0xffffffff, 0x00000000,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
-	mmDB_DEBUG3, 0x0002021c, 0x00020200,
+	mmDB_DE, 0xffffffff, 0x00000000,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
+	mmDB_DE3, 0x0002021c, 0x00020200,
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	0x340c, 0x000000c0, 0x00800040,
 	0x360c, 0x000000c0, 0x00800040,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x00200000, 0x50100000,
 	mmDIG0_HDMI_CONTROL, 0x31000311, 0x00000011,
 	mmMC_ARB_WTM_CNTL_RD, 0x00000003, 0x000007ff,
@@ -74,7 +74,7 @@ static const u32 tahiti_golden_registers[] =
 	mmSPI_CONFIG_CNTL, 0x07ffffff, 0x03000000,
 	mmSQ_DED_CNT, 0x01ff1f3f, 0x00000000,
 	mmSQ_SEC_CNT, 0x01ff1f3f, 0x00000000,
-	mmSX_DEBUG_1, 0x0000007f, 0x00000020,
+	mmSX_DE_1, 0x0000007f, 0x00000020,
 	mmTA_CNTL_AUX, 0x00010000, 0x00010000,
 	mmTCP_ADDR_CONFIG, 0x00000200, 0x000002fb,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x0000543b,
@@ -109,13 +109,13 @@ static const u32 pitcairn_golden_registers[] =
 {
 	mmAZALIA_SCLK_CONTROL, 0x00000030, 0x00000011,
 	mmCB_HW_CONTROL, 0x00010000, 0x00018208,
-	mmDB_DEBUG, 0xffffffff, 0x00000000,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
-	mmDB_DEBUG3, 0x0002021c, 0x00020200,
+	mmDB_DE, 0xffffffff, 0x00000000,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
+	mmDB_DE3, 0x0002021c, 0x00020200,
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	0x340c, 0x000300c0, 0x00800040,
 	0x360c, 0x000300c0, 0x00800040,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x00200000, 0x50100000,
 	mmDIG0_HDMI_CONTROL, 0x31000311, 0x00000011,
 	mmMC_SEQ_PMG_PG_HWCNTL, 0x00073ffe, 0x000022a2,
@@ -128,7 +128,7 @@ static const u32 pitcairn_golden_registers[] =
 	0x000c, 0xffffffff, 0x0040,
 	0x000d, 0x00000040, 0x00004040,
 	mmSPI_CONFIG_CNTL, 0x07ffffff, 0x03000000,
-	mmSX_DEBUG_1, 0x0000007f, 0x00000020,
+	mmSX_DE_1, 0x0000007f, 0x00000020,
 	mmTA_CNTL_AUX, 0x00010000, 0x00010000,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f7,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
@@ -292,13 +292,13 @@ static const u32 verde_golden_registers[] =
 {
 	mmAZALIA_SCLK_CONTROL, 0x00000030, 0x00000011,
 	mmCB_HW_CONTROL, 0x00010000, 0x00018208,
-	mmDB_DEBUG, 0xffffffff, 0x00000000,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
-	mmDB_DEBUG3, 0x0002021c, 0x00020200,
+	mmDB_DE, 0xffffffff, 0x00000000,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
+	mmDB_DE3, 0x0002021c, 0x00020200,
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	0x340c, 0x000300c0, 0x00800040,
 	0x360c, 0x000300c0, 0x00800040,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x00200000, 0x50100000,
 	mmDIG0_HDMI_CONTROL, 0x31000311, 0x00000011,
 	mmMC_SEQ_PMG_PG_HWCNTL, 0x00073ffe, 0x000022a2,
@@ -313,7 +313,7 @@ static const u32 verde_golden_registers[] =
 	mmSPI_CONFIG_CNTL, 0x07ffffff, 0x03000000,
 	mmSQ_DED_CNT, 0x01ff1f3f, 0x00000000,
 	mmSQ_SEC_CNT, 0x01ff1f3f, 0x00000000,
-	mmSX_DEBUG_1, 0x0000007f, 0x00000020,
+	mmSX_DE_1, 0x0000007f, 0x00000020,
 	mmTA_CNTL_AUX, 0x00010000, 0x00010000,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x00000003,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
@@ -330,13 +330,13 @@ static const u32 oland_golden_registers[] =
 {
 	mmAZALIA_SCLK_CONTROL, 0x00000030, 0x00000011,
 	mmCB_HW_CONTROL, 0x00010000, 0x00018208,
-	mmDB_DEBUG, 0xffffffff, 0x00000000,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
-	mmDB_DEBUG3, 0x0002021c, 0x00020200,
+	mmDB_DE, 0xffffffff, 0x00000000,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
+	mmDB_DE3, 0x0002021c, 0x00020200,
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	0x340c, 0x000300c0, 0x00800040,
 	0x360c, 0x000300c0, 0x00800040,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x00200000, 0x50100000,
 	mmDIG0_HDMI_CONTROL, 0x31000311, 0x00000011,
 	mmMC_SEQ_PMG_PG_HWCNTL, 0x00073ffe, 0x000022a2,
@@ -349,7 +349,7 @@ static const u32 oland_golden_registers[] =
 	0x000c, 0xffffffff, 0x0040,
 	0x000d, 0x00000040, 0x00004040,
 	mmSPI_CONFIG_CNTL, 0x07ffffff, 0x03000000,
-	mmSX_DEBUG_1, 0x0000007f, 0x00000020,
+	mmSX_DE_1, 0x0000007f, 0x00000020,
 	mmTA_CNTL_AUX, 0x00010000, 0x00010000,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f3,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
@@ -377,9 +377,9 @@ static const u32 hainan_golden_registers[] =
 {
 	0x17bc, 0x00000030, 0x00000011,
 	mmCB_HW_CONTROL, 0x00010000, 0x00018208,
-	mmDB_DEBUG, 0xffffffff, 0x00000000,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
-	mmDB_DEBUG3, 0x0002021c, 0x00020200,
+	mmDB_DE, 0xffffffff, 0x00000000,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
+	mmDB_DE3, 0x0002021c, 0x00020200,
 	0x031e, 0x00000080, 0x00000000,
 	0x3430, 0xff000fff, 0x00000100,
 	0x340c, 0x000300c0, 0x00800040,
@@ -398,7 +398,7 @@ static const u32 hainan_golden_registers[] =
 	0x000c, 0xffffffff, 0x0040,
 	0x000d, 0x00000040, 0x00004040,
 	mmSPI_CONFIG_CNTL, 0x03e00000, 0x03600000,
-	mmSX_DEBUG_1, 0x0000007f, 0x00000020,
+	mmSX_DE_1, 0x0000007f, 0x00000020,
 	mmTA_CNTL_AUX, 0x00010000, 0x00010000,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000f1,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
@@ -1246,10 +1246,10 @@ static void si_invalidate_hdp(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring)
 {
 	if (!ring || !ring->funcs->emit_wreg) {
-		WREG32(mmHDP_DEBUG0, 1);
-		RREG32(mmHDP_DEBUG0);
+		WREG32(mmHDP_DE0, 1);
+		RREG32(mmHDP_DE0);
 	} else {
-		amdgpu_ring_emit_wreg(ring, mmHDP_DEBUG0, 1);
+		amdgpu_ring_emit_wreg(ring, mmHDP_DE0, 1);
 	}
 }
 
@@ -1605,7 +1605,7 @@ static void si_init_golden_registers(struct amdgpu_device *adev)
 
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -2147,7 +2147,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		break;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }

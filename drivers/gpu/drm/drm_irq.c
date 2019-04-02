@@ -114,7 +114,7 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		return -EBUSY;
 	dev->irq_enabled = true;
 
-	DRM_DEBUG("irq=%d\n", irq);
+	DRM_DE("irq=%d\n", irq);
 
 	/* Before installing handler */
 	if (dev->driver->irq_preinstall)
@@ -158,8 +158,8 @@ EXPORT_SYMBOL(drm_irq_install);
  * to set up their interrupt handler. Other drivers must only reset
  * &drm_device.irq_enabled to false.
  *
- * Note that for kernel modesetting drivers it is a bug if this function fails.
- * The sanity checks are only to catch buggy user modesetting drivers which call
+ * Note that for kernel modesetting drivers it is a  if this function fails.
+ * The sanity checks are only to catch gy user modesetting drivers which call
  * the same function through an ioctl.
  *
  * Returns:
@@ -199,7 +199,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (!irq_enabled)
 		return -EINVAL;
 
-	DRM_DEBUG("irq=%d\n", dev->irq);
+	DRM_DE("irq=%d\n", dev->irq);
 
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		vga_client_register(dev->pdev, NULL, NULL, NULL);

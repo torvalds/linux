@@ -13,7 +13,7 @@
 
 /*
  * HW_breakpoint: a unified kernel/user-space hardware breakpoint facility,
- * using the CPU's debug registers.
+ * using the CPU's de registers.
  * This file contains the arch-independent routines.
  */
 
@@ -21,7 +21,7 @@
 #include <linux/kallsyms.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
@@ -31,7 +31,7 @@
 #include <linux/list.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <linux/hw_breakpoint.h>
 /*
@@ -365,7 +365,7 @@ static int modify_bp_slot(struct perf_event *bp, u64 old_type, u64 new_type)
 }
 
 /*
- * Allow the kernel debugger to reserve breakpoint slots without
+ * Allow the kernel deger to reserve breakpoint slots without
  * taking a lock using the dbg_* variant of for the reserve and
  * release breakpoint slots.
  */

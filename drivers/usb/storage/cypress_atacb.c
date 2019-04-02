@@ -15,7 +15,7 @@
 #include "usb.h"
 #include "protocol.h"
 #include "scsiglue.h"
-#include "debug.h"
+#include "de.h"
 
 #define DRV_NAME "ums-cypress"
 

@@ -505,7 +505,7 @@ static inline int esp_remove_trailer(struct sk_buff *skb)
 	}
 
 	ret = skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2);
-	BUG_ON(ret);
+	_ON(ret);
 
 	ret = -EINVAL;
 	padlen = nexthdr[0];
@@ -845,7 +845,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 		p += (x->aalg->alg_key_len + 7) / 8;
 
 		aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
-		BUG_ON(!aalg_desc);
+		_ON(!aalg_desc);
 
 		err = -EINVAL;
 		if (aalg_desc->uinfo.auth.icv_fullbits / 8 !=

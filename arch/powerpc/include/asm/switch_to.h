@@ -18,7 +18,7 @@ extern struct task_struct *__switch_to(struct task_struct *,
 extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
 
-extern void switch_booke_debug_regs(struct debug_reg *new_debug);
+extern void switch_booke_de_regs(struct de_reg *new_de);
 
 extern int emulate_altivec(struct pt_regs *);
 

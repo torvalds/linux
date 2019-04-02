@@ -10,7 +10,7 @@
 
 #include "core.h"
 #include "htc.h"
-#include "debug.h"
+#include "de.h"
 #include "wmi.h"
 #include "wmi-tlv.h"
 #include "mac.h"
@@ -731,7 +731,7 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.vdev_set_scan_nac_rssi_cmdid = WMI_10_4_VDEV_SET_SCAN_NAC_RSSI_CMDID,
 	.prog_gpio_band_select_cmdid = WMI_10_4_PROG_GPIO_BAND_SELECT_CMDID,
 	.config_smart_logging_cmdid = WMI_10_4_CONFIG_SMART_LOGGING_CMDID,
-	.debug_fatal_condition_cmdid = WMI_10_4_DEBUG_FATAL_CONDITION_CMDID,
+	.de_fatal_condition_cmdid = WMI_10_4_DE_FATAL_CONDITION_CMDID,
 	.get_tsf_timer_cmdid = WMI_10_4_GET_TSF_TIMER_CMDID,
 	.pdev_get_tpc_table_cmdid = WMI_10_4_PDEV_GET_TPC_TABLE_CMDID,
 	.vdev_sifs_trigger_time_cmdid = WMI_10_4_VDEV_SIFS_TRIGGER_TIME_CMDID,
@@ -2762,9 +2762,9 @@ void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)
 		complete(&ar->wmi.barrier);
 }
 
-int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
+int ath10k_wmi_event_de_mesg(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi event debug mesg len %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi event de mesg len %d\n",
 		   skb->len);
 
 	trace_ath10k_wmi_dbglog(ar, skb->data, skb->len);
@@ -3341,7 +3341,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 void ath10k_wmi_event_update_stats(struct ath10k *ar, struct sk_buff *skb)
 {
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_UPDATE_STATS_EVENTID\n");
-	ath10k_debug_fw_stats_process(ar, skb);
+	ath10k_de_fw_stats_process(ar, skb);
 }
 
 static int
@@ -3787,7 +3787,7 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 			   __le32_to_cpu(tim_info->tim_bitmap[0]));
 
 		/* TODO: Only first 4 word from tim_bitmap is dumped.
-		 * Extend debug code to dump full tim_bitmap.
+		 * Extend de code to dump full tim_bitmap.
 		 */
 
 		arvif = ath10k_get_arvif(ar, vdev_id);
@@ -3890,7 +3890,7 @@ static void ath10k_radar_detected(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_REGULATORY, "dfs radar detected\n");
 	ATH10K_DFS_STAT_INC(ar, radar_detected);
 
-	/* Control radar events reporting in debugfs file
+	/* Control radar events reporting in defs file
 	 * dfs_block_radar_events
 	 */
 	if (ar->dfs_block_radar_events)
@@ -4499,7 +4499,7 @@ void ath10k_wmi_event_profile_match(struct ath10k *ar, struct sk_buff *skb)
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_PROFILE_MATCH\n");
 }
 
-void ath10k_wmi_event_debug_print(struct ath10k *ar, struct sk_buff *skb)
+void ath10k_wmi_event_de_print(struct ath10k *ar, struct sk_buff *skb)
 {
 	char buf[101], c;
 	int i;
@@ -4520,9 +4520,9 @@ void ath10k_wmi_event_debug_print(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	if (i == sizeof(buf) - 1)
-		ath10k_warn(ar, "wmi debug print truncated: %d\n", skb->len);
+		ath10k_warn(ar, "wmi de print truncated: %d\n", skb->len);
 
-	/* for some reason the debug prints end with \n, remove that */
+	/* for some reason the de prints end with \n, remove that */
 	if (skb->data[i - 1] == '\n')
 		i--;
 
@@ -4835,7 +4835,7 @@ void ath10k_wmi_event_pdev_tpc_config(struct ath10k *ar, struct sk_buff *skb)
 				      rate_code, pream_table,
 				      WMI_TPC_TABLE_TYPE_TXBF);
 
-	ath10k_debug_tpc_stats_process(ar, tpc_stats);
+	ath10k_de_tpc_stats_process(ar, tpc_stats);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi event tpc config channel %d mode %d ctl %d regd %d gain %d %d limit %d max_power %d tx_chanins %d rates %d\n",
@@ -5082,7 +5082,7 @@ void ath10k_wmi_event_tpc_final_table(struct ath10k *ar, struct sk_buff *skb)
 					       rate_code, pream_table,
 					       WMI_TPC_TABLE_TYPE_TXBF);
 
-	ath10k_debug_tpc_stats_final_process(ar, tpc_stats);
+	ath10k_de_tpc_stats_final_process(ar, tpc_stats);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi event tpc final table channel %d mode %d ctl %d regd %d gain %d %d limit %d max_power %d tx_chanins %d rates %d\n",
@@ -5759,8 +5759,8 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_ECHO_EVENTID:
 		ath10k_wmi_event_echo(ar, skb);
 		break;
-	case WMI_DEBUG_MESG_EVENTID:
-		ath10k_wmi_event_debug_mesg(ar, skb);
+	case WMI_DE_MESG_EVENTID:
+		ath10k_wmi_event_de_mesg(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_UPDATE_STATS_EVENTID:
@@ -5793,8 +5793,8 @@ static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
-	case WMI_DEBUG_PRINT_EVENTID:
-		ath10k_wmi_event_debug_print(ar, skb);
+	case WMI_DE_PRINT_EVENTID:
+		ath10k_wmi_event_de_print(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_PDEV_QVIT_EVENTID:
@@ -5899,8 +5899,8 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10X_ECHO_EVENTID:
 		ath10k_wmi_event_echo(ar, skb);
 		break;
-	case WMI_10X_DEBUG_MESG_EVENTID:
-		ath10k_wmi_event_debug_mesg(ar, skb);
+	case WMI_10X_DE_MESG_EVENTID:
+		ath10k_wmi_event_de_mesg(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_UPDATE_STATS_EVENTID:
@@ -5933,8 +5933,8 @@ static void ath10k_wmi_10_1_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10X_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
-	case WMI_10X_DEBUG_PRINT_EVENTID:
-		ath10k_wmi_event_debug_print(ar, skb);
+	case WMI_10X_DE_PRINT_EVENTID:
+		ath10k_wmi_event_de_print(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10X_PDEV_QVIT_EVENTID:
@@ -6030,8 +6030,8 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_2_ECHO_EVENTID:
 		ath10k_wmi_event_echo(ar, skb);
 		break;
-	case WMI_10_2_DEBUG_MESG_EVENTID:
-		ath10k_wmi_event_debug_mesg(ar, skb);
+	case WMI_10_2_DE_MESG_EVENTID:
+		ath10k_wmi_event_de_mesg(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_UPDATE_STATS_EVENTID:
@@ -6064,8 +6064,8 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_2_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
-	case WMI_10_2_DEBUG_PRINT_EVENTID:
-		ath10k_wmi_event_debug_print(ar, skb);
+	case WMI_10_2_DE_PRINT_EVENTID:
+		ath10k_wmi_event_de_print(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_2_PDEV_QVIT_EVENTID:
@@ -6172,8 +6172,8 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_4_ECHO_EVENTID:
 		ath10k_wmi_event_echo(ar, skb);
 		break;
-	case WMI_10_4_DEBUG_MESG_EVENTID:
-		ath10k_wmi_event_debug_mesg(ar, skb);
+	case WMI_10_4_DE_MESG_EVENTID:
+		ath10k_wmi_event_de_mesg(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_SERVICE_READY_EVENTID:
@@ -6206,8 +6206,8 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_4_TBTTOFFSET_UPDATE_EVENTID:
 		ath10k_wmi_event_tbttoffset_update(ar, skb);
 		break;
-	case WMI_10_4_DEBUG_PRINT_EVENTID:
-		ath10k_wmi_event_debug_print(ar, skb);
+	case WMI_10_4_DE_PRINT_EVENTID:
+		ath10k_wmi_event_de_print(ar, skb);
 		ath10k_wmi_queue_set_coverage_class_work(ar);
 		break;
 	case WMI_10_4_VDEV_START_RESP_EVENTID:
@@ -6221,7 +6221,7 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_4_WOW_WAKEUP_HOST_EVENTID:
 	case WMI_10_4_PEER_RATECODE_LIST_EVENTID:
 	case WMI_10_4_WDS_PEER_EVENTID:
-	case WMI_10_4_DEBUG_FATAL_CONDITION_EVENTID:
+	case WMI_10_4_DE_FATAL_CONDITION_EVENTID:
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "received event id %d not implemented\n", id);
 		break;

@@ -50,7 +50,7 @@ static unsigned int tc2_nr_cpus[TC2_CLUSTERS];
 
 static int tc2_pm_cpu_powerup(unsigned int cpu, unsigned int cluster)
 {
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cluster >= TC2_CLUSTERS || cpu >= tc2_nr_cpus[cluster])
 		return -EINVAL;
 	ve_spc_set_resume_addr(cluster, cpu,
@@ -61,7 +61,7 @@ static int tc2_pm_cpu_powerup(unsigned int cpu, unsigned int cluster)
 
 static int tc2_pm_cluster_powerup(unsigned int cluster)
 {
-	pr_debug("%s: cluster %u\n", __func__, cluster);
+	pr_de("%s: cluster %u\n", __func__, cluster);
 	if (cluster >= TC2_CLUSTERS)
 		return -EINVAL;
 	ve_spc_powerdown(cluster, false);
@@ -70,8 +70,8 @@ static int tc2_pm_cluster_powerup(unsigned int cluster)
 
 static void tc2_pm_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
 {
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
 	ve_spc_cpu_wakeup_irq(cluster, cpu, true);
 	/*
 	 * If the CPU is committed to power down, make sure
@@ -85,8 +85,8 @@ static void tc2_pm_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
 
 static void tc2_pm_cluster_powerdown_prepare(unsigned int cluster)
 {
-	pr_debug("%s: cluster %u\n", __func__, cluster);
-	BUG_ON(cluster >= TC2_CLUSTERS);
+	pr_de("%s: cluster %u\n", __func__, cluster);
+	_ON(cluster >= TC2_CLUSTERS);
 	ve_spc_powerdown(cluster, true);
 	ve_spc_global_wakeup_irq(true);
 }
@@ -130,11 +130,11 @@ static int tc2_pm_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 {
 	unsigned tries;
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
 
 	for (tries = 0; tries < TIMEOUT_MSEC / POLL_MSEC; ++tries) {
-		pr_debug("%s(cpu=%u, cluster=%u): RESET_CTRL = 0x%08X\n",
+		pr_de("%s(cpu=%u, cluster=%u): RESET_CTRL = 0x%08X\n",
 			 __func__, cpu, cluster,
 			 readl_relaxed(scc + RESET_CTRL));
 
@@ -164,16 +164,16 @@ static void tc2_pm_cpu_suspend_prepare(unsigned int cpu, unsigned int cluster)
 
 static void tc2_pm_cpu_is_up(unsigned int cpu, unsigned int cluster)
 {
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
 	ve_spc_cpu_wakeup_irq(cluster, cpu, false);
 	ve_spc_set_resume_addr(cluster, cpu, 0);
 }
 
 static void tc2_pm_cluster_is_up(unsigned int cluster)
 {
-	pr_debug("%s: cluster %u\n", __func__, cluster);
-	BUG_ON(cluster >= TC2_CLUSTERS);
+	pr_de("%s: cluster %u\n", __func__, cluster);
+	_ON(cluster >= TC2_CLUSTERS);
 	ve_spc_powerdown(cluster, false);
 	ve_spc_global_wakeup_irq(false);
 }
@@ -247,7 +247,7 @@ static int __init tc2_pm_init(void)
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cluster >= TC2_CLUSTERS || cpu >= tc2_nr_cpus[cluster]) {
 		pr_err("%s: boot CPU is out of bound!\n", __func__);
 		return -EINVAL;
@@ -257,7 +257,7 @@ static int __init tc2_pm_init(void)
 	if (!ret) {
 		mcpm_sync_init(tc2_pm_power_up_setup);
 		/* test if we can (re)enable the CCI on our own */
-		BUG_ON(mcpm_loopback(tc2_pm_cluster_cache_disable) != 0);
+		_ON(mcpm_loopback(tc2_pm_cluster_cache_disable) != 0);
 		pr_info("TC2 power management initialized\n");
 	}
 	return ret;

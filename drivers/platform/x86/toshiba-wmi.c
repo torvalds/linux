@@ -59,7 +59,7 @@ static void toshiba_wmi_notify(u32 value, void *context)
 		return;
 
 	/* TODO: Add proper checks once we have data */
-	pr_debug("Unknown event received, obj type %x\n", obj->type);
+	pr_de("Unknown event received, obj type %x\n", obj->type);
 
 	kfree(response.pointer);
 }

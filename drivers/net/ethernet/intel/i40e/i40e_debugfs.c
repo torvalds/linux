@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "i40e.h"
 
@@ -46,7 +46,7 @@ static struct i40e_veb *i40e_dbg_find_veb(struct i40e_pf *pf, int seid)
 
 /**************************************************************
  * command
- * The command entry in debugfs is for giving the driver commands
+ * The command entry in defs is for giving the driver commands
  * to be executed - these may be for changing the internal switch
  * setup, adding or removing filters, or other things.  Many of
  * these will be useful for some forms of unit testing.
@@ -687,7 +687,7 @@ static void i40e_dbg_dump_vf_all(struct i40e_pf *pf)
 			i40e_dbg_dump_vf(pf, i);
 }
 
-#define I40E_MAX_DEBUG_OUT_BUFFER (4096*4)
+#define I40E_MAX_DE_OUT_BUFFER (4096*4)
 /**
  * i40e_dbg_command_write - write into command datum
  * @filp: the opened file
@@ -1057,7 +1057,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 					 r_cfg->app[i].selector,
 					 r_cfg->app[i].protocolid);
 			}
-		} else if (strncmp(&cmd_buf[5], "debug fwdata", 12) == 0) {
+		} else if (strncmp(&cmd_buf[5], "de fwdata", 12) == 0) {
 			int cluster_id, table_id;
 			int index, ret;
 			u16 buff_len = 4096;
@@ -1070,31 +1070,31 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				     &cluster_id, &table_id, &index);
 			if (cnt != 3) {
 				dev_info(&pf->pdev->dev,
-					 "dump debug fwdata <cluster_id> <table_id> <index>\n");
+					 "dump de fwdata <cluster_id> <table_id> <index>\n");
 				goto command_write_done;
 			}
 
 			dev_info(&pf->pdev->dev,
-				 "AQ debug dump fwdata params %x %x %x %x\n",
+				 "AQ de dump fwdata params %x %x %x %x\n",
 				 cluster_id, table_id, index, buff_len);
 			buff = kzalloc(buff_len, GFP_KERNEL);
 			if (!buff)
 				goto command_write_done;
 
-			ret = i40e_aq_debug_dump(&pf->hw, cluster_id, table_id,
+			ret = i40e_aq_de_dump(&pf->hw, cluster_id, table_id,
 						 index, buff_len, buff, &rlen,
 						 &next_table, &next_index,
 						 NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
-					 "debug dump fwdata AQ Failed %d 0x%x\n",
+					 "de dump fwdata AQ Failed %d 0x%x\n",
 					 ret, pf->hw.aq.asq_last_status);
 				kfree(buff);
 				buff = NULL;
 				goto command_write_done;
 			}
 			dev_info(&pf->pdev->dev,
-				 "AQ debug dump fwdata rlen=0x%x next_table=0x%x next_index=0x%x\n",
+				 "AQ de dump fwdata rlen=0x%x next_table=0x%x next_index=0x%x\n",
 				 rlen, next_table, next_index);
 			print_hex_dump(KERN_INFO, "AQ buffer WB: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
@@ -1110,22 +1110,22 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "dump port\n");
 			dev_info(&pf->pdev->dev, "dump vf [vf_id]\n");
 			dev_info(&pf->pdev->dev,
-				 "dump debug fwdata <cluster_id> <table_id> <index>\n");
+				 "dump de fwdata <cluster_id> <table_id> <index>\n");
 		}
 	} else if (strncmp(cmd_buf, "pfr", 3) == 0) {
-		dev_info(&pf->pdev->dev, "debugfs: forcing PFR\n");
+		dev_info(&pf->pdev->dev, "defs: forcing PFR\n");
 		i40e_do_reset_safe(pf, BIT(__I40E_PF_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "corer", 5) == 0) {
-		dev_info(&pf->pdev->dev, "debugfs: forcing CoreR\n");
+		dev_info(&pf->pdev->dev, "defs: forcing CoreR\n");
 		i40e_do_reset_safe(pf, BIT(__I40E_CORE_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "globr", 5) == 0) {
-		dev_info(&pf->pdev->dev, "debugfs: forcing GlobR\n");
+		dev_info(&pf->pdev->dev, "defs: forcing GlobR\n");
 		i40e_do_reset_safe(pf, BIT(__I40E_GLOBAL_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "empr", 4) == 0) {
-		dev_info(&pf->pdev->dev, "debugfs: forcing EMPR\n");
+		dev_info(&pf->pdev->dev, "defs: forcing EMPR\n");
 		i40e_do_reset_safe(pf, BIT(__I40E_EMP_RESET_REQUESTED));
 
 	} else if (strncmp(cmd_buf, "read", 4) == 0) {
@@ -1525,7 +1525,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
 		dev_info(&pf->pdev->dev, "  dump desc aq\n");
 		dev_info(&pf->pdev->dev, "  dump reset stats\n");
-		dev_info(&pf->pdev->dev, "  dump debug fwdata <cluster_id> <table_id> <index>\n");
+		dev_info(&pf->pdev->dev, "  dump de fwdata <cluster_id> <table_id> <index>\n");
 		dev_info(&pf->pdev->dev, "  read <reg>\n");
 		dev_info(&pf->pdev->dev, "  write <reg> <value>\n");
 		dev_info(&pf->pdev->dev, "  clear_stats vsi [seid]\n");
@@ -1560,7 +1560,7 @@ static const struct file_operations i40e_dbg_command_fops = {
 
 /**************************************************************
  * netdev_ops
- * The netdev_ops entry in debugfs is for giving the driver commands
+ * The netdev_ops entry in defs is for giving the driver commands
  * to be executed from the netdev operations.
  **************************************************************/
 static char i40e_dbg_netdev_ops_buf[256] = "";
@@ -1726,7 +1726,7 @@ static const struct file_operations i40e_dbg_netdev_ops_fops = {
 };
 
 /**
- * i40e_dbg_pf_init - setup the debugfs directory for the PF
+ * i40e_dbg_pf_init - setup the defs directory for the PF
  * @pf: the PF that is starting up
  **/
 void i40e_dbg_pf_init(struct i40e_pf *pf)
@@ -1735,16 +1735,16 @@ void i40e_dbg_pf_init(struct i40e_pf *pf)
 	const char *name = pci_name(pf->pdev);
 	const struct device *dev = &pf->pdev->dev;
 
-	pf->i40e_dbg_pf = debugfs_create_dir(name, i40e_dbg_root);
+	pf->i40e_dbg_pf = defs_create_dir(name, i40e_dbg_root);
 	if (!pf->i40e_dbg_pf)
 		return;
 
-	pfile = debugfs_create_file("command", 0600, pf->i40e_dbg_pf, pf,
+	pfile = defs_create_file("command", 0600, pf->i40e_dbg_pf, pf,
 				    &i40e_dbg_command_fops);
 	if (!pfile)
 		goto create_failed;
 
-	pfile = debugfs_create_file("netdev_ops", 0600, pf->i40e_dbg_pf, pf,
+	pfile = defs_create_file("netdev_ops", 0600, pf->i40e_dbg_pf, pf,
 				    &i40e_dbg_netdev_ops_fops);
 	if (!pfile)
 		goto create_failed;
@@ -1752,37 +1752,37 @@ void i40e_dbg_pf_init(struct i40e_pf *pf)
 	return;
 
 create_failed:
-	dev_info(dev, "debugfs dir/file for %s failed\n", name);
-	debugfs_remove_recursive(pf->i40e_dbg_pf);
+	dev_info(dev, "defs dir/file for %s failed\n", name);
+	defs_remove_recursive(pf->i40e_dbg_pf);
 }
 
 /**
- * i40e_dbg_pf_exit - clear out the PF's debugfs entries
+ * i40e_dbg_pf_exit - clear out the PF's defs entries
  * @pf: the PF that is stopping
  **/
 void i40e_dbg_pf_exit(struct i40e_pf *pf)
 {
-	debugfs_remove_recursive(pf->i40e_dbg_pf);
+	defs_remove_recursive(pf->i40e_dbg_pf);
 	pf->i40e_dbg_pf = NULL;
 }
 
 /**
- * i40e_dbg_init - start up debugfs for the driver
+ * i40e_dbg_init - start up defs for the driver
  **/
 void i40e_dbg_init(void)
 {
-	i40e_dbg_root = debugfs_create_dir(i40e_driver_name, NULL);
+	i40e_dbg_root = defs_create_dir(i40e_driver_name, NULL);
 	if (!i40e_dbg_root)
-		pr_info("init of debugfs failed\n");
+		pr_info("init of defs failed\n");
 }
 
 /**
- * i40e_dbg_exit - clean out the driver's debugfs entries
+ * i40e_dbg_exit - clean out the driver's defs entries
  **/
 void i40e_dbg_exit(void)
 {
-	debugfs_remove_recursive(i40e_dbg_root);
+	defs_remove_recursive(i40e_dbg_root);
 	i40e_dbg_root = NULL;
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

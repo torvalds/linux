@@ -118,7 +118,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 			       : PERF_RECORD_MISC_KERNEL;
 }
 
-static void print_debug_cf(void)
+static void print_de_cf(void)
 {
 	struct cpumf_ctr_info cf_info;
 	int cpu = smp_processor_id();
@@ -130,7 +130,7 @@ static void print_debug_cf(void)
 			cf_info.auth_ctl, cf_info.enable_ctl, cf_info.act_ctl);
 }
 
-static void print_debug_sf(void)
+static void print_de_sf(void)
 {
 	struct hws_qsi_info_block si;
 	int cpu = smp_processor_id();
@@ -153,15 +153,15 @@ static void print_debug_sf(void)
 			si.ad, si.ed, si.cd, si.dsdes, si.tear, si.dear);
 }
 
-void perf_event_print_debug(void)
+void perf_event_print_de(void)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 	if (cpum_cf_avail())
-		print_debug_cf();
+		print_de_cf();
 	if (cpum_sf_avail())
-		print_debug_sf();
+		print_de_sf();
 	local_irq_restore(flags);
 }
 

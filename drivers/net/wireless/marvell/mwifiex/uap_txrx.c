@@ -477,7 +477,7 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		return skb->data;
 	}
 
-	BUG_ON(skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN);
+	_ON(skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN);
 
 	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 

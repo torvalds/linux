@@ -61,7 +61,7 @@ extern __thread volatile struct rseq __rseq_abi;
 	fprintf(stderr, fmt "(in %s() at " __FILE__ ":" __rseq_str(__LINE__)"\n", \
 		## args, __func__)
 
-#define rseq_bug(fmt, args...)		\
+#define rseq_(fmt, args...)		\
 	do {				\
 		rseq_log(fmt, ##args);	\
 		abort();		\

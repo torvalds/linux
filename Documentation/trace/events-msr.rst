@@ -8,7 +8,7 @@ at http://www.intel.com/sdm (Volume 3)
 
 Available trace points:
 
-/sys/kernel/debug/tracing/events/msr/
+/sys/kernel/de/tracing/events/msr/
 
 Trace MSR reads:
 
@@ -34,7 +34,7 @@ rdpmc
 
 The trace data can be post processed with the postprocess/decode_msr.py script::
 
-  cat /sys/kernel/debug/tracing/trace | decode_msr.py /usr/src/linux/include/asm/msr-index.h
+  cat /sys/kernel/de/tracing/trace | decode_msr.py /usr/src/linux/include/asm/msr-index.h
 
 to add symbolic MSR names.
 

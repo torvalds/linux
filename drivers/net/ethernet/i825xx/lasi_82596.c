@@ -116,8 +116,8 @@
 MODULE_AUTHOR("Richard Hirst");
 MODULE_DESCRIPTION("i82596 driver");
 MODULE_LICENSE("GPL");
-module_param(i596_debug, int, 0);
-MODULE_PARM_DESC(i596_debug, "lasi_82596 debug mask");
+module_param(i596_de, int, 0);
+MODULE_PARM_DESC(i596_de, "lasi_82596 de mask");
 
 static inline void ca(struct net_device *dev)
 {

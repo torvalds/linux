@@ -154,7 +154,7 @@ restart_ih:
 	if (atomic_xchg(&ih->lock, 1))
 		return IRQ_NONE;
 
-	DRM_DEBUG("%s: rptr %d, wptr %d\n", __func__, ih->rptr, wptr);
+	DRM_DE("%s: rptr %d, wptr %d\n", __func__, ih->rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();

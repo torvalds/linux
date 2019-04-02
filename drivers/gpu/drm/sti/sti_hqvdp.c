@@ -629,20 +629,20 @@ static int hqvdp_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list hqvdp_debugfs_files[] = {
+static struct drm_info_list hqvdp_defs_files[] = {
 	{ "hqvdp", hqvdp_dbg_show, 0, NULL },
 };
 
-static int hqvdp_debugfs_init(struct sti_hqvdp *hqvdp, struct drm_minor *minor)
+static int hqvdp_defs_init(struct sti_hqvdp *hqvdp, struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(hqvdp_debugfs_files); i++)
-		hqvdp_debugfs_files[i].data = hqvdp;
+	for (i = 0; i < ARRAY_SIZE(hqvdp_defs_files); i++)
+		hqvdp_defs_files[i].data = hqvdp;
 
-	return drm_debugfs_create_files(hqvdp_debugfs_files,
-					ARRAY_SIZE(hqvdp_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(hqvdp_defs_files,
+					ARRAY_SIZE(hqvdp_defs_files),
+					minor->defs_root, minor);
 }
 
 /**
@@ -749,11 +749,11 @@ static void sti_hqvdp_disable(struct sti_hqvdp *hqvdp)
 {
 	int i;
 
-	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(&hqvdp->plane));
+	DRM_DE_DRIVER("%s\n", sti_plane_to_str(&hqvdp->plane));
 
 	/* Unregister VTG Vsync callback */
 	if (sti_vtg_unregister_client(hqvdp->vtg, &hqvdp->vtg_nb))
-		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
+		DRM_DE_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	/* Set next cmd to NULL */
 	writel(0, hqvdp->regs + HQVDP_MBX_NEXT_CMD);
@@ -793,13 +793,13 @@ static int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *
 	struct sti_hqvdp_cmd *btm_cmd, *top_cmd;
 
 	if ((evt != VTG_TOP_FIELD_EVENT) && (evt != VTG_BOTTOM_FIELD_EVENT)) {
-		DRM_DEBUG_DRIVER("Unknown event\n");
+		DRM_DE_DRIVER("Unknown event\n");
 		return 0;
 	}
 
 	if (hqvdp->plane.status == STI_PLANE_FLUSHING) {
 		/* disable need to be synchronize on vsync event */
-		DRM_DEBUG_DRIVER("Vsync event received => disable %s\n",
+		DRM_DE_DRIVER("Vsync event received => disable %s\n",
 				 sti_plane_to_str(&hqvdp->plane));
 
 		sti_hqvdp_disable(hqvdp);
@@ -810,7 +810,7 @@ static int sti_hqvdp_vtg_cb(struct notifier_block *nb, unsigned long evt, void *
 		btm_cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 		top_cmd_offest = sti_hqvdp_get_curr_cmd(hqvdp);
 		if ((btm_cmd_offset == -1) || (top_cmd_offest == -1)) {
-			DRM_DEBUG_DRIVER("Warning: no cmd, will skip field\n");
+			DRM_DE_DRIVER("Warning: no cmd, will skip field\n");
 			return -EBUSY;
 		}
 
@@ -900,10 +900,10 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 		int dmem_size;
 	} *header;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (hqvdp->xp70_initialized) {
-		DRM_DEBUG_DRIVER("HQVDP XP70 already initialized\n");
+		DRM_DE_DRIVER("HQVDP XP70 already initialized\n");
 		return;
 	}
 
@@ -1089,10 +1089,10 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 		hqvdp->vtg_registered = true;
 	}
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
+	DRM_DE_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
 		      crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)),
 		      drm_plane->base.id, sti_plane_to_str(plane));
-	DRM_DEBUG_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
+	DRM_DE_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
 		      sti_plane_to_str(plane),
 		      dst_w, dst_h, dst_x, dst_y,
 		      src_w, src_h, src_x, src_y);
@@ -1129,7 +1129,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	    (oldstate->src_w == state->src_w) &&
 	    (oldstate->src_h == state->src_h)) {
 		/* No change since last update, do not post cmd */
-		DRM_DEBUG_DRIVER("No change, not posting cmd\n");
+		DRM_DE_DRIVER("No change, not posting cmd\n");
 		plane->status = STI_PLANE_UPDATED;
 		return;
 	}
@@ -1147,7 +1147,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 
 	cmd_offset = sti_hqvdp_get_free_cmd(hqvdp);
 	if (cmd_offset == -1) {
-		DRM_DEBUG_DRIVER("Warning: no cmd, will skip frame\n");
+		DRM_DE_DRIVER("Warning: no cmd, will skip frame\n");
 		return;
 	}
 	cmd = hqvdp->hqvdp_cmd + cmd_offset;
@@ -1167,7 +1167,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 
-	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
+	DRM_DE_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->format->format,
 			 (unsigned long)cma_obj->paddr);
 
@@ -1237,12 +1237,12 @@ static void sti_hqvdp_atomic_disable(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
-		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
+		DRM_DE_DRIVER("drm plane:%d not enabled\n",
 				 drm_plane->base.id);
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
+	DRM_DE_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
 			 oldstate->crtc->base.id,
 			 sti_mixer_to_str(to_sti_mixer(oldstate->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
@@ -1258,7 +1258,7 @@ static const struct drm_plane_helper_funcs sti_hqvdp_helpers_funcs = {
 
 static void sti_hqvdp_destroy(struct drm_plane *drm_plane)
 {
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	drm_plane_cleanup(drm_plane);
 }
@@ -1268,7 +1268,7 @@ static int sti_hqvdp_late_register(struct drm_plane *drm_plane)
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_hqvdp *hqvdp = to_sti_hqvdp(plane);
 
-	return hqvdp_debugfs_init(hqvdp, drm_plane->dev->primary);
+	return hqvdp_defs_init(hqvdp, drm_plane->dev->primary);
 }
 
 static const struct drm_plane_funcs sti_hqvdp_plane_helpers_funcs = {
@@ -1315,7 +1315,7 @@ static int sti_hqvdp_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct drm_plane *plane;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	hqvdp->drm_dev = drm_dev;
 
@@ -1345,7 +1345,7 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	struct sti_hqvdp *hqvdp;
 	struct resource *res;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	hqvdp = devm_kzalloc(dev, sizeof(*hqvdp), GFP_KERNEL);
 	if (!hqvdp) {

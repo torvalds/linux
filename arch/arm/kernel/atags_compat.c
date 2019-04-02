@@ -101,7 +101,7 @@ static void __init build_tag_list(struct param_struct *params, void *taglist)
 		return;
 	}
 
-	printk(KERN_DEBUG "Converting old-style param struct to taglist\n");
+	printk(KERN_DE "Converting old-style param struct to taglist\n");
 
 #ifdef CONFIG_ARCH_NETWINDER
 	if (params->u1.s.nr_pages != 0x02000 &&

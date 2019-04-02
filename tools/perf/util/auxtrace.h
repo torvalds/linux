@@ -28,7 +28,7 @@
 #include "../perf.h"
 #include "event.h"
 #include "session.h"
-#include "debug.h"
+#include "de.h"
 
 union perf_event;
 struct perf_session;
@@ -592,7 +592,7 @@ static inline void auxtrace__free(struct perf_session *session)
 "				w:	    		synthesize ptwrite events\n"		\
 "				p:	    		synthesize power events\n"			\
 "				e:	    		synthesize error events\n"			\
-"				d:	    		create a debug log\n"			\
+"				d:	    		create a de log\n"			\
 "				g[len]:     		synthesize a call chain (use with i or x)\n" \
 "				l[len]:     		synthesize last branch entries (use with i or x)\n" \
 "				sNUMBER:    		skip initial number of events\n"		\

@@ -26,14 +26,14 @@ early_param("page_poison", early_page_poison_param);
 bool page_poisoning_enabled(void)
 {
 	/*
-	 * Assumes that debug_pagealloc_enabled is set before
+	 * Assumes that de_pagealloc_enabled is set before
 	 * memblock_free_all.
-	 * Page poisoning is debug page alloc for some arches. If
+	 * Page poisoning is de page alloc for some arches. If
 	 * either of those options are enabled, enable poisoning.
 	 */
 	return (want_page_poisoning ||
-		(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) &&
-		debug_pagealloc_enabled()));
+		(!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DE_PAGEALLOC) &&
+		de_pagealloc_enabled()));
 }
 EXPORT_SYMBOL_GPL(page_poisoning_enabled);
 
@@ -126,7 +126,7 @@ void kernel_poison_pages(struct page *page, int numpages, int enable)
 		poison_pages(page, numpages);
 }
 
-#ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
+#ifndef CONFIG_ARCH_SUPPORTS_DE_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	/* This function does nothing, all work is done via poison pages */

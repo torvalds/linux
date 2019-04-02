@@ -29,12 +29,12 @@ hfcs_interrupt(int intno, void *dev_id)
 	if ((HFCD_ANYINT | HFCD_BUSY_NBUSY) &
 	    (stat = cs->BC_Read_Reg(cs, HFCD_DATA, HFCD_STAT))) {
 		val = cs->BC_Read_Reg(cs, HFCD_DATA, HFCD_INT_S1);
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "HFCS: stat(%02x) s1(%02x)", stat, val);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "HFCS: stat(%02x) s1(%02x)", stat, val);
 		hfc2bds0_interrupt(cs, val);
 	} else {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "HFCS: irq_no_irq stat(%02x)", stat);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "HFCS: irq_no_irq stat(%02x)", stat);
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 	return IRQ_HANDLED;
@@ -104,8 +104,8 @@ hfcs_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	u_long flags;
 	int delay;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "HFCS: card_msg %x", mt);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "HFCS: card_msg %x", mt);
 	switch (mt) {
 	case CARD_RESET:
 		spin_lock_irqsave(&cs->lock, flags);

@@ -1923,7 +1923,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	bool reserved_op;
 	int local_ops_delayed = 0;
 
-	BUILD_BUG_ON(IB_QPT_MAX >= (sizeof(u32) * BITS_PER_BYTE));
+	BUILD__ON(IB_QPT_MAX >= (sizeof(u32) * BITS_PER_BYTE));
 
 	/* IB spec says that num_sge == 0 is OK. */
 	if (unlikely(wr->num_sge > qp->s_max_sge))
@@ -2569,7 +2569,7 @@ EXPORT_SYMBOL(rvt_qp_iter_init);
  * @iter - the iterator
  *
  * Fine grained QP iterator suitable for use
- * with debugfs seq_file mechanisms.
+ * with defs seq_file mechanisms.
  *
  * Updates iter->qp with the current QP when the return
  * value is 0.

@@ -485,7 +485,7 @@ static void dsi_set_mode_timing(void __iomem *base,
 	vbp = mode->vtotal - mode->vsync_end;
 	vsw = mode->vsync_end - mode->vsync_start;
 	if (vsw > 15) {
-		DRM_DEBUG_DRIVER("vsw exceeded 15\n");
+		DRM_DE_DRIVER("vsw exceeded 15\n");
 		vsw = 15;
 	}
 
@@ -505,11 +505,11 @@ static void dsi_set_mode_timing(void __iomem *base,
 	writel(mode->vdisplay, base + VID_VACTIVE_LINES);
 	writel(mode->hdisplay, base + VID_PKT_SIZE);
 
-	DRM_DEBUG_DRIVER("htot=%d, hfp=%d, hbp=%d, hsw=%d\n",
+	DRM_DE_DRIVER("htot=%d, hfp=%d, hbp=%d, hsw=%d\n",
 			 htot, hfp, hbp, hsw);
-	DRM_DEBUG_DRIVER("vtol=%d, vfp=%d, vbp=%d, vsw=%d\n",
+	DRM_DE_DRIVER("vtol=%d, vfp=%d, vbp=%d, vsw=%d\n",
 			 vtot, vfp, vbp, vsw);
-	DRM_DEBUG_DRIVER("hsa_time=%d, hbp_time=%d, hline_time=%d\n",
+	DRM_DE_DRIVER("hsa_time=%d, hbp_time=%d, hline_time=%d\n",
 			 hsa_time, hbp_time, hline_time);
 }
 
@@ -567,7 +567,7 @@ static void dsi_mipi_init(struct dw_dsi *dsi)
 	/* dsi wake up */
 	writel(POWERUP, base + PWR_UP);
 
-	DRM_DEBUG_DRIVER("lanes=%d, pixel_clk=%d kHz, bytes_freq=%d kHz\n",
+	DRM_DE_DRIVER("lanes=%d, pixel_clk=%d kHz, bytes_freq=%d kHz\n",
 			 dsi->lanes, mode->clock, phy->lane_byte_clk_kHz);
 }
 
@@ -623,7 +623,7 @@ static enum drm_mode_status dsi_encoder_phy_mode_valid(
 	act_kHz = dsi_calc_phy_rate(req_kHz, &phy);
 	lane_byte_clk_kHz = act_kHz / 8;
 
-	DRM_DEBUG_DRIVER("Checking mode %ix%i-%i@%i clock: %i...",
+	DRM_DE_DRIVER("Checking mode %ix%i-%i@%i clock: %i...",
 			mode->hdisplay, mode->vdisplay, bpp,
 			drm_mode_vrefresh(mode), mode->clock);
 
@@ -632,11 +632,11 @@ static enum drm_mode_status dsi_encoder_phy_mode_valid(
 	 * have a common denominator base frequency
 	 */
 	if (mode->clock/dsi->lanes == lane_byte_clk_kHz/3) {
-		DRM_DEBUG_DRIVER("OK!\n");
+		DRM_DE_DRIVER("OK!\n");
 		return MODE_OK;
 	}
 
-	DRM_DEBUG_DRIVER("BAD!\n");
+	DRM_DE_DRIVER("BAD!\n");
 	return MODE_BAD;
 }
 

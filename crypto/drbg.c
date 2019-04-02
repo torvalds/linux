@@ -1007,8 +1007,8 @@ static void drbg_async_seed(struct work_struct *work)
 	unsigned int entropylen = drbg_sec_strength(drbg->core->flags);
 	unsigned char entropy[32];
 
-	BUG_ON(!entropylen);
-	BUG_ON(entropylen > sizeof(entropy));
+	_ON(!entropylen);
+	_ON(entropylen > sizeof(entropy));
 	get_random_bytes(entropy, entropylen);
 
 	drbg_string_fill(&data, entropy, entropylen);
@@ -1075,10 +1075,10 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 		 * of the strength. The consideration of a nonce is only
 		 * applicable during initial seeding.
 		 */
-		BUG_ON(!entropylen);
+		_ON(!entropylen);
 		if (!reseed)
 			entropylen = ((entropylen + 1) / 2) * 3;
-		BUG_ON((entropylen * 2) > sizeof(entropy));
+		_ON((entropylen * 2) > sizeof(entropy));
 
 		/* Get seed from in-kernel /dev/urandom */
 		get_random_bytes(entropy, entropylen);
@@ -1578,7 +1578,7 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 				drbg->core->backend_cra_name);
 		return PTR_ERR(tfm);
 	}
-	BUG_ON(drbg_blocklen(drbg) != crypto_shash_digestsize(tfm));
+	_ON(drbg_blocklen(drbg) != crypto_shash_digestsize(tfm));
 	sdesc = kzalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm),
 			GFP_KERNEL);
 	if (!sdesc) {
@@ -1662,7 +1662,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 				drbg->core->backend_cra_name);
 		return PTR_ERR(tfm);
 	}
-	BUG_ON(drbg_blocklen(drbg) != crypto_cipher_blocksize(tfm));
+	_ON(drbg_blocklen(drbg) != crypto_cipher_blocksize(tfm));
 	drbg->priv_data = tfm;
 
 	if (snprintf(ctr_name, CRYPTO_MAX_ALG_NAME, "ctr(%s)",
@@ -1723,7 +1723,7 @@ static int drbg_kcapi_sym(struct drbg_state *drbg, unsigned char *outval,
 		(struct crypto_cipher *)drbg->priv_data;
 
 	/* there is only component in *in */
-	BUG_ON(in->len < drbg_blocklen(drbg));
+	_ON(in->len < drbg_blocklen(drbg));
 	crypto_cipher_encrypt_one(tfm, outval, in->buf);
 	return 0;
 }
@@ -1931,7 +1931,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 	 * overflow as buf is much smaller than the requested or provided
 	 * string lengths -- in case the error handling does not succeed
 	 * we may get an OOPS. And we want to get an OOPS as this is a
-	 * grave bug.
+	 * grave .
 	 */
 
 	max_addtllen = drbg_max_addtl(drbg);
@@ -1939,14 +1939,14 @@ static inline int __init drbg_healthcheck_sanity(void)
 	drbg_string_fill(&addtl, buf, max_addtllen + 1);
 	/* overflow addtllen with additonal info string */
 	len = drbg_generate(drbg, buf, OUTBUFLEN, &addtl);
-	BUG_ON(0 < len);
+	_ON(0 < len);
 	/* overflow max_bits */
 	len = drbg_generate(drbg, buf, (max_request_bytes + 1), NULL);
-	BUG_ON(0 < len);
+	_ON(0 < len);
 
 	/* overflow max addtllen with personalization string */
 	ret = drbg_seed(drbg, &addtl, false);
-	BUG_ON(0 == ret);
+	_ON(0 == ret);
 	/* all tests passed */
 	rc = 0;
 

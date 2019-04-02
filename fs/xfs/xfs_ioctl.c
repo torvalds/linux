@@ -1802,7 +1802,7 @@ xfs_ioc_getlabel(
 	char			label[XFSLABEL_MAX + 1];
 
 	/* Paranoia */
-	BUILD_BUG_ON(sizeof(sbp->sb_fname) > FSLABEL_MAX);
+	BUILD__ON(sizeof(sbp->sb_fname) > FSLABEL_MAX);
 
 	/* 1 larger than sb_fname, so this ensures a trailing NUL char */
 	memset(label, 0, sizeof(label));

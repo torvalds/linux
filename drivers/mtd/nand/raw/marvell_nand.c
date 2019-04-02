@@ -1405,7 +1405,7 @@ static int marvell_nfc_hw_ecc_bch_read_page(struct nand_chip *chip,
 
 		/*
 		 * Only re-read the ECC bytes, unless we are using the 2k/8b
-		 * layout which is buggy in the sense that the ECC engine will
+		 * layout which is gy in the sense that the ECC engine will
 		 * try to correct data bytes anyway, creating bitflips. In this
 		 * case, re-read the entire page.
 		 */
@@ -1813,7 +1813,7 @@ static int marvell_nfc_monolithic_access_exec(struct nand_chip *chip,
 
 	/*
 	 * NDCR ND_RUN bit should be cleared automatically at the end of each
-	 * operation but experience shows that the behavior is buggy when it
+	 * operation but experience shows that the behavior is gy when it
 	 * comes to writes (with LEN_OVRD). Clear it by hand in this case.
 	 */
 	if (!reading) {
@@ -1885,7 +1885,7 @@ static int marvell_nfc_naked_access_exec(struct nand_chip *chip,
 
 	/*
 	 * NDCR ND_RUN bit should be cleared automatically at the end of each
-	 * operation but experience shows that the behavior is buggy when it
+	 * operation but experience shows that the behavior is gy when it
 	 * comes to writes (with LEN_OVRD). Clear it by hand in this case.
 	 */
 	if (subop->instrs[0].type == NAND_OP_DATA_OUT_INSTR) {

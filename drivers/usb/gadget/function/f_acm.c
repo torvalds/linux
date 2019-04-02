@@ -9,7 +9,7 @@
  * Author: Michal Nazarewicz (mina86@mina86.com)
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/slab.h>
 #include <linux/kernel.h>

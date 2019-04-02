@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 #include <linux/ceph/pagelist.h>
 
 #include "super.h"
@@ -379,7 +379,7 @@ static size_t ceph_vxattrs_name_size(struct ceph_vxattr *vxattrs)
 		return ceph_dir_vxattrs_name_size;
 	if (vxattrs == ceph_file_vxattrs)
 		return ceph_file_vxattrs_name_size;
-	BUG_ON(vxattrs);
+	_ON(vxattrs);
 	return 0;
 }
 
@@ -563,7 +563,7 @@ static struct ceph_inode_xattr *__get_xattr(struct ceph_inode_info *ci,
 
 static void __free_xattr(struct ceph_inode_xattr *xattr)
 {
-	BUG_ON(!xattr);
+	_ON(!xattr);
 
 	if (xattr->should_free_name)
 		kfree((void *)xattr->name);
@@ -767,7 +767,7 @@ void __ceph_build_xattrs_blob(struct ceph_inode_info *ci)
 	if (ci->i_xattrs.dirty) {
 		int need = __get_required_blob_size(ci, 0, 0);
 
-		BUG_ON(need > ci->i_xattrs.prealloc_blob->alloc_len);
+		_ON(need > ci->i_xattrs.prealloc_blob->alloc_len);
 
 		p = rb_first(&ci->i_xattrs.index);
 		dest = ci->i_xattrs.prealloc_blob->vec.iov_base;

@@ -115,7 +115,7 @@ void sb1480_clockevent_init(void)
 	struct clock_event_device *cd = &per_cpu(sibyte_hpt_clockevent, cpu);
 	unsigned char *name = per_cpu(sibyte_hpt_name, cpu);
 
-	BUG_ON(cpu > 3);	/* Only have 4 general purpose timers */
+	_ON(cpu > 3);	/* Only have 4 general purpose timers */
 
 	sprintf(name, "bcm1480-counter-%d", cpu);
 	cd->name		= name;

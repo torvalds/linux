@@ -61,7 +61,7 @@ extern struct cosm_hw_ops cosm_hw_ops;
  * @smpt: MIC SMPT information.
  * @intr_info: H/W specific interrupt information.
  * @irq_info: The OS specific irq information
- * @dbg_dir: debugfs directory of this MIC device.
+ * @dbg_dir: defs directory of this MIC device.
  * @bootaddr: MIC boot address.
  * @dp: virtio device page
  * @dp_dma_addr: virtio device page DMA address.
@@ -162,8 +162,8 @@ mic_mmio_write(struct mic_mw *mw, u32 val, u32 offset)
 }
 
 void mic_bootparam_init(struct mic_device *mdev);
-void mic_create_debug_dir(struct mic_device *dev);
-void mic_delete_debug_dir(struct mic_device *dev);
-void __init mic_init_debugfs(void);
-void mic_exit_debugfs(void);
+void mic_create_de_dir(struct mic_device *dev);
+void mic_delete_de_dir(struct mic_device *dev);
+void __init mic_init_defs(void);
+void mic_exit_defs(void);
 #endif

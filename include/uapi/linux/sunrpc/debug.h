@@ -1,21 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * linux/include/linux/sunrpc/debug.h
+ * linux/include/linux/sunrpc/de.h
  *
- * Debugging support for sunrpc module
+ * Deging support for sunrpc module
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
-#ifndef _UAPI_LINUX_SUNRPC_DEBUG_H_
-#define _UAPI_LINUX_SUNRPC_DEBUG_H_
+#ifndef _UAPI_LINUX_SUNRPC_DE_H_
+#define _UAPI_LINUX_SUNRPC_DE_H_
 
 /*
- * RPC debug facilities
+ * RPC de facilities
  */
 #define RPCDBG_XPRT		0x0001
 #define RPCDBG_CALL		0x0002
-#define RPCDBG_DEBUG		0x0004
+#define RPCDBG_DE		0x0004
 #define RPCDBG_NFS		0x0008
 #define RPCDBG_AUTH		0x0010
 #define RPCDBG_BIND		0x0020
@@ -29,21 +29,21 @@
 
 
 /*
- * Declarations for the sysctl debug interface, which allows to read or
- * change the debug flags for rpc, nfs, nfsd, and lockd. Since the sunrpc
+ * Declarations for the sysctl de interface, which allows to read or
+ * change the de flags for rpc, nfs, nfsd, and lockd. Since the sunrpc
  * module currently registers its sysctl table dynamically, the sysctl path
- * for module FOO is <CTL_SUNRPC, CTL_FOODEBUG>.
+ * for module FOO is <CTL_SUNRPC, CTL_FOODE>.
  */
 
 enum {
-	CTL_RPCDEBUG = 1,
-	CTL_NFSDEBUG,
-	CTL_NFSDDEBUG,
-	CTL_NLMDEBUG,
+	CTL_RPCDE = 1,
+	CTL_NFSDE,
+	CTL_NFSDDE,
+	CTL_NLMDE,
 	CTL_SLOTTABLE_UDP,
 	CTL_SLOTTABLE_TCP,
 	CTL_MIN_RESVPORT,
 	CTL_MAX_RESVPORT,
 };
 
-#endif /* _UAPI_LINUX_SUNRPC_DEBUG_H_ */
+#endif /* _UAPI_LINUX_SUNRPC_DE_H_ */

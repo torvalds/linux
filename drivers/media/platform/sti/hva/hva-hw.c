@@ -9,7 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 #include <linux/seq_file.h>
 #endif
 
@@ -545,7 +545,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 #define DUMP(reg) seq_printf(s, "%-30s: 0x%08X\n",\
 			     #reg, readl_relaxed(hva->regs + reg))
 

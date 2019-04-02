@@ -114,7 +114,7 @@ static void pxa930_trkball_config(struct pxa930_trkball *trkball)
 	__raw_writel(TBSBC_TBSBC, trkball->mmio_base + TBSBC);
 	__raw_writel(0, trkball->mmio_base + TBSBC);
 
-	pr_debug("%s: final TBCR=%x!\n", __func__,
+	pr_de("%s: final TBCR=%x!\n", __func__,
 		 __raw_readl(trkball->mmio_base + TBCR));
 }
 

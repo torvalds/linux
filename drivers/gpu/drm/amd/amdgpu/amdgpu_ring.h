@@ -210,14 +210,14 @@ struct amdgpu_ring {
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
-	bool			has_compute_vm_bug;
+	bool			has_compute_vm_;
 
 	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];
 	struct mutex		priority_mutex;
 	/* protected by priority_mutex */
 	int			priority;
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	struct dentry *ent;
 #endif
 };

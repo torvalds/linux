@@ -2,8 +2,8 @@
 #ifndef __RADEONFB_H__
 #define __RADEONFB_H__
 
-#ifdef CONFIG_FB_RADEON_DEBUG
-#define DEBUG		1
+#ifdef CONFIG_FB_RADEON_DE
+#define DE		1
 #endif
 
 #include <linux/module.h>
@@ -199,7 +199,7 @@ struct radeon_regs {
 	u32		crtc2_gen_cntl;
 	u32		dac2_cntl;
 	u32		disp_output_cntl;
-	u32		disp_hw_debug;
+	u32		disp_hw_de;
 	u32		disp2_merge_cntl;
 	u32		grph2_buffer_cntl;
 	u32		crtc2_h_total_disp;

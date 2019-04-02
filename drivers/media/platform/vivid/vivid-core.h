@@ -20,7 +20,7 @@
 #include "vivid-vbi-gen.h"
 
 #define dprintk(dev, level, fmt, arg...) \
-	v4l2_dbg(level, vivid_debug, &dev->v4l2_dev, fmt, ## arg)
+	v4l2_dbg(level, vivid_de, &dev->v4l2_dev, fmt, ## arg)
 
 /* Maximum allowed frame rate
  *
@@ -64,7 +64,7 @@
 
 extern const struct v4l2_rect vivid_min_rect;
 extern const struct v4l2_rect vivid_max_rect;
-extern unsigned vivid_debug;
+extern unsigned vivid_de;
 
 struct vivid_fmt {
 	u32	fourcc;          /* v4l2 format id */

@@ -42,7 +42,7 @@ static int dcscb_cpu_powerup(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int rst_hold, cpumask = (1 << cpu);
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cluster >= 2 || !(cpumask & dcscb_allcpus_mask[cluster]))
 		return -EINVAL;
 
@@ -56,7 +56,7 @@ static int dcscb_cluster_powerup(unsigned int cluster)
 {
 	unsigned int rst_hold;
 
-	pr_debug("%s: cluster %u\n", __func__, cluster);
+	pr_de("%s: cluster %u\n", __func__, cluster);
 	if (cluster >= 2)
 		return -EINVAL;
 
@@ -72,8 +72,8 @@ static void dcscb_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int rst_hold;
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= 2 || !((1 << cpu) & dcscb_allcpus_mask[cluster]));
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	_ON(cluster >= 2 || !((1 << cpu) & dcscb_allcpus_mask[cluster]));
 
 	rst_hold = readl_relaxed(dcscb_base + RST_HOLD0 + cluster * 4);
 	rst_hold |= (1 << cpu);
@@ -84,8 +84,8 @@ static void dcscb_cluster_powerdown_prepare(unsigned int cluster)
 {
 	unsigned int rst_hold;
 
-	pr_debug("%s: cluster %u\n", __func__, cluster);
-	BUG_ON(cluster >= 2);
+	pr_de("%s: cluster %u\n", __func__, cluster);
+	_ON(cluster >= 2);
 
 	rst_hold = readl_relaxed(dcscb_base + RST_HOLD0 + cluster * 4);
 	rst_hold |= (1 << 8);

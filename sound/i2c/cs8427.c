@@ -297,7 +297,7 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	snd_i2c_sendbytes(device, buf, 1);
 	snd_i2c_readbytes(device, buf, 127);
 	for (xx = 0; xx < 127; xx++)
-		printk(KERN_DEBUG "reg[0x%x] = 0x%x\n", xx+1, buf[xx]);
+		printk(KERN_DE "reg[0x%x] = 0x%x\n", xx+1, buf[xx]);
 	}
 #endif
 	
@@ -323,7 +323,7 @@ static void snd_cs8427_reset(struct snd_i2c_device *cs8427)
 	unsigned long end_time;
 	int data, aes3input = 0;
 
-	if (snd_BUG_ON(!cs8427))
+	if (snd__ON(!cs8427))
 		return;
 	chip = cs8427->private_data;
 	snd_i2c_lock(cs8427->bus);
@@ -536,7 +536,7 @@ int snd_cs8427_iec958_build(struct snd_i2c_device *cs8427,
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!play_substream || !cap_substream))
+	if (snd__ON(!play_substream || !cap_substream))
 		return -EINVAL;
 	for (idx = 0; idx < ARRAY_SIZE(snd_cs8427_iec958_controls); idx++) {
 		kctl = snd_ctl_new1(&snd_cs8427_iec958_controls[idx], cs8427);
@@ -554,7 +554,7 @@ int snd_cs8427_iec958_build(struct snd_i2c_device *cs8427,
 
 	chip->playback.substream = play_substream;
 	chip->capture.substream = cap_substream;
-	if (snd_BUG_ON(!chip->playback.pcm_ctl))
+	if (snd__ON(!chip->playback.pcm_ctl))
 		return -EIO;
 	return 0;
 }
@@ -565,7 +565,7 @@ int snd_cs8427_iec958_active(struct snd_i2c_device *cs8427, int active)
 {
 	struct cs8427 *chip;
 
-	if (snd_BUG_ON(!cs8427))
+	if (snd__ON(!cs8427))
 		return -ENXIO;
 	chip = cs8427->private_data;
 	if (active)
@@ -586,7 +586,7 @@ int snd_cs8427_iec958_pcm(struct snd_i2c_device *cs8427, unsigned int rate)
 	char *status;
 	int err, reset;
 
-	if (snd_BUG_ON(!cs8427))
+	if (snd__ON(!cs8427))
 		return -ENXIO;
 	chip = cs8427->private_data;
 	status = chip->playback.pcm_status;

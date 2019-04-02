@@ -47,7 +47,7 @@
 #include <linux/zlib.h>
 #include <linux/hashtable.h>
 #include <linux/qed/qed_if.h>
-#include "qed_debug.h"
+#include "qed_de.h"
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
@@ -712,7 +712,7 @@ struct qed_dbg_feature {
 
 struct qed_dbg_params {
 	struct qed_dbg_feature features[DBG_FEATURE_NUM];
-	u8 engine_for_debug;
+	u8 engine_for_de;
 	bool print_data;
 };
 

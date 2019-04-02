@@ -2070,7 +2070,7 @@ int snd_ice1724_get_route_val(struct snd_ice1712 *ice, int shift)
 	val &= 7; /* we now have 3 bits per output */
 	eitem = xlate[val];
 	if (eitem == 255) {
-		snd_BUG();
+		snd_();
 		return 0;
 	}
 	return eitem;
@@ -2427,7 +2427,7 @@ static int snd_vt1724_spdif_build_controls(struct snd_ice1712 *ice)
 	int err;
 	struct snd_kcontrol *kctl;
 
-	if (snd_BUG_ON(!ice->pcm))
+	if (snd__ON(!ice->pcm))
 		return -EIO;
 
 	if (!ice->own_routing) {

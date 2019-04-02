@@ -58,7 +58,7 @@ static void tx39h_flush_icache_all(void)
 static void tx39h_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 {
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	_ON(size == 0);
 
 	iob();
 	blast_inv_dcache_range(addr, addr + size);
@@ -253,7 +253,7 @@ static void tx39_flush_icache_range(unsigned long start, unsigned long end)
 
 static void tx39_flush_kernel_vmap_range(unsigned long vaddr, int size)
 {
-	BUG();
+	();
 }
 
 static void tx39_dma_cache_wback_inv(unsigned long addr, unsigned long size)

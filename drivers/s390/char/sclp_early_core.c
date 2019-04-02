@@ -196,7 +196,7 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
 	struct init_sccb *sccb;
 	int rc;
 
-	BUILD_BUG_ON(sizeof(struct init_sccb) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct init_sccb) > PAGE_SIZE);
 
 	*have_linemode = *have_vt220 = 0;
 	sccb = (struct init_sccb *) &sclp_early_sccb;

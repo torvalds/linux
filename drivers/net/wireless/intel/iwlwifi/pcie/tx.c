@@ -69,7 +69,7 @@
 #include <net/ip6_checksum.h>
 #include <net/tso.h>
 
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-io.h"
@@ -304,7 +304,7 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 		reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO(trans, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
+			IWL_DE_INFO(trans, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
 				       txq_id, reg);
 			iwl_set_bit(trans, CSR_GP_CNTRL,
 				    BIT(trans->cfg->csr->flag_mac_access_req));
@@ -317,7 +317,7 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 * if not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx).
 	 */
-	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->write_ptr);
+	IWL_DE_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->write_ptr);
 	if (!txq->block)
 		iwl_write32(trans, HBUS_TARG_WRPTR,
 			    txq->write_ptr | (txq_id << 8));
@@ -561,7 +561,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (!txq->tfds)
 		goto error;
 
-	BUILD_BUG_ON(IWL_FIRST_TB_SIZE_ALIGN != sizeof(*txq->first_tb_bufs));
+	BUILD__ON(IWL_FIRST_TB_SIZE_ALIGN != sizeof(*txq->first_tb_bufs));
 
 	tb0_buf_sz = sizeof(*txq->first_tb_bufs) * slots_num;
 
@@ -639,7 +639,7 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 
 	if (trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = false;
-		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
+		IWL_DE_RPM(trans, "clear ref_cmd_in_flight - unref\n");
 		iwl_trans_unref(trans);
 	}
 
@@ -663,7 +663,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 	spin_lock_bh(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
-		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
+		IWL_DE_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
 		if (txq_id != trans_pcie->cmd_queue) {
@@ -682,7 +682,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 			spin_lock_irqsave(&trans_pcie->reg_lock, flags);
 			if (txq_id != trans_pcie->cmd_queue) {
-				IWL_DEBUG_RPM(trans, "Q %d - last tx freed\n",
+				IWL_DE_RPM(trans, "Q %d - last tx freed\n",
 					      txq->id);
 				iwl_trans_unref(trans);
 			} else {
@@ -1124,7 +1124,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	spin_lock_bh(&txq->lock);
 
 	if (!test_bit(txq_id, trans_pcie->queue_used)) {
-		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
+		IWL_DE_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
 				    txq_id, ssn);
 		goto out;
 	}
@@ -1132,7 +1132,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (read_ptr == tfd_num)
 		goto out;
 
-	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
+	IWL_DE_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 			   txq_id, txq->read_ptr, tfd_num, ssn);
 
 	/*Since we free until index _not_ inclusive, the one before index is
@@ -1222,7 +1222,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	}
 
 	if (txq->read_ptr == txq->write_ptr) {
-		IWL_DEBUG_RPM(trans, "Q %d - last tx reclaimed\n", txq->id);
+		IWL_DE_RPM(trans, "Q %d - last tx reclaimed\n", txq->id);
 		iwl_trans_unref(trans);
 	}
 
@@ -1246,7 +1246,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 	if (!(cmd->flags & CMD_SEND_IN_IDLE) &&
 	    !trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = true;
-		IWL_DEBUG_RPM(trans, "set ref_cmd_in_flight - ref\n");
+		IWL_DE_RPM(trans, "set ref_cmd_in_flight - ref\n");
 		iwl_trans_ref(trans);
 	}
 
@@ -1364,7 +1364,7 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[txq_id];
 	int fifo = -1;
-	bool scd_bug = false;
+	bool scd_ = false;
 
 	if (test_and_set_bit(txq_id, trans_pcie->queue_used))
 		WARN_ONCE(1, "queue %d already used - expect issues", txq_id);
@@ -1415,12 +1415,12 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 		 * only. And mvm never sets a cfg pointer.
 		 * This is really ugly, but this is the easiest way out for
 		 * this sad hardware issue.
-		 * This bug has been fixed on devices 9000 and up.
+		 * This  has been fixed on devices 9000 and up.
 		 */
-		scd_bug = !trans->cfg->mq_rx_supported &&
+		scd_ = !trans->cfg->mq_rx_supported &&
 			!((ssn - txq->write_ptr) & 0x3f) &&
 			(ssn != txq->write_ptr);
-		if (scd_bug)
+		if (scd_)
 			ssn++;
 	}
 
@@ -1457,16 +1457,16 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 		    trans_pcie->scd_set_active)
 			iwl_scd_enable_set_active(trans, BIT(txq_id));
 
-		IWL_DEBUG_TX_QUEUES(trans,
+		IWL_DE_TX_QUEUES(trans,
 				    "Activate queue %d on FIFO %d WrPtr: %d\n",
 				    txq_id, fifo, ssn & 0xff);
 	} else {
-		IWL_DEBUG_TX_QUEUES(trans,
+		IWL_DE_TX_QUEUES(trans,
 				    "Activate queue %d WrPtr: %d\n",
 				    txq_id, ssn & 0xff);
 	}
 
-	return scd_bug;
+	return scd_;
 }
 
 void iwl_trans_pcie_txq_set_shared_mode(struct iwl_trans *trans, u32 txq_id,
@@ -1511,7 +1511,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	iwl_pcie_txq_unmap(trans, txq_id);
 	trans_pcie->txq[txq_id]->ampdu = false;
 
-	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
+	IWL_DE_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
 }
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
@@ -1558,7 +1558,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	}
 
 	/* need one for the header if the first is NOCOPY */
-	BUILD_BUG_ON(IWL_MAX_CMD_TBS_PER_TFD > IWL_NUM_OF_TBS - 1);
+	BUILD__ON(IWL_MAX_CMD_TBS_PER_TFD > IWL_NUM_OF_TBS - 1);
 
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		cmddata[i] = cmd->data[i];
@@ -1692,7 +1692,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		/*
 		 * Otherwise we need at least IWL_FIRST_TB_SIZE copied
 		 * in total (for bi-directional DMA), but copy up to what
-		 * we can fit into the payload for debug dump purposes.
+		 * we can fit into the payload for de dump purposes.
 		 */
 		copy = min_t(int, TFD_MAX_PAYLOAD_SIZE - cmd_pos, cmd->len[i]);
 
@@ -1709,7 +1709,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		}
 	}
 
-	IWL_DEBUG_HC(trans,
+	IWL_DE_HC(trans,
 		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
 		     iwl_get_cmd_string(trans, cmd->id),
 		     group_id, out_cmd->hdr.cmd,
@@ -1763,7 +1763,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		iwl_pcie_txq_build_tfd(trans, txq, phys_addr, cmdlen[i], false);
 	}
 
-	BUILD_BUG_ON(IWL_TFH_NUM_TBS > sizeof(out_meta->tbs) * BITS_PER_BYTE);
+	BUILD__ON(IWL_TFH_NUM_TBS > sizeof(out_meta->tbs) * BITS_PER_BYTE);
 	out_meta->flags = cmd->flags;
 	if (WARN_ON_ONCE(txq->entries[idx].free_buf))
 		kzfree(txq->entries[idx].free_buf);
@@ -1817,7 +1817,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
 
 	/* If a Tx command is being handled and it isn't in the actual
-	 * command queue then there a command routing bug has been introduced
+	 * command queue then there a command routing  has been introduced
 	 * in the queue management code. */
 	if (WARN(txq_id != trans_pcie->cmd_queue,
 		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
@@ -1858,20 +1858,20 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 				 iwl_get_cmd_string(trans, cmd_id));
 		}
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
+		IWL_DE_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       iwl_get_cmd_string(trans, cmd_id));
 		wake_up(&trans_pcie->wait_command_queue);
 	}
 
 	if (meta->flags & CMD_MAKE_TRANS_IDLE) {
-		IWL_DEBUG_INFO(trans, "complete %s - mark trans as idle\n",
+		IWL_DE_INFO(trans, "complete %s - mark trans as idle\n",
 			       iwl_get_cmd_string(trans, cmd->hdr.cmd));
 		set_bit(STATUS_TRANS_IDLE, &trans->status);
 		wake_up(&trans_pcie->d0i3_waitq);
 	}
 
 	if (meta->flags & CMD_WAKE_UP_TRANS) {
-		IWL_DEBUG_INFO(trans, "complete %s - clear trans idle flag\n",
+		IWL_DE_INFO(trans, "complete %s - clear trans idle flag\n",
 			       iwl_get_cmd_string(trans, cmd->hdr.cmd));
 		clear_bit(STATUS_TRANS_IDLE, &trans->status);
 		wake_up(&trans_pcie->d0i3_waitq);
@@ -1911,7 +1911,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	int cmd_idx;
 	int ret;
 
-	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
+	IWL_DE_INFO(trans, "Attempting to send sync command %s\n",
 		       iwl_get_cmd_string(trans, cmd->id));
 
 	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
@@ -1920,7 +1920,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 		 iwl_get_cmd_string(trans, cmd->id)))
 		return -EIO;
 
-	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
+	IWL_DE_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 		       iwl_get_cmd_string(trans, cmd->id));
 
 	if (pm_runtime_suspended(&trans_pcie->pci_dev->dev)) {
@@ -1956,7 +1956,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 			txq->read_ptr, txq->write_ptr);
 
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
+		IWL_DE_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       iwl_get_cmd_string(trans, cmd->id));
 		ret = -ETIMEDOUT;
 
@@ -1975,7 +1975,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
+		IWL_DE_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
 	}
@@ -2016,7 +2016,7 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
+		IWL_DE_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
 	}
@@ -2141,7 +2141,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	struct tso_t tso;
 
 	/* if the packet is protected, then it must be CCMP or GCMP */
-	BUILD_BUG_ON(IEEE80211_CCMP_HDR_LEN != IEEE80211_GCMP_HDR_LEN);
+	BUILD__ON(IEEE80211_CCMP_HDR_LEN != IEEE80211_GCMP_HDR_LEN);
 	iv_len = ieee80211_has_protected(hdr->frame_control) ?
 		IEEE80211_CCMP_HDR_LEN : 0;
 
@@ -2448,7 +2448,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			       IWL_FIRST_TB_SIZE, true);
 
 	/* there must be data left over for TB1 or this code must be changed */
-	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd) < IWL_FIRST_TB_SIZE);
+	BUILD__ON(sizeof(struct iwl_tx_cmd) < IWL_FIRST_TB_SIZE);
 
 	/* map the data for TB1 */
 	tb1_addr = ((u8 *)&dev_cmd->hdr) + IWL_FIRST_TB_SIZE;
@@ -2514,7 +2514,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			else
 				txq->frozen_expiry_remainder = txq->wd_timeout;
 		}
-		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", txq->id);
+		IWL_DE_RPM(trans, "Q: %d first tx - take ref\n", txq->id);
 		iwl_trans_ref(trans);
 	}
 

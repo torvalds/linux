@@ -73,7 +73,7 @@ inline void set_de_name_and_namelen(struct reiserfs_dir_entry *de)
 {
 	struct reiserfs_de_head *deh = de->de_deh + de->de_entry_num;
 
-	BUG_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
+	_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
 
 	de->de_entrylen = entry_length(de->de_bh, de->de_ih, de->de_entry_num);
 	de->de_namelen = de->de_entrylen - (de_with_sd(deh) ? SD_SIZE : 0);
@@ -85,7 +85,7 @@ inline void set_de_name_and_namelen(struct reiserfs_dir_entry *de)
 /* what entry points to */
 static inline void set_de_object_key(struct reiserfs_dir_entry *de)
 {
-	BUG_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
+	_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
 	de->de_dir_id = deh_dir_id(&de->de_deh[de->de_entry_num]);
 	de->de_objectid = deh_objectid(&de->de_deh[de->de_entry_num]);
 }
@@ -94,7 +94,7 @@ static inline void store_de_entry_key(struct reiserfs_dir_entry *de)
 {
 	struct reiserfs_de_head *deh = de->de_deh + de->de_entry_num;
 
-	BUG_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
+	_ON(de->de_entry_num >= ih_entry_count(de->de_ih));
 
 	/* store key of the found entry */
 	de->de_entry_key.version = KEY_FORMAT_3_5;
@@ -287,7 +287,7 @@ static int linear_search_in_dir_item(struct cpu_key *key,
 		/*
 		 * FIXME: this work correctly only because hash value can not
 		 *  be 0. Btw, in case of Yura's hash it is probably possible,
-		 * so, this is a bug
+		 * so, this is a 
 		 */
 		return NAME_NOT_FOUND;
 
@@ -447,7 +447,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	int buflen, paste_size;
 	int retval;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	/* cannot allow items to be added into a busy deleted directory */
 	if (!namelen)

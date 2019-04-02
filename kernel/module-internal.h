@@ -21,8 +21,8 @@ struct load_info {
 	Elf_Shdr *sechdrs;
 	char *secstrings, *strtab;
 	unsigned long symoffs, stroffs;
-	struct _ddebug *debug;
-	unsigned int num_debug;
+	struct _dde *de;
+	unsigned int num_de;
 	bool sig_ok;
 #ifdef CONFIG_KALLSYMS
 	unsigned long mod_kallsyms_init_off;

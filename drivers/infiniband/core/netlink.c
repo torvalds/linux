@@ -62,10 +62,10 @@ static bool is_nl_msg_valid(unsigned int type, unsigned int op)
 	};
 
 	/*
-	 * This BUILD_BUG_ON is intended to catch addition of new
+	 * This BUILD__ON is intended to catch addition of new
 	 * RDMA netlink protocol without updating the array above.
 	 */
-	BUILD_BUG_ON(RDMA_NL_NUM_CLIENTS != 6);
+	BUILD__ON(RDMA_NL_NUM_CLIENTS != 6);
 
 	if (type >= RDMA_NL_NUM_CLIENTS)
 		return false;

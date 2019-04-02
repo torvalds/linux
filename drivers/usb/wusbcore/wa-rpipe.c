@@ -263,7 +263,7 @@ static struct usb_wireless_ep_comp_descriptor *rpipe_epc_find(
 	epcd = NULL;
 	while (itr_size > 0) {
 		if (itr_size < sizeof(*hdr)) {
-			dev_err(dev, "HW Bug? ep 0x%02x: extra descriptors "
+			dev_err(dev, "HW ? ep 0x%02x: extra descriptors "
 				"at offset %zu: only %zu bytes left\n",
 				ep->desc.bEndpointAddress,
 				itr - (void *) ep->extra, itr_size);
@@ -275,7 +275,7 @@ static struct usb_wireless_ep_comp_descriptor *rpipe_epc_find(
 			break;
 		}
 		if (hdr->bLength > itr_size) {
-			dev_err(dev, "HW Bug? ep 0x%02x: extra descriptor "
+			dev_err(dev, "HW ? ep 0x%02x: extra descriptor "
 				"at offset %zu (type 0x%02x) "
 				"length %d but only %zu bytes left\n",
 				ep->desc.bEndpointAddress,
@@ -408,8 +408,8 @@ static int rpipe_check_aim(const struct wa_rpipe *rpipe, const struct wahc *wa,
 	return result;
 }
 
-#ifndef CONFIG_BUG
-#define CONFIG_BUG 0
+#ifndef CONFIG_
+#define CONFIG_ 0
 #endif
 
 /*
@@ -431,7 +431,7 @@ int rpipe_get_by_ep(struct wahc *wa, struct usb_host_endpoint *ep,
 	mutex_lock(&wa->rpipe_mutex);
 	rpipe = ep->hcpriv;
 	if (rpipe != NULL) {
-		if (CONFIG_BUG == 1) {
+		if (CONFIG_ == 1) {
 			result = rpipe_check_aim(rpipe, wa, ep, urb, gfp);
 			if (result < 0)
 				goto error;
@@ -482,7 +482,7 @@ void wa_rpipes_destroy(struct wahc *wa)
 
 	if (!bitmap_empty(wa->rpipe_bm, wa->rpipes)) {
 		WARN_ON(1);
-		dev_err(dev, "BUG: pipes not released on exit: %*pb\n",
+		dev_err(dev, ": pipes not released on exit: %*pb\n",
 			wa->rpipes, wa->rpipe_bm);
 	}
 	bitmap_free(wa->rpipe_bm);

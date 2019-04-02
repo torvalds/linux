@@ -12,15 +12,15 @@ ath9k-y +=	beacon.o \
 ath9k-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += mci.o
 ath9k-$(CONFIG_ATH9K_PCI) += pci.o
 ath9k-$(CONFIG_ATH9K_AHB) += ahb.o
-ath9k-$(CONFIG_ATH9K_DFS_DEBUGFS) += dfs_debug.o
+ath9k-$(CONFIG_ATH9K_DFS_DEFS) += dfs_de.o
 ath9k-$(CONFIG_ATH9K_DFS_CERTIFIED) += dfs.o
 ath9k-$(CONFIG_ATH9K_TX99) += tx99.o
 ath9k-$(CONFIG_ATH9K_WOW) += wow.o
 ath9k-$(CONFIG_ATH9K_HWRNG) += rng.o
 
-ath9k-$(CONFIG_ATH9K_DEBUGFS) += debug.o
+ath9k-$(CONFIG_ATH9K_DEFS) += de.o
 
-ath9k-$(CONFIG_ATH9K_STATION_STATISTICS) += debug_sta.o
+ath9k-$(CONFIG_ATH9K_STATION_STATISTICS) += de_sta.o
 
 obj-$(CONFIG_ATH9K) += ath9k.o
 
@@ -62,7 +62,7 @@ ath9k_common-y:=	common.o \
 			common-init.o \
 			common-beacon.o \
 
-ath9k_common-$(CONFIG_ATH9K_COMMON_DEBUG) += common-debug.o
+ath9k_common-$(CONFIG_ATH9K_COMMON_DE) += common-de.o
 ath9k_common-$(CONFIG_ATH9K_COMMON_SPECTRAL) += common-spectral.o
 
 ath9k_htc-y +=	htc_hst.o \
@@ -74,6 +74,6 @@ ath9k_htc-y +=	htc_hst.o \
 		htc_drv_init.o \
 		htc_drv_gpio.o
 
-ath9k_htc-$(CONFIG_ATH9K_HTC_DEBUGFS) += htc_drv_debug.o
+ath9k_htc-$(CONFIG_ATH9K_HTC_DEFS) += htc_drv_de.o
 
 obj-$(CONFIG_ATH9K_HTC) += ath9k_htc.o

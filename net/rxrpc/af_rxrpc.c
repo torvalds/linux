@@ -31,16 +31,16 @@ MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_RXRPC);
 
-unsigned int rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
-module_param_named(debug, rxrpc_debug, uint, 0644);
-MODULE_PARM_DESC(debug, "RxRPC debugging mask");
+unsigned int rxrpc_de; // = RXRPC_DE_KPROTO;
+module_param_named(de, rxrpc_de, uint, 0644);
+MODULE_PARM_DESC(de, "RxRPC deging mask");
 
 static struct proto rxrpc_proto;
 static const struct proto_ops rxrpc_rpc_ops;
 
-/* current debugging ID */
-atomic_t rxrpc_debug_id;
-EXPORT_SYMBOL(rxrpc_debug_id);
+/* current deging ID */
+atomic_t rxrpc_de_id;
+EXPORT_SYMBOL(rxrpc_de_id);
 
 /* count of skbs currently in use */
 atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
@@ -123,7 +123,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 
 	if (tail < len)
 		memset((void *)srx + tail, 0, len - tail);
-	_debug("INET: %pISp", &srx->transport);
+	_de("INET: %pISp", &srx->transport);
 	return 0;
 }
 
@@ -269,7 +269,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
  * @upgrade: Request service upgrade for call
- * @debug_id: The debug ID for tracing to be assigned to the call
+ * @de_id: The de ID for tracing to be assigned to the call
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
@@ -286,7 +286,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   gfp_t gfp,
 					   rxrpc_notify_rx_t notify_rx,
 					   bool upgrade,
-					   unsigned int debug_id)
+					   unsigned int de_id)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call_params p;
@@ -318,7 +318,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.exclusive		= false;
 	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp, debug_id);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp, de_id);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;
@@ -349,7 +349,7 @@ static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
  */
 void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 {
-	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
+	_enter("%d{%d}", call->de_id, atomic_read(&call->usage));
 
 	mutex_lock(&call->user_mutex);
 	rxrpc_release_call(rxrpc_sk(sock->sk), call);
@@ -946,7 +946,7 @@ static int __init af_rxrpc_init(void)
 	int ret = -1;
 	unsigned int tmp;
 
-	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD__ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	get_random_bytes(&tmp, sizeof(tmp));
 	tmp &= 0x3fffffff;

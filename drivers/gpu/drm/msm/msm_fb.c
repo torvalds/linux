@@ -37,7 +37,7 @@ static const struct drm_framebuffer_funcs msm_framebuffer_funcs = {
 	.destroy = drm_gem_fb_destroy,
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	int i, n = fb->format->num_planes;

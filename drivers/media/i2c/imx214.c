@@ -500,7 +500,7 @@ static int imx214_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int imx214_s_register(struct v4l2_subdev *subdev,
 			     const struct v4l2_dbg_register *reg)
 {
@@ -525,7 +525,7 @@ static int imx214_g_register(struct v4l2_subdev *subdev,
 #endif
 
 static const struct v4l2_subdev_core_ops imx214_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = imx214_g_register,
 	.s_register = imx214_s_register,
 #endif

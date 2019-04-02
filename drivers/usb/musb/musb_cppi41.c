@@ -528,7 +528,7 @@ static int cppi41_dma_channel_program(struct dma_channel *channel,
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
 	int hb_mult = 0;
 
-	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
+	_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
 	if (is_host_active(cppi41_channel->controller->controller.musb)) {

@@ -10,7 +10,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -362,7 +362,7 @@ static void tegra_uart_fill_tx_fifo(struct tegra_uart_port *tup, int max_bytes)
 	int i;
 
 	for (i = 0; i < max_bytes; i++) {
-		BUG_ON(uart_circ_empty(xmit));
+		_ON(uart_circ_empty(xmit));
 		if (tup->cdata->tx_fifo_full_status) {
 			unsigned long lsr = tegra_uart_read(tup, UART_LSR);
 			if ((lsr & TEGRA_UART_LSR_TXFIFO_FULL))

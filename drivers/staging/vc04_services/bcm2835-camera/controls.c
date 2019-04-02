@@ -570,7 +570,7 @@ static int ctrl_set_image_effect(struct bm2835_mmal_dev *dev,
 	}
 
 exit:
-	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+	v4l2_dbg(1, bcm2835_v4l2_de, &dev->v4l2_dev,
 		 "mmal_ctrl:%p ctrl id:0x%x ctrl val:%d imagefx:0x%x color_effect:%s u:%d v:%d ret %d(%d)\n",
 				mmal_ctrl, ctrl->id, ctrl->val, imagefx.effect,
 				dev->colourfx.enable ? "true" : "false",
@@ -596,7 +596,7 @@ static int ctrl_set_colfx(struct bm2835_mmal_dev *dev,
 					    &dev->colourfx,
 					    sizeof(dev->colourfx));
 
-	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+	v4l2_dbg(1, bcm2835_v4l2_de, &dev->v4l2_dev,
 		 "%s: After: mmal_ctrl:%p ctrl id:0x%x ctrl val:%d ret %d(%d)\n",
 			__func__, mmal_ctrl, ctrl->id, ctrl->val, ret,
 			(ret == 0 ? 0 : -EINVAL));
@@ -799,7 +799,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 	int shutter_speed;
 	struct vchiq_mmal_port *control;
 
-	v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
+	v4l2_dbg(0, bcm2835_v4l2_de, &dev->v4l2_dev,
 		 "scene mode selected %d, was %d\n", ctrl->val,
 		 dev->scene_mode);
 	control = &dev->component[MMAL_COMPONENT_CAMERA]->control;
@@ -816,7 +816,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		else
 			shutter_speed = 0;
 
-		v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
+		v4l2_dbg(0, bcm2835_v4l2_de, &dev->v4l2_dev,
 			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
 			 __func__, shutter_speed, dev->exposure_mode_user,
 			 dev->metering_mode);
@@ -867,7 +867,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		exposure_mode = scene->exposure_mode;
 		metering_mode = scene->metering_mode;
 
-		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+		v4l2_dbg(1, bcm2835_v4l2_de, &dev->v4l2_dev,
 			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
 			 __func__, shutter_speed, exposure_mode, metering_mode);
 
@@ -891,7 +891,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		ret += set_framerate_params(dev);
 	}
 	if (ret) {
-		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+		v4l2_dbg(1, bcm2835_v4l2_de, &dev->v4l2_dev,
 			 "%s: Setting scene to %d, ret=%d\n",
 			 __func__, ctrl->val, ret);
 		ret = -EINVAL;
@@ -1180,7 +1180,7 @@ int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev)
 			ret = v4l2_ctrls[c].setter(dev, dev->ctrls[c],
 						   &v4l2_ctrls[c]);
 			if (!v4l2_ctrls[c].ignore_errors && ret) {
-				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+				v4l2_dbg(1, bcm2835_v4l2_de, &dev->v4l2_dev,
 					 "Failed when setting default values for ctrl %d\n",
 					 c);
 				break;
@@ -1212,7 +1212,7 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 			dev->capture.timeperframe.numerator;
 	}
 
-	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
+	v4l2_dbg(1, bcm2835_v4l2_de, &dev->v4l2_dev,
 		 "Set fps range to %d/%d to %d/%d\n",
 		 fps_range.fps_low.num,
 		 fps_range.fps_low.den,
@@ -1235,7 +1235,7 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 					     MMAL_PARAMETER_FPS_RANGE,
 					     &fps_range, sizeof(fps_range));
 	if (ret)
-		v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
+		v4l2_dbg(0, bcm2835_v4l2_de, &dev->v4l2_dev,
 			 "Failed to set fps ret %d\n", ret);
 
 	return ret;

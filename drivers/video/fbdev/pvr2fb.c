@@ -42,7 +42,7 @@
  *  the benefit of being fully researched, so some modes may be broken.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -343,7 +343,7 @@ static int pvr2fb_setcolreg(unsigned int regno, unsigned int red,
 		pvr2fb_set_pal_entry(par, regno, tmp);
 		break;
 	    default:
-		pr_debug("Invalid bit depth %d?!?\n", info->var.bits_per_pixel);
+		pr_de("Invalid bit depth %d?!?\n", info->var.bits_per_pixel);
 		return 1;
 	}
 
@@ -437,7 +437,7 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	unsigned long line_length;
 
 	if (var->pixclock != TV_CLK && var->pixclock != VGA_CLK) {
-		pr_debug("Invalid pixclock value %d\n", var->pixclock);
+		pr_de("Invalid pixclock value %d\n", var->pixclock);
 		return -EINVAL;
 	}
 
@@ -515,13 +515,13 @@ static int pvr2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			/* PAL video output */
 			/* XXX: Should be using a range here ... ? */
 			if (hsync_total != PAL_HTOTAL) {
-				pr_debug("invalid hsync total for PAL\n");
+				pr_de("invalid hsync total for PAL\n");
 				return -EINVAL;
 			}
 		} else {
 			/* NTSC video output */
 			if (hsync_total != NTSC_HTOTAL) {
-				pr_debug("invalid hsync total for NTSC\n");
+				pr_de("invalid hsync total for NTSC\n");
 				return -EINVAL;
 			}
 		}

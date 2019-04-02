@@ -1020,7 +1020,7 @@ static int cfg80211_set_cipher_pairwise(struct wireless_dev *wdev, u32 cipher)
 		nr_ciphers++;
 	}
 
-	BUILD_BUG_ON(NL80211_MAX_NR_CIPHER_SUITES < 5);
+	BUILD__ON(NL80211_MAX_NR_CIPHER_SUITES < 5);
 
 	wdev->wext.connect.crypto.n_ciphers_pairwise = nr_ciphers;
 

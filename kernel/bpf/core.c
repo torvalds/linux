@@ -17,7 +17,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *
- * Andi Kleen - Fix a few bad bugs and races.
+ * Andi Kleen - Fix a few bad s and races.
  * Kris Katterjohn - Added many additional checks in bpf_check_classic()
  */
 
@@ -225,7 +225,7 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 	u32 pages, delta;
 	int ret;
 
-	BUG_ON(fp_old == NULL);
+	_ON(fp_old == NULL);
 
 	size = round_up(size, PAGE_SIZE);
 	pages = size / PAGE_SIZE;
@@ -485,7 +485,7 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	 * the ship has sailed to reverse to the original state. An
 	 * overflow cannot happen at this point.
 	 */
-	BUG_ON(bpf_adj_branches(prog_adj, off, off + 1, off + len, false));
+	_ON(bpf_adj_branches(prog_adj, off, off + 1, off + len, false));
 
 	bpf_adj_linfo(prog_adj, off, insn_delta);
 
@@ -545,7 +545,7 @@ void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 	const struct btf_type *type;
 	const char *func_name;
 
-	BUILD_BUG_ON(sizeof("bpf_prog_") +
+	BUILD__ON(sizeof("bpf_prog_") +
 		     sizeof(prog->tag) * 2 +
 		     /* name has been null terminated.
 		      * We should need +1 for the '_' preceding
@@ -899,8 +899,8 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 	u32 imm_rnd = get_random_int();
 	s16 off;
 
-	BUILD_BUG_ON(BPF_REG_AX  + 1 != MAX_BPF_JIT_REG);
-	BUILD_BUG_ON(MAX_BPF_REG + 1 != MAX_BPF_JIT_REG);
+	BUILD__ON(BPF_REG_AX  + 1 != MAX_BPF_JIT_REG);
+	BUILD__ON(MAX_BPF_REG + 1 != MAX_BPF_JIT_REG);
 
 	/* Constraints on AX register:
 	 *
@@ -1551,14 +1551,14 @@ out:
 		CONT;
 
 	default_label:
-		/* If we ever reach this, we have a bug somewhere. Die hard here
+		/* If we ever reach this, we have a  somewhere. Die hard here
 		 * instead of just returning 0; we could be somewhere in a subprog,
 		 * so execution could continue otherwise which we do /not/ want.
 		 *
 		 * Note, verifier whitelists all opcodes in bpf_opcode_in_insntable().
 		 */
 		pr_warn("BPF interpreter: unknown opcode %02x\n", insn->code);
-		BUG_ON(1);
+		_ON(1);
 		return 0;
 }
 STACK_FRAME_NON_STANDARD(___bpf_prog_run); /* jump table */

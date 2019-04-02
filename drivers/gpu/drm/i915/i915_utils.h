@@ -31,7 +31,7 @@
 #define WARN_ON(x) ({ \
 	bool __i915_warn_cond = (x); \
 	if (__builtin_constant_p(__i915_warn_cond)) \
-		BUILD_BUG_ON(__i915_warn_cond); \
+		BUILD__ON(__i915_warn_cond); \
 	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
 #else
 #define WARN_ON(x) WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
@@ -88,7 +88,7 @@
 
 #define ptr_pack_bits(ptr, bits, n) ({					\
 	unsigned long __bits = (bits);					\
-	GEM_BUG_ON(__bits & -BIT(n));					\
+	GEM__ON(__bits & -BIT(n));					\
 	((typeof(ptr))((unsigned long)(ptr) | __bits));			\
 })
 

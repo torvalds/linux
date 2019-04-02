@@ -123,7 +123,7 @@ acpi_ex_resolve_operands(u16 opcode,
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Opcode %X [%s] RequiredOperandTypes=%8.8X\n",
 			  opcode, op_info->name, arg_types));
 
@@ -194,9 +194,9 @@ acpi_ex_resolve_operands(u16 opcode,
 				/* Validate the Reference */
 
 				switch (obj_desc->reference.class) {
-				case ACPI_REFCLASS_DEBUG:
+				case ACPI_REFCLASS_DE:
 
-					target_op = AML_DEBUG_OP;
+					target_op = AML_DE_OP;
 
 					/*lint -fallthrough */
 
@@ -207,7 +207,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				case ACPI_REFCLASS_TABLE:	/* ddb_handle from LOAD_OP or LOAD_TABLE_OP */
 				case ACPI_REFCLASS_NAME:	/* Reference to a named object */
 
-					ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+					ACPI_DE_PRINT((ACPI_DB_EXEC,
 							  "Operand is a Reference, Class [%s] %2.2X\n",
 							  acpi_ut_get_reference_name
 							  (obj_desc),
@@ -617,9 +617,9 @@ acpi_ex_resolve_operands(u16 opcode,
 					break;
 				}
 
-				if (target_op == AML_DEBUG_OP) {
+				if (target_op == AML_DE_OP) {
 
-					/* Allow store of any object to the Debug object */
+					/* Allow store of any object to the De object */
 
 					break;
 				}

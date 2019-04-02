@@ -26,7 +26,7 @@ struct snd_ivtv_card {
 	spinlock_t slock;
 };
 
-extern int ivtv_alsa_debug;
+extern int ivtv_alsa_de;
 
 /*
  * File operations that manipulate the encoder or video or audio subdevices
@@ -47,18 +47,18 @@ static inline void snd_ivtv_unlock(struct snd_ivtv_card *itvsc)
 #define IVTV_ALSA_DBGFLG_WARN  (1 << 0)
 #define IVTV_ALSA_DBGFLG_INFO  (1 << 1)
 
-#define IVTV_ALSA_DEBUG(x, type, fmt, args...) \
+#define IVTV_ALSA_DE(x, type, fmt, args...) \
 	do { \
-		if ((x) & ivtv_alsa_debug) \
+		if ((x) & ivtv_alsa_de) \
 			pr_info("%s-alsa: " type ": " fmt, \
 				v4l2_dev->name , ## args); \
 	} while (0)
 
-#define IVTV_ALSA_DEBUG_WARN(fmt, args...) \
-	IVTV_ALSA_DEBUG(IVTV_ALSA_DBGFLG_WARN, "warning", fmt , ## args)
+#define IVTV_ALSA_DE_WARN(fmt, args...) \
+	IVTV_ALSA_DE(IVTV_ALSA_DBGFLG_WARN, "warning", fmt , ## args)
 
-#define IVTV_ALSA_DEBUG_INFO(fmt, args...) \
-	IVTV_ALSA_DEBUG(IVTV_ALSA_DBGFLG_INFO, "info", fmt , ## args)
+#define IVTV_ALSA_DE_INFO(fmt, args...) \
+	IVTV_ALSA_DE(IVTV_ALSA_DBGFLG_INFO, "info", fmt , ## args)
 
 #define IVTV_ALSA_ERR(fmt, args...) \
 	pr_err("%s-alsa: " fmt, v4l2_dev->name , ## args)

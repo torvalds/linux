@@ -554,10 +554,10 @@ struct request_queue {
 	struct list_head	tag_set_list;
 	struct bio_set		bio_split;
 
-#ifdef CONFIG_BLK_DEBUG_FS
-	struct dentry		*debugfs_dir;
-	struct dentry		*sched_debugfs_dir;
-	struct dentry		*rqos_debugfs_dir;
+#ifdef CONFIG_BLK_DE_FS
+	struct dentry		*defs_dir;
+	struct dentry		*sched_defs_dir;
+	struct dentry		*rqos_defs_dir;
 #endif
 
 	bool			mq_sysfs_init_done;

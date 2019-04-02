@@ -3,7 +3,7 @@
 #define _LINUX_ELFCORE_H
 
 #include <linux/user.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/elf.h>
@@ -16,7 +16,7 @@ static inline void elf_core_copy_regs(elf_gregset_t *elfregs, struct pt_regs *re
 #ifdef ELF_CORE_COPY_REGS
 	ELF_CORE_COPY_REGS((*elfregs), regs)
 #else
-	BUG_ON(sizeof(*elfregs) != sizeof(*regs));
+	_ON(sizeof(*elfregs) != sizeof(*regs));
 	*(struct pt_regs *)elfregs = *regs;
 #endif
 }
@@ -64,7 +64,7 @@ static inline int elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregse
  * contents makes post-mortem fully interpretable later without matching up
  * the same kernel and hardware config to see what PC values meant.
  * Dumping its extra ELF program headers includes all the other information
- * a debugger needs to easily find how the gate DSO was being used.
+ * a deger needs to easily find how the gate DSO was being used.
  */
 extern Elf_Half elf_core_extra_phdrs(void);
 extern int

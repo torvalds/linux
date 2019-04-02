@@ -20,7 +20,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list_sort.h>
 #include "i915_drv.h"
 #include "gvt.h"
@@ -187,33 +187,33 @@ DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
 			"0x%llx\n");
 
 /**
- * intel_gvt_debugfs_add_vgpu - register debugfs entries for a vGPU
+ * intel_gvt_defs_add_vgpu - register defs entries for a vGPU
  * @vgpu: a vGPU
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
-int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
+int intel_gvt_defs_add_vgpu(struct intel_vgpu *vgpu)
 {
 	struct dentry *ent;
 	char name[10] = "";
 
 	sprintf(name, "vgpu%d", vgpu->id);
-	vgpu->debugfs = debugfs_create_dir(name, vgpu->gvt->debugfs_root);
-	if (!vgpu->debugfs)
+	vgpu->defs = defs_create_dir(name, vgpu->gvt->defs_root);
+	if (!vgpu->defs)
 		return -ENOMEM;
 
-	ent = debugfs_create_bool("active", 0444, vgpu->debugfs,
+	ent = defs_create_bool("active", 0444, vgpu->defs,
 				  &vgpu->active);
 	if (!ent)
 		return -ENOMEM;
 
-	ent = debugfs_create_file("mmio_diff", 0444, vgpu->debugfs,
+	ent = defs_create_file("mmio_diff", 0444, vgpu->defs,
 				  vgpu, &vgpu_mmio_diff_fops);
 	if (!ent)
 		return -ENOMEM;
 
-	ent = debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs,
+	ent = defs_create_file("scan_nonprivbb", 0644, vgpu->defs,
 				 vgpu, &vgpu_scan_nonprivbb_fops);
 	if (!ent)
 		return -ENOMEM;
@@ -222,34 +222,34 @@ int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 }
 
 /**
- * intel_gvt_debugfs_remove_vgpu - remove debugfs entries of a vGPU
+ * intel_gvt_defs_remove_vgpu - remove defs entries of a vGPU
  * @vgpu: a vGPU
  */
-void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
+void intel_gvt_defs_remove_vgpu(struct intel_vgpu *vgpu)
 {
-	debugfs_remove_recursive(vgpu->debugfs);
-	vgpu->debugfs = NULL;
+	defs_remove_recursive(vgpu->defs);
+	vgpu->defs = NULL;
 }
 
 /**
- * intel_gvt_debugfs_init - register gvt debugfs root entry
+ * intel_gvt_defs_init - register gvt defs root entry
  * @gvt: GVT device
  *
  * Returns:
  * zero on success, negative if failed.
  */
-int intel_gvt_debugfs_init(struct intel_gvt *gvt)
+int intel_gvt_defs_init(struct intel_gvt *gvt)
 {
 	struct drm_minor *minor = gvt->dev_priv->drm.primary;
 	struct dentry *ent;
 
-	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
-	if (!gvt->debugfs_root) {
-		gvt_err("Cannot create debugfs dir\n");
+	gvt->defs_root = defs_create_dir("gvt", minor->defs_root);
+	if (!gvt->defs_root) {
+		gvt_err("Cannot create defs dir\n");
 		return -ENOMEM;
 	}
 
-	ent = debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
+	ent = defs_create_ulong("num_tracked_mmio", 0444, gvt->defs_root,
 				   &gvt->mmio.num_tracked_mmio);
 	if (!ent)
 		return -ENOMEM;
@@ -258,11 +258,11 @@ int intel_gvt_debugfs_init(struct intel_gvt *gvt)
 }
 
 /**
- * intel_gvt_debugfs_clean - remove debugfs entries
+ * intel_gvt_defs_clean - remove defs entries
  * @gvt: GVT device
  */
-void intel_gvt_debugfs_clean(struct intel_gvt *gvt)
+void intel_gvt_defs_clean(struct intel_gvt *gvt)
 {
-	debugfs_remove_recursive(gvt->debugfs_root);
-	gvt->debugfs_root = NULL;
+	defs_remove_recursive(gvt->defs_root);
+	gvt->defs_root = NULL;
 }

@@ -102,11 +102,11 @@ struct cs_tailq cs_tailq;
 struct scope_list scope_stack;
 symlist_t patch_functions;
 
-#if DEBUG
-extern int yy_flex_debug;
-extern int mm_flex_debug;
-extern int yydebug;
-extern int mmdebug;
+#if DE
+extern int yy_flex_de;
+extern int mm_flex_de;
+extern int yyde;
+extern int mmde;
 #endif
 extern FILE *yyin;
 extern int yyparse(void);
@@ -137,29 +137,29 @@ main(int argc, char *argv[])
 	appname = *argv;
 	regfile = NULL;
 	listfile = NULL;
-#if DEBUG
-	yy_flex_debug = 0;
-	mm_flex_debug = 0;
-	yydebug = 0;
-	mmdebug = 0;
+#if DE
+	yy_flex_de = 0;
+	mm_flex_de = 0;
+	yyde = 0;
+	mmde = 0;
 #endif
 	while ((ch = getopt(argc, argv, "d:i:l:n:o:p:r:I:")) != -1) {
 		switch(ch) {
 		case 'd':
-#if DEBUG
+#if DE
 			if (strcmp(optarg, "s") == 0) {
-				yy_flex_debug = 1;
-				mm_flex_debug = 1;
+				yy_flex_de = 1;
+				mm_flex_de = 1;
 			} else if (strcmp(optarg, "p") == 0) {
-				yydebug = 1;
-				mmdebug = 1;
+				yyde = 1;
+				mmde = 1;
 			} else {
 				fprintf(stderr, "%s: -d Requires either an "
 					"'s' or 'p' argument\n", appname);
 				usage();
 			}
 #else
-			stop("-d: Assembler not built with debugging "
+			stop("-d: Assembler not built with deging "
 			     "information", EX_SOFTWARE);
 #endif
 			break;

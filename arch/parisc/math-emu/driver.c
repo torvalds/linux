@@ -37,7 +37,7 @@
 #define fpr1pos 10
 #define extru(r,pos,len) (((r) >> (31-(pos))) & (( 1 << (len)) - 1))
 
-#define FPUDEBUG 0
+#define FPUDE 0
 
 /* Format of the floating-point exception registers. */
 struct exc_reg {
@@ -97,21 +97,21 @@ handle_fpe(struct pt_regs *regs)
 
 	memcpy(&orig_sw, frcopy, sizeof(orig_sw));
 
-	if (FPUDEBUG) {
-		printk(KERN_DEBUG "FP VZOUICxxxxCQCQCQCQCQCRMxxTDVZOUI ->\n   ");
+	if (FPUDE) {
+		printk(KERN_DE "FP VZOUICxxxxCQCQCQCQCQCRMxxTDVZOUI ->\n   ");
 		printbinary(orig_sw, 32);
-		printk(KERN_DEBUG "\n");
+		printk(KERN_DE "\n");
 	}
 
 	signalcode = decode_fpu(frcopy, 0x666);
 
 	/* Status word = FR0L. */
 	memcpy(&sw, frcopy, sizeof(sw));
-	if (FPUDEBUG) {
-		printk(KERN_DEBUG "VZOUICxxxxCQCQCQCQCQCRMxxTDVZOUI decode_fpu returns %d|0x%x\n",
+	if (FPUDE) {
+		printk(KERN_DE "VZOUICxxxxCQCQCQCQCQCRMxxTDVZOUI decode_fpu returns %d|0x%x\n",
 			signalcode >> 24, signalcode & 0xffffff);
 		printbinary(sw, 32);
-		printk(KERN_DEBUG "\n");
+		printk(KERN_DE "\n");
 	}
 
 	memcpy(regs->fr, frcopy, sizeof regs->fr);

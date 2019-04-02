@@ -96,9 +96,9 @@ static void bnx2fc_stop(struct bnx2fc_interface *interface);
 static int __init bnx2fc_mod_init(void);
 static void __exit bnx2fc_mod_exit(void);
 
-unsigned int bnx2fc_debug_level;
-module_param_named(debug_logging, bnx2fc_debug_level, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging,
+unsigned int bnx2fc_de_level;
+module_param_named(de_logging, bnx2fc_de_level, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(de_logging,
 		"Option to enable extended logging,\n"
 		"\t\tDefault is 0 - no logging.\n"
 		"\t\t0x01 - SCSI cmd error, cleanup.\n"
@@ -126,7 +126,7 @@ MODULE_PARM_DESC(queue_depth, " Change the default queue depth of SCSI devices "
 uint bnx2fc_log_fka;
 module_param_named(log_fka, bnx2fc_log_fka, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(log_fka, " Print message to kernel log when fcoe is "
-	"initiating a FIP keep alive when debug logging is enabled.");
+	"initiating a FIP keep alive when de logging is enabled.");
 
 static inline struct net_device *bnx2fc_netdev(const struct fc_lport *lport)
 {
@@ -1980,7 +1980,7 @@ static void bnx2fc_ulp_stop(void *handle)
 		if (interface->hba == hba)
 			bnx2fc_stop(interface);
 	}
-	BUG_ON(hba->num_ofld_sess != 0);
+	_ON(hba->num_ofld_sess != 0);
 
 	mutex_lock(&hba->hba_mutex);
 	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);

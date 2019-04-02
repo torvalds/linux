@@ -149,7 +149,7 @@ struct iosapic_info {
 	struct vector_info *	isi_vector;	/* IRdT (IRQ line) array */
 	int			isi_num_vectors; /* size of IRdT array */
 	int			isi_status;	/* status/flags */
-	unsigned int		isi_version;	/* DEBUG: data fr version reg */
+	unsigned int		isi_version;	/* DE: data fr version reg */
 };
 
 

@@ -637,7 +637,7 @@ static const struct pinconf_generic_params lpc18xx_params[] = {
 	{"nxp,gpio-pin-interrupt", PIN_CONFIG_GPIO_PIN_INT, 0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item lpc18xx_conf_items[ARRAY_SIZE(lpc18xx_params)] = {
 	PCONFDUMP(PIN_CONFIG_GPIO_PIN_INT, "gpio pin int", NULL, true),
 };
@@ -1264,7 +1264,7 @@ static struct pinctrl_desc lpc18xx_scu_desc = {
 	.confops = &lpc18xx_pconf_ops,
 	.num_custom_params = ARRAY_SIZE(lpc18xx_params),
 	.custom_params = lpc18xx_params,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.custom_conf_items = lpc18xx_conf_items,
 #endif
 	.owner = THIS_MODULE,

@@ -49,7 +49,7 @@ struct tmComResInterfaceDescr {
 	u8	bInterfaceId;
 	u8	bBaseInterface;
 	u8	bInterruptId;
-	u8	bDebugInterruptId;
+	u8	bDeInterruptId;
 	u8	BARLocation;
 	u8	Reserved[3];
 };
@@ -417,13 +417,13 @@ struct tmComResProbeCommit {
 	u8	bFrameIndex;
 } __attribute__((packed));
 
-struct tmComResDebugSetLevel {
-	u32	dwDebugLevel;
+struct tmComResDeSetLevel {
+	u32	dwDeLevel;
 } __attribute__((packed));
 
-struct tmComResDebugGetData {
+struct tmComResDeGetData {
 	u32	dwResult;
-	u8	ucDebugData[256];
+	u8	ucDeData[256];
 } __attribute__((packed));
 
 struct tmFwInfoStruct {

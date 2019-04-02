@@ -51,18 +51,18 @@
  *          amount of additional interrupts, this driver achieves
  *          better control over the SCSI bus, and data transfers are
  *          almost as fast while being much easier to define, track,
- *          and debug.
+ *          and de.
  *
  *
  * TODO:
  *       more speed. linked commands.
  *
  *
- * People with bug reports, wish-lists, complaints, comments,
+ * People with  reports, wish-lists, complaints, comments,
  * or improvements are asked to pah-leeez email me (John Shifflett)
  * at john@geolog.com or jshiffle@netcom.com! I'm anxious to get
  * this thing into as good a shape as possible, and I'm positive
- * there are lots of lurking bugs and "Stupid Places".
+ * there are lots of lurking s and "Stupid Places".
  *
  * Updates:
  *
@@ -126,8 +126,8 @@ MODULE_LICENSE("GPL");
  * -  disconnect:x   -x = 0 to never allow disconnects, 2 to always allow them.
  *                    x = 1 does 'adaptive' disconnects, which is the default
  *                    and generally the best choice.
- * -  debug:x        -If 'DEBUGGING_ON' is defined, x is a bit mask that causes
- *                    various types of debug output to printed - see the DB_xxx
+ * -  de:x        -If 'DEGING_ON' is defined, x is a bit mask that causes
+ *                    various types of de output to printed - see the DB_xxx
  *                    defines in wd33c93.h
  * -  clock:x        -x = clock input in MHz for WD33c93 chip. Normal values
  *                    would be from 8 through 20. Default is 8.
@@ -160,7 +160,7 @@ MODULE_LICENSE("GPL");
  * -  wd33c93=nodma
  * -  wd33c93=nodma:1
  * -  wd33c93=disconnect:2,nosync:0x08,period:250
- * -  wd33c93=debug:0x1c
+ * -  wd33c93=de:0x1c
  */
 
 /* Normally, no defaults are specified */
@@ -923,7 +923,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 						hostdata->outgoing_msg + 4);
 			}
 			hostdata->outgoing_len = 6;
-#ifdef SYNC_DEBUG
+#ifdef SYNC_DE
 			ucp = hostdata->outgoing_msg + 1;
 			printk(" sending SDTR %02x03%02x%02x%02x ",
 				ucp[0], ucp[2], ucp[3], ucp[4]);
@@ -1040,7 +1040,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 
 		case MESSAGE_REJECT:
 			DB(DB_INTR, printk("REJ"))
-#ifdef SYNC_DEBUG
+#ifdef SYNC_DE
 			    printk("-REJ-");
 #endif
 			if (hostdata->sync_stat[cmd->device->id] == SS_WAITING) {
@@ -1059,7 +1059,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 
 			    ucp = hostdata->incoming_msg;
 
-#ifdef SYNC_DEBUG
+#ifdef SYNC_DE
 			printk("%02x", ucp[hostdata->incoming_ptr]);
 #endif
 			/* Is this the last byte of the extended message? */
@@ -1105,7 +1105,7 @@ wd33c93_intr(struct Scsi_Host *instance)
 									0, hostdata->sx_table);
 					}
 					hostdata->sync_xfer[cmd->device->id] = id;
-#ifdef SYNC_DEBUG
+#ifdef SYNC_DE
 					printk(" sync_xfer=%02x\n",
 					       hostdata->sync_xfer[cmd->device->id]);
 #endif
@@ -1973,7 +1973,7 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	hostdata->dma = D_DMA_OFF;
 	hostdata->level2 = L2_BASIC;
 	hostdata->disconnect = DIS_ADAPTIVE;
-	hostdata->args = DEBUG_DEFAULTS;
+	hostdata->args = DE_DEFAULTS;
 	hostdata->incoming_ptr = 0;
 	hostdata->outgoing_len = 0;
 	hostdata->default_sx_per = DEFAULT_SX_PER;
@@ -2015,7 +2015,7 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	if (check_setup_args("level2", &flags, &val, buf))
 		hostdata->level2 = val;
 
-	if (check_setup_args("debug", &flags, &val, buf))
+	if (check_setup_args("de", &flags, &val, buf))
 		hostdata->args = val & DB_MASK;
 
 	if (check_setup_args("burst", &flags, &val, buf))
@@ -2045,10 +2045,10 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	       "WD33c93A" : (hostdata->chip ==
 			     C_WD33C93B) ? "WD33c93B" : "unknown",
 	       hostdata->microcode, hostdata->no_sync, hostdata->no_dma);
-#ifdef DEBUGGING_ON
-	printk(" debug_flags=0x%02x\n", hostdata->args);
+#ifdef DEGING_ON
+	printk(" de_flags=0x%02x\n", hostdata->args);
 #else
-	printk(" debugging=OFF\n");
+	printk(" deging=OFF\n");
 #endif
 	printk("           setup_args=");
 	for (i = 0; i < MAX_SETUP_ARGS; i++)
@@ -2068,7 +2068,7 @@ int wd33c93_write_info(struct Scsi_Host *instance, char *buf, int len)
 
 /* We accept the following
  * keywords (same format as command-line, but arguments are not optional):
- *    debug
+ *    de
  *    disconnect
  *    period
  *    resync
@@ -2084,7 +2084,7 @@ int wd33c93_write_info(struct Scsi_Host *instance, char *buf, int len)
 	for (bp = buf; *bp; ) {
 		while (',' == *bp || ' ' == *bp)
 			++bp;
-	if (!strncmp(bp, "debug:", 6)) {
+	if (!strncmp(bp, "de:", 6)) {
 			hd->args = simple_strtoul(bp+6, &bp, 0) & DB_MASK;
 	} else if (!strncmp(bp, "disconnect:", 11)) {
 			x = simple_strtoul(bp+11, &bp, 0);

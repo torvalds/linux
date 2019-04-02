@@ -14,7 +14,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/if_ether.h>
 #include <linux/if.h>
 #include <linux/net.h>
@@ -28,41 +28,41 @@
 #include <brcmu_utils.h>
 #include "types.h"
 #include "main.h"
-#include "debug.h"
+#include "de.h"
 #include "brcms_trace_events.h"
 #include "phy/phy_int.h"
 
 static struct dentry *root_folder;
 
-void brcms_debugfs_init(void)
+void brcms_defs_init(void)
 {
-	root_folder = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	root_folder = defs_create_dir(KBUILD_MODNAME, NULL);
 }
 
-void brcms_debugfs_exit(void)
+void brcms_defs_exit(void)
 {
-	debugfs_remove_recursive(root_folder);
+	defs_remove_recursive(root_folder);
 	root_folder = NULL;
 }
 
-void brcms_debugfs_attach(struct brcms_pub *drvr)
+void brcms_defs_attach(struct brcms_pub *drvr)
 {
-	drvr->dbgfs_dir = debugfs_create_dir(
+	drvr->dbgfs_dir = defs_create_dir(
 		 dev_name(&drvr->wlc->hw->d11core->dev), root_folder);
 }
 
-void brcms_debugfs_detach(struct brcms_pub *drvr)
+void brcms_defs_detach(struct brcms_pub *drvr)
 {
-	debugfs_remove_recursive(drvr->dbgfs_dir);
+	defs_remove_recursive(drvr->dbgfs_dir);
 }
 
-struct dentry *brcms_debugfs_get_devdir(struct brcms_pub *drvr)
+struct dentry *brcms_defs_get_devdir(struct brcms_pub *drvr)
 {
 	return drvr->dbgfs_dir;
 }
 
 static
-int brcms_debugfs_hardware_read(struct seq_file *s, void *data)
+int brcms_defs_hardware_read(struct seq_file *s, void *data)
 {
 	struct brcms_pub *drvr = s->private;
 	struct brcms_hardware *hw = drvr->wlc->hw;
@@ -95,7 +95,7 @@ int brcms_debugfs_hardware_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int brcms_debugfs_macstat_read(struct seq_file *s, void *data)
+static int brcms_defs_macstat_read(struct seq_file *s, void *data)
 {
 	struct brcms_pub *drvr = s->private;
 	struct brcms_info *wl = drvr->ieee_hw->priv;
@@ -166,33 +166,33 @@ static int brcms_debugfs_macstat_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-struct brcms_debugfs_entry {
+struct brcms_defs_entry {
 	int (*read)(struct seq_file *seq, void *data);
 	struct brcms_pub *drvr;
 };
 
-static int brcms_debugfs_entry_open(struct inode *inode, struct file *f)
+static int brcms_defs_entry_open(struct inode *inode, struct file *f)
 {
-	struct brcms_debugfs_entry *entry = inode->i_private;
+	struct brcms_defs_entry *entry = inode->i_private;
 
 	return single_open(f, entry->read, entry->drvr);
 }
 
-static const struct file_operations brcms_debugfs_def_ops = {
+static const struct file_operations brcms_defs_def_ops = {
 	.owner = THIS_MODULE,
-	.open = brcms_debugfs_entry_open,
+	.open = brcms_defs_entry_open,
 	.release = single_release,
 	.read = seq_read,
 	.llseek = seq_lseek
 };
 
 static void
-brcms_debugfs_add_entry(struct brcms_pub *drvr, const char *fn,
+brcms_defs_add_entry(struct brcms_pub *drvr, const char *fn,
 			int (*read_fn)(struct seq_file *seq, void *data))
 {
 	struct device *dev = &drvr->wlc->hw->d11core->dev;
 	struct dentry *dentry =  drvr->dbgfs_dir;
-	struct brcms_debugfs_entry *entry;
+	struct brcms_defs_entry *entry;
 
 	entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -201,13 +201,13 @@ brcms_debugfs_add_entry(struct brcms_pub *drvr, const char *fn,
 	entry->read = read_fn;
 	entry->drvr = drvr;
 
-	debugfs_create_file(fn, 0444, dentry, entry, &brcms_debugfs_def_ops);
+	defs_create_file(fn, 0444, dentry, entry, &brcms_defs_def_ops);
 }
 
-void brcms_debugfs_create_files(struct brcms_pub *drvr)
+void brcms_defs_create_files(struct brcms_pub *drvr)
 {
-	brcms_debugfs_add_entry(drvr, "hardware", brcms_debugfs_hardware_read);
-	brcms_debugfs_add_entry(drvr, "macstat", brcms_debugfs_macstat_read);
+	brcms_defs_add_entry(drvr, "hardware", brcms_defs_hardware_read);
+	brcms_defs_add_entry(drvr, "macstat", brcms_defs_macstat_read);
 }
 
 #define __brcms_fn(fn)						\

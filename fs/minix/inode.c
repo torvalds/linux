@@ -171,8 +171,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		return -ENOMEM;
 	s->s_fs_info = sbi;
 
-	BUILD_BUG_ON(32 != sizeof (struct minix_inode));
-	BUILD_BUG_ON(64 != sizeof(struct minix2_inode));
+	BUILD__ON(32 != sizeof (struct minix_inode));
+	BUILD__ON(64 != sizeof(struct minix2_inode));
 
 	if (!sb_set_blocksize(s, BLOCK_SIZE))
 		goto out_bad_hblock;

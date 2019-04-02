@@ -1610,7 +1610,7 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i <= nr_frags; i++) {
 		tx_cb_ptr = bcmgenet_get_txcb(priv, ring);
 
-		BUG_ON(!tx_cb_ptr);
+		_ON(!tx_cb_ptr);
 
 		if (!i) {
 			/* Transmit single SKB or head of fragment list */
@@ -3409,7 +3409,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 		pr_warn("GENET does not support 40-bits PA\n");
 #endif
 
-	pr_debug("Configuration for version: %d\n"
+	pr_de("Configuration for version: %d\n"
 		"TXq: %1d, TXqBDs: %1d, RXq: %1d, RXqBDs: %1d\n"
 		"BP << en: %2d, BP msk: 0x%05x\n"
 		"HFB count: %2d, QTAQ msk: 0x%05x\n"

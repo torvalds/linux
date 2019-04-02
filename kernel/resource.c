@@ -253,7 +253,7 @@ static void __release_child_resources(struct resource *r)
 		tmp->sibling = NULL;
 		__release_child_resources(tmp);
 
-		printk(KERN_DEBUG "release child resource %pR\n", tmp);
+		printk(KERN_DE "release child resource %pR\n", tmp);
 		/* need to restore size, and keep flags */
 		size = resource_size(tmp);
 		tmp->start = 0;
@@ -681,7 +681,7 @@ static int reallocate_resource(struct resource *root, struct resource *old,
 		__release_resource(old, true);
 		*old = new;
 		conflict = __request_resource(root, old);
-		BUG_ON(conflict);
+		_ON(conflict);
 	}
 out:
 	write_unlock(&resource_lock);
@@ -1134,7 +1134,7 @@ struct resource * __request_region(struct resource *parent,
 		/*
 		 * mm/hmm.c reserves physical addresses which then
 		 * become unavailable to other users.  Conflicts are
-		 * not expected.  Warn to aid debugging if encountered.
+		 * not expected.  Warn to aid deging if encountered.
 		 */
 		if (conflict->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY) {
 			pr_warn("Unaddressable device %s %pR conflicts with %pR",

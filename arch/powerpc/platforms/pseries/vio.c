@@ -399,7 +399,7 @@ static void vio_cmo_balance(struct work_struct *work)
 
 	/* Calculate minimum entitlement and fulfill spare */
 	cmo->min = vio_cmo_num_OF_devs() * VIO_CMO_MIN_ENT;
-	BUG_ON(cmo->min > cmo->entitled);
+	_ON(cmo->min > cmo->entitled);
 	cmo->spare = min_t(size_t, VIO_CMO_MIN_ENT, (cmo->entitled - cmo->min));
 	cmo->min += cmo->spare;
 	cmo->desired = cmo->min;
@@ -718,7 +718,7 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 		break;
 	default:
 		dev_warn(dev, "unknown device family: %d\n", viodev->family);
-		BUG();
+		();
 		break;
 	}
 
@@ -814,7 +814,7 @@ static void vio_cmo_bus_remove(struct vio_dev *viodev)
 		dev_err(&viodev->dev, "%s: device had %lu bytes of IO "
 		        "allocated after remove operation.\n",
 		        __func__, viodev->cmo.allocated);
-		BUG();
+		();
 	}
 
 	/*
@@ -1283,7 +1283,7 @@ static int vio_bus_remove(struct device *dev)
 int __vio_register_driver(struct vio_driver *viodrv, struct module *owner,
 			  const char *mod_name)
 {
-	pr_debug("%s: driver %s registering\n", __func__, viodrv->name);
+	pr_de("%s: driver %s registering\n", __func__, viodrv->name);
 
 	/* fill in 'struct driver' fields */
 	viodrv->driver.name = viodrv->name;
@@ -1360,7 +1360,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 
 	if (family == PFO) {
 		if (of_get_property(of_node, "interrupt-controller", NULL)) {
-			pr_debug("%s: Skipping the interrupt controller %pOFn.\n",
+			pr_de("%s: Skipping the interrupt controller %pOFn.\n",
 					__func__, of_node);
 			return NULL;
 		}
@@ -1702,7 +1702,7 @@ EXPORT_SYMBOL(vio_disable_interrupts);
 
 static int __init vio_init(void)
 {
-	dma_debug_add_bus(&vio_bus_type);
+	dma_de_add_bus(&vio_bus_type);
 	return 0;
 }
 fs_initcall(vio_init);

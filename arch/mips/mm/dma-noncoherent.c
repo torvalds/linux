@@ -98,7 +98,7 @@ static inline void dma_sync_virt(void *addr, size_t size,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -152,7 +152,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	dma_sync_virt(vaddr, size, direction);
 }

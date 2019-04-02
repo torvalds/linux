@@ -163,7 +163,7 @@ static inline bool gic_prio_masking_enabled(void)
 
 static inline void gic_pmr_mask_irqs(void)
 {
-	BUILD_BUG_ON(GICD_INT_DEF_PRI <= GIC_PRIO_IRQOFF);
+	BUILD__ON(GICD_INT_DEF_PRI <= GIC_PRIO_IRQOFF);
 	gic_write_pmr(GIC_PRIO_IRQOFF);
 }
 

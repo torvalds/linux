@@ -29,7 +29,7 @@
 #include <linux/mutex.h>
 #include "ms_block.h"
 
-static int debug;
+static int de;
 static int cache_flush_timeout = 1000;
 static bool verify_writes;
 
@@ -147,13 +147,13 @@ static int msb_get_zone_from_pba(int pba)
 	return pba / MS_BLOCKS_IN_ZONE;
 }
 
-/* Debug test to validate free block counts */
+/* De test to validate free block counts */
 static int msb_validate_used_block_bitmap(struct msb_data *msb)
 {
 	int total_free_blocks = 0;
 	int i;
 
-	if (!debug)
+	if (!de)
 		return 0;
 
 	for (i = 0; i < msb->zone_count; i++)
@@ -163,7 +163,7 @@ static int msb_validate_used_block_bitmap(struct msb_data *msb)
 					msb->block_count) == total_free_blocks)
 		return 0;
 
-	pr_err("BUG: free block counts don't match the bitmap");
+	pr_err(": free block counts don't match the bitmap");
 	msb->read_only = true;
 	return -EINVAL;
 }
@@ -175,7 +175,7 @@ static void msb_mark_block_used(struct msb_data *msb, int pba)
 
 	if (test_bit(pba, msb->used_blocks_bitmap)) {
 		pr_err(
-		"BUG: attempt to mark already used pba %d as used", pba);
+		": attempt to mark already used pba %d as used", pba);
 		msb->read_only = true;
 		return;
 	}
@@ -194,7 +194,7 @@ static void msb_mark_block_unused(struct msb_data *msb, int pba)
 	int zone = msb_get_zone_from_pba(pba);
 
 	if (!test_bit(pba, msb->used_blocks_bitmap)) {
-		pr_err("BUG: attempt to mark already unused pba %d as unused" , pba);
+		pr_err(": attempt to mark already unused pba %d as unused" , pba);
 		msb->read_only = true;
 		return;
 	}
@@ -461,7 +461,7 @@ again:
 		}
 	}
 
-	BUG();
+	();
 }
 
 /*
@@ -488,7 +488,7 @@ again:
 
 	/* HACK: Jmicon handling of TPCs between 8 and
 	 *	sizeof(memstick_request.data) is broken due to hardware
-	 *	bug in PIO mode that is used for these TPCs
+	 *	 in PIO mode that is used for these TPCs
 	 *	Therefore split the write
 	 */
 
@@ -574,7 +574,7 @@ again:
 		msb->state = MSB_WB_SEND_INT_REQ;
 		goto again;
 	default:
-		BUG();
+		();
 	}
 
 	return 0;
@@ -650,7 +650,7 @@ again:
 		return msb_exit_state_machine(msb, 0);
 	}
 
-	BUG();
+	();
 }
 
 /* Small handler for card reset */
@@ -673,7 +673,7 @@ static int h_msb_reset(struct memstick_dev *card,
 	case MSB_RS_CONFIRM:
 		return msb_exit_state_machine(msb, 0);
 	}
-	BUG();
+	();
 }
 
 /* This handler is used to do serial->parallel switch */
@@ -716,7 +716,7 @@ static int h_msb_parallel_switch(struct memstick_dev *card,
 		return msb_exit_state_machine(msb, 0);
 	}
 
-	BUG();
+	();
 }
 
 static int msb_switch_to_parallel(struct msb_data *msb);
@@ -899,7 +899,7 @@ static int msb_read_page(struct msb_data *msb,
 	}
 
 	if (pba >= msb->block_count) {
-		pr_err("BUG: attempt to read beyond the end of the card at pba %d", pba);
+		pr_err(": attempt to read beyond the end of the card at pba %d", pba);
 		return -EINVAL;
 	}
 
@@ -950,13 +950,13 @@ static int msb_read_oob(struct msb_data *msb, u16 pba, u16 page,
 {
 	int error;
 
-	BUG_ON(!extra);
+	_ON(!extra);
 	msb->regs.param.block_address = cpu_to_be16(pba);
 	msb->regs.param.page_address = page;
 	msb->regs.param.cp = MEMSTICK_CP_EXTRA;
 
 	if (pba > msb->block_count) {
-		pr_err("BUG: attempt to read beyond the end of card at pba %d", pba);
+		pr_err(": attempt to read beyond the end of card at pba %d", pba);
 		return -EINVAL;
 	}
 
@@ -1001,31 +1001,31 @@ static int msb_write_block(struct msb_data *msb,
 			u16 pba, u32 lba, struct scatterlist *sg, int offset)
 {
 	int error, current_try = 1;
-	BUG_ON(sg->length < msb->page_size);
+	_ON(sg->length < msb->page_size);
 
 	if (msb->read_only)
 		return -EROFS;
 
 	if (pba == MS_BLOCK_INVALID) {
 		pr_err(
-			"BUG: write: attempt to write MS_BLOCK_INVALID block");
+			": write: attempt to write MS_BLOCK_INVALID block");
 		return -EINVAL;
 	}
 
 	if (pba >= msb->block_count || lba >= msb->logical_block_count) {
 		pr_err(
-		"BUG: write: attempt to write beyond the end of device");
+		": write: attempt to write beyond the end of device");
 		return -EINVAL;
 	}
 
 	if (msb_get_zone_from_lba(lba) != msb_get_zone_from_pba(pba)) {
-		pr_err("BUG: write: lba zone mismatch");
+		pr_err(": write: lba zone mismatch");
 		return -EINVAL;
 	}
 
 	if (pba == msb->boot_block_locations[0] ||
 		pba == msb->boot_block_locations[1]) {
-		pr_err("BUG: write: attempt to write to boot blocks!");
+		pr_err(": write: attempt to write to boot blocks!");
 		return -EINVAL;
 	}
 
@@ -1103,7 +1103,7 @@ static u16 msb_get_free_block(struct msb_data *msb, int zone)
 	dbg_verbose("result of the free blocks scan: pba %d", pba);
 
 	if (pba == msb->block_count || (msb_get_zone_from_pba(pba)) != zone) {
-		pr_err("BUG: cant get a free block");
+		pr_err(": cant get a free block");
 		msb->read_only = true;
 		return MS_BLOCK_INVALID;
 	}
@@ -1260,7 +1260,7 @@ static int msb_read_bad_block_table(struct msb_data *msb, int block_nr)
 	int data_size, data_offset, page, page_offset, size_to_read;
 	u16 pba;
 
-	BUG_ON(block_nr > 1);
+	_ON(block_nr > 1);
 	boot_block = &msb->boot_page[block_nr];
 	pba = msb->boot_block_locations[block_nr];
 
@@ -1709,7 +1709,7 @@ static int msb_init_card(struct memstick_dev *card)
 	if (error)
 		return error;
 
-	/* Due to a bug in Jmicron driver written by Alex Dubov,
+	/* Due to a  in Jmicron driver written by Alex Dubov,
 	 its serial mode barely works,
 	 so we switch to parallel mode right away */
 	if (host->caps & MEMSTICK_CAP_PAR4)
@@ -2355,8 +2355,8 @@ module_exit(msb_exit);
 module_param(cache_flush_timeout, int, S_IRUGO);
 MODULE_PARM_DESC(cache_flush_timeout,
 				"Cache flush timeout in msec (1000 default)");
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 module_param(verify_writes, bool, S_IRUGO);
 MODULE_PARM_DESC(verify_writes, "Read back and check all data that is written");

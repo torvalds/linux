@@ -276,7 +276,7 @@ xfs_ag_resv_init(
 			 * Because we didn't have per-AG reservations when the
 			 * finobt feature was added we might not be able to
 			 * reserve all needed blocks.  Warn and fall back to the
-			 * old and potentially buggy code in that case, but
+			 * old and potentially gy code in that case, but
 			 * ensure we do have the reservation for the refcountbt.
 			 */
 			ask = used = 0;
@@ -308,7 +308,7 @@ xfs_ag_resv_init(
 			goto out;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	/* need to read in the AGF for the ASSERT below to work */
 	error = xfs_alloc_pagf_init(pag->pag_mount, tp, pag->pag_agno, 0);
 	if (error)

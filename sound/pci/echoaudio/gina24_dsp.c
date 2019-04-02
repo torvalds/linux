@@ -41,7 +41,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	if (snd_BUG_ON((subdevice_id & 0xfff0) != GINA24))
+	if (snd__ON((subdevice_id & 0xfff0) != GINA24))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
@@ -163,7 +163,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 {
 	u32 control_reg, clock;
 
-	if (snd_BUG_ON(rate >= 50000 &&
+	if (snd__ON(rate >= 50000 &&
 		       chip->digital_mode == DIGITAL_MODE_ADAT))
 		return -EINVAL;
 

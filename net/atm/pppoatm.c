@@ -182,11 +182,11 @@ static void pppoatm_unassign_vcc(struct atm_vcc *atmvcc)
 static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = atmvcc_to_pvcc(atmvcc);
-	pr_debug("\n");
+	pr_de("\n");
 	if (skb == NULL) {			/* VCC was closed */
 		struct module *module;
 
-		pr_debug("removing ATMPPP VCC %p\n", pvcc);
+		pr_de("removing ATMPPP VCC %p\n", pvcc);
 		module = pvcc->old_owner;
 		pppoatm_unassign_vcc(atmvcc);
 		atmvcc->push(atmvcc, NULL);	/* Pass along bad news */
@@ -219,7 +219,7 @@ static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			pvcc->chan.mtu += LLC_LEN;
 			break;
 		}
-		pr_debug("Couldn't autodetect yet (skb: %02X %02X %02X %02X %02X %02X)\n",
+		pr_de("Couldn't autodetect yet (skb: %02X %02X %02X %02X %02X %02X)\n",
 			 skb->data[0], skb->data[1], skb->data[2],
 			 skb->data[3], skb->data[4], skb->data[5]);
 		goto error;
@@ -296,7 +296,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 	int ret;
 
 	ATM_SKB(skb)->vcc = pvcc->atmvcc;
-	pr_debug("(skb=0x%p, vcc=0x%p)\n", skb, pvcc->atmvcc);
+	pr_de("(skb=0x%p, vcc=0x%p)\n", skb, pvcc->atmvcc);
 	if (skb->data[0] == '\0' && (pvcc->flags & SC_COMP_PROT))
 		(void) skb_pull(skb, 1);
 
@@ -345,13 +345,13 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 		break;
 	case e_autodetect:
 		bh_unlock_sock(sk_atm(vcc));
-		pr_debug("Trying to send without setting encaps!\n");
+		pr_de("Trying to send without setting encaps!\n");
 		kfree_skb(skb);
 		return 1;
 	}
 
 	atm_account_tx(vcc, skb);
-	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n",
+	pr_de("atm_skb(%p)->vcc(%p)->dev(%p)\n",
 		 skb, ATM_SKB(skb)->vcc, ATM_SKB(skb)->vcc->dev);
 	ret = ATM_SKB(skb)->vcc->send(ATM_SKB(skb)->vcc, skb)
 	    ? DROP_PACKET : 1;

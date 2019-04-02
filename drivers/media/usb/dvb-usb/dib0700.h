@@ -14,11 +14,11 @@
 
 #include "dib07x0.h"
 
-extern int dvb_usb_dib0700_debug;
-#define deb_info(args...)   dprintk(dvb_usb_dib0700_debug,0x01,args)
-#define deb_fw(args...)     dprintk(dvb_usb_dib0700_debug,0x02,args)
-#define deb_fwdata(args...) dprintk(dvb_usb_dib0700_debug,0x04,args)
-#define deb_data(args...)   dprintk(dvb_usb_dib0700_debug,0x08,args)
+extern int dvb_usb_dib0700_de;
+#define deb_info(args...)   dprintk(dvb_usb_dib0700_de,0x01,args)
+#define deb_fw(args...)     dprintk(dvb_usb_dib0700_de,0x02,args)
+#define deb_fwdata(args...) dprintk(dvb_usb_dib0700_de,0x04,args)
+#define deb_data(args...)   dprintk(dvb_usb_dib0700_de,0x08,args)
 
 #define REQUEST_SET_USB_XFER_LEN    0x0 /* valid only for firmware version */
 					/* higher than 1.21 */

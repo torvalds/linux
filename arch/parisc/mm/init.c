@@ -581,24 +581,24 @@ unsigned long pcxl_dma_start __read_mostly;
 void __init mem_init(void)
 {
 	/* Do sanity checks on IPC (compat) structures */
-	BUILD_BUG_ON(sizeof(struct ipc64_perm) != 48);
+	BUILD__ON(sizeof(struct ipc64_perm) != 48);
 #ifndef CONFIG_64BIT
-	BUILD_BUG_ON(sizeof(struct semid64_ds) != 80);
-	BUILD_BUG_ON(sizeof(struct msqid64_ds) != 104);
-	BUILD_BUG_ON(sizeof(struct shmid64_ds) != 104);
+	BUILD__ON(sizeof(struct semid64_ds) != 80);
+	BUILD__ON(sizeof(struct msqid64_ds) != 104);
+	BUILD__ON(sizeof(struct shmid64_ds) != 104);
 #endif
 #ifdef CONFIG_COMPAT
-	BUILD_BUG_ON(sizeof(struct compat_ipc64_perm) != sizeof(struct ipc64_perm));
-	BUILD_BUG_ON(sizeof(struct compat_semid64_ds) != 80);
-	BUILD_BUG_ON(sizeof(struct compat_msqid64_ds) != 104);
-	BUILD_BUG_ON(sizeof(struct compat_shmid64_ds) != 104);
+	BUILD__ON(sizeof(struct compat_ipc64_perm) != sizeof(struct ipc64_perm));
+	BUILD__ON(sizeof(struct compat_semid64_ds) != 80);
+	BUILD__ON(sizeof(struct compat_msqid64_ds) != 104);
+	BUILD__ON(sizeof(struct compat_shmid64_ds) != 104);
 #endif
 
 	/* Do sanity checks on page table constants */
-	BUILD_BUG_ON(PTE_ENTRY_SIZE != sizeof(pte_t));
-	BUILD_BUG_ON(PMD_ENTRY_SIZE != sizeof(pmd_t));
-	BUILD_BUG_ON(PGD_ENTRY_SIZE != sizeof(pgd_t));
-	BUILD_BUG_ON(PAGE_SHIFT + BITS_PER_PTE + BITS_PER_PMD + BITS_PER_PGD
+	BUILD__ON(PTE_ENTRY_SIZE != sizeof(pte_t));
+	BUILD__ON(PMD_ENTRY_SIZE != sizeof(pmd_t));
+	BUILD__ON(PGD_ENTRY_SIZE != sizeof(pgd_t));
+	BUILD__ON(PAGE_SHIFT + BITS_PER_PTE + BITS_PER_PMD + BITS_PER_PGD
 			> BITS_PER_LONG);
 
 	high_memory = __va((max_pfn << PAGE_SHIFT));
@@ -619,7 +619,7 @@ void __init mem_init(void)
 #if 0
 	/*
 	 * Do not expose the virtual kernel memory layout to userspace.
-	 * But keep code for debugging purposes.
+	 * But keep code for deging purposes.
 	 */
 	printk("virtual kernel memory layout:\n"
 	       "    vmalloc : 0x%px - 0x%px   (%4ld MB)\n"
@@ -788,7 +788,7 @@ unsigned long alloc_sid(void)
 			flush_tlb_all(); /* flush_tlb_all() calls recycle_sids() */
 			spin_lock(&sid_lock);
 		}
-		BUG_ON(free_space_ids == 0);
+		_ON(free_space_ids == 0);
 	}
 
 	free_space_ids--;
@@ -812,7 +812,7 @@ void free_sid(unsigned long spaceid)
 
 	spin_lock(&sid_lock);
 
-	BUG_ON(*dirty_space_offset & (1L << index)); /* attempt to free space id twice */
+	_ON(*dirty_space_offset & (1L << index)); /* attempt to free space id twice */
 
 	*dirty_space_offset |= (1L << index);
 	dirty_space_ids++;
@@ -897,7 +897,7 @@ void flush_tlb_all(void)
 	do_recycle = 0;
 	spin_lock(&sid_lock);
 	if (dirty_space_ids > RECYCLE_THRESHOLD) {
-	    BUG_ON(recycle_inuse);  /* FIXME: Use a semaphore/wait queue here */
+	    _ON(recycle_inuse);  /* FIXME: Use a semaphore/wait queue here */
 	    get_dirty_sids(&recycle_ndirty,recycle_dirty_array);
 	    recycle_inuse++;
 	    do_recycle++;

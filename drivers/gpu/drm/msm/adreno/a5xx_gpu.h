@@ -49,8 +49,8 @@ struct a5xx_gpu {
 
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)
 
-#ifdef CONFIG_DEBUG_FS
-int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor);
+#ifdef CONFIG_DE_FS
+int a5xx_defs_init(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
 
 /*

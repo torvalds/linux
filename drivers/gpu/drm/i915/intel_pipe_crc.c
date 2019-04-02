@@ -27,7 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "intel_drv.h"
 
 static const char * const pipe_crc_sources[] = {
@@ -570,7 +570,7 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 	enum intel_pipe_crc_source source;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DE_DRIVER("unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -594,14 +594,14 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	int ret = 0;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DE_DRIVER("unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 
 	power_domain = POWER_DOMAIN_PIPE(crtc->index);
 	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
 	if (!wakeref) {
-		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
+		DRM_DE_KMS("Trying to capture CRC while pipe is off\n");
 		return -EIO;
 	}
 

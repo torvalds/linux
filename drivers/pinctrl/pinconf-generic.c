@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
@@ -26,7 +26,7 @@
 #include "pinconf.h"
 #include "pinctrl-utils.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_BIAS_BUS_HOLD, "input bias bus hold", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_DISABLE, "input bias disabled", NULL, false),
@@ -220,7 +220,7 @@ static void parse_dt_cfg(struct device_node *np,
 		if (ret)
 			val = par->default_value;
 
-		pr_debug("found %s with value %u\n", par->property, val);
+		pr_de("found %s with value %u\n", par->property, val);
 		cfg[*ncfg] = pinconf_to_config_packed(par->param, val);
 		(*ncfg)++;
 	}

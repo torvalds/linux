@@ -14,7 +14,7 @@
  */
 
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -38,12 +38,12 @@
 #include "signal32.h"
 #endif
 
-#define DEBUG_SIG 0 
-#define DEBUG_SIG_LEVEL 2
+#define DE_SIG 0 
+#define DE_SIG_LEVEL 2
 
-#if DEBUG_SIG
+#if DE_SIG
 #define DBG(LEVEL, ...) \
-        ((DEBUG_SIG_LEVEL >= LEVEL) \
+        ((DE_SIG_LEVEL >= LEVEL) \
 	? printk(__VA_ARGS__) : (void) 0)
 #else
 #define DBG(LEVEL, ...)
@@ -65,7 +65,7 @@
 #define INSN_LDI_R25_1	 0x34190002 /* ldi  1,%r25 (in_syscall=1) */
 #define INSN_LDI_R20	 0x3414015a /* ldi  __NR_rt_sigreturn,%r20 */
 #define INSN_BLE_SR2_R0  0xe4008200 /* be,l 0x100(%sr2,%r0),%sr0,%r31 */
-/* For debugging */
+/* For deging */
 #define INSN_DIE_HORRIBLY 0x68000ccc /* stw %r0,0x666(%sr0,%r0) */
 
 static long
@@ -156,7 +156,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 	 */
 	if (in_syscall)
 		regs->gr[31] = regs->iaoq[0];
-#if DEBUG_SIG
+#if DE_SIG
 	DBG(1,"sys_rt_sigreturn: returning to %#lx, DUMPING REGS:\n", regs->iaoq[0]);
 	show_regs(regs);
 #endif
@@ -288,7 +288,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs,
 			&frame->tramp[SIGRESTARTBLOCK_TRAMP+2]);
 	err |= __put_user(INSN_NOP, &frame->tramp[SIGRESTARTBLOCK_TRAMP+3]);
 
-#if DEBUG_SIG
+#if DE_SIG
 	/* Assert that we're flushing in the correct space... */
 	{
 		unsigned long sid;
@@ -430,7 +430,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs, int in_syscall)
 	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP) ||
 			  test_thread_flag(TIF_BLOCKSTEP));
 
-	DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
+	DBG(1,KERN_DE "do_signal: Exit (success), regs->gr[28] = %ld\n",
 		regs->gr[28]);
 }
 

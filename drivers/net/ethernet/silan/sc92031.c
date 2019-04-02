@@ -953,7 +953,7 @@ static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
 		goto out_unlock;
 	}
 
-	BUG_ON(priv->tx_head - priv->tx_tail >= NUM_TX_DESC);
+	_ON(priv->tx_head - priv->tx_tail >= NUM_TX_DESC);
 
 	entry = priv->tx_head++ % NUM_TX_DESC;
 

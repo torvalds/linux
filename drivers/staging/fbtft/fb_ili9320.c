@@ -37,7 +37,7 @@ static int init_display(struct fbtft_par *par)
 	par->fbtftops.reset(par);
 
 	devcode = read_devicecode(par);
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "Device code: 0x%04X\n",
+	fbtft_par_dbg(DE_INIT_DISPLAY, par, "Device code: 0x%04X\n",
 		      devcode);
 	if ((devcode != 0x0000) && (devcode != 0x9320))
 		dev_warn(par->info->device,

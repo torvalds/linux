@@ -106,7 +106,7 @@ static inline bool mips_cm_has_l2sync(void)
 #define MIPS_CM_GCB_OFS		0x0000 /* Global Control Block */
 #define MIPS_CM_CLCB_OFS	0x2000 /* Core Local Control Block */
 #define MIPS_CM_COCB_OFS	0x4000 /* Core Other Control Block */
-#define MIPS_CM_GDB_OFS		0x6000 /* Global Debug Block */
+#define MIPS_CM_GDB_OFS		0x6000 /* Global De Block */
 
 /* Total size of the CM memory mapped registers */
 #define MIPS_CM_GCR_SIZE	0x8000

@@ -43,7 +43,7 @@ static const struct acpi_gpio_params mux_gpios = { INT3496_GPIO_USB_MUX, 0, fals
 
 static const struct acpi_gpio_mapping acpi_int3496_default_gpios[] = {
 	/*
-	 * Some platforms have a bug in ACPI GPIO description making IRQ
+	 * Some platforms have a  in ACPI GPIO description making IRQ
 	 * GPIO to be output only. Ask the GPIO core to ignore this limit.
 	 */
 	{ "id-gpios", &id_gpios, 1, ACPI_GPIO_QUIRK_NO_IO_RESTRICTION },

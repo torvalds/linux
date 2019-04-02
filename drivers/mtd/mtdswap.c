@@ -34,7 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/genhd.h>
 #include <linux/swap.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
 #include <linux/math64.h>
@@ -1118,7 +1118,7 @@ static int mtdswap_readsect(struct mtd_blktrans_dev *dev,
 	}
 
 	eb = d->eb_data + (realblock / d->pages_per_eblk);
-	BUG_ON(d->revmap[realblock] == PAGE_UNDEF);
+	_ON(d->revmap[realblock] == PAGE_UNDEF);
 
 	readpos = (loff_t)realblock << PAGE_SHIFT;
 	retries = 0;
@@ -1267,21 +1267,21 @@ static int mtdswap_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(mtdswap);
 
-static int mtdswap_add_debugfs(struct mtdswap_dev *d)
+static int mtdswap_add_defs(struct mtdswap_dev *d)
 {
 	struct dentry *root = d->mtd->dbg.dfs_dir;
 	struct dentry *dent;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+	if (!IS_ENABLED(CONFIG_DE_FS))
 		return 0;
 
 	if (IS_ERR_OR_NULL(root))
 		return -1;
 
-	dent = debugfs_create_file("mtdswap_stats", S_IRUSR, root, d,
+	dent = defs_create_file("mtdswap_stats", S_IRUSR, root, d,
 				&mtdswap_fops);
 	if (!dent) {
-		dev_err(d->dev, "debugfs_create_file failed\n");
+		dev_err(d->dev, "defs_create_file failed\n");
 		return -1;
 	}
 
@@ -1463,13 +1463,13 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	d->dev = disk_to_dev(mbd_dev->disk);
 
-	ret = mtdswap_add_debugfs(d);
+	ret = mtdswap_add_defs(d);
 	if (ret < 0)
-		goto debugfs_failed;
+		goto defs_failed;
 
 	return;
 
-debugfs_failed:
+defs_failed:
 	del_mtd_blktrans_dev(mbd_dev);
 
 cleanup:

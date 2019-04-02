@@ -9,7 +9,7 @@
 #include <linux/uaccess.h>
 #include <linux/uprobes.h>
 #include <linux/compat.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/sched/task_stack.h>
 
 #include <asm/switch_to.h>

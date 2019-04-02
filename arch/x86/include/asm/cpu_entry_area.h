@@ -37,19 +37,19 @@ struct cpu_entry_area {
 	 * In the future, this should have a separate slot for each stack
 	 * with guard pages between them.
 	 */
-	char exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ];
+	char exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DE_STKSZ];
 #endif
 #ifdef CONFIG_CPU_SUP_INTEL
 	/*
-	 * Per CPU debug store for Intel performance monitoring. Wastes a
+	 * Per CPU de store for Intel performance monitoring. Wastes a
 	 * full page at the moment.
 	 */
-	struct debug_store cpu_debug_store;
+	struct de_store cpu_de_store;
 	/*
 	 * The actual PEBS/BTS buffers must be mapped to user space
 	 * Reserve enough fixmap PTEs.
 	 */
-	struct debug_store_buffers cpu_debug_buffers;
+	struct de_store_buffers cpu_de_buffers;
 #endif
 };
 

@@ -30,7 +30,7 @@
 #include <linux/of_irq.h>
 #include <linux/usb/of.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "musb_core.h"
 
@@ -109,11 +109,11 @@ struct dsps_glue {
 	void __iomem *usbss_base;
 
 	struct dsps_context context;
-	struct debugfs_regset32 regset;
+	struct defs_regset32 regset;
 	struct dentry *dbgfs_root;
 };
 
-static const struct debugfs_reg32 dsps_musb_regs[] = {
+static const struct defs_reg32 dsps_musb_regs[] = {
 	{ "revision",		0x00 },
 	{ "control",		0x14 },
 	{ "status",		0x18 },
@@ -413,14 +413,14 @@ static int dsps_musb_dbg_init(struct musb *musb, struct dsps_glue *glue)
 	char buf[128];
 
 	sprintf(buf, "%s.dsps", dev_name(musb->controller));
-	root = debugfs_create_dir(buf, NULL);
+	root = defs_create_dir(buf, NULL);
 	glue->dbgfs_root = root;
 
 	glue->regset.regs = dsps_musb_regs;
 	glue->regset.nregs = ARRAY_SIZE(dsps_musb_regs);
 	glue->regset.base = musb->ctrl_base;
 
-	debugfs_create_regset32("regdump", S_IRUGO, root, &glue->regset);
+	defs_create_regset32("regdump", S_IRUGO, root, &glue->regset);
 	return 0;
 }
 
@@ -504,7 +504,7 @@ static int dsps_musb_exit(struct musb *musb)
 	del_timer_sync(&musb->dev_timer);
 	phy_power_off(musb->phy);
 	phy_exit(musb->phy);
-	debugfs_remove_recursive(glue->dbgfs_root);
+	defs_remove_recursive(glue->dbgfs_root);
 
 	return 0;
 }

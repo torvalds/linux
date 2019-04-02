@@ -632,7 +632,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 					       GFP_KERNEL);
 	if (devpriv->dma_desc_phys_addr & 0xf) {
 		dev_warn(dev->class_dev,
-			 " dma descriptors not quad-word aligned (bug)\n");
+			 " dma descriptors not quad-word aligned ()\n");
 		return -EIO;
 	}
 

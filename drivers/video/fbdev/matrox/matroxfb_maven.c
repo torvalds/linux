@@ -239,7 +239,7 @@ static int matroxfb_PLL_mavenclock(const struct matrox_pll_features2* pll,
 	fwant = htotal * vtotal;
 	fmax = pll->vco_freq_max / ctl->den;
 
-	dprintk(KERN_DEBUG "want: %u, xtal: %u, h: %u, v: %u, fmax: %u\n",
+	dprintk(KERN_DE "want: %u, xtal: %u, h: %u, v: %u, fmax: %u\n",
 		fwant, fxtal, htotal, vtotal, fmax);
 	for (p = 1; p <= pll->post_shift_max; p++) {
 		if (fwant * 2 > fmax)
@@ -275,9 +275,9 @@ static int matroxfb_PLL_mavenclock(const struct matrox_pll_features2* pll,
 			ln = ln - scrlen;
 			if (ln > htotal)
 				continue;
-			dprintk(KERN_DEBUG "Match: %u / %u / %u / %u\n", n, m, p, ln);
+			dprintk(KERN_DE "Match: %u / %u / %u / %u\n", n, m, p, ln);
 			if (ln > besth2) {
-				dprintk(KERN_DEBUG "Better...\n");
+				dprintk(KERN_DE "Better...\n");
 				*h2 = besth2 = ln;
 				*post = p;
 				*in = m;

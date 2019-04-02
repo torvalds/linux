@@ -36,7 +36,7 @@ static const unsigned int ipipe_fmts[] = {
  * ipipe_print_status - Print current IPIPE Module register values.
  * @ipipe: Pointer to ISS ISP IPIPE device.
  *
- * Also prints other debug information stored in the IPIPE module.
+ * Also prints other de information stored in the IPIPE module.
  */
 #define IPIPE_PRINT_REGISTER(iss, name)\
 	dev_dbg(iss->dev, "###IPIPE " #name "=0x%08x\n", \

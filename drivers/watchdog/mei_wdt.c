@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/completion.h>
 #include <linux/watchdog.h>
 
@@ -87,7 +87,7 @@ static const char *mei_wdt_state_str(enum mei_wdt_state state)
  * @reg_lock: watchdog device registration lock
  * @timeout: watchdog current timeout
  *
- * @dbgfs_dir: debugfs dir entry
+ * @dbgfs_dir: defs dir entry
  */
 struct mei_wdt {
 	struct watchdog_device wdd;
@@ -100,9 +100,9 @@ struct mei_wdt {
 	struct mutex reg_lock;
 	u16 timeout;
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 };
 
 /*
@@ -490,7 +490,7 @@ static void mei_wdt_notif(struct mei_cl_device *cldev)
 	mei_wdt_register(wdt);
 }
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 
 static ssize_t mei_dbgfs_read_activation(struct file *file, char __user *ubuf,
 					size_t cnt, loff_t *ppos)
@@ -535,7 +535,7 @@ static const struct file_operations dbgfs_fops_state = {
 
 static void dbgfs_unregister(struct mei_wdt *wdt)
 {
-	debugfs_remove_recursive(wdt->dbgfs_dir);
+	defs_remove_recursive(wdt->dbgfs_dir);
 	wdt->dbgfs_dir = NULL;
 }
 
@@ -543,16 +543,16 @@ static int dbgfs_register(struct mei_wdt *wdt)
 {
 	struct dentry *dir, *f;
 
-	dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	dir = defs_create_dir(KBUILD_MODNAME, NULL);
 	if (!dir)
 		return -ENOMEM;
 
 	wdt->dbgfs_dir = dir;
-	f = debugfs_create_file("state", S_IRUSR, dir, wdt, &dbgfs_fops_state);
+	f = defs_create_file("state", S_IRUSR, dir, wdt, &dbgfs_fops_state);
 	if (!f)
 		goto err;
 
-	f = debugfs_create_file("activation",  S_IRUSR,
+	f = defs_create_file("activation",  S_IRUSR,
 				dir, wdt, &dbgfs_fops_activation);
 	if (!f)
 		goto err;
@@ -571,7 +571,7 @@ static inline int dbgfs_register(struct mei_wdt *wdt)
 {
 	return 0;
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int mei_wdt_probe(struct mei_cl_device *cldev,
 			 const struct mei_cl_device_id *id)
@@ -624,7 +624,7 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 		goto err_disable;
 
 	if (dbgfs_register(wdt))
-		dev_warn(&cldev->dev, "cannot register debugfs\n");
+		dev_warn(&cldev->dev, "cannot register defs\n");
 
 	return 0;
 

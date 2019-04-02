@@ -9,7 +9,7 @@
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2001 Gerd Knorr <kraxel@goldbach.in-berlin.de>
 
- * Adjustments to fit a more general model and all bugs:
+ * Adjustments to fit a more general model and all s:
 
 	Copyright (C) 2003 John Klar <linpvr at projectplasma.com>
 
@@ -499,7 +499,7 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 			return;
 		}
 
-		pr_debug("Tag [%02x] + %d bytes: %*ph\n",
+		pr_de("Tag [%02x] + %d bytes: %*ph\n",
 			eeprom_data[i], len - 1, len, &eeprom_data[i]);
 
 		/* process by tag */
@@ -640,7 +640,7 @@ void tveeprom_hauppauge_analog(struct tveeprom *tvee,
 		/* case 0x12: tag 'InfoBits' */
 
 		default:
-			pr_debug("Not sure what to do with tag [%02x]\n",
+			pr_de("Not sure what to do with tag [%02x]\n",
 					tag);
 			/* dump the rest of the packet? */
 		}
@@ -760,7 +760,7 @@ int tveeprom_read(struct i2c_client *c, unsigned char *eedata, int len)
 		return -1;
 	}
 
-	print_hex_dump_debug("full 256-byte eeprom dump:", DUMP_PREFIX_NONE,
+	print_hex_dump_de("full 256-byte eeprom dump:", DUMP_PREFIX_NONE,
 			     16, 1, eedata, len, true);
 	return 0;
 }

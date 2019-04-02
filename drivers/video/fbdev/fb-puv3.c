@@ -580,7 +580,7 @@ static int unifb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		red = CNVT_TOHW(red, 8);	/* expect 8 bit DAC */
 		green = CNVT_TOHW(green, 8);
 		blue = CNVT_TOHW(blue, 8);
-		/* hey, there is bug in transp handling... */
+		/* hey, there is  in transp handling... */
 		transp = CNVT_TOHW(transp, 8);
 		break;
 	}

@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/bitmap.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 /* Don't assign or return these: may not be this big! */
 typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
@@ -117,9 +117,9 @@ extern struct cpumask __cpu_active_mask;
 
 static inline void cpu_max_bits_warn(unsigned int cpu, unsigned int bits)
 {
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+#ifdef CONFIG_DE_PER_CPU_MAPS
 	WARN_ON_ONCE(cpu >= bits);
-#endif /* CONFIG_DEBUG_PER_CPU_MAPS */
+#endif /* CONFIG_DE_PER_CPU_MAPS */
 }
 
 /* verify cpu argument to cpumask_* operators */

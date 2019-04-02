@@ -156,7 +156,7 @@ static int arc_pmu_cache_event(u64 config)
 	if (ret == CACHE_OP_UNSUPPORTED)
 		return -ENOENT;
 
-	pr_debug("init cache event: type/op/result %d/%d/%d with h/w %d \'%s\'\n",
+	pr_de("init cache event: type/op/result %d/%d/%d with h/w %d \'%s\'\n",
 		 cache_type, cache_op, cache_result, ret,
 		 arc_pmu_ev_hw_map[ret]);
 
@@ -194,7 +194,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
 		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
-		pr_debug("init event %d with h/w %08x \'%s\'\n",
+		pr_de("init event %d with h/w %08x \'%s\'\n",
 			 (int)event->attr.config, (int)hwc->config,
 			 arc_pmu_ev_hw_map[event->attr.config]);
 		return 0;
@@ -204,7 +204,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (ret < 0)
 			return ret;
 		hwc->config |= arc_pmu->ev_hw_idx[ret];
-		pr_debug("init cache event with h/w %08x \'%s\'\n",
+		pr_de("init cache event with h/w %08x \'%s\'\n",
 			 (int)hwc->config, arc_pmu_ev_hw_map[ret]);
 		return 0;
 
@@ -213,7 +213,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 			return -ENOENT;
 
 		hwc->config |= event->attr.config;
-		pr_debug("init raw event with idx %lld \'%s\'\n",
+		pr_de("init raw event with idx %lld \'%s\'\n",
 			 event->attr.config,
 			 arc_pmu->raw_entry[event->attr.config].name);
 
@@ -551,7 +551,7 @@ static void arc_pmu_map_hw_event(int j, char *str)
 	/* See if HW condition has been mapped to a perf event_id */
 	for (i = 0; i < ARRAY_SIZE(arc_pmu_ev_hw_map); i++) {
 		if (event_in_hw_event_map(i, str)) {
-			pr_debug("mapping perf event %2d to h/w event \'%8s\' (idx %d)\n",
+			pr_de("mapping perf event %2d to h/w event \'%8s\' (idx %d)\n",
 				 i, str, j);
 			arc_pmu->ev_hw_idx[i] = j;
 		}
@@ -579,7 +579,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		pr_err("This core does not have performance counters!\n");
 		return -ENODEV;
 	}
-	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
+	BUILD__ON(ARC_PERF_MAX_COUNTERS > 32);
 	if (WARN_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS))
 		return -EINVAL;
 

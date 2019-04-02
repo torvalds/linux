@@ -2881,7 +2881,7 @@ static void xgbe_phy_cdr_track(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	if (!pdata->debugfs_an_cdr_workaround)
+	if (!pdata->defs_an_cdr_workaround)
 		return;
 
 	if (!phy_data->phy_cdr_notrack)
@@ -2901,7 +2901,7 @@ static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	if (!pdata->debugfs_an_cdr_workaround)
+	if (!pdata->defs_an_cdr_workaround)
 		return;
 
 	if (phy_data->phy_cdr_notrack)
@@ -2918,13 +2918,13 @@ static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_kr_training_post(struct xgbe_prv_data *pdata)
 {
-	if (!pdata->debugfs_an_cdr_track_early)
+	if (!pdata->defs_an_cdr_track_early)
 		xgbe_phy_cdr_track(pdata);
 }
 
 static void xgbe_phy_kr_training_pre(struct xgbe_prv_data *pdata)
 {
-	if (pdata->debugfs_an_cdr_track_early)
+	if (pdata->defs_an_cdr_track_early)
 		xgbe_phy_cdr_track(pdata);
 }
 

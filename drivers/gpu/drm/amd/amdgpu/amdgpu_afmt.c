@@ -81,7 +81,7 @@ static void amdgpu_afmt_calc_cts(uint32_t clock, int *CTS, int *N, int freq)
 	*N = n;
 	*CTS = cts;
 
-	DRM_DEBUG("Calculated ACR timing N=%d CTS=%d for frequency %d\n",
+	DRM_DE("Calculated ACR timing N=%d CTS=%d for frequency %d\n",
 		  *N, *CTS, freq);
 }
 

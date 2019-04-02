@@ -124,7 +124,7 @@ struct net_device *alloc_libipw(int sizeof_priv, int monitor)
 	struct net_device *dev;
 	int err;
 
-	LIBIPW_DEBUG_INFO("Initializing...\n");
+	LIBIPW_DE_INFO("Initializing...\n");
 
 	dev = alloc_etherdev(sizeof(struct libipw_device) + sizeof_priv);
 	if (!dev)
@@ -217,25 +217,25 @@ void free_libipw(struct net_device *dev, int monitor)
 }
 EXPORT_SYMBOL(free_libipw);
 
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_LIBIPW_DE
 
-static int debug = 0;
-u32 libipw_debug_level = 0;
-EXPORT_SYMBOL_GPL(libipw_debug_level);
+static int de = 0;
+u32 libipw_de_level = 0;
+EXPORT_SYMBOL_GPL(libipw_de_level);
 static struct proc_dir_entry *libipw_proc = NULL;
 
-static int debug_level_proc_show(struct seq_file *m, void *v)
+static int de_level_proc_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "0x%08X\n", libipw_debug_level);
+	seq_printf(m, "0x%08X\n", libipw_de_level);
 	return 0;
 }
 
-static int debug_level_proc_open(struct inode *inode, struct file *file)
+static int de_level_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, debug_level_proc_show, NULL);
+	return single_open(file, de_level_proc_show, NULL);
 }
 
-static ssize_t debug_level_proc_write(struct file *file,
+static ssize_t de_level_proc_write(struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
 	char buf[] = "0x00000000\n";
@@ -249,41 +249,41 @@ static ssize_t debug_level_proc_write(struct file *file,
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
-		libipw_debug_level = val;
+		libipw_de_level = val;
 
 	return strnlen(buf, len);
 }
 
-static const struct file_operations debug_level_proc_fops = {
+static const struct file_operations de_level_proc_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_level_proc_open,
+	.open		= de_level_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
-	.write		= debug_level_proc_write,
+	.write		= de_level_proc_write,
 };
-#endif				/* CONFIG_LIBIPW_DEBUG */
+#endif				/* CONFIG_LIBIPW_DE */
 
 static int __init libipw_init(void)
 {
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_LIBIPW_DE
 	struct proc_dir_entry *e;
 
-	libipw_debug_level = debug;
+	libipw_de_level = de;
 	libipw_proc = proc_mkdir(DRV_PROCNAME, init_net.proc_net);
 	if (libipw_proc == NULL) {
 		LIBIPW_ERROR("Unable to create " DRV_PROCNAME
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", 0644, libipw_proc,
-			&debug_level_proc_fops);
+	e = proc_create("de_level", 0644, libipw_proc,
+			&de_level_proc_fops);
 	if (!e) {
 		remove_proc_entry(DRV_PROCNAME, init_net.proc_net);
 		libipw_proc = NULL;
 		return -EIO;
 	}
-#endif				/* CONFIG_LIBIPW_DEBUG */
+#endif				/* CONFIG_LIBIPW_DE */
 
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
@@ -293,20 +293,20 @@ static int __init libipw_init(void)
 
 static void __exit libipw_exit(void)
 {
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_LIBIPW_DE
 	if (libipw_proc) {
-		remove_proc_entry("debug_level", libipw_proc);
+		remove_proc_entry("de_level", libipw_proc);
 		remove_proc_entry(DRV_PROCNAME, init_net.proc_net);
 		libipw_proc = NULL;
 	}
-#endif				/* CONFIG_LIBIPW_DEBUG */
+#endif				/* CONFIG_LIBIPW_DE */
 }
 
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_LIBIPW_DE
 #include <linux/moduleparam.h>
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "debug output mask");
-#endif				/* CONFIG_LIBIPW_DEBUG */
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "de output mask");
+#endif				/* CONFIG_LIBIPW_DE */
 
 module_exit(libipw_exit);
 module_init(libipw_init);

@@ -149,7 +149,7 @@ Table of contents
    A root user may write a decimal or hex (with 0x) value t this file to select
    desired output options. As mentioned above the cards log dat is always 
    written to the cardlog file independent of the following options only used
-   to check and debug the driver itself:
+   to check and de the driver itself:
 
    For example: 
    echo "0x34560078" > /proc/net/hysdn/cardlog0
@@ -164,7 +164,7 @@ Table of contents
    0x00000020   Log firmware record parser
    0x00000040   Log every firmware write actions
    0x00000080   Log all card related boot messages
-   0x00000100   Output all config data sent for debugging purposes
+   0x00000100   Output all config data sent for deging purposes
    0x00000200   Only non comment config lines are shown wth channel
    0x00000400   Additional conf log output
    0x00001000   Log the asynchronous scheduler actions (config and log)

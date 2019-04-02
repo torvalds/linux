@@ -187,7 +187,7 @@
  *							single fragment which includes PRH->end of data.
  *		Mar 2000	AC		Did various cleanups for 2.3.x
  *		Jun 2000	jgarzik		PCI and resource alloc cleanups
- *		Jul 2000	tjeerd		Much cleanup and some bug fixes
+ *		Jul 2000	tjeerd		Much cleanup and some  fixes
  *		Sep 2000	tjeerd		Fix leak on unload, cosmetic code cleanup
  *		Feb 2001			Skb allocation fixes
  *		Feb 2001	davej		PCI enable cleanups.
@@ -1198,7 +1198,7 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 	bp->cons_block_virt = (PI_CONSUMER_BLOCK *) curr_v;
 	bp->cons_block_phys = curr_p;
 
-	/* Display virtual and physical addresses if debug driver */
+	/* Display virtual and physical addresses if de driver */
 
 	DBG_printk("%s: Descriptor block virt = %p, phys = %pad\n",
 		   print_name, bp->descr_block_virt, &bp->descr_block_phys);

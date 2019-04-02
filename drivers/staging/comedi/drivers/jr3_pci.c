@@ -679,7 +679,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	BUILD_BUG_ON(sizeof(struct jr3_block) != 0x80000);
+	BUILD__ON(sizeof(struct jr3_block) != 0x80000);
 
 	if (context < ARRAY_SIZE(jr3_pci_boards))
 		board = &jr3_pci_boards[context];

@@ -154,25 +154,25 @@ config PM
 	  responsible for the actual handling of device suspend requests and
 	  wake-up events.
 
-config PM_DEBUG
-	bool "Power Management Debug Support"
+config PM_DE
+	bool "Power Management De Support"
 	depends on PM
 	---help---
-	This option enables various debugging support in the Power Management
-	code. This is helpful when debugging and reporting PM bugs, like
+	This option enables various deging support in the Power Management
+	code. This is helpful when deging and reporting PM s, like
 	suspend support.
 
-config PM_ADVANCED_DEBUG
-	bool "Extra PM attributes in sysfs for low-level debugging/testing"
-	depends on PM_DEBUG
+config PM_ADVANCED_DE
+	bool "Extra PM attributes in sysfs for low-level deging/testing"
+	depends on PM_DE
 	---help---
 	Add extra sysfs attributes allowing one to access some Power Management
 	fields of device objects from user space.  If you are not a kernel
-	developer interested in debugging/testing Power Management, say "no".
+	developer interested in deging/testing Power Management, say "no".
 
 config PM_TEST_SUSPEND
 	bool "Test suspend/resume and wakealarm during bootup"
-	depends on SUSPEND && PM_DEBUG && RTC_CLASS=y
+	depends on SUSPEND && PM_DE && RTC_CLASS=y
 	---help---
 	This option will let you suspend your machine during bootup, and
 	make it wake up a few seconds later using an RTC wakeup alarm.
@@ -181,13 +181,13 @@ config PM_TEST_SUSPEND
 	You probably want to have your system's RTC driver statically
 	linked, ensuring that it's available when this test runs.
 
-config PM_SLEEP_DEBUG
+config PM_SLEEP_DE
 	def_bool y
-	depends on PM_DEBUG && PM_SLEEP
+	depends on PM_DE && PM_SLEEP
 
 config DPM_WATCHDOG
 	bool "Device suspend/resume watchdog"
-	depends on PM_DEBUG && PSTORE && EXPERT
+	depends on PM_DE && PSTORE && EXPERT
 	---help---
 	  Sets up a watchdog timer to capture drivers that are
 	  locked up attempting to suspend/resume a device.
@@ -218,15 +218,15 @@ config PM_TRACE
 
 config PM_TRACE_RTC
 	bool "Suspend/resume event tracing"
-	depends on PM_SLEEP_DEBUG
+	depends on PM_SLEEP_DE
 	depends on X86
 	select PM_TRACE
 	---help---
 	This enables some cheesy code to save the last PM event point in the
-	RTC across reboots, so that you can debug a machine that just hangs
+	RTC across reboots, so that you can de a machine that just hangs
 	during suspend (or more commonly, during resume).
 
-	To use this debugging feature you should attempt to suspend the
+	To use this deging feature you should attempt to suspend the
 	machine, reboot it and then run
 
 		dmesg -s 1000000 | grep 'hash matches'

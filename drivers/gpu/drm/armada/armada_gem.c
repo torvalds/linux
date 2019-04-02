@@ -39,7 +39,7 @@ void armada_gem_free_object(struct drm_gem_object *obj)
 	struct armada_gem_object *dobj = drm_to_armada_gem(obj);
 	struct armada_private *priv = obj->dev->dev_private;
 
-	DRM_DEBUG_DRIVER("release obj %p\n", dobj);
+	DRM_DE_DRIVER("release obj %p\n", dobj);
 
 	drm_gem_free_mmap_offset(&dobj->obj);
 
@@ -166,7 +166,7 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 		obj->mapped = true;
 	}
 
-	DRM_DEBUG_DRIVER("obj %p phys %#llx dev %#llx\n", obj,
+	DRM_DE_DRIVER("obj %p phys %#llx dev %#llx\n", obj,
 			 (unsigned long long)obj->phys_addr,
 			 (unsigned long long)obj->dev_addr);
 
@@ -195,7 +195,7 @@ armada_gem_alloc_private_object(struct drm_device *dev, size_t size)
 
 	drm_gem_private_object_init(dev, &obj->obj, size);
 
-	DRM_DEBUG_DRIVER("alloc private obj %p size %zu\n", obj, size);
+	DRM_DE_DRIVER("alloc private obj %p size %zu\n", obj, size);
 
 	return obj;
 }
@@ -220,7 +220,7 @@ static struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 	mapping = obj->obj.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
 
-	DRM_DEBUG_DRIVER("alloc obj %p size %zu\n", obj, size);
+	DRM_DE_DRIVER("alloc obj %p size %zu\n", obj, size);
 
 	return obj;
 }
@@ -252,7 +252,7 @@ int armada_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->handle = handle;
 
 	/* drop reference from allocate - handle holds it now */
-	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
+	DRM_DE_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
 	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
@@ -284,7 +284,7 @@ int armada_gem_create_ioctl(struct drm_device *dev, void *data,
 	args->handle = handle;
 
 	/* drop reference from allocate - handle holds it now */
-	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
+	DRM_DE_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
 	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
@@ -326,7 +326,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	char __user *ptr;
 	int ret;
 
-	DRM_DEBUG_DRIVER("handle %u off %u size %u ptr 0x%llx\n",
+	DRM_DE_DRIVER("handle %u off %u size %u ptr 0x%llx\n",
 		args->handle, args->offset, args->size, args->ptr);
 
 	if (args->size == 0)

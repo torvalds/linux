@@ -1,7 +1,7 @@
-Bug hunting
+ hunting
 ===========
 
-Kernel bug reports often come with a stack dump like the one below::
+Kernel  reports often come with a stack dump like the one below::
 
 	------------[ cut here ]------------
 	WARNING: CPU: 1 PID: 28102 at kernel/module.c:1108 module_put+0x57/0x70
@@ -38,17 +38,17 @@ Kernel bug reports often come with a stack dump like the one below::
 	---[ end trace 6ebc60ef3981792f ]---
 
 Such stack traces provide enough information to identify the line inside the
-Kernel's source code where the bug happened. Depending on the severity of
+Kernel's source code where the  happened. Depending on the severity of
 the issue, it may also contain the word **Oops**, as on this one::
 
-	BUG: unable to handle kernel NULL pointer dereference at   (null)
+	: unable to handle kernel NULL pointer dereference at   (null)
 	IP: [<c06969d4>] iret_exc+0x7d0/0xa59
 	*pdpt = 000000002258a001 *pde = 0000000000000000
 	Oops: 0002 [#1] PREEMPT SMP
 	...
 
 Despite being an **Oops** or some other sort of stack trace, the offended
-line is usually required to identify and handle the bug. Along this chapter,
+line is usually required to identify and handle the . Along this chapter,
 we'll refer to "Oops" for all kinds of stack traces that need to be analized.
 
 .. note::
@@ -94,25 +94,25 @@ the disk is not available then you have three options:
     extract the kernel ring buffer from old memory with using dmesg
     gdbmacro in Documentation/kdump/gdbmacros.txt.
 
-Finding the bug's location
+Finding the 's location
 --------------------------
 
-Reporting a bug works best if you point the location of the bug at the
+Reporting a  works best if you point the location of the  at the
 Kernel source file. There are two methods for doing that. Usually, using
-``gdb`` is easier, but the Kernel should be pre-compiled with debug info.
+``gdb`` is easier, but the Kernel should be pre-compiled with de info.
 
 gdb
 ^^^
 
-The GNU debug (``gdb``) is the best way to figure out the exact file and line
+The GNU de (``gdb``) is the best way to figure out the exact file and line
 number of the OOPS from the ``vmlinux`` file.
 
-The usage of gdb works best on a kernel compiled with ``CONFIG_DEBUG_INFO``.
+The usage of gdb works best on a kernel compiled with ``CONFIG_DE_INFO``.
 This can be set by running::
 
-  $ ./scripts/config -d COMPILE_TEST -e DEBUG_KERNEL -e DEBUG_INFO
+  $ ./scripts/config -d COMPILE_TEST -e DE_KERNEL -e DE_INFO
 
-On a kernel compiled with ``CONFIG_DEBUG_INFO``, you can simply copy the
+On a kernel compiled with ``CONFIG_DE_INFO``, you can simply copy the
 EIP value from the OOPS::
 
  EIP:    0060:[<c021e50e>]    Not tainted VLI
@@ -122,14 +122,14 @@ And use GDB to translate that to human-readable form::
   $ gdb vmlinux
   (gdb) l *0xc021e50e
 
-If you don't have ``CONFIG_DEBUG_INFO`` enabled, you use the function
+If you don't have ``CONFIG_DE_INFO`` enabled, you use the function
 offset from the OOPS::
 
  EIP is at vt_ioctl+0xda8/0x1482
 
-And recompile the kernel with ``CONFIG_DEBUG_INFO`` enabled::
+And recompile the kernel with ``CONFIG_DE_INFO`` enabled::
 
-  $ ./scripts/config -d COMPILE_TEST -e DEBUG_KERNEL -e DEBUG_INFO
+  $ ./scripts/config -d COMPILE_TEST -e DE_KERNEL -e DE_INFO
   $ make vmlinux
   $ gdb vmlinux
   (gdb) l *vt_ioctl+0xda8
@@ -186,10 +186,10 @@ in gdb and list the relevant code::
 objdump
 ^^^^^^^
 
-To debug a kernel, use objdump and look for the hex offset from the crash
-output to find the valid line of code/assembler. Without debug symbols, you
+To de a kernel, use objdump and look for the hex offset from the crash
+output to find the valid line of code/assembler. Without de symbols, you
 will see the assembler code for the routine shown, but if your kernel has
-debug symbols the C code will also be available. (Debug symbols can be enabled
+de symbols the C code will also be available. (De symbols can be enabled
 in the kernel hacking menu of the menu configuration.) For example::
 
     $ objdump -r -S -l --disassemble net/dccp/ipv4.o
@@ -199,7 +199,7 @@ in the kernel hacking menu of the menu configuration.) For example::
    You need to be at the top level of the kernel tree for this to pick up
    your C files.
 
-If you don't have access to the code you can also debug on some crash dumps
+If you don't have access to the code you can also de on some crash dumps
 e.g. crash dump output as shown by Dave Miller::
 
      EIP is at 	+0x14/0x4c0
@@ -230,17 +230,17 @@ e.g. crash dump output as shown by Dave Miller::
          mov        0x8(%ebp), %ebx         ! %ebx = skb->sk
          mov        0x13c(%ebx), %eax       ! %eax = inet_sk(sk)->opt
 
-Reporting the bug
+Reporting the 
 -----------------
 
-Once you find where the bug happened, by inspecting its location,
+Once you find where the  happened, by inspecting its location,
 you could either try to fix it yourself or report it upstream.
 
 In order to report it upstream, you should identify the mailing list
 used for the development of the affected code. This can be done by using
 the ``get_maintainer.pl`` script.
 
-For example, if you find a bug at the gspca's sonixj.c file, you can get
+For example, if you find a  at the gspca's sonixj.c file, you can get
 their maintainers with::
 
 	$ ./scripts/get_maintainer.pl -f drivers/media/usb/gspca/sonixj.c
@@ -261,7 +261,7 @@ Please notice that it will point to:
 - The driver and/or subsystem mailing list (linux-media@vger.kernel.org);
 - the Linux Kernel mailing list (linux-kernel@vger.kernel.org).
 
-Usually, the fastest way to have your bug fixed is to report it to mailing
+Usually, the fastest way to have your  fixed is to report it to mailing
 list used for the development of the code (linux-media ML) copying the driver maintainer (Hans).
 
 If you are totally stumped as to whom to send the report, and
@@ -270,10 +270,10 @@ linux-kernel@vger.kernel.org.
 
 Thanks for your help in making Linux as stable as humanly possible.
 
-Fixing the bug
+Fixing the 
 --------------
 
-If you know programming, you could help us by not only reporting the bug,
+If you know programming, you could help us by not only reporting the ,
 but also providing us with a solution. After all, open source is about
 sharing what you do and don't you want to be recognised for your genius?
 
@@ -318,7 +318,7 @@ the start of the module or for functions and symbols in the module.
 The kernel supports system calls which allow a program to determine
 which modules are loaded and their location in memory.  Using these
 system calls the klogd daemon builds a symbol table which can be used
-to debug a protection fault which occurs in a loadable kernel module.
+to de a protection fault which occurs in a loadable kernel module.
 
 At the very minimum klogd will provide the name of the module which
 generated the protection fault.  There may be additional symbolic
@@ -335,7 +335,7 @@ information.
 A patch is included with the sysklogd distribution which modifies the
 ``modules-2.0.0`` package to automatically signal klogd whenever a module
 is loaded or unloaded.  Applying this patch provides essentially
-seamless support for debugging protection faults which occur with
+seamless support for deging protection faults which occur with
 kernel loadable modules.
 
 The following is an example of a protection fault in a loadable module

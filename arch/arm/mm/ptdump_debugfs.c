@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <asm/ptdump.h>
@@ -24,11 +24,11 @@ static const struct file_operations ptdump_fops = {
 	.release	= single_release,
 };
 
-int ptdump_debugfs_register(struct ptdump_info *info, const char *name)
+int ptdump_defs_register(struct ptdump_info *info, const char *name)
 {
 	struct dentry *pe;
 
-	pe = debugfs_create_file(name, 0400, NULL, info, &ptdump_fops);
+	pe = defs_create_file(name, 0400, NULL, info, &ptdump_fops);
 	return pe ? 0 : -ENOMEM;
 
 }

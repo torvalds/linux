@@ -1,7 +1,7 @@
 /*
  * Atheros CARL9170 driver
  *
- * debug header
+ * de header
  *
  * Copyright 2010, Christian Lamparter <chunkeey@googlemail.com>
  *
@@ -35,8 +35,8 @@
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef __DEBUG_H
-#define __DEBUG_H
+#ifndef __DE_H
+#define __DE_H
 
 #include "eeprom.h"
 #include "wlan.h"
@@ -112,16 +112,16 @@ struct ath_stats {
 	DEFINE_STAT(hw_ampdu_info);
 };
 
-struct carl9170_debug_mem_rbe {
+struct carl9170_de_mem_rbe {
 	u32 reg;
 	u32 value;
 };
 
-#define	CARL9170_DEBUG_RING_SIZE			64
+#define	CARL9170_DE_RING_SIZE			64
 
-struct carl9170_debug {
+struct carl9170_de {
 	struct ath_stats stats;
-	struct carl9170_debug_mem_rbe ring[CARL9170_DEBUG_RING_SIZE];
+	struct carl9170_de_mem_rbe ring[CARL9170_DE_RING_SIZE];
 	struct mutex ring_lock;
 	unsigned int ring_head, ring_tail;
 	struct delayed_work update_tally;
@@ -129,6 +129,6 @@ struct carl9170_debug {
 
 struct ar9170;
 
-void carl9170_debugfs_register(struct ar9170 *ar);
-void carl9170_debugfs_unregister(struct ar9170 *ar);
-#endif /* __DEBUG_H */
+void carl9170_defs_register(struct ar9170 *ar);
+void carl9170_defs_unregister(struct ar9170 *ar);
+#endif /* __DE_H */

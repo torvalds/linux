@@ -20,7 +20,7 @@ Linux USB API
    writing_musb_glue_layer
    typec
    typec_bus
-   usb3-debug-port
+   usb3-de-port
 
 .. only::  subproject and html
 

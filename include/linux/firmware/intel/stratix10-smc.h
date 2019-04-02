@@ -195,7 +195,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 /**
  * Request INTEL_SIP_SMC_FPGA_CONFIG_LOOPBACK
  *
- * For SMC loop-back mode only, used for internal integration, debugging
+ * For SMC loop-back mode only, used for internal integration, deging
  * or troubleshooting.
  *
  * Call register usage:

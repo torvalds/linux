@@ -27,7 +27,7 @@
 
 extern uint qedi_dbg_log;
 
-/* Debug print level definitions */
+/* De print level definitions */
 #define QEDI_LOG_DEFAULT	0x1		/* Set default logging mask */
 #define QEDI_LOG_INFO		0x2		/* Informational logs,
 						 * MAC address, WWPN, WWNN
@@ -43,7 +43,7 @@ extern uint qedi_dbg_log;
 #define QEDI_LOG_IO		0x400		/* scsi cmd, completion */
 #define QEDI_LOG_MQ		0x800		/* Multi Queue logs */
 #define QEDI_LOG_BSG		0x1000		/* BSG logs */
-#define QEDI_LOG_DEBUGFS	0x2000		/* debugFS logs */
+#define QEDI_LOG_DEFS	0x2000		/* deFS logs */
 #define QEDI_LOG_LPORT		0x4000		/* lport logs */
 #define QEDI_LOG_ELS		0x8000		/* ELS logs */
 #define QEDI_LOG_NPIV		0x10000		/* NPIV logs */
@@ -63,11 +63,11 @@ extern uint qedi_dbg_log;
 #define QEDI_LOG_NOTICE		0x40000000	/* Notice logs */
 #define QEDI_LOG_WARN		0x80000000	/* Warning logs */
 
-/* Debug context structure */
+/* De context structure */
 struct qedi_dbg_ctx {
 	unsigned int host_no;
 	struct pci_dev *pdev;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *bdf_dentry;
 #endif
 };
@@ -103,13 +103,13 @@ int qedi_create_sysfs_attr(struct Scsi_Host *shost,
 void qedi_remove_sysfs_attr(struct Scsi_Host *shost,
 			    struct sysfs_bin_attrs *iter);
 
-/* DebugFS related code */
+/* DeFS related code */
 struct qedi_list_of_funcs {
 	char *oper_str;
 	ssize_t (*oper_func)(struct qedi_dbg_ctx *qedi);
 };
 
-struct qedi_debugfs_ops {
+struct qedi_defs_ops {
 	char *name;
 	struct qedi_list_of_funcs *qedi_funcs;
 };
@@ -122,7 +122,7 @@ struct qedi_debugfs_ops {
 	.write  = drv##_dbg_##ops##_cmd_write \
 }
 
-/* Used for debugfs sequential files */
+/* Used for defs sequential files */
 #define qedi_dbg_fileops_seq(drv, ops) \
 { \
 	.owner = THIS_MODULE, \
@@ -133,7 +133,7 @@ struct qedi_debugfs_ops {
 }
 
 void qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
-			const struct qedi_debugfs_ops *dops,
+			const struct qedi_defs_ops *dops,
 			const struct file_operations *fops);
 void qedi_dbg_host_exit(struct qedi_dbg_ctx *qedi);
 void qedi_dbg_init(char *drv_name);

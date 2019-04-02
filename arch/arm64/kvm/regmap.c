@@ -132,7 +132,7 @@ unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return reg_array + vcpu_reg_offsets[mode][reg_num];
@@ -150,7 +150,7 @@ static int vcpu_spsr32_mode(const struct kvm_vcpu *vcpu)
 	case PSR_AA32_MODE_UND: return KVM_SPSR_UND;
 	case PSR_AA32_MODE_IRQ: return KVM_SPSR_IRQ;
 	case PSR_AA32_MODE_FIQ: return KVM_SPSR_FIQ;
-	default: BUG();
+	default: ();
 	}
 }
 
@@ -173,7 +173,7 @@ unsigned long vcpu_read_spsr32(const struct kvm_vcpu *vcpu)
 	case KVM_SPSR_FIQ:
 		return read_sysreg(spsr_fiq);
 	default:
-		BUG();
+		();
 	}
 }
 

@@ -194,10 +194,10 @@ xpc_gru_mq_watchlist_free_uv(struct xpc_gru_mq_uv *mq)
 
 #if defined CONFIG_X86_64
 	ret = uv_bios_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
-	BUG_ON(ret != BIOS_STATUS_SUCCESS);
+	_ON(ret != BIOS_STATUS_SUCCESS);
 #elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
 	ret = sn_mq_watchlist_free(mmr_pnode, mq->watchlist_num);
-	BUG_ON(ret != SALRET_OK);
+	_ON(ret != SALRET_OK);
 #else
 	#error not a supported configuration
 #endif
@@ -315,7 +315,7 @@ xpc_destroy_gru_mq_uv(struct xpc_gru_mq_uv *mq)
 	/* disallow other partitions to access GRU mq */
 	mq_size = 1UL << mq->order;
 	ret = xp_restrict_memprotect(xp_pa(mq->address), mq_size);
-	BUG_ON(ret != xpSuccess);
+	_ON(ret != xpSuccess);
 
 	/* unregister irq handler and release mq irq/vector mapping */
 	free_irq(mq->irq, NULL);
@@ -374,7 +374,7 @@ xpc_process_activate_IRQ_rcvd_uv(void)
 	struct xpc_partition *part;
 	u8 act_state_req;
 
-	DBUG_ON(xpc_activate_IRQ_rcvd == 0);
+	D_ON(xpc_activate_IRQ_rcvd == 0);
 
 	spin_lock_irqsave(&xpc_activate_IRQ_rcvd_lock, irq_flags);
 	for (partid = 0; partid < XP_MAX_NPARTITIONS_UV; partid++) {
@@ -384,7 +384,7 @@ xpc_process_activate_IRQ_rcvd_uv(void)
 			continue;
 
 		xpc_activate_IRQ_rcvd--;
-		BUG_ON(xpc_activate_IRQ_rcvd < 0);
+		_ON(xpc_activate_IRQ_rcvd < 0);
 
 		act_state_req = part->sn.uv.act_state_req;
 		part->sn.uv.act_state_req = 0;
@@ -406,7 +406,7 @@ xpc_process_activate_IRQ_rcvd_uv(void)
 			XPC_DEACTIVATE_PARTITION(part, part->sn.uv.reason);
 
 		} else {
-			BUG();
+			();
 		}
 
 		spin_lock_irqsave(&xpc_activate_IRQ_rcvd_lock, irq_flags);
@@ -679,7 +679,7 @@ xpc_send_activate_IRQ_uv(struct xpc_partition *part, void *msg, size_t msg_size,
 	unsigned long irq_flags;
 	enum xp_retval ret;
 
-	DBUG_ON(msg_size > XPC_ACTIVATE_MSG_SIZE_UV);
+	D_ON(msg_size > XPC_ACTIVATE_MSG_SIZE_UV);
 
 	msg_hdr->type = msg_type;
 	msg_hdr->partid = xp_partition_id;
@@ -975,7 +975,7 @@ xpc_get_fifo_entry_uv(struct xpc_fifo_head_uv *head)
 			head->last = NULL;
 
 		head->n_entries--;
-		BUG_ON(head->n_entries < 0);
+		_ON(head->n_entries < 0);
 
 		first->next = NULL;
 	}
@@ -1155,7 +1155,7 @@ xpc_setup_msg_structures_uv(struct xpc_channel *ch)
 	static enum xp_retval ret;
 	struct xpc_channel_uv *ch_uv = &ch->sn.uv;
 
-	DBUG_ON(ch->flags & XPC_C_SETUP);
+	D_ON(ch->flags & XPC_C_SETUP);
 
 	ch_uv->cached_notify_gru_mq_desc = kmalloc(sizeof(struct
 						   gru_message_queue_desc),
@@ -1271,7 +1271,7 @@ xpc_save_remote_msgqueue_pa_uv(struct xpc_channel *ch,
 {
 	struct xpc_channel_uv *ch_uv = &ch->sn.uv;
 
-	DBUG_ON(ch_uv->cached_notify_gru_mq_desc == NULL);
+	D_ON(ch_uv->cached_notify_gru_mq_desc == NULL);
 	return xpc_cache_remote_gru_mq_desc_uv(ch_uv->cached_notify_gru_mq_desc,
 					       gru_mq_desc_gpa);
 }
@@ -1394,7 +1394,7 @@ xpc_handle_notify_mq_ack_uv(struct xpc_channel *ch,
 
 	msg_slot = &ch->sn.uv.send_msg_slots[entry];
 
-	BUG_ON(msg_slot->msg_slot_number != msg->hdr.msg_slot_number);
+	_ON(msg_slot->msg_slot_number != msg->hdr.msg_slot_number);
 	msg_slot->msg_slot_number += ch->local_nentries;
 
 	if (msg_slot->func != NULL)
@@ -1452,7 +1452,7 @@ xpc_handle_notify_mq_msg_uv(struct xpc_partition *part,
 	msg_slot = ch_uv->recv_msg_slots +
 	    (msg->hdr.msg_slot_number % ch->remote_nentries) * ch->entry_size;
 
-	BUG_ON(msg_slot->hdr.size != 0);
+	_ON(msg_slot->hdr.size != 0);
 
 	memcpy(msg_slot, msg, msg->hdr.size);
 
@@ -1538,7 +1538,7 @@ xpc_send_payload_uv(struct xpc_channel *ch, u32 flags, void *payload,
 	u8 msg_buffer[XPC_NOTIFY_MSG_SIZE_UV];
 	size_t msg_size;
 
-	DBUG_ON(notify_type != XPC_N_CALL);
+	D_ON(notify_type != XPC_N_CALL);
 
 	msg_size = sizeof(struct xpc_notify_mq_msghdr_uv) + payload_size;
 	if (msg_size > ch->entry_size)
@@ -1624,7 +1624,7 @@ xpc_notify_senders_of_disconnect_uv(struct xpc_channel *ch)
 	struct xpc_send_msg_slot_uv *msg_slot;
 	int entry;
 
-	DBUG_ON(!(ch->flags & XPC_C_DISCONNECTING));
+	D_ON(!(ch->flags & XPC_C_DISCONNECTING));
 
 	for (entry = 0; entry < ch->local_nentries; entry++) {
 

@@ -86,7 +86,7 @@ static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, stru
 			int count = 0;
 			int i;
 
-			BUG_ON(disks > NDISKS);
+			_ON(disks > NDISKS);
 
 			/* data+Q failure.  Reconstruct data from P,
 			 * then rebuild syndrome

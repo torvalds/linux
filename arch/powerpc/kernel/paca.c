@@ -65,7 +65,7 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
  */
 static inline void init_lppaca(struct lppaca *lppaca)
 {
-	BUILD_BUG_ON(sizeof(struct lppaca) != 640);
+	BUILD__ON(sizeof(struct lppaca) != 640);
 
 	*lppaca = (struct lppaca) {
 		.desc = cpu_to_be32(0xd397d781),	/* "LpPa" */
@@ -81,7 +81,7 @@ static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 	struct lppaca *lp;
 	size_t size = 0x400;
 
-	BUILD_BUG_ON(size < sizeof(struct lppaca));
+	BUILD__ON(size < sizeof(struct lppaca));
 
 	if (early_cpu_has_feature(CPU_FTR_HVMODE))
 		return NULL;
@@ -209,7 +209,7 @@ void __init allocate_paca(int cpu)
 	u64 limit;
 	struct paca_struct *paca;
 
-	BUG_ON(cpu >= paca_nr_cpu_ids);
+	_ON(cpu >= paca_nr_cpu_ids);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
@@ -256,7 +256,7 @@ void __init free_unused_pacas(void)
 	}
 #endif
 
-	printk(KERN_DEBUG "Allocated %u bytes for %u pacas\n",
+	printk(KERN_DE "Allocated %u bytes for %u pacas\n",
 			paca_ptrs_size + paca_struct_size, nr_cpu_ids);
 }
 
@@ -267,7 +267,7 @@ void copy_mm_to_paca(struct mm_struct *mm)
 
 	get_paca()->mm_ctx_id = context->id;
 #ifdef CONFIG_PPC_MM_SLICES
-	VM_BUG_ON(!mm->context.slb_addr_limit);
+	VM__ON(!mm->context.slb_addr_limit);
 	get_paca()->mm_ctx_slb_addr_limit = mm->context.slb_addr_limit;
 	memcpy(&get_paca()->mm_ctx_low_slices_psize,
 	       &context->low_slices_psize, sizeof(context->low_slices_psize));

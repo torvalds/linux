@@ -31,7 +31,7 @@
 #include <asm/pmi.h>
 #include <asm/cell-regs.h>
 
-#ifdef DEBUG
+#ifdef DE
 #include <asm/time.h>
 #endif
 
@@ -50,26 +50,26 @@ int cbe_cpufreq_set_pmode_pmi(int cpu, unsigned int pmode)
 {
 	int ret;
 	pmi_message_t pmi_msg;
-#ifdef DEBUG
+#ifdef DE
 	long time;
 #endif
 	pmi_msg.type = PMI_TYPE_FREQ_CHANGE;
 	pmi_msg.data1 =	cbe_cpu_to_node(cpu);
 	pmi_msg.data2 = pmode;
 
-#ifdef DEBUG
+#ifdef DE
 	time = jiffies;
 #endif
 	pmi_send_message(pmi_msg);
 
-#ifdef DEBUG
+#ifdef DE
 	time = jiffies  - time;
 	time = jiffies_to_msecs(time);
-	pr_debug("had to wait %lu ms for a transition using " \
+	pr_de("had to wait %lu ms for a transition using " \
 		 "PMI\n", time);
 #endif
 	ret = pmi_msg.data2;
-	pr_debug("PMI returned slow mode %d\n", ret);
+	pr_de("PMI returned slow mode %d\n", ret);
 
 	return ret;
 }
@@ -80,14 +80,14 @@ static void cbe_cpufreq_handle_pmi(pmi_message_t pmi_msg)
 {
 	u8 node, slow_mode;
 
-	BUG_ON(pmi_msg.type != PMI_TYPE_FREQ_CHANGE);
+	_ON(pmi_msg.type != PMI_TYPE_FREQ_CHANGE);
 
 	node = pmi_msg.data1;
 	slow_mode = pmi_msg.data2;
 
 	pmi_slow_mode_limit[node] = slow_mode;
 
-	pr_debug("cbe_handle_pmi: node: %d max_freq: %d\n", node, slow_mode);
+	pr_de("cbe_handle_pmi: node: %d max_freq: %d\n", node, slow_mode);
 }
 
 static int pmi_notifier(struct notifier_block *nb,
@@ -102,10 +102,10 @@ static int pmi_notifier(struct notifier_block *nb,
 	 */
 	node = cbe_cpu_to_node(policy->cpu);
 
-	pr_debug("got notified, event=%lu, node=%u\n", event, node);
+	pr_de("got notified, event=%lu, node=%u\n", event, node);
 
 	if (pmi_slow_mode_limit[node] != 0) {
-		pr_debug("limiting node %d to slow mode %d\n",
+		pr_de("limiting node %d to slow mode %d\n",
 			 node, pmi_slow_mode_limit[node]);
 
 		cpufreq_verify_within_limits(policy, 0,

@@ -17,7 +17,7 @@
 
 	Andrey V. Savochkin:
 	- alignment problem with 1.3.* kernel and some minor changes.
-	Thomas Bogendoerfer (tsbogend@bigbug.franken.de):
+	Thomas Bogendoerfer (tsbogend@big.franken.de):
 	- added support for Linux/Alpha, but removed most of it, because
         it worked only for the PCI chip.
       - added hook for the 32bit lance driver
@@ -27,7 +27,7 @@
     8/20/96 Fixed 7990 autoIRQ failure and reversed unneeded alignment -djb
     v1.12 10/27/97 Module support -djb
     v1.14  2/3/98 Module support modified, made PCI support optional -djb
-    v1.15 5/27/99 Fixed bug in the cleanup_module(). dev->priv was freed
+    v1.15 5/27/99 Fixed  in the cleanup_module(). dev->priv was freed
                   before unregister_netdev() which caused NULL pointer
                   reference later in the chain (in rtnetlink_fill_ifinfo())
                   -- Mika Kuoppala <miku@iki.fi>
@@ -87,10 +87,10 @@ static struct card {
 };
 #define NUM_CARDS 3
 
-#ifdef LANCE_DEBUG
-static int lance_debug = LANCE_DEBUG;
+#ifdef LANCE_DE
+static int lance_de = LANCE_DE;
 #else
-static int lance_debug = 1;
+static int lance_de = 1;
 #endif
 
 /*
@@ -277,7 +277,7 @@ static struct lance_chip_type {
 	{0x2420, "PCnet/PCI 79C970",		/* 79C970 or 79C974 PCnet-SCSI, PCI. */
 		LANCE_ENABLE_AUTOSELECT + LANCE_MUST_REINIT_RING +
 			LANCE_HAS_MISSED_FRAME},
-	/* Bug: the PCnet/PCI actually uses the PCnet/VLB ID number, so just call
+	/* : the PCnet/PCI actually uses the PCnet/VLB ID number, so just call
 		it the PCnet32. */
 	{0x2430, "PCnet32",					/* 79C965 PCnet for VL bus. */
 		LANCE_ENABLE_AUTOSELECT + LANCE_MUST_REINIT_RING +
@@ -321,11 +321,11 @@ static int irq[MAX_CARDS];
 module_param_hw_array(io, int, ioport, NULL, 0);
 module_param_hw_array(dma, int, dma, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
-module_param(lance_debug, int, 0);
+module_param(lance_de, int, 0);
 MODULE_PARM_DESC(io, "LANCE/PCnet I/O base address(es),required");
 MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
 MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (ignored for some devices)");
-MODULE_PARM_DESC(lance_debug, "LANCE/PCnet debug level (0-7)");
+MODULE_PARM_DESC(lance_de, "LANCE/PCnet de level (0-7)");
 
 int __init init_module(void)
 {
@@ -520,7 +520,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		int chip_version = inw(ioaddr+LANCE_DATA);
 		outw(89, ioaddr+LANCE_ADDR);
 		chip_version |= inw(ioaddr+LANCE_DATA) << 16;
-		if (lance_debug > 2)
+		if (lance_de > 2)
 			printk("  LANCE chip version is %#x.\n", chip_version);
 		if ((chip_version & 0xfff) != 0x003)
 			return -ENODEV;
@@ -548,7 +548,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	lp = kzalloc(sizeof(*lp), GFP_DMA | GFP_KERNEL);
 	if (!lp)
 		return -ENOMEM;
-	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
+	if (lance_de > 6) printk(" (#0x%05lx)", (unsigned long)lp);
 	dev->ml_priv = lp;
 	lp->name = chipname;
 	lp->rx_buffs = (unsigned long)kmalloc_array(RX_RING_SIZE, PKT_BUF_SZ,
@@ -721,7 +721,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		outw(inw(ioaddr+LANCE_BUS_IF) | 0x0002, ioaddr+LANCE_BUS_IF);
 	}
 
-	if (lance_debug > 0  &&  did_version++ == 0)
+	if (lance_de > 0  &&  did_version++ == 0)
 		printk(version);
 
 	/* The LANCE-specific entries in the device structure. */
@@ -782,7 +782,7 @@ lance_open(struct net_device *dev)
 		outw(inw(ioaddr+LANCE_BUS_IF) | 0x0002, ioaddr+LANCE_BUS_IF);
  	}
 
-	if (lance_debug > 1)
+	if (lance_de > 1)
 		printk("%s: lance_open() irq %d dma %d tx/rx rings %#x/%#x init %#x.\n",
 			   dev->name, dev->irq, dev->dma,
 		           (u32) isa_virt_to_bus(lp->tx_ring),
@@ -810,11 +810,11 @@ lance_open(struct net_device *dev)
 			break;
 	/*
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
-	 * reports that doing so triggers a bug in the '974.
+	 * reports that doing so triggers a  in the '974.
 	 */
  	outw(0x0042, ioaddr+LANCE_DATA);
 
-	if (lance_debug > 2)
+	if (lance_de > 2)
 		printk("%s: LANCE open after %d ticks, init block %#x csr0 %4.4x.\n",
 			   dev->name, i, (u32) isa_virt_to_bus(&lp->init_block), inw(ioaddr+LANCE_DATA));
 
@@ -924,7 +924,7 @@ static void lance_tx_timeout (struct net_device *dev)
 	outw (0x0004, ioaddr + LANCE_DATA);
 	dev->stats.tx_errors++;
 #ifndef final_version
-	if (lance_debug > 3) {
+	if (lance_de > 3) {
 		int i;
 		printk (" Ring data dump: dirty_tx %d cur_tx %d%s cur_rx %d.",
 		  lp->dirty_tx, lp->cur_tx, netif_queue_stopped(dev) ? " (full)" : "",
@@ -957,7 +957,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&lp->devlock, flags);
 
-	if (lance_debug > 3) {
+	if (lance_de > 3) {
 		outw(0x0000, ioaddr+LANCE_ADDR);
 		printk("%s: lance_start_xmit() called, csr0 %4.4x.\n", dev->name,
 			   inw(ioaddr+LANCE_DATA));
@@ -991,7 +991,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 	/* If any part of this buffer is >16M we must copy it to a low-memory
 	   buffer. */
 	if ((u32)isa_virt_to_bus(skb->data) + skb->len > 0x01000000) {
-		if (lance_debug > 5)
+		if (lance_de > 5)
 			printk("%s: bouncing a high-memory packet (%#x).\n",
 				   dev->name, (u32)isa_virt_to_bus(skb->data));
 		skb_copy_from_linear_data(skb, &lp->tx_bounce_buffs[entry], skb->len);
@@ -1037,7 +1037,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 
 		must_restart = 0;
 
-		if (lance_debug > 5)
+		if (lance_de > 5)
 			printk("%s: interrupt  csr0=%#2.2x new csr=%#2.2x.\n",
 				   dev->name, csr0, inw(dev->base_addr + LANCE_DATA));
 
@@ -1131,7 +1131,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	outw(0x0000, dev->base_addr + LANCE_ADDR);
 	outw(0x7940, dev->base_addr + LANCE_DATA);
 
-	if (lance_debug > 4)
+	if (lance_de > 4)
 		printk("%s: exiting interrupt, csr%d=%#4.4x.\n",
 			   dev->name, inw(ioaddr + LANCE_ADDR),
 			   inw(dev->base_addr + LANCE_DATA));
@@ -1235,7 +1235,7 @@ lance_close(struct net_device *dev)
 	}
 	outw(0, ioaddr+LANCE_ADDR);
 
-	if (lance_debug > 1)
+	if (lance_de > 1)
 		printk("%s: Shutting down ethercard, status was %2.2x.\n",
 			   dev->name, inw(ioaddr+LANCE_DATA));
 

@@ -65,7 +65,7 @@ static struct cma *kvm_cma;
 
 static int __init early_parse_kvm_cma_resv(char *p)
 {
-	pr_debug("%s(%s)\n", __func__, p);
+	pr_de("%s(%s)\n", __func__, p);
 	if (!p)
 		return -EINVAL;
 	return kstrtoul(p, 0, &kvm_cma_resv_ratio);
@@ -74,7 +74,7 @@ early_param("kvm_cma_resv_ratio", early_parse_kvm_cma_resv);
 
 struct page *kvm_alloc_hpt_cma(unsigned long nr_pages)
 {
-	VM_BUG_ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+	VM__ON(order_base_2(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
 
 	return cma_alloc(kvm_cma, nr_pages, order_base_2(HPT_ALIGN_PAGES),
 			 false);
@@ -116,7 +116,7 @@ void __init kvm_cma_reserve(void)
 
 	selected_size = (selected_size * kvm_cma_resv_ratio / 100) << PAGE_SHIFT;
 	if (selected_size) {
-		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+		pr_de("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
 		align_size = HPT_ALIGN_PAGES << PAGE_SHIFT;
 		cma_declare_contiguous(0, selected_size, 0, align_size,

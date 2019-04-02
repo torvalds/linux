@@ -22,7 +22,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/hdmi.h>

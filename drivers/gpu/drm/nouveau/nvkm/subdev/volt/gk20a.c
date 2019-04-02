@@ -110,7 +110,7 @@ gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 	struct gk20a_volt *volt = gk20a_volt(base);
 	struct nvkm_subdev *subdev = &volt->base.subdev;
 
-	nvkm_debug(subdev, "set voltage as %duv\n", volt->base.vid[vid].uv);
+	nvkm_de(subdev, "set voltage as %duv\n", volt->base.vid[vid].uv);
 	return regulator_set_voltage(volt->vdd, volt->base.vid[vid].uv, 1200000);
 }
 
@@ -123,7 +123,7 @@ gk20a_volt_set_id(struct nvkm_volt *base, u8 id, int condition)
 	int target_uv = volt->base.vid[id].uv;
 	int ret;
 
-	nvkm_debug(subdev, "prev=%d, target=%d, condition=%d\n",
+	nvkm_de(subdev, "prev=%d, target=%d, condition=%d\n",
 		   prev_uv, target_uv, condition);
 	if (!condition ||
 		(condition < 0 && target_uv < prev_uv) ||
@@ -154,7 +154,7 @@ gk20a_volt_ctor(struct nvkm_device *device, int index,
 	nvkm_volt_ctor(&gk20a_volt, device, index, &volt->base);
 
 	uv = regulator_get_voltage(tdev->vdd);
-	nvkm_debug(&volt->base.subdev, "the default voltage is %duV\n", uv);
+	nvkm_de(&volt->base.subdev, "the default voltage is %duV\n", uv);
 
 	volt->vdd = tdev->vdd;
 
@@ -164,7 +164,7 @@ gk20a_volt_ctor(struct nvkm_device *device, int index,
 		volt->base.vid[i].uv = max(
 			gk20a_volt_calc_voltage(&coefs[i], tdev->gpu_speedo),
 			vmin);
-		nvkm_debug(&volt->base.subdev, "%2d: vid=%d, uv=%d\n", i,
+		nvkm_de(&volt->base.subdev, "%2d: vid=%d, uv=%d\n", i,
 			   volt->base.vid[i].vid, volt->base.vid[i].uv);
 	}
 

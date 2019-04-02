@@ -29,8 +29,8 @@
 #define USBA_VBUS_IRQFLAGS (IRQF_ONESHOT \
 			   | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING)
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_USB_GADGET_DE_FS
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 
 static int queue_dbg_open(struct inode *inode, struct file *file)
@@ -200,70 +200,70 @@ const struct file_operations regs_dbg_fops = {
 	.release	= regs_dbg_release,
 };
 
-static void usba_ep_init_debugfs(struct usba_udc *udc,
+static void usba_ep_init_defs(struct usba_udc *udc,
 		struct usba_ep *ep)
 {
 	struct dentry *ep_root;
 
-	ep_root = debugfs_create_dir(ep->ep.name, udc->debugfs_root);
-	ep->debugfs_dir = ep_root;
+	ep_root = defs_create_dir(ep->ep.name, udc->defs_root);
+	ep->defs_dir = ep_root;
 
-	debugfs_create_file("queue", 0400, ep_root, ep, &queue_dbg_fops);
+	defs_create_file("queue", 0400, ep_root, ep, &queue_dbg_fops);
 	if (ep->can_dma)
-		debugfs_create_u32("dma_status", 0400, ep_root,
+		defs_create_u32("dma_status", 0400, ep_root,
 				   &ep->last_dma_status);
 	if (ep_is_control(ep))
-		debugfs_create_u32("state", 0400, ep_root, &ep->state);
+		defs_create_u32("state", 0400, ep_root, &ep->state);
 }
 
-static void usba_ep_cleanup_debugfs(struct usba_ep *ep)
+static void usba_ep_cleanup_defs(struct usba_ep *ep)
 {
-	debugfs_remove_recursive(ep->debugfs_dir);
+	defs_remove_recursive(ep->defs_dir);
 }
 
-static void usba_init_debugfs(struct usba_udc *udc)
+static void usba_init_defs(struct usba_udc *udc)
 {
 	struct dentry *root;
 	struct resource *regs_resource;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
-	udc->debugfs_root = root;
+	root = defs_create_dir(udc->gadget.name, NULL);
+	udc->defs_root = root;
 
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
 
 	if (regs_resource) {
-		debugfs_create_file_size("regs", 0400, root, udc,
+		defs_create_file_size("regs", 0400, root, udc,
 					 &regs_dbg_fops,
 					 resource_size(regs_resource));
 	}
 
-	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));
+	usba_ep_init_defs(udc, to_usba_ep(udc->gadget.ep0));
 }
 
-static void usba_cleanup_debugfs(struct usba_udc *udc)
+static void usba_cleanup_defs(struct usba_udc *udc)
 {
-	usba_ep_cleanup_debugfs(to_usba_ep(udc->gadget.ep0));
-	debugfs_remove_recursive(udc->debugfs_root);
+	usba_ep_cleanup_defs(to_usba_ep(udc->gadget.ep0));
+	defs_remove_recursive(udc->defs_root);
 }
 #else
-static inline void usba_ep_init_debugfs(struct usba_udc *udc,
+static inline void usba_ep_init_defs(struct usba_udc *udc,
 					 struct usba_ep *ep)
 {
 
 }
 
-static inline void usba_ep_cleanup_debugfs(struct usba_ep *ep)
+static inline void usba_ep_cleanup_defs(struct usba_ep *ep)
 {
 
 }
 
-static inline void usba_init_debugfs(struct usba_udc *udc)
+static inline void usba_init_defs(struct usba_udc *udc)
 {
 
 }
 
-static inline void usba_cleanup_debugfs(struct usba_udc *udc)
+static inline void usba_cleanup_defs(struct usba_udc *udc)
 {
 
 }
@@ -882,7 +882,7 @@ static int usba_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 			if (status & USBA_DMA_CH_EN)
 				stop_dma(ep, &status);
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
+#ifdef CONFIG_USB_GADGET_DE_FS
 			ep->last_dma_status = status;
 #endif
 
@@ -1562,7 +1562,7 @@ restart:
 		 * generate or receive a reply right away. */
 		usba_ep_writel(ep, CLR_STA, USBA_RX_SETUP);
 
-		/* printk(KERN_DEBUG "setup: %d: %02x.%02x\n",
+		/* printk(KERN_DE "setup: %d: %02x.%02x\n",
 			ep->state, crq.crq.bRequestType,
 			crq.crq.bRequest); */
 
@@ -1661,7 +1661,7 @@ static void usba_dma_irq(struct usba_udc *udc, struct usba_ep *ep)
 
 	status = usba_dma_readl(ep, STATUS);
 	control = usba_dma_readl(ep, CONTROL);
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
+#ifdef CONFIG_USB_GADGET_DE_FS
 	ep->last_dma_status = status;
 #endif
 	pending = status & control;
@@ -2240,9 +2240,9 @@ static int usba_udc_probe(struct platform_device *pdev)
 		return ret;
 	device_init_wakeup(&pdev->dev, 1);
 
-	usba_init_debugfs(udc);
+	usba_init_defs(udc);
 	for (i = 1; i < udc->num_ep; i++)
-		usba_ep_init_debugfs(udc, &udc->usba_ep[i]);
+		usba_ep_init_defs(udc, &udc->usba_ep[i]);
 
 	return 0;
 }
@@ -2258,8 +2258,8 @@ static int usba_udc_remove(struct platform_device *pdev)
 	usb_del_gadget_udc(&udc->gadget);
 
 	for (i = 1; i < udc->num_ep; i++)
-		usba_ep_cleanup_debugfs(&udc->usba_ep[i]);
-	usba_cleanup_debugfs(udc);
+		usba_ep_cleanup_defs(&udc->usba_ep[i]);
+	usba_cleanup_defs(udc);
 
 	return 0;
 }

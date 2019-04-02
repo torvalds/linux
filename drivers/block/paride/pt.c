@@ -74,7 +74,7 @@
             verbose     This parameter controls the amount of logging
                         that the driver will do.  Set it to 0 for
                         normal operation, 1 to see autoprobe progress
-                        messages, or 2 to see additional debugging
+                        messages, or 2 to see additional deging
                         output.  (default 0)
  
         If this driver is built into the kernel, you can use 
@@ -99,7 +99,7 @@
 				Eliminate sti();
 	1.02    GRG 1998.06.16  Eliminate an Ugh.
 	1.03    GRG 1998.08.15  Adjusted PT_TMO, use HZ in loop timing,
-				extra debugging
+				extra deging
 	1.04    GRG 1998.09.24  Repair minor coding error, added jumbo support
 	
 */
@@ -729,7 +729,7 @@ static long pt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		default:
 			/* FIXME: rate limit ?? */
-			printk(KERN_DEBUG "%s: Unimplemented mt_op %d\n", tape->name,
+			printk(KERN_DE "%s: Unimplemented mt_op %d\n", tape->name,
 			       mtop.mt_op);
 			return -EINVAL;
 		}

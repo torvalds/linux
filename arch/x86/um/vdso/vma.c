@@ -25,7 +25,7 @@ static int __init init_vdso(void)
 {
 	struct page *um_vdso;
 
-	BUG_ON(vdso_end - vdso_start > PAGE_SIZE);
+	_ON(vdso_end - vdso_start > PAGE_SIZE);
 
 	um_vdso_addr = task_size - PAGE_SIZE;
 

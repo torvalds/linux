@@ -5,8 +5,8 @@
 #include <asm-generic/5level-fixup.h>
 
 #ifndef __ASSEMBLY__
-#include <linux/mmdebug.h>
-#include <linux/bug.h>
+#include <linux/mmde.h>
+#include <linux/.h>
 #endif
 
 /*
@@ -164,7 +164,7 @@
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
 
 /*
- * Protection used for kernel text. We want the debuggers to be able to
+ * Protection used for kernel text. We want the degers to be able to
  * set breakpoints anywhere, so don't write protect the kernel text
  * on platforms where such control is possible.
  */
@@ -523,7 +523,7 @@ static inline pte_t pte_mk_savedwrite(pte_t pte)
 	 * while marking the pte PROT_NONE. Only allow this
 	 * on PROT_NONE pte
 	 */
-	VM_BUG_ON((pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT | _PAGE_RWX | _PAGE_PRIVILEGED)) !=
+	VM__ON((pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT | _PAGE_RWX | _PAGE_PRIVILEGED)) !=
 		  cpu_to_be64(_PAGE_PRESENT | _PAGE_PRIVILEGED));
 	return __pte_raw(pte_raw(pte) & cpu_to_be64(~_PAGE_PRIVILEGED));
 }
@@ -534,7 +534,7 @@ static inline pte_t pte_clear_savedwrite(pte_t pte)
 	/*
 	 * Used by KSM subsystem to make a protnone pte readonly.
 	 */
-	VM_BUG_ON(!pte_protnone(pte));
+	VM__ON(!pte_protnone(pte));
 	return __pte_raw(pte_raw(pte) | cpu_to_be64(_PAGE_PRIVILEGED));
 }
 #else
@@ -708,13 +708,13 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 /* Encode and de-code a swap entry */
 #define MAX_SWAPFILES_CHECK() do { \
-	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
+	BUILD__ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
 	/*							\
 	 * Don't have overlapping bits with _PAGE_HPTEFLAGS	\
 	 * We filter HPTEFLAGS on set_pte.			\
 	 */							\
-	BUILD_BUG_ON(_PAGE_HPTEFLAGS & (0x1f << _PAGE_BIT_SWAP_TYPE)); \
-	BUILD_BUG_ON(_PAGE_HPTEFLAGS & _PAGE_SWP_SOFT_DIRTY);	\
+	BUILD__ON(_PAGE_HPTEFLAGS & (0x1f << _PAGE_BIT_SWAP_TYPE)); \
+	BUILD__ON(_PAGE_HPTEFLAGS & _PAGE_SWP_SOFT_DIRTY);	\
 	} while (0)
 
 #define SWP_TYPE_BITS 5
@@ -1010,7 +1010,7 @@ extern struct page *pgd_page(pgd_t pgd);
 static inline int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 {
 	if (radix_enabled()) {
-#if defined(CONFIG_PPC_RADIX_MMU) && defined(DEBUG_VM)
+#if defined(CONFIG_PPC_RADIX_MMU) && defined(DE_VM)
 		unsigned long page_size = 1 << mmu_psize_defs[mmu_io_psize].shift;
 		WARN((page_size != PAGE_SIZE), "I/O page size != PAGE_SIZE");
 #endif
@@ -1289,7 +1289,7 @@ static inline int pud_pfn(pud_t pud)
 	 * check so this should never be used. If it grows another user we
 	 * want to know about it.
 	 */
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 #define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION

@@ -21,7 +21,7 @@
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_unicode.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  * NAME:	jfs_strfromUCS()

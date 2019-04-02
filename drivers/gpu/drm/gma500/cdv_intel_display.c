@@ -166,13 +166,13 @@ int cdv_sb_read(struct drm_device *dev, u32 reg, u32 *val)
 int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val)
 {
 	int ret;
-	static bool dpio_debug = true;
+	static bool dpio_de = true;
 	u32 temp;
 
-	if (dpio_debug) {
+	if (dpio_de) {
 		if (cdv_sb_read(dev, reg, &temp) == 0)
-			DRM_DEBUG_KMS("0x%08x: 0x%08x (before)\n", reg, temp);
-		DRM_DEBUG_KMS("0x%08x: 0x%08x\n", reg, val);
+			DRM_DE_KMS("0x%08x: 0x%08x (before)\n", reg, temp);
+		DRM_DE_KMS("0x%08x: 0x%08x\n", reg, val);
 	}
 
 	ret = wait_for((REG_READ(SB_PCKT) & SB_BUSY) == 0, 1000);
@@ -194,9 +194,9 @@ int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val)
 		return ret;
 	}
 
-	if (dpio_debug) {
+	if (dpio_de) {
 		if (cdv_sb_read(dev, reg, &temp) == 0)
-			DRM_DEBUG_KMS("0x%08x: 0x%08x (after)\n", reg, temp);
+			DRM_DE_KMS("0x%08x: 0x%08x (after)\n", reg, temp);
 	}
 
 	return 0;
@@ -264,10 +264,10 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 
 	/* use DPLL_A for pipeB on CRT/HDMI */
 	if (pipe == 1 && !is_lvds && !(ddi_select & DP_MASK)) {
-		DRM_DEBUG_KMS("use DPLLA for pipe B\n");
+		DRM_DE_KMS("use DPLLA for pipe B\n");
 		ref_value |= REF_CLK_DPLLA;
 	} else {
-		DRM_DEBUG_KMS("use their DPLL for pipe A/B\n");
+		DRM_DE_KMS("use their DPLL for pipe A/B\n");
 		ref_value |= REF_CLK_DPLL;
 	}
 	ret = cdv_sb_write(dev, ref_sfr, ref_value);
@@ -655,10 +655,10 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (is_lvds && dev_priv->lvds_use_ssc) {
 		refclk = dev_priv->lvds_ssc_freq * 1000;
-		DRM_DEBUG_KMS("Use SSC reference clock %d Mhz\n", dev_priv->lvds_ssc_freq);
+		DRM_DE_KMS("Use SSC reference clock %d Mhz\n", dev_priv->lvds_ssc_freq);
 	}
 
-	drm_mode_debug_printmodeline(adjusted_mode);
+	drm_mode_de_printmodeline(adjusted_mode);
 
 	limit = gma_crtc->clock_funcs->limit(crtc, refclk);
 
@@ -775,8 +775,8 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (cdv_intel_panel_fitter_pipe(dev) == pipe)
 		REG_WRITE(PFIT_CONTROL, 0);
 
-	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
-	drm_mode_debug_printmodeline(mode);
+	DRM_DE_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
+	drm_mode_de_printmodeline(mode);
 
 	REG_WRITE(map->dpll,
 		(REG_READ(map->dpll) & ~DPLL_LOCK) | DPLL_VCO_ENABLE);

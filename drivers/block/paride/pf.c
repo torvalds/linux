@@ -78,7 +78,7 @@
             verbose     This parameter controls the amount of logging
                         that the driver will do.  Set it to 0 for
                         normal operation, 1 to see autoprobe progress
-                        messages, or 2 to see additional debugging
+                        messages, or 2 to see additional deging
                         output.  (default 0)
  
 	    nice        This parameter controls the driver's use of
@@ -108,7 +108,7 @@
 				Small change in pf_completion to round
 				up transfer size.
 	1.02    GRG 1998.06.16  Eliminated an Ugh
-	1.03    GRG 1998.08.16  Use HZ in loop timings, extra debugging
+	1.03    GRG 1998.08.16  Use HZ in loop timings, extra deging
 	1.04    GRG 1998.09.24  Added jumbo support
 
 */

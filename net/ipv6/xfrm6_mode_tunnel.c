@@ -142,7 +142,7 @@ static void __exit xfrm6_mode_tunnel_exit(void)
 	int err;
 
 	err = xfrm_unregister_mode(&xfrm6_tunnel_mode, AF_INET6);
-	BUG_ON(err);
+	_ON(err);
 }
 
 module_init(xfrm6_mode_tunnel_init);

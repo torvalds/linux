@@ -34,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
 #include <linux/input/mt.h>
@@ -104,8 +104,8 @@ struct edt_ft5x06_ts_data {
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *wake_gpio;
 
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry *debug_dir;
+#if defined(CONFIG_DE_FS)
+	struct dentry *de_dir;
 	u8 *raw_buffer;
 	size_t raw_bufsize;
 #endif
@@ -541,7 +541,7 @@ static const struct attribute_group edt_ft5x06_attr_group = {
 	.attrs = edt_ft5x06_attrs,
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int edt_ft5x06_factory_mode(struct edt_ft5x06_ts_data *tsdata)
 {
 	struct i2c_client *client = tsdata->client;
@@ -661,7 +661,7 @@ static int edt_ft5x06_work_mode(struct edt_ft5x06_ts_data *tsdata)
 	return 0;
 }
 
-static int edt_ft5x06_debugfs_mode_get(void *data, u64 *mode)
+static int edt_ft5x06_defs_mode_get(void *data, u64 *mode)
 {
 	struct edt_ft5x06_ts_data *tsdata = data;
 
@@ -670,7 +670,7 @@ static int edt_ft5x06_debugfs_mode_get(void *data, u64 *mode)
 	return 0;
 };
 
-static int edt_ft5x06_debugfs_mode_set(void *data, u64 mode)
+static int edt_ft5x06_defs_mode_set(void *data, u64 mode)
 {
 	struct edt_ft5x06_ts_data *tsdata = data;
 	int retval = 0;
@@ -690,10 +690,10 @@ static int edt_ft5x06_debugfs_mode_set(void *data, u64 mode)
 	return retval;
 };
 
-DEFINE_SIMPLE_ATTRIBUTE(debugfs_mode_fops, edt_ft5x06_debugfs_mode_get,
-			edt_ft5x06_debugfs_mode_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(defs_mode_fops, edt_ft5x06_defs_mode_get,
+			edt_ft5x06_defs_mode_set, "%llu\n");
 
-static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
+static ssize_t edt_ft5x06_defs_raw_data_read(struct file *file,
 				char __user *buf, size_t count, loff_t *off)
 {
 	struct edt_ft5x06_ts_data *tsdata = file->private_data;
@@ -771,49 +771,49 @@ out:
 	return error ?: read;
 };
 
-static const struct file_operations debugfs_raw_data_fops = {
+static const struct file_operations defs_raw_data_fops = {
 	.open = simple_open,
-	.read = edt_ft5x06_debugfs_raw_data_read,
+	.read = edt_ft5x06_defs_raw_data_read,
 };
 
 static void
-edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
-			      const char *debugfs_name)
+edt_ft5x06_ts_prepare_defs(struct edt_ft5x06_ts_data *tsdata,
+			      const char *defs_name)
 {
-	tsdata->debug_dir = debugfs_create_dir(debugfs_name, NULL);
-	if (!tsdata->debug_dir)
+	tsdata->de_dir = defs_create_dir(defs_name, NULL);
+	if (!tsdata->de_dir)
 		return;
 
-	debugfs_create_u16("num_x", S_IRUSR, tsdata->debug_dir, &tsdata->num_x);
-	debugfs_create_u16("num_y", S_IRUSR, tsdata->debug_dir, &tsdata->num_y);
+	defs_create_u16("num_x", S_IRUSR, tsdata->de_dir, &tsdata->num_x);
+	defs_create_u16("num_y", S_IRUSR, tsdata->de_dir, &tsdata->num_y);
 
-	debugfs_create_file("mode", S_IRUSR | S_IWUSR,
-			    tsdata->debug_dir, tsdata, &debugfs_mode_fops);
-	debugfs_create_file("raw_data", S_IRUSR,
-			    tsdata->debug_dir, tsdata, &debugfs_raw_data_fops);
+	defs_create_file("mode", S_IRUSR | S_IWUSR,
+			    tsdata->de_dir, tsdata, &defs_mode_fops);
+	defs_create_file("raw_data", S_IRUSR,
+			    tsdata->de_dir, tsdata, &defs_raw_data_fops);
 }
 
 static void
-edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
+edt_ft5x06_ts_teardown_defs(struct edt_ft5x06_ts_data *tsdata)
 {
-	debugfs_remove_recursive(tsdata->debug_dir);
+	defs_remove_recursive(tsdata->de_dir);
 	kfree(tsdata->raw_buffer);
 }
 
 #else
 
 static inline void
-edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
-			      const char *debugfs_name)
+edt_ft5x06_ts_prepare_defs(struct edt_ft5x06_ts_data *tsdata,
+			      const char *defs_name)
 {
 }
 
 static inline void
-edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
+edt_ft5x06_ts_teardown_defs(struct edt_ft5x06_ts_data *tsdata)
 {
 }
 
-#endif /* CONFIG_DEBUGFS */
+#endif /* CONFIG_DEFS */
 
 static int edt_ft5x06_ts_identify(struct i2c_client *client,
 					struct edt_ft5x06_ts_data *tsdata,
@@ -1188,7 +1188,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
+	edt_ft5x06_ts_prepare_defs(tsdata, dev_driver_string(&client->dev));
 	device_init_wakeup(&client->dev, 1);
 
 	dev_dbg(&client->dev,
@@ -1204,7 +1204,7 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 {
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 
-	edt_ft5x06_ts_teardown_debugfs(tsdata);
+	edt_ft5x06_ts_teardown_defs(tsdata);
 
 	return 0;
 }

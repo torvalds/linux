@@ -170,7 +170,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_acpi_hardware_present = TRUE;
 	acpi_gbl_last_owner_id_index = 0;
 	acpi_gbl_next_owner_id_offset = 0;
-	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
+	acpi_gbl_deger_configuration = DEGER_THREADING;
 	acpi_gbl_osi_mutex = NULL;
 
 	/* Hardware oriented */
@@ -196,7 +196,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_resolved_external_methods = 0;
 #endif
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 	acpi_gbl_lowest_stack_pointer = ACPI_CAST_PTR(acpi_size, ACPI_SIZE_MAX);
 #endif
 
@@ -238,7 +238,7 @@ static void acpi_ut_terminate(void)
  * RETURN:      None
  *
  * DESCRIPTION: Shutdown the various components. Do not delete the mutex
- *              objects here, because the AML debugger may be still running.
+ *              objects here, because the AML deger may be still running.
  *
  ******************************************************************************/
 
@@ -257,7 +257,7 @@ void acpi_ut_subsystem_shutdown(void)
 
 	acpi_gbl_shutdown = TRUE;
 	acpi_gbl_startup_flags = 0;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 #ifndef ACPI_ASL_COMPILER
 

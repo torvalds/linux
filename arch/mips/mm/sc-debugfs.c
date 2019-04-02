@@ -9,9 +9,9 @@
  */
 
 #include <asm/bcache.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/init.h>
 
 static ssize_t sc_prefetch_read(struct file *file, char __user *user_buf,
@@ -53,13 +53,13 @@ static const struct file_operations sc_prefetch_fops = {
 	.write = sc_prefetch_write,
 };
 
-static int __init sc_debugfs_init(void)
+static int __init sc_defs_init(void)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("l2cache", mips_debugfs_dir);
-	debugfs_create_file("prefetch", S_IRUGO | S_IWUSR, dir, NULL,
+	dir = defs_create_dir("l2cache", mips_defs_dir);
+	defs_create_file("prefetch", S_IRUGO | S_IWUSR, dir, NULL,
 			    &sc_prefetch_fops);
 	return 0;
 }
-late_initcall(sc_debugfs_init);
+late_initcall(sc_defs_init);

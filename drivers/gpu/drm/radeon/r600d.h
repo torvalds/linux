@@ -173,7 +173,7 @@
 #define	CP_BUSY_STAT				0x867C
 #define	CP_STAT						0x8680
 #define	CP_COHER_BASE					0x85F8
-#define	CP_DEBUG					0xC1FC
+#define	CP_DE					0xC1FC
 #define	R_0086D8_CP_ME_CNTL			0x86D8
 #define		S_0086D8_CP_PFP_HALT(x)			(((x) & 1)<<26)
 #define		C_0086D8_CP_PFP_HALT(x)			((x) & 0xFBFFFFFF)
@@ -211,7 +211,7 @@
 #define	CP_ROQ_IB2_STAT					0x8788
 #define	CP_SEM_WAIT_TIMER				0x85BC
 
-#define	DB_DEBUG					0x9830
+#define	DB_DE					0x9830
 #define		PREZ_MUST_WAIT_FOR_POSTZ_DONE			(1 << 31)
 #define	DB_DEPTH_BASE					0x2800C
 #define	DB_HTILE_DATA_BASE				0x28014
@@ -321,7 +321,7 @@
 #define	HDP_NONSURFACE_SIZE				0x2C0C
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
-#define HDP_DEBUG1                                      0x2F34
+#define HDP_DE1                                      0x2F34
 
 #define MC_CONFIG					0x2000
 #define MC_VM_AGP_TOP					0x2184
@@ -508,7 +508,7 @@
 
 #define	SX_MISC						0x28350
 #define	SX_MEMORY_EXPORT_BASE				0x9010
-#define	SX_DEBUG_1					0x9054
+#define	SX_DE_1					0x9054
 #define		SMX_EVENT_RELEASE				(1 << 0)
 #define		ENABLE_NEW_SMX_ADDRESS				(1 << 16)
 

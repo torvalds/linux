@@ -232,8 +232,8 @@ static struct rtl_mod_params rtl92ce_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = true,
 	.aspm_support = 1,
-	.debug_level = 0,
-	.debug_mask = 0,
+	.de_level = 0,
+	.de_mask = 0,
 };
 
 static const struct rtl_hal_cfg rtl92ce_hal_cfg = {
@@ -350,8 +350,8 @@ MODULE_FIRMWARE("rtlwifi/rtl8192cfwU.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cfwU_B.bin");
 
 module_param_named(swenc, rtl92ce_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug_level, rtl92ce_mod_params.debug_level, int, 0644);
-module_param_named(debug_mask, rtl92ce_mod_params.debug_mask, ullong, 0644);
+module_param_named(de_level, rtl92ce_mod_params.de_level, int, 0644);
+module_param_named(de_mask, rtl92ce_mod_params.de_mask, ullong, 0644);
 module_param_named(ips, rtl92ce_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl92ce_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl92ce_mod_params.fwctrl_lps, bool, 0444);
@@ -361,8 +361,8 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
-MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
-MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
+MODULE_PARM_DESC(de_level, "Set de level (0-5) (default 0)");
+MODULE_PARM_DESC(de_mask, "Set de mask (default 0)");
 
 static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
 

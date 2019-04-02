@@ -133,7 +133,7 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 	for_each_possible_cpu(cpu)
 		count += *per_cpu_ptr(percpu_count, cpu);
 
-	pr_debug("global %ld percpu %ld",
+	pr_de("global %ld percpu %ld",
 		 atomic_long_read(&ref->count), (long)count);
 
 	/*
@@ -189,7 +189,7 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 	unsigned long __percpu *percpu_count = percpu_count_ptr(ref);
 	int cpu;
 
-	BUG_ON(!percpu_count);
+	_ON(!percpu_count);
 
 	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
 		return;

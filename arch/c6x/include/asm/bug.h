@@ -8,11 +8,11 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-#ifndef _ASM_C6X_BUG_H
-#define _ASM_C6X_BUG_H
+#ifndef _ASM_C6X__H
+#define _ASM_C6X__H
 
 #include <linux/linkage.h>
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
 struct pt_regs;
 
@@ -20,4 +20,4 @@ extern void die(char *str, struct pt_regs *fp, int nr);
 extern asmlinkage int process_exception(struct pt_regs *regs);
 extern asmlinkage void enable_exception(void);
 
-#endif /* _ASM_C6X_BUG_H */
+#endif /* _ASM_C6X__H */

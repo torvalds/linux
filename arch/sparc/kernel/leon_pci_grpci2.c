@@ -60,8 +60,8 @@ struct grpci2_barcfg {
  * Force PCI reset on startup. int, len=4
  */
 
-/* Enable Debugging Configuration Space Access */
-#undef GRPCI2_DEBUG_CFGACCESS
+/* Enable Deging Configuration Space Access */
+#undef GRPCI2_DE_CFGACCESS
 
 /*
  * GRPCI2 APB Register MAP
@@ -400,7 +400,7 @@ static int grpci2_read_config(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-#ifdef GRPCI2_DEBUG_CFGACCESS
+#ifdef GRPCI2_DE_CFGACCESS
 	printk(KERN_INFO "grpci2_read_config: [%02x:%02x:%x] ofs=%d val=%x "
 		"size=%d\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where,
 		*val, size);
@@ -421,7 +421,7 @@ static int grpci2_write_config(struct pci_bus *bus, unsigned int devfn,
 	if (PCI_SLOT(devfn) > 15 || busno > 255)
 		return 0;
 
-#ifdef GRPCI2_DEBUG_CFGACCESS
+#ifdef GRPCI2_DE_CFGACCESS
 	printk(KERN_INFO "grpci2_write_config: [%02x:%02x:%x] ofs=%d size=%d "
 		"val=%x\n", busno, PCI_SLOT(devfn), PCI_FUNC(devfn),
 		where, size, val);
@@ -855,7 +855,7 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 	err = request_irq(priv->virq_err, grpci2_err_interrupt, IRQF_SHARED,
 				"GRPCI2_ERR", priv);
 	if (err) {
-		printk(KERN_DEBUG "GRPCI2: ERR VIRQ request failed: %d\n", err);
+		printk(KERN_DE "GRPCI2: ERR VIRQ request failed: %d\n", err);
 		goto err5;
 	}
 

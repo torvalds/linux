@@ -109,7 +109,7 @@ static bool __target_check_io_state(struct se_cmd *se_cmd,
 	 */
 	spin_lock(&se_cmd->t_state_lock);
 	if (se_cmd->transport_state & (CMD_T_COMPLETE | CMD_T_FABRIC_STOP)) {
-		pr_debug("Attempted to abort io tag: %llu already complete or"
+		pr_de("Attempted to abort io tag: %llu already complete or"
 			" fabric stop, skipping\n", se_cmd->tag);
 		spin_unlock(&se_cmd->t_state_lock);
 		return false;
@@ -233,7 +233,7 @@ static void core_tmr_drain_tmr_list(
 		list_del_init(&tmr_p->tmr_list);
 		cmd = tmr_p->task_cmd;
 
-		pr_debug("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
+		pr_de("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
 			" Response: 0x%02x, t_state: %d\n",
 			(preempt_and_abort_list) ? "Preempt" : "", tmr_p,
 			tmr_p->function, tmr_p->response, cmd->t_state);
@@ -330,7 +330,7 @@ static void core_tmr_drain_state_list(
 		list_del_init(&cmd->state_list);
 
 		target_show_cmd("LUN_RESET: ", cmd);
-		pr_debug("LUN_RESET: ITT[0x%08llx] - %s pr_res_key: 0x%016Lx\n",
+		pr_de("LUN_RESET: ITT[0x%08llx] - %s pr_res_key: 0x%016Lx\n",
 			 cmd->tag, (preempt_and_abort_list) ? "preempt" : "",
 			 cmd->pr_res_key);
 
@@ -369,13 +369,13 @@ int core_tmr_lun_reset(
 		tmr_nacl = tmr_sess->se_node_acl;
 		tmr_tpg = tmr_sess->se_tpg;
 		if (tmr_nacl && tmr_tpg) {
-			pr_debug("LUN_RESET: TMR caller fabric: %s"
+			pr_de("LUN_RESET: TMR caller fabric: %s"
 				" initiator port %s\n",
 				tmr_tpg->se_tpg_tfo->fabric_name,
 				tmr_nacl->initiatorname);
 		}
 	}
-	pr_debug("LUN_RESET: %s starting for [%s], tas: %d\n",
+	pr_de("LUN_RESET: %s starting for [%s], tas: %d\n",
 		(preempt_and_abort_list) ? "Preempt" : "TMR",
 		dev->transport->name, tas);
 
@@ -393,12 +393,12 @@ int core_tmr_lun_reset(
 		dev->dev_reserved_node_acl = NULL;
 		dev->dev_reservation_flags &= ~DRF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
-		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");
+		pr_de("LUN_RESET: SCSI-2 Released reservation\n");
 	}
 
 	atomic_long_inc(&dev->num_resets);
 
-	pr_debug("LUN_RESET: %s for [%s] Complete\n",
+	pr_de("LUN_RESET: %s for [%s] Complete\n",
 			(preempt_and_abort_list) ? "Preempt" : "TMR",
 			dev->transport->name);
 	return 0;

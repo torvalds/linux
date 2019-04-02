@@ -67,7 +67,7 @@ struct nouveau_svm {
 	} buffer[1];
 };
 
-#define SVM_DBG(s,f,a...) NV_DEBUG((s)->drm, "svm: "f"\n", ##a)
+#define SVM_DBG(s,f,a...) NV_DE((s)->drm, "svm: "f"\n", ##a)
 #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
 
 struct nouveau_ivmm {
@@ -101,7 +101,7 @@ struct nouveau_svmm {
 };
 
 #define SVMM_DBG(s,f,a...)                                                     \
-	NV_DEBUG((s)->vmm->cli->drm, "svm-%p: "f"\n", (s), ##a)
+	NV_DE((s)->vmm->cli->drm, "svm-%p: "f"\n", (s), ##a)
 #define SVMM_ERR(s,f,a...)                                                     \
 	NV_WARN((s)->vmm->cli->drm, "svm-%p: "f"\n", (s), ##a)
 

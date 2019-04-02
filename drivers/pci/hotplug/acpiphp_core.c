@@ -120,7 +120,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = to_slot(hotplug_slot);
 
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
+	pr_de("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	/* enable the specified slot */
 	return acpiphp_enable_slot(slot->acpi_slot);
@@ -137,7 +137,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = to_slot(hotplug_slot);
 
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
+	pr_de("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	/* disable the specified slot */
 	return acpiphp_disable_slot(slot->acpi_slot);
@@ -157,7 +157,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 {
 	int retval = -ENODEV;
 
-	pr_debug("%s - physical_slot = %s\n", __func__,
+	pr_de("%s - physical_slot = %s\n", __func__,
 		hotplug_slot_name(hotplug_slot));
 
 	if (attention_info && try_module_get(attention_info->owner)) {
@@ -181,7 +181,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = to_slot(hotplug_slot);
 
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
+	pr_de("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_power_status(slot->acpi_slot);
 
@@ -203,7 +203,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int retval = -EINVAL;
 
-	pr_debug("%s - physical_slot = %s\n", __func__,
+	pr_de("%s - physical_slot = %s\n", __func__,
 		hotplug_slot_name(hotplug_slot));
 
 	if (attention_info && try_module_get(attention_info->owner)) {
@@ -227,7 +227,7 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = to_slot(hotplug_slot);
 
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
+	pr_de("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_latch_status(slot->acpi_slot);
 
@@ -247,7 +247,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	struct slot *slot = to_slot(hotplug_slot);
 
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
+	pr_de("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_adapter_status(slot->acpi_slot);
 
@@ -307,6 +307,6 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 void __init acpiphp_init(void)
 {
 	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "%s\n",
-		acpiphp_disabled ? ", disabled by user; please report a bug"
+		acpiphp_disabled ? ", disabled by user; please report a "
 				 : "");
 }

@@ -26,7 +26,7 @@
 #include <linux/hw_random.h>
 
 #include "common.h"
-#include "debug.h"
+#include "de.h"
 #include "mci.h"
 #include "dfs.h"
 
@@ -430,7 +430,7 @@ ath_node_to_tid(struct ath_node *an, u8 tidno)
 	struct ieee80211_vif *vif = an->vif;
 	struct ieee80211_txq *txq;
 
-	BUG_ON(!vif);
+	_ON(!vif);
 	if (sta)
 		txq = sta->txq[tidno % ARRAY_SIZE(sta->txq)];
 	else
@@ -1037,8 +1037,8 @@ struct ath_softc {
 	struct led_classdev led_cdev;
 #endif
 
-#ifdef CONFIG_ATH9K_DEBUGFS
-	struct ath9k_debug debug;
+#ifdef CONFIG_ATH9K_DEFS
+	struct ath9k_de de;
 #endif
 	struct delayed_work hw_check_work;
 	struct delayed_work hw_pll_work;
@@ -1081,11 +1081,11 @@ struct ath_softc {
 /********/
 
 #ifdef CONFIG_ATH9K_TX99
-void ath9k_tx99_init_debug(struct ath_softc *sc);
+void ath9k_tx99_init_de(struct ath_softc *sc);
 int ath9k_tx99_send(struct ath_softc *sc, struct sk_buff *skb,
 		    struct ath_tx_control *txctl);
 #else
-static inline void ath9k_tx99_init_debug(struct ath_softc *sc)
+static inline void ath9k_tx99_init_de(struct ath_softc *sc)
 {
 }
 static inline int ath9k_tx99_send(struct ath_softc *sc,

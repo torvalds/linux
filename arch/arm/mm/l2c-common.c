@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/smp.h>
 #include <asm/outercache.h>
 

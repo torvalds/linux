@@ -17,7 +17,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -74,7 +74,7 @@ dcr_host_t dcr_map_generic(struct device_node *dev,
 
 	prop = of_get_property(dp, "dcr-access-method", NULL);
 
-	pr_debug("dcr_map_generic(dcr-access-method = %s)\n", prop);
+	pr_de("dcr_map_generic(dcr-access-method = %s)\n", prop);
 
 	if (!strcmp(prop, "native")) {
 		host.type = DCR_HOST_NATIVE;
@@ -195,19 +195,19 @@ dcr_host_mmio_t dcr_map_mmio(struct device_node *dev,
 	dcr_host_mmio_t ret = { .token = NULL, .stride = 0, .base = dcr_n };
 	u64 addr;
 
-	pr_debug("dcr_map(%pOF, 0x%x, 0x%x)\n",
+	pr_de("dcr_map(%pOF, 0x%x, 0x%x)\n",
 		 dev, dcr_n, dcr_c);
 
 	addr = of_translate_dcr_address(dev, dcr_n, &ret.stride);
-	pr_debug("translates to addr: 0x%llx, stride: 0x%x\n",
+	pr_de("translates to addr: 0x%llx, stride: 0x%x\n",
 		 (unsigned long long) addr, ret.stride);
 	if (addr == OF_BAD_ADDR)
 		return ret;
-	pr_debug("mapping 0x%x bytes\n", dcr_c * ret.stride);
+	pr_de("mapping 0x%x bytes\n", dcr_c * ret.stride);
 	ret.token = ioremap(addr, dcr_c * ret.stride);
 	if (ret.token == NULL)
 		return ret;
-	pr_debug("mapped at 0x%p -> base is 0x%p\n",
+	pr_de("mapped at 0x%p -> base is 0x%p\n",
 		 ret.token, ret.token - dcr_n * ret.stride);
 	ret.token -= dcr_n * ret.stride;
 	return ret;

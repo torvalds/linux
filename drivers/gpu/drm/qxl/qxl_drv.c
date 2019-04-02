@@ -252,8 +252,8 @@ static struct drm_driver qxl_driver = {
 
 	.dumb_create = qxl_mode_dumb_create,
 	.dumb_map_offset = qxl_mode_dumb_mmap,
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = qxl_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = qxl_defs_init,
 #endif
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,

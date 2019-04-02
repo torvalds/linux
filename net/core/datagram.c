@@ -478,7 +478,7 @@ int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 
 	/* This is not really a user copy fault, but rather someone
 	 * gave us a bogus length on the skb.  We should probably
-	 * print a warning here as it may indicate a kernel bug.
+	 * print a warning here as it may indicate a kernel .
 	 */
 
 fault:

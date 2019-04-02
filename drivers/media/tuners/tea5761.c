@@ -12,9 +12,9 @@
 #include "tuner-i2c.h"
 #include "tea5761.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 struct tea5761_priv {
 	struct tuner_i2c_props i2c_props;
@@ -164,7 +164,7 @@ static int __set_radio_freq(struct dvb_frontend *fe,
 	buffer[1] = (div >> 8) & 0x3f;
 	buffer[2] = div & 0xff;
 
-	if (debug)
+	if (de)
 		tea5761_status_dump(buffer);
 
 	if (7 != (rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 7)))

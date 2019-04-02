@@ -302,7 +302,7 @@ static void aac_rx_notify_adapter(struct aac_dev *dev, u32 event)
 		rx_writel(dev, MUnit.IDR,INBOUNDDOORBELL_5);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }

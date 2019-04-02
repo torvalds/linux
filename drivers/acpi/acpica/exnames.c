@@ -155,11 +155,11 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		char_buf[4] = '\0';
 
 		if (name_string) {
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Appending NameSeg %s\n", char_buf));
 			strcat(name_string, char_buf);
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "No Name string - %s\n", char_buf));
 		}
 	} else if (index == 0) {
@@ -167,7 +167,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		 * First character was not a valid name character,
 		 * so we are looking at something other than a name.
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Leading character is not alpha: %02Xh (not a name)\n",
 				  char_buf[0]));
 		status = AE_CTRL_PENDING;
@@ -238,7 +238,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 		switch (*aml_address) {
 		case AML_ROOT_PREFIX:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+			ACPI_DE_PRINT((ACPI_DB_LOAD,
 					  "RootPrefix(\\) at %p\n",
 					  aml_address));
 
@@ -256,7 +256,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 			/* Increment past possibly multiple parent prefixes */
 
 			do {
-				ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+				ACPI_DE_PRINT((ACPI_DB_LOAD,
 						  "ParentPrefix (^) at %p\n",
 						  aml_address));
 
@@ -280,7 +280,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 		switch (*aml_address) {
 		case AML_DUAL_NAME_PREFIX:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+			ACPI_DE_PRINT((ACPI_DB_LOAD,
 					  "DualNamePrefix at %p\n",
 					  aml_address));
 
@@ -307,7 +307,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 
 		case AML_MULTI_NAME_PREFIX:
 
-			ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+			ACPI_DE_PRINT((ACPI_DB_LOAD,
 					  "MultiNamePrefix at %p\n",
 					  aml_address));
 
@@ -343,7 +343,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 			/* null_name valid as of 8-12-98 ASL/AML Grammar Update */
 
 			if (prefix_count == ACPI_UINT32_MAX) {
-				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				ACPI_DE_PRINT((ACPI_DB_EXEC,
 						  "NameSeg is \"\\\" followed by NULL\n"));
 			}
 

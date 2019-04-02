@@ -261,7 +261,7 @@ Interaction with the user of the RxRPC socket:
 
      (*) Notifications of incoming calls.
 
-     (*) Sending debug requests and receiving debug replies [TODO].
+     (*) Sending de requests and receiving de replies [TODO].
 
  (*) When the kernel has received and set up an incoming call, it sends a
      message to server application to let it know there's a new call awaiting

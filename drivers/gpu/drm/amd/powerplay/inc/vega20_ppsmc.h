@@ -111,7 +111,7 @@
 #define PPSMC_MSG_DisallowGfxOff                 0x52
 #define PPSMC_MSG_GetPptLimit                    0x53
 #define PPSMC_MSG_GetDcModeMaxDpmFreq            0x54
-#define PPSMC_MSG_GetDebugData                   0x55
+#define PPSMC_MSG_GetDeData                   0x55
 #define PPSMC_MSG_SetXgmiMode                    0x56
 #define PPSMC_MSG_RunAfllBtc                     0x57
 #define PPSMC_MSG_ExitBaco                       0x58

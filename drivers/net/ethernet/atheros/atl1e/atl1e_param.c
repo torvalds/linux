@@ -35,7 +35,7 @@
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
- * over and over (plus this helps to avoid typo bugs).
+ * over and over (plus this helps to avoid typo s).
  */
 #define ATL1E_PARAM_INIT { [0 ... ATL1E_MAX_NIC] = OPTION_UNSET }
 
@@ -160,7 +160,7 @@ static int atl1e_validate_option(int *value, struct atl1e_option *opt,
 			break;
 		}
 	default:
-		BUG();
+		();
 	}
 
 	netdev_info(adapter->netdev, "Invalid %s specified (%i) %s\n",

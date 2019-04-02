@@ -22,7 +22,7 @@
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #define REGDEF(reg) { reg, #reg }
 static const struct {
 	uint32_t reg;
@@ -108,7 +108,7 @@ static const struct {
 	REGDEF(V3D_ERRSTAT),
 };
 
-int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused)
+int vc4_v3d_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -124,7 +124,7 @@ int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused)
 	return 0;
 }
 
-int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
+int vc4_v3d_defs_ident(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -144,7 +144,7 @@ int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 
 	return 0;
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static void vc4_v3d_init_hw(struct drm_device *dev)
 {
@@ -249,7 +249,7 @@ static int vc4_allocate_bin_bo(struct drm_device *drm)
 			break;
 		}
 
-		/* Check if this BO won't trigger the addressing bug. */
+		/* Check if this BO won't trigger the addressing . */
 		if ((bo->base.paddr & 0xf0000000) ==
 		    ((bo->base.paddr + bo->base.base.size - 1) & 0xf0000000)) {
 			vc4->bin_bo = bo;

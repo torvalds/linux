@@ -729,8 +729,8 @@ static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
 	skb_reset_transport_header(skb);
 	cb->nsp_flags = *ptr++;
 
-	if (decnet_debug_level & 2)
-		printk(KERN_DEBUG "dn_nsp_rx: Message type 0x%02x\n", (int)cb->nsp_flags);
+	if (decnet_de_level & 2)
+		printk(KERN_DE "dn_nsp_rx: Message type 0x%02x\n", (int)cb->nsp_flags);
 
 	if (cb->nsp_flags & 0x83)
 		goto free_out;

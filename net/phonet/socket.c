@@ -87,7 +87,7 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 	rcu_read_lock();
 	sk_for_each_rcu(sknode, hlist) {
 		struct pn_sock *pn = pn_sk(sknode);
-		BUG_ON(!pn->sobject); /* unbound socket */
+		_ON(!pn->sobject); /* unbound socket */
 
 		if (!net_eq(sock_net(sknode), net))
 			continue;
@@ -223,7 +223,7 @@ static int pn_socket_autobind(struct socket *sock)
 				sizeof(struct sockaddr_pn));
 	if (err != -EINVAL)
 		return err;
-	BUG_ON(!pn_port(pn_sk(sock->sk)->sobject));
+	_ON(!pn_port(pn_sk(sock->sk)->sobject));
 	return 0; /* socket was already bound */
 }
 
@@ -738,7 +738,7 @@ static struct sock **pn_res_get_next(struct seq_file *seq, struct sock **sk)
 	struct net *net = seq_file_net(seq);
 	unsigned int i;
 
-	BUG_ON(!net_eq(net, &init_net));
+	_ON(!net_eq(net, &init_net));
 
 	for (i = (sk - pnres.sk) + 1; i < 256; i++)
 		if (pnres.sk[i])

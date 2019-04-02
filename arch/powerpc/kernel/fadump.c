@@ -24,7 +24,7 @@
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
  */
 
-#undef DEBUG
+#undef DE
 #define pr_fmt(fmt) "fadump: " fmt
 
 #include <linux/string.h>
@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/cma.h>
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/page.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -272,23 +272,23 @@ static bool is_reserved_memory_area_contiguous(void)
 	return false;
 }
 
-/* Print firmware assisted dump configurations for debugging purpose. */
+/* Print firmware assisted dump configurations for deging purpose. */
 static void fadump_show_config(void)
 {
-	pr_debug("Support for firmware-assisted dump (fadump): %s\n",
+	pr_de("Support for firmware-assisted dump (fadump): %s\n",
 			(fw_dump.fadump_supported ? "present" : "no support"));
 
 	if (!fw_dump.fadump_supported)
 		return;
 
-	pr_debug("Fadump enabled    : %s\n",
+	pr_de("Fadump enabled    : %s\n",
 				(fw_dump.fadump_enabled ? "yes" : "no"));
-	pr_debug("Dump Active       : %s\n",
+	pr_de("Dump Active       : %s\n",
 				(fw_dump.dump_active ? "yes" : "no"));
-	pr_debug("Dump section sizes:\n");
-	pr_debug("    CPU state data size: %lx\n", fw_dump.cpu_state_data_size);
-	pr_debug("    HPTE region size   : %lx\n", fw_dump.hpte_region_size);
-	pr_debug("Boot memory size  : %lx\n", fw_dump.boot_memory_size);
+	pr_de("Dump section sizes:\n");
+	pr_de("    CPU state data size: %lx\n", fw_dump.cpu_state_data_size);
+	pr_de("    HPTE region size   : %lx\n", fw_dump.hpte_region_size);
+	pr_de("Boot memory size  : %lx\n", fw_dump.boot_memory_size);
 }
 
 static unsigned long init_fadump_mem_struct(struct fadump_mem_struct *fdm,
@@ -533,7 +533,7 @@ int __init fadump_reserve_mem(void)
 		fw_dump.fadumphdr_addr =
 				be64_to_cpu(fdm_active->rmr_region.destination_address) +
 				be64_to_cpu(fdm_active->rmr_region.source_len);
-		pr_debug("fadumphdr_addr = %pa\n", &fw_dump.fadumphdr_addr);
+		pr_de("fadumphdr_addr = %pa\n", &fw_dump.fadumphdr_addr);
 		fw_dump.reserve_dump_area_start = base;
 		fw_dump.reserve_dump_area_size = size;
 	} else {
@@ -613,7 +613,7 @@ static int register_fw_dump(struct fadump_mem_struct *fdm)
 	int rc, err;
 	unsigned int wait_time;
 
-	pr_debug("Registering for firmware-assisted kernel dump...\n");
+	pr_de("Registering for firmware-assisted kernel dump...\n");
 
 	/* TODO: Add upper time limit for the delay */
 	do {
@@ -871,13 +871,13 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 		printk(KERN_ERR "Unable to read register save area.\n");
 		return -ENOENT;
 	}
-	pr_debug("--------CPU State Data------------\n");
-	pr_debug("Magic Number: %llx\n", be64_to_cpu(reg_header->magic_number));
-	pr_debug("NumCpuOffset: %x\n", be32_to_cpu(reg_header->num_cpu_offset));
+	pr_de("--------CPU State Data------------\n");
+	pr_de("Magic Number: %llx\n", be64_to_cpu(reg_header->magic_number));
+	pr_de("NumCpuOffset: %x\n", be32_to_cpu(reg_header->num_cpu_offset));
 
 	vaddr += be32_to_cpu(reg_header->num_cpu_offset);
 	num_cpus = be32_to_cpu(*((__be32 *)(vaddr)));
-	pr_debug("NumCpus     : %u\n", num_cpus);
+	pr_de("NumCpus     : %u\n", num_cpus);
 	vaddr += sizeof(u32);
 	reg_entry = (struct fadump_reg_entry *)vaddr;
 
@@ -892,7 +892,7 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 	}
 	fw_dump.cpu_notes_buf = __pa(note_buf);
 
-	pr_debug("Allocated buffer for cpu notes of size %ld at %p\n",
+	pr_de("Allocated buffer for cpu notes of size %ld at %p\n",
 			(num_cpus * sizeof(note_buf_t)), note_buf);
 
 	if (fw_dump.fadumphdr_addr)
@@ -910,7 +910,7 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 			SKIP_TO_NEXT_CPU(reg_entry);
 			continue;
 		}
-		pr_debug("Reading register data for cpu %d...\n", cpu);
+		pr_de("Reading register data for cpu %d...\n", cpu);
 		if (fdh && fdh->crashing_cpu == cpu) {
 			regs = fdh->regs;
 			note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
@@ -924,7 +924,7 @@ static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
 	final_note(note_buf);
 
 	if (fdh) {
-		pr_debug("Updating elfcore header (%llx) with cpu notes\n",
+		pr_de("Updating elfcore header (%llx) with cpu notes\n",
 							fdh->elfcorehdr_addr);
 		fadump_update_elfcore_header((char *)__va(fdh->elfcorehdr_addr));
 	}
@@ -1004,7 +1004,7 @@ static int allocate_crash_memory_ranges(void)
 	u64 new_size;
 
 	new_size = crash_memory_ranges_size + PAGE_SIZE;
-	pr_debug("Allocating %llu bytes of memory for crash memory ranges\n",
+	pr_de("Allocating %llu bytes of memory for crash memory ranges\n",
 		 new_size);
 
 	new_array = krealloc(crash_memory_ranges, new_size, GFP_KERNEL);
@@ -1057,7 +1057,7 @@ static inline int fadump_add_crash_memory(unsigned long long base,
 	}
 
 	crash_memory_ranges[crash_mem_ranges - 1].size = (end - start);
-	pr_debug("crash_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
+	pr_de("crash_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
 		(crash_mem_ranges - 1), start, end - 1, (end - start));
 	return 0;
 }
@@ -1132,7 +1132,7 @@ static int fadump_setup_crash_memory_ranges(void)
 	unsigned long long start, end;
 	int ret;
 
-	pr_debug("Setup crash memory ranges.\n");
+	pr_de("Setup crash memory ranges.\n");
 	crash_mem_ranges = 0;
 
 	/*
@@ -1155,7 +1155,7 @@ static int fadump_setup_crash_memory_ranges(void)
 		 * through boot_memory_size). This logic needs a relook if and
 		 * when RMA_START changes to a non-zero value.
 		 */
-		BUILD_BUG_ON(RMA_START != 0);
+		BUILD__ON(RMA_START != 0);
 		if (start < fw_dump.boot_memory_size) {
 			if (end > fw_dump.boot_memory_size)
 				start = fw_dump.boot_memory_size;
@@ -1310,7 +1310,7 @@ static int register_fadump(void)
 	addr = init_fadump_header(addr);
 	vaddr = __va(addr);
 
-	pr_debug("Creating ELF core headers at %#016lx\n", addr);
+	pr_de("Creating ELF core headers at %#016lx\n", addr);
 	fadump_create_elfcore_headers(vaddr);
 
 	/* register the future kernel dump with firmware. */
@@ -1322,7 +1322,7 @@ static int fadump_unregister_dump(struct fadump_mem_struct *fdm)
 	int rc = 0;
 	unsigned int wait_time;
 
-	pr_debug("Un-register firmware-assisted dump\n");
+	pr_de("Un-register firmware-assisted dump\n");
 
 	/* TODO: Add upper time limit for the delay */
 	do {
@@ -1349,7 +1349,7 @@ static int fadump_invalidate_dump(const struct fadump_mem_struct *fdm)
 	int rc = 0;
 	unsigned int wait_time;
 
-	pr_debug("Invalidating firmware-assisted dump registration\n");
+	pr_de("Invalidating firmware-assisted dump registration\n");
 
 	/* TODO: Add upper time limit for the delay */
 	do {
@@ -1649,7 +1649,7 @@ DEFINE_SHOW_ATTRIBUTE(fadump_region);
 
 static void fadump_init_files(void)
 {
-	struct dentry *debugfs_file;
+	struct dentry *defs_file;
 	int rc = 0;
 
 	rc = sysfs_create_file(kernel_kobj, &fadump_attr.attr);
@@ -1662,11 +1662,11 @@ static void fadump_init_files(void)
 		printk(KERN_ERR "fadump: unable to create sysfs file"
 			" fadump_registered (%d)\n", rc);
 
-	debugfs_file = debugfs_create_file("fadump_region", 0444,
-					powerpc_debugfs_root, NULL,
+	defs_file = defs_create_file("fadump_region", 0444,
+					powerpc_defs_root, NULL,
 					&fadump_region_fops);
-	if (!debugfs_file)
-		printk(KERN_ERR "fadump: unable to create debugfs file"
+	if (!defs_file)
+		printk(KERN_ERR "fadump: unable to create defs file"
 				" fadump_region\n");
 
 	if (fw_dump.dump_active) {

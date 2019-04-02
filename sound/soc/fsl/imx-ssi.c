@@ -445,7 +445,7 @@ static void imx_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	if (reg > 0x7f)
 		return;
 
-	pr_debug("%s: 0x%02x 0x%04x\n", __func__, reg, val);
+	pr_de("%s: 0x%02x 0x%04x\n", __func__, reg, val);
 
 	lreg = reg <<  12;
 	writel(lreg, base + SSI_SACADD);
@@ -474,7 +474,7 @@ static unsigned short imx_ssi_ac97_read(struct snd_ac97 *ac97,
 
 	val = (readl(base + SSI_SACDAT) >> 4) & 0xffff;
 
-	pr_debug("%s: 0x%02x 0x%04x\n", __func__, reg, val);
+	pr_de("%s: 0x%02x 0x%04x\n", __func__, reg, val);
 
 	return val;
 }

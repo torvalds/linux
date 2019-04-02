@@ -328,7 +328,7 @@ usbtmc_abort_bulk_in_status:
 			  buffer, USBTMC_BUFSIZE,
 			  &actual, 300);
 
-	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_de("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
 			     buffer, actual, true);
 
 	n++;
@@ -602,7 +602,7 @@ static int usbtmc488_ioctl_wait_srq(struct usbtmc_file_data *file_data,
 
 	if (rv < 0) {
 		/* dev can be invalid now! */
-		pr_debug("%s - wait interrupted %d\n", __func__, rv);
+		pr_de("%s - wait interrupted %d\n", __func__, rv);
 		return rv;
 	}
 
@@ -954,7 +954,7 @@ static ssize_t usbtmc_generic_read(struct usbtmc_file_data *file_data,
 		else
 			this_part = remaining;
 
-		print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_de("usbtmc ", DUMP_PREFIX_NONE, 16, 1,
 			urb->transfer_buffer, urb->actual_length, true);
 
 		if (copy_to_user(user_buffer + done,
@@ -1162,7 +1162,7 @@ static ssize_t usbtmc_generic_write(struct usbtmc_file_data *file_data,
 			goto error;
 		}
 
-		print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+		print_hex_dump_de("usbtmc ", DUMP_PREFIX_NONE,
 			16, 1, buffer, this_part, true);
 
 		/* fill bulk with 32 bit alignment to meet USBTMC specification
@@ -1436,7 +1436,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		goto exit;
 	}
 
-	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+	print_hex_dump_de("usbtmc ", DUMP_PREFIX_NONE,
 			     16, 1, buffer, actual, true);
 
 	remaining = n_characters;
@@ -1564,7 +1564,7 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 	dev_dbg(&data->intf->dev, "%s(size:%u align:%u)\n", __func__,
 		(unsigned int)transfersize, (unsigned int)aligned);
 
-	print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+	print_hex_dump_de("usbtmc ", DUMP_PREFIX_NONE,
 			     16, 1, buffer, aligned, true);
 
 	usb_fill_bulk_urb(urb, data->usb_dev,
@@ -1687,7 +1687,7 @@ usbtmc_clear_check_status:
 					  buffer, USBTMC_BUFSIZE,
 					  &actual, USB_CTRL_GET_TIMEOUT);
 
-			print_hex_dump_debug("usbtmc ", DUMP_PREFIX_NONE,
+			print_hex_dump_de("usbtmc ", DUMP_PREFIX_NONE,
 					     16, 1, buffer, actual, true);
 
 			n++;

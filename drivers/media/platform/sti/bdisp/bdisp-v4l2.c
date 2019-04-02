@@ -1272,7 +1272,7 @@ static int bdisp_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	bdisp_debugfs_remove(bdisp);
+	bdisp_defs_remove(bdisp);
 
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 
@@ -1360,10 +1360,10 @@ static int bdisp_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	/* Debug */
-	ret = bdisp_debugfs_create(bdisp);
+	/* De */
+	ret = bdisp_defs_create(bdisp);
 	if (ret) {
-		dev_err(dev, "failed to create debugfs\n");
+		dev_err(dev, "failed to create defs\n");
 		goto err_v4l2;
 	}
 
@@ -1401,7 +1401,7 @@ err_filter:
 err_pm:
 	pm_runtime_put(dev);
 err_dbg:
-	bdisp_debugfs_remove(bdisp);
+	bdisp_defs_remove(bdisp);
 err_v4l2:
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 err_clk:

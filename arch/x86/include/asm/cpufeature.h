@@ -44,9 +44,9 @@ extern const char * const x86_power_flags[32];
 
 /*
  * In order to save room, we index into this array by doing
- * X86_BUG_<name> - NCAPINTS*32.
+ * X86__<name> - NCAPINTS*32.
  */
-extern const char * const x86_bug_flags[NBUGINTS*32];
+extern const char * const x86__flags[NINTS*32];
 
 #define test_cpu_cap(c, bit)						\
 	 test_bit(bit, (unsigned long *)((c)->x86_capability))
@@ -82,7 +82,7 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 17, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK, 18, feature_bit) ||	\
 	   REQUIRED_MASK_CHECK					  ||	\
-	   BUILD_BUG_ON_ZERO(NCAPINTS != 19))
+	   BUILD__ON_ZERO(NCAPINTS != 19))
 
 #define DISABLED_MASK_BIT_SET(feature_bit)				\
 	 ( CHECK_BIT_IN_MASK_WORD(DISABLED_MASK,  0, feature_bit) ||	\
@@ -105,7 +105,7 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 17, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(DISABLED_MASK, 18, feature_bit) ||	\
 	   DISABLED_MASK_CHECK					  ||	\
-	   BUILD_BUG_ON_ZERO(NCAPINTS != 19))
+	   BUILD__ON_ZERO(NCAPINTS != 19))
 
 #define cpu_has(c, bit)							\
 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
@@ -139,7 +139,7 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
 
-#define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
+#define setup_force_cpu_(bit) setup_force_cpu_cap(bit)
 
 #if defined(__clang__) && !defined(CONFIG_CC_HAS_ASM_GOTO)
 
@@ -212,13 +212,13 @@ t_no:
 )
 #endif
 
-#define cpu_has_bug(c, bit)		cpu_has(c, (bit))
-#define set_cpu_bug(c, bit)		set_cpu_cap(c, (bit))
-#define clear_cpu_bug(c, bit)		clear_cpu_cap(c, (bit))
+#define cpu_has_(c, bit)		cpu_has(c, (bit))
+#define set_cpu_(c, bit)		set_cpu_cap(c, (bit))
+#define clear_cpu_(c, bit)		clear_cpu_cap(c, (bit))
 
-#define static_cpu_has_bug(bit)		static_cpu_has((bit))
-#define boot_cpu_has_bug(bit)		cpu_has_bug(&boot_cpu_data, (bit))
-#define boot_cpu_set_bug(bit)		set_cpu_cap(&boot_cpu_data, (bit))
+#define static_cpu_has_(bit)		static_cpu_has((bit))
+#define boot_cpu_has_(bit)		cpu_has_(&boot_cpu_data, (bit))
+#define boot_cpu_set_(bit)		set_cpu_cap(&boot_cpu_data, (bit))
 
 #define MAX_CPU_FEATURES		(NCAPINTS * 32)
 #define cpu_have_feature		boot_cpu_has

@@ -512,7 +512,7 @@ nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 		 * finish. So, just defer this event for when we runtime
 		 * resume again. It will be handled by fbcon_work.
 		 */
-		NV_DEBUG(drm, "fbcon HPD event deferred until runtime resume\n");
+		NV_DE(drm, "fbcon HPD event deferred until runtime resume\n");
 		fbcon->hotplug_waiting = true;
 		pm_runtime_put_noidle(drm->dev->dev);
 	} else {
@@ -536,7 +536,7 @@ nouveau_fbcon_hotplug_resume(struct nouveau_fbdev *fbcon)
 	if (fbcon->hotplug_waiting) {
 		fbcon->hotplug_waiting = false;
 
-		NV_DEBUG(drm, "Handling deferred fbcon HPD events\n");
+		NV_DE(drm, "Handling deferred fbcon HPD events\n");
 		drm_fb_helper_hotplug_event(&fbcon->helper);
 	}
 	mutex_unlock(&fbcon->hotplug_lock);

@@ -107,7 +107,7 @@ static void amiga_heartbeat(int on);
 #endif
 
 static struct console amiga_console_driver = {
-	.name	= "debug",
+	.name	= "de",
 	.flags	= CON_PRINTBUFFER,
 	.index	= -1,
 };
@@ -590,7 +590,7 @@ jmp_addr_label040:
 
 
     /*
-     *  Debugging
+     *  Deging
      */
 
 #define SAVEKMSG_MAXMEM		128*1024
@@ -625,7 +625,7 @@ static int __init amiga_savekmsg_setup(char *arg)
 		return 0;
 
 	if (amiga_chip_size < SAVEKMSG_MAXMEM) {
-		pr_err("Not enough chipram for debugging\n");
+		pr_err("Not enough chipram for deging\n");
 		return -ENOMEM;
 	}
 
@@ -644,7 +644,7 @@ static int __init amiga_savekmsg_setup(char *arg)
 	return 0;
 }
 
-early_param("debug", amiga_savekmsg_setup);
+early_param("de", amiga_savekmsg_setup);
 
 static void amiga_serial_putc(char c)
 {
@@ -720,7 +720,7 @@ void amiga_serial_gets(struct console *co, char *s, int len)
 }
 #endif
 
-static int __init amiga_debug_setup(char *arg)
+static int __init amiga_de_setup(char *arg)
 {
 	bool registered;
 
@@ -735,7 +735,7 @@ static int __init amiga_debug_setup(char *arg)
 	return 0;
 }
 
-early_param("debug", amiga_debug_setup);
+early_param("de", amiga_de_setup);
 
 #ifdef CONFIG_HEARTBEAT
 static void amiga_heartbeat(int on)

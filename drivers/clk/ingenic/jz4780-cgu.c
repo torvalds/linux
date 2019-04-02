@@ -146,7 +146,7 @@ static unsigned long jz4780_otg_phy_recalc_rate(struct clk_hw *hw,
 		return 19200000;
 	}
 
-	BUG();
+	();
 	return parent_rate;
 }
 

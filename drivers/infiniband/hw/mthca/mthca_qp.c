@@ -139,7 +139,7 @@ struct mthca_qp_context {
 	__be32 next_send_psn;
 	__be32 cqn_snd;
 	__be32 snd_wqe_base_l;	/* Next send WQE on Tavor */
-	__be32 snd_db_index;	/* (debugging only entries) */
+	__be32 snd_db_index;	/* (deging only entries) */
 	__be32 last_acked_psn;
 	__be32 ssn;
 	__be32 params2;
@@ -147,7 +147,7 @@ struct mthca_qp_context {
 	__be32 ra_buff_indx;
 	__be32 cqn_rcv;
 	__be32 rcv_wqe_base_l;	/* Next recv WQE on Tavor */
-	__be32 rcv_db_index;	/* (debugging only entries) */
+	__be32 rcv_db_index;	/* (deging only entries) */
 	__be32 qkey;
 	__be32 srqn;
 	__be32 rmsn;

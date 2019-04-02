@@ -112,18 +112,18 @@ nv30_gr_init(struct nvkm_gr *base)
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x401287c0);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_1, 0x401287c0);
 	nvkm_wr32(device, 0x400890, 0x01b463ff);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xf2de0475);
-	nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00008000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_3, 0xf2de0475);
+	nvkm_wr32(device, NV10_PGRAPH_DE_4, 0x00008000);
 	nvkm_wr32(device, NV04_PGRAPH_LIMIT_VIOL_PIX, 0xf04bdff6);
 	nvkm_wr32(device, 0x400B80, 0x1003d888);
 	nvkm_wr32(device, 0x400B84, 0x0c000000);
 	nvkm_wr32(device, 0x400098, 0x00000000);
 	nvkm_wr32(device, 0x40009C, 0x0005ad00);
-	nvkm_wr32(device, 0x400B88, 0x62ff00ff); /* suspiciously like PGRAPH_DEBUG_2 */
+	nvkm_wr32(device, 0x400B88, 0x62ff00ff); /* suspiciously like PGRAPH_DE_2 */
 	nvkm_wr32(device, 0x4000a0, 0x00000000);
 	nvkm_wr32(device, 0x4000a4, 0x00000008);
 	nvkm_wr32(device, 0x4008a8, 0xb784a400);

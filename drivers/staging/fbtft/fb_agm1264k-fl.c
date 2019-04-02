@@ -170,13 +170,13 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	int i, ret;
 	u8 *buf = par->buf;
 
-	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
+	if (unlikely(par->de & DE_WRITE_REGISTER)) {
 		va_start(args, len);
 		for (i = 0; i < len; i++)
 			buf[i] = (u8)va_arg(args, unsigned int);
 
 		va_end(args);
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device,
+		fbtft_par_dbg_hex(DE_WRITE_REGISTER, par, par->info->device,
 				  u8, buf, len, "%s: ", __func__);
 }
 
@@ -405,7 +405,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 static int write(struct fbtft_par *par, void *buf, size_t len)
 {
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	gpiod_set_value(par->RW, 0); /* set write mode */

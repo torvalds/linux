@@ -404,7 +404,7 @@ static int mips_cdmm_setup(struct mips_cdmm_bus *bus)
 	/* Record our success for other CPUs to copy */
 	mips_cdmm_default_base = bus->phys;
 
-	pr_debug("cdmm%u: Enabling CDMM region at %pa\n",
+	pr_de("cdmm%u: Enabling CDMM region at %pa\n",
 		 smp_processor_id(), &bus->phys);
 
 	/* Enable CDMM */

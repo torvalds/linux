@@ -472,7 +472,7 @@ static void ar9003_mci_observation_set_up(struct ath_hw *ah)
 	REG_RMW_FIELD(ah, AR_MACMISC, AR_MACMISC_MISC_OBS_BUS_LSB, 0x02);
 	REG_RMW_FIELD(ah, AR_MACMISC, AR_MACMISC_MISC_OBS_BUS_MSB, 0x03);
 	REG_RMW_FIELD(ah, AR_PHY_TEST_CTL_STATUS,
-		      AR_PHY_TEST_CTL_DEBUGPORT_SEL, 0x07);
+		      AR_PHY_TEST_CTL_DEPORT_SEL, 0x07);
 }
 
 static bool ar9003_mci_send_coex_bt_flags(struct ath_hw *ah, bool wait_done,

@@ -21,7 +21,7 @@ static irqreturn_t a6xx_gmu_irq(int irq, void *data)
 		dev_err_ratelimited(gmu->dev, "GMU watchdog expired\n");
 
 		/* Temporary until we can recover safely */
-		BUG();
+		();
 	}
 
 	if (status &  A6XX_GMU_AO_HOST_INTERRUPT_STATUS_HOST_AHB_BUS_ERROR)
@@ -46,7 +46,7 @@ static irqreturn_t a6xx_hfi_irq(int irq, void *data)
 		dev_err_ratelimited(gmu->dev, "GMU firmware fault\n");
 
 		/* Temporary until we can recover safely */
-		BUG();
+		();
 	}
 
 	return IRQ_HANDLED;
@@ -790,7 +790,7 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 		int ret = a6xx_gmu_wait_for_idle(a6xx_gpu);
 
 		/* Temporary until we can recover safely */
-		BUG_ON(ret);
+		_ON(ret);
 
 		/* tell the GMU we want to slumber */
 		a6xx_gmu_notify_slumber(gmu);
@@ -1240,9 +1240,9 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	if (IS_ERR(gmu->hfi))
 		goto err;
 
-	/* Allocate memory for the GMU debug region */
-	gmu->debug = a6xx_gmu_memory_alloc(gmu, SZ_16K);
-	if (IS_ERR(gmu->debug))
+	/* Allocate memory for the GMU de region */
+	gmu->de = a6xx_gmu_memory_alloc(gmu, SZ_16K);
+	if (IS_ERR(gmu->de))
 		goto err;
 
 	/* Map the GMU registers */

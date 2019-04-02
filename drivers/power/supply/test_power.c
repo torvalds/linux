@@ -198,8 +198,8 @@ static int __init test_power_init(void)
 	int i;
 	int ret;
 
-	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_supplies));
-	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_configs));
+	BUILD__ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_supplies));
+	BUILD__ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_configs));
 
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++) {
 		test_power_supplies[i] = power_supply_register(NULL,

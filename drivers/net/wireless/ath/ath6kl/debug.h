@@ -15,13 +15,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef DEBUG_H
-#define DEBUG_H
+#ifndef DE_H
+#define DE_H
 
 #include "hif.h"
 #include "trace.h"
 
-enum ATH6K_DEBUG_MASK {
+enum ATH6K_DE_MASK {
 	ATH6KL_DBG_CREDIT	= BIT(0),
 	/* hole */
 	ATH6KL_DBG_WLAN_TX      = BIT(2),     /* wlan tx */
@@ -49,7 +49,7 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_ANY	        = 0xffffffff  /* enable all logs */
 };
 
-extern unsigned int debug_mask;
+extern unsigned int de_mask;
 __printf(2, 3) void ath6kl_printk(const char *level, const char *fmt, ...);
 __printf(1, 2) void ath6kl_info(const char *fmt, ...);
 __printf(1, 2) void ath6kl_err(const char *fmt, ...);
@@ -61,11 +61,11 @@ enum ath6kl_war {
 
 int ath6kl_read_tgt_stats(struct ath6kl *ar, struct ath6kl_vif *vif);
 
-#ifdef CONFIG_ATH6KL_DEBUG
+#ifdef CONFIG_ATH6KL_DE
 
 __printf(2, 3)
-void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...);
-void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
+void ath6kl_dbg(enum ATH6K_DE_MASK mask, const char *fmt, ...);
+void ath6kl_dbg_dump(enum ATH6K_DE_MASK mask,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len);
 
@@ -73,24 +73,24 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_proc_registers *irq_proc_reg,
 			   struct ath6kl_irq_enable_reg *irq_en_reg);
 void dump_cred_dist_stats(struct htc_target *target);
-void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len);
-void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war);
-int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
+void ath6kl_de_fwlog_event(struct ath6kl *ar, const void *buf, size_t len);
+void ath6kl_de_war(struct ath6kl *ar, enum ath6kl_war war);
+int ath6kl_de_roam_tbl_event(struct ath6kl *ar, const void *buf,
 				size_t len);
-void ath6kl_debug_set_keepalive(struct ath6kl *ar, u8 keepalive);
-void ath6kl_debug_set_disconnect_timeout(struct ath6kl *ar, u8 timeout);
-void ath6kl_debug_init(struct ath6kl *ar);
-int ath6kl_debug_init_fs(struct ath6kl *ar);
-void ath6kl_debug_cleanup(struct ath6kl *ar);
+void ath6kl_de_set_keepalive(struct ath6kl *ar, u8 keepalive);
+void ath6kl_de_set_disconnect_timeout(struct ath6kl *ar, u8 timeout);
+void ath6kl_de_init(struct ath6kl *ar);
+int ath6kl_de_init_fs(struct ath6kl *ar);
+void ath6kl_de_cleanup(struct ath6kl *ar);
 
 #else
 __printf(2, 3)
-static inline void ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
+static inline void ath6kl_dbg(enum ATH6K_DE_MASK dbg_mask,
 			      const char *fmt, ...)
 {
 }
 
-static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
+static inline void ath6kl_dbg_dump(enum ATH6K_DE_MASK mask,
 				   const char *msg, const char *prefix,
 				   const void *buf, size_t len)
 {
@@ -106,40 +106,40 @@ static inline void dump_cred_dist_stats(struct htc_target *target)
 {
 }
 
-static inline void ath6kl_debug_fwlog_event(struct ath6kl *ar,
+static inline void ath6kl_de_fwlog_event(struct ath6kl *ar,
 					    const void *buf, size_t len)
 {
 }
 
-static inline void ath6kl_debug_war(struct ath6kl *ar, enum ath6kl_war war)
+static inline void ath6kl_de_war(struct ath6kl *ar, enum ath6kl_war war)
 {
 }
 
-static inline int ath6kl_debug_roam_tbl_event(struct ath6kl *ar,
+static inline int ath6kl_de_roam_tbl_event(struct ath6kl *ar,
 					      const void *buf, size_t len)
 {
 	return 0;
 }
 
-static inline void ath6kl_debug_set_keepalive(struct ath6kl *ar, u8 keepalive)
+static inline void ath6kl_de_set_keepalive(struct ath6kl *ar, u8 keepalive)
 {
 }
 
-static inline void ath6kl_debug_set_disconnect_timeout(struct ath6kl *ar,
+static inline void ath6kl_de_set_disconnect_timeout(struct ath6kl *ar,
 						       u8 timeout)
 {
 }
 
-static inline void ath6kl_debug_init(struct ath6kl *ar)
+static inline void ath6kl_de_init(struct ath6kl *ar)
 {
 }
 
-static inline int ath6kl_debug_init_fs(struct ath6kl *ar)
+static inline int ath6kl_de_init_fs(struct ath6kl *ar)
 {
 	return 0;
 }
 
-static inline void ath6kl_debug_cleanup(struct ath6kl *ar)
+static inline void ath6kl_de_cleanup(struct ath6kl *ar)
 {
 }
 

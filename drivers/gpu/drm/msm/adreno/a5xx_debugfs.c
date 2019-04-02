@@ -13,7 +13,7 @@
 
 
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <drm/drm_print.h>
 
 #include "a5xx_gpu.h"
@@ -95,14 +95,14 @@ static int show(struct seq_file *m, void *arg)
 }
 
 #define ENT(n) { .name = #n, .show = show, .data = n ##_print }
-static struct drm_info_list a5xx_debugfs_list[] = {
+static struct drm_info_list a5xx_defs_list[] = {
 	ENT(pfp),
 	ENT(me),
 	ENT(meq),
 	ENT(roq),
 };
 
-/* for debugfs files that can be written to, we can't use drm helper: */
+/* for defs files that can be written to, we can't use drm helper: */
 static int
 reset_set(void *data, u64 val)
 {
@@ -116,7 +116,7 @@ reset_set(void *data, u64 val)
 		return -EINVAL;
 
 	/* TODO do we care about trying to make sure the GPU is idle?
-	 * Since this is just a debug feature limited to CAP_SYS_ADMIN,
+	 * Since this is just a de feature limited to CAP_SYS_ADMIN,
 	 * maybe it is fine to let the user keep both pieces if they
 	 * try to reset an active GPU.
 	 */
@@ -155,7 +155,7 @@ reset_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(reset_fops, NULL, reset_set, "%llx\n");
 
 
-int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
+int a5xx_defs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 {
 	struct drm_device *dev;
 	struct dentry *ent;
@@ -166,17 +166,17 @@ int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 
 	dev = minor->dev;
 
-	ret = drm_debugfs_create_files(a5xx_debugfs_list,
-			ARRAY_SIZE(a5xx_debugfs_list),
-			minor->debugfs_root, minor);
+	ret = drm_defs_create_files(a5xx_defs_list,
+			ARRAY_SIZE(a5xx_defs_list),
+			minor->defs_root, minor);
 
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not install a5xx_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could not install a5xx_defs_list\n");
 		return ret;
 	}
 
-	ent = debugfs_create_file("reset", S_IWUGO,
-		minor->debugfs_root,
+	ent = defs_create_file("reset", S_IWUGO,
+		minor->defs_root,
 		dev, &reset_fops);
 	if (!ent)
 		return -ENOMEM;

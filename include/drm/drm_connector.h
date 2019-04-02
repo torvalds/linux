@@ -1050,7 +1050,7 @@ struct drm_connector {
 	struct drm_cmdline_mode cmdline_mode;
 	/** @force: a DRM_FORCE_<foo> state for forced mode sets */
 	enum drm_connector_force force;
-	/** @override_edid: has the EDID been overwritten through debugfs for testing? */
+	/** @override_edid: has the EDID been overwritten through defs for testing? */
 	bool override_edid;
 
 #define DRM_CONNECTOR_MAX_ENCODER 3
@@ -1085,7 +1085,7 @@ struct drm_connector {
 	int audio_latency[2];
 	/**
 	 * @null_edid_counter: track sinks that give us all zeros for the EDID.
-	 * Needed to workaround some HW bugs where we get all 0s
+	 * Needed to workaround some HW s where we get all 0s
 	 */
 	int null_edid_counter;
 
@@ -1099,8 +1099,8 @@ struct drm_connector {
 	 */
 	bool edid_corrupt;
 
-	/** @debugfs_entry: debugfs directory for this connector */
-	struct dentry *debugfs_entry;
+	/** @defs_entry: defs directory for this connector */
+	struct dentry *defs_entry;
 
 	/**
 	 * @state:

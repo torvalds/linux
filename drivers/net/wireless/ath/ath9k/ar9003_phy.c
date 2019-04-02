@@ -2142,7 +2142,7 @@ void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 status;
 
-	if (likely(!(common->debug_mask & ATH_DBG_RESET)))
+	if (likely(!(common->de_mask & ATH_DBG_RESET)))
 		return;
 
 	status = ah->bb_watchdog_last_status;

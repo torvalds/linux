@@ -18,7 +18,7 @@
 #include "cthardware.h"
 #include "cthw20k1.h"
 #include "cthw20k2.h"
-#include <linux/bug.h>
+#include <linux/.h>
 
 int create_hw_obj(struct pci_dev *pci, enum CHIPTYP chip_type,
 		  enum CTCARDS model, struct hw **rhw)

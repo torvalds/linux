@@ -9,7 +9,7 @@
  *  November 2003: A3D Bypass code completed but untested.
  *
  *  TODO:
- *     - Debug (testing)
+ *     - De (testing)
  *     - Test peak visualization support.
  *
  ****************************************************************************/

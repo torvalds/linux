@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 /* Uncomment to log function calls */
-/* #define DEBUG */
+/* #define DE */
 
 #define DRIVER_AUTHOR "Kevin Lloyd, Elina Pasheva, Matthew Safar, Rory Filer"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
@@ -486,7 +486,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	memcpy(buffer, buf, writesize);
 
-	usb_serial_debug_data(&port->dev, __func__, writesize, buffer);
+	usb_serial_de_data(&port->dev, __func__, writesize, buffer);
 
 	usb_fill_bulk_urb(urb, serial->dev,
 			  usb_sndbulkpipe(serial->dev,
@@ -559,7 +559,7 @@ static void sierra_indat_callback(struct urb *urb)
 				urb->actual_length);
 			tty_flip_buffer_push(&port->port);
 
-			usb_serial_debug_data(&port->dev, __func__,
+			usb_serial_de_data(&port->dev, __func__,
 					      urb->actual_length, data);
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"

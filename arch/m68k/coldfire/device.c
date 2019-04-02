@@ -207,46 +207,46 @@ static int mcf_cs_setup(struct mcfqspi_cs_control *cs_control)
 
 	status = gpio_request(MCFQSPI_CS0, "MCFQSPI_CS0");
 	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS0 failed\n");
+		pr_de("gpio_request for MCFQSPI_CS0 failed\n");
 		goto fail0;
 	}
 	status = gpio_direction_output(MCFQSPI_CS0, 1);
 	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS0 failed\n");
+		pr_de("gpio_direction_output for MCFQSPI_CS0 failed\n");
 		goto fail1;
 	}
 
 	status = gpio_request(MCFQSPI_CS1, "MCFQSPI_CS1");
 	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS1 failed\n");
+		pr_de("gpio_request for MCFQSPI_CS1 failed\n");
 		goto fail1;
 	}
 	status = gpio_direction_output(MCFQSPI_CS1, 1);
 	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS1 failed\n");
+		pr_de("gpio_direction_output for MCFQSPI_CS1 failed\n");
 		goto fail2;
 	}
 
 	status = gpio_request(MCFQSPI_CS2, "MCFQSPI_CS2");
 	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS2 failed\n");
+		pr_de("gpio_request for MCFQSPI_CS2 failed\n");
 		goto fail2;
 	}
 	status = gpio_direction_output(MCFQSPI_CS2, 1);
 	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS2 failed\n");
+		pr_de("gpio_direction_output for MCFQSPI_CS2 failed\n");
 		goto fail3;
 	}
 
 #ifdef MCFQSPI_CS3
 	status = gpio_request(MCFQSPI_CS3, "MCFQSPI_CS3");
 	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS3 failed\n");
+		pr_de("gpio_request for MCFQSPI_CS3 failed\n");
 		goto fail3;
 	}
 	status = gpio_direction_output(MCFQSPI_CS3, 1);
 	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS3 failed\n");
+		pr_de("gpio_direction_output for MCFQSPI_CS3 failed\n");
 		gpio_free(MCFQSPI_CS3);
 		goto fail3;
 	}

@@ -22,7 +22,7 @@
 #include "util/values.h"
 
 #include "perf.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/header.h"
@@ -250,7 +250,7 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (machine__resolve(machine, &al, sample) < 0) {
-		pr_debug("problem processing %d event, skipping it.\n",
+		pr_de("problem processing %d event, skipping it.\n",
 			 event->header.type);
 		return -1;
 	}
@@ -284,7 +284,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
-		pr_debug("problem adding hist entry, skipping event\n");
+		pr_de("problem adding hist entry, skipping event\n");
 out_put:
 	addr_location__put(&al);
 	return ret;

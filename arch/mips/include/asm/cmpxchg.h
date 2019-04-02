@@ -8,14 +8,14 @@
 #ifndef __ASM_CMPXCHG_H
 #define __ASM_CMPXCHG_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/irqflags.h>
 #include <asm/compiler.h>
 #include <asm/war.h>
 
 /*
  * Using a branch-likely instruction to check the result of an sc instruction
- * works around a bug present in R10000 CPUs prior to revision 3.0 that could
+ * works around a  present in R10000 CPUs prior to revision 3.0 that could
  * cause ll-sc sequences to execute non-atomically.
  */
 #if R10000_LLSC_WAR
@@ -196,13 +196,13 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #ifdef CONFIG_64BIT
 #define cmpxchg64_local(ptr, o, n)					\
   ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_local((ptr), (o), (n));					\
   })
 
 #define cmpxchg64(ptr, o, n)						\
   ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg((ptr), (o), (n));					\
   })
 #else

@@ -214,23 +214,23 @@
 #define CTRL_IOMEM_ID	1
 
 #define DBG_ERR		0x0001	/* report all error returns */
-#define DBG_HW		0x0002	/* debug hardware initialization */
+#define DBG_HW		0x0002	/* de hardware initialization */
 #define DBG_GADGET	0x0004	/* calls to/from gadget driver */
 #define DBG_INT		0x0008	/* interrupts */
 #define DBG_BUS		0x0010	/* report changes in bus state */
-#define DBG_QUEUE	0x0020  /* debug request queue processing */
-#define DBG_FIFO	0x0040  /* debug FIFO contents */
-#define DBG_DMA		0x0080  /* debug DMA handling */
+#define DBG_QUEUE	0x0020  /* de request queue processing */
+#define DBG_FIFO	0x0040  /* de FIFO contents */
+#define DBG_DMA		0x0080  /* de DMA handling */
 #define DBG_REQ		0x0100	/* print out queued request length */
 #define DBG_ALL		0xffff
 #define DBG_NONE	0x0000
 
-#define DEBUG_LEVEL	(DBG_ERR)
+#define DE_LEVEL	(DBG_ERR)
 
 #define DBG(level, fmt, ...)					\
 	do {							\
-		if ((level) & DEBUG_LEVEL)			\
-			pr_debug("udc: " fmt, ## __VA_ARGS__);	\
+		if ((level) & DE_LEVEL)			\
+			pr_de("udc: " fmt, ## __VA_ARGS__);	\
 	} while (0)
 
 enum usba_ctrl_state {
@@ -284,9 +284,9 @@ struct usba_ep {
 	unsigned int				is_isoc:1;
 	unsigned int				is_in:1;
 	unsigned long				ept_cfg;
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
+#ifdef CONFIG_USB_GADGET_DE_FS
 	u32					last_dma_status;
-	struct dentry				*debugfs_dir;
+	struct dentry				*defs_dir;
 #endif
 };
 
@@ -339,8 +339,8 @@ struct usba_udc {
 
 	u32 int_enb_cache;
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
-	struct dentry *debugfs_root;
+#ifdef CONFIG_USB_GADGET_DE_FS
+	struct dentry *defs_root;
 #endif
 
 	struct regmap *pmc;

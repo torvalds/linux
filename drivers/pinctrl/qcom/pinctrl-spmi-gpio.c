@@ -190,7 +190,7 @@ static const struct pinconf_generic_params pmic_gpio_bindings[] = {
 	{"qcom,dtest-buffer",           PMIC_GPIO_CONF_DTEST_BUFFER,    0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item pmic_conf_items[ARRAY_SIZE(pmic_gpio_bindings)] = {
 	PCONFDUMP(PMIC_GPIO_CONF_PULL_UP,  "pull up strength", NULL, true),
 	PCONFDUMP(PMIC_GPIO_CONF_STRENGTH, "drive-strength", NULL, true),
@@ -1062,7 +1062,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	pctrldesc->npins = npins;
 	pctrldesc->num_custom_params = ARRAY_SIZE(pmic_gpio_bindings);
 	pctrldesc->custom_params = pmic_gpio_bindings;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	pctrldesc->custom_conf_items = pmic_conf_items;
 #endif
 

@@ -122,7 +122,7 @@ static void xra1403_set(struct gpio_chip *chip, unsigned int offset, int value)
 				offset, ret);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void xra1403_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	int reg;

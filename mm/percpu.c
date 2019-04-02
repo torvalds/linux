@@ -1827,7 +1827,7 @@ bool is_kernel_percpu_address(unsigned long addr)
  *
  * The addr can be translated simply without checking if it falls into the
  * first chunk. But the current code reflects better how percpu allocator
- * actually works, and the verification can discover both bugs in percpu
+ * actually works, and the verification can discover both s in percpu
  * allocator itself and per_cpu_ptr_to_phys() callers. So we keep current
  * code.
  *
@@ -1970,7 +1970,7 @@ static void pcpu_dump_alloc_info(const char *lvl,
 		const struct pcpu_group_info *gi = &ai->groups[group];
 		int unit = 0, unit_end = 0;
 
-		BUG_ON(gi->nr_units % upa);
+		_ON(gi->nr_units % upa);
 		for (alloc_end += gi->nr_units / upa;
 		     alloc < alloc_end; alloc++) {
 			if (!(alloc % apl)) {
@@ -2063,34 +2063,34 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	unsigned long tmp_addr;
 	size_t alloc_size;
 
-#define PCPU_SETUP_BUG_ON(cond)	do {					\
+#define PCPU_SETUP__ON(cond)	do {					\
 	if (unlikely(cond)) {						\
 		pr_emerg("failed to initialize, %s\n", #cond);		\
 		pr_emerg("cpu_possible_mask=%*pb\n",			\
 			 cpumask_pr_args(cpu_possible_mask));		\
 		pcpu_dump_alloc_info(KERN_EMERG, ai);			\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
 	/* sanity checks */
-	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
+	PCPU_SETUP__ON(ai->nr_groups <= 0);
 #ifdef CONFIG_SMP
-	PCPU_SETUP_BUG_ON(!ai->static_size);
-	PCPU_SETUP_BUG_ON(offset_in_page(__per_cpu_start));
+	PCPU_SETUP__ON(!ai->static_size);
+	PCPU_SETUP__ON(offset_in_page(__per_cpu_start));
 #endif
-	PCPU_SETUP_BUG_ON(!base_addr);
-	PCPU_SETUP_BUG_ON(offset_in_page(base_addr));
-	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
-	PCPU_SETUP_BUG_ON(offset_in_page(ai->unit_size));
-	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
-	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->unit_size, PCPU_BITMAP_BLOCK_SIZE));
-	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
-	PCPU_SETUP_BUG_ON(!ai->dyn_size);
-	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->reserved_size, PCPU_MIN_ALLOC_SIZE));
-	PCPU_SETUP_BUG_ON(!(IS_ALIGNED(PCPU_BITMAP_BLOCK_SIZE, PAGE_SIZE) ||
+	PCPU_SETUP__ON(!base_addr);
+	PCPU_SETUP__ON(offset_in_page(base_addr));
+	PCPU_SETUP__ON(ai->unit_size < size_sum);
+	PCPU_SETUP__ON(offset_in_page(ai->unit_size));
+	PCPU_SETUP__ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
+	PCPU_SETUP__ON(!IS_ALIGNED(ai->unit_size, PCPU_BITMAP_BLOCK_SIZE));
+	PCPU_SETUP__ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
+	PCPU_SETUP__ON(!ai->dyn_size);
+	PCPU_SETUP__ON(!IS_ALIGNED(ai->reserved_size, PCPU_MIN_ALLOC_SIZE));
+	PCPU_SETUP__ON(!(IS_ALIGNED(PCPU_BITMAP_BLOCK_SIZE, PAGE_SIZE) ||
 			    IS_ALIGNED(PAGE_SIZE, PCPU_BITMAP_BLOCK_SIZE)));
-	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
+	PCPU_SETUP__ON(pcpu_verify_alloc_info(ai) < 0);
 
 	/* process group information and build config tables accordingly */
 	alloc_size = ai->nr_groups * sizeof(group_offsets[0]);
@@ -2134,9 +2134,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 			if (cpu == NR_CPUS)
 				continue;
 
-			PCPU_SETUP_BUG_ON(cpu >= nr_cpu_ids);
-			PCPU_SETUP_BUG_ON(!cpu_possible(cpu));
-			PCPU_SETUP_BUG_ON(unit_map[cpu] != UINT_MAX);
+			PCPU_SETUP__ON(cpu >= nr_cpu_ids);
+			PCPU_SETUP__ON(!cpu_possible(cpu));
+			PCPU_SETUP__ON(unit_map[cpu] != UINT_MAX);
 
 			unit_map[cpu] = unit + i;
 			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
@@ -2153,11 +2153,11 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_nr_units = unit;
 
 	for_each_possible_cpu(cpu)
-		PCPU_SETUP_BUG_ON(unit_map[cpu] == UINT_MAX);
+		PCPU_SETUP__ON(unit_map[cpu] == UINT_MAX);
 
-	/* we're done parsing the input, undefine BUG macro and dump config */
-#undef PCPU_SETUP_BUG_ON
-	pcpu_dump_alloc_info(KERN_DEBUG, ai);
+	/* we're done parsing the input, undefine  macro and dump config */
+#undef PCPU_SETUP__ON
+	pcpu_dump_alloc_info(KERN_DE, ai);
 
 	pcpu_nr_groups = ai->nr_groups;
 	pcpu_group_offsets = group_offsets;
@@ -2436,7 +2436,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 		gi->nr_units = roundup(gi->nr_units, upa);
 		unit += gi->nr_units;
 	}
-	BUG_ON(unit != nr_units);
+	_ON(unit != nr_units);
 
 	return ai;
 }
@@ -2511,7 +2511,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 
 		for (i = 0; i < gi->nr_units && cpu == NR_CPUS; i++)
 			cpu = gi->cpu_map[i];
-		BUG_ON(cpu == NR_CPUS);
+		_ON(cpu == NR_CPUS);
 
 		/* allocate space for the whole group */
 		ptr = alloc_fn(cpu, gi->nr_units * ai->unit_size, atom_size);
@@ -2624,7 +2624,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
 	if (IS_ERR(ai))
 		return PTR_ERR(ai);
-	BUG_ON(ai->nr_groups != 1);
+	_ON(ai->nr_groups != 1);
 	upa = ai->alloc_size/ai->unit_size;
 	nr_g0_units = roundup(num_possible_cpus(), upa);
 	if (WARN_ON(ai->groups[0].nr_units != nr_g0_units)) {

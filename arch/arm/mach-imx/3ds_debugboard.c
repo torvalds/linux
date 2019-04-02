@@ -20,7 +20,7 @@
 #include <linux/smsc911x.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
-#include "3ds_debugboard.h"
+#include "3ds_deboard.h"
 #include "hardware.h"
 
 /* LAN9217 ethernet base address */
@@ -38,12 +38,12 @@
 #define INTR_STATUS_REG	0x10
 #define INTR_MASK_REG		0x38
 #define INTR_RESET_REG		0x20
-/* magic word for debug CPLD */
+/* magic word for de CPLD */
 #define MAGIC_NUMBER1_REG	0x40
 #define MAGIC_NUMBER2_REG	0x48
 /* CPLD code version */
 #define CPLD_CODE_VER_REG	0x50
-/* magic word for debug CPLD */
+/* magic word for de CPLD */
 #define MAGIC_NUMBER3_REG	0x58
 /* module reset register*/
 #define MODULE_RESET_REG	0x60
@@ -165,13 +165,13 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 	if ((imx_readw(brd_io + MAGIC_NUMBER1_REG) != 0xAAAA) ||
 	    (imx_readw(brd_io + MAGIC_NUMBER2_REG) != 0x5555) ||
 	    (imx_readw(brd_io + MAGIC_NUMBER3_REG) != 0xCAFE)) {
-		pr_info("3-Stack Debug board not detected\n");
+		pr_info("3-Stack De board not detected\n");
 		iounmap(brd_io);
 		brd_io = NULL;
 		return -ENODEV;
 	}
 
-	pr_info("3-Stack Debug board detected, rev = 0x%04X\n",
+	pr_info("3-Stack De board detected, rev = 0x%04X\n",
 		readw(brd_io + CPLD_CODE_VER_REG));
 
 	/*
@@ -200,7 +200,7 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 	irq_set_irq_type(p_irq, IRQF_TRIGGER_LOW);
 	irq_set_chained_handler(p_irq, mxc_expio_irq_handler);
 
-	/* Register Lan device on the debugboard */
+	/* Register Lan device on the deboard */
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	smsc911x_resources[0].start = LAN9217_BASE_ADDR(base);

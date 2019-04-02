@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include "perf.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/sort.h"
@@ -87,7 +87,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 	size_t i;
 
 	if (machine == NULL) {
-		pr_debug("Not enough memory for machine setup\n");
+		pr_de("Not enough memory for machine setup\n");
 		return NULL;
 	}
 
@@ -154,7 +154,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 	return machine;
 
 out:
-	pr_debug("Not enough memory for machine setup\n");
+	pr_de("Not enough memory for machine setup\n");
 	machine__delete_threads(machine);
 	return NULL;
 }

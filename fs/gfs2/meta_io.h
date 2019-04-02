@@ -21,7 +21,7 @@ static inline void gfs2_buffer_clear(struct buffer_head *bh)
 
 static inline void gfs2_buffer_clear_tail(struct buffer_head *bh, int head)
 {
-	BUG_ON(head > bh->b_size);
+	_ON(head > bh->b_size);
 	memset(bh->b_data + head, 0, bh->b_size - head);
 }
 
@@ -30,7 +30,7 @@ static inline void gfs2_buffer_copy_tail(struct buffer_head *to_bh,
 					 struct buffer_head *from_bh,
 					 int from_head)
 {
-	BUG_ON(from_head < to_head);
+	_ON(from_head < to_head);
 	memcpy(to_bh->b_data + to_head, from_bh->b_data + from_head,
 	       from_bh->b_size - from_head);
 	memset(to_bh->b_data + to_bh->b_size + to_head - from_head,

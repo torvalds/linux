@@ -7,7 +7,7 @@
  * Moorestown has an interesting PCI implementation:
  *   - configuration space is memory mapped (as defined by MCFG)
  *   - Lincroft devices also have a real, type 1 configuration space
- *   - Early Lincroft silicon has a type 1 access bug that will cause
+ *   - Early Lincroft silicon has a type 1 access  that will cause
  *     a hang if non-existent devices are accessed
  *   - some devices have the "fixed BAR" capability, which means
  *     they can't be relocated or modified; check for that during
@@ -148,7 +148,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
 static bool type1_access_ok(unsigned int bus, unsigned int devfn, int reg)
 {
 	/*
-	 * This is a workaround for A0 LNC bug where PCI status register does
+	 * This is a workaround for A0 LNC  where PCI status register does
 	 * not have new CAP bit set. can not be written by SW either.
 	 *
 	 * PCI header type in real LNC indicates a single function device, this

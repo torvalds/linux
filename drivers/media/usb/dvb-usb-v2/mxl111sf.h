@@ -129,40 +129,40 @@ int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 #define mxl_info(fmt, arg...) \
 	mxl_printk(KERN_INFO, fmt, ##arg)
 
-extern int dvb_usb_mxl111sf_debug;
-#define mxl_debug(fmt, arg...) \
-	if (dvb_usb_mxl111sf_debug) \
-		mxl_printk(KERN_DEBUG, fmt, ##arg)
+extern int dvb_usb_mxl111sf_de;
+#define mxl_de(fmt, arg...) \
+	if (dvb_usb_mxl111sf_de) \
+		mxl_printk(KERN_DE, fmt, ##arg)
 
 #define MXL_I2C_DBG 0x04
 #define MXL_ADV_DBG 0x10
-#define mxl_debug_adv(fmt, arg...) \
-	if (dvb_usb_mxl111sf_debug & MXL_ADV_DBG) \
-		mxl_printk(KERN_DEBUG, fmt, ##arg)
+#define mxl_de_adv(fmt, arg...) \
+	if (dvb_usb_mxl111sf_de & MXL_ADV_DBG) \
+		mxl_printk(KERN_DE, fmt, ##arg)
 
 #define mxl_i2c(fmt, arg...) \
-	if (dvb_usb_mxl111sf_debug & MXL_I2C_DBG) \
-		mxl_printk(KERN_DEBUG, fmt, ##arg)
+	if (dvb_usb_mxl111sf_de & MXL_I2C_DBG) \
+		mxl_printk(KERN_DE, fmt, ##arg)
 
 #define mxl_i2c_adv(fmt, arg...) \
-	if ((dvb_usb_mxl111sf_debug & (MXL_I2C_DBG | MXL_ADV_DBG)) == \
+	if ((dvb_usb_mxl111sf_de & (MXL_I2C_DBG | MXL_ADV_DBG)) == \
 		(MXL_I2C_DBG | MXL_ADV_DBG)) \
-			mxl_printk(KERN_DEBUG, fmt, ##arg)
+			mxl_printk(KERN_DE, fmt, ##arg)
 
 /* The following allows the mxl_fail() macro defined below to work
  * in externel modules, such as mxl111sf-tuner.ko, even though
- * dvb_usb_mxl111sf_debug is not defined within those modules */
+ * dvb_usb_mxl111sf_de is not defined within those modules */
 #if (defined(__MXL111SF_TUNER_H__)) || (defined(__MXL111SF_DEMOD_H__))
-#define MXL_ADV_DEBUG_ENABLED MXL_ADV_DBG
+#define MXL_ADV_DE_ENABLED MXL_ADV_DBG
 #else
-#define MXL_ADV_DEBUG_ENABLED dvb_usb_mxl111sf_debug
+#define MXL_ADV_DE_ENABLED dvb_usb_mxl111sf_de
 #endif
 
 #define mxl_fail(ret)							\
 ({									\
 	int __ret;							\
 	__ret = (ret < 0);						\
-	if ((__ret) && (MXL_ADV_DEBUG_ENABLED & MXL_ADV_DBG))		\
+	if ((__ret) && (MXL_ADV_DE_ENABLED & MXL_ADV_DBG))		\
 		mxl_printk(KERN_ERR, "error %d on line %d",		\
 			   ret, __LINE__);				\
 	__ret;								\

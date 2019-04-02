@@ -48,8 +48,8 @@ xp_remote_mmr_read(unsigned long dst_gpa, const unsigned long src_gpa,
 	int ret;
 	unsigned long *dst_va = __va(uv_gpa_to_soc_phys_ram(dst_gpa));
 
-	BUG_ON(!uv_gpa_in_mmr_space(src_gpa));
-	BUG_ON(len != 8);
+	_ON(!uv_gpa_in_mmr_space(src_gpa));
+	_ON(len != 8);
 
 	ret = gru_read_gpa(dst_va, src_gpa);
 	if (ret == 0)
@@ -148,7 +148,7 @@ xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
 enum xp_retval
 xp_init_uv(void)
 {
-	BUG_ON(!is_uv());
+	_ON(!is_uv());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_UV;
 	xp_partition_id = sn_partition_id;
@@ -167,5 +167,5 @@ xp_init_uv(void)
 void
 xp_exit_uv(void)
 {
-	BUG_ON(!is_uv());
+	_ON(!is_uv());
 }

@@ -299,7 +299,7 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	case CDROM_MEDIA_CHANGED:
 	case CDROM_DRIVE_STATUS:
 	case CDROM_LOCKDOOR:
-	case CDROM_DEBUG:
+	case CDROM_DE:
 		break;
 	default:
 		/* unknown ioctl number */

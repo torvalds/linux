@@ -118,14 +118,14 @@ fix_buildid_cache_permissions()
 
 	echo "Fixing buildid cache permissions"
 
-	find "$USER_HOME/.debug" -xdev -type d          ! -user "$SUDO_USER" -ls -exec chown    "$SUDO_USER" \{\} \;
-	find "$USER_HOME/.debug" -xdev -type f -links 1 ! -user "$SUDO_USER" -ls -exec chown    "$SUDO_USER" \{\} \;
-	find "$USER_HOME/.debug" -xdev -type l          ! -user "$SUDO_USER" -ls -exec chown -h "$SUDO_USER" \{\} \;
+	find "$USER_HOME/.de" -xdev -type d          ! -user "$SUDO_USER" -ls -exec chown    "$SUDO_USER" \{\} \;
+	find "$USER_HOME/.de" -xdev -type f -links 1 ! -user "$SUDO_USER" -ls -exec chown    "$SUDO_USER" \{\} \;
+	find "$USER_HOME/.de" -xdev -type l          ! -user "$SUDO_USER" -ls -exec chown -h "$SUDO_USER" \{\} \;
 
 	if [ -n "$SUDO_GID" ] ; then
-		find "$USER_HOME/.debug" -xdev -type d          ! -group "$SUDO_GID" -ls -exec chgrp    "$SUDO_GID" \{\} \;
-		find "$USER_HOME/.debug" -xdev -type f -links 1 ! -group "$SUDO_GID" -ls -exec chgrp    "$SUDO_GID" \{\} \;
-		find "$USER_HOME/.debug" -xdev -type l          ! -group "$SUDO_GID" -ls -exec chgrp -h "$SUDO_GID" \{\} \;
+		find "$USER_HOME/.de" -xdev -type d          ! -group "$SUDO_GID" -ls -exec chgrp    "$SUDO_GID" \{\} \;
+		find "$USER_HOME/.de" -xdev -type f -links 1 ! -group "$SUDO_GID" -ls -exec chgrp    "$SUDO_GID" \{\} \;
+		find "$USER_HOME/.de" -xdev -type l          ! -group "$SUDO_GID" -ls -exec chgrp -h "$SUDO_GID" \{\} \;
 	fi
 
 	echo "Done"
@@ -137,13 +137,13 @@ check_buildid_cache_permissions()
 		return
 	fi
 
-	PERMISSIONS_OK+=$(find "$HOME/.debug" -xdev -type d          ! -user "$USER" -print -quit)
-	PERMISSIONS_OK+=$(find "$HOME/.debug" -xdev -type f -links 1 ! -user "$USER" -print -quit)
-	PERMISSIONS_OK+=$(find "$HOME/.debug" -xdev -type l          ! -user "$USER" -print -quit)
+	PERMISSIONS_OK+=$(find "$HOME/.de" -xdev -type d          ! -user "$USER" -print -quit)
+	PERMISSIONS_OK+=$(find "$HOME/.de" -xdev -type f -links 1 ! -user "$USER" -print -quit)
+	PERMISSIONS_OK+=$(find "$HOME/.de" -xdev -type l          ! -user "$USER" -print -quit)
 
-	PERMISSIONS_OK+=$(find "$HOME/.debug" -xdev -type d          ! -group "$GROUPS" -print -quit)
-	PERMISSIONS_OK+=$(find "$HOME/.debug" -xdev -type f -links 1 ! -group "$GROUPS" -print -quit)
-	PERMISSIONS_OK+=$(find "$HOME/.debug" -xdev -type l          ! -group "$GROUPS" -print -quit)
+	PERMISSIONS_OK+=$(find "$HOME/.de" -xdev -type d          ! -group "$GROUPS" -print -quit)
+	PERMISSIONS_OK+=$(find "$HOME/.de" -xdev -type f -links 1 ! -group "$GROUPS" -print -quit)
+	PERMISSIONS_OK+=$(find "$HOME/.de" -xdev -type l          ! -group "$GROUPS" -print -quit)
 
 	if [ -n "$PERMISSIONS_OK" ] ; then
 		echo "*** WARNING *** buildid cache permissions may need fixing" >&2
@@ -173,8 +173,8 @@ record()
 				true
 			elif echo "${PERF_OPTIONS[@]}" | grep -q ' -t \|^-t \| -t$\|^-t$' ; then
 				true
-			elif [ ! -r /sys/kernel/debug -o ! -x /sys/kernel/debug ] ; then
-				echo "*** WARNING *** /sys/kernel/debug permissions prevent tracepoint (sched_switch) use" >&2
+			elif [ ! -r /sys/kernel/de -o ! -x /sys/kernel/de ] ; then
+				echo "*** WARNING *** /sys/kernel/de permissions prevent tracepoint (sched_switch) use" >&2
 			fi
 		fi
 	fi

@@ -41,7 +41,7 @@
 #include <asm/tlbflush.h>
 #include <linux/mmzone.h>
 
-/* #define VERMILION_DEBUG */
+/* #define VERMILION_DE */
 
 #include "vermilion.h"
 
@@ -129,7 +129,7 @@ static int vmlfb_alloc_vram_area(struct vram_area *va, unsigned max_order,
 	 */
 	set_pages_uc(virt_to_page(va->logical), va->size >> PAGE_SHIFT);
 
-	printk(KERN_DEBUG MODULE_NAME
+	printk(KERN_DE MODULE_NAME
 	       ": Allocated %ld bytes vram area at 0x%08lx\n",
 	       va->size, va->phys);
 
@@ -164,7 +164,7 @@ static void vmlfb_free_vram_area(struct vram_area *va)
 			(void)put_page_testzero(virt_to_page(j));
 		}
 
-		printk(KERN_DEBUG MODULE_NAME
+		printk(KERN_DE MODULE_NAME
 		       ": Freeing %ld bytes vram area at 0x%08lx\n",
 		       va->size, va->phys);
 		free_pages(va->logical, va->order);
@@ -258,7 +258,7 @@ static int vmlfb_alloc_vram(struct vml_info *vinfo,
 	if (vinfo->vram_contig_size > min_total &&
 	    vinfo->vram_contig_size > min_contig) {
 
-		printk(KERN_DEBUG MODULE_NAME
+		printk(KERN_DE MODULE_NAME
 		       ": Contiguous vram: %ld bytes at physical 0x%08lx.\n",
 		       (unsigned long)vinfo->vram_contig_size,
 		       (unsigned long)vinfo->vram_start);
@@ -621,7 +621,7 @@ static int vmlfb_check_var_locked(struct fb_var_screeninfo *var,
 	clock_diff = (clock_diff < 0) ? -clock_diff : clock_diff;
 	if (clock_diff > clock / 5) {
 #if 0
-		printk(KERN_DEBUG MODULE_NAME ": Diff failure. %d %d\n",clock_diff,clock);
+		printk(KERN_DE MODULE_NAME ": Diff failure. %d %d\n",clock_diff,clock);
 #endif
 		return -EINVAL;
 	}
@@ -629,11 +629,11 @@ static int vmlfb_check_var_locked(struct fb_var_screeninfo *var,
 	v.pixclock = KHZ2PICOS(nearest_clock);
 
 	if (var->xres > VML_MAX_XRES || var->yres > VML_MAX_YRES) {
-		printk(KERN_DEBUG MODULE_NAME ": Resolution failure.\n");
+		printk(KERN_DE MODULE_NAME ": Resolution failure.\n");
 		return -EINVAL;
 	}
 	if (var->xres_virtual > VML_MAX_XRES_VIRTUAL) {
-		printk(KERN_DEBUG MODULE_NAME
+		printk(KERN_DE MODULE_NAME
 		       ": Virtual resolution failure.\n");
 		return -EINVAL;
 	}
@@ -645,7 +645,7 @@ static int vmlfb_check_var_locked(struct fb_var_screeninfo *var,
 		v.bits_per_pixel = 32;
 		break;
 	default:
-		printk(KERN_DEBUG MODULE_NAME ": Invalid bpp: %d.\n",
+		printk(KERN_DE MODULE_NAME ": Invalid bpp: %d.\n",
 		       var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -729,47 +729,47 @@ static void vmlfb_disable_pipe(struct vml_info *vinfo)
 	vinfo->pipe_disabled = 1;
 }
 
-#ifdef VERMILION_DEBUG
+#ifdef VERMILION_DE
 static void vml_dump_regs(struct vml_info *vinfo)
 {
 	struct vml_par *par = vinfo->par;
 
-	printk(KERN_DEBUG MODULE_NAME ": Modesetting register dump:\n");
-	printk(KERN_DEBUG MODULE_NAME ": \tHTOTAL_A         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": Modesetting register dump:\n");
+	printk(KERN_DE MODULE_NAME ": \tHTOTAL_A         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_HTOTAL_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tHBLANK_A         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tHBLANK_A         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_HBLANK_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tHSYNC_A          : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tHSYNC_A          : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_HSYNC_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tVTOTAL_A         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tVTOTAL_A         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_VTOTAL_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tVBLANK_A         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tVBLANK_A         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_VBLANK_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tVSYNC_A          : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tVSYNC_A          : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_VSYNC_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tDSPCSTRIDE       : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tDSPCSTRIDE       : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_DSPCSTRIDE));
-	printk(KERN_DEBUG MODULE_NAME ": \tDSPCSIZE         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tDSPCSIZE         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_DSPCSIZE));
-	printk(KERN_DEBUG MODULE_NAME ": \tDSPCPOS          : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tDSPCPOS          : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_DSPCPOS));
-	printk(KERN_DEBUG MODULE_NAME ": \tDSPARB           : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tDSPARB           : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_DSPARB));
-	printk(KERN_DEBUG MODULE_NAME ": \tDSPCADDR         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tDSPCADDR         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_DSPCADDR));
-	printk(KERN_DEBUG MODULE_NAME ": \tBCLRPAT_A        : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tBCLRPAT_A        : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_BCLRPAT_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tCANVSCLR_A       : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tCANVSCLR_A       : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_CANVSCLR_A));
-	printk(KERN_DEBUG MODULE_NAME ": \tPIPEASRC         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tPIPEASRC         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_PIPEASRC));
-	printk(KERN_DEBUG MODULE_NAME ": \tPIPEACONF        : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tPIPEACONF        : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_PIPEACONF));
-	printk(KERN_DEBUG MODULE_NAME ": \tDSPCCNTR         : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tDSPCCNTR         : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_DSPCCNTR));
-	printk(KERN_DEBUG MODULE_NAME ": \tRCOMPSTAT        : 0x%08x\n",
+	printk(KERN_DE MODULE_NAME ": \tRCOMPSTAT        : 0x%08x\n",
 	       (unsigned)VML_READ32(par, VML_RCOMPSTAT));
-	printk(KERN_DEBUG MODULE_NAME ": End of modesetting register dump.\n");
+	printk(KERN_DE MODULE_NAME ": End of modesetting register dump.\n");
 }
 #endif
 
@@ -814,7 +814,7 @@ static int vmlfb_set_par_locked(struct vml_info *vinfo)
 	} else {
 		clock = vml_nearest_clock(clock);
 	}
-	printk(KERN_DEBUG MODULE_NAME
+	printk(KERN_DE MODULE_NAME
 	       ": Set mode Hfreq : %d kHz, Vfreq : %d Hz.\n", clock / htotal,
 	       ((clock / htotal) * 1000) / vtotal);
 
@@ -875,7 +875,7 @@ static int vmlfb_set_par_locked(struct vml_info *vinfo)
 		 (VML_MDVO_VDC_I_RCOMP | VML_MDVO_PAD_ENABLE))) ;
 
 	vinfo->pipe_disabled = 0;
-#ifdef VERMILION_DEBUG
+#ifdef VERMILION_DE
 	vml_dump_regs(vinfo);
 #endif
 
@@ -1071,7 +1071,7 @@ static int __init vmlfb_init(void)
 		return -ENODEV;
 #endif
 
-	printk(KERN_DEBUG MODULE_NAME ": initializing\n");
+	printk(KERN_DE MODULE_NAME ": initializing\n");
 	mutex_init(&vml_mutex);
 	INIT_LIST_HEAD(&global_no_mode);
 	INIT_LIST_HEAD(&global_has_mode);
@@ -1139,7 +1139,7 @@ int vmlfb_register_subsys(struct vml_sys *sys)
 	}
 	mutex_unlock(&vml_mutex);
 
-	printk(KERN_DEBUG MODULE_NAME ": Registered %s subsystem.\n",
+	printk(KERN_DE MODULE_NAME ": Registered %s subsystem.\n",
 				subsys->name ? subsys->name : "unknown");
 	return 0;
 }
@@ -1158,7 +1158,7 @@ void vmlfb_unregister_subsys(struct vml_sys *sys)
 	subsys->restore(subsys);
 	subsys = NULL;
 	list_for_each_entry_safe(entry, next, &global_has_mode, head) {
-		printk(KERN_DEBUG MODULE_NAME ": subsys disable pipe\n");
+		printk(KERN_DE MODULE_NAME ": subsys disable pipe\n");
 		vmlfb_disable_pipe(entry);
 		list_move_tail(&entry->head, &global_no_mode);
 	}

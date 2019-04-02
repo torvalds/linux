@@ -799,7 +799,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 next_slot:
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
-			BUG_ON(del_nr > 0);
+			_ON(del_nr > 0);
 			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
 				break;
@@ -841,12 +841,12 @@ next_slot:
 				btrfs_file_extent_ram_bytes(leaf, fi);
 		} else {
 			/* can't happen */
-			BUG();
+			();
 		}
 
 		/*
 		 * Don't skip extent items representing 0 byte lengths. They
-		 * used to be created (bug) if while punching holes we hit
+		 * used to be created () if while punching holes we hit
 		 * -ENOSPC condition. So if we find one here, just ensure we
 		 * delete it, otherwise we would insert a new file extent item
 		 * with the same key (offset) as that 0 bytes length file
@@ -876,7 +876,7 @@ next_slot:
 		 *  | -------- extent -------- |
 		 */
 		if (start > key.offset && end < extent_end) {
-			BUG_ON(del_nr > 0);
+			_ON(del_nr > 0);
 			if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
 				ret = -EOPNOTSUPP;
 				break;
@@ -914,7 +914,7 @@ next_slot:
 						root->root_key.objectid,
 						new_key.objectid,
 						start - extent_offset);
-				BUG_ON(ret); /* -ENOMEM */
+				_ON(ret); /* -ENOMEM */
 			}
 			key.offset = start;
 		}
@@ -954,7 +954,7 @@ next_slot:
 		 *  | -------- extent -------- |
 		 */
 		if (start > key.offset && end >= extent_end) {
-			BUG_ON(del_nr > 0);
+			_ON(del_nr > 0);
 			if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
 				ret = -EOPNOTSUPP;
 				break;
@@ -982,7 +982,7 @@ delete_extent_item:
 				del_slot = path->slots[0];
 				del_nr = 1;
 			} else {
-				BUG_ON(del_slot + del_nr != path->slots[0]);
+				_ON(del_slot + del_nr != path->slots[0]);
 				del_nr++;
 			}
 
@@ -998,7 +998,7 @@ delete_extent_item:
 						root->root_key.objectid,
 						key.objectid, key.offset -
 						extent_offset);
-				BUG_ON(ret); /* -ENOMEM */
+				_ON(ret); /* -ENOMEM */
 				inode_sub_bytes(inode,
 						extent_end - key.offset);
 			}
@@ -1025,7 +1025,7 @@ delete_extent_item:
 			continue;
 		}
 
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	if (!ret && del_nr > 0) {
@@ -2579,7 +2579,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
 				      min_size, false);
-	BUG_ON(ret);
+	_ON(ret);
 	trans->block_rsv = rsv;
 
 	cur_offset = lockstart;
@@ -2629,7 +2629,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
 					      rsv, min_size, false);
-		BUG_ON(ret);	/* shouldn't happen */
+		_ON(ret);	/* shouldn't happen */
 		trans->block_rsv = rsv;
 
 		ret = find_first_non_hole(inode, &cur_offset, &len);

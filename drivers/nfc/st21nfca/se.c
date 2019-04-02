@@ -234,7 +234,7 @@ int st21nfca_hci_se_io(struct nfc_hci_dev *hdev, u32 se_idx,
 {
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
-	pr_debug("se_io %x\n", se_idx);
+	pr_de("se_io %x\n", se_idx);
 
 	switch (se_idx) {
 	case ST21NFCA_ESE_HOST_ID:
@@ -268,7 +268,7 @@ static void st21nfca_se_wt_timeout(struct timer_list *t)
 	struct st21nfca_hci_info *info = from_timer(info, t,
 						    se_info.bwi_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	info->se_info.bwi_active = false;
 
@@ -289,7 +289,7 @@ static void st21nfca_se_activation_timeout(struct timer_list *t)
 	struct st21nfca_hci_info *info = from_timer(info, t,
 						    se_info.se_active_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	info->se_info.se_active = false;
 
@@ -308,7 +308,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 	struct device *dev = &hdev->ndev->dev;
 	struct nfc_evt_transaction *transaction;
 
-	pr_debug("connectivity gate event: %x\n", event);
+	pr_de("connectivity gate event: %x\n", event);
 
 	switch (event) {
 	case ST21NFCA_EVT_CONNECTIVITY:
@@ -359,7 +359,7 @@ int st21nfca_apdu_reader_event_received(struct nfc_hci_dev *hdev,
 	int r = 0;
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
-	pr_debug("apdu reader gate event: %x\n", event);
+	pr_de("apdu reader gate event: %x\n", event);
 
 	switch (event) {
 	case ST21NFCA_EVT_TRANSMIT_DATA:

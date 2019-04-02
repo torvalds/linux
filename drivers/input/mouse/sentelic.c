@@ -645,8 +645,8 @@ static struct attribute_group fsp_attribute_group = {
 	.attrs = fsp_attributes,
 };
 
-#ifdef	FSP_DEBUG
-static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
+#ifdef	FSP_DE
+static void fsp_packet_de(struct psmouse *psmouse, unsigned char packet[])
 {
 	static unsigned int ps2_packet_cnt;
 	static unsigned int ps2_last_second;
@@ -687,7 +687,7 @@ static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
 	}
 }
 #else
-static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
+static void fsp_packet_de(struct psmouse *psmouse, unsigned char packet[])
 {
 }
 #endif
@@ -718,7 +718,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 	 * Full packet accumulated, process it
 	 */
 
-	fsp_packet_debug(psmouse, packet);
+	fsp_packet_de(psmouse, packet);
 
 	switch (psmouse->packet[0] >> FSP_PKT_TYPE_SHIFT) {
 	case FSP_PKT_TYPE_ABS:
@@ -748,7 +748,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 				/* 2nd finger */
 				if (ad->last_mt_fgr == 2) {
 					/*
-					 * workaround for buggy firmware
+					 * workaround for gy firmware
 					 * which doesn't clear MFMC bit if
 					 * the 1st finger is up
 					 */
@@ -762,7 +762,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 				/* 1st finger */
 				if (ad->last_mt_fgr == 1) {
 					/*
-					 * workaround for buggy firmware
+					 * workaround for gy firmware
 					 * which doesn't clear MFMC bit if
 					 * the 2nd finger is up
 					 */

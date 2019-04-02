@@ -7,7 +7,7 @@
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
 
-/* from /sys/kernel/debug/tracing/events/task/task_rename/format */
+/* from /sys/kernel/de/tracing/events/task/task_rename/format */
 struct task_rename {
 	__u64 pad;
 	__u32 pid;
@@ -21,7 +21,7 @@ int prog(struct task_rename *ctx)
 	return 0;
 }
 
-/* from /sys/kernel/debug/tracing/events/random/urandom_read/format */
+/* from /sys/kernel/de/tracing/events/random/urandom_read/format */
 struct urandom_read {
 	__u64 pad;
 	int got_bits;

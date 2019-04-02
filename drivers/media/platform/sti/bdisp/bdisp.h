@@ -141,9 +141,9 @@ struct bdisp_m2m_device {
 };
 
 /**
- * struct bdisp_dbg - debug info
+ * struct bdisp_dbg - de info
  *
- * @debugfs_entry: debugfs
+ * @defs_entry: defs
  * @copy_node:     array of last used nodes
  * @copy_request:  last bdisp request
  * @hw_start:      start time of last HW request
@@ -153,7 +153,7 @@ struct bdisp_m2m_device {
  * @tot_duration:  total HW processing duration in microsecs
  */
 struct bdisp_dbg {
-	struct dentry           *debugfs_entry;
+	struct dentry           *defs_entry;
 	struct bdisp_node       *copy_node[MAX_NB_NODE];
 	struct bdisp_request    copy_request;
 	ktime_t                 hw_start;
@@ -180,7 +180,7 @@ struct bdisp_dbg {
  * @irq_queue:  interrupt handler waitqueue
  * @work_queue: workqueue to handle timeouts
  * @timeout_work: IRQ timeout structure
- * @dbg:        debug info
+ * @dbg:        de info
  */
 struct bdisp_dev {
 	struct v4l2_device      v4l2_dev;
@@ -208,7 +208,7 @@ int bdisp_hw_reset(struct bdisp_dev *bdisp);
 int bdisp_hw_get_and_clear_irq(struct bdisp_dev *bdisp);
 int bdisp_hw_update(struct bdisp_ctx *ctx);
 
-void bdisp_debugfs_remove(struct bdisp_dev *bdisp);
-int bdisp_debugfs_create(struct bdisp_dev *bdisp);
+void bdisp_defs_remove(struct bdisp_dev *bdisp);
+int bdisp_defs_create(struct bdisp_dev *bdisp);
 void bdisp_dbg_perf_begin(struct bdisp_dev *bdisp);
 void bdisp_dbg_perf_end(struct bdisp_dev *bdisp);

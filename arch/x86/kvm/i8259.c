@@ -187,7 +187,7 @@ int kvm_pic_set_irq(struct kvm_pic *s, int irq, int irq_source_id, int level)
 {
 	int ret, irq_level;
 
-	BUG_ON(irq < 0 || irq >= PIC_NUM_PINS);
+	_ON(irq < 0 || irq >= PIC_NUM_PINS);
 
 	pic_lock(s);
 	irq_level = __kvm_irq_line_state(&s->irq_states[irq],

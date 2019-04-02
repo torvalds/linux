@@ -5,27 +5,27 @@ The kernel will mark itself as 'tainted' when something occurs that might be
 relevant later when investigating problems. Don't worry too much about this,
 most of the time it's not a problem to run a tainted kernel; the information is
 mainly of interest once someone wants to investigate some problem, as its real
-cause might be the event that got the kernel tainted. That's why bug reports
+cause might be the event that got the kernel tainted. That's why  reports
 from tainted kernels will often be ignored by developers, hence try to reproduce
 problems with an untainted kernel.
 
 Note the kernel will remain tainted even after you undo what caused the taint
 (i.e. unload a proprietary kernel module), to indicate the kernel remains not
 trustworthy. That's also why the kernel will print the tainted state when it
-notices an internal problem (a 'kernel bug'), a recoverable error
-('kernel oops') or a non-recoverable error ('kernel panic') and writes debug
+notices an internal problem (a 'kernel '), a recoverable error
+('kernel oops') or a non-recoverable error ('kernel panic') and writes de
 information about this to the logs ``dmesg`` outputs. It's also possible to
 check the tainted state at runtime through a file in ``/proc/``.
 
 
-Tainted flag in bugs, oops or panics messages
+Tainted flag in s, oops or panics messages
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You find the tainted state near the top in a line starting with 'CPU:'; if or
 why the kernel was tainted is shown after the Process ID ('PID:') and a shortened
 name of the command ('Comm:') that triggered the event::
 
-	BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
+	: unable to handle kernel NULL pointer dereference at 0000000000000000
 	Oops: 0002 [#1] SMP PTI
 	CPU: 0 PID: 4424 Comm: insmod Tainted: P        W  O      4.20.0-0.rc6.fc30 #1
 	Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
@@ -50,10 +50,10 @@ Decoding tainted state at runtime
 At runtime, you can query the tainted state by reading
 ``cat /proc/sys/kernel/tainted``. If that returns ``0``, the kernel is not
 tainted; any other number indicates the reasons why it is. The easiest way to
-decode that number is the script ``tools/debugging/kernel-chktaint``, which your
+decode that number is the script ``tools/deging/kernel-chktaint``, which your
 distribution might ship as part of a package called ``linux-tools`` or
 ``kernel-tools``; if it doesn't you can download the script from
-`git.kernel.org <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/tools/debugging/kernel-chktaint>`_
+`git.kernel.org <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/tools/deging/kernel-chktaint>`_
 and execute it with ``sh kernel-chktaint``, which would print something like
 this on the machine that had the statements in the logs that were quoted earlier::
 
@@ -89,11 +89,11 @@ Bit  Log  Number  Reason that got the kernel tainted
   4  _/M      16  processor reported a Machine Check Exception (MCE)
   5  _/B      32  bad page referenced or some unexpected page flags
   6  _/U      64  taint requested by userspace application
-  7  _/D     128  kernel died recently, i.e. there was an OOPS or BUG
+  7  _/D     128  kernel died recently, i.e. there was an OOPS or 
   8  _/A     256  ACPI table overridden by user
   9  _/W     512  kernel issued warning
  10  _/C    1024  staging driver was loaded
- 11  _/I    2048  workaround for bug in platform firmware applied
+ 11  _/I    2048  workaround for  in platform firmware applied
  12  _/O    4096  externally-built ("out-of-tree") module was loaded
  13  _/E    8192  unsigned module was loaded
  14  _/L   16384  soft lockup occurred
@@ -128,14 +128,14 @@ More detailed explanation for tainting
      ``' '`` if no Machine Check Exceptions have occurred.
 
  5)  ``B`` If a page-release function has found a bad page reference or some
-     unexpected page flags. This indicates a hardware problem or a kernel bug;
+     unexpected page flags. This indicates a hardware problem or a kernel ;
      there should be other information in the log indicating why this tainting
      occured.
 
  6)  ``U`` if a user or user application specifically requested that the
      Tainted flag be set, ``' '`` otherwise.
 
- 7)  ``D`` if the kernel has died recently, i.e. there was an OOPS or BUG.
+ 7)  ``D`` if the kernel has died recently, i.e. there was an OOPS or .
 
  8)  ``A`` if an ACPI table has been overridden.
 
@@ -144,7 +144,7 @@ More detailed explanation for tainting
 
  10) ``C`` if a staging driver has been loaded.
 
- 11) ``I`` if the kernel is working around a severe bug in the platform
+ 11) ``I`` if the kernel is working around a severe  in the platform
      firmware (BIOS or similar).
 
  12) ``O`` if an externally-built ("out-of-tree") module has been loaded.
@@ -160,5 +160,5 @@ More detailed explanation for tainting
 
  17) ``T`` Kernel was build with the randstruct plugin, which can intentionally
      produce extremely unusual kernel structure layouts (even performance
-     pathological ones), which is important to know when debugging. Set at
+     pathological ones), which is important to know when deging. Set at
      build time.

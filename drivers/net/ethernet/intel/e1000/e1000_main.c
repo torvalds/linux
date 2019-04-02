@@ -199,13 +199,13 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 /**
  * e1000_get_hw_dev - return device
- * used by hardware layer to print debugging information
+ * used by hardware layer to print deging information
  *
  **/
 struct net_device *e1000_get_hw_dev(struct e1000_hw *hw)
@@ -964,7 +964,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 	adapter->bars = bars;
 	adapter->need_ioport = need_ioport;
 
@@ -1381,7 +1381,7 @@ int e1000_open(struct net_device *netdev)
 	}
 
 	/* before we allocate an interrupt, we must be ready to handle it.
-	 * Setting DEBUG_SHIRQ in the kernel makes it fire an interrupt
+	 * Setting DE_SHIRQ in the kernel makes it fire an interrupt
 	 * as soon as we call pci_request_irq, so we have to setup our
 	 * clean_rx handler before we do so.
 	 */
@@ -3780,7 +3780,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 		__napi_schedule(&adapter->napi);
 	} else {
 		/* this really should not happen! if it does it is basically a
-		 * bug, but not a hard error, so enable ints and continue
+		 * , but not a hard error, so enable ints and continue
 		 */
 		if (!test_bit(__E1000_DOWN, &adapter->flags))
 			e1000_irq_enable(adapter);

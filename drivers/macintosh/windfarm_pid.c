@@ -15,9 +15,9 @@
 
 #include "windfarm_pid.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(args...)	printk(args)
 #else
 #define DBG(args...)	do { } while(0)

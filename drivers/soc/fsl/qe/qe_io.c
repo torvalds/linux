@@ -25,7 +25,7 @@
 #include <asm/prom.h>
 #include <sysdev/fsl_soc.h>
 
-#undef DEBUG
+#undef DE
 
 static struct qe_pio_regs __iomem *par_io;
 static int num_par_io_ports = 0;

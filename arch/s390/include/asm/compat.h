@@ -15,7 +15,7 @@
 				typeof(0?(__force t)0:0ULL), u64))
 
 #define __SC_DELOUSE(t,v) ({ \
-	BUILD_BUG_ON(sizeof(t) > 4 && !__TYPE_IS_PTR(t)); \
+	BUILD__ON(sizeof(t) > 4 && !__TYPE_IS_PTR(t)); \
 	(__force t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v)); \
 })
 

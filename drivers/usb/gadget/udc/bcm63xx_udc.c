@@ -7,10 +7,10 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/clk.h>
 #include <linux/compiler.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -287,7 +287,7 @@ struct bcm63xx_req {
  * @ep0_req_completed: ep0 request has completed; worker has not seen it yet.
  * @ep0_reply: Pending reply from gadget driver.
  * @ep0_request: Outstanding ep0 request.
- * @debugfs_root: debugfs directory: /sys/kernel/debug/<DRV_MODULE_NAME>.
+ * @defs_root: defs directory: /sys/kernel/de/<DRV_MODULE_NAME>.
  */
 struct bcm63xx_udc {
 	spinlock_t			lock;
@@ -327,7 +327,7 @@ struct bcm63xx_udc {
 	struct usb_request		*ep0_reply;
 	struct usb_request		*ep0_request;
 
-	struct dentry			*debugfs_root;
+	struct dentry			*defs_root;
 };
 
 static const struct usb_ep_ops bcm63xx_udc_ep_ops;
@@ -1050,7 +1050,7 @@ static int bcm63xx_ep_enable(struct usb_ep *ep,
 	}
 
 	iudma->enabled = true;
-	BUG_ON(!list_empty(&bep->queue));
+	_ON(!list_empty(&bep->queue));
 
 	iudma_reset_channel(udc, iudma);
 
@@ -1386,7 +1386,7 @@ static void bcm63xx_ep0_map_write(struct bcm63xx_udc *udc, int ch_idx,
 	struct bcm63xx_req *breq = our_req(req);
 	struct iudma_ch *iudma = &udc->iudma[ch_idx];
 
-	BUG_ON(udc->ep0_request);
+	_ON(udc->ep0_request);
 	udc->ep0_request = req;
 
 	req->actual = 0;
@@ -2114,7 +2114,7 @@ static irqreturn_t bcm63xx_udc_data_isr(int irq, void *dev_id)
 }
 
 /***********************************************************************
- * Debug filesystem
+ * De filesystem
  ***********************************************************************/
 
 /*
@@ -2122,7 +2122,7 @@ static irqreturn_t bcm63xx_udc_data_isr(int irq, void *dev_id)
  * @s: seq_file to which the information will be written.
  * @p: Unused.
  *
- * This file nominally shows up as /sys/kernel/debug/bcm63xx_udc/usbd
+ * This file nominally shows up as /sys/kernel/de/bcm63xx_udc/usbd
  */
 static int bcm63xx_usbd_dbg_show(struct seq_file *s, void *p)
 {
@@ -2161,7 +2161,7 @@ DEFINE_SHOW_ATTRIBUTE(bcm63xx_usbd_dbg);
  * @s: seq_file to which the information will be written.
  * @p: Unused.
  *
- * This file nominally shows up as /sys/kernel/debug/bcm63xx_udc/iudma
+ * This file nominally shows up as /sys/kernel/de/bcm63xx_udc/iudma
  */
 static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 {
@@ -2238,32 +2238,32 @@ static int bcm63xx_iudma_dbg_show(struct seq_file *s, void *p)
 DEFINE_SHOW_ATTRIBUTE(bcm63xx_iudma_dbg);
 
 /**
- * bcm63xx_udc_init_debugfs - Create debugfs entries.
+ * bcm63xx_udc_init_defs - Create defs entries.
  * @udc: Reference to the device controller.
  */
-static void bcm63xx_udc_init_debugfs(struct bcm63xx_udc *udc)
+static void bcm63xx_udc_init_defs(struct bcm63xx_udc *udc)
 {
 	struct dentry *root;
 
-	if (!IS_ENABLED(CONFIG_USB_GADGET_DEBUG_FS))
+	if (!IS_ENABLED(CONFIG_USB_GADGET_DE_FS))
 		return;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
-	udc->debugfs_root = root;
+	root = defs_create_dir(udc->gadget.name, NULL);
+	udc->defs_root = root;
 
-	debugfs_create_file("usbd", 0400, root, udc, &bcm63xx_usbd_dbg_fops);
-	debugfs_create_file("iudma", 0400, root, udc, &bcm63xx_iudma_dbg_fops);
+	defs_create_file("usbd", 0400, root, udc, &bcm63xx_usbd_dbg_fops);
+	defs_create_file("iudma", 0400, root, udc, &bcm63xx_iudma_dbg_fops);
 }
 
 /**
- * bcm63xx_udc_cleanup_debugfs - Remove debugfs entries.
+ * bcm63xx_udc_cleanup_defs - Remove defs entries.
  * @udc: Reference to the device controller.
  *
- * debugfs_remove() is safe to call with a NULL argument.
+ * defs_remove() is safe to call with a NULL argument.
  */
-static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
+static void bcm63xx_udc_cleanup_defs(struct bcm63xx_udc *udc)
 {
-	debugfs_remove_recursive(udc->debugfs_root);
+	defs_remove_recursive(udc->defs_root);
 }
 
 /***********************************************************************
@@ -2348,12 +2348,12 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 			goto report_request_failure;
 	}
 
-	bcm63xx_udc_init_debugfs(udc);
+	bcm63xx_udc_init_defs(udc);
 	rc = usb_add_gadget_udc(dev, &udc->gadget);
 	if (!rc)
 		return 0;
 
-	bcm63xx_udc_cleanup_debugfs(udc);
+	bcm63xx_udc_cleanup_defs(udc);
 out_uninit:
 	bcm63xx_uninit_udc_hw(udc);
 	return rc;
@@ -2371,9 +2371,9 @@ static int bcm63xx_udc_remove(struct platform_device *pdev)
 {
 	struct bcm63xx_udc *udc = platform_get_drvdata(pdev);
 
-	bcm63xx_udc_cleanup_debugfs(udc);
+	bcm63xx_udc_cleanup_defs(udc);
 	usb_del_gadget_udc(&udc->gadget);
-	BUG_ON(udc->driver);
+	_ON(udc->driver);
 
 	bcm63xx_uninit_udc_hw(udc);
 

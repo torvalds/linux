@@ -522,7 +522,7 @@ jme_check_link(struct net_device *netdev, int testonly)
 
 		jwrite32(jme, JME_GHC, jme->reg_ghc);
 
-		if (is_buggy250(jme->pdev->device, jme->chiprev)) {
+		if (is_gy250(jme->pdev->device, jme->chiprev)) {
 			jme->reg_gpreg1 &= ~(GPREG1_HALFMODEPATCH |
 					     GPREG1_RSSPATCH);
 			if (!(phylink & PHY_LINK_DUPLEX))
@@ -2255,7 +2255,7 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(idx < 0)) {
 		netif_stop_queue(netdev);
 		netif_err(jme, tx_err, jme->dev,
-			  "BUG! Tx ring full when queue awake!\n");
+			  "! Tx ring full when queue awake!\n");
 
 		return NETDEV_TX_BUSY;
 	}

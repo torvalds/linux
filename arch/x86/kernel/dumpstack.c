@@ -7,14 +7,14 @@
 #include <linux/uaccess.h>
 #include <linux/utsname.h>
 #include <linux/hardirq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/ftrace.h>
 #include <linux/kexec.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/nmi.h>
 #include <linux/sysfs.h>
 #include <linux/kasan.h>
@@ -181,7 +181,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * x86-64 can have several stacks:
 	 * - task stack
 	 * - interrupt stack
-	 * - HW exception stacks (double fault, nmi, debug, mce)
+	 * - HW exception stacks (double fault, nmi, de, mce)
 	 * - entry stack
 	 *
 	 * x86-32 can have up to four stacks:
@@ -218,7 +218,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		 *
 		 * Addresses found during the scan which are not reported by
 		 * the unwinder are considered to be additional clues which are
-		 * sometimes useful for debugging and are prefixed with '?'.
+		 * sometimes useful for deging and are prefixed with '?'.
 		 * This also serves as a failsafe option in case the unwinder
 		 * goes off in the weeds.
 		 */
@@ -375,7 +375,7 @@ int __die(const char *str, struct pt_regs *regs, long err)
 	       "%s: %04lx [#%d]%s%s%s%s%s\n", str, err & 0xffff, ++die_counter,
 	       IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT"         : "",
 	       IS_ENABLED(CONFIG_SMP)     ? " SMP"             : "",
-	       debug_pagealloc_enabled()  ? " DEBUG_PAGEALLOC" : "",
+	       de_pagealloc_enabled()  ? " DE_PAGEALLOC" : "",
 	       IS_ENABLED(CONFIG_KASAN)   ? " KASAN"           : "",
 	       IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION) ?
 	       (boot_cpu_has(X86_FEATURE_PTI) ? " PTI" : " NOPTI") : "");

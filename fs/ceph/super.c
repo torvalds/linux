@@ -1,5 +1,5 @@
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/backing-dev.h>
 #include <linux/ctype.h>
@@ -23,7 +23,7 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/auth.h>
-#include <linux/ceph/debugfs.h>
+#include <linux/ceph/defs.h>
 
 /*
  * Ceph superblock operations
@@ -381,7 +381,7 @@ static int parse_fsopt_token(char *c, void *private)
 		fsopt->sb_flags &= ~SB_POSIXACL;
 		break;
 	default:
-		BUG_ON(token);
+		_ON(token);
 	}
 	return 0;
 }
@@ -942,7 +942,7 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc)
 			dout("mount opening path %s\n", path);
 		}
 
-		err = ceph_fs_debugfs_init(fsc);
+		err = ceph_fs_defs_init(fsc);
 		if (err < 0)
 			goto out;
 
@@ -1140,7 +1140,7 @@ static void ceph_kill_sb(struct super_block *s)
 	generic_shutdown_super(s);
 
 	fsc->client->extra_mon_dispatch = NULL;
-	ceph_fs_debugfs_cleanup(fsc);
+	ceph_fs_defs_cleanup(fsc);
 
 	ceph_fscache_unregister_fs(fsc);
 

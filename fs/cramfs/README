@@ -125,7 +125,7 @@ correctly).
 Currently, mkcramfs #define's PAGE_SIZE as 4096 and uses that
 for blksize, whereas Linux-2.3.39 uses its PAGE_SIZE, which in
 turn is defined as PAGE_SIZE (which can be as large as 32KB on arm).
-This discrepancy is a bug, though it's not clear which should be
+This discrepancy is a , though it's not clear which should be
 changed.
 
 One option is to change mkcramfs to take its PAGE_SIZE from

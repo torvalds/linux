@@ -152,7 +152,7 @@ good_area:
 			goto do_sigbus;
 		else if (fault & VM_FAULT_SIGSEGV)
 			goto bad_area;
-		BUG();
+		();
 	}
 	if (fault & VM_FAULT_MAJOR)
 		tsk->maj_flt++;

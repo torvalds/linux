@@ -60,7 +60,7 @@
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
@@ -74,7 +74,7 @@ static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 unsigned int xprt_rdma_memreg_strategy		= RPCRDMA_FRWR;
 int xprt_rdma_pad_optimize;
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 
 static unsigned int min_slot_table_size = RPCRDMA_MIN_SLOT_TABLE;
 static unsigned int max_slot_table_size = RPCRDMA_MAX_SLOT_TABLE;
@@ -847,7 +847,7 @@ static struct xprt_class xprt_rdma = {
 
 void xprt_rdma_cleanup(void)
 {
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 	if (sunrpc_table_header) {
 		unregister_sysctl_table(sunrpc_table_header);
 		sunrpc_table_header = NULL;
@@ -872,7 +872,7 @@ int xprt_rdma_init(void)
 		return rc;
 	}
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 	if (!sunrpc_table_header)
 		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 #endif

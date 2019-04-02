@@ -47,7 +47,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -74,14 +74,14 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(SMSC_DRV_VERSION);
 MODULE_ALIAS("platform:smsc911x");
 
-#if USE_DEBUG > 0
-static int debug = 16;
+#if USE_DE > 0
+static int de = 16;
 #else
-static int debug = 3;
+static int de = 3;
 #endif
 
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 struct smsc911x_data;
 
@@ -167,7 +167,7 @@ static inline u32 __smsc911x_reg_read(struct smsc911x_data *pdata, u32 reg)
 		return ((readw(pdata->ioaddr + reg) & 0xFFFF) |
 			((readw(pdata->ioaddr + reg + 2) & 0xFFFF) << 16));
 
-	BUG();
+	();
 	return 0;
 }
 
@@ -183,7 +183,7 @@ __smsc911x_reg_read_shift(struct smsc911x_data *pdata, u32 reg)
 			((readw(pdata->ioaddr +
 			__smsc_shift(pdata, reg + 2)) & 0xFFFF) << 16);
 
-	BUG();
+	();
 	return 0;
 }
 
@@ -213,7 +213,7 @@ static inline void __smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
 		return;
 	}
 
-	BUG();
+	();
 }
 
 static inline void
@@ -232,7 +232,7 @@ __smsc911x_reg_write_shift(struct smsc911x_data *pdata, u32 reg, u32 val)
 		return;
 	}
 
-	BUG();
+	();
 }
 
 static inline void smsc911x_reg_write(struct smsc911x_data *pdata, u32 reg,
@@ -272,7 +272,7 @@ smsc911x_tx_writefifo(struct smsc911x_data *pdata, unsigned int *buf,
 		goto out;
 	}
 
-	BUG();
+	();
 out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
@@ -306,7 +306,7 @@ smsc911x_tx_writefifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 		goto out;
 	}
 
-	BUG();
+	();
 out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
@@ -338,7 +338,7 @@ smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
 		goto out;
 	}
 
-	BUG();
+	();
 out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
@@ -372,7 +372,7 @@ smsc911x_rx_readfifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 		goto out;
 	}
 
-	BUG();
+	();
 out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
@@ -2332,10 +2332,10 @@ static int smsc911x_drv_remove(struct platform_device *pdev)
 	struct resource *res;
 
 	dev = platform_get_drvdata(pdev);
-	BUG_ON(!dev);
+	_ON(!dev);
 	pdata = netdev_priv(dev);
-	BUG_ON(!pdata);
-	BUG_ON(!pdata->ioaddr);
+	_ON(!pdata);
+	_ON(!pdata->ioaddr);
 
 	SMSC_TRACE(pdata, ifdown, "Stopping driver");
 
@@ -2474,7 +2474,7 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	}
 
 	pdata->dev = dev;
-	pdata->msg_enable = ((1 << debug) - 1);
+	pdata->msg_enable = ((1 << de) - 1);
 
 	platform_set_drvdata(pdev, dev);
 

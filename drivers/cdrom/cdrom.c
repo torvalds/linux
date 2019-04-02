@@ -62,24 +62,24 @@
   -- TO-DO!  Write changelogs for 2.01 to 2.12.
 
 2.12  Jan  24, 1998 -- Erik Andersen <andersee@debian.org>
-  -- Fixed a bug in the IOCTL_IN and IOCTL_OUT macros.  It turns out that
+  -- Fixed a  in the IOCTL_IN and IOCTL_OUT macros.  It turns out that
   copy_*_user does not return EFAULT on error, but instead returns the number 
   of bytes not copied.  I was returning whatever non-zero stuff came back from 
   the copy_*_user functions directly, which would result in strange errors.
 
 2.13  July 17, 1998 -- Erik Andersen <andersee@debian.org>
-  -- Fixed a bug in CDROM_SELECT_SPEED where you couldn't lower the speed
+  -- Fixed a  in CDROM_SELECT_SPEED where you couldn't lower the speed
   of the drive.  Thanks to Tobias Ringstr|m <tori@prosolvia.se> for pointing
   this out and providing a simple fix.
-  -- Fixed the procfs-unload-module bug with the fill_inode procfs callback.
+  -- Fixed the procfs-unload-module  with the fill_inode procfs callback.
   thanks to Andrea Arcangeli
   -- Fixed it so that the /proc entry now also shows up when cdrom is
   compiled into the kernel.  Before it only worked when loaded as a module.
 
   2.14 August 17, 1998 -- Erik Andersen <andersee@debian.org>
-  -- Fixed a bug in cdrom_media_changed and handling of reporting that
+  -- Fixed a  in cdrom_media_changed and handling of reporting that
   the media had changed for devices that _don't_ implement media_changed.  
-  Thanks to Grant R. Guenther <grant@torque.net> for spotting this bug.
+  Thanks to Grant R. Guenther <grant@torque.net> for spotting this .
   -- Made a few things more pedanticly correct.
 
 2.50 Oct 19, 1998 - Jens Axboe <axboe@image.dk>
@@ -97,9 +97,9 @@
   the correct error value. Thanks Huba Gaspar <huba@softcell.hu>.
   -- Fixed module usage count - usage was based on /proc/sys/dev
   instead of /proc/sys/dev/cdrom. This could lead to an oops when other
-  modules had entries in dev. Feb 02 - real bug was in sysctl.c where
+  modules had entries in dev. Feb 02 - real  was in sysctl.c where
   dev would be removed even though it was used. cdrom.c just illuminated
-  that bug.
+  that .
   
   2.53 Feb 22, 1999 - Jens Axboe <axboe@image.dk>
   -- Fixup of several ioctl calls, in particular CDROM_SET_OPTIONS has
@@ -107,7 +107,7 @@
   should be...
   -- Added CDROM_LOCKDOOR ioctl. Locks the door and keeps it that way.
   -- Added CDROM_RESET ioctl.
-  -- Added CDROM_DEBUG ioctl. Enable debug messages on-the-fly.
+  -- Added CDROM_DE ioctl. Enable de messages on-the-fly.
   -- Added CDROM_GET_CAPABILITY ioctl. This relieves userspace programs
   from parsing /proc/sys/dev/cdrom/info.
   
@@ -130,7 +130,7 @@
   -- ioctl cleanups. if a drive couldn't play audio, it didn't get
   a change to perform device specific ioctls as well.
   -- Defined CDROM_CAN(CDC_XXX) for checking the capabilities.
-  -- Put in sysctl files for autoclose, autoeject, check_media, debug,
+  -- Put in sysctl files for autoclose, autoeject, check_media, de,
   and lock.
   -- /proc/sys/dev/cdrom/info has been updated to also contain info about
   CD-Rx and DVD capabilities.
@@ -222,7 +222,7 @@
   -- Use READ_DISC_INFO for more reliable end-of-disc.
 
   3.11 Jun 12, 2000 - Jens Axboe <axboe@suse.de>
-  -- Fix bug in getting rpc phase 2 region info.
+  -- Fix  in getting rpc phase 2 region info.
   -- Reinstate "correct" CDROMPLAYTRKIND
 
    3.12 Oct 18, 2000 - Jens Axboe <axboe@suse.de>
@@ -259,7 +259,7 @@
 #define CD_CHANGER	0x40
 #define CD_DVD		0x80
 
-/* Define this to remove _all_ the debugging messages */
+/* Define this to remove _all_ the deging messages */
 /* #define ERRLOGMASK CD_NOTHING */
 #define ERRLOGMASK CD_WARNING
 /* #define ERRLOGMASK (CD_WARNING|CD_OPEN|CD_COUNT_TRACKS|CD_CLOSE) */
@@ -286,8 +286,8 @@
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_request.h>
 
-/* used to tell the module to turn on full debugging messages */
-static bool debug;
+/* used to tell the module to turn on full deging messages */
+static bool de;
 /* default compatibility mode */
 static bool autoclose=1;
 static bool autoeject;
@@ -296,7 +296,7 @@ static bool lockdoor = 1;
 static bool check_media_type;
 /* automatically restart mrw format */
 static bool mrw_format_restart = 1;
-module_param(debug, bool, 0);
+module_param(de, bool, 0);
 module_param(autoclose, bool, 0);
 module_param(autoeject, bool, 0);
 module_param(lockdoor, bool, 0);
@@ -317,14 +317,14 @@ static const char *mrw_address_space[] = { "DMA", "GAA" };
 #if (ERRLOGMASK != CD_NOTHING)
 #define cd_dbg(type, fmt, ...)				\
 do {							\
-	if ((ERRLOGMASK & type) || debug == 1)		\
-		pr_debug(fmt, ##__VA_ARGS__);		\
+	if ((ERRLOGMASK & type) || de == 1)		\
+		pr_de(fmt, ##__VA_ARGS__);		\
 } while (0)
 #else
 #define cd_dbg(type, fmt, ...)				\
 do {							\
-	if (0 && (ERRLOGMASK & type) || debug == 1)	\
-		pr_debug(fmt, ##__VA_ARGS__);		\
+	if (0 && (ERRLOGMASK & type) || de == 1)	\
+		pr_de(fmt, ##__VA_ARGS__);		\
 } while (0)
 #endif
 
@@ -1126,7 +1126,7 @@ int open_for_data(struct cdrom_device_info *cdi)
 
 	/* Something failed.  Try to unlock the drive, because some drivers
 	(notably ide-cd) lock the drive after every command.  This produced
-	a nasty bug where after mount failed, the drive would remain locked!  
+	a nasty  where after mount failed, the drive would remain locked!  
 	This ensures that the drive gets unlocked after a mount fails.  This 
 	is a goto to avoid bloating the driver with redundant code. */ 
 clean_up_and_return:
@@ -1508,7 +1508,7 @@ int media_changed(struct cdrom_device_info *cdi, int queue)
 
 	/* changed since last call? */
 	if (cdi->ops->check_events) {
-		BUG_ON(!queue);	/* shouldn't be called from VFS path */
+		_ON(!queue);	/* shouldn't be called from VFS path */
 		cdrom_update_events(cdi, DISK_EVENT_MEDIA_CHANGE);
 		changed = cdi->ioctl_events & DISK_EVENT_MEDIA_CHANGE;
 		cdi->ioctl_events = 0;
@@ -2493,15 +2493,15 @@ static int cdrom_ioctl_lock_door(struct cdrom_device_info *cdi,
 	return cdi->ops->lock_door(cdi, arg);
 }
 
-static int cdrom_ioctl_debug(struct cdrom_device_info *cdi,
+static int cdrom_ioctl_de(struct cdrom_device_info *cdi,
 		unsigned long arg)
 {
-	cd_dbg(CD_DO_IOCTL, "%sabling debug\n", arg ? "En" : "Dis");
+	cd_dbg(CD_DO_IOCTL, "%sabling de\n", arg ? "En" : "Dis");
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	debug = arg ? 1 : 0;
-	return debug;
+	de = arg ? 1 : 0;
+	return de;
 }
 
 static int cdrom_ioctl_get_capability(struct cdrom_device_info *cdi)
@@ -3352,8 +3352,8 @@ int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
 		return cdrom_ioctl_reset(cdi, bdev);
 	case CDROM_LOCKDOOR:
 		return cdrom_ioctl_lock_door(cdi, arg);
-	case CDROM_DEBUG:
-		return cdrom_ioctl_debug(cdi, arg);
+	case CDROM_DE:
+		return cdrom_ioctl_de(cdi, arg);
 	case CDROM_GET_CAPABILITY:
 		return cdrom_ioctl_get_capability(cdi);
 	case CDROM_GET_MCN:
@@ -3429,7 +3429,7 @@ static struct cdrom_sysctl_settings {
 	char	info[CDROM_STR_SIZE];	/* general info */
 	int	autoclose;		/* close tray upon mount, etc */
 	int	autoeject;		/* eject on umount */
-	int	debug;			/* turn on debugging messages */
+	int	de;			/* turn on deging messages */
 	int	lock;			/* lock the door on device open */
 	int	check;			/* check media type */
 } cdrom_sysctl_settings;
@@ -3609,7 +3609,7 @@ static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
 		/* we only care for 1 or 0. */
 		autoclose        = !!cdrom_sysctl_settings.autoclose;
 		autoeject        = !!cdrom_sysctl_settings.autoeject;
-		debug	         = !!cdrom_sysctl_settings.debug;
+		de	         = !!cdrom_sysctl_settings.de;
 		lockdoor         = !!cdrom_sysctl_settings.lock;
 		check_media_type = !!cdrom_sysctl_settings.check;
 
@@ -3646,8 +3646,8 @@ static struct ctl_table cdrom_table[] = {
 		.proc_handler	= cdrom_sysctl_handler,
 	},
 	{
-		.procname	= "debug",
-		.data		= &cdrom_sysctl_settings.debug,
+		.procname	= "de",
+		.data		= &cdrom_sysctl_settings.de,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= cdrom_sysctl_handler,
@@ -3703,7 +3703,7 @@ static void cdrom_sysctl_register(void)
 	/* set the defaults */
 	cdrom_sysctl_settings.autoclose = autoclose;
 	cdrom_sysctl_settings.autoeject = autoeject;
-	cdrom_sysctl_settings.debug = debug;
+	cdrom_sysctl_settings.de = de;
 	cdrom_sysctl_settings.lock = lockdoor;
 	cdrom_sysctl_settings.check = check_media_type;
 }

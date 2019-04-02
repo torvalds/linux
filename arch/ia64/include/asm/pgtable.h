@@ -573,7 +573,7 @@ extern struct page *zero_page_memmap_ptr;
 
 /* These tell get_user_pages() that the first gate page is accessible from user-level.  */
 #define FIXADDR_USER_START	GATE_ADDR
-#ifdef HAVE_BUGGY_SEGREL
+#ifdef HAVE_GY_SEGREL
 # define FIXADDR_USER_END	(GATE_ADDR + 2*PAGE_SIZE)
 #else
 # define FIXADDR_USER_END	(GATE_ADDR + 2*PERCPU_PAGE_SIZE)

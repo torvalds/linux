@@ -35,9 +35,9 @@
 
 /*
  * Number of sectors at the end of the device to avoid multi-sector
- * accesses to in the case of last_sector_bug
+ * accesses to in the case of last_sector_
  */
-#define SD_LAST_BUGGY_SECTORS	8
+#define SD_LAST_GY_SECTORS	8
 
 enum {
 	SD_EXT_CDB_SIZE = 32,	/* Extended CDB size */

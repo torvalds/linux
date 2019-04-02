@@ -57,7 +57,7 @@ static int __init hvc_udbg_init(void)
 	if (!udbg_putc)
 		return -ENODEV;
 
-	BUG_ON(hvc_udbg_dev);
+	_ON(hvc_udbg_dev);
 
 	hp = hvc_alloc(0, 0, &hvc_udbg_ops, 16);
 	if (IS_ERR(hp))

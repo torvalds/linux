@@ -21,7 +21,7 @@
 #include <drm/drm_of.h>
 
 #include "msm_drv.h"
-#include "msm_debugfs.h"
+#include "msm_defs.h"
 #include "msm_fence.h"
 #include "msm_gem.h"
 #include "msm_gpu.h"
@@ -38,7 +38,7 @@
  *           SUBMITQUEUE_CLOSE ioctls, and MSM_INFO_IOVA flag for
  *           MSM_GEM_INFO ioctl.
  * - 1.4.0 - softpin, MSM_RELOC_BO_DUMP, and GEM_INFO support to set/get
- *           GEM object's debug name
+ *           GEM object's de name
  */
 #define MSM_VERSION_MAJOR	1
 #define MSM_VERSION_MINOR	4
@@ -187,7 +187,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 	}
 
 	if (reglog)
-		printk(KERN_DEBUG "IO:region %s %p %08lx\n", dbgname, ptr, size);
+		printk(KERN_DE "IO:region %s %p %08lx\n", dbgname, ptr, size);
 
 	return ptr;
 }
@@ -195,7 +195,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 void msm_writel(u32 data, void __iomem *addr)
 {
 	if (reglog)
-		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
+		printk(KERN_DE "IO:W %p %08x\n", addr, data);
 	writel(data, addr);
 }
 
@@ -280,8 +280,8 @@ static int msm_drm_uninit(struct device *dev)
 
 	drm_dev_unregister(ddev);
 
-	msm_perf_debugfs_cleanup(priv);
-	msm_rd_debugfs_cleanup(priv);
+	msm_perf_defs_cleanup(priv);
+	msm_rd_defs_cleanup(priv);
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev && priv->fbdev)
@@ -567,7 +567,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		priv->fbdev = msm_fbdev_init(ddev);
 #endif
 
-	ret = msm_debugfs_late_init(ddev);
+	ret = msm_defs_late_init(ddev);
 	if (ret)
 		goto err_msm_uninit;
 
@@ -654,7 +654,7 @@ static irqreturn_t msm_irq(int irq, void *arg)
 	struct drm_device *dev = arg;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	BUG_ON(!kms);
+	_ON(!kms);
 	return kms->funcs->irq(kms);
 }
 
@@ -662,7 +662,7 @@ static void msm_irq_preinstall(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	BUG_ON(!kms);
+	_ON(!kms);
 	kms->funcs->irq_preinstall(kms);
 }
 
@@ -670,7 +670,7 @@ static int msm_irq_postinstall(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	BUG_ON(!kms);
+	_ON(!kms);
 
 	if (kms->funcs->irq_postinstall)
 		return kms->funcs->irq_postinstall(kms);
@@ -682,7 +682,7 @@ static void msm_irq_uninstall(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	BUG_ON(!kms);
+	_ON(!kms);
 	kms->funcs->irq_uninstall(kms);
 }
 
@@ -1035,8 +1035,8 @@ static struct drm_driver msm_driver = {
 	.gem_prime_vmap     = msm_gem_prime_vmap,
 	.gem_prime_vunmap   = msm_gem_prime_vunmap,
 	.gem_prime_mmap     = msm_gem_prime_mmap,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init       = msm_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init       = msm_defs_init,
 #endif
 	.ioctls             = msm_ioctls,
 	.num_ioctls         = ARRAY_SIZE(msm_ioctls),

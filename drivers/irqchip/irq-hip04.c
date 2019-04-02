@@ -259,7 +259,7 @@ static void hip04_irq_cpu_init(struct hip04_irq_data *intc)
 	/*
 	 * Get what the GIC says our CPU mask is.
 	 */
-	BUG_ON(cpu >= NR_HIP04_CPU_IF);
+	_ON(cpu >= NR_HIP04_CPU_IF);
 	cpu_mask = hip04_get_cpumask(intc);
 	hip04_cpu_map[cpu] = cpu_mask;
 

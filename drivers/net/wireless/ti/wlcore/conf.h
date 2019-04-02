@@ -1118,8 +1118,8 @@ struct conf_hangover_settings {
 } __packed;
 
 struct conf_recovery_settings {
-	/* BUG() on fw recovery */
-	u8 bug_on_recovery;
+	/* () on fw recovery */
+	u8 _on_recovery;
 
 	/* Prevent HW recovery. FW will remain stuck. */
 	u8 no_recovery;

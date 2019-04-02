@@ -103,7 +103,7 @@ void esas2r_disc_initialize(struct esas2r_adapter *a)
 	 * previously discovered devices.
 	 */
 
-	esas2r_hdebug("starting discovery...");
+	esas2r_hde("starting discovery...");
 
 	a->general_req.interrupt_cx = NULL;
 
@@ -339,7 +339,7 @@ bool esas2r_disc_start_port(struct esas2r_adapter *a)
 	} else {
 		/* Discovery is complete. */
 
-		esas2r_hdebug("disc done");
+		esas2r_hde("disc done");
 
 		set_bit(AF_PORT_CHANGE, &a->flags);
 
@@ -435,7 +435,7 @@ static bool esas2r_disc_continue(struct esas2r_adapter *a,
 
 		default:
 
-			esas2r_bugon();
+			esas2r_on();
 			dc->state = DCS_DISC_DONE;
 			break;
 		}
@@ -1011,7 +1011,7 @@ static void esas2r_disc_passthru_dev_addr_cb(struct esas2r_adapter *a,
 		dc->curr_targ++;
 		dc->state = DCS_DEV_ADD;
 	} else {
-		esas2r_bugon();
+		esas2r_on();
 	}
 
 next_dev_addr:
@@ -1032,7 +1032,7 @@ static u32 esas2r_disc_get_phys_addr(struct esas2r_sg_context *sgc, u64 *addr)
 	struct esas2r_adapter *a = sgc->adapter;
 
 	if (sgc->length > ESAS2R_DISC_BUF_LEN)
-		esas2r_bugon();
+		esas2r_on();
 
 	*addr = a->uncached_phys
 		+ (u64)((u8 *)a->disc_buffer - a->uncached);

@@ -2,7 +2,7 @@
  * Zoltrix Radio Plus driver
  * Copyright 1998 C. van Schaik <carl@leg.uct.ac.za>
  *
- * BUGS
+ * S
  *  Due to the inconsistency in reading from the signal flags
  *  it is difficult to get an accurate tuned signal.
  *

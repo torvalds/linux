@@ -12,7 +12,7 @@
 #include <linux/kvm_host.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -1157,7 +1157,7 @@ static void pmd_ctor(void *addr)
 	memset(addr, 0, RADIX_PMD_TABLE_SIZE);
 }
 
-struct debugfs_radix_state {
+struct defs_radix_state {
 	struct kvm	*kvm;
 	struct mutex	mutex;
 	unsigned long	gpa;
@@ -1168,10 +1168,10 @@ struct debugfs_radix_state {
 	u8		hdr;
 };
 
-static int debugfs_radix_open(struct inode *inode, struct file *file)
+static int defs_radix_open(struct inode *inode, struct file *file)
 {
 	struct kvm *kvm = inode->i_private;
-	struct debugfs_radix_state *p;
+	struct defs_radix_state *p;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
@@ -1185,19 +1185,19 @@ static int debugfs_radix_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int debugfs_radix_release(struct inode *inode, struct file *file)
+static int defs_radix_release(struct inode *inode, struct file *file)
 {
-	struct debugfs_radix_state *p = file->private_data;
+	struct defs_radix_state *p = file->private_data;
 
 	kvm_put_kvm(p->kvm);
 	kfree(p);
 	return 0;
 }
 
-static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
+static ssize_t defs_radix_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *ppos)
 {
-	struct debugfs_radix_state *p = file->private_data;
+	struct defs_radix_state *p = file->private_data;
 	ssize_t ret, r;
 	unsigned long n;
 	struct kvm *kvm;
@@ -1344,26 +1344,26 @@ static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static ssize_t debugfs_radix_write(struct file *file, const char __user *buf,
+static ssize_t defs_radix_write(struct file *file, const char __user *buf,
 			   size_t len, loff_t *ppos)
 {
 	return -EACCES;
 }
 
-static const struct file_operations debugfs_radix_fops = {
+static const struct file_operations defs_radix_fops = {
 	.owner	 = THIS_MODULE,
-	.open	 = debugfs_radix_open,
-	.release = debugfs_radix_release,
-	.read	 = debugfs_radix_read,
-	.write	 = debugfs_radix_write,
+	.open	 = defs_radix_open,
+	.release = defs_radix_release,
+	.read	 = defs_radix_read,
+	.write	 = defs_radix_write,
 	.llseek	 = generic_file_llseek,
 };
 
-void kvmhv_radix_debugfs_init(struct kvm *kvm)
+void kvmhv_radix_defs_init(struct kvm *kvm)
 {
-	kvm->arch.radix_dentry = debugfs_create_file("radix", 0400,
-						     kvm->arch.debugfs_dir, kvm,
-						     &debugfs_radix_fops);
+	kvm->arch.radix_dentry = defs_create_file("radix", 0400,
+						     kvm->arch.defs_dir, kvm,
+						     &defs_radix_fops);
 }
 
 int kvmppc_radix_init(void)

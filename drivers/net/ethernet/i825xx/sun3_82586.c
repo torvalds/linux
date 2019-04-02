@@ -23,7 +23,7 @@
  *
  */
 
-static int debuglevel = 0; /* debug-printk 0: off 1: a few 2: more */
+static int delevel = 0; /* de-printk 0: off 1: a few 2: more */
 static int automatic_resume = 0; /* experimental .. better should be zero */
 static int rfdadd = 0; /* rfdadd=1 may be better for 8K MEM cards */
 static int fifo=0x8;	/* don't change */
@@ -51,7 +51,7 @@ static int fifo=0x8;	/* don't change */
 
 #define DRV_NAME "sun3_82586"
 
-#define DEBUG       /* debug on */
+#define DE       /* de on */
 #define SYSBUSVAL 0 /* 16 Bit */
 #define SUN3_82586_TOTAL_SIZE	PAGE_SIZE
 
@@ -695,7 +695,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 	}
 	p = netdev_priv(dev);
 
-	if(debuglevel > 1)
+	if(delevel > 1)
 		printk("I");
 
 	WAIT_4_SCB_CMD(); /* wait for last command	*/
@@ -736,7 +736,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 		}
 #endif
 
-		if(debuglevel > 1)
+		if(delevel > 1)
 			printk("%d",cnt++);
 
 		WAIT_4_SCB_CMD(); /* wait for ack. (sun3_82586_xmt_int can be faster than ack!!) */
@@ -748,7 +748,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 		}
 	}
 
-	if(debuglevel > 1)
+	if(delevel > 1)
 		printk("i");
 	return IRQ_HANDLED;
 }
@@ -765,7 +765,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 	struct rbd_struct *rbd;
 	struct priv *p = netdev_priv(dev);
 
-	if(debuglevel > 0)
+	if(delevel > 0)
 		printk("R");
 
 	for(;(status = p->rfd_top->stat_high) & RFD_COMPL;)
@@ -826,7 +826,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 		p->rfd_top = (struct rfd_struct *) make32(p->rfd_top->next); /* step to next RFD */
 		p->scb->rfa_offset = make16(p->rfd_top);
 
-		if(debuglevel > 0)
+		if(delevel > 0)
 			printk("%d",cnt++);
 	}
 
@@ -871,7 +871,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 	old_at_least = at_least_one;
 #endif
 
-	if(debuglevel > 0)
+	if(delevel > 0)
 		printk("r");
 }
 
@@ -907,7 +907,7 @@ static void sun3_82586_xmt_int(struct net_device *dev)
 	int status;
 	struct priv *p = netdev_priv(dev);
 
-	if(debuglevel > 0)
+	if(delevel > 0)
 		printk("X");
 
 	status = swab16(p->xmit_cmds[p->xmit_last]->cmd_status);
@@ -972,7 +972,7 @@ static void sun3_82586_timeout(struct net_device *dev)
 	if(p->scb->cus & CU_ACTIVE) /* COMMAND-UNIT active? */
 	{
 		netif_wake_queue(dev);
-#ifdef DEBUG
+#ifdef DE
 		printk("%s: strange ... timeout with CU active?!?\n",dev->name);
 		printk("%s: X0: %04x N0: %04x N1: %04x %d\n",dev->name,(int)swab16(p->xmit_cmds[0]->cmd_status),(int)swab16(p->nop_cmds[0]->cmd_status),(int)swab16(p->nop_cmds[1]->cmd_status),(int)p->nop_point);
 #endif
@@ -988,7 +988,7 @@ static void sun3_82586_timeout(struct net_device *dev)
 	}
 #endif
 	{
-#ifdef DEBUG
+#ifdef DE
 		printk("%s: xmitter timed out, try to restart! stat: %02x\n",dev->name,p->scb->cus);
 		printk("%s: command-stats: %04x %04x\n",dev->name,swab16(p->xmit_cmds[0]->cmd_status),swab16(p->xmit_cmds[1]->cmd_status));
 		printk("%s: check, whether you set the right interrupt number!\n",dev->name);
@@ -1039,7 +1039,7 @@ sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 #if (NUM_XMIT_BUFFS == 1)
 #	ifdef NO_NOPCOMMANDS
 
-#ifdef DEBUG
+#ifdef DE
 		if(p->scb->cus & CU_ACTIVE)
 		{
 			printk("%s: Hmmm .. CU is still running and we wanna send a new packet.\n",dev->name);

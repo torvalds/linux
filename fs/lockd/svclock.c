@@ -54,7 +54,7 @@ static const struct rpc_call_ops nlmsvc_grant_ops;
 static LIST_HEAD(nlm_blocked);
 static DEFINE_SPINLOCK(nlm_blocked_lock);
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 static const char *nlmdbg_cookie2a(const struct nlm_cookie *cookie)
 {
 	/*

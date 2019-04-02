@@ -122,7 +122,7 @@ struct user{
   struct user_i387_struct *u_fpstate;	/* Math Co-processor pointer. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
-  int u_debugreg[8];
+  int u_dereg[8];
 };
 #define NBPG PAGE_SIZE
 #define UPAGES 1

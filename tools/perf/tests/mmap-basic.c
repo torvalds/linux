@@ -42,13 +42,13 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
-		pr_debug("thread_map__new\n");
+		pr_de("thread_map__new\n");
 		return -1;
 	}
 
 	cpus = cpu_map__new(NULL);
 	if (cpus == NULL) {
-		pr_debug("cpu_map__new\n");
+		pr_de("cpu_map__new\n");
 		goto out_free_threads;
 	}
 
@@ -56,14 +56,14 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 	CPU_SET(cpus->map[0], &cpu_set);
 	sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
 	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
-		pr_debug("sched_setaffinity() failed on CPU %d: %s ",
+		pr_de("sched_setaffinity() failed on CPU %d: %s ",
 			 cpus->map[0], str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_free_cpus;
 	}
 
 	evlist = perf_evlist__new();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new\n");
+		pr_de("perf_evlist__new\n");
 		goto out_free_cpus;
 	}
 
@@ -75,7 +75,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
 		evsels[i] = perf_evsel__newtp("syscalls", name);
 		if (IS_ERR(evsels[i])) {
-			pr_debug("perf_evsel__new(%s)\n", name);
+			pr_de("perf_evsel__new(%s)\n", name);
 			goto out_delete_evlist;
 		}
 
@@ -85,7 +85,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		perf_evlist__add(evlist, evsels[i]);
 
 		if (perf_evsel__open(evsels[i], cpus, threads) < 0) {
-			pr_debug("failed to open counter: %s, "
+			pr_de("failed to open counter: %s, "
 				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 				 str_error_r(errno, sbuf, sizeof(sbuf)));
 			goto out_delete_evlist;
@@ -96,7 +96,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 	}
 
 	if (perf_evlist__mmap(evlist, 128) < 0) {
-		pr_debug("failed to mmap events: %d (%s)\n", errno,
+		pr_de("failed to mmap events: %d (%s)\n", errno,
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -115,7 +115,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE) {
-			pr_debug("unexpected %s event\n",
+			pr_de("unexpected %s event\n",
 				 perf_event__name(event->header.type));
 			goto out_delete_evlist;
 		}
@@ -129,7 +129,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		err = -1;
 		evsel = perf_evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
-			pr_debug("event with id %" PRIu64
+			pr_de("event with id %" PRIu64
 				 " doesn't map to an evsel\n", sample.id);
 			goto out_delete_evlist;
 		}
@@ -142,7 +142,7 @@ out_init:
 	err = 0;
 	evlist__for_each_entry(evlist, evsel) {
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
-			pr_debug("expected %d %s events, got %d\n",
+			pr_de("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],
 				 perf_evsel__name(evsel), nr_events[evsel->idx]);
 			err = -1;

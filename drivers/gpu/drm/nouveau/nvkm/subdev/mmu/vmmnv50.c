@@ -189,7 +189,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 		if (!atomic_read(&vmm->engref[i]))
 			continue;
 
-		/* unfortunate hw bug workaround... */
+		/* unfortunate hw  workaround... */
 		if (i == NVKM_ENGINE_GR && device->gr) {
 			int ret = nvkm_gr_tlb_flush(device->gr);
 			if (ret != -ENODEV)
@@ -254,7 +254,7 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		kind = 0x00;
 		comp = 0;
 	} else {
-		VMM_DEBUG(vmm, "args");
+		VMM_DE(vmm, "args");
 		return ret;
 	}
 
@@ -280,12 +280,12 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 
 	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn);
 	if (kind >= kindn || kindm[kind] == 0x7f) {
-		VMM_DEBUG(vmm, "kind %02x", kind);
+		VMM_DE(vmm, "kind %02x", kind);
 		return -EINVAL;
 	}
 
 	if (map->mem && map->mem->type != kindm[kind]) {
-		VMM_DEBUG(vmm, "kind %02x bankswz: %d %d", kind,
+		VMM_DE(vmm, "kind %02x bankswz: %d %d", kind,
 			  kindm[kind], map->mem->type);
 		return -EINVAL;
 	}
@@ -293,14 +293,14 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	if (comp) {
 		u32 tags = (nvkm_memory_size(memory) >> 16) * comp;
 		if (aper != 0 || !(page->type & NVKM_VMM_PAGE_COMP)) {
-			VMM_DEBUG(vmm, "comp %d %02x", aper, page->type);
+			VMM_DE(vmm, "comp %d %02x", aper, page->type);
 			return -EINVAL;
 		}
 
 		ret = nvkm_memory_tags_get(memory, device, tags, NULL,
 					   &map->tags);
 		if (ret) {
-			VMM_DEBUG(vmm, "comp %d", ret);
+			VMM_DE(vmm, "comp %d", ret);
 			return ret;
 		}
 

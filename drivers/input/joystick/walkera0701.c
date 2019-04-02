@@ -105,7 +105,7 @@ static inline void walkera0701_parse_frame(struct walkera_dev *w)
 
 	magic = (w->buf[21] << 4) | w->buf[22];
 	magic_bit = (w->buf[24] & 8) >> 3;
-	pr_debug("%4d %4d %4d %4d  %4d %4d %4d %4d (magic %2x %d)\n",
+	pr_de("%4d %4d %4d %4d  %4d %4d %4d %4d (magic %2x %d)\n",
 		 val1, val2, val3, val4, val5, val6, val7, val8,
 		 magic, magic_bit);
 
@@ -206,7 +206,7 @@ static void walkera0701_attach(struct parport *pp)
 	struct walkera_dev *w = &w_dev;
 
 	if (pp->number != walkera0701_pp_no) {
-		pr_debug("Not using parport%d.\n", pp->number);
+		pr_de("Not using parport%d.\n", pp->number);
 		return;
 	}
 

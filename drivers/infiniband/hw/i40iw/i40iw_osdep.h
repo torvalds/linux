@@ -94,9 +94,9 @@ struct i40iw_virt_mem {
 	u32 size;
 } __packed;
 
-#define i40iw_debug(h, m, s, ...)                               \
+#define i40iw_de(h, m, s, ...)                               \
 do {                                                            \
-	if (((m) & (h)->debug_mask))                            \
+	if (((m) & (h)->de_mask))                            \
 		pr_info("i40iw " s, ##__VA_ARGS__);             \
 } while (0)
 

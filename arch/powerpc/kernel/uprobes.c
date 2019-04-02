@@ -24,7 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/uprobes.h>
 #include <linux/uaccess.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
 #include <asm/sstep.h>
 
@@ -137,7 +137,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 	struct die_args *args = data;
 	struct pt_regs *regs = args->regs;
 
-	/* regs == NULL is a kernel bug */
+	/* regs == NULL is a kernel  */
 	if (WARN_ON(!regs))
 		return NOTIFY_DONE;
 

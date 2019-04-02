@@ -117,7 +117,7 @@ static void triflex_load_timing(struct ata_port *ap, struct ata_device *adev, in
 		case XFER_PIO_0:
 			timing = 0x0808;break;
 		default:
-			BUG();
+			();
 	}
 	triflex_timing &= ~ (0xFFFF << (16 * is_slave));
 	triflex_timing |= (timing << (16 * is_slave));

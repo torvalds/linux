@@ -13,9 +13,9 @@
 
 #include "tracing_path.h"
 
-static char tracing_mnt[PATH_MAX]  = "/sys/kernel/debug";
-static char tracing_path[PATH_MAX]        = "/sys/kernel/debug/tracing";
-static char tracing_events_path[PATH_MAX] = "/sys/kernel/debug/tracing/events";
+static char tracing_mnt[PATH_MAX]  = "/sys/kernel/de";
+static char tracing_path[PATH_MAX]        = "/sys/kernel/de/tracing";
+static char tracing_events_path[PATH_MAX] = "/sys/kernel/de/tracing/events";
 
 static void __tracing_path_set(const char *tracing, const char *mountpoint)
 {
@@ -39,11 +39,11 @@ static const char *tracing_path_tracefs_mount(void)
 	return tracing_path;
 }
 
-static const char *tracing_path_debugfs_mount(void)
+static const char *tracing_path_defs_mount(void)
 {
 	const char *mnt;
 
-	mnt = debugfs__mount();
+	mnt = defs__mount();
 	if (!mnt)
 		return NULL;
 
@@ -60,7 +60,7 @@ const char *tracing_path_mount(void)
 	if (mnt)
 		return mnt;
 
-	mnt = tracing_path_debugfs_mount();
+	mnt = tracing_path_defs_mount();
 
 	return mnt;
 }
@@ -125,11 +125,11 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 	case ENOENT:
 		/*
 		 * We will get here if we can't find the tracepoint, but one of
-		 * debugfs or tracefs is configured, which means you probably
+		 * defs or tracefs is configured, which means you probably
 		 * want some tracepoint which wasn't compiled in your kernel.
 		 * - jirka
 		 */
-		if (debugfs__configured() || tracefs__configured()) {
+		if (defs__configured() || tracefs__configured()) {
 			/* sdt markers */
 			if (!strncmp(filename, "sdt_", 4)) {
 				snprintf(buf, size,
@@ -146,10 +146,10 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 			break;
 		}
 		snprintf(buf, size, "%s",
-			 "Error:\tUnable to find debugfs/tracefs\n"
-			 "Hint:\tWas your kernel compiled with debugfs/tracefs support?\n"
-			 "Hint:\tIs the debugfs/tracefs filesystem mounted?\n"
-			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
+			 "Error:\tUnable to find defs/tracefs\n"
+			 "Hint:\tWas your kernel compiled with defs/tracefs support?\n"
+			 "Hint:\tIs the defs/tracefs filesystem mounted?\n"
+			 "Hint:\tTry 'sudo mount -t defs nodev /sys/kernel/de'");
 		break;
 	case EACCES: {
 		snprintf(buf, size,

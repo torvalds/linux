@@ -120,7 +120,7 @@ static void firmware_parser_destroy(struct dc_bios **dcb)
 	struct bios_parser *bp = BP_FROM_DCB(*dcb);
 
 	if (!bp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -445,7 +445,7 @@ static struct atom_hpd_int_record *get_hpd_record(
 	uint32_t offset;
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object */
+		BREAK_TO_DEGER(); /* Invalid object */
 		return NULL;
 	}
 
@@ -599,7 +599,7 @@ static struct device_id device_type_from_device_id(uint16_t device_id)
 		break;
 
 	default:
-		BREAK_TO_DEBUGGER(); /* Invalid device Id */
+		BREAK_TO_DEGER(); /* Invalid device Id */
 		result_device_id.device_type = DEVICE_TYPE_UNKNOWN;
 		result_device_id.enum_id = 0;
 	}
@@ -622,7 +622,7 @@ static enum bp_result bios_parser_get_device_tag(
 	object = get_bios_object(bp, connector_object_id);
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object id */
+		BREAK_TO_DEGER(); /* Invalid object id */
 		return BP_RESULT_BADINPUT;
 	}
 
@@ -1326,7 +1326,7 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 	uint32_t offset;
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object */
+		BREAK_TO_DEGER(); /* Invalid object */
 		return NULL;
 	}
 

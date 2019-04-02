@@ -61,7 +61,7 @@
 #include "trace.h"
 #include "qp.h"
 #include "verbs_txreq.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "vnic.h"
 #include "fault.h"
 #include "affinity.h"
@@ -736,7 +736,7 @@ bail_txadd:
 static void update_tx_opstats(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			      u32 plen)
 {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_opcode_stats_perctx *s = get_cpu_ptr(dd->tx_opstats);
 

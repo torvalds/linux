@@ -14,7 +14,7 @@
  * Also supported here is the 21172 (CIA-2) and 21174 (PYXIS).
  *
  * The lineage is a bit confused, since the 21174 was reportedly started
- * from the 21171 Pass 1 mask, and so is missing bug fixes that appear
+ * from the 21171 Pass 1 mask, and so is missing  fixes that appear
  * in 21171 Pass 2 and 21172, but it also contains additional features.
  *
  * This file is based on:

@@ -37,9 +37,9 @@ MODULE_DESCRIPTION("Brooktree-856A video encoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* ----------------------------------------------------------------------- */
@@ -93,7 +93,7 @@ static int bt856_init(struct v4l2_subdev *sd, u32 arg)
 	struct bt856 *encoder = to_bt856(sd);
 
 	/* This is just for testing!!! */
-	v4l2_dbg(1, debug, sd, "init\n");
+	v4l2_dbg(1, de, sd, "init\n");
 	bt856_write(encoder, 0xdc, 0x18);
 	bt856_write(encoder, 0xda, 0);
 	bt856_write(encoder, 0xde, 0);
@@ -110,7 +110,7 @@ static int bt856_init(struct v4l2_subdev *sd, u32 arg)
 	bt856_setbit(encoder, 0xdc, 1, 1);
 	bt856_setbit(encoder, 0xde, 4, 0);
 	bt856_setbit(encoder, 0xde, 3, 1);
-	if (debug != 0)
+	if (de != 0)
 		bt856_dump(encoder);
 	return 0;
 }
@@ -119,7 +119,7 @@ static int bt856_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct bt856 *encoder = to_bt856(sd);
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, de, sd, "set norm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		bt856_setbit(encoder, 0xdc, 2, 0);
@@ -131,7 +131,7 @@ static int bt856_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		return -EINVAL;
 	}
 	encoder->norm = std;
-	if (debug != 0)
+	if (de != 0)
 		bt856_dump(encoder);
 	return 0;
 }
@@ -141,7 +141,7 @@ static int bt856_s_routing(struct v4l2_subdev *sd,
 {
 	struct bt856 *encoder = to_bt856(sd);
 
-	v4l2_dbg(1, debug, sd, "set input %d\n", input);
+	v4l2_dbg(1, de, sd, "set input %d\n", input);
 
 	/* We only have video bus.
 	 * input= 0: input is from bt819
@@ -167,7 +167,7 @@ static int bt856_s_routing(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	if (debug != 0)
+	if (de != 0)
 		bt856_dump(encoder);
 	return 0;
 }
@@ -227,7 +227,7 @@ static int bt856_probe(struct i2c_client *client,
 	bt856_setbit(encoder, 0xde, 4, 0);
 	bt856_setbit(encoder, 0xde, 3, 1);
 
-	if (debug != 0)
+	if (de != 0)
 		bt856_dump(encoder);
 	return 0;
 }

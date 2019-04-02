@@ -91,7 +91,7 @@
  *	- remove unneeded extra save_flags_cli in sa1100fb_enable_lcd_controller
  *
  * 2000/10/10: Erik Mouw <J.A.K.Mouw@its.tudelft.nl>
- *	- Updated LART stuff. Fixed some minor bugs.
+ *	- Updated LART stuff. Fixed some minor s.
  *
  * 2000/10/30: Murphy Chen <murphy@mail.dialogue.com.tw>
  *	- Pangolin support added
@@ -189,7 +189,7 @@
 /*
  * Complain if VAR is out of range.
  */
-#define DEBUG_VAR 1
+#define DE_VAR 1
 
 #include "sa1100fb.h"
 
@@ -622,7 +622,7 @@ static int sa1100fb_activate_var(struct fb_var_screeninfo *var, struct sa1100fb_
 		var->yres, var->vsync_len,
 		var->upper_margin, var->lower_margin);
 
-#if DEBUG_VAR
+#if DE_VAR
 	if (var->xres < 16        || var->xres > 1024)
 		dev_err(fbi->dev, "%s: invalid xres %d\n",
 			fbi->fb.fix.id, var->xres);
@@ -1048,7 +1048,7 @@ sa1100fb_freq_policy(struct notifier_block *nb, unsigned long val,
 	case CPUFREQ_NOTIFY:
 		do {} while(0);
 		/* todo: panic if min/max values aren't fulfilled 
-		 * [can't really happen unless there's a bug in the
+		 * [can't really happen unless there's a  in the
 		 * CPU policy verififcation process *
 		 */
 		break;

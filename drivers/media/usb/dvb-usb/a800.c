@@ -15,13 +15,13 @@
  */
 #include "dibusb.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (rc=1 (or-able))." DVB_USB_DEBUG_STATUS);
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (rc=1 (or-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define deb_rc(args...)   dprintk(debug,0x01,args)
+#define deb_rc(args...)   dprintk(de,0x01,args)
 
 static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
 {

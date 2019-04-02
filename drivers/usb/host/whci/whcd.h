@@ -195,7 +195,7 @@ void qset_remove_complete(struct whc *whc, struct whc_qset *qset);
 void pzl_update(struct whc *whc, uint32_t wusbcmd);
 void asl_update(struct whc *whc, uint32_t wusbcmd);
 
-/* debug.c */
+/* de.c */
 void whc_dbg_init(struct whc *whc);
 void whc_dbg_clean_up(struct whc *whc);
 

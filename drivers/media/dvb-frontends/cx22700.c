@@ -39,10 +39,10 @@ struct cx22700_state {
 };
 
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "cx22700: " args); \
+		if (de) printk(KERN_DE "cx22700: " args); \
 	} while (0)
 
 static u8 init_tab [] = {
@@ -437,8 +437,8 @@ static const struct dvb_frontend_ops cx22700_ops = {
 	.read_ucblocks = cx22700_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Conexant CX22700 DVB-T Demodulator driver");
 MODULE_AUTHOR("Holger Waechtler");

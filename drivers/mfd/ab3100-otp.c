@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/abx500.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 /* The OTP registers */
@@ -44,7 +44,7 @@
  * @tac type allocation code of the IMEI
  * @fac final assembly code of the IMEI
  * @svn software version number of the IMEI
- * @debugfs a debugfs file used when dumping to file
+ * @defs a defs file used when dumping to file
  */
 struct ab3100_otp {
 	struct device *dev;
@@ -56,7 +56,7 @@ struct ab3100_otp {
 	u32 tac:20;
 	u8 fac;
 	u32 svn:20;
-	struct dentry *debugfs;
+	struct dentry *defs;
 };
 
 static int __init ab3100_otp_read(struct ab3100_otp *otp)
@@ -92,10 +92,10 @@ static int __init ab3100_otp_read(struct ab3100_otp *otp)
 }
 
 /*
- * This is a simple debugfs human-readable file that dumps out
+ * This is a simple defs human-readable file that dumps out
  * the contents of the OTP.
  */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int ab3100_show_otp(struct seq_file *s, void *v)
 {
 	struct ab3100_otp *otp = s->private;
@@ -122,32 +122,32 @@ static const struct file_operations ab3100_otp_operations = {
 	.release	= single_release,
 };
 
-static int __init ab3100_otp_init_debugfs(struct device *dev,
+static int __init ab3100_otp_init_defs(struct device *dev,
 					  struct ab3100_otp *otp)
 {
-	otp->debugfs = debugfs_create_file("ab3100_otp", S_IFREG | S_IRUGO,
+	otp->defs = defs_create_file("ab3100_otp", S_IFREG | S_IRUGO,
 					   NULL, otp,
 					   &ab3100_otp_operations);
-	if (!otp->debugfs) {
-		dev_err(dev, "AB3100 debugfs OTP file registration failed!\n");
+	if (!otp->defs) {
+		dev_err(dev, "AB3100 defs OTP file registration failed!\n");
 		return -ENOENT;
 	}
 	return 0;
 }
 
-static void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
+static void __exit ab3100_otp_exit_defs(struct ab3100_otp *otp)
 {
-	debugfs_remove(otp->debugfs);
+	defs_remove(otp->defs);
 }
 #else
-/* Compile this out if debugfs not selected */
-static inline int __init ab3100_otp_init_debugfs(struct device *dev,
+/* Compile this out if defs not selected */
+static inline int __init ab3100_otp_init_defs(struct device *dev,
 						 struct ab3100_otp *otp)
 {
 	return 0;
 }
 
-static inline void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
+static inline void __exit ab3100_otp_exit_defs(struct ab3100_otp *otp)
 {
 }
 #endif
@@ -210,8 +210,8 @@ static int __init ab3100_otp_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	/* debugfs entries */
-	err = ab3100_otp_init_debugfs(&pdev->dev, otp);
+	/* defs entries */
+	err = ab3100_otp_init_defs(&pdev->dev, otp);
 	if (err)
 		goto err;
 
@@ -231,7 +231,7 @@ static int __exit ab3100_otp_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(ab3100_otp_attrs); i++)
 		device_remove_file(&pdev->dev,
 				   &ab3100_otp_attrs[i]);
-	ab3100_otp_exit_debugfs(otp);
+	ab3100_otp_exit_defs(otp);
 	return 0;
 }
 

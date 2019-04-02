@@ -103,7 +103,7 @@ do {								\
 /*
  * An executable for which elf_read_implies_exec() returns TRUE will
  * have the READ_IMPLIES_EXEC personality flag set automatically. This
- * is only required to work around bugs in old 32bit toolchains. Since
+ * is only required to work around s in old 32bit toolchains. Since
  * the 64bit ABI has never had these issues dont enable the workaround
  * even if we have an executable stack.
  */

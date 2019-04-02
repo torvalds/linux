@@ -28,8 +28,8 @@
 
 #include "irq.h"
 
-/* Enable/Disable Debugging Configuration Space Access */
-#undef GRPCI1_DEBUG_CFGACCESS
+/* Enable/Disable Deging Configuration Space Access */
+#undef GRPCI1_DE_CFGACCESS
 
 /*
  * GRPCI1 APB Register MAP
@@ -263,7 +263,7 @@ static int grpci1_read_config(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-#ifdef GRPCI1_DEBUG_CFGACCESS
+#ifdef GRPCI1_DE_CFGACCESS
 	printk(KERN_INFO
 		"grpci1_read_config: [%02x:%02x:%x] ofs=%d val=%x size=%d\n",
 		busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, *val, size);
@@ -284,7 +284,7 @@ static int grpci1_write_config(struct pci_bus *bus, unsigned int devfn,
 	if (PCI_SLOT(devfn) > 15 || busno > 15)
 		return 0;
 
-#ifdef GRPCI1_DEBUG_CFGACCESS
+#ifdef GRPCI1_DE_CFGACCESS
 	printk(KERN_INFO
 		"grpci1_write_config: [%02x:%02x:%x] ofs=%d size=%d val=%x\n",
 		busno, PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);

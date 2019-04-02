@@ -246,7 +246,7 @@ setup_gate (void)
 	 */
 	page = virt_to_page(ia64_imva(__start_gate_section));
 	put_kernel_page(page, GATE_ADDR, PAGE_READONLY);
-#ifdef HAVE_BUGGY_SEGREL
+#ifdef HAVE_GY_SEGREL
 	page = virt_to_page(ia64_imva(__start_gate_section + PAGE_SIZE));
 	put_kernel_page(page, GATE_ADDR + PAGE_SIZE, PAGE_GATE);
 #else
@@ -608,7 +608,7 @@ find_max_min_low_pfn (u64 start, u64 end, void *arg)
  * Boot command-line option "nolwsys" can be used to disable the use of any light-weight
  * system call handler.  When this option is in effect, all fsyscalls will end up bubbling
  * down into the kernel and calling the normal (heavy-weight) syscall handler.  This is
- * useful for performance testing, but conceivably could also come in handy for debugging
+ * useful for performance testing, but conceivably could also come in handy for deging
  * purposes.
  */
 
@@ -628,9 +628,9 @@ mem_init (void)
 {
 	int i;
 
-	BUG_ON(PTRS_PER_PGD * sizeof(pgd_t) != PAGE_SIZE);
-	BUG_ON(PTRS_PER_PMD * sizeof(pmd_t) != PAGE_SIZE);
-	BUG_ON(PTRS_PER_PTE * sizeof(pte_t) != PAGE_SIZE);
+	_ON(PTRS_PER_PGD * sizeof(pgd_t) != PAGE_SIZE);
+	_ON(PTRS_PER_PMD * sizeof(pmd_t) != PAGE_SIZE);
+	_ON(PTRS_PER_PTE * sizeof(pte_t) != PAGE_SIZE);
 
 #ifdef CONFIG_PCI
 	/*
@@ -642,7 +642,7 @@ mem_init (void)
 #endif
 
 #ifdef CONFIG_FLATMEM
-	BUG_ON(!mem_map);
+	_ON(!mem_map);
 #endif
 
 	set_max_mapnr(max_low_pfn);

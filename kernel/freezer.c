@@ -65,7 +65,7 @@ bool __refrigerator(bool check_kthr_stop)
 	bool was_frozen = false;
 	long save = current->state;
 
-	pr_debug("%s entered refrigerator\n", current->comm);
+	pr_de("%s entered refrigerator\n", current->comm);
 
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -83,7 +83,7 @@ bool __refrigerator(bool check_kthr_stop)
 		schedule();
 	}
 
-	pr_debug("%s left refrigerator\n", current->comm);
+	pr_de("%s left refrigerator\n", current->comm);
 
 	/*
 	 * Restore saved task state before returning.  The mb'd version

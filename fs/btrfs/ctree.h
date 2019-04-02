@@ -25,7 +25,7 @@
 #include <linux/workqueue.h>
 #include <linux/security.h>
 #include <linux/sizes.h>
-#include <linux/dynamic_debug.h>
+#include <linux/dynamic_de.h>
 #include <linux/refcount.h>
 #include <linux/crc32c.h>
 #include "extent_io.h"
@@ -104,7 +104,7 @@ struct btrfs_mapping_tree {
 
 static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 {
-	BUG_ON(num_stripes == 0);
+	_ON(num_stripes == 0);
 	return sizeof(struct btrfs_chunk) +
 		sizeof(struct btrfs_stripe) * (num_stripes - 1);
 }
@@ -1428,7 +1428,7 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 #define BTRFS_MOUNT_SPACE_CACHE		(1 << 12)
 #define BTRFS_MOUNT_CLEAR_CACHE		(1 << 13)
 #define BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED (1 << 14)
-#define BTRFS_MOUNT_ENOSPC_DEBUG	 (1 << 15)
+#define BTRFS_MOUNT_ENOSPC_DE	 (1 << 15)
 #define BTRFS_MOUNT_AUTO_DEFRAG		(1 << 16)
 #define BTRFS_MOUNT_INODE_MAP_CACHE	(1 << 17)
 #define BTRFS_MOUNT_USEBACKUPROOT	(1 << 18)
@@ -1466,7 +1466,7 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 	btrfs_clear_opt(fs_info->mount_opt, opt);			\
 }
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 static inline int
 btrfs_should_fragment_free_space(struct btrfs_block_group_cache *block_group)
 {
@@ -1602,27 +1602,27 @@ DECLARE_BTRFS_SETGET_BITS(64)
 static inline u##bits btrfs_##name(const struct extent_buffer *eb,	\
 				   const type *s)			\
 {									\
-	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	BUILD__ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
 	return btrfs_get_##bits(eb, s, offsetof(type, member));		\
 }									\
 static inline void btrfs_set_##name(struct extent_buffer *eb, type *s,	\
 				    u##bits val)			\
 {									\
-	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	BUILD__ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
 	btrfs_set_##bits(eb, s, offsetof(type, member), val);		\
 }									\
 static inline u##bits btrfs_token_##name(const struct extent_buffer *eb,\
 					 const type *s,			\
 					 struct btrfs_map_token *token)	\
 {									\
-	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	BUILD__ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
 	return btrfs_get_token_##bits(eb, s, offsetof(type, member), token); \
 }									\
 static inline void btrfs_set_token_##name(struct extent_buffer *eb,	\
 					  type *s, u##bits val,		\
                                          struct btrfs_map_token *token)	\
 {									\
-	BUILD_BUG_ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
+	BUILD__ON(sizeof(u##bits) != sizeof(((type *)0))->member);	\
 	btrfs_set_token_##bits(eb, s, offsetof(type, member), val, token); \
 }
 
@@ -1654,7 +1654,7 @@ static inline void btrfs_set_##name(type *s, u##bits val)		\
 static inline u64 btrfs_device_total_bytes(struct extent_buffer *eb,
 					   struct btrfs_dev_item *s)
 {
-	BUILD_BUG_ON(sizeof(u64) !=
+	BUILD__ON(sizeof(u64) !=
 		     sizeof(((struct btrfs_dev_item *)0))->total_bytes);
 	return btrfs_get_64(eb, s, offsetof(struct btrfs_dev_item,
 					    total_bytes));
@@ -1663,7 +1663,7 @@ static inline void btrfs_set_device_total_bytes(struct extent_buffer *eb,
 						struct btrfs_dev_item *s,
 						u64 val)
 {
-	BUILD_BUG_ON(sizeof(u64) !=
+	BUILD__ON(sizeof(u64) !=
 		     sizeof(((struct btrfs_dev_item *)0))->total_bytes);
 	WARN_ON(!IS_ALIGNED(val, eb->fs_info->sectorsize));
 	btrfs_set_64(eb, s, offsetof(struct btrfs_dev_item, total_bytes), val);
@@ -3449,37 +3449,37 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 #define btrfs_info_rl(fs_info, fmt, args...) \
 	btrfs_printk_ratelimited(fs_info, KERN_INFO fmt, ##args)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
-#define btrfs_debug(fs_info, fmt, args...)				\
+#if defined(CONFIG_DYNAMIC_DE)
+#define btrfs_de(fs_info, fmt, args...)				\
 	_dynamic_func_call_no_desc(fmt, btrfs_printk,			\
-				   fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_in_rcu(fs_info, fmt, args...)			\
+				   fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_in_rcu(fs_info, fmt, args...)			\
 	_dynamic_func_call_no_desc(fmt, btrfs_printk_in_rcu,		\
-				   fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl_in_rcu(fs_info, fmt, args...)			\
+				   fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_rl_in_rcu(fs_info, fmt, args...)			\
 	_dynamic_func_call_no_desc(fmt, btrfs_printk_rl_in_rcu,		\
-				   fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl(fs_info, fmt, args...)				\
+				   fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_rl(fs_info, fmt, args...)				\
 	_dynamic_func_call_no_desc(fmt, btrfs_printk_ratelimited,	\
-				   fs_info, KERN_DEBUG fmt, ##args)
-#elif defined(DEBUG)
-#define btrfs_debug(fs_info, fmt, args...) \
-	btrfs_printk(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_in_rcu(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl_in_rcu(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl(fs_info, fmt, args...) \
-	btrfs_printk_ratelimited(fs_info, KERN_DEBUG fmt, ##args)
+				   fs_info, KERN_DE fmt, ##args)
+#elif defined(DE)
+#define btrfs_de(fs_info, fmt, args...) \
+	btrfs_printk(fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_in_rcu(fs_info, fmt, args...) \
+	btrfs_printk_in_rcu(fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_rl_in_rcu(fs_info, fmt, args...) \
+	btrfs_printk_rl_in_rcu(fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_rl(fs_info, fmt, args...) \
+	btrfs_printk_ratelimited(fs_info, KERN_DE fmt, ##args)
 #else
-#define btrfs_debug(fs_info, fmt, args...) \
-	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_in_rcu(fs_info, fmt, args...) \
-	btrfs_no_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl_in_rcu(fs_info, fmt, args...) \
-	btrfs_no_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl(fs_info, fmt, args...) \
-	btrfs_no_printk(fs_info, KERN_DEBUG fmt, ##args)
+#define btrfs_de(fs_info, fmt, args...) \
+	btrfs_no_printk(fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_in_rcu(fs_info, fmt, args...) \
+	btrfs_no_printk_in_rcu(fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_rl_in_rcu(fs_info, fmt, args...) \
+	btrfs_no_printk_in_rcu(fs_info, KERN_DE fmt, ##args)
+#define btrfs_de_rl(fs_info, fmt, args...) \
+	btrfs_no_printk(fs_info, KERN_DE fmt, ##args)
 #endif
 
 #define btrfs_printk_in_rcu(fs_info, fmt, args...)	\
@@ -3518,7 +3518,7 @@ static inline void assfail(const char *expr, const char *file, int line)
 	if (IS_ENABLED(CONFIG_BTRFS_ASSERT)) {
 		pr_err("assertion failed: %s, file: %s, line: %d\n",
 		       expr, file, line);
-		BUG();
+		();
 	}
 }
 
@@ -3564,11 +3564,11 @@ do {								\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
 		if ((errno) != -EIO) {				\
-			WARN(1, KERN_DEBUG				\
+			WARN(1, KERN_DE				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
 			(errno));					\
 		} else {						\
-			btrfs_debug((trans)->fs_info,			\
+			btrfs_de((trans)->fs_info,			\
 				    "Transaction aborted (error %d)", \
 				  (errno));			\
 		}						\
@@ -3589,12 +3589,12 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int errno, const char *fmt, ...);
 /*
  * If BTRFS_MOUNT_PANIC_ON_FATAL_ERROR is in mount_opt, __btrfs_panic
- * will panic().  Otherwise we BUG() here.
+ * will panic().  Otherwise we () here.
  */
 #define btrfs_panic(fs_info, errno, fmt, args...)			\
 do {									\
 	__btrfs_panic(fs_info, __func__, __LINE__, errno, fmt, ##args);	\
-	BUG();								\
+	();								\
 } while (0)
 
 

@@ -36,7 +36,7 @@ static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
 	else if (rw == BTRFS_READ_LOCK)
 		btrfs_tree_read_unlock(eb);
 	else
-		BUG();
+		();
 }
 
 #endif

@@ -152,7 +152,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 
 	default:
-		BUG();
+		();
 		goto out;
 	}
 
@@ -314,7 +314,7 @@ static bool rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 bad_state:
 	write_unlock(&call->state_lock);
-	kdebug("end_tx %s", rxrpc_call_states[call->state]);
+	kde("end_tx %s", rxrpc_call_states[call->state]);
 	rxrpc_proto_abort(abort_why, call, call->tx_top);
 	return false;
 }
@@ -509,7 +509,7 @@ next_subpacket:
 		}
 	}
 
-	trace_rxrpc_rx_data(call->debug_id, seq, serial, flags, annotation);
+	trace_rxrpc_rx_data(call->de_id, seq, serial, flags, annotation);
 	if (before_eq(seq, hard_ack)) {
 		ack = RXRPC_ACK_DUPLICATE;
 		ack_serial = serial;
@@ -613,7 +613,7 @@ ack:
 				  rxrpc_propose_ack_input_data);
 
 	if (sp->hdr.seq == READ_ONCE(call->rx_hard_ack) + 1) {
-		trace_rxrpc_notify_socket(call->debug_id, serial);
+		trace_rxrpc_notify_socket(call->de_id, serial);
 		rxrpc_notify_socket(call);
 	}
 
@@ -844,7 +844,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 
 	offset = sizeof(struct rxrpc_wire_header);
 	if (skb_copy_bits(skb, offset, &buf.ack, sizeof(buf.ack)) < 0) {
-		_debug("extraction failure");
+		_de("extraction failure");
 		return rxrpc_proto_abort("XAK", call, 0);
 	}
 	offset += sizeof(buf.ack);
@@ -1099,7 +1099,7 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 
 /*
  * post endpoint-level events to the local endpoint
- * - this includes debug and version messages
+ * - this includes de and version messages
  */
 static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 				       struct sk_buff *skb)
@@ -1290,7 +1290,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 
 		if (sp->hdr.callNumber == 0) {
 			/* Connection-level packet */
-			_debug("CONN %p {%d}", conn, conn->debug_id);
+			_de("CONN %p {%d}", conn, conn->de_id);
 			rxrpc_post_packet_to_conn(conn, skb);
 			goto out;
 		}
@@ -1329,7 +1329,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 			 * from data cached in the connection record.
 			 */
 			if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA)
-				trace_rxrpc_rx_data(chan->call_debug_id,
+				trace_rxrpc_rx_data(chan->call_de_id,
 						    sp->hdr.seq,
 						    sp->hdr.serial,
 						    sp->hdr.flags, 0);

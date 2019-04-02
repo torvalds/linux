@@ -33,7 +33,7 @@
 #include "mesh.h"
 #include "wep.h"
 #include "led.h"
-#include "debugfs.h"
+#include "defs.h"
 
 void ieee80211_configure_filter(struct ieee80211_local *local)
 {
@@ -263,7 +263,7 @@ static void ieee80211_restart_work(struct work_struct *work)
 		 * for station mode: a good thing would be to run most of
 		 * the iface type's dependent _stop (ieee80211_mg_stop,
 		 * ieee80211_ibss_stop) etc...
-		 * For now, fix only the specific bug that was seen: race
+		 * For now, fix only the specific  that was seen: race
 		 * between csa_connection_drop_work and us.
 		 */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
@@ -1151,7 +1151,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	local->tx_headroom = max_t(unsigned int , local->hw.extra_tx_headroom,
 				   IEEE80211_TX_STATUS_HEADROOM);
 
-	debugfs_hw_add(local);
+	defs_hw_add(local);
 
 	/*
 	 * if the driver doesn't specify a max listen interval we
@@ -1172,7 +1172,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	result = ieee80211_wep_init(local);
 	if (result < 0)
-		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
+		wiphy_de(local->hw.wiphy, "Failed to initialize wep: %d\n",
 			    result);
 
 	local->hw.conf.flags = IEEE80211_CONF_IDLE;
@@ -1188,7 +1188,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	result = ieee80211_init_rate_ctrl_alg(local,
 					      hw->rate_control_algorithm);
 	if (result < 0) {
-		wiphy_debug(local->hw.wiphy,
+		wiphy_de(local->hw.wiphy,
 			    "Failed to initialize rate control algorithm\n");
 		goto fail_rate;
 	}
@@ -1207,7 +1207,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 * Print a message so that in the common case the reallocation can be
 	 * avoided.
 	 */
-	BUILD_BUG_ON(NUM_NL80211_BANDS > 8 * sizeof(local->sband_allocated));
+	BUILD__ON(NUM_NL80211_BANDS > 8 * sizeof(local->sband_allocated));
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 		bool local_cap, ie_cap;
@@ -1389,8 +1389,8 @@ static int __init ieee80211_init(void)
 	struct sk_buff *skb;
 	int ret;
 
-	BUILD_BUG_ON(sizeof(struct ieee80211_tx_info) > sizeof(skb->cb));
-	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, driver_data) +
+	BUILD__ON(sizeof(struct ieee80211_tx_info) > sizeof(skb->cb));
+	BUILD__ON(offsetof(struct ieee80211_tx_info, driver_data) +
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE > sizeof(skb->cb));
 
 	ret = rc80211_minstrel_init();

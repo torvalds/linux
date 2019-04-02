@@ -28,14 +28,14 @@
 #include <linux/freezer.h>
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 
 #include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
 #include <asm/imc-pmu.h>
-#include <asm/bug.h>
+#include <asm/.h>
 
 #include "powernv.h"
 
@@ -117,16 +117,16 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	opal.entry = of_read_number(entryp, entrysz/4);
 	opal.size = of_read_number(sizep, runtimesz/4);
 
-	pr_debug("OPAL Base  = 0x%llx (basep=%p basesz=%d)\n",
+	pr_de("OPAL Base  = 0x%llx (basep=%p basesz=%d)\n",
 		 opal.base, basep, basesz);
-	pr_debug("OPAL Entry = 0x%llx (entryp=%p basesz=%d)\n",
+	pr_de("OPAL Entry = 0x%llx (entryp=%p basesz=%d)\n",
 		 opal.entry, entryp, entrysz);
-	pr_debug("OPAL Entry = 0x%llx (sizep=%p runtimesz=%d)\n",
+	pr_de("OPAL Entry = 0x%llx (sizep=%p runtimesz=%d)\n",
 		 opal.size, sizep, runtimesz);
 
 	if (of_flat_dt_is_compatible(node, "ibm,opal-v3")) {
 		powerpc_firmware_features |= FW_FEATURE_OPAL;
-		pr_debug("OPAL detected !\n");
+		pr_de("OPAL detected !\n");
 	} else {
 		panic("OPAL != V3 detected, no longer supported.\n");
 	}
@@ -148,7 +148,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 	if (!prop)
 		return 1;
 
-	pr_debug("Found machine check recoverable ranges.\n");
+	pr_de("Found machine check recoverable ranges.\n");
 
 	/*
 	 * Calculate number of available entries.
@@ -184,7 +184,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 		mc_recoverable_range[i].recover_addr =
 					of_read_number(prop + (i * 5) + 3, 2);
 
-		pr_debug("Machine check recoverable range: %llx..%llx: %llx\n",
+		pr_de("Machine check recoverable range: %llx..%llx: %llx\n",
 				mc_recoverable_range[i].start_addr,
 				mc_recoverable_range[i].end_addr,
 				mc_recoverable_range[i].recover_addr);

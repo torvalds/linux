@@ -873,7 +873,7 @@ static void set_vclk(struct tridentfb_par *par, unsigned long freq)
 		t_outb(par, lo, 0x43C8);
 		t_outb(par, hi, 0x43C9);
 	}
-	debug("VCLK = %X %X\n", hi, lo);
+	de("VCLK = %X %X\n", hi, lo);
 }
 
 /* Set number of lines for flat panels*/
@@ -993,7 +993,7 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	int bpp = var->bits_per_pixel;
 	int line_length;
 	int ramdac = 230000; /* 230MHz for most 3D chips */
-	debug("enter\n");
+	de("enter\n");
 
 	/* check color depth */
 	if (bpp == 24)
@@ -1097,7 +1097,7 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	if (PICOS2KHZ(var->pixclock) > ramdac)
 		return -EINVAL;
 
-	debug("exit\n");
+	de("exit\n");
 
 	return 0;
 
@@ -1110,11 +1110,11 @@ static int tridentfb_pan_display(struct fb_var_screeninfo *var,
 	struct tridentfb_par *par = info->par;
 	unsigned int offset;
 
-	debug("enter\n");
+	de("enter\n");
 	offset = (var->xoffset + (var->yoffset * info->var.xres_virtual))
 		* info->var.bits_per_pixel / 32;
 	set_screen_start(par, offset);
-	debug("exit\n");
+	de("exit\n");
 	return 0;
 }
 
@@ -1139,7 +1139,7 @@ static int tridentfb_set_par(struct fb_info *info)
 	unsigned char tmp;
 	unsigned long vclk;
 
-	debug("enter\n");
+	de("enter\n");
 	hdispend = var->xres / 8 - 1;
 	hsyncstart = (var->xres + var->right_margin) / 8;
 	hsyncend = (var->xres + var->right_margin + var->hsync_len) / 8;
@@ -1353,7 +1353,7 @@ static int tridentfb_set_par(struct fb_info *info)
 
 	info->fix.visual = (bpp == 8) ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
 	info->cmap.len = (bpp == 8) ? 256 : 16;
-	debug("exit\n");
+	de("exit\n");
 	return 0;
 }
 
@@ -1401,7 +1401,7 @@ static int tridentfb_blank(int blank_mode, struct fb_info *info)
 	unsigned char PMCont, DPMSCont;
 	struct tridentfb_par *par = info->par;
 
-	debug("enter\n");
+	de("enter\n");
 	if (par->flatpanel)
 		return 0;
 	t_outb(par, 0x04, 0x83C8); /* Read DPMS Control */
@@ -1436,7 +1436,7 @@ static int tridentfb_blank(int blank_mode, struct fb_info *info)
 	t_outb(par, 4, 0x83C8);
 	t_outb(par, PMCont, 0x83C6);
 
-	debug("exit\n");
+	de("exit\n");
 
 	/* let fbcon do a softblank for us */
 	return (blank_mode == FB_BLANK_NORMAL) ? 1 : 0;
@@ -1550,7 +1550,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 
 	if (!request_mem_region(tridentfb_fix.mmio_start,
 				tridentfb_fix.mmio_len, "tridentfb")) {
-		debug("request_region failed!\n");
+		de("request_region failed!\n");
 		framebuffer_release(info);
 		return -1;
 	}
@@ -1559,7 +1559,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 					       tridentfb_fix.mmio_len);
 
 	if (!default_par->io_virt) {
-		debug("ioremap failed\n");
+		de("ioremap failed\n");
 		err = -1;
 		goto out_unmap1;
 	}
@@ -1572,7 +1572,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 
 	if (!request_mem_region(tridentfb_fix.smem_start,
 				tridentfb_fix.smem_len, "tridentfb")) {
-		debug("request_mem_region failed!\n");
+		de("request_mem_region failed!\n");
 		disable_mmio(info->par);
 		err = -1;
 		goto out_unmap1;
@@ -1582,7 +1582,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 					    tridentfb_fix.smem_len);
 
 	if (!info->screen_base) {
-		debug("ioremap failed\n");
+		de("ioremap failed\n");
 		err = -1;
 		goto out_unmap2;
 	}
@@ -1626,7 +1626,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 	}
 
 	if (noaccel) {
-		printk(KERN_DEBUG "disabling acceleration\n");
+		printk(KERN_DE "disabling acceleration\n");
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 		info->pixmap.scan_align = 1;
 	}

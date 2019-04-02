@@ -155,7 +155,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 	case QXL_CMD_SURFACE:
 	case QXL_CMD_CURSOR:
 	default:
-		DRM_DEBUG("Only draw commands in execbuffers\n");
+		DRM_DE("Only draw commands in execbuffers\n");
 		return -EINVAL;
 		break;
 	}
@@ -214,7 +214,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		/* add the bos to the list of bos to validate -
 		   need to validate first then process relocs? */
 		if (reloc.reloc_type != QXL_RELOC_TYPE_BO && reloc.reloc_type != QXL_RELOC_TYPE_SURF) {
-			DRM_DEBUG("unknown reloc type %d\n", reloc.reloc_type);
+			DRM_DE("unknown reloc type %d\n", reloc.reloc_type);
 
 			ret = -EINVAL;
 			goto out_free_bos;

@@ -47,7 +47,7 @@
 #define MXT_MAX_BLOCK_WRITE	256
 
 /* Object types */
-#define MXT_DEBUG_DIAGNOSTIC_T37	37
+#define MXT_DE_DIAGNOSTIC_T37	37
 #define MXT_GEN_MESSAGE_T5		5
 #define MXT_GEN_COMMAND_T6		6
 #define MXT_GEN_POWER_T7		7
@@ -135,7 +135,7 @@ struct t9_range {
 #define MXT_COMMS_CTRL		0
 #define MXT_COMMS_CMD		1
 
-/* MXT_DEBUG_DIAGNOSTIC_T37 */
+/* MXT_DE_DIAGNOSTIC_T37 */
 #define MXT_DIAGNOSTIC_PAGEUP	0x01
 #define MXT_DIAGNOSTIC_DELTAS	0x10
 #define MXT_DIAGNOSTIC_REFS	0x11
@@ -145,7 +145,7 @@ struct t9_range {
 #define MXT1386_COLUMNS			3
 #define MXT1386_PAGES_PER_COLUMN	8
 
-struct t37_debug {
+struct t37_de {
 #ifdef CONFIG_TOUCHSCREEN_ATMEL_MXT_T37
 	u8 mode;
 	u8 page;
@@ -243,7 +243,7 @@ struct mxt_object {
 struct mxt_dbg {
 	u16 t37_address;
 	u16 diag_cmd_address;
-	struct t37_debug *t37_buf;
+	struct t37_de *t37_buf;
 	unsigned int t37_pages;
 	unsigned int t37_nodes;
 
@@ -738,7 +738,7 @@ static void mxt_proc_t6_messages(struct mxt_data *data, u8 *msg)
 	if (status & MXT_T6_STATUS_RESET)
 		complete(&data->reset_completion);
 
-	/* Output debug if status has changed */
+	/* Output de if status has changed */
 	if (status != data->t6_status)
 		dev_dbg(dev, "T6 Status 0x%02X%s%s%s%s%s%s%s\n",
 			status,
@@ -2223,7 +2223,7 @@ recheck:
 }
 
 #ifdef CONFIG_TOUCHSCREEN_ATMEL_MXT_T37
-static u16 mxt_get_debug_value(struct mxt_data *data, unsigned int x,
+static u16 mxt_get_de_value(struct mxt_data *data, unsigned int x,
 			       unsigned int y)
 {
 	struct mxt_info *info = data->info;
@@ -2250,7 +2250,7 @@ static u16 mxt_get_debug_value(struct mxt_data *data, unsigned int x,
 	return get_unaligned_le16(&dbg->t37_buf[page].data[ofs]);
 }
 
-static int mxt_convert_debug_pages(struct mxt_data *data, u16 *outbuf)
+static int mxt_convert_de_pages(struct mxt_data *data, u16 *outbuf)
 {
 	struct mxt_dbg *dbg = &data->dbg;
 	unsigned int x = 0;
@@ -2264,7 +2264,7 @@ static int mxt_convert_debug_pages(struct mxt_data *data, u16 *outbuf)
 		rx = data->invertx ? (data->xsize - 1 - rx) : rx;
 		ry = data->inverty ? (data->ysize - 1 - ry) : ry;
 
-		outbuf[i] = mxt_get_debug_value(data, rx, ry);
+		outbuf[i] = mxt_get_de_value(data, rx, ry);
 
 		/* Next value */
 		if (++x >= (data->xy_switch ? data->ysize : data->xsize)) {
@@ -2276,7 +2276,7 @@ static int mxt_convert_debug_pages(struct mxt_data *data, u16 *outbuf)
 	return 0;
 }
 
-static int mxt_read_diagnostic_debug(struct mxt_data *data, u8 mode,
+static int mxt_read_diagnostic_de(struct mxt_data *data, u8 mode,
 				     u16 *outbuf)
 {
 	struct mxt_dbg *dbg = &data->dbg;
@@ -2284,7 +2284,7 @@ static int mxt_read_diagnostic_debug(struct mxt_data *data, u8 mode,
 	int page;
 	int ret;
 	u8 cmd = mode;
-	struct t37_debug *p;
+	struct t37_de *p;
 	u8 cmd_poll;
 
 	for (page = 0; page < dbg->t37_pages; page++) {
@@ -2315,7 +2315,7 @@ wait_cmd:
 
 		/* Read T37 page */
 		ret = __mxt_read_reg(data->client, dbg->t37_address,
-				     sizeof(struct t37_debug), p);
+				     sizeof(struct t37_de), p);
 		if (ret)
 			return ret;
 
@@ -2331,7 +2331,7 @@ wait_cmd:
 		cmd = MXT_DIAGNOSTIC_PAGEUP;
 	}
 
-	return mxt_convert_debug_pages(data, outbuf);
+	return mxt_convert_de_pages(data, outbuf);
 }
 
 static int mxt_queue_setup(struct vb2_queue *q,
@@ -2374,7 +2374,7 @@ static void mxt_buffer_queue(struct vb2_buffer *vb)
 		break;
 	}
 
-	ret = mxt_read_diagnostic_debug(data, mode, ptr);
+	ret = mxt_read_diagnostic_de(data, mode, ptr);
 	if (ret)
 		goto fault;
 
@@ -2552,7 +2552,7 @@ static const struct video_device mxt_video_device = {
 		       V4L2_CAP_READWRITE | V4L2_CAP_STREAMING,
 };
 
-static void mxt_debug_init(struct mxt_data *data)
+static void mxt_de_init(struct mxt_data *data)
 {
 	struct mxt_info *info = data->info;
 	struct mxt_dbg *dbg = &data->dbg;
@@ -2565,11 +2565,11 @@ static void mxt_debug_init(struct mxt_data *data)
 
 	dbg->diag_cmd_address = object->start_address + MXT_COMMAND_DIAGNOSTIC;
 
-	object = mxt_get_object(data, MXT_DEBUG_DIAGNOSTIC_T37);
+	object = mxt_get_object(data, MXT_DE_DIAGNOSTIC_T37);
 	if (!object)
 		goto error;
 
-	if (mxt_obj_size(object) != sizeof(struct t37_debug)) {
+	if (mxt_obj_size(object) != sizeof(struct t37_de)) {
 		dev_warn(&data->client->dev, "Bad T37 size");
 		goto error;
 	}
@@ -2588,7 +2588,7 @@ static void mxt_debug_init(struct mxt_data *data)
 					      sizeof(dbg->t37_buf->data));
 
 	dbg->t37_buf = devm_kmalloc_array(&data->client->dev, dbg->t37_pages,
-					  sizeof(struct t37_debug), GFP_KERNEL);
+					  sizeof(struct t37_de), GFP_KERNEL);
 	if (!dbg->t37_buf)
 		goto error;
 
@@ -2631,7 +2631,7 @@ error:
 	dev_warn(&data->client->dev, "Error initializing T37\n");
 }
 #else
-static void mxt_debug_init(struct mxt_data *data)
+static void mxt_de_init(struct mxt_data *data)
 {
 }
 #endif
@@ -2662,7 +2662,7 @@ static int mxt_configure_objects(struct mxt_data *data,
 		dev_warn(dev, "No touch object detected\n");
 	}
 
-	mxt_debug_init(data);
+	mxt_de_init(data);
 
 	return 0;
 }

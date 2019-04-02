@@ -43,16 +43,16 @@ void pkt_sys_idle_indicator(struct hfi_sys_set_property_pkt *pkt, u32 enable)
 	hfi->enable = enable;
 }
 
-void pkt_sys_debug_config(struct hfi_sys_set_property_pkt *pkt, u32 mode,
+void pkt_sys_de_config(struct hfi_sys_set_property_pkt *pkt, u32 mode,
 			  u32 config)
 {
-	struct hfi_debug_config *hfi;
+	struct hfi_de_config *hfi;
 
 	pkt->hdr.size = sizeof(*pkt) + sizeof(*hfi) + sizeof(u32);
 	pkt->hdr.pkt_type = HFI_CMD_SYS_SET_PROPERTY;
 	pkt->num_properties = 1;
-	pkt->data[0] = HFI_PROPERTY_SYS_DEBUG_CONFIG;
-	hfi = (struct hfi_debug_config *)&pkt->data[1];
+	pkt->data[0] = HFI_PROPERTY_SYS_DE_CONFIG;
+	hfi = (struct hfi_de_config *)&pkt->data[1];
 	hfi->config = config;
 	hfi->mode = mode;
 }

@@ -55,7 +55,7 @@ static inline void read_msa_wr(unsigned idx, union fpureg *to,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -94,7 +94,7 @@ static inline void write_msa_wr(unsigned idx, union fpureg *from,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 

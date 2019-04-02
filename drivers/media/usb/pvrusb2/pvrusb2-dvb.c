@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <media/dvbdev.h>
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"

@@ -25,7 +25,7 @@ Table of contents:
 	6.  Disconnection:
 	7.  Configuration:
 	8.  Questions & Answers:
-	9.  Reporting Bugs:
+	9.  Reporting s:
 
 ---------------------------------------------------------------------------
 1. Driver Introduction:
@@ -554,9 +554,9 @@ read or write to /dev/hvcs*.  Now you have a tty conduit between two
 partitions.
 
 ---------------------------------------------------------------------------
-9. Reporting Bugs:
+9. Reporting s:
 
-The proper channel for reporting bugs is either through the Linux OS
+The proper channel for reporting s is either through the Linux OS
 distribution company that provided your OS or by posting issues to the
 PowerPC development mailing list at:
 

@@ -473,7 +473,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 		if (bb->ppgtt) {
 			/* for non-priv bb, scan&shadow is only for
-			 * debugging purpose, so the content of shadow bb
+			 * deging purpose, so the content of shadow bb
 			 * is the same as original bb. Therefore,
 			 * here, rather than switch to shadow bb's gma
 			 * address, we directly use original batch buffer's

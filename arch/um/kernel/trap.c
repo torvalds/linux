@@ -8,7 +8,7 @@
 #include <linux/hardirq.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -88,7 +88,7 @@ good_area:
 				err = -EACCES;
 				goto out;
 			}
-			BUG();
+			();
 		}
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
 			if (fault & VM_FAULT_MAJOR)
@@ -271,7 +271,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address,
 				current);
 	} else {
-		BUG_ON(err != -EFAULT);
+		_ON(err != -EFAULT);
 		current->thread.arch.faultinfo = fi;
 		force_sig_fault(SIGSEGV, si_code, (void __user *) address,
 				current);

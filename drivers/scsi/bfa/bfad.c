@@ -55,7 +55,7 @@ int		ioc_auto_recover = BFA_TRUE;
 int		bfa_linkup_delay = -1;
 int		fdmi_enable = BFA_TRUE;
 int		pcie_max_read_reqsz;
-int		bfa_debugfs_enable = 1;
+int		bfa_defs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
 int		max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
@@ -140,8 +140,8 @@ MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1, "
 module_param(pcie_max_read_reqsz, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(pcie_max_read_reqsz, "PCIe max read request size, default=0 "
 		"(use system setting), Range[128|256|512|1024|2048|4096]");
-module_param(bfa_debugfs_enable, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
+module_param(bfa_defs_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_defs_enable, "Enables defs feature, default=1,"
 		" Range[false:0|true:1]");
 module_param(max_xfer_size, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_xfer_size, "default=32MB,"
@@ -1358,9 +1358,9 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	INIT_LIST_HEAD(&bfad->pbc_vport_list);
 	INIT_LIST_HEAD(&bfad->vport_list);
 
-	/* Setup the debugfs node for this bfad */
-	if (bfa_debugfs_enable)
-		bfad_debugfs_init(&bfad->pport);
+	/* Setup the defs node for this bfad */
+	if (bfa_defs_enable)
+		bfad_defs_init(&bfad->pport);
 
 	retval = bfad_drv_init(bfad);
 	if (retval != BFA_STATUS_OK)
@@ -1376,9 +1376,9 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 out_bfad_sm_failure:
 	bfad_hal_mem_release(bfad);
 out_drv_init_failure:
-	/* Remove the debugfs node for this bfad */
+	/* Remove the defs node for this bfad */
 	kfree(bfad->regdata);
-	bfad_debugfs_exit(&bfad->pport);
+	bfad_defs_exit(&bfad->pport);
 	mutex_lock(&bfad_mutex);
 	bfad_inst--;
 	list_del(&bfad->list_entry);
@@ -1420,9 +1420,9 @@ bfad_pci_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfad_hal_mem_release(bfad);
 
-	/* Remove the debugfs node for this bfad */
+	/* Remove the defs node for this bfad */
 	kfree(bfad->regdata);
-	bfad_debugfs_exit(&bfad->pport);
+	bfad_defs_exit(&bfad->pport);
 
 	/* Cleaning the BFAD instance */
 	mutex_lock(&bfad_mutex);
@@ -1596,7 +1596,7 @@ bfad_pci_mmio_enabled(struct pci_dev *pdev)
 	dev_printk(KERN_INFO, &pdev->dev, "mmio_enabled\n");
 
 	/* Fetch FW diagnostic information */
-	bfa_ioc_debug_save_ftrc(&bfad->bfa.ioc);
+	bfa_ioc_de_save_ftrc(&bfad->bfa.ioc);
 
 	/* Cancel all pending IOs */
 	spin_lock_irqsave(&bfad->bfad_lock, flags);

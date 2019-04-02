@@ -16,14 +16,14 @@
 #include <linux/fb.h>
 #include <linux/kernel.h>
 
-#undef DEBUG
+#undef DE
 
 #define name_matches(v, s, l) \
     ((v).name && !strncmp((s), (v).name, (l)) && strlen((v).name) == (l))
 #define res_matches(v, x, y) \
     ((v).xres == (x) && (v).yres == (y))
 
-#ifdef DEBUG
+#ifdef DE
 #define DPRINTK(fmt, args...)	printk("modedb %s: " fmt, __func__ , ## args)
 #else
 #define DPRINTK(fmt, args...)

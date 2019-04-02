@@ -454,10 +454,10 @@ static void zip_unregister_compression_device(void)
 }
 
 /*
- * debugfs functions
+ * defs functions
  */
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 
 /* Displays ZIP device statistics */
 static int zip_show_stats(struct seq_file *s, void *unused)
@@ -617,38 +617,38 @@ static const struct file_operations zip_regs_fops = {
 	.read  = seq_read,
 };
 
-/* Root directory for thunderx_zip debugfs entry */
-static struct dentry *zip_debugfs_root;
+/* Root directory for thunderx_zip defs entry */
+static struct dentry *zip_defs_root;
 
-static void __init zip_debugfs_init(void)
+static void __init zip_defs_init(void)
 {
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return;
 
-	zip_debugfs_root = debugfs_create_dir("thunderx_zip", NULL);
+	zip_defs_root = defs_create_dir("thunderx_zip", NULL);
 
 	/* Creating files for entries inside thunderx_zip directory */
-	debugfs_create_file("zip_stats", 0444, zip_debugfs_root, NULL,
+	defs_create_file("zip_stats", 0444, zip_defs_root, NULL,
 			    &zip_stats_fops);
 
-	debugfs_create_file("zip_clear", 0444, zip_debugfs_root, NULL,
+	defs_create_file("zip_clear", 0444, zip_defs_root, NULL,
 			    &zip_clear_fops);
 
-	debugfs_create_file("zip_regs", 0444, zip_debugfs_root, NULL,
+	defs_create_file("zip_regs", 0444, zip_defs_root, NULL,
 			    &zip_regs_fops);
 
 }
 
-static void __exit zip_debugfs_exit(void)
+static void __exit zip_defs_exit(void)
 {
-	debugfs_remove_recursive(zip_debugfs_root);
+	defs_remove_recursive(zip_defs_root);
 }
 
 #else
-static void __init zip_debugfs_init(void) { }
-static void __exit zip_debugfs_exit(void) { }
+static void __init zip_defs_init(void) { }
+static void __exit zip_defs_exit(void) { }
 #endif
-/* debugfs - end */
+/* defs - end */
 
 static int __init zip_init_module(void)
 {
@@ -669,8 +669,8 @@ static int __init zip_init_module(void)
 		goto err_pci_unregister;
 	}
 
-	/* comp-decomp statistics are handled with debugfs interface */
-	zip_debugfs_init();
+	/* comp-decomp statistics are handled with defs interface */
+	zip_defs_init();
 
 	return ret;
 
@@ -681,7 +681,7 @@ err_pci_unregister:
 
 static void __exit zip_cleanup_module(void)
 {
-	zip_debugfs_exit();
+	zip_defs_exit();
 
 	/* Unregister from the kernel crypto interface */
 	zip_unregister_compression_device();

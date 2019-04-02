@@ -24,7 +24,7 @@ Contents:
 
  (*) Statistical information.
 
- (*) Debugging.
+ (*) Deging.
 
 
 ========
@@ -108,19 +108,19 @@ set up cache ready for use.  The following script commands are available:
 	Specify a tag to FS-Cache to use in distinguishing multiple caches.
 	Optional.  The default is "CacheFiles".
 
- (*) debug <mask>
+ (*) de <mask>
 
-	Specify a numeric bitmask to control debugging in the kernel module.
+	Specify a numeric bitmask to control deging in the kernel module.
 	Optional.  The default is zero (all off).  The following values can be
 	OR'd into the mask to collect various information:
 
 		1	Turn on trace of function entry (_enter() macros)
 		2	Turn on trace of function exit (_leave() macros)
-		4	Turn on trace of internal debug points (_debug())
+		4	Turn on trace of internal de points (_de())
 
 	This mask can also be set through sysfs, eg:
 
-		echo 5 >/sys/modules/cachefiles/parameters/debug
+		echo 5 >/sys/modules/cachefiles/parameters/de
 
 
 ==================
@@ -139,7 +139,7 @@ The flags are:
 
  (*) -d
 
-	Increase the debugging level.  This can be specified multiple times and
+	Increase the deging level.  This can be specified multiple times and
 	is cumulative with itself.
 
  (*) -s
@@ -477,15 +477,15 @@ then it will gather certain statistics and display them through a proc file.
 
 
 =========
-DEBUGGING
+DEGING
 =========
 
-If CONFIG_CACHEFILES_DEBUG is enabled, the CacheFiles facility can have runtime
-debugging enabled by adjusting the value in:
+If CONFIG_CACHEFILES_DE is enabled, the CacheFiles facility can have runtime
+deging enabled by adjusting the value in:
 
-	/sys/module/cachefiles/parameters/debug
+	/sys/module/cachefiles/parameters/de
 
-This is a bitmask of debugging streams to enable:
+This is a bitmask of deging streams to enable:
 
 	BIT	VALUE	STREAM				POINT
 	=======	=======	===============================	=======================
@@ -496,6 +496,6 @@ This is a bitmask of debugging streams to enable:
 The appropriate set of values should be OR'd together and the result written to
 the control file.  For example:
 
-	echo $((1|4|8)) >/sys/module/cachefiles/parameters/debug
+	echo $((1|4|8)) >/sys/module/cachefiles/parameters/de
 
-will turn on all function entry debugging.
+will turn on all function entry deging.

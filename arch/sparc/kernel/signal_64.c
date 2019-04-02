@@ -482,7 +482,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	
 	/* It's a lot of work and synchronization to add a new ptrace
 	 * register for GDB to save and restore in order to get
-	 * orig_i0 correct for syscall restarts when debugging.
+	 * orig_i0 correct for syscall restarts when deging.
 	 *
 	 * Although it should be the case that most of the global
 	 * registers are volatile across a system call, glibc already

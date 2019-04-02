@@ -20,8 +20,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
-#define CONFIG_SCSI_LPFC_DEBUG_FS
+#if defined(CONFIG_DE_FS) && !defined(CONFIG_SCSI_LPFC_DE_FS)
+#define CONFIG_SCSI_LPFC_DE_FS
 #endif
 
 #define LPFC_ACTIVE_MBOX_WAIT_CNT               100
@@ -680,7 +680,7 @@ struct lpfc_sli4_hdw_queue {
 	struct lpfc_lock_stat lock_conflict;
 #endif
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 #define LPFC_CHECK_CPU_CNT    128
 	uint32_t cpucheck_rcv_io[LPFC_CHECK_CPU_CNT];
 	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];

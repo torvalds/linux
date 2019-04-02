@@ -106,7 +106,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 		pu_dir = pud_offset(p4_dir, address);
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
-		     !debug_pagealloc_enabled()) {
+		     !de_pagealloc_enabled()) {
 			pud_val(*pu_dir) = address | r3_prot;
 			address += PUD_SIZE;
 			pages2g++;
@@ -121,7 +121,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 		pm_dir = pmd_offset(pu_dir, address);
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
-		    !debug_pagealloc_enabled()) {
+		    !de_pagealloc_enabled()) {
 			pmd_val(*pm_dir) = address | sgt_prot;
 			address += PMD_SIZE;
 			pages1m++;

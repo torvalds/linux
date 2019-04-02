@@ -332,7 +332,7 @@ static bool atmel_spi_is_v2(struct atmel_spi *as)
 }
 
 /*
- * Earlier SPI controllers (e.g. on at91rm9200) have a design bug whereby
+ * Earlier SPI controllers (e.g. on at91rm9200) have a design  whereby
  * they assume that spi slave device state will not change on deselect, so
  * that automagic deselection is OK.  ("NPCSx rises if no data is to be
  * transmitted")  Not so!  Workaround uses nCSx pins as GPIOs; or newer

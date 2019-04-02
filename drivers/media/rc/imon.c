@@ -5,11 +5,11 @@
  *   Portions based on the original lirc_imon driver,
  *	Copyright(C) 2004  Venky Raju(dev@venky.ws)
  *
- *   Huge thanks to R. Geoff Newbury for invaluable debugging on the
+ *   Huge thanks to R. Geoff Newbury for invaluable deging on the
  *   0xffdc iMON devices, and for sending me one to hack on, without
  *   which the support for them wouldn't be nearly as good. Thanks
  *   also to the numerous 0xffdc device owners that tested auto-config
- *   support for me and provided debug dumps from their devices.
+ *   support for me and provided de dumps from their devices.
  *
  *   imon is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -430,9 +430,9 @@ MODULE_VERSION(MOD_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(usb, imon_usb_id_table);
 
-static bool debug;
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug messages: 0=no, 1=yes (default: no)");
+static bool de;
+module_param(de, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De messages: 0=no, 1=yes (default: no)");
 
 /* lcd, vfd, vga or none? should be auto-detected, but can be overridden... */
 static int display_type;
@@ -1626,7 +1626,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 		imon_pad_to_keys(ictx, buf);
 	}
 
-	if (debug) {
+	if (de) {
 		printk(KERN_INFO "intf%d decoded packet: %*ph\n",
 		       intf, len, buf);
 	}

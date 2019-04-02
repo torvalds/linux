@@ -62,9 +62,9 @@ static unsigned int iscsi_max_lun = ~0;
 module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 
 static int iscsi_sw_tcp_dbg;
-module_param_named(debug_iscsi_tcp, iscsi_sw_tcp_dbg, int,
+module_param_named(de_iscsi_tcp, iscsi_sw_tcp_dbg, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_iscsi_tcp, "Turn on debugging for iscsi_tcp module "
+MODULE_PARM_DESC(de_iscsi_tcp, "Turn on deging for iscsi_tcp module "
 		 "Set to 1 to turn on, and zero to turn off. Default is off.");
 
 #define ISCSI_SW_TCP_DBG(_conn, dbg_fmt, arg...)		\

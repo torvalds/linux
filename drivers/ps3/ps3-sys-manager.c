@@ -68,11 +68,11 @@ struct ps3_sys_manager_header {
 static void __maybe_unused _dump_sm_header(
 	const struct ps3_sys_manager_header *h, const char *func, int line)
 {
-	pr_debug("%s:%d: version:      %xh\n", func, line, h->version);
-	pr_debug("%s:%d: size:         %xh\n", func, line, h->size);
-	pr_debug("%s:%d: payload_size: %xh\n", func, line, h->payload_size);
-	pr_debug("%s:%d: service_id:   %xh\n", func, line, h->service_id);
-	pr_debug("%s:%d: request_tag:  %xh\n", func, line, h->request_tag);
+	pr_de("%s:%d: version:      %xh\n", func, line, h->version);
+	pr_de("%s:%d: size:         %xh\n", func, line, h->size);
+	pr_de("%s:%d: payload_size: %xh\n", func, line, h->payload_size);
+	pr_de("%s:%d: service_id:   %xh\n", func, line, h->service_id);
+	pr_de("%s:%d: request_tag:  %xh\n", func, line, h->request_tag);
 }
 
 /**
@@ -244,10 +244,10 @@ static int ps3_sys_manager_write(struct ps3_system_bus_device *dev,
 {
 	int result;
 
-	BUG_ON(header->version != 1);
-	BUG_ON(header->size != 16);
-	BUG_ON(header->payload_size != 8 && header->payload_size != 16);
-	BUG_ON(header->service_id > 8);
+	_ON(header->version != 1);
+	_ON(header->size != 16);
+	_ON(header->payload_size != 8 && header->payload_size != 16);
+	_ON(header->service_id > 8);
 
 	result = ps3_vuart_write(dev, header,
 		sizeof(struct ps3_sys_manager_header));
@@ -273,7 +273,7 @@ static int ps3_sys_manager_send_attr(struct ps3_system_bus_device *dev,
 		u32 attribute;
 	} payload;
 
-	BUILD_BUG_ON(sizeof(payload) != 8);
+	BUILD__ON(sizeof(payload) != 8);
 
 	dev_dbg(&dev->core, "%s:%d: %xh\n", __func__, __LINE__, attr);
 
@@ -310,7 +310,7 @@ static int ps3_sys_manager_send_next_op(struct ps3_system_bus_device *dev,
 		u8 reserved_2[8];
 	} payload;
 
-	BUILD_BUG_ON(sizeof(payload) != 16);
+	BUILD__ON(sizeof(payload) != 16);
 
 	dev_dbg(&dev->core, "%s:%d: (%xh)\n", __func__, __LINE__, op);
 
@@ -352,7 +352,7 @@ static int ps3_sys_manager_send_request_shutdown(
 		u8 reserved_1[13];
 	} payload;
 
-	BUILD_BUG_ON(sizeof(payload) != 16);
+	BUILD__ON(sizeof(payload) != 16);
 
 	dev_dbg(&dev->core, "%s:%d\n", __func__, __LINE__);
 
@@ -389,7 +389,7 @@ static int ps3_sys_manager_send_response(struct ps3_system_bus_device *dev,
 		u8 reserved_2[11];
 	} payload;
 
-	BUILD_BUG_ON(sizeof(payload) != 16);
+	BUILD__ON(sizeof(payload) != 16);
 
 	dev_dbg(&dev->core, "%s:%d: (%s)\n", __func__, __LINE__,
 		(status ? "nak" : "ack"));
@@ -423,10 +423,10 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 		u8 reserved_2[8];
 	} event;
 
-	BUILD_BUG_ON(sizeof(event) != 16);
+	BUILD__ON(sizeof(event) != 16);
 
 	result = ps3_vuart_read(dev, &event, sizeof(event));
-	BUG_ON(result && "need to retry here");
+	_ON(result && "need to retry here");
 
 	if (event.version != 1) {
 		dev_dbg(&dev->core, "%s:%d: unsupported event version (%u)\n",
@@ -503,12 +503,12 @@ static int ps3_sys_manager_handle_cmd(struct ps3_system_bus_device *dev)
 		u8 reserved_1[14];
 	} cmd;
 
-	BUILD_BUG_ON(sizeof(cmd) != 16);
+	BUILD__ON(sizeof(cmd) != 16);
 
 	dev_dbg(&dev->core, "%s:%d\n", __func__, __LINE__);
 
 	result = ps3_vuart_read(dev, &cmd, sizeof(cmd));
-	BUG_ON(result && "need to retry here");
+	_ON(result && "need to retry here");
 
 	if (result)
 		return result;
@@ -553,12 +553,12 @@ static int ps3_sys_manager_handle_msg(struct ps3_system_bus_device *dev)
 		goto fail_header;
 	}
 
-	BUILD_BUG_ON(sizeof(header) != 16);
+	BUILD__ON(sizeof(header) != 16);
 
 	if (header.size != 16 || (header.payload_size != 8
 		&& header.payload_size != 16)) {
 		dump_sm_header(&header);
-		BUG();
+		();
 	}
 
 	switch (header.service_id) {
@@ -618,7 +618,7 @@ static void ps3_sys_manager_fin(struct ps3_system_bus_device *dev)
 
 static void ps3_sys_manager_final_power_off(struct ps3_system_bus_device *dev)
 {
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	dev_dbg(&dev->core, "%s:%d\n", __func__, __LINE__);
 
@@ -642,7 +642,7 @@ static void ps3_sys_manager_final_power_off(struct ps3_system_bus_device *dev)
 
 static void ps3_sys_manager_final_restart(struct ps3_system_bus_device *dev)
 {
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	dev_dbg(&dev->core, "%s:%d\n", __func__, __LINE__);
 
@@ -669,7 +669,7 @@ static void ps3_sys_manager_final_restart(struct ps3_system_bus_device *dev)
 
 int ps3_sys_manager_get_wol(void)
 {
-	pr_debug("%s:%d\n", __func__, __LINE__);
+	pr_de("%s:%d\n", __func__, __LINE__);
 
 	return (user_wake_sources & PS3_SM_WAKE_W_O_L) != 0;
 }
@@ -685,7 +685,7 @@ void ps3_sys_manager_set_wol(int state)
 
 	mutex_lock(&mutex);
 
-	pr_debug("%s:%d: %d\n", __func__, __LINE__, state);
+	pr_de("%s:%d: %d\n", __func__, __LINE__, state);
 
 	if (state)
 		user_wake_sources |= PS3_SM_WAKE_W_O_L;
@@ -723,10 +723,10 @@ static int ps3_sys_manager_probe(struct ps3_system_bus_device *dev)
 	ps3_sys_manager_register_ops(&ops);
 
 	result = ps3_sys_manager_send_attr(dev, PS3_SM_ATTR_ALL);
-	BUG_ON(result);
+	_ON(result);
 
 	result = ps3_vuart_read_async(dev, PS3_SM_RX_MSG_LEN_MIN);
-	BUG_ON(result);
+	_ON(result);
 
 	return result;
 }

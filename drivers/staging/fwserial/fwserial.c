@@ -14,7 +14,7 @@
 #include <linux/rculist.h>
 #include <linux/workqueue.h>
 #include <linux/ratelimit.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/uaccess.h>
 
 #include "fwserial.h"
@@ -73,7 +73,7 @@ static struct kmem_cache *fwtty_txn_cache;
 struct tty_driver *fwtty_driver;
 static struct tty_driver *fwloop_driver;
 
-static struct dentry *fwserial_debugfs;
+static struct dentry *fwserial_defs;
 
 struct fwtty_transaction;
 typedef void (*fwtty_transaction_cb)(struct fw_card *card, int rcode,
@@ -101,8 +101,8 @@ struct fwtty_transaction {
 #define fwtty_err_ratelimited(p, fmt, ...)				\
 	dev_err_ratelimited(to_device(p, device), fmt, ##__VA_ARGS__)
 
-#ifdef DEBUG
-static inline void debug_short_write(struct fwtty_port *port, int c, int n)
+#ifdef DE
+static inline void de_short_write(struct fwtty_port *port, int c, int n)
 {
 	int avail;
 
@@ -115,7 +115,7 @@ static inline void debug_short_write(struct fwtty_port *port, int c, int n)
 	}
 }
 #else
-#define debug_short_write(port, c, n)
+#define de_short_write(port, c, n)
 #endif
 
 static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
@@ -1105,7 +1105,7 @@ static int fwtty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 	if (len >= DRAIN_THRESHOLD)
 		fwtty_tx(port, false);
 
-	debug_short_write(port, c, n);
+	de_short_write(port, c, n);
 
 	return (n < 0) ? 0 : n;
 }
@@ -1409,7 +1409,7 @@ static void fwtty_proc_show_port(struct seq_file *m, struct fwtty_port *port)
 		   port->icount.overrun, port->icount.parity, port->icount.brk);
 }
 
-static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
+static void fwtty_defs_show_port(struct seq_file *m, struct fwtty_port *port)
 {
 	struct stats stats;
 
@@ -1429,7 +1429,7 @@ static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
 	fwtty_dump_profile(m, &port->stats);
 }
 
-static void fwtty_debugfs_show_peer(struct seq_file *m, struct fwtty_peer *peer)
+static void fwtty_defs_show_peer(struct seq_file *m, struct fwtty_peer *peer)
 {
 	int generation = peer->generation;
 
@@ -1470,7 +1470,7 @@ static int fwtty_stats_show(struct seq_file *m, void *v)
 		if (port) {
 			seq_printf(m, "%2d:", port->index);
 			fwtty_proc_show_port(m, port);
-			fwtty_debugfs_show_port(m, port);
+			fwtty_defs_show_port(m, port);
 			fwtty_port_put(port);
 			seq_puts(m, "\n");
 		}
@@ -1489,7 +1489,7 @@ static int fwtty_peers_show(struct seq_file *m, void *v)
 		   dev_name(serial->card->device),
 		   (unsigned long long)serial->card->guid);
 	list_for_each_entry_rcu(peer, &serial->peer_list, list)
-		fwtty_debugfs_show_peer(m, peer);
+		fwtty_defs_show_peer(m, peer);
 	rcu_read_unlock();
 	return 0;
 }
@@ -1933,7 +1933,7 @@ static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
 	return NULL;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void __dump_peer_list(struct fw_card *card)
 {
 	struct fw_serial *serial;
@@ -2231,13 +2231,13 @@ static int fwserial_create(struct fw_unit *unit)
 		serial->ports[j]->loopback = true;
 	}
 
-	if (!IS_ERR_OR_NULL(fwserial_debugfs)) {
-		serial->debugfs = debugfs_create_dir(dev_name(&unit->device),
-						     fwserial_debugfs);
-		if (!IS_ERR_OR_NULL(serial->debugfs)) {
-			debugfs_create_file("peers", 0444, serial->debugfs,
+	if (!IS_ERR_OR_NULL(fwserial_defs)) {
+		serial->defs = defs_create_dir(dev_name(&unit->device),
+						     fwserial_defs);
+		if (!IS_ERR_OR_NULL(serial->defs)) {
+			defs_create_file("peers", 0444, serial->defs,
 					    serial, &fwtty_peers_fops);
-			debugfs_create_file("stats", 0444, serial->debugfs,
+			defs_create_file("stats", 0444, serial->defs,
 					    serial, &fwtty_stats_fops);
 		}
 	}
@@ -2254,7 +2254,7 @@ static int fwserial_create(struct fw_unit *unit)
 	fwtty_err(&unit, "unable to add peer unit device (%d)\n", err);
 
 	/* fall-through to error processing */
-	debugfs_remove_recursive(serial->debugfs);
+	defs_remove_recursive(serial->defs);
 
 	list_del_rcu(&serial->list);
 	if (create_loop_dev)
@@ -2348,7 +2348,7 @@ static void fwserial_remove(struct fw_unit *unit)
 		/* unlink from the fwserial_list here */
 		list_del_rcu(&serial->list);
 
-		debugfs_remove_recursive(serial->debugfs);
+		defs_remove_recursive(serial->defs);
 
 		for (i = 0; i < num_ttys; ++i)
 			fwserial_close_port(fwtty_driver, serial->ports[i]);
@@ -2740,8 +2740,8 @@ static int __init fwserial_init(void)
 {
 	int err, num_loops = !!(create_loop_dev);
 
-	/* XXX: placeholder for a "firewire" debugfs node */
-	fwserial_debugfs = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	/* XXX: placeholder for a "firewire" defs node */
+	fwserial_defs = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	/* num_ttys/num_ports must not be set above the static alloc avail */
 	if (num_ttys + num_loops > MAX_CARD_PORTS)
@@ -2753,7 +2753,7 @@ static int __init fwserial_init(void)
 					| TTY_DRIVER_DYNAMIC_DEV);
 	if (IS_ERR(fwtty_driver)) {
 		err = PTR_ERR(fwtty_driver);
-		goto remove_debugfs;
+		goto remove_defs;
 	}
 
 	fwtty_driver->driver_name	= KBUILD_MODNAME;
@@ -2855,8 +2855,8 @@ unregister_driver:
 	tty_unregister_driver(fwtty_driver);
 put_tty:
 	put_tty_driver(fwtty_driver);
-remove_debugfs:
-	debugfs_remove_recursive(fwserial_debugfs);
+remove_defs:
+	defs_remove_recursive(fwserial_defs);
 
 	return err;
 }
@@ -2873,7 +2873,7 @@ static void __exit fwserial_exit(void)
 	}
 	tty_unregister_driver(fwtty_driver);
 	put_tty_driver(fwtty_driver);
-	debugfs_remove_recursive(fwserial_debugfs);
+	defs_remove_recursive(fwserial_defs);
 }
 
 module_init(fwserial_init);

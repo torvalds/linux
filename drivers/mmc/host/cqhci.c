@@ -203,7 +203,7 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 	cq_host->data_size = cq_host->trans_desc_len * cq_host->mmc->max_segs *
 		cq_host->mmc->cqe_qdepth;
 
-	pr_debug("%s: cqhci: desc_size: %zu data_sz: %zu slot-sz: %d\n",
+	pr_de("%s: cqhci: desc_size: %zu data_sz: %zu slot-sz: %d\n",
 		 mmc_hostname(cq_host->mmc), cq_host->desc_size, cq_host->data_size,
 		 cq_host->slot_sz);
 
@@ -233,7 +233,7 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 		return -ENOMEM;
 	}
 
-	pr_debug("%s: cqhci: desc-base: 0x%p trans-base: 0x%p\n desc_dma 0x%llx trans_dma: 0x%llx\n",
+	pr_de("%s: cqhci: desc-base: 0x%p trans-base: 0x%p\n desc_dma 0x%llx trans_dma: 0x%llx\n",
 		 mmc_hostname(cq_host->mmc), cq_host->desc_base, cq_host->trans_desc_base,
 		(unsigned long long)cq_host->desc_dma_base,
 		(unsigned long long)cq_host->trans_desc_dma_base);
@@ -342,7 +342,7 @@ static int cqhci_enable(struct mmc_host *mmc, struct mmc_card *card)
 
 	cq_host->enabled = true;
 
-#ifdef DEBUG
+#ifdef DE
 	cqhci_dumpregs(cq_host);
 #endif
 	return 0;
@@ -377,7 +377,7 @@ static void cqhci_off(struct mmc_host *mmc)
 	if (timed_out)
 		pr_err("%s: cqhci: CQE stuck on\n", mmc_hostname(mmc));
 	else
-		pr_debug("%s: cqhci: CQE off\n", mmc_hostname(mmc));
+		pr_de("%s: cqhci: CQE off\n", mmc_hostname(mmc));
 
 	mmc->cqe_on = false;
 }
@@ -425,7 +425,7 @@ static void cqhci_prep_task_desc(struct mmc_request *mrq,
 		CQHCI_BLK_COUNT(mrq->data->blocks) |
 		CQHCI_BLK_ADDR((u64)mrq->data->blk_addr);
 
-	pr_debug("%s: cqhci: tag %d task descriptor 0x016%llx\n",
+	pr_de("%s: cqhci: tag %d task descriptor 0x016%llx\n",
 		 mmc_hostname(mrq->host), mrq->tag, (unsigned long long)*data);
 }
 
@@ -539,7 +539,7 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
 		 CQHCI_CMD_TIMING(timing) | CQHCI_RESP_TYPE(resp_type));
 	*task_desc |= data;
 	desc = (u8 *)task_desc;
-	pr_debug("%s: cqhci: dcmd: cmd: %d timing: %d resp: %d\n",
+	pr_de("%s: cqhci: dcmd: cmd: %d timing: %d resp: %d\n",
 		 mmc_hostname(mmc), mrq->cmd->opcode, timing, resp_type);
 	dataddr = (__le64 __force *)(desc + 4);
 	dataddr[0] = cpu_to_le64((u64)mrq->cmd->arg);
@@ -583,7 +583,7 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (!mmc->cqe_on) {
 		cqhci_writel(cq_host, 0, CQHCI_CTL);
 		mmc->cqe_on = true;
-		pr_debug("%s: cqhci: CQE on\n", mmc_hostname(mmc));
+		pr_de("%s: cqhci: CQE on\n", mmc_hostname(mmc));
 		if (cqhci_readl(cq_host, CQHCI_CTL) && CQHCI_HALT) {
 			pr_err("%s: cqhci: CQE failed to exit halt state\n",
 			       mmc_hostname(mmc));
@@ -620,7 +620,7 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	cqhci_writel(cq_host, 1 << tag, CQHCI_TDBR);
 	if (!(cqhci_readl(cq_host, CQHCI_TDBR) & (1 << tag)))
-		pr_debug("%s: cqhci: doorbell not set for tag %d\n",
+		pr_de("%s: cqhci: doorbell not set for tag %d\n",
 			 mmc_hostname(mmc), tag);
 out_unlock:
 	spin_unlock_irqrestore(&cq_host->lock, flags);
@@ -638,7 +638,7 @@ static void cqhci_recovery_needed(struct mmc_host *mmc, struct mmc_request *mrq,
 
 	if (!cq_host->recovery_halt) {
 		cq_host->recovery_halt = true;
-		pr_debug("%s: cqhci: recovery needed\n", mmc_hostname(mmc));
+		pr_de("%s: cqhci: recovery needed\n", mmc_hostname(mmc));
 		wake_up(&cq_host->wait_queue);
 		if (notify && mrq->recovery_notifier)
 			mrq->recovery_notifier(mrq);
@@ -671,7 +671,7 @@ static void cqhci_error_irq(struct mmc_host *mmc, u32 status, int cmd_error,
 
 	terri = cqhci_readl(cq_host, CQHCI_TERRI);
 
-	pr_debug("%s: cqhci: error IRQ status: 0x%08x cmd error %d data error %d TERRI: 0x%08x\n",
+	pr_de("%s: cqhci: error IRQ status: 0x%08x cmd error %d data error %d TERRI: 0x%08x\n",
 		 mmc_hostname(mmc), status, cmd_error, data_error, terri);
 
 	/* Forget about errors when recovery has already been triggered */
@@ -766,7 +766,7 @@ irqreturn_t cqhci_irq(struct mmc_host *mmc, u32 intmask, int cmd_error,
 	status = cqhci_readl(cq_host, CQHCI_IS);
 	cqhci_writel(cq_host, status, CQHCI_IS);
 
-	pr_debug("%s: cqhci: IRQ status: 0x%08x\n", mmc_hostname(mmc), status);
+	pr_de("%s: cqhci: IRQ status: 0x%08x\n", mmc_hostname(mmc), status);
 
 	if ((status & CQHCI_IS_RED) || cmd_error || data_error)
 		cqhci_error_irq(mmc, status, cmd_error, data_error);
@@ -775,14 +775,14 @@ irqreturn_t cqhci_irq(struct mmc_host *mmc, u32 intmask, int cmd_error,
 		/* read TCN and complete the request */
 		comp_status = cqhci_readl(cq_host, CQHCI_TCN);
 		cqhci_writel(cq_host, comp_status, CQHCI_TCN);
-		pr_debug("%s: cqhci: TCN: 0x%08lx\n",
+		pr_de("%s: cqhci: TCN: 0x%08lx\n",
 			 mmc_hostname(mmc), comp_status);
 
 		spin_lock(&cq_host->lock);
 
 		for_each_set_bit(tag, &comp_status, cq_host->num_slots) {
 			/* complete the corresponding mrq */
-			pr_debug("%s: cqhci: completing tag %lu\n",
+			pr_de("%s: cqhci: completing tag %lu\n",
 				 mmc_hostname(mmc), tag);
 			cqhci_finish_mrq(mmc, tag);
 		}
@@ -881,7 +881,7 @@ static bool cqhci_clear_all_tasks(struct mmc_host *mmc, unsigned int timeout)
 	ret = cqhci_tasks_cleared(cq_host);
 
 	if (!ret)
-		pr_debug("%s: cqhci: Failed to clear tasks\n",
+		pr_de("%s: cqhci: Failed to clear tasks\n",
 			 mmc_hostname(mmc));
 
 	return ret;
@@ -915,7 +915,7 @@ static bool cqhci_halt(struct mmc_host *mmc, unsigned int timeout)
 	ret = cqhci_halted(cq_host);
 
 	if (!ret)
-		pr_debug("%s: cqhci: Failed to halt\n", mmc_hostname(mmc));
+		pr_de("%s: cqhci: Failed to halt\n", mmc_hostname(mmc));
 
 	return ret;
 }
@@ -932,7 +932,7 @@ static void cqhci_recovery_start(struct mmc_host *mmc)
 {
 	struct cqhci_host *cq_host = mmc->cqe_private;
 
-	pr_debug("%s: cqhci: %s\n", mmc_hostname(mmc), __func__);
+	pr_de("%s: cqhci: %s\n", mmc_hostname(mmc), __func__);
 
 	WARN_ON(!cq_host->recovery_halt);
 
@@ -1008,7 +1008,7 @@ static void cqhci_recovery_finish(struct mmc_host *mmc)
 	u32 cqcfg;
 	bool ok;
 
-	pr_debug("%s: cqhci: %s\n", mmc_hostname(mmc), __func__);
+	pr_de("%s: cqhci: %s\n", mmc_hostname(mmc), __func__);
 
 	WARN_ON(!cq_host->recovery_halt);
 
@@ -1024,7 +1024,7 @@ static void cqhci_recovery_finish(struct mmc_host *mmc)
 	 * Have a go anyway.
 	 */
 	if (!ok) {
-		pr_debug("%s: cqhci: disable / re-enable\n", mmc_hostname(mmc));
+		pr_de("%s: cqhci: disable / re-enable\n", mmc_hostname(mmc));
 		cqcfg = cqhci_readl(cq_host, CQHCI_CFG);
 		cqcfg &= ~CQHCI_ENABLE;
 		cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
@@ -1054,7 +1054,7 @@ static void cqhci_recovery_finish(struct mmc_host *mmc)
 
 	cqhci_set_irqs(cq_host, CQHCI_IS_MASK);
 
-	pr_debug("%s: cqhci: recovery done\n", mmc_hostname(mmc));
+	pr_de("%s: cqhci: recovery done\n", mmc_hostname(mmc));
 }
 
 static const struct mmc_cqe_ops cqhci_cqe_ops = {

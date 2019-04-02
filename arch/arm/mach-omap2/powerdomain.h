@@ -140,7 +140,7 @@ struct powerdomain {
 	const u32 mem_pwrst_mask[PWRDM_MAX_MEM_BANKS];
 	const u32 mem_retst_mask[PWRDM_MAX_MEM_BANKS];
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 	s64 timer;
 	s64 state_timer[PWRDM_MAX_PWRSTS];
 #endif

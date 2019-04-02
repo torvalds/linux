@@ -227,7 +227,7 @@ no_claim:
 	if (claimed) {
 		mmc_omap_fclk_enable(host, 1);
 
-		/* Doing the dummy read here seems to work around some bug
+		/* Doing the dummy read here seems to work around some 
 		 * at least in OMAP24xx silicon where the command would not
 		 * start after writing the CMD register. Sigh. */
 		OMAP_MMC_READ(host, CON);
@@ -261,7 +261,7 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 	unsigned long flags;
 	int i;
 
-	BUG_ON(slot == NULL || host->mmc == NULL);
+	_ON(slot == NULL || host->mmc == NULL);
 
 	if (clk_enabled)
 		/* Keeps clock running for at least 8 cycles on valid freq */
@@ -280,10 +280,10 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 		if (host->slots[i] == NULL || host->slots[i]->mrq == NULL)
 			continue;
 
-		BUG_ON(host->next_slot != NULL);
+		_ON(host->next_slot != NULL);
 		new_slot = host->slots[i];
 		/* The current slot should not have a request in queue */
-		BUG_ON(new_slot == host->current_slot);
+		_ON(new_slot == host->current_slot);
 
 		host->next_slot = new_slot;
 		host->mmc = new_slot->mmc;
@@ -598,7 +598,7 @@ static void mmc_omap_abort_command(struct work_struct *work)
 {
 	struct mmc_omap_host *host = container_of(work, struct mmc_omap_host,
 						  cmd_abort_work);
-	BUG_ON(!host->cmd);
+	_ON(!host->cmd);
 
 	dev_dbg(mmc_dev(host->mmc), "Aborting stuck command CMD%d\n",
 		host->cmd->opcode);
@@ -670,7 +670,7 @@ mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 
 	if (host->buffer_bytes_left == 0) {
 		host->sg_idx++;
-		BUG_ON(host->sg_idx == host->sg_len);
+		_ON(host->sg_idx == host->sg_len);
 		mmc_omap_sg_to_buf(host);
 	}
 	n = 64;
@@ -695,7 +695,7 @@ mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 	host->buffer += nwords;
 }
 
-#ifdef CONFIG_MMC_DEBUG
+#ifdef CONFIG_MMC_DE
 static void mmc_omap_report_irq(struct mmc_omap_host *host, u16 status)
 {
 	static const char *mmc_omap_status_bits[] = {
@@ -860,7 +860,7 @@ void omap_mmc_notify_cover_event(struct device *dev, int num, int is_closed)
 	struct mmc_omap_host *host = dev_get_drvdata(dev);
 	struct mmc_omap_slot *slot = host->slots[num];
 
-	BUG_ON(num >= host->nr_slots);
+	_ON(num >= host->nr_slots);
 
 	/* Other subsystems can call in here before we're initialised. */
 	if (host->nr_slots == 0 || !host->slots[num])
@@ -1068,7 +1068,7 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 static void mmc_omap_start_request(struct mmc_omap_host *host,
 				   struct mmc_request *req)
 {
-	BUG_ON(host->mrq != NULL);
+	_ON(host->mrq != NULL);
 
 	host->mrq = req;
 
@@ -1091,7 +1091,7 @@ static void mmc_omap_request(struct mmc_host *mmc, struct mmc_request *req)
 
 	spin_lock_irqsave(&host->slot_lock, flags);
 	if (host->mmc != NULL) {
-		BUG_ON(slot->mrq != NULL);
+		_ON(slot->mrq != NULL);
 		slot->mrq = req;
 		spin_unlock_irqrestore(&host->slot_lock, flags);
 		return;
@@ -1470,7 +1470,7 @@ static int mmc_omap_remove(struct platform_device *pdev)
 	struct mmc_omap_host *host = platform_get_drvdata(pdev);
 	int i;
 
-	BUG_ON(host == NULL);
+	_ON(host == NULL);
 
 	for (i = 0; i < host->nr_slots; i++)
 		mmc_omap_remove_slot(host->slots[i]);

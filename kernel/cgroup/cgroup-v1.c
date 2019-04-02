@@ -225,7 +225,7 @@ void cgroup1_pidlist_destroy_all(struct cgroup *cgrp)
 	mutex_unlock(&cgrp->pidlist_mutex);
 
 	flush_workqueue(cgroup_pidlist_destroy_wq);
-	BUG_ON(!list_empty(&cgrp->pidlists));
+	_ON(!list_empty(&cgrp->pidlists));
 }
 
 static void cgroup_pidlist_destroy_work_fn(struct work_struct *work)
@@ -580,7 +580,7 @@ static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
 {
 	struct cgroup *cgrp;
 
-	BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
+	BUILD__ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
 
 	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
@@ -1274,7 +1274,7 @@ static int __init cgroup1_wq_init(void)
 	 */
 	cgroup_pidlist_destroy_wq = alloc_workqueue("cgroup_pidlist_destroy",
 						    0, 1);
-	BUG_ON(!cgroup_pidlist_destroy_wq);
+	_ON(!cgroup_pidlist_destroy_wq);
 	return 0;
 }
 core_initcall(cgroup1_wq_init);

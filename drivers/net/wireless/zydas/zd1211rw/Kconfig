@@ -9,11 +9,11 @@ config ZD1211RW
 	  Device firmware is required alongside this driver. You can download
 	  the firmware distribution from http://sf.net/projects/zd1211/files/
 
-config ZD1211RW_DEBUG
-	bool "ZyDAS ZD1211 debugging"
+config ZD1211RW_DE
+	bool "ZyDAS ZD1211 deging"
 	depends on ZD1211RW
 	---help---
-	  ZD1211 debugging messages. Choosing Y will result in additional debug
-	  messages being saved to your kernel logs, which may help debug any
+	  ZD1211 deging messages. Choosing Y will result in additional de
+	  messages being saved to your kernel logs, which may help de any
 	  problems.
 

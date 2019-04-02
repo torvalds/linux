@@ -27,7 +27,7 @@
  * 0.92: Dropping now 4 packets. The quad buffer has to be emptied.
  *       Added insn command basically for testing. Sample rate is
  *       1MHz/16ch=62.5kHz
- * 0.99: Ian Abbott pointed out a bug which has been corrected. Thanks!
+ * 0.99: Ian Abbott pointed out a  which has been corrected. Thanks!
  * 0.99a: added external trigger.
  * 1.00: added firmware kernel request to the driver which fixed
  *       udev coldplug problem

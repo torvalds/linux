@@ -212,7 +212,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 
 	if (obj_desc->buffer.length == 0) {
 		obj_desc->buffer.pointer = NULL;
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Buffer defined with zero length in AML, creating\n"));
 	} else {
 		obj_desc->buffer.pointer =
@@ -501,7 +501,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							       object));
 			break;
 
-		default:	/* Object name or Debug object */
+		default:	/* Object name or De object */
 
 			switch (op->common.aml_opcode) {
 			case AML_INT_NAMEPATH_OP:
@@ -516,9 +516,9 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 				}
 				break;
 
-			case AML_DEBUG_OP:
+			case AML_DE_OP:
 
-				obj_desc->reference.class = ACPI_REFCLASS_DEBUG;
+				obj_desc->reference.class = ACPI_REFCLASS_DE;
 				break;
 
 			default:

@@ -43,8 +43,8 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
+#ifdef CONFIG_DE_HIGHMEM
+	_ON(!pte_none(*(kmap_pte-idx)));
 #endif
 	__set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot), 1);
 	local_flush_tlb_page(NULL, vaddr);
@@ -66,12 +66,12 @@ void __kunmap_atomic(void *kvaddr)
 
 	type = kmap_atomic_idx();
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	{
 		unsigned int idx;
 
 		idx = type + KM_TYPE_NR * smp_processor_id();
-		BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
+		_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 
 		/*
 		 * force other mappings to Oops if they'll try to access

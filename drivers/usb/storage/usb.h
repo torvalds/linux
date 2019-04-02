@@ -144,7 +144,7 @@ struct us_data {
 	pm_hook			suspend_resume_hook;
 #endif
 
-	/* hacks for READ CAPACITY bug handling */
+	/* hacks for READ CAPACITY  handling */
 	int			use_last_sector_hacks;
 	int			last_sector_retries;
 };

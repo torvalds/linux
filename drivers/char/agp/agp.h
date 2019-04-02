@@ -33,9 +33,9 @@
 
 #define PFX "agpgart: "
 
-//#define AGP_DEBUG 1
-#ifdef AGP_DEBUG
-#define DBG(x,y...) printk (KERN_DEBUG PFX "%s: " x "\n", __func__ , ## y)
+//#define AGP_DE 1
+#ifdef AGP_DE
+#define DBG(x,y...) printk (KERN_DE PFX "%s: " x "\n", __func__ , ## y)
 #else
 #define DBG(x,y...) do { } while (0)
 #endif

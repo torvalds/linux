@@ -63,7 +63,7 @@ int of_reconfig_notifier_unregister(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(of_reconfig_notifier_unregister);
 
-#ifdef DEBUG
+#ifdef DE
 const char *action_names[] = {
 	[OF_RECONFIG_ATTACH_NODE] = "ATTACH_NODE",
 	[OF_RECONFIG_DETACH_NODE] = "DETACH_NODE",
@@ -76,19 +76,19 @@ const char *action_names[] = {
 int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 {
 	int rc;
-#ifdef DEBUG
+#ifdef DE
 	struct of_reconfig_data *pr = p;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("notify %-15s %pOF\n", action_names[action],
+		pr_de("notify %-15s %pOF\n", action_names[action],
 			pr->dn);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("notify %-15s %pOF:%s\n", action_names[action],
+		pr_de("notify %-15s %pOF:%s\n", action_names[action],
 			pr->dn, pr->prop->name);
 		break;
 
@@ -474,19 +474,19 @@ static void __of_changeset_entry_destroy(struct of_changeset_entry *ce)
 	kfree(ce);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void __of_changeset_entry_dump(struct of_changeset_entry *ce)
 {
 	switch (ce->action) {
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("cset<%p> %-15s %pOF/%s\n", ce, action_names[ce->action],
+		pr_de("cset<%p> %-15s %pOF/%s\n", ce, action_names[ce->action],
 			ce->np, ce->prop->name);
 		break;
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("cset<%p> %-15s %pOF\n", ce, action_names[ce->action],
+		pr_de("cset<%p> %-15s %pOF\n", ce, action_names[ce->action],
 			ce->np);
 		break;
 	}
@@ -709,7 +709,7 @@ int __of_changeset_apply_entries(struct of_changeset *ocs, int *ret_revert)
 	struct of_changeset_entry *ce;
 	int ret, ret_tmp;
 
-	pr_debug("changeset: applying...\n");
+	pr_de("changeset: applying...\n");
 	list_for_each_entry(ce, &ocs->entries, node) {
 		ret = __of_changeset_entry_apply(ce);
 		if (ret) {
@@ -738,7 +738,7 @@ int __of_changeset_apply_notify(struct of_changeset *ocs)
 	struct of_changeset_entry *ce;
 	int ret = 0, ret_tmp;
 
-	pr_debug("changeset: emitting notifiers.\n");
+	pr_de("changeset: emitting notifiers.\n");
 
 	/* drop the global lock while emitting notifiers */
 	mutex_unlock(&of_mutex);
@@ -748,7 +748,7 @@ int __of_changeset_apply_notify(struct of_changeset *ocs)
 			ret = ret_tmp;
 	}
 	mutex_lock(&of_mutex);
-	pr_debug("changeset: notifiers sent.\n");
+	pr_de("changeset: notifiers sent.\n");
 
 	return ret;
 }
@@ -812,7 +812,7 @@ int __of_changeset_revert_entries(struct of_changeset *ocs, int *ret_apply)
 	struct of_changeset_entry *ce;
 	int ret, ret_tmp;
 
-	pr_debug("changeset: reverting...\n");
+	pr_de("changeset: reverting...\n");
 	list_for_each_entry_reverse(ce, &ocs->entries, node) {
 		ret = __of_changeset_entry_revert(ce);
 		if (ret) {
@@ -838,7 +838,7 @@ int __of_changeset_revert_notify(struct of_changeset *ocs)
 	struct of_changeset_entry *ce;
 	int ret = 0, ret_tmp;
 
-	pr_debug("changeset: emitting notifiers.\n");
+	pr_de("changeset: emitting notifiers.\n");
 
 	/* drop the global lock while emitting notifiers */
 	mutex_unlock(&of_mutex);
@@ -848,7 +848,7 @@ int __of_changeset_revert_notify(struct of_changeset *ocs)
 			ret = ret_tmp;
 	}
 	mutex_lock(&of_mutex);
-	pr_debug("changeset: notifiers sent.\n");
+	pr_de("changeset: notifiers sent.\n");
 
 	return ret;
 }

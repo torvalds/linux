@@ -15,7 +15,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 
 /*
  * Only print the results of the first pass:

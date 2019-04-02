@@ -17,11 +17,11 @@ __printf(1, 2) void vbg_info(const char *fmt, ...);
 __printf(1, 2) void vbg_warn(const char *fmt, ...);
 __printf(1, 2) void vbg_err(const char *fmt, ...);
 
-/* Only use backdoor logging for non-dynamic debug builds */
-#if defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
-__printf(1, 2) void vbg_debug(const char *fmt, ...);
+/* Only use backdoor logging for non-dynamic de builds */
+#if defined(DE) && !defined(CONFIG_DYNAMIC_DE)
+__printf(1, 2) void vbg_de(const char *fmt, ...);
 #else
-#define vbg_debug pr_debug
+#define vbg_de pr_de
 #endif
 
 int vbg_hgcm_connect(struct vbg_dev *gdev, u32 requestor,

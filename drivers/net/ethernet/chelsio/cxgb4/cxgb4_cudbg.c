@@ -372,7 +372,7 @@ static void cxgb4_cudbg_collect_entity(struct cudbg_init *pdbg_init,
 			entity_hdr->size = 0;
 			dbg_buff->offset = entity_hdr->start_offset;
 		} else {
-			cudbg_align_debug_buffer(dbg_buff, entity_hdr);
+			cudbg_align_de_buffer(dbg_buff, entity_hdr);
 		}
 
 		/* Log error and continue with next entity */

@@ -35,9 +35,9 @@
 #include <media/v4l2-mediabus.h>
 #include <media/i2c/ov9650.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 #define DRIVER_NAME "OV9650"
 
@@ -436,7 +436,7 @@ static int ov965x_read(struct ov965x *ov965x, u8 addr, u8 *val)
 	else
 		*val = -1;
 
-	v4l2_dbg(2, debug, &ov965x->sd, "%s: 0x%02x @ 0x%02x. (%d)\n",
+	v4l2_dbg(2, de, &ov965x->sd, "%s: 0x%02x @ 0x%02x. (%d)\n",
 		 __func__, *val, addr, ret);
 
 	return ret;
@@ -448,7 +448,7 @@ static int ov965x_write(struct ov965x *ov965x, u8 addr, u8 val)
 
 	ret = regmap_write(ov965x->regmap, addr, val);
 
-	v4l2_dbg(2, debug, &ov965x->sd, "%s: 0x%02x @ 0x%02X (%d)\n",
+	v4l2_dbg(2, de, &ov965x->sd, "%s: 0x%02x @ 0x%02X (%d)\n",
 		 __func__, val, addr, ret);
 
 	return ret;
@@ -536,7 +536,7 @@ static int ov965x_s_power(struct v4l2_subdev *sd, int on)
 	struct ov965x *ov965x = to_ov965x(sd);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: on: %d\n", __func__, on);
+	v4l2_dbg(1, de, sd, "%s: on: %d\n", __func__, on);
 
 	mutex_lock(&ov965x->lock);
 	if (ov965x->power == !on) {
@@ -582,7 +582,7 @@ static void ov965x_update_exposure_ctrl(struct ov965x *ov965x)
 	ov965x->exp_row_interval = trow;
 	mutex_unlock(&ov965x->lock);
 
-	v4l2_dbg(1, debug, &ov965x->sd, "clkrc: %#x, fi: %lu, tr: %lu, %d\n",
+	v4l2_dbg(1, de, &ov965x->sd, "clkrc: %#x, fi: %lu, tr: %lu, %d\n",
 		 clkrc, fint, trow, max);
 
 	/* Update exposure time range to match current frame format. */
@@ -904,7 +904,7 @@ static int ov965x_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	struct ov965x *ov965x = to_ov965x(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "g_ctrl: %s\n", ctrl->name);
+	v4l2_dbg(1, de, sd, "g_ctrl: %s\n", ctrl->name);
 
 	mutex_lock(&ov965x->lock);
 	ret = __g_volatile_ctrl(ov965x, ctrl);
@@ -918,7 +918,7 @@ static int ov965x_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct ov965x *ov965x = to_ov965x(sd);
 	int ret = -EINVAL;
 
-	v4l2_dbg(1, debug, sd, "s_ctrl: %s, value: %d. power: %d\n",
+	v4l2_dbg(1, de, sd, "s_ctrl: %s, value: %d. power: %d\n",
 		 ctrl->name, ctrl->val, ov965x->power);
 
 	mutex_lock(&ov965x->lock);
@@ -1142,7 +1142,7 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 	}
 	ov965x->fiv = fiv;
 
-	v4l2_dbg(1, debug, &ov965x->sd, "Changed frame interval to %u us\n",
+	v4l2_dbg(1, de, &ov965x->sd, "Changed frame interval to %u us\n",
 		 fiv->interval.numerator * 1000000 / fiv->interval.denominator);
 
 	return 0;
@@ -1154,7 +1154,7 @@ static int ov965x_s_frame_interval(struct v4l2_subdev *sd,
 	struct ov965x *ov965x = to_ov965x(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "Setting %d/%d frame interval\n",
+	v4l2_dbg(1, de, sd, "Setting %d/%d frame interval\n",
 		 fi->interval.numerator, fi->interval.denominator);
 
 	mutex_lock(&ov965x->lock);
@@ -1324,7 +1324,7 @@ static int ov965x_s_stream(struct v4l2_subdev *sd, int on)
 	struct ov965x_ctrls *ctrls = &ov965x->ctrls;
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: on: %d\n", __func__, on);
+	v4l2_dbg(1, de, sd, "%s: on: %d\n", __func__, on);
 
 	mutex_lock(&ov965x->lock);
 	if (ov965x->streaming == !on) {
@@ -1421,7 +1421,7 @@ static int ov965x_configure_gpios_pdata(struct ov965x *ov965x,
 					    GPIOF_OUT_INIT_HIGH, "OV965X");
 		if (ret < 0)
 			return ret;
-		v4l2_dbg(1, debug, &ov965x->sd, "set gpio %d to 1\n", gpio);
+		v4l2_dbg(1, de, &ov965x->sd, "set gpio %d to 1\n", gpio);
 
 		gpio_set_value_cansleep(gpio, 1);
 		gpio_export(gpio, 0);

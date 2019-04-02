@@ -78,7 +78,7 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	struct aa_label *label = aa_secid_to_label(secid);
 	int len;
 
-	AA_BUG(!seclen);
+	AA_(!seclen);
 
 	if (!label)
 		return -EINVAL;
@@ -142,7 +142,7 @@ int aa_alloc_secid(struct aa_label *label, gfp_t gfp)
 		return ret;
 	}
 
-	AA_BUG(ret == AA_SECID_INVALID);
+	AA_(ret == AA_SECID_INVALID);
 	label->secid = ret;
 	return 0;
 }

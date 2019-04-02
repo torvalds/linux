@@ -458,19 +458,19 @@ static void DAC1064_restore_1(struct matrox_fb_info *minfo)
 
 static void DAC1064_restore_2(struct matrox_fb_info *minfo)
 {
-#ifdef DEBUG
+#ifdef DE
 	unsigned int i;
 #endif
 
 	DBG(__func__)
 
-#ifdef DEBUG
-	dprintk(KERN_DEBUG "DAC1064regs ");
+#ifdef DE
+	dprintk(KERN_DE "DAC1064regs ");
 	for (i = 0; i < sizeof(MGA1064_DAC_regs); i++) {
 		dprintk("R%02X=%02X ", MGA1064_DAC_regs[i], minfo->hw.DACreg[i]);
-		if ((i & 0x7) == 0x7) dprintk(KERN_DEBUG "continuing... ");
+		if ((i & 0x7) == 0x7) dprintk(KERN_DE "continuing... ");
 	}
-	dprintk(KERN_DEBUG "DAC1064clk ");
+	dprintk(KERN_DE "DAC1064clk ");
 	for (i = 0; i < 6; i++)
 		dprintk("C%02X=%02X ", i, minfo->hw.DACclk[i]);
 	dprintk("\n");

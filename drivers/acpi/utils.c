@@ -26,7 +26,7 @@
 #include <linux/types.h>
 #include <linux/hardirq.h>
 #include <linux/acpi.h>
-#include <linux/dynamic_debug.h>
+#include <linux/dynamic_de.h>
 
 #include "internal.h"
 #include "sleep.h"
@@ -40,11 +40,11 @@ ACPI_MODULE_NAME("utils");
 static void
 acpi_util_eval_error(acpi_handle h, acpi_string p, acpi_status s)
 {
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 	char prefix[80] = {'\0'};
 	struct acpi_buffer buffer = {sizeof(prefix), prefix};
 	acpi_get_name(h, ACPI_FULL_PATHNAME, &buffer);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Evaluate [%s.%s]: %s\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Evaluate [%s.%s]: %s\n",
 		(char *) prefix, p, acpi_format_exception(s)));
 #else
 	return;
@@ -163,7 +163,7 @@ acpi_extract_package(union acpi_object *package,
 
 		case ACPI_TYPE_PACKAGE:
 		default:
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Found unsupported element at index=%d\n",
 					  i));
 			/* TBD: handle nested packages... */
@@ -306,7 +306,7 @@ acpi_evaluate_integer(acpi_handle handle,
 
 	*data = element.integer.value;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%llu]\n", *data));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Return value [%llu]\n", *data));
 
 	return AE_OK;
 }
@@ -380,7 +380,7 @@ acpi_evaluate_reference(acpi_handle handle,
 		/* Get the  acpi_handle. */
 
 		list->handles[i] = element->reference.handle;
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found reference [%p]\n",
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found reference [%p]\n",
 				  list->handles[i]));
 	}
 
@@ -511,17 +511,17 @@ acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
 }
 EXPORT_SYMBOL(acpi_handle_printk);
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 /**
- * __acpi_handle_debug: pr_debug with ACPI prefix and object path
+ * __acpi_handle_de: pr_de with ACPI prefix and object path
  *
- * This function is called through acpi_handle_debug macro and debug
+ * This function is called through acpi_handle_de macro and de
  * prints a message with ACPI prefix and object path. This function
  * acquires the global namespace mutex to obtain an object path.  In
  * interrupt context, it shows the object path as <n/a>.
  */
 void
-__acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle,
+__acpi_handle_de(struct _dde *descriptor, acpi_handle handle,
 		    const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -533,12 +533,12 @@ __acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle,
 	vaf.va = &args;
 
 	path = acpi_handle_path(handle);
-	__dynamic_pr_debug(descriptor, "ACPI: %s: %pV", path ? path : "<n/a>", &vaf);
+	__dynamic_pr_de(descriptor, "ACPI: %s: %pV", path ? path : "<n/a>", &vaf);
 
 	va_end(args);
 	kfree(path);
 }
-EXPORT_SYMBOL(__acpi_handle_debug);
+EXPORT_SYMBOL(__acpi_handle_de);
 #endif
 
 /**

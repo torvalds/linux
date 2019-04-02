@@ -44,7 +44,7 @@
 #include <linux/ctype.h>
 
 /* Measure times between events in the driver. */
-#undef DEBUG_TIMING
+#undef DE_TIMING
 
 /* Call every 10 ms. */
 #define SI_TIMEOUT_TIME_USEC	10000
@@ -258,16 +258,16 @@ static int try_smi_init(struct smi_info *smi);
 static void cleanup_one_si(struct smi_info *smi_info);
 static void cleanup_ipmi_si(void);
 
-#ifdef DEBUG_TIMING
-void debug_timestamp(char *msg)
+#ifdef DE_TIMING
+void de_timestamp(char *msg)
 {
 	struct timespec64 t;
 
 	ktime_get_ts64(&t);
-	pr_debug("**%s: %lld.%9.9ld\n", msg, (long long) t.tv_sec, t.tv_nsec);
+	pr_de("**%s: %lld.%9.9ld\n", msg, (long long) t.tv_sec, t.tv_nsec);
 }
 #else
-#define debug_timestamp(x)
+#define de_timestamp(x)
 #endif
 
 static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
@@ -313,7 +313,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 		smi_info->curr_msg = smi_info->waiting_msg;
 		smi_info->waiting_msg = NULL;
-		debug_timestamp("Start2");
+		de_timestamp("Start2");
 		err = atomic_notifier_call_chain(&xaction_notifier_list,
 				0, smi_info);
 		if (err & NOTIFY_STOP_MASK) {
@@ -533,7 +533,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg;
 
-	debug_timestamp("Done");
+	de_timestamp("Done");
 	switch (smi_info->si_state) {
 	case SI_NORMAL:
 		if (!smi_info->curr_msg)
@@ -896,7 +896,7 @@ static void sender(void                *send_info,
 	struct smi_info   *smi_info = send_info;
 	unsigned long     flags;
 
-	debug_timestamp("Enqueue");
+	de_timestamp("Enqueue");
 
 	if (smi_info->run_to_completion) {
 		/*
@@ -915,7 +915,7 @@ static void sender(void                *send_info,
 	 * the lock, anyway, so just do it under the lock to avoid the
 	 * ordering problem.
 	 */
-	BUG_ON(smi_info->waiting_msg);
+	_ON(smi_info->waiting_msg);
 	smi_info->waiting_msg = msg;
 	check_start_timer_thread(smi_info);
 	spin_unlock_irqrestore(&smi_info->si_lock, flags);
@@ -1078,7 +1078,7 @@ static void smi_timeout(struct timer_list *t)
 	long		  timeout;
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
-	debug_timestamp("Timer");
+	de_timestamp("Timer");
 
 	jiffies_now = jiffies;
 	time_diff = (((long)jiffies_now - (long)smi_info->last_timeout_jiffies)
@@ -1127,7 +1127,7 @@ irqreturn_t ipmi_si_irq_handler(int irq, void *data)
 
 	smi_inc_stat(smi_info, interrupts);
 
-	debug_timestamp("Interrupt");
+	de_timestamp("Interrupt");
 
 	smi_event_handler(smi_info, 0);
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);

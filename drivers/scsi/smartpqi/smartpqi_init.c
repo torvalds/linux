@@ -12,7 +12,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/fixes to esc.storagedev@microsemi.com
  *
  */
 
@@ -8270,446 +8270,446 @@ module_exit(pqi_cleanup);
 
 static void __attribute__((unused)) verify_structures(void)
 {
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_host_to_ctrl_doorbell) != 0x20);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_interrupt_mask) != 0x34);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_ctrl_to_host_doorbell) != 0x9c);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_ctrl_to_host_doorbell_clear) != 0xa0);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_driver_scratch) != 0xb0);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_firmware_status) != 0xbc);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		sis_mailbox) != 0x1000);
-	BUILD_BUG_ON(offsetof(struct pqi_ctrl_registers,
+	BUILD__ON(offsetof(struct pqi_ctrl_registers,
 		pqi_registers) != 0x4000);
 
-	BUILD_BUG_ON(offsetof(struct pqi_iu_header,
+	BUILD__ON(offsetof(struct pqi_iu_header,
 		iu_type) != 0x0);
-	BUILD_BUG_ON(offsetof(struct pqi_iu_header,
+	BUILD__ON(offsetof(struct pqi_iu_header,
 		iu_length) != 0x2);
-	BUILD_BUG_ON(offsetof(struct pqi_iu_header,
+	BUILD__ON(offsetof(struct pqi_iu_header,
 		response_queue_id) != 0x4);
-	BUILD_BUG_ON(offsetof(struct pqi_iu_header,
+	BUILD__ON(offsetof(struct pqi_iu_header,
 		work_area) != 0x6);
-	BUILD_BUG_ON(sizeof(struct pqi_iu_header) != 0x8);
+	BUILD__ON(sizeof(struct pqi_iu_header) != 0x8);
 
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		status) != 0x0);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		service_response) != 0x1);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		data_present) != 0x2);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		reserved) != 0x3);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		residual_count) != 0x4);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		data_length) != 0x8);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		reserved1) != 0xa);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_error_info,
+	BUILD__ON(offsetof(struct pqi_aio_error_info,
 		data) != 0xc);
-	BUILD_BUG_ON(sizeof(struct pqi_aio_error_info) != 0x10c);
+	BUILD__ON(sizeof(struct pqi_aio_error_info) != 0x10c);
 
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		data_in_result) != 0x0);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		data_out_result) != 0x1);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		reserved) != 0x2);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		status) != 0x5);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		status_qualifier) != 0x6);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		sense_data_length) != 0x8);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		response_data_length) != 0xa);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		data_in_transferred) != 0xc);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		data_out_transferred) != 0x10);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_error_info,
+	BUILD__ON(offsetof(struct pqi_raid_error_info,
 		data) != 0x14);
-	BUILD_BUG_ON(sizeof(struct pqi_raid_error_info) != 0x114);
+	BUILD__ON(sizeof(struct pqi_raid_error_info) != 0x114);
 
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		signature) != 0x0);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		function_and_status_code) != 0x8);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		max_admin_iq_elements) != 0x10);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		max_admin_oq_elements) != 0x11);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_iq_element_length) != 0x12);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_oq_element_length) != 0x13);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		max_reset_timeout) != 0x14);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		legacy_intx_status) != 0x18);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		legacy_intx_mask_set) != 0x1c);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		legacy_intx_mask_clear) != 0x20);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		device_status) != 0x40);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_iq_pi_offset) != 0x48);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_oq_ci_offset) != 0x50);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_iq_element_array_addr) != 0x58);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_oq_element_array_addr) != 0x60);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_iq_ci_addr) != 0x68);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_oq_pi_addr) != 0x70);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_iq_num_elements) != 0x78);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_oq_num_elements) != 0x79);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		admin_queue_int_msg_num) != 0x7a);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		device_error) != 0x80);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		error_details) != 0x88);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		device_reset) != 0x90);
-	BUILD_BUG_ON(offsetof(struct pqi_device_registers,
+	BUILD__ON(offsetof(struct pqi_device_registers,
 		power_action) != 0x94);
-	BUILD_BUG_ON(sizeof(struct pqi_device_registers) != 0x100);
+	BUILD__ON(sizeof(struct pqi_device_registers) != 0x100);
 
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		header.work_area) != 6);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		function_code) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.report_device_capability.buffer_length) != 44);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.report_device_capability.sg_descriptor) != 48);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_iq.queue_id) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_iq.element_array_addr) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_iq.ci_addr) != 24);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_iq.num_elements) != 32);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_iq.element_length) != 34);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_iq.queue_protocol) != 36);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.queue_id) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.element_array_addr) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.pi_addr) != 24);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.num_elements) != 32);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.element_length) != 34);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.queue_protocol) != 36);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.int_msg_num) != 40);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.coalescing_count) != 42);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.min_coalescing_time) != 44);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.create_operational_oq.max_coalescing_time) != 48);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_request,
+	BUILD__ON(offsetof(struct pqi_general_admin_request,
 		data.delete_operational_queue.queue_id) != 12);
-	BUILD_BUG_ON(sizeof(struct pqi_general_admin_request) != 64);
-	BUILD_BUG_ON(FIELD_SIZEOF(struct pqi_general_admin_request,
+	BUILD__ON(sizeof(struct pqi_general_admin_request) != 64);
+	BUILD__ON(FIELD_SIZEOF(struct pqi_general_admin_request,
 		data.create_operational_iq) != 64 - 11);
-	BUILD_BUG_ON(FIELD_SIZEOF(struct pqi_general_admin_request,
+	BUILD__ON(FIELD_SIZEOF(struct pqi_general_admin_request,
 		data.create_operational_oq) != 64 - 11);
-	BUILD_BUG_ON(FIELD_SIZEOF(struct pqi_general_admin_request,
+	BUILD__ON(FIELD_SIZEOF(struct pqi_general_admin_request,
 		data.delete_operational_queue) != 64 - 11);
 
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		header.work_area) != 6);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		function_code) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		status) != 11);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		data.create_operational_iq.status_descriptor) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		data.create_operational_iq.iq_pi_offset) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		data.create_operational_oq.status_descriptor) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_general_admin_response,
+	BUILD__ON(offsetof(struct pqi_general_admin_response,
 		data.create_operational_oq.oq_ci_offset) != 16);
-	BUILD_BUG_ON(sizeof(struct pqi_general_admin_response) != 64);
+	BUILD__ON(sizeof(struct pqi_general_admin_response) != 64);
 
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		header.response_queue_id) != 4);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		header.work_area) != 6);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		nexus_id) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		buffer_length) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		lun_number) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		protocol_specific) != 24);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		error_index) != 27);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		cdb) != 32);
-	BUILD_BUG_ON(offsetof(struct pqi_raid_path_request,
+	BUILD__ON(offsetof(struct pqi_raid_path_request,
 		sg_descriptors) != 64);
-	BUILD_BUG_ON(sizeof(struct pqi_raid_path_request) !=
+	BUILD__ON(sizeof(struct pqi_raid_path_request) !=
 		PQI_OPERATIONAL_IQ_ELEMENT_LENGTH);
 
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		header.response_queue_id) != 4);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		header.work_area) != 6);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		nexus_id) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		buffer_length) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		data_encryption_key_index) != 22);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		encrypt_tweak_lower) != 24);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		encrypt_tweak_upper) != 28);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		cdb) != 32);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		error_index) != 48);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		num_sg_descriptors) != 50);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		cdb_length) != 51);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		lun_number) != 52);
-	BUILD_BUG_ON(offsetof(struct pqi_aio_path_request,
+	BUILD__ON(offsetof(struct pqi_aio_path_request,
 		sg_descriptors) != 64);
-	BUILD_BUG_ON(sizeof(struct pqi_aio_path_request) !=
+	BUILD__ON(sizeof(struct pqi_aio_path_request) !=
 		PQI_OPERATIONAL_IQ_ELEMENT_LENGTH);
 
-	BUILD_BUG_ON(offsetof(struct pqi_io_response,
+	BUILD__ON(offsetof(struct pqi_io_response,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_io_response,
+	BUILD__ON(offsetof(struct pqi_io_response,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_io_response,
+	BUILD__ON(offsetof(struct pqi_io_response,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_io_response,
+	BUILD__ON(offsetof(struct pqi_io_response,
 		error_index) != 10);
 
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		header.response_queue_id) != 4);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		data.report_event_configuration.buffer_length) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		data.report_event_configuration.sg_descriptors) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		data.set_event_configuration.global_event_oq_id) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		data.set_event_configuration.buffer_length) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_general_management_request,
+	BUILD__ON(offsetof(struct pqi_general_management_request,
 		data.set_event_configuration.sg_descriptors) != 16);
 
-	BUILD_BUG_ON(offsetof(struct pqi_iu_layer_descriptor,
+	BUILD__ON(offsetof(struct pqi_iu_layer_descriptor,
 		max_inbound_iu_length) != 6);
-	BUILD_BUG_ON(offsetof(struct pqi_iu_layer_descriptor,
+	BUILD__ON(offsetof(struct pqi_iu_layer_descriptor,
 		max_outbound_iu_length) != 14);
-	BUILD_BUG_ON(sizeof(struct pqi_iu_layer_descriptor) != 16);
+	BUILD__ON(sizeof(struct pqi_iu_layer_descriptor) != 16);
 
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		data_length) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		iq_arbitration_priority_support_bitmask) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		maximum_aw_a) != 9);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		maximum_aw_b) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		maximum_aw_c) != 11);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		max_inbound_queues) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		max_elements_per_iq) != 18);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		max_iq_element_length) != 24);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		min_iq_element_length) != 26);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		max_outbound_queues) != 30);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		max_elements_per_oq) != 32);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		intr_coalescing_time_granularity) != 34);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		max_oq_element_length) != 36);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		min_oq_element_length) != 38);
-	BUILD_BUG_ON(offsetof(struct pqi_device_capability,
+	BUILD__ON(offsetof(struct pqi_device_capability,
 		iu_layer_descriptors) != 64);
-	BUILD_BUG_ON(sizeof(struct pqi_device_capability) != 576);
+	BUILD__ON(sizeof(struct pqi_device_capability) != 576);
 
-	BUILD_BUG_ON(offsetof(struct pqi_event_descriptor,
+	BUILD__ON(offsetof(struct pqi_event_descriptor,
 		event_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_event_descriptor,
+	BUILD__ON(offsetof(struct pqi_event_descriptor,
 		oq_id) != 2);
-	BUILD_BUG_ON(sizeof(struct pqi_event_descriptor) != 4);
+	BUILD__ON(sizeof(struct pqi_event_descriptor) != 4);
 
-	BUILD_BUG_ON(offsetof(struct pqi_event_config,
+	BUILD__ON(offsetof(struct pqi_event_config,
 		num_event_descriptors) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_event_config,
+	BUILD__ON(offsetof(struct pqi_event_config,
 		descriptors) != 4);
 
-	BUILD_BUG_ON(PQI_NUM_SUPPORTED_EVENTS !=
+	BUILD__ON(PQI_NUM_SUPPORTED_EVENTS !=
 		ARRAY_SIZE(pqi_supported_event_types));
 
-	BUILD_BUG_ON(offsetof(struct pqi_event_response,
+	BUILD__ON(offsetof(struct pqi_event_response,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_event_response,
+	BUILD__ON(offsetof(struct pqi_event_response,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_event_response,
+	BUILD__ON(offsetof(struct pqi_event_response,
 		event_type) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_event_response,
+	BUILD__ON(offsetof(struct pqi_event_response,
 		event_id) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_event_response,
+	BUILD__ON(offsetof(struct pqi_event_response,
 		additional_event_id) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_event_response,
+	BUILD__ON(offsetof(struct pqi_event_response,
 		data) != 16);
-	BUILD_BUG_ON(sizeof(struct pqi_event_response) != 32);
+	BUILD__ON(sizeof(struct pqi_event_response) != 32);
 
-	BUILD_BUG_ON(offsetof(struct pqi_event_acknowledge_request,
+	BUILD__ON(offsetof(struct pqi_event_acknowledge_request,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_event_acknowledge_request,
+	BUILD__ON(offsetof(struct pqi_event_acknowledge_request,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_event_acknowledge_request,
+	BUILD__ON(offsetof(struct pqi_event_acknowledge_request,
 		event_type) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_event_acknowledge_request,
+	BUILD__ON(offsetof(struct pqi_event_acknowledge_request,
 		event_id) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_event_acknowledge_request,
+	BUILD__ON(offsetof(struct pqi_event_acknowledge_request,
 		additional_event_id) != 12);
-	BUILD_BUG_ON(sizeof(struct pqi_event_acknowledge_request) != 16);
+	BUILD__ON(sizeof(struct pqi_event_acknowledge_request) != 16);
 
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		nexus_id) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		lun_number) != 16);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		protocol_specific) != 24);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		outbound_queue_id_to_manage) != 26);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		request_id_to_manage) != 28);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_request,
+	BUILD__ON(offsetof(struct pqi_task_management_request,
 		task_management_function) != 30);
-	BUILD_BUG_ON(sizeof(struct pqi_task_management_request) != 32);
+	BUILD__ON(sizeof(struct pqi_task_management_request) != 32);
 
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_response,
+	BUILD__ON(offsetof(struct pqi_task_management_response,
 		header.iu_type) != 0);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_response,
+	BUILD__ON(offsetof(struct pqi_task_management_response,
 		header.iu_length) != 2);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_response,
+	BUILD__ON(offsetof(struct pqi_task_management_response,
 		request_id) != 8);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_response,
+	BUILD__ON(offsetof(struct pqi_task_management_response,
 		nexus_id) != 10);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_response,
+	BUILD__ON(offsetof(struct pqi_task_management_response,
 		additional_response_info) != 12);
-	BUILD_BUG_ON(offsetof(struct pqi_task_management_response,
+	BUILD__ON(offsetof(struct pqi_task_management_response,
 		response_code) != 15);
-	BUILD_BUG_ON(sizeof(struct pqi_task_management_response) != 16);
+	BUILD__ON(sizeof(struct pqi_task_management_response) != 16);
 
-	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
+	BUILD__ON(offsetof(struct bmic_identify_controller,
 		configured_logical_drive_count) != 0);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
+	BUILD__ON(offsetof(struct bmic_identify_controller,
 		configuration_signature) != 1);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
+	BUILD__ON(offsetof(struct bmic_identify_controller,
 		firmware_version) != 5);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
+	BUILD__ON(offsetof(struct bmic_identify_controller,
 		extended_logical_unit_count) != 154);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
+	BUILD__ON(offsetof(struct bmic_identify_controller,
 		firmware_build_number) != 190);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_controller,
+	BUILD__ON(offsetof(struct bmic_identify_controller,
 		controller_mode) != 292);
 
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		phys_bay_in_box) != 115);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		device_type) != 120);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		redundant_path_present_map) != 1736);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		active_path_number) != 1738);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		alternate_paths_phys_connector) != 1739);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		alternate_paths_phys_box_on_port) != 1755);
-	BUILD_BUG_ON(offsetof(struct bmic_identify_physical_device,
+	BUILD__ON(offsetof(struct bmic_identify_physical_device,
 		current_queue_depth_limit) != 1796);
-	BUILD_BUG_ON(sizeof(struct bmic_identify_physical_device) != 2560);
+	BUILD__ON(sizeof(struct bmic_identify_physical_device) != 2560);
 
-	BUILD_BUG_ON(PQI_ADMIN_IQ_NUM_ELEMENTS > 255);
-	BUILD_BUG_ON(PQI_ADMIN_OQ_NUM_ELEMENTS > 255);
-	BUILD_BUG_ON(PQI_ADMIN_IQ_ELEMENT_LENGTH %
+	BUILD__ON(PQI_ADMIN_IQ_NUM_ELEMENTS > 255);
+	BUILD__ON(PQI_ADMIN_OQ_NUM_ELEMENTS > 255);
+	BUILD__ON(PQI_ADMIN_IQ_ELEMENT_LENGTH %
 		PQI_QUEUE_ELEMENT_LENGTH_ALIGNMENT != 0);
-	BUILD_BUG_ON(PQI_ADMIN_OQ_ELEMENT_LENGTH %
+	BUILD__ON(PQI_ADMIN_OQ_ELEMENT_LENGTH %
 		PQI_QUEUE_ELEMENT_LENGTH_ALIGNMENT != 0);
-	BUILD_BUG_ON(PQI_OPERATIONAL_IQ_ELEMENT_LENGTH > 1048560);
-	BUILD_BUG_ON(PQI_OPERATIONAL_IQ_ELEMENT_LENGTH %
+	BUILD__ON(PQI_OPERATIONAL_IQ_ELEMENT_LENGTH > 1048560);
+	BUILD__ON(PQI_OPERATIONAL_IQ_ELEMENT_LENGTH %
 		PQI_QUEUE_ELEMENT_LENGTH_ALIGNMENT != 0);
-	BUILD_BUG_ON(PQI_OPERATIONAL_OQ_ELEMENT_LENGTH > 1048560);
-	BUILD_BUG_ON(PQI_OPERATIONAL_OQ_ELEMENT_LENGTH %
+	BUILD__ON(PQI_OPERATIONAL_OQ_ELEMENT_LENGTH > 1048560);
+	BUILD__ON(PQI_OPERATIONAL_OQ_ELEMENT_LENGTH %
 		PQI_QUEUE_ELEMENT_LENGTH_ALIGNMENT != 0);
 
-	BUILD_BUG_ON(PQI_RESERVED_IO_SLOTS >= PQI_MAX_OUTSTANDING_REQUESTS);
-	BUILD_BUG_ON(PQI_RESERVED_IO_SLOTS >=
+	BUILD__ON(PQI_RESERVED_IO_SLOTS >= PQI_MAX_OUTSTANDING_REQUESTS);
+	BUILD__ON(PQI_RESERVED_IO_SLOTS >=
 		PQI_MAX_OUTSTANDING_REQUESTS_KDUMP);
 }

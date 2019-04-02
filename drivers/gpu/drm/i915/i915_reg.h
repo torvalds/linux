@@ -198,11 +198,11 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
 #define _MASKED_FIELD(mask, value) ({					   \
 	if (__builtin_constant_p(mask))					   \
-		BUILD_BUG_ON_MSG(((mask) & 0xffff0000), "Incorrect mask"); \
+		BUILD__ON_MSG(((mask) & 0xffff0000), "Incorrect mask"); \
 	if (__builtin_constant_p(value))				   \
-		BUILD_BUG_ON_MSG((value) & 0xffff0000, "Incorrect value"); \
+		BUILD__ON_MSG((value) & 0xffff0000, "Incorrect value"); \
 	if (__builtin_constant_p(mask) && __builtin_constant_p(value))	   \
-		BUILD_BUG_ON_MSG((value) & ~(mask),			   \
+		BUILD__ON_MSG((value) & ~(mask),			   \
 				 "Incorrect value for mask");		   \
 	__MASKED_FIELD(mask, value); })
 #define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
@@ -580,11 +580,11 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN8_OACTXID _MMIO(0x2364)
 
-#define GEN8_OA_DEBUG _MMIO(0x2B04)
-#define  GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS    (1 << 5)
-#define  GEN9_OA_DEBUG_INCLUDE_CLK_RATIO	    (1 << 6)
-#define  GEN9_OA_DEBUG_DISABLE_GO_1_0_REPORTS	    (1 << 2)
-#define  GEN9_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS   (1 << 1)
+#define GEN8_OA_DE _MMIO(0x2B04)
+#define  GEN9_OA_DE_DISABLE_CLK_RATIO_REPORTS    (1 << 5)
+#define  GEN9_OA_DE_INCLUDE_CLK_RATIO	    (1 << 6)
+#define  GEN9_OA_DE_DISABLE_GO_1_0_REPORTS	    (1 << 2)
+#define  GEN9_OA_DE_DISABLE_CTX_SWITCH_REPORTS   (1 << 1)
 
 #define GEN8_OACONTROL _MMIO(0x2B00)
 #define  GEN8_OA_REPORT_FORMAT_A12	    (0 << 2)
@@ -1008,10 +1008,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /*
  * Reset registers
  */
-#define DEBUG_RESET_I830		_MMIO(0x6070)
-#define  DEBUG_RESET_FULL		(1 << 7)
-#define  DEBUG_RESET_RENDER		(1 << 8)
-#define  DEBUG_RESET_DISPLAY		(1 << 9)
+#define DE_RESET_I830		_MMIO(0x6070)
+#define  DE_RESET_FULL		(1 << 7)
+#define  DE_RESET_RENDER		(1 << 8)
+#define  DE_RESET_DISPLAY		(1 << 9)
 
 /*
  * IOSF sideband
@@ -2542,7 +2542,7 @@ enum i915_power_well_id {
 #define   DERRMR_PIPEC_HBLANK		(1 << 22)
 
 
-/* GM45+ chicken bits -- debug workaround bits that may be required
+/* GM45+ chicken bits -- de workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
  * the enables for writing to the corresponding low bit.
  */
@@ -2901,7 +2901,7 @@ enum i915_power_well_id {
 #define GT_RENDER_PIPECTL_NOTIFY_INTERRUPT	(1 <<  4)
 #define GT_RENDER_CS_MASTER_ERROR_INTERRUPT	(1 <<  3)
 #define GT_RENDER_SYNC_STATUS_INTERRUPT		(1 <<  2)
-#define GT_RENDER_DEBUG_INTERRUPT		(1 <<  1)
+#define GT_RENDER_DE_INTERRUPT		(1 <<  1)
 #define GT_RENDER_USER_INTERRUPT		(1 <<  0)
 
 #define PM_VEBOX_CS_ERROR_INTERRUPT		(1 << 12) /* hsw+ */
@@ -2944,7 +2944,7 @@ enum i915_power_well_id {
 #define I915_DISPLAY_PIPE_B_EVENT_INTERRUPT		(1 << 4)
 #define I915_DISPLAY_PIPE_A_DPBM_INTERRUPT		(1 << 3)
 #define I915_DISPLAY_PIPE_B_DPBM_INTERRUPT		(1 << 2)
-#define I915_DEBUG_INTERRUPT				(1 << 2)
+#define I915_DE_INTERRUPT				(1 << 2)
 #define I915_WINVALID_INTERRUPT				(1 << 1)
 #define I915_USER_INTERRUPT				(1 << 1)
 #define I915_ASLE_INTERRUPT				(1 << 0)
@@ -3011,7 +3011,7 @@ enum i915_power_well_id {
 #define   FBC_CTL_IDLE_IMM	(0 << 2)
 #define   FBC_CTL_IDLE_FULL	(1 << 2)
 #define   FBC_CTL_IDLE_LINE	(2 << 2)
-#define   FBC_CTL_IDLE_DEBUG	(3 << 2)
+#define   FBC_CTL_IDLE_DE	(3 << 2)
 #define   FBC_CTL_CPU_FENCE	(1 << 1)
 #define   FBC_CTL_PLANE(plane)	((plane) << 0)
 #define FBC_FENCE_OFF		_MMIO(0x3218) /* BSpec typo has 321Bh */
@@ -3902,7 +3902,7 @@ enum {
 
 enum {
 	FAULT_AND_HANG = 0,
-	FAULT_AND_HALT, /* Debug only */
+	FAULT_AND_HALT, /* De only */
 	FAULT_AND_STREAM,
 	FAULT_AND_CONTINUE /* Unsupported */
 };
@@ -4222,13 +4222,13 @@ enum {
 #define EDP_PSR_PERF_CNT		_MMIO(dev_priv->psr_mmio_base + 0x44)
 #define   EDP_PSR_PERF_CNT_MASK		0xffffff
 
-#define EDP_PSR_DEBUG				_MMIO(dev_priv->psr_mmio_base + 0x60) /* PSR_MASK on SKL+ */
-#define   EDP_PSR_DEBUG_MASK_MAX_SLEEP         (1 << 28)
-#define   EDP_PSR_DEBUG_MASK_LPSP              (1 << 27)
-#define   EDP_PSR_DEBUG_MASK_MEMUP             (1 << 26)
-#define   EDP_PSR_DEBUG_MASK_HPD               (1 << 25)
-#define   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE    (1 << 16) /* Reserved in ICL+ */
-#define   EDP_PSR_DEBUG_EXIT_ON_PIXEL_UNDERRUN (1 << 15) /* SKL+ */
+#define EDP_PSR_DE				_MMIO(dev_priv->psr_mmio_base + 0x60) /* PSR_MASK on SKL+ */
+#define   EDP_PSR_DE_MASK_MAX_SLEEP         (1 << 28)
+#define   EDP_PSR_DE_MASK_LPSP              (1 << 27)
+#define   EDP_PSR_DE_MASK_MEMUP             (1 << 26)
+#define   EDP_PSR_DE_MASK_HPD               (1 << 25)
+#define   EDP_PSR_DE_MASK_DISP_REG_WRITE    (1 << 16) /* Reserved in ICL+ */
+#define   EDP_PSR_DE_EXIT_ON_PIXEL_UNDERRUN (1 << 15) /* SKL+ */
 
 #define EDP_PSR2_CTL			_MMIO(0x6f900)
 #define   EDP_PSR2_ENABLE		(1 << 31)
@@ -5424,7 +5424,7 @@ enum {
 /* eDP */
 #define   DP_PLL_ENABLE			(1 << 14)
 
-/* sends the clock on lane 15 of the PEG for debug */
+/* sends the clock on lane 15 of the PEG for de */
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)
@@ -7409,7 +7409,7 @@ enum {
 #define FUSE_STRAP			_MMIO(0x42014)
 #define  ILK_INTERNAL_GRAPHICS_DISABLE	(1 << 31)
 #define  ILK_INTERNAL_DISPLAY_DISABLE	(1 << 30)
-#define  ILK_DISPLAY_DEBUG_DISABLE	(1 << 29)
+#define  ILK_DISPLAY_DE_DISABLE	(1 << 29)
 #define  IVB_PIPE_C_DISABLE		(1 << 28)
 #define  ILK_HDCP_DISABLE		(1 << 25)
 #define  ILK_eDP_A_DISABLE		(1 << 24)
@@ -7511,7 +7511,7 @@ enum {
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1 << 8)
 #define  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE  (1 << 10)
 
-#define GEN9_CS_DEBUG_MODE1		_MMIO(0x20ec)
+#define GEN9_CS_DE_MODE1		_MMIO(0x20ec)
 #define GEN9_CTX_PREEMPT_REG		_MMIO(0x2248)
 #define GEN8_CS_CHICKEN1		_MMIO(0x2580)
 #define GEN9_PREEMPT_3D_OBJECT_LEVEL		(1 << 0)
@@ -8824,7 +8824,7 @@ enum {
 
 #define GEN9_HALF_SLICE_CHICKEN7	_MMIO(0xe194)
 #define   GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR	(1 << 8)
-#define   GEN9_ENABLE_YV12_BUGFIX	(1 << 4)
+#define   GEN9_ENABLE_YV12_FIX	(1 << 4)
 #define   GEN9_ENABLE_GPGPU_PREEMPTION	(1 << 2)
 
 /* Audio */
@@ -8964,7 +8964,7 @@ enum {
  * - BIOS   (HSW_PWR_WELL_CTL1/ICL_PWR_WELL_CTL_AUX1/ICL_PWR_WELL_CTL_DDI1)
  * - DRIVER (HSW_PWR_WELL_CTL2/ICL_PWR_WELL_CTL_AUX2/ICL_PWR_WELL_CTL_DDI2)
  * - KVMR   (HSW_PWR_WELL_CTL3)   (only in the main register set)
- * - DEBUG  (HSW_PWR_WELL_CTL4/ICL_PWR_WELL_CTL_AUX4/ICL_PWR_WELL_CTL_DDI4)
+ * - DE  (HSW_PWR_WELL_CTL4/ICL_PWR_WELL_CTL_AUX4/ICL_PWR_WELL_CTL_DDI4)
  */
 #define HSW_PWR_WELL_CTL1			_MMIO(0x45400)
 #define HSW_PWR_WELL_CTL2			_MMIO(0x45404)
@@ -9022,7 +9022,7 @@ enum {
 #define   ICL_PW_CTL_IDX_DDI_B			1
 #define   ICL_PW_CTL_IDX_DDI_A			0
 
-/* HSW - power well misc debug registers */
+/* HSW - power well misc de registers */
 #define HSW_PWR_WELL_CTL5			_MMIO(0x45410)
 #define   HSW_PWR_WELL_ENABLE_SINGLE_STEP	(1 << 31)
 #define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1 << 20)
@@ -9782,9 +9782,9 @@ enum skl_power_gate {
 #define  DC_STATE_EN_UPTO_DC6		(2 << 0)
 #define  DC_STATE_EN_UPTO_DC5_DC6_MASK   0x3
 
-#define  DC_STATE_DEBUG                  _MMIO(0x45520)
-#define  DC_STATE_DEBUG_MASK_CORES	(1 << 0)
-#define  DC_STATE_DEBUG_MASK_MEMORY_UP	(1 << 1)
+#define  DC_STATE_DE                  _MMIO(0x45520)
+#define  DC_STATE_DE_MASK_CORES	(1 << 0)
+#define  DC_STATE_DE_MASK_MEMORY_UP	(1 << 1)
 
 #define BXT_P_CR_MC_BIOS_REQ_0_0_0	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x7114)
 #define  BXT_REQ_DATA_MASK			0x3F

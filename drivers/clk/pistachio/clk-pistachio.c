@@ -108,7 +108,7 @@ static struct pistachio_div pistachio_divs[] __initdata = {
 PNAME(mux_xtal_audio_refclk) = { "xtal", "audio_clk_in_gate" };
 PNAME(mux_xtal_mips) = { "xtal", "mips_pll" };
 PNAME(mux_xtal_audio) = { "xtal", "audio_pll", "audio_in" };
-PNAME(mux_audio_debug) = { "audio_pll_mux", "debug_mux" };
+PNAME(mux_audio_de) = { "audio_pll_mux", "de_mux" };
 PNAME(mux_xtal_rpu_v) = { "xtal", "rpu_v_pll" };
 PNAME(mux_xtal_rpu_l) = { "xtal", "rpu_l_pll" };
 PNAME(mux_rpu_l_mips) = { "rpu_l_pll_mux", "mips_pll_mux" };
@@ -128,7 +128,7 @@ static struct pistachio_mux pistachio_muxes[] __initdata = {
 	    0x200, 0),
 	MUX(CLK_MIPS_PLL_MUX, "mips_pll_mux", mux_xtal_mips, 0x200, 1),
 	MUX(CLK_AUDIO_PLL_MUX, "audio_pll_mux", mux_xtal_audio, 0x200, 2),
-	MUX(CLK_AUDIO_MUX, "audio_mux", mux_audio_debug, 0x200, 4),
+	MUX(CLK_AUDIO_MUX, "audio_mux", mux_audio_de, 0x200, 4),
 	MUX(CLK_RPU_V_PLL_MUX, "rpu_v_pll_mux", mux_xtal_rpu_v, 0x200, 5),
 	MUX(CLK_RPU_L_PLL_MUX, "rpu_l_pll_mux", mux_xtal_rpu_l, 0x200, 6),
 	MUX(CLK_RPU_L_MUX, "rpu_l_mux", mux_rpu_l_mips, 0x200, 7),
@@ -154,10 +154,10 @@ static struct pistachio_pll pistachio_plls[] __initdata = {
 	PLL_FIXED(CLK_BT_PLL, "bt_pll", "xtal", PLL_GF40LP_LAINT, 0x60),
 };
 
-PNAME(mux_debug) = { "mips_pll_mux", "rpu_v_pll_mux",
+PNAME(mux_de) = { "mips_pll_mux", "rpu_v_pll_mux",
 		     "rpu_l_pll_mux", "sys_pll_mux",
 		     "wifi_pll_mux", "bt_pll_mux" };
-static u32 mux_debug_idx[] = { 0x0, 0x1, 0x2, 0x4, 0x8, 0x10 };
+static u32 mux_de_idx[] = { 0x0, 0x1, 0x2, 0x4, 0x8, 0x10 };
 
 static unsigned int pistachio_critical_clks_core[] __initdata = {
 	CLK_MIPS
@@ -173,7 +173,7 @@ static unsigned int pistachio_critical_clks_sys[] __initdata = {
 static void __init pistachio_clk_init(struct device_node *np)
 {
 	struct pistachio_clk_provider *p;
-	struct clk *debug_clk;
+	struct clk *de_clk;
 
 	p = pistachio_clk_alloc_provider(np, CLK_NR_CLKS);
 	if (!p)
@@ -190,12 +190,12 @@ static void __init pistachio_clk_init(struct device_node *np)
 	pistachio_clk_register_gate(p, pistachio_gates,
 				    ARRAY_SIZE(pistachio_gates));
 
-	debug_clk = clk_register_mux_table(NULL, "debug_mux", mux_debug,
-					   ARRAY_SIZE(mux_debug),
+	de_clk = clk_register_mux_table(NULL, "de_mux", mux_de,
+					   ARRAY_SIZE(mux_de),
 					   CLK_SET_RATE_NO_REPARENT,
 					   p->base + 0x200, 18, 0x1f, 0,
-					   mux_debug_idx, NULL);
-	p->clk_data.clks[CLK_DEBUG_MUX] = debug_clk;
+					   mux_de_idx, NULL);
+	p->clk_data.clks[CLK_DE_MUX] = de_clk;
 
 	pistachio_clk_register_provider(p);
 

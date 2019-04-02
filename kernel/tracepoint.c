@@ -34,8 +34,8 @@ extern tracepoint_ptr_t __stop___tracepoints_ptrs[];
 DEFINE_SRCU(tracepoint_srcu);
 EXPORT_SYMBOL_GPL(tracepoint_srcu);
 
-/* Set to 1 to enable tracepoint debug output */
-static const int tracepoint_debug;
+/* Set to 1 to enable tracepoint de output */
+static const int tracepoint_de;
 
 #ifdef CONFIG_MODULES
 /*
@@ -127,15 +127,15 @@ static inline void release_probes(struct tracepoint_func *old)
 	}
 }
 
-static void debug_print_probes(struct tracepoint_func *funcs)
+static void de_print_probes(struct tracepoint_func *funcs)
 {
 	int i;
 
-	if (!tracepoint_debug || !funcs)
+	if (!tracepoint_de || !funcs)
 		return;
 
 	for (i = 0; funcs[i].func; i++)
-		printk(KERN_DEBUG "Probe %d : %p\n", i, funcs[i].func);
+		printk(KERN_DE "Probe %d : %p\n", i, funcs[i].func);
 }
 
 static struct tracepoint_func *
@@ -149,7 +149,7 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 	if (WARN_ON(!tp_func->func))
 		return ERR_PTR(-EINVAL);
 
-	debug_print_probes(*funcs);
+	de_print_probes(*funcs);
 	old = *funcs;
 	if (old) {
 		/* (N -> N+1), (N != 0, 1) probes */
@@ -182,7 +182,7 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 	new[pos] = *tp_func;
 	new[nr_probes + 1].func = NULL;
 	*funcs = new;
-	debug_print_probes(*funcs);
+	de_print_probes(*funcs);
 	return old;
 }
 
@@ -197,7 +197,7 @@ static void *func_remove(struct tracepoint_func **funcs,
 	if (!old)
 		return ERR_PTR(-ENOENT);
 
-	debug_print_probes(*funcs);
+	de_print_probes(*funcs);
 	/* (N -> M), (N > 1, M >= 0) probes */
 	if (tp_func->func) {
 		for (nr_probes = 0; old[nr_probes].func; nr_probes++) {
@@ -214,7 +214,7 @@ static void *func_remove(struct tracepoint_func **funcs,
 	if (nr_probes - nr_del == 0) {
 		/* N -> 0, (N > 1) */
 		*funcs = NULL;
-		debug_print_probes(*funcs);
+		de_print_probes(*funcs);
 		return old;
 	} else {
 		int j = 0;
@@ -230,7 +230,7 @@ static void *func_remove(struct tracepoint_func **funcs,
 		new[nr_probes - nr_del].func = NULL;
 		*funcs = new;
 	}
-	debug_print_probes(*funcs);
+	de_print_probes(*funcs);
 	return old;
 }
 

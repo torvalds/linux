@@ -29,10 +29,10 @@ static int pblk_read_from_cache(struct pblk *pblk, struct bio *bio,
 				sector_t lba, struct ppa_addr ppa,
 				int bio_iter, bool advanced_bio)
 {
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	/* Callers must ensure that the ppa points to a cache address */
-	BUG_ON(pblk_ppa_empty(ppa));
-	BUG_ON(!pblk_addr_in_cache(ppa));
+	_ON(pblk_ppa_empty(ppa));
+	_ON(!pblk_addr_in_cache(ppa));
 #endif
 
 	return pblk_rb_copy_to_bio(&pblk->rwb, bio, lba, ppa,
@@ -83,7 +83,7 @@ retry:
 			WARN_ON(test_and_set_bit(i, read_bitmap));
 			meta->lba = cpu_to_le64(lba);
 			advanced_bio = true;
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 			atomic_long_inc(&pblk->cache_reads);
 #endif
 		} else {
@@ -99,7 +99,7 @@ next:
 	if (pblk_io_aligned(pblk, nr_secs))
 		rqd->is_seq = 1;
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(nr_secs, &pblk->inflight_reads);
 #endif
 }
@@ -123,7 +123,7 @@ static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 			continue;
 
 		if (lba != blba + i) {
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 			struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
 			print_ppa(pblk, &ppa_list[i], "seq", i);
@@ -159,7 +159,7 @@ static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 		meta_lba = le64_to_cpu(meta->lba);
 
 		if (lba != meta_lba) {
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 			struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
 			print_ppa(pblk, &ppa_list[j], "rnd", j);
@@ -177,7 +177,7 @@ static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 
 static void pblk_end_user_read(struct bio *bio)
 {
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	WARN_ONCE(bio->bi_status, "pblk: corrupted read bio\n");
 #endif
 	bio_endio(bio);
@@ -204,7 +204,7 @@ static void __pblk_end_io_read(struct pblk *pblk, struct nvm_rq *rqd,
 	if (put_line)
 		pblk_rq_to_line_put(pblk, rqd);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(rqd->nr_ppas, &pblk->sync_reads);
 	atomic_long_sub(rqd->nr_ppas, &pblk->inflight_reads);
 #endif
@@ -396,7 +396,7 @@ static void pblk_read_rq(struct pblk *pblk, struct nvm_rq *rqd, struct bio *bio,
 
 	pblk_lookup_l2p_seq(pblk, &ppa, lba, 1);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_inc(&pblk->inflight_reads);
 #endif
 
@@ -421,7 +421,7 @@ retry:
 		WARN_ON(test_and_set_bit(0, read_bitmap));
 		meta->lba = cpu_to_le64(lba);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 		atomic_long_inc(&pblk->cache_reads);
 #endif
 	} else {
@@ -544,7 +544,7 @@ static int read_ppalist_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 		rqd->ppa_list[valid_secs++] = ppa_list_l2p[i];
 	}
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(valid_secs, &pblk->inflight_reads);
 #endif
 
@@ -578,7 +578,7 @@ static int read_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->ppa_addr = ppa_l2p;
 	valid_secs = 1;
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_inc(&pblk->inflight_reads);
 #endif
 
@@ -646,12 +646,12 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 
 	if (rqd.error) {
 		atomic_long_inc(&pblk->read_failed_gc);
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 		pblk_print_failed_rqd(pblk, &rqd, rqd.error);
 #endif
 	}
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(gc_rq->secs_to_gc, &pblk->sync_reads);
 	atomic_long_add(gc_rq->secs_to_gc, &pblk->recov_gc_reads);
 	atomic_long_sub(gc_rq->secs_to_gc, &pblk->inflight_reads);

@@ -34,7 +34,7 @@
  *			 - set initialised bit then.
  */
 
-#undef DEBUG	/* #define DEBUG if you want debugging info (pr_debug) */
+#undef DE	/* #define DE if you want deging info (pr_de) */
 #include <linux/fs.h>
 #include <linux/bio.h>
 #include <linux/kernel.h>
@@ -72,15 +72,15 @@
 #define DRIVER_AUTHOR	"San Mehat, Johannes Erdfelt, NeilBrown"
 #define DRIVER_DESC	"Micro Memory(tm) PCI memory board block driver"
 
-static int debug;
+static int de;
 /* #define HW_TRACE(x)     writeb(x,cards[0].csr_remap + MEMCTRLSTATUS_MAGIC) */
 #define HW_TRACE(x)
 
-#define DEBUG_LED_ON_TRANSFER	0x01
-#define DEBUG_BATTERY_POLLING	0x02
+#define DE_LED_ON_TRANSFER	0x01
+#define DE_BATTERY_POLLING	0x02
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug bitmask");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De bitmask");
 
 static int pci_read_cmd = 0x0C;		/* Read Multiple */
 module_param(pci_read_cmd, int, 0);
@@ -195,7 +195,7 @@ static void dump_regs(struct cardinfo *card)
 
 	p = card->csr_remap;
 	for (i = 0; i < 8; i++) {
-		printk(KERN_DEBUG "%p   ", p);
+		printk(KERN_DE "%p   ", p);
 
 		for (i1 = 0; i1 < 16; i1++)
 			printk("%02x ", *p++);
@@ -207,7 +207,7 @@ static void dump_regs(struct cardinfo *card)
 
 static void dump_dmastat(struct cardinfo *card, unsigned int dmastat)
 {
-	dev_printk(KERN_DEBUG, &card->dev->dev, "DMAstat - ");
+	dev_printk(KERN_DE, &card->dev->dev, "DMAstat - ");
 	if (dmastat & DMASCR_ANY_ERR)
 		printk(KERN_CONT "ANY_ERR ");
 	if (dmastat & DMASCR_MBE_ERR)
@@ -261,7 +261,7 @@ static void mm_start_io(struct cardinfo *card)
 
 	/* make the last descriptor end the chain */
 	page = &card->mm_pages[card->Active];
-	pr_debug("start_io: %d %d->%d\n",
+	pr_de("start_io: %d %d->%d\n",
 		card->Active, page->headcnt, page->cnt - 1);
 	desc = &page->desc[page->cnt-1];
 
@@ -270,7 +270,7 @@ static void mm_start_io(struct cardinfo *card)
 	desc->sem_control_bits = desc->control_bits;
 
 
-	if (debug & DEBUG_LED_ON_TRANSFER)
+	if (de & DE_LED_ON_TRANSFER)
 		set_led(card, LED_REMOVE, LED_ON);
 
 	desc = &page->desc[page->headcnt];
@@ -479,7 +479,7 @@ static void process_page(unsigned long data)
 			break;
 	}
 
-	if (debug & DEBUG_LED_ON_TRANSFER)
+	if (de & DE_LED_ON_TRANSFER)
 		set_led(card, LED_REMOVE, LED_OFF);
 
 	if (card->check_batteries) {
@@ -492,7 +492,7 @@ static void process_page(unsigned long data)
 		activate(card);
 	} else {
 		/* haven't finished with this one yet */
-		pr_debug("do some more\n");
+		pr_de("do some more\n");
 		mm_start_io(card);
 	}
  out_unlock:
@@ -525,7 +525,7 @@ static int mm_check_plugged(struct cardinfo *card)
 static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct cardinfo *card = q->queuedata;
-	pr_debug("mm_make_request %llu %u\n",
+	pr_de("mm_make_request %llu %u\n",
 		 (unsigned long long)bio->bi_iter.bi_sector,
 		 bio->bi_iter.bi_size);
 
@@ -705,8 +705,8 @@ static void check_batteries(struct cardinfo *card)
 	int ret1, ret2;
 
 	status = readb(card->csr_remap + MEMCTRLSTATUS_BATTERY);
-	if (debug & DEBUG_BATTERY_POLLING)
-		dev_printk(KERN_DEBUG, &card->dev->dev,
+	if (de & DE_BATTERY_POLLING)
+		dev_printk(KERN_DE, &card->dev->dev,
 			"checking battery status, 1 = %s, 2 = %s\n",
 		       (status & BATTERY_1_FAILURE) ? "FAILURE" : "OK",
 		       (status & BATTERY_2_FAILURE) ? "FAILURE" : "OK");

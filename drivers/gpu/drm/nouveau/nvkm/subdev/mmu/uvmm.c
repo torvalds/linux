@@ -125,19 +125,19 @@ nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	mutex_lock(&vmm->mutex);
 	vma = nvkm_vmm_node_search(vmm, addr);
 	if (ret = -ENOENT, !vma || vma->addr != addr) {
-		VMM_DEBUG(vmm, "lookup %016llx: %016llx",
+		VMM_DE(vmm, "lookup %016llx: %016llx",
 			  addr, vma ? vma->addr : ~0ULL);
 		goto done;
 	}
 
 	if (ret = -ENOENT, (!vma->user && !client->super) || vma->busy) {
-		VMM_DEBUG(vmm, "denied %016llx: %d %d %d", addr,
+		VMM_DE(vmm, "denied %016llx: %d %d %d", addr,
 			  vma->user, !client->super, vma->busy);
 		goto done;
 	}
 
 	if (ret = -EINVAL, !vma->memory) {
-		VMM_DEBUG(vmm, "unmapped");
+		VMM_DE(vmm, "unmapped");
 		goto done;
 	}
 
@@ -171,31 +171,31 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 
 	memory = nvkm_umem_search(client, handle);
 	if (IS_ERR(memory)) {
-		VMM_DEBUG(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
+		VMM_DE(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
 		return PTR_ERR(memory);
 	}
 
 	mutex_lock(&vmm->mutex);
 	if (ret = -ENOENT, !(vma = nvkm_vmm_node_search(vmm, addr))) {
-		VMM_DEBUG(vmm, "lookup %016llx", addr);
+		VMM_DE(vmm, "lookup %016llx", addr);
 		goto fail;
 	}
 
 	if (ret = -ENOENT, (!vma->user && !client->super) || vma->busy) {
-		VMM_DEBUG(vmm, "denied %016llx: %d %d %d", addr,
+		VMM_DE(vmm, "denied %016llx: %d %d %d", addr,
 			  vma->user, !client->super, vma->busy);
 		goto fail;
 	}
 
 	if (ret = -EINVAL, vma->mapped && !vma->memory) {
-		VMM_DEBUG(vmm, "pfnmap %016llx", addr);
+		VMM_DE(vmm, "pfnmap %016llx", addr);
 		goto fail;
 	}
 
 	if (ret = -EINVAL, vma->addr != addr || vma->size != size) {
 		if (addr + size > vma->addr + vma->size || vma->memory ||
 		    (vma->refd == NVKM_VMA_PAGE_NONE && !vma->mapref)) {
-			VMM_DEBUG(vmm, "split %d %d %d "
+			VMM_DE(vmm, "split %d %d %d "
 				       "%016llx %016llx %016llx %016llx",
 				  !!vma->memory, vma->refd, vma->mapref,
 				  addr, size, vma->addr, (u64)vma->size);
@@ -247,13 +247,13 @@ nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	mutex_lock(&vmm->mutex);
 	vma = nvkm_vmm_node_search(vmm, args->v0.addr);
 	if (ret = -ENOENT, !vma || vma->addr != addr || vma->part) {
-		VMM_DEBUG(vmm, "lookup %016llx: %016llx %d", addr,
+		VMM_DE(vmm, "lookup %016llx: %016llx %d", addr,
 			  vma ? vma->addr : ~0ULL, vma ? vma->part : 0);
 		goto done;
 	}
 
 	if (ret = -ENOENT, (!vma->user && !client->super) || vma->busy) {
-		VMM_DEBUG(vmm, "denied %016llx: %d %d %d", addr,
+		VMM_DE(vmm, "denied %016llx: %d %d %d", addr,
 			  vma->user, !client->super, vma->busy);
 		goto done;
 	}
@@ -401,7 +401,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		if (ret)
 			return ret;
 
-		uvmm->vmm->debug = max(uvmm->vmm->debug, oclass->client->debug);
+		uvmm->vmm->de = max(uvmm->vmm->de, oclass->client->de);
 	} else {
 		if (size)
 			return -EINVAL;

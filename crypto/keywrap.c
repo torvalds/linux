@@ -105,7 +105,7 @@ static void crypto_kw_scatterlist_ff(struct scatter_walk *walk,
 	unsigned int skip = 0;
 
 	/* The caller should only operate on full SEMIBLOCKs. */
-	BUG_ON(end < SEMIBSIZE);
+	_ON(end < SEMIBSIZE);
 
 	skip = end - SEMIBSIZE;
 	while (sg) {

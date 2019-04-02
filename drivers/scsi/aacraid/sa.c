@@ -138,7 +138,7 @@ static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
 		sa_writew(dev, DoorbellReg_s,DOORBELL_5);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }

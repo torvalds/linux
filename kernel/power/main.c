@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/pm-trace.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/suspend.h>
 
@@ -179,7 +179,7 @@ static ssize_t mem_sleep_store(struct kobject *kobj, struct kobj_attribute *attr
 power_attr(mem_sleep);
 #endif /* CONFIG_SUSPEND */
 
-#ifdef CONFIG_PM_SLEEP_DEBUG
+#ifdef CONFIG_PM_SLEEP_DE
 int pm_test_level = TEST_NONE;
 
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
@@ -240,9 +240,9 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_test);
-#endif /* CONFIG_PM_SLEEP_DEBUG */
+#endif /* CONFIG_PM_SLEEP_DE */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static char *suspend_step_name(enum suspend_stat_step step)
 {
 	switch (step) {
@@ -320,19 +320,19 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(suspend_stats);
 
-static int __init pm_debugfs_init(void)
+static int __init pm_defs_init(void)
 {
-	debugfs_create_file("suspend_stats", S_IFREG | S_IRUGO,
+	defs_create_file("suspend_stats", S_IFREG | S_IRUGO,
 			NULL, NULL, &suspend_stats_fops);
 	return 0;
 }
 
-late_initcall(pm_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+late_initcall(pm_defs_init);
+#endif /* CONFIG_DE_FS */
 
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_SLEEP_DEBUG
+#ifdef CONFIG_PM_SLEEP_DE
 /*
  * pm_print_times: print time taken by devices to suspend and resume.
  *
@@ -367,7 +367,7 @@ power_attr(pm_print_times);
 
 static inline void pm_print_times_init(void)
 {
-	pm_print_times_enabled = !!initcall_debug;
+	pm_print_times_enabled = !!initcall_de;
 }
 
 static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
@@ -379,15 +379,15 @@ static ssize_t pm_wakeup_irq_show(struct kobject *kobj,
 
 power_attr_ro(pm_wakeup_irq);
 
-bool pm_debug_messages_on __read_mostly;
+bool pm_de_messages_on __read_mostly;
 
-static ssize_t pm_debug_messages_show(struct kobject *kobj,
+static ssize_t pm_de_messages_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", pm_debug_messages_on);
+	return sprintf(buf, "%d\n", pm_de_messages_on);
 }
 
-static ssize_t pm_debug_messages_store(struct kobject *kobj,
+static ssize_t pm_de_messages_store(struct kobject *kobj,
 				       struct kobj_attribute *attr,
 				       const char *buf, size_t n)
 {
@@ -399,18 +399,18 @@ static ssize_t pm_debug_messages_store(struct kobject *kobj,
 	if (val > 1)
 		return -EINVAL;
 
-	pm_debug_messages_on = !!val;
+	pm_de_messages_on = !!val;
 	return n;
 }
 
-power_attr(pm_debug_messages);
+power_attr(pm_de_messages);
 
 /**
- * __pm_pr_dbg - Print a suspend debug message to the kernel log.
+ * __pm_pr_dbg - Print a suspend de message to the kernel log.
  * @defer: Whether or not to use printk_deferred() to print the message.
  * @fmt: Message format.
  *
- * The message will be emitted if enabled through the pm_debug_messages
+ * The message will be emitted if enabled through the pm_de_messages
  * sysfs attribute.
  */
 void __pm_pr_dbg(bool defer, const char *fmt, ...)
@@ -418,7 +418,7 @@ void __pm_pr_dbg(bool defer, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (!pm_debug_messages_on)
+	if (!pm_de_messages_on)
 		return;
 
 	va_start(args, fmt);
@@ -427,16 +427,16 @@ void __pm_pr_dbg(bool defer, const char *fmt, ...)
 	vaf.va = &args;
 
 	if (defer)
-		printk_deferred(KERN_DEBUG "PM: %pV", &vaf);
+		printk_deferred(KERN_DE "PM: %pV", &vaf);
 	else
-		printk(KERN_DEBUG "PM: %pV", &vaf);
+		printk(KERN_DE "PM: %pV", &vaf);
 
 	va_end(args);
 }
 
-#else /* !CONFIG_PM_SLEEP_DEBUG */
+#else /* !CONFIG_PM_SLEEP_DE */
 static inline void pm_print_times_init(void) {}
-#endif /* CONFIG_PM_SLEEP_DEBUG */
+#endif /* CONFIG_PM_SLEEP_DE */
 
 struct kobject *power_kobj;
 
@@ -765,11 +765,11 @@ static struct attribute * g[] = {
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
 #endif
-#ifdef CONFIG_PM_SLEEP_DEBUG
+#ifdef CONFIG_PM_SLEEP_DE
 	&pm_test_attr.attr,
 	&pm_print_times_attr.attr,
 	&pm_wakeup_irq_attr.attr,
-	&pm_debug_messages_attr.attr,
+	&pm_de_messages_attr.attr,
 #endif
 #endif
 #ifdef CONFIG_FREEZER

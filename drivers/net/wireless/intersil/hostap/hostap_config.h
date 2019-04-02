@@ -25,22 +25,22 @@
 #define PRISM2_NON_VOLATILE_DOWNLOAD
 #endif
 
-/* Save low-level I/O for debugging. This should not be enabled in normal use.
+/* Save low-level I/O for deging. This should not be enabled in normal use.
  */
-/* #define PRISM2_IO_DEBUG */
+/* #define PRISM2_IO_DE */
 
 /* Following defines can be used to remove unneeded parts of the driver, e.g.,
  * to limit the size of the kernel module. Definitions can be added here in
  * hostap_config.h or they can be added to make command with ccflags-y,
  * e.g.,
- * 'make pccard ccflags-y="-DPRISM2_NO_DEBUG -DPRISM2_NO_PROCFS_DEBUG"'
+ * 'make pccard ccflags-y="-DPRISM2_NO_DE -DPRISM2_NO_PROCFS_DE"'
  */
 
-/* Do not include debug messages into the driver */
-/* #define PRISM2_NO_DEBUG */
+/* Do not include de messages into the driver */
+/* #define PRISM2_NO_DE */
 
-/* Do not include /proc/net/prism2/wlan#/{registers,debug} */
-/* #define PRISM2_NO_PROCFS_DEBUG */
+/* Do not include /proc/net/prism2/wlan#/{registers,de} */
+/* #define PRISM2_NO_PROCFS_DE */
 
 /* Do not include station functionality (i.e., allow only Master (Host AP) mode
  */

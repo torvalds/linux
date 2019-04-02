@@ -269,7 +269,7 @@ static void dce_mi_program_display_marks(
 	uint32_t total_dest_line_time_ns)
 {
 	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
-	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;
+	uint32_t stutter_en = mi->ctx->dc->de.disable_stutter ? 0 : 1;
 
 	program_urgency_watermark(dce_mi, 2, /* set a */
 			urgent.a_mark, total_dest_line_time_ns);
@@ -294,7 +294,7 @@ static void dce112_mi_program_display_marks(struct mem_input *mi,
 	uint32_t total_dest_line_time_ns)
 {
 	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
-	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;
+	uint32_t stutter_en = mi->ctx->dc->de.disable_stutter ? 0 : 1;
 
 	program_urgency_watermark(dce_mi, 0, /* set a */
 			urgent.a_mark, total_dest_line_time_ns);
@@ -327,7 +327,7 @@ static void dce120_mi_program_display_marks(struct mem_input *mi,
 	uint32_t total_dest_line_time_ns)
 {
 	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
-	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;
+	uint32_t stutter_en = mi->ctx->dc->de.disable_stutter ? 0 : 1;
 
 	dce120_program_urgency_watermark(dce_mi, 0, /* set a */
 			urgent.a_mark, total_dest_line_time_ns);
@@ -715,7 +715,7 @@ static bool dce_mi_program_surface_flip_and_addr(
 		break;
 	default:
 		/* not supported */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 

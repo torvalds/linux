@@ -24,7 +24,7 @@
 
 #include "usb.h"
 #include "initializers.h"
-#include "debug.h"
+#include "de.h"
 #include "transport.h"
 
 /*

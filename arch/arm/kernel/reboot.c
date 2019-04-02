@@ -57,7 +57,7 @@ static void __soft_restart(void *addr)
 	phys_reset((unsigned long)addr, is_hyp_mode_available());
 
 	/* Should never get here. */
-	BUG();
+	();
 }
 
 void _soft_restart(unsigned long addr, bool disable_l2)
@@ -76,7 +76,7 @@ void _soft_restart(unsigned long addr, bool disable_l2)
 	call_with_stack(__soft_restart, (void *)addr, (void *)stack);
 
 	/* Should never get here. */
-	BUG();
+	();
 }
 
 void soft_restart(unsigned long addr)

@@ -1305,7 +1305,7 @@ static void decide_on_write_same_support(struct drbd_device *device,
 			drbd_warn(device,
 				"logical block size of local backend does not match (drbd:%u, backend:%u); was this a late attach?\n",
 				me_lbs, me_lbs_b);
-			/* rather disable write same than trigger some BUG_ON later in the scsi layer. */
+			/* rather disable write same than trigger some _ON later in the scsi layer. */
 			can_do = false;
 		}
 		if (me_lbs_b != peer_lbs) {
@@ -1972,7 +1972,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	drbd_suspend_io(device);
 	/* also wait for the last barrier ack. */
-	/* FIXME see also https://daiquiri.linbit/cgi-bin/bugzilla/show_bug.cgi?id=171
+	/* FIXME see also https://daiquiri.linbit/cgi-bin/zilla/show_.cgi?id=171
 	 * We need a way to either ignore barrier acks for barriers sent before a device
 	 * was attached, or a way to wait for all pending barrier acks to come in.
 	 * As barriers are counted per resource,
@@ -3387,7 +3387,7 @@ static void device_to_statistics(struct device_statistics *s,
 
 		spin_lock_irq(&md->uuid_lock);
 		s->dev_current_uuid = md->uuid[UI_CURRENT];
-		BUILD_BUG_ON(sizeof(s->history_uuids) < UI_HISTORY_END - UI_HISTORY_START + 1);
+		BUILD__ON(sizeof(s->history_uuids) < UI_HISTORY_END - UI_HISTORY_START + 1);
 		for (n = 0; n < UI_HISTORY_END - UI_HISTORY_START + 1; n++)
 			history_uuids[n] = md->uuid[UI_HISTORY_START + n];
 		for (; n < HISTORY_UUIDS; n++)
@@ -4274,7 +4274,7 @@ drbd_check_resource_name(struct drbd_config_context *adm_ctx)
 		drbd_msg_put_info(adm_ctx->reply_skb, "resource name missing");
 		return ERR_MANDATORY_TAG;
 	}
-	/* if we want to use these in sysfs/configfs/debugfs some day,
+	/* if we want to use these in sysfs/configfs/defs some day,
 	 * we must not allow slashes */
 	if (strchr(name, '/')) {
 		drbd_msg_put_info(adm_ctx->reply_skb, "invalid resource name");

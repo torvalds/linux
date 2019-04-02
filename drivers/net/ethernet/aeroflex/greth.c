@@ -55,9 +55,9 @@
 	 NETIF_MSG_RX_ERR	| \
 	 NETIF_MSG_TX_ERR)
 
-static int greth_debug = -1;	/* -1 == use GRETH_DEF_MSG_ENABLE as value */
-module_param(greth_debug, int, 0);
-MODULE_PARM_DESC(greth_debug, "GRETH bitmapped debugging message enable value");
+static int greth_de = -1;	/* -1 == use GRETH_DEF_MSG_ENABLE as value */
+module_param(greth_de, int, 0);
+MODULE_PARM_DESC(greth_de, "GRETH bitmapped deging message enable value");
 
 /* Accept MAC address of the form macaddr=0x08,0x00,0x20,0x30,0x40,0x50 */
 static int macaddr[6];
@@ -93,7 +93,7 @@ static void greth_set_multicast_list(struct net_device *dev);
 
 static void greth_print_rx_packet(void *addr, int len)
 {
-	print_hex_dump(KERN_DEBUG, "RX: ", DUMP_PREFIX_OFFSET, 16, 1,
+	print_hex_dump(KERN_DE, "RX: ", DUMP_PREFIX_OFFSET, 16, 1,
 			addr, len, true);
 }
 
@@ -107,12 +107,12 @@ static void greth_print_tx_packet(struct sk_buff *skb)
 	else
 		length = skb_headlen(skb);
 
-	print_hex_dump(KERN_DEBUG, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
+	print_hex_dump(KERN_DE, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
 			skb->data, length, true);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 
-		print_hex_dump(KERN_DEBUG, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
+		print_hex_dump(KERN_DE, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       skb_frag_address(&skb_shinfo(skb)->frags[i]),
 			       skb_shinfo(skb)->frags[i].size, true);
 	}
@@ -1247,11 +1247,11 @@ static void greth_link_change(struct net_device *dev)
 
 	if (status_change) {
 		if (phydev->link)
-			pr_debug("%s: link up (%d/%s)\n",
+			pr_de("%s: link up (%d/%s)\n",
 				dev->name, phydev->speed,
 				DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
 		else
-			pr_debug("%s: link down\n", dev->name);
+			pr_de("%s: link down\n", dev->name);
 	}
 }
 
@@ -1323,7 +1323,7 @@ static int greth_mdio_init(struct greth_private *greth)
 
 	phy_start(ndev->phydev);
 
-	/* If Ethernet debug link is used make autoneg happen right away */
+	/* If Ethernet de link is used make autoneg happen right away */
 	if (greth->edcl && greth_edcl == 1) {
 		phy_start_aneg(ndev->phydev);
 		timeout = jiffies + 6*HZ;
@@ -1364,8 +1364,8 @@ static int greth_of_probe(struct platform_device *ofdev)
 	greth->netdev = dev;
 	greth->dev = &ofdev->dev;
 
-	if (greth_debug > 0)
-		greth->msg_enable = greth_debug;
+	if (greth_de > 0)
+		greth->msg_enable = greth_de;
 	else
 		greth->msg_enable = GRETH_DEF_MSG_ENABLE;
 

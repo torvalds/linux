@@ -72,13 +72,13 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 static inline void smc_cdc_add_pending_send(struct smc_connection *conn,
 					    struct smc_cdc_tx_pend *pend)
 {
-	BUILD_BUG_ON_MSG(
+	BUILD__ON_MSG(
 		sizeof(struct smc_cdc_msg) > SMC_WR_BUF_SIZE,
 		"must increase SMC_WR_BUF_SIZE to at least sizeof(struct smc_cdc_msg)");
-	BUILD_BUG_ON_MSG(
+	BUILD__ON_MSG(
 		offsetofend(struct smc_cdc_msg, reserved) > SMC_WR_TX_SIZE,
 		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_cdc_msg); if not all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
-	BUILD_BUG_ON_MSG(
+	BUILD__ON_MSG(
 		sizeof(struct smc_cdc_tx_pend) > SMC_WR_TX_PEND_PRIV_SIZE,
 		"must increase SMC_WR_TX_PEND_PRIV_SIZE to at least sizeof(struct smc_cdc_tx_pend)");
 	pend->conn = conn;

@@ -219,7 +219,7 @@ __2data_recov_5(int disks, size_t bytes, int faila, int failb,
 		good = i;
 		good_srcs++;
 	}
-	BUG_ON(good_srcs > 1);
+	_ON(good_srcs > 1);
 
 	p = blocks[disks-2];
 	q = blocks[disks-1];
@@ -353,11 +353,11 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 	void *scribble = submit->scribble;
 	int non_zero_srcs, i;
 
-	BUG_ON(faila == failb);
+	_ON(faila == failb);
 	if (failb < faila)
 		swap(faila, failb);
 
-	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
+	pr_de("%s: disks: %d len: %zu\n", __func__, disks, bytes);
 
 	/* if a dma resource is not available or a scribble buffer is not
 	 * available punt to the synchronous path.  In the 'dma not
@@ -389,7 +389,7 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 	case 0:
 	case 1:
 		/* There must be at least 2 sources - the failed devices. */
-		BUG();
+		();
 
 	case 2:
 		/* dma devices do not uniformly understand a zero source pq
@@ -433,7 +433,7 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 	int good_srcs, good, i;
 	struct page *srcs[2];
 
-	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
+	pr_de("%s: disks: %d len: %zu\n", __func__, disks, bytes);
 
 	/* if a dma resource is not available or a scribble buffer is not
 	 * available punt to the synchronous path.  In the 'dma not
@@ -469,7 +469,7 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 				break;
 		}
 	}
-	BUG_ON(good_srcs == 0);
+	_ON(good_srcs == 0);
 
 	p = blocks[disks-2];
 	q = blocks[disks-1];

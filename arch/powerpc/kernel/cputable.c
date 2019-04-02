@@ -2232,7 +2232,7 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 			return setup_cpu_spec(offset, s);
 	}
 
-	BUG();
+	();
 
 	return NULL;
 }

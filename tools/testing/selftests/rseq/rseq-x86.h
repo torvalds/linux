@@ -122,9 +122,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -186,9 +186,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -231,7 +231,7 @@ abort:
 	return -1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 #endif
 }
 
@@ -290,9 +290,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -362,11 +362,11 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("1st expected value comparison failed");
+	rseq_("1st expected value comparison failed");
 error3:
-	rseq_bug("2nd expected value comparison failed");
+	rseq_("2nd expected value comparison failed");
 #endif
 }
 
@@ -468,9 +468,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -604,9 +604,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -668,9 +668,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -713,7 +713,7 @@ abort:
 	return -1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 #endif
 }
 
@@ -773,9 +773,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -837,9 +837,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 
 }
@@ -902,11 +902,11 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("1st expected value comparison failed");
+	rseq_("1st expected value comparison failed");
 error3:
-	rseq_bug("2nd expected value comparison failed");
+	rseq_("2nd expected value comparison failed");
 #endif
 }
 
@@ -1012,9 +1012,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 
@@ -1121,9 +1121,9 @@ cmpfail:
 	return 1;
 #ifdef RSEQ_COMPARE_TWICE
 error1:
-	rseq_bug("cpu_id comparison failed");
+	rseq_("cpu_id comparison failed");
 error2:
-	rseq_bug("expected value comparison failed");
+	rseq_("expected value comparison failed");
 #endif
 }
 

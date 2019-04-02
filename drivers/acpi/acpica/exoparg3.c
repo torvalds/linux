@@ -60,7 +60,7 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 	switch (walk_state->opcode) {
 	case AML_FATAL_OP:	/* Fatal (fatal_type fatal_code fatal_arg) */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "FatalOp: Type %X Code %X Arg %X "
 				  "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
 				  (u32)operand[0]->integer.value,

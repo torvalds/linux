@@ -10,29 +10,29 @@ DEFINE_MUTEX(sched_domains_mutex);
 static cpumask_var_t sched_domains_tmpmask;
 static cpumask_var_t sched_domains_tmpmask2;
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 
-static int __init sched_debug_setup(char *str)
+static int __init sched_de_setup(char *str)
 {
-	sched_debug_enabled = true;
+	sched_de_enabled = true;
 
 	return 0;
 }
-early_param("sched_debug", sched_debug_setup);
+early_param("sched_de", sched_de_setup);
 
-static inline bool sched_debug(void)
+static inline bool sched_de(void)
 {
-	return sched_debug_enabled;
+	return sched_de_enabled;
 }
 
-static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
+static int sched_domain_de_one(struct sched_domain *sd, int cpu, int level,
 				  struct cpumask *groupmask)
 {
 	struct sched_group *group = sd->groups;
 
 	cpumask_clear(groupmask);
 
-	printk(KERN_DEBUG "%*s domain-%d: ", level, "", level);
+	printk(KERN_DE "%*s domain-%d: ", level, "", level);
 
 	if (!(sd->flags & SD_LOAD_BALANCE)) {
 		printk("does not load-balance\n");
@@ -51,7 +51,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 		printk(KERN_ERR "ERROR: domain->groups does not contain CPU%d\n", cpu);
 	}
 
-	printk(KERN_DEBUG "%*s groups:", level + 1, "");
+	printk(KERN_DE "%*s groups:", level + 1, "");
 	do {
 		if (!group) {
 			printk("\n");
@@ -112,22 +112,22 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	return 0;
 }
 
-static void sched_domain_debug(struct sched_domain *sd, int cpu)
+static void sched_domain_de(struct sched_domain *sd, int cpu)
 {
 	int level = 0;
 
-	if (!sched_debug_enabled)
+	if (!sched_de_enabled)
 		return;
 
 	if (!sd) {
-		printk(KERN_DEBUG "CPU%d attaching NULL sched-domain.\n", cpu);
+		printk(KERN_DE "CPU%d attaching NULL sched-domain.\n", cpu);
 		return;
 	}
 
-	printk(KERN_DEBUG "CPU%d attaching sched-domain(s):\n", cpu);
+	printk(KERN_DE "CPU%d attaching sched-domain(s):\n", cpu);
 
 	for (;;) {
-		if (sched_domain_debug_one(sd, cpu, level, sched_domains_tmpmask))
+		if (sched_domain_de_one(sd, cpu, level, sched_domains_tmpmask))
 			break;
 		level++;
 		sd = sd->parent;
@@ -135,15 +135,15 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 			break;
 	}
 }
-#else /* !CONFIG_SCHED_DEBUG */
+#else /* !CONFIG_SCHED_DE */
 
-# define sched_debug_enabled 0
-# define sched_domain_debug(sd, cpu) do { } while (0)
-static inline bool sched_debug(void)
+# define sched_de_enabled 0
+# define sched_domain_de(sd, cpu) do { } while (0)
+static inline bool sched_de(void)
 {
 	return false;
 }
-#endif /* CONFIG_SCHED_DEBUG */
+#endif /* CONFIG_SCHED_DE */
 
 static int sd_degenerate(struct sched_domain *sd)
 {
@@ -260,7 +260,7 @@ static struct perf_domain *pd_init(int cpu)
 	struct perf_domain *pd;
 
 	if (!obj) {
-		if (sched_debug())
+		if (sched_de())
 			pr_info("%s: no EM found for CPU%d\n", __func__, cpu);
 		return NULL;
 	}
@@ -273,13 +273,13 @@ static struct perf_domain *pd_init(int cpu)
 	return pd;
 }
 
-static void perf_domain_debug(const struct cpumask *cpu_map,
+static void perf_domain_de(const struct cpumask *cpu_map,
 						struct perf_domain *pd)
 {
-	if (!sched_debug() || !pd)
+	if (!sched_de() || !pd)
 		return;
 
-	printk(KERN_DEBUG "root_domain %*pbl:", cpumask_pr_args(cpu_map));
+	printk(KERN_DE "root_domain %*pbl:", cpumask_pr_args(cpu_map));
 
 	while (pd) {
 		printk(KERN_CONT " pd%d:{ cpus=%*pbl nr_cstate=%d }",
@@ -303,11 +303,11 @@ static void destroy_perf_domain_rcu(struct rcu_head *rp)
 static void sched_energy_set(bool has_eas)
 {
 	if (!has_eas && static_branch_unlikely(&sched_energy_present)) {
-		if (sched_debug())
+		if (sched_de())
 			pr_info("%s: stopping EAS\n", __func__);
 		static_branch_disable_cpuslocked(&sched_energy_present);
 	} else if (has_eas && !static_branch_unlikely(&sched_energy_present)) {
-		if (sched_debug())
+		if (sched_de())
 			pr_info("%s: starting EAS\n", __func__);
 		static_branch_enable_cpuslocked(&sched_energy_present);
 	}
@@ -353,7 +353,7 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 
 	/* EAS is enabled for asymmetric CPU capacity topologies. */
 	if (!per_cpu(sd_asym_cpucapacity, cpu)) {
-		if (sched_debug()) {
+		if (sched_de()) {
 			pr_info("rd %*pbl: CPUs do not have asymmetric capacities\n",
 					cpumask_pr_args(cpu_map));
 		}
@@ -400,7 +400,7 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 		goto free;
 	}
 
-	perf_domain_debug(cpu_map, pd);
+	perf_domain_de(cpu_map, pd);
 
 	/* Attach the new list of performance domains to the root domain. */
 	tmp = rd->pd;
@@ -693,7 +693,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 			sd->child = NULL;
 	}
 
-	sched_domain_debug(sd, cpu);
+	sched_domain_de(sd, cpu);
 
 	rq_attach_root(rq, rd);
 	tmp = rq->sd;
@@ -1363,7 +1363,7 @@ sd_init(struct sched_domain_topology_level *tl,
 		.max_newidle_lb_cost	= 0,
 		.next_decay_max_lb_cost	= jiffies,
 		.child			= child,
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 		.name			= tl->name,
 #endif
 	};
@@ -1593,10 +1593,10 @@ void sched_init_numa(void)
 				 * about cases where if node A is connected to B, B is not
 				 * equally connected to A.
 				 */
-				if (sched_debug() && node_distance(k, i) != distance)
+				if (sched_de() && node_distance(k, i) != distance)
 					sched_numa_warn("Node-distance not symmetric");
 
-				if (sched_debug() && i && !find_numa_distance(distance))
+				if (sched_de() && i && !find_numa_distance(distance))
 					sched_numa_warn("Node-0 not representative");
 			}
 			if (next_distance != curr_distance) {
@@ -1607,9 +1607,9 @@ void sched_init_numa(void)
 		}
 
 		/*
-		 * In case of sched_debug() we verify the above assumption.
+		 * In case of sched_de() we verify the above assumption.
 		 */
-		if (!sched_debug())
+		if (!sched_de())
 			break;
 	}
 
@@ -1788,7 +1788,7 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 			if (!sgc)
 				return -ENOMEM;
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 			sgc->id = j;
 #endif
 
@@ -1848,8 +1848,8 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 
 		if (!cpumask_subset(sched_domain_span(child),
 				    sched_domain_span(sd))) {
-			pr_err("BUG: arch topology borken\n");
-#ifdef CONFIG_SCHED_DEBUG
+			pr_err(": arch topology borken\n");
+#ifdef CONFIG_SCHED_DE
 			pr_err("     the %s domain not a subset of the %s domain\n",
 					child->name, sd->name);
 #endif
@@ -2011,7 +2011,7 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 	if (has_asym)
 		static_branch_enable_cpuslocked(&sched_asym_cpucapacity);
 
-	if (rq && sched_debug_enabled) {
+	if (rq && sched_de_enabled) {
 		pr_info("root domain span: %*pbl (max cpu_capacity = %lu)\n",
 			cpumask_pr_args(cpu_map), rq->rd->max_cpu_capacity);
 	}

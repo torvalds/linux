@@ -137,7 +137,7 @@ static void digital_wq_cmd_complete(struct work_struct *work)
 	mutex_unlock(&ddev->cmd_lock);
 
 	if (!IS_ERR(cmd->resp))
-		print_hex_dump_debug("DIGITAL RX: ", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_de("DIGITAL RX: ", DUMP_PREFIX_NONE, 16, 1,
 				     cmd->resp->data, cmd->resp->len, false);
 
 	cmd->cmd_cb(ddev, cmd->cb_context, cmd->resp);
@@ -181,7 +181,7 @@ static void digital_wq_cmd(struct work_struct *work)
 	mutex_unlock(&ddev->cmd_lock);
 
 	if (cmd->req)
-		print_hex_dump_debug("DIGITAL TX: ", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_de("DIGITAL TX: ", DUMP_PREFIX_NONE, 16, 1,
 				     cmd->req->data, cmd->req->len, false);
 
 	switch (cmd->type) {
@@ -376,7 +376,7 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 		return -EINVAL;
 	}
 
-	pr_debug("rf_tech=%d, protocol=%d\n", rf_tech, protocol);
+	pr_de("rf_tech=%d, protocol=%d\n", rf_tech, protocol);
 
 	ddev->curr_rf_tech = rf_tech;
 
@@ -480,7 +480,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	struct nfc_digital_dev *ddev = nfc_get_drvdata(nfc_dev);
 	u32 matching_im_protocols, matching_tm_protocols;
 
-	pr_debug("protocols: im 0x%x, tm 0x%x, supported 0x%x\n", im_protocols,
+	pr_de("protocols: im 0x%x, tm 0x%x, supported 0x%x\n", im_protocols,
 		 tm_protocols, ddev->protocols);
 
 	matching_im_protocols = ddev->protocols & im_protocols;

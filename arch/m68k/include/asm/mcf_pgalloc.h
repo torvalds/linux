@@ -28,8 +28,8 @@ extern inline pmd_t *pmd_alloc_kernel(pgd_t *pgd, unsigned long address)
 	return (pmd_t *) pgd;
 }
 
-#define pmd_alloc_one_fast(mm, address) ({ BUG(); ((pmd_t *)1); })
-#define pmd_alloc_one(mm, address)      ({ BUG(); ((pmd_t *)2); })
+#define pmd_alloc_one_fast(mm, address) ({ (); ((pmd_t *)1); })
+#define pmd_alloc_one(mm, address)      ({ (); ((pmd_t *)2); })
 
 #define pmd_populate(mm, pmd, page) (pmd_val(*pmd) = \
 	(unsigned long)(page_address(page)))
@@ -81,7 +81,7 @@ static inline void pte_free(struct mm_struct *mm, struct page *page)
  * In our implementation, each pgd entry contains 1 pmd that is never allocated
  * or freed.  pgd_present is always 1, so this should never be called. -NL
  */
-#define pmd_free(mm, pmd) BUG()
+#define pmd_free(mm, pmd) ()
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
@@ -100,6 +100,6 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return new_pgd;
 }
 
-#define pgd_populate(mm, pmd, pte) BUG()
+#define pgd_populate(mm, pmd, pte) ()
 
 #endif /* M68K_MCF_PGALLOC_H */

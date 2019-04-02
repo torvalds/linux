@@ -11,7 +11,7 @@ v3d-y := \
 	v3d_trace_points.o \
 	v3d_sched.o
 
-v3d-$(CONFIG_DEBUG_FS) += v3d_debugfs.o
+v3d-$(CONFIG_DE_FS) += v3d_defs.o
 
 obj-$(CONFIG_DRM_V3D)  += v3d.o
 

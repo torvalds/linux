@@ -23,7 +23,7 @@
 
 #include <asm/io.h>
 #include <asm/firmware.h>
-#include <asm/bug.h>
+#include <asm/.h>
 
 /* See definition in io.h */
 bool isa_io_special;

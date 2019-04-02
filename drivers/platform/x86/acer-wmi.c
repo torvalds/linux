@@ -37,7 +37,7 @@
 #include <linux/i8042.h>
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
@@ -270,7 +270,7 @@ struct acer_data {
 	int brightness;
 };
 
-struct acer_debug {
+struct acer_de {
 	struct dentry *root;
 	struct dentry *devices;
 	u32 wmid_devices;
@@ -292,8 +292,8 @@ struct wmi_interface {
 	/* Private data for the current interface */
 	struct acer_data data;
 
-	/* debugfs entries associated with this interface */
-	struct acer_debug debug;
+	/* defs entries associated with this interface */
+	struct acer_de de;
 };
 
 /* The static interface pointer, points to the currently detected interface */
@@ -1750,7 +1750,7 @@ static void acer_wmi_notify(u32 value, void *context)
 	switch (return_value.function) {
 	case WMID_HOTKEY_EVENT:
 		device_state = return_value.device_state;
-		pr_debug("device state: 0x%x\n", device_state);
+		pr_de("device state: 0x%x\n", device_state);
 
 		key = sparse_keymap_entry_from_scancode(acer_wmi_input_dev,
 							return_value.key_num);
@@ -1917,7 +1917,7 @@ static int __init acer_wmi_get_handle(const char *name, const char *prop,
 	acpi_status status;
 	acpi_handle handle;
 
-	BUG_ON(!name || !ah);
+	_ON(!name || !ah);
 
 	handle = NULL;
 	status = acpi_get_devices(prop, acer_wmi_get_handle_cb,
@@ -2014,7 +2014,7 @@ static void acer_wmi_input_destroy(void)
 }
 
 /*
- * debugfs functions
+ * defs functions
  */
 static u32 get_wmid_devices(void)
 {
@@ -2159,30 +2159,30 @@ static struct platform_driver acer_platform_driver = {
 
 static struct platform_device *acer_platform_device;
 
-static void remove_debugfs(void)
+static void remove_defs(void)
 {
-	debugfs_remove(interface->debug.devices);
-	debugfs_remove(interface->debug.root);
+	defs_remove(interface->de.devices);
+	defs_remove(interface->de.root);
 }
 
-static int __init create_debugfs(void)
+static int __init create_defs(void)
 {
-	interface->debug.root = debugfs_create_dir("acer-wmi", NULL);
-	if (!interface->debug.root) {
-		pr_err("Failed to create debugfs directory");
+	interface->de.root = defs_create_dir("acer-wmi", NULL);
+	if (!interface->de.root) {
+		pr_err("Failed to create defs directory");
 		return -ENOMEM;
 	}
 
-	interface->debug.devices = debugfs_create_u32("devices", S_IRUGO,
-					interface->debug.root,
-					&interface->debug.wmid_devices);
-	if (!interface->debug.devices)
-		goto error_debugfs;
+	interface->de.devices = defs_create_u32("devices", S_IRUGO,
+					interface->de.root,
+					&interface->de.wmid_devices);
+	if (!interface->de.devices)
+		goto error_defs;
 
 	return 0;
 
-error_debugfs:
-	remove_debugfs();
+error_defs:
+	remove_defs();
 	return -ENOMEM;
 }
 
@@ -2213,7 +2213,7 @@ static int __init acer_wmi_init(void)
 	if (wmi_has_guid(AMW0_GUID1) &&
 	    !dmi_check_system(amw0_whitelist) &&
 	    quirks == &quirk_unknown) {
-		pr_debug("Unsupported machine has AMW0_GUID1, unable to load\n");
+		pr_de("Unsupported machine has AMW0_GUID1, unable to load\n");
 		return -ENODEV;
 	}
 
@@ -2312,10 +2312,10 @@ static int __init acer_wmi_init(void)
 		goto error_device_add;
 
 	if (wmi_has_guid(WMID_GUID2)) {
-		interface->debug.wmid_devices = get_wmid_devices();
-		err = create_debugfs();
+		interface->de.wmid_devices = get_wmid_devices();
+		err = create_defs();
 		if (err)
-			goto error_create_debugfs;
+			goto error_create_defs;
 	}
 
 	/* Override any initial settings with values from the commandline */
@@ -2323,7 +2323,7 @@ static int __init acer_wmi_init(void)
 
 	return 0;
 
-error_create_debugfs:
+error_create_defs:
 	platform_device_del(acer_platform_device);
 error_device_add:
 	platform_device_put(acer_platform_device);
@@ -2346,7 +2346,7 @@ static void __exit acer_wmi_exit(void)
 	if (has_cap(ACER_CAP_ACCEL))
 		acer_wmi_accel_destroy();
 
-	remove_debugfs();
+	remove_defs();
 	platform_device_unregister(acer_platform_device);
 	platform_driver_unregister(&acer_platform_driver);
 

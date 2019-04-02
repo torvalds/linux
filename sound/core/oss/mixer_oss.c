@@ -272,9 +272,9 @@ static int snd_mixer_oss_get_volume(struct snd_mixer_oss_file *fmixer, int slot)
 		result = pslot->get_volume(fmixer, pslot, &left, &right);
 	if (!pslot->stereo)
 		right = left;
-	if (snd_BUG_ON(left < 0 || left > 100))
+	if (snd__ON(left < 0 || left > 100))
 		return -EIO;
-	if (snd_BUG_ON(right < 0 || right > 100))
+	if (snd__ON(right < 0 || right > 100))
 		return -EIO;
 	if (result >= 0) {
 		pslot->volume[0] = left;
@@ -315,7 +315,7 @@ static int snd_mixer_oss_ioctl1(struct snd_mixer_oss_file *fmixer, unsigned int 
 	int __user *p = argp;
 	int tmp;
 
-	if (snd_BUG_ON(!fmixer))
+	if (snd__ON(!fmixer))
 		return -ENXIO;
 	if (((cmd >> 8) & 0xff) == 'M') {
 		switch (cmd) {
@@ -386,7 +386,7 @@ int snd_mixer_oss_ioctl_card(struct snd_card *card, unsigned int cmd, unsigned l
 {
 	struct snd_mixer_oss_file fmixer;
 	
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 	if (card->mixer_oss == NULL)
 		return -ENXIO;
@@ -1333,7 +1333,7 @@ static int snd_mixer_oss_free1(void *private)
 	if (!mixer)
 		return 0;
 	card = mixer->card;
-	if (snd_BUG_ON(mixer != card->mixer_oss))
+	if (snd__ON(mixer != card->mixer_oss))
 		return -ENXIO;
 	card->mixer_oss = NULL;
 	for (idx = 0; idx < SNDRV_OSS_MAX_MIXERS; idx++) {

@@ -33,7 +33,7 @@
 #endif
 #include <asm/sections.h>
 
-#undef DEBUG
+#undef DE
 
 #ifndef mm_cachebits
 /*
@@ -90,7 +90,7 @@ static pmd_t * __init kernel_ptr_table(void)
 		}
 
 		last_pgtable = (pmd_t *)last;
-#ifdef DEBUG
+#ifdef DE
 		printk("kernel_ptr_init: %p\n", last_pgtable);
 #endif
 	}
@@ -130,7 +130,7 @@ static void __init map_node(int node)
 		physaddr |= _PAGE_GLOBAL040;
 
 	while (size > 0) {
-#ifdef DEBUG
+#ifdef DE
 		if (!(virtaddr & (PTRTREESIZE-1)))
 			printk ("\npa=%#lx va=%#lx ", physaddr & PAGE_MASK,
 				virtaddr);
@@ -139,7 +139,7 @@ static void __init map_node(int node)
 		if (virtaddr && CPU_IS_020_OR_030) {
 			if (!(virtaddr & (ROOTTREESIZE-1)) &&
 			    size >= ROOTTREESIZE) {
-#ifdef DEBUG
+#ifdef DE
 				printk ("[very early term]");
 #endif
 				pgd_val(*pgd_dir) = physaddr;
@@ -151,7 +151,7 @@ static void __init map_node(int node)
 		}
 		if (!pgd_present(*pgd_dir)) {
 			pmd_dir = kernel_ptr_table();
-#ifdef DEBUG
+#ifdef DE
 			printk ("[new pointer %p]", pmd_dir);
 #endif
 			pgd_set(pgd_dir, pmd_dir);
@@ -160,14 +160,14 @@ static void __init map_node(int node)
 
 		if (CPU_IS_020_OR_030) {
 			if (virtaddr) {
-#ifdef DEBUG
+#ifdef DE
 				printk ("[early term]");
 #endif
 				pmd_dir->pmd[(virtaddr/PTRTREESIZE) & 15] = physaddr;
 				physaddr += PTRTREESIZE;
 			} else {
 				int i;
-#ifdef DEBUG
+#ifdef DE
 				printk ("[zero map]");
 #endif
 				zero_pgtable = kernel_ptr_table();
@@ -183,7 +183,7 @@ static void __init map_node(int node)
 			virtaddr += PTRTREESIZE;
 		} else {
 			if (!pmd_present(*pmd_dir)) {
-#ifdef DEBUG
+#ifdef DE
 				printk ("[new table]");
 #endif
 				pte_dir = kernel_page_table();
@@ -202,7 +202,7 @@ static void __init map_node(int node)
 		}
 
 	}
-#ifdef DEBUG
+#ifdef DE
 	printk("\n");
 #endif
 }
@@ -218,7 +218,7 @@ void __init paging_init(void)
 	unsigned long addr;
 	int i;
 
-#ifdef DEBUG
+#ifdef DE
 	printk ("start of paging_init (%p, %lx)\n", kernel_pg_dir, availmem);
 #endif
 
@@ -293,7 +293,7 @@ void __init paging_init(void)
 	 */
 	set_fs(KERNEL_DS);
 
-#ifdef DEBUG
+#ifdef DE
 	printk ("before free_area_init\n");
 #endif
 	for (i = 0; i < m68k_num_memory; i++) {

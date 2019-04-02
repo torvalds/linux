@@ -193,7 +193,7 @@ static int retu_regmap_read(void *context, const void *reg, size_t reg_size,
 	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
 
-	BUG_ON(reg_size != 1 || val_size != 2);
+	_ON(reg_size != 1 || val_size != 2);
 
 	ret = i2c_smbus_read_word_data(i2c, *(u8 const *)reg);
 	if (ret < 0)
@@ -210,7 +210,7 @@ static int retu_regmap_write(void *context, const void *data, size_t count)
 	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
 
-	BUG_ON(count != sizeof(reg) + sizeof(val));
+	_ON(count != sizeof(reg) + sizeof(val));
 	memcpy(&reg, data, sizeof(reg));
 	memcpy(&val, data + sizeof(reg), sizeof(val));
 	return i2c_smbus_write_word_data(i2c, reg, val);

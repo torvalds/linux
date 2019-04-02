@@ -159,13 +159,13 @@ static void ehci_clear_tt_buffer(struct ehci_hcd *ehci, struct ehci_qh *qh,
 	 * Note: this routine is never called for Isochronous transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 		struct usb_device *tt = urb->dev->tt->hub;
 		dev_dbg(&tt->dev,
 			"clear tt buffer port %d, a%d ep%d t%08x\n",
 			urb->dev->ttport, urb->dev->devnum,
 			usb_pipeendpoint(urb->pipe), token);
-#endif /* CONFIG_DYNAMIC_DEBUG */
+#endif /* CONFIG_DYNAMIC_DE */
 		if (!ehci_is_TDI(ehci)
 				|| urb->dev->tt->hub !=
 				   ehci_to_hcd(ehci)->self.root_hub) {
@@ -290,7 +290,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 *
 	 * NOTE:  unlinking expects to be done in queue order.
 	 *
-	 * It's a bug for qh->qh_state to be anything other than
+	 * It's a  for qh->qh_state to be anything other than
 	 * QH_STATE_IDLE, unless our caller is scan_async() or
 	 * scan_intr().
 	 */
@@ -880,7 +880,7 @@ qh_make (
 		/* Some Freescale processors have an erratum in which the
 		 * port number in the queue head was 0..N-1 instead of 1..N.
 		 */
-		if (ehci_has_fsl_portno_bug(ehci))
+		if (ehci_has_fsl_portno_(ehci))
 			info2 |= (urb->dev->ttport-1) << 23;
 		else
 			info2 |= urb->dev->ttport << 23;
@@ -1285,7 +1285,7 @@ static void start_iaa_cycle(struct ehci_hcd *ehci)
 
 static void end_iaa_cycle(struct ehci_hcd *ehci)
 {
-	if (ehci->has_synopsys_hc_bug)
+	if (ehci->has_synopsys_hc_)
 		ehci_writel(ehci, (u32) ehci->async->qh_dma,
 			    &ehci->regs->async_next);
 
@@ -1318,20 +1318,20 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 		list_splice_tail_init(&ehci->async_unlink, &ehci->async_idle);
 
 	/*
-	 * Intel (?) bug: The HC can write back the overlay region even
+	 * Intel (?) : The HC can write back the overlay region even
 	 * after the IAA interrupt occurs.  In self-defense, always go
 	 * through two IAA cycles for each QH.
 	 */
 	else if (qh->qh_state == QH_STATE_UNLINK) {
 		/*
 		 * Second IAA cycle has finished.  Process only the first
-		 * waiting QH (NVIDIA (?) bug).
+		 * waiting QH (NVIDIA (?) ).
 		 */
 		list_move_tail(&qh->unlink_node, &ehci->async_idle);
 	}
 
 	/*
-	 * AMD/ATI (?) bug: The HC can continue to use an active QH long
+	 * AMD/ATI (?) : The HC can continue to use an active QH long
 	 * after the IAA interrupt occurs.  To prevent problems, QHs that
 	 * may still be active will wait until 2 ms have passed with no
 	 * change to the hw_current and hw_token fields (this delay occurs

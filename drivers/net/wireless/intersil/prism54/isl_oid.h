@@ -101,16 +101,16 @@ struct obj_attachment {
  * optimized away by the compiler...
  */
 static inline void
-__bug_on_wrong_struct_sizes(void)
+___on_wrong_struct_sizes(void)
 {
-	BUILD_BUG_ON(sizeof (struct obj_ssid) != 34);
-	BUILD_BUG_ON(sizeof (struct obj_key) != 34);
-	BUILD_BUG_ON(sizeof (struct obj_mlme) != 12);
-	BUILD_BUG_ON(sizeof (struct obj_mlmeex) != 14);
-	BUILD_BUG_ON(sizeof (struct obj_buffer) != 8);
-	BUILD_BUG_ON(sizeof (struct obj_bss) != 60);
-	BUILD_BUG_ON(sizeof (struct obj_bsslist) != 4);
-	BUILD_BUG_ON(sizeof (struct obj_frequencies) != 2);
+	BUILD__ON(sizeof (struct obj_ssid) != 34);
+	BUILD__ON(sizeof (struct obj_key) != 34);
+	BUILD__ON(sizeof (struct obj_mlme) != 12);
+	BUILD__ON(sizeof (struct obj_mlmeex) != 14);
+	BUILD__ON(sizeof (struct obj_buffer) != 8);
+	BUILD__ON(sizeof (struct obj_bss) != 60);
+	BUILD__ON(sizeof (struct obj_bsslist) != 4);
+	BUILD__ON(sizeof (struct obj_frequencies) != 2);
 }
 
 enum dot11_state_t {

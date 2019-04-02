@@ -595,11 +595,11 @@ static inline void t4_ring_srq_db(struct t4_srq *srq, u16 inc, u8 len16,
 	/* Flush host queue memory writes. */
 	wmb();
 	if (inc == 1 && srq->bar2_qid == 0 && wqe) {
-		pr_debug("%s : WC srq->pidx = %d; len16=%d\n",
+		pr_de("%s : WC srq->pidx = %d; len16=%d\n",
 			 __func__, srq->pidx, len16);
 		pio_copy(srq->bar2_va + SGE_UDB_WCDOORBELL, (u64 *)wqe);
 	} else {
-		pr_debug("%s: DB srq->pidx = %d; len16=%d\n",
+		pr_de("%s: DB srq->pidx = %d; len16=%d\n",
 			 __func__, srq->pidx, len16);
 		writel(PIDX_T5_V(inc) | QID_V(srq->bar2_qid),
 		       srq->bar2_va + SGE_UDB_KDOORBELL);
@@ -615,12 +615,12 @@ static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, union t4_wr *wqe)
 	wmb();
 	if (wq->sq.bar2_va) {
 		if (inc == 1 && wq->sq.bar2_qid == 0 && wqe) {
-			pr_debug("WC wq->sq.pidx = %d\n", wq->sq.pidx);
+			pr_de("WC wq->sq.pidx = %d\n", wq->sq.pidx);
 			pio_copy((u64 __iomem *)
 				 (wq->sq.bar2_va + SGE_UDB_WCDOORBELL),
 				 (u64 *)wqe);
 		} else {
-			pr_debug("DB wq->sq.pidx = %d\n", wq->sq.pidx);
+			pr_de("DB wq->sq.pidx = %d\n", wq->sq.pidx);
 			writel(PIDX_T5_V(inc) | QID_V(wq->sq.bar2_qid),
 			       wq->sq.bar2_va + SGE_UDB_KDOORBELL);
 		}
@@ -640,12 +640,12 @@ static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc,
 	wmb();
 	if (wq->rq.bar2_va) {
 		if (inc == 1 && wq->rq.bar2_qid == 0 && wqe) {
-			pr_debug("WC wq->rq.pidx = %d\n", wq->rq.pidx);
+			pr_de("WC wq->rq.pidx = %d\n", wq->rq.pidx);
 			pio_copy((u64 __iomem *)
 				 (wq->rq.bar2_va + SGE_UDB_WCDOORBELL),
 				 (void *)wqe);
 		} else {
-			pr_debug("DB wq->rq.pidx = %d\n", wq->rq.pidx);
+			pr_de("DB wq->rq.pidx = %d\n", wq->rq.pidx);
 			writel(PIDX_T5_V(inc) | QID_V(wq->rq.bar2_qid),
 			       wq->rq.bar2_va + SGE_UDB_KDOORBELL);
 		}

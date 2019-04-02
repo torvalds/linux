@@ -86,7 +86,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 			IWL_PRPH_SCRATCH_MTR_MODE |
 			(IWL_PRPH_MTR_FORMAT_256B &
 			 IWL_PRPH_SCRATCH_MTR_FORMAT) |
-			IWL_PRPH_SCRATCH_EARLY_DEBUG_EN |
+			IWL_PRPH_SCRATCH_EARLY_DE_EN |
 			IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
 	prph_sc_ctrl->control.control_flags = cpu_to_le32(control_flags);
 
@@ -94,7 +94,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
 
-	/* Configure debug, for integration */
+	/* Configure de, for integration */
 	if (!trans->ini_valid)
 		iwl_pcie_alloc_fw_monitor(trans, 0);
 	if (trans->num_blocks) {

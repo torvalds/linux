@@ -446,7 +446,7 @@ static void intel_pt_decoder_log_packet(struct intel_pt_decoder *decoder)
 			    decoder->buf);
 }
 
-static int intel_pt_bug(struct intel_pt_decoder *decoder)
+static int intel_pt_(struct intel_pt_decoder *decoder)
 {
 	intel_pt_log("ERROR: Internal error\n");
 	decoder->pkt_state = INTEL_PT_STATE_NO_PSB;
@@ -1142,7 +1142,7 @@ static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
 			return -ENOENT;
 		}
 
-		intel_pt_bug(decoder);
+		intel_pt_(decoder);
 	}
 }
 
@@ -1219,7 +1219,7 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 		return -ENOENT;
 	}
 
-	return intel_pt_bug(decoder);
+	return intel_pt_(decoder);
 }
 
 static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
@@ -1311,7 +1311,7 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 			continue;
 		}
 
-		return intel_pt_bug(decoder);
+		return intel_pt_(decoder);
 	}
 }
 
@@ -1704,7 +1704,7 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 			break;
 
 		default:
-			return intel_pt_bug(decoder);
+			return intel_pt_(decoder);
 		}
 	}
 }
@@ -1877,7 +1877,7 @@ next:
 			goto next;
 
 		case INTEL_PT_BAD: /* Does not happen */
-			return intel_pt_bug(decoder);
+			return intel_pt_(decoder);
 
 		case INTEL_PT_PSBEND:
 		case INTEL_PT_VMCS:
@@ -1951,7 +1951,7 @@ next:
 			return 0;
 
 		default:
-			return intel_pt_bug(decoder);
+			return intel_pt_(decoder);
 		}
 	}
 }
@@ -2049,7 +2049,7 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			return -ENOENT;
 
 		case INTEL_PT_BAD: /* Does not happen */
-			return intel_pt_bug(decoder);
+			return intel_pt_(decoder);
 
 		case INTEL_PT_OVF:
 			return intel_pt_overflow(decoder);
@@ -2136,7 +2136,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			return intel_pt_overflow(decoder);
 
 		case INTEL_PT_BAD: /* Does not happen */
-			return intel_pt_bug(decoder);
+			return intel_pt_(decoder);
 
 		case INTEL_PT_TRACESTOP:
 			decoder->pge = false;
@@ -2388,7 +2388,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 				err = intel_pt_walk_trace(decoder);
 			break;
 		default:
-			err = intel_pt_bug(decoder);
+			err = intel_pt_(decoder);
 			break;
 		}
 	} while (err == -ENOLINK);

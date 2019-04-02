@@ -1,5 +1,5 @@
 /*
- * Marvell Wireless LAN device driver: debugfs
+ * Marvell Wireless LAN device driver: defs
  *
  * Copyright (C) 2011-2014, Marvell International Ltd.
  *
@@ -17,7 +17,7 @@
  * this warranty disclaimer.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "main.h"
 #include "11n.h"
@@ -335,12 +335,12 @@ mwifiex_histogram_write(struct file *file, const char __user *ubuf,
 	return 0;
 }
 
-static struct mwifiex_debug_info info;
+static struct mwifiex_de_info info;
 
 /*
- * Proc debug file read handler.
+ * Proc de file read handler.
  *
- * This function is called when the 'debug' file is opened for reading
+ * This function is called when the 'de' file is opened for reading
  * It prints the following log information -
  *      - Interrupt count
  *      - WMM AC VO packets count
@@ -385,7 +385,7 @@ static struct mwifiex_debug_info info;
  *      - Rx reorder table (TID, TA, Start window, Window size, Buffer)
  */
 static ssize_t
-mwifiex_debug_read(struct file *file, char __user *ubuf,
+mwifiex_de_read(struct file *file, char __user *ubuf,
 		   size_t count, loff_t *ppos)
 {
 	struct mwifiex_private *priv =
@@ -397,11 +397,11 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 	if (!p)
 		return -ENOMEM;
 
-	ret = mwifiex_get_debug_info(priv, &info);
+	ret = mwifiex_get_de_info(priv, &info);
 	if (ret)
 		goto free_and_exit;
 
-	p += mwifiex_debug_info_to_buffer(priv, p, &info);
+	p += mwifiex_de_info_to_buffer(priv, p, &info);
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,
 				      (unsigned long) p - page);
@@ -505,12 +505,12 @@ done:
 	return ret;
 }
 
-/* Proc debug_mask file read handler.
- * This function is called when the 'debug_mask' file is opened for reading
- * This function can be used read driver debugging mask value.
+/* Proc de_mask file read handler.
+ * This function is called when the 'de_mask' file is opened for reading
+ * This function can be used read driver deging mask value.
  */
 static ssize_t
-mwifiex_debug_mask_read(struct file *file, char __user *ubuf,
+mwifiex_de_mask_read(struct file *file, char __user *ubuf,
 			size_t count, loff_t *ppos)
 {
 	struct mwifiex_private *priv =
@@ -523,24 +523,24 @@ mwifiex_debug_mask_read(struct file *file, char __user *ubuf,
 	if (!buf)
 		return -ENOMEM;
 
-	pos += snprintf(buf, PAGE_SIZE, "debug mask=0x%08x\n",
-			priv->adapter->debug_mask);
+	pos += snprintf(buf, PAGE_SIZE, "de mask=0x%08x\n",
+			priv->adapter->de_mask);
 	ret = simple_read_from_buffer(ubuf, count, ppos, buf, pos);
 
 	free_page(page);
 	return ret;
 }
 
-/* Proc debug_mask file read handler.
- * This function is called when the 'debug_mask' file is opened for reading
- * This function can be used read driver debugging mask value.
+/* Proc de_mask file read handler.
+ * This function is called when the 'de_mask' file is opened for reading
+ * This function can be used read driver deging mask value.
  */
 static ssize_t
-mwifiex_debug_mask_write(struct file *file, const char __user *ubuf,
+mwifiex_de_mask_write(struct file *file, const char __user *ubuf,
 			 size_t count, loff_t *ppos)
 {
 	int ret;
-	unsigned long debug_mask;
+	unsigned long de_mask;
 	struct mwifiex_private *priv = (void *)file->private_data;
 	char *buf;
 
@@ -548,19 +548,19 @@ mwifiex_debug_mask_write(struct file *file, const char __user *ubuf,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	if (kstrtoul(buf, 0, &debug_mask)) {
+	if (kstrtoul(buf, 0, &de_mask)) {
 		ret = -EINVAL;
 		goto done;
 	}
 
-	priv->adapter->debug_mask = debug_mask;
+	priv->adapter->de_mask = de_mask;
 	ret = count;
 done:
 	kfree(buf);
 	return ret;
 }
 
-/* debugfs verext file write handler.
+/* defs verext file write handler.
  * This function is called when the 'verext' file is opened for write
  */
 static ssize_t
@@ -922,7 +922,7 @@ mwifiex_reset_write(struct file *file,
 }
 
 #define MWIFIEX_DFS_ADD_FILE(name) do {                                 \
-	debugfs_create_file(#name, 0644, priv->dfs_dev_dir, priv,       \
+	defs_create_file(#name, 0644, priv->dfs_dev_dir, priv,       \
 			    &mwifiex_dfs_##name##_fops);                \
 } while (0);
 
@@ -947,35 +947,35 @@ static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 
 
 MWIFIEX_DFS_FILE_READ_OPS(info);
-MWIFIEX_DFS_FILE_READ_OPS(debug);
+MWIFIEX_DFS_FILE_READ_OPS(de);
 MWIFIEX_DFS_FILE_READ_OPS(getlog);
 MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
 MWIFIEX_DFS_FILE_OPS(memrw);
 MWIFIEX_DFS_FILE_OPS(hscfg);
 MWIFIEX_DFS_FILE_OPS(histogram);
-MWIFIEX_DFS_FILE_OPS(debug_mask);
+MWIFIEX_DFS_FILE_OPS(de_mask);
 MWIFIEX_DFS_FILE_OPS(timeshare_coex);
 MWIFIEX_DFS_FILE_WRITE_OPS(reset);
 MWIFIEX_DFS_FILE_OPS(verext);
 
 /*
- * This function creates the debug FS directory structure and the files.
+ * This function creates the de FS directory structure and the files.
  */
 void
-mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
+mwifiex_dev_defs_init(struct mwifiex_private *priv)
 {
 	if (!mwifiex_dfs_dir || !priv)
 		return;
 
-	priv->dfs_dev_dir = debugfs_create_dir(priv->netdev->name,
+	priv->dfs_dev_dir = defs_create_dir(priv->netdev->name,
 					       mwifiex_dfs_dir);
 
 	if (!priv->dfs_dev_dir)
 		return;
 
 	MWIFIEX_DFS_ADD_FILE(info);
-	MWIFIEX_DFS_ADD_FILE(debug);
+	MWIFIEX_DFS_ADD_FILE(de);
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
@@ -983,39 +983,39 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(memrw);
 	MWIFIEX_DFS_ADD_FILE(hscfg);
 	MWIFIEX_DFS_ADD_FILE(histogram);
-	MWIFIEX_DFS_ADD_FILE(debug_mask);
+	MWIFIEX_DFS_ADD_FILE(de_mask);
 	MWIFIEX_DFS_ADD_FILE(timeshare_coex);
 	MWIFIEX_DFS_ADD_FILE(reset);
 	MWIFIEX_DFS_ADD_FILE(verext);
 }
 
 /*
- * This function removes the debug FS directory structure and the files.
+ * This function removes the de FS directory structure and the files.
  */
 void
-mwifiex_dev_debugfs_remove(struct mwifiex_private *priv)
+mwifiex_dev_defs_remove(struct mwifiex_private *priv)
 {
 	if (!priv)
 		return;
 
-	debugfs_remove_recursive(priv->dfs_dev_dir);
+	defs_remove_recursive(priv->dfs_dev_dir);
 }
 
 /*
  * This function creates the top level proc directory.
  */
 void
-mwifiex_debugfs_init(void)
+mwifiex_defs_init(void)
 {
 	if (!mwifiex_dfs_dir)
-		mwifiex_dfs_dir = debugfs_create_dir("mwifiex", NULL);
+		mwifiex_dfs_dir = defs_create_dir("mwifiex", NULL);
 }
 
 /*
  * This function removes the top level proc directory.
  */
 void
-mwifiex_debugfs_remove(void)
+mwifiex_defs_remove(void)
 {
-	debugfs_remove(mwifiex_dfs_dir);
+	defs_remove(mwifiex_dfs_dir);
 }

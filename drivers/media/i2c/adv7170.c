@@ -38,9 +38,9 @@ MODULE_AUTHOR("Maxim Yevtyushkin");
 MODULE_LICENSE("GPL");
 
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 /* ----------------------------------------------------------------------- */
 
@@ -194,7 +194,7 @@ static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7170 *encoder = to_adv7170(sd);
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, de, sd, "set norm %llx\n", (unsigned long long)std);
 
 	if (std & V4L2_STD_NTSC) {
 		adv7170_write_block(sd, init_NTSC, sizeof(init_NTSC));
@@ -209,11 +209,11 @@ static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
 		adv7170_write(sd, 0x07, TR0MODE);
 	} else {
-		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n",
+		v4l2_dbg(1, de, sd, "illegal norm: %llx\n",
 				(unsigned long long)std);
 		return -EINVAL;
 	}
-	v4l2_dbg(1, debug, sd, "switched to %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, de, sd, "switched to %llx\n", (unsigned long long)std);
 	encoder->norm = std;
 	return 0;
 }
@@ -227,7 +227,7 @@ static int adv7170_s_routing(struct v4l2_subdev *sd,
 	   input = 1: input is from ZR36060
 	   input = 2: color bar */
 
-	v4l2_dbg(1, debug, sd, "set input from %s\n",
+	v4l2_dbg(1, de, sd, "set input from %s\n",
 			input == 0 ? "decoder" : "ZR36060");
 
 	switch (input) {
@@ -250,10 +250,10 @@ static int adv7170_s_routing(struct v4l2_subdev *sd,
 		break;
 
 	default:
-		v4l2_dbg(1, debug, sd, "illegal input: %d\n", input);
+		v4l2_dbg(1, de, sd, "illegal input: %d\n", input);
 		return -EINVAL;
 	}
-	v4l2_dbg(1, debug, sd, "switched to %s\n", inputs[input]);
+	v4l2_dbg(1, de, sd, "switched to %s\n", inputs[input]);
 	encoder->input = input;
 	return 0;
 }
@@ -312,7 +312,7 @@ static int adv7170_set_fmt(struct v4l2_subdev *sd,
 		break;
 
 	default:
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"illegal v4l2_mbus_framefmt code: %d\n", mf->code);
 		return -EINVAL;
 	}
@@ -370,10 +370,10 @@ static int adv7170_probe(struct i2c_client *client,
 		i = adv7170_write(sd, 0x07, TR0MODE | TR0RST);
 		i = adv7170_write(sd, 0x07, TR0MODE);
 		i = adv7170_read(sd, 0x12);
-		v4l2_dbg(1, debug, sd, "revision %d\n", i & 1);
+		v4l2_dbg(1, de, sd, "revision %d\n", i & 1);
 	}
 	if (i < 0)
-		v4l2_dbg(1, debug, sd, "init error 0x%x\n", i);
+		v4l2_dbg(1, de, sd, "init error 0x%x\n", i);
 	return 0;
 }
 

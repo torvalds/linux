@@ -36,7 +36,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	bool bPktInBuf = false;
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
-	IEEE80211_DEBUG(IEEE80211_DL_REORDER, "==================>%s()\n", __func__);
+	IEEE80211_DE(IEEE80211_DL_REORDER, "==================>%s()\n", __func__);
 	if(pRxTs->rx_timeout_indicate_seq != 0xffff) {
 		// Indicate the pending packets sequentially according to SeqNum until meet the gap.
 		while(!list_empty(&pRxTs->rx_pending_pkt_list)) {
@@ -51,7 +51,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 				if(SN_EQUAL(pReorderEntry->SeqNum, pRxTs->rx_indicate_seq))
 					pRxTs->rx_indicate_seq = (pRxTs->rx_indicate_seq + 1) % 4096;
 
-				IEEE80211_DEBUG(IEEE80211_DL_REORDER, "RxPktPendingTimeout(): IndicateSeq: %d\n", pReorderEntry->SeqNum);
+				IEEE80211_DE(IEEE80211_DL_REORDER, "RxPktPendingTimeout(): IndicateSeq: %d\n", pReorderEntry->SeqNum);
 				ieee->stats_IndicateArray[index] = pReorderEntry->prxb;
 				index++;
 
@@ -69,7 +69,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 		// Indicate packets
 		if(index > REORDER_WIN_SIZE) {
-			IEEE80211_DEBUG(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): Rx Reorder buffer full!! \n");
+			IEEE80211_DE(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): Rx Reorder buffer full!! \n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 			return;
 		}
@@ -97,7 +97,7 @@ static void TsAddBaProcess(struct timer_list *t)
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[num]);
 
 	TsInitAddBA(ieee, pTxTs, BA_POLICY_IMMEDIATE, false);
-	IEEE80211_DEBUG(IEEE80211_DL_BA, "TsAddBaProcess(): ADDBA Req is started!! \n");
+	IEEE80211_DE(IEEE80211_DL_BA, "TsAddBaProcess(): ADDBA Req is started!! \n");
 }
 
 
@@ -135,7 +135,7 @@ void TSInitialize(struct ieee80211_device *ieee)
 	struct rx_ts_record     *pRxTS  = ieee->RxTsRecord;
 	PRX_REORDER_ENTRY	pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
-	IEEE80211_DEBUG(IEEE80211_DL_TS, "==========>%s()\n", __func__);
+	IEEE80211_DE(IEEE80211_DL_TS, "==========>%s()\n", __func__);
 	// Initialize Tx TS related info.
 	INIT_LIST_HEAD(&ieee->Tx_TS_Admit_List);
 	INIT_LIST_HEAD(&ieee->Tx_TS_Pending_List);
@@ -246,7 +246,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct ieee80211_device *ieee,
 		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, list){
-	//		IEEE80211_DEBUG(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.ts_info.ucTSID, pRet->TSpec.ts_info.ucDirection);
+	//		IEEE80211_DE(IEEE80211_DL_TS, "ADD:%pM, TID:%d, dir:%d\n", pRet->Addr, pRet->TSpec.ts_info.ucTSID, pRet->TSpec.ts_info.ucDirection);
 			if (memcmp(pRet->addr, Addr, 6) == 0)
 				if (pRet->t_spec.ts_info.uc_tsid == TID)
 					if(pRet->t_spec.ts_info.uc_direction == dir) {
@@ -301,7 +301,7 @@ bool GetTs(
 	// So reject these kinds of search here.
 	//
 	if (is_multicast_ether_addr(Addr)) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "get TS for Broadcast or Multicast\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "get TS for Broadcast or Multicast\n");
 		return false;
 	}
 
@@ -310,7 +310,7 @@ bool GetTs(
 	} else {
 		// In WMM case: we use 4 TID only
 		if (!is_ac_valid(TID)) {
-			IEEE80211_DEBUG(IEEE80211_DL_ERR, " in %s(), TID(%d) is not valid\n", __func__, TID);
+			IEEE80211_DE(IEEE80211_DL_ERR, " in %s(), TID(%d) is not valid\n", __func__, TID);
 			return false;
 		}
 
@@ -346,7 +346,7 @@ bool GetTs(
 		return true;
 	} else {
 		if (!bAddNewTs) {
-			IEEE80211_DEBUG(IEEE80211_DL_TS, "add new TS failed(tid:%d)\n", UP);
+			IEEE80211_DE(IEEE80211_DL_TS, "add new TS failed(tid:%d)\n", UP);
 			return false;
 		} else {
 			//
@@ -369,7 +369,7 @@ bool GetTs(
 			enum direction_value	Dir =		(ieee->iw_mode == IW_MODE_MASTER)?
 								((TxRxSelect==TX_DIR)?DIR_DOWN:DIR_UP):
 								((TxRxSelect==TX_DIR)?DIR_UP:DIR_DOWN);
-			IEEE80211_DEBUG(IEEE80211_DL_TS, "to add Ts\n");
+			IEEE80211_DE(IEEE80211_DL_TS, "to add Ts\n");
 			if(!list_empty(pUnusedList)) {
 				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, list);
 				list_del_init(&(*ppTS)->list);
@@ -381,7 +381,7 @@ bool GetTs(
 					ResetRxTsEntry(tmp);
 				}
 
-				IEEE80211_DEBUG(IEEE80211_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:%pM\n", UP, Dir, Addr);
+				IEEE80211_DE(IEEE80211_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:%pM\n", UP, Dir, Addr);
 				// Prepare TS Info releated field
 				pTSInfo->uc_traffic_type = 0;		// Traffic type: WMM is reserved in this field
 				pTSInfo->uc_tsid = UP;			// TSID
@@ -400,7 +400,7 @@ bool GetTs(
 
 				return true;
 			} else {
-				IEEE80211_DEBUG(IEEE80211_DL_ERR, "in function %s() There is not enough TS record to be used!!", __func__);
+				IEEE80211_DE(IEEE80211_DL_ERR, "in function %s() There is not enough TS record to be used!!", __func__);
 				return false;
 			}
 		}
@@ -525,14 +525,14 @@ void TsStartAddBaProcess(struct ieee80211_device *ieee, struct tx_ts_record *pTx
 	if(!pTxTS->add_ba_req_in_progress) {
 		pTxTS->add_ba_req_in_progress = true;
 		if(pTxTS->add_ba_req_delayed)	{
-			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
+			IEEE80211_DE(IEEE80211_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
 			mod_timer(&pTxTS->ts_add_ba_timer,
 				  jiffies + msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
-			IEEE80211_DEBUG(IEEE80211_DL_BA, "TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
+			IEEE80211_DE(IEEE80211_DL_BA, "TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->ts_add_ba_timer, jiffies+10); //set 10 ticks
 		}
 	} else {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __func__);
 	}
 }

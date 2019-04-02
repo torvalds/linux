@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "debug.h"
+#include "de.h"
 #include "tests.h"
 #include "machine.h"
 #include "thread_map.h"
@@ -45,7 +45,7 @@ static int thread_init(struct thread_data *td)
 	td->map = map;
 	td->tid = syscall(SYS_gettid);
 
-	pr_debug("tid = %d, map = %p\n", td->tid, map);
+	pr_de("tid = %d, map = %p\n", td->tid, map);
 	return 0;
 }
 
@@ -187,7 +187,7 @@ static int mmap_events(synth_cb synth)
 
 		thread = machine__findnew_thread(machine, getpid(), td->tid);
 
-		pr_debug("looking for map %p\n", td->map);
+		pr_de("looking for map %p\n", td->map);
 
 		thread__find_map(thread, PERF_RECORD_MISC_USER,
 				 (unsigned long) (td->map + 1), &al);
@@ -195,12 +195,12 @@ static int mmap_events(synth_cb synth)
 		thread__put(thread);
 
 		if (!al.map) {
-			pr_debug("failed, couldn't find map\n");
+			pr_de("failed, couldn't find map\n");
 			err = -1;
 			break;
 		}
 
-		pr_debug("map %p, addr %" PRIx64 "\n", al.map, al.map->start);
+		pr_de("map %p, addr %" PRIx64 "\n", al.map, al.map->start);
 	}
 
 	machine__delete_threads(machine);

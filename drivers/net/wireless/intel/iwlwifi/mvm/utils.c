@@ -63,7 +63,7 @@
  *****************************************************************************/
 #include <net/mac80211.h>
 
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
@@ -78,7 +78,7 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
-#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_IWLWIFI_DEFS) && defined(CONFIG_PM_SLEEP)
 	if (WARN_ON(mvm->d3_test_active))
 		return -EIO;
 #endif
@@ -138,7 +138,7 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 
 	lockdep_assert_held(&mvm->mutex);
 
-#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_IWLWIFI_DEFS) && defined(CONFIG_PM_SLEEP)
 	if (WARN_ON(mvm->d3_test_active))
 		return -EIO;
 #endif
@@ -258,7 +258,7 @@ void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
  */
 u8 first_antenna(u8 mask)
 {
-	BUILD_BUG_ON(ANT_A != BIT(0)); /* using ffs is wrong if not */
+	BUILD__ON(ANT_A != BIT(0)); /* using ffs is wrong if not */
 	if (WARN_ON_ONCE(!mask)) /* ffs will return 0 if mask is zeroed */
 		return BIT(0);
 	return BIT(ffs(mask) - 1);
@@ -621,7 +621,7 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 		 "Trying to reconfig unallocated queue %d\n", queue))
 		return -ENXIO;
 
-	IWL_DEBUG_TX_QUEUES(mvm, "Reconfig SCD for TXQ #%d\n", queue);
+	IWL_DE_TX_QUEUES(mvm, "Reconfig SCD for TXQ #%d\n", queue);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd);
 	WARN_ONCE(ret, "Failed to re-configure queue %d on FIFO %d, ret=%d\n",

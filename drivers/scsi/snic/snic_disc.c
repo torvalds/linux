@@ -97,7 +97,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 		ntgts = snic->shost->max_id;
 
 	/* Allocate Response Buffer */
-	SNIC_BUG_ON(ntgts == 0);
+	SNIC__ON(ntgts == 0);
 	buf_len = ntgts * sizeof(struct snic_tgt_id) + SNIC_SG_DESC_ALIGN;
 
 	buf = kzalloc(buf_len, GFP_KERNEL|GFP_DMA);
@@ -109,7 +109,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 		goto error;
 	}
 
-	SNIC_BUG_ON((((unsigned long)buf) % SNIC_SG_DESC_ALIGN) != 0);
+	SNIC__ON((((unsigned long)buf) % SNIC_SG_DESC_ALIGN) != 0);
 
 	pa = dma_map_single(&snic->pdev->dev, buf, buf_len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&snic->pdev->dev, pa)) {
@@ -124,7 +124,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 	}
 
 
-	SNIC_BUG_ON(pa == 0);
+	SNIC__ON(pa == 0);
 	rqi->sge_va = (ulong) buf;
 
 	snic_report_tgt_init(rqi->req,
@@ -211,7 +211,7 @@ snic_tgt_dev_release(struct device *dev)
 		       tgt->id,
 		       dev_name(dev));
 
-	SNIC_BUG_ON(!list_empty(&tgt->list));
+	SNIC__ON(!list_empty(&tgt->list));
 	kfree(tgt);
 }
 
@@ -270,7 +270,7 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 	tgt->id = le32_to_cpu(tgtid->tgt_id);
 	tgt->channel = 0;
 
-	SNIC_BUG_ON(le16_to_cpu(tgtid->tgt_type) > SNIC_TGT_SAN);
+	SNIC__ON(le16_to_cpu(tgtid->tgt_type) > SNIC_TGT_SAN);
 	tgt->tdata.typ = le16_to_cpu(tgtid->tgt_type);
 
 	/*
@@ -368,7 +368,7 @@ snic_handle_tgt_disc(struct work_struct *work)
 
 	tgtid = (struct snic_tgt_id *)snic->disc.rtgt_info;
 
-	SNIC_BUG_ON(snic->disc.rtgt_cnt == 0 || tgtid == NULL);
+	SNIC__ON(snic->disc.rtgt_cnt == 0 || tgtid == NULL);
 
 	for (i = 0; i < snic->disc.rtgt_cnt; i++) {
 		tgt = snic_tgt_create(snic, &tgtid[i]);
@@ -417,7 +417,7 @@ snic_report_tgt_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 	/* printing list of targets here */
 	SNIC_HOST_INFO(snic->shost, "Target Count = %d\n", tgt_cnt);
 
-	SNIC_BUG_ON(tgt_cnt > snic->fwinfo.max_tgts);
+	SNIC__ON(tgt_cnt > snic->fwinfo.max_tgts);
 
 	for (i = 0; i < tgt_cnt; i++)
 		SNIC_HOST_INFO(snic->shost,

@@ -482,7 +482,7 @@ void dce_aud_az_configure(
 			DP_CONNECTION);
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 

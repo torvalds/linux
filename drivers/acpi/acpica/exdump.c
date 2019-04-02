@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: exdump - Interpreter debug output routines
+ * Module Name: exdump - Interpreter de output routines
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -17,9 +17,9 @@
 ACPI_MODULE_NAME("exdump")
 
 /*
- * The following routines are used for debug output only
+ * The following routines are used for de output only
  */
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 /* Local prototypes */
 static void acpi_ex_out_string(const char *title, const char *value);
 
@@ -585,9 +585,9 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	ACPI_FUNCTION_NAME(ex_dump_operand);
 
-	/* Check if debug output enabled */
+	/* Check if de output enabled */
 
-	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
+	if (!ACPI_IS_DE_ENABLED(ACPI_LV_EXEC, _COMPONENT)) {
 		return;
 	}
 
@@ -595,19 +595,19 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		/* This could be a null element of a package */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
 		return;
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) == ACPI_DESC_TYPE_NAMED) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p Namespace Node: ",
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "%p Namespace Node: ",
 				  obj_desc));
 		ACPI_DUMP_ENTRY(obj_desc, ACPI_LV_EXEC);
 		return;
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "%p is not a node or operand object: [%s]\n",
 				  obj_desc,
 				  acpi_ut_get_descriptor_name(obj_desc)));
@@ -618,11 +618,11 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	/* obj_desc is a valid object */
 
 	if (depth > 0) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%*s[%u] %p Refs=%u ",
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "%*s[%u] %p Refs=%u ",
 				  depth, " ", depth, obj_desc,
 				  obj_desc->common.reference_count));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%p Refs=%u ",
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "%p Refs=%u ",
 				  obj_desc, obj_desc->common.reference_count));
 	}
 
@@ -635,7 +635,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			       acpi_ut_get_reference_name(obj_desc));
 
 		switch (obj_desc->reference.class) {
-		case ACPI_REFCLASS_DEBUG:
+		case ACPI_REFCLASS_DE:
 
 			acpi_os_printf("\n");
 			break;
@@ -691,7 +691,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			       obj_desc->buffer.length,
 			       obj_desc->buffer.pointer);
 
-		/* Debug only -- dump the buffer contents */
+		/* De only -- dump the buffer contents */
 
 		if (obj_desc->buffer.pointer) {
 			length = obj_desc->buffer.length;
@@ -720,7 +720,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		/*
 		 * If elements exist, package element pointer is valid,
-		 * and debug_level exceeds 1, dump package's elements.
+		 * and de_level exceeds 1, dump package's elements.
 		 */
 		if (obj_desc->package.count &&
 		    obj_desc->package.elements && acpi_dbg_level > 1) {
@@ -796,7 +796,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			       obj_desc->buffer_field.start_field_bit_offset);
 
 		if (!obj_desc->buffer_field.buffer_obj) {
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "*NULL*\n"));
+			ACPI_DE_PRINT((ACPI_DB_EXEC, "*NULL*\n"));
 		} else if ((obj_desc->buffer_field.buffer_obj)->common.type !=
 			   ACPI_TYPE_BUFFER) {
 			acpi_os_printf("*not a Buffer*\n");
@@ -877,7 +877,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 		opcode_name = "UNKNOWN";
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "**** Start operand dump for opcode [%s], %u operands\n",
 			  opcode_name, num_operands));
 
@@ -893,7 +893,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 		num_operands--;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "**** End operand dump for [%s]\n", opcode_name));
 	return_VOID;
 }
@@ -939,9 +939,9 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
 
 	if (!flags) {
 
-		/* Check if debug output enabled */
+		/* Check if de output enabled */
 
-		if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_OBJECTS, _COMPONENT)) {
+		if (!ACPI_IS_DE_ENABLED(ACPI_LV_OBJECTS, _COMPONENT)) {
 			return;
 		}
 	}
@@ -1072,7 +1072,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 		acpi_os_printf("[Buffer] Length %.2X = ",
 			       obj_desc->buffer.length);
 		if (obj_desc->buffer.length) {
-			acpi_ut_debug_dump_buffer(ACPI_CAST_PTR
+			acpi_ut_de_dump_buffer(ACPI_CAST_PTR
 						  (u8,
 						   obj_desc->buffer.pointer),
 						  obj_desc->buffer.length,
@@ -1131,9 +1131,9 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 
 	if (!flags) {
 
-		/* Check if debug output enabled */
+		/* Check if de output enabled */
 
-		if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_OBJECTS, _COMPONENT)) {
+		if (!ACPI_IS_DE_ENABLED(ACPI_LV_OBJECTS, _COMPONENT)) {
 			return_VOID;
 		}
 	}

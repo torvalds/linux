@@ -483,7 +483,7 @@ static void __init osk_mistral_init(void)
 		omap_cfg_reg(N20_1610_GPIO11);
 		gpio_direction_output(11, 0);
 	} else
-		pr_debug("OSK+Mistral: CAM_PWDN is awol\n");
+		pr_de("OSK+Mistral: CAM_PWDN is awol\n");
 
 
 	/* omap_cfg_reg(P19_1610_GPIO6); */	/* BUSY */
@@ -504,7 +504,7 @@ static void __init osk_mistral_init(void)
 	 * NOTE:  The Mistral board has the wakeup button (SW1) wired
 	 * to the LCD 3.3V rail, which is powered down during suspend.
 	 * To allow this button to wake up the omap, work around this
-	 * HW bug by rewiring SW1 to use the main 3.3V rail.
+	 * HW  by rewiring SW1 to use the main 3.3V rail.
 	 */
 	omap_cfg_reg(N15_1610_MPUIO2);
 	if (gpio_request(OMAP_MPUIO(2), "wakeup") == 0) {

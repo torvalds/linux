@@ -25,11 +25,11 @@
  *
  * The earliest versions of the device had simultaneous reporting; that
  * was removed.  After that, the device used the Advanced Mode GS/PT streaming
- * stuff.  That turned out to be too buggy to support, so we've finally
+ * stuff.  That turned out to be too gy to support, so we've finally
  * switched to Mouse Mode (which utilizes only the center 1/3 of the touchpad).
  */
 
-#define DEBUG
+#define DE
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/module.h>
@@ -43,9 +43,9 @@
 
 #define ILLEGAL_XY 999999
 
-static bool tpdebug;
-module_param(tpdebug, bool, 0644);
-MODULE_PARM_DESC(tpdebug, "enable debugging, dumping packets to KERN_DEBUG.");
+static bool tpde;
+module_param(tpde, bool, 0644);
+MODULE_PARM_DESC(tpde, "enable deging, dumping packets to KERN_DE.");
 
 static int recalib_delta = 100;
 module_param(recalib_delta, int, 0644);
@@ -197,7 +197,7 @@ static void hgpk_reset_hack_state(struct psmouse *psmouse)
 }
 
 /*
- * We have no idea why this particular hardware bug occurs.  The touchpad
+ * We have no idea why this particular hardware  occurs.  The touchpad
  * will randomly start spewing packets without anything touching the
  * pad.  This wouldn't necessarily be bad, but it's indicative of a
  * severely miscalibrated pad; attempting to use the touchpad while it's
@@ -357,7 +357,7 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 		int z = packet[5];
 
 		input_report_abs(idev, ABS_PRESSURE, z);
-		if (tpdebug)
+		if (tpde)
 			psmouse_dbg(psmouse, "pd=%d fd=%d z=%d",
 				    pt_down, finger_down, z);
 	} else {
@@ -365,11 +365,11 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 		 * PenTablet mode does not report pressure, so we don't
 		 * report it here
 		 */
-		if (tpdebug)
+		if (tpde)
 			psmouse_dbg(psmouse, "pd=%d ", down);
 	}
 
-	if (tpdebug)
+	if (tpde)
 		psmouse_dbg(psmouse, "l=%d r=%d x=%d y=%d\n",
 			    left, right, x, y);
 
@@ -392,7 +392,7 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 	 */
 	if (x == priv->abs_x && y == priv->abs_y) {
 		if (++priv->dupe_count > SPEW_WATCH_COUNT) {
-			if (tpdebug)
+			if (tpde)
 				psmouse_dbg(psmouse, "hard spew detected\n");
 			priv->spew_flag = RECALIBRATING;
 			psmouse_queue_work(psmouse, &priv->recalib_wq,
@@ -409,7 +409,7 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 		int x_diff = priv->abs_x - x;
 		int y_diff = priv->abs_y - y;
 		if (hgpk_discard_decay_hack(psmouse, x_diff, y_diff)) {
-			if (tpdebug)
+			if (tpde)
 				psmouse_dbg(psmouse, "discarding\n");
 			goto done;
 		}
@@ -440,14 +440,14 @@ static void hgpk_process_simple_packet(struct psmouse *psmouse)
 			    packet[0], packet[1], packet[2]);
 
 	if (hgpk_discard_decay_hack(psmouse, x, y)) {
-		if (tpdebug)
+		if (tpde)
 			psmouse_dbg(psmouse, "discarding\n");
 		return;
 	}
 
 	hgpk_spewing_hack(psmouse, left, right, x, y);
 
-	if (tpdebug)
+	if (tpde)
 		psmouse_dbg(psmouse, "l=%d r=%d x=%d y=%d\n",
 			    left, right, x, y);
 
@@ -599,7 +599,7 @@ static void hgpk_setup_input_device(struct input_dev *input,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -661,14 +661,14 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 
 	/*
 	 * XXX: If a finger is down during this delay, recalibration will
-	 * detect capacitance incorrectly.  This is a hardware bug, and
+	 * detect capacitance incorrectly.  This is a hardware , and
 	 * we don't have a good way to deal with it.  The 2s window stuff
 	 * (below) is our best option for now.
 	 */
 	if (psmouse_activate(psmouse))
 		return -1;
 
-	if (tpdebug)
+	if (tpde)
 		psmouse_dbg(psmouse, "touchpad reactivated\n");
 
 	/*

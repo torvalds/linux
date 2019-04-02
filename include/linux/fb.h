@@ -246,8 +246,8 @@ struct fb_deferred_io {
  * semaphore held, this is the only suitable locking mechanism we have
  * in 2.6. Some may be called at interrupt time at this point though.
  *
- * The exception to this is the debug related hooks.  Putting the fb
- * into a debug state (e.g. flipping to the kernel console) and restoring
+ * The exception to this is the de related hooks.  Putting the fb
+ * into a de state (e.g. flipping to the kernel console) and restoring
  * it must be done in a lock-free manner, so low level drivers should
  * keep track of the initial console (if applicable) and may need to
  * perform direct, unlocked hardware writes in these hooks.
@@ -319,8 +319,8 @@ struct fb_ops {
 	void (*fb_destroy)(struct fb_info *info);
 
 	/* called at KDB enter and leave time to prepare the console */
-	int (*fb_debug_enter)(struct fb_info *info);
-	int (*fb_debug_leave)(struct fb_info *info);
+	int (*fb_de_enter)(struct fb_info *info);
+	int (*fb_de_leave)(struct fb_info *info);
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
@@ -439,7 +439,7 @@ struct fb_tile_ops {
  * that state, even if you are using some broken X releases. The disadvantage
  * is that it introduces unwanted delays to every console switch if set_par
  * is slow. It is a good idea to try this flag in the drivers initialization
- * code whenever there is a bug report related to switching between X and the
+ * code whenever there is a  report related to switching between X and the
  * framebuffer console.
  */
 #define FBINFO_MISC_ALWAYS_SETPAR   0x40000
@@ -842,6 +842,6 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 #define fb_info(fb_info, fmt, ...)					\
 	pr_info("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 #define fb_dbg(fb_info, fmt, ...)					\
-	pr_debug("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_de("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 
 #endif /* _LINUX_FB_H */

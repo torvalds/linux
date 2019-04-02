@@ -150,7 +150,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
  */
 void ptrace_disable(struct task_struct *child)
 {
-	pr_debug("ptrace_disable(): TODO\n");
+	pr_de("ptrace_disable(): TODO\n");
 
 	user_disable_single_step(child);
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);

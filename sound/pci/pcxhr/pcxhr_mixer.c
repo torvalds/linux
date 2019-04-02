@@ -744,10 +744,10 @@ static int pcxhr_clock_type_info(struct snd_kcontrol *kcontrol,
 	}
 	if (mgr->is_hr_stereo) {
 		texts = textsHR22;
-		snd_BUG_ON(clock_items > (HR22_CLOCK_TYPE_MAX+1));
+		snd__ON(clock_items > (HR22_CLOCK_TYPE_MAX+1));
 	} else {
 		texts = textsPCXHR;
-		snd_BUG_ON(clock_items > (PCXHR_CLOCK_TYPE_MAX+1));
+		snd__ON(clock_items > (PCXHR_CLOCK_TYPE_MAX+1));
 	}
 	return snd_ctl_enum_info(uinfo, 1, clock_items, texts);
 }
@@ -1067,7 +1067,7 @@ static void pcxhr_init_audio_levels(struct snd_pcxhr *chip)
 			 */
 			chip->aes_bits[0] = (IEC958_AES0_PROFESSIONAL |
 					     IEC958_AES0_PRO_FS_48000);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 			/* analog volumes for playback
 			 * (is LEVEL_MIN after boot)
 			 */
@@ -1090,7 +1090,7 @@ static void pcxhr_init_audio_levels(struct snd_pcxhr *chip)
 			chip->digital_capture_volume[i] =
 				PCXHR_DIGITAL_ZERO_LEVEL;
 			chip->analog_capture_active = 1;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 			/* analog volumes for playback
 			 * (is LEVEL_MIN after boot)
 			 */

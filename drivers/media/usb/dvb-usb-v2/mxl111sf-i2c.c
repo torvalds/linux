@@ -821,7 +821,7 @@ int mxl111sf_i2c_xfer(struct i2c_adapter *adap,
 			mxl111sf_i2c_hw_xfer_msg(state, &msg[i]) :
 			mxl111sf_i2c_sw_xfer_msg(state, &msg[i]);
 		if (mxl_fail(ret)) {
-			mxl_debug_adv("failed with error %d on i2c transaction %d of %d, %sing %d bytes to/from 0x%02x",
+			mxl_de_adv("failed with error %d on i2c transaction %d of %d, %sing %d bytes to/from 0x%02x",
 				      ret, i+1, num,
 				      (msg[i].flags & I2C_M_RD) ?
 				      "read" : "writ",

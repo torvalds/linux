@@ -566,7 +566,7 @@ static void __exit comp_exit(void)
 	spin_unlock_irq(&list_lock);
 
 	most_deregister_component(&comp);
-	BUG_ON(!list_empty(&video_devices));
+	_ON(!list_empty(&video_devices));
 }
 
 module_init(comp_init);

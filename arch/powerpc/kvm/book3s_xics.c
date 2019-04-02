@@ -19,7 +19,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hvcall.h>
 #include <asm/xics.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/time.h>
 
 #include <linux/seq_file.h>
@@ -33,7 +33,7 @@
 #endif
 
 #define ENABLE_REALMODE	true
-#define DEBUG_REALMODE	false
+#define DE_REALMODE	false
 
 /*
  * LOCKING
@@ -925,7 +925,7 @@ EXPORT_SYMBOL_GPL(kvmppc_xics_hcall);
 
 /* -- Initialisation code etc. -- */
 
-static void xics_debugfs_irqmap(struct seq_file *m,
+static void xics_defs_irqmap(struct seq_file *m,
 				struct kvmppc_passthru_irqmap *pimap)
 {
 	int i;
@@ -940,7 +940,7 @@ static void xics_debugfs_irqmap(struct seq_file *m,
 	}
 }
 
-static int xics_debug_show(struct seq_file *m, void *private)
+static int xics_de_show(struct seq_file *m, void *private)
 {
 	struct kvmppc_xics *xics = m->private;
 	struct kvm *kvm = xics->kvm;
@@ -960,7 +960,7 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	t_check_resend = 0;
 	t_reject = 0;
 
-	xics_debugfs_irqmap(m, kvm->arch.pimap);
+	xics_defs_irqmap(m, kvm->arch.pimap);
 
 	seq_printf(m, "=========\nICP state\n=========\n");
 
@@ -1015,9 +1015,9 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(xics_debug);
+DEFINE_SHOW_ATTRIBUTE(xics_de);
 
-static void xics_debugfs_init(struct kvmppc_xics *xics)
+static void xics_defs_init(struct kvmppc_xics *xics)
 {
 	char *name;
 
@@ -1027,10 +1027,10 @@ static void xics_debugfs_init(struct kvmppc_xics *xics)
 		return;
 	}
 
-	xics->dentry = debugfs_create_file(name, 0444, powerpc_debugfs_root,
-					   xics, &xics_debug_fops);
+	xics->dentry = defs_create_file(name, 0444, powerpc_defs_root,
+					   xics, &xics_de_fops);
 
-	pr_debug("%s: created %s\n", __func__, name);
+	pr_de("%s: created %s\n", __func__, name);
 	kfree(name);
 }
 
@@ -1343,7 +1343,7 @@ static void kvmppc_xics_free(struct kvm_device *dev)
 	int i;
 	struct kvm *kvm = xics->kvm;
 
-	debugfs_remove(xics->dentry);
+	defs_remove(xics->dentry);
 
 	if (kvm)
 		kvm->arch.xics = NULL;
@@ -1384,7 +1384,7 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 	    cpu_has_feature(CPU_FTR_HVMODE)) {
 		/* Enable real mode support */
 		xics->real_mode = ENABLE_REALMODE;
-		xics->real_mode_dbg = DEBUG_REALMODE;
+		xics->real_mode_dbg = DE_REALMODE;
 	}
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
@@ -1395,7 +1395,7 @@ static void kvmppc_xics_init(struct kvm_device *dev)
 {
 	struct kvmppc_xics *xics = (struct kvmppc_xics *)dev->private;
 
-	xics_debugfs_init(xics);
+	xics_defs_init(xics);
 }
 
 struct kvm_device_ops kvm_xics_ops = {

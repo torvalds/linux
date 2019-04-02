@@ -126,7 +126,7 @@ static void mtdoops_inc_counter(struct mtdoops_context *cxt)
 		return;
 	}
 
-	printk(KERN_DEBUG "mtdoops: ready %d, %d (no erase)\n",
+	printk(KERN_DE "mtdoops: ready %d, %d (no erase)\n",
 	       cxt->nextpage, cxt->nextcount);
 }
 
@@ -172,7 +172,7 @@ badblock:
 		ret = mtdoops_erase_block(cxt, cxt->nextpage * record_size);
 
 	if (ret >= 0) {
-		printk(KERN_DEBUG "mtdoops: ready %d, %d\n",
+		printk(KERN_DE "mtdoops: ready %d, %d\n",
 		       cxt->nextpage, cxt->nextcount);
 		return;
 	}

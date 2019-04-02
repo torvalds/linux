@@ -499,6 +499,6 @@ void __init plat_irq_setup_pins(int mode)
 		register_intc_controller(&intc_irl3210_desc);
 		break;
 	default:
-		BUG();
+		();
 	}
 }

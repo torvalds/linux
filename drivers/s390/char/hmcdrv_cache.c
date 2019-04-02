@@ -94,7 +94,7 @@ static ssize_t hmcdrv_cache_get(const struct hmcdrv_ftp_cmdspec *ftp)
 		memcpy(ftp->buf,
 		       hmcdrv_cache_file.content + pos,
 		       len);
-		pr_debug("using cached content of '%s', returning %zd/%zd bytes\n",
+		pr_de("using cached content of '%s', returning %zd/%zd bytes\n",
 			 hmcdrv_cache_file.fname, len,
 			 hmcdrv_cache_file.fsize);
 
@@ -134,7 +134,7 @@ static ssize_t hmcdrv_cache_do(const struct hmcdrv_ftp_cmdspec *ftp,
 		len = func(&cftp, &hmcdrv_cache_file.fsize); /* now do */
 
 		if (len > 0) {
-			pr_debug("caching %zd bytes content for '%s'\n",
+			pr_de("caching %zd bytes content for '%s'\n",
 				 len, ftp->fname);
 
 			if (len > ftp->len)
@@ -157,7 +157,7 @@ static ssize_t hmcdrv_cache_do(const struct hmcdrv_ftp_cmdspec *ftp,
 		strlcpy(hmcdrv_cache_file.fname, ftp->fname,
 			HMCDRV_FTP_FIDENT_MAX);
 		hmcdrv_cache_file.id = ftp->id;
-		pr_debug("caching cmd %d, file size %zu for '%s'\n",
+		pr_de("caching cmd %d, file size %zu for '%s'\n",
 			 ftp->id, hmcdrv_cache_file.fsize, ftp->fname);
 	}
 
@@ -227,7 +227,7 @@ int hmcdrv_cache_startup(size_t cachesize)
 			return -ENOMEM;
 		}
 
-		pr_debug("content cache enabled, size is %zu bytes\n",
+		pr_de("content cache enabled, size is %zu bytes\n",
 			 cachesize);
 	}
 

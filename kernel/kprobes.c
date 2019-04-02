@@ -41,9 +41,9 @@
 #include <linux/kallsyms.h>
 #include <linux/freezer.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/sysctl.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/memory.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
@@ -998,7 +998,7 @@ static int arm_kprobe_ftrace(struct kprobe *p)
 	ret = ftrace_set_filter_ip(&kprobe_ftrace_ops,
 				   (unsigned long)p->addr, 0, 0);
 	if (ret) {
-		pr_debug("Failed to arm kprobe-ftrace at %pS (%d)\n",
+		pr_de("Failed to arm kprobe-ftrace at %pS (%d)\n",
 			 p->addr, ret);
 		return ret;
 	}
@@ -1006,7 +1006,7 @@ static int arm_kprobe_ftrace(struct kprobe *p)
 	if (kprobe_ftrace_enabled == 0) {
 		ret = register_ftrace_function(&kprobe_ftrace_ops);
 		if (ret) {
-			pr_debug("Failed to init kprobe-ftrace (%d)\n", ret);
+			pr_de("Failed to init kprobe-ftrace (%d)\n", ret);
 			goto err_ftrace;
 		}
 	}
@@ -2292,7 +2292,7 @@ static int __init init_kprobes(void)
 	return err;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void report_probe(struct seq_file *pi, struct kprobe *p,
 		const char *sym, int offset, char *modname, struct kprobe *pp)
 {
@@ -2378,7 +2378,7 @@ static int kprobes_open(struct inode *inode, struct file *filp)
 	return seq_open(filp, &kprobes_seq_ops);
 }
 
-static const struct file_operations debugfs_kprobes_operations = {
+static const struct file_operations defs_kprobes_operations = {
 	.open           = kprobes_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
@@ -2426,7 +2426,7 @@ static int kprobe_blacklist_open(struct inode *inode, struct file *filp)
 	return seq_open(filp, &kprobe_blacklist_seq_ops);
 }
 
-static const struct file_operations debugfs_kprobe_blacklist_ops = {
+static const struct file_operations defs_kprobe_blacklist_ops = {
 	.open           = kprobe_blacklist_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
@@ -2526,7 +2526,7 @@ static int disarm_all_kprobes(void)
 }
 
 /*
- * XXX: The debugfs bool file interface doesn't allow for callbacks
+ * XXX: The defs bool file interface doesn't allow for callbacks
  * when the bool state is switched. We can reuse that facility when
  * available
  */
@@ -2583,38 +2583,38 @@ static const struct file_operations fops_kp = {
 	.llseek =	default_llseek,
 };
 
-static int __init debugfs_kprobe_init(void)
+static int __init defs_kprobe_init(void)
 {
 	struct dentry *dir, *file;
 	unsigned int value = 1;
 
-	dir = debugfs_create_dir("kprobes", NULL);
+	dir = defs_create_dir("kprobes", NULL);
 	if (!dir)
 		return -ENOMEM;
 
-	file = debugfs_create_file("list", 0400, dir, NULL,
-				&debugfs_kprobes_operations);
+	file = defs_create_file("list", 0400, dir, NULL,
+				&defs_kprobes_operations);
 	if (!file)
 		goto error;
 
-	file = debugfs_create_file("enabled", 0600, dir,
+	file = defs_create_file("enabled", 0600, dir,
 					&value, &fops_kp);
 	if (!file)
 		goto error;
 
-	file = debugfs_create_file("blacklist", 0400, dir, NULL,
-				&debugfs_kprobe_blacklist_ops);
+	file = defs_create_file("blacklist", 0400, dir, NULL,
+				&defs_kprobe_blacklist_ops);
 	if (!file)
 		goto error;
 
 	return 0;
 
 error:
-	debugfs_remove(dir);
+	defs_remove(dir);
 	return -ENOMEM;
 }
 
-late_initcall(debugfs_kprobe_init);
-#endif /* CONFIG_DEBUG_FS */
+late_initcall(defs_kprobe_init);
+#endif /* CONFIG_DE_FS */
 
 module_init(init_kprobes);

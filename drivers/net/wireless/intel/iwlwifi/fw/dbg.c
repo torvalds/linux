@@ -65,7 +65,7 @@
 #include "iwl-drv.h"
 #include "runtime.h"
 #include "dbg.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
@@ -93,7 +93,7 @@ static void iwl_read_radio_regs(struct iwl_fw_runtime *fwrt,
 	unsigned long flags;
 	int i;
 
-	IWL_DEBUG_INFO(fwrt, "WRT radio registers dump\n");
+	IWL_DE_INFO(fwrt, "WRT radio registers dump\n");
 
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return;
@@ -231,7 +231,7 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 	struct iwl_fwrt_shared_mem_cfg *cfg = &fwrt->smem_cfg;
 	unsigned long flags;
 
-	IWL_DEBUG_INFO(fwrt, "WRT RX FIFO dump\n");
+	IWL_DE_INFO(fwrt, "WRT RX FIFO dump\n");
 
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return;
@@ -264,7 +264,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 	unsigned long flags;
 	int i, j;
 
-	IWL_DEBUG_INFO(fwrt, "WRT TX FIFO dump\n");
+	IWL_DE_INFO(fwrt, "WRT TX FIFO dump\n");
 
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return;
@@ -580,7 +580,7 @@ static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,
 	if (!data)
 		return;
 
-	IWL_DEBUG_INFO(trans, "WRT PRPH dump\n");
+	IWL_DE_INFO(trans, "WRT PRPH dump\n");
 
 	if (!iwl_trans_grab_nic_access(trans, &flags))
 		return;
@@ -707,7 +707,7 @@ static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
 	iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
 	*dump_data = iwl_fw_error_next_data(*dump_data);
 
-	IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
+	IWL_DE_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
 }
 
 #define ADD_LEN(len, item_len, const_len) \
@@ -779,7 +779,7 @@ static void iwl_dump_paging(struct iwl_fw_runtime *fwrt,
 {
 	int i;
 
-	IWL_DEBUG_INFO(fwrt, "WRT paging dump\n");
+	IWL_DE_INFO(fwrt, "WRT paging dump\n");
 	for (i = 1; i < fwrt->num_of_paging_blk + 1; i++) {
 		struct iwl_fw_error_dump_paging *paging;
 		struct page *pages =
@@ -880,9 +880,9 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 			 sizeof(struct iwl_fw_error_dump_paging) +
 			 PAGING_BLOCK_SIZE);
 
-	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
+	if (iwl_fw_dbg_is_d3_de_enabled(fwrt) && fwrt->dump.d3_de_data) {
 		file_len += sizeof(*dump_data) +
-			fwrt->trans->cfg->d3_debug_data_length * 2;
+			fwrt->trans->cfg->d3_de_data_length * 2;
 	}
 
 	/* If we only want a monitor dump, reset the file length */
@@ -1012,17 +1012,17 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 				IWL_FW_ERROR_DUMP_MEM_SRAM);
 	}
 
-	if (iwl_fw_dbg_is_d3_debug_enabled(fwrt) && fwrt->dump.d3_debug_data) {
-		u32 addr = fwrt->trans->cfg->d3_debug_data_base_addr;
-		size_t data_size = fwrt->trans->cfg->d3_debug_data_length;
+	if (iwl_fw_dbg_is_d3_de_enabled(fwrt) && fwrt->dump.d3_de_data) {
+		u32 addr = fwrt->trans->cfg->d3_de_data_base_addr;
+		size_t data_size = fwrt->trans->cfg->d3_de_data_length;
 
-		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_D3_DE_DATA);
 		dump_data->len = cpu_to_le32(data_size * 2);
 
-		memcpy(dump_data->data, fwrt->dump.d3_debug_data, data_size);
+		memcpy(dump_data->data, fwrt->dump.d3_de_data, data_size);
 
-		kfree(fwrt->dump.d3_debug_data);
-		fwrt->dump.d3_debug_data = NULL;
+		kfree(fwrt->dump.d3_de_data);
+		fwrt->dump.d3_de_data = NULL;
 
 		iwl_trans_read_mem_bytes(fwrt->trans, addr,
 					 dump_data->data + data_size,
@@ -1836,7 +1836,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	u32 file_len;
 	u32 dump_mask = fwrt->fw->dbg.dump_mask;
 
-	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
+	IWL_DE_INFO(fwrt, "WRT dump start\n");
 
 	/* there's no point in fw dump if the bus is dead */
 	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
@@ -1894,7 +1894,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 out:
 	iwl_fw_free_dump_desc(fwrt);
 	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
+	IWL_DE_INFO(fwrt, "WRT dump done\n");
 }
 IWL_EXPORT_SYMBOL(iwl_fw_error_dump);
 
@@ -2099,7 +2099,7 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 		IWL_WARN(fwrt, "FW already configured (%d) - re-configuring\n",
 			 fwrt->dump.conf);
 
-	/* Send all HCMDs for configuring the FW debug */
+	/* Send all HCMDs for configuring the FW de */
 	ptr = (void *)&fwrt->fw->dbg.conf_tlv[conf_id]->hcmd;
 	for (i = 0; i < fwrt->fw->dbg.conf_tlv[conf_id]->num_of_hcmds; i++) {
 		struct iwl_fw_dbg_conf_hcmd *cmd = (void *)ptr;
@@ -2170,29 +2170,29 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }
 
-void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt)
+void iwl_fw_dbg_read_d3_de_data(struct iwl_fw_runtime *fwrt)
 {
 	const struct iwl_cfg *cfg = fwrt->trans->cfg;
 
-	if (!iwl_fw_dbg_is_d3_debug_enabled(fwrt))
+	if (!iwl_fw_dbg_is_d3_de_enabled(fwrt))
 		return;
 
-	if (!fwrt->dump.d3_debug_data) {
-		fwrt->dump.d3_debug_data = kmalloc(cfg->d3_debug_data_length,
+	if (!fwrt->dump.d3_de_data) {
+		fwrt->dump.d3_de_data = kmalloc(cfg->d3_de_data_length,
 						   GFP_KERNEL);
-		if (!fwrt->dump.d3_debug_data) {
+		if (!fwrt->dump.d3_de_data) {
 			IWL_ERR(fwrt,
-				"failed to allocate memory for D3 debug data\n");
+				"failed to allocate memory for D3 de data\n");
 			return;
 		}
 	}
 
-	/* if the buffer holds previous debug data it is overwritten */
-	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_debug_data_base_addr,
-				 fwrt->dump.d3_debug_data,
-				 cfg->d3_debug_data_length);
+	/* if the buffer holds previous de data it is overwritten */
+	iwl_trans_read_mem_bytes(fwrt->trans, cfg->d3_de_data_base_addr,
+				 fwrt->dump.d3_de_data,
+				 cfg->d3_de_data_length);
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_debug_data);
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_read_d3_de_data);
 
 static void
 iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
@@ -2211,14 +2211,14 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 
 	/* TODO: alloc fragments if needed */
 	if (!virtual_addr)
-		IWL_ERR(fwrt, "Failed to allocate debug memory\n");
+		IWL_ERR(fwrt, "Failed to allocate de memory\n");
 
 	trans->fw_mon[trans->num_blocks].block = virtual_addr;
 	trans->fw_mon[trans->num_blocks].physical = phys_addr;
 	trans->fw_mon[trans->num_blocks].size = size;
 	trans->num_blocks++;
 
-	IWL_DEBUG_FW(trans, "Allocated debug block of size %d\n", size);
+	IWL_DE_FW(trans, "Allocated de block of size %d\n", size);
 }
 
 static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
@@ -2311,7 +2311,7 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 		if (*active)
 			IWL_WARN(fwrt->trans, "region TLV %d override\n", id);
 
-		IWL_DEBUG_FW(fwrt,
+		IWL_DE_FW(fwrt,
 			     "%s: apply point %d, activating region ID %d\n",
 			     __func__, pnt, id);
 
@@ -2454,7 +2454,7 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
 			iwl_fw_dbg_update_triggers(fwrt, ini_tlv, ext, pnt);
 			break;
-		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
+		case IWL_UCODE_TLV_TYPE_DE_FLOW:
 			break;
 		default:
 			WARN_ONCE(1, "Invalid TLV %x for apply point\n", type);

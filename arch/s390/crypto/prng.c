@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <linux/uaccess.h>
 #include <asm/timex.h>
 #include <asm/cpacf.h>
@@ -180,7 +180,7 @@ static void prng_tdes_seed(int nbytes)
 	char buf[16];
 	int i = 0;
 
-	BUG_ON(nbytes > sizeof(buf));
+	_ON(nbytes > sizeof(buf));
 
 	get_random_bytes(buf, nbytes);
 
@@ -200,7 +200,7 @@ static int __init prng_tdes_instantiate(void)
 {
 	int datalen;
 
-	pr_debug("prng runs in TDES mode with "
+	pr_de("prng runs in TDES mode with "
 		 "chunksize=%d and reseed_limit=%u\n",
 		 prng_chunk_size, prng_reseed_limit);
 
@@ -224,7 +224,7 @@ static int __init prng_tdes_instantiate(void)
 
 static void prng_tdes_deinstantiate(void)
 {
-	pr_debug("The prng module stopped "
+	pr_de("The prng module stopped "
 		 "after running in triple DES mode\n");
 	kzfree(prng_data);
 }
@@ -347,7 +347,7 @@ static int __init prng_sha512_instantiate(void)
 	int ret, datalen;
 	u8 seed[64 + 32 + 16];
 
-	pr_debug("prng runs in SHA-512 mode "
+	pr_de("prng runs in SHA-512 mode "
 		 "with chunksize=%d and reseed_limit=%u\n",
 		 prng_chunk_size, prng_reseed_limit);
 
@@ -398,7 +398,7 @@ outfree:
 
 static void prng_sha512_deinstantiate(void)
 {
-	pr_debug("The prng module stopped after running in SHA-512 mode\n");
+	pr_de("The prng module stopped after running in SHA-512 mode\n");
 	kzfree(prng_data);
 }
 

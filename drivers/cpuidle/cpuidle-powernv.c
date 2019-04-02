@@ -401,7 +401,7 @@ static int __init powernv_processor_idle_init(void)
 	powernv_cpuidle_driver_init();
 	retval = cpuidle_register(&powernv_idle_driver, NULL);
 	if (retval) {
-		printk(KERN_DEBUG "Registration of powernv driver failed.\n");
+		printk(KERN_DE "Registration of powernv driver failed.\n");
 		return retval;
 	}
 
@@ -413,7 +413,7 @@ static int __init powernv_processor_idle_init(void)
 					   "cpuidle/powernv:dead", NULL,
 					   powernv_cpuidle_cpu_dead);
 	WARN_ON(retval < 0);
-	printk(KERN_DEBUG "powernv_idle_driver registered\n");
+	printk(KERN_DE "powernv_idle_driver registered\n");
 	return 0;
 }
 

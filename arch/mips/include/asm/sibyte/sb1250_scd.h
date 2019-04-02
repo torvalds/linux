@@ -4,7 +4,7 @@
     *  SCD Constants and Macros			File: sb1250_scd.h
     *
     *  This module contains constants and macros useful for
-    *  manipulating the System Control and Debug module on the 1250.
+    *  manipulating the System Control and De module on the 1250.
     *
     *  SB1250 specification level:  User's manual 1/02/02
     *
@@ -35,7 +35,7 @@
 #include <asm/sibyte/sb1250_defs.h>
 
 /*  *********************************************************************
-    *  System control/debug registers
+    *  System control/de registers
     ********************************************************************* */
 
 /*
@@ -523,7 +523,7 @@
 #define M_SCD_TRACE_CFG_STOP		_SB_MAKEMASK1(3)
 #define M_SCD_TRACE_CFG_FREEZE		_SB_MAKEMASK1(4)
 #define M_SCD_TRACE_CFG_FREEZE_FULL	_SB_MAKEMASK1(5)
-#define M_SCD_TRACE_CFG_DEBUG_FULL	_SB_MAKEMASK1(6)
+#define M_SCD_TRACE_CFG_DE_FULL	_SB_MAKEMASK1(6)
 #define M_SCD_TRACE_CFG_FULL		_SB_MAKEMASK1(7)
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define M_SCD_TRACE_CFG_FORCECNT	_SB_MAKEMASK1(8)
@@ -558,7 +558,7 @@
 #define M_SCD_TREVT_DATAID_MATCH	_SB_MAKEMASK1(5)
 #define M_SCD_TREVT_RESPID_MATCH	_SB_MAKEMASK1(6)
 #define M_SCD_TREVT_INTERRUPT		_SB_MAKEMASK1(7)
-#define M_SCD_TREVT_DEBUG_PIN		_SB_MAKEMASK1(9)
+#define M_SCD_TREVT_DE_PIN		_SB_MAKEMASK1(9)
 #define M_SCD_TREVT_WRITE		_SB_MAKEMASK1(10)
 #define M_SCD_TREVT_READ		_SB_MAKEMASK1(11)
 
@@ -645,8 +645,8 @@
 
 #define M_SCD_TRSEQ_ASAMPLE		_SB_MAKEMASK1(18)
 #define M_SCD_TRSEQ_DSAMPLE		_SB_MAKEMASK1(19)
-#define M_SCD_TRSEQ_DEBUGPIN		_SB_MAKEMASK1(20)
-#define M_SCD_TRSEQ_DEBUGCPU		_SB_MAKEMASK1(21)
+#define M_SCD_TRSEQ_DEPIN		_SB_MAKEMASK1(20)
+#define M_SCD_TRSEQ_DECPU		_SB_MAKEMASK1(21)
 #define M_SCD_TRSEQ_CLEARUSE		_SB_MAKEMASK1(22)
 #define M_SCD_TRSEQ_ALLD_A		_SB_MAKEMASK1(23)
 #define M_SCD_TRSEQ_ALL_A		_SB_MAKEMASK1(24)

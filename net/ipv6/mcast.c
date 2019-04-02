@@ -65,10 +65,10 @@
 #include <net/ip6_checksum.h>
 
 /* Ensure that we have struct in6_addr aligned on 32bit word. */
-static int __mld2_query_bugs[] __attribute__((__unused__)) = {
-	BUILD_BUG_ON_ZERO(offsetof(struct mld2_query, mld2q_srcs) % 4),
-	BUILD_BUG_ON_ZERO(offsetof(struct mld2_report, mld2r_grec) % 4),
-	BUILD_BUG_ON_ZERO(offsetof(struct mld2_grec, grec_mca) % 4)
+static int __mld2_query_s[] __attribute__((__unused__)) = {
+	BUILD__ON_ZERO(offsetof(struct mld2_query, mld2q_srcs) % 4),
+	BUILD__ON_ZERO(offsetof(struct mld2_report, mld2r_grec) % 4),
+	BUILD__ON_ZERO(offsetof(struct mld2_grec, grec_mca) % 4)
 };
 
 static struct in6_addr mld2_all_mcr = MLD2_ALL_MCR_INIT;
@@ -2141,7 +2141,7 @@ static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf || psf->sf_count[sfmode] == 0) {
-		/* source filter not found, or count wrong =>  bug */
+		/* source filter not found, or count wrong =>   */
 		return -ESRCH;
 	}
 	psf->sf_count[sfmode]--;
@@ -2181,7 +2181,7 @@ static int ip6_mc_del_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA not found??  */
 		read_unlock_bh(&idev->lock);
 		return -ESRCH;
 	}
@@ -2345,7 +2345,7 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA not found??  */
 		read_unlock_bh(&idev->lock);
 		return -ESRCH;
 	}

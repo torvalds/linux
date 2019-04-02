@@ -109,7 +109,7 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 
 out_bad:
 	wil_dbg_misc(wil, "Unsupported coalescing params. Raw command:\n");
-	print_hex_dump_debug("DBG[MISC] coal ", DUMP_PREFIX_OFFSET, 16, 4,
+	print_hex_dump_de("DBG[MISC] coal ", DUMP_PREFIX_OFFSET, 16, 4,
 			     cp, sizeof(*cp), false);
 	return -EINVAL;
 }

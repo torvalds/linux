@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/nfc.h>
 #include <net/nfc/nfc.h>
 #include <net/nfc/digital.h>
@@ -341,31 +341,31 @@ static struct nfc_digital_ops nfcsim_digital_ops = {
 	.switch_rf = nfcsim_switch_rf,
 };
 
-static struct dentry *nfcsim_debugfs_root;
+static struct dentry *nfcsim_defs_root;
 
-static void nfcsim_debugfs_init(void)
+static void nfcsim_defs_init(void)
 {
-	nfcsim_debugfs_root = debugfs_create_dir("nfcsim", NULL);
+	nfcsim_defs_root = defs_create_dir("nfcsim", NULL);
 
-	if (!nfcsim_debugfs_root)
-		pr_err("Could not create debugfs entry\n");
+	if (!nfcsim_defs_root)
+		pr_err("Could not create defs entry\n");
 
 }
 
-static void nfcsim_debugfs_remove(void)
+static void nfcsim_defs_remove(void)
 {
-	debugfs_remove_recursive(nfcsim_debugfs_root);
+	defs_remove_recursive(nfcsim_defs_root);
 }
 
-static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
+static void nfcsim_defs_init_dev(struct nfcsim *dev)
 {
 	struct dentry *dev_dir;
 	char devname[5]; /* nfcX\0 */
 	u32 idx;
 	int n;
 
-	if (!nfcsim_debugfs_root) {
-		NFCSIM_ERR(dev, "nfcsim debugfs not initialized\n");
+	if (!nfcsim_defs_root) {
+		NFCSIM_ERR(dev, "nfcsim defs not initialized\n");
 		return;
 	}
 
@@ -376,14 +376,14 @@ static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
 		return;
 	}
 
-	dev_dir = debugfs_create_dir(devname, nfcsim_debugfs_root);
+	dev_dir = defs_create_dir(devname, nfcsim_defs_root);
 	if (!dev_dir) {
-		NFCSIM_ERR(dev, "Could not create debugfs entries for nfc%d\n",
+		NFCSIM_ERR(dev, "Could not create defs entries for nfc%d\n",
 			   idx);
 		return;
 	}
 
-	debugfs_create_u8("dropframe", 0664, dev_dir, &dev->dropframe);
+	defs_create_u8("dropframe", 0664, dev_dir, &dev->dropframe);
 }
 
 static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
@@ -423,7 +423,7 @@ static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
 		return ERR_PTR(rc);
 	}
 
-	nfcsim_debugfs_init_dev(dev);
+	nfcsim_defs_init_dev(dev);
 
 	return dev;
 }
@@ -459,7 +459,7 @@ static int __init nfcsim_init(void)
 		goto exit_err;
 	}
 
-	nfcsim_debugfs_init();
+	nfcsim_defs_init();
 
 	dev0 = nfcsim_device_new(link0, link1);
 	if (IS_ERR(dev0)) {
@@ -503,7 +503,7 @@ static void __exit nfcsim_exit(void)
 	nfcsim_link_free(link0);
 	nfcsim_link_free(link1);
 
-	nfcsim_debugfs_remove();
+	nfcsim_defs_remove();
 }
 
 module_init(nfcsim_init);

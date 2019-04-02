@@ -11,7 +11,7 @@
 #include "builtin.h"
 #include <linux/compiler.h>
 #include <subcmd/parse-options.h>
-#include "debug.h"
+#include "de.h"
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"

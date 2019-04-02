@@ -180,7 +180,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 	struct device *dev, **dev_list;
 	int i;
 
-	BUG_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
+	_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
 
 	if (list_empty(&us_ibdev->vf_dev_list)) {
 		usnic_info("No vfs to allocate\n");

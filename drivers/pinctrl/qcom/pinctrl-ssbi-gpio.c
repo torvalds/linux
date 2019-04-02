@@ -111,7 +111,7 @@ static const struct pinconf_generic_params pm8xxx_gpio_bindings[] = {
 	{"qcom,pull-up-strength",	PM8XXX_QCOM_PULL_UP_STRENGTH,	0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item pm8xxx_conf_items[ARRAY_SIZE(pm8xxx_gpio_bindings)] = {
 	PCONFDUMP(PM8XXX_QCOM_DRIVE_STRENGH, "drive-strength", NULL, true),
 	PCONFDUMP(PM8XXX_QCOM_PULL_UP_STRENGTH,  "pull up strength", NULL, true),
@@ -574,7 +574,7 @@ static void pm8xxx_gpio_free(struct gpio_chip *chip, unsigned int offset)
 	pin->irq = -1;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/seq_file.h>
 
 static void pm8xxx_gpio_dbg_show_one(struct seq_file *s,
@@ -822,7 +822,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 
 	pctrl->desc.num_custom_params = ARRAY_SIZE(pm8xxx_gpio_bindings);
 	pctrl->desc.custom_params = pm8xxx_gpio_bindings;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	pctrl->desc.custom_conf_items = pm8xxx_conf_items;
 #endif
 

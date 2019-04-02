@@ -259,7 +259,7 @@ static inline const struct ix_hash_algo *ix_hash(struct crypto_tfm *tfm)
 static int setup_crypt_desc(void)
 {
 	struct device *dev = &pdev->dev;
-	BUILD_BUG_ON(sizeof(struct crypt_ctl) != 64);
+	BUILD__ON(sizeof(struct crypt_ctl) != 64);
 	crypt_virt = dma_alloc_coherent(dev,
 					NPE_QLEN * sizeof(struct crypt_ctl),
 					&crypt_phys, GFP_ATOMIC);
@@ -406,7 +406,7 @@ static void one_packet(dma_addr_t phys)
 			complete(&ctx->completion);
 		break;
 	default:
-		BUG();
+		();
 	}
 	crypt->ctl_flags = CTL_FLAG_UNUSED;
 }
@@ -476,7 +476,7 @@ static int init_ixp_crypto(struct device *dev)
 	/* buffer_pool will also be used to sometimes store the hmac,
 	 * so assure it is large enough
 	 */
-	BUILD_BUG_ON(SHA1_DIGEST_SIZE > sizeof(struct buffer_desc));
+	BUILD__ON(SHA1_DIGEST_SIZE > sizeof(struct buffer_desc));
 	buffer_pool = dma_pool_create("buffer", dev,
 			sizeof(struct buffer_desc), 32, 0);
 	ret = -ENOMEM;
@@ -608,7 +608,7 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 	u8 *pad;
 	u32 pad_phys, buf_phys;
 
-	BUILD_BUG_ON(NPE_CTX_LEN < HMAC_PAD_BLOCKLEN);
+	BUILD__ON(NPE_CTX_LEN < HMAC_PAD_BLOCKLEN);
 	pad = dma_pool_alloc(ctx_pool, GFP_KERNEL, &pad_phys);
 	if (!pad)
 		return -ENOMEM;
@@ -650,7 +650,7 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 
 	atomic_inc(&ctx->configuring);
 	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	_ON(qmgr_stat_overflow(SEND_QID));
 	return 0;
 }
 
@@ -725,7 +725,7 @@ static int gen_rev_aes_key(struct crypto_tfm *tfm)
 
 	atomic_inc(&ctx->configuring);
 	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	_ON(qmgr_stat_overflow(SEND_QID));
 	return 0;
 }
 
@@ -909,7 +909,7 @@ static int ablk_perform(struct ablkcipher_request *req, int encrypt)
 	crypt->crypt_offs = 0;
 	crypt->crypt_len = nbytes;
 
-	BUG_ON(ivsize && !req->info);
+	_ON(ivsize && !req->info);
 	memcpy(crypt->iv, req->info, ivsize);
 	if (req->src != req->dst) {
 		struct buffer_desc dst_hook;
@@ -935,7 +935,7 @@ static int ablk_perform(struct ablkcipher_request *req, int encrypt)
 	crypt->src_buf = src_hook.phys_next;
 	crypt->ctl_flags |= CTL_FLAG_PERFORM_ABLK;
 	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	_ON(qmgr_stat_overflow(SEND_QID));
 	return -EINPROGRESS;
 
 free_buf_src:
@@ -1026,7 +1026,7 @@ static int aead_perform(struct aead_request *req, int encrypt,
 
 	crypt->auth_offs = 0;
 	crypt->auth_len = req->assoclen + cryptlen;
-	BUG_ON(ivsize && !req->iv);
+	_ON(ivsize && !req->iv);
 	memcpy(crypt->iv, req->iv, ivsize);
 
 	buf = chainup_buffers(dev, req->src, crypt->auth_len,
@@ -1083,7 +1083,7 @@ static int aead_perform(struct aead_request *req, int encrypt,
 
 	crypt->ctl_flags |= CTL_FLAG_PERFORM_AEAD;
 	qmgr_put_entry(SEND_QID, crypt_virt2phys(crypt));
-	BUG_ON(qmgr_stat_overflow(SEND_QID));
+	_ON(qmgr_stat_overflow(SEND_QID));
 	return -EINPROGRESS;
 
 free_buf_dst:

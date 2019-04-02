@@ -250,7 +250,7 @@ struct ab8500_charger_max_usb_in_curr {
  * @check_hw_failure_work:	Work for checking HW state
  * @check_usbchgnotok_work:	Work for checking USB charger not ok status
  * @kick_wd_work:		Work for kicking the charger watchdog in case
- *				of ABB rev 1.* due to the watchog logic bug
+ *				of ABB rev 1.* due to the watchog logic 
  * @ac_charger_attached_work:	Work for checking if AC charger is still
  *				connected
  * @usb_charger_attached_work:	Work for checking if USB charger is still
@@ -1371,7 +1371,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		dev_dbg(di->dev, "Enable AC: %dmV %dmA\n", vset, iset);
 
 		/*
-		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
+		 * Due to a  in AB8500, BTEMP_HIGH/LOW interrupts
 		 * will be triggered everytime we enable the VDD ADC supply.
 		 * This will turn off charging for a short while.
 		 * It can be avoided by having the supply on when
@@ -1447,11 +1447,11 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 		/* Disable AC charging */
 		if (is_ab8500_1p1_or_earlier(di->parent)) {
 			/*
-			 * For ABB revision 1.0 and 1.1 there is a bug in the
+			 * For ABB revision 1.0 and 1.1 there is a  in the
 			 * watchdog logic. That means we have to continously
 			 * kick the charger watchdog even when no charger is
 			 * connected. This is only valid once the AC charger
-			 * has been enabled. This is a bug that is not handled
+			 * has been enabled. This is a  that is not handled
 			 * by the algorithm and the watchdog have to be kicked
 			 * by the charger driver when the AC charger
 			 * is disabled
@@ -1464,7 +1464,7 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 
 			/*
 			 * We can't turn off charging completely
-			 * due to a bug in AB8500 cut1.
+			 * due to a  in AB8500 cut1.
 			 * If we do, charging will not start again.
 			 * That is why we set the lowest voltage
 			 * and current possible
@@ -1544,7 +1544,7 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 		}
 
 		/*
-		 * Due to a bug in AB8500, BTEMP_HIGH/LOW interrupts
+		 * Due to a  in AB8500, BTEMP_HIGH/LOW interrupts
 		 * will be triggered everytime we enable the VDD ADC supply.
 		 * This will turn off charging for a short while.
 		 * It can be avoided by having the supply on when
@@ -1909,7 +1909,7 @@ static int ab8500_charger_get_ext_psy_data(struct device *dev, void *data)
  * ab8500_charger_check_vbat_work() - keep vbus current within spec
  * @work	pointer to the work_struct structure
  *
- * Due to a asic bug it is necessary to lower the input current to the vbus
+ * Due to a asic  it is necessary to lower the input current to the vbus
  * charger when charging with at some specific levels. This issue is only valid
  * for below a certain battery voltage. This function makes sure that the
  * the allowed current limit isn't exceeded.
@@ -2006,11 +2006,11 @@ static void ab8500_charger_check_hw_failure_work(struct work_struct *work)
  *
  * Work queue function for kicking the charger watchdog.
  *
- * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
+ * For ABB revision 1.0 and 1.1 there is a  in the watchdog
  * logic. That means we have to continously kick the charger
  * watchdog even when no charger is connected. This is only
  * valid once the AC charger has been enabled. This is
- * a bug that is not handled by the algorithm and the
+ * a  that is not handled by the algorithm and the
  * watchdog have to be kicked by the charger driver
  * when the AC charger is disabled
  */
@@ -3213,11 +3213,11 @@ static int ab8500_charger_resume(struct platform_device *pdev)
 	struct ab8500_charger *di = platform_get_drvdata(pdev);
 
 	/*
-	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
+	 * For ABB revision 1.0 and 1.1 there is a  in the watchdog
 	 * logic. That means we have to continously kick the charger
 	 * watchdog even when no charger is connected. This is only
 	 * valid once the AC charger has been enabled. This is
-	 * a bug that is not handled by the algorithm and the
+	 * a  that is not handled by the algorithm and the
 	 * watchdog have to be kicked by the charger driver
 	 * when the AC charger is disabled
 	 */
@@ -3450,11 +3450,11 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 			  ab8500_charger_usb_attached_work);
 
 	/*
-	 * For ABB revision 1.0 and 1.1 there is a bug in the watchdog
+	 * For ABB revision 1.0 and 1.1 there is a  in the watchdog
 	 * logic. That means we have to continously kick the charger
 	 * watchdog even when no charger is connected. This is only
 	 * valid once the AC charger has been enabled. This is
-	 * a bug that is not handled by the algorithm and the
+	 * a  that is not handled by the algorithm and the
 	 * watchdog have to be kicked by the charger driver
 	 * when the AC charger is disabled
 	 */

@@ -14,7 +14,7 @@ Contents
 	- DPAA Ethernet Frame Processing
 	- DPAA Ethernet Features
 	- DPAA IRQ Affinity and Receive Side Scaling
-	- Debugging
+	- Deging
 
 DPAA Ethernet Overview
 ======================
@@ -232,7 +232,7 @@ for that interface - turning off rx-flow-hashing will also disable the
 rx-hashing (without ethtool reporting it as off as that depends on the
 NETIF_F_RXHASH feature flag).
 
-Debugging
+Deging
 =========
 
 The following statistics are exported for each interface through ethtool:

@@ -265,23 +265,23 @@ do {								\
 	net_ratelimited_function(pr_warn, fmt, ##__VA_ARGS__)
 #define net_info_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_info, fmt, ##__VA_ARGS__)
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 #define net_dbg_ratelimited(fmt, ...)					\
 do {									\
-	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);			\
-	if (DYNAMIC_DEBUG_BRANCH(descriptor) &&				\
+	DEFINE_DYNAMIC_DE_METADATA(descriptor, fmt);			\
+	if (DYNAMIC_DE_BRANCH(descriptor) &&				\
 	    net_ratelimit())						\
-		__dynamic_pr_debug(&descriptor, pr_fmt(fmt),		\
+		__dynamic_pr_de(&descriptor, pr_fmt(fmt),		\
 		                   ##__VA_ARGS__);			\
 } while (0)
-#elif defined(DEBUG)
+#elif defined(DE)
 #define net_dbg_ratelimited(fmt, ...)				\
-	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
+	net_ratelimited_function(pr_de, fmt, ##__VA_ARGS__)
 #else
 #define net_dbg_ratelimited(fmt, ...)				\
 	do {							\
 		if (0)						\
-			no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
+			no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__); \
 	} while (0)
 #endif
 

@@ -7,9 +7,9 @@
 
 #include <linux/ioport.h>
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
 #define DBG(fmt, ...)				\

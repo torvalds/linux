@@ -310,7 +310,7 @@ static inline void c67x00_ll_husb_sie_init(struct c67x00_sie *sie)
 	int rc;
 
 	rc = c67x00_comm_exec_int(dev, HUSB_SIE_INIT_INT(sie->sie_num), &data);
-	BUG_ON(rc); /* No return path for error code; crash spectacularly */
+	_ON(rc); /* No return path for error code; crash spectacularly */
 }
 
 void c67x00_ll_husb_reset(struct c67x00_sie *sie, int port)
@@ -322,7 +322,7 @@ void c67x00_ll_husb_reset(struct c67x00_sie *sie, int port)
 	data.regs[0] = 50;	/* Reset USB port for 50ms */
 	data.regs[1] = port | (sie->sie_num << 1);
 	rc = c67x00_comm_exec_int(dev, HUSB_RESET_INT, &data);
-	BUG_ON(rc); /* No return path for error code; crash spectacularly */
+	_ON(rc); /* No return path for error code; crash spectacularly */
 }
 
 void c67x00_ll_husb_set_current_td(struct c67x00_sie *sie, u16 addr)

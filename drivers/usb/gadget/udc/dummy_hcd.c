@@ -526,7 +526,7 @@ static int dummy_enable(struct usb_ep *_ep,
 	 * (hardware or its drivers) may not check.  some endpoints
 	 * can't do iso, many have maxpacket limitations, etc.
 	 *
-	 * since this "hardware" driver is here to help debugging, we
+	 * since this "hardware" driver is here to help deging, we
 	 * have some extra sanity checks.  (there could be more though,
 	 * especially for "ep9out" style fixed function ones.)
 	 */
@@ -1234,7 +1234,7 @@ static int dummy_validate_stream(struct dummy_hcd *dum_hcd, struct urb *urb)
 	if (urb->stream_id > max_streams) {
 		dev_err(dummy_dev(dum_hcd), "Stream id %d is out of range.\n",
 				urb->stream_id);
-		BUG();
+		();
 		return -EINVAL;
 	}
 	return 0;
@@ -1933,7 +1933,7 @@ restart:
 			 * Is it urb->interval since the last xfer?
 			 * Use urb->iso_frame_desc[i].
 			 * Complete whether or not ep has requests queued.
-			 * Report random errors, to debug drivers.
+			 * Report random errors, to de drivers.
 			 */
 			limit = max(limit, periodic_bytes(dum, ep));
 			status = -EINVAL;	/* fail all xfers */

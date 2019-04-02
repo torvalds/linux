@@ -5,14 +5,14 @@ Short users guide for SLUB
 ==========================
 
 The basic philosophy of SLUB is very different from SLAB. SLAB
-requires rebuilding the kernel to activate debug options for all
-slab caches. SLUB always includes full debugging but it is off by default.
-SLUB can enable debugging only for selected slabs in order to avoid
-an impact on overall system performance which may make a bug more
+requires rebuilding the kernel to activate de options for all
+slab caches. SLUB always includes full deging but it is off by default.
+SLUB can enable deging only for selected slabs in order to avoid
+an impact on overall system performance which may make a  more
 difficult to find.
 
-In order to switch debugging on one can add an option ``slub_debug``
-to the kernel command line. That will enable full debugging for
+In order to switch deging on one can add an option ``slub_de``
+to the kernel command line. That will enable full deging for
 all slabs.
 
 Typically one would then use the ``slabinfo`` command to get statistical
@@ -23,74 +23,74 @@ running the command. ``slabinfo`` can be compiled with
 
 	gcc -o slabinfo tools/vm/slabinfo.c
 
-Some of the modes of operation of ``slabinfo`` require that slub debugging
+Some of the modes of operation of ``slabinfo`` require that slub deging
 be enabled on the command line. F.e. no tracking information will be
-available without debugging on and validation can only partially
-be performed if debugging was not switched on.
+available without deging on and validation can only partially
+be performed if deging was not switched on.
 
-Some more sophisticated uses of slub_debug:
+Some more sophisticated uses of slub_de:
 -------------------------------------------
 
-Parameters may be given to ``slub_debug``. If none is specified then full
-debugging is enabled. Format:
+Parameters may be given to ``slub_de``. If none is specified then full
+deging is enabled. Format:
 
-slub_debug=<Debug-Options>
+slub_de=<De-Options>
 	Enable options for all slabs
 
-slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
+slub_de=<De-Options>,<slab name1>,<slab name2>,...
 	Enable options only for select slabs (no spaces
 	after a comma)
 
-Possible debug options are::
+Possible de options are::
 
-	F		Sanity checks on (enables SLAB_DEBUG_CONSISTENCY_CHECKS
+	F		Sanity checks on (enables SLAB_DE_CONSISTENCY_CHECKS
 			Sorry SLAB legacy issues)
 	Z		Red zoning
 	P		Poisoning (object and padding)
 	U		User tracking (free and alloc)
 	T		Trace (please only use on single slabs)
 	A		Toggle failslab filter mark for the cache
-	O		Switch debugging off for caches that would have
+	O		Switch deging off for caches that would have
 			caused higher minimum slab orders
-	-		Switch all debugging off (useful if the kernel is
-			configured with CONFIG_SLUB_DEBUG_ON)
+	-		Switch all deging off (useful if the kernel is
+			configured with CONFIG_SLUB_DE_ON)
 
 F.e. in order to boot just with sanity checks and red zoning one would specify::
 
-	slub_debug=FZ
+	slub_de=FZ
 
 Trying to find an issue in the dentry cache? Try::
 
-	slub_debug=,dentry
+	slub_de=,dentry
 
-to only enable debugging on the dentry cache.  You may use an asterisk at the
+to only enable deging on the dentry cache.  You may use an asterisk at the
 end of the slab name, in order to cover all slabs with the same prefix.  For
 example, here's how you can poison the dentry cache as well as all kmalloc
 slabs::
 
-	slub_debug=P,kmalloc-*,dentry
+	slub_de=P,kmalloc-*,dentry
 
 Red zoning and tracking may realign the slab.  We can just apply sanity checks
 to the dentry cache with::
 
-	slub_debug=F,dentry
+	slub_de=F,dentry
 
-Debugging options may require the minimum possible slab order to increase as
+Deging options may require the minimum possible slab order to increase as
 a result of storing the metadata (for example, caches with PAGE_SIZE object
 sizes).  This has a higher liklihood of resulting in slab allocation errors
 in low memory situations or if there's high fragmentation of memory.  To
-switch off debugging for such caches by default, use::
+switch off deging for such caches by default, use::
 
-	slub_debug=O
+	slub_de=O
 
-In case you forgot to enable debugging on the kernel command line: It is
-possible to enable debugging manually when the kernel is up. Look at the
+In case you forgot to enable deging on the kernel command line: It is
+possible to enable deging manually when the kernel is up. Look at the
 contents of::
 
 	/sys/kernel/slab/<slab name>/
 
 Look at the writable files. Writing 1 to them will enable the
-corresponding debug option. All options can be set on a slab that does
+corresponding de option. All options can be set on a slab that does
 not contain objects. If the slab already contains objects then sanity checks
 and tracing may only be enabled. The other options may cause the realignment
 of objects.
@@ -101,14 +101,14 @@ used on the wrong slab.
 Slab merging
 ============
 
-If no debug options are specified then SLUB may merge similar slabs together
+If no de options are specified then SLUB may merge similar slabs together
 in order to reduce overhead and increase cache hotness of objects.
 ``slabinfo -a`` displays which slabs were merged together.
 
 Slab validation
 ===============
 
-SLUB can validate all object if the kernel was booted with slub_debug. In
+SLUB can validate all object if the kernel was booted with slub_de. In
 order to do so you must have the ``slabinfo`` tool. Then you can do
 ::
 
@@ -116,10 +116,10 @@ order to do so you must have the ``slabinfo`` tool. Then you can do
 
 which will test all objects. Output will be generated to the syslog.
 
-This also works in a more limited way if boot was without slab debug.
+This also works in a more limited way if boot was without slab de.
 In that case ``slabinfo -v`` simply tests all reachable objects. Usually
 these are in the cpu slabs and the partial slabs. Full slabs are not
-tracked by SLUB in a non debug situation.
+tracked by SLUB in a non de situation.
 
 Getting more performance
 ========================
@@ -150,17 +150,17 @@ can be influenced by kernel parameters:
 	generate super large order pages to fit ``slub_min_objects``
 	of a slab cache with large object sizes into one high order
 	page. Setting command line parameter
-	``debug_guardpage_minorder=N`` (N > 0), forces setting
+	``de_guardpage_minorder=N`` (N > 0), forces setting
 	``slub_max_order`` to 0, what cause minimum possible order of
 	slabs allocation.
 
-SLUB Debug output
+SLUB De output
 =================
 
-Here is a sample of slub debug output::
+Here is a sample of slub de output::
 
  ====================================================================
- BUG kmalloc-8: Redzone overwritten
+  kmalloc-8: Redzone overwritten
  --------------------------------------------------------------------
 
  INFO: 0xc90f6d28-0xc90f6d2b. First byte 0x00 instead of 0xcc
@@ -198,7 +198,7 @@ Here is a sample of slub debug output::
  FIX kmalloc-8: Restoring Redzone 0xc90f6d28-0xc90f6d2b=0xcc
 
 If SLUB encounters a corrupted object (full detection requires the kernel
-to be booted with slub_debug) then the following output will be dumped
+to be booted with slub_de) then the following output will be dumped
 into the syslog:
 
 1. Description of the problem encountered
@@ -206,7 +206,7 @@ into the syslog:
    This will be a message in the system log starting with::
 
      ===============================================
-     BUG <slab cache affected>: <What went wrong>
+      <slab cache affected>: <What went wrong>
      -----------------------------------------------
 
      INFO: <corruption start>-<corruption_end> <more info>
@@ -218,11 +218,11 @@ into the syslog:
 	pid=<pid of the process>
 
    (Object allocation / free information is only available if SLAB_STORE_USER is
-   set for the slab. slub_debug sets that option)
+   set for the slab. slub_de sets that option)
 
 2. The object contents if an object was involved.
 
-   Various types of lines can follow the BUG SLUB line:
+   Various types of lines can follow the  SLUB line:
 
    Bytes b4 <address> : <bytes>
 	Shows a few bytes before the object where the problem was detected.
@@ -241,11 +241,11 @@ into the syslog:
 	the object boundary.
 
 	(Redzone information is only available if SLAB_RED_ZONE is set.
-	slub_debug sets that option)
+	slub_de sets that option)
 
    Padding <address> : <bytes>
 	Unused data to fill up the space in order to get the next object
-	properly aligned. In the debug case we make sure that there are
+	properly aligned. In the de case we make sure that there are
 	at least 4 bytes of padding. This allows the detection of writes
 	before the object.
 
@@ -273,30 +273,30 @@ into the syslog:
 Emergency operations
 ====================
 
-Minimal debugging (sanity checks alone) can be enabled by booting with::
+Minimal deging (sanity checks alone) can be enabled by booting with::
 
-	slub_debug=F
+	slub_de=F
 
 This will be generally be enough to enable the resiliency features of slub
 which will keep the system running even if a bad kernel component will
 keep corrupting objects. This may be important for production systems.
 Performance will be impacted by the sanity checks and there will be a
 continual stream of error messages to the syslog but no additional memory
-will be used (unlike full debugging).
+will be used (unlike full deging).
 
 No guarantees. The kernel component still needs to be fixed. Performance
 may be optimized further by locating the slab that experiences corruption
-and enabling debugging only for that cache
+and enabling deging only for that cache
 
 I.e.::
 
-	slub_debug=F,dentry
+	slub_de=F,dentry
 
 If the corruption occurs by writing after the end of the object then it
 may be advisable to enable a Redzone to avoid corrupting the beginning
 of other objects::
 
-	slub_debug=FZ,dentry
+	slub_de=FZ,dentry
 
 Extended slabinfo mode and plotting
 ===================================

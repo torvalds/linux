@@ -1669,7 +1669,7 @@ SVGAFifoCmdDefineAlphaCursor;
  *
  *    Just like SVGA_CMD_UPDATE, but also provide a per-rectangle
  *    'reason' value, an opaque cookie which is used by internal
- *    debugging tools. Third party drivers should not use this
+ *    deging tools. Third party drivers should not use this
  *    command.
  *
  * Availability:
@@ -1747,7 +1747,7 @@ SVGAFifoCmdFence;
  *
  *    Send an extended or vendor-specific variable length command.
  *    This is used for video overlay, third party plugins, and
- *    internal debugging tools. See svga_escape.h
+ *    internal deging tools. See svga_escape.h
  *
  * Availability:
  *    SVGA_FIFO_CAP_ESCAPE

@@ -128,7 +128,7 @@ static blk_status_t ps3disk_submit_request_sg(struct ps3_storage_device *dev,
 	u64 start_sector, sectors;
 	unsigned int region_id = dev->regions[dev->region_idx].id;
 
-#ifdef DEBUG
+#ifdef DE
 	unsigned int n = 0;
 	struct bio_vec bv;
 	struct req_iterator iter;
@@ -419,7 +419,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON(PS3DISK_MAX_DISKS > BITS_PER_LONG);
+	BUILD__ON(PS3DISK_MAX_DISKS > BITS_PER_LONG);
 	mutex_lock(&ps3disk_mask_mutex);
 	devidx = find_first_zero_bit(&ps3disk_mask, PS3DISK_MAX_DISKS);
 	if (devidx >= PS3DISK_MAX_DISKS) {

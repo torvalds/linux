@@ -85,7 +85,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	/* Read/write the word at location ADDR in the registers. */
 	case PTRACE_PEEKUSR:
 	case PTRACE_POKEUSR:
-		pr_debug("PEEKUSR/POKEUSR : 0x%08lx\n", addr);
+		pr_de("PEEKUSR/POKEUSR : 0x%08lx\n", addr);
 		rval = 0;
 		if (addr >= PT_SIZE && request == PTRACE_PEEKUSR) {
 			/*

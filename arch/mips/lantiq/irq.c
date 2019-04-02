@@ -235,7 +235,7 @@ static void ltq_hw_irq_handler(struct irq_desc *desc)
 		return;
 
 	/*
-	 * silicon bug causes only the msb set to 1 to be valid. all
+	 * silicon  causes only the msb set to 1 to be valid. all
 	 * other bits might be bogus
 	 */
 	irq = __fls(irq);

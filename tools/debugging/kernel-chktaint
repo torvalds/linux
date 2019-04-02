@@ -112,7 +112,7 @@ if [ `expr $T % 2` -eq 0 ]; then
 	addout " "
 else
 	addout "D"
-	echo " * kernel died recently, i.e. there was an OOPS or BUG (#7)"
+	echo " * kernel died recently, i.e. there was an OOPS or  (#7)"
 fi
 
 T=`expr $T / 2`
@@ -144,7 +144,7 @@ if [ `expr $T % 2` -eq 0 ]; then
 	addout " "
 else
 	addout "I"
-	echo " * workaround for bug in platform firmware applied (#11)"
+	echo " * workaround for  in platform firmware applied (#11)"
 fi
 
 T=`expr $T / 2`

@@ -58,9 +58,9 @@
 #include <asm/unistd.h>
 #include <asm/sn/arch.h>
 
-#define SMP_DEBUG 0
+#define SMP_DE 0
 
-#if SMP_DEBUG
+#if SMP_DE
 #define Dprintk(x...)  printk(x)
 #else
 #define Dprintk(x...)
@@ -103,7 +103,7 @@ struct sal_to_os_boot *sal_state_for_booting_cpu = &sal_boot_rendez_state[0];
 static DEFINE_SPINLOCK(itc_sync_lock);
 static volatile unsigned long go[SLAVE + 1];
 
-#define DEBUG_ITC_SYNC	0
+#define DE_ITC_SYNC	0
 
 extern void start_ap (void);
 extern unsigned long ia64_iobase;
@@ -278,7 +278,7 @@ ia64_sync_itc (unsigned int master)
 {
 	long i, delta, adj, adjust_latency = 0, done = 0;
 	unsigned long flags, rt, master_time_stamp, bound;
-#if DEBUG_ITC_SYNC
+#if DE_ITC_SYNC
 	struct {
 		long rt;	/* roundtrip time */
 		long master;	/* master's timestamp */
@@ -293,7 +293,7 @@ ia64_sync_itc (unsigned int master)
 	 * like setting the ITC ahead of (or a long time before) the
 	 * next scheduled tick.
 	 */
-	BUG_ON((ia64_get_itv() & (1 << 16)) == 0);
+	_ON((ia64_get_itv() & (1 << 16)) == 0);
 
 	go[MASTER] = 1;
 
@@ -323,7 +323,7 @@ ia64_sync_itc (unsigned int master)
 
 				ia64_set_itc(ia64_get_itc() + adj);
 			}
-#if DEBUG_ITC_SYNC
+#if DE_ITC_SYNC
 			t[i].rt = rt;
 			t[i].master = master_time_stamp;
 			t[i].diff = delta;
@@ -333,7 +333,7 @@ ia64_sync_itc (unsigned int master)
 	}
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
 
-#if DEBUG_ITC_SYNC
+#if DE_ITC_SYNC
 	for (i = 0; i < NUM_ROUNDS; ++i)
 		printk("rt=%5ld master=%5ld diff=%5ld adjlat=%5ld\n",
 		       t[i].rt, t[i].master, t[i].diff, t[i].lat);
@@ -369,7 +369,7 @@ smp_callin (void)
 	if (cpu_online(cpuid)) {
 		printk(KERN_ERR "huh, phys CPU#0x%x, CPU#0x%x already present??\n",
 		       phys_id, cpuid);
-		BUG();
+		();
 	}
 
 	fix_b0_for_bsp();
@@ -403,7 +403,7 @@ smp_callin (void)
 		 * Synchronize the ITC with the BP.  Need to do this after irqs are
 		 * enabled because ia64_sync_itc() calls smp_call_function_single(), which
 		 * calls spin_unlock_bh(), which calls spin_unlock_bh(), which calls
-		 * local_bh_enable(), which bugs out if irqs are not enabled...
+		 * local_bh_enable(), which s out if irqs are not enabled...
 		 */
 		Dprintk("Going to syncup ITC with ITC Master.\n");
 		ia64_sync_itc(itc_master);

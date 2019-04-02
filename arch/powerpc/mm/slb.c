@@ -61,7 +61,7 @@ static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 
 static void assert_slb_presence(bool present, unsigned long ea)
 {
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	unsigned long tmp;
 
 	WARN_ON_ONCE(mfmsr() & MSR_EE);
@@ -166,7 +166,7 @@ void slb_flush_and_restore_bolted(void)
 {
 	struct slb_shadow *p = get_slb_shadow();
 
-	BUILD_BUG_ON(SLB_NUM_BOLTED != 2);
+	BUILD__ON(SLB_NUM_BOLTED != 2);
 
 	WARN_ON(!irqs_disabled());
 
@@ -636,7 +636,7 @@ static enum slb_index alloc_slb_index(bool kernel)
 				local_paca->slb_kern_bitmap &= ~(1U << index);
 		}
 	}
-	BUG_ON(index < SLB_NUM_BOLTED);
+	_ON(index < SLB_NUM_BOLTED);
 
 	return index;
 }
@@ -786,13 +786,13 @@ long do_slb_fault(struct pt_regs *regs, unsigned long ea)
 	 */
 	if (id >= KERNEL_REGION_ID) {
 		long err;
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		/* Catch recursive kernel SLB faults. */
-		BUG_ON(local_paca->in_kernel_slb_handler);
+		_ON(local_paca->in_kernel_slb_handler);
 		local_paca->in_kernel_slb_handler = 1;
 #endif
 		err = slb_allocate_kernel(ea, id);
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		local_paca->in_kernel_slb_handler = 0;
 #endif
 		return err;
@@ -821,6 +821,6 @@ void do_bad_slb_fault(struct pt_regs *regs, unsigned long ea, long err)
 	} else if (err == -EINVAL) {
 		unrecoverable_exception(regs);
 	} else {
-		BUG();
+		();
 	}
 }

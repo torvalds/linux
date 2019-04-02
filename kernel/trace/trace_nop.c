@@ -68,14 +68,14 @@ static int nop_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	 * The tracing Api will do it automatically if you return 0
 	 */
 	if (bit == TRACE_NOP_OPT_ACCEPT) {
-		printk(KERN_DEBUG "nop_test_accept flag set to %d: we accept."
+		printk(KERN_DE "nop_test_accept flag set to %d: we accept."
 			" Now cat trace_options to see the result\n",
 			set);
 		return 0;
 	}
 
 	if (bit == TRACE_NOP_OPT_REFUSE) {
-		printk(KERN_DEBUG "nop_test_refuse flag set to %d: we refuse."
+		printk(KERN_DE "nop_test_refuse flag set to %d: we refuse."
 			" Now cat trace_options to see the result\n",
 			set);
 		return -EINVAL;

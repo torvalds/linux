@@ -193,7 +193,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		*handle = page_to_phys(page);
 
 		do {
-			BUG_ON(!pte_none(*pte));
+			_ON(!pte_none(*pte));
 
 			/*
 			 * x86 does not mark the pages reserved...
@@ -371,7 +371,7 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 		cache_op(paddr, size, cpu_dma_wb_range);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -386,6 +386,6 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		cache_op(paddr, size, cpu_dma_inval_range);
 		break;
 	default:
-		BUG();
+		();
 	}
 }

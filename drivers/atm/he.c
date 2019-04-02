@@ -79,7 +79,7 @@
 
 #undef USE_SCATTERGATHER
 #undef USE_CHECKSUM_HW			/* still confused about this */
-/* #undef HE_DEBUG */
+/* #undef HE_DE */
 
 #include "he.h"
 #include "suni.h"
@@ -87,11 +87,11 @@
 
 #define hprintk(fmt,args...)	printk(KERN_ERR DEV_LABEL "%d: " fmt, he_dev->number , ##args)
 
-#ifdef HE_DEBUG
-#define HPRINTK(fmt,args...)	printk(KERN_DEBUG DEV_LABEL "%d: " fmt, he_dev->number , ##args)
-#else /* !HE_DEBUG */
+#ifdef HE_DE
+#define HPRINTK(fmt,args...)	printk(KERN_DE DEV_LABEL "%d: " fmt, he_dev->number , ##args)
+#else /* !HE_DE */
 #define HPRINTK(fmt,args...)	do { } while (0)
-#endif /* HE_DEBUG */
+#endif /* HE_DE */
 
 /* declarations */
 
@@ -2033,7 +2033,7 @@ he_irq_handler(int irq, void *dev_id)
 		(void) he_readl(he_dev, INT_FIFO);	/* 8.1.2 controller errata */
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	if (he_dev->irq_head == he_dev->irq_tail /* && !IRQ_PENDING */)
 		hprintk("spurious (or shared) interrupt?\n");
 #endif

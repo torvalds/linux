@@ -18,16 +18,16 @@
  * some fast and compact auxiliary data.
  */
 
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 #define LIST_BL_LOCKMASK	1UL
 #else
 #define LIST_BL_LOCKMASK	0UL
 #endif
 
-#ifdef CONFIG_DEBUG_LIST
-#define LIST_BL_BUG_ON(x) BUG_ON(x)
+#ifdef CONFIG_DE_LIST
+#define LIST_BL__ON(x) _ON(x)
 #else
-#define LIST_BL_BUG_ON(x)
+#define LIST_BL__ON(x)
 #endif
 
 
@@ -63,8 +63,8 @@ static inline struct hlist_bl_node *hlist_bl_first(struct hlist_bl_head *h)
 static inline void hlist_bl_set_first(struct hlist_bl_head *h,
 					struct hlist_bl_node *n)
 {
-	LIST_BL_BUG_ON((unsigned long)n & LIST_BL_LOCKMASK);
-	LIST_BL_BUG_ON(((unsigned long)h->first & LIST_BL_LOCKMASK) !=
+	LIST_BL__ON((unsigned long)n & LIST_BL_LOCKMASK);
+	LIST_BL__ON(((unsigned long)h->first & LIST_BL_LOCKMASK) !=
 							LIST_BL_LOCKMASK);
 	h->first = (struct hlist_bl_node *)((unsigned long)n | LIST_BL_LOCKMASK);
 }
@@ -91,7 +91,7 @@ static inline void __hlist_bl_del(struct hlist_bl_node *n)
 	struct hlist_bl_node *next = n->next;
 	struct hlist_bl_node **pprev = n->pprev;
 
-	LIST_BL_BUG_ON((unsigned long)n & LIST_BL_LOCKMASK);
+	LIST_BL__ON((unsigned long)n & LIST_BL_LOCKMASK);
 
 	/* pprev may be `first`, so be careful not to lose the lock bit */
 	WRITE_ONCE(*pprev,

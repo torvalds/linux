@@ -210,13 +210,13 @@ static inline void fza_zeros(void __iomem *to, unsigned long size)
 
 static inline void fza_regs_dump(struct fza_private *fp)
 {
-	pr_debug("%s: iomem registers:\n", fp->name);
-	pr_debug(" reset:           0x%04x\n", readw_o(&fp->regs->reset));
-	pr_debug(" interrupt event: 0x%04x\n", readw_u(&fp->regs->int_event));
-	pr_debug(" status:          0x%04x\n", readw_u(&fp->regs->status));
-	pr_debug(" interrupt mask:  0x%04x\n", readw_u(&fp->regs->int_mask));
-	pr_debug(" control A:       0x%04x\n", readw_u(&fp->regs->control_a));
-	pr_debug(" control B:       0x%04x\n", readw_u(&fp->regs->control_b));
+	pr_de("%s: iomem registers:\n", fp->name);
+	pr_de(" reset:           0x%04x\n", readw_o(&fp->regs->reset));
+	pr_de(" interrupt event: 0x%04x\n", readw_u(&fp->regs->int_event));
+	pr_de(" status:          0x%04x\n", readw_u(&fp->regs->status));
+	pr_de(" interrupt mask:  0x%04x\n", readw_u(&fp->regs->int_mask));
+	pr_de(" control A:       0x%04x\n", readw_u(&fp->regs->control_a));
+	pr_de(" control B:       0x%04x\n", readw_u(&fp->regs->control_b));
 }
 
 static inline void fza_do_reset(struct fza_private *fp)
@@ -275,7 +275,7 @@ static int fza_reset(struct fza_private *fp)
 		return -EIO;
 	}
 	pr_info("%s: OK\n", fp->name);
-	pr_debug("%s: RESET: %lums elapsed\n", fp->name,
+	pr_de("%s: RESET: %lums elapsed\n", fp->name,
 		 (45 * HZ - t) * 1000 / HZ);
 
 	return 0;
@@ -338,7 +338,7 @@ static struct fza_ring_cmd __iomem *fza_cmd_send(struct net_device *dev,
 		writel_u(fp->lem_threshold, &buf->param.lem_threshold);
 		fza_writes(&fp->station_id, &buf->param.station_id,
 			   sizeof(buf->param.station_id));
-		/* Convert to milliseconds due to buggy firmware. */
+		/* Convert to milliseconds due to gy firmware. */
 		writel_u(fp->rtoken_timeout / 12500,
 			 &buf->param.rtoken_timeout);
 		writel_u(fp->ring_purger, &buf->param.ring_purger);
@@ -406,7 +406,7 @@ static int fza_init_send(struct net_device *dev,
 		       FZA_STATUS_GET_STATE(readw_u(&fp->regs->status)));
 		return -EIO;
 	}
-	pr_debug("%s: INIT: %lums elapsed\n", fp->name,
+	pr_de("%s: INIT: %lums elapsed\n", fp->name,
 		 (3 * HZ - t) * 1000 / HZ);
 
 	if (init)
@@ -496,7 +496,7 @@ static int fza_do_xmit(union fza_buffer_txp ub, int len,
 	       fp->ring_rmc_tx_index) % fp->ring_rmc_tx_size) *
 	     FZA_TX_BUFFER_SIZE) < dev->mtu + dev->hard_header_len) {
 		netif_stop_queue(dev);
-		pr_debug("%s: queue stopped\n", fp->name);
+		pr_de("%s: queue stopped\n", fp->name);
 	}
 
 	writel_o(FZA_RING_TX_OWN_RMC, &fp->ring_rmc_tx[first].own);
@@ -588,7 +588,7 @@ static void fza_tx(struct net_device *dev)
 	     FZA_TX_BUFFER_SIZE) >= dev->mtu + dev->hard_header_len) {
 		if (fp->queue_active) {
 			netif_wake_queue(dev);
-			pr_debug("%s: queue woken\n", fp->name);
+			pr_de("%s: queue woken\n", fp->name);
 		}
 	}
 }
@@ -975,7 +975,7 @@ static irqreturn_t fza_interrupt(int irq, void *dev_id)
 
 		status = readw_u(&fp->regs->status);
 		state = FZA_STATUS_GET_STATE(status);
-		pr_debug("%s: state change: %x\n", fp->name, state);
+		pr_de("%s: state change: %x\n", fp->name, state);
 		switch (state) {
 		case FZA_STATE_RESET:
 			break;
@@ -1009,13 +1009,13 @@ static irqreturn_t fza_interrupt(int irq, void *dev_id)
 			fza_rx_init(fp);
 			fp->queue_active = 1;
 			netif_wake_queue(dev);
-			pr_debug("%s: queue woken\n", fp->name);
+			pr_de("%s: queue woken\n", fp->name);
 			break;
 
 		case FZA_STATE_HALTED:
 			fp->queue_active = 0;
 			netif_stop_queue(dev);
-			pr_debug("%s: queue stopped\n", fp->name);
+			pr_de("%s: queue stopped\n", fp->name);
 			del_timer_sync(&fp->reset_timer);
 			pr_warn("%s: halted, reason: %x\n", fp->name,
 				FZA_STATUS_GET_HALT(status));
@@ -1134,7 +1134,7 @@ static netdev_tx_t fza_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * so just stop the queue, but don't report it as an error.
 		 */
 		netif_stop_queue(dev);
-		pr_debug("%s: queue stopped\n", fp->name);
+		pr_de("%s: queue stopped\n", fp->name);
 		fp->stats.tx_dropped++;
 	}
 
@@ -1209,7 +1209,7 @@ static int fza_open(struct net_device *dev)
 		       FZA_STATUS_GET_STATE(readw_u(&fp->regs->status)));
 		return -EIO;
 	}
-	pr_debug("%s: PARAM: %lums elapsed\n", fp->name,
+	pr_de("%s: PARAM: %lums elapsed\n", fp->name,
 		 (3 * HZ - t) * 1000 / HZ);
 
 	return 0;
@@ -1224,7 +1224,7 @@ static int fza_close(struct net_device *dev)
 	int i;
 
 	netif_stop_queue(dev);
-	pr_debug("%s: queue stopped\n", fp->name);
+	pr_de("%s: queue stopped\n", fp->name);
 
 	del_timer_sync(&fp->reset_timer);
 	spin_lock_irqsave(&fp->lock, flags);
@@ -1247,7 +1247,7 @@ static int fza_close(struct net_device *dev)
 		pr_err("%s: SHUT failed!, state %x\n", fp->name, state);
 		return -EIO;
 	}
-	pr_debug("%s: SHUT: %lums elapsed\n", fp->name,
+	pr_de("%s: SHUT: %lums elapsed\n", fp->name,
 		 (15 * HZ - t) * 1000 / HZ);
 
 	for (i = 0; i < FZA_RING_RX_SIZE; i++)
@@ -1339,7 +1339,7 @@ static int fza_probe(struct device *bdev)
 
 	pr_info("%s: DEC FDDIcontroller 700 or 700-C at 0x%08llx, irq %d\n",
 		fp->name, (long long)tdev->resource.start, dev->irq);
-	pr_debug("%s: mapped at: 0x%p\n", fp->name, mmio);
+	pr_de("%s: mapped at: 0x%p\n", fp->name, mmio);
 
 	fp->regs = mmio + FZA_REG_BASE;
 	fp->ring_cmd = mmio + FZA_RING_CMD;
@@ -1414,22 +1414,22 @@ static int fza_probe(struct device *bdev)
 	smt_ver = readl_u(&init->smt_ver);
 	pmd_type = readl_u(&init->pmd_type);
 
-	pr_debug("%s: INIT parameters:\n", fp->name);
-	pr_debug("        tx_mode: %u\n", readl_u(&init->tx_mode));
-	pr_debug("    hst_rx_size: %u\n", readl_u(&init->hst_rx_size));
-	pr_debug("        rmc_rev: %.4s\n", rmc_rev);
-	pr_debug("        rom_rev: %.4s\n", rom_rev);
-	pr_debug("         fw_rev: %.4s\n", fw_rev);
-	pr_debug("       mop_type: %u\n", readl_u(&init->mop_type));
-	pr_debug("         hst_rx: 0x%08x\n", readl_u(&init->hst_rx));
-	pr_debug("         rmc_tx: 0x%08x\n", readl_u(&init->rmc_tx));
-	pr_debug("    rmc_tx_size: %u\n", readl_u(&init->rmc_tx_size));
-	pr_debug("         smt_tx: 0x%08x\n", readl_u(&init->smt_tx));
-	pr_debug("    smt_tx_size: %u\n", readl_u(&init->smt_tx_size));
-	pr_debug("         smt_rx: 0x%08x\n", readl_u(&init->smt_rx));
-	pr_debug("    smt_rx_size: %u\n", readl_u(&init->smt_rx_size));
+	pr_de("%s: INIT parameters:\n", fp->name);
+	pr_de("        tx_mode: %u\n", readl_u(&init->tx_mode));
+	pr_de("    hst_rx_size: %u\n", readl_u(&init->hst_rx_size));
+	pr_de("        rmc_rev: %.4s\n", rmc_rev);
+	pr_de("        rom_rev: %.4s\n", rom_rev);
+	pr_de("         fw_rev: %.4s\n", fw_rev);
+	pr_de("       mop_type: %u\n", readl_u(&init->mop_type));
+	pr_de("         hst_rx: 0x%08x\n", readl_u(&init->hst_rx));
+	pr_de("         rmc_tx: 0x%08x\n", readl_u(&init->rmc_tx));
+	pr_de("    rmc_tx_size: %u\n", readl_u(&init->rmc_tx_size));
+	pr_de("         smt_tx: 0x%08x\n", readl_u(&init->smt_tx));
+	pr_de("    smt_tx_size: %u\n", readl_u(&init->smt_tx_size));
+	pr_de("         smt_rx: 0x%08x\n", readl_u(&init->smt_rx));
+	pr_de("    smt_rx_size: %u\n", readl_u(&init->smt_rx_size));
 	/* TC systems are always LE, so don't bother swapping. */
-	pr_debug("        hw_addr: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+	pr_de("        hw_addr: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 		 (readl_u(&init->hw_addr[0]) >> 0) & 0xff,
 		 (readl_u(&init->hw_addr[0]) >> 8) & 0xff,
 		 (readl_u(&init->hw_addr[0]) >> 16) & 0xff,
@@ -1438,12 +1438,12 @@ static int fza_probe(struct device *bdev)
 		 (readl_u(&init->hw_addr[1]) >> 8) & 0xff,
 		 (readl_u(&init->hw_addr[1]) >> 16) & 0xff,
 		 (readl_u(&init->hw_addr[1]) >> 24) & 0xff);
-	pr_debug("      def_t_req: %u\n", readl_u(&init->def_t_req));
-	pr_debug("        def_tvx: %u\n", readl_u(&init->def_tvx));
-	pr_debug("      def_t_max: %u\n", readl_u(&init->def_t_max));
-	pr_debug("  lem_threshold: %u\n", readl_u(&init->lem_threshold));
+	pr_de("      def_t_req: %u\n", readl_u(&init->def_t_req));
+	pr_de("        def_tvx: %u\n", readl_u(&init->def_tvx));
+	pr_de("      def_t_max: %u\n", readl_u(&init->def_t_max));
+	pr_de("  lem_threshold: %u\n", readl_u(&init->lem_threshold));
 	/* Don't bother swapping, see above. */
-	pr_debug(" def_station_id: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+	pr_de(" def_station_id: 0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 		 (readl_u(&init->def_station_id[0]) >> 0) & 0xff,
 		 (readl_u(&init->def_station_id[0]) >> 8) & 0xff,
 		 (readl_u(&init->def_station_id[0]) >> 16) & 0xff,
@@ -1452,13 +1452,13 @@ static int fza_probe(struct device *bdev)
 		 (readl_u(&init->def_station_id[1]) >> 8) & 0xff,
 		 (readl_u(&init->def_station_id[1]) >> 16) & 0xff,
 		 (readl_u(&init->def_station_id[1]) >> 24) & 0xff);
-	pr_debug("   pmd_type_alt: %u\n", readl_u(&init->pmd_type_alt));
-	pr_debug("        smt_ver: %u\n", readl_u(&init->smt_ver));
-	pr_debug(" rtoken_timeout: %u\n", readl_u(&init->rtoken_timeout));
-	pr_debug("    ring_purger: %u\n", readl_u(&init->ring_purger));
-	pr_debug("    smt_ver_max: %u\n", readl_u(&init->smt_ver_max));
-	pr_debug("    smt_ver_min: %u\n", readl_u(&init->smt_ver_min));
-	pr_debug("       pmd_type: %u\n", readl_u(&init->pmd_type));
+	pr_de("   pmd_type_alt: %u\n", readl_u(&init->pmd_type_alt));
+	pr_de("        smt_ver: %u\n", readl_u(&init->smt_ver));
+	pr_de(" rtoken_timeout: %u\n", readl_u(&init->rtoken_timeout));
+	pr_de("    ring_purger: %u\n", readl_u(&init->ring_purger));
+	pr_de("    smt_ver_max: %u\n", readl_u(&init->smt_ver_max));
+	pr_de("    smt_ver_min: %u\n", readl_u(&init->smt_ver_min));
+	pr_de("       pmd_type: %u\n", readl_u(&init->pmd_type));
 
 	pr_info("%s: model %s, address %pMF\n",
 		fp->name,

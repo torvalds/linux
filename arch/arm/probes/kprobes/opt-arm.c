@@ -251,12 +251,12 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *or
 			TMPL_END_IDX * sizeof(kprobe_opcode_t));
 
 	/* Adjust buffer according to instruction. */
-	BUG_ON(orig->ainsn.stack_space < 0);
+	_ON(orig->ainsn.stack_space < 0);
 
 	stack_protect += orig->ainsn.stack_space;
 
 	/* Should have been filtered by can_optimize(). */
-	BUG_ON(stack_protect > 255);
+	_ON(stack_protect > 255);
 
 	/* Create a 'sub sp, sp, #<stack_protect>' */
 	code[TMPL_SUB_SP] = __opcode_to_mem_arm(0xe24dd000 | stack_protect);
@@ -318,7 +318,7 @@ void __kprobes arch_optimize_kprobes(struct list_head *oplist)
 
 		insn = arm_gen_branch((unsigned long)op->kp.addr,
 				(unsigned long)op->optinsn.insn);
-		BUG_ON(insn == 0);
+		_ON(insn == 0);
 
 		/*
 		 * Make it a conditional branch if replaced insn

@@ -72,7 +72,7 @@
 
 /*
    ==== master setup ====
-   name -> name of the device structure for reference and debugging
+   name -> name of the device structure for reference and deging
    master_data ->  data ref. for the master (e.g. the zr36055,57,67)
    readreg -> ref. to read-fn from register (setup by master, used by slave)
    writereg -> ref. to write-fn to register (setup by master, used by slave)

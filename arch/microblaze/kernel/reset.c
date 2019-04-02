@@ -39,7 +39,7 @@ static int of_platform_reset_gpio_probe(void)
 	/* get current setup value */
 	reset_val = gpio_get_value(handle);
 	/* FIXME maybe worth to perform any action */
-	pr_debug("Reset: Gpio output state: 0x%x\n", reset_val);
+	pr_de("Reset: Gpio output state: 0x%x\n", reset_val);
 
 	/* Setup GPIO as output */
 	ret = gpio_direction_output(handle, 0);

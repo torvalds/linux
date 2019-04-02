@@ -54,8 +54,8 @@ hs_ucode_patch_signature(const struct nvkm_falcon *falcon, void *acr_image,
 		patch_sig = *(u32 *)(acr_image + fw_hdr->patch_sig);
 	}
 
-	/* Falcon in debug or production mode? */
-	if (falcon->debug) {
+	/* Falcon in de or production mode? */
+	if (falcon->de) {
 		sig = acr_image + fw_hdr->sig_dbg_offset;
 		sig_size = fw_hdr->sig_dbg_size;
 	} else {

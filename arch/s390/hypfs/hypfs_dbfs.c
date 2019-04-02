@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hypervisor filesystem for Linux on s390 - debugfs interface
+ * Hypervisor filesystem for Linux on s390 - defs interface
  *
  * Copyright IBM Corp. 2010
  * Author(s): Michael Holzheu <holzheu@linux.vnet.ibm.com>
@@ -80,22 +80,22 @@ static const struct file_operations dbfs_ops = {
 
 void hypfs_dbfs_create_file(struct hypfs_dbfs_file *df)
 {
-	df->dentry = debugfs_create_file(df->name, 0400, dbfs_dir, df,
+	df->dentry = defs_create_file(df->name, 0400, dbfs_dir, df,
 					 &dbfs_ops);
 	mutex_init(&df->lock);
 }
 
 void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df)
 {
-	debugfs_remove(df->dentry);
+	defs_remove(df->dentry);
 }
 
 void hypfs_dbfs_init(void)
 {
-	dbfs_dir = debugfs_create_dir("s390_hypfs", NULL);
+	dbfs_dir = defs_create_dir("s390_hypfs", NULL);
 }
 
 void hypfs_dbfs_exit(void)
 {
-	debugfs_remove(dbfs_dir);
+	defs_remove(dbfs_dir);
 }

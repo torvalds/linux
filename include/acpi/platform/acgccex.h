@@ -11,7 +11,7 @@
 #define __ACGCCEX_H__
 
 /*
- * Some versions of gcc implement strchr() with a buggy macro. So,
+ * Some versions of gcc implement strchr() with a gy macro. So,
  * undef it here. Prevents error messages of this form (usually from the
  * file getopt.c):
  *

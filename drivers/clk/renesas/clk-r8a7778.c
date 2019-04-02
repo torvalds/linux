@@ -86,7 +86,7 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 	if (rcar_rst_read_mode_pins(&mode))
 		return;
 
-	BUG_ON(!(mode & BIT(19)));
+	_ON(!(mode & BIT(19)));
 
 	cpg_mode_rates = (!!(mode & BIT(18)) << 2) |
 			 (!!(mode & BIT(12)) << 1) |

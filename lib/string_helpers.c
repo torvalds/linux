@@ -4,7 +4,7 @@
  * Copyright 31 August 2008 James Bottomley
  * Copyright (C) 2013, Intel Corporation
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/export.h>

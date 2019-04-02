@@ -141,7 +141,7 @@ void scif_rb_commit(struct scif_rb *rb)
 	WRITE_ONCE(*rb->write_ptr, rb->current_write_offset);
 #ifdef CONFIG_INTEL_MIC_CARD
 	/*
-	 * X100 Si bug: For the case where a Core is performing an EXT_WR
+	 * X100 Si : For the case where a Core is performing an EXT_WR
 	 * followed by a Doorbell Write, the Core must perform two EXT_WR to the
 	 * same address with the same data before it does the Doorbell Write.
 	 * This way, if ordering is violated for the Interrupt Message, it will
@@ -213,7 +213,7 @@ void scif_rb_update_read_ptr(struct scif_rb *rb)
 	WRITE_ONCE(*rb->read_ptr, new_offset);
 #ifdef CONFIG_INTEL_MIC_CARD
 	/*
-	 * X100 Si Bug: For the case where a Core is performing an EXT_WR
+	 * X100 Si : For the case where a Core is performing an EXT_WR
 	 * followed by a Doorbell Write, the Core must perform two EXT_WR to the
 	 * same address with the same data before it does the Doorbell Write.
 	 * This way, if ordering is violated for the Interrupt Message, it will

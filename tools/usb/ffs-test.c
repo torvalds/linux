@@ -109,7 +109,7 @@ static void _msg(unsigned level, const char *fmt, ...)
 #define warn(...)  _msg(4, __VA_ARGS__)
 #define note(...)  _msg(5, __VA_ARGS__)
 #define info(...)  _msg(6, __VA_ARGS__)
-#define debug(...) _msg(7, __VA_ARGS__)
+#define de(...) _msg(7, __VA_ARGS__)
 
 #define die_on(cond, ...) do { \
 	if (cond) \
@@ -457,10 +457,10 @@ static void *start_thread_helper(void *arg)
 		if (ret > 0) {
 			/* nop */
 		} else if (!ret) {
-			debug("%s: %s: EOF", name, op);
+			de("%s: %s: EOF", name, op);
 			break;
 		} else if (errno == EINTR || errno == EAGAIN) {
-			debug("%s: %s", name, op);
+			de("%s: %s", name, op);
 		} else {
 			warn("%s: %s", name, op);
 			break;
@@ -476,7 +476,7 @@ static void *start_thread_helper(void *arg)
 
 static void start_thread(struct thread *t)
 {
-	debug("%s: starting\n", t->filename);
+	de("%s: starting\n", t->filename);
 
 	die_on(pthread_create(&t->id, NULL, start_thread_helper, t) < 0,
 	       "pthread_create(%s)", t->filename);
@@ -489,7 +489,7 @@ static void join_thread(struct thread *t)
 	if (ret < 0)
 		err("%s: joining thread", t->filename);
 	else
-		debug("%s: joined\n", t->filename);
+		de("%s: joined\n", t->filename);
 }
 
 

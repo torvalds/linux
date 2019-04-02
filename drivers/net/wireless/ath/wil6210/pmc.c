@@ -310,7 +310,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 }
 
 /**
- * Status of the last operation requested via debugfs: alloc/free/read.
+ * Status of the last operation requested via defs: alloc/free/read.
  * 0 - success or negative errno
  */
 int wil_pmc_last_cmd_status(struct wil6210_priv *wil)

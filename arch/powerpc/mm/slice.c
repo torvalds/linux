@@ -22,7 +22,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -41,12 +41,12 @@
 
 static DEFINE_SPINLOCK(slice_convert_lock);
 
-#ifdef DEBUG
-int _slice_debug = 1;
+#ifdef DE
+int _slice_de = 1;
 
 static void slice_print_mask(const char *label, const struct slice_mask *mask)
 {
-	if (!_slice_debug)
+	if (!_slice_de)
 		return;
 	pr_devel("%s low_slice: %*pbl\n", label,
 			(int)SLICE_NUM_LOW, &mask->low_slices);
@@ -54,7 +54,7 @@ static void slice_print_mask(const char *label, const struct slice_mask *mask)
 			(int)SLICE_NUM_HIGH, mask->high_slices);
 }
 
-#define slice_dbg(fmt...) do { if (_slice_debug) pr_devel(fmt); } while (0)
+#define slice_dbg(fmt...) do { if (_slice_de) pr_devel(fmt); } while (0)
 
 #else
 
@@ -165,7 +165,7 @@ static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
 	if (psize == MMU_PAGE_16G)
 		return &mm->context.mask_16g;
 #endif
-	BUG();
+	();
 }
 #elif defined(CONFIG_PPC_8xx)
 static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
@@ -178,7 +178,7 @@ static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
 	if (psize == MMU_PAGE_8M)
 		return &mm->context.mask_8m;
 #endif
-	BUG();
+	();
 }
 #else
 #error "Must define the slice masks for page sizes supported by the platform"
@@ -517,9 +517,9 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	}
 
 	/* Sanity checks */
-	BUG_ON(mm->task_size == 0);
-	BUG_ON(mm->context.slb_addr_limit == 0);
-	VM_BUG_ON(radix_enabled());
+	_ON(mm->task_size == 0);
+	_ON(mm->context.slb_addr_limit == 0);
+	VM__ON(radix_enabled());
 
 	slice_dbg("slice_get_unmapped_area(mm=%p, psize=%d...\n", mm, psize);
 	slice_dbg(" addr=%lx, len=%lx, flags=%lx, topdown=%d\n",
@@ -714,7 +714,7 @@ unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 	unsigned char *psizes;
 	int index, mask_index;
 
-	VM_BUG_ON(radix_enabled());
+	VM__ON(radix_enabled());
 
 	if (slice_addr_is_low(addr)) {
 		psizes = mm->context.low_slices_psize;
@@ -786,7 +786,7 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 {
 	struct slice_mask mask;
 
-	VM_BUG_ON(radix_enabled());
+	VM__ON(radix_enabled());
 
 	slice_range_to_mask(start, len, &mask);
 	slice_convert(mm, &mask, psize);
@@ -818,7 +818,7 @@ int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 	const struct slice_mask *maskp;
 	unsigned int psize = mm->context.user_psize;
 
-	VM_BUG_ON(radix_enabled());
+	VM__ON(radix_enabled());
 
 	maskp = slice_mask_for_size(mm, psize);
 #ifdef CONFIG_PPC_64K_PAGES

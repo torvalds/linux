@@ -74,7 +74,7 @@ static void iwlagn_rx_csa(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 	if (!le32_to_cpu(csa->status) && csa->channel == priv->switch_channel) {
 		rxon->channel = csa->channel;
 		ctx->staging.channel = csa->channel;
-		IWL_DEBUG_11H(priv, "CSA notif: channel %d\n",
+		IWL_DE_11H(priv, "CSA notif: channel %d\n",
 			      le16_to_cpu(csa->channel));
 		iwl_chswitch_done(priv, true);
 	} else {
@@ -92,7 +92,7 @@ static void iwlagn_rx_spectrum_measure_notif(struct iwl_priv *priv,
 	struct iwl_spectrum_notification *report = (void *)pkt->data;
 
 	if (!report->state) {
-		IWL_DEBUG_11H(priv,
+		IWL_DE_11H(priv,
 			"Spectrum Measure Notification: Start\n");
 		return;
 	}
@@ -104,21 +104,21 @@ static void iwlagn_rx_spectrum_measure_notif(struct iwl_priv *priv,
 static void iwlagn_rx_pm_sleep_notif(struct iwl_priv *priv,
 				     struct iwl_rx_cmd_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_sleep_notification *sleep = (void *)pkt->data;
-	IWL_DEBUG_RX(priv, "sleep mode: %d, src: %d\n",
+	IWL_DE_RX(priv, "sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
 }
 
-static void iwlagn_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
+static void iwlagn_rx_pm_de_statistics_notif(struct iwl_priv *priv,
 						struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 __maybe_unused len = iwl_rx_packet_len(pkt);
-	IWL_DEBUG_RADIO(priv, "Dumping %d bytes of unhandled "
-			"notification for PM_DEBUG_STATISTIC_NOTIFIC:\n", len);
+	IWL_DE_RADIO(priv, "Dumping %d bytes of unhandled "
+			"notification for PM_DE_STATISTIC_NOTIFIC:\n", len);
 	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->data, len);
 }
 
@@ -127,11 +127,11 @@ static void iwlagn_rx_beacon_notif(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwlagn_beacon_notif *beacon = (void *)pkt->data;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 	u16 status = le16_to_cpu(beacon->beacon_notify_hdr.status.status);
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
-	IWL_DEBUG_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
+	IWL_DE_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
 		"tsf:0x%.8x%.8x rate:%d\n",
 		status & TX_STATUS_MSK,
 		beacon->beacon_notify_hdr.failure_frame,
@@ -158,7 +158,7 @@ static bool iwlagn_good_plcp_health(struct iwl_priv *priv,
 	int threshold = priv->plcp_delta_threshold;
 
 	if (threshold == IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
-		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
+		IWL_DE_RADIO(priv, "plcp_err check disabled\n");
 		return true;
 	}
 
@@ -172,7 +172,7 @@ static bool iwlagn_good_plcp_health(struct iwl_priv *priv,
 		return true;
 
 	if ((delta * 100 / msecs) > threshold) {
-		IWL_DEBUG_RADIO(priv,
+		IWL_DE_RADIO(priv,
 				"plcp health threshold %u delta %d msecs %u\n",
 				threshold, delta, msecs);
 		return false;
@@ -189,7 +189,7 @@ int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
 		return -EAGAIN;
 
 	if (!iwl_is_any_associated(priv)) {
-		IWL_DEBUG_SCAN(priv, "force reset rejected: not associated\n");
+		IWL_DE_SCAN(priv, "force reset rejected: not associated\n");
 		return -ENOLINK;
 	}
 
@@ -198,7 +198,7 @@ int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
 	if (!external && rf_reset->last_reset_jiffies &&
 	    time_after(rf_reset->last_reset_jiffies +
 		       IWL_DELAY_NEXT_FORCE_RF_RESET, jiffies)) {
-		IWL_DEBUG_INFO(priv, "RF reset rejected\n");
+		IWL_DE_INFO(priv, "RF reset rejected\n");
 		rf_reset->reset_reject_count++;
 		return -EAGAIN;
 	}
@@ -214,7 +214,7 @@ int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
 	 * Driver should reset the radio when number of consecutive missed
 	 * beacon, or any other uCode error condition detected.
 	 */
-	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
+	IWL_DE_INFO(priv, "perform radio reset.\n");
 	iwl_internal_short_hw_scan(priv);
 	return 0;
 }
@@ -284,15 +284,15 @@ static void iwlagn_rx_calc_noise(struct iwl_priv *priv)
 	else
 		last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
-	IWL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
+	IWL_DE_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
 			bcn_silence_a, bcn_silence_b, bcn_silence_c,
 			last_rx_noise);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 /*
  *  based on the assumption of all statistics counter are in DWORD
- *  FIXME: This function is for debugging, do not deal with
+ *  FIXME: This function is for deging, do not deal with
  *  the case of counters roll-over.
  */
 static void accum_stats(__le32 *prev, __le32 *cur, __le32 *delta,
@@ -372,7 +372,7 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 	struct statistics_tx *tx;
 	struct statistics_bt_activity *bt_activity;
 
-	IWL_DEBUG_RX(priv, "Statistics notification received (%d bytes).\n",
+	IWL_DE_RX(priv, "Statistics notification received (%d bytes).\n",
 		     len);
 
 	spin_lock(&priv->statistics.lock);
@@ -389,7 +389,7 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 		tx = &stats->tx;
 		bt_activity = &stats->general.activity;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 		/* handle this exception directly */
 		priv->statistics.num_bt_kills = stats->rx.general.num_bt_kills;
 		le32_add_cpu(&priv->statistics.accum_num_bt_kills,
@@ -430,7 +430,7 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 	memcpy(&priv->statistics.rx_ofdm_ht, rx_ofdm_ht, sizeof(*rx_ofdm_ht));
 	memcpy(&priv->statistics.rx_cck, rx_cck, sizeof(*rx_cck));
 	memcpy(&priv->statistics.tx, tx, sizeof(*tx));
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (bt_activity)
 		memcpy(&priv->statistics.bt_activity, bt_activity,
 			sizeof(*bt_activity));
@@ -465,7 +465,7 @@ static void iwlagn_rx_reply_statistics(struct iwl_priv *priv,
 	struct iwl_notif_statistics *stats = (void *)pkt->data;
 
 	if (le32_to_cpu(stats->flag) & UCODE_STATISTICS_CLEAR_MSK) {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 		memset(&priv->accum_stats, 0,
 			sizeof(priv->accum_stats));
 		memset(&priv->delta_stats, 0,
@@ -473,7 +473,7 @@ static void iwlagn_rx_reply_statistics(struct iwl_priv *priv,
 		memset(&priv->max_delta_stats, 0,
 			sizeof(priv->max_delta_stats));
 #endif
-		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
+		IWL_DE_RX(priv, "Statistics have been cleared\n");
 	}
 
 	iwlagn_rx_statistics(priv, rxb);
@@ -489,7 +489,7 @@ static void iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	u32 flags = le32_to_cpu(card_state_notif->flags);
 	unsigned long status = priv->status;
 
-	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s CT:%s\n",
+	IWL_DE_RF_KILL(priv, "Card state received: HW:%s SW:%s CT:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & SW_CARD_DISABLED) ? "Kill" : "On",
 			  (flags & CT_CARD_DISABLED) ?
@@ -540,7 +540,7 @@ static void iwlagn_rx_missed_beacon_notif(struct iwl_priv *priv,
 
 	if (le32_to_cpu(missed_beacon->consecutive_missed_beacons) >
 	    priv->missed_beacon_threshold) {
-		IWL_DEBUG_CALIB(priv,
+		IWL_DE_CALIB(priv,
 		    "missed bcn cnsq %d totl %d rcd %d expctd %d\n",
 		    le32_to_cpu(missed_beacon->consecutive_missed_beacons),
 		    le32_to_cpu(missed_beacon->total_missed_becons),
@@ -585,7 +585,7 @@ static int iwlagn_set_decrypted_flag(struct iwl_priv *priv,
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
 		return 0;
 
-	IWL_DEBUG_RX(priv, "decrypt_res:0x%x\n", decrypt_res);
+	IWL_DE_RX(priv, "decrypt_res:0x%x\n", decrypt_res);
 	switch (decrypt_res & RX_RES_STATUS_SEC_TYPE_MSK) {
 	case RX_RES_STATUS_SEC_TYPE_TKIP:
 		/* The uCode has got a bad phase 1 Key, pushes the packet.
@@ -599,14 +599,14 @@ static int iwlagn_set_decrypted_flag(struct iwl_priv *priv,
 		    RX_RES_STATUS_BAD_ICV_MIC) {
 			/* bad ICV, the packet is destroyed since the
 			 * decryption is inplace, drop it */
-			IWL_DEBUG_RX(priv, "Packet destroyed\n");
+			IWL_DE_RX(priv, "Packet destroyed\n");
 			return -1;
 		}
 		/* fall through */
 	case RX_RES_STATUS_SEC_TYPE_CCMP:
 		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
 		    RX_RES_STATUS_DECRYPT_OK) {
-			IWL_DEBUG_RX(priv, "hw decrypt successfully!!!\n");
+			IWL_DE_RX(priv, "hw decrypt successfully!!!\n");
 			stats->flag |= RX_FLAG_DECRYPTED;
 		}
 		break;
@@ -631,7 +631,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	/* We only process data packets if the interface is open */
 	if (unlikely(!priv->is_open)) {
-		IWL_DEBUG_DROP_LIMIT(priv,
+		IWL_DE_DROP_LIMIT(priv,
 		    "Dropping packet while interface is not open.\n");
 		return;
 	}
@@ -740,7 +740,7 @@ static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 		break;
 	}
 
-	IWL_DEBUG_RX(priv, "decrypt_in:0x%x  decrypt_out = 0x%x\n",
+	IWL_DE_RX(priv, "decrypt_in:0x%x  decrypt_out = 0x%x\n",
 					decrypt_in, decrypt_out);
 
 	return decrypt_out;
@@ -779,7 +779,7 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	max_rssi = max_t(u32, rssi_a, rssi_b);
 	max_rssi = max_t(u32, max_rssi, rssi_c);
 
-	IWL_DEBUG_STATS(priv, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+	IWL_DE_STATS(priv, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
 		rssi_a, rssi_b, rssi_c, max_rssi, agc);
 
 	/* dBm = max_rssi dB - agc dB - constant.
@@ -814,14 +814,14 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 						  le32_to_cpu(rx_pkt_status));
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d\n",
+		IWL_DE_DROP(priv, "dsp size out of range [0,20]: %d\n",
 				phy_res->cfg_phy_cnt);
 		return;
 	}
 
 	if (!(rx_pkt_status & RX_RES_STATUS_NO_CRC32_ERROR) ||
 	    !(rx_pkt_status & RX_RES_STATUS_NO_RXE_OVERFLOW)) {
-		IWL_DEBUG_RX(priv, "Bad CRC or FIFO: 0x%08X.\n",
+		IWL_DE_RX(priv, "Bad CRC or FIFO: 0x%08X.\n",
 				le32_to_cpu(rx_pkt_status));
 		return;
 	}
@@ -849,7 +849,7 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	rx_status.signal = iwlagn_calc_rssi(priv, phy_res);
 
-	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",
+	IWL_DE_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",
 		rx_status.signal, (unsigned long long)rx_status.mactime);
 
 	/*
@@ -957,8 +957,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	handlers[SPECTRUM_MEASURE_NOTIFICATION]	=
 		iwlagn_rx_spectrum_measure_notif;
 	handlers[PM_SLEEP_NOTIFICATION]		= iwlagn_rx_pm_sleep_notif;
-	handlers[PM_DEBUG_STATISTIC_NOTIFIC]	=
-		iwlagn_rx_pm_debug_statistics_notif;
+	handlers[PM_DE_STATISTIC_NOTIFIC]	=
+		iwlagn_rx_pm_de_statistics_notif;
 	handlers[BEACON_NOTIFICATION]		= iwlagn_rx_beacon_notif;
 	handlers[REPLY_ADD_STA]			= iwl_add_sta_callback;
 
@@ -1017,7 +1017,7 @@ void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 		priv->rx_handlers[pkt->hdr.cmd](priv, rxb);
 	} else {
 		/* No handling needed */
-		IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
+		IWL_DE_RX(priv, "No handler needed for %s, 0x%02x\n",
 			     iwl_get_cmd_string(priv->trans,
 						iwl_cmd_id(pkt->hdr.cmd,
 							   0, 0)),

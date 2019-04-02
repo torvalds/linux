@@ -120,12 +120,12 @@ void
 snic_get_res_counts(struct snic *snic)
 {
 	snic->wq_count = svnic_dev_get_res_count(snic->vdev, RES_TYPE_WQ);
-	SNIC_BUG_ON(snic->wq_count == 0);
+	SNIC__ON(snic->wq_count == 0);
 	snic->cq_count = svnic_dev_get_res_count(snic->vdev, RES_TYPE_CQ);
-	SNIC_BUG_ON(snic->cq_count == 0);
+	SNIC__ON(snic->cq_count == 0);
 	snic->intr_count = svnic_dev_get_res_count(snic->vdev,
 						  RES_TYPE_INTR_CTRL);
-	SNIC_BUG_ON(snic->intr_count == 0);
+	SNIC__ON(snic->intr_count == 0);
 }
 
 void
@@ -165,7 +165,7 @@ snic_alloc_vnic_res(struct snic *snic)
 		     "MSI-X" : "Unknown"))));
 
 	/* only MSI-X is supported */
-	SNIC_BUG_ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);
+	SNIC__ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);
 
 	SNIC_INFO("wq %d cq %d intr %d\n", snic->wq_count,
 		  snic->cq_count,
@@ -194,7 +194,7 @@ snic_alloc_vnic_res(struct snic *snic)
 			goto error_cleanup;
 	}
 
-	SNIC_BUG_ON(snic->cq_count != 2 * snic->wq_count);
+	SNIC__ON(snic->cq_count != 2 * snic->wq_count);
 	/* CQ for FW TO host */
 	for (i = snic->wq_count; i < snic->cq_count; i++) {
 		ret = svnic_cq_alloc(snic->vdev,
@@ -247,7 +247,7 @@ snic_alloc_vnic_res(struct snic *snic)
 	 * Init INTR resources
 	 * Assumption : snic is always in MSI-X mode
 	 */
-	SNIC_BUG_ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);
+	SNIC__ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);
 	mask_on_assertion = 1;
 
 	for (i = 0; i < snic->intr_count; i++) {

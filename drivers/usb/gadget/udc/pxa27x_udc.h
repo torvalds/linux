@@ -321,7 +321,7 @@ struct udc_usb_ep {
  *      or
  *        pxa_ep_queue()->handle_ep()->req_done()->req.complete()->pxa_ep_queue()
  * @idx: endpoint index (1 => epA, 2 => epB, ..., 24 => epX)
- * @name: endpoint name (for trace/debug purpose)
+ * @name: endpoint name (for trace/de purpose)
  * @dir_in: 1 if IN endpoint, 0 if OUT endpoint
  * @addr: usb endpoint number
  * @config: configuration in which this endpoint is active
@@ -335,7 +335,7 @@ struct udc_usb_ep {
  *
  * The *PROBLEM* is that pxa's endpoint configuration scheme is both misdesigned
  * (cares about config/interface/altsetting, thus placing needless limits on
- * device capability) and full of implementation bugs forcing it to be set up
+ * device capability) and full of implementation s forcing it to be set up
  * for use more or less like a pxa255.
  *
  * As we define the pxa_ep statically, we must guess all needed pxa_ep for all
@@ -440,10 +440,10 @@ struct udc_stats {
  * @last_interface: UDC interface of the last SET_INTERFACE host request
  * @last_alternate: UDC altsetting of the last SET_INTERFACE host request
  * @udccsr0: save of udccsr0 in case of suspend
- * @debugfs_root: root entry of debug filesystem
- * @debugfs_state: debugfs entry for "udcstate"
- * @debugfs_queues: debugfs entry for "queues"
- * @debugfs_eps: debugfs entry for "epstate"
+ * @defs_root: root entry of de filesystem
+ * @defs_state: defs entry for "udcstate"
+ * @defs_queues: defs entry for "queues"
+ * @defs_eps: defs entry for "epstate"
  */
 struct pxa_udc {
 	void __iomem				*regs;
@@ -474,8 +474,8 @@ struct pxa_udc {
 #ifdef CONFIG_PM
 	unsigned				udccsr0;
 #endif
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
-	struct dentry				*debugfs_root;
+#ifdef CONFIG_USB_GADGET_DE_FS
+	struct dentry				*defs_root;
 #endif
 };
 #define to_pxa(g)	(container_of((g), struct pxa_udc, gadget))
@@ -486,7 +486,7 @@ static inline struct pxa_udc *to_gadget_udc(struct usb_gadget *gadget)
 }
 
 /*
- * Debugging/message support
+ * Deging/message support
  */
 #define ep_dbg(ep, fmt, arg...) \
 	dev_dbg(ep->dev->dev, "%s:%s: " fmt, EPNAME(ep), __func__, ## arg)

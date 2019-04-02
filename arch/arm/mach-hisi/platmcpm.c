@@ -26,9 +26,9 @@
  */
 #define CORE_RESET_BIT(x)		(1 << x)
 #define NEON_RESET_BIT(x)		(1 << (x + 4))
-#define CORE_DEBUG_RESET_BIT(x)		(1 << (x + 9))
+#define CORE_DE_RESET_BIT(x)		(1 << (x + 9))
 #define CLUSTER_L2_RESET_BIT		(1 << 8)
-#define CLUSTER_DEBUG_RESET_BIT		(1 << 13)
+#define CLUSTER_DE_RESET_BIT		(1 << 13)
 
 /*
  * bits definition in SC_CPU_RESET_STATUS[x]
@@ -36,12 +36,12 @@
  */
 #define CORE_RESET_STATUS(x)		(1 << x)
 #define NEON_RESET_STATUS(x)		(1 << (x + 4))
-#define CORE_DEBUG_RESET_STATUS(x)	(1 << (x + 9))
+#define CORE_DE_RESET_STATUS(x)	(1 << (x + 9))
 #define CLUSTER_L2_RESET_STATUS		(1 << 8)
-#define CLUSTER_DEBUG_RESET_STATUS	(1 << 13)
+#define CLUSTER_DE_RESET_STATUS	(1 << 13)
 #define CORE_WFI_STATUS(x)		(1 << (x + 16))
 #define CORE_WFE_STATUS(x)		(1 << (x + 20))
-#define CORE_DEBUG_ACK(x)		(1 << (x + 24))
+#define CORE_DE_ACK(x)		(1 << (x + 24))
 
 #define SC_CPU_RESET_REQ(x)		(0x520 + (x << 3))	/* reset */
 #define SC_CPU_RESET_DREQ(x)		(0x524 + (x << 3))	/* unreset */
@@ -86,7 +86,7 @@ static void hip04_set_snoop_filter(unsigned int cluster, unsigned int on)
 	unsigned long data;
 
 	if (!fabric)
-		BUG();
+		();
 	data = readl_relaxed(fabric + FAB_SF_MODE);
 	if (on)
 		data |= 1 << cluster;
@@ -121,17 +121,17 @@ static int hip04_boot_secondary(unsigned int l_cpu, struct task_struct *idle)
 	sys_dreq = sysctrl + SC_CPU_RESET_DREQ(cluster);
 	sys_status = sysctrl + SC_CPU_RESET_STATUS(cluster);
 	if (hip04_cluster_is_down(cluster)) {
-		data = CLUSTER_DEBUG_RESET_BIT;
+		data = CLUSTER_DE_RESET_BIT;
 		writel_relaxed(data, sys_dreq);
 		do {
 			cpu_relax();
 			data = readl_relaxed(sys_status);
-		} while (data & CLUSTER_DEBUG_RESET_STATUS);
+		} while (data & CLUSTER_DE_RESET_STATUS);
 		hip04_set_snoop_filter(cluster, 1);
 	}
 
 	data = CORE_RESET_BIT(cpu) | NEON_RESET_BIT(cpu) | \
-	       CORE_DEBUG_RESET_BIT(cpu);
+	       CORE_DE_RESET_BIT(cpu);
 	writel_relaxed(data, sys_dreq);
 	do {
 		cpu_relax();
@@ -170,7 +170,7 @@ static void hip04_cpu_die(unsigned int l_cpu)
 		return;
 	} else if (hip04_cpu_table[cluster][cpu] > 1) {
 		pr_err("Cluster %d CPU%d boots multiple times\n", cluster, cpu);
-		BUG();
+		();
 	}
 
 	last_man = hip04_cluster_is_down(cluster);
@@ -199,7 +199,7 @@ static int hip04_cpu_kill(unsigned int l_cpu)
 	mpidr = cpu_logical_map(l_cpu);
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-	BUG_ON(cluster >= HIP04_MAX_CLUSTERS ||
+	_ON(cluster >= HIP04_MAX_CLUSTERS ||
 	       cpu >= HIP04_MAX_CPUS_PER_CLUSTER);
 
 	count = TIMEOUT_MSEC / POLL_MSEC;
@@ -219,7 +219,7 @@ static int hip04_cpu_kill(unsigned int l_cpu)
 	if (tries >= count)
 		goto err;
 	data = CORE_RESET_BIT(cpu) | NEON_RESET_BIT(cpu) | \
-	       CORE_DEBUG_RESET_BIT(cpu);
+	       CORE_DE_RESET_BIT(cpu);
 	writel_relaxed(data, sysctrl + SC_CPU_RESET_REQ(cluster));
 	for (tries = 0; tries < count; tries++) {
 		cpu_relax();

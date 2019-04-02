@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
 #define BIG_BUFFER_SIZE	(1024)
 
 static char big_buffer[BIG_BUFFER_SIZE];
 
-struct mbxfb_debugfs_data {
+struct mbxfb_defs_data {
 	struct dentry *dir;
 	struct dentry *sysconf;
 	struct dentry *clock;
@@ -208,25 +208,25 @@ static const struct file_operations misc_fops = {
 	.llseek = default_llseek,
 };
 
-static void mbxfb_debugfs_init(struct fb_info *fbi)
+static void mbxfb_defs_init(struct fb_info *fbi)
 {
 	struct mbxfb_info *mfbi = fbi->par;
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("mbxfb", NULL);
-	mfbi->debugfs_dir = dir;
+	dir = defs_create_dir("mbxfb", NULL);
+	mfbi->defs_dir = dir;
 
-	debugfs_create_file("sysconf", 0444, dir, fbi, &sysconf_fops);
-	debugfs_create_file("clock", 0444, dir, fbi, &clock_fops);
-	debugfs_create_file("display", 0444, dir, fbi, &display_fops);
-	debugfs_create_file("gsctl", 0444, dir, fbi, &gsctl_fops);
-	debugfs_create_file("sdram", 0444, dir, fbi, &sdram_fops);
-	debugfs_create_file("misc", 0444, dir, fbi, &misc_fops);
+	defs_create_file("sysconf", 0444, dir, fbi, &sysconf_fops);
+	defs_create_file("clock", 0444, dir, fbi, &clock_fops);
+	defs_create_file("display", 0444, dir, fbi, &display_fops);
+	defs_create_file("gsctl", 0444, dir, fbi, &gsctl_fops);
+	defs_create_file("sdram", 0444, dir, fbi, &sdram_fops);
+	defs_create_file("misc", 0444, dir, fbi, &misc_fops);
 }
 
-static void mbxfb_debugfs_remove(struct fb_info *fbi)
+static void mbxfb_defs_remove(struct fb_info *fbi)
 {
 	struct mbxfb_info *mfbi = fbi->par;
 
-	debugfs_remove_recursive(mfbi->debugfs_dir);
+	defs_remove_recursive(mfbi->defs_dir);
 }

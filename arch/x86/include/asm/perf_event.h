@@ -241,7 +241,7 @@ extern void perf_events_lapic_init(void);
  * them.
  *
  * EXACT - the IP points to the exact instruction that triggered the
- *         event (HW bugs exempt).
+ *         event (HW s exempt).
  * VM    - original X86_VM_MASK; see set_linear_ip().
  */
 #define PERF_EFLAGS_EXACT	(1UL << 3)

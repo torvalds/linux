@@ -47,15 +47,15 @@
 #include <media/dvbdev.h>
 #include <linux/dvb/version.h>
 
-static int dvb_frontend_debug;
+static int dvb_frontend_de;
 static int dvb_shutdown_timeout;
 static int dvb_force_auto_inversion;
 static int dvb_override_tune_delay;
 static int dvb_powerdown_on_sleep = 1;
 static int dvb_mfe_wait_time = 5;
 
-module_param_named(frontend_debug, dvb_frontend_debug, int, 0644);
-MODULE_PARM_DESC(frontend_debug, "Turn on/off frontend core debugging (default:off).");
+module_param_named(frontend_de, dvb_frontend_de, int, 0644);
+MODULE_PARM_DESC(frontend_de, "Turn on/off frontend core deging (default:off).");
 module_param(dvb_shutdown_timeout, int, 0644);
 MODULE_PARM_DESC(dvb_shutdown_timeout, "wait <shutdown_timeout> seconds after close() before suspending hardware");
 module_param(dvb_force_auto_inversion, int, 0644);
@@ -68,7 +68,7 @@ module_param(dvb_mfe_wait_time, int, 0644);
 MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open() for multi-frontend to become available (default:5 seconds)");
 
 #define dprintk(fmt, arg...) \
-	printk(KERN_DEBUG pr_fmt("%s: " fmt), __func__, ##arg)
+	printk(KERN_DE pr_fmt("%s: " fmt), __func__, ##arg)
 
 #define FESTATE_IDLE 1
 #define FESTATE_RETUNE 2
@@ -1076,7 +1076,7 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 }
 
 struct dtv_cmds_h {
-	char	*name;		/* A display name for debugging purposes */
+	char	*name;		/* A display name for deging purposes */
 
 	__u32	cmd;		/* A unique ID */
 
@@ -2589,11 +2589,11 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 			int i;
 			u8 last = 1;
 
-			if (dvb_frontend_debug)
+			if (dvb_frontend_de)
 				dprintk("switch command: 0x%04lx\n",
 					swcmd);
 			nexttime = ktime_get_boottime();
-			if (dvb_frontend_debug)
+			if (dvb_frontend_de)
 				tv[0] = nexttime;
 			/* before sending a command, initialize by sending
 			 * a 32ms 18V to the switch
@@ -2602,7 +2602,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 			dvb_frontend_sleep_until(&nexttime, 32000);
 
 			for (i = 0; i < 9; i++) {
-				if (dvb_frontend_debug)
+				if (dvb_frontend_de)
 					tv[i + 1] = ktime_get_boottime();
 				if ((swcmd & 0x01) != last) {
 					/* set voltage to (last ? 13V : 18V) */
@@ -2613,7 +2613,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 				if (i != 8)
 					dvb_frontend_sleep_until(&nexttime, 8000);
 			}
-			if (dvb_frontend_debug) {
+			if (dvb_frontend_de) {
 				dprintk("(adapter %d): switch delay (should be 32k followed by all 8k)\n",
 					fe->dvb->num);
 				for (i = 1; i < 10; i++)

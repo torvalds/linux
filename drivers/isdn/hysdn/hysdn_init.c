@@ -80,7 +80,7 @@ static int hysdn_pci_init_one(struct pci_dev *akt_pcidev,
 	card->plxbase = pci_resource_start(akt_pcidev, PCI_REG_PLX_MEM_BASE);
 	card->membase = pci_resource_start(akt_pcidev, PCI_REG_MEMORY_BASE);
 	card->brdtype = BD_NONE;	/* unknown */
-	card->debug_flags = DEF_DEB_FLAGS;	/* set default debug */
+	card->de_flags = DEF_DEB_FLAGS;	/* set default de */
 	card->faxchans = 0;	/* default no fax channels */
 	card->bchans = 2;	/* and 2 b-channels */
 	card->brdtype = ent->driver_data;

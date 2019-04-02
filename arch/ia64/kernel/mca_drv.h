@@ -63,7 +63,7 @@ typedef struct peidx_table {
 #define peidx_mod_error_info(p, name, n) \
 ({	int __idx = peidx_##name##_idx(p, n); \
 	sal_log_mod_error_info_t *__ret = NULL; \
-	if (peidx_##name##_num(p) > n) /*BUG*/ \
+	if (peidx_##name##_num(p) > n) /**/ \
 		__ret = &(peidx_head(p)->info[__idx]); \
 	__ret; })
 

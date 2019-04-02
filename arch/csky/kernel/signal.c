@@ -252,7 +252,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 
 		/*
 		 * Prepare for system call restart.  We do this here so that a
-		 * debugger will see the already changed.
+		 * deger will see the already changed.
 		 */
 		switch (retval) {
 		case -ERESTARTNOHAND:
@@ -272,13 +272,13 @@ static void do_signal(struct pt_regs *regs, int syscall)
 
 	/*
 	 * Get the signal to deliver.  When running under ptrace, at this
-	 * point the debugger may change all our registers ...
+	 * point the deger may change all our registers ...
 	 */
 	if (get_signal(&ksig)) {
 		/*
 		 * Depending on the signal settings we may need to revert the
 		 * decision to restart the system call.  But skip this if a
-		 * debugger has chosen to restart at a different PC.
+		 * deger has chosen to restart at a different PC.
 		 */
 		if (regs->pc == restart_addr) {
 			if (retval == -ERESTARTNOHAND ||
@@ -307,7 +307,7 @@ no_signal:
 	if (syscall) {
 		/*
 		 * Handle restarting a different system call.  As above,
-		 * if a debugger has chosen to restart at a different PC,
+		 * if a deger has chosen to restart at a different PC,
 		 * ignore the restart.
 		 */
 		if (retval == -ERESTART_RESTARTBLOCK

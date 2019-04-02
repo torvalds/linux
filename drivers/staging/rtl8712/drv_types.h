@@ -54,7 +54,7 @@ struct	qos_priv	{
 #include "sta_info.h"
 #include "rtl871x_mlme.h"
 #include "rtl871x_mp.h"
-#include "rtl871x_debug.h"
+#include "rtl871x_de.h"
 #include "rtl871x_rf.h"
 #include "rtl871x_event.h"
 #include "rtl871x_led.h"

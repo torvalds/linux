@@ -1145,7 +1145,7 @@ static void atusb_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	usb_put_dev(atusb->usb_dev);
 
-	pr_debug("%s done\n", __func__);
+	pr_de("%s done\n", __func__);
 }
 
 /* The devices we work with */

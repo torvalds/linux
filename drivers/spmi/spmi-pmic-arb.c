@@ -931,7 +931,7 @@ static int pmic_arb_read_apid_map_v5(struct spmi_pmic_arb *pmic_arb)
 		pmic_arb->last_apid = i;
 	}
 
-	/* Dump the mapping table for debug purposes. */
+	/* Dump the mapping table for de purposes. */
 	dev_dbg(&pmic_arb->spmic->dev, "PPID APID Write-EE IRQ-EE\n");
 	for (ppid = 0; ppid < PMIC_ARB_MAX_PPID; ppid++) {
 		apid = pmic_arb->ppid_to_apid[ppid];

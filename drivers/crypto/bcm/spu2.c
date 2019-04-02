@@ -515,7 +515,7 @@ static void spu2_dump_omd(u8 *omd, u16 hash_key_len, u16 ciph_key_len,
 	}
 }
 
-/* Dump a SPU2 header for debug */
+/* Dump a SPU2 header for de */
 void spu2_dump_msg_hdr(u8 *buf, unsigned int buf_len)
 {
 	struct SPU2_FMD *fmd = (struct SPU2_FMD *)buf;
@@ -975,7 +975,7 @@ u32 spu2_create_request(u8 *spu_hdr,
 	unsigned int cipher_offset = aead_parms->assoc_size +
 			aead_parms->aad_pad_len + aead_parms->iv_len;
 
-#ifdef DEBUG
+#ifdef DE
 	/* total size of the data following OMD (without STAT word padding) */
 	unsigned int real_db_size = spu_real_db_size(aead_parms->assoc_size,
 						 aead_parms->iv_len,

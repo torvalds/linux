@@ -156,7 +156,7 @@ static void scan_children(struct sock *x, void (*func)(struct unix_sock *),
 			/* An embryo cannot be in-flight, so it's safe
 			 * to use the list link.
 			 */
-			BUG_ON(!list_empty(&u->link));
+			_ON(!list_empty(&u->link));
 			list_add_tail(&u->link, &embryos);
 		}
 		spin_unlock(&x->sk_receive_queue.lock);
@@ -241,8 +241,8 @@ void unix_gc(void)
 		total_refs = file_count(u->sk.sk_socket->file);
 		inflight_refs = atomic_long_read(&u->inflight);
 
-		BUG_ON(inflight_refs < 1);
-		BUG_ON(total_refs < inflight_refs);
+		_ON(inflight_refs < 1);
+		_ON(total_refs < inflight_refs);
 		if (total_refs == inflight_refs) {
 			list_move_tail(&u->link, &gc_candidates);
 			__set_bit(UNIX_GC_CANDIDATE, &u->gc_flags);
@@ -303,7 +303,7 @@ void unix_gc(void)
 	spin_lock(&unix_gc_lock);
 
 	/* All candidates should have been detached by now. */
-	BUG_ON(!list_empty(&gc_candidates));
+	_ON(!list_empty(&gc_candidates));
 	gc_in_progress = false;
 	wake_up(&unix_gc_wait);
 

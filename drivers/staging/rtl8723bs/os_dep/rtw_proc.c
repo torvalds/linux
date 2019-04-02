@@ -6,10 +6,10 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include "rtw_proc.h"
 
-#ifdef PROC_DEBUG
+#ifdef PROC_DE
 
 static struct proc_dir_entry *rtw_proc;
 
@@ -63,10 +63,10 @@ static ssize_t proc_set_log_level(struct file *file, const char __user *buffer, 
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		sscanf(tmp, "%d ", &log_level);
-		if (log_level >= _drv_always_ && log_level <= _drv_debug_)
+		if (log_level >= _drv_always_ && log_level <= _drv_de_)
 		{
-			GlobalDebugLevel = log_level;
-			printk("%d\n", GlobalDebugLevel);
+			GlobalDeLevel = log_level;
+			printk("%d\n", GlobalDeLevel);
 		}
 	} else {
 		return -EFAULT;
@@ -242,7 +242,7 @@ static int proc_get_rx_info(struct seq_file *m, void *v)
 	struct net_device *dev = m->private;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	/* Counts of packets whose seq_num is less than preorder_ctrl->indicate_seq, Ex delay, retransmission, redundant packets and so on */
 	DBG_871X_SEL_NL(m,"Counts of Packets Whose Seq_Num Less Than Reorder Control Seq_Num: %llu\n", (unsigned long long)pdbgpriv->dbg_rx_ampdu_drop_count);
@@ -261,7 +261,7 @@ static ssize_t proc_reset_rx_info(struct file *file, const char __user *buffer, 
 	struct net_device *dev = data;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	char cmd[32];
 	if (buffer && !copy_from_user(cmd, buffer, sizeof(cmd))) {
 		if ('0' == cmd[0]) {
@@ -778,4 +778,4 @@ void rtw_adapter_proc_replace(struct net_device *dev)
 
 }
 
-#endif /* PROC_DEBUG */
+#endif /* PROC_DE */

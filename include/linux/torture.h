@@ -18,8 +18,8 @@
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
 #include <linux/completion.h>
-#include <linux/debugobjects.h>
-#include <linux/bug.h>
+#include <linux/deobjects.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 
 /* Definitions for a non-string torture-test module parameter. */

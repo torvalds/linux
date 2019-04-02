@@ -404,7 +404,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ov5647_sensor_get_register(struct v4l2_subdev *sd,
 				struct v4l2_dbg_register *reg)
 {
@@ -433,7 +433,7 @@ static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
  */
 static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
 	.s_power		= ov5647_sensor_power,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register		= ov5647_sensor_get_register,
 	.s_register		= ov5647_sensor_set_register,
 #endif

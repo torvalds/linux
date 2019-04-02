@@ -77,11 +77,11 @@
 #include "m88rs6000t.h"
 #include "lgdt3306a.h"
 
-static unsigned int debug;
+static unsigned int de;
 
 #define dprintk(level, fmt, arg...)\
-	do { if (debug >= level)\
-		printk(KERN_DEBUG pr_fmt("%s dvb: " fmt), \
+	do { if (de >= level)\
+		printk(KERN_DE pr_fmt("%s dvb: " fmt), \
 			__func__, ##arg); \
 	} while (0)
 

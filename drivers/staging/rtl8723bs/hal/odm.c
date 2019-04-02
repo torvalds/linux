@@ -299,7 +299,7 @@ void odm_CommonInfoSelfInit(PDM_ODM_T pDM_Odm);
 
 void odm_CommonInfoSelfUpdate(PDM_ODM_T pDM_Odm);
 
-void odm_CmnInfoInit_Debug(PDM_ODM_T pDM_Odm);
+void odm_CmnInfoInit_De(PDM_ODM_T pDM_Odm);
 
 void odm_BasicDbgMessage(PDM_ODM_T pDM_Odm);
 
@@ -381,7 +381,7 @@ void ODM_DMInit(PDM_ODM_T pDM_Odm)
 {
 
 	odm_CommonInfoSelfInit(pDM_Odm);
-	odm_CmnInfoInit_Debug(pDM_Odm);
+	odm_CmnInfoInit_De(pDM_Odm);
 	odm_DIGInit(pDM_Odm);
 	odm_NHMCounterStatisticsInit(pDM_Odm);
 	odm_AdaptivityInit(pDM_Odm);
@@ -770,11 +770,11 @@ void ODM_CmnInfoUpdate(PDM_ODM_T pDM_Odm, u32 CmnInfo, u64 Value)
 		break;
 
 	case ODM_CMNINFO_DBG_COMP:
-		pDM_Odm->DebugComponents = Value;
+		pDM_Odm->DeComponents = Value;
 		break;
 
 	case ODM_CMNINFO_DBG_LEVEL:
-		pDM_Odm->DebugLevel = (u32)Value;
+		pDM_Odm->DeLevel = (u32)Value;
 		break;
 	case ODM_CMNINFO_RA_THRESHOLD_HIGH:
 		pDM_Odm->RateAdaptive.HighRSSIThresh = (u8)Value;
@@ -850,7 +850,7 @@ void odm_CommonInfoSelfInit(PDM_ODM_T pDM_Odm)
 	pDM_Odm->bCckHighPower = (bool) PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG(CCK_RPT_FORMAT, pDM_Odm), ODM_BIT(CCK_RPT_FORMAT, pDM_Odm));
 	pDM_Odm->RFPathRxEnable = (u8) PHY_QueryBBReg(pDM_Odm->Adapter, ODM_REG(BB_RX_PATH, pDM_Odm), ODM_BIT(BB_RX_PATH, pDM_Odm));
 
-	ODM_InitDebugSetting(pDM_Odm);
+	ODM_InitDeSetting(pDM_Odm);
 
 	pDM_Odm->TxRate = 0xFF;
 }
@@ -881,9 +881,9 @@ void odm_CommonInfoSelfUpdate(PDM_ODM_T pDM_Odm)
 		pDM_Odm->bOneEntryOnly = false;
 }
 
-void odm_CmnInfoInit_Debug(PDM_ODM_T pDM_Odm)
+void odm_CmnInfoInit_De(PDM_ODM_T pDM_Odm)
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoInit_Debug ==>\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoInit_De ==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportPlatform =%d\n", pDM_Odm->SupportPlatform));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportAbility = 0x%x\n", pDM_Odm->SupportAbility));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportInterface =%d\n", pDM_Odm->SupportInterface));

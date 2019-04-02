@@ -77,7 +77,7 @@ void *amiga_chip_alloc_res(unsigned long size, struct resource *res)
 	/* round up */
 	size = PAGE_ALIGN(size);
 
-	pr_debug("amiga_chip_alloc_res: allocate %lu bytes\n", size);
+	pr_de("amiga_chip_alloc_res: allocate %lu bytes\n", size);
 	error = allocate_resource(&chipram_res, res, size, 0, UINT_MAX,
 				  PAGE_SIZE, NULL, NULL);
 	if (error < 0) {
@@ -87,7 +87,7 @@ void *amiga_chip_alloc_res(unsigned long size, struct resource *res)
 	}
 
 	atomic_sub(size, &chipavail);
-	pr_debug("amiga_chip_alloc_res: returning %pR\n", res);
+	pr_de("amiga_chip_alloc_res: returning %pR\n", res);
 	return ZTWO_VADDR(res->start);
 }
 
@@ -105,7 +105,7 @@ void amiga_chip_free(void *ptr)
 	}
 
 	size = resource_size(res);
-	pr_debug("amiga_chip_free: free %lu bytes at %p\n", size, ptr);
+	pr_de("amiga_chip_free: free %lu bytes at %p\n", size, ptr);
 	atomic_add(size, &chipavail);
 	release_resource(res);
 	kfree(res);
@@ -117,7 +117,7 @@ unsigned long amiga_chip_avail(void)
 {
 	unsigned long n = atomic_read(&chipavail);
 
-	pr_debug("amiga_chip_avail : %lu bytes\n", n);
+	pr_de("amiga_chip_avail : %lu bytes\n", n);
 	return n;
 }
 EXPORT_SYMBOL(amiga_chip_avail);

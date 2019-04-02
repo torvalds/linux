@@ -122,7 +122,7 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 	u32 irqflag;
 
 	irqflag = bcma_core_mips_irqflag(dev);
-	BUG_ON(oldirq == 6);
+	_ON(oldirq == 6);
 
 	dev->irq = irq + 2;
 
@@ -160,7 +160,7 @@ static void bcma_core_mips_set_irq(struct bcma_device *dev, unsigned int irq)
 			     1 << irqflag);
 	}
 
-	bcma_debug(bus, "set_irq: core 0x%04x, irq %d => %d\n",
+	bcma_de(bus, "set_irq: core 0x%04x, irq %d => %d\n",
 		   dev->id.id, oldirq <= 4 ? oldirq + 2 : 0, irq + 2);
 }
 
@@ -191,7 +191,7 @@ static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
 		ints += sprintf(ints, " %s%c",
 				irq_name[i], i == irq ? '*' : ' ');
 
-	bcma_debug(dev->bus, "core 0x%04x, irq:%s\n", dev->id.id, interrupts);
+	bcma_de(dev->bus, "core 0x%04x, irq:%s\n", dev->id.id, interrupts);
 }
 
 static void bcma_core_mips_dump_irq(struct bcma_bus *bus)
@@ -314,7 +314,7 @@ static void bcma_fix_i2s_irqflag(struct bcma_bus *bus)
 		bcma_awrite32(cpu, BCMA_MIPS_OOBSELINA74, 0x07060504);
 		bcma_awrite32(pcie, BCMA_MIPS_OOBSELINA74, 0x07060504);
 		bcma_awrite32(i2s, BCMA_MIPS_OOBSELOUTA30, 0x87);
-		bcma_debug(bus,
+		bcma_de(bus,
 			   "Moved i2s interrupt to oob line 7 instead of 8\n");
 	}
 }
@@ -328,7 +328,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	if (mcore->setup_done)
 		return;
 
-	bcma_debug(bus, "Initializing MIPS core...\n");
+	bcma_de(bus, "Initializing MIPS core...\n");
 
 	bcma_core_mips_early_init(mcore);
 
@@ -376,7 +376,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 			 "Unknown device (0x%x) found, can not configure IRQs\n",
 			 bus->chipinfo.id);
 	}
-	bcma_debug(bus, "IRQ reconfiguration done\n");
+	bcma_de(bus, "IRQ reconfiguration done\n");
 	bcma_core_mips_dump_irq(bus);
 
 	mcore->setup_done = true;

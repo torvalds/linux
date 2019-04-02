@@ -40,9 +40,9 @@ int snd_oss_info_register(int dev, int num, char *string)
 {
 	char *x;
 
-	if (snd_BUG_ON(dev < 0 || dev >= SNDRV_OSS_INFO_DEV_COUNT))
+	if (snd__ON(dev < 0 || dev >= SNDRV_OSS_INFO_DEV_COUNT))
 		return -ENXIO;
-	if (snd_BUG_ON(num < 0 || num >= SNDRV_CARDS))
+	if (snd__ON(num < 0 || num >= SNDRV_CARDS))
 		return -ENXIO;
 	mutex_lock(&strings);
 	if (string == NULL) {

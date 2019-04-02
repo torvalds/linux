@@ -21,7 +21,7 @@ Usually a userspace daemon will notify the kernel watchdog driver via the
 regular intervals.  When such a notification occurs, the driver will
 usually tell the hardware watchdog that everything is in order, and
 that the watchdog should wait for yet another little while to reset
-the system.  If userspace fails (RAM error, kernel bug, whatever), the
+the system.  If userspace fails (RAM error, kernel , whatever), the
 notifications cease to occur, and the hardware watchdog will reset the
 system (causing a reboot) after the timeout occurs.
 
@@ -44,7 +44,7 @@ still responding before doing the write call to ping the watchdog.
 
 When the device is closed, the watchdog is disabled, unless the "Magic
 Close" feature is supported (see below).  This is not always such a
-good idea, since if there is a bug in the watchdog daemon and it
+good idea, since if there is a  in the watchdog daemon and it
 crashes the system will not reboot.  Because of this, some of the
 drivers support the configuration option "Disable watchdog shutdown on
 close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when compiling

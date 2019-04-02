@@ -147,7 +147,7 @@ static void sun_82077_fd_outb(unsigned char value, unsigned long port)
  * floppy interrupt c-code.  I tried very hard but I could not get the
  * pseudo-dma to work in c-code without getting many overruns and
  * underruns.  If non-zero, doing_pdma encodes the direction of
- * the transfer for debugging.  1=read 2=write
+ * the transfer for deging.  1=read 2=write
  */
 unsigned char *pdma_vaddr;
 unsigned long pdma_size;
@@ -351,7 +351,7 @@ static void sun_pci_fd_lde_broken_outb(unsigned char val, unsigned long port)
 
 static void sun_pci_fd_enable_dma(void)
 {
-	BUG_ON((NULL == sun_pci_dma_pending.buf) 	||
+	_ON((NULL == sun_pci_dma_pending.buf) 	||
 	    (0	  == sun_pci_dma_pending.len) 	||
 	    (0	  == sun_pci_dma_pending.direction));
 
@@ -375,7 +375,7 @@ static void sun_pci_fd_enable_dma(void)
 	if (ebus_dma_request(&sun_pci_fd_ebus_dma,
 			     sun_pci_dma_current.addr,
 			     sun_pci_dma_current.len))
-		BUG();
+		();
 }
 
 static void sun_pci_fd_disable_dma(void)

@@ -224,8 +224,8 @@ static inline struct i915_request *
 to_request(struct dma_fence *fence)
 {
 	/* We assume that NULL fence/request are interoperable */
-	BUILD_BUG_ON(offsetof(struct i915_request, fence) != 0);
-	GEM_BUG_ON(fence && !dma_fence_is_i915(fence));
+	BUILD__ON(offsetof(struct i915_request, fence) != 0);
+	GEM__ON(fence && !dma_fence_is_i915(fence));
 	return container_of(fence, struct i915_request, fence);
 }
 

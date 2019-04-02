@@ -37,11 +37,11 @@ if ARCH_U8500
 config UX500_SOC_DB8500
 	def_bool y
 
-config UX500_DEBUG_UART
-	int "Ux500 UART to use for low-level debug"
+config UX500_DE_UART
+	int "Ux500 UART to use for low-level de"
 	default 2
 	help
-	  Choose the UART on which kernel low-level debug messages should be
+	  Choose the UART on which kernel low-level de messages should be
 	  output.
 
 endif

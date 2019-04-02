@@ -54,22 +54,22 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+	DRM_DE_DRIVER("%s fw fetch %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+	DRM_DE_DRIVER("%s fw fetch %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->fetch_status));
 
 	err = request_firmware(&fw, uc_fw->path, &pdev->dev);
 	if (err) {
-		DRM_DEBUG_DRIVER("%s fw request_firmware err=%d\n",
+		DRM_DE_DRIVER("%s fw request_firmware err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
 	}
 
-	DRM_DEBUG_DRIVER("%s fw size %zu ptr %p\n",
+	DRM_DE_DRIVER("%s fw size %zu ptr %p\n",
 			 intel_uc_fw_type_repr(uc_fw->type), fw->size, fw);
 
 	/* Check the size of the blob before examining buffer contents */
@@ -141,7 +141,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	DRM_DEBUG_DRIVER("%s fw version %u.%u (wanted %u.%u)\n",
+	DRM_DE_DRIVER("%s fw version %u.%u (wanted %u.%u)\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
 			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
@@ -162,7 +162,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
-		DRM_DEBUG_DRIVER("%s fw object_create err=%d\n",
+		DRM_DE_DRIVER("%s fw object_create err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
 	}
@@ -170,7 +170,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	uc_fw->obj = obj;
 	uc_fw->size = fw->size;
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_SUCCESS;
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+	DRM_DE_DRIVER("%s fw fetch %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->fetch_status));
 
@@ -179,7 +179,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 
 fail:
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_FAIL;
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
+	DRM_DE_DRIVER("%s fw fetch %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->fetch_status));
 
@@ -208,21 +208,21 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 	u32 ggtt_pin_bias;
 	int err;
 
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
+	DRM_DE_DRIVER("%s fw load %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
 	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return -ENOEXEC;
 
 	uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
+	DRM_DE_DRIVER("%s fw load %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->load_status));
 
 	/* Pin object with firmware */
 	err = i915_gem_object_set_to_gtt_domain(uc_fw->obj, false);
 	if (err) {
-		DRM_DEBUG_DRIVER("%s fw set-domain err=%d\n",
+		DRM_DE_DRIVER("%s fw set-domain err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
 	}
@@ -232,7 +232,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 				       PIN_OFFSET_BIAS | ggtt_pin_bias);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
-		DRM_DEBUG_DRIVER("%s fw ggtt-pin err=%d\n",
+		DRM_DE_DRIVER("%s fw ggtt-pin err=%d\n",
 				 intel_uc_fw_type_repr(uc_fw->type), err);
 		goto fail;
 	}
@@ -250,7 +250,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		goto fail;
 
 	uc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
+	DRM_DE_DRIVER("%s fw load %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->load_status));
 
@@ -263,7 +263,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 
 fail:
 	uc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
+	DRM_DE_DRIVER("%s fw load %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type),
 			 intel_uc_fw_status_repr(uc_fw->load_status));
 

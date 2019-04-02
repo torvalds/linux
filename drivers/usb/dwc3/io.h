@@ -13,7 +13,7 @@
 
 #include <linux/io.h>
 #include "trace.h"
-#include "debug.h"
+#include "de.h"
 #include "core.h"
 
 static inline u32 dwc3_readl(void __iomem *base, u32 offset)

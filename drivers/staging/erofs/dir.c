@@ -23,17 +23,17 @@ static const unsigned char erofs_filetype_table[EROFS_FT_MAX] = {
 	[EROFS_FT_SYMLINK]	= DT_LNK,
 };
 
-static void debug_one_dentry(unsigned char d_type, const char *de_name,
+static void de_one_dentry(unsigned char d_type, const char *de_name,
 			     unsigned int de_namelen)
 {
-#ifdef CONFIG_EROFS_FS_DEBUG
+#ifdef CONFIG_EROFS_FS_DE
 	/* since the on-disk name could not have the trailing '\0' */
 	unsigned char dbg_namebuf[EROFS_NAME_LEN + 1];
 
 	memcpy(dbg_namebuf, de_name, de_namelen);
 	dbg_namebuf[de_namelen] = '\0';
 
-	debugln("found dirent %s de_len %u d_type %d", dbg_namebuf,
+	deln("found dirent %s de_len %u d_type %d", dbg_namebuf,
 		de_namelen, d_type);
 #endif
 }
@@ -68,11 +68,11 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 		/* a corrupted entry is found */
 		if (unlikely(nameoff + de_namelen > maxsize ||
 			     de_namelen > EROFS_NAME_LEN)) {
-			DBG_BUGON(1);
+			DBG_ON(1);
 			return -EIO;
 		}
 
-		debug_one_dentry(d_type, de_name, de_namelen);
+		de_one_dentry(d_type, de_name, de_namelen);
 		if (!dir_emit(ctx, de_name, de_namelen,
 			      le64_to_cpu(de->nid), d_type))
 			/* stopped by some reason */

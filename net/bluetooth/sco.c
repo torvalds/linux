@@ -25,7 +25,7 @@
 /* Bluetooth SCO sockets. */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/sched/signal.h>
 
@@ -1157,7 +1157,7 @@ static struct hci_cb sco_cb = {
 	.disconn_cfm	= sco_disconn_cfm,
 };
 
-static int sco_debugfs_show(struct seq_file *f, void *p)
+static int sco_defs_show(struct seq_file *f, void *p)
 {
 	struct sock *sk;
 
@@ -1173,9 +1173,9 @@ static int sco_debugfs_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(sco_debugfs);
+DEFINE_SHOW_ATTRIBUTE(sco_defs);
 
-static struct dentry *sco_debugfs;
+static struct dentry *sco_defs;
 
 static const struct proto_ops sco_sock_ops = {
 	.family		= PF_BLUETOOTH,
@@ -1207,7 +1207,7 @@ int __init sco_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct sockaddr_sco) > sizeof(struct sockaddr));
+	BUILD__ON(sizeof(struct sockaddr_sco) > sizeof(struct sockaddr));
 
 	err = proto_register(&sco_proto, 0);
 	if (err < 0)
@@ -1230,11 +1230,11 @@ int __init sco_init(void)
 
 	hci_register_cb(&sco_cb);
 
-	if (IS_ERR_OR_NULL(bt_debugfs))
+	if (IS_ERR_OR_NULL(bt_defs))
 		return 0;
 
-	sco_debugfs = debugfs_create_file("sco", 0444, bt_debugfs,
-					  NULL, &sco_debugfs_fops);
+	sco_defs = defs_create_file("sco", 0444, bt_defs,
+					  NULL, &sco_defs_fops);
 
 	return 0;
 
@@ -1247,7 +1247,7 @@ void sco_exit(void)
 {
 	bt_procfs_cleanup(&init_net, "sco");
 
-	debugfs_remove(sco_debugfs);
+	defs_remove(sco_defs);
 
 	hci_unregister_cb(&sco_cb);
 

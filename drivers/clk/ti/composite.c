@@ -135,7 +135,7 @@ static void __init _register_composite(void *user,
 
 		comp = _lookup_component(cclk->comp_nodes[i]);
 		if (!comp) {
-			pr_debug("component %s not ready for %pOFn, retry\n",
+			pr_de("component %s not ready for %pOFn, retry\n",
 				 cclk->comp_nodes[i]->name, node);
 			if (!ti_clk_retry_init(node, hw,
 					       _register_composite))

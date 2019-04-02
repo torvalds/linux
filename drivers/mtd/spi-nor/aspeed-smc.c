@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -546,7 +546,7 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 		goto out;
 
 	/*
-	 * The AST2500 SPI controller has a HW bug when the CE0 chip
+	 * The AST2500 SPI controller has a HW  when the CE0 chip
 	 * size reaches 128MB. Enforce a size limit of 120MB to
 	 * prevent the controller from using bogus settings in the
 	 * segment register.

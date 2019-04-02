@@ -64,7 +64,7 @@ do_objdump() {
 
 	# remove addresses for a cleaner diff
 	# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
-	$STRIP -g $1 -R __bug_table -R .note -R .comment -o $stripped
+	$STRIP -g $1 -R ___table -R .note -R .comment -o $stripped
 	$OBJDUMP -D $stripped | sed -e "s/^[[:space:]]\+[0-9a-f]\+//" -e "s:^$stripped:$1:" > $dis
 }
 

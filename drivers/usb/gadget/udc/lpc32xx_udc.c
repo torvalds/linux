@@ -30,8 +30,8 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/isp1301.h>
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
-#include <linux/debugfs.h>
+#ifdef CONFIG_USB_GADGET_DE_FILES
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #endif
 
@@ -465,9 +465,9 @@ static const char driver_name[] = "lpc32xx_udc";
  * proc interface support
  *
  */
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 static char *epnames[] = {"INT", "ISO", "BULK", "CTRL"};
-static const char debug_filename[] = "driver/udc";
+static const char de_filename[] = "driver/udc";
 
 static void proc_ep_show(struct seq_file *s, struct lpc32xx_ep *ep)
 {
@@ -535,19 +535,19 @@ static const struct file_operations proc_ops = {
 	.release	= single_release,
 };
 
-static void create_debug_file(struct lpc32xx_udc *udc)
+static void create_de_file(struct lpc32xx_udc *udc)
 {
-	udc->pde = debugfs_create_file(debug_filename, 0, NULL, udc, &proc_ops);
+	udc->pde = defs_create_file(de_filename, 0, NULL, udc, &proc_ops);
 }
 
-static void remove_debug_file(struct lpc32xx_udc *udc)
+static void remove_de_file(struct lpc32xx_udc *udc)
 {
-	debugfs_remove(udc->pde);
+	defs_remove(udc->pde);
 }
 
 #else
-static inline void create_debug_file(struct lpc32xx_udc *udc) {}
-static inline void remove_debug_file(struct lpc32xx_udc *udc) {}
+static inline void create_de_file(struct lpc32xx_udc *udc) {}
+static inline void remove_de_file(struct lpc32xx_udc *udc) {}
 #endif
 
 /* Primary initialization sequence for the ISP1301 transceiver */
@@ -1726,7 +1726,7 @@ static void lpc32xx_ep_free_request(struct usb_ep *_ep,
 	struct lpc32xx_request *req;
 
 	req = container_of(_req, struct lpc32xx_request, req);
-	BUG_ON(!list_empty(&req->queue));
+	_ON(!list_empty(&req->queue));
 	kfree(req);
 }
 
@@ -1982,7 +1982,7 @@ static void udc_handle_dma_ep(struct lpc32xx_udc *udc, struct lpc32xx_ep *ep)
 	struct lpc32xx_request *req;
 	struct lpc32xx_usbd_dd_gad *dd;
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 	ep->totalints++;
 #endif
 
@@ -2327,7 +2327,7 @@ static void udc_handle_ep0_in(struct lpc32xx_udc *udc)
 	/* Clear EP interrupt */
 	epstatus = udc_clearep_getsts(udc, EP_IN);
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 	ep0->totalints++;
 #endif
 
@@ -2362,7 +2362,7 @@ static void udc_handle_ep0_out(struct lpc32xx_udc *udc)
 	epstatus = udc_clearep_getsts(udc, EP_OUT);
 
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 	ep0->totalints++;
 #endif
 
@@ -3181,7 +3181,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, udc);
 	device_init_wakeup(dev, 1);
-	create_debug_file(udc);
+	create_de_file(udc);
 
 	/* Disable clocks for now */
 	udc_clk_set(udc, 0);
@@ -3234,7 +3234,7 @@ static int lpc32xx_udc_remove(struct platform_device *pdev)
 	free_irq(udc->udp_irq[IRQ_USB_ATX], udc);
 
 	device_init_wakeup(&pdev->dev, 0);
-	remove_debug_file(udc);
+	remove_de_file(udc);
 
 	dma_pool_destroy(udc->dd_cache);
 	dma_free_coherent(&pdev->dev, UDCA_BUFF_SIZE,

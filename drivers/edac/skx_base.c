@@ -16,7 +16,7 @@
 #define EDAC_MOD_STR    "skx_edac"
 
 /*
- * Debug macros
+ * De macros
  */
 #define skx_printk(level, fmt, arg...)			\
 	edac_printk(level, "skx", fmt, ##arg)
@@ -619,7 +619,7 @@ static int __init skx_init(void)
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
 
-	setup_skx_debug("skx_test");
+	setup_skx_de("skx_test");
 
 	mce_register_decode_chain(&skx_mce_dec);
 
@@ -633,7 +633,7 @@ static void __exit skx_exit(void)
 {
 	edac_dbg(2, "\n");
 	mce_unregister_decode_chain(&skx_mce_dec);
-	teardown_skx_debug();
+	teardown_skx_de();
 	if (nvdimm_count)
 		skx_adxl_put();
 	skx_remove();

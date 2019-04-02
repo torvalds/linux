@@ -38,22 +38,22 @@ MODULE_LICENSE("GPL");
 /* this is developers aid only.
  * it catches concurrent access (lack of locking on the users part) */
 #define PARANOIA_ENTRY() do {		\
-	BUG_ON(!lc);			\
-	BUG_ON(!lc->nr_elements);	\
-	BUG_ON(test_and_set_bit(__LC_PARANOIA, &lc->flags)); \
+	_ON(!lc);			\
+	_ON(!lc->nr_elements);	\
+	_ON(test_and_set_bit(__LC_PARANOIA, &lc->flags)); \
 } while (0)
 
 #define RETURN(x...)     do { \
 	clear_bit_unlock(__LC_PARANOIA, &lc->flags); \
 	return x ; } while (0)
 
-/* BUG() if e is not one of the elements tracked by lc */
+/* () if e is not one of the elements tracked by lc */
 #define PARANOIA_LC_ELEMENT(lc, e) do {	\
 	struct lru_cache *lc_ = (lc);	\
 	struct lc_element *e_ = (e);	\
 	unsigned i = e_->lc_index;	\
-	BUG_ON(i >= lc_->nr_elements);	\
-	BUG_ON(lc_->lc_element[i] != e_); } while (0)
+	_ON(i >= lc_->nr_elements);	\
+	_ON(lc_->lc_element[i] != e_); } while (0)
 
 
 /* We need to atomically
@@ -263,8 +263,8 @@ static struct lc_element *__lc_find(struct lru_cache *lc, unsigned int enr,
 {
 	struct lc_element *e;
 
-	BUG_ON(!lc);
-	BUG_ON(!lc->nr_elements);
+	_ON(!lc);
+	_ON(!lc->nr_elements);
 	hlist_for_each_entry(e, lc_hash_slot(lc, enr), colision) {
 		/* "about to be changed" elements, pending transaction commit,
 		 * are hashed by their "new number". "Normal" elements have
@@ -322,7 +322,7 @@ void lc_del(struct lru_cache *lc, struct lc_element *e)
 {
 	PARANOIA_ENTRY();
 	PARANOIA_LC_ELEMENT(lc, e);
-	BUG_ON(e->refcnt);
+	_ON(e->refcnt);
 
 	e->lc_number = e->lc_new_number = LC_FREE;
 	hlist_del_init(&e->colision);
@@ -439,10 +439,10 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
 		RETURN(NULL);
 
 	e = lc_prepare_for_change(lc, enr);
-	BUG_ON(!e);
+	_ON(!e);
 
 	clear_bit(__LC_STARVING, &lc->flags);
-	BUG_ON(++e->refcnt != 1);
+	_ON(++e->refcnt != 1);
 	lc->used++;
 	lc->pending_changes++;
 
@@ -572,8 +572,8 @@ unsigned int lc_put(struct lru_cache *lc, struct lc_element *e)
 {
 	PARANOIA_ENTRY();
 	PARANOIA_LC_ELEMENT(lc, e);
-	BUG_ON(e->refcnt == 0);
-	BUG_ON(e->lc_number != e->lc_new_number);
+	_ON(e->refcnt == 0);
+	_ON(e->lc_number != e->lc_new_number);
 	if (--e->refcnt == 0) {
 		/* move it to the front of LRU. */
 		list_move(&e->list, &lc->lru);
@@ -590,9 +590,9 @@ unsigned int lc_put(struct lru_cache *lc, struct lc_element *e)
  */
 struct lc_element *lc_element_by_index(struct lru_cache *lc, unsigned i)
 {
-	BUG_ON(i >= lc->nr_elements);
-	BUG_ON(lc->lc_element[i] == NULL);
-	BUG_ON(lc->lc_element[i]->lc_index != i);
+	_ON(i >= lc->nr_elements);
+	_ON(lc->lc_element[i] == NULL);
+	_ON(lc->lc_element[i]->lc_index != i);
 	return lc->lc_element[i];
 }
 
@@ -624,8 +624,8 @@ void lc_set(struct lru_cache *lc, unsigned int enr, int index)
 		return;
 
 	e = lc_element_by_index(lc, index);
-	BUG_ON(e->lc_number != e->lc_new_number);
-	BUG_ON(e->refcnt != 0);
+	_ON(e->lc_number != e->lc_new_number);
+	_ON(e->refcnt != 0);
 
 	e->lc_number = e->lc_new_number = enr;
 	hlist_del_init(&e->colision);

@@ -84,13 +84,13 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
 		/*
-		 * If CONFIG_DEBUG_ALIGN_RODATA is not set, produce a
+		 * If CONFIG_DE_ALIGN_RODATA is not set, produce a
 		 * displacement in the interval [0, MIN_KIMG_ALIGN) that
 		 * doesn't violate this kernel's de-facto alignment
 		 * constraints.
 		 */
 		u32 mask = (MIN_KIMG_ALIGN - 1) & ~(EFI_KIMG_ALIGN - 1);
-		u32 offset = !IS_ENABLED(CONFIG_DEBUG_ALIGN_RODATA) ?
+		u32 offset = !IS_ENABLED(CONFIG_DE_ALIGN_RODATA) ?
 			     (phys_seed >> 32) & mask : TEXT_OFFSET;
 
 		/*

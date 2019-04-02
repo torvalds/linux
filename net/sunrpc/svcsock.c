@@ -70,7 +70,7 @@ static void		svc_sock_free(struct svc_xprt *);
 static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
 					  struct net *, struct sockaddr *,
 					  int, int);
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 static struct lock_class_key svc_key[2];
 static struct lock_class_key svc_slock_key[2];
 
@@ -97,7 +97,7 @@ static void svc_reclassify_socket(struct socket *sock)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 #else
@@ -248,7 +248,7 @@ static int svc_sendto(struct svc_rqst *rqstp, struct xdr_buf *xdr)
 	int		len = 0;
 	unsigned long tailoff;
 	unsigned long headoff;
-	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+	RPC_IFDE(char buf[RPC_MAX_ADDRBUFLEN]);
 
 	if (rqstp->rq_prot == IPPROTO_UDP) {
 		struct msghdr msg = {
@@ -632,7 +632,7 @@ static int svc_udp_has_wspace(struct svc_xprt *xprt)
 
 static struct svc_xprt *svc_udp_accept(struct svc_xprt *xprt)
 {
-	BUG();
+	();
 	return NULL;
 }
 
@@ -700,7 +700,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		optname = IPV6_RECVPKTINFO;
 		break;
 	default:
-		BUG();
+		();
 	}
 	err = kernel_setsockopt(svsk->sk_sock, level, optname,
 					(char *)&one, sizeof(one));
@@ -779,7 +779,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	struct socket	*newsock;
 	struct svc_sock	*newsvsk;
 	int		err, slen;
-	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+	RPC_IFDE(char buf[RPC_MAX_ADDRBUFLEN]);
 
 	dprintk("svc: tcp_accept %p sock %p\n", svsk, sock);
 	if (!sock)
@@ -866,7 +866,7 @@ static unsigned int svc_tcp_restore_pages(struct svc_sock *svsk, struct svc_rqst
 	for (i = 0; i < npages; i++) {
 		if (rqstp->rq_pages[i] != NULL)
 			put_page(rqstp->rq_pages[i]);
-		BUG_ON(svsk->sk_pages[i] == NULL);
+		_ON(svsk->sk_pages[i] == NULL);
 		rqstp->rq_pages[i] = svsk->sk_pages[i];
 		svsk->sk_pages[i] = NULL;
 	}
@@ -1397,7 +1397,7 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 	int		newlen;
 	int		family;
 	int		val;
-	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+	RPC_IFDE(char buf[RPC_MAX_ADDRBUFLEN]);
 
 	dprintk("svc: svc_create_socket(%s, %d, %s)\n",
 			serv->sv_program->pg_name, protocol,

@@ -93,13 +93,13 @@ struct kvm_ioapic {
 	u32 irr_delivered;
 };
 
-#ifdef DEBUG
+#ifdef DE
 #define ASSERT(x)  							\
 do {									\
 	if (!(x)) {							\
 		printk(KERN_EMERG "assertion failed %s: %d: %s\n",	\
 		       __FILE__, __LINE__, #x);				\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 #else

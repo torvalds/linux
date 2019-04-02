@@ -25,17 +25,17 @@
 
 #include "../scsi.h"
 
-#define DEBUG
+#define DE
 
 typedef struct queue_entry {
 	struct list_head   list;
 	struct scsi_cmnd   *SCpnt;
-#ifdef DEBUG
+#ifdef DE
 	unsigned long	   magic;
 #endif
 } QE_t;
 
-#ifdef DEBUG
+#ifdef DE
 #define QUEUE_MAGIC_FREE	0xf7e1c9a3
 #define QUEUE_MAGIC_USED	0xf7e1cc33
 
@@ -118,7 +118,7 @@ int __queue_add(Queue_t *queue, struct scsi_cmnd *SCpnt, int head)
 	list_del(l);
 
 	q = list_entry(l, QE_t, list);
-	BUG_ON(BAD_MAGIC(q, QUEUE_MAGIC_FREE));
+	_ON(BAD_MAGIC(q, QUEUE_MAGIC_FREE));
 
 	SET_MAGIC(q, QUEUE_MAGIC_USED);
 	q->SCpnt = SCpnt;
@@ -143,7 +143,7 @@ static struct scsi_cmnd *__queue_remove(Queue_t *queue, struct list_head *ent)
 	 */
 	list_del(ent);
 	q = list_entry(ent, QE_t, list);
-	BUG_ON(BAD_MAGIC(q, QUEUE_MAGIC_USED));
+	_ON(BAD_MAGIC(q, QUEUE_MAGIC_USED));
 
 	SET_MAGIC(q, QUEUE_MAGIC_FREE);
 	list_add(ent, &queue->free);

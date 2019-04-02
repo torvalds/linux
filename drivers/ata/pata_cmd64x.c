@@ -11,7 +11,7 @@
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Note, this driver is not used at all on other systems because
  *           there the "BIOS" has done all of the following already.
- *           Due to massive hardware bugs, UltraDMA is only supported
+ *           Due to massive hardware s, UltraDMA is only supported
  *           on the 646U2 and not on the 646U.
  *
  * Copyright (C) 1998		Eddie C. Dost  (ecd@skynet.be)
@@ -129,7 +129,7 @@ static void cmd64x_set_timing(struct ata_port *ap, struct ata_device *adev, u8 m
 		}
 	}
 
-	printk(KERN_DEBUG DRV_NAME ": active %d recovery %d setup %d.\n",
+	printk(KERN_DE DRV_NAME ": active %d recovery %d setup %d.\n",
 		t.active, t.recover, t.setup);
 	if (t.recover > 16) {
 		t.active += t.recover - 16;

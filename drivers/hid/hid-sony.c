@@ -1769,7 +1769,7 @@ static void sixaxis_set_leds_from_id(struct sony_sc *sc)
 
 	int id = sc->device_id;
 
-	BUILD_BUG_ON(MAX_LEDS < ARRAY_SIZE(sixaxis_leds[0]));
+	BUILD__ON(MAX_LEDS < ARRAY_SIZE(sixaxis_leds[0]));
 
 	if (id < 0)
 		return;
@@ -1793,7 +1793,7 @@ static void dualshock4_set_leds_from_id(struct sony_sc *sc)
 
 	int id = sc->device_id;
 
-	BUILD_BUG_ON(MAX_LEDS < ARRAY_SIZE(color_code[0]));
+	BUILD__ON(MAX_LEDS < ARRAY_SIZE(color_code[0]));
 
 	if (id < 0)
 		return;
@@ -1811,7 +1811,7 @@ static void buzz_set_leds(struct sony_sc *sc)
 		struct hid_report, list);
 	s32 *value = report->field[0]->value;
 
-	BUILD_BUG_ON(MAX_LEDS < 4);
+	BUILD__ON(MAX_LEDS < 4);
 
 	value[0] = 0x00;
 	value[1] = sc->led_state[0] ? 0xff : 0x00;
@@ -1958,7 +1958,7 @@ static int sony_leds_init(struct sony_sc *sc)
 	u8 max_brightness[MAX_LEDS] = { [0 ... (MAX_LEDS - 1)] = 1 };
 	u8 use_hw_blink[MAX_LEDS] = { 0 };
 
-	BUG_ON(!(sc->quirks & SONY_LED_SUPPORT));
+	_ON(!(sc->quirks & SONY_LED_SUPPORT));
 
 	if (sc->quirks & BUZZ_CONTROLLER) {
 		sc->led_count = 4;

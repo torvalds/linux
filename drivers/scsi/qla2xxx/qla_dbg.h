@@ -336,23 +336,23 @@ ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
 ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
 
-/* Debug Levels */
-/* The 0x40000000 is the max value any debug level can have
+/* De Levels */
+/* The 0x40000000 is the max value any de level can have
  * as ql2xextended_error_logging is of type signed int
  */
-#define ql_dbg_init	0x40000000 /* Init Debug */
-#define ql_dbg_mbx	0x20000000 /* MBX Debug */
-#define ql_dbg_disc	0x10000000 /* Device Discovery Debug */
-#define ql_dbg_io	0x08000000 /* IO Tracing Debug */
-#define ql_dbg_dpc	0x04000000 /* DPC Thead Debug */
-#define ql_dbg_async	0x02000000 /* Async events Debug */
-#define ql_dbg_timer	0x01000000 /* Timer Debug */
-#define ql_dbg_user	0x00800000 /* User Space Interations Debug */
-#define ql_dbg_taskm	0x00400000 /* Task Management Debug */
-#define ql_dbg_aer	0x00200000 /* AER/EEH Debug */
-#define ql_dbg_multiq	0x00100000 /* MultiQ Debug */
-#define ql_dbg_p3p	0x00080000 /* P3P specific Debug */
-#define ql_dbg_vport	0x00040000 /* Virtual Port Debug */
+#define ql_dbg_init	0x40000000 /* Init De */
+#define ql_dbg_mbx	0x20000000 /* MBX De */
+#define ql_dbg_disc	0x10000000 /* Device Discovery De */
+#define ql_dbg_io	0x08000000 /* IO Tracing De */
+#define ql_dbg_dpc	0x04000000 /* DPC Thead De */
+#define ql_dbg_async	0x02000000 /* Async events De */
+#define ql_dbg_timer	0x01000000 /* Timer De */
+#define ql_dbg_user	0x00800000 /* User Space Interations De */
+#define ql_dbg_taskm	0x00400000 /* Task Management De */
+#define ql_dbg_aer	0x00200000 /* AER/EEH De */
+#define ql_dbg_multiq	0x00100000 /* MultiQ De */
+#define ql_dbg_p3p	0x00080000 /* P3P specific De */
+#define ql_dbg_vport	0x00040000 /* Virtual Port De */
 #define ql_dbg_buffer	0x00020000 /* For dumping the buffer/regs */
 #define ql_dbg_misc	0x00010000 /* For dumping everything that is not
 				    * not covered by upper categories

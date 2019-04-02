@@ -235,7 +235,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	dma_addr_t dma;
 	void *pages;
 
-	VM_BUG_ON((gfp & __GFP_HIGHMEM));
+	VM__ON((gfp & __GFP_HIGHMEM));
 	p = alloc_pages_node(dev ? dev_to_node(dev) : NUMA_NO_NODE,
 			     gfp | __GFP_ZERO, order);
 	if (!p)

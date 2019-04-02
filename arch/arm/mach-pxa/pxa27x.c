@@ -61,7 +61,7 @@ static unsigned long ac97_reset_config[] = {
 void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio)
 {
 	/*
-	 * This helper function is used to work around a bug in the pxa27x's
+	 * This helper function is used to work around a  in the pxa27x's
 	 * ac97 controller during a warm reset.  The configuration of the
 	 * reset_gpio is changed as follows:
 	 * to_gpio == true: configured to generic output gpio and driven high

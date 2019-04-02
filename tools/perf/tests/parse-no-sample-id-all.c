@@ -9,7 +9,7 @@
 #include "evlist.h"
 #include "header.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 
 static int process_event(struct perf_evlist **pevlist, union perf_event *event)
 {
@@ -17,7 +17,7 @@ static int process_event(struct perf_evlist **pevlist, union perf_event *event)
 
 	if (event->header.type == PERF_RECORD_HEADER_ATTR) {
 		if (perf_event__process_attr(NULL, event, pevlist)) {
-			pr_debug("perf_event__process_attr failed\n");
+			pr_de("perf_event__process_attr failed\n");
 			return -1;
 		}
 		return 0;
@@ -30,7 +30,7 @@ static int process_event(struct perf_evlist **pevlist, union perf_event *event)
 		return -1;
 
 	if (perf_evlist__parse_sample(*pevlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+		pr_de("perf_evlist__parse_sample failed\n");
 		return -1;
 	}
 

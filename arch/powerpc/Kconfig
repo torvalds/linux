@@ -77,7 +77,7 @@ config NR_IRQS
 
 config NMI_IPI
 	bool
-	depends on SMP && (DEBUGGER || KEXEC_CORE || HARDLOCKUP_DETECTOR)
+	depends on SMP && (DEGER || KEXEC_CORE || HARDLOCKUP_DETECTOR)
 	default y
 
 config PPC_WATCHDOG
@@ -126,7 +126,7 @@ config PPC
 	# Please keep this list sorted alphabetically.
 	#
 	select ARCH_32BIT_OFF_T if PPC32
-	select ARCH_HAS_DEBUG_VIRTUAL
+	select ARCH_HAS_DE_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -183,8 +183,8 @@ config PPC
 	select HAVE_STACKPROTECTOR		if PPC64 && $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=r13)
 	select HAVE_STACKPROTECTOR		if PPC32 && $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=r2)
 	select HAVE_CONTEXT_TRACKING		if PPC64
-	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DE_KMEMLEAK
+	select HAVE_DE_STACKOVERFLOW
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS	if MPROFILE_KERNEL
 	select HAVE_EBPF_JIT			if PPC64
@@ -193,7 +193,7 @@ config PPC
 	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
-	select HAVE_GCC_PLUGINS			if GCC_VERSION >= 50200   # plugin support on gcc <= 5.1 is buggy on PPC
+	select HAVE_GCC_PLUGINS			if GCC_VERSION >= 50200   # plugin support on gcc <= 5.1 is gy on PPC
 	select HAVE_GENERIC_GUP
 	select HAVE_HW_BREAKPOINT		if PERF_EVENTS && (PPC_BOOK3S || PPC_8xx)
 	select HAVE_IDE
@@ -289,10 +289,10 @@ config AUDIT_ARCH
 	bool
 	default y
 
-config GENERIC_BUG
+config GENERIC_
 	bool
 	default y
-	depends on BUG
+	depends on 
 
 config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
@@ -334,38 +334,38 @@ config PPC_OF_PLATFORM_PCI
 	depends on PCI
 	depends on PPC64 # not supported on 32 bits yet
 
-config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+config ARCH_SUPPORTS_DE_PAGEALLOC
 	depends on PPC32 || PPC_BOOK3S_64
 	def_bool y
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
-config PPC_ADV_DEBUG_REGS
+config PPC_ADV_DE_REGS
 	bool
 	depends on 40x || BOOKE
 	default y
 
-config PPC_ADV_DEBUG_IACS
+config PPC_ADV_DE_IACS
 	int
-	depends on PPC_ADV_DEBUG_REGS
+	depends on PPC_ADV_DE_REGS
 	default 4 if 44x
 	default 2
 
-config PPC_ADV_DEBUG_DACS
+config PPC_ADV_DE_DACS
 	int
-	depends on PPC_ADV_DEBUG_REGS
+	depends on PPC_ADV_DE_REGS
 	default 2
 
-config PPC_ADV_DEBUG_DVCS
+config PPC_ADV_DE_DVCS
 	int
-	depends on PPC_ADV_DEBUG_REGS
+	depends on PPC_ADV_DE_REGS
 	default 2 if 44x
 	default 0
 
-config PPC_ADV_DEBUG_DAC_RANGE
+config PPC_ADV_DE_DAC_RANGE
 	bool
-	depends on PPC_ADV_DEBUG_REGS && 44x
+	depends on PPC_ADV_DE_REGS && 44x
 	default y
 
 config ZONE_DMA
@@ -1143,7 +1143,7 @@ config CONSISTENT_SIZE
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && PPC_8xx && \
-		   !DEBUG_PAGEALLOC && !STRICT_KERNEL_RWX
+		   !DE_PAGEALLOC && !STRICT_KERNEL_RWX
 
 config PIN_TLB_DATA
 	bool "Pinned TLB for DATA"
@@ -1152,7 +1152,7 @@ config PIN_TLB_DATA
 
 config PIN_TLB_IMMR
 	bool "Pinned TLB for IMMR"
-	depends on PIN_TLB || PPC_EARLY_DEBUG_CPM
+	depends on PIN_TLB || PPC_EARLY_DE_CPM
 	default y
 
 config PIN_TLB_TEXT

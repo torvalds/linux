@@ -18,8 +18,8 @@
  *   https://grsecurity.net/
  *   https://pax.grsecurity.net/
  *
- * Debugging:
- *  - use fprintf() to stderr, debug_generic_expr(), debug_gimple_stmt(),
+ * Deging:
+ *  - use fprintf() to stderr, de_generic_expr(), de_gimple_stmt(),
  *     print_rtl() and print_simple_rtl();
  *  - add "-fdump-tree-all -fdump-rtl-all" to the plugin CFLAGS in
  *     Makefile.gcc-plugins to see the verbose dumps of the gcc passes;

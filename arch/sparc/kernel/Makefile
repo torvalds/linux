@@ -15,7 +15,7 @@ CPPFLAGS_vmlinux.lds := -Usparc -m$(BITS)
 extra-y              += vmlinux.lds
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do not profile de and lowlevel utilities
 CFLAGS_REMOVE_ftrace.o := -pg
 CFLAGS_REMOVE_time_$(BITS).o := -pg
 CFLAGS_REMOVE_perf_event.o := -pg

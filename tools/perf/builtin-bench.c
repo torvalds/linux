@@ -178,7 +178,7 @@ static int run_bench(const char *coll_name, const char *bench_name, bench_fn_t f
 	size = strlen(coll_name) + 1 + strlen(bench_name) + 1;
 
 	name = zalloc(size);
-	BUG_ON(!name);
+	_ON(!name);
 
 	scnprintf(name, size, "%s-%s", coll_name, bench_name);
 

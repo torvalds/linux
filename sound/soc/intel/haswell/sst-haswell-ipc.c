@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <linux/dma-mapping.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm_runtime.h>
 #include <sound/asound.h>
 
@@ -71,7 +71,7 @@
 #define IPC_STG_REPLY_SHIFT	0
 #define IPC_STG_REPLY_MASK	(0x1f << IPC_STG_REPLY_SHIFT)
 
-/* Debug Log Message - Generic */
+/* De Log Message - Generic */
 #define IPC_LOG_OP_SHIFT	20
 #define IPC_LOG_OP_MASK		(0xf << IPC_LOG_OP_SHIFT)
 #define IPC_LOG_OP_TYPE(x)	(x << IPC_LOG_OP_SHIFT)
@@ -123,7 +123,7 @@ enum ipc_glb_type {
 	IPC_GLB_SHORT_REPLY = 11,
 	IPC_GLB_ENTER_DX_STATE = 12,
 	IPC_GLB_GET_MIXER_STREAM_INFO = 13,	/* Request mixer stream params */
-	IPC_GLB_DEBUG_LOG_MESSAGE = 14,		/* Message to or from the debug logger. */
+	IPC_GLB_DE_LOG_MESSAGE = 14,		/* Message to or from the de logger. */
 	IPC_GLB_MODULE_OPERATION = 15,		/* Message to loadable fw module */
 	IPC_GLB_REQUEST_TRANSFER = 16, 		/* < Request Transfer for host */
 	IPC_GLB_MAX_IPC_MESSAGE_TYPE = 17,	/* Maximum message number */
@@ -191,13 +191,13 @@ enum ipc_glitch_type {
 	IPC_GLITCH_MAX
 };
 
-/* Debug Control */
-enum ipc_debug_operation {
-	IPC_DEBUG_ENABLE_LOG = 0,
-	IPC_DEBUG_DISABLE_LOG = 1,
-	IPC_DEBUG_REQUEST_LOG_DUMP = 2,
-	IPC_DEBUG_NOTIFY_LOG_DUMP = 3,
-	IPC_DEBUG_MAX_DEBUG_LOG
+/* De Control */
+enum ipc_de_operation {
+	IPC_DE_ENABLE_LOG = 0,
+	IPC_DE_DISABLE_LOG = 1,
+	IPC_DE_REQUEST_LOG_DUMP = 2,
+	IPC_DE_NOTIFY_LOG_DUMP = 3,
+	IPC_DE_MAX_DE_LOG
 };
 
 /* Firmware Ready */
@@ -585,7 +585,7 @@ static int hsw_process_reply(struct sst_hsw *hsw, u32 header)
 				msg->rx_size);
 		}
 		break;
-	/* these will be rare - but useful for debug */
+	/* these will be rare - but useful for de */
 	case IPC_GLB_REPLY_UNKNOWN_MESSAGE_TYPE:
 		trace_ipc_error("error: unknown message type", header);
 		msg->errno = -EBADMSG;
@@ -703,7 +703,7 @@ static int hsw_log_message(struct sst_hsw *hsw, u32 header)
 	struct sst_hsw_log_stream *stream = &hsw->log_stream;
 	int ret = 1;
 
-	if (operation != IPC_DEBUG_REQUEST_LOG_DUMP) {
+	if (operation != IPC_DE_REQUEST_LOG_DUMP) {
 		dev_err(hsw->dev,
 			"error: log msg not implemented 0x%8.8x\n", header);
 		return 0;
@@ -756,7 +756,7 @@ static int hsw_process_notification(struct sst_hsw *hsw)
 	case IPC_GLB_STREAM_MESSAGE:
 		handled = hsw_stream_message(hsw, header);
 		break;
-	case IPC_GLB_DEBUG_LOG_MESSAGE:
+	case IPC_GLB_DE_LOG_MESSAGE:
 		handled = hsw_log_message(hsw, header);
 		break;
 	case IPC_GLB_MODULE_OPERATION:

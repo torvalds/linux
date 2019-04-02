@@ -188,7 +188,7 @@ static const unsigned int i2s1_pins0[] = { 12, 13, 14, 15 };
 static const unsigned int i2srefclk_pins0[] = { 19 };
 static const unsigned int spi0_pins0[] = { 12, 13, 14, 15 };
 static const unsigned int spi1_pins0[] = { 16, 17, 18, 19 };
-static const unsigned int pciedebug_pins0[] = { 12, 13, 14, 15 };
+static const unsigned int pciede_pins0[] = { 12, 13, 14, 15 };
 static const unsigned int uart0_pins0[] = { 16, 17, 18, 19, 20,
 					    21, 22, 23, 24, 25 };
 static const unsigned int uart0_pins1[] = { 20, 21, 22, 23 };
@@ -271,9 +271,9 @@ static const struct artpec6_pin_group artpec6_pin_groups[] = {
 		.config = ARTPEC6_CONFIG_2,
 	},
 	{
-		.name = "pciedebuggrp0",
-		.pins = pciedebug_pins0,
-		.num_pins = ARRAY_SIZE(pciedebug_pins0),
+		.name = "pciedegrp0",
+		.pins = pciede_pins0,
+		.num_pins = ARRAY_SIZE(pciede_pins0),
 		.config = ARTPEC6_CONFIG_3,
 	},
 	{
@@ -486,7 +486,7 @@ static const struct pinctrl_ops artpec6_pctrl_ops = {
 static const char * const gpiogrps[] = {
 	"cpuclkoutgrp0", "udlclkoutgrp0", "i2c1grp0", "i2c2grp0",
 	"i2c3grp0", "i2s0grp0", "i2s1grp0", "i2srefclkgrp0",
-	"spi0grp0", "spi1grp0", "pciedebuggrp0", "uart0grp0",
+	"spi0grp0", "spi1grp0", "pciedegrp0", "uart0grp0",
 	"uart0grp1", "uart0grp2", "uart1grp0", "uart1grp1",
 	"uart2grp0", "uart2grp1", "uart2grp2", "uart4grp0", "uart5grp0",
 	"uart5grp1", "uart5nocts",
@@ -501,7 +501,7 @@ static const char * const i2s1grps[]	  = { "i2s1grp0" };
 static const char * const i2srefclkgrps[] = { "i2srefclkgrp0" };
 static const char * const spi0grps[]	  = { "spi0grp0" };
 static const char * const spi1grps[]	  = { "spi1grp0" };
-static const char * const pciedebuggrps[] = { "pciedebuggrp0" };
+static const char * const pciedegrps[] = { "pciedegrp0" };
 static const char * const uart0grps[]	  = { "uart0grp0", "uart0grp1",
 					      "uart0grp2" };
 static const char * const uart1grps[]	  = { "uart1grp0", "uart1grp1" };
@@ -573,9 +573,9 @@ static const struct artpec6_pmx_func artpec6_pmx_functions[] = {
 		.num_groups = ARRAY_SIZE(spi1grps),
 	},
 	{
-		.name = "pciedebug",
-		.groups = pciedebuggrps,
-		.num_groups = ARRAY_SIZE(pciedebuggrps),
+		.name = "pciede",
+		.groups = pciedegrps,
+		.num_groups = ARRAY_SIZE(pciedegrps),
 	},
 	{
 		.name = "uart0",

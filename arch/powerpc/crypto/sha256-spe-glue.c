@@ -58,7 +58,7 @@ static inline void ppc_sha256_clear_context(struct sha256_state *sctx)
 	u32 *ptr = (u32 *)sctx;
 
 	/* make sure we can clear the fast way */
-	BUILD_BUG_ON(sizeof(struct sha256_state) % 4);
+	BUILD__ON(sizeof(struct sha256_state) % 4);
 	do { *ptr++ = 0; } while (--count);
 }
 

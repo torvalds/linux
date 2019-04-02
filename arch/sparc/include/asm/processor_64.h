@@ -54,30 +54,30 @@ typedef struct {
 /* The Sparc processor specific thread struct. */
 /* XXX This should die, everything can go into thread_info now. */
 struct thread_struct {
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 	/* How many spinlocks held by this thread.
-	 * Used with spin lock debugging to catch tasks
+	 * Used with spin lock deging to catch tasks
 	 * sleeping illegally with locks held.
 	 */
 	int smp_lock_count;
 	unsigned int smp_lock_pc;
 #else
-	int dummy; /* f'in gcc bug... */
+	int dummy; /* f'in gcc ... */
 #endif
 };
 
 #endif /* !(__ASSEMBLY__) */
 
-#ifndef CONFIG_DEBUG_SPINLOCK
+#ifndef CONFIG_DE_SPINLOCK
 #define INIT_THREAD  {			\
 	0,				\
 }
-#else /* CONFIG_DEBUG_SPINLOCK */
+#else /* CONFIG_DE_SPINLOCK */
 #define INIT_THREAD  {					\
 /* smp_lock_count, smp_lock_pc, */			\
    0,		   0,					\
 }
-#endif /* !(CONFIG_DEBUG_SPINLOCK) */
+#endif /* !(CONFIG_DE_SPINLOCK) */
 
 #ifndef __ASSEMBLY__
 

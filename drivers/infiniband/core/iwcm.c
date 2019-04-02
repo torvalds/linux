@@ -167,7 +167,7 @@ static int alloc_work_entries(struct iwcm_id_private *cm_id_priv, int count)
 {
 	struct iwcm_work *work;
 
-	BUG_ON(!list_empty(&cm_id_priv->work_free_list));
+	_ON(!list_empty(&cm_id_priv->work_free_list));
 	while (count--) {
 		work = kmalloc(sizeof(struct iwcm_work), GFP_KERNEL);
 		if (!work) {
@@ -209,9 +209,9 @@ static void free_cm_id(struct iwcm_id_private *cm_id_priv)
  */
 static int iwcm_deref_id(struct iwcm_id_private *cm_id_priv)
 {
-	BUG_ON(atomic_read(&cm_id_priv->refcount)==0);
+	_ON(atomic_read(&cm_id_priv->refcount)==0);
 	if (atomic_dec_and_test(&cm_id_priv->refcount)) {
-		BUG_ON(!list_empty(&cm_id_priv->work_list));
+		_ON(!list_empty(&cm_id_priv->work_list));
 		free_cm_id(cm_id_priv);
 		return 1;
 	}
@@ -285,7 +285,7 @@ static int iwcm_modify_qp_sqd(struct ib_qp *qp)
 {
 	struct ib_qp_attr qp_attr;
 
-	BUG_ON(qp == NULL);
+	_ON(qp == NULL);
 	qp_attr.qp_state = IB_QPS_SQD;
 	return ib_modify_qp(qp, &qp_attr, IB_QP_STATE);
 }
@@ -342,7 +342,7 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt)
 	case IW_CM_STATE_CONN_SENT:
 		/* Can only get here if wait above fails */
 	default:
-		BUG();
+		();
 	}
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
@@ -423,7 +423,7 @@ static void destroy_cm_id(struct iw_cm_id *cm_id)
 	case IW_CM_STATE_CONN_SENT:
 	case IW_CM_STATE_DESTROYING:
 	default:
-		BUG();
+		();
 		break;
 	}
 	if (cm_id_priv->qp) {
@@ -667,7 +667,7 @@ int iw_cm_accept(struct iw_cm_id *cm_id,
 	ret = cm_id->device->iwcm->accept(cm_id, iw_param);
 	if (ret) {
 		/* An error on accept precludes provider events */
-		BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_RECV);
+		_ON(cm_id_priv->state != IW_CM_STATE_CONN_RECV);
 		cm_id_priv->state = IW_CM_STATE_IDLE;
 		spin_lock_irqsave(&cm_id_priv->lock, flags);
 		if (cm_id_priv->qp) {
@@ -769,7 +769,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	 * The provider should never generate a connection request
 	 * event with a bad status.
 	 */
-	BUG_ON(iw_event->status);
+	_ON(iw_event->status);
 
 	cm_id = iw_create_cm_id(listen_id_priv->id.device,
 				listen_id_priv->id.cm_handler,
@@ -858,7 +858,7 @@ static int cm_conn_est_handler(struct iwcm_id_private *cm_id_priv,
 	 * from a callback handler is not allowed.
 	 */
 	clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
-	BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_RECV);
+	_ON(cm_id_priv->state != IW_CM_STATE_CONN_RECV);
 	cm_id_priv->state = IW_CM_STATE_ESTABLISHED;
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	ret = cm_id_priv->id.cm_handler(&cm_id_priv->id, iw_event);
@@ -886,7 +886,7 @@ static int cm_conn_rep_handler(struct iwcm_id_private *cm_id_priv,
 	 * iw_cm_disconnect will not wait and deadlock this thread
 	 */
 	clear_bit(IWCM_F_CONNECT_WAIT, &cm_id_priv->flags);
-	BUG_ON(cm_id_priv->state != IW_CM_STATE_CONN_SENT);
+	_ON(cm_id_priv->state != IW_CM_STATE_CONN_SENT);
 	if (iw_event->status == 0) {
 		cm_id_priv->id.m_local_addr = iw_event->local_addr;
 		cm_id_priv->id.m_remote_addr = iw_event->remote_addr;
@@ -960,7 +960,7 @@ static int cm_close_handler(struct iwcm_id_private *cm_id_priv,
 	case IW_CM_STATE_DESTROYING:
 		break;
 	default:
-		BUG();
+		();
 	}
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
@@ -989,7 +989,7 @@ static int process_event(struct iwcm_id_private *cm_id_priv,
 		ret = cm_close_handler(cm_id_priv, iw_event);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ret;
@@ -1029,7 +1029,7 @@ static void cm_work_handler(struct work_struct *_work)
 			if (ret)
 				destroy_cm_id(&cm_id_priv->id);
 		} else
-			pr_debug("dropping event %d\n", levent.event);
+			pr_de("dropping event %d\n", levent.event);
 		if (iwcm_deref_id(cm_id_priv))
 			return;
 		if (empty)

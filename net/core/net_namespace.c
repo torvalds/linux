@@ -77,7 +77,7 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 {
 	struct net_generic *ng, *old_ng;
 
-	BUG_ON(id < MIN_PERNET_OPS_ID);
+	_ON(id < MIN_PERNET_OPS_ID);
 
 	old_ng = rcu_dereference_protected(net->gen,
 					   lockdep_is_held(&pernet_ops_rwsem));

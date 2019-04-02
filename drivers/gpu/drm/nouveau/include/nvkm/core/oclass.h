@@ -1,7 +1,7 @@
 #ifndef __NVKM_OCLASS_H__
 #define __NVKM_OCLASS_H__
 #include <core/os.h>
-#include <core/debug.h>
+#include <core/de.h>
 struct nvkm_oclass;
 struct nvkm_object;
 

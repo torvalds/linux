@@ -590,7 +590,7 @@ static int uvd_v7_0_hw_fini(void *handle)
 		uvd_v7_0_stop(adev);
 	else {
 		/* full access mode, so don't touch any UVD register */
-		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
+		DRM_DE("For SRIOV client, shouldn't do anything.\n");
 	}
 
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
@@ -1537,7 +1537,7 @@ static int uvd_v7_0_process_interrupt(struct amdgpu_device *adev,
 		return 0;
 	}
 
-	DRM_DEBUG("IH: UVD TRAP\n");
+	DRM_DE("IH: UVD TRAP\n");
 
 	switch (entry->src_id) {
 	case 124:

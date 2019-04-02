@@ -58,6 +58,6 @@ ifneq ($(CONFIG_AMD_IOMMU_V2),)
 AMDKFD_FILES += $(AMDKFD_PATH)/kfd_iommu.o
 endif
 
-ifneq ($(CONFIG_DEBUG_FS),)
-AMDKFD_FILES += $(AMDKFD_PATH)/kfd_debugfs.o
+ifneq ($(CONFIG_DE_FS),)
+AMDKFD_FILES += $(AMDKFD_PATH)/kfd_defs.o
 endif

@@ -24,10 +24,10 @@
 #include "sr.h"
 
 #if 0
-#define DEBUG
+#define DE
 #endif
 
-/* The sr_is_xa() seems to trigger firmware bugs with some drives :-(
+/* The sr_is_xa() seems to trigger firmware s with some drives :-(
  * It is off by default and can be turned on with this module parameter */
 static int xa_test = 0;
 
@@ -473,7 +473,7 @@ static int sr_read_cd(Scsi_CD *cd, unsigned char *dest, int lba, int format, int
 {
 	struct packet_command cgc;
 
-#ifdef DEBUG
+#ifdef DE
 	sr_printk(KERN_INFO, cd, "sr_read_cd lba=%d format=%d blksize=%d\n",
 		  lba, format, blksize);
 #endif
@@ -531,7 +531,7 @@ static int sr_read_sector(Scsi_CD *cd, int lba, int blksize, unsigned char *dest
 		if (0 != (rc = sr_set_blocklength(cd, blksize)))
 			return rc;
 	}
-#ifdef DEBUG
+#ifdef DE
 	sr_printk(KERN_INFO, cd, "sr_read_sector lba=%d blksize=%d\n",
 		  lba, blksize);
 #endif
@@ -576,7 +576,7 @@ int sr_is_xa(Scsi_CD *cd)
 		is_xa = -1;
 	}
 	kfree(raw_sector);
-#ifdef DEBUG
+#ifdef DE
 	sr_printk(KERN_INFO, cd, "sr_is_xa: %d\n", is_xa);
 #endif
 	return is_xa;

@@ -461,7 +461,7 @@ hibmc_user_framebuffer_create(struct drm_device *dev,
 	struct drm_gem_object *obj;
 	struct hibmc_framebuffer *hibmc_fb;
 
-	DRM_DEBUG_DRIVER("%dx%d, format %c%c%c%c\n",
+	DRM_DE_DRIVER("%dx%d, format %c%c%c%c\n",
 			 mode_cmd->width, mode_cmd->height,
 			 (mode_cmd->pixel_format) & 0xff,
 			 (mode_cmd->pixel_format >> 8)  & 0xff,

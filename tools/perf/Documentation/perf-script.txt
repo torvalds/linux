@@ -109,7 +109,7 @@ OPTIONS
         Input file name. (default: perf.data unless stdin is a fifo)
 
 -d::
---debug-mode::
+--de-mode::
         Do various checks like samples ordering and lost events.
 
 -F::

@@ -1,6 +1,6 @@
 /*
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
- *           Due to massive hardware bugs, UltraDMA is only supported
+ *           Due to massive hardware s, UltraDMA is only supported
  *           on the 646U2 and not on the 646U.
  *
  * Copyright (C) 1998		Eddie C. Dost  (ecd@skynet.be)
@@ -219,7 +219,7 @@ static int cmd648_test_irq(ide_hwif_t *hwif)
 						  MRDMODE_INTR_CH0;
 	u8 mrdmode		= inb(base + 1);
 
-	pr_debug("%s: mrdmode: 0x%02x irq_mask: 0x%02x\n",
+	pr_de("%s: mrdmode: 0x%02x irq_mask: 0x%02x\n",
 		 hwif->name, mrdmode, irq_mask);
 
 	return (mrdmode & irq_mask) ? 1 : 0;
@@ -235,7 +235,7 @@ static int cmd64x_test_irq(ide_hwif_t *hwif)
 
 	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
 
-	pr_debug("%s: irq_stat: 0x%02x irq_mask: 0x%02x\n",
+	pr_de("%s: irq_stat: 0x%02x irq_mask: 0x%02x\n",
 		 hwif->name, irq_stat, irq_mask);
 
 	return (irq_stat & irq_mask) ? 1 : 0;

@@ -32,7 +32,7 @@ int sysctl_panic_on_stackoverflow;
  */
 static inline void stack_overflow_check(struct pt_regs *regs)
 {
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DE_STACKOVERFLOW
 #define STACK_TOP_MARGIN	128
 	struct orig_ist *oist;
 	u64 irq_stack_top, irq_stack_bottom;

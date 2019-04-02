@@ -82,8 +82,8 @@
 #define SCSI2_SYNC
 #undef  SCSI2_TAG
 
-#undef DEBUG_CONNECT
-#undef DEBUG_MESSAGES
+#undef DE_CONNECT
+#undef DE_MESSAGES
 
 #undef CHECK_STRUCTURE
 
@@ -352,7 +352,7 @@ static void fas216_log(FAS216_Info *info, int level, char *fmt, ...)
 static struct { int stat, ssr, isr, ph; } ph_list[PH_SIZE];
 static int ph_ptr;
 
-static void add_debug_list(int stat, int ssr, int isr, int ph)
+static void add_de_list(int stat, int ssr, int isr, int ph)
 {
 	ph_list[ph_ptr].stat = stat;
 	ph_list[ph_ptr].ssr = ssr;
@@ -375,7 +375,7 @@ static void fas216_cmd(FAS216_Info *info, unsigned int command)
 	fas216_writeb(info, REG_CMD, command);
 }
 
-static void print_debug_list(void)
+static void print_de_list(void)
 {
 	int i;
 
@@ -632,7 +632,7 @@ static void fas216_updateptrs(FAS216_Info *info, int bytes_transferred)
 
 	fas216_checkmagic(info);
 
-	BUG_ON(bytes_transferred < 0);
+	_ON(bytes_transferred < 0);
 
 	SCp->phase -= bytes_transferred;
 
@@ -922,7 +922,7 @@ static void fas216_disconnect_intr(FAS216_Info *info)
 	default:				/* huh?					*/
 		printk(KERN_ERR "scsi%d.%c: unexpected disconnect in phase %s\n",
 			info->host->host_no, fas216_target(info), fas216_drv_phase(info));
-		print_debug_list();
+		print_de_list();
 		fas216_stoptransfer(info);
 		fas216_done(info, DID_ERROR);
 		break;
@@ -1254,7 +1254,7 @@ static void fas216_message(FAS216_Info *info)
 	if (msgbyte == -3)
 		goto parity_error;
 
-#ifdef DEBUG_MESSAGES
+#ifdef DE_MESSAGES
 	{
 		int i;
 
@@ -1524,13 +1524,13 @@ static void fas216_busservice_intr(FAS216_Info *info, unsigned int stat, unsigne
 		info->host->host_no, fas216_target(info),
 		fas216_bus_phase(stat),
 		fas216_drv_phase(info));
-	print_debug_list();
+	print_de_list();
 	return;
 
 bad_is:
 	fas216_log(info, 0, "bus service at step %d?", is & IS_BITS);
 	fas216_dumpstate(info);
-	print_debug_list();
+	print_de_list();
 
 	fas216_done(info, DID_ERROR);
 }
@@ -1601,7 +1601,7 @@ static void fas216_bus_reset(FAS216_Info *info)
 #endif
 
 	info->scsi.phase = PHASE_IDLE;
-	info->SCpnt = NULL; /* bug! */
+	info->SCpnt = NULL; /* ! */
 	memset(&info->scsi.SCp, 0, sizeof(info->scsi.SCp));
 
 	for (i = 0; i < 8; i++) {
@@ -1634,7 +1634,7 @@ irqreturn_t fas216_intr(FAS216_Info *info)
 	is = fas216_readb(info, REG_IS);
 	inst = fas216_readb(info, REG_INST);
 
-	add_debug_list(stat, is, inst, info->scsi.phase);
+	add_de_list(stat, is, inst, info->scsi.phase);
 
 	if (stat & STAT_INT) {
 		if (inst & INST_BUSRESET) {
@@ -1644,7 +1644,7 @@ irqreturn_t fas216_intr(FAS216_Info *info)
 		} else if (inst & INST_ILLEGALCMD) {
 			fas216_log(info, LOG_ERROR, "illegal command given\n");
 			fas216_dumpstate(info);
-			print_debug_list();
+			print_de_list();
 		} else if (inst & INST_DISCONNECT)
 			fas216_disconnect_intr(info);
 		else if (inst & INST_RESELECTED)	/* reselected			*/
@@ -1682,7 +1682,7 @@ static void __fas216_start_command(FAS216_Info *info, struct scsi_cmnd *SCpnt)
 
 	tot_msglen = msgqueue_msglength(&info->scsi.msgs);
 
-#ifdef DEBUG_MESSAGES
+#ifdef DE_MESSAGES
 	{
 		struct message *msg;
 		int msgnr = 0, i;
@@ -2069,7 +2069,7 @@ fas216_std_done(FAS216_Info *info, struct scsi_cmnd *SCpnt, unsigned int result)
 	 * We have successfully completed a command.  Make sure that
 	 * we do not have any buffers left to transfer.  The world
 	 * is not perfect, and we seem to occasionally hit this.
-	 * It can be indicative of a buggy driver, target or the upper
+	 * It can be indicative of a gy driver, target or the upper
 	 * levels of the SCSI code.
 	 */
 	if (info->scsi.SCp.ptr) {
@@ -2276,7 +2276,7 @@ static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt,
 	 * We should only be using this if we don't have an interrupt.
 	 * Provide some "incentive" to use the queueing code.
 	 */
-	BUG_ON(info->scsi.irq);
+	_ON(info->scsi.irq);
 
 	info->internal_done = 0;
 	fas216_queue_command_lck(SCpnt, fas216_internal_done);
@@ -2427,7 +2427,7 @@ int fas216_eh_abort(struct scsi_cmnd *SCpnt)
 
 	scmd_printk(KERN_WARNING, SCpnt, "abort command\n");
 
-	print_debug_list();
+	print_de_list();
 	fas216_dumpstate(info);
 
 	switch (fas216_find_command(info, SCpnt)) {

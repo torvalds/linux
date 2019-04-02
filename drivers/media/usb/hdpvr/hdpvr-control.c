@@ -38,7 +38,7 @@ int hdpvr_config_call(struct hdpvr_device *dev, uint value, u8 valbuf)
 			      dev->usbc_buf, 1, 10000);
 
 	mutex_unlock(&dev->usbc_mutex);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "config call request for value 0x%x returned %d\n", value,
 		 ret);
 
@@ -58,9 +58,9 @@ int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 			      dev->usbc_buf, 5,
 			      1000);
 
-#ifdef HDPVR_DEBUG
-	if (hdpvr_debug & MSG_INFO)
-		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+#ifdef HDPVR_DE
+	if (hdpvr_de & MSG_INFO)
+		v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 			 "get video info returned: %d, %5ph\n", ret,
 			 dev->usbc_buf);
 #endif
@@ -89,9 +89,9 @@ int get_input_lines_info(struct hdpvr_device *dev)
 			      dev->usbc_buf, 3,
 			      1000);
 
-#ifdef HDPVR_DEBUG
-	if (hdpvr_debug & MSG_INFO)
-		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+#ifdef HDPVR_DE
+	if (hdpvr_de & MSG_INFO)
+		v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 			 "get input lines info returned: %d, %3ph\n", ret,
 			 dev->usbc_buf);
 #else

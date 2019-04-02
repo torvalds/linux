@@ -1484,7 +1484,7 @@ static struct {
 int si476x_core_cmd_power_up(struct si476x_core *core,
 			     struct si476x_power_up_args *args)
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return si476x_cmds_vtable[core->revision].power_up(core, args);
 }
@@ -1493,7 +1493,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_power_up);
 int si476x_core_cmd_power_down(struct si476x_core *core,
 			       struct si476x_power_down_args *args)
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return si476x_cmds_vtable[core->revision].power_down(core, args);
 }
@@ -1502,7 +1502,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_power_down);
 int si476x_core_cmd_fm_tune_freq(struct si476x_core *core,
 				 struct si476x_tune_freq_args *args)
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return si476x_cmds_vtable[core->revision].fm_tune_freq(core, args);
 }
@@ -1511,7 +1511,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_tune_freq);
 int si476x_core_cmd_am_tune_freq(struct si476x_core *core,
 				 struct si476x_tune_freq_args *args)
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return si476x_cmds_vtable[core->revision].am_tune_freq(core, args);
 }
@@ -1522,7 +1522,7 @@ int si476x_core_cmd_fm_rsq_status(struct si476x_core *core,
 				  struct si476x_rsq_status_report *report)
 
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return si476x_cmds_vtable[core->revision].fm_rsq_status(core, args,
 								report);
@@ -1533,7 +1533,7 @@ int si476x_core_cmd_agc_status(struct si476x_core *core,
 				  struct si476x_agc_status_report *report)
 
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return si476x_cmds_vtable[core->revision].agc_status(core, report);
 }
@@ -1543,7 +1543,7 @@ int si476x_core_cmd_intb_pin_cfg(struct si476x_core *core,
 			    enum si476x_intb_config intb,
 			    enum si476x_a1_config a1)
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 
 	return si476x_cmds_vtable[core->revision].intb_pin_cfg(core, intb, a1);

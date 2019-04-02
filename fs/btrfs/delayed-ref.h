@@ -212,7 +212,7 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 }

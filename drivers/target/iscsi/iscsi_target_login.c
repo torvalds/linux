@@ -189,7 +189,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 	if (!sess)
 		return 0;
 
-	pr_debug("%s iSCSI Session SID %u is still active for %s,"
+	pr_de("%s iSCSI Session SID %u is still active for %s,"
 		" performing session reinstatement.\n", (sessiontype) ?
 		"Discovery" : "Normal", sess->sid,
 		sess->sess_ops->InitiatorName);
@@ -456,7 +456,7 @@ check_prot:
 			if (iscsi_change_param_sprintf(conn, "InitialR2T=Yes"))
 				return -1;
 
-			pr_debug("Forcing ImmediateData=No + InitialR2T=Yes for"
+			pr_de("Forcing ImmediateData=No + InitialR2T=Yes for"
 				 " T10-PI enabled ISER session\n");
 		}
 	}
@@ -590,7 +590,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 		cr = iscsit_get_inactive_connection_recovery_entry(
 				sess, cid);
 		if (cr) {
-			pr_debug("Performing implicit logout"
+			pr_de("Performing implicit logout"
 				" for connection recovery on CID: %hu\n",
 					conn->cid);
 			iscsit_discard_cr_cmds_by_expstatsn(cr, exp_statsn);
@@ -603,7 +603,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	 * CID we go ahead and continue to add a new connection to the
 	 * session.
 	 */
-	pr_debug("Adding CID %hu to existing session for %s.\n",
+	pr_de("Adding CID %hu to existing session for %s.\n",
 			cid, sess->sess_ops->InitiatorName);
 
 	if ((atomic_read(&sess->nconn) + 1) > sess->sess_ops->MaxConnections) {
@@ -693,7 +693,7 @@ void iscsi_post_login_handler(
 	iscsit_collect_login_stats(conn, ISCSI_STATUS_CLS_SUCCESS,
 			ISCSI_LOGIN_STATUS_ACCEPT);
 
-	pr_debug("Moving to TARG_CONN_STATE_LOGGED_IN.\n");
+	pr_de("Moving to TARG_CONN_STATE_LOGGED_IN.\n");
 	conn->conn_state = TARG_CONN_STATE_LOGGED_IN;
 
 	iscsi_set_connection_parameters(conn->conn_ops, conn->param_list);
@@ -709,19 +709,19 @@ void iscsi_post_login_handler(
 		spin_lock_bh(&sess->conn_lock);
 		atomic_set(&sess->session_continuation, 0);
 		if (sess->session_state == TARG_SESS_STATE_FAILED) {
-			pr_debug("Moving to"
+			pr_de("Moving to"
 					" TARG_SESS_STATE_LOGGED_IN.\n");
 			sess->session_state = TARG_SESS_STATE_LOGGED_IN;
 			stop_timer = 1;
 		}
 
-		pr_debug("iSCSI Login successful on CID: %hu from %pISpc to"
+		pr_de("iSCSI Login successful on CID: %hu from %pISpc to"
 			" %pISpc,%hu\n", conn->cid, &conn->login_sockaddr,
 			&conn->local_sockaddr, tpg->tpgt);
 
 		list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 		atomic_inc(&sess->nconn);
-		pr_debug("Incremented iSCSI Connection count to %hu"
+		pr_de("Incremented iSCSI Connection count to %hu"
 			" from node: %s\n", atomic_read(&sess->nconn),
 			sess->sess_ops->InitiatorName);
 		spin_unlock_bh(&sess->conn_lock);
@@ -759,17 +759,17 @@ void iscsi_post_login_handler(
 	spin_lock_bh(&se_tpg->session_lock);
 	__transport_register_session(&sess->tpg->tpg_se_tpg,
 			se_sess->se_node_acl, se_sess, sess);
-	pr_debug("Moving to TARG_SESS_STATE_LOGGED_IN.\n");
+	pr_de("Moving to TARG_SESS_STATE_LOGGED_IN.\n");
 	sess->session_state = TARG_SESS_STATE_LOGGED_IN;
 
-	pr_debug("iSCSI Login successful on CID: %hu from %pISpc to %pISpc,%hu\n",
+	pr_de("iSCSI Login successful on CID: %hu from %pISpc to %pISpc,%hu\n",
 		conn->cid, &conn->login_sockaddr, &conn->local_sockaddr,
 		tpg->tpgt);
 
 	spin_lock_bh(&sess->conn_lock);
 	list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 	atomic_inc(&sess->nconn);
-	pr_debug("Incremented iSCSI Connection count to %hu from node:"
+	pr_de("Incremented iSCSI Connection count to %hu from node:"
 		" %s\n", atomic_read(&sess->nconn),
 		sess->sess_ops->InitiatorName);
 	spin_unlock_bh(&sess->conn_lock);
@@ -777,14 +777,14 @@ void iscsi_post_login_handler(
 	sess->sid = tpg->sid++;
 	if (!sess->sid)
 		sess->sid = tpg->sid++;
-	pr_debug("Established iSCSI session from node: %s\n",
+	pr_de("Established iSCSI session from node: %s\n",
 			sess->sess_ops->InitiatorName);
 
 	tpg->nsessions++;
 	if (tpg->tpg_tiqn)
 		tpg->tpg_tiqn->tiqn_nsessions++;
 
-	pr_debug("Incremented number of active iSCSI sessions to %u on"
+	pr_de("Incremented number of active iSCSI sessions to %u on"
 		" iSCSI Target Portal Group: %hu\n", tpg->nsessions, tpg->tpgt);
 	spin_unlock_bh(&se_tpg->session_lock);
 
@@ -835,7 +835,7 @@ static void iscsi_start_login_thread_timer(struct iscsi_np *np)
 	np->np_login_timer_flags |= ISCSI_TF_RUNNING;
 	mod_timer(&np->np_login_timer, jiffies + TA_LOGIN_TIMEOUT * HZ);
 
-	pr_debug("Added timeout timer to iSCSI login request for"
+	pr_de("Added timeout timer to iSCSI login request for"
 			" %u seconds.\n", TA_LOGIN_TIMEOUT);
 	spin_unlock_bh(&np->np_thread_lock);
 }
@@ -1050,7 +1050,7 @@ int iscsit_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
 	payload_length	= ntoh24(login_req->dlength);
 	padding = ((-payload_length) & 3);
 
-	pr_debug("Got Login Command, Flags 0x%02x, ITT: 0x%08x,"
+	pr_de("Got Login Command, Flags 0x%02x, ITT: 0x%08x,"
 		" CmdSN: 0x%08x, ExpStatSN: 0x%08x, CID: %hu, Length: %u\n",
 		login_req->flags, login_req->itt, login_req->cmdsn,
 		login_req->exp_statsn, login_req->cid, payload_length);
@@ -1121,7 +1121,7 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 		pr_err("Could not allocate memory for new connection\n");
 		return NULL;
 	}
-	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");
+	pr_de("Moving to TARG_CONN_STATE_FREE.\n");
 	conn->conn_state = TARG_CONN_STATE_FREE;
 
 	init_waitqueue_head(&conn->queues_wq);
@@ -1312,7 +1312,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 
 	iscsi_start_login_thread_timer(np);
 
-	pr_debug("Moving to TARG_CONN_STATE_XPT_UP.\n");
+	pr_de("Moving to TARG_CONN_STATE_XPT_UP.\n");
 	conn->conn_state = TARG_CONN_STATE_XPT_UP;
 	/*
 	 * This will process the first login request + payload..
@@ -1344,11 +1344,11 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 
 	conn->network_transport = np->np_network_transport;
 
-	pr_debug("Received iSCSI login request from %pISpc on %s Network"
+	pr_de("Received iSCSI login request from %pISpc on %s Network"
 		" Portal %pISpc\n", &conn->login_sockaddr, np->np_transport->name,
 		&conn->local_sockaddr);
 
-	pr_debug("Moving to TARG_CONN_STATE_IN_LOGIN.\n");
+	pr_de("Moving to TARG_CONN_STATE_IN_LOGIN.\n");
 	conn->conn_state	= TARG_CONN_STATE_IN_LOGIN;
 
 	if (iscsi_login_check_initiator_version(conn, pdu->max_version,

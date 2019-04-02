@@ -203,7 +203,7 @@ static void do_identify(ide_drive_t *drive, u8 cmd, u16 *id)
 	local_irq_restore(flags);
 
 	drive->dev_flags |= IDE_DFLAG_ID_READ;
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_INFO "%s: dumping identify data\n", drive->name);
 	ide_dump_identify((u8 *)id);
 #endif
@@ -390,7 +390,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	if (present && drive->media != ide_disk && cmd == ATA_CMD_ID_ATA)
 		return 4;
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_INFO "probing for %s: present=%d, media=%d, probetype=%s\n",
 		drive->name, present, drive->media,
 		(cmd == ATA_CMD_ID_ATA) ? "ATA" : "ATAPI");
@@ -601,7 +601,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 	ide_drive_t *drive;
 	int i, rc;
 
-	printk(KERN_DEBUG "Probing IDE interface %s...\n", hwif->name);
+	printk(KERN_DE "Probing IDE interface %s...\n", hwif->name);
 
 	/* Let HW settle down a bit from whatever init state we
 	 * come from */
@@ -627,7 +627,7 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 			if (rc)
 				goto out;
 		} else
-			printk(KERN_DEBUG "%s: ide_wait_not_busy() skipped\n",
+			printk(KERN_DE "%s: ide_wait_not_busy() skipped\n",
 					  drive->name);
 	}
 out:
@@ -668,7 +668,7 @@ void ide_undecoded_slave(ide_drive_t *dev1)
 	if (*(char *)&dev0->id[ATA_ID_SERNO] == 0)
 		return;
 
-	/* Appears to be an IDE flash adapter with decode bugs */
+	/* Appears to be an IDE flash adapter with decode s */
 	printk(KERN_WARNING "ide-probe: ignoring undecoded slave\n");
 
 	dev1->dev_flags &= ~IDE_DFLAG_PRESENT;
@@ -682,7 +682,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	unsigned int irqd;
 	int i, rc = -ENODEV;
 
-	BUG_ON(hwif->present);
+	_ON(hwif->present);
 
 	if ((hwif->devices[0]->dev_flags & IDE_DFLAG_NOPROBE) &&
 	    (hwif->devices[1]->dev_flags & IDE_DFLAG_NOPROBE))
@@ -697,7 +697,7 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		disable_irq(hwif->irq);
 
 	if (ide_port_wait_ready(hwif) == -EBUSY)
-		printk(KERN_DEBUG "%s: Wait for ready failed before probe !\n", hwif->name);
+		printk(KERN_DE "%s: Wait for ready failed before probe !\n", hwif->name);
 
 	/*
 	 * Second drive should only exist if first drive was found,
@@ -1588,8 +1588,8 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
 
 static void ide_unregister(ide_hwif_t *hwif)
 {
-	BUG_ON(in_interrupt());
-	BUG_ON(irqs_disabled());
+	_ON(in_interrupt());
+	_ON(irqs_disabled());
 
 	mutex_lock(&ide_cfg_mtx);
 

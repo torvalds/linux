@@ -43,8 +43,8 @@ struct sil164_priv {
 	((struct sil164_priv *)to_encoder_slave(x)->slave_priv)
 
 #define sil164_dbg(client, format, ...) do {				\
-		if (drm_debug & DRM_UT_KMS)				\
-			dev_printk(KERN_DEBUG, &client->dev,		\
+		if (drm_de & DRM_UT_KMS)				\
+			dev_printk(KERN_DE, &client->dev,		\
 				   "%s: " format, __func__, ## __VA_ARGS__); \
 	} while (0)
 #define sil164_info(client, format, ...)		\

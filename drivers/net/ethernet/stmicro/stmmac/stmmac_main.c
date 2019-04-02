@@ -21,7 +21,7 @@
   Documentation available at:
 	http://www.stlinux.com
   Support available at:
-	https://bugzilla.stlinux.com/
+	https://zilla.stlinux.com/
 *******************************************************************************/
 
 #include <linux/clk.h>
@@ -40,10 +40,10 @@
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/pinctrl/consumer.h>
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #include <linux/seq_file.h>
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 #include <linux/net_tstamp.h>
 #include <net/pkt_cls.h>
 #include "stmmac_ptp.h"
@@ -63,9 +63,9 @@ static int watchdog = TX_TIMEO;
 module_param(watchdog, int, 0644);
 MODULE_PARM_DESC(watchdog, "Transmit timeout in milliseconds (default 5s)");
 
-static int debug = -1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+static int de = -1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Message Level (-1: default, 0: no output, 16: all)");
 
 static int phyaddr = -1;
 module_param(phyaddr, int, 0444);
@@ -113,7 +113,7 @@ MODULE_PARM_DESC(chain_mode, "To use chain instead of ring mode");
 
 static irqreturn_t stmmac_interrupt(int irq, void *dev_id);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int stmmac_init_fs(struct net_device *dev);
 static void stmmac_exit_fs(struct net_device *dev);
 #endif
@@ -292,7 +292,7 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 
 static void print_pkt(unsigned char *buf, int len)
 {
-	pr_debug("len = %d byte, buf addr: 0x%p\n", len, buf);
+	pr_de("len = %d byte, buf addr: 0x%p\n", len, buf);
 	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);
 }
 
@@ -1829,7 +1829,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 * In case of GMAC, SF mode can be enabled
 		 * to perform the TX COE in HW. This depends on:
 		 * 1) TX COE if actually supported
-		 * 2) There is no bugged Jumbo frame support
+		 * 2) There is no ged Jumbo frame support
 		 *    that needs to not insert csum in the TDES.
 		 */
 		txmode = SF_DMA_MODE;
@@ -3343,7 +3343,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 /**
  * stmmac_rx - manage the receive process
  * @priv: driver private structure
- * @limit: napi bugget
+ * @limit: napi get
  * @queue: RX queue index.
  * Description :  this the function called by the napi poll method.
  * It gets all the frames inside the ring.
@@ -3652,12 +3652,12 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 	if (!priv->plat->tx_coe)
 		features &= ~NETIF_F_CSUM_MASK;
 
-	/* Some GMAC devices have a bugged Jumbo frame support that
+	/* Some GMAC devices have a ged Jumbo frame support that
 	 * needs to have the Tx COE disabled for oversized frames
 	 * (due to limited buffer sizes). In this case we disable
 	 * the TX csum insertion in the TDES and not use SF.
 	 */
-	if (priv->plat->bugged_jumbo && (dev->mtu > ETH_DATA_LEN))
+	if (priv->plat->ged_jumbo && (dev->mtu > ETH_DATA_LEN))
 		features &= ~NETIF_F_CSUM_MASK;
 
 	/* Disable tso if asked by ethtool */
@@ -3887,7 +3887,7 @@ static int stmmac_set_mac_address(struct net_device *ndev, void *addr)
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static struct dentry *stmmac_fs_dir;
 
 static void sysfs_display_ring(void *head, int size, int extend_desc,
@@ -4034,35 +4034,35 @@ static int stmmac_init_fs(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	/* Create per netdev entries */
-	priv->dbgfs_dir = debugfs_create_dir(dev->name, stmmac_fs_dir);
+	priv->dbgfs_dir = defs_create_dir(dev->name, stmmac_fs_dir);
 
 	if (!priv->dbgfs_dir || IS_ERR(priv->dbgfs_dir)) {
-		netdev_err(priv->dev, "ERROR failed to create debugfs directory\n");
+		netdev_err(priv->dev, "ERROR failed to create defs directory\n");
 
 		return -ENOMEM;
 	}
 
 	/* Entry to report DMA RX/TX rings */
 	priv->dbgfs_rings_status =
-		debugfs_create_file("descriptors_status", 0444,
+		defs_create_file("descriptors_status", 0444,
 				    priv->dbgfs_dir, dev,
 				    &stmmac_rings_status_fops);
 
 	if (!priv->dbgfs_rings_status || IS_ERR(priv->dbgfs_rings_status)) {
-		netdev_err(priv->dev, "ERROR creating stmmac ring debugfs file\n");
-		debugfs_remove_recursive(priv->dbgfs_dir);
+		netdev_err(priv->dev, "ERROR creating stmmac ring defs file\n");
+		defs_remove_recursive(priv->dbgfs_dir);
 
 		return -ENOMEM;
 	}
 
 	/* Entry to report the DMA HW features */
-	priv->dbgfs_dma_cap = debugfs_create_file("dma_cap", 0444,
+	priv->dbgfs_dma_cap = defs_create_file("dma_cap", 0444,
 						  priv->dbgfs_dir,
 						  dev, &stmmac_dma_cap_fops);
 
 	if (!priv->dbgfs_dma_cap || IS_ERR(priv->dbgfs_dma_cap)) {
-		netdev_err(priv->dev, "ERROR creating stmmac MMC debugfs file\n");
-		debugfs_remove_recursive(priv->dbgfs_dir);
+		netdev_err(priv->dev, "ERROR creating stmmac MMC defs file\n");
+		defs_remove_recursive(priv->dbgfs_dir);
 
 		return -ENOMEM;
 	}
@@ -4074,9 +4074,9 @@ static void stmmac_exit_fs(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	debugfs_remove_recursive(priv->dbgfs_dir);
+	defs_remove_recursive(priv->dbgfs_dir);
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_open = stmmac_open,
@@ -4205,7 +4205,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	}
 
 	/* Rx Watchdog is available in the COREs newer than the 3.40.
-	 * In some case, for example on bugged HW this feature
+	 * In some case, for example on ged HW this feature
 	 * has to be disable and this can be done by passing the
 	 * riwt_off field from the platform.
 	 */
@@ -4324,7 +4324,7 @@ int stmmac_dvr_probe(struct device *device,
 	/* Both mac100 and gmac support receive VLAN tag detection */
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
 #endif
-	priv->msg_enable = netif_msg_init(debug, default_msg_level);
+	priv->msg_enable = netif_msg_init(de, default_msg_level);
 
 	/* MTU range: 46 - hw-specific max */
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
@@ -4402,10 +4402,10 @@ int stmmac_dvr_probe(struct device *device,
 		goto error_netdev_register;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	ret = stmmac_init_fs(ndev);
 	if (ret < 0)
-		netdev_warn(priv->dev, "%s: failed debugFS registration\n",
+		netdev_warn(priv->dev, "%s: failed deFS registration\n",
 			    __func__);
 #endif
 
@@ -4447,7 +4447,7 @@ int stmmac_dvr_remove(struct device *dev)
 
 	netdev_info(priv->dev, "%s: removing driver", __func__);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	stmmac_exit_fs(ndev);
 #endif
 	stmmac_stop_all_dma(priv);
@@ -4613,8 +4613,8 @@ static int __init stmmac_cmdline_opt(char *str)
 	if (!str || !*str)
 		return -EINVAL;
 	while ((opt = strsep(&str, ",")) != NULL) {
-		if (!strncmp(opt, "debug:", 6)) {
-			if (kstrtoint(opt + 6, 0, &debug))
+		if (!strncmp(opt, "de:", 6)) {
+			if (kstrtoint(opt + 6, 0, &de))
 				goto err;
 		} else if (!strncmp(opt, "phyaddr:", 8)) {
 			if (kstrtoint(opt + 8, 0, &phyaddr))
@@ -4654,13 +4654,13 @@ __setup("stmmaceth=", stmmac_cmdline_opt);
 
 static int __init stmmac_init(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	/* Create debugfs main directory if it doesn't exist yet */
+#ifdef CONFIG_DE_FS
+	/* Create defs main directory if it doesn't exist yet */
 	if (!stmmac_fs_dir) {
-		stmmac_fs_dir = debugfs_create_dir(STMMAC_RESOURCE_NAME, NULL);
+		stmmac_fs_dir = defs_create_dir(STMMAC_RESOURCE_NAME, NULL);
 
 		if (!stmmac_fs_dir || IS_ERR(stmmac_fs_dir)) {
-			pr_err("ERROR %s, debugfs create directory failed\n",
+			pr_err("ERROR %s, defs create directory failed\n",
 			       STMMAC_RESOURCE_NAME);
 
 			return -ENOMEM;
@@ -4673,8 +4673,8 @@ static int __init stmmac_init(void)
 
 static void __exit stmmac_exit(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(stmmac_fs_dir);
+#ifdef CONFIG_DE_FS
+	defs_remove_recursive(stmmac_fs_dir);
 #endif
 }
 

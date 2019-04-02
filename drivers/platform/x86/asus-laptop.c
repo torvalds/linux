@@ -469,7 +469,7 @@ static void pega_accel_poll(struct input_polled_dev *ipd)
 	/* In some cases, the very first call to poll causes a
 	 * recursive fault under the polldev worker.  This is
 	 * apparently related to very early userspace access to the
-	 * device, and perhaps a firmware bug. Fake the first report. */
+	 * device, and perhaps a firmware . Fake the first report. */
 	if (!asus->pega_acc_live) {
 		asus->pega_acc_live = true;
 		input_report_abs(ipd->input, ABS_X, 0);

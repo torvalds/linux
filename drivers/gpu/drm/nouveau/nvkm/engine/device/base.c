@@ -2840,7 +2840,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	device->dbgopt = dbg;
 	device->name = name;
 	list_add_tail(&device->head, &nv_devices);
-	device->debug = nvkm_dbgopt(device->dbgopt, "device");
+	device->de = nvkm_dbgopt(device->dbgopt, "device");
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
 	if (ret)

@@ -38,11 +38,11 @@
 #include <linux/jiffies.h>
 #include <asm/io.h>
 
-static int i2c_debug;
+static int i2c_de;
 static int i2c_hw;
 static int i2c_scan;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "configure i2c debug level");
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de, "configure i2c de level");
 module_param(i2c_hw,    int, 0444);
 MODULE_PARM_DESC(i2c_hw, "force use of hardware i2c support, instead of software bitbang");
 module_param(i2c_scan,  int, 0444);
@@ -153,7 +153,7 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		goto err;
 	if (retval == 0)
 		goto eio;
-	if (i2c_debug) {
+	if (i2c_de) {
 		pr_cont(" <W %02x %02x", msg->addr << 1, msg->buf[0]);
 	}
 
@@ -168,17 +168,17 @@ bttv_i2c_sendbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 			goto err;
 		if (retval == 0)
 			goto eio;
-		if (i2c_debug)
+		if (i2c_de)
 			pr_cont(" %02x", msg->buf[cnt]);
 	}
-	if (i2c_debug && !(xmit & BT878_I2C_NOSTOP))
+	if (i2c_de && !(xmit & BT878_I2C_NOSTOP))
 		pr_cont(">\n");
 	return msg->len;
 
  eio:
 	retval = -EIO;
  err:
-	if (i2c_debug)
+	if (i2c_de)
 		pr_cont(" ERR: %d\n",retval);
 	return retval;
 }
@@ -199,7 +199,7 @@ bttv_i2c_readbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (cnt)
 			xmit |= BT878_I2C_NOSTART;
 
-		if (i2c_debug) {
+		if (i2c_de) {
 			if (!(xmit & BT878_I2C_NOSTART))
 				pr_cont(" <R %02x", (msg->addr << 1) +1);
 		}
@@ -211,10 +211,10 @@ bttv_i2c_readbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
 		if (retval == 0)
 			goto eio;
 		msg->buf[cnt] = ((u32)btread(BT848_I2C) >> 8) & 0xff;
-		if (i2c_debug) {
+		if (i2c_de) {
 			pr_cont(" =%02x", msg->buf[cnt]);
 		}
-		if (i2c_debug && !(xmit & BT878_I2C_NOSTOP))
+		if (i2c_de && !(xmit & BT878_I2C_NOSTOP))
 			pr_cont(" >\n");
 	}
 
@@ -224,7 +224,7 @@ bttv_i2c_readbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
  eio:
 	retval = -EIO;
  err:
-	if (i2c_debug)
+	if (i2c_de)
 		pr_cont(" ERR: %d\n",retval);
 	return retval;
 }
@@ -236,8 +236,8 @@ static int bttv_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int
 	int retval = 0;
 	int i;
 
-	if (i2c_debug)
-		pr_debug("bt-i2c:");
+	if (i2c_de)
+		pr_de("bt-i2c:");
 
 	btwrite(BT848_INT_I2CDONE|BT848_INT_RACK, BT848_INT_STAT);
 	for (i = 0 ; i < num; i++) {

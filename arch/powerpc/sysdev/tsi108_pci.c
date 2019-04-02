@@ -38,8 +38,8 @@
 #include <asm/tsi108_irq.h>
 #include <asm/prom.h>
 
-#undef DEBUG
-#ifdef DEBUG
+#undef DE
+#ifdef DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)
@@ -72,7 +72,7 @@ tsi108_direct_write_config(struct pci_bus *bus, unsigned int devfunc,
 							devfunc, offset) |
 							(offset & 0x03));
 
-#ifdef DEBUG
+#ifdef DE
 	printk("PCI CFG write : ");
 	printk("%d:0x%x:0x%x ", bus->number, devfunc, offset);
 	printk("%d ADDR=0x%08x ", len, (uint) cfg_addr);
@@ -172,7 +172,7 @@ tsi108_direct_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 
 	*val = temp;
 
-#ifdef DEBUG
+#ifdef DE
 	if ((0xFFFFFFFF != temp) && (0xFFFF != temp) && (0xFF != temp)) {
 		printk("PCI CFG read : ");
 		printk("%d:0x%x:0x%x ", bus->number, devfn, offset);
@@ -313,7 +313,7 @@ static inline unsigned int get_pci_source(void)
 		(void)tsi108_read_reg(TSI108_PCI_OFFSET + TSI108_PCI_IRP_ENABLE);
 		mb();
 	}
-#ifdef DEBUG
+#ifdef DE
 	else {
 		printk("TSI108_PIC: error in TSI108_PCI_IRP_STAT\n");
 		pci_irp_stat =
@@ -331,7 +331,7 @@ static inline unsigned int get_pci_source(void)
 		mb();
 		printk("irp_enable=0x%08x\n", temp);
 	}
-#endif	/* end of DEBUG */
+#endif	/* end of DE */
 
 	return irq;
 }

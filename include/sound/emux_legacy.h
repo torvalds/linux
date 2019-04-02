@@ -28,7 +28,7 @@
  * awe hardware controls
  */
 
-#define _EMUX_OSS_DEBUG_MODE		0x00
+#define _EMUX_OSS_DE_MODE		0x00
 #define _EMUX_OSS_REVERB_MODE		0x01
 #define _EMUX_OSS_CHORUS_MODE		0x02
 #define _EMUX_OSS_REMOVE_LAST_SAMPLES	0x03
@@ -75,7 +75,7 @@ enum {
 /*16*/	EMUX_MD_REVERB_MODE,	/* integer: chorus mode (def=4) */
 /*17*/	EMUX_MD_BASS_LEVEL,	/* integer: bass level (def=5) */
 /*18*/	EMUX_MD_TREBLE_LEVEL,	/* integer: treble level (def=9) */
-/*19*/	EMUX_MD_DEBUG_MODE,	/* integer: debug level (def=0) */
+/*19*/	EMUX_MD_DE_MODE,	/* integer: de level (def=0) */
 /*20*/	EMUX_MD_PAN_EXCHANGE,	/* 0/1: exchange panning direction (def=0) */
 	EMUX_MD_END,
 };

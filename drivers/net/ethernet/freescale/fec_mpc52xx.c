@@ -80,9 +80,9 @@ static void mpc52xx_fec_reset(struct net_device *dev);
 
 #define MPC52xx_MESSAGES_DEFAULT ( NETIF_MSG_DRV | NETIF_MSG_PROBE | \
 		NETIF_MSG_LINK | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP)
-static int debug = -1;	/* the above default */
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "debugging messages level");
+static int de = -1;	/* the above default */
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "deging messages level");
 
 static void mpc52xx_fec_tx_timeout(struct net_device *dev)
 {
@@ -153,7 +153,7 @@ static int mpc52xx_fec_alloc_rx_buffers(struct net_device *dev, struct bcom_task
 		if (!skb)
 			return -EAGAIN;
 
-		/* zero out the initial receive buffers to aid debugging */
+		/* zero out the initial receive buffers to aid deging */
 		memset(skb->data, 0, FEC_RX_BUFFER_SIZE);
 		mpc52xx_fec_rx_submit(dev, skb);
 	}
@@ -924,7 +924,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 			 ndev->dev_addr);
 	}
 
-	priv->msg_enable = netif_msg_init(debug, MPC52xx_MESSAGES_DEFAULT);
+	priv->msg_enable = netif_msg_init(de, MPC52xx_MESSAGES_DEFAULT);
 
 	/*
 	 * Link mode configuration

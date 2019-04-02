@@ -44,7 +44,7 @@ static inline bool rdma_rw_can_use_mr(struct ib_device *dev, u8 port_num)
 /*
  * Check if the device will use memory registration for this RW operation.
  * We currently always use memory registrations for iWarp RDMA READs, and
- * have a debug option to force usage of MRs.
+ * have a de option to force usage of MRs.
  *
  * XXX: In the future we can hopefully fine tune this based on HCA driver
  * input.
@@ -536,7 +536,7 @@ struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		last_wr = &ctx->single.wr.wr;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (chain_wr) {
@@ -601,7 +601,7 @@ void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
 	case RDMA_RW_SINGLE_WR:
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

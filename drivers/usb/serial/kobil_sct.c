@@ -275,7 +275,7 @@ static void kobil_read_int_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length) {
-		usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
+		usb_serial_de_data(&port->dev, __func__, urb->actual_length,
 									data);
 		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(&port->port);
@@ -313,7 +313,7 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* Copy data to buffer */
 	memcpy(priv->buf + priv->filled, buf, count);
-	usb_serial_debug_data(&port->dev, __func__, count, priv->buf + priv->filled);
+	usb_serial_de_data(&port->dev, __func__, count, priv->buf + priv->filled);
 	priv->filled = priv->filled + count;
 
 	/* only send complete block. TWIN, KAAN SIM and adapter K

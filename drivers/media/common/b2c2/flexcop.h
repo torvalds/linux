@@ -10,12 +10,12 @@
 #define FC_LOG_PREFIX "b2c2-flexcop"
 #include "flexcop-common.h"
 
-extern int b2c2_flexcop_debug;
+extern int b2c2_flexcop_de;
 
-/* debug */
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+/* de */
+#ifdef CONFIG_DVB_B2C2_FLEXCOP_DE
 #define dprintk(level,args...) \
-	do { if ((b2c2_flexcop_debug & level)) printk(args); } while (0)
+	do { if ((b2c2_flexcop_de & level)) printk(args); } while (0)
 #else
 #define dprintk(level,args...)
 #endif

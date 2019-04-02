@@ -9,7 +9,7 @@
 // This driver is based on max8997.c
 
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>

@@ -199,7 +199,7 @@ static inline void gem_disable_ints(struct gem *gp)
 
 static void gem_get_cell(struct gem *gp)
 {
-	BUG_ON(gp->cell_enabled < 0);
+	_ON(gp->cell_enabled < 0);
 	gp->cell_enabled++;
 #ifdef CONFIG_PPC_PMAC
 	if (gp->cell_enabled == 1) {
@@ -213,7 +213,7 @@ static void gem_get_cell(struct gem *gp)
 /* Turn off the chip's clock */
 static void gem_put_cell(struct gem *gp)
 {
-	BUG_ON(gp->cell_enabled <= 0);
+	_ON(gp->cell_enabled <= 0);
 	gp->cell_enabled--;
 #ifdef CONFIG_PPC_PMAC
 	if (gp->cell_enabled == 0) {
@@ -250,7 +250,7 @@ static void gem_schedule_reset(struct gem *gp)
 static void gem_handle_mif_event(struct gem *gp, u32 reg_val, u32 changed_bits)
 {
 	if (netif_msg_intr(gp))
-		printk(KERN_DEBUG "%s: mif interrupt\n", gp->dev->name);
+		printk(KERN_DE "%s: mif interrupt\n", gp->dev->name);
 }
 
 static int gem_pcs_interrupt(struct net_device *dev, struct gem *gp, u32 gem_status)
@@ -259,7 +259,7 @@ static int gem_pcs_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 	u32 pcs_miistat;
 
 	if (netif_msg_intr(gp))
-		printk(KERN_DEBUG "%s: pcs interrupt, pcs_istat: 0x%x\n",
+		printk(KERN_DE "%s: pcs interrupt, pcs_istat: 0x%x\n",
 			gp->dev->name, pcs_istat);
 
 	if (!(pcs_istat & PCS_ISTAT_LSC)) {
@@ -308,7 +308,7 @@ static int gem_txmac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_s
 	u32 txmac_stat = readl(gp->regs + MAC_TXSTAT);
 
 	if (netif_msg_intr(gp))
-		printk(KERN_DEBUG "%s: txmac interrupt, txmac_stat: 0x%x\n",
+		printk(KERN_DE "%s: txmac interrupt, txmac_stat: 0x%x\n",
 			gp->dev->name, txmac_stat);
 
 	/* Defer timer expiration is quite normal,
@@ -462,7 +462,7 @@ static int gem_rxmac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_s
 	int ret = 0;
 
 	if (netif_msg_intr(gp))
-		printk(KERN_DEBUG "%s: rxmac interrupt, rxmac_stat: 0x%x\n",
+		printk(KERN_DE "%s: rxmac interrupt, rxmac_stat: 0x%x\n",
 			gp->dev->name, rxmac_stat);
 
 	if (rxmac_stat & MAC_RXSTAT_OFLW) {
@@ -495,11 +495,11 @@ static int gem_mac_interrupt(struct net_device *dev, struct gem *gp, u32 gem_sta
 	u32 mac_cstat = readl(gp->regs + MAC_CSTAT);
 
 	if (netif_msg_intr(gp))
-		printk(KERN_DEBUG "%s: mac interrupt, mac_cstat: 0x%x\n",
+		printk(KERN_DE "%s: mac interrupt, mac_cstat: 0x%x\n",
 			gp->dev->name, mac_cstat);
 
 	/* This interrupt is just for pause frame and pause
-	 * tracking.  It is useful for diagnostics and debug
+	 * tracking.  It is useful for diagnostics and de
 	 * but probably by default we will mask these events.
 	 */
 	if (mac_cstat & MAC_CSTAT_PS)
@@ -592,7 +592,7 @@ static int gem_abnormal_irq(struct net_device *dev, struct gem *gp, u32 gem_stat
 	if (gem_status & GREG_STAT_RXNOBUF) {
 		/* Frame arrived, no free RX buffers available. */
 		if (netif_msg_rx_err(gp))
-			printk(KERN_DEBUG "%s: no buffer for rx frame\n",
+			printk(KERN_DE "%s: no buffer for rx frame\n",
 				gp->dev->name);
 		dev->stats.rx_dropped++;
 	}
@@ -600,7 +600,7 @@ static int gem_abnormal_irq(struct net_device *dev, struct gem *gp, u32 gem_stat
 	if (gem_status & GREG_STAT_RXTAGERR) {
 		/* corrupt RX tag framing */
 		if (netif_msg_rx_err(gp))
-			printk(KERN_DEBUG "%s: corrupt rx tag framing\n",
+			printk(KERN_DE "%s: corrupt rx tag framing\n",
 				gp->dev->name);
 		dev->stats.rx_errors++;
 
@@ -654,7 +654,7 @@ static __inline__ void gem_tx(struct net_device *dev, struct gem *gp, u32 gem_st
 		int frag;
 
 		if (netif_msg_tx_done(gp))
-			printk(KERN_DEBUG "%s: tx done, slot %d\n",
+			printk(KERN_DE "%s: tx done, slot %d\n",
 				gp->dev->name, entry);
 		skb = gp->tx_skbs[entry];
 		if (skb_shinfo(skb)->nr_frags) {
@@ -761,7 +761,7 @@ static int gem_rx(struct gem *gp, int work_to_do)
 	u32 done;
 
 	if (netif_msg_rx_status(gp))
-		printk(KERN_DEBUG "%s: rx interrupt, done: %d, rx_new: %d\n",
+		printk(KERN_DE "%s: rx interrupt, done: %d, rx_new: %d\n",
 			gp->dev->name, readl(gp->regs + RXDMA_DONE), gp->rx_new);
 
 	entry = gp->rx_new;
@@ -944,7 +944,7 @@ static irqreturn_t gem_interrupt(int irq, void *dev_id)
 			return IRQ_NONE;
 		}
 		if (netif_msg_intr(gp))
-			printk(KERN_DEBUG "%s: gem_interrupt() gem_status: 0x%x\n",
+			printk(KERN_DE "%s: gem_interrupt() gem_status: 0x%x\n",
 			       gp->dev->name, gem_status);
 
 		gp->status = gem_status;
@@ -1018,7 +1018,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		/* This is a hard error, log it. */
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
-			netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
+			netdev_err(dev, "! Tx Ring full when queue awake!\n");
 		}
 		return NETDEV_TX_BUSY;
 	}
@@ -1107,7 +1107,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 			netif_wake_queue(dev);
 	}
 	if (netif_msg_tx_queued(gp))
-		printk(KERN_DEBUG "%s: tx queued, slot %d, skblen %d\n",
+		printk(KERN_DE "%s: tx queued, slot %d, skblen %d\n",
 		       dev->name, entry, skb->len);
 	mb();
 	writel(gp->tx_new, gp->regs + TXDMA_KICK);
@@ -1921,11 +1921,11 @@ static void gem_init_pause_thresholds(struct gem *gp)
 
 
 	/* Configure the chip "burst" DMA mode & enable some
-	 * HW bug fixes on Apple version
+	 * HW  fixes on Apple version
 	 */
        	cfg  = 0;
        	if (gp->pdev->vendor == PCI_VENDOR_ID_APPLE)
-		cfg |= GREG_CFG_RONPAULBIT | GREG_CFG_ENBUG2FIX;
+		cfg |= GREG_CFG_RONPAULBIT | GREG_CFG_EN2FIX;
 #if !defined(CONFIG_SPARC64) && !defined(CONFIG_ALPHA)
        	cfg |= GREG_CFG_IBURST;
 #endif
@@ -1934,7 +1934,7 @@ static void gem_init_pause_thresholds(struct gem *gp)
        	writel(cfg, gp->regs + GREG_CFG);
 
 	/* If Infinite Burst didn't stick, then use different
-	 * thresholds (and Apple bug fixes don't exist)
+	 * thresholds (and Apple  fixes don't exist)
 	 */
 	if (!(readl(gp->regs + GREG_CFG) & GREG_CFG_IBURST)) {
 		cfg = ((2 << 1) & GREG_CFG_TXDMALIM);

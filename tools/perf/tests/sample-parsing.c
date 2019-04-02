@@ -9,20 +9,20 @@
 #include "util.h"
 #include "event.h"
 #include "evsel.h"
-#include "debug.h"
+#include "de.h"
 
 #include "tests.h"
 
 #define COMP(m) do {					\
 	if (s1->m != s2->m) {				\
-		pr_debug("Samples differ at '"#m"'\n");	\
+		pr_de("Samples differ at '"#m"'\n");	\
 		return false;				\
 	}						\
 } while (0)
 
 #define MCOMP(m) do {					\
 	if (memcmp(&s1->m, &s2->m, sizeof(s1->m))) {	\
-		pr_debug("Samples differ at '"#m"'\n");	\
+		pr_de("Samples differ at '"#m"'\n");	\
 		return false;				\
 	}						\
 } while (0)
@@ -89,7 +89,7 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_RAW) {
 		COMP(raw_size);
 		if (memcmp(s1->raw_data, s2->raw_data, s1->raw_size)) {
-			pr_debug("Samples differ at 'raw_data'\n");
+			pr_de("Samples differ at 'raw_data'\n");
 			return false;
 		}
 	}
@@ -108,7 +108,7 @@ static bool samples_same(const struct perf_sample *s1,
 		if (s1->user_regs.abi &&
 		    (!s1->user_regs.regs || !s2->user_regs.regs ||
 		     memcmp(s1->user_regs.regs, s2->user_regs.regs, sz))) {
-			pr_debug("Samples differ at 'user_regs'\n");
+			pr_de("Samples differ at 'user_regs'\n");
 			return false;
 		}
 	}
@@ -117,7 +117,7 @@ static bool samples_same(const struct perf_sample *s1,
 		COMP(user_stack.size);
 		if (memcmp(s1->user_stack.data, s2->user_stack.data,
 			   s1->user_stack.size)) {
-			pr_debug("Samples differ at 'user_stack'\n");
+			pr_de("Samples differ at 'user_stack'\n");
 			return false;
 		}
 	}
@@ -139,7 +139,7 @@ static bool samples_same(const struct perf_sample *s1,
 		if (s1->intr_regs.abi &&
 		    (!s1->intr_regs.regs || !s2->intr_regs.regs ||
 		     memcmp(s1->intr_regs.regs, s2->intr_regs.regs, sz))) {
-			pr_debug("Samples differ at 'intr_regs'\n");
+			pr_de("Samples differ at 'intr_regs'\n");
 			return false;
 		}
 	}
@@ -240,7 +240,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	bufsz = sz + 4096; /* Add a bit for overrun checking */
 	event = malloc(bufsz);
 	if (!event) {
-		pr_debug("malloc failed\n");
+		pr_de("malloc failed\n");
 		return -1;
 	}
 
@@ -252,7 +252,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	err = perf_event__synthesize_sample(event, sample_type, read_format,
 					    &sample);
 	if (err) {
-		pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
+		pr_de("%s failed for sample_type %#"PRIx64", error %d\n",
 			 "perf_event__synthesize_sample", sample_type, err);
 		goto out_free;
 	}
@@ -263,7 +263,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 			break;
 	}
 	if (i != sz) {
-		pr_debug("Event size mismatch: actual %zu vs expected %zu\n",
+		pr_de("Event size mismatch: actual %zu vs expected %zu\n",
 			 i, sz);
 		goto out_free;
 	}
@@ -272,13 +272,13 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 
 	err = perf_evsel__parse_sample(&evsel, event, &sample_out);
 	if (err) {
-		pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
+		pr_de("%s failed for sample_type %#"PRIx64", error %d\n",
 			 "perf_evsel__parse_sample", sample_type, err);
 		goto out_free;
 	}
 
 	if (!samples_same(&sample, &sample_out, sample_type, read_format)) {
-		pr_debug("parsing failed for sample_type %#"PRIx64"\n",
+		pr_de("parsing failed for sample_type %#"PRIx64"\n",
 			 sample_type);
 		goto out_free;
 	}
@@ -287,7 +287,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 out_free:
 	free(event);
 	if (ret && read_format)
-		pr_debug("read_format %#"PRIx64"\n", read_format);
+		pr_de("read_format %#"PRIx64"\n", read_format);
 	return ret;
 }
 
@@ -313,7 +313,7 @@ int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_u
 	 * the condition below.
 	 */
 	if (PERF_SAMPLE_MAX > PERF_SAMPLE_PHYS_ADDR << 1) {
-		pr_debug("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
+		pr_de("sample format has changed, some new PERF_SAMPLE_ bit was introduced - test needs updating\n");
 		return -1;
 	}
 

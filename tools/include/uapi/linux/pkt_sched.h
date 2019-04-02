@@ -399,7 +399,7 @@ struct tc_htb_glob {
 	__u32 version;		/* to match HTB/TC */
     	__u32 rate2quantum;	/* bps->quantum divisor */
     	__u32 defcls;		/* default class number */
-	__u32 debug;		/* debug flags */
+	__u32 de;		/* de flags */
 
 	/* stats */
 	__u32 direct_pkts; /* count of non shaped packets */

@@ -121,7 +121,7 @@ static void indy_local0_irqdispatch(void)
 		irq = lc0msk_to_irqnr[mask];
 
 	/*
-	 * workaround for INT2 bug; if irq == 0, INT2 has seen a fifo full
+	 * workaround for INT2 ; if irq == 0, INT2 has seen a fifo full
 	 * irq, but failed to latch it into status register
 	 */
 	if (irq)

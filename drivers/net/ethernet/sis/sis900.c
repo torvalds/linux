@@ -19,29 +19,29 @@
 
    Rev 1.08.10 Apr.  2 2006 Daniele Venzano add vlan (jumbo packets) support
    Rev 1.08.09 Sep. 19 2005 Daniele Venzano add Wake on LAN support
-   Rev 1.08.08 Jan. 22 2005 Daniele Venzano use netif_msg for debugging messages
+   Rev 1.08.08 Jan. 22 2005 Daniele Venzano use netif_msg for deging messages
    Rev 1.08.07 Nov.  2 2003 Daniele Venzano <venza@brownhat.org> add suspend/resume support
-   Rev 1.08.06 Sep. 24 2002 Mufasa Yang bug fix for Tx timeout & add SiS963 support
-   Rev 1.08.05 Jun.  6 2002 Mufasa Yang bug fix for read_eeprom & Tx descriptor over-boundary
+   Rev 1.08.06 Sep. 24 2002 Mufasa Yang  fix for Tx timeout & add SiS963 support
+   Rev 1.08.05 Jun.  6 2002 Mufasa Yang  fix for read_eeprom & Tx descriptor over-boundary
    Rev 1.08.04 Apr. 25 2002 Mufasa Yang <mufasa@sis.com.tw> added SiS962 support
    Rev 1.08.03 Feb.  1 2002 Matt Domsch <Matt_Domsch@dell.com> update to use library crc32 function
-   Rev 1.08.02 Nov. 30 2001 Hui-Fen Hsu workaround for EDB & bug fix for dhcp problem
+   Rev 1.08.02 Nov. 30 2001 Hui-Fen Hsu workaround for EDB &  fix for dhcp problem
    Rev 1.08.01 Aug. 25 2001 Hui-Fen Hsu update for 630ET & workaround for ICS1893 PHY
-   Rev 1.08.00 Jun. 11 2001 Hui-Fen Hsu workaround for RTL8201 PHY and some bug fix
+   Rev 1.08.00 Jun. 11 2001 Hui-Fen Hsu workaround for RTL8201 PHY and some  fix
    Rev 1.07.11 Apr.  2 2001 Hui-Fen Hsu updates PCI drivers to use the new pci_set_dma_mask for kernel 2.4.3
-   Rev 1.07.10 Mar.  1 2001 Hui-Fen Hsu <hfhsu@sis.com.tw> some bug fix & 635M/B support
+   Rev 1.07.10 Mar.  1 2001 Hui-Fen Hsu <hfhsu@sis.com.tw> some  fix & 635M/B support
    Rev 1.07.09 Feb.  9 2001 Dave Jones <davej@suse.de> PCI enable cleanup
    Rev 1.07.08 Jan.  8 2001 Lei-Chun Chang added RTL8201 PHY support
    Rev 1.07.07 Nov. 29 2000 Lei-Chun Chang added kernel-doc extractable documentation and 630 workaround fix
-   Rev 1.07.06 Nov.  7 2000 Jeff Garzik <jgarzik@pobox.com> some bug fix and cleaning
+   Rev 1.07.06 Nov.  7 2000 Jeff Garzik <jgarzik@pobox.com> some  fix and cleaning
    Rev 1.07.05 Nov.  6 2000 metapirat<metapirat@gmx.de> contribute media type select by ifconfig
    Rev 1.07.04 Sep.  6 2000 Lei-Chun Chang added ICS1893 PHY support
    Rev 1.07.03 Aug. 24 2000 Lei-Chun Chang (lcchang@sis.com.tw) modified 630E equalizer workaround rule
    Rev 1.07.01 Aug. 08 2000 Ollie Lho minor update for SiS 630E and SiS 630E A1
-   Rev 1.07    Mar. 07 2000 Ollie Lho bug fix in Rx buffer ring
+   Rev 1.07    Mar. 07 2000 Ollie Lho  fix in Rx buffer ring
    Rev 1.06.04 Feb. 11 2000 Jeff Garzik <jgarzik@pobox.com> softnet and init for kernel 2.4
    Rev 1.06.03 Dec. 23 1999 Ollie Lho Third release
-   Rev 1.06.02 Nov. 23 1999 Ollie Lho bug in mac probing fixed
+   Rev 1.06.02 Nov. 23 1999 Ollie Lho  in mac probing fixed
    Rev 1.06.01 Nov. 16 1999 Ollie Lho CRC calculation provide by Joseph Zbiciak (im14u2c@primenet.com)
    Rev 1.06 Nov. 4 1999 Ollie Lho (ollie@sis.com.tw) Second release
    Rev 1.05.05 Oct. 29 1999 Ollie Lho (ollie@sis.com.tw) Single buffer Tx/Rx
@@ -87,7 +87,7 @@ static const char version[] =
 static int max_interrupt_work = 40;
 static int multicast_filter_limit = 128;
 
-static int sis900_debug = -1; /* Use SIS900_DEF_MSG as value */
+static int sis900_de = -1; /* Use SIS900_DEF_MSG as value */
 
 #define SIS900_DEF_MSG \
 	(NETIF_MSG_DRV		| \
@@ -199,10 +199,10 @@ MODULE_LICENSE("GPL");
 
 module_param(multicast_filter_limit, int, 0444);
 module_param(max_interrupt_work, int, 0444);
-module_param(sis900_debug, int, 0444);
+module_param(sis900_de, int, 0444);
 MODULE_PARM_DESC(multicast_filter_limit, "SiS 900/7016 maximum number of filtered multicast addresses");
 MODULE_PARM_DESC(max_interrupt_work, "SiS 900/7016 maximum events handled per interrupt");
-MODULE_PARM_DESC(sis900_debug, "SiS 900/7016 bitmapped debugging message level");
+MODULE_PARM_DESC(sis900_de, "SiS 900/7016 bitmapped deging message level");
 
 #define sw32(reg, val)	iowrite32(val, ioaddr + (reg))
 #define sw8(reg, val)	iowrite8(val, ioaddr + (reg))
@@ -498,8 +498,8 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	net_dev->watchdog_timeo = TX_TIMEOUT;
 	net_dev->ethtool_ops = &sis900_ethtool_ops;
 
-	if (sis900_debug > 0)
-		sis_priv->msg_enable = sis900_debug;
+	if (sis900_de > 0)
+		sis_priv->msg_enable = sis900_de;
 	else
 		sis_priv->msg_enable = SIS900_DEF_MSG;
 
@@ -512,7 +512,7 @@ static int sis900_probe(struct pci_dev *pci_dev,
 	/* Get Mac address according to the chip revision */
 	sis_priv->chipset_rev = pci_dev->revision;
 	if(netif_msg_probe(sis_priv))
-		printk(KERN_DEBUG "%s: detected revision %2.2x, "
+		printk(KERN_DE "%s: detected revision %2.2x, "
 				"trying to get MAC address...\n",
 				dev_name, sis_priv->chipset_rev);
 
@@ -613,7 +613,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 
 		if (mii_status == 0xffff || mii_status == 0x0000) {
 			if (netif_msg_probe(sis_priv))
-				printk(KERN_DEBUG "%s: MII at address %d"
+				printk(KERN_DE "%s: MII at address %d"
 						" not accessible\n",
 						dev_name, phy_addr);
 			continue;
@@ -693,7 +693,7 @@ static int sis900_mii_probe(struct net_device *net_dev)
 	}
 
 	if (sis_priv->chipset_rev == SIS630E_900_REV) {
-		/* SiS 630E has some bugs on default value of PHY registers */
+		/* SiS 630E has some s on default value of PHY registers */
 		mdio_write(net_dev, sis_priv->cur_phy, MII_ANADV, 0x05e1);
 		mdio_write(net_dev, sis_priv->cur_phy, MII_CONFIG1, 0x22);
 		mdio_write(net_dev, sis_priv->cur_phy, MII_CONFIG2, 0xff00);
@@ -1101,7 +1101,7 @@ sis900_init_rxfilter (struct net_device * net_dev)
 		sw32(rfdr, w);
 
 		if (netif_msg_hw(sis_priv)) {
-			printk(KERN_DEBUG "%s: Receive Filter Addrss[%d]=%x\n",
+			printk(KERN_DE "%s: Receive Filter Addrss[%d]=%x\n",
 			       net_dev->name, i, sr32(rfdr));
 		}
 	}
@@ -1139,7 +1139,7 @@ sis900_init_tx_ring(struct net_device *net_dev)
 	/* load Transmit Descriptor Register */
 	sw32(txdp, sis_priv->tx_ring_dma);
 	if (netif_msg_hw(sis_priv))
-		printk(KERN_DEBUG "%s: TX descriptor register loaded with: %8.8x\n",
+		printk(KERN_DE "%s: TX descriptor register loaded with: %8.8x\n",
 		       net_dev->name, sr32(txdp));
 }
 
@@ -1198,7 +1198,7 @@ sis900_init_rx_ring(struct net_device *net_dev)
 	/* load Receive Descriptor Register */
 	sw32(rxdp, sis_priv->rx_ring_dma);
 	if (netif_msg_hw(sis_priv))
-		printk(KERN_DEBUG "%s: RX descriptor register loaded with: %8.8x\n",
+		printk(KERN_DE "%s: RX descriptor register loaded with: %8.8x\n",
 		       net_dev->name, sr32(rxdp));
 }
 
@@ -1644,7 +1644,7 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	spin_unlock_irqrestore(&sis_priv->lock, flags);
 
 	if (netif_msg_tx_queued(sis_priv))
-		printk(KERN_DEBUG "%s: Queued Tx packet at %p size %d "
+		printk(KERN_DE "%s: Queued Tx packet at %p size %d "
 		       "to slot %d.\n",
 		       net_dev->name, skb->data, (int)skb->len, entry);
 
@@ -1705,7 +1705,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 	} while (1);
 
 	if(netif_msg_intr(sis_priv))
-		printk(KERN_DEBUG "%s: exiting interrupt, "
+		printk(KERN_DE "%s: exiting interrupt, "
 		       "interrupt status = %#8.8x\n",
 		       net_dev->name, sr32(isr));
 
@@ -1732,7 +1732,7 @@ static int sis900_rx(struct net_device *net_dev)
 	int rx_work_limit;
 
 	if (netif_msg_rx_status(sis_priv))
-		printk(KERN_DEBUG "sis900_rx, cur_rx:%4.4d, dirty_rx:%4.4d "
+		printk(KERN_DE "sis900_rx, cur_rx:%4.4d, dirty_rx:%4.4d "
 		       "status:0x%8.8x\n",
 		       sis_priv->cur_rx, sis_priv->dirty_rx, rx_status);
 	rx_work_limit = sis_priv->dirty_rx + NUM_RX_DESC - sis_priv->cur_rx;
@@ -1756,7 +1756,7 @@ static int sis900_rx(struct net_device *net_dev)
 		if (rx_status & (ABORT|OVERRUN|TOOLONG|RUNT|RXISERR|CRCERR|FAERR)) {
 			/* corrupted packet received */
 			if (netif_msg_rx_err(sis_priv))
-				printk(KERN_DEBUG "%s: Corrupted packet "
+				printk(KERN_DE "%s: Corrupted packet "
 				       "received, buffer status = 0x%8.8x/%d.\n",
 				       net_dev->name, rx_status, data_size);
 			net_dev->stats.rx_errors++;
@@ -1793,7 +1793,7 @@ static int sis900_rx(struct net_device *net_dev)
 			}
 
 			/* This situation should never happen, but due to
-			   some unknown bugs, it is possible that
+			   some unknown s, it is possible that
 			   we are working on NULL sk_buff :-( */
 			if (sis_priv->rx_skbuff[entry] == NULL) {
 				if (netif_msg_rx_err(sis_priv))
@@ -1904,7 +1904,7 @@ static void sis900_finish_xmit (struct net_device *net_dev)
 		if (tx_status & (ABORT | UNDERRUN | OWCOLL)) {
 			/* packet unsuccessfully transmitted */
 			if (netif_msg_tx_err(sis_priv))
-				printk(KERN_DEBUG "%s: Transmit "
+				printk(KERN_DE "%s: Transmit "
 				       "error, Tx status %8.8x.\n",
 				       net_dev->name, tx_status);
 			net_dev->stats.tx_errors++;
@@ -2083,7 +2083,7 @@ static int sis900_set_wol(struct net_device *net_dev, struct ethtool_wolinfo *wo
 		pci_write_config_dword(sis_priv->pci_dev, CFGPMCSR, cfgpmcsr);
 		sw32(pmctrl, pmctrl_bits);
 		if (netif_msg_wol(sis_priv))
-			printk(KERN_DEBUG "%s: Wake on LAN disabled\n", net_dev->name);
+			printk(KERN_DE "%s: Wake on LAN disabled\n", net_dev->name);
 		return 0;
 	}
 
@@ -2102,7 +2102,7 @@ static int sis900_set_wol(struct net_device *net_dev, struct ethtool_wolinfo *wo
 	cfgpmcsr |= PME_EN;
 	pci_write_config_dword(sis_priv->pci_dev, CFGPMCSR, cfgpmcsr);
 	if (netif_msg_wol(sis_priv))
-		printk(KERN_DEBUG "%s: Wake on LAN enabled\n", net_dev->name);
+		printk(KERN_DE "%s: Wake on LAN enabled\n", net_dev->name);
 
 	return 0;
 }
@@ -2348,7 +2348,7 @@ static void set_rx_mode(struct net_device *net_dev)
 	sw32(rfcr, RFEN | rx_mode);
 
 	/* sis900 is capable of looping back packets at MAC level for
-	 * debugging purpose */
+	 * deging purpose */
 	if (net_dev->flags & IFF_LOOPBACK) {
 		u32 cr_saved;
 		/* We must disable Tx/Rx before setting loopback mode */

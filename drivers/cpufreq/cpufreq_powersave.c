@@ -18,7 +18,7 @@
 
 static void cpufreq_gov_powersave_limits(struct cpufreq_policy *policy)
 {
-	pr_debug("setting to %u kHz\n", policy->min);
+	pr_de("setting to %u kHz\n", policy->min);
 	__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
 }
 

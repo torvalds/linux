@@ -9,7 +9,7 @@
  * See Documentation/core-api/xarray.rst for how to use the XArray.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/gfp.h>
 #include <linux/kconfig.h>
@@ -26,7 +26,7 @@
  * 10: Internal entry
  * x1: Value entry or tagged pointer
  *
- * Attempting to store internal entries in the XArray is a bug.
+ * Attempting to store internal entries in the XArray is a .
  *
  * Most internal entries are pointers to the next node in the tree.
  * The following internal entries have a special meaning:
@@ -1104,22 +1104,22 @@ struct xa_node {
 void xa_dump(const struct xarray *);
 void xa_dump_node(const struct xa_node *);
 
-#ifdef XA_DEBUG
-#define XA_BUG_ON(xa, x) do {					\
+#ifdef XA_DE
+#define XA__ON(xa, x) do {					\
 		if (x) {					\
 			xa_dump(xa);				\
-			BUG();					\
+			();					\
 		}						\
 	} while (0)
-#define XA_NODE_BUG_ON(node, x) do {				\
+#define XA_NODE__ON(node, x) do {				\
 		if (x) {					\
 			if (node) xa_dump_node(node);		\
-			BUG();					\
+			();					\
 		}						\
 	} while (0)
 #else
-#define XA_BUG_ON(xa, x)	do { } while (0)
-#define XA_NODE_BUG_ON(node, x)	do { } while (0)
+#define XA__ON(xa, x)	do { } while (0)
+#define XA_NODE__ON(node, x)	do { } while (0)
 #endif
 
 /* Private */
@@ -1140,7 +1140,7 @@ static inline void *xa_head_locked(const struct xarray *xa)
 static inline void *xa_entry(const struct xarray *xa,
 				const struct xa_node *node, unsigned int offset)
 {
-	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
+	XA_NODE__ON(node, offset >= XA_CHUNK_SIZE);
 	return rcu_dereference_check(node->slots[offset],
 						lockdep_is_held(&xa->xa_lock));
 }
@@ -1149,7 +1149,7 @@ static inline void *xa_entry(const struct xarray *xa,
 static inline void *xa_entry_locked(const struct xarray *xa,
 				const struct xa_node *node, unsigned int offset)
 {
-	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
+	XA_NODE__ON(node, offset >= XA_CHUNK_SIZE);
 	return rcu_dereference_protected(node->slots[offset],
 						lockdep_is_held(&xa->xa_lock));
 }
@@ -1522,7 +1522,7 @@ static inline void xas_set_order(struct xa_state *xas, unsigned long index,
 	xas->xa_sibs = (1 << (order % XA_CHUNK_SHIFT)) - 1;
 	xas->xa_node = XAS_RESTART;
 #else
-	BUG_ON(order > 0);
+	_ON(order > 0);
 	xas_set(xas, index);
 #endif
 }

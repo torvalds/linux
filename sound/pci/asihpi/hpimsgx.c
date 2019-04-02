@@ -26,7 +26,7 @@ Extended Message Function With Response Caching
 #include "hpimsginit.h"
 #include "hpicmn.h"
 #include "hpimsgx.h"
-#include "hpidebug.h"
+#include "hpide.h"
 
 static struct pci_device_id asihpi_pci_tbl[] = {
 #include "hpipcida.h"
@@ -61,7 +61,7 @@ static hpi_handler_func *hpi_lookup_entry_point_function(const struct hpi_pci
 			pci_info->pci_dev->subsystem_device)
 			continue;
 
-		/* HPI_DEBUG_LOG(DEBUG, " %x,%lx\n", i,
+		/* HPI_DE_LOG(DE, " %x,%lx\n", i,
 		   asihpi_pci_tbl[i].driver_data); */
 		return (hpi_handler_func *) asihpi_pci_tbl[i].driver_data;
 	}
@@ -163,7 +163,7 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 	void *h_owner)
 {
 	if (phm->adapter_index != HPI_ADAPTER_INDEX_INVALID)
-		HPI_DEBUG_LOG(WARNING,
+		HPI_DE_LOG(WARNING,
 			"suspicious adapter index %d in subsys message 0x%x.\n",
 			phm->adapter_index, phm->function);
 
@@ -315,7 +315,7 @@ void hpi_send_recv_ex(struct hpi_message *phm, struct hpi_response *phr,
 {
 
 	if (logging_enabled)
-		HPI_DEBUG_MESSAGE(DEBUG, phm);
+		HPI_DE_MESSAGE(DE, phm);
 
 	if (phm->type != HPI_TYPE_REQUEST) {
 		hpi_init_response(phr, phm->object, phm->function,
@@ -357,24 +357,24 @@ void hpi_send_recv_ex(struct hpi_message *phm, struct hpi_response *phr,
 	}
 
 	if (logging_enabled)
-		HPI_DEBUG_RESPONSE(phr);
+		HPI_DE_RESPONSE(phr);
 
 	if (phr->error >= HPI_ERROR_DSP_COMMUNICATION) {
-		hpi_debug_level_set(HPI_DEBUG_LEVEL_ERROR);
+		hpi_de_level_set(HPI_DE_LEVEL_ERROR);
 		logging_enabled = 0;
 	}
 }
 
 static void adapter_open(struct hpi_message *phm, struct hpi_response *phr)
 {
-	HPI_DEBUG_LOG(VERBOSE, "adapter_open\n");
+	HPI_DE_LOG(VERBOSE, "adapter_open\n");
 	memcpy(phr, &rESP_HPI_ADAPTER_OPEN[phm->adapter_index],
 		sizeof(rESP_HPI_ADAPTER_OPEN[0]));
 }
 
 static void adapter_close(struct hpi_message *phm, struct hpi_response *phr)
 {
-	HPI_DEBUG_LOG(VERBOSE, "adapter_close\n");
+	HPI_DE_LOG(VERBOSE, "adapter_close\n");
 	hpi_init_response(phr, HPI_OBJ_ADAPTER, HPI_ADAPTER_CLOSE, 0);
 }
 
@@ -452,7 +452,7 @@ static void instream_close(struct hpi_message *phm, struct hpi_response *phr,
 	if (h_owner ==
 		instream_user_open[phm->adapter_index][phm->
 			obj_index].h_owner) {
-		/* HPI_DEBUG_LOG(INFO,"closing adapter %d "
+		/* HPI_DE_LOG(INFO,"closing adapter %d "
 		   "instream %d owned by %p\n",
 		   phm->wAdapterIndex, phm->wObjIndex, hOwner); */
 		instream_user_open[phm->adapter_index][phm->
@@ -476,7 +476,7 @@ static void instream_close(struct hpi_message *phm, struct hpi_response *phr,
 				obj_index].h_owner = NULL;
 		}
 	} else {
-		HPI_DEBUG_LOG(WARNING,
+		HPI_DE_LOG(WARNING,
 			"%p trying to close %d instream %d owned by %p\n",
 			h_owner, phm->adapter_index, phm->obj_index,
 			instream_user_open[phm->adapter_index][phm->
@@ -550,7 +550,7 @@ static void outstream_close(struct hpi_message *phm, struct hpi_response *phr,
 	if (h_owner ==
 		outstream_user_open[phm->adapter_index][phm->
 			obj_index].h_owner) {
-		/* HPI_DEBUG_LOG(INFO,"closing adapter %d "
+		/* HPI_DE_LOG(INFO,"closing adapter %d "
 		   "outstream %d owned by %p\n",
 		   phm->wAdapterIndex, phm->wObjIndex, hOwner); */
 		outstream_user_open[phm->adapter_index][phm->
@@ -574,7 +574,7 @@ static void outstream_close(struct hpi_message *phm, struct hpi_response *phr,
 				obj_index].h_owner = NULL;
 		}
 	} else {
-		HPI_DEBUG_LOG(WARNING,
+		HPI_DE_LOG(WARNING,
 			"%p trying to close %d outstream %d owned by %p\n",
 			h_owner, phm->adapter_index, phm->obj_index,
 			outstream_user_open[phm->adapter_index][phm->
@@ -718,7 +718,7 @@ static u16 HPIMSGX__init(struct hpi_message *phm,
 		hpi_lookup_entry_point_function(phm->u.s.resource.r.pci);
 
 	if (entry_point_func) {
-		HPI_DEBUG_MESSAGE(DEBUG, phm);
+		HPI_DE_MESSAGE(DE, phm);
 		entry_point_func(phm, &hr);
 	} else {
 		phr->error = HPI_ERROR_PROCESSING_MESSAGE;
@@ -729,7 +729,7 @@ static u16 HPIMSGX__init(struct hpi_message *phm,
 		   save the mapping for future use */
 		hpi_entry_points[hr.u.s.adapter_index] = entry_point_func;
 		/* prepare adapter (pre-open streams etc.) */
-		HPI_DEBUG_LOG(DEBUG,
+		HPI_DE_LOG(DE,
 			"HPI_SUBSYS_CREATE_ADAPTER successful,"
 			" preparing adapter\n");
 		adapter_prepare(hr.u.s.adapter_index);
@@ -761,7 +761,7 @@ static void HPIMSGX__cleanup(u16 adapter_index, void *h_owner)
 				struct hpi_message hm;
 				struct hpi_response hr;
 
-				HPI_DEBUG_LOG(DEBUG,
+				HPI_DE_LOG(DE,
 					"Close adapter %d ostream %d\n",
 					adapter, i);
 
@@ -785,7 +785,7 @@ static void HPIMSGX__cleanup(u16 adapter_index, void *h_owner)
 				struct hpi_message hm;
 				struct hpi_response hr;
 
-				HPI_DEBUG_LOG(DEBUG,
+				HPI_DE_LOG(DE,
 					"Close adapter %d istream %d\n",
 					adapter, i);
 

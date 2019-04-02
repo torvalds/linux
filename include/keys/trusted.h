@@ -48,9 +48,9 @@ int TSS_checkhmac1(unsigned char *buffer,
 int trusted_tpm_send(unsigned char *cmd, size_t buflen);
 int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce);
 
-#define TPM_DEBUG 0
+#define TPM_DE 0
 
-#if TPM_DEBUG
+#if TPM_DE
 static inline void dump_options(struct trusted_key_options *o)
 {
 	pr_info("trusted_key: sealing key type %d\n", o->keytype);

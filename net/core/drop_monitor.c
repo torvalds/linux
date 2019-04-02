@@ -431,7 +431,7 @@ static void exit_net_drop_monitor(void)
 	struct per_cpu_dm_data *data;
 	int cpu;
 
-	BUG_ON(unregister_netdevice_notifier(&dropmon_net_notifier));
+	_ON(unregister_netdevice_notifier(&dropmon_net_notifier));
 
 	/*
 	 * Because of the module_get/put we do in the trace state change path
@@ -451,7 +451,7 @@ static void exit_net_drop_monitor(void)
 		kfree_skb(data->skb);
 	}
 
-	BUG_ON(genl_unregister_family(&net_drop_monitor_family));
+	_ON(genl_unregister_family(&net_drop_monitor_family));
 }
 
 module_init(init_net_drop_monitor);

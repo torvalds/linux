@@ -51,7 +51,7 @@
 #include "util/event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/color.h"
 #include "util/stat.h"
 #include "util/header.h"
@@ -65,7 +65,7 @@
 #include "util/string2.h"
 #include "util/metricgroup.h"
 #include "util/top.h"
-#include "asm/bug.h"
+#include "asm/.h"
 
 #include <linux/time64.h>
 #include <api/fs/fs.h>
@@ -312,7 +312,7 @@ static void read_counters(void)
 	evlist__for_each_entry(evsel_list, counter) {
 		ret = read_counter(counter);
 		if (ret)
-			pr_debug("failed to read counter %s\n", counter->name);
+			pr_de("failed to read counter %s\n", counter->name);
 
 		if (ret == 0 && perf_stat_process_counter(&stat_config, counter))
 			pr_warning("failed to process counter %s\n", counter->name);

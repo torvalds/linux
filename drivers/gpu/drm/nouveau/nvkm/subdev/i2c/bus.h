@@ -33,6 +33,6 @@ int gf119_i2c_bus_new(struct nvkm_i2c_pad *, int, u8, struct nvkm_i2c_bus **);
 	nvkm_##l(&_bus->pad->i2c->subdev, "bus %04x: "f"\n", _bus->id, ##a);   \
 } while(0)
 #define BUS_ERR(b,f,a...) BUS_MSG((b), error, f, ##a)
-#define BUS_DBG(b,f,a...) BUS_MSG((b), debug, f, ##a)
+#define BUS_DBG(b,f,a...) BUS_MSG((b), de, f, ##a)
 #define BUS_TRACE(b,f,a...) BUS_MSG((b), trace, f, ##a)
 #endif

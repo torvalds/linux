@@ -7,7 +7,7 @@
  * Derived from:
  *
  *  Based on the max1619 driver.
- *  Copyright (C) 2003-2004 Oleksij Rempel <bug-track@fisher-privat.net>
+ *  Copyright (C) 2003-2004 Oleksij Rempel <-track@fisher-privat.net>
  *                          Jean Delvare <jdelvare@suse.de>
  *
  * The MAX6642 is a sensor chip made by Maxim.

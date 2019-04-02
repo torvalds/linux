@@ -11,7 +11,7 @@
 
 #define DRV_NAME	"xen_wdt"
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/hrtimer.h>
@@ -62,7 +62,7 @@ static int xen_wdt_start(struct watchdog_device *wdd)
 		wdt_expires = expires;
 		err = 0;
 	} else
-		BUG_ON(!err);
+		_ON(!err);
 
 	return err;
 }

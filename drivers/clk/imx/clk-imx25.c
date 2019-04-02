@@ -98,7 +98,7 @@ static struct clk ** const uart_clks[] __initconst = {
 
 static int __init __mx25_clocks_init(void __iomem *ccm_base)
 {
-	BUG_ON(!ccm_base);
+	_ON(!ccm_base);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX25, "mpll", "osc", ccm(CCM_MPCTL));

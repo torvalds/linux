@@ -74,7 +74,7 @@ static void __rfkill_handle_global_op(enum rfkill_sched_op op)
 			rfkill_switch_all(i, false);
 		break;
 	default:
-		/* memory corruption or bug, fail safely */
+		/* memory corruption or , fail safely */
 		rfkill_epo();
 		WARN(1, "Unknown requested operation %d! "
 			"rfkill Emergency Power Off activated\n",

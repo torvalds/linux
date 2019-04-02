@@ -37,7 +37,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *, struct address_space *,
 void nilfs_forget_buffer(struct buffer_head *);
 void nilfs_copy_buffer(struct buffer_head *, struct buffer_head *);
 int nilfs_page_buffers_clean(struct page *);
-void nilfs_page_bug(struct page *);
+void nilfs_page_(struct page *);
 
 int nilfs_copy_dirty_pages(struct address_space *, struct address_space *);
 void nilfs_copy_back_pages(struct address_space *, struct address_space *);
@@ -50,8 +50,8 @@ unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 					    sector_t start_blk,
 					    sector_t *blkoff);
 
-#define NILFS_PAGE_BUG(page, m, a...) \
-	do { nilfs_page_bug(page); BUG(); } while (0)
+#define NILFS_PAGE_(page, m, a...) \
+	do { nilfs_page_(page); (); } while (0)
 
 static inline struct buffer_head *
 nilfs_page_get_nth_block(struct page *page, unsigned int count)

@@ -34,7 +34,7 @@
 //      else
 //              mutex_init(&of->mutex);
 //
-// All other cases look like bugs or at least lack of documentation
+// All other cases look like s or at least lack of documentation
 //
 // Confidence: Moderate
 // Copyright: (C) 2016 Nicholas Mc Guire, OSADL.  GPLv2.

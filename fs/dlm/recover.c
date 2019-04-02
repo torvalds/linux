@@ -53,13 +53,13 @@ int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 		if (rv)
 			break;
 		if (test_bit(LSFL_RCOM_WAIT, &ls->ls_flags)) {
-			log_debug(ls, "dlm_wait_function timed out");
+			log_de(ls, "dlm_wait_function timed out");
 			return -ETIMEDOUT;
 		}
 	}
 
 	if (dlm_recovery_stopped(ls)) {
-		log_debug(ls, "dlm_wait_function aborted");
+		log_de(ls, "dlm_wait_function aborted");
 		error = -EINTR;
 	}
 	return error;
@@ -836,11 +836,11 @@ static void recover_conversion(struct dlm_rsb *r)
 		if (lkb->lkb_grmode != DLM_LOCK_IV)
 			continue;
 		if (grmode == -1) {
-			log_debug(ls, "recover_conversion %x set gr to rq %d",
+			log_de(ls, "recover_conversion %x set gr to rq %d",
 				  lkb->lkb_id, lkb->lkb_rqmode);
 			lkb->lkb_grmode = lkb->lkb_rqmode;
 		} else {
-			log_debug(ls, "recover_conversion %x set gr %d",
+			log_de(ls, "recover_conversion %x set gr %d",
 				  lkb->lkb_id, grmode);
 			lkb->lkb_grmode = grmode;
 		}

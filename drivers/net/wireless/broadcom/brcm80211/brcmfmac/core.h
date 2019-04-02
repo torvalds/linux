@@ -135,7 +135,7 @@ struct brcmf_pub {
 	u32 chip_quirks;
 
 	struct brcmf_rev_info revinfo;
-#ifdef DEBUG
+#ifdef DE
 	struct dentry *dbgfs_dir;
 #endif
 

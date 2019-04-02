@@ -66,11 +66,11 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	sym_sec = (Elf32_Sym *) sechdrs[symindex].sh_addr;
 	n = sechdrs[relsec].sh_size / sizeof(*rel_entry);
 
-	pr_debug("\nSection to fixup %s @%x\n",
+	pr_de("\nSection to fixup %s @%x\n",
 		 module->arch.secstr + sechdrs[tgtsec].sh_name, tgt_addr);
-	pr_debug("=========================================================\n");
-	pr_debug("r_off\tr_add\tst_value ADDRESS  VALUE\n");
-	pr_debug("=========================================================\n");
+	pr_de("=========================================================\n");
+	pr_de("r_off\tr_add\tst_value ADDRESS  VALUE\n");
+	pr_de("=========================================================\n");
 
 	/* Loop thru entries in relocation section */
 	for (i = 0; i < n; i++) {
@@ -91,7 +91,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			s = strtab + sym_entry->st_name;
 		}
 
-		pr_debug("   %x\t%x\t%x %x %x [%s]\n",
+		pr_de("   %x\t%x\t%x %x %x [%s]\n",
 			 rel_entry[i].r_offset, rel_entry[i].r_addend,
 			 sym_entry->st_value, location, relocation, s);
 

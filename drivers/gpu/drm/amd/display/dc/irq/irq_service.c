@@ -55,7 +55,7 @@ void dal_irq_service_construct(
 	struct irq_service_init_data *init_data)
 {
 	if (!init_data || !init_data->ctx) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -65,7 +65,7 @@ void dal_irq_service_construct(
 void dal_irq_service_destroy(struct irq_service **irq_service)
 {
 	if (!irq_service || !*irq_service) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 

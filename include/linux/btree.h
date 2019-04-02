@@ -149,7 +149,7 @@ void *btree_remove(struct btree_head *head, struct btree_geo *geo,
  * @gfp: allocation flags
  *
  * The two trees @target and @victim may not contain the same keys,
- * that is a bug and triggers a BUG(). This function returns zero
+ * that is a  and triggers a (). This function returns zero
  * if the trees were merged successfully, and may return a failure
  * when memory allocation fails, in which case both trees might have
  * been partially merged, i.e. some entries have been moved from

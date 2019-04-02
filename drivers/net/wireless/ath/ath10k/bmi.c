@@ -6,7 +6,7 @@
 
 #include "bmi.h"
 #include "hif.h"
-#include "debug.h"
+#include "de.h"
 #include "htc.h"
 #include "hw.h"
 

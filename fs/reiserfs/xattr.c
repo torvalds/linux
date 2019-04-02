@@ -65,14 +65,14 @@
 #ifdef CONFIG_REISERFS_FS_XATTR
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
-	BUG_ON(!inode_is_locked(dir));
+	_ON(!inode_is_locked(dir));
 	return dir->i_op->create(dir, dentry, mode, true);
 }
 #endif
 
 static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
-	BUG_ON(!inode_is_locked(dir));
+	_ON(!inode_is_locked(dir));
 	return dir->i_op->mkdir(dir, dentry, mode);
 }
 
@@ -86,7 +86,7 @@ static int xattr_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error;
 
-	BUG_ON(!inode_is_locked(dir));
+	_ON(!inode_is_locked(dir));
 
 	inode_lock_nested(d_inode(dentry), I_MUTEX_CHILD);
 	error = dir->i_op->unlink(dir, dentry);
@@ -101,7 +101,7 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int error;
 
-	BUG_ON(!inode_is_locked(dir));
+	_ON(!inode_is_locked(dir));
 
 	inode_lock_nested(d_inode(dentry), I_MUTEX_CHILD);
 	error = dir->i_op->rmdir(dir, dentry);

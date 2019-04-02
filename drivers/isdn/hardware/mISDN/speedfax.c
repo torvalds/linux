@@ -64,7 +64,7 @@
 #define SFAX_PCI_RESET_OFF	(SFAX_LED1_BIT | SFAX_LED2_BIT)
 
 static int sfax_cnt;
-static u32 debug;
+static u32 de;
 static u32 irqloops = 4;
 
 struct sfax_hw {
@@ -86,15 +86,15 @@ static LIST_HEAD(Cards);
 static DEFINE_RWLOCK(card_lock); /* protect Cards */
 
 static void
-_set_debug(struct sfax_hw *card)
+_set_de(struct sfax_hw *card)
 {
-	card->isac.dch.debug = debug;
-	card->isar.ch[0].bch.debug = debug;
-	card->isar.ch[1].bch.debug = debug;
+	card->isac.dch.de = de;
+	card->isar.ch[0].bch.de = de;
+	card->isar.ch[1].bch.de = de;
 }
 
 static int
-set_debug(const char *val, const struct kernel_param *kp)
+set_de(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct sfax_hw *card;
@@ -103,7 +103,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 	if (!ret) {
 		read_lock(&card_lock);
 		list_for_each_entry(card, &Cards, list)
-			_set_debug(card);
+			_set_de(card);
 		read_unlock(&card_lock);
 	}
 	return ret;
@@ -113,8 +113,8 @@ MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(SPEEDFAX_REV);
 MODULE_FIRMWARE("isdn/ISAR.BIN");
-module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Speedfax debug mask");
+module_param_call(de, set_de, param_get_uint, &de, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Speedfax de mask");
 module_param(irqloops, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(irqloops, "Speedfax maximal irqloops (default 4)");
 
@@ -146,7 +146,7 @@ Start_ISAR:
 	if ((val & ISAR_IRQSTA) && cnt--)
 		goto Start_ISAR;
 	if (cnt < irqloops)
-		pr_debug("%s: %d irqloops cpu%d\n", sf->name,
+		pr_de("%s: %d irqloops cpu%d\n", sf->name,
 			 irqloops - cnt, smp_processor_id());
 	if (irqloops && !cnt)
 		pr_notice("%s: %d IRQ LOOP cpu%d\n", sf->name,
@@ -175,7 +175,7 @@ static void
 reset_speedfax(struct sfax_hw *sf)
 {
 
-	pr_debug("%s: resetting card\n", sf->name);
+	pr_de("%s: resetting card\n", sf->name);
 	outb(TIGER_EXTERN_RESET_ON, sf->cfg + TIGER_RESET_ADDR);
 	outb(SFAX_PCI_RESET_ON, sf->cfg + TIGER_AUX_DATA);
 	mdelay(1);
@@ -254,7 +254,7 @@ sfax_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	struct channel_req	*rq;
 	int			err = 0;
 
-	pr_debug("%s: cmd:%x %p\n", sf->name, cmd, arg);
+	pr_de("%s: cmd:%x %p\n", sf->name, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		rq = arg;
@@ -268,7 +268,7 @@ sfax_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 			pr_info("%s: cannot get module\n", sf->name);
 		break;
 	case CLOSE_CHANNEL:
-		pr_debug("%s: dev(%d) close from %p\n", sf->name,
+		pr_de("%s: dev(%d) close from %p\n", sf->name,
 			 dch->dev.id, __builtin_return_address(0));
 		module_put(THIS_MODULE);
 		break;
@@ -276,7 +276,7 @@ sfax_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(sf, arg);
 		break;
 	default:
-		pr_debug("%s: unknown command %x\n", sf->name, cmd);
+		pr_de("%s: unknown command %x\n", sf->name, cmd);
 		return -EINVAL;
 	}
 	return err;
@@ -307,7 +307,7 @@ init_card(struct sfax_hw *sf)
 		WriteISAC_IND(sf, ISAC_CMDR, 0x41);
 		spin_unlock_irqrestore(&sf->lock, flags);
 		msleep_interruptible(10);
-		if (debug & DEBUG_HW)
+		if (de & DE_HW)
 			pr_notice("%s: IRQ %d count %d\n", sf->name,
 				  sf->irq, sf->irqcnt);
 		if (!sf->irqcnt) {
@@ -382,7 +382,7 @@ setup_instance(struct sfax_hw *card)
 	write_lock_irqsave(&card_lock, flags);
 	list_add_tail(&card->list, &Cards);
 	write_unlock_irqrestore(&card_lock, flags);
-	_set_debug(card);
+	_set_de(card);
 	spin_lock_init(&card->lock);
 	card->isac.hwlock = &card->lock;
 	card->isar.hwlock = &card->lock;
@@ -397,7 +397,7 @@ setup_instance(struct sfax_hw *card)
 			card->name, err);
 		goto error_fw;
 	}
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s: got firmware %zu bytes\n",
 			  card->name, firmware->size);
 
@@ -488,7 +488,7 @@ sfax_remove_pci(struct pci_dev *pdev)
 	if (card)
 		release_card(card);
 	else
-		pr_debug("%s: drvdata already removed\n", __func__);
+		pr_de("%s: drvdata already removed\n", __func__);
 }
 
 static struct pci_device_id sfaxpci_ids[] = {

@@ -22,44 +22,44 @@
 
 #include "spu.h"
 
-extern int flow_debug_logging;
-extern int packet_debug_logging;
-extern int debug_logging_sleep;
+extern int flow_de_logging;
+extern int packet_de_logging;
+extern int de_logging_sleep;
 
-#ifdef DEBUG
+#ifdef DE
 #define flow_log(...)	                \
 	do {	                              \
-		if (flow_debug_logging) {	        \
+		if (flow_de_logging) {	        \
 			printk(__VA_ARGS__);	          \
-			if (debug_logging_sleep)	      \
-				msleep(debug_logging_sleep);	\
+			if (de_logging_sleep)	      \
+				msleep(de_logging_sleep);	\
 		}	                                \
 	} while (0)
 #define flow_dump(msg, var, var_len)	   \
 	do {	                                 \
-		if (flow_debug_logging) {	           \
+		if (flow_de_logging) {	           \
 			print_hex_dump(KERN_ALERT, msg, DUMP_PREFIX_NONE,  \
 					16, 1, var, var_len, false); \
-				if (debug_logging_sleep)	       \
-					msleep(debug_logging_sleep);   \
+				if (de_logging_sleep)	       \
+					msleep(de_logging_sleep);   \
 		}                                    \
 	} while (0)
 
 #define packet_log(...)               \
 	do {                                \
-		if (packet_debug_logging) {       \
+		if (packet_de_logging) {       \
 			printk(__VA_ARGS__);            \
-			if (debug_logging_sleep)        \
-				msleep(debug_logging_sleep);  \
+			if (de_logging_sleep)        \
+				msleep(de_logging_sleep);  \
 		}                                 \
 	} while (0)
 #define packet_dump(msg, var, var_len)   \
 	do {                                   \
-		if (packet_debug_logging) {          \
+		if (packet_de_logging) {          \
 			print_hex_dump(KERN_ALERT, msg, DUMP_PREFIX_NONE,  \
 					16, 1, var, var_len, false); \
-			if (debug_logging_sleep)           \
-				msleep(debug_logging_sleep);     \
+			if (de_logging_sleep)           \
+				msleep(de_logging_sleep);     \
 		}                                    \
 	} while (0)
 
@@ -67,7 +67,7 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len);
 
 #define dump_sg(sg, skip, len)     __dump_sg(sg, skip, len)
 
-#else /* !DEBUG_ON */
+#else /* !DE_ON */
 
 #define flow_log(...) do {} while (0)
 #define flow_dump(msg, var, var_len) do {} while (0)
@@ -76,7 +76,7 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len);
 
 #define dump_sg(sg, skip, len) do {} while (0)
 
-#endif /* DEBUG_ON */
+#endif /* DE_ON */
 
 int spu_sg_at_offset(struct scatterlist *sg, unsigned int skip,
 		     struct scatterlist **sge, unsigned int *sge_offset);
@@ -103,8 +103,8 @@ int do_shash(unsigned char *name, unsigned char *result,
 
 char *spu_alg_name(enum spu_cipher_alg alg, enum spu_cipher_mode mode);
 
-void spu_setup_debugfs(void);
-void spu_free_debugfs(void);
+void spu_setup_defs(void);
+void spu_free_defs(void);
 void format_value_ccm(unsigned int val, u8 *buf, u8 len);
 
 #endif

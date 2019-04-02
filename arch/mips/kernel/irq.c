@@ -66,12 +66,12 @@ void __init init_IRQ(void)
 		void *s = (void *)__get_free_pages(GFP_KERNEL, order);
 
 		irq_stack[i] = s;
-		pr_debug("CPU%d IRQ stack at 0x%p - 0x%p\n", i,
+		pr_de("CPU%d IRQ stack at 0x%p - 0x%p\n", i,
 			irq_stack[i], irq_stack[i] + IRQ_STACK_SIZE);
 	}
 }
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DE_STACKOVERFLOW
 static inline void check_stack_overflow(void)
 {
 	unsigned long sp;

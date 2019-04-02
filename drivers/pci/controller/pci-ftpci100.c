@@ -179,7 +179,7 @@ static int faraday_res_to_memcfg(resource_size_t mem_base,
 		pr_warn("truncated PCI memory base\n");
 	/* Translate to bridge side address space */
 	outval |= (mem_base & FARADAY_PCI_MEMBASE_MASK);
-	pr_debug("Translated pci base @%pap, size %pap to config %08x\n",
+	pr_de("Translated pci base @%pap, size %pap to config %08x\n",
 		 &mem_base, &mem_size, outval);
 
 	*val = outval;

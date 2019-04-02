@@ -763,14 +763,14 @@ int ovl_path_next(int idx, struct dentry *dentry, struct path *path)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
 
-	BUG_ON(idx < 0);
+	_ON(idx < 0);
 	if (idx == 0) {
 		ovl_path_upper(dentry, path);
 		if (path->dentry)
 			return oe->numlower ? 1 : -1;
 		idx++;
 	}
-	BUG_ON(idx > oe->numlower);
+	_ON(idx > oe->numlower);
 	path->dentry = oe->lowerstack[idx - 1].dentry;
 	path->mnt = oe->lowerstack[idx - 1].layer->mnt;
 

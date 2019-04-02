@@ -91,7 +91,7 @@ const char *v4l2_norm_to_name(v4l2_std_id id)
 	   64 bit comparisons. So, on that architecture, with some gcc
 	   variants, compilation fails. Currently, the max value is 30bit wide.
 	 */
-	BUG_ON(myid != id);
+	_ON(myid != id);
 
 	for (i = 0; standards[i].std; i++)
 		if (myid == standards[i].std)
@@ -163,7 +163,7 @@ int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id)
 }
 
 /* ----------------------------------------------------------------- */
-/* some arrays for pretty-printing debug messages of enum types      */
+/* some arrays for pretty-printing de messages of enum types      */
 
 const char *v4l2_field_names[] = {
 	[V4L2_FIELD_ANY]        = "any",
@@ -208,7 +208,7 @@ static const char *v4l2_memory_names[] = {
 #define prt_names(a, arr) (((unsigned)(a)) < ARRAY_SIZE(arr) ? arr[a] : "unknown")
 
 /* ------------------------------------------------------------------ */
-/* debug help functions                                               */
+/* de help functions                                               */
 
 static void v4l_print_querycap(const void *arg, bool write_only)
 {
@@ -320,7 +320,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 			mp->ycbcr_enc, mp->quantization, mp->xfer_func);
 		planes = min_t(u32, mp->num_planes, VIDEO_MAX_PLANES);
 		for (i = 0; i < planes; i++)
-			printk(KERN_DEBUG "plane %u: bytesperline=%u sizeimage=%u\n", i,
+			printk(KERN_DE "plane %u: bytesperline=%u sizeimage=%u\n", i,
 					mp->plane_fmt[i].bytesperline,
 					mp->plane_fmt[i].sizeimage);
 		break;
@@ -355,7 +355,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pr_cont(", service_set=0x%08x, io_size=%d\n",
 				sliced->service_set, sliced->io_size);
 		for (i = 0; i < 24; i++)
-			printk(KERN_DEBUG "line[%02u]=0x%04x, 0x%04x\n", i,
+			printk(KERN_DE "line[%02u]=0x%04x, 0x%04x\n", i,
 				sliced->service_lines[0][i],
 				sliced->service_lines[1][i]);
 		break;
@@ -492,7 +492,7 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 		pr_cont("\n");
 		for (i = 0; i < p->length; ++i) {
 			plane = &p->m.planes[i];
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"plane %d: bytesused=%d, data_offset=0x%08x, offset/userptr=0x%lx, length=%d\n",
 				i, plane->bytesused, plane->data_offset,
 				plane->m.userptr, plane->length);
@@ -502,7 +502,7 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 			p->bytesused, p->m.userptr, p->length);
 	}
 
-	printk(KERN_DEBUG "timecode=%02d:%02d:%02d type=%d, flags=0x%08x, frames=%d, userbits=0x%08x\n",
+	printk(KERN_DE "timecode=%02d:%02d:%02d type=%d, flags=0x%08x, frames=%d, userbits=0x%08x\n",
 			tc->hours, tc->minutes, tc->seconds,
 			tc->type, tc->flags, tc->frames, *(__u32 *)tc->userbits);
 }
@@ -830,12 +830,12 @@ static void v4l_print_event(const void *arg, bool write_only)
 			p->timestamp.tv_sec, p->timestamp.tv_nsec);
 	switch (p->type) {
 	case V4L2_EVENT_VSYNC:
-		printk(KERN_DEBUG "field=%s\n",
+		printk(KERN_DE "field=%s\n",
 			prt_names(p->u.vsync.field, v4l2_field_names));
 		break;
 	case V4L2_EVENT_CTRL:
 		c = &p->u.ctrl;
-		printk(KERN_DEBUG "changes=0x%x, type=%u, ",
+		printk(KERN_DE "changes=0x%x, type=%u, ",
 			c->changes, c->type);
 		if (c->type == V4L2_CTRL_TYPE_INTEGER64)
 			pr_cont("value64=%lld, ", c->value64);
@@ -868,7 +868,7 @@ static void v4l_print_sliced_vbi_cap(const void *arg, bool write_only)
 	pr_cont("type=%s, service_set=0x%08x\n",
 			prt_names(p->type, v4l2_type_names), p->service_set);
 	for (i = 0; i < 24; i++)
-		printk(KERN_DEBUG "line[%02u]=0x%04x, 0x%04x\n", i,
+		printk(KERN_DE "line[%02u]=0x%04x, 0x%04x\n", i,
 				p->service_lines[0][i],
 				p->service_lines[1][i]);
 }
@@ -2389,7 +2389,7 @@ static int v4l_log_status(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	struct v4l2_dbg_register *p = arg;
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_subdev *sd;
@@ -2417,7 +2417,7 @@ static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	const struct v4l2_dbg_register *p = arg;
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_subdev *sd;
@@ -2445,7 +2445,7 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_g_chip_info(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_dbg_chip_info *p = arg;
 	struct v4l2_subdev *sd;
@@ -2587,7 +2587,7 @@ struct v4l2_ioctl_info {
 	const char * const name;
 	int (*func)(const struct v4l2_ioctl_ops *ops, struct file *file,
 		    void *fh, void *p);
-	void (*debug)(const void *arg, bool write_only);
+	void (*de)(const void *arg, bool write_only);
 };
 
 /* This control needs a priority check */
@@ -2612,13 +2612,13 @@ struct v4l2_ioctl_info {
 		return ops->vidioc_ ## _vidioc(file, fh, p);	\
 	}
 
-#define IOCTL_INFO(_ioctl, _func, _debug, _flags)		\
+#define IOCTL_INFO(_ioctl, _func, _de, _flags)		\
 	[_IOC_NR(_ioctl)] = {					\
 		.ioctl = _ioctl,				\
 		.flags = _flags,				\
 		.name = #_ioctl,				\
 		.func = _func,					\
-		.debug = _debug,				\
+		.de = _de,				\
 	}
 
 DEFINE_V4L_STUB_FUNC(g_fbuf)
@@ -2762,14 +2762,14 @@ static struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev,
 	return vdev->lock;
 }
 
-/* Common ioctl debug function. This function can be used by
+/* Common ioctl de function. This function can be used by
    external ioctl messages as well as internal V4L ioctl */
 void v4l_printk_ioctl(const char *prefix, unsigned int cmd)
 {
 	const char *dir, *type;
 
 	if (prefix)
-		printk(KERN_DEBUG "%s: ", prefix);
+		printk(KERN_DE "%s: ", prefix);
 
 	switch (_IOC_TYPE(cmd)) {
 	case 'd':
@@ -2811,7 +2811,7 @@ static long __video_do_ioctl(struct file *file,
 	const struct v4l2_ioctl_info *info;
 	void *fh = file->private_data;
 	struct v4l2_fh *vfh = NULL;
-	int dev_debug = vfd->dev_debug;
+	int dev_de = vfd->dev_de;
 	long ret = -ENOTTY;
 
 	if (ops == NULL) {
@@ -2865,7 +2865,7 @@ static long __video_do_ioctl(struct file *file,
 	} else {
 		default_info.ioctl = cmd;
 		default_info.flags = 0;
-		default_info.debug = v4l_print_default;
+		default_info.de = v4l_print_default;
 		info = &default_info;
 	}
 
@@ -2881,21 +2881,21 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 done:
-	if (dev_debug & (V4L2_DEV_DEBUG_IOCTL | V4L2_DEV_DEBUG_IOCTL_ARG)) {
-		if (!(dev_debug & V4L2_DEV_DEBUG_STREAMING) &&
+	if (dev_de & (V4L2_DEV_DE_IOCTL | V4L2_DEV_DE_IOCTL_ARG)) {
+		if (!(dev_de & V4L2_DEV_DE_STREAMING) &&
 		    (cmd == VIDIOC_QBUF || cmd == VIDIOC_DQBUF))
 			goto unlock;
 
 		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		if (ret < 0)
 			pr_cont(": error %ld", ret);
-		if (!(dev_debug & V4L2_DEV_DEBUG_IOCTL_ARG))
+		if (!(dev_de & V4L2_DEV_DE_IOCTL_ARG))
 			pr_cont("\n");
 		else if (_IOC_DIR(cmd) == _IOC_NONE)
-			info->debug(arg, write_only);
+			info->de(arg, write_only);
 		else {
 			pr_cont(": ");
-			info->debug(arg, write_only);
+			info->de(arg, write_only);
 		}
 	}
 

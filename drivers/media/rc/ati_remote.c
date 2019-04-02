@@ -62,9 +62,9 @@
  *   - When it stops blinking, input the channel code as two digits, from 01
  *     to 16, and press the hand icon again.
  *
- * The timing can be a little tricky.  Try loading the module with debug=1
+ * The timing can be a little tricky.  Try loading the module with de=1
  * to have the kernel print out messages about the remote control number
- * and mask.  Note: debugging prints remote numbers as zero-based hexadecimal.
+ * and mask.  Note: deging prints remote numbers as zero-based hexadecimal.
  *
  * The driver has a "channel_mask" parameter. This bitmask specifies which
  * channels will be ignored by the module.  To mask out channels, just add
@@ -127,9 +127,9 @@ static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0644);
 MODULE_PARM_DESC(channel_mask, "Bitmask of remote control channels to ignore");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable extra de messages and information");
 
 static int repeat_filter = FILTER_TIME;
 module_param(repeat_filter, int, 0644);
@@ -144,7 +144,7 @@ module_param(mouse, bool, 0444);
 MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
 
 #define dbginfo(dev, format, arg...) \
-	do { if (debug) dev_info(dev , format , ## arg); } while (0)
+	do { if (de) dev_info(dev , format , ## arg); } while (0)
 #undef err
 #define err(format, arg...) printk(KERN_ERR format , ## arg)
 

@@ -21,12 +21,12 @@
 
 #define DVB_V2_MAX_SIZE		(4096 * 188)
 
-static int vb2_debug;
-module_param(vb2_debug, int, 0644);
+static int vb2_de;
+module_param(vb2_de, int, 0644);
 
 #define dprintk(level, fmt, arg...)					      \
 	do {								      \
-		if (vb2_debug >= level)					      \
+		if (vb2_de >= level)					      \
 			pr_info("vb2: %s: " fmt, __func__, ## arg); \
 	} while (0)
 

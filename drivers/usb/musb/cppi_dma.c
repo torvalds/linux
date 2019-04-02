@@ -13,7 +13,7 @@
 #include <linux/usb.h>
 
 #include "musb_core.h"
-#include "musb_debug.h"
+#include "musb_de.h"
 #include "cppi_dma.h"
 #include "davinci.h"
 
@@ -428,7 +428,7 @@ cppi_rndis_update(struct cppi_channel *c, int is_rx,
 
 static void cppi_dump_rxbd(const char *tag, struct cppi_descriptor *bd)
 {
-	pr_debug("RXBD/%s %08x: "
+	pr_de("RXBD/%s %08x: "
 			"nxt %08x buf %08x off.blen %08x opt.plen %08x\n",
 			tag, bd->dma,
 			bd->hw_next, bd->hw_bufp, bd->hw_off_len,
@@ -731,8 +731,8 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
  *   try rx rndis mode
  *
  * Cost of heuristic failing:  RXDMA wedges at the end of transfers that
- * fill out the whole buffer.  Buggy host side usb network drivers could
- * trigger that, but "in the field" such bugs seem to be all but unknown.
+ * fill out the whole buffer.  gy host side usb network drivers could
+ * trigger that, but "in the field" such s seem to be all but unknown.
  *
  * So this module parameter lets the heuristic be disabled.  When using
  * gadgetfs, the heuristic will probably need to be disabled.

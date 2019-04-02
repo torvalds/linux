@@ -12,7 +12,7 @@ Introduction
   the compressor nor on any other implementations though it seems likely that
   the format matches the standard one. The purpose of this document is to
   better understand what the code does in order to propose more efficient fixes
-  for future bug reports.
+  for future  reports.
 
 Description
 ===========

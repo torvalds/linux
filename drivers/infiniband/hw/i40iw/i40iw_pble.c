@@ -155,7 +155,7 @@ static enum i40iw_status_code add_sd_direct(struct i40iw_sc_dev *dev,
 	chunk->size = info->pages << I40IW_HMC_PAGED_BP_SHIFT;
 	chunk->vaddr = ((u8 *)sd_entry->u.bp.addr.va + offset);
 	chunk->fpm_addr = pble_rsrc->next_fpm_addr;
-	i40iw_debug(dev, I40IW_DEBUG_PBLE, "chunk_size[%d] = 0x%x vaddr=%p fpm_addr = %llx\n",
+	i40iw_de(dev, I40IW_DE_PBLE, "chunk_size[%d] = 0x%x vaddr=%p fpm_addr = %llx\n",
 		    chunk->size, chunk->size, chunk->vaddr, chunk->fpm_addr);
 	return 0;
 }
@@ -361,10 +361,10 @@ static enum i40iw_status_code add_pble_pool(struct i40iw_sc_dev *dev,
 	} else {
 		sd_entry_type = sd_entry->entry_type;
 	}
-	i40iw_debug(dev, I40IW_DEBUG_PBLE,
+	i40iw_de(dev, I40IW_DE_PBLE,
 		    "pages = %d, unallocated_pble[%u] current_fpm_addr = %llx\n",
 		    pages, pble_rsrc->unallocated_pble, pble_rsrc->next_fpm_addr);
-	i40iw_debug(dev, I40IW_DEBUG_PBLE, "sd_entry_type = %d sd_entry valid = %d\n",
+	i40iw_de(dev, I40IW_DE_PBLE, "sd_entry_type = %d sd_entry valid = %d\n",
 		    sd_entry_type, sd_entry->valid);
 
 	if (sd_entry_type == I40IW_SD_TYPE_DIRECT)
@@ -389,7 +389,7 @@ static enum i40iw_status_code add_pble_pool(struct i40iw_sc_dev *dev,
 		goto error;
 	}
 	pble_rsrc->next_fpm_addr += chunk->size;
-	i40iw_debug(dev, I40IW_DEBUG_PBLE, "next_fpm_addr = %llx chunk_size[%u] = 0x%x\n",
+	i40iw_de(dev, I40IW_DE_PBLE, "next_fpm_addr = %llx chunk_size[%u] = 0x%x\n",
 		    pble_rsrc->next_fpm_addr, chunk->size, chunk->size);
 	pble_rsrc->unallocated_pble -= (chunk->size >> 3);
 	list_add(&chunk->list, &pble_rsrc->pinfo.clist);

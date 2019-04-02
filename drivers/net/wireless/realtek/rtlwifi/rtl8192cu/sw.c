@@ -138,16 +138,16 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 
 static struct rtl_mod_params rtl92cu_mod_params = {
 	.sw_crypto = 0,
-	.debug_level = 0,
-	.debug_mask = 0,
+	.de_level = 0,
+	.de_mask = 0,
 };
 
 module_param_named(swenc, rtl92cu_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug_level, rtl92cu_mod_params.debug_level, int, 0644);
-module_param_named(debug_mask, rtl92cu_mod_params.debug_mask, ullong, 0644);
+module_param_named(de_level, rtl92cu_mod_params.de_level, int, 0644);
+module_param_named(de_mask, rtl92cu_mod_params.de_mask, ullong, 0644);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
-MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
+MODULE_PARM_DESC(de_level, "Set de level (0-5) (default 0)");
+MODULE_PARM_DESC(de_mask, "Set de mask (default 0)");
 
 static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 	/* rx */

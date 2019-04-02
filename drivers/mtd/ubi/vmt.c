@@ -108,7 +108,7 @@ static ssize_t vol_attribute_show(struct device *dev,
 	else if (attr == &attr_vol_upd_marker)
 		ret = sprintf(buf, "%d\n", vol->upd_marker);
 	else
-		/* This must be a bug */
+		/* This must be a  */
 		ret = -EINVAL;
 
 	/* We've done the operation, drop volume and UBI device references */

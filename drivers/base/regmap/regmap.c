@@ -600,12 +600,12 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 
 	map->dev = dev;
 
-	regmap_debugfs_init(map, config->name);
+	regmap_defs_init(map, config->name);
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
 	if (!m) {
-		regmap_debugfs_exit(map);
+		regmap_defs_exit(map);
 		return -ENOMEM;
 	}
 	*m = map;
@@ -714,7 +714,7 @@ struct regmap *__regmap_init(struct device *dev,
 
 	if (config->disable_locking) {
 		map->lock = map->unlock = regmap_lock_unlock_none;
-		regmap_debugfs_disable(map);
+		regmap_defs_disable(map);
 	} else if (config->lock && config->unlock) {
 		map->lock = config->lock;
 		map->unlock = config->unlock;
@@ -1153,7 +1153,7 @@ skip_format_initialization:
 		if (ret != 0)
 			goto err_regcache;
 	} else {
-		regmap_debugfs_init(map, config->name);
+		regmap_defs_init(map, config->name);
 	}
 
 	return map;
@@ -1314,7 +1314,7 @@ EXPORT_SYMBOL_GPL(regmap_field_free);
 int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 {
 	regcache_exit(map);
-	regmap_debugfs_exit(map);
+	regmap_defs_exit(map);
 
 	map->max_register = config->max_register;
 	map->writeable_reg = config->writeable_reg;
@@ -1325,7 +1325,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->readable_noinc_reg = config->readable_noinc_reg;
 	map->cache_type = config->cache_type;
 
-	regmap_debugfs_init(map, config->name);
+	regmap_defs_init(map, config->name);
 
 	map->cache_bypass = false;
 	map->cache_only = false;
@@ -1344,7 +1344,7 @@ void regmap_exit(struct regmap *map)
 	struct regmap_async *async;
 
 	regcache_exit(map);
-	regmap_debugfs_exit(map);
+	regmap_defs_exit(map);
 	regmap_range_exit(map);
 	if (map->bus && map->bus->free_context)
 		map->bus->free_context(map->bus_context);
@@ -3115,7 +3115,7 @@ EXPORT_SYMBOL_GPL(regmap_parse_val);
 
 static int __init regmap_initcall(void)
 {
-	regmap_debugfs_initcall();
+	regmap_defs_initcall();
 
 	return 0;
 }

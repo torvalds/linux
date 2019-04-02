@@ -31,7 +31,7 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include <asm/fpsimd.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 
@@ -491,7 +491,7 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	__activate_traps(vcpu);
 
 	sysreg_restore_guest_state_vhe(guest_ctxt);
-	__debug_switch_to_guest(vcpu);
+	__de_switch_to_guest(vcpu);
 
 	__set_guest_arch_workaround_state(vcpu);
 
@@ -513,7 +513,7 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.flags & KVM_ARM64_FP_ENABLED)
 		__fpsimd_save_fpexc32(vcpu);
 
-	__debug_switch_to_host(vcpu);
+	__de_switch_to_host(vcpu);
 
 	return exit_code;
 }
@@ -557,7 +557,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	 */
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_state_nvhe(guest_ctxt);
-	__debug_switch_to_guest(vcpu);
+	__de_switch_to_guest(vcpu);
 
 	__set_guest_arch_workaround_state(vcpu);
 
@@ -587,7 +587,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	 * This must come after restoring the host sysregs, since a non-VHE
 	 * system may enable SPE here and make use of the TTBRs.
 	 */
-	__debug_switch_to_host(vcpu);
+	__de_switch_to_host(vcpu);
 
 	/* Returning to host will clear PSR.I, remask PMR if needed */
 	if (system_uses_irq_prio_masking())

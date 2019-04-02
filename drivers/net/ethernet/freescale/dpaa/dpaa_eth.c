@@ -65,9 +65,9 @@
 #define CREATE_TRACE_POINTS
 #include "dpaa_eth_trace.h"
 
-static int debug = -1;
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Module/Driver verbosity level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "Module/Driver verbosity level (0=none,...,16=all)");
 
 static u16 tx_timeout = 1000;
 module_param(tx_timeout, ushort, 0444);
@@ -852,7 +852,7 @@ static int dpaa_eth_cgr_init(struct dpaa_priv *priv)
 		goto out_error;
 	}
 	if (netif_msg_drv(priv))
-		pr_debug("Created CGR %d for netdev with hwaddr %pM on QMan channel %d\n",
+		pr_de("Created CGR %d for netdev with hwaddr %pM on QMan channel %d\n",
 			 priv->cgr_data.cgr.cgrid, priv->mac_dev->addr,
 			 priv->cgr_data.cgr.chan);
 
@@ -2732,7 +2732,7 @@ static int dpaa_ingress_cgr_init(struct dpaa_priv *priv)
 		goto out_error;
 	}
 	if (netif_msg_drv(priv))
-		pr_debug("Created ingress CGR %d for netdev with hwaddr %pM\n",
+		pr_de("Created ingress CGR %d for netdev with hwaddr %pM\n",
 			 priv->ingress_cgr.cgrid, priv->mac_dev->addr);
 
 	priv->use_ingress_cgr = true;
@@ -2798,7 +2798,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 	priv = netdev_priv(net_dev);
 	priv->net_dev = net_dev;
 
-	priv->msg_enable = netif_msg_init(debug, DPAA_MSG_DEFAULT);
+	priv->msg_enable = netif_msg_init(de, DPAA_MSG_DEFAULT);
 
 	mac_dev = dpaa_mac_dev_get(pdev);
 	if (IS_ERR(mac_dev)) {
@@ -3004,7 +3004,7 @@ static int __init dpaa_load(void)
 {
 	int err;
 
-	pr_debug("FSL DPAA Ethernet driver\n");
+	pr_de("FSL DPAA Ethernet driver\n");
 
 	/* initialize dpaa_eth mirror values */
 	dpaa_rx_extra_headroom = fman_get_rx_extra_headroom();

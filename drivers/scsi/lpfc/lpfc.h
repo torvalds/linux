@@ -25,8 +25,8 @@
 #include <linux/ktime.h>
 #include <linux/workqueue.h>
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
-#define CONFIG_SCSI_LPFC_DEBUG_FS
+#if defined(CONFIG_DE_FS) && !defined(CONFIG_SCSI_LPFC_DE_FS)
+#define CONFIG_SCSI_LPFC_DE_FS
 #endif
 
 struct lpfc_sli2_slim;
@@ -473,15 +473,15 @@ struct lpfc_vport {
 
 	struct fc_vport *fc_vport;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	struct dentry *debug_disc_trc;
-	struct dentry *debug_nodelist;
-	struct dentry *debug_nvmestat;
-	struct dentry *debug_scsistat;
-	struct dentry *debug_nvmektime;
-	struct dentry *debug_cpucheck;
-	struct dentry *vport_debugfs_root;
-	struct lpfc_debugfs_trc *disc_trc;
+#ifdef CONFIG_SCSI_LPFC_DE_FS
+	struct dentry *de_disc_trc;
+	struct dentry *de_nodelist;
+	struct dentry *de_nvmestat;
+	struct dentry *de_scsistat;
+	struct dentry *de_nvmektime;
+	struct dentry *de_cpucheck;
+	struct dentry *vport_defs_root;
+	struct lpfc_defs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
 	uint8_t stat_data_enabled;
@@ -1023,30 +1023,30 @@ struct lpfc_hba {
 	atomic_t num_cmd_success;
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	struct dentry *hba_debugfs_root;
-	atomic_t debugfs_vport_count;
-	struct dentry *debug_multixri_pools;
-	struct dentry *debug_hbqinfo;
-	struct dentry *debug_dumpHostSlim;
-	struct dentry *debug_dumpHBASlim;
-	struct dentry *debug_dumpData;   /* BlockGuard BPL */
-	struct dentry *debug_dumpDif;    /* BlockGuard BPL */
-	struct dentry *debug_InjErrLBA;  /* LBA to inject errors at */
-	struct dentry *debug_InjErrNPortID;  /* NPortID to inject errors at */
-	struct dentry *debug_InjErrWWPN;  /* WWPN to inject errors at */
-	struct dentry *debug_writeGuard; /* inject write guard_tag errors */
-	struct dentry *debug_writeApp;   /* inject write app_tag errors */
-	struct dentry *debug_writeRef;   /* inject write ref_tag errors */
-	struct dentry *debug_readGuard;  /* inject read guard_tag errors */
-	struct dentry *debug_readApp;    /* inject read app_tag errors */
-	struct dentry *debug_readRef;    /* inject read ref_tag errors */
+#ifdef CONFIG_SCSI_LPFC_DE_FS
+	struct dentry *hba_defs_root;
+	atomic_t defs_vport_count;
+	struct dentry *de_multixri_pools;
+	struct dentry *de_hbqinfo;
+	struct dentry *de_dumpHostSlim;
+	struct dentry *de_dumpHBASlim;
+	struct dentry *de_dumpData;   /* BlockGuard BPL */
+	struct dentry *de_dumpDif;    /* BlockGuard BPL */
+	struct dentry *de_InjErrLBA;  /* LBA to inject errors at */
+	struct dentry *de_InjErrNPortID;  /* NPortID to inject errors at */
+	struct dentry *de_InjErrWWPN;  /* WWPN to inject errors at */
+	struct dentry *de_writeGuard; /* inject write guard_tag errors */
+	struct dentry *de_writeApp;   /* inject write app_tag errors */
+	struct dentry *de_writeRef;   /* inject write ref_tag errors */
+	struct dentry *de_readGuard;  /* inject read guard_tag errors */
+	struct dentry *de_readApp;    /* inject read app_tag errors */
+	struct dentry *de_readRef;    /* inject read ref_tag errors */
 
-	struct dentry *debug_nvmeio_trc;
-	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
-	struct dentry *debug_hdwqinfo;
+	struct dentry *de_nvmeio_trc;
+	struct lpfc_defs_nvmeio_trc *nvmeio_trc;
+	struct dentry *de_hdwqinfo;
 #ifdef LPFC_HDWQ_LOCK_STAT
-	struct dentry *debug_lockstat;
+	struct dentry *de_lockstat;
 #endif
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
@@ -1064,10 +1064,10 @@ struct lpfc_hba {
 	sector_t lpfc_injerr_lba;
 #define LPFC_INJERR_LBA_OFF	(sector_t)(-1)
 
-	struct dentry *debug_slow_ring_trc;
-	struct lpfc_debugfs_trc *slow_ring_trc;
+	struct dentry *de_slow_ring_trc;
+	struct lpfc_defs_trc *slow_ring_trc;
 	atomic_t slow_ring_trc_cnt;
-	/* iDiag debugfs sub-directory */
+	/* iDiag defs sub-directory */
 	struct dentry *idiag_root;
 	struct dentry *idiag_pci_cfg;
 	struct dentry *idiag_bar_acc;
@@ -1160,7 +1160,7 @@ struct lpfc_hba {
 	uint16_t sfp_alarm;
 	uint16_t sfp_warning;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint16_t cpucheck_on;
 #define LPFC_CHECK_OFF		0
 #define LPFC_CHECK_NVME_IO	1

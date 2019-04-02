@@ -33,7 +33,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
@@ -63,7 +63,7 @@ static const char driver_desc[] = DRIVER_DESC;
 	 GR_EPCTRL_BUFSZ_SCALER)
 
 /* ---------------------------------------------------------------------- */
-/* Debug printout functionality */
+/* De printout functionality */
 
 static const char * const gr_modestring[] = {"control", "iso", "bulk", "int"};
 
@@ -86,7 +86,7 @@ static const char *gr_ep0state_string(enum gr_ep0state state)
 	return names[state];
 }
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 
 static void gr_dbgprint_request(const char *str, struct gr_ep *ep,
 				struct gr_request *req)
@@ -97,7 +97,7 @@ static void gr_dbgprint_request(const char *str, struct gr_ep *ep,
 
 	dev_dbg(ep->dev->dev, "%s: 0x%p, %d bytes data%s:\n", str, req, buflen,
 		(buflen > plen ? " (truncated)" : ""));
-	print_hex_dump_debug("   ", DUMP_PREFIX_NONE,
+	print_hex_dump_de("   ", DUMP_PREFIX_NONE,
 			     rowlen, 4, req->req.buf, plen, false);
 }
 
@@ -107,7 +107,7 @@ static void gr_dbgprint_devreq(struct gr_udc *dev, u8 type, u8 request,
 	dev_vdbg(dev->dev, "REQ: %02x.%02x v%04x i%04x l%04x\n",
 		 type, request, value, index, length);
 }
-#else /* !VERBOSE_DEBUG */
+#else /* !VERBOSE_DE */
 
 static void gr_dbgprint_request(const char *str, struct gr_ep *ep,
 				struct gr_request *req) {}
@@ -115,12 +115,12 @@ static void gr_dbgprint_request(const char *str, struct gr_ep *ep,
 static void gr_dbgprint_devreq(struct gr_udc *dev, u8 type, u8 request,
 			       u16 value, u16 index, u16 length) {}
 
-#endif /* VERBOSE_DEBUG */
+#endif /* VERBOSE_DE */
 
 /* ---------------------------------------------------------------------- */
-/* Debugfs functionality */
+/* Defs functionality */
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
+#ifdef CONFIG_USB_GADGET_DE_FS
 
 static void gr_seq_ep_show(struct seq_file *seq, struct gr_ep *ep)
 {
@@ -208,21 +208,21 @@ static void gr_dfs_create(struct gr_udc *dev)
 {
 	const char *name = "gr_udc_state";
 
-	dev->dfs_root = debugfs_create_dir(dev_name(dev->dev), NULL);
-	debugfs_create_file(name, 0444, dev->dfs_root, dev, &gr_dfs_fops);
+	dev->dfs_root = defs_create_dir(dev_name(dev->dev), NULL);
+	defs_create_file(name, 0444, dev->dfs_root, dev, &gr_dfs_fops);
 }
 
 static void gr_dfs_delete(struct gr_udc *dev)
 {
-	debugfs_remove_recursive(dev->dfs_root);
+	defs_remove_recursive(dev->dfs_root);
 }
 
-#else /* !CONFIG_USB_GADGET_DEBUG_FS */
+#else /* !CONFIG_USB_GADGET_DE_FS */
 
 static void gr_dfs_create(struct gr_udc *dev) {}
 static void gr_dfs_delete(struct gr_udc *dev) {}
 
-#endif /* CONFIG_USB_GADGET_DEBUG_FS */
+#endif /* CONFIG_USB_GADGET_DE_FS */
 
 /* ---------------------------------------------------------------------- */
 /* DMA and request handling */
@@ -374,7 +374,7 @@ static void gr_start_dma(struct gr_ep *ep)
 	req = list_first_entry(&ep->queue, struct gr_request, queue);
 
 	/* A descriptor should already have been allocated */
-	BUG_ON(!req->curr_desc);
+	_ON(!req->curr_desc);
 
 	/*
 	 * The DMA controller can not handle smaller OUT buffers than

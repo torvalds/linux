@@ -92,7 +92,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt)
 {
 	int i;
 
-	BUG_ON(IRQ_USER + cnt > NR_IRQS);
+	_ON(IRQ_USER + cnt > NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
 		irq_set_chip_and_handler(i, &user_irq_chip, handle_simple_irq);

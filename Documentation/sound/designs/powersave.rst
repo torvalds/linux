@@ -34,7 +34,7 @@ automatic power-save mode with 10 seconds, write to
 Note that you might hear click noise/pop when changing the power
 state.  Also, it often takes certain time to wake up from the
 power-down to the active state.  These are often hardly to fix, so
-don't report extra bug reports unless you have a fix patch ;-)
+don't report extra  reports unless you have a fix patch ;-)
 
 For HD-audio interface, there is another module option,
 power_save_controller.  This enables/disables the power-save mode of

@@ -58,8 +58,8 @@ void falcon_qt202x_set_led(struct ef4_nic *p, int led, int mode)
 
 struct qt202x_phy_data {
 	enum ef4_phy_mode phy_mode;
-	bool bug17190_in_bad_state;
-	unsigned long bug17190_timer;
+	bool 17190_in_bad_state;
+	unsigned long 17190_timer;
 	u32 firmware_ver;
 };
 
@@ -71,7 +71,7 @@ struct qt202x_phy_data {
 #define QT2025C_MAX_FWSTART_TIME (25 * HZ / 10)
 #define QT2025C_FWSTART_WAIT 100
 
-#define BUG17190_INTERVAL (2 * HZ)
+#define 17190_INTERVAL (2 * HZ)
 
 static int qt2025c_wait_heartbeat(struct ef4_nic *efx)
 {
@@ -145,7 +145,7 @@ static int qt2025c_wait_reset(struct ef4_nic *efx)
 
 	rc = qt2025c_wait_fw_status_good(efx);
 	if (rc == -ETIMEDOUT) {
-		/* Bug 17689: occasionally heartbeat starts but firmware status
+		/*  17689: occasionally heartbeat starts but firmware status
 		 * code never progresses beyond 0x00.  Try again, once, after
 		 * restarting execution of the firmware image. */
 		netif_dbg(efx, hw, efx->net_dev,
@@ -180,7 +180,7 @@ static void qt2025c_firmware_id(struct ef4_nic *efx)
 				 (firmware_id[4] << 8) | firmware_id[5];
 }
 
-static void qt2025c_bug17190_workaround(struct ef4_nic *efx)
+static void qt2025c_17190_workaround(struct ef4_nic *efx)
 {
 	struct qt202x_phy_data *phy_data = efx->phy_data;
 
@@ -192,24 +192,24 @@ static void qt2025c_bug17190_workaround(struct ef4_nic *efx)
 	 */
 	if (efx->link_state.up ||
 	    !ef4_mdio_links_ok(efx, MDIO_DEVS_PMAPMD | MDIO_DEVS_PHYXS)) {
-		phy_data->bug17190_in_bad_state = false;
+		phy_data->17190_in_bad_state = false;
 		return;
 	}
 
-	if (!phy_data->bug17190_in_bad_state) {
-		phy_data->bug17190_in_bad_state = true;
-		phy_data->bug17190_timer = jiffies + BUG17190_INTERVAL;
+	if (!phy_data->17190_in_bad_state) {
+		phy_data->17190_in_bad_state = true;
+		phy_data->17190_timer = jiffies + 17190_INTERVAL;
 		return;
 	}
 
-	if (time_after_eq(jiffies, phy_data->bug17190_timer)) {
+	if (time_after_eq(jiffies, phy_data->17190_timer)) {
 		netif_dbg(efx, hw, efx->net_dev, "bashing QT2025C PMA/PMD\n");
 		ef4_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_CTRL1,
 				  MDIO_PMA_CTRL1_LOOPBACK, true);
 		msleep(100);
 		ef4_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_CTRL1,
 				  MDIO_PMA_CTRL1_LOOPBACK, false);
-		phy_data->bug17190_timer = jiffies + BUG17190_INTERVAL;
+		phy_data->17190_timer = jiffies + 17190_INTERVAL;
 	}
 }
 
@@ -348,8 +348,8 @@ static int qt202x_phy_probe(struct ef4_nic *efx)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
 	phy_data->phy_mode = efx->phy_mode;
-	phy_data->bug17190_in_bad_state = false;
-	phy_data->bug17190_timer = 0;
+	phy_data->17190_in_bad_state = false;
+	phy_data->17190_timer = 0;
 
 	efx->mdio.mmds = QT202X_REQUIRED_DEVS;
 	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
@@ -395,7 +395,7 @@ static bool qt202x_phy_poll(struct ef4_nic *efx)
 	efx->link_state.fc = efx->wanted_fc;
 
 	if (efx->phy_type == PHY_TYPE_QT2025C)
-		qt2025c_bug17190_workaround(efx);
+		qt2025c_17190_workaround(efx);
 
 	return efx->link_state.up != was_up;
 }

@@ -312,8 +312,8 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	fe = (struct ocfs2_dinode *)main_bm_bh->b_data;
 
 	/* main_bm_bh is validated by inode read inside ocfs2_inode_lock(),
-	 * so any corruption is a code bug. */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+	 * so any corruption is a code . */
+	_ON(!OCFS2_IS_VALID_DINODE(fe));
 
 	if (le16_to_cpu(fe->id2.i_chain.cl_cpg) !=
 		ocfs2_group_bitmap_size(osb->sb, 0,

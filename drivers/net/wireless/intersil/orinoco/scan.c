@@ -114,7 +114,7 @@ static void orinoco_add_hostscan_result(struct orinoco_private *priv,
 		le16_to_cpu(bss->a.channel), NL80211_BAND_2GHZ);
 	channel = ieee80211_get_channel(wiphy, freq);
 	if (!channel) {
-		printk(KERN_DEBUG "Invalid channel designation %04X(%04X)",
+		printk(KERN_DE "Invalid channel designation %04X(%04X)",
 			bss->a.channel, freq);
 		return;	/* Then ignore it for now */
 	}

@@ -149,7 +149,7 @@ static void mdesc_handle_init(struct mdesc_handle *hp,
 			      unsigned int handle_size,
 			      void *base)
 {
-	BUG_ON(((unsigned long)&hp->mdesc) & (16UL - 1));
+	_ON(((unsigned long)&hp->mdesc) & (16UL - 1));
 
 	memset(hp, 0, handle_size);
 	INIT_LIST_HEAD(&hp->list);
@@ -184,8 +184,8 @@ static void __init mdesc_memblock_free(struct mdesc_handle *hp)
 	unsigned int alloc_size;
 	unsigned long start;
 
-	BUG_ON(refcount_read(&hp->refcnt) != 0);
-	BUG_ON(!list_empty(&hp->list));
+	_ON(refcount_read(&hp->refcnt) != 0);
+	_ON(!list_empty(&hp->list));
 
 	alloc_size = PAGE_ALIGN(hp->handle_size);
 	start = __pa(hp);
@@ -222,8 +222,8 @@ static struct mdesc_handle *mdesc_kmalloc(unsigned int mdesc_size)
 
 static void mdesc_kfree(struct mdesc_handle *hp)
 {
-	BUG_ON(refcount_read(&hp->refcnt) != 0);
-	BUG_ON(!list_empty(&hp->list));
+	_ON(refcount_read(&hp->refcnt) != 0);
+	_ON(!list_empty(&hp->list));
 
 	kfree(hp->self_base);
 }

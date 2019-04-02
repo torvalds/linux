@@ -26,7 +26,7 @@
 #include <brcmu_wifi.h>
 
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "proto.h"
 #include "msgbuf.h"
 #include "commonring.h"
@@ -1441,7 +1441,7 @@ void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DE
 static int brcmf_msgbuf_stats_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
@@ -1496,9 +1496,9 @@ static int brcmf_msgbuf_stats_read(struct seq_file *seq, void *data)
 }
 #endif
 
-static void brcmf_msgbuf_debugfs_create(struct brcmf_pub *drvr)
+static void brcmf_msgbuf_defs_create(struct brcmf_pub *drvr)
 {
-	brcmf_debugfs_add_entry(drvr, "msgbuf_stats", brcmf_msgbuf_stats_read);
+	brcmf_defs_add_entry(drvr, "msgbuf_stats", brcmf_msgbuf_stats_read);
 }
 
 int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
@@ -1555,7 +1555,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	drvr->proto->delete_peer = brcmf_msgbuf_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_msgbuf_add_tdls_peer;
 	drvr->proto->rxreorder = brcmf_msgbuf_rxreorder;
-	drvr->proto->debugfs_create = brcmf_msgbuf_debugfs_create;
+	drvr->proto->defs_create = brcmf_msgbuf_defs_create;
 	drvr->proto->pd = msgbuf;
 
 	init_waitqueue_head(&msgbuf->ioctl_resp_wait);

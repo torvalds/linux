@@ -111,7 +111,7 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 	if (intel_wait_for_register(dev_priv,
 				    FBC_STATUS, FBC_STAT_COMPRESSING, 0,
 				    10)) {
-		DRM_DEBUG_KMS("FBC idle timed out\n");
+		DRM_DE_KMS("FBC idle timed out\n");
 		return;
 	}
 }
@@ -521,10 +521,10 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 
 		fbc->compressed_llb = compressed_llb;
 
-		GEM_BUG_ON(range_overflows_t(u64, dev_priv->dsm.start,
+		GEM__ON(range_overflows_t(u64, dev_priv->dsm.start,
 					     fbc->compressed_fb.start,
 					     U32_MAX));
-		GEM_BUG_ON(range_overflows_t(u64, dev_priv->dsm.start,
+		GEM__ON(range_overflows_t(u64, dev_priv->dsm.start,
 					     fbc->compressed_llb->start,
 					     U32_MAX));
 		I915_WRITE(FBC_CFB_BASE,
@@ -533,7 +533,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 			   dev_priv->dsm.start + compressed_llb->start);
 	}
 
-	DRM_DEBUG_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
+	DRM_DE_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
 		      fbc->compressed_fb.size, fbc->threshold);
 
 	return 0;
@@ -895,7 +895,7 @@ static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
 	WARN_ON(!fbc->enabled);
 	WARN_ON(fbc->active);
 
-	DRM_DEBUG_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+	DRM_DE_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
 
 	__intel_fbc_cleanup_cfb(dev_priv);
 
@@ -1108,7 +1108,7 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 		goto out;
 	}
 
-	DRM_DEBUG_KMS("Enabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+	DRM_DE_KMS("Enabling FBC on pipe %c\n", pipe_name(crtc->pipe));
 	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
 
 	fbc->enabled = true;
@@ -1170,7 +1170,7 @@ static void intel_fbc_underrun_work_fn(struct work_struct *work)
 	if (fbc->underrun_detected || !fbc->enabled)
 		goto out;
 
-	DRM_DEBUG_KMS("Disabling FBC due to FIFO underrun.\n");
+	DRM_DE_KMS("Disabling FBC due to FIFO underrun.\n");
 	fbc->underrun_detected = true;
 
 	intel_fbc_deactivate(dev_priv, "FIFO underrun");
@@ -1196,7 +1196,7 @@ int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv)
 		return ret;
 
 	if (dev_priv->fbc.underrun_detected) {
-		DRM_DEBUG_KMS("Re-allowing FBC after fifo underrun\n");
+		DRM_DE_KMS("Re-allowing FBC after fifo underrun\n");
 		dev_priv->fbc.no_fbc_reason = "FIFO underrun cleared";
 	}
 
@@ -1315,7 +1315,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 		mkwrite_device_info(dev_priv)->display.has_fbc = false;
 
 	i915_modparams.enable_fbc = intel_sanitize_fbc_option(dev_priv);
-	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n",
+	DRM_DE_KMS("Sanitized enable_fbc value: %d\n",
 		      i915_modparams.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {

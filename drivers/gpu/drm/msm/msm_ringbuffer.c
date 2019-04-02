@@ -26,7 +26,7 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 	int ret;
 
 	/* We assume everwhere that MSM_GPU_RINGBUFFER_SZ is a power of 2 */
-	BUILD_BUG_ON(!is_power_of_2(MSM_GPU_RINGBUFFER_SZ));
+	BUILD__ON(!is_power_of_2(MSM_GPU_RINGBUFFER_SZ));
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring) {

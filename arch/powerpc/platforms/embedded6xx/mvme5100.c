@@ -70,7 +70,7 @@ static void __init mvme5100_pic_init(void)
 
 	mpic = mpic_alloc(np, pci_membase, 0, 16, 256, " OpenPIC  ");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	of_node_put(np);
 
 	mpic_assign_isu(mpic, 0, pci_membase + 0x10000);
@@ -100,7 +100,7 @@ static void __init mvme5100_pic_init(void)
 	}
 
 	if (intack)
-		pr_debug("mvme5100_pic_init: PCI 8259 intack at 0x%016lx\n",
+		pr_de("mvme5100_pic_init: PCI 8259 intack at 0x%016lx\n",
 		   intack);
 
 	i8259_init(cp, intack);

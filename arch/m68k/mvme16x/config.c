@@ -287,7 +287,7 @@ void __init config_mvme16x(void)
 
     if (strncmp("BDID", p->bdid, 4))
     {
-	pr_crit("Bug call .BRD_ID returned garbage - giving up\n");
+	pr_crit(" call .BRD_ID returned garbage - giving up\n");
 	while (1)
 		;
     }
@@ -296,7 +296,7 @@ void __init config_mvme16x(void)
 	vme_brdtype = brdno;
 
     mvme16x_get_model(id);
-    pr_info("BRD_ID: %s   BUG %x.%x %02x/%02x/%02x\n", id, p->rev >> 4,
+    pr_info("BRD_ID: %s    %x.%x %02x/%02x/%02x\n", id, p->rev >> 4,
 	    p->rev & 0xf, p->yr, p->mth, p->day);
     if (brdno == 0x0162 || brdno == 0x172)
     {

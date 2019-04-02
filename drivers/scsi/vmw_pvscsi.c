@@ -332,7 +332,7 @@ static void pvscsi_create_sg(struct pvscsi_ctx *ctx,
 	unsigned i;
 	struct PVSCSISGElement *sge;
 
-	BUG_ON(count > PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT);
+	_ON(count > PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT);
 
 	sge = &ctx->sgl->sge[0];
 	for (i = 0; i < count; i++, sg++) {
@@ -455,9 +455,9 @@ static int pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 	if (!adapter->cmp_ring)
 		return -ENOMEM;
 
-	BUG_ON(!IS_ALIGNED(adapter->ringStatePA, PAGE_SIZE));
-	BUG_ON(!IS_ALIGNED(adapter->reqRingPA, PAGE_SIZE));
-	BUG_ON(!IS_ALIGNED(adapter->cmpRingPA, PAGE_SIZE));
+	_ON(!IS_ALIGNED(adapter->ringStatePA, PAGE_SIZE));
+	_ON(!IS_ALIGNED(adapter->reqRingPA, PAGE_SIZE));
+	_ON(!IS_ALIGNED(adapter->cmpRingPA, PAGE_SIZE));
 
 	if (!adapter->use_msg)
 		return 0;
@@ -469,7 +469,7 @@ static int pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 			GFP_KERNEL);
 	if (!adapter->msg_ring)
 		return -ENOMEM;
-	BUG_ON(!IS_ALIGNED(adapter->msgRingPA, PAGE_SIZE));
+	_ON(!IS_ALIGNED(adapter->msgRingPA, PAGE_SIZE));
 
 	return 0;
 }
@@ -623,7 +623,7 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 
 		default:
 			cmd->result = (DID_ERROR << 16);
-			scmd_printk(KERN_DEBUG, cmd,
+			scmd_printk(KERN_DE, cmd,
 				    "Unknown completion status: 0x%x\n",
 				    btstat);
 	}
@@ -691,7 +691,7 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 	 * However, we have already ruled out this possibility - we would not
 	 * have successfully allocated a context if it were true, since we only
 	 * have one context per request entry.  Check for it anyway, since it
-	 * would be a serious bug.
+	 * would be a serious .
 	 */
 	if (s->reqProdIdx - s->cmpConsIdx >= 1 << req_entries) {
 		scmd_printk(KERN_ERR, cmd, "vmw_pvscsi: "
@@ -797,7 +797,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	DECLARE_COMPLETION_ONSTACK(abort_cmp);
 	int done;
 
-	scmd_printk(KERN_DEBUG, cmd, "task abort on host %u, %p\n",
+	scmd_printk(KERN_DE, cmd, "task abort on host %u, %p\n",
 		    adapter->host->host_no, cmd);
 
 	spin_lock_irqsave(&adapter->hw_lock, flags);
@@ -814,7 +814,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	 */
 	ctx = pvscsi_find_context(adapter, cmd);
 	if (!ctx) {
-		scmd_printk(KERN_DEBUG, cmd, "Failed to abort cmd %p\n", cmd);
+		scmd_printk(KERN_DE, cmd, "Failed to abort cmd %p\n", cmd);
 		goto out;
 	}
 
@@ -837,7 +837,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 		 */
 		ctx->abort_cmp = NULL;
 		result = FAILED;
-		scmd_printk(KERN_DEBUG, cmd,
+		scmd_printk(KERN_DE, cmd,
 			    "Failed to get completion for aborted cmd %p\n",
 			    cmd);
 		goto out;
@@ -1024,7 +1024,7 @@ static void pvscsi_process_msg(const struct pvscsi_adapter *adapter,
 	printk(KERN_INFO "vmw_pvscsi: msg type: 0x%x - MSG RING: %u/%u (%u) \n",
 	       e->type, s->msgProdIdx, s->msgConsIdx, s->msgNumEntriesLog2);
 
-	BUILD_BUG_ON(PVSCSI_MSG_LAST != 2);
+	BUILD__ON(PVSCSI_MSG_LAST != 2);
 
 	if (e->type == PVSCSI_MSG_DEV_ADDED) {
 		struct PVSCSIMsgDescDevStatusChanged *desc;
@@ -1253,13 +1253,13 @@ static int pvscsi_allocate_sg(struct pvscsi_adapter *adapter)
 	int i;
 
 	ctx = adapter->cmd_map;
-	BUILD_BUG_ON(sizeof(struct pvscsi_sg_list) > SGL_SIZE);
+	BUILD__ON(sizeof(struct pvscsi_sg_list) > SGL_SIZE);
 
 	for (i = 0; i < adapter->req_depth; ++i, ++ctx) {
 		ctx->sgl = (void *)__get_free_pages(GFP_KERNEL,
 						    get_order(SGL_SIZE));
 		ctx->sglPA = 0;
-		BUG_ON(!IS_ALIGNED(((unsigned long)ctx->sgl), PAGE_SIZE));
+		_ON(!IS_ALIGNED(((unsigned long)ctx->sgl), PAGE_SIZE));
 		if (!ctx->sgl) {
 			for (; i >= 0; --i, --ctx) {
 				free_pages((unsigned long)ctx->sgl,
@@ -1294,7 +1294,7 @@ static u32 pvscsi_get_max_targets(struct pvscsi_adapter *adapter)
 		dev_warn(dev, "vmw_pvscsi: failed to allocate memory for config page\n");
 		goto exit;
 	}
-	BUG_ON(configPagePA & ~PAGE_MASK);
+	_ON(configPagePA & ~PAGE_MASK);
 
 	/* Fetch config info from the device. */
 	cmd.configPageAddress = ((u64)PVSCSI_CONFIG_CONTROLLER_ADDRESS) << 32;
@@ -1492,7 +1492,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_reset_adapter;
 
 	adapter->use_req_threshold = pvscsi_setup_req_threshold(adapter, true);
-	printk(KERN_DEBUG "vmw_pvscsi: driver-based request coalescing %sabled\n",
+	printk(KERN_DE "vmw_pvscsi: driver-based request coalescing %sabled\n",
 	       adapter->use_req_threshold ? "en" : "dis");
 
 	if (adapter->dev->msix_enabled || adapter->dev->msi_enabled) {

@@ -111,7 +111,7 @@ static vm_fault_t map_pp_mmio(struct vm_area_struct *vma, unsigned long address,
 	mutex_lock(&ctx->status_mutex);
 	if (ctx->status != ATTACHED) {
 		mutex_unlock(&ctx->status_mutex);
-		pr_debug("%s: Context not attached, failing mmio mmap\n",
+		pr_de("%s: Context not attached, failing mmio mmap\n",
 			__func__);
 		return VM_FAULT_SIGBUS;
 	}
@@ -134,7 +134,7 @@ static vm_fault_t ocxl_mmap_fault(struct vm_fault *vmf)
 	vm_fault_t ret;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
-	pr_debug("%s: pasid %d address 0x%lx offset 0x%llx\n", __func__,
+	pr_de("%s: pasid %d address 0x%lx offset 0x%llx\n", __func__,
 		ctx->pasid, vmf->address, offset);
 
 	if (offset < ctx->afu->irq_base_offset)

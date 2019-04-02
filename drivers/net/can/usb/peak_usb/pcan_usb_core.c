@@ -241,7 +241,7 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 	struct peak_usb_device *dev;
 	struct net_device *netdev;
 
-	BUG_ON(!context);
+	_ON(!context);
 
 	dev = context->dev;
 	netdev = dev->netdev;

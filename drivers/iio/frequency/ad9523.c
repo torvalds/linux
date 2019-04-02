@@ -752,7 +752,7 @@ out_unlock:
 static const struct iio_info ad9523_info = {
 	.read_raw = &ad9523_read_raw,
 	.write_raw = &ad9523_write_raw,
-	.debugfs_reg_access = &ad9523_reg_access,
+	.defs_reg_access = &ad9523_reg_access,
 	.attrs = &ad9523_attribute_group,
 };
 

@@ -115,7 +115,7 @@ static void __init ls1021a_smp_prepare_cpus(unsigned int max_cpus)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-dcfg");
 	dcfg_base = of_iomap(np, 0);
-	BUG_ON(!dcfg_base);
+	_ON(!dcfg_base);
 
 	paddr = __pa_symbol(secondary_startup);
 	writel_relaxed(cpu_to_be32(paddr), dcfg_base + DCFG_CCSR_SCRATCHRW1);

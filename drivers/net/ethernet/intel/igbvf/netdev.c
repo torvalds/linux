@@ -33,9 +33,9 @@ static const char igbvf_copyright[] =
 		  "Copyright (c) 2009 - 2012 Intel Corporation.";
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static int igbvf_poll(struct napi_struct *napi, int budget);
 static void igbvf_reset(struct igbvf_adapter *);
@@ -1720,7 +1720,7 @@ static int igbvf_open(struct net_device *netdev)
 		goto err_setup_rx;
 
 	/* before we allocate an interrupt, we must be ready to handle it.
-	 * Setting DEBUG_SHIRQ in the kernel makes it fire an interrupt
+	 * Setting DE_SHIRQ in the kernel makes it fire an interrupt
 	 * as soon as we call pci_request_irq, so we have to setup our
 	 * clean_rx handler before we do so.
 	 */
@@ -2163,7 +2163,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	i = tx_ring->next_to_use;
 
 	buffer_info = &tx_ring->buffer_info[i];
-	BUG_ON(len >= IGBVF_MAX_DATA_PER_TXD);
+	_ON(len >= IGBVF_MAX_DATA_PER_TXD);
 	buffer_info->length = len;
 	/* set time_stamp *before* dma to help avoid a possible race */
 	buffer_info->time_stamp = jiffies;
@@ -2185,7 +2185,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		len = skb_frag_size(frag);
 
 		buffer_info = &tx_ring->buffer_info[i];
-		BUG_ON(len >= IGBVF_MAX_DATA_PER_TXD);
+		_ON(len >= IGBVF_MAX_DATA_PER_TXD);
 		buffer_info->length = len;
 		buffer_info->time_stamp = jiffies;
 		buffer_info->mapped_as_page = true;
@@ -2759,7 +2759,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->flags = ei->flags;
 	adapter->hw.back = adapter;
 	adapter->hw.mac.type = ei->mac;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	/* PCI config space info */
 

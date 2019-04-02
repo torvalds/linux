@@ -124,7 +124,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		struct nvkm_msgqueue_msg base;
 
 		u8 pad;
-		u16 os_debug_entry_point;
+		u16 os_de_entry_point;
 
 		struct {
 			u16 size;
@@ -166,7 +166,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 			queue->tail_reg = 0x4cc;
 		}
 
-		nvkm_debug(subdev,
+		nvkm_de(subdev,
 			   "queue %d: index %d, offset 0x%08x, size 0x%08x\n",
 			   i, queue->index, queue->offset, queue->size);
 	}
@@ -208,7 +208,7 @@ acr_init_wpr_callback(struct nvkm_msgqueue *queue,
 		return;
 	}
 
-	nvkm_debug(subdev, "ACR WPR init complete\n");
+	nvkm_de(subdev, "ACR WPR init complete\n");
 	complete_all(&queue->init_done);
 }
 
@@ -257,7 +257,7 @@ acr_boot_falcon_callback(struct nvkm_msgqueue *priv,
 		nvkm_error(subdev, "invalid falcon ID 0x%x\n", falcon_id);
 		return;
 	}
-	nvkm_debug(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
+	nvkm_de(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
 }
 
 enum {
@@ -310,7 +310,7 @@ acr_boot_multiple_falcons_callback(struct nvkm_msgqueue *priv,
 	u32 falcon_id, falcon_treated = 0;
 
 	for_each_set_bit(falcon_id, &falcon_mask, NVKM_SECBOOT_FALCON_END) {
-		nvkm_debug(subdev, "%s booted\n",
+		nvkm_de(subdev, "%s booted\n",
 			   nvkm_secboot_falcon_name[falcon_id]);
 		falcon_treated |= BIT(falcon_id);
 	}

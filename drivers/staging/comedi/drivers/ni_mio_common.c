@@ -1085,7 +1085,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 	} else {
 		if (n > ARRAY_SIZE(devpriv->ai_fifo_buffer)) {
 			dev_err(dev->class_dev,
-				"bug! ai_fifo_buffer too small\n");
+				"! ai_fifo_buffer too small\n");
 			async->events |= COMEDI_CB_ERROR;
 			return;
 		}
@@ -2594,7 +2594,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		default:
 			dev_err(dev->class_dev,
-				"bug! unhandled ao reference voltage\n");
+				"! unhandled ao reference voltage\n");
 			break;
 		}
 		switch (krange->max + krange->min) {
@@ -2606,7 +2606,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		default:
 			dev_err(dev->class_dev,
-				"bug! unhandled ao offset voltage\n");
+				"! unhandled ao offset voltage\n");
 			break;
 		}
 		if (timed)
@@ -3627,7 +3627,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		mite_prep_dma(devpriv->cdo_mite_chan, 32, 32);
 		mite_dma_arm(devpriv->cdo_mite_chan);
 	} else {
-		dev_err(dev->class_dev, "BUG: no cdo mite channel?\n");
+		dev_err(dev->class_dev, ": no cdo mite channel?\n");
 		retval = -EIO;
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -4349,7 +4349,7 @@ static struct caldac_struct caldacs[] = {
 	[ad8522] = {2, 12, pack_ad8522},
 	[ad8804] = {12, 8, pack_ad8804},
 	[ad8842] = {8, 8, pack_ad8842},
-	[ad8804_debug] = {16, 8, pack_ad8804},
+	[ad8804_de] = {16, 8, pack_ad8804},
 };
 
 static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
@@ -4447,7 +4447,7 @@ static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		if (n_chans > MAX_N_CALDACS)
 			dev_err(dev->class_dev,
-				"BUG! MAX_N_CALDACS too small\n");
+				"! MAX_N_CALDACS too small\n");
 		s->maxdata_list = maxdata_list;
 		chan = 0;
 		for (i = 0; i < n_dacs; i++) {
@@ -4548,7 +4548,7 @@ static unsigned int ni_old_get_pfi_routing(struct comedi_device *dev,
 	case 9:
 		return NI_PFI_OUTPUT_G_GATE0;
 	default:
-		dev_err(dev->class_dev, "bug, unhandled case in switch.\n");
+		dev_err(dev->class_dev, ", unhandled case in switch.\n");
 		break;
 	}
 	return 0;
@@ -4961,7 +4961,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 					       &devpriv->clock_ns);
 	if (retval < 0) {
 		dev_err(dev->class_dev,
-			"bug, failed to find pll parameters\n");
+			", failed to find pll parameters\n");
 		return retval;
 	}
 
@@ -5509,7 +5509,7 @@ static void ni_rtsi_init(struct comedi_device *dev)
 	devpriv->clock_and_fout2 = NI_M_CLK_FOUT2_RTSI_10MHZ;
 	/*  Set clock mode to internal */
 	if (ni_set_master_clock(dev, NI_MIO_INTERNAL_CLOCK, 0) < 0)
-		dev_err(dev->class_dev, "ni_set_master_clock failed, bug?\n");
+		dev_err(dev->class_dev, "ni_set_master_clock failed, ?\n");
 
 	/* default internal lines routing to RTSI bus lines */
 	for (i = 0; i < 8; ++i) {
@@ -5975,7 +5975,7 @@ static int ni_E_init(struct comedi_device *dev,
 	}
 
 	if (board->n_aochan > MAX_N_AO_CHAN) {
-		dev_err(dev->class_dev, "bug! n_aochan > MAX_N_AO_CHAN\n");
+		dev_err(dev->class_dev, "! n_aochan > MAX_N_AO_CHAN\n");
 		return -EINVAL;
 	}
 

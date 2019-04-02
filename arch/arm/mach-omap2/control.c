@@ -10,7 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -652,7 +652,7 @@ static unsigned long am43xx_control_reg_offsets[] = {
 	AM33XX_CONTROL_HW_EVENT_SEL_GRP3_OFFSET,
 	AM33XX_CONTROL_HW_EVENT_SEL_GRP4_OFFSET,
 	AM33XX_CONTROL_SMRT_CTRL_OFFSET,
-	AM33XX_CONTROL_MPUSS_HW_DEBUG_SEL_OFFSET,
+	AM33XX_CONTROL_MPUSS_HW_DE_SEL_OFFSET,
 	AM43XX_CONTROL_CQDETECT_STS_OFFSET,
 	AM43XX_CONTROL_CQDETECT_STS2_OFFSET,
 	AM43XX_CONTROL_VTP_CTRL_OFFSET,

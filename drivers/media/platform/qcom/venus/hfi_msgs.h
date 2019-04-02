@@ -19,7 +19,7 @@
 #define HFI_MSG_SYS_INIT			0x20001
 #define HFI_MSG_SYS_PC_PREP			0x20002
 #define HFI_MSG_SYS_RELEASE_RESOURCE		0x20003
-#define HFI_MSG_SYS_DEBUG			0x20004
+#define HFI_MSG_SYS_DE			0x20004
 #define HFI_MSG_SYS_SESSION_INIT		0x20006
 #define HFI_MSG_SYS_SESSION_END			0x20007
 #define HFI_MSG_SYS_IDLE			0x20008
@@ -257,7 +257,7 @@ struct hfi_msg_session_release_buffers_done_pkt {
 	u32 buffer_info[1];
 };
 
-struct hfi_msg_sys_debug_pkt {
+struct hfi_msg_sys_de_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 msg_type;
 	u32 msg_size;

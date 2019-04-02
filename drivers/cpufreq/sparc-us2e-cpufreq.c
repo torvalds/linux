@@ -146,7 +146,7 @@ static void us2e_transition(unsigned long estar, unsigned long new_bits,
 		write_hbreg(HBIRD_ESTAR_MODE_ADDR, estar | new_bits);
 		frob_mem_refresh(1, clock_tick, old_divisor, divisor);
 	} else {
-		BUG();
+		();
 	}
 }
 
@@ -169,7 +169,7 @@ static unsigned long index_to_estar_mode(unsigned int index)
 		return ESTAR_MODE_DIV_8;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -192,7 +192,7 @@ static unsigned long index_to_divisor(unsigned int index)
 		return 8;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -217,7 +217,7 @@ static unsigned long estar_to_divisor(unsigned long estar)
 		ret = 8;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ret;

@@ -29,9 +29,9 @@ module_param(cache_timeout, int, S_IRUGO);
 MODULE_PARM_DESC(cache_timeout,
 	"Timeout (in ms) for cache flush (1000 ms default");
 
-static int debug;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+static int de;
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 
 /* ------------------- sysfs attributes ---------------------------------- */
@@ -293,7 +293,7 @@ again:
 	if (oob->reserved != 0xFFFFFFFF && !is_power_of_2(~oob->reserved))
 		goto again;
 
-	/* This should never happen, unless there is a bug in the mtd driver */
+	/* This should never happen, unless there is a  in the mtd driver */
 	WARN_ON(ops.oobretlen != SM_OOB_SIZE);
 	WARN_ON(buffer && ops.retlen != SM_SECTOR_SIZE);
 
@@ -328,7 +328,7 @@ static int sm_write_sector(struct sm_ftl *ftl,
 	struct mtd_info *mtd = ftl->trans->mtd;
 	int ret;
 
-	BUG_ON(ftl->readonly);
+	_ON(ftl->readonly);
 
 	if (zone == 0 && (block == ftl->cis_block || block == 0)) {
 		dbg("attempted to write the CIS!");
@@ -357,7 +357,7 @@ static int sm_write_sector(struct sm_ftl *ftl,
 		return ret;
 	}
 
-	/* This should never happen, unless there is a bug in the driver */
+	/* This should never happen, unless there is a  in the driver */
 	WARN_ON(ops.oobretlen != SM_OOB_SIZE);
 	WARN_ON(buffer && ops.retlen != SM_SECTOR_SIZE);
 
@@ -472,7 +472,7 @@ static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,
 	if (ftl->unstable)
 		return -EIO;
 
-	BUG_ON(ftl->readonly);
+	_ON(ftl->readonly);
 
 	if (zone_num == 0 && (block == ftl->cis_block || block == 0)) {
 		sm_printk("attempted to erase the CIS!");
@@ -869,7 +869,7 @@ static struct ftl_zone *sm_get_zone(struct sm_ftl *ftl, int zone_num)
 	struct ftl_zone *zone;
 	int error;
 
-	BUG_ON(zone_num >= ftl->zone_count);
+	_ON(zone_num >= ftl->zone_count);
 	zone = &ftl->zones[zone_num];
 
 	if (!zone->initialized) {
@@ -929,7 +929,7 @@ static int sm_cache_flush(struct sm_ftl *ftl)
 	if (ftl->unstable)
 		return -EIO;
 
-	BUG_ON(zone_num < 0);
+	_ON(zone_num < 0);
 	zone = &ftl->zones[zone_num];
 	block_num = zone->lba_to_phys_table[ftl->cache_block];
 
@@ -1049,7 +1049,7 @@ static int sm_write(struct mtd_blktrans_dev *dev,
 	struct ftl_zone *zone;
 	int error = 0, zone_num, block, boffset;
 
-	BUG_ON(ftl->readonly);
+	_ON(ftl->readonly);
 	sm_break_offset(ftl, sec_no << 9, &zone_num, &block, &boffset);
 
 	/* No need in flush thread running now */

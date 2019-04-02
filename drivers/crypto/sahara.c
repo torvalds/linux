@@ -93,7 +93,7 @@
 #define		SAHARA_CMD_CLEAR_ERR		(1 << 9)
 #define		SAHARA_CMD_SINGLE_STEP		(1 << 10)
 #define		SAHARA_CMD_MODE_BATCH		(1 << 16)
-#define		SAHARA_CMD_MODE_DEBUG		(1 << 18)
+#define		SAHARA_CMD_MODE_DE		(1 << 18)
 #define	SAHARA_REG_STATUS	0x10
 #define		SAHARA_STATUS_GET_STATE(x)	((x) & 0x7)
 #define			SAHARA_STATE_IDLE	0
@@ -113,7 +113,7 @@
 #define		SAHARA_STATUS_ACTIVE_SKHA	(1 << 11)
 #define		SAHARA_STATUS_MODE_BATCH	(1 << 16)
 #define		SAHARA_STATUS_MODE_DEDICATED	(1 << 17)
-#define		SAHARA_STATUS_MODE_DEBUG	(1 << 18)
+#define		SAHARA_STATUS_MODE_DE	(1 << 18)
 #define		SAHARA_STATUS_GET_ISTATE(x)	(((x) >> 24) & 0xff)
 #define SAHARA_REG_ERRSTATUS	0x14
 #define		SAHARA_ERRSTATUS_GET_SOURCE(x)	((x) & 0xf)
@@ -354,7 +354,7 @@ static void sahara_decode_status(struct sahara_dev *dev, unsigned int status)
 {
 	u8 state;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!IS_ENABLED(DE))
 		return;
 
 	state = SAHARA_STATUS_GET_STATE(status);
@@ -390,8 +390,8 @@ static void sahara_decode_status(struct sahara_dev *dev, unsigned int status)
 		dev_dbg(dev->device, "	- Batch Mode.\n");
 	else if (status & SAHARA_STATUS_MODE_DEDICATED)
 		dev_dbg(dev->device, "	- Dedicated Mode.\n");
-	else if (status & SAHARA_STATUS_MODE_DEBUG)
-		dev_dbg(dev->device, "	- Debug Mode.\n");
+	else if (status & SAHARA_STATUS_MODE_DE)
+		dev_dbg(dev->device, "	- De Mode.\n");
 
 	dev_dbg(dev->device, "	- Internal state = 0x%02x\n",
 	       SAHARA_STATUS_GET_ISTATE(status));
@@ -406,7 +406,7 @@ static void sahara_dump_descriptors(struct sahara_dev *dev)
 {
 	int i;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!IS_ENABLED(DE))
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_DESC; i++) {
@@ -427,7 +427,7 @@ static void sahara_dump_links(struct sahara_dev *dev)
 {
 	int i;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!IS_ENABLED(DE))
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_LINK; i++) {

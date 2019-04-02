@@ -59,7 +59,7 @@ struct l2tp_session_cfg {
 	unsigned int		lns_mode:1;	/* behave as LNS? LAC enables
 						 * sequence numbers under
 						 * control of LNS. */
-	int			debug;		/* bitmask of debug message
+	int			de;		/* bitmask of de message
 						 * categories */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
@@ -106,7 +106,7 @@ struct l2tp_session {
 	unsigned int		lns_mode:1;	/* behave as LNS? LAC enables
 						 * sequence numbers under
 						 * control of LNS. */
-	int			debug;		/* bitmask of debug message
+	int			de;		/* bitmask of de message
 						 * categories */
 	int			reorder_timeout; /* configured reorder timeout
 						  * (in jiffies) */
@@ -126,7 +126,7 @@ struct l2tp_session {
  * sessions so incoming packets can be sorted out
  */
 struct l2tp_tunnel_cfg {
-	int			debug;		/* bitmask of debug message
+	int			de;		/* bitmask of de message
 						 * categories */
 	enum l2tp_encap_type	encap;
 
@@ -163,7 +163,7 @@ struct l2tp_tunnel {
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
 
 	char			name[20];	/* for logging */
-	int			debug;		/* bitmask of debug message
+	int			de;		/* bitmask of de message
 						 * categories */
 	enum l2tp_encap_type	encap;
 	struct l2tp_stats	stats;
@@ -323,7 +323,7 @@ static inline int l2tp_v3_ensure_opt_in_linear(struct l2tp_session *session, str
 
 #define l2tp_printk(ptr, type, func, fmt, ...)				\
 do {									\
-	if (((ptr)->debug) & (type))					\
+	if (((ptr)->de) & (type))					\
 		func(fmt, ##__VA_ARGS__);				\
 } while (0)
 
@@ -332,7 +332,7 @@ do {									\
 #define l2tp_info(ptr, type, fmt, ...)					\
 	l2tp_printk(ptr, type, pr_info, fmt, ##__VA_ARGS__)
 #define l2tp_dbg(ptr, type, fmt, ...)					\
-	l2tp_printk(ptr, type, pr_debug, fmt, ##__VA_ARGS__)
+	l2tp_printk(ptr, type, pr_de, fmt, ##__VA_ARGS__)
 
 #define MODULE_ALIAS_L2TP_PWTYPE(type) \
 	MODULE_ALIAS("net-l2tp-type-" __stringify(type))

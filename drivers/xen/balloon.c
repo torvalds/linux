@@ -319,7 +319,7 @@ static enum bp_state reserve_additional_memory(void)
 	 * We don't support PV MMU when Linux and Xen is using
 	 * different page granularity.
 	 */
-	BUILD_BUG_ON(XEN_PAGE_SIZE != PAGE_SIZE);
+	BUILD__ON(XEN_PAGE_SIZE != PAGE_SIZE);
 
         /*
          * add_memory() will build page tables for the new memory so
@@ -375,7 +375,7 @@ static void xen_online_page(struct page *page, unsigned int order)
 	unsigned long start_pfn = page_to_pfn(page);
 	struct page *p;
 
-	pr_debug("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
+	pr_de("Online %lu pages starting at pfn 0x%lx\n", size, start_pfn);
 	mutex_lock(&balloon_mutex);
 	for (i = 0; i < size; i++) {
 		p = pfn_to_page(start_pfn + i);
@@ -442,7 +442,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
 
 	for (i = 0; i < rc; i++) {
 		page = balloon_retrieve(false);
-		BUG_ON(page == NULL);
+		_ON(page == NULL);
 
 		xenmem_reservation_va_mapping_update(1, &page, &frame_list[i]);
 
@@ -507,7 +507,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	flush_tlb_all();
 
 	ret = xenmem_reservation_decrease(nr_pages, frame_list);
-	BUG_ON(ret != nr_pages);
+	_ON(ret != nr_pages);
 
 	balloon_stats.current_pages -= nr_pages;
 
@@ -611,7 +611,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 			 * We don't support PV MMU when Linux and Xen is using
 			 * different page granularity.
 			 */
-			BUILD_BUG_ON(XEN_PAGE_SIZE != PAGE_SIZE);
+			BUILD__ON(XEN_PAGE_SIZE != PAGE_SIZE);
 
 			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 				ret = xen_alloc_p2m_entry(page_to_pfn(page));

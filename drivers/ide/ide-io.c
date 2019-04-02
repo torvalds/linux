@@ -196,8 +196,8 @@ static ide_startstop_t do_special(ide_drive_t *drive)
 {
 	struct ide_cmd cmd;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "%s: %s: 0x%02x\n", drive->name, __func__,
+#ifdef DE
+	printk(KERN_DE "%s: %s: 0x%02x\n", drive->name, __func__,
 		drive->special_flags);
 #endif
 	if (drive->media != ide_disk) {
@@ -219,7 +219,7 @@ static ide_startstop_t do_special(ide_drive_t *drive)
 		drive->special_flags &= ~IDE_SFLAG_SET_MULTMODE;
 		ide_tf_set_setmult_cmd(drive, &cmd.tf);
 	} else
-		BUG();
+		();
 
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
@@ -278,7 +278,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  	 * NULL is actually a valid way of waiting for
  	 * all current requests to be flushed from the queue.
  	 */
-#ifdef DEBUG
+#ifdef DE
  	printk("%s: DRIVE_CMD (null)\n", drive->name);
 #endif
 	scsi_req(rq)->result = 0;
@@ -300,7 +300,7 @@ static ide_startstop_t ide_special_rq(ide_drive_t *drive, struct request *rq)
 	case REQ_DRIVE_RESET:
 		return ide_do_reset(drive);
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -317,7 +317,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: start_request: current=0x%08lx\n",
 		drive->hwif->name, (unsigned long) rq);
 #endif
@@ -355,7 +355,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			return execute_drive_cmd(drive, rq);
 		else if (ata_pm_request(rq)) {
 			struct ide_pm_state *pm = ide_req(rq)->special;
-#ifdef DEBUG_PM
+#ifdef DE_PM
 			printk("%s: start_power_step(step: %d)\n",
 				drive->name, pm->pm_step);
 #endif
@@ -833,7 +833,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		/*
 		 * This happens regularly when we share a PCI IRQ with
 		 * another device.  Unfortunately, it can also happen
-		 * with some buggy drives that trigger the IRQ before
+		 * with some gy drives that trigger the IRQ before
 		 * their status register is up to date.  Hopefully we have
 		 * enough advance overhead that the latter isn't a problem.
 		 */
@@ -863,7 +863,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	 * won't allow another of the same (on any CPU) until we return.
 	 */
 	if (startstop == ide_stopped && hwif->polling == 0) {
-		BUG_ON(hwif->handler);
+		_ON(hwif->handler);
 		rq_in_flight = hwif->rq;
 		hwif->rq = NULL;
 		ide_unlock_port(hwif);

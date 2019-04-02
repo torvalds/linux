@@ -14,7 +14,7 @@ E) binary cannot be loaded
 
 Detailed explanations:
 
-A) Set "debug" kernel parameter (in bootloader config file or CONFIG_CMDLINE)
+A) Set "de" kernel parameter (in bootloader config file or CONFIG_CMDLINE)
    to get more detailed kernel messages.
 B) make sure you have the correct root FS type
    (and ``root=`` kernel parameter points to the correct partition),

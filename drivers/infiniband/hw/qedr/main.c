@@ -413,7 +413,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 		cnq->index = i;
 		sprintf(cnq->name, "qedr%d@pci:%s", i, pci_name(dev->pdev));
 
-		DP_DEBUG(dev, QEDR_MSG_INIT, "cnq[%d].cons=%d\n",
+		DP_DE(dev, QEDR_MSG_INIT, "cnq[%d].cons=%d\n",
 			 i, qed_chain_get_cons_idx(&cnq->pbl));
 	}
 
@@ -440,10 +440,10 @@ static void qedr_pci_set_atomic(struct qedr_dev *dev, struct pci_dev *pdev)
 
 	if (rc) {
 		dev->atomic_cap = IB_ATOMIC_NONE;
-		DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability disabled\n");
+		DP_DE(dev, QEDR_MSG_INIT, "Atomic capability disabled\n");
 	} else {
 		dev->atomic_cap = IB_ATOMIC_GLOB;
-		DP_DEBUG(dev, QEDR_MSG_INIT, "Atomic capability enabled\n");
+		DP_DE(dev, QEDR_MSG_INIT, "Atomic capability enabled\n");
 	}
 }
 
@@ -551,7 +551,7 @@ static int qedr_req_msix_irqs(struct qedr_dev *dev)
 			DP_ERR(dev, "Request cnq %d irq failed\n", i);
 			qedr_sync_free_irqs(dev);
 		} else {
-			DP_DEBUG(dev, QEDR_MSG_INIT,
+			DP_DE(dev, QEDR_MSG_INIT,
 				 "Requested cnq irq for %s [entry %d]. Cookie is at %p\n",
 				 dev->cnq_array[i].name, i,
 				 &dev->cnq_array[i]);
@@ -566,7 +566,7 @@ static int qedr_setup_irqs(struct qedr_dev *dev)
 {
 	int rc;
 
-	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr_setup_irqs\n");
+	DP_DE(dev, QEDR_MSG_INIT, "qedr_setup_irqs\n");
 
 	/* Learn Interrupt configuration */
 	rc = dev->ops->rdma_set_rdma_int(dev->cdev, dev->num_cnq);
@@ -575,19 +575,19 @@ static int qedr_setup_irqs(struct qedr_dev *dev)
 
 	rc = dev->ops->rdma_get_rdma_int(dev->cdev, &dev->int_info);
 	if (rc) {
-		DP_DEBUG(dev, QEDR_MSG_INIT, "get_rdma_int failed\n");
+		DP_DE(dev, QEDR_MSG_INIT, "get_rdma_int failed\n");
 		return rc;
 	}
 
 	if (dev->int_info.msix_cnt) {
-		DP_DEBUG(dev, QEDR_MSG_INIT, "rdma msix_cnt = %d\n",
+		DP_DE(dev, QEDR_MSG_INIT, "rdma msix_cnt = %d\n",
 			 dev->int_info.msix_cnt);
 		rc = qedr_req_msix_irqs(dev);
 		if (rc)
 			return rc;
 	}
 
-	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr_setup_irqs succeeded\n");
+	DP_DE(dev, QEDR_MSG_INIT, "qedr_setup_irqs succeeded\n");
 
 	return 0;
 }
@@ -861,7 +861,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 		return NULL;
 	}
 
-	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr add device called\n");
+	DP_DE(dev, QEDR_MSG_INIT, "qedr add device called\n");
 
 	dev->pdev = pdev;
 	dev->ndev = ndev;
@@ -915,7 +915,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
 		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
 
-	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
+	DP_DE(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
 	return dev;
 
 reg_err:

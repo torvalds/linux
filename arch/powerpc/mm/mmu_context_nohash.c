@@ -25,15 +25,15 @@
  *     also clear mm->cpu_vm_mask bits when processes are migrated
  */
 
-//#define DEBUG_MAP_CONSISTENCY
-//#define DEBUG_CLAMP_LAST_CONTEXT   31
-//#define DEBUG_HARDER
+//#define DE_MAP_CONSISTENCY
+//#define DE_CLAMP_LAST_CONTEXT   31
+//#define DE_HARDER
 
-/* We don't use DEBUG because it tends to be compiled in always nowadays
+/* We don't use DE because it tends to be compiled in always nowadays
  * and this would generate way too much output
  */
-#ifdef DEBUG_HARDER
-#define pr_hard(args...)	printk(KERN_DEBUG args)
+#ifdef DE_HARDER
+#define pr_hard(args...)	printk(KERN_DE args)
 #define pr_hardcont(args...)	printk(KERN_CONT args)
 #else
 #define pr_hard(args...)	do { } while(0)
@@ -72,8 +72,8 @@
  * -- BenH
  */
 #define FIRST_CONTEXT 1
-#ifdef DEBUG_CLAMP_LAST_CONTEXT
-#define LAST_CONTEXT DEBUG_CLAMP_LAST_CONTEXT
+#ifdef DE_CLAMP_LAST_CONTEXT
+#define LAST_CONTEXT DE_CLAMP_LAST_CONTEXT
 #elif defined(CONFIG_PPC_8xx)
 #define LAST_CONTEXT 16
 #elif defined(CONFIG_PPC_47x)
@@ -183,7 +183,7 @@ static unsigned int steal_all_contexts(void)
 		if (id != FIRST_CONTEXT) {
 			context_mm[id] = NULL;
 			__clear_bit(id, context_map);
-#ifdef DEBUG_MAP_CONSISTENCY
+#ifdef DE_MAP_CONSISTENCY
 			mm->context.active = 0;
 #endif
 		}
@@ -231,7 +231,7 @@ static unsigned int steal_context_up(unsigned int id)
 	return id;
 }
 
-#ifdef DEBUG_MAP_CONSISTENCY
+#ifdef DE_MAP_CONSISTENCY
 static void context_check_map(void)
 {
 	unsigned int id, nrf, nact;
@@ -292,7 +292,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	/* If we already have a valid assigned context, skip all that */
 	id = next->context.id;
 	if (likely(id != MMU_NO_CONTEXT)) {
-#ifdef DEBUG_MAP_CONSISTENCY
+#ifdef DE_MAP_CONSISTENCY
 		if (context_mm[id] != next)
 			pr_err("MMU: mm 0x%p has id %d but context_mm[%d] says 0x%p\n",
 			       next, id, id, context_mm[id]);
@@ -405,7 +405,7 @@ void destroy_context(struct mm_struct *mm)
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
 		mm->context.id = MMU_NO_CONTEXT;
-#ifdef DEBUG_MAP_CONSISTENCY
+#ifdef DE_MAP_CONSISTENCY
 		mm->context.active = 0;
 #endif
 		context_mm[id] = NULL;

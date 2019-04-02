@@ -105,7 +105,7 @@ extern void cleanup_module(void);
  * initcall levels. There are still some valid cases where
  * a driver may be needed early if built in, and does not
  * matter when built as a loadable module. Like bus
- * snooping debug drivers.
+ * snooping de drivers.
  */
 #define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
@@ -209,7 +209,7 @@ extern void cleanup_module(void);
  * This exists for several reasons
  * 1.	So modinfo can show license info for users wanting to vet their setup
  *	is free
- * 2.	So the community can ignore bug reports including proprietary modules
+ * 2.	So the community can ignore  reports including proprietary modules
  * 3.	So vendors can do likewise based on their own policies
  */
 #define MODULE_LICENSE(_license) MODULE_INFO(license, _license)
@@ -415,11 +415,11 @@ struct module {
 
 	unsigned long taints;	/* same bits as kernel:taint_flags */
 
-#ifdef CONFIG_GENERIC_BUG
-	/* Support for BUG */
-	unsigned num_bugs;
-	struct list_head bug_list;
-	struct bug_entry *bug_table;
+#ifdef CONFIG_GENERIC_
+	/* Support for  */
+	unsigned num_s;
+	struct list_head _list;
+	struct _entry *_table;
 #endif
 
 #ifdef CONFIG_KALLSYMS
@@ -829,20 +829,20 @@ static inline void module_enable_ro(const struct module *mod, bool after_init) {
 static inline void module_disable_ro(const struct module *mod) { }
 #endif
 
-#ifdef CONFIG_GENERIC_BUG
-void module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,
+#ifdef CONFIG_GENERIC_
+void module__finalize(const Elf_Ehdr *, const Elf_Shdr *,
 			 struct module *);
-void module_bug_cleanup(struct module *);
+void module__cleanup(struct module *);
 
-#else	/* !CONFIG_GENERIC_BUG */
+#else	/* !CONFIG_GENERIC_ */
 
-static inline void module_bug_finalize(const Elf_Ehdr *hdr,
+static inline void module__finalize(const Elf_Ehdr *hdr,
 					const Elf_Shdr *sechdrs,
 					struct module *mod)
 {
 }
-static inline void module_bug_cleanup(struct module *mod) {}
-#endif	/* CONFIG_GENERIC_BUG */
+static inline void module__cleanup(struct module *mod) {}
+#endif	/* CONFIG_GENERIC_ */
 
 #ifdef CONFIG_RETPOLINE
 extern bool retpoline_module_ok(bool has_retpoline);

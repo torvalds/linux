@@ -72,7 +72,7 @@
 		disable-mxtalo;
 	};
 
-	/* This is where the interrupt is routed on the NHK-15 debug board */
+	/* This is where the interrupt is routed on the NHK-15 de board */
 	external-bus@34000000 {
 		compatible = "simple-bus";
 		reg = <0x34000000 0x1000000>;

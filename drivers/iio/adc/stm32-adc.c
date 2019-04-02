@@ -1405,7 +1405,7 @@ static int stm32_adc_of_xlate(struct iio_dev *indio_dev,
 }
 
 /**
- * stm32_adc_debugfs_reg_access - read or write register value
+ * stm32_adc_defs_reg_access - read or write register value
  *
  * To read a value from an ADC register:
  *   echo [ADC reg offset] > direct_reg_access
@@ -1414,7 +1414,7 @@ static int stm32_adc_of_xlate(struct iio_dev *indio_dev,
  * To write a value in a ADC register:
  *   echo [ADC_reg_offset] [value] > direct_reg_access
  */
-static int stm32_adc_debugfs_reg_access(struct iio_dev *indio_dev,
+static int stm32_adc_defs_reg_access(struct iio_dev *indio_dev,
 					unsigned reg, unsigned writeval,
 					unsigned *readval)
 {
@@ -1444,7 +1444,7 @@ static const struct iio_info stm32_adc_iio_info = {
 	.validate_trigger = stm32_adc_validate_trigger,
 	.hwfifo_set_watermark = stm32_adc_set_watermark,
 	.update_scan_mode = stm32_adc_update_scan_mode,
-	.debugfs_reg_access = stm32_adc_debugfs_reg_access,
+	.defs_reg_access = stm32_adc_defs_reg_access,
 	.of_xlate = stm32_adc_of_xlate,
 };
 

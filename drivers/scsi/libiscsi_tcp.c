@@ -54,9 +54,9 @@ MODULE_DESCRIPTION("iSCSI/TCP data-path");
 MODULE_LICENSE("GPL");
 
 static int iscsi_dbg_libtcp;
-module_param_named(debug_libiscsi_tcp, iscsi_dbg_libtcp, int,
+module_param_named(de_libiscsi_tcp, iscsi_dbg_libtcp, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_libiscsi_tcp, "Turn on debugging for libiscsi_tcp "
+MODULE_PARM_DESC(de_libiscsi_tcp, "Turn on deging for libiscsi_tcp "
 		 "module. Set to 1 to turn on, and zero to turn off. Default "
 		 "is off.");
 
@@ -125,8 +125,8 @@ static void iscsi_tcp_segment_map(struct iscsi_segment *segment, int recv)
 		return;
 
 	sg = segment->sg;
-	BUG_ON(segment->sg_mapped);
-	BUG_ON(sg->length == 0);
+	_ON(segment->sg_mapped);
+	_ON(sg->length == 0);
 
 	/*
 	 * We always map for the recv path.
@@ -248,7 +248,7 @@ int iscsi_tcp_segment_done(struct iscsi_tcp_conn *tcp_conn,
 		iscsi_tcp_segment_init_sg(segment, sg_next(segment->sg),
 					  0);
 		iscsi_tcp_segment_map(segment, recv);
-		BUG_ON(segment->size == 0);
+		_ON(segment->size == 0);
 		return 0;
 	}
 
@@ -933,12 +933,12 @@ int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
 			*status = ISCSI_TCP_SKB_DONE;
 			goto skb_done;
 		}
-		BUG_ON(segment->copied >= segment->size);
+		_ON(segment->copied >= segment->size);
 
 		ISCSI_DBG_TCP(conn, "skb %p ptr=%p avail=%u\n", skb, ptr,
 			      avail);
 		rc = iscsi_tcp_segment_recv(tcp_conn, segment, ptr, avail);
-		BUG_ON(rc == 0);
+		_ON(rc == 0);
 		consumed += rc;
 
 		if (segment->total_copied >= segment->total_size) {
@@ -986,7 +986,7 @@ int iscsi_tcp_task_init(struct iscsi_task *task)
 		return conn->session->tt->init_pdu(task, 0, task->data_count);
 	}
 
-	BUG_ON(kfifo_len(&tcp_task->r2tqueue));
+	_ON(kfifo_len(&tcp_task->r2tqueue));
 	tcp_task->exp_datasn = 0;
 
 	/* Prepare PDU, optionally w/ immediate data */

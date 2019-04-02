@@ -298,7 +298,7 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 		snd_soc_dapm_disable_pin(dapm, "LDO1");
 	snd_soc_dapm_sync(dapm);
 
-	pr_debug("*hp = %d *mic = %d\n", *hp, *mic);
+	pr_de("*hp = %d *mic = %d\n", *hp, *mic);
 
 	return 0;
 }

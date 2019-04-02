@@ -16,9 +16,9 @@
 
 #include "6lowpan_i.h"
 
-#define LOWPAN_DEBUGFS_CTX_PFX_NUM_ARGS	8
+#define LOWPAN_DEFS_CTX_PFX_NUM_ARGS	8
 
-static struct dentry *lowpan_debugfs;
+static struct dentry *lowpan_defs;
 
 static int lowpan_ctx_flag_active_set(void *data, u64 val)
 {
@@ -41,7 +41,7 @@ static int lowpan_ctx_flag_active_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(lowpan_ctx_flag_active_fops,
+DEFINE_DEFS_ATTRIBUTE(lowpan_ctx_flag_active_fops,
 			 lowpan_ctx_flag_active_get,
 			 lowpan_ctx_flag_active_set, "%llu\n");
 
@@ -66,7 +66,7 @@ static int lowpan_ctx_flag_c_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(lowpan_ctx_flag_c_fops, lowpan_ctx_flag_c_get,
+DEFINE_DEFS_ATTRIBUTE(lowpan_ctx_flag_c_fops, lowpan_ctx_flag_c_get,
 			 lowpan_ctx_flag_c_set, "%llu\n");
 
 static int lowpan_ctx_plen_set(void *data, u64 val)
@@ -97,7 +97,7 @@ static int lowpan_ctx_plen_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(lowpan_ctx_plen_fops, lowpan_ctx_plen_get,
+DEFINE_DEFS_ATTRIBUTE(lowpan_ctx_plen_fops, lowpan_ctx_plen_get,
 			 lowpan_ctx_plen_set, "%llu\n");
 
 static int lowpan_ctx_pfx_show(struct seq_file *file, void *offset)
@@ -147,7 +147,7 @@ static ssize_t lowpan_ctx_pfx_write(struct file *fp,
 	n = sscanf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x",
 		   &addr[0], &addr[1], &addr[2], &addr[3], &addr[4],
 		   &addr[5], &addr[6], &addr[7]);
-	if (n != LOWPAN_DEBUGFS_CTX_PFX_NUM_ARGS) {
+	if (n != LOWPAN_DEFS_CTX_PFX_NUM_ARGS) {
 		status = -EINVAL;
 		goto out;
 	}
@@ -169,7 +169,7 @@ static const struct file_operations lowpan_ctx_pfx_fops = {
 	.release	= single_release,
 };
 
-static int lowpan_dev_debugfs_ctx_init(struct net_device *dev,
+static int lowpan_dev_defs_ctx_init(struct net_device *dev,
 				       struct dentry *ctx, u8 id)
 {
 	struct lowpan_dev *ldev = lowpan_dev(dev);
@@ -180,29 +180,29 @@ static int lowpan_dev_debugfs_ctx_init(struct net_device *dev,
 
 	sprintf(buf, "%d", id);
 
-	root = debugfs_create_dir(buf, ctx);
+	root = defs_create_dir(buf, ctx);
 	if (!root)
 		return -EINVAL;
 
-	dentry = debugfs_create_file_unsafe("active", 0644, root,
+	dentry = defs_create_file_unsafe("active", 0644, root,
 					    &ldev->ctx.table[id],
 					    &lowpan_ctx_flag_active_fops);
 	if (!dentry)
 		return -EINVAL;
 
-	dentry = debugfs_create_file_unsafe("compression", 0644, root,
+	dentry = defs_create_file_unsafe("compression", 0644, root,
 					    &ldev->ctx.table[id],
 					    &lowpan_ctx_flag_c_fops);
 	if (!dentry)
 		return -EINVAL;
 
-	dentry = debugfs_create_file("prefix", 0644, root,
+	dentry = defs_create_file("prefix", 0644, root,
 				     &ldev->ctx.table[id],
 				     &lowpan_ctx_pfx_fops);
 	if (!dentry)
 		return -EINVAL;
 
-	dentry = debugfs_create_file_unsafe("prefix_len", 0644, root,
+	dentry = defs_create_file_unsafe("prefix_len", 0644, root,
 					    &ldev->ctx.table[id],
 					    &lowpan_ctx_plen_fops);
 	if (!dentry)
@@ -245,10 +245,10 @@ static int lowpan_short_addr_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(lowpan_short_addr_fops, lowpan_short_addr_get, NULL,
+DEFINE_DEFS_ATTRIBUTE(lowpan_short_addr_fops, lowpan_short_addr_get, NULL,
 			 "0x%04llx\n");
 
-static int lowpan_dev_debugfs_802154_init(const struct net_device *dev,
+static int lowpan_dev_defs_802154_init(const struct net_device *dev,
 					  struct lowpan_dev *ldev)
 {
 	struct dentry *dentry, *root;
@@ -256,11 +256,11 @@ static int lowpan_dev_debugfs_802154_init(const struct net_device *dev,
 	if (!lowpan_is_ll(dev, LOWPAN_LLTYPE_IEEE802154))
 		return 0;
 
-	root = debugfs_create_dir("ieee802154", ldev->iface_debugfs);
+	root = defs_create_dir("ieee802154", ldev->iface_defs);
 	if (!root)
 		return -EINVAL;
 
-	dentry = debugfs_create_file_unsafe("short_addr", 0444, root,
+	dentry = defs_create_file_unsafe("short_addr", 0444, root,
 					    lowpan_802154_dev(dev)->wdev->ieee802154_ptr,
 					    &lowpan_short_addr_fops);
 	if (!dentry)
@@ -269,60 +269,60 @@ static int lowpan_dev_debugfs_802154_init(const struct net_device *dev,
 	return 0;
 }
 
-int lowpan_dev_debugfs_init(struct net_device *dev)
+int lowpan_dev_defs_init(struct net_device *dev)
 {
 	struct lowpan_dev *ldev = lowpan_dev(dev);
 	struct dentry *contexts, *dentry;
 	int ret, i;
 
 	/* creating the root */
-	ldev->iface_debugfs = debugfs_create_dir(dev->name, lowpan_debugfs);
-	if (!ldev->iface_debugfs)
+	ldev->iface_defs = defs_create_dir(dev->name, lowpan_defs);
+	if (!ldev->iface_defs)
 		goto fail;
 
-	contexts = debugfs_create_dir("contexts", ldev->iface_debugfs);
+	contexts = defs_create_dir("contexts", ldev->iface_defs);
 	if (!contexts)
 		goto remove_root;
 
-	dentry = debugfs_create_file("show", 0644, contexts,
+	dentry = defs_create_file("show", 0644, contexts,
 				     &lowpan_dev(dev)->ctx,
 				     &lowpan_context_fops);
 	if (!dentry)
 		goto remove_root;
 
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++) {
-		ret = lowpan_dev_debugfs_ctx_init(dev, contexts, i);
+		ret = lowpan_dev_defs_ctx_init(dev, contexts, i);
 		if (ret < 0)
 			goto remove_root;
 	}
 
-	ret = lowpan_dev_debugfs_802154_init(dev, ldev);
+	ret = lowpan_dev_defs_802154_init(dev, ldev);
 	if (ret < 0)
 		goto remove_root;
 
 	return 0;
 
 remove_root:
-	lowpan_dev_debugfs_exit(dev);
+	lowpan_dev_defs_exit(dev);
 fail:
 	return -EINVAL;
 }
 
-void lowpan_dev_debugfs_exit(struct net_device *dev)
+void lowpan_dev_defs_exit(struct net_device *dev)
 {
-	debugfs_remove_recursive(lowpan_dev(dev)->iface_debugfs);
+	defs_remove_recursive(lowpan_dev(dev)->iface_defs);
 }
 
-int __init lowpan_debugfs_init(void)
+int __init lowpan_defs_init(void)
 {
-	lowpan_debugfs = debugfs_create_dir("6lowpan", NULL);
-	if (!lowpan_debugfs)
+	lowpan_defs = defs_create_dir("6lowpan", NULL);
+	if (!lowpan_defs)
 		return -EINVAL;
 
 	return 0;
 }
 
-void lowpan_debugfs_exit(void)
+void lowpan_defs_exit(void)
 {
-	debugfs_remove_recursive(lowpan_debugfs);
+	defs_remove_recursive(lowpan_defs);
 }

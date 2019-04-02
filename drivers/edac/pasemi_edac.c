@@ -38,27 +38,27 @@
 #define   MCCFG_ERRCOR_ECC_CRR_EN		0x00000001
 #define MCCFG_SCRUB				0x384
 #define   MCCFG_SCRUB_RGLR_SCRB_EN		0x00000001
-#define MCDEBUG_ERRCTL1				0x728
-#define   MCDEBUG_ERRCTL1_RFL_LOG_EN		0x00080000
-#define   MCDEBUG_ERRCTL1_MBE_LOG_EN		0x00040000
-#define   MCDEBUG_ERRCTL1_SBE_LOG_EN		0x00020000
-#define MCDEBUG_ERRSTA				0x730
-#define   MCDEBUG_ERRSTA_RFL_STATUS		0x00000004
-#define   MCDEBUG_ERRSTA_MBE_STATUS		0x00000002
-#define   MCDEBUG_ERRSTA_SBE_STATUS		0x00000001
-#define MCDEBUG_ERRCNT1				0x734
-#define   MCDEBUG_ERRCNT1_SBE_CNT_OVRFLO	0x00000080
-#define MCDEBUG_ERRLOG1A			0x738
-#define   MCDEBUG_ERRLOG1A_MERR_TYPE_M		0x30000000
-#define   MCDEBUG_ERRLOG1A_MERR_TYPE_NONE	0x00000000
-#define   MCDEBUG_ERRLOG1A_MERR_TYPE_SBE	0x10000000
-#define   MCDEBUG_ERRLOG1A_MERR_TYPE_MBE	0x20000000
-#define   MCDEBUG_ERRLOG1A_MERR_TYPE_RFL	0x30000000
-#define   MCDEBUG_ERRLOG1A_MERR_BA_M		0x00700000
-#define   MCDEBUG_ERRLOG1A_MERR_BA_S		20
-#define   MCDEBUG_ERRLOG1A_MERR_CS_M		0x00070000
-#define   MCDEBUG_ERRLOG1A_MERR_CS_S		16
-#define   MCDEBUG_ERRLOG1A_SYNDROME_M		0x0000ffff
+#define MCDE_ERRCTL1				0x728
+#define   MCDE_ERRCTL1_RFL_LOG_EN		0x00080000
+#define   MCDE_ERRCTL1_MBE_LOG_EN		0x00040000
+#define   MCDE_ERRCTL1_SBE_LOG_EN		0x00020000
+#define MCDE_ERRSTA				0x730
+#define   MCDE_ERRSTA_RFL_STATUS		0x00000004
+#define   MCDE_ERRSTA_MBE_STATUS		0x00000002
+#define   MCDE_ERRSTA_SBE_STATUS		0x00000001
+#define MCDE_ERRCNT1				0x734
+#define   MCDE_ERRCNT1_SBE_CNT_OVRFLO	0x00000080
+#define MCDE_ERRLOG1A			0x738
+#define   MCDE_ERRLOG1A_MERR_TYPE_M		0x30000000
+#define   MCDE_ERRLOG1A_MERR_TYPE_NONE	0x00000000
+#define   MCDE_ERRLOG1A_MERR_TYPE_SBE	0x10000000
+#define   MCDE_ERRLOG1A_MERR_TYPE_MBE	0x20000000
+#define   MCDE_ERRLOG1A_MERR_TYPE_RFL	0x30000000
+#define   MCDE_ERRLOG1A_MERR_BA_M		0x00700000
+#define   MCDE_ERRLOG1A_MERR_BA_S		20
+#define   MCDE_ERRLOG1A_MERR_CS_M		0x00070000
+#define   MCDE_ERRLOG1A_MERR_CS_S		16
+#define   MCDE_ERRLOG1A_SYNDROME_M		0x0000ffff
 #define MCDRAM_RANKCFG				0x114
 #define   MCDRAM_RANKCFG_EN			0x00000001
 #define   MCDRAM_RANKCFG_TYPE_SIZE_M		0x000001c0
@@ -77,17 +77,17 @@ static u32 pasemi_edac_get_error_info(struct mem_ctl_info *mci)
 	struct pci_dev *pdev = to_pci_dev(mci->pdev);
 	u32 tmp;
 
-	pci_read_config_dword(pdev, MCDEBUG_ERRSTA,
+	pci_read_config_dword(pdev, MCDE_ERRSTA,
 			      &tmp);
 
-	tmp &= (MCDEBUG_ERRSTA_RFL_STATUS | MCDEBUG_ERRSTA_MBE_STATUS
-		| MCDEBUG_ERRSTA_SBE_STATUS);
+	tmp &= (MCDE_ERRSTA_RFL_STATUS | MCDE_ERRSTA_MBE_STATUS
+		| MCDE_ERRSTA_SBE_STATUS);
 
 	if (tmp) {
-		if (tmp & MCDEBUG_ERRSTA_SBE_STATUS)
-			pci_write_config_dword(pdev, MCDEBUG_ERRCNT1,
-					       MCDEBUG_ERRCNT1_SBE_CNT_OVRFLO);
-		pci_write_config_dword(pdev, MCDEBUG_ERRSTA, tmp);
+		if (tmp & MCDE_ERRSTA_SBE_STATUS)
+			pci_write_config_dword(pdev, MCDE_ERRCNT1,
+					       MCDE_ERRCNT1_SBE_CNT_OVRFLO);
+		pci_write_config_dword(pdev, MCDE_ERRSTA, tmp);
 	}
 
 	return tmp;
@@ -102,21 +102,21 @@ static void pasemi_edac_process_error_info(struct mem_ctl_info *mci, u32 errsta)
 	if (!errsta)
 		return;
 
-	pci_read_config_dword(pdev, MCDEBUG_ERRLOG1A, &errlog1a);
+	pci_read_config_dword(pdev, MCDE_ERRLOG1A, &errlog1a);
 
-	cs = (errlog1a & MCDEBUG_ERRLOG1A_MERR_CS_M) >>
-		MCDEBUG_ERRLOG1A_MERR_CS_S;
+	cs = (errlog1a & MCDE_ERRLOG1A_MERR_CS_M) >>
+		MCDE_ERRLOG1A_MERR_CS_S;
 
 	/* uncorrectable/multi-bit errors */
-	if (errsta & (MCDEBUG_ERRSTA_MBE_STATUS |
-		      MCDEBUG_ERRSTA_RFL_STATUS)) {
+	if (errsta & (MCDE_ERRSTA_MBE_STATUS |
+		      MCDE_ERRSTA_RFL_STATUS)) {
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     mci->csrows[cs]->first_page, 0, 0,
 				     cs, 0, -1, mci->ctl_name, "");
 	}
 
 	/* correctable/single-bit errors */
-	if (errsta & MCDEBUG_ERRSTA_SBE_STATUS)
+	if (errsta & MCDE_ERRSTA_SBE_STATUS)
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     mci->csrows[cs]->first_page, 0, 0,
 				     cs, 0, -1, mci->ctl_name, "");
@@ -203,11 +203,11 @@ static int pasemi_edac_probe(struct pci_dev *pdev,
 	 * We should think about enabling other error detection later on
 	 */
 
-	pci_read_config_dword(pdev, MCDEBUG_ERRCTL1, &errctl1);
-	errctl1 |= MCDEBUG_ERRCTL1_SBE_LOG_EN |
-		MCDEBUG_ERRCTL1_MBE_LOG_EN |
-		MCDEBUG_ERRCTL1_RFL_LOG_EN;
-	pci_write_config_dword(pdev, MCDEBUG_ERRCTL1, errctl1);
+	pci_read_config_dword(pdev, MCDE_ERRCTL1, &errctl1);
+	errctl1 |= MCDE_ERRCTL1_SBE_LOG_EN |
+		MCDE_ERRCTL1_MBE_LOG_EN |
+		MCDE_ERRCTL1_RFL_LOG_EN;
+	pci_write_config_dword(pdev, MCDE_ERRCTL1, errctl1);
 
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
 	layers[0].size = PASEMI_EDAC_NR_CSROWS;

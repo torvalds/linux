@@ -21,7 +21,7 @@ static int flush_racache(struct inode *inode)
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG,
+	gossip_de(GOSSIP_UTILS_DE,
 	    "%s: %pU: Handle is %pU | fs_id %d\n", __func__,
 	    get_khandle_from_ino(inode), &orangefs_inode->refn.khandle,
 	    orangefs_inode->refn.fs_id);
@@ -34,7 +34,7 @@ static int flush_racache(struct inode *inode)
 	ret = service_operation(new_op, "orangefs_flush_racache",
 	    get_interruptible_flag(inode));
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: got return value of %d\n",
+	gossip_de(GOSSIP_UTILS_DE, "%s: got return value of %d\n",
 	    __func__, ret);
 
 	op_release(new_op);
@@ -68,12 +68,12 @@ populate_shared_memory:
 	buffer_index = orangefs_bufmap_get();
 	if (buffer_index < 0) {
 		ret = buffer_index;
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s: orangefs_bufmap_get failure (%zd)\n",
 			     __func__, ret);
 		goto out;
 	}
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "%s(%pU): GET op %p -> buffer_index %d\n",
 		     __func__,
 		     handle,
@@ -85,7 +85,7 @@ populate_shared_memory:
 	new_op->upcall.req.io.count = total_size;
 	new_op->upcall.req.io.offset = *offset;
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
 		     __func__,
 		     handle,
@@ -104,7 +104,7 @@ populate_shared_memory:
 		}
 	}
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "%s(%pU): Calling post_io_request with tag (%llu)\n",
 		     __func__,
 		     handle,
@@ -131,7 +131,7 @@ populate_shared_memory:
 		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s:going to repopulate_shared_memory.\n",
 			     __func__);
 		goto populate_shared_memory;
@@ -177,7 +177,7 @@ populate_shared_memory:
 				ret = 0;
 				break;
 			}
-			gossip_debug(GOSSIP_FILE_DEBUG,
+			gossip_de(GOSSIP_FILE_DE,
 				     "%s: got EINTR, state:%d: %p\n",
 				     __func__,
 				     new_op->op_state,
@@ -212,7 +212,7 @@ populate_shared_memory:
 			goto out;
 		}
 	}
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 	    "%s(%pU): Amount %s, returned by the sys-io call:%d\n",
 	    __func__,
 	    handle,
@@ -224,7 +224,7 @@ populate_shared_memory:
 out:
 	if (buffer_index >= 0) {
 		orangefs_bufmap_put(buffer_index);
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s(%pU): PUT buffer_index %d\n",
 			     __func__, handle, buffer_index);
 		buffer_index = -1;
@@ -250,14 +250,14 @@ static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		"%s-BEGIN(%pU): count(%d) after estimate_max_iovecs.\n",
 		__func__,
 		handle,
 		(int)count);
 
 	if (type == ORANGEFS_IO_WRITE) {
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s(%pU): proceeding with offset : %llu, "
 			     "size %d\n",
 			     __func__,
@@ -279,12 +279,12 @@ static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 		if (each_count > orangefs_bufmap_size_query())
 			each_count = orangefs_bufmap_size_query();
 
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s(%pU): size of each_count(%d)\n",
 			     __func__,
 			     handle,
 			     (int)each_count);
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s(%pU): BEFORE wait_for_io: offset is %d\n",
 			     __func__,
 			     handle,
@@ -292,7 +292,7 @@ static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 
 		ret = wait_for_direct_io(type, inode, offset, iter,
 				each_count, 0);
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
 			     handle,
@@ -305,7 +305,7 @@ static ssize_t do_readv_writev(enum ORANGEFS_io_type type, struct file *file,
 		total_count += ret;
 		amt_complete = ret;
 
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s(%pU): AFTER wait_for_io: offset is %d\n",
 			     __func__,
 			     handle,
@@ -338,7 +338,7 @@ out:
 		}
 	}
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "%s(%pU): Value(%d) returned.\n",
 		     __func__,
 		     handle,
@@ -365,13 +365,13 @@ ssize_t orangefs_inode_read(struct inode *inode,
 
 	bufmap_size = orangefs_bufmap_size_query();
 	if (count > bufmap_size) {
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "%s: count is too large (%zd/%zd)!\n",
 			     __func__, count, bufmap_size);
 		return -EINVAL;
 	}
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "%s(%pU) %zd@%llu\n",
 		     __func__,
 		     &orangefs_inode->refn.khandle,
@@ -383,7 +383,7 @@ ssize_t orangefs_inode_read(struct inode *inode,
 	if (ret > 0)
 		*offset += ret;
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "%s(%pU): Value(%zd) returned.\n",
 		     __func__,
 		     &orangefs_inode->refn.khandle,
@@ -398,7 +398,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter
 	loff_t pos = iocb->ki_pos;
 	ssize_t rc = 0;
 
-	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
+	gossip_de(GOSSIP_FILE_DE, "orangefs_file_read_iter\n");
 
 	orangefs_stats.reads++;
 
@@ -414,7 +414,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	loff_t pos;
 	ssize_t rc;
 
-	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
+	gossip_de(GOSSIP_FILE_DE, "orangefs_file_write_iter\n");
 
 	inode_lock(file->f_mapping->host);
 
@@ -474,7 +474,7 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	__u64 val = 0;
 	unsigned long uval;
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "orangefs_ioctl: called with cmd %d\n",
 		     cmd);
 
@@ -492,7 +492,7 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 		else if (ret == -ENODATA)
 			val = 0;
 		uval = val;
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "orangefs_ioctl: FS_IOC_GETFLAGS: %llu\n",
 			     (unsigned long long)uval);
 		return put_user(uval, (int __user *)arg);
@@ -513,7 +513,7 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			return -EINVAL;
 		}
 		val = uval;
-		gossip_debug(GOSSIP_FILE_DEBUG,
+		gossip_de(GOSSIP_FILE_DE,
 			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
 		ret = orangefs_inode_setxattr(file_inode(file),
@@ -552,7 +552,7 @@ static const struct vm_operations_struct orangefs_file_vm_ops = {
  */
 static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "orangefs_file_mmap: called on %s\n",
 		     (file ?
 			(char *)file->f_path.dentry->d_name.name :
@@ -580,7 +580,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
  */
 static int orangefs_file_release(struct inode *inode, struct file *file)
 {
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "orangefs_file_release: called on %pD\n",
 		     file);
 
@@ -593,11 +593,11 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	    file_inode(file)->i_mapping &&
 	    mapping_nrpages(&file_inode(file)->i_data)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
-			gossip_debug(GOSSIP_INODE_DEBUG,
+			gossip_de(GOSSIP_INODE_DE,
 			    "calling flush_racache on %pU\n",
 			    get_khandle_from_ino(inode));
 			flush_racache(inode);
-			gossip_debug(GOSSIP_INODE_DEBUG,
+			gossip_de(GOSSIP_INODE_DE,
 			    "flush_racache finished\n");
 		}
 		truncate_inode_pages(file_inode(file)->i_mapping,
@@ -628,7 +628,7 @@ static int orangefs_fsync(struct file *file,
 			"orangefs_fsync",
 			get_interruptible_flag(file_inode(file)));
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "orangefs_fsync got return value of %d\n",
 		     ret);
 
@@ -661,7 +661,7 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 		if (ret == -ESTALE)
 			ret = -EIO;
 		if (ret) {
-			gossip_debug(GOSSIP_FILE_DEBUG,
+			gossip_de(GOSSIP_FILE_DE,
 				     "%s:%s:%d calling make bad inode\n",
 				     __FILE__,
 				     __func__,
@@ -670,7 +670,7 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 		}
 	}
 
-	gossip_debug(GOSSIP_FILE_DEBUG,
+	gossip_de(GOSSIP_FILE_DE,
 		     "orangefs_file_llseek: offset is %ld | origin is %d"
 		     " | inode size is %lu\n",
 		     (long)offset,

@@ -46,9 +46,9 @@
 #include "irq.h"
 
 #if 0
-#define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg)
+#define ioapic_de(fmt,arg...) printk(KERN_WARNING fmt,##arg)
 #else
-#define ioapic_debug(fmt, arg...)
+#define ioapic_de(fmt, arg...)
 #endif
 static int ioapic_service(struct kvm_ioapic *vioapic, int irq,
 		bool line_status);
@@ -294,7 +294,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	default:
 		index = (ioapic->ioregsel - 0x10) >> 1;
 
-		ioapic_debug("change redir index %x val %x\n", index, val);
+		ioapic_de("change redir index %x val %x\n", index, val);
 		if (index >= IOAPIC_NUM_PINS)
 			return;
 		e = &ioapic->redirtbl[index];
@@ -343,7 +343,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	    entry->fields.remote_irr))
 		return -1;
 
-	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
+	ioapic_de("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
 		     entry->fields.dest_id, entry->fields.dest_mode,
 		     entry->fields.delivery_mode, entry->fields.vector,
@@ -368,7 +368,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 		 * ensures that it is only called if it is >= zero, namely
 		 * if rtc_irq_check_coalesced returns false).
 		 */
-		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
+		_ON(ioapic->rtc_status.pending_eoi != 0);
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
 					       &ioapic->rtc_status.dest_map);
 		ioapic->rtc_status.pending_eoi = (ret < 0 ? 0 : ret);
@@ -386,7 +386,7 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
 {
 	int ret, irq_level;
 
-	BUG_ON(irq < 0 || irq >= IOAPIC_NUM_PINS);
+	_ON(irq < 0 || irq >= IOAPIC_NUM_PINS);
 
 	spin_lock(&ioapic->lock);
 	irq_level = __kvm_irq_line_state(&ioapic->irq_states[irq],
@@ -470,7 +470,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 				/*
 				 * Real hardware does not deliver the interrupt
 				 * immediately during eoi broadcast, and this
-				 * lets a buggy guest make slow progress
+				 * lets a gy guest make slow progress
 				 * even if it does not correctly handle a
 				 * level-triggered interrupt.  Emulate this
 				 * behavior if we detect an interrupt storm.
@@ -515,7 +515,7 @@ static int ioapic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 	if (!ioapic_in_range(ioapic, addr))
 		return -EOPNOTSUPP;
 
-	ioapic_debug("addr %lx\n", (unsigned long)addr);
+	ioapic_de("addr %lx\n", (unsigned long)addr);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
 	addr &= 0xff;
@@ -558,7 +558,7 @@ static int ioapic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 	if (!ioapic_in_range(ioapic, addr))
 		return -EOPNOTSUPP;
 
-	ioapic_debug("ioapic_mmio_write addr=%p len=%d val=%p\n",
+	ioapic_de("ioapic_mmio_write addr=%p len=%d val=%p\n",
 		     (void*)addr, len, val);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 

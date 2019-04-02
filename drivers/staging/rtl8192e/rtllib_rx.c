@@ -782,7 +782,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	u8		nPadding_Length = 0;
 	u16		SeqNum = 0;
 	struct sk_buff *sub_skb;
-	/* just for debug purpose */
+	/* just for de purpose */
 	SeqNum = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctl));
 	if ((RTLLIB_QOS_HAS_SEQ(fc)) &&
 	   (((union frameqos *)(skb->data + RTLLIB_3ADDR_LEN))->field.reserved))

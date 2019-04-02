@@ -71,23 +71,23 @@
 #define HERMES_PROGRAM_NON_VOLATILE        (0x0300 | HERMES_CMD_DOWNLD)
 
 /*
- * Debugging helpers
+ * Deging helpers
  */
 
-#define DMSG(stuff...) do {printk(KERN_DEBUG "hermes @ %p: " , hw->iobase); \
+#define DMSG(stuff...) do {printk(KERN_DE "hermes @ %p: " , hw->iobase); \
 			printk(stuff); } while (0)
 
-#undef HERMES_DEBUG
-#ifdef HERMES_DEBUG
+#undef HERMES_DE
+#ifdef HERMES_DE
 #include <stdarg.h>
 
-#define DEBUG(lvl, stuff...) if ((lvl) <= HERMES_DEBUG) DMSG(stuff)
+#define DE(lvl, stuff...) if ((lvl) <= HERMES_DE) DMSG(stuff)
 
-#else /* ! HERMES_DEBUG */
+#else /* ! HERMES_DE */
 
-#define DEBUG(lvl, stuff...) do { } while (0)
+#define DE(lvl, stuff...) do { } while (0)
 
-#endif /* ! HERMES_DEBUG */
+#endif /* ! HERMES_DE */
 
 static const struct hermes_ops hermes_ops_local;
 
@@ -154,7 +154,7 @@ static int hermes_doicmd_wait(struct hermes *hw, u16 cmd,
 	hermes_write_regn(hw, SWSUPPORT0, HERMES_MAGIC);
 
 	if (!hermes_present(hw)) {
-		DEBUG(0, "hermes @ 0x%x: Card removed during reset.\n",
+		DE(0, "hermes @ 0x%x: Card removed during reset.\n",
 		       hw->iobase);
 		err = -ENODEV;
 		goto out;
@@ -620,19 +620,19 @@ static int hermesi_program_init(struct hermes *hw, u32 offset)
 		return err;
 
 	err = hermes_aux_control(hw, 1);
-	pr_debug("AUX enable returned %d\n", err);
+	pr_de("AUX enable returned %d\n", err);
 
 	if (err)
 		return err;
 
-	pr_debug("Enabling volatile, EP 0x%08x\n", offset);
+	pr_de("Enabling volatile, EP 0x%08x\n", offset);
 	err = hw->ops->init_cmd_wait(hw,
 				     HERMES_PROGRAM_ENABLE_VOLATILE,
 				     offset & 0xFFFFu,
 				     offset >> 16,
 				     0,
 				     NULL);
-	pr_debug("PROGRAM_ENABLE returned %d\n", err);
+	pr_de("PROGRAM_ENABLE returned %d\n", err);
 
 	return err;
 }
@@ -651,7 +651,7 @@ static int hermesi_program_end(struct hermes *hw)
 
 	rc = hw->ops->cmd_wait(hw, HERMES_PROGRAM_DISABLE, 0, &resp);
 
-	pr_debug("PROGRAM_DISABLE returned %d, "
+	pr_de("PROGRAM_DISABLE returned %d, "
 		 "r0 0x%04x, r1 0x%04x, r2 0x%04x\n",
 		 rc, resp.resp0, resp.resp1, resp.resp2);
 
@@ -660,7 +660,7 @@ static int hermesi_program_end(struct hermes *hw)
 		rc = -EIO;
 
 	err = hermes_aux_control(hw, 0);
-	pr_debug("AUX disable returned %d\n", err);
+	pr_de("AUX disable returned %d\n", err);
 
 	/* Acknowledge any outstanding command */
 	hermes_write_regn(hw, EVACK, 0xFFFF);
@@ -712,7 +712,7 @@ static int hermes_read_pda(struct hermes *hw, __le16 *pda, u32 pda_addr,
 
 	/* Open auxiliary port */
 	ret = hermes_aux_control(hw, 1);
-	pr_debug("AUX enable returned %d\n", ret);
+	pr_de("AUX enable returned %d\n", ret);
 	if (ret)
 		return ret;
 
@@ -722,11 +722,11 @@ static int hermes_read_pda(struct hermes *hw, __le16 *pda, u32 pda_addr,
 
 	/* Close aux port */
 	ret = hermes_aux_control(hw, 0);
-	pr_debug("AUX disable returned %d\n", ret);
+	pr_de("AUX disable returned %d\n", ret);
 
 	/* Check PDA length */
 	pda_size = le16_to_cpu(pda[0]);
-	pr_debug("Actual PDA length %d, Max allowed %d\n",
+	pr_de("Actual PDA length %d, Max allowed %d\n",
 		 pda_size, pda_len);
 	if (pda_size > pda_len)
 		return -EINVAL;

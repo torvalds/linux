@@ -39,7 +39,7 @@ static unsigned usedma = 1;
 module_param(usedma, uint, 0644);
 
 /*
-#define AU1550_SPI_DEBUG_LOOPBACK
+#define AU1550_SPI_DE_LOOPBACK
 */
 
 
@@ -707,7 +707,7 @@ static void au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 	/* use minimal allowed brg and div values as initial setting: */
 	cfg |= PSC_SPICFG_SET_BAUD(4) | PSC_SPICFG_SET_DIV(0);
 
-#ifdef AU1550_SPI_DEBUG_LOOPBACK
+#ifdef AU1550_SPI_DE_LOOPBACK
 	cfg |= PSC_SPICFG_LB;
 #endif
 

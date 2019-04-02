@@ -58,9 +58,9 @@ static int push_mode;
 module_param(push_mode, int, 0644);
 MODULE_PARM_DESC(push_mode, "Low latency mode: 0=disabled (default), 1=enabled)");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug flags: 0=disabled (default), 0x7fffffff=all");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de flags: 0=disabled (default), 0x7fffffff=all");
 
 static int resource_profile;
 module_param(resource_profile, int, 0644);
@@ -1224,7 +1224,7 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 		    (dev == iwdev->netdev)) && (dev->flags & IFF_UP)) {
 			idev = in_dev_get(dev);
 			for_ifa(idev) {
-				i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM,
+				i40iw_de(&iwdev->sc_dev, I40IW_DE_CM,
 					    "IP=%pI4, vlan_id=%d, MAC=%pM\n", &ifa->ifa_address,
 					     rdma_vlan_dev_vlan_id(dev), dev->dev_addr);
 
@@ -1346,7 +1346,7 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	info.is_pf = (ldev->ftype) ? false : true;
 	info.bar0 = ldev->hw_addr;
 	info.hw = &iwdev->hw;
-	info.debug_mask = debug;
+	info.de_mask = de;
 	l2params.mtu =
 		(ldev->params.mtu) ? ldev->params.mtu : I40IW_DEFAULT_MTU;
 	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++) {

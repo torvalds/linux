@@ -12,7 +12,7 @@
  * Warning!
  *
  * Changes to the FIFO system should be done with extreme care since
- * the hardware is full of bugs related to the FIFO. Known issues are:
+ * the hardware is full of s related to the FIFO. Known issues are:
  *
  * - FIFO size field in FSR is always zero.
  *
@@ -44,9 +44,9 @@
 #define DRIVER_NAME "wbsd"
 
 #define DBG(x...) \
-	pr_debug(DRIVER_NAME ": " x)
+	pr_de(DRIVER_NAME ": " x)
 #define DBGF(f, x...) \
-	pr_debug(DRIVER_NAME " [%s()]: " f, __func__ , ##x)
+	pr_de(DRIVER_NAME " [%s()]: " f, __func__ , ##x)
 
 /*
  * Device resources
@@ -86,7 +86,7 @@ static int param_dma = 2;
 
 static inline void wbsd_unlock_config(struct wbsd_host *host)
 {
-	BUG_ON(host->config == 0);
+	_ON(host->config == 0);
 
 	outb(host->unlock_code, host->config);
 	outb(host->unlock_code, host->config);
@@ -94,14 +94,14 @@ static inline void wbsd_unlock_config(struct wbsd_host *host)
 
 static inline void wbsd_lock_config(struct wbsd_host *host)
 {
-	BUG_ON(host->config == 0);
+	_ON(host->config == 0);
 
 	outb(LOCK_CODE, host->config);
 }
 
 static inline void wbsd_write_config(struct wbsd_host *host, u8 reg, u8 value)
 {
-	BUG_ON(host->config == 0);
+	_ON(host->config == 0);
 
 	outb(reg, host->config);
 	outb(value, host->config + 1);
@@ -109,7 +109,7 @@ static inline void wbsd_write_config(struct wbsd_host *host, u8 reg, u8 value)
 
 static inline u8 wbsd_read_config(struct wbsd_host *host, u8 reg)
 {
-	BUG_ON(host->config == 0);
+	_ON(host->config == 0);
 
 	outb(reg, host->config);
 	return inb(host->config + 1);
@@ -598,7 +598,7 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 		/*
 		 * The buffer for DMA is only 64 kB.
 		 */
-		BUG_ON(size > 0x10000);
+		_ON(size > 0x10000);
 		if (size > 0x10000) {
 			data->error = -EINVAL;
 			return;
@@ -753,7 +753,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 */
 	spin_lock_bh(&host->lock);
 
-	BUG_ON(host->mrq != NULL);
+	_ON(host->mrq != NULL);
 
 	cmd = mrq->cmd;
 
@@ -821,7 +821,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 */
 	if (cmd->data && !cmd->error) {
 		/*
-		 * Dirty fix for hardware bug.
+		 * Dirty fix for hardware .
 		 */
 		if (host->dma == -1)
 			tasklet_schedule(&host->fifo_tasklet);
@@ -885,7 +885,7 @@ static void wbsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 */
 	setup = wbsd_read_index(host, WBSD_IDX_SETUP);
 	if (ios->chip_select == MMC_CS_HIGH) {
-		BUG_ON(ios->bus_width != MMC_BUS_WIDTH_1);
+		_ON(ios->bus_width != MMC_BUS_WIDTH_1);
 		setup |= WBSD_DAT3_H;
 		host->flags |= WBSD_FIGNORE_DETECT;
 	} else {
@@ -952,7 +952,7 @@ static void wbsd_reset_ignore(struct timer_list *t)
 {
 	struct wbsd_host *host = from_timer(host, t, ignore_timer);
 
-	BUG_ON(host == NULL);
+	_ON(host == NULL);
 
 	DBG("Resetting card detection ignore\n");
 
@@ -1262,7 +1262,7 @@ static void wbsd_free_mmc(struct device *dev)
 		return;
 
 	host = mmc_priv(mmc);
-	BUG_ON(host == NULL);
+	_ON(host == NULL);
 
 	del_timer_sync(&host->ignore_timer);
 
@@ -1403,9 +1403,9 @@ static void wbsd_request_dma(struct wbsd_host *host, int dma)
 
 unmap:
 	/*
-	 * If we've gotten here then there is some kind of alignment bug
+	 * If we've gotten here then there is some kind of alignment 
 	 */
-	BUG_ON(1);
+	_ON(1);
 
 	dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 		WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
@@ -1679,7 +1679,7 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	 */
 	if (pnp) {
 		if ((host->config != 0) && !wbsd_chip_validate(host)) {
-			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a buggy BIOS. Configuring chip manually.\n");
+			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a gy BIOS. Configuring chip manually.\n");
 			wbsd_chip_config(host);
 		}
 	} else
@@ -1872,7 +1872,7 @@ static int wbsd_pnp_resume(struct pnp_dev *pnp_dev)
 	 */
 	if (host->config != 0) {
 		if (!wbsd_chip_validate(host)) {
-			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a buggy BIOS. Configuring chip manually.\n");
+			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a gy BIOS. Configuring chip manually.\n");
 			wbsd_chip_config(host);
 		}
 	}

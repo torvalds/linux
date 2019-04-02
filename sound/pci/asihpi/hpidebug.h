@@ -16,25 +16,25 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-Debug macros.
+De macros.
 
 *****************************************************************************/
 
-#ifndef _HPIDEBUG_H
-#define _HPIDEBUG_H
+#ifndef _HPIDE_H
+#define _HPIDE_H
 
 #include "hpi_internal.h"
 
-/* Define debugging levels.  */
-enum { HPI_DEBUG_LEVEL_ERROR = 0,	/* always log errors */
-	HPI_DEBUG_LEVEL_WARNING = 1,
-	HPI_DEBUG_LEVEL_NOTICE = 2,
-	HPI_DEBUG_LEVEL_INFO = 3,
-	HPI_DEBUG_LEVEL_DEBUG = 4,
-	HPI_DEBUG_LEVEL_VERBOSE = 5	/* same printk level as DEBUG */
+/* Define deging levels.  */
+enum { HPI_DE_LEVEL_ERROR = 0,	/* always log errors */
+	HPI_DE_LEVEL_WARNING = 1,
+	HPI_DE_LEVEL_NOTICE = 2,
+	HPI_DE_LEVEL_INFO = 3,
+	HPI_DE_LEVEL_DE = 4,
+	HPI_DE_LEVEL_VERBOSE = 5	/* same printk level as DE */
 };
 
-#define HPI_DEBUG_LEVEL_DEFAULT HPI_DEBUG_LEVEL_NOTICE
+#define HPI_DE_LEVEL_DEFAULT HPI_DE_LEVEL_NOTICE
 
 /* an OS can define an extra flag string that is appended to
    the start of each message, eg see linux kernel hpios.h */
@@ -45,7 +45,7 @@ enum { HPI_DEBUG_LEVEL_ERROR = 0,	/* always log errors */
 #define FILE_LINE  __FILE__ ":" __stringify(__LINE__) " "
 #endif
 
-#define HPI_DEBUG_ASSERT(expression) \
+#define HPI_DE_ASSERT(expression) \
 	do { \
 		if (!(expression)) { \
 			printk(KERN_ERR  FILE_LINE \
@@ -53,44 +53,44 @@ enum { HPI_DEBUG_LEVEL_ERROR = 0,	/* always log errors */
 		} \
 	} while (0)
 
-#define HPI_DEBUG_LOG(level, ...) \
+#define HPI_DE_LOG(level, ...) \
 	do { \
-		if (hpi_debug_level >= HPI_DEBUG_LEVEL_##level) { \
-			printk(HPI_DEBUG_FLAG_##level \
+		if (hpi_de_level >= HPI_DE_LEVEL_##level) { \
+			printk(HPI_DE_FLAG_##level \
 			FILE_LINE  __VA_ARGS__); \
 		} \
 	} while (0)
 
-void hpi_debug_init(void);
-int hpi_debug_level_set(int level);
-int hpi_debug_level_get(void);
-/* needed by Linux driver for dynamic debug level changes */
-extern int hpi_debug_level;
+void hpi_de_init(void);
+int hpi_de_level_set(int level);
+int hpi_de_level_get(void);
+/* needed by Linux driver for dynamic de level changes */
+extern int hpi_de_level;
 
-void hpi_debug_message(struct hpi_message *phm, char *sz_fileline);
+void hpi_de_message(struct hpi_message *phm, char *sz_fileline);
 
-void hpi_debug_data(u16 *pdata, u32 len);
+void hpi_de_data(u16 *pdata, u32 len);
 
-#define HPI_DEBUG_DATA(pdata, len) \
+#define HPI_DE_DATA(pdata, len) \
 	do { \
-		if (hpi_debug_level >= HPI_DEBUG_LEVEL_VERBOSE) \
-			hpi_debug_data(pdata, len); \
+		if (hpi_de_level >= HPI_DE_LEVEL_VERBOSE) \
+			hpi_de_data(pdata, len); \
 	} while (0)
 
-#define HPI_DEBUG_MESSAGE(level, phm) \
+#define HPI_DE_MESSAGE(level, phm) \
 	do { \
-		if (hpi_debug_level >= HPI_DEBUG_LEVEL_##level) { \
-			hpi_debug_message(phm, HPI_DEBUG_FLAG_##level \
+		if (hpi_de_level >= HPI_DE_LEVEL_##level) { \
+			hpi_de_message(phm, HPI_DE_FLAG_##level \
 				FILE_LINE __stringify(level)); \
 		} \
 	} while (0)
 
-#define HPI_DEBUG_RESPONSE(phr) \
+#define HPI_DE_RESPONSE(phr) \
 	do { \
-		if (((hpi_debug_level >= HPI_DEBUG_LEVEL_DEBUG) && \
+		if (((hpi_de_level >= HPI_DE_LEVEL_DE) && \
 			(phr->error)) ||\
-		(hpi_debug_level >= HPI_DEBUG_LEVEL_VERBOSE)) \
-			printk(KERN_DEBUG "HPI_RES%d,%d,%d\n", \
+		(hpi_de_level >= HPI_DE_LEVEL_VERBOSE)) \
+			printk(KERN_DE "HPI_RES%d,%d,%d\n", \
 				phr->version, phr->error, phr->specific_error); \
 	} while (0)
 
@@ -99,4 +99,4 @@ void hpi_debug_data(u16 *pdata, u32 len);
     typedef char msg[(cond) ? 1 : -1]
 #endif
 
-#endif				/* _HPIDEBUG_H_  */
+#endif				/* _HPIDE_H_  */

@@ -32,7 +32,7 @@ SYNOPSIS
 
 \ **parse_headers.pl**\  [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
 
-Where <options> can be: --debug, --help or --usage.
+Where <options> can be: --de, --help or --usage.
 
 
 OPTIONS
@@ -40,9 +40,9 @@ OPTIONS
 
 
 
-\ **--debug**\
+\ **--de**\
 
- Put the script in verbose mode, useful for debugging.
+ Put the script in verbose mode, useful for deging.
 
 
 
@@ -173,11 +173,11 @@ It will make the BAR1 and BAR2 enum symbols to cross reference the foo
 symbol at the C domain.
 
 
-BUGS
+S
 ****
 
 
-Report bugs to Mauro Carvalho Chehab <mchehab@kernel.org>
+Report s to Mauro Carvalho Chehab <mchehab@kernel.org>
 
 
 COPYRIGHT

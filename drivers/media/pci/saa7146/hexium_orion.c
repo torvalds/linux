@@ -23,15 +23,15 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DEBUG_VARIABLE debug
+#define DE_VARIABLE de
 
 #include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "debug verbosity");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "de verbosity");
 
 /* global variables */
 static int hexium_num;
@@ -318,7 +318,7 @@ static int hexium_set_input(struct hexium *hexium, int input)
 		if (0 != i2c_smbus_xfer(&hexium->i2c_adapter, 0x4e, 0, I2C_SMBUS_WRITE, adr, I2C_SMBUS_BYTE_DATA, &data)) {
 			return -1;
 		}
-		pr_debug("%d: 0x%02x => 0x%02x\n", input, adr, data.byte);
+		pr_de("%d: 0x%02x => 0x%02x\n", input, adr, data.byte);
 	}
 
 	return 0;

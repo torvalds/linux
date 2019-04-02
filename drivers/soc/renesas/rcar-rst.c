@@ -100,7 +100,7 @@ static int __init rcar_rst_init(void)
 		}
 	}
 
-	pr_debug("%pOF: MODE = 0x%08x\n", np, saved_mode);
+	pr_de("%pOF: MODE = 0x%08x\n", np, saved_mode);
 
 out_put:
 	of_node_put(np);

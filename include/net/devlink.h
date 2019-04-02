@@ -533,13 +533,13 @@ struct devlink_ops {
 
 static inline void *devlink_priv(struct devlink *devlink)
 {
-	BUG_ON(!devlink);
+	_ON(!devlink);
 	return &devlink->priv;
 }
 
 static inline struct devlink *priv_to_devlink(void *priv)
 {
-	BUG_ON(!priv);
+	_ON(!priv);
 	return container_of(priv, struct devlink, priv);
 }
 

@@ -170,7 +170,7 @@ static __init const void *sead3_fixup_fdt(const void *fdt,
 		panic("Corrupt DT");
 
 	/* if this isn't SEAD3, something went wrong */
-	BUG_ON(fdt_node_check_compatible(fdt, 0, "mti,sead-3"));
+	_ON(fdt_node_check_compatible(fdt, 0, "mti,sead-3"));
 
 	fw_init_cmdline();
 

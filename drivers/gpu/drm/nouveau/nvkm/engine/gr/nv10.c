@@ -366,7 +366,7 @@ static int nv10_gr_ctx_regs[] = {
 };
 
 static int nv17_gr_ctx_regs[] = {
-	NV10_PGRAPH_DEBUG_4,
+	NV10_PGRAPH_DE_4,
 	0x004006b0,
 	0x00400eac,
 	0x00400eb0,
@@ -508,7 +508,7 @@ nv17_gr_mthd_lma_enable(struct nv10_gr_chan *chan, u32 mthd, u32 data)
 
 	nv04_gr_idle(gr);
 
-	nvkm_mask(device, NV10_PGRAPH_DEBUG_4, 0x00000100, 0x00000100);
+	nvkm_mask(device, NV10_PGRAPH_DE_4, 0x00000100, 0x00000100);
 	nvkm_mask(device, 0x4006b0, 0x08000000, 0x08000000);
 }
 
@@ -1023,8 +1023,8 @@ nv10_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	NV_WRITE_CTX(0x00400e34, 0x00080008);
 	if (device->card_type >= NV_11 && device->chipset >= 0x17) {
 		/* is it really needed ??? */
-		NV17_WRITE_CTX(NV10_PGRAPH_DEBUG_4,
-			       nvkm_rd32(device, NV10_PGRAPH_DEBUG_4));
+		NV17_WRITE_CTX(NV10_PGRAPH_DE_4,
+			       nvkm_rd32(device, NV10_PGRAPH_DE_4));
 		NV17_WRITE_CTX(0x004006b0, nvkm_rd32(device, 0x004006b0));
 		NV17_WRITE_CTX(0x00400eac, 0x0fff0000);
 		NV17_WRITE_CTX(0x00400eb0, 0x0fff0000);
@@ -1141,21 +1141,21 @@ nv10_gr_init(struct nvkm_gr *base)
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x00118700);
-	/* nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x24E00810); */ /* 0x25f92ad9 */
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x25f92ad9);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0x55DE0830 | (1 << 29) | (1 << 31));
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_1, 0x00118700);
+	/* nvkm_wr32(device, NV04_PGRAPH_DE_2, 0x24E00810); */ /* 0x25f92ad9 */
+	nvkm_wr32(device, NV04_PGRAPH_DE_2, 0x25f92ad9);
+	nvkm_wr32(device, NV04_PGRAPH_DE_3, 0x55DE0830 | (1 << 29) | (1 << 31));
 
 	if (device->card_type >= NV_11 && device->chipset >= 0x17) {
-		nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x1f000000);
+		nvkm_wr32(device, NV10_PGRAPH_DE_4, 0x1f000000);
 		nvkm_wr32(device, 0x400a10, 0x03ff3fb6);
 		nvkm_wr32(device, 0x400838, 0x002f8684);
 		nvkm_wr32(device, 0x40083c, 0x00115f3f);
 		nvkm_wr32(device, 0x4006b0, 0x40000020);
 	} else {
-		nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00000000);
+		nvkm_wr32(device, NV10_PGRAPH_DE_4, 0x00000000);
 	}
 
 	nvkm_wr32(device, NV10_PGRAPH_CTX_SWITCH(0), 0x00000000);

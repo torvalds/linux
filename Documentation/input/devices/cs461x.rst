@@ -33,7 +33,7 @@ separately of ALSA modules. So, you can use only one joystick driver
 without ALSA drivers. The ALSA drivers are not needed to compile or
 run this driver.
 
-There are no debug information print have been placed in source, and no
+There are no de information print have been placed in source, and no
 specific options required to work this driver. The found chipset parameters
 are printed via printk(KERN_INFO "..."), see the /var/log/messages to
 inspect cs461x: prefixed messages to determine possible card detection

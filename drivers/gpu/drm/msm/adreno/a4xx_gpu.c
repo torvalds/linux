@@ -30,7 +30,7 @@
 	 A4XX_INT0_CACHE_FLUSH_TS |        \
 	 A4XX_INT0_UCHE_OOB_ACCESS)
 
-extern bool hang_debug;
+extern bool hang_de;
 static void a4xx_dump(struct msm_gpu *gpu);
 static bool a4xx_idle(struct msm_gpu *gpu);
 
@@ -166,7 +166,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 		gpu_write(gpu, REG_A4XX_VBIF_IN_WR_LIM_CONF1, 0x00000018);
 		gpu_write(gpu, REG_A4XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
 	} else {
-		BUG();
+		();
 	}
 
 	/* Make all blocks contribute to the GPU BUSY perf counter */
@@ -214,7 +214,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_UCHE_TRAP_BASE_LO, 0xffff0000);
 	gpu_write(gpu, REG_A4XX_UCHE_TRAP_BASE_HI, 0xffff0000);
 
-	gpu_write(gpu, REG_A4XX_CP_DEBUG, (1 << 25) |
+	gpu_write(gpu, REG_A4XX_CP_DE, (1 << 25) |
 			(adreno_is_a420(adreno_gpu) ? (1 << 29) : 0));
 
 	/* On A430 enable SP regfile sleep for power savings */
@@ -309,7 +309,7 @@ static void a4xx_recover(struct msm_gpu *gpu)
 	}
 
 	/* dump registers before resetting gpu, if enabled: */
-	if (hang_debug)
+	if (hang_de)
 		a4xx_dump(gpu);
 
 	gpu_write(gpu, REG_A4XX_RBBM_SW_RESET_CMD, 1);
@@ -542,7 +542,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = adreno_active_ring,
 		.irq = a4xx_irq,
 		.destroy = a4xx_destroy,
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = adreno_show,
 #endif
 		.gpu_state_get = a4xx_gpu_state_get,

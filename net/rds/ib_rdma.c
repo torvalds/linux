@@ -125,8 +125,8 @@ void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *con
 
 	/* conn was previously on the nodev_conns_list */
 	spin_lock_irq(&ib_nodev_conns_lock);
-	BUG_ON(list_empty(&ib_nodev_conns));
-	BUG_ON(list_empty(&ic->ib_node));
+	_ON(list_empty(&ib_nodev_conns));
+	_ON(list_empty(&ic->ib_node));
 	list_del(&ic->ib_node);
 
 	spin_lock(&rds_ibdev->spinlock);
@@ -146,7 +146,7 @@ void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *
 	spin_lock(&ib_nodev_conns_lock);
 
 	spin_lock_irq(&rds_ibdev->spinlock);
-	BUG_ON(list_empty(&ic->ib_node));
+	_ON(list_empty(&ic->ib_node));
 	list_del(&ic->ib_node);
 	spin_unlock_irq(&rds_ibdev->spinlock);
 
@@ -502,7 +502,7 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 	struct rds_ib_mr_pool *pool = ibmr->pool;
 	struct rds_ib_device *rds_ibdev = ibmr->device;
 
-	rdsdebug("RDS/IB: free_mr nents %u\n", ibmr->sg_len);
+	rdsde("RDS/IB: free_mr nents %u\n", ibmr->sg_len);
 
 	/* Return it to the pool's free list */
 	if (rds_ibdev->use_fastreg)

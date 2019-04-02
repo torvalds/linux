@@ -12,7 +12,7 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
-#undef SVCRDMA_BACKCHANNEL_DEBUG
+#undef SVCRDMA_BACKCHANNEL_DE
 
 /**
  * svc_rdma_handle_bc_reply - Process incoming backchannel reply
@@ -40,7 +40,7 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	len = src->iov_len;
 	xid = *rdma_resp;
 
-#ifdef SVCRDMA_BACKCHANNEL_DEBUG
+#ifdef SVCRDMA_BACKCHANNEL_DE
 	pr_info("%s: xid=%08x, length=%zu\n",
 		__func__, be32_to_cpu(xid), len);
 	pr_info("%s: RPC/RDMA: %*ph\n",
@@ -191,7 +191,7 @@ rpcrdma_bc_send_request(struct svcxprt_rdma *rdma, struct rpc_rqst *rqst)
 	*p   = xdr_zero;
 	svc_rdma_sync_reply_hdr(rdma, ctxt, RPCRDMA_HDRLEN_MIN);
 
-#ifdef SVCRDMA_BACKCHANNEL_DEBUG
+#ifdef SVCRDMA_BACKCHANNEL_DE
 	pr_info("%s: %*ph\n", __func__, 64, rqst->rq_buffer);
 #endif
 

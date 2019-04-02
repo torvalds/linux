@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2009
  * EMC Symmetrix ioctl Copyright EMC Corporation, 2008
  * Author.........: Nigel Hislop <hislop_nigel@emc.com>
@@ -23,7 +23,7 @@
 #include <linux/seq_file.h>
 
 #include <asm/css_chars.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
@@ -481,7 +481,7 @@ static void locate_record_ext(struct ccw1 *ccw, struct LRE_eckd_data *data,
 	default:
 		DBF_DEV_EVENT(DBF_ERR, device,
 			    "fill LRE unknown opcode 0x%x", cmd);
-		BUG();
+		();
 	}
 	set_ch_t(&data->seek_addr,
 		 trk / private->rdc_data.trk_per_cyl,
@@ -523,7 +523,7 @@ static int prefix_LRE(struct ccw1 *ccw, struct PFX_eckd_data *pfxdata,
 	if (format > 1) {
 		DBF_DEV_EVENT(DBF_ERR, basedev,
 			      "PFX LRE unknown format 0x%x", format);
-		BUG();
+		();
 		return -EINVAL;
 	}
 	pfxdata->format = format;
@@ -3477,7 +3477,7 @@ static int prepare_itcw(struct itcw *itcw,
 	default:
 		DBF_DEV_EVENT(DBF_ERR, basedev,
 			      "prepare itcw, unknown opcode 0x%x", cmd);
-		BUG();
+		();
 		break;
 	}
 	if (rc)

@@ -9,7 +9,7 @@
  *  originally Copyright (C) 1995, 1996 Gero Kuhlmann and me.
  *
  *  BOOTP rewritten to construct and analyse packets itself instead
- *  of misusing the IP layer. num_bugs_causing_wrong_arp_replies--;
+ *  of misusing the IP layer. num_s_causing_wrong_arp_replies--;
  *					     -- MJ, December 1998
  *
  *  Fixed ip_auto_config_setup calling at startup in the new "Linker Magic"
@@ -259,7 +259,7 @@ static int __init ic_open_devs(void)
 			else
 				d->xid = 0;
 			ic_proto_have_if |= able;
-			pr_debug("IP-Config: %s UP (able=%d, xid=%08x)\n",
+			pr_de("IP-Config: %s UP (able=%d, xid=%08x)\n",
 				 dev->name, able, d->xid);
 		}
 	}
@@ -316,7 +316,7 @@ static void __init ic_close_devs(void)
 		next = d->next;
 		dev = d->dev;
 		if (d != ic_dev && !netdev_uses_dsa(dev)) {
-			pr_debug("IP-Config: Downing %s\n", dev->name);
+			pr_de("IP-Config: Downing %s\n", dev->name);
 			dev_change_flags(dev, d->flags, NULL);
 		}
 		kfree(d);
@@ -657,7 +657,7 @@ ic_dhcp_init_options(u8 *options, struct ic_device *d)
 	u8 *e = options;
 	int len;
 
-	pr_debug("DHCP: Sending message type %d (%s)\n", mt, d->dev->name);
+	pr_de("DHCP: Sending message type %d (%s)\n", mt, d->dev->name);
 
 	memcpy(e, ic_bootp_cookie, 4);	/* RFC1048 Magic Cookie */
 	e += 4;
@@ -895,10 +895,10 @@ static void __init ic_do_bootp_ext(u8 *ext)
 
 	u8 *c;
 
-	pr_debug("DHCP/BOOTP: Got extension %d:", *ext);
+	pr_de("DHCP/BOOTP: Got extension %d:", *ext);
 	for (c=ext+2; c<ext+2+ext[1]; c++)
-		pr_debug(" %02x", *c);
-	pr_debug("\n");
+		pr_de(" %02x", *c);
+	pr_de("\n");
 
 	switch (*ext++) {
 	case 1:		/* Subnet mask */
@@ -1070,7 +1070,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				}
 			}
 
-			pr_debug("DHCP: Got message type %d (%s)\n", mt, d->dev->name);
+			pr_de("DHCP: Got message type %d (%s)\n", mt, d->dev->name);
 
 			switch (mt) {
 			case DHCPOFFER:
@@ -1083,7 +1083,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				/* Let's accept that offer. */
 				ic_myaddr = b->your_ip;
 				ic_servaddr = server_id;
-				pr_debug("DHCP: Offered address %pI4 by server %pI4\n",
+				pr_de("DHCP: Offered address %pI4 by server %pI4\n",
 					 &ic_myaddr, &b->iph.saddr);
 				/* The DHCP indicated server address takes
 				 * precedence over the bootp header one if
@@ -1459,7 +1459,7 @@ static int __init ip_auto_config(void)
 	if (!ic_enable)
 		return 0;
 
-	pr_debug("IP-Config: Entered.\n");
+	pr_de("IP-Config: Entered.\n");
 #ifdef IPCONFIG_DYNAMIC
  try_try_again:
 #endif
@@ -1637,7 +1637,7 @@ static int __init ic_proto_name(char *name)
 				return 1;
 			*v = 0;
 			if (kstrtou8(client_id, 0, dhcp_client_identifier))
-				pr_debug("DHCP: Invalid client identifier type\n");
+				pr_de("DHCP: Invalid client identifier type\n");
 			strncpy(dhcp_client_identifier + 1, v + 1, 251);
 			*v = ',';
 		}
@@ -1698,7 +1698,7 @@ static int __init ip_auto_config_setup(char *addrs)
 		if ((cp = strchr(ip, ':')))
 			*cp++ = '\0';
 		if (strlen(ip) > 0) {
-			pr_debug("IP-Config: Parameter #%d: `%s'\n", num, ip);
+			pr_de("IP-Config: Parameter #%d: `%s'\n", num, ip);
 			switch (num) {
 			case 0:
 				if ((ic_myaddr = in_aton(ip)) == ANY)

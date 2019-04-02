@@ -181,7 +181,7 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		goto out;
 
 	/* We are doing this here because XDR marshalling does not
-	 * return any results, it BUGs. */
+	 * return any results, it s. */
 	status = -ENOSPC;
 	if (acl != NULL && acl->a_count > NFS_ACL_MAX_ENTRIES)
 		goto out;

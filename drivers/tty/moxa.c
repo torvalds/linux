@@ -745,7 +745,7 @@ static int moxa_load_fw(struct moxa_board_conf *brd, const struct firmware *fw)
 		__le16 len[5];
 	} const *hdr = ptr;
 
-	BUILD_BUG_ON(ARRAY_SIZE(hdr->len) != ARRAY_SIZE(lens));
+	BUILD__ON(ARRAY_SIZE(hdr->len) != ARRAY_SIZE(lens));
 
 	if (fw->size < MOXA_FW_HDRLEN) {
 		strcpy(rsn, "too short (even header won't fit)");
@@ -1064,7 +1064,7 @@ static int __init moxa_init(void)
 			break;
 		if (type[i] == MOXA_BOARD_C218_ISA ||
 				type[i] == MOXA_BOARD_C320_ISA) {
-			pr_debug("Moxa board %2d: %s board(baseAddr=%lx)\n",
+			pr_de("Moxa board %2d: %s board(baseAddr=%lx)\n",
 					isabrds + 1, moxa_brdname[type[i] - 1],
 					baseaddr[i]);
 			brd->boardType = type[i];

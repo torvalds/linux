@@ -65,7 +65,7 @@ static void sdhci_at91_set_clock(struct sdhci_host *host, unsigned int clock)
 	 * There is no requirement to disable the internal clock before
 	 * changing the SD clock configuration. Moreover, disabling the
 	 * internal clock, changing the configuration and re-enabling the
-	 * internal clock causes some bugs. It can prevent to get the internal
+	 * internal clock causes some s. It can prevent to get the internal
 	 * clock stable flag ready and an unexpected switch to the base clock
 	 * when using presets.
 	 */

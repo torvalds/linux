@@ -10,7 +10,7 @@
 
 #include "a6xx_gmu.h"
 
-extern bool hang_debug;
+extern bool hang_de;
 
 struct a6xx_gpu {
 	struct adreno_gpu base;

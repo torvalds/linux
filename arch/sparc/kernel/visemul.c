@@ -178,8 +178,8 @@ static inline unsigned long __user *__fetch_reg_addr_user(unsigned int reg,
 {
 	unsigned long fp = regs->u_regs[UREG_FP];
 
-	BUG_ON(reg < 16);
-	BUG_ON(regs->tstate & TSTATE_PRIV);
+	_ON(reg < 16);
+	_ON(regs->tstate & TSTATE_PRIV);
 
 	if (!test_thread_64bit_stack(fp)) {
 		struct reg_window32 __user *win32;
@@ -195,8 +195,8 @@ static inline unsigned long __user *__fetch_reg_addr_user(unsigned int reg,
 static inline unsigned long *__fetch_reg_addr_kern(unsigned int reg,
 						   struct pt_regs *regs)
 {
-	BUG_ON(reg >= 16);
-	BUG_ON(regs->tstate & TSTATE_PRIV);
+	_ON(reg >= 16);
+	_ON(regs->tstate & TSTATE_PRIV);
 
 	return &regs->u_regs[reg];
 }
@@ -806,7 +806,7 @@ int vis_emul(struct pt_regs *regs, unsigned int insn)
 	unsigned long pc = regs->tpc;
 	unsigned int opf;
 
-	BUG_ON(regs->tstate & TSTATE_PRIV);
+	_ON(regs->tstate & TSTATE_PRIV);
 
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 

@@ -5,13 +5,13 @@
 #include <linux/context_tracking_state.h>
 #include <linux/kprobes.h>
 
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/siginfo.h>			/* TRAP_TRACE, ... */
 
 #define dotraplinkage __visible
 
 asmlinkage void divide_error(void);
-asmlinkage void debug(void);
+asmlinkage void de(void);
 asmlinkage void nmi(void);
 asmlinkage void int3(void);
 asmlinkage void overflow(void);
@@ -28,7 +28,7 @@ asmlinkage void stack_segment(void);
 asmlinkage void general_protection(void);
 asmlinkage void page_fault(void);
 asmlinkage void async_page_fault(void);
-asmlinkage void spurious_interrupt_bug(void);
+asmlinkage void spurious_interrupt_(void);
 asmlinkage void coprocessor_error(void);
 asmlinkage void alignment_check(void);
 #ifdef CONFIG_X86_MCE
@@ -39,7 +39,7 @@ asmlinkage void simd_coprocessor_error(void);
 #if defined(CONFIG_X86_64) && defined(CONFIG_XEN_PV)
 asmlinkage void xen_divide_error(void);
 asmlinkage void xen_xennmi(void);
-asmlinkage void xen_xendebug(void);
+asmlinkage void xen_xende(void);
 asmlinkage void xen_xenint3(void);
 asmlinkage void xen_overflow(void);
 asmlinkage void xen_bounds(void);
@@ -52,7 +52,7 @@ asmlinkage void xen_segment_not_present(void);
 asmlinkage void xen_stack_segment(void);
 asmlinkage void xen_general_protection(void);
 asmlinkage void xen_page_fault(void);
-asmlinkage void xen_spurious_interrupt_bug(void);
+asmlinkage void xen_spurious_interrupt_(void);
 asmlinkage void xen_coprocessor_error(void);
 asmlinkage void xen_alignment_check(void);
 #ifdef CONFIG_X86_MCE
@@ -62,7 +62,7 @@ asmlinkage void xen_simd_coprocessor_error(void);
 #endif
 
 dotraplinkage void do_divide_error(struct pt_regs *regs, long error_code);
-dotraplinkage void do_debug(struct pt_regs *regs, long error_code);
+dotraplinkage void do_de(struct pt_regs *regs, long error_code);
 dotraplinkage void do_nmi(struct pt_regs *regs, long error_code);
 dotraplinkage void do_int3(struct pt_regs *regs, long error_code);
 dotraplinkage void do_overflow(struct pt_regs *regs, long error_code);
@@ -82,7 +82,7 @@ void __init trap_init(void);
 #endif
 dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code);
 dotraplinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code);
-dotraplinkage void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code);
+dotraplinkage void do_spurious_interrupt_(struct pt_regs *regs, long error_code);
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code);
 dotraplinkage void do_alignment_check(struct pt_regs *regs, long error_code);
 #ifdef CONFIG_X86_MCE
@@ -132,7 +132,7 @@ void __noreturn handle_stack_overflow(const char *message,
 /* Interrupts/Exceptions */
 enum {
 	X86_TRAP_DE = 0,	/*  0, Divide-by-zero */
-	X86_TRAP_DB,		/*  1, Debug */
+	X86_TRAP_DB,		/*  1, De */
 	X86_TRAP_NMI,		/*  2, Non-maskable Interrupt */
 	X86_TRAP_BP,		/*  3, Breakpoint */
 	X86_TRAP_OF,		/*  4, Overflow */

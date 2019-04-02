@@ -41,11 +41,11 @@
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 
-#ifdef NDEBUG
+#ifdef NDE
 #define REFCOUNT_WARN(cond, str) (void)(cond)
 #define __refcount_check
 #else
-#define REFCOUNT_WARN(cond, str) BUG_ON(cond)
+#define REFCOUNT_WARN(cond, str) _ON(cond)
 #define __refcount_check	__must_check
 #endif
 

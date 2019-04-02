@@ -31,12 +31,12 @@ struct ldc_channel_config {
 #define LDC_MODE_RESERVED	0x02
 #define LDC_MODE_STREAM		0x03
 
-	u8			debug;
-#define LDC_DEBUG_HS		0x01
-#define LDC_DEBUG_STATE		0x02
-#define LDC_DEBUG_RX		0x04
-#define LDC_DEBUG_TX		0x08
-#define LDC_DEBUG_DATA		0x10
+	u8			de;
+#define LDC_DE_HS		0x01
+#define LDC_DE_STATE		0x02
+#define LDC_DE_RX		0x04
+#define LDC_DE_TX		0x08
+#define LDC_DE_DATA		0x10
 };
 
 #define LDC_EVENT_RESET		0x01

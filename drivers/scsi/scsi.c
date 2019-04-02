@@ -9,7 +9,7 @@
  *
  *  <drew@colorado.edu>
  *
- *  Bug correction thanks go to :
+ *   correction thanks go to :
  *      Rik Faith <faith@cs.unc.edu>
  *      Tommy Thorn <tthorn>
  *      Thomas Wuensche <tw@fgb1.fgb.mw.tu-muenchen.de>
@@ -109,7 +109,7 @@ EXPORT_SYMBOL(scsi_sd_pm_domain);
 void scsi_put_command(struct scsi_cmnd *cmd)
 {
 	scsi_del_cmd_from_list(cmd);
-	BUG_ON(delayed_work_pending(&cmd->abort_work));
+	_ON(delayed_work_pending(&cmd->abort_work));
 }
 
 #ifdef CONFIG_SCSI_LOGGING

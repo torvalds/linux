@@ -45,7 +45,7 @@ struct pt_regs;
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 /*
- * Per-cpu stacks for handling critical, debug and machine check
+ * Per-cpu stacks for handling critical, de and machine check
  * level interrupts.
  */
 extern void *critirq_ctx[NR_CPUS];

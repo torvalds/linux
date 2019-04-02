@@ -170,7 +170,7 @@ typedef struct sg_device { /* holds the state of each scsi generic device */
 	atomic_t detaching;     /* 0->device usable, 1->device detaching */
 	bool exclude;		/* 1->open(O_EXCL) succeeded and is active */
 	int open_cnt;		/* count of opens (perhaps < num(sfds) ) */
-	char sgdebug;		/* 0->off, 1->sense, 9->dump dev, 10-> all devs */
+	char sgde;		/* 0->off, 1->sense, 9->dump dev, 10-> all devs */
 	struct gendisk *disk;
 	struct cdev * cdev;	/* char_dev [sysfs: /sys/cdev/major/sg<n>] */
 	struct kref d_ref;
@@ -348,7 +348,7 @@ sg_open(struct inode *inode, struct file *filp)
 		sdp->exclude = true;
 
 	if (sdp->open_cnt < 1) {  /* no existing opens */
-		sdp->sgdebug = 0;
+		sdp->sgde = 0;
 		q = sdp->device->request_queue;
 		sdp->sg_tablesize = queue_max_segments(q);
 	}
@@ -1104,11 +1104,11 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		if (atomic_read(&sdp->detaching))
 			return -ENODEV;
 		return sg_scsi_ioctl(sdp->device->request_queue, NULL, filp->f_mode, p);
-	case SG_SET_DEBUG:
+	case SG_SET_DE:
 		result = get_user(val, ip);
 		if (result)
 			return result;
-		sdp->sgdebug = (char) val;
+		sdp->sgde = (char) val;
 		return 0;
 	case BLKSECTGET:
 		return put_user(max_sectors_bytes(sdp->device->request_queue),
@@ -1359,7 +1359,7 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 		srp->header.msg_status = msg_byte(result);
 		srp->header.host_status = host_byte(result);
 		srp->header.driver_status = driver_byte(result);
-		if ((sdp->sgdebug > 0) &&
+		if ((sdp->sgde > 0) &&
 		    ((CHECK_CONDITION == srp->header.masked_status) ||
 		     (COMMAND_TERMINATED == srp->header.masked_status)))
 			__scsi_print_sense(sdp->device, __func__, sense,
@@ -2285,7 +2285,7 @@ sg_get_dev(int dev)
 		sdp = ERR_PTR(-ENXIO);
 	else if (atomic_read(&sdp->detaching)) {
 		/* If sdp->detaching, then the refcount may already be 0, in
-		 * which case it would be a bug to do kref_get().
+		 * which case it would be a  to do kref_get().
 		 */
 		sdp = ERR_PTR(-ENODEV);
 	} else
@@ -2343,12 +2343,12 @@ static const struct seq_operations devstrs_seq_ops = {
 	.show  = sg_proc_seq_show_devstrs,
 };
 
-static int sg_proc_seq_show_debug(struct seq_file *s, void *v);
-static const struct seq_operations debug_seq_ops = {
+static int sg_proc_seq_show_de(struct seq_file *s, void *v);
+static const struct seq_operations de_seq_ops = {
 	.start = dev_seq_start,
 	.next  = dev_seq_next,
 	.stop  = dev_seq_stop,
-	.show  = sg_proc_seq_show_debug,
+	.show  = sg_proc_seq_show_de,
 };
 
 static int
@@ -2361,7 +2361,7 @@ sg_proc_init(void)
 		return 1;
 
 	proc_create("allow_dio", S_IRUGO | S_IWUSR, p, &adio_fops);
-	proc_create_seq("debug", S_IRUGO, p, &debug_seq_ops);
+	proc_create_seq("de", S_IRUGO, p, &de_seq_ops);
 	proc_create("def_reserved_size", S_IRUGO | S_IWUSR, p, &dressz_fops);
 	proc_create_single("device_hdr", S_IRUGO, p, sg_proc_seq_show_devhdr);
 	proc_create_seq("devices", S_IRUGO, p, &dev_seq_ops);
@@ -2515,7 +2515,7 @@ static int sg_proc_seq_show_devstrs(struct seq_file *s, void *v)
 }
 
 /* must be called while holding sg_index_lock */
-static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
+static void sg_proc_de_helper(struct seq_file *s, Sg_device * sdp)
 {
 	int k, new_interface, blen, usg;
 	Sg_request *srp;
@@ -2578,7 +2578,7 @@ static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
 	}
 }
 
-static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
+static int sg_proc_seq_show_de(struct seq_file *s, void *v)
 {
 	struct sg_proc_deviter * it = (struct sg_proc_deviter *) v;
 	Sg_device *sdp;
@@ -2608,7 +2608,7 @@ static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
 		}
 		seq_printf(s, " sg_tablesize=%d excl=%d open_cnt=%d\n",
 			   sdp->sg_tablesize, sdp->exclude, sdp->open_cnt);
-		sg_proc_debug_helper(s, sdp);
+		sg_proc_de_helper(s, sdp);
 	}
 	read_unlock(&sdp->sfd_lock);
 skip:

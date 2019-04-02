@@ -33,7 +33,7 @@
 		ultra_pio_output()
 
 	This driver enables the shared memory only when doing the actual data
-	transfers to avoid a bug in early version of the card that corrupted
+	transfers to avoid a  in early version of the card that corrupted
 	data transferred by a AHA1542.
 
 	This driver now supports the programmed-I/O (PIO) data transfer mode of
@@ -566,7 +566,7 @@ module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_named(msg_enable, ultra_msg_enable, uint, 0444);
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");
-MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+MODULE_PARM_DESC(msg_enable, "De message level (see linux/netdevice.h for bitmap)");
 MODULE_DESCRIPTION("SMC Ultra/EtherEZ ISA/PnP Ethernet driver");
 MODULE_LICENSE("GPL");
 

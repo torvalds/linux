@@ -77,7 +77,7 @@ also check the following website for the current status:
 
 The ``net`` tree continues to collect fixes for the vX.Y content, and is
 fed back to Linus at regular (~weekly) intervals.  Meaning that the
-focus for ``net`` is on stabilization and bug fixes.
+focus for ``net`` is on stabilization and  fixes.
 
 Finally, the vX.Y gets released, and the whole cycle starts over.
 
@@ -93,14 +93,14 @@ probably imminent.
 
 Q: How do I indicate which tree (net vs. net-next) my patch should be in?
 -------------------------------------------------------------------------
-A: Firstly, think whether you have a bug fix or new "next-like" content.
+A: Firstly, think whether you have a  fix or new "next-like" content.
 Then once decided, assuming that you use git, use the prefix flag, i.e.
 ::
 
   git format-patch --subject-prefix='PATCH net-next' start..finish
 
 Use ``net`` instead of ``net-next`` (always lower case) in the above for
-bug-fix ``net`` content.  If you don't use git, then note the only magic
+-fix ``net`` content.  If you don't use git, then note the only magic
 in the above is just the subject text of the outgoing e-mail, and you
 can manually change it yourself with whatever MUA you are comfortable
 with.
@@ -196,8 +196,8 @@ Q: Should I add a Cc: stable@vger.kernel.org like the references in the
 kernel's Documentation/ directory say?
 A: No.  See above answer.  In short, if you think it really belongs in
 stable, then ensure you write a decent commit log that describes who
-gets impacted by the bug fix and how it manifests itself, and when the
-bug was introduced.  If you do that properly, then the commit will get
+gets impacted by the  fix and how it manifests itself, and when the
+ was introduced.  If you do that properly, then the commit will get
 handled appropriately and most likely get put in the patchworks stable
 queue if it really warrants it.
 
@@ -207,7 +207,7 @@ marker line as described in
 :ref:`Documentation/process/submitting-patches.rst <the_canonical_patch_format>`
 to temporarily embed that information into the patch that you send.
 
-Q: Are all networking bug fixes backported to all stable releases?
+Q: Are all networking  fixes backported to all stable releases?
 ------------------------------------------------------------------
 A: Due to capacity, Dave could only take care of the backports for the
 last two stable releases. For earlier stable releases, each stable
@@ -237,7 +237,7 @@ Q: Should I submit new code in the former style or the latter?
 A: Make it the latter style, so that eventually all code in the domain
 of netdev is of this format.
 
-Q: I found a bug that might have possible security implications or similar.
+Q: I found a  that might have possible security implications or similar.
 ---------------------------------------------------------------------------
 Q: Should I mail the main netdev maintainer off-list?**
 A: No. The current netdev maintainer has consistently requested that
@@ -259,7 +259,7 @@ Q: Any other tips to help ensure my net/net-next patch gets OK'd?
 A: Attention to detail.  Re-read your own work as if you were the
 reviewer.  You can start with using ``checkpatch.pl``, perhaps even with
 the ``--strict`` flag.  But do not be mindlessly robotic in doing so.
-If your change is a bug fix, make sure your commit log indicates the
+If your change is a  fix, make sure your commit log indicates the
 end-user visible symptom, the underlying reason as to why it happens,
 and then if necessary, explain why the fix proposed is the best way to
 get things done.  Don't mangle whitespace, and as is common, don't

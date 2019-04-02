@@ -169,7 +169,7 @@ void r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, bool
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DE("Update pending now high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~RADEON_CRTC_OFFSET__OFFSET_LOCK;
@@ -277,7 +277,7 @@ void r100_pm_get_dynpm_state(struct radeon_device *rdev)
 	/* only one clock mode per power state */
 	rdev->pm.requested_clock_mode_index = 0;
 
-	DRM_DEBUG_DRIVER("Requested: e: %d m: %d p: %d\n",
+	DRM_DE_DRIVER("Requested: e: %d m: %d p: %d\n",
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
 		  clock_info[rdev->pm.requested_clock_mode_index].sclk,
 		  rdev->pm.power_state[rdev->pm.requested_power_state_index].
@@ -429,7 +429,7 @@ void r100_pm_misc(struct radeon_device *rdev)
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
 				      ps->pcie_lanes);
-		DRM_DEBUG_DRIVER("Setting: p: %d\n", ps->pcie_lanes);
+		DRM_DE_DRIVER("Setting: p: %d\n", ps->pcie_lanes);
 	}
 }
 
@@ -799,11 +799,11 @@ int r100_irq_process(struct radeon_device *rdev)
 		}
 		if (status & RADEON_FP_DETECT_STAT) {
 			queue_hotplug = true;
-			DRM_DEBUG("HPD1\n");
+			DRM_DE("HPD1\n");
 		}
 		if (status & RADEON_FP2_DETECT_STAT) {
 			queue_hotplug = true;
-			DRM_DEBUG("HPD2\n");
+			DRM_DE("HPD2\n");
 		}
 		status = r100_irq_ack(rdev);
 	}
@@ -877,7 +877,7 @@ bool r100_semaphore_ring_emit(struct radeon_device *rdev,
 			      bool emit_wait)
 {
 	/* Unused on older asics, since we don't have semaphores or multiple rings */
-	BUG();
+	();
 	return false;
 }
 
@@ -997,7 +997,7 @@ static int r100_cp_init_microcode(struct radeon_device *rdev)
 	const char *fw_name = NULL;
 	int err;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if ((rdev->family == CHIP_R100) || (rdev->family == CHIP_RV100) ||
 	    (rdev->family == CHIP_RV200) || (rdev->family == CHIP_RS100) ||
@@ -1114,8 +1114,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	uint32_t tmp;
 	int r;
 
-	if (r100_debugfs_cp_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for CP !\n");
+	if (r100_defs_cp_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for CP !\n");
 	}
 	if (!rdev->me_fw) {
 		r = r100_cp_init_microcode(rdev);
@@ -2649,7 +2649,7 @@ void r100_set_common_regs(struct radeon_device *rdev)
 	}
 
 	if (force_dac2) {
-		u32 disp_hw_debug = RREG32(RADEON_DISP_HW_DEBUG);
+		u32 disp_hw_de = RREG32(RADEON_DISP_HW_DE);
 		u32 tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
 		u32 dac2_cntl = RREG32(RADEON_DAC_CNTL2);
 
@@ -2660,7 +2660,7 @@ void r100_set_common_regs(struct radeon_device *rdev)
 		/* force it to crtc0 */
 		dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
 		dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
-		disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
+		disp_hw_de |= RADEON_CRT2_DISP1_SEL;
 
 		/* set up the TV DAC */
 		tv_dac_cntl &= ~(RADEON_TV_DAC_PEDESTAL |
@@ -2676,7 +2676,7 @@ void r100_set_common_regs(struct radeon_device *rdev)
 				(0x58 << 16));
 
 		WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
-		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
+		WREG32(RADEON_DISP_HW_DE, disp_hw_de);
 		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
 	}
 
@@ -2792,7 +2792,7 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 		}
 		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
-		 * Novell bug 204882 + along with lots of ubuntu ones
+		 * Novell  204882 + along with lots of ubuntu ones
 		 */
 		if (rdev->mc.aper_size > config_aper_size)
 			config_aper_size = rdev->mc.aper_size;
@@ -2855,7 +2855,7 @@ static void r100_pll_errata_after_data(struct radeon_device *rdev)
 		mdelay(5);
 	}
 
-	/* This function is required to workaround a hardware bug in some (all?)
+	/* This function is required to workaround a hardware  in some (all?)
 	 * revisions of the R300.  This workaround should be called after every
 	 * CLOCK_CNTL_INDEX register access.  If not, register reads afterward
 	 * may not be correct.
@@ -2911,10 +2911,10 @@ static void r100_set_safe_registers(struct radeon_device *rdev)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
-static int r100_debugfs_rbbm_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int r100_defs_rbbm_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -2935,7 +2935,7 @@ static int r100_debugfs_rbbm_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
+static int r100_defs_cp_ring_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -2963,7 +2963,7 @@ static int r100_debugfs_cp_ring_info(struct seq_file *m, void *data)
 }
 
 
-static int r100_debugfs_cp_csq_fifo(struct seq_file *m, void *data)
+static int r100_defs_cp_csq_fifo(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -3013,7 +3013,7 @@ static int r100_debugfs_cp_csq_fifo(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int r100_debugfs_mc_info(struct seq_file *m, void *data)
+static int r100_defs_mc_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -3043,42 +3043,42 @@ static int r100_debugfs_mc_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list r100_debugfs_rbbm_list[] = {
-	{"r100_rbbm_info", r100_debugfs_rbbm_info, 0, NULL},
+static struct drm_info_list r100_defs_rbbm_list[] = {
+	{"r100_rbbm_info", r100_defs_rbbm_info, 0, NULL},
 };
 
-static struct drm_info_list r100_debugfs_cp_list[] = {
-	{"r100_cp_ring_info", r100_debugfs_cp_ring_info, 0, NULL},
-	{"r100_cp_csq_fifo", r100_debugfs_cp_csq_fifo, 0, NULL},
+static struct drm_info_list r100_defs_cp_list[] = {
+	{"r100_cp_ring_info", r100_defs_cp_ring_info, 0, NULL},
+	{"r100_cp_csq_fifo", r100_defs_cp_csq_fifo, 0, NULL},
 };
 
-static struct drm_info_list r100_debugfs_mc_info_list[] = {
-	{"r100_mc_info", r100_debugfs_mc_info, 0, NULL},
+static struct drm_info_list r100_defs_mc_info_list[] = {
+	{"r100_mc_info", r100_defs_mc_info, 0, NULL},
 };
 #endif
 
-int r100_debugfs_rbbm_init(struct radeon_device *rdev)
+int r100_defs_rbbm_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r100_debugfs_rbbm_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, r100_defs_rbbm_list, 1);
 #else
 	return 0;
 #endif
 }
 
-int r100_debugfs_cp_init(struct radeon_device *rdev)
+int r100_defs_cp_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r100_debugfs_cp_list, 2);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, r100_defs_cp_list, 2);
 #else
 	return 0;
 #endif
 }
 
-int r100_debugfs_mc_info_init(struct radeon_device *rdev)
+int r100_defs_mc_info_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r100_debugfs_mc_info_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, r100_defs_mc_info_list, 1);
 #else
 	return 0;
 #endif
@@ -3125,7 +3125,7 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 		flags |= pitch / 8;
 
 
-	DRM_DEBUG_KMS("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
+	DRM_DE_KMS("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
 	WREG32(RADEON_SURFACE0_INFO + surf_index, flags);
 	WREG32(RADEON_SURFACE0_LOWER_BOUND + surf_index, offset);
 	WREG32(RADEON_SURFACE0_UPPER_BOUND + surf_index, offset + obj_size - 1);
@@ -3534,7 +3534,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		}
 #endif
 
-		DRM_DEBUG_KMS("GRPH_BUFFER_CNTL from to %x\n",
+		DRM_DE_KMS("GRPH_BUFFER_CNTL from to %x\n",
 			  /* 	  (unsigned int)info->SavedReg->grph_buffer_cntl, */
 			  (unsigned int)RREG32(RADEON_GRPH_BUFFER_CNTL));
 	}
@@ -3630,7 +3630,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 			WREG32(RS400_DISP1_REQ_CNTL1, 0x28FBC3AC);
 		}
 
-		DRM_DEBUG_KMS("GRPH2_BUFFER_CNTL from to %x\n",
+		DRM_DE_KMS("GRPH2_BUFFER_CNTL from to %x\n",
 			  (unsigned int)RREG32(RADEON_GRPH2_BUFFER_CNTL));
 	}
 
@@ -3828,13 +3828,13 @@ void r100_vga_render_disable(struct radeon_device *rdev)
 	WREG8(R_0003C2_GENMO_WT, C_0003C2_VGA_RAM_EN & tmp);
 }
 
-static void r100_debugfs(struct radeon_device *rdev)
+static void r100_defs(struct radeon_device *rdev)
 {
 	int r;
 
-	r = r100_debugfs_mc_info_init(rdev);
+	r = r100_defs_mc_info_init(rdev);
 	if (r)
-		dev_warn(rdev->dev, "Failed to create r100_mc debugfs file.\n");
+		dev_warn(rdev->dev, "Failed to create r100_mc defs file.\n");
 }
 
 static void r100_mc_program(struct radeon_device *rdev)
@@ -4024,8 +4024,8 @@ int r100_init(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Register debugfs file specific to this group of asics */
-	r100_debugfs(rdev);
+	/* Register defs file specific to this group of asics */
+	r100_defs(rdev);
 	/* Disable VGA */
 	r100_vga_render_disable(rdev);
 	/* Initialize scratch registers */

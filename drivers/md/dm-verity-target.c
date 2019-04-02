@@ -233,7 +233,7 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 		type_str = "metadata";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	DMERR("%s: %s block %llu is corrupted", v->data_dev->name, type_str,
@@ -727,7 +727,7 @@ static void verity_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(DM_VERITY_OPT_RESTART);
 				break;
 			default:
-				BUG();
+				();
 			}
 		}
 		if (v->zero_digest)
@@ -1043,7 +1043,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	/*
 	 * dm-verity performance can vary greatly depending on which hash
-	 * algorithm implementation is used.  Help people debug performance
+	 * algorithm implementation is used.  Help people de performance
 	 * problems by logging the ->cra_driver_name.
 	 */
 	DMINFO("%s using implementation \"%s\"", v->alg_name,

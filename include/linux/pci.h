@@ -184,7 +184,7 @@ enum pcie_reset_state {
 typedef unsigned short __bitwise pci_dev_flags_t;
 enum pci_dev_flags {
 	/* INTX_DISABLE in PCI_COMMAND register disables MSI too */
-	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) (1 << 0),
+	PCI_DEV_FLAGS_MSI_INTX_DISABLE_ = (__force pci_dev_flags_t) (1 << 0),
 	/* Device configuration is irrevocably lost if disabled into D3 */
 	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) (1 << 1),
 	/* Provide indication device is assigned by a Virtual Machine Manager */
@@ -1825,9 +1825,9 @@ static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 
 /*
  * The world is not perfect and supplies us with broken PCI devices.
- * For at least a part of these bugs we need a work-around, so both
+ * For at least a part of these s we need a work-around, so both
  * generic (drivers/pci/quirks.c) and per-architecture code can define
- * fixup hooks to be called for particular buggy devices.
+ * fixup hooks to be called for particular gy devices.
  */
 
 struct pci_fixup {

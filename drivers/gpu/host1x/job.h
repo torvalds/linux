@@ -34,7 +34,7 @@ struct host1x_job_unpin_data {
 };
 
 /*
- * Dump contents of job to debug output.
+ * Dump contents of job to de output.
  */
 void host1x_job_dump(struct device *dev, struct host1x_job *job);
 

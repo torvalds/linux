@@ -9,7 +9,7 @@
 
 static void __init xen_hvm_smp_prepare_boot_cpu(void)
 {
-	BUG_ON(smp_processor_id() != 0);
+	_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
 	/*
@@ -57,7 +57,7 @@ static void xen_hvm_cpu_die(unsigned int cpu)
 #else
 static void xen_hvm_cpu_die(unsigned int cpu)
 {
-	BUG();
+	();
 }
 #endif
 

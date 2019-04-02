@@ -943,7 +943,7 @@ struct net_device_context {
 	/* list protection */
 	spinlock_t lock;
 
-	u32 msg_enable; /* debug level */
+	u32 msg_enable; /* de level */
 
 	u32 tx_checksum_mask;
 

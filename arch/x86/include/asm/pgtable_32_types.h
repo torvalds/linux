@@ -41,7 +41,7 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
 #endif
 
 /*
- * Define this here and validate with BUILD_BUG_ON() in pgtable_32.c
+ * Define this here and validate with BUILD__ON() in pgtable_32.c
  * to avoid include recursion hell
  */
 #define CPU_ENTRY_AREA_PAGES	(NR_CPUS * 40)

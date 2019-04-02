@@ -124,7 +124,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 
 	ret = dsi_calc_mnp(dev_priv, config, dsi_clk);
 	if (ret) {
-		DRM_DEBUG_KMS("dsi_calc_mnp failed\n");
+		DRM_DE_KMS("dsi_calc_mnp failed\n");
 		return ret;
 	}
 
@@ -136,7 +136,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 
 	config->dsi_pll.ctrl |= DSI_PLL_VCO_EN;
 
-	DRM_DEBUG_KMS("dsi pll div %08x, ctrl %08x\n",
+	DRM_DE_KMS("dsi pll div %08x, ctrl %08x\n",
 		      config->dsi_pll.div, config->dsi_pll.ctrl);
 
 	return 0;
@@ -147,7 +147,7 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	mutex_lock(&dev_priv->sb_lock);
 
@@ -172,7 +172,7 @@ void vlv_dsi_pll_enable(struct intel_encoder *encoder,
 	}
 	mutex_unlock(&dev_priv->sb_lock);
 
-	DRM_DEBUG_KMS("DSI PLL locked\n");
+	DRM_DE_KMS("DSI PLL locked\n");
 }
 
 void vlv_dsi_pll_disable(struct intel_encoder *encoder)
@@ -180,7 +180,7 @@ void vlv_dsi_pll_disable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 tmp;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	mutex_lock(&dev_priv->sb_lock);
 
@@ -216,12 +216,12 @@ bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 	val = I915_READ(BXT_DSI_PLL_CTL);
 	if (IS_GEMINILAKE(dev_priv)) {
 		if (!(val & BXT_DSIA_16X_MASK)) {
-			DRM_DEBUG_DRIVER("Invalid PLL divider (%08x)\n", val);
+			DRM_DE_DRIVER("Invalid PLL divider (%08x)\n", val);
 			enabled = false;
 		}
 	} else {
 		if (!(val & BXT_DSIA_16X_MASK) || !(val & BXT_DSIC_16X_MASK)) {
-			DRM_DEBUG_DRIVER("Invalid PLL divider (%08x)\n", val);
+			DRM_DE_DRIVER("Invalid PLL divider (%08x)\n", val);
 			enabled = false;
 		}
 	}
@@ -234,7 +234,7 @@ void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 val;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	val = I915_READ(BXT_DSI_PLL_ENABLE);
 	val &= ~BXT_DSI_PLL_DO_ENABLE;
@@ -264,7 +264,7 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 	int refclk = IS_CHERRYVIEW(dev_priv) ? 100000 : 25000;
 	int i;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	mutex_lock(&dev_priv->sb_lock);
 	pll_ctl = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
@@ -334,7 +334,7 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 
 	pclk = DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, bpp);
 
-	DRM_DEBUG_DRIVER("Calculated pclk=%u\n", pclk);
+	DRM_DE_DRIVER("Calculated pclk=%u\n", pclk);
 	return pclk;
 }
 
@@ -482,7 +482,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 		DRM_ERROR("Cant get a suitable ratio from DSI PLL ratios\n");
 		return -ECHRNG;
 	} else
-		DRM_DEBUG_KMS("DSI PLL calculation is Done!!\n");
+		DRM_DE_KMS("DSI PLL calculation is Done!!\n");
 
 	/*
 	 * Program DSI ratio and Select MIPIC and MIPIA PLL output as 8x
@@ -508,7 +508,7 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	enum port port;
 	u32 val;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	/* Configure PLL vales */
 	I915_WRITE(BXT_DSI_PLL_CTL, config->dsi_pll.ctrl);
@@ -537,7 +537,7 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 		return;
 	}
 
-	DRM_DEBUG_KMS("DSI PLL locked\n");
+	DRM_DE_KMS("DSI PLL locked\n");
 }
 
 void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * MIPS-specific debug support for pre-boot environment
+ * MIPS-specific de support for pre-boot environment
  *
  * NOTE: putc() is board specific, if your board have a 16550 compatible uart,
  * please select SYS_SUPPORTS_ZBOOT_UART16550 for your machine. othewise, you

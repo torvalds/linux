@@ -95,8 +95,8 @@ static void xtensa_wsr(unsigned long v, u8 sr)
 	 * XCHAL_NUM_DBREAK are. Thus the switch. In case build breaks here
 	 * the switch below needs to be extended.
 	 */
-	BUILD_BUG_ON(XCHAL_NUM_IBREAK > 2);
-	BUILD_BUG_ON(XCHAL_NUM_DBREAK > 2);
+	BUILD__ON(XCHAL_NUM_IBREAK > 2);
+	BUILD__ON(XCHAL_NUM_DBREAK > 2);
 
 	switch (sr) {
 #if XCHAL_NUM_IBREAK > 0
@@ -275,7 +275,7 @@ void restore_dbreak(void)
 
 int check_hw_breakpoint(struct pt_regs *regs)
 {
-	if (regs->debugcause & BIT(DEBUGCAUSE_IBREAK_BIT)) {
+	if (regs->decause & BIT(DECAUSE_IBREAK_BIT)) {
 		int i;
 		struct perf_event **bp = this_cpu_ptr(bp_on_reg);
 
@@ -285,10 +285,10 @@ int check_hw_breakpoint(struct pt_regs *regs)
 				perf_bp_event(bp[i], regs);
 		}
 		return 0;
-	} else if (regs->debugcause & BIT(DEBUGCAUSE_DBREAK_BIT)) {
+	} else if (regs->decause & BIT(DECAUSE_DBREAK_BIT)) {
 		struct perf_event **bp = this_cpu_ptr(wp_on_reg);
-		int dbnum = (regs->debugcause & DEBUGCAUSE_DBNUM_MASK) >>
-			DEBUGCAUSE_DBNUM_SHIFT;
+		int dbnum = (regs->decause & DECAUSE_DBNUM_MASK) >>
+			DECAUSE_DBNUM_SHIFT;
 
 		if (dbnum < XCHAL_NUM_DBREAK && bp[dbnum]) {
 			if (user_mode(regs)) {
@@ -299,7 +299,7 @@ int check_hw_breakpoint(struct pt_regs *regs)
 			}
 		} else {
 			WARN_ONCE(1,
-				  "Wrong/unconfigured DBNUM reported in DEBUGCAUSE: %d\n",
+				  "Wrong/unconfigured DBNUM reported in DECAUSE: %d\n",
 				  dbnum);
 		}
 		return 0;

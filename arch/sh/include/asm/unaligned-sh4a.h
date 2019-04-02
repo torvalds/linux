@@ -17,7 +17,7 @@
  * avoid mixing these heavily with other r0 consumers, such as the atomic
  * ops. Failure to adhere to this can result in the compiler running out
  * of spill registers and blowing up when building at low optimization
- * levels. See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34777.
+ * levels. See http://gcc.gnu.org/zilla/show_.cgi?id=34777.
  */
 #include <linux/unaligned/packed_struct.h>
 #include <linux/types.h>

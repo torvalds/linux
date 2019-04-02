@@ -397,7 +397,7 @@ static int clk_smd_rpm_enable_scaling(struct qcom_smd_rpm *rpm)
 		return ret;
 	}
 
-	pr_debug("%s: RPM clock scaling is enabled\n", __func__);
+	pr_de("%s: RPM clock scaling is enabled\n", __func__);
 	return 0;
 }
 

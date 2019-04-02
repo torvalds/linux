@@ -934,7 +934,7 @@ static void p4_pmu_enable_pebs(u64 config)
 	struct p4_pebs_bind *bind;
 	unsigned int idx;
 
-	BUILD_BUG_ON(P4_PEBS_METRIC__max > P4_PEBS_CONFIG_METRIC_MASK);
+	BUILD__ON(P4_PEBS_METRIC__max > P4_PEBS_CONFIG_METRIC_MASK);
 
 	idx = p4_config_unpack_metric(config);
 	if (idx == P4_PEBS_METRIC__none)
@@ -1342,7 +1342,7 @@ __init int p4_pmu_init(void)
 	int i, reg;
 
 	/* If we get stripped -- indexing fails */
-	BUILD_BUG_ON(ARCH_P4_MAX_CCCR > INTEL_PMC_MAX_GENERIC);
+	BUILD__ON(ARCH_P4_MAX_CCCR > INTEL_PMC_MAX_GENERIC);
 
 	rdmsr(MSR_IA32_MISC_ENABLE, low, high);
 	if (!(low & (1 << 7))) {
@@ -1363,7 +1363,7 @@ __init int p4_pmu_init(void)
 	 * logical processor when an overflow happens, testing has shown that
 	 * on kdump kernels (which uses a single cpu), thread1's counter
 	 * continues to run and will report an NMI on thread0.  Due to the
-	 * overflow bug, this leads to a stream of unknown NMIs.
+	 * overflow , this leads to a stream of unknown NMIs.
 	 *
 	 * Solve this by zero'ing out the registers to mimic a reset.
 	 */

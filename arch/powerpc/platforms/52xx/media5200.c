@@ -20,7 +20,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -98,7 +98,7 @@ static void media5200_irq_cascade(struct irq_desc *desc)
 	val = ffs((status & enable) >> MEDIA5200_IRQ_SHIFT);
 	if (val) {
 		sub_virq = irq_linear_revmap(media5200_irq.irqhost, val - 1);
-		/* pr_debug("%s: virq=%i s=%.8x e=%.8x hwirq=%i subvirq=%i\n",
+		/* pr_de("%s: virq=%i s=%.8x e=%.8x hwirq=%i subvirq=%i\n",
 		 *          __func__, virq, status, enable, val - 1, sub_virq);
 		 */
 		generic_handle_irq(sub_virq);
@@ -115,7 +115,7 @@ static void media5200_irq_cascade(struct irq_desc *desc)
 static int media5200_irq_map(struct irq_domain *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	pr_debug("%s: h=%p, virq=%i, hwirq=%i\n", __func__, h, virq, (int)hw);
+	pr_de("%s: h=%p, virq=%i, hwirq=%i\n", __func__, h, virq, (int)hw);
 	irq_set_chip_data(virq, &media5200_irq);
 	irq_set_chip_and_handler(virq, &media5200_irq_chip, handle_level_irq);
 	irq_set_status_flags(virq, IRQ_LEVEL);
@@ -130,7 +130,7 @@ static int media5200_irq_xlate(struct irq_domain *h, struct device_node *ct,
 	if (intsize != 2)
 		return -1;
 
-	pr_debug("%s: bank=%i, number=%i\n", __func__, intspec[0], intspec[1]);
+	pr_de("%s: bank=%i, number=%i\n", __func__, intspec[0], intspec[1]);
 	*out_hwirq = intspec[1];
 	*out_flags = IRQ_TYPE_NONE;
 	return 0;
@@ -156,17 +156,17 @@ static void __init media5200_init_irq(void)
 	fpga_np = of_find_compatible_node(NULL, NULL, "fsl,media5200-fpga");
 	if (!fpga_np)
 		goto out;
-	pr_debug("%s: found fpga node: %pOF\n", __func__, fpga_np);
+	pr_de("%s: found fpga node: %pOF\n", __func__, fpga_np);
 
 	media5200_irq.regs = of_iomap(fpga_np, 0);
 	if (!media5200_irq.regs)
 		goto out;
-	pr_debug("%s: mapped to %p\n", __func__, media5200_irq.regs);
+	pr_de("%s: mapped to %p\n", __func__, media5200_irq.regs);
 
 	cascade_virq = irq_of_parse_and_map(fpga_np, 0);
 	if (!cascade_virq)
 		goto out;
-	pr_debug("%s: cascaded on virq=%i\n", __func__, cascade_virq);
+	pr_de("%s: cascaded on virq=%i\n", __func__, cascade_virq);
 
 	/* Disable all FPGA IRQs */
 	out_be32(media5200_irq.regs + MEDIA5200_IRQ_ENABLE, 0);
@@ -177,7 +177,7 @@ static void __init media5200_init_irq(void)
 			MEDIA5200_NUM_IRQS, &media5200_irq_ops, &media5200_irq);
 	if (!media5200_irq.irqhost)
 		goto out;
-	pr_debug("%s: allocated irqhost\n", __func__);
+	pr_de("%s: allocated irqhost\n", __func__);
 
 	irq_set_handler_data(cascade_virq, &media5200_irq);
 	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);

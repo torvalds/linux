@@ -61,7 +61,7 @@ specification the ioctl returns an ``EINVAL`` error code.
       - Name of the driver, a unique NUL-terminated ASCII string. For
 	example: "bttv". Driver specific applications can use this
 	information to verify the driver identity. It is also useful to
-	work around known bugs, or to identify drivers in error reports.
+	work around known s, or to identify drivers in error reports.
 
 	Storing strings in fixed sized arrays is bad practice but
 	unavoidable here. Drivers and applications should take precautions

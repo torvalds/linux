@@ -144,7 +144,7 @@ static int em_gio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	offset = irqd_to_hwirq(d);
 
-	pr_debug("gio: sense irq = %d, mode = %d\n", offset, value);
+	pr_de("gio: sense irq = %d, mode = %d\n", offset, value);
 
 	/* 8 x 4 bit fields in 4 IDT registers */
 	reg = GIO_IDT(offset >> 3);
@@ -259,7 +259,7 @@ static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int irq,
 {
 	struct em_gio_priv *p = h->host_data;
 
-	pr_debug("gio: map hw irq = %d, irq = %d\n", (int)hwirq, irq);
+	pr_de("gio: map hw irq = %d, irq = %d\n", (int)hwirq, irq);
 
 	irq_set_chip_data(irq, h->host_data);
 	irq_set_chip_and_handler(irq, &p->irq_chip, handle_level_irq);

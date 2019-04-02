@@ -316,7 +316,7 @@ static inline void
 snd_nm256_write_buffer(struct nm256 *chip, void *src, int offset, int size)
 {
 	offset -= chip->buffer_start;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (offset < 0 || offset >= chip->buffer_size) {
 		dev_err(chip->card->dev,
 			"write_buffer invalid offset = %d size = %d\n",
@@ -418,7 +418,7 @@ snd_nm256_fixed_rate(unsigned int rate)
 		if (rate == samplerates[i])
 			return i;
 	}
-	snd_BUG();
+	snd_();
 	return 0;
 }
 
@@ -565,7 +565,7 @@ snd_nm256_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct nm256_stream *s = substream->runtime->private_data;
 	int err = 0;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return -ENXIO;
 
 	spin_lock(&chip->reg_lock);
@@ -603,7 +603,7 @@ snd_nm256_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct nm256_stream *s = substream->runtime->private_data;
 	int err = 0;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return -ENXIO;
 
 	spin_lock(&chip->reg_lock);
@@ -640,7 +640,7 @@ static int snd_nm256_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nm256_stream *s = runtime->private_data;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return -ENXIO;
 	s->dma_size = frames_to_bytes(runtime, substream->runtime->buffer_size);
 	s->period_size = frames_to_bytes(runtime, substream->runtime->period_size);
@@ -666,7 +666,7 @@ snd_nm256_playback_pointer(struct snd_pcm_substream *substream)
 	struct nm256_stream *s = substream->runtime->private_data;
 	unsigned long curp;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return 0;
 	curp = snd_nm256_readl(chip, NM_PBUFFER_CURRP) - (unsigned long)s->buf;
 	curp %= s->dma_size;
@@ -680,7 +680,7 @@ snd_nm256_capture_pointer(struct snd_pcm_substream *substream)
 	struct nm256_stream *s = substream->runtime->private_data;
 	unsigned long curp;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return 0;
 	curp = snd_nm256_readl(chip, NM_RBUFFER_CURRP) - (unsigned long)s->buf;
 	curp %= s->dma_size;	

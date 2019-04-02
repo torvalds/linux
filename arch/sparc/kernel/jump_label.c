@@ -19,7 +19,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 		s32 off = (s32)entry->target - (s32)entry->code;
 		bool use_v9_branch = false;
 
-		BUG_ON(off & 3);
+		_ON(off & 3);
 
 #ifdef CONFIG_SPARC64
 		if (off <= 0xfffff && off >= -0x100000)
@@ -31,8 +31,8 @@ void arch_jump_label_transform(struct jump_entry *entry,
 			val = 0x10680000 | (((u32) off >> 2) & 0x7ffff);
 		} else {
 			/* WDISP22 - target is . + immed << 2 */
-			BUG_ON(off > 0x7fffff);
-			BUG_ON(off < -0x800000);
+			_ON(off > 0x7fffff);
+			_ON(off < -0x800000);
 			/* ba . + off */
 			val = 0x10800000 | (((u32) off >> 2) & 0x3fffff);
 		}

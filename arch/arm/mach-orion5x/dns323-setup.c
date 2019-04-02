@@ -520,15 +520,15 @@ static int __init dns323_identify_rev(void)
 {
 	u32 dev, rev, i, reg;
 
-	pr_debug("DNS-323: Identifying board ... \n");
+	pr_de("DNS-323: Identifying board ... \n");
 
 	/* Rev A1 has a 5181 */
 	orion5x_pcie_id(&dev, &rev);
 	if (dev == MV88F5181_DEV_ID) {
-		pr_debug("DNS-323: 5181 found, board is A1\n");
+		pr_de("DNS-323: 5181 found, board is A1\n");
 		return DNS323_REV_A1;
 	}
-	pr_debug("DNS-323: 5182 found, board is B1 or C1, checking PHY...\n");
+	pr_de("DNS-323: 5182 found, board is B1 or C1, checking PHY...\n");
 
 	/* Rev B1 and C1 both have 5182, let's poke at the eth PHY. This is
 	 * a bit gross but we want to do that without links into the eth
@@ -563,7 +563,7 @@ static int __init dns323_identify_rev(void)
 		pr_warn("DNS-323: Timeout reading PHY, assuming rev B1\n");
 		return DNS323_REV_B1;
 	}
-	pr_debug("DNS-323: Ethernet PHY ID 0x%x\n", reg & 0xffff);
+	pr_de("DNS-323: Ethernet PHY ID 0x%x\n", reg & 0xffff);
 
 	/* Note: the Marvell tools mask the ID with 0x3f0 before comparison
 	 * but I don't see that making a difference here, at least with

@@ -118,7 +118,7 @@ static void flexcop_pid_control(struct flexcop_device *fc,
 	deb_ts("setting pid: %5d %04x at index %d '%s'\n",
 			pid, pid, index, onoff ? "on" : "off");
 
-	/* First 6 can be buggy - skip over them if option set */
+	/* First 6 can be gy - skip over them if option set */
 	if (fc->skip_6_hw_pid_filter)
 		index += 6;
 

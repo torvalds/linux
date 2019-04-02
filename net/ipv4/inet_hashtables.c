@@ -798,7 +798,7 @@ int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
 
 	h->lhash2_mask = INET_LHTABLE_SIZE - 1;
 	/* INET_LHTABLE_SIZE must be a power of 2 */
-	BUG_ON(INET_LHTABLE_SIZE & h->lhash2_mask);
+	_ON(INET_LHTABLE_SIZE & h->lhash2_mask);
 
 	init_hashinfo_lhash2(h);
 	return 0;

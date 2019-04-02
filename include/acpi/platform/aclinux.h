@@ -41,12 +41,12 @@
 #define ACPI_REDUCED_HARDWARE 1
 #endif
 
-#ifdef CONFIG_ACPI_DEBUGGER
-#define ACPI_DEBUGGER
+#ifdef CONFIG_ACPI_DEGER
+#define ACPI_DEGER
 #endif
 
-#ifdef CONFIG_ACPI_DEBUG
-#define ACPI_MUTEX_DEBUG
+#ifdef CONFIG_ACPI_DE
+#define ACPI_MUTEX_DE
 #endif
 
 #include <linux/string.h>
@@ -80,12 +80,12 @@
 /* Generating stubs for configurable ACPICA functions */
 
 #define ACPI_NO_ERROR_MESSAGES
-#undef ACPI_DEBUG_OUTPUT
+#undef ACPI_DE_OUTPUT
 
-/* Use a specific bugging default separate from ACPICA */
+/* Use a specific ging default separate from ACPICA */
 
-#undef ACPI_DEBUG_DEFAULT
-#define ACPI_DEBUG_DEFAULT          (ACPI_LV_INFO | ACPI_LV_REPAIR)
+#undef ACPI_DE_DEFAULT
+#define ACPI_DE_DEFAULT          (ACPI_LV_INFO | ACPI_LV_REPAIR)
 
 /* External interface for __KERNEL__, stub is needed */
 
@@ -135,12 +135,12 @@
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_raw_lock
 
 /*
- * OSL interfaces used by debugger/disassembler
+ * OSL interfaces used by deger/disassembler
  */
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_readable
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_writable
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_debugger
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_debugger
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_deger
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_deger
 
 /*
  * OSL interfaces used by utilities
@@ -158,8 +158,8 @@
 #define ACPI_MSG_WARNING        KERN_WARNING "ACPI Warning: "
 #define ACPI_MSG_INFO           KERN_INFO "ACPI: "
 
-#define ACPI_MSG_BIOS_ERROR     KERN_ERR "ACPI BIOS Error (bug): "
-#define ACPI_MSG_BIOS_WARNING   KERN_WARNING "ACPI BIOS Warning (bug): "
+#define ACPI_MSG_BIOS_ERROR     KERN_ERR "ACPI BIOS Error (): "
+#define ACPI_MSG_BIOS_WARNING   KERN_WARNING "ACPI BIOS Warning (): "
 
 /*
  * Linux wants to use designated initializers for function pointer structs.

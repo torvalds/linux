@@ -5,7 +5,7 @@
  *  Portions of this driver are based on code contributed by Brad Pepers
  *  
  *  revised 28.5.95 by Joerg Dorchain
- *  - now no bugs(?) any more for both HD & DD
+ *  - now no s(?) any more for both HD & DD
  *  - added support for 40 Track 5.25" drives, 80-track hopefully behaves
  *    like 3.5" dd (no way to test - are there any 5.25" drives out there
  *    that work on an A4000?)
@@ -15,7 +15,7 @@
  *  (portions based on messydos.device and various contributors)
  *  - currently only 9 and 18 sector disks
  *
- *  - fixed a bug with the internal trackbuffer when using multiple 
+ *  - fixed a  with the internal trackbuffer when using multiple 
  *    disks the same time
  *  - made formatting a bit safer
  *  - added command line and machine based default for "silent" df0
@@ -47,7 +47,7 @@
  *    that when we start using 16 (24?) bit minors.
  *
  * restructured jan 1997 by Joerg Dorchain
- * - Fixed Bug accessing multiple disks
+ * - Fixed  accessing multiple disks
  * - some code cleanup
  * - added trackbuffer for each drive to speed things up
  * - fixed some race conditions (who finds the next may send it to me ;-)
@@ -73,7 +73,7 @@
 #include <asm/amigaints.h>
 #include <asm/irq.h>
 
-#undef DEBUG /* print _LOTS_ of infos */
+#undef DE /* print _LOTS_ of infos */
 
 #define RAW_IOCTL
 #ifdef RAW_IOCTL
@@ -365,7 +365,7 @@ static void get_fdc(int drive)
 	unsigned long flags;
 
 	drive &= 3;
-#ifdef DEBUG
+#ifdef DE
 	printk("get_fdc: drive %d  fdc_busy %d  fdc_nested %d\n",drive,fdc_busy,fdc_nested);
 #endif
 	local_irq_save(flags);
@@ -377,7 +377,7 @@ static void get_fdc(int drive)
 
 static inline void rel_fdc(void)
 {
-#ifdef DEBUG
+#ifdef DE
 	if (fdc_nested == 0)
 		printk("fd: unmatched rel_fdc\n");
 	printk("rel_fdc: fdc_busy %d fdc_nested %d\n",fdc_busy,fdc_nested);
@@ -394,7 +394,7 @@ static void fd_select (int drive)
 	unsigned char prb = ~0;
 
 	drive&=3;
-#ifdef DEBUG
+#ifdef DE
 	printk("selecting %d\n",drive);
 #endif
 	if (drive == selected)
@@ -419,7 +419,7 @@ static void fd_deselect (int drive)
 	unsigned long flags;
 
 	drive&=3;
-#ifdef DEBUG
+#ifdef DE
 	printk("deselecting %d\n",drive);
 #endif
 	if (drive != selected) {
@@ -567,7 +567,7 @@ static int fd_seek(int drive, int track)
 	unsigned char prb;
 	int cnt;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("seeking drive %d to track %d\n",drive,track);
 #endif
 	drive &= 3;
@@ -750,7 +750,7 @@ static int raw_write(int drive)
  */
 static void post_write (unsigned long drive)
 {
-#ifdef DEBUG
+#ifdef DE
 	printk("post_write for drive %ld\n",drive);
 #endif
 	drive &= 3;
@@ -856,7 +856,7 @@ static int amiga_read(int drive)
 		csum = checksum((ulong *)&hdr,
 				(char *)&hdr.hdrchk-(char *)&hdr);
 
-#ifdef DEBUG
+#ifdef DE
 		printk ("(%x,%d,%d,%d) (%lx,%lx,%lx,%lx) %lx %lx\n",
 			hdr.magic, hdr.track, hdr.sect, hdr.ord,
 			*(ulong *)&hdr.labels[0], *(ulong *)&hdr.labels[4],
@@ -1137,7 +1137,7 @@ static unsigned long dos_decode(unsigned char *data, unsigned short *raw, int le
 	return ((ulong)raw);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void dbg(unsigned long ptr)
 {
 	printk("raw data @%08lx: %08lx, %08lx ,%08lx, %08lx\n", ptr,
@@ -1166,7 +1166,7 @@ static int dos_read(int drive)
 				       unit[drive].track,drive,scnt);
 				return MFM_NOSYNC;
 			}
-#ifdef DEBUG
+#ifdef DE
 			dbg(raw);
 #endif
 		} while (*((ushort *)raw)!=0x5554); /* loop usually only once done */
@@ -1174,7 +1174,7 @@ static int dos_read(int drive)
 		raw = dos_decode((unsigned char *)&hdr,(ushort *) raw,8);
 		crc = dos_hdr_crc(&hdr);
 
-#ifdef DEBUG
+#ifdef DE
 		printk("(%3d,%d,%2d,%d) %x\n", hdr.track, hdr.side,
 		       hdr.sec, hdr.len_desc, hdr.crc);
 #endif
@@ -1203,7 +1203,7 @@ static int dos_read(int drive)
 			       "descriptor %d\n", hdr.len_desc);
 			return MFM_DATA;
 		}
-#ifdef DEBUG
+#ifdef DE
 		printk("hdr accepted\n");
 #endif
 		if (!(raw = scan_sync (raw, end))) {
@@ -1212,7 +1212,7 @@ static int dos_read(int drive)
 			       unit[drive].track, drive, scnt, hdr.sec);
 			return MFM_NOSYNC;
 		}
-#ifdef DEBUG
+#ifdef DE
 		dbg(raw);
 #endif
 
@@ -1462,7 +1462,7 @@ static blk_status_t amiflop_rw_cur_segment(struct amiga_floppy_struct *floppy,
 	char *data;
 
 	for (cnt = 0; cnt < blk_rq_cur_sectors(rq); cnt++) {
-#ifdef DEBUG
+#ifdef DE
 		printk("fd: sector %ld + %d requested for %s\n",
 		       blk_rq_pos(rq), cnt,
 		       (rq_data_dir(rq) == READ) ? "read" : "write");
@@ -1471,7 +1471,7 @@ static blk_status_t amiflop_rw_cur_segment(struct amiga_floppy_struct *floppy,
 		track = block / (floppy->dtype->sects * floppy->type->sect_mult);
 		sector = block % (floppy->dtype->sects * floppy->type->sect_mult);
 		data = bio_data(rq->bio) + 512 * cnt;
-#ifdef DEBUG
+#ifdef DE
 		printk("access to track %d, sector %d, with buffer at "
 		       "0x%08lx\n", track, sector, data);
 #endif

@@ -50,7 +50,7 @@
 #define EDID_DETAILED_TIMINGS 4
 
 /*
- * EDID blocks out in the wild have a variety of bugs, try to collect
+ * EDID blocks out in the wild have a variety of s, try to collect
  * them here (note that userspace may work around broken monitors first,
  * but fixes should make their way here so that the kernel "just works"
  * on as many displays as possible).
@@ -1380,7 +1380,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 			 */
 			if (edid_corrupt)
 				*edid_corrupt = true;
-			DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
+			DRM_DE("Fixing EDID header, your hardware may be failing\n");
 			memcpy(raw_edid, edid_header, sizeof(edid_header));
 		} else {
 			if (edid_corrupt)
@@ -1396,8 +1396,8 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 
 		/* allow CEA to slide through, switches mangle this */
 		if (raw_edid[0] == CEA_EXT) {
-			DRM_DEBUG("EDID checksum is invalid, remainder is %d\n", csum);
-			DRM_DEBUG("Assuming a KVM switch modified the CEA block but left the original checksum\n");
+			DRM_DE("EDID checksum is invalid, remainder is %d\n", csum);
+			DRM_DE("Assuming a KVM switch modified the CEA block but left the original checksum\n");
 		} else {
 			if (print_bad_edid)
 				DRM_NOTE("EDID checksum is invalid, remainder is %d\n", csum);
@@ -1415,7 +1415,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 		}
 
 		if (edid->revision > 4)
-			DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
+			DRM_DE("EDID minor > 4, assuming backward compatibility\n");
 		break;
 
 	default:
@@ -1518,7 +1518,7 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
 
 		if (ret == -ENXIO) {
-			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
+			DRM_DE_KMS("drm: skipping non-existent adapter %s\n",
 					adapter->name);
 			break;
 		}
@@ -1532,7 +1532,7 @@ static void connector_bad_edid(struct drm_connector *connector,
 {
 	int i;
 
-	if (connector->bad_edid_counter++ && !(drm_debug & DRM_UT_KMS))
+	if (connector->bad_edid_counter++ && !(drm_de & DRM_UT_KMS))
 		return;
 
 	dev_warn(connector->dev->dev,
@@ -1569,7 +1569,7 @@ static void connector_bad_edid(struct drm_connector *connector,
  * level, drivers must make all reasonable efforts to expose it as an I2C
  * adapter and use drm_get_edid() instead of abusing this function.
  *
- * The EDID may be overridden using debugfs override_edid or firmare EDID
+ * The EDID may be overridden using defs override_edid or firmare EDID
  * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
  * order. Having either of them bypasses actual EDID reads.
  *
@@ -2240,16 +2240,16 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 		return NULL;
 
 	if (pt->misc & DRM_EDID_PT_STEREO) {
-		DRM_DEBUG_KMS("stereo mode not supported\n");
+		DRM_DE_KMS("stereo mode not supported\n");
 		return NULL;
 	}
 	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
-		DRM_DEBUG_KMS("composite sync not supported\n");
+		DRM_DE_KMS("composite sync not supported\n");
 	}
 
 	/* it is incorrect if hsync/vsync width is zero */
 	if (!hsync_pulse_width || !vsync_pulse_width) {
-		DRM_DEBUG_KMS("Incorrect Detailed timing. "
+		DRM_DE_KMS("Incorrect Detailed timing. "
 				"Wrong Hsync/Vsync pulse width\n");
 		return NULL;
 	}
@@ -2915,7 +2915,7 @@ cea_mode_alternate_timings(u8 vic, struct drm_display_mode *mode)
 	 * get the other variants by simply increasing the
 	 * vertical front porch length.
 	 */
-	BUILD_BUG_ON(edid_cea_modes[8].vtotal != 262 ||
+	BUILD__ON(edid_cea_modes[8].vtotal != 262 ||
 		     edid_cea_modes[9].vtotal != 262 ||
 		     edid_cea_modes[12].vtotal != 262 ||
 		     edid_cea_modes[13].vtotal != 262 ||
@@ -3811,7 +3811,7 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 	if (mode->clock == clock)
 		return;
 
-	DRM_DEBUG("detailed mode matches %s VIC %d, adjusting clock %d -> %d\n",
+	DRM_DE("detailed mode matches %s VIC %d, adjusting clock %d -> %d\n",
 		  type, vic, mode->clock, clock);
 	mode->clock = clock;
 }
@@ -3836,7 +3836,7 @@ drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 	if (len >= 12)
 		connector->audio_latency[1] = db[12];
 
-	DRM_DEBUG_KMS("HDMI: latency present %d %d, "
+	DRM_DE_KMS("HDMI: latency present %d %d, "
 		      "video latency %d %d, "
 		      "audio latency %d %d\n",
 		      connector->latency_present[0],
@@ -3930,12 +3930,12 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
-		DRM_DEBUG_KMS("ELD: no CEA Extension found\n");
+		DRM_DE_KMS("ELD: no CEA Extension found\n");
 		return;
 	}
 
 	mnl = get_monitor_name(edid, &eld[DRM_ELD_MONITOR_NAME_STRING]);
-	DRM_DEBUG_KMS("ELD monitor %s\n", &eld[DRM_ELD_MONITOR_NAME_STRING]);
+	DRM_DE_KMS("ELD monitor %s\n", &eld[DRM_ELD_MONITOR_NAME_STRING]);
 
 	eld[DRM_ELD_CEA_EDID_VER_MNL] = cea[1] << DRM_ELD_CEA_EDID_VER_SHIFT;
 	eld[DRM_ELD_CEA_EDID_VER_MNL] |= mnl;
@@ -3996,7 +3996,7 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	eld[DRM_ELD_BASELINE_ELD_LEN] =
 		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
 
-	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n",
+	DRM_DE_KMS("ELD size %d, SAD count %d\n",
 		      drm_eld_size(eld), total_sad_count);
 }
 
@@ -4019,17 +4019,17 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
-		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
+		DRM_DE_KMS("SAD: no CEA Extension found\n");
 		return -ENOENT;
 	}
 
 	if (cea_revision(cea) < 3) {
-		DRM_DEBUG_KMS("SAD: wrong CEA revision\n");
+		DRM_DE_KMS("SAD: wrong CEA revision\n");
 		return -ENOTSUPP;
 	}
 
 	if (cea_db_offsets(cea, &start, &end)) {
-		DRM_DEBUG_KMS("SAD: invalid data block offsets\n");
+		DRM_DE_KMS("SAD: invalid data block offsets\n");
 		return -EPROTO;
 	}
 
@@ -4080,17 +4080,17 @@ int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb)
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
-		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
+		DRM_DE_KMS("SAD: no CEA Extension found\n");
 		return -ENOENT;
 	}
 
 	if (cea_revision(cea) < 3) {
-		DRM_DEBUG_KMS("SAD: wrong CEA revision\n");
+		DRM_DE_KMS("SAD: wrong CEA revision\n");
 		return -ENOTSUPP;
 	}
 
 	if (cea_db_offsets(cea, &start, &end)) {
-		DRM_DEBUG_KMS("SAD: invalid data block offsets\n");
+		DRM_DE_KMS("SAD: invalid data block offsets\n");
 		return -EPROTO;
 	}
 
@@ -4216,7 +4216,7 @@ bool drm_detect_monitor_audio(struct edid *edid)
 	has_audio = ((edid_ext[3] & EDID_BASIC_AUDIO) != 0);
 
 	if (has_audio) {
-		DRM_DEBUG_KMS("Monitor has basic audio support\n");
+		DRM_DE_KMS("Monitor has basic audio support\n");
 		goto end;
 	}
 
@@ -4227,7 +4227,7 @@ bool drm_detect_monitor_audio(struct edid *edid)
 		if (cea_db_tag(&edid_ext[i]) == AUDIO_BLOCK) {
 			has_audio = true;
 			for (j = 1; j < cea_db_payload_len(&edid_ext[i]) + 1; j += 3)
-				DRM_DEBUG_KMS("CEA audio format %d\n",
+				DRM_DE_KMS("CEA audio format %d\n",
 					      (edid_ext[i + j] >> 3) & 0xf);
 			goto end;
 		}
@@ -4261,7 +4261,7 @@ static void drm_parse_vcdb(struct drm_connector *connector, const u8 *db)
 {
 	struct drm_display_info *info = &connector->display_info;
 
-	DRM_DEBUG_KMS("CEA VCDB 0x%02x\n", db[2]);
+	DRM_DE_KMS("CEA VCDB 0x%02x\n", db[2]);
 
 	if (db[2] & EDID_CEA_VCDB_QS)
 		info->rgb_quant_range_selectable = true;
@@ -4307,7 +4307,7 @@ static void drm_parse_hdmi_forum_vsdb(struct drm_connector *connector,
 
 		if (max_tmds_clock > 340000) {
 			display->max_tmds_clock = max_tmds_clock;
-			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
+			DRM_DE_KMS("HF-VSDB: max TMDS clock %d kHz\n",
 				display->max_tmds_clock);
 		}
 
@@ -4338,31 +4338,31 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	if (hdmi[6] & DRM_EDID_HDMI_DC_30) {
 		dc_bpc = 10;
 		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_30;
-		DRM_DEBUG("%s: HDMI sink does deep color 30.\n",
+		DRM_DE("%s: HDMI sink does deep color 30.\n",
 			  connector->name);
 	}
 
 	if (hdmi[6] & DRM_EDID_HDMI_DC_36) {
 		dc_bpc = 12;
 		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_36;
-		DRM_DEBUG("%s: HDMI sink does deep color 36.\n",
+		DRM_DE("%s: HDMI sink does deep color 36.\n",
 			  connector->name);
 	}
 
 	if (hdmi[6] & DRM_EDID_HDMI_DC_48) {
 		dc_bpc = 16;
 		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_48;
-		DRM_DEBUG("%s: HDMI sink does deep color 48.\n",
+		DRM_DE("%s: HDMI sink does deep color 48.\n",
 			  connector->name);
 	}
 
 	if (dc_bpc == 0) {
-		DRM_DEBUG("%s: No deep color support on this HDMI sink.\n",
+		DRM_DE("%s: No deep color support on this HDMI sink.\n",
 			  connector->name);
 		return;
 	}
 
-	DRM_DEBUG("%s: Assigning HDMI sink color depth as %d bpc.\n",
+	DRM_DE("%s: Assigning HDMI sink color depth as %d bpc.\n",
 		  connector->name, dc_bpc);
 	info->bpc = dc_bpc;
 
@@ -4376,7 +4376,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	/* YCRCB444 is optional according to spec. */
 	if (hdmi[6] & DRM_EDID_HDMI_DC_Y444) {
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
-		DRM_DEBUG("%s: HDMI sink does YCRCB444 in deep color.\n",
+		DRM_DE("%s: HDMI sink does YCRCB444 in deep color.\n",
 			  connector->name);
 	}
 
@@ -4385,7 +4385,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	 * then deep color 36 bit must be supported.
 	 */
 	if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
-		DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
+		DRM_DE("%s: HDMI sink should do DC_36, but does not!\n",
 			  connector->name);
 	}
 }
@@ -4401,7 +4401,7 @@ drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
 	if (len >= 7)
 		info->max_tmds_clock = db[7] * 5000;
 
-	DRM_DEBUG_KMS("HDMI: DVI dual %d, "
+	DRM_DE_KMS("HDMI: DVI dual %d, "
 		      "max TMDS clock %d kHz\n",
 		      info->dvi_dual,
 		      info->max_tmds_clock);
@@ -4482,7 +4482,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 
 	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
 
-	DRM_DEBUG_KMS("non_desktop set to %d\n", info->non_desktop);
+	DRM_DE_KMS("non_desktop set to %d\n", info->non_desktop);
 
 	if (edid->revision < 3)
 		return quirks;
@@ -4502,7 +4502,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	if ((info->bpc == 0) && (edid->revision < 4) &&
 	    (edid->input & DRM_EDID_DIGITAL_TYPE_DVI)) {
 		info->bpc = 8;
-		DRM_DEBUG("%s: Assigning DFP sink color depth as %d bpc.\n",
+		DRM_DE("%s: Assigning DFP sink color depth as %d bpc.\n",
 			  connector->name, info->bpc);
 	}
 
@@ -4535,7 +4535,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 		break;
 	}
 
-	DRM_DEBUG("%s: Assigning EDID-1.4 digital sink color depth as %d bpc.\n",
+	DRM_DE("%s: Assigning EDID-1.4 digital sink color depth as %d bpc.\n",
 			  connector->name, info->bpc);
 
 	info->color_formats |= DRM_COLOR_FORMAT_RGB444;
@@ -4554,7 +4554,7 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 
 	base = (struct displayid_hdr *)&displayid[idx];
 
-	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
+	DRM_DE_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
 
 	if (base->bytes + 5 > length - idx)
@@ -5095,11 +5095,11 @@ static int drm_parse_tiled_block(struct drm_connector *connector,
 	connector->tile_h_size = w + 1;
 	connector->tile_v_size = h + 1;
 
-	DRM_DEBUG_KMS("tile cap 0x%x\n", tile->tile_cap);
-	DRM_DEBUG_KMS("tile_size %d x %d\n", w + 1, h + 1);
-	DRM_DEBUG_KMS("topo num tiles %dx%d, location %dx%d\n",
+	DRM_DE_KMS("tile cap 0x%x\n", tile->tile_cap);
+	DRM_DE_KMS("tile_size %d x %d\n", w + 1, h + 1);
+	DRM_DE_KMS("topo num tiles %dx%d, location %dx%d\n",
 		      num_h_tile + 1, num_v_tile + 1, tile_h_loc, tile_v_loc);
-	DRM_DEBUG_KMS("vend %c%c%c\n", tile->topology_id[0], tile->topology_id[1], tile->topology_id[2]);
+	DRM_DE_KMS("vend %c%c%c\n", tile->topology_id[0], tile->topology_id[1], tile->topology_id[2]);
 
 	tg = drm_mode_get_tile_group(connector->dev, tile->topology_id);
 	if (!tg) {
@@ -5143,7 +5143,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
 	       block->num_bytes > 0) {
 		idx += block->num_bytes + sizeof(struct displayid_block);
-		DRM_DEBUG_KMS("block id 0x%x, rev %d, len %d\n",
+		DRM_DE_KMS("block id 0x%x, rev %d, len %d\n",
 			      block->tag, block->rev, block->num_bytes);
 
 		switch (block->tag) {
@@ -5156,7 +5156,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 			/* handled in mode gathering code. */
 			break;
 		default:
-			DRM_DEBUG_KMS("found DisplayID tag 0x%x, unhandled\n", block->tag);
+			DRM_DE_KMS("found DisplayID tag 0x%x, unhandled\n", block->tag);
 			break;
 		}
 	}

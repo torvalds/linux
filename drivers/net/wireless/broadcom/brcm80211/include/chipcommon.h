@@ -88,7 +88,7 @@ struct chipcregs {
 	u32 clockcontrol_m2;	/* mii/uart/mipsref */
 	u32 clockcontrol_m3;	/* cpu */
 	u32 clkdiv;		/* corerev >= 3 */
-	u32 gpiodebugsel;	/* corerev >= 28 */
+	u32 gpiodesel;	/* corerev >= 28 */
 	u32 capabilities_ext;	/* 0xac  */
 
 	/* pll delay registers (corerev >= 4) */

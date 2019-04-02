@@ -259,7 +259,7 @@ void ioread16_rep(void __iomem *port, void *dst, unsigned long count)
 	if (unlikely((unsigned long)dst & 0x3)) {
 		if (!count)
 			return;
-		BUG_ON((unsigned long)dst & 0x1);
+		_ON((unsigned long)dst & 0x1);
 		count--;
 		*(unsigned short *)dst = ioread16(port);
 		dst += 2;
@@ -353,7 +353,7 @@ void iowrite16_rep(void __iomem *port, const void *src, unsigned long count)
 	if (unlikely((unsigned long)src & 0x3)) {
 		if (!count)
 			return;
-		BUG_ON((unsigned long)src & 0x1);
+		_ON((unsigned long)src & 0x1);
 		iowrite16(*(unsigned short *)src, port);
 		src += 2;
 		--count;

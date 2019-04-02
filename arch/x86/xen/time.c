@@ -203,7 +203,7 @@ static int xen_timerop_set_next_event(unsigned long delta,
 	WARN_ON(!clockevent_state_oneshot(evt));
 
 	if (HYPERVISOR_set_timer_op(get_abs_timeout(delta)) < 0)
-		BUG();
+		();
 
 	/* We may have missed the deadline, but there's no real way of
 	   knowing for sure.  If the event was in the past, then we'll
@@ -237,7 +237,7 @@ static int xen_vcpuop_shutdown(struct clock_event_device *evt)
 			       NULL) ||
 	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
 			       NULL))
-		BUG();
+		();
 
 	return 0;
 }
@@ -248,7 +248,7 @@ static int xen_vcpuop_set_oneshot(struct clock_event_device *evt)
 
 	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
 			       NULL))
-		BUG();
+		();
 
 	return 0;
 }
@@ -268,7 +268,7 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, xen_vcpu_nr(cpu),
 				 &single);
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 
 	return ret;
 }
@@ -367,7 +367,7 @@ void xen_timer_resume(void)
 	for_each_online_cpu(cpu) {
 		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer,
 				       xen_vcpu_nr(cpu), NULL))
-			BUG();
+			();
 	}
 }
 
@@ -451,7 +451,7 @@ static void xen_setup_vsyscall_time_info(void)
 	/*
 	 * If primary time info had this bit set, secondary should too since
 	 * it's the same data on both just different memory regions. But we
-	 * still check it in case hypervisor is buggy.
+	 * still check it in case hypervisor is gy.
 	 */
 	if (!(ti->pvti.flags & PVCLOCK_TSC_STABLE_BIT)) {
 		t.addr.v = NULL;
@@ -486,7 +486,7 @@ static void __init xen_time_init(void)
 			       NULL) == 0) {
 		/* Successfully turned off 100Hz tick, so we have the
 		   vcpuop-based timer interface */
-		printk(KERN_DEBUG "Xen: using vcpuop timer interface\n");
+		printk(KERN_DE "Xen: using vcpuop timer interface\n");
 		xen_clockevent = &xen_vcpuop_clockevent;
 	}
 

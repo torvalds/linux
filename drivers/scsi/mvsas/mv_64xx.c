@@ -144,13 +144,13 @@ mvs_64xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set, u8 clear_all)
 	if (clear_all) {
 		tmp = mr32(MVS_INT_STAT_SRS_0);
 		if (tmp) {
-			printk(KERN_DEBUG "check SRS 0 %08X.\n", tmp);
+			printk(KERN_DE "check SRS 0 %08X.\n", tmp);
 			mw32(MVS_INT_STAT_SRS_0, tmp);
 		}
 	} else {
 		tmp = mr32(MVS_INT_STAT_SRS_0);
 		if (tmp &  (1 << (reg_set % 32))) {
-			printk(KERN_DEBUG "register set 0x%x was stopped.\n",
+			printk(KERN_DE "register set 0x%x was stopped.\n",
 			       reg_set);
 			mw32(MVS_INT_STAT_SRS_0, 1 << (reg_set % 32));
 		}

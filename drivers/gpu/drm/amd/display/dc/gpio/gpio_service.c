@@ -61,19 +61,19 @@ struct gpio_service *dal_gpio_service_create(
 	service = kzalloc(sizeof(struct gpio_service), GFP_KERNEL);
 
 	if (!service) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
 	if (!dal_hw_translate_init(&service->translate, dce_version_major,
 			dce_version_minor)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto failure_1;
 	}
 
 	if (!dal_hw_factory_init(&service->factory, dce_version_major,
 			dce_version_minor)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto failure_1;
 	}
 
@@ -93,7 +93,7 @@ struct gpio_service *dal_gpio_service_create(
 						GFP_KERNEL);
 
 				if (!service->busyness[index_of_id]) {
-					BREAK_TO_DEBUGGER();
+					BREAK_TO_DEGER();
 					goto failure_2;
 				}
 
@@ -143,7 +143,7 @@ void dal_gpio_service_destroy(
 	struct gpio_service **ptr)
 {
 	if (!ptr || !*ptr) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -420,7 +420,7 @@ struct ddc *dal_gpio_create_ddc(
 	ddc = kzalloc(sizeof(struct ddc), GFP_KERNEL);
 
 	if (!ddc) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -428,7 +428,7 @@ struct ddc *dal_gpio_create_ddc(
 		service, GPIO_ID_DDC_DATA, en, GPIO_PIN_OUTPUT_STATE_DEFAULT);
 
 	if (!ddc->pin_data) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto failure_1;
 	}
 
@@ -436,7 +436,7 @@ struct ddc *dal_gpio_create_ddc(
 		service, GPIO_ID_DDC_CLOCK, en, GPIO_PIN_OUTPUT_STATE_DEFAULT);
 
 	if (!ddc->pin_clock) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto failure_2;
 	}
 
@@ -459,7 +459,7 @@ void dal_gpio_destroy_ddc(
 	struct ddc **ddc)
 {
 	if (!ddc || !*ddc) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -485,14 +485,14 @@ enum gpio_result dal_ddc_open(
 	result = dal_gpio_open_ex(ddc->pin_data, mode);
 
 	if (result != GPIO_RESULT_OK) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return result;
 	}
 
 	result = dal_gpio_open_ex(ddc->pin_clock, mode);
 
 	if (result != GPIO_RESULT_OK) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto failure;
 	}
 
@@ -520,7 +520,7 @@ enum gpio_result dal_ddc_open(
 	if (result == GPIO_RESULT_OK)
 		return result;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 
 	dal_gpio_close(ddc->pin_clock);
 

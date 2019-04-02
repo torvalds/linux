@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uwb.h>
 #include <linux/export.h>
 
@@ -58,7 +58,7 @@ int uwb_pal_register(struct uwb_pal *pal)
 		}
 	}
 
-	pal->debugfs_dir = uwb_dbg_create_pal_dir(pal);
+	pal->defs_dir = uwb_dbg_create_pal_dir(pal);
 
 	mutex_lock(&rc->uwb_dev.mutex);
 	list_add(&pal->node, &rc->pals);
@@ -116,7 +116,7 @@ void uwb_pal_unregister(struct uwb_pal *pal)
 	list_del(&pal->node);
 	mutex_unlock(&rc->uwb_dev.mutex);
 
-	debugfs_remove(pal->debugfs_dir);
+	defs_remove(pal->defs_dir);
 
 	if (pal->device) {
 		/* remove link to the PAL in the UWB device's directory. */

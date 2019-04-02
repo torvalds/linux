@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include "compress.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include <unistd.h>
 
 #define BUFSIZE 8192
@@ -27,7 +27,7 @@ static const char *lzma_strerror(lzma_ret ret)
 	case LZMA_BUF_ERROR:
 		return "Compressed file is truncated or otherwise corrupt";
 	default:
-		return "Unknown error, possibly a bug";
+		return "Unknown error, possibly a ";
 	}
 }
 

@@ -58,7 +58,7 @@ static u8 clk_rcg_get_parent(struct clk_hw *hw)
 			return i;
 
 err:
-	pr_debug("%s: Clock %s has invalid parent, using default.\n",
+	pr_de("%s: Clock %s has invalid parent, using default.\n",
 		 __func__, clk_hw_get_name(hw));
 	return 0;
 }
@@ -94,7 +94,7 @@ static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
 			return i;
 
 err:
-	pr_debug("%s: Clock %s has invalid parent, using default.\n",
+	pr_de("%s: Clock %s has invalid parent, using default.\n",
 		 __func__, clk_hw_get_name(hw));
 	return 0;
 }

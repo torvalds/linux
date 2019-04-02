@@ -36,7 +36,7 @@ void __onstack_fence_init(struct i915_sw_fence *fence,
 			  const char *name,
 			  struct lock_class_key *key)
 {
-	debug_fence_init_onstack(fence);
+	de_fence_init_onstack(fence);
 
 	__init_waitqueue_head(&fence->wait, name, key);
 	atomic_set(&fence->pending, 1);

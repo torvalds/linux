@@ -20,12 +20,12 @@
 
 /* ----------------------------------------------------------- */
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
+static unsigned int i2c_de;
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de, "enable de messages [i2c]");
 
-#define i2c_dprintk(lvl, fmt, args...) if (i2c_debug >= lvl) do { \
-			printk(KERN_DEBUG "%s at %s: " fmt, \
+#define i2c_dprintk(lvl, fmt, args...) if (i2c_de >= lvl) do { \
+			printk(KERN_DE "%s at %s: " fmt, \
 			dev->name, __func__, ##args); } while (0)
 
 static int tm6000_i2c_send_regs(struct tm6000_core *dev, unsigned char addr,
@@ -83,7 +83,7 @@ static int tm6000_i2c_recv_regs(struct tm6000_core *dev, unsigned char addr,
 	/* capture mutex */
 	if ((dev->caps.has_zl10353) && (dev->demod_addr << 1 == addr) && (reg % 2 == 0)) {
 		/*
-		 * Workaround an I2C bug when reading from zl10353
+		 * Workaround an I2C  when reading from zl10353
 		 */
 		reg -= 1;
 		len += 1;
@@ -164,7 +164,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   (msgs[i + 1].flags & I2C_M_RD) &&
 			   msgs[i].addr == msgs[i + 1].addr) {
 			/* 1 or 2 byte write followed by a read */
-			if (i2c_debug >= 2)
+			if (i2c_de >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			i2c_dprintk(2, "; joined to read %s len=%d:",
@@ -186,18 +186,18 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				tm6000_set_reg(dev, REQ_50_SET_START, 0, 0);
 				tm6000_set_reg(dev, REQ_51_SET_STOP, 0, 0);
 			}
-			if (i2c_debug >= 2)
+			if (i2c_de >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 		} else {
 			/* write bytes */
-			if (i2c_debug >= 2)
+			if (i2c_de >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			rc = tm6000_i2c_send_regs(dev, addr, msgs[i].buf[0],
 				msgs[i].buf + 1, msgs[i].len - 1);
 		}
-		if (i2c_debug >= 2)
+		if (i2c_de >= 2)
 			printk(KERN_CONT "\n");
 		if (rc < 0)
 			goto err;

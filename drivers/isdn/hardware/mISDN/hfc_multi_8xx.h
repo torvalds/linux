@@ -15,7 +15,7 @@
 #endif
 
 static void
-#ifdef HFC_REGISTER_DEBUG
+#ifdef HFC_REGISTER_DE
 HFC_outb_embsd(struct hfc_multi *hc, u_char reg, u_char val,
 	       const char *function, int line)
 #else
@@ -28,7 +28,7 @@ HFC_outb_embsd(struct hfc_multi *hc, u_char reg, u_char val,
 	writeb(val, hc->xhfc_memdata);
 }
 static u_char
-#ifdef HFC_REGISTER_DEBUG
+#ifdef HFC_REGISTER_DE
 HFC_inb_embsd(struct hfc_multi *hc, u_char reg, const char *function, int line)
 #else
 	HFC_inb_embsd(struct hfc_multi *hc, u_char reg)
@@ -40,7 +40,7 @@ HFC_inb_embsd(struct hfc_multi *hc, u_char reg, const char *function, int line)
 	return readb(hc->xhfc_memdata);
 }
 static u_short
-#ifdef HFC_REGISTER_DEBUG
+#ifdef HFC_REGISTER_DE
 HFC_inw_embsd(struct hfc_multi *hc, u_char reg, const char *function, int line)
 #else
 	HFC_inw_embsd(struct hfc_multi *hc, u_char reg)
@@ -52,7 +52,7 @@ HFC_inw_embsd(struct hfc_multi *hc, u_char reg, const char *function, int line)
 	return readb(hc->xhfc_memdata);
 }
 static void
-#ifdef HFC_REGISTER_DEBUG
+#ifdef HFC_REGISTER_DE
 HFC_wait_embsd(struct hfc_multi *hc, const char *function, int line)
 #else
 	HFC_wait_embsd(struct hfc_multi *hc)

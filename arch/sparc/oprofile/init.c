@@ -16,7 +16,7 @@
 #ifdef CONFIG_SPARC64
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <asm/nmi.h>
 
 static int profile_timer_exceptions_notify(struct notifier_block *self,

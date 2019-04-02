@@ -9,11 +9,11 @@ struct {
 	u64 blocks;
 } block_ranges;
 
-static void block_range__debug(void)
+static void block_range__de(void)
 {
 	/*
 	 * XXX still paranoid for now; see if we can make this depend on
-	 * DEBUG=1 builds.
+	 * DE=1 builds.
 	 */
 #if 1
 	struct rb_node *rb;
@@ -130,7 +130,7 @@ struct block_range_iter block_range__create(u64 start, u64 end)
 
 			rb_link_left_of_node(&head->node, &next->node);
 			rb_insert_color(&head->node, &block_ranges.root);
-			block_range__debug();
+			block_range__de();
 
 			iter.start = head;
 			goto do_tail;
@@ -153,7 +153,7 @@ do_whole:
 
 		rb_link_node(&entry->node, parent, p);
 		rb_insert_color(&entry->node, &block_ranges.root);
-		block_range__debug();
+		block_range__de();
 
 		iter.start = entry;
 		iter.end   = entry;
@@ -184,7 +184,7 @@ do_whole:
 
 		rb_link_left_of_node(&head->node, &entry->node);
 		rb_insert_color(&head->node, &block_ranges.root);
-		block_range__debug();
+		block_range__de();
 
 	} else if (entry->start == start)
 		entry->is_target = 1;
@@ -224,7 +224,7 @@ do_tail:
 
 			rb_link_right_of_node(&tail->node, &entry->node);
 			rb_insert_color(&tail->node, &block_ranges.root);
-			block_range__debug();
+			block_range__de();
 
 			iter.end = entry;
 			goto done;
@@ -262,7 +262,7 @@ add_tail:
 
 			rb_link_right_of_node(&tail->node, &entry->node);
 			rb_insert_color(&tail->node, &block_ranges.root);
-			block_range__debug();
+			block_range__de();
 
 			iter.end = tail;
 			goto done;
@@ -285,7 +285,7 @@ add_tail:
 
 			rb_link_left_of_node(&hole->node, &next->node);
 			rb_insert_color(&hole->node, &block_ranges.root);
-			block_range__debug();
+			block_range__de();
 		}
 
 		entry = next;

@@ -7,7 +7,7 @@
  * Rework for IIO subsystem:
  * Copyright (C) 2012-2013 Martin Liska <marxin.liska@gmail.com>
  *
- * Final cleanup and debugging:
+ * Final cleanup and deging:
  * Copyright (C) 2013-2014 Marek Vasut <marex@denx.de>
  * Copyright (C) 2015 Gabriele Mazzotta <gabriele.mzt@gmail.com>
  *

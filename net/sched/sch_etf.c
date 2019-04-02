@@ -362,7 +362,7 @@ static int etf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	qopt = nla_data(tb[TCA_ETF_PARMS]);
 
-	pr_debug("delta %d clockid %d offload %s deadline %s\n",
+	pr_de("delta %d clockid %d offload %s deadline %s\n",
 		 qopt->delta, qopt->clockid,
 		 OFFLOAD_IS_ON(qopt) ? "on" : "off",
 		 DEADLINE_MODE_IS_ON(qopt) ? "on" : "off");

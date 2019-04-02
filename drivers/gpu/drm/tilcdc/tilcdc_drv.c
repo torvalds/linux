@@ -417,7 +417,7 @@ static irqreturn_t tilcdc_irq(int irq, void *arg)
 	return tilcdc_crtc_irq(priv->crtc);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 static const struct {
 	const char *name;
 	uint8_t  rev;
@@ -450,7 +450,7 @@ static const struct {
 
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int tilcdc_regs_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -481,27 +481,27 @@ static int tilcdc_mm_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static struct drm_info_list tilcdc_debugfs_list[] = {
+static struct drm_info_list tilcdc_defs_list[] = {
 		{ "regs", tilcdc_regs_show, 0 },
 		{ "mm",   tilcdc_mm_show,   0 },
 };
 
-static int tilcdc_debugfs_init(struct drm_minor *minor)
+static int tilcdc_defs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	struct tilcdc_module *mod;
 	int ret;
 
-	ret = drm_debugfs_create_files(tilcdc_debugfs_list,
-			ARRAY_SIZE(tilcdc_debugfs_list),
-			minor->debugfs_root, minor);
+	ret = drm_defs_create_files(tilcdc_defs_list,
+			ARRAY_SIZE(tilcdc_defs_list),
+			minor->defs_root, minor);
 
 	list_for_each_entry(mod, &module_list, list)
-		if (mod->funcs->debugfs_init)
-			mod->funcs->debugfs_init(mod, minor);
+		if (mod->funcs->defs_init)
+			mod->funcs->defs_init(mod, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install tilcdc_debugfs_list\n");
+		dev_err(dev->dev, "could not install tilcdc_defs_list\n");
 		return ret;
 	}
 
@@ -529,8 +529,8 @@ static struct drm_driver tilcdc_driver = {
 	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init       = tilcdc_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init       = tilcdc_defs_init,
 #endif
 	.fops               = &fops,
 	.name               = "tilcdc",

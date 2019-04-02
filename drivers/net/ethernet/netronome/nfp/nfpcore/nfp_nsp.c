@@ -754,7 +754,7 @@ static void nfp_nsp_load_fw_extended_msg(struct nfp_nsp *state, u32 ret_val)
 
 	/* Lower the message level in legacy case */
 	if (major == 0 && (minor == 0 || minor == 10))
-		level = KERN_DEBUG;
+		level = KERN_DE;
 	else if (major == 2)
 		level = KERN_ERR;
 	else

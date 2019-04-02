@@ -57,7 +57,7 @@ nv50_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
 	if (offset < 0)
 		return 0;
 
-	/* HW bug workaround:
+	/* HW  workaround:
 	 *
 	 * PFIFO will hang forever if the connected engines don't report
 	 * that they've processed the context switch request.

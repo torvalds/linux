@@ -25,7 +25,7 @@
  * o We don't currently parse the EEPROM at all.  The code is all
  *   there as per the spec, but it doesn't actually work.  I think
  *   there may be some issues with the docs.  Anyway, do NOT
- *   enable it yet - bugs in that code may actually damage your
+ *   enable it yet - s in that code may actually damage your
  *   hardware!  Because of this you should hardware an ESI before
  *   trying to use this in a LANE or MPOA environment.
  *
@@ -77,15 +77,15 @@
 #define NUM_VCI			(1024)
 
 /*
- * Enable extra debugging
+ * Enable extra deging
  */
-#define DEBUG
+#define DE
 /*
- * Debug _all_ register operations with card, except the memory test.
+ * De _all_ register operations with card, except the memory test.
  * Also disables the timed poll to prevent extra chattiness.  This
  * isn't for normal use
  */
-#undef DEBUG_RW
+#undef DE_RW
 
 /*
  * The programming guide specifies a full test of the on-board SRAM
@@ -159,32 +159,32 @@
 /* #define USE_POWERDOWN */
 /* TODO: make above a module load-time option (also) */
 
-/* -------------------- DEBUGGING AIDS: */
+/* -------------------- DEGING AIDS: */
 
 #define DEV_LABEL "lanai"
 
-#ifdef DEBUG
+#ifdef DE
 
 #define DPRINTK(format, args...) \
-	printk(KERN_DEBUG DEV_LABEL ": " format, ##args)
+	printk(KERN_DE DEV_LABEL ": " format, ##args)
 #define APRINTK(truth, format, args...) \
 	do { \
 		if (unlikely(!(truth))) \
 			printk(KERN_ERR DEV_LABEL ": " format, ##args); \
 	} while (0)
 
-#else /* !DEBUG */
+#else /* !DE */
 
 #define DPRINTK(format, args...)
 #define APRINTK(truth, format, args...)
 
-#endif /* DEBUG */
+#endif /* DE */
 
-#ifdef DEBUG_RW
-#define RWDEBUG(format, args...) \
-	printk(KERN_DEBUG DEV_LABEL ": " format, ##args)
-#else /* !DEBUG_RW */
-#define RWDEBUG(format, args...)
+#ifdef DE_RW
+#define RWDE(format, args...) \
+	printk(KERN_DE DEV_LABEL ": " format, ##args)
+#else /* !DE_RW */
+#define RWDE(format, args...)
 #endif
 
 /* -------------------- DATA DEFINITIONS: */
@@ -480,7 +480,7 @@ static inline u32 reg_read(const struct lanai_dev *lanai,
 {
 	u32 t;
 	t = readl(reg_addr(lanai, reg));
-	RWDEBUG("R [0x%08X] 0x%02X = 0x%08X\n", (unsigned int) lanai->base,
+	RWDE("R [0x%08X] 0x%02X = 0x%08X\n", (unsigned int) lanai->base,
 	    (int) reg, t);
 	return t;
 }
@@ -488,7 +488,7 @@ static inline u32 reg_read(const struct lanai_dev *lanai,
 static inline void reg_write(const struct lanai_dev *lanai, u32 val,
 	enum lanai_register reg)
 {
-	RWDEBUG("W [0x%08X] 0x%02X < 0x%08X\n", (unsigned int) lanai->base,
+	RWDE("W [0x%08X] 0x%02X < 0x%08X\n", (unsigned int) lanai->base,
 	    (int) reg, val);
 	writel(val, reg_addr(lanai, reg));
 }
@@ -653,7 +653,7 @@ static inline u32 cardvcc_read(const struct lanai_vcc *lvcc,
 	u32 val;
 	APRINTK(lvcc->vbase != NULL, "cardvcc_read: unbound vcc!\n");
 	val= readl(lvcc->vbase + offset);
-	RWDEBUG("VR vci=%04d 0x%02X = 0x%08X\n",
+	RWDE("VR vci=%04d 0x%02X = 0x%08X\n",
 	    lvcc->vci, (int) offset, val);
 	return val;
 }
@@ -665,7 +665,7 @@ static inline void cardvcc_write(const struct lanai_vcc *lvcc,
 	APRINTK((val & ~0xFFFF) == 0,
 	    "cardvcc_write: bad val 0x%X (vci=%d, addr=0x%02X)\n",
 	    (unsigned int) val, lvcc->vci, (unsigned int) offset);
-	RWDEBUG("VW vci=%04d 0x%02X > 0x%08X\n",
+	RWDE("VW vci=%04d 0x%02X > 0x%08X\n",
 	    lvcc->vci, (unsigned int) offset, (unsigned int) val);
 	writel(val, lvcc->vbase + offset);
 }
@@ -950,7 +950,7 @@ static int eeprom_validate(struct lanai_dev *lanai)
 	int i, s;
 	u32 v;
 	const u8 *e = lanai->eeprom;
-#ifdef DEBUG
+#ifdef DE
 	/* First, see if we can get an ASCIIZ string out of the copyright */
 	for (i = EEPROM_COPYRIGHT;
 	    i < (EEPROM_COPYRIGHT + EEPROM_COPYRIGHT_LEN); i++)
@@ -1472,7 +1472,7 @@ static inline struct lanai_vcc *new_lanai_vcc(void)
 	lvcc =  kzalloc(sizeof(*lvcc), GFP_KERNEL);
 	if (likely(lvcc != NULL)) {
 		skb_queue_head_init(&lvcc->tx.backlog);
-#ifdef DEBUG
+#ifdef DE
 		lvcc->vci = -1;
 #endif
 	}
@@ -1745,7 +1745,7 @@ static void get_statistics(struct lanai_dev *lanai)
 
 /* -------------------- POLLING TIMER: */
 
-#ifndef DEBUG_RW
+#ifndef DE_RW
 /* Try to undequeue 1 backlogged vcc */
 static void iter_dequeue(struct lanai_dev *lanai, vci_t vci)
 {
@@ -1759,12 +1759,12 @@ static void iter_dequeue(struct lanai_dev *lanai, vci_t vci)
 	endptr = TXREADPTR_GET_PTR(cardvcc_read(lvcc, vcc_txreadptr));
 	lvcc->tx.unqueue(lanai, lvcc, endptr);
 }
-#endif /* !DEBUG_RW */
+#endif /* !DE_RW */
 
 static void lanai_timed_poll(struct timer_list *t)
 {
 	struct lanai_dev *lanai = from_timer(lanai, t, timer);
-#ifndef DEBUG_RW
+#ifndef DE_RW
 	unsigned long flags;
 #ifdef USE_POWERDOWN
 	if (lanai->conf1 & CONFIG1_POWERDOWN)
@@ -1784,7 +1784,7 @@ static void lanai_timed_poll(struct timer_list *t)
 	local_irq_restore(flags);
 
 	get_statistics(lanai);
-#endif /* !DEBUG_RW */
+#endif /* !DE_RW */
 	mod_timer(&lanai->timer, jiffies + LANAI_POLL_PERIOD);
 }
 
@@ -1863,7 +1863,7 @@ static inline void lanai_int_1(struct lanai_dev *lanai, u32 reason)
 		lanai_reset(lanai);
 		return;
 	}
-#ifdef DEBUG
+#ifdef DE
 	if (unlikely(ack != reason)) {
 		DPRINTK("unacked ints: 0x%08X\n",
 		    (unsigned int) (reason & ~ack));
@@ -2398,7 +2398,7 @@ static int lanai_send(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	if (unlikely(lvcc == NULL || lvcc->vbase == NULL ||
 	      lvcc->tx.atmvcc != atmvcc))
 		goto einval;
-#ifdef DEBUG
+#ifdef DE
 	if (unlikely(skb == NULL)) {
 		DPRINTK("lanai_send: skb==NULL for vci=%d\n", atmvcc->vci);
 		goto einval;

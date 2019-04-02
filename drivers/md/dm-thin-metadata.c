@@ -788,7 +788,7 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	/*
 	 * We need to know if the thin_disk_superblock exceeds a 512-byte sector.
 	 */
-	BUILD_BUG_ON(sizeof(struct thin_disk_superblock) > 512);
+	BUILD__ON(sizeof(struct thin_disk_superblock) > 512);
 
 	r = __write_changed_details(pmd);
 	if (r < 0)
@@ -1236,7 +1236,7 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	if (r)
 		return r;
 
-	BUG_ON(!inc);
+	_ON(!inc);
 
 	held_root = dm_block_location(copy);
 	disk_super = dm_block_data(copy);

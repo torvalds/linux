@@ -279,11 +279,11 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 					atomic_long_inc(&gru_stats.id);	\
 			} while (0)
 
-#ifdef CONFIG_SGI_GRU_DEBUG
+#ifdef CONFIG_SGI_GRU_DE
 #define gru_dbg(dev, fmt, x...)						\
 	do {								\
 		if (gru_options & OPT_DPRINT)				\
-			printk(KERN_DEBUG "GRU:%d %s: " fmt, smp_processor_id(), __func__, x);\
+			printk(KERN_DE "GRU:%d %s: " fmt, smp_processor_id(), __func__, x);\
 	} while (0)
 #else
 #define gru_dbg(x...)

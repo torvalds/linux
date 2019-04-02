@@ -394,7 +394,7 @@ static int snd_ad1816a_timer_open(struct snd_timer *timer)
 
 static unsigned long snd_ad1816a_timer_resolution(struct snd_timer *timer)
 {
-	if (snd_BUG_ON(!timer))
+	if (snd__ON(!timer))
 		return 0;
 
 	return 10000;
@@ -965,7 +965,7 @@ int snd_ad1816a_mixer(struct snd_ad1816a *chip)
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!chip || !chip->card))
+	if (snd__ON(!chip || !chip->card))
 		return -EINVAL;
 
 	card = chip->card;

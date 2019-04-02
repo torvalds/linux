@@ -28,18 +28,18 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-/* smic_debug is a bit-field
- *	SMIC_DEBUG_ENABLE -	turned on for now
- *	SMIC_DEBUG_MSG -	commands and their responses
- *	SMIC_DEBUG_STATES -	state machine
+/* smic_de is a bit-field
+ *	SMIC_DE_ENABLE -	turned on for now
+ *	SMIC_DE_MSG -	commands and their responses
+ *	SMIC_DE_STATES -	state machine
 */
-#define SMIC_DEBUG_STATES	4
-#define SMIC_DEBUG_MSG		2
-#define	SMIC_DEBUG_ENABLE	1
+#define SMIC_DE_STATES	4
+#define SMIC_DE_MSG		2
+#define	SMIC_DE_ENABLE	1
 
-static int smic_debug = 1;
-module_param(smic_debug, int, 0644);
-MODULE_PARM_DESC(smic_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
+static int smic_de = 1;
+module_param(smic_de, int, 0644);
+MODULE_PARM_DESC(smic_de, "de bitmask, 1=enable, 2=messages, 4=states");
 
 enum smic_states {
 	SMIC_IDLE,
@@ -129,8 +129,8 @@ static int start_smic_transaction(struct si_sm_data *smic,
 	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED))
 		return IPMI_NOT_IN_MY_STATE_ERR;
 
-	if (smic_debug & SMIC_DEBUG_MSG) {
-		printk(KERN_DEBUG "start_smic_transaction -");
+	if (smic_de & SMIC_DE_MSG) {
+		printk(KERN_DE "start_smic_transaction -");
 		for (i = 0; i < size; i++)
 			pr_cont(" %02x", data[i]);
 		pr_cont("\n");
@@ -151,8 +151,8 @@ static int smic_get_result(struct si_sm_data *smic,
 {
 	int i;
 
-	if (smic_debug & SMIC_DEBUG_MSG) {
-		printk(KERN_DEBUG "smic_get result -");
+	if (smic_de & SMIC_DE_MSG) {
+		printk(KERN_DE "smic_get result -");
 		for (i = 0; i < smic->read_pos; i++)
 			pr_cont(" %02x", smic->read_data[i]);
 		pr_cont("\n");
@@ -211,7 +211,7 @@ static inline void start_error_recovery(struct si_sm_data *smic, char *reason)
 {
 	(smic->error_retries)++;
 	if (smic->error_retries > SMIC_MAX_ERROR_RETRIES) {
-		if (smic_debug & SMIC_DEBUG_ENABLE)
+		if (smic_de & SMIC_DE_ENABLE)
 			pr_warn("ipmi_smic_drv: smic hosed: %s\n", reason);
 		smic->state = SMIC_HOSED;
 	} else {
@@ -323,8 +323,8 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		return SI_SM_HOSED;
 	}
 	if (smic->state != SMIC_IDLE) {
-		if (smic_debug & SMIC_DEBUG_STATES)
-			printk(KERN_DEBUG
+		if (smic_de & SMIC_DE_STATES)
+			printk(KERN_DE
 			       "smic_event - smic->smic_timeout = %ld, time = %ld\n",
 			       smic->smic_timeout, time);
 		/*
@@ -344,8 +344,8 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		return SI_SM_CALL_WITH_DELAY;
 
 	status = read_smic_status(smic);
-	if (smic_debug & SMIC_DEBUG_STATES)
-		printk(KERN_DEBUG "smic_event - state = %d, flags = 0x%02x, status = 0x%02x\n",
+	if (smic_de & SMIC_DE_STATES)
+		printk(KERN_DE "smic_event - state = %d, flags = 0x%02x, status = 0x%02x\n",
 		       smic->state, flags, status);
 
 	switch (smic->state) {
@@ -435,8 +435,8 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		/* data register holds an error code */
 		data = read_smic_data(smic);
 		if (data != 0) {
-			if (smic_debug & SMIC_DEBUG_ENABLE)
-				printk(KERN_DEBUG "SMIC_WRITE_END: data = %02x\n",
+			if (smic_de & SMIC_DE_ENABLE)
+				printk(KERN_DE "SMIC_WRITE_END: data = %02x\n",
 				       data);
 			start_error_recovery(smic,
 					     "state = SMIC_WRITE_END, "
@@ -515,8 +515,8 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		data = read_smic_data(smic);
 		/* data register holds an error code */
 		if (data != 0) {
-			if (smic_debug & SMIC_DEBUG_ENABLE)
-				printk(KERN_DEBUG "SMIC_READ_END: data = %02x\n",
+			if (smic_de & SMIC_DE_ENABLE)
+				printk(KERN_DE "SMIC_READ_END: data = %02x\n",
 				       data);
 			start_error_recovery(smic,
 					     "state = SMIC_READ_END, "
@@ -532,8 +532,8 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		return SI_SM_HOSED;
 
 	default:
-		if (smic_debug & SMIC_DEBUG_ENABLE) {
-			printk(KERN_DEBUG "smic->state = %d\n", smic->state);
+		if (smic_de & SMIC_DE_ENABLE) {
+			printk(KERN_DE "smic->state = %d\n", smic->state);
 			start_error_recovery(smic, "state = UNKNOWN");
 			return SI_SM_CALL_WITH_DELAY;
 		}

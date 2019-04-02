@@ -30,7 +30,7 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
@@ -64,8 +64,8 @@
 /* susclk rate */
 #define SUSCLK_RATE_32KHZ	32768
 
-/* Controller debug log header */
-#define QCA_DEBUG_HANDLE	0x2EDC
+/* Controller de log header */
+#define QCA_DE_HANDLE	0x2EDC
 
 /* HCI_IBS transmit side sleep protocol states */
 enum tx_ibs_states {
@@ -110,7 +110,7 @@ struct qca_data {
 	struct work_struct ws_tx_vote_off;
 	unsigned long flags;
 
-	/* For debugging purpose */
+	/* For deging purpose */
 	u64 ibs_sent_wacks;
 	u64 ibs_sent_slps;
 	u64 ibs_sent_wakes;
@@ -534,49 +534,49 @@ static int qca_open(struct hci_uart *hu)
 	return 0;
 }
 
-static void qca_debugfs_init(struct hci_dev *hdev)
+static void qca_defs_init(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct qca_data *qca = hu->priv;
 	struct dentry *ibs_dir;
 	umode_t mode;
 
-	if (!hdev->debugfs)
+	if (!hdev->defs)
 		return;
 
-	ibs_dir = debugfs_create_dir("ibs", hdev->debugfs);
+	ibs_dir = defs_create_dir("ibs", hdev->defs);
 
 	/* read only */
 	mode = S_IRUGO;
-	debugfs_create_u8("tx_ibs_state", mode, ibs_dir, &qca->tx_ibs_state);
-	debugfs_create_u8("rx_ibs_state", mode, ibs_dir, &qca->rx_ibs_state);
-	debugfs_create_u64("ibs_sent_sleeps", mode, ibs_dir,
+	defs_create_u8("tx_ibs_state", mode, ibs_dir, &qca->tx_ibs_state);
+	defs_create_u8("rx_ibs_state", mode, ibs_dir, &qca->rx_ibs_state);
+	defs_create_u64("ibs_sent_sleeps", mode, ibs_dir,
 			   &qca->ibs_sent_slps);
-	debugfs_create_u64("ibs_sent_wakes", mode, ibs_dir,
+	defs_create_u64("ibs_sent_wakes", mode, ibs_dir,
 			   &qca->ibs_sent_wakes);
-	debugfs_create_u64("ibs_sent_wake_acks", mode, ibs_dir,
+	defs_create_u64("ibs_sent_wake_acks", mode, ibs_dir,
 			   &qca->ibs_sent_wacks);
-	debugfs_create_u64("ibs_recv_sleeps", mode, ibs_dir,
+	defs_create_u64("ibs_recv_sleeps", mode, ibs_dir,
 			   &qca->ibs_recv_slps);
-	debugfs_create_u64("ibs_recv_wakes", mode, ibs_dir,
+	defs_create_u64("ibs_recv_wakes", mode, ibs_dir,
 			   &qca->ibs_recv_wakes);
-	debugfs_create_u64("ibs_recv_wake_acks", mode, ibs_dir,
+	defs_create_u64("ibs_recv_wake_acks", mode, ibs_dir,
 			   &qca->ibs_recv_wacks);
-	debugfs_create_bool("tx_vote", mode, ibs_dir, &qca->tx_vote);
-	debugfs_create_u64("tx_votes_on", mode, ibs_dir, &qca->tx_votes_on);
-	debugfs_create_u64("tx_votes_off", mode, ibs_dir, &qca->tx_votes_off);
-	debugfs_create_bool("rx_vote", mode, ibs_dir, &qca->rx_vote);
-	debugfs_create_u64("rx_votes_on", mode, ibs_dir, &qca->rx_votes_on);
-	debugfs_create_u64("rx_votes_off", mode, ibs_dir, &qca->rx_votes_off);
-	debugfs_create_u64("votes_on", mode, ibs_dir, &qca->votes_on);
-	debugfs_create_u64("votes_off", mode, ibs_dir, &qca->votes_off);
-	debugfs_create_u32("vote_on_ms", mode, ibs_dir, &qca->vote_on_ms);
-	debugfs_create_u32("vote_off_ms", mode, ibs_dir, &qca->vote_off_ms);
+	defs_create_bool("tx_vote", mode, ibs_dir, &qca->tx_vote);
+	defs_create_u64("tx_votes_on", mode, ibs_dir, &qca->tx_votes_on);
+	defs_create_u64("tx_votes_off", mode, ibs_dir, &qca->tx_votes_off);
+	defs_create_bool("rx_vote", mode, ibs_dir, &qca->rx_vote);
+	defs_create_u64("rx_votes_on", mode, ibs_dir, &qca->rx_votes_on);
+	defs_create_u64("rx_votes_off", mode, ibs_dir, &qca->rx_votes_off);
+	defs_create_u64("votes_on", mode, ibs_dir, &qca->votes_on);
+	defs_create_u64("votes_off", mode, ibs_dir, &qca->votes_off);
+	defs_create_u32("vote_on_ms", mode, ibs_dir, &qca->vote_on_ms);
+	defs_create_u32("vote_off_ms", mode, ibs_dir, &qca->vote_off_ms);
 
 	/* read/write */
 	mode = S_IRUGO | S_IWUSR;
-	debugfs_create_u32("wake_retrans", mode, ibs_dir, &qca->wake_retrans);
-	debugfs_create_u32("tx_idle_delay", mode, ibs_dir,
+	defs_create_u32("wake_retrans", mode, ibs_dir, &qca->wake_retrans);
+	defs_create_u32("tx_idle_delay", mode, ibs_dir,
 			   &qca->tx_idle_delay);
 }
 
@@ -856,12 +856,12 @@ static int qca_ibs_wake_ack(struct hci_dev *hdev, struct sk_buff *skb)
 
 static int qca_recv_acl_data(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	/* We receive debug logs from chip as an ACL packets.
+	/* We receive de logs from chip as an ACL packets.
 	 * Instead of sending the data to ACL to decode the
 	 * received data, we are pushing them to the above layers
 	 * as a diagnostic packet.
 	 */
-	if (get_unaligned_le16(skb->data) == QCA_DEBUG_HANDLE)
+	if (get_unaligned_le16(skb->data) == QCA_DE_HANDLE)
 		return hci_recv_diag(hdev, skb);
 
 	return hci_recv_frame(hdev, skb);
@@ -1237,7 +1237,7 @@ static int qca_setup(struct hci_uart *hu)
 	ret = qca_uart_setup(hdev, qca_baudrate, qcadev->btsoc_type, soc_ver);
 	if (!ret) {
 		set_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
-		qca_debugfs_init(hdev);
+		qca_defs_init(hdev);
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
 		ret = 0;

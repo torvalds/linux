@@ -4,7 +4,7 @@
 #include <elfutils/libdwfl.h>
 #include <inttypes.h>
 #include <errno.h>
-#include "debug.h"
+#include "de.h"
 #include "unwind.h"
 #include "unwind-libdw.h"
 #include "machine.h"
@@ -17,11 +17,11 @@
 #include "callchain.h"
 #include "util.h"
 
-static char *debuginfo_path;
+static char *deinfo_path;
 
 static const Dwfl_Callbacks offline_callbacks = {
-	.find_debuginfo		= dwfl_standard_find_debuginfo,
-	.debuginfo_path		= &debuginfo_path,
+	.find_deinfo		= dwfl_standard_find_deinfo,
+	.deinfo_path		= &deinfo_path,
 	.section_address	= dwfl_offline_section_address,
 };
 
@@ -83,7 +83,7 @@ static int entry(u64 ip, struct unwind_info *ui)
 	e->map = al.map;
 	e->sym = al.sym;
 
-	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
+	pr_de("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
 		 al.sym ? al.sym->name : "''",
 		 ip,
 		 al.map ? al.map->map_ip(al.map, ip) : (u64) 0);
@@ -107,7 +107,7 @@ static int access_dso_mem(struct unwind_info *ui, Dwarf_Addr addr,
 	ssize_t size;
 
 	if (!thread__find_map(ui->thread, PERF_RECORD_MISC_USER, addr, &al)) {
-		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
+		pr_de("unwind: no map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
@@ -142,7 +142,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 	if (addr < start || addr + sizeof(Dwarf_Word) > end) {
 		ret = access_dso_mem(ui, addr, result);
 		if (ret) {
-			pr_debug("unwind: access_mem 0x%" PRIx64 " not inside range"
+			pr_de("unwind: access_mem 0x%" PRIx64 " not inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
 				addr, start, end);
 			return false;
@@ -152,7 +152,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 
 	offset  = addr - start;
 	*result = *(Dwarf_Word *)&stack->data[offset];
-	pr_debug("unwind: access_mem addr 0x%" PRIx64 ", val %lx, offset %d\n",
+	pr_de("unwind: access_mem addr 0x%" PRIx64 ", val %lx, offset %d\n",
 		 addr, (unsigned long)*result, offset);
 	return true;
 }
@@ -250,7 +250,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 
  out:
 	if (err)
-		pr_debug("unwind: failed with '%s'\n", dwfl_errmsg(-1));
+		pr_de("unwind: failed with '%s'\n", dwfl_errmsg(-1));
 
 	dwfl_end(ui->dwfl);
 	free(ui);

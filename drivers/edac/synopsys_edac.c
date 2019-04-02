@@ -322,7 +322,7 @@ struct synps_edac_priv {
 	const struct synps_platform_data *p_data;
 	u32 ce_cnt;
 	u32 ue_cnt;
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	ulong poison_addr;
 	u32 row_shift[18];
 	u32 col_shift[14];
@@ -892,7 +892,7 @@ static const struct synps_platform_data zynqmp_edac_def = {
 	.get_dtype	= zynqmp_get_dtype,
 	.get_ecc_state	= zynqmp_get_ecc_state,
 	.quirks         = (DDR_ECC_INTR_SUPPORT
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 			  | DDR_ECC_DATA_POISON_SUPPORT
 #endif
 			  ),
@@ -914,7 +914,7 @@ static const struct of_device_id synps_edac_match[] = {
 
 MODULE_DEVICE_TABLE(of, synps_edac_match);
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 #define to_mci(k) container_of(k, struct mem_ctl_info, dev)
 
 /**
@@ -1281,7 +1281,7 @@ static void setup_address_map(struct synps_edac_priv *priv)
 
 	setup_rank_address_map(priv, addrmap);
 }
-#endif /* CONFIG_EDAC_DEBUG */
+#endif /* CONFIG_EDAC_DE */
 
 /**
  * mc_probe - Check controller and bind driver.
@@ -1350,7 +1350,7 @@ static int mc_probe(struct platform_device *pdev)
 		goto free_edac_mc;
 	}
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	if (priv->p_data->quirks & DDR_ECC_DATA_POISON_SUPPORT) {
 		if (edac_create_sysfs_attributes(mci)) {
 			edac_printk(KERN_ERR, EDAC_MC,
@@ -1393,7 +1393,7 @@ static int mc_remove(struct platform_device *pdev)
 	if (priv->p_data->quirks & DDR_ECC_INTR_SUPPORT)
 		disable_intr(priv);
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	if (priv->p_data->quirks & DDR_ECC_DATA_POISON_SUPPORT)
 		edac_remove_sysfs_attributes(mci);
 #endif

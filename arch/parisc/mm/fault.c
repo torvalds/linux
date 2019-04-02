@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/interrupt.h>
 #include <linux/extable.h>
 #include <linux/uaccess.h>
@@ -155,7 +155,7 @@ int fixup_exception(struct pt_regs *regs)
 			/* zero target register for get_user() */
 			if (parisc_acctyp(0, regs->iir) == VM_READ) {
 				int treg = regs->iir & 0x1f;
-				BUG_ON(treg == 0);
+				_ON(treg == 0);
 				regs->gr[treg] = 0;
 			}
 		}
@@ -319,7 +319,7 @@ good_area:
 		else if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
 				  VM_FAULT_HWPOISON_LARGE))
 			goto bad_area;
-		BUG();
+		();
 	}
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
 		if (fault & VM_FAULT_MAJOR)

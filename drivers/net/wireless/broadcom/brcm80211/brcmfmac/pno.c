@@ -18,7 +18,7 @@
 #include <net/cfg80211.h>
 
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "cfg80211.h"

@@ -26,7 +26,7 @@ struct paging_config {
 static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
 
 /*
- * Trampoline address will be printed by extract_kernel() for debugging
+ * Trampoline address will be printed by extract_kernel() for deging
  * purposes.
  *
  * Avoid putting the pointer into .bss as it will be cleared between

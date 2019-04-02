@@ -230,9 +230,9 @@ static void dsi_pll_calc_ssc(struct dsi_pll_10nm *pll)
 
 	regs->ssc_control = config->ssc_center ? SSC_CENTER : 0;
 
-	pr_debug("SCC: Dec:%d, frac:%llu, frac_bits:%d\n",
+	pr_de("SCC: Dec:%d, frac:%llu, frac_bits:%d\n",
 		 regs->decimal_div_start, frac, config->frac_bits);
-	pr_debug("SSC: div_per:0x%X, stepsize:0x%X, adjper:0x%X\n",
+	pr_de("SSC: div_per:0x%X, stepsize:0x%X, adjper:0x%X\n",
 		 ssc_per, (u32)ssc_step_size, config->ssc_adj_per);
 }
 
@@ -242,7 +242,7 @@ static void dsi_pll_ssc_commit(struct dsi_pll_10nm *pll)
 	struct dsi_pll_regs *regs = &pll->reg_setup;
 
 	if (pll->pll_configuration.enable_ssc) {
-		pr_debug("SSC is enabled\n");
+		pr_de("SSC is enabled\n");
 
 		pll_write(base + REG_DSI_10nm_PHY_PLL_SSC_STEPSIZE_LOW_1,
 			  regs->ssc_stepsize_low);

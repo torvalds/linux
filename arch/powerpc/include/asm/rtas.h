@@ -415,7 +415,7 @@ static inline void rtas_cancel_event_scan(void) { }
 #define ERR_TYPE_MASK \
 	(ERR_TYPE_RTAS_LOG | ERR_TYPE_KERNEL_PANIC | ERR_TYPE_KERNEL_PANIC_GZ)
 
-#define RTAS_DEBUG KERN_DEBUG "RTAS: "
+#define RTAS_DE KERN_DE "RTAS: "
  
 #define RTAS_ERROR_LOG_MAX 2048
 

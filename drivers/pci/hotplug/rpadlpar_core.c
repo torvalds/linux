@@ -11,7 +11,7 @@
  * Copyright (C) 2003 IBM.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -217,7 +217,7 @@ static int dlpar_remove_phb(char *drc_name, struct device_node *dn)
 	}
 
 	pdn = dn->data;
-	BUG_ON(!pdn || !pdn->phb);
+	_ON(!pdn || !pdn->phb);
 	rc = remove_phb_dynamic(pdn->phb);
 	if (rc < 0)
 		return rc;
@@ -363,12 +363,12 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 		goto out;
 	}
 
-	pr_debug("PCI: Removing PCI slot below EADS bridge %s\n",
+	pr_de("PCI: Removing PCI slot below EADS bridge %s\n",
 		 bus->self ? pci_name(bus->self) : "<!PHB!>");
 
 	slot = find_php_slot(dn);
 	if (slot) {
-		pr_debug("PCI: Removing hotplug slot for %04x:%02x...\n",
+		pr_de("PCI: Removing hotplug slot for %04x:%02x...\n",
 			 pci_domain_nr(bus), bus->number);
 
 		if (rpaphp_deregister_slot(slot)) {
@@ -392,8 +392,8 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 	}
 
 	/* Remove the EADS bridge device itself */
-	BUG_ON(!bus->self);
-	pr_debug("PCI: Now removing bridge device %s\n", pci_name(bus->self));
+	_ON(!bus->self);
+	pr_de("PCI: Now removing bridge device %s\n", pci_name(bus->self));
 	pci_stop_and_remove_bus_device(bus->self);
 
  out:

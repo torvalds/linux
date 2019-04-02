@@ -1207,7 +1207,7 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 		if (err)
 			return err;
 	}
-	BUG_ON(!is_flow_key_valid(key));
+	_ON(!is_flow_key_valid(key));
 
 	recirc_id = nla_get_u32(a);
 	return clone_execute(dp, skb, key, recirc_id, NULL, 0, last, true);

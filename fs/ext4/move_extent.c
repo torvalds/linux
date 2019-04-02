@@ -129,7 +129,7 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 	struct address_space *mapping[2];
 	unsigned fl = AOP_FLAG_NOFS;
 
-	BUG_ON(!inode1 || !inode2);
+	_ON(!inode1 || !inode2);
 	if (inode1 < inode2) {
 		mapping[0] = inode1->i_mapping;
 		mapping[1] = inode2->i_mapping;
@@ -171,8 +171,8 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
 	unsigned int blocksize, block_start, block_end;
 	int i, err,  nr = 0, partial = 0;
-	BUG_ON(!PageLocked(page));
-	BUG_ON(PageWriteback(page));
+	_ON(!PageLocked(page));
+	_ON(PageWriteback(page));
 
 	if (PageUptodate(page))
 		return 0;
@@ -205,7 +205,7 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 				continue;
 			}
 		}
-		BUG_ON(nr >= MAX_BUF_PER_PAGE);
+		_ON(nr >= MAX_BUF_PER_PAGE);
 		arr[nr++] = bh;
 	}
 	/* No io required */
@@ -457,7 +457,7 @@ mext_check_arguments(struct inode *orig_inode,
 
 
 	if (donor_inode->i_mode & (S_ISUID|S_ISGID)) {
-		ext4_debug("ext4 move extent: suid or sgid is set"
+		ext4_de("ext4 move extent: suid or sgid is set"
 			   " to donor file [ino:orig %lu, donor %lu]\n",
 			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
@@ -468,14 +468,14 @@ mext_check_arguments(struct inode *orig_inode,
 
 	/* Ext4 move extent does not support swapfile */
 	if (IS_SWAPFILE(orig_inode) || IS_SWAPFILE(donor_inode)) {
-		ext4_debug("ext4 move extent: The argument files should "
+		ext4_de("ext4 move extent: The argument files should "
 			"not be swapfile [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EBUSY;
 	}
 
 	if (ext4_is_quota_file(orig_inode) && ext4_is_quota_file(donor_inode)) {
-		ext4_debug("ext4 move extent: The argument files should "
+		ext4_de("ext4 move extent: The argument files should "
 			"not be quota files [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EBUSY;
@@ -483,24 +483,24 @@ mext_check_arguments(struct inode *orig_inode,
 
 	/* Ext4 move extent supports only extent based file */
 	if (!(ext4_test_inode_flag(orig_inode, EXT4_INODE_EXTENTS))) {
-		ext4_debug("ext4 move extent: orig file is not extents "
+		ext4_de("ext4 move extent: orig file is not extents "
 			"based file [ino:orig %lu]\n", orig_inode->i_ino);
 		return -EOPNOTSUPP;
 	} else if (!(ext4_test_inode_flag(donor_inode, EXT4_INODE_EXTENTS))) {
-		ext4_debug("ext4 move extent: donor file is not extents "
+		ext4_de("ext4 move extent: donor file is not extents "
 			"based file [ino:donor %lu]\n", donor_inode->i_ino);
 		return -EOPNOTSUPP;
 	}
 
 	if ((!orig_inode->i_size) || (!donor_inode->i_size)) {
-		ext4_debug("ext4 move extent: File size is 0 byte\n");
+		ext4_de("ext4 move extent: File size is 0 byte\n");
 		return -EINVAL;
 	}
 
 	/* Start offset should be same */
 	if ((orig_start & ~(PAGE_MASK >> orig_inode->i_blkbits)) !=
 	    (donor_start & ~(PAGE_MASK >> orig_inode->i_blkbits))) {
-		ext4_debug("ext4 move extent: orig and donor's start "
+		ext4_de("ext4 move extent: orig and donor's start "
 			"offsets are not aligned [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
@@ -511,7 +511,7 @@ mext_check_arguments(struct inode *orig_inode,
 	    (*len > EXT_MAX_BLOCKS) ||
 	    (donor_start + *len >= EXT_MAX_BLOCKS) ||
 	    (orig_start + *len >= EXT_MAX_BLOCKS))  {
-		ext4_debug("ext4 move extent: Can't handle over [%u] blocks "
+		ext4_de("ext4 move extent: Can't handle over [%u] blocks "
 			"[ino:orig %lu, donor %lu]\n", EXT_MAX_BLOCKS,
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
@@ -525,7 +525,7 @@ mext_check_arguments(struct inode *orig_inode,
 	else if (donor_eof < donor_start + *len - 1)
 		*len = donor_eof - donor_start;
 	if (!*len) {
-		ext4_debug("ext4 move extent: len should not be 0 "
+		ext4_de("ext4 move extent: len should not be 0 "
 			"[ino:orig %lu, donor %lu]\n", orig_inode->i_ino,
 			donor_inode->i_ino);
 		return -EINVAL;
@@ -561,7 +561,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 	int ret;
 
 	if (orig_inode->i_sb != donor_inode->i_sb) {
-		ext4_debug("ext4 move extent: The argument files "
+		ext4_de("ext4 move extent: The argument files "
 			"should be in same FS [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
@@ -569,7 +569,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 
 	/* orig and donor should be different inodes */
 	if (orig_inode == donor_inode) {
-		ext4_debug("ext4 move extent: The argument files should not "
+		ext4_de("ext4 move extent: The argument files should not "
 			"be same inode [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
@@ -577,7 +577,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 
 	/* Regular file check */
 	if (!S_ISREG(orig_inode->i_mode) || !S_ISREG(donor_inode->i_mode)) {
-		ext4_debug("ext4 move extent: The argument files should be "
+		ext4_de("ext4 move extent: The argument files should be "
 			"regular file [ino:orig %lu, donor %lu]\n",
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;

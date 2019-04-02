@@ -257,11 +257,11 @@ nv20_gr_init(struct nvkm_gr *base)
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nvkm_wr32(device, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x00118700);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xF3CE0475); /* 0x4 = auto ctx switch */
-	nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_1, 0x00118700);
+	nvkm_wr32(device, NV04_PGRAPH_DE_3, 0xF3CE0475); /* 0x4 = auto ctx switch */
+	nvkm_wr32(device, NV10_PGRAPH_DE_4, 0x00000000);
 	nvkm_wr32(device, 0x40009C           , 0x00000040);
 
 	if (device->chipset >= 0x25) {

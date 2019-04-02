@@ -28,7 +28,7 @@
 #include <linux/dma-fence.h>
 #include <linux/anon_inodes.h>
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
@@ -55,17 +55,17 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 
 	dmabuf = file->private_data;
 
-	BUG_ON(dmabuf->vmapping_counter);
+	_ON(dmabuf->vmapping_counter);
 
 	/*
 	 * Any fences that a dma-buf poll can wait on should be signaled
 	 * before releasing dma-buf. This is the responsibility of each
 	 * driver that uses the reservation objects.
 	 *
-	 * If you hit this BUG() it means someone dropped their ref to the
+	 * If you hit this () it means someone dropped their ref to the
 	 * dma-buf while still having pending operation to the buffer.
 	 */
-	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
+	_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
 
 	dmabuf->ops->release(dmabuf);
 
@@ -373,7 +373,7 @@ static inline int is_dma_buf_file(struct file *file)
  * dma_buf_export - Creates a new dma_buf, and associates an anon file
  * with this buffer, so it can be exported.
  * Also connect the allocator specific data and ops to the buffer.
- * Additionally, provide a name string for exporter; useful in debugging.
+ * Additionally, provide a name string for exporter; useful in deging.
  *
  * @exp_info:	[in]	holds all the export related information provided
  *			by the exporter. see &struct dma_buf_export_info
@@ -960,12 +960,12 @@ void *dma_buf_vmap(struct dma_buf *dmabuf)
 	mutex_lock(&dmabuf->lock);
 	if (dmabuf->vmapping_counter) {
 		dmabuf->vmapping_counter++;
-		BUG_ON(!dmabuf->vmap_ptr);
+		_ON(!dmabuf->vmap_ptr);
 		ptr = dmabuf->vmap_ptr;
 		goto out_unlock;
 	}
 
-	BUG_ON(dmabuf->vmap_ptr);
+	_ON(dmabuf->vmap_ptr);
 
 	ptr = dmabuf->ops->vmap(dmabuf);
 	if (WARN_ON_ONCE(IS_ERR(ptr)))
@@ -992,9 +992,9 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 	if (WARN_ON(!dmabuf))
 		return;
 
-	BUG_ON(!dmabuf->vmap_ptr);
-	BUG_ON(dmabuf->vmapping_counter == 0);
-	BUG_ON(dmabuf->vmap_ptr != vaddr);
+	_ON(!dmabuf->vmap_ptr);
+	_ON(dmabuf->vmapping_counter == 0);
+	_ON(dmabuf->vmap_ptr != vaddr);
 
 	mutex_lock(&dmabuf->lock);
 	if (--dmabuf->vmapping_counter == 0) {
@@ -1006,8 +1006,8 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 }
 EXPORT_SYMBOL_GPL(dma_buf_vunmap);
 
-#ifdef CONFIG_DEBUG_FS
-static int dma_buf_debug_show(struct seq_file *s, void *unused)
+#ifdef CONFIG_DE_FS
+static int dma_buf_de_show(struct seq_file *s, void *unused)
 {
 	int ret;
 	struct dma_buf *buf_obj;
@@ -1093,43 +1093,43 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(dma_buf_debug);
+DEFINE_SHOW_ATTRIBUTE(dma_buf_de);
 
-static struct dentry *dma_buf_debugfs_dir;
+static struct dentry *dma_buf_defs_dir;
 
-static int dma_buf_init_debugfs(void)
+static int dma_buf_init_defs(void)
 {
 	struct dentry *d;
 	int err = 0;
 
-	d = debugfs_create_dir("dma_buf", NULL);
+	d = defs_create_dir("dma_buf", NULL);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
-	dma_buf_debugfs_dir = d;
+	dma_buf_defs_dir = d;
 
-	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
-				NULL, &dma_buf_debug_fops);
+	d = defs_create_file("bufinfo", S_IRUGO, dma_buf_defs_dir,
+				NULL, &dma_buf_de_fops);
 	if (IS_ERR(d)) {
-		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
-		debugfs_remove_recursive(dma_buf_debugfs_dir);
-		dma_buf_debugfs_dir = NULL;
+		pr_de("dma_buf: defs: failed to create node bufinfo\n");
+		defs_remove_recursive(dma_buf_defs_dir);
+		dma_buf_defs_dir = NULL;
 		err = PTR_ERR(d);
 	}
 
 	return err;
 }
 
-static void dma_buf_uninit_debugfs(void)
+static void dma_buf_uninit_defs(void)
 {
-	debugfs_remove_recursive(dma_buf_debugfs_dir);
+	defs_remove_recursive(dma_buf_defs_dir);
 }
 #else
-static inline int dma_buf_init_debugfs(void)
+static inline int dma_buf_init_defs(void)
 {
 	return 0;
 }
-static inline void dma_buf_uninit_debugfs(void)
+static inline void dma_buf_uninit_defs(void)
 {
 }
 #endif
@@ -1138,13 +1138,13 @@ static int __init dma_buf_init(void)
 {
 	mutex_init(&db_list.lock);
 	INIT_LIST_HEAD(&db_list.head);
-	dma_buf_init_debugfs();
+	dma_buf_init_defs();
 	return 0;
 }
 subsys_initcall(dma_buf_init);
 
 static void __exit dma_buf_deinit(void)
 {
-	dma_buf_uninit_debugfs();
+	dma_buf_uninit_defs();
 }
 __exitcall(dma_buf_deinit);

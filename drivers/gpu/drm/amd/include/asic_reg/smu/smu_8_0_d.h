@@ -77,8 +77,8 @@
 #define ixTMON0_TEMP_CALC_COEFF2                                                0xd82020a8
 #define ixTMON0_TEMP_CALC_COEFF3                                                0xd82020ac
 #define ixTMON0_TEMP_CALC_COEFF4                                                0xd82020b0
-#define ixTMON0_DEBUG0                                                          0xd82020b4
-#define ixTMON0_DEBUG1                                                          0xd82020b8
+#define ixTMON0_DE0                                                          0xd82020b4
+#define ixTMON0_DE1                                                          0xd82020b8
 #define ixTMON1_RDIL0_DATA                                                      0xd8202100
 #define ixTMON1_RDIL1_DATA                                                      0xd8202104
 #define ixTMON1_RDIL2_DATA                                                      0xd8202108
@@ -122,8 +122,8 @@
 #define ixTMON1_TEMP_CALC_COEFF2                                                0xd82021a8
 #define ixTMON1_TEMP_CALC_COEFF3                                                0xd82021ac
 #define ixTMON1_TEMP_CALC_COEFF4                                                0xd82021b0
-#define ixTMON1_DEBUG0                                                          0xd82021b4
-#define ixTMON1_DEBUG1                                                          0xd82021b8
+#define ixTMON1_DE0                                                          0xd82021b4
+#define ixTMON1_DE1                                                          0xd82021b8
 #define ixTHM_TMON0_REMOTE_START                                                0xd8202800
 #define ixTHM_TMON0_REMOTE_END                                                  0xd82028fc
 #define ixTHM_TMON1_REMOTE_START                                                0xd8202900
@@ -503,10 +503,10 @@
 #define ixPHN_FUSERX_MISC_FUSES                                                 0xd02110b8
 #define ixUNBPM_PWRCTRL_MISC                                                    0xd02110bc
 #define ixCSTATE_ACTIVE_SAMPLER                                                 0xd02110c0
-#define ixUNBPM_DEBUG_CONFIG_STATUS                                             0xd02110c4
+#define ixUNBPM_DE_CONFIG_STATUS                                             0xd02110c4
 #define ixUNBPM_AXIMST_LAST_CMD                                                 0xd02110c8
 #define ixUNB_IF_INTRGEN_LAST_SENT                                              0xd02110cc
-#define ixUNBPM_DEBUG_BUS_CNTL                                                  0xd02110d0
+#define ixUNBPM_DE_BUS_CNTL                                                  0xd02110d0
 #define ixUNBPM_PWRMGT_REQ_DBG_STATUS                                           0xd02110d4
 #define ixUNBPM_VIDCHG_REQ_DBG_STATUS                                           0xd02110d8
 #define ixUNBPM_SCRATCH_0                                                       0xd021e000

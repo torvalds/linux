@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Masami Hiramatsu <mhiramat@kernel.org>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mm.h>

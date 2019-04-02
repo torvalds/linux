@@ -345,7 +345,7 @@ static int __init tegra_init_fuse(void)
 		tegra_revision_name[tegra_sku_info.revision],
 		tegra_sku_info.sku_id, tegra_sku_info.cpu_process_id,
 		tegra_sku_info.soc_process_id);
-	pr_debug("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
+	pr_de("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
 		 tegra_sku_info.cpu_speedo_id, tegra_sku_info.soc_speedo_id);
 
 

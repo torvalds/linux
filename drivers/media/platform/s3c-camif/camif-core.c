@@ -11,7 +11,7 @@
  */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -183,11 +183,11 @@ int s3c_camif_get_scaler_config(struct camif_vp *vp,
 
 	scaler->copy = 0;
 
-	pr_debug("H: ratio: %u, shift: %u. V: ratio: %u, shift: %u.\n",
+	pr_de("H: ratio: %u, shift: %u. V: ratio: %u, shift: %u.\n",
 		 scaler->pre_h_ratio, scaler->h_shift,
 		 scaler->pre_v_ratio, scaler->v_shift);
 
-	pr_debug("Source: %dx%d, Target: %dx%d, scaleup_h/v: %d/%d\n",
+	pr_de("Source: %dx%d, Target: %dx%d, scaleup_h/v: %d/%d\n",
 		 source_x, source_y, target_x, target_y,
 		 scaler->scaleup_h, scaler->scaleup_v);
 

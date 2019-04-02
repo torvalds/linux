@@ -967,7 +967,7 @@ static int mxuport_calc_num_ports(struct usb_serial *serial,
 	 * Setup bulk-out endpoint multiplexing. All ports share the same
 	 * bulk-out endpoint.
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_out) < 16);
+	BUILD__ON(ARRAY_SIZE(epds->bulk_out) < 16);
 
 	for (i = 1; i < num_ports; ++i)
 		epds->bulk_out[i] = epds->bulk_out[0];

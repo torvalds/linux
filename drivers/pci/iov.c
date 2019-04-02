@@ -181,7 +181,7 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 		virtfn->resource[i].start = res->start + size * id;
 		virtfn->resource[i].end = virtfn->resource[i].start + size - 1;
 		rc = request_resource(res, &virtfn->resource[i]);
-		BUG_ON(rc);
+		_ON(rc);
 	}
 
 	pci_device_add(virtfn, virtfn->bus);
@@ -532,7 +532,7 @@ failed:
 
 static void sriov_release(struct pci_dev *dev)
 {
-	BUG_ON(dev->sriov->num_VFs);
+	_ON(dev->sriov->num_VFs);
 
 	if (dev != dev->sriov->dev)
 		pci_dev_put(dev->sriov->dev);

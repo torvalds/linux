@@ -15,8 +15,8 @@ obj-$(CONFIG_ATMEL_PM)		+= pm.o pm_suspend.o
 ifeq ($(CONFIG_CPU_V7),y)
 AFLAGS_pm_suspend.o := -march=armv7-a
 endif
-ifeq ($(CONFIG_PM_DEBUG),y)
-CFLAGS_pm.o += -DDEBUG
+ifeq ($(CONFIG_PM_DE),y)
+CFLAGS_pm.o += -DDE
 endif
 
 include/generated/at91_pm_data-offsets.h: arch/arm/mach-at91/pm_data-offsets.s FORCE

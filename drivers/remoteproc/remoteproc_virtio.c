@@ -245,7 +245,7 @@ static int rproc_virtio_finalize_features(struct virtio_device *vdev)
 	rproc_transport_features(vdev);
 
 	/* Make sure we don't have any features > 32 bits! */
-	BUG_ON((u32)vdev->features != vdev->features);
+	_ON((u32)vdev->features != vdev->features);
 
 	/*
 	 * Remember the finalized features of our vdev, and provide it

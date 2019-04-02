@@ -82,7 +82,7 @@ static int cpts_purge_events(struct cpts *cpts)
 	}
 
 	if (removed)
-		pr_debug("cpts: event pool cleaned up %d\n", removed);
+		pr_de("cpts: event pool cleaned up %d\n", removed);
 	return removed ? 0 : -1;
 }
 
@@ -318,7 +318,7 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 	}
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	pr_debug("cpts overflow check at %lld.%09ld\n",
+	pr_de("cpts overflow check at %lld.%09ld\n",
 		 (long long)ts.tv_sec, ts.tv_nsec);
 	return (long)delay;
 }

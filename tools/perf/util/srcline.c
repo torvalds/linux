@@ -8,7 +8,7 @@
 
 #include "util/dso.h"
 #include "util/util.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/callchain.h"
 #include "srcline.h"
 #include "string2.h"
@@ -146,9 +146,9 @@ static int bfd_error(const char *string)
 	fflush(stdout);
 
 	if (string)
-		pr_debug("%s: %s\n", string, errmsg);
+		pr_de("%s: %s\n", string, errmsg);
 	else
-		pr_debug("%s\n", errmsg);
+		pr_de("%s\n", errmsg);
 
 	return -1;
 }

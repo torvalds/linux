@@ -19,7 +19,7 @@ static union acpi_operand_object *acpi_gbl_trace_method_object = NULL;
 
 /* Local prototypes */
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type);
 #endif
 
@@ -86,7 +86,7 @@ static u8 acpi_ex_interpreter_trace_enabled(char *name)
  *
  ******************************************************************************/
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 
 static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type)
 {
@@ -135,12 +135,12 @@ acpi_ex_trace_point(acpi_trace_event_type type,
 	ACPI_FUNCTION_NAME(ex_trace_point);
 
 	if (pathname) {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+		ACPI_DE_PRINT((ACPI_DB_TRACE_POINT,
 				  "%s %s [0x%p:%s] execution.\n",
 				  acpi_ex_get_trace_event_name(type),
 				  begin ? "Begin" : "End", aml, pathname));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
+		ACPI_DE_PRINT((ACPI_DB_TRACE_POINT,
 				  "%s %s [0x%p] execution.\n",
 				  acpi_ex_get_trace_event_name(type),
 				  begin ? "Begin" : "End", aml));

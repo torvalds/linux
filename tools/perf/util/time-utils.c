@@ -9,7 +9,7 @@
 #include <math.h>
 
 #include "perf.h"
-#include "debug.h"
+#include "de.h"
 #include "time-utils.h"
 #include "session.h"
 #include "evlist.h"
@@ -110,8 +110,8 @@ int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
 	if (rc == 0 && ptime->end && ptime->end < ptime->start)
 		return -EINVAL;
 
-	pr_debug("start time %" PRIu64 ", ", ptime->start);
-	pr_debug("end time %" PRIu64 "\n", ptime->end);
+	pr_de("start time %" PRIu64 ", ", ptime->start);
+	pr_de("end time %" PRIu64 "\n", ptime->end);
 
 	return rc;
 }
@@ -248,8 +248,8 @@ static int percent_comma_split(struct perf_time_interval *ptime_buf, int num,
 			return -1;
 		}
 
-		pr_debug("start time %d: %" PRIu64 ", ", i, ptime_buf[i].start);
-		pr_debug("end time %d: %" PRIu64 "\n", i, ptime_buf[i].end);
+		pr_de("start time %d: %" PRIu64 ", ", i, ptime_buf[i].start);
+		pr_de("end time %d: %" PRIu64 "\n", i, ptime_buf[i].end);
 
 		i++;
 

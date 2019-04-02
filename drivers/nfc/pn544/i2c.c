@@ -191,8 +191,8 @@ struct pn544_i2c_phy {
 
 #define I2C_DUMP_SKB(info, skb)					\
 do {								\
-	pr_debug("%s:\n", info);				\
-	print_hex_dump(KERN_DEBUG, "i2c: ", DUMP_PREFIX_OFFSET,	\
+	pr_de("%s:\n", info);				\
+	print_hex_dump(KERN_DE, "i2c: ", DUMP_PREFIX_OFFSET,	\
 		       16, 1, (skb)->data, (skb)->len, 0);	\
 } while (0)
 
@@ -349,7 +349,7 @@ static int check_crc(u8 *buf, int buflen)
 		pr_err("CRC error 0x%x != 0x%x 0x%x\n",
 		       crc, buf[len - 1], buf[len - 2]);
 		pr_info("%s: BAD CRC\n", __func__);
-		print_hex_dump(KERN_DEBUG, "crc: ", DUMP_PREFIX_NONE,
+		print_hex_dump(KERN_DE, "crc: ", DUMP_PREFIX_NONE,
 			       16, 2, buf, buflen, false);
 		return -EPERM;
 	}

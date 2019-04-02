@@ -204,7 +204,7 @@ struct uart_port {
 #define UPF_HARDPPS_CD		((__force upf_t) ASYNC_HARDPPS_CD     /* 11 */ )
 #define UPF_SPD_SHI		((__force upf_t) ASYNC_SPD_SHI        /* 12 */ )
 #define UPF_LOW_LATENCY		((__force upf_t) ASYNC_LOW_LATENCY    /* 13 */ )
-#define UPF_BUGGY_UART		((__force upf_t) ASYNC_BUGGY_UART     /* 14 */ )
+#define UPF_GY_UART		((__force upf_t) ASYNC_GY_UART     /* 14 */ )
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
 
 #define UPF_NO_THRE_TEST	((__force upf_t) (1 << 19))
@@ -217,7 +217,7 @@ struct uart_port {
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
 #define UPF_EXAR_EFR		((__force upf_t) (1 << 25))
-#define UPF_BUG_THRE		((__force upf_t) (1 << 26))
+#define UPF__THRE		((__force upf_t) (1 << 26))
 /* The exact UART type is known and should not be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))

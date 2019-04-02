@@ -43,7 +43,7 @@ static unsigned int gss_expired_cred_retry_delay = GSS_RETRY_EXPIRED;
 #define GSS_KEY_EXPIRE_TIMEO 240
 static unsigned int gss_key_expire_timeo = GSS_KEY_EXPIRE_TIMEO;
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -311,7 +311,7 @@ gss_release_msg(struct gss_upcall_msg *gss_msg)
 	if (!refcount_dec_and_test(&gss_msg->count))
 		return;
 	put_pipe_version(net);
-	BUG_ON(!list_empty(&gss_msg->list));
+	_ON(!list_empty(&gss_msg->list));
 	if (gss_msg->ctx != NULL)
 		gss_put_ctx(gss_msg->ctx);
 	rpc_destroy_wait_queue(&gss_msg->rpc_waitqueue);
@@ -417,7 +417,7 @@ static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 	gss_msg->msg.data = gss_msg->databuf;
 	gss_msg->msg.len = sizeof(uid);
 
-	BUILD_BUG_ON(sizeof(uid) > sizeof(gss_msg->databuf));
+	BUILD__ON(sizeof(uid) > sizeof(gss_msg->databuf));
 }
 
 static int gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,

@@ -308,7 +308,7 @@ err1:
 #else
 static int persistent_memory_claim(struct dm_writecache *wc)
 {
-	BUG();
+	();
 }
 #endif
 
@@ -439,7 +439,7 @@ static void writecache_notify_io(unsigned long error, void *context)
 
 	if (unlikely(error != 0))
 		writecache_error(endio->wc, -EIO, "error writing metadata");
-	BUG_ON(atomic_read(&endio->count) <= 0);
+	_ON(atomic_read(&endio->count) <= 0);
 	if (atomic_dec_and_test(&endio->count))
 		complete(&endio->c);
 }
@@ -1334,12 +1334,12 @@ static void __writecache_endio_pmem(struct dm_writecache *wc, struct list_head *
 		i = 0;
 		do {
 			e = wb->wc_list[i];
-			BUG_ON(!e->write_in_progress);
+			_ON(!e->write_in_progress);
 			e->write_in_progress = false;
 			INIT_LIST_HEAD(&e->lru);
 			if (!writecache_has_error(wc))
 				writecache_free_entry(wc, e);
-			BUG_ON(!wc->writeback_size);
+			_ON(!wc->writeback_size);
 			wc->writeback_size--;
 			n_walked++;
 			if (unlikely(n_walked >= ENDIO_LATENCY)) {
@@ -1370,13 +1370,13 @@ static void __writecache_endio_ssd(struct dm_writecache *wc, struct list_head *l
 
 		e = c->e;
 		do {
-			BUG_ON(!e->write_in_progress);
+			_ON(!e->write_in_progress);
 			e->write_in_progress = false;
 			INIT_LIST_HEAD(&e->lru);
 			if (!writecache_has_error(wc))
 				writecache_free_entry(wc, e);
 
-			BUG_ON(!wc->writeback_size);
+			_ON(!wc->writeback_size);
 			wc->writeback_size--;
 			e++;
 		} while (--c->n_entries);
@@ -1490,7 +1490,7 @@ static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeba
 			max_pages = WB_LIST_INLINE;
 		}
 
-		BUG_ON(!wc_add_block(wb, e, GFP_NOIO));
+		_ON(!wc_add_block(wb, e, GFP_NOIO));
 
 		wb->wc_list[0] = e;
 		wb->wc_list_n = 1;
@@ -1549,7 +1549,7 @@ static void __writecache_writeback_ssd(struct dm_writecache *wc, struct writebac
 		while ((n_sectors -= wc->block_size >> SECTOR_SHIFT)) {
 			wbl->size--;
 			f = container_of(wbl->list.prev, struct wc_entry, lru);
-			BUG_ON(f != e + 1);
+			_ON(f != e + 1);
 			list_del(&f->lru);
 			e = f;
 		}
@@ -1602,7 +1602,7 @@ restart:
 		}
 
 		e = container_of(wc->lru.prev, struct wc_entry, lru);
-		BUG_ON(e->write_in_progress);
+		_ON(e->write_in_progress);
 		if (unlikely(!writecache_entry_is_committed(wc, e))) {
 			writecache_flush(wc);
 		}
@@ -1611,7 +1611,7 @@ restart:
 			f = container_of(node, struct wc_entry, rb_node);
 			if (unlikely(read_original_sector(wc, f) ==
 				     read_original_sector(wc, e))) {
-				BUG_ON(!f->write_in_progress);
+				_ON(!f->write_in_progress);
 				list_del(&e->lru);
 				list_add(&e->lru, &skipped);
 				cond_resched();

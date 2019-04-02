@@ -13,50 +13,50 @@
 
 /*
  *
- *  Debug Stuff
+ *  De Stuff
  *
  */
 
-#ifdef SST_DEBUG
+#ifdef SST_DE
 #  define dprintk(X...)		printk("sstfb: " X)
-#  define SST_DEBUG_REG  1
-#  define SST_DEBUG_FUNC 1
-#  define SST_DEBUG_VAR  1
+#  define SST_DE_REG  1
+#  define SST_DE_FUNC 1
+#  define SST_DE_VAR  1
 #else
 #  define dprintk(X...)
-#  define SST_DEBUG_REG  0
-#  define SST_DEBUG_FUNC 0
-#  define SST_DEBUG_VAR  0
+#  define SST_DE_REG  0
+#  define SST_DE_FUNC 0
+#  define SST_DE_VAR  0
 #endif
 
-#if (SST_DEBUG_REG > 0)
+#if (SST_DE_REG > 0)
 #  define r_dprintk(X...)	dprintk(X)
 #else
 #  define r_dprintk(X...)
 #endif
-#if (SST_DEBUG_REG > 1)
+#if (SST_DE_REG > 1)
 #  define r_ddprintk(X...)	dprintk(" " X)
 #else
 #  define r_ddprintk(X...)
 #endif
 
-#if (SST_DEBUG_FUNC > 0)
+#if (SST_DE_FUNC > 0)
 #  define f_dprintk(X...)	dprintk(X)
 #else
 #  define f_dprintk(X...)
 #endif
-#if (SST_DEBUG_FUNC > 1)
+#if (SST_DE_FUNC > 1)
 #  define f_ddprintk(X...)	dprintk(" " X)
 #else
 #  define f_ddprintk(X...)
 #endif
-#if (SST_DEBUG_FUNC > 2)
+#if (SST_DE_FUNC > 2)
 #  define f_dddprintk(X...)	dprintk(" " X)
 #else
 #  define f_dddprintk(X...)
 #endif
 
-#if (SST_DEBUG_VAR > 0)
+#if (SST_DE_VAR > 0)
 #  define v_dprintk(X...)	dprintk(X)
 #  define print_var(V, X...)	\
    {				\

@@ -40,60 +40,60 @@ struct eprom_image {
 	u16 version;
 };
 
-#ifdef VXGE_DEBUG_ASSERT
+#ifdef VXGE_DE_ASSERT
 /**
  * vxge_assert
  * @test: C-condition to check
  * @fmt: printf like format string
  *
  * This function implements traditional assert. By default assertions
- * are enabled. It can be disabled by undefining VXGE_DEBUG_ASSERT macro in
+ * are enabled. It can be disabled by undefining VXGE_DE_ASSERT macro in
  * compilation
  * time.
  */
-#define vxge_assert(test) BUG_ON(!(test))
+#define vxge_assert(test) _ON(!(test))
 #else
 #define vxge_assert(test)
-#endif /* end of VXGE_DEBUG_ASSERT */
+#endif /* end of VXGE_DE_ASSERT */
 
 /**
- * enum vxge_debug_level
- * @VXGE_NONE: debug disabled
+ * enum vxge_de_level
+ * @VXGE_NONE: de disabled
  * @VXGE_ERR: all errors going to be logged out
  * @VXGE_TRACE: all errors plus all kind of verbose tracing print outs
  *                 going to be logged out. Very noisy.
  *
  * This enumeration going to be used to switch between different
- * debug levels during runtime if DEBUG macro defined during
- * compilation. If DEBUG macro not defined than code will be
+ * de levels during runtime if DE macro defined during
+ * compilation. If DE macro not defined than code will be
  * compiled out.
  */
-enum vxge_debug_level {
+enum vxge_de_level {
 	VXGE_NONE   = 0,
 	VXGE_TRACE  = 1,
 	VXGE_ERR    = 2
 };
 
 #define NULL_VPID					0xFFFFFFFF
-#ifdef CONFIG_VXGE_DEBUG_TRACE_ALL
-#define VXGE_DEBUG_MODULE_MASK  0xffffffff
-#define VXGE_DEBUG_TRACE_MASK   0xffffffff
-#define VXGE_DEBUG_ERR_MASK     0xffffffff
-#define VXGE_DEBUG_MASK         0x000001ff
+#ifdef CONFIG_VXGE_DE_TRACE_ALL
+#define VXGE_DE_MODULE_MASK  0xffffffff
+#define VXGE_DE_TRACE_MASK   0xffffffff
+#define VXGE_DE_ERR_MASK     0xffffffff
+#define VXGE_DE_MASK         0x000001ff
 #else
-#define VXGE_DEBUG_MODULE_MASK  0x20000000
-#define VXGE_DEBUG_TRACE_MASK   0x20000000
-#define VXGE_DEBUG_ERR_MASK     0x20000000
-#define VXGE_DEBUG_MASK         0x00000001
+#define VXGE_DE_MODULE_MASK  0x20000000
+#define VXGE_DE_TRACE_MASK   0x20000000
+#define VXGE_DE_ERR_MASK     0x20000000
+#define VXGE_DE_MASK         0x00000001
 #endif
 
 /*
- * @VXGE_COMPONENT_LL: do debug for vxge link layer module
- * @VXGE_COMPONENT_ALL: activate debug for all modules with no exceptions
+ * @VXGE_COMPONENT_LL: do de for vxge link layer module
+ * @VXGE_COMPONENT_ALL: activate de for all modules with no exceptions
  *
  * This enumeration going to be used to distinguish modules
  * or libraries during compilation and runtime.  Makefile must declare
- * VXGE_DEBUG_MODULE_MASK macro and set it to proper value.
+ * VXGE_DE_MODULE_MASK macro and set it to proper value.
  */
 #define	VXGE_COMPONENT_LL				0x20000000
 #define	VXGE_COMPONENT_ALL				0xffffffff
@@ -770,8 +770,8 @@ struct __vxge_hw_device {
 
 	struct __vxge_hw_blockpool	block_pool;
 	struct vxge_hw_device_stats	stats;
-	u32				debug_module_mask;
-	u32				debug_level;
+	u32				de_module_mask;
+	u32				de_level;
 	u32				level_err;
 	u32				level_trace;
 	u16 eprom_versions[VXGE_HW_MAX_ROM_IMAGES];
@@ -1461,9 +1461,9 @@ struct vxge_hw_rth_hash_types {
 	   hash_type_ipv6ex_en:1;
 };
 
-void vxge_hw_device_debug_set(
+void vxge_hw_device_de_set(
 	struct __vxge_hw_device *devh,
-	enum vxge_debug_level level,
+	enum vxge_de_level level,
 	u32 mask);
 
 u32
@@ -2028,27 +2028,27 @@ enum vxge_hw_status
 vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask);
 
 /**
- * vxge_debug_ll
- * @level: level of debug verbosity.
- * @mask: mask for the debug
+ * vxge_de_ll
+ * @level: level of de verbosity.
+ * @mask: mask for the de
  * @buf: Circular buffer for tracing
  * @fmt: printf like format string
  *
  * Provides logging facilities. Can be customized on per-module
- * basis or/and with debug levels. Input parameters, except
+ * basis or/and with de levels. Input parameters, except
  * module and level, are the same as posix printf. This function
- * may be compiled out if DEBUG macro was never defined.
- * See also: enum vxge_debug_level{}.
+ * may be compiled out if DE macro was never defined.
+ * See also: enum vxge_de_level{}.
  */
-#if (VXGE_COMPONENT_LL & VXGE_DEBUG_MODULE_MASK)
-#define vxge_debug_ll(level, mask, fmt, ...) do {			       \
-	if ((level >= VXGE_ERR && VXGE_COMPONENT_LL & VXGE_DEBUG_ERR_MASK) ||  \
-	    (level >= VXGE_TRACE && VXGE_COMPONENT_LL & VXGE_DEBUG_TRACE_MASK))\
-		if ((mask & VXGE_DEBUG_MASK) == mask)			       \
+#if (VXGE_COMPONENT_LL & VXGE_DE_MODULE_MASK)
+#define vxge_de_ll(level, mask, fmt, ...) do {			       \
+	if ((level >= VXGE_ERR && VXGE_COMPONENT_LL & VXGE_DE_ERR_MASK) ||  \
+	    (level >= VXGE_TRACE && VXGE_COMPONENT_LL & VXGE_DE_TRACE_MASK))\
+		if ((mask & VXGE_DE_MASK) == mask)			       \
 			printk(fmt "\n", __VA_ARGS__);			       \
 } while (0)
 #else
-#define vxge_debug_ll(level, mask, fmt, ...)
+#define vxge_de_ll(level, mask, fmt, ...)
 #endif
 
 enum vxge_hw_status vxge_hw_vpath_rts_rth_itable_set(

@@ -35,14 +35,14 @@ void wl1251_elp_work(struct work_struct *work)
 	dwork = to_delayed_work(work);
 	wl = container_of(dwork, struct wl1251, elp_work);
 
-	wl1251_debug(DEBUG_PSM, "elp work");
+	wl1251_de(DE_PSM, "elp work");
 
 	mutex_lock(&wl->mutex);
 
 	if (wl->elp || wl->station_mode == STATION_ACTIVE_MODE)
 		goto out;
 
-	wl1251_debug(DEBUG_PSM, "chip to elp");
+	wl1251_de(DE_PSM, "chip to elp");
 	wl1251_write_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
 	wl->elp = true;
 
@@ -73,7 +73,7 @@ int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 	if (!wl->elp)
 		return 0;
 
-	wl1251_debug(DEBUG_PSM, "waking up chip from elp");
+	wl1251_de(DE_PSM, "waking up chip from elp");
 
 	start = jiffies;
 	timeout = jiffies + msecs_to_jiffies(WL1251_WAKEUP_TIMEOUT);
@@ -95,7 +95,7 @@ int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 		elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 	}
 
-	wl1251_debug(DEBUG_PSM, "wakeup time: %u ms",
+	wl1251_de(DE_PSM, "wakeup time: %u ms",
 		     jiffies_to_msecs(jiffies - start));
 
 	wl->elp = false;
@@ -109,7 +109,7 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_station_mode mode)
 
 	switch (mode) {
 	case STATION_POWER_SAVE_MODE:
-		wl1251_debug(DEBUG_PSM, "entering psm");
+		wl1251_de(DE_PSM, "entering psm");
 
 		/* enable beacon filtering */
 		ret = wl1251_acx_beacon_filter_opt(wl, true);
@@ -136,7 +136,7 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_station_mode mode)
 			return ret;
 		break;
 	case STATION_IDLE:
-		wl1251_debug(DEBUG_PSM, "entering idle");
+		wl1251_de(DE_PSM, "entering idle");
 
 		ret = wl1251_acx_sleep_auth(wl, WL1251_PSM_ELP);
 		if (ret < 0)
@@ -148,7 +148,7 @@ int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_station_mode mode)
 		break;
 	case STATION_ACTIVE_MODE:
 	default:
-		wl1251_debug(DEBUG_PSM, "leaving psm");
+		wl1251_de(DE_PSM, "leaving psm");
 
 		ret = wl1251_acx_sleep_auth(wl, WL1251_PSM_CAM);
 		if (ret < 0)

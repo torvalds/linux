@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * debugfs.c - DesignWare USB3 DRD Controller DebugFS file
+ * defs.c - DesignWare USB3 DRD Controller DeFS file
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
  *
@@ -13,7 +13,7 @@
 #include <linux/ptrace.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -23,7 +23,7 @@
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
-#include "debug.h"
+#include "de.h"
 
 #define DWC3_LSP_MUX_UNSELECTED 0xfffff
 
@@ -56,7 +56,7 @@
 	}
 
 
-static const struct debugfs_reg32 dwc3_regs[] = {
+static const struct defs_reg32 dwc3_regs[] = {
 	dump_register(GSBUSCFG0),
 	dump_register(GSBUSCFG1),
 	dump_register(GTXTHRCFG),
@@ -865,7 +865,7 @@ static const struct dwc3_ep_file_map dwc3_ep_file_map[] = {
 	{ "GDBGEPINFO", &dwc3_ep_info_register_fops, },
 };
 
-static void dwc3_debugfs_create_endpoint_files(struct dwc3_ep *dep,
+static void dwc3_defs_create_endpoint_files(struct dwc3_ep *dep,
 		struct dentry *parent)
 {
 	int			i;
@@ -874,20 +874,20 @@ static void dwc3_debugfs_create_endpoint_files(struct dwc3_ep *dep,
 		const struct file_operations *fops = dwc3_ep_file_map[i].fops;
 		const char *name = dwc3_ep_file_map[i].name;
 
-		debugfs_create_file(name, S_IRUGO, parent, dep, fops);
+		defs_create_file(name, S_IRUGO, parent, dep, fops);
 	}
 }
 
-static void dwc3_debugfs_create_endpoint_dir(struct dwc3_ep *dep,
+static void dwc3_defs_create_endpoint_dir(struct dwc3_ep *dep,
 		struct dentry *parent)
 {
 	struct dentry		*dir;
 
-	dir = debugfs_create_dir(dep->name, parent);
-	dwc3_debugfs_create_endpoint_files(dep, dir);
+	dir = defs_create_dir(dep->name, parent);
+	dwc3_defs_create_endpoint_files(dep, dir);
 }
 
-static void dwc3_debugfs_create_endpoint_dirs(struct dwc3 *dwc,
+static void dwc3_defs_create_endpoint_dirs(struct dwc3 *dwc,
 		struct dentry *parent)
 {
 	int			i;
@@ -898,11 +898,11 @@ static void dwc3_debugfs_create_endpoint_dirs(struct dwc3 *dwc,
 		if (!dep)
 			continue;
 
-		dwc3_debugfs_create_endpoint_dir(dep, parent);
+		dwc3_defs_create_endpoint_dir(dep, parent);
 	}
 }
 
-void dwc3_debugfs_init(struct dwc3 *dwc)
+void dwc3_defs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
 
@@ -916,31 +916,31 @@ void dwc3_debugfs_init(struct dwc3 *dwc)
 	dwc->regset->nregs = ARRAY_SIZE(dwc3_regs);
 	dwc->regset->base = dwc->regs - DWC3_GLOBALS_REGS_START;
 
-	root = debugfs_create_dir(dev_name(dwc->dev), NULL);
+	root = defs_create_dir(dev_name(dwc->dev), NULL);
 	dwc->root = root;
 
-	debugfs_create_regset32("regdump", S_IRUGO, root, dwc->regset);
+	defs_create_regset32("regdump", S_IRUGO, root, dwc->regset);
 
-	debugfs_create_file("lsp_dump", S_IRUGO | S_IWUSR, root, dwc,
+	defs_create_file("lsp_dump", S_IRUGO | S_IWUSR, root, dwc,
 			    &dwc3_lsp_fops);
 
 	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE)) {
-		debugfs_create_file("mode", S_IRUGO | S_IWUSR, root, dwc,
+		defs_create_file("mode", S_IRUGO | S_IWUSR, root, dwc,
 				    &dwc3_mode_fops);
 	}
 
 	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) ||
 			IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
-		debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root, dwc,
+		defs_create_file("testmode", S_IRUGO | S_IWUSR, root, dwc,
 				    &dwc3_testmode_fops);
-		debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root, dwc,
+		defs_create_file("link_state", S_IRUGO | S_IWUSR, root, dwc,
 				    &dwc3_link_state_fops);
-		dwc3_debugfs_create_endpoint_dirs(dwc, root);
+		dwc3_defs_create_endpoint_dirs(dwc, root);
 	}
 }
 
-void dwc3_debugfs_exit(struct dwc3 *dwc)
+void dwc3_defs_exit(struct dwc3 *dwc)
 {
-	debugfs_remove_recursive(dwc->root);
+	defs_remove_recursive(dwc->root);
 	kfree(dwc->regset);
 }

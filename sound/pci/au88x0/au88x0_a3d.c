@@ -463,7 +463,7 @@ static void a3dsrc_ZeroSliceIO(a3dsrc_t * a)
 static void a3dsrc_ZeroState(a3dsrc_t * a)
 {
 	/*
-	pr_debug( "vortex: ZeroState slice: %d, source %d\n",
+	pr_de( "vortex: ZeroState slice: %d, source %d\n",
 	       a->slice, a->source);
 	*/
 	a3dsrc_SetAtmosState(a, 0, 0, 0, 0);

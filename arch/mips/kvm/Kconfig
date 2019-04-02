@@ -63,7 +63,7 @@ config KVM_MIPS_DYN_TRANS
 
 	  If unsure, say Y.
 
-config KVM_MIPS_DEBUG_COP0_COUNTERS
+config KVM_MIPS_DE_COP0_COUNTERS
 	bool "Maintain counters for COP0 accesses"
 	depends on KVM
 	---help---

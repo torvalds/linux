@@ -1119,7 +1119,7 @@ struct idt_ntb_peer {
  *
  * @hwmon_mtx:		Temperature sensor interface update mutex
  *
- * @dbgfs_info:		DebugFS info node
+ * @dbgfs_info:		DeFS info node
  */
 struct idt_ntb_dev {
 	struct ntb_dev ntb;

@@ -58,7 +58,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		break;
 
 	case DMA_NONE:
-		BUG();
+		();
 		break;
 
 	default:
@@ -77,7 +77,7 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 		break;
 
 	case DMA_NONE:
-		BUG();
+		();
 		break;
 
 	default:
@@ -185,7 +185,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 		return p;
 	}
 #endif
-	BUG_ON(!platform_vaddr_cached(page_address(page)));
+	_ON(!platform_vaddr_cached(page_address(page)));
 	__invalidate_dcache_range((unsigned long)page_address(page), size);
 	return platform_vaddr_to_uncached(page_address(page));
 }

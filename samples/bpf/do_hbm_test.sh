@@ -14,7 +14,7 @@ Usage() {
   echo "loads. The output is the goodput in Mbps (unless -D was used)."
   echo ""
   echo "USAGE: $name [out] [-b=<prog>|--bpf=<prog>] [-c=<cc>|--cc=<cc>] [-D]"
-  echo "             [-d=<delay>|--delay=<delay>] [--debug] [-E]"
+  echo "             [-d=<delay>|--delay=<delay>] [--de] [-E]"
   echo "             [-f=<#flows>|--flows=<#flows>] [-h] [-i=<id>|--id=<id >]"
   echo "             [-l] [-N] [-p=<port>|--port=<port>] [-P]"
   echo "             [-q=<qdisc>] [-R] [-s=<server>|--server=<server]"
@@ -24,7 +24,7 @@ Usage() {
   echo "    -b or --bpf       BPF program filename to load and attach."
   echo "                      Default is hbm_out_kern.o for egress,"
   echo "    -c or -cc         TCP congestion control (cubic or dctcp)"
-  echo "    --debug           print BPF trace buffer"
+  echo "    --de           print BPF trace buffer"
   echo "    -d or --delay     add a delay in ms using netem"
   echo "    -D                In addition to the goodput in Mbps, it also outputs"
   echo "                      other detailed information. This information is"
@@ -65,7 +65,7 @@ Usage() {
 
 #set -x
 
-debug_flag=0
+de_flag=0
 args="$@"
 name="$0"
 netem=0
@@ -115,9 +115,9 @@ processArgs () {
     -c=*|--cc=*)
       cc="${i#*=}"
       ;;
-    --debug)
+    --de)
       flags="$flags -d"
-      debug_flag=1
+      de_flag=1
       ;;
     -d=*|--delay=*)
       netem="${i#*=}"
@@ -189,7 +189,7 @@ processArgs () {
 
 processArgs
 
-if [ $debug_flag -eq 1 ] ; then
+if [ $de_flag -eq 1 ] ; then
   rm -f hbm_out.log
 fi
 

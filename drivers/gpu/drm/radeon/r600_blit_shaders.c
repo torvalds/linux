@@ -24,7 +24,7 @@
  *     Alex Deucher <alexander.deucher@amd.com>
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 
@@ -65,7 +65,7 @@ const u32 r6xx_default_state[] =
 
 	0xc0016800,
 	0x0000060c,
-	0x82000000, /* DB_DEBUG */
+	0x82000000, /* DB_DE */
 
 	0xc0016800,
 	0x0000060e,
@@ -388,7 +388,7 @@ const u32 r7xx_default_state[] =
 
 	0xc0016800,
 	0x0000060c,
-	0x00000000, /* DB_DEBUG */
+	0x00000000, /* DB_DE */
 
 	0xc0016800,
 	0x0000060e,

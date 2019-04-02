@@ -55,7 +55,7 @@ static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_h
 {
 	unsigned long phys;
 
-	QNX4DEBUG((KERN_INFO "qnx4: qnx4_get_block inode=[%ld] iblock=[%ld]\n",inode->i_ino,iblock));
+	QNX4DE((KERN_INFO "qnx4: qnx4_get_block inode=[%ld] iblock=[%ld]\n",inode->i_ino,iblock));
 
 	phys = qnx4_block_map( inode, iblock );
 	if ( phys ) {
@@ -96,12 +96,12 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 				// read next xtnt block.
 				bh = sb_bread(inode->i_sb, i_xblk - 1);
 				if ( !bh ) {
-					QNX4DEBUG((KERN_ERR "qnx4: I/O error reading xtnt block [%ld])\n", i_xblk - 1));
+					QNX4DE((KERN_ERR "qnx4: I/O error reading xtnt block [%ld])\n", i_xblk - 1));
 					return -EIO;
 				}
 				xblk = (struct qnx4_xblk*)bh->b_data;
 				if ( memcmp( xblk->xblk_signature, "IamXblk", 7 ) ) {
-					QNX4DEBUG((KERN_ERR "qnx4: block at %ld is not a valid xtnt\n", qnx4_inode->i_xblk));
+					QNX4DE((KERN_ERR "qnx4: block at %ld is not a valid xtnt\n", qnx4_inode->i_xblk));
 					return -EIO;
 				}
 			}
@@ -121,7 +121,7 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 			brelse( bh );
 	}
 
-	QNX4DEBUG((KERN_INFO "qnx4: mapping block %ld of inode %ld = %ld\n",iblock,inode->i_ino,block));
+	QNX4DE((KERN_INFO "qnx4: mapping block %ld of inode %ld = %ld\n",iblock,inode->i_ino,block));
 	return block;
 }
 
@@ -157,7 +157,7 @@ static const char *qnx4_checkroot(struct super_block *sb,
 
 	if (s->RootDir.di_fname[0] != '/' || s->RootDir.di_fname[1] != '\0')
 		return "no qnx4 filesystem (no root dir).";
-	QNX4DEBUG((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
+	QNX4DE((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
 	rd = le32_to_cpu(s->RootDir.di_first_xtnt.xtnt_blk) - 1;
 	rl = le32_to_cpu(s->RootDir.di_first_xtnt.xtnt_size);
 	for (j = 0; j < rl; j++) {
@@ -166,7 +166,7 @@ static const char *qnx4_checkroot(struct super_block *sb,
 			return "unable to read root entry.";
 		rootdir = (struct qnx4_inode_entry *) bh->b_data;
 		for (i = 0; i < QNX4_INODES_PER_BLOCK; i++, rootdir++) {
-			QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
+			QNX4DE((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
 			if (strcmp(rootdir->di_fname, QNX4_BMNAME) != 0)
 				continue;
 			qnx4_sb(sb)->BitMap = kmemdup(rootdir,
@@ -274,7 +274,7 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 	qnx4_inode = qnx4_raw_inode(inode);
 	inode->i_mode = 0;
 
-	QNX4DEBUG((KERN_INFO "reading inode : [%d]\n", ino));
+	QNX4DE((KERN_INFO "reading inode : [%d]\n", ino));
 	if (!ino) {
 		printk(KERN_ERR "qnx4: bad inode number on dev %s: %lu is "
 				"out of range\n",

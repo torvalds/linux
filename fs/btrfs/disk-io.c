@@ -141,7 +141,7 @@ struct async_submit_bio {
  * same as our lockdep setup here.  If BTRFS_MAX_LEVEL changes, this code
  * needs update as well.
  */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # if BTRFS_MAX_LEVEL != 8
 #  error
 # endif
@@ -186,7 +186,7 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb,
 {
 	struct btrfs_lockdep_keyset *ks;
 
-	BUG_ON(level >= ARRAY_SIZE(ks->keys));
+	_ON(level >= ARRAY_SIZE(ks->keys));
 
 	/* find the matching keyset, id 0 is the default entry */
 	for (ks = btrfs_lockdep_keysets; ks->id; ks++)
@@ -424,7 +424,7 @@ static int verify_level_key(struct btrfs_fs_info *fs_info,
 
 	found_level = btrfs_header_level(eb);
 	if (found_level != level) {
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 		WARN_ON(1);
 		btrfs_err(fs_info,
 "tree level mismatch detected, bytenr=%llu level expected=%u has=%u",
@@ -450,7 +450,7 @@ static int verify_level_key(struct btrfs_fs_info *fs_info,
 		btrfs_item_key_to_cpu(eb, &found_key, 0);
 	ret = btrfs_comp_cpu_keys(first_key, &found_key);
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	if (ret) {
 		WARN_ON(1);
 		btrfs_err(fs_info,
@@ -990,14 +990,14 @@ static void btree_invalidatepage(struct page *page, unsigned int offset,
 
 static int btree_set_page_dirty(struct page *page)
 {
-#ifdef DEBUG
+#ifdef DE
 	struct extent_buffer *eb;
 
-	BUG_ON(!PagePrivate(page));
+	_ON(!PagePrivate(page));
 	eb = (struct extent_buffer *)page->private;
-	BUG_ON(!eb);
-	BUG_ON(!test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
-	BUG_ON(!atomic_read(&eb->refs));
+	_ON(!eb);
+	_ON(!test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
+	_ON(!atomic_read(&eb->refs));
 	btrfs_assert_tree_locked(eb);
 #endif
 	return __set_page_dirty_nobuffers(page);
@@ -2319,7 +2319,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	struct btrfs_key location;
 	int ret;
 
-	BUG_ON(!fs_info->tree_root);
+	_ON(!fs_info->tree_root);
 
 	location.objectid = BTRFS_EXTENT_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
@@ -4329,7 +4329,7 @@ static void btrfs_destroy_all_delalloc_inodes(struct btrfs_fs_info *fs_info)
 		root = list_first_entry(&splice, struct btrfs_root,
 					 delalloc_root);
 		root = btrfs_grab_fs_root(root);
-		BUG_ON(!root);
+		_ON(!root);
 		spin_unlock(&fs_info->delalloc_root_lock);
 
 		btrfs_destroy_delalloc_inodes(root);

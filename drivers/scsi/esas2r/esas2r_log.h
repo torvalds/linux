@@ -51,7 +51,7 @@ enum {
 	ESAS2R_LOG_CRIT = 1,    /* critical events  */
 	ESAS2R_LOG_WARN = 2,    /* warning events   */
 	ESAS2R_LOG_INFO = 3,    /* info events      */
-	ESAS2R_LOG_DEBG = 4,    /* debugging events */
+	ESAS2R_LOG_DEBG = 4,    /* deging events */
 	ESAS2R_LOG_TRCE = 5,    /* tracing events   */
 
 #ifdef ESAS2R_TRACE
@@ -71,34 +71,34 @@ int esas2r_log_hexdump(const long level,
 		       size_t len);
 
 /*
- * the following macros are provided specifically for debugging and tracing
- * messages.  esas2r_debug() is provided for generic non-hardware layer
- * debugging and tracing events.  esas2r_hdebug is provided specifically for
- * hardware layer debugging and tracing events.
+ * the following macros are provided specifically for deging and tracing
+ * messages.  esas2r_de() is provided for generic non-hardware layer
+ * deging and tracing events.  esas2r_hde is provided specifically for
+ * hardware layer deging and tracing events.
  */
 
-#ifdef ESAS2R_DEBUG
-#define esas2r_debug(f, args ...) esas2r_log(ESAS2R_LOG_DEBG, f, ## args)
-#define esas2r_hdebug(f, args ...) esas2r_log(ESAS2R_LOG_DEBG, f, ## args)
+#ifdef ESAS2R_DE
+#define esas2r_de(f, args ...) esas2r_log(ESAS2R_LOG_DEBG, f, ## args)
+#define esas2r_hde(f, args ...) esas2r_log(ESAS2R_LOG_DEBG, f, ## args)
 #else
-#define esas2r_debug(f, args ...)
-#define esas2r_hdebug(f, args ...)
-#endif  /* ESAS2R_DEBUG */
+#define esas2r_de(f, args ...)
+#define esas2r_hde(f, args ...)
+#endif  /* ESAS2R_DE */
 
 /*
  * the following macros are provided in order to trace the driver and catch
- * some more serious bugs.  be warned, enabling these macros may *severely*
+ * some more serious s.  be warned, enabling these macros may *severely*
  * impact performance.
  */
 
 #ifdef ESAS2R_TRACE
-#define esas2r_bugon() \
+#define esas2r_on() \
 	do { \
-		esas2r_log(ESAS2R_LOG_TRCE, "esas2r_bugon() called in %s:%d" \
+		esas2r_log(ESAS2R_LOG_TRCE, "esas2r_on() called in %s:%d" \
 			   " - dumping stack and stopping kernel", __func__, \
 			   __LINE__); \
 		dump_stack(); \
-		BUG(); \
+		(); \
 	} while (0)
 
 #define esas2r_trace_enter() esas2r_log(ESAS2R_LOG_TRCE, "entered %s (%s:%d)", \
@@ -109,7 +109,7 @@ int esas2r_log_hexdump(const long level,
 					     f, __func__, __FILE__, __LINE__, \
 					     ## args)
 #else
-#define esas2r_bugon()
+#define esas2r_on()
 #define esas2r_trace_enter()
 #define esas2r_trace_exit()
 #define esas2r_trace(f, args ...)

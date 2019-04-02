@@ -32,27 +32,27 @@
 #define DRIVER_PREFIX DRIVER_NAME ": "
 
 enum {
-	DEBUG_NONE	= 0,
-	DEBUG_IRQ	= BIT(0),
-	DEBUG_SPI	= BIT(1),
-	DEBUG_BOOT	= BIT(2),
-	DEBUG_MAILBOX	= BIT(3),
-	DEBUG_NETLINK	= BIT(4),
-	DEBUG_EVENT	= BIT(5),
-	DEBUG_TX	= BIT(6),
-	DEBUG_RX	= BIT(7),
-	DEBUG_SCAN	= BIT(8),
-	DEBUG_CRYPT	= BIT(9),
-	DEBUG_PSM	= BIT(10),
-	DEBUG_MAC80211	= BIT(11),
-	DEBUG_CMD	= BIT(12),
-	DEBUG_ACX	= BIT(13),
-	DEBUG_ALL	= ~0,
+	DE_NONE	= 0,
+	DE_IRQ	= BIT(0),
+	DE_SPI	= BIT(1),
+	DE_BOOT	= BIT(2),
+	DE_MAILBOX	= BIT(3),
+	DE_NETLINK	= BIT(4),
+	DE_EVENT	= BIT(5),
+	DE_TX	= BIT(6),
+	DE_RX	= BIT(7),
+	DE_SCAN	= BIT(8),
+	DE_CRYPT	= BIT(9),
+	DE_PSM	= BIT(10),
+	DE_MAC80211	= BIT(11),
+	DE_CMD	= BIT(12),
+	DE_ACX	= BIT(13),
+	DE_ALL	= ~0,
 };
 
-#define DEBUG_LEVEL (DEBUG_NONE)
+#define DE_LEVEL (DE_NONE)
 
-#define DEBUG_DUMP_LIMIT 1024
+#define DE_DUMP_LIMIT 1024
 
 #define wl1251_error(fmt, arg...) \
 	printk(KERN_ERR DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
@@ -64,31 +64,31 @@ enum {
 	printk(KERN_INFO DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1251_info(fmt, arg...) \
-	printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg)
+	printk(KERN_DE DRIVER_PREFIX fmt "\n", ##arg)
 
-#define wl1251_debug(level, fmt, arg...) \
+#define wl1251_de(level, fmt, arg...) \
 	do { \
-		if (level & DEBUG_LEVEL) \
-			printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg); \
+		if (level & DE_LEVEL) \
+			printk(KERN_DE DRIVER_PREFIX fmt "\n", ##arg); \
 	} while (0)
 
 #define wl1251_dump(level, prefix, buf, len)	\
 	do { \
-		if (level & DEBUG_LEVEL) \
-			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
+		if (level & DE_LEVEL) \
+			print_hex_dump(KERN_DE, DRIVER_PREFIX prefix, \
 				       DUMP_PREFIX_OFFSET, 16, 1,	\
 				       buf,				\
-				       min_t(size_t, len, DEBUG_DUMP_LIMIT), \
+				       min_t(size_t, len, DE_DUMP_LIMIT), \
 				       0);				\
 	} while (0)
 
 #define wl1251_dump_ascii(level, prefix, buf, len)	\
 	do { \
-		if (level & DEBUG_LEVEL) \
-			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
+		if (level & DE_LEVEL) \
+			print_hex_dump(KERN_DE, DRIVER_PREFIX prefix, \
 				       DUMP_PREFIX_OFFSET, 16, 1,	\
 				       buf,				\
-				       min_t(size_t, len, DEBUG_DUMP_LIMIT), \
+				       min_t(size_t, len, DE_DUMP_LIMIT), \
 				       true);				\
 	} while (0)
 
@@ -110,10 +110,10 @@ struct boot_attr {
 	u32 radio_type;
 	u8 mac_clock;
 	u8 arm_clock;
-	int firmware_debug;
+	int firmware_de;
 	u32 minor;
 	u32 major;
-	u32 bugfix;
+	u32 fix;
 };
 
 enum wl1251_state {
@@ -156,7 +156,7 @@ struct wl1251_stats {
 	unsigned int excessive_retries;
 };
 
-struct wl1251_debugfs {
+struct wl1251_defs {
 	struct dentry *rootdir;
 	struct dentry *fw_statistics;
 
@@ -385,7 +385,7 @@ struct wl1251 {
 	int rssi_thold;
 
 	struct wl1251_stats stats;
-	struct wl1251_debugfs debugfs;
+	struct wl1251_defs defs;
 
 	__le32 buffer_32;
 	u32 buffer_cmd;

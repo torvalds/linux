@@ -162,7 +162,7 @@ static int spu_backing_wbox_write(struct spu_context *ctx, u32 data)
 		 * Implementation note: the depth
 		 * of spu_mb_W is currently 4.
 		 */
-		BUG_ON(avail != (4 - slot));
+		_ON(avail != (4 - slot));
 		ctx->csa.spu_mailbox_data[slot] = data;
 		ctx->csa.spu_chnlcnt_RW[29] = ++slot;
 		ctx->csa.prob.mb_stat_R &= ~(0x00ff00);

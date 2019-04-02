@@ -7,7 +7,7 @@
 #  - Scans dmesg output.
 #  - Walks directory tree and parses each file (for each directory in @DIRS).
 #
-# Use --debug to output path before parsing, this is useful to find files that
+# Use --de to output path before parsing, this is useful to find files that
 # cause the script to choke.
 
 #
@@ -44,7 +44,7 @@ my @SUPPORTED_ARCHITECTURES = ('x86_64', 'ppc64', 'x86');
 
 # Command line options.
 my $help = 0;
-my $debug = 0;
+my $de = 0;
 my $raw = 0;
 my $output_raw = "";	# Write raw results to file.
 my $input_raw = "";	# Read raw results from file instead of scanning.
@@ -61,7 +61,7 @@ my @skip_abs = (
 	'/proc/device-tree',
 	'/proc/1/syscall',
 	'/sys/firmware/devicetree',
-	'/sys/kernel/debug/tracing/trace_pipe',
+	'/sys/kernel/de/tracing/trace_pipe',
 	'/sys/kernel/security/apparmor/revision');
 
 # Skip these under any subdirectory.
@@ -96,7 +96,7 @@ Options:
 	--kernel-config-file=<file>     Kernel configuration file (e.g /boot/config)
 	--32-bit			Scan 32-bit kernel.
 	--page-offset-32-bit=o		Page offset (for 32-bit kernel 0xABCD1234).
-	-d, --debug			Display debugging output.
+	-d, --de			Display deging output.
 	-h, --help			Display this help and exit.
 
 Scans the running kernel for potential leaking addresses.
@@ -106,7 +106,7 @@ EOM
 }
 
 GetOptions(
-	'd|debug'		=> \$debug,
+	'd|de'		=> \$de,
 	'h|help'		=> \$help,
 	'o|output-raw=s'        => \$output_raw,
 	'i|input-raw=s'         => \$input_raw,
@@ -161,7 +161,7 @@ exit 0;
 
 sub dprint
 {
-	printf(STDERR @_) if $debug;
+	printf(STDERR @_) if $de;
 }
 
 sub is_supported_architecture

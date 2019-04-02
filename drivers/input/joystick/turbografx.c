@@ -171,7 +171,7 @@ static void tgfx_attach(struct parport *pp)
 	}
 
 	if (port_idx == TGFX_MAX_PORTS) {
-		pr_debug("Not using parport%d.\n", pp->number);
+		pr_de("Not using parport%d.\n", pp->number);
 		return;
 	}
 	n_buttons = tgfx_cfg[port_idx].args + 1;

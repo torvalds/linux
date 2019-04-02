@@ -17,7 +17,7 @@ ath-objs :=	main.o \
 		dfs_pattern_detector.o \
 		dfs_pri_detector.o
 
-ath-$(CONFIG_ATH_DEBUG) += debug.o
+ath-$(CONFIG_ATH_DE) += de.o
 ath-$(CONFIG_ATH_TRACEPOINTS) += trace.o
 
 CFLAGS_trace.o := -I$(src)

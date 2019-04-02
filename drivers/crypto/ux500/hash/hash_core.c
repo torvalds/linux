@@ -421,7 +421,7 @@ static int hash_get_device_data(struct hash_ctx *ctx,
  *
  * Note! This function DOES NOT write to the NBLW registry, even though
  * specified in the the hw design spec. Either due to incorrect info in the
- * spec or due to a bug in the hw.
+ * spec or due to a  in the hw.
  */
 static void hash_hw_write_key(struct hash_device_data *device_data,
 			      const u8 *key, unsigned int keylen)
@@ -561,7 +561,7 @@ static int hash_init(struct ahash_request *req)
 		if (req->nbytes < HASH_DMA_ALIGN_SIZE) {
 			req_ctx->dma_mode = false; /* Don't use DMA */
 
-			pr_debug("%s: DMA mode, but direct to CPU mode for data size < %d\n",
+			pr_de("%s: DMA mode, but direct to CPU mode for data size < %d\n",
 				 __func__, HASH_DMA_ALIGN_SIZE);
 		} else {
 			if (req->nbytes >= HASH_DMA_PERFORMANCE_MIN_SIZE &&
@@ -569,7 +569,7 @@ static int hash_init(struct ahash_request *req)
 				req_ctx->dma_mode = true;
 			} else {
 				req_ctx->dma_mode = false;
-				pr_debug("%s: DMA mode, but use CPU mode for datalength < %d or non-aligned data, except in last nent\n",
+				pr_de("%s: DMA mode, but use CPU mode for datalength < %d or non-aligned data, except in last nent\n",
 					 __func__,
 					 HASH_DMA_PERFORMANCE_MIN_SIZE);
 			}
@@ -985,7 +985,7 @@ static int hash_hw_final(struct ahash_request *req)
 		bool zero_digest = false;
 		/**
 		 * Use a pre-calculated empty message digest
-		 * (workaround since hw return zeroes, hw bug!?)
+		 * (workaround since hw return zeroes, hw !?)
 		 */
 		ret = get_empty_message_digest(device_data, &zero_hash[0],
 				&zero_hash_size, &zero_digest);
@@ -1314,7 +1314,7 @@ static int ahash_final(struct ahash_request *req)
 	int ret = 0;
 	struct hash_req_ctx *req_ctx = ahash_request_ctx(req);
 
-	pr_debug("%s: data size: %d\n", __func__, req->nbytes);
+	pr_de("%s: data size: %d\n", __func__, req->nbytes);
 
 	if ((hash_mode == HASH_MODE_DMA) && req_ctx->dma_mode)
 		ret = hash_dma_final(req);

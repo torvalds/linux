@@ -259,8 +259,8 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	}
 
 #ifdef DIAGNOSTIC
-	printk(KERN_DEBUG "vxfs: supported VxFS version (%d)\n", j);
-	printk(KERN_DEBUG "vxfs: blocksize: %d\n",
+	printk(KERN_DE "vxfs: supported VxFS version (%d)\n", j);
+	printk(KERN_DE "vxfs: blocksize: %d\n",
 		fs32_to_cpu(infp, rsbp->vs_bsize));
 #endif
 

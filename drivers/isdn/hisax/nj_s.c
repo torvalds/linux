@@ -36,8 +36,8 @@ netjet_s_interrupt(int intno, void *dev_id)
 	s1val = bytein(cs->hw.njet.base + NETJET_IRQSTAT1);
 	if (!(s1val & NETJET_ISACIRQ)) {
 		val = NETjet_ReadIC(cs, ISAC_ISTA);
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "tiger: i1 %x %x", s1val, val);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "tiger: i1 %x %x", s1val, val);
 		if (val) {
 			isac_interrupt(cs, val);
 			NETjet_WriteIC(cs, ISAC_MASK, 0xFF);

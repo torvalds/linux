@@ -763,12 +763,12 @@ extern const struct psb_ops mdfld_chip_ops;
 /* cdv_device.c */
 extern const struct psb_ops cdv_chip_ops;
 
-/* Debug print bits setting */
+/* De print bits setting */
 #define PSB_D_GENERAL (1 << 0)
 #define PSB_D_INIT    (1 << 1)
 #define PSB_D_IRQ     (1 << 2)
 #define PSB_D_ENTRY   (1 << 3)
-/* debug the get H/V BP/FP count */
+/* de the get H/V BP/FP count */
 #define PSB_D_HV      (1 << 4)
 #define PSB_D_DBI_BF  (1 << 5)
 #define PSB_D_PM      (1 << 6)

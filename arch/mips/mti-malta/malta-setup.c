@@ -210,11 +210,11 @@ static void __init bonito_quirks_setup(void)
 	char *argptr;
 
 	argptr = fw_getcmdline();
-	if (strstr(argptr, "debug")) {
-		BONITO_BONGENCFG |= BONITO_BONGENCFG_DEBUGMODE;
-		pr_info("Enabled Bonito debug mode\n");
+	if (strstr(argptr, "de")) {
+		BONITO_BONGENCFG |= BONITO_BONGENCFG_DEMODE;
+		pr_info("Enabled Bonito de mode\n");
 	} else
-		BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEBUGMODE;
+		BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEMODE;
 }
 
 void __init *plat_get_fdt(void)

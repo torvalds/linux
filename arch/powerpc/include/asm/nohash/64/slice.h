@@ -7,6 +7,6 @@
 #else /* CONFIG_PPC_64K_PAGES */
 #define get_slice_psize(mm, addr)	MMU_PAGE_4K
 #endif /* !CONFIG_PPC_64K_PAGES */
-#define slice_set_user_psize(mm, psize)	do { BUG(); } while (0)
+#define slice_set_user_psize(mm, psize)	do { (); } while (0)
 
 #endif /* _ASM_POWERPC_NOHASH_64_SLICE_H */

@@ -12,7 +12,7 @@
 #include "nitrox_csr.h"
 #include "nitrox_hal.h"
 #include "nitrox_isr.h"
-#include "nitrox_debugfs.h"
+#include "nitrox_defs.h"
 
 #define CNN55XX_DEV_ID	0x12
 #define UCODE_HLEN 48
@@ -404,7 +404,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 	if (err)
 		goto pf_hw_fail;
 
-	nitrox_debugfs_init(ndev);
+	nitrox_defs_init(ndev);
 
 	/* clear the statistics */
 	atomic64_set(&ndev->stats.posted, 0);
@@ -422,7 +422,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 	return 0;
 
 crypto_fail:
-	nitrox_debugfs_exit(ndev);
+	nitrox_defs_exit(ndev);
 	atomic_set(&ndev->state, __NDEV_NOT_READY);
 	/* barrier to sync with other cpus */
 	smp_mb__after_atomic();
@@ -469,7 +469,7 @@ static void nitrox_remove(struct pci_dev *pdev)
 	nitrox_sriov_configure(pdev, 0);
 #endif
 	nitrox_crypto_unregister();
-	nitrox_debugfs_exit(ndev);
+	nitrox_defs_exit(ndev);
 	nitrox_pf_sw_cleanup(ndev);
 
 	iounmap(ndev->bar_addr);

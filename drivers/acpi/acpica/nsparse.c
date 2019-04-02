@@ -87,7 +87,7 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 		goto cleanup;
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+	ACPI_DE_PRINT_RAW((ACPI_DB_PARSE,
 			      "%s: Create table pseudo-method for [%4.4s] @%p, method %p\n",
 			      ACPI_GET_FUNCTION_NAME, table->signature, table,
 			      method_obj));
@@ -109,7 +109,7 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	/* Optional object evaluation log */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+	ACPI_DE_PRINT_RAW((ACPI_DB_EVALUATION,
 			      "%-26s:  (Definition Block level)\n",
 			      "Module-level evaluation"));
 
@@ -117,7 +117,7 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	/* Optional object evaluation log */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+	ACPI_DE_PRINT_RAW((ACPI_DB_EVALUATION,
 			      "%-26s:  (Definition Block level)\n",
 			      "Module-level complete"));
 
@@ -222,7 +222,7 @@ acpi_ns_one_complete_parse(u32 pass_number,
 
 	/* Parse the AML */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "*PARSE* pass %u parse\n", pass_number));
 	acpi_ex_enter_interpreter();
 	status = acpi_ps_parse_aml(walk_state);
@@ -261,7 +261,7 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	 * Note: This causes the table to only have a single-pass parse.
 	 * However, this is compatible with other ACPI implementations.
 	 */
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+	ACPI_DE_PRINT_RAW((ACPI_DB_PARSE,
 			      "%s: **** Start table execution pass\n",
 			      ACPI_GET_FUNCTION_NAME));
 

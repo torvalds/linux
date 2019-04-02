@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-static int libbpf_debug_print(enum libbpf_print_level level,
+static int libbpf_de_print(enum libbpf_print_level level,
 			      const char *format, va_list args)
 {
-	if (level == LIBBPF_DEBUG)
+	if (level == LIBBPF_DE)
 		return 0;
 
 	return vfprintf(stderr, format, args);
@@ -38,7 +38,7 @@ void test_reference_tracking(void)
 		if (strstr(title, "fail") != NULL) {
 			libbpf_set_print(NULL);
 			err = !bpf_program__load(prog, "GPL", 0);
-			libbpf_set_print(libbpf_debug_print);
+			libbpf_set_print(libbpf_de_print);
 		} else {
 			err = bpf_program__load(prog, "GPL", 0);
 		}

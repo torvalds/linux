@@ -289,7 +289,7 @@
 						 * received subvols */
 
 /*
- * string items are for debugging.  They just store a short string of
+ * string items are for deging.  They just store a short string of
  * data in the FS
  */
 #define BTRFS_STRING_ITEM_KEY	253

@@ -52,7 +52,7 @@ The edge is described by the following properties:
 - label:
 	Usage: optional
 	Value type: <string>
-	Definition: name of the edge, used for debugging and identification
+	Definition: name of the edge, used for deging and identification
 		    purposes. The node name will be used if this is not
 		    present.
 

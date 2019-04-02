@@ -15,7 +15,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/edac.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
 
@@ -732,7 +732,7 @@ static ssize_t mci_sdram_scrub_rate_show(struct device *dev,
 
 	bandwidth = mci->get_sdram_scrub_rate(mci);
 	if (bandwidth < 0) {
-		edac_printk(KERN_DEBUG, EDAC_MC, "Error reading scrub rate\n");
+		edac_printk(KERN_DE, EDAC_MC, "Error reading scrub rate\n");
 		return bandwidth;
 	}
 
@@ -940,9 +940,9 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 		if (!dimm->nr_pages)
 			continue;
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 		edac_dbg(1, "creating dimm%d, located at ", i);
-		if (edac_debug_level >= 1) {
+		if (edac_de_level >= 1) {
 			int lay;
 			for (lay = 0; lay < mci->n_layers; lay++)
 				printk(KERN_CONT "%s %d ",
@@ -964,7 +964,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 		goto fail_unregister_dimm;
 #endif
 
-	edac_create_debugfs_nodes(mci);
+	edac_create_defs_nodes(mci);
 	return 0;
 
 fail_unregister_dimm:
@@ -990,8 +990,8 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	edac_dbg(0, "\n");
 
-#ifdef CONFIG_EDAC_DEBUG
-	edac_debugfs_remove_recursive(mci->debugfs);
+#ifdef CONFIG_EDAC_DE
+	edac_defs_remove_recursive(mci->defs);
 #endif
 #ifdef CONFIG_EDAC_LEGACY_SYSFS
 	edac_delete_csrow_objects(mci);

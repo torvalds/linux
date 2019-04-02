@@ -140,7 +140,7 @@ static void urb_completion(struct urb *purb)
 	}
 
 	/* See if the stream is corrupted (to work around a hardware
-	   bug where the stream gets misaligned */
+	    where the stream gets misaligned */
 	ptr = purb->transfer_buffer;
 	if (purb->actual_length > 0 && ptr[0] != 0x47) {
 		dprintk(1, "Need to restart streaming %02x len=%d!\n",

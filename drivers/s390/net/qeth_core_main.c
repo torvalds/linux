@@ -46,11 +46,11 @@ struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS] = {
 	/* define dbf - Name, Pages, Areas, Maxlen, Level, View, Handle */
 	/*                   N  P  A    M  L  V                      H  */
 	[QETH_DBF_SETUP] = {"qeth_setup",
-				8, 1,   8, 5, &debug_hex_ascii_view, NULL},
+				8, 1,   8, 5, &de_hex_ascii_view, NULL},
 	[QETH_DBF_MSG]	 = {"qeth_msg", 8, 1, 11 * sizeof(long), 3,
-			    &debug_sprintf_view, NULL},
+			    &de_sprintf_view, NULL},
 	[QETH_DBF_CTRL]  = {"qeth_control",
-		8, 1, QETH_DBF_CTRL_LEN, 5, &debug_hex_ascii_view, NULL},
+		8, 1, QETH_DBF_CTRL_LEN, 5, &de_hex_ascii_view, NULL},
 };
 EXPORT_SYMBOL_GPL(qeth_dbf);
 
@@ -5388,22 +5388,22 @@ static void qeth_unregister_dbf_views(void)
 {
 	int x;
 	for (x = 0; x < QETH_DBF_INFOS; x++) {
-		debug_unregister(qeth_dbf[x].id);
+		de_unregister(qeth_dbf[x].id);
 		qeth_dbf[x].id = NULL;
 	}
 }
 
-void qeth_dbf_longtext(debug_info_t *id, int level, char *fmt, ...)
+void qeth_dbf_longtext(de_info_t *id, int level, char *fmt, ...)
 {
 	char dbf_txt_buf[32];
 	va_list args;
 
-	if (!debug_level_enabled(id, level))
+	if (!de_level_enabled(id, level))
 		return;
 	va_start(args, fmt);
 	vsnprintf(dbf_txt_buf, sizeof(dbf_txt_buf), fmt, args);
 	va_end(args);
-	debug_text_event(id, level, dbf_txt_buf);
+	de_text_event(id, level, dbf_txt_buf);
 }
 EXPORT_SYMBOL_GPL(qeth_dbf_longtext);
 
@@ -5414,7 +5414,7 @@ static int qeth_register_dbf_views(void)
 
 	for (x = 0; x < QETH_DBF_INFOS; x++) {
 		/* register the areas */
-		qeth_dbf[x].id = debug_register(qeth_dbf[x].name,
+		qeth_dbf[x].id = de_register(qeth_dbf[x].name,
 						qeth_dbf[x].pages,
 						qeth_dbf[x].areas,
 						qeth_dbf[x].len);
@@ -5424,14 +5424,14 @@ static int qeth_register_dbf_views(void)
 		}
 
 		/* register a view */
-		ret = debug_register_view(qeth_dbf[x].id, qeth_dbf[x].view);
+		ret = de_register_view(qeth_dbf[x].id, qeth_dbf[x].view);
 		if (ret) {
 			qeth_unregister_dbf_views();
 			return ret;
 		}
 
 		/* set a passing level */
-		debug_set_level(qeth_dbf[x].id, qeth_dbf[x].level);
+		de_set_level(qeth_dbf[x].id, qeth_dbf[x].level);
 	}
 
 	return 0;
@@ -5492,17 +5492,17 @@ static const struct device_type qeth_osn_devtype = {
 
 struct qeth_dbf_entry {
 	char dbf_name[DBF_NAME_LEN];
-	debug_info_t *dbf_info;
+	de_info_t *dbf_info;
 	struct list_head dbf_list;
 };
 
 static LIST_HEAD(qeth_dbf_list);
 static DEFINE_MUTEX(qeth_dbf_list_mutex);
 
-static debug_info_t *qeth_get_dbf_entry(char *name)
+static de_info_t *qeth_get_dbf_entry(char *name)
 {
 	struct qeth_dbf_entry *entry;
-	debug_info_t *rc = NULL;
+	de_info_t *rc = NULL;
 
 	mutex_lock(&qeth_dbf_list_mutex);
 	list_for_each_entry(entry, &qeth_dbf_list, dbf_list) {
@@ -5519,18 +5519,18 @@ static int qeth_add_dbf_entry(struct qeth_card *card, char *name)
 {
 	struct qeth_dbf_entry *new_entry;
 
-	card->debug = debug_register(name, 2, 1, 8);
-	if (!card->debug) {
+	card->de = de_register(name, 2, 1, 8);
+	if (!card->de) {
 		QETH_DBF_TEXT_(SETUP, 2, "%s", "qcdbf");
 		goto err;
 	}
-	if (debug_register_view(card->debug, &debug_hex_ascii_view))
+	if (de_register_view(card->de, &de_hex_ascii_view))
 		goto err_dbg;
 	new_entry = kzalloc(sizeof(struct qeth_dbf_entry), GFP_KERNEL);
 	if (!new_entry)
 		goto err_dbg;
 	strncpy(new_entry->dbf_name, name, DBF_NAME_LEN);
-	new_entry->dbf_info = card->debug;
+	new_entry->dbf_info = card->de;
 	mutex_lock(&qeth_dbf_list_mutex);
 	list_add(&new_entry->dbf_list, &qeth_dbf_list);
 	mutex_unlock(&qeth_dbf_list_mutex);
@@ -5538,7 +5538,7 @@ static int qeth_add_dbf_entry(struct qeth_card *card, char *name)
 	return 0;
 
 err_dbg:
-	debug_unregister(card->debug);
+	de_unregister(card->de);
 err:
 	return -ENOMEM;
 }
@@ -5550,7 +5550,7 @@ static void qeth_clear_dbf_list(void)
 	mutex_lock(&qeth_dbf_list_mutex);
 	list_for_each_entry_safe(entry, tmp, &qeth_dbf_list, dbf_list) {
 		list_del(&entry->dbf_list);
-		debug_unregister(entry->dbf_info);
+		de_unregister(entry->dbf_info);
 		kfree(entry);
 	}
 	mutex_unlock(&qeth_dbf_list_mutex);
@@ -5633,8 +5633,8 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 
 	snprintf(dbf_name, sizeof(dbf_name), "qeth_card_%s",
 		dev_name(&gdev->dev));
-	card->debug = qeth_get_dbf_entry(dbf_name);
-	if (!card->debug) {
+	card->de = qeth_get_dbf_entry(dbf_name);
+	if (!card->de) {
 		rc = qeth_add_dbf_entry(card, dbf_name);
 		if (rc)
 			goto err_card;

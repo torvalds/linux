@@ -107,7 +107,7 @@ struct scsi_drv_cmdq {
 struct scsi_init_func_params {
 	__le16 num_tasks;
 	u8 log_page_size;
-	u8 debug_mode;
+	u8 de_mode;
 	u8 reserved2[12];
 };
 

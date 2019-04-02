@@ -36,7 +36,7 @@
 #define REG_WIDTH_MASK			0x100
 #define REG_NO_MASK			0x0ff
 
-#ifdef ISP1362_DEBUG
+#ifdef ISP1362_DE
 typedef const unsigned int isp1362_reg_t;
 
 #define REG_ACCESS_R			0x200
@@ -49,8 +49,8 @@ typedef const unsigned int isp1362_reg_t;
 #define ISP1362_REG(name, addr, width, rw) \
 static isp1362_reg_t ISP1362_REG_##name = ((addr) | (width) | (rw))
 
-#define REG_ACCESS_TEST(r)   BUG_ON(((r) & ISP1362_REG_WRITE_OFFSET) && !((r) & REG_ACCESS_W))
-#define REG_WIDTH_TEST(r, w) BUG_ON(((r) & REG_WIDTH_MASK) != (w))
+#define REG_ACCESS_TEST(r)   _ON(((r) & ISP1362_REG_WRITE_OFFSET) && !((r) & REG_ACCESS_W))
+#define REG_WIDTH_TEST(r, w) _ON(((r) & REG_WIDTH_MASK) != (w))
 #else
 typedef const unsigned char isp1362_reg_t;
 #define ISP1362_REG_NO(r)		(r)
@@ -435,7 +435,7 @@ struct isp1362_hcd {
 
 	struct isp1362_platform_data *board;
 
-	struct dentry		*debug_file;
+	struct dentry		*de_file;
 	unsigned long		stat1, stat2, stat4, stat8, stat16;
 
 	/* HC registers */
@@ -540,7 +540,7 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 #define DBG(level, fmt...) \
 	do { \
 		if (dbg_level > level) \
-			pr_debug(fmt); \
+			pr_de(fmt); \
 	} while (0)
 
 #ifdef VERBOSE
@@ -574,7 +574,7 @@ static inline struct usb_hcd *isp1362_hcd_to_hcd(struct isp1362_hcd *isp1362_hcd
 #endif
 
 #define get_urb(ep) ({							\
-	BUG_ON(list_empty(&ep->hep->urb_list));				\
+	_ON(list_empty(&ep->hep->urb_list));				\
 	container_of(ep->hep->urb_list.next, struct urb, urb_list);	\
 })
 
@@ -663,7 +663,7 @@ static void isp1362_read_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 le
 		len &= 1;
 	}
 
-	BUG_ON(len & ~1);
+	_ON(len & ~1);
 	if (len > 0) {
 		data = isp1362_read_data16(isp1362_hcd);
 		RDBG("%s: Reading trailing byte %02x to mem @ %08x\n", __func__,
@@ -708,7 +708,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 		len &= 1;
 	}
 
-	BUG_ON(len & ~1);
+	_ON(len & ~1);
 	if (len > 0) {
 		/* finally write any trailing byte; we don't need to care
 		 * about the high byte of the last word written

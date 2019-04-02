@@ -52,7 +52,7 @@ dequeue_task_stop(struct rq *rq, struct task_struct *p, int flags)
 
 static void yield_task_stop(struct rq *rq)
 {
-	BUG(); /* the stop task should never yield, its pointless. */
+	(); /* the stop task should never yield, its pointless. */
 }
 
 static void put_prev_task_stop(struct rq *rq, struct task_struct *prev)
@@ -95,13 +95,13 @@ static void set_curr_task_stop(struct rq *rq)
 
 static void switched_to_stop(struct rq *rq, struct task_struct *p)
 {
-	BUG(); /* its impossible to change to this class */
+	(); /* its impossible to change to this class */
 }
 
 static void
 prio_changed_stop(struct rq *rq, struct task_struct *p, int oldprio)
 {
-	BUG(); /* how!?, what priority? */
+	(); /* how!?, what priority? */
 }
 
 static unsigned int

@@ -26,7 +26,7 @@
 #include <linux/uprobes.h>
 #include <linux/uaccess.h>
 #include <linux/sched.h> /* For struct task_struct */
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
 #include <asm/cacheflush.h>
 #include <linux/uaccess.h>
@@ -250,7 +250,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 asmlinkage void uprobe_trap(struct pt_regs *regs,
 			    unsigned long trap_level)
 {
-	BUG_ON(trap_level != 0x173 && trap_level != 0x174);
+	_ON(trap_level != 0x173 && trap_level != 0x174);
 
 	/* We are only interested in user-mode code.  Uprobe traps
 	 * shall not be present in kernel code.

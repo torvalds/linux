@@ -66,7 +66,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	u8 *mem_addr;
 	dma_addr_t dma_addr = 0;
 
-	pr_debug("CPM uart[%d]:allocbuf\n", pinfo->port.line);
+	pr_de("CPM uart[%d]:allocbuf\n", pinfo->port.line);
 
 	dpmemsz = sizeof(cbd_t) * (pinfo->rx_nrfifos + pinfo->tx_nrfifos);
 	dp_offset = cpm_dpalloc(dpmemsz, 8);

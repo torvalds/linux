@@ -901,7 +901,7 @@ struct eeprom_data {
 	u16 ipSecurity;
 #define IPSEC_CONFIG_PRESENT 0x0001
 	u8 reserved_156[294];
-	u16 qDebug[8];
+	u16 qDe[8];
 	struct eeprom_function_cfg funcCfg_fn0;
 	u16 reserved_510;
 	u8 oemSpace[432];

@@ -29,9 +29,9 @@
 #include <media/dvb_ca_en50221.h>
 #include "ttpci-eeprom.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -67,7 +67,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define ci_dbg(format, arg...)				\
 do {							\
 	if (0)						\
-		printk(KERN_DEBUG DVB_USB_LOG_PREFIX	\
+		printk(KERN_DE DVB_USB_LOG_PREFIX	\
 			": " format "\n" , ## arg);	\
 } while (0)
 
@@ -585,7 +585,7 @@ static int pctv452e_rc_query(struct dvb_usb_device *d)
 	if (ret != 0)
 		goto ret;
 
-	if (debug > 3) {
+	if (de > 3) {
 		info("%s: read: %2d: %*ph: ", __func__, ret, 3, rx);
 		for (i = 0; (i < rx[3]) && ((i+3) < PCTV_ANSWER_LEN); i++)
 			info(" %02x", rx[i+3]);
@@ -596,7 +596,7 @@ static int pctv452e_rc_query(struct dvb_usb_device *d)
 	if ((rx[3] == 9) &&  (rx[12] & 0x01)) {
 		/* got a "press" event */
 		state->last_rc_key = RC_SCANCODE_RC5(rx[7], rx[6]);
-		if (debug > 2)
+		if (de > 2)
 			info("%s: cmd=0x%02x sys=0x%02x\n",
 				__func__, rx[6], rx[7]);
 

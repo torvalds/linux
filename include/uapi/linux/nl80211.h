@@ -1841,7 +1841,7 @@ enum nl80211_commands {
  *       AMPDU density and AMPDU factor.
  *      All values are treated as suggestions and may be ignored
  *      by the driver as required.  The actual values may be seen in
- *      the station debugfs ht_caps file.
+ *      the station defs ht_caps file.
  *
  * @NL80211_ATTR_DFS_REGION: region for regulatory rules which this country
  *    abides to when initiating radiation on DFS channels. A country maps

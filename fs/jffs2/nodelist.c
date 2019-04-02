@@ -136,7 +136,7 @@ static void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_
 			link = &base->rb.rb_left;
 		else {
 			JFFS2_ERROR("duplicate frag at %08x (%p,%p)\n", newfrag->ofs, newfrag, base);
-			BUG();
+			();
 		}
 	}
 
@@ -459,7 +459,7 @@ void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 	struct jffs2_inode_cache **prev;
 
 #ifdef CONFIG_JFFS2_FS_XATTR
-	BUG_ON(old->xref);
+	_ON(old->xref);
 #endif
 	dbg_inocache("del %p (ino #%u)\n", old, old->ino);
 	spin_lock(&c->inocache_lock);
@@ -589,7 +589,7 @@ struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
 {
 	struct jffs2_raw_node_ref *ref;
 
-	BUG_ON(!jeb->allocated_refs);
+	_ON(!jeb->allocated_refs);
 	jeb->allocated_refs--;
 
 	ref = jeb->last_node;
@@ -611,7 +611,7 @@ struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
 
 	if (!jeb->first_node) {
 		jeb->first_node = ref;
-		BUG_ON(ref_offset(ref) != jeb->offset);
+		_ON(ref_offset(ref) != jeb->offset);
 	} else if (unlikely(ref_offset(ref) != jeb->offset + c->sector_size - jeb->free_size)) {
 		uint32_t last_len = ref_totlen(c, jeb, jeb->last_node);
 
@@ -619,7 +619,7 @@ struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
 			    ref, ref_offset(ref), ref_offset(ref)+len,
 			    ref_offset(jeb->last_node), 
 			    ref_offset(jeb->last_node)+last_len);
-		BUG();
+		();
 	}
 	jeb->last_node = ref;
 
@@ -667,7 +667,7 @@ int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	if (unlikely(size > jeb->free_size)) {
 		pr_crit("Dirty space 0x%x larger then free_size 0x%x (wasted 0x%x)\n",
 			size, jeb->free_size, jeb->wasted_size);
-		BUG();
+		();
 	}
 	/* REF_EMPTY_NODE is !obsolete, so that works OK */
 	if (jeb->last_node && ref_obsolete(jeb->last_node)) {
@@ -708,7 +708,7 @@ static inline uint32_t __ref_totlen(struct jffs2_sb_info *c,
 				ref, ref_offset(ref), jeb->last_node,
 				jeb->last_node ?
 				ref_offset(jeb->last_node) : 0);
-			BUG();
+			();
 		}
 		ref_end = jeb->offset + c->sector_size - jeb->free_size;
 	}

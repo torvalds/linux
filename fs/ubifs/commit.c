@@ -493,7 +493,7 @@ int ubifs_gc_should_commit(struct ubifs_info *c)
 }
 
 /*
- * Everything below is related to debugging.
+ * Everything below is related to deging.
  */
 
 /**
@@ -527,7 +527,7 @@ int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 {
 	struct ubifs_idx_node *idx;
 	int lnum, offs, len, err = 0;
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 
 	d->old_zroot = *zroot;
 	lnum = d->old_zroot.lnum;
@@ -566,7 +566,7 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 {
 	int lnum, offs, len, err = 0, uninitialized_var(last_level), child_cnt;
 	int first = 1, iip;
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 	union ubifs_key uninitialized_var(lower_key), upper_key, l_key, u_key;
 	unsigned long long uninitialized_var(last_sqnum);
 	struct ubifs_idx_node *idx;

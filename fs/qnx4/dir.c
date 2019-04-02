@@ -26,8 +26,8 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 	int ix, ino;
 	int size;
 
-	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
-	QNX4DEBUG((KERN_INFO "pos                 = %ld\n", (long) ctx->pos));
+	QNX4DE((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
+	QNX4DE((KERN_INFO "pos                 = %ld\n", (long) ctx->pos));
 
 	while (ctx->pos < inode->i_size) {
 		blknum = qnx4_block_map(inode, ctx->pos >> QNX4_BLOCK_SIZE_BITS);
@@ -49,7 +49,7 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 			else
 				size = QNX4_NAME_MAX;
 			size = strnlen(de->di_fname, size);
-			QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, de->di_fname));
+			QNX4DE((KERN_INFO "qnx4_readdir:%.*s\n", size, de->di_fname));
 			if (!(de->di_status & QNX4_FILE_LINK))
 				ino = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
 			else {

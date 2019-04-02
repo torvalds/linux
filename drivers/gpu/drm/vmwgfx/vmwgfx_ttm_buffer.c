@@ -359,7 +359,7 @@ void vmw_piter_start(struct vmw_piter *viter, const struct vmw_sg_table *vsgt,
 				     vsgt->sgt->orig_nents, p_offset);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -618,7 +618,7 @@ static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 				    &vmw_be->vsgt, ttm->num_pages,
 				    vmw_be->gmr_id);
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -636,7 +636,7 @@ static int vmw_ttm_unbind(struct ttm_tt *ttm)
 		vmw_mob_unbind(vmw_be->dev_priv, vmw_be->mob);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_map_bind)

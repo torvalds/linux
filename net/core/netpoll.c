@@ -1,5 +1,5 @@
 /*
- * Common framework for low-level network console, dump, and debugger code
+ * Common framework for low-level network console, dump, and deger code
  *
  * Sep 8 2003  Matt Mackall <mpm@selenic.com>
  *

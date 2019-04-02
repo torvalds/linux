@@ -729,7 +729,7 @@ static const struct dmi_system_id __initconst i8042_dmi_notimeout_table[] = {
 	},
 	{
 		/* Fujitsu A544 laptop */
-		/* https://bugzilla.redhat.com/show_bug.cgi?id=1111138 */
+		/* https://zilla.redhat.com/show_.cgi?id=1111138 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK A544"),
@@ -737,7 +737,7 @@ static const struct dmi_system_id __initconst i8042_dmi_notimeout_table[] = {
 	},
 	{
 		/* Fujitsu AH544 laptop */
-		/* https://bugzilla.kernel.org/show_bug.cgi?id=69731 */
+		/* https://zilla.kernel.org/show_.cgi?id=69731 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK AH544"),
@@ -745,7 +745,7 @@ static const struct dmi_system_id __initconst i8042_dmi_notimeout_table[] = {
 	},
 	{
 		/* Fujitsu U574 laptop */
-		/* https://bugzilla.kernel.org/show_bug.cgi?id=69731 */
+		/* https://zilla.kernel.org/show_.cgi?id=69731 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK U574"),
@@ -1204,7 +1204,7 @@ static int __init i8042_platform_init(void)
 		i8042_kbdreset = true;
 
 	/*
-	 * A20 was already enabled during early kernel init. But some buggy
+	 * A20 was already enabled during early kernel init. But some gy
 	 * BIOSes (in MSI Laptops) require A20 to be enabled using 8042 to
 	 * resume from S3. So we do it here and hope that nothing breaks.
 	 */

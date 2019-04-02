@@ -6,7 +6,7 @@
 		w	synthesize ptwrite events
 		p	synthesize power events
 		e	synthesize error events
-		d	create a debug log
+		d	create a de log
 		g	synthesize a call chain (use with i or x)
 		l	synthesize last branch entries (use with i or x)
 		s       skip initial number of events

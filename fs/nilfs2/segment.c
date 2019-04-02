@@ -264,7 +264,7 @@ int nilfs_transaction_commit(struct super_block *sb)
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	int err = 0;
 
-	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
+	_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
 	ti->ti_flags |= NILFS_TI_COMMIT;
 	if (ti->ti_count > 0) {
 		ti->ti_count--;
@@ -299,7 +299,7 @@ void nilfs_transaction_abort(struct super_block *sb)
 	struct nilfs_transaction_info *ti = current->journal_info;
 	struct the_nilfs *nilfs = sb->s_fs_info;
 
-	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
+	_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
 	if (ti->ti_count > 0) {
 		ti->ti_count--;
 		trace_nilfs2_transaction_transition(sb, ti, ti->ti_count,
@@ -380,8 +380,8 @@ static void nilfs_transaction_unlock(struct super_block *sb)
 	struct nilfs_transaction_info *ti = current->journal_info;
 	struct the_nilfs *nilfs = sb->s_fs_info;
 
-	BUG_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
-	BUG_ON(ti->ti_count > 0);
+	_ON(ti == NULL || ti->ti_magic != NILFS_TI_MAGIC);
+	_ON(ti->ti_count > 0);
 
 	up_write(&nilfs->ns_segctor_sem);
 	current->journal_info = ti->ti_save;
@@ -400,7 +400,7 @@ static void *nilfs_segctor_map_segsum_entry(struct nilfs_sc_info *sci,
 
 	if (unlikely(ssp->offset + bytes > blocksize)) {
 		ssp->offset = 0;
-		BUG_ON(NILFS_SEGBUF_BH_IS_LAST(ssp->bh,
+		_ON(NILFS_SEGBUF_BH_IS_LAST(ssp->bh,
 					       &segbuf->sb_segsum_buffers));
 		ssp->bh = NILFS_SEGBUF_NEXT_BH(ssp->bh);
 	}
@@ -930,7 +930,7 @@ static void nilfs_fill_in_file_bmap(struct inode *ifile,
 
 	if (test_bit(NILFS_I_BMAP, &ii->i_state)) {
 		ibh = ii->i_bh;
-		BUG_ON(!ibh);
+		_ON(!ibh);
 		raw_inode = nilfs_ifile_map_inode(ifile, ii->vfs_inode.i_ino,
 						  ibh);
 		nilfs_bmap_write(ii->i_bmap, raw_inode);
@@ -1053,7 +1053,7 @@ static int nilfs_segctor_scan_file(struct nilfs_sc_info *sci,
 			err = nilfs_segctor_apply_buffers(
 				sci, inode, &data_buffers,
 				sc_ops->collect_data);
-			BUG_ON(!err); /* always receive -E2BIG or true error */
+			_ON(!err); /* always receive -E2BIG or true error */
 			goto break_or_fail;
 		}
 	}
@@ -1104,7 +1104,7 @@ static int nilfs_segctor_scan_file_dsync(struct nilfs_sc_info *sci,
 					  nilfs_collect_file_data);
 	if (!err) {
 		nilfs_segctor_end_finfo(sci, inode);
-		BUG_ON(n > rest);
+		_ON(n > rest);
 		/* always receive -E2BIG or true error if n > rest */
 	}
 	return err;
@@ -1258,7 +1258,7 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 	case NILFS_ST_DONE:
 		return 0;
 	default:
-		BUG();
+		();
 	}
 
  break_or_fail:
@@ -1320,7 +1320,7 @@ static int nilfs_segctor_begin_construction(struct nilfs_sc_info *sci,
 	}
 	nilfs_segbuf_set_next_segnum(segbuf, nextnum, nilfs);
 
-	BUG_ON(!list_empty(&sci->sc_segbufs));
+	_ON(!list_empty(&sci->sc_segbufs));
 	list_add_tail(&segbuf->sb_list, &sci->sc_segbufs);
 	sci->sc_segbuf_nblocks = segbuf->sb_rest_blocks;
 	return 0;
@@ -1532,7 +1532,7 @@ static int nilfs_segctor_collect(struct nilfs_sc_info *sci,
 static void nilfs_list_replace_buffer(struct buffer_head *old_bh,
 				      struct buffer_head *new_bh)
 {
-	BUG_ON(!list_empty(&new_bh->b_assoc_buffers));
+	_ON(!list_empty(&new_bh->b_assoc_buffers));
 
 	list_replace_init(&old_bh->b_assoc_buffers, &new_bh->b_assoc_buffers);
 	/* The caller must release old_bh */
@@ -2238,7 +2238,7 @@ int nilfs_construct_segment(struct super_block *sb)
 		return -EROFS;
 
 	/* A call inside transactions causes a deadlock. */
-	BUG_ON((ti = current->journal_info) && ti->ti_magic == NILFS_TI_MAGIC);
+	_ON((ti = current->journal_info) && ti->ti_magic == NILFS_TI_MAGIC);
 
 	err = nilfs_segctor_sync(sci);
 	return err;

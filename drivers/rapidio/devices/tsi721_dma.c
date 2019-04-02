@@ -84,7 +84,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	struct tsi721_device *priv = to_tsi721(bdma_chan->dchan.device);
 #endif
 
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device, "DMAC%d", bdma_chan->id);
+	tsi_de(DMA, &bdma_chan->dchan.dev->device, "DMAC%d", bdma_chan->id);
 
 	/*
 	 * Allocate space for DMA descriptors
@@ -100,7 +100,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	bdma_chan->bd_phys = bd_phys;
 	bdma_chan->bd_base = bd_ptr;
 
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device,
+	tsi_de(DMA, &bdma_chan->dchan.dev->device,
 		  "DMAC%d descriptors @ %p (phys = %pad)",
 		  bdma_chan->id, bd_ptr, &bd_phys);
 
@@ -124,7 +124,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 	bdma_chan->sts_base = sts_ptr;
 	bdma_chan->sts_size = sts_size;
 
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device,
+	tsi_de(DMA, &bdma_chan->dchan.dev->device,
 		"DMAC%d desc status FIFO @ %p (phys = %pad) size=0x%x",
 		bdma_chan->id, sts_ptr, &sts_phys, sts_size);
 
@@ -165,7 +165,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 				 priv->msix[idx].irq_name, (void *)bdma_chan);
 
 		if (rc) {
-			tsi_debug(DMA, &bdma_chan->dchan.dev->device,
+			tsi_de(DMA, &bdma_chan->dchan.dev->device,
 				  "Unable to get MSI-X for DMAC%d-DONE",
 				  bdma_chan->id);
 			goto err_out;
@@ -177,7 +177,7 @@ static int tsi721_bdma_ch_init(struct tsi721_bdma_chan *bdma_chan, int bd_num)
 				priv->msix[idx].irq_name, (void *)bdma_chan);
 
 		if (rc)	{
-			tsi_debug(DMA, &bdma_chan->dchan.dev->device,
+			tsi_de(DMA, &bdma_chan->dchan.dev->device,
 				  "Unable to get MSI-X for DMAC%d-INT",
 				  bdma_chan->id);
 			free_irq(
@@ -328,7 +328,7 @@ static void tsi721_start_dma(struct tsi721_bdma_chan *bdma_chan)
 		return;
 	}
 
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device, "DMAC%d (wrc=%d) %d",
+	tsi_de(DMA, &bdma_chan->dchan.dev->device, "DMAC%d (wrc=%d) %d",
 		  bdma_chan->id, bdma_chan->wr_count_next,
 		  task_pid_nr(current));
 
@@ -459,12 +459,12 @@ static int tsi721_submit_sg(struct tsi721_tx_desc *desc)
 		add_count++;
 	}
 
-	tsi_debug(DMA, ch_dev, "DMAC%d BD ring status: rdi=%d wri=%d",
+	tsi_de(DMA, ch_dev, "DMAC%d BD ring status: rdi=%d wri=%d",
 		  bdma_chan->id, rd_idx, idx);
 
 	for_each_sg(desc->sg, sg, desc->sg_len, i) {
 
-		tsi_debug(DMAV, ch_dev, "DMAC%d sg%d/%d addr: 0x%llx len: %d",
+		tsi_de(DMAV, ch_dev, "DMAC%d sg%d/%d addr: 0x%llx len: %d",
 			bdma_chan->id, i, desc->sg_len,
 			(unsigned long long)sg_dma_address(sg), sg_dma_len(sg));
 
@@ -487,14 +487,14 @@ static int tsi721_submit_sg(struct tsi721_tx_desc *desc)
 		} else if (next_addr != -1) {
 			/* Finalize descriptor using total byte count value */
 			tsi721_desc_fill_end(bd_ptr, bcount, 0);
-			tsi_debug(DMAV, ch_dev,	"DMAC%d prev desc final len: %d",
+			tsi_de(DMAV, ch_dev,	"DMAC%d prev desc final len: %d",
 				  bdma_chan->id, bcount);
 		}
 
 		desc->rio_addr = rio_addr;
 
 		if (i && idx == rd_idx) {
-			tsi_debug(DMAV, ch_dev,
+			tsi_de(DMAV, ch_dev,
 				  "DMAC%d HW descriptor ring is full @ %d",
 				  bdma_chan->id, i);
 			desc->sg = sg;
@@ -509,7 +509,7 @@ static int tsi721_submit_sg(struct tsi721_tx_desc *desc)
 			break;
 		}
 
-		tsi_debug(DMAV, ch_dev, "DMAC%d bd_ptr = %p did=%d raddr=0x%llx",
+		tsi_de(DMAV, ch_dev, "DMAC%d bd_ptr = %p did=%d raddr=0x%llx",
 			  bdma_chan->id, bd_ptr, desc->destid, desc->rio_addr);
 
 		next_addr = sg_dma_address(sg);
@@ -525,7 +525,7 @@ static int tsi721_submit_sg(struct tsi721_tx_desc *desc)
 entry_done:
 		if (sg_is_last(sg)) {
 			tsi721_desc_fill_end(bd_ptr, bcount, 0);
-			tsi_debug(DMAV, ch_dev,
+			tsi_de(DMAV, ch_dev,
 				  "DMAC%d last desc final len: %d",
 				  bdma_chan->id, bcount);
 			desc->sg_len = 0;
@@ -546,7 +546,7 @@ static void tsi721_advance_work(struct tsi721_bdma_chan *bdma_chan,
 {
 	int err;
 
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device, "DMAC%d", bdma_chan->id);
+	tsi_de(DMA, &bdma_chan->dchan.dev->device, "DMAC%d", bdma_chan->id);
 
 	if (!tsi721_dma_is_idle(bdma_chan))
 		return;
@@ -568,13 +568,13 @@ static void tsi721_advance_work(struct tsi721_bdma_chan *bdma_chan,
 			tsi721_start_dma(bdma_chan);
 		else {
 			tsi721_dma_tx_err(bdma_chan, desc);
-			tsi_debug(DMA, &bdma_chan->dchan.dev->device,
+			tsi_de(DMA, &bdma_chan->dchan.dev->device,
 				"DMAC%d ERR: tsi721_submit_sg failed with err=%d",
 				bdma_chan->id, err);
 		}
 	}
 
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device, "DMAC%d Exit",
+	tsi_de(DMA, &bdma_chan->dchan.dev->device, "DMAC%d Exit",
 		  bdma_chan->id);
 }
 
@@ -584,7 +584,7 @@ static void tsi721_dma_tasklet(unsigned long data)
 	u32 dmac_int, dmac_sts;
 
 	dmac_int = ioread32(bdma_chan->regs + TSI721_DMAC_INT);
-	tsi_debug(DMA, &bdma_chan->dchan.dev->device, "DMAC%d_INT = 0x%x",
+	tsi_de(DMA, &bdma_chan->dchan.dev->device, "DMAC%d_INT = 0x%x",
 		  bdma_chan->id, dmac_int);
 	/* Clear channel interrupts */
 	iowrite32(dmac_int, bdma_chan->regs + TSI721_DMAC_INT);
@@ -736,7 +736,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 	struct tsi721_tx_desc *desc;
 	int i;
 
-	tsi_debug(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
+	tsi_de(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
 
 	if (bdma_chan->bd_base)
 		return dma_txqueue_sz;
@@ -792,7 +792,7 @@ static void tsi721_free_chan_resources(struct dma_chan *dchan)
 {
 	struct tsi721_bdma_chan *bdma_chan = to_tsi721_chan(dchan);
 
-	tsi_debug(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
+	tsi_de(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
 
 	if (!bdma_chan->bd_base)
 		return;
@@ -823,7 +823,7 @@ static void tsi721_issue_pending(struct dma_chan *dchan)
 {
 	struct tsi721_bdma_chan *bdma_chan = to_tsi721_chan(dchan);
 
-	tsi_debug(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
+	tsi_de(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
 
 	spin_lock_bh(&bdma_chan->lock);
 	if (tsi721_dma_is_idle(bdma_chan) && bdma_chan->active) {
@@ -850,7 +850,7 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 		return ERR_PTR(-EINVAL);
 	}
 
-	tsi_debug(DMA, &dchan->dev->device, "DMAC%d %s", bdma_chan->id,
+	tsi_de(DMA, &dchan->dev->device, "DMAC%d %s", bdma_chan->id,
 		  (dir == DMA_DEV_TO_MEM)?"READ":"WRITE");
 
 	if (dir == DMA_DEV_TO_MEM)
@@ -894,7 +894,7 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 	spin_unlock_bh(&bdma_chan->lock);
 
 	if (!txd) {
-		tsi_debug(DMA, &dchan->dev->device,
+		tsi_de(DMA, &dchan->dev->device,
 			  "DMAC%d free TXD is not available", bdma_chan->id);
 		return ERR_PTR(-EBUSY);
 	}
@@ -908,7 +908,7 @@ static int tsi721_terminate_all(struct dma_chan *dchan)
 	struct tsi721_tx_desc *desc, *_d;
 	LIST_HEAD(list);
 
-	tsi_debug(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
+	tsi_de(DMA, &dchan->dev->device, "DMAC%d", bdma_chan->id);
 
 	spin_lock_bh(&bdma_chan->lock);
 

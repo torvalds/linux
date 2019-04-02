@@ -326,7 +326,7 @@ struct isp116x_ep {
 
 /*-------------------------------------------------------------------------*/
 
-#define DBG(stuff...)		pr_debug("116x: " stuff)
+#define DBG(stuff...)		pr_de("116x: " stuff)
 
 #ifdef VERBOSE
 #    define VDBG		DBG
@@ -488,7 +488,7 @@ static void isp116x_write_reg32(struct isp116x *isp116x, unsigned reg,
 }
 
 /*
-   Dump registers for debugfs.
+   Dump registers for defs.
 */
 static inline void isp116x_show_regs_seq(struct isp116x *isp116x,
 					  struct seq_file *s)
@@ -516,7 +516,7 @@ static inline void isp116x_show_regs_log(struct isp116x *isp116x)
 #define URB_NOTSHORT(urb) ({ (urb)->transfer_flags & URB_SHORT_NOT_OK ? \
 	"short_not_ok" : ""; })
 
-/* print debug info about the URB */
+/* print de info about the URB */
 static void urb_dbg(struct urb *urb, char *msg)
 {
 	unsigned int pipe;

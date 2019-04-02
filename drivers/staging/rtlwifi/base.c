@@ -2795,8 +2795,8 @@ int rtl_core_module_init(void)
 	if (rtl_rate_control_register())
 		pr_err("rtl: Unable to register rtl_rc, use default RC !!\n");
 
-	/* add debugfs */
-	rtl_debugfs_add_topdir();
+	/* add defs */
+	rtl_defs_add_topdir();
 
 	/* init some global vars */
 	INIT_LIST_HEAD(&rtl_global_var.glb_priv_list);
@@ -2810,6 +2810,6 @@ void rtl_core_module_exit(void)
 	/*RC*/
 	rtl_rate_control_unregister();
 
-	/* remove debugfs */
-	rtl_debugfs_remove_topdir();
+	/* remove defs */
+	rtl_defs_remove_topdir();
 }

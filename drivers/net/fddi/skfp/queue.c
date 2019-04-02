@@ -140,15 +140,15 @@ u_short smt_online(struct s_smc *smc, int on)
 #ifdef	CONCENTRATOR
 void do_smt_flag(struct s_smc *smc, char *flag, int value)
 {
-#ifdef	DEBUG
-	struct smt_debug	*deb;
+#ifdef	DE
+	struct smt_de	*deb;
 
 	SK_UNUSED(smc) ;
 
-#ifdef	DEBUG_BRD
-	deb = &smc->debug;
+#ifdef	DE_BRD
+	deb = &smc->de;
 #else
-	deb = &debug;
+	deb = &de;
 #endif
 	if (!strcmp(flag,"smt"))
 		deb->d_smt = value ;
@@ -168,6 +168,6 @@ void do_smt_flag(struct s_smc *smc, char *flag, int value)
 	printf("rmt	%d\n",deb->d_rmt) ;
 	printf("cfm	%d\n",deb->d_cfm) ;
 	printf("ecm	%d\n",deb->d_ecm) ;
-#endif	/* DEBUG */
+#endif	/* DE */
 }
 #endif

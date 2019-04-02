@@ -30,9 +30,9 @@
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int audio_debug;
-module_param(audio_debug, int, 0644);
-MODULE_PARM_DESC(audio_debug,"enable debug messages [tv audio]");
+static unsigned int audio_de;
+module_param(audio_de, int, 0644);
+MODULE_PARM_DESC(audio_de,"enable de messages [tv audio]");
 
 static unsigned int audio_ddep;
 module_param(audio_ddep, int, 0644);
@@ -46,8 +46,8 @@ module_param(audio_clock_tweak, int, 0644);
 MODULE_PARM_DESC(audio_clock_tweak, "Audio clock tick fine tuning for cards with audio crystal that's slightly off (range [-1024 .. 1024])");
 
 #define audio_dbg(level, fmt, arg...) do { \
-	if (audio_debug >= level) \
-		printk(KERN_DEBUG pr_fmt("audio: " fmt), ## arg); \
+	if (audio_de >= level) \
+		printk(KERN_DE pr_fmt("audio: " fmt), ## arg); \
 	} while (0)
 
 /* msecs */
@@ -334,9 +334,9 @@ static int tvaudio_checkcarrier(struct saa7134_dev *dev, struct mainscan *scan)
 		return 0;
 	}
 
-	if (audio_debug > 1) {
+	if (audio_de > 1) {
 		int i;
-		audio_dbg(1, "debug %d:", scan->carr);
+		audio_dbg(1, "de %d:", scan->carr);
 		for (i = -150; i <= 150; i += 30) {
 			tvaudio_setcarrier(dev,scan->carr+i,scan->carr+i);
 			saa_readl(SAA7134_LEVEL_READOUT1 >> 2);

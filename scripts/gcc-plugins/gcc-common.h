@@ -47,7 +47,7 @@
 #include "memmodel.h"
 #endif
 #include "emit-rtl.h"
-#include "debug.h"
+#include "de.h"
 #include "target.h"
 #include "langhooks.h"
 #include "cfgloop.h"
@@ -138,12 +138,12 @@
 #endif
 
 /* missing from basic_block.h... */
-void debug_dominance_info(enum cdi_direction dir);
-void debug_dominance_tree(enum cdi_direction dir, basic_block root);
+void de_dominance_info(enum cdi_direction dir);
+void de_dominance_tree(enum cdi_direction dir, basic_block root);
 
 #if BUILDING_GCC_VERSION == 4006
-void debug_gimple_stmt(gimple);
-void debug_gimple_seq(gimple_seq);
+void de_gimple_stmt(gimple);
+void de_gimple_seq(gimple_seq);
 void print_gimple_seq(FILE *, gimple_seq, int, int);
 void print_gimple_stmt(FILE *, gimple, int, int);
 void print_gimple_expr(FILE *, gimple, int, int);
@@ -451,7 +451,7 @@ typedef union gimple_statement_d gasm;
 typedef union gimple_statement_d gassign;
 typedef union gimple_statement_d gcall;
 typedef union gimple_statement_d gcond;
-typedef union gimple_statement_d gdebug;
+typedef union gimple_statement_d gde;
 typedef union gimple_statement_d ggoto;
 typedef union gimple_statement_d gphi;
 typedef union gimple_statement_d greturn;
@@ -496,12 +496,12 @@ static inline const gcond *as_a_const_gcond(const_gimple stmt)
 	return stmt;
 }
 
-static inline gdebug *as_a_gdebug(gimple stmt)
+static inline gde *as_a_gde(gimple stmt)
 {
 	return stmt;
 }
 
-static inline const gdebug *as_a_const_gdebug(const_gimple stmt)
+static inline const gde *as_a_const_gde(const_gimple stmt)
 {
 	return stmt;
 }
@@ -584,7 +584,7 @@ typedef struct gimple_statement_asm gasm;
 typedef struct gimple_statement_base gassign;
 typedef struct gimple_statement_call gcall;
 typedef struct gimple_statement_base gcond;
-typedef struct gimple_statement_base gdebug;
+typedef struct gimple_statement_base gde;
 typedef struct gimple_statement_base ggoto;
 typedef struct gimple_statement_phi gphi;
 typedef struct gimple_statement_base greturn;
@@ -629,12 +629,12 @@ static inline const gcond *as_a_const_gcond(const_gimple stmt)
 	return stmt;
 }
 
-static inline gdebug *as_a_gdebug(gimple stmt)
+static inline gde *as_a_gde(gimple stmt)
 {
 	return stmt;
 }
 
-static inline const gdebug *as_a_const_gdebug(const_gimple stmt)
+static inline const gde *as_a_const_gde(const_gimple stmt)
 {
 	return stmt;
 }
@@ -707,7 +707,7 @@ static inline const char *get_decl_section_name(const_tree decl)
 }
 
 /* symtab/cgraph related */
-#define debug_cgraph_node(node) (node)->debug()
+#define de_cgraph_node(node) (node)->de()
 #define cgraph_get_node(decl) cgraph_node::get(decl)
 #define cgraph_get_create_node(decl) cgraph_node::get_create(decl)
 #define cgraph_create_node(decl) cgraph_node::create(decl)
@@ -945,18 +945,18 @@ static inline void ipa_remove_stmt_references(symtab_node *referring_node, gimpl
 #endif
 
 #ifdef __cplusplus
-static inline void debug_tree(const_tree t)
+static inline void de_tree(const_tree t)
 {
-	debug_tree(CONST_CAST_TREE(t));
+	de_tree(CONST_CAST_TREE(t));
 }
 
-static inline void debug_gimple_stmt(const_gimple s)
+static inline void de_gimple_stmt(const_gimple s)
 {
-	debug_gimple_stmt(CONST_CAST_GIMPLE(s));
+	de_gimple_stmt(CONST_CAST_GIMPLE(s));
 }
 #else
-#define debug_tree(t) debug_tree(CONST_CAST_TREE(t))
-#define debug_gimple_stmt(s) debug_gimple_stmt(CONST_CAST_GIMPLE(s))
+#define de_tree(t) de_tree(CONST_CAST_TREE(t))
+#define de_gimple_stmt(s) de_gimple_stmt(CONST_CAST_GIMPLE(s))
 #endif
 
 #if BUILDING_GCC_VERSION >= 7000

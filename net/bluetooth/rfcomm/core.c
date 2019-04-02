@@ -26,7 +26,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kthread.h>
 #include <asm/unaligned.h>
 
@@ -2145,7 +2145,7 @@ static struct hci_cb rfcomm_cb = {
 	.security_cfm	= rfcomm_security_cfm
 };
 
-static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
+static int rfcomm_dlc_defs_show(struct seq_file *f, void *x)
 {
 	struct rfcomm_session *s;
 
@@ -2167,9 +2167,9 @@ static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(rfcomm_dlc_debugfs);
+DEFINE_SHOW_ATTRIBUTE(rfcomm_dlc_defs);
 
-static struct dentry *rfcomm_dlc_debugfs;
+static struct dentry *rfcomm_dlc_defs;
 
 /* ---- Initialization ---- */
 static int __init rfcomm_init(void)
@@ -2194,12 +2194,12 @@ static int __init rfcomm_init(void)
 
 	BT_INFO("RFCOMM ver %s", VERSION);
 
-	if (IS_ERR_OR_NULL(bt_debugfs))
+	if (IS_ERR_OR_NULL(bt_defs))
 		return 0;
 
-	rfcomm_dlc_debugfs = debugfs_create_file("rfcomm_dlc", 0444,
-						 bt_debugfs, NULL,
-						 &rfcomm_dlc_debugfs_fops);
+	rfcomm_dlc_defs = defs_create_file("rfcomm_dlc", 0444,
+						 bt_defs, NULL,
+						 &rfcomm_dlc_defs_fops);
 
 	return 0;
 
@@ -2217,7 +2217,7 @@ unregister:
 
 static void __exit rfcomm_exit(void)
 {
-	debugfs_remove(rfcomm_dlc_debugfs);
+	defs_remove(rfcomm_dlc_defs);
 
 	hci_unregister_cb(&rfcomm_cb);
 

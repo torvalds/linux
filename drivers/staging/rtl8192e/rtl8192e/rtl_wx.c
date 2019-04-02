@@ -230,7 +230,7 @@ static int _rtl92e_wx_set_force_lps(struct net_device *dev,
 	return 0;
 }
 
-static int _rtl92e_wx_set_debug(struct net_device *dev,
+static int _rtl92e_wx_set_de(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
 {
@@ -240,12 +240,12 @@ static int _rtl92e_wx_set_debug(struct net_device *dev,
 	if (priv->bHwRadioOff)
 		return 0;
 
-	netdev_info(dev, "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
-		    *extra, rt_global_debug_component);
+	netdev_info(dev, "=====>%s(), *extra:%x, deflag:%x\n", __func__,
+		    *extra, rt_global_de_component);
 	if (c > 0)
-		rt_global_debug_component |= (1 << c);
+		rt_global_de_component |= (1 << c);
 	else
-		rt_global_debug_component &= BIT31;
+		rt_global_de_component &= BIT31;
 	return 0;
 }
 
@@ -1127,7 +1127,7 @@ static iw_handler r8192_wx_handlers[] = {
 static const struct iw_priv_args r8192_private_args[] = {
 	{
 		SIOCIWFIRSTPRIV + 0x0,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "set_debugflag"
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "set_deflag"
 	}, {
 		SIOCIWFIRSTPRIV + 0x1,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "activescan"
@@ -1160,7 +1160,7 @@ static const struct iw_priv_args r8192_private_args[] = {
 };
 
 static iw_handler r8192_private_handler[] = {
-	(iw_handler)_rtl92e_wx_set_debug,   /*SIOCIWSECONDPRIV*/
+	(iw_handler)_rtl92e_wx_set_de,   /*SIOCIWSECONDPRIV*/
 	(iw_handler)_rtl92e_wx_set_scan_type,
 	(iw_handler)_rtl92e_wx_set_rawtx,
 	(iw_handler)_rtl92e_wx_force_reset,

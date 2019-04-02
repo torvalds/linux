@@ -528,7 +528,7 @@ lan9303_alr_cache_find_mac(struct lan9303 *chip, const u8 *mac_addr)
 	int i;
 	struct lan9303_alr_cache_entry *entr = chip->alr_cache;
 
-	BUILD_BUG_ON_MSG(sizeof(struct lan9303_alr_cache_entry) & 1,
+	BUILD__ON_MSG(sizeof(struct lan9303_alr_cache_entry) & 1,
 			 "ether_addr_equal require u16 alignment");
 
 	for (i = 0; i < LAN9303_NUM_ALR_RECORDS; i++, entr++)

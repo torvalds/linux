@@ -41,10 +41,10 @@ struct s5h1432_state {
 	u8 inversion;
 };
 
-static int debug;
+static int de;
 
 #define dprintk(arg...) do {	\
-	if (debug)		\
+	if (de)		\
 		printk(arg);	\
 	} while (0)
 
@@ -391,8 +391,8 @@ static const struct dvb_frontend_ops s5h1432_ops = {
 	.release = s5h1432_release,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable verbose de messages");
 
 MODULE_DESCRIPTION("Samsung s5h1432 DVB-T Demodulator driver");
 MODULE_AUTHOR("Bill Liu");

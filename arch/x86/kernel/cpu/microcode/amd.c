@@ -94,7 +94,7 @@ static bool verify_container(const u8 *buf, size_t buf_size, bool early)
 
 	if (buf_size <= CONTAINER_HDR_SZ) {
 		if (!early)
-			pr_debug("Truncated microcode container header.\n");
+			pr_de("Truncated microcode container header.\n");
 
 		return false;
 	}
@@ -102,7 +102,7 @@ static bool verify_container(const u8 *buf, size_t buf_size, bool early)
 	cont_magic = *(const u32 *)buf;
 	if (cont_magic != UCODE_MAGIC) {
 		if (!early)
-			pr_debug("Invalid magic value (0x%08x).\n", cont_magic);
+			pr_de("Invalid magic value (0x%08x).\n", cont_magic);
 
 		return false;
 	}
@@ -126,7 +126,7 @@ static bool verify_equivalence_table(const u8 *buf, size_t buf_size, bool early)
 	cont_type = hdr[1];
 	if (cont_type != UCODE_EQUIV_CPU_TABLE_TYPE) {
 		if (!early)
-			pr_debug("Wrong microcode container equivalence table type: %u.\n",
+			pr_de("Wrong microcode container equivalence table type: %u.\n",
 			       cont_type);
 
 		return false;
@@ -138,7 +138,7 @@ static bool verify_equivalence_table(const u8 *buf, size_t buf_size, bool early)
 	if (equiv_tbl_len < sizeof(struct equiv_cpu_entry) ||
 	    buf_size < equiv_tbl_len) {
 		if (!early)
-			pr_debug("Truncated equivalence table.\n");
+			pr_de("Truncated equivalence table.\n");
 
 		return false;
 	}
@@ -162,7 +162,7 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early
 
 	if (buf_size < SECTION_HDR_SIZE) {
 		if (!early)
-			pr_debug("Truncated patch section.\n");
+			pr_de("Truncated patch section.\n");
 
 		return false;
 	}
@@ -173,7 +173,7 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early
 
 	if (p_type != UCODE_UCODE_TYPE) {
 		if (!early)
-			pr_debug("Invalid type field (0x%x) in container file section header.\n",
+			pr_de("Invalid type field (0x%x) in container file section header.\n",
 				p_type);
 
 		return false;
@@ -181,7 +181,7 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early
 
 	if (p_size < sizeof(struct microcode_header_amd)) {
 		if (!early)
-			pr_debug("Patch of size %u too short.\n", p_size);
+			pr_de("Patch of size %u too short.\n", p_size);
 
 		return false;
 	}
@@ -259,7 +259,7 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool ea
 	 */
 	if (buf_size < sh_psize) {
 		if (!early)
-			pr_debug("Patch of size %u truncated.\n", sh_psize);
+			pr_de("Patch of size %u truncated.\n", sh_psize);
 
 		return -1;
 	}
@@ -267,7 +267,7 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool ea
 	ret = __verify_patch_size(family, sh_psize, buf_size);
 	if (!ret) {
 		if (!early)
-			pr_debug("Per-family patch size mismatch.\n");
+			pr_de("Per-family patch size mismatch.\n");
 		return -1;
 	}
 
@@ -427,8 +427,8 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size, bool save_p
 	bool ret = false;
 
 #ifdef CONFIG_X86_32
-	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
-	patch	= (u8 (*)[PATCH_MAX_SIZE])__pa_nodebug(&amd_ucode_patch);
+	new_rev = (u32 *)__pa_node(&ucode_new_rev);
+	patch	= (u8 (*)[PATCH_MAX_SIZE])__pa_node(&amd_ucode_patch);
 #else
 	new_rev = &ucode_new_rev;
 	patch	= &amd_ucode_patch;
@@ -480,8 +480,8 @@ static void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
 	bool use_pa;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		uci	= (struct ucode_cpu_info *)__pa_nodebug(ucode_cpu_info);
-		path	= (const char *)__pa_nodebug(ucode_path);
+		uci	= (struct ucode_cpu_info *)__pa_node(ucode_cpu_info);
+		path	= (const char *)__pa_node(ucode_path);
 		use_pa	= true;
 	} else {
 		uci     = ucode_cpu_info;
@@ -516,8 +516,8 @@ void load_ucode_amd_ap(unsigned int cpuid_1_eax)
 	u32 *new_rev, rev, dummy;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		mc	= (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
-		new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
+		mc	= (struct microcode_amd *)__pa_node(amd_ucode_patch);
+		new_rev = (u32 *)__pa_node(&ucode_new_rev);
 	} else {
 		mc	= (struct microcode_amd *)amd_ucode_patch;
 		new_rev = &ucode_new_rev;
@@ -677,7 +677,7 @@ static enum ucode_state apply_microcode_amd(int cpu)
 	enum ucode_state ret;
 	u32 rev, dummy;
 
-	BUG_ON(raw_smp_processor_id() != cpu);
+	_ON(raw_smp_processor_id() != cpu);
 
 	uci = ucode_cpu_info + cpu;
 
@@ -793,7 +793,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
 	patch->patch_id  = mc_hdr->patch_id;
 	patch->equiv_cpu = proc_id;
 
-	pr_debug("%s: Added patch_id: 0x%08x, proc_id: 0x%04x\n",
+	pr_de("%s: Added patch_id: 0x%08x, proc_id: 0x%04x\n",
 		 __func__, patch->patch_id, proc_id);
 
 	/* ... and add to cache. */
@@ -904,7 +904,7 @@ static enum ucode_state request_microcode_amd(int cpu, struct device *device,
 		snprintf(fw_name, sizeof(fw_name), "amd-ucode/microcode_amd_fam%.2xh.bin", c->x86);
 
 	if (request_firmware_direct(&fw, (const char *)fw_name, device)) {
-		pr_debug("failed to load file %s\n", fw_name);
+		pr_de("failed to load file %s\n", fw_name);
 		goto out;
 	}
 

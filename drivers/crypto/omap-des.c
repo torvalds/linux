@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#ifdef DEBUG
+#ifdef DE
 #define prn(num) printk(#num "=%d\n", num)
 #define prx(num) printk(#num "=%x\n", num)
 #else
@@ -174,7 +174,7 @@ struct omap_des_dev {
 static LIST_HEAD(dev_list);
 static DEFINE_SPINLOCK(list_lock);
 
-#ifdef DEBUG
+#ifdef DE
 #define omap_des_read(dd, offset)                               \
 	({                                                              \
 	 int _read_ret;                                          \
@@ -190,7 +190,7 @@ static inline u32 omap_des_read(struct omap_des_dev *dd, u32 offset)
 }
 #endif
 
-#ifdef DEBUG
+#ifdef DE
 #define omap_des_write(dd, offset, value)                               \
 	do {                                                            \
 		pr_err("omap_des_write(" #offset "=%#x) value=%#x\n", \
@@ -464,7 +464,7 @@ static int omap_des_crypt_dma_start(struct omap_des_dev *dd)
 					crypto_ablkcipher_reqtfm(dd->req));
 	int err;
 
-	pr_debug("total: %d\n", dd->total);
+	pr_de("total: %d\n", dd->total);
 
 	if (!dd->pio_only) {
 		err = dma_map_sg(dd->dev, dd->in_sg, dd->in_sg_len,
@@ -497,7 +497,7 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 {
 	struct ablkcipher_request *req = dd->req;
 
-	pr_debug("err: %d\n", err);
+	pr_de("err: %d\n", err);
 
 	crypto_finalize_ablkcipher_request(dd->engine, req, err);
 
@@ -507,7 +507,7 @@ static void omap_des_finish_req(struct omap_des_dev *dd, int err)
 
 static int omap_des_crypt_dma_stop(struct omap_des_dev *dd)
 {
-	pr_debug("total: %d\n", dd->total);
+	pr_de("total: %d\n", dd->total);
 
 	omap_des_dma_stop(dd);
 
@@ -601,7 +601,7 @@ static void omap_des_done_task(unsigned long data)
 {
 	struct omap_des_dev *dd = (struct omap_des_dev *)data;
 
-	pr_debug("enter done_task\n");
+	pr_de("enter done_task\n");
 
 	if (!dd->pio_only) {
 		dma_sync_sg_for_device(dd->dev, dd->out_sg, dd->out_sg_len,
@@ -620,7 +620,7 @@ static void omap_des_done_task(unsigned long data)
 
 	omap_des_finish_req(dd, 0);
 
-	pr_debug("exit\n");
+	pr_de("exit\n");
 }
 
 static int omap_des_crypt(struct ablkcipher_request *req, unsigned long mode)
@@ -630,7 +630,7 @@ static int omap_des_crypt(struct ablkcipher_request *req, unsigned long mode)
 	struct omap_des_reqctx *rctx = ablkcipher_request_ctx(req);
 	struct omap_des_dev *dd;
 
-	pr_debug("nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
+	pr_de("nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
 		 !!(mode & FLAGS_ENCRYPT),
 		 !!(mode & FLAGS_CBC));
 
@@ -659,7 +659,7 @@ static int omap_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	if (keylen != DES_KEY_SIZE && keylen != (3*DES_KEY_SIZE))
 		return -EINVAL;
 
-	pr_debug("enter, keylen: %d\n", keylen);
+	pr_de("enter, keylen: %d\n", keylen);
 
 	/* Do we need to test against weak key? */
 	if (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
@@ -707,7 +707,7 @@ static int omap_des_cra_init(struct crypto_tfm *tfm)
 {
 	struct omap_des_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	pr_debug("enter\n");
+	pr_de("enter\n");
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct omap_des_reqctx);
 
@@ -720,7 +720,7 @@ static int omap_des_cra_init(struct crypto_tfm *tfm)
 
 static void omap_des_cra_exit(struct crypto_tfm *tfm)
 {
-	pr_debug("enter\n");
+	pr_de("enter\n");
 }
 
 /* ********************** ALGS ************************************ */
@@ -856,9 +856,9 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 	if (status & DES_REG_IRQ_DATA_IN) {
 		omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x0);
 
-		BUG_ON(!dd->in_sg);
+		_ON(!dd->in_sg);
 
-		BUG_ON(_calc_walked(in) > dd->in_sg->length);
+		_ON(_calc_walked(in) > dd->in_sg->length);
 
 		src = sg_virt(dd->in_sg) + _calc_walked(in);
 
@@ -889,9 +889,9 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 	} else if (status & DES_REG_IRQ_DATA_OUT) {
 		omap_des_write(dd, DES_REG_IRQ_ENABLE(dd), 0x0);
 
-		BUG_ON(!dd->out_sg);
+		_ON(!dd->out_sg);
 
-		BUG_ON(_calc_walked(out) > dd->out_sg->length);
+		_ON(_calc_walked(out) > dd->out_sg->length);
 
 		dst = sg_virt(dd->out_sg) + _calc_walked(out);
 
@@ -911,7 +911,7 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 			}
 		}
 
-		BUG_ON(dd->total < DES_BLOCK_SIZE);
+		_ON(dd->total < DES_BLOCK_SIZE);
 
 		dd->total -= DES_BLOCK_SIZE;
 
@@ -1068,7 +1068,7 @@ static int omap_des_probe(struct platform_device *pdev)
 		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
 			algp = &dd->pdata->algs_info[i].algs_list[j];
 
-			pr_debug("reg alg: %s\n", algp->cra_name);
+			pr_de("reg alg: %s\n", algp->cra_name);
 
 			err = crypto_register_alg(algp);
 			if (err)

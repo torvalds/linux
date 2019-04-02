@@ -84,9 +84,9 @@ int qtnf_shm_ipc_init(struct qtnf_shm_ipc *ipc,
 		      const struct qtnf_shm_ipc_int *interrupt,
 		      const struct qtnf_shm_ipc_rx_callback *rx_callback)
 {
-	BUILD_BUG_ON(offsetof(struct qtnf_shm_ipc_region, data) !=
+	BUILD__ON(offsetof(struct qtnf_shm_ipc_region, data) !=
 		     QTN_IPC_REG_HDR_SZ);
-	BUILD_BUG_ON(sizeof(struct qtnf_shm_ipc_region) > QTN_IPC_REG_SZ);
+	BUILD__ON(sizeof(struct qtnf_shm_ipc_region) > QTN_IPC_REG_SZ);
 
 	ipc->shm_region = shm_region;
 	ipc->direction = direction;

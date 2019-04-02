@@ -205,7 +205,7 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, rdma_end_port(device)))
 		return -EMSGSIZE;
 
-	BUILD_BUG_ON(sizeof(device->attrs.device_cap_flags) != sizeof(u64));
+	BUILD__ON(sizeof(device->attrs.device_cap_flags) != sizeof(u64));
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
 			      device->attrs.device_cap_flags,
 			      RDMA_NLDEV_ATTR_PAD))
@@ -249,7 +249,7 @@ static int fill_port_info(struct sk_buff *msg,
 		return ret;
 
 	if (rdma_protocol_ib(device, port)) {
-		BUILD_BUG_ON((sizeof(attr.port_cap_flags) +
+		BUILD__ON((sizeof(attr.port_cap_flags) +
 				sizeof(attr.port_cap_flags2)) > sizeof(u64));
 		cap_flags = attr.port_cap_flags |
 			((u64)attr.port_cap_flags2 << 32);

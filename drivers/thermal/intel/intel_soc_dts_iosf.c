@@ -136,7 +136,7 @@ static int update_trip_temp(struct intel_soc_dts_sensor_entry *dts,
 	if (status)
 		return status;
 
-	pr_debug("update_trip_temp PTPS = %x\n", out);
+	pr_de("update_trip_temp PTPS = %x\n", out);
 	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTMC, &out);
 	if (status)
@@ -381,7 +381,7 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 
 	status = iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ,
 			       SOC_DTS_OFFSET_PTTSS, &sticky_out);
-	pr_debug("status %d PTTSS %x\n", status, sticky_out);
+	pr_de("status %d PTTSS %x\n", status, sticky_out);
 	if (sticky_out & SOC_DTS_TRIP_MASK) {
 		int i;
 		/* reset sticky bit */
@@ -390,7 +390,7 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 		spin_unlock_irqrestore(&sensors->intr_notify_lock, flags);
 
 		for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
-			pr_debug("TZD update for zone %d\n", i);
+			pr_de("TZD update for zone %d\n", i);
 			thermal_zone_device_update(sensors->soc_dts[i].tzone,
 						   THERMAL_EVENT_UNSPECIFIED);
 		}

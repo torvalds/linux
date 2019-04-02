@@ -28,16 +28,16 @@
 #include <asm/hw_irq.h>
 #include "book3s.h"
 
-/* #define DEBUG_MMU */
-/* #define DEBUG_SR */
+/* #define DE_MMU */
+/* #define DE_SR */
 
-#ifdef DEBUG_MMU
+#ifdef DE_MMU
 #define dprintk_mmu(a, ...) printk(KERN_INFO a, __VA_ARGS__)
 #else
 #define dprintk_mmu(a, ...) do { } while(0)
 #endif
 
-#ifdef DEBUG_SR
+#ifdef DE_SR
 #define dprintk_sr(a, ...) printk(KERN_INFO a, __VA_ARGS__)
 #else
 #define dprintk_sr(a, ...) do { } while(0)
@@ -173,7 +173,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 		kvmppc_mmu_map_segment(vcpu, eaddr);
 		map = find_sid_vsid(vcpu, vsid);
 	}
-	BUG_ON(!map);
+	_ON(!map);
 
 	vsid = map->host_vsid;
 	vpn = (vsid << (SID_SHIFT - VPN_SHIFT)) |

@@ -27,7 +27,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -83,7 +83,7 @@ static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 		len = sizeof(*mc) + mc->num_hardware_banks *
 			sizeof(struct acpi_hest_ia_error_bank);
 	}
-	BUG_ON(len == -1);
+	_ON(len == -1);
 
 	return len;
 };
@@ -108,7 +108,7 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 		}
 		if ((void *)hest_hdr + len >
 		    (void *)hest_tab + hest_tab->header.length) {
-			pr_warning(FW_BUG HEST_PFX
+			pr_warning(FW_ HEST_PFX
 		"Table contents overflow for hardware error source: %d.\n",
 				hest_hdr->source_id);
 			return -EINVAL;

@@ -11,7 +11,7 @@
 
 #include <asm/io.h>
 #include <asm/opal.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/of.h>
 #include <linux/types.h>
 #include <asm/barrier.h>

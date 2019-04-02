@@ -63,7 +63,7 @@ void i915_check_vgpu(struct drm_i915_private *dev_priv)
 	u64 magic;
 	u16 version_major;
 
-	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
+	BUILD__ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
 	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
 	if (magic != VGT_MAGIC)
@@ -100,7 +100,7 @@ static struct _balloon_info_ bl_info;
 static void vgt_deballoon_space(struct i915_ggtt *ggtt,
 				struct drm_mm_node *node)
 {
-	DRM_DEBUG_DRIVER("deballoon space: range [0x%llx - 0x%llx] %llu KiB.\n",
+	DRM_DE_DRIVER("deballoon space: range [0x%llx - 0x%llx] %llu KiB.\n",
 			 node->start,
 			 node->start + node->size,
 			 node->size / 1024);
@@ -123,7 +123,7 @@ void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
 	if (!intel_vgpu_active(dev_priv))
 		return;
 
-	DRM_DEBUG("VGT deballoon.\n");
+	DRM_DE("VGT deballoon.\n");
 
 	for (i = 0; i < 4; i++)
 		vgt_deballoon_space(&dev_priv->ggtt, &bl_info.space[i]);

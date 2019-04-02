@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1606,8 +1606,8 @@ static int calc_total_bfregs(struct mlx5_ib_dev *dev, bool lib_uar_4k,
 	if (req->total_num_bfregs == 0)
 		return -EINVAL;
 
-	BUILD_BUG_ON(MLX5_MAX_BFREGS % MLX5_NON_FP_BFREGS_IN_PAGE);
-	BUILD_BUG_ON(MLX5_MAX_BFREGS < MLX5_NON_FP_BFREGS_IN_PAGE);
+	BUILD__ON(MLX5_MAX_BFREGS % MLX5_NON_FP_BFREGS_IN_PAGE);
+	BUILD__ON(MLX5_MAX_BFREGS < MLX5_NON_FP_BFREGS_IN_PAGE);
 
 	if (req->total_num_bfregs > MLX5_MAX_BFREGS)
 		return -ENOMEM;
@@ -5393,11 +5393,11 @@ static int mlx5_ib_rn_get_params(struct ib_device *device, u8 port_num,
 	return mlx5_rdma_rn_get_params(to_mdev(device)->mdev, device, params);
 }
 
-static void delay_drop_debugfs_cleanup(struct mlx5_ib_dev *dev)
+static void delay_drop_defs_cleanup(struct mlx5_ib_dev *dev)
 {
 	if (!dev->delay_drop.dbg)
 		return;
-	debugfs_remove_recursive(dev->delay_drop.dbg->dir_debugfs);
+	defs_remove_recursive(dev->delay_drop.dbg->dir_defs);
 	kfree(dev->delay_drop.dbg);
 	dev->delay_drop.dbg = NULL;
 }
@@ -5408,7 +5408,7 @@ static void cancel_delay_drop(struct mlx5_ib_dev *dev)
 		return;
 
 	cancel_work_sync(&dev->delay_drop.delay_drop_work);
-	delay_drop_debugfs_cleanup(dev);
+	delay_drop_defs_cleanup(dev);
 }
 
 static ssize_t delay_drop_timeout_read(struct file *filp, char __user *buf,
@@ -5450,11 +5450,11 @@ static const struct file_operations fops_delay_drop_timeout = {
 	.read	= delay_drop_timeout_read,
 };
 
-static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
+static int delay_drop_defs_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_ib_dbg_delay_drop *dbg;
 
-	if (!mlx5_debugfs_root)
+	if (!mlx5_defs_root)
 		return 0;
 
 	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
@@ -5463,38 +5463,38 @@ static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
 
 	dev->delay_drop.dbg = dbg;
 
-	dbg->dir_debugfs =
-		debugfs_create_dir("delay_drop",
+	dbg->dir_defs =
+		defs_create_dir("delay_drop",
 				   dev->mdev->priv.dbg_root);
-	if (!dbg->dir_debugfs)
-		goto out_debugfs;
+	if (!dbg->dir_defs)
+		goto out_defs;
 
-	dbg->events_cnt_debugfs =
-		debugfs_create_atomic_t("num_timeout_events", 0400,
-					dbg->dir_debugfs,
+	dbg->events_cnt_defs =
+		defs_create_atomic_t("num_timeout_events", 0400,
+					dbg->dir_defs,
 					&dev->delay_drop.events_cnt);
-	if (!dbg->events_cnt_debugfs)
-		goto out_debugfs;
+	if (!dbg->events_cnt_defs)
+		goto out_defs;
 
-	dbg->rqs_cnt_debugfs =
-		debugfs_create_atomic_t("num_rqs", 0400,
-					dbg->dir_debugfs,
+	dbg->rqs_cnt_defs =
+		defs_create_atomic_t("num_rqs", 0400,
+					dbg->dir_defs,
 					&dev->delay_drop.rqs_cnt);
-	if (!dbg->rqs_cnt_debugfs)
-		goto out_debugfs;
+	if (!dbg->rqs_cnt_defs)
+		goto out_defs;
 
-	dbg->timeout_debugfs =
-		debugfs_create_file("timeout", 0600,
-				    dbg->dir_debugfs,
+	dbg->timeout_defs =
+		defs_create_file("timeout", 0600,
+				    dbg->dir_defs,
 				    &dev->delay_drop,
 				    &fops_delay_drop_timeout);
-	if (!dbg->timeout_debugfs)
-		goto out_debugfs;
+	if (!dbg->timeout_defs)
+		goto out_defs;
 
 	return 0;
 
-out_debugfs:
-	delay_drop_debugfs_cleanup(dev);
+out_defs:
+	delay_drop_defs_cleanup(dev);
 	return -ENOMEM;
 }
 
@@ -5511,8 +5511,8 @@ static void init_delay_drop(struct mlx5_ib_dev *dev)
 	atomic_set(&dev->delay_drop.rqs_cnt, 0);
 	atomic_set(&dev->delay_drop.events_cnt, 0);
 
-	if (delay_drop_debugfs_init(dev))
-		mlx5_ib_warn(dev, "Failed to init delay drop debugfs\n");
+	if (delay_drop_defs_init(dev))
+		mlx5_ib_warn(dev, "Failed to init delay drop defs\n");
 }
 
 /* The mlx5_ib_multiport_mutex should be held when calling this function */
@@ -5525,7 +5525,7 @@ static void mlx5_ib_unbind_slave_port(struct mlx5_ib_dev *ibdev,
 	int err;
 	int i;
 
-	mlx5_ib_cleanup_cong_debugfs(ibdev, port_num);
+	mlx5_ib_cleanup_cong_defs(ibdev, port_num);
 
 	spin_lock(&port->mp.mpi_lock);
 	if (!mpi->ibdev) {
@@ -5613,7 +5613,7 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 	mpi->mdev_events.notifier_call = mlx5_ib_event_slave_port;
 	mlx5_notifier_register(mpi->mdev, &mpi->mdev_events);
 
-	mlx5_ib_init_cong_debugfs(ibdev, port_num);
+	mlx5_ib_init_cong_defs(ibdev, port_num);
 
 	return true;
 
@@ -6277,16 +6277,16 @@ void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev)
 		mlx5_ib_dealloc_counters(dev);
 }
 
-static int mlx5_ib_stage_cong_debugfs_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_cong_defs_init(struct mlx5_ib_dev *dev)
 {
-	mlx5_ib_init_cong_debugfs(dev,
+	mlx5_ib_init_cong_defs(dev,
 				  mlx5_core_native_port_num(dev->mdev) - 1);
 	return 0;
 }
 
-static void mlx5_ib_stage_cong_debugfs_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_cong_defs_cleanup(struct mlx5_ib_dev *dev)
 {
-	mlx5_ib_cleanup_cong_debugfs(dev,
+	mlx5_ib_cleanup_cong_defs(dev,
 				     mlx5_core_native_port_num(dev->mdev) - 1);
 }
 
@@ -6457,9 +6457,9 @@ static const struct mlx5_ib_profile pf_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
 		     mlx5_ib_stage_counters_init,
 		     mlx5_ib_stage_counters_cleanup),
-	STAGE_CREATE(MLX5_IB_STAGE_CONG_DEBUGFS,
-		     mlx5_ib_stage_cong_debugfs_init,
-		     mlx5_ib_stage_cong_debugfs_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_CONG_DEFS,
+		     mlx5_ib_stage_cong_defs_init,
+		     mlx5_ib_stage_cong_defs_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_UAR,
 		     mlx5_ib_stage_uar_init,
 		     mlx5_ib_stage_uar_cleanup),

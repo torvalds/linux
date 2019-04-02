@@ -36,7 +36,7 @@
 
 #define PRIMARY_CH	ADE_CH1 /* primary plane */
 #define OUT_OVLY	ADE_OVLY2 /* output overlay compositor */
-#define ADE_DEBUG	1
+#define ADE_DE	1
 
 #define to_ade_crtc(crtc) \
 	container_of(crtc, struct ade_crtc, base)
@@ -228,7 +228,7 @@ static void ade_ldi_set_mode(struct ade_crtc *acrtc,
 	vbp = mode->vtotal - mode->vsync_end;
 	vsw = mode->vsync_end - mode->vsync_start;
 	if (vsw > 15) {
-		DRM_DEBUG_DRIVER("vsw exceeded 15\n");
+		DRM_DE_DRIVER("vsw exceeded 15\n");
 		vsw = 15;
 	}
 
@@ -255,7 +255,7 @@ static void ade_ldi_set_mode(struct ade_crtc *acrtc,
 
 	ade_set_pix_clk(ctx, mode, adj_mode);
 
-	DRM_DEBUG_DRIVER("set mode: %dx%d\n", width, height);
+	DRM_DE_DRIVER("set mode: %dx%d\n", width, height);
 }
 
 static int ade_power_up(struct ade_hw_ctx *ctx)
@@ -354,7 +354,7 @@ static irqreturn_t ade_irq_handler(int irq, void *data)
 	u32 status;
 
 	status = readl(base + LDI_MSK_INT);
-	DRM_DEBUG_VBL("LDI IRQ: status=0x%X\n", status);
+	DRM_DE_VBL("LDI IRQ: status=0x%X\n", status);
 
 	/* vblank irq */
 	if (status & BIT(FRAME_END_INT_EN_OFST)) {
@@ -389,7 +389,7 @@ static void ade_display_enable(struct ade_crtc *acrtc)
 	writel(DSI_PCLK_ON, base + LDI_HDMI_DSI_GT);
 }
 
-#if ADE_DEBUG
+#if ADE_DE
 static void ade_rdma_dump_regs(void __iomem *base, u32 ch)
 {
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
@@ -403,19 +403,19 @@ static void ade_rdma_dump_regs(void __iomem *base, u32 ch)
 	reg_en = RD_CH_EN(ch);
 
 	val = ade_read_reload_bit(base, RDMA_OFST + ch);
-	DRM_DEBUG_DRIVER("[rdma%d]: reload(%d)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reload(%d)\n", ch + 1, val);
 	val = readl(base + reg_ctrl);
-	DRM_DEBUG_DRIVER("[rdma%d]: reg_ctrl(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reg_ctrl(0x%08x)\n", ch + 1, val);
 	val = readl(base + reg_addr);
-	DRM_DEBUG_DRIVER("[rdma%d]: reg_addr(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reg_addr(0x%08x)\n", ch + 1, val);
 	val = readl(base + reg_size);
-	DRM_DEBUG_DRIVER("[rdma%d]: reg_size(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reg_size(0x%08x)\n", ch + 1, val);
 	val = readl(base + reg_stride);
-	DRM_DEBUG_DRIVER("[rdma%d]: reg_stride(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reg_stride(0x%08x)\n", ch + 1, val);
 	val = readl(base + reg_space);
-	DRM_DEBUG_DRIVER("[rdma%d]: reg_space(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reg_space(0x%08x)\n", ch + 1, val);
 	val = readl(base + reg_en);
-	DRM_DEBUG_DRIVER("[rdma%d]: reg_en(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[rdma%d]: reg_en(0x%08x)\n", ch + 1, val);
 }
 
 static void ade_clip_dump_regs(void __iomem *base, u32 ch)
@@ -423,13 +423,13 @@ static void ade_clip_dump_regs(void __iomem *base, u32 ch)
 	u32 val;
 
 	val = ade_read_reload_bit(base, CLIP_OFST + ch);
-	DRM_DEBUG_DRIVER("[clip%d]: reload(%d)\n", ch + 1, val);
+	DRM_DE_DRIVER("[clip%d]: reload(%d)\n", ch + 1, val);
 	val = readl(base + ADE_CLIP_DISABLE(ch));
-	DRM_DEBUG_DRIVER("[clip%d]: reg_clip_disable(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[clip%d]: reg_clip_disable(0x%08x)\n", ch + 1, val);
 	val = readl(base + ADE_CLIP_SIZE0(ch));
-	DRM_DEBUG_DRIVER("[clip%d]: reg_clip_size0(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[clip%d]: reg_clip_size0(0x%08x)\n", ch + 1, val);
 	val = readl(base + ADE_CLIP_SIZE1(ch));
-	DRM_DEBUG_DRIVER("[clip%d]: reg_clip_size1(0x%08x)\n", ch + 1, val);
+	DRM_DE_DRIVER("[clip%d]: reg_clip_size1(0x%08x)\n", ch + 1, val);
 }
 
 static void ade_compositor_routing_dump_regs(void __iomem *base, u32 ch)
@@ -438,11 +438,11 @@ static void ade_compositor_routing_dump_regs(void __iomem *base, u32 ch)
 	u32 val;
 
 	val = readl(base + ADE_OVLY_CH_XY0(ovly_ch));
-	DRM_DEBUG_DRIVER("[overlay ch%d]: reg_ch_xy0(0x%08x)\n", ovly_ch, val);
+	DRM_DE_DRIVER("[overlay ch%d]: reg_ch_xy0(0x%08x)\n", ovly_ch, val);
 	val = readl(base + ADE_OVLY_CH_XY1(ovly_ch));
-	DRM_DEBUG_DRIVER("[overlay ch%d]: reg_ch_xy1(0x%08x)\n", ovly_ch, val);
+	DRM_DE_DRIVER("[overlay ch%d]: reg_ch_xy1(0x%08x)\n", ovly_ch, val);
 	val = readl(base + ADE_OVLY_CH_CTL(ovly_ch));
-	DRM_DEBUG_DRIVER("[overlay ch%d]: reg_ch_ctl(0x%08x)\n", ovly_ch, val);
+	DRM_DE_DRIVER("[overlay ch%d]: reg_ch_ctl(0x%08x)\n", ovly_ch, val);
 }
 
 static void ade_dump_overlay_compositor_regs(void __iomem *base, u32 comp)
@@ -450,11 +450,11 @@ static void ade_dump_overlay_compositor_regs(void __iomem *base, u32 comp)
 	u32 val;
 
 	val = ade_read_reload_bit(base, OVLY_OFST + comp);
-	DRM_DEBUG_DRIVER("[overlay%d]: reload(%d)\n", comp + 1, val);
+	DRM_DE_DRIVER("[overlay%d]: reload(%d)\n", comp + 1, val);
 	writel(ADE_ENABLE, base + ADE_OVLYX_CTL(comp));
-	DRM_DEBUG_DRIVER("[overlay%d]: reg_ctl(0x%08x)\n", comp + 1, val);
+	DRM_DE_DRIVER("[overlay%d]: reg_ctl(0x%08x)\n", comp + 1, val);
 	val = readl(base + ADE_OVLY_CTL);
-	DRM_DEBUG_DRIVER("ovly_ctl(0x%08x)\n", val);
+	DRM_DE_DRIVER("ovly_ctl(0x%08x)\n", val);
 }
 
 static void ade_dump_regs(void __iomem *base)
@@ -628,9 +628,9 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 	u32 stride = fb->pitches[0];
 	u32 addr = (u32)obj->paddr + y * stride;
 
-	DRM_DEBUG_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
+	DRM_DE_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
 			 ch + 1, y, in_h, stride, (u32)obj->paddr);
-	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%s)\n",
+	DRM_DE_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%s)\n",
 			 addr, fb->width, fb->height, fmt,
 			 drm_get_format_name(fb->format->format, &format_name));
 
@@ -684,7 +684,7 @@ static void ade_clip_set(void __iomem *base, u32 ch, u32 fb_w, u32 x,
 		clip_right = fb_w - (x + in_w) - 1;
 	}
 
-	DRM_DEBUG_DRIVER("clip%d: clip_left=%d, clip_right=%d\n",
+	DRM_DE_DRIVER("clip%d: clip_left=%d, clip_right=%d\n",
 			 ch + 1, clip_left, clip_right);
 
 	writel(disable_val, base + ADE_CLIP_DISABLE(ch));
@@ -793,7 +793,7 @@ static void ade_update_channel(struct ade_plane *aplane,
 	u32 in_w;
 	u32 in_h;
 
-	DRM_DEBUG_DRIVER("channel%d: src:(%d, %d)-%dx%d, crtc:(%d, %d)-%dx%d",
+	DRM_DE_DRIVER("channel%d: src:(%d, %d)-%dx%d, crtc:(%d, %d)-%dx%d",
 			 ch + 1, src_x, src_y, src_w, src_h,
 			 crtc_x, crtc_y, crtc_w, crtc_h);
 
@@ -819,7 +819,7 @@ static void ade_disable_channel(struct ade_plane *aplane)
 	void __iomem *base = ctx->base;
 	u32 ch = aplane->ch;
 
-	DRM_DEBUG_DRIVER("disable channel%d\n", ch + 1);
+	DRM_DE_DRIVER("disable channel%d\n", ch + 1);
 
 	/* disable read DMA */
 	ade_rdma_disable(base, ch);

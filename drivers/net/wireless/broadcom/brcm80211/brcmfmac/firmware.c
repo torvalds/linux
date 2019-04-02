@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/bcm47xx_nvram.h>
 
-#include "debug.h"
+#include "de.h"
 #include "firmware.h"
 #include "core.h"
 #include "common.h"

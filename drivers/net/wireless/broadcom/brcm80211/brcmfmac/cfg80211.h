@@ -291,7 +291,7 @@ struct brcmf_cfg80211_wowl {
  * @scan_tried: indicates if first scan attempted.
  * @dcmd_buf: dcmd buffer.
  * @extra_buf: mainly to grab assoc information.
- * @debugfsdir: debugfs folder for this device.
+ * @defsdir: defs folder for this device.
  * @escan_info: escan information.
  * @escan_timeout: Timer for catch scan timeout.
  * @escan_timeout_work: scan timeout worker.
@@ -322,7 +322,7 @@ struct brcmf_cfg80211_info {
 	bool scan_tried;
 	u8 *dcmd_buf;
 	u8 *extra_buf;
-	struct dentry *debugfsdir;
+	struct dentry *defsdir;
 	struct escan_info escan_info;
 	struct timer_list escan_timeout;
 	struct work_struct escan_timeout_work;

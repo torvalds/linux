@@ -51,7 +51,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 		goto unlock;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "**** Loading table into namespace ****\n"));
 
 	status = acpi_tb_allocate_owner_id(table_index);
@@ -99,14 +99,14 @@ unlock:
 	 * just-in-time parsing, we delete the control method
 	 * parse trees.
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "**** Begin Table Object Initialization\n"));
 
 	acpi_ex_enter_interpreter();
 	status = acpi_ds_initialize_objects(table_index, node);
 	acpi_ex_exit_interpreter();
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "**** Completed Table Object Initialization\n"));
 
 	/*
@@ -165,7 +165,7 @@ acpi_status acpi_ns_load_namespace(void)
 	(void)acpi_ns_load_table_by_type(ACPI_TABLE_ID_SSDT);
 	(void)acpi_ns_load_table_by_type(ACPI_TABLE_ID_PSDT);
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 			      "ACPI Namespace successfully loaded at root %p\n",
 			      acpi_gbl_root_node));
 

@@ -43,10 +43,10 @@ struct tda10086_state {
 	bool has_lock;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "tda10086: " args); \
+		if (de) printk(KERN_DE "tda10086: " args); \
 	} while (0)
 
 static int tda10086_write_byte(struct tda10086_state *state, int reg, int data)
@@ -770,8 +770,8 @@ struct dvb_frontend* tda10086_attach(const struct tda10086_config* config,
 	return &state->frontend;
 }
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Philips TDA10086 DVB-S Demodulator");
 MODULE_AUTHOR("Andrew de Quincey");

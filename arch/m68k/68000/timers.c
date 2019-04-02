@@ -34,7 +34,7 @@
 #define CLOCK_PRE	7
 #define TICKS_PER_JIFFY	41450
 
-#elif defined(CONFIG_XCOPILOT_BUGS)
+#elif defined(CONFIG_XCOPILOT_S)
 /*
  * The only thing I know is that CLK32 is not available on Xcopilot
  * I have little idea about what frequency SYSCLK has on Xcopilot.

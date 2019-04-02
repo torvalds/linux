@@ -8,7 +8,7 @@
 #define _LINUX_TAGPTR_H
 
 #include <linux/types.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 
 /*
  * the name of tagged pointer types are tagptr{1, 2, 3...}_t

@@ -28,7 +28,7 @@
 #include <linux/export.h>
 #include <linux/idr.h>
 #include <linux/rfkill.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/crypto.h>
 #include <linux/property.h>
 #include <asm/unaligned.h>
@@ -39,7 +39,7 @@
 #include <net/bluetooth/mgmt.h>
 
 #include "hci_request.h"
-#include "hci_debugfs.h"
+#include "hci_defs.h"
 #include "smp.h"
 #include "leds.h"
 
@@ -58,7 +58,7 @@ DEFINE_MUTEX(hci_cb_list_lock);
 /* HCI ID Numbering */
 static DEFINE_IDA(hci_index_ida);
 
-/* ---- HCI debugfs entries ---- */
+/* ---- HCI defs entries ---- */
 
 static ssize_t dut_mode_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -172,13 +172,13 @@ static const struct file_operations vendor_diag_fops = {
 	.llseek		= default_llseek,
 };
 
-static void hci_debugfs_create_basic(struct hci_dev *hdev)
+static void hci_defs_create_basic(struct hci_dev *hdev)
 {
-	debugfs_create_file("dut_mode", 0644, hdev->debugfs, hdev,
+	defs_create_file("dut_mode", 0644, hdev->defs, hdev,
 			    &dut_mode_fops);
 
 	if (hdev->set_diag)
-		debugfs_create_file("vendor_diag", 0644, hdev->debugfs, hdev,
+		defs_create_file("vendor_diag", 0644, hdev->defs, hdev,
 				    &vendor_diag_fops);
 }
 
@@ -443,7 +443,7 @@ static int hci_init2_req(struct hci_request *req, unsigned long opt)
 		/* When SSP is available, then the host features page
 		 * should also be available as well. However some
 		 * controllers list the max_page as 0 as long as SSP
-		 * has not been enabled. To achieve proper debugging
+		 * has not been enabled. To achieve proper deging
 		 * output, force the minimum max_page to 1 at least.
 		 */
 		hdev->max_page = 0x01;
@@ -870,7 +870,7 @@ static int __hci_init(struct hci_dev *hdev)
 		return err;
 
 	if (hci_dev_test_flag(hdev, HCI_SETUP))
-		hci_debugfs_create_basic(hdev);
+		hci_defs_create_basic(hdev);
 
 	err = __hci_req_sync(hdev, hci_init2_req, 0, HCI_INIT_TIMEOUT, NULL);
 	if (err < 0)
@@ -900,20 +900,20 @@ static int __hci_init(struct hci_dev *hdev)
 	 * case, then this function will not be called. It then will only
 	 * be called during the config phase.
 	 *
-	 * So only when in setup phase or config phase, create the debugfs
+	 * So only when in setup phase or config phase, create the defs
 	 * entries and register the SMP channels.
 	 */
 	if (!hci_dev_test_flag(hdev, HCI_SETUP) &&
 	    !hci_dev_test_flag(hdev, HCI_CONFIG))
 		return 0;
 
-	hci_debugfs_create_common(hdev);
+	hci_defs_create_common(hdev);
 
 	if (lmp_bredr_capable(hdev))
-		hci_debugfs_create_bredr(hdev);
+		hci_defs_create_bredr(hdev);
 
 	if (lmp_le_capable(hdev))
-		hci_debugfs_create_le(hdev);
+		hci_defs_create_le(hdev);
 
 	return 0;
 }
@@ -950,7 +950,7 @@ static int __hci_unconf_init(struct hci_dev *hdev)
 		return err;
 
 	if (hci_dev_test_flag(hdev, HCI_SETUP))
-		hci_debugfs_create_basic(hdev);
+		hci_defs_create_basic(hdev);
 
 	return 0;
 }
@@ -2314,8 +2314,8 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	if (key_type < 0x03)
 		return true;
 
-	/* Debug keys are insecure so don't store them persistently */
-	if (key_type == HCI_LK_DEBUG_COMBINATION)
+	/* De keys are insecure so don't store them persistently */
+	if (key_type == HCI_LK_DE_COMBINATION)
 		return false;
 
 	/* Changed combination key and there's no previous one */
@@ -2442,7 +2442,7 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 
 	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
 
-	/* Some buggy controller combinations generate a changed
+	/* Some gy controller combinations generate a changed
 	 * combination key for legacy pairing even when there's no
 	 * previous key */
 	if (type == HCI_LK_CHANGED_COMBINATION &&
@@ -3132,7 +3132,7 @@ static void hci_conn_params_clear_all(struct hci_dev *hdev)
  * If this is a LE only controller without a public address, default to
  * the static random address.
  *
- * For debugging purposes it is possible to force controllers with a
+ * For deging purposes it is possible to force controllers with a
  * public address to use the static random address instead.
  *
  * In case BR/EDR has been disabled on a dual-mode controller and
@@ -3299,8 +3299,8 @@ int hci_register_dev(struct hci_dev *hdev)
 		goto err;
 	}
 
-	if (!IS_ERR_OR_NULL(bt_debugfs))
-		hdev->debugfs = debugfs_create_dir(hdev->name, bt_debugfs);
+	if (!IS_ERR_OR_NULL(bt_defs))
+		hdev->defs = defs_create_dir(hdev->name, bt_defs);
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
@@ -3389,7 +3389,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	/* mgmt_index_removed should take care of emptying the
 	 * pending list */
-	BUG_ON(!list_empty(&hdev->mgmt_pending));
+	_ON(!list_empty(&hdev->mgmt_pending));
 
 	hci_sock_dev_event(hdev, HCI_DEV_UNREG);
 
@@ -3400,7 +3400,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	device_del(&hdev->dev);
 
-	debugfs_remove_recursive(hdev->debugfs);
+	defs_remove_recursive(hdev->defs);
 	kfree_const(hdev->hw_info);
 	kfree_const(hdev->fw_info);
 

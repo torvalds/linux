@@ -58,13 +58,13 @@ struct acpi_os_dpc {
 	struct work_struct work;
 };
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ENABLE_DEGER
 #include <linux/kdb.h>
 
-/* stuff for debugger support */
-int acpi_in_debugger;
-EXPORT_SYMBOL(acpi_in_debugger);
-#endif				/*ENABLE_DEBUGGER */
+/* stuff for deger support */
+int acpi_in_deger;
+EXPORT_SYMBOL(acpi_in_deger);
+#endif				/*ENABLE_DEGER */
 
 static int (*__acpi_os_prepare_sleep)(u8 sleep_state, u32 pm1a_ctrl,
 				      u32 pm1b_ctrl);
@@ -161,8 +161,8 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 
 	vsprintf(buffer, fmt, args);
 
-#ifdef ENABLE_DEBUGGER
-	if (acpi_in_debugger) {
+#ifdef ENABLE_DEGER
+	if (acpi_in_deger) {
 		kdb_printf("%s", buffer);
 	} else {
 		if (printk_get_level(buffer))
@@ -171,7 +171,7 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 			printk(KERN_CONT "%s", buffer);
 	}
 #else
-	if (acpi_debugger_write_log(buffer) < 0) {
+	if (acpi_deger_write_log(buffer) < 0) {
 		if (printk_get_level(buffer))
 			printk("%s", buffer);
 		else
@@ -646,7 +646,7 @@ acpi_status acpi_os_read_port(acpi_io_address port, u32 * value, u32 width)
 	} else if (width <= 32) {
 		*(u32 *) value = inl(port);
 	} else {
-		BUG();
+		();
 	}
 
 	return AE_OK;
@@ -663,7 +663,7 @@ acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 	} else if (width <= 32) {
 		outl(value, port);
 	} else {
-		BUG();
+		();
 	}
 
 	return AE_OK;
@@ -717,7 +717,7 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u64 *value, u32 width)
 		value = &dummy;
 
 	error = acpi_os_read_iomem(virt_addr, value, width);
-	BUG_ON(error);
+	_ON(error);
 
 	if (unmap)
 		iounmap(virt_addr);
@@ -758,7 +758,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u64 value, u32 width)
 		writeq(value, virt_addr);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (unmap)
@@ -838,196 +838,196 @@ static void acpi_os_execute_deferred(struct work_struct *work)
 	kfree(dpc);
 }
 
-#ifdef CONFIG_ACPI_DEBUGGER
-static struct acpi_debugger acpi_debugger;
-static bool acpi_debugger_initialized;
+#ifdef CONFIG_ACPI_DEGER
+static struct acpi_deger acpi_deger;
+static bool acpi_deger_initialized;
 
-int acpi_register_debugger(struct module *owner,
-			   const struct acpi_debugger_ops *ops)
+int acpi_register_deger(struct module *owner,
+			   const struct acpi_deger_ops *ops)
 {
 	int ret = 0;
 
-	mutex_lock(&acpi_debugger.lock);
-	if (acpi_debugger.ops) {
+	mutex_lock(&acpi_deger.lock);
+	if (acpi_deger.ops) {
 		ret = -EBUSY;
 		goto err_lock;
 	}
 
-	acpi_debugger.owner = owner;
-	acpi_debugger.ops = ops;
+	acpi_deger.owner = owner;
+	acpi_deger.ops = ops;
 
 err_lock:
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 	return ret;
 }
-EXPORT_SYMBOL(acpi_register_debugger);
+EXPORT_SYMBOL(acpi_register_deger);
 
-void acpi_unregister_debugger(const struct acpi_debugger_ops *ops)
+void acpi_unregister_deger(const struct acpi_deger_ops *ops)
 {
-	mutex_lock(&acpi_debugger.lock);
-	if (ops == acpi_debugger.ops) {
-		acpi_debugger.ops = NULL;
-		acpi_debugger.owner = NULL;
+	mutex_lock(&acpi_deger.lock);
+	if (ops == acpi_deger.ops) {
+		acpi_deger.ops = NULL;
+		acpi_deger.owner = NULL;
 	}
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 }
-EXPORT_SYMBOL(acpi_unregister_debugger);
+EXPORT_SYMBOL(acpi_unregister_deger);
 
-int acpi_debugger_create_thread(acpi_osd_exec_callback function, void *context)
+int acpi_deger_create_thread(acpi_osd_exec_callback function, void *context)
 {
 	int ret;
 	int (*func)(acpi_osd_exec_callback, void *);
 	struct module *owner;
 
-	if (!acpi_debugger_initialized)
+	if (!acpi_deger_initialized)
 		return -ENODEV;
-	mutex_lock(&acpi_debugger.lock);
-	if (!acpi_debugger.ops) {
+	mutex_lock(&acpi_deger.lock);
+	if (!acpi_deger.ops) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	if (!try_module_get(acpi_debugger.owner)) {
+	if (!try_module_get(acpi_deger.owner)) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->create_thread;
-	owner = acpi_debugger.owner;
-	mutex_unlock(&acpi_debugger.lock);
+	func = acpi_deger.ops->create_thread;
+	owner = acpi_deger.owner;
+	mutex_unlock(&acpi_deger.lock);
 
 	ret = func(function, context);
 
-	mutex_lock(&acpi_debugger.lock);
+	mutex_lock(&acpi_deger.lock);
 	module_put(owner);
 err_lock:
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 	return ret;
 }
 
-ssize_t acpi_debugger_write_log(const char *msg)
+ssize_t acpi_deger_write_log(const char *msg)
 {
 	ssize_t ret;
 	ssize_t (*func)(const char *);
 	struct module *owner;
 
-	if (!acpi_debugger_initialized)
+	if (!acpi_deger_initialized)
 		return -ENODEV;
-	mutex_lock(&acpi_debugger.lock);
-	if (!acpi_debugger.ops) {
+	mutex_lock(&acpi_deger.lock);
+	if (!acpi_deger.ops) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	if (!try_module_get(acpi_debugger.owner)) {
+	if (!try_module_get(acpi_deger.owner)) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->write_log;
-	owner = acpi_debugger.owner;
-	mutex_unlock(&acpi_debugger.lock);
+	func = acpi_deger.ops->write_log;
+	owner = acpi_deger.owner;
+	mutex_unlock(&acpi_deger.lock);
 
 	ret = func(msg);
 
-	mutex_lock(&acpi_debugger.lock);
+	mutex_lock(&acpi_deger.lock);
 	module_put(owner);
 err_lock:
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 	return ret;
 }
 
-ssize_t acpi_debugger_read_cmd(char *buffer, size_t buffer_length)
+ssize_t acpi_deger_read_cmd(char *buffer, size_t buffer_length)
 {
 	ssize_t ret;
 	ssize_t (*func)(char *, size_t);
 	struct module *owner;
 
-	if (!acpi_debugger_initialized)
+	if (!acpi_deger_initialized)
 		return -ENODEV;
-	mutex_lock(&acpi_debugger.lock);
-	if (!acpi_debugger.ops) {
+	mutex_lock(&acpi_deger.lock);
+	if (!acpi_deger.ops) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	if (!try_module_get(acpi_debugger.owner)) {
+	if (!try_module_get(acpi_deger.owner)) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->read_cmd;
-	owner = acpi_debugger.owner;
-	mutex_unlock(&acpi_debugger.lock);
+	func = acpi_deger.ops->read_cmd;
+	owner = acpi_deger.owner;
+	mutex_unlock(&acpi_deger.lock);
 
 	ret = func(buffer, buffer_length);
 
-	mutex_lock(&acpi_debugger.lock);
+	mutex_lock(&acpi_deger.lock);
 	module_put(owner);
 err_lock:
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 	return ret;
 }
 
-int acpi_debugger_wait_command_ready(void)
+int acpi_deger_wait_command_ready(void)
 {
 	int ret;
 	int (*func)(bool, char *, size_t);
 	struct module *owner;
 
-	if (!acpi_debugger_initialized)
+	if (!acpi_deger_initialized)
 		return -ENODEV;
-	mutex_lock(&acpi_debugger.lock);
-	if (!acpi_debugger.ops) {
+	mutex_lock(&acpi_deger.lock);
+	if (!acpi_deger.ops) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	if (!try_module_get(acpi_debugger.owner)) {
+	if (!try_module_get(acpi_deger.owner)) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->wait_command_ready;
-	owner = acpi_debugger.owner;
-	mutex_unlock(&acpi_debugger.lock);
+	func = acpi_deger.ops->wait_command_ready;
+	owner = acpi_deger.owner;
+	mutex_unlock(&acpi_deger.lock);
 
 	ret = func(acpi_gbl_method_executing,
 		   acpi_gbl_db_line_buf, ACPI_DB_LINE_BUFFER_SIZE);
 
-	mutex_lock(&acpi_debugger.lock);
+	mutex_lock(&acpi_deger.lock);
 	module_put(owner);
 err_lock:
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 	return ret;
 }
 
-int acpi_debugger_notify_command_complete(void)
+int acpi_deger_notify_command_complete(void)
 {
 	int ret;
 	int (*func)(void);
 	struct module *owner;
 
-	if (!acpi_debugger_initialized)
+	if (!acpi_deger_initialized)
 		return -ENODEV;
-	mutex_lock(&acpi_debugger.lock);
-	if (!acpi_debugger.ops) {
+	mutex_lock(&acpi_deger.lock);
+	if (!acpi_deger.ops) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	if (!try_module_get(acpi_debugger.owner)) {
+	if (!try_module_get(acpi_deger.owner)) {
 		ret = -ENODEV;
 		goto err_lock;
 	}
-	func = acpi_debugger.ops->notify_command_complete;
-	owner = acpi_debugger.owner;
-	mutex_unlock(&acpi_debugger.lock);
+	func = acpi_deger.ops->notify_command_complete;
+	owner = acpi_deger.owner;
+	mutex_unlock(&acpi_deger.lock);
 
 	ret = func();
 
-	mutex_lock(&acpi_debugger.lock);
+	mutex_lock(&acpi_deger.lock);
 	module_put(owner);
 err_lock:
-	mutex_unlock(&acpi_debugger.lock);
+	mutex_unlock(&acpi_deger.lock);
 	return ret;
 }
 
-int __init acpi_debugger_init(void)
+int __init acpi_deger_init(void)
 {
-	mutex_init(&acpi_debugger.lock);
-	acpi_debugger_initialized = true;
+	mutex_init(&acpi_deger.lock);
+	acpi_deger_initialized = true;
 	return 0;
 }
 #endif
@@ -1054,12 +1054,12 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
 	int ret;
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Scheduling function [%p(%p)] for deferred execution.\n",
 			  function, context));
 
-	if (type == OSL_DEBUGGER_MAIN_THREAD) {
-		ret = acpi_debugger_create_thread(function, context);
+	if (type == OSL_DEGER_MAIN_THREAD) {
+		ret = acpi_deger_create_thread(function, context);
 		if (ret) {
 			pr_err("Call to kthread_create() failed.\n");
 			status = AE_ERROR;
@@ -1155,7 +1155,7 @@ acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src)
 {
 	struct acpi_hp_work *hpw;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 		  "Scheduling hotplug event (%p, %u) for deferred execution.\n",
 		  adev, src));
 
@@ -1197,7 +1197,7 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 
 	*handle = (acpi_handle *) sem;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Creating semaphore[%p|%d].\n",
+	ACPI_DE_PRINT((ACPI_DB_MUTEX, "Creating semaphore[%p|%d].\n",
 			  *handle, initial_units));
 
 	return AE_OK;
@@ -1217,9 +1217,9 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 	if (!sem)
 		return AE_BAD_PARAMETER;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
+	ACPI_DE_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
-	BUG_ON(!list_empty(&sem->wait_list));
+	_ON(!list_empty(&sem->wait_list));
 	kfree(sem);
 	sem = NULL;
 
@@ -1245,7 +1245,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	if (units > 1)
 		return AE_SUPPORT;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
+	ACPI_DE_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
 
 	if (timeout == ACPI_WAIT_FOREVER)
@@ -1258,12 +1258,12 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 		status = AE_TIME;
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+		ACPI_DE_PRINT((ACPI_DB_MUTEX,
 				  "Failed to acquire semaphore[%p|%d|%d], %s",
 				  handle, units, timeout,
 				  acpi_format_exception(status)));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+		ACPI_DE_PRINT((ACPI_DB_MUTEX,
 				  "Acquired semaphore[%p|%d|%d]", handle,
 				  units, timeout));
 	}
@@ -1287,7 +1287,7 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 	if (units > 1)
 		return AE_SUPPORT;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Signaling semaphore[%p|%d]\n", handle,
+	ACPI_DE_PRINT((ACPI_DB_MUTEX, "Signaling semaphore[%p|%d]\n", handle,
 			  units));
 
 	up(sem);
@@ -1297,8 +1297,8 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
 
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
 {
-#ifdef ENABLE_DEBUGGER
-	if (acpi_in_debugger) {
+#ifdef ENABLE_DEGER
+	if (acpi_in_deger) {
 		u32 chars;
 
 		kdb_read(buffer, buffer_length);
@@ -1310,7 +1310,7 @@ acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
 #else
 	int ret;
 
-	ret = acpi_debugger_read_cmd(buffer, buffer_length);
+	ret = acpi_deger_read_cmd(buffer, buffer_length);
 	if (ret < 0)
 		return AE_ERROR;
 	if (bytes_read)
@@ -1325,7 +1325,7 @@ acpi_status acpi_os_wait_command_ready(void)
 {
 	int ret;
 
-	ret = acpi_debugger_wait_command_ready();
+	ret = acpi_deger_wait_command_ready();
 	if (ret < 0)
 		return AE_ERROR;
 	return AE_OK;
@@ -1335,7 +1335,7 @@ acpi_status acpi_os_notify_command_complete(void)
 {
 	int ret;
 
-	ret = acpi_debugger_notify_command_complete();
+	ret = acpi_deger_notify_command_complete();
 	if (ret < 0)
 		return AE_ERROR;
 	return AE_OK;
@@ -1351,8 +1351,8 @@ acpi_status acpi_os_signal(u32 function, void *info)
 		/*
 		 * AML Breakpoint
 		 * ACPI spec. says to treat it as a NOP unless
-		 * you are debugging.  So if/when we integrate
-		 * AML debugger into the kernel debugger its
+		 * you are deging.  So if/when we integrate
+		 * AML deger into the kernel deger its
 		 * hook will go here.  But until then it is
 		 * not useful to print anything on breakpoints.
 		 */
@@ -1727,7 +1727,7 @@ acpi_status __init acpi_os_initialize(void)
 		int rv;
 
 		rv = acpi_os_map_generic_address(&acpi_gbl_FADT.reset_register);
-		pr_debug(PREFIX "%s: map reset_reg status %d\n", __func__, rv);
+		pr_de(PREFIX "%s: map reset_reg status %d\n", __func__, rv);
 	}
 	acpi_os_initialized = true;
 
@@ -1739,9 +1739,9 @@ acpi_status __init acpi_os_initialize1(void)
 	kacpid_wq = alloc_workqueue("kacpid", 0, 1);
 	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 1);
 	kacpi_hotplug_wq = alloc_ordered_workqueue("kacpi_hotplug", 0);
-	BUG_ON(!kacpid_wq);
-	BUG_ON(!kacpi_notify_wq);
-	BUG_ON(!kacpi_hotplug_wq);
+	_ON(!kacpid_wq);
+	_ON(!kacpi_notify_wq);
+	_ON(!kacpi_hotplug_wq);
 	acpi_osi_init();
 	return AE_OK;
 }

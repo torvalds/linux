@@ -217,7 +217,7 @@ static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,
  */
 static void fw_asrt(struct adapter *adap, u32 mbox_addr)
 {
-	struct fw_debug_cmd asrt;
+	struct fw_de_cmd asrt;
 
 	get_mbox_rpl(adap, (__be64 *)&asrt, sizeof(asrt) / 8, mbox_addr);
 	dev_alert(adap->pdev_dev,
@@ -408,7 +408,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 			get_mbox_rpl(adap, cmd_rpl, MBOX_LEN / 8, data_reg);
 			res = be64_to_cpu(cmd_rpl[0]);
 
-			if (FW_CMD_OP_G(res >> 32) == FW_DEBUG_CMD) {
+			if (FW_CMD_OP_G(res >> 32) == FW_DE_CMD) {
 				fw_asrt(adap, data_reg);
 				res = FW_CMD_RETVAL_V(EIO);
 			} else if (rpl) {
@@ -3901,11 +3901,11 @@ void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 	int i, j;
 	u32 cfg, val, req, rsp;
 
-	cfg = t4_read_reg(adap, CIM_DEBUGCFG_A);
+	cfg = t4_read_reg(adap, CIM_DECFG_A);
 	if (cfg & LADBGEN_F)
-		t4_write_reg(adap, CIM_DEBUGCFG_A, cfg ^ LADBGEN_F);
+		t4_write_reg(adap, CIM_DECFG_A, cfg ^ LADBGEN_F);
 
-	val = t4_read_reg(adap, CIM_DEBUGSTS_A);
+	val = t4_read_reg(adap, CIM_DESTS_A);
 	req = POLADBGWRPTR_G(val);
 	rsp = PILADBGWRPTR_G(val);
 	if (pif_req_wrptr)
@@ -3915,17 +3915,17 @@ void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 
 	for (i = 0; i < CIM_PIFLA_SIZE; i++) {
 		for (j = 0; j < 6; j++) {
-			t4_write_reg(adap, CIM_DEBUGCFG_A, POLADBGRDPTR_V(req) |
+			t4_write_reg(adap, CIM_DECFG_A, POLADBGRDPTR_V(req) |
 				     PILADBGRDPTR_V(rsp));
-			*pif_req++ = t4_read_reg(adap, CIM_PO_LA_DEBUGDATA_A);
-			*pif_rsp++ = t4_read_reg(adap, CIM_PI_LA_DEBUGDATA_A);
+			*pif_req++ = t4_read_reg(adap, CIM_PO_LA_DEDATA_A);
+			*pif_rsp++ = t4_read_reg(adap, CIM_PI_LA_DEDATA_A);
 			req++;
 			rsp++;
 		}
 		req = (req + 2) & POLADBGRDPTR_M;
 		rsp = (rsp + 2) & PILADBGRDPTR_M;
 	}
-	t4_write_reg(adap, CIM_DEBUGCFG_A, cfg);
+	t4_write_reg(adap, CIM_DECFG_A, cfg);
 }
 
 void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp)
@@ -3933,20 +3933,20 @@ void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp)
 	u32 cfg;
 	int i, j, idx;
 
-	cfg = t4_read_reg(adap, CIM_DEBUGCFG_A);
+	cfg = t4_read_reg(adap, CIM_DECFG_A);
 	if (cfg & LADBGEN_F)
-		t4_write_reg(adap, CIM_DEBUGCFG_A, cfg ^ LADBGEN_F);
+		t4_write_reg(adap, CIM_DECFG_A, cfg ^ LADBGEN_F);
 
 	for (i = 0; i < CIM_MALA_SIZE; i++) {
 		for (j = 0; j < 5; j++) {
 			idx = 8 * i + j;
-			t4_write_reg(adap, CIM_DEBUGCFG_A, POLADBGRDPTR_V(idx) |
+			t4_write_reg(adap, CIM_DECFG_A, POLADBGRDPTR_V(idx) |
 				     PILADBGRDPTR_V(idx));
-			*ma_req++ = t4_read_reg(adap, CIM_PO_LA_MADEBUGDATA_A);
-			*ma_rsp++ = t4_read_reg(adap, CIM_PI_LA_MADEBUGDATA_A);
+			*ma_req++ = t4_read_reg(adap, CIM_PO_LA_MADEDATA_A);
+			*ma_rsp++ = t4_read_reg(adap, CIM_PI_LA_MADEDATA_A);
 		}
 	}
-	t4_write_reg(adap, CIM_DEBUGCFG_A, cfg);
+	t4_write_reg(adap, CIM_DECFG_A, cfg);
 }
 
 void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
@@ -6637,9 +6637,9 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
 	};
 	static const u32 sge_regs[] = {
-		SGE_DEBUG_DATA_LOW_INDEX_2_A,
-		SGE_DEBUG_DATA_LOW_INDEX_3_A,
-		SGE_DEBUG_DATA_HIGH_INDEX_10_A,
+		SGE_DE_DATA_LOW_INDEX_2_A,
+		SGE_DE_DATA_LOW_INDEX_3_A,
+		SGE_DE_DATA_HIGH_INDEX_10_A,
 	};
 	const char **sge_idma_decode;
 	int sge_idma_decode_nstates;
@@ -9082,7 +9082,7 @@ int t4_prep_adapter(struct adapter *adapter)
 	init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
 
 	/*
-	 * Default port for debugging in case we can't reach FW.
+	 * Default port for deging in case we can't reach FW.
 	 */
 	adapter->params.nports = 1;
 	adapter->params.portvec = 1;
@@ -9637,7 +9637,7 @@ int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
 	if (n > nwords)
 		n = nwords;
 
-	/* It might take 3-10ms before the IBQ debug read access is allowed.
+	/* It might take 3-10ms before the IBQ de read access is allowed.
 	 * Wait for 1 Sec with a delay of 1 usec.
 	 */
 	attempts = 1000000;
@@ -9923,19 +9923,19 @@ void t4_idma_monitor(struct adapter *adapter,
 {
 	int i, idma_same_state_cnt[2];
 
-	 /* Read the SGE Debug Ingress DMA Same State Count registers.  These
+	 /* Read the SGE De Ingress DMA Same State Count registers.  These
 	  * are counters inside the SGE which count up on each clock when the
 	  * SGE finds its Ingress DMA State Engines in the same states they
 	  * were in the previous clock.  The counters will peg out at
 	  * 0xffffffff without wrapping around so once they pass the 1s
 	  * threshold they'll stay above that till the IDMA state changes.
 	  */
-	t4_write_reg(adapter, SGE_DEBUG_INDEX_A, 13);
-	idma_same_state_cnt[0] = t4_read_reg(adapter, SGE_DEBUG_DATA_HIGH_A);
-	idma_same_state_cnt[1] = t4_read_reg(adapter, SGE_DEBUG_DATA_LOW_A);
+	t4_write_reg(adapter, SGE_DE_INDEX_A, 13);
+	idma_same_state_cnt[0] = t4_read_reg(adapter, SGE_DE_DATA_HIGH_A);
+	idma_same_state_cnt[1] = t4_read_reg(adapter, SGE_DE_DATA_LOW_A);
 
 	for (i = 0; i < 2; i++) {
-		u32 debug0, debug11;
+		u32 de0, de11;
 
 		/* If the Ingress DMA Same State Counter ("timer") is less
 		 * than 1s, then we can reset our synthesized Stall Timer and
@@ -9983,19 +9983,19 @@ void t4_idma_monitor(struct adapter *adapter,
 		 * We do this every time in case it changes across time ...
 		 * can't be too careful ...
 		 */
-		t4_write_reg(adapter, SGE_DEBUG_INDEX_A, 0);
-		debug0 = t4_read_reg(adapter, SGE_DEBUG_DATA_LOW_A);
-		idma->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
+		t4_write_reg(adapter, SGE_DE_INDEX_A, 0);
+		de0 = t4_read_reg(adapter, SGE_DE_DATA_LOW_A);
+		idma->idma_state[i] = (de0 >> (i * 9)) & 0x3f;
 
-		t4_write_reg(adapter, SGE_DEBUG_INDEX_A, 11);
-		debug11 = t4_read_reg(adapter, SGE_DEBUG_DATA_LOW_A);
-		idma->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
+		t4_write_reg(adapter, SGE_DE_INDEX_A, 11);
+		de11 = t4_read_reg(adapter, SGE_DE_DATA_LOW_A);
+		idma->idma_qid[i] = (de11 >> (i * 16)) & 0xffff;
 
 		dev_warn(adapter->pdev_dev, "SGE idma%u, queue %u, potentially stuck in "
-			 "state %u for %d seconds (debug0=%#x, debug11=%#x)\n",
+			 "state %u for %d seconds (de0=%#x, de11=%#x)\n",
 			 i, idma->idma_qid[i], idma->idma_state[i],
 			 idma->idma_stalled[i] / hz,
-			 debug0, debug11);
+			 de0, de11);
 		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
 	}
 }
@@ -10204,7 +10204,7 @@ int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
  * @data: where to store the context data
  *
  * Reads an SGE context directly, bypassing FW.  This is only for
- * debugging when FW is unavailable.
+ * deging when FW is unavailable.
  */
 int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid,
 		      enum ctxt_type ctype, u32 *data)

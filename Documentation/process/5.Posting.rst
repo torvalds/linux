@@ -39,7 +39,7 @@ There are a number of things which should be done before you consider
 sending patches to the development community.  These include:
 
  - Test the code to the extent that you can.  Make use of the kernel's
-   debugging tools, ensure that the kernel will build with all reasonable
+   deging tools, ensure that the kernel will build with all reasonable
    combinations of configuration options, use cross-compilers to build for
    different architectures, etc.
 
@@ -99,7 +99,7 @@ rules of thumb, however, which can help considerably:
 
  - As a way of restating the guideline above: do not mix different types of
    changes in the same patch.  If a single patch fixes a critical security
-   bug, rearranges a few structures, and reformats the code, there is a
+   , rearranges a few structures, and reformats the code, there is a
    good chance that it will be passed over and the important fix will be
    lost.
 
@@ -121,7 +121,7 @@ rules of thumb, however, which can help considerably:
    in the series enables the whole thing.  This temptation should be
    avoided if possible; if that series adds regressions, bisection will
    finger the last patch as the one which caused the problem, even though
-   the real bug is elsewhere.  Whenever possible, a patch which adds new
+   the real  is elsewhere.  Whenever possible, a patch which adds new
    code should make that code active immediately.
 
 Working to create the perfect patch series can be a frustrating process
@@ -165,7 +165,7 @@ another moment discussing this issue.  When writing a changelog, you should
 bear in mind that a number of different people will be reading your words.
 These include subsystem maintainers and reviewers who need to decide
 whether the patch should be included, distributors and other maintainers
-trying to decide whether a patch should be backported to other kernels, bug
+trying to decide whether a patch should be backported to other kernels, 
 hunters wondering whether the patch is responsible for a problem they are
 chasing, users who want to know how the kernel has changed, and more.  A
 good changelog conveys the needed information to all of these people in the
@@ -174,8 +174,8 @@ most direct and concise way possible.
 To that end, the summary line should describe the effects of and motivation
 for the change as well as possible given the one-line constraint.  The
 detailed description can then amplify on those topics and provide any
-needed additional information.  If the patch fixes a bug, cite the commit
-which introduced the bug if possible (and please provide both the commit ID
+needed additional information.  If the patch fixes a , cite the commit
+which introduced the  if possible (and please provide both the commit ID
 and the title when citing commits).  If a problem is associated with
 specific log or compiler output, include that output to help others
 searching for a solution to the same problem.  If the change is meant to
@@ -284,13 +284,13 @@ copies should go to:
    those who might be working there now.  Using git to see who else has
    modified the files you are working on can be helpful.
 
- - If you are responding to a bug report or a feature request, copy the
+ - If you are responding to a  report or a feature request, copy the
    original poster as well.
 
  - Send a copy to the relevant mailing list, or, if nothing else applies,
    the linux-kernel list.
 
- - If you are fixing a bug, think about whether the fix should go into the
+ - If you are fixing a , think about whether the fix should go into the
    next stable update.  If so, stable@vger.kernel.org should get a copy of
    the patch.  Also add a "Cc: stable@vger.kernel.org" to the tags within
    the patch itself; that will cause the stable team to get a notification

@@ -1858,7 +1858,7 @@ static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 		/* dirty buffer free */
 		sh_eth_tx_free(ndev, true);
 
-		/* SH7712 BUG */
+		/* SH7712  */
 		if (edtrr ^ mdp->cd->edtrr_trns) {
 			/* tx dma start */
 			sh_eth_write(ndev, mdp->cd->edtrr_trns, EDTRR);
@@ -2099,7 +2099,7 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	u32 *valid_map;
 	size_t len;
 
-	BUILD_BUG_ON(SH_ETH_MAX_REGISTER_OFFSET > SH_ETH_REG_DUMP_MAX_REGS);
+	BUILD__ON(SH_ETH_MAX_REGISTER_OFFSET > SH_ETH_REG_DUMP_MAX_REGS);
 
 	/* Dump starts with a bitmap that tells ethtool which
 	 * registers are defined for this chip.
@@ -3318,7 +3318,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	ndev->ethtool_ops = &sh_eth_ethtool_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
-	/* debug message level */
+	/* de message level */
 	mdp->msg_enable = SH_ETH_DEF_MSG_ENABLE;
 
 	/* read and set MAC address */

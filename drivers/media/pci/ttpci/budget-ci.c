@@ -86,9 +86,9 @@ static int rc5_device = -1;
 module_param(rc5_device, int, 0644);
 MODULE_PARM_DESC(rc5_device, "only IR commands to given RC5 device (device = 0 - 31, any device = 255, default: autodetect)");
 
-static int ir_debug;
-module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
+static int ir_de;
+module_param(ir_de, int, 0644);
+MODULE_PARM_DESC(ir_de, "enable deging information for IR decoding");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -135,7 +135,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	 * generated.
 	 */
 
-	if (ir_debug)
+	if (ir_de)
 		printk("budget_ci: received byte 0x%02x\n", command);
 
 	/* Remove repeat bit, we use every command */

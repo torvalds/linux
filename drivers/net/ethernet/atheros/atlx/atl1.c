@@ -244,9 +244,9 @@ MODULE_DEVICE_TABLE(pci, atl1_pci_tbl);
 static const u32 atl1_default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 	NETIF_MSG_LINK | NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP;
 
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Message level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "Message level (0=none,...,16=all)");
 
 /*
  * Reset the transmit and receive units; mask and clear all interrupts.
@@ -628,7 +628,7 @@ static s32 atl1_write_phy_reg(struct atl1_hw *hw, u32 reg_addr, u16 phy_data)
 }
 
 /*
- * Make L001's PHY out of Power Saving State (bug)
+ * Make L001's PHY out of Power Saving State ()
  * hw - Struct containing variables accessed by shared code
  * when power on, L001's PHY always on Power saving State
  * (Gigabit Link forbidden)
@@ -646,7 +646,7 @@ static s32 atl1_phy_leave_power_saving(struct atl1_hw *hw)
  * Resets the PHY and make all config validate
  * hw - Struct containing variables accessed by shared code
  *
- * Sets bit 15 and 12 of the MII Control regiser (for F001 bug)
+ * Sets bit 15 and 12 of the MII Control regiser (for F001 )
  */
 static s32 atl1_phy_reset(struct atl1_hw *hw)
 {
@@ -1806,7 +1806,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 
 	/*
-	 * The L1 hardware contains a bug that erroneously sets the
+	 * The L1 hardware contains a  that erroneously sets the
 	 * PACKET_FLAG_ERR and ERR_FLAG_L4_CHKSUM bits whenever a
 	 * fragmented IP packet is received, even though the packet
 	 * is perfectly valid and its checksum is correct. There's
@@ -1823,7 +1823,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 					ERR_FLAG_CODE | ERR_FLAG_OV)) {
 			adapter->hw_csum_err++;
 			if (netif_msg_rx_err(adapter))
-				dev_printk(KERN_DEBUG, &pdev->dev,
+				dev_printk(KERN_DE, &pdev->dev,
 					"rx checksum error\n");
 			return;
 		}
@@ -1941,24 +1941,24 @@ chk_rrd:
 			if (likely(rrd->num_buf == 1))
 				goto rrd_ok;
 			else if (netif_msg_rx_err(adapter)) {
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"unexpected RRD buffer count\n");
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"rx_buf_len = %d\n",
 					adapter->rx_buffer_len);
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"RRD num_buf = %d\n",
 					rrd->num_buf);
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"RRD pkt_len = %d\n",
 					rrd->xsz.xsum_sz.pkt_size);
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"RRD pkt_flg = 0x%08X\n",
 					rrd->pkt_flg);
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"RRD err_flg = 0x%08X\n",
 					rrd->err_flg);
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"RRD vlan_tag = 0x%08X\n",
 					rrd->vlan_tag);
 			}
@@ -1971,7 +1971,7 @@ chk_rrd:
 			}
 			/* bad rrd */
 			if (netif_msg_rx_err(adapter))
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"bad RRD\n");
 			/* see if update RFD index */
 			if (rrd->num_buf > 1)
@@ -2186,7 +2186,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 		if (unlikely(css & 0x1)) {
 			/* L1 hardware requires an even number here */
 			if (netif_msg_tx_err(adapter))
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				dev_printk(KERN_DE, &adapter->pdev->dev,
 					"payload offset not an even number\n");
 			return -1;
 		}
@@ -2219,7 +2219,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	next_to_use = atomic_read(&tpd_ring->next_to_use);
 	buffer_info = &tpd_ring->buffer_info[next_to_use];
-	BUG_ON(buffer_info->skb);
+	_ON(buffer_info->skb);
 	/* put skb in last TPD */
 	buffer_info->skb = NULL;
 
@@ -2284,7 +2284,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 			ATL1_MAX_TX_BUF_LEN;
 		for (i = 0; i < nseg; i++) {
 			buffer_info = &tpd_ring->buffer_info[next_to_use];
-			BUG_ON(buffer_info->skb);
+			_ON(buffer_info->skb);
 
 			buffer_info->skb = NULL;
 			buffer_info->length = (buf_len > ATL1_MAX_TX_BUF_LEN) ?
@@ -2404,7 +2404,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 		/* not enough descriptors */
 		netif_stop_queue(netdev);
 		if (netif_msg_tx_queued(adapter))
-			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+			dev_printk(KERN_DE, &adapter->pdev->dev,
 				"tx busy\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -2520,7 +2520,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 	/* check if PCIE PHY Link down */
 	if (status & ISR_PHY_LINKDOWN) {
 		if (netif_msg_intr(adapter))
-			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+			dev_printk(KERN_DE, &adapter->pdev->dev,
 				"pcie phy link down %x\n", status);
 		if (netif_running(adapter->netdev)) {	/* reset MAC */
 			atlx_irq_disable(adapter);
@@ -2532,7 +2532,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 	/* check if DMA read/write error ? */
 	if (status & (ISR_DMAR_TO_RST | ISR_DMAW_TO_RST)) {
 		if (netif_msg_intr(adapter))
-			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+			dev_printk(KERN_DE, &adapter->pdev->dev,
 				"pcie DMA r/w error (status = 0x%x)\n",
 				status);
 		atlx_irq_disable(adapter);
@@ -2557,7 +2557,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 		ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
 		ISR_HOST_RRD_OV))) {
 		if (netif_msg_intr(adapter))
-			dev_printk(KERN_DEBUG,
+			dev_printk(KERN_DE,
 				&adapter->pdev->dev,
 				"rx exception, ISR = 0x%x\n",
 				status);
@@ -2799,7 +2799,7 @@ static int atl1_suspend(struct device *dev)
 		val = atl1_get_speed_and_duplex(hw, &speed, &duplex);
 		if (val) {
 			if (netif_msg_ifdown(adapter))
-				dev_printk(KERN_DEBUG, &pdev->dev,
+				dev_printk(KERN_DE, &pdev->dev,
 					"error getting speed/duplex\n");
 			goto disable_wol;
 		}
@@ -2977,7 +2977,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
-	adapter->msg_enable = netif_msg_init(debug, atl1_default_msg);
+	adapter->msg_enable = netif_msg_init(de, atl1_default_msg);
 
 	adapter->hw.hw_addr = pci_iomap(pdev, 0, 0);
 	if (!adapter->hw.hw_addr) {

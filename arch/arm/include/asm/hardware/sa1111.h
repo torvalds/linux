@@ -428,7 +428,7 @@ void sa1111_select_audio_mode(struct sa1111_dev *sadev, int mode);
 int sa1111_set_audio_rate(struct sa1111_dev *sadev, int rate);
 int sa1111_get_audio_rate(struct sa1111_dev *sadev);
 
-int sa1111_check_dma_bug(dma_addr_t addr);
+int sa1111_check_dma_(dma_addr_t addr);
 
 int sa1111_driver_register(struct sa1111_driver *);
 void sa1111_driver_unregister(struct sa1111_driver *);

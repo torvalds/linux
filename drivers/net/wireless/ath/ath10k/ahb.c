@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "pci.h"
 #include "ahb.h"
 

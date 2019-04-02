@@ -49,7 +49,7 @@
 
 #include "samsung.h"
 
-#if	defined(CONFIG_SERIAL_SAMSUNG_DEBUG) &&	\
+#if	defined(CONFIG_SERIAL_SAMSUNG_DE) &&	\
 	!defined(MODULE)
 
 extern void printascii(const char *);
@@ -2072,7 +2072,7 @@ s3c24xx_port_configured(unsigned int ucon)
 #ifdef CONFIG_CONSOLE_POLL
 /*
  * Console polling routines for writing and reading from the uart while
- * in an interrupt or debug context.
+ * in an interrupt or de context.
  */
 
 static int s3c24xx_serial_get_poll_char(struct uart_port *port)

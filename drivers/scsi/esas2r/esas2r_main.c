@@ -828,7 +828,7 @@ int esas2r_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	rq = esas2r_alloc_request(a);
 	if (unlikely(rq == NULL)) {
-		esas2r_debug("esas2r_alloc_request failed");
+		esas2r_de("esas2r_alloc_request failed");
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -872,7 +872,7 @@ int esas2r_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
-	esas2r_debug("start request %p to %d:%d\n", rq, (int)cmd->device->id,
+	esas2r_de("start request %p to %d:%d\n", rq, (int)cmd->device->id,
 		     (int)cmd->device->lun);
 
 	esas2r_start_request(a, rq);
@@ -1138,11 +1138,11 @@ retry:
 	rq->task_management_status_ptr = &task_management_status;
 
 	if (target_reset) {
-		esas2r_debug("issuing target reset (%p) to id %d", rq,
+		esas2r_de("issuing target reset (%p) to id %d", rq,
 			     cmd->device->id);
 		completed = esas2r_send_task_mgmt(a, rq, 0x20);
 	} else {
-		esas2r_debug("issuing device reset (%p) to id %d lun %d", rq,
+		esas2r_de("issuing device reset (%p) to id %d lun %d", rq,
 			     cmd->device->id, cmd->device->lun);
 		completed = esas2r_send_task_mgmt(a, rq, 0x10);
 	}
@@ -1245,8 +1245,8 @@ void esas2r_wait_request(struct esas2r_adapter *a, struct esas2r_request *rq)
 		schedule_timeout_interruptible(msecs_to_jiffies(100));
 
 		if ((jiffies_to_msecs(jiffies) - starttime) > timeout) {
-			esas2r_hdebug("request TMO");
-			esas2r_bugon();
+			esas2r_hde("request TMO");
+			esas2r_on();
 
 			rq->req_stat = RS_TIMEOUT;
 
@@ -1511,12 +1511,12 @@ struct esas2r_request *esas2r_alloc_request(struct esas2r_adapter *a)
 void esas2r_complete_request_cb(struct esas2r_adapter *a,
 				struct esas2r_request *rq)
 {
-	esas2r_debug("completing request %p\n", rq);
+	esas2r_de("completing request %p\n", rq);
 
 	scsi_dma_unmap(rq->cmd);
 
 	if (unlikely(rq->req_stat != RS_SUCCESS)) {
-		esas2r_debug("[%x STATUS %x:%x (%x)]", rq->target_id,
+		esas2r_de("[%x STATUS %x:%x (%x)]", rq->target_id,
 			     rq->req_stat,
 			     rq->func_rsp.scsi_rsp.scsi_stat,
 			     rq->cmd);

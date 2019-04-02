@@ -6,8 +6,8 @@ This file is the documentation for the Raylink Wireless LAN card driver for
 Linux.  The Raylink wireless LAN card is a PCMCIA card which provides IEEE
 802.11 compatible wireless network connectivity at 1 and 2 megabits/second.
 See http://www.raytheon.com/micro/raylink/ for more information on the Raylink
-card.  This driver is in early development and does have bugs.  See the known
-bugs and limitations at the end of this document for more information.
+card.  This driver is in early development and does have s.  See the known
+s and limitations at the end of this document for more information.
 This driver also works with WebGear's Aviator 2.4 and Aviator Pro
 wireless LAN cards.
 
@@ -107,10 +107,10 @@ phy_addr	string          string containing new MAC address in
 psm		integer         0 = continuously active
 				1 = power save mode (not useful yet)
 
-pc_debug	integer		(0-5) larger values for more verbose
-				logging.  Replaces ray_debug.
+pc_de	integer		(0-5) larger values for more verbose
+				logging.  Replaces ray_de.
 
-ray_debug	integer		Replaced with pc_debug
+ray_de	integer		Replaced with pc_de
 
 ray_mem_speed   integer         defaults to 500
 
@@ -127,7 +127,7 @@ More on sniffer mode:
 
 tcpdump does not understand 802.11 headers, so it can't
 interpret the contents, but it can record to a file.  This is only
-useful for debugging 802.11 lowlevel protocols that are not visible to
+useful for deging 802.11 lowlevel protocols that are not visible to
 linux.  If you want to watch ftp xfers, or do similar things, you
 don't need to use sniffer mode.  Also, some packet types are never
 sent up by the card, so you will never see them (ack, rts, cts, probe
@@ -140,7 +140,7 @@ Known Problems and missing features
 
 	Does not work with SMP
 
-	Support for defragmenting frames is not yet debugged, and in
+	Support for defragmenting frames is not yet deged, and in
 	fact is known to not work.  I have never encountered a net set
 	up to fragment, but still, it should be fixed.
 

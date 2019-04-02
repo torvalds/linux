@@ -691,7 +691,7 @@ int __init bcm47xx_buttons_register(void)
 		break;
 
 	default:
-		pr_debug("No buttons configuration found for this device\n");
+		pr_de("No buttons configuration found for this device\n");
 		return -ENOTSUPP;
 	}
 

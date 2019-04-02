@@ -120,7 +120,7 @@ For example, to disable the radio on driver loading, enter:
 The ipw2100 driver supports the following module parameters:
 
 Name		Value		Example:
-debug		0x0-0xffffffff	debug=1024
+de		0x0-0xffffffff	de=1024
 mode		0,1,2		mode=1   /* AdHoc */
 channel		int		channel=3 /* Only valid in AdHoc or Monitor */
 associate	boolean		associate=0 /* Do NOT auto associate */
@@ -139,13 +139,13 @@ are a few capabilities that are exposed through entries in the Linux Sysfs.
 ----- Driver Level ------
 For the driver level files, look in /sys/bus/pci/drivers/ipw2100/
 
-  debug_level  
+  de_level  
 	
-	This controls the same global as the 'debug' module parameter.  For 
-        information on the various debugging levels available, run the 'dvals'
+	This controls the same global as the 'de' module parameter.  For 
+        information on the various deging levels available, run the 'dvals'
 	script found in the driver source directory.
 
-	NOTE:  'debug_level' is only enabled if CONFIG_IPW2100_DEBUG is turn
+	NOTE:  'de_level' is only enabled if CONFIG_IPW2100_DE is turn
 	       on.
 
 ----- Device Level ------

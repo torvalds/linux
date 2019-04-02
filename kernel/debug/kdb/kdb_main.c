@@ -1,5 +1,5 @@
 /*
- * Kernel Debugger Architecture Independent Main Code
+ * Kernel Deger Architecture Independent Main Code
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/sched/loadavg.h>
 #include <linux/sched/stat.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sysrq.h>
 #include <linux/smp.h>
 #include <linux/utsname.h>
@@ -41,7 +41,7 @@
 #include <linux/ptrace.h>
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -60,13 +60,13 @@ int kdb_grep_leading;
 int kdb_grep_trailing;
 
 /*
- * Kernel debugger state flags
+ * Kernel deger state flags
  */
 int kdb_flags;
 
 /*
  * kdb_lock protects updates to kdb_initial_cpu.  Used to
- * single thread processors through the kernel debugger.
+ * single thread processors through the kernel deger.
  */
 int kdb_initial_cpu = -1;	/* cpu number that owns kdb */
 int kdb_nextline = 1;
@@ -402,19 +402,19 @@ int kdb_set(int argc, const char **argv)
 	/*
 	 * Check for internal variables
 	 */
-	if (strcmp(argv[1], "KDBDEBUG") == 0) {
-		unsigned int debugflags;
+	if (strcmp(argv[1], "KDBDE") == 0) {
+		unsigned int deflags;
 		char *cp;
 
-		debugflags = simple_strtoul(argv[2], &cp, 0);
-		if (cp == argv[2] || debugflags & ~KDB_DEBUG_FLAG_MASK) {
-			kdb_printf("kdb: illegal debug flags '%s'\n",
+		deflags = simple_strtoul(argv[2], &cp, 0);
+		if (cp == argv[2] || deflags & ~KDB_DE_FLAG_MASK) {
+			kdb_printf("kdb: illegal de flags '%s'\n",
 				    argv[2]);
 			return 0;
 		}
 		kdb_flags = (kdb_flags &
-			     ~(KDB_DEBUG_FLAG_MASK << KDB_DEBUG_FLAG_SHIFT))
-			| (debugflags << KDB_DEBUG_FLAG_SHIFT);
+			     ~(KDB_DE_FLAG_MASK << KDB_DE_FLAG_SHIFT))
+			| (deflags << KDB_DE_FLAG_SHIFT);
 
 		return 0;
 	}
@@ -1171,7 +1171,7 @@ static void drop_newline(char *buf)
  *	reason		The reason KDB was invoked
  *	error		The hardware-defined error code
  *	regs		The exception frame at time of fault/breakpoint.
- *	db_result	Result code from the break or debug point.
+ *	db_result	Result code from the break or de point.
  * Returns:
  *	0	KDB was invoked for an event which it wasn't responsible
  *	1	KDB handled the event for which it was invoked.
@@ -1187,9 +1187,9 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 	struct task_struct *kdb_current =
 		kdb_curr_task(raw_smp_processor_id());
 
-	KDB_DEBUG_STATE("kdb_local 1", reason);
+	KDB_DE_STATE("kdb_local 1", reason);
 	kdb_go_count = 0;
-	if (reason == KDB_REASON_DEBUG) {
+	if (reason == KDB_REASON_DE) {
 		/* special case below */
 	} else {
 		kdb_printf("\nEntering kdb (current=0x%px, pid %d) ",
@@ -1200,7 +1200,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 	}
 
 	switch (reason) {
-	case KDB_REASON_DEBUG:
+	case KDB_REASON_DE:
 	{
 		/*
 		 * If re-entering kdb after a single step
@@ -1213,13 +1213,13 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 #if defined(CONFIG_SMP)
 			kdb_printf("on processor %d ", raw_smp_processor_id());
 #endif
-			kdb_printf("due to Debug @ " kdb_machreg_fmt "\n",
+			kdb_printf("due to De @ " kdb_machreg_fmt "\n",
 				   instruction_pointer(regs));
 			break;
 		case KDB_DB_SS:
 			break;
 		case KDB_DB_SSBPT:
-			KDB_DEBUG_STATE("kdb_local 4", reason);
+			KDB_DE_STATE("kdb_local 4", reason);
 			return 1;	/* kdba_db_trap did the work */
 		default:
 			kdb_printf("kdb: Bad result from kdba_db_trap: %d\n",
@@ -1270,7 +1270,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		if (db_result != KDB_DB_BPT) {
 			kdb_printf("kdb: error return from kdba_bp_trap: %d\n",
 				   db_result);
-			KDB_DEBUG_STATE("kdb_local 6", reason);
+			KDB_DE_STATE("kdb_local 6", reason);
 			return 0;	/* Not for us, dismiss it */
 		}
 		break;
@@ -1280,7 +1280,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		break;
 	default:
 		kdb_printf("kdb: unexpected reason code: %d\n", reason);
-		KDB_DEBUG_STATE("kdb_local 8", reason);
+		KDB_DE_STATE("kdb_local 8", reason);
 		return 0;	/* Not for us, dismiss it */
 	}
 
@@ -1350,16 +1350,16 @@ do_full_getstr:
 		if (diag)
 			kdb_cmderror(diag);
 	}
-	KDB_DEBUG_STATE("kdb_local 9", diag);
+	KDB_DE_STATE("kdb_local 9", diag);
 	return diag;
 }
 
 
 /*
  * kdb_print_state - Print the state data for the current processor
- *	for debugging.
+ *	for deging.
  * Inputs:
- *	text		Identifies the debug point
+ *	text		Identifies the de point
  *	value		Any integer value to be printed, e.g. reason code.
  */
 void kdb_print_state(const char *text, int value)
@@ -1387,7 +1387,7 @@ void kdb_print_state(const char *text, int value)
  *	reason2		kdb's current reason code.
  *			Initially error but can change
  *			according to kdb state.
- *	db_result	Result code from break or debug point.
+ *	db_result	Result code from break or de point.
  *	regs		The exception frame at time of fault/breakpoint.
  *			should always be valid.
  * Returns:
@@ -1404,7 +1404,7 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 		 * All processors except the one that is in control
 		 * will spin here.
 		 */
-		KDB_DEBUG_STATE("kdb_main_loop 1", reason);
+		KDB_DE_STATE("kdb_main_loop 1", reason);
 		while (KDB_STATE(HOLD_CPU)) {
 			/* state KDB is turned off by kdb_cpu to see if the
 			 * other cpus are still live, each cpu in this loop
@@ -1415,12 +1415,12 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 		}
 
 		KDB_STATE_CLEAR(SUPPRESS);
-		KDB_DEBUG_STATE("kdb_main_loop 2", reason);
+		KDB_DE_STATE("kdb_main_loop 2", reason);
 		if (KDB_STATE(LEAVING))
 			break;	/* Another cpu said 'go' */
 		/* Still using kdb, this processor is in control */
 		result = kdb_local(reason2, error, regs, db_result);
-		KDB_DEBUG_STATE("kdb_main_loop 3", result);
+		KDB_DE_STATE("kdb_main_loop 3", result);
 
 		if (result == KDB_CMD_CPU)
 			break;
@@ -1432,14 +1432,14 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 
 		if (result == KDB_CMD_KGDB) {
 			if (!KDB_STATE(DOING_KGDB))
-				kdb_printf("Entering please attach debugger "
+				kdb_printf("Entering please attach deger "
 					   "or use $D#44+ or $3#33\n");
 			break;
 		}
 		if (result && result != 1 && result != KDB_CMD_GO)
 			kdb_printf("\nUnexpected kdb_local return code %d\n",
 				   result);
-		KDB_DEBUG_STATE("kdb_main_loop 4", reason);
+		KDB_DE_STATE("kdb_main_loop 4", reason);
 		break;
 	}
 	if (KDB_STATE(DOING_SS))
@@ -2077,7 +2077,7 @@ static int kdb_env(int argc, const char **argv)
 			kdb_printf("%s\n", __env[i]);
 	}
 
-	if (KDB_DEBUG(MASK))
+	if (KDB_DE(MASK))
 		kdb_printf("KDBFLAGS=0x%x\n", kdb_flags);
 
 	return 0;
@@ -2487,7 +2487,7 @@ static int kdb_kill(int argc, const char **argv)
 /*
  * Most of this code has been lifted from kernel/timer.c::sys_sysinfo().
  * I cannot call that code directly from kdb, it has an unconditional
- * cli()/sti() and calls routines that take locks which can stop the debugger.
+ * cli()/sti() and calls routines that take locks which can stop the deger.
  */
 static void kdb_sysinfo(struct sysinfo *val)
 {
@@ -2645,7 +2645,7 @@ static int kdb_grep_help(int argc, const char **argv)
 
 /*
  * kdb_register_flags - This function is used to register a kernel
- * 	debugger command.
+ * 	deger command.
  * Inputs:
  *	cmd	Command name
  *	func	Function to execute the command
@@ -2744,7 +2744,7 @@ EXPORT_SYMBOL_GPL(kdb_register);
 
 /*
  * kdb_unregister - This function is used to unregister a kernel
- *	debugger command.  It is generally called when a module which
+ *	deger command.  It is generally called when a module which
  *	implements kdb commands is unloaded.
  * Inputs:
  *	cmd	Command name

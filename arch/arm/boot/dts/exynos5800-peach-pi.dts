@@ -1071,7 +1071,7 @@
 
 /*
  * Use longest HW watchdog in SoC (32 seconds) since the hardware
- * watchdog provides no debugging information (compared to soft/hard
+ * watchdog provides no deging information (compared to soft/hard
  * lockup detectors) and so should be last resort.
  */
 &watchdog {

@@ -57,7 +57,7 @@ this function will just decrement the power refcount and exit,
 without really powering off the device.
 
 Every call to rproc_boot() must (eventually) be accompanied by a call
-to rproc_shutdown(). Calling rproc_shutdown() redundantly is a bug.
+to rproc_shutdown(). Calling rproc_shutdown() redundantly is a .
 
 .. note::
 

@@ -2,12 +2,12 @@
 btmrvl driver
 =============
 
-All commands are used via debugfs interface.
+All commands are used via defs interface.
 
 Set/get driver configurations
 =============================
 
-Path:	/debug/btmrvl/config/
+Path:	/de/btmrvl/config/
 
 gpiogap=[n], hscfgcmd
 	These commands are used to configure the host sleep parameters::
@@ -24,12 +24,12 @@ gpiogap=[n], hscfgcmd
 	Usage::
 
 		# Use SDIO interface to wake up the host and set GAP to 0x80:
-		echo 0xff80 > /debug/btmrvl/config/gpiogap
-		echo 1 > /debug/btmrvl/config/hscfgcmd
+		echo 0xff80 > /de/btmrvl/config/gpiogap
+		echo 1 > /de/btmrvl/config/hscfgcmd
 
 		# Use GPIO pin #3 to wake up the host and set GAP to 0xff:
-		echo 0x03ff >  /debug/btmrvl/config/gpiogap
-		echo 1 > /debug/btmrvl/config/hscfgcmd
+		echo 0x03ff >  /de/btmrvl/config/gpiogap
+		echo 1 > /de/btmrvl/config/hscfgcmd
 
 psmode=[n], pscmd
 	These commands are used to enable/disable auto sleep mode
@@ -42,12 +42,12 @@ psmode=[n], pscmd
 	Usage::
 
 		# Enable auto sleep mode
-		echo 1 > /debug/btmrvl/config/psmode
-		echo 1 > /debug/btmrvl/config/pscmd
+		echo 1 > /de/btmrvl/config/psmode
+		echo 1 > /de/btmrvl/config/pscmd
 
 		# Disable auto sleep mode
-		echo 0 > /debug/btmrvl/config/psmode
-		echo 1 > /debug/btmrvl/config/pscmd
+		echo 0 > /de/btmrvl/config/psmode
+		echo 1 > /de/btmrvl/config/pscmd
 
 
 hsmode=[n], hscmd
@@ -61,22 +61,22 @@ hsmode=[n], hscmd
 	Usage::
 
 		# Enable host sleep
-		echo 1 > /debug/btmrvl/config/hsmode
-		echo 1 > /debug/btmrvl/config/hscmd
+		echo 1 > /de/btmrvl/config/hsmode
+		echo 1 > /de/btmrvl/config/hscmd
 
 		# Wake up firmware
-		echo 0 > /debug/btmrvl/config/hsmode
-		echo 1 > /debug/btmrvl/config/hscmd
+		echo 0 > /de/btmrvl/config/hsmode
+		echo 1 > /de/btmrvl/config/hscmd
 
 
 Get driver status
 =================
 
-Path:	/debug/btmrvl/status/
+Path:	/de/btmrvl/status/
 
 Usage::
 
-	cat /debug/btmrvl/status/<args>
+	cat /de/btmrvl/status/<args>
 
 where the args are:
 

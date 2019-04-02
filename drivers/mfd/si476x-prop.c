@@ -149,7 +149,7 @@ static bool si476x_core_is_valid_property(struct si476x_core *core,
 		[SI476X_REVISION_A30] = si476x_core_is_valid_property_a30,
 	};
 
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 	return is_valid_property[core->revision](core, property);
 }
@@ -158,7 +158,7 @@ static bool si476x_core_is_valid_property(struct si476x_core *core,
 static bool si476x_core_is_readonly_property(struct si476x_core *core,
 					     u16 property)
 {
-	BUG_ON(core->revision > SI476X_REVISION_A30 ||
+	_ON(core->revision > SI476X_REVISION_A30 ||
 	       core->revision == -1);
 
 	switch (core->revision) {

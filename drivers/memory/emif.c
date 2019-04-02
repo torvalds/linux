@@ -20,7 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -52,7 +52,7 @@
  *				frequency change (i.e. corresponding to the
  *				frequency in effect at the moment)
  * @plat_data:			Pointer to saved platform data.
- * @debugfs_root:		dentry to the root folder for EMIF in debugfs
+ * @defs_root:		dentry to the root folder for EMIF in defs
  * @np_ddr:			Pointer to ddr device tree node
  */
 struct emif_data {
@@ -67,7 +67,7 @@ struct emif_data {
 	struct emif_regs		*regs_cache[EMIF_MAX_NUM_FREQUENCIES];
 	struct emif_regs		*curr_regs;
 	struct emif_platform_data	*plat_data;
-	struct dentry			*debugfs_root;
+	struct dentry			*defs_root;
 	struct device_node		*np_ddr;
 };
 
@@ -77,7 +77,7 @@ static unsigned long	irq_state;
 static u32		t_ck; /* DDR clock period in ps */
 static LIST_HEAD(device_list);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	struct emif_regs *regs)
 {
@@ -163,27 +163,27 @@ static const struct file_operations emif_mr4_fops = {
 	.release		= single_release,
 };
 
-static int __init_or_module emif_debugfs_init(struct emif_data *emif)
+static int __init_or_module emif_defs_init(struct emif_data *emif)
 {
 	struct dentry	*dentry;
 	int		ret;
 
-	dentry = debugfs_create_dir(dev_name(emif->dev), NULL);
+	dentry = defs_create_dir(dev_name(emif->dev), NULL);
 	if (!dentry) {
 		ret = -ENOMEM;
 		goto err0;
 	}
-	emif->debugfs_root = dentry;
+	emif->defs_root = dentry;
 
-	dentry = debugfs_create_file("regcache_dump", S_IRUGO,
-			emif->debugfs_root, emif, &emif_regdump_fops);
+	dentry = defs_create_file("regcache_dump", S_IRUGO,
+			emif->defs_root, emif, &emif_regdump_fops);
 	if (!dentry) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	dentry = debugfs_create_file("mr4", S_IRUGO,
-			emif->debugfs_root, emif, &emif_mr4_fops);
+	dentry = defs_create_file("mr4", S_IRUGO,
+			emif->defs_root, emif, &emif_mr4_fops);
 	if (!dentry) {
 		ret = -ENOMEM;
 		goto err1;
@@ -191,23 +191,23 @@ static int __init_or_module emif_debugfs_init(struct emif_data *emif)
 
 	return 0;
 err1:
-	debugfs_remove_recursive(emif->debugfs_root);
+	defs_remove_recursive(emif->defs_root);
 err0:
 	return ret;
 }
 
-static void __exit emif_debugfs_exit(struct emif_data *emif)
+static void __exit emif_defs_exit(struct emif_data *emif)
 {
-	debugfs_remove_recursive(emif->debugfs_root);
-	emif->debugfs_root = NULL;
+	defs_remove_recursive(emif->defs_root);
+	emif->defs_root = NULL;
 }
 #else
-static inline int __init_or_module emif_debugfs_init(struct emif_data *emif)
+static inline int __init_or_module emif_defs_init(struct emif_data *emif)
 {
 	return 0;
 }
 
-static inline void __exit emif_debugfs_exit(struct emif_data *emif)
+static inline void __exit emif_defs_exit(struct emif_data *emif)
 {
 }
 #endif
@@ -1572,7 +1572,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	}
 
 	emif_onetime_settings(emif);
-	emif_debugfs_init(emif);
+	emif_defs_init(emif);
 	disable_and_clear_all_interrupts(emif);
 	setup_interrupts(emif, irq);
 
@@ -1600,7 +1600,7 @@ static int __exit emif_remove(struct platform_device *pdev)
 {
 	struct emif_data *emif = platform_get_drvdata(pdev);
 
-	emif_debugfs_exit(emif);
+	emif_defs_exit(emif);
 
 	return 0;
 }

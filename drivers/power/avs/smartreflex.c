@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -776,7 +776,7 @@ void omap_sr_disable_reset_volt(struct voltagedomain *voltdm)
 	sr_class->disable(sr, 1);
 }
 
-/* PM Debug FS entries to enable and disable smartreflex. */
+/* PM De FS entries to enable and disable smartreflex. */
 static int omap_sr_autocomp_show(void *data, u64 *val)
 {
 	struct omap_sr *sr_info = data;
@@ -900,44 +900,44 @@ static int omap_sr_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s: SmartReflex driver initialized\n", __func__);
 	if (!sr_dbg_dir) {
-		sr_dbg_dir = debugfs_create_dir("smartreflex", NULL);
+		sr_dbg_dir = defs_create_dir("smartreflex", NULL);
 		if (IS_ERR_OR_NULL(sr_dbg_dir)) {
 			ret = PTR_ERR(sr_dbg_dir);
-			pr_err("%s:sr debugfs dir creation failed(%d)\n",
+			pr_err("%s:sr defs dir creation failed(%d)\n",
 			       __func__, ret);
 			goto err_list_del;
 		}
 	}
 
-	sr_info->dbg_dir = debugfs_create_dir(sr_info->name, sr_dbg_dir);
+	sr_info->dbg_dir = defs_create_dir(sr_info->name, sr_dbg_dir);
 	if (IS_ERR_OR_NULL(sr_info->dbg_dir)) {
-		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
+		dev_err(&pdev->dev, "%s: Unable to create defs directory\n",
 			__func__);
 		ret = PTR_ERR(sr_info->dbg_dir);
-		goto err_debugfs;
+		goto err_defs;
 	}
 
-	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR,
+	(void) defs_create_file("autocomp", S_IRUGO | S_IWUSR,
 			sr_info->dbg_dir, (void *)sr_info, &pm_sr_fops);
-	(void) debugfs_create_x32("errweight", S_IRUGO, sr_info->dbg_dir,
+	(void) defs_create_x32("errweight", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_weight);
-	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, sr_info->dbg_dir,
+	(void) defs_create_x32("errmaxlimit", S_IRUGO, sr_info->dbg_dir,
 			&sr_info->err_maxlimit);
 
-	nvalue_dir = debugfs_create_dir("nvalue", sr_info->dbg_dir);
+	nvalue_dir = defs_create_dir("nvalue", sr_info->dbg_dir);
 	if (IS_ERR_OR_NULL(nvalue_dir)) {
-		dev_err(&pdev->dev, "%s: Unable to create debugfs directory for n-values\n",
+		dev_err(&pdev->dev, "%s: Unable to create defs directory for n-values\n",
 			__func__);
 		ret = PTR_ERR(nvalue_dir);
-		goto err_debugfs;
+		goto err_defs;
 	}
 
 	if (sr_info->nvalue_count == 0 || !sr_info->nvalue_table) {
-		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the corresponding vdd. Cannot create debugfs entries for n-values\n",
+		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the corresponding vdd. Cannot create defs entries for n-values\n",
 			 __func__, sr_info->name);
 
 		ret = -ENODATA;
-		goto err_debugfs;
+		goto err_defs;
 	}
 
 	for (i = 0; i < sr_info->nvalue_count; i++) {
@@ -945,11 +945,11 @@ static int omap_sr_probe(struct platform_device *pdev)
 
 		snprintf(name, sizeof(name), "volt_%lu",
 				sr_info->nvalue_table[i].volt_nominal);
-		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
+		(void) defs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 		snprintf(name, sizeof(name), "errminlimit_%lu",
 			 sr_info->nvalue_table[i].volt_nominal);
-		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
+		(void) defs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].errminlimit));
 
 	}
@@ -958,8 +958,8 @@ static int omap_sr_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_debugfs:
-	debugfs_remove_recursive(sr_info->dbg_dir);
+err_defs:
+	defs_remove_recursive(sr_info->dbg_dir);
 err_list_del:
 	list_del(&sr_info->node);
 
@@ -987,7 +987,7 @@ static int omap_sr_remove(struct platform_device *pdev)
 
 	if (sr_info->autocomp_active)
 		sr_stop_vddautocomp(sr_info);
-	debugfs_remove_recursive(sr_info->dbg_dir);
+	defs_remove_recursive(sr_info->dbg_dir);
 
 	pm_runtime_disable(&pdev->dev);
 	list_del(&sr_info->node);

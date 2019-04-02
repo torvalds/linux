@@ -142,7 +142,7 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 	hlist_del(&inst->list);
 	inst->alg.cra_destroy = crypto_destroy_instance;
 
-	BUG_ON(!list_empty(&inst->alg.cra_users));
+	_ON(!list_empty(&inst->alg.cra_users));
 }
 
 void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
@@ -172,7 +172,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 						 list);
 			inst = spawn->inst;
 
-			BUG_ON(&inst->alg == alg);
+			_ON(&inst->alg == alg);
 
 			list_move(&spawn->list, &stack);
 
@@ -428,7 +428,7 @@ int crypto_unregister_alg(struct crypto_alg *alg)
 	if (ret)
 		return ret;
 
-	BUG_ON(refcount_read(&alg->cra_refcnt) != 1);
+	_ON(refcount_read(&alg->cra_refcnt) != 1);
 	if (alg->cra_destroy)
 		alg->cra_destroy(alg);
 
@@ -521,20 +521,20 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 
 	down_write(&crypto_alg_sem);
 
-	BUG_ON(list_empty(&tmpl->list));
+	_ON(list_empty(&tmpl->list));
 	list_del_init(&tmpl->list);
 
 	list = &tmpl->instances;
 	hlist_for_each_entry(inst, list, list) {
 		int err = crypto_remove_alg(&inst->alg, &users);
 
-		BUG_ON(err);
+		_ON(err);
 	}
 
 	up_write(&crypto_alg_sem);
 
 	hlist_for_each_entry_safe(inst, n, list, list) {
-		BUG_ON(refcount_read(&inst->alg.cra_refcnt) != 1);
+		_ON(refcount_read(&inst->alg.cra_refcnt) != 1);
 		crypto_free_instance(inst);
 	}
 	crypto_remove_final(&users);

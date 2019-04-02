@@ -12,7 +12,7 @@
  * Contributions to the skystar2-driver have been done by
  *   Vincenzo Di Massa, hawk.it at tiscalinet.it (several DiSEqC fixes)
  *   Roberto Ragusa, r.ragusa at libero.it (polishing, restyling the code)
- *   Uwe Bugla, uwe.bugla at gmx.de (doing tests, restyling code, writing docu)
+ *   Uwe la, uwe.la at gmx.de (doing tests, restyling code, writing docu)
  *   Niklas Peinecke, peinecke at gdv.uni-hannover.de (hardware pid/mac
  *               filtering)
  *
@@ -32,17 +32,17 @@
 #define DRIVER_NAME "B2C2 FlexcopII/II(b)/III digital TV receiver chip"
 #define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@posteo.de"
 
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+#ifdef CONFIG_DVB_B2C2_FLEXCOP_DE
 #define DEBSTATUS ""
 #else
-#define DEBSTATUS " (debugging is not enabled)"
+#define DEBSTATUS " (deging is not enabled)"
 #endif
 
-int b2c2_flexcop_debug;
-EXPORT_SYMBOL_GPL(b2c2_flexcop_debug);
-module_param_named(debug, b2c2_flexcop_debug,  int, 0644);
-MODULE_PARM_DESC(debug,
-		"set debug level (1=info,2=tuner,4=i2c,8=ts,16=sram,32=reg,64=i2cdump (|-able))."
+int b2c2_flexcop_de;
+EXPORT_SYMBOL_GPL(b2c2_flexcop_de);
+module_param_named(de, b2c2_flexcop_de,  int, 0644);
+MODULE_PARM_DESC(de,
+		"set de level (1=info,2=tuner,4=i2c,8=ts,16=sram,32=reg,64=i2cdump (|-able))."
 		DEBSTATUS);
 #undef DEBSTATUS
 

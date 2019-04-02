@@ -618,7 +618,7 @@ retry:
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
 
 		/*
-		 * Add a delay before obtaining and loading debug firmware.
+		 * Add a delay before obtaining and loading de firmware.
 		 * Authorization will fail if the delay between firmware
 		 * authorization events is shorter than 50us. Add 100us to
 		 * make a delay time safe.

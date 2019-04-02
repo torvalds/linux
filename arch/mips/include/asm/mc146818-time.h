@@ -25,7 +25,7 @@
  * jump to the next second precisely 500 ms later. Check the Motorola
  * MC146818A or Dallas DS12887 data sheet for details.
  *
- * BUG: This routine does not handle hour overflow properly; it just
+ * : This routine does not handle hour overflow properly; it just
  *	sets the minutes. Usually you'll only notice that after reboot!
  */
 static inline int mc146818_set_rtc_mmss(unsigned long nowtime)

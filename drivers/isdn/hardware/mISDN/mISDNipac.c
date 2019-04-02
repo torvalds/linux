@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL v2");
 static inline void
 ph_command(struct isac_hw *isac, u8 command)
 {
-	pr_debug("%s: ph_command %x\n", isac->name, command);
+	pr_de("%s: ph_command %x\n", isac->name, command);
 	if (isac->type & IPAC_TYPE_ISACX)
 		WriteISAC(isac, ISACX_CIX0, (command << 4) | 0xE);
 	else
@@ -110,7 +110,7 @@ isac_ph_state_bh(struct dchannel *dch)
 		l1_event(dch->l1, INFO4_P10);
 		break;
 	}
-	pr_debug("%s: TE newstate %x\n", isac->name, dch->state);
+	pr_de("%s: TE newstate %x\n", isac->name, dch->state);
 }
 
 static void
@@ -118,7 +118,7 @@ isac_empty_fifo(struct isac_hw *isac, int count)
 {
 	u8 *ptr;
 
-	pr_debug("%s: %s  %d\n", isac->name, __func__, count);
+	pr_de("%s: %s  %d\n", isac->name, __func__, count);
 
 	if (!isac->dch.rx_skb) {
 		isac->dch.rx_skb = mI_alloc_skb(isac->dch.maxlen, GFP_ATOMIC);
@@ -129,7 +129,7 @@ isac_empty_fifo(struct isac_hw *isac, int count)
 		}
 	}
 	if ((isac->dch.rx_skb->len + count) >= isac->dch.maxlen) {
-		pr_debug("%s: %s overrun %d\n", isac->name, __func__,
+		pr_de("%s: %s overrun %d\n", isac->name, __func__,
 			 isac->dch.rx_skb->len + count);
 		WriteISAC(isac, ISAC_CMDR, 0x80);
 		return;
@@ -137,7 +137,7 @@ isac_empty_fifo(struct isac_hw *isac, int count)
 	ptr = skb_put(isac->dch.rx_skb, count);
 	isac->read_fifo(isac->dch.hw, isac->off, ptr, count);
 	WriteISAC(isac, ISAC_CMDR, 0x80);
-	if (isac->dch.debug & DEBUG_HW_DFIFO) {
+	if (isac->dch.de & DE_HW_DFIFO) {
 		char	pfx[MISDN_MAX_IDLEN + 16];
 
 		snprintf(pfx, MISDN_MAX_IDLEN + 15, "D-recv %s %d ",
@@ -163,18 +163,18 @@ isac_fill_fifo(struct isac_hw *isac)
 		more = !0;
 		count = 32;
 	}
-	pr_debug("%s: %s  %d\n", isac->name, __func__, count);
+	pr_de("%s: %s  %d\n", isac->name, __func__, count);
 	ptr = isac->dch.tx_skb->data + isac->dch.tx_idx;
 	isac->dch.tx_idx += count;
 	isac->write_fifo(isac->dch.hw, isac->off, ptr, count);
 	WriteISAC(isac, ISAC_CMDR, more ? 0x8 : 0xa);
 	if (test_and_set_bit(FLG_BUSY_TIMER, &isac->dch.Flags)) {
-		pr_debug("%s: %s dbusytimer running\n", isac->name, __func__);
+		pr_de("%s: %s dbusytimer running\n", isac->name, __func__);
 		del_timer(&isac->dch.timer);
 	}
 	isac->dch.timer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&isac->dch.timer);
-	if (isac->dch.debug & DEBUG_HW_DFIFO) {
+	if (isac->dch.de & DE_HW_DFIFO) {
 		char	pfx[MISDN_MAX_IDLEN + 16];
 
 		snprintf(pfx, MISDN_MAX_IDLEN + 15, "D-send %s %d ",
@@ -191,13 +191,13 @@ isac_rme_irq(struct isac_hw *isac)
 	val = ReadISAC(isac, ISAC_RSTA);
 	if ((val & 0x70) != 0x20) {
 		if (val & 0x40) {
-			pr_debug("%s: ISAC RDO\n", isac->name);
+			pr_de("%s: ISAC RDO\n", isac->name);
 #ifdef ERROR_STATISTIC
 			isac->dch.err_rx++;
 #endif
 		}
 		if (!(val & 0x20)) {
-			pr_debug("%s: ISAC CRC error\n", isac->name);
+			pr_de("%s: ISAC CRC error\n", isac->name);
 #ifdef ERROR_STATISTIC
 			isac->dch.err_crc++;
 #endif
@@ -258,7 +258,7 @@ isac_mos_irq(struct isac_hw *isac)
 	int ret;
 
 	val = ReadISAC(isac, ISAC_MOSR);
-	pr_debug("%s: ISAC MOSR %02x\n", isac->name, val);
+	pr_de("%s: ISAC MOSR %02x\n", isac->name, val);
 #if ARCOFI_USE
 	if (val & 0x08) {
 		if (!isac->mon_rx) {
@@ -278,11 +278,11 @@ isac_mos_irq(struct isac_hw *isac)
 			isac->mocr |= 0x0a;
 			WriteISAC(isac, ISAC_MOCR, isac->mocr);
 			isac->mon_rxp = 0;
-			pr_debug("%s: ISAC MON RX overflow!\n", isac->name);
+			pr_de("%s: ISAC MON RX overflow!\n", isac->name);
 			goto afterMONR0;
 		}
 		isac->mon_rx[isac->mon_rxp++] = ReadISAC(isac, ISAC_MOR0);
-		pr_debug("%s: ISAC MOR0 %02x\n", isac->name,
+		pr_de("%s: ISAC MOR0 %02x\n", isac->name,
 			 isac->mon_rx[isac->mon_rxp - 1]);
 		if (isac->mon_rxp == 1) {
 			isac->mocr |= 0x04;
@@ -308,11 +308,11 @@ afterMONR0:
 			isac->mocr |= 0xa0;
 			WriteISAC(isac, ISAC_MOCR, isac->mocr);
 			isac->mon_rxp = 0;
-			pr_debug("%s: ISAC MON RX overflow!\n", isac->name);
+			pr_de("%s: ISAC MON RX overflow!\n", isac->name);
 			goto afterMONR1;
 		}
 		isac->mon_rx[isac->mon_rxp++] = ReadISAC(isac, ISAC_MOR1);
-		pr_debug("%s: ISAC MOR1 %02x\n", isac->name,
+		pr_de("%s: ISAC MOR1 %02x\n", isac->name,
 			 isac->mon_rx[isac->mon_rxp - 1]);
 		isac->mocr |= 0x40;
 		WriteISAC(isac, ISAC_MOCR, isac->mocr);
@@ -383,7 +383,7 @@ afterMONR1:
 			goto AfterMOX0;
 		}
 		WriteISAC(isac, ISAC_MOX0, isac->mon_tx[isac->mon_txp++]);
-		pr_debug("%s: ISAC %02x -> MOX0\n", isac->name,
+		pr_de("%s: ISAC %02x -> MOX0\n", isac->name,
 			 isac->mon_tx[isac->mon_txp - 1]);
 	}
 AfterMOX0:
@@ -416,7 +416,7 @@ AfterMOX0:
 			goto AfterMOX1;
 		}
 		WriteISAC(isac, ISAC_MOX1, isac->mon_tx[isac->mon_txp++]);
-		pr_debug("%s: ISAC %02x -> MOX1\n", isac->name,
+		pr_de("%s: ISAC %02x -> MOX1\n", isac->name,
 			 isac->mon_tx[isac->mon_txp - 1]);
 	}
 AfterMOX1:
@@ -429,16 +429,16 @@ isac_cisq_irq(struct isac_hw *isac) {
 	u8 val;
 
 	val = ReadISAC(isac, ISAC_CIR0);
-	pr_debug("%s: ISAC CIR0 %02X\n", isac->name, val);
+	pr_de("%s: ISAC CIR0 %02X\n", isac->name, val);
 	if (val & 2) {
-		pr_debug("%s: ph_state change %x->%x\n", isac->name,
+		pr_de("%s: ph_state change %x->%x\n", isac->name,
 			 isac->state, (val >> 2) & 0xf);
 		isac->state = (val >> 2) & 0xf;
 		isac_ph_state_change(isac);
 	}
 	if (val & 1) {
 		val = ReadISAC(isac, ISAC_CIR1);
-		pr_debug("%s: ISAC CIR1 %02X\n", isac->name, val);
+		pr_de("%s: ISAC CIR1 %02X\n", isac->name, val);
 	}
 }
 
@@ -448,9 +448,9 @@ isacsx_cic_irq(struct isac_hw *isac)
 	u8 val;
 
 	val = ReadISAC(isac, ISACX_CIR0);
-	pr_debug("%s: ISACX CIR0 %02X\n", isac->name, val);
+	pr_de("%s: ISACX CIR0 %02X\n", isac->name, val);
 	if (val & ISACX_CIR0_CIC0) {
-		pr_debug("%s: ph_state change %x->%x\n", isac->name,
+		pr_de("%s: ph_state change %x->%x\n", isac->name,
 			 isac->state, val >> 4);
 		isac->state = val >> 4;
 		isac_ph_state_change(isac);
@@ -469,7 +469,7 @@ isacsx_rme_irq(struct isac_hw *isac)
 		    ISACX_RSTAD_CRC |
 		    ISACX_RSTAD_RAB))
 	    != (ISACX_RSTAD_VFR | ISACX_RSTAD_CRC)) {
-		pr_debug("%s: RSTAD %#x, dropped\n", isac->name, val);
+		pr_de("%s: RSTAD %#x, dropped\n", isac->name, val);
 #ifdef ERROR_STATISTIC
 		if (val & ISACX_RSTAD_CRC)
 			isac->dch.err_rx++;
@@ -487,7 +487,7 @@ isacsx_rme_irq(struct isac_hw *isac)
 		isac_empty_fifo(isac, count);
 		if (isac->dch.rx_skb) {
 			skb_trim(isac->dch.rx_skb, isac->dch.rx_skb->len - 1);
-			pr_debug("%s: dchannel received %d\n", isac->name,
+			pr_de("%s: dchannel received %d\n", isac->name,
 				 isac->dch.rx_skb->len);
 			recv_Dchannel(&isac->dch);
 		}
@@ -499,22 +499,22 @@ mISDNisac_irq(struct isac_hw *isac, u8 val)
 {
 	if (unlikely(!val))
 		return IRQ_NONE;
-	pr_debug("%s: ISAC interrupt %02x\n", isac->name, val);
+	pr_de("%s: ISAC interrupt %02x\n", isac->name, val);
 	if (isac->type & IPAC_TYPE_ISACX) {
 		if (val & ISACX__CIC)
 			isacsx_cic_irq(isac);
 		if (val & ISACX__ICD) {
 			val = ReadISAC(isac, ISACX_ISTAD);
-			pr_debug("%s: ISTAD %02x\n", isac->name, val);
+			pr_de("%s: ISTAD %02x\n", isac->name, val);
 			if (val & ISACX_D_XDU) {
-				pr_debug("%s: ISAC XDU\n", isac->name);
+				pr_de("%s: ISAC XDU\n", isac->name);
 #ifdef ERROR_STATISTIC
 				isac->dch.err_tx++;
 #endif
 				isac_retransmit(isac);
 			}
 			if (val & ISACX_D_XMR) {
-				pr_debug("%s: ISAC XMR\n", isac->name);
+				pr_de("%s: ISAC XMR\n", isac->name);
 #ifdef ERROR_STATISTIC
 				isac->dch.err_tx++;
 #endif
@@ -523,7 +523,7 @@ mISDNisac_irq(struct isac_hw *isac, u8 val)
 			if (val & ISACX_D_XPR)
 				isac_xpr_irq(isac);
 			if (val & ISACX_D_RFO) {
-				pr_debug("%s: ISAC RFO\n", isac->name);
+				pr_de("%s: ISAC RFO\n", isac->name);
 				WriteISAC(isac, ISACX_CMDRD, ISACX_CMDRD_RMC);
 			}
 			if (val & ISACX_D_RME)
@@ -541,16 +541,16 @@ mISDNisac_irq(struct isac_hw *isac, u8 val)
 		if (val & 0x04)	/* CISQ */
 			isac_cisq_irq(isac);
 		if (val & 0x20)	/* RSC - never */
-			pr_debug("%s: ISAC RSC interrupt\n", isac->name);
+			pr_de("%s: ISAC RSC interrupt\n", isac->name);
 		if (val & 0x02)	/* SIN - never */
-			pr_debug("%s: ISAC SIN interrupt\n", isac->name);
+			pr_de("%s: ISAC SIN interrupt\n", isac->name);
 		if (val & 0x01) {	/* EXI */
 			val = ReadISAC(isac, ISAC_EXIR);
-			pr_debug("%s: ISAC EXIR %02x\n", isac->name, val);
+			pr_de("%s: ISAC EXIR %02x\n", isac->name, val);
 			if (val & 0x80)	/* XMR */
-				pr_debug("%s: ISAC XMR\n", isac->name);
+				pr_de("%s: ISAC XMR\n", isac->name);
 			if (val & 0x40) { /* XDU */
-				pr_debug("%s: ISAC XDU\n", isac->name);
+				pr_de("%s: ISAC XDU\n", isac->name);
 #ifdef ERROR_STATISTIC
 				isac->dch.err_tx++;
 #endif
@@ -631,7 +631,7 @@ isac_ctrl(struct isac_hw *isac, u32 cmd, unsigned long para)
 		ret = l1_event(isac->dch.l1, HW_TIMER3_VALUE | (para & 0xff));
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x %lx\n", isac->name,
+		pr_de("%s: %s unknown command %x %lx\n", isac->name,
 			 __func__, cmd, para);
 		ret = -1;
 	}
@@ -644,7 +644,7 @@ isac_l1cmd(struct dchannel *dch, u32 cmd)
 	struct isac_hw *isac = container_of(dch, struct isac_hw, dch);
 	u_long flags;
 
-	pr_debug("%s: cmd(%x) state(%02x)\n", isac->name, cmd, isac->state);
+	pr_de("%s: cmd(%x) state(%02x)\n", isac->name, cmd, isac->state);
 	switch (cmd) {
 	case INFO3_P8:
 		spin_lock_irqsave(isac->hwlock, flags);
@@ -698,7 +698,7 @@ isac_l1cmd(struct dchannel *dch, u32 cmd)
 			    GFP_ATOMIC);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n", isac->name,
+		pr_de("%s: %s unknown command %x\n", isac->name,
 			 __func__, cmd);
 		return -1;
 	}
@@ -736,7 +736,7 @@ dbusy_timer_handler(struct timer_list *t)
 		spin_lock_irqsave(isac->hwlock, flags);
 		rbch = ReadISAC(isac, ISAC_RBCH);
 		star = ReadISAC(isac, ISAC_STAR);
-		pr_debug("%s: D-Channel Busy RBCH %02x STAR %02x\n",
+		pr_de("%s: D-Channel Busy RBCH %02x STAR %02x\n",
 			 isac->name, rbch, star);
 		if (rbch & ISAC_RBCH_XAC) /* D-Channel Busy */
 			test_and_set_bit(FLG_L1_BUSY, &isac->dch.Flags);
@@ -758,7 +758,7 @@ dbusy_timer_handler(struct timer_list *t)
 static int
 open_dchannel_caller(struct isac_hw *isac, struct channel_req *rq, void *caller)
 {
-	pr_debug("%s: %s dev(%d) open from %p\n", isac->name, __func__,
+	pr_de("%s: %s dev(%d) open from %p\n", isac->name, __func__,
 		 isac->dch.dev.id, caller);
 	if (rq->protocol != ISDN_P_TE_S0)
 		return -EINVAL;
@@ -802,11 +802,11 @@ isac_init(struct isac_hw *isac)
 		/* Disable all IRQ */
 		WriteISAC(isac, ISACX_MASK, 0xff);
 		val = ReadISAC(isac, ISACX_STARD);
-		pr_debug("%s: ISACX STARD %x\n", isac->name, val);
+		pr_de("%s: ISACX STARD %x\n", isac->name, val);
 		val = ReadISAC(isac, ISACX_ISTAD);
-		pr_debug("%s: ISACX ISTAD %x\n", isac->name, val);
+		pr_de("%s: ISACX ISTAD %x\n", isac->name, val);
 		val = ReadISAC(isac, ISACX_ISTA);
-		pr_debug("%s: ISACX ISTA %x\n", isac->name, val);
+		pr_de("%s: ISACX ISTA %x\n", isac->name, val);
 		/* clear LDD */
 		WriteISAC(isac, ISACX_TR_CONF0, 0x00);
 		/* enable transmitter */
@@ -815,11 +815,11 @@ isac_init(struct isac_hw *isac)
 		WriteISAC(isac, ISACX_MODED, 0xc9);
 		/* all HDLC IRQ unmasked */
 		val = ReadISAC(isac, ISACX_ID);
-		if (isac->dch.debug & DEBUG_HW)
+		if (isac->dch.de & DE_HW)
 			pr_notice("%s: ISACX Design ID %x\n",
 				  isac->name, val & 0x3f);
 		val = ReadISAC(isac, ISACX_CIR0);
-		pr_debug("%s: ISACX CIR0 %02X\n", isac->name, val);
+		pr_de("%s: ISACX CIR0 %02X\n", isac->name, val);
 		isac->state = val >> 4;
 		isac_ph_state_change(isac);
 		ph_command(isac, ISAC_CMD_RS);
@@ -828,19 +828,19 @@ isac_init(struct isac_hw *isac)
 	} else { /* old isac */
 		WriteISAC(isac, ISAC_MASK, 0xff);
 		val = ReadISAC(isac, ISAC_STAR);
-		pr_debug("%s: ISAC STAR %x\n", isac->name, val);
+		pr_de("%s: ISAC STAR %x\n", isac->name, val);
 		val = ReadISAC(isac, ISAC_MODE);
-		pr_debug("%s: ISAC MODE %x\n", isac->name, val);
+		pr_de("%s: ISAC MODE %x\n", isac->name, val);
 		val = ReadISAC(isac, ISAC_ADF2);
-		pr_debug("%s: ISAC ADF2 %x\n", isac->name, val);
+		pr_de("%s: ISAC ADF2 %x\n", isac->name, val);
 		val = ReadISAC(isac, ISAC_ISTA);
-		pr_debug("%s: ISAC ISTA %x\n", isac->name, val);
+		pr_de("%s: ISAC ISTA %x\n", isac->name, val);
 		if (val & 0x01) {
 			val = ReadISAC(isac, ISAC_EXIR);
-			pr_debug("%s: ISAC EXIR %x\n", isac->name, val);
+			pr_de("%s: ISAC EXIR %x\n", isac->name, val);
 		}
 		val = ReadISAC(isac, ISAC_RBCH);
-		if (isac->dch.debug & DEBUG_HW)
+		if (isac->dch.de & DE_HW)
 			pr_notice("%s: ISAC version (%x): %s\n", isac->name,
 				  val, ISACVer[(val >> 5) & 3]);
 		isac->type |= ((val >> 5) & 3);
@@ -860,7 +860,7 @@ isac_init(struct isac_hw *isac)
 		WriteISAC(isac, ISAC_TIMR, 0x00);
 		WriteISAC(isac, ISAC_ADF1, 0x00);
 		val = ReadISAC(isac, ISAC_CIR0);
-		pr_debug("%s: ISAC CIR0 %x\n", isac->name, val);
+		pr_de("%s: ISAC CIR0 %x\n", isac->name, val);
 		isac->state = (val >> 2) & 0xf;
 		isac_ph_state_change(isac);
 		ph_command(isac, ISAC_CMD_RS);
@@ -898,7 +898,7 @@ waitforCEC(struct hscx_hw *hx)
 		to--;
 	}
 	if (to < 50)
-		pr_debug("%s: B%1d CEC %d us\n", hx->ip->name, hx->bch.nr,
+		pr_de("%s: B%1d CEC %d us\n", hx->ip->name, hx->bch.nr,
 			 50 - to);
 	if (!to)
 		pr_info("%s: B%1d CEC timeout\n", hx->ip->name, hx->bch.nr);
@@ -918,7 +918,7 @@ waitforXFW(struct hscx_hw *hx)
 		to--;
 	}
 	if (to < 50)
-		pr_debug("%s: B%1d XFW %d us\n", hx->ip->name, hx->bch.nr,
+		pr_de("%s: B%1d XFW %d us\n", hx->ip->name, hx->bch.nr,
 			 50 - to);
 	if (!to)
 		pr_info("%s: B%1d XFW timeout\n", hx->ip->name, hx->bch.nr);
@@ -941,7 +941,7 @@ hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 	u8 *p;
 	int maxlen;
 
-	pr_debug("%s: B%1d %d\n", hscx->ip->name, hscx->bch.nr, count);
+	pr_de("%s: B%1d %d\n", hscx->ip->name, hscx->bch.nr, count);
 	if (test_bit(FLG_RX_OFF, &hscx->bch.Flags)) {
 		hscx->bch.dropcnt += count;
 		hscx_cmdr(hscx, 0x80); /* RMC */
@@ -967,7 +967,7 @@ hscx_empty_fifo(struct hscx_hw *hscx, u8 count)
 
 	hscx_cmdr(hscx, 0x80); /* RMC */
 
-	if (hscx->bch.debug & DEBUG_HW_BFIFO) {
+	if (hscx->bch.de & DE_HW_BFIFO) {
 		snprintf(hscx->log, 64, "B%1d-recv %s %d ",
 			 hscx->bch.nr, hscx->ip->name, count);
 		print_hex_dump_bytes(hscx->log, DUMP_PREFIX_OFFSET, p, count);
@@ -998,7 +998,7 @@ hscx_fill_fifo(struct hscx_hw *hscx)
 			count = hscx->fifo_size;
 			more = 1;
 		}
-		pr_debug("%s: B%1d %d/%d/%d\n", hscx->ip->name, hscx->bch.nr,
+		pr_de("%s: B%1d %d/%d/%d\n", hscx->ip->name, hscx->bch.nr,
 			 count, hscx->bch.tx_idx, hscx->bch.tx_skb->len);
 		hscx->bch.tx_idx += count;
 	}
@@ -1012,7 +1012,7 @@ hscx_fill_fifo(struct hscx_hw *hscx)
 	}
 	hscx_cmdr(hscx, more ? 0x08 : 0x0a);
 
-	if (hscx->bch.tx_skb && (hscx->bch.debug & DEBUG_HW_BFIFO)) {
+	if (hscx->bch.tx_skb && (hscx->bch.de & DE_HW_BFIFO)) {
 		snprintf(hscx->log, 64, "B%1d-send %s %d ",
 			 hscx->bch.nr, hscx->ip->name, count);
 		print_hex_dump_bytes(hscx->log, DUMP_PREFIX_OFFSET, p, count);
@@ -1046,22 +1046,22 @@ ipac_rme(struct hscx_hw *hx)
 		rstab = ReadHSCX(hx, IPACX_RSTAB);
 	else
 		rstab = ReadHSCX(hx, IPAC_RSTAB);
-	pr_debug("%s: B%1d RSTAB %02x\n", hx->ip->name, hx->bch.nr, rstab);
+	pr_de("%s: B%1d RSTAB %02x\n", hx->ip->name, hx->bch.nr, rstab);
 	if ((rstab & 0xf0) != 0xa0) {
 		/* !(VFR && !RDO && CRC && !RAB) */
 		if (!(rstab & 0x80)) {
-			if (hx->bch.debug & DEBUG_HW_BCHANNEL)
+			if (hx->bch.de & DE_HW_BCHANNEL)
 				pr_notice("%s: B%1d invalid frame\n",
 					  hx->ip->name, hx->bch.nr);
 		}
 		if (rstab & 0x40) {
-			if (hx->bch.debug & DEBUG_HW_BCHANNEL)
+			if (hx->bch.de & DE_HW_BCHANNEL)
 				pr_notice("%s: B%1d RDO proto=%x\n",
 					  hx->ip->name, hx->bch.nr,
 					  hx->bch.state);
 		}
 		if (!(rstab & 0x20)) {
-			if (hx->bch.debug & DEBUG_HW_BCHANNEL)
+			if (hx->bch.de & DE_HW_BCHANNEL)
 				pr_notice("%s: B%1d CRC error\n",
 					  hx->ip->name, hx->bch.nr);
 		}
@@ -1079,7 +1079,7 @@ ipac_rme(struct hscx_hw *hx)
 	if (!hx->bch.rx_skb)
 		return;
 	if (hx->bch.rx_skb->len < 2) {
-		pr_debug("%s: B%1d frame to short %d\n",
+		pr_de("%s: B%1d frame to short %d\n",
 			 hx->ip->name, hx->bch.nr, hx->bch.rx_skb->len);
 		skb_trim(hx->bch.rx_skb, 0);
 	} else {
@@ -1100,7 +1100,7 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 		m = (hx->bch.nr & 1) ? IPAC__EXA : IPAC__EXB;
 		if (m & ista) {
 			exirb = ReadHSCX(hx, IPAC_EXIRB);
-			pr_debug("%s: B%1d EXIRB %02x\n", hx->ip->name,
+			pr_de("%s: B%1d EXIRB %02x\n", hx->ip->name,
 				 hx->bch.nr, exirb);
 		}
 	} else if (hx->bch.nr & 2) { /* HSCX B */
@@ -1108,7 +1108,7 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 			ipac_irq(&hx->ip->hscx[0], ista);
 		if (ista & HSCX__EXB) {
 			exirb = ReadHSCX(hx, IPAC_EXIRB);
-			pr_debug("%s: B%1d EXIRB %02x\n", hx->ip->name,
+			pr_de("%s: B%1d EXIRB %02x\n", hx->ip->name,
 				 hx->bch.nr, exirb);
 		}
 		istab = ista & 0xF8;
@@ -1116,7 +1116,7 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 		istab = ReadHSCX(hx, IPAC_ISTAB);
 		if (ista & HSCX__EXA) {
 			exirb = ReadHSCX(hx, IPAC_EXIRB);
-			pr_debug("%s: B%1d EXIRB %02x\n", hx->ip->name,
+			pr_de("%s: B%1d EXIRB %02x\n", hx->ip->name,
 				 hx->bch.nr, exirb);
 		}
 		istab = istab & 0xF8;
@@ -1125,7 +1125,7 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 		istab |= IPACX_B_XDU;
 	if (exirb & IPAC_B_RFO)
 		istab |= IPACX_B_RFO;
-	pr_debug("%s: B%1d ISTAB %02x\n", hx->ip->name, hx->bch.nr, istab);
+	pr_de("%s: B%1d ISTAB %02x\n", hx->ip->name, hx->bch.nr, istab);
 
 	if (!test_bit(FLG_ACTIVE, &hx->bch.Flags))
 		return;
@@ -1140,7 +1140,7 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 	}
 
 	if (istab & IPACX_B_RFO) {
-		pr_debug("%s: B%1d RFO error\n", hx->ip->name, hx->bch.nr);
+		pr_de("%s: B%1d RFO error\n", hx->ip->name, hx->bch.nr);
 		hscx_cmdr(hx, 0x40);	/* RRES */
 	}
 
@@ -1154,7 +1154,7 @@ ipac_irq(struct hscx_hw *hx, u8 ista)
 			hscx_xpr(hx);
 			return;
 		}
-		pr_debug("%s: B%1d XDU error at len %d\n", hx->ip->name,
+		pr_de("%s: B%1d XDU error at len %d\n", hx->ip->name,
 			 hx->bch.nr, hx->bch.tx_idx);
 		hx->bch.tx_idx = 0;
 		hscx_cmdr(hx, 0x01);	/* XRES */
@@ -1171,7 +1171,7 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 	if (ipac->type & IPAC_TYPE_IPACX) {
 		ista = ReadIPAC(ipac, ISACX_ISTA);
 		while (ista && --cnt) {
-			pr_debug("%s: ISTA %02x\n", ipac->name, ista);
+			pr_de("%s: ISTA %02x\n", ipac->name, ista);
 			if (ista & IPACX__ICA)
 				ipac_irq(&ipac->hscx[0], ista);
 			if (ista & IPACX__ICB)
@@ -1183,12 +1183,12 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 	} else if (ipac->type & IPAC_TYPE_IPAC) {
 		ista = ReadIPAC(ipac, IPAC_ISTA);
 		while (ista && --cnt) {
-			pr_debug("%s: ISTA %02x\n", ipac->name, ista);
+			pr_de("%s: ISTA %02x\n", ipac->name, ista);
 			if (ista & (IPAC__ICD | IPAC__EXD)) {
 				istad = ReadISAC(isac, ISAC_ISTA);
-				pr_debug("%s: ISTAD %02x\n", ipac->name, istad);
+				pr_de("%s: ISTAD %02x\n", ipac->name, istad);
 				if (istad & IPAC_D_TIN2)
-					pr_debug("%s TIN2 irq\n", ipac->name);
+					pr_de("%s TIN2 irq\n", ipac->name);
 				if (ista & IPAC__EXD)
 					istad |= 1; /* ISAC EXI */
 				mISDNisac_irq(isac, istad);
@@ -1202,11 +1202,11 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 	} else if (ipac->type & IPAC_TYPE_HSCX) {
 		while (--cnt) {
 			ista = ReadIPAC(ipac, IPAC_ISTAB + ipac->hscx[1].off);
-			pr_debug("%s: B2 ISTA %02x\n", ipac->name, ista);
+			pr_de("%s: B2 ISTA %02x\n", ipac->name, ista);
 			if (ista)
 				ipac_irq(&ipac->hscx[1], ista);
 			istad = ReadISAC(isac, ISAC_ISTA);
-			pr_debug("%s: ISTAD %02x\n", ipac->name, istad);
+			pr_de("%s: ISTAD %02x\n", ipac->name, istad);
 			if (istad)
 				mISDNisac_irq(isac, istad);
 			if (0 == (ista | istad))
@@ -1216,7 +1216,7 @@ mISDNipac_irq(struct ipac_hw *ipac, int maxloop)
 	if (cnt > maxloop) /* only for ISAC/HSCX without PCI IRQ test */
 		return IRQ_NONE;
 	if (cnt < maxloop)
-		pr_debug("%s: %d irqloops cpu%d\n", ipac->name,
+		pr_de("%s: %d irqloops cpu%d\n", ipac->name,
 			 maxloop - cnt, smp_processor_id());
 	if (maxloop && !cnt)
 		pr_notice("%s: %d IRQ LOOP cpu%d\n", ipac->name,
@@ -1228,7 +1228,7 @@ EXPORT_SYMBOL(mISDNipac_irq);
 static int
 hscx_mode(struct hscx_hw *hscx, u32 bprotocol)
 {
-	pr_debug("%s: HSCX %c protocol %x-->%x ch %d\n", hscx->ip->name,
+	pr_de("%s: HSCX %c protocol %x-->%x ch %d\n", hscx->ip->name,
 		 '@' + hscx->bch.nr, hscx->bch.state, bprotocol, hscx->bch.nr);
 	if (hscx->ip->type & IPAC_TYPE_IPACX) {
 		if (hscx->bch.nr & 1) { /* B1 and ICA */
@@ -1407,7 +1407,7 @@ hscx_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	int ret = -EINVAL;
 	u_long flags;
 
-	pr_debug("%s: %s cmd:%x %p\n", hx->ip->name, __func__, cmd, arg);
+	pr_de("%s: %s cmd:%x %p\n", hx->ip->name, __func__, cmd, arg);
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
@@ -1455,8 +1455,8 @@ hscx_init(struct hscx_hw *hx)
 	if (hx->ip->type & IPAC_TYPE_HSCX) {
 		WriteHSCX(hx, IPAC_CCR1, 0x85);
 		val = ReadHSCX(hx, HSCX_VSTR);
-		pr_debug("%s: HSCX VSTR %02x\n", hx->ip->name, val);
-		if (hx->bch.debug & DEBUG_HW)
+		pr_de("%s: HSCX VSTR %02x\n", hx->ip->name, val);
+		if (hx->bch.de & DE_HW)
 			pr_notice("%s: HSCX version %s\n", hx->ip->name,
 				  HSCXVer[val & 0x0f]);
 	} else
@@ -1481,11 +1481,11 @@ ipac_init(struct ipac_hw *ipac)
 		WriteIPAC(ipac, IPAC_MASK, IPAC__ON);
 		val = ReadIPAC(ipac, IPAC_CONF);
 		/* conf is default 0, but can be overwritten by card setup */
-		pr_debug("%s: IPAC CONF %02x/%02x\n", ipac->name,
+		pr_de("%s: IPAC CONF %02x/%02x\n", ipac->name,
 			 val, ipac->conf);
 		WriteIPAC(ipac, IPAC_CONF, ipac->conf);
 		val = ReadIPAC(ipac, IPAC_ID);
-		if (ipac->hscx[0].bch.debug & DEBUG_HW)
+		if (ipac->hscx[0].bch.de & DE_HW)
 			pr_notice("%s: IPAC Design ID %02x\n", ipac->name, val);
 	}
 	/* nothing special for IPACX to do here */
@@ -1548,7 +1548,7 @@ ipac_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	struct channel_req *rq;
 	int err = 0;
 
-	pr_debug("%s: DCTRL: %x %p\n", ipac->name, cmd, arg);
+	pr_de("%s: DCTRL: %x %p\n", ipac->name, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		rq = arg;
@@ -1562,7 +1562,7 @@ ipac_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 			pr_info("%s: cannot get module\n", ipac->name);
 		break;
 	case CLOSE_CHANNEL:
-		pr_debug("%s: dev(%d) close from %p\n", ipac->name,
+		pr_de("%s: dev(%d) close from %p\n", ipac->name,
 			 dch->dev.id, __builtin_return_address(0));
 		module_put(ipac->owner);
 		break;
@@ -1570,7 +1570,7 @@ ipac_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(ipac, arg);
 		break;
 	default:
-		pr_debug("%s: unknown DCTRL command %x\n", ipac->name, cmd);
+		pr_de("%s: unknown DCTRL command %x\n", ipac->name, cmd);
 		return -EINVAL;
 	}
 	return err;
@@ -1583,7 +1583,7 @@ mISDNipac_init(struct ipac_hw *ipac, void *hw)
 	u8 i;
 
 	ipac->hw = hw;
-	if (ipac->isac.dch.debug & DEBUG_HW)
+	if (ipac->isac.dch.de & DE_HW)
 		pr_notice("%s: ipac type %x\n", ipac->name, ipac->type);
 	if (ipac->type & IPAC_TYPE_HSCX) {
 		ipac->isac.type = IPAC_TYPE_ISAC;

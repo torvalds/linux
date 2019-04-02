@@ -89,8 +89,8 @@ mode_tiger(struct BCState *bcs, int mode, int bc)
 	struct IsdnCardState *cs = bcs->cs;
 	u_char led;
 
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "Tiger mode %d bchan %d/%d",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "Tiger mode %d bchan %d/%d",
 			mode, bc, bcs->channel);
 	bcs->mode = mode;
 	bcs->channel = bc;
@@ -98,8 +98,8 @@ mode_tiger(struct BCState *bcs, int mode, int bc)
 	case (L1_MODE_NULL):
 		fill_mem(bcs, bcs->hw.tiger.send,
 			 NETJET_DMA_TXSIZE, bc, 0xff);
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "Tiger stat rec %d/%d send %d",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "Tiger stat rec %d/%d send %d",
 				bcs->hw.tiger.r_tot, bcs->hw.tiger.r_err,
 				bcs->hw.tiger.s_tot);
 		if ((cs->bcs[0].mode == L1_MODE_NULL) &&
@@ -153,8 +153,8 @@ mode_tiger(struct BCState *bcs, int mode, int bc)
 		}
 		break;
 	}
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "tiger: set %x %x %x  %x/%x  pulse=%d",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "tiger: set %x %x %x  %x/%x  pulse=%d",
 			bytein(cs->hw.njet.base + NETJET_DMACTRL),
 			bytein(cs->hw.njet.base + NETJET_IRQMASK0),
 			bytein(cs->hw.njet.base + NETJET_IRQSTAT0),
@@ -176,7 +176,7 @@ static void printframe(struct IsdnCardState *cs, u_char *buf, int count, char *s
 		else
 			j = i;
 		QuickHex(t, p, j);
-		debugl1(cs, "%s", tmp);
+		del1(cs, "%s", tmp);
 		p += j;
 		i -= j;
 		t = tmp;
@@ -224,7 +224,7 @@ static int make_raw_data(struct BCState *bcs) {
 	u_int fcs;
 
 	if (!bcs->tx_skb) {
-		debugl1(bcs->cs, "tiger make_raw: NULL skb");
+		del1(bcs->cs, "tiger make_raw: NULL skb");
 		return (1);
 	}
 	bcs->hw.tiger.sendbuf[s_cnt++] = HDLC_FLAG_VALUE;
@@ -253,8 +253,8 @@ static int make_raw_data(struct BCState *bcs) {
 		}
 		val >>= 1;
 	}
-	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs, "tiger make_raw: in %u out %d.%d",
+	if (bcs->cs->de & L1_DEB_HSCX)
+		del1(bcs->cs, "tiger make_raw: in %u out %d.%d",
 			bcs->tx_skb->len, s_cnt, bitcnt);
 	if (bitcnt) {
 		while (8 > bitcnt++) {
@@ -262,7 +262,7 @@ static int make_raw_data(struct BCState *bcs) {
 			s_val |= 0x80;
 		}
 		bcs->hw.tiger.sendbuf[s_cnt++] = s_val;
-		bcs->hw.tiger.sendbuf[s_cnt++] = 0xff;	// NJ<->NJ thoughput bug fix
+		bcs->hw.tiger.sendbuf[s_cnt++] = 0xff;	// NJ<->NJ thoughput  fix
 	}
 	bcs->hw.tiger.sendcnt = s_cnt;
 	bcs->tx_cnt -= bcs->tx_skb->len;
@@ -314,7 +314,7 @@ static int make_raw_data_56k(struct BCState *bcs) {
 	u_int fcs;
 
 	if (!bcs->tx_skb) {
-		debugl1(bcs->cs, "tiger make_raw_56k: NULL skb");
+		del1(bcs->cs, "tiger make_raw_56k: NULL skb");
 		return (1);
 	}
 	val = HDLC_FLAG_VALUE;
@@ -360,8 +360,8 @@ static int make_raw_data_56k(struct BCState *bcs) {
 		}
 		val >>= 1;
 	}
-	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs, "tiger make_raw_56k: in %u out %d.%d",
+	if (bcs->cs->de & L1_DEB_HSCX)
+		del1(bcs->cs, "tiger make_raw_56k: in %u out %d.%d",
 			bcs->tx_skb->len, s_cnt, bitcnt);
 	if (bitcnt) {
 		while (8 > bitcnt++) {
@@ -369,7 +369,7 @@ static int make_raw_data_56k(struct BCState *bcs) {
 			s_val |= 0x80;
 		}
 		bcs->hw.tiger.sendbuf[s_cnt++] = s_val;
-		bcs->hw.tiger.sendbuf[s_cnt++] = 0xff;	// NJ<->NJ thoughput bug fix
+		bcs->hw.tiger.sendbuf[s_cnt++] = 0xff;	// NJ<->NJ thoughput  fix
 	}
 	bcs->hw.tiger.sendcnt = s_cnt;
 	bcs->tx_cnt -= bcs->tx_skb->len;
@@ -389,7 +389,7 @@ static void got_frame(struct BCState *bcs, int count) {
 	test_and_set_bit(B_RCVBUFREADY, &bcs->event);
 	schedule_work(&bcs->tqueue);
 
-	if (bcs->cs->debug & L1_DEB_RECEIVE_FRAME)
+	if (bcs->cs->de & L1_DEB_RECEIVE_FRAME)
 		printframe(bcs->cs, bcs->hw.tiger.rcvbuf, count, "rec");
 }
 
@@ -435,8 +435,8 @@ static void read_raw(struct BCState *bcs, u_int *buf, int cnt) {
 				} else {
 					r_one = 0;
 					state = HDLC_FLAG_SEARCH;
-					if (bcs->cs->debug & L1_DEB_HSCX)
-						debugl1(bcs->cs, "tiger read_raw: zBit(%d,%d,%d) %x",
+					if (bcs->cs->de & L1_DEB_HSCX)
+						del1(bcs->cs, "tiger read_raw: zBit(%d,%d,%d) %x",
 							bcs->hw.tiger.r_tot, i, j, val);
 				}
 			} else if (state == HDLC_FLAG_SEARCH) {
@@ -450,8 +450,8 @@ static void read_raw(struct BCState *bcs, u_int *buf, int cnt) {
 						bitcnt = 0;
 						r_val = 0;
 						state = HDLC_FLAG_FOUND;
-						if (bcs->cs->debug & L1_DEB_HSCX)
-							debugl1(bcs->cs, "tiger read_raw: flag(%d,%d,%d) %x",
+						if (bcs->cs->de & L1_DEB_HSCX)
+							del1(bcs->cs, "tiger read_raw: flag(%d,%d,%d) %x",
 								bcs->hw.tiger.r_tot, i, j, val);
 					}
 					r_one = 0;
@@ -486,8 +486,8 @@ static void read_raw(struct BCState *bcs, u_int *buf, int cnt) {
 					bcs->hw.tiger.r_fcs = PPP_INITFCS;
 					bcs->hw.tiger.rcvbuf[0] = r_val;
 					bcs->hw.tiger.r_fcs = PPP_FCS(bcs->hw.tiger.r_fcs, r_val);
-					if (bcs->cs->debug & L1_DEB_HSCX)
-						debugl1(bcs->cs, "tiger read_raw: byte1(%d,%d,%d) rval %x val %x i %x",
+					if (bcs->cs->de & L1_DEB_HSCX)
+						del1(bcs->cs, "tiger read_raw: byte1(%d,%d,%d) rval %x val %x i %x",
 							bcs->hw.tiger.r_tot, i, j, r_val, val,
 							bcs->cs->hw.njet.irqstat0);
 				}
@@ -508,21 +508,21 @@ static void read_raw(struct BCState *bcs, u_int *buf, int cnt) {
 						r_one = 0;
 						bitcnt++;
 						if (bitcnt & 7) {
-							debugl1(bcs->cs, "tiger: frame not byte aligned");
+							del1(bcs->cs, "tiger: frame not byte aligned");
 							state = HDLC_FLAG_SEARCH;
 							bcs->hw.tiger.r_err++;
 #ifdef ERROR_STATISTIC
 							bcs->err_inv++;
 #endif
 						} else {
-							if (bcs->cs->debug & L1_DEB_HSCX)
-								debugl1(bcs->cs, "tiger frame end(%d,%d): fcs(%x) i %x",
+							if (bcs->cs->de & L1_DEB_HSCX)
+								del1(bcs->cs, "tiger frame end(%d,%d): fcs(%x) i %x",
 									i, j, bcs->hw.tiger.r_fcs, bcs->cs->hw.njet.irqstat0);
 							if (bcs->hw.tiger.r_fcs == PPP_GOODFCS) {
 								got_frame(bcs, (bitcnt >> 3) - 3);
 							} else {
-								if (bcs->cs->debug) {
-									debugl1(bcs->cs, "tiger FCS error");
+								if (bcs->cs->de) {
+									del1(bcs->cs, "tiger FCS error");
 									printframe(bcs->cs, bcs->hw.tiger.rcvbuf,
 										   (bitcnt >> 3) - 1, "rec");
 									bcs->hw.tiger.r_err++;
@@ -548,7 +548,7 @@ static void read_raw(struct BCState *bcs, u_int *buf, int cnt) {
 				if ((state == HDLC_FRAME_FOUND) &&
 				    !(bitcnt & 7)) {
 					if ((bitcnt >> 3) >= HSCX_BUFMAX) {
-						debugl1(bcs->cs, "tiger: frame too big");
+						del1(bcs->cs, "tiger: frame too big");
 						r_val = 0;
 						state = HDLC_FLAG_SEARCH;
 						bcs->hw.tiger.r_err++;
@@ -577,7 +577,7 @@ void read_tiger(struct IsdnCardState *cs) {
 	int cnt = NETJET_DMA_RXSIZE / 2;
 
 	if ((cs->hw.njet.irqstat0 & cs->hw.njet.last_is0) & NETJET_IRQM0_READ) {
-		debugl1(cs, "tiger warn read double dma %x/%x",
+		del1(cs, "tiger warn read double dma %x/%x",
 			cs->hw.njet.irqstat0, cs->hw.njet.last_is0);
 #ifdef ERROR_STATISTIC
 		if (cs->bcs[0].mode)
@@ -611,8 +611,8 @@ void netjet_fill_dma(struct BCState *bcs)
 
 	if (!bcs->tx_skb)
 		return;
-	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs, "tiger fill_dma1: c%d %4lx", bcs->channel,
+	if (bcs->cs->de & L1_DEB_HSCX)
+		del1(bcs->cs, "tiger fill_dma1: c%d %4lx", bcs->channel,
 			bcs->Flag);
 	if (test_and_set_bit(BC_FLG_BUSY, &bcs->Flag))
 		return;
@@ -624,8 +624,8 @@ void netjet_fill_dma(struct BCState *bcs)
 		if (make_raw_data_56k(bcs))
 			return;
 	}
-	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs, "tiger fill_dma2: c%d %4lx", bcs->channel,
+	if (bcs->cs->de & L1_DEB_HSCX)
+		del1(bcs->cs, "tiger fill_dma2: c%d %4lx", bcs->channel,
 			bcs->Flag);
 	if (test_and_clear_bit(BC_FLG_NOFRAME, &bcs->Flag)) {
 		write_raw(bcs, bcs->hw.tiger.sendp, bcs->hw.tiger.free);
@@ -666,8 +666,8 @@ void netjet_fill_dma(struct BCState *bcs)
 		}
 		write_raw(bcs, p, cnt);
 	}
-	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs, "tiger fill_dma3: c%d %4lx", bcs->channel,
+	if (bcs->cs->de & L1_DEB_HSCX)
+		del1(bcs->cs, "tiger fill_dma3: c%d %4lx", bcs->channel,
 			bcs->Flag);
 }
 
@@ -698,17 +698,17 @@ static void write_raw(struct BCState *bcs, u_int *buf, int cnt) {
 				p = bcs->hw.tiger.send;
 		}
 		bcs->hw.tiger.s_tot += s_cnt;
-		if (bcs->cs->debug & L1_DEB_HSCX)
-			debugl1(bcs->cs, "tiger write_raw: c%d %p-%p %d/%d %d %x", bcs->channel,
+		if (bcs->cs->de & L1_DEB_HSCX)
+			del1(bcs->cs, "tiger write_raw: c%d %p-%p %d/%d %d %x", bcs->channel,
 				buf, p, s_cnt, cnt,
 				bcs->hw.tiger.sendcnt, bcs->cs->hw.njet.irqstat0);
-		if (bcs->cs->debug & L1_DEB_HSCX_FIFO)
+		if (bcs->cs->de & L1_DEB_HSCX_FIFO)
 			printframe(bcs->cs, bcs->hw.tiger.sp, s_cnt, "snd");
 		bcs->hw.tiger.sp += s_cnt;
 		bcs->hw.tiger.sendp = p;
 		if (!bcs->hw.tiger.sendcnt) {
 			if (!bcs->tx_skb) {
-				debugl1(bcs->cs, "tiger write_raw: NULL skb s_cnt %d", s_cnt);
+				del1(bcs->cs, "tiger write_raw: NULL skb s_cnt %d", s_cnt);
 			} else {
 				if (test_bit(FLG_LLI_L1WAKEUP, &bcs->st->lli.flag) &&
 				    (PACKET_NOACK != bcs->tx_skb->pkt_type)) {
@@ -739,8 +739,8 @@ static void write_raw(struct BCState *bcs, u_int *buf, int cnt) {
 						if (p > bcs->hw.tiger.s_end)
 							p = bcs->hw.tiger.send;
 					}
-					if (bcs->cs->debug & L1_DEB_HSCX)
-						debugl1(bcs->cs, "tiger write_raw: fill rest %d",
+					if (bcs->cs->de & L1_DEB_HSCX)
+						del1(bcs->cs, "tiger write_raw: fill rest %d",
 							cnt - s_cnt);
 				}
 				test_and_set_bit(B_XMTBUFREADY, &bcs->event);
@@ -751,13 +751,13 @@ static void write_raw(struct BCState *bcs, u_int *buf, int cnt) {
 		test_and_set_bit(BC_FLG_HALF, &bcs->Flag);
 		fill_mem(bcs, buf, cnt, bcs->channel, 0xff);
 		bcs->hw.tiger.free += cnt;
-		if (bcs->cs->debug & L1_DEB_HSCX)
-			debugl1(bcs->cs, "tiger write_raw: fill half");
+		if (bcs->cs->de & L1_DEB_HSCX)
+			del1(bcs->cs, "tiger write_raw: fill half");
 	} else if (test_and_clear_bit(BC_FLG_HALF, &bcs->Flag)) {
 		test_and_set_bit(BC_FLG_EMPTY, &bcs->Flag);
 		fill_mem(bcs, buf, cnt, bcs->channel, 0xff);
-		if (bcs->cs->debug & L1_DEB_HSCX)
-			debugl1(bcs->cs, "tiger write_raw: fill full");
+		if (bcs->cs->de & L1_DEB_HSCX)
+			del1(bcs->cs, "tiger write_raw: fill full");
 	}
 }
 
@@ -765,7 +765,7 @@ void write_tiger(struct IsdnCardState *cs) {
 	u_int *p, cnt = NETJET_DMA_TXSIZE / 2;
 
 	if ((cs->hw.njet.irqstat0 & cs->hw.njet.last_is0) & NETJET_IRQM0_WRITE) {
-		debugl1(cs, "tiger warn write double dma %x/%x",
+		del1(cs, "tiger warn write double dma %x/%x",
 			cs->hw.njet.irqstat0, cs->hw.njet.last_is0);
 #ifdef ERROR_STATISTIC
 		if (cs->bcs[0].mode)
@@ -927,7 +927,7 @@ inittiger(struct IsdnCardState *cs)
 	cs->bcs[1].hw.tiger.s_end = cs->bcs[0].hw.tiger.s_end;
 
 	memset(cs->bcs[0].hw.tiger.send, 0xff, NETJET_DMA_TXSIZE * sizeof(unsigned int));
-	debugl1(cs, "tiger: send buf %p - %p", cs->bcs[0].hw.tiger.send,
+	del1(cs, "tiger: send buf %p - %p", cs->bcs[0].hw.tiger.send,
 		cs->bcs[0].hw.tiger.send + NETJET_DMA_TXSIZE - 1);
 	outl(virt_to_bus(cs->bcs[0].hw.tiger.send),
 	     cs->hw.njet.base + NETJET_DMA_READ_START);
@@ -943,7 +943,7 @@ inittiger(struct IsdnCardState *cs)
 		       "HiSax: No memory for tiger.rec\n");
 		return;
 	}
-	debugl1(cs, "tiger: rec buf %p - %p", cs->bcs[0].hw.tiger.rec,
+	del1(cs, "tiger: rec buf %p - %p", cs->bcs[0].hw.tiger.rec,
 		cs->bcs[0].hw.tiger.rec + NETJET_DMA_RXSIZE - 1);
 	cs->bcs[1].hw.tiger.rec = cs->bcs[0].hw.tiger.rec;
 	memset(cs->bcs[0].hw.tiger.rec, 0xff, NETJET_DMA_RXSIZE * sizeof(unsigned int));
@@ -953,7 +953,7 @@ inittiger(struct IsdnCardState *cs)
 	     cs->hw.njet.base + NETJET_DMA_WRITE_IRQ);
 	outl(virt_to_bus(cs->bcs[0].hw.tiger.rec + NETJET_DMA_RXSIZE - 1),
 	     cs->hw.njet.base + NETJET_DMA_WRITE_END);
-	debugl1(cs, "tiger: dmacfg  %x/%x  pulse=%d",
+	del1(cs, "tiger: dmacfg  %x/%x  pulse=%d",
 		inl(cs->hw.njet.base + NETJET_DMA_WRITE_ADR),
 		inl(cs->hw.njet.base + NETJET_DMA_READ_ADR),
 		bytein(cs->hw.njet.base + NETJET_PULSE_CNT));

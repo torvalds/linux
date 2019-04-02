@@ -8,7 +8,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: cs\n"
-"Report-Msgid-Bugs-To: \n"
+"Report-Msgid-s-To: \n"
 "POT-Creation-Date: 2011-03-08 17:03+0100\n"
 "PO-Revision-Date: 2008-06-11 16:26+0200\n"
 "Last-Translator: Karel Volný <kavol@seznam.cz>\n"
@@ -214,7 +214,7 @@ msgstr ""
 
 #: utils/cpupower.c:91
 #, c-format
-msgid "Report errors and bugs to %s, please.\n"
+msgid "Report errors and s to %s, please.\n"
 msgstr ""
 "Chyby v programu prosím hlaste na %s (anglicky).\n"
 "Chyby v překladu prosím hlaste na kavol@seznam.cz (česky ;-)\n"
@@ -381,8 +381,8 @@ msgstr "Přepínače:\n"
 
 #: utils/cpufreq-info.c:474
 #, fuzzy, c-format
-msgid "  -e, --debug          Prints out debug information [default]\n"
-msgstr "  -e, --debug          Vypíše ladicí informace\n"
+msgid "  -e, --de          Prints out de information [default]\n"
+msgstr "  -e, --de          Vypíše ladicí informace\n"
 
 #: utils/cpufreq-info.c:475
 #, c-format
@@ -488,8 +488,8 @@ msgstr "  -h, --help           Vypíše tuto nápovědu\n"
 #: utils/cpufreq-info.c:495
 #, c-format
 msgid ""
-"If no argument or only the -c, --cpu parameter is given, debug output about\n"
-"cpufreq is printed which is useful e.g. for reporting bugs.\n"
+"If no argument or only the -c, --cpu parameter is given, de output about\n"
+"cpufreq is printed which is useful e.g. for reporting s.\n"
 msgstr ""
 "Není-li zadán žádný parametr nebo je-li zadán pouze přepínač -c, --cpu, "
 "jsou\n"
@@ -911,7 +911,7 @@ msgstr "Užití: cpufreq-info [přepínače]\n"
 #: utils/cpuidle-info.c:149
 #, fuzzy, c-format
 msgid "  -s, --silent         Only show general C-state information\n"
-msgstr "  -e, --debug          Vypíše ladicí informace\n"
+msgstr "  -e, --de          Vypíše ladicí informace\n"
 
 #: utils/cpuidle-info.c:150
 #, fuzzy, c-format

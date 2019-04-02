@@ -16,7 +16,7 @@
 # If the build dies here, it's likely code in head_64.S/exception-64*.S or
 # nearby, is branching to labels it can't reach directly, which results in the
 # linker inserting branch stubs. This can move code around in ways that break
-# the fixed section calculations (head-64.h). To debug this, disassemble the
+# the fixed section calculations (head-64.h). To de this, disassemble the
 # vmlinux and look for branch stubs (long_branch, plt_branch, etc.) in the
 # fixed section region (0 - 0x8000ish). Check what code is calling those stubs,
 # and perhaps change so a direct branch can reach.
@@ -31,7 +31,7 @@
 # level entry code (boot, interrupt vectors, etc) until r2 is set up. This
 # could cause the kernel to die in early boot.
 
-# Turn this on if you want more debug output:
+# Turn this on if you want more de output:
 # set -x
 
 if [ $# -lt 2 ]; then

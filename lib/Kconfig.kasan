@@ -12,13 +12,13 @@ config CC_HAS_KASAN_SW_TAGS
 	def_bool $(cc-option, -fsanitize=kernel-hwaddress)
 
 config KASAN
-	bool "KASAN: runtime memory debugger"
+	bool "KASAN: runtime memory deger"
 	depends on (HAVE_ARCH_KASAN && CC_HAS_KASAN_GENERIC) || \
 		   (HAVE_ARCH_KASAN_SW_TAGS && CC_HAS_KASAN_SW_TAGS)
-	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
+	depends on (SLUB && SYSFS) || (SLAB && !DE_SLAB)
 	help
-	  Enables KASAN (KernelAddressSANitizer) - runtime memory debugger,
-	  designed to find out-of-bounds accesses and use-after-free bugs.
+	  Enables KASAN (KernelAddressSANitizer) - runtime memory deger,
+	  designed to find out-of-bounds accesses and use-after-free s.
 	  See Documentation/dev-tools/kasan.rst for details.
 
 choice
@@ -31,13 +31,13 @@ choice
 	  software tag-based KASAN (a version based on software memory
 	  tagging, arm64 only, similar to userspace HWASan, enabled with
 	  CONFIG_KASAN_SW_TAGS).
-	  Both generic and tag-based KASAN are strictly debugging features.
+	  Both generic and tag-based KASAN are strictly deging features.
 
 config KASAN_GENERIC
 	bool "Generic mode"
 	depends on HAVE_ARCH_KASAN && CC_HAS_KASAN_GENERIC
-	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
-	select SLUB_DEBUG if SLUB
+	depends on (SLUB && SYSFS) || (SLAB && !DE_SLAB)
+	select SLUB_DE if SLUB
 	select CONSTRUCTORS
 	select STACKDEPOT
 	help
@@ -52,14 +52,14 @@ config KASAN_GENERIC
 	  and introduces an overhead of ~x1.5 for the rest of the allocations.
 	  The performance slowdown is ~x3.
 	  For better error detection enable CONFIG_STACKTRACE.
-	  Currently CONFIG_KASAN_GENERIC doesn't work with CONFIG_DEBUG_SLAB
+	  Currently CONFIG_KASAN_GENERIC doesn't work with CONFIG_DE_SLAB
 	  (the resulting kernel does not boot).
 
 config KASAN_SW_TAGS
 	bool "Software tag-based mode"
 	depends on HAVE_ARCH_KASAN_SW_TAGS && CC_HAS_KASAN_SW_TAGS
-	depends on (SLUB && SYSFS) || (SLAB && !DEBUG_SLAB)
-	select SLUB_DEBUG if SLUB
+	depends on (SLUB && SYSFS) || (SLAB && !DE_SLAB)
+	select SLUB_DE if SLUB
 	select CONSTRUCTORS
 	select STACKDEPOT
 	help
@@ -73,7 +73,7 @@ config KASAN_SW_TAGS
 	  casting and comparison, as it embeds tags into the top byte of each
 	  pointer.
 	  For better error detection enable CONFIG_STACKTRACE.
-	  Currently CONFIG_KASAN_SW_TAGS doesn't work with CONFIG_DEBUG_SLAB
+	  Currently CONFIG_KASAN_SW_TAGS doesn't work with CONFIG_DE_SLAB
 	  (the resulting kernel does not boot).
 
 endchoice
@@ -110,7 +110,7 @@ config KASAN_STACK_ENABLE
 	help
 	  The LLVM stack address sanitizer has a know problem that
 	  causes excessive stack usage in a lot of functions, see
-	  https://bugs.llvm.org/show_bug.cgi?id=38809
+	  https://s.llvm.org/show_.cgi?id=38809
 	  Disabling asan-stack makes it safe to run kernels build
 	  with clang-8 with KASAN enabled, though it loses some of
 	  the functionality.
@@ -135,9 +135,9 @@ config KASAN_S390_4_LEVEL_PAGING
 	  4-level paging instead.
 
 config TEST_KASAN
-	tristate "Module for testing KASAN for bug detection"
+	tristate "Module for testing KASAN for  detection"
 	depends on m && KASAN
 	help
 	  This is a test module doing various nasty things like
 	  out of bounds accesses, use after free. It is useful for testing
-	  kernel debugging features like KASAN.
+	  kernel deging features like KASAN.

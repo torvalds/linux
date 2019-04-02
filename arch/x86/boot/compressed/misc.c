@@ -5,7 +5,7 @@
  * This is a collection of several routines used to extract the kernel
  * which includes KASLR relocation, decompression, ELF parsing, and
  * relocation processing. Additionally included are the screen and serial
- * output functions and related debugging support functions.
+ * output functions and related deging support functions.
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  * puts by Nick Holloway 1993, better puts by Martin Mares 1995
@@ -203,10 +203,10 @@ static void handle_relocations(void *output, unsigned long output_len,
 		delta = virt_addr - LOAD_PHYSICAL_ADDR;
 
 	if (!delta) {
-		debug_putstr("No relocation needed... ");
+		de_putstr("No relocation needed... ");
 		return;
 	}
-	debug_putstr("Performing relocations... ");
+	de_putstr("Performing relocations... ");
 
 	/*
 	 * Process relocations: 32 bit relocations first then 64 bit after.
@@ -287,7 +287,7 @@ static void parse_elf(void *output)
 		return;
 	}
 
-	debug_putstr("Parsing ELF... ");
+	de_putstr("Parsing ELF... ");
 
 	phdrs = malloc(sizeof(*phdrs) * ehdr.e_phnum);
 	if (!phdrs)
@@ -368,21 +368,21 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	cols = boot_params->screen_info.orig_video_cols;
 
 	console_init();
-	debug_putstr("early console in extract_kernel\n");
+	de_putstr("early console in extract_kernel\n");
 
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 
 	/* Report initial kernel position details. */
-	debug_putaddr(input_data);
-	debug_putaddr(input_len);
-	debug_putaddr(output);
-	debug_putaddr(output_len);
-	debug_putaddr(kernel_total_size);
+	de_putaddr(input_data);
+	de_putaddr(input_len);
+	de_putaddr(output);
+	de_putaddr(output_len);
+	de_putaddr(kernel_total_size);
 
 #ifdef CONFIG_X86_64
 	/* Report address of 32-bit trampoline */
-	debug_putaddr(trampoline_32bit);
+	de_putaddr(trampoline_32bit);
 #endif
 
 	/*
@@ -416,12 +416,12 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 		error("Destination virtual address changed when not relocatable");
 #endif
 
-	debug_putstr("\nDecompressing Linux... ");
+	de_putstr("\nDecompressing Linux... ");
 	__decompress(input_data, input_len, NULL, NULL, output, output_len,
 			NULL, error);
 	parse_elf(output);
 	handle_relocations(output, output_len, virt_addr);
-	debug_putstr("done.\nBooting the kernel.\n");
+	de_putstr("done.\nBooting the kernel.\n");
 	return output;
 }
 

@@ -105,7 +105,7 @@ config PREEMPTIRQ_TRACEPOINTS
 
 config TRACING
 	bool
-	select DEBUG_FS
+	select DE_FS
 	select RING_BUFFER
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select TRACEPOINTS
@@ -132,7 +132,7 @@ if TRACING_SUPPORT
 
 menuconfig FTRACE
 	bool "Tracers"
-	default y if DEBUG_KERNEL
+	default y if DE_KERNEL
 	help
 	  Enable the kernel tracing infrastructure.
 
@@ -203,7 +203,7 @@ config IRQSOFF_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/de/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increase with this option
 	  enabled. This option and the preempt-off timing option can be
@@ -228,7 +228,7 @@ config PREEMPT_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/de/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increase with this option
 	  enabled. This option and the irqs-off timing option can be
@@ -303,7 +303,7 @@ config TRACER_SNAPSHOT
 	  Allow tracing users to take snapshot of the current buffer using the
 	  ftrace interface, e.g.:
 
-	      echo 1 > /sys/kernel/debug/tracing/snapshot
+	      echo 1 > /sys/kernel/de/tracing/snapshot
 	      cat snapshot
 
 config TRACER_SNAPSHOT_PER_CPU_SWAP
@@ -315,7 +315,7 @@ config TRACER_SNAPSHOT_PER_CPU_SWAP
 	  full swap (all buffers). If this is set, then the following is
 	  allowed:
 
-	      echo 1 > /sys/kernel/debug/tracing/per_cpu/cpu2/snapshot
+	      echo 1 > /sys/kernel/de/tracing/per_cpu/cpu2/snapshot
 
 	  After which, only the tracing buffer for CPU 2 was swapped with
 	  the main tracing buffer, and the other CPU buffers remain the same.
@@ -362,7 +362,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	  This tracer profiles all likely and unlikely macros
 	  in the kernel. It will display the results in:
 
-	  /sys/kernel/debug/tracing/trace_stat/branch_annotated
+	  /sys/kernel/de/tracing/trace_stat/branch_annotated
 
 	  Note: this will add a significant overhead; only turn this
 	  on if you need to profile the system's use of these macros.
@@ -376,7 +376,7 @@ config PROFILE_ALL_BRANCHES
 	  taken in the kernel is recorded whether it hit or miss.
 	  The results will be displayed in:
 
-	  /sys/kernel/debug/tracing/trace_stat/branch_all
+	  /sys/kernel/de/tracing/trace_stat/branch_all
 
 	  This option also enables the likely/unlikely profiler.
 
@@ -415,7 +415,7 @@ config STACK_TRACER
 	select KALLSYMS
 	help
 	  This special tracer records the maximum stack footprint of the
-	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
+	  kernel and displays it in /sys/kernel/de/tracing/stack_trace.
 
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and
@@ -436,7 +436,7 @@ config BLK_DEV_IO_TRACE
 	depends on SYSFS
 	depends on BLOCK
 	select RELAY
-	select DEBUG_FS
+	select DE_FS
 	select TRACEPOINTS
 	select GENERIC_TRACER
 	select STACKTRACE
@@ -451,8 +451,8 @@ config BLK_DEV_IO_TRACE
 	  Tracing also is possible using the ftrace interface, e.g.:
 
 	    echo 1 > /sys/block/sda/sda1/trace/enable
-	    echo blk > /sys/kernel/debug/tracing/current_tracer
-	    cat /sys/kernel/debug/tracing/trace_pipe
+	    echo blk > /sys/kernel/de/tracing/current_tracer
+	    cat /sys/kernel/de/tracing/trace_pipe
 
 	  If unsure, say N.
 
@@ -481,7 +481,7 @@ config KPROBE_EVENTS_ON_NOTRACE
 	depends on KPROBES_ON_FTRACE
 	default n
 	help
-	  This is only for the developers who want to debug ftrace itself
+	  This is only for the developers who want to de ftrace itself
 	  using kprobe events.
 
 	  If kprobes can use ftrace instead of breakpoint, ftrace related
@@ -490,7 +490,7 @@ config KPROBE_EVENTS_ON_NOTRACE
 	  crash.
 
 	  This option disables such protection and allows you to put kprobe
-	  events on ftrace functions for debugging ftrace by itself.
+	  events on ftrace functions for deging ftrace by itself.
 	  Note that this might let you shoot yourself in the foot.
 
 	  If unsure, say N.
@@ -542,7 +542,7 @@ config DYNAMIC_FTRACE
 	  enabled, and the functions not enabled will not affect
 	  performance of the system.
 
-	  See the files in /sys/kernel/debug/tracing:
+	  See the files in /sys/kernel/de/tracing:
 	    available_filter_functions
 	    set_ftrace_filter
 	    set_ftrace_notrace
@@ -561,7 +561,7 @@ config FUNCTION_PROFILER
 	default n
 	help
 	  This option enables the kernel function profiler. A file is created
-	  in debugfs called function_profile_enabled which defaults to zero.
+	  in defs called function_profile_enabled which defaults to zero.
 	  When a 1 is echoed into this file profiling begins, and when a
 	  zero is entered, profiling stops. A "functions" file is created in
 	  the trace_stat directory; this file shows the list of functions that
@@ -614,7 +614,7 @@ config MMIOTRACE
 	select GENERIC_TRACER
 	help
 	  Mmiotrace traces Memory Mapped I/O access and is meant for
-	  debugging and reverse engineering. It is called from the ioremap
+	  deging and reverse engineering. It is called from the ioremap
 	  implementation and works via page faults. Tracing is disabled by
 	  default and can be enabled at run-time.
 
@@ -641,7 +641,7 @@ config HIST_TRIGGERS
 	help
 	  Hist triggers allow one or more arbitrary trace event fields
 	  to be aggregated into hash tables and dumped to stdout by
-	  reading a debugfs/tracefs file.  They're useful for
+	  reading a defs/tracefs file.  They're useful for
 	  gathering quick and dirty (though precise) summaries of
 	  event activity as an initial guide for further investigation
 	  using more advanced tools.
@@ -762,7 +762,7 @@ config TRACE_EVAL_MAP_FILE
 	If something does not get converted properly, this option can be
 	used to show what enums/sizeof the kernel tried to convert.
 
-	This option is for debugging the conversions. A file is created
+	This option is for deging the conversions. A file is created
 	in the tracing directory called "eval_map" that will show the
 	names matched with their values and what trace event system they
 	belong too.

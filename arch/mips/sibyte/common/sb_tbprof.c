@@ -19,7 +19,7 @@
  *    written by Ralf Baechle <ralf@linux-mips.org>
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/device.h>
 #include <linux/module.h>
@@ -202,7 +202,7 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 {
 	int i;
 
-	pr_debug(DEVNAME ": tb_intr\n");
+	pr_de(DEVNAME ": tb_intr\n");
 
 	if (sbp.next_tb_sample < MAX_TB_SAMPLES) {
 		/* XXX should use XKPHYS to make writes bypass L2 */
@@ -229,7 +229,7 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 			/* read t0 lo */
 		}
 		if (!sbp.tb_enable) {
-			pr_debug(DEVNAME ": tb_intr shutdown\n");
+			pr_de(DEVNAME ": tb_intr shutdown\n");
 			__raw_writeq(M_SCD_TRACE_CFG_RESET,
 				     IOADDR(A_SCD_TRACE_CFG));
 			sbp.tb_armed = 0;
@@ -240,7 +240,7 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 		}
 	} else {
 		/* No more trace buffer samples */
-		pr_debug(DEVNAME ": tb_intr full\n");
+		pr_de(DEVNAME ": tb_intr full\n");
 		__raw_writeq(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 		sbp.tb_armed = 0;
 		if (!sbp.tb_enable)
@@ -270,7 +270,7 @@ static int sbprof_zbprof_start(struct file *filp)
 	if (xchg(&sbp.tb_enable, 1))
 		return -EBUSY;
 
-	pr_debug(DEVNAME ": starting\n");
+	pr_de(DEVNAME ": starting\n");
 
 	sbp.next_tb_sample = 0;
 	filp->f_pos = 0;
@@ -364,7 +364,7 @@ static int sbprof_zbprof_start(struct file *filp)
 #endif
 	arm_tb();
 
-	pr_debug(DEVNAME ": done starting\n");
+	pr_de(DEVNAME ": done starting\n");
 
 	return 0;
 }
@@ -373,7 +373,7 @@ static int sbprof_zbprof_stop(void)
 {
 	int err = 0;
 
-	pr_debug(DEVNAME ": stopping\n");
+	pr_de(DEVNAME ": stopping\n");
 
 	if (sbp.tb_enable) {
 		/*
@@ -381,9 +381,9 @@ static int sbprof_zbprof_stop(void)
 		 * see the disable, and do the wake_up before this sleep
 		 * happens.
 		 */
-		pr_debug(DEVNAME ": wait for disarm\n");
+		pr_de(DEVNAME ": wait for disarm\n");
 		err = wait_event_interruptible(sbp.tb_sync, !sbp.tb_armed);
-		pr_debug(DEVNAME ": disarm complete, stat %d\n", err);
+		pr_de(DEVNAME ": disarm complete, stat %d\n", err);
 
 		if (err)
 			return err;
@@ -393,7 +393,7 @@ static int sbprof_zbprof_stop(void)
 		free_irq(K_INT_PERF_CNT, &sbp);
 	}
 
-	pr_debug(DEVNAME ": done stopping\n");
+	pr_de(DEVNAME ": done stopping\n");
 
 	return err;
 }
@@ -479,7 +479,7 @@ static ssize_t sbprof_tb_read(struct file *filp, char *buf,
 			mutex_unlock(&sbp.lock);
 			return err;
 		}
-		pr_debug(DEVNAME ": read from sample %d, %d bytes\n",
+		pr_de(DEVNAME ": read from sample %d, %d bytes\n",
 			 cur_sample, cur_count);
 		size -= cur_count;
 		sample_left -= cur_count;

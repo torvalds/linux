@@ -172,7 +172,7 @@ enum kvm_exit_types {
 	HALT_WAKEUP,
 	USR_PR_INST,
 	FP_UNAVAIL,
-	DEBUG_EXITS,
+	DE_EXITS,
 	TIMEINGUEST,
 	DBELL_EXITS,
 	GDBELL_EXITS,
@@ -294,7 +294,7 @@ struct kvm_arch {
 	bool nested_enable;
 	pgd_t *pgtable;
 	u64 process_table;
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 	struct dentry *htab_dentry;
 	struct dentry *radix_dentry;
 	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
@@ -657,7 +657,7 @@ struct kvm_vcpu_arch {
 	u64 timing_min_duration[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_max_duration[__NUMBER_OF_KVM_EXIT_TYPES];
 	u64 timing_last_exit;
-	struct dentry *debugfs_exit_timing;
+	struct dentry *defs_exit_timing;
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -682,8 +682,8 @@ struct kvm_vcpu_arch {
 	u64 sprg9;
 	u32 pwrmgtcr0;
 	u32 crit_save;
-	/* guest debug registers*/
-	struct debug_reg dbg_reg;
+	/* guest de registers*/
+	struct de_reg dbg_reg;
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
@@ -808,8 +808,8 @@ struct kvm_vcpu_arch {
 	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
 	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
 
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_timings;
+	struct dentry *defs_dir;
+	struct dentry *defs_timings;
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 

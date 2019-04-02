@@ -19,7 +19,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -185,7 +185,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
 
-	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+	pr_de("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
 	for (; start < end; start += page_size) {
 		void *p = NULL;
@@ -208,7 +208,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 
 		vmemmap_list_populate(__pa(p), start, node);
 
-		pr_debug("      * %016lx..%016lx allocated at %p\n",
+		pr_de("      * %016lx..%016lx allocated at %p\n",
 			 start, start + page_size, p);
 
 		rc = vmemmap_create_mapping(start, page_size, __pa(p));
@@ -270,7 +270,7 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
 			  altmap->free + altmap->alloc + altmap->align;
 	}
 
-	pr_debug("vmemmap_free %lx...%lx\n", start, end);
+	pr_de("vmemmap_free %lx...%lx\n", start, end);
 
 	for (; start < end; start += page_size) {
 		unsigned long nr_pages, addr;

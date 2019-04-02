@@ -169,7 +169,7 @@ static int s6e8aa0_dcs_read(struct s6e8aa0 *ctx, u8 cmd, void *data, size_t len)
 #define s6e8aa0_dcs_write_seq(ctx, seq...) \
 ({\
 	const u8 d[] = { seq };\
-	BUILD_BUG_ON_MSG(ARRAY_SIZE(d) > 64, "DCS sequence too big for stack");\
+	BUILD__ON_MSG(ARRAY_SIZE(d) > 64, "DCS sequence too big for stack");\
 	s6e8aa0_dcs_write(ctx, d, ARRAY_SIZE(d));\
 })
 

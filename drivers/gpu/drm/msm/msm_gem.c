@@ -757,7 +757,7 @@ int msm_gem_cpu_fini(struct drm_gem_object *obj)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void describe_fence(struct dma_fence *fence, const char *type,
 		struct seq_file *m)
 {

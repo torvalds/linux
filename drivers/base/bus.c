@@ -86,7 +86,7 @@ static void driver_release(struct kobject *kobj)
 {
 	struct driver_private *drv_priv = to_driver(kobj);
 
-	pr_debug("driver: '%s': %s\n", kobject_name(kobj), __func__);
+	pr_de("driver: '%s': %s\n", kobject_name(kobj), __func__);
 	kfree(drv_priv);
 }
 
@@ -471,7 +471,7 @@ int bus_add_device(struct device *dev)
 	int error = 0;
 
 	if (bus) {
-		pr_debug("bus: '%s': add device %s\n", bus->name, dev_name(dev));
+		pr_de("bus: '%s': add device %s\n", bus->name, dev_name(dev));
 		error = device_add_groups(dev, bus->dev_groups);
 		if (error)
 			goto out_put;
@@ -551,7 +551,7 @@ void bus_remove_device(struct device *dev)
 	if (klist_node_attached(&dev->p->knode_bus))
 		klist_del(&dev->p->knode_bus);
 
-	pr_debug("bus: '%s': remove device %s\n",
+	pr_de("bus: '%s': remove device %s\n",
 		 dev->bus->name, dev_name(dev));
 	device_release_driver(dev);
 	bus_put(dev->bus);
@@ -624,7 +624,7 @@ int bus_add_driver(struct device_driver *drv)
 	if (!bus)
 		return -EINVAL;
 
-	pr_debug("bus: '%s': add driver %s\n", bus->name, drv->name);
+	pr_de("bus: '%s': add driver %s\n", bus->name, drv->name);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -698,7 +698,7 @@ void bus_remove_driver(struct device_driver *drv)
 	driver_remove_groups(drv, drv->bus->drv_groups);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
-	pr_debug("bus: '%s': remove driver %s\n", drv->bus->name, drv->name);
+	pr_de("bus: '%s': remove driver %s\n", drv->bus->name, drv->name);
 	driver_detach(drv);
 	module_remove_driver(drv);
 	kobject_put(&drv->p->kobj);
@@ -880,7 +880,7 @@ int bus_register(struct bus_type *bus)
 	if (retval)
 		goto bus_groups_fail;
 
-	pr_debug("bus: '%s': registered\n", bus->name);
+	pr_de("bus: '%s': registered\n", bus->name);
 	return 0;
 
 bus_groups_fail:
@@ -909,7 +909,7 @@ EXPORT_SYMBOL_GPL(bus_register);
  */
 void bus_unregister(struct bus_type *bus)
 {
-	pr_debug("bus: '%s': unregistering\n", bus->name);
+	pr_de("bus: '%s': unregistering\n", bus->name);
 	if (bus->dev_root)
 		device_unregister(bus->dev_root);
 	bus_remove_groups(bus, bus->bus_groups);

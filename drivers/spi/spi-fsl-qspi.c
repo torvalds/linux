@@ -276,8 +276,8 @@ static inline int needs_amba_base_offset(struct fsl_qspi *q)
 }
 
 /*
- * An IC bug makes it necessary to rearrange the 32-bit data.
- * Later chips, such as IMX6SLX, have fixed this bug.
+ * An IC  makes it necessary to rearrange the 32-bit data.
+ * Later chips, such as IMX6SLX, have fixed this .
  */
 static inline u32 fsl_qspi_endian_xchg(struct fsl_qspi *q, u32 a)
 {

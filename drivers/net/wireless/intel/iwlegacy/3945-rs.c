@@ -116,7 +116,7 @@ il3945_get_rate_idx_by_rssi(s32 rssi, enum nl80211_band band)
 		table_size = ARRAY_SIZE(il3945_tpt_table_a);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -389,7 +389,7 @@ out:
 }
 
 static void *
-il3945_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+il3945_rs_alloc(struct ieee80211_hw *hw, struct dentry *defsdir)
 {
 	return hw->priv;
 }
@@ -425,7 +425,7 @@ il3945_rs_free_sta(void *il_priv, struct ieee80211_sta *sta, void *il_sta)
 
 	/*
 	 * Be careful not to use any members of il3945_rs_sta (like trying
-	 * to use il_priv to print out debugging) since it may not be fully
+	 * to use il_priv to print out deging) since it may not be fully
 	 * initialized at this point.
 	 */
 	del_timer_sync(&rs_sta->rate_scale_flush);
@@ -816,7 +816,7 @@ out:
 	D_RATE("leave: %d\n", idx);
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 
 static ssize_t
 il3945_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
@@ -857,21 +857,21 @@ static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 };
 
 static void
-il3945_add_debugfs(void *il, void *il_sta, struct dentry *dir)
+il3945_add_defs(void *il, void *il_sta, struct dentry *dir)
 {
 	struct il3945_rs_sta *lq_sta = il_sta;
 
 	lq_sta->rs_sta_dbgfs_stats_table_file =
-	    debugfs_create_file("rate_stats_table", 0600, dir, lq_sta,
+	    defs_create_file("rate_stats_table", 0600, dir, lq_sta,
 				&rs_sta_dbgfs_stats_table_ops);
 
 }
 
 static void
-il3945_remove_debugfs(void *il, void *il_sta)
+il3945_remove_defs(void *il, void *il_sta)
 {
 	struct il3945_rs_sta *lq_sta = il_sta;
-	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
+	defs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
 }
 #endif
 
@@ -896,9 +896,9 @@ static const struct rate_control_ops rs_ops = {
 	.free = il3945_rs_free,
 	.alloc_sta = il3945_rs_alloc_sta,
 	.free_sta = il3945_rs_free_sta,
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = il3945_add_debugfs,
-	.remove_sta_debugfs = il3945_remove_debugfs,
+#ifdef CONFIG_MAC80211_DEFS
+	.add_sta_defs = il3945_add_defs,
+	.remove_sta_defs = il3945_remove_defs,
 #endif
 
 };
@@ -943,7 +943,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 		rs_sta->expected_tpt = il3945_expected_tpt_a;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

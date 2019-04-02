@@ -184,7 +184,7 @@ static int __init rng_init(void)
 static void __exit rng_exit(void)
 {
 	int err = af_alg_unregister_type(&algif_type_rng);
-	BUG_ON(err);
+	_ON(err);
 }
 
 module_init(rng_init);

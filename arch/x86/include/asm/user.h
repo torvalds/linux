@@ -30,7 +30,7 @@ struct user_xstate_header {
  * processor and OS. The size of the structure that users need to use can be
  * obtained by doing:
  *     cpuid_count(0xd, 0, &eax, &ptrace_xstateregs_struct_size, &ecx, &edx);
- * i.e., cpuid.(eax=0xd,ecx=0).ebx will be the size that user (debuggers, etc.)
+ * i.e., cpuid.(eax=0xd,ecx=0).ebx will be the size that user (degers, etc.)
  * need to use.
  *
  * For now, only the first 8 bytes of the software usable bytes[464..471] will

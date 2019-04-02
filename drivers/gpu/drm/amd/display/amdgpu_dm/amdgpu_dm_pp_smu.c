@@ -256,11 +256,11 @@ static void pp_to_dc_clock_levels_with_latency(
 	} else
 		clk_level_info->num_levels = pp_clks->num_levels;
 
-	DRM_DEBUG("DM_PPLIB: values for %s clock\n",
+	DRM_DE("DM_PPLIB: values for %s clock\n",
 			DC_DECODE_PP_CLOCK_TYPE(dc_clk_type));
 
 	for (i = 0; i < clk_level_info->num_levels; i++) {
-		DRM_DEBUG("DM_PPLIB:\t %d in kHz\n", pp_clks->data[i].clocks_in_khz);
+		DRM_DE("DM_PPLIB:\t %d in kHz\n", pp_clks->data[i].clocks_in_khz);
 		clk_level_info->data[i].clocks_in_khz = pp_clks->data[i].clocks_in_khz;
 		clk_level_info->data[i].latency_in_us = pp_clks->data[i].latency_in_us;
 	}

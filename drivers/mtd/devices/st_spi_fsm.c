@@ -721,7 +721,7 @@ static inline void stfsm_load_seq(struct stfsm *fsm,
 	const uint32_t *src = (const uint32_t *)seq;
 	int words = sizeof(*seq) / sizeof(*src);
 
-	BUG_ON(!stfsm_is_idle(fsm));
+	_ON(!stfsm_is_idle(fsm));
 
 	while (words--) {
 		writel(*src, dst);
@@ -758,7 +758,7 @@ static void stfsm_read_fifo(struct stfsm *fsm, uint32_t *buf, uint32_t size)
 
 	dev_dbg(fsm->dev, "Reading %d bytes from FIFO\n", size);
 
-	BUG_ON((((uintptr_t)buf) & 0x3) || (size & 0x3));
+	_ON((((uintptr_t)buf) & 0x3) || (size & 0x3));
 
 	while (remaining) {
 		for (;;) {
@@ -844,7 +844,7 @@ static int stfsm_write_fifo(struct stfsm *fsm, const uint32_t *buf,
 
 	dev_dbg(fsm->dev, "writing %d bytes to FIFO\n", size);
 
-	BUG_ON((((uintptr_t)buf) & 0x3) || (size & 0x3));
+	_ON((((uintptr_t)buf) & 0x3) || (size & 0x3));
 
 	writesl(fsm->base + SPI_FAST_SEQ_DATA_REG, buf, words);
 
@@ -926,7 +926,7 @@ static int stfsm_read_status(struct stfsm *fsm, uint8_t cmd,
 	dev_dbg(fsm->dev, "read 'status' register [0x%02x], %d byte(s)\n",
 		cmd, bytes);
 
-	BUG_ON(bytes != 1 && bytes != 2);
+	_ON(bytes != 1 && bytes != 2);
 
 	seq->seq_opc[0] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
 			   SEQ_OPC_OPCODE(cmd)),
@@ -952,7 +952,7 @@ static int stfsm_write_status(struct stfsm *fsm, uint8_t cmd,
 		"write 'status' register [0x%02x], %d byte(s), 0x%04x\n"
 		" %s wait-busy\n", cmd, bytes, data, wait_busy ? "with" : "no");
 
-	BUG_ON(bytes != 1 && bytes != 2);
+	_ON(bytes != 1 && bytes != 2);
 
 	seq->seq_opc[1] = (SEQ_OPC_PADS_1 | SEQ_OPC_CYCLES(8) |
 			   SEQ_OPC_OPCODE(cmd));

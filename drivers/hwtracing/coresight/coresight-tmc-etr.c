@@ -391,7 +391,7 @@ ssize_t tmc_sg_table_get_data(struct tmc_sg_table *sg_table,
 	return len;
 }
 
-#ifdef ETR_SG_DEBUG
+#ifdef ETR_SG_DE
 /* Map a dma address to virtual address */
 static unsigned long
 tmc_sg_daddr_to_vaddr(struct tmc_sg_table *sg_table,

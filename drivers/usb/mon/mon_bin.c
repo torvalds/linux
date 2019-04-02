@@ -523,7 +523,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	}
 	lendesc = ndesc*sizeof(struct mon_bin_isodesc);
 
-	/* not an issue unless there's a subtle bug in a HCD somewhere */
+	/* not an issue unless there's a subtle  in a HCD somewhere */
 	if (length >= urb->transfer_buffer_length)
 		length = urb->transfer_buffer_length;
 

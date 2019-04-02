@@ -30,8 +30,8 @@
 #include <media/v4l2-mediabus.h>
 #include <media/i2c/s5k6aa.h>
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 #define DRIVER_NAME			"S5K6AA"
 
@@ -350,7 +350,7 @@ static int s5k6aa_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	ret = i2c_transfer(client->adapter, msg, 2);
 	*val = be16_to_cpu(*((__be16 *)rbuf));
 
-	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
+	v4l2_dbg(3, de, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
 
 	return ret == 2 ? 0 : ret;
 }
@@ -360,7 +360,7 @@ static int s5k6aa_i2c_write(struct i2c_client *client, u16 addr, u16 val)
 	u8 buf[4] = {addr >> 8, addr & 0xFF, val >> 8, val & 0xFF};
 
 	int ret = i2c_master_send(client, buf, 4);
-	v4l2_dbg(3, debug, client, "i2c_write: 0x%04X : 0x%04x\n", addr, val);
+	v4l2_dbg(3, de, client, "i2c_write: 0x%04X : 0x%04x\n", addr, val);
 
 	return ret == 4 ? 0 : ret;
 }
@@ -542,7 +542,7 @@ static int s5k6aa_set_auto_exposure(struct s5k6aa *s5k6aa, int value)
 	if (ret)
 		return ret;
 
-	v4l2_dbg(1, debug, c, "man_exp: %d, auto_exp: %d, a_alg: 0x%x\n",
+	v4l2_dbg(1, de, c, "man_exp: %d, auto_exp: %d, a_alg: 0x%x\n",
 		 exp_time, value, auto_alg);
 
 	if (value == V4L2_EXPOSURE_AUTO) {
@@ -613,7 +613,7 @@ static int s5k6aa_preview_config_status(struct i2c_client *client)
 	u16 error = 0;
 	int ret = s5k6aa_read(client, REG_G_PREV_CFG_ERROR, &error);
 
-	v4l2_dbg(1, debug, client, "error: 0x%x (%d)\n", error, ret);
+	v4l2_dbg(1, de, client, "error: 0x%x (%d)\n", error, ret);
 	return ret ? ret : (error ? -EINVAL : 0);
 }
 
@@ -774,7 +774,7 @@ static int s5k6aa_set_prev_config(struct s5k6aa *s5k6aa,
 	if (!ret)
 		s5k6aa->apply_cfg = 0;
 
-	v4l2_dbg(1, debug, client, "Frame interval: %d +/- 3.3ms. (%d)\n",
+	v4l2_dbg(1, de, client, "Frame interval: %d +/- 3.3ms. (%d)\n",
 		 s5k6aa->fiv->reg_fr_time, ret);
 	return ret;
 }
@@ -975,7 +975,7 @@ static int __s5k6aa_set_frame_interval(struct s5k6aa *s5k6aa,
 	}
 	s5k6aa->fiv = fiv;
 
-	v4l2_dbg(1, debug, &s5k6aa->sd, "Changed frame interval to %d us\n",
+	v4l2_dbg(1, de, &s5k6aa->sd, "Changed frame interval to %d us\n",
 		 fiv->reg_fr_time * 100);
 	return 0;
 }
@@ -986,7 +986,7 @@ static int s5k6aa_s_frame_interval(struct v4l2_subdev *sd,
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "Setting %d/%d frame interval\n",
+	v4l2_dbg(1, de, sd, "Setting %d/%d frame interval\n",
 		 fi->interval.numerator, fi->interval.denominator);
 
 	mutex_lock(&s5k6aa->lock);
@@ -1183,7 +1183,7 @@ static int s5k6aa_get_selection(struct v4l2_subdev *sd,
 	sel->r = *rect;
 	mutex_unlock(&s5k6aa->lock);
 
-	v4l2_dbg(1, debug, sd, "Current crop rectangle: (%d,%d)/%dx%d\n",
+	v4l2_dbg(1, de, sd, "Current crop rectangle: (%d,%d)/%dx%d\n",
 		 rect->left, rect->top, rect->width, rect->height);
 
 	return 0;
@@ -1225,7 +1225,7 @@ static int s5k6aa_set_selection(struct v4l2_subdev *sd,
 
 	mutex_unlock(&s5k6aa->lock);
 
-	v4l2_dbg(1, debug, sd, "Set crop rectangle: (%d,%d)/%dx%d\n",
+	v4l2_dbg(1, de, sd, "Set crop rectangle: (%d,%d)/%dx%d\n",
 		 crop_r->left, crop_r->top, crop_r->width, crop_r->height);
 
 	return 0;
@@ -1258,7 +1258,7 @@ static int s5k6aa_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct s5k6aa *s5k6aa = to_s5k6aa(sd);
 	int idx, err = 0;
 
-	v4l2_dbg(1, debug, sd, "ctrl: 0x%x, value: %d\n", ctrl->id, ctrl->val);
+	v4l2_dbg(1, de, sd, "ctrl: 0x%x, value: %d\n", ctrl->id, ctrl->val);
 
 	mutex_lock(&s5k6aa->lock);
 	/*

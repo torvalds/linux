@@ -5191,7 +5191,7 @@ static void alc271_hp_gate_mic_jack(struct hda_codec *codec,
 		int mic_pin = find_ext_mic_pin(codec);
 		int hp_pin = alc_get_hp_pin(spec);
 
-		if (snd_BUG_ON(!mic_pin || !hp_pin))
+		if (snd__ON(!mic_pin || !hp_pin))
 			return;
 		snd_hda_jack_set_gating_jack(codec, mic_pin, hp_pin);
 	}

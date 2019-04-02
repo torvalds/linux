@@ -137,7 +137,7 @@ befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,
 	struct buffer_head *bh;
 	befs_disk_btree_super *od_sup;
 
-	befs_debug(sb, "---> %s", __func__);
+	befs_de(sb, "---> %s", __func__);
 
 	bh = befs_read_datastream(sb, ds, 0, NULL);
 
@@ -160,11 +160,11 @@ befs_bt_read_super(struct super_block *sb, const befs_data_stream *ds,
 		goto error;
 	}
 
-	befs_debug(sb, "<--- %s", __func__);
+	befs_de(sb, "<--- %s", __func__);
 	return BEFS_OK;
 
       error:
-	befs_debug(sb, "<--- %s ERROR", __func__);
+	befs_de(sb, "<--- %s ERROR", __func__);
 	return BEFS_ERR;
 }
 
@@ -193,7 +193,7 @@ befs_bt_read_node(struct super_block *sb, const befs_data_stream *ds,
 {
 	uint off = 0;
 
-	befs_debug(sb, "---> %s", __func__);
+	befs_de(sb, "---> %s", __func__);
 
 	if (node->bh)
 		brelse(node->bh);
@@ -202,7 +202,7 @@ befs_bt_read_node(struct super_block *sb, const befs_data_stream *ds,
 	if (!node->bh) {
 		befs_error(sb, "%s failed to read "
 			   "node at %llu", __func__, node_off);
-		befs_debug(sb, "<--- %s ERROR", __func__);
+		befs_de(sb, "<--- %s ERROR", __func__);
 
 		return BEFS_ERR;
 	}
@@ -219,7 +219,7 @@ befs_bt_read_node(struct super_block *sb, const befs_data_stream *ds,
 	node->head.all_key_length =
 	    fs16_to_cpu(sb, node->od_node->all_key_length);
 
-	befs_debug(sb, "<--- %s", __func__);
+	befs_de(sb, "<--- %s", __func__);
 	return BEFS_OK;
 }
 
@@ -250,7 +250,7 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 	befs_off_t node_off;
 	int res;
 
-	befs_debug(sb, "---> %s Key: %s", __func__, key);
+	befs_de(sb, "---> %s Key: %s", __func__, key);
 
 	if (befs_bt_read_super(sb, ds, &bt_super) != BEFS_OK) {
 		befs_error(sb,
@@ -296,11 +296,11 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 
 	if (res != BEFS_BT_MATCH) {
 		befs_error(sb, "<--- %s Key %s not found", __func__, key);
-		befs_debug(sb, "<--- %s ERROR", __func__);
+		befs_de(sb, "<--- %s ERROR", __func__);
 		*value = 0;
 		return BEFS_BT_NOT_FOUND;
 	}
-	befs_debug(sb, "<--- %s Found key %s, value %llu", __func__,
+	befs_de(sb, "<--- %s Found key %s, value %llu", __func__,
 		   key, *value);
 	return BEFS_OK;
 
@@ -308,7 +308,7 @@ befs_btree_find(struct super_block *sb, const befs_data_stream *ds,
 	kfree(this_node);
       error:
 	*value = 0;
-	befs_debug(sb, "<--- %s ERROR", __func__);
+	befs_de(sb, "<--- %s ERROR", __func__);
 	return BEFS_ERR;
 }
 
@@ -337,7 +337,7 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 	char *thiskey;
 	fs64 *valarray;
 
-	befs_debug(sb, "---> %s %s", __func__, findkey);
+	befs_de(sb, "---> %s %s", __func__, findkey);
 
 	findkey_len = strlen(findkey);
 
@@ -347,7 +347,7 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 
 	eq = befs_compare_strings(thiskey, keylen, findkey, findkey_len);
 	if (eq < 0) {
-		befs_debug(sb, "<--- node can't contain %s", findkey);
+		befs_de(sb, "<--- node can't contain %s", findkey);
 		return BEFS_BT_OVERFLOW;
 	}
 
@@ -358,14 +358,14 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 	mid = 0;
 	while (last >= first) {
 		mid = (last + first) / 2;
-		befs_debug(sb, "first: %d, last: %d, mid: %d", first, last,
+		befs_de(sb, "first: %d, last: %d, mid: %d", first, last,
 			   mid);
 		thiskey = befs_bt_get_key(sb, node, mid, &keylen);
 		eq = befs_compare_strings(thiskey, keylen, findkey,
 					  findkey_len);
 
 		if (eq == 0) {
-			befs_debug(sb, "<--- %s found %s at %d",
+			befs_de(sb, "<--- %s found %s at %d",
 				   __func__, thiskey, mid);
 
 			*value = fs64_to_cpu(sb, valarray[mid]);
@@ -383,7 +383,7 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
 	else
 		*value = fs64_to_cpu(sb, valarray[mid]);
 	befs_error(sb, "<--- %s %s not found", __func__, findkey);
-	befs_debug(sb, "<--- %s ERROR", __func__);
+	befs_de(sb, "<--- %s ERROR", __func__);
 	return BEFS_BT_NOT_FOUND;
 }
 
@@ -423,7 +423,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 
 	uint key_sum = 0;
 
-	befs_debug(sb, "---> %s", __func__);
+	befs_de(sb, "---> %s", __func__);
 
 	if (befs_bt_read_super(sb, ds, &bt_super) != BEFS_OK) {
 		befs_error(sb,
@@ -448,7 +448,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 		kfree(this_node);
 		*value = 0;
 		*keysize = 0;
-		befs_debug(sb, "<--- %s Tree is EMPTY", __func__);
+		befs_de(sb, "<--- %s Tree is EMPTY", __func__);
 		return BEFS_BT_EMPTY;
 	} else if (res == BEFS_ERR) {
 		goto error_alloc;
@@ -462,7 +462,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 		if (this_node->head.right == BEFS_BT_INVAL) {
 			*keysize = 0;
 			*value = 0;
-			befs_debug(sb,
+			befs_de(sb,
 				   "<--- %s END of keys at %llu", __func__,
 				   (unsigned long long)
 				   key_sum + this_node->head.all_key_count);
@@ -489,7 +489,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 
 	keystart = befs_bt_get_key(sb, this_node, cur_key, &keylen);
 
-	befs_debug(sb, "Read [%llu,%d]: keysize %d",
+	befs_de(sb, "Read [%llu,%d]: keysize %d",
 		   (long long unsigned int)node_off, (int)cur_key,
 		   (int)keylen);
 
@@ -504,13 +504,13 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
 	*value = fs64_to_cpu(sb, valarray[cur_key]);
 	*keysize = keylen;
 
-	befs_debug(sb, "Read [%llu,%d]: Key \"%.*s\", Value %llu", node_off,
+	befs_de(sb, "Read [%llu,%d]: Key \"%.*s\", Value %llu", node_off,
 		   cur_key, keylen, keybuf, *value);
 
 	brelse(this_node->bh);
 	kfree(this_node);
 
-	befs_debug(sb, "<--- %s", __func__);
+	befs_de(sb, "<--- %s", __func__);
 
 	return BEFS_OK;
 
@@ -520,7 +520,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
       error:
 	*keysize = 0;
 	*value = 0;
-	befs_debug(sb, "<--- %s ERROR", __func__);
+	befs_de(sb, "<--- %s ERROR", __func__);
 	return BEFS_ERR;
 }
 
@@ -545,24 +545,24 @@ befs_btree_seekleaf(struct super_block *sb, const befs_data_stream *ds,
 		    befs_off_t * node_off)
 {
 
-	befs_debug(sb, "---> %s", __func__);
+	befs_de(sb, "---> %s", __func__);
 
 	if (befs_bt_read_node(sb, ds, this_node, *node_off) != BEFS_OK) {
 		befs_error(sb, "%s failed to read "
 			   "node at %llu", __func__, *node_off);
 		goto error;
 	}
-	befs_debug(sb, "Seekleaf to root node %llu", *node_off);
+	befs_de(sb, "Seekleaf to root node %llu", *node_off);
 
 	if (this_node->head.all_key_count == 0 && befs_leafnode(this_node)) {
-		befs_debug(sb, "<--- %s Tree is EMPTY", __func__);
+		befs_de(sb, "<--- %s Tree is EMPTY", __func__);
 		return BEFS_BT_EMPTY;
 	}
 
 	while (!befs_leafnode(this_node)) {
 
 		if (this_node->head.all_key_count == 0) {
-			befs_debug(sb, "%s encountered "
+			befs_de(sb, "%s encountered "
 				   "an empty interior node: %llu. Using Overflow "
 				   "node: %llu", __func__, *node_off,
 				   this_node->head.overflow);
@@ -577,14 +577,14 @@ befs_btree_seekleaf(struct super_block *sb, const befs_data_stream *ds,
 			goto error;
 		}
 
-		befs_debug(sb, "Seekleaf to child node %llu", *node_off);
+		befs_de(sb, "Seekleaf to child node %llu", *node_off);
 	}
-	befs_debug(sb, "Node %llu is a leaf node", *node_off);
+	befs_de(sb, "Node %llu is a leaf node", *node_off);
 
 	return BEFS_OK;
 
       error:
-	befs_debug(sb, "<--- %s ERROR", __func__);
+	befs_de(sb, "<--- %s ERROR", __func__);
 	return BEFS_ERR;
 }
 

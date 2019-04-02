@@ -589,7 +589,7 @@ struct ide_drive_s {
 	int		lun;		/* logical unit */
 	int		crc_count;	/* crc counter to reduce drive speed */
 
-	unsigned long	debug_mask;	/* debugging levels switch */
+	unsigned long	de_mask;	/* deging levels switch */
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	struct ide_acpi_drive_link *acpidata;
@@ -1012,9 +1012,9 @@ enum {
 };
 
 /* DRV_NAME has to be defined in the driver before using the macro below */
-#define __ide_debug_log(lvl, fmt, args...)				\
+#define __ide_de_log(lvl, fmt, args...)				\
 {									\
-	if (unlikely(drive->debug_mask & lvl))				\
+	if (unlikely(drive->de_mask & lvl))				\
 		printk(KERN_INFO DRV_NAME ": %s: " fmt "\n",		\
 					  __func__, ## args);		\
 }

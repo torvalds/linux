@@ -49,7 +49,7 @@ int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	dev_priv->agp_offset = agp->offset;
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("offset = %u, size = %u\n", agp->offset, agp->size);
+	DRM_DE("offset = %u, size = %u\n", agp->offset, agp->size);
 	return 0;
 }
 
@@ -65,7 +65,7 @@ int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	dev_priv->vram_offset = fb->offset;
 
 	mutex_unlock(&dev->struct_mutex);
-	DRM_DEBUG("offset = %u, size = %u\n", fb->offset, fb->size);
+	DRM_DE("offset = %u, size = %u\n", fb->offset, fb->size);
 
 	return 0;
 
@@ -80,7 +80,7 @@ int via_final_context(struct drm_device *dev, int context)
 	/* Linux specific until context tracking code gets ported to BSD */
 	/* Last context, perform cleanup */
 	if (list_is_singular(&dev->ctxlist)) {
-		DRM_DEBUG("Last Context\n");
+		DRM_DE("Last Context\n");
 		drm_irq_uninstall(dev);
 		via_cleanup_futex(dev_priv);
 		via_do_cleanup_map(dev);
@@ -172,7 +172,7 @@ fail_alloc:
 	mem->offset = 0;
 	mem->size = 0;
 	mem->index = 0;
-	DRM_DEBUG("Video memory allocation failed\n");
+	DRM_DE("Video memory allocation failed\n");
 
 	return retval;
 }
@@ -196,7 +196,7 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	kfree(obj);
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG("free = 0x%lx\n", mem->index);
+	DRM_DE("free = 0x%lx\n", mem->index);
 
 	return 0;
 }

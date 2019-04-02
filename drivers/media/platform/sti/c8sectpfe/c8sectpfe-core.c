@@ -34,7 +34,7 @@
 
 #include "c8sectpfe-core.h"
 #include "c8sectpfe-common.h"
-#include "c8sectpfe-debugfs.h"
+#include "c8sectpfe-defs.h"
 #include <media/dmxdev.h>
 #include <media/dvb_demux.h>
 #include <media/dvb_frontend.h>
@@ -879,7 +879,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	c8sectpfe_debugfs_init(fei);
+	c8sectpfe_defs_init(fei);
 
 	return 0;
 
@@ -906,7 +906,7 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 		free_input_block(fei, channel);
 	}
 
-	c8sectpfe_debugfs_exit(fei);
+	c8sectpfe_defs_exit(fei);
 
 	dev_info(fei->dev, "Stopping memdma SLIM core\n");
 	if (readl(fei->io + DMA_CPU_RUN))

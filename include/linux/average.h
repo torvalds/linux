@@ -2,7 +2,7 @@
 #ifndef _LINUX_AVERAGE_H
 #define _LINUX_AVERAGE_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/log2.h>
 
@@ -31,23 +31,23 @@
 	};								\
 	static inline void ewma_##name##_init(struct ewma_##name *e)	\
 	{								\
-		BUILD_BUG_ON(!__builtin_constant_p(_precision));	\
-		BUILD_BUG_ON(!__builtin_constant_p(_weight_rcp));	\
+		BUILD__ON(!__builtin_constant_p(_precision));	\
+		BUILD__ON(!__builtin_constant_p(_weight_rcp));	\
 		/*							\
 		 * Even if you want to feed it just 0/1 you should have	\
 		 * some bits for the non-fractional part...		\
 		 */							\
-		BUILD_BUG_ON((_precision) > 30);			\
-		BUILD_BUG_ON_NOT_POWER_OF_2(_weight_rcp);		\
+		BUILD__ON((_precision) > 30);			\
+		BUILD__ON_NOT_POWER_OF_2(_weight_rcp);		\
 		e->internal = 0;					\
 	}								\
 	static inline unsigned long					\
 	ewma_##name##_read(struct ewma_##name *e)			\
 	{								\
-		BUILD_BUG_ON(!__builtin_constant_p(_precision));	\
-		BUILD_BUG_ON(!__builtin_constant_p(_weight_rcp));	\
-		BUILD_BUG_ON((_precision) > 30);			\
-		BUILD_BUG_ON_NOT_POWER_OF_2(_weight_rcp);		\
+		BUILD__ON(!__builtin_constant_p(_precision));	\
+		BUILD__ON(!__builtin_constant_p(_weight_rcp));	\
+		BUILD__ON((_precision) > 30);			\
+		BUILD__ON_NOT_POWER_OF_2(_weight_rcp);		\
 		return e->internal >> (_precision);			\
 	}								\
 	static inline void ewma_##name##_add(struct ewma_##name *e,	\
@@ -57,10 +57,10 @@
 		unsigned long weight_rcp = ilog2(_weight_rcp);		\
 		unsigned long precision = _precision;			\
 									\
-		BUILD_BUG_ON(!__builtin_constant_p(_precision));	\
-		BUILD_BUG_ON(!__builtin_constant_p(_weight_rcp));	\
-		BUILD_BUG_ON((_precision) > 30);			\
-		BUILD_BUG_ON_NOT_POWER_OF_2(_weight_rcp);		\
+		BUILD__ON(!__builtin_constant_p(_precision));	\
+		BUILD__ON(!__builtin_constant_p(_weight_rcp));	\
+		BUILD__ON((_precision) > 30);			\
+		BUILD__ON_NOT_POWER_OF_2(_weight_rcp);		\
 									\
 		WRITE_ONCE(e->internal, internal ?			\
 			(((internal << weight_rcp) - internal) +	\

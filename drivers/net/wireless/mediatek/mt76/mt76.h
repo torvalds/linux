@@ -457,15 +457,15 @@ struct mt76_dev {
 
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
-	struct debugfs_blob_wrapper eeprom;
-	struct debugfs_blob_wrapper otp;
+	struct defs_blob_wrapper eeprom;
+	struct defs_blob_wrapper otp;
 	struct mt76_hw_cap cap;
 
 	struct mt76_rate_power rate_power;
 	int txpower_conf;
 	int txpower_cur;
 
-	u32 debugfs_reg;
+	u32 defs_reg;
 
 	struct led_classdev led_cdev;
 	char led_name[32];
@@ -598,7 +598,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 			 struct ieee80211_rate *rates, int n_rates);
 void mt76_unregister_device(struct mt76_dev *dev);
 
-struct dentry *mt76_register_debugfs(struct mt76_dev *dev);
+struct dentry *mt76_register_defs(struct mt76_dev *dev);
 void mt76_seq_puts_array(struct seq_file *file, const char *str,
 			 s8 *val, int len);
 
@@ -640,7 +640,7 @@ wcid_to_sta(struct mt76_wcid *wcid)
 
 static inline struct mt76_tx_cb *mt76_tx_skb_cb(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct mt76_tx_cb) >
+	BUILD__ON(sizeof(struct mt76_tx_cb) >
 		     sizeof(IEEE80211_SKB_CB(skb)->status.status_driver_data));
 	return ((void *) IEEE80211_SKB_CB(skb)->status.status_driver_data);
 }

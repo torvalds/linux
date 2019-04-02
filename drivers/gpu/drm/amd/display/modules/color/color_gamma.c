@@ -494,17 +494,17 @@ static bool build_custom_gamma_mapping_coefficients_worker(
 		if (!find_software_points(
 			ramp, axis_x, coord_x, channel,
 			&index_to_start, &index_left, &index_right, &hw_pos)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (index_left >= ramp->num_entries + 3) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (index_right >= ramp->num_entries + 3) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
@@ -538,7 +538,7 @@ static bool build_custom_gamma_mapping_coefficients_worker(
 		else if (hw_pos == HW_POINT_POSITION_RIGHT)
 			point->coeff = dc_fixpt_from_int(2);
 		else {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
@@ -570,12 +570,12 @@ static struct fixed31_32 calculate_mapped_value(
 		point = &coeff->b;
 
 	if ((point->left_index < 0) || (point->left_index > max_index)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return dc_fixpt_zero;
 	}
 
 	if ((point->right_index < 0) || (point->right_index > max_index)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return dc_fixpt_zero;
 	}
 
@@ -605,10 +605,10 @@ static struct fixed31_32 calculate_mapped_value(
 						rgb[point->left_index].b)),
 				rgb[point->left_index].b);
 	else if (point->pos == HW_POINT_POSITION_LEFT) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		result = dc_fixpt_zero;
 	} else {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		result = dc_fixpt_one;
 	}
 

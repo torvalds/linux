@@ -32,7 +32,7 @@
 /* Forward declarations */
 struct hwbus_ops;
 struct task_struct;
-struct cw1200_debug_priv;
+struct cw1200_de_priv;
 struct firmware;
 
 #define CW1200_MAX_CTRL_FRAME_LEN	(0x1000)
@@ -125,7 +125,7 @@ struct cw1200_common {
 	const struct firmware		*sdd;
 	char                            *sdd_path;
 
-	struct cw1200_debug_priv	*debug;
+	struct cw1200_de_priv	*de;
 
 	struct workqueue_struct		*workqueue;
 	struct mutex			conf_mutex;
@@ -222,7 +222,7 @@ struct cw1200_common {
 	int                             firmware_ready;
 	atomic_t			tx_lock;
 
-	/* WSM debug */
+	/* WSM de */
 	int				wsm_enable_wsm_dumps;
 
 	/* WSM Join */

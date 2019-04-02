@@ -21,7 +21,7 @@
 #define usbhsp_flags_init(p)	do {(p)->flags = 0; } while (0)
 
 /*
- * for debug
+ * for de
  */
 static char *usbhsp_pipe_name[] = {
 	[USB_ENDPOINT_XFER_CONTROL]	= "DCP",

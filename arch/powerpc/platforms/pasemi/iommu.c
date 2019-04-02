@@ -17,7 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/memblock.h>
 #include <linux/types.h>
@@ -94,7 +94,7 @@ static int iobmap_build(struct iommu_table *tbl, long index,
 	u32 rpn;
 	unsigned long bus_addr;
 
-	pr_debug("iobmap: build at: %lx, %lx, addr: %lx\n", index, npages, uaddr);
+	pr_de("iobmap: build at: %lx, %lx, addr: %lx\n", index, npages, uaddr);
 
 	bus_addr = (tbl->it_offset + index) << IOBMAP_PAGE_SHIFT;
 
@@ -120,7 +120,7 @@ static void iobmap_free(struct iommu_table *tbl, long index,
 	u32 *ip;
 	unsigned long bus_addr;
 
-	pr_debug("iobmap: free at: %lx, %lx\n", index, npages);
+	pr_de("iobmap: free at: %lx, %lx\n", index, npages);
 
 	bus_addr = (tbl->it_offset + index) << IOBMAP_PAGE_SHIFT;
 
@@ -141,7 +141,7 @@ static struct iommu_table_ops iommu_table_iobmap_ops = {
 
 static void iommu_table_iobmap_setup(void)
 {
-	pr_debug(" -> %s\n", __func__);
+	pr_de(" -> %s\n", __func__);
 	iommu_table_iobmap.it_busno = 0;
 	iommu_table_iobmap.it_offset = 0;
 	iommu_table_iobmap.it_page_shift = IOBMAP_PAGE_SHIFT;
@@ -159,14 +159,14 @@ static void iommu_table_iobmap_setup(void)
 	iommu_table_iobmap.it_blocksize = 4;
 	iommu_table_iobmap.it_ops = &iommu_table_iobmap_ops;
 	iommu_init_table(&iommu_table_iobmap, 0);
-	pr_debug(" <- %s\n", __func__);
+	pr_de(" <- %s\n", __func__);
 }
 
 
 
 static void pci_dma_bus_setup_pasemi(struct pci_bus *bus)
 {
-	pr_debug("pci_dma_bus_setup, bus %p, bus->self %p\n", bus, bus->self);
+	pr_de("pci_dma_bus_setup, bus %p, bus->self %p\n", bus, bus->self);
 
 	if (!iommu_table_iobmap_inited) {
 		iommu_table_iobmap_inited = 1;
@@ -177,7 +177,7 @@ static void pci_dma_bus_setup_pasemi(struct pci_bus *bus)
 
 static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 {
-	pr_debug("pci_dma_dev_setup, dev %p (%s)\n", dev, pci_name(dev));
+	pr_de("pci_dma_dev_setup, dev %p (%s)\n", dev, pci_name(dev));
 
 #if !defined(CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE)
 	/* For non-LPAR environment, don't translate anything for the DMA
@@ -205,7 +205,7 @@ static int __init iob_init(struct device_node *dn)
 	u32 regword;
 	int i;
 
-	pr_debug(" -> %s\n", __func__);
+	pr_de(" -> %s\n", __func__);
 
 	/* For 2G space, 8x64 pages (2^21 bytes) is max total l2 size */
 	iob_l2_base = memblock_alloc_try_nid_raw(1UL << 21, 1UL << 21,
@@ -248,7 +248,7 @@ static int __init iob_init(struct device_node *dn)
 	regword |= IOBCOM_ATEN;
 	out_le32(iob+IOBCOM_REG, regword);
 
-	pr_debug(" <- %s\n", __func__);
+	pr_de(" <- %s\n", __func__);
 
 	return 0;
 }

@@ -11,18 +11,18 @@
 
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/pci.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 #include <asm/pci_dma.h>
 
-static struct dentry *debugfs_root;
-debug_info_t *pci_debug_msg_id;
-EXPORT_SYMBOL_GPL(pci_debug_msg_id);
-debug_info_t *pci_debug_err_id;
-EXPORT_SYMBOL_GPL(pci_debug_err_id);
+static struct dentry *defs_root;
+de_info_t *pci_de_msg_id;
+EXPORT_SYMBOL_GPL(pci_de_msg_id);
+de_info_t *pci_de_err_id;
+EXPORT_SYMBOL_GPL(pci_de_err_id);
 
 static char *pci_common_names[] = {
 	"Load operations",
@@ -161,7 +161,7 @@ static int pci_perf_seq_open(struct inode *inode, struct file *filp)
 			   file_inode(filp)->i_private);
 }
 
-static const struct file_operations debugfs_pci_perf_fops = {
+static const struct file_operations defs_pci_perf_fops = {
 	.open	 = pci_perf_seq_open,
 	.read	 = seq_read,
 	.write	 = pci_perf_seq_write,
@@ -169,42 +169,42 @@ static const struct file_operations debugfs_pci_perf_fops = {
 	.release = single_release,
 };
 
-void zpci_debug_init_device(struct zpci_dev *zdev, const char *name)
+void zpci_de_init_device(struct zpci_dev *zdev, const char *name)
 {
-	zdev->debugfs_dev = debugfs_create_dir(name, debugfs_root);
+	zdev->defs_dev = defs_create_dir(name, defs_root);
 
-	debugfs_create_file("statistics", S_IFREG | S_IRUGO | S_IWUSR,
-			    zdev->debugfs_dev, zdev, &debugfs_pci_perf_fops);
+	defs_create_file("statistics", S_IFREG | S_IRUGO | S_IWUSR,
+			    zdev->defs_dev, zdev, &defs_pci_perf_fops);
 }
 
-void zpci_debug_exit_device(struct zpci_dev *zdev)
+void zpci_de_exit_device(struct zpci_dev *zdev)
 {
-	debugfs_remove_recursive(zdev->debugfs_dev);
+	defs_remove_recursive(zdev->defs_dev);
 }
 
-int __init zpci_debug_init(void)
+int __init zpci_de_init(void)
 {
 	/* event trace buffer */
-	pci_debug_msg_id = debug_register("pci_msg", 8, 1, 8 * sizeof(long));
-	if (!pci_debug_msg_id)
+	pci_de_msg_id = de_register("pci_msg", 8, 1, 8 * sizeof(long));
+	if (!pci_de_msg_id)
 		return -EINVAL;
-	debug_register_view(pci_debug_msg_id, &debug_sprintf_view);
-	debug_set_level(pci_debug_msg_id, 3);
+	de_register_view(pci_de_msg_id, &de_sprintf_view);
+	de_set_level(pci_de_msg_id, 3);
 
 	/* error log */
-	pci_debug_err_id = debug_register("pci_error", 2, 1, 16);
-	if (!pci_debug_err_id)
+	pci_de_err_id = de_register("pci_error", 2, 1, 16);
+	if (!pci_de_err_id)
 		return -EINVAL;
-	debug_register_view(pci_debug_err_id, &debug_hex_ascii_view);
-	debug_set_level(pci_debug_err_id, 6);
+	de_register_view(pci_de_err_id, &de_hex_ascii_view);
+	de_set_level(pci_de_err_id, 6);
 
-	debugfs_root = debugfs_create_dir("pci", NULL);
+	defs_root = defs_create_dir("pci", NULL);
 	return 0;
 }
 
-void zpci_debug_exit(void)
+void zpci_de_exit(void)
 {
-	debug_unregister(pci_debug_msg_id);
-	debug_unregister(pci_debug_err_id);
-	debugfs_remove(debugfs_root);
+	de_unregister(pci_de_msg_id);
+	de_unregister(pci_de_err_id);
+	defs_remove(defs_root);
 }

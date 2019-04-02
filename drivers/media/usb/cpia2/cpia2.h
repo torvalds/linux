@@ -36,8 +36,8 @@
 
 #include "cpia2_registers.h"
 
-/* define for verbose debug output */
-//#define _CPIA2_DEBUG_
+/* define for verbose de output */
+//#define _CPIA2_DE_
 
 /***
  * Image defines
@@ -65,11 +65,11 @@
 #define FLICKER_60      60
 #define FLICKER_50      50
 
-/* Debug flags */
-#define DEBUG_NONE          0
-#define DEBUG_REG           0x00000001
-#define DEBUG_DUMP_PATCH    0x00000002
-#define DEBUG_DUMP_REGS     0x00000004
+/* De flags */
+#define DE_NONE          0
+#define DE_REG           0x00000001
+#define DE_DUMP_PATCH    0x00000002
+#define DE_DUMP_REGS     0x00000004
 
 /***
  * Video frame sizes
@@ -465,12 +465,12 @@ int cpia2_usb_change_streaming_alternate(struct camera_data *cam,
 					 unsigned int alt);
 
 
-/* ----------------------- debug functions ---------------------- */
-#ifdef _CPIA2_DEBUG_
+/* ----------------------- de functions ---------------------- */
+#ifdef _CPIA2_DE_
 #define ALOG(lev, fmt, args...) printk(lev "%s:%d %s(): " fmt, __FILE__, __LINE__, __func__, ## args)
 #define LOG(fmt, args...) ALOG(KERN_INFO, fmt, ## args)
 #define ERR(fmt, args...) ALOG(KERN_ERR, fmt, ## args)
-#define DBG(fmt, args...) ALOG(KERN_DEBUG, fmt, ## args)
+#define DBG(fmt, args...) ALOG(KERN_DE, fmt, ## args)
 #else
 #define ALOG(fmt,args...) printk(fmt,##args)
 #define LOG(fmt,args...) ALOG(KERN_INFO "cpia2: "fmt,##args)

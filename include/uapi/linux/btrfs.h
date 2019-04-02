@@ -261,7 +261,7 @@ struct btrfs_ioctl_fs_info_args {
 
 /*
  * older kernels tried to do bigger metadata blocks, but the
- * code was pretty buggy.  Lets not let them try anymore.
+ * code was pretty gy.  Lets not let them try anymore.
  */
 #define BTRFS_FEATURE_INCOMPAT_BIG_METADATA	(1ULL << 5)
 

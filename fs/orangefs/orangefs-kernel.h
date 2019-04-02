@@ -96,7 +96,7 @@ enum orangefs_vfs_op_states {
  * orangefs kernel memory related flags
  */
 
-#if (defined CONFIG_DEBUG_SLAB)
+#if (defined CONFIG_DE_SLAB)
 #define ORANGEFS_CACHE_CREATE_FLAGS SLAB_RED_ZONE
 #else
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
@@ -260,7 +260,7 @@ static inline struct orangefs_khandle *get_khandle_from_ino(struct inode *inode)
 
 static inline int is_root_handle(struct inode *inode)
 {
-	gossip_debug(GOSSIP_DCACHE_DEBUG,
+	gossip_de(GOSSIP_DCACHE_DE,
 		     "%s: root handle: %pU, this handle: %pU:\n",
 		     __func__,
 		     &ORANGEFS_SB(inode->i_sb)->root_khandle,
@@ -276,7 +276,7 @@ static inline int is_root_handle(struct inode *inode)
 static inline int match_handle(struct orangefs_khandle resp_handle,
 			       struct inode *inode)
 {
-	gossip_debug(GOSSIP_DCACHE_DEBUG,
+	gossip_de(GOSSIP_DCACHE_DE,
 		     "%s: one handle: %pU, another handle:%pU:\n",
 		     __func__,
 		     &resp_handle,

@@ -243,7 +243,7 @@ static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
  * The normal read/modify should not directly be used on VLV2 for
  * updating AUD_CONFIG register.
  * This is because:
- * Bit6 of AUD_CONFIG register is writeonly due to a silicon bug on VLV2
+ * Bit6 of AUD_CONFIG register is writeonly due to a silicon  on VLV2
  * HDMI IP. As a result a read-modify of AUD_CONFIG regiter will always
  * clear bit6. AUD_CONFIG[6:4] represents the "channels" field of the
  * register. This field should be 1xy binary for configuration with 6 or
@@ -1362,7 +1362,7 @@ static void had_process_hot_plug(struct snd_intelhad *intelhaddata)
 
 	intelhaddata->connected = true;
 	dev_dbg(intelhaddata->dev,
-		"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
+		"%s @ %d:DE PLUG/UNPLUG : HAD_DRV_CONNECTED\n",
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 
@@ -1396,7 +1396,7 @@ static void had_process_hot_unplug(struct snd_intelhad *intelhaddata)
 
 	intelhaddata->connected = false;
 	dev_dbg(intelhaddata->dev,
-		"%s @ %d:DEBUG PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
+		"%s @ %d:DE PLUG/UNPLUG : HAD_DRV_DISCONNECTED\n",
 			__func__, __LINE__);
 	spin_unlock_irq(&intelhaddata->had_spinlock);
 

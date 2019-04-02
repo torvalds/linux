@@ -74,7 +74,7 @@ static unsigned cmd_loop(unsigned numbytes, struct inbuf_t *inbuf)
 				cbytes = MAX_RESP_SIZE;
 			}
 			cs->cbytes = cbytes;
-			gigaset_dbg_buffer(DEBUG_TRANSCMD, "received response",
+			gigaset_dbg_buffer(DE_TRANSCMD, "received response",
 					   cbytes, cs->respdata);
 			gigaset_handle_modem_response(cs);
 			cbytes = 0;
@@ -122,7 +122,7 @@ static unsigned lock_loop(unsigned numbytes, struct inbuf_t *inbuf)
 {
 	unsigned char *src = inbuf->data + inbuf->head;
 
-	gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response", numbytes, src);
+	gigaset_dbg_buffer(DE_LOCKCMD, "received response", numbytes, src);
 	gigaset_if_receive(inbuf->cs, src, numbytes);
 	return numbytes;
 }
@@ -190,14 +190,14 @@ byte_stuff:
 				}
 			}
 			c ^= PPP_TRANS;
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 			if (!muststuff(c))
-				gig_dbg(DEBUG_HDLC, "byte stuffed: 0x%02x", c);
+				gig_dbg(DE_HDLC, "byte stuffed: 0x%02x", c);
 #endif
 		} else if (c == PPP_FLAG) {
 			/* end of frame: process content if any */
 			if (inputstate & INS_have_data) {
-				gig_dbg(DEBUG_HDLC,
+				gig_dbg(DE_HDLC,
 					"7e----------------------------");
 
 				/* check and pass received frame */
@@ -229,7 +229,7 @@ byte_stuff:
 				skb = gigaset_new_rx_skb(bcs);
 			} else {
 				/* empty frame (7E 7E) */
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 				++bcs->emptycount;
 #endif
 				if (!skb) {
@@ -241,17 +241,17 @@ byte_stuff:
 
 			fcs = PPP_INITFCS;
 			continue;
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 		} else if (muststuff(c)) {
 			/* Should not happen. Possible after ZDLE=1<CR><LF>. */
-			gig_dbg(DEBUG_HDLC, "not byte stuffed: 0x%02x", c);
+			gig_dbg(DE_HDLC, "not byte stuffed: 0x%02x", c);
 #endif
 		}
 
 		/* regular data byte, append to skb */
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 		if (!(inputstate & INS_have_data)) {
-			gig_dbg(DEBUG_HDLC, "7e (%d x) ================",
+			gig_dbg(DE_HDLC, "7e (%d x) ================",
 				bcs->emptycount);
 			bcs->emptycount = 0;
 		}
@@ -409,7 +409,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 	struct cardstate *cs = inbuf->cs;
 	unsigned numbytes, procbytes;
 
-	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", inbuf->head, inbuf->tail);
+	gig_dbg(DE_INTR, "buffer state: %u -> %u", inbuf->head, inbuf->tail);
 
 	while (inbuf->head != inbuf->tail) {
 		/* check for DLE escape */
@@ -418,7 +418,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 		/* process a contiguous block of bytes */
 		numbytes = (inbuf->head > inbuf->tail ?
 			    RBUFSIZE : inbuf->tail) - inbuf->head;
-		gig_dbg(DEBUG_INTR, "processing %u bytes", numbytes);
+		gig_dbg(DE_INTR, "processing %u bytes", numbytes);
 		/*
 		 * numbytes may be 0 if handle_dle() ate the last byte.
 		 * This does no harm, *_loop() will just return 0 immediately.
@@ -438,7 +438,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 		if (inbuf->head >= RBUFSIZE)
 			inbuf->head = 0;
 
-		gig_dbg(DEBUG_INTR, "head set to %u", inbuf->head);
+		gig_dbg(DE_INTR, "head set to %u", inbuf->head);
 	}
 }
 EXPORT_SYMBOL_GPL(gigaset_m10x_input);

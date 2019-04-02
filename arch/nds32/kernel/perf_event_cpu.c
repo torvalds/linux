@@ -802,7 +802,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	mapping = nds32_pmu->map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_de("event %x:%llx not supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}
@@ -824,7 +824,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if ((!nds32_pmu->set_event_filter ||
 	     nds32_pmu->set_event_filter(hwc, &event->attr)) &&
 	    event_requires_mode_exclusion(&event->attr)) {
-		pr_debug
+		pr_de
 			("NDS performance counters do not support mode exclusion\n");
 		return -EOPNOTSUPP;
 	}

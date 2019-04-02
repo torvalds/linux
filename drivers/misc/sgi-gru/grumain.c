@@ -173,7 +173,7 @@ static unsigned long reserve_resources(unsigned long *p, int n, int mmax,
 	while (n--) {
 		i = find_first_bit(p, mmax);
 		if (i == mmax)
-			BUG();
+			();
 		__clear_bit(i, p);
 		__set_bit(i, &bits);
 		if (idx)
@@ -257,7 +257,7 @@ static int gru_load_mm_tracker(struct gru_state *gru,
 	}
 	spin_unlock(&gru->gs_asid_lock);
 
-	BUG_ON(asids->mt_ctxbitmap & ctxbitmap);
+	_ON(asids->mt_ctxbitmap & ctxbitmap);
 	asids->mt_ctxbitmap |= ctxbitmap;
 	if (!test_bit(gru->gs_gid, gms->ms_asidmap))
 		__set_bit(gru->gs_gid, gms->ms_asidmap);
@@ -281,7 +281,7 @@ static void gru_unload_mm_tracker(struct gru_state *gru,
 	ctxbitmap = (1 << gts->ts_ctxnum);
 	spin_lock(&gms->ms_asid_lock);
 	spin_lock(&gru->gs_asid_lock);
-	BUG_ON((asids->mt_ctxbitmap & ctxbitmap) != ctxbitmap);
+	_ON((asids->mt_ctxbitmap & ctxbitmap) != ctxbitmap);
 	asids->mt_ctxbitmap ^= ctxbitmap;
 	gru_dbg(grudev, "gid %d, gts %p, gms %p, ctxnum %d, asidmap 0x%lx\n",
 		gru->gs_gid, gts, gms, gts->ts_ctxnum, gms->ms_asidmap[0]);
@@ -444,7 +444,7 @@ static void gru_free_gru_context(struct gru_thread_state *gts)
 	spin_lock(&gru->gs_lock);
 	gru->gs_gts[gts->ts_ctxnum] = NULL;
 	free_gru_resources(gru, gts);
-	BUG_ON(test_bit(gts->ts_ctxnum, &gru->gs_context_map) == 0);
+	_ON(test_bit(gts->ts_ctxnum, &gru->gs_context_map) == 0);
 	__clear_bit(gts->ts_ctxnum, &gru->gs_context_map);
 	gts->ts_ctxnum = NULLCTX;
 	gts->ts_gru = NULL;
@@ -566,7 +566,7 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 		gts, gts->ts_cbr_map, gts->ts_dsr_map);
 	lock_cch_handle(cch);
 	if (cch_interrupt_sync(cch))
-		BUG();
+		();
 
 	if (!is_kernel_context(gts))
 		gru_unload_mm_tracker(gru, gts);
@@ -578,7 +578,7 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 	}
 
 	if (cch_deallocate(cch))
-		BUG();
+		();
 	unlock_cch_handle(cch);
 
 	gru_free_gru_context(gts);
@@ -635,14 +635,14 @@ void gru_load_context(struct gru_thread_state *gts)
 		gru_dbg(grudev,
 			"err %d: cch %p, gts %p, cbr 0x%lx, dsr 0x%lx\n",
 			err, cch, gts, gts->ts_cbr_map, gts->ts_dsr_map);
-		BUG();
+		();
 	}
 
 	gru_load_context_data(gts->ts_gdata, gru->gs_gru_base_vaddr, ctxnum,
 			gts->ts_cbr_map, gts->ts_dsr_map, gts->ts_data_valid);
 
 	if (cch_start(cch))
-		BUG();
+		();
 	unlock_cch_handle(cch);
 
 	gru_dbg(grudev, "gid %d, gts %p, cbrmap 0x%lx, dsrmap 0x%lx, tie %d, tis %d\n",
@@ -668,7 +668,7 @@ int gru_update_cch(struct gru_thread_state *gts)
 		if (gru->gs_gts[gts->ts_ctxnum] != gts)
 			goto exit;
 		if (cch_interrupt(cch))
-			BUG();
+			();
 		for (i = 0; i < 8; i++)
 			cch->sizeavail[i] = gts->ts_sizeavail;
 		gts->ts_tlb_int_select = gru_cpu_fault_map_id();
@@ -677,7 +677,7 @@ int gru_update_cch(struct gru_thread_state *gts)
 		  (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
 		    || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
 		if (cch_start(cch))
-			BUG();
+			();
 		ret = 1;
 	}
 exit:

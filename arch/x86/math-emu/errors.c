@@ -121,7 +121,7 @@ void FPU_printall(void)
 
 	partial_status = status_word();
 
-#ifdef DEBUGGING
+#ifdef DEGING
 	if (partial_status & SW_Backward)
 		printk("SW: backward compatibility\n");
 	if (partial_status & SW_C3)
@@ -148,7 +148,7 @@ void FPU_printall(void)
 		printk("SW: denormalized operand\n");
 	if (partial_status & SW_Invalid)
 		printk("SW: invalid operation\n");
-#endif /* DEBUGGING */
+#endif /* DEGING */
 
 	printk(" SW: b=%d st=%d es=%d sf=%d cc=%d%d%d%d ef=%d%d%d%d%d%d\n", partial_status & 0x8000 ? 1 : 0,	/* busy */
 	       (partial_status & 0x3800) >> 11,	/* stack top pointer */
@@ -220,7 +220,7 @@ static struct {
 	EX_ZeroDiv, "divide by zero"}, {
 	EX_Denormal, "denormalized operand"}, {
 	EX_Invalid, "invalid operation"}, {
-	EX_INTERNAL, "INTERNAL BUG in " FPU_VERSION}, {
+	EX_INTERNAL, "INTERNAL  in " FPU_VERSION}, {
 	0, NULL}
 };
 
@@ -362,9 +362,9 @@ asmlinkage __visible void FPU_exception(int n)
 	}
 	RE_ENTRANT_CHECK_ON;
 
-#ifdef __DEBUG__
+#ifdef __DE__
 	math_abort(FPU_info, SIGFPE);
-#endif /* __DEBUG__ */
+#endif /* __DE__ */
 
 }
 

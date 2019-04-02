@@ -124,7 +124,7 @@
 #define IA64_DCR_DX_BIT		11	/* defer key permission faults */
 #define IA64_DCR_DR_BIT		12	/* defer access right faults */
 #define IA64_DCR_DA_BIT		13	/* defer access bit faults */
-#define IA64_DCR_DD_BIT		14	/* defer debug faults */
+#define IA64_DCR_DD_BIT		14	/* defer de faults */
 
 #define IA64_DCR_PP	(__IA64_UL(1) << IA64_DCR_PP_BIT)
 #define IA64_DCR_BE	(__IA64_UL(1) << IA64_DCR_BE_BIT)

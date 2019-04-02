@@ -22,7 +22,7 @@
 struct regmap;
 struct regcache_ops;
 
-struct regmap_debugfs_off_cache {
+struct regmap_defs_off_cache {
 	struct list_head list;
 	off_t min;
 	off_t max;
@@ -76,16 +76,16 @@ struct regmap {
 	struct list_head async_free;
 	int async_ret;
 
-#ifdef CONFIG_DEBUG_FS
-	bool debugfs_disable;
-	struct dentry *debugfs;
-	const char *debugfs_name;
+#ifdef CONFIG_DE_FS
+	bool defs_disable;
+	struct dentry *defs;
+	const char *defs_name;
 
-	unsigned int debugfs_reg_len;
-	unsigned int debugfs_val_len;
-	unsigned int debugfs_tot_len;
+	unsigned int defs_reg_len;
+	unsigned int defs_val_len;
+	unsigned int defs_tot_len;
 
-	struct list_head debugfs_off_cache;
+	struct list_head defs_off_cache;
 	struct mutex cache_lock;
 #endif
 
@@ -171,8 +171,8 @@ struct regcache_ops {
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
 	int (*exit)(struct regmap *map);
-#ifdef CONFIG_DEBUG_FS
-	void (*debugfs_init)(struct regmap *map);
+#ifdef CONFIG_DE_FS
+	void (*defs_init)(struct regmap *map);
 #endif
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
@@ -218,21 +218,21 @@ struct regmap_field {
 	unsigned int id_offset;
 };
 
-#ifdef CONFIG_DEBUG_FS
-extern void regmap_debugfs_initcall(void);
-extern void regmap_debugfs_init(struct regmap *map, const char *name);
-extern void regmap_debugfs_exit(struct regmap *map);
+#ifdef CONFIG_DE_FS
+extern void regmap_defs_initcall(void);
+extern void regmap_defs_init(struct regmap *map, const char *name);
+extern void regmap_defs_exit(struct regmap *map);
 
-static inline void regmap_debugfs_disable(struct regmap *map)
+static inline void regmap_defs_disable(struct regmap *map)
 {
-	map->debugfs_disable = true;
+	map->defs_disable = true;
 }
 
 #else
-static inline void regmap_debugfs_initcall(void) { }
-static inline void regmap_debugfs_init(struct regmap *map, const char *name) { }
-static inline void regmap_debugfs_exit(struct regmap *map) { }
-static inline void regmap_debugfs_disable(struct regmap *map) { }
+static inline void regmap_defs_initcall(void) { }
+static inline void regmap_defs_init(struct regmap *map, const char *name) { }
+static inline void regmap_defs_exit(struct regmap *map) { }
+static inline void regmap_defs_disable(struct regmap *map) { }
 #endif
 
 /* regcache core declarations */

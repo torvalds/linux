@@ -428,7 +428,7 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 		/* clk |= MCI_CLK_PWRSAVE; */
 	}
 
-	/* Set actual clock for debug */
+	/* Set actual clock for de */
 	host->mmc->actual_clock = host->cclk;
 
 	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4)
@@ -577,7 +577,7 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 {
 	writel(0, host->base + MMCICOMMAND);
 
-	BUG_ON(host->data);
+	_ON(host->data);
 
 	host->mrq = NULL;
 	host->cmd = NULL;
@@ -789,7 +789,7 @@ void mmci_dmae_finalize(struct mmci_host *host, struct mmc_data *data)
 	 * Give up with DMA and switch back to PIO mode.
 	 */
 	if (status & MCI_RXDATAAVLBLMASK) {
-		dev_err(mmc_dev(host->mmc), "buggy DMA detected. Taking evasive action.\n");
+		dev_err(mmc_dev(host->mmc), "gy DMA detected. Taking evasive action.\n");
 		mmci_dma_release(host);
 	}
 
@@ -1019,7 +1019,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	writel(host->size, base + MMCIDATALENGTH);
 
 	blksz_bits = ffs(data->blksz) - 1;
-	BUG_ON(1 << blksz_bits != data->blksz);
+	_ON(1 << blksz_bits != data->blksz);
 
 	if (variant->blksz_datactrl16)
 		datactrl = variant->datactrl_dpsm_enable | (data->blksz << 16);

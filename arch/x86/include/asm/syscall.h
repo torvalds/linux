@@ -94,7 +94,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 	memcpy(args, &regs->bx + i, n * sizeof(args[0]));
 }
 
@@ -103,7 +103,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 	memcpy(&regs->bx + i, args, n * sizeof(args[0]));
 }
 
@@ -143,7 +143,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 		case 6:
 			if (!n--) break;
 		default:
-			BUG();
+			();
 			break;
 		}
 	else
@@ -170,7 +170,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 		case 6:
 			if (!n--) break;
 		default:
-			BUG();
+			();
 			break;
 		}
 }
@@ -204,7 +204,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 		case 6:
 			if (!n--) break;
 		default:
-			BUG();
+			();
 			break;
 		}
 	else
@@ -231,7 +231,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 		case 6:
 			if (!n--) break;
 		default:
-			BUG();
+			();
 			break;
 		}
 }

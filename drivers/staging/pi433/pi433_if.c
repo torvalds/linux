@@ -16,7 +16,7 @@
  *	Marcus Wolf <linux@wolf-entwicklungen.de>
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -956,7 +956,7 @@ static int pi433_open(struct inode *inode, struct file *filp)
 	device = idr_find(&pi433_idr, iminor(inode));
 	mutex_unlock(&minor_lock);
 	if (!device) {
-		pr_debug("device: minor %d unknown.\n", iminor(inode));
+		pr_de("device: minor %d unknown.\n", iminor(inode));
 		return -ENODEV;
 	}
 

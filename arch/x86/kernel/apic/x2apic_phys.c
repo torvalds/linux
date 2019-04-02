@@ -26,7 +26,7 @@ static bool x2apic_fadt_phys(void)
 #ifdef CONFIG_ACPI
 	if ((acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) &&
 		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL)) {
-		printk(KERN_DEBUG "System requires x2apic physical mode\n");
+		printk(KERN_DE "System requires x2apic physical mode\n");
 		return true;
 	}
 #endif

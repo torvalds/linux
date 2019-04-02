@@ -100,7 +100,7 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 	return 0;
 }
 
-static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
+static void ttm_bo_man_de(struct ttm_mem_type_manager *man,
 			     struct drm_printer *printer)
 {
 }
@@ -110,7 +110,7 @@ static const struct ttm_mem_type_manager_func virtio_gpu_bo_manager_func = {
 	.takedown = ttm_bo_man_takedown,
 	.get_node = ttm_bo_man_get_node,
 	.put_node = ttm_bo_man_put_node,
-	.debug = ttm_bo_man_debug
+	.de = ttm_bo_man_de
 };
 
 static int virtio_gpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
@@ -256,7 +256,7 @@ static void virtio_gpu_move_null(struct ttm_buffer_object *bo,
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
-	BUG_ON(old_mem->mm_node != NULL);
+	_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 }

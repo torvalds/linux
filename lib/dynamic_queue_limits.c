@@ -24,7 +24,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 	num_queued = READ_ONCE(dql->num_queued);
 
 	/* Can't complete more than what's in queue */
-	BUG_ON(count > num_queued - dql->num_completed);
+	_ON(count > num_queued - dql->num_completed);
 
 	completed = dql->num_completed + count;
 	limit = dql->limit;

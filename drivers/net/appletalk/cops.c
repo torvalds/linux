@@ -157,11 +157,11 @@ static int cops_irqlist[] = {
 static struct timer_list cops_timer;
 static struct net_device *cops_timer_dev;
 
-/* use 0 for production, 1 for verification, 2 for debug, 3 for verbose debug */
-#ifndef COPS_DEBUG
-#define COPS_DEBUG 1 
+/* use 0 for production, 1 for verification, 2 for de, 3 for verbose de */
+#ifndef COPS_DE
+#define COPS_DE 1 
 #endif
-static unsigned int cops_debug = COPS_DEBUG;
+static unsigned int cops_de = COPS_DE;
 
 /* The number of low I/O ports used by the card. */
 #define COPS_IO_EXTENT       8
@@ -279,7 +279,7 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 	int board = board_type;
 	int retval;
 	
-        if(cops_debug && version_printed++ == 0)
+        if(cops_de && version_printed++ == 0)
 		printk("%s", version);
 
 	/* Grab the region so no one else tries to probe our ioports. */
@@ -578,7 +578,7 @@ static void cops_load (struct net_device *dev)
                 i++;
         }
 
-	if(cops_debug > 1)
+	if(cops_de > 1)
 		printk("%s: Uploaded firmware - %d bytes of %d bytes.\n", 
 			dev->name, i, ltf->length);
 
@@ -660,8 +660,8 @@ static int cops_nodeid (struct net_device *dev, int nodeid)
 		schedule();
 	}
 
-	if(cops_debug > 1)
-		printk(KERN_DEBUG "%s: Node ID %d has been acquired.\n", 
+	if(cops_de > 1)
+		printk(KERN_DE "%s: Node ID %d has been acquired.\n", 
 			dev->name, lp->node_acquire);
 
 	lp->nodeid=1;	/* Set got nodeid to 1. */
@@ -917,7 +917,7 @@ static netdev_tx_t cops_send_packet(struct sk_buff *skb,
  
 static void set_multicast_list(struct net_device *dev)
 {
-        if(cops_debug >= 3)
+        if(cops_de >= 3)
 		printk("%s: set_multicast_list executed\n", dev->name);
 }
 

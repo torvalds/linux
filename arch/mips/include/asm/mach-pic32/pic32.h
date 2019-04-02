@@ -37,8 +37,8 @@
 /*
  * Register unlock sequence required for some register access.
  */
-void pic32_syskey_unlock_debug(const char *fn, const ulong ln);
+void pic32_syskey_unlock_de(const char *fn, const ulong ln);
 #define pic32_syskey_unlock()	\
-	pic32_syskey_unlock_debug(__func__, __LINE__)
+	pic32_syskey_unlock_de(__func__, __LINE__)
 
 #endif /* _ASM_MACH_PIC32_H */

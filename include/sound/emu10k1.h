@@ -1620,7 +1620,7 @@ struct snd_emu10k1_fx8010 {
 	unsigned short pad1;
 	unsigned int itram_size;	/* internal TRAM size in samples */
 	struct snd_dma_buffer etram_pages; /* external TRAM pages and size */
-	unsigned int dbg;		/* FX debugger register */
+	unsigned int dbg;		/* FX deger register */
 	unsigned char name[128];
 	int gpr_size;			/* size of allocated GPR controls */
 	int gpr_count;			/* count of used kcontrols */
@@ -1667,7 +1667,7 @@ struct snd_emu_chip_details {
 	unsigned char ca0151_chip;  /* P16V */
 	unsigned char spk71;        /* Has 7.1 speakers */
 	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
-	unsigned char spdif_bug;    /* Has Spdif phasing bug */
+	unsigned char spdif_;    /* Has Spdif phasing  */
 	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
 	unsigned char ecard;        /* APS EEPROM */
 	unsigned char emu_model;     /* EMU model type */

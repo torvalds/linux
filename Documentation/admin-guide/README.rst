@@ -246,7 +246,7 @@ Configuring the kernel
       less stable by configuring some routines to actively try to
       break bad code to find kernel problems (kmalloc()).  Thus you
       should probably answer 'n' to the questions for "development",
-      "experimental", or "debugging" features.
+      "experimental", or "deging" features.
 
 Compiling the kernel
 --------------------
@@ -281,7 +281,7 @@ Compiling the kernel
 
  - Keep a backup kernel handy in case something goes wrong.  This is
    especially true for the development releases, since each new release
-   contains new code which has not been debugged.  Make sure you keep a
+   contains new code which has not been deged.  Make sure you keep a
    backup of the modules corresponding to that kernel, as well.  If you
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
@@ -324,19 +324,19 @@ Compiling the kernel
 If something goes wrong
 -----------------------
 
- - If you have problems that seem to be due to kernel bugs, please check
+ - If you have problems that seem to be due to kernel s, please check
    the file MAINTAINERS to see if there is a particular person associated
    with the part of the kernel that you are having trouble with. If there
    isn't anyone listed there, then the second best thing is to mail
    them to me (torvalds@linux-foundation.org), and possibly to any other
    relevant mailing-list or to the newsgroup.
 
- - In all bug-reports, *please* tell what kernel you are talking about,
+ - In all -reports, *please* tell what kernel you are talking about,
    how to duplicate the problem, and what your setup is (use your common
    sense).  If the problem is new, tell me so, and if the problem is
    old, please try to tell me when you first noticed it.
 
- - If the bug results in a message like::
+ - If the  results in a message like::
 
      unable to handle kernel paging request at address C0000010
      Oops: 0002
@@ -347,13 +347,13 @@ If something goes wrong
      Pid: xx, process nr: xx
      xx xx xx xx xx xx xx xx xx xx
 
-   or similar kernel debugging information on your screen or in your
+   or similar kernel deging information on your screen or in your
    system log, please duplicate it *exactly*.  The dump may look
    incomprehensible to you, but it does contain information that may
-   help debugging the problem.  The text above the dump is also
+   help deging the problem.  The text above the dump is also
    important: it tells something about why the kernel dumped code (in
    the above example, it's due to a bad kernel pointer). More information
-   on making sense of the dump is in Documentation/admin-guide/bug-hunting.rst
+   on making sense of the dump is in Documentation/admin-guide/-hunting.rst
 
  - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
    as is, otherwise you will have to use the ``ksymoops`` program to make
@@ -362,7 +362,7 @@ If something goes wrong
    https://www.kernel.org/pub/linux/utils/kernel/ksymoops/ .
    Alternatively, you can do the dump lookup by hand:
 
- - In debugging dumps like the above, it helps enormously if you can
+ - In deging dumps like the above, it helps enormously if you can
    look up what the EIP value means.  The hex value as such doesn't help
    me or anybody else very much: it will depend on your particular
    kernel setup.  What you should do is take the hex value from the EIP
@@ -379,7 +379,7 @@ If something goes wrong
    This will give you a list of kernel addresses sorted in ascending
    order, from which it is simple to find the function that contains the
    offending address.  Note that the address given by the kernel
-   debugging messages will not necessarily match exactly with the
+   deging messages will not necessarily match exactly with the
    function addresses (in fact, that is very unlikely), so you can't
    just 'grep' the list: the list will, however, give you the starting
    point of each kernel function, so by looking for the function that
@@ -391,7 +391,7 @@ If something goes wrong
 
    If you for some reason cannot do the above (you have a pre-compiled
    kernel image or similar), telling me as much about your setup as
-   possible will help.  Please read the :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+   possible will help.  Please read the :ref:`admin-guide/reporting-s.rst <reportings>`
    document for details.
 
  - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you

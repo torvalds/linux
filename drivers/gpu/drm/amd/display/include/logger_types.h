@@ -32,37 +32,37 @@
 
 #define DC_LOG_ERROR(...) DRM_ERROR(__VA_ARGS__)
 #define DC_LOG_WARNING(...) DRM_WARN(__VA_ARGS__)
-#define DC_LOG_DEBUG(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_DC(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_DTN(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_SURFACE(...) pr_debug("[SURFACE]:"__VA_ARGS__)
-#define DC_LOG_HW_HOTPLUG(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_HW_LINK_TRAINING(...) pr_debug("[HW_LINK_TRAINING]:"__VA_ARGS__)
-#define DC_LOG_HW_SET_MODE(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_HW_RESUME_S3(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_HW_AUDIO(...) pr_debug("[HW_AUDIO]:"__VA_ARGS__)
-#define DC_LOG_HW_HPD_IRQ(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_MST(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_SCALER(...) pr_debug("[SCALER]:"__VA_ARGS__)
-#define DC_LOG_BIOS(...) pr_debug("[BIOS]:"__VA_ARGS__)
-#define DC_LOG_BANDWIDTH_CALCS(...) pr_debug("[BANDWIDTH_CALCS]:"__VA_ARGS__)
-#define DC_LOG_BANDWIDTH_VALIDATION(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_I2C_AUX(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_SYNC(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_BACKLIGHT(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_FEATURE_OVERRIDE(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_DETECTION_EDID_PARSER(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_DETECTION_DP_CAPS(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_RESOURCE(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_DML(...) pr_debug("[DML]:"__VA_ARGS__)
-#define DC_LOG_EVENT_MODE_SET(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_EVENT_DETECTION(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_EVENT_LINK_TRAINING(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_EVENT_LINK_LOSS(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_EVENT_UNDERFLOW(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_IF_TRACE(...) pr_debug("[IF_TRACE]:"__VA_ARGS__)
-#define DC_LOG_PERF_TRACE(...) DRM_DEBUG_KMS(__VA_ARGS__)
-#define DC_LOG_RETIMER_REDRIVER(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_DE(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_DC(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_DTN(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_SURFACE(...) pr_de("[SURFACE]:"__VA_ARGS__)
+#define DC_LOG_HW_HOTPLUG(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_HW_LINK_TRAINING(...) pr_de("[HW_LINK_TRAINING]:"__VA_ARGS__)
+#define DC_LOG_HW_SET_MODE(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_HW_RESUME_S3(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_HW_AUDIO(...) pr_de("[HW_AUDIO]:"__VA_ARGS__)
+#define DC_LOG_HW_HPD_IRQ(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_MST(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_SCALER(...) pr_de("[SCALER]:"__VA_ARGS__)
+#define DC_LOG_BIOS(...) pr_de("[BIOS]:"__VA_ARGS__)
+#define DC_LOG_BANDWIDTH_CALCS(...) pr_de("[BANDWIDTH_CALCS]:"__VA_ARGS__)
+#define DC_LOG_BANDWIDTH_VALIDATION(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_I2C_AUX(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_SYNC(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_BACKLIGHT(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_FEATURE_OVERRIDE(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_DETECTION_EDID_PARSER(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_DETECTION_DP_CAPS(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_RESOURCE(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_DML(...) pr_de("[DML]:"__VA_ARGS__)
+#define DC_LOG_EVENT_MODE_SET(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_DETECTION(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_LINK_TRAINING(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_LINK_LOSS(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_UNDERFLOW(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_IF_TRACE(...) pr_de("[IF_TRACE]:"__VA_ARGS__)
+#define DC_LOG_PERF_TRACE(...) DRM_DE_KMS(__VA_ARGS__)
+#define DC_LOG_RETIMER_REDRIVER(...) DRM_DE_KMS(__VA_ARGS__)
 
 struct dal_logger;
 
@@ -75,7 +75,7 @@ struct dc_log_buffer_ctx {
 enum dc_log_type {
 	LOG_ERROR = 0,
 	LOG_WARNING,
-	LOG_DEBUG,
+	LOG_DE,
 	LOG_DC,
 	LOG_DTN,
 	LOG_SURFACE,
@@ -136,7 +136,7 @@ enum dc_log_type {
 		(1 << LOG_I2C_AUX) | \
 		(1 << LOG_IF_TRACE) | \
 		(1 << LOG_DTN) /* | \
-		(1 << LOG_DEBUG) | \
+		(1 << LOG_DE) | \
 		(1 << LOG_BIOS) | \
 		(1 << LOG_SURFACE) | \
 		(1 << LOG_SCALER) | \

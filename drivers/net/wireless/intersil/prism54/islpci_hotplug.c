@@ -25,7 +25,7 @@
 
 #include "prismcompat.h"
 #include "islpci_dev.h"
-#include "islpci_mgt.h"		/* for pc_debug */
+#include "islpci_mgt.h"		/* for pc_de */
 #include "isl_oid.h"
 
 MODULE_AUTHOR("[Intersil] R.Bastings and W.Termorshuizen, The prism54.org Development Team <prism54-devel@prism54.org>");
@@ -109,7 +109,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* check whether the latency timer is set correctly */
 	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &latency_tmr);
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_TRACING, "latency timer: %x\n", latency_tmr);
+	DE(SHOW_TRACING, "latency timer: %x\n", latency_tmr);
 #endif
 	if (latency_tmr < PCIDEVICE_LATENCY_TIMER_MIN) {
 		/* set the latency timer */
@@ -160,7 +160,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* enable PCI bus-mastering */
-	DEBUG(SHOW_TRACING, "%s: pci_set_master(pdev)\n", DRV_NAME);
+	DE(SHOW_TRACING, "%s: pci_set_master(pdev)\n", DRV_NAME);
 	pci_set_master(pdev);
 
 	/* enable MWI */
@@ -218,14 +218,14 @@ prism54_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
-	BUG_ON(!priv);
+	_ON(!priv);
 
 	if (!__in_cleanup_module) {
-		printk(KERN_DEBUG "%s: hot unplug detected\n", ndev->name);
+		printk(KERN_DE "%s: hot unplug detected\n", ndev->name);
 		islpci_set_state(priv, PRV_STATE_OFF);
 	}
 
-	printk(KERN_DEBUG "%s: removing device\n", ndev->name);
+	printk(KERN_DE "%s: removing device\n", ndev->name);
 
 	unregister_netdev(ndev);
 
@@ -236,7 +236,7 @@ prism54_remove(struct pci_dev *pdev)
 		islpci_set_state(priv, PRV_STATE_OFF);
 		/* This bellow causes a lockup at rmmod time. It might be
 		 * because some interrupts still linger after rmmod time,
-		 * see bug #17 */
+		 * see  #17 */
 		/* pci_set_power_state(pdev, 3);*/	/* try to power-off */
 	}
 
@@ -260,7 +260,7 @@ prism54_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
-	BUG_ON(!priv);
+	_ON(!priv);
 
 
 	pci_save_state(pdev);
@@ -285,7 +285,7 @@ prism54_resume(struct pci_dev *pdev)
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
 	int err;
 
-	BUG_ON(!priv);
+	_ON(!priv);
 
 	printk(KERN_NOTICE "%s: got resume request\n", ndev->name);
 
@@ -313,7 +313,7 @@ prism54_module_init(void)
 	printk(KERN_INFO "Loaded %s driver, version %s\n",
 	       DRV_NAME, DRV_VERSION);
 
-	__bug_on_wrong_struct_sizes ();
+	___on_wrong_struct_sizes ();
 
 	return pci_register_driver(&prism54_driver);
 }

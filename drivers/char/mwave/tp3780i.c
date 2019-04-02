@@ -461,7 +461,7 @@ int tp3780I_StartDSP(THINKPAD_BD_DATA * pBDData)
 	PRINTK_2(TRACE_TP3780I, "tp3780i::tp3780I_StartDSP entry pBDData %p\n", pBDData);
 
 	if (dsp3780I_Run(pSettings) == 0) {
-		// @BUG @TBD EnableSRAM(pBDData);
+		// @ @TBD EnableSRAM(pBDData);
 	} else {
 		retval = -EIO;
 	}

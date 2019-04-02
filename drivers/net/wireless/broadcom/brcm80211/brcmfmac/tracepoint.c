@@ -15,13 +15,13 @@
  */
 
 #include <linux/device.h>
-#include <linux/module.h> /* bug in tracepoint.h, it should include this */
+#include <linux/module.h> /*  in tracepoint.h, it should include this */
 
 #ifndef __CHECKER__
 #define CREATE_TRACE_POINTS
 #include "bus.h"
 #include "tracepoint.h"
-#include "debug.h"
+#include "de.h"
 
 void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...)
 {

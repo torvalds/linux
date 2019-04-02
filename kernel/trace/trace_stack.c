@@ -188,7 +188,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 
 	if (task_stack_end_corrupted(current)) {
 		stack_trace_print();
-		BUG();
+		();
 	}
 
  out:

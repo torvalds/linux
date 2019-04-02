@@ -117,7 +117,7 @@ static void __init bcm47xx_register_ssb(void)
 		if (strstr(buf, "console=ttyS1")) {
 			struct ssb_serial_port port;
 
-			pr_debug("Swapping serial ports!\n");
+			pr_de("Swapping serial ports!\n");
 			/* swap serial ports */
 			memcpy(&port, &mcore->serial_ports[0], sizeof(port));
 			memcpy(&mcore->serial_ports[0], &mcore->serial_ports[1],

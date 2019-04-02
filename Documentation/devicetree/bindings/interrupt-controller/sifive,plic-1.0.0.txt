@@ -29,7 +29,7 @@ SiFive U5 Coreplex Series Manual <https://static.dev.sifive.com/U54-MC-RVCoreIP.
 
 Required properties:
 - compatible : "sifive,plic-1.0.0" and a string identifying the actual
-  detailed implementation in case that specific bugs need to be worked around.
+  detailed implementation in case that specific s need to be worked around.
 - #address-cells : should be <0> or more.
 - #interrupt-cells : should be <1> or more.
 - interrupt-controller : Identifies the node as an interrupt controller.

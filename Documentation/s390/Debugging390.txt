@@ -1,5 +1,5 @@
 
-		  Debugging on Linux for s/390 & z/Architecture
+		  Deging on Linux for s/390 & z/Architecture
 				       by
 	  Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
     Copyright (C) 2000-2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
@@ -7,7 +7,7 @@
 
 Overview of Document:
 =====================
-This document is intended to give a good overview of how to debug Linux for
+This document is intended to give a good overview of how to de Linux for
 s/390 and z/Architecture. It is not intended as a complete reference and not a
 tutorial on the fundamentals of C & assembly. It doesn't go into
 390 IO in any detail. It is intended to complement the documents in the
@@ -25,15 +25,15 @@ Address Spaces on Linux for s/390 & z/Architecture
 The Linux for s/390 & z/Architecture Kernel Task Structure
 Register Usage & Stackframes on Linux for s/390 & z/Architecture
 A sample program with comments
-Compiling programs for debugging on Linux for s/390 & z/Architecture
-Debugging under VM
+Compiling programs for deging on Linux for s/390 & z/Architecture
+Deging under VM
 s/390 & z/Architecture IO Overview
-Debugging IO on s/390 & z/Architecture under VM
+Deging IO on s/390 & z/Architecture under VM
 GDB on s/390 & z/Architecture
 Stack chaining in gdb by hand
 Examining core dumps
 ldd
-Debugging modules
+Deging modules
 The proc file system
 SysRq
 References
@@ -47,7 +47,7 @@ The current architectures have the following registers.
 r0-r15 (or gpr0-gpr15), used for arithmetic and addressing.
 
 16 Control registers, 32 bit on s/390 and 64 bit on z/Architecture, cr0-cr15,
-kernel usage only, used for memory management, interrupt control, debugging
+kernel usage only, used for memory management, interrupt control, deging
 control etc.
 
 16 Access registers (ar0-ar15), 32 bit on both s/390 and z/Architecture,
@@ -83,7 +83,7 @@ s/390 z/Architecture
 0       0     Reserved ( must be 0 ) otherwise specification exception occurs.
 
 1       1     Program Event Recording 1 PER enabled, 
-	      PER is used to facilitate debugging e.g. single stepping.
+	      PER is used to facilitate deging e.g. single stepping.
 
 2-4    2-4    Reserved ( must be 0 ). 
 
@@ -107,7 +107,7 @@ s/390 z/Architecture
 
 15      15    Problem state ( if set to 1 certain instructions are disabled )
 	      all linux user programs run with this bit 1 
-	      ( useful info for debugging under VM ).
+	      ( useful info for deging under VM ).
 
 16-17 16-17   Address Space Control
 
@@ -216,7 +216,7 @@ Now it is easy to see that on Intel it is quite easy to recognise a kernel
 address as being one greater than user space himem (in this case 0xC0000000),
 and addresses of less than this are the ones in the current running program on
 this processor (if an smp box).
-If using the virtual machine ( VM ) as a debugger it is quite difficult to
+If using the virtual machine ( VM ) as a deger it is quite difficult to
 know which user process is running as the address space you are looking at
 could be from any process in the run queue.
 
@@ -401,7 +401,7 @@ This is the code that gcc produces at the top & the bottom of
 each function. It usually is fairly consistent & similar from 
 function to function & if you know its layout you can probably
 make some headway in finding the ultimate cause of a problem
-after a crash without a source level debugger.
+after a crash without a source level deger.
 
 Note: To follow stackframes requires a knowledge of C or Pascal &
 limited knowledge of one assembly language.
@@ -714,12 +714,12 @@ main(int argc,char *argv[])
 
 
 
-Compiling programs for debugging on Linux for s/390 & z/Architecture
+Compiling programs for deging on Linux for s/390 & z/Architecture
 ====================================================================
--gdwarf-2 now works it should be considered the default debugging
-format for s/390 & z/Architecture as it is more reliable for debugging
-shared libraries,  normal -g debugging works much better now
-Thanks to the IBM java compiler developers bug reports. 
+-gdwarf-2 now works it should be considered the default deging
+format for s/390 & z/Architecture as it is more reliable for deging
+shared libraries,  normal -g deging works much better now
+Thanks to the IBM java compiler developers  reports. 
 
 This is typically done adding/appending the flags -g or -gdwarf-2 to the 
 CFLAGS & LDFLAGS variables Makefile of the program concerned.
@@ -728,38 +728,38 @@ If using gdb & you would like accurate displays of registers &
  stack traces compile without optimisation i.e make sure
 that there is no -O2 or similar on the CFLAGS line of the Makefile &
 the emitted gcc commands, obviously this will produce worse code 
-( not advisable for shipment ) but it is an  aid to the debugging process.
+( not advisable for shipment ) but it is an  aid to the deging process.
 
-This aids debugging because the compiler will copy parameters passed in
+This aids deging because the compiler will copy parameters passed in
 in registers onto the stack so backtracing & looking at passed in
 parameters will work, however some larger programs which use inline functions
 will not compile without optimisation.
 
-Debugging with optimisation has since much improved after fixing
-some bugs, please make sure you are using gdb-5.0 or later developed 
+Deging with optimisation has since much improved after fixing
+some s, please make sure you are using gdb-5.0 or later developed 
 after Nov'2000.
 
 
 
-Debugging under VM
+Deging under VM
 ==================
 
 Notes
 -----
-Addresses & values in the VM debugger are always hex never decimal
+Addresses & values in the VM deger are always hex never decimal
 Address ranges are of the format <HexValue1>-<HexValue2> or
 <HexValue1>.<HexValue2>
 For example, the address range	0x2000 to 0x3000 can be described as 2000-3000
 or 2000.1000
 
-The VM Debugger is case insensitive.
+The VM Deger is case insensitive.
 
-VM's strengths are usually other debuggers weaknesses you can get at any
+VM's strengths are usually other degers weaknesses you can get at any
 resource no matter how sensitive e.g. memory management resources, change
 address translation in the PSW. For kernel hacking you will reap dividends if
 you get good at it.
 
-The VM Debugger displays operators but not operands, and also the debugger
+The VM Deger displays operators but not operands, and also the deger
 displays useful information on the same line as the author of the code probably
 felt that it was a good idea not to go over the 80 columns on the screen.
 This isn't as unintuitive as it may seem as the s/390 instructions are easy to
@@ -783,7 +783,7 @@ Bits                    Instruction Length
 10                          4 Bytes
 11                          6 Bytes
 
-The debugger also displays other useful info on the same line such as the
+The deger also displays other useful info on the same line such as the
 addresses being operated on destination addresses of branches & condition codes.
 e.g.  
 00019736' AHI   A7DAFF0E    CC 1
@@ -792,7 +792,7 @@ e.g.
 
 
 
-Useful VM debugger commands
+Useful VM deger commands
 ---------------------------
 
 I suppose I'd better mention this before I start
@@ -805,7 +805,7 @@ TR END.
 To delete a particular breakpoint issue
 TR DEL <breakpoint number>
 
-The PA1 key drops to CP mode so you can issue debugger commands,
+The PA1 key drops to CP mode so you can issue deger commands,
 Doing alt c (on my 3270 console at least ) clears the screen. 
 hitting b <enter> comes back to the running operating system
 from cp mode ( in our case linux ).
@@ -829,7 +829,7 @@ Instruction Tracing
 -------------------
 Setting a simple breakpoint
 TR I PSWA <address>
-To debug a particular function try
+To de a particular function try
 TR I R <function address range>
 TR I on its own will single step.
 TR I DATA <MNEMONIC> <OPTIONAL RANGE> will trace for particular mnemonics
@@ -885,10 +885,10 @@ restore it.
  
 Hints
 -----
-If you want to issue a debugger command without halting your virtual machine
+If you want to issue a deger command without halting your virtual machine
 with the PA1 key try prefixing the command with #CP e.g.
 #cp tr i pswa 2000
-also suffixing most debugger commands with RUN will cause them not
+also suffixing most deger commands with RUN will cause them not
 to stop just display the mnemonic at the current instruction on the console.
 If you have several breakpoints you want to put into your program &
 you get fed up of cross referencing with System.map
@@ -943,22 +943,22 @@ Tracing particular processes
 ----------------------------
 The kernel's text segment is intentionally at an address in memory that it will
 very seldom collide with text segments of user programs ( thanks Martin ),
-this simplifies debugging the kernel.
+this simplifies deging the kernel.
 However it is quite common for user processes to have addresses which collide
-this can make debugging a particular process under VM painful under normal
+this can make deging a particular process under VM painful under normal
 circumstances as the process may change when doing a 
 TR I R <address range>.
-Thankfully after reading VM's online help I figured out how to debug
+Thankfully after reading VM's online help I figured out how to de
 I particular process.
 
 Your first problem is to find the STD ( segment table designation )
-of the program you wish to debug.
+of the program you wish to de.
 There are several ways you can do this here are a few
-1) objdump --syms <program to be debugged> | grep main
+1) objdump --syms <program to be deged> | grep main
 To get the address of main in the program.
 tr i pswa <address of main>
 Start the program, if VM drops to CP on what looks like the entry
-point of the main function this is most likely the process you wish to debug.
+point of the main function this is most likely the process you wish to de.
 Now do a D X13 or D XG13 on z/Architecture.
 On 31 bit the STD is bits 1-19 ( the STO segment table origin ) 
 & 25-31 ( the STL segment table length ) of CR13.
@@ -1074,8 +1074,8 @@ SMP Specific commands
 ---------------------
 To find out how many cpus you have
 Q CPUS displays all the CPU's available to your virtual machine
-To find the cpu that the current cpu VM debugger commands are being directed at
-do Q CPU to change the current cpu VM debugger commands are being directed at do
+To find the cpu that the current cpu VM deger commands are being directed at
+do Q CPU to change the current cpu VM deger commands are being directed at do
 CPU <desired cpu no>
 
 On a SMP guest issue a command to all CPUs try prefixing the command with cpu
@@ -1105,10 +1105,10 @@ D TX0.100
 
 Alternatively
 =============
-Under older VM debuggers (I love EBDIC too) you can use following little
+Under older VM degers (I love EBDIC too) you can use following little
 program which converts a command line of hex digits to ascii text. It can be
 compiled under linux and you can copy the hex digits from your x3270 terminal
-to your xterm if you are debugging from a linuxbox.
+to your xterm if you are deging from a linuxbox.
 
 This is quite useful when looking at a parameter passed in as a text string
 under VM ( unless you are good at decoding ASCII in your head ).
@@ -1454,7 +1454,7 @@ ESCON or Parallel Cables used as a very high speed serial link
 between 2 machines.
 
 
-Debugging IO on s/390 & z/Architecture under VM
+Deging IO on s/390 & z/Architecture under VM
 ===============================================
 
 Now we are ready to go on with IO tracing commands under VM
@@ -1569,8 +1569,8 @@ LINK userid devno1 devno2 mode password
 
 GDB on S390
 ===========
-N.B. if compiling for debugging gdb works better without optimisation 
-( see Compiling programs for debugging )
+N.B. if compiling for deging gdb works better without optimisation 
+( see Compiling programs for deging )
 
 invocation
 ----------
@@ -1741,7 +1741,7 @@ You might now be thinking that the line above didn't work, something extra had
 to be done.
 (gdb) call fflush(stdout)
 hello world$2 = 0
-As an aside the debugger also calls malloc & free under the hood 
+As an aside the deger also calls malloc & free under the hood 
 to make space for the "hello world" string.
 
 
@@ -1752,7 +1752,7 @@ hints
 ( if you are a bad typist like me this really helps )
 e.g. hit br <TAB> & cursor up & down :-).
 
-2) if you have a debugging problem that takes a few steps to recreate
+2) if you have a deging problem that takes a few steps to recreate
 put the steps into a file called .gdbinit in your current working directory
 if you have defined a few extra useful user defined commands put these in 
 your home directory & they will be read each time gdb is launched.
@@ -1796,9 +1796,9 @@ now do
 p/x (*(**$sp+56))&0x7fffffff
 & so on.
 
-Disassembling instructions without debug info
+Disassembling instructions without de info
 ---------------------------------------------
-gdb typically complains if there is a lack of debugging
+gdb typically complains if there is a lack of deging
 symbols in the disassemble command with 
 "No function contains specified address." To get around
 this do 
@@ -1828,7 +1828,7 @@ memory of the program as if it just crashed on your system. It is usually
 called core and created in the current working directory.
 This is very useful in that a customer can mail a core dump to a technical
 support department and the technical support department can reconstruct what
-happened. Provided they have an identical copy of this program with debugging
+happened. Provided they have an identical copy of this program with deging
 symbols compiled in and the source base of this build is available.
 In short it is far more useful than something like a crash log could ever hope
 to be.
@@ -1866,7 +1866,7 @@ Reading symbols from /lib/libm.so.6...done.
 Reading symbols from /lib/libc.so.6...done.
 Reading symbols from /lib/ld-linux.so.2...done.
 #0  0x40126d1a in read () from /lib/libc.so.6
-Setting up the environment for debugging gdb.
+Setting up the environment for deging gdb.
 Breakpoint 1 at 0x4dc6f8: file utils.c, line 471.
 Breakpoint 2 at 0x4d87a4: file top.c, line 2609.
 (top-gdb) info stack
@@ -1898,21 +1898,21 @@ libc.so.6 => /lib/libc.so.6 (0x40084000)
 /lib/ld-linux.so.2 => /lib/ld-linux.so.2 (0x40000000)
 
 
-Debugging shared libraries
+Deging shared libraries
 ==========================
 Most programs use shared libraries, however it can be very painful
 when you single step instruction into a function like printf for the 
 first time & you end up in functions like _dl_runtime_resolve this is
 the ld.so doing lazy binding, lazy binding is a concept in ELF where 
 shared library functions are not loaded into memory unless they are 
-actually used, great for saving memory but a pain to debug.
+actually used, great for saving memory but a pain to de.
 To get around this either relink the program -static or exit gdb type 
 export LD_BIND_NOW=true this will stop lazy binding & restart the gdb'ing 
 the program in question.
  
 
 
-Debugging modules
+Deging modules
 =================
 As modules are dynamically loaded into the kernel their address can be
 anywhere to get around this use the -m option with insmod to emit a load
@@ -2030,15 +2030,15 @@ the processes'es registers from the kernel task_structure
 as well as a backchain which may be useful if a process crashes
 in the kernel for some unknown reason.
 
-Some driver debugging techniques
+Some driver deging techniques
 ================================
-debug feature
+de feature
 -------------
-Some of our drivers now support a "debug feature" in
+Some of our drivers now support a "de feature" in
 /proc/s390dbf see s390dbf.txt in the linux/Documentation directory
 for more info.
 e.g. 
-to switch on the lcs "debug feature"
+to switch on the lcs "de feature"
 echo 5 > /proc/s390dbf/lcs/level
 & then after the error occurred.
 cat /proc/s390dbf/lcs/sprintf >/logfile
@@ -2047,7 +2047,7 @@ tech support resolve a problem in the field.
 
 
 
-high level debugging network drivers
+high level deging network drivers
 ------------------------------------
 ifconfig is a quite useful command
 it gives the current state of network drivers.
@@ -2139,4 +2139,4 @@ Special Thanks
 Special thanks to Neale Ferguson who maintains a much
 prettier HTML version of this page at
 http://linuxvm.org/penguinvm/
-Bob Grainger Stefan Bader & others for reporting bugs
+Bob Grainger Stefan Bader & others for reporting s

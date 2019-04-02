@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  This code exports profiling data as debugfs files to userspace.
+ *  This code exports profiling data as defs files to userspace.
  *
  *    Copyright IBM Corp. 2009
  *    Author(s): Peter Oberparleiter <oberpar@linux.vnet.ibm.com>
@@ -19,7 +19,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/string.h>
@@ -29,7 +29,7 @@
 #include "gcov.h"
 
 /**
- * struct gcov_node - represents a debugfs entry
+ * struct gcov_node - represents a defs entry
  * @list: list head for child node list
  * @children: child nodes
  * @all: list head for list of all nodes
@@ -39,12 +39,12 @@
  * @num_loaded: number of profiling data sets for loaded object files.
  * @unloaded_info: accumulated copy of profiling data sets for unloaded
  *   object files. Used only when gcov_persist=1.
- * @dentry: main debugfs entry, either a directory or data file
+ * @dentry: main defs entry, either a directory or data file
  * @links: associated symbolic links
  * @name: data file basename
  *
  * struct gcov_node represents an entity within the gcov/ subdirectory
- * of debugfs. There are directory and data file nodes. The latter represent
+ * of defs. There are directory and data file nodes. The latter represent
  * the actual synthesized data file plus any associated symbolic links which
  * are needed by the gcov tool to work correctly.
  */
@@ -268,7 +268,7 @@ static void remove_node(struct gcov_node *node);
 /*
  * write() implementation for gcov data files. Reset profiling data for the
  * corresponding file. If all associated object files have been unloaded,
- * remove the debug fs node as well.
+ * remove the de fs node as well.
  */
 static ssize_t gcov_seq_write(struct file *file, const char __user *addr,
 			      size_t len, loff_t *pos)
@@ -385,7 +385,7 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 		basename = kbasename(target);
 		if (basename == target)
 			goto out_err;
-		node->links[i] = debugfs_create_symlink(deskew(basename),
+		node->links[i] = defs_create_symlink(deskew(basename),
 							parent,	target);
 		if (!node->links[i])
 			goto out_err;
@@ -396,7 +396,7 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 out_err:
 	kfree(target);
 	while (i-- > 0)
-		debugfs_remove(node->links[i]);
+		defs_remove(node->links[i]);
 	kfree(node->links);
 	node->links = NULL;
 }
@@ -426,7 +426,7 @@ static void init_node(struct gcov_node *node, struct gcov_info *info,
 }
 
 /*
- * Create a new node and associated debugfs entry. Needs to be called with
+ * Create a new node and associated defs entry. Needs to be called with
  * node_lock held.
  */
 static struct gcov_node *new_node(struct gcov_node *parent,
@@ -446,10 +446,10 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 	init_node(node, info, name, parent);
 	/* Differentiate between gcov data file nodes and directory nodes. */
 	if (info) {
-		node->dentry = debugfs_create_file(deskew(node->name), 0600,
+		node->dentry = defs_create_file(deskew(node->name), 0600,
 					parent->dentry, node, &gcov_data_fops);
 	} else
-		node->dentry = debugfs_create_dir(node->name, parent->dentry);
+		node->dentry = defs_create_dir(node->name, parent->dentry);
 	if (!node->dentry) {
 		pr_warn("could not create file\n");
 		kfree(node);
@@ -476,20 +476,20 @@ static void remove_links(struct gcov_node *node)
 	if (!node->links)
 		return;
 	for (i = 0; gcov_link[i].ext; i++)
-		debugfs_remove(node->links[i]);
+		defs_remove(node->links[i]);
 	kfree(node->links);
 	node->links = NULL;
 }
 
 /*
- * Remove node from all lists and debugfs and release associated resources.
+ * Remove node from all lists and defs and release associated resources.
  * Needs to be called with node_lock held.
  */
 static void release_node(struct gcov_node *node)
 {
 	list_del(&node->list);
 	list_del(&node->all);
-	debugfs_remove(node->dentry);
+	defs_remove(node->dentry);
 	remove_links(node);
 	kfree(node->loaded_info);
 	if (node->unloaded_info)
@@ -567,7 +567,7 @@ static const struct file_operations gcov_reset_fops = {
 
 /*
  * Create a node for a given profiling data set and add it to all lists and
- * debugfs. Needs to be called with node_lock held.
+ * defs. Needs to be called with node_lock held.
  */
 static void add_node(struct gcov_info *info)
 {
@@ -758,24 +758,24 @@ void gcov_event(enum gcov_action action, struct gcov_info *info)
 	mutex_unlock(&node_lock);
 }
 
-/* Create debugfs entries. */
+/* Create defs entries. */
 static __init int gcov_fs_init(void)
 {
 	int rc = -EIO;
 
 	init_node(&root_node, NULL, NULL, NULL);
 	/*
-	 * /sys/kernel/debug/gcov will be parent for the reset control file
+	 * /sys/kernel/de/gcov will be parent for the reset control file
 	 * and all profiling files.
 	 */
-	root_node.dentry = debugfs_create_dir("gcov", NULL);
+	root_node.dentry = defs_create_dir("gcov", NULL);
 	if (!root_node.dentry)
 		goto err_remove;
 	/*
 	 * Create reset file which resets all profiling counts when written
 	 * to.
 	 */
-	reset_dentry = debugfs_create_file("reset", 0600, root_node.dentry,
+	reset_dentry = defs_create_file("reset", 0600, root_node.dentry,
 					   NULL, &gcov_reset_fops);
 	if (!reset_dentry)
 		goto err_remove;
@@ -785,7 +785,7 @@ static __init int gcov_fs_init(void)
 
 err_remove:
 	pr_err("init failed\n");
-	debugfs_remove(root_node.dentry);
+	defs_remove(root_node.dentry);
 
 	return rc;
 }

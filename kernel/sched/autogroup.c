@@ -139,7 +139,7 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 	struct task_struct *t;
 	unsigned long flags;
 
-	BUG_ON(!lock_task_sighand(p, &flags));
+	_ON(!lock_task_sighand(p, &flags));
 
 	prev = p->signal->autogroup;
 	if (prev == ag) {
@@ -259,7 +259,7 @@ out:
 }
 #endif /* CONFIG_PROC_FS */
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 int autogroup_path(struct task_group *tg, char *buf, int buflen)
 {
 	if (!task_group_is_autogroup(tg))

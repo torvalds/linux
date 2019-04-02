@@ -19,7 +19,7 @@
  *          Andrea Arcangeli
  */
 
-#undef DEBUG	/* undef for production */
+#undef DE	/* undef for production */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -243,13 +243,13 @@ struct parport *parport_gsc_probe_port(unsigned long base,
 
 	priv = kzalloc (sizeof (struct parport_gsc_private), GFP_KERNEL);
 	if (!priv) {
-		printk (KERN_DEBUG "parport (0x%lx): no memory!\n", base);
+		printk (KERN_DE "parport (0x%lx): no memory!\n", base);
 		return NULL;
 	}
 	ops = kmemdup(&parport_gsc_ops, sizeof(struct parport_operations),
 		      GFP_KERNEL);
 	if (!ops) {
-		printk (KERN_DEBUG "parport (0x%lx): no memory for ops!\n",
+		printk (KERN_DE "parport (0x%lx): no memory for ops!\n",
 			base);
 		kfree (priv);
 		return NULL;

@@ -125,7 +125,7 @@ void rnr_nak_timer(struct timer_list *t)
 {
 	struct rxe_qp *qp = from_timer(qp, t, rnr_nak_timer);
 
-	pr_debug("qp#%d rnr nak timer fired\n", qp_num(qp));
+	pr_de("qp#%d rnr nak timer fired\n", qp_num(qp));
 	rxe_run_task(&qp->req.task, 1);
 }
 
@@ -715,7 +715,7 @@ next_wqe:
 	}
 
 	if (fill_packet(qp, wqe, &pkt, skb, payload)) {
-		pr_debug("qp#%d Error during fill packet\n", qp_num(qp));
+		pr_de("qp#%d Error during fill packet\n", qp_num(qp));
 		kfree_skb(skb);
 		goto err;
 	}

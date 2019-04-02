@@ -76,7 +76,7 @@ enum gpio_result dal_gpio_get_value(
 	uint32_t *value)
 {
 	if (!gpio->pin) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return GPIO_RESULT_NULL_HANDLE;
 	}
 
@@ -88,7 +88,7 @@ enum gpio_result dal_gpio_set_value(
 	uint32_t value)
 {
 	if (!gpio->pin) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return GPIO_RESULT_NULL_HANDLE;
 	}
 
@@ -118,7 +118,7 @@ enum gpio_result dal_gpio_change_mode(
 	enum gpio_mode mode)
 {
 	if (!gpio->pin) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return GPIO_RESULT_NULL_HANDLE;
 	}
 
@@ -142,7 +142,7 @@ enum gpio_result dal_gpio_set_config(
 	const struct gpio_config_data *config_data)
 {
 	if (!gpio->pin) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return GPIO_RESULT_NULL_HANDLE;
 	}
 

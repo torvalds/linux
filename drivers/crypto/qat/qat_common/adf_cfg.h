@@ -49,7 +49,7 @@
 
 #include <linux/list.h>
 #include <linux/rwsem.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "adf_accel_devices.h"
 #include "adf_cfg_common.h"
 #include "adf_cfg_strings.h"
@@ -69,7 +69,7 @@ struct adf_cfg_section {
 
 struct adf_cfg_device_data {
 	struct list_head sec_list;
-	struct dentry *debug;
+	struct dentry *de;
 	struct rw_semaphore lock;
 };
 

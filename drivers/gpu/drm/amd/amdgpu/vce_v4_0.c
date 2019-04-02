@@ -540,7 +540,7 @@ static int vce_v4_0_hw_fini(void *handle)
 		vce_v4_0_stop(adev);
 	} else {
 		/* full access mode, so don't touch any VCE register */
-		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
+		DRM_DE("For SRIOV client, shouldn't do anything.\n");
 	}
 
 	for (i = 0; i < adev->vce.num_rings; i++)
@@ -1025,7 +1025,7 @@ static int vce_v4_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("IH: VCE\n");
+	DRM_DE("IH: VCE\n");
 
 	switch (entry->src_data[0]) {
 	case 0:

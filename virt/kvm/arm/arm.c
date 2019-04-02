@@ -16,7 +16,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpu_pm.h>
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -156,12 +156,12 @@ out_fail_alloc:
 	return ret;
 }
 
-bool kvm_arch_has_vcpu_debugfs(void)
+bool kvm_arch_has_vcpu_defs(void)
 {
 	return false;
 }
 
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+int kvm_arch_create_vcpu_defs(struct kvm_vcpu *vcpu)
 {
 	return 0;
 }
@@ -352,7 +352,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	/* Set up the timer */
 	kvm_timer_vcpu_init(vcpu);
 
-	kvm_arm_reset_debug_ptr(vcpu);
+	kvm_arm_reset_de_ptr(vcpu);
 
 	return kvm_vgic_vcpu_init(vcpu);
 }
@@ -747,7 +747,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			continue;
 		}
 
-		kvm_arm_setup_debug(vcpu);
+		kvm_arm_setup_de(vcpu);
 
 		/**************************************************************
 		 * Enter the guest
@@ -769,7 +769,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * Back from guest
 		 *************************************************************/
 
-		kvm_arm_clear_debug(vcpu);
+		kvm_arm_clear_de(vcpu);
 
 		/*
 		 * We must sync the PMU state before the vgic state so
@@ -1322,7 +1322,7 @@ static void cpu_hyp_reinit(void)
 	else
 		cpu_init_hyp_mode(NULL);
 
-	kvm_arm_init_debug();
+	kvm_arm_init_de();
 
 	if (vgic_present)
 		kvm_vgic_init_cpu_hardware();

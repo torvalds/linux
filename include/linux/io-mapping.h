@@ -20,7 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io.h>
 #include <asm/page.h>
 
@@ -78,7 +78,7 @@ io_mapping_map_atomic_wc(struct io_mapping *mapping,
 	resource_size_t phys_addr;
 	unsigned long pfn;
 
-	BUG_ON(offset >= mapping->size);
+	_ON(offset >= mapping->size);
 	phys_addr = mapping->base + offset;
 	pfn = (unsigned long) (phys_addr >> PAGE_SHIFT);
 	return iomap_atomic_prot_pfn(pfn, mapping->prot);
@@ -97,7 +97,7 @@ io_mapping_map_wc(struct io_mapping *mapping,
 {
 	resource_size_t phys_addr;
 
-	BUG_ON(offset >= mapping->size);
+	_ON(offset >= mapping->size);
 	phys_addr = mapping->base + offset;
 
 	return ioremap_wc(phys_addr, size);

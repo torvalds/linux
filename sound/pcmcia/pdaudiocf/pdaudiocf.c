@@ -99,7 +99,7 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		.dev_free =	snd_pdacf_dev_free,
 	};
 
-	snd_printdd(KERN_DEBUG "pdacf_attach called\n");
+	snd_printdd(KERN_DE "pdacf_attach called\n");
 	/* find an empty slot from the card list */
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (! card_list[i])
@@ -165,7 +165,7 @@ static int snd_pdacf_assign_resources(struct snd_pdacf *pdacf, int port, int irq
 	int err;
 	struct snd_card *card = pdacf->card;
 
-	snd_printdd(KERN_DEBUG "pdacf assign resources: port = 0x%x, irq = %d\n", port, irq);
+	snd_printdd(KERN_DE "pdacf assign resources: port = 0x%x, irq = %d\n", port, irq);
 	pdacf->port = port;
 	pdacf->irq = irq;
 	pdacf->chip_status |= PDAUDIOCF_STAT_IS_CONFIGURED;
@@ -197,7 +197,7 @@ static void snd_pdacf_detach(struct pcmcia_device *link)
 {
 	struct snd_pdacf *chip = link->priv;
 
-	snd_printdd(KERN_DEBUG "pdacf_detach called\n");
+	snd_printdd(KERN_DE "pdacf_detach called\n");
 
 	if (chip->chip_status & PDAUDIOCF_STAT_IS_CONFIGURED)
 		snd_pdacf_powerdown(chip);
@@ -215,7 +215,7 @@ static int pdacf_config(struct pcmcia_device *link)
 	struct snd_pdacf *pdacf = link->priv;
 	int ret;
 
-	snd_printdd(KERN_DEBUG "pdacf_config called\n");
+	snd_printdd(KERN_DE "pdacf_config called\n");
 	link->config_index = 0x5;
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 
@@ -252,9 +252,9 @@ static int pdacf_suspend(struct pcmcia_device *link)
 {
 	struct snd_pdacf *chip = link->priv;
 
-	snd_printdd(KERN_DEBUG "SUSPEND\n");
+	snd_printdd(KERN_DE "SUSPEND\n");
 	if (chip) {
-		snd_printdd(KERN_DEBUG "snd_pdacf_suspend calling\n");
+		snd_printdd(KERN_DE "snd_pdacf_suspend calling\n");
 		snd_pdacf_suspend(chip);
 	}
 
@@ -265,14 +265,14 @@ static int pdacf_resume(struct pcmcia_device *link)
 {
 	struct snd_pdacf *chip = link->priv;
 
-	snd_printdd(KERN_DEBUG "RESUME\n");
+	snd_printdd(KERN_DE "RESUME\n");
 	if (pcmcia_dev_present(link)) {
 		if (chip) {
-			snd_printdd(KERN_DEBUG "calling snd_pdacf_resume\n");
+			snd_printdd(KERN_DE "calling snd_pdacf_resume\n");
 			snd_pdacf_resume(chip);
 		}
 	}
-	snd_printdd(KERN_DEBUG "resume done!\n");
+	snd_printdd(KERN_DE "resume done!\n");
 
 	return 0;
 }

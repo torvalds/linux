@@ -132,7 +132,7 @@ void efx_mcdi_detach(struct efx_nic *efx)
 	if (!efx->mcdi)
 		return;
 
-	BUG_ON(efx->mcdi->iface.state != MCDI_STATE_QUIESCENT);
+	_ON(efx->mcdi->iface.state != MCDI_STATE_QUIESCENT);
 
 	/* Relinquish the device (back to the BMC, if this is a LOM) */
 	efx_mcdi_drv_attach(efx, false, NULL);
@@ -161,7 +161,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 	size_t hdr_len;
 	u32 xflags, seqno;
 
-	BUG_ON(mcdi->state == MCDI_STATE_QUIESCENT);
+	_ON(mcdi->state == MCDI_STATE_QUIESCENT);
 
 	/* Serialise with efx_mcdi_ev_cpl() and efx_mcdi_ev_death() */
 	spin_lock_bh(&mcdi->iface_lock);
@@ -186,7 +186,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 		hdr_len = 4;
 	} else {
 		/* MCDI v2 */
-		BUG_ON(inlen > MCDI_CTL_SDU_LEN_MAX_V2);
+		_ON(inlen > MCDI_CTL_SDU_LEN_MAX_V2);
 		EFX_POPULATE_DWORD_7(hdr[0],
 				     MCDI_HEADER_RESPONSE, 0,
 				     MCDI_HEADER_RESYNC, 1,
@@ -709,7 +709,7 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
 		err_len = min(sizeof(errbuf), data_len);
 		spin_unlock_bh(&mcdi->iface_lock);
 
-		BUG_ON(rc > 0);
+		_ON(rc > 0);
 
 		efx->type->mcdi_read_response(efx, outbuf, hdr_len,
 					      min(outlen, data_len));
@@ -1141,7 +1141,7 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 	mcdi = efx_mcdi(efx);
 
 	/* We must be in poll or fail mode so no more requests can be queued */
-	BUG_ON(mcdi->mode == MCDI_MODE_EVENTS);
+	_ON(mcdi->mode == MCDI_MODE_EVENTS);
 
 	del_timer_sync(&mcdi->async_timer);
 
@@ -1369,7 +1369,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		 * flag will be set, and we should ignore the event
 		 * because we want to wait for all completions.
 		 */
-		BUILD_BUG_ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
+		BUILD__ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
 			     MCDI_EVENT_RX_FLUSH_TO_DRIVER_LBN);
 		if (!MCDI_EVENT_FIELD(*event, TX_FLUSH_TO_DRIVER))
 			efx_ef10_handle_drain_event(efx);
@@ -1409,7 +1409,7 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	size_t offset;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_VERSION_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_VERSION_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_VERSION, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlength);
 	if (rc)
@@ -1524,10 +1524,10 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	int port_num = efx_port_num(efx);
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_BOARD_CFG_IN_LEN != 0);
 	/* we need __aligned(2) for ether_addr_copy */
-	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0_OFST & 1);
-	BUILD_BUG_ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1_OFST & 1);
+	BUILD__ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT0_OFST & 1);
+	BUILD__ON(MC_CMD_GET_BOARD_CFG_OUT_MAC_ADDR_BASE_PORT1_OFST & 1);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_BOARD_CFG, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -1586,7 +1586,7 @@ int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq)
 	MCDI_SET_DWORD(inbuf, LOG_CTRL_IN_LOG_DEST, dest);
 	MCDI_SET_DWORD(inbuf, LOG_CTRL_IN_LOG_DEST_EVQ, dest_evq);
 
-	BUILD_BUG_ON(MC_CMD_LOG_CTRL_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_LOG_CTRL_OUT_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_LOG_CTRL, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
@@ -1599,7 +1599,7 @@ int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_NVRAM_TYPES_IN_LEN != 0);
+	BUILD__ON(MC_CMD_NVRAM_TYPES_IN_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_TYPES, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -1774,13 +1774,13 @@ static int efx_mcdi_exit_assertion(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
 	int rc;
 
-	/* If the MC is running debug firmware, it might now be
-	 * waiting for a debugger to attach, but we just want it to
+	/* If the MC is running de firmware, it might now be
+	 * waiting for a deger to attach, but we just want it to
 	 * reboot.  We set a flag that makes the command a no-op if it
 	 * has already done so.
 	 * The MCDI will thus return either 0 or -EIO.
 	 */
-	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_REBOOT_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS,
 		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
@@ -1809,11 +1809,11 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_ID_LED_IN_LEN);
 	int rc;
 
-	BUILD_BUG_ON(EFX_LED_OFF != MC_CMD_LED_OFF);
-	BUILD_BUG_ON(EFX_LED_ON != MC_CMD_LED_ON);
-	BUILD_BUG_ON(EFX_LED_DEFAULT != MC_CMD_LED_DEFAULT);
+	BUILD__ON(EFX_LED_OFF != MC_CMD_LED_OFF);
+	BUILD__ON(EFX_LED_ON != MC_CMD_LED_ON);
+	BUILD__ON(EFX_LED_DEFAULT != MC_CMD_LED_DEFAULT);
 
-	BUILD_BUG_ON(MC_CMD_SET_ID_LED_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_SET_ID_LED_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, SET_ID_LED_IN_STATE, mode);
 
@@ -1826,7 +1826,7 @@ static int efx_mcdi_reset_func(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_ENTITY_RESET_IN_LEN);
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_ENTITY_RESET_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_ENTITY_RESET_OUT_LEN != 0);
 	MCDI_POPULATE_DWORD_1(inbuf, ENTITY_RESET_IN_FLAG,
 			      ENTITY_RESET_IN_FUNCTION_RESOURCE_RESET, 1);
 	rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, inbuf, sizeof(inbuf),
@@ -1839,7 +1839,7 @@ static int efx_mcdi_reset_mc(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_REBOOT_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS, 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
@@ -1975,7 +1975,7 @@ int efx_mcdi_flush_rxqs(struct efx_nic *efx)
 			 MC_CMD_FLUSH_RX_QUEUES_IN_LEN(EFX_MAX_CHANNELS));
 	int rc, count;
 
-	BUILD_BUG_ON(EFX_MAX_CHANNELS >
+	BUILD__ON(EFX_MAX_CHANNELS >
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
 
 	count = 0;
@@ -2015,7 +2015,7 @@ int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled,
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_WORKAROUND_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_WORKAROUND_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_TYPE, type);
 	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_ENABLED, enabled);
 	rc = efx_mcdi_rpc(efx, MC_CMD_WORKAROUND, inbuf, sizeof(inbuf),
@@ -2082,7 +2082,7 @@ static int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
 			      NVRAM_UPDATE_START_V2_IN_FLAG_REPORT_VERIFY_RESULT,
 			      1);
 
-	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_START_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_NVRAM_UPDATE_START_OUT_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
@@ -2126,7 +2126,7 @@ static int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_LENGTH, length);
 	memcpy(MCDI_PTR(inbuf, NVRAM_WRITE_IN_WRITE_BUFFER), buffer, length);
 
-	BUILD_BUG_ON(MC_CMD_NVRAM_WRITE_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_NVRAM_WRITE_OUT_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
 			  ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
@@ -2144,7 +2144,7 @@ static int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_OFFSET, offset);
 	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_LENGTH, length);
 
-	BUILD_BUG_ON(MC_CMD_NVRAM_ERASE_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_NVRAM_ERASE_OUT_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_ERASE, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);

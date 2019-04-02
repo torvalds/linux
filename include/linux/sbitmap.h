@@ -356,7 +356,7 @@ static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr)
  * @sb: Bitmap to show.
  * @m: struct seq_file to write to.
  *
- * This is intended for debugging. The format may change at any time.
+ * This is intended for deging. The format may change at any time.
  */
 void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
 
@@ -366,7 +366,7 @@ void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
  * @sb: Bitmap to show.
  * @m: struct seq_file to write to.
  *
- * This is intended for debugging. The output isn't guaranteed to be internally
+ * This is intended for deging. The output isn't guaranteed to be internally
  * consistent.
  */
 void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m);
@@ -555,7 +555,7 @@ void sbitmap_queue_wake_up(struct sbitmap_queue *sbq);
  * @sbq: Bitmap queue to show.
  * @m: struct seq_file to write to.
  *
- * This is intended for debugging. The format may change at any time.
+ * This is intended for deging. The format may change at any time.
  */
 void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m);
 

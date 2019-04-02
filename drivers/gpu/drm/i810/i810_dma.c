@@ -174,7 +174,7 @@ static int i810_dma_get_buffer(struct drm_device *dev, drm_i810_dma_t *d,
 	buf = i810_freelist_get(dev);
 	if (!buf) {
 		retcode = -ENOMEM;
-		DRM_DEBUG("retcode=%d\n", retcode);
+		DRM_DE("retcode=%d\n", retcode);
 		return retcode;
 	}
 
@@ -399,10 +399,10 @@ static int i810_dma_initialize(struct drm_device *dev,
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	DRM_DEBUG("hw status page @ %p\n", dev_priv->hw_status_page);
+	DRM_DE("hw status page @ %p\n", dev_priv->hw_status_page);
 
 	I810_WRITE(0x02080, dev_priv->dma_status_page);
-	DRM_DEBUG("Enabled hardware status page\n");
+	DRM_DE("Enabled hardware status page\n");
 
 	/* Now we need to init our freelist */
 	if (i810_freelist_init(dev, dev_priv) != 0) {
@@ -530,7 +530,7 @@ static void i810EmitDestVerified(struct drm_device *dev,
 		OUT_RING(CMD_OP_DESTBUFFER_INFO);
 		OUT_RING(tmp);
 	} else
-		DRM_DEBUG("bad di1 %x (allow %x or %x)\n",
+		DRM_DE("bad di1 %x (allow %x or %x)\n",
 			  tmp, dev_priv->front_di1, dev_priv->back_di1);
 
 	/* invarient:
@@ -557,7 +557,7 @@ static void i810EmitState(struct drm_device *dev)
 	drm_i810_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
 
-	DRM_DEBUG("%x\n", dirty);
+	DRM_DE("%x\n", dirty);
 
 	if (dirty & I810_UPLOAD_BUFFERS) {
 		i810EmitDestVerified(dev, sarea_priv->BufferState);
@@ -668,7 +668,7 @@ static void i810_dma_dispatch_swap(struct drm_device *dev)
 	int i;
 	RING_LOCALS;
 
-	DRM_DEBUG("swapbuffers\n");
+	DRM_DE("swapbuffers\n");
 
 	i810_kernel_lost_context(dev);
 
@@ -789,7 +789,7 @@ static void i810_dma_dispatch_flip(struct drm_device *dev)
 	int pitch = dev_priv->pitch;
 	RING_LOCALS;
 
-	DRM_DEBUG("page=%d pfCurrentPage=%d\n",
+	DRM_DE("page=%d pfCurrentPage=%d\n",
 		  dev_priv->current_page,
 		  dev_priv->sarea_priv->pf_current_page);
 
@@ -801,7 +801,7 @@ static void i810_dma_dispatch_flip(struct drm_device *dev)
 	ADVANCE_LP_RING();
 
 	BEGIN_LP_RING(I810_DEST_SETUP_SIZE + 2);
-	/* On i815 at least ASYNC is buggy */
+	/* On i815 at least ASYNC is gy */
 	/* pitch<<5 is from 11.2.8 p158,
 	   its the pitch / 8 then left shifted 8,
 	   so (pitch >> 3) << 8 */
@@ -870,9 +870,9 @@ static int i810_flush_queue(struct drm_device *dev)
 				   I810_BUF_FREE);
 
 		if (used == I810_BUF_HARDWARE)
-			DRM_DEBUG("reclaimed from HARDWARE\n");
+			DRM_DE("reclaimed from HARDWARE\n");
 		if (used == I810_BUF_CLIENT)
-			DRM_DEBUG("still on client\n");
+			DRM_DE("still on client\n");
 	}
 
 	return ret;
@@ -903,7 +903,7 @@ void i810_driver_reclaim_buffers(struct drm_device *dev,
 					   I810_BUF_FREE);
 
 			if (used == I810_BUF_CLIENT)
-				DRM_DEBUG("reclaimed from client\n");
+				DRM_DE("reclaimed from client\n");
 			if (buf_priv->currently_mapped == I810_BUF_MAPPED)
 				buf_priv->currently_mapped = I810_BUF_UNMAPPED;
 		}
@@ -931,7 +931,7 @@ static int i810_dma_vertex(struct drm_device *dev, void *data,
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("idx %d used %d discard %d\n",
+	DRM_DE("idx %d used %d discard %d\n",
 		  vertex->idx, vertex->used, vertex->discard);
 
 	if (vertex->idx < 0 || vertex->idx >= dma->buf_count)
@@ -966,7 +966,7 @@ static int i810_clear_bufs(struct drm_device *dev, void *data,
 static int i810_swap_bufs(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1002,7 +1002,7 @@ static int i810_getbuf(struct drm_device *dev, void *data,
 
 	retcode = i810_dma_get_buffer(dev, d, file_priv);
 
-	DRM_DEBUG("i810_dma: %d returning %d, granted = %d\n",
+	DRM_DE("i810_dma: %d returning %d, granted = %d\n",
 		  task_pid_nr(current), retcode, d->granted);
 
 	sarea_priv->last_dispatch = (int)hw_status[5];
@@ -1039,20 +1039,20 @@ static void i810_dma_dispatch_mc(struct drm_device *dev, struct drm_buf *buf, in
 
 	u = cmpxchg(buf_priv->in_use, I810_BUF_CLIENT, I810_BUF_HARDWARE);
 	if (u != I810_BUF_CLIENT)
-		DRM_DEBUG("MC found buffer that isn't mine!\n");
+		DRM_DE("MC found buffer that isn't mine!\n");
 
 	if (used > 4 * 1024)
 		used = 0;
 
 	sarea_priv->dirty = 0x7f;
 
-	DRM_DEBUG("addr 0x%lx, used 0x%x\n", address, used);
+	DRM_DE("addr 0x%lx, used 0x%x\n", address, used);
 
 	dev_priv->counter++;
-	DRM_DEBUG("dispatch counter : %ld\n", dev_priv->counter);
-	DRM_DEBUG("start : %lx\n", start);
-	DRM_DEBUG("used : %d\n", used);
-	DRM_DEBUG("start + used - 4 : %ld\n", start + used - 4);
+	DRM_DE("dispatch counter : %ld\n", dev_priv->counter);
+	DRM_DE("start : %lx\n", start);
+	DRM_DE("used : %d\n", used);
+	DRM_DE("start + used - 4 : %ld\n", start + used - 4);
 
 	if (buf_priv->currently_mapped == I810_BUF_MAPPED) {
 		if (used & 4) {
@@ -1154,7 +1154,7 @@ static void i810_do_init_pageflip(struct drm_device *dev)
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	dev_priv->page_flipping = 1;
 	dev_priv->current_page = 0;
 	dev_priv->sarea_priv->pf_current_page = dev_priv->current_page;
@@ -1164,7 +1164,7 @@ static int i810_do_cleanup_pageflip(struct drm_device *dev)
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	if (dev_priv->current_page != 0)
 		i810_dma_dispatch_flip(dev);
 
@@ -1177,7 +1177,7 @@ static int i810_flip_bufs(struct drm_device *dev, void *data,
 {
 	drm_i810_private_t *dev_priv = dev->dev_private;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 

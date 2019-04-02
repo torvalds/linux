@@ -7,7 +7,7 @@
 #define _SDIO_HALINIT_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtl8723b_hal.h>
 
 #include "hal_com_h2c.h"
@@ -1089,7 +1089,7 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 {
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (padapter->hw_init_completed == true) {
 		if (adapter_to_pwrctl(padapter)->bips_processing == true) {
@@ -1588,7 +1588,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 				rtw_read32(padapter, 0x2fc),
 				rtw_read32(padapter, 0x8c)
 			);
-#ifdef CONFIG_PNO_SET_DEBUG
+#ifdef CONFIG_PNO_SET_DE
 			DBG_871X("0x1b9: 0x%02x, 0x632: 0x%02x\n", rtw_read8(padapter, 0x1b9), rtw_read8(padapter, 0x632));
 			DBG_871X("0x4fc: 0x%02x, 0x4fd: 0x%02x\n", rtw_read8(padapter, 0x4fc), rtw_read8(padapter, 0x4fd));
 			DBG_871X("TXDMA STATUS: 0x%08x\n", rtw_read32(padapter, REG_TXDMA_STATUS));

@@ -60,7 +60,7 @@ static int up_cpu_disable(void)
 
 static void up_cpu_die(unsigned int cpu)
 {
-	BUG();
+	();
 }
 #endif
 

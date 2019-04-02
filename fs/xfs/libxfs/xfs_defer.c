@@ -498,7 +498,7 @@ xfs_defer_add(
 	const struct xfs_defer_op_type	*ops;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
-	BUILD_BUG_ON(ARRAY_SIZE(defer_op_types) != XFS_DEFER_OPS_TYPE_MAX);
+	BUILD__ON(ARRAY_SIZE(defer_op_types) != XFS_DEFER_OPS_TYPE_MAX);
 
 	/*
 	 * Add the item to a pending item at the end of the intake list.

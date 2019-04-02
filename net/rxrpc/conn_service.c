@@ -56,7 +56,7 @@ struct rxrpc_connection *rxrpc_find_service_conn_rcu(struct rxrpc_peer *peer,
 	} while (need_seqretry(&peer->service_conn_lock, seq));
 
 	done_seqretry(&peer->service_conn_lock, seq);
-	_leave(" = %d", conn ? conn->debug_id : -1);
+	_leave(" = %d", conn ? conn->de_id : -1);
 	return conn;
 }
 
@@ -93,7 +93,7 @@ static void rxrpc_publish_service_conn(struct rxrpc_peer *peer,
 conn_published:
 	set_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags);
 	write_sequnlock_bh(&peer->service_conn_lock);
-	_leave(" = %d [new]", conn->debug_id);
+	_leave(" = %d [new]", conn->de_id);
 	return;
 
 found_extant_conn:
@@ -104,11 +104,11 @@ found_extant_conn:
 	 * called in a non-reentrant context, so there can't be a race to
 	 * insert a new connection.
 	 */
-	BUG();
+	();
 
 replace_old_connection:
 	/* The old connection is from an outdated epoch. */
-	_debug("replace conn");
+	_de("replace conn");
 	rb_replace_node_rcu(&cursor->service_node,
 			    &conn->service_node,
 			    &peer->service_conns);
@@ -180,7 +180,7 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 	/* Make the connection a target for incoming packets. */
 	rxrpc_publish_service_conn(conn->params.peer, conn);
 
-	_net("CONNECTION new %d {%x}", conn->debug_id, conn->proto.cid);
+	_net("CONNECTION new %d {%x}", conn->de_id, conn->proto.cid);
 }
 
 /*

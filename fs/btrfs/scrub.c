@@ -837,7 +837,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
-	BUG_ON(sblock_to_check->page_count < 1);
+	_ON(sblock_to_check->page_count < 1);
 	fs_info = sctx->fs_info;
 	if (sblock_to_check->pagev[0]->flags & BTRFS_EXTENT_FLAG_SUPER) {
 		/*
@@ -851,7 +851,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		return 0;
 	}
 	logical = sblock_to_check->pagev[0]->logical;
-	BUG_ON(sblock_to_check->pagev[0]->mirror_num < 1);
+	_ON(sblock_to_check->pagev[0]->mirror_num < 1);
 	failed_mirror_index = sblock_to_check->pagev[0]->mirror_num - 1;
 	is_metadata = !(sblock_to_check->pagev[0]->flags &
 			BTRFS_EXTENT_FLAG_DATA);
@@ -938,7 +938,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_READ_ERRS);
 		goto out;
 	}
-	BUG_ON(failed_mirror_index >= BTRFS_MAX_MIRRORS);
+	_ON(failed_mirror_index >= BTRFS_MAX_MIRRORS);
 	sblock_bad = sblocks_for_recheck + failed_mirror_index;
 
 	/* build and submit the bios for the failed mirror, check checksums */
@@ -1317,7 +1317,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		recover->bbio = bbio;
 		recover->map_length = mapped_length;
 
-		BUG_ON(page_index >= SCRUB_MAX_PAGES_PER_BLOCK);
+		_ON(page_index >= SCRUB_MAX_PAGES_PER_BLOCK);
 
 		nmirrors = min(scrub_nr_raid_mirrors(bbio), BTRFS_MAX_MIRRORS);
 
@@ -1363,7 +1363,7 @@ leave_nomem:
 					 stripe_offset;
 			page->dev = bbio->stripes[stripe_index].dev;
 
-			BUG_ON(page_index >= original_sblock->page_count);
+			_ON(page_index >= original_sblock->page_count);
 			page->physical_for_dev_replace =
 				original_sblock->pagev[page_index]->
 				physical_for_dev_replace;
@@ -1551,8 +1551,8 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 	struct scrub_page *page_good = sblock_good->pagev[page_num];
 	struct btrfs_fs_info *fs_info = sblock_bad->sctx->fs_info;
 
-	BUG_ON(page_bad->page == NULL);
-	BUG_ON(page_good->page == NULL);
+	_ON(page_bad->page == NULL);
+	_ON(page_good->page == NULL);
 	if (force_write || sblock_bad->header_error ||
 	    sblock_bad->checksum_error || page_bad->io_error) {
 		struct bio *bio;
@@ -1614,7 +1614,7 @@ static int scrub_write_page_to_dev_replace(struct scrub_block *sblock,
 {
 	struct scrub_page *spage = sblock->pagev[page_num];
 
-	BUG_ON(spage->page == NULL);
+	_ON(spage->page == NULL);
 	if (spage->io_error) {
 		void *mapped_buffer = kmap_atomic(spage->page);
 
@@ -1795,7 +1795,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	u64 len;
 	int index;
 
-	BUG_ON(sblock->page_count < 1);
+	_ON(sblock->page_count < 1);
 	if (!sblock->pagev[0]->have_csum)
 		return 0;
 
@@ -1814,8 +1814,8 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 		if (len == 0)
 			break;
 		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
+		_ON(index >= sblock->page_count);
+		_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
 		buffer = kmap_atomic(page);
 	}
@@ -1842,7 +1842,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	u64 len;
 	int index;
 
-	BUG_ON(sblock->page_count < 1);
+	_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
 	mapped_buffer = kmap_atomic(page);
 	h = (struct btrfs_header *)mapped_buffer;
@@ -1881,8 +1881,8 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		if (len == 0)
 			break;
 		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
+		_ON(index >= sblock->page_count);
+		_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
 		mapped_buffer = kmap_atomic(page);
 		mapped_size = PAGE_SIZE;
@@ -1912,7 +1912,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	u64 len;
 	int index;
 
-	BUG_ON(sblock->page_count < 1);
+	_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
 	mapped_buffer = kmap_atomic(page);
 	s = (struct btrfs_super_block *)mapped_buffer;
@@ -1940,8 +1940,8 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		if (len == 0)
 			break;
 		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
+		_ON(index >= sblock->page_count);
+		_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
 		mapped_buffer = kmap_atomic(page);
 		mapped_size = PAGE_SIZE;
@@ -2171,7 +2171,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 		 * We shouldn't be scrubbing a missing device. Even for dev
 		 * replace, we should only get here for RAID 5/6. We either
 		 * managed to mount something with no mirrors remaining or
-		 * there's a bug in scrub_remap_extent()/btrfs_map_block().
+		 * there's a  in scrub_remap_extent()/btrfs_map_block().
 		 */
 		goto bbio_out;
 	}
@@ -2243,7 +2243,7 @@ leave_nomem:
 			scrub_block_put(sblock);
 			return -ENOMEM;
 		}
-		BUG_ON(index >= SCRUB_MAX_PAGES_PER_BLOCK);
+		_ON(index >= SCRUB_MAX_PAGES_PER_BLOCK);
 		scrub_page_get(spage);
 		sblock->pagev[index] = spage;
 		spage->sblock = sblock;
@@ -2315,7 +2315,7 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 	struct scrub_ctx *sctx = sbio->sctx;
 	int i;
 
-	BUG_ON(sbio->page_count > SCRUB_PAGES_PER_RD_BIO);
+	_ON(sbio->page_count > SCRUB_PAGES_PER_RD_BIO);
 	if (sbio->status) {
 		for (i = 0; i < sbio->page_count; i++) {
 			struct scrub_page *spage = sbio->pagev[i];
@@ -2550,7 +2550,7 @@ leave_nomem:
 			scrub_block_put(sblock);
 			return -ENOMEM;
 		}
-		BUG_ON(index >= SCRUB_MAX_PAGES_PER_BLOCK);
+		_ON(index >= SCRUB_MAX_PAGES_PER_BLOCK);
 		/* For scrub block */
 		scrub_page_get(spage);
 		sblock->pagev[index] = spage;

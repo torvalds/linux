@@ -435,7 +435,7 @@ void add_save_link(struct reiserfs_transaction_handle *th,
 	struct item_head ih;
 	__le32 link;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	/* file can only get one "save link" of each kind */
 	RFALSE(truncate &&
@@ -556,7 +556,7 @@ static void reiserfs_kill_sb(struct super_block *s)
 		 * inodes to be removed that have extended attributes
 		 * associated with them need to clean them up before
 		 * we can release the extended attribute root dentries.
-		 * shrink_dcache_for_umount will BUG if we don't release
+		 * shrink_dcache_for_umount will  if we don't release
 		 * those before it's called so ->put_super is too late.
 		 */
 		shrink_dcache_sb(s);
@@ -1889,7 +1889,7 @@ static int function2code(hashf_t func)
 	if (func == r5_hash)
 		return R5_HASH;
 
-	BUG();			/* should never happen */
+	();			/* should never happen */
 
 	return 0;
 }
@@ -2011,7 +2011,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	errval = -EINVAL;
 #ifdef CONFIG_REISERFS_CHECK
 	SWARN(silent, s, "", "CONFIG_REISERFS_CHECK is set ON");
-	SWARN(silent, s, "", "- it is slow mode for debugging.");
+	SWARN(silent, s, "", "- it is slow mode for deging.");
 #endif
 
 	/* make data=ordered the default */

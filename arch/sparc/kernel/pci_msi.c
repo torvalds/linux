@@ -220,7 +220,7 @@ static int msi_bitmap_alloc(struct pci_pbm_info *pbm)
 	bits_per_ulong = sizeof(unsigned long) * 8;
 	size = (pbm->msi_num + (bits_per_ulong - 1)) & ~(bits_per_ulong - 1);
 	size /= 8;
-	BUG_ON(size % sizeof(unsigned long));
+	_ON(size % sizeof(unsigned long));
 
 	pbm->msi_bitmap = kzalloc(size, GFP_KERNEL);
 	if (!pbm->msi_bitmap)

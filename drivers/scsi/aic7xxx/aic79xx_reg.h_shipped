@@ -12,350 +12,350 @@ typedef struct ahd_reg_parse_entry {
 	uint8_t	 mask;
 } ahd_reg_parse_entry_t;
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_intstat_print;
 #else
 #define ahd_intstat_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "INTSTAT", 0x01, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_hs_mailbox_print;
 #else
 #define ahd_hs_mailbox_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "HS_MAILBOX", 0x0b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seqintstat_print;
 #else
 #define ahd_seqintstat_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQINTSTAT", 0x0c, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_intctl_print;
 #else
 #define ahd_intctl_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "INTCTL", 0x18, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_dfcntrl_print;
 #else
 #define ahd_dfcntrl_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "DFCNTRL", 0x19, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_dfstatus_print;
 #else
 #define ahd_dfstatus_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "DFSTATUS", 0x1a, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sg_cache_shadow_print;
 #else
 #define ahd_sg_cache_shadow_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SG_CACHE_SHADOW", 0x1b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scsiseq0_print;
 #else
 #define ahd_scsiseq0_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCSISEQ0", 0x3a, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scsiseq1_print;
 #else
 #define ahd_scsiseq1_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCSISEQ1", 0x3b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_dffstat_print;
 #else
 #define ahd_dffstat_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "DFFSTAT", 0x3f, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scsisigi_print;
 #else
 #define ahd_scsisigi_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCSISIGI", 0x41, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scsiphase_print;
 #else
 #define ahd_scsiphase_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCSIPHASE", 0x42, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scsibus_print;
 #else
 #define ahd_scsibus_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCSIBUS", 0x46, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_selid_print;
 #else
 #define ahd_selid_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SELID", 0x49, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_simode0_print;
 #else
 #define ahd_simode0_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SIMODE0", 0x4b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sstat0_print;
 #else
 #define ahd_sstat0_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SSTAT0", 0x4b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sstat1_print;
 #else
 #define ahd_sstat1_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SSTAT1", 0x4c, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sstat2_print;
 #else
 #define ahd_sstat2_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SSTAT2", 0x4d, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_perrdiag_print;
 #else
 #define ahd_perrdiag_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "PERRDIAG", 0x4e, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_soffcnt_print;
 #else
 #define ahd_soffcnt_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SOFFCNT", 0x4f, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lqistat0_print;
 #else
 #define ahd_lqistat0_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LQISTAT0", 0x50, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lqistat1_print;
 #else
 #define ahd_lqistat1_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LQISTAT1", 0x51, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lqistat2_print;
 #else
 #define ahd_lqistat2_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LQISTAT2", 0x52, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sstat3_print;
 #else
 #define ahd_sstat3_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SSTAT3", 0x53, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lqostat0_print;
 #else
 #define ahd_lqostat0_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LQOSTAT0", 0x54, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lqostat1_print;
 #else
 #define ahd_lqostat1_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LQOSTAT1", 0x55, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lqostat2_print;
 #else
 #define ahd_lqostat2_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LQOSTAT2", 0x56, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_simode1_print;
 #else
 #define ahd_simode1_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SIMODE1", 0x57, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_dffsxfrctl_print;
 #else
 #define ahd_dffsxfrctl_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "DFFSXFRCTL", 0x5a, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seqintsrc_print;
 #else
 #define ahd_seqintsrc_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQINTSRC", 0x5b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seqimode_print;
 #else
 #define ahd_seqimode_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQIMODE", 0x5c, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_mdffstat_print;
 #else
 #define ahd_mdffstat_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "MDFFSTAT", 0x5d, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seloid_print;
 #else
 #define ahd_seloid_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SELOID", 0x6b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sg_state_print;
 #else
 #define ahd_sg_state_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SG_STATE", 0xa6, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_ccscbctl_print;
 #else
 #define ahd_ccscbctl_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "CCSCBCTL", 0xad, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_ccsgctl_print;
 #else
 #define ahd_ccsgctl_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "CCSGCTL", 0xad, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seqctl0_print;
 #else
 #define ahd_seqctl0_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQCTL0", 0xd6, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seqintctl_print;
 #else
 #define ahd_seqintctl_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQINTCTL", 0xd9, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_sram_base_print;
 #else
 #define ahd_sram_base_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SRAM_BASE", 0x100, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_qfreeze_count_print;
 #else
 #define ahd_qfreeze_count_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "QFREEZE_COUNT", 0x132, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_kernel_qfreeze_count_print;
 #else
 #define ahd_kernel_qfreeze_count_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "KERNEL_QFREEZE_COUNT", 0x134, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_saved_mode_print;
 #else
 #define ahd_saved_mode_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SAVED_MODE", 0x136, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seq_flags_print;
 #else
 #define ahd_seq_flags_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQ_FLAGS", 0x139, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_lastphase_print;
 #else
 #define ahd_lastphase_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "LASTPHASE", 0x13c, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_seq_flags2_print;
 #else
 #define ahd_seq_flags2_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SEQ_FLAGS2", 0x14d, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_mk_message_scb_print;
 #else
 #define ahd_mk_message_scb_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "MK_MESSAGE_SCB", 0x160, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_mk_message_scsiid_print;
 #else
 #define ahd_mk_message_scsiid_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "MK_MESSAGE_SCSIID", 0x162, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scb_base_print;
 #else
 #define ahd_scb_base_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCB_BASE", 0x180, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scb_control_print;
 #else
 #define ahd_scb_control_print(regvalue, cur_col, wrap) \
     ahd_print_register(NULL, 0, "SCB_CONTROL", 0x192, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahd_reg_print_t ahd_scb_scsiid_print;
 #else
 #define ahd_scb_scsiid_print(regvalue, cur_col, wrap) \
@@ -1011,7 +1011,7 @@ ahd_reg_print_t ahd_scb_scsiid_print;
 
 #define	SCSITEST        		0x5e
 #define		CNTRTEST        	0x08
-#define		SEL_TXPLL_DEBUG 	0x04
+#define		SEL_TXPLL_DE 	0x04
 
 #define	LASTSCB         		0x5e
 
@@ -1777,12 +1777,12 @@ ahd_reg_print_t ahd_scb_scsiid_print;
 #define	AHD_ANNEXCOL_AMPLITUDE	0x06
 #define	AHD_AMPLITUDE_SHIFT	0x00
 #define	AHD_AMPLITUDE_MASK	0x07
-#define	STIMESEL_BUG_ADJ	0x08
+#define	STIMESEL__ADJ	0x08
 #define	STATUS_PKT_SENSE	0xff
 #define	SRC_MODE_SHIFT	0x00
 #define	SEEOP_ERAL_ADDR	0x80
 #define	NVRAM_SCB_OFFSET	0x2c
-#define	MAX_OFFSET_PACED_BUG	0x7f
+#define	MAX_OFFSET_PACED_	0x7f
 #define	CCSGRAM_MAXSEGS	0x10
 #define	AHD_SLEWRATE_DEF_REVB	0x08
 #define	AHD_PRECOMP_CUTBACK_17	0x04

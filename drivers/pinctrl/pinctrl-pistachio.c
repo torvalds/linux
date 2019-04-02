@@ -276,31 +276,31 @@ static const char * const pistachio_i2s_out_groups[] = {
 	"mfio42", "mfio43", "mfio44",
 };
 
-static const char * const pistachio_debug_raw_cca_ind_groups[] = {
+static const char * const pistachio_de_raw_cca_ind_groups[] = {
 	"mfio37",
 };
 
-static const char * const pistachio_debug_ed_sec20_cca_ind_groups[] = {
+static const char * const pistachio_de_ed_sec20_cca_ind_groups[] = {
 	"mfio38",
 };
 
-static const char * const pistachio_debug_ed_sec40_cca_ind_groups[] = {
+static const char * const pistachio_de_ed_sec40_cca_ind_groups[] = {
 	"mfio39",
 };
 
-static const char * const pistachio_debug_agc_done_0_groups[] = {
+static const char * const pistachio_de_agc_done_0_groups[] = {
 	"mfio40",
 };
 
-static const char * const pistachio_debug_agc_done_1_groups[] = {
+static const char * const pistachio_de_agc_done_1_groups[] = {
 	"mfio41",
 };
 
-static const char * const pistachio_debug_ed_cca_ind_groups[] = {
+static const char * const pistachio_de_ed_cca_ind_groups[] = {
 	"mfio42",
 };
 
-static const char * const pistachio_debug_s2l_done_groups[] = {
+static const char * const pistachio_de_s2l_done_groups[] = {
 	"mfio43",
 };
 
@@ -400,43 +400,43 @@ static const char * const pistachio_mips_trace_data_groups[] = {
 	"mfio81", "mfio82", "mfio83", "mfio84", "mfio85", "mfio86",
 };
 
-static const char * const pistachio_sram_debug_groups[] = {
+static const char * const pistachio_sram_de_groups[] = {
 	"mfio73", "mfio74",
 };
 
-static const char * const pistachio_rom_debug_groups[] = {
+static const char * const pistachio_rom_de_groups[] = {
 	"mfio75", "mfio76",
 };
 
-static const char * const pistachio_rpu_debug_groups[] = {
+static const char * const pistachio_rpu_de_groups[] = {
 	"mfio77", "mfio78",
 };
 
-static const char * const pistachio_mips_debug_groups[] = {
+static const char * const pistachio_mips_de_groups[] = {
 	"mfio79", "mfio80",
 };
 
-static const char * const pistachio_eth_debug_groups[] = {
+static const char * const pistachio_eth_de_groups[] = {
 	"mfio81", "mfio82",
 };
 
-static const char * const pistachio_usb_debug_groups[] = {
+static const char * const pistachio_usb_de_groups[] = {
 	"mfio83", "mfio84",
 };
 
-static const char * const pistachio_sdhost_debug_groups[] = {
+static const char * const pistachio_sdhost_de_groups[] = {
 	"mfio85", "mfio86",
 };
 
-static const char * const pistachio_socif_debug_groups[] = {
+static const char * const pistachio_socif_de_groups[] = {
 	"mfio87", "mfio88",
 };
 
-static const char * const pistachio_mdc_debug_groups[] = {
+static const char * const pistachio_mdc_de_groups[] = {
 	"mfio77", "mfio78",
 };
 
-static const char * const pistachio_ddr_debug_groups[] = {
+static const char * const pistachio_ddr_de_groups[] = {
 	"mfio79", "mfio80",
 };
 
@@ -541,16 +541,16 @@ enum pistachio_mux_option {
 	PISTACHIO_FUNCTION_MIPS_TRACE_DM,
 	PISTACHIO_FUNCTION_MIPS_TRACE_PROBE_N,
 	PISTACHIO_FUNCTION_MIPS_TRACE_DATA,
-	PISTACHIO_FUNCTION_SRAM_DEBUG,
-	PISTACHIO_FUNCTION_ROM_DEBUG,
-	PISTACHIO_FUNCTION_RPU_DEBUG,
-	PISTACHIO_FUNCTION_MIPS_DEBUG,
-	PISTACHIO_FUNCTION_ETH_DEBUG,
-	PISTACHIO_FUNCTION_USB_DEBUG,
-	PISTACHIO_FUNCTION_SDHOST_DEBUG,
-	PISTACHIO_FUNCTION_SOCIF_DEBUG,
-	PISTACHIO_FUNCTION_MDC_DEBUG,
-	PISTACHIO_FUNCTION_DDR_DEBUG,
+	PISTACHIO_FUNCTION_SRAM_DE,
+	PISTACHIO_FUNCTION_ROM_DE,
+	PISTACHIO_FUNCTION_RPU_DE,
+	PISTACHIO_FUNCTION_MIPS_DE,
+	PISTACHIO_FUNCTION_ETH_DE,
+	PISTACHIO_FUNCTION_USB_DE,
+	PISTACHIO_FUNCTION_SDHOST_DE,
+	PISTACHIO_FUNCTION_SOCIF_DE,
+	PISTACHIO_FUNCTION_MDC_DE,
+	PISTACHIO_FUNCTION_DDR_DE,
 	PISTACHIO_FUNCTION_DREQ0,
 	PISTACHIO_FUNCTION_DREQ1,
 	PISTACHIO_FUNCTION_DREQ2,
@@ -564,13 +564,13 @@ enum pistachio_mux_option {
 	PISTACHIO_FUNCTION_SYS_PLL_LOCK,
 	PISTACHIO_FUNCTION_WIFI_PLL_LOCK,
 	PISTACHIO_FUNCTION_BT_PLL_LOCK,
-	PISTACHIO_FUNCTION_DEBUG_RAW_CCA_IND,
-	PISTACHIO_FUNCTION_DEBUG_ED_SEC20_CCA_IND,
-	PISTACHIO_FUNCTION_DEBUG_ED_SEC40_CCA_IND,
-	PISTACHIO_FUNCTION_DEBUG_AGC_DONE_0,
-	PISTACHIO_FUNCTION_DEBUG_AGC_DONE_1,
-	PISTACHIO_FUNCTION_DEBUG_ED_CCA_IND,
-	PISTACHIO_FUNCTION_DEBUG_S2L_DONE,
+	PISTACHIO_FUNCTION_DE_RAW_CCA_IND,
+	PISTACHIO_FUNCTION_DE_ED_SEC20_CCA_IND,
+	PISTACHIO_FUNCTION_DE_ED_SEC40_CCA_IND,
+	PISTACHIO_FUNCTION_DE_AGC_DONE_0,
+	PISTACHIO_FUNCTION_DE_AGC_DONE_1,
+	PISTACHIO_FUNCTION_DE_ED_CCA_IND,
+	PISTACHIO_FUNCTION_DE_S2L_DONE,
 };
 
 static const struct pistachio_function pistachio_functions[] = {
@@ -602,16 +602,16 @@ static const struct pistachio_function pistachio_functions[] = {
 	FUNCTION(mips_trace_dm),
 	FUNCTION_SCENARIO(mips_probe_n, PADS_SCENARIO_SELECT, 5, 0x3),
 	FUNCTION(mips_trace_data),
-	FUNCTION(sram_debug),
-	FUNCTION(rom_debug),
-	FUNCTION(rpu_debug),
-	FUNCTION(mips_debug),
-	FUNCTION(eth_debug),
-	FUNCTION(usb_debug),
-	FUNCTION(sdhost_debug),
-	FUNCTION(socif_debug),
-	FUNCTION(mdc_debug),
-	FUNCTION(ddr_debug),
+	FUNCTION(sram_de),
+	FUNCTION(rom_de),
+	FUNCTION(rpu_de),
+	FUNCTION(mips_de),
+	FUNCTION(eth_de),
+	FUNCTION(usb_de),
+	FUNCTION(sdhost_de),
+	FUNCTION(socif_de),
+	FUNCTION(mdc_de),
+	FUNCTION(ddr_de),
 	FUNCTION(dreq0),
 	FUNCTION(dreq1),
 	FUNCTION(dreq2),
@@ -625,13 +625,13 @@ static const struct pistachio_function pistachio_functions[] = {
 	FUNCTION(sys_pll_lock),
 	FUNCTION(wifi_pll_lock),
 	FUNCTION(bt_pll_lock),
-	FUNCTION(debug_raw_cca_ind),
-	FUNCTION(debug_ed_sec20_cca_ind),
-	FUNCTION(debug_ed_sec40_cca_ind),
-	FUNCTION(debug_agc_done_0),
-	FUNCTION(debug_agc_done_1),
-	FUNCTION(debug_ed_cca_ind),
-	FUNCTION(debug_s2l_done),
+	FUNCTION(de_raw_cca_ind),
+	FUNCTION(de_ed_sec20_cca_ind),
+	FUNCTION(de_ed_sec40_cca_ind),
+	FUNCTION(de_agc_done_0),
+	FUNCTION(de_agc_done_1),
+	FUNCTION(de_ed_cca_ind),
+	FUNCTION(de_s2l_done),
 };
 
 #define PIN_GROUP(_pin, _name)					\
@@ -729,19 +729,19 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 	MFIO_PIN_GROUP(35, I2C3),
 	MFIO_MUX_PIN_GROUP(36, I2S_OUT, AUDIO_CLK_IN, NONE,
 			   PADS_FUNCTION_SELECT0, 24, 0x1),
-	MFIO_MUX_PIN_GROUP(37, I2S_OUT, DEBUG_RAW_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(37, I2S_OUT, DE_RAW_CCA_IND, NONE,
 			   PADS_FUNCTION_SELECT0, 25, 0x1),
-	MFIO_MUX_PIN_GROUP(38, I2S_OUT, DEBUG_ED_SEC20_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(38, I2S_OUT, DE_ED_SEC20_CCA_IND, NONE,
 			   PADS_FUNCTION_SELECT0, 26, 0x1),
-	MFIO_MUX_PIN_GROUP(39, I2S_OUT, DEBUG_ED_SEC40_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(39, I2S_OUT, DE_ED_SEC40_CCA_IND, NONE,
 			   PADS_FUNCTION_SELECT0, 27, 0x1),
-	MFIO_MUX_PIN_GROUP(40, I2S_OUT, DEBUG_AGC_DONE_0, NONE,
+	MFIO_MUX_PIN_GROUP(40, I2S_OUT, DE_AGC_DONE_0, NONE,
 			   PADS_FUNCTION_SELECT0, 28, 0x1),
-	MFIO_MUX_PIN_GROUP(41, I2S_OUT, DEBUG_AGC_DONE_1, NONE,
+	MFIO_MUX_PIN_GROUP(41, I2S_OUT, DE_AGC_DONE_1, NONE,
 			   PADS_FUNCTION_SELECT0, 29, 0x1),
-	MFIO_MUX_PIN_GROUP(42, I2S_OUT, DEBUG_ED_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(42, I2S_OUT, DE_ED_CCA_IND, NONE,
 			   PADS_FUNCTION_SELECT0, 30, 0x1),
-	MFIO_MUX_PIN_GROUP(43, I2S_OUT, DEBUG_S2L_DONE, NONE,
+	MFIO_MUX_PIN_GROUP(43, I2S_OUT, DE_S2L_DONE, NONE,
 			   PADS_FUNCTION_SELECT0, 31, 0x1),
 	MFIO_PIN_GROUP(44, I2S_OUT),
 	MFIO_MUX_PIN_GROUP(45, I2S_DAC_CLK, AUDIO_SYNC, NONE,
@@ -786,37 +786,37 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 			   PADS_FUNCTION_SELECT1, 24, 0x3),
 	MFIO_PIN_GROUP(71, ETH),
 	MFIO_PIN_GROUP(72, IR),
-	MFIO_MUX_PIN_GROUP(73, PWMPDM, MIPS_TRACE_CLK, SRAM_DEBUG,
+	MFIO_MUX_PIN_GROUP(73, PWMPDM, MIPS_TRACE_CLK, SRAM_DE,
 			   PADS_FUNCTION_SELECT1, 26, 0x3),
-	MFIO_MUX_PIN_GROUP(74, PWMPDM, MIPS_TRACE_DINT, SRAM_DEBUG,
+	MFIO_MUX_PIN_GROUP(74, PWMPDM, MIPS_TRACE_DINT, SRAM_DE,
 			   PADS_FUNCTION_SELECT1, 28, 0x3),
-	MFIO_MUX_PIN_GROUP(75, PWMPDM, MIPS_TRACE_TRIGOUT, ROM_DEBUG,
+	MFIO_MUX_PIN_GROUP(75, PWMPDM, MIPS_TRACE_TRIGOUT, ROM_DE,
 			   PADS_FUNCTION_SELECT1, 30, 0x3),
-	MFIO_MUX_PIN_GROUP(76, PWMPDM, MIPS_TRACE_TRIGIN, ROM_DEBUG,
+	MFIO_MUX_PIN_GROUP(76, PWMPDM, MIPS_TRACE_TRIGIN, ROM_DE,
 			   PADS_FUNCTION_SELECT2, 0, 0x3),
-	MFIO_MUX_PIN_GROUP(77, MDC_DEBUG, MIPS_TRACE_DM, RPU_DEBUG,
+	MFIO_MUX_PIN_GROUP(77, MDC_DE, MIPS_TRACE_DM, RPU_DE,
 			   PADS_FUNCTION_SELECT2, 2, 0x3),
-	MFIO_MUX_PIN_GROUP(78, MDC_DEBUG, MIPS_TRACE_PROBE_N, RPU_DEBUG,
+	MFIO_MUX_PIN_GROUP(78, MDC_DE, MIPS_TRACE_PROBE_N, RPU_DE,
 			   PADS_FUNCTION_SELECT2, 4, 0x3),
-	MFIO_MUX_PIN_GROUP(79, DDR_DEBUG, MIPS_TRACE_DATA, MIPS_DEBUG,
+	MFIO_MUX_PIN_GROUP(79, DDR_DE, MIPS_TRACE_DATA, MIPS_DE,
 			   PADS_FUNCTION_SELECT2, 6, 0x3),
-	MFIO_MUX_PIN_GROUP(80, DDR_DEBUG, MIPS_TRACE_DATA, MIPS_DEBUG,
+	MFIO_MUX_PIN_GROUP(80, DDR_DE, MIPS_TRACE_DATA, MIPS_DE,
 			   PADS_FUNCTION_SELECT2, 8, 0x3),
-	MFIO_MUX_PIN_GROUP(81, DREQ0, MIPS_TRACE_DATA, ETH_DEBUG,
+	MFIO_MUX_PIN_GROUP(81, DREQ0, MIPS_TRACE_DATA, ETH_DE,
 			   PADS_FUNCTION_SELECT2, 10, 0x3),
-	MFIO_MUX_PIN_GROUP(82, DREQ1, MIPS_TRACE_DATA, ETH_DEBUG,
+	MFIO_MUX_PIN_GROUP(82, DREQ1, MIPS_TRACE_DATA, ETH_DE,
 			   PADS_FUNCTION_SELECT2, 12, 0x3),
-	MFIO_MUX_PIN_GROUP(83, MIPS_PLL_LOCK, MIPS_TRACE_DATA, USB_DEBUG,
+	MFIO_MUX_PIN_GROUP(83, MIPS_PLL_LOCK, MIPS_TRACE_DATA, USB_DE,
 			   PADS_FUNCTION_SELECT2, 14, 0x3),
-	MFIO_MUX_PIN_GROUP(84, AUDIO_PLL_LOCK, MIPS_TRACE_DATA, USB_DEBUG,
+	MFIO_MUX_PIN_GROUP(84, AUDIO_PLL_LOCK, MIPS_TRACE_DATA, USB_DE,
 			   PADS_FUNCTION_SELECT2, 16, 0x3),
-	MFIO_MUX_PIN_GROUP(85, RPU_V_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DEBUG,
+	MFIO_MUX_PIN_GROUP(85, RPU_V_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DE,
 			   PADS_FUNCTION_SELECT2, 18, 0x3),
-	MFIO_MUX_PIN_GROUP(86, RPU_L_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DEBUG,
+	MFIO_MUX_PIN_GROUP(86, RPU_L_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DE,
 			   PADS_FUNCTION_SELECT2, 20, 0x3),
-	MFIO_MUX_PIN_GROUP(87, SYS_PLL_LOCK, DREQ2, SOCIF_DEBUG,
+	MFIO_MUX_PIN_GROUP(87, SYS_PLL_LOCK, DREQ2, SOCIF_DE,
 			   PADS_FUNCTION_SELECT2, 22, 0x3),
-	MFIO_MUX_PIN_GROUP(88, WIFI_PLL_LOCK, DREQ3, SOCIF_DEBUG,
+	MFIO_MUX_PIN_GROUP(88, WIFI_PLL_LOCK, DREQ3, SOCIF_DE,
 			   PADS_FUNCTION_SELECT2, 24, 0x3),
 	MFIO_MUX_PIN_GROUP(89, BT_PLL_LOCK, DREQ4, DREQ5,
 			   PADS_FUNCTION_SELECT2, 26, 0x3),

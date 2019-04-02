@@ -102,7 +102,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	comp_max_write_size = MLXFW_ALIGN_DOWN(comp_max_write_size,
 					       comp_align_bits);
 
-	pr_debug("Component update\n");
+	pr_de("Component update\n");
 	err = mlxfw_dev->ops->fsm_component_update(mlxfw_dev, fwhandle,
 						   comp->index,
 						   comp->data_size);
@@ -114,7 +114,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	if (err)
 		goto err_out;
 
-	pr_debug("Component download\n");
+	pr_de("Component download\n");
 	for (offset = 0;
 	     offset < MLXFW_ALIGN_UP(comp->data_size, comp_align_bits);
 	     offset += comp_max_write_size) {
@@ -128,7 +128,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 			goto err_out;
 	}
 
-	pr_debug("Component verify\n");
+	pr_de("Component verify\n");
 	err = mlxfw_dev->ops->fsm_component_verify(mlxfw_dev, fwhandle,
 						   comp->index);
 	if (err)
@@ -208,7 +208,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	if (err)
 		goto err_flash_components;
 
-	pr_debug("Activate image\n");
+	pr_de("Activate image\n");
 	err = mlxfw_dev->ops->fsm_activate(mlxfw_dev, fwhandle);
 	if (err) {
 		pr_err("Could not activate the downloaded image\n");
@@ -219,7 +219,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	if (err)
 		goto err_state_wait_activate_to_locked;
 
-	pr_debug("Handle release\n");
+	pr_de("Handle release\n");
 	mlxfw_dev->ops->fsm_release(mlxfw_dev, fwhandle);
 
 	pr_info("Firmware flash done.\n");

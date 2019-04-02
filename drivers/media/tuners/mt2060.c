@@ -28,11 +28,11 @@
 #include "mt2060.h"
 #include "mt2060_priv.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
-#define dprintk(args...) do { if (debug) {printk(KERN_DEBUG "MT2060: " args); printk("\n"); }} while (0)
+#define dprintk(args...) do { if (de) {printk(KERN_DE "MT2060: " args); printk("\n"); }} while (0)
 
 // Reads a single register
 static int mt2060_readreg(struct mt2060_priv *priv, u8 reg, u8 *val)

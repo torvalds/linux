@@ -84,7 +84,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_STATIC_ADDRESS,
 	MGMT_OP_SET_SCAN_PARAMS,
 	MGMT_OP_SET_SECURE_CONN,
-	MGMT_OP_SET_DEBUG_KEYS,
+	MGMT_OP_SET_DE_KEYS,
 	MGMT_OP_SET_PRIVACY,
 	MGMT_OP_LOAD_IRKS,
 	MGMT_OP_GET_CONN_INFO,
@@ -744,7 +744,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 
 	settings |= MGMT_SETTING_POWERED;
 	settings |= MGMT_SETTING_BONDABLE;
-	settings |= MGMT_SETTING_DEBUG_KEYS;
+	settings |= MGMT_SETTING_DE_KEYS;
 	settings |= MGMT_SETTING_CONNECTABLE;
 	settings |= MGMT_SETTING_DISCOVERABLE;
 
@@ -820,8 +820,8 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (hci_dev_test_flag(hdev, HCI_SC_ENABLED))
 		settings |= MGMT_SETTING_SECURE_CONN;
 
-	if (hci_dev_test_flag(hdev, HCI_KEEP_DEBUG_KEYS))
-		settings |= MGMT_SETTING_DEBUG_KEYS;
+	if (hci_dev_test_flag(hdev, HCI_KEEP_DE_KEYS))
+		settings |= MGMT_SETTING_DE_KEYS;
 
 	if (hci_dev_test_flag(hdev, HCI_PRIVACY))
 		settings |= MGMT_SETTING_PRIVACY;
@@ -1747,8 +1747,8 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	if (!cp->val && hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS))
-		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
+	if (!cp->val && hci_dev_test_flag(hdev, HCI_USE_DE_KEYS))
+		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DE_MODE,
 			     sizeof(cp->val), &cp->val);
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &cp->val);
@@ -2310,11 +2310,11 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 				       MGMT_STATUS_INVALID_PARAMS);
 	}
 
-	if (cp->debug_keys != 0x00 && cp->debug_keys != 0x01)
+	if (cp->de_keys != 0x00 && cp->de_keys != 0x01)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_LOAD_LINK_KEYS,
 				       MGMT_STATUS_INVALID_PARAMS);
 
-	BT_DBG("%s debug_keys %u key_count %u", hdev->name, cp->debug_keys,
+	BT_DBG("%s de_keys %u key_count %u", hdev->name, cp->de_keys,
 	       key_count);
 
 	for (i = 0; i < key_count; i++) {
@@ -2330,11 +2330,11 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_link_keys_clear(hdev);
 
-	if (cp->debug_keys)
-		changed = !hci_dev_test_and_set_flag(hdev, HCI_KEEP_DEBUG_KEYS);
+	if (cp->de_keys)
+		changed = !hci_dev_test_and_set_flag(hdev, HCI_KEEP_DE_KEYS);
 	else
 		changed = hci_dev_test_and_clear_flag(hdev,
-						      HCI_KEEP_DEBUG_KEYS);
+						      HCI_KEEP_DE_KEYS);
 
 	if (changed)
 		new_settings(hdev, NULL);
@@ -2342,10 +2342,10 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
 
-		/* Always ignore debug keys and require a new pairing if
+		/* Always ignore de keys and require a new pairing if
 		 * the user wants to use them.
 		 */
-		if (key->type == HCI_LK_DEBUG_COMBINATION)
+		if (key->type == HCI_LK_DE_COMBINATION)
 			continue;
 
 		hci_add_link_key(hdev, NULL, &key->addr.bdaddr, key->val,
@@ -4887,7 +4887,7 @@ failed:
 	return err;
 }
 
-static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
+static int set_de_keys(struct sock *sk, struct hci_dev *hdev,
 			  void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
@@ -4897,32 +4897,32 @@ static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
 	BT_DBG("request for %s", hdev->name);
 
 	if (cp->val != 0x00 && cp->val != 0x01 && cp->val != 0x02)
-		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DEBUG_KEYS,
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DE_KEYS,
 				       MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
 	if (cp->val)
-		changed = !hci_dev_test_and_set_flag(hdev, HCI_KEEP_DEBUG_KEYS);
+		changed = !hci_dev_test_and_set_flag(hdev, HCI_KEEP_DE_KEYS);
 	else
 		changed = hci_dev_test_and_clear_flag(hdev,
-						      HCI_KEEP_DEBUG_KEYS);
+						      HCI_KEEP_DE_KEYS);
 
 	if (cp->val == 0x02)
 		use_changed = !hci_dev_test_and_set_flag(hdev,
-							 HCI_USE_DEBUG_KEYS);
+							 HCI_USE_DE_KEYS);
 	else
 		use_changed = hci_dev_test_and_clear_flag(hdev,
-							  HCI_USE_DEBUG_KEYS);
+							  HCI_USE_DE_KEYS);
 
 	if (hdev_is_powered(hdev) && use_changed &&
 	    hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
 		u8 mode = (cp->val == 0x02) ? 0x01 : 0x00;
-		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
+		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DE_MODE,
 			     sizeof(mode), &mode);
 	}
 
-	err = send_settings_rsp(sk, MGMT_OP_SET_DEBUG_KEYS, hdev);
+	err = send_settings_rsp(sk, MGMT_OP_SET_DE_KEYS, hdev);
 	if (err < 0)
 		goto unlock;
 
@@ -5157,9 +5157,9 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			authenticated = 0x01;
 			type = SMP_LTK_P256;
 			break;
-		case MGMT_LTK_P256_DEBUG:
+		case MGMT_LTK_P256_DE:
 			authenticated = 0x00;
-			type = SMP_LTK_P256_DEBUG;
+			type = SMP_LTK_P256_DE;
 			/* fall through */
 		default:
 			continue;
@@ -6884,7 +6884,7 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ set_static_address,      MGMT_SET_STATIC_ADDRESS_SIZE },
 	{ set_scan_params,         MGMT_SET_SCAN_PARAMS_SIZE },
 	{ set_secure_conn,         MGMT_SETTING_SIZE },
-	{ set_debug_keys,          MGMT_SETTING_SIZE },
+	{ set_de_keys,          MGMT_SETTING_SIZE },
 	{ set_privacy,             MGMT_SET_PRIVACY_SIZE },
 	{ load_irks,               MGMT_LOAD_IRKS_SIZE,
 						HCI_MGMT_VAR_LEN },
@@ -7120,8 +7120,8 @@ static u8 mgmt_ltk_type(struct smp_ltk *ltk)
 		if (ltk->authenticated)
 			return MGMT_LTK_P256_AUTH;
 		return MGMT_LTK_P256_UNAUTH;
-	case SMP_LTK_P256_DEBUG:
-		return MGMT_LTK_P256_DEBUG;
+	case SMP_LTK_P256_DE:
+		return MGMT_LTK_P256_DE;
 	}
 
 	return MGMT_LTK_UNAUTHENTICATED;
@@ -7630,8 +7630,8 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	hci_req_init(&req, hdev);
 
 	if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
-		if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS))
-			hci_req_add(&req, HCI_OP_WRITE_SSP_DEBUG_MODE,
+		if (hci_dev_test_flag(hdev, HCI_USE_DE_KEYS))
+			hci_req_add(&req, HCI_OP_WRITE_SSP_DE_MODE,
 				    sizeof(enable), &enable);
 		__hci_req_update_eir(&req);
 	} else {

@@ -480,9 +480,9 @@ struct kvm_pmu {
 struct kvm_pmu_ops;
 
 enum {
-	KVM_DEBUGREG_BP_ENABLED = 1,
-	KVM_DEBUGREG_WONT_EXIT = 2,
-	KVM_DEBUGREG_RELOAD = 4,
+	KVM_DEREG_BP_ENABLED = 1,
+	KVM_DEREG_WONT_EXIT = 2,
+	KVM_DEREG_RELOAD = 4,
 };
 
 struct kvm_mtrr_range {
@@ -702,7 +702,7 @@ struct kvm_vcpu_arch {
 	unsigned long dr6;
 	unsigned long dr7;
 	unsigned long eff_db[KVM_NR_DB_REGS];
-	unsigned long guest_debug_dr7;
+	unsigned long guest_de_dr7;
 	u64 msr_platform_info;
 	u64 msr_misc_features_enables;
 
@@ -821,7 +821,7 @@ struct kvm_hv {
 	u64 hv_hypercall;
 	u64 hv_tsc_page;
 
-	/* Hyper-v based guest crash (NT kernel bugcheck) parameters */
+	/* Hyper-v based guest crash (NT kernel check) parameters */
 	u64 hv_crash_param[HV_X64_MSR_CRASH_PARAMS];
 	u64 hv_crash_ctl;
 
@@ -1038,7 +1038,7 @@ struct kvm_x86_ops {
 	void (*set_gdt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
 	u64 (*get_dr6)(struct kvm_vcpu *vcpu);
 	void (*set_dr6)(struct kvm_vcpu *vcpu, unsigned long value);
-	void (*sync_dirty_debug_regs)(struct kvm_vcpu *vcpu);
+	void (*sync_dirty_de_regs)(struct kvm_vcpu *vcpu);
 	void (*set_dr7)(struct kvm_vcpu *vcpu, unsigned long value);
 	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);

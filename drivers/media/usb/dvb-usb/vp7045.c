@@ -14,16 +14,16 @@
  */
 #include "vp7045.h"
 
-/* debug */
-static int dvb_usb_vp7045_debug;
-module_param_named(debug,dvb_usb_vp7045_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_vp7045_de;
+module_param_named(de,dvb_usb_vp7045_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define deb_info(args...) dprintk(dvb_usb_vp7045_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_vp7045_debug,0x02,args)
-#define deb_rc(args...)   dprintk(dvb_usb_vp7045_debug,0x04,args)
+#define deb_info(args...) dprintk(dvb_usb_vp7045_de,0x01,args)
+#define deb_xfer(args...) dprintk(dvb_usb_vp7045_de,0x02,args)
+#define deb_rc(args...)   dprintk(dvb_usb_vp7045_de,0x04,args)
 
 int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen, u8 *in, int inlen, int msec)
 {
@@ -46,7 +46,7 @@ int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen, u8 *in,
 		memcpy(&buf[1], out, outlen);
 
 	deb_xfer("out buffer: ");
-	debug_dump(buf, outlen+1, deb_xfer);
+	de_dump(buf, outlen+1, deb_xfer);
 
 
 	if (usb_control_msg(d->udev,
@@ -70,7 +70,7 @@ int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen, u8 *in,
 	}
 
 	deb_xfer("in buffer: ");
-	debug_dump(buf, 12, deb_xfer);
+	de_dump(buf, 12, deb_xfer);
 
 	if (in != NULL && inlen > 0)
 		memcpy(in, &buf[1], inlen);
@@ -126,7 +126,7 @@ static int vp7045_read_eeprom(struct dvb_usb_device *d,u8 *buf, int len, int off
 		buf[i] = br[1];
 	}
 	deb_info("VP7045 EEPROM read (offs: %d, len: %d) : ",offset, i);
-	debug_dump(buf,i,deb_info);
+	de_dump(buf,i,deb_info);
 	return 0;
 }
 

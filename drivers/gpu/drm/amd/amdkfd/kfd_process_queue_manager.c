@@ -49,7 +49,7 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	found = find_first_zero_bit(pqm->queue_slot_bitmap,
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
-	pr_debug("The new slot id %lu\n", found);
+	pr_de("The new slot id %lu\n", found);
 
 	if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
 		pr_info("Cannot open more queues for process with pasid %d\n",
@@ -130,7 +130,7 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 	(*q)->device = dev;
 	(*q)->process = pqm->process;
 
-	pr_debug("PQM After init queue");
+	pr_de("PQM After init queue");
 
 	return retval;
 }
@@ -159,12 +159,12 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	/*
-	 * for debug process, verify that it is within the static queues limit
+	 * for de process, verify that it is within the static queues limit
 	 * currently limit is set to half of the total avail HQD slots
-	 * If we are just about to create DIQ, the is_debug flag is not set yet
+	 * If we are just about to create DIQ, the is_de flag is not set yet
 	 * Hence we also check the type as well
 	 */
-	if ((pdd->qpd.is_debug) || (type == KFD_QUEUE_TYPE_DIQ))
+	if ((pdd->qpd.is_de) || (type == KFD_QUEUE_TYPE_DIQ))
 		max_queues = dev->device_info->max_no_of_hqd/2;
 
 	if (pdd->qpd.queue_count >= max_queues)
@@ -198,7 +198,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		pqn->q = q;
 		pqn->kq = NULL;
 		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
-		pr_debug("DQM returned %d for create_queue\n", retval);
+		pr_de("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
 
@@ -208,7 +208,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		     KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
 		((dev->dqm->processes_count >= dev->vm_info.vmid_num_kfd) ||
 		(dev->dqm->queue_count >= get_queues_num(dev->dqm)))) {
-			pr_debug("Over-subscription is not allowed when amdkfd.sched_policy == 1\n");
+			pr_de("Over-subscription is not allowed when amdkfd.sched_policy == 1\n");
 			retval = -EPERM;
 			goto err_create_queue;
 		}
@@ -219,7 +219,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		pqn->q = q;
 		pqn->kq = NULL;
 		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd);
-		pr_debug("DQM returned %d for create_queue\n", retval);
+		pr_de("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
@@ -254,12 +254,12 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			(q->properties.doorbell_off * sizeof(uint32_t)) &
 			(kfd_doorbell_process_slice(dev) - 1);
 
-	pr_debug("PQM After DQM create queue\n");
+	pr_de("PQM After DQM create queue\n");
 
 	list_add(&pqn->process_queue_list, &pqm->queues);
 
 	if (q) {
-		pr_debug("PQM done creating queue\n");
+		pr_de("PQM done creating queue\n");
 		print_queue_properties(&q->properties);
 	}
 
@@ -350,7 +350,7 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("No queue %d exists for update operation\n", qid);
+		pr_de("No queue %d exists for update operation\n", qid);
 		return -EFAULT;
 	}
 
@@ -375,7 +375,7 @@ int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("No queue %d exists for update operation\n", qid);
+		pr_de("No queue %d exists for update operation\n", qid);
 		return -EFAULT;
 	}
 
@@ -418,7 +418,7 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("amdkfd: No queue %d exists for operation\n",
+		pr_de("amdkfd: No queue %d exists for operation\n",
 			 qid);
 		return -EFAULT;
 	}
@@ -430,9 +430,9 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 						       save_area_used_size);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-int pqm_debugfs_mqds(struct seq_file *m, void *data)
+int pqm_defs_mqds(struct seq_file *m, void *data)
 {
 	struct process_queue_manager *pqm = data;
 	struct process_queue_node *pqn;
@@ -485,7 +485,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			continue;
 		}
 
-		r = mqd_mgr->debugfs_show_mqd(m, q->mqd);
+		r = mqd_mgr->defs_show_mqd(m, q->mqd);
 		if (r != 0)
 			break;
 	}

@@ -33,7 +33,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	if (snd_BUG_ON((subdevice_id & 0xfff0) != DARLA20))
+	if (snd__ON((subdevice_id & 0xfff0) != DARLA20))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {

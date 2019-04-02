@@ -39,7 +39,7 @@
 
 #define SHT_PARISC_EXT		0x70000000 /* Contains product specific ext. */
 #define SHT_PARISC_UNWIND	0x70000001 /* Unwind information.  */
-#define SHT_PARISC_DOC		0x70000002 /* Debug info for optimized code. */
+#define SHT_PARISC_DOC		0x70000002 /* De info for optimized code. */
 
 /* Legal values for sh_flags field of Elf32_Shdr.  */
 

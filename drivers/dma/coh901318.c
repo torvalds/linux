@@ -20,7 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/platform_data/dma-coh901318.h>
 #include <linux/of_dma.h>
 
@@ -1259,7 +1259,7 @@ static const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 
 #define COHC_2_DEV(cohc) (&cohc->chan.dev->device)
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 #define COH_DBG(x) ({ if (1) x; 0; })
 #else
 #define COH_DBG(x) ({ if (0) x; 0; })
@@ -1329,18 +1329,18 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-#define COH901318_DEBUGFS_ASSIGN(x, y) (x = y)
+#define COH901318_DEFS_ASSIGN(x, y) (x = y)
 
-static struct coh901318_base *debugfs_dma_base;
+static struct coh901318_base *defs_dma_base;
 static struct dentry *dma_dentry;
 
-static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
+static ssize_t coh901318_defs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *f_pos)
 {
-	u64 started_channels = debugfs_dma_base->pm.started_channels;
-	int pool_count = debugfs_dma_base->pool.debugfs_pool_counter;
+	u64 started_channels = defs_dma_base->pm.started_channels;
+	int pool_count = defs_dma_base->pool.defs_pool_counter;
 	char *dev_buf;
 	char *tmp;
 	int ret;
@@ -1366,37 +1366,37 @@ static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static const struct file_operations coh901318_debugfs_status_operations = {
+static const struct file_operations coh901318_defs_status_operations = {
 	.open		= simple_open,
-	.read		= coh901318_debugfs_read,
+	.read		= coh901318_defs_read,
 	.llseek		= default_llseek,
 };
 
 
-static int __init init_coh901318_debugfs(void)
+static int __init init_coh901318_defs(void)
 {
 
-	dma_dentry = debugfs_create_dir("dma", NULL);
+	dma_dentry = defs_create_dir("dma", NULL);
 
-	(void) debugfs_create_file("status",
+	(void) defs_create_file("status",
 				   S_IFREG | S_IRUGO,
 				   dma_dentry, NULL,
-				   &coh901318_debugfs_status_operations);
+				   &coh901318_defs_status_operations);
 	return 0;
 }
 
-static void __exit exit_coh901318_debugfs(void)
+static void __exit exit_coh901318_defs(void)
 {
-	debugfs_remove_recursive(dma_dentry);
+	defs_remove_recursive(dma_dentry);
 }
 
-module_init(init_coh901318_debugfs);
-module_exit(exit_coh901318_debugfs);
+module_init(init_coh901318_defs);
+module_exit(exit_coh901318_defs);
 #else
 
-#define COH901318_DEBUGFS_ASSIGN(x, y)
+#define COH901318_DEFS_ASSIGN(x, y)
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static inline struct coh901318_chan *to_coh901318_chan(struct dma_chan *chan)
 {
@@ -1490,7 +1490,7 @@ static int coh901318_prep_linked_list(struct coh901318_chan *cohc,
 	int channel = cohc->id;
 	void __iomem *virtbase = cohc->base->virtbase;
 
-	BUG_ON(readl(virtbase + COH901318_CX_STAT +
+	_ON(readl(virtbase + COH901318_CX_STAT +
 		     COH901318_CX_STAT_SPACING*channel) &
 	       COH901318_CX_STAT_ACTIVE);
 
@@ -1703,7 +1703,7 @@ static int coh901318_pause(struct dma_chan *chan)
 
 
 	val &= ~COH901318_CX_CFG_CH_ENABLE;
-	/* Enable twice, HW bug work around */
+	/* Enable twice, HW  work around */
 	writel(val, virtbase + COH901318_CX_CFG +
 	       COH901318_CX_CFG_SPACING * channel);
 	writel(val, virtbase + COH901318_CX_CFG +
@@ -1956,11 +1956,11 @@ static void dma_tc_handle(struct coh901318_chan *cohc)
 	 * should have been moved over from cohc->queue to
 	 * cohc->active and run to completion, that is why we're
 	 * getting a terminal count interrupt is it not?
-	 * If you get this BUG() the most probable cause is that
+	 * If you get this () the most probable cause is that
 	 * the individual nodes in the lli chain have IRQ enabled,
 	 * so check your platform config for lli chain ctrl.
 	 */
-	BUG_ON(list_empty(&cohc->active));
+	_ON(list_empty(&cohc->active));
 
 	cohc->nbr_active_done++;
 
@@ -2020,7 +2020,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 		if (test_bit(i, virtbase + COH901318_BE_INT_STATUS1)) {
 			dev_crit(COHC_2_DEV(cohc),
 				 "DMA bus error on channel %d!\n", ch);
-			BUG_ON(1);
+			_ON(1);
 			/* Clear BE interrupt */
 			__set_bit(i, virtbase + COH901318_BE_INT_CLEAR1);
 		} else {
@@ -2030,7 +2030,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 				dev_warn(COHC_2_DEV(cohc),
 					 "ignoring interrupt not caused by terminal count on channel %d\n", ch);
 				/* Clear TC interrupt */
-				BUG_ON(1);
+				_ON(1);
 				__set_bit(i, virtbase + COH901318_TC_INT_CLEAR1);
 			} else {
 				/* Enable powersave if transfer has finished */
@@ -2067,7 +2067,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 			dev_crit(COHC_2_DEV(cohc),
 				 "DMA bus error on channel %d!\n", ch);
 			/* Clear BE interrupt */
-			BUG_ON(1);
+			_ON(1);
 			__set_bit(i, virtbase + COH901318_BE_INT_CLEAR2);
 		} else {
 			/* Caused by TC, really? */
@@ -2077,7 +2077,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 					 "ignoring interrupt not caused by terminal count on channel %d\n", ch);
 				/* Clear TC interrupt */
 				__set_bit(i, virtbase + COH901318_TC_INT_CLEAR2);
-				BUG_ON(1);
+				_ON(1);
 			} else {
 				/* Enable powersave if transfer has finished */
 				if (!(readl(virtbase + COH901318_CX_STAT +
@@ -2354,7 +2354,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		len += factor;
 	}
 
-	pr_debug("Allocate %d lli:s for this transfer\n", len);
+	pr_de("Allocate %d lli:s for this transfer\n", len);
 	lli = coh901318_lli_alloc(&cohc->base->pool, len);
 
 	if (lli == NULL)
@@ -2666,7 +2666,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	spin_lock_init(&base->pm.lock);
 	base->pm.started_channels = 0;
 
-	COH901318_DEBUGFS_ASSIGN(debugfs_dma_base, base);
+	COH901318_DEFS_ASSIGN(defs_dma_base, base);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

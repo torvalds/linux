@@ -16,45 +16,45 @@
 
 static __always_inline void vmcs_check16(unsigned long field)
 {
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
 			 "16-bit accessor invalid for 64-bit field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
 			 "16-bit accessor invalid for 64-bit high field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
 			 "16-bit accessor invalid for 32-bit high field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
 			 "16-bit accessor invalid for natural width field");
 }
 
 static __always_inline void vmcs_check32(unsigned long field)
 {
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
 			 "32-bit accessor invalid for 16-bit field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
 			 "32-bit accessor invalid for natural width field");
 }
 
 static __always_inline void vmcs_check64(unsigned long field)
 {
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
 			 "64-bit accessor invalid for 16-bit field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
 			 "64-bit accessor invalid for 64-bit high field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
 			 "64-bit accessor invalid for 32-bit field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
 			 "64-bit accessor invalid for natural width field");
 }
 
 static __always_inline void vmcs_checkl(unsigned long field)
 {
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
 			 "Natural width accessor invalid for 16-bit field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
 			 "Natural width accessor invalid for 64-bit field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
 			 "Natural width accessor invalid for 64-bit high field");
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
 			 "Natural width accessor invalid for 32-bit field");
 }
 
@@ -162,7 +162,7 @@ static __always_inline void vmcs_writel(unsigned long field, unsigned long value
 
 static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 {
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
 			 "vmcs_clear_bits does not support 64-bit fields");
 	if (static_branch_unlikely(&enable_evmcs))
 		return evmcs_write32(field, evmcs_read32(field) & ~mask);
@@ -172,7 +172,7 @@ static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 
 static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
 {
-	BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
+	BUILD__ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
 			 "vmcs_set_bits does not support 64-bit fields");
 	if (static_branch_unlikely(&enable_evmcs))
 		return evmcs_write32(field, evmcs_read32(field) | mask);
@@ -218,7 +218,7 @@ static inline void __invvpid(unsigned long ext, u16 vpid, gva_t gva)
 
 	asm volatile (__ex("invvpid %2, %1") CC_SET(na)
 		      : CC_OUT(na) (error) : "r"(ext), "m"(operand));
-	BUG_ON(error);
+	_ON(error);
 }
 
 static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
@@ -230,7 +230,7 @@ static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
 
 	asm volatile (__ex("invept %2, %1") CC_SET(na)
 		      : CC_OUT(na) (error) : "r"(ext), "m"(operand));
-	BUG_ON(error);
+	_ON(error);
 }
 
 static inline bool vpid_sync_vcpu_addr(int vpid, gva_t addr)

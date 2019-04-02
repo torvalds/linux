@@ -359,7 +359,7 @@ static void slot_put(struct gfs2_quota_data *qd)
 	spin_lock(&sdp->sd_bitmap_lock);
 	gfs2_assert(sdp, qd->qd_slot_count);
 	if (!--qd->qd_slot_count) {
-		BUG_ON(!test_and_clear_bit(qd->qd_slot, sdp->sd_quota_bitmap));
+		_ON(!test_and_clear_bit(qd->qd_slot, sdp->sd_quota_bitmap));
 		qd->qd_slot = -1;
 	}
 	spin_unlock(&sdp->sd_bitmap_lock);
@@ -1410,7 +1410,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 			qd->qd_slot_count = 1;
 
 			spin_lock(&qd_lock);
-			BUG_ON(test_and_set_bit(slot, sdp->sd_quota_bitmap));
+			_ON(test_and_set_bit(slot, sdp->sd_quota_bitmap));
 			list_add(&qd->qd_list, &sdp->sd_quota_list);
 			atomic_inc(&sdp->sd_quota_count);
 			spin_unlock(&qd_lock);

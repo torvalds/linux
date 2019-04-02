@@ -109,7 +109,7 @@ int iwpm_register_pid(struct iwpm_dev_data *pm_msg, u8 nl_client)
 
 	nlmsg_end(skb, nlh);
 
-	pr_debug("%s: Multicasting a nlmsg (dev = %s ifname = %s iwpm = %s)\n",
+	pr_de("%s: Multicasting a nlmsg (dev = %s ifname = %s iwpm = %s)\n",
 		__func__, pm_msg->dev_name, pm_msg->if_name, iwpm_ulib_name);
 
 	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_IWPM, GFP_KERNEL);
@@ -445,7 +445,7 @@ int iwpm_register_pid_cb(struct sk_buff *skb, struct netlink_callback *cb)
 		pr_warn_once("%s: Down level iwpmd/pid %u.  Continuing...",
 			__func__, iwpm_user_pid);
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
-	pr_debug("%s: iWarp Port Mapper (pid = %d) is available!\n",
+	pr_de("%s: iWarp Port Mapper (pid = %d) is available!\n",
 			__func__, iwpm_user_pid);
 	if (iwpm_valid_client(nl_client))
 		iwpm_set_registration(nl_client, IWPM_REG_VALID);
@@ -753,7 +753,7 @@ int iwpm_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (!iwpm_mapinfo_available())
 		return 0;
-	pr_debug("%s: iWarp Port Mapper (pid = %d) is available!\n",
+	pr_de("%s: iWarp Port Mapper (pid = %d) is available!\n",
 		 __func__, iwpm_user_pid);
 	ret = iwpm_send_mapinfo(nl_client, iwpm_user_pid);
 	return ret;
@@ -823,7 +823,7 @@ int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
 		/* not all errors have associated requests */
-		pr_debug("Could not find matching req (seq = %u)\n", msg_seq);
+		pr_de("Could not find matching req (seq = %u)\n", msg_seq);
 		return 0;
 	}
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
@@ -873,7 +873,7 @@ int iwpm_hello_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	iwpm_set_registration(nl_client, IWPM_REG_INCOMPL);
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
 	iwpm_ulib_version = min_t(u16, IWPM_UABI_VERSION, abi_version);
-	pr_debug("Using ABI version %u\n", iwpm_ulib_version);
+	pr_de("Using ABI version %u\n", iwpm_ulib_version);
 	iwpm_user_pid = cb->nlh->nlmsg_pid;
 	ret = iwpm_send_hello(nl_client, iwpm_user_pid, iwpm_ulib_version);
 	return ret;

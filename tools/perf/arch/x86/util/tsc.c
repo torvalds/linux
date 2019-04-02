@@ -7,7 +7,7 @@
 
 #include "../../perf.h"
 #include <linux/types.h>
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/tsc.h"
 
 int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
@@ -28,7 +28,7 @@ int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 		if (pc->lock == seq && !(seq & 1))
 			break;
 		if (++i > 10000) {
-			pr_debug("failed to get perf_event_mmap_page lock\n");
+			pr_de("failed to get perf_event_mmap_page lock\n");
 			return -EINVAL;
 		}
 	}
@@ -72,7 +72,7 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 	if (err)
 		return err;
 
-	pr_debug2("Synthesizing TSC conversion information\n");
+	pr_de2("Synthesizing TSC conversion information\n");
 
 	event.time_conv.time_mult  = tc.time_mult;
 	event.time_conv.time_shift = tc.time_shift;

@@ -199,35 +199,35 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "Buffers queued",
-			 priv->debug.tx_stats.buf_queued);
+			 priv->de.tx_stats.buf_queued);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "Buffers completed",
-			 priv->debug.tx_stats.buf_completed);
+			 priv->de.tx_stats.buf_completed);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "SKBs queued",
-			 priv->debug.tx_stats.skb_queued);
+			 priv->de.tx_stats.skb_queued);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "SKBs success",
-			 priv->debug.tx_stats.skb_success);
+			 priv->de.tx_stats.skb_success);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "SKBs failed",
-			 priv->debug.tx_stats.skb_failed);
+			 priv->de.tx_stats.skb_failed);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "CAB queued",
-			 priv->debug.tx_stats.cab_queued);
+			 priv->de.tx_stats.cab_queued);
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "BE queued",
-			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_BE]);
+			 priv->de.tx_stats.queue_stats[IEEE80211_AC_BE]);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "BK queued",
-			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_BK]);
+			 priv->de.tx_stats.queue_stats[IEEE80211_AC_BK]);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "VI queued",
-			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_VI]);
+			 priv->de.tx_stats.queue_stats[IEEE80211_AC_VI]);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%20s : %10u\n", "VO queued",
-			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_VO]);
+			 priv->de.tx_stats.queue_stats[IEEE80211_AC_VO]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -245,7 +245,7 @@ static const struct file_operations fops_xmit = {
 void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 			     struct ath_rx_status *rs)
 {
-	ath9k_cmn_debug_stat_rx(&priv->debug.rx_stats, rs);
+	ath9k_cmn_de_stat_rx(&priv->de.rx_stats, rs);
 }
 
 static ssize_t read_file_skb_rx(struct file *file, char __user *user_buf,
@@ -262,13 +262,13 @@ static ssize_t read_file_skb_rx(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs allocated",
-			 priv->debug.skbrx_stats.skb_allocated);
+			 priv->de.skbrx_stats.skb_allocated);
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs completed",
-			 priv->debug.skbrx_stats.skb_completed);
+			 priv->de.skbrx_stats.skb_completed);
 	len += scnprintf(buf + len, size - len,
 			 "%20s : %10u\n", "SKBs Dropped",
-			 priv->debug.skbrx_stats.skb_dropped);
+			 priv->de.skbrx_stats.skb_dropped);
 
 	if (len > size)
 		len = size;
@@ -357,7 +357,7 @@ static const struct file_operations fops_queue = {
 	.llseek = default_llseek,
 };
 
-static ssize_t read_file_debug(struct file *file, char __user *user_buf,
+static ssize_t read_file_de(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct ath9k_htc_priv *priv = file->private_data;
@@ -365,11 +365,11 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", common->debug_mask);
+	len = sprintf(buf, "0x%08x\n", common->de_mask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
+static ssize_t write_file_de(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
 	struct ath9k_htc_priv *priv = file->private_data;
@@ -386,13 +386,13 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 	if (kstrtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	common->debug_mask = mask;
+	common->de_mask = mask;
 	return count;
 }
 
-static const struct file_operations fops_debug = {
-	.read = read_file_debug,
-	.write = write_file_debug,
+static const struct file_operations fops_de = {
+	.read = read_file_de,
+	.write = write_file_de,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -440,10 +440,10 @@ int ath9k_htc_get_et_sset_count(struct ieee80211_hw *hw,
 	return 0;
 }
 
-#define STXBASE priv->debug.tx_stats
-#define SRXBASE priv->debug.rx_stats
-#define SKBTXBASE priv->debug.tx_stats
-#define SKBRXBASE priv->debug.skbrx_stats
+#define STXBASE priv->de.tx_stats
+#define SRXBASE priv->de.rx_stats
+#define SKBTXBASE priv->de.tx_stats
+#define SKBRXBASE priv->de.skbrx_stats
 #define ASTXQ(a)					\
 	data[i++] = STXBASE.a[IEEE80211_AC_BE];		\
 	data[i++] = STXBASE.a[IEEE80211_AC_BK];		\
@@ -479,46 +479,46 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
 }
 
-void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
+void ath9k_htc_deinit_de(struct ath9k_htc_priv *priv)
 {
-	ath9k_cmn_spectral_deinit_debug(&priv->spec_priv);
+	ath9k_cmn_spectral_deinit_de(&priv->spec_priv);
 }
 
-int ath9k_htc_init_debug(struct ath_hw *ah)
+int ath9k_htc_init_de(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 
-	priv->debug.debugfs_phy = debugfs_create_dir(KBUILD_MODNAME,
-					     priv->hw->wiphy->debugfsdir);
-	if (!priv->debug.debugfs_phy)
+	priv->de.defs_phy = defs_create_dir(KBUILD_MODNAME,
+					     priv->hw->wiphy->defsdir);
+	if (!priv->de.defs_phy)
 		return -ENOMEM;
 
-	ath9k_cmn_spectral_init_debug(&priv->spec_priv, priv->debug.debugfs_phy);
+	ath9k_cmn_spectral_init_de(&priv->spec_priv, priv->de.defs_phy);
 
-	debugfs_create_file("tgt_int_stats", 0400, priv->debug.debugfs_phy,
+	defs_create_file("tgt_int_stats", 0400, priv->de.defs_phy,
 			    priv, &fops_tgt_int_stats);
-	debugfs_create_file("tgt_tx_stats", 0400, priv->debug.debugfs_phy,
+	defs_create_file("tgt_tx_stats", 0400, priv->de.defs_phy,
 			    priv, &fops_tgt_tx_stats);
-	debugfs_create_file("tgt_rx_stats", 0400, priv->debug.debugfs_phy,
+	defs_create_file("tgt_rx_stats", 0400, priv->de.defs_phy,
 			    priv, &fops_tgt_rx_stats);
-	debugfs_create_file("xmit", 0400, priv->debug.debugfs_phy,
+	defs_create_file("xmit", 0400, priv->de.defs_phy,
 			    priv, &fops_xmit);
-	debugfs_create_file("skb_rx", 0400, priv->debug.debugfs_phy,
+	defs_create_file("skb_rx", 0400, priv->de.defs_phy,
 			    priv, &fops_skb_rx);
 
-	ath9k_cmn_debug_recv(priv->debug.debugfs_phy, &priv->debug.rx_stats);
-	ath9k_cmn_debug_phy_err(priv->debug.debugfs_phy, &priv->debug.rx_stats);
+	ath9k_cmn_de_recv(priv->de.defs_phy, &priv->de.rx_stats);
+	ath9k_cmn_de_phy_err(priv->de.defs_phy, &priv->de.rx_stats);
 
-	debugfs_create_file("slot", 0400, priv->debug.debugfs_phy,
+	defs_create_file("slot", 0400, priv->de.defs_phy,
 			    priv, &fops_slot);
-	debugfs_create_file("queue", 0400, priv->debug.debugfs_phy,
+	defs_create_file("queue", 0400, priv->de.defs_phy,
 			    priv, &fops_queue);
-	debugfs_create_file("debug", 0600, priv->debug.debugfs_phy,
-			    priv, &fops_debug);
+	defs_create_file("de", 0600, priv->de.defs_phy,
+			    priv, &fops_de);
 
-	ath9k_cmn_debug_base_eeprom(priv->debug.debugfs_phy, priv->ah);
-	ath9k_cmn_debug_modal_eeprom(priv->debug.debugfs_phy, priv->ah);
+	ath9k_cmn_de_base_eeprom(priv->de.defs_phy, priv->ah);
+	ath9k_cmn_de_modal_eeprom(priv->de.defs_phy, priv->ah);
 
 	return 0;
 }

@@ -39,7 +39,7 @@
 			  68K Macintosh. Support >16bit I/O spaces
   Paul Gortmaker	: add kmod support for auto-loading of the 8390
 			  module by all drivers that require it.
-  Alan Cox		: Spinlocking work, added 'BUG_83C690'
+  Alan Cox		: Spinlocking work, added '_83C690'
   Paul Gortmaker	: Separate out Tx timeout code from Tx path.
   Paul Gortmaker	: Remove old unused single Tx buffer code.
   Hayato Fujiwara	: Add m32r support.
@@ -74,7 +74,7 @@
 #define NS8390_CORE
 #include "8390.h"
 
-#define BUG_83C690
+#define _83C690
 
 /* These are the operational function interfaces to board-specific
    routines.
@@ -114,7 +114,7 @@ static void __NS8390_init(struct net_device *dev, int startp);
 static unsigned version_printed;
 static u32 msg_enable;
 module_param(msg_enable, uint, 0444);
-MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+MODULE_PARM_DESC(msg_enable, "De message level (see linux/netdevice.h for bitmap)");
 
 /*
  *	SMP and the 8390 setup.
@@ -173,7 +173,7 @@ MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bit
  *
  *		Take the lock (so we know the IRQ has terminated) but don't mask
  *	the IRQs on the processor
- *		Set irqlock [for debug]
+ *		Set irqlock [for de]
  *
  *		Transmit (slow as ****)
  *
@@ -914,10 +914,10 @@ static void do_set_multicast_list(struct net_device *dev)
 	 * table. If this proves to be not enough, we can always resort
 	 * to stopping the NIC, loading the table and then restarting.
 	 *
-	 * Bug Alert!  The MC regs on the SMC 83C690 (SMC Elite and SMC
+	 *  Alert!  The MC regs on the SMC 83C690 (SMC Elite and SMC
 	 * Elite16) appear to be write-only. The NS 8390 data sheet lists
-	 * them as r/w so this is a bug.  The SMC 83C790 (SMC Ultra and
-	 * Ultra32 EISA) appears to have this bug fixed.
+	 * them as r/w so this is a .  The SMC 83C790 (SMC Ultra and
+	 * Ultra32 EISA) appears to have this  fixed.
 	 */
 
 	if (netif_running(dev))
@@ -925,7 +925,7 @@ static void do_set_multicast_list(struct net_device *dev)
 	ei_outb_p(E8390_NODMA + E8390_PAGE1, e8390_base + E8390_CMD);
 	for (i = 0; i < 8; i++) {
 		ei_outb_p(ei_local->mcfilter[i], e8390_base + EN1_MULT_SHIFT(i));
-#ifndef BUG_83C690
+#ifndef _83C690
 		if (ei_inb_p(e8390_base + EN1_MULT_SHIFT(i)) != ei_local->mcfilter[i])
 			netdev_err(dev, "Multicast filter read/write mismap %d\n",
 				   i);

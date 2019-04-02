@@ -530,10 +530,10 @@ void hw_atl_reg_rx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 			rx_intr_moderation_ctl);
 }
 
-void hw_atl_reg_tx_dma_debug_ctl_set(struct aq_hw_s *aq_hw,
-				     u32 tx_dma_debug_ctl)
+void hw_atl_reg_tx_dma_de_ctl_set(struct aq_hw_s *aq_hw,
+				     u32 tx_dma_de_ctl)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_TX_DMA_DEBUG_CTL_ADR, tx_dma_debug_ctl);
+	aq_hw_write_reg(aq_hw, HW_ATL_TX_DMA_DE_CTL_ADR, tx_dma_de_ctl);
 }
 
 void hw_atl_reg_tx_dma_desc_base_addresslswset(struct aq_hw_s *aq_hw,

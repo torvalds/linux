@@ -16,7 +16,7 @@
  *  GNU General Public License for more details.
  */
 
-/* Testing/Debugging */
+/* Testing/Deging */
 int cx18_v4l2_open(struct file *filp);
 ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 		      loff_t *pos);

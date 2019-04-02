@@ -396,7 +396,7 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 		rc = PTR_ERR(mdrv->scdev);
 		goto vop_remove;
 	}
-	mic_create_card_debug_dir(mdrv);
+	mic_create_card_de_dir(mdrv);
 done:
 	return rc;
 vop_remove:
@@ -419,7 +419,7 @@ put:
  */
 void mic_driver_uninit(struct mic_driver *mdrv)
 {
-	mic_delete_card_debug_dir(mdrv);
+	mic_delete_card_de_dir(mdrv);
 	scif_unregister_device(mdrv->scdev);
 	vop_unregister_device(mdrv->vpdev);
 	mic_free_dma_chans(mdrv);

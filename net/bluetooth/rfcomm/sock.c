@@ -26,7 +26,7 @@
  */
 
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/sched/signal.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -1003,7 +1003,7 @@ done:
 	return result;
 }
 
-static int rfcomm_sock_debugfs_show(struct seq_file *f, void *p)
+static int rfcomm_sock_defs_show(struct seq_file *f, void *p)
 {
 	struct sock *sk;
 
@@ -1020,9 +1020,9 @@ static int rfcomm_sock_debugfs_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(rfcomm_sock_debugfs);
+DEFINE_SHOW_ATTRIBUTE(rfcomm_sock_defs);
 
-static struct dentry *rfcomm_sock_debugfs;
+static struct dentry *rfcomm_sock_defs;
 
 static const struct proto_ops rfcomm_sock_ops = {
 	.family		= PF_BLUETOOTH,
@@ -1054,7 +1054,7 @@ int __init rfcomm_init_sockets(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct sockaddr_rc) > sizeof(struct sockaddr));
+	BUILD__ON(sizeof(struct sockaddr_rc) > sizeof(struct sockaddr));
 
 	err = proto_register(&rfcomm_proto, 0);
 	if (err < 0)
@@ -1075,12 +1075,12 @@ int __init rfcomm_init_sockets(void)
 
 	BT_INFO("RFCOMM socket layer initialized");
 
-	if (IS_ERR_OR_NULL(bt_debugfs))
+	if (IS_ERR_OR_NULL(bt_defs))
 		return 0;
 
-	rfcomm_sock_debugfs = debugfs_create_file("rfcomm", 0444,
-						  bt_debugfs, NULL,
-						  &rfcomm_sock_debugfs_fops);
+	rfcomm_sock_defs = defs_create_file("rfcomm", 0444,
+						  bt_defs, NULL,
+						  &rfcomm_sock_defs_fops);
 
 	return 0;
 
@@ -1093,7 +1093,7 @@ void __exit rfcomm_cleanup_sockets(void)
 {
 	bt_procfs_cleanup(&init_net, "rfcomm");
 
-	debugfs_remove(rfcomm_sock_debugfs);
+	defs_remove(rfcomm_sock_defs);
 
 	bt_sock_unregister(BTPROTO_RFCOMM);
 

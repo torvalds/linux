@@ -116,11 +116,11 @@ void omap2_init_clk_clkdm(struct clk_hw *hw)
 
 	clkdm = ti_clk_ll_ops->clkdm_lookup(clk->clkdm_name);
 	if (clkdm) {
-		pr_debug("clock: associated clk %s to clkdm %s\n",
+		pr_de("clock: associated clk %s to clkdm %s\n",
 			 clk_name, clk->clkdm_name);
 		clk->clkdm = clkdm;
 	} else {
-		pr_debug("clock: could not associate clk %s to clkdm %s\n",
+		pr_de("clock: could not associate clk %s to clkdm %s\n",
 			 clk_name, clk->clkdm_name);
 	}
 }

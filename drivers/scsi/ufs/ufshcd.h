@@ -153,10 +153,10 @@ struct ufs_pm_lvl_states {
  * @ucd_req_ptr: UCD address of the command
  * @ucd_rsp_ptr: Response UPIU address for this command
  * @ucd_prdt_ptr: PRDT address of the command
- * @utrd_dma_addr: UTRD dma address for debug
- * @ucd_prdt_dma_addr: PRDT dma address for debug
- * @ucd_rsp_dma_addr: UPIU response dma address for debug
- * @ucd_req_dma_addr: UPIU request dma address for debug
+ * @utrd_dma_addr: UTRD dma address for de
+ * @ucd_prdt_dma_addr: PRDT dma address for de
+ * @ucd_rsp_dma_addr: UPIU response dma address for de
+ * @ucd_req_dma_addr: UPIU request dma address for de
  * @cmd: pointer to SCSI command
  * @sense_buffer: pointer to sense buffer address of the SCSI command
  * @sense_bufflen: Length of the sense buffer
@@ -165,7 +165,7 @@ struct ufs_pm_lvl_states {
  * @task_tag: Task tag of the command
  * @lun: LUN of the command
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
- * @issue_time_stamp: time stamp for debug purposes
+ * @issue_time_stamp: time stamp for de purposes
  * @compl_time_stamp: time stamp for statistics
  * @req_abort_skip: skip request abort task flag
  */
@@ -296,7 +296,7 @@ struct ufs_pwr_mode_info {
  * @apply_dev_quirks: called to apply device specific quirks
  * @suspend: called during host controller PM callback
  * @resume: called during host controller PM callback
- * @dbg_register_dump: used to dump controller debug information
+ * @dbg_register_dump: used to dump controller de information
  * @phy_initialization: used to initialize phys
  */
 struct ufs_hba_variant_ops {
@@ -773,7 +773,7 @@ void ufshcd_parse_dev_ref_clk_freq(struct ufs_hba *hba, struct clk *refclk);
 
 static inline void check_upiu_size(void)
 {
-	BUILD_BUG_ON(ALIGNED_UPIU_SIZE <
+	BUILD__ON(ALIGNED_UPIU_SIZE <
 		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
 }
 
@@ -784,7 +784,7 @@ static inline void check_upiu_size(void)
  */
 static inline void ufshcd_set_variant(struct ufs_hba *hba, void *variant)
 {
-	BUG_ON(!hba);
+	_ON(!hba);
 	hba->priv = variant;
 }
 
@@ -794,7 +794,7 @@ static inline void ufshcd_set_variant(struct ufs_hba *hba, void *variant)
  */
 static inline void *ufshcd_get_variant(struct ufs_hba *hba)
 {
-	BUG_ON(!hba);
+	_ON(!hba);
 	return hba->priv;
 }
 static inline bool ufshcd_keep_autobkops_enabled_except_suspend(

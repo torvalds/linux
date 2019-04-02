@@ -109,13 +109,13 @@ ABSOLUTE	FATAL_SEND_MSG = 0x2001
 ABSOLUTE	FATAL_NOT_MSG_IN_AFTER_SELECTION = 0x2002
 ABSOLUTE	FATAL_ILLEGAL_MSG_LENGTH = 0x2003
 
-ABSOLUTE	DEBUG_INTERRUPT	= 0x3000
-ABSOLUTE	DEBUG_INTERRUPT1 = 0x3001
-ABSOLUTE	DEBUG_INTERRUPT2 = 0x3002
-ABSOLUTE	DEBUG_INTERRUPT3 = 0x3003
-ABSOLUTE	DEBUG_INTERRUPT4 = 0x3004
-ABSOLUTE	DEBUG_INTERRUPT5 = 0x3005
-ABSOLUTE	DEBUG_INTERRUPT6 = 0x3006
+ABSOLUTE	DE_INTERRUPT	= 0x3000
+ABSOLUTE	DE_INTERRUPT1 = 0x3001
+ABSOLUTE	DE_INTERRUPT2 = 0x3002
+ABSOLUTE	DE_INTERRUPT3 = 0x3003
+ABSOLUTE	DE_INTERRUPT4 = 0x3004
+ABSOLUTE	DE_INTERRUPT5 = 0x3005
+ABSOLUTE	DE_INTERRUPT6 = 0x3006
 
 
 ;
@@ -906,32 +906,32 @@ static u32 A_DATA_IN_AFTER_DATA_IN_used[] __attribute((unused)) = {
 	0x000000cb,
 };
 
-#define A_DEBUG_INTERRUPT	0x00003000
-static u32 A_DEBUG_INTERRUPT_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT	0x00003000
+static u32 A_DE_INTERRUPT_used[] __attribute((unused)) = {
 };
 
-#define A_DEBUG_INTERRUPT1	0x00003001
-static u32 A_DEBUG_INTERRUPT1_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT1	0x00003001
+static u32 A_DE_INTERRUPT1_used[] __attribute((unused)) = {
 };
 
-#define A_DEBUG_INTERRUPT2	0x00003002
-static u32 A_DEBUG_INTERRUPT2_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT2	0x00003002
+static u32 A_DE_INTERRUPT2_used[] __attribute((unused)) = {
 };
 
-#define A_DEBUG_INTERRUPT3	0x00003003
-static u32 A_DEBUG_INTERRUPT3_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT3	0x00003003
+static u32 A_DE_INTERRUPT3_used[] __attribute((unused)) = {
 };
 
-#define A_DEBUG_INTERRUPT4	0x00003004
-static u32 A_DEBUG_INTERRUPT4_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT4	0x00003004
+static u32 A_DE_INTERRUPT4_used[] __attribute((unused)) = {
 };
 
-#define A_DEBUG_INTERRUPT5	0x00003005
-static u32 A_DEBUG_INTERRUPT5_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT5	0x00003005
+static u32 A_DE_INTERRUPT5_used[] __attribute((unused)) = {
 };
 
-#define A_DEBUG_INTERRUPT6	0x00003006
-static u32 A_DEBUG_INTERRUPT6_used[] __attribute((unused)) = {
+#define A_DE_INTERRUPT6	0x00003006
+static u32 A_DE_INTERRUPT6_used[] __attribute((unused)) = {
 };
 
 #define A_DISCONNECT	0x00000080

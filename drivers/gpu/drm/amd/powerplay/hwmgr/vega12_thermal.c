@@ -27,7 +27,7 @@
 #include "vega12_ppsmc.h"
 #include "vega12_inc.h"
 #include "soc15_common.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 static int vega12_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {

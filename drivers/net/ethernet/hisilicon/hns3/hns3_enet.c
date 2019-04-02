@@ -825,7 +825,7 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
  * hardware will not do the checksum offload when udp dest port is
  * 4789.
  */
-static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
+static bool hns3_tunnel_csum_(struct sk_buff *skb)
 {
 #define IANA_VXLAN_PORT	4789
 	union l4_hdr_info l4;
@@ -918,7 +918,7 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 			       HNS3_L4T_TCP);
 		break;
 	case IPPROTO_UDP:
-		if (hns3_tunnel_csum_bug(skb))
+		if (hns3_tunnel_csum_(skb))
 			break;
 
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
@@ -4236,7 +4236,7 @@ static int __init hns3_init_module(void)
 
 	INIT_LIST_HEAD(&client.node);
 
-	hns3_dbg_register_debugfs(hns3_driver_name);
+	hns3_dbg_register_defs(hns3_driver_name);
 
 	ret = hnae3_register_client(&client);
 	if (ret)
@@ -4251,7 +4251,7 @@ static int __init hns3_init_module(void)
 err_reg_driver:
 	hnae3_unregister_client(&client);
 err_reg_client:
-	hns3_dbg_unregister_debugfs();
+	hns3_dbg_unregister_defs();
 	return ret;
 }
 module_init(hns3_init_module);
@@ -4264,7 +4264,7 @@ static void __exit hns3_exit_module(void)
 {
 	pci_unregister_driver(&hns3_driver);
 	hnae3_unregister_client(&client);
-	hns3_dbg_unregister_debugfs();
+	hns3_dbg_unregister_defs();
 }
 module_exit(hns3_exit_module);
 

@@ -215,7 +215,7 @@ struct drm_plane *fsl_dcu_drm_primary_create_plane(struct drm_device *dev)
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (!primary) {
-		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
+		DRM_DE_KMS("Failed to allocate primary plane\n");
 		return NULL;
 	}
 

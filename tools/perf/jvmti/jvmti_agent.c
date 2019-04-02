@@ -144,9 +144,9 @@ create_jit_cache_dir(void)
 
 	strftime(str, sizeof(str), JIT_LANG"-jit-%Y%m%d", &tm);
 
-	ret = snprintf(jit_path, PATH_MAX, "%s/.debug/", base);
+	ret = snprintf(jit_path, PATH_MAX, "%s/.de/", base);
 	if (ret >= PATH_MAX) {
-		warnx("jvmti: cannot generate jit cache dir because %s/.debug/"
+		warnx("jvmti: cannot generate jit cache dir because %s/.de/"
 			" is too long, please check the cwd, JITDUMPDIR, and"
 			" HOME variables", base);
 		return -1;
@@ -159,10 +159,10 @@ create_jit_cache_dir(void)
 		}
 	}
 
-	ret = snprintf(jit_path, PATH_MAX, "%s/.debug/jit", base);
+	ret = snprintf(jit_path, PATH_MAX, "%s/.de/jit", base);
 	if (ret >= PATH_MAX) {
 		warnx("jvmti: cannot generate jit cache dir because"
-			" %s/.debug/jit is too long, please check the cwd,"
+			" %s/.de/jit is too long, please check the cwd,"
 			" JITDUMPDIR, and HOME variables", base);
 		return -1;
 	}
@@ -174,10 +174,10 @@ create_jit_cache_dir(void)
 		}
 	}
 
-	ret = snprintf(jit_path, PATH_MAX, "%s/.debug/jit/%s.XXXXXXXX", base, str);
+	ret = snprintf(jit_path, PATH_MAX, "%s/.de/jit/%s.XXXXXXXX", base, str);
 	if (ret >= PATH_MAX) {
 		warnx("jvmti: cannot generate jit cache dir because"
-			" %s/.debug/jit/%s.XXXXXXXX is too long, please check"
+			" %s/.de/jit/%s.XXXXXXXX is too long, please check"
 			" the cwd, JITDUMPDIR, and HOME variables",
 			base, str);
 		return -1;
@@ -412,11 +412,11 @@ jvmti_write_code(void *agent, char const *sym,
 }
 
 int
-jvmti_write_debug_info(void *agent, uint64_t code,
+jvmti_write_de_info(void *agent, uint64_t code,
     int nr_lines, jvmti_line_info_t *li,
     const char * const * file_names)
 {
-	struct jr_code_debug_info rec;
+	struct jr_code_de_info rec;
 	size_t sret, len, size, flen = 0;
 	uint64_t addr;
 	FILE *fp = agent;
@@ -429,7 +429,7 @@ jvmti_write_debug_info(void *agent, uint64_t code,
 		return 0;
 
 	if (!fp) {
-		warnx("jvmti: invalid fd in write_debug_info");
+		warnx("jvmti: invalid fd in write_de_info");
 		return -1;
 	}
 
@@ -437,7 +437,7 @@ jvmti_write_debug_info(void *agent, uint64_t code,
 	    flen += strlen(file_names[i]) + 1;
 	}
 
-	rec.p.id        = JIT_CODE_DEBUG_INFO;
+	rec.p.id        = JIT_CODE_DE_INFO;
 	size            = sizeof(rec);
 	rec.p.timestamp = perf_get_timestamp();
 	rec.code_addr   = (uint64_t)(uintptr_t)code;
@@ -450,7 +450,7 @@ jvmti_write_debug_info(void *agent, uint64_t code,
 	 * int      : column discriminator
 	 * file[]   : source file name
 	 */
-	size += nr_lines * sizeof(struct debug_entry);
+	size += nr_lines * sizeof(struct de_entry);
 	size += flen;
 	rec.p.total_size = size;
 

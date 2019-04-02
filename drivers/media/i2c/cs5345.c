@@ -26,11 +26,11 @@ MODULE_DESCRIPTION("i2c device driver for cs5345 Audio ADC");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static bool debug;
+static bool de;
 
-module_param(debug, bool, 0644);
+module_param(de, bool, 0644);
 
-MODULE_PARM_DESC(debug, "Debugging messages, 0=Off (default), 1=On");
+MODULE_PARM_DESC(de, "Deging messages, 0=Off (default), 1=On");
 
 struct cs5345_state {
 	struct v4l2_subdev sd;
@@ -91,7 +91,7 @@ static int cs5345_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cs5345_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->size = 1;
@@ -128,7 +128,7 @@ static const struct v4l2_ctrl_ops cs5345_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops cs5345_core_ops = {
 	.log_status = cs5345_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = cs5345_g_register,
 	.s_register = cs5345_s_register,
 #endif

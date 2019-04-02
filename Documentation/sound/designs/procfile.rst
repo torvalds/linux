@@ -8,7 +8,7 @@ General
 =======
 
 ALSA has its own proc tree, /proc/asound.  Many useful information are
-found in this tree.  When you encounter a problem and need debugging,
+found in this tree.  When you encounter a problem and need deging,
 check the files listed in the following sections.
 
 Each card has its subtree cardX, where X is from 0 to 7. The
@@ -33,7 +33,7 @@ devices
 
 meminfo
 	Shows the status of allocated pages via ALSA drivers.
-	Appears only when ``CONFIG_SND_DEBUG=y``.
+	Appears only when ``CONFIG_SND_DE=y``.
 
 hwdep
 	Lists the currently available hwdep devices in format of
@@ -61,7 +61,7 @@ Card Specific Files
 The card-specific files are found in ``/proc/asound/card*`` directories.
 Some drivers (e.g. cmipci) have their own proc entries for the
 register dump, etc (e.g. ``/proc/asound/card*/cmipci`` shows the register
-dump).  These files would be really helpful for debugging.
+dump).  These files would be really helpful for deging.
 
 When PCM devices are available on this card, you can see directories
 like pcm0p or pcm1c.  They hold the PCM information for each PCM
@@ -89,35 +89,35 @@ PCM Proc Files
 	The general information of this PCM device: card #, device #,
 	substreams, etc.
 
-``card*/pcm*/xrun_debug``
-	This file appears when ``CONFIG_SND_DEBUG=y`` and
-	``CONFIG_PCM_XRUN_DEBUG=y``.
+``card*/pcm*/xrun_de``
+	This file appears when ``CONFIG_SND_DE=y`` and
+	``CONFIG_PCM_XRUN_DE=y``.
 	This shows the status of xrun (= buffer overrun/xrun) and
-	invalid PCM position debug/check of ALSA PCM middle layer.
+	invalid PCM position de/check of ALSA PCM middle layer.
 	It takes an integer value, can be changed by writing to this
 	file, such as::
 
-		 # echo 5 > /proc/asound/card0/pcm0p/xrun_debug
+		 # echo 5 > /proc/asound/card0/pcm0p/xrun_de
 
 	The value consists of the following bit flags:
 
-	* bit 0 = Enable XRUN/jiffies debug messages
+	* bit 0 = Enable XRUN/jiffies de messages
 	* bit 1 = Show stack trace at XRUN / jiffies check
 	* bit 2 = Enable additional jiffies check
 
 	When the bit 0 is set, the driver will show the messages to
-	kernel log when an xrun is detected.  The debug message is
+	kernel log when an xrun is detected.  The de message is
 	shown also when the invalid H/W pointer is detected at the
 	update of periods (usually called from the interrupt
 	handler).
 
 	When the bit 1 is set, the driver will show the stack trace
-	additionally.  This may help the debugging.
+	additionally.  This may help the deging.
 
 	Since 2.6.30, this option can enable the hwptr check using
 	jiffies.  This detects spontaneous invalid pointer callback
 	values, but can be lead to too much corrections for a (mostly
-	buggy) hardware that doesn't give smooth pointer updates.
+	gy) hardware that doesn't give smooth pointer updates.
 	This feature is enabled via the bit 2.
 
 ``card*/pcm*/sub*/info``
@@ -149,9 +149,9 @@ AC97 Codec Information
 	name, capabilities, set up.
 
 ``card*/codec97#0/ac97#?-?+regs``
-	Shows the AC97 register dump.  Useful for debugging.
+	Shows the AC97 register dump.  Useful for deging.
 
-	When CONFIG_SND_DEBUG is enabled, you can write to this file for
+	When CONFIG_SND_DE is enabled, you can write to this file for
 	changing an AC97 register directly.  Pass two hex numbers.
 	For example,
 
@@ -165,7 +165,7 @@ USB Audio Streams
 
 ``card*/stream*``
 	Shows the assignment and the current status of each audio stream
-	of the given card.  This information is very useful for debugging.
+	of the given card.  This information is very useful for deging.
 
 
 HD-Audio Codecs
@@ -207,14 +207,14 @@ seq/oss
 	Lists the OSS-compatible sequencer stuffs.
 
 
-Help For Debugging?
+Help For Deging?
 ===================
 
-When the problem is related with PCM, first try to turn on xrun_debug
+When the problem is related with PCM, first try to turn on xrun_de
 mode.  This will give you the kernel messages when and where xrun
 happened.
 
-If it's really a bug, report it with the following information:
+If it's really a , report it with the following information:
 
 - the name of the driver/card, show in ``/proc/asound/cards``
 - the register dump, if available (e.g. ``card*/cmipci``)
@@ -234,5 +234,5 @@ for USB audio/midi,
 - ``stream*`` files in card directory
 
 
-The ALSA bug-tracking system is found at:
-https://bugtrack.alsa-project.org/alsa-bug/
+The ALSA -tracking system is found at:
+https://track.alsa-project.org/alsa-/

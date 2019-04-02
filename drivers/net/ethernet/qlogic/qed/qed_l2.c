@@ -45,7 +45,7 @@
 #include <linux/string.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/vmalloc.h>
 #include "qed.h"
 #include <linux/qed/qed_chain.h>
@@ -464,7 +464,7 @@ qed_sp_vport_update_rss(struct qed_hwfn *p_hwfn,
 	}
 	p_config = &p_ramrod->rss_config;
 
-	BUILD_BUG_ON(QED_RSS_IND_TABLE_SIZE != ETH_RSS_IND_TABLE_ENTRIES_NUM);
+	BUILD__ON(QED_RSS_IND_TABLE_SIZE != ETH_RSS_IND_TABLE_ENTRIES_NUM);
 
 	rc = qed_fw_rss_eng(p_hwfn, p_rss->rss_eng_id, &p_config->rss_id);
 	if (rc)
@@ -2873,7 +2873,7 @@ static int qed_get_coalesce(struct qed_dev *cdev, u16 *coal, void *handle)
 	p_hwfn = p_cid->p_owner;
 	rc = qed_get_queue_coalesce(p_hwfn, coal, handle);
 	if (rc)
-		DP_VERBOSE(cdev, QED_MSG_DEBUG,
+		DP_VERBOSE(cdev, QED_MSG_DE,
 			   "Unable to read queue coalescing\n");
 
 	return rc;

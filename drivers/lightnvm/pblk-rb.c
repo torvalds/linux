@@ -154,7 +154,7 @@ int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int threshold,
 	} while (iter > 0);
 	up_write(&pblk_rb_lock);
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_set(&rb->inflight_flush_point, 0);
 #endif
 
@@ -343,9 +343,9 @@ void pblk_rb_write_entry_user(struct pblk_rb *rb, void *data,
 
 	entry = &rb->entries[ring_pos];
 	flags = READ_ONCE(entry->w_ctx.flags);
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	/* Caller must guarantee that the entry is free */
-	BUG_ON(!(flags & PBLK_WRITABLE_ENTRY));
+	_ON(!(flags & PBLK_WRITABLE_ENTRY));
 #endif
 
 	__pblk_rb_write_entry(rb, data, w_ctx, entry);
@@ -367,9 +367,9 @@ void pblk_rb_write_entry_gc(struct pblk_rb *rb, void *data,
 
 	entry = &rb->entries[ring_pos];
 	flags = READ_ONCE(entry->w_ctx.flags);
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	/* Caller must guarantee that the entry is free */
-	BUG_ON(!(flags & PBLK_WRITABLE_ENTRY));
+	_ON(!(flags & PBLK_WRITABLE_ENTRY));
 #endif
 
 	__pblk_rb_write_entry(rb, data, w_ctx, entry);
@@ -397,7 +397,7 @@ static int pblk_rb_flush_point_set(struct pblk_rb *rb, struct bio *bio,
 		return 0;
 	}
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_inc(&rb->inflight_flush_point);
 #endif
 
@@ -629,7 +629,7 @@ try:
 		atomic64_add(pad, &pblk->pad_wa);
 	}
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_long_add(pad, &pblk->padded_writes);
 #endif
 
@@ -654,9 +654,9 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 	int ret = 1;
 
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	/* Caller must ensure that the access will not cause an overflow */
-	BUG_ON(pos >= rb->nr_entries);
+	_ON(pos >= rb->nr_entries);
 #endif
 	entry = &rb->entries[pos];
 	w_ctx = &entry->w_ctx;
@@ -835,7 +835,7 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 			rb->subm,
 			rb->sync,
 			rb->l2p_update,
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 			atomic_read(&rb->inflight_flush_point),
 #else
 			0,
@@ -853,7 +853,7 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf)
 			rb->subm,
 			rb->sync,
 			rb->l2p_update,
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 			atomic_read(&rb->inflight_flush_point),
 #else
 			0,

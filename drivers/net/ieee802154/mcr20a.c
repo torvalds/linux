@@ -24,7 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/ieee802154.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
@@ -477,7 +477,7 @@ mcr20a_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	lp->tx_skb = skb;
 
-	print_hex_dump_debug("mcr20a tx: ", DUMP_PREFIX_OFFSET, 16, 1,
+	print_hex_dump_de("mcr20a tx: ", DUMP_PREFIX_OFFSET, 16, 1,
 			     skb->data, skb->len, 0);
 
 	lp->is_tx = 1;
@@ -806,9 +806,9 @@ mcr20a_handle_rx_read_buf_complete(void *context)
 	memcpy(skb_put(skb, len), lp->rx_buf, len);
 	ieee802154_rx_irqsafe(lp->hw, skb, lp->rx_lqi[0]);
 
-	print_hex_dump_debug("mcr20a rx: ", DUMP_PREFIX_OFFSET, 16, 1,
+	print_hex_dump_de("mcr20a rx: ", DUMP_PREFIX_OFFSET, 16, 1,
 			     lp->rx_buf, len, 0);
-	pr_debug("mcr20a rx: lqi: %02hhx\n", lp->rx_lqi[0]);
+	pr_de("mcr20a rx: lqi: %02hhx\n", lp->rx_lqi[0]);
 
 	/* start RX sequence */
 	mcr20a_request_rx(lp);

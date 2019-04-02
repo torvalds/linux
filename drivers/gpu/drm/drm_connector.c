@@ -139,7 +139,7 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		connector->force = mode->force;
 	}
 
-	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
+	DRM_DE_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
 		      connector->name,
 		      mode->xres, mode->yres,
 		      mode->refresh_specified ? mode->refresh : 60,
@@ -217,7 +217,7 @@ int drm_connector_init(struct drm_device *dev,
 	/* connector index is used with 32bit bitmasks */
 	ret = ida_simple_get(&config->connector_ida, 0, 32, GFP_KERNEL);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("Failed to allocate %s connector index: %d\n",
+		DRM_DE_KMS("Failed to allocate %s connector index: %d\n",
 			      drm_connector_enum_list[connector_type].name,
 			      ret);
 		goto out_put;
@@ -277,7 +277,7 @@ int drm_connector_init(struct drm_device *dev,
 		drm_object_attach_property(&connector->base, config->prop_crtc_id, 0);
 	}
 
-	connector->debugfs_entry = NULL;
+	connector->defs_entry = NULL;
 out_put_type_id:
 	if (ret)
 		ida_simple_remove(connector_ida, connector->connector_type_id);
@@ -460,7 +460,7 @@ int drm_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto unlock;
 
-	ret = drm_debugfs_connector_add(connector);
+	ret = drm_defs_connector_add(connector);
 	if (ret) {
 		goto err_sysfs;
 	}
@@ -468,7 +468,7 @@ int drm_connector_register(struct drm_connector *connector)
 	if (connector->funcs->late_register) {
 		ret = connector->funcs->late_register(connector);
 		if (ret)
-			goto err_debugfs;
+			goto err_defs;
 	}
 
 	drm_mode_object_register(connector->dev, &connector->base);
@@ -476,8 +476,8 @@ int drm_connector_register(struct drm_connector *connector)
 	connector->registration_state = DRM_CONNECTOR_REGISTERED;
 	goto unlock;
 
-err_debugfs:
-	drm_debugfs_connector_remove(connector);
+err_defs:
+	drm_defs_connector_remove(connector);
 err_sysfs:
 	drm_sysfs_connector_remove(connector);
 unlock:
@@ -504,7 +504,7 @@ void drm_connector_unregister(struct drm_connector *connector)
 		connector->funcs->early_unregister(connector);
 
 	drm_sysfs_connector_remove(connector);
-	drm_debugfs_connector_remove(connector);
+	drm_defs_connector_remove(connector);
 
 	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
 	mutex_unlock(&connector->mutex);

@@ -67,7 +67,7 @@ static void bL_do_switch(void *_arg)
 	unsigned ib_mpidr, ib_cpu, ib_cluster;
 	long volatile handshake, **handshake_ptr = _arg;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	ib_mpidr = cpu_logical_map(smp_processor_id());
 	ib_cpu = MPIDR_AFFINITY_LEVEL(ib_mpidr, 0);
@@ -110,7 +110,7 @@ static void bL_do_switch(void *_arg)
 	mcpm_cpu_power_down();
 
 	/* should never get here */
-	BUG();
+	();
 }
 
 /*
@@ -130,7 +130,7 @@ static int bL_switchpoint(unsigned long _arg)
 	stack = PTR_ALIGN(stack, L1_CACHE_BYTES);
 	stack += clusterid * STACK_SIZE + STACK_SIZE;
 	call_with_stack(bL_do_switch, (void *)_arg, stack);
-	BUG();
+	();
 }
 
 /*
@@ -159,7 +159,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	ob_mpidr = read_mpidr();
 	ob_cpu = MPIDR_AFFINITY_LEVEL(ob_mpidr, 0);
 	ob_cluster = MPIDR_AFFINITY_LEVEL(ob_mpidr, 1);
-	BUG_ON(cpu_logical_map(this_cpu) != ob_mpidr);
+	_ON(cpu_logical_map(this_cpu) != ob_mpidr);
 
 	if (new_cluster_id == ob_cluster)
 		return 0;
@@ -169,7 +169,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	ib_cpu = MPIDR_AFFINITY_LEVEL(ib_mpidr, 0);
 	ib_cluster = MPIDR_AFFINITY_LEVEL(ib_mpidr, 1);
 
-	pr_debug("before switch: CPU %d MPIDR %#x -> %#x\n",
+	pr_de("before switch: CPU %d MPIDR %#x -> %#x\n",
 		 this_cpu, ob_mpidr, ib_mpidr);
 
 	this_cpu = smp_processor_id();
@@ -237,8 +237,8 @@ static int bL_switch_to(unsigned int new_cluster_id)
 
 	/* We are executing on the inbound CPU at this point */
 	mpidr = read_mpidr();
-	pr_debug("after switch: CPU %d MPIDR %#x\n", this_cpu, mpidr);
-	BUG_ON(mpidr != ib_mpidr);
+	pr_de("after switch: CPU %d MPIDR %#x\n", this_cpu, mpidr);
+	_ON(mpidr != ib_mpidr);
 
 	mcpm_cpu_powered_up();
 

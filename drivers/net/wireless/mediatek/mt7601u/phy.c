@@ -341,7 +341,7 @@ static void mt7601u_apply_ch14_fixup(struct mt7601u_dev *dev, int hw_chan)
 		mt7601u_bbp_wr(dev, 4, 0x60);
 		mt7601u_bbp_wr(dev, 178, 0);
 
-		/* Note: vendor code is buggy here for negative values */
+		/* Note: vendor code is gy here for negative values */
 		t->cck[0].bw20 = dev->ee->real_cck_bw20[0] - 2;
 		t->cck[1].bw20 = dev->ee->real_cck_bw20[1] - 2;
 	}

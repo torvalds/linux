@@ -32,7 +32,7 @@ static int rmi_f34v7_read_flash_status(struct f34_data *f34)
 			&status,
 			sizeof(status));
 	if (ret < 0) {
-		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+		rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 			"%s: Error %d reading flash status\n", __func__, ret);
 		return ret;
 	}
@@ -194,7 +194,7 @@ static int rmi_f34v7_write_command(struct f34_data *f34, u8 cmd)
 		break;
 	}
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: writing cmd %02X\n",
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev, "%s: writing cmd %02X\n",
 		__func__, command);
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
@@ -361,59 +361,59 @@ static void rmi_f34v7_parse_partition_table(struct f34_data *f34,
 		ptable = partition_table + index;
 		partition_length = le16_to_cpu(ptable->partition_length);
 		physical_address = le16_to_cpu(ptable->start_physical_address);
-		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+		rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 			"%s: Partition entry %d: %*ph\n",
 			__func__, i, sizeof(struct partition_table), ptable);
 		switch (ptable->partition_id & 0x1f) {
 		case CORE_CODE_PARTITION:
 			blkcount->ui_firmware = partition_length;
 			phyaddr->ui_firmware = physical_address;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Core code block count: %d\n",
 				__func__, blkcount->ui_firmware);
 			break;
 		case CORE_CONFIG_PARTITION:
 			blkcount->ui_config = partition_length;
 			phyaddr->ui_config = physical_address;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Core config block count: %d\n",
 				__func__, blkcount->ui_config);
 			break;
 		case DISPLAY_CONFIG_PARTITION:
 			blkcount->dp_config = partition_length;
 			phyaddr->dp_config = physical_address;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Display config block count: %d\n",
 				__func__, blkcount->dp_config);
 			break;
 		case FLASH_CONFIG_PARTITION:
 			blkcount->fl_config = partition_length;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Flash config block count: %d\n",
 				__func__, blkcount->fl_config);
 			break;
 		case GUEST_CODE_PARTITION:
 			blkcount->guest_code = partition_length;
 			phyaddr->guest_code = physical_address;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Guest code block count: %d\n",
 				__func__, blkcount->guest_code);
 			break;
 		case GUEST_SERIALIZATION_PARTITION:
 			blkcount->pm_config = partition_length;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Guest serialization block count: %d\n",
 				__func__, blkcount->pm_config);
 			break;
 		case GLOBAL_PARAMETERS_PARTITION:
 			blkcount->bl_config = partition_length;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Global parameters block count: %d\n",
 				__func__, blkcount->bl_config);
 			break;
 		case DEVICE_CONFIG_PARTITION:
 			blkcount->lockdown = partition_length;
-			rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+			rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 				"%s: Device config block count: %d\n",
 				__func__, blkcount->lockdown);
 			break;
@@ -456,7 +456,7 @@ static int rmi_f34v7_read_queries_bl_version(struct f34_data *f34)
 	f34->bootloader_id[0] = query_1_7.bl_minor_revision;
 	f34->bootloader_id[1] = query_1_7.bl_major_revision;
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "Bootloader V%d.%d\n",
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev, "Bootloader V%d.%d\n",
 		f34->bootloader_id[1], f34->bootloader_id[0]);
 
 	return 0;
@@ -504,7 +504,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			le16_to_cpu(query_1_7.flash_config_length);
 	f34->v7.payload_length = le16_to_cpu(query_1_7.payload_length);
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: f34->v7.block_size = %d\n",
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev, "%s: f34->v7.block_size = %d\n",
 		 __func__, f34->v7.block_size);
 
 	f34->v7.off.flash_status = V7_FLASH_STATUS_OFFSET;
@@ -535,7 +535,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 		snprintf(f34->configuration_id, sizeof(f34->configuration_id),
 			 "%*phN", (int)sizeof(f34_ctrl) - i, f34_ctrl + i);
 
-		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "Configuration ID: %s\n",
+		rmi_dbg(RMI_DE_FN, &f34->fn->dev, "Configuration ID: %s\n",
 			f34->configuration_id);
 	}
 
@@ -543,7 +543,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 	for (i = 0; i < sizeof(query_1_7.partition_support); i++)
 		f34->v7.partitions += hweight8(query_1_7.partition_support[i]);
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: Supported partitions: %*ph\n",
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev, "%s: Supported partitions: %*ph\n",
 		__func__, sizeof(query_1_7.partition_support),
 		query_1_7.partition_support);
 
@@ -944,7 +944,7 @@ static int rmi_f34v7_write_flash_config(struct f34_data *f34)
 	if (ret < 0)
 		return ret;
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 		"%s: Erase flash config command written\n", __func__);
 
 	ret = rmi_f34v7_wait_for_idle(f34, F34_WRITE_WAIT_MS);
@@ -1088,7 +1088,7 @@ static void rmi_f34v7_parse_image_header_10(struct f34_data *f34)
 
 	f34->v7.img.checksum = le32_to_cpu(header->checksum);
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: f34->v7.img.checksum=%X\n",
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev, "%s: f34->v7.img.checksum=%X\n",
 		__func__, f34->v7.img.checksum);
 
 	/* address of top level container */
@@ -1107,7 +1107,7 @@ static void rmi_f34v7_parse_image_header_10(struct f34_data *f34)
 		content = image + le32_to_cpu(descriptor->content_address);
 		length = le32_to_cpu(descriptor->content_length);
 
-		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+		rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 			"%s: container_id=%d, length=%d\n", __func__,
 			container_id, length);
 
@@ -1160,7 +1160,7 @@ static int rmi_f34v7_parse_image_info(struct f34_data *f34)
 
 	memset(&f34->v7.img, 0x00, sizeof(f34->v7.img));
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 		"%s: header->major_header_version = %d\n",
 		__func__, header->major_header_version);
 

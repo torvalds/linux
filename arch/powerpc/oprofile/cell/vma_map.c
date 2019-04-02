@@ -169,7 +169,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 			goto fail;
 	}
 
-	pr_debug("SPU_PROF: Created non-overlay maps\n");
+	pr_de("SPU_PROF: Created non-overlay maps\n");
 	/* Traverse section table and search for overlay-related symbols.  */
 	for (i = 0; i < ehdr.e_shnum; i++) {
 		if (copy_from_user(&shdr, shdr_start + i, sizeof(shdr)))
@@ -215,10 +215,10 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 	/* If we don't have overlays, we're done.  */
 	if (ovly_table_sym == 0 || ovly_buf_table_sym == 0
 	    || ovly_table_end_sym == 0 || ovly_buf_table_end_sym == 0) {
-		pr_debug("SPU_PROF: No overlay table found\n");
+		pr_de("SPU_PROF: No overlay table found\n");
 		goto out;
 	} else {
-		pr_debug("SPU_PROF: Overlay table found\n");
+		pr_de("SPU_PROF: Overlay table found\n");
 	}
 
 	/* The _ovly_table symbol represents a table with one entry

@@ -24,7 +24,7 @@
 
 /*
  * For now this is a trivial wrapper around printk() that gives the critical
- * ability to enable sets of debugging output at run-time.  In the future this
+ * ability to enable sets of deging output at run-time.  In the future this
  * will almost certainly be redirected to relayfs so that it can pay a
  * substantially lower heisenberg tax.
  *
@@ -43,7 +43,7 @@
  * _ERROR and _NOTICE are used for messages that always go to the console and
  * have appropriate KERN_ prefixes.  We wrap these in our function instead of
  * just calling printk() so that this can eventually make its way through
- * relayfs along with the debugging messages.  Everything else gets KERN_DEBUG.
+ * relayfs along with the deging messages.  Everything else gets KERN_DE.
  * The inline tests and macro dance give GCC the opportunity to quite cleverly
  * only emit the appropriage printk() when the caller passes in a constant
  * mask, as is almost always the case.
@@ -72,9 +72,9 @@
  *	echo allow >"$log_mask"/"$node"
  * done
  *
- * The debugfs.ocfs2 tool can also flip the bits with the -l option:
+ * The defs.ocfs2 tool can also flip the bits with the -l option:
  *
- * debugfs.ocfs2 -l TCP allow
+ * defs.ocfs2 -l TCP allow
  */
 
 /* for task_struct */
@@ -88,8 +88,8 @@
 #define ML_HEARTBEAT	0x0000000000000008ULL /* hb all heartbeat tracking */
 #define ML_HB_BIO	0x0000000000000010ULL /* hb io tracing */
 #define ML_DLMFS	0x0000000000000020ULL /* dlm user dlmfs */
-#define ML_DLM		0x0000000000000040ULL /* dlm general debugging */
-#define ML_DLM_DOMAIN	0x0000000000000080ULL /* dlm domain debugging */
+#define ML_DLM		0x0000000000000040ULL /* dlm general deging */
+#define ML_DLM_DOMAIN	0x0000000000000080ULL /* dlm domain deging */
 #define ML_DLM_THREAD	0x0000000000000100ULL /* dlm domain thread */
 #define ML_DLM_MASTER	0x0000000000000200ULL /* dlm master functions */
 #define ML_DLM_RECOVERY	0x0000000000000400ULL /* dlm master functions */
@@ -115,7 +115,7 @@
  * than errors and notices, allowing gcc to remove the code completely.
  * When enabled, allow all masks.
  */
-#if defined(CONFIG_OCFS2_DEBUG_MASKLOG)
+#if defined(CONFIG_OCFS2_DE_MASKLOG)
 #define ML_ALLOWED_BITS ~0
 #else
 #define ML_ALLOWED_BITS (ML_ERROR|ML_NOTICE)
@@ -196,11 +196,11 @@ do {									\
 	_st;								\
 })
 
-#define mlog_bug_on_msg(cond, fmt, args...) do {			\
+#define mlog__on_msg(cond, fmt, args...) do {			\
 	if (cond) {							\
-		mlog(ML_ERROR, "bug expression: " #cond "\n");		\
+		mlog(ML_ERROR, " expression: " #cond "\n");		\
 		mlog(ML_ERROR, fmt, ##args);				\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 

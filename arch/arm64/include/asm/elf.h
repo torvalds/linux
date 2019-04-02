@@ -125,7 +125,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/processor.h> /* for signal_minsigstksz, used by ARCH_DLINFO */
 
 typedef unsigned long elf_greg_t;
@@ -157,7 +157,7 @@ do {									\
 		    (elf_addr_t)current->mm->context.vdso);		\
 									\
 	/*								\
-	 * Should always be nonzero unless there's a kernel bug.	\
+	 * Should always be nonzero unless there's a kernel .	\
 	 * If we haven't determined a sensible value to give to		\
 	 * userspace, omit the entry:					\
 	 */								\

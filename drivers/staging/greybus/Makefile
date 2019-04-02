@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Greybus core
 greybus-y :=	core.o		\
-		debugfs.o	\
+		defs.o	\
 		hd.o		\
 		manifest.o	\
 		module.o	\
@@ -55,7 +55,7 @@ gb-audio-gb-y		:= audio_gb.o
 gb-audio-apbridgea-y	:= audio_apbridgea.o
 gb-audio-manager-y	:= audio_manager.o audio_manager_module.o
 
-# Greybus Audio sysfs helpers can be useful when debugging
+# Greybus Audio sysfs helpers can be useful when deging
 #GB_AUDIO_MANAGER_SYSFS ?= true
 #ifeq ($(GB_AUDIO_MANAGER_SYSFS),true)
 #gb-audio-manager-y += audio_manager_sysfs.o

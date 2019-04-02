@@ -87,7 +87,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 		if (!n--)
 			break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -128,7 +128,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 		if (!n--)
 			break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }

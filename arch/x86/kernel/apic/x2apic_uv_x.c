@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/pci.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
 #include <linux/reboot.h>
@@ -342,7 +342,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 badbios:
 	pr_err("UV: OEM_ID:%s OEM_TABLE_ID:%s\n", oem_id, oem_table_id);
 	pr_err("Current BIOS not supported, update kernel and/or BIOS\n");
-	BUG();
+	();
 }
 
 enum uv_system_type get_uv_system_type(void)
@@ -452,7 +452,7 @@ static __init void build_uv_gr_table(void)
 
 	bytes = _gr_table_len * sizeof(struct uv_gam_range_s);
 	grt = kzalloc(bytes, GFP_KERNEL);
-	BUG_ON(!grt);
+	_ON(!grt);
 	_gr_table = grt;
 
 	for (; gre->type != UV_GAM_RANGE_TYPE_UNUSED; gre++) {
@@ -761,7 +761,7 @@ static __init void map_high(char *id, unsigned long base, int pshift, int bshift
 		pr_info("UV: Map %s_HI base address NULL\n", id);
 		return;
 	}
-	pr_debug("UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr, paddr + bytes);
+	pr_de("UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr, paddr + bytes);
 	if (map_type == map_uc)
 		init_extra_mapping_uc(paddr, bytes);
 	else
@@ -801,7 +801,7 @@ static __init void map_gru_distributed(unsigned long c)
 	gru_first_node_paddr &= gru_dist_umask;
 	gru_last_node_paddr &= gru_dist_umask;
 
-	pr_debug("UV: Map GRU_DIST base 0x%016llx  0x%016llx - 0x%016llx\n", gru_dist_base, gru_first_node_paddr, gru_last_node_paddr);
+	pr_de("UV: Map GRU_DIST base 0x%016llx  0x%016llx - 0x%016llx\n", gru_dist_base, gru_first_node_paddr, gru_last_node_paddr);
 }
 
 static __init void map_gru_high(int max_pnode)
@@ -1350,7 +1350,7 @@ static void __init build_socket_tables(void)
 			return;
 		}
 		pr_crit("UV: Error: UVsystab address translations not available!\n");
-		BUG();
+		();
 	}
 
 	/* Build socket id -> node id, pnode */
@@ -1362,7 +1362,7 @@ static void __init build_socket_tables(void)
 	nump = maxpnode - minpnode + 1;
 	bytes = nump * sizeof(_pnode_to_socket[0]);
 	_pnode_to_socket = kmalloc(bytes, GFP_KERNEL);
-	BUG_ON(!_socket_to_node || !_socket_to_pnode || !_pnode_to_socket);
+	_ON(!_socket_to_node || !_socket_to_pnode || !_pnode_to_socket);
 
 	for (i = 0; i < num; i++)
 		_socket_to_node[i] = _socket_to_pnode[i] = SOCK_EMPTY;
@@ -1409,7 +1409,7 @@ static void __init build_socket_tables(void)
 	/* Set up physical blade to pnode translation from GAM Range Table: */
 	bytes = num_possible_nodes() * sizeof(_node_to_pnode[0]);
 	_node_to_pnode = kmalloc(bytes, GFP_KERNEL);
-	BUG_ON(!_node_to_pnode);
+	_ON(!_node_to_pnode);
 
 	for (lnid = 0; lnid < num_possible_nodes(); lnid++) {
 		unsigned short sockid;
@@ -1422,7 +1422,7 @@ static void __init build_socket_tables(void)
 		}
 		if (sockid > maxsock) {
 			pr_err("UV: socket for node %d not found!\n", lnid);
-			BUG();
+			();
 		}
 	}
 
@@ -1496,7 +1496,7 @@ static void __init uv_system_init_hub(void)
 
 	bytes = sizeof(void *) * uv_num_possible_blades();
 	__uv_hub_info_list = kzalloc(bytes, GFP_KERNEL);
-	BUG_ON(!__uv_hub_info_list);
+	_ON(!__uv_hub_info_list);
 
 	bytes = sizeof(struct uv_hub_info_s);
 	for_each_node(nodeid) {
@@ -1504,15 +1504,15 @@ static void __init uv_system_init_hub(void)
 
 		if (__uv_hub_info_list[nodeid]) {
 			pr_err("UV: Node %d UV HUB already initialized!?\n", nodeid);
-			BUG();
+			();
 		}
 
 		/* Allocate new per hub info list */
 		new_hub = (nodeid == 0) ?  &uv_hub_info_node0 : kzalloc_node(bytes, GFP_KERNEL, nodeid);
-		BUG_ON(!new_hub);
+		_ON(!new_hub);
 		__uv_hub_info_list[nodeid] = new_hub;
 		new_hub = uv_hub_info_list(nodeid);
-		BUG_ON(!new_hub);
+		_ON(!new_hub);
 		*new_hub = hub_info;
 
 		/* Use information from GAM table if available: */

@@ -52,7 +52,7 @@ Setting the parameters
 Setting the ramoops parameters can be done in several different manners:
 
  A. Use the module parameters (which have the names of the variables described
- as before). For quick debugging, you can also reserve parts of memory during
+ as before). For quick deging, you can also reserve parts of memory during
  boot and then use the reserved memory for ramoops. For example, assuming a
  machine with > 128 MB of memory, the following kernel command line will tell
  the kernel to use only the first 128 MB of memory, and place ECC-protected
@@ -134,12 +134,12 @@ a stored record from RAM, simply unlink the respective pstore file.
 Persistent function tracing
 ---------------------------
 
-Persistent function tracing might be useful for debugging software or hardware
+Persistent function tracing might be useful for deging software or hardware
 related hangs. The functions call chain log is stored in a ``ftrace-ramoops``
 file. Here is an example of usage::
 
- # mount -t debugfs debugfs /sys/kernel/debug/
- # echo 1 > /sys/kernel/debug/pstore/record_ftrace
+ # mount -t defs defs /sys/kernel/de/
+ # echo 1 > /sys/kernel/de/pstore/record_ftrace
  # reboot -f
  [...]
  # mount -t pstore pstore /mnt/

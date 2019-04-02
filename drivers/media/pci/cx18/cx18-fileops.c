@@ -59,11 +59,11 @@ int cx18_claim_stream(struct cx18_open_id *id, int type)
 			   the file descriptor to this stream for external
 			   reading of the stream. */
 			s->id = id->open_id;
-			CX18_DEBUG_INFO("Start Read VBI\n");
+			CX18_DE_INFO("Start Read VBI\n");
 			return 0;
 		}
 		/* someone else is using this stream already */
-		CX18_DEBUG_INFO("Stream %d is busy\n", type);
+		CX18_DE_INFO("Stream %d is busy\n", type);
 		return -EBUSY;
 	}
 	s->id = id->open_id;
@@ -115,7 +115,7 @@ void cx18_release_stream(struct cx18_stream *s)
 		return;
 	}
 	if (!test_and_clear_bit(CX18_F_S_CLAIMED, &s->s_flags)) {
-		CX18_DEBUG_WARN("Release stream %s not in use!\n", s->name);
+		CX18_DE_WARN("Release stream %s not in use!\n", s->name);
 		return;
 	}
 
@@ -168,10 +168,10 @@ static void cx18_dualwatch(struct cx18 *cx)
 	if (new_stereo_mode == cx->dualwatch_stereo_mode)
 		return;
 
-	CX18_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x.\n",
+	CX18_DE_INFO("dualwatch: change stereo flag from 0x%x to 0x%x.\n",
 			   cx->dualwatch_stereo_mode, new_stereo_mode);
 	if (v4l2_ctrl_s_ctrl(cx->cxhdl.audio_mode, new_stereo_mode))
-		CX18_DEBUG_INFO("dualwatch: changing stereo flag failed\n");
+		CX18_DE_INFO("dualwatch: changing stereo flag failed\n");
 }
 
 
@@ -224,7 +224,7 @@ static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
 
 		/* return if end of stream */
 		if (!test_bit(CX18_F_S_STREAMING, &s->s_flags)) {
-			CX18_DEBUG_INFO("EOS %s\n", s->name);
+			CX18_DE_INFO("EOS %s\n", s->name);
 			return NULL;
 		}
 
@@ -243,7 +243,7 @@ static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
 		finish_wait(&s->waitq, &wait);
 		if (signal_pending(current)) {
 			/* return if a signal was received */
-			CX18_DEBUG_INFO("User stopped %s\n", s->name);
+			CX18_DE_INFO("User stopped %s\n", s->name);
 			*err = -EINTR;
 			return NULL;
 		}
@@ -358,7 +358,7 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 		}
 	}
 	if (copy_to_user(ubuf, (u8 *)buf->buf + buf->readpos, len)) {
-		CX18_DEBUG_WARN("copy %zd bytes to user failed for %s\n",
+		CX18_DE_WARN("copy %zd bytes to user failed for %s\n",
 				len, s->name);
 		return -EFAULT;
 	}
@@ -420,7 +420,7 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 
 	if (atomic_read(&cx->ana_capturing) == 0 && s->id == -1) {
 		/* shouldn't happen */
-		CX18_DEBUG_WARN("Stream %s not initialized before read\n",
+		CX18_DE_WARN("Stream %s not initialized before read\n",
 				s->name);
 		return -EIO;
 	}
@@ -482,7 +482,7 @@ static ssize_t cx18_read_pos(struct cx18_stream *s, char __user *ubuf,
 	ssize_t rc = count ? cx18_read(s, ubuf, count, non_block) : 0;
 	struct cx18 *cx = s->cx;
 
-	CX18_DEBUG_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
+	CX18_DE_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
 	if (rc > 0)
 		pos += rc;
 	return rc;
@@ -524,20 +524,20 @@ int cx18_start_capture(struct cx18_open_id *id)
 		if (test_bit(CX18_F_S_INTERNAL_USE, &s_idx->s_flags) &&
 		    !test_and_set_bit(CX18_F_S_STREAMING, &s_idx->s_flags)) {
 			if (cx18_start_v4l2_encode_stream(s_idx)) {
-				CX18_DEBUG_WARN("IDX capture start failed\n");
+				CX18_DE_WARN("IDX capture start failed\n");
 				clear_bit(CX18_F_S_STREAMING, &s_idx->s_flags);
 				goto start_failed;
 			}
-			CX18_DEBUG_INFO("IDX capture started\n");
+			CX18_DE_INFO("IDX capture started\n");
 		}
 		if (test_bit(CX18_F_S_INTERNAL_USE, &s_vbi->s_flags) &&
 		    !test_and_set_bit(CX18_F_S_STREAMING, &s_vbi->s_flags)) {
 			if (cx18_start_v4l2_encode_stream(s_vbi)) {
-				CX18_DEBUG_WARN("VBI capture start failed\n");
+				CX18_DE_WARN("VBI capture start failed\n");
 				clear_bit(CX18_F_S_STREAMING, &s_vbi->s_flags);
 				goto start_failed;
 			}
-			CX18_DEBUG_INFO("VBI insertion started\n");
+			CX18_DE_INFO("VBI insertion started\n");
 		}
 	}
 
@@ -552,7 +552,7 @@ int cx18_start_capture(struct cx18_open_id *id)
 	}
 
 start_failed:
-	CX18_DEBUG_WARN("Failed to start capturing for stream %s\n", s->name);
+	CX18_DE_WARN("Failed to start capturing for stream %s\n", s->name);
 
 	/*
 	 * The associated VBI and IDX streams for internal use are released
@@ -585,7 +585,7 @@ ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
 	struct cx18_stream *s = &cx->streams[id->type];
 	int rc;
 
-	CX18_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
+	CX18_DE_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
 	mutex_lock(&cx->serialize_lock);
 	rc = cx18_start_capture(id);
@@ -620,11 +620,11 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		rc = cx18_start_capture(id);
 		mutex_unlock(&cx->serialize_lock);
 		if (rc) {
-			CX18_DEBUG_INFO("Could not start capture for %s (%d)\n",
+			CX18_DE_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
 			return EPOLLERR;
 		}
-		CX18_DEBUG_FILE("Encoder poll started capture\n");
+		CX18_DE_FILE("Encoder poll started capture\n");
 	}
 
 	if ((s->vb_type == V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
@@ -639,7 +639,7 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	}
 
 	/* add stream's waitq to the poll list */
-	CX18_DEBUG_HI_FILE("Encoder poll\n");
+	CX18_DE_HI_FILE("Encoder poll\n");
 	if (v4l2_event_pending(&id->fh))
 		res |= EPOLLPRI;
 	else
@@ -670,12 +670,12 @@ int cx18_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 			rc = cx18_start_capture(id);
 			mutex_unlock(&cx->serialize_lock);
 			if (rc) {
-				CX18_DEBUG_INFO(
+				CX18_DE_INFO(
 					"Could not start capture for %s (%d)\n",
 					s->name, rc);
 				return -EINVAL;
 			}
-			CX18_DEBUG_FILE("Encoder mmap started capture\n");
+			CX18_DE_FILE("Encoder mmap started capture\n");
 		}
 
 		return videobuf_mmap_mapper(&s->vbuf_q, vma);
@@ -711,22 +711,22 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end)
 	struct cx18_stream *s_vbi = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
 	struct cx18_stream *s_idx = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
 
-	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
+	CX18_DE_IOCTL("close() of %s\n", s->name);
 
 	/* 'Unclaim' this stream */
 
 	/* Stop capturing */
 	if (test_bit(CX18_F_S_STREAMING, &s->s_flags)) {
-		CX18_DEBUG_INFO("close stopping capture\n");
+		CX18_DE_INFO("close stopping capture\n");
 		if (id->type == CX18_ENC_STREAM_TYPE_MPG) {
 			/* Stop internal use associated VBI and IDX streams */
 			if (test_bit(CX18_F_S_STREAMING, &s_vbi->s_flags) &&
 			    !test_bit(CX18_F_S_APPL_IO, &s_vbi->s_flags)) {
-				CX18_DEBUG_INFO("close stopping embedded VBI capture\n");
+				CX18_DE_INFO("close stopping embedded VBI capture\n");
 				cx18_stop_v4l2_encode_stream(s_vbi, 0);
 			}
 			if (test_bit(CX18_F_S_STREAMING, &s_idx->s_flags)) {
-				CX18_DEBUG_INFO("close stopping IDX capture\n");
+				CX18_DE_INFO("close stopping IDX capture\n");
 				cx18_stop_v4l2_encode_stream(s_idx, 0);
 			}
 		}
@@ -751,7 +751,7 @@ int cx18_v4l2_close(struct file *filp)
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];
 
-	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
+	CX18_DE_IOCTL("close() of %s\n", s->name);
 
 	mutex_lock(&cx->serialize_lock);
 	/* Stop radio */
@@ -791,12 +791,12 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	struct cx18 *cx = s->cx;
 	struct cx18_open_id *item;
 
-	CX18_DEBUG_FILE("open %s\n", s->name);
+	CX18_DE_FILE("open %s\n", s->name);
 
 	/* Allocate memory */
 	item = kzalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
 	if (NULL == item) {
-		CX18_DEBUG_WARN("nomem on v4l2 open\n");
+		CX18_DE_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
 	v4l2_fh_init(&item->fh, &s->video_dev);
@@ -864,7 +864,7 @@ void cx18_mute(struct cx18 *cx)
 		else
 			CX18_ERR("Can't find valid task handle for mute\n");
 	}
-	CX18_DEBUG_INFO("Mute\n");
+	CX18_DE_INFO("Mute\n");
 }
 
 void cx18_unmute(struct cx18 *cx)
@@ -879,5 +879,5 @@ void cx18_unmute(struct cx18 *cx)
 		} else
 			CX18_ERR("Can't find valid task handle for unmute\n");
 	}
-	CX18_DEBUG_INFO("Unmute\n");
+	CX18_DE_INFO("Unmute\n");
 }

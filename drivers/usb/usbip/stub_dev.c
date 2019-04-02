@@ -118,13 +118,13 @@ static int stub_add_files(struct device *dev)
 	if (err)
 		goto err_sockfd;
 
-	err = device_create_file(dev, &dev_attr_usbip_debug);
+	err = device_create_file(dev, &dev_attr_usbip_de);
 	if (err)
-		goto err_debug;
+		goto err_de;
 
 	return 0;
 
-err_debug:
+err_de:
 	device_remove_file(dev, &dev_attr_usbip_sockfd);
 err_sockfd:
 	device_remove_file(dev, &dev_attr_usbip_status);
@@ -136,7 +136,7 @@ static void stub_remove_files(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_usbip_status);
 	device_remove_file(dev, &dev_attr_usbip_sockfd);
-	device_remove_file(dev, &dev_attr_usbip_debug);
+	device_remove_file(dev, &dev_attr_usbip_de);
 }
 
 static void stub_shutdown_connection(struct usbip_device *ud)
@@ -418,7 +418,7 @@ static void stub_disconnect(struct usb_device *udev)
 
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv) {
-		BUG();
+		();
 		return;
 	}
 

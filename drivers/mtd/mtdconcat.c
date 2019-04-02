@@ -412,7 +412,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	/* must never happen since size limit has been verified above */
-	BUG_ON(i >= concat->num_subdev);
+	_ON(i >= concat->num_subdev);
 
 	/* now do the erase: */
 	err = 0;
@@ -430,7 +430,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		if ((err = mtd_erase(subdev, erase))) {
 			/* sanity check: should never happen since
 			 * block alignment has been checked above */
-			BUG_ON(err == -EINVAL);
+			_ON(err == -EINVAL);
 			if (erase->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
 				instr->fail_addr = erase->fail_addr + offset;
 			break;

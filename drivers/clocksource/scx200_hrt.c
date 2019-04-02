@@ -2,7 +2,7 @@
  * Copyright (C) 2006 Jim Cromie
  *
  * This is a clocksource driver for the Geode SCx200's 1 or 27 MHz
- * high-resolution timer.  The Geode SC-1100 (at least) has a buggy
+ * high-resolution timer.  The Geode SC-1100 (at least) has a gy
  * time stamp counter (TSC), which loses time unless 'idle=poll' is
  * given as a boot-arg. In its absence, the Generic Timekeeping code
  * will detect and de-rate the bad TSC, allowing this timer to take

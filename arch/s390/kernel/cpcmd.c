@@ -64,7 +64,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 	int response_len;
 
 	cmdlen = strlen(cmd);
-	BUG_ON(cmdlen > 240);
+	_ON(cmdlen > 240);
 	memcpy(cpcmd_buf, cmd, cmdlen);
 	ASCEBC(cpcmd_buf, cmdlen);
 

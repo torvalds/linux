@@ -9,7 +9,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * Oh, it's a waste of space, but oh-so-yummy for debugging.  This
+ * Oh, it's a waste of space, but oh-so-yummy for deging.  This
  * version of printf() does not include 64-bit support.  "Live with
  * it."
  *

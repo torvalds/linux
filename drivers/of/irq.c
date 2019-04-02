@@ -99,7 +99,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i, rc = -EINVAL;
 
-#ifdef DEBUG
+#ifdef DE
 	of_print_phandle_args("of_irq_parse_raw: ", out_irq);
 #endif
 
@@ -117,11 +117,11 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		of_node_put(tnode);
 	} while (ipar);
 	if (ipar == NULL) {
-		pr_debug(" -> no parent found !\n");
+		pr_de(" -> no parent found !\n");
 		goto fail;
 	}
 
-	pr_debug("of_irq_parse_raw: ipar=%pOF, size=%d\n", ipar, intsize);
+	pr_de("of_irq_parse_raw: ipar=%pOF, size=%d\n", ipar, intsize);
 
 	if (out_irq->args_count != intsize)
 		goto fail;
@@ -140,7 +140,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	old = NULL;
 	addrsize = (tmp == NULL) ? 2 : be32_to_cpu(*tmp);
 
-	pr_debug(" -> addrsize=%d\n", addrsize);
+	pr_de(" -> addrsize=%d\n", addrsize);
 
 	/* Range check so that the temporary buffer doesn't overflow */
 	if (WARN_ON(addrsize + intsize > MAX_PHANDLE_ARGS)) {
@@ -160,7 +160,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		 * then we are done
 		 */
 		if (of_property_read_bool(ipar, "interrupt-controller")) {
-			pr_debug(" -> got it !\n");
+			pr_de(" -> got it !\n");
 			return 0;
 		}
 
@@ -169,7 +169,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		 * property when #address-cells != 0
 		 */
 		if (addrsize && !addr) {
-			pr_debug(" -> no reg passed in when needed !\n");
+			pr_de(" -> no reg passed in when needed !\n");
 			goto fail;
 		}
 
@@ -177,7 +177,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		imap = of_get_property(ipar, "interrupt-map", &imaplen);
 		/* No interrupt map, check for an interrupt parent */
 		if (imap == NULL) {
-			pr_debug(" -> no map, getting parent\n");
+			pr_de(" -> no map, getting parent\n");
 			newpar = of_irq_find_parent(ipar);
 			goto skiplevel;
 		}
@@ -196,7 +196,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			for (i = 0; i < (addrsize + intsize); i++, imaplen--)
 				match &= !((match_array[i] ^ *imap++) & imask[i]);
 
-			pr_debug(" -> match=%d (imaplen=%d)\n", match, imaplen);
+			pr_de(" -> match=%d (imaplen=%d)\n", match, imaplen);
 
 			/* Get the interrupt parent */
 			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
@@ -208,7 +208,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 			/* Check if not found */
 			if (newpar == NULL) {
-				pr_debug(" -> imap parent not found !\n");
+				pr_de(" -> imap parent not found !\n");
 				goto fail;
 			}
 
@@ -220,14 +220,14 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			 */
 			if (of_property_read_u32(newpar, "#interrupt-cells",
 						 &newintsize)) {
-				pr_debug(" -> parent lacks #interrupt-cells!\n");
+				pr_de(" -> parent lacks #interrupt-cells!\n");
 				goto fail;
 			}
 			if (of_property_read_u32(newpar, "#address-cells",
 						 &newaddrsize))
 				newaddrsize = 0;
 
-			pr_debug(" -> newintsize=%d, newaddrsize=%d\n",
+			pr_de(" -> newintsize=%d, newaddrsize=%d\n",
 			    newintsize, newaddrsize);
 
 			/* Check for malformed properties */
@@ -240,7 +240,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			imap += newaddrsize + newintsize;
 			imaplen -= newaddrsize + newintsize;
 
-			pr_debug(" -> imaplen=%d\n", imaplen);
+			pr_de(" -> imaplen=%d\n", imaplen);
 		}
 		if (!match)
 			goto fail;
@@ -258,7 +258,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 	skiplevel:
 		/* Iterate again with new parent */
 		out_irq->np = newpar;
-		pr_debug(" -> new parent: %pOF\n", newpar);
+		pr_de(" -> new parent: %pOF\n", newpar);
 		of_node_put(ipar);
 		ipar = newpar;
 		newpar = NULL;
@@ -290,7 +290,7 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 	u32 intsize;
 	int i, res;
 
-	pr_debug("of_irq_parse_one: dev=%pOF, index=%d\n", device, index);
+	pr_de("of_irq_parse_one: dev=%pOF, index=%d\n", device, index);
 
 	/* OldWorld mac stuff is "special", handle out of line */
 	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
@@ -316,7 +316,7 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 		goto out;
 	}
 
-	pr_debug(" parent=%pOF, intsize=%d\n", p, intsize);
+	pr_de(" parent=%pOF, intsize=%d\n", p, intsize);
 
 	/* Copy intspec into irq structure */
 	out_irq->np = p;
@@ -329,7 +329,7 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 			goto out;
 	}
 
-	pr_debug(" intspec=%d\n", *out_irq->args);
+	pr_de(" intspec=%d\n", *out_irq->args);
 
 
 	/* Check if there are any interrupt-map translations to process */
@@ -534,7 +534,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 			of_node_set_flag(desc->dev, OF_POPULATED);
 
-			pr_debug("of_irq_init: init %pOF (%p), parent %p\n",
+			pr_de("of_irq_init: init %pOF (%p), parent %p\n",
 				 desc->dev,
 				 desc->dev, desc->interrupt_parent);
 			ret = desc->irq_init_cb(desc->dev,

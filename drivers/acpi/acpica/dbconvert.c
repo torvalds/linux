@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbconvert - debugger miscellaneous conversion routines
+ * Module Name: dbconvert - deger miscellaneous conversion routines
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbconvert")
 
 #define DB_DEFAULT_PKG_ELEMENTS     33

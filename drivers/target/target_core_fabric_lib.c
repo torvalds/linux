@@ -55,7 +55,7 @@ static int sas_get_pr_transport_id(
 	/* Skip over 'naa. prefix */
 	ret = hex2bin(&buf[4], &nacl->initiatorname[4], 8);
 	if (ret) {
-		pr_debug("%s: invalid hex string\n", __func__);
+		pr_de("%s: invalid hex string\n", __func__);
 		return ret;
 	}
 
@@ -83,7 +83,7 @@ static int fc_get_pr_transport_id(
 		}
 		ret = hex2bin(&buf[off++], &ptr[i], 1);
 		if (ret < 0) {
-			pr_debug("%s: invalid hex string\n", __func__);
+			pr_de("%s: invalid hex string\n", __func__);
 			return ret;
 		}
 		i += 2;
@@ -103,7 +103,7 @@ static int sbp_get_pr_transport_id(
 
 	ret = hex2bin(&buf[8], nacl->initiatorname, 8);
 	if (ret) {
-		pr_debug("%s: invalid hex string\n", __func__);
+		pr_de("%s: invalid hex string\n", __func__);
 		return ret;
 	}
 
@@ -131,7 +131,7 @@ static int srp_get_pr_transport_id(
 	memset(buf + 8, 0, leading_zero_bytes);
 	rc = hex2bin(buf + 8 + leading_zero_bytes, p, count);
 	if (rc < 0) {
-		pr_debug("hex2bin failed for %s: %d\n", __func__, rc);
+		pr_de("hex2bin failed for %s: %d\n", __func__, rc);
 		return rc;
 	}
 
@@ -316,7 +316,7 @@ static char *iscsi_parse_pr_out_transport_id(
 			tid_len += padding;
 
 		if ((add_len + 4) != tid_len) {
-			pr_debug("LIO-Target Extracted add_len: %hu "
+			pr_de("LIO-Target Extracted add_len: %hu "
 				"does not match calculated tid_len: %u,"
 				" using tid_len instead\n", add_len+4, tid_len);
 			*out_tid_len = tid_len;

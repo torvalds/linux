@@ -1,6 +1,6 @@
 /*
  * Linux WiMAX Stack
- * Debug levels control file for the wimax module
+ * De levels control file for the wimax module
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation <linux-wimax@intel.com>
@@ -20,18 +20,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
  */
-#ifndef __debug_levels__h__
-#define __debug_levels__h__
+#ifndef __de_levels__h__
+#define __de_levels__h__
 
-/* Maximum compile and run time debug level for all submodules */
+/* Maximum compile and run time de level for all submodules */
 #define D_MODULENAME wimax
-#define D_MASTER CONFIG_WIMAX_DEBUG_LEVEL
+#define D_MASTER CONFIG_WIMAX_DE_LEVEL
 
-#include <linux/wimax/debug.h>
+#include <linux/wimax/de.h>
 
 /* List of all the enabled modules */
 enum d_module {
-	D_SUBMODULE_DECLARE(debugfs),
+	D_SUBMODULE_DECLARE(defs),
 	D_SUBMODULE_DECLARE(id_table),
 	D_SUBMODULE_DECLARE(op_msg),
 	D_SUBMODULE_DECLARE(op_reset),
@@ -40,4 +40,4 @@ enum d_module {
 	D_SUBMODULE_DECLARE(stack),
 };
 
-#endif /* #ifndef __debug_levels__h__ */
+#endif /* #ifndef __de_levels__h__ */

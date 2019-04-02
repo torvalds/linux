@@ -44,7 +44,7 @@
  * twice in order to get the right values. Future * revisions will fix
  * this problem and then this macro * can disappear.
  */
-#define MV88x2010_LINK_STATUS_BUGS    1
+#define MV88x2010_LINK_STATUS_S    1
 
 static int led_init(struct cphy *cphy)
 {
@@ -120,7 +120,7 @@ static int mv88x201x_interrupt_clear(struct cphy *cphy)
 	u32 elmer;
 	u32 val;
 
-#ifdef MV88x2010_LINK_STATUS_BUGS
+#ifdef MV88x2010_LINK_STATUS_S
 	/* Required to read twice before clear takes affect. */
 	cphy_mdio_read(cphy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_RXSTAT, &val);
 	cphy_mdio_read(cphy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_TXSTAT, &val);
@@ -137,7 +137,7 @@ static int mv88x201x_interrupt_clear(struct cphy *cphy)
 	/* Clear PHY LASI interrupts. */
 	cphy_mdio_read(cphy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT, &val);
 
-#ifdef MV88x2010_LINK_STATUS_BUGS
+#ifdef MV88x2010_LINK_STATUS_S
 	/* Do it again. */
 	cphy_mdio_read(cphy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_RXSTAT, &val);
 	cphy_mdio_read(cphy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_TXSTAT, &val);
@@ -223,7 +223,7 @@ static struct cphy *mv88x201x_phy_create(struct net_device *dev, int phy_addr,
 	cphy_mdio_read(cphy, MDIO_MMD_PCS, 0x8300, &val);
 	cphy_mdio_write(cphy, MDIO_MMD_PCS, 0x8300, val | 1);
 
-	/* Clear link status. Required because of a bug in the PHY.  */
+	/* Clear link status. Required because of a  in the PHY.  */
 	cphy_mdio_read(cphy, MDIO_MMD_PMAPMD, MDIO_STAT2, &val);
 	cphy_mdio_read(cphy, MDIO_MMD_PCS, MDIO_STAT2, &val);
 

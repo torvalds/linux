@@ -17,16 +17,16 @@
  *   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*   This file contains debugging routines for use in the QCA7K driver.
+/*   This file contains deging routines for use in the QCA7K driver.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ethtool.h>
 #include <linux/seq_file.h>
 #include <linux/types.h>
 
 #include "qca_7k.h"
-#include "qca_debug.h"
+#include "qca_de.h"
 
 #define QCASPI_MAX_REGS 0x20
 
@@ -64,7 +64,7 @@ static const char qcaspi_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Buffer available errors",
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int
 qcaspi_info_show(struct seq_file *s, void *what)
@@ -129,37 +129,37 @@ qcaspi_info_show(struct seq_file *s, void *what)
 DEFINE_SHOW_ATTRIBUTE(qcaspi_info);
 
 void
-qcaspi_init_device_debugfs(struct qcaspi *qca)
+qcaspi_init_device_defs(struct qcaspi *qca)
 {
 	struct dentry *device_root;
 
-	device_root = debugfs_create_dir(dev_name(&qca->net_dev->dev), NULL);
+	device_root = defs_create_dir(dev_name(&qca->net_dev->dev), NULL);
 	qca->device_root = device_root;
 
 	if (IS_ERR(device_root) || !device_root) {
-		pr_warn("failed to create debugfs directory for %s\n",
+		pr_warn("failed to create defs directory for %s\n",
 			dev_name(&qca->net_dev->dev));
 		return;
 	}
-	debugfs_create_file("info", S_IFREG | 0444, device_root, qca,
+	defs_create_file("info", S_IFREG | 0444, device_root, qca,
 			    &qcaspi_info_fops);
 }
 
 void
-qcaspi_remove_device_debugfs(struct qcaspi *qca)
+qcaspi_remove_device_defs(struct qcaspi *qca)
 {
-	debugfs_remove_recursive(qca->device_root);
+	defs_remove_recursive(qca->device_root);
 }
 
-#else /* CONFIG_DEBUG_FS */
+#else /* CONFIG_DE_FS */
 
 void
-qcaspi_init_device_debugfs(struct qcaspi *qca)
+qcaspi_init_device_defs(struct qcaspi *qca)
 {
 }
 
 void
-qcaspi_remove_device_debugfs(struct qcaspi *qca)
+qcaspi_remove_device_defs(struct qcaspi *qca)
 {
 }
 

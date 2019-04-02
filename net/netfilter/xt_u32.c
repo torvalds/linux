@@ -39,7 +39,7 @@ static bool u32_match_it(const struct xt_u32 *data,
 			return false;
 
 		if (skb_copy_bits(skb, pos, &n, sizeof(n)) < 0)
-			BUG();
+			();
 		val   = ntohl(n);
 		nnums = ct->nnums;
 
@@ -67,7 +67,7 @@ static bool u32_match_it(const struct xt_u32 *data,
 
 				if (skb_copy_bits(skb, at + pos, &n,
 						    sizeof(n)) < 0)
-					BUG();
+					();
 				val = ntohl(n);
 				break;
 			}

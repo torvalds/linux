@@ -21,8 +21,8 @@
  */
 
 /*
-#define DEBUG
-#define VERBOSE_DEBUG
+#define DE
+#define VERBOSE_DE
 */
 #include <linux/delay.h>
 #include <linux/highmem.h>

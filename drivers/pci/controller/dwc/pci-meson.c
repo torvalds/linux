@@ -406,7 +406,7 @@ static int meson_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 		return ret;
 
 	/*
-	 * There is a bug in the MESON AXG PCIe controller whereby software
+	 * There is a  in the MESON AXG PCIe controller whereby software
 	 * cannot program the PCI_CLASS_DEVICE register, so we must fabricate
 	 * the return value in the config accessors.
 	 */

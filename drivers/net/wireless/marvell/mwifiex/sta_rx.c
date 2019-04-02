@@ -72,9 +72,9 @@ mwifiex_discard_gratuitous_arp(struct mwifiex_private *priv,
  * to kernel/upper layer.
  *
  * This function parses through the received packet and determines
- * if it is a debug packet or normal packet.
+ * if it is a de packet or normal packet.
  *
- * For non-debug packets, the function chops off unnecessary leading
+ * For non-de packets, the function chops off unnecessary leading
  * header bytes, reconstructs the packet as an ethernet frame or
  * 802.2/llc/snap frame as required, and sends it to kernel/upper layer.
  *

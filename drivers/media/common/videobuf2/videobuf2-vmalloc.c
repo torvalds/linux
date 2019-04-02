@@ -52,7 +52,7 @@ static void *vb2_vmalloc_alloc(struct device *dev, unsigned long attrs,
 	buf->handler.arg = buf;
 
 	if (!buf->vaddr) {
-		pr_debug("vmalloc of size %ld failed\n", buf->size);
+		pr_de("vmalloc of size %ld failed\n", buf->size);
 		kfree(buf);
 		return ERR_PTR(-ENOMEM);
 	}

@@ -42,9 +42,9 @@ static const char *radeon_pm_state_type_name[5] = {
 };
 
 static void radeon_dynpm_idle_work_handler(struct work_struct *work);
-static int radeon_debugfs_pm_init(struct radeon_device *rdev);
+static int radeon_defs_pm_init(struct radeon_device *rdev);
 static bool radeon_pm_in_vbl(struct radeon_device *rdev);
-static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
+static bool radeon_pm_de_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_update_profile(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
 
@@ -216,20 +216,20 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 
 		/* set engine clock */
 		if (sclk != rdev->pm.current_sclk) {
-			radeon_pm_debug_check_in_vbl(rdev, false);
+			radeon_pm_de_check_in_vbl(rdev, false);
 			radeon_set_engine_clock(rdev, sclk);
-			radeon_pm_debug_check_in_vbl(rdev, true);
+			radeon_pm_de_check_in_vbl(rdev, true);
 			rdev->pm.current_sclk = sclk;
-			DRM_DEBUG_DRIVER("Setting: e: %d\n", sclk);
+			DRM_DE_DRIVER("Setting: e: %d\n", sclk);
 		}
 
 		/* set memory clock */
 		if (rdev->asic->pm.set_memory_clock && (mclk != rdev->pm.current_mclk)) {
-			radeon_pm_debug_check_in_vbl(rdev, false);
+			radeon_pm_de_check_in_vbl(rdev, false);
 			radeon_set_memory_clock(rdev, mclk);
-			radeon_pm_debug_check_in_vbl(rdev, true);
+			radeon_pm_de_check_in_vbl(rdev, true);
 			rdev->pm.current_mclk = mclk;
-			DRM_DEBUG_DRIVER("Setting: m: %d\n", mclk);
+			DRM_DE_DRIVER("Setting: m: %d\n", mclk);
 		}
 
 		if (misc_after)
@@ -241,7 +241,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 		rdev->pm.current_power_state_index = rdev->pm.requested_power_state_index;
 		rdev->pm.current_clock_mode_index = rdev->pm.requested_clock_mode_index;
 	} else
-		DRM_DEBUG_DRIVER("pm: GUI not idle!!!\n");
+		DRM_DE_DRIVER("pm: GUI not idle!!!\n");
 }
 
 static void radeon_pm_set_clocks(struct radeon_device *rdev)
@@ -282,7 +282,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 				if (drm_crtc_vblank_get(crtc) == 0)
 					rdev->pm.req_vblank |= (1 << i);
 				else
-					DRM_DEBUG_DRIVER("crtc %d no vblank, can glitch\n",
+					DRM_DE_DRIVER("crtc %d no vblank, can glitch\n",
 							 i);
 			}
 			i++;
@@ -319,26 +319,26 @@ static void radeon_pm_print_states(struct radeon_device *rdev)
 	struct radeon_power_state *power_state;
 	struct radeon_pm_clock_info *clock_info;
 
-	DRM_DEBUG_DRIVER("%d Power State(s)\n", rdev->pm.num_power_states);
+	DRM_DE_DRIVER("%d Power State(s)\n", rdev->pm.num_power_states);
 	for (i = 0; i < rdev->pm.num_power_states; i++) {
 		power_state = &rdev->pm.power_state[i];
-		DRM_DEBUG_DRIVER("State %d: %s\n", i,
+		DRM_DE_DRIVER("State %d: %s\n", i,
 			radeon_pm_state_type_name[power_state->type]);
 		if (i == rdev->pm.default_power_state_index)
-			DRM_DEBUG_DRIVER("\tDefault");
+			DRM_DE_DRIVER("\tDefault");
 		if ((rdev->flags & RADEON_IS_PCIE) && !(rdev->flags & RADEON_IS_IGP))
-			DRM_DEBUG_DRIVER("\t%d PCIE Lanes\n", power_state->pcie_lanes);
+			DRM_DE_DRIVER("\t%d PCIE Lanes\n", power_state->pcie_lanes);
 		if (power_state->flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
-			DRM_DEBUG_DRIVER("\tSingle display only\n");
-		DRM_DEBUG_DRIVER("\t%d Clock Mode(s)\n", power_state->num_clock_modes);
+			DRM_DE_DRIVER("\tSingle display only\n");
+		DRM_DE_DRIVER("\t%d Clock Mode(s)\n", power_state->num_clock_modes);
 		for (j = 0; j < power_state->num_clock_modes; j++) {
 			clock_info = &(power_state->clock_info[j]);
 			if (rdev->flags & RADEON_IS_IGP)
-				DRM_DEBUG_DRIVER("\t\t%d e: %d\n",
+				DRM_DE_DRIVER("\t\t%d e: %d\n",
 						 j,
 						 clock_info->sclk * 10);
 			else
-				DRM_DEBUG_DRIVER("\t\t%d e: %d\tm: %d\tv: %d\n",
+				DRM_DE_DRIVER("\t\t%d e: %d\tm: %d\tv: %d\n",
 						 j,
 						 clock_info->sclk * 10,
 						 clock_info->mclk * 10,
@@ -1339,8 +1339,8 @@ static int radeon_pm_init_old(struct radeon_device *rdev)
 	INIT_DELAYED_WORK(&rdev->pm.dynpm_idle_work, radeon_dynpm_idle_work_handler);
 
 	if (rdev->pm.num_power_states > 1) {
-		if (radeon_debugfs_pm_init(rdev)) {
-			DRM_ERROR("Failed to register debugfs file for PM!\n");
+		if (radeon_defs_pm_init(rdev)) {
+			DRM_ERROR("Failed to register defs file for PM!\n");
 		}
 
 		DRM_INFO("radeon: power management initialized\n");
@@ -1396,8 +1396,8 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 		goto dpm_failed;
 	rdev->pm.dpm_enabled = true;
 
-	if (radeon_debugfs_pm_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for dpm!\n");
+	if (radeon_defs_pm_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for dpm!\n");
 	}
 
 	DRM_INFO("radeon: dpm initialized\n");
@@ -1433,9 +1433,9 @@ struct radeon_dpm_quirk {
 
 /* cards with dpm stability problems */
 static struct radeon_dpm_quirk radeon_dpm_quirk_list[] = {
-	/* TURKS - https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1386534 */
+	/* TURKS - https://s.launchpad.net/ubuntu/+source/linux/+/1386534 */
 	{ PCI_VENDOR_ID_ATI, 0x6759, 0x1682, 0x3195 },
-	/* TURKS - https://bugzilla.kernel.org/show_bug.cgi?id=83731 */
+	/* TURKS - https://zilla.kernel.org/show_.cgi?id=83731 */
 	{ PCI_VENDOR_ID_ATI, 0x6840, 0x1179, 0xfb81 },
 	{ 0, 0, 0, 0 },
 };
@@ -1675,7 +1675,7 @@ static void radeon_pm_compute_clocks_old(struct radeon_device *rdev)
 					radeon_pm_get_dynpm_state(rdev);
 					radeon_pm_set_clocks(rdev);
 
-					DRM_DEBUG_DRIVER("radeon: dynamic power management deactivated\n");
+					DRM_DE_DRIVER("radeon: dynamic power management deactivated\n");
 				}
 			} else if (rdev->pm.active_crtc_count == 1) {
 				/* TODO: Increase clocks if needed for current mode */
@@ -1692,7 +1692,7 @@ static void radeon_pm_compute_clocks_old(struct radeon_device *rdev)
 					rdev->pm.dynpm_state = DYNPM_STATE_ACTIVE;
 					schedule_delayed_work(&rdev->pm.dynpm_idle_work,
 							      msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
-					DRM_DEBUG_DRIVER("radeon: dynamic power management activated\n");
+					DRM_DE_DRIVER("radeon: dynamic power management activated\n");
 				}
 			} else { /* count == 0 */
 				if (rdev->pm.dynpm_state != DYNPM_STATE_MINIMUM) {
@@ -1779,13 +1779,13 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev)
 	return in_vbl;
 }
 
-static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish)
+static bool radeon_pm_de_check_in_vbl(struct radeon_device *rdev, bool finish)
 {
 	u32 stat_crtc = 0;
 	bool in_vbl = radeon_pm_in_vbl(rdev);
 
 	if (in_vbl == false)
-		DRM_DEBUG_DRIVER("not in vbl for pm change %08x at %s\n", stat_crtc,
+		DRM_DE_DRIVER("not in vbl for pm change %08x at %s\n", stat_crtc,
 			 finish ? "exit" : "entry");
 	return in_vbl;
 }
@@ -1852,11 +1852,11 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
+static int radeon_defs_pm_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -1868,10 +1868,10 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 		seq_printf(m, "PX asic powered off\n");
 	} else if (rdev->pm.dpm_enabled) {
 		mutex_lock(&rdev->pm.mutex);
-		if (rdev->asic->dpm.debugfs_print_current_performance_level)
-			radeon_dpm_debugfs_print_current_performance_level(rdev, m);
+		if (rdev->asic->dpm.defs_print_current_performance_level)
+			radeon_dpm_defs_print_current_performance_level(rdev, m);
 		else
-			seq_printf(m, "Debugfs support not implemented for this asic\n");
+			seq_printf(m, "Defs support not implemented for this asic\n");
 		mutex_unlock(&rdev->pm.mutex);
 	} else {
 		seq_printf(m, "default engine clock: %u0 kHz\n", rdev->pm.default_sclk);
@@ -1893,14 +1893,14 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list radeon_pm_info_list[] = {
-	{"radeon_pm_info", radeon_debugfs_pm_info, 0, NULL},
+	{"radeon_pm_info", radeon_defs_pm_info, 0, NULL},
 };
 #endif
 
-static int radeon_debugfs_pm_init(struct radeon_device *rdev)
+static int radeon_defs_pm_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_pm_info_list, ARRAY_SIZE(radeon_pm_info_list));
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, radeon_pm_info_list, ARRAY_SIZE(radeon_pm_info_list));
 #else
 	return 0;
 #endif

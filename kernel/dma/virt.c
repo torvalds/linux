@@ -42,7 +42,7 @@ static int dma_virt_map_sg(struct device *dev, struct scatterlist *sgl,
 	struct scatterlist *sg;
 
 	for_each_sg(sgl, sg, nents, i) {
-		BUG_ON(!sg_page(sg));
+		_ON(!sg_page(sg));
 		sg_dma_address(sg) = (uintptr_t)sg_virt(sg);
 		sg_dma_len(sg) = sg->length;
 	}

@@ -177,7 +177,7 @@ static int pn533_usb_send_frame(struct pn533 *dev,
 	phy->out_urb->transfer_buffer = out->data;
 	phy->out_urb->transfer_buffer_length = out->len;
 
-	print_hex_dump_debug("PN533 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_de("PN533 TX: ", DUMP_PREFIX_NONE, 16, 1,
 			     out->data, out->len, false);
 
 	rc = usb_submit_urb(phy->out_urb, GFP_KERNEL);
@@ -368,7 +368,7 @@ static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
 
 	dev_dbg(&urb->dev->dev, "%s\n", __func__);
 
-	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_de("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
 		       urb->transfer_buffer, urb->transfer_buffer_length,
 		       false);
 
@@ -399,7 +399,7 @@ static int pn533_acr122_poweron_rdr(struct pn533_usb_phy *phy)
 	phy->in_urb->complete = pn533_acr122_poweron_rdr_resp;
 	phy->in_urb->context = &arg;
 
-	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_de("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
 		       cmd, sizeof(cmd), false);
 
 	rc = usb_bulk_msg(phy->udev, phy->out_urb->pipe, buffer, sizeof(cmd),

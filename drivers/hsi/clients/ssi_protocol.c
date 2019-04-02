@@ -124,7 +124,7 @@ enum {
  * @txqueue_len: TX queue length
  * @tx_wd: TX watchdog
  * @rx_wd: RX watchdog
- * @keep_alive: Workaround for SSI HW bug
+ * @keep_alive: Workaround for SSI HW 
  * @lock: To serialize access to this struct
  * @netdev: Phonet network device
  * @txqueue: TX data queue
@@ -186,13 +186,13 @@ static void ssip_skb_to_msg(struct sk_buff *skb, struct hsi_msg *msg)
 	struct scatterlist *sg;
 	int i;
 
-	BUG_ON(msg->sgt.nents != (unsigned int)(skb_shinfo(skb)->nr_frags + 1));
+	_ON(msg->sgt.nents != (unsigned int)(skb_shinfo(skb)->nr_frags + 1));
 
 	sg = msg->sgt.sgl;
 	sg_set_buf(sg, skb->data, skb_headlen(skb));
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		sg = sg_next(sg);
-		BUG_ON(!sg);
+		_ON(!sg);
 		frag = &skb_shinfo(skb)->frags[i];
 		sg_set_page(sg, frag->page.p, frag->size, frag->page_offset);
 	}
@@ -203,7 +203,7 @@ static void ssip_free_data(struct hsi_msg *msg)
 	struct sk_buff *skb;
 
 	skb = msg->context;
-	pr_debug("free data: msg %p context %p skb %p\n", msg, msg->context,
+	pr_de("free data: msg %p context %p skb %p\n", msg, msg->context,
 								skb);
 	msg->destructor = NULL;
 	dev_kfree_skb(skb);
@@ -240,7 +240,7 @@ static struct hsi_msg *ssip_claim_cmd(struct ssi_protocol *ssi)
 {
 	struct hsi_msg *msg;
 
-	BUG_ON(list_empty(&ssi->cmdqueue));
+	_ON(list_empty(&ssi->cmdqueue));
 
 	spin_lock_bh(&ssi->lock);
 	msg = list_first_entry(&ssi->cmdqueue, struct hsi_msg, link);

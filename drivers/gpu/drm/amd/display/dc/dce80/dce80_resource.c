@@ -616,7 +616,7 @@ static struct mem_input *dce80_mem_input_create(
 					       GFP_KERNEL);
 
 	if (!dce_mi) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -691,7 +691,7 @@ struct clock_source *dce80_clock_source_create(
 		return &clk_src->base;
 	}
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -707,7 +707,7 @@ static struct input_pixel_processor *dce80_ipp_create(
 	struct dce_ipp *ipp = kzalloc(sizeof(struct dce_ipp), GFP_KERNEL);
 
 	if (!ipp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -919,14 +919,14 @@ static bool dce80_construct(
 
 	if (pool->base.dp_clock_source == NULL) {
 		dm_error("DC: failed to create dp clock source!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto res_create_fail;
 		}
 	}
@@ -937,7 +937,7 @@ static bool dce80_construct(
 			&disp_clk_mask);
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -947,7 +947,7 @@ static bool dce80_construct(
 			&dmcu_mask);
 	if (pool->base.dmcu == NULL) {
 		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -957,7 +957,7 @@ static bool dce80_construct(
 			&abm_mask);
 	if (pool->base.abm == NULL) {
 		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -973,35 +973,35 @@ static bool dce80_construct(
 		pool->base.timing_generators[i] = dce80_timing_generator_create(
 				ctx, i, &dce80_tg_offsets[i]);
 		if (pool->base.timing_generators[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create tg!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.mis[i] = dce80_mem_input_create(ctx, i);
 		if (pool->base.mis[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create memory input!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.ipps[i] = dce80_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create input pixel processor!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.transforms[i] = dce80_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create transform!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.opps[i] = dce80_opp_create(ctx, i);
 		if (pool->base.opps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
@@ -1010,21 +1010,21 @@ static bool dce80_construct(
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce80_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create i2c engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.sw_i2cs[i] = dce80_i2c_sw_create(ctx);
 		if (pool->base.sw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create sw i2c!!\n");
 			goto res_create_fail;
@@ -1061,7 +1061,7 @@ struct resource_pool *dce80_create_resource_pool(
 	if (dce80_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -1124,14 +1124,14 @@ static bool dce81_construct(
 
 	if (pool->base.dp_clock_source == NULL) {
 		dm_error("DC: failed to create dp clock source!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto res_create_fail;
 		}
 	}
@@ -1142,7 +1142,7 @@ static bool dce81_construct(
 			&disp_clk_mask);
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1152,7 +1152,7 @@ static bool dce81_construct(
 			&dmcu_mask);
 	if (pool->base.dmcu == NULL) {
 		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1162,7 +1162,7 @@ static bool dce81_construct(
 			&abm_mask);
 	if (pool->base.abm == NULL) {
 		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1178,35 +1178,35 @@ static bool dce81_construct(
 		pool->base.timing_generators[i] = dce80_timing_generator_create(
 				ctx, i, &dce80_tg_offsets[i]);
 		if (pool->base.timing_generators[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create tg!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.mis[i] = dce80_mem_input_create(ctx, i);
 		if (pool->base.mis[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create memory input!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.ipps[i] = dce80_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create input pixel processor!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.transforms[i] = dce80_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create transform!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.opps[i] = dce80_opp_create(ctx, i);
 		if (pool->base.opps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
@@ -1215,21 +1215,21 @@ static bool dce81_construct(
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce80_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create i2c engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.sw_i2cs[i] = dce80_i2c_sw_create(ctx);
 		if (pool->base.sw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create sw i2c!!\n");
 			goto res_create_fail;
@@ -1266,7 +1266,7 @@ struct resource_pool *dce81_create_resource_pool(
 	if (dce81_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -1325,14 +1325,14 @@ static bool dce83_construct(
 
 	if (pool->base.dp_clock_source == NULL) {
 		dm_error("DC: failed to create dp clock source!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto res_create_fail;
 		}
 	}
@@ -1343,7 +1343,7 @@ static bool dce83_construct(
 			&disp_clk_mask);
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1353,7 +1353,7 @@ static bool dce83_construct(
 			&dmcu_mask);
 	if (pool->base.dmcu == NULL) {
 		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1363,7 +1363,7 @@ static bool dce83_construct(
 			&abm_mask);
 	if (pool->base.abm == NULL) {
 		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1379,35 +1379,35 @@ static bool dce83_construct(
 		pool->base.timing_generators[i] = dce80_timing_generator_create(
 				ctx, i, &dce80_tg_offsets[i]);
 		if (pool->base.timing_generators[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create tg!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.mis[i] = dce80_mem_input_create(ctx, i);
 		if (pool->base.mis[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create memory input!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.ipps[i] = dce80_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create input pixel processor!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.transforms[i] = dce80_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create transform!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.opps[i] = dce80_opp_create(ctx, i);
 		if (pool->base.opps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
 		}
@@ -1416,21 +1416,21 @@ static bool dce83_construct(
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce80_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.hw_i2cs[i] = dce80_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create i2c engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.sw_i2cs[i] = dce80_i2c_sw_create(ctx);
 		if (pool->base.sw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create sw i2c!!\n");
 			goto res_create_fail;
@@ -1467,6 +1467,6 @@ struct resource_pool *dce83_create_resource_pool(
 	if (dce83_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }

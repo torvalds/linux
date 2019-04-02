@@ -24,7 +24,7 @@
 #include <linux/atomic.h>
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -301,7 +301,7 @@ struct si476x_radio_ops {
  * @ctrl_handler: V4L2 controls handler
  * @core: Pointer to underlying core device
  * @ops: Vtable of functions. See struct si476x_radio_ops for details
- * @debugfs: pointer to &strucd dentry for debugfs
+ * @defs: pointer to &strucd dentry for defs
  * @audmode: audio mode, as defined for the rxsubchans field
  *	     at videodev2.h
  *
@@ -316,7 +316,7 @@ struct si476x_radio {
 	/* This field should not be accesses unless core lock is held */
 	const struct si476x_radio_ops *ops;
 
-	struct dentry	*debugfs;
+	struct dentry	*defs;
 	u32 audmode;
 };
 
@@ -1020,7 +1020,7 @@ static int si476x_radio_s_ctrl(struct v4l2_ctrl *ctrl)
 	return retval;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int si476x_radio_g_register(struct file *file, void *fh,
 				   struct v4l2_dbg_register *reg)
 {
@@ -1195,7 +1195,7 @@ static const struct v4l2_ioctl_ops si4761_ioctl_ops = {
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register		= si476x_radio_g_register,
 	.vidioc_s_register		= si476x_radio_s_register,
 #endif
@@ -1366,49 +1366,49 @@ static const struct file_operations radio_rsq_primary_fops = {
 };
 
 
-static int si476x_radio_init_debugfs(struct si476x_radio *radio)
+static int si476x_radio_init_defs(struct si476x_radio *radio)
 {
 	struct dentry	*dentry;
 	int		ret;
 
-	dentry = debugfs_create_dir(dev_name(radio->v4l2dev.dev), NULL);
+	dentry = defs_create_dir(dev_name(radio->v4l2dev.dev), NULL);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto exit;
 	}
-	radio->debugfs = dentry;
+	radio->defs = dentry;
 
-	dentry = debugfs_create_file("acf", S_IRUGO,
-				     radio->debugfs, radio, &radio_acf_fops);
+	dentry = defs_create_file("acf", S_IRUGO,
+				     radio->defs, radio, &radio_acf_fops);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto cleanup;
 	}
 
-	dentry = debugfs_create_file("rds_blckcnt", S_IRUGO,
-				     radio->debugfs, radio,
+	dentry = defs_create_file("rds_blckcnt", S_IRUGO,
+				     radio->defs, radio,
 				     &radio_rds_blckcnt_fops);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto cleanup;
 	}
 
-	dentry = debugfs_create_file("agc", S_IRUGO,
-				     radio->debugfs, radio, &radio_agc_fops);
+	dentry = defs_create_file("agc", S_IRUGO,
+				     radio->defs, radio, &radio_agc_fops);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto cleanup;
 	}
 
-	dentry = debugfs_create_file("rsq", S_IRUGO,
-				     radio->debugfs, radio, &radio_rsq_fops);
+	dentry = defs_create_file("rsq", S_IRUGO,
+				     radio->defs, radio, &radio_rsq_fops);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
 		goto cleanup;
 	}
 
-	dentry = debugfs_create_file("rsq_primary", S_IRUGO,
-				     radio->debugfs, radio,
+	dentry = defs_create_file("rsq_primary", S_IRUGO,
+				     radio->defs, radio,
 				     &radio_rsq_primary_fops);
 	if (IS_ERR(dentry)) {
 		ret = PTR_ERR(dentry);
@@ -1417,7 +1417,7 @@ static int si476x_radio_init_debugfs(struct si476x_radio *radio)
 
 	return 0;
 cleanup:
-	debugfs_remove_recursive(radio->debugfs);
+	defs_remove_recursive(radio->defs);
 exit:
 	return ret;
 }
@@ -1548,9 +1548,9 @@ static int si476x_radio_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	rval = si476x_radio_init_debugfs(radio);
+	rval = si476x_radio_init_defs(radio);
 	if (rval < 0) {
-		dev_err(&pdev->dev, "Could not create debugfs interface\n");
+		dev_err(&pdev->dev, "Could not create defs interface\n");
 		goto exit;
 	}
 
@@ -1567,7 +1567,7 @@ static int si476x_radio_remove(struct platform_device *pdev)
 	v4l2_ctrl_handler_free(radio->videodev.ctrl_handler);
 	video_unregister_device(&radio->videodev);
 	v4l2_device_unregister(&radio->v4l2dev);
-	debugfs_remove_recursive(radio->debugfs);
+	defs_remove_recursive(radio->defs);
 
 	return 0;
 }

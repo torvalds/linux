@@ -96,7 +96,7 @@ struct bcm2835_desc {
 #define BCM2835_DMA_LEN		0x14
 #define BCM2835_DMA_STRIDE	0x18
 #define BCM2835_DMA_NEXTCB	0x1c
-#define BCM2835_DMA_DEBUG	0x20
+#define BCM2835_DMA_DE	0x20
 
 /* DMA CS Control and Status bits */
 #define BCM2835_DMA_ACTIVE	BIT(0)  /* activate the DMA */
@@ -113,7 +113,7 @@ struct bcm2835_desc {
 #define BCM2835_DMA_PANIC_PRIORITY(x) ((x & 15) << 20) /* panic priority */
 /* current value of TI.BCM2835_DMA_WAIT_RESP */
 #define BCM2835_DMA_WAIT_FOR_WRITES BIT(28)
-#define BCM2835_DMA_DIS_DEBUG	BIT(29) /* disable debug pause signal */
+#define BCM2835_DMA_DIS_DE	BIT(29) /* disable de pause signal */
 #define BCM2835_DMA_ABORT	BIT(30) /* Stop current CB, go to next, WO */
 #define BCM2835_DMA_RESET	BIT(31) /* WO, self clearing */
 
@@ -134,19 +134,19 @@ struct bcm2835_desc {
 #define BCM2835_DMA_WAIT(x)	((x & 31) << 21) /* add DMA-wait cycles */
 #define BCM2835_DMA_NO_WIDE_BURSTS BIT(26) /* no 2 beat write bursts */
 
-/* debug register bits */
-#define BCM2835_DMA_DEBUG_LAST_NOT_SET_ERR	BIT(0)
-#define BCM2835_DMA_DEBUG_FIFO_ERR		BIT(1)
-#define BCM2835_DMA_DEBUG_READ_ERR		BIT(2)
-#define BCM2835_DMA_DEBUG_OUTSTANDING_WRITES_SHIFT 4
-#define BCM2835_DMA_DEBUG_OUTSTANDING_WRITES_BITS 4
-#define BCM2835_DMA_DEBUG_ID_SHIFT		16
-#define BCM2835_DMA_DEBUG_ID_BITS		9
-#define BCM2835_DMA_DEBUG_STATE_SHIFT		16
-#define BCM2835_DMA_DEBUG_STATE_BITS		9
-#define BCM2835_DMA_DEBUG_VERSION_SHIFT		25
-#define BCM2835_DMA_DEBUG_VERSION_BITS		3
-#define BCM2835_DMA_DEBUG_LITE			BIT(28)
+/* de register bits */
+#define BCM2835_DMA_DE_LAST_NOT_SET_ERR	BIT(0)
+#define BCM2835_DMA_DE_FIFO_ERR		BIT(1)
+#define BCM2835_DMA_DE_READ_ERR		BIT(2)
+#define BCM2835_DMA_DE_OUTSTANDING_WRITES_SHIFT 4
+#define BCM2835_DMA_DE_OUTSTANDING_WRITES_BITS 4
+#define BCM2835_DMA_DE_ID_SHIFT		16
+#define BCM2835_DMA_DE_ID_BITS		9
+#define BCM2835_DMA_DE_STATE_SHIFT		16
+#define BCM2835_DMA_DE_STATE_BITS		9
+#define BCM2835_DMA_DE_VERSION_SHIFT		25
+#define BCM2835_DMA_DE_VERSION_BITS		3
+#define BCM2835_DMA_DE_LITE			BIT(28)
 
 /* shared registers for all dma channels */
 #define BCM2835_DMA_INT_STATUS         0xfe0
@@ -814,9 +814,9 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id,
 	c->irq_number = irq;
 	c->irq_flags = irq_flags;
 
-	/* check in DEBUG register if this is a LITE channel */
-	if (readl(c->chan_base + BCM2835_DMA_DEBUG) &
-		BCM2835_DMA_DEBUG_LITE)
+	/* check in DE register if this is a LITE channel */
+	if (readl(c->chan_base + BCM2835_DMA_DE) &
+		BCM2835_DMA_DE_LITE)
 		c->is_lite_channel = true;
 
 	return 0;

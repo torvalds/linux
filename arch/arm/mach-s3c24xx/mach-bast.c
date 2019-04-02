@@ -274,7 +274,7 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 
 	slot = set->nr_map[slot] & 3;
 
-	pr_debug("bast_nand: selecting slot %d (set %p,%p)\n",
+	pr_de("bast_nand: selecting slot %d (set %p,%p)\n",
 		 slot, set, set->nr_map);
 
 	tmp = __raw_readb(BAST_VA_CTRL2);
@@ -282,7 +282,7 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 	tmp |= slot;
 	tmp |= BAST_CPLD_CTRL2_WNAND;
 
-	pr_debug("bast_nand: ctrl2 now %02x\n", tmp);
+	pr_de("bast_nand: ctrl2 now %02x\n", tmp);
 
 	__raw_writeb(tmp, BAST_VA_CTRL2);
 }

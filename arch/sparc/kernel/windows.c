@@ -55,7 +55,7 @@ static inline void shift_window_buffer(int first_win, int last_win, struct threa
  * succeed is if the %sp points to a bum mapping altogether.
  * setup_frame() and do_sigreturn() use this before shifting
  * the user stack around.  Future instruction and hardware
- * bug workaround routines will need this functionality as
+ *  workaround routines will need this functionality as
  * well.
  */
 void synchronize_user_stack(void)

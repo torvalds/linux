@@ -20,7 +20,7 @@
 #include <net/llc_sap.h>
 
 #if 0
-#define dprintk(args...) printk(KERN_DEBUG args)
+#define dprintk(args...) printk(KERN_DE args)
 #else
 #define dprintk(args...)
 #endif

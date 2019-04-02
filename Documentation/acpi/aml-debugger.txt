@@ -1,19 +1,19 @@
-The AML Debugger
+The AML Deger
 
 Copyright (C) 2016, Intel Corporation
 Author: Lv Zheng <lv.zheng@intel.com>
 
 
-This document describes the usage of the AML debugger embedded in the Linux
+This document describes the usage of the AML deger embedded in the Linux
 kernel.
 
-1. Build the debugger
+1. Build the deger
 
    The following kernel configuration items are required to enable the AML
-   debugger interface from the Linux kernel:
+   deger interface from the Linux kernel:
 
-   CONFIG_ACPI_DEBUGGER=y
-   CONFIG_ACPI_DEBUGGER_USER=m
+   CONFIG_ACPI_DEGER=y
+   CONFIG_ACPI_DEGER_USER=m
 
    The userspace utilities can be built from the kernel source tree using
    the following commands:
@@ -28,38 +28,38 @@ kernel.
    It can be installed to system directories by running "make install" (as a
    sufficiently privileged user).
 
-2. Start the userspace debugger interface
+2. Start the userspace deger interface
 
-   After booting the kernel with the debugger built-in, the debugger can be
+   After booting the kernel with the deger built-in, the deger can be
    started by using the following commands:
 
-   # mount -t debugfs none /sys/kernel/debug
+   # mount -t defs none /sys/kernel/de
    # modprobe acpi_dbg
    # tools/power/acpi/acpidbg
 
-   That spawns the interactive AML debugger environment where you can execute
-   debugger commands.
+   That spawns the interactive AML deger environment where you can execute
+   deger commands.
 
    The commands are documented in the "ACPICA Overview and Programmer Reference"
    that can be downloaded from
 
    https://acpica.org/documentation
 
-   The detailed debugger commands reference is located in Chapter 12 "ACPICA
-   Debugger Reference".  The "help" command can be used for a quick reference.
+   The detailed deger commands reference is located in Chapter 12 "ACPICA
+   Deger Reference".  The "help" command can be used for a quick reference.
 
-3. Stop the userspace debugger interface
+3. Stop the userspace deger interface
 
-   The interactive debugger interface can be closed by pressing Ctrl+C or using
+   The interactive deger interface can be closed by pressing Ctrl+C or using
    the "quit" or "exit" commands.  When finished, unload the module with:
 
    # rmmod acpi_dbg
 
    The module unloading may fail if there is an acpidbg instance running.
 
-4. Run the debugger in a script
+4. Run the deger in a script
 
-   It may be useful to run the AML debugger in a test script. "acpidbg" supports
+   It may be useful to run the AML deger in a test script. "acpidbg" supports
    this in a special "batch" mode.  For example, the following command outputs
    the entire ACPI namespace:
 

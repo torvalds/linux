@@ -48,7 +48,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "ntlmssp.h"
 #include "nterr.h"
@@ -871,7 +871,7 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 		mid->mid_state = MID_RESPONSE_MALFORMED;
 	/*
 	 * Trying to handle/dequeue a mid after the send_recv()
-	 * function has finished processing it is a bug.
+	 * function has finished processing it is a .
 	 */
 	if (mid->mid_flags & MID_DELETED)
 		printk_once(KERN_WARNING
@@ -1040,7 +1040,7 @@ cifs_handle_standard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * var for the rest of the loop to avoid a new stack var.
 	 *
 	 * 48 bytes is enough to display the header and a little bit
-	 * into the payload for debugging purposes.
+	 * into the payload for deging purposes.
 	 */
 	length = server->ops->check_message(buf, server->total_read, server);
 	if (length != 0)
@@ -1218,13 +1218,13 @@ next_pdu:
 					 atomic_read(&midCount));
 				cifs_dump_mem("Received Data is: ", bufs[i],
 					      HEADER_SIZE(server));
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 				if (server->ops->dump_detail)
 					server->ops->dump_detail(bufs[i],
 								 server);
 				smb2_add_credits_from_hdr(bufs[i], server);
 				cifs_dump_mids(server);
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 			}
 		}
 
@@ -1241,7 +1241,7 @@ next_pdu:
 
 	/* buffer usually freed in free_mid - need to free it here on exit */
 	cifs_buf_release(server->bigbuf);
-	if (server->smallbuf) /* no sense logging a debug message if NULL */
+	if (server->smallbuf) /* no sense logging a de message if NULL */
 		cifs_small_buf_release(server->smallbuf);
 
 	task_to_wake = xchg(&server->tsk, NULL);
@@ -3515,7 +3515,7 @@ out:
 	return rc;
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 static struct lock_class_key cifs_key[2];
 static struct lock_class_key cifs_slock_key[2];
 
@@ -3523,7 +3523,7 @@ static inline void
 cifs_reclassify_socket4(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	BUG_ON(!sock_allow_reclassification(sk));
+	_ON(!sock_allow_reclassification(sk));
 	sock_lock_init_class_and_name(sk, "slock-AF_INET-CIFS",
 		&cifs_slock_key[0], "sk_lock-AF_INET-CIFS", &cifs_key[0]);
 }
@@ -3532,7 +3532,7 @@ static inline void
 cifs_reclassify_socket6(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	BUG_ON(!sock_allow_reclassification(sk));
+	_ON(!sock_allow_reclassification(sk));
 	sock_lock_init_class_and_name(sk, "slock-AF_INET6-CIFS",
 		&cifs_slock_key[1], "sk_lock-AF_INET6-CIFS", &cifs_key[1]);
 }
@@ -3846,7 +3846,7 @@ void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 		}
 
 		cifs_dbg(FYI, "Negotiate caps 0x%x\n", (int)cap);
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 		if (cap & CIFS_UNIX_FCNTL_CAP)
 			cifs_dbg(FYI, "FCNTL cap\n");
 		if (cap & CIFS_UNIX_EXTATTR_CAP)
@@ -3865,7 +3865,7 @@ void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 			cifs_dbg(FYI, "transport encryption cap\n");
 		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP)
 			cifs_dbg(FYI, "mandatory transport encryption cap\n");
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
 			if (vol_info == NULL) {
 				cifs_dbg(FYI, "resetting capabilities failed\n");

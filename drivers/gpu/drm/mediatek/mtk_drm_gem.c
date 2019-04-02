@@ -71,7 +71,7 @@ struct mtk_drm_gem_obj *mtk_drm_gem_create(struct drm_device *dev,
 	if (alloc_kmap)
 		mtk_gem->kvaddr = mtk_gem->cookie;
 
-	DRM_DEBUG_DRIVER("cookie = %p dma_addr = %pad size = %zu\n",
+	DRM_DE_DRIVER("cookie = %p dma_addr = %pad size = %zu\n",
 			 mtk_gem->cookie, &mtk_gem->dma_addr,
 			 size);
 

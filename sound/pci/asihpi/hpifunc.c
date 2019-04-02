@@ -3,7 +3,7 @@
 #include "hpi_internal.h"
 #include "hpimsginit.h"
 
-#include "hpidebug.h"
+#include "hpide.h"
 
 struct hpi_handle {
 	unsigned int obj_index:12;

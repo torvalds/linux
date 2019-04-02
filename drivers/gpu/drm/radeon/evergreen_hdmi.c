@@ -331,19 +331,19 @@ void dce4_hdmi_set_color_depth(struct drm_encoder *encoder, u32 offset, int bpc)
 		case 8:
 		case 16:
 		default:
-			DRM_DEBUG("%s: Disabling hdmi deep color for %d bpc.\n",
+			DRM_DE("%s: Disabling hdmi deep color for %d bpc.\n",
 					 connector->name, bpc);
 			break;
 		case 10:
 			val |= HDMI_DEEP_COLOR_ENABLE;
 			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_30BIT_DEEP_COLOR);
-			DRM_DEBUG("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
+			DRM_DE("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
 					 connector->name);
 			break;
 		case 12:
 			val |= HDMI_DEEP_COLOR_ENABLE;
 			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_36BIT_DEEP_COLOR);
-			DRM_DEBUG("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
+			DRM_DE("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
 					 connector->name);
 			break;
 	}
@@ -433,7 +433,7 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 
 	dig->afmt->enabled = enable;
 
-	DRM_DEBUG("%sabling HDMI interface @ 0x%04X for encoder 0x%x\n",
+	DRM_DE("%sabling HDMI interface @ 0x%04X for encoder 0x%x\n",
 		  enable ? "En" : "Dis", dig->afmt->offset, radeon_encoder->encoder_id);
 }
 

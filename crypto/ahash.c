@@ -15,7 +15,7 @@
 
 #include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -164,7 +164,7 @@ int crypto_ahash_walk_first(struct ahash_request *req,
 	walk->flags = req->base.flags & CRYPTO_TFM_REQ_MASK;
 	walk->flags |= CRYPTO_ALG_ASYNC;
 
-	BUILD_BUG_ON(CRYPTO_TFM_REQ_MASK & CRYPTO_ALG_ASYNC);
+	BUILD__ON(CRYPTO_TFM_REQ_MASK & CRYPTO_ALG_ASYNC);
 
 	return hash_walk_new_entry(walk);
 }

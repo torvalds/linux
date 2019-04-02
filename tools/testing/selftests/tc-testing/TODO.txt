@@ -8,7 +8,7 @@ tc Testing Suite To-Do list:
 - Improve error messages when tdc aborts its run.  Partially done - still
   need to better handle problems in pre- and post-suite.
 
-- Use python logger module for debug/verbose output
+- Use python logger module for de/verbose output
 
 - Allow tdc to write its results to file.
   Maybe use python logger module for this too.

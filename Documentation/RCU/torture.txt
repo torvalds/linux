@@ -121,7 +121,7 @@ using a dynamically allocated srcu_struct (hence "srcud-" rather than
 "srcu-").  The numbers in parentheses are the values of the "old" and
 "current" counters for the corresponding CPU.  The "idx" value maps the
 "old" and "current" values to the underlying array, and is useful for
-debugging.  The final "T" entry contains the totals of the counters.
+deging.  The final "T" entry contains the totals of the counters.
 
 
 USAGE

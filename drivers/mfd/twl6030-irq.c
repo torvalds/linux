@@ -207,7 +207,7 @@ static irqreturn_t twl6030_irq_thread(int irq, void *data)
 			else
 				pr_err("twl6030_irq: Unmapped PIH ISR %u detected\n",
 				       i);
-			pr_debug("twl6030_irq: PIH ISR %u, virq%u\n",
+			pr_de("twl6030_irq: PIH ISR %u, virq%u\n",
 				 i, module_irq);
 		}
 

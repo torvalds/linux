@@ -44,7 +44,7 @@ void __init mem_map_via_hcall(struct boot_params *boot_params_p)
 	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
 	if (rc) {
 		xen_raw_printk("XENMEM_memory_map failed (%d)\n", rc);
-		BUG();
+		();
 	}
 	boot_params_p->e820_entries = memmap.nr_entries;
 }

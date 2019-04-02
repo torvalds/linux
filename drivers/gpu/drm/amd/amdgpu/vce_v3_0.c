@@ -716,7 +716,7 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("IH: VCE\n");
+	DRM_DE("IH: VCE\n");
 
 	WREG32_FIELD(VCE_SYS_INT_STATUS, VCE_SYS_INT_TRAP_INTERRUPT_INT, 1);
 

@@ -214,7 +214,7 @@ static int vco_set(struct clk_icst *icst, struct icst_vco vco)
 		break;
 	}
 
-	pr_debug("ICST: new val = 0x%08x\n", val);
+	pr_de("ICST: new val = 0x%08x\n", val);
 
 	/* This magic unlocks the VCO so it can be controlled */
 	ret = regmap_write(icst->map, icst->lockreg_off, VERSATILE_LOCK_VAL);
@@ -558,7 +558,7 @@ static void __init of_syscon_icst_setup(struct device_node *np)
 		return;
 	}
 	of_clk_add_provider(np, of_clk_src_simple_get, regclk);
-	pr_debug("registered syscon ICST clock %s\n", name);
+	pr_de("registered syscon ICST clock %s\n", name);
 }
 
 CLK_OF_DECLARE(arm_syscon_icst525_clk,

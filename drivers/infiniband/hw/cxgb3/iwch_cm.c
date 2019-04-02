@@ -112,9 +112,9 @@ static void connect_reply_upcall(struct iwch_ep *ep, int status);
 
 static void start_ep_timer(struct iwch_ep *ep)
 {
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	if (timer_pending(&ep->timer)) {
-		pr_debug("%s stopped / restarted timer ep %p\n", __func__, ep);
+		pr_de("%s stopped / restarted timer ep %p\n", __func__, ep);
 		del_timer_sync(&ep->timer);
 	} else
 		get_ep(&ep->com);
@@ -124,7 +124,7 @@ static void start_ep_timer(struct iwch_ep *ep)
 
 static void stop_ep_timer(struct iwch_ep *ep)
 {
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	if (!timer_pending(&ep->timer)) {
 		WARN(1, "%s timer stopped when its not running!  ep %p state %u\n",
 			__func__, ep, ep->com.state);
@@ -225,13 +225,13 @@ int iwch_resume_tid(struct iwch_ep *ep)
 
 static void set_emss(struct iwch_ep *ep, u16 opt)
 {
-	pr_debug("%s ep %p opt %u\n", __func__, ep, opt);
+	pr_de("%s ep %p opt %u\n", __func__, ep, opt);
 	ep->emss = T3C_DATA(ep->com.tdev)->mtus[G_TCPOPT_MSS(opt)] - 40;
 	if (G_TCPOPT_TSTAMP(opt))
 		ep->emss -= 12;
 	if (ep->emss < 128)
 		ep->emss = 128;
-	pr_debug("emss=%d\n", ep->emss);
+	pr_de("emss=%d\n", ep->emss);
 }
 
 static enum iwch_ep_state state_read(struct iwch_ep_common *epc)
@@ -255,7 +255,7 @@ static void state_set(struct iwch_ep_common *epc, enum iwch_ep_state new)
 	unsigned long flags;
 
 	spin_lock_irqsave(&epc->lock, flags);
-	pr_debug("%s - %s -> %s\n", __func__, states[epc->state], states[new]);
+	pr_de("%s - %s -> %s\n", __func__, states[epc->state], states[new]);
 	__state_set(epc, new);
 	spin_unlock_irqrestore(&epc->lock, flags);
 	return;
@@ -271,7 +271,7 @@ static void *alloc_ep(int size, gfp_t gfp)
 		spin_lock_init(&epc->lock);
 		init_waitqueue_head(&epc->waitq);
 	}
-	pr_debug("%s alloc ep %p\n", __func__, epc);
+	pr_de("%s alloc ep %p\n", __func__, epc);
 	return epc;
 }
 
@@ -280,7 +280,7 @@ void __free_ep(struct kref *kref)
 	struct iwch_ep *ep;
 	ep = container_of(container_of(kref, struct iwch_ep_common, kref),
 			  struct iwch_ep, com);
-	pr_debug("%s ep %p state %s\n",
+	pr_de("%s ep %p state %s\n",
 		 __func__, ep, states[state_read(&ep->com)]);
 	if (test_bit(RELEASE_RESOURCES, &ep->com.flags)) {
 		cxgb3_remove_tid(ep->com.tdev, (void *)ep, ep->hwtid);
@@ -292,7 +292,7 @@ void __free_ep(struct kref *kref)
 
 static void release_ep_resources(struct iwch_ep *ep)
 {
-	pr_debug("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
+	pr_de("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
 	set_bit(RELEASE_RESOURCES, &ep->com.flags);
 	put_ep(&ep->com);
 }
@@ -357,7 +357,7 @@ static unsigned int find_best_mtu(const struct t3c_data *d, unsigned short mtu)
 
 static void arp_failure_discard(struct t3cdev *dev, struct sk_buff *skb)
 {
-	pr_debug("%s t3cdev %p\n", __func__, dev);
+	pr_de("%s t3cdev %p\n", __func__, dev);
 	kfree_skb(skb);
 }
 
@@ -378,7 +378,7 @@ static void abort_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_abort_req *req = cplhdr(skb);
 
-	pr_debug("%s t3cdev %p\n", __func__, dev);
+	pr_de("%s t3cdev %p\n", __func__, dev);
 	req->cmd = CPL_ABORT_NO_RST;
 	iwch_cxgb3_ofld_send(dev, skb);
 }
@@ -388,7 +388,7 @@ static int send_halfclose(struct iwch_ep *ep, gfp_t gfp)
 	struct cpl_close_con_req *req;
 	struct sk_buff *skb;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	skb = get_skb(NULL, sizeof(*req), gfp);
 	if (!skb) {
 		pr_err("%s - failed to alloc skb\n", __func__);
@@ -407,7 +407,7 @@ static int send_abort(struct iwch_ep *ep, struct sk_buff *skb, gfp_t gfp)
 {
 	struct cpl_abort_req *req;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	skb = get_skb(skb, sizeof(*req), gfp);
 	if (!skb) {
 		pr_err("%s - failed to alloc skb\n", __func__);
@@ -431,7 +431,7 @@ static int send_connect(struct iwch_ep *ep)
 	unsigned int mtu_idx;
 	int wscale;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
@@ -474,9 +474,9 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 	struct mpa_message *mpa;
 	int len;
 
-	pr_debug("%s ep %p pd_len %d\n", __func__, ep, ep->plen);
+	pr_de("%s ep %p pd_len %d\n", __func__, ep, ep->plen);
 
-	BUG_ON(skb_cloned(skb));
+	_ON(skb_cloned(skb));
 
 	mpalen = sizeof(*mpa) + ep->plen;
 	if (skb->data + mpalen + sizeof(*req) > skb_end_pointer(skb)) {
@@ -519,7 +519,7 @@ static void send_mpa_req(struct iwch_ep *ep, struct sk_buff *skb)
 			   V_TX_SNDBUF(snd_win>>15));
 	req->flags = htonl(F_TX_INIT);
 	req->sndseq = htonl(ep->snd_seq);
-	BUG_ON(ep->mpa_skb);
+	_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
 	iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 	start_ep_timer(ep);
@@ -534,7 +534,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 	struct mpa_message *mpa;
 	struct sk_buff *skb;
 
-	pr_debug("%s ep %p plen %d\n", __func__, ep, plen);
+	pr_de("%s ep %p plen %d\n", __func__, ep, plen);
 
 	mpalen = sizeof(*mpa) + plen;
 
@@ -570,7 +570,7 @@ static int send_mpa_reject(struct iwch_ep *ep, const void *pdata, u8 plen)
 			   V_TX_SNDBUF(snd_win>>15));
 	req->flags = htonl(F_TX_INIT);
 	req->sndseq = htonl(ep->snd_seq);
-	BUG_ON(ep->mpa_skb);
+	_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
 	return iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 }
@@ -583,7 +583,7 @@ static int send_mpa_reply(struct iwch_ep *ep, const void *pdata, u8 plen)
 	int len;
 	struct sk_buff *skb;
 
-	pr_debug("%s ep %p plen %d\n", __func__, ep, plen);
+	pr_de("%s ep %p plen %d\n", __func__, ep, plen);
 
 	mpalen = sizeof(*mpa) + plen;
 
@@ -632,7 +632,7 @@ static int act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct cpl_act_establish *req = cplhdr(skb);
 	unsigned int tid = GET_TID(req);
 
-	pr_debug("%s ep %p tid %d\n", __func__, ep, tid);
+	pr_de("%s ep %p tid %d\n", __func__, ep, tid);
 
 	dst_confirm(ep->dst);
 
@@ -656,7 +656,7 @@ static int act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 
 static void abort_connection(struct iwch_ep *ep, struct sk_buff *skb, gfp_t gfp)
 {
-	pr_debug("%s ep %p\n", __FILE__, ep);
+	pr_de("%s ep %p\n", __FILE__, ep);
 	state_set(&ep->com, ABORTING);
 	send_abort(ep, skb, gfp);
 }
@@ -665,11 +665,11 @@ static void close_complete_upcall(struct iwch_ep *ep)
 {
 	struct iw_cm_event event;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CLOSE;
 	if (ep->com.cm_id) {
-		pr_debug("close complete delivered ep %p cm_id %p tid %d\n",
+		pr_de("close complete delivered ep %p cm_id %p tid %d\n",
 			 ep, ep->com.cm_id, ep->hwtid);
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 		ep->com.cm_id->rem_ref(ep->com.cm_id);
@@ -682,11 +682,11 @@ static void peer_close_upcall(struct iwch_ep *ep)
 {
 	struct iw_cm_event event;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_DISCONNECT;
 	if (ep->com.cm_id) {
-		pr_debug("peer close delivered ep %p cm_id %p tid %d\n",
+		pr_de("peer close delivered ep %p cm_id %p tid %d\n",
 			 ep, ep->com.cm_id, ep->hwtid);
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 	}
@@ -696,12 +696,12 @@ static void peer_abort_upcall(struct iwch_ep *ep)
 {
 	struct iw_cm_event event;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CLOSE;
 	event.status = -ECONNRESET;
 	if (ep->com.cm_id) {
-		pr_debug("abort delivered ep %p cm_id %p tid %d\n", ep,
+		pr_de("abort delivered ep %p cm_id %p tid %d\n", ep,
 			 ep->com.cm_id, ep->hwtid);
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 		ep->com.cm_id->rem_ref(ep->com.cm_id);
@@ -714,7 +714,7 @@ static void connect_reply_upcall(struct iwch_ep *ep, int status)
 {
 	struct iw_cm_event event;
 
-	pr_debug("%s ep %p status %d\n", __func__, ep, status);
+	pr_de("%s ep %p status %d\n", __func__, ep, status);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CONNECT_REPLY;
 	event.status = status;
@@ -728,7 +728,7 @@ static void connect_reply_upcall(struct iwch_ep *ep, int status)
 		event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	}
 	if (ep->com.cm_id) {
-		pr_debug("%s ep %p tid %d status %d\n", __func__, ep,
+		pr_de("%s ep %p tid %d status %d\n", __func__, ep,
 			 ep->hwtid, status);
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 	}
@@ -743,7 +743,7 @@ static void connect_request_upcall(struct iwch_ep *ep)
 {
 	struct iw_cm_event event;
 
-	pr_debug("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
+	pr_de("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CONNECT_REQUEST;
 	memcpy(&event.local_addr, &ep->com.local_addr,
@@ -772,7 +772,7 @@ static void established_upcall(struct iwch_ep *ep)
 {
 	struct iw_cm_event event;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_ESTABLISHED;
 	/*
@@ -781,7 +781,7 @@ static void established_upcall(struct iwch_ep *ep)
 	 */
 	event.ird = event.ord = 8;
 	if (ep->com.cm_id) {
-		pr_debug("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
+		pr_de("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
 		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
 	}
 }
@@ -791,7 +791,7 @@ static int update_rx_credits(struct iwch_ep *ep, u32 credits)
 	struct cpl_rx_data_ack *req;
 	struct sk_buff *skb;
 
-	pr_debug("%s ep %p credits %u\n", __func__, ep, credits);
+	pr_de("%s ep %p credits %u\n", __func__, ep, credits);
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
 		pr_err("update_rx_credits - cannot alloc skb!\n");
@@ -815,7 +815,7 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 	enum iwch_qp_attr_mask mask;
 	int err;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 
 	/*
 	 * Stop mpa timer.  If it expired, then the state has
@@ -902,7 +902,7 @@ static void process_mpa_reply(struct iwch_ep *ep, struct sk_buff *skb)
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
 	ep->mpa_attr.version = mpa_rev;
-	pr_debug("%s - crc_enabled=%d, recv_marker_enabled=%d, xmit_marker_enabled=%d, version=%d\n",
+	pr_de("%s - crc_enabled=%d, recv_marker_enabled=%d, xmit_marker_enabled=%d, version=%d\n",
 		 __func__,
 		 ep->mpa_attr.crc_enabled, ep->mpa_attr.recv_marker_enabled,
 		 ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version);
@@ -940,7 +940,7 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 	struct mpa_message *mpa;
 	u16 plen;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 
 	/*
 	 * Stop mpa timer.  If it expired, then the state has
@@ -960,7 +960,7 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 		return;
 	}
 
-	pr_debug("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
+	pr_de("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
 
 	/*
 	 * Copy the new data into our accumulation buffer.
@@ -975,7 +975,7 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 	 */
 	if (ep->mpa_pkt_len < sizeof(*mpa))
 		return;
-	pr_debug("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
+	pr_de("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
 	mpa = (struct mpa_message *) ep->mpa_pkt;
 
 	/*
@@ -1025,7 +1025,7 @@ static void process_mpa_request(struct iwch_ep *ep, struct sk_buff *skb)
 	ep->mpa_attr.recv_marker_enabled = markers_enabled;
 	ep->mpa_attr.xmit_marker_enabled = mpa->flags & MPA_MARKERS ? 1 : 0;
 	ep->mpa_attr.version = mpa_rev;
-	pr_debug("%s - crc_enabled=%d, recv_marker_enabled=%d, xmit_marker_enabled=%d, version=%d\n",
+	pr_de("%s - crc_enabled=%d, recv_marker_enabled=%d, xmit_marker_enabled=%d, version=%d\n",
 		 __func__,
 		 ep->mpa_attr.crc_enabled, ep->mpa_attr.recv_marker_enabled,
 		 ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version);
@@ -1043,13 +1043,13 @@ static int rx_data(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct cpl_rx_data *hdr = cplhdr(skb);
 	unsigned int dlen = ntohs(hdr->len);
 
-	pr_debug("%s ep %p dlen %u\n", __func__, ep, dlen);
+	pr_de("%s ep %p dlen %u\n", __func__, ep, dlen);
 
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, dlen);
 
 	ep->rcv_seq += dlen;
-	BUG_ON(ep->rcv_seq != (ntohl(hdr->seq) + dlen));
+	_ON(ep->rcv_seq != (ntohl(hdr->seq) + dlen));
 
 	switch (state_read(&ep->com)) {
 	case MPA_REQ_SENT:
@@ -1090,27 +1090,27 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	unsigned long flags;
 	int post_zb = 0;
 
-	pr_debug("%s ep %p credits %u\n", __func__, ep, credits);
+	pr_de("%s ep %p credits %u\n", __func__, ep, credits);
 
 	if (credits == 0) {
-		pr_debug("%s 0 credit ack  ep %p state %u\n",
+		pr_de("%s 0 credit ack  ep %p state %u\n",
 			 __func__, ep, state_read(&ep->com));
 		return CPL_RET_BUF_DONE;
 	}
 
 	spin_lock_irqsave(&ep->com.lock, flags);
-	BUG_ON(credits != 1);
+	_ON(credits != 1);
 	dst_confirm(ep->dst);
 	if (!ep->mpa_skb) {
-		pr_debug("%s rdma_init wr_ack ep %p state %u\n",
+		pr_de("%s rdma_init wr_ack ep %p state %u\n",
 			 __func__, ep, ep->com.state);
 		if (ep->mpa_attr.initiator) {
-			pr_debug("%s initiator ep %p state %u\n",
+			pr_de("%s initiator ep %p state %u\n",
 				 __func__, ep, ep->com.state);
 			if (peer2peer && ep->com.state == FPDU_MODE)
 				post_zb = 1;
 		} else {
-			pr_debug("%s responder ep %p state %u\n",
+			pr_de("%s responder ep %p state %u\n",
 				 __func__, ep, ep->com.state);
 			if (ep->com.state == MPA_REQ_RCVD) {
 				ep->com.rpl_done = 1;
@@ -1118,7 +1118,7 @@ static int tx_ack(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 			}
 		}
 	} else {
-		pr_debug("%s lsm ack ep %p state %u freeing skb\n",
+		pr_de("%s lsm ack ep %p state %u freeing skb\n",
 			 __func__, ep, ep->com.state);
 		kfree_skb(ep->mpa_skb);
 		ep->mpa_skb = NULL;
@@ -1135,8 +1135,8 @@ static int abort_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	unsigned long flags;
 	int release = 0;
 
-	pr_debug("%s ep %p\n", __func__, ep);
-	BUG_ON(!ep);
+	pr_de("%s ep %p\n", __func__, ep);
+	_ON(!ep);
 
 	/*
 	 * We get 2 abort replies from the HW.  The first one must
@@ -1178,7 +1178,7 @@ static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_ep *ep = ctx;
 	struct cpl_act_open_rpl *rpl = cplhdr(skb);
 
-	pr_debug("%s ep %p status %u errno %d\n", __func__, ep, rpl->status,
+	pr_de("%s ep %p status %u errno %d\n", __func__, ep, rpl->status,
 		 status2errno(rpl->status));
 	connect_reply_upcall(ep, status2errno(rpl->status));
 	state_set(&ep->com, DEAD);
@@ -1196,7 +1196,7 @@ static int listen_start(struct iwch_listen_ep *ep)
 	struct sk_buff *skb;
 	struct cpl_pass_open_req *req;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
 		pr_err("t3c_listen_start failed to alloc skb!\n");
@@ -1224,7 +1224,7 @@ static int pass_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_listen_ep *ep = ctx;
 	struct cpl_pass_open_rpl *rpl = cplhdr(skb);
 
-	pr_debug("%s ep %p status %d error %d\n", __func__, ep,
+	pr_de("%s ep %p status %d error %d\n", __func__, ep,
 		 rpl->status, status2errno(rpl->status));
 	ep->com.rpl_err = status2errno(rpl->status);
 	ep->com.rpl_done = 1;
@@ -1238,7 +1238,7 @@ static int listen_stop(struct iwch_listen_ep *ep)
 	struct sk_buff *skb;
 	struct cpl_close_listserv_req *req;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	if (!skb) {
 		pr_err("%s - failed to alloc skb\n", __func__);
@@ -1258,7 +1258,7 @@ static int close_listsrv_rpl(struct t3cdev *tdev, struct sk_buff *skb,
 	struct iwch_listen_ep *ep = ctx;
 	struct cpl_close_listserv_rpl *rpl = cplhdr(skb);
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	ep->com.rpl_err = status2errno(rpl->status);
 	ep->com.rpl_done = 1;
 	wake_up(&ep->com.waitq);
@@ -1272,8 +1272,8 @@ static void accept_cr(struct iwch_ep *ep, __be32 peer_ip, struct sk_buff *skb)
 	u32 opt0h, opt0l, opt2;
 	int wscale;
 
-	pr_debug("%s ep %p\n", __func__, ep);
-	BUG_ON(skb_cloned(skb));
+	pr_de("%s ep %p\n", __func__, ep);
+	_ON(skb_cloned(skb));
 	skb_trim(skb, sizeof(*rpl));
 	skb_get(skb);
 	mtu_idx = find_best_mtu(T3C_DATA(ep->com.tdev), dst_mtu(ep->dst));
@@ -1296,7 +1296,7 @@ static void accept_cr(struct iwch_ep *ep, __be32 peer_ip, struct sk_buff *skb)
 	rpl->opt0h = htonl(opt0h);
 	rpl->opt0l_status = htonl(opt0l | CPL_PASS_OPEN_ACCEPT);
 	rpl->opt2 = htonl(opt2);
-	rpl->rsvd = rpl->opt2;	/* workaround for HW bug */
+	rpl->rsvd = rpl->opt2;	/* workaround for HW  */
 	skb->priority = CPL_PRIORITY_SETUP;
 	iwch_l2t_send(ep->com.tdev, skb, ep->l2t);
 
@@ -1306,9 +1306,9 @@ static void accept_cr(struct iwch_ep *ep, __be32 peer_ip, struct sk_buff *skb)
 static void reject_cr(struct t3cdev *tdev, u32 hwtid, __be32 peer_ip,
 		      struct sk_buff *skb)
 {
-	pr_debug("%s t3cdev %p tid %u peer_ip %x\n", __func__, tdev, hwtid,
+	pr_de("%s t3cdev %p tid %u peer_ip %x\n", __func__, tdev, hwtid,
 		 peer_ip);
-	BUG_ON(skb_cloned(skb));
+	_ON(skb_cloned(skb));
 	skb_trim(skb, sizeof(struct cpl_tid_release));
 	skb_get(skb);
 
@@ -1341,7 +1341,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct rtable *rt;
 	struct iff_mac tim;
 
-	pr_debug("%s parent ep %p tid %u\n", __func__, parent_ep, hwtid);
+	pr_de("%s parent ep %p tid %u\n", __func__, parent_ep, hwtid);
 
 	if (state_read(&parent_ep->com) != LISTEN) {
 		pr_err("%s - listening ep not in LISTEN\n", __func__);
@@ -1412,7 +1412,7 @@ static int pass_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct iwch_ep *ep = ctx;
 	struct cpl_pass_establish *req = cplhdr(skb);
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	ep->snd_seq = ntohl(req->snd_isn);
 	ep->rcv_seq = ntohl(req->rcv_isn);
 
@@ -1433,7 +1433,7 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	int disconnect = 1;
 	int release = 0;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	dst_confirm(ep->dst);
 
 	spin_lock_irqsave(&ep->com.lock, flags);
@@ -1456,14 +1456,14 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		__state_set(&ep->com, CLOSING);
 		ep->com.rpl_done = 1;
 		ep->com.rpl_err = -ECONNRESET;
-		pr_debug("waking up ep %p\n", ep);
+		pr_de("waking up ep %p\n", ep);
 		wake_up(&ep->com.waitq);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
 		ep->com.rpl_done = 1;
 		ep->com.rpl_err = -ECONNRESET;
-		pr_debug("waking up ep %p\n", ep);
+		pr_de("waking up ep %p\n", ep);
 		wake_up(&ep->com.waitq);
 		break;
 	case FPDU_MODE:
@@ -1497,7 +1497,7 @@ static int peer_close(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		disconnect = 0;
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 	spin_unlock_irqrestore(&ep->com.lock, flags);
 	if (disconnect)
@@ -1528,7 +1528,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	unsigned long flags;
 
 	if (is_neg_adv_abort(req->status)) {
-		pr_debug("%s neg_adv_abort ep %p tid %d\n", __func__, ep,
+		pr_de("%s neg_adv_abort ep %p tid %d\n", __func__, ep,
 			 ep->hwtid);
 		t3_l2t_send_event(ep->com.tdev, ep->l2t);
 		return CPL_RET_BUF_DONE;
@@ -1543,7 +1543,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	}
 
 	spin_lock_irqsave(&ep->com.lock, flags);
-	pr_debug("%s ep %p state %u\n", __func__, ep, ep->com.state);
+	pr_de("%s ep %p state %u\n", __func__, ep, ep->com.state);
 	switch (ep->com.state) {
 	case CONNECTING:
 		break;
@@ -1557,7 +1557,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	case MPA_REP_SENT:
 		ep->com.rpl_done = 1;
 		ep->com.rpl_err = -ECONNRESET;
-		pr_debug("waking up ep %p\n", ep);
+		pr_de("waking up ep %p\n", ep);
 		wake_up(&ep->com.waitq);
 		break;
 	case MPA_REQ_RCVD:
@@ -1570,7 +1570,7 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		 */
 		ep->com.rpl_done = 1;
 		ep->com.rpl_err = -ECONNRESET;
-		pr_debug("waking up ep %p\n", ep);
+		pr_de("waking up ep %p\n", ep);
 		wake_up(&ep->com.waitq);
 		break;
 	case MORIBUND:
@@ -1591,11 +1591,11 @@ static int peer_abort(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	case ABORTING:
 		break;
 	case DEAD:
-		pr_debug("%s PEER_ABORT IN DEAD STATE!!!!\n", __func__);
+		pr_de("%s PEER_ABORT IN DEAD STATE!!!!\n", __func__);
 		spin_unlock_irqrestore(&ep->com.lock, flags);
 		return CPL_RET_BUF_DONE;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 	dst_confirm(ep->dst);
@@ -1631,8 +1631,8 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	unsigned long flags;
 	int release = 0;
 
-	pr_debug("%s ep %p\n", __func__, ep);
-	BUG_ON(!ep);
+	pr_de("%s ep %p\n", __func__, ep);
+	_ON(!ep);
 
 	/* The cm_id may be null if we failed to connect */
 	spin_lock_irqsave(&ep->com.lock, flags);
@@ -1657,7 +1657,7 @@ static int close_con_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	case DEAD:
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 	spin_unlock_irqrestore(&ep->com.lock, flags);
@@ -1685,9 +1685,9 @@ static int terminate(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	if (state_read(&ep->com) != FPDU_MODE)
 		return CPL_RET_BUF_DONE;
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	skb_pull(skb, sizeof(struct cpl_rdma_terminate));
-	pr_debug("%s saving %d bytes of term msg\n", __func__, skb->len);
+	pr_de("%s saving %d bytes of term msg\n", __func__, skb->len);
 	skb_copy_from_linear_data(skb, ep->com.qp->attr.terminate_buffer,
 				  skb->len);
 	ep->com.qp->attr.terminate_msg_len = skb->len;
@@ -1700,7 +1700,7 @@ static int ec_status(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	struct cpl_rdma_ec_status *rep = cplhdr(skb);
 	struct iwch_ep *ep = ctx;
 
-	pr_debug("%s ep %p tid %u status %d\n", __func__, ep, ep->hwtid,
+	pr_de("%s ep %p tid %u status %d\n", __func__, ep, ep->hwtid,
 		 rep->status);
 	if (rep->status) {
 		struct iwch_qp_attributes attrs;
@@ -1725,7 +1725,7 @@ static void ep_timeout(struct timer_list *t)
 	int abort = 1;
 
 	spin_lock_irqsave(&ep->com.lock, flags);
-	pr_debug("%s ep %p tid %u state %d\n", __func__, ep, ep->hwtid,
+	pr_de("%s ep %p tid %u state %d\n", __func__, ep, ep->hwtid,
 		 ep->com.state);
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
@@ -1760,13 +1760,13 @@ int iwch_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
 	struct iwch_ep *ep = to_ep(cm_id);
 
-	pr_debug("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
+	pr_de("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
 	if (state_read(&ep->com) == DEAD) {
 		put_ep(&ep->com);
 		return -ECONNRESET;
 	}
-	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
+	_ON(state_read(&ep->com) != MPA_REQ_RCVD);
 	if (mpa_rev == 0)
 		abort_connection(ep, NULL, GFP_KERNEL);
 	else {
@@ -1786,14 +1786,14 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct iwch_dev *h = to_iwch_dev(cm_id->device);
 	struct iwch_qp *qp = get_qhp(h, conn_param->qpn);
 
-	pr_debug("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
+	pr_de("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	if (state_read(&ep->com) == DEAD) {
 		err = -ECONNRESET;
 		goto err;
 	}
 
-	BUG_ON(state_read(&ep->com) != MPA_REQ_RCVD);
-	BUG_ON(!qp);
+	_ON(state_read(&ep->com) != MPA_REQ_RCVD);
+	_ON(!qp);
 
 	if ((conn_param->ord > qp->rhp->attr.max_rdma_read_qp_depth) ||
 	    (conn_param->ird > qp->rhp->attr.max_rdma_reads_per_qp)) {
@@ -1812,7 +1812,7 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (peer2peer && ep->ird == 0)
 		ep->ird = 1;
 
-	pr_debug("%s %d ird %d ord %d\n", __func__, __LINE__, ep->ird, ep->ord);
+	pr_de("%s %d ird %d ord %d\n", __func__, __LINE__, ep->ird, ep->ord);
 
 	/* bind QP to EP and move to RTS */
 	attrs.mpa_attr = ep->mpa_attr;
@@ -1913,8 +1913,8 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_id->add_ref(cm_id);
 	ep->com.cm_id = cm_id;
 	ep->com.qp = get_qhp(h, conn_param->qpn);
-	BUG_ON(!ep->com.qp);
-	pr_debug("%s qpn 0x%x qp %p cm_id %p\n", __func__, conn_param->qpn,
+	_ON(!ep->com.qp);
+	pr_de("%s qpn 0x%x qp %p cm_id %p\n", __func__, conn_param->qpn,
 		 ep->com.qp, cm_id);
 
 	/*
@@ -1989,7 +1989,7 @@ int iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 		err = -ENOMEM;
 		goto fail1;
 	}
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 	ep->com.tdev = h->rdev.t3cdev_p;
 	cm_id->add_ref(cm_id);
 	ep->com.cm_id = cm_id;
@@ -2034,7 +2034,7 @@ int iwch_destroy_listen(struct iw_cm_id *cm_id)
 	int err;
 	struct iwch_listen_ep *ep = to_listen_ep(cm_id);
 
-	pr_debug("%s ep %p\n", __func__, ep);
+	pr_de("%s ep %p\n", __func__, ep);
 
 	might_sleep();
 	state_set(&ep->com, DEAD);
@@ -2063,7 +2063,7 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 
 	spin_lock_irqsave(&ep->com.lock, flags);
 
-	pr_debug("%s ep %p state %s, abrupt %d\n", __func__, ep,
+	pr_de("%s ep %p state %s, abrupt %d\n", __func__, ep,
 		 states[ep->com.state], abrupt);
 
 	tdev = (struct t3cdev *)ep->com.tdev;
@@ -2101,11 +2101,11 @@ int iwch_ep_disconnect(struct iwch_ep *ep, int abrupt, gfp_t gfp)
 	case MORIBUND:
 	case ABORTING:
 	case DEAD:
-		pr_debug("%s ignoring disconnect ep %p state %u\n",
+		pr_de("%s ignoring disconnect ep %p state %u\n",
 			 __func__, ep, ep->com.state);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -2131,7 +2131,7 @@ int iwch_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 	if (ep->dst != old)
 		return 0;
 
-	pr_debug("%s ep %p redirect to dst %p l2t %p\n", __func__, ep, new,
+	pr_de("%s ep %p redirect to dst %p l2t %p\n", __func__, ep, new,
 		 l2t);
 	dst_hold(new);
 	l2t_release(ep->com.tdev, ep->l2t);

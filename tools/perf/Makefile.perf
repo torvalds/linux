@@ -39,7 +39,7 @@ include ../scripts/utilities.mak
 #
 # Define EXTRA_PERFLIBS to pass extra libraries to PERFLIBS.
 #
-# Define NO_DWARF if you do not want debug-info analysis feature at all.
+# Define NO_DWARF if you do not want de-info analysis feature at all.
 #
 # Define WERROR=0 to disable treating any warnings as errors.
 #
@@ -56,7 +56,7 @@ include ../scripts/utilities.mak
 # Define NO_LIBUNWIND if you do not want libunwind dependency for dwarf
 # backtrace post unwind.
 #
-# Define NO_BACKTRACE if you do not want stack backtrace debug feature
+# Define NO_BACKTRACE if you do not want stack backtrace de feature
 #
 # Define NO_LIBNUMA if you do not want numa perf benchmark
 #
@@ -95,7 +95,7 @@ include ../scripts/utilities.mak
 #
 # Define NO_JVMTI if you do not want jvmti agent built
 #
-# Define NO_JVMTI_CMLR (debug only) if you do not want to process CMLR
+# Define NO_JVMTI_CMLR (de only) if you do not want to process CMLR
 # data for java source lines.
 #
 # Define LIBCLANGLLVM if you DO want builtin clang and llvm support.
@@ -141,7 +141,7 @@ else
 endif
 
 # Do not use make's built-in rules
-# (this improves performance and avoids hard-to-debug behaviour);
+# (this improves performance and avoids hard-to-de behaviour);
 MAKEFLAGS += -r
 
 # Makefiles suck: This macro sets a default value of $(2) for the

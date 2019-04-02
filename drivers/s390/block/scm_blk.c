@@ -21,7 +21,7 @@
 #include <asm/eadm.h>
 #include "scm_blk.h"
 
-debug_info_t *scm_debug;
+de_info_t *scm_de;
 static int scm_major;
 static mempool_t *aidaw_pool;
 static DEFINE_SPINLOCK(list_lock);
@@ -556,14 +556,14 @@ static int __init scm_blk_init(void)
 	if (ret)
 		goto out_free;
 
-	scm_debug = debug_register("scm_log", 16, 1, 16);
-	if (!scm_debug) {
+	scm_de = de_register("scm_log", 16, 1, 16);
+	if (!scm_de) {
 		ret = -ENOMEM;
 		goto out_free;
 	}
 
-	debug_register_view(scm_debug, &debug_hex_ascii_view);
-	debug_set_level(scm_debug, 2);
+	de_register_view(scm_de, &de_hex_ascii_view);
+	de_set_level(scm_de, 2);
 
 	ret = scm_drv_init();
 	if (ret)
@@ -572,7 +572,7 @@ static int __init scm_blk_init(void)
 	return ret;
 
 out_dbf:
-	debug_unregister(scm_debug);
+	de_unregister(scm_de);
 out_free:
 	scm_free_rqs();
 	unregister_blkdev(scm_major, "scm");
@@ -584,7 +584,7 @@ module_init(scm_blk_init);
 static void __exit scm_blk_cleanup(void)
 {
 	scm_drv_cleanup();
-	debug_unregister(scm_debug);
+	de_unregister(scm_de);
 	scm_free_rqs();
 	unregister_blkdev(scm_major, "scm");
 }

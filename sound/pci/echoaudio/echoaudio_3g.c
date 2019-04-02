@@ -105,10 +105,10 @@ static int set_digital_mode(struct echoaudio *chip, u8 mode)
 	int err, i, o;
 
 	/* All audio channels must be closed before changing the digital mode */
-	if (snd_BUG_ON(chip->pipe_alloc_mask))
+	if (snd__ON(chip->pipe_alloc_mask))
 		return -EAGAIN;
 
-	if (snd_BUG_ON(!(chip->digital_modes & (1 << mode))))
+	if (snd__ON(!(chip->digital_modes & (1 << mode))))
 		return -EINVAL;
 
 	previous_mode = chip->digital_mode;
@@ -270,7 +270,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		return 0;
 	}
 
-	if (snd_BUG_ON(rate >= 50000 &&
+	if (snd__ON(rate >= 50000 &&
 		       chip->digital_mode == DIGITAL_MODE_ADAT))
 		return -EINVAL;
 

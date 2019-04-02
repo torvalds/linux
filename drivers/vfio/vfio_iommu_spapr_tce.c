@@ -52,7 +52,7 @@ static long try_increment_locked_vm(struct mm_struct *mm, long npages)
 	else
 		mm->locked_vm += npages;
 
-	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %ld/%ld%s\n", current->pid,
+	pr_de("[%d] RLIMIT_MEMLOCK +%ld %ld/%ld%s\n", current->pid,
 			npages << PAGE_SHIFT,
 			mm->locked_vm << PAGE_SHIFT,
 			rlimit(RLIMIT_MEMLOCK),
@@ -72,7 +72,7 @@ static void decrement_locked_vm(struct mm_struct *mm, long npages)
 	if (WARN_ON_ONCE(npages > mm->locked_vm))
 		npages = mm->locked_vm;
 	mm->locked_vm -= npages;
-	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %ld/%ld\n", current->pid,
+	pr_de("[%d] RLIMIT_MEMLOCK -%ld %ld/%ld\n", current->pid,
 			npages << PAGE_SHIFT,
 			mm->locked_vm << PAGE_SHIFT,
 			rlimit(RLIMIT_MEMLOCK));
@@ -124,7 +124,7 @@ static long tce_iommu_mm_set(struct tce_container *container)
 			return 0;
 		return -EPERM;
 	}
-	BUG_ON(!current->mm);
+	_ON(!current->mm);
 	container->mm = current->mm;
 	atomic_inc(&container->mm->mm_count);
 
@@ -354,7 +354,7 @@ static void tce_iommu_disable(struct tce_container *container)
 
 	container->enabled = false;
 
-	BUG_ON(!container->mm);
+	_ON(!container->mm);
 	decrement_locked_vm(container->mm, container->locked_pages);
 }
 
@@ -467,7 +467,7 @@ static void tce_iommu_unuse_page_v2(struct tce_container *container,
 	ret = tce_iommu_prereg_ua_to_hpa(container, be64_to_cpu(*pua),
 			tbl->it_page_shift, &hpa, &mem);
 	if (ret)
-		pr_debug("%s: tce %llx at #%lx was not cached, ret=%d\n",
+		pr_de("%s: tce %llx at #%lx was not cached, ret=%d\n",
 				__func__, be64_to_cpu(*pua), entry, ret);
 	if (mem)
 		mm_iommu_mapped_dec(mem);
@@ -714,7 +714,7 @@ static long tce_iommu_create_window(struct tce_container *container,
 	if (ret)
 		return ret;
 
-	BUG_ON(!tbl->it_ops->free);
+	_ON(!tbl->it_ops->free);
 
 	/*
 	 * Program the table to every group.
@@ -757,7 +757,7 @@ static long tce_iommu_remove_window(struct tce_container *container,
 	if (num < 0)
 		return -EINVAL;
 
-	BUG_ON(!tbl->it_size);
+	_ON(!tbl->it_size);
 
 	/* Detach groups from IOMMUs */
 	list_for_each_entry(tcegrp, &container->group_list, next) {
@@ -839,7 +839,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 	 * Sanity check to prevent one userspace from manipulating
 	 * another userspace mm.
 	 */
-	BUG_ON(!container);
+	_ON(!container);
 	if (container->mm && container->mm != current->mm)
 		return -EPERM;
 
@@ -1287,7 +1287,7 @@ static int tce_iommu_attach_group(void *iommu_data,
 
 	mutex_lock(&container->lock);
 
-	/* pr_debug("tce_vfio: Attaching group #%u to iommu %p\n",
+	/* pr_de("tce_vfio: Attaching group #%u to iommu %p\n",
 			iommu_group_id(iommu_group), iommu_group); */
 	table_group = iommu_group_get_iommudata(iommu_group);
 	if (!table_group) {
@@ -1387,7 +1387,7 @@ static void tce_iommu_detach_group(void *iommu_data,
 	kfree(tcegrp);
 
 	table_group = iommu_group_get_iommudata(iommu_group);
-	BUG_ON(!table_group);
+	_ON(!table_group);
 
 	if (!table_group->ops || !table_group->ops->release_ownership)
 		tce_iommu_release_ownership(container, table_group);

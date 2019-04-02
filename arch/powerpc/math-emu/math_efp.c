@@ -209,10 +209,10 @@ int do_spe_mathemu(struct pt_regs *regs)
 
 	__FPU_FPSCR = mfspr(SPRN_SPEFSCR);
 
-	pr_debug("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
-	pr_debug("vc: %08x  %08x\n", vc.wp[0], vc.wp[1]);
-	pr_debug("va: %08x  %08x\n", va.wp[0], va.wp[1]);
-	pr_debug("vb: %08x  %08x\n", vb.wp[0], vb.wp[1]);
+	pr_de("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
+	pr_de("vc: %08x  %08x\n", vc.wp[0], vc.wp[1]);
+	pr_de("va: %08x  %08x\n", va.wp[0], va.wp[1]);
+	pr_de("vb: %08x  %08x\n", vb.wp[0], vb.wp[1]);
 
 	switch (src) {
 	case SPFP: {
@@ -230,8 +230,8 @@ int do_spe_mathemu(struct pt_regs *regs)
 			break;
 		}
 
-		pr_debug("SA: %ld %08lx %ld (%ld)\n", SA_s, SA_f, SA_e, SA_c);
-		pr_debug("SB: %ld %08lx %ld (%ld)\n", SB_s, SB_f, SB_e, SB_c);
+		pr_de("SA: %ld %08lx %ld (%ld)\n", SA_s, SA_f, SA_e, SA_c);
+		pr_de("SB: %ld %08lx %ld (%ld)\n", SB_s, SB_f, SB_e, SB_c);
 
 		switch (func) {
 		case EFSABS:
@@ -291,7 +291,7 @@ int do_spe_mathemu(struct pt_regs *regs)
 			FP_CLEAR_EXCEPTIONS;
 			FP_UNPACK_DP(DB, vb.dp);
 
-			pr_debug("DB: %ld %08lx %08lx %ld (%ld)\n",
+			pr_de("DB: %ld %08lx %08lx %ld (%ld)\n",
 					DB_s, DB_f1, DB_f0, DB_e, DB_c);
 
 			FP_CONV(S, D, 1, 2, SR, DB);
@@ -326,7 +326,7 @@ int do_spe_mathemu(struct pt_regs *regs)
 		break;
 
 pack_s:
-		pr_debug("SR: %ld %08lx %ld (%ld)\n", SR_s, SR_f, SR_e, SR_c);
+		pr_de("SR: %ld %08lx %ld (%ld)\n", SR_s, SR_f, SR_e, SR_c);
 
 		FP_PACK_SP(vc.wp + 1, SR);
 		goto update_regs;
@@ -358,9 +358,9 @@ cmp_s:
 			break;
 		}
 
-		pr_debug("DA: %ld %08lx %08lx %ld (%ld)\n",
+		pr_de("DA: %ld %08lx %08lx %ld (%ld)\n",
 				DA_s, DA_f1, DA_f0, DA_e, DA_c);
-		pr_debug("DB: %ld %08lx %08lx %ld (%ld)\n",
+		pr_de("DB: %ld %08lx %08lx %ld (%ld)\n",
 				DB_s, DB_f1, DB_f0, DB_e, DB_c);
 
 		switch (func) {
@@ -421,7 +421,7 @@ cmp_s:
 			FP_CLEAR_EXCEPTIONS;
 			FP_UNPACK_SP(SB, vb.wp + 1);
 
-			pr_debug("SB: %ld %08lx %ld (%ld)\n",
+			pr_de("SB: %ld %08lx %ld (%ld)\n",
 					SB_s, SB_f, SB_e, SB_c);
 
 			FP_CONV(D, S, 2, 1, DR, SB);
@@ -467,7 +467,7 @@ cmp_s:
 		break;
 
 pack_d:
-		pr_debug("DR: %ld %08lx %08lx %ld (%ld)\n",
+		pr_de("DR: %ld %08lx %08lx %ld (%ld)\n",
 				DR_s, DR_f1, DR_f0, DR_e, DR_c);
 
 		FP_PACK_DP(vc.dp, DR);
@@ -506,13 +506,13 @@ cmp_d:
 			break;
 		}
 
-		pr_debug("SA0: %ld %08lx %ld (%ld)\n",
+		pr_de("SA0: %ld %08lx %ld (%ld)\n",
 				SA0_s, SA0_f, SA0_e, SA0_c);
-		pr_debug("SA1: %ld %08lx %ld (%ld)\n",
+		pr_de("SA1: %ld %08lx %ld (%ld)\n",
 				SA1_s, SA1_f, SA1_e, SA1_c);
-		pr_debug("SB0: %ld %08lx %ld (%ld)\n",
+		pr_de("SB0: %ld %08lx %ld (%ld)\n",
 				SB0_s, SB0_f, SB0_e, SB0_c);
-		pr_debug("SB1: %ld %08lx %ld (%ld)\n",
+		pr_de("SB1: %ld %08lx %ld (%ld)\n",
 				SB1_s, SB1_f, SB1_e, SB1_c);
 
 		switch (func) {
@@ -625,9 +625,9 @@ cmp_d:
 		break;
 
 pack_vs:
-		pr_debug("SR0: %ld %08lx %ld (%ld)\n",
+		pr_de("SR0: %ld %08lx %ld (%ld)\n",
 				SR0_s, SR0_f, SR0_e, SR0_c);
-		pr_debug("SR1: %ld %08lx %ld (%ld)\n",
+		pr_de("SR1: %ld %08lx %ld (%ld)\n",
 				SR1_s, SR1_f, SR1_e, SR1_c);
 
 		FP_PACK_SP(vc.wp, SR0);
@@ -685,12 +685,12 @@ update_regs:
 	current->thread.evr[fc] = vc.wp[0];
 	regs->gpr[fc] = vc.wp[1];
 
-	pr_debug("ccr = %08lx\n", regs->ccr);
-	pr_debug("cur exceptions = %08x spefscr = %08lx\n",
+	pr_de("ccr = %08lx\n", regs->ccr);
+	pr_de("cur exceptions = %08x spefscr = %08lx\n",
 			FP_CUR_EXCEPTIONS, __FPU_FPSCR);
-	pr_debug("vc: %08x  %08x\n", vc.wp[0], vc.wp[1]);
-	pr_debug("va: %08x  %08x\n", va.wp[0], va.wp[1]);
-	pr_debug("vb: %08x  %08x\n", vb.wp[0], vb.wp[1]);
+	pr_de("vc: %08x  %08x\n", vc.wp[0], vc.wp[1]);
+	pr_de("va: %08x  %08x\n", va.wp[0], va.wp[1]);
+	pr_de("vb: %08x  %08x\n", vb.wp[0], vb.wp[1]);
 
 	if (current->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE) {
 		if ((FP_CUR_EXCEPTIONS & FP_EX_DIVZERO)
@@ -715,7 +715,7 @@ illegal:
 	if (have_e500_cpu_a005_erratum) {
 		/* according to e500 cpu a005 erratum, reissue efp inst */
 		regs->nip -= 4;
-		pr_debug("re-issue efp inst: %08lx\n", speinsn);
+		pr_de("re-issue efp inst: %08lx\n", speinsn);
 		return 0;
 	}
 
@@ -741,7 +741,7 @@ int speround_handler(struct pt_regs *regs)
 	if (type == XCR) return -ENOSYS;
 
 	__FPU_FPSCR = mfspr(SPRN_SPEFSCR);
-	pr_debug("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
+	pr_de("speinsn:%08lx spefscr:%08lx\n", speinsn, __FPU_FPSCR);
 
 	fptype = (speinsn >> 5) & 0x7;
 
@@ -816,7 +816,7 @@ int speround_handler(struct pt_regs *regs)
 		break;
 	}
 
-	pr_debug("round fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
+	pr_de("round fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
 
 	switch (fptype) {
 	/* Since SPE instructions on E500 core can handle round to nearest
@@ -883,7 +883,7 @@ int speround_handler(struct pt_regs *regs)
 	current->thread.evr[fc] = fgpr.wp[0];
 	regs->gpr[fc] = fgpr.wp[1];
 
-	pr_debug("  to fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
+	pr_de("  to fgpr: %08x  %08x\n", fgpr.wp[0], fgpr.wp[1]);
 
 	if (current->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE)
 		return (current->thread.fpexc_mode & PR_FP_EXC_RES) ? 1 : 0;

@@ -267,7 +267,7 @@ KNOWN ISSUES
 
       If your AMD Opteron system uses the AMD-8131 HyperTransport PCI-X Tunnel
       chipset, you may experience the "133-Mhz Mode Split Completion Data
-      Corruption" bug identified by AMD while using a 133Mhz PCI-X card on the
+      Corruption"  identified by AMD while using a 133Mhz PCI-X card on the
       bus PCI-X bus.
 
       AMD states, "Under highly specific conditions, the AMD-8131 PCI-X Tunnel
@@ -275,7 +275,7 @@ KNOWN ISSUES
       is operating at 133 Mhz", causing data corruption.
 
       AMD's provides three workarounds for this problem, however, Chelsio
-      recommends the first option for best performance with this bug:
+      recommends the first option for best performance with this :
 
         For 133Mhz secondary bus operation, limit the transaction length and
         the number of outstanding transactions, via BIOS configuration
@@ -286,12 +286,12 @@ KNOWN ISSUES
 
       Please refer to AMD 8131-HT/PCI-X Errata 26310 Rev 3.08 August 2004,
       section 56, "133-MHz Mode Split Completion Data Corruption" for more
-      details with this bug and workarounds suggested by AMD.
+      details with this  and workarounds suggested by AMD.
 
       It may be possible to work outside AMD's recommended PCI-X settings, try
       increasing the Data Length to 2k bytes for increased performance. If you
       have issues with these settings, please revert to the "safe" settings
-      and duplicate the problem before submitting a bug or asking for support.
+      and duplicate the problem before submitting a  or asking for support.
 
       NOTE: The default setting on most systems is 8 outstanding transactions
             and 2k bytes data length.

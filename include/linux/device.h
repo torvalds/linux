@@ -627,7 +627,7 @@ extern void device_remove_bin_file(struct device *dev,
 typedef void (*dr_release_t)(struct device *dev, void *res);
 typedef int (*dr_match_t)(struct device *dev, void *res, void *match_data);
 
-#ifdef CONFIG_DEBUG_DEVRES
+#ifdef CONFIG_DE_DEVRES
 extern void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
 				 int nid, const char *name) __malloc;
 #define devres_alloc(release, size, gfp) \
@@ -1387,7 +1387,7 @@ static inline int devtmpfs_mount(const char *mountpoint) { return 0; }
 /* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);
 
-/* debugging and troubleshooting/diagnostic helpers. */
+/* deging and troubleshooting/diagnostic helpers. */
 extern const char *dev_driver_string(const struct device *dev);
 
 /* Device links interface. */
@@ -1488,17 +1488,17 @@ void _dev_info(const struct device *dev, const char *fmt, ...)
 #define dev_info(dev, fmt, ...)						\
 	_dev_info(dev, dev_fmt(fmt), ##__VA_ARGS__)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 #define dev_dbg(dev, fmt, ...)						\
 	dynamic_dev_dbg(dev, dev_fmt(fmt), ##__VA_ARGS__)
-#elif defined(DEBUG)
+#elif defined(DE)
 #define dev_dbg(dev, fmt, ...)						\
-	dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__)
+	dev_printk(KERN_DE, dev, dev_fmt(fmt), ##__VA_ARGS__)
 #else
 #define dev_dbg(dev, fmt, ...)						\
 ({									\
 	if (0)								\
-		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
+		dev_printk(KERN_DE, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 })
 #endif
 
@@ -1560,43 +1560,43 @@ do {									\
 	dev_level_ratelimited(dev_notice, dev, fmt, ##__VA_ARGS__)
 #define dev_info_ratelimited(dev, fmt, ...)				\
 	dev_level_ratelimited(dev_info, dev, fmt, ##__VA_ARGS__)
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 /* descriptor check is first to prevent flooding with "callbacks suppressed" */
 #define dev_dbg_ratelimited(dev, fmt, ...)				\
 do {									\
 	static DEFINE_RATELIMIT_STATE(_rs,				\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
-	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);			\
-	if (DYNAMIC_DEBUG_BRANCH(descriptor) &&				\
+	DEFINE_DYNAMIC_DE_METADATA(descriptor, fmt);			\
+	if (DYNAMIC_DE_BRANCH(descriptor) &&				\
 	    __ratelimit(&_rs))						\
 		__dynamic_dev_dbg(&descriptor, dev, dev_fmt(fmt),	\
 				  ##__VA_ARGS__);			\
 } while (0)
-#elif defined(DEBUG)
+#elif defined(DE)
 #define dev_dbg_ratelimited(dev, fmt, ...)				\
 do {									\
 	static DEFINE_RATELIMIT_STATE(_rs,				\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
 	if (__ratelimit(&_rs))						\
-		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
+		dev_printk(KERN_DE, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 } while (0)
 #else
 #define dev_dbg_ratelimited(dev, fmt, ...)				\
 do {									\
 	if (0)								\
-		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
+		dev_printk(KERN_DE, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 } while (0)
 #endif
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 #define dev_vdbg	dev_dbg
 #else
 #define dev_vdbg(dev, fmt, ...)						\
 ({									\
 	if (0)								\
-		dev_printk(KERN_DEBUG, dev, dev_fmt(fmt), ##__VA_ARGS__); \
+		dev_printk(KERN_DE, dev, dev_fmt(fmt), ##__VA_ARGS__); \
 })
 #endif
 

@@ -385,9 +385,9 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	if (!HCD_HW_ACCESSIBLE(hcd) || ehci->shutdown)
 		goto shutdown;
 
-	if (unlikely(ehci->debug)) {
+	if (unlikely(ehci->de)) {
 		if (!dbgp_reset_prep(hcd))
-			ehci->debug = NULL;
+			ehci->de = NULL;
 		else
 			dbgp_external_startup(hcd);
 	}
@@ -418,7 +418,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci->rh_state = EHCI_RH_RUNNING;
 
 	/*
-	 * According to Bugzilla #8190, the port status for some controllers
+	 * According to zilla #8190, the port status for some controllers
 	 * will be wrong without a delay. At their wrong status, the port
 	 * is enabled, but not suspended neither resumed.
 	 */
@@ -1159,11 +1159,11 @@ int ehci_hub_control(
 	case SetPortFeature:
 		selector = wIndex >> 8;
 		wIndex &= 0xff;
-		if (unlikely(ehci->debug)) {
-			/* If the debug port is active any port
+		if (unlikely(ehci->de)) {
+			/* If the de port is active any port
 			 * feature requests should get denied */
-			if (wIndex == HCS_DEBUG_PORT(ehci->hcs_params) &&
-			    (readl(&ehci->debug->control) & DBGP_ENABLED)) {
+			if (wIndex == HCS_DE_PORT(ehci->hcs_params) &&
+			    (readl(&ehci->de->control) & DBGP_ENABLED)) {
 				retval = -ENODEV;
 				goto error_exit;
 			}

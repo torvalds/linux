@@ -75,12 +75,12 @@ struct chs_entry {
 	printk(KERN_WARNING "sm_ftl" ": " format "\n", ## __VA_ARGS__)
 
 #define dbg(format, ...) \
-	if (debug) \
-		printk(KERN_DEBUG "sm_ftl" ": " format "\n", ## __VA_ARGS__)
+	if (de) \
+		printk(KERN_DE "sm_ftl" ": " format "\n", ## __VA_ARGS__)
 
 #define dbg_verbose(format, ...) \
-	if (debug > 1) \
-		printk(KERN_DEBUG "sm_ftl" ": " format "\n", ## __VA_ARGS__)
+	if (de > 1) \
+		printk(KERN_DE "sm_ftl" ": " format "\n", ## __VA_ARGS__)
 
 
 static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,

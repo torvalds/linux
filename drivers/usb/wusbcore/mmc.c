@@ -181,7 +181,7 @@ int wusbhc_start(struct wusbhc *wusbhc)
 	struct device *dev = wusbhc->dev;
 
 	WARN_ON(wusbhc->wuie_host_info != NULL);
-	BUG_ON(wusbhc->uwb_rc == NULL);
+	_ON(wusbhc->uwb_rc == NULL);
 
 	result = wusbhc_rsv_establish(wusbhc);
 	if (result < 0) {

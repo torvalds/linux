@@ -65,9 +65,9 @@ config DRM_I915_CAPTURE_ERROR
 	default y
 	help
 	  This option enables capturing the GPU state when a hang is detected.
-	  This information is vital for triaging hangs and assists in debugging.
+	  This information is vital for triaging hangs and assists in deging.
 	  Please report any hang to
-            https://bugs.freedesktop.org/enter_bug.cgi?product=DRI
+            https://s.freedesktop.org/enter_.cgi?product=DRI
 	  for triaging.
 
 	  If in doubt, say "Y".
@@ -128,8 +128,8 @@ config DRM_I915_GVT_KVMGT
 	  Choose this option if you want to enable KVMGT support for
 	  Intel GVT-g.
 
-menu "drm/i915 Debugging"
+menu "drm/i915 Deging"
 depends on DRM_I915
 depends on EXPERT
-source "drivers/gpu/drm/i915/Kconfig.debug"
+source "drivers/gpu/drm/i915/Kconfig.de"
 endmenu

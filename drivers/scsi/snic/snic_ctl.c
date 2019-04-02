@@ -164,7 +164,7 @@ snic_io_exch_ver_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 
 	SNIC_HOST_INFO(snic->shost, "Exch Ver Compl Received.\n");
 	snic_io_hdr_dec(&fwreq->hdr, &typ, &hdr_stat, &cmnd_id, &hid, &ctx);
-	SNIC_BUG_ON(snic->config.hid != hid);
+	SNIC__ON(snic->config.hid != hid);
 	rqi = (struct snic_req_info *) ctx;
 
 	if (hdr_stat) {

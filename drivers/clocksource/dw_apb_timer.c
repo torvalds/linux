@@ -126,7 +126,7 @@ static int apbt_shutdown(struct clock_event_device *evt)
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 	u32 ctrl;
 
-	pr_debug("%s CPU %d state=shutdown\n", __func__,
+	pr_de("%s CPU %d state=shutdown\n", __func__,
 		 cpumask_first(evt->cpumask));
 
 	ctrl = apbt_readl(&dw_ced->timer, APBTMR_N_CONTROL);
@@ -140,7 +140,7 @@ static int apbt_set_oneshot(struct clock_event_device *evt)
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 	u32 ctrl;
 
-	pr_debug("%s CPU %d state=oneshot\n", __func__,
+	pr_de("%s CPU %d state=oneshot\n", __func__,
 		 cpumask_first(evt->cpumask));
 
 	ctrl = apbt_readl(&dw_ced->timer, APBTMR_N_CONTROL);
@@ -173,7 +173,7 @@ static int apbt_set_periodic(struct clock_event_device *evt)
 	unsigned long period = DIV_ROUND_UP(dw_ced->timer.freq, HZ);
 	u32 ctrl;
 
-	pr_debug("%s CPU %d state=periodic\n", __func__,
+	pr_de("%s CPU %d state=periodic\n", __func__,
 		 cpumask_first(evt->cpumask));
 
 	ctrl = apbt_readl(&dw_ced->timer, APBTMR_N_CONTROL);
@@ -186,7 +186,7 @@ static int apbt_set_periodic(struct clock_event_device *evt)
 	ctrl &= ~APBTMR_CONTROL_ENABLE;
 	apbt_writel(&dw_ced->timer, ctrl, APBTMR_N_CONTROL);
 	udelay(1);
-	pr_debug("Setting clock period %lu for HZ %d\n", period, HZ);
+	pr_de("Setting clock period %lu for HZ %d\n", period, HZ);
 	apbt_writel(&dw_ced->timer, period, APBTMR_N_LOAD_COUNT);
 	ctrl |= APBTMR_CONTROL_ENABLE;
 	apbt_writel(&dw_ced->timer, ctrl, APBTMR_N_CONTROL);
@@ -197,7 +197,7 @@ static int apbt_resume(struct clock_event_device *evt)
 {
 	struct dw_apb_clock_event_device *dw_ced = ced_to_dw_apb_ced(evt);
 
-	pr_debug("%s CPU %d state=resume\n", __func__,
+	pr_de("%s CPU %d state=resume\n", __func__,
 		 cpumask_first(evt->cpumask));
 
 	apbt_enable_int(&dw_ced->timer);

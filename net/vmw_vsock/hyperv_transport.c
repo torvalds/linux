@@ -600,7 +600,7 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	struct hvs_send_buf *send_buf;
 	ssize_t to_write, max_writable, ret;
 
-	BUILD_BUG_ON(sizeof(*send_buf) != PAGE_SIZE_4K);
+	BUILD__ON(sizeof(*send_buf) != PAGE_SIZE_4K);
 
 	send_buf = kmalloc(sizeof(*send_buf), GFP_KERNEL);
 	if (!send_buf)

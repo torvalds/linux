@@ -296,7 +296,7 @@ La risposta ci viene sotto forma di sorgenti -next, dove i sottosistemi sono
 raccolti per essere testati e controllati.  Il più vecchio di questi sorgenti,
 gestito da Andrew Morton, è chiamato "-mm" (memory management, che è l'inizio
 di tutto).  L'-mm integra patch proveniente da una lunga lista di sottosistemi;
-e ha, inoltre, alcune patch destinate al supporto del debugging.
+e ha, inoltre, alcune patch destinate al supporto del deging.
 
 Oltre a questo, -mm contiene una raccolta significativa di patch che sono
 state selezionate da Andrew direttamente.  Queste patch potrebbero essere

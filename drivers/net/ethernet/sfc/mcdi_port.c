@@ -39,8 +39,8 @@ efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_PHY_CFG_IN_LEN != 0);
-	BUILD_BUG_ON(MC_CMD_GET_PHY_CFG_OUT_NAME_LEN != sizeof(cfg->name));
+	BUILD__ON(MC_CMD_GET_PHY_CFG_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_PHY_CFG_OUT_NAME_LEN != sizeof(cfg->name));
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_CFG, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -80,7 +80,7 @@ static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_LINK_IN_LEN);
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_SET_LINK_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_SET_LINK_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, SET_LINK_IN_CAP, capabilities);
 	MCDI_SET_DWORD(inbuf, SET_LINK_IN_FLAGS, flags);
@@ -427,7 +427,7 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 		goto fail;
 
 	/* Read initial link advertisement */
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_LINK_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc)
@@ -454,33 +454,33 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 		phy_data->forced_cap = caps;
 
 	/* Assert that we can map efx -> mcdi loopback modes */
-	BUILD_BUG_ON(LOOPBACK_NONE != MC_CMD_LOOPBACK_NONE);
-	BUILD_BUG_ON(LOOPBACK_DATA != MC_CMD_LOOPBACK_DATA);
-	BUILD_BUG_ON(LOOPBACK_GMAC != MC_CMD_LOOPBACK_GMAC);
-	BUILD_BUG_ON(LOOPBACK_XGMII != MC_CMD_LOOPBACK_XGMII);
-	BUILD_BUG_ON(LOOPBACK_XGXS != MC_CMD_LOOPBACK_XGXS);
-	BUILD_BUG_ON(LOOPBACK_XAUI != MC_CMD_LOOPBACK_XAUI);
-	BUILD_BUG_ON(LOOPBACK_GMII != MC_CMD_LOOPBACK_GMII);
-	BUILD_BUG_ON(LOOPBACK_SGMII != MC_CMD_LOOPBACK_SGMII);
-	BUILD_BUG_ON(LOOPBACK_XGBR != MC_CMD_LOOPBACK_XGBR);
-	BUILD_BUG_ON(LOOPBACK_XFI != MC_CMD_LOOPBACK_XFI);
-	BUILD_BUG_ON(LOOPBACK_XAUI_FAR != MC_CMD_LOOPBACK_XAUI_FAR);
-	BUILD_BUG_ON(LOOPBACK_GMII_FAR != MC_CMD_LOOPBACK_GMII_FAR);
-	BUILD_BUG_ON(LOOPBACK_SGMII_FAR != MC_CMD_LOOPBACK_SGMII_FAR);
-	BUILD_BUG_ON(LOOPBACK_XFI_FAR != MC_CMD_LOOPBACK_XFI_FAR);
-	BUILD_BUG_ON(LOOPBACK_GPHY != MC_CMD_LOOPBACK_GPHY);
-	BUILD_BUG_ON(LOOPBACK_PHYXS != MC_CMD_LOOPBACK_PHYXS);
-	BUILD_BUG_ON(LOOPBACK_PCS != MC_CMD_LOOPBACK_PCS);
-	BUILD_BUG_ON(LOOPBACK_PMAPMD != MC_CMD_LOOPBACK_PMAPMD);
-	BUILD_BUG_ON(LOOPBACK_XPORT != MC_CMD_LOOPBACK_XPORT);
-	BUILD_BUG_ON(LOOPBACK_XGMII_WS != MC_CMD_LOOPBACK_XGMII_WS);
-	BUILD_BUG_ON(LOOPBACK_XAUI_WS != MC_CMD_LOOPBACK_XAUI_WS);
-	BUILD_BUG_ON(LOOPBACK_XAUI_WS_FAR != MC_CMD_LOOPBACK_XAUI_WS_FAR);
-	BUILD_BUG_ON(LOOPBACK_XAUI_WS_NEAR != MC_CMD_LOOPBACK_XAUI_WS_NEAR);
-	BUILD_BUG_ON(LOOPBACK_GMII_WS != MC_CMD_LOOPBACK_GMII_WS);
-	BUILD_BUG_ON(LOOPBACK_XFI_WS != MC_CMD_LOOPBACK_XFI_WS);
-	BUILD_BUG_ON(LOOPBACK_XFI_WS_FAR != MC_CMD_LOOPBACK_XFI_WS_FAR);
-	BUILD_BUG_ON(LOOPBACK_PHYXS_WS != MC_CMD_LOOPBACK_PHYXS_WS);
+	BUILD__ON(LOOPBACK_NONE != MC_CMD_LOOPBACK_NONE);
+	BUILD__ON(LOOPBACK_DATA != MC_CMD_LOOPBACK_DATA);
+	BUILD__ON(LOOPBACK_GMAC != MC_CMD_LOOPBACK_GMAC);
+	BUILD__ON(LOOPBACK_XGMII != MC_CMD_LOOPBACK_XGMII);
+	BUILD__ON(LOOPBACK_XGXS != MC_CMD_LOOPBACK_XGXS);
+	BUILD__ON(LOOPBACK_XAUI != MC_CMD_LOOPBACK_XAUI);
+	BUILD__ON(LOOPBACK_GMII != MC_CMD_LOOPBACK_GMII);
+	BUILD__ON(LOOPBACK_SGMII != MC_CMD_LOOPBACK_SGMII);
+	BUILD__ON(LOOPBACK_XGBR != MC_CMD_LOOPBACK_XGBR);
+	BUILD__ON(LOOPBACK_XFI != MC_CMD_LOOPBACK_XFI);
+	BUILD__ON(LOOPBACK_XAUI_FAR != MC_CMD_LOOPBACK_XAUI_FAR);
+	BUILD__ON(LOOPBACK_GMII_FAR != MC_CMD_LOOPBACK_GMII_FAR);
+	BUILD__ON(LOOPBACK_SGMII_FAR != MC_CMD_LOOPBACK_SGMII_FAR);
+	BUILD__ON(LOOPBACK_XFI_FAR != MC_CMD_LOOPBACK_XFI_FAR);
+	BUILD__ON(LOOPBACK_GPHY != MC_CMD_LOOPBACK_GPHY);
+	BUILD__ON(LOOPBACK_PHYXS != MC_CMD_LOOPBACK_PHYXS);
+	BUILD__ON(LOOPBACK_PCS != MC_CMD_LOOPBACK_PCS);
+	BUILD__ON(LOOPBACK_PMAPMD != MC_CMD_LOOPBACK_PMAPMD);
+	BUILD__ON(LOOPBACK_XPORT != MC_CMD_LOOPBACK_XPORT);
+	BUILD__ON(LOOPBACK_XGMII_WS != MC_CMD_LOOPBACK_XGMII_WS);
+	BUILD__ON(LOOPBACK_XAUI_WS != MC_CMD_LOOPBACK_XAUI_WS);
+	BUILD__ON(LOOPBACK_XAUI_WS_FAR != MC_CMD_LOOPBACK_XAUI_WS_FAR);
+	BUILD__ON(LOOPBACK_XAUI_WS_NEAR != MC_CMD_LOOPBACK_XAUI_WS_NEAR);
+	BUILD__ON(LOOPBACK_GMII_WS != MC_CMD_LOOPBACK_GMII_WS);
+	BUILD__ON(LOOPBACK_XFI_WS != MC_CMD_LOOPBACK_XFI_WS);
+	BUILD__ON(LOOPBACK_XFI_WS_FAR != MC_CMD_LOOPBACK_XFI_WS_FAR);
+	BUILD__ON(LOOPBACK_PHYXS_WS != MC_CMD_LOOPBACK_PHYXS_WS);
 
 	rc = efx_mcdi_loopback_modes(efx, &efx->loopback_modes);
 	if (rc != 0)
@@ -565,7 +565,7 @@ static bool efx_mcdi_phy_poll(struct efx_nic *efx)
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_LINK_IN_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
@@ -609,7 +609,7 @@ static void efx_mcdi_phy_get_link_ksettings(struct efx_nic *efx,
 	memcpy(cmd->link_modes.advertising, efx->link_advertising,
 	       sizeof(__ETHTOOL_DECLARE_LINK_MODE_MASK()));
 
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_LINK_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc)
@@ -677,7 +677,7 @@ static int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_LINK_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
@@ -753,7 +753,7 @@ static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_PHY_STATE_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_PHY_STATE_IN_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_STATE, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -790,7 +790,7 @@ static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
 	u8 *ptr;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_START_BIST_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_START_BIST_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, START_BIST_IN_TYPE, bist_mode);
 	rc = efx_mcdi_rpc(efx, MC_CMD_START_BIST,
 			  inbuf, MC_CMD_START_BIST_IN_LEN, NULL, 0, NULL);
@@ -799,7 +799,7 @@ static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
 
 	/* Wait up to 10s for BIST to finish */
 	for (retry = 0; retry < 100; ++retry) {
-		BUILD_BUG_ON(MC_CMD_POLL_BIST_IN_LEN != 0);
+		BUILD__ON(MC_CMD_POLL_BIST_IN_LEN != 0);
 		rc = efx_mcdi_rpc(efx, MC_CMD_POLL_BIST, NULL, 0,
 				  outbuf, sizeof(outbuf), &outlen);
 		if (rc)
@@ -1179,7 +1179,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 	u32 fcntl;
 	MCDI_DECLARE_BUF(cmdbytes, MC_CMD_SET_MAC_IN_LEN);
 
-	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_SET_MAC_OUT_LEN != 0);
 
 	/* This has no effect on EF10 */
 	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
@@ -1225,7 +1225,7 @@ bool efx_mcdi_mac_check_fault(struct efx_nic *efx)
 	size_t outlength;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_LINK_IN_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlength);
@@ -1253,7 +1253,7 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx,
 	u32 dma_len = action != EFX_STATS_DISABLE ?
 		efx->num_mac_stats * sizeof(u64) : 0;
 
-	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
+	BUILD__ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
 
 	MCDI_SET_QWORD(inbuf, MAC_STATS_IN_DMA_ADDR, dma_addr);
 	MCDI_POPULATE_DWORD_7(inbuf, MAC_STATS_IN_CMD,

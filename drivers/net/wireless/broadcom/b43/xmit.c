@@ -832,7 +832,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 	ieee80211_rx_ni(dev->wl->hw, skb);
 
-#if B43_DEBUG
+#if B43_DE
 	dev->rx_count++;
 #endif
 	return;
@@ -843,7 +843,7 @@ drop:
 void b43_handle_txstatus(struct b43_wldev *dev,
 			 const struct b43_txstatus *status)
 {
-	b43_debugfs_log_txstat(dev, status);
+	b43_defs_log_txstat(dev, status);
 
 	if (status->intermediate)
 		return;

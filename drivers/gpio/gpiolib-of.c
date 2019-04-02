@@ -183,7 +183,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	ret = of_parse_phandle_with_args_map(np, propname, "gpio", index,
 					     &gpiospec);
 	if (ret) {
-		pr_debug("%s: can't parse '%s' property of node '%pOF[%d]'\n",
+		pr_de("%s: can't parse '%s' property of node '%pOF[%d]'\n",
 			__func__, propname, np, index);
 		return ERR_PTR(ret);
 	}
@@ -201,7 +201,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 	if (flags)
 		of_gpio_flags_quirks(np, propname, flags, index);
 
-	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
+	pr_de("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,
 		 PTR_ERR_OR_ZERO(desc));
 

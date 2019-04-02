@@ -31,10 +31,10 @@ static void bnx2fc_rrq_compl(struct bnx2fc_els_cb_arg *cb_arg)
 	struct bnx2fc_cmd *rrq_req;
 	int rc = 0;
 
-	BUG_ON(!cb_arg);
+	_ON(!cb_arg);
 	rrq_req = cb_arg->io_req;
 	orig_io_req = cb_arg->aborted_io_req;
-	BUG_ON(!orig_io_req);
+	_ON(!orig_io_req);
 	BNX2FC_ELS_DBG("rrq_compl: orig xid = 0x%x, rrq_xid = 0x%x\n",
 		   orig_io_req->xid, rrq_req->xid);
 
@@ -52,7 +52,7 @@ static void bnx2fc_rrq_compl(struct bnx2fc_els_cb_arg *cb_arg)
 			list_del_init(&rrq_req->link);
 			rrq_req->on_active_queue = 0;
 			rc = bnx2fc_initiate_cleanup(rrq_req);
-			BUG_ON(rc);
+			_ON(rc);
 		}
 	}
 	kfree(cb_arg);
@@ -145,7 +145,7 @@ static void bnx2fc_l2_els_compl(struct bnx2fc_els_cb_arg *cb_arg)
 			list_del_init(&els_req->link);
 			els_req->on_active_queue = 0;
 			rc = bnx2fc_initiate_cleanup(els_req);
-			BUG_ON(rc);
+			_ON(rc);
 		}
 		goto free_arg;
 	}

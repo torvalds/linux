@@ -34,7 +34,7 @@
 #include "paride.h"
 
 /* PARAMETERS */
-static bool verbose; /* set this to 1 to see debugging messages and whatnot */
+static bool verbose; /* set this to 1 to see deging messages and whatnot */
  
 
 #define PPCSTRUCT(pi) ((Interface *)(pi->private))
@@ -92,7 +92,7 @@ static void bpck6_connect ( PIA *pi  )
 {
 	if(verbose)
 	{
-		printk(KERN_DEBUG "connect\n");
+		printk(KERN_DE "connect\n");
 	}
 
 	if(pi->mode >=2)
@@ -126,7 +126,7 @@ static int bpck6_test_port ( PIA *pi )   /* check for 8-bit port */
 {
 	if(verbose)
 	{
-		printk(KERN_DEBUG "PARPORT indicates modes=%x for lp=0x%lx\n",
+		printk(KERN_DE "PARPORT indicates modes=%x for lp=0x%lx\n",
                		((struct pardevice*)(pi->pardev))->port->modes,
 			((struct pardevice *)(pi->pardev))->port->base); 
 	}
@@ -160,7 +160,7 @@ static int bpck6_probe_unit ( PIA *pi )
 
 	if(verbose)
 	{
-		printk(KERN_DEBUG "PROBE UNIT %x on port:%x\n",pi->unit,pi->port);
+		printk(KERN_DE "PROBE UNIT %x on port:%x\n",pi->unit,pi->port);
 	}
 
 	/*SET PPC UNIT NUMBER*/
@@ -173,7 +173,7 @@ static int bpck6_probe_unit ( PIA *pi )
 
 	if(verbose)
 	{
-		printk(KERN_DEBUG "ppc_open returned %2x\n",out);
+		printk(KERN_DE "ppc_open returned %2x\n",out);
 	}
 
   	if(out)
@@ -181,7 +181,7 @@ static int bpck6_probe_unit ( PIA *pi )
 		ppc6_close(PPCSTRUCT(pi));
 		if(verbose)
 		{
-			printk(KERN_DEBUG "leaving probe\n");
+			printk(KERN_DE "leaving probe\n");
 		}
                return(1);
 	}
@@ -189,7 +189,7 @@ static int bpck6_probe_unit ( PIA *pi )
   	{
 		if(verbose)
 		{
-			printk(KERN_DEBUG "Failed open\n");
+			printk(KERN_DE "Failed open\n");
 		}
     		return(0);
   	}
@@ -250,7 +250,7 @@ static int __init bpck6_init(void)
 	printk(KERN_INFO "bpck6: BACKPACK Protocol Driver V"BACKPACK_VERSION"\n");
 	printk(KERN_INFO "bpck6: Copyright 2001 by Micro Solutions, Inc., DeKalb IL. USA\n");
 	if(verbose)
-		printk(KERN_DEBUG "bpck6: verbose debug enabled.\n");
+		printk(KERN_DE "bpck6: verbose de enabled.\n");
 	return paride_register(&bpck6);
 }
 

@@ -31,7 +31,7 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	__u32			status;		/* thread synchronous flags */
 	__u32			cpu;
-	int			preempt_count; /* 0 => preemptable, <0 => BUG */
+	int			preempt_count; /* 0 => preemptable, <0 =>  */
 	mm_segment_t		addr_limit;	/* thread address space */
 	unsigned long		previous_sp;	/* sp of previous stack in case
 						   of nested IRQ stacks */

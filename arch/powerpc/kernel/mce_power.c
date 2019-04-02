@@ -19,7 +19,7 @@
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
  */
 
-#undef DEBUG
+#undef DE
 #define pr_fmt(fmt) "mce_power: " fmt
 
 #include <linux/types.h>

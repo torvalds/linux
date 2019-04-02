@@ -52,7 +52,7 @@ struct kmem_cache *v9fs_inode_cache;
 
 enum {
 	/* Options that take integer arguments */
-	Opt_debug, Opt_dfltuid, Opt_dfltgid, Opt_afid,
+	Opt_de, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
 	Opt_uname, Opt_remotename, Opt_cache, Opt_cachetag,
 	/* Options that take no arguments */
@@ -68,7 +68,7 @@ enum {
 };
 
 static const match_table_t tokens = {
-	{Opt_debug, "debug=%x"},
+	{Opt_de, "de=%x"},
 	{Opt_dfltuid, "dfltuid=%u"},
 	{Opt_dfltgid, "dfltgid=%u"},
 	{Opt_afid, "afid=%u"},
@@ -100,16 +100,16 @@ static int get_cache_mode(char *s)
 
 	if (!strcmp(s, "loose")) {
 		version = CACHE_LOOSE;
-		p9_debug(P9_DEBUG_9P, "Cache mode: loose\n");
+		p9_de(P9_DE_9P, "Cache mode: loose\n");
 	} else if (!strcmp(s, "fscache")) {
 		version = CACHE_FSCACHE;
-		p9_debug(P9_DEBUG_9P, "Cache mode: fscache\n");
+		p9_de(P9_DE_9P, "Cache mode: fscache\n");
 	} else if (!strcmp(s, "mmap")) {
 		version = CACHE_MMAP;
-		p9_debug(P9_DEBUG_9P, "Cache mode: mmap\n");
+		p9_de(P9_DE_9P, "Cache mode: mmap\n");
 	} else if (!strcmp(s, "none")) {
 		version = CACHE_NONE;
-		p9_debug(P9_DEBUG_9P, "Cache mode: none\n");
+		p9_de(P9_DE_9P, "Cache mode: none\n");
 	} else
 		pr_info("Unknown Cache mode %s\n", s);
 	return version;
@@ -122,8 +122,8 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 {
 	struct v9fs_session_info *v9ses = root->d_sb->s_fs_info;
 
-	if (v9ses->debug)
-		seq_printf(m, ",debug=%x", v9ses->debug);
+	if (v9ses->de)
+		seq_printf(m, ",de=%x", v9ses->de);
 	if (!uid_eq(v9ses->dfltuid, V9FS_DEFUID))
 		seq_printf(m, ",dfltuid=%u",
 			   from_kuid_munged(&init_user_ns, v9ses->dfltuid));
@@ -185,7 +185,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 
 	/* setup defaults */
 	v9ses->afid = ~0;
-	v9ses->debug = 0;
+	v9ses->de = 0;
 	v9ses->cache = CACHE_NONE;
 #ifdef CONFIG_9P_FSCACHE
 	v9ses->cachetag = NULL;
@@ -208,16 +208,16 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			continue;
 		token = match_token(p, tokens, args);
 		switch (token) {
-		case Opt_debug:
+		case Opt_de:
 			r = match_int(&args[0], &option);
 			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "integer field, but no integer?\n");
 				ret = r;
 			} else {
-				v9ses->debug = option;
-#ifdef CONFIG_NET_9P_DEBUG
-				p9_debug_level = option;
+				v9ses->de = option;
+#ifdef CONFIG_NET_9P_DE
+				p9_de_level = option;
 #endif
 			}
 			break;
@@ -225,14 +225,14 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		case Opt_dfltuid:
 			r = match_int(&args[0], &option);
 			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "integer field, but no integer?\n");
 				ret = r;
 				continue;
 			}
 			v9ses->dfltuid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(v9ses->dfltuid)) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "uid field, but not a uid?\n");
 				ret = -EINVAL;
 			}
@@ -240,14 +240,14 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		case Opt_dfltgid:
 			r = match_int(&args[0], &option);
 			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "integer field, but no integer?\n");
 				ret = r;
 				continue;
 			}
 			v9ses->dfltgid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(v9ses->dfltgid)) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "gid field, but not a gid?\n");
 				ret = -EINVAL;
 			}
@@ -255,7 +255,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		case Opt_afid:
 			r = match_int(&args[0], &option);
 			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "integer field, but no integer?\n");
 				ret = r;
 			} else {
@@ -304,7 +304,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			s = match_strdup(&args[0]);
 			if (!s) {
 				ret = -ENOMEM;
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "problem allocating copy of cache arg\n");
 				goto free_and_return;
 			}
@@ -321,7 +321,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			s = match_strdup(&args[0]);
 			if (!s) {
 				ret = -ENOMEM;
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "problem allocating copy of access arg\n");
 				goto free_and_return;
 			}
@@ -358,7 +358,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 #ifdef CONFIG_9P_FS_POSIX_ACL
 			v9ses->flags |= V9FS_POSIX_ACL;
 #else
-			p9_debug(P9_DEBUG_ERROR,
+			p9_de(P9_DE_ERROR,
 				 "Not defined CONFIG_9P_FS_POSIX_ACL. Ignoring posixacl option\n");
 #endif
 			break;
@@ -366,13 +366,13 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		case Opt_locktimeout:
 			r = match_int(&args[0], &option);
 			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "integer field, but no integer?\n");
 				ret = r;
 				continue;
 			}
 			if (option < 1) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "locktimeout must be a greater than zero integer.\n");
 				ret = -EINVAL;
 				continue;
@@ -421,7 +421,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->clnt = p9_client_create(dev_name, data);
 	if (IS_ERR(v9ses->clnt)) {
 		rc = PTR_ERR(v9ses->clnt);
-		p9_debug(P9_DEBUG_ERROR, "problem initializing 9p client\n");
+		p9_de(P9_DE_ERROR, "problem initializing 9p client\n");
 		goto err_names;
 	}
 
@@ -471,7 +471,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 							v9ses->aname);
 	if (IS_ERR(fid)) {
 		rc = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_ERROR, "cannot attach\n");
+		p9_de(P9_DE_ERROR, "cannot attach\n");
 		goto err_clnt;
 	}
 
@@ -536,7 +536,7 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
  */
 
 void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
-	p9_debug(P9_DEBUG_ERROR, "cancel session %p\n", v9ses);
+	p9_de(P9_DE_ERROR, "cancel session %p\n", v9ses);
 	p9_client_disconnect(v9ses->clnt);
 }
 
@@ -549,7 +549,7 @@ void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
 
 void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses)
 {
-	p9_debug(P9_DEBUG_ERROR, "begin cancel session %p\n", v9ses);
+	p9_de(P9_DE_ERROR, "begin cancel session %p\n", v9ses);
 	p9_client_begin_disconnect(v9ses->clnt);
 }
 

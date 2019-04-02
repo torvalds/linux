@@ -12,7 +12,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/gcd.h>
@@ -60,9 +60,9 @@
 
 #define fh_to_ctx(__fh)	container_of(__fh, struct coda_ctx, fh)
 
-int coda_debug;
-module_param(coda_debug, int, 0644);
-MODULE_PARM_DESC(coda_debug, "Debug level (0-2)");
+int coda_de;
+module_param(coda_de, int, 0644);
+MODULE_PARM_DESC(coda_de, "De level (0-2)");
 
 static int disable_tiling;
 module_param(disable_tiling, int, 0644);
@@ -78,7 +78,7 @@ MODULE_PARM_DESC(enable_bwb, "Enable BWB unit for decoding, may crash on certain
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
-	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
+	v4l2_dbg(2, coda_de, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
 	writel(data, dev->regs_base + reg);
 }
@@ -88,7 +88,7 @@ unsigned int coda_read(struct coda_dev *dev, u32 reg)
 	u32 data;
 
 	data = readl(dev->regs_base + reg);
-	v4l2_dbg(2, coda_debug, &dev->v4l2_dev,
+	v4l2_dbg(2, coda_de, &dev->v4l2_dev,
 		 "%s: data=0x%x, reg=0x%x\n", __func__, data, reg);
 	return data;
 }
@@ -579,7 +579,7 @@ static int coda_try_fmt(struct coda_ctx *ctx, const struct coda_codec *codec,
 							f->fmt.pix.height);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return 0;
@@ -1599,11 +1599,11 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 	if (name && parent) {
 		buf->blob.data = buf->vaddr;
 		buf->blob.size = size;
-		buf->dentry = debugfs_create_blob(name, 0644, parent,
+		buf->dentry = defs_create_blob(name, 0644, parent,
 						  &buf->blob);
 		if (!buf->dentry)
 			dev_warn(&dev->plat_dev->dev,
-				 "failed to create debugfs entry %s\n", name);
+				 "failed to create defs entry %s\n", name);
 	}
 
 	return 0;
@@ -1617,7 +1617,7 @@ void coda_free_aux_buf(struct coda_dev *dev,
 				  buf->vaddr, buf->paddr);
 		buf->vaddr = NULL;
 		buf->size = 0;
-		debugfs_remove(buf->dentry);
+		defs_remove(buf->dentry);
 		buf->dentry = NULL;
 	}
 }
@@ -2179,7 +2179,7 @@ static int coda_open(struct file *file)
 		goto err_coda_name_init;
 	}
 
-	ctx->debugfs_entry = debugfs_create_dir(name, dev->debugfs_root);
+	ctx->defs_entry = defs_create_dir(name, dev->defs_root);
 	kfree(name);
 
 	ctx->cvd = to_coda_video_device(vdev);
@@ -2317,7 +2317,7 @@ static int coda_release(struct file *file)
 	ida_free(&dev->ida, ctx->idx);
 	if (ctx->ops->release)
 		ctx->ops->release(ctx);
-	debugfs_remove_recursive(ctx->debugfs_entry);
+	defs_remove_recursive(ctx->defs_entry);
 	kfree(ctx);
 
 	return 0;
@@ -2533,7 +2533,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 
 	/* allocate auxiliary per-device code buffer for the BIT processor */
 	ret = coda_alloc_aux_buf(dev, &dev->codebuf, fw->size, "codebuf",
-				 dev->debugfs_root);
+				 dev->defs_root);
 	if (ret < 0)
 		goto put_pm;
 
@@ -2776,15 +2776,15 @@ static int coda_probe(struct platform_device *pdev)
 	mutex_init(&dev->coda_mutex);
 	ida_init(&dev->ida);
 
-	dev->debugfs_root = debugfs_create_dir("coda", NULL);
-	if (!dev->debugfs_root)
-		dev_warn(&pdev->dev, "failed to create debugfs root\n");
+	dev->defs_root = defs_create_dir("coda", NULL);
+	if (!dev->defs_root)
+		dev_warn(&pdev->dev, "failed to create defs root\n");
 
 	/* allocate auxiliary per-device buffers for the BIT processor */
 	if (dev->devtype->product == CODA_DX6) {
 		ret = coda_alloc_aux_buf(dev, &dev->workbuf,
 					 dev->devtype->workbuf_size, "workbuf",
-					 dev->debugfs_root);
+					 dev->defs_root);
 		if (ret < 0)
 			goto err_v4l2_register;
 	}
@@ -2792,7 +2792,7 @@ static int coda_probe(struct platform_device *pdev)
 	if (dev->devtype->tempbuf_size) {
 		ret = coda_alloc_aux_buf(dev, &dev->tempbuf,
 					 dev->devtype->tempbuf_size, "tempbuf",
-					 dev->debugfs_root);
+					 dev->defs_root);
 		if (ret < 0)
 			goto err_v4l2_register;
 	}
@@ -2806,8 +2806,8 @@ static int coda_probe(struct platform_device *pdev)
 		memset(dev->iram.vaddr, 0, dev->iram.size);
 		dev->iram.blob.data = dev->iram.vaddr;
 		dev->iram.blob.size = dev->iram.size;
-		dev->iram.dentry = debugfs_create_blob("iram", 0644,
-						       dev->debugfs_root,
+		dev->iram.dentry = defs_create_blob("iram", 0644,
+						       dev->defs_root,
 						       &dev->iram.blob);
 	}
 
@@ -2861,7 +2861,7 @@ static int coda_remove(struct platform_device *pdev)
 	coda_free_aux_buf(dev, &dev->codebuf);
 	coda_free_aux_buf(dev, &dev->tempbuf);
 	coda_free_aux_buf(dev, &dev->workbuf);
-	debugfs_remove_recursive(dev->debugfs_root);
+	defs_remove_recursive(dev->defs_root);
 	ida_destroy(&dev->ida);
 	return 0;
 }

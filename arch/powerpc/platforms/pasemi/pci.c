@@ -82,7 +82,7 @@ static int workaround_5945(struct pci_bus *bus, unsigned int devfn,
 	addr = pa_pxp_cfg_addr(hose, bus->number, devfn, offset & ~0x3);
 	byte = offset & 0x3;
 
-	/* Workaround bug 5945: write 0 to a dummy register before reading,
+	/* Workaround  5945: write 0 to a dummy register before reading,
 	 * and write back what we read. We must read/write the full 32-bit
 	 * contents so we need to shift and mask by hand.
 	 */
@@ -253,7 +253,7 @@ static int __init pas_add_bridge(struct device_node *dev)
 {
 	struct pci_controller *hose;
 
-	pr_debug("Adding PCI host bridge %pOF\n", dev);
+	pr_de("Adding PCI host bridge %pOF\n", dev);
 
 	hose = pcibios_alloc_controller(dev);
 	if (!hose)

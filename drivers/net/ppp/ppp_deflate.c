@@ -29,7 +29,7 @@ struct ppp_deflate_state {
     int		w_size;
     int		unit;
     int		mru;
-    int		debug;
+    int		de;
     z_stream	strm;
     struct compstat stats;
 };
@@ -42,10 +42,10 @@ static void	z_comp_free(void *state);
 static void	z_decomp_free(void *state);
 static int	z_comp_init(void *state, unsigned char *options,
 				 int opt_len,
-				 int unit, int hdrlen, int debug);
+				 int unit, int hdrlen, int de);
 static int	z_decomp_init(void *state, unsigned char *options,
 				   int opt_len,
-				   int unit, int hdrlen, int mru, int debug);
+				   int unit, int hdrlen, int mru, int de);
 static int	z_compress(void *state, unsigned char *rptr,
 				unsigned char *obuf,
 				int isize, int osize);
@@ -130,7 +130,7 @@ out_free:
  *	@opt_len: length of the CCP option data at @options
  *	@unit:	PPP unit number for diagnostic messages
  *	@hdrlen: ignored (present for backwards compatibility)
- *	@debug:	debug flag; if non-zero, debug messages are printed.
+ *	@de:	de flag; if non-zero, de messages are printed.
  *
  *	The CCP options described by @options must match the options
  *	specified when the compressor was allocated.  The compressor
@@ -138,7 +138,7 @@ out_free:
  *	match) or 1 for success.
  */
 static int z_comp_init(void *arg, unsigned char *options, int opt_len,
-		       int unit, int hdrlen, int debug)
+		       int unit, int hdrlen, int de)
 {
 	struct ppp_deflate_state *state = (struct ppp_deflate_state *) arg;
 
@@ -152,7 +152,7 @@ static int z_comp_init(void *arg, unsigned char *options, int opt_len,
 
 	state->seqno = 0;
 	state->unit  = unit;
-	state->debug = debug;
+	state->de = de;
 
 	zlib_deflateReset(&state->strm);
 
@@ -228,7 +228,7 @@ static int z_compress(void *arg, unsigned char *rptr, unsigned char *obuf,
 	for (;;) {
 		r = zlib_deflate(&state->strm, Z_PACKET_FLUSH);
 		if (r != Z_OK) {
-			if (state->debug)
+			if (state->de)
 				printk(KERN_ERR
 				       "z_compress: deflate returned %d\n", r);
 			break;
@@ -345,7 +345,7 @@ out_free:
  *	@unit:	PPP unit number for diagnostic messages
  *	@hdrlen: ignored (present for backwards compatibility)
  *	@mru:	maximum length of decompressed packets
- *	@debug:	debug flag; if non-zero, debug messages are printed.
+ *	@de:	de flag; if non-zero, de messages are printed.
  *
  *	The CCP options described by @options must match the options
  *	specified when the decompressor was allocated.  The decompressor
@@ -353,7 +353,7 @@ out_free:
  *	match) or 1 for success.
  */
 static int z_decomp_init(void *arg, unsigned char *options, int opt_len,
-			 int unit, int hdrlen, int mru, int debug)
+			 int unit, int hdrlen, int mru, int de)
 {
 	struct ppp_deflate_state *state = (struct ppp_deflate_state *) arg;
 
@@ -367,7 +367,7 @@ static int z_decomp_init(void *arg, unsigned char *options, int opt_len,
 
 	state->seqno = 0;
 	state->unit  = unit;
-	state->debug = debug;
+	state->de = de;
 	state->mru   = mru;
 
 	zlib_inflateReset(&state->strm);
@@ -408,7 +408,7 @@ static void z_decomp_reset(void *arg)
  *
  * Given that the frame has the correct sequence number and a good FCS,
  * errors such as invalid codes in the input most likely indicate a
- * bug, so we return DECOMP_FATALERROR for them in order to turn off
+ * , so we return DECOMP_FATALERROR for them in order to turn off
  * compression, even though they are detected by inspecting the input.
  */
 static int z_decompress(void *arg, unsigned char *ibuf, int isize,
@@ -420,8 +420,8 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 	unsigned char overflow_buf[1];
 
 	if (isize <= PPP_HDRLEN + DEFLATE_OVHD) {
-		if (state->debug)
-			printk(KERN_DEBUG "z_decompress%d: short pkt (%d)\n",
+		if (state->de)
+			printk(KERN_DE "z_decompress%d: short pkt (%d)\n",
 			       state->unit, isize);
 		return DECOMP_ERROR;
 	}
@@ -429,8 +429,8 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 	/* Check the sequence number. */
 	seq = get_unaligned_be16(ibuf + PPP_HDRLEN);
 	if (seq != (state->seqno & 0xffff)) {
-		if (state->debug)
-			printk(KERN_DEBUG "z_decompress%d: bad seq # %d, expected %d\n",
+		if (state->de)
+			printk(KERN_DE "z_decompress%d: bad seq # %d, expected %d\n",
 			       state->unit, seq, state->seqno & 0xffff);
 		return DECOMP_ERROR;
 	}
@@ -462,8 +462,8 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 	for (;;) {
 		r = zlib_inflate(&state->strm, Z_PACKET_FLUSH);
 		if (r != Z_OK) {
-			if (state->debug)
-				printk(KERN_DEBUG "z_decompress%d: inflate returned %d (%s)\n",
+			if (state->de)
+				printk(KERN_DE "z_decompress%d: inflate returned %d (%s)\n",
 				       state->unit, r, (state->strm.msg? state->strm.msg: ""));
 			return DECOMP_FATALERROR;
 		}
@@ -488,16 +488,16 @@ static int z_decompress(void *arg, unsigned char *ibuf, int isize,
 			state->strm.avail_out = 1;
 			overflow = 1;
 		} else {
-			if (state->debug)
-				printk(KERN_DEBUG "z_decompress%d: ran out of mru\n",
+			if (state->de)
+				printk(KERN_DE "z_decompress%d: ran out of mru\n",
 				       state->unit);
 			return DECOMP_FATALERROR;
 		}
 	}
 
 	if (decode_proto) {
-		if (state->debug)
-			printk(KERN_DEBUG "z_decompress%d: didn't get proto\n",
+		if (state->de)
+			printk(KERN_DE "z_decompress%d: didn't get proto\n",
 			       state->unit);
 		return DECOMP_ERROR;
 	}
@@ -545,8 +545,8 @@ static void z_incomp(void *arg, unsigned char *ibuf, int icnt)
 	r = zlib_inflateIncomp(&state->strm);
 	if (r != Z_OK) {
 		/* gak! */
-		if (state->debug) {
-			printk(KERN_DEBUG "z_incomp%d: inflateIncomp returned %d (%s)\n",
+		if (state->de) {
+			printk(KERN_DE "z_incomp%d: inflateIncomp returned %d (%s)\n",
 			       state->unit, r, (state->strm.msg? state->strm.msg: ""));
 		}
 		return;

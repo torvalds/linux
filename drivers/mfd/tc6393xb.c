@@ -52,7 +52,7 @@
 #define SCR_FER		0xe0		/* b Function Enable	*/
 #define SCR_MCR		0xe4		/* w Mode Control	*/
 #define SCR_CONFIG	0xfc		/* b Configuration Control */
-#define SCR_DEBUG	0xff		/* b Debug		*/
+#define SCR_DE	0xff		/* b De		*/
 
 #define SCR_CCR_CK32K	BIT(0)
 #define SCR_CCR_USBCK	BIT(1)

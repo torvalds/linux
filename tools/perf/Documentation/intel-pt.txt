@@ -30,7 +30,7 @@ on using those tools.
 The main distinguishing feature of Intel PT is that the decoder can determine
 the exact flow of software execution.  Intel PT can be used to understand why
 and how did software get to a certain point, or behave a certain way.  The
-software does not have to be recompiled, so Intel PT works with debug or release
+software does not have to be recompiled, so Intel PT works with de or release
 builds, however the executed images are needed - which makes use in JIT-compiled
 environments, or with self-modified code, a challenge.  Also symbols need to be
 provided to make sense of addresses.
@@ -606,8 +606,8 @@ not permitted to use tracepoints which means there is insufficient side-band
 information to decode Intel PT in per-cpu mode, and potentially workload-only
 mode too if the workload creates new processes.
 
-Note also, that to use tracepoints, read-access to debugfs is required.  So if
-debugfs is not mounted or the user does not have read-access, it will again not
+Note also, that to use tracepoints, read-access to defs is required.  So if
+defs is not mounted or the user does not have read-access, it will again not
 be possible to decode Intel PT in per-cpu mode.
 
 
@@ -725,7 +725,7 @@ The letters are:
 	c	synthesize branches events (calls only)
 	r	synthesize branches events (returns only)
 	e	synthesize tracing error events
-	d	create a debug log
+	d	create a de log
 	g	synthesize a call chain (use with i or x)
 	l	synthesize last branch entries (use with i or x)
 	s	skip initial number of events

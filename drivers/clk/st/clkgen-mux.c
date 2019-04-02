@@ -82,7 +82,7 @@ static void __init st_of_clkgen_mux_setup(struct device_node *np,
 	if (IS_ERR(clk))
 		goto err;
 
-	pr_debug("%s: parent %s rate %u\n",
+	pr_de("%s: parent %s rate %u\n",
 			__clk_get_name(clk),
 			__clk_get_name(clk_get_parent(clk)),
 			(unsigned int)clk_get_rate(clk));

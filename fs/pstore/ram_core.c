@@ -512,7 +512,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 
 	if (prz->buffer->sig == sig) {
 		if (buffer_size(prz) == 0) {
-			pr_debug("found existing empty buffer\n");
+			pr_de("found existing empty buffer\n");
 			return 0;
 		}
 
@@ -522,12 +522,12 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 				buffer_size(prz), buffer_start(prz));
 			zap = true;
 		} else {
-			pr_debug("found existing buffer, size %zu, start %zu\n",
+			pr_de("found existing buffer, size %zu, start %zu\n",
 				 buffer_size(prz), buffer_start(prz));
 			persistent_ram_save_old(prz);
 		}
 	} else {
-		pr_debug("no valid data in buffer (sig = 0x%08x)\n",
+		pr_de("no valid data in buffer (sig = 0x%08x)\n",
 			 prz->buffer->sig);
 		prz->buffer->sig = sig;
 		zap = true;
@@ -593,7 +593,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	if (ret)
 		goto err;
 
-	pr_debug("attached %s 0x%zx@0x%llx: %zu header, %zu data, %zu ecc (%d/%d)\n",
+	pr_de("attached %s 0x%zx@0x%llx: %zu header, %zu data, %zu ecc (%d/%d)\n",
 		prz->label, prz->size, (unsigned long long)prz->paddr,
 		sizeof(*prz->buffer), prz->buffer_size,
 		prz->size - sizeof(*prz->buffer) - prz->buffer_size,

@@ -144,8 +144,8 @@ static const char * const ia_reg_ctx_strs[] = {
 	"32-bit Mode Execution Context",
 	"64-bit Mode Execution Context",
 	"FXSAVE Context",
-	"32-bit Mode Debug Registers (DR0-DR7)",
-	"64-bit Mode Debug Registers (DR0-DR7)",
+	"32-bit Mode De Registers (DR0-DR7)",
+	"64-bit Mode De Registers (DR0-DR7)",
 	"Memory Mapped Registers",
 };
 

@@ -2,7 +2,7 @@
 #ifndef __ASM_COMPAT_SIGNAL_H
 #define __ASM_COMPAT_SIGNAL_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compat.h>
 #include <linux/compiler.h>
 
@@ -14,8 +14,8 @@
 static inline int __copy_conv_sigset_to_user(compat_sigset_t __user *d,
 	const sigset_t *s)
 {
-	BUILD_BUG_ON(sizeof(*d) != sizeof(*s));
-	BUILD_BUG_ON(_NSIG_WORDS != 2);
+	BUILD__ON(sizeof(*d) != sizeof(*s));
+	BUILD__ON(_NSIG_WORDS != 2);
 
 	return put_compat_sigset(d, s, sizeof(*d));
 }

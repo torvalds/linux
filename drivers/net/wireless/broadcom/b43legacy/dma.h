@@ -155,12 +155,12 @@ struct b43legacy_dmaring {
 	 * This is the mac80211 "queue" value. */
 	u8 queue_prio;
 	struct b43legacy_wldev *dev;
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 	/* Maximum number of used slots. */
 	int max_used_slots;
 	/* Last time we injected a ring overflow. */
 	unsigned long last_injected_overflow;
-#endif /* CONFIG_B43LEGACY_DEBUG*/
+#endif /* CONFIG_B43LEGACY_DE*/
 };
 
 

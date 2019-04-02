@@ -21,7 +21,7 @@
 /*
  * Sysfs interfaces for the GenWQE card. There are attributes to query
  * the version of the bitstream as well as some for the driver. For
- * debugging, please also see the debugfs interfaces of this driver.
+ * deging, please also see the defs interfaces of this driver.
  */
 
 #include <linux/kernel.h>
@@ -140,7 +140,7 @@ static DEVICE_ATTR_RO(base_clock);
 /**
  * curr_bitstream_show() - Show the current bitstream id
  *
- * There is a bug in some old versions of the CPLD which selects the
+ * There is a  in some old versions of the CPLD which selects the
  * bitstream, which causes the IO_SLU_BITSTREAM register to report
  * unreliable data in very rare cases. This makes this sysfs
  * unreliable up to the point were a new CPLD version is being used.

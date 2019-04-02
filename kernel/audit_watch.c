@@ -382,7 +382,7 @@ static void audit_add_to_parent(struct audit_krule *krule,
 	struct audit_watch *w, *watch = krule->watch;
 	int watch_found = 0;
 
-	BUG_ON(!mutex_is_locked(&audit_filter_mutex));
+	_ON(!mutex_is_locked(&audit_filter_mutex));
 
 	list_for_each_entry(w, &parent->watches, wlist) {
 		if (strcmp(watch->path, w->path))
@@ -491,7 +491,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 
 	parent = container_of(inode_mark, struct audit_parent, mark);
 
-	BUG_ON(group != audit_watch_group);
+	_ON(group != audit_watch_group);
 
 	switch (data_type) {
 	case (FSNOTIFY_EVENT_PATH):
@@ -501,7 +501,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 		inode = (const struct inode *)data;
 		break;
 	default:
-		BUG();
+		();
 		inode = NULL;
 		break;
 	}

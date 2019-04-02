@@ -48,7 +48,7 @@ static unsigned int phonet_net_id __read_mostly;
 
 static struct phonet_net *phonet_pernet(struct net *net)
 {
-	BUG_ON(!net);
+	_ON(!net);
 
 	return net_generic(net, phonet_net_id);
 }
@@ -69,7 +69,7 @@ static struct phonet_device *__phonet_device_alloc(struct net_device *dev)
 	pnd->netdev = dev;
 	bitmap_zero(pnd->addrs, 64);
 
-	BUG_ON(!mutex_is_locked(&pndevs->lock));
+	_ON(!mutex_is_locked(&pndevs->lock));
 	list_add_rcu(&pnd->list, &pndevs->list);
 	return pnd;
 }
@@ -79,7 +79,7 @@ static struct phonet_device *__phonet_get(struct net_device *dev)
 	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd;
 
-	BUG_ON(!mutex_is_locked(&pndevs->lock));
+	_ON(!mutex_is_locked(&pndevs->lock));
 	list_for_each_entry(pnd, &pndevs->list, list) {
 		if (pnd->netdev == dev)
 			return pnd;
@@ -130,7 +130,7 @@ struct net_device *phonet_device_get(struct net *net)
 	rcu_read_lock();
 	list_for_each_entry_rcu(pnd, &pndevs->list, list) {
 		dev = pnd->netdev;
-		BUG_ON(!dev);
+		_ON(!dev);
 
 		if ((dev->reg_state == NETREG_REGISTERED) &&
 			((pnd->netdev->flags & IFF_UP)) == IFF_UP)
@@ -194,7 +194,7 @@ u8 phonet_address_get(struct net_device *dev, u8 daddr)
 	rcu_read_lock();
 	pnd = __phonet_get_rcu(dev);
 	if (pnd) {
-		BUG_ON(bitmap_empty(pnd->addrs, 64));
+		_ON(bitmap_empty(pnd->addrs, 64));
 
 		/* Use same source address as destination, if possible */
 		if (test_bit(daddr >> 2, pnd->addrs))

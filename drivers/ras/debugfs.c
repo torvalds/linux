@@ -1,6 +1,6 @@
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-struct dentry *ras_debugfs_dir;
+struct dentry *ras_defs_dir;
 
 static atomic_t trace_count = ATOMIC_INIT(0);
 
@@ -38,10 +38,10 @@ int __init ras_add_daemon_trace(void)
 {
 	struct dentry *fentry;
 
-	if (!ras_debugfs_dir)
+	if (!ras_defs_dir)
 		return -ENOENT;
 
-	fentry = debugfs_create_file("daemon_active", S_IRUSR, ras_debugfs_dir,
+	fentry = defs_create_file("daemon_active", S_IRUSR, ras_defs_dir,
 				     NULL, &trace_fops);
 	if (!fentry)
 		return -ENODEV;
@@ -50,7 +50,7 @@ int __init ras_add_daemon_trace(void)
 
 }
 
-void __init ras_debugfs_init(void)
+void __init ras_defs_init(void)
 {
-	ras_debugfs_dir = debugfs_create_dir("ras", NULL);
+	ras_defs_dir = defs_create_dir("ras", NULL);
 }

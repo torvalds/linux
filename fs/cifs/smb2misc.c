@@ -25,7 +25,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_unicode.h"
 #include "smb2status.h"
 #include "smb2glob.h"
@@ -342,7 +342,7 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
 		    ((struct smb2_query_info_rsp *)shdr)->OutputBufferLength);
 		break;
 	case SMB2_READ:
-		/* TODO: is this a bug ? */
+		/* TODO: is this a  ? */
 		*off = ((struct smb2_read_rsp *)shdr)->DataOffset;
 		*len = le32_to_cpu(((struct smb2_read_rsp *)shdr)->DataLength);
 		break;

@@ -123,7 +123,7 @@ driver::
 
        dmesg -n 6
 
-If you wish to see all messages issued by the driver, including debug
+If you wish to see all messages issued by the driver, including de
 messages, set the dmesg level to eight.
 
 NOTE: This setting is not saved across reboots.

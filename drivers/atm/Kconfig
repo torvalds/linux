@@ -51,14 +51,14 @@ config ATM_ENI
 	  To compile this driver as a module, choose M here: the module will
 	  be called eni.
 
-config ATM_ENI_DEBUG
-	bool "Enable extended debugging"
+config ATM_ENI_DE
+	bool "Enable extended deging"
 	depends on ATM_ENI
 	help
-	  Extended debugging records various events and displays that list
+	  Extended deging records various events and displays that list
 	  when an inconsistency is detected. This mechanism is faster than
 	  generally using printks, but still has some impact on performance.
-	  Note that extended debugging may create certain race conditions
+	  Note that extended deging may create certain race conditions
 	  itself. Enable this ONLY if you suspect problems with the driver.
 
 config ATM_ENI_TUNE_BURST
@@ -166,14 +166,14 @@ config ATM_ZATM
 	  To compile this driver as a module, choose M here: the module will
 	  be called zatm.
 
-config ATM_ZATM_DEBUG
-	bool "Enable extended debugging"
+config ATM_ZATM_DE
+	bool "Enable extended deging"
 	depends on ATM_ZATM
 	help
-	  Extended debugging records various events and displays that list
+	  Extended deging records various events and displays that list
 	  when an inconsistency is detected. This mechanism is faster than
 	  generally using printks, but still has some impact on performance.
-	  Note that extended debugging may create certain race conditions
+	  Note that extended deging may create certain race conditions
 	  itself. Enable this ONLY if you suspect problems with the driver.
 
 config ATM_NICSTAR
@@ -218,11 +218,11 @@ config ATM_IDT77252
 	  To compile this driver as a module, choose M here: the module will
 	  be called idt77252.
 
-config ATM_IDT77252_DEBUG
-	bool "Enable debugging messages"
+config ATM_IDT77252_DE
+	bool "Enable deging messages"
 	depends on ATM_IDT77252
 	help
-	  Somewhat useful debugging messages are available. The choice of
+	  Somewhat useful deging messages are available. The choice of
 	  messages is controlled by a bitmap.  This may be specified as a
 	  module argument.  See the file <file:drivers/atm/idt77252.h> for
 	  the meanings of the bits in the mask.
@@ -237,7 +237,7 @@ config ATM_IDT77252_RCV_ALL
 	help
 	  Enable receiving of all cells on the ATM link, that do not match
 	  an open connection in the raw cell queue of the driver.  Useful
-	  for debugging or special applications only, so the safe answer is N.
+	  for deging or special applications only, so the safe answer is N.
 
 config ATM_IDT77252_USE_SUNI
 	bool
@@ -253,11 +253,11 @@ config ATM_AMBASSADOR
 	  Networks Ltd. Say Y (or M to compile as a module named ambassador)
 	  here if you have one of these cards.
 
-config ATM_AMBASSADOR_DEBUG
-	bool "Enable debugging messages"
+config ATM_AMBASSADOR_DE
+	bool "Enable deging messages"
 	depends on ATM_AMBASSADOR
 	---help---
-	  Somewhat useful debugging messages are available. The choice of
+	  Somewhat useful deging messages are available. The choice of
 	  messages is controlled by a bitmap.  This may be specified as a
 	  module argument (kernel command line argument as well?), changed
 	  dynamically using an ioctl (not yet) or changed by sending the
@@ -277,11 +277,11 @@ config ATM_HORIZON
 	  produced by Madge Networks Ltd. Say Y (or M to compile as a module
 	  named horizon) here if you have one of these cards.
 
-config ATM_HORIZON_DEBUG
-	bool "Enable debugging messages"
+config ATM_HORIZON_DE
+	bool "Enable deging messages"
 	depends on ATM_HORIZON
 	---help---
-	  Somewhat useful debugging messages are available. The choice of
+	  Somewhat useful deging messages are available. The choice of
 	  messages is controlled by a bitmap.  This may be specified as a
 	  module argument (kernel command line argument as well?), changed
 	  dynamically using an ioctl (not yet) or changed by sending the
@@ -309,14 +309,14 @@ config ATM_IA
 	  See the file <file:Documentation/networking/iphase.txt> for further
 	  details.
 
-config ATM_IA_DEBUG
-	bool "Enable debugging messages"
+config ATM_IA_DE
+	bool "Enable deging messages"
 	depends on ATM_IA
 	---help---
-	  Somewhat useful debugging messages are available. The choice of
+	  Somewhat useful deging messages are available. The choice of
 	  messages is controlled by a bitmap. This may be specified as a
 	  module argument (kernel command line argument as well?), changed
-	  dynamically using an ioctl (Get the debug utility, iadbg, from
+	  dynamically using an ioctl (Get the de utility, iadbg, from
 	  <ftp://ftp.iphase.com/pub/atm/pci/>).
 
 	  See the file <file:drivers/atm/iphase.h> for the meanings of the
@@ -365,18 +365,18 @@ config ATM_FORE200E_TX_RETRY
 	  a saturation of the transmit queue, so the retry mechanism never
 	  comes into play.
 
-config ATM_FORE200E_DEBUG
-	int "Debugging level (0-3)"
+config ATM_FORE200E_DE
+	int "Deging level (0-3)"
 	depends on ATM_FORE200E
 	default "0"
 	help
-	  Specifies the level of debugging messages issued by the driver.
+	  Specifies the level of deging messages issued by the driver.
 	  The verbosity of the driver increases with the value of this
 	  parameter.
 
 	  When active, these messages can have a significant impact on
 	  the performances of the driver, and the size of your syslog files!
-	  Keep the debugging level to 0 during normal operations.
+	  Keep the deging level to 0 during normal operations.
 
 config ATM_HE
 	tristate "ForeRunner HE Series"

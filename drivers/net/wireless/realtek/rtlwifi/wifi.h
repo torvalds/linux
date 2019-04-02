@@ -13,7 +13,7 @@
 #include <linux/usb.h>
 #include <net/mac80211.h>
 #include <linux/completion.h>
-#include "debug.h"
+#include "de.h"
 
 #define	MASKBYTE0				0xff
 #define	MASKBYTE1				0xff00
@@ -1032,7 +1032,7 @@ static inline struct rtlwifi_tx_info *rtl_tx_skb_cb_info(struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	BUILD_BUG_ON(sizeof(struct rtlwifi_tx_info) >
+	BUILD__ON(sizeof(struct rtlwifi_tx_info) >
 		     sizeof(info->status.status_driver_data));
 
 	return (struct rtlwifi_tx_info *)(info->status.status_driver_data);
@@ -2360,12 +2360,12 @@ struct rtl_intf_ops {
 
 struct rtl_mod_params {
 	/* default: 0,0 */
-	u64 debug_mask;
+	u64 de_mask;
 	/* default: 0 = using hardware encryption */
 	bool sw_crypto;
 
 	/* default: 0 = DBG_EMERG (0)*/
-	int debug_level;
+	int de_level;
 
 	/* default: 1 = using no linked power save */
 	bool inactiveps;
@@ -2490,10 +2490,10 @@ struct rtl_works {
 	struct work_struct fill_h2c_cmd;
 };
 
-struct rtl_debug {
-	/* add for debug */
-	struct dentry *debugfs_dir;
-	char debugfs_name[20];
+struct rtl_de {
+	/* add for de */
+	struct dentry *defs_dir;
+	char defs_name[20];
 };
 
 #define MIMO_PS_STATIC			0
@@ -2780,7 +2780,7 @@ struct rtl_priv {
 	/* c2hcmd list for kthread level access */
 	struct sk_buff_head c2hcmd_queue;
 
-	struct rtl_debug dbg;
+	struct rtl_de dbg;
 	int max_fw_size;
 
 	/* hal_cfg : for diff cards

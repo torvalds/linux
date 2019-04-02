@@ -11,7 +11,7 @@ mcrfs(u32 *ccr, u32 crfD, u32 crfS)
 {
 	u32 value, clear;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: %p (%08x) %d %d\n", __func__, ccr, *ccr, crfD, crfS);
 #endif
 
@@ -25,7 +25,7 @@ mcrfs(u32 *ccr, u32 crfD, u32 crfS)
 	*ccr &= ~(15 << ((7 - crfD) << 2));
 	*ccr |= (value << ((7 - crfD) << 2));
 
-#ifdef DEBUG
+#ifdef DE
 	printk("CR: %08x\n", __func__, *ccr);
 #endif
 

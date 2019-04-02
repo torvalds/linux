@@ -220,7 +220,7 @@ enum pci_6534_firmware_registers {	/* 16 bit */
 	Firmware_Status_Register = 0x104,
 	Firmware_Data_Register = 0x108,
 	Firmware_Mask_Register = 0x10c,
-	Firmware_Debug_Register = 0x110,
+	Firmware_De_Register = 0x110,
 };
 
 /* main fpga registers (32 bit)*/
@@ -297,7 +297,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	BUG_ON(devpriv->di_mite_chan);
+	_ON(devpriv->di_mite_chan);
 	devpriv->di_mite_chan =
 	    mite_request_channel_in_range(devpriv->mite,
 					  devpriv->di_mite_ring, 1, 2);

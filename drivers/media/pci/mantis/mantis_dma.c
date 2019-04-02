@@ -132,7 +132,7 @@ int mantis_dma_init(struct mantis_pci *mantis)
 {
 	int err;
 
-	dprintk(MANTIS_DEBUG, 1, "Mantis DMA init");
+	dprintk(MANTIS_DE, 1, "Mantis DMA init");
 	err = mantis_alloc_buffers(mantis);
 	if (err < 0) {
 		dprintk(MANTIS_ERROR, 1, "Error allocating DMA buffer");
@@ -153,15 +153,15 @@ static inline void mantis_risc_program(struct mantis_pci *mantis)
 	u32 line, step;
 	u32 risc_pos;
 
-	dprintk(MANTIS_DEBUG, 1, "Mantis create RISC program");
+	dprintk(MANTIS_DE, 1, "Mantis create RISC program");
 	RISC_FLUSH(risc_pos);
 
-	dprintk(MANTIS_DEBUG, 1, "risc len lines %u, bytes per line %u, bytes per DMA tr %u",
+	dprintk(MANTIS_DE, 1, "risc len lines %u, bytes per line %u, bytes per DMA tr %u",
 		MANTIS_BLOCK_COUNT, MANTIS_BLOCK_BYTES, MANTIS_DMA_TR_BYTES);
 
 	for (line = 0; line < MANTIS_BLOCK_COUNT; line++) {
 		for (step = 0; step < MANTIS_DMA_TR_UNITS; step++) {
-			dprintk(MANTIS_DEBUG, 1, "RISC PROG line=[%d], step=[%d]", line, step);
+			dprintk(MANTIS_DE, 1, "RISC PROG line=[%d], step=[%d]", line, step);
 			if (step == 0) {
 				RISC_INSTR(risc_pos, RISC_WRITE	|
 					   RISC_IRQ	|
@@ -180,7 +180,7 @@ static inline void mantis_risc_program(struct mantis_pci *mantis)
 
 void mantis_dma_start(struct mantis_pci *mantis)
 {
-	dprintk(MANTIS_DEBUG, 1, "Mantis Start DMA engine");
+	dprintk(MANTIS_DE, 1, "Mantis Start DMA engine");
 
 	mantis_risc_program(mantis);
 	mmwrite(mantis->risc_dma, MANTIS_RISC_START);
@@ -198,7 +198,7 @@ void mantis_dma_start(struct mantis_pci *mantis)
 
 void mantis_dma_stop(struct mantis_pci *mantis)
 {
-	dprintk(MANTIS_DEBUG, 1, "Mantis Stop DMA engine");
+	dprintk(MANTIS_DE, 1, "Mantis Stop DMA engine");
 
 	mmwrite((mmread(MANTIS_GPIF_ADDR) & (~(MANTIS_GPIF_HIFRDWRN))), MANTIS_GPIF_ADDR);
 
@@ -218,7 +218,7 @@ void mantis_dma_xfer(unsigned long data)
 	struct mantis_hwconfig *config = mantis->hwconfig;
 
 	while (mantis->last_block != mantis->busy_block) {
-		dprintk(MANTIS_DEBUG, 1, "last block=[%d] finished block=[%d]",
+		dprintk(MANTIS_DE, 1, "last block=[%d] finished block=[%d]",
 			mantis->last_block, mantis->busy_block);
 
 		(config->ts_size ? dvb_dmx_swfilter_204 : dvb_dmx_swfilter)

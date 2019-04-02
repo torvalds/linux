@@ -36,7 +36,7 @@
 /*
  * The IO-APIC gives us many more interrupt sources. Most of these
  * are unused but an SMP system is supposed to have enough memory ...
- * sometimes (mostly wrt. hw bugs) we get corrupted vectors all
+ * sometimes (mostly wrt. hw s) we get corrupted vectors all
  * across the spectrum, so we really want to be prepared to get all
  * of these. Plus, more powerful systems might have more than 64
  * IO-APIC registers.

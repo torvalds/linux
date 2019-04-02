@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for USB Mass Storage compliant devices
- * Debugging Functions Source Code File
+ * Deging Functions Source Code File
  *
  * Current development and maintenance by:
  *   (c) 1999-2002 Matthew Dharm (mdharm-usb@one-eyed-alien.net)
@@ -35,7 +35,7 @@
 #include <scsi/scsi_dbg.h>
 
 #include "usb.h"
-#include "debug.h"
+#include "de.h"
 #include "scsi.h"
 
 
@@ -168,7 +168,7 @@ void usb_stor_dbg(const struct us_data *us, const char *fmt, ...)
 
 	va_start(args, fmt);
 
-	dev_vprintk_emit(LOGLEVEL_DEBUG, &us->pusb_dev->dev, fmt, args);
+	dev_vprintk_emit(LOGLEVEL_DE, &us->pusb_dev->dev, fmt, args);
 
 	va_end(args);
 }

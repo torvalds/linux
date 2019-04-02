@@ -49,8 +49,8 @@
 #include "mesh.h"
 
 #if 1
-#undef KERN_DEBUG
-#define KERN_DEBUG KERN_WARNING
+#undef KERN_DE
+#define KERN_DE KERN_WARNING
 #endif
 
 MODULE_AUTHOR("Paul Mackerras (paulus@samba.org)");
@@ -60,7 +60,7 @@ MODULE_LICENSE("GPL");
 static int sync_rate = CONFIG_SCSI_MESH_SYNC_RATE;
 static int sync_targets = 0xff;
 static int resel_targets = 0xff;
-static int debug_targets = 0;	/* print debug for these targets */
+static int de_targets = 0;	/* print de for these targets */
 static int init_reset_delay = CONFIG_SCSI_MESH_RESET_DELAY_MS;
 
 module_param(sync_rate, int, 0);
@@ -69,8 +69,8 @@ module_param(sync_targets, int, 0);
 MODULE_PARM_DESC(sync_targets, "Bitmask of targets allowed to set synchronous");
 module_param(resel_targets, int, 0);
 MODULE_PARM_DESC(resel_targets, "Bitmask of targets allowed to set disconnect");
-module_param(debug_targets, int, 0644);
-MODULE_PARM_DESC(debug_targets, "Bitmask of debugged targets");
+module_param(de_targets, int, 0644);
+MODULE_PARM_DESC(de_targets, "Bitmask of deged targets");
 module_param(init_reset_delay, int, 0);
 MODULE_PARM_DESC(init_reset_delay, "Initial bus reset delay (0=no reset)");
 
@@ -80,8 +80,8 @@ static unsigned char use_active_neg = 0;  /* bit mask for SEQ_ACTIVE_NEG if used
 
 #define ALLOW_SYNC(tgt)		((sync_targets >> (tgt)) & 1)
 #define ALLOW_RESEL(tgt)	((resel_targets >> (tgt)) & 1)
-#define ALLOW_DEBUG(tgt)	((debug_targets >> (tgt)) & 1)
-#define DEBUG_TARGET(cmd)	((cmd) && ALLOW_DEBUG((cmd)->device->id))
+#define ALLOW_DE(tgt)	((de_targets >> (tgt)) & 1)
+#define DE_TARGET(cmd)	((cmd) && ALLOW_DE((cmd)->device->id))
 
 #undef MESH_DBG
 #define N_DBG_LOG	50
@@ -191,7 +191,7 @@ static void phase_mismatch(struct mesh_state *ms);
 
 
 /*
- * Some debugging & logging routines
+ * Some deging & logging routines
  */
 
 #ifdef MESH_DBG
@@ -248,7 +248,7 @@ static void dumplog(struct mesh_state *ms, int t)
 	tp->n_log = 0;
 	do {
 		lp = &tp->log[i];
-		printk(KERN_DEBUG "mesh log %d: bs=%.2x%.2x ph=%.2x ",
+		printk(KERN_DE "mesh log %d: bs=%.2x%.2x ph=%.2x ",
 		       t, lp->bs1, lp->bs0, lp->phase);
 #ifdef DBG_USE_TB
 		printk("tb=%10u ", lp->tb);
@@ -273,7 +273,7 @@ static void dumpslog(struct mesh_state *ms)
 	ms->n_log = 0;
 	do {
 		lp = &ms->log[i];
-		printk(KERN_DEBUG "mesh log: bs=%.2x%.2x ph=%.2x t%d ",
+		printk(KERN_DE "mesh log: bs=%.2x%.2x ph=%.2x t%d ",
 		       lp->bs1, lp->bs0, lp->phase, lp->tgt);
 #ifdef DBG_USE_TB
 		printk("tb=%10u ", lp->tb);
@@ -306,27 +306,27 @@ mesh_dump_regs(struct mesh_state *ms)
 	int t;
 	struct mesh_target *tp;
 
-	printk(KERN_DEBUG "mesh: state at %p, regs at %p, dma at %p\n",
+	printk(KERN_DE "mesh: state at %p, regs at %p, dma at %p\n",
 	       ms, mr, md);
-	printk(KERN_DEBUG "    ct=%4x seq=%2x bs=%4x fc=%2x "
+	printk(KERN_DE "    ct=%4x seq=%2x bs=%4x fc=%2x "
 	       "exc=%2x err=%2x im=%2x int=%2x sp=%2x\n",
 	       (mr->count_hi << 8) + mr->count_lo, mr->sequence,
 	       (mr->bus_status1 << 8) + mr->bus_status0, mr->fifo_count,
 	       mr->exception, mr->error, mr->intr_mask, mr->interrupt,
 	       mr->sync_params);
 	while(in_8(&mr->fifo_count))
-		printk(KERN_DEBUG " fifo data=%.2x\n",in_8(&mr->fifo));
-	printk(KERN_DEBUG "    dma stat=%x cmdptr=%x\n",
+		printk(KERN_DE " fifo data=%.2x\n",in_8(&mr->fifo));
+	printk(KERN_DE "    dma stat=%x cmdptr=%x\n",
 	       in_le32(&md->status), in_le32(&md->cmdptr));
-	printk(KERN_DEBUG "    phase=%d msgphase=%d conn_tgt=%d data_ptr=%d\n",
+	printk(KERN_DE "    phase=%d msgphase=%d conn_tgt=%d data_ptr=%d\n",
 	       ms->phase, ms->msgphase, ms->conn_tgt, ms->data_ptr);
-	printk(KERN_DEBUG "    dma_st=%d dma_ct=%d n_msgout=%d\n",
+	printk(KERN_DE "    dma_st=%d dma_ct=%d n_msgout=%d\n",
 	       ms->dma_started, ms->dma_count, ms->n_msgout);
 	for (t = 0; t < 8; ++t) {
 		tp = &ms->tgts[t];
 		if (tp->current_req == NULL)
 			continue;
-		printk(KERN_DEBUG "    target %d: req=%p goes_out=%d saved_ptr=%d\n",
+		printk(KERN_DE "    target %d: req=%p goes_out=%d saved_ptr=%d\n",
 		       t, tp->current_req, tp->data_goes_out, tp->saved_ptr);
 	}
 }
@@ -412,9 +412,9 @@ static void mesh_start_cmd(struct mesh_state *ms, struct scsi_cmnd *cmd)
 	ms->tgts[id].current_req = cmd;
 
 #if 1
-	if (DEBUG_TARGET(cmd)) {
+	if (DE_TARGET(cmd)) {
 		int i;
-		printk(KERN_DEBUG "mesh_start: %p tgt=%d cmd=", cmd, id);
+		printk(KERN_DE "mesh_start: %p tgt=%d cmd=", cmd, id);
 		for (i = 0; i < cmd->cmd_len; ++i)
 			printk(" %x", cmd->cmnd[i]);
 		printk(" use_sg=%d buffer=%p bufflen=%u\n",
@@ -479,7 +479,7 @@ static void mesh_start_cmd(struct mesh_state *ms, struct scsi_cmnd *cmd)
 	}
 
 	/*
-	 * Apparently the mesh has a bug where it will assert both its
+	 * Apparently the mesh has a  where it will assert both its
 	 * own bit and the target's bit on the bus during arbitration.
 	 */
 	out_8(&mr->dest_id, mr->source_id);
@@ -597,15 +597,15 @@ static void mesh_done(struct mesh_state *ms, int start_next)
 		cmd->result = (ms->stat << 16) | cmd->SCp.Status;
 		if (ms->stat == DID_OK)
 			cmd->result |= cmd->SCp.Message << 8;
-		if (DEBUG_TARGET(cmd)) {
-			printk(KERN_DEBUG "mesh_done: result = %x, data_ptr=%d, buflen=%d\n",
+		if (DE_TARGET(cmd)) {
+			printk(KERN_DE "mesh_done: result = %x, data_ptr=%d, buflen=%d\n",
 			       cmd->result, ms->data_ptr, scsi_bufflen(cmd));
 #if 0
 			/* needs to use sg? */
 			if ((cmd->cmnd[0] == 0 || cmd->cmnd[0] == 0x12 || cmd->cmnd[0] == 3)
 			    && cmd->request_buffer != 0) {
 				unsigned char *b = cmd->request_buffer;
-				printk(KERN_DEBUG "buffer = %x %x %x %x %x %x %x %x\n",
+				printk(KERN_DE "buffer = %x %x %x %x %x %x %x %x\n",
 				       b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
 			}
 #endif
@@ -711,8 +711,8 @@ static void start_phase(struct mesh_state *ms)
 			ms->msgphase = msg_none;
 			break;
 		}
-		if (ALLOW_DEBUG(ms->conn_tgt)) {
-			printk(KERN_DEBUG "mesh: sending %d msg bytes:",
+		if (ALLOW_DE(ms->conn_tgt)) {
+			printk(KERN_DE "mesh: sending %d msg bytes:",
 			       ms->n_msgout);
 			for (i = 0; i < ms->n_msgout; ++i)
 				printk(" %x", ms->msgout[i]);
@@ -755,7 +755,7 @@ static void start_phase(struct mesh_state *ms)
 		return;
 
 	default:
-		printk(KERN_ERR "mesh bug: start_phase msgphase=%d\n",
+		printk(KERN_ERR "mesh : start_phase msgphase=%d\n",
 		       ms->msgphase);
 	}
 
@@ -949,9 +949,9 @@ static void reselected(struct mesh_state *ms)
 	ms->conn_tgt = t;
 	tp = &ms->tgts[t];
 	out_8(&mr->sync_params, tp->sync_params);
-	if (ALLOW_DEBUG(t)) {
-		printk(KERN_DEBUG "mesh: reselected by target %d\n", t);
-		printk(KERN_DEBUG "mesh: saved_ptr=%x goes_out=%d cmd=%p\n",
+	if (ALLOW_DE(t)) {
+		printk(KERN_DE "mesh: reselected by target %d\n", t);
+		printk(KERN_DE "mesh: saved_ptr=%x goes_out=%d cmd=%p\n",
 		       tp->saved_ptr, tp->data_goes_out, tp->current_req);
 	}
 	ms->current_req = tp->current_req;
@@ -1133,7 +1133,7 @@ static void handle_exception(struct mesh_state *ms)
 		mesh_resel_exc++;
 		reselected(ms);
 	} else if (exc == EXC_ARBLOST) {
-		printk(KERN_DEBUG "mesh: lost arbitration\n");
+		printk(KERN_DE "mesh: lost arbitration\n");
 		ms->stat = DID_BUS_BUSY;
 		mesh_done(ms, 1);
 	} else if (exc == EXC_SELTO) {
@@ -1162,8 +1162,8 @@ static void handle_msgin(struct mesh_state *ms)
 	if (ms->n_msgin == 0)
 		return;
 	code = ms->msgin[0];
-	if (ALLOW_DEBUG(ms->conn_tgt)) {
-		printk(KERN_DEBUG "got %d message bytes:", ms->n_msgin);
+	if (ALLOW_DE(ms->conn_tgt)) {
+		printk(KERN_DE "got %d message bytes:", ms->n_msgin);
 		for (i = 0; i < ms->n_msgin; ++i)
 			printk(" %x", ms->msgin[i]);
 		printk("\n");
@@ -1270,7 +1270,7 @@ static void set_dma_cmds(struct mesh_state *ms, struct scsi_cmnd *cmd)
 		cmd->SCp.this_residual = scsi_bufflen(cmd);
 
 		nseg = scsi_dma_map(cmd);
-		BUG_ON(nseg < 0);
+		_ON(nseg < 0);
 
 		if (nseg) {
 			total = 0;
@@ -1351,7 +1351,7 @@ static void halt_dma(struct mesh_state *ms)
 #endif /* MESH_DBG */
 	} else if (cmd && scsi_bufflen(cmd) &&
 		   ms->data_ptr > scsi_bufflen(cmd)) {
-		printk(KERN_DEBUG "mesh: target %d overrun, "
+		printk(KERN_DE "mesh: target %d overrun, "
 		       "data_ptr=%x total=%x goes_out=%d\n",
 		       ms->conn_tgt, ms->data_ptr, scsi_bufflen(cmd),
 		       ms->tgts[ms->conn_tgt].data_goes_out);
@@ -1420,7 +1420,7 @@ static void phase_mismatch(struct mesh_state *ms)
 				do_abort(ms);
 			} else {
 				if (ms->last_n_msgout == 0) {
-					printk(KERN_DEBUG
+					printk(KERN_DE
 					       "mesh: no msg to repeat\n");
 					ms->msgout[0] = NOP;
 					ms->last_n_msgout = 1;
@@ -1430,7 +1430,7 @@ static void phase_mismatch(struct mesh_state *ms)
 		}
 		break;
 	default:
-		printk(KERN_DEBUG "mesh: unknown scsi phase %x\n", phase);
+		printk(KERN_DE "mesh: unknown scsi phase %x\n", phase);
 		ms->stat = DID_ERROR;
 		mesh_done(ms, 1);
 		return;
@@ -1511,7 +1511,7 @@ static void cmd_complete(struct mesh_state *ms)
 				printk(KERN_ERR "mesh: exc %x in msg_out\n",
 				       in_8(&mr->exception));
 			else
-				printk(KERN_DEBUG "mesh: bs0=%x in msg_out\n",
+				printk(KERN_DE "mesh: bs0=%x in msg_out\n",
 				       in_8(&mr->bus_status0));
 			handle_exception(ms);
 			return;
@@ -1597,8 +1597,8 @@ static void cmd_complete(struct mesh_state *ms)
 		case statusing:
 			if (cmd) {
 				cmd->SCp.Status = mr->fifo;
-				if (DEBUG_TARGET(cmd))
-					printk(KERN_DEBUG "mesh: status is %x\n",
+				if (DE_TARGET(cmd))
+					printk(KERN_DE "mesh: status is %x\n",
 					       cmd->SCp.Status);
 			}
 			ms->msgphase = msg_in;
@@ -1659,8 +1659,8 @@ static void mesh_interrupt(struct mesh_state *ms)
 	int intr;
 
 #if 0
-	if (ALLOW_DEBUG(ms->conn_tgt))
-		printk(KERN_DEBUG "mesh_intr, bs0=%x int=%x exc=%x err=%x "
+	if (ALLOW_DE(ms->conn_tgt))
+		printk(KERN_DE "mesh_intr, bs0=%x int=%x exc=%x err=%x "
 		       "phase=%d msgphase=%d\n", mr->bus_status0,
 		       mr->interrupt, mr->exception, mr->error,
 		       ms->phase, ms->msgphase);
@@ -1687,7 +1687,7 @@ static int mesh_abort(struct scsi_cmnd *cmd)
 {
 	struct mesh_state *ms = (struct mesh_state *) cmd->device->host->hostdata;
 
-	printk(KERN_DEBUG "mesh_abort(%p)\n", cmd);
+	printk(KERN_DE "mesh_abort(%p)\n", cmd);
 	mesh_dump_regs(ms);
 	dumplog(ms, cmd->device->id);
 	dumpslog(ms);
@@ -1707,7 +1707,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 	volatile struct dbdma_regs __iomem *md = ms->dma;
 	unsigned long flags;
 
-	printk(KERN_DEBUG "mesh_host_reset\n");
+	printk(KERN_DE "mesh_host_reset\n");
 
 	spin_lock_irqsave(ms->host->host_lock, flags);
 

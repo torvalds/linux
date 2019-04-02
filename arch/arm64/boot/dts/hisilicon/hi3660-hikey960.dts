@@ -309,13 +309,13 @@
 		 */
 		"[SD_DAT1]", /* HSEC pin 3: UART0_IRDA_RXD */
 		"[SD_DAT2]", /* HSEC pin 5: UART0_IRDA_TXD */
-		"[UART1_RXD]"; /* LSEC pin 13: DEBUG_UART6_RXD */
+		"[UART1_RXD]"; /* LSEC pin 13: DE_UART6_RXD */
 };
 
 &gpio7 {
 	/* GPIO_056-GPIO_063 */
 	gpio-line-names =
-		"[UART1_TXD]", /* LSEC pin 11: DEBUG_UART6_TXD */
+		"[UART1_TXD]", /* LSEC pin 11: DE_UART6_TXD */
 		"[UART0_CTS]", /* LSEC pin 3: UART3_CTS_N */
 		"[UART0_RTS]", /* LSEC pin 9: UART3_RTS_N */
 		"[UART0_RXD]", /* LSEC pin 7: UART3_RXD */

@@ -290,7 +290,7 @@ static int read_edid(struct omap_hdmi *hdmi, u8 *buf, int len)
 	mutex_lock(&hdmi->lock);
 
 	r = hdmi_runtime_get(hdmi);
-	BUG_ON(r);
+	_ON(r);
 
 	r = hdmi4_read_edid(&hdmi->core,  buf, len);
 
@@ -653,7 +653,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 		goto err_cec_uninit;
 	}
 
-	hdmi->debugfs = dss_debugfs_create_file(dss, "hdmi", hdmi_dump_regs,
+	hdmi->defs = dss_defs_create_file(dss, "hdmi", hdmi_dump_regs,
 					       hdmi);
 
 	hdmi_runtime_put(hdmi);
@@ -673,7 +673,7 @@ static void hdmi4_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
 
-	dss_debugfs_remove_file(hdmi->debugfs);
+	dss_defs_remove_file(hdmi->defs);
 
 	if (hdmi->audio_pdev)
 		platform_device_unregister(hdmi->audio_pdev);

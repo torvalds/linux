@@ -32,7 +32,7 @@
 #include <linux/platform_device.h>
 #include "ath5k.h"
 #include "reg.h"
-#include "debug.h"
+#include "de.h"
 
 
 /**
@@ -874,7 +874,7 @@ ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 		ath5k_hw_reg_write(ah, 0x0000000f, AR5K_SEQ_MASK);
 	}
 
-	/* Clear PHY_BLUETOOTH to allow RX_CLEAR line debug */
+	/* Clear PHY_BLUETOOTH to allow RX_CLEAR line de */
 	if (ah->ah_phy_revision >= AR5K_SREV_PHY_5212B)
 		ath5k_hw_reg_write(ah, 0, AR5K_PHY_BLUETOOTH);
 
@@ -936,7 +936,7 @@ ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 
 			/* XXX: Initvals indicate we only increase
 			 * switch time on AR5212, 5211 and 5210
-			 * only change agc time (bug?) */
+			 * only change agc time (?) */
 			if (ah->ah_version == AR5K_AR5212)
 				AR5K_REG_WRITE_BITS(ah, AR5K_PHY_SETTLING,
 						AR5K_PHY_SETTLING_SWITCH,
@@ -1200,13 +1200,13 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	if (fast) {
 		ret = ath5k_hw_phy_init(ah, channel, mode, true);
 		if (ret) {
-			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
+			ATH5K_DBG(ah, ATH5K_DE_RESET,
 				"fast chan change failed, falling back to normal reset\n");
 			/* Non fatal, can happen eg.
 			 * on mode change */
 			ret = 0;
 		} else {
-			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
+			ATH5K_DBG(ah, ATH5K_DE_RESET,
 				"fast chan change successful\n");
 			return 0;
 		}

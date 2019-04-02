@@ -68,7 +68,7 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 			       sizeof(struct in6_addr));
 #endif
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -93,7 +93,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		spin_lock_init(&local->client_conns_lock);
 		spin_lock_init(&local->lock);
 		rwlock_init(&local->services_lock);
-		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
+		local->de_id = atomic_inc_return(&rxrpc_de_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
 		local->srx.srx_service = 0;
 		trace_rxrpc_local(local, rxrpc_local_new, 1, NULL);
@@ -147,12 +147,12 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 
 	/* if a local address was supplied then bind it */
 	if (local->srx.transport_len > sizeof(sa_family_t)) {
-		_debug("bind");
+		_de("bind");
 		ret = kernel_bind(local->socket,
 				  (struct sockaddr *)&local->srx.transport,
 				  local->srx.transport_len);
 		if (ret < 0) {
-			_debug("bind failed %d", ret);
+			_de("bind failed %d", ret);
 			goto error;
 		}
 	}
@@ -164,7 +164,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_RECVERR,
 					(char *) &opt, sizeof(opt));
 		if (ret < 0) {
-			_debug("setsockopt failed");
+			_de("setsockopt failed");
 			goto error;
 		}
 
@@ -173,7 +173,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_MTU_DISCOVER,
 					(char *) &opt, sizeof(opt));
 		if (ret < 0) {
-			_debug("setsockopt failed");
+			_de("setsockopt failed");
 			goto error;
 		}
 
@@ -187,7 +187,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
 					(char *) &opt, sizeof(opt));
 		if (ret < 0) {
-			_debug("setsockopt failed");
+			_de("setsockopt failed");
 			goto error;
 		}
 
@@ -196,7 +196,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		ret = kernel_setsockopt(local->socket, SOL_IP, IP_MTU_DISCOVER,
 					(char *) &opt, sizeof(opt));
 		if (ret < 0) {
-			_debug("setsockopt failed");
+			_de("setsockopt failed");
 			goto error;
 		}
 
@@ -205,13 +205,13 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		ret = kernel_setsockopt(local->socket, SOL_SOCKET, SO_TIMESTAMPNS_OLD,
 					(char *)&opt, sizeof(opt));
 		if (ret < 0) {
-			_debug("setsockopt failed");
+			_de("setsockopt failed");
 			goto error;
 		}
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	_leave(" = 0");
@@ -295,7 +295,7 @@ found:
 	mutex_unlock(&rxnet->local_mutex);
 
 	_net("LOCAL %s %d {%pISp}",
-	     age, local->debug_id, &local->srx.transport);
+	     age, local->de_id, &local->srx.transport);
 
 	_leave(" = %p", local);
 	return local;
@@ -361,7 +361,7 @@ void rxrpc_queue_local(struct rxrpc_local *local)
  */
 static void __rxrpc_put_local(struct rxrpc_local *local)
 {
-	_enter("%d", local->debug_id);
+	_enter("%d", local->de_id);
 	rxrpc_queue_work(&local->processor);
 }
 
@@ -394,7 +394,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	struct socket *socket = local->socket;
 	struct rxrpc_net *rxnet = local->rxnet;
 
-	_enter("%d", local->debug_id);
+	_enter("%d", local->de_id);
 
 	/* We can get a race between an incoming call packet queueing the
 	 * processor again and the work processor starting the destruction
@@ -426,7 +426,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	rxrpc_purge_queue(&local->reject_queue);
 	rxrpc_purge_queue(&local->event_queue);
 
-	_debug("rcu local %d", local->debug_id);
+	_de("rcu local %d", local->de_id);
 	call_rcu(&local->rcu, rxrpc_local_rcu);
 }
 
@@ -466,11 +466,11 @@ static void rxrpc_local_rcu(struct rcu_head *rcu)
 {
 	struct rxrpc_local *local = container_of(rcu, struct rxrpc_local, rcu);
 
-	_enter("%d", local->debug_id);
+	_enter("%d", local->de_id);
 
 	ASSERT(!work_pending(&local->processor));
 
-	_net("DESTROY LOCAL %d", local->debug_id);
+	_net("DESTROY LOCAL %d", local->de_id);
 	kfree(local);
 	_leave("");
 }
@@ -493,6 +493,6 @@ void rxrpc_destroy_all_locals(struct rxrpc_net *rxnet)
 			       local, atomic_read(&local->usage));
 		}
 		mutex_unlock(&rxnet->local_mutex);
-		BUG();
+		();
 	}
 }

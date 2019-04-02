@@ -544,7 +544,7 @@
 	trace_clk_div_ck: trace_clk_div_ck {
 		#clock-cells = <0>;
 		compatible = "ti,clkdm-gate-clock";
-		clocks = <&emu_sys_clkctrl OMAP4_DEBUGSS_CLKCTRL 24>;
+		clocks = <&emu_sys_clkctrl OMAP4_DESS_CLKCTRL 24>;
 	};
 };
 

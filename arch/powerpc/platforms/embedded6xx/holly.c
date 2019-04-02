@@ -40,7 +40,7 @@
 #include <asm/tsi108_pci.h>
 #include <asm/mpic.h>
 
-#undef DEBUG
+#undef DE
 
 #define HOLLY_PCI_CFG_PHYS 0x7c000000
 
@@ -158,7 +158,7 @@ static void __init holly_init_IRQ(void)
 			24, 0,
 			"Tsi108_PIC");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	mpic_assign_isu(mpic, 0, mpic->paddr + 0x100);
 
@@ -178,7 +178,7 @@ static void __init holly_init_IRQ(void)
 	}
 
 	cascade_pci_irq = irq_of_parse_and_map(tsi_pci, 0);
-	pr_debug("%s: tsi108 cascade_pci_irq = 0x%x\n", __func__, (u32) cascade_pci_irq);
+	pr_de("%s: tsi108 cascade_pci_irq = 0x%x\n", __func__, (u32) cascade_pci_irq);
 	tsi108_pci_int_init(cascade_node);
 	irq_set_handler_data(cascade_pci_irq, mpic);
 	irq_set_chained_handler(cascade_pci_irq, tsi108_irq_cascade);

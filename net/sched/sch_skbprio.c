@@ -114,7 +114,7 @@ static int skbprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	/* Drop the packet at the tail of the lowest priority qdisc. */
 	lp_qdisc = &q->qdiscs[lp];
 	to_drop = __skb_dequeue_tail(lp_qdisc);
-	BUG_ON(!to_drop);
+	_ON(!to_drop);
 	qdisc_qstats_backlog_dec(sch, to_drop);
 	qdisc_drop(to_drop, sch, to_free);
 
@@ -126,7 +126,7 @@ static int skbprio_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	if (skb_queue_empty(lp_qdisc)) {
 		if (q->lowest_prio == q->highest_prio) {
 			/* The incoming packet is the only packet in queue. */
-			BUG_ON(sch->q.qlen != 1);
+			_ON(sch->q.qlen != 1);
 			q->lowest_prio = prio;
 			q->highest_prio = prio;
 		} else {
@@ -158,7 +158,7 @@ static struct sk_buff *skbprio_dequeue(struct Qdisc *sch)
 	/* Update highest priority field. */
 	if (skb_queue_empty(hpq)) {
 		if (q->lowest_prio == q->highest_prio) {
-			BUG_ON(sch->q.qlen);
+			_ON(sch->q.qlen);
 			q->highest_prio = 0;
 			q->lowest_prio = SKBPRIO_MAX_PRIORITY - 1;
 		} else {

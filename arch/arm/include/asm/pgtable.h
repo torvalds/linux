@@ -357,7 +357,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * encode in the PTEs.  This ensures that we know when MAX_SWAPFILES
  * is increased beyond what we presently support.
  */
-#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
+#define MAX_SWAPFILES_CHECK() BUILD__ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */

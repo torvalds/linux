@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "smumgr.h"
 #include "smu_ucode_xfer_vi.h"
 #include "vegam_smumgr.h"

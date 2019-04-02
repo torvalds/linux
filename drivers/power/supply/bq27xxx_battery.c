@@ -1137,7 +1137,7 @@ static int bq27xxx_battery_cfgupdate_priv(struct bq27xxx_device_info *di, bool a
 			return ret;
 	} while (!!(ret & BQ27XXX_FLAG_CFGUP) != active && --try);
 
-	if (!try && di->chip != BQ27425) { // 425 has a bug
+	if (!try && di->chip != BQ27425) { // 425 has a 
 		dev_err(di->dev, "timed out waiting for cfgupdate flag %d\n", active);
 		return -EINVAL;
 	}

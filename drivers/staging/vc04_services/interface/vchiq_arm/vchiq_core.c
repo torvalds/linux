@@ -1531,7 +1531,7 @@ parse_rx_slots(struct vchiq_state *state)
 	struct vchiq_service *service = NULL;
 	int tx_pos;
 
-	DEBUG_INITIALISE(state->local)
+	DE_INITIALISE(state->local)
 
 	tx_pos = remote->tx_pos;
 
@@ -1541,7 +1541,7 @@ parse_rx_slots(struct vchiq_state *state)
 		int type;
 		unsigned int localport, remoteport;
 
-		DEBUG_TRACE(PARSE_LINE);
+		DE_TRACE(PARSE_LINE);
 		if (!state->rx_data) {
 			int rx_index;
 
@@ -1562,9 +1562,9 @@ parse_rx_slots(struct vchiq_state *state)
 
 		header = (struct vchiq_header *)(state->rx_data +
 			(state->rx_pos & VCHIQ_SLOT_MASK));
-		DEBUG_VALUE(PARSE_HEADER, (int)(long)header);
+		DE_VALUE(PARSE_HEADER, (int)(long)header);
 		msgid = header->msgid;
-		DEBUG_VALUE(PARSE_MSGID, msgid);
+		DE_VALUE(PARSE_MSGID, msgid);
 		size = header->size;
 		type = VCHIQ_MSG_TYPE(msgid);
 		localport = VCHIQ_MSG_DSTPORT(msgid);
@@ -1698,11 +1698,11 @@ parse_rx_slots(struct vchiq_state *state)
 				VCHIQ_SRVSTATE_OPEN)) {
 				header->msgid = msgid | VCHIQ_MSGID_CLAIMED;
 				claim_slot(state->rx_info);
-				DEBUG_TRACE(PARSE_LINE);
+				DE_TRACE(PARSE_LINE);
 				if (make_service_callback(service,
 					VCHIQ_MESSAGE_AVAILABLE, header,
 					NULL) == VCHIQ_RETRY) {
-					DEBUG_TRACE(PARSE_LINE);
+					DE_TRACE(PARSE_LINE);
 					goto bail_not_ready;
 				}
 				VCHIQ_SERVICE_STATS_INC(service, ctrl_rx_count);
@@ -1739,9 +1739,9 @@ parse_rx_slots(struct vchiq_state *state)
 				queue = (type == VCHIQ_MSG_BULK_RX_DONE) ?
 					&service->bulk_rx : &service->bulk_tx;
 
-				DEBUG_TRACE(PARSE_LINE);
+				DE_TRACE(PARSE_LINE);
 				if (mutex_lock_killable(&service->bulk_mutex)) {
-					DEBUG_TRACE(PARSE_LINE);
+					DE_TRACE(PARSE_LINE);
 					goto bail_not_ready;
 				}
 				if ((int)(queue->remote_insert -
@@ -1784,14 +1784,14 @@ parse_rx_slots(struct vchiq_state *state)
 					queue->local_insert,
 					queue->remote_insert, queue->process);
 
-				DEBUG_TRACE(PARSE_LINE);
+				DE_TRACE(PARSE_LINE);
 				WARN_ON(queue->process == queue->local_insert);
 				vchiq_complete_bulk(bulk);
 				queue->process++;
 				mutex_unlock(&service->bulk_mutex);
-				DEBUG_TRACE(PARSE_LINE);
+				DE_TRACE(PARSE_LINE);
 				notify_bulks(service, queue, 1/*retry_poll*/);
-				DEBUG_TRACE(PARSE_LINE);
+				DE_TRACE(PARSE_LINE);
 			}
 			break;
 		case VCHIQ_MSG_PADDING:
@@ -1858,7 +1858,7 @@ skip_message:
 
 		state->rx_pos += calc_stride(size);
 
-		DEBUG_TRACE(PARSE_LINE);
+		DE_TRACE(PARSE_LINE);
 		/* Perform some housekeeping when the end of the slot is
 		** reached. */
 		if ((state->rx_pos & VCHIQ_SLOT_MASK) == 0) {
@@ -1880,16 +1880,16 @@ slot_handler_func(void *v)
 	struct vchiq_state *state = (struct vchiq_state *)v;
 	struct vchiq_shared_state *local = state->local;
 
-	DEBUG_INITIALISE(local)
+	DE_INITIALISE(local)
 
 	while (1) {
-		DEBUG_COUNT(SLOT_HANDLER_COUNT);
-		DEBUG_TRACE(SLOT_HANDLER_LINE);
+		DE_COUNT(SLOT_HANDLER_COUNT);
+		DE_TRACE(SLOT_HANDLER_LINE);
 		remote_event_wait(&state->trigger_event, &local->trigger);
 
 		rmb();
 
-		DEBUG_TRACE(SLOT_HANDLER_LINE);
+		DE_TRACE(SLOT_HANDLER_LINE);
 		if (state->poll_needed) {
 			/* Check if we need to suspend - may change our
 			 * conn_state */
@@ -1951,7 +1951,7 @@ slot_handler_func(void *v)
 
 		}
 
-		DEBUG_TRACE(SLOT_HANDLER_LINE);
+		DE_TRACE(SLOT_HANDLER_LINE);
 		parse_rx_slots(state);
 	}
 	return 0;
@@ -2236,7 +2236,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 							VCHIQ_MSGID_PADDING;
 	remote_event_signal_local(&state->sync_release_event, &local->sync_release);
 
-	local->debug[DEBUG_ENTRIES] = DEBUG_MAX;
+	local->de[DE_ENTRIES] = DE_MAX;
 
 	status = vchiq_platform_init_state(state);
 
@@ -3366,7 +3366,7 @@ static void
 vchiq_dump_shared_state(void *dump_context, struct vchiq_state *state,
 			struct vchiq_shared_state *shared, const char *label)
 {
-	static const char *const debug_names[] = {
+	static const char *const de_names[] = {
 		"<entries>",
 		"SLOT_HANDLER_COUNT",
 		"SLOT_HANDLER_LINE",
@@ -3404,9 +3404,9 @@ vchiq_dump_shared_state(void *dump_context, struct vchiq_state *state,
 		}
 	}
 
-	for (i = 1; i < shared->debug[DEBUG_ENTRIES]; i++) {
-		len = snprintf(buf, sizeof(buf), "    DEBUG: %s = %d(%x)",
-			debug_names[i], shared->debug[i], shared->debug[i]);
+	for (i = 1; i < shared->de[DE_ENTRIES]; i++) {
+		len = snprintf(buf, sizeof(buf), "    DE: %s = %d(%x)",
+			de_names[i], shared->de[i], shared->de[i]);
 		vchiq_dump(dump_context, buf, len + 1);
 	}
 }

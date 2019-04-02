@@ -918,7 +918,7 @@ static void synaptics_report_ext_buttons(struct psmouse *psmouse,
 	if (!SYN_CAP_MULTI_BUTTON_NO(priv->info.ext_cap))
 		return;
 
-	/* Bug in FW 8.1 & 8.2, buttons are reported only when ExtBit is 1 */
+	/*  in FW 8.1 & 8.2, buttons are reported only when ExtBit is 1 */
 	if ((SYN_ID_FULL(priv->info.identity) == 0x801 ||
 	     SYN_ID_FULL(priv->info.identity) == 0x802) &&
 	    !((psmouse->packet[0] ^ psmouse->packet[3]) & 0x02))

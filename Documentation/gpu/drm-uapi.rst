@@ -58,7 +58,7 @@ accidental artifact of the current implementation.
 Without access to the full source code of all userspace users that means it
 becomes impossible to change the implementation details, since userspace could
 depend upon the accidental behaviour of the current implementation in minute
-details. And debugging such regressions without access to source code is pretty
+details. And deging such regressions without access to source code is pretty
 much impossible. As a consequence this means:
 
 - The Linux kernel's "no regression" policy holds in practice only for
@@ -286,19 +286,19 @@ the -t options. A report in HTML format will be available in
 Display CRC Support
 -------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
+.. kernel-doc:: drivers/gpu/drm/drm_defs_crc.c
    :doc: CRC ABI
 
-.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
+.. kernel-doc:: drivers/gpu/drm/drm_defs_crc.c
    :export:
 
-Debugfs Support
+Defs Support
 ---------------
 
-.. kernel-doc:: include/drm/drm_debugfs.h
+.. kernel-doc:: include/drm/drm_defs.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_debugfs.c
+.. kernel-doc:: drivers/gpu/drm/drm_defs.c
    :export:
 
 Sysfs Support

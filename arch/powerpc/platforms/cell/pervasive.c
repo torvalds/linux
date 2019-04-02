@@ -1,5 +1,5 @@
 /*
- * CBE Pervasive Monitor and Debug
+ * CBE Pervasive Monitor and De
  *
  * (C) Copyright IBM Corporation 2005
  *
@@ -21,7 +21,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>

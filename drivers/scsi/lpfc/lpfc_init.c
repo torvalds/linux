@@ -1959,7 +1959,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		} else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			 reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3144 Port Down: Debug Dump\n");
+					"3144 Port Down: De Dump\n");
 		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1973,7 +1973,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		rc = lpfc_sli4_port_sta_fn_reset(phba, LPFC_MBX_NO_WAIT,
 				en_rn_msg);
 		if (rc == 0) {
-			/* don't report event on forced debug dump */
+			/* don't report event on forced de dump */
 			if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
 			    reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
 				return;
@@ -4367,7 +4367,7 @@ destroy_port(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 
-	lpfc_debugfs_terminate(vport);
+	lpfc_defs_terminate(vport);
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
@@ -7487,7 +7487,7 @@ lpfc_create_shost(struct lpfc_hba *phba)
 		}
 	}
 
-	lpfc_debugfs_initialize(vport);
+	lpfc_defs_initialize(vport);
 	/* Put reference to SCSI host to driver's device private data */
 	pci_set_drvdata(phba->pcidev, shost);
 
@@ -7528,12 +7528,12 @@ lpfc_destroy_shost(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_setup_bg - Setup Block guard structures and debug areas.
+ * lpfc_setup_bg - Setup Block guard structures and de areas.
  * @phba: pointer to lpfc hba data structure.
  * @shost: the shost to be used to detect Block guard settings.
  *
  * This routine sets up the local Block guard protocol settings for @shost.
- * This routine also allocates memory for debugging bg buffers.
+ * This routine also allocates memory for deging bg buffers.
  **/
 static void
 lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
@@ -11606,7 +11606,7 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	list_del_init(&vport->listentry);
 	spin_unlock_irq(&phba->port_list_lock);
 
-	lpfc_debugfs_terminate(vport);
+	lpfc_defs_terminate(vport);
 
 	/* Disable SR-IOV if enabled */
 	if (phba->cfg_sriov_nr_virtfn)
@@ -12416,7 +12416,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	 * clears the rings, discards all mailbox commands, and resets
 	 * the HBA FCoE function.
 	 */
-	lpfc_debugfs_terminate(vport);
+	lpfc_defs_terminate(vport);
 
 	lpfc_stop_hba_timers(phba);
 	spin_lock_irq(&phba->port_list_lock);

@@ -30,11 +30,11 @@
 #include <linux/ioctl.h>
 #include <linux/compat.h>
 
-#undef TTY_DEBUG_HANGUP
-#ifdef TTY_DEBUG_HANGUP
-# define tty_debug_hangup(tty, f, args...)	tty_debug(tty, f, ##args)
+#undef TTY_DE_HANGUP
+#ifdef TTY_DE_HANGUP
+# define tty_de_hangup(tty, f, args...)	tty_de(tty, f, ##args)
 #else
-# define tty_debug_hangup(tty, f, args...)	do {} while (0)
+# define tty_de_hangup(tty, f, args...)	do {} while (0)
 #endif
 
 #ifdef CONFIG_UNIX98_PTYS
@@ -45,7 +45,7 @@ static DEFINE_MUTEX(devpts_mutex);
 
 static void pty_close(struct tty_struct *tty, struct file *filp)
 {
-	BUG_ON(!tty);
+	_ON(!tty);
 	if (tty->driver->subtype == PTY_TYPE_MASTER)
 		WARN_ON(tty->count > 1);
 	else {
@@ -871,7 +871,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		goto err_release;
 
-	tty_debug_hangup(tty, "opening (count=%d)\n", tty->count);
+	tty_de_hangup(tty, "opening (count=%d)\n", tty->count);
 
 	tty_unlock(tty);
 	return 0;

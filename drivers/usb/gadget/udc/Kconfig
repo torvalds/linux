@@ -22,7 +22,7 @@
 #   - integrated/SOC controllers first
 #   - licensed IP used in both SOC and discrete versions
 #   - discrete ones (including all PCI-only controllers)
-#   - debug/dummy gadget+hcd is last.
+#   - de/dummy gadget+hcd is last.
 #
 menu "USB Peripheral Controller"
 
@@ -228,8 +228,8 @@ config USB_S3C2410
 	  This driver has been tested on the S3C2410, S3C2412, and
 	  S3C2440 processors.
 
-config USB_S3C2410_DEBUG
-	bool "S3C2410 udc debug messages"
+config USB_S3C2410_DE
+	bool "S3C2410 udc de messages"
 	depends on USB_S3C2410
 
 config USB_S3C_HSUDC
@@ -457,11 +457,11 @@ config USB_DUMMY_HCD
 	  like those from NET2280, PXA2xx, or SA1100 hardware.
 
 	  This may help in some stages of creating a driver to embed in a
-	  Linux device, since it lets you debug several parts of the gadget
+	  Linux device, since it lets you de several parts of the gadget
 	  driver without its hardware or drivers being involved.
 
 	  Since such a gadget side driver needs to interoperate with a host
-	  side Linux-USB device driver, this may help to debug both sides
+	  side Linux-USB device driver, this may help to de both sides
 	  of a USB protocol stack.
 
 	  Say "y" to link the driver statically, or "m" to build a

@@ -104,7 +104,7 @@ static void __init MMU_setup(void)
 	if (strstr(boot_command_line, "noltlbs")) {
 		__map_without_ltlbs = 1;
 	}
-	if (debug_pagealloc_enabled()) {
+	if (de_pagealloc_enabled()) {
 		__map_without_bats = 1;
 		__map_without_ltlbs = 1;
 	}

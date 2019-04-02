@@ -928,7 +928,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Increments when an entry is added to the Last Branch Record (LBR) array (or removed from the array in case of RETURNs in call stack mode). The event requires LBR enable via IA32_DEBUGCTL MSR and branch type selection via MSR_LBR_SELECT.",
+        "PublicDescription": "Increments when an entry is added to the Last Branch Record (LBR) array (or removed from the array in case of RETURNs in call stack mode). The event requires LBR enable via IA32_DECTL MSR and branch type selection via MSR_LBR_SELECT.",
         "EventCode": "0xCC",
         "Counter": "0,1,2,3",
         "UMask": "0x20",

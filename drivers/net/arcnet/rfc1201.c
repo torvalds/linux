@@ -228,7 +228,7 @@ static void rx(struct net_device *dev, int bufnum,
 				dev->stats.rx_crc_errors++;
 			}
 		}
-		if (BUGLVL(D_SKB))
+		if (LVL(D_SKB))
 			arcnet_dump_skb(dev, skb, "rx");
 
 		skb->protocol = type_trans(skb, dev);
@@ -364,7 +364,7 @@ static void rx(struct net_device *dev, int bufnum,
 				   skb->len, pkt->hard.source);
 			arc_printk(D_SKB_SIZE, dev, "skb: received %d bytes from %02X (split)\n",
 				   skb->len, pkt->hard.source);
-			if (BUGLVL(D_SKB))
+			if (LVL(D_SKB))
 				arcnet_dump_skb(dev, skb, "rx");
 
 			skb->protocol = type_trans(skb, dev);
@@ -415,7 +415,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address
+	 * deging.  ARCnet does not allow us to change the source address
 	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;

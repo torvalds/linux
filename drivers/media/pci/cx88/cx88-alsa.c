@@ -41,8 +41,8 @@
 #include <media/i2c/wm8775.h>
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (debug + 1 > level)						\
-		printk(KERN_DEBUG pr_fmt("%s: alsa: " fmt),		\
+	if (de + 1 > level)						\
+		printk(KERN_DE pr_fmt("%s: alsa: " fmt),		\
 			chip->core->name, ##arg);			\
 } while (0)
 
@@ -108,9 +108,9 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},{{Conexant,23882},{{Conexant,23883}");
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
 /*
  * Module specific functions
@@ -161,7 +161,7 @@ static int _cx88_start_audio_dma(struct cx88_audio_dev *chip)
 	/* audio downstream FIFO and RISC enable */
 	cx_set(MO_AUD_DMACNTRL, 0x11);
 
-	if (debug)
+	if (de)
 		cx88_sram_channel_dump(chip->core, audio_ch);
 
 	return 0;
@@ -184,7 +184,7 @@ static int _cx88_stop_audio_dma(struct cx88_audio_dev *chip)
 	cx_clear(MO_AUD_INTMSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
 				AUD_INT_DN_RISCI2 | AUD_INT_DN_RISCI1);
 
-	if (debug)
+	if (de)
 		cx88_sram_channel_dump(chip->core,
 				       &cx88_sram_channels[SRAM_CH25]);
 
@@ -222,7 +222,7 @@ static void cx8801_aud_irq(struct cx88_audio_dev *chip)
 	if (0 == (status & mask))
 		return;
 	cx_write(MO_AUD_INTSTAT, status);
-	if (debug > 1  ||  (status & mask & ~0xff))
+	if (de > 1  ||  (status & mask & ~0xff))
 		cx88_print_irqbits("irq aud",
 				   cx88_aud_irqs, ARRAY_SIZE(cx88_aud_irqs),
 				   status, mask);
@@ -416,7 +416,7 @@ static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 
 	if (!chip) {
-		pr_err("BUG: cx88 can't find device struct. Can't proceed with open\n");
+		pr_err(": cx88 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 

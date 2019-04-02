@@ -409,7 +409,7 @@ struct b43_private_tx_info {
 static inline struct b43_private_tx_info *
 b43_get_priv_tx_info(struct ieee80211_tx_info *info)
 {
-	BUILD_BUG_ON(sizeof(struct b43_private_tx_info) >
+	BUILD__ON(sizeof(struct b43_private_tx_info) >
 		     sizeof(info->rate_driver_data));
 	return (struct b43_private_tx_info *)info->rate_driver_data;
 }

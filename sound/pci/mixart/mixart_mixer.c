@@ -843,7 +843,7 @@ static int mixart_pcm_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 		if(is_aes)	stored_volume = chip->digital_capture_volume[1];	/* AES capture */
 		else		stored_volume = chip->digital_capture_volume[0];	/* analog capture */
 	} else {
-		snd_BUG_ON(idx >= MIXART_PLAYBACK_STREAMS);
+		snd__ON(idx >= MIXART_PLAYBACK_STREAMS);
 		if(is_aes)	stored_volume = chip->digital_playback_volume[MIXART_PLAYBACK_STREAMS + idx]; /* AES playback */
 		else		stored_volume = chip->digital_playback_volume[idx];	/* analog playback */
 	}
@@ -869,7 +869,7 @@ static int mixart_pcm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 		else		/* analog capture */
 			stored_volume = chip->digital_capture_volume[0];
 	} else {
-		snd_BUG_ON(idx >= MIXART_PLAYBACK_STREAMS);
+		snd__ON(idx >= MIXART_PLAYBACK_STREAMS);
 		if (is_aes)	/* AES playback */
 			stored_volume = chip->digital_playback_volume[MIXART_PLAYBACK_STREAMS + idx];
 		else		/* analog playback */
@@ -915,7 +915,7 @@ static int mixart_pcm_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 {
 	struct snd_mixart *chip = snd_kcontrol_chip(kcontrol);
 	int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id); /* index */
-	snd_BUG_ON(idx >= MIXART_PLAYBACK_STREAMS);
+	snd__ON(idx >= MIXART_PLAYBACK_STREAMS);
 	mutex_lock(&chip->mgr->mixer_mutex);
 	if(kcontrol->private_value & MIXART_VOL_AES_MASK)	/* AES playback */
 		idx += MIXART_PLAYBACK_STREAMS;
@@ -932,7 +932,7 @@ static int mixart_pcm_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	int is_aes = kcontrol->private_value & MIXART_VOL_AES_MASK;
 	int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id); /* index */
 	int i, j;
-	snd_BUG_ON(idx >= MIXART_PLAYBACK_STREAMS);
+	snd__ON(idx >= MIXART_PLAYBACK_STREAMS);
 	mutex_lock(&chip->mgr->mixer_mutex);
 	j = idx;
 	if (is_aes)

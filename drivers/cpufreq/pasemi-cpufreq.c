@@ -183,7 +183,7 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out_unmap_sdcasr;
 	}
 
-	pr_debug("init cpufreq on CPU %d\n", policy->cpu);
+	pr_de("init cpufreq on CPU %d\n", policy->cpu);
 
 	max_freqp = of_get_property(cpu, "clock-frequency", NULL);
 	if (!max_freqp) {
@@ -194,17 +194,17 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* we need the freq in kHz */
 	max_freq = *max_freqp / 1000;
 
-	pr_debug("max clock-frequency is at %u kHz\n", max_freq);
-	pr_debug("initializing frequency table\n");
+	pr_de("max clock-frequency is at %u kHz\n", max_freq);
+	pr_de("initializing frequency table\n");
 
 	/* initialize frequency table */
 	cpufreq_for_each_entry_idx(pos, pas_freqs, idx) {
 		pos->frequency = get_astate_freq(pos->driver_data) * 100000;
-		pr_debug("%d: %d\n", idx, pos->frequency);
+		pr_de("%d: %d\n", idx, pos->frequency);
 	}
 
 	cur_astate = get_cur_astate(policy->cpu);
-	pr_debug("current astate is at %d\n",cur_astate);
+	pr_de("current astate is at %d\n",cur_astate);
 
 	policy->cur = pas_freqs[cur_astate].frequency;
 	ppc_proc_freq = policy->cur * 1000ul;
@@ -242,7 +242,7 @@ static int pas_cpufreq_target(struct cpufreq_policy *policy,
 {
 	int i;
 
-	pr_debug("setting frequency for cpu %d to %d kHz, 1/%d of max frequency\n",
+	pr_de("setting frequency for cpu %d to %d kHz, 1/%d of max frequency\n",
 		 policy->cpu,
 		 pas_freqs[pas_astate_new].frequency,
 		 pas_freqs[pas_astate_new].driver_data);

@@ -169,10 +169,10 @@ will again both be 0.  (If P1 had been designed to read buf
 unconditionally then we would instead have r1 = 0 and r2 = 1.)
 
 However, the most interesting possibility is where r1 = 1 and r2 = 0.
-If this were to occur it would mean the driver contains a bug, because
+If this were to occur it would mean the driver contains a , because
 incorrect data would get sent to the user: 0 instead of 1.  As it
 happens, the LKMM does predict this outcome can occur, and the example
-driver code shown above is indeed buggy.
+driver code shown above is indeed gy.
 
 
 A SELECTION OF MEMORY MODELS
@@ -611,7 +611,7 @@ requirement that every store eventually becomes visible to every CPU.)
 
 Any reasonable memory model will include cache coherence.  Indeed, our
 expectation of cache coherence is so deeply ingrained that violations
-of its requirements look more like hardware bugs than programming
+of its requirements look more like hardware s than programming
 errors:
 
 	int x;

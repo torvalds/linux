@@ -61,9 +61,9 @@
 #include "gsc.h"
 #include "iommu.h"
 
-#undef DINO_DEBUG
+#undef DINO_DE
 
-#ifdef DINO_DEBUG
+#ifdef DINO_DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)
@@ -149,7 +149,7 @@ struct dino_device
 	u32			txn_data; /* EIR data assign to each dino */ 
 	u32 			imr;	  /* IRQ's which are enabled */ 
 	int			global_irq[DINO_LOCAL_IRQS]; /* map IMR bit to global irq */
-#ifdef DINO_DEBUG
+#ifdef DINO_DE
 	unsigned int		dino_irr0; /* save most recent IRQ line stat */
 #endif
 };
@@ -366,7 +366,7 @@ static irqreturn_t dino_isr(int irq, void *intr_dev)
 	int ilr_loop = 100;
 
 	/* read and acknowledge pending interrupts */
-#ifdef DINO_DEBUG
+#ifdef DINO_DE
 	dino_dev->dino_irr0 =
 #endif
 	mask = __raw_readl(dino_dev->hba.base_addr+DINO_IRR0) & DINO_IRR_MASK;
@@ -378,7 +378,7 @@ ilr_again:
 	do {
 		int local_irq = __ffs(mask);
 		int irq = dino_dev->global_irq[local_irq];
-		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
+		DBG(KERN_DE "%s(%d, %p) mask 0x%x\n",
 			__func__, irq, intr_dev, mask);
 		generic_handle_irq(irq);
 		mask &= ~DINO_MASK_IRQ(local_irq);
@@ -581,11 +581,11 @@ dino_fixup_bus(struct pci_bus *bus)
 				
 			}
 					
-			DBG("DEBUG %s assigning %d [%pR]\n",
+			DBG("DE %s assigning %d [%pR]\n",
 			    dev_name(&bus->self->dev), i,
 			    &bus->self->resource[i]);
 			WARN_ON(pci_assign_resource(bus->self, i));
-			DBG("DEBUG %s after assign %d [%pR]\n",
+			DBG("DE %s after assign %d [%pR]\n",
 			    dev_name(&bus->self->dev), i,
 			    &bus->self->resource[i]);
 		}
@@ -921,10 +921,10 @@ static int __init dino_probe(struct parisc_device *dev)
 		return 1;
 	}
 
-	/* Check for bugs */
+	/* Check for s */
 	if (is_cujo && dev->id.hversion_rev == 1) {
 #ifdef CONFIG_IOMMU_CCIO
-		printk(KERN_WARNING "Enabling Cujo 2.0 bug workaround\n");
+		printk(KERN_WARNING "Enabling Cujo 2.0  workaround\n");
 		if (hpa == (unsigned long)CUJO_RAVEN_ADDR) {
 			ccio_cujo20_fixup(dev, CUJO_RAVEN_BADPAGE);
 		} else if (hpa == (unsigned long)CUJO_FIREHAWK_ADDR) {

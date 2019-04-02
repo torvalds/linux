@@ -2,7 +2,7 @@
 /*
  * Infinity Unlimited USB Phoenix driver
  *
- * Copyright (C) 2010 James Courtier-Dutton (James@superbug.co.uk)
+ * Copyright (C) 2010 James Courtier-Dutton (James@super.co.uk)
 
  * Copyright (C) 2007 Alain Degreffe (eczema@ecze.com)
  *

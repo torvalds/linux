@@ -39,14 +39,14 @@ extern int udbg_adb_init(int force_btext);
 extern void udbg_adb_init_early(void);
 
 extern void __init udbg_early_init(void);
-extern void __init udbg_init_debug_lpar(void);
-extern void __init udbg_init_debug_lpar_hvsi(void);
+extern void __init udbg_init_de_lpar(void);
+extern void __init udbg_init_de_lpar_hvsi(void);
 extern void __init udbg_init_pmac_realmode(void);
 extern void __init udbg_init_maple_realmode(void);
 extern void __init udbg_init_pas_realmode(void);
 extern void __init udbg_init_rtas_panel(void);
 extern void __init udbg_init_rtas_console(void);
-extern void __init udbg_init_debug_beat(void);
+extern void __init udbg_init_de_beat(void);
 extern void __init udbg_init_btext(void);
 extern void __init udbg_init_44x_as1(void);
 extern void __init udbg_init_40x_realmode(void);
@@ -55,8 +55,8 @@ extern void __init udbg_init_usbgecko(void);
 extern void __init udbg_init_memcons(void);
 extern void __init udbg_init_ehv_bc(void);
 extern void __init udbg_init_ps3gelic(void);
-extern void __init udbg_init_debug_opal_raw(void);
-extern void __init udbg_init_debug_opal_hvsi(void);
+extern void __init udbg_init_de_opal_raw(void);
+extern void __init udbg_init_de_opal_hvsi(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_UDBG_H */

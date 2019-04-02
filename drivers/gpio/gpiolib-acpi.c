@@ -507,7 +507,7 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *inf
 	ret = __acpi_gpio_update_gpiod_flags(&old, info->flags);
 	if (info->quirks & ACPI_GPIO_QUIRK_NO_IO_RESTRICTION) {
 		if (ret)
-			dev_warn(dev, FW_BUG "GPIO not in correct mode, fixing\n");
+			dev_warn(dev, FW_ "GPIO not in correct mode, fixing\n");
 	} else {
 		if (ret)
 			dev_dbg(dev, "Override GPIO initialization flags\n");

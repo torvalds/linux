@@ -8,9 +8,9 @@
 #ifndef __ASM_CMPXCHG_H
 #define __ASM_CMPXCHG_H
 
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #define cmpxchg(ptr, o, n)						\
 ({									\
@@ -55,9 +55,9 @@
 ({									\
 	__typeof__(p1) __p1 = (p1);					\
 	__typeof__(p2) __p2 = (p2);					\
-	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
-	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
-	VM_BUG_ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
+	BUILD__ON(sizeof(*(p1)) != sizeof(long));			\
+	BUILD__ON(sizeof(*(p2)) != sizeof(long));			\
+	VM__ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
 	__cmpxchg_double(__p1, __p2, o1, o2, n1, n2);			\
 })
 

@@ -178,8 +178,8 @@
 #define SC_BOTTOM				0x164c
 #define SRC_SC_RIGHT				0x1654
 #define SRC_SC_BOTTOM				0x165c
-#define GUI_DEBUG0				0x16a0
-#define GUI_DEBUG1				0x16a4
+#define GUI_DE0				0x16a0
+#define GUI_DE1				0x16a4
 #define GUI_TIMEOUT				0x16b0
 #define GUI_TIMEOUT0				0x16b4
 #define GUI_TIMEOUT1				0x16b8
@@ -200,7 +200,7 @@
 #define GUI_STAT				0x1740
 #define PC_GUI_MODE				0x1744
 #define PC_GUI_CTLSTAT				0x1748
-#define PC_DEBUG_MODE				0x1760
+#define PC_DE_MODE				0x1760
 #define BRES_DST_ERR_DEC			0x1780
 #define TRAIL_BRES_T12_ERR_DEC			0x1784
 #define TRAIL_BRES_T12_INC			0x1788
@@ -417,7 +417,7 @@
 
 #define PMI_PMSCR_REG				0x60
 
-/* used by ATI bug fix for hardware ROM */
+/* used by ATI  fix for hardware ROM */
 #define RAGE128_MPP_TB_CONFIG                   0x01c0
 
 #endif				/* REG_RAGE128_H */

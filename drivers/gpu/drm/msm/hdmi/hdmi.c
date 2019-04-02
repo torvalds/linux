@@ -482,7 +482,7 @@ static int msm_hdmi_audio_hw_params(struct device *dev, void *data,
 	unsigned int level_shift  = 0; /* 0dB */
 	bool down_mix = false;
 
-	DRM_DEV_DEBUG(dev, "%u Hz, %d bit, %d channels\n", params->sample_rate,
+	DRM_DEV_DE(dev, "%u Hz, %d bit, %d channels\n", params->sample_rate,
 		 params->sample_width, params->cea.channels);
 
 	switch (params->cea.channels) {

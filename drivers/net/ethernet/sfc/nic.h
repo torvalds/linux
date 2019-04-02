@@ -117,7 +117,7 @@ static inline bool efx_nic_may_tx_pio(struct efx_tx_queue *tx_queue)
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,
- * Falcon and Siena have hardware bugs (SF bug 33851) that may be
+ * Falcon and Siena have hardware s (SF  33851) that may be
  * triggered if we don't check this.
  * We use the write_count used for the last doorbell push, to get the
  * NIC's view of the tx queue.
@@ -377,9 +377,9 @@ enum {
  *	reboot
  * @rx_rss_context_exclusive: Whether our RSS context is exclusive or shared
  * @stats: Hardware statistics
- * @workaround_35388: Flag: firmware supports workaround for bug 35388
- * @workaround_26807: Flag: firmware supports workaround for bug 26807
- * @workaround_61265: Flag: firmware supports workaround for bug 61265
+ * @workaround_35388: Flag: firmware supports workaround for  35388
+ * @workaround_26807: Flag: firmware supports workaround for  26807
+ * @workaround_61265: Flag: firmware supports workaround for  61265
  * @must_check_datapath_caps: Flag: @datapath_caps needs to be revalidated
  *	after MC reboot
  * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of

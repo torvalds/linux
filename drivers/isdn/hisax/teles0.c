@@ -161,14 +161,14 @@ Start_ISAC:
 	count++;
 	val = readhscx(cs->hw.teles0.membase, 1, HSCX_ISTA);
 	if (val && count < 5) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "HSCX IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "HSCX IntStat after IntRoutine");
 		goto Start_HSCX;
 	}
 	val = readisac(cs->hw.teles0.membase, ISAC_ISTA);
 	if (val && count < 5) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	writehscx(cs->hw.teles0.membase, 0, HSCX_MASK, 0xFF);

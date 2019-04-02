@@ -218,7 +218,7 @@ struct smscore_device_t {
 
 	/*
 	 * Identify if device is USB or not.
-	 * Used by smsdvb-sysfs to know the root node for debugfs
+	 * Used by smsdvb-sysfs to know the root node for defs
 	 */
 	bool is_usb_device;
 
@@ -491,8 +491,8 @@ enum msg_types {
 	MSG_SMS_POWER_UP_CONF = 787,
 	MSG_SMS_POWER_MODE_SET_REQ = 790,
 	MSG_SMS_POWER_MODE_SET_RES = 791,
-	MSG_SMS_DEBUG_HOST_EVENT_REQ = 792,
-	MSG_SMS_DEBUG_HOST_EVENT_RES = 793,
+	MSG_SMS_DE_HOST_EVENT_REQ = 792,
+	MSG_SMS_DE_HOST_EVENT_RES = 793,
 	MSG_SMS_NEW_CRYSTAL_REQ = 794,
 	MSG_SMS_NEW_CRYSTAL_RES = 795,
 	MSG_SMS_CONFIG_SPI_REQ = 796,

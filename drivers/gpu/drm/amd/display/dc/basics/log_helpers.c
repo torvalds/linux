@@ -34,6 +34,6 @@ void dc_conn_log_hex_linux(const uint8_t *hex_data, int hex_data_count)
 
 	if (hex_data)
 		for (i = 0; i < hex_data_count; i++)
-			DC_LOG_DEBUG("%2.2X ", hex_data[i]);
+			DC_LOG_DE("%2.2X ", hex_data[i]);
 }
 

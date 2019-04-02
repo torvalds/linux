@@ -14,7 +14,7 @@ static void once_deferred(struct work_struct *w)
 	struct once_work *work;
 
 	work = container_of(w, struct once_work, work);
-	BUG_ON(!static_key_enabled(work->key));
+	_ON(!static_key_enabled(work->key));
 	static_branch_disable(work->key);
 	kfree(work);
 }

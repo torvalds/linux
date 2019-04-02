@@ -104,24 +104,24 @@ bool system_entering_hibernation(void)
 }
 EXPORT_SYMBOL(system_entering_hibernation);
 
-#ifdef CONFIG_PM_DEBUG
-static void hibernation_debug_sleep(void)
+#ifdef CONFIG_PM_DE
+static void hibernation_de_sleep(void)
 {
-	pr_info("hibernation debug: Waiting for 5 seconds.\n");
+	pr_info("hibernation de: Waiting for 5 seconds.\n");
 	mdelay(5000);
 }
 
 static int hibernation_test(int level)
 {
 	if (pm_test_level == level) {
-		hibernation_debug_sleep();
+		hibernation_de_sleep();
 		return 1;
 	}
 	return 0;
 }
-#else /* !CONFIG_PM_DEBUG */
+#else /* !CONFIG_PM_DE */
 static int hibernation_test(int level) { return 0; }
-#endif /* !CONFIG_PM_DEBUG */
+#endif /* !CONFIG_PM_DE */
 
 /**
  * platform_begin - Call platform to start hibernation.
@@ -463,7 +463,7 @@ static int resume_target_kernel(bool platform_mode)
 		 * Otherwise, execution continues at the place where
 		 * swsusp_arch_suspend() was called.
 		 */
-		BUG_ON(!error);
+		_ON(!error);
 		/*
 		 * This call to restore_highmem() reverts the changes made by
 		 * the previous one.
@@ -519,7 +519,7 @@ int hibernation_restore(int platform_mode)
 		 * or return with an error. Otherwise things are just
 		 * undefined, so let's be paranoid.
 		 */
-		BUG_ON(!error);
+		_ON(!error);
 	}
 	dpm_resume_end(PMSG_RECOVER);
 	pm_restore_gfp_mask();

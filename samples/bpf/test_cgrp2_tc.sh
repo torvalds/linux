@@ -112,9 +112,9 @@ do_test() {
 }
 
 do_exit() {
-    if [ "$DEBUG" == "yes" ] && [ "$MODE" != 'cleanuponly' ]
+    if [ "$DE" == "yes" ] && [ "$MODE" != 'cleanuponly' ]
     then
-	echo "------ DEBUG ------"
+	echo "------ DE ------"
 	echo "mount: "; mount | egrep '(cgroup2|bpf)'; echo
 	echo "$CGRP2_TC_LEAF: "; ls -l $CGRP2_TC_LEAF; echo
 	if [ -d "$BPF_FS_TC_SHARE" ]
@@ -130,7 +130,7 @@ do_exit() {
 	echo "$NS net:"
 	$IP -n $NS link show dev $NS_IFC
 	$IP -n $NS -6 link show dev $NS_IFC
-	echo "------ DEBUG ------"
+	echo "------ DE ------"
 	echo
     fi
 
@@ -149,8 +149,8 @@ while [[ $# -ge 1 ]]
 do
     a="$1"
     case $a in
-	debug)
-	    DEBUG='yes'
+	de)
+	    DE='yes'
 	    shift 1
 	    ;;
 	cleanup-only)
@@ -162,8 +162,8 @@ do
 	    shift 1
 	    ;;
 	*)
-	    echo "test_cgrp2_tc [debug] [cleanup-only | no-cleanup]"
-	    echo "  debug: Print cgrp and network setup details at the end of the test"
+	    echo "test_cgrp2_tc [de] [cleanup-only | no-cleanup]"
+	    echo "  de: Print cgrp and network setup details at the end of the test"
 	    echo "  cleanup-only: Try to cleanup things from last test.  No test will be run"
 	    echo "  no-cleanup: Run the test but don't do cleanup at the end"
 	    echo "[Note: If no arg is given, it will run the test and do cleanup at the end]"

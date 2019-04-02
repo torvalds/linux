@@ -15,7 +15,7 @@
 	dev_warn((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
 #define bcma_info(bus, fmt, ...) \
 	dev_info((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
-#define bcma_debug(bus, fmt, ...) \
+#define bcma_de(bus, fmt, ...) \
 	dev_dbg((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
 
 struct bcma_bus;

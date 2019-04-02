@@ -8,7 +8,7 @@
  *  Author:	Rocky Craig <first.last@hp.com>
  */
 
-#define DEBUG /* So dev_dbg() is always available. */
+#define DE /* So dev_dbg() is always available. */
 
 #include <linux/kernel.h> /* For printk. */
 #include <linux/string.h>
@@ -17,19 +17,19 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-#define BT_DEBUG_OFF	0	/* Used in production */
-#define BT_DEBUG_ENABLE	1	/* Generic messages */
-#define BT_DEBUG_MSG	2	/* Prints all request/response buffers */
-#define BT_DEBUG_STATES	4	/* Verbose look at state changes */
+#define BT_DE_OFF	0	/* Used in production */
+#define BT_DE_ENABLE	1	/* Generic messages */
+#define BT_DE_MSG	2	/* Prints all request/response buffers */
+#define BT_DE_STATES	4	/* Verbose look at state changes */
 /*
- * BT_DEBUG_OFF must be zero to correspond to the default uninitialized
+ * BT_DE_OFF must be zero to correspond to the default uninitialized
  * value
  */
 
-static int bt_debug; /* 0 == BT_DEBUG_OFF */
+static int bt_de; /* 0 == BT_DE_OFF */
 
-module_param(bt_debug, int, 0644);
-MODULE_PARM_DESC(bt_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
+module_param(bt_de, int, 0644);
+MODULE_PARM_DESC(bt_de, "de bitmask, 1=enable, 2=messages, 4=states");
 
 /*
  * Typical "Get BT Capabilities" values are 2-3 retries, 5-10 seconds,
@@ -66,7 +66,7 @@ enum bt_states {
 
 /*
  * Macros seen at the end of state "case" blocks.  They help with legibility
- * and debugging.
+ * and deging.
  */
 
 #define BT_STATE_CHANGE(X, Y) { bt->state = X; return Y; }
@@ -117,7 +117,7 @@ struct si_sm_data {
 #define BT_INTMASK_W(x)	bt->io->outputb(bt->io, 2, x)
 
 /*
- * Convenience routines for debugging.  These are not multi-open safe!
+ * Convenience routines for deging.  These are not multi-open safe!
  * Note the macros have hardcoded variables in them.
  */
 
@@ -216,7 +216,7 @@ static int bt_start_transaction(struct si_sm_data *bt,
 	if (bt->state != BT_STATE_IDLE)
 		return IPMI_NOT_IN_MY_STATE_ERR;
 
-	if (bt_debug & BT_DEBUG_MSG) {
+	if (bt_de & BT_DE_MSG) {
 		dev_dbg(bt->io->dev, "+++++++++++++++++ New command\n");
 		dev_dbg(bt->io->dev, "NetFn/LUN CMD [%d data]:", size - 2);
 		for (i = 0; i < size; i ++)
@@ -261,7 +261,7 @@ static int bt_get_result(struct si_sm_data *bt,
 	} else
 		memcpy(data + 2, bt->read_data + 4, msg_len - 2);
 
-	if (bt_debug & BT_DEBUG_MSG) {
+	if (bt_de & BT_DE_MSG) {
 		dev_dbg(bt->io->dev, "result %d bytes:", msg_len);
 		for (i = 0; i < msg_len; i++)
 			pr_cont(" %02x", data[i]);
@@ -275,7 +275,7 @@ static int bt_get_result(struct si_sm_data *bt,
 
 static void reset_flags(struct si_sm_data *bt)
 {
-	if (bt_debug)
+	if (bt_de)
 		dev_dbg(bt->io->dev, "flag reset %s\n", status2txt(BT_STATUS));
 	if (BT_STATUS & BT_H_BUSY)
 		BT_CONTROL(BT_H_BUSY);	/* force clear */
@@ -301,14 +301,14 @@ static void drain_BMC2HOST(struct si_sm_data *bt)
 	BT_STATUS;			/* pause */
 	BT_CONTROL(BT_B2H_ATN);		/* some BMCs are stubborn */
 	BT_CONTROL(BT_CLR_RD_PTR);	/* always reset */
-	if (bt_debug)
+	if (bt_de)
 		dev_dbg(bt->io->dev, "stale response %s; ",
 			status2txt(BT_STATUS));
 	size = BMC2HOST;
 	for (i = 0; i < size ; i++)
 		BMC2HOST;
 	BT_CONTROL(BT_H_BUSY);		/* now clear */
-	if (bt_debug)
+	if (bt_de)
 		pr_cont("drained %d bytes\n", size + 1);
 }
 
@@ -316,7 +316,7 @@ static inline void write_all_bytes(struct si_sm_data *bt)
 {
 	int i;
 
-	if (bt_debug & BT_DEBUG_MSG) {
+	if (bt_de & BT_DE_MSG) {
 		dev_dbg(bt->io->dev, "write %d bytes seq=0x%02X",
 			bt->write_count, bt->seq);
 		for (i = 0; i < bt->write_count; i++)
@@ -340,7 +340,7 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 	bt->read_count = bt->read_data[0];
 
 	if (bt->read_count < 4 || bt->read_count >= IPMI_MAX_MSG_LENGTH) {
-		if (bt_debug & BT_DEBUG_MSG)
+		if (bt_de & BT_DE_MSG)
 			dev_dbg(bt->io->dev,
 				"bad raw rsp len=%d\n", bt->read_count);
 		bt->truncated = 1;
@@ -350,7 +350,7 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 		bt->read_data[i] = BMC2HOST;
 	bt->read_count++;	/* Account internally for length byte */
 
-	if (bt_debug & BT_DEBUG_MSG) {
+	if (bt_de & BT_DE_MSG) {
 		int max = bt->read_count;
 
 		dev_dbg(bt->io->dev,
@@ -368,7 +368,7 @@ static inline int read_all_bytes(struct si_sm_data *bt)
 	    ((bt->read_data[1] & 0xF8) == (bt->write_data[1] & 0xF8)))
 			return 1;
 
-	if (bt_debug & BT_DEBUG_MSG)
+	if (bt_de & BT_DE_MSG)
 		dev_dbg(bt->io->dev,
 			"IPMI BT: bad packet: want 0x(%02X, %02X, %02X) got (%02X, %02X, %02X)\n",
 			bt->write_data[1] | 0x04, bt->write_data[2],
@@ -453,7 +453,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 
 	status = BT_STATUS;
 	bt->nonzero_status |= status;
-	if ((bt_debug & BT_DEBUG_STATES) && (bt->state != last_printed)) {
+	if ((bt_de & BT_DE_STATES) && (bt->state != last_printed)) {
 		dev_dbg(bt->io->dev, "BT: %s %s TO=%ld - %ld\n",
 			STATE2TXT,
 			STATUS2TXT,

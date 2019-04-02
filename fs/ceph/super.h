@@ -2,7 +2,7 @@
 #ifndef _FS_CEPH_SUPER_H
 #define _FS_CEPH_SUPER_H
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <asm/unaligned.h>
 #include <linux/backing-dev.h>
@@ -114,12 +114,12 @@ struct ceph_fs_client {
 	struct workqueue_struct *trunc_wq;
 	struct workqueue_struct *cap_wq;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_dentry_lru, *debugfs_caps;
-	struct dentry *debugfs_congestion_kb;
-	struct dentry *debugfs_bdi;
-	struct dentry *debugfs_mdsc, *debugfs_mdsmap;
-	struct dentry *debugfs_mds_sessions;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_dentry_lru, *defs_caps;
+	struct dentry *defs_congestion_kb;
+	struct dentry *defs_bdi;
+	struct dentry *defs_mdsc, *defs_mdsmap;
+	struct dentry *defs_mds_sessions;
 #endif
 
 #ifdef CONFIG_CEPH_FSCACHE
@@ -1096,9 +1096,9 @@ extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 				  struct ceph_pagelist *pagelist,
 				  int num_fcntl_locks, int num_flock_locks);
 
-/* debugfs.c */
-extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
-extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
+/* defs.c */
+extern int ceph_fs_defs_init(struct ceph_fs_client *client);
+extern void ceph_fs_defs_cleanup(struct ceph_fs_client *client);
 
 /* quota.c */
 static inline bool __ceph_has_any_quota(struct ceph_inode_info *ci)

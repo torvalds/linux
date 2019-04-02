@@ -168,7 +168,7 @@
 #define	REG_BKQ_DESA			0x0338	/*  TX BK Queue Descr Addr */
 #define	REG_RX_DESA			0x0340	/*  RX Queue Descr Addr */
 #define	REG_MDIO			0x0354	/*  MDIO for Access PCIE PHY */
-#define	REG_DBG_SEL			0x0360	/*  Debug Selection Register */
+#define	REG_DBG_SEL			0x0360	/*  De Selection Register */
 #define	REG_PCIE_HRPWM			0x0361	/* PCIe RPWM */
 #define	REG_PCIE_HCPWM			0x0363	/* PCIe CPWM */
 #define	REG_WATCH_DOG			0x0368
@@ -1370,7 +1370,7 @@ So the following defines for 92C is not entire!!!!!!
 #define	EEPROM_DEFAULT_FEATURE_OPTION		0x00
 #define	EEPROM_DEFAULT_BT_OPTION		0x10
 
-/*  For debug */
+/*  For de */
 #define EEPROM_Default_PID			0x1234
 #define EEPROM_Default_VID			0x5678
 #define EEPROM_Default_CustomerID		0xAB

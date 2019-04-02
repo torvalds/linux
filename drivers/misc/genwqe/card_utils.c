@@ -718,7 +718,7 @@ int genwqe_card_reset(struct genwqe_dev *cd)
 	if (genwqe_need_err_masking(cd)) {
 		dev_info(&pci_dev->dev,
 			 "[%s] masking errors for old bitstreams\n", __func__);
-		__genwqe_writeq(cd, IO_SLC_MISC_DEBUG, 0x0aull);
+		__genwqe_writeq(cd, IO_SLC_MISC_DE, 0x0aull);
 	}
 	return 0;
 }
@@ -762,11 +762,11 @@ void genwqe_reset_interrupt_capability(struct genwqe_dev *cd)
 /**
  * set_reg_idx() - Fill array with data. Ignore illegal offsets.
  * @cd:         card device
- * @r:          debug register array
+ * @r:          de register array
  * @i:          index to desired entry
  * @m:          maximum possible entries
  * @addr:       addr which is read
- * @index:      index in debug array
+ * @index:      index in de array
  * @val:        read value
  */
 static int set_reg_idx(struct genwqe_dev *cd, struct genwqe_reg *r,
@@ -1038,7 +1038,7 @@ int genwqe_base_clock_frequency(struct genwqe_dev *cd)
  */
 void genwqe_stop_traps(struct genwqe_dev *cd)
 {
-	__genwqe_writeq(cd, IO_SLC_MISC_DEBUG_SET, 0xcull);
+	__genwqe_writeq(cd, IO_SLC_MISC_DE_SET, 0xcull);
 }
 
 /**
@@ -1048,8 +1048,8 @@ void genwqe_stop_traps(struct genwqe_dev *cd)
  */
 void genwqe_start_traps(struct genwqe_dev *cd)
 {
-	__genwqe_writeq(cd, IO_SLC_MISC_DEBUG_CLR, 0xcull);
+	__genwqe_writeq(cd, IO_SLC_MISC_DE_CLR, 0xcull);
 
 	if (genwqe_need_err_masking(cd))
-		__genwqe_writeq(cd, IO_SLC_MISC_DEBUG, 0x0aull);
+		__genwqe_writeq(cd, IO_SLC_MISC_DE, 0x0aull);
 }

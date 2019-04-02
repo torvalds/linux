@@ -1,4 +1,4 @@
-debugfs-objs	:= inode.o file.o
+defs-objs	:= inode.o file.o
 
-obj-$(CONFIG_DEBUG_FS)	+= debugfs.o
+obj-$(CONFIG_DE_FS)	+= defs.o
 

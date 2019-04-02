@@ -131,8 +131,8 @@ unsigned long get_wchan(struct task_struct *p);
 #  define STACK_TOP	TASK_SIZE
 #  define STACK_TOP_MAX	STACK_TOP
 
-#ifdef CONFIG_DEBUG_FS
-extern struct dentry *of_debugfs_root;
+#ifdef CONFIG_DE_FS
+extern struct dentry *of_defs_root;
 #endif
 
 #  endif /* __ASSEMBLY__ */

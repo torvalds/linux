@@ -44,7 +44,7 @@
 #include "rgmii.h"
 #include "mal.h"
 #include "tah.h"
-#include "debug.h"
+#include "de.h"
 
 #define NUM_TX_BUFF			CONFIG_IBM_EMAC_TXB
 #define NUM_RX_BUFF			CONFIG_IBM_EMAC_RXB

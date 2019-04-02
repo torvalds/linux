@@ -43,7 +43,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	int ret, ioc;
 	u32 serial, mtu, call_id, padding;
 
-	_enter("%d", conn->debug_id);
+	_enter("%d", conn->de_id);
 
 	chan = &conn->channels[channel];
 
@@ -129,7 +129,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->abort_code);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
-		trace_rxrpc_tx_ack(chan->call_debug_id, serial,
+		trace_rxrpc_tx_ack(chan->call_de_id, serial,
 				   ntohl(pkt.ack.firstPacket),
 				   ntohl(pkt.ack.serial),
 				   pkt.ack.reason, 0);
@@ -140,10 +140,10 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
-		trace_rxrpc_tx_fail(chan->call_debug_id, serial, ret,
+		trace_rxrpc_tx_fail(chan->call_de_id, serial, ret,
 				    rxrpc_tx_point_call_final_resend);
 	else
-		trace_rxrpc_tx_packet(chan->call_debug_id, &pkt.whdr,
+		trace_rxrpc_tx_packet(chan->call_de_id, &pkt.whdr,
 				      rxrpc_tx_point_call_final_resend);
 
 	_leave("");
@@ -158,7 +158,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 	struct rxrpc_call *call;
 	int i;
 
-	_enter("{%d},%x", conn->debug_id, conn->abort_code);
+	_enter("{%d},%x", conn->de_id, conn->abort_code);
 
 	spin_lock(&conn->channel_lock);
 
@@ -168,7 +168,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			lockdep_is_held(&conn->channel_lock));
 		if (call) {
 			if (compl == RXRPC_CALL_LOCALLY_ABORTED)
-				trace_rxrpc_abort(call->debug_id,
+				trace_rxrpc_abort(call->de_id,
 						  "CON", call->cid,
 						  call->call_id, 0,
 						  conn->abort_code,
@@ -198,7 +198,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	u32 serial;
 	int ret;
 
-	_enter("%d,,%u,%u", conn->debug_id, error, abort_code);
+	_enter("%d,,%u,%u", conn->de_id, error, abort_code);
 
 	/* generate a connection-level abort */
 	spin_lock_bh(&conn->state_lock);
@@ -247,13 +247,13 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
-		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+		trace_rxrpc_tx_fail(conn->de_id, serial, ret,
 				    rxrpc_tx_point_conn_abort);
-		_debug("sendmsg failed: %d", ret);
+		_de("sendmsg failed: %d", ret);
 		return -EAGAIN;
 	}
 
-	trace_rxrpc_tx_packet(conn->debug_id, &whdr, rxrpc_tx_point_conn_abort);
+	trace_rxrpc_tx_packet(conn->de_id, &whdr, rxrpc_tx_point_conn_abort);
 
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 
@@ -295,7 +295,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return -ECONNABORTED;
 	}
 
-	_enter("{%d},{%u,%%%u},", conn->debug_id, sp->hdr.type, sp->hdr.serial);
+	_enter("{%d},{%u,%%%u},", conn->de_id, sp->hdr.type, sp->hdr.serial);
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
@@ -374,12 +374,12 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 	u32 abort_code;
 	int ret;
 
-	_enter("{%d}", conn->debug_id);
+	_enter("{%d}", conn->de_id);
 
 	ASSERT(conn->security_ix != 0);
 
 	if (!conn->params.key) {
-		_debug("set up security");
+		_de("set up security");
 		ret = rxrpc_init_server_conn_security(conn);
 		switch (ret) {
 		case 0:
@@ -403,7 +403,7 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 	return;
 
 abort:
-	_debug("abort %d, %d", ret, abort_code);
+	_de("abort %d, %d", ret, abort_code);
 	rxrpc_abort_connection(conn, ret, abort_code);
 	_leave(" [aborted]");
 }

@@ -127,7 +127,7 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 
 	/* Check conditions under which the CCP can fulfill a request. The
 	 * device can handle input plaintext of a length that is a multiple
-	 * of the unit_size, bug the crypto implementation only supports
+	 * of the unit_size,  the crypto implementation only supports
 	 * the unit_size being equal to the input length. This limits the
 	 * number of scenarios we can handle.
 	 */

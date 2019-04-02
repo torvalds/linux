@@ -83,11 +83,11 @@ config VIDEO_OMAP3
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
-config VIDEO_OMAP3_DEBUG
-	bool "OMAP 3 Camera debug messages"
+config VIDEO_OMAP3_DE
+	bool "OMAP 3 Camera de messages"
 	depends on VIDEO_OMAP3
 	---help---
-	  Enable debug messages on OMAP 3 camera controller driver.
+	  Enable de messages on OMAP 3 camera controller driver.
 
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
@@ -342,14 +342,14 @@ config VIDEO_STI_HVA
 	  To compile this driver as a module, choose M here:
 	  the module will be called st-hva.
 
-config VIDEO_STI_HVA_DEBUGFS
-	bool "Export STMicroelectronics HVA internals in debugfs"
+config VIDEO_STI_HVA_DEFS
+	bool "Export STMicroelectronics HVA internals in defs"
 	depends on VIDEO_STI_HVA
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
 	  Select this to see information about the internal state and the last
 	  operation of STMicroelectronics HVA multi-format video encoder in
-	  debugfs.
+	  defs.
 
 	  Choose N unless you know you need this.
 
@@ -481,11 +481,11 @@ config VIDEO_TI_VPE
 	  Support for the TI VPE(Video Processing Engine) block
 	  found on DRA7XX SoC.
 
-config VIDEO_TI_VPE_DEBUG
-	bool "VPE debug messages"
+config VIDEO_TI_VPE_DE
+	bool "VPE de messages"
 	depends on VIDEO_TI_VPE
 	---help---
-	  Enable debug messages on VPE driver.
+	  Enable de messages on VPE driver.
 
 config VIDEO_QCOM_VENUS
 	tristate "Qualcomm Venus V4L2 encoder/decoder driver"

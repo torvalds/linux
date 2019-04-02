@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #include <linux/types.h>
 #include "perf.h"
-#include "debug.h"
+#include "de.h"
 #include "tests/tests.h"
 #include "cloexec.h"
 #include "util.h"
@@ -139,13 +139,13 @@ static int __test__rdpmc(void)
 		loops *= 10;
 
 		delta = now - stamp;
-		pr_debug("%14d: %14Lu\n", n, (long long)delta);
+		pr_de("%14d: %14Lu\n", n, (long long)delta);
 
 		delta_sum += delta;
 	}
 
 	munmap(addr, page_size);
-	pr_debug("   ");
+	pr_de("   ");
 out_close:
 	close(fd);
 

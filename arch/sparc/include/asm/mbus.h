@@ -9,13 +9,13 @@
 #define _SPARC_MBUS_H
 
 #include <asm/ross.h>    /* HyperSparc stuff */
-#include <asm/viking.h>  /* Ugh, bug city... */
+#include <asm/viking.h>  /* Ugh,  city... */
 
 enum mbus_module {
 	HyperSparc        = 0,
 	Swift_ok          = 4,
 	Swift_bad_c       = 5,
-	Swift_lots_o_bugs = 6,
+	Swift_lots_o_s = 6,
 	Tsunami           = 7,
 	Viking_12         = 8,
 	Viking_2x         = 9,
@@ -29,16 +29,16 @@ enum mbus_module {
 extern enum mbus_module srmmu_modtype;
 extern unsigned int viking_rev, swift_rev, cypress_rev;
 
-/* HW Mbus module bugs we have to deal with */
-#define HWBUG_COPYBACK_BROKEN        0x00000001
-#define HWBUG_ASIFLUSH_BROKEN        0x00000002
-#define HWBUG_VACFLUSH_BITROT        0x00000004
-#define HWBUG_KERN_ACCBROKEN         0x00000008
-#define HWBUG_KERN_CBITBROKEN        0x00000010
-#define HWBUG_MODIFIED_BITROT        0x00000020
-#define HWBUG_PC_BADFAULT_ADDR       0x00000040
-#define HWBUG_SUPERSCALAR_BAD        0x00000080
-#define HWBUG_PACINIT_BITROT         0x00000100
+/* HW Mbus module s we have to deal with */
+#define HW_COPYBACK_BROKEN        0x00000001
+#define HW_ASIFLUSH_BROKEN        0x00000002
+#define HW_VACFLUSH_BITROT        0x00000004
+#define HW_KERN_ACCBROKEN         0x00000008
+#define HW_KERN_CBITBROKEN        0x00000010
+#define HW_MODIFIED_BITROT        0x00000020
+#define HW_PC_BADFAULT_ADDR       0x00000040
+#define HW_SUPERSCALAR_BAD        0x00000080
+#define HW_PACINIT_BITROT         0x00000100
 
 /* First the module type values. To find out which you have, just load
  * the mmu control register from ASI_M_MMUREG alternate address space and

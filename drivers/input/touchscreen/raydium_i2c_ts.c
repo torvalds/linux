@@ -587,7 +587,7 @@ static int raydium_i2c_fw_write_page(struct i2c_client *client,
 	int error;
 	int i;
 
-	BUILD_BUG_ON((RM_FW_PAGE_SIZE % RM_BL_WRT_PKG_SIZE) != 0);
+	BUILD__ON((RM_FW_PAGE_SIZE % RM_BL_WRT_PKG_SIZE) != 0);
 
 	for (i = 0; i < RM_FW_PAGE_SIZE / RM_BL_WRT_PKG_SIZE; i++) {
 		buf[BL_HEADER] = RM_CMD_BOOT_PAGE_WRT;

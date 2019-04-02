@@ -417,7 +417,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 		if ((fb->pitches[i] * drm_format_info_block_height(fb->format, i))
 				& (alignment - 1)) {
-			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
+			DRM_DE_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
 		}
@@ -426,11 +426,11 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	block_w = drm_format_info_block_width(fb->format, 0);
 	block_h = drm_format_info_block_height(fb->format, 0);
 	if (fb->width % block_w || fb->height % block_h) {
-		DRM_DEBUG_KMS("Buffer width/height needs to be a multiple of tile sizes");
+		DRM_DE_KMS("Buffer width/height needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
 	if ((state->src_x >> 16) % block_w || (state->src_y >> 16) % block_h) {
-		DRM_DEBUG_KMS("Plane src_x/src_y needs to be a multiple of tile sizes");
+		DRM_DE_KMS("Plane src_x/src_y needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
 

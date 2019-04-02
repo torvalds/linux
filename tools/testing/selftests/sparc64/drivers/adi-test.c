@@ -18,32 +18,32 @@
 
 #include "../../kselftest.h"
 
-#define DEBUG_LEVEL_1_BIT	(0x0001)
-#define DEBUG_LEVEL_2_BIT	(0x0002)
-#define DEBUG_LEVEL_3_BIT	(0x0004)
-#define DEBUG_LEVEL_4_BIT	(0x0008)
-#define DEBUG_TIMING_BIT	(0x1000)
+#define DE_LEVEL_1_BIT	(0x0001)
+#define DE_LEVEL_2_BIT	(0x0002)
+#define DE_LEVEL_3_BIT	(0x0004)
+#define DE_LEVEL_4_BIT	(0x0008)
+#define DE_TIMING_BIT	(0x1000)
 
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
 /* bit mask of enabled bits to print */
-#define DEBUG 0x0001
+#define DE 0x0001
 
-#define DEBUG_PRINT_L1(...)	debug_print(DEBUG_LEVEL_1_BIT, __VA_ARGS__)
-#define DEBUG_PRINT_L2(...)	debug_print(DEBUG_LEVEL_2_BIT, __VA_ARGS__)
-#define DEBUG_PRINT_L3(...)	debug_print(DEBUG_LEVEL_3_BIT, __VA_ARGS__)
-#define DEBUG_PRINT_L4(...)	debug_print(DEBUG_LEVEL_4_BIT, __VA_ARGS__)
-#define DEBUG_PRINT_T(...)	debug_print(DEBUG_TIMING_BIT, __VA_ARGS__)
+#define DE_PRINT_L1(...)	de_print(DE_LEVEL_1_BIT, __VA_ARGS__)
+#define DE_PRINT_L2(...)	de_print(DE_LEVEL_2_BIT, __VA_ARGS__)
+#define DE_PRINT_L3(...)	de_print(DE_LEVEL_3_BIT, __VA_ARGS__)
+#define DE_PRINT_L4(...)	de_print(DE_LEVEL_4_BIT, __VA_ARGS__)
+#define DE_PRINT_T(...)	de_print(DE_TIMING_BIT, __VA_ARGS__)
 
-static void debug_print(int level, const char *s, ...)
+static void de_print(int level, const char *s, ...)
 {
 	va_list args;
 
 	va_start(args, s);
 
-	if (DEBUG & level)
+	if (DE & level)
 		vfprintf(stdout, s, args);
 	va_end(args);
 }
@@ -54,7 +54,7 @@ static void debug_print(int level, const char *s, ...)
 
 #define RETURN_FROM_TEST(_ret) \
 	do { \
-		DEBUG_PRINT_L1( \
+		DE_PRINT_L1( \
 			"\tTest %s returned %d\n", __func__, _ret); \
 		return _ret; \
 	} while (0)
@@ -115,7 +115,7 @@ static void update_stats(struct stats * const ustats,
 
 static void print_ustats(const struct stats * const ustats)
 {
-	DEBUG_PRINT_L1("%s\t%7d\t%7.0f\t%7.0f\n",
+	DE_PRINT_L1("%s\t%7d\t%7.0f\t%7.0f\n",
 		       ustats->name, ustats->count,
 		       (float)ustats->total / (float)ustats->count,
 		       (float)ustats->bytes / (float)ustats->count);
@@ -123,7 +123,7 @@ static void print_ustats(const struct stats * const ustats)
 
 static void print_stats(void)
 {
-	DEBUG_PRINT_L1("\nSyscall\tCall\tAvgTime\tAvgSize\n"
+	DE_PRINT_L1("\nSyscall\tCall\tAvgTime\tAvgSize\n"
 		       "\tCount\t(ticks)\t(bytes)\n"
 		       "-------------------------------\n");
 
@@ -168,9 +168,9 @@ static int build_memory_map(void)
 
 	fclose(fp);
 
-	DEBUG_PRINT_L1("RAM Ranges\n");
+	DE_PRINT_L1("RAM Ranges\n");
 	for (i = 0; i < range_count; i++)
-		DEBUG_PRINT_L1("\trange %d: 0x%llx\t- 0x%llx\n",
+		DE_PRINT_L1("\trange %d: 0x%llx\t- 0x%llx\n",
 			       i, start_addr[i], end_addr[i]);
 
 	if (range_count == 0) {
@@ -199,8 +199,8 @@ static int read_adi(int fd, unsigned char *buf, int buf_sz)
 
 	} while (bytes_read < buf_sz);
 
-	DEBUG_PRINT_T("\tread elapsed timed = %ld\n", elapsed_time);
-	DEBUG_PRINT_L3("\tRead  %d bytes\n", bytes_read);
+	DE_PRINT_T("\tread elapsed timed = %ld\n", elapsed_time);
+	DE_PRINT_L3("\tRead  %d bytes\n", bytes_read);
 
 	return bytes_read;
 }
@@ -228,11 +228,11 @@ static int pread_adi(int fd, unsigned char *buf,
 
 	} while (bytes_read < buf_sz);
 
-	DEBUG_PRINT_T("\tpread elapsed timed = %ld\n", elapsed_time);
-	DEBUG_PRINT_L3("\tRead  %d bytes starting at offset 0x%lx\n",
+	DE_PRINT_T("\tpread elapsed timed = %ld\n", elapsed_time);
+	DE_PRINT_L3("\tRead  %d bytes starting at offset 0x%lx\n",
 		       bytes_read, offset);
 	for (i = 0; i < bytes_read; i++)
-		DEBUG_PRINT_L4("\t\t0x%lx\t%d\n", offset + i, buf[i]);
+		DE_PRINT_L4("\t\t0x%lx\t%d\n", offset + i, buf[i]);
 
 	return bytes_read;
 }
@@ -254,8 +254,8 @@ static int write_adi(int fd, const unsigned char * const buf, int buf_sz)
 		bytes_written += ret;
 	} while (bytes_written < buf_sz);
 
-	DEBUG_PRINT_T("\twrite elapsed timed = %ld\n", elapsed_time);
-	DEBUG_PRINT_L3("\tWrote %d of %d bytes\n", bytes_written, buf_sz);
+	DE_PRINT_T("\twrite elapsed timed = %ld\n", elapsed_time);
+	DE_PRINT_L3("\tWrote %d of %d bytes\n", bytes_written, buf_sz);
 
 	return bytes_written;
 }
@@ -287,8 +287,8 @@ static int pwrite_adi(int fd, const unsigned char * const buf,
 
 	} while (bytes_written < buf_sz);
 
-	DEBUG_PRINT_T("\tpwrite elapsed timed = %ld\n", elapsed_time);
-	DEBUG_PRINT_L3("\tWrote %d of %d bytes starting at address 0x%lx\n",
+	DE_PRINT_T("\tpwrite elapsed timed = %ld\n", elapsed_time);
+	DE_PRINT_L3("\tWrote %d of %d bytes starting at address 0x%lx\n",
 		       bytes_written, buf_sz, offset);
 
 	return bytes_written;
@@ -302,11 +302,11 @@ static off_t seek_adi(int fd, off_t offset, int whence)
 	RDTICK(start);
 	ret = lseek(fd, offset, whence);
 	RDTICK(end);
-	DEBUG_PRINT_L2("\tlseek ret = 0x%llx\n", ret);
+	DE_PRINT_L2("\tlseek ret = 0x%llx\n", ret);
 	if (ret < 0)
 		goto out;
 
-	DEBUG_PRINT_T("\tlseek elapsed timed = %ld\n", end - start);
+	DE_PRINT_T("\tlseek elapsed timed = %ld\n", end - start);
 	update_stats(&seek_stats, end - start, 0);
 
 out:
@@ -337,7 +337,7 @@ static int test0_prpw_aligned_1byte(int fd)
 		TEST_STEP_FAILURE(ret);
 
 	if (expected_version != version[0]) {
-		DEBUG_PRINT_L2("\tExpected version %d but read version %d\n",
+		DE_PRINT_L2("\tExpected version %d but read version %d\n",
 			       expected_version, version[0]);
 		TEST_STEP_FAILURE(-expected_version);
 	}
@@ -375,7 +375,7 @@ static int test1_prpw_aligned_4096bytes(int fd)
 
 	for (i = 0; i < TEST1_VERSION_SZ; i++) {
 		if (expected_version[i] != version[i]) {
-			DEBUG_PRINT_L2(
+			DE_PRINT_L2(
 				"\tExpected version %d but read version %d\n",
 				expected_version, version[0]);
 			TEST_STEP_FAILURE(-expected_version[i]);
@@ -415,7 +415,7 @@ static int test2_prpw_aligned_10327bytes(int fd)
 
 	for (i = 0; i < TEST2_VERSION_SZ; i++) {
 		if (expected_version[i] != version[i]) {
-			DEBUG_PRINT_L2(
+			DE_PRINT_L2(
 				"\tExpected version %d but read version %d\n",
 				expected_version, version[0]);
 			TEST_STEP_FAILURE(-expected_version[i]);
@@ -455,7 +455,7 @@ static int test3_prpw_unaligned_12541bytes(int fd)
 
 	for (i = 0; i < TEST3_VERSION_SZ; i++) {
 		if (expected_version[i] != version[i]) {
-			DEBUG_PRINT_L2(
+			DE_PRINT_L2(
 				"\tExpected version %d but read version %d\n",
 				expected_version, version[0]);
 			TEST_STEP_FAILURE(-expected_version[i]);
@@ -486,7 +486,7 @@ static int test4_lseek(int fd)
 	/* seek to the current offset.  this should return EINVAL */
 	offset_out = seek_adi(fd, offset_in, SEEK_SET);
 	if (offset_out < 0 && errno == EINVAL)
-		DEBUG_PRINT_L2(
+		DE_PRINT_L2(
 			"\tSEEK_SET failed as designed. Not an error\n");
 	else {
 		ret = -2;
@@ -550,7 +550,7 @@ static int test5_rw_aligned_1byte(int fd)
 		TEST_STEP_FAILURE(ret);
 
 	if (expected_version != version) {
-		DEBUG_PRINT_L2("\tExpected version %d but read version %d\n",
+		DE_PRINT_L2("\tExpected version %d but read version %d\n",
 			       expected_version, version);
 		TEST_STEP_FAILURE(-expected_version);
 	}
@@ -600,7 +600,7 @@ static int test6_rw_aligned_9434bytes(int fd)
 
 	for (i = 0; i < TEST6_VERSION_SZ; i++) {
 		if (expected_version[i] != version[i]) {
-			DEBUG_PRINT_L2(
+			DE_PRINT_L2(
 				"\tExpected version %d but read version %d\n",
 				expected_version[i], version[i]);
 			TEST_STEP_FAILURE(-expected_version[i]);
@@ -654,7 +654,7 @@ static int test7_rw_aligned_14963bytes(int fd)
 
 	for (i = 0; i < TEST7_VERSION_SZ; i++) {
 		if (expected_version[i] != version[i]) {
-			DEBUG_PRINT_L2(
+			DE_PRINT_L2(
 				"\tExpected version %d but read version %d\n",
 				expected_version[i], version[i]);
 			TEST_STEP_FAILURE(-expected_version[i]);
@@ -696,7 +696,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (test = 0; test < TEST_COUNT; test++) {
-		DEBUG_PRINT_L1("Running test #%d\n", test);
+		DE_PRINT_L1("Running test #%d\n", test);
 
 		ret = (*tests[test])(fd);
 		if (ret != 0)

@@ -28,7 +28,7 @@
 #define __KVM_HAVE_PPC_SMT
 #define __KVM_HAVE_IRQCHIP
 #define __KVM_HAVE_IRQ_LINE
-#define __KVM_HAVE_GUEST_DEBUG
+#define __KVM_HAVE_GUEST_DE
 
 /* Not always available, but if it is, this is the correct offset.  */
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -119,9 +119,9 @@ struct kvm_regs {
 #define KVM_SREGS_E_ARCH206_MMU		(1 << 6)
 
 /* DBSR, DBCR, IAC, DAC, DVC */
-#define KVM_SREGS_E_DEBUG		(1 << 7)
+#define KVM_SREGS_E_DE		(1 << 7)
 
-/* Enhanced debug -- DSRR0/1, SPRG9 */
+/* Enhanced de -- DSRR0/1, SPRG9 */
 #define KVM_SREGS_E_ED			(1 << 8)
 
 /* Embedded Floating Point (SPE) -- IVOR32-34 if KVM_SREGS_E_IVOR */
@@ -283,14 +283,14 @@ struct kvm_fpu {
 /*
  * Defines for h/w breakpoint, watchpoint (read, write or both) and
  * software breakpoint.
- * These are used as "type" in KVM_SET_GUEST_DEBUG ioctl and "status"
- * for KVM_DEBUG_EXIT.
+ * These are used as "type" in KVM_SET_GUEST_DE ioctl and "status"
+ * for KVM_DE_EXIT.
  */
-#define KVMPPC_DEBUG_NONE		0x0
-#define KVMPPC_DEBUG_BREAKPOINT		(1UL << 1)
-#define KVMPPC_DEBUG_WATCH_WRITE	(1UL << 2)
-#define KVMPPC_DEBUG_WATCH_READ		(1UL << 3)
-struct kvm_debug_exit_arch {
+#define KVMPPC_DE_NONE		0x0
+#define KVMPPC_DE_BREAKPOINT		(1UL << 1)
+#define KVMPPC_DE_WATCH_WRITE	(1UL << 2)
+#define KVMPPC_DE_WATCH_READ		(1UL << 3)
+struct kvm_de_exit_arch {
 	__u64 address;
 	/*
 	 * exiting to userspace because of h/w breakpoint, watchpoint
@@ -300,8 +300,8 @@ struct kvm_debug_exit_arch {
 	__u32 reserved;
 };
 
-/* for KVM_SET_GUEST_DEBUG */
-struct kvm_guest_debug_arch {
+/* for KVM_SET_GUEST_DE */
+struct kvm_guest_de_arch {
 	struct {
 		/* H/W breakpoint/watchpoint address */
 		__u64 addr;
@@ -314,9 +314,9 @@ struct kvm_guest_debug_arch {
 	} bp[16];
 };
 
-/* Debug related defines */
+/* De related defines */
 /*
- * kvm_guest_debug->control is a 32 bit field. The lower 16 bits are generic
+ * kvm_guest_de->control is a 32 bit field. The lower 16 bits are generic
  * and upper 16 bits are architecture specific. Architecture specific defines
  * that ioctl is for setting hardware breakpoint or software breakpoint.
  */
@@ -564,8 +564,8 @@ struct kvm_ppc_cpu_char {
 #define KVM_REG_PPC_TCR		(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x89)
 #define KVM_REG_PPC_TSR		(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x8a)
 
-/* Debugging: Special instruction for software breakpoint */
-#define KVM_REG_PPC_DEBUG_INST	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x8b)
+/* Deging: Special instruction for software breakpoint */
+#define KVM_REG_PPC_DE_INST	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x8b)
 
 /* MMU registers */
 #define KVM_REG_PPC_MAS0	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x8c)

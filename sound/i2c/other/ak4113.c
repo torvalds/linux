@@ -503,7 +503,7 @@ int snd_ak4113_build(struct ak4113 *ak4113,
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!cap_substream))
+	if (snd__ON(!cap_substream))
 		return -EINVAL;
 	ak4113->substream = cap_substream;
 	for (idx = 0; idx < AK4113_CONTROLS; idx++) {
@@ -614,7 +614,7 @@ __rate:
 			(runtime->rate != res)) {
 		snd_pcm_stream_lock_irqsave(ak4113->substream, _flags);
 		if (snd_pcm_running(ak4113->substream)) {
-			/*printk(KERN_DEBUG "rate changed (%i <- %i)\n",
+			/*printk(KERN_DE "rate changed (%i <- %i)\n",
 			 * runtime->rate, res); */
 			snd_pcm_stop(ak4113->substream,
 					SNDRV_PCM_STATE_DRAINING);

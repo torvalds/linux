@@ -81,12 +81,12 @@
 
 #include <video/aty128.h>
 
-/* Debug flag */
-#undef DEBUG
+/* De flag */
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt, args...) \
-	printk(KERN_DEBUG "aty128fb: %s " fmt, __func__, ##args);
+	printk(KERN_DE "aty128fb: %s " fmt, __func__, ##args);
 #else
 #define DBG(fmt, args...)
 #endif
@@ -604,7 +604,7 @@ static void aty_pll_wait_readupdate(const struct aty128fb_par *par)
 		}
 
 	if (reset)	/* reset engine?? */
-		printk(KERN_DEBUG "aty128fb: PLL write timeout!\n");
+		printk(KERN_DE "aty128fb: PLL write timeout!\n");
 }
 
 
@@ -843,7 +843,7 @@ static void __iomem *aty128_map_ROM(const struct aty128fb_par *par,
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_DEBUG "aty128fb: Invalid ROM signature %x should "
+		printk(KERN_DE "aty128fb: Invalid ROM signature %x should "
 			" be 0xaa55\n", BIOS_IN16(0));
 		goto failed;
 	}
@@ -1966,7 +1966,7 @@ static int aty128_init(struct pci_dev *pdev, const struct pci_device_id *ent)
        * among others we now rely on the PCI core restoring the config space
        * for us, which isn't the case with that hack, and that code path causes
        * various things to be called with interrupts off while they shouldn't.
-       * I'm leaving the code in as it can be useful for debugging purposes
+       * I'm leaving the code in as it can be useful for deging purposes
        */
 			pmac_set_early_video_resume(aty128_early_resume, par);
 #endif
@@ -2477,7 +2477,7 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
 
-	printk(KERN_DEBUG "aty128fb: suspending...\n");
+	printk(KERN_DE "aty128fb: suspending...\n");
 	
 	console_lock();
 
@@ -2559,7 +2559,7 @@ static int aty128_do_resume(struct pci_dev *pdev)
 
 	pdev->dev.power.power_state = PMSG_ON;
 
-	printk(KERN_DEBUG "aty128fb: resumed !\n");
+	printk(KERN_DE "aty128fb: resumed !\n");
 
 	return 0;
 }

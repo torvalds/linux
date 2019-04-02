@@ -168,7 +168,7 @@ irqfd_is_active(struct kvm_kernel_irqfd *irqfd)
 static void
 irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
 {
-	BUG_ON(!irqfd_is_active(irqfd));
+	_ON(!irqfd_is_active(irqfd));
 
 	list_del_init(&irqfd->list);
 
@@ -705,7 +705,7 @@ ioeventfd_in_range(struct _ioeventfd *p, gpa_t addr, int len, const void *val)
 
 	/* otherwise, we have to actually compare the data */
 
-	BUG_ON(!IS_ALIGNED((unsigned long)val, len));
+	_ON(!IS_ALIGNED((unsigned long)val, len));
 
 	switch (len) {
 	case 1:

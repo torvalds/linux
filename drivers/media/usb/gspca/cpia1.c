@@ -71,7 +71,7 @@ MODULE_LICENSE("GPL");
 #define STREAMSTATE	2
 #define FATALERROR	3
 #define CMDERROR	4
-#define DEBUGFLAGS	5
+#define DEFLAGS	5
 #define VPSTATUS	6
 #define ERRORCODE	7
 
@@ -94,7 +94,7 @@ MODULE_LICENSE("GPL");
 #define STREAM_PAUSED		3
 #define STREAM_FINISHED		4
 
-/* Fatal Error, CmdError, and DebugFlags */
+/* Fatal Error, CmdError, and DeFlags */
 #define CPIA_FLAG	  1
 #define SYSTEM_FLAG	  2
 #define INT_CTRL_FLAG	  4
@@ -102,7 +102,7 @@ MODULE_LICENSE("GPL");
 #define COM_FLAG	 16
 #define VP_CTRL_FLAG	 32
 #define CAPTURE_FLAG	 64
-#define DEBUG_FLAG	128
+#define DE_FLAG	128
 
 /* VPStatus */
 #define VP_STATE_OK			0x00
@@ -134,7 +134,7 @@ MODULE_LICENSE("GPL");
 #define CPIA_MODULE_SYSTEM			(1 << 5)
 #define CPIA_MODULE_VP_CTRL			(5 << 5)
 #define CPIA_MODULE_CAPTURE			(6 << 5)
-#define CPIA_MODULE_DEBUG			(7 << 5)
+#define CPIA_MODULE_DE			(7 << 5)
 
 #define INPUT (DATA_IN << 8)
 #define OUTPUT (DATA_OUT << 8)
@@ -196,14 +196,14 @@ MODULE_LICENSE("GPL");
 #define CPIA_COMMAND_DiscardFrame	(OUTPUT | CPIA_MODULE_CAPTURE | 14)
 #define CPIA_COMMAND_GrabReset		(OUTPUT | CPIA_MODULE_CAPTURE | 15)
 
-#define CPIA_COMMAND_OutputRS232	(OUTPUT | CPIA_MODULE_DEBUG | 1)
-#define CPIA_COMMAND_AbortProcess	(OUTPUT | CPIA_MODULE_DEBUG | 4)
-#define CPIA_COMMAND_SetDramPage	(OUTPUT | CPIA_MODULE_DEBUG | 5)
-#define CPIA_COMMAND_StartDramUpload	(OUTPUT | CPIA_MODULE_DEBUG | 6)
-#define CPIA_COMMAND_StartDummyDtream	(OUTPUT | CPIA_MODULE_DEBUG | 8)
-#define CPIA_COMMAND_AbortStream	(OUTPUT | CPIA_MODULE_DEBUG | 9)
-#define CPIA_COMMAND_DownloadDRAM	(OUTPUT | CPIA_MODULE_DEBUG | 10)
-#define CPIA_COMMAND_Null		(OUTPUT | CPIA_MODULE_DEBUG | 11)
+#define CPIA_COMMAND_OutputRS232	(OUTPUT | CPIA_MODULE_DE | 1)
+#define CPIA_COMMAND_AbortProcess	(OUTPUT | CPIA_MODULE_DE | 4)
+#define CPIA_COMMAND_SetDramPage	(OUTPUT | CPIA_MODULE_DE | 5)
+#define CPIA_COMMAND_StartDramUpload	(OUTPUT | CPIA_MODULE_DE | 6)
+#define CPIA_COMMAND_StartDummyDtream	(OUTPUT | CPIA_MODULE_DE | 8)
+#define CPIA_COMMAND_AbortStream	(OUTPUT | CPIA_MODULE_DE | 9)
+#define CPIA_COMMAND_DownloadDRAM	(OUTPUT | CPIA_MODULE_DE | 10)
+#define CPIA_COMMAND_Null		(OUTPUT | CPIA_MODULE_DE | 11)
 
 #define ROUND_UP_EXP_FOR_FLICKER 15
 
@@ -262,7 +262,7 @@ struct cam_params {
 		u8 streamState;
 		u8 fatalError;
 		u8 cmdError;
-		u8 debugFlags;
+		u8 deFlags;
 		u8 vpStatus;
 		u8 errorCode;
 	} status;
@@ -504,7 +504,7 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 		sd->params.status.streamState = gspca_dev->usb_buf[2];
 		sd->params.status.fatalError = gspca_dev->usb_buf[3];
 		sd->params.status.cmdError = gspca_dev->usb_buf[4];
-		sd->params.status.debugFlags = gspca_dev->usb_buf[5];
+		sd->params.status.deFlags = gspca_dev->usb_buf[5];
 		sd->params.status.vpStatus = gspca_dev->usb_buf[6];
 		sd->params.status.errorCode = gspca_dev->usb_buf[7];
 		break;
@@ -708,7 +708,7 @@ static void printstatus(struct gspca_dev *gspca_dev, struct cam_params *params)
 	gspca_dbg(gspca_dev, D_PROBE, "status: %02x %02x %02x %02x %02x %02x %02x %02x\n",
 		  params->status.systemState, params->status.grabState,
 		  params->status.streamState, params->status.fatalError,
-		  params->status.cmdError, params->status.debugFlags,
+		  params->status.cmdError, params->status.deFlags,
 		  params->status.vpStatus, params->status.errorCode);
 }
 
@@ -1459,7 +1459,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return -ENODEV;
 	}
 
-	/* A bug in firmware 1-02 limits gainMode to 2 */
+	/* A  in firmware 1-02 limits gainMode to 2 */
 	if (sd->params.version.firmwareRevision <= 2 &&
 	    sd->params.exposure.gainMode > 2) {
 		sd->params.exposure.gainMode = 2;
@@ -1510,7 +1510,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* The fatal error checking should be done after
 	 * the camera powers up (developer's guide p 3-38) */
 
-	/* Set streamState before transition to high power to avoid bug
+	/* Set streamState before transition to high power to avoid 
 	 * in firmware 1-02 */
 	ret = do_command(gspca_dev, CPIA_COMMAND_ModifyCameraStatus,
 			 STREAMSTATE, 0, STREAM_NOT_READY, 0);

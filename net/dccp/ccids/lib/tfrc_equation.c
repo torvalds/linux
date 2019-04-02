@@ -621,8 +621,8 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 	u64 result;
 
 	/* check against invalid parameters and divide-by-zero   */
-	BUG_ON(p >  1000000);		/* p must not exceed 100%   */
-	BUG_ON(p == 0);			/* f(0) = 0, divide by zero */
+	_ON(p >  1000000);		/* p must not exceed 100%   */
+	_ON(p == 0);			/* f(0) = 0, divide by zero */
 	if (R == 0) {			/* possible  divide by zero */
 		DCCP_CRIT("WARNING: RTT is 0, returning maximum X_calc.");
 		return ~0U;

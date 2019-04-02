@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(of_thermal_get_trip_points);
  * @temp:	temperature to set
  *
  * This function gives the ability to set emulated value of temperature,
- * which is handy for debugging
+ * which is handy for deging
  *
  * Return: zero on success, error code otherwise
  */
@@ -1015,7 +1015,7 @@ int __init of_parse_thermal_zones(void)
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np) {
-		pr_debug("unable to find thermal zones\n");
+		pr_de("unable to find thermal zones\n");
 		return 0; /* Run successfully on systems without thermal DT */
 	}
 
@@ -1098,7 +1098,7 @@ void of_thermal_destroy_zones(void)
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np) {
-		pr_debug("unable to find thermal zones\n");
+		pr_de("unable to find thermal zones\n");
 		return;
 	}
 

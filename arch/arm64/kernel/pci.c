@@ -138,7 +138,7 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 		dev_info(dev, "ECAM area %pR reserved by %s\n", &cfgres,
 			 dev_name(&adev->dev));
 	else
-		dev_warn(dev, FW_BUG "ECAM area %pR not reserved in ACPI namespace\n",
+		dev_warn(dev, FW_ "ECAM area %pR not reserved in ACPI namespace\n",
 			 &cfgres);
 
 	cfg = pci_ecam_create(dev, &cfgres, bus_res, ecam_ops);

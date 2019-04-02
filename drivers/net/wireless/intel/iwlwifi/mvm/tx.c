@@ -346,7 +346,7 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 		rate_idx += IWL_FIRST_OFDM_RATE;
 
 	/* For 2.4 GHZ band, check that there is no need to remap */
-	BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
+	BUILD__ON(IWL_FIRST_CCK_RATE != 0);
 
 	/* Get PLCP rate for tx_cmd->rate_n_flags */
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
@@ -502,8 +502,8 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return NULL;
 
 	/* Make sure we zero enough of dev_cmd */
-	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen2) > sizeof(*tx_cmd));
-	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen3) > sizeof(*tx_cmd));
+	BUILD__ON(sizeof(struct iwl_tx_cmd_gen2) > sizeof(*tx_cmd));
+	BUILD__ON(sizeof(struct iwl_tx_cmd_gen3) > sizeof(*tx_cmd));
 
 	memset(dev_cmd, 0, sizeof(dev_cmd->hdr) + sizeof(*tx_cmd));
 	dev_cmd->hdr.cmd = TX_CMD;
@@ -680,7 +680,7 @@ static void iwl_mvm_probe_resp_set_noa(struct iwl_mvm *mvm,
 					  skb->len - base_len,
 					  match, 4, 2);
 	if (!ie) {
-		IWL_DEBUG_TX(mvm, "probe resp doesn't have P2P IE\n");
+		IWL_DE_TX(mvm, "probe resp doesn't have P2P IE\n");
 		goto out;
 	}
 
@@ -768,7 +768,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	if (unlikely(ieee80211_is_probe_resp(fc)))
 		iwl_mvm_probe_resp_set_noa(mvm, skb);
 
-	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, queue);
+	IWL_DE_TX(mvm, "station Id %d, queue=%d\n", sta_id, queue);
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, &info, hdrlen, NULL, sta_id);
 	if (!dev_cmd)
@@ -1170,7 +1170,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			schedule_work(&mvm->add_stream_wk);
 	}
 
-	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
+	IWL_DE_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
 		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));
 
 	/* From now on, we cannot access info->control */
@@ -1194,7 +1194,7 @@ drop_unlock_sta:
 	iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
 	spin_unlock(&mvmsta->lock);
 drop:
-	IWL_DEBUG_TX(mvm, "TX to [%d|%d] dropped\n", mvmsta->sta_id, tid);
+	IWL_DE_TX(mvm, "TX to [%d|%d] dropped\n", mvmsta->sta_id, tid);
 	return -1;
 }
 
@@ -1280,7 +1280,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 
 	switch (tid_data->state) {
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		IWL_DEBUG_TX_QUEUES(mvm,
+		IWL_DE_TX_QUEUES(mvm,
 				    "Can continue addBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
 		tid_data->state = IWL_AGG_STARTING;
@@ -1288,7 +1288,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		break;
 
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
-		IWL_DEBUG_TX_QUEUES(mvm,
+		IWL_DE_TX_QUEUES(mvm,
 				    "Can continue DELBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
 		tid_data->state = IWL_AGG_OFF;
@@ -1300,7 +1300,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	}
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 const char *iwl_mvm_get_tx_fail_reason(u32 status)
 {
 #define TX_STATUS_FAIL(x) case TX_STATUS_FAIL_ ## x: return #x
@@ -1338,7 +1338,7 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status)
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
 }
-#endif /* CONFIG_IWLWIFI_DEBUG */
+#endif /* CONFIG_IWLWIFI_DE */
 
 void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
 			       enum nl80211_band band,
@@ -1528,7 +1528,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
-		/* W/A FW bug: seq_ctl is wrong upon failure / BAR frame */
+		/* W/A FW : seq_ctl is wrong upon failure / BAR frame */
 		if (ieee80211_is_back_req(hdr->frame_control))
 			seq_ctl = 0;
 		else if (status != TX_STATUS_SUCCESS)
@@ -1554,7 +1554,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		 */
 		info->status.tx_time =
 			le16_to_cpu(tx_resp->wireless_media_time);
-		BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
+		BUILD__ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 		lq_color = TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
 		info->status.status_driver_data[0] =
 			RS_DRV_DATA_PACK(lq_color, tx_resp->reduced_tpc);
@@ -1578,11 +1578,11 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 */
 	next_reclaimed = ssn;
 
-	IWL_DEBUG_TX_REPLY(mvm,
+	IWL_DE_TX_REPLY(mvm,
 			   "TXQ %d status %s (0x%08x)\n",
 			   txq_id, iwl_mvm_get_tx_fail_reason(status), status);
 
-	IWL_DEBUG_TX_REPLY(mvm,
+	IWL_DE_TX_REPLY(mvm,
 			   "\t\t\t\tinitial_rate 0x%x retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
 			   le32_to_cpu(tx_resp->initial_rate),
 			   tx_resp->failure_frame, SEQ_TO_INDEX(sequence),
@@ -1617,11 +1617,11 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 			if (!is_ndp) {
 				tid_data->next_reclaimed = next_reclaimed;
-				IWL_DEBUG_TX_REPLY(mvm,
+				IWL_DE_TX_REPLY(mvm,
 						   "Next reclaimed packet:%d\n",
 						   next_reclaimed);
 			} else {
-				IWL_DEBUG_TX_REPLY(mvm,
+				IWL_DE_TX_REPLY(mvm,
 						   "NDP - don't update next_reclaimed\n");
 			}
 
@@ -1667,7 +1667,7 @@ out:
 	rcu_read_unlock();
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 #define AGG_TX_STATE_(x) case AGG_TX_STATE_ ## x: return #x
 static const char *iwl_get_agg_tx_status(u16 status)
 {
@@ -1701,7 +1701,7 @@ static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 	for (i = 0; i < tx_resp->frame_count; i++) {
 		u16 fstatus = le16_to_cpu(frame_status[i].status);
 
-		IWL_DEBUG_TX_REPLY(mvm,
+		IWL_DE_TX_REPLY(mvm,
 				   "status %s (0x%04x), try-count (%d) seq (0x%x)\n",
 				   iwl_get_agg_tx_status(fstatus),
 				   fstatus & AGG_TX_STATE_STATUS_MSK,
@@ -1714,7 +1714,7 @@ static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 				      struct iwl_rx_packet *pkt)
 {}
-#endif /* CONFIG_IWLWIFI_DEBUG */
+#endif /* CONFIG_IWLWIFI_DE */
 
 static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
@@ -1876,7 +1876,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		iwl_mvm_hwrate_to_tx_status(rate, ba_info);
 
 		if (!iwl_mvm_has_tlc_offload(mvm)) {
-			IWL_DEBUG_TX_REPLY(mvm,
+			IWL_DE_TX_REPLY(mvm,
 					   "No reclaim. Update rs directly\n");
 			iwl_mvm_rs_tx_status(mvm, sta, tid, ba_info, false);
 		}
@@ -1947,7 +1947,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 out_unlock:
 		rcu_read_unlock();
 out:
-		IWL_DEBUG_TX_REPLY(mvm,
+		IWL_DE_TX_REPLY(mvm,
 				   "BA_NOTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",
 				   sta_id, le32_to_cpu(ba_res->flags),
 				   le16_to_cpu(ba_res->txed),
@@ -1984,17 +1984,17 @@ out:
 	iwl_mvm_tx_reclaim(mvm, sta_id, tid, txq, index, &ba_info,
 			   tid_data->rate_n_flags);
 
-	IWL_DEBUG_TX_REPLY(mvm,
+	IWL_DE_TX_REPLY(mvm,
 			   "BA_NOTIFICATION Received from %pM, sta_id = %d\n",
 			   ba_notif->sta_addr, ba_notif->sta_id);
 
-	IWL_DEBUG_TX_REPLY(mvm,
+	IWL_DE_TX_REPLY(mvm,
 			   "TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = %d, scd_ssn = %d sent:%d, acked:%d\n",
 			   ba_notif->tid, le16_to_cpu(ba_notif->seq_ctl),
 			   le64_to_cpu(ba_notif->bitmap), txq, index,
 			   ba_notif->txed, ba_notif->txed_2_done);
 
-	IWL_DEBUG_TX_REPLY(mvm, "reduced txp from ba notif %d\n",
+	IWL_DE_TX_REPLY(mvm, "reduced txp from ba notif %d\n",
 			   ba_notif->reduced_txp);
 }
 
@@ -2046,7 +2046,7 @@ int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal, u32 flags)
 	struct iwl_mvm_int_sta *int_sta = sta;
 	struct iwl_mvm_sta *mvm_sta = sta;
 
-	BUILD_BUG_ON(offsetof(struct iwl_mvm_int_sta, sta_id) !=
+	BUILD__ON(offsetof(struct iwl_mvm_int_sta, sta_id) !=
 		     offsetof(struct iwl_mvm_sta, sta_id));
 
 	if (iwl_mvm_has_new_tx_api(mvm))

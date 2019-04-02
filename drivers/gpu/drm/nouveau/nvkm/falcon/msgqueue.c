@@ -516,7 +516,7 @@ nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon,
 	}
 
 	if (ret == 0) {
-		nvkm_debug(subdev, "firmware version: 0x%08x\n", version);
+		nvkm_de(subdev, "firmware version: 0x%08x\n", version);
 		(*queue)->fw_version = version;
 	}
 

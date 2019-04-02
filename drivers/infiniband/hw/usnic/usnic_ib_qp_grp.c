@@ -30,7 +30,7 @@
  * SOFTWARE.
  *
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -39,7 +39,7 @@
 #include "usnic_vnic.h"
 #include "usnic_fwd.h"
 #include "usnic_uiom.h"
-#include "usnic_debugfs.h"
+#include "usnic_defs.h"
 #include "usnic_ib_qp_grp.h"
 #include "usnic_ib_sysfs.h"
 #include "usnic_transport.h"
@@ -354,7 +354,7 @@ create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	if (!IS_ERR_OR_NULL(qp_flow)) {
 		list_add_tail(&qp_flow->link, &qp_grp->flows_lst);
-		usnic_debugfs_flow_add(qp_flow);
+		usnic_defs_flow_add(qp_flow);
 	}
 
 
@@ -363,7 +363,7 @@ create_and_add_flow(struct usnic_ib_qp_grp *qp_grp,
 
 static void release_and_remove_flow(struct usnic_ib_qp_grp_flow *qp_flow)
 {
-	usnic_debugfs_flow_remove(qp_flow);
+	usnic_defs_flow_remove(qp_flow);
 	list_del(&qp_flow->link);
 
 	switch (qp_flow->trans_type) {

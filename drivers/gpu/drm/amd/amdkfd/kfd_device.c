@@ -473,11 +473,11 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
 	if (cwsr_enable && kfd->device_info->supports_cwsr) {
 		if (kfd->device_info->asic_family < CHIP_VEGA10) {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
+			BUILD__ON(sizeof(cwsr_trap_gfx8_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx8_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx8_hex);
 		} else {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
+			BUILD__ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_hex);
 		}
@@ -588,7 +588,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
 
-	pr_debug("Starting kfd with the following scheduling policy %d\n",
+	pr_de("Starting kfd with the following scheduling policy %d\n",
 		kfd->dqm->sched_policy);
 
 	goto out;
@@ -865,7 +865,7 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 	if (!kfd->gtt_sa_bitmap)
 		return -ENOMEM;
 
-	pr_debug("gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
+	pr_de("gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
 			kfd->gtt_sa_num_of_chunks, kfd->gtt_sa_bitmap);
 
 	mutex_init(&kfd->gtt_sa_lock);
@@ -909,7 +909,7 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 	if (!(*mem_obj))
 		return -ENOMEM;
 
-	pr_debug("Allocated mem_obj = %p for size = %d\n", *mem_obj, size);
+	pr_de("Allocated mem_obj = %p for size = %d\n", *mem_obj, size);
 
 	start_search = 0;
 
@@ -921,7 +921,7 @@ kfd_gtt_restart_search:
 					kfd->gtt_sa_num_of_chunks,
 					start_search);
 
-	pr_debug("Found = %d\n", found);
+	pr_de("Found = %d\n", found);
 
 	/* If there wasn't any free chunk, bail out */
 	if (found == kfd->gtt_sa_num_of_chunks)
@@ -939,12 +939,12 @@ kfd_gtt_restart_search:
 					found,
 					kfd->gtt_sa_chunk_size);
 
-	pr_debug("gpu_addr = %p, cpu_addr = %p\n",
+	pr_de("gpu_addr = %p, cpu_addr = %p\n",
 			(uint64_t *) (*mem_obj)->gpu_addr, (*mem_obj)->cpu_ptr);
 
 	/* If we need only one chunk, mark it as allocated and get out */
 	if (size <= kfd->gtt_sa_chunk_size) {
-		pr_debug("Single bit\n");
+		pr_de("Single bit\n");
 		set_bit(found, kfd->gtt_sa_bitmap);
 		goto kfd_gtt_out;
 	}
@@ -979,7 +979,7 @@ kfd_gtt_restart_search:
 
 	} while (cur_size > 0);
 
-	pr_debug("range_start = %d, range_end = %d\n",
+	pr_de("range_start = %d, range_end = %d\n",
 		(*mem_obj)->range_start, (*mem_obj)->range_end);
 
 	/* Mark the chunks as allocated */
@@ -993,7 +993,7 @@ kfd_gtt_out:
 	return 0;
 
 kfd_gtt_no_free_chunk:
-	pr_debug("Allocation failed with mem_obj = %p\n", mem_obj);
+	pr_de("Allocation failed with mem_obj = %p\n", mem_obj);
 	mutex_unlock(&kfd->gtt_sa_lock);
 	kfree(mem_obj);
 	return -ENOMEM;
@@ -1007,7 +1007,7 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 	if (!mem_obj)
 		return 0;
 
-	pr_debug("Free mem_obj = %p, range_start = %d, range_end = %d\n",
+	pr_de("Free mem_obj = %p, range_start = %d, range_end = %d\n",
 			mem_obj, mem_obj->range_start, mem_obj->range_end);
 
 	mutex_lock(&kfd->gtt_sa_lock);
@@ -1024,12 +1024,12 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
 /* This function will send a package to HIQ to hang the HWS
  * which will trigger a GPU reset and bring the HWS back to normal state
  */
-int kfd_debugfs_hang_hws(struct kfd_dev *dev)
+int kfd_defs_hang_hws(struct kfd_dev *dev)
 {
 	int r = 0;
 
@@ -1038,9 +1038,9 @@ int kfd_debugfs_hang_hws(struct kfd_dev *dev)
 		return -EINVAL;
 	}
 
-	r = pm_debugfs_hang_hws(&dev->dqm->packets);
+	r = pm_defs_hang_hws(&dev->dqm->packets);
 	if (!r)
-		r = dqm_debugfs_execute_queues(dev->dqm);
+		r = dqm_defs_execute_queues(dev->dqm);
 
 	return r;
 }

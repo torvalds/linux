@@ -28,7 +28,7 @@ enum migrate_reason {
 	MR_TYPES
 };
 
-/* In mm/debug.c; also keep sync with include/trace/events/migrate.h */
+/* In mm/de.c; also keep sync with include/trace/events/migrate.h */
 extern const char *migrate_reason_names[MR_TYPES];
 
 static inline struct page *new_page_nodemask(struct page *page,

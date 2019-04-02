@@ -192,8 +192,8 @@ INCLUDE FILES
 
 #include "drx_driver_version.h"
 
-/* #define DRX_DEBUG */
-#ifdef DRX_DEBUG
+/* #define DRX_DE */
+#ifdef DRX_DE
 #include <stdio.h>
 #endif
 
@@ -1354,7 +1354,7 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 		return -EREMOTEIO;
 	}
 
-#ifdef DJH_DEBUG
+#ifdef DJH_DE
 	if (w_dev_addr == NULL || r_dev_addr == NULL)
 		return 0;
 
@@ -1373,7 +1373,7 @@ int drxbsp_i2c_write_read(struct i2c_device_addr *w_dev_addr,
 	msg[1].len = r_count;
 	num_msgs = 2;
 
-	pr_debug("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
+	pr_de("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",
 	       w_dev_addr->i2c_addr, state->i2c, w_count, r_count);
 
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
@@ -2397,7 +2397,7 @@ static int init_hi(const struct drx_demod_instance *demod)
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 	dev_addr = demod->my_i2c_dev_addr;
 
-	/* PATCH for bug 5003, HI ucode v3.1.0 */
+	/* PATCH for  5003, HI ucode v3.1.0 */
 	rc = drxj_dap_write_reg16(dev_addr, 0x4301D7, 0x801, 0);
 	if (rc != 0) {
 		pr_err("error %d\n", rc);
@@ -11666,7 +11666,7 @@ static int drx_check_firmware(struct drx_demod_instance *demod, u8 *mc_data,
 		block_hdr.CRC = be16_to_cpu(*(__be16 *)(mc_data + count));
 		count += sizeof(u16);
 
-		pr_debug("%u: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
+		pr_de("%u: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
 			count, block_hdr.addr, block_hdr.size, block_hdr.flags,
 			block_hdr.CRC);
 
@@ -11810,7 +11810,7 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 		block_hdr.CRC = be16_to_cpu(*(__be16 *)(mc_data));
 		mc_data += sizeof(u16);
 
-		pr_debug("%zd: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
+		pr_de("%zd: addr %u, size %u, flags 0x%04x, CRC 0x%04x\n",
 			(mc_data - mc_data_init), block_hdr.addr,
 			 block_hdr.size, block_hdr.flags, block_hdr.CRC);
 
@@ -12070,7 +12070,7 @@ static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 *ucb)
 
 static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 {
-#ifdef DJH_DEBUG
+#ifdef DJH_DE
 	int i;
 #endif
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
@@ -12184,8 +12184,8 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	bool i2c_gate_state;
 	int result;
 
-#ifdef DJH_DEBUG
-	pr_debug("i2c gate call: enable=%d state=%d\n", enable,
+#ifdef DJH_DE
+	pr_de("i2c gate call: enable=%d state=%d\n", enable,
 	       state->i2c_gate_open);
 #endif
 

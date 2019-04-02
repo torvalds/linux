@@ -270,14 +270,14 @@ int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man)
 }
 
 /**
- * amdgpu_gtt_mgr_debug - dump VRAM table
+ * amdgpu_gtt_mgr_de - dump VRAM table
  *
  * @man: TTM memory type manager
  * @printer: DRM printer to use
  *
  * Dump the table content using printk.
  */
-static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
+static void amdgpu_gtt_mgr_de(struct ttm_mem_type_manager *man,
 				 struct drm_printer *printer)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
@@ -296,5 +296,5 @@ const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func = {
 	.takedown = amdgpu_gtt_mgr_fini,
 	.get_node = amdgpu_gtt_mgr_new,
 	.put_node = amdgpu_gtt_mgr_del,
-	.debug = amdgpu_gtt_mgr_debug
+	.de = amdgpu_gtt_mgr_de
 };

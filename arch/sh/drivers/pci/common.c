@@ -73,7 +73,7 @@ int __init pci_is_66mhz_capable(struct pci_channel *hose,
 			early_read_config_word(hose, top_bus, current_bus,
 					       pci_devfn, PCI_STATUS, &stat);
 			if (!(stat & PCI_STATUS_66MHZ)) {
-				printk(KERN_DEBUG
+				printk(KERN_DE
 				       "PCI: %02x:%02x not 66MHz capable.\n",
 				       current_bus, pci_devfn);
 				cap66 = 0;
@@ -90,7 +90,7 @@ static void pcibios_enable_err(struct timer_list *t)
 	struct pci_channel *hose = from_timer(hose, t, err_timer);
 
 	del_timer(&hose->err_timer);
-	printk(KERN_DEBUG "PCI: re-enabling error IRQ.\n");
+	printk(KERN_DE "PCI: re-enabling error IRQ.\n");
 	enable_irq(hose->err_irq);
 }
 
@@ -99,7 +99,7 @@ static void pcibios_enable_serr(struct timer_list *t)
 	struct pci_channel *hose = from_timer(hose, t, serr_timer);
 
 	del_timer(&hose->serr_timer);
-	printk(KERN_DEBUG "PCI: re-enabling system error IRQ.\n");
+	printk(KERN_DE "PCI: re-enabling system error IRQ.\n");
 	enable_irq(hose->serr_irq);
 }
 
@@ -125,12 +125,12 @@ unsigned int pcibios_handle_status_errors(unsigned long addr,
 	unsigned int cmd = 0;
 
 	if (status & PCI_STATUS_REC_MASTER_ABORT) {
-		printk(KERN_DEBUG "PCI: master abort, pc=0x%08lx\n", addr);
+		printk(KERN_DE "PCI: master abort, pc=0x%08lx\n", addr);
 		cmd |= PCI_STATUS_REC_MASTER_ABORT;
 	}
 
 	if (status & PCI_STATUS_REC_TARGET_ABORT) {
-		printk(KERN_DEBUG "PCI: target abort: ");
+		printk(KERN_DE "PCI: target abort: ");
 		pcibios_report_status(PCI_STATUS_REC_TARGET_ABORT |
 				      PCI_STATUS_SIG_TARGET_ABORT |
 				      PCI_STATUS_REC_MASTER_ABORT, 1);
@@ -140,7 +140,7 @@ unsigned int pcibios_handle_status_errors(unsigned long addr,
 	}
 
 	if (status & (PCI_STATUS_PARITY | PCI_STATUS_DETECTED_PARITY)) {
-		printk(KERN_DEBUG "PCI: parity error detected: ");
+		printk(KERN_DE "PCI: parity error detected: ");
 		pcibios_report_status(PCI_STATUS_PARITY |
 				      PCI_STATUS_DETECTED_PARITY, 1);
 		printk("\n");

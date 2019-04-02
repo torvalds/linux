@@ -107,7 +107,7 @@ halt_poll_ns_shrink	| The value by which the    | 0
 			| function.		    |
 --------------------------------------------------------------------------------
 
-These module parameters can be set from the debugfs files in:
+These module parameters can be set from the defs files in:
 
 	/sys/module/kvm/parameters/
 

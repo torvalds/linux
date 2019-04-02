@@ -658,7 +658,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (new_opp->clock_latency_ns > opp_table->clock_latency_ns_max)
 		opp_table->clock_latency_ns_max = new_opp->clock_latency_ns;
 
-	pr_debug("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu\n",
+	pr_de("%s: turbo:%d rate:%lu uv:%lu uvmin:%lu uvmax:%lu latency:%lu\n",
 		 __func__, new_opp->turbo, new_opp->rate,
 		 new_opp->supplies[0].u_volt, new_opp->supplies[0].u_volt_min,
 		 new_opp->supplies[0].u_volt_max, new_opp->clock_latency_ns);
@@ -913,7 +913,7 @@ int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 			 * OPP may get registered dynamically, don't print error
 			 * message here.
 			 */
-			pr_debug("%s: couldn't find opp table for cpu:%d, %d\n",
+			pr_de("%s: couldn't find opp table for cpu:%d, %d\n",
 				 __func__, cpu, ret);
 
 			goto remove_table;

@@ -85,7 +85,7 @@ typedef u8 UCHAR8;
    hardware control.
  */
 
-#define WFC_DEBUG_DRIVER                0
+#define WFC_DE_DRIVER                0
 #define WFC_FX_IOCTL                    1
 #define WFC_PATCH_STATUS                2
 #define WFC_PROGRAM_STATUS              3
@@ -185,12 +185,12 @@ typedef u8 UCHAR8;
 #define WF_EXTERNAL_SWITCH  0xFD
 #define WF_INTERNAL_SWITCH  0xF9
 
-/* Debugging flags */
+/* Deging flags */
 
-#define WF_DEBUG_CMD 0x1
-#define WF_DEBUG_DATA 0x2
-#define WF_DEBUG_LOAD_PATCH 0x4
-#define WF_DEBUG_IO 0x8
+#define WF_DE_CMD 0x1
+#define WF_DE_DATA 0x2
+#define WF_DE_LOAD_PATCH 0x4
+#define WF_DE_IO 0x8
 
 /* WavePatch file format stuff */
 

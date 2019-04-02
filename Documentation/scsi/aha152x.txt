@@ -40,8 +40,8 @@ COMPILE TIME CONFIGURATION (go into AHA152X in drivers/scsi/Makefile):
 -DSETUP1="{ IOPORT, IRQ, SCSI_ID, RECONNECT, PARITY, SYNCHRONOUS, DELAY, EXT_TRANS }"
  override for the second controller
 
--DAHA152X_DEBUG
- enable debugging output
+-DAHA152X_DE
+ enable deging output
 
 -DAHA152X_STAT
  enable some statistics

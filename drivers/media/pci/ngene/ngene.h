@@ -143,7 +143,7 @@ enum STREAM_FLAG_BITS {
 
 #define DEV_VER         0x9004
 
-#define FW_DEBUG_DEFAULT (PROGRAM_SRAM+0x00FF)
+#define FW_DE_DEFAULT (PROGRAM_SRAM+0x00FF)
 
 struct SG_ADDR {
 	u64 start;
@@ -230,7 +230,7 @@ enum OPCODES {
 	CMD_I2C_CONTINUE_WRITE = 0x06,
 	CMD_I2C_CONTINUE_WRITE_NOSTOP = 0x07,
 
-	CMD_DEBUG_OUTPUT    = 0x09,
+	CMD_DE_OUTPUT    = 0x09,
 
 	CMD_CONTROL         = 0x10,
 	CMD_CONFIGURE_BUFFER = 0x11,
@@ -397,9 +397,9 @@ struct FW_SET_GPIO_INT {
 	u8    select;
 } __attribute__ ((__packed__));
 
-struct FW_SET_DEBUGMODE {
+struct FW_SET_DEMODE {
 	struct FW_HEADER hdr;
-	u8   debug_flags;
+	u8   de_flags;
 } __attribute__ ((__packed__));
 
 struct FW_CONFIGURE_BUFFERS {
@@ -468,7 +468,7 @@ struct ngene_command {
 		struct FW_SPI_READ               SPIRead;
 		struct FW_SET_GPIO_PIN           SetGpioPin;
 		struct FW_SET_GPIO_INT           SetGpioInt;
-		struct FW_SET_DEBUGMODE          SetDebugMode;
+		struct FW_SET_DEMODE          SetDeMode;
 		struct FW_CONFIGURE_BUFFERS      ConfigureBuffers;
 		struct FW_CONFIGURE_FREE_BUFFERS ConfigureFreeBuffers;
 		struct FW_CONFIGURE_UART         ConfigureUart;

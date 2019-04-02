@@ -146,8 +146,8 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	int rem;
 	int len;
 
-	BUILD_BUG_ON(TC_MAX_QUEUE != TC_QOPT_MAX_QUEUE);
-	BUILD_BUG_ON(TC_BITMASK != TC_QOPT_BITMASK);
+	BUILD__ON(TC_MAX_QUEUE != TC_QOPT_MAX_QUEUE);
+	BUILD__ON(TC_BITMASK != TC_QOPT_BITMASK);
 
 	if (sch->parent != TC_H_ROOT)
 		return -EOPNOTSUPP;

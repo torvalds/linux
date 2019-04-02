@@ -184,7 +184,7 @@ void __dlm_do_purge_lockres(struct dlm_ctxt *dlm,
 		mlog(ML_ERROR, "%s: res %.*s in use after deref\n",
 		     dlm->name, res->lockname.len, res->lockname.name);
 		__dlm_print_one_lock_resource(res);
-		BUG();
+		();
 	}
 
 	__dlm_unhash_lockres(dlm, res);
@@ -242,7 +242,7 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		ret = dlm_drop_lockres_ref(dlm, res);
 		if (ret < 0) {
 			if (!dlm_is_host_down(ret))
-				BUG();
+				();
 		}
 		spin_lock(&dlm->spinlock);
 		spin_lock(&res->spinlock);
@@ -267,7 +267,7 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		mlog(ML_ERROR, "%s: res %.*s in use after deref\n",
 		     dlm->name, res->lockname.len, res->lockname.name);
 		__dlm_print_one_lock_resource(res);
-		BUG();
+		();
 	}
 
 	__dlm_unhash_lockres(dlm, res);
@@ -370,7 +370,7 @@ static void dlm_shuffle_lists(struct dlm_ctxt *dlm,
 	 */
 	assert_spin_locked(&dlm->ast_lock);
 	assert_spin_locked(&res->spinlock);
-	BUG_ON((res->state & (DLM_LOCK_RES_MIGRATING|
+	_ON((res->state & (DLM_LOCK_RES_MIGRATING|
 			      DLM_LOCK_RES_RECOVERING|
 			      DLM_LOCK_RES_IN_PROGRESS)));
 
@@ -384,7 +384,7 @@ converting:
 	if (target->ml.convert_type == LKM_IVMODE) {
 		mlog(ML_ERROR, "%s: res %.*s converting lock to invalid mode\n",
 		     dlm->name, res->lockname.len, res->lockname.name);
-		BUG();
+		();
 	}
 	list_for_each_entry(lock, &res->granted, list) {
 		if (lock==target)
@@ -423,7 +423,7 @@ converting:
 	/* we can convert the lock */
 	if (can_grant) {
 		spin_lock(&target->spinlock);
-		BUG_ON(target->ml.highest_blocked != LKM_IVMODE);
+		_ON(target->ml.highest_blocked != LKM_IVMODE);
 
 		mlog(0, "%s: res %.*s, AST for Converting lock %u:%llu, type "
 		     "%d => %d, node %u\n", dlm->name, res->lockname.len,
@@ -437,7 +437,7 @@ converting:
 		target->ml.convert_type = LKM_IVMODE;
 		list_move_tail(&target->list, &res->granted);
 
-		BUG_ON(!target->lksb);
+		_ON(!target->lksb);
 		target->lksb->status = DLM_NORMAL;
 
 		spin_unlock(&target->spinlock);
@@ -485,7 +485,7 @@ blocked:
 	 * possible if converting list empty) */
 	if (can_grant) {
 		spin_lock(&target->spinlock);
-		BUG_ON(target->ml.highest_blocked != LKM_IVMODE);
+		_ON(target->ml.highest_blocked != LKM_IVMODE);
 
 		mlog(0, "%s: res %.*s, AST for Blocked lock %u:%llu, type %d, "
 		     "node %u\n", dlm->name, res->lockname.len,
@@ -497,7 +497,7 @@ blocked:
 		/* target->ml.type is already correct */
 		list_move_tail(&target->list, &res->granted);
 
-		BUG_ON(!target->lksb);
+		_ON(!target->lksb);
 		target->lksb->status = DLM_NORMAL;
 
 		spin_unlock(&target->spinlock);
@@ -606,7 +606,7 @@ static void dlm_flush_asts(struct dlm_ctxt *dlm)
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.type, lock->ml.node);
 
-		BUG_ON(!lock->ast_pending);
+		_ON(!lock->ast_pending);
 
 		/* remove from list (including ref) */
 		list_del_init(&lock->ast_list);
@@ -644,11 +644,11 @@ static void dlm_flush_asts(struct dlm_ctxt *dlm)
 		dlm_lock_get(lock);
 		res = lock->lockres;
 
-		BUG_ON(!lock->bast_pending);
+		_ON(!lock->bast_pending);
 
 		/* get the highest blocked lock, and reset */
 		spin_lock(&lock->spinlock);
-		BUG_ON(lock->ml.highest_blocked <= LKM_IVMODE);
+		_ON(lock->ml.highest_blocked <= LKM_IVMODE);
 		hi = lock->ml.highest_blocked;
 		lock->ml.highest_blocked = LKM_IVMODE;
 		spin_unlock(&lock->spinlock);
@@ -729,7 +729,7 @@ static int dlm_thread(void *data)
 
 			/* peel a lockres off, remove it from the list,
 			 * unset the dirty flag and drop the dlm lock */
-			BUG_ON(!res);
+			_ON(!res);
 			dlm_lockres_get(res);
 
 			spin_lock(&res->spinlock);
@@ -754,12 +754,12 @@ static int dlm_thread(void *data)
 				     !!(res->state & DLM_LOCK_RES_RECOVERING),
 				     !!(res->state & DLM_LOCK_RES_DIRTY));
 			}
-			BUG_ON(res->owner != dlm->node_num);
+			_ON(res->owner != dlm->node_num);
 
 			/* it is now ok to move lockreses in these states
 			 * to the dirty list, assuming that they will only be
 			 * dirty for a short while. */
-			BUG_ON(res->state & DLM_LOCK_RES_MIGRATING);
+			_ON(res->state & DLM_LOCK_RES_MIGRATING);
 			if (res->state & (DLM_LOCK_RES_IN_PROGRESS |
 					  DLM_LOCK_RES_RECOVERING |
 					  DLM_LOCK_RES_RECOVERY_WAITING)) {

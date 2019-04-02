@@ -17,7 +17,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *
- * Andi Kleen - Fix a few bad bugs and races.
+ * Andi Kleen - Fix a few bad s and races.
  * Kris Katterjohn - Added many additional checks in bpf_check_classic()
  */
 
@@ -275,7 +275,7 @@ static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 
 	switch (skb_field) {
 	case SKF_AD_MARK:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_W, dst_reg, src_reg,
 				      offsetof(struct sk_buff, mark));
@@ -290,14 +290,14 @@ static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 		break;
 
 	case SKF_AD_QUEUE:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, queue_mapping) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, queue_mapping) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
 				      offsetof(struct sk_buff, queue_mapping));
 		break;
 
 	case SKF_AD_VLAN_TAG:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
 
 		/* dst_reg = *(u16 *) (src_reg + offsetof(vlan_tci)) */
 		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
@@ -323,7 +323,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 
 	switch (fp->k) {
 	case SKF_AD_OFF + SKF_AD_PROTOCOL:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
 
 		/* A = *(u16 *) (CTX + offsetof(protocol)) */
 		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
@@ -339,8 +339,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 
 	case SKF_AD_OFF + SKF_AD_IFINDEX:
 	case SKF_AD_OFF + SKF_AD_HATYPE:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
-		BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, type) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct net_device, type) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, dev),
 				      BPF_REG_TMP, BPF_REG_CTX,
@@ -362,7 +362,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_RXHASH:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
 
 		*insn = BPF_LDX_MEM(BPF_W, BPF_REG_A, BPF_REG_CTX,
 				    offsetof(struct sk_buff, hash));
@@ -386,7 +386,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_VLAN_TPID:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_proto) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, vlan_proto) != 2);
 
 		/* A = *(u16 *) (CTX + offsetof(vlan_proto)) */
 		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
@@ -437,7 +437,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		 * evict __bpf_call_base() as an optimization. Placed here
 		 * where no-one bothers.
 		 */
-		BUG_ON(__bpf_call_base(0, 0, 0, 0, 0) != 0);
+		_ON(__bpf_call_base(0, 0, 0, 0, 0) != 0);
 		return false;
 	}
 
@@ -544,8 +544,8 @@ static int bpf_convert_filter(struct sock_filter *prog, int len,
 	int *addrs = NULL;
 	u8 bpf_src;
 
-	BUILD_BUG_ON(BPF_MEMWORDS * sizeof(u32) > MAX_BPF_STACK);
-	BUILD_BUG_ON(BPF_REG_FP + 1 != MAX_BPF_REG);
+	BUILD__ON(BPF_MEMWORDS * sizeof(u32) > MAX_BPF_STACK);
+	BUILD__ON(BPF_REG_FP + 1 != MAX_BPF_REG);
 
 	if (len <= 0 || len > BPF_MAXINSNS)
 		return -EINVAL;
@@ -872,7 +872,7 @@ jmp_rest:
 	}
 
 	kfree(addrs);
-	BUG_ON(*new_len != new_flen);
+	_ON(*new_len != new_flen);
 	return 0;
 err:
 	kfree(addrs);
@@ -891,7 +891,7 @@ static int check_load_and_stores(const struct sock_filter *filter, int flen)
 	u16 *masks, memvalid = 0; /* One bit per cell, 16 cells */
 	int pc, ret = 0;
 
-	BUILD_BUG_ON(BPF_MEMWORDS > 16);
+	BUILD__ON(BPF_MEMWORDS > 16);
 
 	masks = kmalloc_array(flen, sizeof(*masks), GFP_KERNEL);
 	if (!masks)
@@ -1228,7 +1228,7 @@ static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
 	 * after the migration to the internal BPF instruction
 	 * representation.
 	 */
-	BUILD_BUG_ON(sizeof(struct sock_filter) !=
+	BUILD__ON(sizeof(struct sock_filter) !=
 		     sizeof(struct bpf_insn));
 
 	/* Conversion cannot happen on overlapping memory areas,
@@ -2016,7 +2016,7 @@ static inline int __bpf_tx_skb(struct net_device *dev, struct sk_buff *skb)
 	int ret;
 
 	if (unlikely(__this_cpu_read(xmit_recursion) > XMIT_RECURSION_LIMIT)) {
-		net_crit_ratelimited("bpf: recursion limit reached on datapath, buggy bpf program?\n");
+		net_crit_ratelimited("bpf: recursion limit reached on datapath, gy bpf program?\n");
 		kfree_skb(skb);
 		return -ENETDOWN;
 	}
@@ -5374,7 +5374,7 @@ u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
 
 #define BPF_TCP_SOCK_GET_COMMON(FIELD)					\
 	do {								\
-		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, FIELD) >	\
+		BUILD__ON(FIELD_SIZEOF(struct tcp_sock, FIELD) >	\
 			     FIELD_SIZEOF(struct bpf_tcp_sock, FIELD));	\
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct tcp_sock, FIELD),\
 				      si->dst_reg, si->src_reg,		\
@@ -5389,9 +5389,9 @@ u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
 
 	switch (si->off) {
 	case offsetof(struct bpf_tcp_sock, rtt_min):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, rtt_min) !=
+		BUILD__ON(FIELD_SIZEOF(struct tcp_sock, rtt_min) !=
 			     sizeof(struct minmax));
-		BUILD_BUG_ON(sizeof(struct minmax) <
+		BUILD__ON(sizeof(struct minmax) <
 			     sizeof(struct minmax_sample));
 
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
@@ -6757,8 +6757,8 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 
 	case offsetof(struct __sk_buff, cb[0]) ...
 	     offsetofend(struct __sk_buff, cb[4]) - 1:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct qdisc_skb_cb, data) < 20);
-		BUILD_BUG_ON((offsetof(struct sk_buff, cb) +
+		BUILD__ON(FIELD_SIZEOF(struct qdisc_skb_cb, data) < 20);
+		BUILD__ON((offsetof(struct sk_buff, cb) +
 			      offsetof(struct qdisc_skb_cb, data)) %
 			     sizeof(__u64));
 
@@ -6776,7 +6776,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct __sk_buff, tc_classid):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct qdisc_skb_cb, tc_classid) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct qdisc_skb_cb, tc_classid) != 2);
 
 		off  = si->off;
 		off -= offsetof(struct __sk_buff, tc_classid);
@@ -6847,7 +6847,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 #endif
 		break;
 	case offsetof(struct __sk_buff, family):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, sk),
 				      si->dst_reg, si->src_reg,
@@ -6858,7 +6858,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 						     2, target_size));
 		break;
 	case offsetof(struct __sk_buff, remote_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, sk),
 				      si->dst_reg, si->src_reg,
@@ -6869,7 +6869,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 						     4, target_size));
 		break;
 	case offsetof(struct __sk_buff, local_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_rcv_saddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, sk),
@@ -6883,7 +6883,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct __sk_buff, remote_ip6[0]) ...
 	     offsetof(struct __sk_buff, remote_ip6[3]):
 #if IS_ENABLED(CONFIG_IPV6)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_v6_daddr.s6_addr32[0]) != 4);
 
 		off = si->off;
@@ -6903,7 +6903,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct __sk_buff, local_ip6[0]) ...
 	     offsetof(struct __sk_buff, local_ip6[3]):
 #if IS_ENABLED(CONFIG_IPV6)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_v6_rcv_saddr.s6_addr32[0]) != 4);
 
 		off = si->off;
@@ -6922,7 +6922,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct __sk_buff, remote_port):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, sk),
 				      si->dst_reg, si->src_reg,
@@ -6937,7 +6937,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct __sk_buff, local_port):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_buff, sk),
 				      si->dst_reg, si->src_reg,
@@ -6957,7 +6957,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct __sk_buff, tstamp):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, tstamp) != 8);
+		BUILD__ON(FIELD_SIZEOF(struct sk_buff, tstamp) != 8);
 
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_DW,
@@ -6995,7 +6995,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 						     target_size));
 		break;
 	case offsetof(struct __sk_buff, wire_len):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct qdisc_skb_cb, pkt_len) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct qdisc_skb_cb, pkt_len) != 4);
 
 		off = si->off;
 		off -= offsetof(struct __sk_buff, wire_len);
@@ -7025,7 +7025,7 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 
 	switch (si->off) {
 	case offsetof(struct bpf_sock, bound_dev_if):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_bound_dev_if) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sock, sk_bound_dev_if) != 4);
 
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
@@ -7036,7 +7036,7 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock, mark):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_mark) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sock, sk_mark) != 4);
 
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
@@ -7047,7 +7047,7 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock, priority):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_priority) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sock, sk_priority) != 4);
 
 		if (type == BPF_WRITE)
 			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
@@ -7069,7 +7069,7 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock, type):
-		BUILD_BUG_ON(HWEIGHT32(SK_FL_TYPE_MASK) != BITS_PER_BYTE * 2);
+		BUILD__ON(HWEIGHT32(SK_FL_TYPE_MASK) != BITS_PER_BYTE * 2);
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
 				      offsetof(struct sock, __sk_flags_offset));
 		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_TYPE_MASK);
@@ -7078,7 +7078,7 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock, protocol):
-		BUILD_BUG_ON(HWEIGHT32(SK_FL_PROTO_MASK) != BITS_PER_BYTE);
+		BUILD__ON(HWEIGHT32(SK_FL_PROTO_MASK) != BITS_PER_BYTE);
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
 				      offsetof(struct sock, __sk_flags_offset));
 		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_PROTO_MASK);
@@ -7354,9 +7354,9 @@ static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 		 * Here we check this invariant and use just one of the
 		 * structures if it's true.
 		 */
-		BUILD_BUG_ON(offsetof(struct sockaddr_in, sin_port) !=
+		BUILD__ON(offsetof(struct sockaddr_in, sin_port) !=
 			     offsetof(struct sockaddr_in6, sin6_port));
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sockaddr_in, sin_port) !=
+		BUILD__ON(FIELD_SIZEOF(struct sockaddr_in, sin_port) !=
 			     FIELD_SIZEOF(struct sockaddr_in6, sin6_port));
 		SOCK_ADDR_LOAD_OR_STORE_NESTED_FIELD(struct bpf_sock_addr_kern,
 						     struct sockaddr_in6, uaddr,
@@ -7418,7 +7418,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 /* Helper macro for adding read access to tcp_sock or sock fields. */
 #define SOCK_OPS_GET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ)			      \
 	do {								      \
-		BUILD_BUG_ON(FIELD_SIZEOF(OBJ, OBJ_FIELD) >		      \
+		BUILD__ON(FIELD_SIZEOF(OBJ, OBJ_FIELD) >		      \
 			     FIELD_SIZEOF(struct bpf_sock_ops, BPF_FIELD));   \
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(			      \
 						struct bpf_sock_ops_kern,     \
@@ -7452,7 +7452,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 #define SOCK_OPS_SET_FIELD(BPF_FIELD, OBJ_FIELD, OBJ)			      \
 	do {								      \
 		int reg = BPF_REG_9;					      \
-		BUILD_BUG_ON(FIELD_SIZEOF(OBJ, OBJ_FIELD) >		      \
+		BUILD__ON(FIELD_SIZEOF(OBJ, OBJ_FIELD) >		      \
 			     FIELD_SIZEOF(struct bpf_sock_ops, BPF_FIELD));   \
 		if (si->dst_reg == reg || si->src_reg == reg)		      \
 			reg--;						      \
@@ -7497,11 +7497,11 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 	switch (si->off) {
 	case offsetof(struct bpf_sock_ops, op) ...
 	     offsetof(struct bpf_sock_ops, replylong[3]):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct bpf_sock_ops, op) !=
+		BUILD__ON(FIELD_SIZEOF(struct bpf_sock_ops, op) !=
 			     FIELD_SIZEOF(struct bpf_sock_ops_kern, op));
-		BUILD_BUG_ON(FIELD_SIZEOF(struct bpf_sock_ops, reply) !=
+		BUILD__ON(FIELD_SIZEOF(struct bpf_sock_ops, reply) !=
 			     FIELD_SIZEOF(struct bpf_sock_ops_kern, reply));
-		BUILD_BUG_ON(FIELD_SIZEOF(struct bpf_sock_ops, replylong) !=
+		BUILD__ON(FIELD_SIZEOF(struct bpf_sock_ops, replylong) !=
 			     FIELD_SIZEOF(struct bpf_sock_ops_kern, replylong));
 		off = si->off;
 		off -= offsetof(struct bpf_sock_ops, op);
@@ -7515,7 +7515,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, family):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 					      struct bpf_sock_ops_kern, sk),
@@ -7526,7 +7526,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, remote_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct bpf_sock_ops_kern, sk),
@@ -7537,7 +7537,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, local_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_rcv_saddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
@@ -7552,7 +7552,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sock_ops, remote_ip6[0]) ...
 	     offsetof(struct bpf_sock_ops, remote_ip6[3]):
 #if IS_ENABLED(CONFIG_IPV6)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_v6_daddr.s6_addr32[0]) != 4);
 
 		off = si->off;
@@ -7573,7 +7573,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sock_ops, local_ip6[0]) ...
 	     offsetof(struct bpf_sock_ops, local_ip6[3]):
 #if IS_ENABLED(CONFIG_IPV6)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_v6_rcv_saddr.s6_addr32[0]) != 4);
 
 		off = si->off;
@@ -7592,7 +7592,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, remote_port):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct bpf_sock_ops_kern, sk),
@@ -7606,7 +7606,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, local_port):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct bpf_sock_ops_kern, sk),
@@ -7626,7 +7626,7 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, state):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_state) != 1);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_state) != 1);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct bpf_sock_ops_kern, sk),
@@ -7637,9 +7637,9 @@ static u32 sock_ops_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct bpf_sock_ops, rtt_min):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct tcp_sock, rtt_min) !=
+		BUILD__ON(FIELD_SIZEOF(struct tcp_sock, rtt_min) !=
 			     sizeof(struct minmax));
-		BUILD_BUG_ON(sizeof(struct minmax) <
+		BUILD__ON(sizeof(struct minmax) <
 			     sizeof(struct minmax_sample));
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
@@ -7700,7 +7700,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 #endif
 
 	/* convert ctx uses the fact sg element is first in struct */
-	BUILD_BUG_ON(offsetof(struct sk_msg, sg) != 0);
+	BUILD__ON(offsetof(struct sk_msg, sg) != 0);
 
 	switch (si->off) {
 	case offsetof(struct sk_msg_md, data):
@@ -7714,7 +7714,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(struct sk_msg, data_end));
 		break;
 	case offsetof(struct sk_msg_md, family):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_family) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 					      struct sk_msg, sk),
@@ -7725,7 +7725,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct sk_msg_md, remote_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_daddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct sk_msg, sk),
@@ -7736,7 +7736,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct sk_msg_md, local_ip4):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_rcv_saddr) != 4);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
@@ -7751,7 +7751,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct sk_msg_md, remote_ip6[0]) ...
 	     offsetof(struct sk_msg_md, remote_ip6[3]):
 #if IS_ENABLED(CONFIG_IPV6)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_v6_daddr.s6_addr32[0]) != 4);
 
 		off = si->off;
@@ -7772,7 +7772,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct sk_msg_md, local_ip6[0]) ...
 	     offsetof(struct sk_msg_md, local_ip6[3]):
 #if IS_ENABLED(CONFIG_IPV6)
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common,
+		BUILD__ON(FIELD_SIZEOF(struct sock_common,
 					  skc_v6_rcv_saddr.s6_addr32[0]) != 4);
 
 		off = si->off;
@@ -7791,7 +7791,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct sk_msg_md, remote_port):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_dport) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct sk_msg, sk),
@@ -7805,7 +7805,7 @@ static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct sk_msg_md, local_port):
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
+		BUILD__ON(FIELD_SIZEOF(struct sock_common, skc_num) != 2);
 
 		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(
 						struct sk_msg, sk),
@@ -8261,7 +8261,7 @@ static u32 sk_reuseport_convert_ctx_access(enum bpf_access_type type,
 		break;
 
 	case offsetof(struct sk_reuseport_md, ip_protocol):
-		BUILD_BUG_ON(HWEIGHT32(SK_FL_PROTO_MASK) != BITS_PER_BYTE);
+		BUILD__ON(HWEIGHT32(SK_FL_PROTO_MASK) != BITS_PER_BYTE);
 		SK_REUSEPORT_LOAD_SK_FIELD_SIZE_OFF(__sk_flags_offset,
 						    BPF_W, 0);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, si->dst_reg, SK_FL_PROTO_MASK);

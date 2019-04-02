@@ -21,7 +21,7 @@ Wed Jan 17 23:30 2001 Gerard Roudier
 Sat Jan 20 18:00 2001 Gerard Roudier 
 	* version sym-2.1.4-20010120
 	- Add year 2001 to Copyright.
-	- A tiny bug in the dma memory freeing path has been fixed.
+	- A tiny  in the dma memory freeing path has been fixed.
 	  (Driver unload failed with a bad address reference).
 
 Wed Jan 24 21:00 2001 Gerard Roudier 

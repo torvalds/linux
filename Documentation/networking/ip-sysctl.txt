@@ -337,7 +337,7 @@ tcp_invalid_ratelimit - INTEGER
 	  (c) PAWS (Protection Against Wrapped Sequence numbers) check failure
 
 	This can help mitigate simple "ack loop" DoS attacks, wherein
-	a buggy or malicious middlebox or man-in-the-middle can
+	a gy or malicious middlebox or man-in-the-middle can
 	rewrite TCP header fields in manner that causes each endpoint
 	to think that the other is sending invalid TCP segments, thus
 	causing each side to send an unterminating stream of duplicate
@@ -490,8 +490,8 @@ tcp_max_reordering - INTEGER
 	Default: 300
 
 tcp_retrans_collapse - BOOLEAN
-	Bug-to-bug compatibility with some broken printers.
-	On retransmit try to send bigger packets to work around bugs in
+	-to- compatibility with some broken printers.
+	On retransmit try to send bigger packets to work around s in
 	certain TCP stacks.
 
 tcp_retries1 - INTEGER
@@ -993,7 +993,7 @@ icmp_errors_use_inbound_ifaddr - BOOLEAN
 	If non-zero, the message will be sent with the primary address of
 	the interface that received the packet that caused the icmp error.
 	This is the behaviour network many administrators will expect from
-	a router. And it can make debugging complicated network layouts
+	a router. And it can make deging complicated network layouts
 	much easier.
 
 	Note that if no primary address exists for the interface selected,

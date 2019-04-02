@@ -87,18 +87,18 @@
 #include "scsi_message.h"
 #include "aiclib.h"
 
-/*********************************** Debugging ********************************/
-#ifdef CONFIG_AIC7XXX_DEBUG_ENABLE
-#ifdef CONFIG_AIC7XXX_DEBUG_MASK
-#define AHC_DEBUG 1
-#define AHC_DEBUG_OPTS CONFIG_AIC7XXX_DEBUG_MASK
+/*********************************** Deging ********************************/
+#ifdef CONFIG_AIC7XXX_DE_ENABLE
+#ifdef CONFIG_AIC7XXX_DE_MASK
+#define AHC_DE 1
+#define AHC_DE_OPTS CONFIG_AIC7XXX_DE_MASK
 #else
 /*
- * Compile in debugging code, but do not enable any printfs.
+ * Compile in deging code, but do not enable any printfs.
  */
-#define AHC_DEBUG 1
+#define AHC_DE 1
 #endif
-/* No debugging code. */
+/* No deging code. */
 #endif
 
 /************************* Forward Declarations *******************************/
@@ -218,9 +218,9 @@ int	ahc_dmamap_unload(struct ahc_softc *, bus_dma_tag_t, bus_dmamap_t);
 
 /********************************** Includes **********************************/
 #ifdef CONFIG_AIC7XXX_REG_PRETTY_PRINT
-#define AIC_DEBUG_REGISTERS 1
+#define AIC_DE_REGISTERS 1
 #else
-#define AIC_DEBUG_REGISTERS 0
+#define AIC_DE_REGISTERS 0
 #endif
 #include "aic7xxx.h"
 

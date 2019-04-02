@@ -328,7 +328,7 @@ static int get_fpdu_info(struct nes_device *nesdev, struct nes_qp *nesqp,
 
 	fpdu_info->cqp_request = nes_get_cqp_request(nesdev);
 	if (fpdu_info->cqp_request == NULL) {
-		nes_debug(NES_DBG_PAU, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_PAU, "Failed to get a cqp_request.\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -347,7 +347,7 @@ static int get_fpdu_info(struct nes_device *nesdev, struct nes_qp *nesqp,
 		fpdu_info->hdr_vbase = pci_alloc_consistent(nesdev->pcidev,
 							    fpdu_info->hdr_len, &fpdu_info->hdr_pbase);
 		if (!fpdu_info->hdr_vbase) {
-			nes_debug(NES_DBG_PAU, "Unable to allocate memory for pau first frag\n");
+			nes_de(NES_DBG_PAU, "Unable to allocate memory for pau first frag\n");
 			rc = -ENOMEM;
 			goto out;
 		}
@@ -657,7 +657,7 @@ static void nes_chg_qh_handler(struct nes_device *nesdev, struct nes_cqp_request
 		nesqp->pau_state = PAU_ADD_LB_QH;
 		new_request = nes_get_cqp_request(nesdev);
 		if (new_request == NULL) {
-			nes_debug(NES_DBG_PAU, "Failed to get a new_request.\n");
+			nes_de(NES_DBG_PAU, "Failed to get a new_request.\n");
 			WARN_ON(1);
 			return;
 		}
@@ -672,7 +672,7 @@ static void nes_chg_qh_handler(struct nes_device *nesdev, struct nes_cqp_request
 		/* Produce hash key */
 		crc_value = get_crc_value(&nes_quad);
 		nesqp->hte_index = cpu_to_be32(crc_value ^ 0xffffffff);
-		nes_debug(NES_DBG_PAU, "new HTE Index = 0x%08X, CRC = 0x%08X\n",
+		nes_de(NES_DBG_PAU, "new HTE Index = 0x%08X, CRC = 0x%08X\n",
 			  nesqp->hte_index, nesqp->hte_index & nesadapter->hte_index_mask);
 
 		nesqp->hte_index &= nesadapter->hte_index_mask;
@@ -689,7 +689,7 @@ static void nes_chg_qh_handler(struct nes_device *nesdev, struct nes_cqp_request
 		u64temp = (u64)nesqp->nesqp_context_pbase;
 		set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, u64temp);
 
-		nes_debug(NES_DBG_PAU, "Waiting for CQP completion for adding the quad hash.\n");
+		nes_de(NES_DBG_PAU, "Waiting for CQP completion for adding the quad hash.\n");
 
 		new_request->cqp_callback_pointer = qh_chg;
 		new_request->callback = 1;
@@ -721,7 +721,7 @@ static int nes_change_quad_hash(struct nes_device *nesdev,
 
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_PAU, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_PAU, "Failed to get a cqp_request.\n");
 		ret = -ENOMEM;
 		goto chg_qh_err;
 	}
@@ -745,7 +745,7 @@ static int nes_change_quad_hash(struct nes_device *nesdev,
 	u64temp = (u64)nesqp->nesqp_context_pbase;
 	set_wqe_64bit_value(cqp_wqe->wqe_words, NES_CQP_QP_WQE_CONTEXT_LOW_IDX, u64temp);
 
-	nes_debug(NES_DBG_PAU, "Waiting for CQP completion for deleting the quad hash.\n");
+	nes_de(NES_DBG_PAU, "Waiting for CQP completion for deleting the quad hash.\n");
 
 	cqp_request->cqp_callback_pointer = qh_chg;
 	cqp_request->callback = 1;
@@ -891,7 +891,7 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 	mgt_vbase = pci_alloc_consistent(nesdev->pcidev, NES_MGT_QP_COUNT * mgt_mem_size, &mgt_pbase);
 	if (!mgt_vbase) {
 		kfree(mgtvnic);
-		nes_debug(NES_DBG_INIT, "Unable to allocate memory for mgt host descriptor rings\n");
+		nes_de(NES_DBG_INIT, "Unable to allocate memory for mgt host descriptor rings\n");
 		return -ENOMEM;
 	}
 
@@ -907,7 +907,7 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 		mgtvnic->nesvnic = nesvnic;
 		mgtvnic->mgt.qp_id = nesdev->mac_index + NES_MGT_QP_OFFSET + i;
 		memset(mgt_vbase, 0, mgt_mem_size);
-		nes_debug(NES_DBG_INIT, "Allocated mgt QP structures at %p (phys = %016lX), size = %u.\n",
+		nes_de(NES_DBG_INIT, "Allocated mgt QP structures at %p (phys = %016lX), size = %u.\n",
 			  mgt_vbase, (unsigned long)mgt_pbase, mgt_mem_size);
 
 		vmem = (void *)(((unsigned long)mgt_vbase + (256 - 1)) &
@@ -967,7 +967,7 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 		mgt_context->context_words[NES_NIC_CTX_MISC_IDX] =
 			cpu_to_le32((u32)NES_MGT_CTX_SIZE |
 				    ((u32)PCI_FUNC(nesdev->pcidev->devfn) << 12));
-		nes_debug(NES_DBG_INIT, "RX_WINDOW_BUFFER_PAGE_TABLE_SIZE = 0x%08X, RX_WINDOW_BUFFER_SIZE = 0x%08X\n",
+		nes_de(NES_DBG_INIT, "RX_WINDOW_BUFFER_PAGE_TABLE_SIZE = 0x%08X, RX_WINDOW_BUFFER_SIZE = 0x%08X\n",
 			  nes_read_indexed(nesdev, NES_IDX_RX_WINDOW_BUFFER_PAGE_TABLE_SIZE),
 			  nes_read_indexed(nesdev, NES_IDX_RX_WINDOW_BUFFER_SIZE));
 		if (nes_read_indexed(nesdev, NES_IDX_RX_WINDOW_BUFFER_SIZE) != 0)
@@ -997,15 +997,15 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 		nes_write32(nesdev->regs + NES_WQE_ALLOC, 0x02800000 | nesdev->cqp.qp_id);
 
 		spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
-		nes_debug(NES_DBG_INIT, "Waiting for create MGT QP%u to complete.\n",
+		nes_de(NES_DBG_INIT, "Waiting for create MGT QP%u to complete.\n",
 			  mgtvnic->mgt.qp_id);
 
 		ret = wait_event_timeout(nesdev->cqp.waitq, (nesdev->cqp.sq_tail == cqp_head),
 					 NES_EVENT_TIMEOUT);
-		nes_debug(NES_DBG_INIT, "Create MGT QP%u completed, wait_event_timeout ret = %u.\n",
+		nes_de(NES_DBG_INIT, "Create MGT QP%u completed, wait_event_timeout ret = %u.\n",
 			  mgtvnic->mgt.qp_id, ret);
 		if (!ret) {
-			nes_debug(NES_DBG_INIT, "MGT QP%u create timeout expired\n", mgtvnic->mgt.qp_id);
+			nes_de(NES_DBG_INIT, "MGT QP%u create timeout expired\n", mgtvnic->mgt.qp_id);
 			if (i == 0) {
 				pci_free_consistent(nesdev->pcidev, nesvnic->mgt_mem_size, nesvnic->mgt_vbase,
 						    nesvnic->mgt_pbase);
@@ -1020,7 +1020,7 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 		for (counter = 0; counter < (NES_MGT_WQ_COUNT - 1); counter++) {
 			skb = dev_alloc_skb(nesvnic->max_frame_size);
 			if (!skb) {
-				nes_debug(NES_DBG_INIT, "%s: out of memory for receive skb\n", netdev->name);
+				nes_de(NES_DBG_INIT, "%s: out of memory for receive skb\n", netdev->name);
 				return -ENOMEM;
 			}
 
@@ -1126,7 +1126,7 @@ void nes_destroy_mgt(struct nes_vnic *nesvnic)
 		nes_write32(nesdev->regs + NES_WQE_ALLOC, 0x02800000 | nesdev->cqp.qp_id);
 
 		spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
-		nes_debug(NES_DBG_SHUTDOWN, "Waiting for CQP, cqp_head=%u, cqp.sq_head=%u,"
+		nes_de(NES_DBG_SHUTDOWN, "Waiting for CQP, cqp_head=%u, cqp.sq_head=%u,"
 			  " cqp.sq_tail=%u, cqp.sq_size=%u\n",
 			  cqp_head, nesdev->cqp.sq_head,
 			  nesdev->cqp.sq_tail, nesdev->cqp.sq_size);
@@ -1134,11 +1134,11 @@ void nes_destroy_mgt(struct nes_vnic *nesvnic)
 		ret = wait_event_timeout(nesdev->cqp.waitq, (nesdev->cqp.sq_tail == cqp_head),
 					 NES_EVENT_TIMEOUT);
 
-		nes_debug(NES_DBG_SHUTDOWN, "Destroy MGT QP returned, wait_event_timeout ret = %u, cqp_head=%u,"
+		nes_de(NES_DBG_SHUTDOWN, "Destroy MGT QP returned, wait_event_timeout ret = %u, cqp_head=%u,"
 			  " cqp.sq_head=%u, cqp.sq_tail=%u\n",
 			  ret, cqp_head, nesdev->cqp.sq_head, nesdev->cqp.sq_tail);
 		if (!ret)
-			nes_debug(NES_DBG_SHUTDOWN, "MGT QP%u destroy timeout expired\n",
+			nes_de(NES_DBG_SHUTDOWN, "MGT QP%u destroy timeout expired\n",
 				  mgtvnic->mgt.qp_id);
 
 		nesvnic->mgtvnic[i] = NULL;

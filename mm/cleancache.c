@@ -15,7 +15,7 @@
 #include <linux/fs.h>
 #include <linux/exportfs.h>
 #include <linux/mm.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/cleancache.h>
 
 /*
@@ -25,7 +25,7 @@
 static const struct cleancache_ops *cleancache_ops __read_mostly;
 
 /*
- * Counters available via /sys/kernel/debug/cleancache (if debugfs is
+ * Counters available via /sys/kernel/de/cleancache (if defs is
  * properly configured.  These are for information only so are not protected
  * against increment races.
  */
@@ -185,7 +185,7 @@ int __cleancache_get_page(struct page *page)
 		goto out;
 	}
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 	pool_id = page->mapping->host->i_sb->cleancache_poolid;
 	if (pool_id < 0)
 		goto out;
@@ -223,7 +223,7 @@ void __cleancache_put_page(struct page *page)
 		return;
 	}
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 	pool_id = page->mapping->host->i_sb->cleancache_poolid;
 	if (pool_id >= 0 &&
 		cleancache_get_key(page->mapping->host, &key) >= 0) {
@@ -252,7 +252,7 @@ void __cleancache_invalidate_page(struct address_space *mapping,
 		return;
 
 	if (pool_id >= 0) {
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
 		if (cleancache_get_key(mapping->host, &key) >= 0) {
 			cleancache_ops->invalidate_page(pool_id,
 					key, page->index);
@@ -303,14 +303,14 @@ EXPORT_SYMBOL(__cleancache_invalidate_fs);
 
 static int __init init_cleancache(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *root = debugfs_create_dir("cleancache", NULL);
+#ifdef CONFIG_DE_FS
+	struct dentry *root = defs_create_dir("cleancache", NULL);
 	if (root == NULL)
 		return -ENXIO;
-	debugfs_create_u64("succ_gets", 0444, root, &cleancache_succ_gets);
-	debugfs_create_u64("failed_gets", 0444, root, &cleancache_failed_gets);
-	debugfs_create_u64("puts", 0444, root, &cleancache_puts);
-	debugfs_create_u64("invalidates", 0444, root, &cleancache_invalidates);
+	defs_create_u64("succ_gets", 0444, root, &cleancache_succ_gets);
+	defs_create_u64("failed_gets", 0444, root, &cleancache_failed_gets);
+	defs_create_u64("puts", 0444, root, &cleancache_puts);
+	defs_create_u64("invalidates", 0444, root, &cleancache_invalidates);
 #endif
 	return 0;
 }

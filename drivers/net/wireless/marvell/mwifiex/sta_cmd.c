@@ -2297,7 +2297,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 			if (of_property_read_u32(adapter->dt_node,
 						 "marvell,wakeup-pin",
 						 &data) == 0) {
-				pr_debug("Wakeup pin = 0x%x\n", data);
+				pr_de("Wakeup pin = 0x%x\n", data);
 				adapter->hs_cfg.gpio = data;
 			}
 

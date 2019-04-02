@@ -132,7 +132,7 @@ static void ppc440spe_adma_dma2rxor_set_mult(
 		struct ppc440spe_adma_desc_slot *desc,
 		int index, u8 mult);
 
-#ifdef ADMA_LL_DEBUG
+#ifdef ADMA_LL_DE
 #define ADMA_LL_DBG(x) ({ if (1) x; 0; })
 #else
 #define ADMA_LL_DBG(x) ({ if (0) x; 0; })
@@ -149,7 +149,7 @@ static void print_cb(struct ppc440spe_adma_chan *chan, void *block)
 	case 1:
 		cdb = block;
 
-		pr_debug("CDB at %p [%d]:\n"
+		pr_de("CDB at %p [%d]:\n"
 			"\t attr 0x%02x opc 0x%02x cnt 0x%08x\n"
 			"\t sg1u 0x%08x sg1l 0x%08x\n"
 			"\t sg2u 0x%08x sg2l 0x%08x\n"
@@ -164,7 +164,7 @@ static void print_cb(struct ppc440spe_adma_chan *chan, void *block)
 	case 2:
 		cb = block;
 
-		pr_debug("CB at %p [%d]:\n"
+		pr_de("CB at %p [%d]:\n"
 			"\t cbc 0x%08x cbbc 0x%08x cbs 0x%08x\n"
 			"\t cbtah 0x%08x cbtal 0x%08x\n"
 			"\t cblah 0x%08x cblal 0x%08x\n",
@@ -175,7 +175,7 @@ static void print_cb(struct ppc440spe_adma_chan *chan, void *block)
 		for (i = 0; i < 16; i++) {
 			if (i && !cb->ops[i].h && !cb->ops[i].l)
 				continue;
-			pr_debug("\t ops[%2d]: h 0x%08x l 0x%08x\n",
+			pr_de("\t ops[%2d]: h 0x%08x l 0x%08x\n",
 				i, cb->ops[i].h, cb->ops[i].l);
 		}
 		break;
@@ -194,10 +194,10 @@ static void prep_dma_xor_dbg(int id, dma_addr_t dst, dma_addr_t *src,
 {
 	int i;
 
-	pr_debug("\n%s(%d):\nsrc: ", __func__, id);
+	pr_de("\n%s(%d):\nsrc: ", __func__, id);
 	for (i = 0; i < src_cnt; i++)
-		pr_debug("\t0x%016llx ", src[i]);
-	pr_debug("dst:\n\t0x%016llx\n", dst);
+		pr_de("\t0x%016llx ", src[i]);
+	pr_de("dst:\n\t0x%016llx\n", dst);
 }
 
 static void prep_dma_pq_dbg(int id, dma_addr_t *dst, dma_addr_t *src,
@@ -205,12 +205,12 @@ static void prep_dma_pq_dbg(int id, dma_addr_t *dst, dma_addr_t *src,
 {
 	int i;
 
-	pr_debug("\n%s(%d):\nsrc: ", __func__, id);
+	pr_de("\n%s(%d):\nsrc: ", __func__, id);
 	for (i = 0; i < src_cnt; i++)
-		pr_debug("\t0x%016llx ", src[i]);
-	pr_debug("dst: ");
+		pr_de("\t0x%016llx ", src[i]);
+	pr_de("dst: ");
 	for (i = 0; i < 2; i++)
-		pr_debug("\t0x%016llx ", dst[i]);
+		pr_de("\t0x%016llx ", dst[i]);
 }
 
 static void prep_dma_pqzero_sum_dbg(int id, dma_addr_t *src,
@@ -219,18 +219,18 @@ static void prep_dma_pqzero_sum_dbg(int id, dma_addr_t *src,
 {
 	int i;
 
-	pr_debug("\n%s(%d):\nsrc(coef): ", __func__, id);
+	pr_de("\n%s(%d):\nsrc(coef): ", __func__, id);
 	if (scf) {
 		for (i = 0; i < src_cnt; i++)
-			pr_debug("\t0x%016llx(0x%02x) ", src[i], scf[i]);
+			pr_de("\t0x%016llx(0x%02x) ", src[i], scf[i]);
 	} else {
 		for (i = 0; i < src_cnt; i++)
-			pr_debug("\t0x%016llx(no) ", src[i]);
+			pr_de("\t0x%016llx(no) ", src[i]);
 	}
 
-	pr_debug("dst: ");
+	pr_de("dst: ");
 	for (i = 0; i < 2; i++)
-		pr_debug("\t0x%016llx ", src[src_cnt + i]);
+		pr_de("\t0x%016llx ", src[src_cnt + i]);
 }
 
 /******************************************************************************
@@ -596,7 +596,7 @@ static void ppc440spe_desc_set_src_mult(struct ppc440spe_adma_desc_slot *desc,
 			psgu = &dma_hw_desc->sg3u;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		*psgu |= cpu_to_le32(mult_value << mult_index);
@@ -605,7 +605,7 @@ static void ppc440spe_desc_set_src_mult(struct ppc440spe_adma_desc_slot *desc,
 		xor_hw_desc = desc->hw_desc;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -703,7 +703,7 @@ static void ppc440spe_desc_set_dcheck(struct ppc440spe_adma_desc_slot *desc,
 		iowrite32(qword[12], &dma_hw_desc->sg2u);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -719,7 +719,7 @@ static void ppc440spe_xor_set_link(struct ppc440spe_adma_desc_slot *prev_desc,
 		printk(KERN_ERR "%s: next_desc=0x%p; next_desc->phys=0x%llx\n",
 			__func__, next_desc,
 			next_desc ? next_desc->phys : 0);
-		BUG();
+		();
 	}
 
 	xor_hw_desc->cbs = 0;
@@ -748,7 +748,7 @@ static void ppc440spe_desc_set_link(struct ppc440spe_adma_chan *chan,
 		printk(KERN_ERR "%s: prev_desc=0x%p; next_desc=0x%p; "
 			"prev->hw_next=0x%p\n", __func__, prev_desc,
 			next_desc, prev_desc ? prev_desc->hw_next : 0);
-		BUG();
+		();
 	}
 
 	local_irq_save(flags);
@@ -815,7 +815,7 @@ static int ppc440spe_chan_xor_slot_count(size_t len, int src_cnt,
 
 	printk(KERN_ERR "%s: len %d > max %d !!\n",
 		__func__, len, PPC440SPE_ADMA_XOR_MAX_BYTE_COUNT);
-	BUG();
+	();
 	return slot_cnt;
 }
 
@@ -889,7 +889,7 @@ static int ppc440spe_dma2_pq_slot_count(dma_addr_t *srcs,
 			__func__, src_cnt, state, addr_count, order);
 		for (i = 0; i < src_cnt; i++)
 			pr_err("\t[%d] 0x%llx \n", i, srcs[i]);
-		BUG();
+		();
 	}
 
 	return (addr_count + XOR_MAX_OPS - 1) / XOR_MAX_OPS;
@@ -963,9 +963,9 @@ static void ppc440spe_adma_device_clear_eot_status(
 				}
 				/*
 				 * if cannot find the corresponding
-				 * slot it's a bug
+				 * slot it's a 
 				 */
-				BUG_ON(&iter->chain_node == &chan->chain);
+				_ON(&iter->chain_node == &chan->chain);
 
 				if (iter->xor_check_result) {
 					if (test_bit(PPC440SPE_DESC_PCHECK,
@@ -978,7 +978,7 @@ static void ppc440spe_adma_device_clear_eot_status(
 						*iter->xor_check_result |=
 							SUM_CHECK_Q_RESULT;
 					} else
-						BUG();
+						();
 				}
 			}
 		}
@@ -1122,11 +1122,11 @@ static void ppc440spe_chan_append(struct ppc440spe_adma_chan *chan)
 
 		if (likely(cur_desc)) {
 			iter = chan_last_sub[chan->device->id];
-			BUG_ON(!iter);
+			_ON(!iter);
 		} else {
 			/* first peer */
 			iter = chan_first_cdb[chan->device->id];
-			BUG_ON(!iter);
+			_ON(!iter);
 			ppc440spe_dma_put_desc(chan, iter);
 			chan->hw_chain_inited = 1;
 		}
@@ -1270,7 +1270,7 @@ static int ppc440spe_can_rxor(struct page **srcs, int src_cnt, size_t len)
 	if (unlikely(!(src_cnt > 1)))
 		return 0;
 
-	BUG_ON(src_cnt > ARRAY_SIZE(ppc440spe_rxor_srcs));
+	_ON(src_cnt > ARRAY_SIZE(ppc440spe_rxor_srcs));
 
 	/* Skip holes in the source list before checking */
 	for (i = 0; i < src_cnt; i++) {
@@ -1440,7 +1440,7 @@ ppc440spe_get_group_entry(struct ppc440spe_adma_desc_slot *tdesc, u32 entry_idx)
 	if (entry_idx < 0 || entry_idx >= (tdesc->src_cnt + tdesc->dst_cnt)) {
 		printk("%s: entry_idx %d, src_cnt %d, dst_cnt %d\n",
 			__func__, entry_idx, tdesc->src_cnt, tdesc->dst_cnt);
-		BUG();
+		();
 	}
 
 	list_for_each_entry(iter, &tdesc->group_list, chain_node) {
@@ -1477,7 +1477,7 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 		struct ppc440spe_adma_chan *chan,
 		dma_cookie_t cookie)
 {
-	BUG_ON(desc->async_tx.cookie < 0);
+	_ON(desc->async_tx.cookie < 0);
 	if (desc->async_tx.cookie > 0) {
 		cookie = desc->async_tx.cookie;
 		desc->async_tx.cookie = 0;
@@ -1588,7 +1588,7 @@ static void __ppc440spe_adma_slot_cleanup(struct ppc440spe_adma_chan *chan)
 		 * needs to be re-read (i.e. has been appended to)
 		 */
 		if (iter->phys == current_desc) {
-			BUG_ON(seen_current++);
+			_ON(seen_current++);
 			if (busy || ppc440spe_desc_get_link(iter, chan)) {
 				/* not all descriptors of the group have
 				 * been completed; exit.
@@ -1642,7 +1642,7 @@ static void __ppc440spe_adma_slot_cleanup(struct ppc440spe_adma_chan *chan)
 			}
 
 			/* the group should be complete at this point */
-			BUG_ON(slot_cnt);
+			_ON(slot_cnt);
 
 			slots_per_op = 0;
 			group_start = NULL;
@@ -1660,11 +1660,11 @@ static void __ppc440spe_adma_slot_cleanup(struct ppc440spe_adma_chan *chan)
 			break;
 	}
 
-	BUG_ON(!seen_current);
+	_ON(!seen_current);
 
 	if (cookie > 0) {
 		chan->common.completed_cookie = cookie;
-		pr_debug("\tcompleted cookie %d\n", cookie);
+		pr_de("\tcompleted cookie %d\n", cookie);
 	}
 
 }
@@ -1704,7 +1704,7 @@ static struct ppc440spe_adma_desc_slot *ppc440spe_adma_alloc_slots(
 	int slots_found, retry = 0;
 
 
-	BUG_ON(!num_slots || !slots_per_op);
+	_ON(!num_slots || !slots_per_op);
 	/* start search from the last allocated descrtiptor
 	 * if a contiguous allocation can not be found start searching
 	 * from the beginning of the list
@@ -1844,7 +1844,7 @@ static int ppc440spe_adma_alloc_chan_resources(struct dma_chan *chan)
 			ppc440spe_chan_start_null_xor(ppc440spe_chan);
 			break;
 		default:
-			BUG();
+			();
 		}
 		ppc440spe_chan->needs_unmap = 1;
 	}
@@ -1999,7 +1999,7 @@ static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_memcpy(
 	if (unlikely(!len))
 		return NULL;
 
-	BUG_ON(len > PPC440SPE_ADMA_DMA_MAX_BYTE_COUNT);
+	_ON(len > PPC440SPE_ADMA_DMA_MAX_BYTE_COUNT);
 
 	spin_lock_bh(&ppc440spe_chan->lock);
 
@@ -2042,7 +2042,7 @@ static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_xor(
 				     dma_dest, dma_src, src_cnt));
 	if (unlikely(!len))
 		return NULL;
-	BUG_ON(len > PPC440SPE_ADMA_XOR_MAX_BYTE_COUNT);
+	_ON(len > PPC440SPE_ADMA_XOR_MAX_BYTE_COUNT);
 
 	dev_dbg(ppc440spe_chan->device->common.dev,
 		"ppc440spe adma%d: %s src_cnt: %d len: %u int_en: %d\n",
@@ -2294,7 +2294,7 @@ static struct ppc440spe_adma_desc_slot *ppc440spe_dma01_prep_pq(
 	unsigned long op = 0;
 	unsigned char mult = 1;
 
-	pr_debug("%s: dst_cnt %d, src_cnt %d, len %d\n",
+	pr_de("%s: dst_cnt %d, src_cnt %d, len %d\n",
 		 __func__, dst_cnt, src_cnt, len);
 	/*  select operations WXOR/RXOR depending on the
 	 * source addresses of operators and the number
@@ -2396,7 +2396,7 @@ static struct ppc440spe_adma_desc_slot *ppc440spe_dma01_prep_pq(
 				flags, op);
 
 		/* setup dst/src/mult */
-		pr_debug("%s: set dst descriptor 0, 1: 0x%016llx, 0x%016llx\n",
+		pr_de("%s: set dst descriptor 0, 1: 0x%016llx, 0x%016llx\n",
 			 __func__, dst[0], dst[1]);
 		ppc440spe_adma_pq_set_dest(sw_desc, dst, flags);
 		while (src_cnt--) {
@@ -2439,8 +2439,8 @@ static struct ppc440spe_adma_desc_slot *ppc440spe_dma2_prep_pq(
 	unsigned long op = 0;
 	unsigned char mult = 1;
 
-	BUG_ON(!dst_cnt);
-	/*pr_debug("%s: dst_cnt %d, src_cnt %d, len %d\n",
+	_ON(!dst_cnt);
+	/*pr_de("%s: dst_cnt %d, src_cnt %d, len %d\n",
 		 __func__, dst_cnt, src_cnt, len);*/
 
 	spin_lock_bh(&ppc440spe_chan->lock);
@@ -2531,9 +2531,9 @@ static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_pq(
 
 	ADMA_LL_DBG(prep_dma_pq_dbg(ppc440spe_chan->device->id,
 				    dst, src, src_cnt));
-	BUG_ON(!len);
-	BUG_ON(len > PPC440SPE_ADMA_XOR_MAX_BYTE_COUNT);
-	BUG_ON(!src_cnt);
+	_ON(!len);
+	_ON(len > PPC440SPE_ADMA_XOR_MAX_BYTE_COUNT);
+	_ON(!src_cnt);
 
 	if (src_cnt == 1 && dst[1] == src[0]) {
 		dma_addr_t dest[2];
@@ -2554,18 +2554,18 @@ static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_pq(
 	}
 
 	if (!(flags & DMA_PREP_PQ_DISABLE_P)) {
-		BUG_ON(!dst[0]);
+		_ON(!dst[0]);
 		dst_cnt++;
 		flags |= DMA_PREP_ZERO_P;
 	}
 
 	if (!(flags & DMA_PREP_PQ_DISABLE_Q)) {
-		BUG_ON(!dst[1]);
+		_ON(!dst[1]);
 		dst_cnt++;
 		flags |= DMA_PREP_ZERO_Q;
 	}
 
-	BUG_ON(!dst_cnt);
+	_ON(!dst_cnt);
 
 	dev_dbg(ppc440spe_chan->device->common.dev,
 		"ppc440spe adma%d: %s src_cnt: %d len: %u int_en: %d\n",
@@ -2799,7 +2799,7 @@ static void ppc440spe_adma_set_dest(struct ppc440spe_adma_desc_slot *sw_desc,
 {
 	struct ppc440spe_adma_chan *chan;
 
-	BUG_ON(index >= sw_desc->dst_cnt);
+	_ON(index >= sw_desc->dst_cnt);
 
 	chan = to_ppc440spe_adma_chan(sw_desc->async_tx.chan);
 
@@ -3148,7 +3148,7 @@ static void ppc440spe_adma_pq_set_src(struct ppc440spe_adma_desc_slot *sw_desc,
 					haddr = DMA_RXOR125 <<
 						DMA_CUED_REGION_OFF;
 				else
-					BUG();
+					();
 				haddr |= DMA_CUED_XOR_BASE;
 				iter = ppc440spe_get_group_entry(sw_desc, 0);
 			} else if (index < iskip) {
@@ -3293,7 +3293,7 @@ static int ppc440spe_adma_dma2rxor_prep_src(
 		} else {
 			printk(KERN_ERR "Cannot build "
 				"DMA2 RXOR command block.\n");
-			BUG();
+			();
 		}
 		break;
 	case 1:
@@ -3393,7 +3393,7 @@ static void ppc440spe_adma_dma2rxor_set_src(
 			op += 3;
 	}
 
-	BUG_ON(k < 1);
+	_ON(k < 1);
 
 	if (test_bit(k-1, desc->reverse_flags)) {
 		/* reverse operand order; put last op in RXOR group */
@@ -3435,7 +3435,7 @@ static void ppc440spe_adma_dma2rxor_set_mult(
 			op += 3;
 	}
 
-	BUG_ON(k < 1);
+	_ON(k < 1);
 	if (test_bit(k-1, desc->reverse_flags)) {
 		/* reverse order */
 		ppc440spe_rxor_set_mult(desc, k - 1, op - index - 1, mult);
@@ -3691,7 +3691,7 @@ static void ppc440spe_chan_start_null_xor(struct ppc440spe_adma_chan *chan)
 		chan->common.completed_cookie = cookie - 1;
 
 		/* channel should not be busy */
-		BUG_ON(ppc440spe_chan_is_busy(chan));
+		_ON(ppc440spe_chan_is_busy(chan));
 
 		/* set the descriptor address */
 		ppc440spe_chan_set_first_xor_descriptor(chan, sw_desc);

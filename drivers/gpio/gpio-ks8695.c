@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -226,9 +226,9 @@ void ks8695_register_gpios(void)
 		printk(KERN_ERR "Unable to register core GPIOs\n");
 }
 
-/* .... Debug interface ..................................................... */
+/* .... De interface ..................................................... */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int ks8695_gpio_show(struct seq_file *s, void *unused)
 {
@@ -284,13 +284,13 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(ks8695_gpio);
 
-static int __init ks8695_gpio_debugfs_init(void)
+static int __init ks8695_gpio_defs_init(void)
 {
-	/* /sys/kernel/debug/ks8695_gpio */
-	debugfs_create_file("ks8695_gpio", S_IFREG | S_IRUGO, NULL, NULL,
+	/* /sys/kernel/de/ks8695_gpio */
+	defs_create_file("ks8695_gpio", S_IFREG | S_IRUGO, NULL, NULL,
 				&ks8695_gpio_fops);
 	return 0;
 }
-postcore_initcall(ks8695_gpio_debugfs_init);
+postcore_initcall(ks8695_gpio_defs_init);
 
 #endif

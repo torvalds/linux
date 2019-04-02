@@ -812,7 +812,7 @@ static void hva_run_work(struct work_struct *work)
 	/* protect instance against reentrancy */
 	mutex_lock(&ctx->lock);
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 	hva_dbg_perf_begin(ctx);
 #endif
 
@@ -837,7 +837,7 @@ static void hva_run_work(struct work_struct *work)
 
 		ctx->encoded_frames++;
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 		hva_dbg_perf_end(ctx, stream);
 #endif
 
@@ -1208,7 +1208,7 @@ static int hva_open(struct file *file)
 	/* default parameters for frame and stream */
 	set_default_params(ctx);
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 	hva_dbg_ctx_create(ctx);
 #endif
 
@@ -1243,7 +1243,7 @@ static int hva_release(struct file *file)
 		hva->nb_of_instances--;
 	}
 
-	/* trace a summary of instance before closing (debug purpose) */
+	/* trace a summary of instance before closing (de purpose) */
 	hva_dbg_summary(ctx);
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
@@ -1253,7 +1253,7 @@ static int hva_release(struct file *file)
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 	hva_dbg_ctx_remove(ctx);
 #endif
 
@@ -1385,8 +1385,8 @@ static int hva_probe(struct platform_device *pdev)
 		goto err_hw;
 	}
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
-	hva_debugfs_create(hva);
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
+	hva_defs_create(hva);
 #endif
 
 	hva->work_queue = create_workqueue(HVA_NAME);
@@ -1410,8 +1410,8 @@ static int hva_probe(struct platform_device *pdev)
 err_work_queue:
 	destroy_workqueue(hva->work_queue);
 err_v4l2:
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
-	hva_debugfs_remove(hva);
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
+	hva_defs_remove(hva);
 #endif
 	v4l2_device_unregister(&hva->v4l2_dev);
 err_hw:
@@ -1431,8 +1431,8 @@ static int hva_remove(struct platform_device *pdev)
 
 	hva_hw_remove(hva);
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
-	hva_debugfs_remove(hva);
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
+	hva_defs_remove(hva);
 #endif
 
 	v4l2_device_unregister(&hva->v4l2_dev);

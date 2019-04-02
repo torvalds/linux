@@ -1,8 +1,8 @@
 /*
- * drivers/media/platform/s5p-mfc/s5p_mfc_debug.h
+ * drivers/media/platform/s5p-mfc/s5p_mfc_de.h
  *
  * Header file for Samsung MFC (Multi Function Codec - FIMV) driver
- * This file contains debug macros
+ * This file contains de macros
  *
  * Kamil Debski, Copyright (c) 2011 Samsung Electronics
  * http://www.samsung.com/
@@ -12,26 +12,26 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef S5P_MFC_DEBUG_H_
-#define S5P_MFC_DEBUG_H_
+#ifndef S5P_MFC_DE_H_
+#define S5P_MFC_DE_H_
 
-#define DEBUG
+#define DE
 
-#ifdef DEBUG
-extern int mfc_debug_level;
+#ifdef DE
+extern int mfc_de_level;
 
-#define mfc_debug(level, fmt, args...)				\
+#define mfc_de(level, fmt, args...)				\
 	do {							\
-		if (mfc_debug_level >= level)			\
-			printk(KERN_DEBUG "%s:%d: " fmt,	\
+		if (mfc_de_level >= level)			\
+			printk(KERN_DE "%s:%d: " fmt,	\
 				__func__, __LINE__, ##args);	\
 	} while (0)
 #else
-#define mfc_debug(level, fmt, args...)
+#define mfc_de(level, fmt, args...)
 #endif
 
-#define mfc_debug_enter() mfc_debug(5, "enter\n")
-#define mfc_debug_leave() mfc_debug(5, "leave\n")
+#define mfc_de_enter() mfc_de(5, "enter\n")
+#define mfc_de_leave() mfc_de(5, "leave\n")
 
 #define mfc_err(fmt, args...)				\
 	do {						\
@@ -51,4 +51,4 @@ extern int mfc_debug_level;
 		       __func__, __LINE__, ##args);	\
 	} while (0)
 
-#endif /* S5P_MFC_DEBUG_H_ */
+#endif /* S5P_MFC_DE_H_ */

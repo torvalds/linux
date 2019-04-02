@@ -43,7 +43,7 @@ The currently selected option is printed in square brackets.
 The 'platform' option is only available if the platform provides a special
 mechanism to put the system to sleep after creating a hibernation image (ACPI
 does that, for example).  The 'suspend' option is available if Suspend-to-RAM
-is supported.  Refer to Documentation/power/basic-pm-debugging.txt for the
+is supported.  Refer to Documentation/power/basic-pm-deging.txt for the
 description of the 'test_resume' option.
 
 To select an option, write the string representing it to /sys/power/disk.
@@ -64,7 +64,7 @@ around 2/5 of available RAM by default.
 /sys/power/pm_trace controls the PM trace mechanism saving the last suspend
 or resume event point in the RTC across reboots.
 
-It helps to debug hard lockups or reboots due to device driver failures that
+It helps to de hard lockups or reboots due to device driver failures that
 occur during system suspend or resume (which is more common) more effectively.
 
 If /sys/power/pm_trace contains '1', the fingerprint of each suspend/resume

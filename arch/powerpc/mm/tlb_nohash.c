@@ -166,7 +166,7 @@ unsigned long linear_map_top;	/* Top of linear mapping */
 
 
 /*
- * Number of bytes to add to SPRN_SPRG_TLB_EXFRAME on crit/mcheck/debug
+ * Number of bytes to add to SPRN_SPRG_TLB_EXFRAME on crit/mcheck/de
  * exceptions.  This is used for bolted and e6500 TLB miss handlers which
  * do not modify this SPRG in the TLB miss code; for other TLB miss handlers,
  * this is set to zero.

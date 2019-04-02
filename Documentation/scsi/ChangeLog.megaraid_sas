@@ -139,7 +139,7 @@ Old Version     : 00.00.05.34-rc1
     2. Remove un-used function megasas_return_cmd_for_smid().
     3. Check MFI_REG_STATE.fault.resetAdapter in megasas_reset_fusion().
     4. Disable interrupts/free_irq() in megasas_shutdown().
-    5. Fix bug where AENs could be lost in probe() and resume().
+    5. Fix  where AENs could be lost in probe() and resume().
     6. Convert 6,10,12 byte CDB's to 16 byte CDB for large LBA's for FastPath
        IO.
     7. Add 1078 OCR support.
@@ -261,7 +261,7 @@ Old Version     : 00.00.04.31-rc1
 
 1.	Change the AEN sys PD update from scsi_scan to
 	scsi_add_device and scsi_remove_device.
-2.	Takeoff the debug print-out in aen_polling routine.
+2.	Takeoff the de print-out in aen_polling routine.
 
 1 Release Date    : Thur.  July 02, 2009 10:12:45 PST 2009 -
 			(emaild-id:megaraidlinux@lsi.com)
@@ -533,7 +533,7 @@ iii.	megasas_ctrl_info struct reverted to 3.02 release
 iv.	Default value of megasas_dbg_lvl set to 0
 v.	Removing in megasas_exit the sysfs entry created for megasas_dbg_lvl
 vi.	In megasas_teardown_frame_pool(), cmd->frame was passed instead of
-	cmd->sense to pci_pool_free. Fixed. Bug was pointed out by
+	cmd->sense to pci_pool_free. Fixed.  was pointed out by
 	Eric Sesterhenn
 
 1 Release Date    : Wed Sep 13 14:22:51 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
@@ -572,7 +572,7 @@ i.	Added support for ZCR controller.
 
 		New device id 0x413 added.
 
-ii.	Bug fix : Disable controller interrupt before firing INIT cmd to FW.
+ii.	 fix : Disable controller interrupt before firing INIT cmd to FW.
 
 		Interrupt is enabled after required initialization is over.
 		This is done to ensure that driver is ready to handle interrupts when

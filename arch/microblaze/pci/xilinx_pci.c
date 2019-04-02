@@ -64,7 +64,7 @@ static void xilinx_pci_fixup_bridge(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, xilinx_pci_fixup_bridge);
 
-#ifdef DEBUG
+#ifdef DE
 /**
  * xilinx_pci_exclude_device - Don't do config access for non-root bus
  *

@@ -59,7 +59,7 @@ Missing Features
 	* acceleration support (8514-like 2D)
 
 
-Known bugs
+Known s
 ==========
 
 	* character attributes (and cursor) in text mode are broken

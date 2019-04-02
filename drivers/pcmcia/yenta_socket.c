@@ -54,7 +54,7 @@ MODULE_PARM_DESC(o2_speedup, "Use prefetch/burst for O2-bridges: 'on', 'off' "
 static u32 isa_interrupts = 0x0ef8;
 
 
-#define debug(x, s, args...) dev_dbg(&s->dev->dev, x, ##args)
+#define de(x, s, args...) dev_dbg(&s->dev->dev, x, ##args)
 
 /* Don't ask.. */
 #define to_cycles(ns)	((ns)/120)
@@ -83,13 +83,13 @@ MODULE_PARM_DESC(override_bios, "yenta ignore bios resource allocation");
 static inline u32 cb_readl(struct yenta_socket *socket, unsigned reg)
 {
 	u32 val = readl(socket->base + reg);
-	debug("%04x %08x\n", socket, reg, val);
+	de("%04x %08x\n", socket, reg, val);
 	return val;
 }
 
 static inline void cb_writel(struct yenta_socket *socket, unsigned reg, u32 val)
 {
-	debug("%04x %08x\n", socket, reg, val);
+	de("%04x %08x\n", socket, reg, val);
 	writel(val, socket->base + reg);
 	readl(socket->base + reg); /* avoid problems with PCI write posting */
 }
@@ -98,7 +98,7 @@ static inline u8 config_readb(struct yenta_socket *socket, unsigned offset)
 {
 	u8 val;
 	pci_read_config_byte(socket->dev, offset, &val);
-	debug("%04x %02x\n", socket, offset, val);
+	de("%04x %02x\n", socket, offset, val);
 	return val;
 }
 
@@ -106,7 +106,7 @@ static inline u16 config_readw(struct yenta_socket *socket, unsigned offset)
 {
 	u16 val;
 	pci_read_config_word(socket->dev, offset, &val);
-	debug("%04x %04x\n", socket, offset, val);
+	de("%04x %04x\n", socket, offset, val);
 	return val;
 }
 
@@ -114,32 +114,32 @@ static inline u32 config_readl(struct yenta_socket *socket, unsigned offset)
 {
 	u32 val;
 	pci_read_config_dword(socket->dev, offset, &val);
-	debug("%04x %08x\n", socket, offset, val);
+	de("%04x %08x\n", socket, offset, val);
 	return val;
 }
 
 static inline void config_writeb(struct yenta_socket *socket, unsigned offset, u8 val)
 {
-	debug("%04x %02x\n", socket, offset, val);
+	de("%04x %02x\n", socket, offset, val);
 	pci_write_config_byte(socket->dev, offset, val);
 }
 
 static inline void config_writew(struct yenta_socket *socket, unsigned offset, u16 val)
 {
-	debug("%04x %04x\n", socket, offset, val);
+	de("%04x %04x\n", socket, offset, val);
 	pci_write_config_word(socket->dev, offset, val);
 }
 
 static inline void config_writel(struct yenta_socket *socket, unsigned offset, u32 val)
 {
-	debug("%04x %08x\n", socket, offset, val);
+	de("%04x %08x\n", socket, offset, val);
 	pci_write_config_dword(socket->dev, offset, val);
 }
 
 static inline u8 exca_readb(struct yenta_socket *socket, unsigned reg)
 {
 	u8 val = readb(socket->base + 0x800 + reg);
-	debug("%04x %02x\n", socket, reg, val);
+	de("%04x %02x\n", socket, reg, val);
 	return val;
 }
 
@@ -148,20 +148,20 @@ static inline u8 exca_readw(struct yenta_socket *socket, unsigned reg)
 	u16 val;
 	val = readb(socket->base + 0x800 + reg);
 	val |= readb(socket->base + 0x800 + reg + 1) << 8;
-	debug("%04x %04x\n", socket, reg, val);
+	de("%04x %04x\n", socket, reg, val);
 	return val;
 }
 
 static inline void exca_writeb(struct yenta_socket *socket, unsigned reg, u8 val)
 {
-	debug("%04x %02x\n", socket, reg, val);
+	de("%04x %02x\n", socket, reg, val);
 	writeb(val, socket->base + 0x800 + reg);
 	readb(socket->base + 0x800 + reg); /* PCI write posting... */
 }
 
 static void exca_writew(struct yenta_socket *socket, unsigned reg, u16 val)
 {
-	debug("%04x %04x\n", socket, reg, val);
+	de("%04x %04x\n", socket, reg, val);
 	writeb(val, socket->base + 0x800 + reg);
 	writeb(val >> 8, socket->base + 0x800 + reg + 1);
 
@@ -1071,7 +1071,7 @@ static void yenta_config_init(struct yenta_socket *socket)
  * invisible during PCI scans because of a misconfigured subordinate number
  * of the parent brige - some BIOSes seem to be too lazy to set it right.
  * Does the fixup carefully by checking how far it can go without conflicts.
- * See http://bugzilla.kernel.org/show_bug.cgi?id=2944 for more information.
+ * See http://zilla.kernel.org/show_.cgi?id=2944 for more information.
  */
 static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 {
@@ -1203,7 +1203,7 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/*
-	 * report the subsystem vendor and device for help debugging
+	 * report the subsystem vendor and device for help deging
 	 * the irq stuff...
 	 */
 	dev_info(&dev->dev, "CardBus bridge found [%04x:%04x]\n",

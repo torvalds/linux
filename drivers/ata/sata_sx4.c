@@ -227,7 +227,7 @@ static unsigned int pdc20621_i2c_read(struct ata_host *host,
 				      u32 device, u32 subaddr, u32 *pdata);
 static int pdc20621_prog_dimm0(struct ata_host *host);
 static unsigned int pdc20621_prog_dimm_global(struct ata_host *host);
-#ifdef ATA_VERBOSE_DEBUG
+#ifdef ATA_VERBOSE_DE
 static void pdc20621_get_from_dimm(struct ata_host *host,
 				   void *psource, u32 offset, u32 size);
 #endif
@@ -615,7 +615,7 @@ static void pdc20621_pop_hdma(struct ata_queued_cmd *qc)
 	pp->hdma_cons++;
 }
 
-#ifdef ATA_VERBOSE_DEBUG
+#ifdef ATA_VERBOSE_DE
 static void pdc20621_dump_hdma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -632,7 +632,7 @@ static void pdc20621_dump_hdma(struct ata_queued_cmd *qc)
 }
 #else
 static inline void pdc20621_dump_hdma(struct ata_queued_cmd *qc) { }
-#endif /* ATA_VERBOSE_DEBUG */
+#endif /* ATA_VERBOSE_DE */
 
 static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 {
@@ -689,7 +689,7 @@ static unsigned int pdc20621_qc_issue(struct ata_queued_cmd *qc)
 		return 0;
 
 	case ATAPI_PROT_DMA:
-		BUG();
+		();
 		break;
 
 	default:
@@ -993,7 +993,7 @@ static void pdc_sata_setup_port(struct ata_ioports *port, void __iomem *base)
 }
 
 
-#ifdef ATA_VERBOSE_DEBUG
+#ifdef ATA_VERBOSE_DE
 static void pdc20621_get_from_dimm(struct ata_host *host, void *psource,
 				   u32 offset, u32 size)
 {
@@ -1353,7 +1353,7 @@ static unsigned int pdc20621_dimm_init(struct ata_host *host)
 		return 1;
 	}
 
-#ifdef ATA_VERBOSE_DEBUG
+#ifdef ATA_VERBOSE_DE
 	{
 		u8 test_parttern1[40] =
 			{0x55,0xAA,'P','r','o','m','i','s','e',' ',

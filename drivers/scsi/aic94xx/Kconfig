@@ -33,10 +33,10 @@ config SCSI_AIC94XX
 		This driver supports Adaptec's SAS/SATA 3Gb/s 64 bit PCI-X
 		AIC94xx chip based host adapters.
 
-config AIC94XX_DEBUG
-	bool "Compile in debug mode"
+config AIC94XX_DE
+	bool "Compile in de mode"
 	default y
 	depends on SCSI_AIC94XX
 	help
-		Compiles the aic94xx driver in debug mode.  In debug mode,
+		Compiles the aic94xx driver in de mode.  In de mode,
 		the driver prints some messages to the console.

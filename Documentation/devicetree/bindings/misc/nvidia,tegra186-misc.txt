@@ -7,6 +7,6 @@ Required properties:
 - compatible: Must be:
   - Tegra186: "nvidia,tegra186-misc"
 - reg: Should contain 2 entries: The first entry gives the physical address
-       and length of the register region which contains revision and debug
+       and length of the register region which contains revision and de
        features. The second entry specifies the physical address and length
        of the register region indicating the strapping options.

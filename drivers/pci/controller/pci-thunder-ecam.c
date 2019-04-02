@@ -17,7 +17,7 @@ static void set_val(u32 v, int where, int size, u32 *val)
 {
 	int shift = (where & 3) * 8;
 
-	pr_debug("set_val %04x: %08x\n", (unsigned)(where & ~3), v);
+	pr_de("set_val %04x: %08x\n", (unsigned)(where & ~3), v);
 	v >>= shift;
 	if (size == 1)
 		v &= 0xff;
@@ -185,7 +185,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 	if (vendor_device == 0xffffffff)
 		goto no_emulation;
 
-	pr_debug("%04x:%04x - Fix pass#: %08x, where: %03x, devfn: %03x\n",
+	pr_de("%04x:%04x - Fix pass#: %08x, where: %03x, devfn: %03x\n",
 		 vendor_device & 0xffff, vendor_device >> 16, class_rev,
 		 (unsigned) where, devfn);
 

@@ -145,7 +145,7 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client;
 
-	BUG_ON(!v4l2_dev);
+	_ON(!v4l2_dev);
 
 	request_module(I2C_MODULE_PREFIX "%s", info->type);
 
@@ -276,7 +276,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 	struct v4l2_subdev *sd = NULL;
 	struct spi_device *spi = NULL;
 
-	BUG_ON(!v4l2_dev);
+	_ON(!v4l2_dev);
 
 	if (info->modalias[0])
 		request_module(info->modalias);

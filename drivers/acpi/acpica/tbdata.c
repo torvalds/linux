@@ -695,7 +695,7 @@ void acpi_tb_terminate(void)
 	acpi_gbl_root_table_list.flags = 0;
 	acpi_gbl_root_table_list.current_table_count = 0;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ACPI Tables freed\n"));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "ACPI Tables freed\n"));
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 	return_VOID;

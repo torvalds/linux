@@ -14,7 +14,7 @@
 #include <linux/cacheinfo.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kthread.h>
 #include <linux/mman.h>
 #include <linux/perf_event.h>
@@ -192,7 +192,7 @@ static void pseudo_lock_cstates_relax(struct pseudo_lock_region *plr)
  * At this time it is possible to do so with a single latency requirement
  * for all supported platforms.
  *
- * Since Goldmont is supported, which is affected by X86_BUG_MONITOR,
+ * Since Goldmont is supported, which is affected by X86__MONITOR,
  * the ACPI latencies need to be considered while keeping in mind that C2
  * may be set to map to deeper sleep states. In this case the latency
  * requirement needs to prevent entering C2 also.
@@ -251,7 +251,7 @@ static void pseudo_lock_region_clear(struct pseudo_lock_region *plr)
 		plr->d->plr = NULL;
 	plr->d = NULL;
 	plr->cbm = 0;
-	plr->debugfs_dir = NULL;
+	plr->defs_dir = NULL;
 }
 
 /**
@@ -1238,13 +1238,13 @@ static ssize_t pseudo_lock_measure_trigger(struct file *file,
 	if (ret == 0) {
 		if (sel != 1 && sel != 2 && sel != 3)
 			return -EINVAL;
-		ret = debugfs_file_get(file->f_path.dentry);
+		ret = defs_file_get(file->f_path.dentry);
 		if (ret)
 			return ret;
 		ret = pseudo_lock_measure_cycles(rdtgrp, sel);
 		if (ret == 0)
 			ret = count;
-		debugfs_file_put(file->f_path.dentry);
+		defs_file_put(file->f_path.dentry);
 	}
 
 	return ret;
@@ -1331,17 +1331,17 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	 *
 	 * The mutex has to be released temporarily to avoid a potential
 	 * deadlock with the mm->mmap_sem semaphore which is obtained in
-	 * the device_create() and debugfs_create_dir() callpath below
+	 * the device_create() and defs_create_dir() callpath below
 	 * as well as before the mmap() callback is called.
 	 */
 	mutex_unlock(&rdtgroup_mutex);
 
-	if (!IS_ERR_OR_NULL(debugfs_resctrl)) {
-		plr->debugfs_dir = debugfs_create_dir(rdtgrp->kn->name,
-						      debugfs_resctrl);
-		if (!IS_ERR_OR_NULL(plr->debugfs_dir))
-			debugfs_create_file("pseudo_lock_measure", 0200,
-					    plr->debugfs_dir, rdtgrp,
+	if (!IS_ERR_OR_NULL(defs_resctrl)) {
+		plr->defs_dir = defs_create_dir(rdtgrp->kn->name,
+						      defs_resctrl);
+		if (!IS_ERR_OR_NULL(plr->defs_dir))
+			defs_create_file("pseudo_lock_measure", 0200,
+					    plr->defs_dir, rdtgrp,
 					    &pseudo_measure_fops);
 	}
 
@@ -1355,7 +1355,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 		ret = PTR_ERR(dev);
 		rdt_last_cmd_printf("Failed to create character device: %d\n",
 				    ret);
-		goto out_debugfs;
+		goto out_defs;
 	}
 
 	/* We released the mutex - check if group was removed while we did so */
@@ -1376,8 +1376,8 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 
 out_device:
 	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, new_minor));
-out_debugfs:
-	debugfs_remove_recursive(plr->debugfs_dir);
+out_defs:
+	defs_remove_recursive(plr->defs_dir);
 	pseudo_lock_minor_release(new_minor);
 out_cstates:
 	pseudo_lock_cstates_relax(plr);
@@ -1415,7 +1415,7 @@ void rdtgroup_pseudo_lock_remove(struct rdtgroup *rdtgrp)
 	}
 
 	pseudo_lock_cstates_relax(plr);
-	debugfs_remove_recursive(rdtgrp->plr->debugfs_dir);
+	defs_remove_recursive(rdtgrp->plr->defs_dir);
 	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, plr->minor));
 	pseudo_lock_minor_release(plr->minor);
 

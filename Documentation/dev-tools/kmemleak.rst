@@ -5,7 +5,7 @@ Kmemleak provides a way of detecting possible kernel memory leaks in a
 way similar to a tracing garbage collector
 (https://en.wikipedia.org/wiki/Garbage_collection_%28computer_science%29#Tracing_garbage_collectors),
 with the difference that the orphan objects are not freed but only
-reported via /sys/kernel/debug/kmemleak. A similar method is used by the
+reported via /sys/kernel/de/kmemleak. A similar method is used by the
 Valgrind tool (``memcheck --leak-check``) to detect the memory leaks in
 user-space applications.
 Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390 and tile.
@@ -13,23 +13,23 @@ Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s3
 Usage
 -----
 
-CONFIG_DEBUG_KMEMLEAK in "Kernel hacking" has to be enabled. A kernel
+CONFIG_DE_KMEMLEAK in "Kernel hacking" has to be enabled. A kernel
 thread scans the memory every 10 minutes (by default) and prints the
 number of new unreferenced objects found. To display the details of all
 the possible memory leaks::
 
-  # mount -t debugfs nodev /sys/kernel/debug/
-  # cat /sys/kernel/debug/kmemleak
+  # mount -t defs nodev /sys/kernel/de/
+  # cat /sys/kernel/de/kmemleak
 
 To trigger an intermediate memory scan::
 
-  # echo scan > /sys/kernel/debug/kmemleak
+  # echo scan > /sys/kernel/de/kmemleak
 
 To clear the list of all current possible memory leaks::
 
-  # echo clear > /sys/kernel/debug/kmemleak
+  # echo clear > /sys/kernel/de/kmemleak
 
-New leaks will then come up upon reading ``/sys/kernel/debug/kmemleak``
+New leaks will then come up upon reading ``/sys/kernel/de/kmemleak``
 again.
 
 Note that the orphan objects are listed in the order they were allocated
@@ -37,7 +37,7 @@ and one object at the beginning of the list may cause other subsequent
 objects to be reported as orphan.
 
 Memory scanning parameters can be modified at run-time by writing to the
-``/sys/kernel/debug/kmemleak`` file. The following parameters are supported:
+``/sys/kernel/de/kmemleak`` file. The following parameters are supported:
 
 - off
     disable kmemleak (irreversible)
@@ -66,9 +66,9 @@ the kernel command line.
 
 Memory may be allocated or freed before kmemleak is initialised and
 these actions are stored in an early log buffer. The size of this buffer
-is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
+is configured via the CONFIG_DE_KMEMLEAK_EARLY_LOG_SIZE option.
 
-If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
+If CONFIG_DE_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
 disabled by default. Passing ``kmemleak=on`` on the kernel command
 line enables the function. 
 
@@ -101,7 +101,7 @@ The scanning algorithm steps:
      can become gray and added at the end of the gray list) until the
      gray set is finished
   4. the remaining white objects are considered orphan and reported via
-     /sys/kernel/debug/kmemleak
+     /sys/kernel/de/kmemleak
 
 Some allocated memory blocks have pointers stored in the kernel's
 internal data structures and they cannot be detected as orphans. To
@@ -112,23 +112,23 @@ block is not considered a leak. One example is __vmalloc().
 Testing specific sections with kmemleak
 ---------------------------------------
 
-Upon initial bootup your /sys/kernel/debug/kmemleak output page may be
-quite extensive. This can also be the case if you have very buggy code
+Upon initial bootup your /sys/kernel/de/kmemleak output page may be
+quite extensive. This can also be the case if you have very gy code
 when doing development. To work around these situations you can use the
 'clear' command to clear all reported unreferenced objects from the
-/sys/kernel/debug/kmemleak output. By issuing a 'scan' after a 'clear'
+/sys/kernel/de/kmemleak output. By issuing a 'scan' after a 'clear'
 you can find new unreferenced objects; this should help with testing
 specific sections of code.
 
 To test a critical section on demand with a clean kmemleak do::
 
-  # echo clear > /sys/kernel/debug/kmemleak
+  # echo clear > /sys/kernel/de/kmemleak
   ... test your kernel or modules ...
-  # echo scan > /sys/kernel/debug/kmemleak
+  # echo scan > /sys/kernel/de/kmemleak
 
 Then as usual to get your report with::
 
-  # cat /sys/kernel/debug/kmemleak
+  # cat /sys/kernel/de/kmemleak
 
 Freeing kmemleak internal objects
 ---------------------------------
@@ -140,7 +140,7 @@ a large part of physical memory.
 
 In this situation, you may reclaim memory with::
 
-  # echo clear > /sys/kernel/debug/kmemleak
+  # echo clear > /sys/kernel/de/kmemleak
 
 Kmemleak API
 ------------
@@ -198,8 +198,8 @@ Limitations and Drawbacks
 
 The main drawback is the reduced performance of memory allocation and
 freeing. To avoid other penalties, the memory scanning is only performed
-when the /sys/kernel/debug/kmemleak file is read. Anyway, this tool is
-intended for debugging purposes where the performance might not be the
+when the /sys/kernel/de/kmemleak file is read. Anyway, this tool is
+intended for deging purposes where the performance might not be the
 most important requirement.
 
 To keep the algorithm simple, kmemleak scans for values pointing to any

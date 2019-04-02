@@ -31,7 +31,7 @@
 #include <asm/io.h>
 #include <asm/sections.h>
 
-#undef DEBUG
+#undef DE
 
 #define CONFIG_REG   0x40
 #define MANUAL_MASK  0xe0
@@ -160,10 +160,10 @@ static void write_fan_speed(struct thermostat *th, int speed, int fan)
 	if (th->last_speed[fan] != speed) {
 		if (verbose) {
 			if (speed == -1)
-				printk(KERN_DEBUG "adt746x: Setting speed to automatic "
+				printk(KERN_DE "adt746x: Setting speed to automatic "
 					"for %s fan.\n", sensor_location[fan+1]);
 			else
-				printk(KERN_DEBUG "adt746x: Setting speed to %d "
+				printk(KERN_DE "adt746x: Setting speed to %d "
 					"for %s fan.\n", speed, sensor_location[fan+1]);
 		}
 	} else
@@ -203,7 +203,7 @@ static void read_sensors(struct thermostat *th)
 		th->temps[i]  = read_reg(th, TEMP_REG[i]);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void display_stats(struct thermostat *th)
 {
 	if (th->temps[0] != th->cached_temp[0]
@@ -252,7 +252,7 @@ static void update_fans_speed (struct thermostat *th)
 				new_speed = 255;
 
 			if (verbose)
-				printk(KERN_DEBUG "adt746x: Setting fans speed to %d "
+				printk(KERN_DE "adt746x: Setting fans speed to %d "
 						 "(limit exceeded by %d on %s)\n",
 						new_speed, var,
 						sensor_location[fan_number+1]);
@@ -264,7 +264,7 @@ static void update_fans_speed (struct thermostat *th)
 			if (i == 2 && lastvar < -1) {
 				if (th->last_speed[fan_number] != 0)
 					if (verbose)
-						printk(KERN_DEBUG "adt746x: Stopping "
+						printk(KERN_DE "adt746x: Stopping "
 							"fans.\n");
 				write_both_fan_speed(th, 0);
 			}
@@ -287,7 +287,7 @@ static int monitor_task(void *arg)
 		try_to_freeze();
 		msleep_interruptible(2000);
 
-#ifndef DEBUG
+#ifndef DE
 		if (fan_speed != -1)
 			read_sensors(th);
 #else
@@ -297,7 +297,7 @@ static int monitor_task(void *arg)
 		if (fan_speed != -1)
 			update_fans_speed(th);
 
-#ifdef DEBUG
+#ifdef DE
 		display_stats(th);
 #endif
 

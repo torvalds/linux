@@ -35,15 +35,15 @@ struct mwifiex_cb {
 	};
 };
 
-/* size/addr for mwifiex_debug_info */
-#define item_size(n)		(FIELD_SIZEOF(struct mwifiex_debug_info, n))
-#define item_addr(n)		(offsetof(struct mwifiex_debug_info, n))
+/* size/addr for mwifiex_de_info */
+#define item_size(n)		(FIELD_SIZEOF(struct mwifiex_de_info, n))
+#define item_addr(n)		(offsetof(struct mwifiex_de_info, n))
 
 /* size/addr for struct mwifiex_adapter */
 #define adapter_item_size(n)	(FIELD_SIZEOF(struct mwifiex_adapter, n))
 #define adapter_item_addr(n)	(offsetof(struct mwifiex_adapter, n))
 
-struct mwifiex_debug_data {
+struct mwifiex_de_data {
 	char name[32];		/* variable/array name */
 	u32 size;		/* size of the variable/array */
 	size_t addr;		/* address of the variable/array */
@@ -54,7 +54,7 @@ static inline struct mwifiex_rxinfo *MWIFIEX_SKB_RXCB(struct sk_buff *skb)
 {
 	struct mwifiex_cb *cb = (struct mwifiex_cb *)skb->cb;
 
-	BUILD_BUG_ON(sizeof(struct mwifiex_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct mwifiex_cb) > sizeof(skb->cb));
 	return &cb->rx_info;
 }
 
@@ -90,8 +90,8 @@ static inline dma_addr_t MWIFIEX_SKB_DMA_ADDR(struct sk_buff *skb)
 	return mapping.addr;
 }
 
-int mwifiex_debug_info_to_buffer(struct mwifiex_private *priv, char *buf,
-				 struct mwifiex_debug_info *info);
+int mwifiex_de_info_to_buffer(struct mwifiex_private *priv, char *buf,
+				 struct mwifiex_de_info *info);
 
 static inline void le16_unaligned_add_cpu(__le16 *var, u16 val)
 {

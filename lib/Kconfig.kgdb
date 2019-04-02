@@ -3,16 +3,16 @@ config HAVE_ARCH_KGDB
 	bool
 
 menuconfig KGDB
-	bool "KGDB: kernel debugger"
+	bool "KGDB: kernel deger"
 	depends on HAVE_ARCH_KGDB
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
-	  If you say Y here, it will be possible to remotely debug the
+	  If you say Y here, it will be possible to remotely de the
 	  kernel using gdb.  It is recommended but not required, that
 	  you also turn on the kernel config option
 	  CONFIG_FRAME_POINTER to aid in producing more reliable stack
-	  backtraces in the external debugger.  Documentation of
-	  kernel debugger is available at http://kgdb.sourceforge.net
+	  backtraces in the external deger.  Documentation of
+	  kernel deger is available at http://kgdb.sourceforge.net
 	  as well as in Documentation/dev-tools/kgdb.rst.  If
 	  unsure, say N.
 
@@ -59,7 +59,7 @@ config KGDB_TESTS_BOOT_STRING
 	  default of V1F100.
 
 config KGDB_LOW_LEVEL_TRAP
-       bool "KGDB: Allow debugging with traps in notifiers"
+       bool "KGDB: Allow deging with traps in notifiers"
        depends on X86 || MIPS
        default n
        help

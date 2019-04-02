@@ -182,7 +182,7 @@ static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry,
 
 	if (!mm_uses_skeys(mm) || pte_val(entry) & _PAGE_INVALID)
 		return;
-	VM_BUG_ON(!(pte_val(*ptep) & _PAGE_INVALID));
+	VM__ON(!(pte_val(*ptep) & _PAGE_INVALID));
 	address = pte_val(entry) & PAGE_MASK;
 	/*
 	 * Set page access key and fetch protection bit from pgste.

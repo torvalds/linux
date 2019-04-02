@@ -52,7 +52,7 @@
 #define	SMT_PANIC(smc, nr, msg)	printk(KERN_INFO "SMT PANIC: code: %d, msg: %s\n",nr,msg)
 
 
-#ifdef DEBUG
+#ifdef DE
 #define printf(s,args...) printk(KERN_INFO s, ## args)
 #endif
 

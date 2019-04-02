@@ -43,14 +43,14 @@ extern void fpu__init_cpu(void);
 extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
-extern void fpu__init_check_bugs(void);
+extern void fpu__init_check_s(void);
 extern void fpu__resume_cpu(void);
 extern u64 fpu__get_supported_xfeatures_mask(void);
 
 /*
- * Debugging facility:
+ * Deging facility:
  */
-#ifdef CONFIG_X86_DEBUG_FPU
+#ifdef CONFIG_X86_DE_FPU
 # define WARN_ON_FPU(x) WARN_ON_ONCE(x)
 #else
 # define WARN_ON_FPU(x) ({ (void)(x); 0; })
@@ -419,7 +419,7 @@ static inline void copy_kernel_to_fpregs(union fpregs_state *fpstate)
 	 * pending. Clear the x87 state here by setting it to fixed values.
 	 * "m" is a random variable that should be in L1.
 	 */
-	if (unlikely(static_cpu_has_bug(X86_BUG_FXSAVE_LEAK))) {
+	if (unlikely(static_cpu_has_(X86__FXSAVE_LEAK))) {
 		asm volatile(
 			"fnclex\n\t"
 			"emms\n\t"

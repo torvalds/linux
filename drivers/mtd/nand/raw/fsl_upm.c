@@ -118,7 +118,7 @@ static void fun_select_chip(struct nand_chip *chip, int mchip_nr)
 		chip->legacy.IO_ADDR_R = fun->io_base + fun->mchip_offsets[mchip_nr];
 		chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R;
 	} else {
-		BUG();
+		();
 	}
 }
 

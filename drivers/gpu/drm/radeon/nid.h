@@ -210,8 +210,8 @@
 #define		MC_SEQ_MISC0_GDDR5_SHIFT      		28
 #define		MC_SEQ_MISC0_GDDR5_MASK      		0xf0000000
 #define		MC_SEQ_MISC0_GDDR5_VALUE      		5
-#define MC_SEQ_IO_DEBUG_INDEX           		0x2a44
-#define MC_SEQ_IO_DEBUG_DATA           			0x2a48
+#define MC_SEQ_IO_DE_INDEX           		0x2a44
+#define MC_SEQ_IO_DE_DATA           			0x2a48
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
@@ -402,7 +402,7 @@
 #define		COLOR_BUFFER_SIZE(x)				((x) << 0)
 #define		POSITION_BUFFER_SIZE(x)				((x) << 8)
 #define		SMX_BUFFER_SIZE(x)				((x) << 16)
-#define	SX_DEBUG_1					0x9058
+#define	SX_DE_1					0x9058
 #define		ENABLE_NEW_SMX_ADDRESS				(1 << 16)
 
 #define	SPI_CONFIG_CNTL					0x9100
@@ -511,7 +511,7 @@
 #define	CP_ME_RAM_RADDR					0xC158
 #define	CP_ME_RAM_WADDR					0xC15C
 #define	CP_ME_RAM_DATA					0xC160
-#define	CP_DEBUG					0xC1FC
+#define	CP_DE					0xC1FC
 
 #define VGT_EVENT_INITIATOR                             0x28a90
 #       define CACHE_FLUSH_AND_INV_EVENT_TS                     (0x14 << 0)

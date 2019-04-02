@@ -24,7 +24,7 @@
 #include "ps.h"
 #include "io.h"
 #include "tx.h"
-#include "debug.h"
+#include "de.h"
 
 int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       enum wl1271_cmd_ps_mode mode)
@@ -35,7 +35,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	switch (mode) {
 	case STATION_AUTO_PS_MODE:
 	case STATION_POWER_SAVE_MODE:
-		wl1271_debug(DEBUG_PSM, "entering psm (mode=%d,timeout=%u)",
+		wl1271_de(DE_PSM, "entering psm (mode=%d,timeout=%u)",
 			     mode, timeout);
 
 		ret = wl1271_acx_wake_up_conditions(wl, wlvif,
@@ -64,7 +64,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		}
 		break;
 	case STATION_ACTIVE_MODE:
-		wl1271_debug(DEBUG_PSM, "leaving psm");
+		wl1271_de(DE_PSM, "leaving psm");
 
 		/* disable beacon early termination */
 		if ((wlvif->band == NL80211_BAND_2GHZ) &&
@@ -137,7 +137,7 @@ void wl12xx_ps_link_start(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	    test_bit(hlid, &wl->ap_ps_map))
 		return;
 
-	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d pkts %d "
+	wl1271_de(DE_PSM, "start mac80211 PSM on hlid %d pkts %d "
 		     "clean_queues %d", hlid, wl->links[hlid].allocated_pkts,
 		     clean_queues);
 
@@ -168,7 +168,7 @@ void wl12xx_ps_link_end(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 	if (!test_bit(hlid, &wl->ap_ps_map))
 		return;
 
-	wl1271_debug(DEBUG_PSM, "end mac80211 PSM on hlid %d", hlid);
+	wl1271_de(DE_PSM, "end mac80211 PSM on hlid %d", hlid);
 
 	__clear_bit(hlid, &wl->ap_ps_map);
 

@@ -16,15 +16,15 @@ config CEPH_LIB
 
 	  If unsure, say N.
 
-config CEPH_LIB_PRETTYDEBUG
-	bool "Include file:line in ceph debug output"
+config CEPH_LIB_PRETTYDE
+	bool "Include file:line in ceph de output"
 	depends on CEPH_LIB
 	default n
 	help
-	  If you say Y here, debug output will include a filename and
-	  line to aid debugging.  This increases kernel size and slows
-	  execution slightly when debug call sites are enabled (e.g.,
-	  via CONFIG_DYNAMIC_DEBUG).
+	  If you say Y here, de output will include a filename and
+	  line to aid deging.  This increases kernel size and slows
+	  execution slightly when de call sites are enabled (e.g.,
+	  via CONFIG_DYNAMIC_DE).
 
 	  If unsure, say N.
 

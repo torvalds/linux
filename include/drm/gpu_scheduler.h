@@ -153,7 +153,7 @@ struct drm_sched_fence {
          */
 	spinlock_t			lock;
         /**
-         * @owner: job owner for debugging
+         * @owner: job owner for deging
          */
 	void				*owner;
 };

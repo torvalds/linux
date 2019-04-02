@@ -55,8 +55,8 @@ static void ptrace_child(void)
 		 */
 		ret = 0;
 	else
-		/* Serious trouble! This could be caused by a bug in host 2.6
-		 * SKAS3/2.6 patch before release -V6, together with a bug in
+		/* Serious trouble! This could be caused by a  in host 2.6
+		 * SKAS3/2.6 patch before release -V6, together with a  in
 		 * the UML code itself.
 		 */
 		ret = 2;

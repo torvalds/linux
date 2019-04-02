@@ -542,7 +542,7 @@ static inline netdev_tx_t macvlan_netpoll_send_skb(struct macvlan_dev *vlan, str
 	if (vlan->netpoll)
 		netpoll_send_skb(vlan->netpoll, skb);
 #else
-	BUG();
+	();
 #endif
 	return NETDEV_TX_OK;
 }
@@ -799,7 +799,7 @@ static void macvlan_set_mac_lists(struct net_device *dev)
 	/* This is slightly inaccurate as we're including the subscription
 	 * list of vlan->lowerdev too.
 	 *
-	 * Bug alert: This only works if everyone has the same broadcast
+	 *  alert: This only works if everyone has the same broadcast
 	 * address as lowerdev.  As soon as someone changes theirs this
 	 * will break.
 	 *

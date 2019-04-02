@@ -41,7 +41,7 @@
 #include <asm/tce.h>
 #include <asm/pte-walk.h>
 
-#ifdef CONFIG_BUG
+#ifdef CONFIG_
 
 #define WARN_ON_ONCE_RM(condition)	({			\
 	static bool __section(.data.unlikely) __warned;		\
@@ -587,7 +587,7 @@ long kvmppc_rm_h_stuff_tce(struct kvm_vcpu *vcpu,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	/* Check permission bits only to allow userspace poison TCE for debug */
+	/* Check permission bits only to allow userspace poison TCE for de */
 	if (tce_value & (TCE_PCI_WRITE | TCE_PCI_READ))
 		return H_PARAMETER;
 

@@ -32,12 +32,12 @@
  * SOFTWARE.
  */
 
-#ifndef __CXGB4_DEBUGFS_H
-#define __CXGB4_DEBUGFS_H
+#ifndef __CXGB4_DEFS_H
+#define __CXGB4_DEFS_H
 
 #include <linux/export.h>
 
-struct t4_debugfs_entry {
+struct t4_defs_entry {
 	const char *name;
 	const struct file_operations *ops;
 	umode_t mode;
@@ -61,9 +61,9 @@ struct seq_tab *seq_open_tab(struct file *f, unsigned int rows,
 			     unsigned int width, unsigned int have_header,
 			     int (*show)(struct seq_file *seq, void *v, int i));
 
-int t4_setup_debugfs(struct adapter *adap);
-void add_debugfs_files(struct adapter *adap,
-		       struct t4_debugfs_entry *files,
+int t4_setup_defs(struct adapter *adap);
+void add_defs_files(struct adapter *adap,
+		       struct t4_defs_entry *files,
 		       unsigned int nfiles);
 int mem_open(struct inode *inode, struct file *file);
 

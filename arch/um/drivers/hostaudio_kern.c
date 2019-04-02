@@ -74,8 +74,8 @@ static ssize_t hostaudio_read(struct file *file, char __user *buffer,
 	void *kbuf;
 	int err;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostaudio: read called, count = %d\n", count);
+#ifdef DE
+	printk(KERN_DE "hostaudio: read called, count = %d\n", count);
 #endif
 
 	kbuf = kmalloc(count, GFP_KERNEL);
@@ -101,8 +101,8 @@ static ssize_t hostaudio_write(struct file *file, const char __user *buffer,
 	void *kbuf;
 	int err;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostaudio: write called, count = %d\n", count);
+#ifdef DE
+	printk(KERN_DE "hostaudio: write called, count = %d\n", count);
 #endif
 
 	kbuf = memdup_user(buffer, count);
@@ -124,8 +124,8 @@ static __poll_t hostaudio_poll(struct file *file,
 {
 	__poll_t mask = 0;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostaudio: poll called (unimplemented)\n");
+#ifdef DE
+	printk(KERN_DE "hostaudio: poll called (unimplemented)\n");
 #endif
 
 	return mask;
@@ -138,8 +138,8 @@ static long hostaudio_ioctl(struct file *file,
 	unsigned long data = 0;
 	int err;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostaudio: ioctl called, cmd = %u\n", cmd);
+#ifdef DE
+	printk(KERN_DE "hostaudio: ioctl called, cmd = %u\n", cmd);
 #endif
 	switch(cmd){
 	case SNDCTL_DSP_SPEED:
@@ -180,9 +180,9 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	int r = 0, w = 0;
 	int ret;
 
-#ifdef DEBUG
+#ifdef DE
 	kernel_param_lock(THIS_MODULE);
-	printk(KERN_DEBUG "hostaudio: open called (host: %s)\n", dsp);
+	printk(KERN_DE "hostaudio: open called (host: %s)\n", dsp);
 	kernel_param_unlock(THIS_MODULE);
 #endif
 
@@ -214,8 +214,8 @@ static int hostaudio_release(struct inode *inode, struct file *file)
 {
 	struct hostaudio_state *state = file->private_data;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostaudio: release called\n");
+#ifdef DE
+	printk(KERN_DE "hostaudio: release called\n");
 #endif
 	os_close_file(state->fd);
 	kfree(state);
@@ -230,8 +230,8 @@ static long hostmixer_ioctl_mixdev(struct file *file,
 {
 	struct hostmixer_state *state = file->private_data;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostmixer: ioctl called\n");
+#ifdef DE
+	printk(KERN_DE "hostmixer: ioctl called\n");
 #endif
 
 	return os_ioctl_generic(state->fd, cmd, arg);
@@ -243,8 +243,8 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 	int r = 0, w = 0;
 	int ret;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostmixer: open called (host: %s)\n", mixer);
+#ifdef DE
+	printk(KERN_DE "hostmixer: open called (host: %s)\n", mixer);
 #endif
 
 	state = kmalloc(sizeof(struct hostmixer_state), GFP_KERNEL);
@@ -279,8 +279,8 @@ static int hostmixer_release(struct inode *inode, struct file *file)
 {
 	struct hostmixer_state *state = file->private_data;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "hostmixer: release called\n");
+#ifdef DE
+	printk(KERN_DE "hostmixer: release called\n");
 #endif
 
 	os_close_file(state->fd);

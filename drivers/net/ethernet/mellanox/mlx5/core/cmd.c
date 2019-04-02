@@ -41,7 +41,7 @@
 #include <linux/io-mapping.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "mlx5_core.h"
 #include "lib/eq.h"
@@ -253,14 +253,14 @@ static void dump_buf(void *buf, int size, int data_only, int offset)
 	int i;
 
 	for (i = 0; i < size; i += 16) {
-		pr_debug("%03x: %08x %08x %08x %08x\n", offset, be32_to_cpu(p[0]),
+		pr_de("%03x: %08x %08x %08x %08x\n", offset, be32_to_cpu(p[0]),
 			 be32_to_cpu(p[1]), be32_to_cpu(p[2]),
 			 be32_to_cpu(p[3]));
 		p += 4;
 		offset += 16;
 	}
 	if (!data_only)
-		pr_debug("\n");
+		pr_de("\n");
 }
 
 static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
@@ -766,7 +766,7 @@ static void dump_command(struct mlx5_core_dev *dev,
 	int dump_len;
 	int i;
 
-	data_only = !!(mlx5_core_debug_mask & (1 << MLX5_CMD_DATA));
+	data_only = !!(mlx5_core_de_mask & (1 << MLX5_CMD_DATA));
 
 	if (data_only)
 		mlx5_core_dbg_mask(dev, 1 << MLX5_CMD_DATA,
@@ -805,7 +805,7 @@ static void dump_command(struct mlx5_core_dev *dev,
 	}
 
 	if (data_only)
-		pr_debug("\n");
+		pr_de("\n");
 }
 
 static u16 msg_to_opcode(struct mlx5_cmd_msg *in)
@@ -1055,7 +1055,7 @@ static ssize_t dbg_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *pos)
 {
 	struct mlx5_core_dev *dev = filp->private_data;
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 	char lbuf[3];
 	int err;
 
@@ -1102,7 +1102,7 @@ static int mlx5_copy_to_msg(struct mlx5_cmd_msg *to, void *from, int size,
 	next = to->next;
 	while (size) {
 		if (!next) {
-			/* this is a BUG */
+			/* this is a  */
 			return -ENOMEM;
 		}
 
@@ -1135,7 +1135,7 @@ static int mlx5_copy_from_msg(void *to, struct mlx5_cmd_msg *from, int size)
 	next = from->next;
 	while (size) {
 		if (!next) {
-			/* this is a BUG */
+			/* this is a  */
 			return -ENOMEM;
 		}
 
@@ -1244,7 +1244,7 @@ static ssize_t data_write(struct file *filp, const char __user *buf,
 			  size_t count, loff_t *pos)
 {
 	struct mlx5_core_dev *dev = filp->private_data;
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 	void *ptr;
 
 	if (*pos != 0)
@@ -1268,7 +1268,7 @@ static ssize_t data_read(struct file *filp, char __user *buf, size_t count,
 			 loff_t *pos)
 {
 	struct mlx5_core_dev *dev = filp->private_data;
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 
 	if (!dbg->out_msg)
 		return -ENOMEM;
@@ -1288,7 +1288,7 @@ static ssize_t outlen_read(struct file *filp, char __user *buf, size_t count,
 			   loff_t *pos)
 {
 	struct mlx5_core_dev *dev = filp->private_data;
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 	char outlen[8];
 	int err;
 
@@ -1303,7 +1303,7 @@ static ssize_t outlen_write(struct file *filp, const char __user *buf,
 			    size_t count, loff_t *pos)
 {
 	struct mlx5_core_dev *dev = filp->private_data;
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 	char outlen_str[8] = {0};
 	int outlen;
 	void *ptr;
@@ -1350,59 +1350,59 @@ static void set_wqname(struct mlx5_core_dev *dev)
 		 dev_name(&dev->pdev->dev));
 }
 
-static void clean_debug_files(struct mlx5_core_dev *dev)
+static void clean_de_files(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 
-	if (!mlx5_debugfs_root)
+	if (!mlx5_defs_root)
 		return;
 
-	mlx5_cmdif_debugfs_cleanup(dev);
-	debugfs_remove_recursive(dbg->dbg_root);
+	mlx5_cmdif_defs_cleanup(dev);
+	defs_remove_recursive(dbg->dbg_root);
 }
 
-static int create_debugfs_files(struct mlx5_core_dev *dev)
+static int create_defs_files(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
+	struct mlx5_cmd_de *dbg = &dev->cmd.dbg;
 	int err = -ENOMEM;
 
-	if (!mlx5_debugfs_root)
+	if (!mlx5_defs_root)
 		return 0;
 
-	dbg->dbg_root = debugfs_create_dir("cmd", dev->priv.dbg_root);
+	dbg->dbg_root = defs_create_dir("cmd", dev->priv.dbg_root);
 	if (!dbg->dbg_root)
 		return err;
 
-	dbg->dbg_in = debugfs_create_file("in", 0400, dbg->dbg_root,
+	dbg->dbg_in = defs_create_file("in", 0400, dbg->dbg_root,
 					  dev, &dfops);
 	if (!dbg->dbg_in)
 		goto err_dbg;
 
-	dbg->dbg_out = debugfs_create_file("out", 0200, dbg->dbg_root,
+	dbg->dbg_out = defs_create_file("out", 0200, dbg->dbg_root,
 					   dev, &dfops);
 	if (!dbg->dbg_out)
 		goto err_dbg;
 
-	dbg->dbg_outlen = debugfs_create_file("out_len", 0600, dbg->dbg_root,
+	dbg->dbg_outlen = defs_create_file("out_len", 0600, dbg->dbg_root,
 					      dev, &olfops);
 	if (!dbg->dbg_outlen)
 		goto err_dbg;
 
-	dbg->dbg_status = debugfs_create_u8("status", 0600, dbg->dbg_root,
+	dbg->dbg_status = defs_create_u8("status", 0600, dbg->dbg_root,
 					    &dbg->status);
 	if (!dbg->dbg_status)
 		goto err_dbg;
 
-	dbg->dbg_run = debugfs_create_file("run", 0200, dbg->dbg_root, dev, &fops);
+	dbg->dbg_run = defs_create_file("run", 0200, dbg->dbg_root, dev, &fops);
 	if (!dbg->dbg_run)
 		goto err_dbg;
 
-	mlx5_cmdif_debugfs_init(dev);
+	mlx5_cmdif_defs_init(dev);
 
 	return 0;
 
 err_dbg:
-	clean_debug_files(dev);
+	clean_de_files(dev);
 	return err;
 }
 
@@ -1981,7 +1981,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		goto err_cache;
 	}
 
-	err = create_debugfs_files(dev);
+	err = create_defs_files(dev);
 	if (err) {
 		err = -ENOMEM;
 		goto err_wq;
@@ -2009,7 +2009,7 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 
-	clean_debug_files(dev);
+	clean_de_files(dev);
 	destroy_workqueue(cmd->wq);
 	destroy_msg_cache(dev);
 	free_cmd_page(dev, cmd);

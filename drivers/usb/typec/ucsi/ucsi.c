@@ -214,12 +214,12 @@ static int ucsi_run_command(struct ucsi *ucsi, struct ucsi_control *ctrl,
 			dev_warn(ucsi->dev, "Dead battery condition!\n");
 			ret = -EPERM;
 			break;
-		/* The following mean a bug in this driver */
+		/* The following mean a  in this driver */
 		case UCSI_ERROR_INVALID_CON_NUM:
 		case UCSI_ERROR_UNREGONIZED_CMD:
 		case UCSI_ERROR_INVALID_CMD_ARGUMENT:
 			dev_warn(ucsi->dev,
-				 "%s: possible UCSI driver bug - error 0x%x\n",
+				 "%s: possible UCSI driver  - error 0x%x\n",
 				 __func__, error);
 			ret = -EINVAL;
 			break;
@@ -269,8 +269,8 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 	memset(&desc, 0, sizeof(desc));
 
 	switch (con->status.partner_type) {
-	case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
-		desc.accessory = TYPEC_ACCESSORY_DEBUG;
+	case UCSI_CONSTAT_PARTNER_TYPE_DE:
+		desc.accessory = TYPEC_ACCESSORY_DE;
 		break;
 	case UCSI_CONSTAT_PARTNER_TYPE_AUDIO:
 		desc.accessory = TYPEC_ACCESSORY_AUDIO;
@@ -624,8 +624,8 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 
 	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_AUDIO_ACCESSORY)
 		*accessory++ = TYPEC_ACCESSORY_AUDIO;
-	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DEBUG_ACCESSORY)
-		*accessory = TYPEC_ACCESSORY_DEBUG;
+	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DE_ACCESSORY)
+		*accessory = TYPEC_ACCESSORY_DE;
 
 	cap->fwnode = ucsi_find_fwnode(con);
 	cap->dr_set = ucsi_dr_swap;

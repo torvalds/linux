@@ -9,7 +9,7 @@ Required properties:
   see Documentation/devicetree/bindings/net/hisilicon-hns-dsaf.txt
 - port-id: is the index of port provided by DSAF (the accelerator). DSAF can
   connect to 8 PHYs. Port 0 to 1 are both used for administration purpose. They
-  are called debug ports.
+  are called de ports.
 
   The remaining 6 PHYs are taken according to the mode of DSAF.
 
@@ -19,7 +19,7 @@ Required properties:
             |            CPU      |
             +-+-+-+---+-+-+-+-+-+-+
               | |     | | | | | |
-             debug       service
+             de       service
              port         port
              (0,1)       (2-7)
 
@@ -30,7 +30,7 @@ Required properties:
             |            CPU      |
             +-+-+-+---+-+-+-+-+-+-+
               | |   service| port(2)
-             debug   +------------+
+             de   +------------+
              port    |   switch   |
              (0,1)   +-+-+-+-+-+-++
                        | | | | | |
@@ -46,7 +46,7 @@ Required properties:
             |            CPU      |
             +-+-+-+---+-+-+-+-+-+-+
               |    |   | | | | | |
-           debug debug   service
+           de de   service
            port  port     port
            (0)   (0)     (0-5)
 
@@ -58,7 +58,7 @@ Required properties:
             |                CPU      |
             +-+-+-+-+-+-+-+-+-+-+-+-+-+
               |    |     service| port(0)
-            debug debug  +------------+
+            de de  +------------+
             port  port   |   switch   |
             (0)   (0)    +-+-+-+-+-+-++
                           | | | | | |

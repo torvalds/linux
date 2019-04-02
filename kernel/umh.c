@@ -651,7 +651,7 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 		else if (table->data == CAP_PI)
 			cap_array[i] = usermodehelper_inheritable.cap[i];
 		else
-			BUG();
+			();
 	}
 	spin_unlock(&umh_sysctl_lock);
 

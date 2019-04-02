@@ -31,19 +31,19 @@
 
 #include <trace/events/vb2.h>
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 #define dprintk(level, fmt, arg...)				\
 	do {							\
-		if (debug >= level)				\
+		if (de >= level)				\
 			pr_info("%s: " fmt, __func__, ## arg);	\
 	} while (0)
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 
 /*
- * If advanced debugging is on, then count how often each op is called
+ * If advanced deging is on, then count how often each op is called
  * successfully, which can either be per-buffer or per-queue.
  *
  * This makes it easy to check that the 'init' and 'cleanup'
@@ -457,17 +457,17 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	/* Release video buffer memory */
 	__vb2_free_mem(q, buffers);
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	/*
 	 * Check that all the calls were balances during the life-time of this
-	 * queue. If not (or if the debug level is 1 or up), then dump the
+	 * queue. If not (or if the de level is 1 or up), then dump the
 	 * counters to the kernel log.
 	 */
 	if (q->num_buffers) {
 		bool unbalanced = q->cnt_start_streaming != q->cnt_stop_streaming ||
 				  q->cnt_wait_prepare != q->cnt_wait_finish;
 
-		if (unbalanced || debug) {
+		if (unbalanced || de) {
 			pr_info("counters for queue %p:%s\n", q,
 				unbalanced ? " UNBALANCED!" : "");
 			pr_info("     setup: %u start_streaming: %u stop_streaming: %u\n",
@@ -493,7 +493,7 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 				  vb->cnt_buf_prepare != vb->cnt_buf_finish ||
 				  vb->cnt_buf_init != vb->cnt_buf_cleanup;
 
-		if (unbalanced || debug) {
+		if (unbalanced || de) {
 			pr_info("   counters for queue %p, buffer %d:%s\n",
 				q, buffer, unbalanced ? " UNBALANCED!" : "");
 			pr_info("     buf_init: %u buf_cleanup: %u buf_prepare: %u buf_finish: %u\n",
@@ -679,7 +679,7 @@ int vb2_core_reqbufs(struct vb2_queue *q, enum vb2_memory memory,
 		 * are not in use and can be freed.
 		 */
 		mutex_lock(&q->mmap_lock);
-		if (debug && q->memory == VB2_MEMORY_MMAP &&
+		if (de && q->memory == VB2_MEMORY_MMAP &&
 		    __buffers_in_use(q))
 			dprintk(1, "memory in use, orphaning buffers\n");
 
@@ -919,7 +919,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 		    state != VB2_BUF_STATE_REQUEUEING))
 		state = VB2_BUF_STATE_ERROR;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	/*
 	 * Although this is not a callback, it still does have to balance
 	 * with the buf_queue op. So update this counter manually.
@@ -1864,7 +1864,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
 		for (i = 0; i < q->num_buffers; ++i)
 			if (q->bufs[i]->state == VB2_BUF_STATE_ACTIVE) {
-				pr_warn("driver bug: stop_streaming operation is leaving buf %p in active state\n",
+				pr_warn("driver : stop_streaming operation is leaving buf %p in active state\n",
 					q->bufs[i]);
 				vb2_buffer_done(q->bufs[i], VB2_BUF_STATE_ERROR);
 			}

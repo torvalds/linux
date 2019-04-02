@@ -19,7 +19,7 @@ extern bool numa_off;
 extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 void numa_clear_node(unsigned int cpu);
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+#ifdef CONFIG_DE_PER_CPU_MAPS
 const struct cpumask *cpumask_of_node(int node);
 #else
 /* Returns a pointer to the cpumask of CPUs on Node 'node'. */

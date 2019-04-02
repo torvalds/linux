@@ -107,7 +107,7 @@ static inline void seq_buf_commit(struct seq_buf *s, int num)
 		seq_buf_set_overflow(s);
 	} else {
 		/* num must be negative on overflow */
-		BUG_ON(s->len + num > s->size);
+		_ON(s->len + num > s->size);
 		s->len += num;
 	}
 }

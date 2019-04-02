@@ -63,7 +63,7 @@ static void wiphy_freq_limits_apply(struct wiphy *wiphy,
 			if (!wiphy_freq_limits_valid_chan(wiphy, freq_limits,
 							  n_freq_limits,
 							  chan)) {
-				pr_debug("Disabling freq %d MHz as it's out of OF limits\n",
+				pr_de("Disabling freq %d MHz as it's out of OF limits\n",
 					 chan->center_freq);
 				chan->flags |= IEEE80211_CHAN_DISABLED;
 			}

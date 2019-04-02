@@ -1297,17 +1297,17 @@ static void rt5665_jack_detect_handler(struct work_struct *work)
 	int val, btn_type;
 
 	while (!rt5665->component) {
-		pr_debug("%s codec = null\n", __func__);
+		pr_de("%s codec = null\n", __func__);
 		usleep_range(10000, 15000);
 	}
 
 	while (!rt5665->component->card->instantiated) {
-		pr_debug("%s\n", __func__);
+		pr_de("%s\n", __func__);
 		usleep_range(10000, 15000);
 	}
 
 	while (!rt5665->calibration_done) {
-		pr_debug("%s calibration not ready\n", __func__);
+		pr_de("%s calibration not ready\n", __func__);
 		usleep_range(10000, 15000);
 	}
 
@@ -4753,7 +4753,7 @@ static void rt5665_calibrate_handler(struct work_struct *work)
 		calibrate_work.work);
 
 	while (!rt5665->component->card->instantiated) {
-		pr_debug("%s\n", __func__);
+		pr_de("%s\n", __func__);
 		usleep_range(10000, 15000);
 	}
 

@@ -151,7 +151,7 @@ FILES
    /srr0
        Internal  registers  of  the SPU. The representation is an ASCII string
        with the numeric value of the next instruction to  be  executed.  These
-       can  be  used in read/write mode for debugging, but normal operation of
+       can  be  used in read/write mode for deging, but normal operation of
        programs should not rely on them because access to any of  them  except
        npc requires an SPU context save and is therefore very inefficient.
 
@@ -384,7 +384,7 @@ CONFORMING TO
        ture. Programs using this system call are not portable.
 
 
-BUGS
+S
        The code does not yet fully implement all features lined out here.
 
 
@@ -506,7 +506,7 @@ CONFORMING TO
        ture. Programs using this system call are not portable.
 
 
-BUGS
+S
        The code does not yet fully implement all features lined out here.
 
 

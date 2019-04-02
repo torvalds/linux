@@ -482,7 +482,7 @@ static int __init init_syscall_trace(struct trace_event_call *call)
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 	if (num < 0 || num >= NR_syscalls) {
-		pr_debug("syscall %s metadata not mapped, disabling ftrace event\n",
+		pr_de("syscall %s metadata not mapped, disabling ftrace event\n",
 				((struct syscall_metadata *)call->data)->name);
 		return -ENOSYS;
 	}

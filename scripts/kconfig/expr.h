@@ -290,7 +290,7 @@ struct file *lookup_file(const char *name);
 extern struct symbol symbol_yes, symbol_no, symbol_mod;
 extern struct symbol *modules_sym;
 extern struct symbol *sym_defconfig_list;
-extern int cdebug;
+extern int cde;
 struct expr *expr_alloc_symbol(struct symbol *sym);
 struct expr *expr_alloc_one(enum expr_type type, struct expr *ce);
 struct expr *expr_alloc_two(enum expr_type type, struct expr *e1, struct expr *e2);

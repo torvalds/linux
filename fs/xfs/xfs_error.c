@@ -14,7 +14,7 @@
 #include "xfs_sysfs.h"
 #include "xfs_inode.h"
 
-#ifdef DEBUG
+#ifdef DE
 
 static unsigned int xfs_errortag_random_default[] = {
 	XFS_RANDOM_DEFAULT,
@@ -303,7 +303,7 @@ xfs_errortag_clearall(
 	memset(mp->m_errortag, 0, sizeof(unsigned int) * XFS_ERRTAG_MAX);
 	return 0;
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 void
 xfs_error_report(

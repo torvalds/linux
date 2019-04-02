@@ -22,7 +22,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 
-#define DEBUG_SIMSCSI	0
+#define DE_SIMSCSI	0
 
 #define SIMSCSI_REQ_QUEUE_LEN	64
 #define DEFAULT_SIMSCSI_ROOT	"/var/ski-disks/sd"
@@ -39,9 +39,9 @@
 #define SSC_WRITE_ACCESS		2
 #define SSC_READ_ACCESS			1
 
-#if DEBUG_SIMSCSI
-  int simscsi_debug;
-# define DBG	simscsi_debug
+#if DE_SIMSCSI
+  int simscsi_de;
+# define DBG	simscsi_de
 #else
 # define DBG	0
 #endif
@@ -211,7 +211,7 @@ simscsi_queuecommand_lck (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *)
 	size_t disk_size;
 	char *buf;
 	char localbuf[36];
-#if DEBUG_SIMSCSI
+#if DE_SIMSCSI
 	register long sp asm ("sp");
 
 	if (DBG)

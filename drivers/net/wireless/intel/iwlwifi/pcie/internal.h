@@ -75,7 +75,7 @@
 #include "iwl-fh.h"
 #include "iwl-csr.h"
 #include "iwl-trans.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
@@ -416,10 +416,10 @@ struct iwl_tso_hdr_page {
 	u8 *pos;
 };
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 /**
  * enum iwl_fw_mon_dbgfs_state - the different states of the monitor_data
- * debugfs file
+ * defs file
  *
  * @IWL_FW_MON_DBGFS_STATE_CLOSED: the file is closed.
  * @IWL_FW_MON_DBGFS_STATE_OPEN: the file is open.
@@ -458,19 +458,19 @@ enum iwl_image_response_code {
 /**
  * struct cont_rec: continuous recording data structure
  * @prev_wr_ptr: the last address that was read in monitor_data
- *	debugfs file
+ *	defs file
  * @prev_wrap_cnt: the wrap count that was used during the last read in
- *	monitor_data debugfs file
- * @state: the state of monitor_data debugfs file as described
+ *	monitor_data defs file
+ * @state: the state of monitor_data defs file as described
  *	in &iwl_fw_mon_dbgfs_state enum
- * @mutex: locked while reading from monitor_data debugfs file
+ * @mutex: locked while reading from monitor_data defs file
  */
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 struct cont_rec {
 	u32 prev_wr_ptr;
 	u32 prev_wrap_cnt;
 	u8  state;
-	/* Used to sync monitor_data debugfs file with driver unload flow */
+	/* Used to sync monitor_data defs file with driver unload flow */
 	struct mutex mutex;
 };
 #endif
@@ -512,7 +512,7 @@ struct cont_rec {
  * @reg_lock: protect hw register access
  * @mutex: to protect stop_device / start_fw / start_hw
  * @cmd_in_flight: true when we have a host command in flight
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
  * @fw_mon_data: fw continuous recording data
 #endif
  * @msix_entries: array of MSI-X entries
@@ -556,7 +556,7 @@ struct iwl_trans_pcie {
 	int ict_index;
 	bool use_ict;
 	bool is_down, opmode_down;
-	bool debug_rfkill;
+	bool de_rfkill;
 	struct isr_statistics isr_stats;
 
 	spinlock_t irq_lock;
@@ -603,7 +603,7 @@ struct iwl_trans_pcie {
 	bool cmd_hold_nic_awake;
 	bool ref_cmd_in_flight;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	struct cont_rec fw_mon_data;
 #endif
 
@@ -766,7 +766,7 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 		iwl_write32(trans, CSR_MSIX_HW_INT_MASK_AD,
 			    trans_pcie->hw_init_mask);
 	}
-	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
+	IWL_DE_ISR(trans, "Disabled interrupts\n");
 }
 
 #define IWL_NUM_OF_COMPLETION_RINGS	31
@@ -835,7 +835,7 @@ static inline void _iwl_enable_interrupts(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
+	IWL_DE_ISR(trans, "Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &trans->status);
 	if (!trans_pcie->msix_enabled) {
 		trans_pcie->inta_mask = CSR_INI_SET_MASK;
@@ -882,7 +882,7 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	IWL_DEBUG_ISR(trans, "Enabling FW load interrupt\n");
+	IWL_DE_ISR(trans, "Enabling FW load interrupt\n");
 	if (!trans_pcie->msix_enabled) {
 		trans_pcie->inta_mask = CSR_INT_BIT_FH_TX;
 		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
@@ -937,7 +937,7 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
+	IWL_DE_ISR(trans, "Enabling rfkill interrupt\n");
 	if (!trans_pcie->msix_enabled) {
 		trans_pcie->inta_mask = CSR_INT_BIT_RF_KILL;
 		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
@@ -967,7 +967,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (test_and_clear_bit(txq->id, trans_pcie->queue_stopped)) {
-		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->id);
+		IWL_DE_TX_QUEUES(trans, "Wake hwq %d\n", txq->id);
 		iwl_op_mode_queue_not_full(trans->op_mode, txq->id);
 	}
 }
@@ -979,9 +979,9 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 
 	if (!test_and_set_bit(txq->id, trans_pcie->queue_stopped)) {
 		iwl_op_mode_queue_full(trans->op_mode, txq->id);
-		IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d\n", txq->id);
+		IWL_DE_TX_QUEUES(trans, "Stop hwq %d\n", txq->id);
 	} else
-		IWL_DEBUG_TX_QUEUES(trans, "hwq %d already stopped\n",
+		IWL_DE_TX_QUEUES(trans, "hwq %d already stopped\n",
 				    txq->id);
 }
 
@@ -1002,7 +1002,7 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 
 	lockdep_assert_held(&trans_pcie->mutex);
 
-	if (trans_pcie->debug_rfkill)
+	if (trans_pcie->de_rfkill)
 		return true;
 
 	return !(iwl_read32(trans, CSR_GP_CNTRL) &
@@ -1014,7 +1014,7 @@ static inline void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
 {
 	u32 v;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 	WARN_ON_ONCE(value & ~mask);
 #endif
 
@@ -1045,7 +1045,7 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
 void iwl_trans_sync_nmi(struct iwl_trans *trans);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
 #else
 static inline int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)

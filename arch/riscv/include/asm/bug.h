@@ -11,8 +11,8 @@
  *   GNU General Public License for more details.
  */
 
-#ifndef _ASM_RISCV_BUG_H
-#define _ASM_RISCV_BUG_H
+#ifndef _ASM_RISCV__H
+#define _ASM_RISCV__H
 
 #include <linux/compiler.h>
 #include <linux/const.h>
@@ -20,59 +20,59 @@
 
 #include <asm/asm.h>
 
-#ifdef CONFIG_GENERIC_BUG
-#define __BUG_INSN	_AC(0x00100073, UL) /* ebreak */
+#ifdef CONFIG_GENERIC_
+#define ___INSN	_AC(0x00100073, UL) /* ebreak */
 
 #ifndef __ASSEMBLY__
-typedef u32 bug_insn_t;
+typedef u32 _insn_t;
 
-#ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-#define __BUG_ENTRY_ADDR	RISCV_INT " 1b - 2b"
-#define __BUG_ENTRY_FILE	RISCV_INT " %0 - 2b"
+#ifdef CONFIG_GENERIC__RELATIVE_POINTERS
+#define ___ENTRY_ADDR	RISCV_INT " 1b - 2b"
+#define ___ENTRY_FILE	RISCV_INT " %0 - 2b"
 #else
-#define __BUG_ENTRY_ADDR	RISCV_PTR " 1b"
-#define __BUG_ENTRY_FILE	RISCV_PTR " %0"
+#define ___ENTRY_ADDR	RISCV_PTR " 1b"
+#define ___ENTRY_FILE	RISCV_PTR " %0"
 #endif
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-#define __BUG_ENTRY			\
-	__BUG_ENTRY_ADDR "\n\t"		\
-	__BUG_ENTRY_FILE "\n\t"		\
+#ifdef CONFIG_DE_VERBOSE
+#define ___ENTRY			\
+	___ENTRY_ADDR "\n\t"		\
+	___ENTRY_FILE "\n\t"		\
 	RISCV_SHORT " %1"
 #else
-#define __BUG_ENTRY			\
-	__BUG_ENTRY_ADDR
+#define ___ENTRY			\
+	___ENTRY_ADDR
 #endif
 
-#define BUG()							\
+#define ()							\
 do {								\
 	__asm__ __volatile__ (					\
 		"1:\n\t"					\
 			"ebreak\n"				\
-			".pushsection __bug_table,\"a\"\n\t"	\
+			".pushsection ___table,\"a\"\n\t"	\
 		"2:\n\t"					\
-			__BUG_ENTRY "\n\t"			\
+			___ENTRY "\n\t"			\
 			".org 2b + %2\n\t"			\
 			".popsection"				\
 		:						\
 		: "i" (__FILE__), "i" (__LINE__),		\
-		  "i" (sizeof(struct bug_entry)));		\
+		  "i" (sizeof(struct _entry)));		\
 	unreachable();						\
 } while (0)
 #endif /* !__ASSEMBLY__ */
-#else /* CONFIG_GENERIC_BUG */
+#else /* CONFIG_GENERIC_ */
 #ifndef __ASSEMBLY__
-#define BUG()							\
+#define ()							\
 do {								\
 	__asm__ __volatile__ ("ebreak\n");			\
 	unreachable();						\
 } while (0)
 #endif /* !__ASSEMBLY__ */
-#endif /* CONFIG_GENERIC_BUG */
+#endif /* CONFIG_GENERIC_ */
 
-#define HAVE_ARCH_BUG
+#define HAVE_ARCH_
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
 #ifndef __ASSEMBLY__
 
@@ -85,4 +85,4 @@ extern void do_trap(struct pt_regs *regs, int signo, int code,
 
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _ASM_RISCV_BUG_H */
+#endif /* _ASM_RISCV__H */

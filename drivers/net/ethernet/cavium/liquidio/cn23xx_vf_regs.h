@@ -38,7 +38,7 @@
 /* The input jabber is used to determine the TSO max size.
  * Due to H/W limitation, this need to be reduced to 60000
  * in order to to H/W TSO and avoid the WQE malfarmation
- * PKO_BUG_24989_WQE_LEN
+ * PKO__24989_WQE_LEN
  */
 #define    CN23XX_DEFAULT_INPUT_JABBER             0xEA60 /*60000*/
 

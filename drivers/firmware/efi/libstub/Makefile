@@ -80,13 +80,13 @@ $(obj)/%.stub.o: $(obj)/%.o FORCE
 	$(call if_changed,stubcopy)
 
 #
-# Strip debug sections and some other sections that may legally contain
+# Strip de sections and some other sections that may legally contain
 # absolute relocations, so that we can inspect the remaining sections for
 # such relocations. If none are found, regenerate the output object, but
 # this time, use objcopy and leave all sections in place.
 #
 quiet_cmd_stubcopy = STUBCPY $@
-      cmd_stubcopy = if $(STRIP) --strip-debug $(STUBCOPY_RM-y) -o $@ $<; \
+      cmd_stubcopy = if $(STRIP) --strip-de $(STUBCOPY_RM-y) -o $@ $<; \
 		     then if $(OBJDUMP) -r $@ | grep $(STUBCOPY_RELOC-y); \
 		     then (echo >&2 "$@: absolute symbol references not allowed in the EFI stub"; \
 			   rm -f $@; /bin/false);			  \

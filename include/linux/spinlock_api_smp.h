@@ -8,7 +8,7 @@
 /*
  * include/linux/spinlock_api_smp.h
  *
- * spinlock API declarations on SMP (and debug)
+ * spinlock API declarations on SMP (and de)
  * (implemented in kernel/spinlock.c)
  *
  * portions Copyright 2005, Red Hat, Inc., Ingo Molnar
@@ -17,7 +17,7 @@
 
 int in_lock_functions(unsigned long addr);
 
-#define assert_raw_spin_locked(x)	BUG_ON(!raw_spin_is_locked(x))
+#define assert_raw_spin_locked(x)	_ON(!raw_spin_is_locked(x))
 
 void __lockfunc _raw_spin_lock(raw_spinlock_t *lock)		__acquires(lock);
 void __lockfunc _raw_spin_lock_nested(raw_spinlock_t *lock, int subclass)
@@ -99,7 +99,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
  * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
  * not re-enabled during lock-acquire (which the preempt-spin-ops do):
  */
-#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
+#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DE_LOCK_ALLOC)
 
 static inline unsigned long __raw_spin_lock_irqsave(raw_spinlock_t *lock)
 {
@@ -143,7 +143,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	LOCK_CONTENDED(lock, do_raw_spin_trylock, do_raw_spin_lock);
 }
 
-#endif /* !CONFIG_GENERIC_LOCKBREAK || CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* !CONFIG_GENERIC_LOCKBREAK || CONFIG_DE_LOCK_ALLOC */
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {

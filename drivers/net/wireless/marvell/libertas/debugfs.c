@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/dcache.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <linux/mm.h>
@@ -10,7 +10,7 @@
 
 #include "decl.h"
 #include "cmd.h"
-#include "debugfs.h"
+#include "defs.h"
 
 static struct dentry *lbs_dir;
 static char *szStates[] = {
@@ -18,8 +18,8 @@ static char *szStates[] = {
 	"Disconnected"
 };
 
-#ifdef PROC_DEBUG
-static void lbs_debug_init(struct lbs_private *priv);
+#ifdef PROC_DE
+static void lbs_de_init(struct lbs_private *priv);
 #endif
 
 static ssize_t write_file_dummy(struct file *file, const char __user *buf,
@@ -651,13 +651,13 @@ out_unlock:
 	.llseek = generic_file_llseek, \
 }
 
-struct lbs_debugfs_files {
+struct lbs_defs_files {
 	const char *name;
 	umode_t perm;
 	struct file_operations fops;
 };
 
-static const struct lbs_debugfs_files debugfs_files[] = {
+static const struct lbs_defs_files defs_files[] = {
 	{ "info", 0444, FOPS(lbs_dev_info, write_file_dummy), },
 	{ "sleepparams", 0644, FOPS(lbs_sleepparams_read,
 				lbs_sleepparams_write), },
@@ -665,7 +665,7 @@ static const struct lbs_debugfs_files debugfs_files[] = {
 				lbs_host_sleep_write), },
 };
 
-static const struct lbs_debugfs_files debugfs_events_files[] = {
+static const struct lbs_defs_files defs_events_files[] = {
 	{"low_rssi", 0644, FOPS(lbs_lowrssi_read,
 				lbs_lowrssi_write), },
 	{"low_snr", 0644, FOPS(lbs_lowsnr_read,
@@ -680,7 +680,7 @@ static const struct lbs_debugfs_files debugfs_events_files[] = {
 				lbs_highsnr_write), },
 };
 
-static const struct lbs_debugfs_files debugfs_regs_files[] = {
+static const struct lbs_defs_files defs_regs_files[] = {
 	{"rdmac", 0644, FOPS(lbs_rdmac_read, lbs_rdmac_write), },
 	{"wrmac", 0600, FOPS(NULL, lbs_wrmac_write), },
 	{"rdbbp", 0644, FOPS(lbs_rdbbp_read, lbs_rdbbp_write), },
@@ -689,104 +689,104 @@ static const struct lbs_debugfs_files debugfs_regs_files[] = {
 	{"wrrf", 0600, FOPS(NULL, lbs_wrrf_write), },
 };
 
-void lbs_debugfs_init(void)
+void lbs_defs_init(void)
 {
 	if (!lbs_dir)
-		lbs_dir = debugfs_create_dir("lbs_wireless", NULL);
+		lbs_dir = defs_create_dir("lbs_wireless", NULL);
 }
 
-void lbs_debugfs_remove(void)
+void lbs_defs_remove(void)
 {
-	debugfs_remove(lbs_dir);
+	defs_remove(lbs_dir);
 }
 
-void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev)
+void lbs_defs_init_one(struct lbs_private *priv, struct net_device *dev)
 {
 	int i;
-	const struct lbs_debugfs_files *files;
+	const struct lbs_defs_files *files;
 	if (!lbs_dir)
 		goto exit;
 
-	priv->debugfs_dir = debugfs_create_dir(dev->name, lbs_dir);
+	priv->defs_dir = defs_create_dir(dev->name, lbs_dir);
 
-	for (i=0; i<ARRAY_SIZE(debugfs_files); i++) {
-		files = &debugfs_files[i];
-		priv->debugfs_files[i] = debugfs_create_file(files->name,
+	for (i=0; i<ARRAY_SIZE(defs_files); i++) {
+		files = &defs_files[i];
+		priv->defs_files[i] = defs_create_file(files->name,
 							     files->perm,
-							     priv->debugfs_dir,
+							     priv->defs_dir,
 							     priv,
 							     &files->fops);
 	}
 
-	priv->events_dir = debugfs_create_dir("subscribed_events", priv->debugfs_dir);
+	priv->events_dir = defs_create_dir("subscribed_events", priv->defs_dir);
 
-	for (i=0; i<ARRAY_SIZE(debugfs_events_files); i++) {
-		files = &debugfs_events_files[i];
-		priv->debugfs_events_files[i] = debugfs_create_file(files->name,
+	for (i=0; i<ARRAY_SIZE(defs_events_files); i++) {
+		files = &defs_events_files[i];
+		priv->defs_events_files[i] = defs_create_file(files->name,
 							     files->perm,
 							     priv->events_dir,
 							     priv,
 							     &files->fops);
 	}
 
-	priv->regs_dir = debugfs_create_dir("registers", priv->debugfs_dir);
+	priv->regs_dir = defs_create_dir("registers", priv->defs_dir);
 
-	for (i=0; i<ARRAY_SIZE(debugfs_regs_files); i++) {
-		files = &debugfs_regs_files[i];
-		priv->debugfs_regs_files[i] = debugfs_create_file(files->name,
+	for (i=0; i<ARRAY_SIZE(defs_regs_files); i++) {
+		files = &defs_regs_files[i];
+		priv->defs_regs_files[i] = defs_create_file(files->name,
 							     files->perm,
 							     priv->regs_dir,
 							     priv,
 							     &files->fops);
 	}
 
-#ifdef PROC_DEBUG
-	lbs_debug_init(priv);
+#ifdef PROC_DE
+	lbs_de_init(priv);
 #endif
 exit:
 	return;
 }
 
-void lbs_debugfs_remove_one(struct lbs_private *priv)
+void lbs_defs_remove_one(struct lbs_private *priv)
 {
 	int i;
 
-	for(i=0; i<ARRAY_SIZE(debugfs_regs_files); i++)
-		debugfs_remove(priv->debugfs_regs_files[i]);
+	for(i=0; i<ARRAY_SIZE(defs_regs_files); i++)
+		defs_remove(priv->defs_regs_files[i]);
 
-	debugfs_remove(priv->regs_dir);
+	defs_remove(priv->regs_dir);
 
-	for(i=0; i<ARRAY_SIZE(debugfs_events_files); i++)
-		debugfs_remove(priv->debugfs_events_files[i]);
+	for(i=0; i<ARRAY_SIZE(defs_events_files); i++)
+		defs_remove(priv->defs_events_files[i]);
 
-	debugfs_remove(priv->events_dir);
-#ifdef PROC_DEBUG
-	debugfs_remove(priv->debugfs_debug);
+	defs_remove(priv->events_dir);
+#ifdef PROC_DE
+	defs_remove(priv->defs_de);
 #endif
-	for(i=0; i<ARRAY_SIZE(debugfs_files); i++)
-		debugfs_remove(priv->debugfs_files[i]);
-	debugfs_remove(priv->debugfs_dir);
+	for(i=0; i<ARRAY_SIZE(defs_files); i++)
+		defs_remove(priv->defs_files[i]);
+	defs_remove(priv->defs_dir);
 }
 
 
 
-/* debug entry */
+/* de entry */
 
-#ifdef PROC_DEBUG
+#ifdef PROC_DE
 
 #define item_size(n)	(FIELD_SIZEOF(struct lbs_private, n))
 #define item_addr(n)	(offsetof(struct lbs_private, n))
 
 
-struct debug_data {
+struct de_data {
 	char name[32];
 	u32 size;
 	size_t addr;
 };
 
-/* To debug any member of struct lbs_private, simply add one line here.
+/* To de any member of struct lbs_private, simply add one line here.
  */
-static struct debug_data items[] = {
+static struct de_data items[] = {
 	{"psmode", item_size(psmode), item_addr(psmode)},
 	{"psstate", item_size(psstate), item_addr(psstate)},
 };
@@ -794,7 +794,7 @@ static struct debug_data items[] = {
 static int num_of_items = ARRAY_SIZE(items);
 
 /**
- * lbs_debugfs_read - proc read function
+ * lbs_defs_read - proc read function
  *
  * @file:	file to read
  * @userbuf:	pointer to buffer
@@ -803,7 +803,7 @@ static int num_of_items = ARRAY_SIZE(items);
  *
  * returns:	amount of data read or negative error code
  */
-static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_defs_read(struct file *file, char __user *userbuf,
 			size_t count, loff_t *ppos)
 {
 	int val = 0;
@@ -811,7 +811,7 @@ static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 	ssize_t res;
 	char *p;
 	int i;
-	struct debug_data *d;
+	struct de_data *d;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 	if (!buf)
@@ -841,7 +841,7 @@ static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 }
 
 /**
- * lbs_debugfs_write - proc write function
+ * lbs_defs_write - proc write function
  *
  * @f:		file pointer
  * @buf:	pointer to data buffer
@@ -850,7 +850,7 @@ static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
  *
  * returns:	amount of data written
  */
-static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
+static ssize_t lbs_defs_write(struct file *f, const char __user *buf,
 			    size_t cnt, loff_t *ppos)
 {
 	int r, i;
@@ -859,7 +859,7 @@ static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 	char *p0;
 	char *p1;
 	char *p2;
-	struct debug_data *d = f->private_data;
+	struct de_data *d = f->private_data;
 
 	if (cnt == 0)
 		return 0;
@@ -899,33 +899,33 @@ static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 	return (ssize_t)cnt;
 }
 
-static const struct file_operations lbs_debug_fops = {
+static const struct file_operations lbs_de_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.write = lbs_debugfs_write,
-	.read = lbs_debugfs_read,
+	.write = lbs_defs_write,
+	.read = lbs_defs_read,
 	.llseek = default_llseek,
 };
 
 /**
- * lbs_debug_init - create debug proc file
+ * lbs_de_init - create de proc file
  *
  * @priv:	pointer to &struct lbs_private
  *
  * returns:	N/A
  */
-static void lbs_debug_init(struct lbs_private *priv)
+static void lbs_de_init(struct lbs_private *priv)
 {
 	int i;
 
-	if (!priv->debugfs_dir)
+	if (!priv->defs_dir)
 		return;
 
 	for (i = 0; i < num_of_items; i++)
 		items[i].addr += (size_t) priv;
 
-	priv->debugfs_debug = debugfs_create_file("debug", 0644,
-						  priv->debugfs_dir, &items[0],
-						  &lbs_debug_fops);
+	priv->defs_de = defs_create_file("de", 0644,
+						  priv->defs_dir, &items[0],
+						  &lbs_de_fops);
 }
 #endif

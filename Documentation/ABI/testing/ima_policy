@@ -47,7 +47,7 @@ Description:
 			# SYSFS_MAGIC
 			dont_measure fsmagic=0x62656572
 			dont_appraise fsmagic=0x62656572
-			# DEBUGFS_MAGIC
+			# DEFS_MAGIC
 			dont_measure fsmagic=0x64626720
 			dont_appraise fsmagic=0x64626720
 			# TMPFS_MAGIC

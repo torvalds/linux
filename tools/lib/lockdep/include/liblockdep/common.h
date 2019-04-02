@@ -47,7 +47,7 @@ void lock_release(struct lockdep_map *lock, int nested,
 void lockdep_reset_lock(struct lockdep_map *lock);
 void lockdep_register_key(struct lock_class_key *key);
 void lockdep_unregister_key(struct lock_class_key *key);
-extern void debug_check_no_locks_freed(const void *from, unsigned long len);
+extern void de_check_no_locks_freed(const void *from, unsigned long len);
 
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }

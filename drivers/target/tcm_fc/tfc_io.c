@@ -89,7 +89,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	/*
 	 * Setup to use first mem list entry, unless no data.
 	 */
-	BUG_ON(remaining && !se_cmd->t_data_sg);
+	_ON(remaining && !se_cmd->t_data_sg);
 	if (remaining) {
 		sg = se_cmd->t_data_sg;
 		mem_len = sg->length;
@@ -104,7 +104,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 		struct fc_seq *seq = cmd->seq;
 
 		if (!seq) {
-			pr_debug("%s: Command aborted, xid 0x%x\n",
+			pr_de("%s: Command aborted, xid 0x%x\n",
 				 __func__, ep->xid);
 			break;
 		}
@@ -141,7 +141,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 
 		if (use_sg) {
 			off_in_page = mem_off;
-			BUG_ON(!page);
+			_ON(!page);
 			get_page(page);
 			skb_fill_page_desc(fp_skb(fp),
 					   skb_shinfo(fp_skb(fp))->nr_frags,
@@ -151,7 +151,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 			fp_skb(fp)->truesize +=
 					PAGE_SIZE << compound_order(page);
 		} else {
-			BUG_ON(!page);
+			_ON(!page);
 			from = kmap_atomic(page + (mem_off >> PAGE_SHIFT));
 			page_addr = from;
 			from += offset_in_page(mem_off);
@@ -234,8 +234,8 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	ep = fc_seq_exch(seq);
 	lport = ep->lp;
 	if (cmd->was_ddp_setup) {
-		BUG_ON(!ep);
-		BUG_ON(!lport);
+		_ON(!ep);
+		_ON(!lport);
 		/*
 		 * Since DDP (Large Rx offload) was setup for this request,
 		 * payload is expected to be copied directly to user buffers.
@@ -286,7 +286,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	/*
 	 * Setup to use first mem list entry, unless no data.
 	 */
-	BUG_ON(frame_len && !se_cmd->t_data_sg);
+	_ON(frame_len && !se_cmd->t_data_sg);
 	if (frame_len) {
 		sg = se_cmd->t_data_sg;
 		mem_len = sg->length;
@@ -345,7 +345,7 @@ void ft_invl_hw_context(struct ft_cmd *cmd)
 	struct fc_exch *ep = NULL;
 	struct fc_lport *lport = NULL;
 
-	BUG_ON(!cmd);
+	_ON(!cmd);
 	seq = cmd->seq;
 
 	/* Cleanup the DDP context in HW if DDP was setup */

@@ -47,11 +47,11 @@
 #undef ALPHA_WARNING
 
 /*
- * Debugging bitflags: each option can be enabled individually.
+ * Deging bitflags: each option can be enabled individually.
  *
- * Note: only debug flags included in the ARCNET_DEBUG_MAX define will
+ * Note: only de flags included in the ARCNET_DE_MAX define will
  *   actually be available.  GCC will (at least, GCC 2.7.0 will) notice
- *   lines using a BUGLVL not in ARCNET_DEBUG_MAX and automatically optimize
+ *   lines using a LVL not in ARCNET_DE_MAX and automatically optimize
  *   them out.
  */
 #define D_NORMAL	1	/* important operational info             */
@@ -59,31 +59,31 @@
 #define	D_INIT		4	/* show init/probe messages               */
 #define D_INIT_REASONS	8	/* show reasons for discarding probes     */
 #define D_RECON		32	/* print a message whenever token is lost */
-#define D_PROTO		64	/* debug auto-protocol support            */
-/* debug levels below give LOTS of output during normal operation! */
+#define D_PROTO		64	/* de auto-protocol support            */
+/* de levels below give LOTS of output during normal operation! */
 #define D_DURING	128	/* trace operations (including irq's)     */
 #define D_TX	        256	/* show tx packets                        */
 #define D_RX		512	/* show rx packets                        */
 #define D_SKB		1024	/* show skb's                             */
 #define D_SKB_SIZE	2048	/* show skb sizes			  */
 #define D_TIMING	4096	/* show time needed to copy buffers to card */
-#define D_DEBUG         8192    /* Very detailed debug line for line */
+#define D_DE         8192    /* Very detailed de line for line */
 
-#ifndef ARCNET_DEBUG_MAX
-#define ARCNET_DEBUG_MAX (127)	/* change to ~0 if you want detailed debugging */
+#ifndef ARCNET_DE_MAX
+#define ARCNET_DE_MAX (127)	/* change to ~0 if you want detailed deging */
 #endif
 
-#ifndef ARCNET_DEBUG
-#define ARCNET_DEBUG (D_NORMAL | D_EXTRA)
+#ifndef ARCNET_DE
+#define ARCNET_DE (D_NORMAL | D_EXTRA)
 #endif
-extern int arcnet_debug;
+extern int arcnet_de;
 
-#define BUGLVL(x)	((x) & ARCNET_DEBUG_MAX & arcnet_debug)
+#define LVL(x)	((x) & ARCNET_DE_MAX & arcnet_de)
 
-/* macros to simplify debug checking */
+/* macros to simplify de checking */
 #define arc_printk(x, dev, fmt, ...)					\
 do {									\
-	if (BUGLVL(x)) {						\
+	if (LVL(x)) {						\
 		if ((x) == D_NORMAL)					\
 			netdev_warn(dev, fmt, ##__VA_ARGS__);		\
 		else if ((x) < D_DURING)				\
@@ -95,14 +95,14 @@ do {									\
 
 #define arc_cont(x, fmt, ...)						\
 do {									\
-	if (BUGLVL(x))							\
+	if (LVL(x))							\
 		pr_cont(fmt, ##__VA_ARGS__);				\
 } while (0)
 
 /* see how long a function call takes to run, expressed in CPU cycles */
 #define TIME(dev, name, bytes, call)					\
 do {									\
-	if (BUGLVL(D_TIMING)) {						\
+	if (LVL(D_TIMING)) {						\
 		unsigned long _x, _y;					\
 		_x = get_cycles();					\
 		call;							\
@@ -344,7 +344,7 @@ enum arcnet_led_event {
 void arcnet_led_event(struct net_device *netdev, enum arcnet_led_event event);
 void devm_arcnet_led_init(struct net_device *netdev, int index, int subid);
 
-#if ARCNET_DEBUG_MAX & D_SKB
+#if ARCNET_DE_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);
 #else
 static inline

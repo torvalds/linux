@@ -39,10 +39,10 @@
 #error "Only generic PCI cards supported."
 #endif
 
-#undef PM3FB_MASTER_DEBUG
-#ifdef PM3FB_MASTER_DEBUG
+#undef PM3FB_MASTER_DE
+#ifdef PM3FB_MASTER_DE
 #define DPRINTK(a, b...)	\
-	printk(KERN_DEBUG "pm3fb: %s: " a, __func__ , ## b)
+	printk(KERN_DE "pm3fb: %s: " a, __func__ , ## b)
 #else
 #define DPRINTK(a, b...)
 #endif
@@ -1393,7 +1393,7 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 			FBINFO_HWACCEL_FILLRECT;
 
 	if (noaccel) {
-		printk(KERN_DEBUG "disabling acceleration\n");
+		printk(KERN_DE "disabling acceleration\n");
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 	}
 	info->pixmap.addr = kmalloc(PM3_PIXMAP_SIZE, GFP_KERNEL);

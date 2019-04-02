@@ -805,7 +805,7 @@ static int atmel_tdes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	alg_name = crypto_tfm_alg_name(crypto_ablkcipher_tfm(tfm));
 
 	/*
-	 * HW bug in cfb 3-keys mode.
+	 * HW  in cfb 3-keys mode.
 	 */
 	if (!ctx->dd->caps.has_cfb_3keys && strstr(alg_name, "cfb")
 			&& (keylen != 2*DES_KEY_SIZE)) {

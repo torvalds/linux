@@ -15,13 +15,13 @@
  * 0x100: for triggering a fault on purpose (reserved)
  * 0x400: for dynamic BRK instruction
  * 0x401: for compile time BRK instruction
- * 0x800: kernel-mode BUG() and WARN() traps
+ * 0x800: kernel-mode () and WARN() traps
  * 0x9xx: tag-based KASAN trap (allowed values 0x900 - 0x9ff)
  */
 #define FAULT_BRK_IMM			0x100
 #define KGDB_DYN_DBG_BRK_IMM		0x400
 #define KGDB_COMPILED_DBG_BRK_IMM	0x401
-#define BUG_BRK_IMM			0x800
+#define _BRK_IMM			0x800
 #define KASAN_BRK_IMM			0x900
 
 #endif

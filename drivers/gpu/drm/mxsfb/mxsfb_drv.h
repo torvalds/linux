@@ -20,7 +20,7 @@ struct mxsfb_devdata {
 	unsigned int	 transfer_count;
 	unsigned int	 cur_buf;
 	unsigned int	 next_buf;
-	unsigned int	 debug0;
+	unsigned int	 de0;
 	unsigned int	 hs_wdth_mask;
 	unsigned int	 hs_wdth_shift;
 	unsigned int	 ipversion;

@@ -73,7 +73,7 @@
 #define MII_SR_100X_FD_CAPS      0x4000	/* 100X  Full Duplex Capable */
 #define MII_SR_100T4_CAPS        0x8000	/* 100T4 Capable */
 
-/* AR8031 PHY Debug Registers */
+/* AR8031 PHY De Registers */
 #define PHY_AR803X_ID           0x00001374
 #define PHY_AR8031_DBG_OFF      0x1D
 #define PHY_AR8031_DBG_DAT      0x1E

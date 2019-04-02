@@ -474,7 +474,7 @@ static int gfs2_walk_metadata(struct inode *inode, sector_t lblock,
 			break;
 		len -= step;
 		if (ptr != WALK_NEXT) {
-			BUG_ON(!*ptr);
+			_ON(!*ptr);
 			mp->mp_list[hgt] += ptr - start;
 			goto fill_up_metapath;
 		}
@@ -576,8 +576,8 @@ static inline __be64 *gfs2_indirect_init(struct metapath *mp,
 	__be64 *ptr = (__be64 *)(mp->mp_bh[i - 1]->b_data +
 		       ((i > 1) ? sizeof(struct gfs2_meta_header) :
 				 sizeof(struct gfs2_dinode)));
-	BUG_ON(i < 1);
-	BUG_ON(mp->mp_bh[i] != NULL);
+	_ON(i < 1);
+	_ON(mp->mp_bh[i] != NULL);
 	mp->mp_bh[i] = gfs2_meta_new(gl, bn);
 	gfs2_trans_add_meta(gl, mp->mp_bh[i]);
 	gfs2_metatype_set(mp->mp_bh[i], GFS2_METATYPE_IN, GFS2_FORMAT_IN);
@@ -639,9 +639,9 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 	__be64 *ptr;
 	__be64 zero_bn = 0;
 
-	BUG_ON(mp->mp_aheight < 1);
-	BUG_ON(dibh == NULL);
-	BUG_ON(dblks < 1);
+	_ON(mp->mp_aheight < 1);
+	_ON(dibh == NULL);
+	_ON(dblks < 1);
 
 	gfs2_trans_add_meta(ip->i_gl, dibh);
 
@@ -723,8 +723,8 @@ static int gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 				break;
 		/* Tree complete, adding data blocks */
 		case ALLOC_DATA:
-			BUG_ON(n > dblks);
-			BUG_ON(mp->mp_bh[end_of_metadata] == NULL);
+			_ON(n > dblks);
+			_ON(mp->mp_bh[end_of_metadata] == NULL);
 			gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[end_of_metadata]);
 			dblks = n;
 			ptr = metapointer(end_of_metadata, mp);
@@ -1228,9 +1228,9 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	int ret;
 	int create = *new;
 
-	BUG_ON(!extlen);
-	BUG_ON(!dblock);
-	BUG_ON(!new);
+	_ON(!extlen);
+	_ON(!dblock);
+	_ON(!new);
 
 	bh.b_size = BIT(inode->i_blkbits + (create ? 0 : 5));
 	ret = gfs2_block_map(inode, lblock, &bh, create);
@@ -2054,7 +2054,7 @@ void gfs2_trim_blocks(struct inode *inode)
  * inode size.
  *
  * Although it is not strictly required to unstuff files here,
- * earlier versions of GFS2 have a bug in the stuffed file reading
+ * earlier versions of GFS2 have a  in the stuffed file reading
  * code which will result in a buffer overrun if the size is larger
  * than the max stuffed file size. In order to prevent this from
  * occurring, such files are unstuffed, but in other cases we can
@@ -2135,7 +2135,7 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int ret;
 
-	BUG_ON(!S_ISREG(inode->i_mode));
+	_ON(!S_ISREG(inode->i_mode));
 
 	ret = inode_newsize_ok(inode, newsize);
 	if (ret)
@@ -2318,7 +2318,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 	}
 
 	shift = sdp->sd_sb.sb_bsize_shift;
-	BUG_ON(gfs2_is_dir(ip));
+	_ON(gfs2_is_dir(ip));
 	end_of_file = (i_size_read(&ip->i_inode) + sdp->sd_sb.sb_bsize - 1) >> shift;
 	lblock = offset >> shift;
 	lblock_stop = (offset + len + sdp->sd_sb.sb_bsize - 1) >> shift;
@@ -2440,7 +2440,7 @@ int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
 	}
 
 	if (gfs2_is_jdata(ip)) {
-		BUG_ON(!current->journal_info);
+		_ON(!current->journal_info);
 		gfs2_journaled_truncate_range(inode, offset, length);
 	} else
 		truncate_pagecache_range(inode, offset, offset + length - 1);

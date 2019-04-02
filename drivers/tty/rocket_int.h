@@ -40,16 +40,16 @@ typedef unsigned int DWordIO_t;
 
 static inline void sOutB(unsigned short port, unsigned char value)
 {
-#ifdef ROCKET_DEBUG_IO
-	printk(KERN_DEBUG "sOutB(%x, %x)...\n", port, value);
+#ifdef ROCKET_DE_IO
+	printk(KERN_DE "sOutB(%x, %x)...\n", port, value);
 #endif
 	outb_p(value, port);
 }
 
 static inline void sOutW(unsigned short port, unsigned short value)
 {
-#ifdef ROCKET_DEBUG_IO
-	printk(KERN_DEBUG "sOutW(%x, %x)...\n", port, value);
+#ifdef ROCKET_DE_IO
+	printk(KERN_DE "sOutW(%x, %x)...\n", port, value);
 #endif
 	outw_p(value, port);
 }
@@ -57,8 +57,8 @@ static inline void sOutW(unsigned short port, unsigned short value)
 static inline void out32(unsigned short port, Byte_t *p)
 {
 	u32 value = get_unaligned_le32(p);
-#ifdef ROCKET_DEBUG_IO
-	printk(KERN_DEBUG "out32(%x, %lx)...\n", port, value);
+#ifdef ROCKET_DE_IO
+	printk(KERN_DE "out32(%x, %lx)...\n", port, value);
 #endif
 	outl_p(value, port);
 }

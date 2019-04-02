@@ -169,7 +169,7 @@ void reservation_object_add_shared_fence(struct reservation_object *obj,
 		}
 	}
 
-	BUG_ON(fobj->shared_count >= fobj->shared_max);
+	_ON(fobj->shared_count >= fobj->shared_max);
 	count++;
 
 replace:

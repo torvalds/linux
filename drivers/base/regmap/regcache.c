@@ -212,7 +212,7 @@ void regcache_exit(struct regmap *map)
 	if (map->cache_type == REGCACHE_NONE)
 		return;
 
-	BUG_ON(!map->cache_ops);
+	_ON(!map->cache_ops);
 
 	kfree(map->reg_defaults);
 	if (map->cache_free)
@@ -242,7 +242,7 @@ int regcache_read(struct regmap *map,
 	if (map->cache_type == REGCACHE_NONE)
 		return -ENOSYS;
 
-	BUG_ON(!map->cache_ops);
+	_ON(!map->cache_ops);
 
 	if (!regmap_volatile(map, reg)) {
 		ret = map->cache_ops->read(map, reg, value);
@@ -271,7 +271,7 @@ int regcache_write(struct regmap *map,
 	if (map->cache_type == REGCACHE_NONE)
 		return 0;
 
-	BUG_ON(!map->cache_ops);
+	_ON(!map->cache_ops);
 
 	if (!regmap_volatile(map, reg))
 		return map->cache_ops->write(map, reg, value);
@@ -347,7 +347,7 @@ int regcache_sync(struct regmap *map)
 	const char *name;
 	bool bypass;
 
-	BUG_ON(!map->cache_ops);
+	_ON(!map->cache_ops);
 
 	map->lock(map->lock_arg);
 	/* Remember the initial bypass state */
@@ -416,7 +416,7 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 	const char *name;
 	bool bypass;
 
-	BUG_ON(!map->cache_ops);
+	_ON(!map->cache_ops);
 
 	map->lock(map->lock_arg);
 
@@ -590,7 +590,7 @@ bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 	}
 #endif
 	default:
-		BUG();
+		();
 	}
 	return false;
 }
@@ -630,7 +630,7 @@ unsigned int regcache_get_val(struct regmap *map, const void *base,
 	}
 #endif
 	default:
-		BUG();
+		();
 	}
 	/* unreachable */
 	return -1;

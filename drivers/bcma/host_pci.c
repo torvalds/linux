@@ -20,7 +20,7 @@ static void bcma_host_pci_switch_core(struct bcma_device *core)
 			       core->addr);
 	pci_write_config_dword(core->bus->host_pci, win2, core->wrap);
 	core->bus->mapped_core = core;
-	bcma_debug(core->bus, "Switched to core: 0x%X\n", core->id.id);
+	bcma_de(core->bus, "Switched to core: 0x%X\n", core->id.id);
 }
 
 /* Provides access to the requested core. Returns base offset that has to be

@@ -136,6 +136,6 @@ void __init setup_cpuinfo_clk(void)
 
 	if (!cpuinfo.cpu_clock_freq) {
 		pr_err("ERROR: CPU clock frequency not setup\n");
-		BUG();
+		();
 	}
 }

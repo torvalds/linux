@@ -139,7 +139,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		obj_desc->package.aml_start = walk_state->aml;
 		obj_desc->package.aml_length = 0;
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+		ACPI_DE_PRINT_RAW((ACPI_DB_PARSE,
 				      "%s: Deferring resolution of Package elements\n",
 				      ACPI_GET_FUNCTION_NAME));
 	}
@@ -291,7 +291,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 * Note: this is not an error, the package is padded out
 		 * with NULLs as per the ACPI specification.
 		 */
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
+		ACPI_DE_PRINT_RAW((ACPI_DB_INFO,
 				      "%s: Package List length (%u) smaller than NumElements "
 				      "count (%u), padded with null elements\n",
 				      ACPI_GET_FUNCTION_NAME, i,
@@ -394,7 +394,7 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 	/* Check if reference element is already resolved */
 
 	if (element->reference.resolved) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
+		ACPI_DE_PRINT_RAW((ACPI_DB_PARSE,
 				      "%s: Package element is already resolved\n",
 				      ACPI_GET_FUNCTION_NAME));
 

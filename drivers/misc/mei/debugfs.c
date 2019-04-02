@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <linux/mei.h>
 
@@ -210,7 +210,7 @@ static ssize_t mei_dbgfs_write_allow_fa(struct file *file,
 	dev = container_of(file->private_data,
 			   struct mei_device, allow_fixed_address);
 
-	ret = debugfs_write_file_bool(file, user_buf, count, ppos);
+	ret = defs_write_file_bool(file, user_buf, count, ppos);
 	if (ret < 0)
 		return ret;
 	dev->override_fixed_address = true;
@@ -219,13 +219,13 @@ static ssize_t mei_dbgfs_write_allow_fa(struct file *file,
 
 static const struct file_operations mei_dbgfs_fops_allow_fa = {
 	.open = simple_open,
-	.read = debugfs_read_file_bool,
+	.read = defs_read_file_bool,
 	.write = mei_dbgfs_write_allow_fa,
 	.llseek = generic_file_llseek,
 };
 
 /**
- * mei_dbgfs_deregister - Remove the debugfs files and directories
+ * mei_dbgfs_deregister - Remove the defs files and directories
  *
  * @dev: the mei device structure
  */
@@ -233,12 +233,12 @@ void mei_dbgfs_deregister(struct mei_device *dev)
 {
 	if (!dev->dbgfs_dir)
 		return;
-	debugfs_remove_recursive(dev->dbgfs_dir);
+	defs_remove_recursive(dev->dbgfs_dir);
 	dev->dbgfs_dir = NULL;
 }
 
 /**
- * mei_dbgfs_register - Add the debugfs files
+ * mei_dbgfs_register - Add the defs files
  *
  * @dev: the mei device structure
  * @name: the mei device name
@@ -249,31 +249,31 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 {
 	struct dentry *dir, *f;
 
-	dir = debugfs_create_dir(name, NULL);
+	dir = defs_create_dir(name, NULL);
 	if (!dir)
 		return -ENOMEM;
 
 	dev->dbgfs_dir = dir;
 
-	f = debugfs_create_file("meclients", S_IRUSR, dir,
+	f = defs_create_file("meclients", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_meclients);
 	if (!f) {
 		dev_err(dev->dev, "meclients: registration failed\n");
 		goto err;
 	}
-	f = debugfs_create_file("active", S_IRUSR, dir,
+	f = defs_create_file("active", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_active);
 	if (!f) {
 		dev_err(dev->dev, "active: registration failed\n");
 		goto err;
 	}
-	f = debugfs_create_file("devstate", S_IRUSR, dir,
+	f = defs_create_file("devstate", S_IRUSR, dir,
 				dev, &mei_dbgfs_fops_devstate);
 	if (!f) {
 		dev_err(dev->dev, "devstate: registration failed\n");
 		goto err;
 	}
-	f = debugfs_create_file("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
+	f = defs_create_file("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
 				&dev->allow_fixed_address,
 				&mei_dbgfs_fops_allow_fa);
 	if (!f) {

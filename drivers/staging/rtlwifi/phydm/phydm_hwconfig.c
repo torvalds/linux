@@ -1101,7 +1101,7 @@ static void odm_process_rssi_for_dm(struct phy_dm_struct *dm,
 
 	/* --------------Statistic for antenna/path diversity---------------- */
 
-	/* -----------------Smart Antenna Debug Message------------------ */
+	/* -----------------Smart Antenna De Message------------------ */
 
 	undecorated_smoothed_cck = entry->rssi_stat.undecorated_smoothed_cck;
 	undecorated_smoothed_ofdm = entry->rssi_stat.undecorated_smoothed_ofdm;

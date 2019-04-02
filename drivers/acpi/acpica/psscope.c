@@ -192,7 +192,7 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
 		*arg_count = 0;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "Popped Op %p Args %X\n", *op, *arg_count));
 	return_VOID;
 }

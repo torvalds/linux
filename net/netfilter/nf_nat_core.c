@@ -548,7 +548,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 			}
 		} else if (find_appropriate_src(net, zone,
 						orig_tuple, tuple, range)) {
-			pr_debug("get_unique_tuple: Found current src map\n");
+			pr_de("get_unique_tuple: Found current src map\n");
 			if (!nf_nat_used_tuple(tuple, ct))
 				return;
 		}
@@ -768,7 +768,7 @@ null_bind:
 			if (ret != NF_ACCEPT)
 				return ret;
 		} else {
-			pr_debug("Already setup manip %s for ct %p (status bits 0x%lx)\n",
+			pr_de("Already setup manip %s for ct %p (status bits 0x%lx)\n",
 				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
 				 ct, ct->status);
 			if (nf_nat_oif_changed(state->hook, ctinfo, nat,

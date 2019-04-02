@@ -46,7 +46,7 @@
 #define NUM_FRAMES (4 * 1024)
 #define BATCH_SIZE 64
 
-#define DEBUG_HEXDUMP 0
+#define DE_HEXDUMP 0
 #define MAX_SOCKS 8
 
 typedef __u64 u64;
@@ -240,7 +240,7 @@ static void hex_dump(void *pkt, size_t length, u64 addr)
 	char buf[32];
 	int i = 0;
 
-	if (!DEBUG_HEXDUMP)
+	if (!DE_HEXDUMP)
 		return;
 
 	sprintf(buf, "addr=%llu", addr);

@@ -266,7 +266,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 		struct nvkm_i2c_bus *bus = NULL;
 		struct nvkm_i2c_aux *aux = NULL;
 
-		nvkm_debug(&i2c->subdev, "ccb %02x: type %02x drive %02x "
+		nvkm_de(&i2c->subdev, "ccb %02x: type %02x drive %02x "
 			   "sense %02x share %02x auxch %02x\n", i, ccbE.type,
 			   ccbE.drive, ccbE.sense, ccbE.share, ccbE.auxch);
 
@@ -339,7 +339,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 		/* we need an i2c bus to talk to the external encoder */
 		bus = nvkm_i2c_bus_find(i2c, dcbE.i2c_index);
 		if (!bus) {
-			nvkm_debug(&i2c->subdev, "dcb %02x no bus\n", i);
+			nvkm_de(&i2c->subdev, "dcb %02x no bus\n", i);
 			continue;
 		}
 
@@ -351,7 +351,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 		}
 
 		if (!drv->pad_new) {
-			nvkm_debug(&i2c->subdev, "dcb %02x drv %02x unknown\n",
+			nvkm_de(&i2c->subdev, "dcb %02x drv %02x unknown\n",
 				   i, dcbE.extdev);
 			continue;
 		}

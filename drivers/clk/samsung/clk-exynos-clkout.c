@@ -19,7 +19,7 @@
 #define EXYNOS_CLKOUT_NR_CLKS		1
 #define EXYNOS_CLKOUT_PARENTS		32
 
-#define EXYNOS_PMU_DEBUG_REG		0xa00
+#define EXYNOS_PMU_DE_REG		0xa00
 #define EXYNOS_CLKOUT_DISABLE_SHIFT	0
 #define EXYNOS_CLKOUT_MUX_SHIFT		8
 #define EXYNOS4_CLKOUT_MUX_MASK		0xf
@@ -30,7 +30,7 @@ struct exynos_clkout {
 	struct clk_mux mux;
 	spinlock_t slock;
 	void __iomem *reg;
-	u32 pmu_debug_save;
+	u32 pmu_de_save;
 	struct clk_hw_onecell_data data;
 };
 
@@ -38,14 +38,14 @@ static struct exynos_clkout *clkout;
 
 static int exynos_clkout_suspend(void)
 {
-	clkout->pmu_debug_save = readl(clkout->reg + EXYNOS_PMU_DEBUG_REG);
+	clkout->pmu_de_save = readl(clkout->reg + EXYNOS_PMU_DE_REG);
 
 	return 0;
 }
 
 static void exynos_clkout_resume(void)
 {
-	writel(clkout->pmu_debug_save, clkout->reg + EXYNOS_PMU_DEBUG_REG);
+	writel(clkout->pmu_de_save, clkout->reg + EXYNOS_PMU_DE_REG);
 }
 
 static struct syscore_ops exynos_clkout_syscore_ops = {
@@ -90,12 +90,12 @@ static void __init exynos_clkout_init(struct device_node *node, u32 mux_mask)
 	if (!clkout->reg)
 		goto clks_put;
 
-	clkout->gate.reg = clkout->reg + EXYNOS_PMU_DEBUG_REG;
+	clkout->gate.reg = clkout->reg + EXYNOS_PMU_DE_REG;
 	clkout->gate.bit_idx = EXYNOS_CLKOUT_DISABLE_SHIFT;
 	clkout->gate.flags = CLK_GATE_SET_TO_DISABLE;
 	clkout->gate.lock = &clkout->slock;
 
-	clkout->mux.reg = clkout->reg + EXYNOS_PMU_DEBUG_REG;
+	clkout->mux.reg = clkout->reg + EXYNOS_PMU_DE_REG;
 	clkout->mux.mask = mux_mask;
 	clkout->mux.shift = EXYNOS_CLKOUT_MUX_SHIFT;
 	clkout->mux.lock = &clkout->slock;

@@ -33,7 +33,7 @@ struct mlx5_eq {
 	unsigned int            irqn;
 	u8                      eqn;
 	int                     nent;
-	struct mlx5_rsc_debug   *dbg;
+	struct mlx5_rsc_de   *dbg;
 };
 
 struct mlx5_eq_comp {
@@ -80,10 +80,10 @@ u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq);
 void mlx5_eq_synchronize_async_irq(struct mlx5_core_dev *dev);
 void mlx5_eq_synchronize_cmd_irq(struct mlx5_core_dev *dev);
 
-int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
-void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
-int mlx5_eq_debugfs_init(struct mlx5_core_dev *dev);
-void mlx5_eq_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_de_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
+void mlx5_de_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
+int mlx5_eq_defs_init(struct mlx5_core_dev *dev);
+void mlx5_eq_defs_cleanup(struct mlx5_core_dev *dev);
 
 /* This function should only be called after mlx5_cmd_force_teardown_hca */
 void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev);

@@ -107,7 +107,7 @@ typedef struct {
 #define A3D_SLICE_ABReg			0x19C30
 #define A3D_SLICE_CReg			0x19C34
 #define A3D_SLICE_Control		0x19C38
-#define A3D_SLICE_DebugReserved	0x19C3c	/* Dangerous! */
+#define A3D_SLICE_DeReserved	0x19C3c	/* Dangerous! */
 #define A3D_SLICE_Pointers		0x19C40
 #define 	A3D_SLICE_TAIL		0x1A000
 

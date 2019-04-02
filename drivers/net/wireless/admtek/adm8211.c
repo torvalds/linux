@@ -180,10 +180,10 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 	} else
 		chan_range = cranges[priv->eeprom->country_code];
 
-	printk(KERN_DEBUG "%s (adm8211): Channel range: %d - %d\n",
+	printk(KERN_DE "%s (adm8211): Channel range: %d - %d\n",
 	       pci_name(priv->pdev), (int)chan_range.min, (int)chan_range.max);
 
-	BUILD_BUG_ON(sizeof(priv->channels) != sizeof(adm8211_channels));
+	BUILD__ON(sizeof(priv->channels) != sizeof(adm8211_channels));
 
 	memcpy(priv->channels, adm8211_channels, sizeof(priv->channels));
 	priv->band.channels = priv->channels;
@@ -235,7 +235,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		break;
 	}
 
-	printk(KERN_DEBUG "%s (adm8211): RFtype=%d BBPtype=%d Specific BBP=%d "
+	printk(KERN_DE "%s (adm8211): RFtype=%d BBPtype=%d Specific BBP=%d "
                "Transceiver=%d\n", pci_name(priv->pdev), priv->rf_type,
 	       priv->bbp_type, priv->specific_bbptype, priv->transceiver_type);
 
@@ -374,7 +374,7 @@ static void adm8211_interrupt_rci(struct ieee80211_hw *dev)
 		pktlen = status & RDES0_STATUS_FL;
 		if (pktlen > RX_PKT_SIZE) {
 			if (net_ratelimit())
-				wiphy_debug(dev->wiphy, "frame too long (%d)\n",
+				wiphy_de(dev->wiphy, "frame too long (%d)\n",
 					    pktlen);
 			pktlen = RX_PKT_SIZE;
 		}
@@ -465,7 +465,7 @@ static irqreturn_t adm8211_interrupt(int irq, void *dev_id)
 #define ADM8211_INT(x)						\
 do {								\
 	if (unlikely(stsr & ADM8211_STSR_ ## x))		\
-		wiphy_debug(dev->wiphy, "%s\n", #x);		\
+		wiphy_de(dev->wiphy, "%s\n", #x);		\
 } while (0)
 
 	struct ieee80211_hw *dev = dev_id;
@@ -578,7 +578,7 @@ static int adm8211_write_bbp(struct ieee80211_hw *dev, u8 addr, u8 data)
 	}
 
 	if (timeout == 0) {
-		wiphy_debug(dev->wiphy,
+		wiphy_de(dev->wiphy,
 			    "adm8211_write_bbp(%d,%d) failed prewrite (reg=0x%08x)\n",
 			    addr, data, reg);
 		return -ETIMEDOUT;
@@ -613,7 +613,7 @@ static int adm8211_write_bbp(struct ieee80211_hw *dev, u8 addr, u8 data)
 	if (timeout == 0) {
 		ADM8211_CSR_WRITE(BBPCTL, ADM8211_CSR_READ(BBPCTL) &
 				  ~ADM8211_BBPCTL_WR);
-		wiphy_debug(dev->wiphy,
+		wiphy_de(dev->wiphy,
 			    "adm8211_write_bbp(%d,%d) failed postwrite (reg=0x%08x)\n",
 			    addr, data, reg);
 		return -ETIMEDOUT;
@@ -683,7 +683,7 @@ static int adm8211_rf_set_channel(struct ieee80211_hw *dev, unsigned int chan)
 		break;
 
 	default:
-		wiphy_debug(dev->wiphy, "unsupported transceiver type %d\n",
+		wiphy_de(dev->wiphy, "unsupported transceiver type %d\n",
 			    priv->transceiver_type);
 		break;
 	}
@@ -740,7 +740,7 @@ static int adm8211_rf_set_channel(struct ieee80211_hw *dev, unsigned int chan)
 
 	/* Nothing to do for ADMtek BBP */
 	} else if (priv->bbp_type != ADM8211_TYPE_ADMTEK)
-		wiphy_debug(dev->wiphy, "unsupported BBP type %d\n",
+		wiphy_de(dev->wiphy, "unsupported BBP type %d\n",
 			    priv->bbp_type);
 
 	ADM8211_RESTORE();
@@ -1035,12 +1035,12 @@ static int adm8211_hw_init_bbp(struct ieee80211_hw *dev)
 			break;
 
 		default:
-			wiphy_debug(dev->wiphy, "unsupported transceiver %d\n",
+			wiphy_de(dev->wiphy, "unsupported transceiver %d\n",
 				    priv->transceiver_type);
 			break;
 		}
 	} else
-		wiphy_debug(dev->wiphy, "unsupported BBP %d\n", priv->bbp_type);
+		wiphy_de(dev->wiphy, "unsupported BBP %d\n", priv->bbp_type);
 
 	ADM8211_CSR_WRITE(SYNRF, 0);
 
@@ -1066,7 +1066,7 @@ static int adm8211_set_rate(struct ieee80211_hw *dev)
 		for (i = 0; i < ARRAY_SIZE(adm8211_rates); i++)
 			rate_buf[i + 1] = (adm8211_rates[i].bitrate / 5) | 0x80;
 	} else {
-		/* workaround for rev BA specific bug */
+		/* workaround for rev BA specific  */
 		rate_buf[0] = 0x04;
 		rate_buf[1] = 0x82;
 		rate_buf[2] = 0x04;

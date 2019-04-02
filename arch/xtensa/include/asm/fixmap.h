@@ -54,7 +54,7 @@ enum fixed_addresses {
 #ifndef __ASSEMBLY__
 /*
  * 'index to address' translation. If anyone tries to use the idx
- * directly without translation, we catch the bug with a NULL-deference
+ * directly without translation, we catch the  with a NULL-deference
  * kernel oops. Illegal ranges of incoming indices are caught too.
  */
 static __always_inline unsigned long fix_to_virt(const unsigned int idx)
@@ -62,15 +62,15 @@ static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 	/* Check if this memory layout is broken because fixmap overlaps page
 	 * table.
 	 */
-	BUILD_BUG_ON(FIXADDR_START <
+	BUILD__ON(FIXADDR_START <
 		     TLBTEMP_BASE_1 + TLBTEMP_SIZE);
-	BUILD_BUG_ON(idx >= __end_of_fixed_addresses);
+	BUILD__ON(idx >= __end_of_fixed_addresses);
 	return __fix_to_virt(idx);
 }
 
 static inline unsigned long virt_to_fix(const unsigned long vaddr)
 {
-	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
+	_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
 	return __virt_to_fix(vaddr);
 }
 

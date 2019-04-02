@@ -390,7 +390,7 @@ static int snd_ps3_mute(int mute_on)
 static int snd_ps3_change_avsetting(struct snd_ps3_card_info *card)
 {
 	int ret, retries, i;
-	pr_debug("%s: start\n", __func__);
+	pr_de("%s: start\n", __func__);
 
 	ret = ps3av_set_audio_mode(card->avs.avs_audio_ch,
 				  card->avs.avs_audio_rate,
@@ -442,7 +442,7 @@ static int snd_ps3_change_avsetting(struct snd_ps3_card_info *card)
 	/* ensure all the setting above is written back to register */
 	wmb();
 	/* avsetting driver altered AX_IE, caller must reset it if you want */
-	pr_debug("%s: end\n", __func__);
+	pr_de("%s: end\n", __func__);
 	return ret;
 }
 
@@ -457,11 +457,11 @@ static int snd_ps3_set_avsetting(struct snd_pcm_substream *substream)
 
 	avs = card->avs;
 
-	pr_debug("%s: called freq=%d width=%d\n", __func__,
+	pr_de("%s: called freq=%d width=%d\n", __func__,
 		 substream->runtime->rate,
 		 snd_pcm_format_width(substream->runtime->format));
 
-	pr_debug("%s: before freq=%d width=%d\n", __func__,
+	pr_de("%s: before freq=%d width=%d\n", __func__,
 		 card->avs.avs_audio_rate, card->avs.avs_audio_width);
 
 	/* sample rate */
@@ -501,7 +501,7 @@ static int snd_ps3_set_avsetting(struct snd_pcm_substream *substream)
 	memcpy(avs.avs_cs_info, ps3av_mode_cs_info, 8);
 
 	if (memcmp(&card->avs, &avs, sizeof(avs))) {
-		pr_debug("%s: after freq=%d width=%d\n", __func__,
+		pr_de("%s: after freq=%d width=%d\n", __func__,
 			 card->avs.avs_audio_rate, card->avs.avs_audio_width);
 
 		card->avs = avs;
@@ -578,7 +578,7 @@ static int snd_ps3_delay_to_bytes(struct snd_pcm_substream *substream,
 				  rate * delay_ms / 1000)
 		* substream->runtime->channels;
 
-	pr_debug("%s: time=%d rate=%d bytes=%ld, frames=%d, ret=%d\n",
+	pr_de("%s: time=%d rate=%d bytes=%ld, frames=%d, ret=%d\n",
 		 __func__,
 		 delay_ms,
 		 rate,
@@ -627,7 +627,7 @@ static int snd_ps3_pcm_prepare(struct snd_pcm_substream *substream)
 		card->dma_start_bus_addr[SND_PS3_CH_R] =
 			runtime->dma_addr + (runtime->dma_bytes / 2);
 
-		pr_debug("%s: vaddr=%p bus=%#llx\n", __func__,
+		pr_de("%s: vaddr=%p bus=%#llx\n", __func__,
 			 card->dma_start_vaddr[SND_PS3_CH_L],
 			 card->dma_start_bus_addr[SND_PS3_CH_L]);
 
@@ -907,7 +907,7 @@ static void snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 static int snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 {
 	int ret;
-	pr_debug("%s: start\n", __func__);
+	pr_de("%s: start\n", __func__);
 	card->avs.avs_audio_ch = PS3AV_CMD_AUDIO_NUM_OF_CH_2;
 	card->avs.avs_audio_rate = PS3AV_CMD_AUDIO_FS_48K;
 	card->avs.avs_audio_width = PS3AV_CMD_AUDIO_WORD_BITS_16;
@@ -922,7 +922,7 @@ static int snd_ps3_init_avsetting(struct snd_ps3_card_info *card)
 	/* to start to generate SPDIF signal, fill data */
 	snd_ps3_program_dma(card, SND_PS3_DMA_FILLTYPE_SILENT_FIRSTFILL);
 	snd_ps3_kick_dma(card);
-	pr_debug("%s: end\n", __func__);
+	pr_de("%s: end\n", __func__);
 	return ret;
 }
 
@@ -1045,7 +1045,7 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 		ret = -ENOMEM;
 		goto clean_card;
 	}
-	pr_debug("%s: null vaddr=%p dma=%#llx\n", __func__,
+	pr_de("%s: null vaddr=%p dma=%#llx\n", __func__,
 		 the_card.null_buffer_start_vaddr,
 		 the_card.null_buffer_start_dma_addr);
 	/* set default sample rate/word width */

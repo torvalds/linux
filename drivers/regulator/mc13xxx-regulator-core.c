@@ -94,7 +94,7 @@ static int mc13xxx_regulator_get_voltage(struct regulator_dev *rdev)
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d val: %d\n", __func__, id, val);
 
-	BUG_ON(val >= mc13xxx_regulators[id].desc.n_voltages);
+	_ON(val >= mc13xxx_regulators[id].desc.n_voltages);
 
 	return rdev->desc->volt_table[val];
 }

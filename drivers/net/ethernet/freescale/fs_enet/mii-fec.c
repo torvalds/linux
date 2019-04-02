@@ -55,7 +55,7 @@ static int fs_enet_fec_mii_read(struct mii_bus *bus , int phy_id, int location)
 	struct fec __iomem *fecp = fec->fecp;
 	int i, ret = -1;
 
-	BUG_ON((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0);
+	_ON((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0);
 
 	/* Add PHY address to register command.  */
 	out_be32(&fecp->fec_mii_data, (phy_id << 23) | mk_mii_read(location));
@@ -79,7 +79,7 @@ static int fs_enet_fec_mii_write(struct mii_bus *bus, int phy_id, int location, 
 	int i;
 
 	/* this must never happen */
-	BUG_ON((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0);
+	_ON((in_be32(&fecp->fec_r_cntrl) & FEC_RCNTRL_MII_MODE) == 0);
 
 	/* Add PHY address to register command.  */
 	out_be32(&fecp->fec_mii_data, (phy_id << 23) | mk_mii_write(location, val));

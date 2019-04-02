@@ -41,7 +41,7 @@ static void r128_emit_clip_rects(drm_r128_private_t *dev_priv,
 {
 	u32 aux_sc_cntl = 0x00000000;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING((count < 3 ? count : 3) * 5 + 2);
 
@@ -84,7 +84,7 @@ static __inline__ void r128_emit_core(drm_r128_private_t *dev_priv)
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_r128_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(2);
 
@@ -99,7 +99,7 @@ static __inline__ void r128_emit_context(drm_r128_private_t *dev_priv)
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_r128_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(13);
 
@@ -125,7 +125,7 @@ static __inline__ void r128_emit_setup(drm_r128_private_t *dev_priv)
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_r128_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(3);
 
@@ -141,7 +141,7 @@ static __inline__ void r128_emit_masks(drm_r128_private_t *dev_priv)
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_r128_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(5);
 
@@ -160,7 +160,7 @@ static __inline__ void r128_emit_window(drm_r128_private_t *dev_priv)
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_r128_context_regs_t *ctx = &sarea_priv->context_state;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(2);
 
@@ -177,7 +177,7 @@ static __inline__ void r128_emit_tex0(drm_r128_private_t *dev_priv)
 	drm_r128_texture_regs_t *tex = &sarea_priv->tex_state[0];
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(7 + R128_MAX_TEXTURE_LEVELS);
 
@@ -202,7 +202,7 @@ static __inline__ void r128_emit_tex1(drm_r128_private_t *dev_priv)
 	drm_r128_texture_regs_t *tex = &sarea_priv->tex_state[1];
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(5 + R128_MAX_TEXTURE_LEVELS);
 
@@ -223,7 +223,7 @@ static void r128_emit_state(drm_r128_private_t *dev_priv)
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	unsigned int dirty = sarea_priv->dirty;
 
-	DRM_DEBUG("dirty=0x%08x\n", dirty);
+	DRM_DE("dirty=0x%08x\n", dirty);
 
 	if (dirty & R128_UPLOAD_CORE) {
 		r128_emit_core(dev_priv);
@@ -358,7 +358,7 @@ static void r128_cce_dispatch_clear(struct drm_device *dev,
 	unsigned int flags = clear->flags;
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	if (dev_priv->page_flipping && dev_priv->current_page == 1) {
 		unsigned int tmp = flags;
@@ -376,7 +376,7 @@ static void r128_cce_dispatch_clear(struct drm_device *dev,
 		int w = pbox[i].x2 - x;
 		int h = pbox[i].y2 - y;
 
-		DRM_DEBUG("dispatch clear %d,%d-%d,%d flags 0x%x\n",
+		DRM_DE("dispatch clear %d,%d-%d,%d flags 0x%x\n",
 			  pbox[i].x1, pbox[i].y1, pbox[i].x2,
 			  pbox[i].y2, flags);
 
@@ -462,7 +462,7 @@ static void r128_cce_dispatch_swap(struct drm_device *dev)
 	struct drm_clip_rect *pbox = sarea_priv->boxes;
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 #if R128_PERFORMANCE_BOXES
 	/* Do some trivial performance monitoring...
@@ -524,7 +524,7 @@ static void r128_cce_dispatch_flip(struct drm_device *dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
-	DRM_DEBUG("page=%d pfCurrentPage=%d\n",
+	DRM_DE("page=%d pfCurrentPage=%d\n",
 		  dev_priv->current_page, dev_priv->sarea_priv->pfCurrentPage);
 
 #if R128_PERFORMANCE_BOXES
@@ -572,7 +572,7 @@ static void r128_cce_dispatch_vertex(struct drm_device *dev, struct drm_buf *buf
 	int prim = buf_priv->prim;
 	int i = 0;
 	RING_LOCALS;
-	DRM_DEBUG("buf=%d nbox=%d\n", buf->idx, sarea_priv->nbox);
+	DRM_DE("buf=%d nbox=%d\n", buf->idx, sarea_priv->nbox);
 
 	if (0)
 		r128_print_dirty("dispatch_vertex", sarea_priv->dirty);
@@ -636,7 +636,7 @@ static void r128_cce_dispatch_indirect(struct drm_device *dev,
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_buf_priv_t *buf_priv = buf->dev_private;
 	RING_LOCALS;
-	DRM_DEBUG("indirect: buf=%d s=0x%x e=0x%x\n", buf->idx, start, end);
+	DRM_DE("indirect: buf=%d s=0x%x e=0x%x\n", buf->idx, start, end);
 
 	if (start != end) {
 		int offset = buf->bus_address + start;
@@ -699,7 +699,7 @@ static void r128_cce_dispatch_indices(struct drm_device *dev,
 	int dwords;
 	int i = 0;
 	RING_LOCALS;
-	DRM_DEBUG("indices: s=%d e=%d c=%d\n", start, end, count);
+	DRM_DE("indices: s=%d e=%d c=%d\n", start, end, count);
 
 	if (0)
 		r128_print_dirty("dispatch_indices", sarea_priv->dirty);
@@ -779,7 +779,7 @@ static int r128_cce_dispatch_blit(struct drm_device *dev,
 	u32 *data;
 	int dword_shift, dwords;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	/* The compiler won't optimize away a division by a variable,
 	 * even if the only legal values are powers of two.  Thus, we'll
@@ -889,7 +889,7 @@ static int r128_cce_dispatch_write_span(struct drm_device *dev,
 	u8 *mask;
 	int i, buffer_size, mask_size;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	count = depth->n;
 	if (count > 4096 || count <= 0)
@@ -974,7 +974,7 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 	u8 *mask;
 	int i, xbuf_size, ybuf_size, buffer_size, mask_size;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	count = depth->n;
 	if (count > 4096 || count <= 0)
@@ -1068,7 +1068,7 @@ static int r128_cce_dispatch_read_span(struct drm_device *dev,
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	int count, x, y;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	count = depth->n;
 	if (count > 4096 || count <= 0)
@@ -1110,7 +1110,7 @@ static int r128_cce_dispatch_read_pixels(struct drm_device *dev,
 	int count, *x, *y;
 	int i, xbuf_size, ybuf_size;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	count = depth->n;
 	if (count > 4096 || count <= 0)
@@ -1178,7 +1178,7 @@ static void r128_cce_dispatch_stipple(struct drm_device *dev, u32 *stipple)
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	int i;
 	RING_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_RING(33);
 
@@ -1198,7 +1198,7 @@ static int r128_cce_clear(struct drm_device *dev, void *data, struct drm_file *f
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_sarea_t *sarea_priv;
 	drm_r128_clear_t *clear = data;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1224,7 +1224,7 @@ static int r128_cce_clear(struct drm_device *dev, void *data, struct drm_file *f
 static int r128_do_init_pageflip(struct drm_device *dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	dev_priv->crtc_offset = R128_READ(R128_CRTC_OFFSET);
 	dev_priv->crtc_offset_cntl = R128_READ(R128_CRTC_OFFSET_CNTL);
@@ -1243,7 +1243,7 @@ static int r128_do_init_pageflip(struct drm_device *dev)
 static int r128_do_cleanup_pageflip(struct drm_device *dev)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	R128_WRITE(R128_CRTC_OFFSET, dev_priv->crtc_offset);
 	R128_WRITE(R128_CRTC_OFFSET_CNTL, dev_priv->crtc_offset_cntl);
@@ -1264,7 +1264,7 @@ static int r128_do_cleanup_pageflip(struct drm_device *dev)
 static int r128_cce_flip(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1285,7 +1285,7 @@ static int r128_cce_swap(struct drm_device *dev, void *data, struct drm_file *fi
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_sarea_t *sarea_priv = dev_priv->sarea_priv;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1316,7 +1316,7 @@ static int r128_cce_vertex(struct drm_device *dev, void *data, struct drm_file *
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d index=%d count=%d discard=%d\n",
+	DRM_DE("pid=%d index=%d count=%d discard=%d\n",
 		  DRM_CURRENTPID, vertex->idx, vertex->count, vertex->discard);
 
 	if (vertex->idx < 0 || vertex->idx >= dma->buf_count) {
@@ -1369,7 +1369,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d buf=%d s=%d e=%d d=%d\n", DRM_CURRENTPID,
+	DRM_DE("pid=%d buf=%d s=%d e=%d d=%d\n", DRM_CURRENTPID,
 		  elts->idx, elts->start, elts->end, elts->discard);
 
 	if (elts->idx < 0 || elts->idx >= dma->buf_count) {
@@ -1432,7 +1432,7 @@ static int r128_cce_blit(struct drm_device *dev, void *data, struct drm_file *fi
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d index=%d\n", DRM_CURRENTPID, blit->idx);
+	DRM_DE("pid=%d index=%d\n", DRM_CURRENTPID, blit->idx);
 
 	if (blit->idx < 0 || blit->idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
@@ -1517,7 +1517,7 @@ static int r128_cce_indirect(struct drm_device *dev, void *data, struct drm_file
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("idx=%d s=%d e=%d d=%d\n",
+	DRM_DE("idx=%d s=%d e=%d d=%d\n",
 		  indirect->idx, indirect->start, indirect->end,
 		  indirect->discard);
 
@@ -1579,7 +1579,7 @@ int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+	DRM_DE("pid=%d\n", DRM_CURRENTPID);
 
 	switch (param->param) {
 	case R128_PARAM_IRQ_NR:

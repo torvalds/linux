@@ -438,7 +438,7 @@ struct mmc_host {
 #endif
 	struct mmc_supply	supply;
 
-	struct dentry		*debugfs_root;
+	struct dentry		*defs_root;
 
 	/* Ongoing data transfer that allows commands during transfer */
 	struct mmc_request	*ongoing_mrq;

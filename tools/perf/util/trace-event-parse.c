@@ -24,7 +24,7 @@
 #include <errno.h>
 
 #include "../perf.h"
-#include "debug.h"
+#include "de.h"
 #include "trace-event.h"
 
 #include "sane_ctype.h"

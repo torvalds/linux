@@ -1504,7 +1504,7 @@ static int ahci_bad_pmp_check_ready(struct ata_link *link)
 	u32 irq_status = readl(port_mmio + PORT_IRQ_STAT);
 
 	/*
-	 * There is no need to check TFDATA if BAD PMP is found due to HW bug,
+	 * There is no need to check TFDATA if BAD PMP is found due to HW ,
 	 * which can save timeout delay.
 	 */
 	if (irq_status & PORT_IRQ_BAD_PMP)
@@ -1687,7 +1687,7 @@ static void ahci_fbs_dec_intr(struct ata_port *ap)
 	int retries = 3;
 
 	DPRINTK("ENTER\n");
-	BUG_ON(!pp->fbs_enabled);
+	_ON(!pp->fbs_enabled);
 
 	/* time to wait for DEC is not specified by AHCI spec,
 	 * add a retry loop for safety.

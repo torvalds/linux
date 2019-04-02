@@ -33,7 +33,7 @@ static ssize_t pmem_drc_add_node(u32 drc_index)
 	struct device_node *dn;
 	int rc;
 
-	pr_debug("Attempting to add pmem node, drc index: %x\n", drc_index);
+	pr_de("Attempting to add pmem node, drc index: %x\n", drc_index);
 
 	rc = dlpar_acquire_drc(drc_index);
 	if (rc) {
@@ -84,7 +84,7 @@ static ssize_t pmem_drc_remove_node(u32 drc_index)
 		return -ENODEV;
 	}
 
-	pr_debug("Attempting to remove %pOF, drc index: %x\n", dn, drc_index);
+	pr_de("Attempting to remove %pOF, drc index: %x\n", dn, drc_index);
 
 	/* * NB: tears down the ibm,pmemory device as a side-effect */
 	rc = dlpar_detach_node(dn);

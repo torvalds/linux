@@ -116,7 +116,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 			*errp = -ENOMEM;
 		else
 			*errp = -EIO;
-		printk(KERN_DEBUG "zisofs: zisofs_inflateInit returned %d\n",
+		printk(KERN_DE "zisofs: zisofs_inflateInit returned %d\n",
 			       zerr);
 		goto z_eio;
 	}
@@ -160,7 +160,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 				if (zerr == Z_MEM_ERROR)
 					*errp = -ENOMEM;
 				else {
-					printk(KERN_DEBUG
+					printk(KERN_DE
 					       "zisofs: zisofs_inflate returned"
 					       " %d, inode = %lu,"
 					       " page idx = %d, bh idx = %d,"
@@ -219,7 +219,7 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
 	int err;
 	loff_t ret;
 
-	BUG_ON(!pages[full_page]);
+	_ON(!pages[full_page]);
 
 	/*
 	 * We want to read at least 'full_page' page. Because we have to

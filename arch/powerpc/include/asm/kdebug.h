@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_KDEBUG_H
-#define _ASM_POWERPC_KDEBUG_H
+#ifndef _ASM_POWERPC_KDE_H
+#define _ASM_POWERPC_KDE_H
 #ifdef __KERNEL__
 
 /* Grossly misnamed. */
@@ -13,4 +13,4 @@ enum die_val {
 };
 
 #endif /* __KERNEL__ */
-#endif /* _ASM_POWERPC_KDEBUG_H */
+#endif /* _ASM_POWERPC_KDE_H */

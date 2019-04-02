@@ -369,7 +369,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 
 	if (BIOS_CMD_TABLE_REVISION(UNIPHYTransmitterControl,
 			frev, crev) == false)
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	switch (crev) {
 	case 2:
 		bp->cmd_tbl.transmitter_control = transmitter_control_v2;
@@ -1290,7 +1290,7 @@ static enum bp_result enable_spread_spectrum_on_ppll_v1(
 	else if (bp_params->pll_id == CLOCK_SOURCE_ID_PLL2)
 		params.ucPpll = ATOM_PPLL2;
 	else
-		BREAK_TO_DEBUGGER(); /* Unexpected PLL value!! */
+		BREAK_TO_DEGER(); /* Unexpected PLL value!! */
 
 	if (EXEC_BIOS_CMD_TABLE(EnableSpreadSpectrumOnPPLL, params))
 		result = BP_RESULT_OK;
@@ -1313,7 +1313,7 @@ static enum bp_result enable_spread_spectrum_on_ppll_v2(
 	else if (bp_params->pll_id == CLOCK_SOURCE_ID_PLL2)
 		params.ucSpreadSpectrumType = ATOM_PPLL_SS_TYPE_V2_P2PLL;
 	else
-		BREAK_TO_DEBUGGER(); /* Unexpected PLL value!! */
+		BREAK_TO_DEGER(); /* Unexpected PLL value!! */
 
 	if ((enable == true) && (bp_params->percentage > 0)) {
 		params.ucEnable = ATOM_ENABLE;
@@ -1380,7 +1380,7 @@ static enum bp_result enable_spread_spectrum_on_ppll_v3(
 		break;
 
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		/* Unexpected PLL value!! */
 		return result;
 	}
@@ -1514,7 +1514,7 @@ static enum bp_result adjust_display_pll_v3(
 							pixel_clk_10_kHz_in);
 		} else {
 			bp_params->adjusted_pixel_clock = 0;
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		}
 
 		bp_params->reference_divider = params.sOutput.ucRefDiv;
@@ -2040,7 +2040,7 @@ static enum bp_result program_clock_v5(
 	memset(&params, 0, sizeof(params));
 	if (!bp->cmd_helper->clock_source_id_to_atom(
 			bp_params->pll_id, &atom_pll_id)) {
-		BREAK_TO_DEBUGGER(); /* Invalid Inpute!! */
+		BREAK_TO_DEGER(); /* Invalid Inpute!! */
 		return BP_RESULT_BADINPUT;
 	}
 
@@ -2072,7 +2072,7 @@ static enum bp_result program_clock_v6(
 
 	if (!bp->cmd_helper->clock_source_id_to_atom(
 			bp_params->pll_id, &atom_pll_id)) {
-		BREAK_TO_DEBUGGER(); /*Invalid Input!!*/
+		BREAK_TO_DEGER(); /*Invalid Input!!*/
 		return BP_RESULT_BADINPUT;
 	}
 
@@ -2150,7 +2150,7 @@ static enum bp_result external_encoder_control_v3(
 		break;
 
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return BP_RESULT_BADINPUT;
 	}
 

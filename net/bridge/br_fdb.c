@@ -709,7 +709,7 @@ static void fdb_notify(struct net_bridge *br,
 
 	err = fdb_fill_info(skb, br, fdb, 0, 0, type, 0);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in fdb_nlmsg_size() */
+		/* -EMSGSIZE implies  in fdb_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

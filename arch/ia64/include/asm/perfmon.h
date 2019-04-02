@@ -19,8 +19,8 @@ extern void pfm_save_regs (struct task_struct *);
 extern void pfm_load_regs (struct task_struct *);
 
 extern void pfm_exit_thread(struct task_struct *);
-extern int  pfm_use_debug_registers(struct task_struct *);
-extern int  pfm_release_debug_registers(struct task_struct *);
+extern int  pfm_use_de_registers(struct task_struct *);
+extern int  pfm_release_de_registers(struct task_struct *);
 extern void pfm_syst_wide_update_task(struct task_struct *, unsigned long info, int is_ctxswin);
 extern void pfm_inherit(struct task_struct *task, struct pt_regs *regs);
 extern void pfm_init_percpu(void);
@@ -100,8 +100,8 @@ extern int pfm_mod_write_dbrs(struct task_struct *task, void *req, unsigned int 
  * sysctl control structure. visible to sampling formats
  */
 typedef struct {
-	int	debug;		/* turn on/off debugging via syslog */
-	int	debug_ovfl;	/* turn on/off debug printk in overflow handler */
+	int	de;		/* turn on/off deging via syslog */
+	int	de_ovfl;	/* turn on/off de printk in overflow handler */
 	int	fastctxsw;	/* turn on/off fast (unsecure) ctxsw */
 	int	expert_mode;	/* turn on/off value checking */
 } pfm_sysctl_t;

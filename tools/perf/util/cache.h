@@ -10,10 +10,10 @@
 #include <linux/string.h>
 
 #define CMD_EXEC_PATH "--exec-path"
-#define CMD_DEBUGFS_DIR "--debugfs-dir="
+#define CMD_DEFS_DIR "--defs-dir="
 
 #define EXEC_PATH_ENVIRONMENT "PERF_EXEC_PATH"
-#define PERF_DEBUGFS_ENVIRONMENT "PERF_DEBUGFS_DIR"
+#define PERF_DEFS_ENVIRONMENT "PERF_DEFS_DIR"
 #define PERF_TRACEFS_ENVIRONMENT "PERF_TRACEFS_DIR"
 #define PERF_PAGER_ENVIRONMENT "PERF_PAGER"
 

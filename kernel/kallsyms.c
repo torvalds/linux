@@ -203,9 +203,9 @@ static unsigned long get_symbol_pos(unsigned long addr,
 
 	/* This kernel should never had been booted. */
 	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
-		BUG_ON(!kallsyms_addresses);
+		_ON(!kallsyms_addresses);
 	else
-		BUG_ON(!kallsyms_offsets);
+		_ON(!kallsyms_offsets);
 
 	/* Do a binary search on the sorted kallsyms_addresses array. */
 	low = 0;
@@ -594,7 +594,7 @@ static int s_show(struct seq_file *m, void *p)
 	void *value;
 	struct kallsym_iter *iter = m->private;
 
-	/* Some debugging symbols have no name.  Ignore them. */
+	/* Some deging symbols have no name.  Ignore them. */
 	if (!iter->name[0])
 		return 0;
 
@@ -688,7 +688,7 @@ const char *kdb_walk_kallsyms(loff_t *pos)
 		if (!update_iter(&kdb_walk_kallsyms_iter, *pos))
 			return NULL;
 		++*pos;
-		/* Some debugging symbols have no name.  Ignore them. */
+		/* Some deging symbols have no name.  Ignore them. */
 		if (kdb_walk_kallsyms_iter.name[0])
 			return kdb_walk_kallsyms_iter.name;
 	}

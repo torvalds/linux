@@ -333,7 +333,7 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 	} else if (h->loss_count == 1) {
 		__one_after_loss(h, skb, ndp);
 	} else if (h->loss_count != 2) {
-		DCCP_BUG("invalid loss_count %d", h->loss_count);
+		DCCP_("invalid loss_count %d", h->loss_count);
 	} else if (__two_after_loss(h, skb, ndp)) {
 		/*
 		 * Update Loss Interval database and recycle RX records
@@ -419,7 +419,7 @@ u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
 				 * two-way data traffic. I have tried to trace
 				 * it, but the cause does not seem to be here.
 				 */
-				DCCP_BUG("please report to dccp@vger.kernel.org"
+				DCCP_("please report to dccp@vger.kernel.org"
 					 " => prev = %u, last = %u",
 					 tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_ccval,
 					 tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);

@@ -13,9 +13,9 @@
 #include <asm/io.h>
 #include <asm/segment.h>
 
-#define SMC_DEBUG 0
+#define SMC_DE 0
 
-#if SMC_DEBUG
+#if SMC_DE
 # define DBG_DEVS(args)         printk args
 #else
 # define DBG_DEVS(args)
@@ -206,7 +206,7 @@ static void __init SMCEnableFDC(unsigned long baseAddr)
 	outb(DEVICE_ON, dataPort);
 }
 
-#if SMC_DEBUG
+#if SMC_DE
 static void __init SMCReportDeviceStatus(unsigned long baseAddr)
 {
 	unsigned long indexPort;
@@ -243,7 +243,7 @@ int __init SMC93x_Init(void)
 
 	local_irq_save(flags);
 	if ((SMCUltraBase = SMCDetectUltraIO()) != 0UL) {
-#if SMC_DEBUG
+#if SMC_DE
 		SMCReportDeviceStatus(SMCUltraBase);
 #endif
 		SMCEnableDevice(SMCUltraBase, SER1, COM1_BASE, COM1_INTERRUPT);
@@ -258,7 +258,7 @@ int __init SMC93x_Init(void)
 		DBG_DEVS(("SMC FDC37C93X: KYB done\n"));
 		SMCEnableFDC(SMCUltraBase);
 		DBG_DEVS(("SMC FDC37C93X: FDC done\n"));
-#if SMC_DEBUG
+#if SMC_DE
 		SMCReportDeviceStatus(SMCUltraBase);
 #endif
 		SMCRunState(SMCUltraBase);

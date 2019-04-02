@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/workqueue.h>
 #include <asm/unaligned.h>
 #include <linux/bitops.h>
@@ -206,7 +206,7 @@ typedef enum {
 
 /* don't mess with these for a while */
 /* we have a node size define somewhere in reiserfs_fs.h. -Hans */
-#define JOURNAL_BLOCK_SIZE  4096	/* BUG gotta get rid of this */
+#define JOURNAL_BLOCK_SIZE  4096	/*  gotta get rid of this */
 #define JOURNAL_MAX_CNODE   1500	/* max cnodes to allocate. */
 #define JOURNAL_HASH_SIZE 8192
 
@@ -380,10 +380,10 @@ struct reiserfs_journal {
 	int j_num_lists;	/* total number of active transactions */
 	int j_num_work_lists;	/* number that need attention from kreiserfsd */
 
-	/* debugging to make sure things are flushed in order */
+	/* deging to make sure things are flushed in order */
 	unsigned int j_last_flush_id;
 
-	/* debugging to make sure things are committed in order */
+	/* deging to make sure things are committed in order */
 	unsigned int j_last_commit_id;
 
 	struct list_head j_bitmap_nodes;
@@ -894,10 +894,10 @@ struct fid;
 #define ROUND_UP(x) _ROUND_UP(x,8LL)
 
 /*
- * debug levels.  Right now, CONFIG_REISERFS_CHECK means print all debug
+ * de levels.  Right now, CONFIG_REISERFS_CHECK means print all de
  * messages.
  */
-#define REISERFS_DEBUG_CODE 5	/* extra messages to help find/debug errors */
+#define REISERFS_DE_CODE 5	/* extra messages to help find/de errors */
 
 void __reiserfs_warning(struct super_block *s, const char *id,
 			 const char *func, const char *fmt, ...);
@@ -2117,8 +2117,8 @@ struct path_element {
  * in it, especially about decrement_counters_in_path(), to understand
  * this structure.
  *
- * Paths make the code so much harder to work with and debug.... An
- * enormous number of bugs are due to them, and trying to write or modify
+ * Paths make the code so much harder to work with and de.... An
+ * enormous number of s are due to them, and trying to write or modify
  * code that uses them just makes my head hurt.  They are based on an
  * excessive effort to avoid disturbing the precious VFS code.:-( The
  * gods only know how we are going to SMP the code that uses them.
@@ -2824,7 +2824,7 @@ enum reiserfs_bh_state_bits {
 	BH_JNew,
 	BH_JPrepared,
 	BH_JRestore_dirty,
-	BH_JTest,		/* debugging only will go away */
+	BH_JTest,		/* deging only will go away */
 };
 
 BUFFER_FNS(JDirty, journaled);
@@ -2898,7 +2898,7 @@ static inline int reiserfs_transaction_running(struct super_block *s)
 	if (th && th->t_super == s)
 		return 1;
 	if (th && th->t_super == NULL)
-		BUG();
+		();
 	return 0;
 }
 
@@ -3194,7 +3194,7 @@ void __reiserfs_error(struct super_block *s, const char *id,
 #define reiserfs_error(s, id, fmt, args...) \
 	 __reiserfs_error(s, id, __func__, fmt, ##args)
 void reiserfs_info(struct super_block *s, const char *fmt, ...);
-void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...);
+void reiserfs_de(struct super_block *s, int level, const char *fmt, ...);
 void print_indirect_item(struct buffer_head *bh, int item_num);
 void store_print_tb(struct tree_balance *tb);
 void print_cur_tb(char *mes);

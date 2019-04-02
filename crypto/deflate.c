@@ -242,7 +242,7 @@ static int __deflate_decompress(const u8 *src, unsigned int slen,
 
 	ret = zlib_inflate(stream, Z_SYNC_FLUSH);
 	/*
-	 * Work around a bug in zlib, which sometimes wants to taste an extra
+	 * Work around a  in zlib, which sometimes wants to taste an extra
 	 * byte when being used in the (undocumented) raw deflate mode.
 	 * (From USAGI).
 	 */

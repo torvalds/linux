@@ -95,9 +95,9 @@ static const u32 xgpu_fiji_mgcg_cgcg_init[] = {
 
 static const u32 xgpu_fiji_golden_settings_a10[] = {
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x1f311fff, 0x12300000,
 	mmHDMI_CONTROL, 0x31000111, 0x00000011,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
@@ -114,7 +114,7 @@ static const u32 xgpu_fiji_golden_settings_a10[] = {
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
 	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000000ff,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 	mmVM_PRT_APERTURE0_LOW_ADDR, 0x0fffffff, 0x0fffffff,
 	mmVM_PRT_APERTURE1_LOW_ADDR, 0x0fffffff, 0x0fffffff,
 	mmVM_PRT_APERTURE2_LOW_ADDR, 0x0fffffff, 0x0fffffff,
@@ -227,9 +227,9 @@ static const u32 xgpu_tonga_mgcg_cgcg_init[] = {
 static const u32 xgpu_tonga_golden_settings_a11[] = {
 	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00007208,
 	mmCB_HW_CONTROL_3, 0x00000040, 0x00000040,
-	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
+	mmDB_DE2, 0xf00fffff, 0x00000400,
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
-	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
+	mmFBC_DE_COMP, 0x000000f0, 0x00000070,
 	mmFBC_MISC, 0x1f311fff, 0x12300000,
 	mmGB_GPU_ID, 0x0000000f, 0x00000000,
 	mmHDMI_CONTROL, 0x31000111, 0x00000011,
@@ -257,7 +257,7 @@ static const u32 xgpu_tonga_golden_settings_a11[] = {
 	mmTCP_ADDR_CONFIG, 0x000003ff, 0x000002fb,
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x0000543b,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0xa9210876,
-	mmVGT_RESET_DEBUG, 0x00000004, 0x00000004,
+	mmVGT_RESET_DE, 0x00000004, 0x00000004,
 	mmVM_PRT_APERTURE0_LOW_ADDR, 0x0fffffff, 0x0fffffff,
 	mmVM_PRT_APERTURE1_LOW_ADDR, 0x0fffffff, 0x0fffffff,
 	mmVM_PRT_APERTURE2_LOW_ADDR, 0x0fffffff, 0x0fffffff,
@@ -306,7 +306,7 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 								xgpu_tonga_golden_common_all));
 		break;
 	default:
-		BUG_ON("Doesn't support chip type.\n");
+		_ON("Doesn't support chip type.\n");
 		break;
 	}
 }
@@ -490,7 +490,7 @@ static int xgpu_vi_mailbox_ack_irq(struct amdgpu_device *adev,
 				   struct amdgpu_irq_src *source,
 				   struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	DRM_DE("get ack intr and do nothing.\n");
 	return 0;
 }
 

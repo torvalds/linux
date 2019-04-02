@@ -13,7 +13,7 @@
 #include "demangle-rust.h"
 #include "machine.h"
 #include "vdso.h"
-#include "debug.h"
+#include "de.h"
 #include "sane_ctype.h"
 #include <symbol/kallsyms.h>
 
@@ -262,7 +262,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
  * We need to check if we have a .dynsym, so that we can handle the
  * .plt, synthesizing its symbols, that aren't on the symtabs (be it
  * .dynsym or .symtab).
- * And always look at the original dso, not at debuginfo packages, that
+ * And always look at the original dso, not at deinfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
@@ -423,7 +423,7 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 out_elf_end:
 	if (err == 0)
 		return nr;
-	pr_debug("%s: problems reading %s PLT info.\n",
+	pr_de("%s: problems reading %s PLT info.\n",
 		 __func__, dso->long_name);
 	return 0;
 }
@@ -531,7 +531,7 @@ int filename__read_build_id(const char *filename, void *bf, size_t size)
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_de2("%s: cannot read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -583,7 +583,7 @@ int sysfs__read_build_id(const char *filename, void *build_id, size_t size)
 
 			if (n > (int)sizeof(bf)) {
 				n = sizeof(bf);
-				pr_debug("%s: truncating reading of build id in sysfs file %s: n_namesz=%u, n_descsz=%u.\n",
+				pr_de("%s: truncating reading of build id in sysfs file %s: n_namesz=%u, n_descsz=%u.\n",
 					 __func__, filename, nhdr.n_namesz, nhdr.n_descsz);
 			}
 			if (read(fd, bf, n) != n)
@@ -595,7 +595,7 @@ out:
 	return err;
 }
 
-int filename__read_debuglink(const char *filename, char *debuglink,
+int filename__read_delink(const char *filename, char *delink,
 			     size_t size)
 {
 	int fd, err = -1;
@@ -612,7 +612,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		pr_de2("%s: cannot read %s ELF file.\n", __func__, filename);
 		goto out_close;
 	}
 
@@ -626,7 +626,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 	}
 
 	sec = elf_section_by_name(elf, &ehdr, &shdr,
-				  ".gnu_debuglink", NULL);
+				  ".gnu_delink", NULL);
 	if (sec == NULL)
 		goto out_elf_end;
 
@@ -635,7 +635,7 @@ int filename__read_debuglink(const char *filename, char *debuglink,
 		goto out_elf_end;
 
 	/* the start of this section is a zero-terminated string */
-	strncpy(debuglink, data->d_buf, size);
+	strncpy(delink, data->d_buf, size);
 
 	err = 0;
 
@@ -720,14 +720,14 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
+		pr_de("%s: cannot read %s ELF file.\n", __func__, name);
 		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
 		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
-		pr_debug("%s: cannot get elf header.\n", __func__);
+		pr_de("%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
@@ -746,7 +746,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		}
 
 		if (!dso__build_id_equal(dso, build_id)) {
-			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
+			pr_de("%s: build id mismatch for %s.\n", __func__, name);
 			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;
 		}
@@ -1115,7 +1115,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 				goto out_elf_end;
 		} else if ((used_opd && runtime_ss->adjust_symbols) ||
 			   (!used_opd && syms_ss->adjust_symbols)) {
-			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
+			pr_de4("%s: adjusting symbol: st_value: %#" PRIx64 " "
 				  "sh_addr: %#" PRIx64 " sh_offset: %#" PRIx64 "\n", __func__,
 				  (u64)sym.st_value, (u64)shdr.sh_addr,
 				  (u64)shdr.sh_offset);
@@ -2108,7 +2108,7 @@ static int populate_sdt_note(Elf **elf, const char *data, size_t len,
 	}
 
 	if (!gelf_getehdr(*elf, &ehdr)) {
-		pr_debug("%s : cannot get elf header.\n", __func__);
+		pr_de("%s : cannot get elf header.\n", __func__);
 		ret = -EBADF;
 		goto out_free_args;
 	}

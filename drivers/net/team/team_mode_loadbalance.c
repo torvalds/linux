@@ -348,7 +348,7 @@ static int lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
 	func = rcu_dereference_protected(lb_priv->select_tx_port_func,
 					 lockdep_is_held(&team->lock));
 	name = lb_select_tx_port_get_name(func);
-	BUG_ON(!name);
+	_ON(!name);
 	ctx->data.str_val = name;
 	return 0;
 }
@@ -612,7 +612,7 @@ static int lb_init(struct team *team)
 
 	/* set default tx port selector */
 	func = lb_select_tx_port_get_func("hash");
-	BUG_ON(!func);
+	_ON(!func);
 	rcu_assign_pointer(lb_priv->select_tx_port_func, func);
 
 	lb_priv->ex = kzalloc(sizeof(*lb_priv->ex), GFP_KERNEL);

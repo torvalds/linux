@@ -84,7 +84,7 @@ int maxim_charger_calc_reg_current(const struct maxim_charger_current *limits,
 	/*
 	 * There is no risk of overflow 'max_ua' here because:
 	 *  - max_ua >= limits.high_start
-	 *  - BUILD_BUG checks that 'limits' are: max >= high_start + high_step
+	 *  - BUILD_ checks that 'limits' are: max >= high_start + high_step
 	 */
 	current_bits = max_ua / limits->high_step;
 
@@ -532,22 +532,22 @@ static struct i2c_driver max14577_i2c_driver = {
 
 static int __init max14577_i2c_init(void)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(max14577_i2c_id) != MAXIM_DEVICE_TYPE_NUM);
-	BUILD_BUG_ON(ARRAY_SIZE(max14577_dt_match) != MAXIM_DEVICE_TYPE_NUM);
+	BUILD__ON(ARRAY_SIZE(max14577_i2c_id) != MAXIM_DEVICE_TYPE_NUM);
+	BUILD__ON(ARRAY_SIZE(max14577_dt_match) != MAXIM_DEVICE_TYPE_NUM);
 
 	/* Valid charger current values must be provided for each chipset */
-	BUILD_BUG_ON(ARRAY_SIZE(maxim_charger_currents) != MAXIM_DEVICE_TYPE_NUM);
+	BUILD__ON(ARRAY_SIZE(maxim_charger_currents) != MAXIM_DEVICE_TYPE_NUM);
 
 	/* Check for valid values for charger */
-	BUILD_BUG_ON(MAX14577_CHARGER_CURRENT_LIMIT_HIGH_START +
+	BUILD__ON(MAX14577_CHARGER_CURRENT_LIMIT_HIGH_START +
 			MAX14577_CHARGER_CURRENT_LIMIT_HIGH_STEP * 0xf !=
 			MAX14577_CHARGER_CURRENT_LIMIT_MAX);
-	BUILD_BUG_ON(MAX14577_CHARGER_CURRENT_LIMIT_HIGH_STEP == 0);
+	BUILD__ON(MAX14577_CHARGER_CURRENT_LIMIT_HIGH_STEP == 0);
 
-	BUILD_BUG_ON(MAX77836_CHARGER_CURRENT_LIMIT_HIGH_START +
+	BUILD__ON(MAX77836_CHARGER_CURRENT_LIMIT_HIGH_START +
 			MAX77836_CHARGER_CURRENT_LIMIT_HIGH_STEP * 0xf !=
 			MAX77836_CHARGER_CURRENT_LIMIT_MAX);
-	BUILD_BUG_ON(MAX77836_CHARGER_CURRENT_LIMIT_HIGH_STEP == 0);
+	BUILD__ON(MAX77836_CHARGER_CURRENT_LIMIT_HIGH_STEP == 0);
 
 	return i2c_add_driver(&max14577_i2c_driver);
 }

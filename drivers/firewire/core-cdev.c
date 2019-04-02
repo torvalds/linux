@@ -18,7 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -570,7 +570,7 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	/*
 	 * In the case that sizeof(*rsp) doesn't align with the position of the
 	 * data, and the read is short, preserve an extra copy of the data
-	 * to stay compatible with a pre-2.6.27 bug.  Since the bug is harmless
+	 * to stay compatible with a pre-2.6.27 .  Since the  is harmless
 	 * for short reads and some apps depended on it, this is both safe
 	 * and prudent for compatibility.
 	 */
@@ -973,7 +973,7 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	fw_iso_callback_t cb;
 	int ret;
 
-	BUILD_BUG_ON(FW_CDEV_ISO_CONTEXT_TRANSMIT != FW_ISO_CONTEXT_TRANSMIT ||
+	BUILD__ON(FW_CDEV_ISO_CONTEXT_TRANSMIT != FW_ISO_CONTEXT_TRANSMIT ||
 		     FW_CDEV_ISO_CONTEXT_RECEIVE  != FW_ISO_CONTEXT_RECEIVE  ||
 		     FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL !=
 					FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL);
@@ -1163,7 +1163,7 @@ static int ioctl_start_iso(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_start_iso *a = &arg->start_iso;
 
-	BUILD_BUG_ON(
+	BUILD__ON(
 	    FW_CDEV_ISO_CONTEXT_MATCH_TAG0 != FW_ISO_CONTEXT_MATCH_TAG0 ||
 	    FW_CDEV_ISO_CONTEXT_MATCH_TAG1 != FW_ISO_CONTEXT_MATCH_TAG1 ||
 	    FW_CDEV_ISO_CONTEXT_MATCH_TAG2 != FW_ISO_CONTEXT_MATCH_TAG2 ||

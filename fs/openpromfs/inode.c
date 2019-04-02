@@ -145,7 +145,7 @@ static int property_open(struct inode *inode, struct file *file)
 	struct op_inode_info *oi = OP_I(inode);
 	int ret;
 
-	BUG_ON(oi->type != op_inode_prop);
+	_ON(oi->type != op_inode_prop);
 
 	ret = seq_open(file, &property_op);
 	if (!ret) {
@@ -188,7 +188,7 @@ static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry
 	unsigned int ino;
 	int len;
 	
-	BUG_ON(oi->type != op_inode_node);
+	_ON(oi->type != op_inode_node);
 
 	dp = oi->u.node;
 

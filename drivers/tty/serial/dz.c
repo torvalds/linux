@@ -21,13 +21,13 @@
  * [27-JUN-2001] Arnaldo Carvalho de Melo <acme@conectiva.com.br> - cleanups
  *
  * Parts (C) 1999 David Airlie, airlied@linux.ie
- * [07-SEP-99] Bugfixes
+ * [07-SEP-99] fixes
  *
  * [06-Jan-2002] Russell King <rmk@arm.linux.org.uk>
  * Converted to new serial core
  */
 
-#undef DEBUG_DZ
+#undef DE_DZ
 
 #if defined(CONFIG_SERIAL_DZ_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -855,7 +855,7 @@ static void dz_console_print(struct console *co,
 			     unsigned int count)
 {
 	struct dz_port *dport = &dz_mux.dport[co->index];
-#ifdef DEBUG_DZ
+#ifdef DE_DZ
 	prom_printf((char *) str);
 #endif
 	uart_console_write(&dport->port, str, count, dz_console_putchar);

@@ -60,7 +60,7 @@ static void s3c24xx_snd_txctrl(int on)
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	iismod  = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	pr_debug("r: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
+	pr_de("r: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
 
 	if (on) {
 		iisfcon |= S3C2410_IISFCON_TXDMA | S3C2410_IISFCON_TXENABLE;
@@ -90,7 +90,7 @@ static void s3c24xx_snd_txctrl(int on)
 		writel(iismod,  s3c24xx_i2s.regs + S3C2410_IISMOD);
 	}
 
-	pr_debug("w: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
+	pr_de("w: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
 }
 
 static void s3c24xx_snd_rxctrl(int on)
@@ -103,7 +103,7 @@ static void s3c24xx_snd_rxctrl(int on)
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	iismod  = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	pr_debug("r: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
+	pr_de("r: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
 
 	if (on) {
 		iisfcon |= S3C2410_IISFCON_RXDMA | S3C2410_IISFCON_RXENABLE;
@@ -133,7 +133,7 @@ static void s3c24xx_snd_rxctrl(int on)
 		writel(iismod,  s3c24xx_i2s.regs + S3C2410_IISMOD);
 	}
 
-	pr_debug("w: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
+	pr_de("w: IISCON: %x IISMOD: %x IISFCON: %x\n", iiscon, iismod, iisfcon);
 }
 
 /*
@@ -175,7 +175,7 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	u32 iismod;
 
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
-	pr_debug("hw_params r: IISMOD: %x \n", iismod);
+	pr_de("hw_params r: IISMOD: %x \n", iismod);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -200,7 +200,7 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
-	pr_debug("hw_params w: IISMOD: %x \n", iismod);
+	pr_de("hw_params w: IISMOD: %x \n", iismod);
 
 	return 0;
 }
@@ -216,7 +216,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	/* Working copies of register */
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
-	pr_debug("hw_params r: IISMOD: %x\n", iismod);
+	pr_de("hw_params r: IISMOD: %x\n", iismod);
 
 	switch (params_width(params)) {
 	case 8:
@@ -232,7 +232,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
-	pr_debug("hw_params w: IISMOD: %x\n", iismod);
+	pr_de("hw_params w: IISMOD: %x\n", iismod);
 
 	return 0;
 }

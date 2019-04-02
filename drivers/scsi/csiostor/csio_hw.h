@@ -257,7 +257,7 @@ struct csio_hw_params {
 	uint32_t		sf_nsec;		/* # of flash sectors */
 	struct pci_params	pci;
 	uint32_t		log_level;		/* Module-level for
-							 * debug log.
+							 * de log.
 							 */
 };
 
@@ -551,7 +551,7 @@ struct csio_hw {
 	/* MSIX vectors */
 	struct csio_msix_entries msix_entries[CSIO_MAX_MSIX_VECS];
 
-	struct dentry		*debugfs_root;		/* Debug FS */
+	struct dentry		*defs_root;		/* De FS */
 	struct csio_hw_stats	stats;			/* Hw statistics */
 };
 
@@ -620,7 +620,7 @@ csio_us_to_core_ticks(struct csio_hw *hw, uint32_t us)
 #define csio_warn(__hw, __fmt, ...)					\
 			dev_warn(&(__hw)->pdev->dev, __fmt, ##__VA_ARGS__)
 
-#ifdef __CSIO_DEBUG__
+#ifdef __CSIO_DE__
 #define csio_dbg(__hw, __fmt, ...)					\
 			csio_info((__hw), __fmt, ##__VA_ARGS__);
 #else

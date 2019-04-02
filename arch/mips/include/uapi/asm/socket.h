@@ -20,7 +20,7 @@
  */
 #define SOL_SOCKET	0xffff
 
-#define SO_DEBUG	0x0001	/* Record debugging information.  */
+#define SO_DE	0x0001	/* Record deging information.  */
 #define SO_REUSEADDR	0x0004	/* Allow reuse of local addresses.  */
 #define SO_KEEPALIVE	0x0008	/* Keep connections alive and send
 				   SIGPIPE when they die.  */

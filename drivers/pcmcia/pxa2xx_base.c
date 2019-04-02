@@ -192,7 +192,7 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 	switch (val) {
 	case CPUFREQ_PRECHANGE:
 		if (freqs->new > freqs->old) {
-			debug(skt, 2, "new frequency %u.%uMHz > %u.%uMHz, "
+			de(skt, 2, "new frequency %u.%uMHz > %u.%uMHz, "
 			       "pre-updating\n",
 			       freqs->new / 1000, (freqs->new / 100) % 10,
 			       freqs->old / 1000, (freqs->old / 100) % 10);
@@ -202,7 +202,7 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 
 	case CPUFREQ_POSTCHANGE:
 		if (freqs->new < freqs->old) {
-			debug(skt, 2, "new frequency %u.%uMHz < %u.%uMHz, "
+			de(skt, 2, "new frequency %u.%uMHz < %u.%uMHz, "
 			       "post-updating\n",
 			       freqs->new / 1000, (freqs->new / 100) % 10,
 			       freqs->old / 1000, (freqs->old / 100) % 10);

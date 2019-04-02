@@ -117,9 +117,9 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
 	XA_STATE_ORDER(xas, &address_space->i_pages, idx, compound_order(page));
 	unsigned long i, nr = 1UL << compound_order(page);
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(PageSwapCache(page), page);
-	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(PageSwapCache(page), page);
+	VM__ON_PAGE(!PageSwapBacked(page), page);
 
 	page_ref_add(page, nr);
 	SetPageSwapCache(page);
@@ -130,7 +130,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
 		if (xas_error(&xas))
 			goto unlock;
 		for (i = 0; i < nr; i++) {
-			VM_BUG_ON_PAGE(xas.xa_index != idx + i, page);
+			VM__ON_PAGE(xas.xa_index != idx + i, page);
 			set_page_private(page + i, entry.val + i);
 			xas_store(&xas, page + i);
 			xas_next(&xas);
@@ -161,13 +161,13 @@ void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
 	pgoff_t idx = swp_offset(entry);
 	XA_STATE(xas, &address_space->i_pages, idx);
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-	VM_BUG_ON_PAGE(PageWriteback(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageSwapCache(page), page);
+	VM__ON_PAGE(PageWriteback(page), page);
 
 	for (i = 0; i < nr; i++) {
 		void *entry = xas_store(&xas, NULL);
-		VM_BUG_ON_PAGE(entry != page + i, entry);
+		VM__ON_PAGE(entry != page + i, entry);
 		set_page_private(page + i, 0);
 		xas_next(&xas);
 	}
@@ -189,8 +189,8 @@ int add_to_swap(struct page *page)
 	swp_entry_t entry;
 	int err;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageUptodate(page), page);
 
 	entry = get_swap_page(page);
 	if (!entry.val)

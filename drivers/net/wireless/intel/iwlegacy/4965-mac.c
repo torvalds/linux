@@ -64,7 +64,7 @@
  */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi 4965 driver for Linux"
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 #define VD "d"
 #else
 #define VD
@@ -273,7 +273,7 @@ il4965_rx_queue_restock(struct il_priv *il)
 	while (il_rx_queue_space(rxq) > 0 && rxq->free_count) {
 		/* The overwritten rxb must be a used one */
 		rxb = rxq->queue[rxq->write];
-		BUG_ON(rxb && rxb->page);
+		_ON(rxb && rxb->page);
 
 		/* Get next free Rx buffer, remove from free list */
 		element = rxq->rx_free.next;
@@ -381,7 +381,7 @@ il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 
-		BUG_ON(rxb->page);
+		_ON(rxb->page);
 
 		rxb->page = page;
 		rxb->page_dma = page_dma;
@@ -1221,7 +1221,7 @@ int
 il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 {
 	int i;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	int pos = 0;
 	size_t bufsz = 0;
 #endif
@@ -1236,7 +1236,7 @@ il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 		FH49_TSSR_TX_STATUS_REG,
 		FH49_TSSR_TX_ERROR_REG
 	};
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	if (display) {
 		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
 		*buf = kmalloc(bufsz, GFP_KERNEL);
@@ -1324,10 +1324,10 @@ il4965_rx_calc_noise(struct il_priv *il)
 		bcn_silence_b, bcn_silence_c, last_rx_noise);
 }
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 /*
  *  based on the assumption of all stats counter are in DWORD
- *  FIXME: This function is for debugging, do not deal with
+ *  FIXME: This function is for deging, do not deal with
  *  the case of counters roll-over.
  */
 static void
@@ -1382,7 +1382,7 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	      pkt->u.stats.general.common.temperature) ||
 	     ((il->_4965.stats.flag & STATS_REPLY_FLG_HT40_MODE_MSK) !=
 	      (pkt->u.stats.flag & STATS_REPLY_FLG_HT40_MODE_MSK)));
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 	il4965_accumulative_stats(il, (__le32 *) &pkt->u.stats);
 #endif
 
@@ -1414,7 +1414,7 @@ il4965_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATS_CLEAR_MSK) {
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 		memset(&il->_4965.accum_stats, 0,
 		       sizeof(struct il_notif_stats));
 		memset(&il->_4965.delta_stats, 0,
@@ -1689,7 +1689,7 @@ il4965_tx_skb(struct il_priv *il,
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	if (ieee80211_is_auth(fc))
 		D_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -2728,7 +2728,7 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (IEEE80211_SEQ_TO_SN(sc) & 0xff)) {
-				IL_ERR("BUG_ON idx doesn't match seq control"
+				IL_ERR("_ON idx doesn't match seq control"
 				       " idx=%d, seq_idx=%d, seq=%d\n", idx,
 				       IEEE80211_SEQ_TO_SN(sc), hdr->seq_ctrl);
 				return -1;
@@ -2938,7 +2938,7 @@ il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
 	if (scd_flow >= il->hw_params.max_txq_num) {
-		IL_ERR("BUG_ON scd_flow is bigger than number of queues\n");
+		IL_ERR("_ON scd_flow is bigger than number of queues\n");
 		return;
 	}
 
@@ -2948,7 +2948,7 @@ il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 	agg = &il->stations[sta_id].tid[tid].agg;
 	if (unlikely(agg->txq_id != scd_flow)) {
 		/*
-		 * FIXME: this is a uCode bug which need to be addressed,
+		 * FIXME: this is a uCode  which need to be addressed,
 		 * log the information and return for now!
 		 * since it is possible happen very often and in order
 		 * not to fill the syslog, don't enable the logging by default
@@ -2995,7 +2995,7 @@ il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 const char *
 il4965_get_tx_fail_reason(u32 status)
 {
@@ -3033,7 +3033,7 @@ il4965_get_tx_fail_reason(u32 status)
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
 }
-#endif /* CONFIG_IWLEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DE */
 
 static struct il_link_quality_cmd *
 il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
@@ -3996,7 +3996,7 @@ il4965_hw_txq_attach_buf_to_tfd(struct il_priv *il, struct il_tx_queue *txq,
 		return -EINVAL;
 	}
 
-	BUG_ON(addr & ~DMA_BIT_MASK(36));
+	_ON(addr & ~DMA_BIT_MASK(36));
 	if (unlikely(addr & ~IL_TX_DMA_MASK))
 		IL_ERR("Unaligned address = %llx\n", (unsigned long long)addr);
 
@@ -4091,7 +4091,7 @@ il4965_hdl_beacon(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il4965_beacon_notif *beacon =
 	    (struct il4965_beacon_notif *)pkt->u.raw;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	u8 rate = il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	D_RX("beacon status %x retries %d iss %d tsf:0x%.8x%.8x rate %d\n",
@@ -4188,7 +4188,7 @@ il4965_setup_handlers(struct il_priv *il)
 	il->handlers[N_CHANNEL_SWITCH] = il_hdl_csa;
 	il->handlers[N_SPECTRUM_MEASUREMENT] = il_hdl_spectrum_measurement;
 	il->handlers[N_PM_SLEEP] = il_hdl_pm_sleep;
-	il->handlers[N_PM_DEBUG_STATS] = il_hdl_pm_debug_stats;
+	il->handlers[N_PM_DE_STATS] = il_hdl_pm_de_stats;
 	il->handlers[N_BEACON] = il4965_hdl_beacon;
 
 	/*
@@ -4258,9 +4258,9 @@ il4965_rx_handle(struct il_priv *il)
 		rxb = rxq->queue[i];
 
 		/* If an RXB doesn't have a Rx queue slot associated with it,
-		 * then a bug has been introduced in the queue refilling
+		 * then a  has been introduced in the queue refilling
 		 * routines -- catch it here */
-		BUG_ON(rxb == NULL);
+		_ON(rxb == NULL);
 
 		rxq->queue[i] = NULL;
 
@@ -4366,7 +4366,7 @@ il4965_irq_tasklet(struct il_priv *il)
 	u32 inta_fh;
 	unsigned long flags;
 	u32 i;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	u32 inta_mask;
 #endif
 
@@ -4384,9 +4384,9 @@ il4965_irq_tasklet(struct il_priv *il)
 	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 	_il_wr(il, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & IL_DL_ISR) {
-		/* just for debug */
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & IL_DL_ISR) {
+		/* just for de */
 		inta_mask = _il_rd(il, CSR_INT_MASK);
 		D_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n", inta,
 		      inta_mask, inta_fh);
@@ -4418,8 +4418,8 @@ il4965_irq_tasklet(struct il_priv *il)
 
 		return;
 	}
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & (IL_DL_ISR)) {
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & (IL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			D_ISR("Scheduler finished to transmit "
@@ -4434,7 +4434,7 @@ il4965_irq_tasklet(struct il_priv *il)
 		}
 	}
 #endif
-	/* Safely ignore these bits for debug checks below */
+	/* Safely ignore these bits for de checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
 	/* HW RF KILL switch toggled */
@@ -4533,8 +4533,8 @@ il4965_irq_tasklet(struct il_priv *il)
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		il_enable_rfkill_int(il);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & (IL_DL_ISR)) {
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & (IL_DL_ISR)) {
 		inta = _il_rd(il, CSR_INT);
 		inta_mask = _il_rd(il, CSR_INT_MASK);
 		inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
@@ -4550,29 +4550,29 @@ il4965_irq_tasklet(struct il_priv *il)
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 
 /*
  * The following adds a new attribute to the sysfs representation
  * of this device driver (i.e. a new file in /sys/class/net/wlan0/device/)
- * used for controlling the debug level.
+ * used for controlling the de level.
  *
  * See the level definitions in iwl for details.
  *
- * The debug_level being managed using sysfs below is a per device debug
- * level that is used instead of the global debug level if it (the per
- * device debug level) is set.
+ * The de_level being managed using sysfs below is a per device de
+ * level that is used instead of the global de level if it (the per
+ * device de level) is set.
  */
 static ssize_t
-il4965_show_debug_level(struct device *d, struct device_attribute *attr,
+il4965_show_de_level(struct device *d, struct device_attribute *attr,
 			char *buf)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	return sprintf(buf, "0x%08X\n", il_get_debug_level(il));
+	return sprintf(buf, "0x%08X\n", il_get_de_level(il));
 }
 
 static ssize_t
-il4965_store_debug_level(struct device *d, struct device_attribute *attr,
+il4965_store_de_level(struct device *d, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	struct il_priv *il = dev_get_drvdata(d);
@@ -4583,15 +4583,15 @@ il4965_store_debug_level(struct device *d, struct device_attribute *attr,
 	if (ret)
 		IL_ERR("%s is not in hex or decimal form.\n", buf);
 	else
-		il->debug_level = val;
+		il->de_level = val;
 
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(debug_level, 0644, il4965_show_debug_level,
-		   il4965_store_debug_level);
+static DEVICE_ATTR(de_level, 0644, il4965_show_de_level,
+		   il4965_store_de_level);
 
-#endif /* CONFIG_IWLEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DE */
 
 static ssize_t
 il4965_show_temperature(struct device *d, struct device_attribute *attr,
@@ -4645,8 +4645,8 @@ static DEVICE_ATTR(tx_power, 0644, il4965_show_tx_power,
 static struct attribute *il_sysfs_entries[] = {
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLEGACY_DEBUG
-	&dev_attr_debug_level.attr,
+#ifdef CONFIG_IWLEGACY_DE
+	&dev_attr_de_level.attr,
 #endif
 	NULL
 };
@@ -4982,7 +4982,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/**************************************************
 	 * This is still part of probe() in a sense...
 	 *
-	 * 9. Setup and register with mac80211 and debugfs
+	 * 9. Setup and register with mac80211 and defs
 	 **************************************************/
 	err = il4965_mac_setup_register(il, max_probe_length);
 	if (err)
@@ -5042,10 +5042,10 @@ static const char *const desc_lookup_text[] = {
 	"NMI_TRM_HW_ER",
 	"NMI_INTERRUPT_TRM",
 	"NMI_INTERRUPT_BREAK_POINT",
-	"DEBUG_0",
-	"DEBUG_1",
-	"DEBUG_2",
-	"DEBUG_3",
+	"DE_0",
+	"DE_1",
+	"DE_2",
+	"DE_3",
 };
 
 static struct {
@@ -5256,7 +5256,7 @@ il4965_alive_notify(struct il_priv *il)
 	/* reset to 0 to enable all the queue first */
 	il->txq_ctx_active_msk = 0;
 	/* Map each Tx/cmd queue to its corresponding fifo */
-	BUILD_BUG_ON(ARRAY_SIZE(default_queue_to_tx_fifo) != 7);
+	BUILD__ON(ARRAY_SIZE(default_queue_to_tx_fifo) != 7);
 
 	for (i = 0; i < ARRAY_SIZE(default_queue_to_tx_fifo); i++) {
 		int ac = default_queue_to_tx_fifo[i];
@@ -6516,8 +6516,8 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
 	il->ops = &il4965_ops;
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	il->debugfs_ops = &il4965_debugfs_ops;
+#ifdef CONFIG_IWLEGACY_DEFS
+	il->defs_ops = &il4965_defs_ops;
 #endif
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
@@ -6652,7 +6652,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 8. Enable interrupts and read RFKILL state
 	 *********************************************/
 
-	/* enable rfkill interrupt: hw bug w/a */
+	/* enable rfkill interrupt: hw  w/a */
 	pci_read_config_word(il->pci_dev, PCI_COMMAND, &pci_cmd);
 	if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
 		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
@@ -6849,9 +6849,9 @@ il4965_exit(void)
 module_exit(il4965_exit);
 module_init(il4965_init);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
-module_param_named(debug, il_debug_level, uint, 0644);
-MODULE_PARM_DESC(debug, "debug output mask");
+#ifdef CONFIG_IWLEGACY_DE
+module_param_named(de, il_de_level, uint, 0644);
+MODULE_PARM_DESC(de, "de output mask");
 #endif
 
 module_param_named(swcrypto, il4965_mod_params.sw_crypto, int, 0444);

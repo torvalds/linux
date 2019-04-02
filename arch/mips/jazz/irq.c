@@ -137,7 +137,7 @@ void __init plat_time_init(void)
 	struct irqaction *action = &r4030_timer_irqaction;
 	unsigned int cpu = smp_processor_id();
 
-	BUG_ON(HZ != 100);
+	_ON(HZ != 100);
 
 	cd->cpumask		= cpumask_of(cpu);
 	clockevents_register_device(cd);

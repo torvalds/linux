@@ -12,9 +12,9 @@
 /*
  * Since we have only two-level page tables, these are trivial
  */
-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
+#define pmd_alloc_one(mm, addr)		({ (); ((pmd_t *)2); })
 #define pmd_free(mm, pmd)			do { } while (0)
-#define pgd_populate(mm, pmd, pte)	BUG()
+#define pgd_populate(mm, pmd, pte)	()
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
 extern pgd_t *pgd_alloc(struct mm_struct *mm);
@@ -71,7 +71,7 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmdp, pte_t * ptep)
 	unsigned long pte_ptr = (unsigned long)ptep;
 	unsigned long pmdval;
 
-	BUG_ON(mm != &init_mm);
+	_ON(mm != &init_mm);
 
 	/*
 	 * The pmd must be loaded with the physical
@@ -86,7 +86,7 @@ pmd_populate(struct mm_struct *mm, pmd_t * pmdp, pgtable_t ptep)
 {
 	unsigned long pmdval;
 
-	BUG_ON(mm == &init_mm);
+	_ON(mm == &init_mm);
 
 	pmdval = page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE;
 	set_pmd(pmdp, __pmd(pmdval));

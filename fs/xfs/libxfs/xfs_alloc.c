@@ -434,7 +434,7 @@ xfs_alloc_fixup_trees(
 	 * Look up the record in the by-size tree if necessary.
 	 */
 	if (flags & XFSA_FIXUP_CNT_OK) {
-#ifdef DEBUG
+#ifdef DE
 		if ((error = xfs_alloc_get_rec(cnt_cur, &nfbno1, &nflen1, &i)))
 			return error;
 		XFS_WANT_CORRUPTED_RETURN(mp,
@@ -449,7 +449,7 @@ xfs_alloc_fixup_trees(
 	 * Look up the record in the by-block tree if necessary.
 	 */
 	if (flags & XFSA_FIXUP_BNO_OK) {
-#ifdef DEBUG
+#ifdef DE
 		if ((error = xfs_alloc_get_rec(bno_cur, &nfbno1, &nflen1, &i)))
 			return error;
 		XFS_WANT_CORRUPTED_RETURN(mp,
@@ -461,7 +461,7 @@ xfs_alloc_fixup_trees(
 		XFS_WANT_CORRUPTED_RETURN(mp, i == 1);
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	if (bno_cur->bc_nlevels == 1 && cnt_cur->bc_nlevels == 1) {
 		struct xfs_btree_block	*bnoblock;
 		struct xfs_btree_block	*cntblock;
@@ -1012,7 +1012,7 @@ xfs_alloc_ag_vextent_near(
 	xfs_extlen_t	rlen;		/* length of returned extent */
 	bool		busy;
 	unsigned	busy_gen;
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 * Randomly don't execute the first algorithm.
 	 */
@@ -1084,7 +1084,7 @@ restart:
 		xfs_extlen_t	blen=0;
 		xfs_agblock_t	bnew=0;
 
-#ifdef DEBUG
+#ifdef DE
 		if (dofirst)
 			break;
 #endif
@@ -1823,7 +1823,7 @@ xfs_free_ag_extent(
 		if ((error = xfs_btree_decrement(bno_cur, 0, &i)))
 			goto error0;
 		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, error0);
-#ifdef DEBUG
+#ifdef DE
 		/*
 		 * Check that this is the right record: delete didn't
 		 * mangle the cursor.
@@ -2753,7 +2753,7 @@ xfs_alloc_read_agf(
 		pag->pagf_init = 1;
 		pag->pagf_agflreset = xfs_agfl_needs_reset(mp, agf);
 	}
-#ifdef DEBUG
+#ifdef DE
 	else if (!XFS_FORCED_SHUTDOWN(mp)) {
 		ASSERT(pag->pagf_freeblks == be32_to_cpu(agf->agf_freeblks));
 		ASSERT(pag->pagf_btreeblks == be32_to_cpu(agf->agf_btreeblks));
@@ -2948,7 +2948,7 @@ xfs_alloc_vextent(
 		args->fsbno = NULLFSBLOCK;
 	else {
 		args->fsbno = XFS_AGB_TO_FSB(mp, args->agno, args->agbno);
-#ifdef DEBUG
+#ifdef DE
 		ASSERT(args->len >= args->minlen);
 		ASSERT(args->len <= args->maxlen);
 		ASSERT(args->agbno % args->alignment == 0);

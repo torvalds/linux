@@ -1046,7 +1046,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 		zmd->mblk_primary = 1;
 	}
 
-	dmz_dev_debug(zmd->dev, "Using super block %u (gen %llu)",
+	dmz_dev_de(zmd->dev, "Using super block %u (gen %llu)",
 		      zmd->mblk_primary, zmd->sb_gen);
 
 	return 0;
@@ -2008,7 +2008,7 @@ int dmz_validate_blocks(struct dmz_metadata *zmd, struct dm_zone *zone,
 	struct dmz_mblock *mblk;
 	unsigned int n = 0;
 
-	dmz_dev_debug(zmd->dev, "=> VALIDATE zone %u, block %llu, %u blocks",
+	dmz_dev_de(zmd->dev, "=> VALIDATE zone %u, block %llu, %u blocks",
 		      dmz_id(zmd, zone), (unsigned long long)chunk_block,
 		      nr_blocks);
 
@@ -2088,7 +2088,7 @@ int dmz_invalidate_blocks(struct dmz_metadata *zmd, struct dm_zone *zone,
 	struct dmz_mblock *mblk;
 	unsigned int n = 0;
 
-	dmz_dev_debug(zmd->dev, "=> INVALIDATE zone %u, block %llu, %u blocks",
+	dmz_dev_de(zmd->dev, "=> INVALIDATE zone %u, block %llu, %u blocks",
 		      dmz_id(zmd, zone), (u64)chunk_block, nr_blocks);
 
 	WARN_ON(chunk_block + nr_blocks > zmd->dev->zone_nr_blocks);
@@ -2455,12 +2455,12 @@ int dmz_ctr_metadata(struct dmz_dev *dev, struct dmz_metadata **metadata)
 	dmz_dev_info(dev, "  %u reserved sequential data zones",
 		     zmd->nr_reserved_seq);
 
-	dmz_dev_debug(dev, "Format:");
-	dmz_dev_debug(dev, "%u metadata blocks per set (%u max cache)",
+	dmz_dev_de(dev, "Format:");
+	dmz_dev_de(dev, "%u metadata blocks per set (%u max cache)",
 		      zmd->nr_meta_blocks, zmd->max_nr_mblks);
-	dmz_dev_debug(dev, "  %u data zone mapping blocks",
+	dmz_dev_de(dev, "  %u data zone mapping blocks",
 		      zmd->nr_map_blocks);
-	dmz_dev_debug(dev, "  %u bitmap blocks",
+	dmz_dev_de(dev, "  %u bitmap blocks",
 		      zmd->nr_bitmap_blocks);
 
 	*metadata = zmd;

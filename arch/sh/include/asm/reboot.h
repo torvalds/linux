@@ -2,7 +2,7 @@
 #ifndef __ASM_SH_REBOOT_H
 #define __ASM_SH_REBOOT_H
 
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
 struct pt_regs;
 

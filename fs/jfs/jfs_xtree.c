@@ -29,7 +29,7 @@
 #include "jfs_dmap.h"
 #include "jfs_dinode.h"
 #include "jfs_superblock.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  * xtree local flag
@@ -3446,7 +3446,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 		p->header.flag |= BT_LEAF;
 		p->header.nextindex = cpu_to_le16(XTENTRYSTART);
 
-		XT_PUTPAGE(mp);	/* debug */
+		XT_PUTPAGE(mp);	/* de */
 		goto out;
 	} else {
 		if (log) {	/* COMMIT_PWMAP */
@@ -3604,7 +3604,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 				JFS_IP(ip)->mode2 |= INLINEEA;
 			}
 
-			XT_PUTPAGE(mp);	/* debug */
+			XT_PUTPAGE(mp);	/* de */
 			goto out;
 		} else {
 			if (log) {	/* COMMIT_PWMAP */

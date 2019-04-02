@@ -22,14 +22,14 @@
 #include <linux/extable.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/set_memory.h>
 #include <linux/stringify.h>
 #include <linux/vmalloc.h>
 #include <asm/traps.h>
 #include <asm/ptrace.h>
 #include <asm/cacheflush.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/system_misc.h>
 #include <asm/insn.h>
 #include <linux/uaccess.h>
@@ -179,17 +179,17 @@ static void __kprobes set_current_kprobe(struct kprobe *p)
  * generated.
  * SPSR's D bit shows the value of PSTATE.D immediately before the
  * exception was taken. PSTATE.D is set while entering into any exception
- * mode, however software clears it for any normal (none-debug-exception)
+ * mode, however software clears it for any normal (none-de-exception)
  * mode in the exception entry. Therefore, when we are entering into kprobe
  * breakpoint handler from any normal mode then SPSR.D bit is already
- * cleared, however it is set when we are entering from any debug exception
+ * cleared, however it is set when we are entering from any de exception
  * mode.
  * Since we always need to generate single step exception after a kprobe
  * breakpoint exception therefore we need to clear it unconditionally, when
  * we become sure that the current breakpoint exception is for kprobe.
  */
 static void __kprobes
-spsr_set_debug_flag(struct pt_regs *regs, int mask)
+spsr_set_de_flag(struct pt_regs *regs, int mask)
 {
 	unsigned long spsr = regs->pstate;
 
@@ -259,7 +259,7 @@ static void __kprobes setup_singlestep(struct kprobe *p,
 
 		set_ss_context(kcb, slot);	/* mark pending ss */
 
-		spsr_set_debug_flag(regs, 0);
+		spsr_set_de_flag(regs, 0);
 
 		/* IRQs and single stepping do not mix well. */
 		kprobes_save_local_irqflag(kcb, regs);
@@ -285,7 +285,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 	case KPROBE_REENTER:
 		pr_warn("Unrecoverable kprobe detected.\n");
 		dump_kprobe(p);
-		BUG();
+		();
 		break;
 	default:
 		WARN_ON(1);
@@ -341,7 +341,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 		 */
 		instruction_pointer_set(regs, (unsigned long) cur->addr);
 		if (!instruction_pointer(regs))
-			BUG();
+			();
 
 		kernel_disable_single_step();
 
@@ -420,7 +420,7 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 	/*
 	 * The breakpoint instruction was removed right
 	 * after we hit it.  Another cpu has removed
-	 * either a probepoint or a debugger breakpoint
+	 * either a probepoint or a deger breakpoint
 	 * at this address.  In either case, no further
 	 * handling of this interrupt is appropriate.
 	 * Return back to original instruction, and continue.
@@ -473,7 +473,7 @@ kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
 
 /*
  * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
- * This blacklist is exposed to userspace via debugfs (kprobes/blacklist).
+ * This blacklist is exposed to userspace via defs (kprobes/blacklist).
  */
 int __init arch_populate_kprobe_blacklist(void)
 {

@@ -26,7 +26,7 @@ static inline void read_endio(struct bio *bio)
 		struct page *page = bvec->bv_page;
 
 		/* page is already locked */
-		DBG_BUGON(PageUptodate(page));
+		DBG_ON(PageUptodate(page));
 
 		if (unlikely(err))
 			SetPageError(page);
@@ -55,17 +55,17 @@ struct page *__erofs_get_meta_page(struct super_block *sb,
 repeat:
 	page = find_or_create_page(mapping, blkaddr, gfp);
 	if (unlikely(!page)) {
-		DBG_BUGON(nofail);
+		DBG_ON(nofail);
 		return ERR_PTR(-ENOMEM);
 	}
-	DBG_BUGON(!PageLocked(page));
+	DBG_ON(!PageLocked(page));
 
 	if (!PageUptodate(page)) {
 		struct bio *bio;
 
 		bio = erofs_grab_bio(sb, blkaddr, 1, read_endio, nofail);
 		if (IS_ERR(bio)) {
-			DBG_BUGON(nofail);
+			DBG_ON(nofail);
 			err = PTR_ERR(bio);
 			goto err_out;
 		}
@@ -144,7 +144,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 
 		/* inline data should locate in one meta block */
 		if (erofs_blkoff(map->m_pa) + map->m_plen > PAGE_SIZE) {
-			DBG_BUGON(1);
+			DBG_ON(1);
 			err = -EIO;
 			goto err_out;
 		}
@@ -153,7 +153,7 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 	} else {
 		errln("internal error @ nid: %llu (size %llu), m_la 0x%llx",
 		      vi->nid, inode->i_size, map->m_la);
-		DBG_BUGON(1);
+		DBG_ON(1);
 		err = -EIO;
 		goto err_out;
 	}
@@ -192,7 +192,7 @@ static inline struct bio *erofs_read_raw_page(struct bio *bio,
 	erofs_off_t current_block = (erofs_off_t)page->index;
 	int err;
 
-	DBG_BUGON(!nblocks);
+	DBG_ON(!nblocks);
 
 	if (PageUptodate(page)) {
 		err = 0;
@@ -235,7 +235,7 @@ submit_bio_retry:
 		}
 
 		/* for RAW access mode, m_plen must be equal to m_llen */
-		DBG_BUGON(map.m_plen != map.m_llen);
+		DBG_ON(map.m_plen != map.m_llen);
 
 		blknr = erofs_blknr(map.m_pa);
 		blkoff = erofs_blkoff(map.m_pa);
@@ -245,7 +245,7 @@ submit_bio_retry:
 			void *vsrc, *vto;
 			struct page *ipage;
 
-			DBG_BUGON(map.m_plen > PAGE_SIZE);
+			DBG_ON(map.m_plen > PAGE_SIZE);
 
 			ipage = erofs_get_meta_page(inode->i_sb, blknr, 0);
 
@@ -272,7 +272,7 @@ submit_bio_retry:
 		}
 
 		/* pa must be block-aligned for raw reading */
-		DBG_BUGON(erofs_blkoff(map.m_pa));
+		DBG_ON(erofs_blkoff(map.m_pa));
 
 		/* max # of continuous pages */
 		if (nblocks > DIV_ROUND_UP(map.m_plen, PAGE_SIZE))
@@ -340,7 +340,7 @@ static int erofs_raw_access_readpage(struct file *file, struct page *page)
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	DBG_BUGON(bio);	/* since we have only one bio -- must be NULL */
+	DBG_ON(bio);	/* since we have only one bio -- must be NULL */
 	return 0;
 }
 
@@ -379,7 +379,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 		/* pages could still be locked */
 		put_page(page);
 	}
-	DBG_BUGON(!list_empty(pages));
+	DBG_ON(!list_empty(pages));
 
 	/* the rare case (end in gaps) */
 	if (unlikely(bio))

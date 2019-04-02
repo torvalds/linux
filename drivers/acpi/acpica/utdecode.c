@@ -36,7 +36,7 @@ const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES] = {
 	ACPI_NS_NEWSCOPE,	/* 13 Thermal          */
 	ACPI_NS_NORMAL,		/* 14 buffer_field     */
 	ACPI_NS_NORMAL,		/* 15 ddb_handle       */
-	ACPI_NS_NORMAL,		/* 16 Debug Object     */
+	ACPI_NS_NORMAL,		/* 16 De Object     */
 	ACPI_NS_NORMAL,		/* 17 def_field        */
 	ACPI_NS_NORMAL,		/* 18 bank_field       */
 	ACPI_NS_NORMAL,		/* 19 index_field      */
@@ -61,7 +61,7 @@ const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES] = {
  *
  * RETURN:      Decoded region space_id name
  *
- * DESCRIPTION: Translate a Space ID into a name string (Debug only)
+ * DESCRIPTION: Translate a Space ID into a name string (De only)
  *
  ******************************************************************************/
 
@@ -105,7 +105,7 @@ const char *acpi_ut_get_region_name(u8 space_id)
  *
  * RETURN:      Decoded event ID name
  *
- * DESCRIPTION: Translate a Event ID into a name string (Debug only)
+ * DESCRIPTION: Translate a Event ID into a name string (De only)
  *
  ******************************************************************************/
 
@@ -137,7 +137,7 @@ const char *acpi_ut_get_event_name(u32 event_id)
  *
  * RETURN:      Decoded ACPI object type name
  *
- * DESCRIPTION: Translate a Type ID into a name string (Debug only)
+ * DESCRIPTION: Translate a Type ID into a name string (De only)
  *
  ******************************************************************************/
 
@@ -171,7 +171,7 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 13 */ "Thermal",
 	/* 14 */ "BufferField",
 	/* 15 */ "DdbHandle",
-	/* 16 */ "DebugObject",
+	/* 16 */ "DeObject",
 	/* 17 */ "RegionField",
 	/* 18 */ "BankField",
 	/* 19 */ "IndexField",
@@ -203,7 +203,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 	ACPI_FUNCTION_TRACE(ut_get_object_type_name);
 
 	if (!obj_desc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
 		return_STR("[NULL Object Descriptor]");
 	}
 
@@ -211,7 +211,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 
 	if ((ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) &&
 	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_NAMED)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Invalid object descriptor type: 0x%2.2X [%s] (%p)\n",
 				  ACPI_GET_DESCRIPTOR_TYPE(obj_desc),
 				  acpi_ut_get_descriptor_name(obj_desc),
@@ -336,7 +336,7 @@ static const char *acpi_gbl_ref_class_names[] = {
 	/* 03 */ "Index",
 	/* 04 */ "DdbHandle",
 	/* 05 */ "Named Object",
-	/* 06 */ "Debug"
+	/* 06 */ "De"
 };
 
 const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
@@ -369,11 +369,11 @@ const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
  *
  * RETURN:      Decoded name of the internal mutex
  *
- * DESCRIPTION: Translate a mutex ID into a name string (Debug only)
+ * DESCRIPTION: Translate a mutex ID into a name string (De only)
  *
  ******************************************************************************/
 
-/* Names for internal mutex objects, used for debug output */
+/* Names for internal mutex objects, used for de output */
 
 static const char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 	"ACPI_MTX_Interpreter",
@@ -394,10 +394,10 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id)
 	return (acpi_gbl_mutex_names[mutex_id]);
 }
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 
 /*
- * Strings and procedures used for debug only
+ * Strings and procedures used for de only
  */
 
 /*******************************************************************************
@@ -412,7 +412,7 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id)
  *
  ******************************************************************************/
 
-/* Names for Notify() values, used for debug output */
+/* Names for Notify() values, used for de output */
 
 static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 	/* 00 */ "Bus Check",
@@ -515,7 +515,7 @@ const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
  *
  * DESCRIPTION: Decode an ARGP_* parser type, as defined in the amlcode.h file,
  *              and used in the acopcode.h file. For example, ARGP_TERMARG.
- *              Used for debug only.
+ *              Used for de only.
  *
  ******************************************************************************/
 

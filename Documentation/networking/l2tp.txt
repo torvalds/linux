@@ -121,7 +121,7 @@ Userspace may control behavior of the tunnel or session using
 setsockopt and ioctl on the PPPoX socket. The following socket
 options are supported:-
 
-DEBUG     - bitmask of debug message categories. See below.
+DE     - bitmask of de message categories. See below.
 SENDSEQ   - 0 => don't send packets with sequence numbers
             1 => send packets with sequence numbers
 RECVSEQ   - 0 => receive packet sequence numbers are optional
@@ -130,7 +130,7 @@ LNSMODE   - 0 => act as LAC.
             1 => act as LNS.
 REORDERTO - reorder timeout (in millisecs). If 0, don't try to reorder.
 
-Only the DEBUG option is supported by the special tunnel management
+Only the DE option is supported by the special tunnel management
 PPPoX socket.
 
 In addition to the standard PPP ioctls, a PPPIOCGL2TPSTATS is provided
@@ -166,35 +166,35 @@ using parameters sent in the L2TP_CMD_TUNNEL_CREATE netlink
 request. The "ip" utility of iproute2 has commands for managing static
 L2TPv3 tunnels; do "ip l2tp help" for more information.
 
-Debugging
+Deging
 =========
 
-The driver supports a flexible debug scheme where kernel trace
+The driver supports a flexible de scheme where kernel trace
 messages may be optionally enabled per tunnel and per session. Care is
-needed when debugging a live system since the messages are not
+needed when deging a live system since the messages are not
 rate-limited and a busy system could be swamped. Userspace uses
-setsockopt on the PPPoX socket to set a debug mask.
+setsockopt on the PPPoX socket to set a de mask.
 
-The following debug mask bits are available:
+The following de mask bits are available:
 
-L2TP_MSG_DEBUG    verbose debug (if compiled in)
+L2TP_MSG_DE    verbose de (if compiled in)
 L2TP_MSG_CONTROL  userspace - kernel interface
 L2TP_MSG_SEQ      sequence numbers handling
 L2TP_MSG_DATA     data packets
 
-If enabled, files under a l2tp debugfs directory can be used to dump
+If enabled, files under a l2tp defs directory can be used to dump
 kernel state about L2TP tunnels and sessions. To access it, the
-debugfs filesystem must first be mounted.
+defs filesystem must first be mounted.
 
-# mount -t debugfs debugfs /debug
+# mount -t defs defs /de
 
 Files under the l2tp directory can then be accessed.
 
-# cat /debug/l2tp/tunnels
+# cat /de/l2tp/tunnels
 
-The debugfs files should not be used by applications to obtain L2TP
+The defs files should not be used by applications to obtain L2TP
 state information because the file format is subject to change. It is
-implemented to provide extra debug information to help diagnose
+implemented to provide extra de information to help diagnose
 problems.) Users should use the netlink API.
 
 /proc/net/pppol2tp is also provided for backwards compatibility with

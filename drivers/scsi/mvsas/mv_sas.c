@@ -1047,7 +1047,7 @@ void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st)
 				mvs_get_d2h_reg(mvi, i, id);
 			} else {
 				u32 tmp;
-				dev_printk(KERN_DEBUG, mvi->dev,
+				dev_printk(KERN_DE, mvi->dev,
 					"Phy%d : No sig fis\n", i);
 				tmp = MVS_CHIP_DISP->read_port_irq_mask(mvi, i);
 				MVS_CHIP_DISP->write_port_irq_mask(mvi, i,
@@ -1362,12 +1362,12 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		}
 	}
 ex_err:
-	BUG_ON(retry == 3 && task != NULL);
+	_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
 	return res;
 }
 
-static int mvs_debug_issue_ssp_tmf(struct domain_device *dev,
+static int mvs_de_issue_ssp_tmf(struct domain_device *dev,
 				u8 *lun, struct mvs_tmf_task *tmf)
 {
 	struct sas_ssp_task ssp_task;
@@ -1383,7 +1383,7 @@ static int mvs_debug_issue_ssp_tmf(struct domain_device *dev,
 
 /*  Standard mandates link reset for ATA  (type 0)
     and hard reset for SSP (type 1) , only for RECOVERY */
-static int mvs_debug_I_T_nexus_reset(struct domain_device *dev)
+static int mvs_de_I_T_nexus_reset(struct domain_device *dev)
 {
 	int rc;
 	struct sas_phy *phy = sas_get_local_phy(dev);
@@ -1406,7 +1406,7 @@ int mvs_lu_reset(struct domain_device *dev, u8 *lun)
 
 	tmf_task.tmf = TMF_LU_RESET;
 	mvi_dev->dev_status = MVS_DEV_EH;
-	rc = mvs_debug_issue_ssp_tmf(dev, lun, &tmf_task);
+	rc = mvs_de_issue_ssp_tmf(dev, lun, &tmf_task);
 	if (rc == TMF_RESP_FUNC_COMPLETE) {
 		spin_lock_irqsave(&mvi->lock, flags);
 		mvs_release_task(mvi, dev);
@@ -1429,7 +1429,7 @@ int mvs_I_T_nexus_reset(struct domain_device *dev)
 		return TMF_RESP_FUNC_COMPLETE;
 	else
 		mvi_dev->dev_status = MVS_DEV_NORMAL;
-	rc = mvs_debug_I_T_nexus_reset(dev);
+	rc = mvs_de_I_T_nexus_reset(dev);
 	mv_printk("%s for device[%x]:rc= %d\n",
 		__func__, mvi_dev->device_id, rc);
 
@@ -1463,7 +1463,7 @@ int mvs_query_task(struct sas_task *task)
 		tmf_task.tmf = TMF_QUERY_TASK;
 		tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
 
-		rc = mvs_debug_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+		rc = mvs_de_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
 		switch (rc) {
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
@@ -1518,7 +1518,7 @@ int mvs_abort_task(struct sas_task *task)
 		tmf_task.tmf = TMF_ABORT_TASK;
 		tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
 
-		rc = mvs_debug_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+		rc = mvs_de_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
 
 		/* if successful, clear the task and callback forwards.*/
 		if (rc == TMF_RESP_FUNC_COMPLETE) {
@@ -1561,7 +1561,7 @@ int mvs_abort_task_set(struct domain_device *dev, u8 *lun)
 	struct mvs_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	rc = mvs_debug_issue_ssp_tmf(dev, lun, &tmf_task);
+	rc = mvs_de_issue_ssp_tmf(dev, lun, &tmf_task);
 
 	return rc;
 }
@@ -1572,7 +1572,7 @@ int mvs_clear_aca(struct domain_device *dev, u8 *lun)
 	struct mvs_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_CLEAR_ACA;
-	rc = mvs_debug_issue_ssp_tmf(dev, lun, &tmf_task);
+	rc = mvs_de_issue_ssp_tmf(dev, lun, &tmf_task);
 
 	return rc;
 }
@@ -1583,7 +1583,7 @@ int mvs_clear_task_set(struct domain_device *dev, u8 *lun)
 	struct mvs_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_CLEAR_TASK_SET;
-	rc = mvs_debug_issue_ssp_tmf(dev, lun, &tmf_task);
+	rc = mvs_de_issue_ssp_tmf(dev, lun, &tmf_task);
 
 	return rc;
 }

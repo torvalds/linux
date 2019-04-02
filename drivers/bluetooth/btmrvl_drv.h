@@ -109,8 +109,8 @@ struct btmrvl_private {
 	int (*hw_wakeup_firmware)(struct btmrvl_private *priv);
 	int (*hw_process_int_status)(struct btmrvl_private *priv);
 	spinlock_t driver_lock;		/* spinlock used by driver */
-#ifdef CONFIG_DEBUG_FS
-	void *debugfs_data;
+#ifdef CONFIG_DE_FS
+	void *defs_data;
 #endif
 	bool surprise_removed;
 };
@@ -181,7 +181,7 @@ int btmrvl_enable_ps(struct btmrvl_private *priv);
 int btmrvl_prepare_command(struct btmrvl_private *priv);
 int btmrvl_enable_hs(struct btmrvl_private *priv);
 
-#ifdef CONFIG_DEBUG_FS
-void btmrvl_debugfs_init(struct hci_dev *hdev);
-void btmrvl_debugfs_remove(struct hci_dev *hdev);
+#ifdef CONFIG_DE_FS
+void btmrvl_defs_init(struct hci_dev *hdev);
+void btmrvl_defs_remove(struct hci_dev *hdev);
 #endif

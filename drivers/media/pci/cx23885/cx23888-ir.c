@@ -25,9 +25,9 @@
 #include <media/v4l2-device.h>
 #include <media/rc-core.h>
 
-static unsigned int ir_888_debug;
-module_param(ir_888_debug, int, 0644);
-MODULE_PARM_DESC(ir_888_debug, "enable debug messages [CX23888 IR controller]");
+static unsigned int ir_888_de;
+module_param(ir_888_de, int, 0644);
+MODULE_PARM_DESC(ir_888_de, "enable de messages [CX23888 IR controller]");
 
 #define CX23888_IR_REG_BASE	0x170000
 /*
@@ -553,13 +553,13 @@ static int cx23888_ir_irq_handler(struct v4l2_subdev *sd, u32 status,
 	roe = irqen & IRQEN_ROE; /* Rx FIFO Over Run IRQ Enable */
 
 	*handled = false;
-	v4l2_dbg(2, ir_888_debug, sd, "IRQ Status:  %s %s %s %s %s %s\n",
+	v4l2_dbg(2, ir_888_de, sd, "IRQ Status:  %s %s %s %s %s %s\n",
 		 tsr ? "tsr" : "   ", rsr ? "rsr" : "   ",
 		 rto ? "rto" : "   ", ror ? "ror" : "   ",
 		 stats & STATS_TBY ? "tby" : "   ",
 		 stats & STATS_RBY ? "rby" : "   ");
 
-	v4l2_dbg(2, ir_888_debug, sd, "IRQ Enables: %s %s %s %s\n",
+	v4l2_dbg(2, ir_888_de, sd, "IRQ Enables: %s %s %s %s\n",
 		 tse ? "tse" : "   ", rse ? "rse" : "   ",
 		 rte ? "rte" : "   ", roe ? "roe" : "   ");
 
@@ -699,10 +699,10 @@ static int cx23888_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 		p->ir_core_data = (struct ir_raw_event)
 			{ .pulse = u, .duration = v, .timeout = w };
 
-		v4l2_dbg(2, ir_888_debug, sd, "rx read: %10u ns  %s  %s\n",
+		v4l2_dbg(2, ir_888_de, sd, "rx read: %10u ns  %s  %s\n",
 			 v, u ? "mark" : "space", w ? "(timed out)" : "");
 		if (w)
-			v4l2_dbg(2, ir_888_debug, sd, "rx read: end of rx\n");
+			v4l2_dbg(2, ir_888_de, sd, "rx read: end of rx\n");
 	}
 	return 0;
 }
@@ -1075,7 +1075,7 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cx23888_ir_g_register(struct v4l2_subdev *sd,
 				 struct v4l2_dbg_register *reg)
 {
@@ -1108,7 +1108,7 @@ static int cx23888_ir_s_register(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_core_ops cx23888_ir_core_ops = {
 	.log_status = cx23888_ir_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = cx23888_ir_g_register,
 	.s_register = cx23888_ir_s_register,
 #endif

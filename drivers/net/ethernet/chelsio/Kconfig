@@ -33,7 +33,7 @@ config CHELSIO_T1
 	  For customer support, please visit our customer support page at
 	  <http://www.chelsio.com/support.html>.
 
-	  Please send feedback to <linux-bugs@chelsio.com>.
+	  Please send feedback to <linux-s@chelsio.com>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called cxgb.
@@ -60,7 +60,7 @@ config CHELSIO_T3
 	  For customer support, please visit our customer support page at
 	  <http://www.chelsio.com/support.html>.
 
-	  Please send feedback to <linux-bugs@chelsio.com>.
+	  Please send feedback to <linux-s@chelsio.com>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called cxgb3.
@@ -82,7 +82,7 @@ config CHELSIO_T4
 	  For customer support, please visit our customer support page at
 	  <http://www.chelsio.com/support.html>.
 
-	  Please send feedback to <linux-bugs@chelsio.com>.
+	  Please send feedback to <linux-s@chelsio.com>.
 
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4.
@@ -123,7 +123,7 @@ config CHELSIO_T4VF
 	  For customer support, please visit our customer support page at
 	  <http://www.chelsio.com/support.html>.
 
-	  Please send feedback to <linux-bugs@chelsio.com>.
+	  Please send feedback to <linux-s@chelsio.com>.
 
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4vf.

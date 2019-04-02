@@ -24,7 +24,7 @@
 #include "rtl8712_wmac_regdef.h"
 #include "rtl8712_powersave_regdef.h"
 #include "rtl8712_gp_regdef.h"
-#include "rtl8712_debugctrl_regdef.h"
+#include "rtl8712_dectrl_regdef.h"
 
 #define HIMR	(RTL8712_INTERRUPT_ + 0x08)
 

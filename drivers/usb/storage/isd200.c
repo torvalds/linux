@@ -21,7 +21,7 @@
  *		(Alan Stern <stern@rowland.harvard.edu>)
  *  2001-02-24: Removed lots of duplicate code and simplified the structure.
  *	      (bjorn@haxx.se)
- *  2002-01-16: Fixed endianness bug so it works on the ppc arch.
+ *  2002-01-16: Fixed endianness  so it works on the ppc arch.
  *	      (Luc Saillard <luc@saillard.org>)
  *  2002-01-17: All bitfields removed.
  *	      (bjorn@haxx.se)
@@ -45,7 +45,7 @@
 #include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "scsiglue.h"
 
 #define DRV_NAME "ums-isd200"
@@ -704,7 +704,7 @@ static void isd200_invoke_transport( struct us_data *us,
 	/* Need reset here */
 }
 
-#ifdef CONFIG_USB_STORAGE_DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
 static void isd200_log_config(struct us_data *us, struct isd200_info *info)
 {
 	usb_stor_dbg(us, "      Event Notification: 0x%x\n",
@@ -756,7 +756,7 @@ static int isd200_write_config( struct us_data *us )
 	int retStatus = ISD200_GOOD;
 	int result;
 
-#ifdef CONFIG_USB_STORAGE_DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
 	usb_stor_dbg(us, "Entering isd200_write_config\n");
 	usb_stor_dbg(us, "   Writing the following ISD200 Config Data:\n");
 	isd200_log_config(us, info);
@@ -817,7 +817,7 @@ static int isd200_read_config( struct us_data *us )
 
 	if (result >= 0) {
 		usb_stor_dbg(us, "   Retrieved the following ISD200 Config Data:\n");
-#ifdef CONFIG_USB_STORAGE_DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
 		isd200_log_config(us, info);
 #endif
 	} else {

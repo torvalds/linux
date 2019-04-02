@@ -30,14 +30,14 @@ o	Booting Linux using a console connection that is too slow to
 	a 115Kbaud serial console can be -way- too slow to keep up
 	with boot-time message rates, and will frequently result in
 	RCU CPU stall warning messages.  Especially if you have added
-	debug printk()s.
+	de printk()s.
 
 o	Anything that prevents RCU's grace-period kthreads from running.
 	This can result in the "All QSes seen" console-log message.
 	This message will include information on when the kthread last
 	ran and how often it should be expected to run.  It can also
 	result in the "rcu_.*kthread starved for" console-log message,
-	which will include additional debugging information.
+	which will include additional deging information.
 
 o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU
@@ -60,7 +60,7 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 o	A periodic interrupt whose handler takes longer than the time
 	interval between successive pairs of interrupts.  This can
 	prevent RCU's kthreads and softirq handlers from running.
-	Note that certain high-overhead debugging options, for example
+	Note that certain high-overhead deging options, for example
 	the function_graph tracer, can result in interrupt handler taking
 	considerably longer than normal, which can in turn result in
 	RCU CPU stall warnings.
@@ -76,7 +76,7 @@ o	A hardware or software issue shuts off the scheduler-clock
 	problem really has happened, and seems to be most likely to
 	result in RCU CPU stall warnings for CONFIG_NO_HZ_COMMON=n kernels.
 
-o	A bug in the RCU implementation.
+o	A  in the RCU implementation.
 
 o	A hardware failure.  This is quite unlikely, but has occurred
 	at least once in real life.  A CPU failed in a running system,
@@ -97,7 +97,7 @@ is occurring, which will usually be in the function nearest the top of
 that portion of the stack which remains the same from trace to trace.
 If you can reliably trigger the stall, ftrace can be quite helpful.
 
-RCU bugs can often be debugged with the help of CONFIG_RCU_TRACE
+RCU s can often be deged with the help of CONFIG_RCU_TRACE
 and with RCU's event tracing.  For information on RCU's event tracing,
 see include/trace/events/rcu.h.
 

@@ -209,7 +209,7 @@ static int acpi_thermal_get_temperature(struct acpi_thermal *tz)
 		return -ENODEV;
 
 	tz->temperature = tmp;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Temperature is %lu dK\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Temperature is %lu dK\n",
 			  tz->temperature));
 
 	return 0;
@@ -228,7 +228,7 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 		return -ENODEV;
 
 	tz->polling_frequency = tmp;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Polling frequency is %lu dS\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Polling frequency is %lu dS\n",
 			  tz->polling_frequency));
 
 	return 0;
@@ -240,7 +240,7 @@ static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 		return -EINVAL;
 
 	if (!acpi_has_method(tz->device->handle, "_SCP")) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_SCP not present\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "_SCP not present\n"));
 		return -ENODEV;
 	} else if (ACPI_FAILURE(acpi_execute_simple_method(tz->device->handle,
 							   "_SCP", mode))) {
@@ -299,15 +299,15 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 		 */
 		if (ACPI_FAILURE(status)) {
 			tz->trips.critical.flags.valid = 0;
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "No critical threshold\n"));
 		} else if (tmp <= 2732) {
-			pr_warn(FW_BUG "Invalid critical threshold (%llu)\n",
+			pr_warn(FW_ "Invalid critical threshold (%llu)\n",
 				tmp);
 			tz->trips.critical.flags.valid = 0;
 		} else {
 			tz->trips.critical.flags.valid = 1;
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Found critical threshold [%lu]\n",
 					  tz->trips.critical.temperature));
 		}
@@ -333,12 +333,12 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 				"_HOT", NULL, &tmp);
 		if (ACPI_FAILURE(status)) {
 			tz->trips.hot.flags.valid = 0;
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					"No hot threshold\n"));
 		} else {
 			tz->trips.hot.temperature = tmp;
 			tz->trips.hot.flags.valid = 1;
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					"Found hot threshold [%lu]\n",
 					tz->trips.hot.temperature));
 		}
@@ -507,7 +507,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 		valid |= tz->trips.active[i].flags.valid;
 
 	if (!valid) {
-		pr_warn(FW_BUG "No valid trip found\n");
+		pr_warn(FW_ "No valid trip found\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -579,7 +579,7 @@ static int thermal_set_mode(struct thermal_zone_device *thermal,
 
 	if (enable != tz->tz_enabled) {
 		tz->tz_enabled = enable;
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 			"%s kernel ACPI thermal control\n",
 			tz->tz_enabled ? "Enable" : "Disable"));
 		acpi_thermal_check(tz);
@@ -976,7 +976,7 @@ static void acpi_thermal_notify(struct acpi_device *device, u32 event)
 						  dev_name(&device->dev), event, 0);
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
@@ -1212,7 +1212,7 @@ static int thermal_psv(const struct dmi_system_id *d) {
 static const struct dmi_system_id thermal_dmi_table[] __initconst = {
 	/*
 	 * Award BIOS on this AOpen makes thermal control almost worthless.
-	 * http://bugzilla.kernel.org/show_bug.cgi?id=8842
+	 * http://zilla.kernel.org/show_.cgi?id=8842
 	 */
 	{
 	 .callback = thermal_act,

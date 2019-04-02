@@ -136,7 +136,7 @@ struct afs_call {
 	bool			upgrade;	/* T to request service upgrade */
 	bool			want_reply_time; /* T if want reply_time */
 	u16			service_id;	/* Actual service ID (after upgrade) */
-	unsigned int		debug_id;	/* Trace ID */
+	unsigned int		de_id;	/* Trace ID */
 	u32			operation_ID;	/* operation ID for an incoming call */
 	u32			count;		/* count for use in unmarshalling */
 	union {					/* place to extract temporary data */
@@ -1367,7 +1367,7 @@ static inline void afs_check_for_remote_deletion(struct afs_fs_cursor *fc,
 
 static inline int afs_io_error(struct afs_call *call, enum afs_io_error where)
 {
-	trace_afs_io_error(call->debug_id, -EIO, where);
+	trace_afs_io_error(call->de_id, -EIO, where);
 	return -EIO;
 }
 
@@ -1379,63 +1379,63 @@ static inline int afs_bad(struct afs_vnode *vnode, enum afs_file_error where)
 
 /*****************************************************************************/
 /*
- * debug tracing
+ * de tracing
  */
-extern unsigned afs_debug;
+extern unsigned afs_de;
 
 #define dbgprintk(FMT,...) \
 	printk("[%-6.6s] "FMT"\n", current->comm ,##__VA_ARGS__)
 
 #define kenter(FMT,...)	dbgprintk("==> %s("FMT")",__func__ ,##__VA_ARGS__)
 #define kleave(FMT,...)	dbgprintk("<== %s()"FMT"",__func__ ,##__VA_ARGS__)
-#define kdebug(FMT,...)	dbgprintk("    "FMT ,##__VA_ARGS__)
+#define kde(FMT,...)	dbgprintk("    "FMT ,##__VA_ARGS__)
 
 
-#if defined(__KDEBUG)
+#if defined(__KDE)
 #define _enter(FMT,...)	kenter(FMT,##__VA_ARGS__)
 #define _leave(FMT,...)	kleave(FMT,##__VA_ARGS__)
-#define _debug(FMT,...)	kdebug(FMT,##__VA_ARGS__)
+#define _de(FMT,...)	kde(FMT,##__VA_ARGS__)
 
-#elif defined(CONFIG_AFS_DEBUG)
-#define AFS_DEBUG_KENTER	0x01
-#define AFS_DEBUG_KLEAVE	0x02
-#define AFS_DEBUG_KDEBUG	0x04
+#elif defined(CONFIG_AFS_DE)
+#define AFS_DE_KENTER	0x01
+#define AFS_DE_KLEAVE	0x02
+#define AFS_DE_KDE	0x04
 
 #define _enter(FMT,...)					\
 do {							\
-	if (unlikely(afs_debug & AFS_DEBUG_KENTER))	\
+	if (unlikely(afs_de & AFS_DE_KENTER))	\
 		kenter(FMT,##__VA_ARGS__);		\
 } while (0)
 
 #define _leave(FMT,...)					\
 do {							\
-	if (unlikely(afs_debug & AFS_DEBUG_KLEAVE))	\
+	if (unlikely(afs_de & AFS_DE_KLEAVE))	\
 		kleave(FMT,##__VA_ARGS__);		\
 } while (0)
 
-#define _debug(FMT,...)					\
+#define _de(FMT,...)					\
 do {							\
-	if (unlikely(afs_debug & AFS_DEBUG_KDEBUG))	\
-		kdebug(FMT,##__VA_ARGS__);		\
+	if (unlikely(afs_de & AFS_DE_KDE))	\
+		kde(FMT,##__VA_ARGS__);		\
 } while (0)
 
 #else
 #define _enter(FMT,...)	no_printk("==> %s("FMT")",__func__ ,##__VA_ARGS__)
 #define _leave(FMT,...)	no_printk("<== %s()"FMT"",__func__ ,##__VA_ARGS__)
-#define _debug(FMT,...)	no_printk("    "FMT ,##__VA_ARGS__)
+#define _de(FMT,...)	no_printk("    "FMT ,##__VA_ARGS__)
 #endif
 
 /*
- * debug assertion checking
+ * de assertion checking
  */
-#if 1 // defined(__KDEBUGALL)
+#if 1 // defined(__KDEALL)
 
 #define ASSERT(X)						\
 do {								\
 	if (unlikely(!(X))) {					\
 		printk(KERN_ERR "\n");				\
 		printk(KERN_ERR "AFS: Assertion failed\n");	\
-		BUG();						\
+		();						\
 	}							\
 } while(0)
 
@@ -1448,7 +1448,7 @@ do {									\
 		       (unsigned long)(X), (unsigned long)(Y));		\
 		printk(KERN_ERR "0x%lx " #OP " 0x%lx is false\n",	\
 		       (unsigned long)(X), (unsigned long)(Y));		\
-		BUG();							\
+		();							\
 	}								\
 } while(0)
 
@@ -1463,7 +1463,7 @@ do {									\
 		printk(KERN_ERR "0x%lx "#OP1" 0x%lx "#OP2" 0x%lx is false\n", \
 		       (unsigned long)(L), (unsigned long)(N),		\
 		       (unsigned long)(H));				\
-		BUG();							\
+		();							\
 	}								\
 } while(0)
 
@@ -1472,7 +1472,7 @@ do {								\
 	if (unlikely((C) && !(X))) {				\
 		printk(KERN_ERR "\n");				\
 		printk(KERN_ERR "AFS: Assertion failed\n");	\
-		BUG();						\
+		();						\
 	}							\
 } while(0)
 
@@ -1485,7 +1485,7 @@ do {									\
 		       (unsigned long)(X), (unsigned long)(Y));		\
 		printk(KERN_ERR "0x%lx " #OP " 0x%lx is false\n",	\
 		       (unsigned long)(X), (unsigned long)(Y));		\
-		BUG();							\
+		();							\
 	}								\
 } while(0)
 
@@ -1511,4 +1511,4 @@ do {						\
 do {						\
 } while(0)
 
-#endif /* __KDEBUGALL */
+#endif /* __KDEALL */

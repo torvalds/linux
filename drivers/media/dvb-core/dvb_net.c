@@ -33,13 +33,13 @@
  *
  * Dec 2004: hl/ws v2: Implementing draft-ietf-ipdvb-ule-03.txt:
  *                       ULE Extension header handling.
- *                     Bugreports by Moritz Vieth and Hanno Tersteegen,
+ *                     reports by Moritz Vieth and Hanno Tersteegen,
  *                       Fraunhofer Institute for Open Communication Systems
  *                       Competence Center for Advanced Satellite Communications.
- *                     Bugfixes and robustness improvements.
+ *                     fixes and robustness improvements.
  *                     Filtering on dest MAC addresses, if present (D-Bit = 0)
- *                     DVB_ULE_DEBUG compile-time option.
- * Apr 2006: cp v3:    Bugfixes and compliency with RFC 4326 (ULE) by
+ *                     DVB_ULE_DE compile-time option.
+ * Apr 2006: cp v3:    fixes and compliency with RFC 4326 (ULE) by
  *                       Christian Praehauser <cpraehaus@cosy.sbg.ac.at>,
  *                       Paris Lodron University of Salzburg.
  */
@@ -78,9 +78,9 @@ static inline __u32 iov_crc32( __u32 c, struct kvec *iov, unsigned int cnt )
 
 #define DVB_NET_MULTICAST_MAX 10
 
-#ifdef DVB_ULE_DEBUG
+#ifdef DVB_ULE_DE
 /*
- * The code inside DVB_ULE_DEBUG keeps a history of the
+ * The code inside DVB_ULE_DE keeps a history of the
  * last 100 TS cells processed.
  */
 static unsigned char ule_hist[100*TS_SZ] = { 0 };
@@ -88,7 +88,7 @@ static unsigned char *ule_where = ule_hist, ule_dump;
 
 static void hexdump(const unsigned char *buf, unsigned short len)
 {
-	print_hex_dump_debug("", DUMP_PREFIX_OFFSET, 16, 1, buf, len, true);
+	print_hex_dump_de("", DUMP_PREFIX_OFFSET, 16, 1, buf, len, true);
 }
 #endif
 
@@ -283,7 +283,7 @@ static int handle_ule_extensions( struct dvb_net_priv *p )
 		if (l < 0)
 			return l;	/* Stop extension header processing and discard SNDU. */
 		total_ext_len += l;
-		pr_debug("ule_next_hdr=%p, ule_sndu_type=%i, l=%i, total_ext_len=%i\n",
+		pr_de("ule_next_hdr=%p, ule_sndu_type=%i, l=%i, total_ext_len=%i\n",
 			 p->ule_next_hdr, (int)p->ule_sndu_type,
 			 l, total_ext_len);
 
@@ -327,7 +327,7 @@ static int dvb_net_ule_new_ts_cell(struct dvb_net_ule_handle *h)
 {
 	/* We are about to process a new TS cell. */
 
-#ifdef DVB_ULE_DEBUG
+#ifdef DVB_ULE_DE
 	if (ule_where >= &ule_hist[100*TS_SZ])
 		ule_where = ule_hist;
 	memcpy(ule_where, h->ts, TS_SZ);
@@ -666,7 +666,7 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 			h->ts_remain > 2 ?
 				*(unsigned short *)h->from_where : 0);
 
-	#ifdef DVB_ULE_DEBUG
+	#ifdef DVB_ULE_DE
 		hexdump(iov[0].iov_base, iov[0].iov_len);
 		hexdump(iov[1].iov_base, iov[1].iov_len);
 		hexdump(iov[2].iov_base, iov[2].iov_len);
@@ -1067,7 +1067,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 	netdev_dbg(dev, "rx_mode %i\n", priv->rx_mode);
 	mutex_lock(&priv->mutex);
 	if (priv->tsfeed || priv->secfeed || priv->secfilter || priv->multi_secfilter[0])
-		pr_err("%s: BUG %d\n", __func__, __LINE__);
+		pr_err("%s:  %d\n", __func__, __LINE__);
 
 	priv->secfeed=NULL;
 	priv->secfilter=NULL;

@@ -165,22 +165,22 @@ static ssize_t xgene_edac_mc_err_inject_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations xgene_edac_mc_debug_inject_fops = {
+static const struct file_operations xgene_edac_mc_de_inject_fops = {
 	.open = simple_open,
 	.write = xgene_edac_mc_err_inject_write,
 	.llseek = generic_file_llseek,
 };
 
-static void xgene_edac_mc_create_debugfs_node(struct mem_ctl_info *mci)
+static void xgene_edac_mc_create_defs_node(struct mem_ctl_info *mci)
 {
-	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
+	if (!IS_ENABLED(CONFIG_EDAC_DE))
 		return;
 
-	if (!mci->debugfs)
+	if (!mci->defs)
 		return;
 
-	edac_debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
-				 &xgene_edac_mc_debug_inject_fops);
+	edac_defs_create_file("inject_ctrl", S_IWUSR, mci->defs, mci,
+				 &xgene_edac_mc_de_inject_fops);
 }
 
 static void xgene_edac_mc_check(struct mem_ctl_info *mci)
@@ -428,7 +428,7 @@ static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
 		goto err_free;
 	}
 
-	xgene_edac_mc_create_debugfs_node(mci);
+	xgene_edac_mc_create_defs_node(mci);
 
 	list_add(&ctx->next, &edac->mcus);
 
@@ -857,7 +857,7 @@ static ssize_t xgene_edac_pmd_l2_inject_ctrl_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations xgene_edac_pmd_debug_inject_fops[] = {
+static const struct file_operations xgene_edac_pmd_de_inject_fops[] = {
 	{
 	.open = simple_open,
 	.write = xgene_edac_pmd_l1_inject_ctrl_write,
@@ -870,24 +870,24 @@ static const struct file_operations xgene_edac_pmd_debug_inject_fops[] = {
 };
 
 static void
-xgene_edac_pmd_create_debugfs_nodes(struct edac_device_ctl_info *edac_dev)
+xgene_edac_pmd_create_defs_nodes(struct edac_device_ctl_info *edac_dev)
 {
 	struct xgene_edac_pmd_ctx *ctx = edac_dev->pvt_info;
 	struct dentry *dbgfs_dir;
 	char name[10];
 
-	if (!IS_ENABLED(CONFIG_EDAC_DEBUG) || !ctx->edac->dfs)
+	if (!IS_ENABLED(CONFIG_EDAC_DE) || !ctx->edac->dfs)
 		return;
 
 	snprintf(name, sizeof(name), "PMD%d", ctx->pmd);
-	dbgfs_dir = edac_debugfs_create_dir_at(name, ctx->edac->dfs);
+	dbgfs_dir = edac_defs_create_dir_at(name, ctx->edac->dfs);
 	if (!dbgfs_dir)
 		return;
 
-	edac_debugfs_create_file("l1_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
-				 &xgene_edac_pmd_debug_inject_fops[0]);
-	edac_debugfs_create_file("l2_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
-				 &xgene_edac_pmd_debug_inject_fops[1]);
+	edac_defs_create_file("l1_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
+				 &xgene_edac_pmd_de_inject_fops[0]);
+	edac_defs_create_file("l2_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
+				 &xgene_edac_pmd_de_inject_fops[1]);
 }
 
 static int xgene_edac_pmd_available(u32 efuse, int pmd)
@@ -960,7 +960,7 @@ static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
 	if (edac_op_state == EDAC_OPSTATE_POLL)
 		edac_dev->edac_check = xgene_edac_pmd_check;
 
-	xgene_edac_pmd_create_debugfs_nodes(edac_dev);
+	xgene_edac_pmd_create_defs_nodes(edac_dev);
 
 	rc = edac_device_add_device(edac_dev);
 	if (rc > 0) {
@@ -1167,29 +1167,29 @@ static ssize_t xgene_edac_l3_inject_ctrl_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations xgene_edac_l3_debug_inject_fops = {
+static const struct file_operations xgene_edac_l3_de_inject_fops = {
 	.open = simple_open,
 	.write = xgene_edac_l3_inject_ctrl_write,
 	.llseek = generic_file_llseek
 };
 
 static void
-xgene_edac_l3_create_debugfs_nodes(struct edac_device_ctl_info *edac_dev)
+xgene_edac_l3_create_defs_nodes(struct edac_device_ctl_info *edac_dev)
 {
 	struct xgene_edac_dev_ctx *ctx = edac_dev->pvt_info;
 	struct dentry *dbgfs_dir;
 	char name[10];
 
-	if (!IS_ENABLED(CONFIG_EDAC_DEBUG) || !ctx->edac->dfs)
+	if (!IS_ENABLED(CONFIG_EDAC_DE) || !ctx->edac->dfs)
 		return;
 
 	snprintf(name, sizeof(name), "l3c%d", ctx->edac_idx);
-	dbgfs_dir = edac_debugfs_create_dir_at(name, ctx->edac->dfs);
+	dbgfs_dir = edac_defs_create_dir_at(name, ctx->edac->dfs);
 	if (!dbgfs_dir)
 		return;
 
-	debugfs_create_file("l3_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
-			    &xgene_edac_l3_debug_inject_fops);
+	defs_create_file("l3_inject_ctrl", S_IWUSR, dbgfs_dir, edac_dev,
+			    &xgene_edac_l3_de_inject_fops);
 }
 
 static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_node *np,
@@ -1243,7 +1243,7 @@ static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_node *np,
 	if (edac_op_state == EDAC_OPSTATE_POLL)
 		edac_dev->edac_check = xgene_edac_l3_check;
 
-	xgene_edac_l3_create_debugfs_nodes(edac_dev);
+	xgene_edac_l3_create_defs_nodes(edac_dev);
 
 	rc = edac_device_add_device(edac_dev);
 	if (rc > 0) {
@@ -1948,7 +1948,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 		}
 	}
 
-	edac->dfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
+	edac->dfs = edac_defs_create_dir(pdev->dev.kobj.name);
 
 	for_each_child_of_node(pdev->dev.of_node, child) {
 		if (!of_device_is_available(child))

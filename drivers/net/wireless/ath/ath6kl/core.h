@@ -297,7 +297,7 @@ enum ath6kl_hw_flags {
 #define ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN  BIT(1)
 #define ATH6KL_CONF_ENABLE_11N			BIT(2)
 #define ATH6KL_CONF_ENABLE_TX_BURST		BIT(3)
-#define ATH6KL_CONF_UART_DEBUG			BIT(4)
+#define ATH6KL_CONF_UART_DE			BIT(4)
 
 #define P2P_WILDCARD_SSID_LEN			7 /* DIRECT- */
 
@@ -831,7 +831,7 @@ struct ath6kl {
 
 	struct workqueue_struct *ath6kl_wq;
 
-	struct dentry *debugfs_phy;
+	struct dentry *defs_phy;
 
 	bool p2p;
 
@@ -848,7 +848,7 @@ struct ath6kl {
 		bool enable;
 	} fw_recovery;
 
-#ifdef CONFIG_ATH6KL_DEBUG
+#ifdef CONFIG_ATH6KL_DE
 	struct {
 		struct sk_buff_head fwlog_queue;
 		struct completion fwlog_completion;
@@ -869,8 +869,8 @@ struct ath6kl {
 
 		u8 keepalive;
 		u8 disc_timeout;
-	} debug;
-#endif /* CONFIG_ATH6KL_DEBUG */
+	} de;
+#endif /* CONFIG_ATH6KL_DE */
 };
 
 static inline struct ath6kl *ath6kl_priv(struct net_device *dev)

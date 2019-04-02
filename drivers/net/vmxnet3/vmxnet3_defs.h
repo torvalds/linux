@@ -726,7 +726,7 @@ struct Vmxnet3_DriverShared {
 #define VMXNET3_ECR_TQERR       (1 << 1)
 #define VMXNET3_ECR_LINK        (1 << 2)
 #define VMXNET3_ECR_DIC         (1 << 3)
-#define VMXNET3_ECR_DEBUG       (1 << 4)
+#define VMXNET3_ECR_DE       (1 << 4)
 
 /* flip the gen bit of a ring */
 #define VMXNET3_FLIP_RING_GEN(gen) ((gen) = (gen) ^ 0x1)

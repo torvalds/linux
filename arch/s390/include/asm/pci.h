@@ -10,7 +10,7 @@
 #include <linux/iommu.h>
 #include <asm-generic/pci.h>
 #include <asm/pci_clp.h>
-#include <asm/pci_debug.h>
+#include <asm/pci_de.h>
 #include <asm/sclp.h>
 
 #define PCIBIOS_MIN_IO		0x1000
@@ -147,7 +147,7 @@ struct zpci_dev {
 
 	enum pci_bus_speed max_bus_speed;
 
-	struct dentry	*debugfs_dev;
+	struct dentry	*defs_dev;
 
 	struct s390_domain *s390_domain; /* s390 IOMMU domain data */
 };
@@ -223,12 +223,12 @@ void zpci_dma_exit(void);
 int zpci_fmb_enable_device(struct zpci_dev *);
 int zpci_fmb_disable_device(struct zpci_dev *);
 
-/* Debug */
-int zpci_debug_init(void);
-void zpci_debug_exit(void);
-void zpci_debug_init_device(struct zpci_dev *, const char *);
-void zpci_debug_exit_device(struct zpci_dev *);
-void zpci_debug_info(struct zpci_dev *, struct seq_file *);
+/* De */
+int zpci_de_init(void);
+void zpci_de_exit(void);
+void zpci_de_init_device(struct zpci_dev *, const char *);
+void zpci_de_exit_device(struct zpci_dev *);
+void zpci_de_info(struct zpci_dev *, struct seq_file *);
 
 /* Error reporting */
 int zpci_report_error(struct pci_dev *, struct zpci_report_error_header *);

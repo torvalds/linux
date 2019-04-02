@@ -38,9 +38,9 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2");
 MODULE_ALIAS("mem2mem_testdev");
 
-static unsigned int debug;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "debug level");
+static unsigned int de;
+module_param(de, uint, 0644);
+MODULE_PARM_DESC(de, "de level");
 
 /* Default transaction time in msec */
 static unsigned int default_transtime = 40; /* Max 25 fps */
@@ -76,7 +76,7 @@ MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
 #define MEM2MEM_VFLIP	BIT(1)
 
 #define dprintk(dev, lvl, fmt, arg...) \
-	v4l2_dbg(lvl, debug, &(dev)->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(lvl, de, &(dev)->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 static void vim2m_dev_release(struct device *dev)
 {}

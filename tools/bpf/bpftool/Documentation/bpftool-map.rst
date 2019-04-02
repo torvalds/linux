@@ -199,7 +199,7 @@ hold by a program array map. This can be used, for example, to change the
 programs used for tail-call jumps at runtime, without having to reload the
 entry-point program. Below is an example for this use case: we load a program
 defining a prog array map, and with a main function that contains a tail call
-to other programs that can be used either to "process" packets or to "debug"
+to other programs that can be used either to "process" packets or to "de"
 processing. Note that the prog array map MUST be pinned into the BPF virtual
 file system for the map update to work successfully, as kernel flushes prog
 array maps when they have no more references from user space (and the update
@@ -219,10 +219,10 @@ would be lost as soon as bpftool exits).
           loaded_at 2018-12-12T15:02:58+0000  uid 0
           xlated 200B  jited 164B  memlock 4096B
           pinned /sys/fs/bpf/foo/process
-  547: xdp  name bpf_func_debug  tag 0b597868bc7f0976  gpl
+  547: xdp  name bpf_func_de  tag 0b597868bc7f0976  gpl
           loaded_at 2018-12-12T15:02:58+0000  uid 0
           xlated 200B  jited 164B  memlock 4096B
-          pinned /sys/fs/bpf/foo/debug
+          pinned /sys/fs/bpf/foo/de
 
 **# bpftool map**
 
@@ -241,7 +241,7 @@ would be lost as soon as bpftool exits).
   Found 0 elements
 
 |
-| **# bpftool map update pinned /sys/fs/bpf/bar key 0 0 0 0 value pinned /sys/fs/bpf/foo/debug**
+| **# bpftool map update pinned /sys/fs/bpf/bar key 0 0 0 0 value pinned /sys/fs/bpf/foo/de**
 | **# bpftool map dump pinned /sys/fs/bpf/bar**
 
 ::

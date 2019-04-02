@@ -32,7 +32,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-//#include <asm/debug-ll.h>
+//#include <asm/de-ll.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>
 #include <linux/platform_data/i2c-s3c2410.h>

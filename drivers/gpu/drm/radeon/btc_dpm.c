@@ -2731,7 +2731,7 @@ void btc_dpm_fini(struct radeon_device *rdev)
 	r600_free_extended_power_table(rdev);
 }
 
-void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void btc_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						     struct seq_file *m)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);

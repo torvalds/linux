@@ -22,9 +22,9 @@
 #include "cx231xx.h"
 #include "cx231xx-conf-reg.h"
 
-static unsigned int pcb_debug;
-module_param(pcb_debug, int, 0644);
-MODULE_PARM_DESC(pcb_debug, "enable pcb config debug messages [video]");
+static unsigned int pcb_de;
+module_param(pcb_de, int, 0644);
+MODULE_PARM_DESC(pcb_de, "enable pcb config de messages [video]");
 
 /******************************************************************************/
 
@@ -780,7 +780,7 @@ int initialize_cx231xx(struct cx231xx *dev)
 	memcpy(&dev->current_pcb_config, p_pcb_info,
 		   sizeof(struct pcb_config));
 
-	if (pcb_debug) {
+	if (pcb_de) {
 		dev_info(dev->dev,
 			 "SC(0x00) register = 0x%x\n", config_info);
 		dev_info(dev->dev,

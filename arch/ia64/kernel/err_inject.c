@@ -30,7 +30,7 @@
 #include <linux/cpu.h>
 #include <linux/module.h>
 
-#define ERR_INJ_DEBUG
+#define ERR_INJ_DE
 
 #define ERR_DATA_BUFFER_SIZE 3 		// Three 8-byte;
 
@@ -84,11 +84,11 @@ store_call_start(struct device *dev, struct device_attribute *attr,
 	unsigned int cpu=dev->id;
 	unsigned long call_start = simple_strtoull(buf, NULL, 16);
 
-#ifdef ERR_INJ_DEBUG
-	printk(KERN_DEBUG "pal_mc_err_inject for cpu%d:\n", cpu);
-	printk(KERN_DEBUG "err_type_info=%lx,\n", err_type_info[cpu]);
-	printk(KERN_DEBUG "err_struct_info=%lx,\n", err_struct_info[cpu]);
-	printk(KERN_DEBUG "err_data_buffer=%lx, %lx, %lx.\n",
+#ifdef ERR_INJ_DE
+	printk(KERN_DE "pal_mc_err_inject for cpu%d:\n", cpu);
+	printk(KERN_DE "err_type_info=%lx,\n", err_type_info[cpu]);
+	printk(KERN_DE "err_struct_info=%lx,\n", err_struct_info[cpu]);
+	printk(KERN_DE "err_data_buffer=%lx, %lx, %lx.\n",
 			  err_data_buffer[cpu].data1,
 			  err_data_buffer[cpu].data2,
 			  err_data_buffer[cpu].data3);
@@ -115,10 +115,10 @@ store_call_start(struct device *dev, struct device_attribute *attr,
 		break;
 	}
 
-#ifdef ERR_INJ_DEBUG
-	printk(KERN_DEBUG "Returns: status=%d,\n", (int)status[cpu]);
-	printk(KERN_DEBUG "capabilities=%lx,\n", capabilities[cpu]);
-	printk(KERN_DEBUG "resources=%lx\n", resources[cpu]);
+#ifdef ERR_INJ_DE
+	printk(KERN_DE "Returns: status=%d,\n", (int)status[cpu]);
+	printk(KERN_DE "capabilities=%lx,\n", capabilities[cpu]);
+	printk(KERN_DE "resources=%lx\n", resources[cpu]);
 #endif
 	return size;
 }
@@ -144,7 +144,7 @@ store_virtual_to_phys(struct device *dev, struct device_attribute *attr,
 
 	ret = get_user_pages_fast(virt_addr, 1, FOLL_WRITE, NULL);
 	if (ret<=0) {
-#ifdef ERR_INJ_DEBUG
+#ifdef ERR_INJ_DE
 		printk("Virtual address %lx is not existing.\n",virt_addr);
 #endif
 		return -EINVAL;
@@ -177,7 +177,7 @@ store_err_data_buffer(struct device *dev,
 	unsigned int cpu=dev->id;
 	int ret;
 
-#ifdef ERR_INJ_DEBUG
+#ifdef ERR_INJ_DE
 	printk("write err_data_buffer=[%lx,%lx,%lx] on cpu%d\n",
 		 err_data_buffer[cpu].data1,
 		 err_data_buffer[cpu].data2,
@@ -244,7 +244,7 @@ static enum cpuhp_state hp_online;
 static int __init err_inject_init(void)
 {
 	int ret;
-#ifdef ERR_INJ_DEBUG
+#ifdef ERR_INJ_DE
 	printk(KERN_INFO "Enter error injection driver.\n");
 #endif
 
@@ -259,7 +259,7 @@ static int __init err_inject_init(void)
 
 static void __exit err_inject_exit(void)
 {
-#ifdef ERR_INJ_DEBUG
+#ifdef ERR_INJ_DE
 	printk(KERN_INFO "Exit error injection driver.\n");
 #endif
 	cpuhp_remove_state(hp_online);

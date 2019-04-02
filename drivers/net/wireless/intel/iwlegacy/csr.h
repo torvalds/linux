@@ -103,7 +103,7 @@
  *  1-0:  "Dash" (-) value, as in A-1, etc.
  *
  * NOTE:  Revision step affects calculation of CCK txpower for 4965.
- * NOTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
+ * NOTE:  See also CSR_HW_REV_WA_REG (work-around for  in 4965).
  */
 #define CSR_HW_REV              (CSR_BASE+0x028)
 
@@ -351,7 +351,7 @@
 /* ANA_PLL */
 #define CSR39_ANA_PLL_CFG_VAL        (0x01000000)
 
-/* HPET MEM debug */
+/* HPET MEM de */
 #define CSR_DBG_HPET_MEM_REG_VAL	(0xFFFF0000)
 
 /* DRAM INT TBL */

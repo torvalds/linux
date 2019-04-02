@@ -39,7 +39,7 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/netlabel.h>
-#include <asm/bug.h>
+#include <asm/.h>
 
 #include "netlabel_mgmt.h"
 #include "netlabel_unlabeled.h"

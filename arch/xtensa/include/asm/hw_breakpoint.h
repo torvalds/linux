@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/types.h>
 #include <uapi/linux/hw_breakpoint.h>
 

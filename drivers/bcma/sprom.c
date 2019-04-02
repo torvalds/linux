@@ -60,7 +60,7 @@ static int bcma_fill_sprom_with_fallback(struct bcma_bus *bus,
 	if (err)
 		goto fail;
 
-	bcma_debug(bus, "Using SPROM revision %d provided by platform.\n",
+	bcma_de(bus, "Using SPROM revision %d provided by platform.\n",
 		   bus->sprom.revision);
 	return 0;
 fail:
@@ -171,7 +171,7 @@ static int bcma_sprom_valid(struct bcma_bus *bus, const u16 *sprom,
 	}
 
 	bus->sprom.revision = revision;
-	bcma_debug(bus, "Found SPROM revision %d\n", revision);
+	bcma_de(bus, "Found SPROM revision %d\n", revision);
 
 	return 0;
 }
@@ -226,7 +226,7 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
 		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
 	};
-	BUILD_BUG_ON(ARRAY_SIZE(pwr_info_offset) !=
+	BUILD__ON(ARRAY_SIZE(pwr_info_offset) !=
 			ARRAY_SIZE(bus->sprom.core_pwr_info));
 
 	for (i = 0; i < 3; i++) {
@@ -614,7 +614,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	    bus->chipinfo.id == BCMA_CHIP_ID_BCM43431)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
 
-	bcma_debug(bus, "SPROM offset 0x%x\n", offset);
+	bcma_de(bus, "SPROM offset 0x%x\n", offset);
 	for (i = 0; i < ARRAY_SIZE(sprom_sizes); i++) {
 		size_t words = sprom_sizes[i];
 

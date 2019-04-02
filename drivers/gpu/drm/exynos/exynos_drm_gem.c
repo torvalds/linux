@@ -29,7 +29,7 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 	int ret = -ENOMEM;
 
 	if (exynos_gem->dma_addr) {
-		DRM_DEBUG_KMS("already allocated.\n");
+		DRM_DE_KMS("already allocated.\n");
 		return 0;
 	}
 
@@ -90,7 +90,7 @@ static int exynos_drm_alloc_buf(struct exynos_drm_gem *exynos_gem)
 
 	sg_free_table(&sgt);
 
-	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
+	DRM_DE_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)exynos_gem->dma_addr, exynos_gem->size);
 
 	return 0;
@@ -111,11 +111,11 @@ static void exynos_drm_free_buf(struct exynos_drm_gem *exynos_gem)
 	struct drm_device *dev = exynos_gem->base.dev;
 
 	if (!exynos_gem->dma_addr) {
-		DRM_DEBUG_KMS("dma_addr is invalid.\n");
+		DRM_DE_KMS("dma_addr is invalid.\n");
 		return;
 	}
 
-	DRM_DEBUG_KMS("dma_addr(0x%lx), size(0x%lx)\n",
+	DRM_DE_KMS("dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)exynos_gem->dma_addr, exynos_gem->size);
 
 	dma_free_attrs(to_dma_dev(dev), exynos_gem->size, exynos_gem->cookie,
@@ -139,7 +139,7 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 	if (ret)
 		return ret;
 
-	DRM_DEBUG_KMS("gem handle = 0x%x\n", *handle);
+	DRM_DE_KMS("gem handle = 0x%x\n", *handle);
 
 	/* drop reference from allocate - handle holds it now. */
 	drm_gem_object_put_unlocked(obj);
@@ -151,7 +151,7 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem)
 {
 	struct drm_gem_object *obj = &exynos_gem->base;
 
-	DRM_DEBUG_KMS("handle count = %d\n", obj->handle_count);
+	DRM_DE_KMS("handle count = %d\n", obj->handle_count);
 
 	/*
 	 * do not release memory region from exporter.
@@ -198,7 +198,7 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	DRM_DEBUG_KMS("created file object = %pK\n", obj->filp);
+	DRM_DE_KMS("created file object = %pK\n", obj->filp);
 
 	return exynos_gem;
 }
@@ -408,7 +408,7 @@ static int exynos_drm_gem_mmap_obj(struct drm_gem_object *obj,
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	int ret;
 
-	DRM_DEBUG_KMS("flags = 0x%x\n", exynos_gem->flags);
+	DRM_DE_KMS("flags = 0x%x\n", exynos_gem->flags);
 
 	/* non-cachable as default. */
 	if (exynos_gem->flags & EXYNOS_BO_CACHABLE)

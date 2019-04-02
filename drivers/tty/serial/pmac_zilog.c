@@ -23,8 +23,8 @@
  *         - maybe put something right into uap->clk_divisor
  */
 
-#undef DEBUG
-#undef DEBUG_HARD
+#undef DE
+#undef DE_HARD
 #undef USE_CTRL_O_SYSRQ
 
 #include <linux/module.h>
@@ -88,7 +88,7 @@ MODULE_LICENSE("GPL");
 #define PMACZILOG_NAME		"ttyPZ"
 #endif
 
-#define pmz_debug(fmt, arg...)	pr_debug("ttyPZ%d: " fmt, uap->port.line, ## arg)
+#define pmz_de(fmt, arg...)	pr_de("ttyPZ%d: " fmt, uap->port.line, ## arg)
 #define pmz_error(fmt, arg...)	pr_err("ttyPZ%d: " fmt, uap->port.line, ## arg)
 #define pmz_info(fmt, arg...)	pr_info("ttyPZ%d: " fmt, uap->port.line, ## arg)
 
@@ -198,7 +198,7 @@ static void pmz_maybe_update_regs(struct uart_pmac_port *uap)
 		if (ZS_TX_ACTIVE(uap)) {
 			uap->flags |= PMACZILOG_FLAG_REGS_HELD;
 		} else {
-			pmz_debug("pmz: maybe_update_regs: updating\n");
+			pmz_de("pmz: maybe_update_regs: updating\n");
 			pmz_load_zsregs(uap, uap->curregs);
 		}
 	}
@@ -222,7 +222,7 @@ static bool pmz_receive_chars(struct uart_pmac_port *uap)
 	unsigned char ch, r1, drop, flag;
 	int loops = 0;
 
-	/* Sanity check, make sure the old bug is no longer happening */
+	/* Sanity check, make sure the old  is no longer happening */
 	if (uap->port.state == NULL) {
 		WARN_ON(1);
 		(void)read_zsdata(uap);
@@ -273,7 +273,7 @@ static bool pmz_receive_chars(struct uart_pmac_port *uap)
 
 		if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR | BRK_ABRT)) {
 			if (r1 & BRK_ABRT) {
-				pmz_debug("pmz: got break !\n");
+				pmz_de("pmz: got break !\n");
 				r1 &= ~(PAR_ERR | CRC_ERR);
 				uap->port.icount.brk++;
 				if (uart_handle_break(&uap->port))
@@ -390,7 +390,7 @@ static void pmz_transmit_chars(struct uart_pmac_port *uap)
 	 * a closed channel. The interrupt mask in R1 is clear, but
 	 * R3 still signals the interrupts and we see them when taking
 	 * an interrupt for the other channel (this could be a qemu
-	 * bug but since the ESCC doc doesn't specify precsiely whether
+	 *  but since the ESCC doc doesn't specify precsiely whether
 	 * R3 interrup status bits are masked by R1 interrupt enable
 	 * bits, better safe than sorry). --BenH.
 	 */
@@ -449,14 +449,14 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 	spin_lock(&uap_a->port.lock);
 	r3 = read_zsreg(uap_a, R3);
 
-#ifdef DEBUG_HARD
-	pmz_debug("irq, r3: %x\n", r3);
+#ifdef DE_HARD
+	pmz_de("irq, r3: %x\n", r3);
 #endif
 	/* Channel A */
 	push = false;
 	if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
 		if (!ZS_IS_OPEN(uap_a)) {
-			pmz_debug("ChanA interrupt while not open !\n");
+			pmz_de("ChanA interrupt while not open !\n");
 			goto skip_a;
 		}
 		write_zsreg(uap_a, R0, RES_H_IUS);
@@ -481,7 +481,7 @@ static irqreturn_t pmz_interrupt(int irq, void *dev_id)
 	push = false;
 	if (r3 & (CHBEXT | CHBTxIP | CHBRxIP)) {
 		if (!ZS_IS_OPEN(uap_b)) {
-			pmz_debug("ChanB interrupt while not open !\n");
+			pmz_de("ChanB interrupt while not open !\n");
 			goto skip_b;
 		}
 		write_zsreg(uap_b, R0, RES_H_IUS);
@@ -568,7 +568,7 @@ static void pmz_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	uap->curregs[R5] &= ~clear_bits;
 
 	write_zsreg(uap, R5, uap->curregs[R5]);
-	pmz_debug("pmz_set_mctrl: set bits: %x, clear bits: %x -> %x\n",
+	pmz_de("pmz_set_mctrl: set bits: %x, clear bits: %x -> %x\n",
 		  set_bits, clear_bits, uap->curregs[R5]);
 	zssync(uap);
 }
@@ -616,7 +616,7 @@ static void pmz_start_tx(struct uart_port *port)
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned char status;
 
-	pmz_debug("pmz: start_tx()\n");
+	pmz_de("pmz: start_tx()\n");
 
 	uap->flags |= PMACZILOG_FLAG_TX_ACTIVE;
 	uap->flags &= ~PMACZILOG_FLAG_TX_STOPPED;
@@ -649,7 +649,7 @@ static void pmz_start_tx(struct uart_port *port)
 			uart_write_wakeup(&uap->port);
 	}
  out:
-	pmz_debug("pmz: start_tx() done.\n");
+	pmz_de("pmz: start_tx() done.\n");
 }
 
 /* 
@@ -662,13 +662,13 @@ static void pmz_stop_rx(struct uart_port *port)
 {
 	struct uart_pmac_port *uap = to_pmz(port);
 
-	pmz_debug("pmz: stop_rx()()\n");
+	pmz_de("pmz: stop_rx()()\n");
 
 	/* Disable all RX interrupts.  */
 	uap->curregs[R1] &= ~RxINT_MASK;
 	pmz_maybe_update_regs(uap);
 
-	pmz_debug("pmz: stop_rx() done.\n");
+	pmz_de("pmz: stop_rx() done.\n");
 }
 
 /* 
@@ -735,12 +735,12 @@ static int pmz_set_scc_power(struct uart_pmac_port *uap, int state)
 	if (state) {
 		rc = pmac_call_feature(
 			PMAC_FTR_SCC_ENABLE, uap->node, uap->port_type, 1);
-		pmz_debug("port power on result: %d\n", rc);
+		pmz_de("port power on result: %d\n", rc);
 		if (ZS_IS_INTMODEM(uap)) {
 			rc = pmac_call_feature(
 				PMAC_FTR_MODEM_ENABLE, uap->node, 0, 1);
 			delay = 2500;	/* wait for 2.5s before using */
-			pmz_debug("modem power result: %d\n", rc);
+			pmz_de("modem power result: %d\n", rc);
 		}
 	} else {
 		/* TODO: Make that depend on a timer, don't power down
@@ -749,7 +749,7 @@ static int pmz_set_scc_power(struct uart_pmac_port *uap, int state)
 		if (ZS_IS_INTMODEM(uap)) {
 			rc = pmac_call_feature(
 				PMAC_FTR_MODEM_ENABLE, uap->node, 0, 0);
-			pmz_debug("port power off result: %d\n", rc);
+			pmz_de("port power off result: %d\n", rc);
 		}
 		pmac_call_feature(PMAC_FTR_SCC_ENABLE, uap->node, uap->port_type, 0);
 	}
@@ -766,7 +766,7 @@ static int pmz_set_scc_power(struct uart_pmac_port *uap, int state)
 #endif /* !CONFIG_PPC_PMAC */
 
 /*
- * FixZeroBug....Works around a bug in the SCC receiving channel.
+ * FixZero....Works around a  in the SCC receiving channel.
  * Inspired from Darwin code, 15 Sept. 2000  -DanM
  *
  * The following sequence prevents a problem that is seen with O'Hare ASICs
@@ -785,7 +785,7 @@ static int pmz_set_scc_power(struct uart_pmac_port *uap, int state)
  * the SCC in synchronous loopback mode with a fast clock before programming
  * any of the asynchronous modes.
  */
-static void pmz_fix_zero_bug_scc(struct uart_pmac_port *uap)
+static void pmz_fix_zero__scc(struct uart_pmac_port *uap)
 {
 	write_zsreg(uap, 9, ZS_IS_CHANNEL_A(uap) ? CHRA : CHRB);
 	zssync(uap);
@@ -838,8 +838,8 @@ static int __pmz_startup(struct uart_pmac_port *uap)
 	/* Power up the SCC & underlying hardware (modem/irda) */
 	pwr_delay = pmz_set_scc_power(uap, 1);
 
-	/* Nice buggy HW ... */
-	pmz_fix_zero_bug_scc(uap);
+	/* Nice gy HW ... */
+	pmz_fix_zero__scc(uap);
 
 	/* Reset the channel */
 	uap->curregs[R9] = 0;
@@ -913,7 +913,7 @@ static int pmz_startup(struct uart_port *port)
 	unsigned long flags;
 	int pwr_delay = 0;
 
-	pmz_debug("pmz: startup()\n");
+	pmz_de("pmz: startup()\n");
 
 	uap->flags |= PMACZILOG_FLAG_IS_OPEN;
 
@@ -937,7 +937,7 @@ static int pmz_startup(struct uart_port *port)
 	 * smarter later on
 	 */
 	if (pwr_delay != 0) {
-		pmz_debug("pmz: delaying %d ms\n", pwr_delay);
+		pmz_de("pmz: delaying %d ms\n", pwr_delay);
 		msleep(pwr_delay);
 	}
 
@@ -950,7 +950,7 @@ static int pmz_startup(struct uart_port *port)
 	pmz_interrupt_control(uap, 1);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	pmz_debug("pmz: startup() done.\n");
+	pmz_de("pmz: startup() done.\n");
 
 	return 0;
 }
@@ -960,7 +960,7 @@ static void pmz_shutdown(struct uart_port *port)
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long flags;
 
-	pmz_debug("pmz: shutdown()\n");
+	pmz_de("pmz: shutdown()\n");
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -991,7 +991,7 @@ static void pmz_shutdown(struct uart_port *port)
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	pmz_debug("pmz: shutdown() done.\n");
+	pmz_de("pmz: shutdown() done.\n");
 }
 
 /* Shared by TTY driver and serial console setup.  The port lock is held
@@ -1236,7 +1236,7 @@ static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct uart_pmac_port *uap = to_pmz(port);
 	unsigned long baud;
 
-	pmz_debug("pmz: set_termios()\n");
+	pmz_de("pmz: set_termios()\n");
 
 	memcpy(&uap->termios_cache, termios, sizeof(struct ktermios));
 
@@ -1250,7 +1250,7 @@ static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (ZS_IS_IRDA(uap)) {
 		/* Calc baud rate */
 		baud = uart_get_baud_rate(port, termios, old, 1200, 4000000);
-		pmz_debug("pmz: switch IRDA to %ld bauds\n", baud);
+		pmz_de("pmz: switch IRDA to %ld bauds\n", baud);
 		/* Cet the irda codec to the right rate */
 		pmz_irda_setup(uap, &baud);
 		/* Set final baud rate */
@@ -1274,7 +1274,7 @@ static void __pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	pmz_debug("pmz: set_termios() done.\n");
+	pmz_de("pmz: set_termios() done.\n");
 }
 
 /* The port lock is not held.  */
@@ -1561,7 +1561,7 @@ static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	dev_set_drvdata(&mdev->ofdev.dev, uap);
 
 	/* We still activate the port even when failing to request resources
-	 * to work around bugs in ancient Apple device-trees
+	 * to work around s in ancient Apple device-trees
 	 */
 	if (macio_request_resources(uap->dev, "pmac_zilog"))
 		printk(KERN_WARNING "%pOFn: Failed to request resource"

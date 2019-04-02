@@ -282,14 +282,14 @@ void release_and_free_resource(struct resource *res);
 
 /* --- */
 
-/* sound printk debug levels */
+/* sound printk de levels */
 enum {
 	SND_PR_ALWAYS,
-	SND_PR_DEBUG,
+	SND_PR_DE,
 	SND_PR_VERBOSE,
 };
 
-#if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
+#if defined(CONFIG_SND_DE) || defined(CONFIG_SND_VERBOSE_PRINTK)
 __printf(4, 5)
 void __snd_printk(unsigned int level, const char *file, int line,
 		  const char *format, ...);
@@ -308,13 +308,13 @@ void __snd_printk(unsigned int level, const char *file, int line,
 #define snd_printk(fmt, ...) \
 	__snd_printk(0, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 /**
- * snd_printd - debug printk
+ * snd_printd - de printk
  * @fmt: format string
  *
- * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG is not set.
+ * Works like snd_printk() for deging purposes.
+ * Ignored when CONFIG_SND_DE is not set.
  */
 #define snd_printd(fmt, ...) \
 	__snd_printk(1, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
@@ -322,52 +322,52 @@ void __snd_printk(unsigned int level, const char *file, int line,
 	__snd_printk(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 /**
- * snd_BUG - give a BUG warning message and stack trace
+ * snd_ - give a  warning message and stack trace
  *
- * Calls WARN() if CONFIG_SND_DEBUG is set.
- * Ignored when CONFIG_SND_DEBUG is not set.
+ * Calls WARN() if CONFIG_SND_DE is set.
+ * Ignored when CONFIG_SND_DE is not set.
  */
-#define snd_BUG()		WARN(1, "BUG?\n")
+#define snd_()		WARN(1, "?\n")
 
 /**
- * Suppress high rates of output when CONFIG_SND_DEBUG is enabled.
+ * Suppress high rates of output when CONFIG_SND_DE is enabled.
  */
 #define snd_printd_ratelimit() printk_ratelimit()
 
 /**
- * snd_BUG_ON - debugging check macro
+ * snd__ON - deging check macro
  * @cond: condition to evaluate
  *
- * Has the same behavior as WARN_ON when CONFIG_SND_DEBUG is set,
+ * Has the same behavior as WARN_ON when CONFIG_SND_DE is set,
  * otherwise just evaluates the conditional and returns the value.
  */
-#define snd_BUG_ON(cond)	WARN_ON((cond))
+#define snd__ON(cond)	WARN_ON((cond))
 
-#else /* !CONFIG_SND_DEBUG */
+#else /* !CONFIG_SND_DE */
 
 __printf(1, 2)
 static inline void snd_printd(const char *format, ...) {}
 __printf(2, 3)
 static inline void _snd_printd(int level, const char *format, ...) {}
 
-#define snd_BUG()			do { } while (0)
+#define snd_()			do { } while (0)
 
-#define snd_BUG_ON(condition) ({ \
+#define snd__ON(condition) ({ \
 	int __ret_warn_on = !!(condition); \
 	unlikely(__ret_warn_on); \
 })
 
 static inline bool snd_printd_ratelimit(void) { return false; }
 
-#endif /* CONFIG_SND_DEBUG */
+#endif /* CONFIG_SND_DE */
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 /**
- * snd_printdd - debug printk
+ * snd_printdd - de printk
  * @format: format string
  *
- * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
+ * Works like snd_printk() for deging purposes.
+ * Ignored when CONFIG_SND_DE_VERBOSE is not set.
  */
 #define snd_printdd(format, ...) \
 	__snd_printk(2, __FILE__, __LINE__, format, ##__VA_ARGS__)
@@ -392,7 +392,7 @@ struct snd_pci_quirk {
 	unsigned short subdevice;	/* PCI subdevice ID */
 	unsigned short subdevice_mask;	/* bitmask to match */
 	int value;			/* value */
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	const char *name;		/* name of the device (optional) */
 #endif
 };
@@ -402,7 +402,7 @@ struct snd_pci_quirk {
 #define _SND_PCI_QUIRK_ID(vend, dev) \
 	_SND_PCI_QUIRK_ID_MASK(vend, 0xffff, dev)
 #define SND_PCI_QUIRK_ID(vend,dev) {_SND_PCI_QUIRK_ID(vend, dev)}
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 #define SND_PCI_QUIRK(vend,dev,xname,val) \
 	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val), .name = (xname)}
 #define SND_PCI_QUIRK_VENDOR(vend, xname, val)			\

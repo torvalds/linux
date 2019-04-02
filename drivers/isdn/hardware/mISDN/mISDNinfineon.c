@@ -49,7 +49,7 @@
 #define INFINEON_REV	"1.0"
 
 static int inf_cnt;
-static u32 debug;
+static u32 de;
 static u32 irqloops = 4;
 
 enum inf_types {
@@ -236,15 +236,15 @@ static LIST_HEAD(Cards);
 static DEFINE_RWLOCK(card_lock); /* protect Cards */
 
 static void
-_set_debug(struct inf_hw *card)
+_set_de(struct inf_hw *card)
 {
-	card->ipac.isac.dch.debug = debug;
-	card->ipac.hscx[0].bch.debug = debug;
-	card->ipac.hscx[1].bch.debug = debug;
+	card->ipac.isac.dch.de = de;
+	card->ipac.hscx[0].bch.de = de;
+	card->ipac.hscx[1].bch.de = de;
 }
 
 static int
-set_debug(const char *val, const struct kernel_param *kp)
+set_de(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct inf_hw *card;
@@ -253,7 +253,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 	if (!ret) {
 		read_lock(&card_lock);
 		list_for_each_entry(card, &Cards, list)
-			_set_debug(card);
+			_set_de(card);
 		read_unlock(&card_lock);
 	}
 	return ret;
@@ -262,8 +262,8 @@ set_debug(const char *val, const struct kernel_param *kp)
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(INFINEON_REV);
-module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "infineon debug mask");
+module_param_call(de, set_de, param_get_uint, &de, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "infineon de mask");
 module_param(irqloops, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(irqloops, "infineon maximal irqloops (default 4)");
 
@@ -499,7 +499,7 @@ reset_inf(struct inf_hw *hw)
 	u16 w;
 	u32 val;
 
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s: resetting card\n", hw->name);
 	switch (hw->ci->typ) {
 	case INF_DIVA20:
@@ -628,7 +628,7 @@ init_irq(struct inf_hw *hw)
 		}
 		spin_unlock_irqrestore(&hw->lock, flags);
 		msleep_interruptible(10);
-		if (debug & DEBUG_HW)
+		if (de & DE_HW)
 			pr_notice("%s: IRQ %d count %d\n", hw->name,
 				  hw->irq, hw->irqcnt);
 		if (!hw->irqcnt) {
@@ -688,7 +688,7 @@ setup_io(struct inf_hw *hw)
 		if (hw->ci->cfg_mode == AM_MEMIO)
 			hw->cfg.p = ioremap(hw->cfg.start, hw->cfg.size);
 		hw->cfg.mode = hw->ci->cfg_mode;
-		if (debug & DEBUG_HW)
+		if (de & DE_HW)
 			pr_notice("%s: IO cfg %lx (%lu bytes) mode%d\n",
 				  hw->name, (ulong)hw->cfg.start,
 				  (ulong)hw->cfg.size, hw->ci->cfg_mode);
@@ -718,7 +718,7 @@ setup_io(struct inf_hw *hw)
 				return -ENOMEM;
 		}
 		hw->addr.mode = hw->ci->addr_mode;
-		if (debug & DEBUG_HW)
+		if (de & DE_HW)
 			pr_notice("%s: IO addr %lx (%lu bytes) mode%d\n",
 				  hw->name, (ulong)hw->addr.start,
 				  (ulong)hw->addr.size, hw->ci->addr_mode);
@@ -912,7 +912,7 @@ setup_instance(struct inf_hw *card)
 	list_add_tail(&card->list, &Cards);
 	write_unlock_irqrestore(&card_lock, flags);
 
-	_set_debug(card);
+	_set_de(card);
 	card->ipac.isac.name = card->name;
 	card->ipac.name = card->name;
 	card->ipac.owner = THIS_MODULE;
@@ -1147,7 +1147,7 @@ inf_remove(struct pci_dev *pdev)
 	if (card)
 		release_card(card);
 	else
-		pr_debug("%s: drvdata already removed\n", __func__);
+		pr_de("%s: drvdata already removed\n", __func__);
 }
 
 static struct pci_driver infineon_driver = {

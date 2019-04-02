@@ -328,7 +328,7 @@ EXPORT_SYMBOL_GPL(smcd_free_dev);
  * - event->code (event code),
  * - event->tok (either DMB token when event type 0, or GID when event type 1)
  * - event->time (time of day)
- * - event->info (debug info).
+ * - event->info (de info).
  *
  * Context:
  * - Function called in IRQ context from ISM device driver event handler.

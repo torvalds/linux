@@ -31,7 +31,7 @@
 #include <linux/blk-mq.h>
 #include "blk.h"
 #include "blk-mq.h"
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 #include "blk-mq-tag.h"
 #include "blk-pm.h"
 #include "blk-stat.h"
@@ -557,7 +557,7 @@ EXPORT_SYMBOL(__blk_mq_end_request);
 void blk_mq_end_request(struct request *rq, blk_status_t error)
 {
 	if (blk_update_request(rq, error, blk_rq_bytes(rq)))
-		BUG();
+		();
 	__blk_mq_end_request(rq, error);
 }
 EXPORT_SYMBOL(blk_mq_end_request);
@@ -717,7 +717,7 @@ void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list)
 	/* this request will be re-inserted to io scheduler queue */
 	blk_mq_sched_requeue_request(rq);
 
-	BUG_ON(!list_empty(&rq->queuelist));
+	_ON(!list_empty(&rq->queuelist));
 	blk_mq_add_to_requeue_list(rq, true, kick_requeue_list);
 }
 EXPORT_SYMBOL(blk_mq_requeue_request);
@@ -769,7 +769,7 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,
 	 * We abuse this flag that is otherwise used by the I/O scheduler to
 	 * request head insertion from the workqueue.
 	 */
-	BUG_ON(rq->rq_flags & RQF_SOFTBARRIER);
+	_ON(rq->rq_flags & RQF_SOFTBARRIER);
 
 	spin_lock_irqsave(&q->requeue_lock, flags);
 	if (at_head) {
@@ -1673,7 +1673,7 @@ void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 	 * offline now
 	 */
 	list_for_each_entry(rq, list, queuelist) {
-		BUG_ON(rq->mq_ctx != ctx);
+		_ON(rq->mq_ctx != ctx);
 		trace_block_rq_insert(hctx->queue, rq);
 	}
 
@@ -1724,7 +1724,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	while (!list_empty(&list)) {
 		rq = list_entry_rq(list.next);
 		list_del_init(&rq->queuelist);
-		BUG_ON(!rq->q);
+		_ON(!rq->q);
 		if (rq->mq_hctx != this_hctx || rq->mq_ctx != this_ctx) {
 			if (this_hctx) {
 				trace_block_unplug(this_q, depth, !from_schedule);
@@ -2270,7 +2270,7 @@ static void blk_mq_exit_hw_queues(struct request_queue *q,
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (i == nr_queue)
 			break;
-		blk_mq_debugfs_unregister_hctx(hctx);
+		blk_mq_defs_unregister_hctx(hctx);
 		blk_mq_exit_hctx(q, set, hctx, i);
 	}
 }
@@ -2468,7 +2468,7 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 			 * If the nr_ctx type overflows, we have exceeded the
 			 * amount of sw queues we can support.
 			 */
-			BUG_ON(!hctx->nr_ctx);
+			_ON(!hctx->nr_ctx);
 		}
 
 		for (; j < HCTX_MAX_TYPES; j++)
@@ -2690,7 +2690,7 @@ static int blk_mq_hw_ctx_size(struct blk_mq_tag_set *tag_set)
 {
 	int hw_ctx_size = sizeof(struct blk_mq_hw_ctx);
 
-	BUILD_BUG_ON(ALIGN(offsetof(struct blk_mq_hw_ctx, srcu),
+	BUILD__ON(ALIGN(offsetof(struct blk_mq_hw_ctx, srcu),
 			   __alignof__(struct blk_mq_hw_ctx)) !=
 		     sizeof(struct blk_mq_hw_ctx));
 
@@ -2975,7 +2975,7 @@ static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 
 		return set->ops->map_queues(set);
 	} else {
-		BUG_ON(set->nr_maps > 1);
+		_ON(set->nr_maps > 1);
 		return blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
 	}
 }
@@ -2990,7 +2990,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 {
 	int i, ret;
 
-	BUILD_BUG_ON(BLK_MQ_MAX_DEPTH > 1 << BLK_MQ_UNIQUE_TAG_BITS);
+	BUILD__ON(BLK_MQ_MAX_DEPTH > 1 << BLK_MQ_UNIQUE_TAG_BITS);
 
 	if (!set->nr_hw_queues)
 		return -EINVAL;
@@ -3232,7 +3232,7 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 			goto switch_back;
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		blk_mq_debugfs_unregister_hctxs(q);
+		blk_mq_defs_unregister_hctxs(q);
 		blk_mq_sysfs_unregister(q);
 	}
 
@@ -3254,7 +3254,7 @@ fallback:
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_sysfs_register(q);
-		blk_mq_debugfs_register_hctxs(q);
+		blk_mq_defs_register_hctxs(q);
 	}
 
 switch_back:

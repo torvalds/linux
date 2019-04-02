@@ -42,7 +42,7 @@
 #include "cifsproto.h"
 #include "smb2proto.h"
 #include "cifs_unicode.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "ntlmssp.h"
 #include "smb2status.h"
 #include "smb2glob.h"
@@ -2450,9 +2450,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	atomic_inc(&tcon->num_remote_opens);
 	oparms->fid->persistent_fid = rsp->PersistentFileId;
 	oparms->fid->volatile_fid = rsp->VolatileFileId;
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	oparms->fid->mid = le64_to_cpu(rsp->sync_hdr.MessageId);
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 
 	if (buf) {
 		memcpy(buf, &rsp->CreationTime, 32);

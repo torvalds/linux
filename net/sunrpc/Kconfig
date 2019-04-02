@@ -50,13 +50,13 @@ config CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
 	  Choosing Y prevents the use of known-insecure encryption types
 	  but might result in compatibility problems.
 
-config SUNRPC_DEBUG
-	bool "RPC: Enable dprintk debugging"
+config SUNRPC_DE
+	bool "RPC: Enable dprintk deging"
 	depends on SUNRPC && SYSCTL
-	select DEBUG_FS
+	select DE_FS
 	help
-	  This option enables a sysctl-based debugging interface
-	  that is be used by the 'rpcdebug' utility to turn on or off
+	  This option enables a sysctl-based deging interface
+	  that is be used by the 'rpcde' utility to turn on or off
 	  logging of different aspects of the kernel RPC activity.
 
 	  Disabling this option will make your kernel slightly smaller,

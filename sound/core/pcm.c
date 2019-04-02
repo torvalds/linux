@@ -489,7 +489,7 @@ static void snd_pcm_substream_proc_status_read(struct snd_info_entry *entry,
 	mutex_unlock(&substream->pcm->open_mutex);
 }
 
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DE
 static void snd_pcm_xrun_injection_write(struct snd_info_entry *entry,
 					 struct snd_info_buffer *buffer)
 {
@@ -498,20 +498,20 @@ static void snd_pcm_xrun_injection_write(struct snd_info_entry *entry,
 	snd_pcm_stop_xrun(substream);
 }
 
-static void snd_pcm_xrun_debug_read(struct snd_info_entry *entry,
+static void snd_pcm_xrun_de_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
 	struct snd_pcm_str *pstr = entry->private_data;
-	snd_iprintf(buffer, "%d\n", pstr->xrun_debug);
+	snd_iprintf(buffer, "%d\n", pstr->xrun_de);
 }
 
-static void snd_pcm_xrun_debug_write(struct snd_info_entry *entry,
+static void snd_pcm_xrun_de_write(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
 	struct snd_pcm_str *pstr = entry->private_data;
 	char line[64];
 	if (!snd_info_get_line(buffer, line, sizeof(line)))
-		pstr->xrun_debug = simple_strtoul(line, NULL, 10);
+		pstr->xrun_de = simple_strtoul(line, NULL, 10);
 }
 #endif
 
@@ -532,12 +532,12 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	entry = snd_info_create_card_entry(pcm->card, "info", pstr->proc_root);
 	if (entry)
 		snd_info_set_text_ops(entry, pstr, snd_pcm_stream_proc_info_read);
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	entry = snd_info_create_card_entry(pcm->card, "xrun_debug",
+#ifdef CONFIG_SND_PCM_XRUN_DE
+	entry = snd_info_create_card_entry(pcm->card, "xrun_de",
 					   pstr->proc_root);
 	if (entry) {
-		snd_info_set_text_ops(entry, pstr, snd_pcm_xrun_debug_read);
-		entry->c.text.write = snd_pcm_xrun_debug_write;
+		snd_info_set_text_ops(entry, pstr, snd_pcm_xrun_de_read);
+		entry->c.text.write = snd_pcm_xrun_de_write;
 		entry->mode |= 0200;
 	}
 #endif
@@ -591,13 +591,13 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	create_substream_info_entry(substream, "status",
 				    snd_pcm_substream_proc_status_read);
 
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DE
 	entry = create_substream_info_entry(substream, "xrun_injection", NULL);
 	if (entry) {
 		entry->c.text.write = snd_pcm_xrun_injection_write;
 		entry->mode = S_IFREG | 0200;
 	}
-#endif /* CONFIG_SND_PCM_XRUN_DEBUG */
+#endif /* CONFIG_SND_PCM_XRUN_DE */
 
 	return 0;
 }
@@ -730,7 +730,7 @@ static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
 		.dev_free = snd_pcm_dev_free,
 	};
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 	if (rpcm)
 		*rpcm = NULL;
@@ -902,9 +902,9 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	int prefer_subdevice;
 	size_t size;
 
-	if (snd_BUG_ON(!pcm || !rsubstream))
+	if (snd__ON(!pcm || !rsubstream))
 		return -ENXIO;
-	if (snd_BUG_ON(stream != SNDRV_PCM_STREAM_PLAYBACK &&
+	if (snd__ON(stream != SNDRV_PCM_STREAM_PLAYBACK &&
 		       stream != SNDRV_PCM_STREAM_CAPTURE))
 		return -EINVAL;
 	*rsubstream = NULL;
@@ -1058,7 +1058,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 	struct snd_pcm_substream *substream;
 	struct snd_pcm *pcm;
 
-	if (snd_BUG_ON(!device || !device->device_data))
+	if (snd__ON(!device || !device->device_data))
 		return -ENXIO;
 	pcm = device->device_data;
 
@@ -1148,7 +1148,7 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 {
 	struct snd_pcm *pcm;
 
-	if (snd_BUG_ON(!notify ||
+	if (snd__ON(!notify ||
 		       !notify->n_register ||
 		       !notify->n_unregister ||
 		       !notify->n_disconnect))

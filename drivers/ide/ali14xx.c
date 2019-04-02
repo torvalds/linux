@@ -128,7 +128,7 @@ static void ali14xx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		param3 += 8;
 		param4 += 8;
 	}
-	printk(KERN_DEBUG "%s: PIO mode%d, t1=%dns, t2=%dns, cycles = %d+%d, %d+%d\n",
+	printk(KERN_DE "%s: PIO mode%d, t1=%dns, t2=%dns, cycles = %d+%d, %d+%d\n",
 		drive->name, pio, time1, time2, param1, param2, param3, param4);
 
 	/* stuff timing parameters into controller registers */
@@ -209,7 +209,7 @@ static const struct ide_port_info ali14xx_port_info = {
 
 static int __init ali14xx_probe(void)
 {
-	printk(KERN_DEBUG "ali14xx: base=0x%03x, regOn=0x%02x.\n",
+	printk(KERN_DE "ali14xx: base=0x%03x, regOn=0x%02x.\n",
 			  basePort, regOn);
 
 	/* initialize controller registers */

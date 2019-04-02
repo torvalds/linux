@@ -706,7 +706,7 @@ static int x25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		rc = -EINVAL;
 	}
 	release_sock(sk);
-	SOCK_DEBUG(sk, "x25_bind: socket is bound\n");
+	SOCK_DE(sk, "x25_bind: socket is bound\n");
 out:
 	return rc;
 }
@@ -1154,10 +1154,10 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out;
 	}
 
-	SOCK_DEBUG(sk, "x25_sendmsg: sendto: Addresses built.\n");
+	SOCK_DE(sk, "x25_sendmsg: sendto: Addresses built.\n");
 
 	/* Build a packet */
-	SOCK_DEBUG(sk, "x25_sendmsg: sendto: building packet.\n");
+	SOCK_DE(sk, "x25_sendmsg: sendto: building packet.\n");
 
 	if ((msg->msg_flags & MSG_OOB) && len > 32)
 		len = 32;
@@ -1176,7 +1176,7 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	/*
 	 *	Put the data on the end
 	 */
-	SOCK_DEBUG(sk, "x25_sendmsg: Copying user data\n");
+	SOCK_DE(sk, "x25_sendmsg: Copying user data\n");
 
 	skb_reset_transport_header(skb);
 	skb_put(skb, len);
@@ -1200,7 +1200,7 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	/*
 	 *	Push down the X.25 header
 	 */
-	SOCK_DEBUG(sk, "x25_sendmsg: Building X.25 Header.\n");
+	SOCK_DE(sk, "x25_sendmsg: Building X.25 Header.\n");
 
 	if (msg->msg_flags & MSG_OOB) {
 		if (x25->neighbour->extended) {
@@ -1234,8 +1234,8 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 			skb->data[0] |= X25_Q_BIT;
 	}
 
-	SOCK_DEBUG(sk, "x25_sendmsg: Built header.\n");
-	SOCK_DEBUG(sk, "x25_sendmsg: Transmitting buffer\n");
+	SOCK_DE(sk, "x25_sendmsg: Built header.\n");
+	SOCK_DE(sk, "x25_sendmsg: Transmitting buffer\n");
 
 	rc = -ENOTCONN;
 	if (sk->sk_state != TCP_ESTABLISHED)

@@ -178,7 +178,7 @@ mkinitrd.
 E2fsprogs
 ---------
 
-L'ultima versione di ``e2fsprogs`` corregge diversi bachi in fsck e debugfs.
+L'ultima versione di ``e2fsprogs`` corregge diversi bachi in fsck e defs.
 Ovviamente, aggiornarlo è una buona idea.
 
 JFSutils
@@ -199,7 +199,7 @@ Reiserfsprogs
 
 Il pacchetto reiserfsprogs dovrebbe essere usato con reiserfs-3.6.x (Linux
 kernel 2.4.x).  Questo è un pacchetto combinato che contiene versioni
-funzionanti di ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` e
+funzionanti di ``mkreiserfs``, ``resize_reiserfs``, ``dereiserfs`` e
 ``reiserfsck``.  Questi programmi funzionano sulle piattaforme i386 e alpha.
 
 Xfsprogs

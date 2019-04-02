@@ -122,7 +122,7 @@ xfs_qm_adjust_dqtimers(
 {
 	ASSERT(d->d_id);
 
-#ifdef DEBUG
+#ifdef DE
 	if (d->d_blk_hardlimit)
 		ASSERT(be64_to_cpu(d->d_blk_softlimit) <=
 		       be64_to_cpu(d->d_blk_hardlimit));
@@ -341,7 +341,7 @@ xfs_dquot_disk_alloc(
 	 * Hold the buffer and join it to the dfops so that we'll still own
 	 * the buffer when we return to the caller.  The buffer disposal on
 	 * error must be paid attention to very carefully, as it has been
-	 * broken since commit efa092f3d4c6 "[XFS] Fixes a bug in the quota
+	 * broken since commit efa092f3d4c6 "[XFS] Fixes a  in the quota
 	 * code when allocating a new dquot record" in 2005, and the later
 	 * conversion to xfs_defer_ops in commit 310a75a3c6c747 failed to keep
 	 * the buffer locked across the _defer_finish call.  We can now do

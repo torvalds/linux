@@ -63,9 +63,9 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
 		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static struct ena_aenq_handlers aenq_handlers;
 
@@ -2320,9 +2320,9 @@ err:
 	ena_com_delete_host_info(ena_dev);
 }
 
-static void ena_config_debug_area(struct ena_adapter *adapter)
+static void ena_config_de_area(struct ena_adapter *adapter)
 {
-	u32 debug_area_size;
+	u32 de_area_size;
 	int rc, ss_count;
 
 	ss_count = ena_get_sset_count(adapter->netdev, ETH_SS_STATS);
@@ -2333,11 +2333,11 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 	}
 
 	/* allocate 32 bytes for each string and 64bit for the value */
-	debug_area_size = ss_count * ETH_GSTRING_LEN + sizeof(u64) * ss_count;
+	de_area_size = ss_count * ETH_GSTRING_LEN + sizeof(u64) * ss_count;
 
-	rc = ena_com_allocate_debug_area(adapter->ena_dev, debug_area_size);
+	rc = ena_com_allocate_de_area(adapter->ena_dev, de_area_size);
 	if (rc) {
-		pr_err("Cannot allocate debug area\n");
+		pr_err("Cannot allocate de area\n");
 		return;
 	}
 
@@ -2354,7 +2354,7 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 
 	return;
 err:
-	ena_com_delete_debug_area(adapter->ena_dev);
+	ena_com_delete_de_area(adapter->ena_dev);
 }
 
 static void ena_get_stats64(struct net_device *netdev,
@@ -2988,7 +2988,7 @@ static void ena_update_host_info(struct ena_admin_host_info *host_info,
 static void ena_timer_service(struct timer_list *t)
 {
 	struct ena_adapter *adapter = from_timer(adapter, t, timer_service);
-	u8 *debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
+	u8 *de_area = adapter->ena_dev->host_attr.de_area_virt_addr;
 	struct ena_admin_host_info *host_info =
 		adapter->ena_dev->host_attr.host_info;
 
@@ -3000,8 +3000,8 @@ static void ena_timer_service(struct timer_list *t)
 
 	check_for_empty_rx_ring(adapter);
 
-	if (debug_area)
-		ena_dump_stats_to_buf(adapter, debug_area);
+	if (de_area)
+		ena_dump_stats_to_buf(adapter, de_area);
 
 	if (host_info)
 		ena_update_host_info(host_info, adapter->netdev);
@@ -3365,7 +3365,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ena_set_conf_feat_params(adapter, &get_feat_ctx);
 
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 	adapter->reset_reason = ENA_REGS_RESET_NORMAL;
 
 	adapter->tx_ring_size = queue_size;
@@ -3410,7 +3410,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_msix;
 	}
 
-	ena_config_debug_area(adapter);
+	ena_config_de_area(adapter);
 
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
 
@@ -3451,7 +3451,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_rss:
-	ena_com_delete_debug_area(ena_dev);
+	ena_com_delete_de_area(ena_dev);
 	ena_com_rss_destroy(ena_dev);
 err_free_msix:
 	ena_com_dev_reset(ena_dev, ENA_REGS_RESET_INIT_ERR);
@@ -3513,7 +3513,7 @@ static void ena_remove(struct pci_dev *pdev)
 
 	ena_com_rss_destroy(ena_dev);
 
-	ena_com_delete_debug_area(ena_dev);
+	ena_com_delete_de_area(ena_dev);
 
 	ena_com_delete_host_info(ena_dev);
 

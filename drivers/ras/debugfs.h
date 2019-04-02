@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __RAS_DEBUGFS_H__
-#define __RAS_DEBUGFS_H__
+#ifndef __RAS_DEFS_H__
+#define __RAS_DEFS_H__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-extern struct dentry *ras_debugfs_dir;
+extern struct dentry *ras_defs_dir;
 
-#endif /* __RAS_DEBUGFS_H__ */
+#endif /* __RAS_DEFS_H__ */

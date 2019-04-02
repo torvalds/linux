@@ -366,7 +366,7 @@ int ipcomp_init_state(struct xfrm_state *x)
 	mutex_unlock(&ipcomp_resource_mutex);
 
 	calg_desc = xfrm_calg_get_byname(x->calg->alg_name, 0);
-	BUG_ON(!calg_desc);
+	_ON(!calg_desc);
 	ipcd->threshold = calg_desc->uinfo.comp.threshold;
 	x->data = ipcd;
 	err = 0;

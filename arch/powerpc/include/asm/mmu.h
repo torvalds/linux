@@ -122,7 +122,7 @@
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_NO_SLBIE_B
 #ifndef __ASSEMBLY__
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/cputable.h>
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -187,10 +187,10 @@ static __always_inline bool mmu_has_feature(unsigned long feature)
 	int i;
 
 #ifndef __clang__ /* clang can't cope with this */
-	BUILD_BUG_ON(!__builtin_constant_p(feature));
+	BUILD__ON(!__builtin_constant_p(feature));
 #endif
 
-#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DE
 	if (!static_key_initialized) {
 		printk("Warning! mmu_has_feature() used prior to jump label init!\n");
 		dump_stack();
@@ -250,13 +250,13 @@ extern void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 extern void assert_pte_locked(struct mm_struct *mm, unsigned long addr);
-#else /* CONFIG_DEBUG_VM */
+#else /* CONFIG_DE_VM */
 static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 {
 }
-#endif /* !CONFIG_DEBUG_VM */
+#endif /* !CONFIG_DE_VM */
 
 #ifdef CONFIG_PPC_RADIX_MMU
 static inline bool radix_enabled(void)

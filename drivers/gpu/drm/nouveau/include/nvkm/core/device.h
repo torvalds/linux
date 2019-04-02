@@ -103,7 +103,7 @@ struct nvkm_device {
 	struct nvkm_event event;
 
 	u64 disable_mask;
-	u32 debug;
+	u32 de;
 
 	const struct nvkm_device_chip *chip;
 	enum {
@@ -282,7 +282,7 @@ extern const struct nvkm_sclass nvkm_udevice_sclass;
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \
 	const struct nvkm_device *_device = (d);                               \
-	if (_device->debug >= (l))                                             \
+	if (_device->de >= (l))                                             \
 		dev_##p(_device->dev, f, ##a);                                 \
 } while(0)
 #define nvdev_printk(d,l,p,f,a...) nvdev_printk_((d), NV_DBG_##l, p, f, ##a)
@@ -290,7 +290,7 @@ extern const struct nvkm_sclass nvkm_udevice_sclass;
 #define nvdev_error(d,f,a...) nvdev_printk((d), ERROR,    err, f, ##a)
 #define nvdev_warn(d,f,a...)  nvdev_printk((d),  WARN, notice, f, ##a)
 #define nvdev_info(d,f,a...)  nvdev_printk((d),  INFO,   info, f, ##a)
-#define nvdev_debug(d,f,a...) nvdev_printk((d), DEBUG,   info, f, ##a)
+#define nvdev_de(d,f,a...) nvdev_printk((d), DE,   info, f, ##a)
 #define nvdev_trace(d,f,a...) nvdev_printk((d), TRACE,   info, f, ##a)
 #define nvdev_spam(d,f,a...)  nvdev_printk((d),  SPAM,    dbg, f, ##a)
 #endif

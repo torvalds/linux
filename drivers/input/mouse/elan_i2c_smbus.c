@@ -119,7 +119,7 @@ static int elan_smbus_calibrate_result(struct i2c_client *client, u8 *val)
 	int error;
 	u8 buf[I2C_SMBUS_BLOCK_MAX] = {0};
 
-	BUILD_BUG_ON(ETP_CALIBRATE_MAX_LEN > sizeof(buf));
+	BUILD__ON(ETP_CALIBRATE_MAX_LEN > sizeof(buf));
 
 	error = i2c_smbus_read_block_data(client,
 					  ETP_SMBUS_CALIBRATE_QUERY, buf);
@@ -476,7 +476,7 @@ static int elan_smbus_get_report(struct i2c_client *client, u8 *report)
 {
 	int len;
 
-	BUILD_BUG_ON(I2C_SMBUS_BLOCK_MAX > ETP_SMBUS_REPORT_LEN);
+	BUILD__ON(I2C_SMBUS_BLOCK_MAX > ETP_SMBUS_REPORT_LEN);
 
 	len = i2c_smbus_read_block_data(client,
 					ETP_SMBUS_PACKET_QUERY,

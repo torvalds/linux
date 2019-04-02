@@ -21,7 +21,7 @@
 #include "core.h"
 #include "target.h"
 #include "hif-ops.h"
-#include "debug.h"
+#include "de.h"
 #include "trace.h"
 
 #define MAILBOX_FOR_BLOCK_SIZE          1
@@ -102,7 +102,7 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	ath6kl_info("hw 0x%x fw %s\n", ar->wiphy->hw_version,
 		    ar->wiphy->fw_version);
 
-	BUILD_BUG_ON(REGISTER_DUMP_COUNT % 4);
+	BUILD__ON(REGISTER_DUMP_COUNT % 4);
 
 	for (i = 0; i < REGISTER_DUMP_COUNT; i += 4) {
 		ath6kl_info("%d: 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
@@ -122,13 +122,13 @@ static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 	ath6kl_warn("firmware crashed\n");
 
 	/*
-	 * read counter to clear the interrupt, the debug error interrupt is
+	 * read counter to clear the interrupt, the de error interrupt is
 	 * counter 0.
 	 */
 	ret = hif_read_write_sync(dev->ar, COUNT_DEC_ADDRESS,
 				     (u8 *)&dummy, 4, HIF_RD_SYNC_BYTE_INC);
 	if (ret)
-		ath6kl_warn("Failed to clear debug interrupt: %d\n", ret);
+		ath6kl_warn("Failed to clear de interrupt: %d\n", ret);
 
 	ath6kl_hif_dump_fw_crash(dev->ar);
 	ath6kl_read_fwlogs(dev->ar);
@@ -182,7 +182,7 @@ int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev, u32 *lk_ahd,
 		status = -ETIME;
 		/* check if the target asserted */
 		if (dev->irq_proc_reg.counter_int_status &
-		    ATH6KL_TARGET_DEBUG_INTR_MASK)
+		    ATH6KL_TARGET_DE_INTR_MASK)
 			/*
 			 * Target failure handler will be called in case of
 			 * an assert.
@@ -288,9 +288,9 @@ static int ath6kl_hif_proc_counter_intr(struct ath6kl_device *dev)
 	/*
 	 * NOTE: other modules like GMBOX may use the counter interrupt for
 	 * credit flow control on other counters, we only need to check for
-	 * the debug assertion counter interrupt.
+	 * the de assertion counter interrupt.
 	 */
-	if (counter_int_status & ATH6KL_TARGET_DEBUG_INTR_MASK)
+	if (counter_int_status & ATH6KL_TARGET_DE_INTR_MASK)
 		return ath6kl_hif_proc_dbg_intr(dev);
 
 	return 0;
@@ -594,10 +594,10 @@ static int ath6kl_hif_enable_intrs(struct ath6kl_device *dev)
 
 	/*
 	 * Enable Counter interrupt status register to get fatal errors for
-	 * debugging.
+	 * deging.
 	 */
 	dev->irq_en_reg.cntr_int_status_en = SM(COUNTER_INT_STATUS_ENABLE_BIT,
-						ATH6KL_TARGET_DEBUG_INTR_MASK);
+						ATH6KL_TARGET_DE_INTR_MASK);
 	memcpy(&regs, &dev->irq_en_reg, sizeof(regs));
 
 	spin_unlock_bh(&dev->lock);

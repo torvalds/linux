@@ -139,7 +139,7 @@ void unwind_stack(struct task_struct *task, struct pt_regs *regs,
 	 * The problem with unwinders with high ratings is that they are
 	 * inherently more complicated than the simple ones with lower
 	 * ratings. We are therefore more likely to fault in the
-	 * complicated ones, e.g. hitting BUG()s. If we fault in the
+	 * complicated ones, e.g. hitting ()s. If we fault in the
 	 * code for the current stack unwinder we try to downgrade to
 	 * one with a lower rating.
 	 *

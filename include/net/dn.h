@@ -217,7 +217,7 @@ void dn_start_slow_timer(struct sock *sk);
 void dn_stop_slow_timer(struct sock *sk);
 
 extern __le16 decnet_address;
-extern int decnet_debug_level;
+extern int decnet_de_level;
 extern int decnet_time_wait;
 extern int decnet_dn_count;
 extern int decnet_di_count;

@@ -12,7 +12,7 @@
  * Now that we replace it by a mutex, we still want to keep the same
  * recursive property to avoid big changes in the code structure.
  * We use our own lock_owner here because the owner field on a mutex
- * is only available in SMP or mutex debugging, also we only need this field
+ * is only available in SMP or mutex deging, also we only need this field
  * for this mutex, no need for a system wide mutex facility.
  *
  * Also this lock is often released before a call that could block because
@@ -38,10 +38,10 @@ void reiserfs_write_unlock(struct super_block *s)
 
 	/*
 	 * Are we unlocking without even holding the lock?
-	 * Such a situation must raise a BUG() if we don't want
+	 * Such a situation must raise a () if we don't want
 	 * to corrupt the data.
 	 */
-	BUG_ON(sb_i->lock_owner != current);
+	_ON(sb_i->lock_owner != current);
 
 	if (--sb_i->lock_depth == -1) {
 		sb_i->lock_owner = NULL;
@@ -81,8 +81,8 @@ void reiserfs_write_lock_nested(struct super_block *s, int depth)
 }
 
 /*
- * Utility function to force a BUG if it is called without the superblock
- * write lock held.  caller is the string printed just before calling BUG()
+ * Utility function to force a  if it is called without the superblock
+ * write lock held.  caller is the string printed just before calling ()
  */
 void reiserfs_check_lock_depth(struct super_block *sb, char *caller)
 {

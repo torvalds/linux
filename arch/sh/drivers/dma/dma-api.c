@@ -132,7 +132,7 @@ int request_dma_bycap(const char **dmac, const char **caps, const char *dev_id)
 	const char **p;
 	int i;
 
-	BUG_ON(!dmac || !caps);
+	_ON(!dmac || !caps);
 
 	list_for_each_entry(info, &registered_dmac_list, list)
 		if (strcmp(*dmac, info->name) == 0) {
@@ -345,7 +345,7 @@ int register_dmac(struct dma_info *info)
 	printk(KERN_INFO "DMA: Registering %s handler (%d channel%s).\n",
 	       info->name, info->nr_channels, info->nr_channels > 1 ? "s" : "");
 
-	BUG_ON((info->flags & DMAC_CHANNELS_CONFIGURED) && !info->channels);
+	_ON((info->flags & DMAC_CHANNELS_CONFIGURED) && !info->channels);
 
 	info->pdev = platform_device_register_simple(info->name, -1,
 						     NULL, 0);

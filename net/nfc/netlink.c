@@ -400,7 +400,7 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 
 	i = 1;
 	hlist_for_each_entry_safe(sdres, n, sdres_list, node) {
-		pr_debug("uri: %s, sap: %d\n", sdres->uri, sdres->sap);
+		pr_de("uri: %s, sap: %d\n", sdres->uri, sdres->sap);
 
 		uri_attr = nla_nest_start(msg, i++);
 		if (uri_attr == NULL) {
@@ -663,7 +663,7 @@ int nfc_genl_dep_link_up_event(struct nfc_dev *dev, u32 target_idx,
 	struct sk_buff *msg;
 	void *hdr;
 
-	pr_debug("DEP link is up\n");
+	pr_de("DEP link is up\n");
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!msg)
@@ -701,7 +701,7 @@ int nfc_genl_dep_link_down_event(struct nfc_dev *dev)
 	struct sk_buff *msg;
 	void *hdr;
 
-	pr_debug("DEP link is down\n");
+	pr_de("DEP link is down\n");
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!msg)
@@ -814,7 +814,7 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 	u32 idx;
 	u32 im_protocols = 0, tm_protocols = 0;
 
-	pr_debug("Poll start\n");
+	pr_de("Poll start\n");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
 	    ((!info->attrs[NFC_ATTR_IM_PROTOCOLS] &&
@@ -946,7 +946,7 @@ static int nfc_genl_dep_link_up(struct sk_buff *skb, struct genl_info *info)
 	u32 idx;
 	u8 comm;
 
-	pr_debug("DEP link up\n");
+	pr_de("DEP link up\n");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
 	    !info->attrs[NFC_ATTR_COMM_MODE])
@@ -1417,7 +1417,7 @@ static int nfc_se_io(struct nfc_dev *dev, u32 se_idx,
 	struct nfc_se *se;
 	int rc;
 
-	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+	pr_de("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
 	device_lock(&dev->dev);
 
@@ -1790,7 +1790,7 @@ static void nfc_urelease_event_work(struct work_struct *work)
 	struct class_dev_iter iter;
 	struct nfc_dev *dev;
 
-	pr_debug("portid %d\n", w->portid);
+	pr_de("portid %d\n", w->portid);
 
 	mutex_lock(&nfc_devlist_mutex);
 
@@ -1826,7 +1826,7 @@ static int nfc_genl_rcv_nl_event(struct notifier_block *this,
 	if (event != NETLINK_URELEASE || n->protocol != NETLINK_GENERIC)
 		goto out;
 
-	pr_debug("NETLINK_URELEASE event from id %d\n", n->portid);
+	pr_de("NETLINK_URELEASE event from id %d\n", n->portid);
 
 	w = kmalloc(sizeof(*w), GFP_ATOMIC);
 	if (w) {

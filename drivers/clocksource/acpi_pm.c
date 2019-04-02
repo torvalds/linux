@@ -107,9 +107,9 @@ static void acpi_pm_check_blacklist(struct pci_dev *dev)
 	if (acpi_pm_good)
 		return;
 
-	/* the bug has been fixed in PIIX4M */
+	/* the  has been fixed in PIIX4M */
 	if (dev->revision < 3) {
-		pr_warn("* Found PM-Timer Bug on the chipset. Due to workarounds for a bug,\n"
+		pr_warn("* Found PM-Timer  on the chipset. Due to workarounds for a ,\n"
 			"* this clock source is slow. Consider trying other clock sources\n");
 
 		acpi_pm_need_workaround();
@@ -123,9 +123,9 @@ static void acpi_pm_check_graylist(struct pci_dev *dev)
 	if (acpi_pm_good)
 		return;
 
-	pr_warn("* The chipset may have PM-Timer Bug. Due to workarounds for a bug,\n"
+	pr_warn("* The chipset may have PM-Timer . Due to workarounds for a ,\n"
 		"* this clock source is slow. If you are sure your timer does not have\n"
-		"* this bug, please use \"acpi_pm_good\" to disable the workaround\n");
+		"* this , please use \"acpi_pm_good\" to disable the workaround\n");
 
 	acpi_pm_need_workaround();
 }

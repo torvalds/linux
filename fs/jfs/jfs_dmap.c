@@ -25,7 +25,7 @@
 #include "jfs_imap.h"
 #include "jfs_lock.h"
 #include "jfs_metapage.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 #include "jfs_discard.h"
 
 /*

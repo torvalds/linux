@@ -970,7 +970,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	for (i = 0; i < ep->nurbs; i++) {
 		struct urb *urb = ep->urb[i].urb;
 
-		if (snd_BUG_ON(!urb))
+		if (snd__ON(!urb))
 			goto __error;
 
 		if (usb_pipeout(ep->pipe)) {
@@ -1017,7 +1017,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 	if (!ep)
 		return;
 
-	if (snd_BUG_ON(ep->use_count == 0))
+	if (snd__ON(ep->use_count == 0))
 		return;
 
 	if (--ep->use_count == 0) {
@@ -1091,7 +1091,7 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	unsigned int f;
 	unsigned long flags;
 
-	snd_BUG_ON(ep == sender);
+	snd__ON(ep == sender);
 
 	/*
 	 * In case the endpoint is operating in implicit feedback mode, prepare

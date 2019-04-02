@@ -7,7 +7,7 @@
  *					Merge to 2.0.x kernel tree
  *					Obtain and use official major/minors
  *					Loader switched to a misc device
- *					(fixed range check bug as a side effect)
+ *					(fixed range check  as a side effect)
  *					Printk clean up
  *	9/12/98	alan@lxorguk.ukuu.org.uk
  *					Rough port to 2.1.x
@@ -137,7 +137,7 @@
 #define InterruptTheCard(base) outw(0, (base) + 0xc)
 #define ClearInterrupt(base) inw((base) + 0x0a)
 
-#ifdef DEBUG
+#ifdef DE
 #define isicom_paranoia_check(a, b, c) __isicom_paranoia_check((a), (b), (c))
 #else
 #define isicom_paranoia_check(a, b, c) 0
@@ -441,7 +441,7 @@ static void isicom_tx(struct timer_list *unused)
 		if (!(inw(base + 0x02) & (1 << port->channel)))
 			continue;
 
-		pr_debug("txing %d bytes, port%d.\n",
+		pr_de("txing %d bytes, port%d.\n",
 			 txcount, port->channel + 1);
 		outw((port->channel << isi_card[card].shift_count) | txcount,
 			base);
@@ -573,14 +573,14 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 				if (port->status & ISI_DCD) {
 					if (!(header & ISI_DCD)) {
 					/* Carrier has been lost  */
-						pr_debug("%s: DCD->low.\n",
+						pr_de("%s: DCD->low.\n",
 							 __func__);
 						port->status &= ~ISI_DCD;
 						tty_hangup(tty);
 					}
 				} else if (header & ISI_DCD) {
 				/* Carrier has been detected */
-					pr_debug("%s: DCD->high.\n",
+					pr_de("%s: DCD->high.\n",
 						__func__);
 					port->status |= ISI_DCD;
 					wake_up_interruptible(&port->port.open_wait);
@@ -633,18 +633,18 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			break;
 
 		case 2:	/* Statistics		 */
-			pr_debug("%s: stats!!!\n", __func__);
+			pr_de("%s: stats!!!\n", __func__);
 			break;
 
 		default:
-			pr_debug("%s: Unknown code in status packet.\n",
+			pr_de("%s: Unknown code in status packet.\n",
 				 __func__);
 			break;
 		}
 	} else {				/* Data   Packet */
 		count = tty_prepare_flip_string(&port->port, &rp,
 				byte_count & ~1);
-		pr_debug("%s: Can rx %d of %d bytes.\n",
+		pr_de("%s: Can rx %d of %d bytes.\n",
 			 __func__, count, byte_count);
 		word_count = count >> 1;
 		insw(base, rp, word_count);
@@ -655,7 +655,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			byte_count -= 2;
 		}
 		if (byte_count > 0) {
-			pr_debug("%s(0x%lx:%d): Flip buffer overflow! dropping bytes...\n",
+			pr_de("%s(0x%lx:%d): Flip buffer overflow! dropping bytes...\n",
 				 __func__, base, channel + 1);
 		/* drain out unread xtra data */
 		while (byte_count > 0) {
@@ -874,7 +874,7 @@ static void isicom_shutdown_port(struct isi_port *port)
 	struct isi_board *card = port->card;
 
 	if (--card->count < 0) {
-		pr_debug("%s: bad board(0x%lx) count %d.\n",
+		pr_de("%s: bad board(0x%lx) count %d.\n",
 			 __func__, card->base, card->count);
 		card->count = 0;
 	}
@@ -1657,7 +1657,7 @@ static int __init isicom_init(void)
 
 	retval = tty_register_driver(isicom_normal);
 	if (retval) {
-		pr_debug("Couldn't register the dialin driver\n");
+		pr_de("Couldn't register the dialin driver\n");
 		goto err_puttty;
 	}
 

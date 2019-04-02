@@ -249,7 +249,7 @@ static struct nsm_handle *nsm_lookup_priv(const struct list_head *nsm_handles,
  *
  * The NSM protocol requires that these cookies be unique while the
  * system is running.  We prefer a stronger requirement of making them
- * unique across reboots.  If user space bugs cause a stale cookie to
+ * unique across reboots.  If user space s cause a stale cookie to
  * be sent to the kernel, it could cause the wrong host to lose its
  * lock state if cookies were not unique across reboots.
  *

@@ -40,14 +40,14 @@
 #define SIS_NEW_CONFIG_COMPAT
 #endif	/* CONFIG_COMPAT */
 
-#undef SISFBDEBUG
+#undef SISFBDE
 
-#ifdef SISFBDEBUG
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __func__ , ## args)
-#define TWDEBUG(x) printk(KERN_INFO x "\n");
+#ifdef SISFBDE
+#define DPRINTK(fmt, args...) printk(KERN_DE "%s: " fmt, __func__ , ## args)
+#define TWDE(x) printk(KERN_INFO x "\n");
 #else
 #define DPRINTK(fmt, args...)
-#define TWDEBUG(x)
+#define TWDE(x)
 #endif
 
 #define SISFAIL(x) do { printk(x "\n"); return -EINVAL; } while(0)

@@ -145,12 +145,12 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 }
 
 /*
- * Helper to output refs and locking status of extent buffer.  Useful to debug
+ * Helper to output refs and locking status of extent buffer.  Useful to de
  * race condition related problems.
  */
 static void print_eb_refs_lock(struct extent_buffer *eb)
 {
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	btrfs_info(eb->fs_info,
 "refs %u lock (w:%d r:%d bw:%d br:%d sw:%d sr:%d) lock_owner %u current %u",
 		   atomic_read(&eb->refs), atomic_read(&eb->write_locks),
@@ -369,10 +369,10 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 
 		if (btrfs_is_leaf(next) &&
 		   level != 1)
-			BUG();
+			();
 		if (btrfs_header_level(next) !=
 		       level - 1)
-			BUG();
+			();
 		btrfs_print_tree(next, follow);
 		free_extent_buffer(next);
 	}

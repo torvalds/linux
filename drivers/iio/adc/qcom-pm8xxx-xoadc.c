@@ -460,7 +460,7 @@ static int pm8xxx_read_channel_rsv(struct pm8xxx_xoadc *adc,
 		   ADC_ARB_USRP_RSV_DTEST1 | ADC_ARB_USRP_RSV_OP);
 	if (adc->variant->broken_ratiometric && !force_ratiometric) {
 		/*
-		 * Apparently the PM8058 has some kind of bug which is
+		 * Apparently the PM8058 has some kind of  which is
 		 * reflected in the vendor tree drivers/misc/pmix8058-xoadc.c
 		 * which just hardcodes the RSV selector to SEL1 (0x20) for
 		 * most cases and SEL0 (0x10) for the MUXOFF channel only.

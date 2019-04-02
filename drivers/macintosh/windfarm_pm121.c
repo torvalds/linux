@@ -199,7 +199,7 @@
  *
  */
 
-#undef	DEBUG
+#undef	DE
 
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -498,7 +498,7 @@ static s32 pm121_connect(unsigned int control_id, s32 setpoint)
 		if (new_min > 0) {
 			new_setpoint = max(setpoint, (new_min >> 16));
 			if (new_setpoint != setpoint) {
-				pr_debug("pm121: %s depending on %s, "
+				pr_de("pm121: %s depending on %s, "
 					 "corrected from %d to %d RPM\n",
 					 controls[control_id]->name,
 					 controls[pm121_connection->ref_id]->name,
@@ -571,7 +571,7 @@ static void pm121_create_sys_fans(int loop_id)
 
 	wf_pid_init(&pm121_sys_state[loop_id]->pid, &pid_param);
 
-	pr_debug("pm121: %s Fan control loop initialized.\n"
+	pr_de("pm121: %s Fan control loop initialized.\n"
 		 "       itarged=%d.%03d, min=%d RPM, max=%d RPM\n",
 		 loop_names[loop_id], FIX32TOPRINT(pid_param.itarget),
 		 pid_param.min, pid_param.max);
@@ -617,7 +617,7 @@ static void pm121_sys_fans_tick(int loop_id)
 		return;
 	}
 
-	pr_debug("pm121: %s Fan tick ! %s: %d.%03d\n",
+	pr_de("pm121: %s Fan tick ! %s: %d.%03d\n",
 		 loop_names[loop_id], sensor->name,
 		 FIX32TOPRINT(temp));
 
@@ -633,7 +633,7 @@ static void pm121_sys_fans_tick(int loop_id)
 	if (new_setpoint == st->setpoint)
 		return;
 	st->setpoint = new_setpoint;
-	pr_debug("pm121: %s corrected setpoint: %d RPM\n",
+	pr_de("pm121: %s corrected setpoint: %d RPM\n",
 		 control->name, (int)new_setpoint);
  readjust:
 	if (control && pm121_failure_state == 0) {
@@ -709,8 +709,8 @@ static void pm121_create_cpu_fans(void)
 
 	wf_cpu_pid_init(&pm121_cpu_state->pid, &pid_param);
 
-	pr_debug("pm121: CPU Fan control initialized.\n");
-	pr_debug("       ttarget=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM,\n",
+	pr_de("pm121: CPU Fan control initialized.\n");
+	pr_de("       ttarget=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM,\n",
 		 FIX32TOPRINT(pid_param.ttarget), FIX32TOPRINT(pid_param.tmax),
 		 pid_param.min, pid_param.max);
 
@@ -757,7 +757,7 @@ static void pm121_cpu_fans_tick(struct pm121_cpu_state *st)
 		return;
 	}
 
-	pr_debug("pm121: CPU Fans tick ! CPU temp: %d.%03d°C, power: %d.%03d\n",
+	pr_de("pm121: CPU Fans tick ! CPU temp: %d.%03d°C, power: %d.%03d\n",
 		 FIX32TOPRINT(temp), FIX32TOPRINT(power));
 
 	if (temp > st->pid.param.tmax)
@@ -776,7 +776,7 @@ static void pm121_cpu_fans_tick(struct pm121_cpu_state *st)
 	if (st->setpoint == new_setpoint)
 		return;
 	st->setpoint = new_setpoint;
-	pr_debug("pm121: CPU corrected setpoint: %d RPM\n", (int)new_setpoint);
+	pr_de("pm121: CPU corrected setpoint: %d RPM\n", (int)new_setpoint);
 
  readjust:
 	if (fan_cpu && pm121_failure_state == 0) {
@@ -802,7 +802,7 @@ static void pm121_tick(void)
 	int i;
 
 	if (!pm121_started) {
-		pr_debug("pm121: creating control loops !\n");
+		pr_de("pm121: creating control loops !\n");
 		for (i = 0; i < N_LOOPS; i++)
 			pm121_create_sys_fans(i);
 
@@ -953,12 +953,12 @@ static int pm121_notify(struct notifier_block *self,
 {
 	switch (event) {
 	case WF_EVENT_NEW_CONTROL:
-		pr_debug("pm121: new control %s detected\n",
+		pr_de("pm121: new control %s detected\n",
 			 ((struct wf_control *)data)->name);
 		pm121_new_control(data);
 		break;
 	case WF_EVENT_NEW_SENSOR:
-		pr_debug("pm121: new sensor %s detected\n",
+		pr_de("pm121: new sensor %s detected\n",
 			 ((struct wf_sensor *)data)->name);
 		pm121_new_sensor(data);
 		break;

@@ -62,7 +62,7 @@
 #include <linux/jump_label.h>
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
-#include <linux/dynamic_debug.h>
+#include <linux/dynamic_de.h>
 #include <linux/audit.h>
 #include <uapi/linux/module.h>
 #include "module-internal.h"
@@ -80,9 +80,9 @@
  * only when CONFIG_STRICT_MODULE_RWX=y
  */
 #ifdef CONFIG_STRICT_MODULE_RWX
-# define debug_align(X) ALIGN(X, PAGE_SIZE)
+# define de_align(X) ALIGN(X, PAGE_SIZE)
 #else
-# define debug_align(X) (X)
+# define de_align(X) (X)
 #endif
 
 /* If this is set, the section belongs in the init part of the module */
@@ -265,7 +265,7 @@ static void module_assert_mutex(void)
 static void module_assert_mutex_or_preempt(void)
 {
 #ifdef CONFIG_LOCKDEP
-	if (unlikely(!debug_locks))
+	if (unlikely(!de_locks))
 		return;
 
 	WARN_ON_ONCE(!rcu_read_lock_sched_held() &&
@@ -314,7 +314,7 @@ EXPORT_SYMBOL(unregister_module_notifier);
  */
 static inline int strong_try_module_get(struct module *mod)
 {
-	BUG_ON(mod && mod->state == MODULE_STATE_UNFORMED);
+	_ON(mod && mod->state == MODULE_STATE_UNFORMED);
 	if (mod && mod->state == MODULE_STATE_COMING)
 		return -EBUSY;
 	if (try_module_get(mod))
@@ -594,7 +594,7 @@ const struct kernel_symbol *find_symbol(const char *name,
 		return fsa.sym;
 	}
 
-	pr_debug("Failed to find symbol %s\n", name);
+	pr_de("Failed to find symbol %s\n", name);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(find_symbol);
@@ -747,7 +747,7 @@ static inline void percpu_modcopy(struct module *mod,
 				  const void *from, unsigned long size)
 {
 	/* pcpusec should be 0, and size of that section should be 0. */
-	BUG_ON(size != 0);
+	_ON(size != 0);
 }
 bool is_module_percpu_address(unsigned long addr)
 {
@@ -825,11 +825,11 @@ static int already_uses(struct module *a, struct module *b)
 
 	list_for_each_entry(use, &b->source_list, source_list) {
 		if (use->source == a) {
-			pr_debug("%s uses %s!\n", a->name, b->name);
+			pr_de("%s uses %s!\n", a->name, b->name);
 			return 1;
 		}
 	}
-	pr_debug("%s does not use %s!\n", a->name, b->name);
+	pr_de("%s does not use %s!\n", a->name, b->name);
 	return 0;
 }
 
@@ -844,7 +844,7 @@ static int add_module_usage(struct module *a, struct module *b)
 {
 	struct module_use *use;
 
-	pr_debug("Allocating new usage for %s.\n", a->name);
+	pr_de("Allocating new usage for %s.\n", a->name);
 	use = kmalloc(sizeof(*use), GFP_ATOMIC);
 	if (!use)
 		return -ENOMEM;
@@ -886,7 +886,7 @@ static void module_unload_free(struct module *mod)
 	mutex_lock(&module_mutex);
 	list_for_each_entry_safe(use, tmp, &mod->target_list, target_list) {
 		struct module *i = use->target;
-		pr_debug("%s unusing %s\n", mod->name, i->name);
+		pr_de("%s unusing %s\n", mod->name, i->name);
 		module_put(i);
 		list_del(&use->source_list);
 		list_del(&use->target_list);
@@ -917,7 +917,7 @@ static int try_release_module_ref(struct module *mod)
 
 	/* Try to decrement refcnt which we set at loading */
 	ret = atomic_sub_return(MODULE_REF_BASE, &mod->refcnt);
-	BUG_ON(ret < 0);
+	_ON(ret < 0);
 	if (ret)
 		/* Someone can put this right now, recover with checking */
 		ret = atomic_add_unless(&mod->refcnt, MODULE_REF_BASE, 0);
@@ -992,7 +992,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	/* Doing init or already dying? */
 	if (mod->state != MODULE_STATE_LIVE) {
 		/* FIXME: if (force), slam module count damn the torpedoes */
-		pr_debug("%s already dying\n", mod->name);
+		pr_de("%s already dying\n", mod->name);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1064,7 +1064,7 @@ void __symbol_put(const char *symbol)
 
 	preempt_disable();
 	if (!find_symbol(symbol, &owner, NULL, true, false))
-		BUG();
+		();
 	module_put(owner);
 	preempt_enable();
 }
@@ -1085,7 +1085,7 @@ void symbol_put_addr(void *addr)
 	 */
 	preempt_disable();
 	modaddr = __module_text_address(a);
-	BUG_ON(!modaddr);
+	_ON(!modaddr);
 	module_put(modaddr);
 	preempt_enable();
 }
@@ -1196,7 +1196,7 @@ static ssize_t show_initstate(struct module_attribute *mattr,
 		state = "going";
 		break;
 	default:
-		BUG();
+		();
 	}
 	return sprintf(buffer, "%s\n", state);
 }
@@ -1317,7 +1317,7 @@ static int check_version(const struct load_info *info,
 			crcval = *crc;
 		if (versions[i].crc == crcval)
 			return 1;
-		pr_debug("Found checksum %X vs module %lX\n",
+		pr_de("Found checksum %X vs module %lX\n",
 			 crcval, versions[i].crc);
 		goto bad_version;
 	}
@@ -1344,7 +1344,7 @@ static inline int check_modstruct_version(const struct load_info *info,
 	preempt_disable();
 	if (!find_symbol("module_layout", NULL, &crc, true, false)) {
 		preempt_enable();
-		BUG();
+		();
 	}
 	preempt_enable();
 	return check_version(info, "module_layout", mod, crc);
@@ -1895,8 +1895,8 @@ static void mod_sysfs_teardown(struct module *mod)
 static void frob_text(const struct module_layout *layout,
 		      int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->text_size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->text_size & (PAGE_SIZE-1));
 	set_memory((unsigned long)layout->base,
 		   layout->text_size >> PAGE_SHIFT);
 }
@@ -1904,9 +1904,9 @@ static void frob_text(const struct module_layout *layout,
 static void frob_rodata(const struct module_layout *layout,
 			int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->text_size & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->ro_size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->text_size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->ro_size & (PAGE_SIZE-1));
 	set_memory((unsigned long)layout->base + layout->text_size,
 		   (layout->ro_size - layout->text_size) >> PAGE_SHIFT);
 }
@@ -1914,9 +1914,9 @@ static void frob_rodata(const struct module_layout *layout,
 static void frob_ro_after_init(const struct module_layout *layout,
 				int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->ro_size & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->ro_after_init_size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->ro_size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->ro_after_init_size & (PAGE_SIZE-1));
 	set_memory((unsigned long)layout->base + layout->ro_size,
 		   (layout->ro_after_init_size - layout->ro_size) >> PAGE_SHIFT);
 }
@@ -1924,9 +1924,9 @@ static void frob_ro_after_init(const struct module_layout *layout,
 static void frob_writable_data(const struct module_layout *layout,
 			       int (*set_memory)(unsigned long start, int num_pages))
 {
-	BUG_ON((unsigned long)layout->base & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->ro_after_init_size & (PAGE_SIZE-1));
-	BUG_ON((unsigned long)layout->size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->base & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->ro_after_init_size & (PAGE_SIZE-1));
+	_ON((unsigned long)layout->size & (PAGE_SIZE-1));
 	set_memory((unsigned long)layout->base + layout->ro_after_init_size,
 		   (layout->size - layout->ro_after_init_size) >> PAGE_SHIFT);
 }
@@ -2139,8 +2139,8 @@ static void free_module(struct module *mod)
 	mod->state = MODULE_STATE_UNFORMED;
 	mutex_unlock(&module_mutex);
 
-	/* Remove dynamic debug info */
-	ddebug_remove_module(mod->name);
+	/* Remove dynamic de info */
+	dde_remove_module(mod->name);
 
 	/* Arch-specific cleanup. */
 	module_arch_cleanup(mod);
@@ -2159,9 +2159,9 @@ static void free_module(struct module *mod)
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
 	mod_tree_remove(mod);
-	/* Remove this module from bug list, this uses list_del_rcu */
-	module_bug_cleanup(mod);
-	/* Wait for RCU-sched synchronizing before releasing mod->list and buglist. */
+	/* Remove this module from  list, this uses list_del_rcu */
+	module__cleanup(mod);
+	/* Wait for RCU-sched synchronizing before releasing mod->list and list. */
 	synchronize_rcu();
 	mutex_unlock(&module_mutex);
 
@@ -2255,7 +2255,7 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 
 			/* We compiled with -fno-common.  These are not
 			   supposed to happen.  */
-			pr_debug("Common symbol: %s\n", name);
+			pr_de("Common symbol: %s\n", name);
 			pr_warn("%s: please compile with -fno-common\n",
 			       mod->name);
 			ret = -ENOEXEC;
@@ -2263,7 +2263,7 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 
 		case SHN_ABS:
 			/* Don't need to do anything */
-			pr_debug("Absolute symbol: 0x%08lx\n",
+			pr_de("Absolute symbol: 0x%08lx\n",
 			       (long)sym[i].st_value);
 			break;
 
@@ -2376,7 +2376,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
 	for (i = 0; i < info->hdr->e_shnum; i++)
 		info->sechdrs[i].sh_entsize = ~0UL;
 
-	pr_debug("Core section allocation order:\n");
+	pr_de("Core section allocation order:\n");
 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
 		for (i = 0; i < info->hdr->e_shnum; ++i) {
 			Elf_Shdr *s = &info->sechdrs[i];
@@ -2388,28 +2388,28 @@ static void layout_sections(struct module *mod, struct load_info *info)
 			    || strstarts(sname, ".init"))
 				continue;
 			s->sh_entsize = get_offset(mod, &mod->core_layout.size, s, i);
-			pr_debug("\t%s\n", sname);
+			pr_de("\t%s\n", sname);
 		}
 		switch (m) {
 		case 0: /* executable */
-			mod->core_layout.size = debug_align(mod->core_layout.size);
+			mod->core_layout.size = de_align(mod->core_layout.size);
 			mod->core_layout.text_size = mod->core_layout.size;
 			break;
 		case 1: /* RO: text and ro-data */
-			mod->core_layout.size = debug_align(mod->core_layout.size);
+			mod->core_layout.size = de_align(mod->core_layout.size);
 			mod->core_layout.ro_size = mod->core_layout.size;
 			break;
 		case 2: /* RO after init */
-			mod->core_layout.size = debug_align(mod->core_layout.size);
+			mod->core_layout.size = de_align(mod->core_layout.size);
 			mod->core_layout.ro_after_init_size = mod->core_layout.size;
 			break;
 		case 4: /* whole core */
-			mod->core_layout.size = debug_align(mod->core_layout.size);
+			mod->core_layout.size = de_align(mod->core_layout.size);
 			break;
 		}
 	}
 
-	pr_debug("Init section allocation order:\n");
+	pr_de("Init section allocation order:\n");
 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {
 		for (i = 0; i < info->hdr->e_shnum; ++i) {
 			Elf_Shdr *s = &info->sechdrs[i];
@@ -2422,15 +2422,15 @@ static void layout_sections(struct module *mod, struct load_info *info)
 				continue;
 			s->sh_entsize = (get_offset(mod, &mod->init_layout.size, s, i)
 					 | INIT_OFFSET_MASK);
-			pr_debug("\t%s\n", sname);
+			pr_de("\t%s\n", sname);
 		}
 		switch (m) {
 		case 0: /* executable */
-			mod->init_layout.size = debug_align(mod->init_layout.size);
+			mod->init_layout.size = de_align(mod->init_layout.size);
 			mod->init_layout.text_size = mod->init_layout.size;
 			break;
 		case 1: /* RO: text and ro-data */
-			mod->init_layout.size = debug_align(mod->init_layout.size);
+			mod->init_layout.size = de_align(mod->init_layout.size);
 			mod->init_layout.ro_size = mod->init_layout.size;
 			break;
 		case 2:
@@ -2441,7 +2441,7 @@ static void layout_sections(struct module *mod, struct load_info *info)
 			mod->init_layout.ro_after_init_size = mod->init_layout.ro_size;
 			break;
 		case 4: /* whole init */
-			mod->init_layout.size = debug_align(mod->init_layout.size);
+			mod->init_layout.size = de_align(mod->init_layout.size);
 			break;
 		}
 	}
@@ -2578,7 +2578,7 @@ static char elf_type(const Elf_Sym *sym, const struct load_info *info)
 			return 'b';
 	}
 	if (strstarts(info->secstrings + sechdrs[sym->st_shndx].sh_name,
-		      ".debug")) {
+		      ".de")) {
 		return 'n';
 	}
 	return '?';
@@ -2628,7 +2628,7 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	symsect->sh_flags |= SHF_ALLOC;
 	symsect->sh_entsize = get_offset(mod, &mod->init_layout.size, symsect,
 					 info->index.sym) | INIT_OFFSET_MASK;
-	pr_debug("\t%s\n", info->secstrings + symsect->sh_name);
+	pr_de("\t%s\n", info->secstrings + symsect->sh_name);
 
 	src = (void *)info->hdr + symsect->sh_offset;
 	nsrc = symsect->sh_size / sizeof(*src);
@@ -2647,20 +2647,20 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	info->symoffs = ALIGN(mod->core_layout.size, symsect->sh_addralign ?: 1);
 	info->stroffs = mod->core_layout.size = info->symoffs + ndst * sizeof(Elf_Sym);
 	mod->core_layout.size += strtab_size;
-	mod->core_layout.size = debug_align(mod->core_layout.size);
+	mod->core_layout.size = de_align(mod->core_layout.size);
 
 	/* Put string table section at end of init part of module. */
 	strsect->sh_flags |= SHF_ALLOC;
 	strsect->sh_entsize = get_offset(mod, &mod->init_layout.size, strsect,
 					 info->index.str) | INIT_OFFSET_MASK;
-	pr_debug("\t%s\n", info->secstrings + strsect->sh_name);
+	pr_de("\t%s\n", info->secstrings + strsect->sh_name);
 
 	/* We'll tack temporary mod_kallsyms on the end. */
 	mod->init_layout.size = ALIGN(mod->init_layout.size,
 				      __alignof__(struct mod_kallsyms));
 	info->mod_kallsyms_init_off = mod->init_layout.size;
 	mod->init_layout.size += sizeof(struct mod_kallsyms);
-	mod->init_layout.size = debug_align(mod->init_layout.size);
+	mod->init_layout.size = de_align(mod->init_layout.size);
 }
 
 /*
@@ -2715,17 +2715,17 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 }
 #endif /* CONFIG_KALLSYMS */
 
-static void dynamic_debug_setup(struct module *mod, struct _ddebug *debug, unsigned int num)
+static void dynamic_de_setup(struct module *mod, struct _dde *de, unsigned int num)
 {
-	if (!debug)
+	if (!de)
 		return;
-	ddebug_add_module(debug, num, mod->name);
+	dde_add_module(de, num, mod->name);
 }
 
-static void dynamic_debug_remove(struct module *mod, struct _ddebug *debug)
+static void dynamic_de_remove(struct module *mod, struct _dde *de)
 {
-	if (debug)
-		ddebug_remove_module(mod->name);
+	if (de)
+		dde_remove_module(mod->name);
 }
 
 void * __weak module_alloc(unsigned long size)
@@ -2733,7 +2733,7 @@ void * __weak module_alloc(unsigned long size)
 	return vmalloc_exec(size);
 }
 
-#ifdef CONFIG_DEBUG_KMEMLEAK
+#ifdef CONFIG_DE_KMEMLEAK
 static void kmemleak_load_module(const struct module *mod,
 				 const struct load_info *info)
 {
@@ -3133,8 +3133,8 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	if (section_addr(info, "__obsparm"))
 		pr_warn("%s: Ignoring obsolete parameters\n", mod->name);
 
-	info->debug = section_objs(info, "__verbose",
-				   sizeof(*info->debug), &info->num_debug);
+	info->de = section_objs(info, "__verbose",
+				   sizeof(*info->de), &info->num_de);
 
 	return 0;
 }
@@ -3177,7 +3177,7 @@ static int move_module(struct module *mod, struct load_info *info)
 		mod->init_layout.base = NULL;
 
 	/* Transfer each section which specifies SHF_ALLOC */
-	pr_debug("final section addresses:\n");
+	pr_de("final section addresses:\n");
 	for (i = 0; i < info->hdr->e_shnum; i++) {
 		void *dest;
 		Elf_Shdr *shdr = &info->sechdrs[i];
@@ -3195,7 +3195,7 @@ static int move_module(struct module *mod, struct load_info *info)
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
 		/* Update sh_addr to point to copy in image. */
 		shdr->sh_addr = (unsigned long)dest;
-		pr_debug("\t0x%lx %s\n",
+		pr_de("\t0x%lx %s\n",
 			 (long)shdr->sh_addr, info->secstrings + shdr->sh_name);
 	}
 
@@ -3529,7 +3529,7 @@ static noinline int do_init_module(struct module *mod)
 fail_free_freeinit:
 	kfree(freeinit);
 fail:
-	/* Try to protect us from buggy refcounters. */
+	/* Try to protect us from gy refcounters. */
 	mod->state = MODULE_STATE_GOING;
 	synchronize_rcu();
 	module_put(mod);
@@ -3602,7 +3602,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 		goto out;
 
 	/* This relies on module_mutex for list integrity. */
-	module_bug_finalize(info->hdr, info->sechdrs, mod);
+	module__finalize(info->hdr, info->sechdrs, mod);
 
 	module_enable_ro(mod, false);
 	module_enable_nx(mod);
@@ -3645,7 +3645,7 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	}
 
 	/* Check for magic 'dyndbg' arg */
-	ret = ddebug_dyndbg_module_param_cb(param, val, modname);
+	ret = dde_dyndbg_module_param_cb(param, val, modname);
 	if (ret != 0)
 		pr_warn("%s: unknown parameter '%s' ignored\n", modname, param);
 	return 0;
@@ -3758,7 +3758,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_arch_cleanup;
 	}
 
-	dynamic_debug_setup(mod, info->debug, info->num_debug);
+	dynamic_de_setup(mod, info->de, info->num_de);
 
 	/* Ftrace init must be called in the MODULE_STATE_UNFORMED state */
 	ftrace_module_init(mod);
@@ -3766,11 +3766,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Finally it's fully formed, ready to start executing. */
 	err = complete_formation(mod, info);
 	if (err)
-		goto ddebug_cleanup;
+		goto dde_cleanup;
 
 	err = prepare_coming_module(mod);
 	if (err)
-		goto bug_cleanup;
+		goto _cleanup;
 
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
@@ -3811,19 +3811,19 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	klp_module_going(mod);
- bug_cleanup:
-	/* module_bug_cleanup needs module_mutex protection */
+ _cleanup:
+	/* module__cleanup needs module_mutex protection */
 	mutex_lock(&module_mutex);
-	module_bug_cleanup(mod);
+	module__cleanup(mod);
 	mutex_unlock(&module_mutex);
 
 	/* we can't deallocate the module until we clear memory protection */
 	module_disable_ro(mod);
 	module_disable_nx(mod);
 
- ddebug_cleanup:
+ dde_cleanup:
 	ftrace_release_mod(mod);
-	dynamic_debug_remove(mod, info->debug);
+	dynamic_de_remove(mod, info->de);
 	synchronize_rcu();
 	kfree(mod->args);
  free_arch_cleanup:
@@ -3861,7 +3861,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	if (err)
 		return err;
 
-	pr_debug("init_module: umod=%p, len=%lu, uargs=%p\n",
+	pr_de("init_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
 
 	err = copy_module_from_user(umod, len, &info);
@@ -3882,7 +3882,7 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 	if (err)
 		return err;
 
-	pr_debug("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
+	pr_de("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
 
 	if (flags & ~(MODULE_INIT_IGNORE_MODVERSIONS
 		      |MODULE_INIT_IGNORE_VERMAGIC))
@@ -4173,7 +4173,7 @@ static char *module_flags(struct module *mod, char *buf)
 {
 	int bx = 0;
 
-	BUG_ON(mod->state == MODULE_STATE_UNFORMED);
+	_ON(mod->state == MODULE_STATE_UNFORMED);
 	if (mod->taints ||
 	    mod->state == MODULE_STATE_GOING ||
 	    mod->state == MODULE_STATE_COMING) {
@@ -4350,7 +4350,7 @@ struct module *__module_address(unsigned long addr)
 
 	mod = mod_find(addr);
 	if (mod) {
-		BUG_ON(!within_module(addr, mod));
+		_ON(!within_module(addr, mod));
 		if (mod->state == MODULE_STATE_UNFORMED)
 			mod = NULL;
 	}

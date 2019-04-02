@@ -16,7 +16,7 @@
 #include <linux/oom.h>
 #include <linux/rcupdate.h>
 #include <linux/export.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kthread.h>
 #include <linux/stop_machine.h>
 #include <linux/mutex.h>
@@ -784,7 +784,7 @@ static struct smp_hotplug_thread cpuhp_threads = {
 
 void __init cpuhp_threads_init(void)
 {
-	BUG_ON(smpboot_register_percpu_thread(&cpuhp_threads));
+	_ON(smpboot_register_percpu_thread(&cpuhp_threads));
 	kthread_unpark(this_cpu_read(cpuhp_state.thread));
 }
 
@@ -890,7 +890,7 @@ static int takedown_cpu(unsigned int cpu)
 		kthread_unpark(per_cpu_ptr(&cpuhp_state, cpu)->thread);
 		return err;
 	}
-	BUG_ON(cpu_online(cpu));
+	_ON(cpu_online(cpu));
 
 	/*
 	 * The teardown callback for CPUHP_AP_SCHED_STARTING will have removed
@@ -900,7 +900,7 @@ static int takedown_cpu(unsigned int cpu)
 	 * Wait for the stop thread to go away.
 	 */
 	wait_for_ap_thread(st, false);
-	BUG_ON(st->state != CPUHP_AP_IDLE_DEAD);
+	_ON(st->state != CPUHP_AP_IDLE_DEAD);
 
 	/* Interrupts are moved away from the dying cpu, reenable alloc/free */
 	irq_unlock_sparse();
@@ -925,7 +925,7 @@ void cpuhp_report_idle_dead(void)
 {
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
 
-	BUG_ON(st->state != CPUHP_AP_OFFLINE);
+	_ON(st->state != CPUHP_AP_OFFLINE);
 	rcu_report_dead(smp_processor_id());
 	st->state = CPUHP_AP_IDLE_DEAD;
 	/*
@@ -1223,7 +1223,7 @@ int freeze_secondary_cpus(int primary)
 	}
 
 	if (!error)
-		BUG_ON(num_online_cpus() > 1);
+		_ON(num_online_cpus() > 1);
 	else
 		pr_err("Non-boot CPUs are not disabled\n");
 
@@ -1611,7 +1611,7 @@ static int cpuhp_issue_call(int cpu, enum cpuhp_state state, bool bringup,
 #else
 	ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
 #endif
-	BUG_ON(ret && !bringup);
+	_ON(ret && !bringup);
 	return ret;
 }
 
@@ -1794,7 +1794,7 @@ int __cpuhp_state_remove_instance(enum cpuhp_state state,
 	struct cpuhp_step *sp = cpuhp_get_step(state);
 	int cpu;
 
-	BUG_ON(cpuhp_cb_check(state));
+	_ON(cpuhp_cb_check(state));
 
 	if (!sp->multi_instance)
 		return -EINVAL;
@@ -1841,7 +1841,7 @@ void __cpuhp_remove_state_cpuslocked(enum cpuhp_state state, bool invoke)
 	struct cpuhp_step *sp = cpuhp_get_step(state);
 	int cpu;
 
-	BUG_ON(cpuhp_cb_check(state));
+	_ON(cpuhp_cb_check(state));
 
 	lockdep_assert_cpus_held();
 

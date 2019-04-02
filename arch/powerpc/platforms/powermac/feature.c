@@ -43,10 +43,10 @@
 #include <asm/pci-bridge.h>
 #include <asm/pmac_low_i2c.h>
 
-#undef DEBUG_FEATURE
+#undef DE_FEATURE
 
-#ifdef DEBUG_FEATURE
-#define DBG(fmt...) printk(KERN_DEBUG fmt)
+#ifdef DE_FEATURE
+#define DBG(fmt...) printk(KERN_DE fmt)
 #else
 #define DBG(fmt...)
 #endif
@@ -2524,7 +2524,7 @@ found:
 		}
 	}
 	if (powersave_nap)
-		printk(KERN_DEBUG "Processor NAP mode on idle enabled.\n");
+		printk(KERN_DE "Processor NAP mode on idle enabled.\n");
 
 	/* On CPUs that support it (750FX), lowspeed by default during
 	 * NAP mode

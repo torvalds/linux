@@ -38,7 +38,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	tree->inode = iget_locked(sb, id);
 	if (!tree->inode)
 		goto free_tree;
-	BUG_ON(!(tree->inode->i_state & I_NEW));
+	_ON(!(tree->inode->i_state & I_NEW));
 	{
 	struct hfs_mdb *mdb = HFS_SB(sb)->mdb;
 	HFS_I(tree->inode)->flags = 0;
@@ -69,7 +69,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 		tree->inode->i_mapping->a_ops = &hfs_btree_aops;
 		break;
 	default:
-		BUG();
+		();
 	}
 	}
 	unlock_new_inode(tree->inode);
@@ -113,7 +113,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	tree->node_size_shift = ffs(size) - 1;
@@ -300,7 +300,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		kunmap(*pagep);
 		nidx = node->next;
 		if (!nidx) {
-			printk(KERN_DEBUG "create new bmap node...\n");
+			printk(KERN_DE "create new bmap node...\n");
 			next_node = hfs_bmap_new_bmap(node, idx);
 		} else
 			next_node = hfs_bnode_find(tree, nidx);

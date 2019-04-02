@@ -123,7 +123,7 @@ static inline notrace unsigned long arch_local_irq_save(void)
 #define DISABLE_INTERRUPTS(x)	cli
 
 #ifdef CONFIG_X86_64
-#ifdef CONFIG_DEBUG_ENTRY
+#ifdef CONFIG_DE_ENTRY
 #define SAVE_FLAGS(x)		pushfq; popq %rax
 #endif
 
@@ -176,7 +176,7 @@ static inline int arch_irqs_disabled(void)
 #  define TRACE_IRQS_ON
 #  define TRACE_IRQS_OFF
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 #  ifdef CONFIG_X86_64
 #    define LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
 #    define LOCKDEP_SYS_EXIT_IRQ \

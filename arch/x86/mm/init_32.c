@@ -39,7 +39,7 @@
 #include <asm/fixmap.h>
 #include <asm/e820/api.h>
 #include <asm/apic.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/olpc_ofw.h>
@@ -76,7 +76,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		p4d = p4d_offset(pgd, 0);
 		pud = pud_offset(p4d, 0);
-		BUG_ON(pmd_table != pmd_offset(pud, 0));
+		_ON(pmd_table != pmd_offset(pud, 0));
 
 		return pmd_table;
 	}
@@ -99,7 +99,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 
 		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
-		BUG_ON(page_table != pte_offset_kernel(pmd, 0));
+		_ON(page_table != pte_offset_kernel(pmd, 0));
 	}
 
 	return pte_offset_kernel(pmd, 0);
@@ -162,7 +162,7 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 	 * Something (early fixmap) may already have put a pte
 	 * page here, which causes the page table allocation
 	 * to become nonlinear. Attempt to fix it, and if it
-	 * is still nonlinear then we have to bug.
+	 * is still nonlinear then we have to .
 	 */
 	int pmd_idx_kmap_begin = fix_to_virt(FIX_KMAP_END) >> PMD_SHIFT;
 	int pmd_idx_kmap_end = fix_to_virt(FIX_KMAP_BEGIN) >> PMD_SHIFT;
@@ -173,7 +173,7 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 		pte_t *newpte;
 		int i;
 
-		BUG_ON(after_bootmem);
+		_ON(after_bootmem);
 		newpte = *adr;
 		for (i = 0; i < PTRS_PER_PTE; i++)
 			set_pte(newpte + i, pte[i]);
@@ -181,13 +181,13 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 
 		paravirt_alloc_pte(&init_mm, __pa(newpte) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(newpte)|_PAGE_TABLE));
-		BUG_ON(newpte != pte_offset_kernel(pmd, 0));
+		_ON(newpte != pte_offset_kernel(pmd, 0));
 		__flush_tlb_all();
 
 		paravirt_release_pte(__pa(pte) >> PAGE_SHIFT);
 		pte = newpte;
 	}
-	BUG_ON(vaddr < fix_to_virt(FIX_KMAP_BEGIN - 1)
+	_ON(vaddr < fix_to_virt(FIX_KMAP_BEGIN - 1)
 	       && vaddr > fix_to_virt(FIX_KMAP_END)
 	       && lastpte && lastpte + PTRS_PER_PTE != pte);
 #endif
@@ -501,14 +501,14 @@ void __init native_pagetable_init(void)
 		if (pmd_large(*pmd)) {
 			pr_warn("try to clear pte for ram above max_low_pfn: pfn: %lx pmd: %p pmd phys: %lx, but pmd is big page and is not using pte !\n",
 				pfn, pmd, __pa(pmd));
-			BUG_ON(1);
+			_ON(1);
 		}
 
 		pte = pte_offset_kernel(pmd, va);
 		if (!pte_present(*pte))
 			break;
 
-		printk(KERN_DEBUG "clearing pte for ram above max_low_pfn: pfn: %lx pmd: %p pmd phys: %lx pte: %p pte phys: %lx\n",
+		printk(KERN_DE "clearing pte for ram above max_low_pfn: pfn: %lx pmd: %p pmd phys: %lx pte: %p pte phys: %lx\n",
 				pfn, pmd, __pa(pmd), pte, __pa(pte));
 		pte_clear(NULL, va, pte);
 	}
@@ -740,7 +740,7 @@ void __init paging_init(void)
 /*
  * Test if the WP bit works in supervisor mode. It isn't supported on 386's
  * and also on some strange 486's. All 586+'s are OK. This used to involve
- * black magic jumps to work around some nasty CPU bugs, but fortunately the
+ * black magic jumps to work around some nasty CPU s, but fortunately the
  * switch to using exceptions got rid of all that.
  */
 static void __init test_wp_bit(void)
@@ -766,15 +766,15 @@ void __init mem_init(void)
 	pci_iommu_alloc();
 
 #ifdef CONFIG_FLATMEM
-	BUG_ON(!mem_map);
+	_ON(!mem_map);
 #endif
 	/*
-	 * With CONFIG_DEBUG_PAGEALLOC initialization of highmem pages has to
+	 * With CONFIG_DE_PAGEALLOC initialization of highmem pages has to
 	 * be done before memblock_free_all(). Memblock use free low memory for
 	 * temporary data (see find_range_array()) and for this purpose can use
 	 * pages that was already passed to the buddy allocator, hence marked as
 	 * not accessible in the page tables when compiled with
-	 * CONFIG_DEBUG_PAGEALLOC. Otherwise order of initialization is not
+	 * CONFIG_DE_PAGEALLOC. Otherwise order of initialization is not
 	 * important here.
 	 */
 	set_highmem_pages_init();
@@ -831,20 +831,20 @@ void __init mem_init(void)
 	 */
 #define __FIXADDR_TOP (-PAGE_SIZE)
 #ifdef CONFIG_HIGHMEM
-	BUILD_BUG_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
-	BUILD_BUG_ON(VMALLOC_END			> PKMAP_BASE);
+	BUILD__ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
+	BUILD__ON(VMALLOC_END			> PKMAP_BASE);
 #endif
 #define high_memory (-128UL << 20)
-	BUILD_BUG_ON(VMALLOC_START			>= VMALLOC_END);
+	BUILD__ON(VMALLOC_START			>= VMALLOC_END);
 #undef high_memory
 #undef __FIXADDR_TOP
 
 #ifdef CONFIG_HIGHMEM
-	BUG_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
-	BUG_ON(VMALLOC_END				> PKMAP_BASE);
+	_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
+	_ON(VMALLOC_END				> PKMAP_BASE);
 #endif
-	BUG_ON(VMALLOC_START				>= VMALLOC_END);
-	BUG_ON((unsigned long)high_memory		> VMALLOC_START);
+	_ON(VMALLOC_START				>= VMALLOC_END);
+	_ON((unsigned long)high_memory		> VMALLOC_START);
 
 	test_wp_bit();
 }
@@ -882,7 +882,7 @@ void set_kernel_text_rw(void)
 	if (!kernel_set_to_readonly)
 		return;
 
-	pr_debug("Set kernel text: %lx - %lx for read write\n",
+	pr_de("Set kernel text: %lx - %lx for read write\n",
 		 start, start+size);
 
 	set_pages_rw(virt_to_page(start), size >> PAGE_SHIFT);
@@ -896,7 +896,7 @@ void set_kernel_text_ro(void)
 	if (!kernel_set_to_readonly)
 		return;
 
-	pr_debug("Set kernel text: %lx - %lx for read only\n",
+	pr_de("Set kernel text: %lx - %lx for read only\n",
 		 start, start+size);
 
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
@@ -930,7 +930,7 @@ void mark_rodata_ro(void)
 
 	kernel_set_to_readonly = 1;
 
-#ifdef CONFIG_CPA_DEBUG
+#ifdef CONFIG_CPA_DE
 	pr_info("Testing CPA: Reverting %lx-%lx\n", start, start + size);
 	set_pages_rw(virt_to_page(start), size >> PAGE_SHIFT);
 
@@ -939,5 +939,5 @@ void mark_rodata_ro(void)
 #endif
 	mark_nxdata_nx();
 	if (__supported_pte_mask & _PAGE_NX)
-		debug_checkwx();
+		de_checkwx();
 }

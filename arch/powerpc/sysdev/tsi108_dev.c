@@ -28,9 +28,9 @@
 #include <asm/prom.h>
 #include <mm/mmu_decl.h>
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) do { printk(fmt); } while(0)
 #else
 #define DBG(fmt...) do { } while(0)

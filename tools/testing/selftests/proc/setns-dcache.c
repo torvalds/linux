@@ -19,7 +19,7 @@
  *
  * FIXME /proc/net/unix is under CONFIG_UNIX which can be disabled.
  */
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <errno.h>
 #include <sched.h>

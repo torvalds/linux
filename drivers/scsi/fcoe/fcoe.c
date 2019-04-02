@@ -59,9 +59,9 @@ module_param_named(ddp_min, fcoe_ddp_min, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ddp_min, "Minimum I/O size in bytes for "	\
 		 "Direct Data Placement (DDP).");
 
-unsigned int fcoe_debug_logging;
-module_param_named(debug_logging, fcoe_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+unsigned int fcoe_de_logging;
+module_param_named(de_logging, fcoe_de_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(de_logging, "a bit mask of logging levels");
 
 static unsigned int fcoe_e_d_tov = 2 * 1000;
 module_param_named(e_d_tov, fcoe_e_d_tov, int, S_IRUGO|S_IWUSR);

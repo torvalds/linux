@@ -178,7 +178,7 @@ struct ioat_sed_ent {
  * @txd: the generic software descriptor for all engines
  * @len: total transaction length for unmap
  * @result: asynchronous result of validate operations
- * @id: identifier for debug
+ * @id: identifier for de
  * @sed: pointer to super extended descriptor sw desc
  */
 
@@ -195,7 +195,7 @@ struct ioat_ring_ent {
 	size_t len;
 	struct dma_async_tx_descriptor txd;
 	enum sum_check_flags *result;
-	#ifdef DEBUG
+	#ifdef DE
 	int id;
 	#endif
 	struct ioat_sed_ent *sed;
@@ -217,7 +217,7 @@ static inline struct ioatdma_chan *to_ioat_chan(struct dma_chan *c)
 }
 
 /* wrapper around hardware descriptor format + additional software fields */
-#ifdef DEBUG
+#ifdef DE
 #define set_desc_id(desc, i) ((desc)->id = (i))
 #define desc_id(desc) ((desc)->id)
 #else
@@ -308,7 +308,7 @@ static inline bool is_ioat_suspended(unsigned long status)
 }
 
 /* channel was fatally programmed */
-static inline bool is_ioat_bug(unsigned long err)
+static inline bool is_ioat_(unsigned long err)
 {
 	return !!err;
 }

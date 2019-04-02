@@ -16,21 +16,21 @@
  *   along with this program;  if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-#ifndef _H_JFS_DEBUG
-#define _H_JFS_DEBUG
+#ifndef _H_JFS_DE
+#define _H_JFS_DE
 
 /*
- *	jfs_debug.h
+ *	jfs_de.h
  *
- * global debug message, data structure/macro definitions
- * under control of CONFIG_JFS_DEBUG, CONFIG_JFS_STATISTICS;
+ * global de message, data structure/macro definitions
+ * under control of CONFIG_JFS_DE, CONFIG_JFS_STATISTICS;
  */
 
 /*
  * Create /proc/fs/jfs if procfs is enabled andeither
- * CONFIG_JFS_DEBUG or CONFIG_JFS_STATISTICS is defined
+ * CONFIG_JFS_DE or CONFIG_JFS_STATISTICS is defined
  */
-#if defined(CONFIG_PROC_FS) && (defined(CONFIG_JFS_DEBUG) || defined(CONFIG_JFS_STATISTICS))
+#if defined(CONFIG_PROC_FS) && (defined(CONFIG_JFS_DE) || defined(CONFIG_JFS_STATISTICS))
 #define PROC_FS_JFS
 extern void jfs_proc_init(void);
 extern void jfs_proc_clean(void);
@@ -41,23 +41,23 @@ extern void jfs_proc_clean(void);
  */
 #define assert(p) do {	\
 	if (!(p)) {	\
-		printk(KERN_CRIT "BUG at %s:%d assert(%s)\n",	\
+		printk(KERN_CRIT " at %s:%d assert(%s)\n",	\
 		       __FILE__, __LINE__, #p);			\
-		BUG();	\
+		();	\
 	}		\
 } while (0)
 
 /*
- *	debug ON
+ *	de ON
  *	--------
  */
-#ifdef CONFIG_JFS_DEBUG
+#ifdef CONFIG_JFS_DE
 #define ASSERT(p) assert(p)
 
 /* printk verbosity */
 #define JFS_LOGLEVEL_ERR 1
 #define JFS_LOGLEVEL_WARN 2
-#define JFS_LOGLEVEL_DEBUG 3
+#define JFS_LOGLEVEL_DE 3
 #define JFS_LOGLEVEL_INFO 4
 
 extern int jfsloglevel;
@@ -70,10 +70,10 @@ int jfs_txanchor_proc_show(struct seq_file *m, void *v);
 		printk(KERN_INFO fmt "\n", ## arg);	\
 } while (0)
 
-/* debug message: ad hoc */
-#define jfs_debug(fmt, arg...) do {			\
-	if (jfsloglevel >= JFS_LOGLEVEL_DEBUG)		\
-		printk(KERN_DEBUG fmt "\n", ## arg);	\
+/* de message: ad hoc */
+#define jfs_de(fmt, arg...) do {			\
+	if (jfsloglevel >= JFS_LOGLEVEL_DE)		\
+		printk(KERN_DE fmt "\n", ## arg);	\
 } while (0)
 
 /* warn message: */
@@ -89,16 +89,16 @@ int jfs_txanchor_proc_show(struct seq_file *m, void *v);
 } while (0)
 
 /*
- *	debug OFF
+ *	de OFF
  *	---------
  */
-#else				/* CONFIG_JFS_DEBUG */
+#else				/* CONFIG_JFS_DE */
 #define ASSERT(p) do {} while (0)
 #define jfs_info(fmt, arg...) do {} while (0)
-#define jfs_debug(fmt, arg...) do {} while (0)
+#define jfs_de(fmt, arg...) do {} while (0)
 #define jfs_warn(fmt, arg...) do {} while (0)
 #define jfs_err(fmt, arg...) do {} while (0)
-#endif				/* CONFIG_JFS_DEBUG */
+#endif				/* CONFIG_JFS_DE */
 
 /*
  *	statistics
@@ -119,4 +119,4 @@ int jfs_xtstat_proc_show(struct seq_file *m, void *v);
 #define	HIGHWATERMARK(x,y)
 #endif				/* CONFIG_JFS_STATISTICS */
 
-#endif				/* _H_JFS_DEBUG */
+#endif				/* _H_JFS_DE */

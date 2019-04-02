@@ -214,7 +214,7 @@ void hlwd_pic_probe(void)
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (interrupts) {
 			host = hlwd_pic_init(np);
-			BUG_ON(!host);
+			_ON(!host);
 			cascade_virq = irq_of_parse_and_map(np, 0);
 			irq_set_handler_data(cascade_virq, host);
 			irq_set_chained_handler(cascade_virq,

@@ -222,7 +222,7 @@ Note that some functions may sleep implicitly: common ones are the user
 space access functions (\*_user) and memory allocation functions
 without ``GFP_ATOMIC``.
 
-You should always compile your kernel ``CONFIG_DEBUG_ATOMIC_SLEEP`` on,
+You should always compile your kernel ``CONFIG_DE_ATOMIC_SLEEP`` on,
 and it will warn you if you break these rules. If you **do** break the
 rules, you will eventually lock up your box.
 
@@ -237,7 +237,7 @@ Common Routines
 Defined in ``include/linux/printk.h``
 
 :c:func:`printk()` feeds kernel messages to the console, dmesg, and
-the syslog daemon. It is useful for debugging and reporting errors, and
+the syslog daemon. It is useful for deging and reporting errors, and
 can be used inside interrupt context, but use with caution: a machine
 which has its console flooded with printk messages is unusable. It uses
 a format string mostly compatible with ANSI C printf, and C string
@@ -713,7 +713,7 @@ make a neat patch, there's administrative work to be done:
 
    Make sure you put your name and EMail address at the top of any files
    you create or mangle significantly. This is the first place people
-   will look when they find a bug, or when **they** want to make a change.
+   will look when they find a , or when **they** want to make a change.
 
 -  Usually you want a configuration option for your kernel hack. Edit
    ``Kconfig`` in the appropriate directory. The Config language is
@@ -733,7 +733,7 @@ make a neat patch, there's administrative work to be done:
 -  Put yourself in ``CREDITS`` if you've done something noteworthy,
    usually beyond a single file (your name should be at the top of the
    source files anyway). ``MAINTAINERS`` means you want to be consulted
-   when changes are made to a subsystem, and hear about bugs; it implies
+   when changes are made to a subsystem, and hear about s; it implies
    a more-than-passing commitment to some part of the code.
 
 -  Finally, don't forget to read

@@ -186,5 +186,5 @@ obj-y += vdso-n32-image.o
 
 endif
 
-# FIXME: Need install rule for debug.
+# FIXME: Need install rule for de.
 # Needs to deal with dependency for generation of dbg by cmd_genvdso...

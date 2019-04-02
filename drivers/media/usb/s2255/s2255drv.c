@@ -340,7 +340,7 @@ struct s2255_buffer {
 /* Channels on box are in reverse order */
 static unsigned long G_chnmap[MAX_CHANNELS] = {3, 2, 1, 0};
 
-static int debug;
+static int de;
 
 static int s2255_start_readpipe(struct s2255_dev *dev);
 static void s2255_stop_readpipe(struct s2255_dev *dev);
@@ -362,7 +362,7 @@ static long s2255_vendor_req(struct s2255_dev *dev, unsigned char req,
 		dev_err(dev, S2255_DRIVER_NAME " - " fmt, ##arg)
 
 #define dprintk(dev, level, fmt, arg...) \
-	v4l2_dbg(level, debug, &dev->v4l2_dev, fmt, ## arg)
+	v4l2_dbg(level, de, &dev->v4l2_dev, fmt, ## arg)
 
 static struct usb_driver s2255_driver;
 
@@ -372,8 +372,8 @@ static int video_nr = -1;	/* /dev/videoN, -1 for autodetect */
 /* Enable jpeg capture. */
 static int jpeg_enable = 1;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level(0-100) default 0");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level(0-100) default 0");
 module_param(video_nr, int, 0644);
 MODULE_PARM_DESC(video_nr, "start video minor(-1 default autodetect)");
 module_param(jpeg_enable, int, 0644);
@@ -1033,7 +1033,7 @@ static int s2255_set_mode(struct s2255_vc *vc,
 		buffer[3 + i] = cpu_to_le32(((u32 *)&vc->mode)[i]);
 	vc->setmode_ready = 0;
 	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
-	if (debug)
+	if (de)
 		s2255_print_cfg(dev, mode);
 	/* wait at least 3 frames before continuing */
 	if (mode->restart) {

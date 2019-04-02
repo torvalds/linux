@@ -36,7 +36,7 @@ bool dal_vector_construct(
 
 	if (!struct_size || !capacity) {
 		/* Container must be non-zero size*/
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -63,7 +63,7 @@ bool dal_vector_presized_costruct(
 
 	if (!struct_size || !count) {
 		/* Container must be non-zero size*/
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -104,7 +104,7 @@ struct vector *dal_vector_presized_create(
 		vector, ctx, size, initial_value, struct_size))
 		return vector;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	kfree(vector);
 	return NULL;
 }
@@ -122,7 +122,7 @@ struct vector *dal_vector_create(
 	if (dal_vector_construct(vector, ctx, capacity, struct_size))
 		return vector;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	kfree(vector);
 	return NULL;
 }
@@ -185,7 +185,7 @@ void dal_vector_set_at_index(
 	void *where = dal_vector_at_index(vector, index);
 
 	if (!where) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 	memmove(
@@ -266,7 +266,7 @@ struct vector *dal_vector_clone(
 			vector->struct_size);
 
 	if (NULL == vec_cloned) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 

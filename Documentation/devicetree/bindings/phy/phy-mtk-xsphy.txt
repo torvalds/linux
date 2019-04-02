@@ -41,7 +41,7 @@ Required properties (port (child) node):
 			- PHY_TYPE_USB2
 			- PHY_TYPE_USB3
 
-The following optional properties are only for debug or HQA test
+The following optional properties are only for de or HQA test
 Optional properties (PHY_TYPE_USB2 port (child) node):
 - mediatek,eye-src	: u32, the value of slew rate calibrate
 - mediatek,eye-vrt	: u32, the selection of VRT reference voltage

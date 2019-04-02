@@ -31,7 +31,7 @@
 #include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/regset.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>
 #include <asm/prctl.h>
@@ -184,7 +184,7 @@ EXPORT_SYMBOL_GPL(kernel_stack_pointer);
 
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
-	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
+	BUILD__ON(offsetof(struct pt_regs, bx) != 0);
 	return &regs->bx + (regno >> 2);
 }
 
@@ -249,7 +249,7 @@ static int set_segment_reg(struct task_struct *task,
 
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long offset)
 {
-	BUILD_BUG_ON(offsetof(struct pt_regs, r15) != 0);
+	BUILD__ON(offsetof(struct pt_regs, r15) != 0);
 	return &regs->r15 + (offset / sizeof(regs->r15));
 }
 
@@ -350,7 +350,7 @@ static unsigned long get_flags(struct task_struct *task)
 	unsigned long retval = task_pt_regs(task)->flags;
 
 	/*
-	 * If the debugger set TF, hide it from the readout.
+	 * If the deger set TF, hide it from the readout.
 	 */
 	if (test_tsk_thread_flag(task, TIF_FORCED_TF))
 		retval &= ~X86_EFLAGS_TF;
@@ -364,7 +364,7 @@ static int set_flags(struct task_struct *task, unsigned long value)
 
 	/*
 	 * If the user value contains TF, mark that
-	 * it was not "us" (the debugger) that set it.
+	 * it was not "us" (the deger) that set it.
 	 * If not, make sure it stays set if we had.
 	 */
 	if (value & X86_EFLAGS_TF)
@@ -507,14 +507,14 @@ static void ptrace_triggered(struct perf_event *bp,
 
 	/*
 	 * Store in the virtual DR6 register the fact that the breakpoint
-	 * was hit so the thread's debugger will see it.
+	 * was hit so the thread's deger will see it.
 	 */
 	for (i = 0; i < HBP_NUM; i++) {
 		if (thread->ptrace_bps[i] == bp)
 			break;
 	}
 
-	thread->debugreg6 |= (DR_TRAP0 << i);
+	thread->dereg6 |= (DR_TRAP0 << i);
 }
 
 /*
@@ -585,7 +585,7 @@ static int ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 }
 
 /*
- * Handle ptrace writes to debug register 7.
+ * Handle ptrace writes to de register 7.
  */
 static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
 {
@@ -636,9 +636,9 @@ restore:
 }
 
 /*
- * Handle PTRACE_PEEKUSR calls for the debug register area.
+ * Handle PTRACE_PEEKUSR calls for the de register area.
  */
-static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
+static unsigned long ptrace_get_dereg(struct task_struct *tsk, int n)
 {
 	struct thread_struct *thread = &tsk->thread;
 	unsigned long val = 0;
@@ -649,7 +649,7 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 		if (bp)
 			val = bp->hw.info.address;
 	} else if (n == 6) {
-		val = thread->debugreg6;
+		val = thread->dereg6;
 	} else if (n == 7) {
 		val = thread->ptrace_dr7;
 	}
@@ -693,9 +693,9 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 }
 
 /*
- * Handle PTRACE_POKEUSR calls for the debug register area.
+ * Handle PTRACE_POKEUSR calls for the de register area.
  */
-static int ptrace_set_debugreg(struct task_struct *tsk, int n,
+static int ptrace_set_dereg(struct task_struct *tsk, int n,
 			       unsigned long val)
 {
 	struct thread_struct *thread = &tsk->thread;
@@ -705,7 +705,7 @@ static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 	if (n < HBP_NUM) {
 		rc = ptrace_set_breakpoint_addr(tsk, n, val);
 	} else if (n == 6) {
-		thread->debugreg6 = val;
+		thread->dereg6 = val;
 		rc = 0;
 	} else if (n == 7) {
 		rc = ptrace_write_dr7(tsk, val);
@@ -717,7 +717,7 @@ static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 
 /*
  * These access the current or another (stopped) task's io permission
- * bitmap for debugging or core dump.
+ * bitmap for deging or core dump.
  */
 static int ioperm_active(struct task_struct *target,
 			 const struct user_regset *regset)
@@ -773,10 +773,10 @@ long arch_ptrace(struct task_struct *child, long request,
 		tmp = 0;  /* Default return condition */
 		if (addr < sizeof(struct user_regs_struct))
 			tmp = getreg(child, addr);
-		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
-			 addr <= offsetof(struct user, u_debugreg[7])) {
-			addr -= offsetof(struct user, u_debugreg[0]);
-			tmp = ptrace_get_debugreg(child, addr / sizeof(data));
+		else if (addr >= offsetof(struct user, u_dereg[0]) &&
+			 addr <= offsetof(struct user, u_dereg[7])) {
+			addr -= offsetof(struct user, u_dereg[0]);
+			tmp = ptrace_get_dereg(child, addr / sizeof(data));
 		}
 		ret = put_user(tmp, datap);
 		break;
@@ -789,10 +789,10 @@ long arch_ptrace(struct task_struct *child, long request,
 
 		if (addr < sizeof(struct user_regs_struct))
 			ret = putreg(child, addr, data);
-		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
-			 addr <= offsetof(struct user, u_debugreg[7])) {
-			addr -= offsetof(struct user, u_debugreg[0]);
-			ret = ptrace_set_debugreg(child,
+		else if (addr >= offsetof(struct user, u_dereg[0]) &&
+			 addr <= offsetof(struct user, u_dereg[7])) {
+			addr -= offsetof(struct user, u_dereg[0]);
+			ret = ptrace_set_dereg(child,
 						  addr / sizeof(data), data);
 		}
 		break;
@@ -916,7 +916,7 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	case offsetof(struct user32, regs.orig_eax):
 		/*
 		 * Warning: bizarre corner case fixup here.  A 32-bit
-		 * debugger setting orig_eax to -1 wants to disable
+		 * deger setting orig_eax to -1 wants to disable
 		 * syscall restart.  Make sure that the syscall
 		 * restart code sign-extends orig_ax.  Also make sure
 		 * we interpret the -ERESTART* codes correctly if
@@ -932,10 +932,10 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	case offsetof(struct user32, regs.eflags):
 		return set_flags(child, value);
 
-	case offsetof(struct user32, u_debugreg[0]) ...
-		offsetof(struct user32, u_debugreg[7]):
-		regno -= offsetof(struct user32, u_debugreg[0]);
-		return ptrace_set_debugreg(child, regno / 4, value);
+	case offsetof(struct user32, u_dereg[0]) ...
+		offsetof(struct user32, u_dereg[7]):
+		regno -= offsetof(struct user32, u_dereg[0]);
+		return ptrace_set_dereg(child, regno / 4, value);
 
 	default:
 		if (regno > sizeof(struct user32) || (regno & 3))
@@ -991,10 +991,10 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 		*val = get_flags(child);
 		break;
 
-	case offsetof(struct user32, u_debugreg[0]) ...
-		offsetof(struct user32, u_debugreg[7]):
-		regno -= offsetof(struct user32, u_debugreg[0]);
-		*val = ptrace_get_debugreg(child, regno / 4);
+	case offsetof(struct user32, u_dereg[0]) ...
+		offsetof(struct user32, u_dereg[7]):
+		regno -= offsetof(struct user32, u_dereg[0]);
+		*val = ptrace_get_dereg(child, regno / 4);
 		break;
 
 	default:
@@ -1148,7 +1148,7 @@ static long x32_arch_ptrace(struct task_struct *child,
 
 	switch (request) {
 	/* Read 32bits at location addr in the USER area.  Only allow
-	   to return the lower 32bits of segment and debug registers.  */
+	   to return the lower 32bits of segment and de registers.  */
 	case PTRACE_PEEKUSR: {
 		u32 tmp;
 
@@ -1160,17 +1160,17 @@ static long x32_arch_ptrace(struct task_struct *child,
 		tmp = 0;  /* Default return condition */
 		if (addr < sizeof(struct user_regs_struct))
 			tmp = getreg(child, addr);
-		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
-			 addr <= offsetof(struct user, u_debugreg[7])) {
-			addr -= offsetof(struct user, u_debugreg[0]);
-			tmp = ptrace_get_debugreg(child, addr / sizeof(data));
+		else if (addr >= offsetof(struct user, u_dereg[0]) &&
+			 addr <= offsetof(struct user, u_dereg[7])) {
+			addr -= offsetof(struct user, u_dereg[0]);
+			tmp = ptrace_get_dereg(child, addr / sizeof(data));
 		}
 		ret = put_user(tmp, (__u32 __user *)datap);
 		break;
 	}
 
 	/* Write the word at location addr in the USER area.  Only allow
-	   to update segment and debug registers with the upper 32bits
+	   to update segment and de registers with the upper 32bits
 	   zero-extended. */
 	case PTRACE_POKEUSR:
 		ret = -EIO;
@@ -1180,10 +1180,10 @@ static long x32_arch_ptrace(struct task_struct *child,
 
 		if (addr < sizeof(struct user_regs_struct))
 			ret = putreg(child, addr, data);
-		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
-			 addr <= offsetof(struct user, u_debugreg[7])) {
-			addr -= offsetof(struct user, u_debugreg[0]);
-			ret = ptrace_set_debugreg(child,
+		else if (addr >= offsetof(struct user, u_dereg[0]) &&
+			 addr <= offsetof(struct user, u_dereg[7])) {
+			addr -= offsetof(struct user, u_dereg[0]);
+			ret = ptrace_set_dereg(child,
 						  addr / sizeof(data), data);
 		}
 		break;

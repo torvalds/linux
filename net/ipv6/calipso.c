@@ -42,7 +42,7 @@
 #include <net/netlabel.h>
 #include <net/calipso.h>
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/unaligned.h>
 #include <linux/crc-ccitt.h>
 

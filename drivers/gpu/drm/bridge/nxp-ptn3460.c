@@ -142,7 +142,7 @@ static void ptn3460_pre_enable(struct drm_bridge *bridge)
 	}
 
 	/*
-	 * There's a bug in the PTN chip where it falsely asserts hotplug before
+	 * There's a  in the PTN chip where it falsely asserts hotplug before
 	 * it is fully functional. We're forced to wait for the maximum start up
 	 * time specified in the chip's datasheet to make sure we're really up.
 	 */

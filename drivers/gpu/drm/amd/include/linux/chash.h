@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 #include <linux/hash.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/bitsperlong.h>
 
 #if BITS_PER_LONG == 32
@@ -175,7 +175,7 @@ void chash_table_free(struct chash_table *table);
  * @tbl: Pointer to the table structure
  *
  * Dumps some performance statistics of the table gathered in operation
- * in the kernel log using pr_debug. If CONFIG_DYNAMIC_DEBUG is enabled,
+ * in the kernel log using pr_de. If CONFIG_DYNAMIC_DE is enabled,
  * user must turn on messages for chash.c (file chash.c +p).
  */
 #ifdef CONFIG_CHASH_STATS
@@ -290,62 +290,62 @@ struct chash_iter {
 
 static inline bool chash_iter_is_valid(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	return !!(iter.table->valid_bitmap[iter.slot >> _CHASH_LONG_SHIFT] &
 		  iter.mask);
 }
 static inline bool chash_iter_is_empty(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	return !(iter.table->occup_bitmap[iter.slot >> _CHASH_LONG_SHIFT] &
 		 iter.mask);
 }
 
 static inline void chash_iter_set_valid(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	iter.table->valid_bitmap[iter.slot >> _CHASH_LONG_SHIFT] |= iter.mask;
 	iter.table->occup_bitmap[iter.slot >> _CHASH_LONG_SHIFT] |= iter.mask;
 }
 static inline void chash_iter_set_invalid(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	iter.table->valid_bitmap[iter.slot >> _CHASH_LONG_SHIFT] &= ~iter.mask;
 }
 static inline void chash_iter_set_empty(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	iter.table->occup_bitmap[iter.slot >> _CHASH_LONG_SHIFT] &= ~iter.mask;
 }
 
 static inline u32 chash_iter_key32(const struct chash_iter iter)
 {
-	BUG_ON(iter.table->key_size != 4);
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON(iter.table->key_size != 4);
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	return iter.table->keys32[iter.slot];
 }
 static inline u64 chash_iter_key64(const struct chash_iter iter)
 {
-	BUG_ON(iter.table->key_size != 8);
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON(iter.table->key_size != 8);
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	return iter.table->keys64[iter.slot];
 }
 static inline u64 chash_iter_key(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	return (iter.table->key_size == 4) ?
 		iter.table->keys32[iter.slot] : iter.table->keys64[iter.slot];
 }
 
 static inline u32 chash_iter_hash32(const struct chash_iter iter)
 {
-	BUG_ON(iter.table->key_size != 4);
+	_ON(iter.table->key_size != 4);
 	return hash_32(chash_iter_key32(iter), iter.table->bits);
 }
 
 static inline u32 chash_iter_hash64(const struct chash_iter iter)
 {
-	BUG_ON(iter.table->key_size != 8);
+	_ON(iter.table->key_size != 8);
 	return hash_64(chash_iter_key64(iter), iter.table->bits);
 }
 
@@ -358,7 +358,7 @@ static inline u32 chash_iter_hash(const struct chash_iter iter)
 
 static inline void *chash_iter_value(const struct chash_iter iter)
 {
-	BUG_ON((unsigned)iter.slot >= (1 << iter.table->bits));
+	_ON((unsigned)iter.slot >= (1 << iter.table->bits));
 	return iter.table->values +
 		((unsigned long)iter.slot * iter.table->value_size);
 }

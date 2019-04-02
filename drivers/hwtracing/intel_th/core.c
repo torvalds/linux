@@ -12,14 +12,14 @@
 #include <linux/device.h>
 #include <linux/sysfs.h>
 #include <linux/kdev_t.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 
 #include "intel_th.h"
-#include "debug.h"
+#include "de.h"
 
 static bool host_mode __read_mostly;
 module_param(host_mode, bool, 0444);
@@ -953,7 +953,7 @@ int intel_th_set_output(struct intel_th_device *thdev,
 	struct intel_th_device *hub = to_intel_th_hub(thdev);
 	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
 
-	/* In host mode, this is up to the external debugger, do nothing. */
+	/* In host mode, this is up to the external deger, do nothing. */
 	if (hub->host_mode)
 		return 0;
 
@@ -966,7 +966,7 @@ EXPORT_SYMBOL_GPL(intel_th_set_output);
 
 static int __init intel_th_init(void)
 {
-	intel_th_debug_init();
+	intel_th_de_init();
 
 	return bus_register(&intel_th_bus);
 }
@@ -974,7 +974,7 @@ subsys_initcall(intel_th_init);
 
 static void __exit intel_th_exit(void)
 {
-	intel_th_debug_done();
+	intel_th_de_done();
 
 	bus_unregister(&intel_th_bus);
 }

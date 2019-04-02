@@ -224,7 +224,7 @@ void vnic_wq_clean(struct vnic_wq *wq,
 {
 	struct vnic_wq_buf *buf;
 
-	BUG_ON(ioread32(&wq->ctrl->enable));
+	_ON(ioread32(&wq->ctrl->enable));
 
 	buf = wq->to_clean;
 

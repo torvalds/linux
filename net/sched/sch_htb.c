@@ -14,13 +14,13 @@
  *		Ondrej Kraus, <krauso@barr.cz>
  *			found missing INIT_QDISC(htb)
  *		Vladimir Smelhaus, Aamer Akhter, Bert Hubert
- *			helped a lot to locate nasty class stall bug
+ *			helped a lot to locate nasty class stall 
  *		Andi Kleen, Jamal Hadi, Bert Hubert
  *			code review and helpful comments on shaping
  *		Tomasz Wrona, <tw@eter.tym.pl>
- *			created test case so that I was able to fix nasty bug
+ *			created test case so that I was able to fix nasty 
  *		Wilfried Weissmann
- *			spotted bug in dequeue code and helped with fix
+ *			spotted  in dequeue code and helped with fix
  *		Jiri Fojtasek
  *			fixed requeue routine
  *		and many others. thanks.
@@ -354,7 +354,7 @@ static inline void htb_add_class_to_row(struct htb_sched *q,
 	}
 }
 
-/* If this triggers, it is a bug in this code, but it need not be fatal */
+/* If this triggers, it is a  in this code, but it need not be fatal */
 static void htb_safe_rb_erase(struct rb_node *rb, struct rb_root *root)
 {
 	if (RB_EMPTY_NODE(rb)) {
@@ -773,7 +773,7 @@ static struct htb_class *htb_lookup_leaf(struct htb_prio *hprio, const int prio)
 		u32 *pid;
 	} stk[TC_HTB_MAXDEPTH], *sp = stk;
 
-	BUG_ON(!hprio->row.rb_node);
+	_ON(!hprio->row.rb_node);
 	sp->root = hprio->row.rb_node;
 	sp->pptr = &hprio->ptr;
 	sp->pid = &hprio->last_ptr_id;
@@ -1055,7 +1055,7 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	gopt.version = HTB_VER;
 	gopt.rate2quantum = q->rate2quantum;
 	gopt.defcls = q->defcls;
-	gopt.debug = 0;
+	gopt.de = 0;
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
@@ -1462,7 +1462,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	psched_ratecfg_precompute(&cl->rate, &hopt->rate, rate64);
 	psched_ratecfg_precompute(&cl->ceil, &hopt->ceil, ceil64);
 
-	/* it used to be a nasty bug here, we have to check that node
+	/* it used to be a nasty  here, we have to check that node
 	 * is really leaf before changing cl->leaf !
 	 */
 	if (!cl->level) {

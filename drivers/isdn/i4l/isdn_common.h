@@ -1,7 +1,7 @@
 /* $Id: isdn_common.h,v 1.1.2.2 2004/01/12 22:37:19 keil Exp $
  *
  * header for Linux ISDN subsystem
- * common used functions and debugging-switches (linklevel).
+ * common used functions and deging-switches (linklevel).
  *
  * Copyright 1994-1999  by Fritz Elfert (fritz@isdn4linux.de)
  * Copyright 1995,96    by Thinking Objects Software GmbH Wuerzburg
@@ -12,17 +12,17 @@
  *
  */
 
-#undef  ISDN_DEBUG_MODEM_OPEN
-#undef  ISDN_DEBUG_MODEM_IOCTL
-#undef  ISDN_DEBUG_MODEM_WAITSENT
-#undef  ISDN_DEBUG_MODEM_HUP
-#undef  ISDN_DEBUG_MODEM_ICALL
-#undef  ISDN_DEBUG_MODEM_DUMP
-#undef  ISDN_DEBUG_MODEM_VOICE
-#undef  ISDN_DEBUG_AT
-#undef  ISDN_DEBUG_NET_DUMP
-#undef  ISDN_DEBUG_NET_DIAL
-#undef  ISDN_DEBUG_NET_ICALL
+#undef  ISDN_DE_MODEM_OPEN
+#undef  ISDN_DE_MODEM_IOCTL
+#undef  ISDN_DE_MODEM_WAITSENT
+#undef  ISDN_DE_MODEM_HUP
+#undef  ISDN_DE_MODEM_ICALL
+#undef  ISDN_DE_MODEM_DUMP
+#undef  ISDN_DE_MODEM_VOICE
+#undef  ISDN_DE_AT
+#undef  ISDN_DE_NET_DUMP
+#undef  ISDN_DE_NET_DIAL
+#undef  ISDN_DE_NET_ICALL
 
 /* Prototypes */
 extern void isdn_lock_drivers(void);
@@ -42,6 +42,6 @@ extern int isdn_get_free_channel(int, int, int, int, int, char *);
 extern int isdn_writebuf_skb_stub(int, int, int, struct sk_buff *);
 extern int register_isdn(isdn_if *i);
 extern int isdn_msncmp(const char *,  const char *);
-#if defined(ISDN_DEBUG_NET_DUMP) || defined(ISDN_DEBUG_MODEM_DUMP)
+#if defined(ISDN_DE_NET_DUMP) || defined(ISDN_DE_MODEM_DUMP)
 extern void isdn_dumppkt(char *, u_char *, int, int);
 #endif

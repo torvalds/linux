@@ -344,7 +344,7 @@ static void dell_wmi_process_key(struct wmi_device *wdev, int type, int code)
 		return;
 	}
 
-	pr_debug("Key with type 0x%04x and code 0x%04x pressed\n", type, code);
+	pr_de("Key with type 0x%04x and code 0x%04x pressed\n", type, code);
 
 	/* Don't report brightness notifications that will also come via ACPI */
 	if ((key->keycode == KEY_BRIGHTNESSUP ||
@@ -375,7 +375,7 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 		return;
 	}
 
-	pr_debug("Received WMI event (%*ph)\n",
+	pr_de("Received WMI event (%*ph)\n",
 		obj->buffer.length, obj->buffer.pointer);
 
 	buffer_entry = (u16 *)obj->buffer.pointer;
@@ -411,7 +411,7 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 			break;
 		}
 
-		pr_debug("Process buffer (%*ph)\n", len*2, buffer_entry);
+		pr_de("Process buffer (%*ph)\n", len*2, buffer_entry);
 
 		switch (buffer_entry[1]) {
 		case 0x0000: /* One key pressed or event occurred */

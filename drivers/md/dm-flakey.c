@@ -304,7 +304,7 @@ static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
 			char *segment = (page_address(bio_iter_page(bio, iter))
 					 + bio_iter_offset(bio, iter));
 			segment[corrupt_bio_byte] = fc->corrupt_bio_value;
-			DMDEBUG("Corrupting data bio=%p by writing %u to byte %u "
+			DMDE("Corrupting data bio=%p by writing %u to byte %u "
 				"(rw=%c bi_opf=%u bi_sector=%llu size=%u)\n",
 				bio, fc->corrupt_bio_value, fc->corrupt_bio_byte,
 				(bio_data_dir(bio) == WRITE) ? 'w' : 'r', bio->bi_opf,

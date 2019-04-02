@@ -367,7 +367,7 @@ joystick/wheel). I used ComPortSpy from fCoder (alpha version!)
 3. Play the effect, and watch what happens on the spy screen.
 
 A few words about ComPortSpy:
-At first glance, this software seems, hum, well... buggy. In fact, data appear with a
+At first glance, this software seems, hum, well... gy. In fact, data appear with a
 few seconds latency. Personally, I restart it every time I play an effect.
 Remember it's free (as in free beer) and alpha!
 

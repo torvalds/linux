@@ -34,10 +34,10 @@
 
 #define TDA1997X_MBUS_CODES	5
 
-/* debug level */
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+/* de level */
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de level (0-2)");
 
 /* Audio formats */
 static const char * const audtype_names[] = {
@@ -563,7 +563,7 @@ static void tda1997x_delayed_work_enable_hpd(struct work_struct *work)
 						    delayed_work_enable_hpd);
 	struct v4l2_subdev *sd = &state->sd;
 
-	v4l2_dbg(2, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(2, de, sd, "%s:\n", __func__);
 
 	/* Set HPD high */
 	tda1997x_manual_hpd(sd, HPD_HIGH_OTHER);
@@ -576,7 +576,7 @@ static void tda1997x_disable_edid(struct v4l2_subdev *sd)
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s\n", __func__);
+	v4l2_dbg(1, de, sd, "%s\n", __func__);
 	cancel_delayed_work_sync(&state->delayed_work_enable_hpd);
 
 	/* Set HPD low */
@@ -587,7 +587,7 @@ static void tda1997x_enable_edid(struct v4l2_subdev *sd)
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s\n", __func__);
+	v4l2_dbg(1, de, sd, "%s\n", __func__);
 
 	/* Enable hotplug after 100ms */
 	schedule_delayed_work(&state->delayed_work_enable_hpd, HZ / 10);
@@ -603,7 +603,7 @@ static void tda1997x_enable_edid(struct v4l2_subdev *sd)
 static int
 tda1997x_setup_format(struct tda1997x_state *state, u32 code)
 {
-	v4l_dbg(1, debug, state->client, "%s code=0x%x\n", __func__, code);
+	v4l_dbg(1, de, state->client, "%s code=0x%x\n", __func__, code);
 	switch (code) {
 	case MEDIA_BUS_FMT_RGB121212_1X36:
 	case MEDIA_BUS_FMT_RGB888_1X24:
@@ -625,7 +625,7 @@ tda1997x_setup_format(struct tda1997x_state *state, u32 code)
 		v4l_err(state->client, "incompatible format (0x%x)\n", code);
 		return -EINVAL;
 	}
-	v4l_dbg(1, debug, state->client, "%s code=0x%x fmt=%s\n", __func__,
+	v4l_dbg(1, de, state->client, "%s code=0x%x fmt=%s\n", __func__,
 		code, vidfmt_names[state->vid_fmt]);
 	state->mbus_code = code;
 
@@ -658,7 +658,7 @@ tda1997x_configure_csc(struct v4l2_subdev *sd)
 	const struct blanking_codes *blanking_codes = NULL;
 	u8 reg;
 
-	v4l_dbg(1, debug, state->client, "input:%s quant:%s output:%s\n",
+	v4l_dbg(1, de, state->client, "input:%s quant:%s output:%s\n",
 		hdmi_colorspace_names[avi->colorspace],
 		v4l2_quantization_names[c->quantization],
 		vidfmt_names[state->vid_fmt]);
@@ -699,7 +699,7 @@ tda1997x_configure_csc(struct v4l2_subdev *sd)
 	}
 
 	if (state->conv) {
-		v4l_dbg(1, debug, state->client, "%s\n",
+		v4l_dbg(1, de, state->client, "%s\n",
 			state->conv->name);
 		/* enable matrix conversion */
 		reg = io_read(sd, REG_VDP_CTRL);
@@ -1106,7 +1106,7 @@ tda1997x_detect_std(struct tda1997x_state *state,
 	vper = io_read24(sd, REG_V_PER) & MASK_VPER;
 	hper = io_read16(sd, REG_H_PER) & MASK_HPER;
 	hsper = io_read16(sd, REG_HS_WIDTH) & MASK_HSWIDTH;
-	v4l2_dbg(1, debug, sd, "Signal Timings: %u/%u/%u\n", vper, hper, hsper);
+	v4l2_dbg(1, de, sd, "Signal Timings: %u/%u/%u\n", vper, hper, hsper);
 	if (!vper || !hper || !hsper)
 		return -ENOLINK;
 
@@ -1233,7 +1233,7 @@ set_rgb_quantization_range(struct tda1997x_state *state)
 			break;
 		}
 	}
-	v4l_dbg(1, debug, state->client,
+	v4l_dbg(1, de, state->client,
 		"colorspace=%d/%d colorimetry=%d range=%s content=%d\n",
 		state->avi_infoframe.colorspace, c->colorspace,
 		state->avi_infoframe.colorimetry,
@@ -1386,7 +1386,7 @@ static void tda1997x_irq_sus(struct tda1997x_state *state, u8 *flags)
 			v4l_err(state->client, "BAD SUS STATUS\n");
 			return;
 		}
-		if (debug)
+		if (de)
 			tda1997x_detect_std(state, NULL);
 		/* notify user of change in resolution */
 		v4l2_subdev_notify_event(&state->sd, &tda1997x_ev_fmt);
@@ -1639,7 +1639,7 @@ tda1997x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	 * testing shows these values to be random if no signal is present
 	 * or locked.
 	 */
-	v4l2_dbg(1, debug, sd, "inputs:%d/%d timings:%d/%d/%d\n",
+	v4l2_dbg(1, de, sd, "inputs:%d/%d timings:%d/%d/%d\n",
 		 state->input_detect[0], state->input_detect[1],
 		 vper, hper, hsper);
 	if (!state->input_detect[0] && !state->input_detect[1])
@@ -1658,7 +1658,7 @@ static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l_dbg(1, debug, state->client, "%s\n", __func__);
+	v4l_dbg(1, de, state->client, "%s\n", __func__);
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false))
 		return 0; /* no changes */
@@ -1683,7 +1683,7 @@ static int tda1997x_g_dv_timings(struct v4l2_subdev *sd,
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l_dbg(1, debug, state->client, "%s\n", __func__);
+	v4l_dbg(1, de, state->client, "%s\n", __func__);
 	mutex_lock(&state->lock);
 	*timings = state->timings;
 	mutex_unlock(&state->lock);
@@ -1696,7 +1696,7 @@ static int tda1997x_query_dv_timings(struct v4l2_subdev *sd,
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l_dbg(1, debug, state->client, "%s\n", __func__);
+	v4l_dbg(1, de, state->client, "%s\n", __func__);
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 	mutex_lock(&state->lock);
 	tda1997x_detect_std(state, timings);
@@ -1735,7 +1735,7 @@ static int tda1997x_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l_dbg(1, debug, state->client, "%s %d\n", __func__, code->index);
+	v4l_dbg(1, de, state->client, "%s %d\n", __func__, code->index);
 	if (code->index >= ARRAY_SIZE(state->mbus_codes))
 		return -EINVAL;
 
@@ -1767,7 +1767,7 @@ static int tda1997x_get_format(struct v4l2_subdev *sd,
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l_dbg(1, debug, state->client, "%s pad=%d which=%d\n",
+	v4l_dbg(1, de, state->client, "%s pad=%d which=%d\n",
 		__func__, format->pad, format->which);
 
 	tda1997x_fill_format(state, &format->format);
@@ -1791,7 +1791,7 @@ static int tda1997x_set_format(struct v4l2_subdev *sd,
 	u32 code = 0;
 	int i;
 
-	v4l_dbg(1, debug, state->client, "%s pad=%d which=%d fmt=0x%x\n",
+	v4l_dbg(1, de, state->client, "%s pad=%d which=%d fmt=0x%x\n",
 		__func__, format->pad, format->which, format->format.code);
 
 	for (i = 0; i < ARRAY_SIZE(state->mbus_codes); i++) {
@@ -1828,7 +1828,7 @@ static int tda1997x_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 {
 	struct tda1997x_state *state = to_state(sd);
 
-	v4l_dbg(1, debug, state->client, "%s pad=%d\n", __func__, edid->pad);
+	v4l_dbg(1, de, state->client, "%s pad=%d\n", __func__, edid->pad);
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->start_block == 0 && edid->blocks == 0) {
@@ -1856,7 +1856,7 @@ static int tda1997x_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	struct tda1997x_state *state = to_state(sd);
 	int i;
 
-	v4l_dbg(1, debug, state->client, "%s pad=%d\n", __func__, edid->pad);
+	v4l_dbg(1, de, state->client, "%s pad=%d\n", __func__, edid->pad);
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 
 	if (edid->start_block != 0)
@@ -1931,7 +1931,7 @@ static int tda1997x_log_infoframe(struct v4l2_subdev *sd, int addr)
 
 	/* read data */
 	len = io_readn(sd, addr, sizeof(buffer), buffer);
-	v4l2_dbg(1, debug, sd, "infoframe: addr=%d len=%d\n", addr, len);
+	v4l2_dbg(1, de, sd, "infoframe: addr=%d len=%d\n", addr, len);
 	err = hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer));
 	if (err) {
 		v4l_err(state->client,
@@ -2190,7 +2190,7 @@ static int tda1997x_core_init(struct v4l2_subdev *sd)
 
 	/* configure video output port */
 	for (i = 0; i < 9; i++) {
-		v4l_dbg(1, debug, state->client, "vidout_cfg[%d]=0x%02x\n", i,
+		v4l_dbg(1, de, state->client, "vidout_cfg[%d]=0x%02x\n", i,
 			pdata->vidout_port_cfg[i]);
 		io_write(sd, REG_VP35_32_CTRL + i, pdata->vidout_port_cfg[i]);
 	}

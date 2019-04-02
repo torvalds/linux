@@ -186,7 +186,7 @@ static const char * const am3_dbg_clka_ck_parents[] __initconst = {
 	NULL,
 };
 
-static const struct omap_clkctrl_bit_data am3_debugss_bit_data[] __initconst = {
+static const struct omap_clkctrl_bit_data am3_dess_bit_data[] __initconst = {
 	{ 19, TI_CLK_GATE, am3_dbg_sysclk_ck_parents, NULL },
 	{ 20, TI_CLK_MUX, am3_trace_pmd_clk_mux_ck_parents, NULL },
 	{ 22, TI_CLK_MUX, am3_trace_pmd_clk_mux_ck_parents, NULL },
@@ -197,7 +197,7 @@ static const struct omap_clkctrl_bit_data am3_debugss_bit_data[] __initconst = {
 };
 
 static const struct omap_clkctrl_reg_data am3_l3_aon_clkctrl_regs[] __initconst = {
-	{ AM3_L3_AON_DEBUGSS_CLKCTRL, am3_debugss_bit_data, CLKF_SW_SUP, "l3-aon-clkctrl:0000:24" },
+	{ AM3_L3_AON_DESS_CLKCTRL, am3_dess_bit_data, CLKF_SW_SUP, "l3-aon-clkctrl:0000:24" },
 	{ 0 },
 };
 

@@ -718,7 +718,7 @@ static void pop_tx_status(struct net_device *dev)
 		if (tx_status & 0x30)
 			tc574_wait_for_completion(dev, TxReset);
 		if (tx_status & 0x38) {
-			pr_debug("%s: transmit error: status 0x%02x\n",
+			pr_de("%s: transmit error: status 0x%02x\n",
 				  dev->name, tx_status);
 			outw(TxEnable, ioaddr + EL3_CMD);
 			dev->stats.tx_aborted_errors++;
@@ -734,7 +734,7 @@ static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
 	struct el3_private *lp = netdev_priv(dev);
 	unsigned long flags;
 
-	pr_debug("%s: el3_start_xmit(length = %ld) called, "
+	pr_de("%s: el3_start_xmit(length = %ld) called, "
 		  "status %4.4x.\n", dev->name, (long)skb->len,
 		  inw(ioaddr + EL3_STATUS));
 
@@ -776,7 +776,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 	ioaddr = dev->base_addr;
 
-	pr_debug("%s: interrupt, status %4.4x.\n",
+	pr_de("%s: interrupt, status %4.4x.\n",
 		  dev->name, inw(ioaddr + EL3_STATUS));
 
 	spin_lock(&lp->window_lock);
@@ -785,7 +785,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 		   (IntLatch | RxComplete | RxEarly | StatsFull)) {
 		if (!netif_device_present(dev) ||
 			((status & 0xe000) != 0x2000)) {
-			pr_debug("%s: Interrupt from dead card\n", dev->name);
+			pr_de("%s: Interrupt from dead card\n", dev->name);
 			break;
 		}
 
@@ -795,7 +795,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 			work_budget = el3_rx(dev, work_budget);
 
 		if (status & TxAvailable) {
-			pr_debug("  TX room bit was handled.\n");
+			pr_de("  TX room bit was handled.\n");
 			/* There's room in the FIFO for a full-sized packet. */
 			outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
 			netif_wake_queue(dev);
@@ -835,7 +835,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 		}
 
 		if (--work_budget < 0) {
-			pr_debug("%s: Too much work in interrupt, "
+			pr_de("%s: Too much work in interrupt, "
 				  "status %4.4x.\n", dev->name, status);
 			/* Clear all interrupts */
 			outw(AckIntr | 0xFF, ioaddr + EL3_CMD);
@@ -845,7 +845,7 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	}
 
-	pr_debug("%s: exiting interrupt, status %4.4x.\n",
+	pr_de("%s: exiting interrupt, status %4.4x.\n",
 		  dev->name, inw(ioaddr + EL3_STATUS));
 		  
 	spin_unlock(&lp->window_lock);
@@ -953,7 +953,7 @@ static void update_stats(struct net_device *dev)
 	unsigned int ioaddr = dev->base_addr;
 	u8 rx, tx, up;
 
-	pr_debug("%s: updating the statistics.\n", dev->name);
+	pr_de("%s: updating the statistics.\n", dev->name);
 
 	if (inw(ioaddr+EL3_STATUS) == 0xffff) /* No card. */
 		return;
@@ -987,7 +987,7 @@ static int el3_rx(struct net_device *dev, int worklimit)
 	unsigned int ioaddr = dev->base_addr;
 	short rx_status;
 	
-	pr_debug("%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
+	pr_de("%s: in rx_packet(), status %4.4x, rx_status %4.4x.\n",
 		  dev->name, inw(ioaddr+EL3_STATUS), inw(ioaddr+RxStatus));
 	while (!((rx_status = inw(ioaddr + RxStatus)) & 0x8000) &&
 			worklimit > 0) {
@@ -1009,7 +1009,7 @@ static int el3_rx(struct net_device *dev, int worklimit)
 
 			skb = netdev_alloc_skb(dev, pkt_len + 5);
 
-			pr_debug("  Receiving packet size %d status %4.4x.\n",
+			pr_de("  Receiving packet size %d status %4.4x.\n",
 				  pkt_len, rx_status);
 			if (skb != NULL) {
 				skb_reserve(skb, 2);
@@ -1020,7 +1020,7 @@ static int el3_rx(struct net_device *dev, int worklimit)
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += pkt_len;
 			} else {
-				pr_debug("%s: couldn't allocate a sk_buff of"
+				pr_de("%s: couldn't allocate a sk_buff of"
 					  " size %d.\n", dev->name, pkt_len);
 				dev->stats.rx_dropped++;
 			}
@@ -1039,7 +1039,7 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct mii_ioctl_data *data = if_mii(rq);
 	int phy = lp->phys & 0x1f;
 
-	pr_debug("%s: In ioct(%-.6s, %#4.4x) %4.4x %4.4x %4.4x %4.4x.\n",
+	pr_de("%s: In ioct(%-.6s, %#4.4x) %4.4x %4.4x %4.4x %4.4x.\n",
 		  dev->name, rq->ifr_ifrn.ifrn_name, cmd,
 		  data->phy_id, data->reg_num, data->val_in, data->val_out);
 

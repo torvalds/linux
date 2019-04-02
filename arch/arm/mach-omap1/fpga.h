@@ -19,7 +19,7 @@
 
 /*
  * ---------------------------------------------------------------------------
- *  H2/P2 Debug board FPGA
+ *  H2/P2 De board FPGA
  * ---------------------------------------------------------------------------
  */
 /* maps in the FPGA registers and the ETHR registers */
@@ -36,7 +36,7 @@
 #define H2P2_DBG_FPGA_LAN_STATUS	IOMEM(H2P2_DBG_FPGA_BASE + 0x1A)	/* LAN Status line */
 #define H2P2_DBG_FPGA_LAN_RESET		IOMEM(H2P2_DBG_FPGA_BASE + 0x1C)	/* LAN Reset line */
 
-/* LEDs definition on debug board (16 LEDs, all physically green) */
+/* LEDs definition on de board (16 LEDs, all physically green) */
 #define H2P2_DBG_FPGA_LED_GREEN		(1 << 15)
 #define H2P2_DBG_FPGA_LED_AMBER		(1 << 14)
 #define H2P2_DBG_FPGA_LED_RED		(1 << 13)

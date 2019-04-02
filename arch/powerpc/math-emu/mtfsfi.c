@@ -17,7 +17,7 @@ mtfsfi(unsigned int crfD, unsigned int IMM)
 	__FPU_FPSCR &= ~(mask << ((7 - crfD) << 2));
 	__FPU_FPSCR |= (IMM & 0xf) << ((7 - crfD) << 2);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: %d %x: %08lx\n", __func__, crfD, IMM, __FPU_FPSCR);
 #endif
 

@@ -134,7 +134,7 @@ void bt_err_ratelimited(const char *fmt, ...);
 #define BT_INFO(fmt, ...)	bt_info(fmt "\n", ##__VA_ARGS__)
 #define BT_WARN(fmt, ...)	bt_warn(fmt "\n", ##__VA_ARGS__)
 #define BT_ERR(fmt, ...)	bt_err(fmt "\n", ##__VA_ARGS__)
-#define BT_DBG(fmt, ...)	pr_debug(fmt "\n", ##__VA_ARGS__)
+#define BT_DBG(fmt, ...)	pr_de(fmt "\n", ##__VA_ARGS__)
 
 #define BT_ERR_RATELIMITED(fmt, ...) bt_err_ratelimited(fmt "\n", ##__VA_ARGS__)
 
@@ -389,7 +389,7 @@ int bt_procfs_init(struct net *net, const char *name,
 		   int (*seq_show)(struct seq_file *, void *));
 void bt_procfs_cleanup(struct net *net, const char *name);
 
-extern struct dentry *bt_debugfs;
+extern struct dentry *bt_defs;
 
 int l2cap_init(void);
 void l2cap_exit(void);

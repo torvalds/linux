@@ -86,12 +86,12 @@ void cpu_probe(void)
 	switch (pvr) {
 	case 0x205:
 		boot_cpu_data.type = CPU_SH7750;
-		boot_cpu_data.flags |= CPU_HAS_P2_FLUSH_BUG |
+		boot_cpu_data.flags |= CPU_HAS_P2_FLUSH_ |
 				       CPU_HAS_PERF_COUNTER;
 		break;
 	case 0x206:
 		boot_cpu_data.type = CPU_SH7750S;
-		boot_cpu_data.flags |= CPU_HAS_P2_FLUSH_BUG |
+		boot_cpu_data.flags |= CPU_HAS_P2_FLUSH_ |
 				       CPU_HAS_PERF_COUNTER;
 		break;
 	case 0x1100:

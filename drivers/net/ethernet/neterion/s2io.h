@@ -52,21 +52,21 @@ enum {
 #define	PCIX_COMMAND_REGISTER		0x62
 
 /*
- * Debug related variables.
+ * De related variables.
  */
-/* different debug levels. */
+/* different de levels. */
 #define	ERR_DBG		0
 #define	INIT_DBG	1
 #define	INFO_DBG	2
 #define	TX_DBG		3
 #define	INTR_DBG	4
 
-/* Global variable that defines the present debug level of the driver. */
-static int debug_level = ERR_DBG;
+/* Global variable that defines the present de level of the driver. */
+static int de_level = ERR_DBG;
 
-/* DEBUG message print. */
+/* DE message print. */
 #define DBG_PRINT(dbg_level, fmt, args...) do {			\
-	if (dbg_level <= debug_level)				\
+	if (dbg_level <= de_level)				\
 		pr_info(fmt, ##args);				\
 	} while (0)
 

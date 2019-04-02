@@ -115,7 +115,7 @@ static bool _is_module_ready(u8 part, u16 inst, u16 clkctrl_offs)
 /* Read a register in a CM instance */
 static u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 {
-	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
+	_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part].va);
 	return readl_relaxed(_cm_bases[part].va + inst + idx);
@@ -124,7 +124,7 @@ static u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 /* Write into a register in a CM instance */
 static void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 {
-	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
+	_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part].va);
 	writel_relaxed(val, _cm_bases[part].va + inst + idx);

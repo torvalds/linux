@@ -422,7 +422,7 @@ static int zstd_compress_pages(struct list_head *ws,
 		ret2 = ZSTD_compressStream(stream, &workspace->out_buf,
 				&workspace->in_buf);
 		if (ZSTD_isError(ret2)) {
-			pr_debug("BTRFS: ZSTD_compressStream returned %d\n",
+			pr_de("BTRFS: ZSTD_compressStream returned %d\n",
 					ZSTD_getErrorCode(ret2));
 			ret = -EIO;
 			goto out;
@@ -490,7 +490,7 @@ static int zstd_compress_pages(struct list_head *ws,
 
 		ret2 = ZSTD_endStream(stream, &workspace->out_buf);
 		if (ZSTD_isError(ret2)) {
-			pr_debug("BTRFS: ZSTD_endStream returned %d\n",
+			pr_de("BTRFS: ZSTD_endStream returned %d\n",
 					ZSTD_getErrorCode(ret2));
 			ret = -EIO;
 			goto out;
@@ -561,7 +561,7 @@ static int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	stream = ZSTD_initDStream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 	if (!stream) {
-		pr_debug("BTRFS: ZSTD_initDStream failed\n");
+		pr_de("BTRFS: ZSTD_initDStream failed\n");
 		ret = -EIO;
 		goto done;
 	}
@@ -580,7 +580,7 @@ static int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		ret2 = ZSTD_decompressStream(stream, &workspace->out_buf,
 				&workspace->in_buf);
 		if (ZSTD_isError(ret2)) {
-			pr_debug("BTRFS: ZSTD_decompressStream returned %d\n",
+			pr_de("BTRFS: ZSTD_decompressStream returned %d\n",
 					ZSTD_getErrorCode(ret2));
 			ret = -EIO;
 			goto done;
@@ -662,14 +662,14 @@ static int zstd_decompress(struct list_head *ws, unsigned char *data_in,
 
 		/* Check if the frame is over and we still need more input */
 		if (ret2 == 0) {
-			pr_debug("BTRFS: ZSTD_decompressStream ended early\n");
+			pr_de("BTRFS: ZSTD_decompressStream ended early\n");
 			ret = -EIO;
 			goto finish;
 		}
 		ret2 = ZSTD_decompressStream(stream, &workspace->out_buf,
 				&workspace->in_buf);
 		if (ZSTD_isError(ret2)) {
-			pr_debug("BTRFS: ZSTD_decompressStream returned %d\n",
+			pr_de("BTRFS: ZSTD_decompressStream returned %d\n",
 					ZSTD_getErrorCode(ret2));
 			ret = -EIO;
 			goto finish;

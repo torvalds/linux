@@ -19,7 +19,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/kfifo.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list_sort.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -972,7 +972,7 @@ static int gb_loopback_dbgfs_latency_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(gb_loopback_dbgfs_latency);
 
-#define DEBUGFS_NAMELEN 32
+#define DEFS_NAMELEN 32
 
 static int gb_loopback_probe(struct gb_bundle *bundle,
 			     const struct greybus_bundle_id *id)
@@ -982,7 +982,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	struct gb_loopback *gb;
 	struct device *dev;
 	int retval;
-	char name[DEBUGFS_NAMELEN];
+	char name[DEFS_NAMELEN];
 	unsigned long flags;
 
 	if (bundle->num_cports != 1)
@@ -1026,16 +1026,16 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 		gb_dev.size_max -= sizeof(struct gb_loopback_transfer_request);
 	}
 
-	/* Create per-connection sysfs and debugfs data-points */
+	/* Create per-connection sysfs and defs data-points */
 	snprintf(name, sizeof(name), "raw_latency_%s",
 		 dev_name(&connection->bundle->dev));
-	gb->file = debugfs_create_file(name, S_IFREG | 0444, gb_dev.root, gb,
+	gb->file = defs_create_file(name, S_IFREG | 0444, gb_dev.root, gb,
 				       &gb_loopback_dbgfs_latency_fops);
 
 	gb->id = ida_simple_get(&loopback_ida, 0, 0, GFP_KERNEL);
 	if (gb->id < 0) {
 		retval = gb->id;
-		goto out_debugfs_remove;
+		goto out_defs_remove;
 	}
 
 	retval = gb_connection_enable(connection);
@@ -1084,8 +1084,8 @@ out_connection_disable:
 	gb_connection_disable(connection);
 out_ida_remove:
 	ida_simple_remove(&loopback_ida, gb->id);
-out_debugfs_remove:
-	debugfs_remove(gb->file);
+out_defs_remove:
+	defs_remove(gb->file);
 out_connection_destroy:
 	gb_connection_destroy(connection);
 out_kzalloc:
@@ -1111,7 +1111,7 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 
 	kfifo_free(&gb->kfifo_lat);
 	gb_connection_latency_tag_disable(gb->connection);
-	debugfs_remove(gb->file);
+	defs_remove(gb->file);
 
 	/*
 	 * FIXME: gb_loopback_async_wait_all() is redundant now, as connection
@@ -1149,7 +1149,7 @@ static int loopback_init(void)
 	int retval;
 
 	spin_lock_init(&gb_dev.lock);
-	gb_dev.root = debugfs_create_dir("gb_loopback", NULL);
+	gb_dev.root = defs_create_dir("gb_loopback", NULL);
 
 	retval = class_register(&loopback_class);
 	if (retval)
@@ -1164,14 +1164,14 @@ static int loopback_init(void)
 err_unregister:
 	class_unregister(&loopback_class);
 err:
-	debugfs_remove_recursive(gb_dev.root);
+	defs_remove_recursive(gb_dev.root);
 	return retval;
 }
 module_init(loopback_init);
 
 static void __exit loopback_exit(void)
 {
-	debugfs_remove_recursive(gb_dev.root);
+	defs_remove_recursive(gb_dev.root);
 	greybus_deregister(&gb_loopback_driver);
 	class_unregister(&loopback_class);
 	ida_destroy(&loopback_ida);

@@ -100,8 +100,8 @@ void __init config_bvme6000(void)
 	    vme_brdtype = VME_TYPE_BVME4000;
     }
 #if 0
-    /* Call bvme6000_set_vectors() so ABORT will work, along with BVMBug
-     * debugger.  Note trap_init() will splat the abort vector, but
+    /* Call bvme6000_set_vectors() so ABORT will work, along with BVM
+     * deger.  Note trap_init() will splat the abort vector, but
      * bvme6000_init_IRQ() will put it back again.  Hopefully. */
 
     bvme6000_set_vectors();

@@ -35,12 +35,12 @@ config	IP_VS_IPV6
 
 	  Say Y if unsure.
 
-config	IP_VS_DEBUG
-	bool "IP virtual server debugging"
+config	IP_VS_DE
+	bool "IP virtual server deging"
 	---help---
 	  Say Y here if you want to get additional messages useful in
-	  debugging the IP virtual server code. You can change the debug
-	  level in /proc/sys/net/ipv4/vs/debug_level
+	  deging the IP virtual server code. You can change the de
+	  level in /proc/sys/net/ipv4/vs/de_level
 
 config	IP_VS_TAB_BITS
 	int "IPVS connection table size (the Nth power of 2)"

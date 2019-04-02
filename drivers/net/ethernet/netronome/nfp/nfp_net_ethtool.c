@@ -499,7 +499,7 @@ nfp_vnic_get_hw_stats_strings(u8 *data, unsigned int num_vecs, bool repr)
 {
 	int swap_off, i;
 
-	BUILD_BUG_ON(NN_ET_GLOBAL_STATS_LEN < NN_ET_SWITCH_STATS_LEN * 2);
+	BUILD__ON(NN_ET_GLOBAL_STATS_LEN < NN_ET_SWITCH_STATS_LEN * 2);
 	/* If repr is true first add SWITCH_STATS_LEN and then subtract it
 	 * effectively swapping the RX and TX statistics (giving us the RX
 	 * and TX from perspective of the switch).
@@ -987,7 +987,7 @@ static int nfp_net_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-/* Other debug dumps
+/* Other de dumps
  */
 static int
 nfp_dump_nsp_diag(struct nfp_app *app, struct ethtool_dump *dump, void *buffer)

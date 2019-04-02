@@ -386,7 +386,7 @@ static u32 __init rcar_gen2_read_mode_pins(void)
 	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
 	u32 mode;
 
-	BUG_ON(!modemr);
+	_ON(!modemr);
 	mode = ioread32(modemr);
 	iounmap(modemr);
 

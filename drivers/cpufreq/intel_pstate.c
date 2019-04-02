@@ -434,9 +434,9 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 	if (cpu->acpi_perf_data.state_count < 2)
 		goto err;
 
-	pr_debug("CPU%u - ACPI _PSS perf data\n", policy->cpu);
+	pr_de("CPU%u - ACPI _PSS perf data\n", policy->cpu);
 	for (i = 0; i < cpu->acpi_perf_data.state_count; i++) {
-		pr_debug("     %cP%d: %u MHz, %u mW, 0x%x\n",
+		pr_de("     %cP%d: %u MHz, %u mW, 0x%x\n",
 			 (i == cpu->acpi_perf_data.state ? '*' : ' '), i,
 			 (u32) cpu->acpi_perf_data.states[i].core_frequency,
 			 (u32) cpu->acpi_perf_data.states[i].power,
@@ -458,7 +458,7 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 		cpu->acpi_perf_data.states[0].core_frequency =
 					policy->cpuinfo.max_freq / 1000;
 	cpu->valid_pss_table = true;
-	pr_debug("_PPC limits will be enforced\n");
+	pr_de("_PPC limits will be enforced\n");
 
 	return;
 
@@ -1360,7 +1360,7 @@ static int core_get_tdp_ratio(u64 plat_info)
 			tdp_ratio >>= 16;
 
 		tdp_ratio &= 0xff; /* ratios are only 8 bits long */
-		pr_debug("tdp_ratio %x\n", (int)tdp_ratio);
+		pr_de("tdp_ratio %x\n", (int)tdp_ratio);
 
 		return (int)tdp_ratio;
 	}
@@ -1396,7 +1396,7 @@ static int core_get_max_pstate(void)
 		tar_levels = tar & 0xff;
 		if (tdp_ratio - 1 == tar_levels) {
 			max_pstate = tar_levels;
-			pr_debug("max_pstate=TAC %x\n", max_pstate);
+			pr_de("max_pstate=TAC %x\n", max_pstate);
 		}
 	}
 
@@ -1913,7 +1913,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	intel_pstate_get_cpu_pstates(cpu);
 
-	pr_debug("controlling: cpu %d\n", cpunum);
+	pr_de("controlling: cpu %d\n", cpunum);
 
 	return 0;
 }
@@ -1984,7 +1984,7 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					  0, max_policy_perf);
 	}
 
-	pr_debug("cpu:%d max_state %d min_policy_perf:%d max_policy_perf:%d\n",
+	pr_de("cpu:%d max_state %d min_policy_perf:%d max_policy_perf:%d\n",
 		 policy->cpu, max_state,
 		 min_policy_perf, max_policy_perf);
 
@@ -2000,7 +2000,7 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 		global_min = DIV_ROUND_UP(turbo_max * global.min_perf_pct, 100);
 		global_min = clamp_t(int32_t, global_min, 0, global_max);
 
-		pr_debug("cpu:%d global_min:%d global_max:%d\n", policy->cpu,
+		pr_de("cpu:%d global_min:%d global_max:%d\n", policy->cpu,
 			 global_min, global_max);
 
 		cpu->min_perf_ratio = max(min_policy_perf, global_min);
@@ -2013,7 +2013,7 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					  cpu->max_perf_ratio);
 
 	}
-	pr_debug("cpu:%d max_perf_ratio:%d min_perf_ratio:%d\n", policy->cpu,
+	pr_de("cpu:%d max_perf_ratio:%d min_perf_ratio:%d\n", policy->cpu,
 		 cpu->max_perf_ratio,
 		 cpu->min_perf_ratio);
 }
@@ -2025,7 +2025,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
 
-	pr_debug("set_policy cpuinfo.max %u policy->max %u\n",
+	pr_de("set_policy cpuinfo.max %u policy->max %u\n",
 		 policy->cpuinfo.max_freq, policy->max);
 
 	cpu = all_cpu_data[policy->cpu];
@@ -2069,7 +2069,7 @@ static void intel_pstate_adjust_policy_max(struct cpufreq_policy *policy,
 	    cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
 	    policy->max < policy->cpuinfo.max_freq &&
 	    policy->max > cpu->pstate.max_freq) {
-		pr_debug("policy->max > max non turbo frequency\n");
+		pr_de("policy->max > max non turbo frequency\n");
 		policy->max = policy->cpuinfo.max_freq;
 	}
 }
@@ -2098,7 +2098,7 @@ static void intel_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 
 static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 {
-	pr_debug("CPU %d exiting\n", policy->cpu);
+	pr_de("CPU %d exiting\n", policy->cpu);
 
 	intel_pstate_clear_update_util_hook(policy->cpu);
 	if (hwp_active) {
@@ -2470,7 +2470,7 @@ static bool __init intel_pstate_no_acpi_pss(void)
 		kfree(pss);
 	}
 
-	pr_debug("ACPI _PSS not found\n");
+	pr_de("ACPI _PSS not found\n");
 	return true;
 }
 
@@ -2487,7 +2487,7 @@ static bool __init intel_pstate_no_acpi_pcch(void)
 		return false;
 
 not_found:
-	pr_debug("ACPI PCCH not found\n");
+	pr_de("ACPI PCCH not found\n");
 	return true;
 }
 
@@ -2503,7 +2503,7 @@ static bool __init intel_pstate_has_acpi_ppc(void)
 		if (acpi_has_method(pr->handle, "_PPC"))
 			return true;
 	}
-	pr_debug("ACPI _PPC not found\n");
+	pr_de("ACPI _PPC not found\n");
 	return false;
 }
 
@@ -2542,7 +2542,7 @@ static bool __init intel_pstate_platform_pwr_mgmt_exists(void)
 	if (id) {
 		rdmsrl(MSR_MISC_PWR_MGMT, misc_pwr);
 		if (misc_pwr & (1 << 8)) {
-			pr_debug("Bit 8 in the MISC_PWR_MGMT MSR set\n");
+			pr_de("Bit 8 in the MISC_PWR_MGMT MSR set\n");
 			return true;
 		}
 	}

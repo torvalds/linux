@@ -51,14 +51,14 @@ DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 
 #define for_each_cpu_buffer(I) for ((I) = 0; (I) < MAX_PATH_BUFFERS; (I)++)
 
-#ifdef CONFIG_DEBUG_PREEMPT
-#define AA_BUG_PREEMPT_ENABLED(X) AA_BUG(preempt_count() <= 0, X)
+#ifdef CONFIG_DE_PREEMPT
+#define AA__PREEMPT_ENABLED(X) AA_(preempt_count() <= 0, X)
 #else
-#define AA_BUG_PREEMPT_ENABLED(X) /* nop */
+#define AA__PREEMPT_ENABLED(X) /* nop */
 #endif
 
 #define __get_buffer(C, N) ({						\
-	AA_BUG_PREEMPT_ENABLED("__get_buffer without preempt disabled");  \
+	AA__PREEMPT_ENABLED("__get_buffer without preempt disabled");  \
 	(C)->buf[(N)]; })
 
 #define __get_buffers(C, X...)    EVAL(__get_buffer, C, X)

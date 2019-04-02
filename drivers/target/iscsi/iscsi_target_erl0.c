@@ -793,7 +793,7 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 	if (sess->time2retain_timer_flags & ISCSI_TF_RUNNING)
 		return;
 
-	pr_debug("Starting Time2Retain timer for %u seconds on"
+	pr_de("Starting Time2Retain timer for %u seconds on"
 		" SID: %u\n", sess->sess_ops->DefaultTime2Retain, sess->sid);
 
 	sess->time2retain_timer_flags &= ~ISCSI_TF_STOP;
@@ -822,7 +822,7 @@ int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
 
 	spin_lock(&se_tpg->session_lock);
 	sess->time2retain_timer_flags &= ~ISCSI_TF_RUNNING;
-	pr_debug("Stopped Time2Retain Timer for SID: %u\n",
+	pr_de("Stopped Time2Retain Timer for SID: %u\n",
 			sess->sid);
 	return 0;
 }
@@ -890,7 +890,7 @@ EXPORT_SYMBOL(iscsit_cause_connection_reinstatement);
 
 void iscsit_fall_back_to_erl0(struct iscsi_session *sess)
 {
-	pr_debug("Falling back to ErrorRecoveryLevel=0 for SID:"
+	pr_de("Falling back to ErrorRecoveryLevel=0 for SID:"
 			" %u\n", sess->sid);
 
 	atomic_set(&sess->session_fall_back_to_erl0, 1);
@@ -905,7 +905,7 @@ static void iscsit_handle_connection_cleanup(struct iscsi_conn *conn)
 	    !atomic_read(&sess->session_fall_back_to_erl0))
 		iscsit_connection_recovery_transport_reset(conn);
 	else {
-		pr_debug("Performing cleanup for failed iSCSI"
+		pr_de("Performing cleanup for failed iSCSI"
 			" Connection ID: %hu from %s\n", conn->cid,
 			sess->sess_ops->InitiatorName);
 		iscsit_close_connection(conn);
@@ -935,7 +935,7 @@ void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn, bool *conn_
 		return;
 	}
 
-	pr_debug("Moving to TARG_CONN_STATE_CLEANUP_WAIT.\n");
+	pr_de("Moving to TARG_CONN_STATE_CLEANUP_WAIT.\n");
 	conn->conn_state = TARG_CONN_STATE_CLEANUP_WAIT;
 	spin_unlock_bh(&conn->state_lock);
 

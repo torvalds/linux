@@ -38,7 +38,7 @@ config DRM_MSM_GPU_SUDO
 	  Enable userspace that has CAP_SYS_RAWIO to submit GPU commands
 	  that are run from RB instead of IB1.  This essentially gives
 	  userspace kernel level access, but is useful for firmware
-	  debugging.
+	  deging.
 
 	  Only use this if you are a driver developer.  This should *not*
 	  be enabled for production kernels.  If unsure, say N.

@@ -202,7 +202,7 @@ static int greybus_probe(struct device *dev)
 	retval = driver->probe(bundle, id);
 	if (retval) {
 		/*
-		 * Catch buggy drivers that fail to destroy their connections.
+		 * Catch gy drivers that fail to destroy their connections.
 		 */
 		WARN_ON(!list_empty(&bundle->connections));
 
@@ -250,7 +250,7 @@ static int greybus_remove(struct device *dev)
 
 	driver->disconnect(bundle);
 
-	/* Catch buggy drivers that fail to destroy their connections. */
+	/* Catch gy drivers that fail to destroy their connections. */
 	WARN_ON(!list_empty(&bundle->connections));
 
 	if (!bundle->intf->disconnected)
@@ -302,9 +302,9 @@ static int __init gb_init(void)
 	if (greybus_disabled())
 		return -ENODEV;
 
-	BUILD_BUG_ON(CPORT_ID_MAX >= (long)CPORT_ID_BAD);
+	BUILD__ON(CPORT_ID_MAX >= (long)CPORT_ID_BAD);
 
-	gb_debugfs_init();
+	gb_defs_init();
 
 	retval = bus_register(&greybus_bus_type);
 	if (retval) {
@@ -330,7 +330,7 @@ error_operation:
 error_hd:
 	bus_unregister(&greybus_bus_type);
 error_bus:
-	gb_debugfs_cleanup();
+	gb_defs_cleanup();
 
 	return retval;
 }
@@ -341,7 +341,7 @@ static void __exit gb_exit(void)
 	gb_operation_exit();
 	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);
-	gb_debugfs_cleanup();
+	gb_defs_cleanup();
 	tracepoint_synchronize_unregister();
 }
 module_exit(gb_exit);

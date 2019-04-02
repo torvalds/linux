@@ -203,7 +203,7 @@ acpi_smbus_cmi_access(struct i2c_adapter *adap, u16 addr, unsigned short flags,
 	}
 
 	result = obj->integer.value;
-	acpi_handle_debug(smbus_cmi->handle,  "%s return status: %i\n", method,
+	acpi_handle_de(smbus_cmi->handle,  "%s return status: %i\n", method,
 			  result);
 
 	switch (result) {
@@ -332,7 +332,7 @@ static int acpi_smbus_cmi_add_cap(struct acpi_smbus_cmi *smbus_cmi,
 			kfree(buffer.pointer);
 			return -EIO;
 		} else
-			acpi_handle_debug(handle, "SMBus CMI Version %x\n",
+			acpi_handle_de(handle, "SMBus CMI Version %x\n",
 					  (int)obj->integer.value);
 
 		kfree(buffer.pointer);
@@ -342,7 +342,7 @@ static int acpi_smbus_cmi_add_cap(struct acpi_smbus_cmi *smbus_cmi,
 	else if (!strcmp(name, smbus_cmi->methods->mt_sbw))
 		smbus_cmi->cap_write = 1;
 	else
-		acpi_handle_debug(handle, "Unsupported CMI method: %s\n", name);
+		acpi_handle_de(handle, "Unsupported CMI method: %s\n", name);
 
 	return 0;
 }

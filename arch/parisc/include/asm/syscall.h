@@ -21,7 +21,7 @@ static inline void syscall_get_arguments(struct task_struct *tsk,
 					 struct pt_regs *regs, unsigned int i,
 					 unsigned int n, unsigned long *args)
 {
-	BUG_ON(i);
+	_ON(i);
 
 	switch (n) {
 	case 6:
@@ -39,7 +39,7 @@ static inline void syscall_get_arguments(struct task_struct *tsk,
 	case 0:
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

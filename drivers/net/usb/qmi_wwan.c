@@ -446,13 +446,13 @@ static struct attribute_group qmi_wwan_sysfs_attr_group = {
 /* default ethernet address used by the modem */
 static const u8 default_modem_addr[ETH_ALEN] = {0x02, 0x50, 0xf3};
 
-static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
+static const u8 gy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
 
 /* Make up an ethernet header if the packet doesn't have one.
  *
- * A firmware bug common among several devices cause them to send raw
+ * A firmware  common among several devices cause them to send raw
  * IP packets under some circumstances.  There is no way for the
- * driver/host to know when this will happen.  And even when the bug
+ * driver/host to know when this will happen.  And even when the 
  * hits, some packets will still arrive with an intact header.
  *
  * The supported devices are only capably of sending IPv4, IPv6 and
@@ -464,7 +464,7 @@ static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
  * header iff necessary, provided our hardware address does not start
  * with 4 or 6.
  *
- * Another common firmware bug results in all packets being addressed
+ * Another common firmware  results in all packets being addressed
  * to 00:a0:c6:00:00:00 despite the host address being different.
  * This function will also fixup such packets.
  */
@@ -656,7 +656,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	struct usb_cdc_parsed_header hdr;
 
-	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) <
+	BUILD__ON((sizeof(((struct usbnet *)0)->data) <
 		      sizeof(struct qmi_wwan_state)));
 
 	/* set up initial state */
@@ -728,11 +728,11 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* Never use the same address on both ends of the link, even if the
-	 * buggy firmware told us to. Or, if device is assigned the well-known
-	 * buggy firmware MAC address, replace it with a random address,
+	 * gy firmware told us to. Or, if device is assigned the well-known
+	 * gy firmware MAC address, replace it with a random address,
 	 */
 	if (ether_addr_equal(dev->net->dev_addr, default_modem_addr) ||
-	    ether_addr_equal(dev->net->dev_addr, buggy_fw_addr))
+	    ether_addr_equal(dev->net->dev_addr, gy_fw_addr))
 		eth_hw_addr_random(dev->net);
 
 	/* make MAC addr easily distinguishable from an IP header */

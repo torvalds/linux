@@ -39,9 +39,9 @@ module_param_named(dev_loss_tmo, qedf_dev_loss_tmo, int, S_IRUGO);
 MODULE_PARM_DESC(dev_loss_tmo,  " dev_loss_tmo setting for attached "
 	"remote ports (default 60)");
 
-uint qedf_debug = QEDF_LOG_INFO;
-module_param_named(debug, qedf_debug, uint, S_IRUGO);
-MODULE_PARM_DESC(debug, " Debug mask. Pass '1' to enable default debugging"
+uint qedf_de = QEDF_LOG_INFO;
+module_param_named(de, qedf_de, uint, S_IRUGO);
+MODULE_PARM_DESC(de, " De mask. Pass '1' to enable default deging"
 	" mask");
 
 static uint qedf_fipvlan_retries = 60;
@@ -1670,7 +1670,7 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 	QEDF_INFO(&(base_qedf->dbg_ctx), QEDF_LOG_NPIV, "vn_port=%p.\n",
 		   vn_port);
 
-	/* Set up debug context for vport */
+	/* Set up de context for vport */
 	vport_qedf->dbg_ctx.host_no = vn_port->host->host_no;
 	vport_qedf->dbg_ctx.pdev = base_qedf->pdev;
 
@@ -3218,8 +3218,8 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		goto err7;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	qedf_dbg_host_init(&(qedf->dbg_ctx), qedf_debugfs_ops,
+#ifdef CONFIG_DE_FS
+	qedf_dbg_host_init(&(qedf->dbg_ctx), qedf_defs_ops,
 			    qedf_dbg_fops);
 #endif
 
@@ -3323,7 +3323,7 @@ err7:
 		destroy_workqueue(qedf->ll2_recv_wq);
 	fc_remove_host(qedf->lport->host);
 	scsi_remove_host(qedf->lport->host);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedf_dbg_host_exit(&(qedf->dbg_ctx));
 #endif
 err6:
@@ -3379,7 +3379,7 @@ static void __qedf_remove(struct pci_dev *pdev, int mode)
 		fc_fabric_logoff(qedf->lport);
 	qedf_wait_for_upload(qedf);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedf_dbg_host_exit(&(qedf->dbg_ctx));
 #endif
 
@@ -3586,9 +3586,9 @@ static int __init qedf_init(void)
 {
 	int ret;
 
-	/* If debug=1 passed, set the default log mask */
-	if (qedf_debug == QEDF_LOG_DEFAULT)
-		qedf_debug = QEDF_DEFAULT_LOG_MASK;
+	/* If de=1 passed, set the default log mask */
+	if (qedf_de == QEDF_LOG_DEFAULT)
+		qedf_de = QEDF_DEFAULT_LOG_MASK;
 
 	/*
 	 * Check that default prio for FIP/FCoE traffic is between 0..7 if a
@@ -3621,7 +3621,7 @@ static int __init qedf_init(void)
 		goto err1;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedf_dbg_init("qedf");
 #endif
 
@@ -3663,7 +3663,7 @@ err4:
 err3:
 	fc_release_transport(qedf_fc_transport_template);
 err2:
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedf_dbg_exit();
 #endif
 	qed_put_fcoe_ops();
@@ -3679,7 +3679,7 @@ static void __exit qedf_cleanup(void)
 
 	fc_release_transport(qedf_fc_vport_transport_template);
 	fc_release_transport(qedf_fc_transport_template);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedf_dbg_exit();
 #endif
 	qed_put_fcoe_ops();

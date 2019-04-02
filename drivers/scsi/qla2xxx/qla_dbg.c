@@ -7,7 +7,7 @@
 
 /*
  * Table for showing the current message id in use for particular level
- * Change this table for addition of log/debug messages.
+ * Change this table for addition of log/de messages.
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
@@ -2517,7 +2517,7 @@ qla83xx_fw_dump_failed:
 }
 
 /****************************************************************************/
-/*                         Driver Debug Functions.                          */
+/*                         Driver De Functions.                          */
 /****************************************************************************/
 
 static inline int
@@ -2527,11 +2527,11 @@ ql_mask_match(uint32_t level)
 }
 
 /*
- * This function is for formatting and logging debug information.
+ * This function is for formatting and logging de information.
  * It is to be used when vha is available. It formats the message
  * and logs it to the messages file.
  * parameters:
- * level: The level of the debug messages to be printed.
+ * level: The level of the de messages to be printed.
  *        If ql2xextended_error_logging value is correctly set,
  *        this message will appear in the messages file.
  * vha:   Pointer to the scsi_qla_host_t.
@@ -2569,12 +2569,12 @@ ql_dbg(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
 }
 
 /*
- * This function is for formatting and logging debug information.
+ * This function is for formatting and logging de information.
  * It is to be used when vha is not available and pci is available,
  * i.e., before host allocation. It formats the message and logs it
  * to the messages file.
  * parameters:
- * level: The level of the debug messages to be printed.
+ * level: The level of the de messages to be printed.
  *        If ql2xextended_error_logging value is correctly set,
  *        this message will appear in the messages file.
  * pdev:  Pointer to the struct pci_dev.
@@ -2824,11 +2824,11 @@ ql_log_qp(uint32_t level, struct qla_qpair *qpair, int32_t id,
 }
 
 /*
- * This function is for formatting and logging debug information.
+ * This function is for formatting and logging de information.
  * It is to be used when vha is available. It formats the message
  * and logs it to the messages file.
  * parameters:
- * level: The level of the debug messages to be printed.
+ * level: The level of the de messages to be printed.
  *        If ql2xextended_error_logging value is correctly set,
  *        this message will appear in the messages file.
  * vha:   Pointer to the scsi_qla_host_t.

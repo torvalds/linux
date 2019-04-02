@@ -9,7 +9,7 @@
  *  -Refactored get_new_mmu_context( ) to only handle live-mm.
  *   retiring-mm handled in other hooks
  *
- * Vineetg: March 25th, 2008: Bug #92690
+ * Vineetg: March 25th, 2008:  #92690
  *  -Major rewrite of Core ASID allocation routine get_new_mmu_context
  *
  * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
@@ -120,7 +120,7 @@ static inline void destroy_context(struct mm_struct *mm)
 {
 	unsigned long flags;
 
-	/* Needed to elide CONFIG_DEBUG_PREEMPT warning */
+	/* Needed to elide CONFIG_DE_PREEMPT warning */
 	local_irq_save(flags);
 	asid_mm(mm, smp_processor_id()) = MM_CTXT_NO_ASID;
 	local_irq_restore(flags);

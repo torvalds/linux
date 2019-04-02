@@ -81,7 +81,7 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Resolved object %p\n", *stack_ptr));
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Resolved object %p\n", *stack_ptr));
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -135,7 +135,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 				return_ACPI_STATUS(status);
 			}
 
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "[Arg/Local %X] ValueObj is %p\n",
 					  stack_desc->reference.value,
 					  obj_desc));
@@ -205,7 +205,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			break;
 
 		case ACPI_REFCLASS_REFOF:
-		case ACPI_REFCLASS_DEBUG:
+		case ACPI_REFCLASS_DE:
 		case ACPI_REFCLASS_TABLE:
 
 			/* Just leave the object as-is, do not dereference */
@@ -260,7 +260,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "FieldRead SourceDesc=%p Type=%X\n",
 				  stack_desc, stack_desc->common.type));
 
@@ -484,11 +484,11 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			}
 			break;
 
-		case ACPI_REFCLASS_DEBUG:
+		case ACPI_REFCLASS_DE:
 
-			/* The Debug Object is of type "DebugObject" */
+			/* The De Object is of type "DeObject" */
 
-			type = ACPI_TYPE_DEBUG_OBJECT;
+			type = ACPI_TYPE_DE_OBJECT;
 			goto exit;
 
 		default:

@@ -646,7 +646,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
 
 	/*
-	 * Ugly sleep to work around a USB 3.0 bug when the receiver is still
+	 * Ugly sleep to work around a USB 3.0  when the receiver is still
 	 * processing the "switch-to-dj" command while we send an other command.
 	 * 50 msec should gives enough time to the receiver to be ready.
 	 */

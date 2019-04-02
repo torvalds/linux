@@ -326,7 +326,7 @@ static void fsl_chan_set_request_count(struct fsldma_chan *chan, int size)
 {
 	u32 mode;
 
-	BUG_ON(size > 1024);
+	_ON(size > 1024);
 
 	mode = get_mr(chan);
 	mode &= ~FSL_DMA_MR_BWC_MASK;
@@ -514,7 +514,7 @@ static dma_cookie_t fsldma_run_tx_complete_actions(struct fsldma_chan *chan,
 	struct dma_async_tx_descriptor *txd = &desc->async_tx;
 	dma_cookie_t ret = cookie;
 
-	BUG_ON(txd->cookie < 0);
+	_ON(txd->cookie < 0);
 
 	if (txd->cookie > 0) {
 		ret = txd->cookie;
@@ -1141,7 +1141,7 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 
 	/*
 	 * If the DMA device's feature is different than the feature
-	 * of its channels, report the bug
+	 * of its channels, report the 
 	 */
 	WARN_ON(fdev->feature != chan->feature);
 

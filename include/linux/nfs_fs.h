@@ -13,10 +13,10 @@
 
 
 /*
- * Enable dprintk() debugging support for nfs client.
+ * Enable dprintk() deging support for nfs client.
  */
-#ifdef CONFIG_NFS_DEBUG
-# define NFS_DEBUG
+#ifdef CONFIG_NFS_DE
+# define NFS_DE
 #endif
 
 #include <linux/in.h>
@@ -27,7 +27,7 @@
 #include <linux/rwsem.h>
 #include <linux/wait.h>
 
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/clnt.h>
 
@@ -417,7 +417,7 @@ static inline void nfs_free_fhandle(const struct nfs_fh *fh)
 	kfree(fh);
 }
 
-#ifdef NFS_DEBUG
+#ifdef NFS_DE
 extern u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh);
 static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
 {
@@ -426,7 +426,7 @@ static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
 extern void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption);
 #define nfs_display_fhandle(fh, caption)			\
 	do {							\
-		if (unlikely(nfs_debug & NFSDBG_FACILITY))	\
+		if (unlikely(nfs_de & NFSDBG_FACILITY))	\
 			_nfs_display_fhandle(fh, caption);	\
 	} while (0)
 #else
@@ -580,12 +580,12 @@ nfs_fileid_to_ino_t(u64 fileid)
 #define NFS_JUKEBOX_RETRY_TIME (5 * HZ)
 
 
-# undef ifdebug
-# ifdef NFS_DEBUG
-#  define ifdebug(fac)		if (unlikely(nfs_debug & NFSDBG_##fac))
-#  define NFS_IFDEBUG(x)	x
+# undef ifde
+# ifdef NFS_DE
+#  define ifde(fac)		if (unlikely(nfs_de & NFSDBG_##fac))
+#  define NFS_IFDE(x)	x
 # else
-#  define ifdebug(fac)		if (0)
-#  define NFS_IFDEBUG(x)
+#  define ifde(fac)		if (0)
+#  define NFS_IFDE(x)
 # endif
 #endif

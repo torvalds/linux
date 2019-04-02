@@ -68,7 +68,7 @@ not before.
 
 Git provides some powerful tools which can allow you to rewrite your
 development history.  An inconvenient patch (one which breaks bisection,
-say, or which has some other sort of obvious bug) can be fixed in place or
+say, or which has some other sort of obvious ) can be fixed in place or
 made to disappear from the history entirely.  A patch series can be
 rewritten as if it had been written on top of today's mainline, even though
 you have been working on it for months.  Changes can be transparently

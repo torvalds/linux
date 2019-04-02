@@ -71,7 +71,7 @@ static int _wait_idlest_generic(struct clk_hw_omap *clk,
 	}
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
-		pr_debug("omap clock: module associated with clock %s ready after %d loops\n",
+		pr_de("omap clock: module associated with clock %s ready after %d loops\n",
 			 name, i);
 	else
 		pr_err("omap clock: module associated with clock %s didn't enable in %d tries\n",

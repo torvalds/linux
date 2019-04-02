@@ -1,7 +1,7 @@
 Fault injection capabilities infrastructure
 ===========================================
 
-See also drivers/md/md-faulty.c and "every_nth" module option for scsi_debug.
+See also drivers/md/md-faulty.c and "every_nth" module option for scsi_de.
 
 
 Available fault injection capabilities
@@ -28,40 +28,40 @@ o fail_make_request
 o fail_mmc_request
 
   injects MMC data errors on devices permitted by setting
-  debugfs entries under /sys/kernel/debug/mmc0/fail_mmc_request
+  defs entries under /sys/kernel/de/mmc0/fail_mmc_request
 
 o fail_function
 
   injects error return on specific functions, which are marked by
-  ALLOW_ERROR_INJECTION() macro, by setting debugfs entries
-  under /sys/kernel/debug/fail_function. No boot option supported.
+  ALLOW_ERROR_INJECTION() macro, by setting defs entries
+  under /sys/kernel/de/fail_function. No boot option supported.
 
 o NVMe fault injection
 
   inject NVMe status code and retry flag on devices permitted by setting
-  debugfs entries under /sys/kernel/debug/nvme*/fault_inject. The default
+  defs entries under /sys/kernel/de/nvme*/fault_inject. The default
   status code is NVME_SC_INVALID_OPCODE with no retry. The status code and
-  retry flag can be set via the debugfs.
+  retry flag can be set via the defs.
 
 
 Configure fault-injection capabilities behavior
 -----------------------------------------------
 
-o debugfs entries
+o defs entries
 
-fault-inject-debugfs kernel module provides some debugfs entries for runtime
+fault-inject-defs kernel module provides some defs entries for runtime
 configuration of fault-injection capabilities.
 
-- /sys/kernel/debug/fail*/probability:
+- /sys/kernel/de/fail*/probability:
 
 	likelihood of failure injection, in percent.
 	Format: <percent>
 
 	Note that one-failure-per-hundred is a very high error rate
 	for some testcases.  Consider setting probability=100 and configure
-	/sys/kernel/debug/fail*/interval for such testcases.
+	/sys/kernel/de/fail*/interval for such testcases.
 
-- /sys/kernel/debug/fail*/interval:
+- /sys/kernel/de/fail*/interval:
 
 	specifies the interval between failures, for calls to
 	should_fail() that pass all the other tests.
@@ -69,36 +69,36 @@ configuration of fault-injection capabilities.
 	Note that if you enable this, by setting interval>1, you will
 	probably want to set probability=100.
 
-- /sys/kernel/debug/fail*/times:
+- /sys/kernel/de/fail*/times:
 
 	specifies how many times failures may happen at most.
 	A value of -1 means "no limit".
 
-- /sys/kernel/debug/fail*/space:
+- /sys/kernel/de/fail*/space:
 
 	specifies an initial resource "budget", decremented by "size"
 	on each call to should_fail(,size).  Failure injection is
 	suppressed until "space" reaches zero.
 
-- /sys/kernel/debug/fail*/verbose
+- /sys/kernel/de/fail*/verbose
 
 	Format: { 0 | 1 | 2 }
 	specifies the verbosity of the messages when failure is
 	injected.  '0' means no messages; '1' will print only a single
 	log line per failure; '2' will print a call trace too -- useful
-	to debug the problems revealed by fault injection.
+	to de the problems revealed by fault injection.
 
-- /sys/kernel/debug/fail*/task-filter:
+- /sys/kernel/de/fail*/task-filter:
 
 	Format: { 'Y' | 'N' }
 	A value of 'N' disables filtering by process (default).
 	Any positive value limits failures to only processes indicated by
 	/proc/<pid>/make-it-fail==1.
 
-- /sys/kernel/debug/fail*/require-start:
-- /sys/kernel/debug/fail*/require-end:
-- /sys/kernel/debug/fail*/reject-start:
-- /sys/kernel/debug/fail*/reject-end:
+- /sys/kernel/de/fail*/require-start:
+- /sys/kernel/de/fail*/require-end:
+- /sys/kernel/de/fail*/reject-start:
+- /sys/kernel/de/fail*/reject-end:
 
 	specifies the range of virtual addresses tested during
 	stacktrace walking.  Failure is injected only if some caller
@@ -107,37 +107,37 @@ configuration of fault-injection capabilities.
 	Default required range is [0,ULONG_MAX) (whole of virtual address space).
 	Default rejected range is [0,0).
 
-- /sys/kernel/debug/fail*/stacktrace-depth:
+- /sys/kernel/de/fail*/stacktrace-depth:
 
 	specifies the maximum stacktrace depth walked during search
 	for a caller within [require-start,require-end) OR
 	[reject-start,reject-end).
 
-- /sys/kernel/debug/fail_page_alloc/ignore-gfp-highmem:
+- /sys/kernel/de/fail_page_alloc/ignore-gfp-highmem:
 
 	Format: { 'Y' | 'N' }
 	default is 'N', setting it to 'Y' won't inject failures into
 	highmem/user allocations.
 
-- /sys/kernel/debug/failslab/ignore-gfp-wait:
-- /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
+- /sys/kernel/de/failslab/ignore-gfp-wait:
+- /sys/kernel/de/fail_page_alloc/ignore-gfp-wait:
 
 	Format: { 'Y' | 'N' }
 	default is 'N', setting it to 'Y' will inject failures
 	only into non-sleep allocations (GFP_ATOMIC allocations).
 
-- /sys/kernel/debug/fail_page_alloc/min-order:
+- /sys/kernel/de/fail_page_alloc/min-order:
 
 	specifies the minimum page allocation order to be injected
 	failures.
 
-- /sys/kernel/debug/fail_futex/ignore-private:
+- /sys/kernel/de/fail_futex/ignore-private:
 
 	Format: { 'Y' | 'N' }
 	default is 'N', setting it to 'Y' will disable failure injections
 	when dealing with private (address space) futexes.
 
-- /sys/kernel/debug/fail_function/inject:
+- /sys/kernel/de/fail_function/inject:
 
 	Format: { 'function-name' | '!function-name' | '' }
 	specifies the target function of error injection by name.
@@ -145,7 +145,7 @@ configuration of fault-injection capabilities.
 	removed from injection list. If nothing specified ('')
 	injection list is cleared.
 
-- /sys/kernel/debug/fail_function/injectable:
+- /sys/kernel/de/fail_function/injectable:
 
 	(read only) shows error injectable functions and what type of
 	error values can be specified. The error type will be one of
@@ -154,7 +154,7 @@ configuration of fault-injection capabilities.
 	- ERRNO: retval must be -1 to -MAX_ERRNO (-4096).
 	- ERR_NULL: retval must be 0 or -1 to -MAX_ERRNO (-4096).
 
-- /sys/kernel/debug/fail_function/<functiuon-name>/retval:
+- /sys/kernel/de/fail_function/<functiuon-name>/retval:
 
 	specifies the "error" return value to inject to the given
 	function for given function. This will be created when
@@ -162,7 +162,7 @@ configuration of fault-injection capabilities.
 
 o Boot option
 
-In order to inject faults while debugfs is not available (early boot time),
+In order to inject faults while defs is not available (early boot time),
 use the boot option:
 
 	failslab=
@@ -181,7 +181,7 @@ o proc entries
 	that the fault setup with a previous write to this file was injected.
 	A positive integer N indicates that the fault wasn't yet injected.
 	Note that this file enables all types of faults (slab, futex, etc).
-	This setting takes precedence over all other generic debugfs settings
+	This setting takes precedence over all other generic defs settings
 	like probability, interval, times, etc. But per-capability settings
 	(e.g. fail_futex/ignore-private) take precedence over it.
 
@@ -209,12 +209,12 @@ o provide a way to configure fault attributes
 
 	setup_fault_attr(attr, str);
 
-- debugfs entries
+- defs entries
 
   failslab, fail_page_alloc, and fail_make_request use this way.
   Helper functions:
 
-	fault_create_debugfs_attr(name, parent, attr);
+	fault_create_defs_attr(name, parent, attr);
 
 - module parameters
 
@@ -236,13 +236,13 @@ o Inject slab allocation failures into module init/exit code
 #!/bin/bash
 
 FAILTYPE=failslab
-echo Y > /sys/kernel/debug/$FAILTYPE/task-filter
-echo 10 > /sys/kernel/debug/$FAILTYPE/probability
-echo 100 > /sys/kernel/debug/$FAILTYPE/interval
-echo -1 > /sys/kernel/debug/$FAILTYPE/times
-echo 0 > /sys/kernel/debug/$FAILTYPE/space
-echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+echo Y > /sys/kernel/de/$FAILTYPE/task-filter
+echo 10 > /sys/kernel/de/$FAILTYPE/probability
+echo 100 > /sys/kernel/de/$FAILTYPE/interval
+echo -1 > /sys/kernel/de/$FAILTYPE/times
+echo 0 > /sys/kernel/de/$FAILTYPE/space
+echo 2 > /sys/kernel/de/$FAILTYPE/verbose
+echo 1 > /sys/kernel/de/$FAILTYPE/ignore-gfp-wait
 
 faulty_system()
 {
@@ -287,20 +287,20 @@ then
 	exit 1
 fi
 
-cat /sys/module/$module/sections/.text > /sys/kernel/debug/$FAILTYPE/require-start
-cat /sys/module/$module/sections/.data > /sys/kernel/debug/$FAILTYPE/require-end
+cat /sys/module/$module/sections/.text > /sys/kernel/de/$FAILTYPE/require-start
+cat /sys/module/$module/sections/.data > /sys/kernel/de/$FAILTYPE/require-end
 
-echo N > /sys/kernel/debug/$FAILTYPE/task-filter
-echo 10 > /sys/kernel/debug/$FAILTYPE/probability
-echo 100 > /sys/kernel/debug/$FAILTYPE/interval
-echo -1 > /sys/kernel/debug/$FAILTYPE/times
-echo 0 > /sys/kernel/debug/$FAILTYPE/space
-echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
-echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
-echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
+echo N > /sys/kernel/de/$FAILTYPE/task-filter
+echo 10 > /sys/kernel/de/$FAILTYPE/probability
+echo 100 > /sys/kernel/de/$FAILTYPE/interval
+echo -1 > /sys/kernel/de/$FAILTYPE/times
+echo 0 > /sys/kernel/de/$FAILTYPE/space
+echo 2 > /sys/kernel/de/$FAILTYPE/verbose
+echo 1 > /sys/kernel/de/$FAILTYPE/ignore-gfp-wait
+echo 1 > /sys/kernel/de/$FAILTYPE/ignore-gfp-highmem
+echo 10 > /sys/kernel/de/$FAILTYPE/stacktrace-depth
 
-trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
+trap "echo 0 > /sys/kernel/de/$FAILTYPE/probability" SIGINT SIGTERM EXIT
 
 echo "Injecting errors into the module $module... (interrupt to stop)"
 sleep 1000000
@@ -319,14 +319,14 @@ mkdir -p tmpmnt
 
 FAILTYPE=fail_function
 FAILFUNC=open_ctree
-echo $FAILFUNC > /sys/kernel/debug/$FAILTYPE/inject
-echo -12 > /sys/kernel/debug/$FAILTYPE/$FAILFUNC/retval
-echo N > /sys/kernel/debug/$FAILTYPE/task-filter
-echo 100 > /sys/kernel/debug/$FAILTYPE/probability
-echo 0 > /sys/kernel/debug/$FAILTYPE/interval
-echo -1 > /sys/kernel/debug/$FAILTYPE/times
-echo 0 > /sys/kernel/debug/$FAILTYPE/space
-echo 1 > /sys/kernel/debug/$FAILTYPE/verbose
+echo $FAILFUNC > /sys/kernel/de/$FAILTYPE/inject
+echo -12 > /sys/kernel/de/$FAILTYPE/$FAILFUNC/retval
+echo N > /sys/kernel/de/$FAILTYPE/task-filter
+echo 100 > /sys/kernel/de/$FAILTYPE/probability
+echo 0 > /sys/kernel/de/$FAILTYPE/interval
+echo -1 > /sys/kernel/de/$FAILTYPE/times
+echo 0 > /sys/kernel/de/$FAILTYPE/space
+echo 1 > /sys/kernel/de/$FAILTYPE/verbose
 
 mount -t btrfs $DEVICE tmpmnt
 if [ $? -ne 0 ]
@@ -337,7 +337,7 @@ else
 	umount tmpmnt
 fi
 
-echo > /sys/kernel/debug/$FAILTYPE/inject
+echo > /sys/kernel/de/$FAILTYPE/inject
 
 rmdir tmpmnt
 losetup -d $DEVICE
@@ -394,7 +394,7 @@ int main()
 	int i, err, res, fail_nth, fds[2];
 	char buf[128];
 
-	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
+	system("echo N > /sys/kernel/de/failslab/ignore-gfp-wait");
 	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
 	fail_nth = open(buf, O_RDWR);
 	for (i = 1;; i++) {

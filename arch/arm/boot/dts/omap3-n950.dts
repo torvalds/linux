@@ -33,7 +33,7 @@
 };
 
 &omap3_pmx_core {
-	keypad_slide_pins: pinmux_debug_led_pins {
+	keypad_slide_pins: pinmux_de_led_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x212a, PIN_INPUT | MUX_MODE4)       /* cam_d10.gpio_109 */
 		>;

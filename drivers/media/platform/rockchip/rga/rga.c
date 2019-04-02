@@ -13,7 +13,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -36,8 +36,8 @@
 #include "rga-hw.h"
 #include "rga.h"
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 static void device_run(void *prv)
 {
@@ -652,7 +652,7 @@ static int vidioc_s_selection(struct file *file, void *prv,
 	}
 
 	if (s->r.top < 0 || s->r.left < 0) {
-		v4l2_dbg(debug, 1, &rga->v4l2_dev,
+		v4l2_dbg(de, 1, &rga->v4l2_dev,
 			 "doesn't support negative values for top & left.\n");
 		return -EINVAL;
 	}
@@ -660,7 +660,7 @@ static int vidioc_s_selection(struct file *file, void *prv,
 	if (s->r.left + s->r.width > f->width ||
 	    s->r.top + s->r.height > f->height ||
 	    s->r.width < MIN_WIDTH || s->r.height < MIN_HEIGHT) {
-		v4l2_dbg(debug, 1, &rga->v4l2_dev, "unsupported crop value.\n");
+		v4l2_dbg(de, 1, &rga->v4l2_dev, "unsupported crop value.\n");
 		return -EINVAL;
 	}
 

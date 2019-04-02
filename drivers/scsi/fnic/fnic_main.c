@@ -220,7 +220,7 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (ret) {
-		FNIC_MAIN_DBG(KERN_DEBUG, fnic->lport->host,
+		FNIC_MAIN_DBG(KERN_DE, fnic->lport->host,
 			      "fnic: Get vnic stats failed"
 			      " 0x%x", ret);
 		return stats;
@@ -332,7 +332,7 @@ static void fnic_reset_host_stats(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (ret) {
-		FNIC_MAIN_DBG(KERN_DEBUG, fnic->lport->host,
+		FNIC_MAIN_DBG(KERN_DE, fnic->lport->host,
 				"fnic: Reset vnic stats failed"
 				" 0x%x", ret);
 		return;
@@ -586,7 +586,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
-	fnic_stats_debugfs_init(fnic);
+	fnic_stats_defs_init(fnic);
 
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);
@@ -934,7 +934,7 @@ err_out_release_regions:
 err_out_disable_device:
 	pci_disable_device(pdev);
 err_out_free_hba:
-	fnic_stats_debugfs_remove(fnic);
+	fnic_stats_defs_remove(fnic);
 	scsi_host_put(lp->host);
 err_out:
 	return err;
@@ -987,7 +987,7 @@ static void fnic_remove(struct pci_dev *pdev)
 
 	fcoe_ctlr_destroy(&fnic->ctlr);
 	fc_lport_destroy(lp);
-	fnic_stats_debugfs_remove(fnic);
+	fnic_stats_defs_remove(fnic);
 
 	/*
 	 * This stops the fnic device, masks all interrupts. Completed
@@ -996,8 +996,8 @@ static void fnic_remove(struct pci_dev *pdev)
 	 */
 	fnic_cleanup(fnic);
 
-	BUG_ON(!skb_queue_empty(&fnic->frame_queue));
-	BUG_ON(!skb_queue_empty(&fnic->tx_queue));
+	_ON(!skb_queue_empty(&fnic->frame_queue));
+	_ON(!skb_queue_empty(&fnic->tx_queue));
 
 	spin_lock_irqsave(&fnic_list_lock, flags);
 	list_del(&fnic->list);
@@ -1032,12 +1032,12 @@ static int __init fnic_init_module(void)
 
 	printk(KERN_INFO PFX "%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
 
-	/* Create debugfs entries for fnic */
-	err = fnic_debugfs_init();
+	/* Create defs entries for fnic */
+	err = fnic_defs_init();
 	if (err < 0) {
 		printk(KERN_ERR PFX "Failed to create fnic directory "
 				"for tracing and stats logging\n");
-		fnic_debugfs_terminate();
+		fnic_defs_terminate();
 	}
 
 	/* Allocate memory for trace buffer */
@@ -1138,7 +1138,7 @@ err_create_fnic_sgl_slab_max:
 err_create_fnic_sgl_slab_dflt:
 	fnic_trace_free();
 	fnic_fc_trace_free();
-	fnic_debugfs_terminate();
+	fnic_defs_terminate();
 	return err;
 }
 
@@ -1156,7 +1156,7 @@ static void __exit fnic_cleanup_module(void)
 	fc_release_transport(fnic_fc_transport);
 	fnic_trace_free();
 	fnic_fc_trace_free();
-	fnic_debugfs_terminate();
+	fnic_defs_terminate();
 }
 
 module_init(fnic_init_module);

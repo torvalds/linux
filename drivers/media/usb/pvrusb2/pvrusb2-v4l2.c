@@ -20,7 +20,7 @@
 #include "pvrusb2-context.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include "pvrusb2-v4l2.h"
 #include "pvrusb2-ioread.h"
 #include <linux/videodev2.h>

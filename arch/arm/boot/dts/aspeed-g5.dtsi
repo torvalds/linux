@@ -1381,9 +1381,9 @@
 		groups = "SPI1CS1";
 	};
 
-	pinctrl_spi1debug_default: spi1debug_default {
-		function = "SPI1DEBUG";
-		groups = "SPI1DEBUG";
+	pinctrl_spi1de_default: spi1de_default {
+		function = "SPI1DE";
+		groups = "SPI1DE";
 	};
 
 	pinctrl_spi1passthru_default: spi1passthru_default {

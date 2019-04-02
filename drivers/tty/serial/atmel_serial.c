@@ -1071,7 +1071,7 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	spin_lock_init(&atmel_port->lock_tx);
 	sg_init_table(&atmel_port->sg_tx, 1);
 	/* UART circular tx buffer is an aligned page. */
-	BUG_ON(!PAGE_ALIGNED(port->state->xmit.buf));
+	_ON(!PAGE_ALIGNED(port->state->xmit.buf));
 	sg_set_page(&atmel_port->sg_tx,
 			virt_to_page(port->state->xmit.buf),
 			UART_XMIT_SIZE,
@@ -1180,7 +1180,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	 * length.
 	 */
 	ring->head = sg_dma_len(&atmel_port->sg_rx) - state.residue;
-	BUG_ON(ring->head > sg_dma_len(&atmel_port->sg_rx));
+	_ON(ring->head > sg_dma_len(&atmel_port->sg_rx));
 	/*
 	 * At this point ring->head may point to the first byte right after the
 	 * last byte of the dma buffer:
@@ -1254,7 +1254,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	spin_lock_init(&atmel_port->lock_rx);
 	sg_init_table(&atmel_port->sg_rx, 1);
 	/* UART circular rx buffer is an aligned page. */
-	BUG_ON(!PAGE_ALIGNED(ring->buf));
+	_ON(!PAGE_ALIGNED(ring->buf));
 	sg_set_page(&atmel_port->sg_rx,
 		    virt_to_page(ring->buf),
 		    sizeof(struct atmel_uart_char) * ATMEL_SERIAL_RINGSIZE,
@@ -2891,7 +2891,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 	bool rs485_enabled;
 
-	BUILD_BUG_ON(ATMEL_SERIAL_RINGSIZE & (ATMEL_SERIAL_RINGSIZE - 1));
+	BUILD__ON(ATMEL_SERIAL_RINGSIZE & (ATMEL_SERIAL_RINGSIZE - 1));
 
 	/*
 	 * In device tree there is no node with "atmel,at91rm9200-usart-serial"

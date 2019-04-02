@@ -34,8 +34,8 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	struct gfs2_trans *tr;
 	int error;
 
-	BUG_ON(current->journal_info);
-	BUG_ON(blocks == 0 && revokes == 0);
+	_ON(current->journal_info);
+	_ON(blocks == 0 && revokes == 0);
 
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		return -EROFS;
@@ -226,7 +226,7 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		fs_err(sdp, "Attempting to add uninitialised block to "
 		       "journal (inplace block=%lld)\n",
 		       (unsigned long long)bd->bd_bh->b_blocknr);
-		BUG();
+		();
 	}
 	if (unlikely(state == SFS_FROZEN)) {
 		fs_info(sdp, "GFS2:adding buf while frozen\n");
@@ -247,7 +247,7 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
 	struct gfs2_trans *tr = current->journal_info;
 
-	BUG_ON(!list_empty(&bd->bd_list));
+	_ON(!list_empty(&bd->bd_list));
 	gfs2_add_revoke(sdp, bd);
 	set_bit(TR_TOUCHED, &tr->tr_flags);
 	tr->tr_num_revoke++;

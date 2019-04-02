@@ -18,9 +18,9 @@ config BEFS_FS
 	  To compile this as a module, choose M here: the module will be
 	  called befs.
 
-config BEFS_DEBUG
-	bool "Debug BeFS"
+config BEFS_DE
+	bool "De BeFS"
 	depends on BEFS_FS
 	help
-	  If you say Y here, you can use the 'debug' mount option to enable
-	  debugging output from the driver.
+	  If you say Y here, you can use the 'de' mount option to enable
+	  deging output from the driver.

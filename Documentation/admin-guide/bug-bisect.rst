@@ -1,4 +1,4 @@
-Bisecting a bug
+Bisecting a 
 +++++++++++++++
 
 Last updated: 28 October 2016
@@ -7,15 +7,15 @@ Introduction
 ============
 
 Always try the latest kernel from kernel.org and build from source. If you are
-not confident in doing that please report the bug to your distribution vendor
+not confident in doing that please report the  to your distribution vendor
 instead of to a kernel developer.
 
-Finding bugs is not always easy. Have a go though. If you can't find it don't
+Finding s is not always easy. Have a go though. If you can't find it don't
 give up. Report as much as you have found to the relevant maintainer. See
 MAINTAINERS for who that is for the subsystem you have worked on.
 
-Before you submit a bug report read
-:ref:`Documentation/admin-guide/reporting-bugs.rst <reportingbugs>`.
+Before you submit a  report read
+:ref:`Documentation/admin-guide/reporting-s.rst <reportings>`.
 
 Devices not appearing
 =====================
@@ -23,10 +23,10 @@ Devices not appearing
 Often this is caused by udev/systemd. Check that first before blaming it
 on the kernel.
 
-Finding patch that caused a bug
+Finding patch that caused a 
 ===============================
 
-Using the provided tools with ``git`` makes finding bugs easy provided the bug
+Using the provided tools with ``git`` makes finding s easy provided the 
 is reproducible.
 
 Steps to do it:
@@ -53,9 +53,9 @@ Steps to do it:
 
 	$ git bisect bad
 
-  depending if the bug happened on the changeset you're testing
+  depending if the  happened on the changeset you're testing
 - After some interactions, git bisect will give you the changeset that
-  likely caused the bug.
+  likely caused the .
 
 - For example, if you know that the current version is bad, and version
   4.8 is good, you could do::

@@ -139,7 +139,7 @@ static void ef4_tx_maybe_stop_queue(struct ef4_tx_queue *txq1)
 
 	fill_level = max(txq1->insert_count - txq1->old_read_count,
 			 txq2->insert_count - txq2->old_read_count);
-	EF4_BUG_ON_PARANOID(fill_level >= efx->txq_entries);
+	EF4__ON_PARANOID(fill_level >= efx->txq_entries);
 	if (likely(fill_level < efx->txq_stop_thresh)) {
 		smp_mb();
 		if (likely(!efx->loopback_selftest))
@@ -156,7 +156,7 @@ static int ef4_enqueue_skb_copy(struct ef4_tx_queue *tx_queue,
 	u8 *copy_buffer;
 	int rc;
 
-	EF4_BUG_ON_PARANOID(copy_len > EF4_TX_CB_SIZE);
+	EF4__ON_PARANOID(copy_len > EF4_TX_CB_SIZE);
 
 	buffer = ef4_tx_queue_get_insert_buffer(tx_queue);
 
@@ -498,7 +498,7 @@ void ef4_xmit_done(struct ef4_tx_queue *tx_queue, unsigned int index)
 	struct ef4_tx_queue *txq2;
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 
-	EF4_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
+	EF4__ON_PARANOID(index > tx_queue->ptr_mask);
 
 	ef4_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
 	tx_queue->pkts_compl += pkts_compl;
@@ -546,7 +546,7 @@ int ef4_probe_tx_queue(struct ef4_tx_queue *tx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->txq_entries), EF4_MIN_DMAQ_SIZE);
-	EF4_BUG_ON_PARANOID(entries > EF4_MAX_DMAQ_SIZE);
+	EF4__ON_PARANOID(entries > EF4_MAX_DMAQ_SIZE);
 	tx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,

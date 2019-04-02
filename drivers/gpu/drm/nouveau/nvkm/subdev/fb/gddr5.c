@@ -101,7 +101,7 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	if (!vo)
 		vo = (ram->mr[6] & 0xff0) >> 4;
 	if (ram->mr[6] & 0x001)
-		pd = 1; /* binary driver does this.. bug? */
+		pd = 1; /* binary driver does this.. ? */
 	ram->mr[6] &= ~0xff1;
 	ram->mr[6] |= (vo & 0xff) << 4;
 	ram->mr[6] |= (pd & 0x01) << 0;

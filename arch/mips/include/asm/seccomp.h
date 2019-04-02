@@ -23,7 +23,7 @@ static inline const int *get_compat_mode1_syscalls(void)
 	if (IS_ENABLED(CONFIG_MIPS32_N32))
 		return syscalls_N32;
 
-	BUG();
+	();
 }
 
 #define get_compat_mode1_syscalls get_compat_mode1_syscalls

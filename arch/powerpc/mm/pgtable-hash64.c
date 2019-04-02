@@ -119,7 +119,7 @@ int __meminit hash__vmemmap_create_mapping(unsigned long start,
 		int rc2 = htab_remove_mapping(start, start + page_size,
 					      mmu_vmemmap_psize,
 					      mmu_kernel_ssize);
-		BUG_ON(rc2 && (rc2 != -ENOENT));
+		_ON(rc2 && (rc2 != -ENOENT));
 	}
 	return rc;
 }
@@ -131,7 +131,7 @@ void hash__vmemmap_remove_mapping(unsigned long start,
 	int rc = htab_remove_mapping(start, start + page_size,
 				     mmu_vmemmap_psize,
 				     mmu_kernel_ssize);
-	BUG_ON((rc < 0) && (rc != -ENOENT));
+	_ON((rc < 0) && (rc != -ENOENT));
 	WARN_ON(rc == -ENOENT);
 }
 #endif
@@ -149,7 +149,7 @@ int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	BUILD_BUG_ON(TASK_SIZE_USER64 > H_PGTABLE_RANGE);
+	BUILD__ON(TASK_SIZE_USER64 > H_PGTABLE_RANGE);
 	if (slab_is_available()) {
 		pgdp = pgd_offset_k(ea);
 		pudp = pud_alloc(&init_mm, pgdp, ea);
@@ -190,7 +190,7 @@ unsigned long hash__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr
 	__be64 old_be, tmp;
 	unsigned long old;
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	WARN_ON(!hash__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
 #endif
@@ -221,9 +221,9 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 {
 	pmd_t pmd;
 
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-	VM_BUG_ON(pmd_trans_huge(*pmdp));
-	VM_BUG_ON(pmd_devmap(*pmdp));
+	VM__ON(address & ~HPAGE_PMD_MASK);
+	VM__ON(pmd_trans_huge(*pmdp));
+	VM__ON(pmd_devmap(*pmdp));
 
 	pmd = *pmdp;
 	pmd_clear(pmdp);
@@ -314,9 +314,9 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 	unsigned long flags = 0;
 
 	/* get the base page size,vsid and segment size */
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	psize = get_slice_psize(mm, addr);
-	BUG_ON(psize == MMU_PAGE_16M);
+	_ON(psize == MMU_PAGE_16M);
 #endif
 	if (old_pmd & H_PAGE_COMBO)
 		psize = MMU_PAGE_4K;
@@ -421,7 +421,7 @@ static bool hash__change_memory_range(unsigned long start, unsigned long end,
 	if (start >= end)
 		return false;
 
-	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
+	pr_de("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
 		 start, end, newpp, step);
 
 	for (idx = start; idx < end; idx += step)

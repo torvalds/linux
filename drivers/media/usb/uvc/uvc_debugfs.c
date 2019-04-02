@@ -1,5 +1,5 @@
 /*
- *      uvc_debugfs.c --  USB Video Class driver - Debugging support
+ *      uvc_defs.c --  USB Video Class driver - Deging support
  *
  *      Copyright (C) 2011
  *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
@@ -12,7 +12,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 
@@ -22,17 +22,17 @@
  * Statistics
  */
 
-#define UVC_DEBUGFS_BUF_SIZE	1024
+#define UVC_DEFS_BUF_SIZE	1024
 
-struct uvc_debugfs_buffer {
+struct uvc_defs_buffer {
 	size_t count;
-	char data[UVC_DEBUGFS_BUF_SIZE];
+	char data[UVC_DEFS_BUF_SIZE];
 };
 
-static int uvc_debugfs_stats_open(struct inode *inode, struct file *file)
+static int uvc_defs_stats_open(struct inode *inode, struct file *file)
 {
 	struct uvc_streaming *stream = inode->i_private;
-	struct uvc_debugfs_buffer *buf;
+	struct uvc_defs_buffer *buf;
 
 	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
 	if (buf == NULL)
@@ -44,16 +44,16 @@ static int uvc_debugfs_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t uvc_debugfs_stats_read(struct file *file, char __user *user_buf,
+static ssize_t uvc_defs_stats_read(struct file *file, char __user *user_buf,
 				      size_t nbytes, loff_t *ppos)
 {
-	struct uvc_debugfs_buffer *buf = file->private_data;
+	struct uvc_defs_buffer *buf = file->private_data;
 
 	return simple_read_from_buffer(user_buf, nbytes, ppos, buf->data,
 				       buf->count);
 }
 
-static int uvc_debugfs_stats_release(struct inode *inode, struct file *file)
+static int uvc_defs_stats_release(struct inode *inode, struct file *file)
 {
 	kfree(file->private_data);
 	file->private_data = NULL;
@@ -61,69 +61,69 @@ static int uvc_debugfs_stats_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations uvc_debugfs_stats_fops = {
+static const struct file_operations uvc_defs_stats_fops = {
 	.owner = THIS_MODULE,
-	.open = uvc_debugfs_stats_open,
+	.open = uvc_defs_stats_open,
 	.llseek = no_llseek,
-	.read = uvc_debugfs_stats_read,
-	.release = uvc_debugfs_stats_release,
+	.read = uvc_defs_stats_read,
+	.release = uvc_defs_stats_release,
 };
 
 /* -----------------------------------------------------------------------------
  * Global and stream initialization/cleanup
  */
 
-static struct dentry *uvc_debugfs_root_dir;
+static struct dentry *uvc_defs_root_dir;
 
-void uvc_debugfs_init_stream(struct uvc_streaming *stream)
+void uvc_defs_init_stream(struct uvc_streaming *stream)
 {
 	struct usb_device *udev = stream->dev->udev;
 	struct dentry *dent;
 	char dir_name[32];
 
-	if (uvc_debugfs_root_dir == NULL)
+	if (uvc_defs_root_dir == NULL)
 		return;
 
 	sprintf(dir_name, "%u-%u", udev->bus->busnum, udev->devnum);
 
-	dent = debugfs_create_dir(dir_name, uvc_debugfs_root_dir);
+	dent = defs_create_dir(dir_name, uvc_defs_root_dir);
 	if (IS_ERR_OR_NULL(dent)) {
-		uvc_printk(KERN_INFO, "Unable to create debugfs %s "
+		uvc_printk(KERN_INFO, "Unable to create defs %s "
 			   "directory.\n", dir_name);
 		return;
 	}
 
-	stream->debugfs_dir = dent;
+	stream->defs_dir = dent;
 
-	dent = debugfs_create_file("stats", 0444, stream->debugfs_dir,
-				   stream, &uvc_debugfs_stats_fops);
+	dent = defs_create_file("stats", 0444, stream->defs_dir,
+				   stream, &uvc_defs_stats_fops);
 	if (IS_ERR_OR_NULL(dent)) {
-		uvc_printk(KERN_INFO, "Unable to create debugfs stats file.\n");
-		uvc_debugfs_cleanup_stream(stream);
+		uvc_printk(KERN_INFO, "Unable to create defs stats file.\n");
+		uvc_defs_cleanup_stream(stream);
 		return;
 	}
 }
 
-void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream)
+void uvc_defs_cleanup_stream(struct uvc_streaming *stream)
 {
-	debugfs_remove_recursive(stream->debugfs_dir);
-	stream->debugfs_dir = NULL;
+	defs_remove_recursive(stream->defs_dir);
+	stream->defs_dir = NULL;
 }
 
-void uvc_debugfs_init(void)
+void uvc_defs_init(void)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("uvcvideo", usb_debug_root);
+	dir = defs_create_dir("uvcvideo", usb_de_root);
 	if (IS_ERR_OR_NULL(dir)) {
-		uvc_printk(KERN_INFO, "Unable to create debugfs directory\n");
+		uvc_printk(KERN_INFO, "Unable to create defs directory\n");
 		return;
 	}
 
-	uvc_debugfs_root_dir = dir;
+	uvc_defs_root_dir = dir;
 }
 
-void uvc_debugfs_cleanup(void)
+void uvc_defs_cleanup(void)
 {
-	debugfs_remove_recursive(uvc_debugfs_root_dir);
+	defs_remove_recursive(uvc_defs_root_dir);
 }

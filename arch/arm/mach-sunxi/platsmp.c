@@ -90,7 +90,7 @@ static int sun6i_smp_boot_secondary(unsigned int cpu,
 	reg = readl(cpucfg_membase + CPUCFG_GEN_CTRL_REG);
 	writel(reg & ~BIT(cpu), cpucfg_membase + CPUCFG_GEN_CTRL_REG);
 
-	/* Disable external debug access */
+	/* Disable external de access */
 	reg = readl(cpucfg_membase + CPUCFG_DBG_CTL1_REG);
 	writel(reg & ~BIT(cpu), cpucfg_membase + CPUCFG_DBG_CTL1_REG);
 
@@ -107,7 +107,7 @@ static int sun6i_smp_boot_secondary(unsigned int cpu,
 	/* Deassert the CPU core reset */
 	writel(3, cpucfg_membase + CPUCFG_CPU_RST_CTRL_REG(cpu));
 
-	/* Enable back the external debug accesses */
+	/* Enable back the external de accesses */
 	reg = readl(cpucfg_membase + CPUCFG_DBG_CTL1_REG);
 	writel(reg | BIT(cpu), cpucfg_membase + CPUCFG_DBG_CTL1_REG);
 

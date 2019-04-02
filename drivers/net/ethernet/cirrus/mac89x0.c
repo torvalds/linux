@@ -96,9 +96,9 @@ static const char version[] =
 
 #include "cs89x0.h"
 
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "debug message level");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "de message level");
 
 /* Information that need to be kept for each board. */
 struct net_local {
@@ -206,7 +206,7 @@ static int mac89x0_device_probe(struct platform_device *pdev)
 	/* Initialize the net_device structure. */
 	lp = netdev_priv(dev);
 
-	lp->msg_enable = netif_msg_init(debug, 0);
+	lp->msg_enable = netif_msg_init(de, 0);
 
 	/* Fill in the 'dev' fields. */
 	dev->base_addr = ioaddr;

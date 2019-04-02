@@ -58,27 +58,27 @@ static const char version[] =
 #define LANCE_OBIO 0x120000
 #define LANCE_IRQ IRQ_AUTO_3
 
-/* Debug level:
+/* De level:
  *  0 = silent, print only serious errors
  *  1 = normal, print error messages
- *  2 = debug, print debug infos
- *  3 = debug, print even more debug infos (packet data)
+ *  2 = de, print de infos
+ *  3 = de, print even more de infos (packet data)
  */
 
-#define	LANCE_DEBUG	0
+#define	LANCE_DE	0
 
-#ifdef LANCE_DEBUG
-static int lance_debug = LANCE_DEBUG;
+#ifdef LANCE_DE
+static int lance_de = LANCE_DE;
 #else
-static int lance_debug = 1;
+static int lance_de = 1;
 #endif
-module_param(lance_debug, int, 0);
-MODULE_PARM_DESC(lance_debug, "SUN3 Lance debug level (0-3)");
+module_param(lance_de, int, 0);
+MODULE_PARM_DESC(lance_de, "SUN3 Lance de level (0-3)");
 MODULE_LICENSE("GPL");
 
 #define	DPRINTK(n,a) \
 	do {  \
-		if (lance_debug >= n)  \
+		if (lance_de >= n)  \
 			printk a; \
 	} while( 0 )
 
@@ -539,7 +539,7 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		REGA(CSR3) = CSR3_BSWP;
 		dev->stats.tx_errors++;
 
-		if(lance_debug >= 2) {
+		if(lance_de >= 2) {
 			int i;
 			printk("Ring data: old_tx %d new_tx %d%s new_rx %d\n",
 			       lp->old_tx, lp->new_tx,
@@ -596,7 +596,7 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Fill in a Tx ring entry */
 #if 0
-	if (lance_debug >= 2) {
+	if (lance_de >= 2) {
 		printk( "%s: TX pkt %d type 0x%04x"
 			" from %s to %s"
 			" data at 0x%08x len %d\n",
@@ -688,7 +688,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id)
 	if (csr0 & CSR0_TINT) {			/* Tx-done interrupt */
 		int old_tx = lp->old_tx;
 
-//		if(lance_debug >= 3) {
+//		if(lance_de >= 3) {
 //			int i;
 //
 //			printk("%s: tx int\n", dev->name);
@@ -822,7 +822,7 @@ static int lance_rx( struct net_device *dev )
 				}
 
 #if 0
-				if (lance_debug >= 3) {
+				if (lance_de >= 3) {
 					u_char *data = PKTBUF_ADDR(head);
 					printk("%s: RX pkt %d type 0x%04x"
 					       " from %pM to %pM",
@@ -836,7 +836,7 @@ static int lance_rx( struct net_device *dev )
 					       pkt_len, data);
 				}
 #endif
-				if (lance_debug >= 3) {
+				if (lance_de >= 3) {
 					u_char *data = PKTBUF_ADDR(head);
 					printk( "%s: RX pkt %d type 0x%04x len %d\n ", dev->name, entry, ((u_short *)data)[6], pkt_len);
 				}

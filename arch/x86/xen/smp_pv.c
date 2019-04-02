@@ -200,7 +200,7 @@ static void __init xen_filter_cpu_maps(void)
 
 static void __init xen_pv_smp_prepare_boot_cpu(void)
 {
-	BUG_ON(smp_processor_id() != 0);
+	_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
 	if (!xen_feature(XENFEAT_writable_page_tables))
@@ -260,7 +260,7 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 	xen_pmu_init(0);
 
 	if (xen_smp_intr_init(0) || xen_smp_intr_init_pv(0))
-		BUG();
+		();
 
 	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
 		panic("could not allocate xen_cpu_initialized_map\n");
@@ -320,7 +320,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 
 	ctxt->ldt_ents = 0;
 
-	BUG_ON((unsigned long)gdt & ~PAGE_MASK);
+	_ON((unsigned long)gdt & ~PAGE_MASK);
 
 	gdt_mfn = arbitrary_virt_to_mfn(gdt);
 	make_lowmem_page_readonly(gdt);
@@ -351,7 +351,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 
 	ctxt->ctrlreg[3] = xen_pfn_to_cr3(virt_to_gfn(swapper_pg_dir));
 	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, xen_vcpu_nr(cpu), ctxt))
-		BUG();
+		();
 
 	kfree(ctxt);
 	return 0;
@@ -383,7 +383,7 @@ static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 	xen_pmu_init(cpu);
 
 	rc = HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL);
-	BUG_ON(rc);
+	_ON(rc);
 
 	while (cpu_report_state(cpu) != CPU_ONLINE)
 		HYPERVISOR_sched_op(SCHEDOP_yield, NULL);
@@ -445,12 +445,12 @@ static int xen_pv_cpu_disable(void)
 
 static void xen_pv_cpu_die(unsigned int cpu)
 {
-	BUG();
+	();
 }
 
 static void xen_pv_play_dead(void)
 {
-	BUG();
+	();
 }
 
 #endif
@@ -465,7 +465,7 @@ static void stop_self(void *v)
 	set_cpu_online(cpu, false);
 
 	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL);
-	BUG();
+	();
 }
 
 static void xen_pv_stop_other_cpus(int wait)

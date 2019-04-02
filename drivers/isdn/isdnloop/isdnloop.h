@@ -12,7 +12,7 @@
 #ifndef isdnloop_h
 #define isdnloop_h
 
-#define ISDNLOOP_IOCTL_DEBUGVAR  0
+#define ISDNLOOP_IOCTL_DEVAR  0
 #define ISDNLOOP_IOCTL_ADDCARD   1
 #define ISDNLOOP_IOCTL_LEASEDCFG 2
 #define ISDNLOOP_IOCTL_STARTUP   3
@@ -28,7 +28,7 @@ typedef struct isdnloop_sdef {
 	char num[3][20];
 } isdnloop_sdef;
 
-#if defined(__KERNEL__) || defined(__DEBUGVAR__)
+#if defined(__KERNEL__) || defined(__DEVAR__)
 
 #ifdef __KERNEL__
 /* Kernel includes */
@@ -108,5 +108,5 @@ static isdnloop_card *cards = (isdnloop_card *) 0;
 
 #define CID (card->interface.id)
 
-#endif                          /* defined(__KERNEL__) || defined(__DEBUGVAR__) */
+#endif                          /* defined(__KERNEL__) || defined(__DEVAR__) */
 #endif                          /* isdnloop_h */

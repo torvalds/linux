@@ -69,7 +69,7 @@ omap_otg_init(struct omap_usb_config *config)
 
 	syscon = omap_readl(OTG_SYSCON_1) & 0xffff;
 	if (!(syscon & OTG_RESET_DONE))
-		pr_debug("USB resets not complete?\n");
+		pr_de("USB resets not complete?\n");
 
 	//omap_writew(0, OTG_IRQ_EN);
 
@@ -79,7 +79,7 @@ omap_otg_init(struct omap_usb_config *config)
 	syscon |= config->usb0_init(config->pins[0], is_usb0_device(config));
 	syscon |= config->usb1_init(config->pins[1]);
 	syscon |= config->usb2_init(config->pins[2], alt_pingroup);
-	pr_debug("OTG_SYSCON_1 = %08x\n", omap_readl(OTG_SYSCON_1));
+	pr_de("OTG_SYSCON_1 = %08x\n", omap_readl(OTG_SYSCON_1));
 	omap_writel(syscon, OTG_SYSCON_1);
 
 	syscon = config->hmc_mode;
@@ -88,9 +88,9 @@ omap_otg_init(struct omap_usb_config *config)
 	if (config->otg)
 		syscon |= OTG_EN;
 #endif
-	pr_debug("USB_TRANSCEIVER_CTRL = %03x\n",
+	pr_de("USB_TRANSCEIVER_CTRL = %03x\n",
 		 omap_readl(USB_TRANSCEIVER_CTRL));
-	pr_debug("OTG_SYSCON_2 = %08x\n", omap_readl(OTG_SYSCON_2));
+	pr_de("OTG_SYSCON_2 = %08x\n", omap_readl(OTG_SYSCON_2));
 	omap_writel(syscon, OTG_SYSCON_2);
 
 	printk("USB: hmc %d", config->hmc_mode);
@@ -129,7 +129,7 @@ omap_otg_init(struct omap_usb_config *config)
 		udc_device->dev.platform_data = config;
 		status = platform_device_register(udc_device);
 		if (status)
-			pr_debug("can't register UDC device, %d\n", status);
+			pr_de("can't register UDC device, %d\n", status);
 	}
 #endif
 
@@ -142,7 +142,7 @@ omap_otg_init(struct omap_usb_config *config)
 		ohci_device->dev.platform_data = config;
 		status = platform_device_register(ohci_device);
 		if (status)
-			pr_debug("can't register OHCI device, %d\n", status);
+			pr_de("can't register OHCI device, %d\n", status);
 	}
 #endif
 
@@ -155,10 +155,10 @@ omap_otg_init(struct omap_usb_config *config)
 		otg_device->dev.platform_data = config;
 		status = platform_device_register(otg_device);
 		if (status)
-			pr_debug("can't register OTG device, %d\n", status);
+			pr_de("can't register OTG device, %d\n", status);
 	}
 #endif
-	pr_debug("OTG_SYSCON_1 = %08x\n", omap_readl(OTG_SYSCON_1));
+	pr_de("OTG_SYSCON_1 = %08x\n", omap_readl(OTG_SYSCON_1));
 	omap_writel(syscon, OTG_SYSCON_1);
 }
 
@@ -438,7 +438,7 @@ static u32 __init omap1_usb1_init(unsigned nwires)
 		omap_cfg_reg(R13_1710_USB1_SE0);
 		// SUSP
 	} else {
-		pr_debug("usb%d cpu unrecognized\n", 1);
+		pr_de("usb%d cpu unrecognized\n", 1);
 		return 0;
 	}
 
@@ -504,7 +504,7 @@ static u32 __init omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
 			omap_cfg_reg(Y5_USB2_RCV);
 		// FIXME omap_cfg_reg(USB2_SPEED);
 	} else {
-		pr_debug("usb%d cpu unrecognized\n", 1);
+		pr_de("usb%d cpu unrecognized\n", 1);
 		return 0;
 	}
 
@@ -579,7 +579,7 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 	pr_cont("\n");
 
 	/* use DPLL for 48 MHz function clock */
-	pr_debug("APLL %04x DPLL %04x REQ %04x\n", omap_readw(ULPD_APLL_CTRL),
+	pr_de("APLL %04x DPLL %04x REQ %04x\n", omap_readw(ULPD_APLL_CTRL),
 			omap_readw(ULPD_DPLL_CTRL), omap_readw(ULPD_SOFT_REQ));
 
 	w = omap_readw(ULPD_APLL_CTRL);
@@ -604,7 +604,7 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 		udc_device.dev.platform_data = config;
 		status = platform_device_register(&udc_device);
 		if (status)
-			pr_debug("can't register UDC device, %d\n", status);
+			pr_de("can't register UDC device, %d\n", status);
 		/* udc driver gates 48MHz by D+ pullup */
 	}
 #endif
@@ -616,7 +616,7 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 		ohci_device.dev.platform_data = config;
 		status = platform_device_register(&ohci_device);
 		if (status)
-			pr_debug("can't register OHCI device, %d\n", status);
+			pr_de("can't register OHCI device, %d\n", status);
 		/* hcd explicitly gates 48MHz */
 	}
 #endif

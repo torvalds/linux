@@ -163,7 +163,7 @@ struct keyspan_usa90_portStatusMessage
 		rxOverrun,		// count of overrun errors (since last reported)
 		rxParity,		// count of parity errors (since last reported)
 		rxFrame,		// count of frame errors (since last reported)
-		portState,		// PORTSTATE_xxx bits (useful for debugging)
+		portState,		// PORTSTATE_xxx bits (useful for deging)
 		messageAck,		// message acknowledgement
 		charAck,		// character acknowledgement
 		controlResponse;	// (value = returnStatus) a control message has been processed 

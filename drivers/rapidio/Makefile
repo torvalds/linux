@@ -11,4 +11,4 @@ obj-$(CONFIG_RAPIDIO_CHMAN)	+= rio_cm.o
 obj-$(CONFIG_RAPIDIO)		+= switches/
 obj-$(CONFIG_RAPIDIO)		+= devices/
 
-subdir-ccflags-$(CONFIG_RAPIDIO_DEBUG) := -DDEBUG
+subdir-ccflags-$(CONFIG_RAPIDIO_DE) := -DDE

@@ -395,7 +395,7 @@ static void falcon_push_irq_moderation(struct ef4_channel *channel)
 				     FFE_BB_TIMER_MODE_DIS,
 				     FRF_AB_TC_TIMER_VAL, 0);
 	}
-	BUILD_BUG_ON(FR_AA_TIMER_COMMAND_KER != FR_BZ_TIMER_COMMAND_P0);
+	BUILD__ON(FR_AA_TIMER_COMMAND_KER != FR_BZ_TIMER_COMMAND_P0);
 	ef4_writed_page_locked(efx, &timer_cmd, FR_BZ_TIMER_COMMAND_P0,
 			       channel->channel);
 }
@@ -416,7 +416,7 @@ static void falcon_prepare_flush(struct ef4_nic *efx)
  *
  * This acknowledges a legacy (not MSI) interrupt via INT_ACK_KER_REG.
  *
- * Due to SFC bug 3706 (silicon revision <=A1) reads can be duplicated in the
+ * Due to SFC  3706 (silicon revision <=A1) reads can be duplicated in the
  * BIU. Interrupt acknowledge is read sensitive so must write instead
  * (then read to ensure the BIU collector is flushed)
  *
@@ -463,7 +463,7 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 	/* Determine interrupting queues, clear interrupt status
 	 * register and acknowledge the device interrupt.
 	 */
-	BUILD_BUG_ON(FSF_AZ_NET_IVEC_INT_Q_WIDTH > EF4_MAX_CHANNELS);
+	BUILD__ON(FSF_AZ_NET_IVEC_INT_Q_WIDTH > EF4_MAX_CHANNELS);
 	queues = EF4_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_INT_Q);
 	EF4_ZERO_OWORD(*int_ker);
 	wmb(); /* Ensure the vector is cleared before interrupt ack */
@@ -1506,7 +1506,7 @@ static int falcon_reconfigure_port(struct ef4_nic *efx)
 
 	efx->phy_op->reconfigure(efx);
 	rc = falcon_reconfigure_xmac(efx);
-	BUG_ON(rc);
+	_ON(rc);
 
 	falcon_start_nic_stats(efx);
 
@@ -1939,7 +1939,7 @@ static enum reset_type falcon_map_reset_reason(enum reset_type reason)
 	case RESET_TYPE_RX_RECOVERY:
 	case RESET_TYPE_DMA_ERROR:
 	case RESET_TYPE_TX_SKIP:
-		/* These can occasionally occur due to hardware bugs.
+		/* These can occasionally occur due to hardware s.
 		 * We try to reset without disrupting the link.
 		 */
 		return RESET_TYPE_INVISIBLE;
@@ -2075,7 +2075,7 @@ static void falcon_monitor(struct ef4_nic *efx)
 	bool link_changed;
 	int rc;
 
-	BUG_ON(!mutex_is_locked(&efx->mac_lock));
+	_ON(!mutex_is_locked(&efx->mac_lock));
 
 	rc = falcon_board(efx)->type->monitor(efx);
 	if (rc) {
@@ -2098,7 +2098,7 @@ static void falcon_monitor(struct ef4_nic *efx)
 
 		falcon_reset_macs(efx);
 		rc = falcon_reconfigure_xmac(efx);
-		BUG_ON(rc);
+		_ON(rc);
 
 		falcon_start_nic_stats(efx);
 
@@ -2358,7 +2358,7 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 				  GFP_KERNEL);
 	if (rc)
 		goto fail4;
-	BUG_ON(efx->irq_status.dma_addr & 0x0f);
+	_ON(efx->irq_status.dma_addr & 0x0f);
 
 	netif_dbg(efx, probe, efx->net_dev,
 		  "INT_KER at %llx (virt %p phys %llx)\n",

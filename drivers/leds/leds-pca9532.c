@@ -402,7 +402,7 @@ static int pca9532_configure(struct i2c_client *client,
 			pca9532_setled(led);
 			break;
 		case PCA9532_TYPE_N2100_BEEP:
-			BUG_ON(data->idev);
+			_ON(data->idev);
 			led->state = PCA9532_PWM1;
 			pca9532_setled(led);
 			data->idev = devm_input_allocate_device(&client->dev);

@@ -17,7 +17,7 @@
 #include <linux/uaccess.h>
 #include <linux/page-flags.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 
@@ -164,10 +164,10 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 	if (addr > TASK_SIZE)
 		harden_branch_predictor();
 
-#ifdef CONFIG_DEBUG_USER
-	if (((user_debug & UDBG_SEGV) && (sig == SIGSEGV)) ||
-	    ((user_debug & UDBG_BUS)  && (sig == SIGBUS))) {
-		printk(KERN_DEBUG "%s: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
+#ifdef CONFIG_DE_USER
+	if (((user_de & UDBG_SEGV) && (sig == SIGSEGV)) ||
+	    ((user_de & UDBG_BUS)  && (sig == SIGBUS))) {
+		printk(KERN_DE "%s: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
 		       tsk->comm, sig, addr, fsr);
 		show_pte(tsk->mm, addr);
 		show_regs(regs);
@@ -175,7 +175,7 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 #endif
 #ifndef CONFIG_KUSER_HELPERS
 	if ((sig == SIGSEGV) && ((addr & PAGE_MASK) == 0xffff0000))
-		printk_ratelimited(KERN_DEBUG
+		printk_ratelimited(KERN_DE
 				   "%s: CONFIG_KUSER_HELPERS disabled at 0x%08lx\n",
 				   tsk->comm, addr);
 #endif
@@ -291,7 +291,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	/*
 	 * As per x86, we may deadlock here.  However, since the kernel only
 	 * validly references user space from well defined areas of the code,
-	 * we can bug out early if this is from code which shouldn't.
+	 * we can  out early if this is from code which shouldn't.
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->ARM_pc))
@@ -305,7 +305,7 @@ retry:
 		 * down_read()
 		 */
 		might_sleep();
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		if (!user_mode(regs) &&
 		    !search_exception_tables(regs->ARM_pc))
 			goto no_context;
@@ -537,7 +537,7 @@ hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *)
 		int sig, int code, const char *name)
 {
 	if (nr < 0 || nr >= ARRAY_SIZE(fsr_info))
-		BUG();
+		();
 
 	fsr_info[nr].fn   = fn;
 	fsr_info[nr].sig  = sig;
@@ -569,7 +569,7 @@ hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *
 		 int sig, int code, const char *name)
 {
 	if (nr < 0 || nr >= ARRAY_SIZE(ifsr_info))
-		BUG();
+		();
 
 	ifsr_info[nr].fn   = fn;
 	ifsr_info[nr].sig  = sig;
@@ -602,7 +602,7 @@ static int __init early_abort_handler(unsigned long addr, unsigned int fsr,
 {
 	pr_warn("Hit pending asynchronous external abort (FSR=0x%08x) during "
 		"first unmask, this is most likely caused by a "
-		"firmware/bootloader bug.\n", fsr);
+		"firmware/bootloader .\n", fsr);
 
 	return 0;
 }

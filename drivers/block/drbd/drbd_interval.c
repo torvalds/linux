@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <asm/bug.h>
+#include <asm/.h>
 #include <linux/rbtree_augmented.h>
 #include "drbd_interval.h"
 
@@ -50,7 +50,7 @@ drbd_insert_interval(struct rb_root *root, struct drbd_interval *this)
 	struct rb_node **new = &root->rb_node, *parent = NULL;
 	sector_t this_end = this->sector + (this->size >> 9);
 
-	BUG_ON(!IS_ALIGNED(this->size, 512));
+	_ON(!IS_ALIGNED(this->size, 512));
 
 	while (*new) {
 		struct drbd_interval *here =
@@ -138,7 +138,7 @@ drbd_find_overlap(struct rb_root *root, sector_t sector, unsigned int size)
 	struct drbd_interval *overlap = NULL;
 	sector_t end = sector + (size >> 9);
 
-	BUG_ON(!IS_ALIGNED(size, 512));
+	_ON(!IS_ALIGNED(size, 512));
 
 	while (node) {
 		struct drbd_interval *here =

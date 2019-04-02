@@ -312,7 +312,7 @@ void qib_ib_rcv(struct qib_ctxtdata *rcd, void *rhdr, void *data, u32 tlen)
 		goto drop;
 
 	opcode = (be32_to_cpu(ohdr->bth[0]) >> 24) & 0x7f;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	rcd->opstats->stats[opcode].n_bytes += tlen;
 	rcd->opstats->stats[opcode].n_packets++;
 #endif

@@ -13,7 +13,7 @@
  * of balloons in VMs in order to manage physical memory resources.
  */
 
-//#define DEBUG
+//#define DE
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/types.h>
@@ -23,7 +23,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
@@ -343,8 +343,8 @@ struct vmballoon {
 	/* statistics */
 	struct vmballoon_stats *stats;
 
-#ifdef CONFIG_DEBUG_FS
-	/* debugfs file exporting statistics */
+#ifdef CONFIG_DE_FS
+	/* defs file exporting statistics */
 	struct dentry *dbg_entry;
 #endif
 
@@ -386,7 +386,7 @@ struct vmballoon_stats {
 
 static inline bool is_vmballoon_stats_on(void)
 {
-	return IS_ENABLED(CONFIG_DEBUG_FS) &&
+	return IS_ENABLED(CONFIG_DE_FS) &&
 		static_branch_unlikely(&balloon_stat_enabled);
 }
 
@@ -463,7 +463,7 @@ __vmballoon_cmd(struct vmballoon *b, unsigned long cmd, unsigned long arg1,
 	if (status != VMW_BALLOON_SUCCESS &&
 	    status != VMW_BALLOON_SUCCESS_WITH_CAPABILITIES) {
 		vmballoon_stats_op_inc(b, cmd, VMW_BALLOON_OP_FAIL_STAT);
-		pr_debug("%s: %s [0x%lx,0x%lx) failed, returned %ld\n",
+		pr_de("%s: %s [0x%lx,0x%lx) failed, returned %ld\n",
 			 __func__, vmballoon_cmd_names[cmd], arg1, arg2,
 			 status);
 	}
@@ -686,7 +686,7 @@ static int vmballoon_handle_one_result(struct vmballoon *b, struct page *page,
 	if (likely(status == VMW_BALLOON_SUCCESS))
 		return 0;
 
-	pr_debug("%s: failed comm pfn %lx status %lu page_size %s\n", __func__,
+	pr_de("%s: failed comm pfn %lx status %lu page_size %s\n", __func__,
 		 page_to_pfn(page), status,
 		 vmballoon_page_size_names[page_size]);
 
@@ -1017,8 +1017,8 @@ static void vmballoon_inflate(struct vmballoon *b)
 		unsigned int to_inflate_pages, page_in_frames;
 		int alloc_error, lock_error = 0;
 
-		VM_BUG_ON(!list_empty(&ctl.pages));
-		VM_BUG_ON(ctl.n_pages != 0);
+		VM__ON(!list_empty(&ctl.pages));
+		VM__ON(ctl.n_pages != 0);
 
 		page_in_frames = vmballoon_page_in_frames(ctl.page_size);
 
@@ -1108,10 +1108,10 @@ static unsigned long vmballoon_deflate(struct vmballoon *b, uint64_t n_frames,
 
 		page_in_frames = vmballoon_page_in_frames(ctl.page_size);
 
-		VM_BUG_ON(!list_empty(&ctl.pages));
-		VM_BUG_ON(ctl.n_pages);
-		VM_BUG_ON(!list_empty(&ctl.refused_pages));
-		VM_BUG_ON(ctl.n_refused_pages);
+		VM__ON(!list_empty(&ctl.pages));
+		VM__ON(ctl.n_pages);
+		VM__ON(!list_empty(&ctl.refused_pages));
+		VM__ON(ctl.n_refused_pages);
 
 		/*
 		 * If we were requested a specific number of frames, we try to
@@ -1391,7 +1391,7 @@ static void vmballoon_work(struct work_struct *work)
 		change = vmballoon_change(b);
 
 	if (change != 0) {
-		pr_debug("%s - size: %llu, target %lu\n", __func__,
+		pr_de("%s - size: %llu, target %lu\n", __func__,
 			 atomic64_read(&b->size), READ_ONCE(b->target));
 
 		if (change > 0)
@@ -1412,9 +1412,9 @@ static void vmballoon_work(struct work_struct *work)
 }
 
 /*
- * DEBUGFS Interface
+ * DEFS Interface
  */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static const char * const vmballoon_stat_page_names[] = {
 	[VMW_BALLOON_PAGE_STAT_ALLOC]		= "alloc",
@@ -1454,17 +1454,17 @@ out:
 }
 
 /**
- * vmballoon_debug_show - shows statistics of balloon operations.
+ * vmballoon_de_show - shows statistics of balloon operations.
  * @f: pointer to the &struct seq_file.
  * @offset: ignored.
  *
- * Provides the statistics that can be accessed in vmmemctl in the debugfs.
+ * Provides the statistics that can be accessed in vmmemctl in the defs.
  * To avoid the overhead - mainly that of memory - of collecting the statistics,
  * we only collect statistics after the first time the counters are read.
  *
  * Return: zero on success or an error code.
  */
-static int vmballoon_debug_show(struct seq_file *f, void *offset)
+static int vmballoon_de_show(struct seq_file *f, void *offset)
 {
 	struct vmballoon *b = f->private;
 	int i, j;
@@ -1514,43 +1514,43 @@ static int vmballoon_debug_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(vmballoon_debug);
+DEFINE_SHOW_ATTRIBUTE(vmballoon_de);
 
-static int __init vmballoon_debugfs_init(struct vmballoon *b)
+static int __init vmballoon_defs_init(struct vmballoon *b)
 {
 	int error;
 
-	b->dbg_entry = debugfs_create_file("vmmemctl", S_IRUGO, NULL, b,
-					   &vmballoon_debug_fops);
+	b->dbg_entry = defs_create_file("vmmemctl", S_IRUGO, NULL, b,
+					   &vmballoon_de_fops);
 	if (IS_ERR(b->dbg_entry)) {
 		error = PTR_ERR(b->dbg_entry);
-		pr_err("failed to create debugfs entry, error: %d\n", error);
+		pr_err("failed to create defs entry, error: %d\n", error);
 		return error;
 	}
 
 	return 0;
 }
 
-static void __exit vmballoon_debugfs_exit(struct vmballoon *b)
+static void __exit vmballoon_defs_exit(struct vmballoon *b)
 {
 	static_key_disable(&balloon_stat_enabled.key);
-	debugfs_remove(b->dbg_entry);
+	defs_remove(b->dbg_entry);
 	kfree(b->stats);
 	b->stats = NULL;
 }
 
 #else
 
-static inline int vmballoon_debugfs_init(struct vmballoon *b)
+static inline int vmballoon_defs_init(struct vmballoon *b)
 {
 	return 0;
 }
 
-static inline void vmballoon_debugfs_exit(struct vmballoon *b)
+static inline void vmballoon_defs_exit(struct vmballoon *b)
 {
 }
 
-#endif	/* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DE_FS */
 
 static int __init vmballoon_init(void)
 {
@@ -1571,7 +1571,7 @@ static int __init vmballoon_init(void)
 
 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
 
-	error = vmballoon_debugfs_init(&balloon);
+	error = vmballoon_defs_init(&balloon);
 	if (error)
 		return error;
 
@@ -1600,7 +1600,7 @@ static void __exit vmballoon_exit(void)
 	vmballoon_vmci_cleanup(&balloon);
 	cancel_delayed_work_sync(&balloon.dwork);
 
-	vmballoon_debugfs_exit(&balloon);
+	vmballoon_defs_exit(&balloon);
 
 	/*
 	 * Deallocate all reserved memory, and reset connection with monitor.

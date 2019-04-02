@@ -109,7 +109,7 @@ TRACE_EVENT(binder_transaction,
 		 struct binder_node *target_node),
 	TP_ARGS(reply, t, target_node),
 	TP_STRUCT__entry(
-		__field(int, debug_id)
+		__field(int, de_id)
 		__field(int, target_node)
 		__field(int, to_proc)
 		__field(int, to_thread)
@@ -118,8 +118,8 @@ TRACE_EVENT(binder_transaction,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
-		__entry->target_node = target_node ? target_node->debug_id : 0;
+		__entry->de_id = t->de_id;
+		__entry->target_node = target_node ? target_node->de_id : 0;
 		__entry->to_proc = t->to_proc->pid;
 		__entry->to_thread = t->to_thread ? t->to_thread->pid : 0;
 		__entry->reply = reply;
@@ -127,7 +127,7 @@ TRACE_EVENT(binder_transaction,
 		__entry->flags = t->flags;
 	),
 	TP_printk("transaction=%d dest_node=%d dest_proc=%d dest_thread=%d reply=%d flags=0x%x code=0x%x",
-		  __entry->debug_id, __entry->target_node,
+		  __entry->de_id, __entry->target_node,
 		  __entry->to_proc, __entry->to_thread,
 		  __entry->reply, __entry->flags, __entry->code)
 );
@@ -137,12 +137,12 @@ TRACE_EVENT(binder_transaction_received,
 	TP_ARGS(t),
 
 	TP_STRUCT__entry(
-		__field(int, debug_id)
+		__field(int, de_id)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
+		__entry->de_id = t->de_id;
 	),
-	TP_printk("transaction=%d", __entry->debug_id)
+	TP_printk("transaction=%d", __entry->de_id)
 );
 
 TRACE_EVENT(binder_transaction_node_to_ref,
@@ -151,23 +151,23 @@ TRACE_EVENT(binder_transaction_node_to_ref,
 	TP_ARGS(t, node, rdata),
 
 	TP_STRUCT__entry(
-		__field(int, debug_id)
-		__field(int, node_debug_id)
+		__field(int, de_id)
+		__field(int, node_de_id)
 		__field(binder_uintptr_t, node_ptr)
-		__field(int, ref_debug_id)
+		__field(int, ref_de_id)
 		__field(uint32_t, ref_desc)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
-		__entry->node_debug_id = node->debug_id;
+		__entry->de_id = t->de_id;
+		__entry->node_de_id = node->de_id;
 		__entry->node_ptr = node->ptr;
-		__entry->ref_debug_id = rdata->debug_id;
+		__entry->ref_de_id = rdata->de_id;
 		__entry->ref_desc = rdata->desc;
 	),
 	TP_printk("transaction=%d node=%d src_ptr=0x%016llx ==> dest_ref=%d dest_desc=%d",
-		  __entry->debug_id, __entry->node_debug_id,
+		  __entry->de_id, __entry->node_de_id,
 		  (u64)__entry->node_ptr,
-		  __entry->ref_debug_id, __entry->ref_desc)
+		  __entry->ref_de_id, __entry->ref_desc)
 );
 
 TRACE_EVENT(binder_transaction_ref_to_node,
@@ -176,22 +176,22 @@ TRACE_EVENT(binder_transaction_ref_to_node,
 	TP_ARGS(t, node, rdata),
 
 	TP_STRUCT__entry(
-		__field(int, debug_id)
-		__field(int, ref_debug_id)
+		__field(int, de_id)
+		__field(int, ref_de_id)
 		__field(uint32_t, ref_desc)
-		__field(int, node_debug_id)
+		__field(int, node_de_id)
 		__field(binder_uintptr_t, node_ptr)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
-		__entry->ref_debug_id = rdata->debug_id;
+		__entry->de_id = t->de_id;
+		__entry->ref_de_id = rdata->de_id;
 		__entry->ref_desc = rdata->desc;
-		__entry->node_debug_id = node->debug_id;
+		__entry->node_de_id = node->de_id;
 		__entry->node_ptr = node->ptr;
 	),
 	TP_printk("transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ptr=0x%016llx",
-		  __entry->debug_id, __entry->node_debug_id,
-		  __entry->ref_debug_id, __entry->ref_desc,
+		  __entry->de_id, __entry->node_de_id,
+		  __entry->ref_de_id, __entry->ref_desc,
 		  (u64)__entry->node_ptr)
 );
 
@@ -202,25 +202,25 @@ TRACE_EVENT(binder_transaction_ref_to_ref,
 	TP_ARGS(t, node, src_ref, dest_ref),
 
 	TP_STRUCT__entry(
-		__field(int, debug_id)
-		__field(int, node_debug_id)
-		__field(int, src_ref_debug_id)
+		__field(int, de_id)
+		__field(int, node_de_id)
+		__field(int, src_ref_de_id)
 		__field(uint32_t, src_ref_desc)
-		__field(int, dest_ref_debug_id)
+		__field(int, dest_ref_de_id)
 		__field(uint32_t, dest_ref_desc)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
-		__entry->node_debug_id = node->debug_id;
-		__entry->src_ref_debug_id = src_ref->debug_id;
+		__entry->de_id = t->de_id;
+		__entry->node_de_id = node->de_id;
+		__entry->src_ref_de_id = src_ref->de_id;
 		__entry->src_ref_desc = src_ref->desc;
-		__entry->dest_ref_debug_id = dest_ref->debug_id;
+		__entry->dest_ref_de_id = dest_ref->de_id;
 		__entry->dest_ref_desc = dest_ref->desc;
 	),
 	TP_printk("transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ref=%d dest_desc=%d",
-		  __entry->debug_id, __entry->node_debug_id,
-		  __entry->src_ref_debug_id, __entry->src_ref_desc,
-		  __entry->dest_ref_debug_id, __entry->dest_ref_desc)
+		  __entry->de_id, __entry->node_de_id,
+		  __entry->src_ref_de_id, __entry->src_ref_desc,
+		  __entry->dest_ref_de_id, __entry->dest_ref_desc)
 );
 
 TRACE_EVENT(binder_transaction_fd_send,
@@ -228,17 +228,17 @@ TRACE_EVENT(binder_transaction_fd_send,
 	TP_ARGS(t, fd, offset),
 
 	TP_STRUCT__entry(
-		__field(int, debug_id)
+		__field(int, de_id)
 		__field(int, fd)
 		__field(size_t, offset)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
+		__entry->de_id = t->de_id;
 		__entry->fd = fd;
 		__entry->offset = offset;
 	),
 	TP_printk("transaction=%d src_fd=%d offset=%zu",
-		  __entry->debug_id, __entry->fd, __entry->offset)
+		  __entry->de_id, __entry->fd, __entry->offset)
 );
 
 TRACE_EVENT(binder_transaction_fd_recv,
@@ -246,36 +246,36 @@ TRACE_EVENT(binder_transaction_fd_recv,
 	TP_ARGS(t, fd, offset),
 
 	TP_STRUCT__entry(
-		__field(int, debug_id)
+		__field(int, de_id)
 		__field(int, fd)
 		__field(size_t, offset)
 	),
 	TP_fast_assign(
-		__entry->debug_id = t->debug_id;
+		__entry->de_id = t->de_id;
 		__entry->fd = fd;
 		__entry->offset = offset;
 	),
 	TP_printk("transaction=%d dest_fd=%d offset=%zu",
-		  __entry->debug_id, __entry->fd, __entry->offset)
+		  __entry->de_id, __entry->fd, __entry->offset)
 );
 
 DECLARE_EVENT_CLASS(binder_buffer_class,
 	TP_PROTO(struct binder_buffer *buf),
 	TP_ARGS(buf),
 	TP_STRUCT__entry(
-		__field(int, debug_id)
+		__field(int, de_id)
 		__field(size_t, data_size)
 		__field(size_t, offsets_size)
 		__field(size_t, extra_buffers_size)
 	),
 	TP_fast_assign(
-		__entry->debug_id = buf->debug_id;
+		__entry->de_id = buf->de_id;
 		__entry->data_size = buf->data_size;
 		__entry->offsets_size = buf->offsets_size;
 		__entry->extra_buffers_size = buf->extra_buffers_size;
 	),
 	TP_printk("transaction=%d data_size=%zd offsets_size=%zd extra_buffers_size=%zd",
-		  __entry->debug_id, __entry->data_size, __entry->offsets_size,
+		  __entry->de_id, __entry->data_size, __entry->offsets_size,
 		  __entry->extra_buffers_size)
 );
 

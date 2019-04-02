@@ -125,7 +125,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		if (*(u64 *) port->sas_addr &&
 		    phy_is_wideport_member(port, phy) && port->num_phys > 0) {
 			/* wide port */
-			pr_debug("phy%d matched wide port%d\n", phy->id,
+			pr_de("phy%d matched wide port%d\n", phy->id,
 				 port->id);
 			break;
 		}
@@ -147,7 +147,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	}
 
 	if (i >= sas_ha->num_phys) {
-		pr_err("%s: couldn't find a free port, bug?\n", __func__);
+		pr_err("%s: couldn't find a free port, ?\n", __func__);
 		spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 		return;
 	}
@@ -174,12 +174,12 @@ static void sas_form_port(struct asd_sas_phy *phy)
 
 	if (!port->port) {
 		port->port = sas_port_alloc(phy->phy->dev.parent, port->id);
-		BUG_ON(!port->port);
+		_ON(!port->port);
 		sas_port_add(port->port);
 	}
 	sas_port_add_phy(port->port, phy->phy);
 
-	pr_debug("%s added to %s, phy_mask:0x%x (%16llx)\n",
+	pr_de("%s added to %s, phy_mask:0x%x (%16llx)\n",
 		 dev_name(&phy->phy->dev), dev_name(&port->port->dev),
 		 port->phy_mask,
 		 SAS_ADDR(port->attached_sas_addr));
@@ -278,7 +278,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 	prim = phy->sas_prim;
 	spin_unlock_irqrestore(&phy->sas_prim_lock, flags);
 
-	pr_debug("broadcast received: %d\n", prim);
+	pr_de("broadcast received: %d\n", prim);
 	sas_discover_event(phy->port, DISCE_REVALIDATE_DOMAIN);
 
 	if (phy->port)

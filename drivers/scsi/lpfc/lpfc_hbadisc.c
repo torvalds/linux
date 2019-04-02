@@ -49,7 +49,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 
 /* AlpaArray for assignment of scsid for scan-down and bind_method */
 static uint8_t lpfcAlpaArray[] = {
@@ -93,7 +93,7 @@ lpfc_terminate_rport_io(struct fc_rport *rport)
 
 	phba  = ndlp->phba;
 
-	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
+	lpfc_defs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
 		"rport terminate: sid:x%x did:x%x flg:x%x",
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
@@ -127,7 +127,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	vport = ndlp->vport;
 	phba  = vport->phba;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport devlosscb: sid:x%x did:x%x flg:x%x",
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
@@ -230,7 +230,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		fcf_inuse = lpfc_fcf_inuse(phba);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport devlosstmo:did:x%x type:x%x id:x%x",
 		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
 
@@ -715,7 +715,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 			spin_lock_irq(&phba->hbalock);
 			control = readl(phba->HCregaddr);
 			if (!(control & (HC_R0INT_ENA << LPFC_ELS_RING))) {
-				lpfc_debugfs_slow_ring_trc(phba,
+				lpfc_defs_slow_ring_trc(phba,
 					"WRK Enable ring: cntl:x%x hacopy:x%x",
 					control, ha_copy, 0);
 
@@ -723,7 +723,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 				writel(control, phba->HCregaddr);
 				readl(phba->HCregaddr); /* flush */
 			} else {
-				lpfc_debugfs_slow_ring_trc(phba,
+				lpfc_defs_slow_ring_trc(phba,
 					"WRK Ring ok:     cntl:x%x hacopy:x%x",
 					control, ha_copy, 0);
 			}
@@ -863,7 +863,7 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 		fc_host_post_event(shost, fc_get_event_number(),
 				   FCH_EVT_LINKDOWN, 0);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Link Down:       state:x%x rtry:x%x flg:x%x",
 		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
 
@@ -1000,7 +1000,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 	if ((vport->load_flag & FC_UNLOADING) != 0)
 		return;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Link Up:         top:x%x speed:x%x flg:x%x",
 		phba->fc_topology, phba->fc_linkspeed, phba->link_flag);
 
@@ -4125,7 +4125,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		put_device(&rport->dev);
 	}
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport add:       did:x%x flg:x%x type x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
@@ -4174,7 +4174,7 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 	if (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 		return;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport delete:    did:x%x flg:x%x type x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
@@ -4367,7 +4367,7 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 lpfc_nlp_state_name(name1, sizeof(name1), old_state),
 			 lpfc_nlp_state_name(name2, sizeof(name2), state));
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node statechg    did:x%x old:%d ste:%d",
 		ndlp->nlp_DID, old_state, state);
 
@@ -4537,7 +4537,7 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (state != NLP_STE_UNUSED_NODE)
 		lpfc_nlp_set_state(vport, ndlp, state);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node enable:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 	return ndlp;
@@ -4592,7 +4592,7 @@ lpfc_set_disctmo(struct lpfc_vport *vport)
 
 
 	if (!timer_pending(&vport->fc_disctmo)) {
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 			"set disc timer:  tmo:x%x state:x%x flg:x%x",
 			tmo, vport->port_state, vport->fc_flag);
 	}
@@ -4622,7 +4622,7 @@ lpfc_can_disctmo(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	unsigned long iflags;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"can disc timer:  state:x%x rtry:x%x flg:x%x",
 		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
 
@@ -5675,7 +5675,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 	vport->fc_flag &= ~FC_DISC_TMO;
 	spin_unlock_irq(shost->host_lock);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"disc timeout:    state:x%x rtry:x%x flg:x%x",
 		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
 
@@ -6113,7 +6113,7 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 
 
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_NODE,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_NODE,
 		"node init:       did:x%x",
 		ndlp->nlp_DID, 0, 0);
 
@@ -6131,7 +6131,7 @@ lpfc_nlp_release(struct kref *kref)
 	struct lpfc_nodelist *ndlp = container_of(kref, struct lpfc_nodelist,
 						  kref);
 
-	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+	lpfc_defs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
 		"node release:    did:x%x flg:x%x type:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
@@ -6173,7 +6173,7 @@ lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 	unsigned long flags;
 
 	if (ndlp) {
-		lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+		lpfc_defs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
 			"node get:        did:x%x flg:x%x refcnt:x%x",
 			ndlp->nlp_DID, ndlp->nlp_flag,
 			kref_read(&ndlp->kref));
@@ -6213,7 +6213,7 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 	if (!ndlp)
 		return 1;
 
-	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+	lpfc_defs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
 	"node put:        did:x%x flg:x%x refcnt:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag,
 		kref_read(&ndlp->kref));
@@ -6275,7 +6275,7 @@ lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 int
 lpfc_nlp_not_used(struct lpfc_nodelist *ndlp)
 {
-	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+	lpfc_defs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
 		"node not used:   did:x%x flg:x%x refcnt:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag,
 		kref_read(&ndlp->kref));

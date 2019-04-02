@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include <core/option.h>
-#include <core/debug.h>
+#include <core/de.h>
 
 const char *
 nvkm_stropt(const char *optstr, const char *opt, int *arglen)
@@ -94,7 +94,7 @@ nvkm_longopt(const char *optstr, const char *opt, long value)
 int
 nvkm_dbgopt(const char *optstr, const char *sub)
 {
-	int mode = 1, level = CONFIG_NOUVEAU_DEBUG_DEFAULT;
+	int mode = 1, level = CONFIG_NOUVEAU_DE_DEFAULT;
 
 	while (optstr) {
 		int len = strcspn(optstr, ",=");
@@ -114,8 +114,8 @@ nvkm_dbgopt(const char *optstr, const char *sub)
 					level = NV_DBG_WARN;
 				else if (!strncasecmpz(optstr, "info", len))
 					level = NV_DBG_INFO;
-				else if (!strncasecmpz(optstr, "debug", len))
-					level = NV_DBG_DEBUG;
+				else if (!strncasecmpz(optstr, "de", len))
+					level = NV_DBG_DE;
 				else if (!strncasecmpz(optstr, "trace", len))
 					level = NV_DBG_TRACE;
 				else if (!strncasecmpz(optstr, "paranoia", len))

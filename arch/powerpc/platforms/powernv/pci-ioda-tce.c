@@ -116,7 +116,7 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	unsigned long idx = index - tbl->it_offset;
 	__be64 *ptce = NULL;
 
-	BUG_ON(*hpa & ~IOMMU_PAGE_MASK(tbl));
+	_ON(*hpa & ~IOMMU_PAGE_MASK(tbl));
 
 	if (*direction == DMA_NONE) {
 		ptce = pnv_tce(tbl, false, idx, false);
@@ -316,7 +316,7 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 	tbl->it_userspace = uas;
 	tbl->it_nid = nid;
 
-	pr_debug("Created TCE table: ws=%08llx ts=%lx @%08llx base=%lx uas=%p levels=%d/%d\n",
+	pr_de("Created TCE table: ws=%08llx ts=%lx @%08llx base=%lx uas=%p levels=%d/%d\n",
 			window_size, tce_table_size, bus_offset, tbl->it_base,
 			tbl->it_userspace, tmplevels, levels);
 

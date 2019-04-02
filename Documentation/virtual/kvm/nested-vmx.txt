@@ -62,7 +62,7 @@ As mandated by the spec, other than the two fields revision_id and abort,
 this structure is *opaque* to its user, who is not supposed to know or care
 about its internal structure. Rather, the structure is accessed through the
 VMREAD and VMWRITE instructions.
-Still, for debugging purposes, KVM developers might be interested to know the
+Still, for deging purposes, KVM developers might be interested to know the
 internals of this structure; This is struct vmcs12 from arch/x86/kvm/vmx.c.
 
 The name "vmcs12" refers to the VMCS that L1 builds for L2. In the code we
@@ -97,7 +97,7 @@ struct shadow_vmcs is ever changed.
 		u64 ept_pointer;
 		u64 guest_physical_address;
 		u64 vmcs_link_pointer;
-		u64 guest_ia32_debugctl;
+		u64 guest_ia32_dectl;
 		u64 guest_ia32_pat;
 		u64 guest_ia32_efer;
 		u64 guest_pdptr0;

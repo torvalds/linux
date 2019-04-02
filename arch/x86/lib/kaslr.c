@@ -21,7 +21,7 @@
 #include <asm/cpufeature.h>
 #include <asm/setup.h>
 
-#define debug_putstr(v) early_printk("%s", v)
+#define de_putstr(v) early_printk("%s", v)
 #define has_cpuflag(f) boot_cpu_has(f)
 #define get_boot_seed() kaslr_offset()
 #endif
@@ -56,11 +56,11 @@ unsigned long kaslr_get_random_long(const char *purpose)
 	unsigned long raw, random = get_boot_seed();
 	bool use_i8254 = true;
 
-	debug_putstr(purpose);
-	debug_putstr(" KASLR using");
+	de_putstr(purpose);
+	de_putstr(" KASLR using");
 
 	if (has_cpuflag(X86_FEATURE_RDRAND)) {
-		debug_putstr(" RDRAND");
+		de_putstr(" RDRAND");
 		if (rdrand_long(&raw)) {
 			random ^= raw;
 			use_i8254 = false;
@@ -68,7 +68,7 @@ unsigned long kaslr_get_random_long(const char *purpose)
 	}
 
 	if (has_cpuflag(X86_FEATURE_TSC)) {
-		debug_putstr(" RDTSC");
+		de_putstr(" RDTSC");
 		raw = rdtsc();
 
 		random ^= raw;
@@ -76,7 +76,7 @@ unsigned long kaslr_get_random_long(const char *purpose)
 	}
 
 	if (use_i8254) {
-		debug_putstr(" i8254");
+		de_putstr(" i8254");
 		random ^= i8254();
 	}
 
@@ -86,7 +86,7 @@ unsigned long kaslr_get_random_long(const char *purpose)
 	    : "a" (random), "rm" (mix_const));
 	random += raw;
 
-	debug_putstr("...\n");
+	de_putstr("...\n");
 
 	return random;
 }

@@ -9,7 +9,7 @@ ti-vpdma-y := vpdma.o
 ti-sc-y := sc.o
 ti-csc-y := csc.o
 
-ccflags-$(CONFIG_VIDEO_TI_VPE_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_VIDEO_TI_VPE_DE) += -DDE
 
 obj-$(CONFIG_VIDEO_TI_CAL) += ti-cal.o
 

@@ -46,7 +46,7 @@ int dialogue_on;
 int tmon_exit;
 static short	daemon_mode;
 static int logging; /* for recording thermal data to a file */
-static int debug_on;
+static int de_on;
 FILE *tmon_log;
 /*cooling device used for the PID controller */
 char ctrl_cdev[CDEV_NAME_SIZE] = "None";
@@ -60,7 +60,7 @@ void usage()
 	printf("Usage: tmon [OPTION...]\n");
 	printf("  -c, --control         cooling device in control\n");
 	printf("  -d, --daemon          run as daemon, no TUI\n");
-	printf("  -g, --debug           debug message in syslog\n");
+	printf("  -g, --de           de message in syslog\n");
 	printf("  -h, --help            show this help message\n");
 	printf("  -l, --log             log data to /var/tmp/tmon.log\n");
 	printf("  -t, --time-interval   sampling time interval, > 1 sec.\n");
@@ -132,8 +132,8 @@ static void tmon_sig_handler(int sig)
 
 static void start_syslog(void)
 {
-	if (debug_on)
-		setlogmask(LOG_UPTO(LOG_DEBUG));
+	if (de_on)
+		setlogmask(LOG_UPTO(LOG_DE));
 	else
 		setlogmask(LOG_UPTO(LOG_ERR));
 	openlog("tmon.log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL0);
@@ -224,7 +224,7 @@ static struct option opts[] = {
 	{ "log", 0, NULL, 'l' },
 	{ "help", 0, NULL, 'h' },
 	{ "version", 0, NULL, 'v' },
-	{ "debug", 0, NULL, 'g' },
+	{ "de", 0, NULL, 'g' },
 	{ 0, 0, NULL, 0 }
 };
 
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
 			version();
 			break;
 		case 'g':
-			debug_on = 1;
+			de_on = 1;
 			break;
 		case 'z':
 			target_thermal_zone = strtod(optarg, NULL);
@@ -290,9 +290,9 @@ int main(int argc, char **argv)
 	}
 	start_syslog();
 	if (signal(SIGINT, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
+		syslog(LOG_DE, "Cannot handle SIGINT\n");
 	if (signal(SIGTERM, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
+		syslog(LOG_DE, "Cannot handle SIGINT\n");
 
 	if (probe_thermal_sysfs()) {
 		pthread_mutex_destroy(&input_lock);

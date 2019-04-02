@@ -13,19 +13,19 @@ menuconfig DMADEVICES
 	  DMA Device drivers supported by the configured arch, it may
 	  be empty in some cases.
 
-config DMADEVICES_DEBUG
-        bool "DMA Engine debugging"
+config DMADEVICES_DE
+        bool "DMA Engine deging"
         depends on DMADEVICES != n
         help
           This is an option for use by developers; most people should
-          say N here.  This enables DMA engine core and driver debugging.
+          say N here.  This enables DMA engine core and driver deging.
 
-config DMADEVICES_VDEBUG
-        bool "DMA Engine verbose debugging"
-        depends on DMADEVICES_DEBUG != n
+config DMADEVICES_VDE
+        bool "DMA Engine verbose deging"
+        depends on DMADEVICES_DE != n
         help
           This is an option for use by developers; most people should
-          say N here.  This enables deeper (more verbose) debugging of
+          say N here.  This enables deeper (more verbose) deging of
           the DMA engine core and drivers.
 
 
@@ -691,7 +691,7 @@ config DMATEST
 	depends on DMA_ENGINE
 	select DMA_ENGINE_RAID
 	help
-	  Simple DMA test client. Say N unless you're debugging a
+	  Simple DMA test client. Say N unless you're deging a
 	  DMA Device driver.
 
 config DMA_ENGINE_RAID

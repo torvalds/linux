@@ -40,7 +40,7 @@
 #include "tcm_fc.h"
 
 #define TFC_SESS_DBG(lport, fmt, args...) \
-	pr_debug("host%u: rport %6.6x: " fmt,	   \
+	pr_de("host%u: rport %6.6x: " fmt,	   \
 		 (lport)->host->host_no,	   \
 		 (lport)->port_id, ##args )
 
@@ -97,7 +97,7 @@ static void ft_tport_delete(struct ft_tport *tport)
 	ft_sess_delete_all(tport);
 	lport = tport->lport;
 	lport->service_params &= ~FCP_SPPF_TARG_FCN;
-	BUG_ON(tport != lport->prov[FC_TYPE_FCP]);
+	_ON(tport != lport->prov[FC_TYPE_FCP]);
 	RCU_INIT_POINTER(lport->prov[FC_TYPE_FCP], NULL);
 
 	tpg = tport->tpg;
@@ -260,7 +260,7 @@ static void ft_sess_unhash(struct ft_sess *sess)
 	struct ft_tport *tport = sess->tport;
 
 	hlist_del_rcu(&sess->hash);
-	BUG_ON(!tport->sess_count);
+	_ON(!tport->sess_count);
 	tport->sess_count--;
 	sess->port_id = -1;
 	sess->params = 0;
@@ -455,7 +455,7 @@ void ft_sess_put(struct ft_sess *sess)
 {
 	int sess_held = kref_read(&sess->kref);
 
-	BUG_ON(!sess_held);
+	_ON(!sess_held);
 	kref_put(&sess->kref, ft_sess_free);
 }
 

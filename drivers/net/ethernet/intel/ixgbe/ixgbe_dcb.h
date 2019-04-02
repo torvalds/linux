@@ -38,7 +38,7 @@
 
 #define DCB_NOT_IMPLEMENTED      0x7FFFFFFF
 
-struct dcb_pfc_tc_debug {
+struct dcb_pfc_tc_de {
 	u8  tc;
 	u8  pause_status;
 	u64 pause_quanta;

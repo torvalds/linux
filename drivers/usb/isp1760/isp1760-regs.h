@@ -163,7 +163,7 @@
 #define DC_INTLVL			(1 << 1)
 #define DC_INTPOL			(1 << 0)
 
-#define DC_DEBUG			0x0212
+#define DC_DE			0x0212
 #define DC_INTENABLE			0x0214
 #define DC_IEPTX(n)			(1 << (11 + 2 * (n)))
 #define DC_IEPRX(n)			(1 << (10 + 2 * (n)))

@@ -30,7 +30,7 @@ int pconfig_target_supported(enum pconfig_target target)
 	 * We would need to re-think the implementation once we get > 64
 	 * PCONFIG targets. Spec allows up to 2^32 targets.
 	 */
-	BUILD_BUG_ON(PCONFIG_TARGET_NR >= 64);
+	BUILD__ON(PCONFIG_TARGET_NR >= 64);
 
 	if (WARN_ON_ONCE(target >= 64))
 		return 0;

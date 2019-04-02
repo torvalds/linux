@@ -93,7 +93,7 @@ enum iwl_ucode_type {
  * This enumeration is used directly for older firmware (before 16.0).
  * For new firmware, there can be up to 4 sections (see below) but the
  * first one packaged into the firmware file is the DATA section and
- * some debugging code accesses that.
+ * some deging code accesses that.
  */
 enum iwl_ucode_sec {
 	IWL_UCODE_SECTION_DATA,
@@ -202,9 +202,9 @@ enum iwl_fw_type {
 };
 
 /**
- * struct iwl_fw_dbg - debug data
+ * struct iwl_fw_dbg - de data
  *
- * @dest_tlv: points to debug destination TLV (typically SRAM or DRAM)
+ * @dest_tlv: points to de destination TLV (typically SRAM or DRAM)
  * @n_dest_reg: num of reg_ops in dest_tlv
  * @conf_tlv: array of pointers to configuration HCMDs
  * @trigger_tlv: array of pointers to triggers TLVs

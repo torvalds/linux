@@ -21,7 +21,7 @@
 #include <linux/compiler.h>
 #include <linux/vmalloc.h>
 #include "nodelist.h"
-#include "debug.h"
+#include "de.h"
 
 int jffs2_sum_init(struct jffs2_sb_info *c)
 {
@@ -305,7 +305,7 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 					break;
 
 				default:
-					BUG();	/* impossible count value */
+					();	/* impossible count value */
 					break;
 			}
 
@@ -356,7 +356,7 @@ int jffs2_sum_add_kvec(struct jffs2_sb_info *c, const struct kvec *invecs,
 			/* If you implement a new node type you should also implement
 			   summary support for it or disable summary.
 			*/
-			BUG();
+			();
 			break;
 	}
 
@@ -784,7 +784,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 						    je16_to_cpu(temp->u.nodetype));
 					jffs2_sum_disable_collecting(c->summary);
 				} else {
-					BUG();	/* unknown node in summary information */
+					();	/* unknown node in summary information */
 				}
 			}
 		}
@@ -859,7 +859,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 
 	if (!c->summary->sum_num || !c->summary->sum_list_head) {
 		JFFS2_WARNING("Empty summary info!!!\n");
-		BUG();
+		();
 	}
 
 	datasize = c->summary->sum_size + sizeof(struct jffs2_sum_marker);

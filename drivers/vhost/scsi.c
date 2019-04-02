@@ -526,7 +526,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list) {
 		se_cmd = &cmd->tvc_se_cmd;
 
-		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
+		pr_de("%s tv_cmd %p resid %u status %#02x\n", __func__,
 			cmd, se_cmd->residual_count, se_cmd->scsi_status);
 
 		memset(&v_rsp, 0, sizeof(v_rsp));
@@ -700,7 +700,7 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 
 		sg_init_table(cmd->tvc_prot_sgl, sgl_count);
 		cmd->tvc_prot_sgl_count = sgl_count;
-		pr_debug("%s prot_sg %p prot_sgl_count %u\n", __func__,
+		pr_de("%s prot_sg %p prot_sgl_count %u\n", __func__,
 			 cmd->tvc_prot_sgl, cmd->tvc_prot_sgl_count);
 
 		ret = vhost_scsi_iov_to_sgl(cmd, write, prot_iter,
@@ -718,7 +718,7 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 
 	sg_init_table(cmd->tvc_sgl, sgl_count);
 	cmd->tvc_sgl_count = sgl_count;
-	pr_debug("%s data_sg %p data_sgl_count %u\n", __func__,
+	pr_de("%s data_sg %p data_sgl_count %u\n", __func__,
 		  cmd->tvc_sgl, cmd->tvc_sgl_count);
 
 	ret = vhost_scsi_iov_to_sgl(cmd, write, data_iter,
@@ -813,7 +813,7 @@ vhost_scsi_get_desc(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
 				     ARRAY_SIZE(vq->iov), &vc->out, &vc->in,
 				     NULL, NULL);
 
-	pr_debug("vhost_get_vq_desc: head: %d, out: %u in: %u\n",
+	pr_de("vhost_get_vq_desc: head: %d, out: %u in: %u\n",
 		 vc->head, vc->out, vc->in);
 
 	/* On error, stop handling until the next kick. */
@@ -1072,9 +1072,9 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		cmd->tvc_resp_iov = vq->iov[vc.out];
 		cmd->tvc_in_iovs = vc.in;
 
-		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
+		pr_de("vhost_scsi got command opcode: %#02x, lun: %d\n",
 			 cmd->tvc_cdb[0], cmd->tvc_lun);
-		pr_debug("cmd: %p exp_data_len: %d, prot_bytes: %d data_direction:"
+		pr_de("cmd: %p exp_data_len: %d, prot_bytes: %d data_direction:"
 			 " %d\n", cmd, exp_data_len, prot_bytes, data_direction);
 
 		if (data_direction != DMA_NONE) {
@@ -1126,7 +1126,7 @@ vhost_scsi_send_tmf_reject(struct vhost_scsi *vs,
 	struct iov_iter iov_iter;
 	int ret;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	memset(&rsp, 0, sizeof(rsp));
 	rsp.response = VIRTIO_SCSI_S_FUNCTION_REJECTED;
 
@@ -1148,7 +1148,7 @@ vhost_scsi_send_an_resp(struct vhost_scsi *vs,
 	struct iov_iter iov_iter;
 	int ret;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	memset(&rsp, 0, sizeof(rsp));	/* event_actual = 0 */
 	rsp.response = VIRTIO_SCSI_S_OK;
 
@@ -1275,7 +1275,7 @@ static void vhost_scsi_ctl_handle_kick(struct vhost_work *work)
 						poll.work);
 	struct vhost_scsi *vs = container_of(vq->dev, struct vhost_scsi, dev);
 
-	pr_debug("%s: The handling func for control queue.\n", __func__);
+	pr_de("%s: The handling func for control queue.\n", __func__);
 	vhost_scsi_ctl_handle_vq(vs, vq);
 }
 
@@ -1949,7 +1949,7 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 	mutex_lock(&tpg->tv_tpg_mutex);
 	if (tpg->tpg_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		pr_debug("tpg->tpg_nexus already exists\n");
+		pr_de("tpg->tpg_nexus already exists\n");
 		return -EEXIST;
 	}
 
@@ -2015,7 +2015,7 @@ static int vhost_scsi_drop_nexus(struct vhost_scsi_tpg *tpg)
 		return -EBUSY;
 	}
 
-	pr_debug("TCM_vhost_ConfigFS: Removing I_T Nexus to emulated"
+	pr_de("TCM_vhost_ConfigFS: Removing I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", vhost_scsi_dump_proto_id(tpg->tport),
 		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
 
@@ -2248,7 +2248,7 @@ check_len:
 	}
 	snprintf(&tport->tport_name[0], VHOST_SCSI_NAMELEN, "%s", &name[off]);
 
-	pr_debug("TCM_VHost_ConfigFS: Allocated emulated Target"
+	pr_de("TCM_VHost_ConfigFS: Allocated emulated Target"
 		" %s Address: %s\n", vhost_scsi_dump_proto_id(tport), name);
 
 	return &tport->tport_wwn;
@@ -2259,7 +2259,7 @@ static void vhost_scsi_drop_tport(struct se_wwn *wwn)
 	struct vhost_scsi_tport *tport = container_of(wwn,
 				struct vhost_scsi_tport, tport_wwn);
 
-	pr_debug("TCM_VHost_ConfigFS: Deallocating emulated Target"
+	pr_de("TCM_VHost_ConfigFS: Deallocating emulated Target"
 		" %s Address: %s\n", vhost_scsi_dump_proto_id(tport),
 		tport->tport_name);
 
@@ -2322,7 +2322,7 @@ static int __init vhost_scsi_init(void)
 {
 	int ret = -ENOMEM;
 
-	pr_debug("TCM_VHOST fabric module %s on %s/%s"
+	pr_de("TCM_VHOST fabric module %s on %s/%s"
 		" on "UTS_RELEASE"\n", VHOST_SCSI_VERSION, utsname()->sysname,
 		utsname()->machine);
 

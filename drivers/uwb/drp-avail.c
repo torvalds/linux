@@ -134,7 +134,7 @@ void uwb_drp_avail_ie_update(struct uwb_rc *rc)
  * @len:   the buffer's remaining size may not be exact multiple of
  *         sizeof(unsigned long), @len is the length of buffer that needs
  *         to be converted. This will be sizeof(unsigned long) or smaller
- *         (BUG if not). If it is smaller then we will pad the remaining
+ *         ( if not). If it is smaller then we will pad the remaining
  *         space of the result with zeroes.
  */
 static
@@ -143,7 +143,7 @@ unsigned long get_val(u8 *array, size_t itr, size_t len)
 	unsigned long val = 0;
 	size_t top = itr + len;
 
-	BUG_ON(len > sizeof(val));
+	_ON(len > sizeof(val));
 
 	while (itr < top) {
 		val <<= 8;

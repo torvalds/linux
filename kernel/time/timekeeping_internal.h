@@ -2,15 +2,15 @@
 #ifndef _TIMEKEEPING_INTERNAL_H
 #define _TIMEKEEPING_INTERNAL_H
 /*
- * timekeeping debug functions
+ * timekeeping de functions
  */
 #include <linux/clocksource.h>
 #include <linux/time.h>
 
-#ifdef CONFIG_DEBUG_FS
-extern void tk_debug_account_sleep_time(const struct timespec64 *t);
+#ifdef CONFIG_DE_FS
+extern void tk_de_account_sleep_time(const struct timespec64 *t);
 #else
-#define tk_debug_account_sleep_time(x)
+#define tk_de_account_sleep_time(x)
 #endif
 
 #ifdef CONFIG_CLOCKSOURCE_VALIDATE_LAST_CYCLE

@@ -66,10 +66,10 @@
 #include <media/dvb_frontend.h>
 #include "mxl5005s.h"
 
-static int debug;
+static int de;
 
 #define dprintk(level, arg...) do {    \
-	if (level <= debug)            \
+	if (level <= de)            \
 		printk(arg);    \
 	} while (0)
 
@@ -2763,7 +2763,7 @@ static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 
 	tg_lo = (((Fmax/10 - Fvco)/100)*32) / ((Fmax-Fmin)/1000)+8;
 
-	/* below equation is same as above but much harder to debug.
+	/* below equation is same as above but much harder to de.
 	 *
 	 * static u32 MXL_GetXtalInt(u32 Xtal_Freq)
 	 * {

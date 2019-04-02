@@ -1130,8 +1130,8 @@
 #define ixTHM_TMON1_RDIR15_DATA                                                 0xc03001fc
 #define ixTHM_TMON0_INT_DATA                                                    0xc0300300
 #define ixTHM_TMON1_INT_DATA                                                    0xc0300304
-#define ixTHM_TMON0_DEBUG                                                       0xc0300310
-#define ixTHM_TMON1_DEBUG                                                       0xc0300314
+#define ixTHM_TMON0_DE                                                       0xc0300310
+#define ixTHM_TMON1_DE                                                       0xc0300314
 #define ixTHM_TMON0_STATUS                                                      0xc0300320
 #define ixTHM_TMON1_STATUS                                                      0xc0300324
 #define ixGENERAL_PWRMGT                                                        0xc0200000
@@ -1165,9 +1165,9 @@
 #define ixPWR_CKS_ENABLE                                                        0xc020034c
 #define ixPWR_CKS_CNTL                                                          0xc0200350
 #define ixPWR_DISP_TIMER_CONTROL                                                0xc02003c0
-#define ixPWR_DISP_TIMER_DEBUG                                                  0xc02003c4
+#define ixPWR_DISP_TIMER_DE                                                  0xc02003c4
 #define ixPWR_DISP_TIMER2_CONTROL                                               0xc02003c8
-#define ixPWR_DISP_TIMER2_DEBUG                                                 0xc02003cc
+#define ixPWR_DISP_TIMER2_DE                                                 0xc02003cc
 #define ixPWR_DISP_TIMER_CONTROL2                                               0xc0200378
 #define ixVDDGFX_IDLE_PARAMETER                                                 0xc020036c
 #define ixVDDGFX_IDLE_CONTROL                                                   0xc0200370

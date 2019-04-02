@@ -80,10 +80,10 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 }
 
 /*
- * DRM debugfs:
+ * DRM defs:
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int etnaviv_gem_show(struct drm_device *dev, struct seq_file *m)
 {
 	struct etnaviv_drm_private *priv = dev->dev_private;
@@ -183,25 +183,25 @@ static int show_each_gpu(struct seq_file *m, void *arg)
 	return ret;
 }
 
-static struct drm_info_list etnaviv_debugfs_list[] = {
-		{"gpu", show_each_gpu, 0, etnaviv_gpu_debugfs},
+static struct drm_info_list etnaviv_defs_list[] = {
+		{"gpu", show_each_gpu, 0, etnaviv_gpu_defs},
 		{"gem", show_unlocked, 0, etnaviv_gem_show},
 		{ "mm", show_unlocked, 0, etnaviv_mm_show },
 		{"mmu", show_each_gpu, 0, etnaviv_mmu_show},
 		{"ring", show_each_gpu, 0, etnaviv_ring_show},
 };
 
-static int etnaviv_debugfs_init(struct drm_minor *minor)
+static int etnaviv_defs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	int ret;
 
-	ret = drm_debugfs_create_files(etnaviv_debugfs_list,
-			ARRAY_SIZE(etnaviv_debugfs_list),
-			minor->debugfs_root, minor);
+	ret = drm_defs_create_files(etnaviv_defs_list,
+			ARRAY_SIZE(etnaviv_defs_list),
+			minor->defs_root, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install etnaviv_debugfs_list\n");
+		dev_err(dev->dev, "could not install etnaviv_defs_list\n");
 		return ret;
 	}
 
@@ -481,8 +481,8 @@ static struct drm_driver etnaviv_drm_driver = {
 	.gem_prime_vmap     = etnaviv_gem_prime_vmap,
 	.gem_prime_vunmap   = etnaviv_gem_prime_vunmap,
 	.gem_prime_mmap     = etnaviv_gem_prime_mmap,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init       = etnaviv_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init       = etnaviv_defs_init,
 #endif
 	.ioctls             = etnaviv_ioctls,
 	.num_ioctls         = DRM_ETNAVIV_NUM_IOCTLS,

@@ -36,7 +36,7 @@
 #include "main.h"
 #include "soc.h"
 #include "dma.h"
-#include "debug.h"
+#include "de.h"
 #include "brcms_trace_events.h"
 
 /* watchdog timer, in unit of ms */
@@ -264,7 +264,7 @@ struct edcf_acparam {
 	u16 TXOP;
 } __packed;
 
-/* debug/trace */
+/* de/trace */
 uint brcm_msg_level;
 
 /* TX FIFO number to WME/802.1E Access Category */
@@ -312,14 +312,14 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 	{9, 58, 22, 14, 14, 5},
 };
 
-#ifdef DEBUG
+#ifdef DE
 static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
 static const char fifo_names[6][1];
 #endif
 
-#ifdef DEBUG
+#ifdef DE
 /* pointer to most recently allocated wl/wlc */
 static struct brcms_c_info *wlc_info_dbg = (struct brcms_c_info *) (NULL);
 #endif
@@ -1974,7 +1974,7 @@ static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 	}
 
 	v = ((bcma_read32(wlc_hw->d11core,
-			  D11REGOFFS(phydebug)) & PDBG_RFD) != 0);
+			  D11REGOFFS(phyde)) & PDBG_RFD) != 0);
 
 	/* put core back into reset */
 	if (!clk)
@@ -2691,10 +2691,10 @@ void brcms_c_suspend_mac_and_wait(struct brcms_c_info *wlc)
 		brcms_err(core, "wl%d: wlc_suspend_mac_and_wait: waited %d uS"
 			  " and MI_MACSSPNDD is still not on.\n",
 			  wlc_hw->unit, BRCMS_MAX_MAC_SUSPEND);
-		brcms_err(core, "wl%d: psmdebug 0x%08x, phydebug 0x%08x, "
+		brcms_err(core, "wl%d: psmde 0x%08x, phyde 0x%08x, "
 			  "psm_brc 0x%04x\n", wlc_hw->unit,
-			  bcma_read32(core, D11REGOFFS(psmdebug)),
-			  bcma_read32(core, D11REGOFFS(phydebug)),
+			  bcma_read32(core, D11REGOFFS(psmde)),
+			  bcma_read32(core, D11REGOFFS(phyde)),
 			  bcma_read16(core, D11REGOFFS(psm_brc)));
 	}
 
@@ -3082,11 +3082,11 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
 	struct macstat *macstats;
-#ifdef DEBUG
+#ifdef DE
 	u16 delta;
 	u16 rxf0ovfl;
 	u16 txfunfl[NFIFO];
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	/* if driver down, make no sense to update stats */
 	if (!wlc->pub->up)
@@ -3094,20 +3094,20 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 
 	macstats = wlc->core->macstat_snapshot;
 
-#ifdef DEBUG
+#ifdef DE
 	/* save last rx fifo 0 overflow count */
 	rxf0ovfl = macstats->rxf0ovfl;
 
 	/* save last tx fifo  underflow count */
 	for (i = 0; i < NFIFO; i++)
 		txfunfl[i] = macstats->txfunfl[i];
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	/* Read mac stats from contiguous shared memory */
 	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, macstats,
 				sizeof(*macstats), OBJADDR_SHM_SEL);
 
-#ifdef DEBUG
+#ifdef DE
 	/* check for rx fifo 0 overflow */
 	delta = (u16)(macstats->rxf0ovfl - rxf0ovfl);
 	if (delta)
@@ -3122,7 +3122,7 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 				  "wl%d: %u tx fifo %d underflows!\n",
 				  wlc->pub->unit, delta, i);
 	}
-#endif				/* DEBUG */
+#endif				/* DE */
 
 	/* merge counters from dma module */
 	for (i = 0; i < NFIFO; i++) {
@@ -3984,7 +3984,7 @@ void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 }
 
 /*
- * centralized protection config change function to simplify debugging, no
+ * centralized protection config change function to simplify deging, no
  * consistency checking this should be called only on changes to avoid overhead
  * in periodic function
  */
@@ -6879,7 +6879,7 @@ static int brcms_c_tx(struct brcms_c_info *wlc, struct sk_buff *skb)
 		 * ensure that we have enough space to handle these stray
 		 * packets, so warn if there isn't. If we're out of space
 		 * in the tx ring and the tx queue isn't stopped then
-		 * we've really got a bug; warn loudly if that happens.
+		 * we've really got a ; warn loudly if that happens.
 		 */
 		brcms_warn(wlc->hw->d11core,
 			   "Received frame for tx with no space in DMA ring\n");
@@ -7979,7 +7979,7 @@ brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
 	wlc->wiphy = wl->wiphy;
 	pub = wlc->pub;
 
-#if defined(DEBUG)
+#if defined(DE)
 	wlc_info_dbg = wlc;
 #endif
 

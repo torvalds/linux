@@ -654,7 +654,7 @@ static blk_status_t gdrom_queue_rq(struct blk_mq_hw_ctx *hctx,
 		pr_notice("Read only device - write request ignored\n");
 		return BLK_STS_IOERR;
 	default:
-		printk(KERN_DEBUG "gdrom: Non-fs request ignored\n");
+		printk(KERN_DE "gdrom: Non-fs request ignored\n");
 		return BLK_STS_IOERR;
 	}
 }

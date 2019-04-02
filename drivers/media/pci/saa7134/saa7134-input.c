@@ -29,21 +29,21 @@ static unsigned int disable_ir;
 module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir,"disable infrared remote support");
 
-static unsigned int ir_debug;
-module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug,"enable debug messages [IR]");
+static unsigned int ir_de;
+module_param(ir_de, int, 0644);
+MODULE_PARM_DESC(ir_de,"enable de messages [IR]");
 
 static int pinnacle_remote;
 module_param(pinnacle_remote, int, 0644);    /* Choose Pinnacle PCTV remote */
 MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=grey (defaults to 0)");
 
 #define input_dbg(fmt, arg...) do { \
-	if (ir_debug) \
-		printk(KERN_DEBUG pr_fmt("input: " fmt), ## arg); \
+	if (ir_de) \
+		printk(KERN_DE pr_fmt("input: " fmt), ## arg); \
 	} while (0)
 #define ir_dbg(ir, fmt, arg...) do { \
-	if (ir_debug) \
-		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->rc->device_name, \
+	if (ir_de) \
+		printk(KERN_DE pr_fmt("ir %s: " fmt), ir->rc->device_name, \
 		       ## arg); \
 	} while (0)
 

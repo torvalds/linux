@@ -369,7 +369,7 @@ static bool ns_capable_common(struct user_namespace *ns,
 
 	if (unlikely(!cap_valid(cap))) {
 		pr_crit("capable() called with invalid cap=%u\n", cap);
-		BUG();
+		();
 	}
 
 	capable = security_capable(current_cred(), ns, cap, opts);

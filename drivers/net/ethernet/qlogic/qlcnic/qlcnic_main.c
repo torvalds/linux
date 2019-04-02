@@ -60,7 +60,7 @@ static void qlcnic_tx_timeout(struct net_device *netdev);
 static void qlcnic_attach_work(struct work_struct *work);
 static void qlcnic_fwinit_work(struct work_struct *work);
 
-static void qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding);
+static void qlcnic_idc_de_info(struct qlcnic_adapter *adapter, u8 encoding);
 static int qlcnic_can_start_firmware(struct qlcnic_adapter *adapter);
 
 static irqreturn_t qlcnic_tmp_intr(int irq, void *data);
@@ -1690,7 +1690,7 @@ check_fw_status:
 		goto err_out;
 
 	QLC_SHARED_REG_WR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
-	qlcnic_idc_debug_info(adapter, 1);
+	qlcnic_idc_de_info(adapter, 1);
 	err = qlcnic_check_eswitch_mode(adapter);
 	if (err) {
 		dev_err(&adapter->pdev->dev,
@@ -3194,7 +3194,7 @@ static irqreturn_t qlcnic_msix_tx_intr(int irq, void *data)
 }
 
 static void
-qlcnic_idc_debug_info(struct qlcnic_adapter *adapter, u8 encoding)
+qlcnic_idc_de_info(struct qlcnic_adapter *adapter, u8 encoding)
 {
 	u32 val;
 
@@ -3343,7 +3343,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 				    QLCNIC_DEV_INITIALIZING);
 		QLC_SHARED_REG_WR32(adapter, QLCNIC_CRB_DRV_IDC_VER,
 				    QLCNIC_DRV_IDC_VER);
-		qlcnic_idc_debug_info(adapter, 0);
+		qlcnic_idc_de_info(adapter, 0);
 		qlcnic_api_unlock(adapter);
 		return 1;
 
@@ -3450,7 +3450,7 @@ skip_ack_check:
 					    QLCNIC_DEV_INITIALIZING);
 			set_bit(__QLCNIC_START_FW, &adapter->state);
 			QLCDB(adapter, DRV, "Restarting fw\n");
-			qlcnic_idc_debug_info(adapter, 0);
+			qlcnic_idc_de_info(adapter, 0);
 			val = QLC_SHARED_REG_RD32(adapter,
 						  QLCNIC_CRB_DRV_STATE);
 			QLC_DEV_SET_RST_RDY(val, adapter->portnum);
@@ -3620,7 +3620,7 @@ static void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *adapter,
 				    QLCNIC_DEV_NEED_RESET);
 		adapter->flags |= QLCNIC_FW_RESET_OWNER;
 		QLCDB(adapter, DRV, "NEED_RESET state set\n");
-		qlcnic_idc_debug_info(adapter, 0);
+		qlcnic_idc_de_info(adapter, 0);
 	}
 
 	QLC_SHARED_REG_WR32(adapter, QLCNIC_CRB_DEV_NPAR_STATE,

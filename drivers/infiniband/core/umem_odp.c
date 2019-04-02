@@ -652,7 +652,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 			if (npages != -EAGAIN)
 				pr_warn("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
 			else
-				pr_debug("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
+				pr_de("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
 			break;
 		}
 
@@ -676,7 +676,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 				if (ret != -EAGAIN)
 					pr_warn("ib_umem_odp_map_dma_single_page failed with error %d\n", ret);
 				else
-					pr_debug("ib_umem_odp_map_dma_single_page failed with error %d\n", ret);
+					pr_de("ib_umem_odp_map_dma_single_page failed with error %d\n", ret);
 				break;
 			}
 

@@ -212,7 +212,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 		pci_dev_put(pdev);
 	}
 
-	pr_debug("PCI: Non-PCI map for %llx, prot: %lx\n",
+	pr_de("PCI: Non-PCI map for %llx, prot: %lx\n",
 		 (unsigned long long)offset, pgprot_val(prot));
 
 	return prot;
@@ -314,7 +314,7 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 	resource_size_t size = vma->vm_end - vma->vm_start;
 	struct resource *rp;
 
-	pr_debug("pci_mmap_legacy_page_range(%04x:%02x, %s @%llx..%llx)\n",
+	pr_de("pci_mmap_legacy_page_range(%04x:%02x, %s @%llx..%llx)\n",
 		 pci_domain_nr(bus), bus->number,
 		 mmap_state == pci_mmap_mem ? "MEM" : "IO",
 		 (unsigned long long)offset,
@@ -330,9 +330,9 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 		 */
 		if ((offset + size) > hose->isa_mem_size) {
 #ifdef CONFIG_MMU
-			pr_debug("Process %s (pid:%d) mapped non-existing PCI",
+			pr_de("Process %s (pid:%d) mapped non-existing PCI",
 				current->comm, current->pid);
-			pr_debug("legacy memory for 0%04x:%02x\n",
+			pr_de("legacy memory for 0%04x:%02x\n",
 				pci_domain_nr(bus), bus->number);
 #endif
 			if (vma->vm_flags & VM_SHARED)
@@ -351,7 +351,7 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 			return -ENXIO;
 		offset += hose->io_base_phys;
 	}
-	pr_debug(" -> mapping phys %llx\n", (unsigned long long)offset);
+	pr_de(" -> mapping phys %llx\n", (unsigned long long)offset);
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -434,12 +434,12 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	if (of_pci_range_parser_init(&parser, dev))
 		return;
 
-	pr_debug("Parsing ranges property...\n");
+	pr_de("Parsing ranges property...\n");
 	for_each_of_pci_range(&parser, &range) {
 		/* Read next ranges element */
-		pr_debug("pci_space: 0x%08x pci_addr:0x%016llx ",
+		pr_de("pci_space: 0x%08x pci_addr:0x%016llx ",
 				range.pci_space, range.pci_addr);
-		pr_debug("cpu_addr:0x%016llx size:0x%016llx\n",
+		pr_de("cpu_addr:0x%016llx size:0x%016llx\n",
 					range.cpu_addr, range.size);
 
 		/* If we failed translation or got a zero-sized region
@@ -510,7 +510,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 
 			/* We get the PCI/Mem offset from the first range or
 			 * the, current one if the offset came from an ISA
-			 * hole. If they don't match, bugger.
+			 * hole. If they don't match, ger.
 			 */
 			if (memno == 0 ||
 			    (isa_hole >= 0 && range.pci_addr != 0 &&
@@ -576,19 +576,19 @@ static void pcibios_fixup_resources(struct pci_dev *dev)
 		if (!res->flags)
 			continue;
 		if (res->start == 0) {
-			pr_debug("PCI:%s Resource %d %016llx-%016llx [%x]",
+			pr_de("PCI:%s Resource %d %016llx-%016llx [%x]",
 				 pci_name(dev), i,
 				 (unsigned long long)res->start,
 				 (unsigned long long)res->end,
 				 (unsigned int)res->flags);
-			pr_debug("is unassigned\n");
+			pr_de("is unassigned\n");
 			res->end -= res->start;
 			res->start = 0;
 			res->flags |= IORESOURCE_UNSET;
 			continue;
 		}
 
-		pr_debug("PCI:%s Resource %d %016llx-%016llx [%x]\n",
+		pr_de("PCI:%s Resource %d %016llx-%016llx [%x]\n",
 			 pci_name(dev), i,
 			 (unsigned long long)res->start,
 			 (unsigned long long)res->end,
@@ -634,7 +634,7 @@ static int __init reparent_resources(struct resource *parent,
 	*pp = NULL;
 	for (p = res->child; p != NULL; p = p->sibling) {
 		p->parent = res;
-		pr_debug("PCI: Reparented %s [%llx..%llx] under %s\n",
+		pr_de("PCI: Reparented %s [%llx..%llx] under %s\n",
 			 p->name,
 			 (unsigned long long)p->start,
 			 (unsigned long long)p->end, res->name);
@@ -681,7 +681,7 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	int i;
 	struct resource *res, *pr;
 
-	pr_debug("PCI: Allocating bus resources for %04x:%02x...\n",
+	pr_de("PCI: Allocating bus resources for %04x:%02x...\n",
 		 pci_domain_nr(bus), bus->number);
 
 	pci_bus_for_each_resource(bus, res, i) {
@@ -708,12 +708,12 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			}
 		}
 
-		pr_debug("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx ",
+		pr_de("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx ",
 			 bus->self ? pci_name(bus->self) : "PHB",
 			 bus->number, i,
 			 (unsigned long long)res->start,
 			 (unsigned long long)res->end);
-		pr_debug("[0x%x], parent %p (%s)\n",
+		pr_de("[0x%x], parent %p (%s)\n",
 			 (unsigned int)res->flags,
 			 pr, (pr && pr->name) ? pr->name : "nil");
 
@@ -750,7 +750,7 @@ static inline void alloc_resource(struct pci_dev *dev, int idx)
 {
 	struct resource *pr, *r = &dev->resource[idx];
 
-	pr_debug("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
+	pr_de("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
 		 pci_name(dev), idx,
 		 (unsigned long long)r->start,
 		 (unsigned long long)r->end,
@@ -762,7 +762,7 @@ static inline void alloc_resource(struct pci_dev *dev, int idx)
 		pr_warn("PCI: Cannot allocate resource region %d ", idx);
 		pr_cont("of device %s, will remap\n", pci_name(dev));
 		if (pr)
-			pr_debug("PCI:  parent is %p: %016llx-%016llx [%x]\n",
+			pr_de("PCI:  parent is %p: %016llx-%016llx [%x]\n",
 				 pr,
 				 (unsigned long long)pr->start,
 				 (unsigned long long)pr->end,
@@ -811,7 +811,7 @@ static void __init pcibios_allocate_resources(int pass)
 			u32 reg;
 			pci_read_config_dword(dev, dev->rom_base_reg, &reg);
 			if (reg & PCI_ROM_ADDRESS_ENABLE) {
-				pr_debug("PCI: Switching off ROM of %s\n",
+				pr_de("PCI: Switching off ROM of %s\n",
 					 pci_name(dev));
 				r->flags &= ~IORESOURCE_ROM_ENABLE;
 				pci_write_config_dword(dev, dev->rom_base_reg,
@@ -828,7 +828,7 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 	struct resource *res, *pres;
 	int i;
 
-	pr_debug("Reserving legacy ranges for domain %04x\n",
+	pr_de("Reserving legacy ranges for domain %04x\n",
 							pci_domain_nr(bus));
 
 	/* Check for IO */
@@ -836,14 +836,14 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 		goto no_io;
 	offset = (unsigned long)hose->io_base_virt - _IO_BASE;
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-	BUG_ON(res == NULL);
+	_ON(res == NULL);
 	res->name = "Legacy IO";
 	res->flags = IORESOURCE_IO;
 	res->start = offset;
 	res->end = (offset + 0xfff) & 0xfffffffful;
-	pr_debug("Candidate legacy IO: %pR\n", res);
+	pr_de("Candidate legacy IO: %pR\n", res);
 	if (request_resource(&hose->io_resource, res)) {
-		pr_debug("PCI %04x:%02x Cannot reserve Legacy IO %pR\n",
+		pr_de("PCI %04x:%02x Cannot reserve Legacy IO %pR\n",
 		       pci_domain_nr(bus), bus->number, res);
 		kfree(res);
 	}
@@ -851,12 +851,12 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
  no_io:
 	/* Check for memory */
 	offset = hose->pci_mem_offset;
-	pr_debug("hose mem offset: %016llx\n", (unsigned long long)offset);
+	pr_de("hose mem offset: %016llx\n", (unsigned long long)offset);
 	for (i = 0; i < 3; i++) {
 		pres = &hose->mem_resources[i];
 		if (!(pres->flags & IORESOURCE_MEM))
 			continue;
-		pr_debug("hose mem res: %pR\n", pres);
+		pr_de("hose mem res: %pR\n", pres);
 		if ((pres->start - offset) <= 0xa0000 &&
 		    (pres->end - offset) >= 0xbffff)
 			break;
@@ -864,14 +864,14 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 	if (i >= 3)
 		return;
 	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-	BUG_ON(res == NULL);
+	_ON(res == NULL);
 	res->name = "Legacy VGA memory";
 	res->flags = IORESOURCE_MEM;
 	res->start = 0xa0000 + offset;
 	res->end = 0xbffff + offset;
-	pr_debug("Candidate VGA memory: %pR\n", res);
+	pr_de("Candidate VGA memory: %pR\n", res);
 	if (request_resource(pres, res)) {
-		pr_debug("PCI %04x:%02x Cannot reserve VGA memory %pR\n",
+		pr_de("PCI %04x:%02x Cannot reserve VGA memory %pR\n",
 		       pci_domain_nr(bus), bus->number, res);
 		kfree(res);
 	}
@@ -898,7 +898,7 @@ void __init pcibios_resource_survey(void)
 		pcibios_reserve_legacy_regions(b);
 
 	/* Now proceed to assigning things that were left unassigned */
-	pr_debug("PCI: Assigning unassigned resources...\n");
+	pr_de("PCI: Assigning unassigned resources...\n");
 	pci_assign_unassigned_resources();
 }
 
@@ -929,7 +929,7 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 	pci_add_resource_offset(resources, res,
 		(__force resource_size_t)(hose->io_base_virt - _IO_BASE));
 
-	pr_debug("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
+	pr_de("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
 		 (unsigned long long)res->start,
 		 (unsigned long long)res->end,
 		 (unsigned long)res->flags);
@@ -952,15 +952,15 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 		}
 		pci_add_resource_offset(resources, res, hose->pci_mem_offset);
 
-		pr_debug("PCI: PHB MEM resource %d = %016llx-%016llx [%lx]\n",
+		pr_de("PCI: PHB MEM resource %d = %016llx-%016llx [%lx]\n",
 			i, (unsigned long long)res->start,
 			(unsigned long long)res->end,
 			(unsigned long)res->flags);
 	}
 
-	pr_debug("PCI: PHB MEM offset     = %016llx\n",
+	pr_de("PCI: PHB MEM offset     = %016llx\n",
 		 (unsigned long long)hose->pci_mem_offset);
-	pr_debug("PCI: PHB IO  offset     = %08lx\n",
+	pr_de("PCI: PHB IO  offset     = %08lx\n",
 		 (unsigned long)hose->io_base_virt - _IO_BASE);
 }
 
@@ -970,7 +970,7 @@ static void pcibios_scan_phb(struct pci_controller *hose)
 	struct pci_bus *bus;
 	struct device_node *node = hose->dn;
 
-	pr_debug("PCI: Scanning PHB %pOF\n", node);
+	pr_de("PCI: Scanning PHB %pOF\n", node);
 
 	pcibios_setup_phb_resources(hose, &resources);
 

@@ -96,7 +96,7 @@
 /*
  * The first 1MB of GPMC address space is typically mapped to
  * the internal ROM. Never allocate the first page, to
- * facilitate bug detection; even if we didn't boot from ROM.
+ * facilitate  detection; even if we didn't boot from ROM.
  * As GPMC minimum partition size is 16MB we can only start from
  * there.
  */
@@ -406,7 +406,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
 			   p->cycle2cyclediffcsen);
 }
 
-#ifdef CONFIG_OMAP_GPMC_DEBUG
+#ifdef CONFIG_OMAP_GPMC_DE
 /**
  * get_gpmc_timing_reg - read a timing parameter and print DTS settings for it.
  * @cs:      Chip Select Region
@@ -626,7 +626,7 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 	}
 
 	l = gpmc_cs_read_reg(cs, reg);
-#ifdef CONFIG_OMAP_GPMC_DEBUG
+#ifdef CONFIG_OMAP_GPMC_DE
 	pr_info(
 		"GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
 	       cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
@@ -789,7 +789,7 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 			    GPMC_CONFIG1_CLKACTIVATIONTIME_MAX,
 			    clk_activation, GPMC_CD_FCLK);
 
-#ifdef CONFIG_OMAP_GPMC_DEBUG
+#ifdef CONFIG_OMAP_GPMC_DE
 	pr_info("GPMC CS%d CLK period is %lu ns (div %d)\n",
 			cs, (div * gpmc_get_fclk_period()) / 1000, div);
 #endif
@@ -1034,7 +1034,7 @@ void gpmc_cs_free(int cs)
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
 		printk(KERN_ERR "Trying to free non-reserved GPMC CS%d\n", cs);
-		BUG();
+		();
 		spin_unlock(&gpmc_mem_lock);
 		return;
 	}
@@ -1941,7 +1941,7 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 		p->wait_on_write = of_property_read_bool(np,
 							 "gpmc,wait-on-write");
 		if (!p->wait_on_read && !p->wait_on_write)
-			pr_debug("%s: rd/wr wait monitoring not enabled!\n",
+			pr_de("%s: rd/wr wait monitoring not enabled!\n",
 				 __func__);
 	}
 }
@@ -2080,7 +2080,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * REVISIT: Add timing support from slls644g.pdf.
 	 */
 	if (!gpmc_t.cs_rd_off) {
-		WARN(1, "enable GPMC debug to configure .dts timings for CS%i\n",
+		WARN(1, "enable GPMC de to configure .dts timings for CS%i\n",
 			cs);
 		gpmc_cs_show_timings(cs,
 				     "please add GPMC bootloader timings to .dts");

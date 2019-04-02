@@ -40,7 +40,7 @@
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/efi.h>
 #include <linux/random.h>
 #include "hyperv_vmbus.h"
@@ -312,13 +312,13 @@ static ssize_t out_intr_mask_show(struct device *dev,
 				  struct device_attribute *dev_attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info outbound;
+	struct hv_ring_buffer_de_info outbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound,
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->outbound,
 					  &outbound);
 	if (ret < 0)
 		return ret;
@@ -331,13 +331,13 @@ static ssize_t out_read_index_show(struct device *dev,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info outbound;
+	struct hv_ring_buffer_de_info outbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound,
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->outbound,
 					  &outbound);
 	if (ret < 0)
 		return ret;
@@ -350,13 +350,13 @@ static ssize_t out_write_index_show(struct device *dev,
 				    char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info outbound;
+	struct hv_ring_buffer_de_info outbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound,
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->outbound,
 					  &outbound);
 	if (ret < 0)
 		return ret;
@@ -369,13 +369,13 @@ static ssize_t out_read_bytes_avail_show(struct device *dev,
 					 char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info outbound;
+	struct hv_ring_buffer_de_info outbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound,
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->outbound,
 					  &outbound);
 	if (ret < 0)
 		return ret;
@@ -388,13 +388,13 @@ static ssize_t out_write_bytes_avail_show(struct device *dev,
 					  char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info outbound;
+	struct hv_ring_buffer_de_info outbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->outbound,
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->outbound,
 					  &outbound);
 	if (ret < 0)
 		return ret;
@@ -406,13 +406,13 @@ static ssize_t in_intr_mask_show(struct device *dev,
 				 struct device_attribute *dev_attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_de_info inbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->inbound, &inbound);
 	if (ret < 0)
 		return ret;
 
@@ -424,13 +424,13 @@ static ssize_t in_read_index_show(struct device *dev,
 				  struct device_attribute *dev_attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_de_info inbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->inbound, &inbound);
 	if (ret < 0)
 		return ret;
 
@@ -442,13 +442,13 @@ static ssize_t in_write_index_show(struct device *dev,
 				   struct device_attribute *dev_attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_de_info inbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->inbound, &inbound);
 	if (ret < 0)
 		return ret;
 
@@ -461,13 +461,13 @@ static ssize_t in_read_bytes_avail_show(struct device *dev,
 					char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_de_info inbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->inbound, &inbound);
 	if (ret < 0)
 		return ret;
 
@@ -480,13 +480,13 @@ static ssize_t in_write_bytes_avail_show(struct device *dev,
 					 char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
-	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_de_info inbound;
 	int ret;
 
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	ret = hv_ringbuffer_get_debuginfo(&hv_dev->channel->inbound, &inbound);
+	ret = hv_ringbuffer_get_deinfo(&hv_dev->channel->inbound, &inbound);
 	if (ret < 0)
 		return ret;
 
@@ -1655,7 +1655,7 @@ err_dev_unregister:
  */
 void vmbus_device_unregister(struct hv_device *device_obj)
 {
-	pr_debug("child device %s unregistered\n",
+	pr_de("child device %s unregistered\n",
 		dev_name(&device_obj->device));
 
 	kset_unregister(device_obj->channels_kset);

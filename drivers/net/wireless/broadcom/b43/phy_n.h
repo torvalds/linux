@@ -488,7 +488,7 @@
 #define B43_NPHY_PHASETR_CHG0			B43_PHY_N(0x14B) /* Phase track change 0 */
 #define B43_NPHY_PHASETR_CHG1			B43_PHY_N(0x14C) /* Phase track change 1 */
 #define B43_NPHY_PHASETW_OFF			B43_PHY_N(0x14D) /* Phase track offset */
-#define B43_NPHY_RFCTL_DBG			B43_PHY_N(0x14E) /* RF control debug */
+#define B43_NPHY_RFCTL_DBG			B43_PHY_N(0x14E) /* RF control de */
 #define B43_NPHY_CCK_SHIFTB_REF			B43_PHY_N(0x150) /* CCK shiftbits reference var */
 #define B43_NPHY_OVER_DGAIN0			B43_PHY_N(0x152) /* Override digital gain 0 */
 #define B43_NPHY_OVER_DGAIN1			B43_PHY_N(0x153) /* Override digital gain 1 */
@@ -538,7 +538,7 @@
 #define B43_NPHY_DUP40_GFBL			B43_PHY_N(0x180) /* Dup40 GF format BL address */
 #define B43_NPHY_DUP40_BL			B43_PHY_N(0x181) /* Dup40 format BL address */
 #define B43_NPHY_LEGDUP_FTA			B43_PHY_N(0x182) /* Legacy dup frm table address */
-#define B43_NPHY_PACPROC_DBG			B43_PHY_N(0x183) /* Packet processing debug */
+#define B43_NPHY_PACPROC_DBG			B43_PHY_N(0x183) /* Packet processing de */
 #define B43_NPHY_PIL_CYC1			B43_PHY_N(0x184) /* Pilot cycle counter 1 */
 #define B43_NPHY_PIL_CYC2			B43_PHY_N(0x185) /* Pilot cycle counter 2 */
 #define B43_NPHY_TXF_20CO_S0A1			B43_PHY_N(0x186) /* TX filter 20 coeff stage 0 A1 */

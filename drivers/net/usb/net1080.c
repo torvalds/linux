@@ -16,7 +16,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>

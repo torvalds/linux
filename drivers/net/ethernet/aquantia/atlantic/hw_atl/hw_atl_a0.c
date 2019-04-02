@@ -368,8 +368,8 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 	self->aq_fw_ops->set_link_speed(self, aq_nic_cfg->link_speed_msk);
 	self->aq_fw_ops->set_state(self, MPI_INIT);
 
-	hw_atl_reg_tx_dma_debug_ctl_set(self, 0x800000b8U);
-	hw_atl_reg_tx_dma_debug_ctl_set(self, 0x000000b8U);
+	hw_atl_reg_tx_dma_de_ctl_set(self, 0x800000b8U);
+	hw_atl_reg_tx_dma_de_ctl_set(self, 0x000000b8U);
 
 	hw_atl_a0_hw_qos_set(self);
 	hw_atl_a0_hw_rss_set(self, &aq_nic_cfg->aq_rss);

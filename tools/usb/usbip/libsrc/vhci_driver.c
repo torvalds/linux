@@ -61,7 +61,7 @@ static int parse_status(const char *value)
 
 		if (ret < 5) {
 			dbg("sscanf failed: %d", ret);
-			BUG();
+			();
 		}
 
 		dbg("hub %s port %d status %d speed %d devid %x",

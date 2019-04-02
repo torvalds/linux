@@ -26,7 +26,7 @@ connected to a pull-up GPIO line) and the AllWinner A10/A20 drm driver
 support this framework.
 
 If ``CONFIG_CEC_PIN_ERROR_INJ`` is enabled, then error injection is available
-through debugfs. Specifically, in ``/sys/kernel/debug/cec/cecX/`` there is
+through defs. Specifically, in ``/sys/kernel/de/cec/cecX/`` there is
 now an ``error-inj`` file.
 
 .. note::
@@ -37,7 +37,7 @@ now an ``error-inj`` file.
 With ``cat error-inj`` you can see both the possible commands and the current
 error injection status::
 
-	$ cat /sys/kernel/debug/cec/cec0/error-inj
+	$ cat /sys/kernel/de/cec/cec0/error-inj
 	# Clear error injections:
 	#   clear          clear all rx and tx error injections
 	#   rx-clear       clear all rx error injections

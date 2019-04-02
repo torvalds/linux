@@ -34,13 +34,13 @@ struct a6xx_gpu_state {
 	struct a6xx_gpu_state_obj *indexed_regs;
 	int nr_indexed_regs;
 
-	struct a6xx_gpu_state_obj *debugbus;
-	int nr_debugbus;
+	struct a6xx_gpu_state_obj *debus;
+	int nr_debus;
 
-	struct a6xx_gpu_state_obj *vbif_debugbus;
+	struct a6xx_gpu_state_obj *vbif_debus;
 
-	struct a6xx_gpu_state_obj *cx_debugbus;
-	int nr_cx_debugbus;
+	struct a6xx_gpu_state_obj *cx_debus;
+	int nr_cx_debus;
 
 	struct list_head objs;
 };
@@ -152,8 +152,8 @@ static int a6xx_crashdumper_run(struct msm_gpu *gpu,
 	return ret;
 }
 
-/* read a value from the GX debug bus */
-static int debugbus_read(struct msm_gpu *gpu, u32 block, u32 offset,
+/* read a value from the GX de bus */
+static int debus_read(struct msm_gpu *gpu, u32 block, u32 offset,
 		u32 *data)
 {
 	u32 reg = A6XX_DBGC_CFG_DBGBUS_SEL_D_PING_INDEX(offset) |
@@ -179,8 +179,8 @@ static int debugbus_read(struct msm_gpu *gpu, u32 block, u32 offset,
 #define cxdbg_read(ptr, offset) \
 	msm_readl((ptr) + ((offset) << 2))
 
-/* read a value from the CX debug bus */
-static int cx_debugbus_read(void *__iomem cxdbg, u32 block, u32 offset,
+/* read a value from the CX de bus */
+static int cx_debus_read(void *__iomem cxdbg, u32 block, u32 offset,
 		u32 *data)
 {
 	u32 reg = A6XX_CX_DBGC_CFG_DBGBUS_SEL_A_PING_INDEX(offset) |
@@ -200,8 +200,8 @@ static int cx_debugbus_read(void *__iomem cxdbg, u32 block, u32 offset,
 	return 2;
 }
 
-/* Read a chunk of data from the VBIF debug bus */
-static int vbif_debugbus_read(struct msm_gpu *gpu, u32 ctrl0, u32 ctrl1,
+/* Read a chunk of data from the VBIF de bus */
+static int vbif_debus_read(struct msm_gpu *gpu, u32 ctrl0, u32 ctrl1,
 		u32 reg, int count, u32 *data)
 {
 	int i;
@@ -220,19 +220,19 @@ static int vbif_debugbus_read(struct msm_gpu *gpu, u32 ctrl0, u32 ctrl1,
 #define XIN_AXI_BLOCKS 5
 #define XIN_CORE_BLOCKS 4
 
-#define VBIF_DEBUGBUS_BLOCK_SIZE \
+#define VBIF_DEBUS_BLOCK_SIZE \
 	((16 * AXI_ARB_BLOCKS) + \
 	 (18 * XIN_AXI_BLOCKS) + \
 	 (12 * XIN_CORE_BLOCKS))
 
-static void a6xx_get_vbif_debugbus_block(struct msm_gpu *gpu,
+static void a6xx_get_vbif_debus_block(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
 		struct a6xx_gpu_state_obj *obj)
 {
 	u32 clk, *ptr;
 	int i;
 
-	obj->data = state_kcalloc(a6xx_state, VBIF_DEBUGBUS_BLOCK_SIZE,
+	obj->data = state_kcalloc(a6xx_state, VBIF_DEBUS_BLOCK_SIZE,
 		sizeof(u32));
 	if (!obj->data)
 		return;
@@ -255,13 +255,13 @@ static void a6xx_get_vbif_debugbus_block(struct msm_gpu *gpu,
 	ptr = obj->data;
 
 	for (i = 0; i < AXI_ARB_BLOCKS; i++)
-		ptr += vbif_debugbus_read(gpu,
+		ptr += vbif_debus_read(gpu,
 			REG_A6XX_VBIF_TEST_BUS2_CTRL0,
 			REG_A6XX_VBIF_TEST_BUS2_CTRL1,
 			1 << (i + 16), 16, ptr);
 
 	for (i = 0; i < XIN_AXI_BLOCKS; i++)
-		ptr += vbif_debugbus_read(gpu,
+		ptr += vbif_debus_read(gpu,
 			REG_A6XX_VBIF_TEST_BUS2_CTRL0,
 			REG_A6XX_VBIF_TEST_BUS2_CTRL1,
 			1 << i, 18, ptr);
@@ -270,7 +270,7 @@ static void a6xx_get_vbif_debugbus_block(struct msm_gpu *gpu,
 	gpu_write(gpu, REG_A6XX_VBIF_TEST_BUS2_CTRL0, 0);
 
 	for (i = 0; i < XIN_CORE_BLOCKS; i++)
-		ptr += vbif_debugbus_read(gpu,
+		ptr += vbif_debus_read(gpu,
 			REG_A6XX_VBIF_TEST_BUS1_CTRL0,
 			REG_A6XX_VBIF_TEST_BUS1_CTRL1,
 			1 << i, 12, ptr);
@@ -279,9 +279,9 @@ static void a6xx_get_vbif_debugbus_block(struct msm_gpu *gpu,
 	gpu_write(gpu, REG_A6XX_VBIF_CLKON, clk);
 }
 
-static void a6xx_get_debugbus_block(struct msm_gpu *gpu,
+static void a6xx_get_debus_block(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
-		const struct a6xx_debugbus_block *block,
+		const struct a6xx_debus_block *block,
 		struct a6xx_gpu_state_obj *obj)
 {
 	int i;
@@ -294,12 +294,12 @@ static void a6xx_get_debugbus_block(struct msm_gpu *gpu,
 	obj->handle = block;
 
 	for (ptr = obj->data, i = 0; i < block->count; i++)
-		ptr += debugbus_read(gpu, block->id, i, ptr);
+		ptr += debus_read(gpu, block->id, i, ptr);
 }
 
-static void a6xx_get_cx_debugbus_block(void __iomem *cxdbg,
+static void a6xx_get_cx_debus_block(void __iomem *cxdbg,
 		struct a6xx_gpu_state *a6xx_state,
-		const struct a6xx_debugbus_block *block,
+		const struct a6xx_debus_block *block,
 		struct a6xx_gpu_state_obj *obj)
 {
 	int i;
@@ -312,16 +312,16 @@ static void a6xx_get_cx_debugbus_block(void __iomem *cxdbg,
 	obj->handle = block;
 
 	for (ptr = obj->data, i = 0; i < block->count; i++)
-		ptr += cx_debugbus_read(cxdbg, block->id, i, ptr);
+		ptr += cx_debus_read(cxdbg, block->id, i, ptr);
 }
 
-static void a6xx_get_debugbus(struct msm_gpu *gpu,
+static void a6xx_get_debus(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state)
 {
 	struct resource *res;
 	void __iomem *cxdbg = NULL;
 
-	/* Set up the GX debug bus */
+	/* Set up the GX de bus */
 
 	gpu_write(gpu, REG_A6XX_DBGC_CFG_DBGBUS_CNTLT,
 		A6XX_DBGC_CFG_DBGBUS_CNTLT_SEGT(0xf));
@@ -342,7 +342,7 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 	gpu_write(gpu, REG_A6XX_DBGC_CFG_DBGBUS_MASKL_2, 0);
 	gpu_write(gpu, REG_A6XX_DBGC_CFG_DBGBUS_MASKL_3, 0);
 
-	/* Set up the CX debug bus - it lives elsewhere in the system so do a
+	/* Set up the CX de bus - it lives elsewhere in the system so do a
 	 * temporary ioremap for the registers
 	 */
 	res = platform_get_resource_byname(gpu->pdev, IORESOURCE_MEM,
@@ -374,47 +374,47 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 		cxdbg_write(cxdbg, REG_A6XX_DBGC_CFG_DBGBUS_MASKL_3, 0);
 	}
 
-	a6xx_state->debugbus = state_kcalloc(a6xx_state,
-		ARRAY_SIZE(a6xx_debugbus_blocks),
-		sizeof(*a6xx_state->debugbus));
+	a6xx_state->debus = state_kcalloc(a6xx_state,
+		ARRAY_SIZE(a6xx_debus_blocks),
+		sizeof(*a6xx_state->debus));
 
-	if (a6xx_state->debugbus) {
+	if (a6xx_state->debus) {
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(a6xx_debugbus_blocks); i++)
-			a6xx_get_debugbus_block(gpu,
+		for (i = 0; i < ARRAY_SIZE(a6xx_debus_blocks); i++)
+			a6xx_get_debus_block(gpu,
 				a6xx_state,
-				&a6xx_debugbus_blocks[i],
-				&a6xx_state->debugbus[i]);
+				&a6xx_debus_blocks[i],
+				&a6xx_state->debus[i]);
 
-		a6xx_state->nr_debugbus = ARRAY_SIZE(a6xx_debugbus_blocks);
+		a6xx_state->nr_debus = ARRAY_SIZE(a6xx_debus_blocks);
 	}
 
-	a6xx_state->vbif_debugbus =
+	a6xx_state->vbif_debus =
 		state_kcalloc(a6xx_state, 1,
-			sizeof(*a6xx_state->vbif_debugbus));
+			sizeof(*a6xx_state->vbif_debus));
 
-	if (a6xx_state->vbif_debugbus)
-		a6xx_get_vbif_debugbus_block(gpu, a6xx_state,
-			a6xx_state->vbif_debugbus);
+	if (a6xx_state->vbif_debus)
+		a6xx_get_vbif_debus_block(gpu, a6xx_state,
+			a6xx_state->vbif_debus);
 
 	if (cxdbg) {
-		a6xx_state->cx_debugbus =
+		a6xx_state->cx_debus =
 			state_kcalloc(a6xx_state,
-			ARRAY_SIZE(a6xx_cx_debugbus_blocks),
-			sizeof(*a6xx_state->cx_debugbus));
+			ARRAY_SIZE(a6xx_cx_debus_blocks),
+			sizeof(*a6xx_state->cx_debus));
 
-		if (a6xx_state->cx_debugbus) {
+		if (a6xx_state->cx_debus) {
 			int i;
 
-			for (i = 0; i < ARRAY_SIZE(a6xx_cx_debugbus_blocks); i++)
-				a6xx_get_cx_debugbus_block(cxdbg,
+			for (i = 0; i < ARRAY_SIZE(a6xx_cx_debus_blocks); i++)
+				a6xx_get_cx_debus_block(cxdbg,
 					a6xx_state,
-					&a6xx_cx_debugbus_blocks[i],
-					&a6xx_state->cx_debugbus[i]);
+					&a6xx_cx_debus_blocks[i],
+					&a6xx_state->cx_debus[i]);
 
-			a6xx_state->nr_cx_debugbus =
-				ARRAY_SIZE(a6xx_cx_debugbus_blocks);
+			a6xx_state->nr_cx_debus =
+				ARRAY_SIZE(a6xx_cx_debus_blocks);
 		}
 
 		iounmap(cxdbg);
@@ -560,7 +560,7 @@ static void a6xx_get_clusters(struct msm_gpu *gpu,
 			&a6xx_state->clusters[i], dumper);
 }
 
-/* Read a shader / debug block from the HLSQ aperture with the crashdumper */
+/* Read a shader / de block from the HLSQ aperture with the crashdumper */
 static void a6xx_get_shader_block(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
 		const struct a6xx_shader_block *block,
@@ -897,7 +897,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 		msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 	}
 
-	a6xx_get_debugbus(gpu, a6xx_state);
+	a6xx_get_debus(gpu, a6xx_state);
 
 	return  &a6xx_state->base;
 }
@@ -1067,14 +1067,14 @@ static void a6xx_show_indexed_regs(struct a6xx_gpu_state_obj *obj,
 	print_ascii85(p, indexed->count << 2, obj->data);
 }
 
-static void a6xx_show_debugbus_block(const struct a6xx_debugbus_block *block,
+static void a6xx_show_debus_block(const struct a6xx_debus_block *block,
 		u32 *data, struct drm_printer *p)
 {
 	if (block) {
-		print_name(p, "  - debugbus-block: ", block->name);
+		print_name(p, "  - debus-block: ", block->name);
 
 		/*
-		 * count for regular debugbus data is in quadwords,
+		 * count for regular debus data is in quadwords,
 		 * but print the size in dwords for consistency
 		 */
 		drm_printf(p, "    count: %d\n", block->count << 1);
@@ -1083,31 +1083,31 @@ static void a6xx_show_debugbus_block(const struct a6xx_debugbus_block *block,
 	}
 }
 
-static void a6xx_show_debugbus(struct a6xx_gpu_state *a6xx_state,
+static void a6xx_show_debus(struct a6xx_gpu_state *a6xx_state,
 		struct drm_printer *p)
 {
 	int i;
 
-	for (i = 0; i < a6xx_state->nr_debugbus; i++) {
-		struct a6xx_gpu_state_obj *obj = &a6xx_state->debugbus[i];
+	for (i = 0; i < a6xx_state->nr_debus; i++) {
+		struct a6xx_gpu_state_obj *obj = &a6xx_state->debus[i];
 
-		a6xx_show_debugbus_block(obj->handle, obj->data, p);
+		a6xx_show_debus_block(obj->handle, obj->data, p);
 	}
 
-	if (a6xx_state->vbif_debugbus) {
-		struct a6xx_gpu_state_obj *obj = a6xx_state->vbif_debugbus;
+	if (a6xx_state->vbif_debus) {
+		struct a6xx_gpu_state_obj *obj = a6xx_state->vbif_debus;
 
-		drm_puts(p, "  - debugbus-block: A6XX_DBGBUS_VBIF\n");
-		drm_printf(p, "    count: %d\n", VBIF_DEBUGBUS_BLOCK_SIZE);
+		drm_puts(p, "  - debus-block: A6XX_DBGBUS_VBIF\n");
+		drm_printf(p, "    count: %d\n", VBIF_DEBUS_BLOCK_SIZE);
 
-		/* vbif debugbus data is in dwords.  Confusing, huh? */
-		print_ascii85(p, VBIF_DEBUGBUS_BLOCK_SIZE << 2, obj->data);
+		/* vbif debus data is in dwords.  Confusing, huh? */
+		print_ascii85(p, VBIF_DEBUS_BLOCK_SIZE << 2, obj->data);
 	}
 
-	for (i = 0; i < a6xx_state->nr_cx_debugbus; i++) {
-		struct a6xx_gpu_state_obj *obj = &a6xx_state->cx_debugbus[i];
+	for (i = 0; i < a6xx_state->nr_cx_debus; i++) {
+		struct a6xx_gpu_state_obj *obj = &a6xx_state->cx_debus[i];
 
-		a6xx_show_debugbus_block(obj->handle, obj->data, p);
+		a6xx_show_debus_block(obj->handle, obj->data, p);
 	}
 }
 
@@ -1160,6 +1160,6 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 	for (i = 0; i < a6xx_state->nr_dbgahb_clusters; i++)
 		a6xx_show_dbgahb_cluster(&a6xx_state->dbgahb_clusters[i], p);
 
-	drm_puts(p, "debugbus:\n");
-	a6xx_show_debugbus(a6xx_state, p);
+	drm_puts(p, "debus:\n");
+	a6xx_show_debus(a6xx_state, p);
 }

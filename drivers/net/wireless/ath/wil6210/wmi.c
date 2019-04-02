@@ -105,7 +105,7 @@ const struct fw_map sparrow_fw_mapping[] = {
 	{0x88c000, 0x88c200, 0x88c000, "mac_rgf_ext", true, true},
 	/* upper area 548k */
 	{0x8c0000, 0x949000, 0x8c0000, "upper", true, true},
-	/* UCODE areas - accessible by debugfs blobs but not by
+	/* UCODE areas - accessible by defs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 128k */
@@ -156,7 +156,7 @@ const struct fw_map talyn_fw_mapping[] = {
 	{0x8b0000, 0x8c0000, 0x8b0000, "dma_ext_rgf", true, true},
 	/* upper area 1536k */
 	{0x900000, 0xa80000, 0x900000, "upper", true, true},
-	/* UCODE areas - accessible by debugfs blobs but not by
+	/* UCODE areas - accessible by defs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 256k */
@@ -207,11 +207,11 @@ const struct fw_map talyn_mb_fw_mapping[] = {
 	{0x8c0000, 0x8c0210, 0x8c0000, "dum_user_rgf", true, true},
 	/* DMA OFU 296b */
 	{0x8c2000, 0x8c2128, 0x8c2000, "dma_ofu", true, true},
-	/* ucode debug 4k */
-	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_debug", true, true},
+	/* ucode de 4k */
+	{0x8c3000, 0x8c4000, 0x8c3000, "ucode_de", true, true},
 	/* upper area 1536k */
 	{0x900000, 0xa80000, 0x900000, "upper", true, true},
-	/* UCODE areas - accessible by debugfs blobs but not by
+	/* UCODE areas - accessible by defs blobs but not by
 	 * wmi_addr_remap. UCODE areas MUST be added AFTER FW areas!
 	 */
 	/* ucode code RAM 256k */
@@ -2432,7 +2432,7 @@ int wmi_set_ie(struct wil6210_vif *vif, u8 type, u16 ie_len, const void *ie)
 		ie_len = 0;
 
 	cmd->mgmt_frm_type = type;
-	/* BUG: FW API define ieLen as u8. Will fix FW */
+	/* : FW API define ieLen as u8. Will fix FW */
 	cmd->ie_len = cpu_to_le16(ie_len);
 	memcpy(cmd->ie_info, ie, ie_len);
 	rc = wmi_send(wil, WMI_SET_APPIE_CMDID, vif->mid, cmd, len);

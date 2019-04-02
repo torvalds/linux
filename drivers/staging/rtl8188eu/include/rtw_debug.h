@@ -4,8 +4,8 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#ifndef __RTW_DEBUG_H__
-#define __RTW_DEBUG_H__
+#ifndef __RTW_DE_H__
+#define __RTW_DE_H__
 
 #include <osdep_service.h>
 #include <drv_types.h>
@@ -19,7 +19,7 @@
 #define	_drv_warning_			6
 #define _drv_notice_			7
 #define _drv_info_			8
-#define	_drv_debug_			9
+#define	_drv_de_			9
 
 
 #define _module_rtl871x_xmit_c_		BIT(0)
@@ -57,29 +57,29 @@
 
 #define DRIVER_PREFIX	"R8188EU: "
 
-extern u32 GlobalDebugLevel;
+extern u32 GlobalDeLevel;
 
 #define DBG_88E_LEVEL(_level, fmt, arg...)				\
 	do {								\
-		if (_level <= GlobalDebugLevel)				\
+		if (_level <= GlobalDeLevel)				\
 			pr_info(DRIVER_PREFIX fmt, ##arg);	\
 	} while (0)
 
 #define DBG_88E(...)							\
 	do {								\
-		if (_drv_err_ <= GlobalDebugLevel)			\
+		if (_drv_err_ <= GlobalDeLevel)			\
 			pr_info(DRIVER_PREFIX __VA_ARGS__);		\
 	} while (0)
 
 #define MSG_88E(...)							\
 	do {								\
-		if (_drv_err_ <= GlobalDebugLevel)			\
+		if (_drv_err_ <= GlobalDeLevel)			\
 			pr_info(DRIVER_PREFIX __VA_ARGS__);			\
 	} while (0)
 
 #define RT_TRACE(_comp, _level, fmt)					\
 	do {								\
-		if (_level <= GlobalDebugLevel) {			\
+		if (_level <= GlobalDeLevel) {			\
 			pr_info("%s [0x%08x,%d]", DRIVER_PREFIX,	\
 				 (unsigned int)_comp, _level);		\
 			pr_info fmt;					\
@@ -88,7 +88,7 @@ extern u32 GlobalDebugLevel;
 
 #define RT_PRINT_DATA(_comp, _level, _titlestring, _hexdata, _hexdatalen)\
 	do {								\
-		if (_level <= GlobalDebugLevel) {			\
+		if (_level <= GlobalDeLevel) {			\
 			int __i;					\
 			u8	*ptr = (u8 *)_hexdata;			\
 			pr_info("%s", DRIVER_PREFIX);			\
@@ -129,4 +129,4 @@ int proc_get_best_channel(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);
 
-#endif	/* __RTW_DEBUG_H__ */
+#endif	/* __RTW_DE_H__ */

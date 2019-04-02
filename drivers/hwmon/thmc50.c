@@ -328,11 +328,11 @@ static int thmc50_detect(struct i2c_client *client,
 	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("thmc50: detect failed, smbus byte data not supported!\n");
+		pr_de("thmc50: detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
-	pr_debug("thmc50: Probing for THMC50 at 0x%2X on bus %d\n",
+	pr_de("thmc50: Probing for THMC50 at 0x%2X on bus %d\n",
 		 client->addr, i2c_adapter_id(client->adapter));
 
 	company = i2c_smbus_read_byte_data(client, THMC50_REG_COMPANY_ID);
@@ -359,11 +359,11 @@ static int thmc50_detect(struct i2c_client *client,
 	} else if (company == 0x49) {
 		type_name = "thmc50";
 	} else {
-		pr_debug("thmc50: Detection of THMC50/ADM1022 failed\n");
+		pr_de("thmc50: Detection of THMC50/ADM1022 failed\n");
 		return -ENODEV;
 	}
 
-	pr_debug("thmc50: Detected %s (version %x, revision %x)\n",
+	pr_de("thmc50: Detected %s (version %x, revision %x)\n",
 		 type_name, (revision >> 4) - 0xc, revision & 0xf);
 
 	strlcpy(info->type, type_name, I2C_NAME_SIZE);

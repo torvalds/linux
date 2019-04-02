@@ -4,13 +4,13 @@ started by Ingo Molnar <mingo@redhat.com>, 2001.09.17
 IPv6 support by Cong Wang <xiyou.wangcong@gmail.com>, Jan 1 2013
 Extended console support by Tejun Heo <tj@kernel.org>, May 1 2015
 
-Please send bug reports to Matt Mackall <mpm@selenic.com>
+Please send  reports to Matt Mackall <mpm@selenic.com>
 Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
 
 Introduction:
 =============
 
-This module logs kernel printk messages over UDP allowing debugging of
+This module logs kernel printk messages over UDP allowing deging of
 problem where disk logging fails and serial consoles are impractical.
 
 It can be used either built-in or as a module. As a built-in,
@@ -197,13 +197,13 @@ priority messages to the console. You can change this at runtime using:
 
  dmesg -n 8
 
-or by specifying "debug" on the kernel command line at boot, to send
+or by specifying "de" on the kernel command line at boot, to send
 all kernel messages to the console. A specific value for this parameter
 can also be set using the "loglevel" kernel boot option. See the
 dmesg(8) man page and Documentation/admin-guide/kernel-parameters.rst for details.
 
 Netconsole was designed to be as instantaneous as possible, to
-enable the logging of even the most critical kernel bugs. It works
+enable the logging of even the most critical kernel s. It works
 from IRQ contexts as well, and does not enable interrupts while
 sending packets. Due to these unique needs, configuration cannot
 be more automatic, and some fundamental limitations will remain:

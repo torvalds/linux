@@ -206,7 +206,7 @@ static int acpi_power_get_state(acpi_handle handle, int *state)
 
 	acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] is %s\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Resource [%s] is %s\n",
 			  node_name,
 				*state ? "on" : "off"));
 
@@ -238,7 +238,7 @@ static int acpi_power_get_list_state(struct list_head *list, int *state)
 			break;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource list is %s\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Resource list is %s\n",
 			  cur_state ? "on" : "off"));
 
 	*state = cur_state;
@@ -253,7 +253,7 @@ static int __acpi_power_on(struct acpi_power_resource *resource)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Power resource [%s] turned on\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Power resource [%s] turned on\n",
 			  resource->name));
 
 	return 0;
@@ -264,7 +264,7 @@ static int acpi_power_on_unlocked(struct acpi_power_resource *resource)
 	int result = 0;
 
 	if (resource->ref_count++) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Power resource [%s] already on\n",
 				  resource->name));
 	} else {
@@ -294,7 +294,7 @@ static int __acpi_power_off(struct acpi_power_resource *resource)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Power resource [%s] turned off\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Power resource [%s] turned off\n",
 			  resource->name));
 	return 0;
 }
@@ -304,14 +304,14 @@ static int acpi_power_off_unlocked(struct acpi_power_resource *resource)
 	int result = 0;
 
 	if (!resource->ref_count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Power resource [%s] already off\n",
 				  resource->name));
 		return 0;
 	}
 
 	if (--resource->ref_count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Power resource [%s] still in use\n",
 				  resource->name));
 	} else {

@@ -4,7 +4,7 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -49,9 +49,9 @@ struct bcm_kona_wdt {
 	 */
 	int resolution;
 	spinlock_t lock;
-#ifdef CONFIG_BCM_KONA_WDT_DEBUG
+#ifdef CONFIG_BCM_KONA_WDT_DE
 	unsigned long busy_count;
-	struct dentry *debugfs;
+	struct dentry *defs;
 #endif
 };
 
@@ -72,7 +72,7 @@ static int secure_register_read(struct bcm_kona_wdt *wdt, uint32_t offset)
 		count++;
 	} while ((val & SECWDOG_WD_LOAD_FLAG) && count < SECWDOG_MAX_TRY);
 
-#ifdef CONFIG_BCM_KONA_WDT_DEBUG
+#ifdef CONFIG_BCM_KONA_WDT_DE
 	/* Remember the maximum number iterations due to WD_LOAD_FLAG */
 	if (count > wdt->busy_count)
 		wdt->busy_count = count;
@@ -88,7 +88,7 @@ static int secure_register_read(struct bcm_kona_wdt *wdt, uint32_t offset)
 	return val;
 }
 
-#ifdef CONFIG_BCM_KONA_WDT_DEBUG
+#ifdef CONFIG_BCM_KONA_WDT_DE
 
 static int bcm_kona_show(struct seq_file *s, void *data)
 {
@@ -132,7 +132,7 @@ static int bcm_kona_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(bcm_kona);
 
-static void bcm_kona_wdt_debug_init(struct platform_device *pdev)
+static void bcm_kona_wdt_de_init(struct platform_device *pdev)
 {
 	struct dentry *dir;
 	struct bcm_kona_wdt *wdt = platform_get_drvdata(pdev);
@@ -140,35 +140,35 @@ static void bcm_kona_wdt_debug_init(struct platform_device *pdev)
 	if (!wdt)
 		return;
 
-	wdt->debugfs = NULL;
+	wdt->defs = NULL;
 
-	dir = debugfs_create_dir(BCM_KONA_WDT_NAME, NULL);
+	dir = defs_create_dir(BCM_KONA_WDT_NAME, NULL);
 	if (IS_ERR_OR_NULL(dir))
 		return;
 
-	if (debugfs_create_file("info", S_IFREG | S_IRUGO, dir, wdt,
+	if (defs_create_file("info", S_IFREG | S_IRUGO, dir, wdt,
 				&bcm_kona_fops))
-		wdt->debugfs = dir;
+		wdt->defs = dir;
 	else
-		debugfs_remove_recursive(dir);
+		defs_remove_recursive(dir);
 }
 
-static void bcm_kona_wdt_debug_exit(struct platform_device *pdev)
+static void bcm_kona_wdt_de_exit(struct platform_device *pdev)
 {
 	struct bcm_kona_wdt *wdt = platform_get_drvdata(pdev);
 
-	if (wdt && wdt->debugfs) {
-		debugfs_remove_recursive(wdt->debugfs);
-		wdt->debugfs = NULL;
+	if (wdt && wdt->defs) {
+		defs_remove_recursive(wdt->defs);
+		wdt->defs = NULL;
 	}
 }
 
 #else
 
-static void bcm_kona_wdt_debug_init(struct platform_device *pdev) {}
-static void bcm_kona_wdt_debug_exit(struct platform_device *pdev) {}
+static void bcm_kona_wdt_de_init(struct platform_device *pdev) {}
+static void bcm_kona_wdt_de_exit(struct platform_device *pdev) {}
 
-#endif /* CONFIG_BCM_KONA_WDT_DEBUG */
+#endif /* CONFIG_BCM_KONA_WDT_DE */
 
 static int bcm_kona_wdt_ctrl_reg_modify(struct bcm_kona_wdt *wdt,
 					unsigned mask, unsigned newval)
@@ -317,7 +317,7 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bcm_kona_wdt_debug_init(pdev);
+	bcm_kona_wdt_de_init(pdev);
 	dev_dbg(dev, "Broadcom Kona Watchdog Timer");
 
 	return 0;
@@ -325,7 +325,7 @@ static int bcm_kona_wdt_probe(struct platform_device *pdev)
 
 static int bcm_kona_wdt_remove(struct platform_device *pdev)
 {
-	bcm_kona_wdt_debug_exit(pdev);
+	bcm_kona_wdt_de_exit(pdev);
 	bcm_kona_wdt_shutdown(pdev);
 	watchdog_unregister_device(&bcm_kona_wdt_wdd);
 	dev_dbg(&pdev->dev, "Watchdog driver disabled");

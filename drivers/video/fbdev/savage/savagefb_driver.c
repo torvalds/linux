@@ -36,7 +36,7 @@
  * TODO
  * - clock validations in decode_var
  *
- * BUGS
+ * S
  * - white margin on bootup
  *
  */
@@ -502,8 +502,8 @@ static int common_calc_clock(long freq, int min_m, int min_n1, int max_n1,
 	return 0;
 }
 
-#ifdef SAVAGEFB_DEBUG
-/* This function is used to debug, it prints out the contents of s3 regs */
+#ifdef SAVAGEFB_DE
+/* This function is used to de, it prints out the contents of s3 regs */
 
 static void SavagePrintRegs(struct savagefb_par *par)
 {
@@ -511,27 +511,27 @@ static void SavagePrintRegs(struct savagefb_par *par)
 	int vgaCRIndex = 0x3d4;
 	int vgaCRReg = 0x3d5;
 
-	printk(KERN_DEBUG "SR    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE "
+	printk(KERN_DE "SR    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE "
 	       "xF");
 
 	for (i = 0; i < 0x70; i++) {
 		if (!(i % 16))
-			printk(KERN_DEBUG "\nSR%xx ", i >> 4);
+			printk(KERN_DE "\nSR%xx ", i >> 4);
 		vga_out8(0x3c4, i, par);
-		printk(KERN_DEBUG " %02x", vga_in8(0x3c5, par));
+		printk(KERN_DE " %02x", vga_in8(0x3c5, par));
 	}
 
-	printk(KERN_DEBUG "\n\nCR    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC "
+	printk(KERN_DE "\n\nCR    x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC "
 	       "xD xE xF");
 
 	for (i = 0; i < 0xB7; i++) {
 		if (!(i % 16))
-			printk(KERN_DEBUG "\nCR%xx ", i >> 4);
+			printk(KERN_DE "\nCR%xx ", i >> 4);
 		vga_out8(vgaCRIndex, i, par);
-		printk(KERN_DEBUG " %02x", vga_in8(vgaCRReg, par));
+		printk(KERN_DE " %02x", vga_in8(vgaCRReg, par));
 	}
 
-	printk(KERN_DEBUG "\n\n");
+	printk(KERN_DE "\n\n");
 }
 #endif
 
@@ -2023,7 +2023,7 @@ static int savage_init_hw(struct savagefb_par *par)
 
 	if (S3_SAVAGE4_SERIES(par->chip)) {
 		/*
-		 * The Savage4 and ProSavage have COB coherency bugs which
+		 * The Savage4 and ProSavage have COB coherency s which
 		 * render the buffer useless.  We disable it.
 		 */
 		par->cob_index = 2;

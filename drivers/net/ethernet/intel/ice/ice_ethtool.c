@@ -196,11 +196,11 @@ static u32 ice_get_msglevel(struct net_device *netdev)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_pf *pf = np->vsi->back;
 
-#ifndef CONFIG_DYNAMIC_DEBUG
-	if (pf->hw.debug_mask)
-		netdev_info(netdev, "hw debug_mask: 0x%llX\n",
-			    pf->hw.debug_mask);
-#endif /* !CONFIG_DYNAMIC_DEBUG */
+#ifndef CONFIG_DYNAMIC_DE
+	if (pf->hw.de_mask)
+		netdev_info(netdev, "hw de_mask: 0x%llX\n",
+			    pf->hw.de_mask);
+#endif /* !CONFIG_DYNAMIC_DE */
 
 	return pf->msg_enable;
 }
@@ -210,14 +210,14 @@ static void ice_set_msglevel(struct net_device *netdev, u32 data)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_pf *pf = np->vsi->back;
 
-#ifndef CONFIG_DYNAMIC_DEBUG
+#ifndef CONFIG_DYNAMIC_DE
 	if (ICE_DBG_USER & data)
-		pf->hw.debug_mask = data;
+		pf->hw.de_mask = data;
 	else
 		pf->msg_enable = data;
 #else
 	pf->msg_enable = data;
-#endif /* !CONFIG_DYNAMIC_DEBUG */
+#endif /* !CONFIG_DYNAMIC_DE */
 }
 
 static int ice_get_eeprom_len(struct net_device *netdev)

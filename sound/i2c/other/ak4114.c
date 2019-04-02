@@ -58,9 +58,9 @@ static void reg_dump(struct ak4114 *ak4114)
 {
 	int i;
 
-	printk(KERN_DEBUG "AK4114 REG DUMP:\n");
+	printk(KERN_DE "AK4114 REG DUMP:\n");
 	for (i = 0; i < 0x20; i++)
-		printk(KERN_DEBUG "reg[%02x] = %02x (%02x)\n", i, reg_read(ak4114, i), i < ARRAY_SIZE(ak4114->regmap) ? ak4114->regmap[i] : 0);
+		printk(KERN_DE "reg[%02x] = %02x (%02x)\n", i, reg_read(ak4114, i), i < ARRAY_SIZE(ak4114->regmap) ? ak4114->regmap[i] : 0);
 }
 #endif
 
@@ -477,7 +477,7 @@ int snd_ak4114_build(struct ak4114 *ak4114,
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!cap_substream))
+	if (snd__ON(!cap_substream))
 		return -EINVAL;
 	ak4114->playback_substream = ply_substream;
 	ak4114->capture_substream = cap_substream;
@@ -603,7 +603,7 @@ int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 	if (!(flags & AK4114_CHECK_NO_RATE) && runtime && runtime->rate != res) {
 		snd_pcm_stream_lock_irqsave(ak4114->capture_substream, _flags);
 		if (snd_pcm_running(ak4114->capture_substream)) {
-			// printk(KERN_DEBUG "rate changed (%i <- %i)\n", runtime->rate, res);
+			// printk(KERN_DE "rate changed (%i <- %i)\n", runtime->rate, res);
 			snd_pcm_stop(ak4114->capture_substream, SNDRV_PCM_STATE_DRAINING);
 			res = 1;
 		}

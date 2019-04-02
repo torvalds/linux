@@ -333,7 +333,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     char *card_name = "unknown";
     u8 *buf;
     size_t len;
-    u_char buggybuf[32];
+    u_char gybuf[32];
 
     dev_dbg(&link->dev, "fmvj18x_config\n");
 
@@ -395,7 +395,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	switch (link->manf_id) {
 	case MANFID_FUJITSU:
 	    if (link->card_id == PRODID_FUJITSU_MBH10304) {
-		cardtype = XXX10304;    /* MBH10304 with buggy CIS */
+		cardtype = XXX10304;    /* MBH10304 with gy CIS */
 		link->config_index = 0x20;
 	    } else {
 		cardtype = MBH10302;    /* NextCom NC5310, etc. */
@@ -494,13 +494,13 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	card_name = "Access/CARD";
 	break;
     case XXX10304:
-	/* Read MACID from Buggy CIS */
-	if (fmvj18x_get_hwinfo(link, buggybuf) == -1) {
+	/* Read MACID from gy CIS */
+	if (fmvj18x_get_hwinfo(link, gybuf) == -1) {
 	    pr_notice("unable to read hardware net address\n");
 	    goto failed;
 	}
 	for (i = 0 ; i < 6; i++) {
-	    dev->dev_addr[i] = buggybuf[i];
+	    dev->dev_addr[i] = gybuf[i];
 	}
 	card_name = "FMV-J182";
 	break;
@@ -735,8 +735,8 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
     outb(tx_stat, ioaddr + TX_STATUS);
     outb(rx_stat, ioaddr + RX_STATUS);
     
-    pr_debug("%s: interrupt, rx_status %02x.\n", dev->name, rx_stat);
-    pr_debug("               tx_status %02x.\n", tx_stat);
+    pr_de("%s: interrupt, rx_status %02x.\n", dev->name, rx_stat);
+    pr_de("               tx_status %02x.\n", tx_stat);
     
     if (rx_stat || (inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
 	/* there is packet(s) in rx buffer */
@@ -756,8 +756,8 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
 	}
 	netif_wake_queue(dev);
     }
-    pr_debug("%s: exiting interrupt,\n", dev->name);
-    pr_debug("    tx_status %02x, rx_status %02x.\n", tx_stat, rx_stat);
+    pr_de("%s: exiting interrupt,\n", dev->name);
+    pr_de("    tx_status %02x, rx_status %02x.\n", tx_stat, rx_stat);
 
     outb(D_TX_INTR, ioaddr + TX_INTR);
     outb(D_RX_INTR, ioaddr + RX_INTR);
@@ -960,7 +960,7 @@ static void fjn_rx(struct net_device *dev)
     unsigned int ioaddr = dev->base_addr;
     int boguscount = 10;	/* 5 -> 10: by agy 19940922 */
 
-    pr_debug("%s: in rx_packet(), rx_status %02x.\n",
+    pr_de("%s: in rx_packet(), rx_status %02x.\n",
 	  dev->name, inb(ioaddr + RX_STATUS));
 
     while ((inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
@@ -1006,11 +1006,11 @@ static void fjn_rx(struct net_device *dev)
 
 	    {
 		int i;
-		pr_debug("%s: Rxed packet of length %d: ",
+		pr_de("%s: Rxed packet of length %d: ",
 			dev->name, pkt_len);
 		for (i = 0; i < 14; i++)
-			pr_debug(" %02x", skb->data[i]);
-		pr_debug(".\n");
+			pr_de(" %02x", skb->data[i]);
+		pr_de(".\n");
 	    }
 
 	    netif_rx(skb);
@@ -1035,7 +1035,7 @@ static void fjn_rx(struct net_device *dev)
 	}
 
 	if (i > 0)
-	    pr_debug("%s: Exint Rx packet with mode %02x after "
+	    pr_de("%s: Exint Rx packet with mode %02x after "
 		  "%d ticks.\n", dev->name, inb(ioaddr + RX_MODE), i);
     }
 */
@@ -1065,7 +1065,7 @@ static int fjn_open(struct net_device *dev)
     struct local_info *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
-    pr_debug("fjn_open('%s').\n", dev->name);
+    pr_de("fjn_open('%s').\n", dev->name);
 
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
@@ -1091,7 +1091,7 @@ static int fjn_close(struct net_device *dev)
     struct pcmcia_device *link = lp->p_dev;
     unsigned int ioaddr = dev->base_addr;
 
-    pr_debug("fjn_close('%s').\n", dev->name);
+    pr_de("fjn_close('%s').\n", dev->name);
 
     lp->open_time = 0;
     netif_stop_queue(dev);

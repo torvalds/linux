@@ -69,7 +69,7 @@
 
 #include "iwl-drv.h"
 #include "iwl-csr.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
@@ -90,7 +90,7 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 static struct dentry *iwl_dbgfs_root;
 #endif
 
@@ -100,7 +100,7 @@ static struct dentry *iwl_dbgfs_root;
  * @fw: the iwl_fw structure
  * @op_mode: the running op_mode
  * @trans: transport layer
- * @dev: for debug prints only
+ * @dev: for de prints only
  * @fw_index: firmware revision to try loading
  * @firmware_name: composite filename of ucode file to load
  * @request_firmware_complete: the firmware has been obtained from user space
@@ -118,7 +118,7 @@ struct iwl_drv {
 
 	struct completion request_firmware_complete;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	struct dentry *dbgfs_drv;
 	struct dentry *dbgfs_trans;
 	struct dentry *dbgfs_op_mode;
@@ -252,7 +252,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
 		 cfg->fw_name_pre, tag);
 
-	IWL_DEBUG_INFO(drv, "attempting to load firmware '%s'\n",
+	IWL_DE_INFO(drv, "attempting to load firmware '%s'\n",
 		       drv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
@@ -290,7 +290,7 @@ struct iwl_firmware_pieces {
 	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
-	/* FW debug data parsed for driver usage */
+	/* FW de data parsed for driver usage */
 	bool dbg_dest_tlv_init;
 	u8 *dbg_dest_ver;
 	union {
@@ -937,7 +937,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				mon_mode = dest->monitor_mode;
 			}
 
-			IWL_INFO(drv, "Found debug destination: %s\n",
+			IWL_INFO(drv, "Found de destination: %s\n",
 				 get_fw_dbg_mode_string(mon_mode));
 
 			drv->fw.dbg.n_dest_reg = (dest_v1) ?
@@ -980,7 +980,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (conf->usniffer)
 				usniffer_req = true;
 
-			IWL_INFO(drv, "Found debug configuration: %d\n",
+			IWL_INFO(drv, "Found de configuration: %d\n",
 				 conf->id);
 
 			pieces->dbg_conf_tlv[conf->id] = conf;
@@ -1006,7 +1006,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				break;
 			}
 
-			IWL_INFO(drv, "Found debug trigger: %u\n", trigger->id);
+			IWL_INFO(drv, "Found de trigger: %u\n", trigger->id);
 
 			pieces->dbg_trigger_tlv[trigger_id] = trigger;
 			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
@@ -1034,7 +1034,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				goto invalid_tlv_len;
 			paging_mem_size = le32_to_cpup((__le32 *)tlv_data);
 
-			IWL_DEBUG_FW(drv,
+			IWL_DE_FW(drv,
 				     "Paging: paging enabled (size = %u bytes)\n",
 				     paging_mem_size);
 
@@ -1070,7 +1070,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != (sizeof(*dbg_mem)))
 				goto invalid_tlv_len;
 
-			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
+			IWL_DE_INFO(drv, "Found de memory segment: %u\n",
 				       dbg_mem->data_type);
 
 			size = sizeof(*pieces->dbg_mem_tlv) *
@@ -1104,8 +1104,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				le32_to_cpu(recov_info->buf_size);
 			}
 			break;
-		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
-			struct iwl_umac_debug_addrs *dbg_ptrs =
+		case IWL_UCODE_TLV_UMAC_DE_ADDRS: {
+			struct iwl_umac_de_addrs *dbg_ptrs =
 				(void *)tlv_data;
 
 			if (tlv_len != sizeof(*dbg_ptrs))
@@ -1120,8 +1120,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				IWL_ERROR_EVENT_TABLE_UMAC;
 			break;
 			}
-		case IWL_UCODE_TLV_LMAC_DEBUG_ADDRS: {
-			struct iwl_lmac_debug_addrs *dbg_ptrs =
+		case IWL_UCODE_TLV_LMAC_DE_ADDRS: {
+			struct iwl_lmac_de_addrs *dbg_ptrs =
 				(void *)tlv_data;
 
 			if (tlv_len != sizeof(*dbg_ptrs))
@@ -1140,12 +1140,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_TYPE_HCMD:
 		case IWL_UCODE_TLV_TYPE_REGIONS:
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
-		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
+		case IWL_UCODE_TLV_TYPE_DE_FLOW:
 			if (iwlwifi_mod_params.enable_ini)
 				iwl_fw_dbg_copy_tlv(drv->trans, tlv, false);
 			break;
 		default:
-			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
+			IWL_DE_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
 		}
 	}
@@ -1197,15 +1197,15 @@ static int validate_sec_sizes(struct iwl_drv *drv,
 			      struct iwl_firmware_pieces *pieces,
 			      const struct iwl_cfg *cfg)
 {
-	IWL_DEBUG_INFO(drv, "f/w package hdr runtime inst size = %zd\n",
+	IWL_DE_INFO(drv, "f/w package hdr runtime inst size = %zd\n",
 		get_sec_size(pieces, IWL_UCODE_REGULAR,
 			     IWL_UCODE_SECTION_INST));
-	IWL_DEBUG_INFO(drv, "f/w package hdr runtime data size = %zd\n",
+	IWL_DE_INFO(drv, "f/w package hdr runtime data size = %zd\n",
 		get_sec_size(pieces, IWL_UCODE_REGULAR,
 			     IWL_UCODE_SECTION_DATA));
-	IWL_DEBUG_INFO(drv, "f/w package hdr init inst size = %zd\n",
+	IWL_DE_INFO(drv, "f/w package hdr init inst size = %zd\n",
 		get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST));
-	IWL_DEBUG_INFO(drv, "f/w package hdr init data size = %zd\n",
+	IWL_DE_INFO(drv, "f/w package hdr init data size = %zd\n",
 		get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA));
 
 	/* Verify that uCode images will fit in card's SRAM. */
@@ -1250,17 +1250,17 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 	struct dentry *dbgfs_dir = NULL;
 	struct iwl_op_mode *op_mode = NULL;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	drv->dbgfs_op_mode = debugfs_create_dir(op->name,
+#ifdef CONFIG_IWLWIFI_DEFS
+	drv->dbgfs_op_mode = defs_create_dir(op->name,
 						drv->dbgfs_drv);
 	dbgfs_dir = drv->dbgfs_op_mode;
 #endif
 
 	op_mode = ops->start(drv->trans, drv->trans->cfg, &drv->fw, dbgfs_dir);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (!op_mode) {
-		debugfs_remove_recursive(drv->dbgfs_op_mode);
+		defs_remove_recursive(drv->dbgfs_op_mode);
 		drv->dbgfs_op_mode = NULL;
 	}
 #endif
@@ -1275,8 +1275,8 @@ static void _iwl_op_mode_stop(struct iwl_drv *drv)
 		iwl_op_mode_stop(drv->op_mode);
 		drv->op_mode = NULL;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		debugfs_remove_recursive(drv->dbgfs_op_mode);
+#ifdef CONFIG_IWLWIFI_DEFS
+		defs_remove_recursive(drv->dbgfs_op_mode);
 		drv->dbgfs_op_mode = NULL;
 #endif
 	}
@@ -1318,7 +1318,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	if (!ucode_raw)
 		goto try_again;
 
-	IWL_DEBUG_INFO(drv, "Loaded firmware file '%s' (%zd bytes).\n",
+	IWL_DE_INFO(drv, "Loaded firmware file '%s' (%zd bytes).\n",
 		       drv->firmware_name, ucode_raw->size);
 
 	/* Make sure that we got at least the API version number */
@@ -1459,8 +1459,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		if (pieces->dbg_trigger_tlv[i]) {
 			/*
 			 * If the trigger isn't long enough, WARN and exit.
-			 * Someone is trying to debug something and he won't
-			 * be able to catch the bug he is trying to chase.
+			 * Someone is trying to de something and he won't
+			 * be able to catch the  he is trying to chase.
 			 * We'd better be noisy to be sure he knows what's
 			 * going on.
 			 */
@@ -1610,13 +1610,13 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	init_completion(&drv->request_firmware_complete);
 	INIT_LIST_HEAD(&drv->list);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* Create the device debugfs entries. */
-	drv->dbgfs_drv = debugfs_create_dir(dev_name(trans->dev),
+#ifdef CONFIG_IWLWIFI_DEFS
+	/* Create the device defs entries. */
+	drv->dbgfs_drv = defs_create_dir(dev_name(trans->dev),
 					    iwl_dbgfs_root);
 
-	/* Create transport layer debugfs dir */
-	drv->trans->dbgfs_dir = debugfs_create_dir("trans", drv->dbgfs_drv);
+	/* Create transport layer defs dir */
+	drv->trans->dbgfs_dir = defs_create_dir("trans", drv->dbgfs_drv);
 #endif
 
 	ret = iwl_request_firmware(drv, true);
@@ -1628,8 +1628,8 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	return drv;
 
 err_fw:
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	debugfs_remove_recursive(drv->dbgfs_drv);
+#ifdef CONFIG_IWLWIFI_DEFS
+	defs_remove_recursive(drv->dbgfs_drv);
 	iwl_fw_dbg_free(drv->trans);
 #endif
 	kfree(drv);
@@ -1655,10 +1655,10 @@ void iwl_drv_stop(struct iwl_drv *drv)
 		list_del(&drv->list);
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	drv->trans->ops->debugfs_cleanup(drv->trans);
+#ifdef CONFIG_IWLWIFI_DEFS
+	drv->trans->ops->defs_cleanup(drv->trans);
 
-	debugfs_remove_recursive(drv->dbgfs_drv);
+	defs_remove_recursive(drv->dbgfs_drv);
 #endif
 
 	iwl_fw_dbg_free(drv->trans);
@@ -1737,9 +1737,9 @@ static int __init iwl_drv_init(void)
 	pr_info(DRV_DESCRIPTION "\n");
 	pr_info(DRV_COPYRIGHT "\n");
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* Create the root of iwlwifi debugfs subsystem. */
-	iwl_dbgfs_root = debugfs_create_dir(DRV_NAME, NULL);
+#ifdef CONFIG_IWLWIFI_DEFS
+	/* Create the root of iwlwifi defs subsystem. */
+	iwl_dbgfs_root = defs_create_dir(DRV_NAME, NULL);
 #endif
 
 	return iwl_pci_register_driver();
@@ -1750,15 +1750,15 @@ static void __exit iwl_drv_exit(void)
 {
 	iwl_pci_unregister_driver();
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	debugfs_remove_recursive(iwl_dbgfs_root);
+#ifdef CONFIG_IWLWIFI_DEFS
+	defs_remove_recursive(iwl_dbgfs_root);
 #endif
 }
 module_exit(iwl_drv_exit);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-module_param_named(debug, iwlwifi_mod_params.debug_level, uint, 0644);
-MODULE_PARM_DESC(debug, "debug output mask");
+#ifdef CONFIG_IWLWIFI_DE
+module_param_named(de, iwlwifi_mod_params.de_level, uint, 0644);
+MODULE_PARM_DESC(de, "de output mask");
 #endif
 
 module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, 0444);
@@ -1793,7 +1793,7 @@ MODULE_PARM_DESC(uapsd_disable,
 module_param_named(enable_ini, iwlwifi_mod_params.enable_ini,
 		   bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_ini,
-		 "Enable debug INI TLV FW debug infrastructure (default: 0");
+		 "Enable de INI TLV FW de infrastructure (default: 0");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer
@@ -1829,7 +1829,7 @@ MODULE_PARM_DESC(power_level,
 
 module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, 0444);
 MODULE_PARM_DESC(fw_monitor,
-		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
+		 "firmware monitor - to de FW (default: false - needs lots of memory)");
 
 module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout, uint, 0444);
 MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");

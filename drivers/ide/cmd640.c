@@ -8,7 +8,7 @@
  *
  *  See linux/MAINTAINERS for address of current maintainer.
  *
- *  This file provides support for the advanced features and bugs
+ *  This file provides support for the advanced features and s
  *  of IDE interfaces using the CMD Technologies 0640 IDE interface chip.
  *
  *  These chips are basically fucked by design, and getting this driver
@@ -67,12 +67,12 @@
  *  Version 0.10	Be nice and don't reset 2nd port.
  *  Version 0.11	Try to handle more weird situations.
  *
- *  Version 0.12	Lots of bug fixes from Laszlo Peter
+ *  Version 0.12	Lots of  fixes from Laszlo Peter
  *			irq unmasking disabled for reliability.
  *			try to be even smarter about the second port.
  *			tidy up source code formatting.
  *  Version 0.13	permit irq unmasking again.
- *  Version 0.90	massive code cleanup, some bugs fixed.
+ *  Version 0.90	massive code cleanup, some s fixed.
  *			defaults all drives to PIO mode0, prefetch off.
  *			autotune is OFF by default, with compile time flag.
  *			prefetch can be turned OFF/ON using "hdparm -p8/-p9"
@@ -92,7 +92,7 @@
  *  Version 1.00	Mmm.. cannot depend on PCMD_ENA in all systems
  *  Version 1.01	slow/fast devsel can be selected with "hdparm -p6/-p7"
  *			 ("fast" is necessary for 32bit I/O in some systems)
- *  Version 1.02	fix bug that resulted in slow "setup times"
+ *  Version 1.02	fix  that resulted in slow "setup times"
  *			 (patch courtesy of Zoltan Hidvegi)
  */
 
@@ -779,7 +779,7 @@ static int __init cmd640x_init(void)
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
 
-	printk(KERN_INFO "cmd640: buggy cmd640%c interface on %s, config=0x%02x"
+	printk(KERN_INFO "cmd640: gy cmd640%c interface on %s, config=0x%02x"
 			 "\n", 'a' + cmd640_chip_version - 1, bus_type, cfr);
 
 	/*

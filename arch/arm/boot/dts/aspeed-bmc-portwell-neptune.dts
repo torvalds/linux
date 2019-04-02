@@ -111,7 +111,7 @@
 
 &i2c5 {
 	status = "okay";
-// 	USB Debug card
+// 	USB De card
 	pca9555@27 {
 		compatible = "nxp,pca9555";
 		reg = <0x27>;

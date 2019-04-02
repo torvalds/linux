@@ -5,7 +5,7 @@
  *	Copyright (C) 1997, 1998, 1999, 2000, 2009 Ingo Molnar, Hajnalka Szabo
  *
  *	Many thanks to Stig Venaas for trying out countless experimental
- *	patches and reporting/debugging problems patiently!
+ *	patches and reporting/deging problems patiently!
  *
  *	(c) 1999, Multiple IO-APIC support, developed by
  *	Ken-ichi Yaku <yaku@css1.kbnes.nec.co.jp> and
@@ -22,9 +22,9 @@
  *
  * Historical information which is worth to be preserved:
  *
- * - SiS APIC rmw bug:
+ * - SiS APIC rmw :
  *
- *	We used to have a workaround for a bug in SiS chips which
+ *	We used to have a workaround for a  in SiS chips which
  *	required to rewrite the index register for a read-modify-write
  *	operation as the chip lost the index information which was
  *	setup for the read already. We cache the data now, so that
@@ -621,7 +621,7 @@ static int __init ioapic_pirq_setup(char *str)
 		max = ints[0];
 
 	for (i = 0; i < max; i++) {
-		apic_printk(APIC_VERBOSE, KERN_DEBUG
+		apic_printk(APIC_VERBOSE, KERN_DE
 				"... PIRQ%d -> IRQ %d\n", i, ints[i+1]);
 		/*
 		 * PIRQs are mapped upside down, usually.
@@ -1078,7 +1078,7 @@ static int pin_2_irq(int idx, int ioapic, int pin, unsigned int flags)
 	u32 gsi = mp_pin_to_gsi(ioapic, pin);
 
 	/*
-	 * Debugging check, we are in big trouble if this message pops up!
+	 * Deging check, we are in big trouble if this message pops up!
 	 */
 	if (mp_irqs[idx].dstirq != pin)
 		pr_err("broken BIOS or MPTABLE parser, ayiee!!\n");
@@ -1090,11 +1090,11 @@ static int pin_2_irq(int idx, int ioapic, int pin, unsigned int flags)
 	if ((pin >= 16) && (pin <= 23)) {
 		if (pirq_entries[pin-16] != -1) {
 			if (!pirq_entries[pin-16]) {
-				apic_printk(APIC_VERBOSE, KERN_DEBUG
+				apic_printk(APIC_VERBOSE, KERN_DE
 						"disabling PIRQ%d\n", pin-16);
 			} else {
 				int irq = pirq_entries[pin-16];
-				apic_printk(APIC_VERBOSE, KERN_DEBUG
+				apic_printk(APIC_VERBOSE, KERN_DE
 						"using PIRQ%d -> IRQ %d\n",
 						pin-16, irq);
 				return irq;
@@ -1148,7 +1148,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 {
 	int irq, i, best_ioapic = -1, best_idx = -1;
 
-	apic_printk(APIC_DEBUG,
+	apic_printk(APIC_DE,
 		    "querying PCI -> IRQ mapping bus:%d, slot:%d, pin:%d.\n",
 		    bus, slot, pin);
 	if (test_bit(bus, mp_bus_not_pci)) {
@@ -1210,13 +1210,13 @@ static void __init setup_IO_APIC_irqs(void)
 	unsigned int ioapic, pin;
 	int idx;
 
-	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
+	apic_printk(APIC_VERBOSE, KERN_DE "init IO_APIC IRQs\n");
 
 	for_each_ioapic_pin(ioapic, pin) {
 		idx = find_irq_entry(ioapic, pin, mp_INT);
 		if (idx < 0)
 			apic_printk(APIC_VERBOSE,
-				    KERN_DEBUG " apic %d pin %d not connected\n",
+				    KERN_DE " apic %d pin %d not connected\n",
 				    mpc_ioapic_id(ioapic), pin);
 		else
 			pin_2_irq(idx, ioapic, pin,
@@ -1236,7 +1236,7 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 	struct IO_APIC_route_entry entry;
 	struct IR_IO_APIC_route_entry *ir_entry = (void *)&entry;
 
-	printk(KERN_DEBUG "IOAPIC %d:\n", apic);
+	printk(KERN_DE "IOAPIC %d:\n", apic);
 	for (i = 0; i <= nr_entries; i++) {
 		entry = ioapic_read_entry(apic, i);
 		snprintf(buf, sizeof(buf),
@@ -1247,11 +1247,11 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 			 entry.polarity == IOAPIC_POL_LOW ? "low " : "high",
 			 entry.vector, entry.irr, entry.delivery_status);
 		if (ir_entry->format)
-			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
+			printk(KERN_DE "%s, remapped, I(%04X),  Z(%X)\n",
 			       buf, (ir_entry->index2 << 15) | ir_entry->index,
 			       ir_entry->zero);
 		else
-			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",
+			printk(KERN_DE "%s, %s, D(%02X), M(%1d)\n",
 			       buf,
 			       entry.dest_mode == IOAPIC_DEST_MODE_LOGICAL ?
 			       "logical " : "physical",
@@ -1276,18 +1276,18 @@ static void __init print_IO_APIC(int ioapic_idx)
 		reg_03.raw = io_apic_read(ioapic_idx, 3);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
-	printk(KERN_DEBUG "IO APIC #%d......\n", mpc_ioapic_id(ioapic_idx));
-	printk(KERN_DEBUG ".... register #00: %08X\n", reg_00.raw);
-	printk(KERN_DEBUG ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
-	printk(KERN_DEBUG ".......    : Delivery Type: %X\n", reg_00.bits.delivery_type);
-	printk(KERN_DEBUG ".......    : LTS          : %X\n", reg_00.bits.LTS);
+	printk(KERN_DE "IO APIC #%d......\n", mpc_ioapic_id(ioapic_idx));
+	printk(KERN_DE ".... register #00: %08X\n", reg_00.raw);
+	printk(KERN_DE ".......    : physical APIC id: %02X\n", reg_00.bits.ID);
+	printk(KERN_DE ".......    : Delivery Type: %X\n", reg_00.bits.delivery_type);
+	printk(KERN_DE ".......    : LTS          : %X\n", reg_00.bits.LTS);
 
-	printk(KERN_DEBUG ".... register #01: %08X\n", *(int *)&reg_01);
-	printk(KERN_DEBUG ".......     : max redirection entries: %02X\n",
+	printk(KERN_DE ".... register #01: %08X\n", *(int *)&reg_01);
+	printk(KERN_DE ".......     : max redirection entries: %02X\n",
 		reg_01.bits.entries);
 
-	printk(KERN_DEBUG ".......     : PRQ implemented: %X\n", reg_01.bits.PRQ);
-	printk(KERN_DEBUG ".......     : IO APIC version: %02X\n",
+	printk(KERN_DE ".......     : PRQ implemented: %X\n", reg_01.bits.PRQ);
+	printk(KERN_DE ".......     : IO APIC version: %02X\n",
 		reg_01.bits.version);
 
 	/*
@@ -1296,8 +1296,8 @@ static void __init print_IO_APIC(int ioapic_idx)
 	 * value, so ignore it if reg_02 == reg_01.
 	 */
 	if (reg_01.bits.version >= 0x10 && reg_02.raw != reg_01.raw) {
-		printk(KERN_DEBUG ".... register #02: %08X\n", reg_02.raw);
-		printk(KERN_DEBUG ".......     : arbitration: %02X\n", reg_02.bits.arbitration);
+		printk(KERN_DE ".... register #02: %08X\n", reg_02.raw);
+		printk(KERN_DE ".......     : arbitration: %02X\n", reg_02.bits.arbitration);
 	}
 
 	/*
@@ -1307,11 +1307,11 @@ static void __init print_IO_APIC(int ioapic_idx)
 	 */
 	if (reg_01.bits.version >= 0x20 && reg_03.raw != reg_02.raw &&
 	    reg_03.raw != reg_01.raw) {
-		printk(KERN_DEBUG ".... register #03: %08X\n", reg_03.raw);
-		printk(KERN_DEBUG ".......     : Boot DT    : %X\n", reg_03.bits.boot_DT);
+		printk(KERN_DE ".... register #03: %08X\n", reg_03.raw);
+		printk(KERN_DE ".......     : Boot DT    : %X\n", reg_03.bits.boot_DT);
 	}
 
-	printk(KERN_DEBUG ".... IRQ redirection table:\n");
+	printk(KERN_DE ".... IRQ redirection table:\n");
 	io_apic_print_entries(ioapic_idx, reg_01.bits.entries);
 }
 
@@ -1320,9 +1320,9 @@ void __init print_IO_APICs(void)
 	int ioapic_idx;
 	unsigned int irq;
 
-	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
+	printk(KERN_DE "number of MP IRQ sources: %d.\n", mp_irq_entries);
 	for_each_ioapic(ioapic_idx)
-		printk(KERN_DEBUG "number of IO-APIC #%d registers: %d.\n",
+		printk(KERN_DE "number of IO-APIC #%d registers: %d.\n",
 		       mpc_ioapic_id(ioapic_idx),
 		       ioapics[ioapic_idx].nr_registers);
 
@@ -1335,7 +1335,7 @@ void __init print_IO_APICs(void)
 	for_each_ioapic(ioapic_idx)
 		print_IO_APIC(ioapic_idx);
 
-	printk(KERN_DEBUG "IRQ to pin mappings:\n");
+	printk(KERN_DE "IRQ to pin mappings:\n");
 	for_each_active_irq(irq) {
 		struct irq_pin_list *entry;
 		struct irq_chip *chip;
@@ -1350,7 +1350,7 @@ void __init print_IO_APICs(void)
 		if (list_empty(&data->irq_2_pin))
 			continue;
 
-		printk(KERN_DEBUG "IRQ%d ", irq);
+		printk(KERN_DE "IRQ%d ", irq);
 		for_each_irq_pin(entry, data->irq_2_pin)
 			pr_cont("-> %d:%d", entry->apic, entry->pin);
 		pr_cont("\n");
@@ -1483,7 +1483,7 @@ void __init setup_ioapic_ids_from_mpc_nocheck(void)
 		old_id = mpc_ioapic_id(ioapic_idx);
 
 		if (mpc_ioapic_id(ioapic_idx) >= get_physical_broadcast()) {
-			printk(KERN_ERR "BIOS bug, IO-APIC#%d ID is %d in the MPC table!...\n",
+			printk(KERN_ERR "BIOS , IO-APIC#%d ID is %d in the MPC table!...\n",
 				ioapic_idx, mpc_ioapic_id(ioapic_idx));
 			printk(KERN_ERR "... fixing up to %d. (tell your hw vendor)\n",
 				reg_00.bits.ID);
@@ -1497,7 +1497,7 @@ void __init setup_ioapic_ids_from_mpc_nocheck(void)
 		 */
 		if (apic->check_apicid_used(&phys_id_present_map,
 					    mpc_ioapic_id(ioapic_idx))) {
-			printk(KERN_ERR "BIOS bug, IO-APIC#%d ID %d is already used!...\n",
+			printk(KERN_ERR "BIOS , IO-APIC#%d ID %d is already used!...\n",
 				ioapic_idx, mpc_ioapic_id(ioapic_idx));
 			for (i = 0; i < get_physical_broadcast(); i++)
 				if (!physid_isset(i, phys_id_present_map))
@@ -1620,7 +1620,7 @@ static void __init delay_without_tsc(void)
 }
 
 /*
- * There is a nasty bug in some older SMP boards, their mptable lies
+ * There is a nasty  in some older SMP boards, their mptable lies
  * about the timer IRQ. We do the following to work around the situation:
  *
  *	- timer IRQ defaults to IO-APIC IRQ
@@ -1760,7 +1760,7 @@ static inline void ioapic_irqd_unmask(struct irq_data *data, bool masked)
 		 *
 		 * However there appears to be no other way to plug
 		 * this race, so if the Remote IRR bit is not
-		 * accurate and is causing problems then it is a hardware bug
+		 * accurate and is causing problems then it is a hardware 
 		 * and you can go talk to the chipset vendor about it.
 		 */
 		if (!io_apic_level_ack_pending(data->chip_data))
@@ -2067,9 +2067,9 @@ static int mp_alloc_timer_irq(int ioapic, int pin)
 
 /*
  * This code may look a bit paranoid, but it's supposed to cooperate with
- * a wide range of boards and BIOS bugs.  Fortunately only the timer IRQ
+ * a wide range of boards and BIOS s.  Fortunately only the timer IRQ
  * is so screwy.  Thanks to Brian Perkins for testing/hacking this beast
- * fanatically on his truly buggy board.
+ * fanatically on his truly gy board.
  *
  * FIXME: really need to revamp this for all platforms.
  */
@@ -2119,7 +2119,7 @@ static inline void __init check_timer(void)
 	 * 8259A.
 	 */
 	if (pin1 == -1) {
-		panic_if_irq_remap("BIOS bug: timer not connected to IO-APIC");
+		panic_if_irq_remap("BIOS : timer not connected to IO-APIC");
 		pin1 = pin2;
 		apic1 = apic2;
 		no_pin1 = 1;
@@ -2154,7 +2154,7 @@ static inline void __init check_timer(void)
 		local_irq_disable();
 		clear_IO_APIC_pin(apic1, pin1);
 		if (!no_pin1)
-			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS bug: "
+			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS : "
 				    "8254 timer not connected to IO-APIC\n");
 
 		apic_printk(APIC_QUIET, KERN_INFO "...trying to set up timer "
@@ -2216,7 +2216,7 @@ static inline void __init check_timer(void)
 		apic_printk(APIC_QUIET, KERN_INFO
 			    "Perhaps problem with the pre-enabled x2apic mode\n"
 			    "Try booting with x2apic and interrupt-remapping disabled in the bios.\n");
-	panic("IO-APIC + timer doesn't work!  Boot with apic=debug and send a "
+	panic("IO-APIC + timer doesn't work!  Boot with apic=de and send a "
 		"report.  Then try booting with the 'noapic' option.\n");
 out:
 	local_irq_restore(flags);
@@ -2312,7 +2312,7 @@ void __init setup_IO_APIC(void)
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
 	for_each_ioapic(ioapic)
-		BUG_ON(mp_irqdomain_create(ioapic));
+		_ON(mp_irqdomain_create(ioapic));
 
 	/*
          * Set up IO-APIC IRQ routing.
@@ -2517,7 +2517,7 @@ static u8 io_apic_unique_id(int idx, u8 id)
 	reg_00.raw = io_apic_read(idx, 0);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 	/* Sanity check */
-	BUG_ON(reg_00.bits.ID != new_id);
+	_ON(reg_00.bits.ID != new_id);
 
 	return new_id;
 }
@@ -2962,7 +2962,7 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 		legacy_pic->mask(virq);
 	local_irq_restore(flags);
 
-	apic_printk(APIC_VERBOSE, KERN_DEBUG
+	apic_printk(APIC_VERBOSE, KERN_DE
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> IRQ %d Mode:%i Active:%i Dest:%d)\n",
 		    ioapic, mpc_ioapic_id(ioapic), pin, cfg->vector,
 		    virq, data->trigger, data->polarity, cfg->dest_apicid);
@@ -2976,7 +2976,7 @@ void mp_irqdomain_free(struct irq_domain *domain, unsigned int virq,
 	struct irq_data *irq_data;
 	struct mp_chip_data *data;
 
-	BUG_ON(nr_irqs != 1);
+	_ON(nr_irqs != 1);
 	irq_data = irq_domain_get_irq_data(domain, virq);
 	if (irq_data && irq_data->chip_data) {
 		data = irq_data->chip_data;

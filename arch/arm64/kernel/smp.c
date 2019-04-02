@@ -384,7 +384,7 @@ void cpu_die(void)
 	 */
 	cpu_ops[cpu]->cpu_die(cpu);
 
-	BUG();
+	();
 }
 #endif
 
@@ -537,7 +537,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 	u64 hwid = processor->arm_mpidr;
 
 	if (!(processor->flags & ACPI_MADT_ENABLED)) {
-		pr_debug("skipping disabled CPU entry with 0x%llx MPIDR\n", hwid);
+		pr_de("skipping disabled CPU entry with 0x%llx MPIDR\n", hwid);
 		return;
 	}
 
@@ -680,7 +680,7 @@ static void __init of_parse_and_init_cpus(void)
 		if (cpu_count >= NR_CPUS)
 			goto next;
 
-		pr_debug("cpu logical map 0x%llx\n", hwid);
+		pr_de("cpu logical map 0x%llx\n", hwid);
 		cpu_logical_map(cpu_count) = hwid;
 
 		early_map_cpu_to_node(cpu_count, of_node_to_nid(dn));

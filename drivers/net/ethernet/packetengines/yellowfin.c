@@ -32,7 +32,7 @@
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int de = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 20;
 static int mtu;
@@ -82,7 +82,7 @@ static int gx_fix;
 #define TX_TIMEOUT  (2*HZ)
 #define PKT_BUF_SZ		1536			/* Size of each temporary Rx buffer.*/
 
-#define yellowfin_debug debug
+#define yellowfin_de de
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -116,18 +116,18 @@ MODULE_LICENSE("GPL");
 
 module_param(max_interrupt_work, int, 0);
 module_param(mtu, int, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 module_param(gx_fix, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "G-NIC maximum events handled per interrupt");
 MODULE_PARM_DESC(mtu, "G-NIC MTU (all boards)");
-MODULE_PARM_DESC(debug, "G-NIC debug level (0-7)");
+MODULE_PARM_DESC(de, "G-NIC de level (0-7)");
 MODULE_PARM_DESC(rx_copybreak, "G-NIC copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(options, "G-NIC: Bits 0-3: media type, bit 17: full duplex");
 MODULE_PARM_DESC(full_duplex, "G-NIC full duplex setting(s) (1)");
-MODULE_PARM_DESC(gx_fix, "G-NIC: enable GX server chipset bug workaround (0-1)");
+MODULE_PARM_DESC(gx_fix, "G-NIC: enable GX server chipset  workaround (0-1)");
 
 /*
 				Theory of Operation
@@ -209,8 +209,8 @@ See Packet Engines confidential appendix (prototype chips only).
 
 
 enum capability_flags {
-	HasMII=1, FullTxStatus=2, IsGigabit=4, HasMulticastBug=8, FullRxStatus=16,
-	HasMACAddrBug=32, /* Only on early revs.  */
+	HasMII=1, FullTxStatus=2, IsGigabit=4, HasMulticast=8, FullRxStatus=16,
+	HasMACAddr=32, /* Only on early revs.  */
 	DontUseEeprom=64, /* Don't read the MAC from the EEPROm. */
 };
 
@@ -230,7 +230,7 @@ struct pci_id_info {
 
 static const struct pci_id_info pci_id_tbl[] = {
 	{"Yellowfin G-NIC Gigabit Ethernet", { 0x07021000, 0xffffffff},
-	 FullTxStatus | IsGigabit | HasMulticastBug | HasMACAddrBug | DontUseEeprom},
+	 FullTxStatus | IsGigabit | HasMulticast | HasMACAddr | DontUseEeprom},
 	{"Symbios SYM83C885", { 0x07011000, 0xffffffff},
 	  HasMII | DontUseEeprom },
 	{ }
@@ -627,8 +627,8 @@ static int yellowfin_open(struct net_device *dev)
 	iowrite32(0x80008000, ioaddr + RxCtrl);		/* Start Rx and Tx channels. */
 	iowrite32(0x80008000, ioaddr + TxCtrl);
 
-	if (yellowfin_debug > 2) {
-		netdev_printk(KERN_DEBUG, dev, "Done %s()\n", __func__);
+	if (yellowfin_de > 2) {
+		netdev_printk(KERN_DE, dev, "Done %s()\n", __func__);
 	}
 
 	/* Set the timer to check for link beat. */
@@ -650,8 +650,8 @@ static void yellowfin_timer(struct timer_list *t)
 	void __iomem *ioaddr = yp->base;
 	int next_tick = 60*HZ;
 
-	if (yellowfin_debug > 3) {
-		netdev_printk(KERN_DEBUG, dev, "Yellowfin timer tick, status %08x\n",
+	if (yellowfin_de > 3) {
+		netdev_printk(KERN_DE, dev, "Yellowfin timer tick, status %08x\n",
 			      ioread16(ioaddr + IntrStatus));
 	}
 
@@ -659,8 +659,8 @@ static void yellowfin_timer(struct timer_list *t)
 		int bmsr = mdio_read(ioaddr, yp->phys[0], MII_BMSR);
 		int lpa = mdio_read(ioaddr, yp->phys[0], MII_LPA);
 		int negotiated = lpa & yp->advertising;
-		if (yellowfin_debug > 1)
-			netdev_printk(KERN_DEBUG, dev, "MII #%d status register is %04x, link partner capability %04x\n",
+		if (yellowfin_de > 1)
+			netdev_printk(KERN_DE, dev, "MII #%d status register is %04x, link partner capability %04x\n",
 				      yp->phys[0], bmsr, lpa);
 
 		yp->full_duplex = mii_duplex(yp->duplex_lock, negotiated);
@@ -687,8 +687,8 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 		    ioread32(ioaddr + TxStatus),
 		    ioread32(ioaddr + RxStatus));
 
-	/* Note: these should be KERN_DEBUG. */
-	if (yellowfin_debug) {
+	/* Note: these should be KERN_DE. */
+	if (yellowfin_de) {
 		int i;
 		pr_warn("  Rx ring %p: ", yp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
@@ -874,8 +874,8 @@ static netdev_tx_t yellowfin_start_xmit(struct sk_buff *skb,
 	else
 		yp->tx_full = 1;
 
-	if (yellowfin_debug > 4) {
-		netdev_printk(KERN_DEBUG, dev, "Yellowfin transmit frame #%d queued in slot %d\n",
+	if (yellowfin_de > 4) {
+		netdev_printk(KERN_DE, dev, "Yellowfin transmit frame #%d queued in slot %d\n",
 			      yp->cur_tx, entry);
 	}
 	return NETDEV_TX_OK;
@@ -899,8 +899,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 	do {
 		u16 intr_status = ioread16(ioaddr + IntrClear);
 
-		if (yellowfin_debug > 4)
-			netdev_printk(KERN_DEBUG, dev, "Yellowfin interrupt, status %04x\n",
+		if (yellowfin_de > 4)
+			netdev_printk(KERN_DE, dev, "Yellowfin interrupt, status %04x\n",
 				      intr_status);
 
 		if (intr_status == 0)
@@ -946,8 +946,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 				struct sk_buff *skb;
 
 #ifndef final_version
-				if (yellowfin_debug > 5)
-					netdev_printk(KERN_DEBUG, dev, "Tx queue %d check, Tx status %04x %04x %04x %04x\n",
+				if (yellowfin_de > 5)
+					netdev_printk(KERN_DE, dev, "Tx queue %d check, Tx status %04x %04x %04x %04x\n",
 						      entry,
 						      yp->tx_status[entry].tx_cnt,
 						      yp->tx_status[entry].tx_errs,
@@ -960,8 +960,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 				if (tx_errs & 0xF810) {
 					/* There was an major error, log it. */
 #ifndef final_version
-					if (yellowfin_debug > 1)
-						netdev_printk(KERN_DEBUG, dev, "Transmit error, Tx status %04x\n",
+					if (yellowfin_de > 1)
+						netdev_printk(KERN_DE, dev, "Transmit error, Tx status %04x\n",
 							      tx_errs);
 #endif
 					dev->stats.tx_errors++;
@@ -971,8 +971,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 					if (tx_errs & 0x8000) dev->stats.tx_fifo_errors++;
 				} else {
 #ifndef final_version
-					if (yellowfin_debug > 4)
-						netdev_printk(KERN_DEBUG, dev, "Normal transmit, Tx status %04x\n",
+					if (yellowfin_de > 4)
+						netdev_printk(KERN_DE, dev, "Normal transmit, Tx status %04x\n",
 							      tx_errs);
 #endif
 					dev->stats.tx_bytes += skb->len;
@@ -1020,8 +1020,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 		}
 	} while (1);
 
-	if (yellowfin_debug > 3)
-		netdev_printk(KERN_DEBUG, dev, "exiting interrupt, status=%#04x\n",
+	if (yellowfin_de > 3)
+		netdev_printk(KERN_DE, dev, "exiting interrupt, status=%#04x\n",
 			      ioread16(ioaddr + IntrStatus));
 
 	spin_unlock (&yp->lock);
@@ -1036,10 +1036,10 @@ static int yellowfin_rx(struct net_device *dev)
 	int entry = yp->cur_rx % RX_RING_SIZE;
 	int boguscnt = yp->dirty_rx + RX_RING_SIZE - yp->cur_rx;
 
-	if (yellowfin_debug > 4) {
-		printk(KERN_DEBUG " In yellowfin_rx(), entry %d status %08x\n",
+	if (yellowfin_de > 4) {
+		printk(KERN_DE " In yellowfin_rx(), entry %d status %08x\n",
 			   entry, yp->rx_ring[entry].result_status);
-		printk(KERN_DEBUG "   #%d desc. %08x %08x %08x\n",
+		printk(KERN_DE "   #%d desc. %08x %08x %08x\n",
 			   entry, yp->rx_ring[entry].dbdma_cmd, yp->rx_ring[entry].addr,
 			   yp->rx_ring[entry].result_status);
 	}
@@ -1062,8 +1062,8 @@ static int yellowfin_rx(struct net_device *dev)
 		data_size = (le32_to_cpu(desc->dbdma_cmd) -
 			le32_to_cpu(desc->result_status)) & 0xffff;
 		frame_status = get_unaligned_le16(&(buf_addr[data_size - 2]));
-		if (yellowfin_debug > 4)
-			printk(KERN_DEBUG "  %s() status was %04x\n",
+		if (yellowfin_de > 4)
+			printk(KERN_DE "  %s() status was %04x\n",
 			       __func__, frame_status);
 		if (--boguscnt < 0)
 			break;
@@ -1077,8 +1077,8 @@ static int yellowfin_rx(struct net_device *dev)
 			dev->stats.rx_length_errors++;
 		} else if ((yp->drv_flags & IsGigabit)  &&  (frame_status & 0x0038)) {
 			/* There was a error. */
-			if (yellowfin_debug > 3)
-				printk(KERN_DEBUG "  %s() Rx error was %04x\n",
+			if (yellowfin_de > 3)
+				printk(KERN_DE "  %s() Rx error was %04x\n",
 				       __func__, frame_status);
 			dev->stats.rx_errors++;
 			if (frame_status & 0x0060) dev->stats.rx_length_errors++;
@@ -1095,7 +1095,7 @@ static int yellowfin_rx(struct net_device *dev)
 			if (status2 & 0x04) dev->stats.rx_crc_errors++;
 			if (status2 & 0x80) dev->stats.rx_dropped++;
 #ifdef YF_PROTOTYPE		/* Support for prototype hardware errata. */
-		} else if ((yp->flags & HasMACAddrBug)  &&
+		} else if ((yp->flags & HasMACAddr)  &&
 			!ether_addr_equal(le32_to_cpu(yp->rx_ring_dma +
 						      entry * yf_size),
 					  dev->dev_addr) &&
@@ -1113,8 +1113,8 @@ static int yellowfin_rx(struct net_device *dev)
 			/* To verify: Yellowfin Length should omit the CRC! */
 
 #ifndef final_version
-			if (yellowfin_debug > 4)
-				printk(KERN_DEBUG "  %s() normal Rx pkt length %d of %d, bogus_cnt %d\n",
+			if (yellowfin_de > 4)
+				printk(KERN_DE "  %s() normal Rx pkt length %d of %d, bogus_cnt %d\n",
 				       __func__, pkt_len, data_size, boguscnt);
 #endif
 			/* Check if the packet is long enough to just pass up the skbuff
@@ -1190,12 +1190,12 @@ static int yellowfin_close(struct net_device *dev)
 
 	netif_stop_queue (dev);
 
-	if (yellowfin_debug > 1) {
-		netdev_printk(KERN_DEBUG, dev, "Shutting down ethercard, status was Tx %04x Rx %04x Int %02x\n",
+	if (yellowfin_de > 1) {
+		netdev_printk(KERN_DE, dev, "Shutting down ethercard, status was Tx %04x Rx %04x Int %02x\n",
 			      ioread16(ioaddr + TxStatus),
 			      ioread16(ioaddr + RxStatus),
 			      ioread16(ioaddr + IntrStatus));
-		netdev_printk(KERN_DEBUG, dev, "Queue pointers were Tx %d / %d,  Rx %d / %d\n",
+		netdev_printk(KERN_DE, dev, "Queue pointers were Tx %d / %d,  Rx %d / %d\n",
 			      yp->cur_tx, yp->dirty_tx,
 			      yp->cur_rx, yp->dirty_rx);
 	}
@@ -1210,32 +1210,32 @@ static int yellowfin_close(struct net_device *dev)
 	del_timer(&yp->timer);
 
 #if defined(__i386__)
-	if (yellowfin_debug > 2) {
-		printk(KERN_DEBUG "  Tx ring at %08llx:\n",
+	if (yellowfin_de > 2) {
+		printk(KERN_DE "  Tx ring at %08llx:\n",
 				(unsigned long long)yp->tx_ring_dma);
 		for (i = 0; i < TX_RING_SIZE*2; i++)
-			printk(KERN_DEBUG " %c #%d desc. %08x %08x %08x %08x\n",
+			printk(KERN_DE " %c #%d desc. %08x %08x %08x %08x\n",
 				   ioread32(ioaddr + TxPtr) == (long)&yp->tx_ring[i] ? '>' : ' ',
 				   i, yp->tx_ring[i].dbdma_cmd, yp->tx_ring[i].addr,
 				   yp->tx_ring[i].branch_addr, yp->tx_ring[i].result_status);
-		printk(KERN_DEBUG "  Tx status %p:\n", yp->tx_status);
+		printk(KERN_DE "  Tx status %p:\n", yp->tx_status);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(KERN_DEBUG "   #%d status %04x %04x %04x %04x\n",
+			printk(KERN_DE "   #%d status %04x %04x %04x %04x\n",
 				   i, yp->tx_status[i].tx_cnt, yp->tx_status[i].tx_errs,
 				   yp->tx_status[i].total_tx_cnt, yp->tx_status[i].paused);
 
-		printk(KERN_DEBUG "  Rx ring %08llx:\n",
+		printk(KERN_DE "  Rx ring %08llx:\n",
 				(unsigned long long)yp->rx_ring_dma);
 		for (i = 0; i < RX_RING_SIZE; i++) {
-			printk(KERN_DEBUG " %c #%d desc. %08x %08x %08x\n",
+			printk(KERN_DE " %c #%d desc. %08x %08x %08x\n",
 				   ioread32(ioaddr + RxPtr) == (long)&yp->rx_ring[i] ? '>' : ' ',
 				   i, yp->rx_ring[i].dbdma_cmd, yp->rx_ring[i].addr,
 				   yp->rx_ring[i].result_status);
-			if (yellowfin_debug > 6) {
+			if (yellowfin_de > 6) {
 				if (get_unaligned((u8*)yp->rx_ring[i].addr) != 0x69) {
 					int j;
 
-					printk(KERN_DEBUG);
+					printk(KERN_DE);
 					for (j = 0; j < 0x50; j++)
 						pr_cont(" %04x",
 							get_unaligned(((u16*)yp->rx_ring[i].addr) + j));
@@ -1244,7 +1244,7 @@ static int yellowfin_close(struct net_device *dev)
 			}
 		}
 	}
-#endif /* __i386__ debugging only */
+#endif /* __i386__ deging only */
 
 	free_irq(yp->pci_dev->irq, dev);
 
@@ -1264,8 +1264,8 @@ static int yellowfin_close(struct net_device *dev)
 	}
 
 #ifdef YF_PROTOTYPE			/* Support for prototype hardware errata. */
-	if (yellowfin_debug > 0) {
-		netdev_printk(KERN_DEBUG, dev, "Received %d frames that we should not have\n",
+	if (yellowfin_de > 0) {
+		netdev_printk(KERN_DE, dev, "Received %d frames that we should not have\n",
 			      bogus_rx);
 	}
 #endif
@@ -1298,9 +1298,9 @@ static void set_rx_mode(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit;
 
-			/* Due to a bug in the early chip versions, multiple filter
+			/* Due to a  in the early chip versions, multiple filter
 			   slots must be set for each address. */
-			if (yp->drv_flags & HasMulticastBug) {
+			if (yp->drv_flags & HasMulticast) {
 				bit = (ether_crc_le(3, ha->addr) >> 3) & 0x3f;
 				hash_table[bit >> 4] |= (1 << bit);
 				bit = (ether_crc_le(4, ha->addr) >> 3) & 0x3f;
@@ -1377,7 +1377,7 @@ static void yellowfin_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct yellowfin_private *np;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 	np = netdev_priv(dev);
 
         pci_free_consistent(pdev, STATUS_TOTAL_SIZE, np->tx_status,

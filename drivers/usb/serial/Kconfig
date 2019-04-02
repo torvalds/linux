@@ -150,7 +150,7 @@ config USB_SERIAL_CYPRESS_M8
 	  Say Y here if you want to use a device that contains the Cypress
 	  USB to Serial microcontroller, such as the DeLorme Earthmate GPS.
 
-		Attempted SMP support... send bug reports!
+		Attempted SMP support... send  reports!
 
 	  Supported microcontrollers in the CY4601 family are:
 		CY7C63741 CY7C63742 CY7C63743 CY7C64013
@@ -647,14 +647,14 @@ config USB_SERIAL_UPD78F0730
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd78f0730.
 
-config USB_SERIAL_DEBUG
-	tristate "USB Debugging Device"
+config USB_SERIAL_DE
+	tristate "USB Deging Device"
 	help
-	  Say Y here if you have a USB debugging device used to receive
-	  debugging data from another machine.  The most common of these
+	  Say Y here if you have a USB deging device used to receive
+	  deging data from another machine.  The most common of these
 	  devices is the NetChip TurboCONNECT device.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called usb-debug.
+	  module will be called usb-de.
 
 endif # USB_SERIAL

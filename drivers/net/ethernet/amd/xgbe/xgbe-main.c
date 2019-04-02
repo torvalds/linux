@@ -130,9 +130,9 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(XGBE_DRV_VERSION);
 MODULE_DESCRIPTION(XGBE_DRV_DESC);
 
-static int debug = -1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, " Network interface message level setting");
+static int de = -1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, " Network interface message level setting");
 
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 				      NETIF_MSG_IFUP);
@@ -195,7 +195,7 @@ struct xgbe_prv_data *xgbe_alloc_pdata(struct device *dev)
 	init_completion(&pdata->mdio_complete);
 	INIT_LIST_HEAD(&pdata->vxlan_ports);
 
-	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
+	pdata->msg_enable = netif_msg_init(de, default_msg_level);
 
 	set_bit(XGBE_DOWN, &pdata->dev_state);
 	set_bit(XGBE_STOPPED, &pdata->dev_state);
@@ -304,10 +304,10 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 		pdata->rx_max_fifo_size = pdata->hw_feat.rx_fifo_size;
 
 	/* Set and validate the number of descriptors for a ring */
-	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_TX_DESC_CNT);
+	BUILD__ON_NOT_POWER_OF_2(XGBE_TX_DESC_CNT);
 	pdata->tx_desc_count = XGBE_TX_DESC_CNT;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_RX_DESC_CNT);
+	BUILD__ON_NOT_POWER_OF_2(XGBE_RX_DESC_CNT);
 	pdata->rx_desc_count = XGBE_RX_DESC_CNT;
 
 	/* Adjust the number of queues based on interrupts assigned */
@@ -331,7 +331,7 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, UDP4TE, 1);
 
 	/* Call MDIO/PHY initialization routine */
-	pdata->debugfs_an_cdr_workaround = pdata->vdata->an_cdr_workaround;
+	pdata->defs_an_cdr_workaround = pdata->vdata->an_cdr_workaround;
 	ret = pdata->phy_if.phy_init(pdata);
 	if (ret)
 		return ret;
@@ -409,7 +409,7 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 	if (IS_REACHABLE(CONFIG_PTP_1588_CLOCK))
 		xgbe_ptp_register(pdata);
 
-	xgbe_debugfs_init(pdata);
+	xgbe_defs_init(pdata);
 
 	netif_dbg(pdata, drv, pdata->netdev, "%u Tx software queues\n",
 		  pdata->tx_ring_count);
@@ -423,7 +423,7 @@ void xgbe_deconfig_netdev(struct xgbe_prv_data *pdata)
 {
 	struct net_device *netdev = pdata->netdev;
 
-	xgbe_debugfs_exit(pdata);
+	xgbe_defs_exit(pdata);
 
 	if (IS_REACHABLE(CONFIG_PTP_1588_CLOCK))
 		xgbe_ptp_unregister(pdata);
@@ -444,7 +444,7 @@ static int xgbe_netdev_event(struct notifier_block *nb, unsigned long event,
 
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		xgbe_debugfs_rename(pdata);
+		xgbe_defs_rename(pdata);
 		break;
 
 	default:

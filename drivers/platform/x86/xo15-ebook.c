@@ -70,7 +70,7 @@ static void ebook_switch_notify(struct acpi_device *device, u32 event)
 		ebook_send_state(device);
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}

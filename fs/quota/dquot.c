@@ -22,7 +22,7 @@
  *		dquot_incr_...() to calling functions.
  *		invalidate_dquots() now writes modified dquots.
  *		Serialized quota_off() and quota_on() for mount point.
- *		Fixed a few bugs in grow_dquots().
+ *		Fixed a few s in grow_dquots().
  *		Fixed deadlock in write_dquot() - we no longer account quotas on
  *		quota files
  *		remove_dquot_ref() moved to inode.c - it now traverses through inodes
@@ -152,7 +152,7 @@ void __quota_error(struct super_block *sb, const char *func,
 }
 EXPORT_SYMBOL(__quota_error);
 
-#if defined(CONFIG_QUOTA_DEBUG) || defined(CONFIG_PRINT_QUOTA_WARNING)
+#if defined(CONFIG_QUOTA_DE) || defined(CONFIG_PRINT_QUOTA_WARNING)
 static char *quotatypes[] = INITQFNAMES;
 #endif
 static struct quota_format_type *quota_formats;	/* List of registered formats */
@@ -750,12 +750,12 @@ void dqput(struct dquot *dquot)
 
 	if (!dquot)
 		return;
-#ifdef CONFIG_QUOTA_DEBUG
+#ifdef CONFIG_QUOTA_DE
 	if (!atomic_read(&dquot->dq_count)) {
 		quota_error(dquot->dq_sb, "trying to free free dquot of %s %d",
 			    quotatypes[dquot->dq_id.type],
 			    from_kqid(&init_user_ns, dquot->dq_id));
-		BUG();
+		();
 	}
 #endif
 	dqstats_inc(DQST_DROPS);
@@ -794,9 +794,9 @@ we_slept:
 		goto we_slept;
 	}
 	atomic_dec(&dquot->dq_count);
-#ifdef CONFIG_QUOTA_DEBUG
+#ifdef CONFIG_QUOTA_DE
 	/* sanity check */
-	BUG_ON(!list_empty(&dquot->dq_free));
+	_ON(!list_empty(&dquot->dq_free));
 #endif
 	put_dquot_last(dquot);
 	spin_unlock(&dq_list_lock);
@@ -904,8 +904,8 @@ we_slept:
 	 * smp_mb__before_atomic() in dquot_acquire().
 	 */
 	smp_rmb();
-#ifdef CONFIG_QUOTA_DEBUG
-	BUG_ON(!dquot->dq_sb);	/* Has somebody invalidated entry under us? */
+#ifdef CONFIG_QUOTA_DE
+	_ON(!dquot->dq_sb);	/* Has somebody invalidated entry under us? */
 #endif
 out:
 	if (empty)
@@ -941,7 +941,7 @@ static int dqinit_needed(struct inode *inode, int type)
 static int add_dquot_ref(struct super_block *sb, int type)
 {
 	struct inode *inode, *old_inode = NULL;
-#ifdef CONFIG_QUOTA_DEBUG
+#ifdef CONFIG_QUOTA_DE
 	int reserved = 0;
 #endif
 	int err = 0;
@@ -959,7 +959,7 @@ static int add_dquot_ref(struct super_block *sb, int type)
 		spin_unlock(&inode->i_lock);
 		spin_unlock(&sb->s_inode_list_lock);
 
-#ifdef CONFIG_QUOTA_DEBUG
+#ifdef CONFIG_QUOTA_DE
 		if (unlikely(inode_get_rsv_space(inode) > 0))
 			reserved = 1;
 #endif
@@ -984,7 +984,7 @@ static int add_dquot_ref(struct super_block *sb, int type)
 	spin_unlock(&sb->s_inode_list_lock);
 	iput(old_inode);
 out:
-#ifdef CONFIG_QUOTA_DEBUG
+#ifdef CONFIG_QUOTA_DE
 	if (reserved) {
 		quota_error(sb, "Writes happened before quota was turned on "
 			"thus quota information is probably inconsistent. "
@@ -1068,7 +1068,7 @@ static void remove_dquot_ref(struct super_block *sb, int type,
 		spin_unlock(&dq_data_lock);
 	}
 	spin_unlock(&sb->s_inode_list_lock);
-#ifdef CONFIG_QUOTA_DEBUG
+#ifdef CONFIG_QUOTA_DE
 	if (reserved) {
 		printk(KERN_WARNING "VFS (%s): Writes happened after quota"
 			" was disabled thus quota information is probably "
@@ -1600,7 +1600,7 @@ static qsize_t *inode_reserved_space(struct inode * inode)
 {
 	/* Filesystem must explicitly define it's own method in order to use
 	 * quota reservation interface */
-	BUG_ON(!inode->i_sb->dq_op->get_reserved_space);
+	_ON(!inode->i_sb->dq_op->get_reserved_space);
 	return inode->i_sb->dq_op->get_reserved_space(inode);
 }
 
@@ -2464,7 +2464,7 @@ int dquot_enable(struct inode *inode, int type, int format_id,
 	struct super_block *sb = inode->i_sb;
 
 	/* Just unsuspend quotas? */
-	BUG_ON(flags & DQUOT_SUSPENDED);
+	_ON(flags & DQUOT_SUSPENDED);
 	/* s_umount should be held in exclusive mode */
 	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
 		up_read(&sb->s_umount);

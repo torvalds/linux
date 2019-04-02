@@ -16,10 +16,10 @@
  */
 
 /*
- * This needs to be before all headers so that pr_debug in printk.h doesn't turn
+ * This needs to be before all headers so that pr_de in printk.h doesn't turn
  * printk calls into no_printk().
  *
- *#define DEBUG
+ *#define DE
  */
 #define pr_fmt(fmt) "microcode: " fmt
 
@@ -219,7 +219,7 @@ static void save_microcode_patch(void *data, unsigned int size)
 	 * paging has been enabled.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32))
-		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
+		intel_ucode_patch = (struct microcode_intel *)__pa_node(p->data);
 	else
 		intel_ucode_patch = p->data;
 }
@@ -421,14 +421,14 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 
 static void show_saved_mc(void)
 {
-#ifdef DEBUG
+#ifdef DE
 	int i = 0, j;
 	unsigned int sig, pf, rev, total_size, data_size, date;
 	struct ucode_cpu_info uci;
 	struct ucode_patch *p;
 
 	if (list_empty(&microcode_cache)) {
-		pr_debug("no microcode data saved.\n");
+		pr_de("no microcode data saved.\n");
 		return;
 	}
 
@@ -437,7 +437,7 @@ static void show_saved_mc(void)
 	sig	= uci.cpu_sig.sig;
 	pf	= uci.cpu_sig.pf;
 	rev	= uci.cpu_sig.rev;
-	pr_debug("CPU: sig=0x%x, pf=0x%x, rev=0x%x\n", sig, pf, rev);
+	pr_de("CPU: sig=0x%x, pf=0x%x, rev=0x%x\n", sig, pf, rev);
 
 	list_for_each_entry(p, &microcode_cache, plist) {
 		struct microcode_header_intel *mc_saved_header;
@@ -455,7 +455,7 @@ static void show_saved_mc(void)
 		total_size	= get_totalsize(mc_saved_header);
 		data_size	= get_datasize(mc_saved_header);
 
-		pr_debug("mc_saved[%d]: sig=0x%x, pf=0x%x, rev=0x%x, total size=0x%x, date = %04x-%02x-%02x\n",
+		pr_de("mc_saved[%d]: sig=0x%x, pf=0x%x, rev=0x%x, total size=0x%x, date = %04x-%02x-%02x\n",
 			 i++, sig, pf, rev, total_size,
 			 date & 0xffff,
 			 date >> 24,
@@ -473,7 +473,7 @@ static void show_saved_mc(void)
 			sig = ext_sig->sig;
 			pf = ext_sig->pf;
 
-			pr_debug("\tExtended[%d]: sig=0x%x, pf=0x%x\n",
+			pr_de("\tExtended[%d]: sig=0x%x, pf=0x%x\n",
 				 j, sig, pf);
 
 			ext_sig++;
@@ -561,8 +561,8 @@ static void print_ucode(struct ucode_cpu_info *uci)
 	if (!mc)
 		return;
 
-	delay_ucode_info_p = (int *)__pa_nodebug(&delay_ucode_info);
-	current_mc_date_p = (int *)__pa_nodebug(&current_mc_date);
+	delay_ucode_info_p = (int *)__pa_node(&delay_ucode_info);
+	current_mc_date_p = (int *)__pa_node(&current_mc_date);
 
 	*delay_ucode_info_p = 1;
 	*current_mc_date_p = mc->hdr.date;
@@ -662,7 +662,7 @@ static struct microcode_intel *__load_ucode_intel(struct ucode_cpu_info *uci)
 	bool use_pa;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		path	  = (const char *)__pa_nodebug(ucode_path);
+		path	  = (const char *)__pa_node(ucode_path);
 		use_pa	  = true;
 	} else {
 		path	  = ucode_path;
@@ -701,7 +701,7 @@ void load_ucode_intel_ap(void)
 	struct ucode_cpu_info uci;
 
 	if (IS_ENABLED(CONFIG_X86_32))
-		iup = (struct microcode_intel **) __pa_nodebug(&intel_ucode_patch);
+		iup = (struct microcode_intel **) __pa_node(&intel_ucode_patch);
 	else
 		iup = &intel_ucode_patch;
 
@@ -939,7 +939,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 	 */
 	save_mc_for_early(new_mc, new_mc_size);
 
-	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
+	pr_de("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
 		 cpu, new_rev, uci->cpu_sig.rev);
 
 	return ret;
@@ -989,7 +989,7 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 		c->x86, c->x86_model, c->x86_stepping);
 
 	if (request_firmware_direct(&firmware, name, device)) {
-		pr_debug("data file %s load failed\n", name);
+		pr_de("data file %s load failed\n", name);
 		return UCODE_NFOUND;
 	}
 

@@ -23,7 +23,7 @@ static inline void OUT(struct etnaviv_cmdbuf *buffer, u32 data)
 {
 	u32 *vaddr = (u32 *)buffer->vaddr;
 
-	BUG_ON(buffer->user_size >= buffer->size);
+	_ON(buffer->user_size >= buffer->size);
 
 	vaddr[buffer->user_size / 4] = data;
 	buffer->user_size += 4;
@@ -314,7 +314,7 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 
 	lockdep_assert_held(&gpu->lock);
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_de & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
 
 	link_target = etnaviv_cmdbuf_get_va(cmdbuf);
@@ -413,12 +413,12 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 	CMD_LINK(buffer, 2, etnaviv_cmdbuf_get_va(buffer) +
 			    buffer->user_size - 4);
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_de & DRM_UT_DRIVER)
 		pr_info("stream link to 0x%08x @ 0x%08x %p\n",
 			return_target, etnaviv_cmdbuf_get_va(cmdbuf),
 			cmdbuf->vaddr);
 
-	if (drm_debug & DRM_UT_DRIVER) {
+	if (drm_de & DRM_UT_DRIVER) {
 		print_hex_dump(KERN_INFO, "cmd ", DUMP_PREFIX_OFFSET, 16, 4,
 			       cmdbuf->vaddr, cmdbuf->size, 0);
 
@@ -437,6 +437,6 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, u32 exec_state,
 				    VIV_FE_LINK_HEADER_PREFETCH(link_dwords),
 				    link_target);
 
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_de & DRM_UT_DRIVER)
 		etnaviv_buffer_dump(gpu, buffer, 0, 0x50);
 }

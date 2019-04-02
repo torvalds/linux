@@ -47,7 +47,7 @@
  */
 typedef struct seqcount {
 	unsigned sequence;
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif
 } seqcount_t;
@@ -62,7 +62,7 @@ static inline void __seqcount_init(seqcount_t *s, const char *name,
 	s->sequence = 0;
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define SEQCOUNT_DEP_MAP_INIT(lockname) \
 		.dep_map = { .name = #lockname } \
 
@@ -257,7 +257,7 @@ static inline void raw_write_seqcount_end(seqcount_t *s)
  *
  *              } while (read_seqcount_retry(&seq, s));
  *
- *              BUG_ON(!x && !y);
+ *              _ON(!x && !y);
  *      }
  *
  *      void write(void)

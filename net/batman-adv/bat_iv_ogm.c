@@ -22,7 +22,7 @@
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/errno.h>
@@ -1737,12 +1737,12 @@ free_skb:
 	return ret;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_iv_ogm_orig_print_neigh() - print neighbors for the originator table
  * @orig_node: the orig_node for which the neighbors are printed
  * @if_outgoing: outgoing interface for these entries
- * @seq: debugfs table seq_file struct
+ * @seq: defs table seq_file struct
  *
  * Must be called while holding an rcu lock.
  */
@@ -1770,7 +1770,7 @@ batadv_iv_ogm_orig_print_neigh(struct batadv_orig_node *orig_node,
 /**
  * batadv_iv_ogm_orig_print() - print the originator table
  * @bat_priv: the bat priv with all the soft interface information
- * @seq: debugfs table seq_file struct
+ * @seq: defs table seq_file struct
  * @if_outgoing: the outgoing interface for which this should be printed
  */
 static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
@@ -2066,7 +2066,7 @@ batadv_iv_ogm_orig_dump(struct sk_buff *msg, struct netlink_callback *cb,
 	cb->args[2] = sub;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_iv_hardif_neigh_print() - print a single hop neighbour node
  * @seq: neighbour table seq_file struct
@@ -2514,7 +2514,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /* fails if orig_node has no router */
 static int batadv_iv_gw_write_buffer_text(struct batadv_priv *bat_priv,
 					  struct seq_file *seq,
@@ -2704,13 +2704,13 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.neigh = {
 		.cmp = batadv_iv_ogm_neigh_cmp,
 		.is_similar_or_better = batadv_iv_ogm_neigh_is_sob,
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 		.print = batadv_iv_neigh_print,
 #endif
 		.dump = batadv_iv_ogm_neigh_dump,
 	},
 	.orig = {
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 		.print = batadv_iv_ogm_orig_print,
 #endif
 		.dump = batadv_iv_ogm_orig_dump,
@@ -2719,7 +2719,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 		.init_sel_class = batadv_iv_init_sel_class,
 		.get_best_gw_node = batadv_iv_gw_get_best_gw_node,
 		.is_eligible = batadv_iv_gw_is_eligible,
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 		.print = batadv_iv_gw_print,
 #endif
 		.dump = batadv_iv_gw_dump,

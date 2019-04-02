@@ -70,7 +70,7 @@ int rxe_ib_get_hw_stats(struct ib_device *ibdev,
 struct rdma_hw_stats *rxe_ib_alloc_hw_stats(struct ib_device *ibdev,
 					    u8 port_num)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(rxe_counter_name) != RXE_NUM_OF_COUNTERS);
+	BUILD__ON(ARRAY_SIZE(rxe_counter_name) != RXE_NUM_OF_COUNTERS);
 	/* We support only per port stats */
 	if (!port_num)
 		return NULL;

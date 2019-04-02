@@ -12,11 +12,11 @@ config EARLY_PRINTK
 	  This option enables special console drivers which allow the kernel
 	  to print messages very early in the bootup process.
 
-	  This is useful for kernel debugging when your machine crashes very
+	  This is useful for kernel deging when your machine crashes very
 	  early before the console code is initialized. For normal operation,
 	  it is not recommended because it looks ugly on some machines and
 	  doesn't cooperate with an X server. You should normally say N here,
-	  unless you want to debug such a crash.
+	  unless you want to de such a crash.
 
 config EARLY_PRINTK_8250
 	bool
@@ -78,26 +78,26 @@ config CMDLINE_OVERRIDE
 	  Normally, you will choose 'N' here.
 
 config SB1XXX_CORELIS
-	bool "Corelis Debugger"
+	bool "Corelis Deger"
 	depends on SIBYTE_SB1xxx_SOC
-	select DEBUG_INFO if !COMPILE_TEST
+	select DE_INFO if !COMPILE_TEST
 	help
 	  Select compile flags that produce code that can be processed by the
 	  Corelis mksym utility and UDB Emulator.
 
-config DEBUG_ZBOOT
-	bool "Enable compressed kernel support debugging"
-	depends on DEBUG_KERNEL && SYS_SUPPORTS_ZBOOT
+config DE_ZBOOT
+	bool "Enable compressed kernel support deging"
+	depends on DE_KERNEL && SYS_SUPPORTS_ZBOOT
 	default n
 	help
 	  If you want to add compressed kernel support to a new board, and the
 	  board supports uart16550 compatible serial port, please select
 	  SYS_SUPPORTS_ZBOOT_UART16550 for your board and enable this option to
-	  debug it.
+	  de it.
 
 	  If your board doesn't support uart16550 compatible serial port, you
 	  can try to select SYS_SUPPORTS_ZBOOT and use the other methods to
-	  debug it. for example, add a new serial port support just as
+	  de it. for example, add a new serial port support just as
 	  arch/mips/boot/compressed/uart-16550.c does.
 
 	  After the compressed kernel support works, please disable this option
@@ -105,19 +105,19 @@ config DEBUG_ZBOOT
 	  little.
 
 config SPINLOCK_TEST
-	bool "Enable spinlock timing tests in debugfs"
-	depends on DEBUG_FS
+	bool "Enable spinlock timing tests in defs"
+	depends on DE_FS
 	default n
 	help
-	  Add several files to the debugfs to test spinlock speed.
+	  Add several files to the defs to test spinlock speed.
 
-config SCACHE_DEBUGFS
-	bool "L2 cache debugfs entries"
-	depends on DEBUG_FS
+config SCACHE_DEFS
+	bool "L2 cache defs entries"
+	depends on DE_FS
 	help
 	  Enable this to allow parts of the L2 cache configuration, such as
 	  whether or not prefetching is enabled, to be exposed to userland
-	  via debugfs.
+	  via defs.
 
 	  If unsure, say N.
 
@@ -125,7 +125,7 @@ menuconfig MIPS_CPS_NS16550_BOOL
 	bool "CPS SMP NS16550 UART output"
 	depends on MIPS_CPS
 	help
-	  Output debug information via an ns16550 compatible UART if exceptions
+	  Output de information via an ns16550 compatible UART if exceptions
 	  occur early in the boot process of a secondary core.
 
 if MIPS_CPS_NS16550_BOOL
@@ -139,7 +139,7 @@ config MIPS_CPS_NS16550_BASE
 	default 0
 	help
 	  The base address of the ns16550 compatible UART on which to output
-	  debug information from the early stages of core startup.
+	  de information from the early stages of core startup.
 
 	  This is only used if non-zero.
 

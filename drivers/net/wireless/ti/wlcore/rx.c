@@ -25,7 +25,7 @@
 #include <linux/sched.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "acx.h"
 #include "rx.h"
 #include "tx.h"
@@ -160,7 +160,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		wl1271_warning("corrupted packet in RX: status: 0x%x len: %d",
 			       desc->status & WL1271_RX_DESC_STATUS_MASK,
 			       pkt_data_len);
-		wl1271_dump((DEBUG_RX|DEBUG_CMD), "PKT: ", data + sizeof(*desc),
+		wl1271_dump((DE_RX|DE_CMD), "PKT: ", data + sizeof(*desc),
 			    min(pkt_data_len,
 				ieee80211_hdrlen(hdr->frame_control)));
 		return -EINVAL;
@@ -199,7 +199,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	wlcore_hw_set_rx_csum(wl, desc, skb);
 
 	seq_num = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
-	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d hlid %d", skb,
+	wl1271_de(DE_RX, "rx skb 0x%p: %d B %s seq %d hlid %d", skb,
 		     skb->len - desc->pad_len,
 		     beacon ? "beacon" : "",
 		     seq_num, *hlid);

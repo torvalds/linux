@@ -169,7 +169,7 @@ static bool offset_to_id(
 	case mmDC_GPIO_PWRSEQ_A:
 	case mmDC_GPIO_PAD_STRENGTH_1:
 	case mmDC_GPIO_PAD_STRENGTH_2:
-	case mmDC_GPIO_DEBUG:
+	case mmDC_GPIO_DE:
 		return false;
 	/* UNEXPECTED */
 	default:

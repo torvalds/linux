@@ -360,7 +360,7 @@ if major == 1 and minor < 6:
 #		\\end{sphinxheavybox}
 #	}
 #
-# Unfortunately, the implementation is buggy: if a note is inside a
+# Unfortunately, the implementation is gy: if a note is inside a
 # table, it isn't displayed well. So, for now, let's use boring
 # black and white notes.
 

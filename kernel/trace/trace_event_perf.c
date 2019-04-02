@@ -388,7 +388,7 @@ void *perf_trace_buf_alloc(int size, struct pt_regs **regs, int *rctxp)
 	char *raw_data;
 	int rctx;
 
-	BUILD_BUG_ON(PERF_MAX_TRACE_SIZE % sizeof(unsigned long));
+	BUILD__ON(PERF_MAX_TRACE_SIZE % sizeof(unsigned long));
 
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
 		      "perf buffer not large enough"))
@@ -448,7 +448,7 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 #define ENTRY_SIZE (ALIGN(sizeof(struct ftrace_entry) + sizeof(u32), \
 		    sizeof(u64)) - sizeof(u32))
 
-	BUILD_BUG_ON(ENTRY_SIZE > PERF_MAX_TRACE_SIZE);
+	BUILD__ON(ENTRY_SIZE > PERF_MAX_TRACE_SIZE);
 
 	memset(&regs, 0, sizeof(regs));
 	perf_fetch_caller_regs(&regs);

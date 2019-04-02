@@ -103,9 +103,9 @@ static struct prism2_plx_manfid {
 };
 
 
-#ifdef PRISM2_IO_DEBUG
+#ifdef PRISM2_IO_DE
 
-static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
+static inline void hfa384x_outb_de(struct net_device *dev, int a, u8 v)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -115,12 +115,12 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 	local = iface->local;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTB, a, v);
 	outb(v, dev->base_addr + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
+static inline u8 hfa384x_inb_de(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -132,12 +132,12 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = inb(dev->base_addr + a);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INB, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INB, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
 }
 
-static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
+static inline void hfa384x_outw_de(struct net_device *dev, int a, u16 v)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -147,12 +147,12 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 	local = iface->local;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTW, a, v);
 	outw(v, dev->base_addr + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
+static inline u16 hfa384x_inw_de(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -164,12 +164,12 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = inw(dev->base_addr + a);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INW, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INW, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
 }
 
-static inline void hfa384x_outsw_debug(struct net_device *dev, int a,
+static inline void hfa384x_outsw_de(struct net_device *dev, int a,
 				       u8 *buf, int wc)
 {
 	struct hostap_interface *iface;
@@ -180,12 +180,12 @@ static inline void hfa384x_outsw_debug(struct net_device *dev, int a,
 	local = iface->local;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTSW, a, wc);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTSW, a, wc);
 	outsw(dev->base_addr + a, buf, wc);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline void hfa384x_insw_debug(struct net_device *dev, int a,
+static inline void hfa384x_insw_de(struct net_device *dev, int a,
 				      u8 *buf, int wc)
 {
 	struct hostap_interface *iface;
@@ -196,19 +196,19 @@ static inline void hfa384x_insw_debug(struct net_device *dev, int a,
 	local = iface->local;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INSW, a, wc);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INSW, a, wc);
 	insw(dev->base_addr + a, buf, wc);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-#define HFA384X_OUTB(v,a) hfa384x_outb_debug(dev, (a), (v))
-#define HFA384X_INB(a) hfa384x_inb_debug(dev, (a))
-#define HFA384X_OUTW(v,a) hfa384x_outw_debug(dev, (a), (v))
-#define HFA384X_INW(a) hfa384x_inw_debug(dev, (a))
-#define HFA384X_OUTSW(a, buf, wc) hfa384x_outsw_debug(dev, (a), (buf), (wc))
-#define HFA384X_INSW(a, buf, wc) hfa384x_insw_debug(dev, (a), (buf), (wc))
+#define HFA384X_OUTB(v,a) hfa384x_outb_de(dev, (a), (v))
+#define HFA384X_INB(a) hfa384x_inb_de(dev, (a))
+#define HFA384X_OUTW(v,a) hfa384x_outw_de(dev, (a), (v))
+#define HFA384X_INW(a) hfa384x_inw_de(dev, (a))
+#define HFA384X_OUTSW(a, buf, wc) hfa384x_outsw_de(dev, (a), (buf), (wc))
+#define HFA384X_INSW(a, buf, wc) hfa384x_insw_de(dev, (a), (buf), (wc))
 
-#else /* PRISM2_IO_DEBUG */
+#else /* PRISM2_IO_DE */
 
 #define HFA384X_OUTB(v,a) outb((v), dev->base_addr + (a))
 #define HFA384X_INB(a) inb(dev->base_addr + (a))
@@ -217,7 +217,7 @@ static inline void hfa384x_insw_debug(struct net_device *dev, int a,
 #define HFA384X_INSW(a, buf, wc) insw(dev->base_addr + (a), buf, wc)
 #define HFA384X_OUTSW(a, buf, wc) outsw(dev->base_addr + (a), buf, wc)
 
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 
 static int hfa384x_from_bap(struct net_device *dev, u16 bap, void *buf,
@@ -268,7 +268,7 @@ static void prism2_plx_cor_sreset(local_info_t *local)
 	unsigned char corsave;
 	struct hostap_plx_priv *hw_priv = local->hw_priv;
 
-	printk(KERN_DEBUG "%s: Doing reset via direct COR access.\n",
+	printk(KERN_DE "%s: Doing reset via direct COR access.\n",
 	       dev_info);
 
 	/* Set sreset bit of COR and clear it after hold time */
@@ -351,7 +351,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 	/* read CIS; it is in even offsets in the beginning of attr_mem */
 	for (i = 0; i < CIS_MAX_LEN; i++)
 		cis[i] = readb(attr_mem + 2 * i);
-	printk(KERN_DEBUG "%s: CIS: %02x %02x %02x %02x %02x %02x ...\n",
+	printk(KERN_DE "%s: CIS: %02x %02x %02x %02x %02x %02x ...\n",
 	       dev_info, cis[0], cis[1], cis[2], cis[3], cis[4], cis[5]);
 
 	/* set reasonable defaults for Prism2 cards just in case CIS parsing
@@ -377,7 +377,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 			*cor_offset = 0;
 			for (i = 0; i <= rasz; i++)
 				*cor_offset += cis[pos + 4 + i] << (8 * i);
-			printk(KERN_DEBUG "%s: cor_index=0x%x "
+			printk(KERN_DE "%s: cor_index=0x%x "
 			       "cor_offset=0x%x\n", dev_info,
 			       *cor_index, *cor_offset);
 			if (*cor_offset > attr_len) {
@@ -393,7 +393,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 				goto cis_error;
 			manfid1 = cis[pos + 2] + (cis[pos + 3] << 8);
 			manfid2 = cis[pos + 4] + (cis[pos + 5] << 8);
-			printk(KERN_DEBUG "%s: manfid=0x%04x, 0x%04x\n",
+			printk(KERN_DE "%s: manfid=0x%04x, 0x%04x\n",
 			       dev_info, manfid1, manfid2);
 			break;
 		}
@@ -504,7 +504,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 			goto fail;
 		}
 
-		printk(KERN_DEBUG "Prism2/2.5 PC Card detected in PLX9052 "
+		printk(KERN_DE "Prism2/2.5 PC Card detected in PLX9052 "
 		       "adapter\n");
 
 		/* Write COR to enable PC Card */
@@ -513,7 +513,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 		/* Enable PCI interrupts if they are not already enabled */
 		reg = inl(plx_ioaddr + PLX_INTCSR);
-		printk(KERN_DEBUG "PLX_INTCSR=0x%x\n", reg);
+		printk(KERN_DE "PLX_INTCSR=0x%x\n", reg);
 		if (!(reg & PLX_INTCSR_PCI_INTEN)) {
 			outl(reg | PLX_INTCSR_PCI_INTEN,
 			     plx_ioaddr + PLX_INTCSR);
@@ -526,7 +526,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		}
 
 		reg = inl(plx_ioaddr + PLX_CNTRL);
-		printk(KERN_DEBUG "PLX_CNTRL=0x%x (Serial EEPROM "
+		printk(KERN_DE "PLX_CNTRL=0x%x (Serial EEPROM "
 		       "present=%d)\n",
 		       reg, (reg & PLX_CNTRL_SERIAL_EEPROM_PRESENT) != 0);
 		/* should set PLX_PCIIPR to 0x01 (INTA#) if Serial EEPROM is
@@ -557,7 +557,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		irq_registered = 1;
 
 	if (prism2_hw_config(dev, 1)) {
-		printk(KERN_DEBUG "%s: hardware initialization failed\n",
+		printk(KERN_DE "%s: hardware initialization failed\n",
 		       dev_info);
 		goto fail;
 	}

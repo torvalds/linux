@@ -38,7 +38,7 @@
 
 static inline void ath5k_rfkill_disable(struct ath5k_hw *ah)
 {
-	ATH5K_DBG(ah, ATH5K_DEBUG_ANY, "rfkill disable (gpio:%d polarity:%d)\n",
+	ATH5K_DBG(ah, ATH5K_DE_ANY, "rfkill disable (gpio:%d polarity:%d)\n",
 		ah->rf_kill.gpio, ah->rf_kill.polarity);
 	ath5k_hw_set_gpio_output(ah, ah->rf_kill.gpio);
 	ath5k_hw_set_gpio(ah, ah->rf_kill.gpio, !ah->rf_kill.polarity);
@@ -47,7 +47,7 @@ static inline void ath5k_rfkill_disable(struct ath5k_hw *ah)
 
 static inline void ath5k_rfkill_enable(struct ath5k_hw *ah)
 {
-	ATH5K_DBG(ah, ATH5K_DEBUG_ANY, "rfkill enable (gpio:%d polarity:%d)\n",
+	ATH5K_DBG(ah, ATH5K_DE_ANY, "rfkill enable (gpio:%d polarity:%d)\n",
 		ah->rf_kill.gpio, ah->rf_kill.polarity);
 	ath5k_hw_set_gpio_output(ah, ah->rf_kill.gpio);
 	ath5k_hw_set_gpio(ah, ah->rf_kill.gpio, ah->rf_kill.polarity);

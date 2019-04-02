@@ -1,4 +1,4 @@
-Debugging Modules after 2.6.3
+Deging Modules after 2.6.3
 -----------------------------
 
 In almost all distributions, the kernel asks for modules which don't
@@ -7,9 +7,9 @@ exist, such as "net-pf-10" or whatever.  Changing "modprobe -q" to
 want to know if it failed for the fallback code for old aliases in
 fs/char_dev.c, for example.
 
-In the past a debugging message which would fill people's logs was
-emitted.  This debugging message has been removed.  The correct way
-of debugging module problems is something like this:
+In the past a deging message which would fill people's logs was
+emitted.  This deging message has been removed.  The correct way
+of deging module problems is something like this:
 
 echo '#! /bin/sh' > /tmp/modprobe
 echo 'echo "$@" >> /tmp/modprobe.log' >> /tmp/modprobe

@@ -36,7 +36,7 @@ int hfs_find_init(struct hfs_btree *tree, struct hfs_find_data *fd)
 		mutex_lock_nested(&tree->tree_lock, ATTR_BTREE_MUTEX);
 		break;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -72,7 +72,7 @@ int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode,
 	} else {
 		cur_cnid = 0;	/* used-uninitialized warning */
 		search_cnid = 0;
-		BUG();
+		();
 	}
 
 	if (cur_cnid == search_cnid) {
@@ -119,7 +119,7 @@ int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd,
 	int b, e;
 	int res;
 
-	BUG_ON(!rec_found);
+	_ON(!rec_found);
 	b = 0;
 	e = bnode->num_recs - 1;
 	res = -ENOENT;

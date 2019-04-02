@@ -46,7 +46,7 @@ static void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req,
 
 static void zfcp_fsf_start_erp_timer(struct zfcp_fsf_req *fsf_req)
 {
-	BUG_ON(!fsf_req->erp_action);
+	_ON(!fsf_req->erp_action);
 	fsf_req->timer.function = zfcp_erp_timeout_handler;
 	fsf_req->timer.expires = jiffies + 30 * HZ;
 	add_timer(&fsf_req->timer);
@@ -418,7 +418,7 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
  *
  * Never ever call this without shutting down the adapter first.
  * Otherwise the adapter would continue using and corrupting s390 storage.
- * Included BUG_ON() call to ensure this is done.
+ * Included _ON() call to ensure this is done.
  * ERP is supposed to be the only user of this function.
  */
 void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
@@ -426,7 +426,7 @@ void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 	struct zfcp_fsf_req *req, *tmp;
 	LIST_HEAD(remove_queue);
 
-	BUG_ON(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP);
+	_ON(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP);
 	zfcp_reqlist_move(adapter->req_list, &remove_queue);
 
 	list_for_each_entry_safe(req, tmp, &remove_queue, list) {
@@ -2157,7 +2157,7 @@ static void zfcp_fsf_fcp_cmnd_handler(struct zfcp_fsf_req *req)
 		zfcp_scsi_dif_sense_error(scpnt, 0x3);
 		goto skip_fsfstatus;
 	}
-	BUILD_BUG_ON(sizeof(struct fcp_resp_with_ext) > FSF_FCP_RSP_SIZE);
+	BUILD__ON(sizeof(struct fcp_resp_with_ext) > FSF_FCP_RSP_SIZE);
 	fcp_rsp = &req->qtcb->bottom.io.fcp_rsp.iu;
 	zfcp_fc_eval_fcp_rsp(fcp_rsp, scpnt);
 
@@ -2271,7 +2271,7 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	if (zfcp_fsf_set_data_dir(scsi_cmnd, &io->data_direction))
 		goto failed_scsi_cmnd;
 
-	BUILD_BUG_ON(sizeof(struct fcp_cmnd) > FSF_FCP_CMND_SIZE);
+	BUILD__ON(sizeof(struct fcp_cmnd) > FSF_FCP_CMND_SIZE);
 	fcp_cmnd = &req->qtcb->bottom.io.fcp_cmnd.iu;
 	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
 

@@ -105,7 +105,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
 

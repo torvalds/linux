@@ -37,9 +37,9 @@
  * BIOS32-style PCI interface:
  */
 
-#define DEBUG_CONFIG 0
+#define DE_CONFIG 0
 
-#if DEBUG_CONFIG
+#if DE_CONFIG
 # define DBGC(args)	printk args
 #else
 # define DBGC(args)

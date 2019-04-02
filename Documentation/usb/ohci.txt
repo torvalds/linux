@@ -13,7 +13,7 @@ from vendors other than Intel and VIA generally use OHCI.
 
 Changes since the 2.4 kernel include
 
-	- improved robustness; bugfixes; and less overhead
+	- improved robustness; fixes; and less overhead
 	- supports the updated and simplified usbcore APIs
 	- interrupt transfers can be larger, and can be queued
 	- less code, by using the upper level "hcd" framework

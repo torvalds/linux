@@ -499,7 +499,7 @@ static void sata_rcar_drain_fifo(struct ata_queued_cmd *qc)
 			count < 65536; count += 2)
 		ioread32(ap->ioaddr.data_addr);
 
-	/* Can become DEBUG later */
+	/* Can become DE later */
 	if (count)
 		ata_port_dbg(ap, "drained %d bytes to clear DRQ\n", count);
 }

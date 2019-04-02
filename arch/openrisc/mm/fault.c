@@ -122,7 +122,7 @@ retry:
 
 	if (user_mode(regs)) {
 		/*
-		 * accessing the stack below usp is always a bug.
+		 * accessing the stack below usp is always a .
 		 * we get page-aligned addresses so we can only check
 		 * if we're within a page from usp, but that might be
 		 * enough to catch brutal errors at least.
@@ -175,7 +175,7 @@ good_area:
 			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {

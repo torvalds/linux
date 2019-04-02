@@ -13,7 +13,7 @@
 
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -143,7 +143,7 @@ good_area:
 			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 
 	/*

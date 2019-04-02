@@ -549,7 +549,7 @@ void smt_start_watchdog(struct s_smc *smc)
 {
 	SK_UNUSED(smc) ;	/* Make LINT happy. */
 
-#ifndef	DEBUG
+#ifndef	DE
 
 #ifdef	PCI
 	if (smc->hw.wdog_used) {
@@ -557,13 +557,13 @@ void smt_start_watchdog(struct s_smc *smc)
 	}
 #endif
 
-#endif	/* DEBUG */
+#endif	/* DE */
 }
 
 static void smt_stop_watchdog(struct s_smc *smc)
 {
 	SK_UNUSED(smc) ;	/* Make LINT happy. */
-#ifndef	DEBUG
+#ifndef	DE
 
 #ifdef	PCI
 	if (smc->hw.wdog_used) {
@@ -571,7 +571,7 @@ static void smt_stop_watchdog(struct s_smc *smc)
 	}
 #endif
 
-#endif	/* DEBUG */
+#endif	/* DE */
 }
 
 #ifdef	PCI

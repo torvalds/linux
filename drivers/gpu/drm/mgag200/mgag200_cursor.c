@@ -66,9 +66,9 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	BUG_ON(pixels_1 != pixels_current && pixels_1 != pixels_prev);
-	BUG_ON(pixels_2 != pixels_current && pixels_2 != pixels_prev);
-	BUG_ON(pixels_current == pixels_prev);
+	_ON(pixels_1 != pixels_current && pixels_1 != pixels_prev);
+	_ON(pixels_2 != pixels_current && pixels_2 != pixels_prev);
+	_ON(pixels_current == pixels_prev);
 
 	if (!handle || !file_priv) {
 		mga_hide_cursor(mdev);
@@ -174,7 +174,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		WREG_DAC(reg_index, colour_set[i] & 0xff);
 		WREG_DAC(reg_index+1, colour_set[i]>>8 & 0xff);
 		WREG_DAC(reg_index+2, colour_set[i]>>16 & 0xff);
-		BUG_ON((colour_set[i]>>24 & 0xff) != 0xff);
+		_ON((colour_set[i]>>24 & 0xff) != 0xff);
 	}
 
 	/* Map up-coming buffer to write colour indices */
@@ -232,7 +232,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		mdev->cursor.pixels_prev = mdev->cursor.pixels_1;
 		mdev->cursor.pixels_current = mdev->cursor.pixels_2;
 	} else {
-		BUG();
+		();
 	}
 	ret = 0;
 
@@ -260,10 +260,10 @@ int mga_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	x += 64;
 	y += 64;
 
-	BUG_ON(x <= 0);
-	BUG_ON(y <= 0);
-	BUG_ON(x & ~0xffff);
-	BUG_ON(y & ~0xffff);
+	_ON(x <= 0);
+	_ON(y <= 0);
+	_ON(x & ~0xffff);
+	_ON(y & ~0xffff);
 
 	WREG8(MGA_CURPOSXL, x & 0xff);
 	WREG8(MGA_CURPOSXH, (x>>8) & 0xff);

@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 
@@ -79,7 +79,7 @@ static u64 opal_scom_unmangle(u64 addr)
 	 * XSCOM addresses use the top nibble to set indirect mode and
 	 * its form.  Bits 4-11 are always 0.
 	 *
-	 * Because the debugfs interface uses signed offsets and shifts
+	 * Because the defs interface uses signed offsets and shifts
 	 * the address left by 3, we basically cannot use the top 4 bits
 	 * of the 64-bit address, and thus cannot use the indirect bit.
 	 *
@@ -91,7 +91,7 @@ static u64 opal_scom_unmangle(u64 addr)
 	 * kernel won't have bits 4-7 set.
 	 *
 	 * So:
-	 *   debugfs will always   set 0-3 = 0 and clear 4-7
+	 *   defs will always   set 0-3 = 0 and clear 4-7
 	 *    kernel will always clear 0-3 = 0 and   set 4-7
 	 */
 	tmp = addr;

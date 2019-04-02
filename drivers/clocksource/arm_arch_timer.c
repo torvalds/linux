@@ -640,8 +640,8 @@ static bool arch_timer_this_cpu_has_cntvct_wa(void)
 }
 #else
 #define arch_timer_check_ool_workaround(t,a)		do { } while(0)
-#define erratum_set_next_event_tval_virt(...)		({BUG(); 0;})
-#define erratum_set_next_event_tval_phys(...)		({BUG(); 0;})
+#define erratum_set_next_event_tval_virt(...)		({(); 0;})
+#define erratum_set_next_event_tval_phys(...)		({(); 0;})
 #define erratum_handler(fn, r, ...)			({false;})
 #define arch_timer_this_cpu_has_cntvct_wa()		({false;})
 #endif /* CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND */
@@ -797,7 +797,7 @@ static void __arch_timer_setup(unsigned type,
 			clk->set_next_event = arch_timer_set_next_event_phys;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		arch_timer_check_ool_workaround(ate_match_local_cap_id, NULL);
@@ -1024,7 +1024,7 @@ static void __init arch_counter_register(unsigned type)
 
 static void arch_timer_stop(struct clock_event_device *clk)
 {
-	pr_debug("disable IRQ%d cpu #%d\n", clk->irq, smp_processor_id());
+	pr_de("disable IRQ%d cpu #%d\n", clk->irq, smp_processor_id());
 
 	disable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi]);
 	if (arch_timer_has_nonsecure_ppi())
@@ -1121,7 +1121,7 @@ static int __init arch_timer_register(void)
 					 "arch_timer", arch_timer_evt);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (err) {
@@ -1455,12 +1455,12 @@ static int __init arch_timer_mem_of_init(struct device_node *np)
 		struct arch_timer_mem_frame *frame;
 
 		if (of_property_read_u32(frame_node, "frame-number", &n)) {
-			pr_err(FW_BUG "Missing frame-number.\n");
+			pr_err(FW_ "Missing frame-number.\n");
 			of_node_put(frame_node);
 			goto out;
 		}
 		if (n >= ARCH_TIMER_MEM_MAX_FRAMES) {
-			pr_err(FW_BUG "Wrong frame-number, only 0-%u are permitted.\n",
+			pr_err(FW_ "Wrong frame-number, only 0-%u are permitted.\n",
 			       ARCH_TIMER_MEM_MAX_FRAMES - 1);
 			of_node_put(frame_node);
 			goto out;
@@ -1468,7 +1468,7 @@ static int __init arch_timer_mem_of_init(struct device_node *np)
 		frame = &timer_mem->frame[n];
 
 		if (frame->valid) {
-			pr_err(FW_BUG "Duplicated frame-number.\n");
+			pr_err(FW_ "Duplicated frame-number.\n");
 			of_node_put(frame_node);
 			goto out;
 		}
@@ -1527,7 +1527,7 @@ arch_timer_mem_verify_cntfrq(struct arch_timer_mem *timer_mem)
 		if (rate == arch_timer_rate)
 			continue;
 
-		pr_err(FW_BUG "CNTFRQ mismatch: frame @ %pa: (0x%08lx), CPU: (0x%08lx)\n",
+		pr_err(FW_ "CNTFRQ mismatch: frame @ %pa: (0x%08lx), CPU: (0x%08lx)\n",
 			&frame->cntbase,
 			(unsigned long)rate, (unsigned long)arch_timer_rate);
 
@@ -1620,7 +1620,7 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	 */
 	arch_timer_rate = arch_timer_get_cntfrq();
 	if (!arch_timer_rate) {
-		pr_err(FW_BUG "frequency not available.\n");
+		pr_err(FW_ "frequency not available.\n");
 		return -EINVAL;
 	}
 

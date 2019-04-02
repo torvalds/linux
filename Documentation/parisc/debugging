@@ -1,4 +1,4 @@
-okay, here are some hints for debugging the lower-level parts of
+okay, here are some hints for deging the lower-level parts of
 linux/parisc.
 
 
@@ -14,7 +14,7 @@ currently).
 2. HPMCs
 
 When real-mode code tries to access non-existent memory, you'll get
-an HPMC instead of a kernel oops.  To debug an HPMC, try to find
+an HPMC instead of a kernel oops.  To de an HPMC, try to find
 the System Responder/Requestor addresses.  The System Requestor
 address should match (one of the) processor HPAs (high addresses in
 the I/O range); the System Responder address is the address real-mode

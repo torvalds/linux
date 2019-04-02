@@ -79,7 +79,7 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 		}
 
 		if (sinfo->msgdigest_len != sig->digest_size) {
-			pr_debug("Sig %u: Invalid digest size (%u)\n",
+			pr_de("Sig %u: Invalid digest size (%u)\n",
 				 sinfo->index, sinfo->msgdigest_len);
 			ret = -EBADMSG;
 			goto error;
@@ -87,7 +87,7 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 
 		if (memcmp(sig->digest, sinfo->msgdigest,
 			   sinfo->msgdigest_len) != 0) {
-			pr_debug("Sig %u: Message digest doesn't match\n",
+			pr_de("Sig %u: Message digest doesn't match\n",
 				 sinfo->index);
 			ret = -EKEYREJECTED;
 			goto error;
@@ -160,7 +160,7 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 	/* The relevant X.509 cert isn't found here, but it might be found in
 	 * the trust keyring.
 	 */
-	pr_debug("Sig %u: Issuing X.509 cert not found (#%*phN)\n",
+	pr_de("Sig %u: Issuing X.509 cert not found (#%*phN)\n",
 		 sinfo->index,
 		 sinfo->sig->auth_ids[0]->len, sinfo->sig->auth_ids[0]->data);
 	return 0;
@@ -183,7 +183,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		p->seen = false;
 
 	for (;;) {
-		pr_debug("verify %s: %*phN\n",
+		pr_de("verify %s: %*phN\n",
 			 x509->subject,
 			 x509->raw_serial_size, x509->raw_serial);
 		x509->seen = true;
@@ -195,20 +195,20 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			sinfo->blacklisted = true;
 			for (p = sinfo->signer; p != x509; p = p->signer)
 				p->blacklisted = true;
-			pr_debug("- blacklisted\n");
+			pr_de("- blacklisted\n");
 			return 0;
 		}
 
 		if (x509->unsupported_key)
 			goto unsupported_crypto_in_x509;
 
-		pr_debug("- issuer %s\n", x509->issuer);
+		pr_de("- issuer %s\n", x509->issuer);
 		sig = x509->sig;
 		if (sig->auth_ids[0])
-			pr_debug("- authkeyid.id %*phN\n",
+			pr_de("- authkeyid.id %*phN\n",
 				 sig->auth_ids[0]->len, sig->auth_ids[0]->data);
 		if (sig->auth_ids[1])
-			pr_debug("- authkeyid.skid %*phN\n",
+			pr_de("- authkeyid.skid %*phN\n",
 				 sig->auth_ids[1]->len, sig->auth_ids[1]->data);
 
 		if (x509->self_signed) {
@@ -220,7 +220,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			if (x509->unsupported_sig)
 				goto unsupported_crypto_in_x509;
 			x509->signer = x509;
-			pr_debug("- self-signed\n");
+			pr_de("- self-signed\n");
 			return 0;
 		}
 
@@ -229,20 +229,20 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		 */
 		auth = sig->auth_ids[0];
 		if (auth) {
-			pr_debug("- want %*phN\n", auth->len, auth->data);
+			pr_de("- want %*phN\n", auth->len, auth->data);
 			for (p = pkcs7->certs; p; p = p->next) {
-				pr_debug("- cmp [%u] %*phN\n",
+				pr_de("- cmp [%u] %*phN\n",
 					 p->index, p->id->len, p->id->data);
 				if (asymmetric_key_id_same(p->id, auth))
 					goto found_issuer_check_skid;
 			}
 		} else if (sig->auth_ids[1]) {
 			auth = sig->auth_ids[1];
-			pr_debug("- want %*phN\n", auth->len, auth->data);
+			pr_de("- want %*phN\n", auth->len, auth->data);
 			for (p = pkcs7->certs; p; p = p->next) {
 				if (!p->skid)
 					continue;
-				pr_debug("- cmp [%u] %*phN\n",
+				pr_de("- cmp [%u] %*phN\n",
 					 p->index, p->skid->len, p->skid->data);
 				if (asymmetric_key_id_same(p->skid, auth))
 					goto found_issuer;
@@ -250,7 +250,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 		}
 
 		/* We didn't find the root of this chain */
-		pr_debug("- top\n");
+		pr_de("- top\n");
 		return 0;
 
 	found_issuer_check_skid:
@@ -264,7 +264,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			return -EKEYREJECTED;
 		}
 	found_issuer:
-		pr_debug("- subject %s\n", p->subject);
+		pr_de("- subject %s\n", p->subject);
 		if (p->seen) {
 			pr_warn("Sig %u: X.509 chain contains loop\n",
 				sinfo->index);
@@ -275,7 +275,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			return ret;
 		x509->signer = p;
 		if (x509 == p) {
-			pr_debug("- self-signed\n");
+			pr_de("- self-signed\n");
 			return 0;
 		}
 		x509 = p;
@@ -460,7 +460,7 @@ int pkcs7_supply_detached_data(struct pkcs7_message *pkcs7,
 			       const void *data, size_t datalen)
 {
 	if (pkcs7->data) {
-		pr_debug("Data already supplied\n");
+		pr_de("Data already supplied\n");
 		return -EINVAL;
 	}
 	pkcs7->data = data;

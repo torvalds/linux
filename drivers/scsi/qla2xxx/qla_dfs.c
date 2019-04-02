@@ -6,7 +6,7 @@
  */
 #include "qla_def.h"
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 static struct dentry *qla2x00_dfs_root;
@@ -313,7 +313,7 @@ qla2x00_dfs_fce_open(struct inode *inode, struct file *file)
 	rval = qla2x00_disable_fce_trace(vha, &ha->fce_wr, &ha->fce_rd);
 	if (rval)
 		ql_dbg(ql_dbg_user, vha, 0x705c,
-		    "DebugFS: Unable to disable FCE (%d).\n", rval);
+		    "DeFS: Unable to disable FCE (%d).\n", rval);
 
 	ha->flags.fce_enabled = 0;
 
@@ -341,7 +341,7 @@ qla2x00_dfs_fce_release(struct inode *inode, struct file *file)
 	    ha->fce_mb, &ha->fce_bufs);
 	if (rval) {
 		ql_dbg(ql_dbg_user, vha, 0x700d,
-		    "DebugFS: Unable to reinitialize FCE (%d).\n", rval);
+		    "DeFS: Unable to reinitialize FCE (%d).\n", rval);
 		ha->flags.fce_enabled = 0;
 	}
 
@@ -447,35 +447,35 @@ qla2x00_dfs_setup(scsi_qla_host_t *vha)
 		goto create_dir;
 
 	atomic_set(&qla2x00_dfs_root_count, 0);
-	qla2x00_dfs_root = debugfs_create_dir(QLA2XXX_DRIVER_NAME, NULL);
+	qla2x00_dfs_root = defs_create_dir(QLA2XXX_DRIVER_NAME, NULL);
 
 create_dir:
 	if (ha->dfs_dir)
 		goto create_nodes;
 
 	mutex_init(&ha->fce_mutex);
-	ha->dfs_dir = debugfs_create_dir(vha->host_str, qla2x00_dfs_root);
+	ha->dfs_dir = defs_create_dir(vha->host_str, qla2x00_dfs_root);
 
 	atomic_inc(&qla2x00_dfs_root_count);
 
 create_nodes:
-	ha->dfs_fw_resource_cnt = debugfs_create_file("fw_resource_count",
+	ha->dfs_fw_resource_cnt = defs_create_file("fw_resource_count",
 	    S_IRUSR, ha->dfs_dir, vha, &dfs_fw_resource_cnt_ops);
 
-	ha->dfs_tgt_counters = debugfs_create_file("tgt_counters", S_IRUSR,
+	ha->dfs_tgt_counters = defs_create_file("tgt_counters", S_IRUSR,
 	    ha->dfs_dir, vha, &dfs_tgt_counters_ops);
 
-	ha->tgt.dfs_tgt_port_database = debugfs_create_file("tgt_port_database",
+	ha->tgt.dfs_tgt_port_database = defs_create_file("tgt_port_database",
 	    S_IRUSR,  ha->dfs_dir, vha, &dfs_tgt_port_database_ops);
 
-	ha->dfs_fce = debugfs_create_file("fce", S_IRUSR, ha->dfs_dir, vha,
+	ha->dfs_fce = defs_create_file("fce", S_IRUSR, ha->dfs_dir, vha,
 	    &dfs_fce_ops);
 
-	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
+	ha->tgt.dfs_tgt_sess = defs_create_file("tgt_sess",
 		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
 
 	if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
-		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
+		ha->tgt.dfs_naqp = defs_create_file("naqp",
 		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
 out:
 	return 0;
@@ -487,44 +487,44 @@ qla2x00_dfs_remove(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (ha->tgt.dfs_naqp) {
-		debugfs_remove(ha->tgt.dfs_naqp);
+		defs_remove(ha->tgt.dfs_naqp);
 		ha->tgt.dfs_naqp = NULL;
 	}
 
 	if (ha->tgt.dfs_tgt_sess) {
-		debugfs_remove(ha->tgt.dfs_tgt_sess);
+		defs_remove(ha->tgt.dfs_tgt_sess);
 		ha->tgt.dfs_tgt_sess = NULL;
 	}
 
 	if (ha->tgt.dfs_tgt_port_database) {
-		debugfs_remove(ha->tgt.dfs_tgt_port_database);
+		defs_remove(ha->tgt.dfs_tgt_port_database);
 		ha->tgt.dfs_tgt_port_database = NULL;
 	}
 
 	if (ha->dfs_fw_resource_cnt) {
-		debugfs_remove(ha->dfs_fw_resource_cnt);
+		defs_remove(ha->dfs_fw_resource_cnt);
 		ha->dfs_fw_resource_cnt = NULL;
 	}
 
 	if (ha->dfs_tgt_counters) {
-		debugfs_remove(ha->dfs_tgt_counters);
+		defs_remove(ha->dfs_tgt_counters);
 		ha->dfs_tgt_counters = NULL;
 	}
 
 	if (ha->dfs_fce) {
-		debugfs_remove(ha->dfs_fce);
+		defs_remove(ha->dfs_fce);
 		ha->dfs_fce = NULL;
 	}
 
 	if (ha->dfs_dir) {
-		debugfs_remove(ha->dfs_dir);
+		defs_remove(ha->dfs_dir);
 		ha->dfs_dir = NULL;
 		atomic_dec(&qla2x00_dfs_root_count);
 	}
 
 	if (atomic_read(&qla2x00_dfs_root_count) == 0 &&
 	    qla2x00_dfs_root) {
-		debugfs_remove(qla2x00_dfs_root);
+		defs_remove(qla2x00_dfs_root);
 		qla2x00_dfs_root = NULL;
 	}
 

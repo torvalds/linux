@@ -1029,7 +1029,7 @@ int rsz_enable(void __iomem *rsz_base, int rsz_id, int enable)
 	} else if (rsz_id == RSZ_B) {
 		regw_rsz(rsz_base, enable, RSZ_EN_B);
 	} else {
-		BUG();
+		();
 	}
 
 	return 0;

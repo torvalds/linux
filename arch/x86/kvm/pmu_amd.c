@@ -281,7 +281,7 @@ static void amd_pmu_init(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int i;
 
-	BUILD_BUG_ON(AMD64_NUM_COUNTERS_CORE > INTEL_PMC_MAX_GENERIC);
+	BUILD__ON(AMD64_NUM_COUNTERS_CORE > INTEL_PMC_MAX_GENERIC);
 
 	for (i = 0; i < AMD64_NUM_COUNTERS_CORE ; i++) {
 		pmu->gp_counters[i].type = KVM_PMC_GP;

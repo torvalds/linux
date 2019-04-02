@@ -192,7 +192,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 				  frag_len + skb_network_header_len(skb),
 				  true);
 	if (rc) {
-		pr_debug("%s unable to send FRAG1 packet (tag: %d)",
+		pr_de("%s unable to send FRAG1 packet (tag: %d)",
 			 __func__, ntohs(frag_tag));
 		goto err;
 	}
@@ -213,7 +213,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *ldev,
 					  LOWPAN_FRAGN_HEAD_SIZE, skb_offset,
 					  frag_len, false);
 		if (rc) {
-			pr_debug("%s unable to send a FRAGN packet. (tag: %d, offset: %d)\n",
+			pr_de("%s unable to send a FRAGN packet. (tag: %d, offset: %d)\n",
 				 __func__, ntohs(frag_tag), skb_offset);
 			goto err;
 		}
@@ -261,7 +261,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	int max_single, ret;
 	u16 dgram_size, dgram_offset;
 
-	pr_debug("package xmit\n");
+	pr_de("package xmit\n");
 
 	WARN_ON_ONCE(skb->len > IPV6_MIN_MTU);
 
@@ -308,7 +308,7 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	} else {
 		netdev_tx_t rc;
 
-		pr_debug("frame is too big, fragmentation is needed\n");
+		pr_de("frame is too big, fragmentation is needed\n");
 		rc = lowpan_xmit_fragmented(skb, ldev, &wpan_hdr, dgram_size,
 					    dgram_offset);
 

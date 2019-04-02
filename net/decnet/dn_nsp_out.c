@@ -153,7 +153,7 @@ unsigned long dn_nsp_persist(struct sock *sk)
 	if (scp->nsp_rxtshift < NSP_MAXRXTSHIFT)
 		scp->nsp_rxtshift++;
 
-	/* printk(KERN_DEBUG "rxtshift %lu, t=%lu\n", scp->nsp_rxtshift, t); */
+	/* printk(KERN_DE "rxtshift %lu, t=%lu\n", scp->nsp_rxtshift, t); */
 
 	return t;
 }
@@ -196,7 +196,7 @@ static void dn_nsp_rtt(struct sock *sk, long rtt)
 	else
 		scp->nsp_rttvar = 1;
 
-	/* printk(KERN_DEBUG "srtt=%lu rttvar=%lu\n", scp->nsp_srtt, scp->nsp_rttvar); */
+	/* printk(KERN_DE "srtt=%lu rttvar=%lu\n", scp->nsp_srtt, scp->nsp_rttvar); */
 }
 
 /**
@@ -288,7 +288,7 @@ static inline __le16 *dn_mk_common_header(struct dn_scp *scp, struct sk_buff *sk
 {
 	unsigned char *ptr = skb_push(skb, len);
 
-	BUG_ON(len < 5);
+	_ON(len < 5);
 
 	*ptr++ = msgflag;
 	*((__le16 *)ptr) = scp->addrrem;
@@ -305,7 +305,7 @@ static __le16 *dn_mk_ack_header(struct sock *sk, struct sk_buff *skb, unsigned c
 	unsigned short ackcrs = scp->numoth_rcv & 0x0FFF;
 	__le16 *ptr;
 
-	BUG_ON(hlen < 9);
+	_ON(hlen < 9);
 
 	scp->ackxmt_dat = acknum;
 	scp->ackxmt_oth = ackcrs;
@@ -392,12 +392,12 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 		if (dn_before_or_equal(cb2->segnum, acknum))
 			ack = skb2;
 
-		/* printk(KERN_DEBUG "ack: %s %04x %04x\n", ack ? "ACK" : "SKIP", (int)cb2->segnum, (int)acknum); */
+		/* printk(KERN_DE "ack: %s %04x %04x\n", ack ? "ACK" : "SKIP", (int)cb2->segnum, (int)acknum); */
 
 		if (ack == NULL)
 			continue;
 
-		/* printk(KERN_DEBUG "check_xmit_queue: %04x, %d\n", acknum, cb2->xmit_count); */
+		/* printk(KERN_DE "check_xmit_queue: %04x, %d\n", acknum, cb2->xmit_count); */
 
 		/* Does _last_ packet acked have xmit_count > 1 */
 		try_retrans = 0;
@@ -539,7 +539,7 @@ static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg,
 	unsigned char *msg;
 
 	if ((dst == NULL) || (rem == 0)) {
-		net_dbg_ratelimited("DECnet: dn_nsp_do_disc: BUG! Please report this to SteveW@ACM.org rem=%u dst=%p\n",
+		net_dbg_ratelimited("DECnet: dn_nsp_do_disc: ! Please report this to SteveW@ACM.org rem=%u dst=%p\n",
 				    le16_to_cpu(rem), dst);
 		return;
 	}

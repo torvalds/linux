@@ -1,4 +1,4 @@
-What:		/sys/kernel/debug/ideapad/cfg
+What:		/sys/kernel/de/ideapad/cfg
 Date:		Sep 2011
 KernelVersion:	3.2
 Contact:	Ike Panhc <ike.pan@canonical.com>
@@ -8,7 +8,7 @@ cfg shows the return value of _CFG method in VPC2004 device. It tells machine
 capability and what graphic component within the machine.
 
 
-What:		/sys/kernel/debug/ideapad/status
+What:		/sys/kernel/de/ideapad/status
 Date:		Sep 2011
 KernelVersion:	3.2
 Contact:	Ike Panhc <ike.pan@canonical.com>

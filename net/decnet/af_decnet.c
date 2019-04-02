@@ -13,11 +13,11 @@
  *        Steve Whitehouse: Copied from Eduardo Serrat and Patrick Caulfield's
  *                          version of the code. Original copyright preserved
  *                          below.
- *        Steve Whitehouse: Some bug fixes, cleaning up some code to make it
+ *        Steve Whitehouse: Some  fixes, cleaning up some code to make it
  *                          compatible with my routing layer.
  *        Steve Whitehouse: Merging changes from Eduardo Serrat and Patrick
  *                          Caulfield.
- *        Steve Whitehouse: Further bug fixes, checking module code still works
+ *        Steve Whitehouse: Further  fixes, checking module code still works
  *                          with new routing layer.
  *        Steve Whitehouse: Additional set/get_sockopt() calls.
  *        Steve Whitehouse: Fixed TIOCINQ ioctl to be same as Eduardo's new
@@ -25,7 +25,7 @@
  *        Steve Whitehouse: recvmsg() changed to try and behave in a POSIX like
  *                          way. Didn't manage it entirely, but its better.
  *        Steve Whitehouse: ditto for sendmsg().
- *        Steve Whitehouse: A selection of bug fixes to various things.
+ *        Steve Whitehouse: A selection of  fixes to various things.
  *        Steve Whitehouse: Added TIOCOUTQ ioctl.
  *        Steve Whitehouse: Fixes to username2sockaddr & sockaddr2username.
  *        Steve Whitehouse: Fixes to connect() error returns.
@@ -88,8 +88,8 @@ Version 0.0.4     2.1.109   21-jul-98   Eduardo Marcelo Serrat
 				       -
 Version 0.0.5    2.1.110   01-aug-98   Eduardo Marcelo Serrat
 				       (emserrat@geocities.com)
-				       Removed bugs on flow control
-				       Removed bugs on incoming accessdata
+				       Removed s on flow control
+				       Removed s on incoming accessdata
 				       order
 				       -
 Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
@@ -216,7 +216,7 @@ static int dn_hash_sock(struct sock *sk)
 	struct hlist_head *list;
 	int rv = -EUSERS;
 
-	BUG_ON(sk_hashed(sk));
+	_ON(sk_hashed(sk));
 
 	write_lock_bh(&dn_hash_lock);
 
@@ -584,7 +584,7 @@ int dn_destroy_timer(struct sock *sk)
 
 	case DN_DN:
 		if (scp->nsp_rxtshift < decnet_dn_count) {
-			/* printk(KERN_DEBUG "dn_destroy_timer: DN\n"); */
+			/* printk(KERN_DE "dn_destroy_timer: DN\n"); */
 			dn_nsp_send_disc(sk, NSP_DISCCONF, NSP_REASON_DC,
 					 GFP_ATOMIC);
 			return 0;
@@ -648,7 +648,7 @@ disc_reject:
 		scp->persist = dn_nsp_persist(sk);
 		break;
 	default:
-		printk(KERN_DEBUG "DECnet: dn_destroy_sock passed socket in invalid state\n");
+		printk(KERN_DE "DECnet: dn_destroy_sock passed socket in invalid state\n");
 		/* fall through */
 	case DN_O:
 		dn_stop_slow_timer(sk);
@@ -1030,7 +1030,7 @@ static void dn_user_copy(struct sk_buff *skb, struct optdata_dn *opt)
 	unsigned char *ptr = skb->data;
 	u16 len = *ptr++; /* yes, it's 8bit on the wire */
 
-	BUG_ON(len > 16); /* we've checked the contents earlier */
+	_ON(len > 16); /* we've checked the contents earlier */
 	opt->opt_optl   = cpu_to_le16(len);
 	opt->opt_status = 0;
 	memcpy(opt->opt_data, ptr, len);

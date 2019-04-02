@@ -54,8 +54,8 @@
  *	This routine sends a fib to the adapter on behalf of a user level
  *	program.
  */
-# define AAC_DEBUG_PREAMBLE	KERN_INFO
-# define AAC_DEBUG_POSTAMBLE
+# define AAC_DE_PREAMBLE	KERN_INFO
+# define AAC_DE_POSTAMBLE
 
 static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 {
@@ -500,11 +500,11 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 
 	if (dev->in_reset) {
-		dprintk((KERN_DEBUG"aacraid: send raw srb -EBUSY\n"));
+		dprintk((KERN_DE"aacraid: send raw srb -EBUSY\n"));
 		return -EBUSY;
 	}
 	if (!capable(CAP_SYS_ADMIN)){
-		dprintk((KERN_DEBUG"aacraid: No permission to send raw srb\n"));
+		dprintk((KERN_DE"aacraid: No permission to send raw srb\n"));
 		return -EPERM;
 	}
 	/*
@@ -516,7 +516,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	memset(sg_list, 0, sizeof(sg_list)); /* cleanup may take issue */
 	if(copy_from_user(&fibsize, &user_srb->count,sizeof(u32))){
-		dprintk((KERN_DEBUG"aacraid: Could not copy data size from user\n"));
+		dprintk((KERN_DE"aacraid: Could not copy data size from user\n"));
 		rcode = -EFAULT;
 		goto cleanup;
 	}
@@ -529,12 +529,12 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	user_srbcmd = kmalloc(fibsize, GFP_KERNEL);
 	if (!user_srbcmd) {
-		dprintk((KERN_DEBUG"aacraid: Could not make a copy of the srb\n"));
+		dprintk((KERN_DE"aacraid: Could not make a copy of the srb\n"));
 		rcode = -ENOMEM;
 		goto cleanup;
 	}
 	if(copy_from_user(user_srbcmd, user_srb,fibsize)){
-		dprintk((KERN_DEBUG"aacraid: Could not copy srb from user\n"));
+		dprintk((KERN_DE"aacraid: Could not copy srb from user\n"));
 		rcode = -EFAULT;
 		goto cleanup;
 	}
@@ -554,13 +554,13 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		data_dir = DMA_NONE;
 	}
 	if (user_srbcmd->sg.count > ARRAY_SIZE(sg_list)) {
-		dprintk((KERN_DEBUG"aacraid: too many sg entries %d\n",
+		dprintk((KERN_DE"aacraid: too many sg entries %d\n",
 			user_srbcmd->sg.count));
 		rcode = -EINVAL;
 		goto cleanup;
 	}
 	if ((data_dir == DMA_NONE) && user_srbcmd->sg.count) {
-		dprintk((KERN_DEBUG"aacraid:SG with no direction specified\n"));
+		dprintk((KERN_DE"aacraid:SG with no direction specified\n"));
 		rcode = -EINVAL;
 		goto cleanup;
 	}
@@ -570,7 +570,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	  (sizeof(struct sgentry64) - sizeof(struct sgentry));
 	/* User made a mistake - should not continue */
 	if ((actual_fibsize != fibsize) && (actual_fibsize64 != fibsize)) {
-		dprintk((KERN_DEBUG"aacraid: Bad Size specified in "
+		dprintk((KERN_DE"aacraid: Bad Size specified in "
 		  "Raw SRB command calculated fibsize=%lu;%lu "
 		  "user_srbcmd->sg.count=%d aac_srb=%lu sgentry=%lu;%lu "
 		  "issued fibsize=%d\n",
@@ -734,7 +734,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 				p = kmalloc(sg_count[i], GFP_KERNEL);
 				if(!p) {
-					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
+					dprintk((KERN_DE"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 					  sg_count[i], i, upsg->count));
 					rcode = -ENOMEM;
 					goto cleanup;
@@ -748,7 +748,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				if (flags & SRB_DataOut) {
 					if (copy_from_user(p, sg_user[i],
 						sg_count[i])){
-						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
+						dprintk((KERN_DE"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
@@ -767,7 +767,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				      actual_fibsize - sizeof(struct aac_srb)
 				      + sizeof(struct sgmap), GFP_KERNEL);
 			if (!usg) {
-				dprintk((KERN_DEBUG"aacraid: Allocation error in Raw SRB command\n"));
+				dprintk((KERN_DE"aacraid: Allocation error in Raw SRB command\n"));
 				rcode = -ENOMEM;
 				goto cleanup;
 			}
@@ -790,7 +790,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 				p = kmalloc(sg_count[i], GFP_KERNEL);
 				if(!p) {
-					dprintk((KERN_DEBUG "aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
+					dprintk((KERN_DE "aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 						sg_count[i], i, usg->count));
 					kfree(usg);
 					rcode = -ENOMEM;
@@ -804,7 +804,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					if (copy_from_user(p, sg_user[i],
 						sg_count[i])) {
 						kfree (usg);
-						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
+						dprintk((KERN_DE"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
@@ -846,7 +846,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				}
 				p = kmalloc(sg_count[i], GFP_KERNEL);
 				if (!p) {
-					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
+					dprintk((KERN_DE"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 						sg_count[i], i, usg->count));
 					rcode = -ENOMEM;
 					goto cleanup;
@@ -860,7 +860,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				if (flags & SRB_DataOut) {
 					if (copy_from_user(p, sg_user[i],
 						sg_count[i])){
-						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
+						dprintk((KERN_DE"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
@@ -887,7 +887,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				}
 				p = kmalloc(sg_count[i], GFP_KERNEL);
 				if (!p) {
-					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
+					dprintk((KERN_DE"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 					  sg_count[i], i, upsg->count));
 					rcode = -ENOMEM;
 					goto cleanup;
@@ -899,7 +899,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				if (flags & SRB_DataOut) {
 					if (copy_from_user(p, sg_user[i],
 						sg_count[i])) {
-						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
+						dprintk((KERN_DE"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
 						goto cleanup;
 					}
@@ -926,7 +926,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	}
 
 	if (status != 0) {
-		dprintk((KERN_DEBUG"aacraid: Could not send raw srb fib to hba\n"));
+		dprintk((KERN_DE"aacraid: Could not send raw srb fib to hba\n"));
 		rcode = -ENXIO;
 		goto cleanup;
 	}
@@ -934,7 +934,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	if (flags & SRB_DataIn) {
 		for(i = 0 ; i <= sg_indx; i++){
 			if (copy_to_user(sg_user[i], sg_list[i], sg_count[i])) {
-				dprintk((KERN_DEBUG"aacraid: Could not copy sg data to user\n"));
+				dprintk((KERN_DE"aacraid: Could not copy sg data to user\n"));
 				rcode = -EFAULT;
 				goto cleanup;
 
@@ -968,7 +968,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		}
 		if (copy_to_user(user_reply, &reply,
 			sizeof(struct aac_srb_reply))) {
-			dprintk((KERN_DEBUG"aacraid: Copy to user failed\n"));
+			dprintk((KERN_DE"aacraid: Copy to user failed\n"));
 			rcode = -EFAULT;
 			goto cleanup;
 		}
@@ -978,7 +978,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		reply = (struct aac_srb_reply *) fib_data(srbfib);
 		if (copy_to_user(user_reply, reply,
 			sizeof(struct aac_srb_reply))) {
-			dprintk((KERN_DEBUG"aacraid: Copy to user failed\n"));
+			dprintk((KERN_DE"aacraid: Copy to user failed\n"));
 			rcode = -EFAULT;
 			goto cleanup;
 		}
@@ -1010,7 +1010,7 @@ static int aac_get_pci_info(struct aac_dev* dev, void __user *arg)
 	pci_info.slot = PCI_SLOT(dev->pdev->devfn);
 
 	if (copy_to_user(arg, &pci_info, sizeof(struct aac_pci_info))) {
-		dprintk((KERN_DEBUG "aacraid: Could not copy pci info\n"));
+		dprintk((KERN_DE "aacraid: Could not copy pci info\n"));
 		return -EFAULT;
 	}
 	return 0;
@@ -1032,7 +1032,7 @@ static int aac_get_hba_info(struct aac_dev *dev, void __user *arg)
 	hbainfo.sub_system_id		= dev->pdev->subsystem_device;
 
 	if (copy_to_user(arg, &hbainfo, sizeof(struct aac_hba_info))) {
-		dprintk((KERN_DEBUG "aacraid: Could not copy hba info\n"));
+		dprintk((KERN_DE "aacraid: Could not copy hba info\n"));
 		return -EFAULT;
 	}
 

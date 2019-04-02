@@ -2814,7 +2814,7 @@ static int drxd_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	DRXD_status(state, &lock);
 	*status = 0;
-	/* No MPEG lock in V255 firmware, bug ? */
+	/* No MPEG lock in V255 firmware,  ? */
 #if 1
 	if (lock & DRX_LOCK_MPEG)
 		*status |= FE_HAS_LOCK;

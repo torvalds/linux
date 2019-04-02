@@ -88,24 +88,24 @@ config BATMAN_ADV_MCAST
 	  reduce the air overhead while improving the reliability of
 	  multicast messages.
 
-config BATMAN_ADV_DEBUGFS
-	bool "batman-adv debugfs entries"
+config BATMAN_ADV_DEFS
+	bool "batman-adv defs entries"
 	depends on BATMAN_ADV
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
-	  Enable this to export routing related debug tables via debugfs.
+	  Enable this to export routing related de tables via defs.
 	  The information for each soft-interface and used hard-interface can be
 	  found under batman_adv/
 
 	  If unsure, say N.
 
-config BATMAN_ADV_DEBUG
-	bool "B.A.T.M.A.N. debugging"
+config BATMAN_ADV_DE
+	bool "B.A.T.M.A.N. deging"
 	depends on BATMAN_ADV
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for
-	  outputting debugging information to the debugfs log or tracing
+	  outputting deging information to the defs log or tracing
 	  buffer. The output is controlled via the batadv netdev specific
 	  log_level setting.
 
@@ -115,7 +115,7 @@ config BATMAN_ADV_TRACING
 	depends on EVENT_TRACING
 	help
 	  This is an option for use by developers; most people should
-	  say N here. Select this option to gather traces like the debug
+	  say N here. Select this option to gather traces like the de
 	  messages using the generic tracing infrastructure of the kernel.
-	  BATMAN_ADV_DEBUG must also be selected to get trace events for
+	  BATMAN_ADV_DE must also be selected to get trace events for
 	  batadv_dbg.

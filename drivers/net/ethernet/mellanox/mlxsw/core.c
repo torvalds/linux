@@ -271,7 +271,7 @@ mlxsw_core_reg_access_type_str(enum mlxsw_core_reg_access_type type)
 	case MLXSW_CORE_REG_ACCESS_TYPE_WRITE:
 		return "write";
 	}
-	BUG();
+	();
 }
 
 static void mlxsw_emad_pack_end_tlv(char *end_tlv)
@@ -1833,7 +1833,7 @@ int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
 	u8 status;
 	int err;
 
-	BUG_ON(in_mbox_size % sizeof(u32) || out_mbox_size % sizeof(u32));
+	_ON(in_mbox_size % sizeof(u32) || out_mbox_size % sizeof(u32));
 	if (!mlxsw_core->bus->cmd_exec)
 		return -EOPNOTSUPP;
 

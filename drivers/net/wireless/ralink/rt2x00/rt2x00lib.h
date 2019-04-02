@@ -297,27 +297,27 @@ static inline void rt2x00lib_free_firmware(struct rt2x00_dev *rt2x00dev)
 #endif /* CONFIG_RT2X00_LIB_FIRMWARE */
 
 /*
- * Debugfs handlers.
+ * Defs handlers.
  */
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-void rt2x00debug_register(struct rt2x00_dev *rt2x00dev);
-void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev);
-void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
+#ifdef CONFIG_RT2X00_LIB_DEFS
+void rt2x00de_register(struct rt2x00_dev *rt2x00dev);
+void rt2x00de_deregister(struct rt2x00_dev *rt2x00dev);
+void rt2x00de_update_crypto(struct rt2x00_dev *rt2x00dev,
 			       struct rxdone_entry_desc *rxdesc);
 #else
-static inline void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
+static inline void rt2x00de_register(struct rt2x00_dev *rt2x00dev)
 {
 }
 
-static inline void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
+static inline void rt2x00de_deregister(struct rt2x00_dev *rt2x00dev)
 {
 }
 
-static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
+static inline void rt2x00de_update_crypto(struct rt2x00_dev *rt2x00dev,
 					     struct rxdone_entry_desc *rxdesc)
 {
 }
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 
 /*
  * Crypto handlers.

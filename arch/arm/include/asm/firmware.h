@@ -11,7 +11,7 @@
 #ifndef __ASM_ARM_FIRMWARE_H
 #define __ASM_ARM_FIRMWARE_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 
 /*
  * struct firmware_ops
@@ -74,7 +74,7 @@ extern const struct firmware_ops *firmware_ops;
  */
 static inline void register_firmware_ops(const struct firmware_ops *ops)
 {
-	BUG_ON(!ops);
+	_ON(!ops);
 
 	firmware_ops = ops;
 }

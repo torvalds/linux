@@ -47,7 +47,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	int lr;
 
-	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
+	DE_SPINLOCK__ON(!irqs_disabled());
 
 	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
 
@@ -179,7 +179,7 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 		    model == KVM_DEV_TYPE_ARM_VGIC_V2) {
 			u32 src = ffs(irq->source);
 
-			BUG_ON(!src);
+			_ON(!src);
 			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
 			irq->source &= ~(1 << (src - 1));
 			if (irq->source) {
@@ -516,7 +516,7 @@ int vgic_v3_map_resources(struct kvm *kvm)
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
-			kvm_debug("vcpu %d redistributor base not set\n", c);
+			kvm_de("vcpu %d redistributor base not set\n", c);
 			ret = -ENXIO;
 			goto out;
 		}

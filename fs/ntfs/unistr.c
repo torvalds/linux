@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 
 #include "types.h"
-#include "debug.h"
+#include "de.h"
 #include "ntfs.h"
 
 /*

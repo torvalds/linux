@@ -220,7 +220,7 @@ static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, char *name, int len)
 	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
 		if (len == r->res_length && !memcmp(name, r->res_name, len)) {
 			up_read(&ls->ls_root_sem);
-			log_debug(ls, "find_rsb_root revert to root_list %s",
+			log_de(ls, "find_rsb_root revert to root_list %s",
 				  r->res_name);
 			return r;
 		}

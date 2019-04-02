@@ -34,7 +34,7 @@
 #include <linux/net.h>
 #include <linux/kthread.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/blk-mq.h>
 
 #include <linux/uaccess.h>
@@ -92,7 +92,7 @@ struct nbd_config {
 	wait_queue_head_t recv_wq;
 	loff_t blksize;
 	loff_t bytesize;
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 	struct dentry *dbg_dir;
 #endif
 };
@@ -124,7 +124,7 @@ struct nbd_cmd {
 	u32 cmd_cookie;
 };
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 static struct dentry *nbd_dbg_dir;
 #endif
 
@@ -1270,7 +1270,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		 * by NBD_DO_IT or NBD_CLEAR_SOCK.
 		 */
 		return 0;
-	case NBD_PRINT_DEBUG:
+	case NBD_PRINT_DE:
 		/*
 		 * For compatibility only, we no longer keep a list of
 		 * outstanding requests.
@@ -1389,7 +1389,7 @@ static const struct block_device_operations nbd_fops =
 	.compat_ioctl =	nbd_ioctl,
 };
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 
 static int nbd_dbg_tasks_show(struct seq_file *s, void *unused)
 {
@@ -1456,33 +1456,33 @@ static int nbd_dev_dbg_init(struct nbd_device *nbd)
 	if (!nbd_dbg_dir)
 		return -EIO;
 
-	dir = debugfs_create_dir(nbd_name(nbd), nbd_dbg_dir);
+	dir = defs_create_dir(nbd_name(nbd), nbd_dbg_dir);
 	if (!dir) {
-		dev_err(nbd_to_dev(nbd), "Failed to create debugfs dir for '%s'\n",
+		dev_err(nbd_to_dev(nbd), "Failed to create defs dir for '%s'\n",
 			nbd_name(nbd));
 		return -EIO;
 	}
 	config->dbg_dir = dir;
 
-	debugfs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
-	debugfs_create_u64("size_bytes", 0444, dir, &config->bytesize);
-	debugfs_create_u32("timeout", 0444, dir, &nbd->tag_set.timeout);
-	debugfs_create_u64("blocksize", 0444, dir, &config->blksize);
-	debugfs_create_file("flags", 0444, dir, nbd, &nbd_dbg_flags_ops);
+	defs_create_file("tasks", 0444, dir, nbd, &nbd_dbg_tasks_ops);
+	defs_create_u64("size_bytes", 0444, dir, &config->bytesize);
+	defs_create_u32("timeout", 0444, dir, &nbd->tag_set.timeout);
+	defs_create_u64("blocksize", 0444, dir, &config->blksize);
+	defs_create_file("flags", 0444, dir, nbd, &nbd_dbg_flags_ops);
 
 	return 0;
 }
 
 static void nbd_dev_dbg_close(struct nbd_device *nbd)
 {
-	debugfs_remove_recursive(nbd->config->dbg_dir);
+	defs_remove_recursive(nbd->config->dbg_dir);
 }
 
 static int nbd_dbg_init(void)
 {
 	struct dentry *dbg_dir;
 
-	dbg_dir = debugfs_create_dir("nbd", NULL);
+	dbg_dir = defs_create_dir("nbd", NULL);
 	if (!dbg_dir)
 		return -EIO;
 
@@ -1493,10 +1493,10 @@ static int nbd_dbg_init(void)
 
 static void nbd_dbg_close(void)
 {
-	debugfs_remove_recursive(nbd_dbg_dir);
+	defs_remove_recursive(nbd_dbg_dir);
 }
 
-#else  /* IS_ENABLED(CONFIG_DEBUG_FS) */
+#else  /* IS_ENABLED(CONFIG_DE_FS) */
 
 static int nbd_dev_dbg_init(struct nbd_device *nbd)
 {
@@ -2184,7 +2184,7 @@ static int __init nbd_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON(sizeof(struct nbd_request) != 28);
+	BUILD__ON(sizeof(struct nbd_request) != 28);
 
 	if (max_part < 0) {
 		printk(KERN_ERR "nbd: max_part must be >= 0\n");

@@ -158,7 +158,7 @@ int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 
 	/*
 	 * No matter what situation, need read clear the IRQ status
-	 * There is a bug, see Errata 5, HSD 2900918
+	 * There is a , see Errata 5, HSD 2900918
 	 */
 	spin_lock_irqsave(&hsuc->vchan.lock, flags);
 	sr = hsu_chan_readl(hsuc, HSU_CH_SR);

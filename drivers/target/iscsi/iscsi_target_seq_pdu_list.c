@@ -25,18 +25,18 @@
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_seq_pdu_list.h"
 
-#ifdef DEBUG
+#ifdef DE
 static void iscsit_dump_seq_list(struct iscsi_cmd *cmd)
 {
 	int i;
 	struct iscsi_seq *seq;
 
-	pr_debug("Dumping Sequence List for ITT: 0x%08x:\n",
+	pr_de("Dumping Sequence List for ITT: 0x%08x:\n",
 			cmd->init_task_tag);
 
 	for (i = 0; i < cmd->seq_count; i++) {
 		seq = &cmd->seq_list[i];
-		pr_debug("i: %d, pdu_start: %d, pdu_count: %d,"
+		pr_de("i: %d, pdu_start: %d, pdu_count: %d,"
 			" offset: %d, xfer_len: %d, seq_send_order: %d,"
 			" seq_no: %d\n", i, seq->pdu_start, seq->pdu_count,
 			seq->offset, seq->xfer_len, seq->seq_send_order,
@@ -49,12 +49,12 @@ static void iscsit_dump_pdu_list(struct iscsi_cmd *cmd)
 	int i;
 	struct iscsi_pdu *pdu;
 
-	pr_debug("Dumping PDU List for ITT: 0x%08x:\n",
+	pr_de("Dumping PDU List for ITT: 0x%08x:\n",
 			cmd->init_task_tag);
 
 	for (i = 0; i < cmd->pdu_count; i++) {
 		pdu = &cmd->pdu_list[i];
-		pr_debug("i: %d, offset: %d, length: %d,"
+		pr_de("i: %d, offset: %d, length: %d,"
 			" pdu_send_order: %d, seq_no: %d\n", i, pdu->offset,
 			pdu->length, pdu->pdu_send_order, pdu->seq_no);
 	}
@@ -608,7 +608,7 @@ redo:
 		pdu = &cmd->pdu_list[cmd->pdu_start];
 
 		for (i = 0; pdu[i].seq_no != cmd->seq_no; i++) {
-			pr_debug("pdu[i].seq_no: %d, pdu[i].pdu"
+			pr_de("pdu[i].seq_no: %d, pdu[i].pdu"
 				"_send_order: %d, pdu[i].offset: %d,"
 				" pdu[i].length: %d\n", pdu[i].seq_no,
 				pdu[i].pdu_send_order, pdu[i].offset,
@@ -637,7 +637,7 @@ redo:
 			return NULL;
 		}
 
-		pr_debug("seq->pdu_start: %d, seq->pdu_count: %d,"
+		pr_de("seq->pdu_start: %d, seq->pdu_count: %d,"
 			" seq->seq_no: %d\n", seq->pdu_start, seq->pdu_count,
 			seq->seq_no);
 
@@ -680,7 +680,7 @@ struct iscsi_seq *iscsit_get_seq_holder(
 	}
 
 	for (i = 0; i < cmd->seq_count; i++) {
-		pr_debug("seq_list[i].orig_offset: %d, seq_list[i]."
+		pr_de("seq_list[i].orig_offset: %d, seq_list[i]."
 			"xfer_len: %d, seq_list[i].seq_no %u\n",
 			cmd->seq_list[i].orig_offset, cmd->seq_list[i].xfer_len,
 			cmd->seq_list[i].seq_no);

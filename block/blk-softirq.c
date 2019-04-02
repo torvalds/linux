@@ -102,7 +102,7 @@ void __blk_complete_request(struct request *req)
 	unsigned long flags;
 	bool shared = false;
 
-	BUG_ON(!q->mq_ops->complete);
+	_ON(!q->mq_ops->complete);
 
 	local_irq_save(flags);
 	cpu = smp_processor_id();

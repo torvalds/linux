@@ -29,7 +29,7 @@ obj-$(CONFIG_CSRC_R4K)		+= csrc-r4k.o
 obj-$(CONFIG_CSRC_SB1250)	+= csrc-sb1250.o
 obj-$(CONFIG_SYNC_R4K)		+= sync-r4k.o
 
-obj-$(CONFIG_DEBUG_FS)		+= segment.o
+obj-$(CONFIG_DE_FS)		+= segment.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_MODULES)		+= module.o
 
@@ -80,7 +80,7 @@ obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-$(CONFIG_PROC_FS)		+= proc.o
 obj-$(CONFIG_MAGIC_SYSRQ)	+= sysrq.o
 
-obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
+obj-$(CONFIG_64BIT)		+= cpu-s64.o
 
 obj-$(CONFIG_I8253)		+= i8253.o
 
@@ -96,7 +96,7 @@ obj-$(CONFIG_SPINLOCK_TEST)	+= spinlock_test.o
 obj-$(CONFIG_MIPS_MACHINE)	+= mips_machine.o
 obj-$(CONFIG_MIPSR2_TO_R6_EMULATOR)	+= mips-r2-to-r6-emul.o
 
-CFLAGS_cpu-bugs64.o	= $(shell if $(CC) $(KBUILD_CFLAGS) -Wa,-mdaddi -c -o /dev/null -x c /dev/null >/dev/null 2>&1; then echo "-DHAVE_AS_SET_DADDI"; fi)
+CFLAGS_cpu-s64.o	= $(shell if $(CC) $(KBUILD_CFLAGS) -Wa,-mdaddi -c -o /dev/null -x c /dev/null >/dev/null 2>&1; then echo "-DHAVE_AS_SET_DADDI"; fi)
 
 obj-$(CONFIG_HAVE_STD_PC_SERIAL_PORT)	+= 8250-platform.o
 

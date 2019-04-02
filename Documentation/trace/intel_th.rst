@@ -9,7 +9,7 @@ Intel(R) Trace Hub (TH) is a set of hardware blocks that produce,
 switch and output trace data from multiple hardware and software
 sources over several types of trace output ports encoded in System
 Trace Protocol (MIPI STPv2) and is intended to perform full system
-debugging. For more information on the hardware, see Intel(R) Trace
+deging. For more information on the hardware, see Intel(R) Trace
 Hub developer's manual [1].
 
 It consists of trace sources, trace destinations (outputs) and a
@@ -23,7 +23,7 @@ Currently, the following Intel TH subdevices (blocks) are supported:
   - Memory Storage Unit (MSU), trace output, which allows storing
     trace hub output in system memory,
   - Parallel Trace Interface output (PTI), trace output to an external
-    debug host via a PTI port,
+    de host via a PTI port,
   - Global Trace Hub (GTH), which is a switch and a central component
     of Intel(R) Trace Hub architecture.
 
@@ -99,17 +99,17 @@ Quick example
 
 	$ cat /dev/intel_th0/msc0 > my_stp_trace
 
-Host Debugger Mode
+Host Deger Mode
 ------------------
 
 It is possible to configure the Trace Hub and control its trace
-capture from a remote debug host, which should be connected via one of
-the hardware debugging interfaces, which will then be used to both
-control Intel Trace Hub and transfer its trace data to the debug host.
+capture from a remote de host, which should be connected via one of
+the hardware deging interfaces, which will then be used to both
+control Intel Trace Hub and transfer its trace data to the de host.
 
 The driver needs to be told that such an arrangement is taking place
 so that it does not touch any capture/port configuration and avoids
-conflicting with the debug host's configuration accesses. The only
+conflicting with the de host's configuration accesses. The only
 activity that the driver will perform in this mode is collecting
 software traces to the Software Trace Hub (an stm class device). The
 user is still responsible for setting up adequate master/channel

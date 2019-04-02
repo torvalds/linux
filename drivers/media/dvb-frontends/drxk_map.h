@@ -253,7 +253,7 @@
 #define    SCU_COMM_EXEC_STOP                                              0x0
 #define    SCU_COMM_EXEC_ACTIVE                                            0x1
 #define    SCU_COMM_EXEC_HOLD                                              0x2
-#define  SCU_RAM_DRIVER_DEBUG__A                                           0x831EBF
+#define  SCU_RAM_DRIVER_DE__A                                           0x831EBF
 #define  SCU_RAM_QAM_FSM_STEP_PERIOD__A                                    0x831EC4
 #define  SCU_RAM_GPIO__A                                                   0x831EC7
 #define      SCU_RAM_GPIO_HW_LOCK_IND_DISABLE                              0x0

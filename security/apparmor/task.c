@@ -48,7 +48,7 @@ int aa_replace_current_label(struct aa_label *label)
 	struct aa_task_ctx *ctx = task_ctx(current);
 	struct cred *new;
 
-	AA_BUG(!label);
+	AA_(!label);
 
 	if (old == label)
 		return 0;
@@ -124,7 +124,7 @@ int aa_set_current_hat(struct aa_label *label, u64 token)
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
-	AA_BUG(!label);
+	AA_(!label);
 
 	if (!ctx->previous) {
 		/* transfer refcount */
@@ -173,7 +173,7 @@ int aa_restore_previous_label(u64 token)
 
 	aa_put_label(cred_label(new));
 	set_cred_label(new, aa_get_newest_label(ctx->previous));
-	AA_BUG(!cred_label(new));
+	AA_(!cred_label(new));
 	/* clear exec && prev information when restoring to previous context */
 	aa_clear_task_ctx_trans(ctx);
 

@@ -236,7 +236,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
-		pr_debug("lldd_execute_task returned: %d\n", ret);
+		pr_de("lldd_execute_task returned: %d\n", ret);
 
 		if (qc->scsicmd)
 			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
@@ -281,7 +281,7 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {
-			pr_debug("report phy sata to %016llx:0x%x returned 0x%x\n",
+			pr_de("report phy sata to %016llx:0x%x returned 0x%x\n",
 				 SAS_ADDR(dev->parent->sas_addr),
 				 phy->phy_id, res);
 			return res;
@@ -397,7 +397,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 		return res;
 
 	if (res != TMF_RESP_FUNC_COMPLETE)
-		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
+		sas_ata_printk(KERN_DE, dev, "Unable to reset ata device?\n");
 
 	phy = sas_get_local_phy(dev);
 	if (scsi_is_sas_phy_local(phy))
@@ -430,7 +430,7 @@ static void sas_ata_internal_abort(struct sas_task *task)
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
 	    task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		pr_debug("%s: Task %p already finished.\n", __func__, task);
+		pr_de("%s: Task %p already finished.\n", __func__, task);
 		goto out;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
@@ -744,7 +744,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
+	sas_ata_printk(KERN_DE, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
 }
@@ -816,7 +816,7 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 		if (!list_empty(&sata_q)) {
 			struct ata_port *ap = eh_dev->sata_dev.ap;
 
-			sas_ata_printk(KERN_DEBUG, eh_dev, "cmd error handler\n");
+			sas_ata_printk(KERN_DE, eh_dev, "cmd error handler\n");
 			ata_scsi_cmd_error_handler(shost, ap, &sata_q);
 			/*
 			 * ata's error handler may leave the cmd on the list

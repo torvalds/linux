@@ -184,8 +184,8 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		return 0;
 	}
 
-#ifdef DEBUG
-	pr_debug("bf: \"%16s\"\n", vh->vh_bootfile);
+#ifdef DE
+	pr_de("bf: \"%16s\"\n", vh->vh_bootfile);
 
 	for(i = 0; i < NVDIR; i++) {
 		int	j;
@@ -197,7 +197,7 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		name[j] = (char) 0;
 
 		if (name[0]) {
-			pr_debug("vh: %8s block: 0x%08x size: 0x%08x\n",
+			pr_de("vh: %8s block: 0x%08x size: 0x%08x\n",
 				name, (int) be32_to_cpu(vh->vh_vd[i].vd_lbn),
 				(int) be32_to_cpu(vh->vh_vd[i].vd_nbytes));
 		}
@@ -209,9 +209,9 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		for(pt_entry = sgi_pt_types; pt_entry->pt_name; pt_entry++) {
 			if (pt_type == pt_entry->pt_type) break;
 		}
-#ifdef DEBUG
+#ifdef DE
 		if (be32_to_cpu(vh->vh_pt[i].pt_nblks)) {
-			pr_debug("pt %2d: start: %08d size: %08d type: 0x%02x (%s)\n",
+			pr_de("pt %2d: start: %08d size: %08d type: 0x%02x (%s)\n",
 				 i, (int)be32_to_cpu(vh->vh_pt[i].pt_firstlbn),
 				 (int)be32_to_cpu(vh->vh_pt[i].pt_nblks),
 				 pt_type, (pt_entry->pt_name) ?
@@ -226,7 +226,7 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 
 	if (slice == -1) {
 		pr_notice("partition table contained no EFS partitions\n");
-#ifdef DEBUG
+#ifdef DE
 	} else {
 		pr_info("using slice %d (type %s, offset 0x%x)\n", slice,
 			(pt_entry->pt_name) ? pt_entry->pt_name : "unknown",
@@ -298,7 +298,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	}
 		
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {
-#ifdef DEBUG
+#ifdef DE
 		pr_warn("invalid superblock at block %u\n",
 			sb->fs_start + EFS_SUPER);
 #endif
@@ -308,7 +308,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	brelse(bh);
 
 	if (!sb_rdonly(s)) {
-#ifdef DEBUG
+#ifdef DE
 		pr_info("forcing read-only mode\n");
 #endif
 		s->s_flags |= SB_RDONLY;

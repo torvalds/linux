@@ -800,7 +800,7 @@ static int vsock_getname(struct socket *sock,
 	 * that macro is defined in socket.c instead of .h, so we hardcode its
 	 * value here.
 	 */
-	BUILD_BUG_ON(sizeof(*vm_addr) > 128);
+	BUILD__ON(sizeof(*vm_addr) > 128);
 	memcpy(addr, vm_addr, sizeof(*vm_addr));
 	err = sizeof(*vm_addr);
 

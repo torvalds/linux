@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/irq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
@@ -66,8 +66,8 @@ int xive_native_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 		data->flags |= XIVE_IRQ_FLAG_STORE_EOI;
 	if (opal_flags & OPAL_XIVE_IRQ_LSI)
 		data->flags |= XIVE_IRQ_FLAG_LSI;
-	if (opal_flags & OPAL_XIVE_IRQ_SHIFT_BUG)
-		data->flags |= XIVE_IRQ_FLAG_SHIFT_BUG;
+	if (opal_flags & OPAL_XIVE_IRQ_SHIFT_)
+		data->flags |= XIVE_IRQ_FLAG_SHIFT_;
 	if (opal_flags & OPAL_XIVE_IRQ_MASK_VIA_FW)
 		data->flags |= XIVE_IRQ_FLAG_MASK_FW;
 	if (opal_flags & OPAL_XIVE_IRQ_EOI_VIA_FW)
@@ -499,13 +499,13 @@ static bool xive_parse_provisioning(struct device_node *np)
 static void xive_native_setup_pools(void)
 {
 	/* Allocate a pool big enough */
-	pr_debug("XIVE: Allocating VP block for pool size %u\n", nr_cpu_ids);
+	pr_de("XIVE: Allocating VP block for pool size %u\n", nr_cpu_ids);
 
 	xive_pool_vps = xive_native_alloc_vp_block(nr_cpu_ids);
 	if (WARN_ON(xive_pool_vps == XIVE_INVALID_VP))
 		pr_err("XIVE: Failed to allocate pool VP, KVM might not function\n");
 
-	pr_debug("XIVE: Pool VPs allocated at 0x%x for %u max CPUs\n",
+	pr_de("XIVE: Pool VPs allocated at 0x%x for %u max CPUs\n",
 		 xive_pool_vps, nr_cpu_ids);
 }
 
@@ -621,7 +621,7 @@ u32 xive_native_alloc_vp_block(u32 max_vcpus)
 	if (max_vcpus > (1 << order))
 		order++;
 
-	pr_debug("VP block alloc, for max VCPUs %d use order %d\n",
+	pr_de("VP block alloc, for max VCPUs %d use order %d\n",
 		 max_vcpus, order);
 
 	for (;;) {

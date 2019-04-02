@@ -5,34 +5,34 @@
 
 /* this file is part of imx21-hcd.c */
 
-#ifdef CONFIG_DYNAMIC_DEBUG
-#define DEBUG
+#ifdef CONFIG_DYNAMIC_DE
+#define DE
 #endif
 
-#ifndef DEBUG
+#ifndef DE
 
-static inline void create_debug_files(struct imx21 *imx21) { }
-static inline void remove_debug_files(struct imx21 *imx21) { }
-static inline void debug_urb_submitted(struct imx21 *imx21, struct urb *urb) {}
-static inline void debug_urb_completed(struct imx21 *imx21, struct urb *urb,
+static inline void create_de_files(struct imx21 *imx21) { }
+static inline void remove_de_files(struct imx21 *imx21) { }
+static inline void de_urb_submitted(struct imx21 *imx21, struct urb *urb) {}
+static inline void de_urb_completed(struct imx21 *imx21, struct urb *urb,
 	int status) {}
-static inline void debug_urb_unlinked(struct imx21 *imx21, struct urb *urb) {}
-static inline void debug_urb_queued_for_etd(struct imx21 *imx21,
+static inline void de_urb_unlinked(struct imx21 *imx21, struct urb *urb) {}
+static inline void de_urb_queued_for_etd(struct imx21 *imx21,
 	struct urb *urb) {}
-static inline void debug_urb_queued_for_dmem(struct imx21 *imx21,
+static inline void de_urb_queued_for_dmem(struct imx21 *imx21,
 	struct urb *urb) {}
-static inline void debug_etd_allocated(struct imx21 *imx21) {}
-static inline void debug_etd_freed(struct imx21 *imx21) {}
-static inline void debug_dmem_allocated(struct imx21 *imx21, int size) {}
-static inline void debug_dmem_freed(struct imx21 *imx21, int size) {}
-static inline void debug_isoc_submitted(struct imx21 *imx21,
+static inline void de_etd_allocated(struct imx21 *imx21) {}
+static inline void de_etd_freed(struct imx21 *imx21) {}
+static inline void de_dmem_allocated(struct imx21 *imx21, int size) {}
+static inline void de_dmem_freed(struct imx21 *imx21, int size) {}
+static inline void de_isoc_submitted(struct imx21 *imx21,
 	int frame, struct td *td) {}
-static inline void debug_isoc_completed(struct imx21 *imx21,
+static inline void de_isoc_completed(struct imx21 *imx21,
 	int frame, struct td *td, int cc, int len) {}
 
 #else
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 static const char *dir_labels[] = {
@@ -54,19 +54,19 @@ static const char *format_labels[] = {
 	"Interrupt"
 };
 
-static inline struct debug_stats *stats_for_urb(struct imx21 *imx21,
+static inline struct de_stats *stats_for_urb(struct imx21 *imx21,
 	struct urb *urb)
 {
 	return usb_pipeisoc(urb->pipe) ?
 		&imx21->isoc_stats : &imx21->nonisoc_stats;
 }
 
-static void debug_urb_submitted(struct imx21 *imx21, struct urb *urb)
+static void de_urb_submitted(struct imx21 *imx21, struct urb *urb)
 {
 	stats_for_urb(imx21, urb)->submitted++;
 }
 
-static void debug_urb_completed(struct imx21 *imx21, struct urb *urb, int st)
+static void de_urb_completed(struct imx21 *imx21, struct urb *urb, int st)
 {
 	if (st)
 		stats_for_urb(imx21, urb)->completed_failed++;
@@ -74,34 +74,34 @@ static void debug_urb_completed(struct imx21 *imx21, struct urb *urb, int st)
 		stats_for_urb(imx21, urb)->completed_ok++;
 }
 
-static void debug_urb_unlinked(struct imx21 *imx21, struct urb *urb)
+static void de_urb_unlinked(struct imx21 *imx21, struct urb *urb)
 {
 	stats_for_urb(imx21, urb)->unlinked++;
 }
 
-static void debug_urb_queued_for_etd(struct imx21 *imx21, struct urb *urb)
+static void de_urb_queued_for_etd(struct imx21 *imx21, struct urb *urb)
 {
 	stats_for_urb(imx21, urb)->queue_etd++;
 }
 
-static void debug_urb_queued_for_dmem(struct imx21 *imx21, struct urb *urb)
+static void de_urb_queued_for_dmem(struct imx21 *imx21, struct urb *urb)
 {
 	stats_for_urb(imx21, urb)->queue_dmem++;
 }
 
-static inline void debug_etd_allocated(struct imx21 *imx21)
+static inline void de_etd_allocated(struct imx21 *imx21)
 {
 	imx21->etd_usage.maximum = max(
 			++(imx21->etd_usage.value),
 			imx21->etd_usage.maximum);
 }
 
-static inline void debug_etd_freed(struct imx21 *imx21)
+static inline void de_etd_freed(struct imx21 *imx21)
 {
 	imx21->etd_usage.value--;
 }
 
-static inline void debug_dmem_allocated(struct imx21 *imx21, int size)
+static inline void de_dmem_allocated(struct imx21 *imx21, int size)
 {
 	imx21->dmem_usage.value += size;
 	imx21->dmem_usage.maximum = max(
@@ -109,16 +109,16 @@ static inline void debug_dmem_allocated(struct imx21 *imx21, int size)
 			imx21->dmem_usage.maximum);
 }
 
-static inline void debug_dmem_freed(struct imx21 *imx21, int size)
+static inline void de_dmem_freed(struct imx21 *imx21, int size)
 {
 	imx21->dmem_usage.value -= size;
 }
 
 
-static void debug_isoc_submitted(struct imx21 *imx21,
+static void de_isoc_submitted(struct imx21 *imx21,
 	int frame, struct td *td)
 {
-	struct debug_isoc_trace *trace = &imx21->isoc_trace[
+	struct de_isoc_trace *trace = &imx21->isoc_trace[
 		imx21->isoc_trace_index++];
 
 	imx21->isoc_trace_index %= ARRAY_SIZE(imx21->isoc_trace);
@@ -128,10 +128,10 @@ static void debug_isoc_submitted(struct imx21 *imx21,
 	trace->td = td;
 }
 
-static inline void debug_isoc_completed(struct imx21 *imx21,
+static inline void de_isoc_completed(struct imx21 *imx21,
 	int frame, struct td *td, int cc, int len)
 {
-	struct debug_isoc_trace *trace, *trace_failed;
+	struct de_isoc_trace *trace, *trace_failed;
 	int i;
 	int found = 0;
 
@@ -183,7 +183,7 @@ static char *format_etd_dword0(u32 value, char *buf, int bufsize)
 	return buf;
 }
 
-static int debug_status_show(struct seq_file *s, void *v)
+static int de_status_show(struct seq_file *s, void *v)
 {
 	struct imx21 *imx21 = s->private;
 	int etds_allocated = 0;
@@ -245,9 +245,9 @@ static int debug_status_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debug_status);
+DEFINE_SHOW_ATTRIBUTE(de_status);
 
-static int debug_dmem_show(struct seq_file *s, void *v)
+static int de_dmem_show(struct seq_file *s, void *v)
 {
 	struct imx21 *imx21 = s->private;
 	struct imx21_dmem_area *dmem;
@@ -267,9 +267,9 @@ static int debug_dmem_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debug_dmem);
+DEFINE_SHOW_ATTRIBUTE(de_dmem);
 
-static int debug_etd_show(struct seq_file *s, void *v)
+static int de_etd_show(struct seq_file *s, void *v)
 {
 	struct imx21 *imx21 = s->private;
 	struct etd_priv *etd;
@@ -336,10 +336,10 @@ static int debug_etd_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debug_etd);
+DEFINE_SHOW_ATTRIBUTE(de_etd);
 
-static void debug_statistics_show_one(struct seq_file *s,
-	const char *name, struct debug_stats *stats)
+static void de_statistics_show_one(struct seq_file *s,
+	const char *name, struct de_stats *stats)
 {
 	seq_printf(s, "%s:\n"
 		"submitted URBs: %lu\n"
@@ -357,24 +357,24 @@ static void debug_statistics_show_one(struct seq_file *s,
 		stats->queue_dmem);
 }
 
-static int debug_statistics_show(struct seq_file *s, void *v)
+static int de_statistics_show(struct seq_file *s, void *v)
 {
 	struct imx21 *imx21 = s->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&imx21->lock, flags);
 
-	debug_statistics_show_one(s, "nonisoc", &imx21->nonisoc_stats);
-	debug_statistics_show_one(s, "isoc", &imx21->isoc_stats);
-	seq_printf(s, "unblock kludge triggers: %lu\n", imx21->debug_unblocks);
+	de_statistics_show_one(s, "nonisoc", &imx21->nonisoc_stats);
+	de_statistics_show_one(s, "isoc", &imx21->isoc_stats);
+	seq_printf(s, "unblock kludge triggers: %lu\n", imx21->de_unblocks);
 	spin_unlock_irqrestore(&imx21->lock, flags);
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debug_statistics);
+DEFINE_SHOW_ATTRIBUTE(de_statistics);
 
-static void debug_isoc_show_one(struct seq_file *s,
-	const char *name, int index, 	struct debug_isoc_trace *trace)
+static void de_isoc_show_one(struct seq_file *s,
+	const char *name, int index, 	struct de_isoc_trace *trace)
 {
 	seq_printf(s, "%s %d:\n"
 		"cc=0X%02X\n"
@@ -392,10 +392,10 @@ static void debug_isoc_show_one(struct seq_file *s,
 		trace->done_len);
 }
 
-static int debug_isoc_show(struct seq_file *s, void *v)
+static int de_isoc_show(struct seq_file *s, void *v)
 {
 	struct imx21 *imx21 = s->private;
-	struct debug_isoc_trace *trace;
+	struct de_isoc_trace *trace;
 	unsigned long flags;
 	int i;
 
@@ -403,36 +403,36 @@ static int debug_isoc_show(struct seq_file *s, void *v)
 
 	trace = imx21->isoc_trace_failed;
 	for (i = 0; i < ARRAY_SIZE(imx21->isoc_trace_failed); i++, trace++)
-		debug_isoc_show_one(s, "isoc failed", i, trace);
+		de_isoc_show_one(s, "isoc failed", i, trace);
 
 	trace = imx21->isoc_trace;
 	for (i = 0; i < ARRAY_SIZE(imx21->isoc_trace); i++, trace++)
-		debug_isoc_show_one(s, "isoc", i, trace);
+		de_isoc_show_one(s, "isoc", i, trace);
 
 	spin_unlock_irqrestore(&imx21->lock, flags);
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debug_isoc);
+DEFINE_SHOW_ATTRIBUTE(de_isoc);
 
-static void create_debug_files(struct imx21 *imx21)
+static void create_de_files(struct imx21 *imx21)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(dev_name(imx21->dev), NULL);
-	imx21->debug_root = root;
+	root = defs_create_dir(dev_name(imx21->dev), NULL);
+	imx21->de_root = root;
 
-	debugfs_create_file("status", S_IRUGO, root, imx21, &debug_status_fops);
-	debugfs_create_file("dmem", S_IRUGO, root, imx21, &debug_dmem_fops);
-	debugfs_create_file("etd", S_IRUGO, root, imx21, &debug_etd_fops);
-	debugfs_create_file("statistics", S_IRUGO, root, imx21,
-			    &debug_statistics_fops);
-	debugfs_create_file("isoc", S_IRUGO, root, imx21, &debug_isoc_fops);
+	defs_create_file("status", S_IRUGO, root, imx21, &de_status_fops);
+	defs_create_file("dmem", S_IRUGO, root, imx21, &de_dmem_fops);
+	defs_create_file("etd", S_IRUGO, root, imx21, &de_etd_fops);
+	defs_create_file("statistics", S_IRUGO, root, imx21,
+			    &de_statistics_fops);
+	defs_create_file("isoc", S_IRUGO, root, imx21, &de_isoc_fops);
 }
 
-static void remove_debug_files(struct imx21 *imx21)
+static void remove_de_files(struct imx21 *imx21)
 {
-	debugfs_remove_recursive(imx21->debug_root);
+	defs_remove_recursive(imx21->de_root);
 }
 
 #endif

@@ -180,7 +180,7 @@ static int efx_test_eventq_irq(struct efx_nic *efx,
 	unsigned long napi_ran = 0, dma_pend = 0, int_pend = 0;
 	unsigned long timeout, wait;
 
-	BUILD_BUG_ON(EFX_MAX_CHANNELS > BITS_PER_LONG);
+	BUILD__ON(EFX_MAX_CHANNELS > BITS_PER_LONG);
 
 	efx_for_each_channel(channel, efx) {
 		read_ptr[channel->channel] = channel->eventq_read_ptr;
@@ -290,7 +290,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 	struct efx_loopback_payload *received;
 	struct efx_loopback_payload *payload;
 
-	BUG_ON(!buf_ptr);
+	_ON(!buf_ptr);
 
 	/* If we are just flushing, then drop the packet */
 	if ((state == NULL) || state->flush)
@@ -361,7 +361,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 	return;
 
  err:
-#ifdef DEBUG
+#ifdef DE
 	if (atomic_read(&state->rx_bad) == 0) {
 		netif_err(efx, drv, efx->net_dev, "received packet:\n");
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 0x10, 1,
@@ -629,7 +629,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
-	BUG_ON(efx->loopback_selftest);
+	_ON(efx->loopback_selftest);
 	state->flush = true;
 	efx->loopback_selftest = state;
 

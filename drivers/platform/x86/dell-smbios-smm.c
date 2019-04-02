@@ -142,7 +142,7 @@ int init_dell_smbios_smm(void)
 	dmi_walk(find_cmd_address, NULL);
 
 	if (test_wsmt_enabled()) {
-		pr_debug("Disabling due to WSMT enabled\n");
+		pr_de("Disabling due to WSMT enabled\n");
 		ret = -ENODEV;
 		goto fail_wsmt;
 	}

@@ -24,7 +24,7 @@ typedef unsigned long mm_segment_t;
  */
 struct thread_info {
 	unsigned long flags;	/* low level flags */
-	__s32 preempt_count;	/* 0 => preemptable, <0 => bug */
+	__s32 preempt_count;	/* 0 => preemptable, <0 =>  */
 	mm_segment_t addr_limit;	/* address limit */
 };
 #define INIT_THREAD_INFO(tsk)						\

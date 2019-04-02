@@ -5,7 +5,7 @@
 
 /* this file is part of ehci-hcd.c */
 
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 
 /*
  * check the values in the HCSPARAMS register
@@ -19,7 +19,7 @@ static void dbg_hcs_params(struct ehci_hcd *ehci, char *label)
 	ehci_dbg(ehci,
 		"%s hcs_params 0x%x dbg=%d%s cc=%d pcc=%d%s%s ports=%d\n",
 		label, params,
-		HCS_DEBUG_PORT(params),
+		HCS_DE_PORT(params),
 		HCS_INDICATOR(params) ? " ind" : "",
 		HCS_N_CC(params),
 		HCS_N_PCC(params),
@@ -286,52 +286,52 @@ dbg_port(struct ehci_hcd *ehci, const char *label, int port, u32 status)
 
 /*-------------------------------------------------------------------------*/
 
-/* troubleshooting help: expose state in debugfs */
+/* troubleshooting help: expose state in defs */
 
-static int debug_async_open(struct inode *, struct file *);
-static int debug_bandwidth_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
+static int de_async_open(struct inode *, struct file *);
+static int de_bandwidth_open(struct inode *, struct file *);
+static int de_periodic_open(struct inode *, struct file *);
+static int de_registers_open(struct inode *, struct file *);
 
-static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static ssize_t de_output(struct file*, char __user*, size_t, loff_t*);
+static int de_close(struct inode *, struct file *);
 
-static const struct file_operations debug_async_fops = {
+static const struct file_operations de_async_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_async_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_async_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
 
-static const struct file_operations debug_bandwidth_fops = {
+static const struct file_operations de_bandwidth_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_bandwidth_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_bandwidth_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
 
-static const struct file_operations debug_periodic_fops = {
+static const struct file_operations de_periodic_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_periodic_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_periodic_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
 
-static const struct file_operations debug_registers_fops = {
+static const struct file_operations de_registers_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_registers_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_registers_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
 
-static struct dentry *ehci_debug_root;
+static struct dentry *ehci_de_root;
 
-struct debug_buffer {
-	ssize_t (*fill_func)(struct debug_buffer *);	/* fill method */
+struct de_buffer {
+	ssize_t (*fill_func)(struct de_buffer *);	/* fill method */
 	struct usb_bus *bus;
 	struct mutex mutex;	/* protect filling of buffer */
 	size_t count;		/* number of characters filled into buffer */
@@ -467,7 +467,7 @@ done:
 	*nextp = next;
 }
 
-static ssize_t fill_async_buffer(struct debug_buffer *buf)
+static ssize_t fill_async_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd		*hcd;
 	struct ehci_hcd		*ehci;
@@ -507,7 +507,7 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	return strlen(buf->output_buf);
 }
 
-static ssize_t fill_bandwidth_buffer(struct debug_buffer *buf)
+static ssize_t fill_bandwidth_buffer(struct de_buffer *buf)
 {
 	struct ehci_hcd		*ehci;
 	struct ehci_tt		*tt;
@@ -618,7 +618,7 @@ static unsigned output_buf_tds_dir(char *buf, struct ehci_hcd *ehci,
 }
 
 #define DBG_SCHED_LIMIT 64
-static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
+static ssize_t fill_periodic_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd		*hcd;
 	struct ehci_hcd		*ehci;
@@ -752,7 +752,7 @@ static const char *rh_state_string(struct ehci_hcd *ehci)
 	return "?";
 }
 
-static ssize_t fill_registers_buffer(struct debug_buffer *buf)
+static ssize_t fill_registers_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd		*hcd;
 	struct ehci_hcd		*ehci;
@@ -874,11 +874,11 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		temp = scnprintf(next, size, fmt, temp, scratch);
 		size -= temp;
 		next += temp;
-		if (i == HCS_DEBUG_PORT(ehci->hcs_params) && ehci->debug) {
+		if (i == HCS_DE_PORT(ehci->hcs_params) && ehci->de) {
 			temp = scnprintf(next, size,
-					"    debug control %08x\n",
+					"    de control %08x\n",
 					ehci_readl(ehci,
-						&ehci->debug->control));
+						&ehci->de->control));
 			size -= temp;
 			next += temp;
 		}
@@ -912,10 +912,10 @@ done:
 	return buf->alloc_size - size;
 }
 
-static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
-		ssize_t (*fill_func)(struct debug_buffer *))
+static struct de_buffer *alloc_buffer(struct usb_bus *bus,
+		ssize_t (*fill_func)(struct de_buffer *))
 {
-	struct debug_buffer *buf;
+	struct de_buffer *buf;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 
@@ -929,7 +929,7 @@ static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
 	return buf;
 }
 
-static int fill_buffer(struct debug_buffer *buf)
+static int fill_buffer(struct de_buffer *buf)
 {
 	int ret = 0;
 
@@ -952,10 +952,10 @@ out:
 	return ret;
 }
 
-static ssize_t debug_output(struct file *file, char __user *user_buf,
+static ssize_t de_output(struct file *file, char __user *user_buf,
 		size_t len, loff_t *offset)
 {
-	struct debug_buffer *buf = file->private_data;
+	struct de_buffer *buf = file->private_data;
 	int ret = 0;
 
 	mutex_lock(&buf->mutex);
@@ -975,9 +975,9 @@ out:
 	return ret;
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int de_close(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *buf = file->private_data;
+	struct de_buffer *buf = file->private_data;
 
 	if (buf) {
 		vfree(buf->output_buf);
@@ -987,14 +987,14 @@ static int debug_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int debug_async_open(struct inode *inode, struct file *file)
+static int de_async_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_bandwidth_open(struct inode *inode, struct file *file)
+static int de_bandwidth_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private,
 			fill_bandwidth_buffer);
@@ -1002,9 +1002,9 @@ static int debug_bandwidth_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int de_periodic_open(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *buf;
+	struct de_buffer *buf;
 
 	buf = alloc_buffer(inode->i_private, fill_periodic_buffer);
 	if (!buf)
@@ -1015,7 +1015,7 @@ static int debug_periodic_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int de_registers_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private,
 					  fill_registers_buffer);
@@ -1023,28 +1023,28 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static inline void create_debug_files(struct ehci_hcd *ehci)
+static inline void create_de_files(struct ehci_hcd *ehci)
 {
 	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
 
-	ehci->debug_dir = debugfs_create_dir(bus->bus_name, ehci_debug_root);
+	ehci->de_dir = defs_create_dir(bus->bus_name, ehci_de_root);
 
-	debugfs_create_file("async", S_IRUGO, ehci->debug_dir, bus,
-			    &debug_async_fops);
-	debugfs_create_file("bandwidth", S_IRUGO, ehci->debug_dir, bus,
-			    &debug_bandwidth_fops);
-	debugfs_create_file("periodic", S_IRUGO, ehci->debug_dir, bus,
-			    &debug_periodic_fops);
-	debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
-			    &debug_registers_fops);
+	defs_create_file("async", S_IRUGO, ehci->de_dir, bus,
+			    &de_async_fops);
+	defs_create_file("bandwidth", S_IRUGO, ehci->de_dir, bus,
+			    &de_bandwidth_fops);
+	defs_create_file("periodic", S_IRUGO, ehci->de_dir, bus,
+			    &de_periodic_fops);
+	defs_create_file("registers", S_IRUGO, ehci->de_dir, bus,
+			    &de_registers_fops);
 }
 
-static inline void remove_debug_files(struct ehci_hcd *ehci)
+static inline void remove_de_files(struct ehci_hcd *ehci)
 {
-	debugfs_remove_recursive(ehci->debug_dir);
+	defs_remove_recursive(ehci->de_dir);
 }
 
-#else /* CONFIG_DYNAMIC_DEBUG */
+#else /* CONFIG_DYNAMIC_DE */
 
 static inline void dbg_hcs_params(struct ehci_hcd *ehci, char *label) { }
 static inline void dbg_hcc_params(struct ehci_hcd *ehci, char *label) { }
@@ -1075,7 +1075,7 @@ static inline void dbg_cmd(struct ehci_hcd *ehci, const char *label,
 static inline void dbg_port(struct ehci_hcd *ehci, const char *label,
 		int port, u32 status) { }
 
-static inline void create_debug_files(struct ehci_hcd *bus) { }
-static inline void remove_debug_files(struct ehci_hcd *bus) { }
+static inline void create_de_files(struct ehci_hcd *bus) { }
+static inline void remove_de_files(struct ehci_hcd *bus) { }
 
-#endif /* CONFIG_DYNAMIC_DEBUG */
+#endif /* CONFIG_DYNAMIC_DE */

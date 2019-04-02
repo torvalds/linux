@@ -1363,15 +1363,15 @@ struct ipw_priv {
 	struct work_struct qos_activate;
 	/*********************************/
 
-	/* debugging info */
+	/* deging info */
 	u32 indirect_dword;
 	u32 direct_dword;
 	u32 indirect_byte;
 };				/*ipw_priv */
 
-/* debug macros */
+/* de macros */
 
-/* Debug and printf string expansion helpers for printing bitfields */
+/* De and printf string expansion helpers for printing bitfields */
 #define BIT_FMT8 "%c%c%c%c-%c%c%c%c"
 #define BIT_FMT16 BIT_FMT8 ":" BIT_FMT8
 #define BIT_FMT32 BIT_FMT16 " " BIT_FMT16
@@ -1394,24 +1394,24 @@ BITC(x,19),BITC(x,18),BITC(x,17),BITC(x,16),\
 BIT_ARG16(x)
 
 
-#define IPW_DEBUG(level, fmt, args...) \
-do { if (ipw_debug_level & (level)) \
-  printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
+#define IPW_DE(level, fmt, args...) \
+do { if (ipw_de_level & (level)) \
+  printk(KERN_DE DRV_NAME": %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 
-#ifdef CONFIG_IPW2200_DEBUG
-#define IPW_LL_DEBUG(level, fmt, args...) \
-do { if (ipw_debug_level & (level)) \
-  printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
+#ifdef CONFIG_IPW2200_DE
+#define IPW_LL_DE(level, fmt, args...) \
+do { if (ipw_de_level & (level)) \
+  printk(KERN_DE DRV_NAME": %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 #else
-#define IPW_LL_DEBUG(level, fmt, args...) do {} while (0)
-#endif				/* CONFIG_IPW2200_DEBUG */
+#define IPW_LL_DE(level, fmt, args...) do {} while (0)
+#endif				/* CONFIG_IPW2200_DE */
 
 /*
- * To use the debug system;
+ * To use the de system;
  *
- * If you are defining a new debug classification, simply add it to the #define
+ * If you are defining a new de classification, simply add it to the #define
  * list here in the form of:
  *
  * #define IPW_DL_xxxx VALUE
@@ -1419,18 +1419,18 @@ do { if (ipw_debug_level & (level)) \
  * shifting value to the left one bit from the previous entry.  xxxx should be
  * the name of the classification (for example, WEP)
  *
- * You then need to either add a IPW_xxxx_DEBUG() macro definition for your
- * classification, or use IPW_DEBUG(IPW_DL_xxxx, ...) whenever you want
+ * You then need to either add a IPW_xxxx_DE() macro definition for your
+ * classification, or use IPW_DE(IPW_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
- * To add your debug level to the list of levels seen when you perform
+ * To add your de level to the list of levels seen when you perform
  *
- * % cat /proc/net/ipw/debug_level
+ * % cat /proc/net/ipw/de_level
  *
- * you simply need to add your entry to the ipw_debug_levels array.
+ * you simply need to add your entry to the ipw_de_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
- * CONFIG_IPW2200_DEBUG defined in your kernel configuration
+ * If you do not see de_level in /proc/net/ipw then you do not have
+ * CONFIG_IPW2200_DE defined in your kernel configuration
  *
  */
 
@@ -1471,31 +1471,31 @@ do { if (ipw_debug_level & (level)) \
 
 #define IPW_ERROR(f, a...) printk(KERN_ERR DRV_NAME ": " f, ## a)
 #define IPW_WARNING(f, a...) printk(KERN_WARNING DRV_NAME ": " f, ## a)
-#define IPW_DEBUG_INFO(f, a...)    IPW_DEBUG(IPW_DL_INFO, f, ## a)
+#define IPW_DE_INFO(f, a...)    IPW_DE(IPW_DL_INFO, f, ## a)
 
-#define IPW_DEBUG_WX(f, a...)     IPW_DEBUG(IPW_DL_WX, f, ## a)
-#define IPW_DEBUG_SCAN(f, a...)   IPW_DEBUG(IPW_DL_SCAN, f, ## a)
-#define IPW_DEBUG_TRACE(f, a...)  IPW_LL_DEBUG(IPW_DL_TRACE, f, ## a)
-#define IPW_DEBUG_RX(f, a...)     IPW_LL_DEBUG(IPW_DL_RX, f, ## a)
-#define IPW_DEBUG_TX(f, a...)     IPW_LL_DEBUG(IPW_DL_TX, f, ## a)
-#define IPW_DEBUG_ISR(f, a...)    IPW_LL_DEBUG(IPW_DL_ISR, f, ## a)
-#define IPW_DEBUG_MANAGEMENT(f, a...) IPW_DEBUG(IPW_DL_MANAGE, f, ## a)
-#define IPW_DEBUG_LED(f, a...) IPW_LL_DEBUG(IPW_DL_LED, f, ## a)
-#define IPW_DEBUG_WEP(f, a...)    IPW_LL_DEBUG(IPW_DL_WEP, f, ## a)
-#define IPW_DEBUG_HC(f, a...) IPW_LL_DEBUG(IPW_DL_HOST_COMMAND, f, ## a)
-#define IPW_DEBUG_FRAG(f, a...) IPW_LL_DEBUG(IPW_DL_FRAG, f, ## a)
-#define IPW_DEBUG_FW(f, a...) IPW_LL_DEBUG(IPW_DL_FW, f, ## a)
-#define IPW_DEBUG_RF_KILL(f, a...) IPW_DEBUG(IPW_DL_RF_KILL, f, ## a)
-#define IPW_DEBUG_DROP(f, a...) IPW_DEBUG(IPW_DL_DROP, f, ## a)
-#define IPW_DEBUG_IO(f, a...) IPW_LL_DEBUG(IPW_DL_IO, f, ## a)
-#define IPW_DEBUG_ORD(f, a...) IPW_LL_DEBUG(IPW_DL_ORD, f, ## a)
-#define IPW_DEBUG_FW_INFO(f, a...) IPW_LL_DEBUG(IPW_DL_FW_INFO, f, ## a)
-#define IPW_DEBUG_NOTIF(f, a...) IPW_DEBUG(IPW_DL_NOTIF, f, ## a)
-#define IPW_DEBUG_STATE(f, a...) IPW_DEBUG(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
-#define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
-#define IPW_DEBUG_STATS(f, a...) IPW_LL_DEBUG(IPW_DL_STATS, f, ## a)
-#define IPW_DEBUG_MERGE(f, a...) IPW_LL_DEBUG(IPW_DL_MERGE, f, ## a)
-#define IPW_DEBUG_QOS(f, a...)   IPW_LL_DEBUG(IPW_DL_QOS, f, ## a)
+#define IPW_DE_WX(f, a...)     IPW_DE(IPW_DL_WX, f, ## a)
+#define IPW_DE_SCAN(f, a...)   IPW_DE(IPW_DL_SCAN, f, ## a)
+#define IPW_DE_TRACE(f, a...)  IPW_LL_DE(IPW_DL_TRACE, f, ## a)
+#define IPW_DE_RX(f, a...)     IPW_LL_DE(IPW_DL_RX, f, ## a)
+#define IPW_DE_TX(f, a...)     IPW_LL_DE(IPW_DL_TX, f, ## a)
+#define IPW_DE_ISR(f, a...)    IPW_LL_DE(IPW_DL_ISR, f, ## a)
+#define IPW_DE_MANAGEMENT(f, a...) IPW_DE(IPW_DL_MANAGE, f, ## a)
+#define IPW_DE_LED(f, a...) IPW_LL_DE(IPW_DL_LED, f, ## a)
+#define IPW_DE_WEP(f, a...)    IPW_LL_DE(IPW_DL_WEP, f, ## a)
+#define IPW_DE_HC(f, a...) IPW_LL_DE(IPW_DL_HOST_COMMAND, f, ## a)
+#define IPW_DE_FRAG(f, a...) IPW_LL_DE(IPW_DL_FRAG, f, ## a)
+#define IPW_DE_FW(f, a...) IPW_LL_DE(IPW_DL_FW, f, ## a)
+#define IPW_DE_RF_KILL(f, a...) IPW_DE(IPW_DL_RF_KILL, f, ## a)
+#define IPW_DE_DROP(f, a...) IPW_DE(IPW_DL_DROP, f, ## a)
+#define IPW_DE_IO(f, a...) IPW_LL_DE(IPW_DL_IO, f, ## a)
+#define IPW_DE_ORD(f, a...) IPW_LL_DE(IPW_DL_ORD, f, ## a)
+#define IPW_DE_FW_INFO(f, a...) IPW_LL_DE(IPW_DL_FW_INFO, f, ## a)
+#define IPW_DE_NOTIF(f, a...) IPW_DE(IPW_DL_NOTIF, f, ## a)
+#define IPW_DE_STATE(f, a...) IPW_DE(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
+#define IPW_DE_ASSOC(f, a...) IPW_DE(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
+#define IPW_DE_STATS(f, a...) IPW_LL_DE(IPW_DL_STATS, f, ## a)
+#define IPW_DE_MERGE(f, a...) IPW_LL_DE(IPW_DL_MERGE, f, ## a)
+#define IPW_DE_QOS(f, a...)   IPW_LL_DE(IPW_DL_QOS, f, ## a)
 
 #include <linux/ctype.h>
 

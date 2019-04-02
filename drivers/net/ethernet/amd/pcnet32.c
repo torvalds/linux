@@ -14,7 +14,7 @@
  */
 /**************************************************************************
  *  23 Oct, 2000.
- *  Fixed a few bugs, related to running the controller in 32bit mode.
+ *  Fixed a few s, related to running the controller in 32bit mode.
  *
  *  Carsten Langgaard, carstenl@mips.com
  *  Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
@@ -85,7 +85,7 @@ static int cards_found;
 static unsigned int pcnet32_portlist[] =
     { 0x300, 0x320, 0x340, 0x360, 0 };
 
-static int pcnet32_debug;
+static int pcnet32_de;
 static int tx_start = 1;	/* Mapping -- 0:20, 1:64, 2:128, 3:~220 (depends on chip vers) */
 static int pcnet32vlb;		/* check for VLB cards ? */
 
@@ -298,7 +298,7 @@ struct pcnet32_private {
 	struct net_device	*next;
 	struct mii_if_info	mii_if;
 	struct timer_list	watchdog_timer;
-	u32			msg_enable;	/* debug message level */
+	u32			msg_enable;	/* de message level */
 
 	/* each bit indicates an available PHY */
 	u32			phymask;
@@ -711,7 +711,7 @@ static int pcnet32_suspend(struct net_device *dev, unsigned long *flags,
 		spin_lock_irqsave(&lp->lock, *flags);
 		ticks++;
 		if (ticks > 200) {
-			netif_printk(lp, hw, KERN_DEBUG, dev,
+			netif_printk(lp, hw, KERN_DE, dev,
 				     "Error getting into suspend!\n");
 			return 0;
 		}
@@ -960,14 +960,14 @@ static void pcnet32_ethtool_test(struct net_device *dev,
 	if (test->flags == ETH_TEST_FL_OFFLINE) {
 		rc = pcnet32_loopback_test(dev, data);
 		if (rc) {
-			netif_printk(lp, hw, KERN_DEBUG, dev,
+			netif_printk(lp, hw, KERN_DE, dev,
 				     "Loopback test failed\n");
 			test->flags |= ETH_TEST_FL_FAILED;
 		} else
-			netif_printk(lp, hw, KERN_DEBUG, dev,
+			netif_printk(lp, hw, KERN_DE, dev,
 				     "Loopback test passed\n");
 	} else
-		netif_printk(lp, hw, KERN_DEBUG, dev,
+		netif_printk(lp, hw, KERN_DE, dev,
 			     "No tests to run (specify 'Offline' on ethtool)\n");
 }				/* end pcnet32_ethtool_test */
 
@@ -1015,7 +1015,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 	for (x = 0; x < numbuffs; x++) {
 		skb = netdev_alloc_skb(dev, size);
 		if (!skb) {
-			netif_printk(lp, hw, KERN_DEBUG, dev,
+			netif_printk(lp, hw, KERN_DE, dev,
 				     "Cannot allocate skb at line: %d!\n",
 				     __LINE__);
 			goto clean_up;
@@ -1044,7 +1044,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 			pci_map_single(lp->pci_dev, skb->data, skb->len,
 				       PCI_DMA_TODEVICE);
 		if (pci_dma_mapping_error(lp->pci_dev, lp->tx_dma_addr[x])) {
-			netif_printk(lp, hw, KERN_DEBUG, dev,
+			netif_printk(lp, hw, KERN_DE, dev,
 				     "DMA mapping error at line: %d!\n",
 				     __LINE__);
 			goto clean_up;
@@ -1084,10 +1084,10 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 	lp->a->write_csr(ioaddr, CSR0, CSR0_STOP);	/* Set STOP bit */
 	wmb();
 	if (netif_msg_hw(lp) && netif_msg_pktdata(lp)) {
-		netdev_printk(KERN_DEBUG, dev, "RX loopback packets:\n");
+		netdev_printk(KERN_DE, dev, "RX loopback packets:\n");
 
 		for (x = 0; x < numbuffs; x++) {
-			netdev_printk(KERN_DEBUG, dev, "Packet %d: ", x);
+			netdev_printk(KERN_DE, dev, "Packet %d: ", x);
 			skb = lp->rx_skbuff[x];
 			for (i = 0; i < size; i++)
 				pr_cont(" %02x", *(skb->data + i));
@@ -1102,7 +1102,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 		packet = lp->tx_skbuff[x]->data;
 		for (i = 0; i < size; i++) {
 			if (*(skb->data + i) != packet[i]) {
-				netif_printk(lp, hw, KERN_DEBUG, dev,
+				netif_printk(lp, hw, KERN_DE, dev,
 					     "Error in compare! %2x - %02x %02x\n",
 					     i, *(skb->data + i), packet[i]);
 				rc = 1;
@@ -1542,7 +1542,7 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err < 0) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_err("failed to enable device -- err=%d\n", err);
 		return err;
 	}
@@ -1550,7 +1550,7 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ioaddr = pci_resource_start(pdev, 0);
 	if (!ioaddr) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_err("card has no PCI IO resources, aborting\n");
 		err = -ENODEV;
 		goto err_disable_dev;
@@ -1558,12 +1558,12 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_set_dma_mask(pdev, PCNET32_DMA_MASK);
 	if (err) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_err("architecture does not support 32bit PCI busmaster DMA\n");
 		goto err_disable_dev;
 	}
 	if (!request_region(ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_pci")) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_err("io address range already allocated\n");
 		err = -EBUSY;
 		goto err_disable_dev;
@@ -1622,7 +1622,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		    pcnet32_dwio_check(ioaddr)) {
 			a = &pcnet32_dwio;
 		} else {
-			if (pcnet32_debug & NETIF_MSG_PROBE)
+			if (pcnet32_de & NETIF_MSG_PROBE)
 				pr_err("No access methods\n");
 			goto err_release_region;
 		}
@@ -1630,10 +1630,10 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	chip_version =
 	    a->read_csr(ioaddr, 88) | (a->read_csr(ioaddr, 89) << 16);
-	if ((pcnet32_debug & NETIF_MSG_PROBE) && (pcnet32_debug & NETIF_MSG_HW))
+	if ((pcnet32_de & NETIF_MSG_PROBE) && (pcnet32_de & NETIF_MSG_HW))
 		pr_info("  PCnet chip version is %#x\n", chip_version);
 	if ((chip_version & 0xfff) != 0x003) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_info("Unsupported chip version\n");
 		goto err_release_region;
 	}
@@ -1687,8 +1687,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		media &= ~3;	/* default to 10Mb ethernet */
 		if (cards_found < MAX_UNITS && homepna[cards_found])
 			media |= 1;	/* switch to home wiring mode */
-		if (pcnet32_debug & NETIF_MSG_PROBE)
-			printk(KERN_DEBUG PFX "media set to %sMbit mode\n",
+		if (pcnet32_de & NETIF_MSG_PROBE)
+			printk(KERN_DE PFX "media set to %sMbit mode\n",
 			       (media & 1) ? "1" : "10");
 		a->write_bcr(ioaddr, 49, media);
 		break;
@@ -1704,7 +1704,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		mii = 1;
 		break;
 	default:
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_info("PCnet version %#x, no PCnet32 chip\n",
 				chip_version);
 		goto err_release_region;
@@ -1759,7 +1759,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	if (pdev)
 		SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pcnet32_debug & NETIF_MSG_PROBE)
+	if (pcnet32_de & NETIF_MSG_PROBE)
 		pr_info("%s at %#3lx,", chipname, ioaddr);
 
 	/* In most chips, after a chip reset, the ethernet address is read from the
@@ -1784,7 +1784,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	if (!ether_addr_equal(promaddr, dev->dev_addr) ||
 	    !is_valid_ether_addr(dev->dev_addr)) {
 		if (is_valid_ether_addr(promaddr)) {
-			if (pcnet32_debug & NETIF_MSG_PROBE) {
+			if (pcnet32_de & NETIF_MSG_PROBE) {
 				pr_cont(" warning: CSR address invalid,\n");
 				pr_info("    using instead PROM address of");
 			}
@@ -1796,7 +1796,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		eth_zero_addr(dev->dev_addr);
 
-	if (pcnet32_debug & NETIF_MSG_PROBE) {
+	if (pcnet32_de & NETIF_MSG_PROBE) {
 		pr_cont(" %pM", dev->dev_addr);
 
 		/* Version 0x2623 and 0x2624 */
@@ -1843,7 +1843,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->init_block = pci_alloc_consistent(pdev, sizeof(*lp->init_block),
 					      &lp->init_dma_addr);
 	if (!lp->init_block) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_err("Consistent memory allocation failed\n");
 		ret = -ENOMEM;
 		goto err_free_netdev;
@@ -1868,7 +1868,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->dxsuflo = dxsuflo;
 	lp->mii = mii;
 	lp->chip_version = chip_version;
-	lp->msg_enable = pcnet32_debug;
+	lp->msg_enable = pcnet32_de;
 	if ((cards_found >= MAX_UNITS) ||
 	    (options[cards_found] >= sizeof(options_mapping)))
 		lp->options = PCNET32_PORT_ASEL;
@@ -1920,7 +1920,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	if (pdev) {		/* use the IRQ provided by PCI */
 		dev->irq = pdev->irq;
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_cont(" assigned IRQ %d\n", dev->irq);
 	} else {
 		unsigned long irq_mask = probe_irq_on();
@@ -1936,12 +1936,12 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 		dev->irq = probe_irq_off(irq_mask);
 		if (!dev->irq) {
-			if (pcnet32_debug & NETIF_MSG_PROBE)
+			if (pcnet32_de & NETIF_MSG_PROBE)
 				pr_cont(", failed to detect IRQ line\n");
 			ret = -ENODEV;
 			goto err_free_ring;
 		}
-		if (pcnet32_debug & NETIF_MSG_PROBE)
+		if (pcnet32_de & NETIF_MSG_PROBE)
 			pr_cont(", probed IRQ %d\n", dev->irq);
 	}
 
@@ -1965,7 +1965,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 			lp->phycount++;
 			lp->phymask |= (1 << i);
 			lp->mii_if.phy_id = i;
-			if (pcnet32_debug & NETIF_MSG_PROBE)
+			if (pcnet32_de & NETIF_MSG_PROBE)
 				pr_info("Found PHY %04x:%04x at address %d\n",
 					id1, id2, i);
 		}
@@ -1992,7 +1992,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		pcnet32_dev = dev;
 	}
 
-	if (pcnet32_debug & NETIF_MSG_PROBE)
+	if (pcnet32_de & NETIF_MSG_PROBE)
 		pr_info("%s: registered as %s\n", dev->name, lp->name);
 	cards_found++;
 
@@ -2120,7 +2120,7 @@ static int pcnet32_open(struct net_device *dev)
 	/* switch pcnet32 to 32bit mode */
 	lp->a->write_bcr(ioaddr, 20, 2);
 
-	netif_printk(lp, ifup, KERN_DEBUG, dev,
+	netif_printk(lp, ifup, KERN_DE, dev,
 		     "%s() irq %d tx/rx rings %#x/%#x init %#x\n",
 		     __func__, dev->irq, (u32) (lp->tx_ring_dma_addr),
 		     (u32) (lp->rx_ring_dma_addr),
@@ -2163,7 +2163,7 @@ static int pcnet32_open(struct net_device *dev)
 	     pdev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
 		if (lp->options & PCNET32_PORT_ASEL) {
 			lp->options = PCNET32_PORT_FD | PCNET32_PORT_100;
-			netif_printk(lp, link, KERN_DEBUG, dev,
+			netif_printk(lp, link, KERN_DE, dev,
 				     "Setting 100Mb-Full Duplex\n");
 		}
 	}
@@ -2295,11 +2295,11 @@ static int pcnet32_open(struct net_device *dev)
 			break;
 	/*
 	 * We used to clear the InitDone bit, 0x0100, here but Mark Stockton
-	 * reports that doing so triggers a bug in the '974.
+	 * reports that doing so triggers a  in the '974.
 	 */
 	lp->a->write_csr(ioaddr, CSR0, CSR0_NORMAL);
 
-	netif_printk(lp, ifup, KERN_DEBUG, dev,
+	netif_printk(lp, ifup, KERN_DE, dev,
 		     "pcnet32 open after %d ticks, init block %#x csr0 %4.4x\n",
 		     i,
 		     (u32) (lp->init_dma_addr),
@@ -2462,14 +2462,14 @@ static void pcnet32_tx_timeout(struct net_device *dev)
 
 	spin_lock_irqsave(&lp->lock, flags);
 	/* Transmitter timeout, serious problems. */
-	if (pcnet32_debug & NETIF_MSG_DRV)
+	if (pcnet32_de & NETIF_MSG_DRV)
 		pr_err("%s: transmit timed out, status %4.4x, resetting\n",
 		       dev->name, lp->a->read_csr(ioaddr, CSR0));
 	lp->a->write_csr(ioaddr, CSR0, CSR0_STOP);
 	dev->stats.tx_errors++;
 	if (netif_msg_tx_err(lp)) {
 		int i;
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       " Ring data dump: dirty_tx %d cur_tx %d%s cur_rx %d.",
 		       lp->dirty_tx, lp->cur_tx, lp->tx_full ? " (full)" : "",
 		       lp->cur_rx);
@@ -2506,7 +2506,7 @@ static netdev_tx_t pcnet32_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&lp->lock, flags);
 
-	netif_printk(lp, tx_queued, KERN_DEBUG, dev,
+	netif_printk(lp, tx_queued, KERN_DE, dev,
 		     "%s() called, csr0 %4.4x\n",
 		     __func__, lp->a->read_csr(ioaddr, CSR0));
 
@@ -2576,7 +2576,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 		/* Acknowledge all of the current interrupt sources ASAP. */
 		lp->a->write_csr(ioaddr, CSR0, csr0 & ~0x004f);
 
-		netif_printk(lp, intr, KERN_DEBUG, dev,
+		netif_printk(lp, intr, KERN_DE, dev,
 			     "interrupt  csr0=%#2.2x new csr=%#2.2x\n",
 			     csr0, lp->a->read_csr(ioaddr, CSR0));
 
@@ -2615,7 +2615,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 		csr0 = lp->a->read_csr(ioaddr, CSR0);
 	}
 
-	netif_printk(lp, intr, KERN_DEBUG, dev,
+	netif_printk(lp, intr, KERN_DE, dev,
 		     "exiting interrupt, csr0=%#4.4x\n",
 		     lp->a->read_csr(ioaddr, CSR0));
 
@@ -2639,7 +2639,7 @@ static int pcnet32_close(struct net_device *dev)
 
 	dev->stats.rx_missed_errors = lp->a->read_csr(ioaddr, 112);
 
-	netif_printk(lp, ifdown, KERN_DEBUG, dev,
+	netif_printk(lp, ifdown, KERN_DE, dev,
 		     "Shutting down ethercard, status was %2.2x\n",
 		     lp->a->read_csr(ioaddr, CSR0));
 
@@ -2972,12 +2972,12 @@ static struct pci_driver pcnet32_driver = {
 };
 
 /* An additional parameter that may be passed in... */
-static int debug = -1;
+static int de = -1;
 static int tx_start_pt = -1;
 static int pcnet32_have_pci;
 
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, DRV_NAME " debug level");
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, DRV_NAME " de level");
 module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(max_interrupt_work,
 		 DRV_NAME " maximum events handled per interrupt");
@@ -3008,7 +3008,7 @@ static int __init pcnet32_init_module(void)
 {
 	pr_info("%s", version);
 
-	pcnet32_debug = netif_msg_init(debug, PCNET32_MSG_DEFAULT);
+	pcnet32_de = netif_msg_init(de, PCNET32_MSG_DEFAULT);
 
 	if ((tx_start_pt >= 0) && (tx_start_pt <= 3))
 		tx_start = tx_start_pt;
@@ -3021,7 +3021,7 @@ static int __init pcnet32_init_module(void)
 	if (pcnet32vlb)
 		pcnet32_probe_vlbus(pcnet32_portlist);
 
-	if (cards_found && (pcnet32_debug & NETIF_MSG_PROBE))
+	if (cards_found && (pcnet32_de & NETIF_MSG_PROBE))
 		pr_info("%d cards_found\n", cards_found);
 
 	return (pcnet32_have_pci + cards_found) ? 0 : -ENODEV;

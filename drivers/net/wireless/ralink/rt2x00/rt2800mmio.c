@@ -117,7 +117,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * Unfortunately we don't know the cipher type used during
 	 * decryption. This prevents us from correct providing
-	 * correct statistics through debugfs.
+	 * correct statistics through defs.
 	 */
 	rxdesc->cipher_status = rt2x00_get_field32(word, RXD_W3_CIPHER_ERROR);
 
@@ -588,7 +588,7 @@ void rt2800mmio_queue_init(struct data_queue *queue)
 	case QID_ATIM:
 		/* fallthrough */
 	default:
-		BUG();
+		();
 		break;
 	}
 }

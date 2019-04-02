@@ -252,18 +252,18 @@ config RT2X00_LIB_LEDS
 	bool
 	default y if (RT2X00_LIB=y && LEDS_CLASS=y) || (RT2X00_LIB=m && LEDS_CLASS!=n)
 
-config RT2X00_LIB_DEBUGFS
-	bool "Ralink debugfs support"
-	depends on RT2X00_LIB && MAC80211_DEBUGFS
+config RT2X00_LIB_DEFS
+	bool "Ralink defs support"
+	depends on RT2X00_LIB && MAC80211_DEFS
 	---help---
-	  Enable creation of debugfs files for the rt2x00 drivers.
-	  These debugfs files support both reading and writing of the
+	  Enable creation of defs files for the rt2x00 drivers.
+	  These defs files support both reading and writing of the
 	  most important register types of the rt2x00 hardware.
 
-config RT2X00_DEBUG
-	bool "Ralink debug output"
+config RT2X00_DE
+	bool "Ralink de output"
 	depends on RT2X00_LIB
 	---help---
-	  Enable debugging output for all rt2x00 modules
+	  Enable deging output for all rt2x00 modules
 
 endif

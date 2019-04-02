@@ -279,7 +279,7 @@ static int __init sja1000_isa_init(void)
 				platform_device_put(sja1000_isa_devs[idx]);
 				goto exit_free_devices;
 			}
-			pr_debug("%s: platform device %d: port=%#lx, mem=%#lx, "
+			pr_de("%s: platform device %d: port=%#lx, mem=%#lx, "
 				 "irq=%d\n",
 				 DRV_NAME, idx, port[idx], mem[idx], irq[idx]);
 		} else if (idx == 0 || port[idx] || mem[idx]) {

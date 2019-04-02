@@ -26,7 +26,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
@@ -52,7 +52,7 @@ static const char hcd_name[] = "fotg210_hcd";
 #define FOTG210_TUNE_MULT_TT	1
 
 /* Some drivers think it's safe to schedule isochronous transfers more than 256
- * ms into the future (partly as a result of an old bug in the scheduling
+ * ms into the future (partly as a result of an old  in the scheduling
  * code).  In an attempt to avoid trouble, we will use a minimum scheduling
  * length of 512 frames instead of 256.
  */
@@ -276,41 +276,41 @@ static char *dbg_port_buf(char *buf, unsigned len, const char *label, int port,
 			dbg_port_buf(_buf, sizeof(_buf), label, port, status));\
 }
 
-/* troubleshooting help: expose state in debugfs */
-static int debug_async_open(struct inode *, struct file *);
-static int debug_periodic_open(struct inode *, struct file *);
-static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
+/* troubleshooting help: expose state in defs */
+static int de_async_open(struct inode *, struct file *);
+static int de_periodic_open(struct inode *, struct file *);
+static int de_registers_open(struct inode *, struct file *);
+static int de_async_open(struct inode *, struct file *);
 
-static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
-static int debug_close(struct inode *, struct file *);
+static ssize_t de_output(struct file*, char __user*, size_t, loff_t*);
+static int de_close(struct inode *, struct file *);
 
-static const struct file_operations debug_async_fops = {
+static const struct file_operations de_async_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_async_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_async_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
-static const struct file_operations debug_periodic_fops = {
+static const struct file_operations de_periodic_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_periodic_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_periodic_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
-static const struct file_operations debug_registers_fops = {
+static const struct file_operations de_registers_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_registers_open,
-	.read		= debug_output,
-	.release	= debug_close,
+	.open		= de_registers_open,
+	.read		= de_output,
+	.release	= de_close,
 	.llseek		= default_llseek,
 };
 
-static struct dentry *fotg210_debug_root;
+static struct dentry *fotg210_de_root;
 
-struct debug_buffer {
-	ssize_t (*fill_func)(struct debug_buffer *);	/* fill method */
+struct de_buffer {
+	ssize_t (*fill_func)(struct de_buffer *);	/* fill method */
 	struct usb_bus *bus;
 	struct mutex mutex;	/* protect filling of buffer */
 	size_t count;		/* number of characters filled into buffer */
@@ -443,7 +443,7 @@ done:
 	*nextp = next;
 }
 
-static ssize_t fill_async_buffer(struct debug_buffer *buf)
+static ssize_t fill_async_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd *hcd;
 	struct fotg210_hcd *fotg210;
@@ -510,7 +510,7 @@ static unsigned output_buf_tds_dir(char *buf, struct fotg210_hcd *fotg210,
 }
 
 #define DBG_SCHED_LIMIT 64
-static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
+static ssize_t fill_periodic_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd *hcd;
 	struct fotg210_hcd *fotg210;
@@ -635,7 +635,7 @@ static const char *rh_state_string(struct fotg210_hcd *fotg210)
 	return "?";
 }
 
-static ssize_t fill_registers_buffer(struct debug_buffer *buf)
+static ssize_t fill_registers_buffer(struct de_buffer *buf)
 {
 	struct usb_hcd *hcd;
 	struct fotg210_hcd *fotg210;
@@ -739,12 +739,12 @@ done:
 	return buf->alloc_size - size;
 }
 
-static struct debug_buffer
-*alloc_buffer(struct usb_bus *bus, ssize_t (*fill_func)(struct debug_buffer *))
+static struct de_buffer
+*alloc_buffer(struct usb_bus *bus, ssize_t (*fill_func)(struct de_buffer *))
 {
-	struct debug_buffer *buf;
+	struct de_buffer *buf;
 
-	buf = kzalloc(sizeof(struct debug_buffer), GFP_KERNEL);
+	buf = kzalloc(sizeof(struct de_buffer), GFP_KERNEL);
 
 	if (buf) {
 		buf->bus = bus;
@@ -756,7 +756,7 @@ static struct debug_buffer
 	return buf;
 }
 
-static int fill_buffer(struct debug_buffer *buf)
+static int fill_buffer(struct de_buffer *buf)
 {
 	int ret = 0;
 
@@ -779,10 +779,10 @@ out:
 	return ret;
 }
 
-static ssize_t debug_output(struct file *file, char __user *user_buf,
+static ssize_t de_output(struct file *file, char __user *user_buf,
 		size_t len, loff_t *offset)
 {
-	struct debug_buffer *buf = file->private_data;
+	struct de_buffer *buf = file->private_data;
 	int ret = 0;
 
 	mutex_lock(&buf->mutex);
@@ -803,9 +803,9 @@ out:
 
 }
 
-static int debug_close(struct inode *inode, struct file *file)
+static int de_close(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *buf = file->private_data;
+	struct de_buffer *buf = file->private_data;
 
 	if (buf) {
 		vfree(buf->output_buf);
@@ -814,16 +814,16 @@ static int debug_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int debug_async_open(struct inode *inode, struct file *file)
+static int de_async_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private, fill_async_buffer);
 
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_periodic_open(struct inode *inode, struct file *file)
+static int de_periodic_open(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *buf;
+	struct de_buffer *buf;
 
 	buf = alloc_buffer(inode->i_private, fill_periodic_buffer);
 	if (!buf)
@@ -834,7 +834,7 @@ static int debug_periodic_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int debug_registers_open(struct inode *inode, struct file *file)
+static int de_registers_open(struct inode *inode, struct file *file)
 {
 	file->private_data = alloc_buffer(inode->i_private,
 			fill_registers_buffer);
@@ -842,24 +842,24 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static inline void create_debug_files(struct fotg210_hcd *fotg210)
+static inline void create_de_files(struct fotg210_hcd *fotg210)
 {
 	struct usb_bus *bus = &fotg210_to_hcd(fotg210)->self;
 	struct dentry *root;
 
-	root = debugfs_create_dir(bus->bus_name, fotg210_debug_root);
-	fotg210->debug_dir = root;
+	root = defs_create_dir(bus->bus_name, fotg210_de_root);
+	fotg210->de_dir = root;
 
-	debugfs_create_file("async", S_IRUGO, root, bus, &debug_async_fops);
-	debugfs_create_file("periodic", S_IRUGO, root, bus,
-			    &debug_periodic_fops);
-	debugfs_create_file("registers", S_IRUGO, root, bus,
-			    &debug_registers_fops);
+	defs_create_file("async", S_IRUGO, root, bus, &de_async_fops);
+	defs_create_file("periodic", S_IRUGO, root, bus,
+			    &de_periodic_fops);
+	defs_create_file("registers", S_IRUGO, root, bus,
+			    &de_registers_fops);
 }
 
-static inline void remove_debug_files(struct fotg210_hcd *fotg210)
+static inline void remove_de_files(struct fotg210_hcd *fotg210)
 {
-	debugfs_remove_recursive(fotg210->debug_dir);
+	defs_remove_recursive(fotg210->de_dir);
 }
 
 /* handshake - spin reading hc until handshake completes or fails
@@ -875,7 +875,7 @@ static inline void remove_debug_files(struct fotg210_hcd *fotg210)
  * hardware flakeout), or the register reads as all-ones (hardware removed).
  *
  * That last failure should_only happen in cases like physical cardbus eject
- * before driver shutdown. But it also seems to be caused by bugs in cardbus
+ * before driver shutdown. But it also seems to be caused by s in cardbus
  * bridge shutdown:  shutting down the bridge before the devices using it.
  */
 static int handshake(struct fotg210_hcd *fotg210, void __iomem *ptr,
@@ -932,11 +932,11 @@ static int fotg210_reset(struct fotg210_hcd *fotg210)
 	int retval;
 	u32 command = fotg210_readl(fotg210, &fotg210->regs->command);
 
-	/* If the EHCI debug controller is active, special care must be
+	/* If the EHCI de controller is active, special care must be
 	 * taken before and after a host controller reset
 	 */
-	if (fotg210->debug && !dbgp_reset_prep(fotg210_to_hcd(fotg210)))
-		fotg210->debug = NULL;
+	if (fotg210->de && !dbgp_reset_prep(fotg210_to_hcd(fotg210)))
+		fotg210->de = NULL;
 
 	command |= CMD_RESET;
 	dbg_cmd(fotg210, "reset", command);
@@ -949,7 +949,7 @@ static int fotg210_reset(struct fotg210_hcd *fotg210)
 	if (retval)
 		return retval;
 
-	if (fotg210->debug)
+	if (fotg210->de)
 		dbgp_external_startup(fotg210_to_hcd(fotg210));
 
 	fotg210->port_c_suspend = fotg210->suspended_ports =
@@ -1837,7 +1837,7 @@ static void qh_destroy(struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
 	/* clean qtds first, and know this is not linked */
 	if (!list_empty(&qh->qtd_list) || qh->qh_next.ptr) {
 		fotg210_dbg(fotg210, "unused qh not empty!\n");
-		BUG();
+		();
 	}
 	if (qh->dummy)
 		fotg210_qtd_free(fotg210, qh->dummy);
@@ -2032,7 +2032,7 @@ static inline void qh_update(struct fotg210_hcd *fotg210,
 	struct fotg210_qh_hw *hw = qh->hw;
 
 	/* writes to an active overlay are unsafe */
-	BUG_ON(qh->qh_state != QH_STATE_IDLE);
+	_ON(qh->qh_state != QH_STATE_IDLE);
 
 	hw->hw_qtd_next = QTD_NEXT(fotg210, qtd->qtd_dma);
 	hw->hw_alt_next = FOTG210_LIST_END(fotg210);
@@ -2256,7 +2256,7 @@ static unsigned qh_completions(struct fotg210_hcd *fotg210,
 	 *
 	 * NOTE:  unlinking expects to be done in queue order.
 	 *
-	 * It's a bug for qh->qh_state to be anything other than
+	 * It's a  for qh->qh_state to be anything other than
 	 * QH_STATE_IDLE, unless our caller is scan_async() or
 	 * scan_intr().
 	 */
@@ -2819,7 +2819,7 @@ static struct fotg210_qh *qh_make(struct fotg210_hcd *fotg210, struct urb *urb,
 		/* Some Freescale processors have an erratum in which the
 		 * port number in the queue head was 0..N-1 instead of 1..N.
 		 */
-		if (fotg210_has_fsl_portno_bug(fotg210))
+		if (fotg210_has_fsl_portno_(fotg210))
 			info2 |= (urb->dev->ttport-1) << 23;
 		else
 			info2 |= urb->dev->ttport << 23;
@@ -3854,7 +3854,7 @@ static int intr_submit(struct fotg210_hcd *fotg210, struct urb *urb,
 
 	/* then queue the urb's tds to the qh */
 	qh = qh_append_tds(fotg210, urb, qtd_list, epnum, &urb->ep->hcpriv);
-	BUG_ON(qh == NULL);
+	_ON(qh == NULL);
 
 	/* ... update usbfs periodic stats */
 	fotg210_to_hcd(fotg210)->self.bandwidth_int_reqs++;
@@ -4187,7 +4187,7 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 		/* For high speed devices, allow scheduling within the
 		 * isochronous scheduling threshold.  For full speed devices
 		 * and Intel PCI-based controllers, don't (work around for
-		 * Intel ICH9 bug).
+		 * Intel ICH9 ).
 		 */
 		if (!stream->highspeed && fotg210->fs_i_thresh)
 			next = now + fotg210->i_thresh;
@@ -4224,7 +4224,7 @@ static int iso_stream_schedule(struct fotg210_hcd *fotg210, struct urb *urb,
 
 		start = SCHEDULE_SLOP + (now & ~0x07);
 
-		/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
+		/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/s */
 
 		/* find a uframe slot with enough bandwidth.
 		 * Early uframes are more precious because full-speed
@@ -4478,7 +4478,7 @@ static bool itd_complete(struct fotg210_hcd *fotg210, struct fotg210_itd *itd)
 
 	/* ASSERT: it's really the last itd for this urb
 	 * list_for_each_entry (itd, &stream->td_list, itd_list)
-	 *	BUG_ON (itd->urb == urb);
+	 *	_ON (itd->urb == urb);
 	 */
 
 	/* give urb back to the driver; completion often (re)submits */
@@ -4846,7 +4846,7 @@ rescan:
 		goto rescan;
 	fotg210->scanning = false;
 
-	/* the IO watchdog guards against hardware or driver bugs that
+	/* the IO watchdog guards against hardware or driver s that
 	 * misplace IRQs, and should let us run completely without IRQs.
 	 * such lossage has been observed on both VT6202 and VT8235.
 	 */
@@ -4873,7 +4873,7 @@ static void fotg210_stop(struct usb_hcd *hcd)
 
 	hrtimer_cancel(&fotg210->hrtimer);
 	remove_sysfs_files(fotg210);
-	remove_debug_files(fotg210);
+	remove_de_files(fotg210);
 
 	/* root hub is shut down separately (first, when possible) */
 	spin_lock_irq(&fotg210->lock);
@@ -4942,7 +4942,7 @@ static int hcd_fotg210_init(struct usb_hcd *hcd)
 			fotg210->periodic_size = 256;
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 	retval = fotg210_mem_init(fotg210, GFP_KERNEL);
@@ -5075,7 +5075,7 @@ static int fotg210_run(struct usb_hcd *hcd)
 	 * So long as they're part of class devices, we can't do it init()
 	 * since the class device isn't created that early.
 	 */
-	create_debug_files(fotg210);
+	create_de_files(fotg210);
 	create_sysfs_files(fotg210);
 
 	return 0;
@@ -5388,7 +5388,7 @@ rescan:
 		if (!list_empty(&stream->td_list))
 			goto idle_timeout;
 
-		/* BUG_ON(!list_empty(&stream->free_list)); */
+		/* _ON(!list_empty(&stream->free_list)); */
 		kfree(stream);
 		goto done;
 	}
@@ -5690,12 +5690,12 @@ static int __init fotg210_hcd_init(void)
 			test_bit(USB_OHCI_LOADED, &usb_hcds_loaded))
 		pr_warn("Warning! fotg210_hcd should always be loaded before uhci_hcd and ohci_hcd, not after\n");
 
-	pr_debug("%s: block sizes: qh %zd qtd %zd itd %zd\n",
+	pr_de("%s: block sizes: qh %zd qtd %zd itd %zd\n",
 			hcd_name, sizeof(struct fotg210_qh),
 			sizeof(struct fotg210_qtd),
 			sizeof(struct fotg210_itd));
 
-	fotg210_debug_root = debugfs_create_dir("fotg210", usb_debug_root);
+	fotg210_de_root = defs_create_dir("fotg210", usb_de_root);
 
 	retval = platform_driver_register(&fotg210_hcd_driver);
 	if (retval < 0)
@@ -5703,8 +5703,8 @@ static int __init fotg210_hcd_init(void)
 	return retval;
 
 clean:
-	debugfs_remove(fotg210_debug_root);
-	fotg210_debug_root = NULL;
+	defs_remove(fotg210_de_root);
+	fotg210_de_root = NULL;
 
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
@@ -5714,7 +5714,7 @@ module_init(fotg210_hcd_init);
 static void __exit fotg210_hcd_cleanup(void)
 {
 	platform_driver_unregister(&fotg210_hcd_driver);
-	debugfs_remove(fotg210_debug_root);
+	defs_remove(fotg210_de_root);
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(fotg210_hcd_cleanup);

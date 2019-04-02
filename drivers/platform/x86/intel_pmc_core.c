@@ -13,7 +13,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
@@ -394,7 +394,7 @@ static int pmc_core_dev_state_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(pmc_core_dev_state, pmc_core_dev_state_get, NULL, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(pmc_core_dev_state, pmc_core_dev_state_get, NULL, "%llu\n");
 
 static int pmc_core_check_read_lock_bit(void)
 {
@@ -405,7 +405,7 @@ static int pmc_core_check_read_lock_bit(void)
 	return value & BIT(pmcdev->map->pm_read_disable_bit);
 }
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 static bool slps0_dbg_latch;
 
 static void pmc_core_display_map(struct seq_file *s, int index,
@@ -748,48 +748,48 @@ DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
 
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
-	debugfs_remove_recursive(pmcdev->dbgfs_dir);
+	defs_remove_recursive(pmcdev->dbgfs_dir);
 }
 
 static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("pmc_core", NULL);
+	dir = defs_create_dir("pmc_core", NULL);
 	if (!dir)
 		return -ENOMEM;
 
 	pmcdev->dbgfs_dir = dir;
 
-	debugfs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
+	defs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
 			    &pmc_core_dev_state);
 
-	debugfs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
+	defs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
 			    &pmc_core_ppfear_fops);
 
-	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
+	defs_create_file("ltr_ignore", 0644, dir, pmcdev,
 			    &pmc_core_ltr_ignore_ops);
 
-	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
+	defs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
 
-	debugfs_create_file("package_cstate_show", 0444, dir, pmcdev,
+	defs_create_file("package_cstate_show", 0444, dir, pmcdev,
 			    &pmc_core_pkgc_fops);
 
 	if (pmcdev->map->pll_sts)
-		debugfs_create_file("pll_status", 0444, dir, pmcdev,
+		defs_create_file("pll_status", 0444, dir, pmcdev,
 				    &pmc_core_pll_fops);
 
 	if (pmcdev->map->mphy_sts)
-		debugfs_create_file("mphy_core_lanes_power_gating_status",
+		defs_create_file("mphy_core_lanes_power_gating_status",
 				    0444, dir, pmcdev,
 				    &pmc_core_mphy_pg_fops);
 
 	if (pmcdev->map->slps0_dbg_maps) {
-		debugfs_create_file("slp_s0_debug_status", 0444,
+		defs_create_file("slp_s0_de_status", 0444,
 				    dir, pmcdev,
 				    &pmc_core_slps0_dbg_fops);
 
-		debugfs_create_bool("slp_s0_dbg_latch", 0644,
+		defs_create_bool("slp_s0_dbg_latch", 0644,
 				    dir, &slps0_dbg_latch);
 	}
 
@@ -804,7 +804,7 @@ static inline int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	INTEL_CPU_FAM6(SKYLAKE_MOBILE, spt_reg_map),
@@ -890,7 +890,7 @@ static int __init pmc_core_probe(void)
 
 	err = pmc_core_dbgfs_register(pmcdev);
 	if (err < 0) {
-		pr_warn(" debugfs register failed.\n");
+		pr_warn(" defs register failed.\n");
 		iounmap(pmcdev->regbase);
 		return err;
 	}

@@ -728,7 +728,7 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
 		if (!(pd->device->attrs.device_cap_flags &
 		      IB_DEVICE_ON_DEMAND_PAGING)) {
-			pr_debug("ODP support not available\n");
+			pr_de("ODP support not available\n");
 			ret = -EINVAL;
 			goto err_put;
 		}
@@ -1946,7 +1946,7 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs)
 	 * Last bit is reserved for extending the attr_mask by
 	 * using another field.
 	 */
-	BUILD_BUG_ON(IB_USER_LAST_QP_ATTR_MASK == (1 << 31));
+	BUILD__ON(IB_USER_LAST_QP_ATTR_MASK == (1 << 31));
 
 	if (cmd.base.attr_mask &
 	    ~((IB_USER_LAST_QP_ATTR_MASK << 1) - 1))
@@ -3703,8 +3703,8 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 
 #define UAPI_DEF_WRITE_IO(req, resp)                                           \
 	.write.has_resp = 1 +                                                  \
-			  BUILD_BUG_ON_ZERO(offsetof(req, response) != 0) +    \
-			  BUILD_BUG_ON_ZERO(sizeof(((req *)0)->response) !=    \
+			  BUILD__ON_ZERO(offsetof(req, response) != 0) +    \
+			  BUILD__ON_ZERO(sizeof(((req *)0)->response) !=    \
 					    sizeof(u64)),                      \
 	.write.req_size = sizeof(req), .write.resp_size = sizeof(resp)
 
@@ -3714,15 +3714,15 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 	UAPI_DEF_WRITE_IO(req, resp),                                          \
 		.write.has_udata =                                             \
 			1 +                                                    \
-			BUILD_BUG_ON_ZERO(offsetof(req, driver_data) !=        \
+			BUILD__ON_ZERO(offsetof(req, driver_data) !=        \
 					  sizeof(req)) +                       \
-			BUILD_BUG_ON_ZERO(offsetof(resp, driver_data) !=       \
+			BUILD__ON_ZERO(offsetof(resp, driver_data) !=       \
 					  sizeof(resp))
 
 #define UAPI_DEF_WRITE_UDATA_I(req)                                            \
 	UAPI_DEF_WRITE_I(req),                                                 \
 		.write.has_udata =                                             \
-			1 + BUILD_BUG_ON_ZERO(offsetof(req, driver_data) !=    \
+			1 + BUILD__ON_ZERO(offsetof(req, driver_data) !=    \
 					      sizeof(req))
 
 /*

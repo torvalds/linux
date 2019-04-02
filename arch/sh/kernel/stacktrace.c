@@ -7,7 +7,7 @@
  *  Copyright (C) 2006 - 2008  Paul Mundt
  */
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
 #include <linux/module.h>

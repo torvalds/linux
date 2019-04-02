@@ -97,7 +97,7 @@ Unlike what was done with the procfs interface, correctness when talking
 to the sysfs interfaces will be enforced, as will correctness in the
 thinkpad-acpi's implementation of sysfs interfaces.
 
-Also, any bugs in the thinkpad-acpi sysfs driver code or in the
+Also, any s in the thinkpad-acpi sysfs driver code or in the
 thinkpad-acpi's implementation of the sysfs interfaces will be fixed for
 maximum correctness, even if that means changing an interface in
 non-compatible ways.  As these interfaces mature both in the kernel and
@@ -143,7 +143,7 @@ Version of the thinkpad-acpi sysfs interface, as an unsigned long
 (output in hex format: 0xAAAABBCC), where:
 	AAAA - major revision
 	BB - minor revision
-	CC - bugfix revision
+	CC - fix revision
 
 The sysfs interface version changelog for the driver can be found at the
 end of this document.  Changes to the sysfs interface done by the kernel
@@ -233,7 +233,7 @@ to log a warning:
 	echo disable > /proc/acpi/ibm/hotkey -- returns an error
 
 The procfs interface does not support NVRAM polling control.  So as to
-maintain maximum bug-to-bug compatibility, it does not report any masks,
+maintain maximum -to- compatibility, it does not report any masks,
 nor does it allow one to manipulate the hot key mask when the firmware
 does not support masks at all, even if NVRAM polling is in use.
 
@@ -658,7 +658,7 @@ Fn-F7 from working. This also disables the video output switching
 features of this driver, as it uses the same ACPI methods as
 Fn-F7. Video switching on the console should still work.
 
-UPDATE: refer to https://bugs.freedesktop.org/show_bug.cgi?id=2000
+UPDATE: refer to https://s.freedesktop.org/show_.cgi?id=2000
 
 
 ThinkLight control
@@ -720,7 +720,7 @@ on the X40 (tpb is the ThinkPad Buttons utility):
 
 The cmos command interface is prone to firmware split-brain problems, as
 in newer ThinkPads it is just a compatibility layer.  Do not use it, it is
-exported just as a debug tool.
+exported just as a de tool.
 
 
 LED control
@@ -915,7 +915,7 @@ EXPERIMENTAL: Embedded controller register dump
 -----------------------------------------------
 
 This feature is not included in the thinkpad driver anymore.
-Instead the EC can be accessed through /sys/kernel/debug/ec with
+Instead the EC can be accessed through /sys/kernel/de/ec with
 a userspace tool which can be found here:
 ftp://ftp.suse.com/pub/people/trenn/sources/ec
 
@@ -965,7 +965,7 @@ shutdown/reboot).
 
 The driver tries to select which interface to use from a table of
 defaults for each ThinkPad model.  If it makes a wrong choice, please
-report this as a bug, so that we can fix it.
+report this as a , so that we can fix it.
 
 Lenovo ThinkPads only support brightness_mode=2 (UCMS).
 
@@ -1087,7 +1087,7 @@ path).
 The newer Lenovo models only have firmware mute control, and depend on
 the main HDA mixer to do volume control (which is done by the operating
 system).  In this case, the volume keys are filtered out for unmute
-key press (there are some firmware bugs in this area) and delivered as
+key press (there are some firmware s in this area) and delivered as
 normal key presses to the operating system (thinkpad-acpi is not
 involved).
 
@@ -1393,18 +1393,18 @@ for example:
 	modprobe thinkpad_acpi hotkey=enable,0xffff video=auto_disable
 
 
-Enabling debugging output
+Enabling deging output
 -------------------------
 
-The module takes a debug parameter which can be used to selectively
-enable various classes of debugging output, for example:
+The module takes a de parameter which can be used to selectively
+enable various classes of deging output, for example:
 
-	 modprobe thinkpad_acpi debug=0xffff
+	 modprobe thinkpad_acpi de=0xffff
 
-will enable all debugging output classes.  It takes a bitmask, so
+will enable all deging output classes.  It takes a bitmask, so
 to enable more than one output class, just add their values.
 
-	Debug bitmask		Description
+	De bitmask		Description
 	0x8000			Disclose PID of userspace programs
 				accessing some functions of the driver
 	0x0001			Initialization and probing
@@ -1416,12 +1416,12 @@ to enable more than one output class, just add their values.
 	0x0020			Backlight brightness
 	0x0040			Audio mixer/volume control
 
-There is also a kernel build option to enable more debugging
-information, which may be necessary to debug driver problems.
+There is also a kernel build option to enable more deging
+information, which may be necessary to de driver problems.
 
-The level of debugging information output by the driver can be changed
-at runtime through sysfs, using the driver attribute debug_level.  The
-attribute takes the same bitmask as the debug module parameter above.
+The level of deging information output by the driver can be changed
+at runtime through sysfs, using the driver attribute de_level.  The
+attribute takes the same bitmask as the de module parameter above.
 
 
 Force loading of module

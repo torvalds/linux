@@ -659,7 +659,7 @@ static int rvu_setup_hw_resources(struct rvu *rvu)
 	block->addr = BLKADDR_NPA;
 	block->type = BLKTYPE_NPA;
 	block->lfshift = 8;
-	block->lookup_reg = NPA_AF_RVU_LF_CFG_DEBUG;
+	block->lookup_reg = NPA_AF_RVU_LF_CFG_DE;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_NPA_CFG;
 	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_NPA_CFG;
 	block->lfcfg_reg = NPA_PRIV_LFX_CFG;
@@ -680,7 +680,7 @@ nix:
 	block->addr = BLKADDR_NIX0;
 	block->type = BLKTYPE_NIX;
 	block->lfshift = 8;
-	block->lookup_reg = NIX_AF_RVU_LF_CFG_DEBUG;
+	block->lookup_reg = NIX_AF_RVU_LF_CFG_DE;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_NIX0_CFG;
 	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_NIX0_CFG;
 	block->lfcfg_reg = NIX_PRIV_LFX_CFG;
@@ -702,7 +702,7 @@ sso:
 	block->type = BLKTYPE_SSO;
 	block->multislot = true;
 	block->lfshift = 3;
-	block->lookup_reg = SSO_AF_RVU_LF_CFG_DEBUG;
+	block->lookup_reg = SSO_AF_RVU_LF_CFG_DE;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_SSO_CFG;
 	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_SSO_CFG;
 	block->lfcfg_reg = SSO_PRIV_LFX_HWGRP_CFG;
@@ -723,7 +723,7 @@ ssow:
 	block->type = BLKTYPE_SSOW;
 	block->multislot = true;
 	block->lfshift = 3;
-	block->lookup_reg = SSOW_AF_RVU_LF_HWS_CFG_DEBUG;
+	block->lookup_reg = SSOW_AF_RVU_LF_HWS_CFG_DE;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_SSOW_CFG;
 	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_SSOW_CFG;
 	block->lfcfg_reg = SSOW_PRIV_LFX_HWS_CFG;
@@ -745,7 +745,7 @@ tim:
 	block->type = BLKTYPE_TIM;
 	block->multislot = true;
 	block->lfshift = 3;
-	block->lookup_reg = TIM_AF_RVU_LF_CFG_DEBUG;
+	block->lookup_reg = TIM_AF_RVU_LF_CFG_DE;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_TIM_CFG;
 	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_TIM_CFG;
 	block->lfcfg_reg = TIM_PRIV_LFX_CFG;
@@ -767,7 +767,7 @@ cpt:
 	block->type = BLKTYPE_CPT;
 	block->multislot = true;
 	block->lfshift = 3;
-	block->lookup_reg = CPT_AF_RVU_LF_CFG_DEBUG;
+	block->lookup_reg = CPT_AF_RVU_LF_CFG_DE;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_CPT0_CFG;
 	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_CPT0_CFG;
 	block->lfcfg_reg = CPT_PRIV_LFX_CFG;

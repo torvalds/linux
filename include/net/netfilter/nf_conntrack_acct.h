@@ -40,7 +40,7 @@ struct nf_conn_acct *nf_ct_acct_ext_add(struct nf_conn *ct, gfp_t gfp)
 
 	acct = nf_ct_ext_add(ct, NF_CT_EXT_ACCT, gfp);
 	if (!acct)
-		pr_debug("failed to add accounting extension area");
+		pr_de("failed to add accounting extension area");
 
 
 	return acct;

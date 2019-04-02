@@ -34,7 +34,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	enum fixed_addresses idx;
 	unsigned long vaddr;
 
-	BUG_ON(!test_bit(PG_dcache_clean, &page->flags));
+	_ON(!test_bit(PG_dcache_clean, &page->flags));
 
 	preempt_disable();
 	pagefault_disable();
@@ -45,7 +45,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 
 	vaddr = __fix_to_virt(idx);
 
-	BUG_ON(!pte_none(*(kmap_coherent_pte - idx)));
+	_ON(!pte_none(*(kmap_coherent_pte - idx)));
 	set_pte(kmap_coherent_pte - idx, mk_pte(page, PAGE_KERNEL));
 
 	return (void *)vaddr;

@@ -50,7 +50,7 @@ early_param("numa", numa_parse_early_param);
 cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+#ifdef CONFIG_DE_PER_CPU_MAPS
 
 /*
  * Returns a pointer to the bitmask of CPUs on Node 'node'.
@@ -103,7 +103,7 @@ void numa_clear_node(unsigned int cpu)
  * Requires node_possible_map to be valid.
  *
  * Note: cpumask_of_node() is not valid until after this is done.
- * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
+ * (Use CONFIG_DE_PER_CPU_MAPS to check this.)
  */
 static void __init setup_node_to_cpumask_map(void)
 {
@@ -120,7 +120,7 @@ static void __init setup_node_to_cpumask_map(void)
 	}
 
 	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
+	pr_de("Node to cpumask map for %u nodes\n", nr_node_ids);
 }
 
 /*
@@ -305,7 +305,7 @@ static int __init numa_alloc_distance(void)
 			numa_distance[i * numa_distance_cnt + j] = i == j ?
 				LOCAL_DISTANCE : REMOTE_DISTANCE;
 
-	pr_debug("Initialized distance table, cnt=%d\n", numa_distance_cnt);
+	pr_de("Initialized distance table, cnt=%d\n", numa_distance_cnt);
 
 	return 0;
 }

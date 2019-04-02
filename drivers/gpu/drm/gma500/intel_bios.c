@@ -67,7 +67,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->edp.bpp = 18;
 	if (!edp) {
 		if (dev_priv->edp.support) {
-			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported, assume %dbpp panel color depth.\n",
+			DRM_DE_KMS("No eDP BDB found but eDP panel supported, assume %dbpp panel color depth.\n",
 				      dev_priv->edp.bpp);
 		}
 		return;
@@ -92,7 +92,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 
 	dev_priv->edp.pps = *edp_pps;
 
-	DRM_DEBUG_KMS("EDP timing in vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
+	DRM_DE_KMS("EDP timing in vbt t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
 				dev_priv->edp.pps.t1_t3, dev_priv->edp.pps.t8, 
 				dev_priv->edp.pps.t9, dev_priv->edp.pps.t10,
 				dev_priv->edp.pps.t11_t12);
@@ -111,7 +111,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 		dev_priv->edp.lanes = 4;
 		break;
 	}
-	DRM_DEBUG_KMS("VBT reports EDP: Lane_count %d, Lane_rate %d, Bpp %d\n",
+	DRM_DE_KMS("VBT reports EDP: Lane_count %d, Lane_rate %d, Bpp %d\n",
 			dev_priv->edp.lanes, dev_priv->edp.rate, dev_priv->edp.bpp);
 
 	switch (edp_link_params->preemphasis) {
@@ -142,7 +142,7 @@ parse_edp(struct drm_psb_private *dev_priv, struct bdb_header *bdb)
 		dev_priv->edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		break;
 	}
-	DRM_DEBUG_KMS("VBT reports EDP: VSwing  %d, Preemph %d\n",
+	DRM_DE_KMS("VBT reports EDP: VSwing  %d, Preemph %d\n",
 			dev_priv->edp.vswing, dev_priv->edp.preemphasis);
 }
 
@@ -270,7 +270,7 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 
 	if (panel_fixed_mode->htotal > 0 && panel_fixed_mode->vtotal > 0) {
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
-		drm_mode_debug_printmodeline(panel_fixed_mode);
+		drm_mode_de_printmodeline(panel_fixed_mode);
 	} else {
 		dev_dbg(dev_priv->dev->dev, "ignoring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
@@ -344,7 +344,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
+		DRM_DE_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -354,7 +354,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
 		/* different child dev size . Ignore it */
-		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
+		DRM_DE_KMS("different child size is found. Invalid.\n");
 		return;
 	}
 	/* get the block size of general definitions */
@@ -380,10 +380,10 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 		if (p_child->dvo_port != DEVICE_PORT_DVOB &&
 			p_child->dvo_port != DEVICE_PORT_DVOC) {
 			/* skip the incorrect SDVO port */
-			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it\n");
+			DRM_DE_KMS("Incorrect SDVO port. Skip it\n");
 			continue;
 		}
-		DRM_DEBUG_KMS("the SDVO device with slave addr %2x is found on"
+		DRM_DE_KMS("the SDVO device with slave addr %2x is found on"
 				" %s port\n",
 				p_child->slave_addr,
 				(p_child->dvo_port == DEVICE_PORT_DVOB) ?
@@ -396,20 +396,20 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 			p_mapping->ddc_pin = p_child->ddc_pin;
 			p_mapping->i2c_pin = p_child->i2c_pin;
 			p_mapping->initialized = 1;
-			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
+			DRM_DE_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
 				      p_mapping->dvo_port,
 				      p_mapping->slave_addr,
 				      p_mapping->dvo_wiring,
 				      p_mapping->ddc_pin,
 				      p_mapping->i2c_pin);
 		} else {
-			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
+			DRM_DE_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
 		}
 		if (p_child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
 			/* And the mapping info is not added */
-			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
+			DRM_DE_KMS("there exists the slave2_addr. Maybe this"
 				" is a SDVO device with multiple inputs.\n");
 		}
 		count++;
@@ -417,7 +417,7 @@ parse_sdvo_device_mapping(struct drm_psb_private *dev_priv,
 
 	if (!count) {
 		/* No SDVO device info is found */
-		DRM_DEBUG_KMS("No SDVO device info is found in VBT\n");
+		DRM_DE_KMS("No SDVO device info is found in VBT\n");
 	}
 	return;
 }
@@ -454,7 +454,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 
 	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!p_defs) {
-		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
+		DRM_DE_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
 	/* judge whether the size of child device meets the requirements.
@@ -464,7 +464,7 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 	 */
 	if (p_defs->child_dev_size != sizeof(*p_child)) {
 		/* different child dev size . Ignore it */
-		DRM_DEBUG_KMS("different child size is found. Invalid.\n");
+		DRM_DE_KMS("different child size is found. Invalid.\n");
 		return;
 	}
 	/* get the block size of general definitions */
@@ -483,12 +483,12 @@ parse_device_mapping(struct drm_psb_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
+		DRM_DE_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
 	if (!dev_priv->child_dev) {
-		DRM_DEBUG_KMS("No memory space for child devices\n");
+		DRM_DE_KMS("No memory space for child devices\n");
 		return;
 	}
 
@@ -540,7 +540,7 @@ int psb_intel_init_bios(struct drm_device *dev)
 	if (dev_priv->opregion.vbt) {
 		struct vbt_header *vbt = dev_priv->opregion.vbt;
 		if (memcmp(vbt->signature, "$VBT", 4) == 0) {
-			DRM_DEBUG_KMS("Using VBT from OpRegion: %20s\n",
+			DRM_DE_KMS("Using VBT from OpRegion: %20s\n",
 					 vbt->signature);
 			bdb = (struct bdb_header *)((char *)vbt + vbt->bdb_offset);
 		} else

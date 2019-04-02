@@ -777,7 +777,7 @@ static void dtsec_isr(void *handle)
 					iowrite32be(DTSEC_IMASK_GRSCEN,
 						    &regs->ievent);
 				else
-					pr_debug("Rx lockup due to Tx lockup\n");
+					pr_de("Rx lockup due to Tx lockup\n");
 
 				/* c.Write a 1 to bit n of FM_RSTC
 				 * (offset 0x0CC of FPM)
@@ -900,7 +900,7 @@ static void graceful_stop(struct fman_mac *dtsec, enum comm_mode mode)
 	if (mode & COMM_MODE_TX) {
 		if (dtsec->fm_rev_info.major == 2) {
 			/* dTSEC Errata A004: Do not use TCTRL[GTS]=1 */
-			pr_debug("GTS not supported due to DTSEC_A004 Errata.\n");
+			pr_de("GTS not supported due to DTSEC_A004 Errata.\n");
 		} else {
 			tmp = ioread32be(&regs->tctrl) | TCTRL_GTS;
 			iowrite32be(tmp, &regs->tctrl);

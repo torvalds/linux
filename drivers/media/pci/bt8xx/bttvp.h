@@ -311,23 +311,23 @@ extern int fini_bttv_i2c(struct bttv *btv);
 
 /* insmod options */
 extern unsigned int bttv_verbose;
-extern unsigned int bttv_debug;
+extern unsigned int bttv_de;
 extern unsigned int bttv_gpio;
 extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
 
 #define dprintk(fmt, ...)			\
 do {						\
-	if (bttv_debug >= 1)			\
-		pr_debug(fmt, ##__VA_ARGS__);	\
+	if (bttv_de >= 1)			\
+		pr_de(fmt, ##__VA_ARGS__);	\
 } while (0)
 #define dprintk_cont(fmt, ...)			\
 do {						\
-	if (bttv_debug >= 1)			\
+	if (bttv_de >= 1)			\
 		pr_cont(fmt, ##__VA_ARGS__);	\
 } while (0)
 #define d2printk(fmt, ...)			\
 do {						\
-	if (bttv_debug >= 2)			\
+	if (bttv_de >= 2)			\
 		printk(fmt, ##__VA_ARGS__);	\
 } while (0)
 

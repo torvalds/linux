@@ -440,7 +440,7 @@ static const struct dvb_frontend_ops ves1820_ops = {
 };
 
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "print AFC offset after tuning for debugging the PWM setting");
+MODULE_PARM_DESC(verbose, "print AFC offset after tuning for deging the PWM setting");
 
 MODULE_DESCRIPTION("VLSI VES1820 DVB-C Demodulator driver");
 MODULE_AUTHOR("Ralph Metzler, Holger Waechtler");

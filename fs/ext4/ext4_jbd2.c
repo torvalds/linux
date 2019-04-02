@@ -13,7 +13,7 @@ static handle_t *ext4_get_nojournal(void)
 	handle_t *handle = current->journal_info;
 	unsigned long ref_cnt = (unsigned long)handle;
 
-	BUG_ON(ref_cnt >= EXT4_NOJOURNAL_MAX_REF_COUNT);
+	_ON(ref_cnt >= EXT4_NOJOURNAL_MAX_REF_COUNT);
 
 	ref_cnt++;
 	handle = (handle_t *)ref_cnt;
@@ -28,7 +28,7 @@ static void ext4_put_nojournal(handle_t *handle)
 {
 	unsigned long ref_cnt = (unsigned long)handle;
 
-	BUG_ON(ref_cnt == 0);
+	_ON(ref_cnt == 0);
 
 	ref_cnt--;
 	handle = (handle_t *)ref_cnt;
@@ -141,7 +141,7 @@ static void ext4_journal_abort_handle(const char *caller, unsigned int line,
 	char nbuf[16];
 	const char *errstr = ext4_decode_error(NULL, err, nbuf);
 
-	BUG_ON(!ext4_handle_valid(handle));
+	_ON(!ext4_handle_valid(handle));
 
 	if (bh)
 		BUFFER_TRACE(bh, "abort");
@@ -197,7 +197,7 @@ int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 	trace_ext4_forget(inode, is_metadata, blocknr);
 	BUFFER_TRACE(bh, "enter");
 
-	jbd_debug(4, "forgetting bh %p: is_metadata = %d, mode %o, "
+	jbd_de(4, "forgetting bh %p: is_metadata = %d, mode %o, "
 		  "data mode %x\n",
 		  bh, is_metadata, inode->i_mode,
 		  test_opt(inode->i_sb, DATA_FLAGS));
@@ -267,7 +267,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 	set_buffer_prio(bh);
 	if (ext4_handle_valid(handle)) {
 		err = jbd2_journal_dirty_metadata(handle, bh);
-		/* Errors can only happen due to aborted journal or a nasty bug */
+		/* Errors can only happen due to aborted journal or a nasty  */
 		if (!is_handle_aborted(handle) && WARN_ON_ONCE(err)) {
 			ext4_journal_abort_handle(where, line, __func__, bh,
 						  handle, err);

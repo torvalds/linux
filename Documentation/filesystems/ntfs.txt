@@ -9,7 +9,7 @@ Table of contents
 - Web site
 - Features
 - Supported mount options
-- Known bugs and (mis-)features
+- Known s and (mis-)features
 - Using NTFS volume and stripe sets
   - The Device-Mapper driver
   - The Software RAID / MD driver
@@ -148,7 +148,7 @@ show_sys_files=<BOOL>	If show_sys_files is specified, show the system files
 			in directory listings.  Otherwise the default behaviour
 			is to hide the system files.
 			Note that even when show_sys_files is specified, "$MFT"
-			will not be visible due to bugs/mis-features in glibc.
+			will not be visible due to s/mis-features in glibc.
 			Further, note that irrespective of show_sys_files, all
 			files are accessible by name, i.e. you can always do
 			"ls -l \$UpCase" for example to specifically show the
@@ -210,7 +210,7 @@ mft_zone_multiplier=	Set the MFT zone multiplier for the volume (this
 			Note this option is irrelevant for read-only mounts.
 
 
-Known bugs and (mis-)features
+Known s and (mis-)features
 =============================
 
 - The link count on each directory inode entry is set to 1, due to Linux not
@@ -221,7 +221,7 @@ Known bugs and (mis-)features
   let us know.
 
 
-Please send bug reports/comments/feedback/abuse to the Linux-NTFS development
+Please send  reports/comments/feedback/abuse to the Linux-NTFS development
 list at sourceforge: linux-ntfs-dev@lists.sourceforge.net
 
 

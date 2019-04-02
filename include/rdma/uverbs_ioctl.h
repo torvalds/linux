@@ -420,7 +420,7 @@ struct uapi_definition {
 		.scope = UAPI_SCOPE_OBJECT,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device_ops, ibdev_fn) +             \
-			BUILD_BUG_ON_ZERO(                                     \
+			BUILD__ON_ZERO(                                     \
 			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
 			    sizeof(void *)),				       \
 	}
@@ -435,7 +435,7 @@ struct uapi_definition {
 		.scope = UAPI_SCOPE_METHOD,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device_ops, ibdev_fn) +             \
-			BUILD_BUG_ON_ZERO(                                     \
+			BUILD__ON_ZERO(                                     \
 			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
 			    sizeof(void *)),                                   \
 	}
@@ -512,7 +512,7 @@ struct uapi_definition {
 			     ...)                                              \
 	(&(const struct uverbs_attr_def){                                      \
 		.id = (_attr_id) +                                             \
-		      BUILD_BUG_ON_ZERO((_min_len) == 0 ||                     \
+		      BUILD__ON_ZERO((_min_len) == 0 ||                     \
 					(_max_len) >                           \
 						PAGE_SIZE / sizeof(void *) ||  \
 					(_min_len) > (_max_len) ||             \
@@ -542,7 +542,7 @@ struct uapi_definition {
 #define UVERBS_ATTR_FD(_attr_id, _fd_type, _access, ...)                       \
 	(&(const struct uverbs_attr_def){                                      \
 		.id = (_attr_id) +                                             \
-		      BUILD_BUG_ON_ZERO((_access) != UVERBS_ACCESS_NEW &&      \
+		      BUILD__ON_ZERO((_access) != UVERBS_ACCESS_NEW &&      \
 					(_access) != UVERBS_ACCESS_READ),      \
 		.attr = { .type = UVERBS_ATTR_TYPE_FD,                         \
 			  .u.obj.obj_type = _fd_type,                          \
@@ -578,7 +578,7 @@ struct uapi_definition {
 	UVERBS_ATTR_PTR_IN(                                                    \
 		_attr_id,                                                      \
 		UVERBS_ATTR_SIZE(                                              \
-			sizeof(u64) + BUILD_BUG_ON_ZERO(!sizeof(_enum_type)),  \
+			sizeof(u64) + BUILD__ON_ZERO(!sizeof(_enum_type)),  \
 			sizeof(u64)),                                          \
 		__VA_ARGS__)
 
@@ -590,7 +590,7 @@ struct uapi_definition {
 #define UVERBS_ATTR_FLAGS_IN(_attr_id, _enum_type, ...)                        \
 	UVERBS_ATTR_PTR_IN(                                                    \
 		_attr_id,                                                      \
-		UVERBS_ATTR_SIZE(sizeof(u32) + BUILD_BUG_ON_ZERO(              \
+		UVERBS_ATTR_SIZE(sizeof(u32) + BUILD__ON_ZERO(              \
 						       !sizeof(_enum_type *)), \
 				 sizeof(u64)),                                 \
 		__VA_ARGS__)

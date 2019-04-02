@@ -41,7 +41,7 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 	ASSERT_RTNL();
 
-	BUG_ON(addr->mode != IEEE802154_ADDR_SHORT);
+	_ON(addr->mode != IEEE802154_ADDR_SHORT);
 
 	dev->ieee802154_ptr->pan_id = addr->pan_id;
 	dev->ieee802154_ptr->short_addr = addr->short_addr;

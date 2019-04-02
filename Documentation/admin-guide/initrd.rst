@@ -65,7 +65,7 @@ initrd adds the following new options::
     the "normal" root file system is mounted. initrd data can be read
     from /dev/initrd. Note that the data in initrd can have any structure
     in this case and doesn't necessarily have to be a file system image.
-    This option is used mainly for debugging.
+    This option is used mainly for deging.
 
     Note: /dev/initrd is read-only and it can only be used once. As soon
     as the last process has closed it, all data is freed and /dev/initrd

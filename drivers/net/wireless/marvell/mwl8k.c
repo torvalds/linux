@@ -1630,7 +1630,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 
 static int mwl8k_tid_queue_mapping(u8 tid)
 {
-	BUG_ON(tid > 7);
+	_ON(tid > 7);
 
 	switch (tid) {
 	case 0:
@@ -1692,7 +1692,7 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		}
 
 		txq->head = (tx + 1) % MWL8K_TX_DESCS;
-		BUG_ON(txq->len == 0);
+		_ON(txq->len == 0);
 		txq->len--;
 		priv->pending_tx_pkts--;
 
@@ -1701,7 +1701,7 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		skb = txq->skb[tx];
 		txq->skb[tx] = NULL;
 
-		BUG_ON(skb == NULL);
+		_ON(skb == NULL);
 		pci_unmap_single(priv->pdev, addr, size, PCI_DMA_TODEVICE);
 
 		mwl8k_remove_dma_header(skb, tx_desc->qos_control);
@@ -1719,7 +1719,7 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 							   wh->addr2);
 			if (sta) {
 				sta_info = MWL8K_STA(sta);
-				BUG_ON(sta_info == NULL);
+				_ON(sta_info == NULL);
 				rate_info = le16_to_cpu(tx_desc->rate_info);
 				/* If rate is < 6.5 Mpbs for an ht station
 				 * do not form an ampdu. If the station is a
@@ -1790,7 +1790,7 @@ mwl8k_add_stream(struct ieee80211_hw *hw, struct ieee80211_sta *sta, u8 tid)
 			stream->state = AMPDU_STREAM_NEW;
 			stream->tid = tid;
 			stream->idx = i;
-			wiphy_debug(hw->wiphy, "Added a new stream for %pM %d",
+			wiphy_de(hw->wiphy, "Added a new stream for %pM %d",
 				    sta->addr, tid);
 			return stream;
 		}
@@ -1808,10 +1808,10 @@ mwl8k_start_stream(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 		return 0;
 	ret = ieee80211_start_tx_ba_session(stream->sta, stream->tid, 0);
 	if (ret)
-		wiphy_debug(hw->wiphy, "Failed to start stream for %pM %d: "
+		wiphy_de(hw->wiphy, "Failed to start stream for %pM %d: "
 			    "%d\n", stream->sta->addr, stream->tid, ret);
 	else
-		wiphy_debug(hw->wiphy, "Started stream for %pM %d\n",
+		wiphy_de(hw->wiphy, "Started stream for %pM %d\n",
 			    stream->sta->addr, stream->tid);
 	return ret;
 }
@@ -1819,7 +1819,7 @@ mwl8k_start_stream(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 static void
 mwl8k_remove_stream(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 {
-	wiphy_debug(hw->wiphy, "Remove stream for %pM %d\n", stream->sta->addr,
+	wiphy_de(hw->wiphy, "Remove stream for %pM %d\n", stream->sta->addr,
 		    stream->tid);
 	memset(stream, 0, sizeof(*stream));
 }
@@ -1848,7 +1848,7 @@ static inline bool mwl8k_ampdu_allowed(struct ieee80211_sta *sta, u8 tid)
 	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 	struct tx_traffic_info *tx_stats;
 
-	BUG_ON(tid >= MWL8K_MAX_TID);
+	_ON(tid >= MWL8K_MAX_TID);
 	tx_stats = &sta_info->tx_stats[tid];
 
 	return sta_info->is_ampdu_allowed &&
@@ -1860,7 +1860,7 @@ static inline void mwl8k_tx_count_packet(struct ieee80211_sta *sta, u8 tid)
 	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 	struct tx_traffic_info *tx_stats;
 
-	BUG_ON(tid >= MWL8K_MAX_TID);
+	_ON(tid >= MWL8K_MAX_TID);
 	tx_stats = &sta_info->tx_stats[tid];
 
 	if (tx_stats->start_time == 0)
@@ -2040,7 +2040,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 				skb->len, PCI_DMA_TODEVICE);
 
 	if (pci_dma_mapping_error(priv->pdev, dma)) {
-		wiphy_debug(hw->wiphy,
+		wiphy_de(hw->wiphy,
 			    "failed to dma map skb, dropping TX frame.\n");
 		if (start_ba_session) {
 			spin_lock(&priv->stream_lock);
@@ -2079,7 +2079,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 		}
 	}
 
-	BUG_ON(txq->skb[txq->tail] != NULL);
+	_ON(txq->skb[txq->tail] != NULL);
 	txq->skb[txq->tail] = skb;
 
 	tx = txq->txd + txq->tail;
@@ -2299,10 +2299,10 @@ static void mwl8k_setup_2ghz_band(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
 
-	BUILD_BUG_ON(sizeof(priv->channels_24) != sizeof(mwl8k_channels_24));
+	BUILD__ON(sizeof(priv->channels_24) != sizeof(mwl8k_channels_24));
 	memcpy(priv->channels_24, mwl8k_channels_24, sizeof(mwl8k_channels_24));
 
-	BUILD_BUG_ON(sizeof(priv->rates_24) != sizeof(mwl8k_rates_24));
+	BUILD__ON(sizeof(priv->rates_24) != sizeof(mwl8k_rates_24));
 	memcpy(priv->rates_24, mwl8k_rates_24, sizeof(mwl8k_rates_24));
 
 	priv->band_24.band = NL80211_BAND_2GHZ;
@@ -2318,10 +2318,10 @@ static void mwl8k_setup_5ghz_band(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
 
-	BUILD_BUG_ON(sizeof(priv->channels_50) != sizeof(mwl8k_channels_50));
+	BUILD__ON(sizeof(priv->channels_50) != sizeof(mwl8k_channels_50));
 	memcpy(priv->channels_50, mwl8k_channels_50, sizeof(mwl8k_channels_50));
 
-	BUILD_BUG_ON(sizeof(priv->rates_50) != sizeof(mwl8k_rates_50));
+	BUILD__ON(sizeof(priv->rates_50) != sizeof(mwl8k_rates_50));
 	memcpy(priv->rates_50, mwl8k_rates_50, sizeof(mwl8k_rates_50));
 
 	priv->band_50.band = NL80211_BAND_5GHZ;
@@ -4025,7 +4025,7 @@ mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
 
 	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 
-	wiphy_debug(hw->wiphy, "Created a BA stream for %pM : tid %d\n",
+	wiphy_de(hw->wiphy, "Created a BA stream for %pM : tid %d\n",
 		stream->sta->addr, stream->tid);
 	kfree(cmd);
 
@@ -4048,7 +4048,7 @@ static void mwl8k_destroy_ba(struct ieee80211_hw *hw,
 	cmd->destroy_params.ba_context = cpu_to_le32(idx);
 	mwl8k_post_cmd(hw, &cmd->header);
 
-	wiphy_debug(hw->wiphy, "Deleted BA stream index %d\n", idx);
+	wiphy_de(hw->wiphy, "Deleted BA stream index %d\n", idx);
 
 	kfree(cmd);
 }
@@ -4681,7 +4681,7 @@ static void mwl8k_tx(struct ieee80211_hw *hw,
 	int index = skb_get_queue_mapping(skb);
 
 	if (!priv->radio_on) {
-		wiphy_debug(hw->wiphy,
+		wiphy_de(hw->wiphy,
 			    "dropped TX frame since radio disabled\n");
 		dev_kfree_skb(skb);
 		return;
@@ -5358,7 +5358,7 @@ static int mwl8k_conf_tx(struct ieee80211_hw *hw,
 
 	rc = mwl8k_fw_lock(hw);
 	if (!rc) {
-		BUG_ON(queue > MWL8K_TX_WMM_QUEUES - 1);
+		_ON(queue > MWL8K_TX_WMM_QUEUES - 1);
 		memcpy(&priv->wmm_params[queue], params, sizeof(*params));
 
 		if (!priv->wmm_enabled)
@@ -5471,7 +5471,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			stream = mwl8k_add_stream(hw, sta, tid);
 		}
 		if (stream == NULL) {
-			wiphy_debug(hw->wiphy, "no free AMPDU streams\n");
+			wiphy_de(hw->wiphy, "no free AMPDU streams\n");
 			rc = -EBUSY;
 			break;
 		}
@@ -5529,8 +5529,8 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		BUG_ON(stream == NULL);
-		BUG_ON(stream->state != AMPDU_STREAM_IN_PROGRESS);
+		_ON(stream == NULL);
+		_ON(stream->state != AMPDU_STREAM_IN_PROGRESS);
 		spin_unlock(&priv->stream_lock);
 		rc = mwl8k_create_ba(hw, stream, buf_size, vif);
 		spin_lock(&priv->stream_lock);
@@ -5541,7 +5541,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			spin_unlock(&priv->stream_lock);
 			mwl8k_destroy_ba(hw, idx);
 			spin_lock(&priv->stream_lock);
-			wiphy_debug(hw->wiphy,
+			wiphy_de(hw->wiphy,
 				"Failed adding stream for sta %pM tid %d\n",
 				addr, tid);
 			mwl8k_remove_stream(hw, stream);
@@ -5779,7 +5779,7 @@ static void mwl8k_fw_state_machine(const struct firmware *fw, void *context)
 	default:
 		printk(KERN_ERR "%s: Unexpected firmware loading state: %d\n",
 		       MWL8K_NAME, priv->fw_state);
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	return;

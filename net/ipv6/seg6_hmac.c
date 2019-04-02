@@ -138,14 +138,14 @@ static int __do_hmac(struct seg6_hmac_info *hinfo, const char *text, u8 psize,
 
 	dgsize = crypto_shash_digestsize(tfm);
 	if (dgsize > outlen) {
-		pr_debug("sr-ipv6: __do_hmac: digest size too big (%d / %d)\n",
+		pr_de("sr-ipv6: __do_hmac: digest size too big (%d / %d)\n",
 			 dgsize, outlen);
 		return -ENOMEM;
 	}
 
 	ret = crypto_shash_setkey(tfm, hinfo->secret, hinfo->slen);
 	if (ret < 0) {
-		pr_debug("sr-ipv6: crypto_shash_setkey failed: err %d\n", ret);
+		pr_de("sr-ipv6: crypto_shash_setkey failed: err %d\n", ret);
 		goto failed;
 	}
 
@@ -154,7 +154,7 @@ static int __do_hmac(struct seg6_hmac_info *hinfo, const char *text, u8 psize,
 
 	ret = crypto_shash_digest(shash, text, psize, output);
 	if (ret < 0) {
-		pr_debug("sr-ipv6: crypto_shash_digest failed: err %d\n", ret);
+		pr_de("sr-ipv6: crypto_shash_digest failed: err %d\n", ret);
 		goto failed;
 	}
 

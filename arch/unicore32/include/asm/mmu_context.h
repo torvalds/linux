@@ -69,7 +69,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 do { \
 	struct vm_area_struct *high_vma = find_vma(mm, 0xffff0000); \
 	if (high_vma) { \
-		BUG_ON(high_vma->vm_next);  /* it should be last */ \
+		_ON(high_vma->vm_next);  /* it should be last */ \
 		if (high_vma->vm_prev) \
 			high_vma->vm_prev->vm_next = NULL; \
 		else \

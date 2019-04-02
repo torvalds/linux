@@ -78,7 +78,7 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
 {
 	int i;
 
-	BUG_ON(timeout < AH_TIME_QUANTUM);
+	_ON(timeout < AH_TIME_QUANTUM);
 
 	for (i = 0; i < (timeout / AH_TIME_QUANTUM); i++) {
 		if ((REG_READ(ah, reg) & mask) == val)
@@ -1993,7 +1993,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
 		REG_SET_BIT(ah, AR_MAC_PCU_LOGIC_ANALYZER,
-			    AR_MAC_PCU_LOGIC_ANALYZER_DISBUG20768);
+			    AR_MAC_PCU_LOGIC_ANALYZER_DIS20768);
 		REG_RMW_FIELD(ah, AR_AHB_MODE, AR_AHB_CUSTOM_BURST_EN,
 			      AR_AHB_CUSTOM_BURST_ASYNC_FIFO_VAL);
 		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,

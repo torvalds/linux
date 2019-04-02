@@ -317,7 +317,7 @@ static int stk1160_probe(struct usb_interface *interface,
 	dev->num_alt = interface->num_altsetting;
 	dev->ctl_input = input;
 
-	/* We save struct device for debug purposes only */
+	/* We save struct device for de purposes only */
 	dev->dev = &interface->dev;
 
 	usb_set_intfdata(interface, dev);

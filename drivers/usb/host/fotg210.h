@@ -87,7 +87,7 @@ struct fotg210_hcd {			/* one per controller */
 	/* glue to PCI and HCD framework */
 	struct fotg210_caps __iomem *caps;
 	struct fotg210_regs __iomem *regs;
-	struct ehci_dbg_port __iomem *debug;
+	struct ehci_dbg_port __iomem *de;
 
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
@@ -185,8 +185,8 @@ struct fotg210_hcd {			/* one per controller */
 	/* silicon clock */
 	struct clk		*pclk;
 
-	/* debug files */
-	struct dentry		*debug_dir;
+	/* de files */
+	struct dentry		*de_dir;
 };
 
 /* convert between an HCD pointer and the corresponding FOTG210_HCD */
@@ -633,7 +633,7 @@ fotg210_port_speed(struct fotg210_hcd *fotg210, unsigned int portsc)
 
 /*-------------------------------------------------------------------------*/
 
-#define	fotg210_has_fsl_portno_bug(e)		(0)
+#define	fotg210_has_fsl_portno_(e)		(0)
 
 /*
  * While most USB host controllers implement their registers in

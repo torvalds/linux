@@ -401,7 +401,7 @@
 #define CDU_REG_CDU_CHK_MASK0					 0x101000
 #define CDU_REG_CDU_CHK_MASK1					 0x101004
 #define CDU_REG_CDU_CONTROL0					 0x101008
-#define CDU_REG_CDU_DEBUG					 0x101010
+#define CDU_REG_CDU_DE					 0x101010
 #define CDU_REG_CDU_GLOBAL_PARAMS				 0x101020
 /* [RW 7] Interrupt mask register #0 read/write */
 #define CDU_REG_CDU_INT_MASK					 0x10103c
@@ -449,7 +449,7 @@
 /* [RW 21] CID cam access (21:1 - Data; alid - 0) */
 #define CFC_REG_CID_CAM 					 0x104800
 #define CFC_REG_CONTROL0					 0x104028
-#define CFC_REG_DEBUG0						 0x104050
+#define CFC_REG_DE0						 0x104050
 /* [RW 14] indicates per error (in #cfc_registers_cfc_error_vector.cfc_error
    vector) whether the cfc should be disabled upon it */
 #define CFC_REG_DISABLE_ON_ERROR				 0x104044
@@ -664,7 +664,7 @@
 /* [RW 1] Disables input messages from the passive buffer May be updated
    during run_time by the microcode */
 #define CSEM_REG_PAS_DISABLE					 0x20024c
-/* [WB 128] Debug only. Passive buffer memory */
+/* [WB 128] De only. Passive buffer memory */
 #define CSEM_REG_PASSIVE_BUFFER 				 0x202000
 /* [WB 46] pram memory. B45 is parity; b[44:0] - data. */
 #define CSEM_REG_PRAM						 0x240000
@@ -921,11 +921,11 @@
 #define IGU_BLOCK_CONFIGURATION_REG_BACKWARD_COMP_EN		 (0x1<<1)
 #define IGU_BLOCK_CONFIGURATION_REG_BLOCK_ENABLE		 (0x1<<0)
 #define IGU_REG_ATTENTION_ACK_BITS				 0x130108
-/* [R 4] Debug: attn_fsm */
+/* [R 4] De: attn_fsm */
 #define IGU_REG_ATTN_FSM					 0x130054
 #define IGU_REG_ATTN_MSG_ADDR_H				 0x13011c
 #define IGU_REG_ATTN_MSG_ADDR_L				 0x130120
-/* [R 4] Debug: [3] - attention write done message is pending (0-no pending;
+/* [R 4] De: [3] - attention write done message is pending (0-no pending;
  * 1-pending). [2:0] = PFID. Pending means attention message was sent; but
  * write done didn't receive. */
 #define IGU_REG_ATTN_WRITE_DONE_PENDING			 0x130030
@@ -936,7 +936,7 @@
  * is clear. The bits in this registers are set and clear via the producer
  * command. Data valid only in addresses 0-4. all the rest are zero. */
 #define IGU_REG_CSTORM_TYPE_0_SB_CLEANUP			 0x130200
-/* [R 5] Debug: ctrl_fsm */
+/* [R 5] De: ctrl_fsm */
 #define IGU_REG_CTRL_FSM					 0x130064
 /* [R 1] data available for error memory. If this bit is clear do not red
  * from error_handling_memory. */
@@ -947,7 +947,7 @@
 #define IGU_REG_IGU_PRTY_STS					 0x13009c
 /* [RC 11] Parity register #0 read clear */
 #define IGU_REG_IGU_PRTY_STS_CLR				 0x1300a0
-/* [R 4] Debug: int_handle_fsm */
+/* [R 4] De: int_handle_fsm */
 #define IGU_REG_INT_HANDLE_FSM					 0x130050
 #define IGU_REG_LEADING_EDGE_LATCH				 0x130134
 /* [RW 14] mapping CAM; relevant for E2 operating mode only. [0] - valid.
@@ -977,14 +977,14 @@
  * (the order inside each segment is PF0; PF1; PF2; PF3) - 128-131 U prods;
  * 132-135 C prods; 136-139 X prods; 140-143 T prods; 144-147 ATTN prods; */
 #define IGU_REG_PROD_CONS_MEMORY				 0x132000
-/* [R 3] Debug: pxp_arb_fsm */
+/* [R 3] De: pxp_arb_fsm */
 #define IGU_REG_PXP_ARB_FSM					 0x130068
 /* [RW 6] Write one for each bit will reset the appropriate memory. When the
  * memory reset finished the appropriate bit will be clear. Bit 0 - mapping
  * memory; Bit 1 - SB memory; Bit 2 - SB interrupt and mask register; Bit 3
  * - MSIX memory; Bit 4 - PBA memory; Bit 5 - statistics; */
 #define IGU_REG_RESET_MEMORIES					 0x130158
-/* [R 4] Debug: sb_ctrl_fsm */
+/* [R 4] De: sb_ctrl_fsm */
 #define IGU_REG_SB_CTRL_FSM					 0x13004c
 #define IGU_REG_SB_INT_BEFORE_MASK_LSB				 0x13015c
 #define IGU_REG_SB_INT_BEFORE_MASK_MSB				 0x130160
@@ -1064,7 +1064,7 @@
    error; [9] XCM Hw interrupt; [10] XSEMI Parity error; [11] XSEMI Hw
    interrupt; [12] DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14]
    NIG Parity error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error;
-   [17] Vaux PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw
+   [17] Vaux PCI core Hw interrupt; [18] De Parity error; [19] De Hw
    interrupt; [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM
    Parity error; [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI
    Hw interrupt; [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM
@@ -1079,7 +1079,7 @@
    XCM Hw interrupt; [10] XSEMI Parity error; [11] XSEMI Hw interrupt; [12]
    DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14] NIG Parity
    error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error; [17] Vaux
-   PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw interrupt;
+   PCI core Hw interrupt; [18] De Parity error; [19] De Hw interrupt;
    [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM Parity error;
    [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI Hw interrupt;
    [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM Parity error;
@@ -1233,7 +1233,7 @@
    error; [9] XCM Hw interrupt; [10] XSEMI Parity error; [11] XSEMI Hw
    interrupt; [12] DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14]
    NIG Parity error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error;
-   [17] Vaux PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw
+   [17] Vaux PCI core Hw interrupt; [18] De Parity error; [19] De Hw
    interrupt; [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM
    Parity error; [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI
    Hw interrupt; [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM
@@ -1248,7 +1248,7 @@
    error; [9] XCM Hw interrupt; [10] XSEMI Parity error; [11] XSEMI Hw
    interrupt; [12] DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14]
    NIG Parity error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error;
-   [17] Vaux PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw
+   [17] Vaux PCI core Hw interrupt; [18] De Parity error; [19] De Hw
    interrupt; [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM
    Parity error; [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI
    Hw interrupt; [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM
@@ -1263,7 +1263,7 @@
    error; [9] XCM Hw interrupt; [10] XSEMI Parity error; [11] XSEMI Hw
    interrupt; [12] DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14]
    NIG Parity error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error;
-   [17] Vaux PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw
+   [17] Vaux PCI core Hw interrupt; [18] De Parity error; [19] De Hw
    interrupt; [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM
    Parity error; [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI
    Hw interrupt; [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM
@@ -1278,7 +1278,7 @@
    error; [9] XCM Hw interrupt; [10] XSEMI Parity error; [11] XSEMI Hw
    interrupt; [12] DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14]
    NIG Parity error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error;
-   [17] Vaux PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw
+   [17] Vaux PCI core Hw interrupt; [18] De Parity error; [19] De Hw
    interrupt; [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM
    Parity error; [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI
    Hw interrupt; [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM
@@ -1461,7 +1461,7 @@
    interrupt; [10] XSEMI Parity error; [11] XSEMI Hw interrupt; [12]
    DoorbellQ Parity error; [13] DoorbellQ Hw interrupt; [14] NIG Parity
    error; [15] NIG Hw interrupt; [16] Vaux PCI core Parity error; [17] Vaux
-   PCI core Hw interrupt; [18] Debug Parity error; [19] Debug Hw interrupt;
+   PCI core Hw interrupt; [18] De Parity error; [19] De Hw interrupt;
    [20] USDM Parity error; [21] USDM Hw interrupt; [22] UCM Parity error;
    [23] UCM Hw interrupt; [24] USEMI Parity error; [25] USEMI Hw interrupt;
    [26] UPB Parity error; [27] UPB Hw interrupt; [28] CSDM Parity error;
@@ -1662,10 +1662,10 @@
    Overwrite value. If bit[0] of this register is 1 this is the value that
    receives the port_swap output. Reset on Hard reset. */
 #define MISC_REG_FOUR_PORT_PORT_SWAP_OVWR			 0xa734
-/* [RW 32] Debug only: spare RW register reset by core reset */
+/* [RW 32] De only: spare RW register reset by core reset */
 #define MISC_REG_GENERIC_CR_0					 0xa460
 #define MISC_REG_GENERIC_CR_1					 0xa464
-/* [RW 32] Debug only: spare RW register reset by por reset */
+/* [RW 32] De only: spare RW register reset by por reset */
 #define MISC_REG_GENERIC_POR_1					 0xa474
 /* [RW 32] Bit[0]: EPIO MODE SEL: Setting this bit to 1 will allow SW/FW to
    use all of the 32 Extended GPIO pins. Without setting this bit; an EPIO
@@ -1959,12 +1959,12 @@
 #define NIG_REG_BRB1_PAUSE_IN_EN				 0x100c8
 /* [RW 1] output enable for RX BRB1 LP IF */
 #define NIG_REG_BRB_LB_OUT_EN					 0x10100
-/* [WB_W 82] Debug packet to LP from RBC; Data spelling:[63:0] data; 64]
+/* [WB_W 82] De packet to LP from RBC; Data spelling:[63:0] data; 64]
    error; [67:65]eop_bvalid; [68]eop; [69]sop; [70]port_id; 71]flush;
    72:73]-vnic_num; 81:74]-sideband_info */
-#define NIG_REG_DEBUG_PACKET_LB 				 0x10800
-/* [RW 1] Input enable for TX Debug packet */
-#define NIG_REG_EGRESS_DEBUG_IN_EN				 0x100dc
+#define NIG_REG_DE_PACKET_LB 				 0x10800
+/* [RW 1] Input enable for TX De packet */
+#define NIG_REG_EGRESS_DE_IN_EN				 0x100dc
 /* [RW 1] If 1 - egress drain mode for port0 is active. In this mode all
    packets from PBFare not forwarded to the MAC and just deleted from FIFO.
    First packet may be deleted from the middle. And last packet will be
@@ -2001,7 +2001,7 @@
 #define NIG_REG_INGRESS_BMAC1_MEM				 0x11000
 /* [R 1] FIFO empty in EOP descriptor FIFO of LP in NIG_RX_EOP */
 #define NIG_REG_INGRESS_EOP_LB_EMPTY				 0x104e0
-/* [RW 17] Debug only. RX_EOP_DSCR_lb_FIFO in NIG_RX_EOP. Data
+/* [RW 17] De only. RX_EOP_DSCR_lb_FIFO in NIG_RX_EOP. Data
    packet_length[13:0]; mac_error[14]; trunc_error[15]; parity[16] */
 #define NIG_REG_INGRESS_EOP_LB_FIFO				 0x104e4
 /* [RW 27] 0 - must be active for Everest A0; 1- for Everest B0 when latch
@@ -2292,7 +2292,7 @@
  * subject to WFQ credit blocking - their specifications here are not used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
- * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * de to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
  * use credit registers 0-5 respectively (0x543210876). Note that credit
  * registers can not be shared between clients. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x18688
@@ -2302,14 +2302,14 @@
  * subject to WFQ credit blocking - their specifications here are not used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
- * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * de to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
  * use credit registers 0-5 respectively (0x543210876). Note that credit
  * registers can not be shared between clients. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x1868c
 /* [RW 5] Specify whether the client competes directly in the strict
  * priority arbiter. The bits are mapped according to client ID (client IDs
  * are defined in tx_arb_priority_client). Default value is set to enable
- * strict priorities for clients 0-2 -- management and debug traffic. */
+ * strict priorities for clients 0-2 -- management and de traffic. */
 #define NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT			 0x180e8
 /* [RW 5] Specify whether the client is subject to WFQ credit blocking. The
  * bits are mapped according to client ID (client IDs are defined in
@@ -2346,10 +2346,10 @@
 /* [RW 15] Specify the client number to be assigned to each priority of the
  * strict priority arbiter. Priority 0 is the highest priority. Bits [2:0]
  * are for priority 0 client; bits [14:12] are for priority 4 client. The
- * clients are assigned the following IDs: 0-management; 1-debug traffic
- * from this port; 2-debug traffic from other port; 3-COS0 traffic; 4-COS1
+ * clients are assigned the following IDs: 0-management; 1-de traffic
+ * from this port; 2-de traffic from other port; 3-COS0 traffic; 4-COS1
  * traffic. The reset value[14:0] is set to 0x4688 (15'b100_011_010_001_000)
- * for management at priority 0; debug traffic at priorities 1 and 2; COS0
+ * for management at priority 0; de traffic at priorities 1 and 2; COS0
  * traffic at priority 3; and COS1 traffic at priority 4. */
 #define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT			 0x180e4
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
@@ -2400,7 +2400,7 @@
  * strict priority arbiter. This register specifies bits 31:0 of the 36-bit
  * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
  * client; bits [35-32] are for priority 8 client. The clients are assigned
- * the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+ * the following IDs: 0-management; 1-de traffic from this port; 2-de
  * traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
  * 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
  * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
@@ -2410,7 +2410,7 @@
  * strict priority arbiter. This register specifies bits 35:32 of the 36-bit
  * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
  * client; bits [35-32] are for priority 8 client. The clients are assigned
- * the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+ * the following IDs: 0-management; 1-de traffic from this port; 2-de
  * traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
  * 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
  * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
@@ -2545,7 +2545,7 @@
  * subject to WFQ credit blocking - their specifications here are not used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
- * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * de to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
  * use credit registers 0-5 respectively (0x543210876). Note that credit
  * registers can not be shared between clients. Note also that there are
  * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
@@ -2558,7 +2558,7 @@
  * subject to WFQ credit blocking - their specifications here are not used.
  * This is a new register (with 2_) added in E3 B0 to accommodate the 9
  * input clients to ETS arbiter. The reset default is set for management and
- * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * de to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
  * use credit registers 0-5 respectively (0x543210876). Note that credit
  * registers can not be shared between clients. Note also that there are
  * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
@@ -2567,15 +2567,15 @@
 #define NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x186ec
 /* [RW 9] Specify whether the client competes directly in the strict
  * priority arbiter. The bits are mapped according to client ID (client IDs
- * are defined in tx_arb_priority_client2): 0-management; 1-debug traffic
- * from this port; 2-debug traffic from other port; 3-COS0 traffic; 4-COS1
+ * are defined in tx_arb_priority_client2): 0-management; 1-de traffic
+ * from this port; 2-de traffic from other port; 3-COS0 traffic; 4-COS1
  * traffic; 5-COS2 traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic.
  * Default value is set to enable strict priorities for all clients. */
 #define NIG_REG_P1_TX_ARB_CLIENT_IS_STRICT			 0x18234
 /* [RW 9] Specify whether the client is subject to WFQ credit blocking. The
  * bits are mapped according to client ID (client IDs are defined in
- * tx_arb_priority_client2): 0-management; 1-debug traffic from this port;
- * 2-debug traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2
+ * tx_arb_priority_client2): 0-management; 1-de traffic from this port;
+ * 2-de traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2
  * traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. Default value is
  * 0 for not using WFQ credit blocking. */
 #define NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ			 0x18238
@@ -2602,7 +2602,7 @@
    strict priority arbiter. This register specifies bits 31:0 of the 36-bit
    value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
    client; bits [35-32] are for priority 8 client. The clients are assigned
-   the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+   the following IDs: 0-management; 1-de traffic from this port; 2-de
    traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
    6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
    set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
@@ -2614,7 +2614,7 @@
    strict priority arbiter. This register specifies bits 35:32 of the 36-bit
    value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
    client; bits [35-32] are for priority 8 client. The clients are assigned
-   the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+   the following IDs: 0-management; 1-de traffic from this port; 2-de
    traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
    6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
    set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
@@ -3086,7 +3086,7 @@
  * field. [16:12] - ATC OTB EntryID. [17] valid - indicates if there was a
  * completion error since the last time this register was cleared. */
 #define PGLUE_B_REG_RX_TCPL_ERR_DETAILS			 0x9084
-/* [W 8] Debug only - Shadow BME bits clear for PFs 0 to 7. MCP writes 1 to
+/* [W 8] De only - Shadow BME bits clear for PFs 0 to 7. MCP writes 1 to
  * a bit in this register in order to clear the corresponding bit in
  * shadow_bme_pf_7_0 register. MCP should never use this unless a
  * work-around is needed. Note: register contains bits from both paths. */
@@ -3244,9 +3244,9 @@
 /* [RW 1] 0 - Zone A size is 136x32B; 1 - Zone A size is 152x32B. */
 #define PGLUE_B_REG_XSDM_ZONE_A_SIZE_PF			 0x91a8
 #define PRS_REG_A_PRSU_20					 0x40134
-/* [R 8] debug only: CFC load request current credit. Transaction based. */
+/* [R 8] de only: CFC load request current credit. Transaction based. */
 #define PRS_REG_CFC_LD_CURRENT_CREDIT				 0x40164
-/* [R 8] debug only: CFC search request current credit. Transaction based. */
+/* [R 8] de only: CFC search request current credit. Transaction based. */
 #define PRS_REG_CFC_SEARCH_CURRENT_CREDIT			 0x40168
 /* [RW 6] The initial credit for the search message to the CFC interface.
    Credit is transaction based. */
@@ -3349,9 +3349,9 @@
 #define PRS_REG_PACKET_REGIONS_TYPE_5				 0x4003c
 #define PRS_REG_PACKET_REGIONS_TYPE_6				 0x40040
 #define PRS_REG_PACKET_REGIONS_TYPE_7				 0x40044
-/* [R 2] debug only: Number of pending requests for CAC on port 0. */
+/* [R 2] de only: Number of pending requests for CAC on port 0. */
 #define PRS_REG_PENDING_BRB_CAC0_RQ				 0x40174
-/* [R 2] debug only: Number of pending requests for header parsing. */
+/* [R 2] de only: Number of pending requests for header parsing. */
 #define PRS_REG_PENDING_BRB_PRS_RQ				 0x40170
 /* [R 1] Interrupt register #0 read */
 #define PRS_REG_PRS_INT_STS					 0x40188
@@ -3364,24 +3364,24 @@
 /* [RW 8] Context region for pure acknowledge packets. Used in CFC load
    request message */
 #define PRS_REG_PURE_REGIONS					 0x40024
-/* [R 32] debug only: Serial number status lsb 32 bits. '1' indicates this
+/* [R 32] de only: Serial number status lsb 32 bits. '1' indicates this
    serail number was released by SDM but cannot be used because a previous
    serial number was not released. */
 #define PRS_REG_SERIAL_NUM_STATUS_LSB				 0x40154
-/* [R 32] debug only: Serial number status msb 32 bits. '1' indicates this
+/* [R 32] de only: Serial number status msb 32 bits. '1' indicates this
    serail number was released by SDM but cannot be used because a previous
    serial number was not released. */
 #define PRS_REG_SERIAL_NUM_STATUS_MSB				 0x40158
-/* [R 4] debug only: SRC current credit. Transaction based. */
+/* [R 4] de only: SRC current credit. Transaction based. */
 #define PRS_REG_SRC_CURRENT_CREDIT				 0x4016c
 /* [RW 16] The Ethernet type value for L2 tag 0 */
 #define PRS_REG_TAG_ETHERTYPE_0					 0x401d4
 /* [RW 4] The length of the info field for L2 tag 0. The length is between
  * 2B and 14B; in 2B granularity */
 #define PRS_REG_TAG_LEN_0					 0x4022c
-/* [R 8] debug only: TCM current credit. Cycle based. */
+/* [R 8] de only: TCM current credit. Cycle based. */
 #define PRS_REG_TCM_CURRENT_CREDIT				 0x40160
-/* [R 8] debug only: TSDM current credit. Transaction based. */
+/* [R 8] de only: TSDM current credit. Transaction based. */
 #define PRS_REG_TSDM_CURRENT_CREDIT				 0x4015c
 /* [RW 16] One of 8 values that should be compared to type in Ethernet
  * parsing. If there is a match; the field after Ethernet is the first VLAN.
@@ -3396,9 +3396,9 @@
 #define PXP2_PXP2_INT_MASK_0_REG_PGL_WRITE_BLOCKED		 (0x1<<24)
 #define PXP2_PXP2_INT_STS_0_REG_WR_PGLUE_EOP_ERROR		 (0x1<<7)
 #define PXP2_PXP2_INT_STS_CLR_0_REG_WR_PGLUE_EOP_ERROR		 (0x1<<7)
-/* [R 6] Debug only: Number of used entries in the data FIFO */
+/* [R 6] De only: Number of used entries in the data FIFO */
 #define PXP2_REG_HST_DATA_FIFO_STATUS				 0x12047c
-/* [R 7] Debug only: Number of used entries in the header FIFO */
+/* [R 7] De only: Number of used entries in the header FIFO */
 #define PXP2_REG_HST_HEADER_FIFO_STATUS				 0x120478
 #define PXP2_REG_PGL_ADDR_88_F0					 0x120534
 /* [R 32] GRC address for configuration access to PCIE config address 0x88.
@@ -3422,7 +3422,7 @@
 #define PXP2_REG_PGL_ADDR_94_F1					 0x120550
 #define PXP2_REG_PGL_CONTROL0					 0x120490
 #define PXP2_REG_PGL_CONTROL1					 0x120514
-#define PXP2_REG_PGL_DEBUG					 0x120520
+#define PXP2_REG_PGL_DE					 0x120520
 /* [RW 32] third dword data of expansion rom request. this register is
    special. reading from it provides a vector outstanding read requests. if
    a bit is zero it means that a read request on the corresponding tag did
@@ -3485,7 +3485,7 @@
    bus_master_en was deasserted */
 #define PXP2_REG_PGL_READ_BLOCKED				 0x120568
 #define PXP2_REG_PGL_TAGS_LIMIT 				 0x1205a8
-/* [R 18] debug only */
+/* [R 18] de only */
 #define PXP2_REG_PGL_TXW_CDTS					 0x12052c
 /* [R 1] this bit indicates that a write request was blocked because of
    bus_master_en was deasserted */
@@ -3544,12 +3544,12 @@
 /* [RC 32] Parity register #0 read clear */
 #define PXP2_REG_PXP2_PRTY_STS_CLR_0				 0x120580
 #define PXP2_REG_PXP2_PRTY_STS_CLR_1				 0x120590
-/* [R 1] Debug only: The 'almost full' indication from each fifo (gives
+/* [R 1] De only: The 'almost full' indication from each fifo (gives
    indication about backpressure) */
 #define PXP2_REG_RD_ALMOST_FULL_0				 0x120424
-/* [R 8] Debug only: The blocks counter - number of unused block ids */
+/* [R 8] De only: The blocks counter - number of unused block ids */
 #define PXP2_REG_RD_BLK_CNT					 0x120418
-/* [RW 8] Debug only: Total number of available blocks in Tetris Buffer.
+/* [RW 8] De only: Total number of available blocks in Tetris Buffer.
    Must be bigger than 6. Normally should not be changed. */
 #define PXP2_REG_RD_BLK_NUM_CFG 				 0x12040c
 /* [RW 2] CDU byte swapping mode configuration for master read requests */
@@ -3587,16 +3587,16 @@
 #define PXP2_REG_RD_MAX_BLKS_VQ9				 0x12039c
 /* [RW 2] PBF byte swapping mode configuration for master read requests */
 #define PXP2_REG_RD_PBF_SWAP_MODE				 0x1203f4
-/* [R 1] Debug only: Indication if delivery ports are idle */
+/* [R 1] De only: Indication if delivery ports are idle */
 #define PXP2_REG_RD_PORT_IS_IDLE_0				 0x12041c
 #define PXP2_REG_RD_PORT_IS_IDLE_1				 0x120420
 /* [RW 2] QM byte swapping mode configuration for master read requests */
 #define PXP2_REG_RD_QM_SWAP_MODE				 0x1203f8
-/* [R 7] Debug only: The SR counter - number of unused sub request ids */
+/* [R 7] De only: The SR counter - number of unused sub request ids */
 #define PXP2_REG_RD_SR_CNT					 0x120414
 /* [RW 2] SRC byte swapping mode configuration for master read requests */
 #define PXP2_REG_RD_SRC_SWAP_MODE				 0x120400
-/* [RW 7] Debug only: Total number of available PCI read sub-requests. Must
+/* [RW 7] De only: Total number of available PCI read sub-requests. Must
    be bigger than 1. Normally should not be changed. */
 #define PXP2_REG_RD_SR_NUM_CFG					 0x120408
 /* [RW 1] Signals the PSWRD block to start initializing internal memories */
@@ -3735,7 +3735,7 @@
 /* [R 1] 1' indicates that the requester has finished its internal
    configuration */
 #define PXP2_REG_RQ_CFG_DONE					 0x1201b4
-/* [RW 2] Endian mode for debug */
+/* [RW 2] Endian mode for de */
 #define PXP2_REG_RQ_DBG_ENDIAN_M				 0x1201a4
 /* [RW 1] When '1'; requests will enter input buffers but wont get out
    towards the glue */
@@ -3911,22 +3911,22 @@
 /* [RW 2] 0 - 128B;  - 256B;  - 512B;  - 1024B; when the payload in the
    buffer reaches this number has_payload will be asserted */
 #define PXP2_REG_WR_XSDM_MPS					 0x1205d8
-/* [R 1] debug only: Indication if PSWHST arbiter is idle */
+/* [R 1] de only: Indication if PSWHST arbiter is idle */
 #define PXP_REG_HST_ARB_IS_IDLE 				 0x103004
-/* [R 8] debug only: A bit mask for all PSWHST arbiter clients. '1' means
+/* [R 8] de only: A bit mask for all PSWHST arbiter clients. '1' means
    this client is waiting for the arbiter. */
 #define PXP_REG_HST_CLIENTS_WAITING_TO_ARB			 0x103008
 /* [RW 1] When 1; doorbells are discarded and not passed to doorbell queue
    block. Should be used for close the gates. */
 #define PXP_REG_HST_DISCARD_DOORBELLS				 0x1030a4
-/* [R 1] debug only: '1' means this PSWHST is discarding doorbells. This bit
+/* [R 1] de only: '1' means this PSWHST is discarding doorbells. This bit
    should update according to 'hst_discard_doorbells' register when the state
    machine is idle */
 #define PXP_REG_HST_DISCARD_DOORBELLS_STATUS			 0x1030a0
 /* [RW 1] When 1; new internal writes arriving to the block are discarded.
    Should be used for close the gates. */
 #define PXP_REG_HST_DISCARD_INTERNAL_WRITES			 0x1030a8
-/* [R 6] debug only: A bit mask for all PSWHST internal write clients. '1'
+/* [R 6] de only: A bit mask for all PSWHST internal write clients. '1'
    means this PSWHST is discarding inputs from this client. Each bit should
    update according to 'hst_discard_internal_writes' register when the state
    machine is idle. */
@@ -4880,7 +4880,7 @@
 /* [RW 1] Disables input messages from the passive buffer May be updated
    during run_time by the microcode */
 #define TSEM_REG_PAS_DISABLE					 0x18024c
-/* [WB 128] Debug only. Passive buffer memory */
+/* [WB 128] De only. Passive buffer memory */
 #define TSEM_REG_PASSIVE_BUFFER 				 0x181000
 /* [WB 46] pram memory. B45 is parity; b[44:0] - data. */
 #define TSEM_REG_PRAM						 0x1c0000
@@ -5372,7 +5372,7 @@
 /* [RW 1] Disables input messages from the passive buffer May be updated
    during run_time by the microcode */
 #define USEM_REG_PAS_DISABLE					 0x30024c
-/* [WB 128] Debug only. Passive buffer memory */
+/* [WB 128] De only. Passive buffer memory */
 #define USEM_REG_PASSIVE_BUFFER 				 0x302000
 /* [WB 46] pram memory. B45 is parity; b[44:0] - data. */
 #define USEM_REG_PRAM						 0x340000
@@ -5926,7 +5926,7 @@
 /* [RW 1] Disables input messages from the passive buffer May be updated
    during run_time by the microcode */
 #define XSEM_REG_PAS_DISABLE					 0x28024c
-/* [WB 128] Debug only. Passive buffer memory */
+/* [WB 128] De only. Passive buffer memory */
 #define XSEM_REG_PASSIVE_BUFFER 				 0x282000
 /* [WB 46] pram memory. B45 is parity; b[44:0] - data. */
 #define XSEM_REG_PRAM						 0x2c0000
@@ -6210,7 +6210,7 @@
 #define AEU_INPUTS_ATTN_BITS_CSDM_PARITY_ERROR			 (0x1<<28)
 #define AEU_INPUTS_ATTN_BITS_CSEMI_HW_INTERRUPT			 (0x1<<1)
 #define AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR			 (0x1<<0)
-#define AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR			 (0x1<<18)
+#define AEU_INPUTS_ATTN_BITS_DE_PARITY_ERROR			 (0x1<<18)
 #define AEU_INPUTS_ATTN_BITS_DMAE_HW_INTERRUPT			 (0x1<<11)
 #define AEU_INPUTS_ATTN_BITS_DMAE_PARITY_ERROR			 (0x1<<10)
 #define AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT		 (0x1<<13)

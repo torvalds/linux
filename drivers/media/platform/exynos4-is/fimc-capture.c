@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
@@ -1562,7 +1562,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 		*mf = fmt->format;
 		return 0;
 	}
-	/* There must be a bug in the driver if this happens */
+	/* There must be a  in the driver if this happens */
 	if (WARN_ON(ffmt == NULL))
 		return -EINVAL;
 

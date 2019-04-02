@@ -1293,9 +1293,9 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	rt2800_write_tx_data(entry, txdesc);
 
 	/*
-	 * Dump beacon to userspace through debugfs.
+	 * Dump beacon to userspace through defs.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
+	rt2x00de_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry);
 
 	/*
 	 * Write entire beacon with TXWI and padding to register.
@@ -1382,13 +1382,13 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-const struct rt2x00debug rt2800_rt2x00debug = {
+#ifdef CONFIG_RT2X00_LIB_DEFS
+const struct rt2x00de rt2800_rt2x00de = {
 	.owner	= THIS_MODULE,
 	.csr	= {
 		.read		= rt2800_register_read,
 		.write		= rt2800_register_write,
-		.flags		= RT2X00DEBUGFS_OFFSET,
+		.flags		= RT2X00DEFS_OFFSET,
 		.word_base	= CSR_REG_BASE,
 		.word_size	= sizeof(u32),
 		.word_count	= CSR_REG_SIZE / sizeof(u32),
@@ -1425,8 +1425,8 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 		.word_count	= RFCSR_SIZE / sizeof(u8),
 	},
 };
-EXPORT_SYMBOL_GPL(rt2800_rt2x00debug);
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+EXPORT_SYMBOL_GPL(rt2800_rt2x00de);
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 
 int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -9410,8 +9410,8 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		break;
 
 	case RF5592:
-		reg = rt2800_register_read(rt2x00dev, MAC_DEBUG_INDEX);
-		if (rt2x00_get_field32(reg, MAC_DEBUG_INDEX_XTAL)) {
+		reg = rt2800_register_read(rt2x00dev, MAC_DE_INDEX);
+		if (rt2x00_get_field32(reg, MAC_DE_INDEX_XTAL)) {
 			spec->num_channels = ARRAY_SIZE(rf_vals_5592_xtal40);
 			spec->channels = rf_vals_5592_xtal40;
 		} else {

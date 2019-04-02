@@ -66,7 +66,7 @@
 
 enum pm_reg_name {
 	group_control,
-	debug_bus_control,
+	de_bus_control,
 	trace_address,
 	ext_tr_timer,
 	pm_status,

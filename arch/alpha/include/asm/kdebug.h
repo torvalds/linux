@@ -1,1 +1,1 @@
-#include <asm-generic/kdebug.h>
+#include <asm-generic/kde.h>

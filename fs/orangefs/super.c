@@ -118,7 +118,7 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	orangefs_inode->last_failed_block_index_read = 0;
 	memset(orangefs_inode->link_target, 0, sizeof(orangefs_inode->link_target));
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "orangefs_alloc_inode: allocated %p\n",
 		     &orangefs_inode->vfs_inode);
 	return &orangefs_inode->vfs_inode;
@@ -135,7 +135,7 @@ static void orangefs_destroy_inode(struct inode *inode)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 			"%s: deallocated %p destroying inode %pU\n",
 			__func__, orangefs_inode, get_khandle_from_ino(inode));
 
@@ -155,7 +155,7 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	sb = dentry->d_sb;
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 			"%s: called on sb %p (fs_id is %d)\n",
 			__func__,
 			sb,
@@ -174,7 +174,7 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (new_op->downcall.status < 0)
 		goto out_op_release;
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "%s: got %ld blocks available | "
 		     "%ld blocks total | %ld block size | "
 		     "%ld files total | %ld files avail\n",
@@ -199,7 +199,7 @@ static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 out_op_release:
 	op_release(new_op);
-	gossip_debug(GOSSIP_SUPER_DEBUG, "%s: returning %d\n", __func__, ret);
+	gossip_de(GOSSIP_SUPER_DE, "%s: returning %d\n", __func__, ret);
 	return ret;
 }
 
@@ -209,7 +209,7 @@ out_op_release:
  */
 static int orangefs_remount_fs(struct super_block *sb, int *flags, char *data)
 {
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_remount_fs: called\n");
+	gossip_de(GOSSIP_SUPER_DE, "orangefs_remount_fs: called\n");
 	return parse_mount_options(sb, data, 1);
 }
 
@@ -233,7 +233,7 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 	struct orangefs_kernel_op_s *new_op;
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_remount: called\n");
+	gossip_de(GOSSIP_SUPER_DE, "orangefs_remount: called\n");
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
 	if (!new_op)
@@ -242,7 +242,7 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 		orangefs_sb->devname,
 		ORANGEFS_MAX_SERVER_ADDR_LEN);
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "Attempting ORANGEFS Remount via host %s\n",
 		     new_op->upcall.req.fs_mount.orangefs_config_server);
 
@@ -253,7 +253,7 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 	 */
 	ret = service_operation(new_op, "orangefs_remount",
 		ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "orangefs_remount: mount got return value of %d\n",
 		     ret);
 	if (ret == 0) {
@@ -318,7 +318,7 @@ static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,
 
 	ORANGEFS_khandle_from(&(refn.khandle), fid->raw, 16);
 	refn.fs_id = (u32) fid->raw[4];
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "fh_to_dentry: handle %pU, fs_id %d\n",
 		     &refn.khandle,
 		     refn.fs_id);
@@ -346,7 +346,7 @@ static int orangefs_encode_fh(struct inode *inode,
 	ORANGEFS_khandle_to(&refn.khandle, fh, 16);
 	fh[4] = refn.fs_id;
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "Encoding fh: handle %pU, fsid %u\n",
 		     &refn.khandle,
 		     refn.fs_id);
@@ -358,7 +358,7 @@ static int orangefs_encode_fh(struct inode *inode,
 		fh[9] = refn.fs_id;
 
 		type = 2;
-		gossip_debug(GOSSIP_SUPER_DEBUG,
+		gossip_de(GOSSIP_SUPER_DE,
 			     "Encoding parent: handle %pU, fsid %u\n",
 			     &refn.khandle,
 			     refn.fs_id);
@@ -430,7 +430,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 
 	root_object.khandle = ORANGEFS_SB(sb)->root_khandle;
 	root_object.fs_id = ORANGEFS_SB(sb)->fs_id;
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "get inode %pU, fsid %d\n",
 		     &root_object.khandle,
 		     root_object.fs_id);
@@ -439,7 +439,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "Allocated root inode [%p] with mode %x\n",
 		     root,
 		     root->i_mode);
@@ -464,7 +464,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	struct orangefs_kernel_op_s *new_op;
 	struct dentry *d = ERR_PTR(-EINVAL);
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "orangefs_mount: called with devname %s\n",
 		     devname);
 
@@ -481,12 +481,12 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		devname,
 		ORANGEFS_MAX_SERVER_ADDR_LEN - 1);
 
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "Attempting ORANGEFS Mount via host %s\n",
 		     new_op->upcall.req.fs_mount.orangefs_config_server);
 
 	ret = service_operation(new_op, "orangefs_mount", 0);
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "orangefs_mount: mount got return value of %d\n", ret);
 	if (ret)
 		goto free_op;
@@ -530,7 +530,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	 * finally, add this sb to our list of known orangefs
 	 * sb's
 	 */
-	gossip_debug(GOSSIP_SUPER_DEBUG,
+	gossip_de(GOSSIP_SUPER_DE,
 		     "Adding SB %p to orangefs superblocks\n",
 		     ORANGEFS_SB(sb));
 	spin_lock(&orangefs_superblocks_lock);
@@ -575,7 +575,7 @@ free_op:
 void orangefs_kill_sb(struct super_block *sb)
 {
 	int r;
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_kill_sb: called\n");
+	gossip_de(GOSSIP_SUPER_DE, "orangefs_kill_sb: called\n");
 
 	/* provided sb cleanup */
 	kill_anon_super(sb);

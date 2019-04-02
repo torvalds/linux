@@ -300,7 +300,7 @@ static int vt8251_scr_write(struct ata_link *link, unsigned int scr, u32 val)
  *
  *	Outputs ATA taskfile to standard ATA host controller.
  *
- *	This is to fix the internal bug of via chipsets, which will
+ *	This is to fix the internal  of via chipsets, which will
  *	reset the device register after changing the IEN bit on ctl
  *	register.
  */
@@ -683,7 +683,7 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 	 * size goes below 32DW.  Setting it to 1 makes the watermark
 	 * 64DW.
 	 *
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=15173
+	 * https://zilla.kernel.org/show_.cgi?id=15173
 	 * http://article.gmane.org/gmane.linux.ide/46352
 	 * http://thread.gmane.org/gmane.linux.kernel/1062139
 	 *

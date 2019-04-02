@@ -128,14 +128,14 @@ struct ath10k_skb_rxcb {
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct ath10k_skb_cb) >
+	BUILD__ON(sizeof(struct ath10k_skb_cb) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct ath10k_skb_cb *)&IEEE80211_SKB_CB(skb)->driver_data;
 }
 
 static inline struct ath10k_skb_rxcb *ATH10K_SKB_RXCB(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct ath10k_skb_rxcb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct ath10k_skb_rxcb) > sizeof(skb->cb));
 	return (struct ath10k_skb_rxcb *)skb->cb;
 }
 
@@ -495,7 +495,7 @@ struct ath10k_sta {
 	u64 rx_duration;
 	struct ath10k_htt_tx_stats *tx_stats;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	/* protected by conf_mutex */
 	bool aggr_mode;
 
@@ -606,8 +606,8 @@ struct ath10k_fw_crash_data {
 	size_t ramdump_buf_len;
 };
 
-struct ath10k_debug {
-	struct dentry *debugfs_phy;
+struct ath10k_de {
+	struct dentry *defs_phy;
 
 	struct ath10k_fw_stats fw_stats;
 	struct completion fw_stats_complete;
@@ -1118,8 +1118,8 @@ struct ath10k {
 
 	unsigned long tx_paused; /* see ATH10K_TX_PAUSE_ */
 
-#ifdef CONFIG_ATH10K_DEBUGFS
-	struct ath10k_debug debug;
+#ifdef CONFIG_ATH10K_DEFS
+	struct ath10k_de de;
 	struct {
 		/* relay(fs) channel for spectral scan */
 		struct rchan *rfs_chan_spec_scan;

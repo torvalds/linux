@@ -388,7 +388,7 @@ static void rga_cmd_set(struct rga_ctx *ctx)
 
 	rga_cmd_set_src_addr(ctx, rga->src_mmu_pages);
 	/*
-	 * Due to hardware bug,
+	 * Due to hardware ,
 	 * src1 mmu also should be configured when using alpha blending.
 	 */
 	rga_cmd_set_src1_addr(ctx, rga->dst_mmu_pages);

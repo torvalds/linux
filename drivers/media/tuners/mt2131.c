@@ -26,11 +26,11 @@
 #include "mt2131.h"
 #include "mt2131_priv.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
-#define dprintk(level,fmt, arg...) if (debug >= level) \
+#define dprintk(level,fmt, arg...) if (de >= level) \
 	printk(KERN_INFO "%s: " fmt, "mt2131", ## arg)
 
 static u8 mt2131_config1[] = {

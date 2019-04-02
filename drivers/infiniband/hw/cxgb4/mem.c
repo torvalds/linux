@@ -123,7 +123,7 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		cmd |= cpu_to_be32(T5_ULP_MEMIO_IMM_F);
 
 	addr &= 0x7FFFFFF;
-	pr_debug("addr 0x%x len %u\n", addr, len);
+	pr_de("addr 0x%x len %u\n", addr, len);
 	num_wqe = DIV_ROUND_UP(len, C4IW_MAX_INLINE_SIZE);
 	c4iw_init_wr_wait(wr_waitp);
 	for (i = 0; i < num_wqe; i++) {
@@ -299,7 +299,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 		mutex_unlock(&rdev->stats.lock);
 		*stag = (stag_idx << 8) | (atomic_inc_return(&key) & 0xff);
 	}
-	pr_debug("stag_state 0x%0x type 0x%0x pdid 0x%0x, stag_idx 0x%x\n",
+	pr_de("stag_state 0x%0x type 0x%0x pdid 0x%0x, stag_idx 0x%x\n",
 		 stag_state, type, pdid, stag_idx);
 
 	/* write TPT entry */
@@ -341,7 +341,7 @@ static int write_pbl(struct c4iw_rdev *rdev, __be64 *pbl,
 {
 	int err;
 
-	pr_debug("*pdb_addr 0x%x, pbl_base 0x%x, pbl_size %d\n",
+	pr_de("*pdb_addr 0x%x, pbl_base 0x%x, pbl_size %d\n",
 		 pbl_addr, rdev->lldi.vr->pbl.start,
 		 pbl_size);
 
@@ -394,7 +394,7 @@ static int finish_mem_reg(struct c4iw_mr *mhp, u32 stag)
 	mhp->ibmr.length = mhp->attr.len;
 	mhp->ibmr.iova = mhp->attr.va_fbo;
 	mhp->ibmr.page_size = 1U << (mhp->attr.page_size + 12);
-	pr_debug("mmid 0x%x mhp %p\n", mmid, mhp);
+	pr_de("mmid 0x%x mhp %p\n", mmid, mhp);
 	return insert_handle(mhp->rhp, &mhp->rhp->mmidr, mhp, mmid);
 }
 
@@ -445,7 +445,7 @@ struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc)
 	int ret;
 	u32 stag = T4_STAG_UNSET;
 
-	pr_debug("ib_pd %p\n", pd);
+	pr_de("ib_pd %p\n", pd);
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 
@@ -509,7 +509,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct c4iw_pd *php;
 	struct c4iw_mr *mhp;
 
-	pr_debug("ib_pd %p\n", pd);
+	pr_de("ib_pd %p\n", pd);
 
 	if (length == ~0ULL)
 		return ERR_PTR(-EINVAL);
@@ -649,7 +649,7 @@ struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 		ret = -ENOMEM;
 		goto dealloc_win;
 	}
-	pr_debug("mmid 0x%x mhp %p stag 0x%x\n", mmid, mhp, stag);
+	pr_de("mmid 0x%x mhp %p stag 0x%x\n", mmid, mhp, stag);
 	return &(mhp->ibmw);
 
 dealloc_win:
@@ -678,7 +678,7 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 			  mhp->wr_waitp);
 	kfree_skb(mhp->dereg_skb);
 	c4iw_put_wr_wait(mhp->wr_waitp);
-	pr_debug("ib_mw %p mmid 0x%x ptr %p\n", mw, mmid, mhp);
+	pr_de("ib_mw %p mmid 0x%x ptr %p\n", mw, mmid, mhp);
 	kfree(mhp);
 	return 0;
 }
@@ -745,7 +745,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 		goto err_dereg;
 	}
 
-	pr_debug("mmid 0x%x mhp %p stag 0x%x\n", mmid, mhp, stag);
+	pr_de("mmid 0x%x mhp %p stag 0x%x\n", mmid, mhp, stag);
 	return &(mhp->ibmr);
 err_dereg:
 	dereg_mem(&rhp->rdev, stag, mhp->attr.pbl_size,
@@ -792,7 +792,7 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr)
 	struct c4iw_mr *mhp;
 	u32 mmid;
 
-	pr_debug("ib_mr %p\n", ib_mr);
+	pr_de("ib_mr %p\n", ib_mr);
 
 	mhp = to_c4iw_mr(ib_mr);
 	rhp = mhp->rhp;
@@ -810,7 +810,7 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr)
 		kfree((void *) (unsigned long) mhp->kva);
 	if (mhp->umem)
 		ib_umem_release(mhp->umem);
-	pr_debug("mmid 0x%x ptr %p\n", mmid, mhp);
+	pr_de("mmid 0x%x ptr %p\n", mmid, mhp);
 	c4iw_put_wr_wait(mhp->wr_waitp);
 	kfree(mhp);
 	return 0;

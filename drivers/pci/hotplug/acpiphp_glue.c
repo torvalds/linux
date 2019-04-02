@@ -301,7 +301,7 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 		if (ACPI_FAILURE(status))
 			sun = bridge->nr_slots;
 
-		pr_debug("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
+		pr_de("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
 		    sun, pci_domain_nr(pbus), pbus->number, device);
 
 		retval = acpiphp_register_hotplug_slot(slot, sun);
@@ -782,7 +782,7 @@ static void hotplug_event(u32 type, struct acpiphp_context *context)
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		/* bus re-enumerate */
-		acpi_handle_debug(handle, "Bus check in %s()\n", __func__);
+		acpi_handle_de(handle, "Bus check in %s()\n", __func__);
 		if (bridge)
 			acpiphp_check_bridge(bridge);
 		else if (!(slot->flags & SLOT_IS_GOING_AWAY))
@@ -792,7 +792,7 @@ static void hotplug_event(u32 type, struct acpiphp_context *context)
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/* device check */
-		acpi_handle_debug(handle, "Device check in %s()\n", __func__);
+		acpi_handle_de(handle, "Device check in %s()\n", __func__);
 		if (bridge) {
 			acpiphp_check_bridge(bridge);
 		} else if (!(slot->flags & SLOT_IS_GOING_AWAY)) {
@@ -807,7 +807,7 @@ static void hotplug_event(u32 type, struct acpiphp_context *context)
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
-		acpi_handle_debug(handle, "Eject request in %s()\n", __func__);
+		acpi_handle_de(handle, "Eject request in %s()\n", __func__);
 		acpiphp_disable_and_eject_slot(slot);
 		break;
 	}

@@ -134,7 +134,7 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 		*(u64*)fsidv = (u64)ino;
 		memcpy(fsidv+2, uuid, 16);
 		break;
-	default: BUG();
+	default: ();
 	}
 }
 
@@ -287,7 +287,7 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 	struct dentry	*dentry = fhp->fh_dentry;
 	struct inode	*inode;
 
-	BUG_ON(!dentry);
+	_ON(!dentry);
 
 	if (fhp->fh_locked) {
 		printk(KERN_WARNING "fh_lock: %pd2 already locked!\n",

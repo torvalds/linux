@@ -92,21 +92,21 @@ config UNINLINE_SPIN_UNLOCK
 
 #
 # lock_* functions are inlined when:
-#   - DEBUG_SPINLOCK=n and GENERIC_LOCKBREAK=n and ARCH_INLINE_*LOCK=y
+#   - DE_SPINLOCK=n and GENERIC_LOCKBREAK=n and ARCH_INLINE_*LOCK=y
 #
 # trylock_* functions are inlined when:
-#   - DEBUG_SPINLOCK=n and ARCH_INLINE_*LOCK=y
+#   - DE_SPINLOCK=n and ARCH_INLINE_*LOCK=y
 #
 # unlock and unlock_irq functions are inlined when:
-#   - DEBUG_SPINLOCK=n and ARCH_INLINE_*LOCK=y
+#   - DE_SPINLOCK=n and ARCH_INLINE_*LOCK=y
 #  or
-#   - DEBUG_SPINLOCK=n and PREEMPT=n
+#   - DE_SPINLOCK=n and PREEMPT=n
 #
 # unlock_bh and unlock_irqrestore functions are inlined when:
-#   - DEBUG_SPINLOCK=n and ARCH_INLINE_*LOCK=y
+#   - DE_SPINLOCK=n and ARCH_INLINE_*LOCK=y
 #
 
-if !DEBUG_SPINLOCK
+if !DE_SPINLOCK
 
 config INLINE_SPIN_TRYLOCK
 	def_bool y

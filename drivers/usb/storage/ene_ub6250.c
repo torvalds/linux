@@ -12,7 +12,7 @@
 #include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "scsiglue.h"
 
 #define SD_INIT1_FIRMWARE "ene-ub6250/sd_init1.bin"
@@ -2303,7 +2303,7 @@ static int ene_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result = USB_STOR_XFER_GOOD;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)(us->extra);
 
-	/*US_DEBUG(usb_stor_show_command(us, srb)); */
+	/*US_DE(usb_stor_show_command(us, srb)); */
 	scsi_set_resid(srb, 0);
 	if (unlikely(!(info->SD_Status.Ready || info->MS_Status.Ready)))
 		result = ene_init(us);

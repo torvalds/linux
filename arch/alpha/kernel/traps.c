@@ -12,7 +12,7 @@
 #include <linux/jiffies.h>
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/tty.h>
 #include <linux/delay.h>
 #include <linux/extable.h>
@@ -150,7 +150,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	int i;
 
 	/*
-	 * debugging aid: "show_stack(NULL);" prints the
+	 * deging aid: "show_stack(NULL);" prints the
 	 * back trace for this cpu.
 	 */
 	if(sp==NULL)
@@ -239,7 +239,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		if (type == 1) {
 			const unsigned int *data
 			  = (const unsigned int *) regs->pc;
-			printk("Kernel bug at %s:%d\n",
+			printk("Kernel  at %s:%d\n",
 			       (const char *)(data[1] | (long)data[2] << 32), 
 			       data[0]);
 		}
@@ -258,7 +258,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			}
 		}
 #endif /* ALPHA_WTINT */
-		die_if_kernel((type == 1 ? "Kernel Bug" : "Instruction fault"),
+		die_if_kernel((type == 1 ? "Kernel " : "Instruction fault"),
 			      regs, type, NULL);
 	}
 
@@ -272,7 +272,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 			       current);
 		return;
 
-	      case 1: /* bugcheck */
+	      case 1: /* check */
 		send_sig_fault(SIGTRAP, TRAP_UNK, (void __user *) regs->pc, 0,
 			       current);
 		return;
@@ -391,7 +391,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 }
 
 /* There is an ifdef in the PALcode in MILO that enables a 
-   "kernel debugging entry point" as an unprivileged call_pal.
+   "kernel deging entry point" as an unprivileged call_pal.
 
    We don't want to have anything to do with it, but unfortunately
    several versions of MILO included in distributions have it enabled,
@@ -981,7 +981,7 @@ trap_init(void)
 	wrkgp(gptr);
 
 	/* Hack for Multia (UDB) and JENSEN: some of their SRMs have
-	   a bug in the handling of the opDEC fault.  Fix it up if so.  */
+	   a  in the handling of the opDEC fault.  Fix it up if so.  */
 	if (implver() == IMPLVER_EV4)
 		opDEC_check();
 

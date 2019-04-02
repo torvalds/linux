@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "perf.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/event.h"
 #include "util/map.h"
 #include "util/symbol.h"
@@ -119,7 +119,7 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 	return TEST_OK;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_de("Not enough memory for adding a hist entry\n");
 	return TEST_FAIL;
 }
 

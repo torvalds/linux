@@ -703,8 +703,8 @@
 					clock-names = "intclk";
 				};
 
-				ab8500-debugfs {
-					compatible = "stericsson,ab8500-debug";
+				ab8500-defs {
+					compatible = "stericsson,ab8500-de";
 				};
 
 				codec: ab8500-codec {
@@ -754,7 +754,7 @@
 						regulator-min-microvolt = <2500000>;
 						regulator-max-microvolt = <2900000>;
 						regulator-boot-on;
-						/* BUG: If turned off MMC will be affected. */
+						/* : If turned off MMC will be affected. */
 						regulator-always-on;
 					};
 

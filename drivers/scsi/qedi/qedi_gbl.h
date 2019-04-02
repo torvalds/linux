@@ -12,7 +12,7 @@
 
 #include "qedi_iscsi.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 extern int qedi_do_not_recover;
 #else
 #define qedi_do_not_recover (0)
@@ -23,7 +23,7 @@ extern uint qedi_io_tracing;
 extern struct scsi_host_template qedi_host_template;
 extern struct iscsi_transport qedi_iscsi_transport;
 extern const struct qed_iscsi_ops *qedi_ops;
-extern const struct qedi_debugfs_ops qedi_debugfs_ops[];
+extern const struct qedi_defs_ops qedi_defs_ops[];
 extern const struct file_operations qedi_dbg_fops[];
 extern struct device_attribute *qedi_shost_attrs[];
 

@@ -178,7 +178,7 @@ nvkm_engine_ctor(const struct nvkm_engine_func *func,
 	engine->func = func;
 
 	if (!nvkm_boolopt(device->cfgopt, nvkm_subdev_name[index], enable)) {
-		nvkm_debug(&engine->subdev, "disabled\n");
+		nvkm_de(&engine->subdev, "disabled\n");
 		return -ENODEV;
 	}
 

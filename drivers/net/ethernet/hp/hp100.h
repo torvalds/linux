@@ -36,7 +36,7 @@
 /* Registers that are present on all pages  */
 
 #define HP100_REG_HW_ID		0x00	/* R:  (16) Unique card ID           */
-#define HP100_REG_TRACE		0x00	/* W:  (16) Used for debug output    */
+#define HP100_REG_TRACE		0x00	/* W:  (16) Used for de output    */
 #define HP100_REG_PAGING	0x02	/* R:  (16),15:4 Card ID             */
 					/* W:  (16),3:0 Switch pages         */
 #define HP100_REG_OPTION_LSW	0x04	/* RW: (16) Select card functions    */
@@ -139,7 +139,7 @@
 #define HP100_REG_PTR_RPDLSTART 0x10
 #define HP100_REG_PTR_RPDLEND   0x12
 #define HP100_REG_PTR_RINGPTRS  0x14
-#define HP100_REG_PTR_MEMDEBUG  0x1a
+#define HP100_REG_PTR_MEMDE  0x1a
 /* ------------------------------------------------------------------------ */
 
 
@@ -165,7 +165,7 @@
  *  Option Registers I and II
  * (Always available, OPTION_LSW, Offset 0x04-0x05)
  */
-#define HP100_DEBUG_EN		0x8000	/* 0:Dis., 1:Enable Debug Dump Ptr. */
+#define HP100_DE_EN		0x8000	/* 0:Dis., 1:Enable De Dump Ptr. */
 #define HP100_RX_HDR		0x4000	/* 0:Dis., 1:Enable putting pkt into */
 					/*   system mem. before Rx interrupt */
 #define HP100_MMAP_DIS		0x2000	/* 0:Enable, 1:Disable mem.mapping. */

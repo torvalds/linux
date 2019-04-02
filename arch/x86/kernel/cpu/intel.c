@@ -13,7 +13,7 @@
 #include <asm/cpufeature.h>
 #include <asm/pgtable.h>
 #include <asm/msr.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/cpu.h>
 #include <asm/intel-family.h>
 #include <asm/microcode_intel.h>
@@ -320,7 +320,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
  *	This is called before we do cpu ident work
  */
 
-int ppro_with_ram_bug(void)
+int ppro_with_ram_(void)
 {
 	/* Uses data from early_cpu_detect now */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
@@ -346,7 +346,7 @@ static void intel_smp_check(struct cpuinfo_x86 *c)
 	    c->x86_stepping >= 1 && c->x86_stepping <= 4 &&
 	    c->x86_model <= 3) {
 		/*
-		 * Remember we have B step Pentia with bugs
+		 * Remember we have B step Pentia with s
 		 */
 		WARN_ONCE(1, "WARNING: SMP operation may be unreliable"
 				    "with B stepping processors.\n");
@@ -363,27 +363,27 @@ __setup("forcepae", forcepae_setup);
 
 static void intel_workarounds(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_X86_F00F_BUG
+#ifdef CONFIG_X86_F00F_
 	/*
 	 * All models of Pentium and Pentium with MMX technology CPUs
-	 * have the F0 0F bug, which lets nonprivileged users lock up the
+	 * have the F0 0F , which lets nonprivileged users lock up the
 	 * system. Announce that the fault handler will be checking for it.
-	 * The Quark is also family 5, but does not have the same bug.
+	 * The Quark is also family 5, but does not have the same .
 	 */
-	clear_cpu_bug(c, X86_BUG_F00F);
+	clear_cpu_(c, X86__F00F);
 	if (c->x86 == 5 && c->x86_model < 9) {
 		static int f00f_workaround_enabled;
 
-		set_cpu_bug(c, X86_BUG_F00F);
+		set_cpu_(c, X86__F00F);
 		if (!f00f_workaround_enabled) {
-			pr_notice("Intel Pentium with F0 0F bug - workaround enabled.\n");
+			pr_notice("Intel Pentium with F0 0F  - workaround enabled.\n");
 			f00f_workaround_enabled = 1;
 		}
 	}
 #endif
 
 	/*
-	 * SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until
+	 * SEP CPUID : Pentium Pro reports SEP but doesn't have it until
 	 * model 3 mask 3
 	 */
 	if ((c->x86<<8 | c->x86_model<<4 | c->x86_stepping) < 0x633)
@@ -413,14 +413,14 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * See if we have a good local APIC by checking for buggy Pentia,
+	 * See if we have a good local APIC by checking for gy Pentia,
 	 * i.e. all B steppings and the C2 stepping of P54C when using their
 	 * integrated APIC (see 11AP erratum in "Pentium Processor
 	 * Specification Update").
 	 */
 	if (boot_cpu_has(X86_FEATURE_APIC) && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
 	    (c->x86_stepping < 0x6 || c->x86_stepping == 0xb))
-		set_cpu_bug(c, X86_BUG_11AP);
+		set_cpu_(c, X86__11AP);
 
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
@@ -702,11 +702,11 @@ static void init_intel(struct cpuinfo_x86 *c)
 
 	if (c->x86 == 6 && boot_cpu_has(X86_FEATURE_CLFLUSH) &&
 	    (c->x86_model == 29 || c->x86_model == 46 || c->x86_model == 47))
-		set_cpu_bug(c, X86_BUG_CLFLUSH_MONITOR);
+		set_cpu_(c, X86__CLFLUSH_MONITOR);
 
 	if (c->x86 == 6 && boot_cpu_has(X86_FEATURE_MWAIT) &&
 		((c->x86_model == INTEL_FAM6_ATOM_GOLDMONT)))
-		set_cpu_bug(c, X86_BUG_MONITOR);
+		set_cpu_(c, X86__MONITOR);
 
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)

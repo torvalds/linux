@@ -87,6 +87,6 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 		(unsigned long) addr + size);
 		break;
 	default:
-		BUG();
+		();
 	}
 }

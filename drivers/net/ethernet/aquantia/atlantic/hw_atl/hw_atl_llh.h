@@ -266,9 +266,9 @@ void hw_atl_reg_rx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 				       u32 rx_intr_moderation_ctl,
 				u32 queue);
 
-/* set tx dma debug control */
-void hw_atl_reg_tx_dma_debug_ctl_set(struct aq_hw_s *aq_hw,
-				     u32 tx_dma_debug_ctl);
+/* set tx dma de control */
+void hw_atl_reg_tx_dma_de_ctl_set(struct aq_hw_s *aq_hw,
+				     u32 tx_dma_de_ctl);
 
 /* set tx dma descriptor base address lsw */
 void hw_atl_reg_tx_dma_desc_base_addresslswset(struct aq_hw_s *aq_hw,

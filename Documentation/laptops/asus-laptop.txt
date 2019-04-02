@@ -63,7 +63,7 @@ Usage
 
   You can get information on the version of your DSDT table by reading the
   /sys/devices/platform/asus-laptop/infos entry. If you have a question or a
-  bug report to do, please include the output of this entry.
+   report to do, please include the output of this entry.
 
 LEDs
 ----
@@ -149,7 +149,7 @@ Display switching
   In most cases, the appropriate displays must be plugged in for the above
   combinations to work. TV-Out may need to be initialized at boot time.
 
-  Debugging:
+  Deging:
   1) Check whether the Fn+F8 key:
      a) does not lock the laptop (try a boot with noapic / nolapic if it does)
      b) generates events (0x6n, where n is the value corresponding to the

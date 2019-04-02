@@ -38,7 +38,7 @@
 #include "quota.h"
 #include "usnjrnl.h"
 #include "dir.h"
-#include "debug.h"
+#include "de.h"
 #include "index.h"
 #include "inode.h"
 #include "aops.h"
@@ -186,7 +186,7 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 	}
 	if (!opt || !*opt)
 		goto no_mount_options;
-	ntfs_debug("Entering with mount options string: %s", opt);
+	ntfs_de("Entering with mount options string: %s", opt);
 	while ((p = strsep(&opt, ","))) {
 		if ((v = strchr(p, '=')))
 			*v++ = 0;
@@ -264,7 +264,7 @@ no_mount_options:
 	if (on_errors != -1) {
 		if (!on_errors) {
 			ntfs_error(vol->sb, "Invalid errors option argument "
-					"or bug in options parser.");
+					"or  in options parser.");
 			return false;
 		}
 	}
@@ -274,7 +274,7 @@ no_mount_options:
 					"on remount.");
 			return false;
 		} /* else (!vol->nls_map) */
-		ntfs_debug("Using NLS character set %s.", nls_map->charset);
+		ntfs_de("Using NLS character set %s.", nls_map->charset);
 		vol->nls_map = nls_map;
 	} else /* (!nls_map) */ {
 		if (!vol->nls_map) {
@@ -284,7 +284,7 @@ no_mount_options:
 						"NLS character set.");
 				return false;
 			}
-			ntfs_debug("Using default NLS character set (%s).",
+			ntfs_de("Using default NLS character set (%s).",
 					vol->nls_map->charset);
 		}
 	}
@@ -380,11 +380,11 @@ static int ntfs_write_volume_flags(ntfs_volume *vol, const VOLUME_FLAGS flags)
 	ntfs_attr_search_ctx *ctx;
 	int err;
 
-	ntfs_debug("Entering, old flags = 0x%x, new flags = 0x%x.",
+	ntfs_de("Entering, old flags = 0x%x, new flags = 0x%x.",
 			le16_to_cpu(vol->vol_flags), le16_to_cpu(flags));
 	if (vol->vol_flags == flags)
 		goto done;
-	BUG_ON(!ni);
+	_ON(!ni);
 	m = map_mft_record(ni);
 	if (IS_ERR(m)) {
 		err = PTR_ERR(m);
@@ -407,7 +407,7 @@ static int ntfs_write_volume_flags(ntfs_volume *vol, const VOLUME_FLAGS flags)
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(ni);
 done:
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 put_unm_err_out:
 	if (ctx)
@@ -467,7 +467,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 {
 	ntfs_volume *vol = NTFS_SB(sb);
 
-	ntfs_debug("Entering with remount options string: %s", opt);
+	ntfs_de("Entering with remount options string: %s", opt);
 
 	sync_filesystem(sb);
 
@@ -564,7 +564,7 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 	if (!parse_options(vol, opt))
 		return -EINVAL;
 
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 }
 
@@ -771,9 +771,9 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 
 	vol->sector_size = le16_to_cpu(b->bpb.bytes_per_sector);
 	vol->sector_size_bits = ffs(vol->sector_size) - 1;
-	ntfs_debug("vol->sector_size = %i (0x%x)", vol->sector_size,
+	ntfs_de("vol->sector_size = %i (0x%x)", vol->sector_size,
 			vol->sector_size);
-	ntfs_debug("vol->sector_size_bits = %i (0x%x)", vol->sector_size_bits,
+	ntfs_de("vol->sector_size_bits = %i (0x%x)", vol->sector_size_bits,
 			vol->sector_size_bits);
 	if (vol->sector_size < vol->sb->s_blocksize) {
 		ntfs_error(vol->sb, "Sector size (%i) is smaller than the "
@@ -782,19 +782,19 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 				vol->sb->s_blocksize);
 		return false;
 	}
-	ntfs_debug("sectors_per_cluster = 0x%x", b->bpb.sectors_per_cluster);
+	ntfs_de("sectors_per_cluster = 0x%x", b->bpb.sectors_per_cluster);
 	sectors_per_cluster_bits = ffs(b->bpb.sectors_per_cluster) - 1;
-	ntfs_debug("sectors_per_cluster_bits = 0x%x",
+	ntfs_de("sectors_per_cluster_bits = 0x%x",
 			sectors_per_cluster_bits);
 	nr_hidden_sects = le32_to_cpu(b->bpb.hidden_sectors);
-	ntfs_debug("number of hidden sectors = 0x%x", nr_hidden_sects);
+	ntfs_de("number of hidden sectors = 0x%x", nr_hidden_sects);
 	vol->cluster_size = vol->sector_size << sectors_per_cluster_bits;
 	vol->cluster_size_mask = vol->cluster_size - 1;
 	vol->cluster_size_bits = ffs(vol->cluster_size) - 1;
-	ntfs_debug("vol->cluster_size = %i (0x%x)", vol->cluster_size,
+	ntfs_de("vol->cluster_size = %i (0x%x)", vol->cluster_size,
 			vol->cluster_size);
-	ntfs_debug("vol->cluster_size_mask = 0x%x", vol->cluster_size_mask);
-	ntfs_debug("vol->cluster_size_bits = %i", vol->cluster_size_bits);
+	ntfs_de("vol->cluster_size_mask = 0x%x", vol->cluster_size_mask);
+	ntfs_de("vol->cluster_size_bits = %i", vol->cluster_size_bits);
 	if (vol->cluster_size < vol->sector_size) {
 		ntfs_error(vol->sb, "Cluster size (%i) is smaller than the "
 				"sector size (%i).  This is not supported.  "
@@ -802,7 +802,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		return false;
 	}
 	clusters_per_mft_record = b->clusters_per_mft_record;
-	ntfs_debug("clusters_per_mft_record = %i (0x%x)",
+	ntfs_de("clusters_per_mft_record = %i (0x%x)",
 			clusters_per_mft_record, clusters_per_mft_record);
 	if (clusters_per_mft_record > 0)
 		vol->mft_record_size = vol->cluster_size <<
@@ -816,11 +816,11 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		vol->mft_record_size = 1 << -clusters_per_mft_record;
 	vol->mft_record_size_mask = vol->mft_record_size - 1;
 	vol->mft_record_size_bits = ffs(vol->mft_record_size) - 1;
-	ntfs_debug("vol->mft_record_size = %i (0x%x)", vol->mft_record_size,
+	ntfs_de("vol->mft_record_size = %i (0x%x)", vol->mft_record_size,
 			vol->mft_record_size);
-	ntfs_debug("vol->mft_record_size_mask = 0x%x",
+	ntfs_de("vol->mft_record_size_mask = 0x%x",
 			vol->mft_record_size_mask);
-	ntfs_debug("vol->mft_record_size_bits = %i (0x%x)",
+	ntfs_de("vol->mft_record_size_bits = %i (0x%x)",
 			vol->mft_record_size_bits, vol->mft_record_size_bits);
 	/*
 	 * We cannot support mft record sizes above the PAGE_SIZE since
@@ -842,7 +842,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		return false;
 	}
 	clusters_per_index_record = b->clusters_per_index_record;
-	ntfs_debug("clusters_per_index_record = %i (0x%x)",
+	ntfs_de("clusters_per_index_record = %i (0x%x)",
 			clusters_per_index_record, clusters_per_index_record);
 	if (clusters_per_index_record > 0)
 		vol->index_record_size = vol->cluster_size <<
@@ -857,11 +857,11 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		vol->index_record_size = 1 << -clusters_per_index_record;
 	vol->index_record_size_mask = vol->index_record_size - 1;
 	vol->index_record_size_bits = ffs(vol->index_record_size) - 1;
-	ntfs_debug("vol->index_record_size = %i (0x%x)",
+	ntfs_de("vol->index_record_size = %i (0x%x)",
 			vol->index_record_size, vol->index_record_size);
-	ntfs_debug("vol->index_record_size_mask = 0x%x",
+	ntfs_de("vol->index_record_size_mask = 0x%x",
 			vol->index_record_size_mask);
-	ntfs_debug("vol->index_record_size_bits = %i (0x%x)",
+	ntfs_de("vol->index_record_size_bits = %i (0x%x)",
 			vol->index_record_size_bits,
 			vol->index_record_size_bits);
 	/* We cannot support index record sizes below the sector size. */
@@ -883,7 +883,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		return false;
 	}
 	vol->nr_clusters = ll;
-	ntfs_debug("vol->nr_clusters = 0x%llx", (long long)vol->nr_clusters);
+	ntfs_de("vol->nr_clusters = 0x%llx", (long long)vol->nr_clusters);
 	/*
 	 * On an architecture where unsigned long is 32-bits, we restrict the
 	 * volume size to 2TiB (2^41). On a 64-bit architecture, the compiler
@@ -907,7 +907,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		return false;
 	}
 	vol->mft_lcn = ll;
-	ntfs_debug("vol->mft_lcn = 0x%llx", (long long)vol->mft_lcn);
+	ntfs_de("vol->mft_lcn = 0x%llx", (long long)vol->mft_lcn);
 	ll = sle64_to_cpu(b->mftmirr_lcn);
 	if (ll >= vol->nr_clusters) {
 		ntfs_error(vol->sb, "MFTMirr LCN (%lli, 0x%llx) is beyond end "
@@ -916,7 +916,7 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 		return false;
 	}
 	vol->mftmirr_lcn = ll;
-	ntfs_debug("vol->mftmirr_lcn = 0x%llx", (long long)vol->mftmirr_lcn);
+	ntfs_de("vol->mftmirr_lcn = 0x%llx", (long long)vol->mftmirr_lcn);
 #ifdef NTFS_RW
 	/*
 	 * Work out the size of the mft mirror in number of mft records. If the
@@ -931,10 +931,10 @@ static bool parse_ntfs_boot_sector(ntfs_volume *vol, const NTFS_BOOT_SECTOR *b)
 	else
 		vol->mftmirr_size = vol->cluster_size >>
 				vol->mft_record_size_bits;
-	ntfs_debug("vol->mftmirr_size = %i", vol->mftmirr_size);
+	ntfs_de("vol->mftmirr_size = %i", vol->mftmirr_size);
 #endif /* NTFS_RW */
 	vol->serial_no = le64_to_cpu(b->volume_serial_number);
-	ntfs_debug("vol->serial_no = 0x%llx",
+	ntfs_de("vol->serial_no = 0x%llx",
 			(unsigned long long)vol->serial_no);
 	return true;
 }
@@ -951,7 +951,7 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 	LCN mft_zone_size, mft_lcn;
 #endif /* NTFS_RW */
 
-	ntfs_debug("vol->mft_zone_multiplier = 0x%x",
+	ntfs_de("vol->mft_zone_multiplier = 0x%x",
 			vol->mft_zone_multiplier);
 #ifdef NTFS_RW
 	/* Determine the size of the MFT zone. */
@@ -974,7 +974,7 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 	}
 	/* Setup the mft zone. */
 	vol->mft_zone_start = vol->mft_zone_pos = vol->mft_lcn;
-	ntfs_debug("vol->mft_zone_pos = 0x%llx",
+	ntfs_de("vol->mft_zone_pos = 0x%llx",
 			(unsigned long long)vol->mft_zone_pos);
 	/*
 	 * Calculate the mft_lcn for an unmodified NTFS volume (see mkntfs
@@ -991,7 +991,7 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 				vol->cluster_size;
 	if (vol->mft_zone_start <= mft_lcn)
 		vol->mft_zone_start = 0;
-	ntfs_debug("vol->mft_zone_start = 0x%llx",
+	ntfs_de("vol->mft_zone_start = 0x%llx",
 			(unsigned long long)vol->mft_zone_start);
 	/*
 	 * Need to cap the mft zone on non-standard volumes so that it does
@@ -1003,22 +1003,22 @@ static void ntfs_setup_allocators(ntfs_volume *vol)
 		mft_zone_size >>= 1;
 		vol->mft_zone_end = vol->mft_lcn + mft_zone_size;
 	}
-	ntfs_debug("vol->mft_zone_end = 0x%llx",
+	ntfs_de("vol->mft_zone_end = 0x%llx",
 			(unsigned long long)vol->mft_zone_end);
 	/*
 	 * Set the current position within each data zone to the start of the
 	 * respective zone.
 	 */
 	vol->data1_zone_pos = vol->mft_zone_end;
-	ntfs_debug("vol->data1_zone_pos = 0x%llx",
+	ntfs_de("vol->data1_zone_pos = 0x%llx",
 			(unsigned long long)vol->data1_zone_pos);
 	vol->data2_zone_pos = 0;
-	ntfs_debug("vol->data2_zone_pos = 0x%llx",
+	ntfs_de("vol->data2_zone_pos = 0x%llx",
 			(unsigned long long)vol->data2_zone_pos);
 
 	/* Set the mft data allocation position to mft record 24. */
 	vol->mft_data_pos = 24;
-	ntfs_debug("vol->mft_data_pos = 0x%llx",
+	ntfs_de("vol->mft_data_pos = 0x%llx",
 			(unsigned long long)vol->mft_data_pos);
 #endif /* NTFS_RW */
 }
@@ -1036,7 +1036,7 @@ static bool load_and_init_mft_mirror(ntfs_volume *vol)
 	struct inode *tmp_ino;
 	ntfs_inode *tmp_ni;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Get mft mirror inode. */
 	tmp_ino = ntfs_iget(vol->sb, FILE_MFTMirr);
 	if (IS_ERR(tmp_ino) || is_bad_inode(tmp_ino)) {
@@ -1070,7 +1070,7 @@ static bool load_and_init_mft_mirror(ntfs_volume *vol)
 	tmp_ni->itype.index.block_size = vol->mft_record_size;
 	tmp_ni->itype.index.block_size_bits = vol->mft_record_size_bits;
 	vol->mftmirr_ino = tmp_ino;
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 }
 
@@ -1081,7 +1081,7 @@ static bool load_and_init_mft_mirror(ntfs_volume *vol)
  * Return 'true' on success or 'false' on error.
  *
  * Note, this function also results in the mft mirror runlist being completely
- * mapped into memory.  The mft mirror write code requires this and will BUG()
+ * mapped into memory.  The mft mirror write code requires this and will ()
  * should it find an unmapped runlist element.
  */
 static bool check_mft_mirror(ntfs_volume *vol)
@@ -1094,11 +1094,11 @@ static bool check_mft_mirror(ntfs_volume *vol)
 	pgoff_t index;
 	int mrecs_per_page, i;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Compare contents of $MFT and $MFTMirr. */
 	mrecs_per_page = PAGE_SIZE / vol->mft_record_size;
-	BUG_ON(!mrecs_per_page);
-	BUG_ON(!vol->mftmirr_size);
+	_ON(!mrecs_per_page);
+	_ON(!vol->mftmirr_size);
 	mft_page = mirr_page = NULL;
 	kmft = kmirr = NULL;
 	index = i = 0;
@@ -1203,7 +1203,7 @@ mft_unmap_out:
 		}
 	} while (rl2[i++].length);
 	up_read(&mirr_ni->runlist.lock);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 }
 
@@ -1218,7 +1218,7 @@ static bool load_and_check_logfile(ntfs_volume *vol,
 {
 	struct inode *tmp_ino;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	tmp_ino = ntfs_iget(vol->sb, FILE_LogFile);
 	if (IS_ERR(tmp_ino) || is_bad_inode(tmp_ino)) {
 		if (!IS_ERR(tmp_ino))
@@ -1233,7 +1233,7 @@ static bool load_and_check_logfile(ntfs_volume *vol,
 	}
 	NInoSetSparseDisabled(NTFS_I(tmp_ino));
 	vol->logfile_ino = tmp_ino;
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 }
 
@@ -1279,7 +1279,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 			cpu_to_le16('s'), cpu_to_le16('y'),
 			cpu_to_le16('s'), 0 };
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/*
 	 * Find the inode number for the hibernation file by looking up the
 	 * filename hiberfil.sys in the root directory.
@@ -1292,7 +1292,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 		ret = MREF_ERR(mref);
 		/* If the file does not exist, Windows is not hibernated. */
 		if (ret == -ENOENT) {
-			ntfs_debug("hiberfil.sys not present.  Windows is not "
+			ntfs_de("hiberfil.sys not present.  Windows is not "
 					"hibernated on the volume.");
 			return 0;
 		}
@@ -1312,7 +1312,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 		return IS_ERR(vi) ? PTR_ERR(vi) : -EIO;
 	}
 	if (unlikely(i_size_read(vi) < NTFS_HIBERFIL_HEADER_SIZE)) {
-		ntfs_debug("hiberfil.sys is smaller than 4kiB (0x%llx).  "
+		ntfs_de("hiberfil.sys is smaller than 4kiB (0x%llx).  "
 				"Windows is hibernated on the volume.  This "
 				"is not the system volume.", i_size_read(vi));
 		goto iput_out;
@@ -1325,7 +1325,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	}
 	kaddr = (u32*)page_address(page);
 	if (*(le32*)kaddr == cpu_to_le32(0x72626968)/*'hibr'*/) {
-		ntfs_debug("Magic \"hibr\" found in hiberfil.sys.  Windows is "
+		ntfs_de("Magic \"hibr\" found in hiberfil.sys.  Windows is "
 				"hibernated on the volume.  This is the "
 				"system volume.");
 		goto unm_iput_out;
@@ -1333,7 +1333,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	kend = kaddr + NTFS_HIBERFIL_HEADER_SIZE/sizeof(*kaddr);
 	do {
 		if (unlikely(*kaddr)) {
-			ntfs_debug("hiberfil.sys is larger than 4kiB "
+			ntfs_de("hiberfil.sys is larger than 4kiB "
 					"(0x%llx), does not contain the "
 					"\"hibr\" magic, and does not have a "
 					"zero header.  Windows is hibernated "
@@ -1342,7 +1342,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 			goto unm_iput_out;
 		}
 	} while (++kaddr < kend);
-	ntfs_debug("hiberfil.sys contains a zero header.  Windows is not "
+	ntfs_de("hiberfil.sys contains a zero header.  Windows is not "
 			"hibernated on the volume.  This is the system "
 			"volume.");
 	ret = 0;
@@ -1372,7 +1372,7 @@ static bool load_and_init_quota(ntfs_volume *vol)
 	static ntfschar Q[3] = { cpu_to_le16('$'),
 			cpu_to_le16('Q'), 0 };
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/*
 	 * Find the inode number for the quota file by looking up the filename
 	 * $Quota in the extended system files directory $Extend.
@@ -1387,7 +1387,7 @@ static bool load_and_init_quota(ntfs_volume *vol)
 		 * never been enabled on this volume, just return success.
 		 */
 		if (MREF_ERR(mref) == -ENOENT) {
-			ntfs_debug("$Quota not present.  Volume does not have "
+			ntfs_de("$Quota not present.  Volume does not have "
 					"quotas enabled.");
 			/*
 			 * No need to try to set quotas out of date if they are
@@ -1418,7 +1418,7 @@ static bool load_and_init_quota(ntfs_volume *vol)
 		return false;
 	}
 	vol->quota_q_ino = tmp_ino;
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 }
 
@@ -1455,7 +1455,7 @@ static bool load_and_init_usnjrnl(ntfs_volume *vol)
 	static ntfschar J[3] = { cpu_to_le16('$'),
 			cpu_to_le16('J'), 0 };
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/*
 	 * Find the inode number for the transaction log file by looking up the
 	 * filename $UsnJrnl in the extended system files directory $Extend.
@@ -1470,7 +1470,7 @@ static bool load_and_init_usnjrnl(ntfs_volume *vol)
 		 * just return success.
 		 */
 		if (MREF_ERR(mref) == -ENOENT) {
-			ntfs_debug("$UsnJrnl not present.  Volume does not "
+			ntfs_de("$UsnJrnl not present.  Volume does not "
 					"have transaction logging enabled.");
 not_enabled:
 			/*
@@ -1501,7 +1501,7 @@ not_enabled:
 	 * ignore it.
 	 */
 	if (unlikely(vol->vol_flags & VOLUME_DELETE_USN_UNDERWAY)) {
-		ntfs_debug("$UsnJrnl in the process of being disabled.  "
+		ntfs_de("$UsnJrnl in the process of being disabled.  "
 				"Volume does not have transaction logging "
 				"enabled.");
 		goto not_enabled;
@@ -1563,7 +1563,7 @@ not_enabled:
 		if (likely(sle64_to_cpu(uh->lowest_valid_usn) ==
 				i_size_read(vol->usnjrnl_j_ino))) {
 			ntfs_unmap_page(page);
-			ntfs_debug("$UsnJrnl is enabled but nothing has been "
+			ntfs_de("$UsnJrnl is enabled but nothing has been "
 					"logged since it was last stamped.  "
 					"Treating this as if the volume does "
 					"not have transaction logging "
@@ -1579,7 +1579,7 @@ not_enabled:
 		return false;
 	}
 	ntfs_unmap_page(page);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 }
 
@@ -1598,7 +1598,7 @@ static bool load_and_init_attrdef(ntfs_volume *vol)
 	pgoff_t index, max_index;
 	unsigned int size;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Read attrdef table and setup vol->attrdef and vol->attrdef_size. */
 	ino = ntfs_iget(sb, FILE_AttrDef);
 	if (IS_ERR(ino) || is_bad_inode(ino)) {
@@ -1633,7 +1633,7 @@ read_partial_attrdef_page:
 			goto read_partial_attrdef_page;
 	}
 	vol->attrdef_size = i_size;
-	ntfs_debug("Read %llu bytes from $AttrDef.", i_size);
+	ntfs_de("Read %llu bytes from $AttrDef.", i_size);
 	iput(ino);
 	return true;
 free_iput_failed:
@@ -1664,7 +1664,7 @@ static bool load_and_init_upcase(ntfs_volume *vol)
 	unsigned int size;
 	int i, max;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Read upcase table and setup vol->upcase and vol->upcase_len. */
 	ino = ntfs_iget(sb, FILE_UpCase);
 	if (IS_ERR(ino) || is_bad_inode(ino)) {
@@ -1702,12 +1702,12 @@ read_partial_upcase_page:
 			goto read_partial_upcase_page;
 	}
 	vol->upcase_len = i_size >> UCHAR_T_SIZE_BITS;
-	ntfs_debug("Read %llu bytes from $UpCase (expected %zu bytes).",
+	ntfs_de("Read %llu bytes from $UpCase (expected %zu bytes).",
 			i_size, 64 * 1024 * sizeof(ntfschar));
 	iput(ino);
 	mutex_lock(&ntfs_lock);
 	if (!default_upcase) {
-		ntfs_debug("Using volume specified $UpCase since default is "
+		ntfs_de("Using volume specified $UpCase since default is "
 				"not present.");
 		mutex_unlock(&ntfs_lock);
 		return true;
@@ -1724,12 +1724,12 @@ read_partial_upcase_page:
 		vol->upcase_len = max;
 		ntfs_nr_upcase_users++;
 		mutex_unlock(&ntfs_lock);
-		ntfs_debug("Volume specified $UpCase matches default. Using "
+		ntfs_de("Volume specified $UpCase matches default. Using "
 				"default.");
 		return true;
 	}
 	mutex_unlock(&ntfs_lock);
-	ntfs_debug("Using volume specified $UpCase since it does not match "
+	ntfs_de("Using volume specified $UpCase since it does not match "
 			"the default.");
 	return true;
 iput_upcase_failed:
@@ -1780,7 +1780,7 @@ static bool load_system_files(ntfs_volume *vol)
 	int err;
 #endif /* NTFS_RW */
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 #ifdef NTFS_RW
 	/* Get mft mirror inode compare the contents of $MFT and $MFTMirr. */
 	if (!load_and_init_mft_mirror(vol) || !check_mft_mirror(vol)) {
@@ -1969,7 +1969,7 @@ get_ctx_vol_failed:
 						"remount-ro was specified%s",
 						es1, es2);
 				if (vol->logfile_ino) {
-					BUG_ON(!rp);
+					_ON(!rp);
 					ntfs_free(rp);
 				}
 				goto iput_logfile_err_out;
@@ -2263,7 +2263,7 @@ static void ntfs_put_super(struct super_block *sb)
 {
 	ntfs_volume *vol = NTFS_SB(sb);
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 
 #ifdef NTFS_RW
 	/*
@@ -2463,7 +2463,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	struct page *page;
 	pgoff_t index, max_index;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Serialize accesses to the cluster bitmap. */
 	down_read(&vol->lcnbmp_lock);
 	/*
@@ -2474,7 +2474,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	max_index = (((vol->nr_clusters + 7) >> 3) + PAGE_SIZE - 1) >>
 			PAGE_SHIFT;
 	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
-	ntfs_debug("Reading $Bitmap, max_index = 0x%lx, max_size = 0x%lx.",
+	ntfs_de("Reading $Bitmap, max_index = 0x%lx, max_size = 0x%lx.",
 			max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
 		unsigned long *kaddr;
@@ -2486,7 +2486,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		page = read_mapping_page(mapping, index, NULL);
 		/* Ignore pages which errored synchronously. */
 		if (IS_ERR(page)) {
-			ntfs_debug("read_mapping_page() error. Skipping "
+			ntfs_de("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
 			nr_free -= PAGE_SIZE * 8;
 			continue;
@@ -2504,7 +2504,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		kunmap_atomic(kaddr);
 		put_page(page);
 	}
-	ntfs_debug("Finished reading $Bitmap, last index = 0x%lx.", index - 1);
+	ntfs_de("Finished reading $Bitmap, last index = 0x%lx.", index - 1);
 	/*
 	 * Fixup for eventual bits outside logical ntfs volume (see function
 	 * description above).
@@ -2515,7 +2515,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 	/* If errors occurred we may well have gone below zero, fix this. */
 	if (nr_free < 0)
 		nr_free = 0;
-	ntfs_debug("Exiting.");
+	ntfs_de("Exiting.");
 	return nr_free;
 }
 
@@ -2543,9 +2543,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 	struct page *page;
 	pgoff_t index;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Use multiples of 4 bytes, thus max_size is PAGE_SIZE / 4. */
-	ntfs_debug("Reading $MFT/$BITMAP, max_index = 0x%lx, max_size = "
+	ntfs_de("Reading $MFT/$BITMAP, max_index = 0x%lx, max_size = "
 			"0x%lx.", max_index, PAGE_SIZE / 4);
 	for (index = 0; index < max_index; index++) {
 		unsigned long *kaddr;
@@ -2557,7 +2557,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		page = read_mapping_page(mapping, index, NULL);
 		/* Ignore pages which errored synchronously. */
 		if (IS_ERR(page)) {
-			ntfs_debug("read_mapping_page() error. Skipping "
+			ntfs_de("read_mapping_page() error. Skipping "
 					"page (index 0x%lx).", index);
 			nr_free -= PAGE_SIZE * 8;
 			continue;
@@ -2575,12 +2575,12 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		kunmap_atomic(kaddr);
 		put_page(page);
 	}
-	ntfs_debug("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
+	ntfs_de("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
 			index - 1);
 	/* If errors occurred we may well have gone below zero, fix this. */
 	if (nr_free < 0)
 		nr_free = 0;
-	ntfs_debug("Exiting.");
+	ntfs_de("Exiting.");
 	return nr_free;
 }
 
@@ -2611,7 +2611,7 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	pgoff_t max_index;
 	unsigned long flags;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/* Type of filesystem. */
 	sfs->f_type   = NTFS_SB_MAGIC;
 	/* Optimal transfer block size. */
@@ -2726,7 +2726,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	 * lock class registrations.]
 	 */
 	lockdep_off();
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 #ifndef NTFS_RW
 	sb->s_flags |= SB_RDONLY;
 #endif /* ! NTFS_RW */
@@ -2783,8 +2783,8 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 			ntfs_error(sb, "Unable to set device block size.");
 		goto err_out_now;
 	}
-	BUG_ON(blocksize != sb->s_blocksize);
-	ntfs_debug("Set device block size to %i bytes (block size bits %i).",
+	_ON(blocksize != sb->s_blocksize);
+	ntfs_de("Set device block size to %i bytes (block size bits %i).",
 			blocksize, sb->s_blocksize_bits);
 	/* Determine the size of the device in units of block_size bytes. */
 	if (!i_size_read(sb->s_bdev->bd_inode)) {
@@ -2830,10 +2830,10 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 						vol->sector_size);
 			goto err_out_now;
 		}
-		BUG_ON(blocksize != sb->s_blocksize);
+		_ON(blocksize != sb->s_blocksize);
 		vol->nr_blocks = i_size_read(sb->s_bdev->bd_inode) >>
 				sb->s_blocksize_bits;
-		ntfs_debug("Changed device block size to %i bytes (block size "
+		ntfs_de("Changed device block size to %i bytes (block size "
 				"bits %i) to match volume sector size.",
 				blocksize, sb->s_blocksize_bits);
 	}
@@ -2913,7 +2913,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	/* We grab a reference, simulating an ntfs_iget(). */
 	ihold(vol->root_ino);
 	if ((sb->s_root = d_make_root(vol->root_ino))) {
-		ntfs_debug("Exiting, status successful.");
+		ntfs_de("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);
 		if (!--ntfs_nr_upcase_users && default_upcase) {
@@ -3025,7 +3025,7 @@ iput_tmp_ino_err_out_now:
 err_out_now:
 	sb->s_fs_info = NULL;
 	kfree(vol);
-	ntfs_debug("Failed, returning -EINVAL.");
+	ntfs_de("Failed, returning -EINVAL.");
 	lockdep_on();
 	return -EINVAL;
 }
@@ -3092,15 +3092,15 @@ static int __init init_ntfs_fs(void)
 #else
 			"O"
 #endif
-#ifdef DEBUG
-			" DEBUG"
+#ifdef DE
+			" DE"
 #endif
 #ifdef MODULE
 			" MODULE"
 #endif
 			"].\n");
 
-	ntfs_debug("Debug messages are enabled.");
+	ntfs_de("De messages are enabled.");
 
 	ntfs_index_ctx_cache = kmem_cache_create(ntfs_index_ctx_cache_name,
 			sizeof(ntfs_index_context), 0 /* offset */,
@@ -3152,7 +3152,7 @@ static int __init init_ntfs_fs(void)
 
 	err = register_filesystem(&ntfs_fs_type);
 	if (!err) {
-		ntfs_debug("NTFS driver registered successfully.");
+		ntfs_de("NTFS driver registered successfully.");
 		return 0; /* Success! */
 	}
 	pr_crit("Failed to register NTFS filesystem driver!\n");
@@ -3179,7 +3179,7 @@ ictx_err_out:
 
 static void __exit exit_ntfs_fs(void)
 {
-	ntfs_debug("Unregistering NTFS driver.");
+	ntfs_de("Unregistering NTFS driver.");
 
 	unregister_filesystem(&ntfs_fs_type);
 
@@ -3201,9 +3201,9 @@ MODULE_AUTHOR("Anton Altaparmakov <anton@tuxera.com>");
 MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.");
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
-#ifdef DEBUG
-module_param(debug_msgs, bint, 0);
-MODULE_PARM_DESC(debug_msgs, "Enable debug messages.");
+#ifdef DE
+module_param(de_msgs, bint, 0);
+MODULE_PARM_DESC(de_msgs, "Enable de messages.");
 #endif
 
 module_init(init_ntfs_fs)

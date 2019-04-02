@@ -74,7 +74,7 @@
  */
 #include <linux/amba/bus.h>
 #include <linux/amba/pl08x.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dmaengine.h>
@@ -793,7 +793,7 @@ static u32 pl08x_getbytes_chan(struct pl08x_dma_chan *plchan)
 	llis_bus = txd->llis_bus;
 
 	llis_max_words = pl08x->lli_words * MAX_NUM_TSFR_LLIS;
-	BUG_ON(clli < llis_bus || clli >= llis_bus +
+	_ON(clli < llis_bus || clli >= llis_bus +
 						sizeof(u32) * llis_max_words);
 
 	/*
@@ -998,7 +998,7 @@ pl08x_get_bytes_for_lli(struct pl08x_driver_data *pl08x,
 	default:
 		break;
 	}
-	BUG();
+	();
 	return 0;
 }
 
@@ -1033,7 +1033,7 @@ static inline u32 pl08x_lli_control_bits(struct pl08x_driver_data *pl08x,
 				FTDMAC020_LLI_SRC_WIDTH_SHIFT;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -1051,7 +1051,7 @@ static inline u32 pl08x_lli_control_bits(struct pl08x_driver_data *pl08x,
 				FTDMAC020_LLI_DST_WIDTH_SHIFT;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -1076,7 +1076,7 @@ static inline u32 pl08x_lli_control_bits(struct pl08x_driver_data *pl08x,
 				PL080_CONTROL_SWIDTH_SHIFT;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -1094,7 +1094,7 @@ static inline u32 pl08x_lli_control_bits(struct pl08x_driver_data *pl08x,
 				PL080_CONTROL_DWIDTH_SHIFT;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -1175,7 +1175,7 @@ static void pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 	u32 *llis_va = bd->txd->llis_va + offset;
 	dma_addr_t llis_bus = bd->txd->llis_bus;
 
-	BUG_ON(num_llis >= MAX_NUM_TSFR_LLIS);
+	_ON(num_llis >= MAX_NUM_TSFR_LLIS);
 
 	/* Advance the offset to next LLI. */
 	offset += pl08x->lli_words;
@@ -1199,7 +1199,7 @@ static void pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 			bd->dstbus.addr += len;
 	}
 
-	BUG_ON(bd->remainder < len);
+	_ON(bd->remainder < len);
 
 	bd->remainder -= len;
 }
@@ -2438,7 +2438,7 @@ static void pl08x_free_virtual_channels(struct dma_device *dmadev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const char *pl08x_state_str(enum pl08x_dma_chan_state state)
 {
 	switch (state) {
@@ -2456,7 +2456,7 @@ static const char *pl08x_state_str(enum pl08x_dma_chan_state state)
 	return "UNKNOWN STATE";
 }
 
-static int pl08x_debugfs_show(struct seq_file *s, void *data)
+static int pl08x_defs_show(struct seq_file *s, void *data)
 {
 	struct pl08x_driver_data *pl08x = s->private;
 	struct pl08x_dma_chan *chan;
@@ -2505,18 +2505,18 @@ static int pl08x_debugfs_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(pl08x_debugfs);
+DEFINE_SHOW_ATTRIBUTE(pl08x_defs);
 
-static void init_pl08x_debugfs(struct pl08x_driver_data *pl08x)
+static void init_pl08x_defs(struct pl08x_driver_data *pl08x)
 {
-	/* Expose a simple debugfs interface to view all clocks */
-	(void) debugfs_create_file(dev_name(&pl08x->adev->dev),
+	/* Expose a simple defs interface to view all clocks */
+	(void) defs_create_file(dev_name(&pl08x->adev->dev),
 			S_IFREG | S_IRUGO, NULL, pl08x,
-			&pl08x_debugfs_fops);
+			&pl08x_defs_fops);
 }
 
 #else
-static inline void init_pl08x_debugfs(struct pl08x_driver_data *pl08x)
+static inline void init_pl08x_defs(struct pl08x_driver_data *pl08x)
 {
 }
 #endif
@@ -2962,7 +2962,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	amba_set_drvdata(adev, pl08x);
-	init_pl08x_debugfs(pl08x);
+	init_pl08x_defs(pl08x);
 	dev_info(&pl08x->adev->dev, "DMA: PL%03x%s rev%u at 0x%08llx irq %d\n",
 		 amba_part(adev), pl08x->vd->pl080s ? "s" : "", amba_rev(adev),
 		 (unsigned long long)adev->res.start, adev->irq[0]);

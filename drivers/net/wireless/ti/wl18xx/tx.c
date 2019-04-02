@@ -21,7 +21,7 @@
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
 
@@ -134,7 +134,7 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 		skb_pull(skb, WL1271_EXTRA_SPACE_TKIP);
 	}
 
-	wl1271_debug(DEBUG_TX, "tx status id %u skb 0x%p success %d",
+	wl1271_de(DE_TX, "tx status id %u skb 0x%p success %d",
 		     id, skb, tx_success);
 
 	/* return the packet to the stack */
@@ -165,7 +165,7 @@ void wl18xx_tx_immediate_complete(struct wl1271 *wl)
 	}
 
 	/* freed Tx descriptors */
-	wl1271_debug(DEBUG_TX, "last released desc = %d, current idx = %d",
+	wl1271_de(DE_TX, "last released desc = %d, current idx = %d",
 		     priv->last_fw_rls_idx, status_priv->fw_release_idx);
 
 	if (status_priv->fw_release_idx >= WL18XX_FW_MAX_TX_STATUS_DESC) {

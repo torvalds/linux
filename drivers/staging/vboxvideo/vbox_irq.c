@@ -41,7 +41,7 @@ irqreturn_t vbox_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/*
-	 * Due to a bug in the initial host implementation of hot-plug irqs,
+	 * Due to a  in the initial host implementation of hot-plug irqs,
 	 * the hot-plug and cursor capability flags were never cleared.
 	 * Fortunately we can tell when they would have been set by checking
 	 * that the VSYNC flag is not set.

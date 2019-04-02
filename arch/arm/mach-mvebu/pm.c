@@ -93,7 +93,7 @@ static phys_addr_t mvebu_internal_reg_base(void)
 	__be32 in_addr[2];
 
 	np = of_find_node_by_name(NULL, "internal-regs");
-	BUG_ON(!np);
+	_ON(!np);
 
 	/*
 	 * Ask the DT what is the internal register address on this

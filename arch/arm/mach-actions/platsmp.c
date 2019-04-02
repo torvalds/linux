@@ -143,7 +143,7 @@ static void __init s500_smp_prepare_cpus(unsigned int max_cpus)
 		 * booting the cores.
 		 */
 		ncores = scu_get_core_count(scu_base_addr);
-		pr_debug("%s: ncores %d\n", __func__, ncores);
+		pr_de("%s: ncores %d\n", __func__, ncores);
 
 		scu_enable(scu_base_addr);
 	}

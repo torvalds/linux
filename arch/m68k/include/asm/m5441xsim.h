@@ -261,9 +261,9 @@
 #define MCFGPIO_PAR_SIMP0L	0xec094057
 #define MCFGPIO_PAR_SSI0H	0xec094058
 #define MCFGPIO_PAR_SSI0L	0xec094059
-#define MCFGPIO_PAR_DEBUGH1	0xec09405a
-#define MCFGPIO_PAR_DEBUGH0	0xec09405b
-#define MCFGPIO_PAR_DEBUGl	0xec09405c
+#define MCFGPIO_PAR_DEH1	0xec09405a
+#define MCFGPIO_PAR_DEH0	0xec09405b
+#define MCFGPIO_PAR_DEl	0xec09405c
 #define MCFGPIO_PAR_FEC		0xec09405e
 
 /* generalization for generic gpio support */

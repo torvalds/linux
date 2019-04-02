@@ -310,10 +310,10 @@ static int dt3k_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static int debug_n_ints;
+static int de_n_ints;
 
 /* FIXME! Assumes shared interrupt is for this card. */
-/* What's this debug_n_ints stuff? Obviously needs some work... */
+/* What's this de_n_ints stuff? Obviously needs some work... */
 static irqreturn_t dt3k_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -331,8 +331,8 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 	if (status & (DPR_INTR_ADSWERR | DPR_INTR_ADHWERR))
 		s->async->events |= COMEDI_CB_ERROR;
 
-	debug_n_ints++;
-	if (debug_n_ints >= 10)
+	de_n_ints++;
+	if (de_n_ints >= 10)
 		s->async->events |= COMEDI_CB_EOA;
 
 	comedi_handle_events(dev, s);
@@ -494,7 +494,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writew(DPR_INTR_ADFULL | DPR_INTR_ADSWERR | DPR_INTR_ADHWERR,
 	       dev->mmio + DPR_INT_MASK);
 
-	debug_n_ints = 0;
+	de_n_ints = 0;
 
 	writew(DPR_SUBSYS_AI, dev->mmio + DPR_SUBSYS);
 	dt3k_send_cmd(dev, DPR_CMD_START);

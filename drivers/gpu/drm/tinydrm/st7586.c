@@ -128,7 +128,7 @@ static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	rect->x1 = rounddown(rect->x1, 3);
 	rect->x2 = roundup(rect->x2, 3);
 
-	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
+	DRM_DE_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
 	ret = st7586_buf_copy(mipi->tx_buf, fb, rect);
 	if (ret)
@@ -187,7 +187,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 	int ret;
 	u8 addr_mode;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	ret = mipi_dbi_poweron_reset(mipi);
 	if (ret)
@@ -251,7 +251,7 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if (!mipi->enabled)
 		return;
@@ -298,7 +298,7 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 
 	drm_mode_config_reset(tdev->drm);
 
-	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
+	DRM_DE_KMS("preferred_depth=%u, rotation = %u\n",
 		      tdev->drm->mode_config.preferred_depth, rotation);
 
 	return 0;
@@ -322,7 +322,7 @@ static struct drm_driver st7586_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
-	.debugfs_init		= mipi_dbi_debugfs_init,
+	.defs_init		= mipi_dbi_defs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",
 	.date			= "20170801",

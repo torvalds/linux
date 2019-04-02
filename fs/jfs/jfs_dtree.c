@@ -109,7 +109,7 @@
 #include "jfs_metapage.h"
 #include "jfs_dmap.h"
 #include "jfs_unicode.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /* dtree split parameter */
 struct dtsplit {

@@ -2327,7 +2327,7 @@ breakdown of reclaim progress within the group, the high boundary can
 be exceeded.  But even then it's mostly better to satisfy the
 allocation from the slack available in other groups or the rest of the
 system than killing the group.  Otherwise, memory.max is there to
-limit this type of spillover and ultimately contain buggy or even
+limit this type of spillover and ultimately contain gy or even
 malicious applications.
 
 Setting the original memory.limit_in_bytes below the current usage was

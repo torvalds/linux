@@ -90,7 +90,7 @@ struct wlcore_ops {
 			    struct sk_buff *skb);
 	u32 (*ap_get_mimo_wide_rate_mask)(struct wl1271 *wl,
 					  struct wl12xx_vif *wlvif);
-	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
+	int (*defs_init)(struct wl1271 *wl, struct dentry *rootdir);
 	int (*handle_static_data)(struct wl1271 *wl,
 				  struct wl1271_static_data *static_data);
 	int (*scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -467,7 +467,7 @@ struct wl1271 {
 
 	/* the current dfs region */
 	enum nl80211_dfs_regions dfs_region;
-	bool radar_debug_mode;
+	bool radar_de_mode;
 
 	/* size of the private FW status data */
 	size_t fw_status_len;
@@ -626,7 +626,7 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
  */
 #define INTR_TRIG_RX_PROC0 BIT(3)
 
-#define INTR_TRIG_DEBUG_ACK BIT(4)
+#define INTR_TRIG_DE_ACK BIT(4)
 
 #define INTR_TRIG_STATE_CHANGED BIT(5)
 

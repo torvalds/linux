@@ -67,14 +67,14 @@ static u8 tos_to_tid[] = {
 static u8 ac_to_tid[4][2] = { {1, 2}, {0, 3}, {4, 5}, {6, 7} };
 
 /*
- * This function debug prints the priority parameters for a WMM AC.
+ * This function de prints the priority parameters for a WMM AC.
  */
 static void
-mwifiex_wmm_ac_debug_print(const struct ieee_types_wmm_ac_parameters *ac_param)
+mwifiex_wmm_ac_de_print(const struct ieee_types_wmm_ac_parameters *ac_param)
 {
 	const char *ac_str[] = { "BK", "BE", "VI", "VO" };
 
-	pr_debug("info: WMM AC_%s: ACI=%d, ACM=%d, Aifsn=%d, "
+	pr_de("info: WMM AC_%s: ACI=%d, ACM=%d, Aifsn=%d, "
 		 "EcwMin=%d, EcwMax=%d, TxopLimit=%d\n",
 		 ac_str[wmm_aci_to_qidx_map[(ac_param->aci_aifsn_bitmap
 					     & MWIFIEX_ACI) >> 5]],
@@ -258,7 +258,7 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 			    "info: WMM: CWmax=%d CWmin=%d Avg Back-off=%d\n",
 			    (1 << ((ecw & MWIFIEX_ECW_MAX) >> 4)) - 1,
 			    cw_min, avg_back_off);
-		mwifiex_wmm_ac_debug_print(&wmm_ie->ac_params[num_ac]);
+		mwifiex_wmm_ac_de_print(&wmm_ie->ac_params[num_ac]);
 	}
 
 	/* Bubble sort */

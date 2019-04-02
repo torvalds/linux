@@ -35,7 +35,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 				      rxrpc_notify_rx_t notify_rx,
 				      rxrpc_user_attach_call_t user_attach_call,
 				      unsigned long user_call_ID, gfp_t gfp,
-				      unsigned int debug_id)
+				      unsigned int de_id)
 {
 	const void *here = __builtin_return_address(0);
 	struct rxrpc_call *call;
@@ -95,7 +95,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	/* Now it gets complicated, because calls get registered with the
 	 * socket here, particularly if a user ID is preassigned by the user.
 	 */
-	call = rxrpc_alloc_call(rx, gfp, debug_id);
+	call = rxrpc_alloc_call(rx, gfp, de_id);
 	if (!call)
 		return -ENOMEM;
 	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
@@ -145,7 +145,7 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 
 	b->call_backlog[call_head] = call;
 	smp_store_release(&b->call_backlog_head, (call_head + 1) & (size - 1));
-	_leave(" = 0 [%d -> %lx]", call->debug_id, user_call_ID);
+	_leave(" = 0 [%d -> %lx]", call->de_id, user_call_ID);
 	return 0;
 
 id_in_use:
@@ -177,7 +177,7 @@ int rxrpc_service_prealloc(struct rxrpc_sock *rx, gfp_t gfp)
 		return 0;
 
 	while (rxrpc_service_prealloc_one(rx, b, NULL, NULL, 0, gfp,
-					  atomic_inc_return(&rxrpc_debug_id)) == 0)
+					  atomic_inc_return(&rxrpc_de_id)) == 0)
 		;
 
 	return 0;
@@ -230,7 +230,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		struct rxrpc_call *call = b->call_backlog[tail];
 		rcu_assign_pointer(call->socket, rx);
 		if (rx->discard_new_call) {
-			_debug("discard %lx", call->user_call_ID);
+			_de("discard %lx", call->user_call_ID);
 			rx->discard_new_call(call, call->user_call_ID);
 			rxrpc_put_call(call, rxrpc_call_put_kernel);
 		}
@@ -376,13 +376,13 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	 * sendmsg()/recvmsg() inconveniently stealing the mutex once the
 	 * notification is generated.
 	 *
-	 * The BUG should never happen because the kernel should be well
+	 * The  should never happen because the kernel should be well
 	 * behaved enough not to access the call before the first notification
 	 * event and userspace is prevented from doing so until the state is
 	 * appropriate.
 	 */
 	if (!mutex_trylock(&call->user_mutex))
-		BUG();
+		();
 
 	/* Make the call live. */
 	rxrpc_incoming_call(rx, call, skb);
@@ -421,7 +421,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 				 conn->abort_code, conn->error);
 		break;
 	default:
-		BUG();
+		();
 	}
 	spin_unlock(&conn->state_lock);
 
@@ -435,7 +435,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	 */
 	rxrpc_put_call(call, rxrpc_call_put);
 
-	_leave(" = %p{%d}", call, call->debug_id);
+	_leave(" = %p{%d}", call, call->de_id);
 out:
 	spin_unlock(&rx->incoming_lock);
 	return call;
@@ -519,7 +519,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 		else if (user_call_ID > call->user_call_ID)
 			pp = &(*pp)->rb_right;
 		else
-			BUG();
+			();
 	}
 
 	write_lock_bh(&call->state_lock);
@@ -531,7 +531,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 		ret = call->error;
 		goto out_release;
 	default:
-		BUG();
+		();
 	}
 
 	/* formalise the acceptance */
@@ -541,18 +541,18 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	rb_link_node(&call->sock_node, parent, pp);
 	rb_insert_color(&call->sock_node, &rx->calls);
 	if (test_and_set_bit(RXRPC_CALL_HAS_USERID, &call->flags))
-		BUG();
+		();
 
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
 	rxrpc_notify_socket(call);
 	rxrpc_service_prealloc(rx, GFP_KERNEL);
 	release_sock(&rx->sk);
-	_leave(" = %p{%d}", call, call->debug_id);
+	_leave(" = %p{%d}", call, call->de_id);
 	return call;
 
 out_release:
-	_debug("release %p", call);
+	_de("release %p", call);
 	write_unlock_bh(&call->state_lock);
 	write_unlock(&rx->call_lock);
 	rxrpc_release_call(rx, call);
@@ -609,7 +609,7 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 		ret = call->error;
 		goto out_discard;
 	default:
-		BUG();
+		();
 	}
 
 out_discard:
@@ -632,7 +632,7 @@ out_discard:
  * @user_attach_call: Func to attach call to user_call_ID
  * @user_call_ID: The tag to attach to the preallocated call
  * @gfp: The allocation conditions.
- * @debug_id: The tracing debug ID.
+ * @de_id: The tracing de ID.
  *
  * Charge up the socket with preallocated calls, each with a user ID.  A
  * function should be provided to effect the attachment from the user's side.
@@ -644,7 +644,7 @@ int rxrpc_kernel_charge_accept(struct socket *sock,
 			       rxrpc_notify_rx_t notify_rx,
 			       rxrpc_user_attach_call_t user_attach_call,
 			       unsigned long user_call_ID, gfp_t gfp,
-			       unsigned int debug_id)
+			       unsigned int de_id)
 {
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	struct rxrpc_backlog *b = rx->backlog;
@@ -654,6 +654,6 @@ int rxrpc_kernel_charge_accept(struct socket *sock,
 
 	return rxrpc_service_prealloc_one(rx, b, notify_rx,
 					  user_attach_call, user_call_ID,
-					  gfp, debug_id);
+					  gfp, de_id);
 }
 EXPORT_SYMBOL(rxrpc_kernel_charge_accept);

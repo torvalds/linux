@@ -156,7 +156,7 @@
 
 /*Other attributes*/
 #define VS_MPHYCFGUPDT		0xD085
-#define VS_DEBUGOMC		0xD09E
+#define VS_DEOMC		0xD09E
 #define VS_POWERSTATE		0xD083
 
 #define PA_GRANULARITY_MIN_VAL	1

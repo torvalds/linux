@@ -208,7 +208,7 @@ static void test_kmod_put_module(struct kmod_test_device_info *info)
 			module_put(info->fs_sync->owner);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	info->need_mod_put = true;
@@ -230,7 +230,7 @@ static int run_request(void *data)
 		break;
 	default:
 		/* __trigger_config_run() already checked for test sanity */
-		BUG();
+		();
 		return -EINVAL;
 	}
 
@@ -273,7 +273,7 @@ static int tally_work_test(struct kmod_test_device_info *info)
 			 "NULL");
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return err_ret;

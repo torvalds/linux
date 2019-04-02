@@ -253,7 +253,7 @@ static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 		if (ret < 0)
 			return ret;
 
-		v4l2_dbg(1, m5mols_debug, sd,
+		v4l2_dbg(1, m5mols_de, sd,
 			 "%s: exposure bias: %#x, metering: %#x\n",
 			 __func__, info->exposure_bias->val,
 			 info->metering->val);
@@ -270,7 +270,7 @@ static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 			ret = m5mols_write(sd, AE_MAN_GAIN_CAP,
 					   info->exposure->val);
 
-		v4l2_dbg(1, m5mols_debug, sd, "%s: exposure: %#x\n",
+		v4l2_dbg(1, m5mols_de, sd, "%s: exposure: %#x\n",
 			 __func__, info->exposure->val);
 	}
 
@@ -299,7 +299,7 @@ static int m5mols_set_white_balance(struct m5mols_info *info, int val)
 		if (wb[i][0] != val)
 			continue;
 
-		v4l2_dbg(1, m5mols_debug, sd,
+		v4l2_dbg(1, m5mols_de, sd,
 			 "Setting white balance to: %#x\n", wb[i][0]);
 
 		awb = wb[i][0] == V4L2_WHITE_BALANCE_AUTO;
@@ -359,7 +359,7 @@ static int m5mols_set_color_effect(struct m5mols_info *info, int val)
 			ret = m5mols_write(sd, MON_CFIXB, cfix_b);
 	}
 
-	v4l2_dbg(1, m5mols_debug, sd,
+	v4l2_dbg(1, m5mols_de, sd,
 		 "p_effect: %#x, m_effect: %#x, r: %#x, b: %#x (%d)\n",
 		 p_effect, m_effect, cfix_r, cfix_b, ret);
 
@@ -408,7 +408,7 @@ static int m5mols_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	int ret = 0;
 	u8 status = REG_ISO_AUTO;
 
-	v4l2_dbg(1, m5mols_debug, sd, "%s: ctrl: %s (%d)\n",
+	v4l2_dbg(1, m5mols_de, sd, "%s: ctrl: %s (%d)\n",
 		 __func__, ctrl->name, info->isp_ready);
 
 	if (!info->isp_ready)
@@ -464,7 +464,7 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 	}
 
-	v4l2_dbg(1, m5mols_debug, sd, "%s: %s, val: %d, priv: %p\n",
+	v4l2_dbg(1, m5mols_de, sd, "%s: %s, val: %d, priv: %p\n",
 		 __func__, ctrl->name, ctrl->val, ctrl->priv);
 
 	if (ctrl_mode && ctrl_mode != info->mode) {

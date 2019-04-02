@@ -30,7 +30,7 @@
 
 /* Ioctl defines */
 #define TUNSETNOCSUM  _IOW('T', 200, int) 
-#define TUNSETDEBUG   _IOW('T', 201, int) 
+#define TUNSETDE   _IOW('T', 201, int) 
 #define TUNSETIFF     _IOW('T', 202, int) 
 #define TUNSETPERSIST _IOW('T', 203, int) 
 #define TUNSETOWNER   _IOW('T', 204, int)

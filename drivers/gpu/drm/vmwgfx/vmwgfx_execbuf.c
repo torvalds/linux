@@ -525,8 +525,8 @@ static void vmw_resource_relocations_apply(uint32_t *cb,
 	struct vmw_resource_relocation *rel;
 
 	/* Validate the struct vmw_resource_relocation member size */
-	BUILD_BUG_ON(SVGA_CB_MAX_SIZE >= (1 << 29));
-	BUILD_BUG_ON(vmw_res_rel_max >= (1 << 3));
+	BUILD__ON(SVGA_CB_MAX_SIZE >= (1 << 29));
+	BUILD__ON(vmw_res_rel_max >= (1 << 3));
 
 	list_for_each_entry(rel, list, head) {
 		u32 *addr = (u32 *)((unsigned long) cb + rel->offset);
@@ -1028,7 +1028,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 		&sw_context->res_cache[vmw_res_context];
 	int ret;
 
-	BUG_ON(!ctx_entry->valid);
+	_ON(!ctx_entry->valid);
 	sw_context->last_query_ctx = ctx_entry->res;
 
 	if (unlikely(new_query_bo != sw_context->cur_query_bo)) {
@@ -1091,7 +1091,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 		struct vmw_resource *ctx;
 		int ret;
 
-		BUG_ON(!ctx_entry->valid);
+		_ON(!ctx_entry->valid);
 		ctx = ctx_entry->res;
 
 		ret = vmw_fifo_emit_dummy_query(dev_priv, ctx->id);
@@ -1121,7 +1121,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 				dev_priv->dummy_query_bo_pinned = true;
 			}
 
-			BUG_ON(sw_context->last_query_ctx == NULL);
+			_ON(sw_context->last_query_ctx == NULL);
 			dev_priv->query_cid = sw_context->last_query_ctx->id;
 			dev_priv->query_cid_valid = true;
 			dev_priv->pinned_bo =
@@ -1373,7 +1373,7 @@ static int vmw_cmd_begin_query(struct vmw_private *dev_priv,
 			SVGA3dCmdBeginGBQuery q;
 		} gb_cmd;
 
-		BUG_ON(sizeof(gb_cmd) != sizeof(*cmd));
+		_ON(sizeof(gb_cmd) != sizeof(*cmd));
 
 		gb_cmd.header.id = SVGA_3D_CMD_BEGIN_GB_QUERY;
 		gb_cmd.header.size = cmd->header.size;
@@ -1448,7 +1448,7 @@ static int vmw_cmd_end_query(struct vmw_private *dev_priv,
 			SVGA3dCmdEndGBQuery q;
 		} gb_cmd;
 
-		BUG_ON(sizeof(gb_cmd) != sizeof(*cmd));
+		_ON(sizeof(gb_cmd) != sizeof(*cmd));
 
 		gb_cmd.header.id = SVGA_3D_CMD_END_GB_QUERY;
 		gb_cmd.header.size = cmd->header.size;
@@ -1533,7 +1533,7 @@ static int vmw_cmd_wait_query(struct vmw_private *dev_priv,
 			SVGA3dCmdWaitForGBQuery q;
 		} gb_cmd;
 
-		BUG_ON(sizeof(gb_cmd) != sizeof(*cmd));
+		_ON(sizeof(gb_cmd) != sizeof(*cmd));
 
 		gb_cmd.header.id = SVGA_3D_CMD_WAIT_FOR_GB_QUERY;
 		gb_cmd.header.size = cmd->header.size;
@@ -2704,11 +2704,11 @@ static int vmw_cmd_dx_check_subresource(struct vmw_private *dev_priv,
 		};
 	} *cmd;
 
-	BUILD_BUG_ON(offsetof(typeof(*cmd), r_body.sid) !=
+	BUILD__ON(offsetof(typeof(*cmd), r_body.sid) !=
 		     offsetof(typeof(*cmd), sid));
-	BUILD_BUG_ON(offsetof(typeof(*cmd), i_body.sid) !=
+	BUILD__ON(offsetof(typeof(*cmd), i_body.sid) !=
 		     offsetof(typeof(*cmd), sid));
-	BUILD_BUG_ON(offsetof(typeof(*cmd), u_body.sid) !=
+	BUILD__ON(offsetof(typeof(*cmd), u_body.sid) !=
 		     offsetof(typeof(*cmd), sid));
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -3495,7 +3495,7 @@ static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 			*reloc->mob_loc = bo->mem.start;
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 	vmw_free_relocations(sw_context);
@@ -3549,7 +3549,7 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 	bool synced = false;
 
 	/* p_handle implies file_priv. */
-	BUG_ON(p_handle != NULL && file_priv == NULL);
+	_ON(p_handle != NULL && file_priv == NULL);
 
 	ret = vmw_fifo_send_fence(dev_priv, &sequence);
 	if (unlikely(ret != 0)) {
@@ -3615,7 +3615,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 	fence_rep.error = ret;
 	fence_rep.fd = out_fence_fd;
 	if (ret == 0) {
-		BUG_ON(fence == NULL);
+		_ON(fence == NULL);
 
 		fence_rep.handle = fence_handle;
 		fence_rep.seqno = fence->base.seqno;
@@ -4130,7 +4130,7 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 		goto out_no_reserve;
 
 	if (dev_priv->query_cid_valid) {
-		BUG_ON(fence != NULL);
+		_ON(fence != NULL);
 		ret = vmw_fifo_emit_dummy_query(dev_priv, dev_priv->query_cid);
 		if (ret)
 			goto out_no_emit;

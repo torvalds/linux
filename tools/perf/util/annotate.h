@@ -9,7 +9,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <pthread.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include "symbol_conf.h"
 
 struct hist_browser_timer;

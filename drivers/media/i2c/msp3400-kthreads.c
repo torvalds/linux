@@ -215,7 +215,7 @@ void msp3400c_set_mode(struct i2c_client *client, int mode)
 	int tuner = (state->route_in >> 3) & 1;
 	int i;
 
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "set_mode: %d\n", mode);
+	dev_dbg_lvl(&client->dev, 1, msp_de, "set_mode: %d\n", mode);
 	state->mode = mode;
 	state->rxsubchans = V4L2_TUNER_SUB_MONO;
 
@@ -261,7 +261,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		/* this method would break everything, let's make sure
 		 * it's never called
 		 */
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"set_audmode called with mode=%d instead of set_source (ignored)\n",
 			state->audmode);
 		return;
@@ -290,7 +290,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	/* switch demodulator */
 	switch (state->mode) {
 	case MSP_MODE_FM_TERRA:
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "FM set_audmode: %s\n", modestr);
+		dev_dbg_lvl(&client->dev, 1, msp_de, "FM set_audmode: %s\n", modestr);
 		switch (audmode) {
 		case V4L2_TUNER_MODE_STEREO:
 			msp_write_dsp(client, 0x000e, 0x3001);
@@ -304,7 +304,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		}
 		break;
 	case MSP_MODE_FM_SAT:
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "SAT set_audmode: %s\n", modestr);
+		dev_dbg_lvl(&client->dev, 1, msp_de, "SAT set_audmode: %s\n", modestr);
 		switch (audmode) {
 		case V4L2_TUNER_MODE_MONO:
 			msp3400c_set_carrier(client, MSP_CARRIER(6.5), MSP_CARRIER(6.5));
@@ -324,31 +324,31 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	case MSP_MODE_FM_NICAM1:
 	case MSP_MODE_FM_NICAM2:
 	case MSP_MODE_AM_NICAM:
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"NICAM set_audmode: %s\n", modestr);
 		if (state->nicam_on)
 			src = 0x0100;  /* NICAM */
 		break;
 	case MSP_MODE_BTSC:
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"BTSC set_audmode: %s\n", modestr);
 		break;
 	case MSP_MODE_EXTERN:
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"extern set_audmode: %s\n", modestr);
 		src = 0x0200;  /* SCART */
 		break;
 	case MSP_MODE_FM_RADIO:
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"FM-Radio set_audmode: %s\n", modestr);
 		break;
 	default:
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "mono set_audmode\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "mono set_audmode\n");
 		return;
 	}
 
 	/* switch audio */
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "set audmode %d\n", audmode);
+	dev_dbg_lvl(&client->dev, 1, msp_de, "set audmode %d\n", audmode);
 	switch (audmode) {
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1_LANG2:
@@ -356,7 +356,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		break;
 	case V4L2_TUNER_MODE_MONO:
 		if (state->mode == MSP_MODE_AM_NICAM) {
-			dev_dbg_lvl(&client->dev, 1, msp_debug, "switching to AM mono\n");
+			dev_dbg_lvl(&client->dev, 1, msp_de, "switching to AM mono\n");
 			/* AM mono decoding is handled by tuner, not MSP chip */
 			/* SCART switching control register */
 			msp_set_scart(client, SCART_MONO, 0);
@@ -372,7 +372,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		src |= 0x0010;
 		break;
 	}
-	dev_dbg_lvl(&client->dev, 1, msp_debug,
+	dev_dbg_lvl(&client->dev, 1, msp_de,
 		"set_audmode final source/matrix = 0x%x\n", src);
 
 	msp_set_source(client, src);
@@ -383,23 +383,23 @@ static void msp3400c_print_mode(struct i2c_client *client)
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (state->main == state->second)
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"mono sound carrier: %d.%03d MHz\n",
 			state->main / 910000, (state->main / 910) % 1000);
 	else
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"main sound carrier: %d.%03d MHz\n",
 			state->main / 910000, (state->main / 910) % 1000);
 	if (state->mode == MSP_MODE_FM_NICAM1 || state->mode == MSP_MODE_FM_NICAM2)
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"NICAM/FM carrier  : %d.%03d MHz\n",
 			state->second / 910000, (state->second/910) % 1000);
 	if (state->mode == MSP_MODE_AM_NICAM)
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"NICAM/AM carrier  : %d.%03d MHz\n",
 			state->second / 910000, (state->second / 910) % 1000);
 	if (state->mode == MSP_MODE_FM_TERRA && state->main != state->second) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"FM-stereo carrier : %d.%03d MHz\n",
 			state->second / 910000, (state->second / 910) % 1000);
 	}
@@ -420,7 +420,7 @@ static int msp3400c_detect_stereo(struct i2c_client *client)
 		val = msp_read_dsp(client, 0x18);
 		if (val > 32767)
 			val -= 65536;
-		dev_dbg_lvl(&client->dev, 2, msp_debug,
+		dev_dbg_lvl(&client->dev, 2, msp_de,
 			"stereo detect register: %d\n", val);
 		if (val > 8192) {
 			rxsubchans = V4L2_TUNER_SUB_STEREO;
@@ -435,7 +435,7 @@ static int msp3400c_detect_stereo(struct i2c_client *client)
 	case MSP_MODE_FM_NICAM2:
 	case MSP_MODE_AM_NICAM:
 		val = msp_read_dem(client, 0x23);
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "nicam sync=%d, mode=%d\n",
+		dev_dbg_lvl(&client->dev, 2, msp_de, "nicam sync=%d, mode=%d\n",
 			val & 1, (val & 0x1e) >> 1);
 
 		if (val & 1) {
@@ -466,14 +466,14 @@ static int msp3400c_detect_stereo(struct i2c_client *client)
 	}
 	if (rxsubchans != state->rxsubchans) {
 		update = 1;
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"watch: rxsubchans %02x => %02x\n",
 			state->rxsubchans, rxsubchans);
 		state->rxsubchans = rxsubchans;
 	}
 	if (newnicam != state->nicam_on) {
 		update = 1;
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "watch: nicam %d => %d\n",
+		dev_dbg_lvl(&client->dev, 1, msp_de, "watch: nicam %d => %d\n",
 			state->nicam_on, newnicam);
 		state->nicam_on = newnicam;
 	}
@@ -503,23 +503,23 @@ int msp3400c_thread(void *data)
 	struct msp3400c_carrier_detect *cd;
 	int count, max1, max2, val1, val2, val, i;
 
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "msp3400 daemon started\n");
+	dev_dbg_lvl(&client->dev, 1, msp_de, "msp3400 daemon started\n");
 	state->detected_std = V4L2_STD_ALL;
 	set_freezable();
 	for (;;) {
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "msp3400 thread: sleep\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "msp3400 thread: sleep\n");
 		msp_sleep(state, -1);
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "msp3400 thread: wakeup\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "msp3400 thread: wakeup\n");
 
 restart:
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "thread: restart scan\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "thread: restart scan\n");
 		state->restart = 0;
 		if (kthread_should_stop())
 			break;
 
 		if (state->radio || MSP_MODE_EXTERN == state->mode) {
 			/* no carrier scan, just unmute */
-			dev_dbg_lvl(&client->dev, 1, msp_debug,
+			dev_dbg_lvl(&client->dev, 1, msp_de,
 				"thread: no carrier scan\n");
 			state->scan_in_progress = 0;
 			msp_update_volume(state);
@@ -548,7 +548,7 @@ restart:
 			/* autodetect doesn't work well with AM ... */
 			max1 = 3;
 			count = 0;
-			dev_dbg_lvl(&client->dev, 1, msp_debug, "AM sound override\n");
+			dev_dbg_lvl(&client->dev, 1, msp_de, "AM sound override\n");
 		}
 
 		for (i = 0; i < count; i++) {
@@ -560,7 +560,7 @@ restart:
 				val -= 65536;
 			if (val1 < val)
 				val1 = val, max1 = i;
-			dev_dbg_lvl(&client->dev, 1, msp_debug,
+			dev_dbg_lvl(&client->dev, 1, msp_de,
 				"carrier1 val: %5d / %s\n", val, cd[i].name);
 		}
 
@@ -597,7 +597,7 @@ restart:
 				val -= 65536;
 			if (val2 < val)
 				val2 = val, max2 = i;
-			dev_dbg_lvl(&client->dev, 1, msp_debug,
+			dev_dbg_lvl(&client->dev, 1, msp_de,
 				"carrier2 val: %5d / %s\n", val, cd[i].name);
 		}
 
@@ -669,7 +669,7 @@ no_second:
 		msp3400c_set_audmode(client);
 		msp_update_volume(state);
 
-		if (msp_debug)
+		if (msp_de)
 			msp3400c_print_mode(client);
 
 		/* monitor tv audio mode, the first time don't wait
@@ -683,7 +683,7 @@ no_second:
 			watch_stereo(client);
 		}
 	}
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "thread: exit\n");
+	dev_dbg_lvl(&client->dev, 1, msp_de, "thread: exit\n");
 	return 0;
 }
 
@@ -694,23 +694,23 @@ int msp3410d_thread(void *data)
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int val, i, std, count;
 
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "msp3410 daemon started\n");
+	dev_dbg_lvl(&client->dev, 1, msp_de, "msp3410 daemon started\n");
 	state->detected_std = V4L2_STD_ALL;
 	set_freezable();
 	for (;;) {
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "msp3410 thread: sleep\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "msp3410 thread: sleep\n");
 		msp_sleep(state, -1);
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "msp3410 thread: wakeup\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "msp3410 thread: wakeup\n");
 
 restart:
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "thread: restart scan\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "thread: restart scan\n");
 		state->restart = 0;
 		if (kthread_should_stop())
 			break;
 
 		if (state->mode == MSP_MODE_EXTERN) {
 			/* no carrier scan needed, just unmute */
-			dev_dbg_lvl(&client->dev, 1, msp_debug,
+			dev_dbg_lvl(&client->dev, 1, msp_de,
 				"thread: no carrier scan\n");
 			state->scan_in_progress = 0;
 			msp_update_volume(state);
@@ -735,8 +735,8 @@ restart:
 		if (msp_sleep(state, 200))
 			goto restart;
 
-		if (msp_debug)
-			dev_dbg_lvl(&client->dev, 2, msp_debug,
+		if (msp_de)
+			dev_dbg_lvl(&client->dev, 2, msp_de,
 				"setting standard: %s (0x%04x)\n",
 				msp_standard_std_name(std), std);
 
@@ -754,14 +754,14 @@ restart:
 				val = msp_read_dem(client, 0x7e);
 				if (val < 0x07ff)
 					break;
-				dev_dbg_lvl(&client->dev, 2, msp_debug,
+				dev_dbg_lvl(&client->dev, 2, msp_de,
 					"detection still in progress\n");
 			}
 		}
 		for (i = 0; msp_stdlist[i].name != NULL; i++)
 			if (msp_stdlist[i].retval == val)
 				break;
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "current standard: %s (0x%04x)\n",
+		dev_dbg_lvl(&client->dev, 1, msp_de, "current standard: %s (0x%04x)\n",
 			msp_standard_std_name(val), val);
 		state->main   = msp_stdlist[i].main;
 		state->second = msp_stdlist[i].second;
@@ -771,7 +771,7 @@ restart:
 		if (msp_amsound && !state->radio &&
 		    (state->v4l2_std & V4L2_STD_SECAM) && (val != 0x0009)) {
 			/* autodetection has failed, let backup */
-			dev_dbg_lvl(&client->dev, 1, msp_debug, "autodetection failed, switching to backup standard: %s (0x%04x)\n",
+			dev_dbg_lvl(&client->dev, 1, msp_de, "autodetection failed, switching to backup standard: %s (0x%04x)\n",
 				msp_stdlist[8].name ?
 					msp_stdlist[8].name : "unknown", val);
 			state->std = val = 0x0009;
@@ -845,7 +845,7 @@ restart:
 			watch_stereo(client);
 		}
 	}
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "thread: exit\n");
+	dev_dbg_lvl(&client->dev, 1, msp_de, "thread: exit\n");
 	return 0;
 }
 
@@ -862,23 +862,23 @@ static int msp34xxg_modus(struct i2c_client *client)
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
 	if (state->radio) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "selected radio modus\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "selected radio modus\n");
 		return 0x0001;
 	}
 	if (state->v4l2_std == V4L2_STD_NTSC_M_JP) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "selected M (EIA-J) modus\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "selected M (EIA-J) modus\n");
 		return 0x4001;
 	}
 	if (state->v4l2_std == V4L2_STD_NTSC_M_KR) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "selected M (A2) modus\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "selected M (A2) modus\n");
 		return 0x0001;
 	}
 	if (state->v4l2_std == V4L2_STD_SECAM_L) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "selected SECAM-L modus\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "selected SECAM-L modus\n");
 		return 0x6001;
 	}
 	if (state->v4l2_std & V4L2_STD_MN) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "selected M (BTSC) modus\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "selected M (BTSC) modus\n");
 		return 0x2001;
 	}
 	return 0x7001;
@@ -922,7 +922,7 @@ static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
 	else
 		source = (in << 8) | matrix;
 
-	dev_dbg_lvl(&client->dev, 1, msp_debug,
+	dev_dbg_lvl(&client->dev, 1, msp_de,
 		"set source to %d (0x%x) for output %02x\n", in, source, reg);
 	msp_write_dsp(client, reg, source);
 }
@@ -991,23 +991,23 @@ int msp34xxg_thread(void *data)
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int val, i;
 
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "msp34xxg daemon started\n");
+	dev_dbg_lvl(&client->dev, 1, msp_de, "msp34xxg daemon started\n");
 	state->detected_std = V4L2_STD_ALL;
 	set_freezable();
 	for (;;) {
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "msp34xxg thread: sleep\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "msp34xxg thread: sleep\n");
 		msp_sleep(state, -1);
-		dev_dbg_lvl(&client->dev, 2, msp_debug, "msp34xxg thread: wakeup\n");
+		dev_dbg_lvl(&client->dev, 2, msp_de, "msp34xxg thread: wakeup\n");
 
 restart:
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "thread: restart scan\n");
+		dev_dbg_lvl(&client->dev, 1, msp_de, "thread: restart scan\n");
 		state->restart = 0;
 		if (kthread_should_stop())
 			break;
 
 		if (state->mode == MSP_MODE_EXTERN) {
 			/* no carrier scan needed, just unmute */
-			dev_dbg_lvl(&client->dev, 1, msp_debug,
+			dev_dbg_lvl(&client->dev, 1, msp_de,
 				"thread: no carrier scan\n");
 			state->scan_in_progress = 0;
 			msp_update_volume(state);
@@ -1024,7 +1024,7 @@ restart:
 			goto unmute;
 
 		/* watch autodetect */
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"started autodetect, waiting for result\n");
 		for (i = 0; i < 10; i++) {
 			if (msp_sleep(state, 100))
@@ -1036,17 +1036,17 @@ restart:
 				state->std = val;
 				break;
 			}
-			dev_dbg_lvl(&client->dev, 2, msp_debug,
+			dev_dbg_lvl(&client->dev, 2, msp_de,
 				"detection still in progress\n");
 		}
 		if (state->std == 1) {
-			dev_dbg_lvl(&client->dev, 1, msp_debug,
+			dev_dbg_lvl(&client->dev, 1, msp_de,
 				"detection still in progress after 10 tries. giving up.\n");
 			continue;
 		}
 
 unmute:
-		dev_dbg_lvl(&client->dev, 1, msp_debug,
+		dev_dbg_lvl(&client->dev, 1, msp_de,
 			"detected standard: %s (0x%04x)\n",
 			msp_standard_std_name(state->std), state->std);
 		state->detected_std = msp_standard_std(state->std);
@@ -1079,7 +1079,7 @@ unmute:
 				goto restart;
 		}
 	}
-	dev_dbg_lvl(&client->dev, 1, msp_debug, "thread: exit\n");
+	dev_dbg_lvl(&client->dev, 1, msp_de, "thread: exit\n");
 	return 0;
 }
 
@@ -1106,7 +1106,7 @@ static int msp34xxg_detect_stereo(struct i2c_client *client)
 			state->rxsubchans =
 				V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	}
-	dev_dbg_lvl(&client->dev, 1, msp_debug,
+	dev_dbg_lvl(&client->dev, 1, msp_de,
 		"status=0x%x, stereo=%d, bilingual=%d -> rxsubchans=%d\n",
 		status, is_stereo, is_bilingual, state->rxsubchans);
 	return (oldrx != state->rxsubchans);

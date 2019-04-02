@@ -61,9 +61,9 @@ MODULE_DESCRIPTION("Intel/Digital 21040/1 series PCI Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-static int debug = -1;
-module_param (debug, int, 0);
-MODULE_PARM_DESC (debug, "de2104x bitmapped message enable number");
+static int de = -1;
+module_param (de, int, 0);
+MODULE_PARM_DESC (de, "de2104x bitmapped message enable number");
 
 /* Set the copy breakpoint for the copy-only-tiny-buffer Rx structure. */
 #if defined(__alpha__) || defined(__arm__) || defined(__hppa__) || \
@@ -411,7 +411,7 @@ static void de_rx (struct de_private *de)
 		unsigned copying_skb, buflen;
 
 		skb = de->rx_skb[rx_tail].skb;
-		BUG_ON(!skb);
+		_ON(!skb);
 		rmb();
 		status = le32_to_cpu(de->rx_ring[rx_tail].opts1);
 		if (status & DescOwn)
@@ -552,7 +552,7 @@ static void de_tx (struct de_private *de)
 			break;
 
 		skb = de->tx_skb[tx_tail].skb;
-		BUG_ON(!skb);
+		_ON(!skb);
 		if (unlikely(skb == DE_DUMMY_SKB))
 			goto next;
 
@@ -1168,7 +1168,7 @@ static void de_media_interrupt (struct de_private *de, u32 status)
 		return;
 	}
 
-	BUG_ON(!(status & LinkFail));
+	_ON(!(status & LinkFail));
 	/* Mark the link as down only if current media is TP */
 	if (netif_carrier_ok(de->dev) && de->media_type != DE_MEDIA_AUI &&
 	    de->media_type != DE_MEDIA_BNC) {
@@ -1996,7 +1996,7 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	de->de21040 = ent->driver_data == 0 ? 1 : 0;
 	de->pdev = pdev;
 	de->dev = dev;
-	de->msg_enable = (debug < 0 ? DE_DEF_MSG_ENABLE : debug);
+	de->msg_enable = (de < 0 ? DE_DEF_MSG_ENABLE : de);
 	de->board_idx = board_idx;
 	spin_lock_init (&de->lock);
 	timer_setup(&de->media_timer,
@@ -2105,7 +2105,7 @@ static void de_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = netdev_priv(dev);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 	unregister_netdev(dev);
 	kfree(de->ee_data);
 	iounmap(de->regs);

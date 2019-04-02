@@ -42,8 +42,8 @@ const char *pci_power_names[] = {
 };
 EXPORT_SYMBOL_GPL(pci_power_names);
 
-int isa_dma_bridge_buggy;
-EXPORT_SYMBOL(isa_dma_bridge_buggy);
+int isa_dma_bridge_gy;
+EXPORT_SYMBOL(isa_dma_bridge_gy);
 
 int pci_pci_problems;
 EXPORT_SYMBOL(pci_pci_problems);
@@ -1156,7 +1156,7 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 	default:
 		pci_info(dev, "unrecognized suspend event %d\n",
 			 state.event);
-		BUG();
+		();
 	}
 	return PCI_D0;
 }
@@ -2777,14 +2777,14 @@ void pci_pm_init(struct pci_dev *dev)
 			dev->d2_support = true;
 
 		if (dev->d1_support || dev->d2_support)
-			pci_printk(KERN_DEBUG, dev, "supports%s%s\n",
+			pci_printk(KERN_DE, dev, "supports%s%s\n",
 				   dev->d1_support ? " D1" : "",
 				   dev->d2_support ? " D2" : "");
 	}
 
 	pmc &= PCI_PM_CAP_PME_MASK;
 	if (pmc) {
-		pci_printk(KERN_DEBUG, dev, "PME# supported from%s%s%s%s%s\n",
+		pci_printk(KERN_DE, dev, "PME# supported from%s%s%s%s%s\n",
 			 (pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
 			 (pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
 			 (pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
@@ -2952,16 +2952,16 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	res->flags = flags;
 
 	if (bei <= PCI_EA_BEI_BAR5)
-		pci_printk(KERN_DEBUG, dev, "BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DE, dev, "BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   bei, res, prop);
 	else if (bei == PCI_EA_BEI_ROM)
-		pci_printk(KERN_DEBUG, dev, "ROM: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DE, dev, "ROM: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   res, prop);
 	else if (bei >= PCI_EA_BEI_VF_BAR0 && bei <= PCI_EA_BEI_VF_BAR5)
-		pci_printk(KERN_DEBUG, dev, "VF BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DE, dev, "VF BAR %d: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   bei - PCI_EA_BEI_VF_BAR0, res, prop);
 	else
-		pci_printk(KERN_DEBUG, dev, "BEI %d res: %pR (from Enhanced Allocation, properties %#02x)\n",
+		pci_printk(KERN_DE, dev, "BEI %d res: %pR (from Enhanced Allocation, properties %#02x)\n",
 			   bei, res, prop);
 
 out:
@@ -4048,7 +4048,7 @@ void __iomem *devm_pci_remap_cfg_resource(struct device *dev,
 	const char *name;
 	void __iomem *dest_ptr;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!res || resource_type(res) != IORESOURCE_MEM) {
 		dev_err(dev, "invalid resource\n");
@@ -4185,7 +4185,7 @@ int pci_set_cacheline_size(struct pci_dev *dev)
 	if (cacheline_size == pci_cache_line_size)
 		return 0;
 
-	pci_printk(KERN_DEBUG, dev, "cache line size of %d is not supported\n",
+	pci_printk(KERN_DE, dev, "cache line size of %d is not supported\n",
 		   pci_cache_line_size << 2);
 
 	return -EINVAL;
@@ -4328,8 +4328,8 @@ static bool pci_check_and_set_intx_mask(struct pci_dev *dev, bool mask)
 	 * We do a single dword read to retrieve both command and status.
 	 * Document assumptions that make this possible.
 	 */
-	BUILD_BUG_ON(PCI_COMMAND % 4);
-	BUILD_BUG_ON(PCI_COMMAND + 2 != PCI_STATUS);
+	BUILD__ON(PCI_COMMAND % 4);
+	BUILD__ON(PCI_COMMAND + 2 != PCI_STATUS);
 
 	raw_spin_lock_irqsave(&pci_lock, flags);
 

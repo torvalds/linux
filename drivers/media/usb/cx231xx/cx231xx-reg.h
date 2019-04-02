@@ -236,7 +236,7 @@
 #define      FLD_TSXCLK_POL_CTL       0x80000000
 #define      FLD_ISO_CTL_SEL          0x40000000
 #define      FLD_ISO_CTL_EN           0x20000000
-#define      FLD_BIST_DEBUGZ          0x10000000
+#define      FLD_BIST_DEZ          0x10000000
 #define      FLD_AUD_BIST_TEST_H      0x0f000000
 /* Reserved [23:22] */
 #define      FLD_FLTRN_BIST_TEST_H    0x00020000

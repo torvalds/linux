@@ -406,7 +406,7 @@ struct ohci_hcd {
 	unsigned		working:1;
 	unsigned		restart_work:1;
 
-	unsigned long		flags;		/* for HC bugs */
+	unsigned long		flags;		/* for HC s */
 #define	OHCI_QUIRK_AMD756	0x01			/* erratum #4 */
 #define	OHCI_QUIRK_SUPERIO	0x02			/* natsemi */
 #define	OHCI_QUIRK_INITRESET	0x04			/* SiS, OPTi, ... */
@@ -421,7 +421,7 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_GLOBAL_SUSPEND	0x800		/* must suspend ports */
 #define	OHCI_QUIRK_QEMU		0x1000			/* relax timing expectations */
 
-	// there are also chip quirks/bugs in init logic
+	// there are also chip quirks/s in init logic
 
 	unsigned		prev_frame_no;
 	unsigned		wdh_cnt, prev_wdh_cnt;
@@ -430,7 +430,7 @@ struct ohci_hcd {
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
 
-	struct dentry		*debug_dir;
+	struct dentry		*de_dir;
 
 	/* platform-specific data -- must come last */
 	unsigned long           priv[0] __aligned(sizeof(s64));

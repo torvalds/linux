@@ -299,7 +299,7 @@ continue_unlock:
 				goto continue_unlock;
 		}
 
-		BUG_ON(PageWriteback(page));
+		_ON(PageWriteback(page));
 		if (!clear_page_dirty_for_io(page))
 			goto continue_unlock;
 
@@ -704,7 +704,7 @@ int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	void *kaddr;
 	unsigned char *buf = dibh->b_data + sizeof(struct gfs2_dinode);
 
-	BUG_ON(pos + copied > gfs2_max_stuffed_size(ip));
+	_ON(pos + copied > gfs2_max_stuffed_size(ip));
 
 	kaddr = kmap_atomic(page);
 	memcpy(buf + pos, kaddr + pos, copied);
@@ -794,7 +794,7 @@ static void gfs2_invalidatepage(struct page *page, unsigned int offset,
 	struct buffer_head *bh, *head;
 	unsigned long pos = 0;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	if (!partial_page)
 		ClearPageChecked(page);
 	if (!page_has_buffers(page))
@@ -939,5 +939,5 @@ void gfs2_set_aops(struct inode *inode)
 	else if (gfs2_is_ordered(sdp))
 		inode->i_mapping->a_ops = &gfs2_ordered_aops;
 	else
-		BUG();
+		();
 }

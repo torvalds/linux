@@ -29,7 +29,7 @@
  */
 struct thread_info {
 	int		preempt_count;		/* 0 => preemptable,
-						   <0 => BUG */
+						   <0 =>  */
 	unsigned long	local_flags;		/* private flags for thread */
 #ifdef CONFIG_LIVEPATCH
 	unsigned long *livepatch_sp;

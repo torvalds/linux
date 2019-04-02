@@ -161,7 +161,7 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 	mask = tiocm_to_gigaset(old_state ^ new_state);
 	val = tiocm_to_gigaset(new_state);
 
-	gig_dbg(DEBUG_USBREQ, "set flags 0x%02x with mask 0x%02x", val, mask);
+	gig_dbg(DE_USBREQ, "set flags 0x%02x with mask 0x%02x", val, mask);
 	r = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 7, 0x41,
 			    (val & 0xff) | ((mask & 0xff) << 8), 0,
 			    NULL, 0, 2000 /* timeout? */);
@@ -180,7 +180,7 @@ static int set_value(struct cardstate *cs, u8 req, u16 val)
 	struct usb_device *udev = cs->hw.usb->udev;
 	int r, r2;
 
-	gig_dbg(DEBUG_USBREQ, "request %02x (%04x)",
+	gig_dbg(DE_USBREQ, "request %02x (%04x)",
 		(unsigned)req, (unsigned)val);
 	r = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x12, 0x41,
 			    0xf /*?*/, 0, NULL, 0, 2000 /*?*/);
@@ -304,19 +304,19 @@ static void gigaset_modem_fill(unsigned long data)
 	struct cardstate *cs = (struct cardstate *) data;
 	struct bc_state *bcs = &cs->bcs[0]; /* only one channel */
 
-	gig_dbg(DEBUG_OUTPUT, "modem_fill");
+	gig_dbg(DE_OUTPUT, "modem_fill");
 
 	if (cs->hw.usb->busy) {
-		gig_dbg(DEBUG_OUTPUT, "modem_fill: busy");
+		gig_dbg(DE_OUTPUT, "modem_fill: busy");
 		return;
 	}
 
 again:
 	if (!bcs->tx_skb) {	/* no skb is being sent */
 		if (cs->cmdbuf) {	/* commands to send? */
-			gig_dbg(DEBUG_OUTPUT, "modem_fill: cb");
+			gig_dbg(DE_OUTPUT, "modem_fill: cb");
 			if (send_cb(cs) < 0) {
-				gig_dbg(DEBUG_OUTPUT,
+				gig_dbg(DE_OUTPUT,
 					"modem_fill: send_cb failed");
 				goto again; /* no callback will be called! */
 			}
@@ -328,13 +328,13 @@ again:
 		if (!bcs->tx_skb)
 			return;
 
-		gig_dbg(DEBUG_INTR, "Dequeued skb (Adr: %lx)!",
+		gig_dbg(DE_INTR, "Dequeued skb (Adr: %lx)!",
 			(unsigned long) bcs->tx_skb);
 	}
 
-	gig_dbg(DEBUG_OUTPUT, "modem_fill: tx_skb");
+	gig_dbg(DE_OUTPUT, "modem_fill: tx_skb");
 	if (write_modem(cs) < 0) {
-		gig_dbg(DEBUG_OUTPUT, "modem_fill: write_modem failed");
+		gig_dbg(DE_OUTPUT, "modem_fill: write_modem failed");
 		goto again;	/* no callback will be called! */
 	}
 }
@@ -364,14 +364,14 @@ static void gigaset_read_int_callback(struct urb *urb)
 			++src; /* skip leading 0x00 */
 			--numbytes;
 			if (gigaset_fill_inbuf(inbuf, src, numbytes)) {
-				gig_dbg(DEBUG_INTR, "%s-->BH", __func__);
+				gig_dbg(DE_INTR, "%s-->BH", __func__);
 				gigaset_schedule_event(inbuf->cs);
 			}
 		} else
-			gig_dbg(DEBUG_INTR, "Received zero block length");
+			gig_dbg(DE_INTR, "Received zero block length");
 	} else {
 		/* The urb might have been killed. */
-		gig_dbg(DEBUG_ANY, "%s - nonzero status received: %d",
+		gig_dbg(DE_ANY, "%s - nonzero status received: %d",
 			__func__, status);
 		if (status == -ENOENT || status == -ESHUTDOWN)
 			/* killed or endpoint shutdown: don't resubmit */
@@ -403,7 +403,7 @@ static void gigaset_write_bulk_callback(struct urb *urb)
 	case 0:			/* normal completion */
 		break;
 	case -ENOENT:		/* killed */
-		gig_dbg(DEBUG_ANY, "%s: killed", __func__);
+		gig_dbg(DE_ANY, "%s: killed", __func__);
 		cs->hw.usb->busy = 0;
 		return;
 	default:
@@ -435,7 +435,7 @@ static int send_cb(struct cardstate *cs)
 		if (!cb->len) {
 			spin_lock_irqsave(&cs->cmdlock, flags);
 			cs->cmdbytes -= cs->curlen;
-			gig_dbg(DEBUG_OUTPUT, "send_cb: sent %u bytes, %u left",
+			gig_dbg(DE_OUTPUT, "send_cb: sent %u bytes, %u left",
 				cs->curlen, cs->cmdbytes);
 			cs->cmdbuf = cb->next;
 			if (cs->cmdbuf) {
@@ -456,7 +456,7 @@ static int send_cb(struct cardstate *cs)
 
 		if (cb) {
 			count = min(cb->len, ucs->bulk_out_size);
-			gig_dbg(DEBUG_OUTPUT, "send_cb: send %d bytes", count);
+			gig_dbg(DE_OUTPUT, "send_cb: send %d bytes", count);
 
 			usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
 					  usb_sndbulkpipe(ucs->udev,
@@ -495,7 +495,7 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	int len;
 
 	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
-			   DEBUG_TRANSCMD : DEBUG_LOCKCMD,
+			   DE_TRANSCMD : DE_LOCKCMD,
 			   "CMD Transmit", cb->len, cb->buf);
 
 	spin_lock_irqsave(&cs->cmdlock, flags);
@@ -540,7 +540,7 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 {
 	struct usb_device *udev = cs->hw.usb->udev;
 
-	gigaset_dbg_buffer(DEBUG_USBREQ, "brkchars", 6, buf);
+	gigaset_dbg_buffer(DE_USBREQ, "brkchars", 6, buf);
 	memcpy(cs->hw.usb->bchars, buf, 6);
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x19, 0x41,
 			       0, 0, &buf, 6, 2000);
@@ -605,7 +605,7 @@ static int write_modem(struct cardstate *cs)
 	struct usb_cardstate *ucs = cs->hw.usb;
 	unsigned long flags;
 
-	gig_dbg(DEBUG_OUTPUT, "len: %d...", bcs->tx_skb->len);
+	gig_dbg(DE_OUTPUT, "len: %d...", bcs->tx_skb->len);
 
 	if (!bcs->tx_skb->len) {
 		dev_kfree_skb_any(bcs->tx_skb);
@@ -618,7 +618,7 @@ static int write_modem(struct cardstate *cs)
 	skb_copy_from_linear_data(bcs->tx_skb, ucs->bulk_out_buffer, count);
 	skb_pull(bcs->tx_skb, count);
 	ucs->busy = 1;
-	gig_dbg(DEBUG_OUTPUT, "write_modem: send %d bytes", count);
+	gig_dbg(DE_OUTPUT, "write_modem: send %d bytes", count);
 
 	spin_lock_irqsave(&cs->lock, flags);
 	if (cs->connected) {
@@ -642,7 +642,7 @@ static int write_modem(struct cardstate *cs)
 		/* skb sent completely */
 		gigaset_skb_sent(bcs, bcs->tx_skb);
 
-		gig_dbg(DEBUG_INTR, "kfree skb (Adr: %lx)!",
+		gig_dbg(DE_INTR, "kfree skb (Adr: %lx)!",
 			(unsigned long) bcs->tx_skb);
 		dev_kfree_skb_any(bcs->tx_skb);
 		bcs->tx_skb = NULL;
@@ -662,18 +662,18 @@ static int gigaset_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *endpoint;
 	int buffer_size;
 
-	gig_dbg(DEBUG_ANY, "%s: Check if device matches ...", __func__);
+	gig_dbg(DE_ANY, "%s: Check if device matches ...", __func__);
 
 	/* See if the device offered us matches what we can accept */
 	if ((le16_to_cpu(udev->descriptor.idVendor)  != USB_M105_VENDOR_ID) ||
 	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID)) {
-		gig_dbg(DEBUG_ANY, "device ID (0x%x, 0x%x) not for me - skip",
+		gig_dbg(DE_ANY, "device ID (0x%x, 0x%x) not for me - skip",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct));
 		return -ENODEV;
 	}
 	if (hostif->desc.bInterfaceNumber != 0) {
-		gig_dbg(DEBUG_ANY, "interface %d not for me - skip",
+		gig_dbg(DE_ANY, "interface %d not for me - skip",
 			hostif->desc.bInterfaceNumber);
 		return -ENODEV;
 	}
@@ -828,7 +828,7 @@ static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 	tasklet_kill(&cs->write_tasklet);
 	usb_kill_urb(cs->hw.usb->bulk_out_urb);
 
-	gig_dbg(DEBUG_SUSPEND, "suspend complete");
+	gig_dbg(DE_SUSPEND, "suspend complete");
 	return 0;
 }
 
@@ -848,7 +848,7 @@ static int gigaset_resume(struct usb_interface *intf)
 		return rc;
 	}
 
-	gig_dbg(DEBUG_SUSPEND, "resume complete");
+	gig_dbg(DE_SUSPEND, "resume complete");
 	return 0;
 }
 

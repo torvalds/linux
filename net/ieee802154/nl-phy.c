@@ -40,7 +40,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	int i, pages = 0;
 	uint32_t *buf = kcalloc(32, sizeof(uint32_t), GFP_KERNEL);
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (!buf)
 		return -EMSGSIZE;
@@ -86,7 +86,7 @@ int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info)
 	const char *name;
 	int rc = -ENOBUFS;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (!info->attrs[IEEE802154_ATTR_PHY_NAME])
 		return -EINVAL;
@@ -129,7 +129,7 @@ static int ieee802154_dump_phy_iter(struct wpan_phy *phy, void *_data)
 	int rc;
 	struct dump_phy_data *data = _data;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (data->idx++ < data->s_idx)
 		return 0;
@@ -157,7 +157,7 @@ int ieee802154_dump_phy(struct sk_buff *skb, struct netlink_callback *cb)
 		.idx = 0,
 	};
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	wpan_phy_for_each(ieee802154_dump_phy_iter, &data);
 
@@ -177,7 +177,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	int type = __IEEE802154_DEV_INVALID;
 	unsigned char name_assign_type;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (!info->attrs[IEEE802154_ATTR_PHY_NAME])
 		return -EINVAL;
@@ -277,7 +277,7 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 	int rc;
 	struct net_device *dev;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (!info->attrs[IEEE802154_ATTR_DEV_NAME])
 		return -EINVAL;
@@ -294,7 +294,7 @@ int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 
 	phy = dev->ieee802154_ptr->wpan_phy;
-	BUG_ON(!phy);
+	_ON(!phy);
 	get_device(&phy->dev);
 
 	rc = -EINVAL;

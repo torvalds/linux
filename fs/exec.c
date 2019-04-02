@@ -79,7 +79,7 @@ static DEFINE_RWLOCK(binfmt_lock);
 
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
-	BUG_ON(!fmt);
+	_ON(!fmt);
 	if (WARN_ON(!fmt->load_binary))
 		return;
 	write_lock(&binfmt_lock);
@@ -261,7 +261,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
 	 * use STACK_TOP because that can depend on attributes which aren't
 	 * configured yet.
 	 */
-	BUILD_BUG_ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
+	BUILD__ON(VM_STACK_FLAGS & VM_STACK_INCOMPLETE_SETUP);
 	vma->vm_end = STACK_TOP_MAX;
 	vma->vm_start = vma->vm_end - PAGE_SIZE;
 	vma->vm_flags = VM_SOFTDIRTY | VM_STACK_FLAGS | VM_STACK_INCOMPLETE_SETUP;
@@ -632,7 +632,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	unsigned long new_end = old_end - shift;
 	struct mmu_gather tlb;
 
-	BUG_ON(new_start > new_end);
+	_ON(new_start > new_end);
 
 	/*
 	 * ensure there are no vmas between where we want to go
@@ -759,7 +759,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 			vm_flags);
 	if (ret)
 		goto out_unlock;
-	BUG_ON(prev != vma);
+	_ON(prev != vma);
 
 	/* Move stack pages down in memory. */
 	if (stack_shift) {
@@ -1040,7 +1040,7 @@ static int exec_mmap(struct mm_struct *mm)
 	task_unlock(tsk);
 	if (old_mm) {
 		up_read(&old_mm->mmap_sem);
-		BUG_ON(active_mm != old_mm);
+		_ON(active_mm != old_mm);
 		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
 		mm_update_next_owner(old_mm);
 		mmput(old_mm);
@@ -1132,8 +1132,8 @@ static int de_thread(struct task_struct *tsk)
 		tsk->start_time = leader->start_time;
 		tsk->real_start_time = leader->real_start_time;
 
-		BUG_ON(!same_thread_group(leader, tsk));
-		BUG_ON(has_group_leader_pid(tsk));
+		_ON(!same_thread_group(leader, tsk));
+		_ON(has_group_leader_pid(tsk));
 		/*
 		 * An exec() starts a new thread group with the
 		 * TGID of the previous thread group. Rehash the
@@ -1161,7 +1161,7 @@ static int de_thread(struct task_struct *tsk)
 		tsk->exit_signal = SIGCHLD;
 		leader->exit_signal = -1;
 
-		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
+		_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
 
 		/*
@@ -1212,7 +1212,7 @@ no_thread_group:
 		__cleanup_sighand(oldsighand);
 	}
 
-	BUG_ON(!thread_group_leader(tsk));
+	_ON(!thread_group_leader(tsk));
 	return 0;
 
 killed:

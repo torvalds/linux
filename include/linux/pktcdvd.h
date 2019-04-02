@@ -136,7 +136,7 @@ struct packet_data
 						/* by the sector variable is completely cached */
 						/* in the pages[] vector. */
 
-	int			id;		/* ID number for debugging */
+	int			id;		/* ID number for deging */
 	struct pktcdvd_device	*pd;
 };
 
@@ -198,8 +198,8 @@ struct pktcdvd_device
 	struct pktcdvd_kobj	*kobj_stat;	/* sysfs pktcdvd[0-7]/stat/     */
 	struct pktcdvd_kobj	*kobj_wqueue;	/* sysfs pktcdvd[0-7]/write_queue/ */
 
-	struct dentry		*dfs_d_root;	/* debugfs: devname directory */
-	struct dentry		*dfs_f_info;	/* debugfs: info file */
+	struct dentry		*dfs_d_root;	/* defs: devname directory */
+	struct dentry		*dfs_f_info;	/* defs: info file */
 };
 
 #endif /* __PKTCDVD_H */

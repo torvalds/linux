@@ -174,7 +174,7 @@ static int sip_parse_addr(const struct nf_conn *ct, const char *cp,
 			return 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (endp)
@@ -190,7 +190,7 @@ static int epaddr_len(const struct nf_conn *ct, const char *dptr,
 	const char *aux = dptr;
 
 	if (!sip_parse_addr(ct, dptr, &dptr, &addr, limit, true)) {
-		pr_debug("ip: %s parse failed.!\n", dptr);
+		pr_de("ip: %s parse failed.!\n", dptr);
 		return 0;
 	}
 
@@ -660,7 +660,7 @@ static int sdp_parse_addr(const struct nf_conn *ct, const char *cp,
 		ret = in6_pton(cp, limit - cp, (u8 *)&addr->ip6, -1, &end);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (ret == 0)
@@ -678,7 +678,7 @@ static int sdp_addr_len(const struct nf_conn *ct, const char *dptr,
 	const char *aux = dptr;
 
 	if (!sdp_parse_addr(ct, dptr, &dptr, &addr, limit)) {
-		pr_debug("ip: %s parse failed.!\n", dptr);
+		pr_de("ip: %s parse failed.!\n", dptr);
 		return 0;
 	}
 
@@ -1663,7 +1663,7 @@ static int __init nf_conntrack_sip_init(void)
 {
 	int i, ret;
 
-	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sip_master));
+	NF_CT_HELPER_BUILD__ON(sizeof(struct nf_ct_sip_master));
 
 	if (ports_c == 0)
 		ports[ports_c++] = SIP_PORT;

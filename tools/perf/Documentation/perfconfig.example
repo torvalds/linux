@@ -18,7 +18,7 @@
 [buildid]
 
 	# Default, disable using /dev/null
-	dir = /root/.debug
+	dir = /root/.de
 
 [annotate]
 

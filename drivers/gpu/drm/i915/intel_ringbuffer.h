@@ -270,7 +270,7 @@ struct intel_engine_execlists {
 		/**
 		 * @context_id: context ID for port
 		 */
-		GEM_DEBUG_DECL(u32 context_id);
+		GEM_DE_DECL(u32 context_id);
 
 #define EXECLIST_MAX_PORTS 2
 	} port[EXECLIST_MAX_PORTS];
@@ -665,8 +665,8 @@ execlists_port_complete(struct intel_engine_execlists * const execlists,
 {
 	const unsigned int m = execlists->port_mask;
 
-	GEM_BUG_ON(port_index(port, execlists) != 0);
-	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
+	GEM__ON(port_index(port, execlists) != 0);
+	GEM__ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
 
 	memmove(port, port + 1, m * sizeof(struct execlist_port));
 	memset(port + m, 0, sizeof(struct execlist_port));
@@ -764,7 +764,7 @@ static inline void intel_ring_advance(struct i915_request *rq, u32 *cs)
 	 * reserved for the command packet (i.e. the value passed to
 	 * intel_ring_begin()).
 	 */
-	GEM_BUG_ON((rq->ring->vaddr + rq->ring->emit) != cs);
+	GEM__ON((rq->ring->vaddr + rq->ring->emit) != cs);
 }
 
 static inline u32 intel_ring_wrap(const struct intel_ring *ring, u32 pos)
@@ -789,14 +789,14 @@ static inline u32 intel_ring_offset(const struct i915_request *rq, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
 	u32 offset = addr - rq->ring->vaddr;
-	GEM_BUG_ON(offset > rq->ring->size);
+	GEM__ON(offset > rq->ring->size);
 	return intel_ring_wrap(rq->ring, offset);
 }
 
 static inline void
 assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 {
-	GEM_BUG_ON(!intel_ring_offset_valid(ring, tail));
+	GEM__ON(!intel_ring_offset_valid(ring, tail));
 
 	/*
 	 * "Ring Buffer Use"
@@ -813,7 +813,7 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 	 * into the same cacheline as ring->head.
 	 */
 #define cacheline(a) round_down(a, CACHELINE_BYTES)
-	GEM_BUG_ON(cacheline(tail) == cacheline(ring->head) &&
+	GEM__ON(cacheline(tail) == cacheline(ring->head) &&
 		   tail < ring->head);
 #undef cacheline
 }
@@ -840,7 +840,7 @@ __intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
 	 * same cacheline, the Head Pointer must not be greater than the Tail
 	 * Pointer."
 	 */
-	GEM_BUG_ON(!is_power_of_2(size));
+	GEM__ON(!is_power_of_2(size));
 	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
@@ -890,14 +890,14 @@ static inline bool intel_engine_signaled(struct intel_engine_cs *engine,
 static inline bool intel_engine_has_completed(struct intel_engine_cs *engine,
 					      u32 seqno)
 {
-	GEM_BUG_ON(!seqno);
+	GEM__ON(!seqno);
 	return intel_engine_signaled(engine, seqno);
 }
 
 static inline bool intel_engine_has_started(struct intel_engine_cs *engine,
 					    u32 seqno)
 {
-	GEM_BUG_ON(!seqno);
+	GEM__ON(!seqno);
 	return intel_engine_signaled(engine, seqno - 1);
 }
 
@@ -942,7 +942,7 @@ static inline u32 *
 gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 {
 	/* We're using qword write, offset should be aligned to 8 bytes. */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
+	GEM__ON(!IS_ALIGNED(gtt_offset, 8));
 
 	/* w/a for post sync ops following a GPGPU operation we
 	 * need a prior CS_STALL, which is emitted by the flush
@@ -963,9 +963,9 @@ static inline u32 *
 gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
 {
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	GEM_BUG_ON(gtt_offset & (1 << 5));
+	GEM__ON(gtt_offset & (1 << 5));
 	/* Offset should be aligned to 8 bytes for both (QW/DW) write types */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
+	GEM__ON(!IS_ALIGNED(gtt_offset, 8));
 
 	*cs++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW;
 	*cs++ = gtt_offset | MI_FLUSH_DW_USE_GTT;
@@ -1018,7 +1018,7 @@ static inline void intel_engine_context_in(struct intel_engine_cs *engine)
 	if (engine->stats.enabled > 0) {
 		if (engine->stats.active++ == 0)
 			engine->stats.start = ktime_get();
-		GEM_BUG_ON(engine->stats.active == 0);
+		GEM__ON(engine->stats.active == 0);
 	}
 
 	write_sequnlock_irqrestore(&engine->stats.lock, flags);

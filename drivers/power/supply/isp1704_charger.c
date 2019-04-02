@@ -118,7 +118,7 @@ static inline int isp1704_charger_type(struct isp1704_charger *isp)
 	isp1704_write(isp, ULPI_SET(ULPI_FUNC_CTRL), reg);
 	usleep_range(1000, 2000);
 
-	reg = isp1704_read(isp, ULPI_DEBUG);
+	reg = isp1704_read(isp, ULPI_DE);
 	if ((reg & 3) != 3)
 		type = POWER_SUPPLY_TYPE_USB_CDP;
 
@@ -158,7 +158,7 @@ static inline int isp1704_charger_verify(struct isp1704_charger *isp)
 	usleep_range(1000, 2000);
 
 	/* Read the line state */
-	if (!isp1704_read(isp, ULPI_DEBUG)) {
+	if (!isp1704_read(isp, ULPI_DE)) {
 		/* Disable strong pull-up on DP (1.5K) */
 		isp1704_write(isp, ULPI_CLR(ULPI_FUNC_CTRL),
 				ULPI_FUNC_CTRL_TERMSELECT);
@@ -180,7 +180,7 @@ static inline int isp1704_charger_verify(struct isp1704_charger *isp)
 			ULPI_OTG_CTRL_DM_PULLDOWN);
 
 	/* It's a charger if the line states are clear */
-	if (!(isp1704_read(isp, ULPI_DEBUG)))
+	if (!(isp1704_read(isp, ULPI_DE)))
 		ret = 1;
 
 	/* Disable weak pull-up resistor on DP */

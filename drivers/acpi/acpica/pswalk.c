@@ -35,7 +35,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 
 	ACPI_FUNCTION_TRACE_PTR(ps_delete_parse_tree, subtree_root);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE_TREES, " root %p\n", subtree_root));
+	ACPI_DE_PRINT((ACPI_DB_PARSE_TREES, " root %p\n", subtree_root));
 
 	/* Visit all nodes in the subtree */
 
@@ -44,10 +44,10 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 
 			/* This is the descending case */
 
-			if (ACPI_IS_DEBUG_ENABLED
+			if (ACPI_IS_DE_ENABLED
 			    (ACPI_LV_PARSE_TREES, _COMPONENT)) {
 
-				/* This debug option will print the entire parse tree */
+				/* This de option will print the entire parse tree */
 
 				acpi_os_printf("      %*.s%s %p", (level * 4),
 					       " ",

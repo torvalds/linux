@@ -46,7 +46,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	struct snd_emu10k1 *emu;
 
 	emu = rec->hw;
-	if (snd_BUG_ON(!sp || !hdr))
+	if (snd__ON(!sp || !hdr))
 		return -EINVAL;
 
 	if (sp->v.size == 0) {
@@ -216,7 +216,7 @@ snd_emu10k1_sample_free(struct snd_emux *rec, struct snd_sf_sample *sp,
 	struct snd_emu10k1 *emu;
 
 	emu = rec->hw;
-	if (snd_BUG_ON(!sp || !hdr))
+	if (snd__ON(!sp || !hdr))
 		return -EINVAL;
 
 	if (sp->block) {

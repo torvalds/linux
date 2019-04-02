@@ -379,7 +379,7 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 	return XEN_NETIF_CTRL_STATUS_SUCCESS;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
 {
 	unsigned int i;
@@ -447,14 +447,14 @@ void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
 		}
 	}
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 void xenvif_init_hash(struct xenvif *vif)
 {
 	if (xenvif_hash_cache_size == 0)
 		return;
 
-	BUG_ON(vif->hash.cache.count);
+	_ON(vif->hash.cache.count);
 
 	spin_lock_init(&vif->hash.cache.lock);
 	INIT_LIST_HEAD(&vif->hash.cache.list);

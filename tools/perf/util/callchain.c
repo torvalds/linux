@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <math.h>
 
-#include "asm/bug.h"
+#include "asm/.h"
 
 #include "hist.h"
 #include "util.h"

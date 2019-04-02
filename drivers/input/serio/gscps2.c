@@ -149,7 +149,7 @@ static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 	char __iomem *addr = ps2port->addr;
 
 	if (!wait_TBE(addr)) {
-		printk(KERN_DEBUG PFX "timeout - could not write byte %#x\n", data);
+		printk(KERN_DE PFX "timeout - could not write byte %#x\n", data);
 		return 0;
 	}
 
@@ -284,7 +284,7 @@ static int gscps2_write(struct serio *port, unsigned char data)
 	struct gscps2port *ps2port = port->port_data;
 
 	if (!gscps2_writeb_output(ps2port, data)) {
-		printk(KERN_DEBUG PFX "sending byte %#x failed.\n", data);
+		printk(KERN_DE PFX "sending byte %#x failed.\n", data);
 		return -1;
 	}
 	return 0;

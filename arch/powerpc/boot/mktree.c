@@ -30,7 +30,7 @@ typedef struct boot_block {
 	uint32_t bb_magic;		/* 0x0052504F */
 	uint32_t bb_dest;		/* Target address of the image */
 	uint32_t bb_num_512blocks;	/* Size, rounded-up, in 512 byte blks */
-	uint32_t bb_debug_flag;	/* Run debugger or image after load */
+	uint32_t bb_de_flag;	/* Run deger or image after load */
 	uint32_t bb_entry_point;	/* The image address to start */
 	uint32_t bb_checksum;	/* 32 bit checksum including header */
 	uint32_t reserved[2];
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	 * relocation can happen.
 	 */
 	bt.bb_num_512blocks = htonl(nblks);
-	bt.bb_debug_flag = 0;
+	bt.bb_de_flag = 0;
 
 	bt.bb_checksum = 0;
 

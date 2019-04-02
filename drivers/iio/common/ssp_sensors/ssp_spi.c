@@ -26,7 +26,7 @@
  */
 #define SSP_MSG2AP_INST_BYPASS_DATA		0x37
 #define SSP_MSG2AP_INST_LIBRARY_DATA		0x01
-#define SSP_MSG2AP_INST_DEBUG_DATA		0x03
+#define SSP_MSG2AP_INST_DE_DATA		0x03
 #define SSP_MSG2AP_INST_BIG_DATA		0x04
 #define SSP_MSG2AP_INST_META_DATA		0x05
 #define SSP_MSG2AP_INST_TIME_SYNC		0x06
@@ -139,13 +139,13 @@ static void ssp_clean_msg(struct ssp_msg *m)
 	kfree(m);
 }
 
-static int ssp_print_mcu_debug(char *data_frame, int *data_index,
+static int ssp_print_mcu_de(char *data_frame, int *data_index,
 			       int received_len)
 {
 	int length = data_frame[(*data_index)++];
 
 	if (length > received_len - *data_index || length <= 0) {
-		ssp_dbg("[SSP]: MSG From MCU-invalid debug length(%d/%d)\n",
+		ssp_dbg("[SSP]: MSG From MCU-invalid de length(%d/%d)\n",
 			length, received_len);
 		return length ? length : -EPROTO;
 	}
@@ -302,8 +302,8 @@ static int ssp_parse_dataframe(struct ssp_data *data, char *dataframe, int len)
 
 			idx += ssp_offset_map[sd];
 			break;
-		case SSP_MSG2AP_INST_DEBUG_DATA:
-			sd = ssp_print_mcu_debug(dataframe, &idx, len);
+		case SSP_MSG2AP_INST_DE_DATA:
+			sd = ssp_print_mcu_de(dataframe, &idx, len);
 			if (sd) {
 				dev_err(SSP_DEV,
 					"Mcu data frame3 error %d\n", sd);

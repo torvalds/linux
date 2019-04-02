@@ -35,7 +35,7 @@
 #define REF_REG_SP regs->regs[REG_SP]
 #define DEREF_REG_PR regs->regs[REG_PR]
 
-#define DEBUG_SIG 0
+#define DE_SIG 0
 
 static void
 handle_signal(struct ksignal *ksig, struct pt_regs *regs);
@@ -449,7 +449,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs
 	regs->pc = neff_sign_extend((unsigned long)ksig->ka.sa.sa_handler);
 
 	/* Broken %016Lx */
-	pr_debug("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
+	pr_de("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
 		 sig, current->comm, current->pid, frame,
 		 regs->pc >> 32, regs->pc & 0xffffffff,
 		 DEREF_REG_PR >> 32, DEREF_REG_PR & 0xffffffff);
@@ -529,7 +529,7 @@ static int setup_rt_frame(struct ksignal *kig, sigset_t *set,
 	regs->regs[REG_ARG3] = (unsigned long long)(unsigned long)(signed long)&frame->uc.uc_mcontext;
 	regs->pc = neff_sign_extend((unsigned long)ksig->ka.sa.sa_handler);
 
-	pr_debug("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
+	pr_de("SIG deliver (#%d,%s:%d): sp=%p pc=%08Lx%08Lx link=%08Lx%08Lx\n",
 		 sig, current->comm, current->pid, frame,
 		 regs->pc >> 32, regs->pc & 0xffffffff,
 		 DEREF_REG_PR >> 32, DEREF_REG_PR & 0xffffffff);

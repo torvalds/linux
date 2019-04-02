@@ -229,7 +229,7 @@ handle_transaction(struct link_transaction *t)
 	int i;
 
 	if (!t->request) {
-		printf("BUG in handle_transaction\n");
+		printf(" in handle_transaction\n");
 		return;
 	}
 

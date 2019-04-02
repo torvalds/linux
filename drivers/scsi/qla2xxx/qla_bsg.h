@@ -106,7 +106,7 @@ struct qla84_mgmt_param {
 /*
 * context definitions for QLA84_MGMT_INFO_CONFIG_LOG_DATA
 */
-#define IC_LOG_DATA_LOG_ID_DEBUG_LOG                    0
+#define IC_LOG_DATA_LOG_ID_DE_LOG                    0
 #define IC_LOG_DATA_LOG_ID_LEARN_LOG                    1
 #define IC_LOG_DATA_LOG_ID_FC_ACL_INGRESS_LOG           2
 #define IC_LOG_DATA_LOG_ID_FC_ACL_EGRESS_LOG            3

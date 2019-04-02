@@ -103,7 +103,7 @@ int amdgpu_vm_size = -1;
 int amdgpu_vm_fragment_size = -1;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
-int amdgpu_vm_debug = 0;
+int amdgpu_vm_de = 0;
 int amdgpu_vram_page_split = 512;
 int amdgpu_vm_update_mode = -1;
 int amdgpu_exp_hw_support = 0;
@@ -239,7 +239,7 @@ module_param_named(dpm, amdgpu_dpm, int, 0444);
 
 /**
  * DOC: fw_load_type (int)
- * Set different firmware loading type for debugging (0 = direct, 1 = SMU, 2 = PSP). The default is -1 (auto).
+ * Set different firmware loading type for deging (0 = direct, 1 = SMU, 2 = PSP). The default is -1 (auto).
  */
 MODULE_PARM_DESC(fw_load_type, "firmware loading type (0 = direct, 1 = SMU, 2 = PSP, -1 = auto)");
 module_param_named(fw_load_type, amdgpu_fw_load_type, int, 0444);
@@ -307,17 +307,17 @@ module_param_named(vm_block_size, amdgpu_vm_block_size, int, 0444);
 
 /**
  * DOC: vm_fault_stop (int)
- * Stop on VM fault for debugging (0 = never, 1 = print first, 2 = always). The default is 0 (No stop).
+ * Stop on VM fault for deging (0 = never, 1 = print first, 2 = always). The default is 0 (No stop).
  */
 MODULE_PARM_DESC(vm_fault_stop, "Stop on VM fault (0 = never (default), 1 = print first, 2 = always)");
 module_param_named(vm_fault_stop, amdgpu_vm_fault_stop, int, 0444);
 
 /**
- * DOC: vm_debug (int)
- * Debug VM handling (0 = disabled, 1 = enabled). The default is 0 (Disabled).
+ * DOC: vm_de (int)
+ * De VM handling (0 = disabled, 1 = enabled). The default is 0 (Disabled).
  */
-MODULE_PARM_DESC(vm_debug, "Debug VM handling (0 = disabled (default), 1 = enabled)");
-module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
+MODULE_PARM_DESC(vm_de, "De VM handling (0 = disabled (default), 1 = enabled)");
+module_param_named(vm_de, amdgpu_vm_de, int, 0644);
 
 /**
  * DOC: vm_update_mode (int)
@@ -343,7 +343,7 @@ module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
 /**
  * DOC: dc (int)
- * Disable/Enable Display Core driver for debugging (1 = enable, 0 = disable). The default is -1 (automatic for each asic).
+ * Disable/Enable Display Core driver for deging (1 = enable, 0 = disable). The default is -1 (automatic for each asic).
  */
 MODULE_PARM_DESC(dc, "Display Core driver (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(dc, amdgpu_dc, int, 0444);
@@ -534,11 +534,11 @@ module_param_named(cik_support, amdgpu_cik_support, int, 0444);
 
 /**
  * DOC: smu_memory_pool_size (uint)
- * It is used to reserve gtt for smu debug usage, setting value 0 to disable it. The actual size is value * 256MiB.
+ * It is used to reserve gtt for smu de usage, setting value 0 to disable it. The actual size is value * 256MiB.
  * E.g. 0x1 = 256Mbyte, 0x2 = 512Mbyte, 0x4 = 1 Gbyte, 0x8 = 2GByte. The default is 0 (disabled).
  */
 MODULE_PARM_DESC(smu_memory_pool_size,
-	"reserve gtt for smu debug usage, 0 = disable,"
+	"reserve gtt for smu de usage, 0 = disable,"
 		"0x1 = 256Mbyte, 0x2 = 512Mbyte, 0x4 = 1 Gbyte, 0x8 = 2GByte");
 module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444);
 
@@ -552,7 +552,7 @@ module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444
 int sched_policy = KFD_SCHED_POLICY_HWS;
 module_param(sched_policy, int, 0444);
 MODULE_PARM_DESC(sched_policy,
-	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
+	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for deging only)");
 
 /**
  * DOC: hws_max_conc_proc (int)
@@ -595,16 +595,16 @@ MODULE_PARM_DESC(send_sigterm,
 	"Send sigterm to HSA process on unhandled exception (0 = disable, 1 = enable)");
 
 /**
- * DOC: debug_largebar (int)
- * Set debug_largebar as 1 to enable simulating large-bar capability on non-large bar
+ * DOC: de_largebar (int)
+ * Set de_largebar as 1 to enable simulating large-bar capability on non-large bar
  * system. This limits the VRAM size reported to ROCm applications to the visible
  * size, usually 256MB.
  * Default value is 0, diabled.
  */
-int debug_largebar;
-module_param(debug_largebar, int, 0444);
-MODULE_PARM_DESC(debug_largebar,
-	"Debug large-bar flag used to simulate large-bar capability on non-large bar machine (0 = disable, 1 = enable)");
+int de_largebar;
+module_param(de_largebar, int, 0444);
+MODULE_PARM_DESC(de_largebar,
+	"De large-bar flag used to simulate large-bar capability on non-large bar machine (0 = disable, 1 = enable)");
 
 /**
  * DOC: ignore_crat (int)
@@ -1113,7 +1113,7 @@ static int amdgpu_pmops_runtime_idle(struct device *dev)
 
 	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
 		if (crtc->enabled) {
-			DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
+			DRM_DE_DRIVER("failing to power off - crtc active\n");
 			return -EBUSY;
 		}
 	}

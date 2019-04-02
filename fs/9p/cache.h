@@ -91,7 +91,7 @@ static inline void v9fs_uncache_page(struct inode *inode, struct page *page)
 {
 	struct v9fs_inode *v9inode = V9FS_I(inode);
 	fscache_uncache_page(v9inode->fscache, page);
-	BUG_ON(PageFsCache(page));
+	_ON(PageFsCache(page));
 }
 
 static inline void v9fs_fscache_wait_on_page_write(struct inode *inode,

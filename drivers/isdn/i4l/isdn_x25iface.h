@@ -11,11 +11,11 @@
 #define _LINUX_ISDN_X25IFACE_H
 
 #define ISDN_X25IFACE_MAGIC 0x1e75a2b9
-/* #define DEBUG_ISDN_X25 if you want isdn_x25 debugging messages */
-#ifdef DEBUG_ISDN_X25
-#   define IX25DEBUG(fmt, args...) printk(KERN_DEBUG fmt, ##args)
+/* #define DE_ISDN_X25 if you want isdn_x25 deging messages */
+#ifdef DE_ISDN_X25
+#   define IX25DE(fmt, args...) printk(KERN_DE fmt, ##args)
 #else
-#   define IX25DEBUG(fmt, args...)
+#   define IX25DE(fmt, args...)
 #endif
 
 #include <linux/skbuff.h>

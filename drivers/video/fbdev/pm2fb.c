@@ -49,10 +49,10 @@
 #error "Only generic PCI cards supported."
 #endif
 
-#undef PM2FB_MASTER_DEBUG
-#ifdef PM2FB_MASTER_DEBUG
+#undef PM2FB_MASTER_DE
+#ifdef PM2FB_MASTER_DE
 #define DPRINTK(a, b...)	\
-	printk(KERN_DEBUG "pm2fb: %s: " a, __func__ , ## b)
+	printk(KERN_DE "pm2fb: %s: " a, __func__ , ## b)
 #else
 #define DPRINTK(a, b...)
 #endif
@@ -918,7 +918,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		red = CNVT_TOHW(red, 8);
 		green = CNVT_TOHW(green, 8);
 		blue = CNVT_TOHW(blue, 8);
-		/* hey, there is bug in transp handling... */
+		/* hey, there is  in transp handling... */
 		transp = CNVT_TOHW(transp, 8);
 		break;
 	}
@@ -1664,7 +1664,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
 	if (noaccel) {
-		printk(KERN_DEBUG "disabling acceleration\n");
+		printk(KERN_DE "disabling acceleration\n");
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 		info->pixmap.scan_align = 1;
 	}

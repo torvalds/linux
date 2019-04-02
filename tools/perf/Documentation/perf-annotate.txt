@@ -13,10 +13,10 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command reads the input file and displays an annotated version of the
-code. If the object file has debug symbols then the source code will be
+code. If the object file has de symbols then the source code will be
 displayed alongside assembly code.
 
-If there is no debug info in the object, then annotated assembly is displayed.
+If there is no de info in the object, then annotated assembly is displayed.
 
 OPTIONS
 -------

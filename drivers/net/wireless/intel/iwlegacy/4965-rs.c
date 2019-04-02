@@ -147,7 +147,7 @@ static void il4965_rs_fill_link_cmd(struct il_priv *il,
 static void il4965_rs_stay_in_table(struct il_lq_sta *lq_sta,
 				    bool force_search);
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 static void il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta,
 				    u32 *rate_n_flags, int idx);
 #else
@@ -2364,7 +2364,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 		lq_sta->last_txrate_idx += IL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
 
@@ -2384,7 +2384,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 	u8 valid_tx_ant = 0;
 	struct il_link_quality_cmd *lq_cmd = &lq_sta->lq;
 
-	/* Override starting rate (idx 0) if needed for debug purposes */
+	/* Override starting rate (idx 0) if needed for de purposes */
 	il4965_rs_dbgfs_set_mcs(lq_sta, &new_rate, idx);
 
 	/* Interpret new_rate (rate_n_flags) */
@@ -2433,7 +2433,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 					ant_toggle_cnt = 1;
 			}
 
-			/* Override next rate if needed for debug purposes */
+			/* Override next rate if needed for de purposes */
 			il4965_rs_dbgfs_set_mcs(lq_sta, &new_rate, idx);
 
 			/* Fill next table entry */
@@ -2475,7 +2475,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 		 * il4965_rs_get_lower_rate() will change type to LQ_A or LQ_G. */
 		use_ht_possible = 0;
 
-		/* Override next rate if needed for debug purposes */
+		/* Override next rate if needed for de purposes */
 		il4965_rs_dbgfs_set_mcs(lq_sta, &new_rate, idx);
 
 		/* Fill next table entry */
@@ -2493,7 +2493,7 @@ il4965_rs_fill_link_cmd(struct il_priv *il, struct il_lq_sta *lq_sta,
 }
 
 static void *
-il4965_rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
+il4965_rs_alloc(struct ieee80211_hw *hw, struct dentry *defsdir)
 {
 	return hw->priv;
 }
@@ -2514,7 +2514,7 @@ il4965_rs_free_sta(void *il_r, struct ieee80211_sta *sta, void *il_sta)
 	D_RATE("leave\n");
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 
 static void
 il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
@@ -2764,32 +2764,32 @@ static const struct file_operations rs_sta_dbgfs_rate_scale_data_ops = {
 };
 
 static void
-il4965_rs_add_debugfs(void *il, void *il_sta, struct dentry *dir)
+il4965_rs_add_defs(void *il, void *il_sta, struct dentry *dir)
 {
 	struct il_lq_sta *lq_sta = il_sta;
 	lq_sta->rs_sta_dbgfs_scale_table_file =
-	    debugfs_create_file("rate_scale_table", 0600, dir,
+	    defs_create_file("rate_scale_table", 0600, dir,
 				lq_sta, &rs_sta_dbgfs_scale_table_ops);
 	lq_sta->rs_sta_dbgfs_stats_table_file =
-	    debugfs_create_file("rate_stats_table", 0400, dir, lq_sta,
+	    defs_create_file("rate_stats_table", 0400, dir, lq_sta,
 				&rs_sta_dbgfs_stats_table_ops);
 	lq_sta->rs_sta_dbgfs_rate_scale_data_file =
-	    debugfs_create_file("rate_scale_data", 0400, dir, lq_sta,
+	    defs_create_file("rate_scale_data", 0400, dir, lq_sta,
 				&rs_sta_dbgfs_rate_scale_data_ops);
 	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
-	    debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
+	    defs_create_u8("tx_agg_tid_enable", 0600, dir,
 			      &lq_sta->tx_agg_tid_en);
 
 }
 
 static void
-il4965_rs_remove_debugfs(void *il, void *il_sta)
+il4965_rs_remove_defs(void *il, void *il_sta)
 {
 	struct il_lq_sta *lq_sta = il_sta;
-	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_rate_scale_data_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
+	defs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
+	defs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
+	defs_remove(lq_sta->rs_sta_dbgfs_rate_scale_data_file);
+	defs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
 }
 #endif
 
@@ -2814,9 +2814,9 @@ static const struct rate_control_ops rs_4965_ops = {
 	.free = il4965_rs_free,
 	.alloc_sta = il4965_rs_alloc_sta,
 	.free_sta = il4965_rs_free_sta,
-#ifdef CONFIG_MAC80211_DEBUGFS
-	.add_sta_debugfs = il4965_rs_add_debugfs,
-	.remove_sta_debugfs = il4965_rs_remove_debugfs,
+#ifdef CONFIG_MAC80211_DEFS
+	.add_sta_defs = il4965_rs_add_defs,
+	.remove_sta_defs = il4965_rs_remove_defs,
 #endif
 };
 

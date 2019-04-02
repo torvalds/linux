@@ -195,7 +195,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		 * Reading from a PCC field unit does not require the handler because
 		 * it only requires reading from the internal_pcc_buffer.
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+		ACPI_DE_PRINT((ACPI_DB_BFIELD,
 				  "PCC FieldRead bits %u\n",
 				  obj_desc->field.bit_length));
 
@@ -209,11 +209,11 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		return AE_OK;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "FieldRead [TO]:   Obj %p, Type %X, Buf %p, ByteLen %X\n",
 			  obj_desc, obj_desc->common.type, buffer,
 			  buffer_length));
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "FieldRead [FROM]: BitLen %X, BitOff %X, ByteOff %X\n",
 			  obj_desc->common_field.bit_length,
 			  obj_desc->common_field.start_field_bit_offset,
@@ -329,7 +329,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 			/* Perform the write */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "PCC COMD field has been written. Invoking PCC handler now.\n"));
 
 			status =
@@ -368,13 +368,13 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "FieldWrite [FROM]: Obj %p (%s:%X), Buf %p, ByteLen %X\n",
 			  source_desc,
 			  acpi_ut_get_type_name(source_desc->common.type),
 			  source_desc->common.type, buffer, buffer_length));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "FieldWrite [TO]:   Obj %p (%s:%X), BitLen %X, BitOff %X, ByteOff %X\n",
 			  obj_desc,
 			  acpi_ut_get_type_name(obj_desc->common.type),

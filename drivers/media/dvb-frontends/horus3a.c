@@ -43,7 +43,7 @@ struct horus3a_priv {
 	int			(*set_tuner)(void *, int);
 };
 
-static void horus3a_i2c_debug(struct horus3a_priv *priv,
+static void horus3a_i2c_de(struct horus3a_priv *priv,
 			      u8 reg, u8 write, const u8 *data, u32 len)
 {
 	dev_dbg(&priv->i2c->dev, "horus3a: I2C %s reg 0x%02x size %d\n",
@@ -72,7 +72,7 @@ static int horus3a_write_regs(struct horus3a_priv *priv,
 		return -E2BIG;
 	}
 
-	horus3a_i2c_debug(priv, reg, 1, data, len);
+	horus3a_i2c_de(priv, reg, 1, data, len);
 	buf[0] = reg;
 	memcpy(&buf[1], data, len);
 	ret = i2c_transfer(priv->i2c, msg, 1);
@@ -89,7 +89,7 @@ static int horus3a_write_regs(struct horus3a_priv *priv,
 
 static int horus3a_write_reg(struct horus3a_priv *priv, u8 reg, u8 val)
 {
-	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = val; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 	return horus3a_write_regs(priv, reg, &tmp, 1);
 }

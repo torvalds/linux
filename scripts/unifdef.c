@@ -165,7 +165,7 @@ static char const * const linestate_name[] = {
 static bool             compblank;		/* -B: compress blank lines */
 static bool             lnblank;		/* -b: blank deleted lines */
 static bool             complement;		/* -c: do the complement */
-static bool             debugging;		/* -d: debugging reports */
+static bool             deging;		/* -d: deging reports */
 static bool             iocccok;		/* -e: fewer IOCCC errors */
 static bool             strictlogic;		/* -K: keep ambiguous #ifs */
 static bool             killconsts;		/* -k: eval constant #ifs */
@@ -211,7 +211,7 @@ static int              exitstat;		/* program exit status */
 
 static void             addsym(bool, bool, char *);
 static void             closeout(void);
-static void             debug(const char *, ...);
+static void             de(const char *, ...);
 static void             done(void);
 static void             error(const char *);
 static int              findsym(const char *);
@@ -277,7 +277,7 @@ main(int argc, char *argv[])
 			complement = true;
 			break;
 		case 'd':
-			debugging = true;
+			deging = true;
 			break;
 		case 'e': /* fewer errors from dodgy lines */
 			iocccok = true;
@@ -357,7 +357,7 @@ main(int argc, char *argv[])
 		}
 	}
 	process();
-	abort(); /* bug */
+	abort(); /*  */
 }
 
 static void
@@ -508,7 +508,7 @@ static void
 ignoreoff(void)
 {
 	if (depth == 0)
-		abort(); /* bug */
+		abort(); /*  */
 	ignoring[depth] = ignoring[depth-1];
 }
 static void
@@ -527,7 +527,7 @@ static void
 nest(void)
 {
 	if (depth > MAXDEPTH-1)
-		abort(); /* bug */
+		abort(); /*  */
 	if (depth == MAXDEPTH-1)
 		error("Too many levels of nesting");
 	depth += 1;
@@ -537,7 +537,7 @@ static void
 unnest(void)
 {
 	if (depth == 0)
-		abort(); /* bug */
+		abort(); /*  */
 	depth -= 1;
 }
 static void
@@ -573,7 +573,7 @@ flushline(bool keep)
 		delcount += 1;
 		blankcount = 0;
 	}
-	if (debugging)
+	if (deging)
 		fflush(output);
 }
 
@@ -589,7 +589,7 @@ process(void)
 	for (;;) {
 		Linetype lineval = parseline();
 		trans_table[ifstate[depth]][lineval]();
-		debug("process line %d %s -> %s depth %d",
+		de("process line %d %s -> %s depth %d",
 		    linenum, linetype_name[lineval],
 		    ifstate_name[ifstate[depth]], depth);
 	}
@@ -734,7 +734,7 @@ parseline(void)
 		while (*cp != '\0')
 			cp = skipcomment(cp + 1);
 	}
-	debug("parser line %d state %s comment %s line", linenum,
+	de("parser line %d state %s comment %s line", linenum,
 	    comment_name[incomment], linestate_name[linestate]);
 	return (retval);
 }
@@ -832,7 +832,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 
 	cp = skipcomment(*cpp);
 	if (*cp == '!') {
-		debug("eval%d !", ops - eval_ops);
+		de("eval%d !", ops - eval_ops);
 		cp++;
 		lt = eval_unary(ops, valp, &cp);
 		if (lt == LT_ERROR)
@@ -843,7 +843,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		}
 	} else if (*cp == '(') {
 		cp++;
-		debug("eval%d (", ops - eval_ops);
+		de("eval%d (", ops - eval_ops);
 		lt = eval_table(eval_ops, valp, &cp);
 		if (lt == LT_ERROR)
 			return (LT_ERROR);
@@ -851,7 +851,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		if (*cp++ != ')')
 			return (LT_ERROR);
 	} else if (isdigit((unsigned char)*cp)) {
-		debug("eval%d number", ops - eval_ops);
+		de("eval%d number", ops - eval_ops);
 		*valp = strtol(cp, &ep, 0);
 		if (ep == cp)
 			return (LT_ERROR);
@@ -859,7 +859,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		cp = skipsym(cp);
 	} else if (strncmp(cp, "defined", 7) == 0 && endsym(cp[7])) {
 		cp = skipcomment(cp+7);
-		debug("eval%d defined", ops - eval_ops);
+		de("eval%d defined", ops - eval_ops);
 		if (*cp == '(') {
 			cp = skipcomment(cp+1);
 			defparen = true;
@@ -879,7 +879,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 			return (LT_ERROR);
 		constexpr = false;
 	} else if (!endsym(*cp)) {
-		debug("eval%d symbol", ops - eval_ops);
+		de("eval%d symbol", ops - eval_ops);
 		sym = findsym(cp);
 		cp = skipsym(cp);
 		if (sym < 0) {
@@ -897,12 +897,12 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		}
 		constexpr = false;
 	} else {
-		debug("eval%d bad expr", ops - eval_ops);
+		de("eval%d bad expr", ops - eval_ops);
 		return (LT_ERROR);
 	}
 
 	*cpp = cp;
-	debug("eval%d = %d", ops - eval_ops, *valp);
+	de("eval%d = %d", ops - eval_ops, *valp);
 	return (lt);
 }
 
@@ -917,7 +917,7 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 	int val;
 	Linetype lt, rt;
 
-	debug("eval%d", ops - eval_ops);
+	de("eval%d", ops - eval_ops);
 	cp = *cpp;
 	lt = ops->inner(ops+1, valp, &cp);
 	if (lt == LT_ERROR)
@@ -930,7 +930,7 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 		if (op->str == NULL)
 			break;
 		cp += strlen(op->str);
-		debug("eval%d %s", ops - eval_ops, op->str);
+		de("eval%d %s", ops - eval_ops, op->str);
 		rt = ops->inner(ops+1, &val, &cp);
 		if (rt == LT_ERROR)
 			return (LT_ERROR);
@@ -938,8 +938,8 @@ eval_table(const struct ops *ops, int *valp, const char **cpp)
 	}
 
 	*cpp = cp;
-	debug("eval%d = %d", ops - eval_ops, *valp);
-	debug("eval%d lt = %s", ops - eval_ops, linetype_name[lt]);
+	de("eval%d = %d", ops - eval_ops, *valp);
+	de("eval%d lt = %s", ops - eval_ops, linetype_name[lt]);
 	return (lt);
 }
 
@@ -954,10 +954,10 @@ ifeval(const char **cpp)
 	int ret;
 	int val = 0;
 
-	debug("eval %s", *cpp);
+	de("eval %s", *cpp);
 	constexpr = killconsts ? false : true;
 	ret = eval_table(eval_ops, &val, cpp);
-	debug("eval = %d", val);
+	de("eval = %d", val);
 	return (constexpr ? LT_IF : ret == LT_ERROR ? LT_IF : ret);
 }
 
@@ -1072,7 +1072,7 @@ skipcomment(const char *cp)
 				incomment = C_COMMENT;
 			continue;
 		default:
-			abort(); /* bug */
+			abort(); /*  */
 		}
 	return (cp);
 }
@@ -1139,7 +1139,7 @@ findsym(const char *str)
 	}
 	for (symind = 0; symind < nsyms; ++symind) {
 		if (strlcmp(symname[symind], str, cp-str) == 0) {
-			debug("findsym %s %s", symname[symind],
+			de("findsym %s %s", symname[symind],
 			    value[symind] ? value[symind] : "");
 			return (symind);
 		}
@@ -1178,7 +1178,7 @@ addsym(bool ignorethis, bool definethis, char *sym)
 			usage();
 		value[symind] = NULL;
 	}
-	debug("addsym %s=%s", symname[symind],
+	de("addsym %s=%s", symname[symind],
 	    value[symind] ? value[symind] : "undef");
 }
 
@@ -1201,11 +1201,11 @@ strlcmp(const char *s, const char *t, size_t n)
  * Diagnostics.
  */
 static void
-debug(const char *msg, ...)
+de(const char *msg, ...)
 {
 	va_list ap;
 
-	if (debugging) {
+	if (deging) {
 		va_start(ap, msg);
 		vwarnx(msg, ap);
 		va_end(ap);

@@ -231,7 +231,7 @@ extern void static_key_disable_cpuslocked(struct static_key *key);
  * We should be using ATOMIC_INIT() for initializing .enabled, but
  * the inclusion of atomic.h is problematic for inclusion of jump_label.h
  * in 'low-level' headers. Thus, we are initializing .enabled with a
- * raw value, but have added a BUILD_BUG_ON() to catch any issues in
+ * raw value, but have added a BUILD__ON() to catch any issues in
  * jump_label_init() see: kernel/jump_label.c.
  */
 #define STATIC_KEY_INIT_TRUE					\
@@ -244,7 +244,7 @@ extern void static_key_disable_cpuslocked(struct static_key *key);
 #else  /* !CONFIG_JUMP_LABEL */
 
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 static inline int static_key_count(struct static_key *key)
 {

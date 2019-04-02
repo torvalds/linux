@@ -42,7 +42,7 @@
 #include <linux/export.h>
 #include "core.h"
 
-static u_int *debug;
+static u_int *de;
 static LIST_HEAD(iclock_list);
 static DEFINE_RWLOCK(iclock_lock);
 static u16 iclock_count;		/* counter of last clock */
@@ -53,7 +53,7 @@ static struct mISDNclock *iclock_current;
 void
 mISDN_init_clock(u_int *dp)
 {
-	debug = dp;
+	de = dp;
 	iclock_timestamp = ktime_get();
 }
 
@@ -73,15 +73,15 @@ select_iclock(void)
 	}
 	if (lastclock && bestclock != lastclock) {
 		/* last used clock source still exists but changes, disable */
-		if (*debug & DEBUG_CLOCK)
-			printk(KERN_DEBUG "Old clock source '%s' disable.\n",
+		if (*de & DE_CLOCK)
+			printk(KERN_DE "Old clock source '%s' disable.\n",
 			       lastclock->name);
 		lastclock->ctl(lastclock->priv, 0);
 	}
 	if (bestclock && bestclock != iclock_current) {
 		/* new clock source selected, enable */
-		if (*debug & DEBUG_CLOCK)
-			printk(KERN_DEBUG "New clock source '%s' enable.\n",
+		if (*de & DE_CLOCK)
+			printk(KERN_DE "New clock source '%s' enable.\n",
 			       bestclock->name);
 		bestclock->ctl(bestclock->priv, 1);
 	}
@@ -98,8 +98,8 @@ struct mISDNclock
 	u_long			flags;
 	struct mISDNclock	*iclock;
 
-	if (*debug & (DEBUG_CORE | DEBUG_CLOCK))
-		printk(KERN_DEBUG "%s: %s %d\n", __func__, name, pri);
+	if (*de & (DE_CORE | DE_CLOCK))
+		printk(KERN_DE "%s: %s %d\n", __func__, name, pri);
 	iclock = kzalloc(sizeof(struct mISDNclock), GFP_ATOMIC);
 	if (!iclock) {
 		printk(KERN_ERR "%s: No memory for clock entry.\n", __func__);
@@ -122,13 +122,13 @@ mISDN_unregister_clock(struct mISDNclock *iclock)
 {
 	u_long	flags;
 
-	if (*debug & (DEBUG_CORE | DEBUG_CLOCK))
-		printk(KERN_DEBUG "%s: %s %d\n", __func__, iclock->name,
+	if (*de & (DE_CORE | DE_CLOCK))
+		printk(KERN_DE "%s: %s %d\n", __func__, iclock->name,
 		       iclock->pri);
 	write_lock_irqsave(&iclock_lock, flags);
 	if (iclock_current == iclock) {
-		if (*debug & DEBUG_CLOCK)
-			printk(KERN_DEBUG
+		if (*de & DE_CLOCK)
+			printk(KERN_DE
 			       "Current clock source '%s' unregisters.\n",
 			       iclock->name);
 		iclock->ctl(iclock->priv, 0);
@@ -149,7 +149,7 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 	write_lock_irqsave(&iclock_lock, flags);
 	if (iclock_current != iclock) {
 		printk(KERN_ERR "%s: '%s' sends us clock updates, but we do "
-		       "listen to '%s'. This is a bug!\n", __func__,
+		       "listen to '%s'. This is a !\n", __func__,
 		       iclock->name,
 		       iclock_current ? iclock_current->name : "nothing");
 		iclock->ctl(iclock->priv, 0);
@@ -177,7 +177,7 @@ mISDN_clock_update(struct mISDNclock *iclock, int samples, ktime_t *timestamp)
 		iclock_count += delta;
 		iclock_timestamp = timestamp_now;
 		iclock_timestamp_valid = 1;
-		if (*debug & DEBUG_CLOCK)
+		if (*de & DE_CLOCK)
 			printk("Received first clock from source '%s'.\n",
 			       iclock_current ? iclock_current->name : "nothing");
 	}

@@ -14,7 +14,7 @@ void igt_global_reset_lock(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	pr_debug("%s: current gpu_error=%08lx\n",
+	pr_de("%s: current gpu_error=%08lx\n",
 		 __func__, i915->gpu_error.flags);
 
 	while (test_and_set_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags))

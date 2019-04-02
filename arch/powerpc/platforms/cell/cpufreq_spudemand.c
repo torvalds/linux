@@ -50,7 +50,7 @@ static int calc_freq(struct spu_gov_info_struct *info)
 	busy_spus = atomic_read(&cbe_spu_info[cpu_to_node(cpu)].busy_spus);
 
 	info->busy_spus = calc_load(info->busy_spus, EXP, busy_spus * FIXED_1);
-	pr_debug("cpu %d: busy_spus=%d, info->busy_spus=%ld\n",
+	pr_de("cpu %d: busy_spus=%d, info->busy_spus=%ld\n",
 			cpu, busy_spus, info->busy_spus);
 
 	return info->policy->max * info->busy_spus / FIXED_1;
@@ -65,7 +65,7 @@ static void spu_gov_work(struct work_struct *work)
 	info = container_of(work, struct spu_gov_info_struct, work.work);
 
 	/* after cancel_delayed_work_sync we unset info->policy */
-	BUG_ON(info->policy == NULL);
+	_ON(info->policy == NULL);
 
 	target_freq = calc_freq(info);
 	__cpufreq_driver_target(info->policy, target_freq, CPUFREQ_RELATION_H);

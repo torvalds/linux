@@ -10,8 +10,8 @@
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
-#ifdef CONFIG_DEBUG_FS
-extern struct dentry *blk_debugfs_root;
+#ifdef CONFIG_DE_FS
+extern struct dentry *blk_defs_root;
 #endif
 
 struct blk_flush_queue {

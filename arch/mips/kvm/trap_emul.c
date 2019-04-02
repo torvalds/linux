@@ -36,7 +36,7 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 		gpa = KVM_INVALID_ADDR;
 	}
 
-	kvm_debug("%s: gva %#lx, gpa: %#llx\n", __func__, gva, gpa);
+	kvm_de("%s: gva %#lx, gpa: %#llx\n", __func__, gva, gpa);
 
 	return gpa;
 }
@@ -111,7 +111,7 @@ static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	return ret;
 }
@@ -263,7 +263,7 @@ static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 		}
 	} else if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 		   || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-		kvm_debug("USER ADDR TLB %s fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
+		kvm_de("USER ADDR TLB %s fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
 			  store ? "ST" : "LD", cause, opc, badvaddr);
 
 		/*
@@ -507,7 +507,7 @@ static int kvm_trap_emul_handle_msa_disabled(struct kvm_vcpu *vcpu)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	return ret;
 }

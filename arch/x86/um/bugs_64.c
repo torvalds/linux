@@ -6,7 +6,7 @@
 
 #include <sysdep/ptrace.h>
 
-void arch_check_bugs(void)
+void arch_check_s(void)
 {
 }
 

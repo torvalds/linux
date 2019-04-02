@@ -94,12 +94,12 @@ Copybreak
     This is the maximum size of packet that is copied to a new buffer on
     receive.
 
-Debug
+De
 -----
 :Valid Range: 0-16 (0=none,...,16=all)
 :Default Value: 0
 
-    This parameter adjusts the level of debug messages displayed in the
+    This parameter adjusts the level of de messages displayed in the
     system logs.
 
 FlowControl
@@ -108,7 +108,7 @@ FlowControl
 :Default Value: 1 if no EEPROM, otherwise read from EEPROM
 
     This parameter controls the automatic generation(Tx) and response(Rx) to
-    Ethernet PAUSE frames.  There are hardware bugs associated with enabling
+    Ethernet PAUSE frames.  There are hardware s associated with enabling
     Tx flow control so beware.
 
 RxDescriptors

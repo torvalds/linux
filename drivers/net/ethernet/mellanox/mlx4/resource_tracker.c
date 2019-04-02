@@ -284,7 +284,7 @@ enum qp_transition {
 	QP_TRANS_SQD2RTS
 };
 
-/* For Debug uses */
+/* For De uses */
 static const char *resource_str(enum mlx4_resource rt)
 {
 	switch (rt) {

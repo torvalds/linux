@@ -520,7 +520,7 @@ As noted earlier, there is an optional implementation framework making it
 easier for platforms to support different kinds of GPIO controller using
 the same programming interface.  This framework is called "gpiolib".
 
-As a debugging aid, if debugfs is available a /sys/kernel/debug/gpio file
+As a deging aid, if defs is available a /sys/kernel/de/gpio file
 will be found there.  That will list all the controllers registered through
 this framework, and the state of the GPIOs currently in use.
 
@@ -533,7 +533,7 @@ with information common to each controller of that type:
  - methods to establish GPIO direction
  - methods used to access GPIO values
  - flag saying whether calls to its methods may sleep
- - optional debugfs dump method (showing extra state like pullup config)
+ - optional defs dump method (showing extra state like pullup config)
  - label for diagnostics
 
 There is also per-instance data, which may come from device.platform_data:
@@ -548,7 +548,7 @@ Most often a gpio_chip is part of an instance-specific structure with state
 not exposed by the GPIO interfaces, such as addressing, power management,
 and more.  Chips such as codecs will have complex non-GPIO state.
 
-Any debugfs dump method should normally ignore signals which haven't been
+Any defs dump method should normally ignore signals which haven't been
 requested as GPIOs.  They can use gpiochip_is_requested(), which returns
 either NULL or the label associated with that GPIO when it was requested.
 
@@ -616,9 +616,9 @@ Sysfs Interface for Userspace (OPTIONAL)
 ========================================
 Platforms which use the "gpiolib" implementors framework may choose to
 configure a sysfs user interface to GPIOs.  This is different from the
-debugfs interface, since it provides control over GPIO direction and
+defs interface, since it provides control over GPIO direction and
 value instead of just showing a gpio state summary.  Plus, it could be
-present on production systems without debugging support.
+present on production systems without deging support.
 
 Given appropriate hardware documentation for the system, userspace could
 know for example that GPIO #23 controls the write protect line used to
@@ -749,7 +749,7 @@ the sysfs interface by gpio_export().  The driver can control whether the
 signal direction may change.  This helps drivers prevent userspace code
 from accidentally clobbering important system state.
 
-This explicit exporting can help with debugging (by making some kinds
+This explicit exporting can help with deging (by making some kinds
 of experiments easier), or can provide an always-there interface that's
 suitable for documenting as part of a board support package.
 

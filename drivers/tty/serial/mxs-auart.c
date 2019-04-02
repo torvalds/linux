@@ -60,7 +60,7 @@
 #define AUART_INTR			0x00000050
 #define AUART_DATA			0x00000060
 #define AUART_STAT			0x00000070
-#define AUART_DEBUG			0x00000080
+#define AUART_DE			0x00000080
 #define AUART_VERSION			0x00000090
 #define AUART_AUTOBAUD			0x000000a0
 
@@ -253,17 +253,17 @@
 /* RO. Receive FIFO Full. */
 #define ASM9260_BM_STAT_RXFULL			BIT(26)
 
-/* RO. The UART Debug Register contains the state of the DMA signals. */
-#define ASM9260_HW_DEBUG			0x0070
+/* RO. The UART De Register contains the state of the DMA signals. */
+#define ASM9260_HW_DE			0x0070
 /* DMA Command Run Status */
-#define ASM9260_BM_DEBUG_TXDMARUN		BIT(5)
-#define ASM9260_BM_DEBUG_RXDMARUN		BIT(4)
+#define ASM9260_BM_DE_TXDMARUN		BIT(5)
+#define ASM9260_BM_DE_RXDMARUN		BIT(4)
 /* DMA Command End Status */
-#define ASM9260_BM_DEBUG_TXCMDEND		BIT(3)
-#define ASM9260_BM_DEBUG_RXCMDEND		BIT(2)
+#define ASM9260_BM_DE_TXCMDEND		BIT(3)
+#define ASM9260_BM_DE_RXCMDEND		BIT(2)
 /* DMA Request Status */
-#define ASM9260_BM_DEBUG_TXDMARQ		BIT(1)
-#define ASM9260_BM_DEBUG_RXDMARQ		BIT(0)
+#define ASM9260_BM_DE_TXDMARQ		BIT(1)
+#define ASM9260_BM_DE_RXDMARQ		BIT(0)
 
 #define ASM9260_HW_ILPR				0x0080
 
@@ -375,7 +375,7 @@ enum {
 	REG_INTR,
 	REG_DATA,
 	REG_STAT,
-	REG_DEBUG,
+	REG_DE,
 	REG_VERSION,
 	REG_AUTOBAUD,
 
@@ -391,7 +391,7 @@ static const u16 mxs_asm9260_offsets[REG_ARRAY_SIZE] = {
 	[REG_INTR] = ASM9260_HW_INTR,
 	[REG_DATA] = ASM9260_HW_DATA,
 	[REG_STAT] = ASM9260_HW_STAT,
-	[REG_DEBUG] = ASM9260_HW_DEBUG,
+	[REG_DE] = ASM9260_HW_DE,
 	[REG_AUTOBAUD] = ASM9260_HW_AUTOBAUD,
 };
 
@@ -404,7 +404,7 @@ static const u16 mxs_stmp37xx_offsets[REG_ARRAY_SIZE] = {
 	[REG_INTR] = AUART_INTR,
 	[REG_DATA] = AUART_DATA,
 	[REG_STAT] = AUART_STAT,
-	[REG_DEBUG] = AUART_DEBUG,
+	[REG_DE] = AUART_DE,
 	[REG_VERSION] = AUART_VERSION,
 	[REG_AUTOBAUD] = AUART_AUTOBAUD,
 };
@@ -1054,7 +1054,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 	ctrl2 &= ~(AUART_CTRL2_CTSEN | AUART_CTRL2_RTSEN);
 	if (cflag & CRTSCTS) {
 		/*
-		 * The DMA has a bug(see errata:2836) in mx23.
+		 * The DMA has a (see errata:2836) in mx23.
 		 * So we can not implement the DMA for auart in mx23,
 		 * we can only implement the DMA support for auart
 		 * in mx28.

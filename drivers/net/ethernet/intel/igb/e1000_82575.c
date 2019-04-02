@@ -1714,7 +1714,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		    hw->mac.type == e1000_82576) {
 			ret_val = hw->nvm.ops.read(hw, NVM_COMPAT, 1, &data);
 			if (ret_val) {
-				hw_dbg(KERN_DEBUG "NVM Read Error\n\n");
+				hw_dbg(KERN_DE "NVM Read Error\n\n");
 				return ret_val;
 			}
 

@@ -243,7 +243,7 @@ static int whiteheat_attach(struct usb_serial *serial)
 	/*
 	 * When the module is reloaded the firmware is still there and
 	 * the endpoints are still in the usb core unchanged. This is the
-	 * unlinking bug in disguise. Same for the call below.
+	 * unlinking  in disguise. Same for the call below.
 	 */
 	usb_clear_halt(serial->dev, pipe);
 	ret = usb_bulk_msg(serial->dev, pipe, command, 2,
@@ -380,7 +380,7 @@ static int whiteheat_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		firm_setup_port(tty);
 
-	/* Work around HCD bugs */
+	/* Work around HCD s */
 	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
 	usb_clear_halt(port->serial->dev, port->write_urb->pipe);
 
@@ -512,7 +512,7 @@ static void command_port_read_callback(struct urb *urb)
 		return;
 	}
 
-	usb_serial_debug_data(&command_port->dev, __func__, urb->actual_length, data);
+	usb_serial_de_data(&command_port->dev, __func__, urb->actual_length, data);
 
 	if (data[0] == WHITEHEAT_CMD_COMPLETE) {
 		command_info->command_finished = WHITEHEAT_CMD_COMPLETE;
@@ -783,7 +783,7 @@ static int start_command_port(struct usb_serial *serial)
 	command_info = usb_get_serial_port_data(command_port);
 	mutex_lock(&command_info->mutex);
 	if (!command_info->port_running) {
-		/* Work around HCD bugs */
+		/* Work around HCD s */
 		usb_clear_halt(serial->dev, command_port->read_urb->pipe);
 
 		retval = usb_submit_urb(command_port->read_urb, GFP_KERNEL);

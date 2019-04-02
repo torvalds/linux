@@ -225,12 +225,12 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 
 	/* Right now all IPs have only one instance - multiple rings. */
 	if (instance != 0) {
-		DRM_DEBUG("invalid ip instance: %d\n", instance);
+		DRM_DE("invalid ip instance: %d\n", instance);
 		return -EINVAL;
 	}
 
 	if (ring >= amdgpu_ctx_num_entities[hw_ip]) {
-		DRM_DEBUG("invalid ring: %d %d\n", hw_ip, ring);
+		DRM_DE("invalid ring: %d %d\n", hw_ip, ring);
 		return -EINVAL;
 	}
 
@@ -452,7 +452,7 @@ void amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
 	idx = seq & (amdgpu_sched_jobs - 1);
 	other = centity->fences[idx];
 	if (other)
-		BUG_ON(!dma_fence_is_signaled(other));
+		_ON(!dma_fence_is_signaled(other));
 
 	dma_fence_get(fence);
 

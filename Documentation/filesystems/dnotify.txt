@@ -35,7 +35,7 @@ Preferably the application will choose one of the real time signals
 especially important if DN_MULTISHOT is specified.  Note that SIGRTMIN
 is often blocked, so it is better to use (at least) SIGRTMIN + 1.
 
-Implementation expectations (features and bugs :-))
+Implementation expectations (features and s :-))
 ---------------------------
 
 The notification should work for any local access to files even if the

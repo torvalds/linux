@@ -57,12 +57,12 @@
 #define AFE_ADDA_UL_SRC_CON1        0x0118
 #define AFE_ADDA_TOP_CON0           0x0120
 #define AFE_ADDA_UL_DL_CON0         0x0124
-#define AFE_ADDA_SRC_DEBUG          0x012c
-#define AFE_ADDA_SRC_DEBUG_MON0     0x0130
-#define AFE_ADDA_SRC_DEBUG_MON1     0x0134
+#define AFE_ADDA_SRC_DE          0x012c
+#define AFE_ADDA_SRC_DE_MON0     0x0130
+#define AFE_ADDA_SRC_DE_MON1     0x0134
 #define AFE_ADDA_UL_SRC_MON0        0x0148
 #define AFE_ADDA_UL_SRC_MON1        0x014c
-#define AFE_SIDETONE_DEBUG          0x01d0
+#define AFE_SIDETONE_DE          0x01d0
 #define AFE_SIDETONE_MON            0x01d4
 #define AFE_SINEGEN_CON2            0x01dc
 #define AFE_SIDETONE_CON0           0x01e0
@@ -277,8 +277,8 @@
 #define AFE_ADDA6_TOP_CON0          0x0a80
 #define AFE_ADDA6_UL_SRC_CON0       0x0a84
 #define AFE_ADD6_UL_SRC_CON1        0x0a88
-#define AFE_ADDA6_SRC_DEBUG         0x0a8c
-#define AFE_ADDA6_SRC_DEBUG_MON0    0x0a90
+#define AFE_ADDA6_SRC_DE         0x0a8c
+#define AFE_ADDA6_SRC_DE_MON0    0x0a90
 #define AFE_ADDA6_ULCF_CFG_02_01    0x0aa0
 #define AFE_ADDA6_ULCF_CFG_04_03    0x0aa4
 #define AFE_ADDA6_ULCF_CFG_06_05    0x0aa8

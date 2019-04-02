@@ -11,11 +11,11 @@
 #define MAX_FIXED_PEBS_EVENTS	3
 
 /*
- * A debug store configuration.
+ * A de store configuration.
  *
  * We only support architectures that use 64bit fields.
  */
-struct debug_store {
+struct de_store {
 	u64	bts_buffer_base;
 	u64	bts_index;
 	u64	bts_absolute_maximum;
@@ -27,9 +27,9 @@ struct debug_store {
 	u64	pebs_event_reset[MAX_PEBS_EVENTS + MAX_FIXED_PEBS_EVENTS];
 } __aligned(PAGE_SIZE);
 
-DECLARE_PER_CPU_PAGE_ALIGNED(struct debug_store, cpu_debug_store);
+DECLARE_PER_CPU_PAGE_ALIGNED(struct de_store, cpu_de_store);
 
-struct debug_store_buffers {
+struct de_store_buffers {
 	char	bts_buffer[BTS_BUFFER_SIZE];
 	char	pebs_buffer[PEBS_BUFFER_SIZE];
 };

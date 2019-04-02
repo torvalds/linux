@@ -10,24 +10,24 @@
  */
 typedef struct {
 	arch_rwlock_t raw_lock;
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 	unsigned int magic, owner_cpu;
 	void *owner;
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif
 } rwlock_t;
 
 #define RWLOCK_MAGIC		0xdeaf1eed
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define RW_DEP_MAP_INIT(lockname)	.dep_map = { .name = #lockname }
 #else
 # define RW_DEP_MAP_INIT(lockname)
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 #define __RW_LOCK_UNLOCKED(lockname)					\
 	(rwlock_t)	{	.raw_lock = __ARCH_RW_LOCK_UNLOCKED,	\
 				.magic = RWLOCK_MAGIC,			\

@@ -119,7 +119,7 @@ static void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
 
 		VERB("unmap[%d]: %08x(%zx)", i, iova, bytes);
 
-		BUG_ON(!PAGE_ALIGNED(bytes));
+		_ON(!PAGE_ALIGNED(bytes));
 
 		da += bytes;
 	}
@@ -182,7 +182,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		if (!found) {
 			/* Nothing found, clean up and fail */
 			list_for_each_entry_safe(m, n, &list, scan_node)
-				BUG_ON(drm_mm_scan_remove_block(&scan, &m->vram_node));
+				_ON(drm_mm_scan_remove_block(&scan, &m->vram_node));
 			break;
 		}
 

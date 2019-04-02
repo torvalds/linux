@@ -38,13 +38,13 @@ struct zl10353_state {
 	u32 frequency;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "zl10353: " args); \
+		if (de) printk(KERN_DE "zl10353: " args); \
 	} while (0)
 
-static int debug_regs;
+static int de_regs;
 
 static int zl10353_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 {
@@ -104,7 +104,7 @@ static void zl10353_dump_regs(struct dvb_frontend *fe)
 		if (reg % 16 == 0) {
 			if (reg)
 				printk(KERN_CONT "\n");
-			printk(KERN_DEBUG "%02x:", reg);
+			printk(KERN_DE "%02x:", reg);
 		}
 		ret = zl10353_read_register(state, reg);
 		if (ret >= 0)
@@ -516,7 +516,7 @@ static int zl10353_read_snr(struct dvb_frontend *fe, u16 *snr)
 	struct zl10353_state *state = fe->demodulator_priv;
 	u8 _snr;
 
-	if (debug_regs)
+	if (de_regs)
 		zl10353_dump_regs(fe);
 
 	_snr = zl10353_read_register(state, SNR);
@@ -555,7 +555,7 @@ static int zl10353_init(struct dvb_frontend *fe)
 	struct zl10353_state *state = fe->demodulator_priv;
 	u8 zl10353_reset_attach[6] = { 0x50, 0x03, 0x64, 0x46, 0x15, 0x0F };
 
-	if (debug_regs)
+	if (de_regs)
 		zl10353_dump_regs(fe);
 	if (state->config.parallel_ts)
 		zl10353_reset_attach[2] &= ~0x20;
@@ -569,7 +569,7 @@ static int zl10353_init(struct dvb_frontend *fe)
 	    zl10353_read_register(state, 0x51) != zl10353_reset_attach[2]) {
 		zl10353_write(fe, zl10353_reset_attach,
 				   sizeof(zl10353_reset_attach));
-		if (debug_regs)
+		if (de_regs)
 			zl10353_dump_regs(fe);
 	}
 
@@ -665,11 +665,11 @@ static const struct dvb_frontend_ops zl10353_ops = {
 	.read_ucblocks = zl10353_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
-module_param(debug_regs, int, 0644);
-MODULE_PARM_DESC(debug_regs, "Turn on/off frontend register dumps (default:off).");
+module_param(de_regs, int, 0644);
+MODULE_PARM_DESC(de_regs, "Turn on/off frontend register dumps (default:off).");
 
 MODULE_DESCRIPTION("Zarlink ZL10353 DVB-T demodulator driver");
 MODULE_AUTHOR("Chris Pascoe");

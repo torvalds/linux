@@ -13,7 +13,7 @@
 #include <asm/facility.h>
 #include <asm/sysinfo.h>
 #include <asm/ebcdic.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/ipl.h>
 
 #define LGR_TIMER_INTERVAL_SECS (30 * 60)
@@ -50,7 +50,7 @@ struct lgr_info {
 static char lgr_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 static struct lgr_info lgr_info_last;
 static struct lgr_info lgr_info_cur;
-static struct debug_info *lgr_dbf;
+static struct de_info *lgr_dbf;
 
 /*
  * Copy buffer and then convert it to ASCII
@@ -142,7 +142,7 @@ void lgr_info_log(void)
 		return;
 	lgr_info_get(&lgr_info_cur);
 	if (memcmp(&lgr_info_last, &lgr_info_cur, sizeof(lgr_info_cur)) != 0) {
-		debug_event(lgr_dbf, 1, &lgr_info_cur, sizeof(lgr_info_cur));
+		de_event(lgr_dbf, 1, &lgr_info_cur, sizeof(lgr_info_cur));
 		lgr_info_last = lgr_info_cur;
 	}
 	spin_unlock_irqrestore(&lgr_info_lock, flags);
@@ -175,12 +175,12 @@ static void lgr_timer_set(void)
  */
 static int __init lgr_init(void)
 {
-	lgr_dbf = debug_register("lgr", 1, 1, sizeof(struct lgr_info));
+	lgr_dbf = de_register("lgr", 1, 1, sizeof(struct lgr_info));
 	if (!lgr_dbf)
 		return -ENOMEM;
-	debug_register_view(lgr_dbf, &debug_hex_ascii_view);
+	de_register_view(lgr_dbf, &de_hex_ascii_view);
 	lgr_info_get(&lgr_info_last);
-	debug_event(lgr_dbf, 1, &lgr_info_last, sizeof(lgr_info_last));
+	de_event(lgr_dbf, 1, &lgr_info_last, sizeof(lgr_info_last));
 	timer_setup(&lgr_timer, lgr_timer_fn, TIMER_DEFERRABLE);
 	lgr_timer_set();
 	return 0;

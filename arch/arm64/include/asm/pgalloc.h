@@ -38,7 +38,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)
 {
-	BUG_ON((unsigned long)pmdp & (PAGE_SIZE-1));
+	_ON((unsigned long)pmdp & (PAGE_SIZE-1));
 	free_page((unsigned long)pmdp);
 }
 
@@ -54,7 +54,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
 #else
 static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 #endif	/* CONFIG_PGTABLE_LEVELS > 2 */
 
@@ -67,7 +67,7 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 
 static inline void pud_free(struct mm_struct *mm, pud_t *pudp)
 {
-	BUG_ON((unsigned long)pudp & (PAGE_SIZE-1));
+	_ON((unsigned long)pudp & (PAGE_SIZE-1));
 	free_page((unsigned long)pudp);
 }
 
@@ -83,7 +83,7 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, pud_t *pudp)
 #else
 static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
 

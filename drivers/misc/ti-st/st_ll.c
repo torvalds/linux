@@ -31,7 +31,7 @@ static void send_ll_cmd(struct st_data_s *st_data,
 	unsigned char cmd)
 {
 
-	pr_debug("%s: writing %x", __func__, cmd);
+	pr_de("%s: writing %x", __func__, cmd);
 	st_int_write(st_data, &cmd, 1);
 	return;
 }
@@ -41,7 +41,7 @@ static void ll_device_want_to_sleep(struct st_data_s *st_data)
 	struct kim_data_s	*kim_data;
 	struct ti_st_plat_data	*pdata;
 
-	pr_debug("%s", __func__);
+	pr_de("%s", __func__);
 	/* sanity check */
 	if (st_data->ll_state != ST_LL_AWAKE)
 		pr_err("ERR hcill: ST_LL_GO_TO_SLEEP_IND"
@@ -123,7 +123,7 @@ void st_ll_wakeup(struct st_data_s *ll)
 /* called when ST Core wants the state */
 unsigned long st_ll_getstate(struct st_data_s *ll)
 {
-	pr_debug(" returning state %ld", ll->ll_state);
+	pr_de(" returning state %ld", ll->ll_state);
 	return ll->ll_state;
 }
 
@@ -133,18 +133,18 @@ unsigned long st_ll_sleep_state(struct st_data_s *st_data,
 {
 	switch (cmd) {
 	case LL_SLEEP_IND:	/* sleep ind */
-		pr_debug("sleep indication recvd");
+		pr_de("sleep indication recvd");
 		ll_device_want_to_sleep(st_data);
 		break;
 	case LL_SLEEP_ACK:	/* sleep ack */
 		pr_err("sleep ack rcvd: host shouldn't");
 		break;
 	case LL_WAKE_UP_IND:	/* wake ind */
-		pr_debug("wake indication recvd");
+		pr_de("wake indication recvd");
 		ll_device_want_to_wakeup(st_data);
 		break;
 	case LL_WAKE_UP_ACK:	/* wake ack */
-		pr_debug("wake ack rcvd");
+		pr_de("wake ack rcvd");
 		st_data->ll_state = ST_LL_AWAKE;
 		break;
 	default:

@@ -467,7 +467,7 @@ static int ovs_ct_helper(struct sk_buff *skb, u16 proto)
 		ofs = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
 				       &frag_off);
 		if (ofs < 0 || (frag_off & htons(~0x7)) != 0) {
-			pr_debug("proto header not found\n");
+			pr_de("proto header not found\n");
 			return NF_ACCEPT;
 		}
 		protoff = ofs;
@@ -612,7 +612,7 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 
 	if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb), l3num,
 			       net, &tuple)) {
-		pr_debug("ovs_ct_find_existing: Can't get tuple\n");
+		pr_de("ovs_ct_find_existing: Can't get tuple\n");
 		return NULL;
 	}
 
@@ -621,7 +621,7 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 		struct nf_conntrack_tuple inverse;
 
 		if (!nf_ct_invert_tuple(&inverse, &tuple)) {
-			pr_debug("ovs_ct_find_existing: Inversion failed!\n");
+			pr_de("ovs_ct_find_existing: Inversion failed!\n");
 			return NULL;
 		}
 		tuple = inverse;

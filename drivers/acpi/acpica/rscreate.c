@@ -112,7 +112,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 
 	ACPI_FUNCTION_TRACE(rs_create_resource_list);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlBuffer = %p\n", aml_buffer));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "AmlBuffer = %p\n", aml_buffer));
 
 	/* Params already validated, so we don't re-validate here */
 
@@ -126,7 +126,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 	status = acpi_rs_get_list_length(aml_start, aml_buffer_length,
 					 &list_size_needed);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Status=%X ListSizeNeeded=%X\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Status=%X ListSizeNeeded=%X\n",
 			  status, (u32) list_size_needed));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -149,7 +149,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
 			  output_buffer->pointer, (u32) output_buffer->length));
 	return_ACPI_STATUS(AE_OK);
 }
@@ -204,7 +204,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "BufferSizeNeeded = %X\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "BufferSizeNeeded = %X\n",
 			  (u32) buffer_size_needed));
 
 	/* Validate/Allocate/Clear caller buffer */
@@ -375,7 +375,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		top_object_list++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
 			  output_buffer->pointer, (u32) output_buffer->length));
 	return_ACPI_STATUS(AE_OK);
 }
@@ -408,7 +408,7 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 
 	/* Params already validated, no need to re-validate here */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ResourceList Buffer = %p\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "ResourceList Buffer = %p\n",
 			  resource_list->pointer));
 
 	/* Get the buffer size needed for the AML byte stream */
@@ -417,7 +417,7 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 	    acpi_rs_get_aml_length(resource_list->pointer,
 				   resource_list->length, &aml_size_needed);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
 			  (u32)aml_size_needed, acpi_format_exception(status)));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -439,7 +439,7 @@ acpi_rs_create_aml_resources(struct acpi_buffer *resource_list,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
 			  output_buffer->pointer, (u32) output_buffer->length));
 	return_ACPI_STATUS(AE_OK);
 }

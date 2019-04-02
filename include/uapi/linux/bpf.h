@@ -517,9 +517,9 @@ union bpf_attr {
  *
  * int bpf_trace_printk(const char *fmt, u32 fmt_size, ...)
  * 	Description
- * 		This helper is a "printk()-like" facility for debugging. It
+ * 		This helper is a "printk()-like" facility for deging. It
  * 		prints a message defined by format *fmt* (of size *fmt_size*)
- * 		to file *\/sys/kernel/debug/tracing/trace* from DebugFS, if
+ * 		to file *\/sys/kernel/de/tracing/trace* from DeFS, if
  * 		available. It can take up to three additional **u64**
  * 		arguments (as an eBPF helpers, the total number of arguments is
  * 		limited to five).
@@ -527,7 +527,7 @@ union bpf_attr {
  * 		Each time the helper is called, it appends a line to the trace.
  * 		The format of the trace is customizable, and the exact output
  * 		one will get depends on the options set in
- * 		*\/sys/kernel/debug/tracing/trace_options* (see also the
+ * 		*\/sys/kernel/de/tracing/trace_options* (see also the
  * 		*README* file under the same directory). However, it usually
  * 		defaults to something like:
  *
@@ -562,7 +562,7 @@ union bpf_attr {
  * 		encounters an unknown specifier.
  *
  * 		Also, note that **bpf_trace_printk**\ () is slow, and should
- * 		only be used for debugging purposes. For this reason, a notice
+ * 		only be used for deging purposes. For this reason, a notice
  * 		bloc (spanning several lines) is printed to kernel logs and
  * 		states that the helper should not be used "for production use"
  * 		the first time this helper is used (or more precisely, when
@@ -1215,7 +1215,7 @@ union bpf_attr {
  *
  * 		This helper should not be used to implement any kind of
  * 		security mechanism because of TOC-TOU attacks, but rather to
- * 		debug, divert, and manipulate execution of semi-cooperative
+ * 		de, divert, and manipulate execution of semi-cooperative
  * 		processes.
  *
  * 		Keep in mind that this feature is meant for experiments, and it

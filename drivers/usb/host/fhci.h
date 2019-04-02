@@ -16,7 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
@@ -259,7 +259,7 @@ struct fhci_hcd {
 	struct list_head empty_eds;
 	struct list_head empty_tds;
 
-#ifdef CONFIG_FHCI_DEBUG
+#ifdef CONFIG_FHCI_DE
 	int usb_irq_stat[13];
 	struct dentry *dfs_root;
 #endif
@@ -571,7 +571,7 @@ struct td *fhci_remove_td_from_done_list(struct fhci_controller_list *p_list);
 void fhci_done_td(struct urb *urb, struct td *td);
 void fhci_del_ed_list(struct fhci_hcd *fhci, struct ed *ed);
 
-#ifdef CONFIG_FHCI_DEBUG
+#ifdef CONFIG_FHCI_DE
 
 void fhci_dbg_isr(struct fhci_hcd *fhci, int usb_er);
 void fhci_dfs_destroy(struct fhci_hcd *fhci);
@@ -583,6 +583,6 @@ static inline void fhci_dbg_isr(struct fhci_hcd *fhci, int usb_er) {}
 static inline void fhci_dfs_destroy(struct fhci_hcd *fhci) {}
 static inline void fhci_dfs_create(struct fhci_hcd *fhci) {}
 
-#endif /* CONFIG_FHCI_DEBUG */
+#endif /* CONFIG_FHCI_DE */
 
 #endif /* __FHCI_H */

@@ -73,10 +73,10 @@ struct picolcd_pending {
 /* Per device data structure */
 struct picolcd_data {
 	struct hid_device *hdev;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debug_reset;
-	struct dentry *debug_eeprom;
-	struct dentry *debug_flash;
+#ifdef CONFIG_DE_FS
+	struct dentry *de_reset;
+	struct dentry *de_eeprom;
+	struct dentry *de_flash;
 	struct mutex mutex_flash;
 	int addr_sz;
 #endif
@@ -139,16 +139,16 @@ struct picolcd_fb_data {
 
 struct hid_report *picolcd_report(int id, struct hid_device *hdev, int dir);
 
-#ifdef CONFIG_DEBUG_FS
-void picolcd_debug_out_report(struct picolcd_data *data,
+#ifdef CONFIG_DE_FS
+void picolcd_de_out_report(struct picolcd_data *data,
 		struct hid_device *hdev, struct hid_report *report);
 #define hid_hw_request(a, b, c) \
 	do { \
-		picolcd_debug_out_report(hid_get_drvdata(a), a, b); \
+		picolcd_de_out_report(hid_get_drvdata(a), a, b); \
 		hid_hw_request(a, b, c); \
 	} while (0)
 
-void picolcd_debug_raw_event(struct picolcd_data *data,
+void picolcd_de_raw_event(struct picolcd_data *data,
 		struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size);
 
@@ -159,11 +159,11 @@ void picolcd_init_devfs(struct picolcd_data *data,
 
 void picolcd_exit_devfs(struct picolcd_data *data);
 #else
-static inline void picolcd_debug_out_report(struct picolcd_data *data,
+static inline void picolcd_de_out_report(struct picolcd_data *data,
 		struct hid_device *hdev, struct hid_report *report)
 {
 }
-static inline void picolcd_debug_raw_event(struct picolcd_data *data,
+static inline void picolcd_de_raw_event(struct picolcd_data *data,
 		struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size)
 {
@@ -177,7 +177,7 @@ static inline void picolcd_init_devfs(struct picolcd_data *data,
 static inline void picolcd_exit_devfs(struct picolcd_data *data)
 {
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 
 #ifdef CONFIG_HID_PICOLCD_FB

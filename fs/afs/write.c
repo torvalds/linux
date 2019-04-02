@@ -65,7 +65,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 	afs_put_read(req);
 	if (ret < 0) {
 		if (ret == -ENOENT) {
-			_debug("got NOENT from server"
+			_de("got NOENT from server"
 			       " - marking file deleted and stale");
 			set_bit(AFS_VNODE_DELETED, &vnode->flags);
 			ret = -ESTALE;
@@ -98,7 +98,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	/* We want to store information about how much of a page is altered in
 	 * page->private.
 	 */
-	BUILD_BUG_ON(PAGE_SIZE > 32768 && sizeof(page->private) < 8);
+	BUILD__ON(PAGE_SIZE > 32768 && sizeof(page->private) < 8);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -165,7 +165,7 @@ try_again:
 	 * flush the page out.
 	 */
 flush_conflicting_write:
-	_debug("flush conflict");
+	_de("flush conflict");
 	ret = write_one_page(page);
 	if (ret < 0) {
 		_leave(" = %d", ret);
@@ -222,7 +222,7 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 
 	set_page_dirty(page);
 	if (PageDirty(page))
-		_debug("dirtied");
+		_de("dirtied");
 	ret = copied;
 
 out:
@@ -247,7 +247,7 @@ static void afs_kill_pages(struct address_space *mapping,
 	pagevec_init(&pv);
 
 	do {
-		_debug("kill %lx-%lx", first, last);
+		_de("kill %lx-%lx", first, last);
 
 		count = last - first + 1;
 		if (count > PAGEVEC_SIZE)
@@ -289,7 +289,7 @@ static void afs_redirty_pages(struct writeback_control *wbc,
 	pagevec_init(&pv);
 
 	do {
-		_debug("redirty %lx-%lx", first, last);
+		_de("redirty %lx-%lx", first, last);
 
 		count = last - first + 1;
 		if (count > PAGEVEC_SIZE)
@@ -339,7 +339,7 @@ static int afs_store_data(struct address_space *mapping,
 try_next_key:
 	while (p != &vnode->wb_keys) {
 		wbk = list_entry(p, struct afs_wb_key, vnode_link);
-		_debug("wbk %u", key_serial(wbk->key));
+		_de("wbk %u", key_serial(wbk->key));
 		ret2 = key_validate(wbk->key);
 		if (ret2 == 0)
 			goto found_key;
@@ -357,7 +357,7 @@ found_key:
 	refcount_inc(&wbk->usage);
 	spin_unlock(&vnode->wb_lock);
 
-	_debug("USE WB KEY %u", key_serial(wbk->key));
+	_de("USE WB KEY %u", key_serial(wbk->key));
 
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, wbk->key)) {
@@ -384,7 +384,7 @@ found_key:
 	case -EKEYEXPIRED:
 	case -EKEYREJECTED:
 	case -EKEYREVOKED:
-		_debug("next");
+		_de("next");
 		spin_lock(&vnode->wb_lock);
 		p = wbk->vnode_link.next;
 		afs_put_wb_key(wbk);
@@ -416,7 +416,7 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 
 	count = 1;
 	if (test_set_page_writeback(primary_page))
-		BUG();
+		();
 
 	/* Find all consecutive lockable dirty pages that have contiguous
 	 * written regions, stopping when we find a page that is not
@@ -441,12 +441,12 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 
 	start++;
 	do {
-		_debug("more %lx [%lx]", start, count);
+		_de("more %lx [%lx]", start, count);
 		n = final_page - start + 1;
 		if (n > ARRAY_SIZE(pages))
 			n = ARRAY_SIZE(pages);
 		n = find_get_pages_contig(mapping, start, ARRAY_SIZE(pages), pages);
-		_debug("fgpc %u", n);
+		_de("fgpc %u", n);
 		if (n == 0)
 			goto no_more;
 		if (pages[0]->index != start) {
@@ -484,9 +484,9 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 					     page->index, priv);
 
 			if (!clear_page_dirty_for_io(page))
-				BUG();
+				();
 			if (test_set_page_writeback(page))
-				BUG();
+				();
 			unlock_page(page);
 			put_page(page);
 		}
@@ -510,7 +510,7 @@ no_more:
 	first = primary_page->index;
 	last = first + count - 1;
 
-	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
+	_de("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
 
 	ret = afs_store_data(mapping, first, last, offset, to);
 	switch (ret) {
@@ -595,7 +595,7 @@ static int afs_writepages_region(struct address_space *mapping,
 		if (!n)
 			break;
 
-		_debug("wback %lx", page->index);
+		_de("wback %lx", page->index);
 
 		/*
 		 * at this point we hold neither the i_pages lock nor the
@@ -625,7 +625,7 @@ static int afs_writepages_region(struct address_space *mapping,
 		}
 
 		if (!clear_page_dirty_for_io(page))
-			BUG();
+			();
 		ret = afs_write_back_from_locked_page(mapping, wbc, page, end);
 		put_page(page);
 		if (ret < 0) {
@@ -693,7 +693,7 @@ void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 	pagevec_init(&pv);
 
 	do {
-		_debug("done %lx-%lx", first, last);
+		_de("done %lx-%lx", first, last);
 
 		count = last - first + 1;
 		if (count > PAGEVEC_SIZE)

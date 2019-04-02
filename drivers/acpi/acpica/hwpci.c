@@ -212,7 +212,7 @@ acpi_hw_process_pci_list(struct acpi_pci_id *pci_id,
 
 	ACPI_FUNCTION_NAME(hw_process_pci_list);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+	ACPI_DE_PRINT((ACPI_DB_OPREGION,
 			  "Input PciId:  Seg %4.4X Bus %4.4X Dev %4.4X Func %4.4X\n",
 			  pci_id->segment, pci_id->bus, pci_id->device,
 			  pci_id->function));
@@ -237,7 +237,7 @@ acpi_hw_process_pci_list(struct acpi_pci_id *pci_id,
 		info = info->next;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+	ACPI_DE_PRINT((ACPI_DB_OPREGION,
 			  "Output PciId: Seg %4.4X Bus %4.4X Dev %4.4X Func %4.4X "
 			  "Status %X BusNumber %X IsBridge %X\n",
 			  pci_id->segment, pci_id->bus, pci_id->device,

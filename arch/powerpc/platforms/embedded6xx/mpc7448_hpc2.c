@@ -44,8 +44,8 @@
 #include <asm/tsi108_irq.h>
 #include <asm/mpic.h>
 
-#undef DEBUG
-#ifdef DEBUG
+#undef DE
+#ifdef DE
 #define DBG(fmt...) do { printk(fmt); } while(0)
 #else
 #define DBG(fmt...) do { } while(0)
@@ -112,7 +112,7 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 			24, 0,
 			"Tsi108_PIC");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	mpic_assign_isu(mpic, 0, mpic->paddr + 0x100);
 

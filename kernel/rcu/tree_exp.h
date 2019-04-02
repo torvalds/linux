@@ -646,7 +646,7 @@ static void rcu_exp_handler(void *unused)
 	 * So either way, set ->deferred_qs to flag later code that
 	 * a quiescent state is required.
 	 *
-	 * If the CPU is fully enabled (or if some buggy RCU-preempt
+	 * If the CPU is fully enabled (or if some gy RCU-preempt
 	 * read-side critical section is being used from idle), just
 	 * invoke rcu_preempt_defer_qs() to immediately report the
 	 * quiescent state.  We cannot use rcu_read_unlock_special()

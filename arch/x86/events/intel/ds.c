@@ -11,7 +11,7 @@
 #include "../perf_event.h"
 
 /* Waste a full page so it can be mapped into the cpu_entry_area */
-DEFINE_PER_CPU_PAGE_ALIGNED(struct debug_store, cpu_debug_store);
+DEFINE_PER_CPU_PAGE_ALIGNED(struct de_store, cpu_de_store);
 
 /* The size of a BTS record in bytes: */
 #define BTS_RECORD_SIZE		24
@@ -260,9 +260,9 @@ struct pebs_record_skl {
 	u64 tsc;
 };
 
-void init_debug_store_on_cpu(int cpu)
+void init_de_store_on_cpu(int cpu)
 {
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct de_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 
 	if (!ds)
 		return;
@@ -272,7 +272,7 @@ void init_debug_store_on_cpu(int cpu)
 		     (u32)((u64)(unsigned long)ds >> 32));
 }
 
-void fini_debug_store_on_cpu(int cpu)
+void fini_de_store_on_cpu(int cpu)
 {
 	if (!per_cpu(cpu_hw_events, cpu).ds)
 		return;
@@ -334,7 +334,7 @@ static void dsfree_pages(const void *buffer, size_t size)
 static int alloc_pebs_buffer(int cpu)
 {
 	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
-	struct debug_store *ds = hwev->ds;
+	struct de_store *ds = hwev->ds;
 	size_t bsiz = x86_pmu.pebs_buffer_size;
 	int max, node = cpu_to_node(cpu);
 	void *buffer, *ibuffer, *cea;
@@ -360,7 +360,7 @@ static int alloc_pebs_buffer(int cpu)
 	}
 	hwev->ds_pebs_vaddr = buffer;
 	/* Update the cpu entry area mapping */
-	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
+	cea = &get_cpu_entry_area(cpu)->cpu_de_buffers.pebs_buffer;
 	ds->pebs_buffer_base = (unsigned long) cea;
 	ds_update_cea(cea, buffer, bsiz, PAGE_KERNEL);
 	ds->pebs_index = ds->pebs_buffer_base;
@@ -381,7 +381,7 @@ static void release_pebs_buffer(int cpu)
 	per_cpu(insn_buffer, cpu) = NULL;
 
 	/* Clear the fixmap */
-	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.pebs_buffer;
+	cea = &get_cpu_entry_area(cpu)->cpu_de_buffers.pebs_buffer;
 	ds_clear_cea(cea, x86_pmu.pebs_buffer_size);
 	dsfree_pages(hwev->ds_pebs_vaddr, x86_pmu.pebs_buffer_size);
 	hwev->ds_pebs_vaddr = NULL;
@@ -390,7 +390,7 @@ static void release_pebs_buffer(int cpu)
 static int alloc_bts_buffer(int cpu)
 {
 	struct cpu_hw_events *hwev = per_cpu_ptr(&cpu_hw_events, cpu);
-	struct debug_store *ds = hwev->ds;
+	struct de_store *ds = hwev->ds;
 	void *buffer, *cea;
 	int max;
 
@@ -404,7 +404,7 @@ static int alloc_bts_buffer(int cpu)
 	}
 	hwev->ds_bts_vaddr = buffer;
 	/* Update the fixmap */
-	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
+	cea = &get_cpu_entry_area(cpu)->cpu_de_buffers.bts_buffer;
 	ds->bts_buffer_base = (unsigned long) cea;
 	ds_update_cea(cea, buffer, BTS_BUFFER_SIZE, PAGE_KERNEL);
 	ds->bts_index = ds->bts_buffer_base;
@@ -425,7 +425,7 @@ static void release_bts_buffer(int cpu)
 		return;
 
 	/* Clear the fixmap */
-	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers.bts_buffer;
+	cea = &get_cpu_entry_area(cpu)->cpu_de_buffers.bts_buffer;
 	ds_clear_cea(cea, BTS_BUFFER_SIZE);
 	dsfree_pages(hwev->ds_bts_vaddr, BTS_BUFFER_SIZE);
 	hwev->ds_bts_vaddr = NULL;
@@ -433,7 +433,7 @@ static void release_bts_buffer(int cpu)
 
 static int alloc_ds_buffer(int cpu)
 {
-	struct debug_store *ds = &get_cpu_entry_area(cpu)->cpu_debug_store;
+	struct de_store *ds = &get_cpu_entry_area(cpu)->cpu_de_store;
 
 	memset(ds, 0, sizeof(*ds));
 	per_cpu(cpu_hw_events, cpu).ds = ds;
@@ -461,7 +461,7 @@ void release_ds_buffers(void)
 		 * observe cpu_hw_events.ds and not program the DS_AREA when
 		 * they come up.
 		 */
-		fini_debug_store_on_cpu(cpu);
+		fini_de_store_on_cpu(cpu);
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -528,7 +528,7 @@ void reserve_ds_buffers(void)
 			 * Ignores wrmsr_on_cpu() errors for offline CPUs they
 			 * will get this call through intel_pmu_cpu_starting().
 			 */
-			init_debug_store_on_cpu(cpu);
+			init_de_store_on_cpu(cpu);
 		}
 	}
 }
@@ -542,45 +542,45 @@ struct event_constraint bts_constraint =
 
 void intel_pmu_enable_bts(u64 config)
 {
-	unsigned long debugctlmsr;
+	unsigned long dectlmsr;
 
-	debugctlmsr = get_debugctlmsr();
+	dectlmsr = get_dectlmsr();
 
-	debugctlmsr |= DEBUGCTLMSR_TR;
-	debugctlmsr |= DEBUGCTLMSR_BTS;
+	dectlmsr |= DECTLMSR_TR;
+	dectlmsr |= DECTLMSR_BTS;
 	if (config & ARCH_PERFMON_EVENTSEL_INT)
-		debugctlmsr |= DEBUGCTLMSR_BTINT;
+		dectlmsr |= DECTLMSR_BTINT;
 
 	if (!(config & ARCH_PERFMON_EVENTSEL_OS))
-		debugctlmsr |= DEBUGCTLMSR_BTS_OFF_OS;
+		dectlmsr |= DECTLMSR_BTS_OFF_OS;
 
 	if (!(config & ARCH_PERFMON_EVENTSEL_USR))
-		debugctlmsr |= DEBUGCTLMSR_BTS_OFF_USR;
+		dectlmsr |= DECTLMSR_BTS_OFF_USR;
 
-	update_debugctlmsr(debugctlmsr);
+	update_dectlmsr(dectlmsr);
 }
 
 void intel_pmu_disable_bts(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	unsigned long debugctlmsr;
+	unsigned long dectlmsr;
 
 	if (!cpuc->ds)
 		return;
 
-	debugctlmsr = get_debugctlmsr();
+	dectlmsr = get_dectlmsr();
 
-	debugctlmsr &=
-		~(DEBUGCTLMSR_TR | DEBUGCTLMSR_BTS | DEBUGCTLMSR_BTINT |
-		  DEBUGCTLMSR_BTS_OFF_OS | DEBUGCTLMSR_BTS_OFF_USR);
+	dectlmsr &=
+		~(DECTLMSR_TR | DECTLMSR_BTS | DECTLMSR_BTINT |
+		  DECTLMSR_BTS_OFF_OS | DECTLMSR_BTS_OFF_USR);
 
-	update_debugctlmsr(debugctlmsr);
+	update_dectlmsr(dectlmsr);
 }
 
 int intel_pmu_drain_bts_buffer(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	struct debug_store *ds = cpuc->ds;
+	struct de_store *ds = cpuc->ds;
 	struct bts_record {
 		u64	from;
 		u64	to;
@@ -895,7 +895,7 @@ void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
 
 static inline void pebs_update_threshold(struct cpu_hw_events *cpuc)
 {
-	struct debug_store *ds = cpuc->ds;
+	struct de_store *ds = cpuc->ds;
 	u64 threshold;
 	int reserved;
 
@@ -954,7 +954,7 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	struct debug_store *ds = cpuc->ds;
+	struct de_store *ds = cpuc->ds;
 
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
@@ -1452,7 +1452,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	struct debug_store *ds = cpuc->ds;
+	struct de_store *ds = cpuc->ds;
 	struct perf_event *event = cpuc->events[0]; /* PMC0 only */
 	struct pebs_record_core *at, *top;
 	int n;
@@ -1489,7 +1489,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	struct debug_store *ds = cpuc->ds;
+	struct de_store *ds = cpuc->ds;
 	struct perf_event *event;
 	void *base, *at, *top;
 	short counts[INTEL_PMC_IDX_FIXED + MAX_FIXED_PEBS_EVENTS] = {};
@@ -1676,9 +1676,9 @@ void __init intel_ds_init(void)
 	}
 }
 
-void perf_restore_debug_store(void)
+void perf_restore_de_store(void)
 {
-	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
+	struct de_store *ds = __this_cpu_read(cpu_hw_events.ds);
 
 	if (!x86_pmu.bts && !x86_pmu.pebs)
 		return;

@@ -2493,23 +2493,23 @@ bnx2_dump_mcp_state(struct bnx2 *bp)
 		mcp_p0 = BNX2_MCP_STATE_P0_5708;
 		mcp_p1 = BNX2_MCP_STATE_P1_5708;
 	}
-	netdev_err(dev, "DEBUG: MCP_STATE_P0[%08x] MCP_STATE_P1[%08x]\n",
+	netdev_err(dev, "DE: MCP_STATE_P0[%08x] MCP_STATE_P1[%08x]\n",
 		   bnx2_reg_rd_ind(bp, mcp_p0), bnx2_reg_rd_ind(bp, mcp_p1));
-	netdev_err(dev, "DEBUG: MCP mode[%08x] state[%08x] evt_mask[%08x]\n",
+	netdev_err(dev, "DE: MCP mode[%08x] state[%08x] evt_mask[%08x]\n",
 		   bnx2_reg_rd_ind(bp, BNX2_MCP_CPU_MODE),
 		   bnx2_reg_rd_ind(bp, BNX2_MCP_CPU_STATE),
 		   bnx2_reg_rd_ind(bp, BNX2_MCP_CPU_EVENT_MASK));
-	netdev_err(dev, "DEBUG: pc[%08x] pc[%08x] instr[%08x]\n",
+	netdev_err(dev, "DE: pc[%08x] pc[%08x] instr[%08x]\n",
 		   bnx2_reg_rd_ind(bp, BNX2_MCP_CPU_PROGRAM_COUNTER),
 		   bnx2_reg_rd_ind(bp, BNX2_MCP_CPU_PROGRAM_COUNTER),
 		   bnx2_reg_rd_ind(bp, BNX2_MCP_CPU_INSTRUCTION));
-	netdev_err(dev, "DEBUG: shmem states:\n");
-	netdev_err(dev, "DEBUG: drv_mb[%08x] fw_mb[%08x] link_status[%08x]",
+	netdev_err(dev, "DE: shmem states:\n");
+	netdev_err(dev, "DE: drv_mb[%08x] fw_mb[%08x] link_status[%08x]",
 		   bnx2_shmem_rd(bp, BNX2_DRV_MB),
 		   bnx2_shmem_rd(bp, BNX2_FW_MB),
 		   bnx2_shmem_rd(bp, BNX2_LINK_STATUS));
 	pr_cont(" drv_pulse_mb[%08x]\n", bnx2_shmem_rd(bp, BNX2_DRV_PULSE_MB));
-	netdev_err(dev, "DEBUG: dev_info_signature[%08x] reset_type[%08x]",
+	netdev_err(dev, "DE: dev_info_signature[%08x] reset_type[%08x]",
 		   bnx2_shmem_rd(bp, BNX2_DEV_INFO_SIGNATURE),
 		   bnx2_shmem_rd(bp, BNX2_BC_STATE_RESET_TYPE));
 	pr_cont(" condition[%08x]\n",
@@ -2518,7 +2518,7 @@ bnx2_dump_mcp_state(struct bnx2 *bp)
 	DP_SHMEM_LINE(bp, 0x3cc);
 	DP_SHMEM_LINE(bp, 0x3dc);
 	DP_SHMEM_LINE(bp, 0x3ec);
-	netdev_err(dev, "DEBUG: 0x3fc[%08x]\n", bnx2_shmem_rd(bp, 0x3fc));
+	netdev_err(dev, "DE: 0x3fc[%08x]\n", bnx2_shmem_rd(bp, 0x3fc));
 	netdev_err(dev, "<--- end MCP states dump --->\n");
 }
 
@@ -6559,20 +6559,20 @@ bnx2_dump_state(struct bnx2 *bp)
 	u32 val1, val2;
 
 	pci_read_config_dword(bp->pdev, PCI_COMMAND, &val1);
-	netdev_err(dev, "DEBUG: intr_sem[%x] PCI_CMD[%08x]\n",
+	netdev_err(dev, "DE: intr_sem[%x] PCI_CMD[%08x]\n",
 		   atomic_read(&bp->intr_sem), val1);
 	pci_read_config_dword(bp->pdev, bp->pm_cap + PCI_PM_CTRL, &val1);
 	pci_read_config_dword(bp->pdev, BNX2_PCICFG_MISC_CONFIG, &val2);
-	netdev_err(dev, "DEBUG: PCI_PM[%08x] PCI_MISC_CFG[%08x]\n", val1, val2);
-	netdev_err(dev, "DEBUG: EMAC_TX_STATUS[%08x] EMAC_RX_STATUS[%08x]\n",
+	netdev_err(dev, "DE: PCI_PM[%08x] PCI_MISC_CFG[%08x]\n", val1, val2);
+	netdev_err(dev, "DE: EMAC_TX_STATUS[%08x] EMAC_RX_STATUS[%08x]\n",
 		   BNX2_RD(bp, BNX2_EMAC_TX_STATUS),
 		   BNX2_RD(bp, BNX2_EMAC_RX_STATUS));
-	netdev_err(dev, "DEBUG: RPM_MGMT_PKT_CTRL[%08x]\n",
+	netdev_err(dev, "DE: RPM_MGMT_PKT_CTRL[%08x]\n",
 		   BNX2_RD(bp, BNX2_RPM_MGMT_PKT_CTRL));
-	netdev_err(dev, "DEBUG: HC_STATS_INTERRUPT_STATUS[%08x]\n",
+	netdev_err(dev, "DE: HC_STATS_INTERRUPT_STATUS[%08x]\n",
 		   BNX2_RD(bp, BNX2_HC_STATS_INTERRUPT_STATUS));
 	if (bp->flags & BNX2_FLAG_USING_MSIX)
-		netdev_err(dev, "DEBUG: PBA[%08x]\n",
+		netdev_err(dev, "DE: PBA[%08x]\n",
 			   BNX2_RD(bp, BNX2_PCI_GRC_WINDOW3_BASE));
 }
 
@@ -6616,7 +6616,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(bnx2_tx_avail(bp, txr) <
 	    (skb_shinfo(skb)->nr_frags + 1))) {
 		netif_tx_stop_queue(txq);
-		netdev_err(dev, "BUG! Tx ring full when queue awake!\n");
+		netdev_err(dev, "! Tx ring full when queue awake!\n");
 
 		return NETDEV_TX_BUSY;
 	}

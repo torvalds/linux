@@ -394,7 +394,7 @@ static inline netdev_tx_t dsa_slave_netpoll_send_skb(struct net_device *dev,
 	if (p->netpoll)
 		netpoll_send_skb(p->netpoll, skb);
 #else
-	BUG();
+	();
 #endif
 	return NETDEV_TX_OK;
 }

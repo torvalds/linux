@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "vmci_datagram.h"
 #include "vmci_resource.h"
@@ -325,7 +325,7 @@ int vmci_datagram_dispatch(u32 context_id,
 	int retval;
 	enum vmci_route route;
 
-	BUILD_BUG_ON(sizeof(struct vmci_datagram) != 24);
+	BUILD__ON(sizeof(struct vmci_datagram) != 24);
 
 	if (dg->payload_size > VMCI_MAX_DG_SIZE ||
 	    VMCI_DG_SIZE(dg) > VMCI_MAX_DG_SIZE) {

@@ -84,7 +84,7 @@ init_exit:
 	if (!ret) {
 		iwpm_set_valid(nl_client, 1);
 		iwpm_set_registration(nl_client, IWPM_REG_UNDEF);
-		pr_debug("%s: Mapinfo and reminfo tables are created\n",
+		pr_de("%s: Mapinfo and reminfo tables are created\n",
 				__func__);
 	}
 	return ret;
@@ -113,7 +113,7 @@ int iwpm_exit(u8 nl_client)
 	if (atomic_dec_and_test(&iwpm_admin.refcount)) {
 		free_hash_bucket();
 		free_reminfo_bucket();
-		pr_debug("%s: Resources are destroyed\n", __func__);
+		pr_de("%s: Resources are destroyed\n", __func__);
 	}
 	mutex_unlock(&iwpm_admin_lock);
 	iwpm_set_valid(nl_client, 0);
@@ -375,7 +375,7 @@ void iwpm_free_nlmsg_request(struct kref *kref)
 	spin_unlock_irqrestore(&iwpm_nlmsg_req_lock, flags);
 
 	if (!nlmsg_request->request_done)
-		pr_debug("%s Freeing incomplete nlmsg request (seq = %u).\n",
+		pr_de("%s Freeing incomplete nlmsg request (seq = %u).\n",
 			__func__, nlmsg_request->nlmsg_seq);
 	kfree(nlmsg_request);
 }
@@ -538,14 +538,14 @@ void iwpm_print_sockaddr(struct sockaddr_storage *sockaddr, char *msg)
 	switch (sockaddr->ss_family) {
 	case AF_INET:
 		sockaddr_v4 = (struct sockaddr_in *)sockaddr;
-		pr_debug("%s IPV4 %pI4: %u(0x%04X)\n",
+		pr_de("%s IPV4 %pI4: %u(0x%04X)\n",
 			msg, &sockaddr_v4->sin_addr,
 			ntohs(sockaddr_v4->sin_port),
 			ntohs(sockaddr_v4->sin_port));
 		break;
 	case AF_INET6:
 		sockaddr_v6 = (struct sockaddr_in6 *)sockaddr;
-		pr_debug("%s IPV6 %pI6: %u(0x%04X)\n",
+		pr_de("%s IPV6 %pI6: %u(0x%04X)\n",
 			msg, &sockaddr_v6->sin6_addr,
 			ntohs(sockaddr_v6->sin6_port),
 			ntohs(sockaddr_v6->sin6_port));
@@ -651,7 +651,7 @@ static int send_mapinfo_num(u32 mapping_num, u8 nl_client, int iwpm_pid)
 		err_str = "Unable to send a nlmsg";
 		goto mapinfo_num_error;
 	}
-	pr_debug("%s: Sent mapping number = %d\n", __func__, mapping_num);
+	pr_de("%s: Sent mapping number = %d\n", __func__, mapping_num);
 	return 0;
 mapinfo_num_error:
 	pr_info("%s: %s\n", __func__, err_str);
@@ -830,7 +830,7 @@ int iwpm_send_hello(u8 nl_client, int iwpm_pid, u16 abi_version)
 		err_str = "Unable to send a nlmsg";
 		goto hello_num_error;
 	}
-	pr_debug("%s: Sent hello abi_version = %u\n", __func__, abi_version);
+	pr_de("%s: Sent hello abi_version = %u\n", __func__, abi_version);
 	return 0;
 hello_num_error:
 	pr_info("%s: %s\n", __func__, err_str);

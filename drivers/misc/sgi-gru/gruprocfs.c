@@ -306,7 +306,7 @@ int gru_proc_init(void)
 		goto err;
 	if (!proc_create("mcs_statistics", 0644, proc_gru, &mcs_statistics_fops))
 		goto err;
-	if (!proc_create("debug_options", 0644, proc_gru, &options_fops))
+	if (!proc_create("de_options", 0644, proc_gru, &options_fops))
 		goto err;
 	if (!proc_create_seq("cch_status", 0444, proc_gru, &cch_seq_ops))
 		goto err;

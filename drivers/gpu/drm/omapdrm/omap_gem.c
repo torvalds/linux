@@ -366,7 +366,7 @@ static vm_fault_t omap_gem_fault_1d(struct drm_gem_object *obj,
 		omap_gem_cpu_sync_page(obj, pgoff);
 		pfn = page_to_pfn(omap_obj->pages[pgoff]);
 	} else {
-		BUG_ON(!omap_gem_is_contiguous(omap_obj));
+		_ON(!omap_gem_is_contiguous(omap_obj));
 		pfn = (omap_obj->dma_addr >> PAGE_SHIFT) + pgoff;
 	}
 
@@ -787,7 +787,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 			struct tiler_block *block;
 
-			BUG_ON(omap_obj->block);
+			_ON(omap_obj->block);
 
 			ret = omap_gem_attach_pages(obj);
 			if (ret)
@@ -1024,10 +1024,10 @@ done:
 #endif
 
 /* -----------------------------------------------------------------------------
- * DebugFS
+ * DeFS
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);

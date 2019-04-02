@@ -34,7 +34,7 @@ static void jump_label_make_branch(struct jump_entry *entry, struct insn *insn)
 	insn->offset = (jump_entry_target(entry) - jump_entry_code(entry)) >> 1;
 }
 
-static void jump_label_bug(struct jump_entry *entry, struct insn *expected,
+static void jump_label_(struct jump_entry *entry, struct insn *expected,
 			   struct insn *new)
 {
 	unsigned char *ipc = (unsigned char *)jump_entry_code(entry);
@@ -69,10 +69,10 @@ static void __jump_label_transform(struct jump_entry *entry,
 	}
 	if (init) {
 		if (memcmp(code, &orignop, sizeof(orignop)))
-			jump_label_bug(entry, &orignop, &new);
+			jump_label_(entry, &orignop, &new);
 	} else {
 		if (memcmp(code, &old, sizeof(old)))
-			jump_label_bug(entry, &old, &new);
+			jump_label_(entry, &old, &new);
 	}
 	s390_kernel_write(code, &new, sizeof(new));
 }

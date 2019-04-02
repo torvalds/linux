@@ -147,7 +147,7 @@ static int xfeature_is_user(int xfeature_nr)
  * Before writing xstate information to user-space we sanitize those components,
  * to always ensure that the memory layout of a feature will be in the init state
  * if the corresponding header bit is zero. This is to ensure that user-space doesn't
- * see some stale state in the memory layout during signal handling, debugging etc.
+ * see some stale state in the memory layout during signal handling, deging etc.
  */
 void fpstate_sanitize_xstate(struct fpu *fpu)
 {
@@ -492,7 +492,7 @@ int validate_xstate_header(const struct xstate_header *hdr)
 	 * If 'reserved' is shrunken to add a new field, make sure to validate
 	 * that new field here!
 	 */
-	BUILD_BUG_ON(sizeof(hdr->reserved) != 48);
+	BUILD__ON(sizeof(hdr->reserved) != 48);
 
 	/* No reserved bits may be set */
 	if (memchr_inv(hdr->reserved, 0, sizeof(hdr->reserved)))
@@ -748,7 +748,7 @@ void __init fpu__init_system_xstate(void)
 		/*
 		 * This indicates that something really unexpected happened
 		 * with the enumeration.  Disable XSAVE and try to continue
-		 * booting without it.  This is too early to BUG().
+		 * booting without it.  This is too early to ().
 		 */
 		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
 		goto out_disable;

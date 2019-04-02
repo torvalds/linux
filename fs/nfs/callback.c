@@ -419,7 +419,7 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
  * pg_authenticate method for nfsv4 callback threads.
  *
  * The authflavor has been negotiated, so an incorrect flavor is a server
- * bug. Deny packets with incorrect authflavor.
+ * . Deny packets with incorrect authflavor.
  *
  * All other checking done after NFS decoding where the nfs_client can be
  * found in nfs4_callback_compound

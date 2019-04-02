@@ -2,7 +2,7 @@
 #ifndef __LINUX_GFP_H
 #define __LINUX_GFP_H
 
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/mmzone.h>
 #include <linux/stddef.h>
 #include <linux/linkage.h>
@@ -308,8 +308,8 @@ struct vm_area_struct;
 static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
 {
 	VM_WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
-	BUILD_BUG_ON((1UL << GFP_MOVABLE_SHIFT) != ___GFP_MOVABLE);
-	BUILD_BUG_ON((___GFP_MOVABLE >> GFP_MOVABLE_SHIFT) != MIGRATE_MOVABLE);
+	BUILD__ON((1UL << GFP_MOVABLE_SHIFT) != ___GFP_MOVABLE);
+	BUILD__ON((___GFP_MOVABLE >> GFP_MOVABLE_SHIFT) != MIGRATE_MOVABLE);
 
 	if (unlikely(page_group_by_mobility_disabled))
 		return MIGRATE_UNMOVABLE;
@@ -422,7 +422,7 @@ static inline enum zone_type gfp_zone(gfp_t flags)
 
 	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
 					 ((1 << GFP_ZONES_SHIFT) - 1);
-	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+	VM__ON((GFP_ZONE_BAD >> bit) & 1);
 	return z;
 }
 
@@ -480,7 +480,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
 static inline struct page *
 __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
 {
-	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
+	VM__ON(nid < 0 || nid >= MAX_NUMNODES);
 	VM_WARN_ON((gfp_mask & __GFP_THISNODE) && !node_online(nid));
 
 	return __alloc_pages(gfp_mask, order, nid);

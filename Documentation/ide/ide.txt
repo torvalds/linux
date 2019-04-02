@@ -10,7 +10,7 @@
 
 
 
-***  IMPORTANT NOTICES:  BUGGY IDE CHIPSETS CAN CORRUPT DATA!!
+***  IMPORTANT NOTICES:  GY IDE CHIPSETS CAN CORRUPT DATA!!
 ***  =================
 ***  PCI versions of the CMD640 and RZ1000 interfaces are now detected
 ***  automatically at startup when PCI BIOS support is configured.
@@ -202,7 +202,7 @@ for gayle host driver (i.e. "gayle.doubler" if the driver is built-in).
 
 To force ignoring cable detection (this should be needed only if you're using
 short 40-wires cable which cannot be automatically detected - if this is not
-a case please report it as a bug instead) use "ignore_cable" kernel parameter:
+a case please report it as a  instead) use "ignore_cable" kernel parameter:
 
 * "ide_core.ignore_cable=[interface_number]" boot option if IDE is built-in
   (i.e. "ide_core.ignore_cable=1" to force ignoring cable for "ide1")

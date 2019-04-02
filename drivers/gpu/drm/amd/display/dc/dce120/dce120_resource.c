@@ -454,7 +454,7 @@ static const struct resource_caps res_cap = {
 		.num_ddc = 6,
 };
 
-static const struct dc_debug_options debug_defaults = {
+static const struct dc_de_options de_defaults = {
 		.disable_clock_gate = true,
 };
 
@@ -477,7 +477,7 @@ struct clock_source *dce120_clock_source_create(
 		return &clk_src->base;
 	}
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -654,7 +654,7 @@ static struct input_pixel_processor *dce120_ipp_create(
 	struct dce_ipp *ipp = kzalloc(sizeof(struct dce_ipp), GFP_KERNEL);
 
 	if (!ipp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -777,7 +777,7 @@ static struct mem_input *dce120_mem_input_create(
 					       GFP_KERNEL);
 
 	if (!dce_mi) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -980,7 +980,7 @@ static bool construct(
 	dc->caps.dual_link_dvi = true;
 	dc->caps.psp_setup_panel_mode = true;
 
-	dc->debug = debug_defaults;
+	dc->de = de_defaults;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -1020,7 +1020,7 @@ static bool construct(
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto clk_src_create_fail;
 		}
 	}
@@ -1032,7 +1032,7 @@ static bool construct(
 
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto dccg_create_fail;
 	}
 
@@ -1042,7 +1042,7 @@ static bool construct(
 			&dmcu_mask);
 	if (pool->base.dmcu == NULL) {
 		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1052,7 +1052,7 @@ static bool construct(
 			&abm_mask);
 	if (pool->base.abm == NULL) {
 		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -1082,7 +1082,7 @@ static bool construct(
 					i,
 					&dce120_tg_offsets[i]);
 		if (pool->base.timing_generators[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create tg!\n");
 			goto controller_create_fail;
 		}
@@ -1090,7 +1090,7 @@ static bool construct(
 		pool->base.mis[j] = dce120_mem_input_create(ctx, i);
 
 		if (pool->base.mis[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto controller_create_fail;
@@ -1098,7 +1098,7 @@ static bool construct(
 
 		pool->base.ipps[j] = dce120_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto controller_create_fail;
@@ -1106,7 +1106,7 @@ static bool construct(
 
 		pool->base.transforms[j] = dce120_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create transform!\n");
 			goto res_create_fail;
@@ -1116,7 +1116,7 @@ static bool construct(
 			ctx,
 			i);
 		if (pool->base.opps[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 		}
@@ -1128,14 +1128,14 @@ static bool construct(
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce120_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.hw_i2cs[i] = dce120_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create i2c engine!!\n");
 			goto res_create_fail;
@@ -1201,6 +1201,6 @@ struct resource_pool *dce120_create_resource_pool(
 	if (construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }

@@ -275,7 +275,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 	is_cck_rate = pPktinfo->Rate >= DESC92C_RATE1M &&
 		      pPktinfo->Rate <= DESC92C_RATE11M;
 
-	/* Smart Antenna Debug Message------------------  */
+	/* Smart Antenna De Message------------------  */
 
 	if (dm_odm->AntDivType == CG_TRX_SMART_ANTDIV) {
 		if (pDM_FatTable->FAT_State == FAT_TRAINING_STATE) {
@@ -294,7 +294,7 @@ static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 			rtl88eu_dm_ant_sel_statistics(dm_odm, antsel_tr_mux, pPktinfo->StationID, pPhyInfo->RxPWDBAll);
 		}
 	}
-	/* Smart Antenna Debug Message------------------ */
+	/* Smart Antenna De Message------------------ */
 
 	UndecoratedSmoothedCCK =  pEntry->rssi_stat.UndecoratedSmoothedCCK;
 	UndecoratedSmoothedOFDM = pEntry->rssi_stat.UndecoratedSmoothedOFDM;

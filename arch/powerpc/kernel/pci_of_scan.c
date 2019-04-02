@@ -84,7 +84,7 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 	addrs = of_get_property(node, "assigned-addresses", &proplen);
 	if (!addrs)
 		return;
-	pr_debug("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
+	pr_de("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
 	for (; proplen >= 20; proplen -= 20, addrs += 5) {
 		flags = pci_parse_of_flags(of_read_number(addrs, 1), 0);
 		if (!flags)
@@ -94,7 +94,7 @@ static void of_pci_parse_addrs(struct device_node *node, struct pci_dev *dev)
 		if (!size)
 			continue;
 		i = of_read_number(addrs, 1) & 0xff;
-		pr_debug("  base: %llx, size: %llx, i: %x\n",
+		pr_de("  base: %llx, size: %llx, i: %x\n",
 			 (unsigned long long)base,
 			 (unsigned long long)size, i);
 
@@ -130,7 +130,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	if (!dev)
 		return NULL;
 
-	pr_debug("    create device, devfn: %x, type: %s\n", devfn,
+	pr_de("    create device, devfn: %x, type: %s\n", devfn,
 		 of_node_get_device_type(node));
 
 	dev->dev.of_node = of_node_get(node);
@@ -154,8 +154,8 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->class = get_int_prop(node, "class-code", 0);
 	dev->revision = get_int_prop(node, "revision-id", 0);
 
-	pr_debug("    class: 0x%x\n", dev->class);
-	pr_debug("    revision: 0x%x\n", dev->revision);
+	pr_de("    class: 0x%x\n", dev->class);
+	pr_de("    revision: 0x%x\n", dev->revision);
 
 	dev->current_state = PCI_UNKNOWN;	/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
@@ -180,7 +180,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	of_pci_parse_addrs(node, dev);
 
-	pr_debug("    adding to system ...\n");
+	pr_de("    adding to system ...\n");
 
 	pci_device_add(dev, bus);
 
@@ -208,18 +208,18 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 	unsigned int flags;
 	u64 size;
 
-	pr_debug("of_scan_pci_bridge(%pOF)\n", node);
+	pr_de("of_scan_pci_bridge(%pOF)\n", node);
 
 	/* parse bus-range property */
 	busrange = of_get_property(node, "bus-range", &len);
 	if (busrange == NULL || len != 8) {
-		printk(KERN_DEBUG "Can't get bus-range for PCI-PCI bridge %pOF\n",
+		printk(KERN_DE "Can't get bus-range for PCI-PCI bridge %pOF\n",
 		       node);
 		return;
 	}
 	ranges = of_get_property(node, "ranges", &len);
 	if (ranges == NULL) {
-		printk(KERN_DEBUG "Can't get ranges for PCI-PCI bridge %pOF\n",
+		printk(KERN_DE "Can't get ranges for PCI-PCI bridge %pOF\n",
 		       node);
 		return;
 	}
@@ -278,14 +278,14 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 	}
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
-	pr_debug("    bus name: %s\n", bus->name);
+	pr_de("    bus name: %s\n", bus->name);
 
 	phb = pci_bus_to_host(bus);
 
 	mode = PCI_PROBE_NORMAL;
 	if (phb->controller_ops.probe_mode)
 		mode = phb->controller_ops.probe_mode(bus);
-	pr_debug("    probe mode: %d\n", mode);
+	pr_de("    probe mode: %d\n", mode);
 
 	if (mode == PCI_PROBE_DEVTREE)
 		of_scan_bus(node, bus);
@@ -304,7 +304,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	struct eeh_dev *edev = pdn_to_eeh_dev(PCI_DN(dn));
 #endif
 
-	pr_debug("  * %pOF\n", dn);
+	pr_de("  * %pOF\n", dn);
 	if (!of_device_is_available(dn))
 		return NULL;
 
@@ -331,7 +331,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	if (!dev)
 		return NULL;
 
-	pr_debug("  dev header type: %x\n", dev->hdr_type);
+	pr_de("  dev header type: %x\n", dev->hdr_type);
 	return dev;
 }
 
@@ -347,7 +347,7 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 	struct device_node *child;
 	struct pci_dev *dev;
 
-	pr_debug("of_scan_bus(%pOF) bus no %d...\n",
+	pr_de("of_scan_bus(%pOF) bus no %d...\n",
 		 node, bus->number);
 
 	/* Scan direct children */
@@ -355,7 +355,7 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 		dev = of_scan_pci_dev(bus, child);
 		if (!dev)
 			continue;
-		pr_debug("    dev header type: %x\n", dev->hdr_type);
+		pr_de("    dev header type: %x\n", dev->hdr_type);
 	}
 
 	/* Apply all fixups necessary. We don't fixup the bus "self"

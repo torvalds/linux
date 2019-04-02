@@ -198,7 +198,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 		 * can cause a race condition because they can be deleted during
 		 * the execution of the user function (if the namespace is
 		 * unlocked before invocation of the user function.) Only the
-		 * debugger namespace dump will examine the temporary nodes.
+		 * deger namespace dump will examine the temporary nodes.
 		 */
 		if ((child_node->flags & ANOBJ_TEMPORARY) &&
 		    !(flags & ACPI_NS_WALK_TEMP_NODES)) {

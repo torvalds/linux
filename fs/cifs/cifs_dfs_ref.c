@@ -23,7 +23,7 @@
 #include "cifsproto.h"
 #include "cifsfs.h"
 #include "dns_resolve.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_unicode.h"
 #include "dfs_cache.h"
 
@@ -46,7 +46,7 @@ static void cifs_dfs_expire_automounts(struct work_struct *work)
 
 void cifs_dfs_release_automount_timer(void)
 {
-	BUG_ON(!list_empty(&cifs_dfs_automount_list));
+	_ON(!list_empty(&cifs_dfs_automount_list));
 	cancel_delayed_work_sync(&cifs_dfs_automount_task);
 }
 
@@ -307,7 +307,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	struct vfsmount *mnt;
 
 	cifs_dbg(FYI, "in %s\n", __func__);
-	BUG_ON(IS_ROOT(mntpt));
+	_ON(IS_ROOT(mntpt));
 
 	/*
 	 * The MSDFS spec states that paths in DFS referral requests and

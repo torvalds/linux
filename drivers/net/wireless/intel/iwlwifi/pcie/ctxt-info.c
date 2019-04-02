@@ -193,7 +193,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		rb_size = IWL_CTXT_INFO_RB_SIZE_4K;
 	}
 
-	BUILD_BUG_ON(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) > 0xF);
+	BUILD__ON(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) > 0xF);
 	control_flags = IWL_CTXT_INFO_TFD_FORMAT_LONG |
 			(RX_QUEUE_CB_SIZE(MQ_RX_TABLE_SIZE) <<
 			 IWL_CTXT_INFO_RB_CB_SIZE_POS) |
@@ -224,7 +224,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	iwl_enable_interrupts(trans);
 
-	/* Configure debug, if exists */
+	/* Configure de, if exists */
 	if (iwl_pcie_dbg_on(trans))
 		iwl_pcie_apply_destination(trans);
 

@@ -25,7 +25,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "ntlmssp.h"
 #include "nterr.h"
 #include <linux/utsname.h>

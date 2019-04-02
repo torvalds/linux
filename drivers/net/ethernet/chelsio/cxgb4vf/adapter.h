@@ -387,8 +387,8 @@ struct adapter {
 	const char *name;
 	unsigned int msg_enable;
 
-	/* debugfs resources */
-	struct dentry *debugfs_root;
+	/* defs resources */
+	struct dentry *defs_root;
 
 	/* various locks */
 	spinlock_t stats_lock;

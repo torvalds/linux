@@ -112,7 +112,7 @@
 #define HYDRA_DMD_DVBS_BER_COUNT_ADDR_OFFSET              0x3FFFC6A4
 #define HYDRA_DMD_DVBS_BER_WINDOW_ADDR_OFFSET             0x3FFFC6A8
 
-/* Debug-purpose DVB-S DMD 0 */
+/* De-purpose DVB-S DMD 0 */
 #define HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET     0x3FFFC6C8  /* corrected RS Errors: 1st iteration */
 #define HYDRA_DMD_DVBS_1ST_UNCORR_RS_ERRORS_ADDR_OFFSET   0x3FFFC6CC  /* uncorrected RS Errors: 1st iteration */
 #define HYDRA_DMD_DVBS_BER_COUNT_1ST_ADDR_OFFSET          0x3FFFC6D0

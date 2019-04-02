@@ -45,7 +45,7 @@ int dss_init_overlay_managers(void)
 	managers = kcalloc(num_managers, sizeof(struct omap_overlay_manager),
 			   GFP_KERNEL);
 
-	BUG_ON(managers == NULL);
+	_ON(managers == NULL);
 
 	for (i = 0; i < num_managers; ++i) {
 		struct omap_overlay_manager *mgr = &managers[i];

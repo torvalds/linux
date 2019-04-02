@@ -35,12 +35,12 @@
 
 #include "signal32.h"
 
-#define DEBUG_COMPAT_SIG 0 
-#define DEBUG_COMPAT_SIG_LEVEL 2
+#define DE_COMPAT_SIG 0 
+#define DE_COMPAT_SIG_LEVEL 2
 
-#if DEBUG_COMPAT_SIG
+#if DE_COMPAT_SIG
 #define DBG(LEVEL, ...) \
-	((DEBUG_COMPAT_SIG_LEVEL >= LEVEL) \
+	((DE_COMPAT_SIG_LEVEL >= LEVEL) \
 	? printk(__VA_ARGS__) : (void) 0)
 #else
 #define DBG(LEVEL, ...)
@@ -220,7 +220,7 @@ setup_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __
 		err |= __put_user(compat_reg, &rf->rf_iasq[1]);
 		DBG(2,"setup_sigcontext32: upper half iasq[1] = %#x\n", compat_reg);
 
-		/* Print out the IAOQ for debugging */		
+		/* Print out the IAOQ for deging */		
 		DBG(1,"setup_sigcontext32: ia0q %#lx / %#lx\n", 
 			regs->iaoq[0], regs->iaoq[1]);
 	}
@@ -237,7 +237,7 @@ setup_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __
 		compat_regb = (compat_uint_t)(regs->gr[regn] >> 32);
 		err |= __put_user(compat_regb, &rf->rf_gr[regn]);
 
-		/* DEBUG: Write out the "upper / lower" register data */
+		/* DE: Write out the "upper / lower" register data */
 		DBG(2,"setup_sigcontext32: gr%02d = %#x / %#x\n", regn, 
 				compat_regb, compat_reg);
 	}

@@ -277,8 +277,8 @@ hfcpci_empty_fifo(struct BCState *bcs, bzfifo_type *bz, u_char *bdata, int count
 	int maxlen, new_z2;
 	z_type *zp;
 
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "hfcpci_empty_fifo");
+	if ((cs->de & L1_DEB_HSCX) && !(cs->de & L1_DEB_HSCX_FIFO))
+		del1(cs, "hfcpci_empty_fifo");
 	zp = &bz->za[bz->f2];	/* point to Z-Regs */
 	new_z2 = zp->z2 + count;	/* new position in fifo */
 	if (new_z2 >= (B_FIFO_SIZE + B_SUB_VAL))
@@ -286,8 +286,8 @@ hfcpci_empty_fifo(struct BCState *bcs, bzfifo_type *bz, u_char *bdata, int count
 	new_f2 = (bz->f2 + 1) & MAX_B_FRAMES;
 	if ((count > HSCX_BUFMAX + 3) || (count < 4) ||
 	    (*(bdata + (zp->z1 - B_SUB_VAL)))) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "hfcpci_empty_fifo: incoming packet invalid length %d or crc", count);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "hfcpci_empty_fifo: incoming packet invalid length %d or crc", count);
 #ifdef ERROR_STATISTIC
 		bcs->err_inv++;
 #endif
@@ -338,7 +338,7 @@ receive_dmsg(struct IsdnCardState *cs)
 
 	df = &((fifo_area *) (cs->hw.hfcpci.fifos))->d_chan.d_rx;
 	if (test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
-		debugl1(cs, "rec_dmsg blocked");
+		del1(cs, "rec_dmsg blocked");
 		return (1);
 	}
 	while (((df->f1 & D_FREG_MASK) != (df->f2 & D_FREG_MASK)) && count--) {
@@ -347,14 +347,14 @@ receive_dmsg(struct IsdnCardState *cs)
 		if (rcnt < 0)
 			rcnt += D_FIFO_SIZE;
 		rcnt++;
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "hfcpci recd f1(%d) f2(%d) z1(%x) z2(%x) cnt(%d)",
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "hfcpci recd f1(%d) f2(%d) z1(%x) z2(%x) cnt(%d)",
 				df->f1, df->f2, zp->z1, zp->z2, rcnt);
 
 		if ((rcnt > MAX_DFRAME_LEN + 3) || (rcnt < 4) ||
 		    (df->data[zp->z1])) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "empty_fifo hfcpci packet inv. len %d or crc %d", rcnt, df->data[zp->z1]);
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "empty_fifo hfcpci packet inv. len %d or crc %d", rcnt, df->data[zp->z1]);
 #ifdef ERROR_STATISTIC
 			cs->err_rx++;
 #endif
@@ -470,12 +470,12 @@ main_rec_hfcpci(struct BCState *bcs)
 Begin:
 	count--;
 	if (test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
-		debugl1(cs, "rec_data %d blocked", bcs->channel);
+		del1(cs, "rec_data %d blocked", bcs->channel);
 		return;
 	}
 	if (bz->f1 != bz->f2) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfcpci rec %d f1(%d) f2(%d)",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfcpci rec %d f1(%d) f2(%d)",
 				bcs->channel, bz->f1, bz->f2);
 		zp = &bz->za[bz->f2];
 
@@ -483,8 +483,8 @@ Begin:
 		if (rcnt < 0)
 			rcnt += B_FIFO_SIZE;
 		rcnt++;
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfcpci rec %d z1(%x) z2(%x) cnt(%d)",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfcpci rec %d z1(%x) z2(%x) cnt(%d)",
 				bcs->channel, zp->z1, zp->z2, rcnt);
 		if ((skb = hfcpci_empty_fifo(bcs, bz, bdata, rcnt))) {
 			skb_queue_tail(&bcs->rqueue, skb);
@@ -529,16 +529,16 @@ hfcpci_fill_dfifo(struct IsdnCardState *cs)
 
 	df = &((fifo_area *) (cs->hw.hfcpci.fifos))->d_chan.d_tx;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "hfcpci_fill_Dfifo f1(%d) f2(%d) z1(f1)(%x)",
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "hfcpci_fill_Dfifo f1(%d) f2(%d) z1(f1)(%x)",
 			df->f1, df->f2,
 			df->za[df->f1 & D_FREG_MASK].z1);
 	fcnt = df->f1 - df->f2;	/* frame count actually buffered */
 	if (fcnt < 0)
 		fcnt += (MAX_D_FRAMES + 1);	/* if wrap around */
 	if (fcnt > (MAX_D_FRAMES - 1)) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "hfcpci_fill_Dfifo more as 14 frames");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "hfcpci_fill_Dfifo more as 14 frames");
 #ifdef ERROR_STATISTIC
 		cs->err_tx++;
 #endif
@@ -549,12 +549,12 @@ hfcpci_fill_dfifo(struct IsdnCardState *cs)
 	if (count <= 0)
 		count += D_FIFO_SIZE;	/* count now contains available bytes */
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "hfcpci_fill_Dfifo count(%u/%d)",
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "hfcpci_fill_Dfifo count(%u/%d)",
 			cs->tx_skb->len, count);
 	if (count < cs->tx_skb->len) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "hfcpci_fill_Dfifo no fifo mem");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "hfcpci_fill_Dfifo no fifo mem");
 		return;
 	}
 	count = cs->tx_skb->len;	/* get frame len */
@@ -611,8 +611,8 @@ hfcpci_fill_fifo(struct BCState *bcs)
 	if (bcs->mode == L1_MODE_TRANS) {
 		z1t = &bz->za[MAX_B_FRAMES].z1;
 		z2t = z1t + 1;
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfcpci_fill_fifo_trans %d z1(%x) z2(%x)",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfcpci_fill_fifo_trans %d z1(%x) z2(%x)",
 				bcs->channel, *z1t, *z2t);
 		fcnt = *z2t - *z1t;
 		if (fcnt <= 0)
@@ -643,8 +643,8 @@ hfcpci_fill_fifo(struct BCState *bcs)
 				bcs->tx_cnt -= bcs->tx_skb->len;
 				fcnt += bcs->tx_skb->len;
 				*z1t = new_z1;	/* now send data */
-			} else if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "hfcpci_fill_fifo_trans %d frame length %d discarded",
+			} else if (cs->de & L1_DEB_HSCX)
+				del1(cs, "hfcpci_fill_fifo_trans %d frame length %d discarded",
 					bcs->channel, bcs->tx_skb->len);
 
 			if (test_bit(FLG_LLI_L1WAKEUP, &bcs->st->lli.flag) &&
@@ -662,8 +662,8 @@ hfcpci_fill_fifo(struct BCState *bcs)
 		test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
 		return;
 	}
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfcpci_fill_fifo_hdlc %d f1(%d) f2(%d) z1(f1)(%x)",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "hfcpci_fill_fifo_hdlc %d f1(%d) f2(%d) z1(f1)(%x)",
 			bcs->channel, bz->f1, bz->f2,
 			bz->za[bz->f1].z1);
 
@@ -671,8 +671,8 @@ hfcpci_fill_fifo(struct BCState *bcs)
 	if (fcnt < 0)
 		fcnt += (MAX_B_FRAMES + 1);	/* if wrap around */
 	if (fcnt > (MAX_B_FRAMES - 1)) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfcpci_fill_Bfifo more as 14 frames");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfcpci_fill_Bfifo more as 14 frames");
 		return;
 	}
 	/* now determine free bytes in FIFO buffer */
@@ -680,14 +680,14 @@ hfcpci_fill_fifo(struct BCState *bcs)
 	if (count <= 0)
 		count += B_FIFO_SIZE;	/* count now contains available bytes */
 
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfcpci_fill_fifo %d count(%u/%d),%lx",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "hfcpci_fill_fifo %d count(%u/%d),%lx",
 			bcs->channel, bcs->tx_skb->len,
 			count, current->state);
 
 	if (count < bcs->tx_skb->len) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfcpci_fill_fifo no fifo mem");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfcpci_fill_fifo no fifo mem");
 		return;
 	}
 	count = bcs->tx_skb->len;	/* get frame len */
@@ -746,16 +746,16 @@ dch_nt_l2l1(struct PStack *st, int pr, void *arg)
 		break;
 	case (PH_TESTLOOP | REQUEST):
 		if (1 & (long) arg)
-			debugl1(cs, "PH_TEST_LOOP B1");
+			del1(cs, "PH_TEST_LOOP B1");
 		if (2 & (long) arg)
-			debugl1(cs, "PH_TEST_LOOP B2");
+			del1(cs, "PH_TEST_LOOP B2");
 		if (!(3 & (long) arg))
-			debugl1(cs, "PH_TEST_LOOP DISABLED");
+			del1(cs, "PH_TEST_LOOP DISABLED");
 		st->l1.l1hw(st, HW_TESTLOOP | REQUEST, arg);
 		break;
 	default:
-		if (cs->debug)
-			debugl1(cs, "dch_nt_l2l1 msg %04X unhandled", pr);
+		if (cs->de)
+			del1(cs, "dch_nt_l2l1 msg %04X unhandled", pr);
 		break;
 	}
 }
@@ -788,7 +788,7 @@ hfcpci_auxcmd(struct IsdnCardState *cs, isdn_ctrl *ic)
 		cs->hw.hfcpci.nt_timer = 0;
 		cs->stlist->l2.l2l1 = dch_nt_l2l1;
 		spin_unlock_irqrestore(&cs->lock, flags);
-		debugl1(cs, "NT mode activated");
+		del1(cs, "NT mode activated");
 		return (0);
 	}
 	if ((cs->chanlimit > 1) || (cs->hw.hfcpci.bswapped) ||
@@ -842,12 +842,12 @@ receive_emsg(struct IsdnCardState *cs)
 Begin:
 	count--;
 	if (test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
-		debugl1(cs, "echo_rec_data blocked");
+		del1(cs, "echo_rec_data blocked");
 		return;
 	}
 	if (bz->f1 != bz->f2) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "hfcpci e_rec f1(%d) f2(%d)",
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "hfcpci e_rec f1(%d) f2(%d)",
 				bz->f1, bz->f2);
 		zp = &bz->za[bz->f2];
 
@@ -855,8 +855,8 @@ Begin:
 		if (rcnt < 0)
 			rcnt += B_FIFO_SIZE;
 		rcnt++;
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "hfcpci e_rec z1(%x) z2(%x) cnt(%d)",
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "hfcpci e_rec z1(%x) z2(%x) cnt(%d)",
 				zp->z1, zp->z2, rcnt);
 		new_z2 = zp->z2 + rcnt;		/* new position in fifo */
 		if (new_z2 >= (B_FIFO_SIZE + B_SUB_VAL))
@@ -864,8 +864,8 @@ Begin:
 		new_f2 = (bz->f2 + 1) & MAX_B_FRAMES;
 		if ((rcnt > 256 + 3) || (count < 4) ||
 		    (*(bdata + (zp->z1 - B_SUB_VAL)))) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "hfcpci_empty_echan: incoming packet invalid length %d or crc", rcnt);
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "hfcpci_empty_echan: incoming packet invalid length %d or crc", rcnt);
 			bz->za[new_f2].z2 = new_z2;
 			bz->f2 = new_f2;	/* next buffer */
 		} else {
@@ -889,7 +889,7 @@ Begin:
 			}
 			bz->za[new_f2].z2 = new_z2;
 			bz->f2 = new_f2;	/* next buffer */
-			if (cs->debug & DEB_DLOG_HEX) {
+			if (cs->de & DEB_DLOG_HEX) {
 				ptr = cs->dlog;
 				if ((total - 3) < MAX_DLOG_SPACE / 3 - 10) {
 					*ptr++ = 'E';
@@ -935,27 +935,27 @@ hfcpci_interrupt(int intno, void *dev_id)
 	u_char val, stat;
 
 	if (!(cs->hw.hfcpci.int_m2 & 0x08)) {
-		debugl1(cs, "HFC-PCI: int_m2 %x not initialised", cs->hw.hfcpci.int_m2);
+		del1(cs, "HFC-PCI: int_m2 %x not initialised", cs->hw.hfcpci.int_m2);
 		return IRQ_NONE;	/* not initialised */
 	}
 	spin_lock_irqsave(&cs->lock, flags);
 	if (HFCPCI_ANYINT & (stat = Read_hfc(cs, HFCPCI_STATUS))) {
 		val = Read_hfc(cs, HFCPCI_INT_S1);
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "HFC-PCI: stat(%02x) s1(%02x)", stat, val);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "HFC-PCI: stat(%02x) s1(%02x)", stat, val);
 	} else {
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return IRQ_NONE;
 	}
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "HFC-PCI irq %x %s", val,
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "HFC-PCI irq %x %s", val,
 			test_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags) ?
 			"locked" : "unlocked");
 	val &= cs->hw.hfcpci.int_m1;
 	if (val & 0x40) {	/* state machine irq */
 		exval = Read_hfc(cs, HFCPCI_STATES) & 0xf;
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ph_state chg %d->%d", cs->dc.hfcpci.ph_state,
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ph_state chg %d->%d", cs->dc.hfcpci.ph_state,
 				exval);
 		cs->dc.hfcpci.ph_state = exval;
 		sched_event_D_pci(cs, D_L1STATECHANGE);
@@ -982,8 +982,8 @@ hfcpci_interrupt(int intno, void *dev_id)
 		}
 		if (val & 0x08) {
 			if (!(bcs = Sel_BCS(cs, cs->hw.hfcpci.bswapped ? 1 : 0))) {
-				if (cs->debug)
-					debugl1(cs, "hfcpci spurious 0x08 IRQ");
+				if (cs->de)
+					del1(cs, "hfcpci spurious 0x08 IRQ");
 			} else
 				main_rec_hfcpci(bcs);
 		}
@@ -991,29 +991,29 @@ hfcpci_interrupt(int intno, void *dev_id)
 			if (cs->logecho)
 				receive_emsg(cs);
 			else if (!(bcs = Sel_BCS(cs, 1))) {
-				if (cs->debug)
-					debugl1(cs, "hfcpci spurious 0x10 IRQ");
+				if (cs->de)
+					del1(cs, "hfcpci spurious 0x10 IRQ");
 			} else
 				main_rec_hfcpci(bcs);
 		}
 		if (val & 0x01) {
 			if (!(bcs = Sel_BCS(cs, cs->hw.hfcpci.bswapped ? 1 : 0))) {
-				if (cs->debug)
-					debugl1(cs, "hfcpci spurious 0x01 IRQ");
+				if (cs->de)
+					del1(cs, "hfcpci spurious 0x01 IRQ");
 			} else {
 				if (bcs->tx_skb) {
 					if (!test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
 						hfcpci_fill_fifo(bcs);
 						test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 					} else
-						debugl1(cs, "fill_data %d blocked", bcs->channel);
+						del1(cs, "fill_data %d blocked", bcs->channel);
 				} else {
 					if ((bcs->tx_skb = skb_dequeue(&bcs->squeue))) {
 						if (!test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
 							hfcpci_fill_fifo(bcs);
 							test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 						} else
-							debugl1(cs, "fill_data %d blocked", bcs->channel);
+							del1(cs, "fill_data %d blocked", bcs->channel);
 					} else {
 						hfcpci_sched_event(bcs, B_XMTBUFREADY);
 					}
@@ -1022,22 +1022,22 @@ hfcpci_interrupt(int intno, void *dev_id)
 		}
 		if (val & 0x02) {
 			if (!(bcs = Sel_BCS(cs, 1))) {
-				if (cs->debug)
-					debugl1(cs, "hfcpci spurious 0x02 IRQ");
+				if (cs->de)
+					del1(cs, "hfcpci spurious 0x02 IRQ");
 			} else {
 				if (bcs->tx_skb) {
 					if (!test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
 						hfcpci_fill_fifo(bcs);
 						test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 					} else
-						debugl1(cs, "fill_data %d blocked", bcs->channel);
+						del1(cs, "fill_data %d blocked", bcs->channel);
 				} else {
 					if ((bcs->tx_skb = skb_dequeue(&bcs->squeue))) {
 						if (!test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
 							hfcpci_fill_fifo(bcs);
 							test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 						} else
-							debugl1(cs, "fill_data %d blocked", bcs->channel);
+							del1(cs, "fill_data %d blocked", bcs->channel);
 					} else {
 						hfcpci_sched_event(bcs, B_XMTBUFREADY);
 					}
@@ -1058,7 +1058,7 @@ hfcpci_interrupt(int intno, void *dev_id)
 						hfcpci_fill_dfifo(cs);
 						test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 					} else {
-						debugl1(cs, "hfcpci_fill_dfifo irq blocked");
+						del1(cs, "hfcpci_fill_dfifo irq blocked");
 					}
 					goto afterXPR;
 				} else {
@@ -1073,7 +1073,7 @@ hfcpci_interrupt(int intno, void *dev_id)
 					hfcpci_fill_dfifo(cs);
 					test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 				} else {
-					debugl1(cs, "hfcpci_fill_dfifo irq blocked");
+					del1(cs, "hfcpci_fill_dfifo irq blocked");
 				}
 			} else
 				sched_event_D_pci(cs, D_XMTBUFREADY);
@@ -1082,8 +1082,8 @@ hfcpci_interrupt(int intno, void *dev_id)
 		if (cs->hw.hfcpci.int_s1 && count--) {
 			val = cs->hw.hfcpci.int_s1;
 			cs->hw.hfcpci.int_s1 = 0;
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "HFC-PCI irq %x loop %d", val, 15 - count);
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "HFC-PCI irq %x loop %d", val, 15 - count);
 		} else
 			val = 0;
 	}
@@ -1111,29 +1111,29 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 
 	switch (pr) {
 	case (PH_DATA | REQUEST):
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 0);
 		spin_lock_irqsave(&cs->lock, flags);
 		if (cs->tx_skb) {
 			skb_queue_tail(&cs->sq, skb);
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "PH_DATA Queued", 0);
 #endif
 		} else {
 			cs->tx_skb = skb;
 			cs->tx_cnt = 0;
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "PH_DATA", 0);
 #endif
 			if (!test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
 				hfcpci_fill_dfifo(cs);
 				test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 			} else
-				debugl1(cs, "hfcpci_fill_dfifo blocked");
+				del1(cs, "hfcpci_fill_dfifo blocked");
 
 		}
 		spin_unlock_irqrestore(&cs->lock, flags);
@@ -1141,33 +1141,33 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 	case (PH_PULL | INDICATION):
 		spin_lock_irqsave(&cs->lock, flags);
 		if (cs->tx_skb) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, " l2l1 tx_skb exist this shouldn't happen");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, " l2l1 tx_skb exist this shouldn't happen");
 			skb_queue_tail(&cs->sq, skb);
 			spin_unlock_irqrestore(&cs->lock, flags);
 			break;
 		}
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 0);
 		cs->tx_skb = skb;
 		cs->tx_cnt = 0;
-#ifdef L2FRAME_DEBUG		/* psa */
-		if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+		if (cs->de & L1_DEB_LAPD)
 			Logl2Frame(cs, skb, "PH_DATA_PULLED", 0);
 #endif
 		if (!test_and_set_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags)) {
 			hfcpci_fill_dfifo(cs);
 			test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 		} else
-			debugl1(cs, "hfcpci_fill_dfifo blocked");
+			del1(cs, "hfcpci_fill_dfifo blocked");
 		spin_unlock_irqrestore(&cs->lock, flags);
 		break;
 	case (PH_PULL | REQUEST):
-#ifdef L2FRAME_DEBUG		/* psa */
-		if (cs->debug & L1_DEB_LAPD)
-			debugl1(cs, "-> PH_REQUEST_PULL");
+#ifdef L2FRAME_DE		/* psa */
+		if (cs->de & L1_DEB_LAPD)
+			del1(cs, "-> PH_REQUEST_PULL");
 #endif
 		spin_lock_irqsave(&cs->lock, flags);
 		if (!cs->tx_skb) {
@@ -1224,8 +1224,8 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 
 		default:
 			spin_unlock_irqrestore(&cs->lock, flags);
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "hfcpci_l1hw loop invalid %4lx", (long) arg);
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "hfcpci_l1hw loop invalid %4lx", (long) arg);
 			return;
 		}
 		cs->hw.hfcpci.trm |= 0x80;	/* enable IOM-loop */
@@ -1233,8 +1233,8 @@ HFCPCI_l1hw(struct PStack *st, int pr, void *arg)
 		spin_unlock_irqrestore(&cs->lock, flags);
 		break;
 	default:
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "hfcpci_l1hw unknown pr %4x", pr);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "hfcpci_l1hw unknown pr %4x", pr);
 		break;
 	}
 }
@@ -1260,7 +1260,7 @@ hfcpci_send_data(struct BCState *bcs)
 		hfcpci_fill_fifo(bcs);
 		test_and_clear_bit(FLG_LOCK_ATOMIC, &cs->HW_Flags);
 	} else
-		debugl1(cs, "send_data %d blocked", bcs->channel);
+		del1(cs, "send_data %d blocked", bcs->channel);
 }
 
 /***************************************************************/
@@ -1272,8 +1272,8 @@ mode_hfcpci(struct BCState *bcs, int mode, int bc)
 	struct IsdnCardState *cs = bcs->cs;
 	int fifo2;
 
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "HFCPCI bchannel mode %d bchan %d/%d",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "HFCPCI bchannel mode %d bchan %d/%d",
 			mode, bc, bcs->channel);
 	bcs->mode = mode;
 	bcs->channel = bc;
@@ -1599,8 +1599,8 @@ hfcpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 {
 	u_long flags;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "HFCPCI: card_msg %x", mt);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "HFCPCI: card_msg %x", mt);
 	switch (mt) {
 	case CARD_RESET:
 		spin_lock_irqsave(&cs->lock, flags);

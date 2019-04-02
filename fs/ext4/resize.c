@@ -10,7 +10,7 @@
  */
 
 
-#define EXT4FS_DEBUG
+#define EXT4FS_DE
 
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -111,8 +111,8 @@ static int verify_group_input(struct super_block *sb,
 	input->free_clusters_count = free_blocks_count =
 		input->blocks_count - 2 - overhead - sbi->s_itb_per_group;
 
-	if (test_opt(sb, DEBUG))
-		printk(KERN_DEBUG "EXT4-fs: adding %s group %u: %u blocks "
+	if (test_opt(sb, DE))
+		printk(KERN_DE "EXT4-fs: adding %s group %u: %u blocks "
 		       "(%d free, %u reserved)\n",
 		       ext4_bg_has_super(sb, input->group) ? "normal" :
 		       "no-super", input->group, input->blocks_count,
@@ -265,12 +265,12 @@ static int ext4_alloc_group_tables(struct super_block *sb,
 	__u16 uninit_mask = (flexbg_size > 1) ? ~EXT4_BG_BLOCK_UNINIT : ~0;
 	int i;
 
-	BUG_ON(flex_gd->count == 0 || group_data == NULL);
+	_ON(flex_gd->count == 0 || group_data == NULL);
 
 	src_group = group_data[0].group;
 	last_group  = src_group + flex_gd->count - 1;
 
-	BUG_ON((flexbg_size > 1) && ((src_group & ~(flexbg_size - 1)) !=
+	_ON((flexbg_size > 1) && ((src_group & ~(flexbg_size - 1)) !=
 	       (last_group & ~(flexbg_size - 1))));
 next_group:
 	group = group_data[0].group;
@@ -346,16 +346,16 @@ next_group:
 					     group_data[i].mdata_blocks);
 	}
 
-	if (test_opt(sb, DEBUG)) {
+	if (test_opt(sb, DE)) {
 		int i;
 		group = group_data[0].group;
 
-		printk(KERN_DEBUG "EXT4-fs: adding a flex group with "
+		printk(KERN_DE "EXT4-fs: adding a flex group with "
 		       "%d groups, flexbg size is %d:\n", flex_gd->count,
 		       flexbg_size);
 
 		for (i = 0; i < flex_gd->count; i++) {
-			ext4_debug(
+			ext4_de(
 			       "adding %s group %u: %u blocks (%d free, %d mdata blocks)\n",
 			       ext4_bg_has_super(sb, group + i) ? "normal" :
 			       "no-super", group + i,
@@ -429,7 +429,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 	ext4_group_t count = last_cluster - first_cluster + 1;
 	ext4_group_t count2;
 
-	ext4_debug("mark clusters [%llu-%llu] used\n", first_cluster,
+	ext4_de("mark clusters [%llu-%llu] used\n", first_cluster,
 		   last_cluster);
 	for (count2 = count; count > 0;
 	     count -= count2, first_cluster += count2) {
@@ -447,7 +447,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 			count2 = count;
 
 		if (flex_gd->bg_flags[group] & EXT4_BG_BLOCK_UNINIT) {
-			BUG_ON(flex_gd->count > 1);
+			_ON(flex_gd->count > 1);
 			continue;
 		}
 
@@ -465,7 +465,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 			brelse(bh);
 			return err;
 		}
-		ext4_debug("mark block bitmap %#04llx (+%llu/%u)\n",
+		ext4_de("mark block bitmap %#04llx (+%llu/%u)\n",
 			   first_cluster, first_cluster - start, count2);
 		ext4_set_bits(bh->b_data, first_cluster - start, count2);
 
@@ -508,7 +508,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 	int reserved_gdb, i, j, err = 0, err2;
 	int meta_bg;
 
-	BUG_ON(!flex_gd->count || !group_data ||
+	_ON(!flex_gd->count || !group_data ||
 	       group_data[0].group != sbi->s_groups_count);
 
 	reserved_gdb = le16_to_cpu(es->s_reserved_gdt_blocks);
@@ -543,7 +543,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 		for (j = 0; j < gdblocks; j++, block++) {
 			struct buffer_head *gdb;
 
-			ext4_debug("update backup group %#04llx\n", block);
+			ext4_de("update backup group %#04llx\n", block);
 			err = extend_or_restart_transaction(handle, 1);
 			if (err)
 				goto out;
@@ -589,7 +589,7 @@ handle_itb:
 
 		/* Zero out all of the inode table blocks */
 		block = group_data[i].inode_table;
-		ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
+		ext4_de("clear inode table blocks %#04llx -> %#04lx\n",
 			   block, sbi->s_itb_per_group);
 		err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group,
 				       GFP_NOFS);
@@ -613,7 +613,7 @@ handle_bb:
 		}
 		overhead = ext4_group_overhead_blocks(sb, group);
 		if (overhead != 0) {
-			ext4_debug("mark backup superblock %#04llx (+0)\n",
+			ext4_de("mark backup superblock %#04llx (+0)\n",
 				   start);
 			ext4_set_bits(bh->b_data, 0,
 				      EXT4_NUM_B2C(sbi, overhead));
@@ -791,8 +791,8 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	__le32 *data;
 	int err;
 
-	if (test_opt(sb, DEBUG))
-		printk(KERN_DEBUG
+	if (test_opt(sb, DE))
+		printk(KERN_DE
 		       "EXT4-fs: ext4_add_new_gdb: adding group block %lu\n",
 		       gdb_num);
 
@@ -897,7 +897,7 @@ errout:
 	brelse(dind);
 	brelse(gdb_bh);
 
-	ext4_debug("leaving with error %d\n", err);
+	ext4_de("leaving with error %d\n", err);
 	return err;
 }
 
@@ -1125,7 +1125,7 @@ static void update_backups(struct super_block *sb, sector_t blk_off, char *data,
 			err = -ENOMEM;
 			break;
 		}
-		ext4_debug("update metadata backup %llu(+%llu)\n",
+		ext4_de("update metadata backup %llu(+%llu)\n",
 			   backup_block, backup_block -
 			   ext4_group_first_block_no(sb, group));
 		BUFFER_TRACE(bh, "get_write_access");
@@ -1350,7 +1350,7 @@ static void ext4_update_super(struct super_block *sb,
 	struct ext4_super_block *es = sbi->s_es;
 	int i;
 
-	BUG_ON(flex_gd->count == 0 || group_data == NULL);
+	_ON(flex_gd->count == 0 || group_data == NULL);
 	/*
 	 * Make the new blocks and inodes valid next.  We do this before
 	 * increasing the group count so that once the group is enabled,
@@ -1378,7 +1378,7 @@ static void ext4_update_super(struct super_block *sb,
 	le32_add_cpu(&es->s_free_inodes_count, EXT4_INODES_PER_GROUP(sb) *
 		     flex_gd->count);
 
-	ext4_debug("free blocks count %llu", ext4_free_blocks_count(es));
+	ext4_de("free blocks count %llu", ext4_free_blocks_count(es));
 	/*
 	 * We need to protect s_groups_count against other CPUs seeing
 	 * inconsistent state in the superblock.
@@ -1415,7 +1415,7 @@ static void ext4_update_super(struct super_block *sb,
 	percpu_counter_add(&sbi->s_freeinodes_counter,
 			   EXT4_INODES_PER_GROUP(sb) * flex_gd->count);
 
-	ext4_debug("free blocks count %llu",
+	ext4_de("free blocks count %llu",
 		   percpu_counter_read(&sbi->s_freeclusters_counter));
 	if (ext4_has_feature_flex_bg(sb) && sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group;
@@ -1431,8 +1431,8 @@ static void ext4_update_super(struct super_block *sb,
 	 */
 	ext4_calculate_overhead(sb);
 
-	if (test_opt(sb, DEBUG))
-		printk(KERN_DEBUG "EXT4-fs: added group %u:"
+	if (test_opt(sb, DE))
+		printk(KERN_DE "EXT4-fs: added group %u:"
 		       "%llu blocks(%llu free %llu reserved)\n", flex_gd->count,
 		       blocks_count, free_blocks, reserved_blocks);
 }
@@ -1454,12 +1454,12 @@ static int ext4_flex_group_add(struct super_block *sb,
 	unsigned reserved_gdb;
 	int err = 0, err2 = 0, credit;
 
-	BUG_ON(!flex_gd->count || !flex_gd->groups || !flex_gd->bg_flags);
+	_ON(!flex_gd->count || !flex_gd->groups || !flex_gd->bg_flags);
 
 	reserved_gdb = le16_to_cpu(es->s_reserved_gdt_blocks);
 	o_blocks_count = ext4_blocks_count(es);
 	ext4_get_group_no_and_offset(sb, o_blocks_count, &group, &last);
-	BUG_ON(last);
+	_ON(last);
 
 	err = setup_new_flex_group_blocks(sb, flex_gd);
 	if (err)
@@ -1487,7 +1487,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 		goto exit_journal;
 
 	group = flex_gd->groups[0].group;
-	BUG_ON(group != sbi->s_groups_count);
+	_ON(group != sbi->s_groups_count);
 	err = ext4_add_new_descs(handle, sb, group,
 				resize_inode, flex_gd->count);
 	if (err)
@@ -1554,7 +1554,7 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
 		return 0;
 
 	ext4_get_group_no_and_offset(sb, o_blocks_count, &group, &last);
-	BUG_ON(last);
+	_ON(last);
 	ext4_get_group_no_and_offset(sb, n_blocks_count - 1, &n_group, &last);
 
 	last_group = group | (flexbg_size - 1);
@@ -1702,14 +1702,14 @@ static int ext4_group_extend_no_check(struct super_block *sb,
 
 	ext4_blocks_count_set(es, o_blocks_count + add);
 	ext4_free_blocks_count_set(es, ext4_free_blocks_count(es) + add);
-	ext4_debug("freeing blocks %llu through %llu\n", o_blocks_count,
+	ext4_de("freeing blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	/* We add the blocks to the bitmap and set the group need init bit */
 	err = ext4_group_add_blocks(handle, sb, o_blocks_count, add);
 	if (err)
 		goto errout;
 	ext4_handle_dirty_super(handle, sb);
-	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
+	ext4_de("freed blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 errout:
 	err2 = ext4_journal_stop(handle);
@@ -1717,8 +1717,8 @@ errout:
 		err = err2;
 
 	if (!err) {
-		if (test_opt(sb, DEBUG))
-			printk(KERN_DEBUG "EXT4-fs: extended group to %llu "
+		if (test_opt(sb, DE))
+			printk(KERN_DE "EXT4-fs: extended group to %llu "
 			       "blocks\n", ext4_blocks_count(es));
 		update_backups(sb, EXT4_SB(sb)->s_sbh->b_blocknr,
 			       (char *)es, sizeof(struct ext4_super_block), 0);
@@ -1748,8 +1748,8 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 
 	o_blocks_count = ext4_blocks_count(es);
 
-	if (test_opt(sb, DEBUG))
-		ext4_msg(sb, KERN_DEBUG,
+	if (test_opt(sb, DE))
+		ext4_msg(sb, KERN_DE,
 			 "extending last group from %llu to %llu blocks",
 			 o_blocks_count, n_blocks_count);
 

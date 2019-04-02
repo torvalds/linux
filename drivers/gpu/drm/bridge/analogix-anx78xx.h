@@ -361,18 +361,18 @@
 #define SP_DP_CEP_TRAINING_CTRL0_REG	0xa9
 #define SP_DP_CEP_TRAINING_CTRL1_REG	0xaa
 
-/* DP Debug Register 1 */
-#define SP_DP_DEBUG1_REG		0xb0
-#define SP_DEBUG_PLL_LOCK		BIT(4)
+/* DP De Register 1 */
+#define SP_DP_DE1_REG		0xb0
+#define SP_DE_PLL_LOCK		BIT(4)
 #define SP_POLLING_EN			BIT(1)
 
 /* DP Polling Control Register */
 #define SP_DP_POLLING_CTRL_REG		0xb4
 #define SP_AUTO_POLLING_DISABLE		BIT(0)
 
-/* DP Link Debug Control Register */
-#define SP_DP_LINK_DEBUG_CTRL_REG	0xb8
-#define SP_M_VID_DEBUG			BIT(5)
+/* DP Link De Control Register */
+#define SP_DP_LINK_DE_CTRL_REG	0xb8
+#define SP_M_VID_DE			BIT(5)
 #define SP_NEW_PRBS7			BIT(4)
 #define SP_INSERT_ER			BIT(1)
 #define SP_PRBS31_EN			BIT(0)
@@ -631,8 +631,8 @@
 #define SP_VBIT				BIT(1)
 #define SP_AUDIO_LAYOUT			BIT(0)
 
-/* Analog Debug Register 2 */
-#define SP_ANALOG_DEBUG2_REG		0xdd
+/* Analog De Register 2 */
+#define SP_ANALOG_DE2_REG		0xdd
 #define SP_FORCE_SW_OFF_BYPASS		0x20
 #define SP_XTAL_FRQ			0x1c
 #  define SP_XTAL_FRQ_19M2		(0x00 << 2)

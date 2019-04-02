@@ -210,13 +210,13 @@ static inline unsigned int flow_key_size(u16 family)
 {
 	switch (family) {
 	case AF_INET:
-		BUILD_BUG_ON(sizeof(struct flowi4) % sizeof(flow_compare_t));
+		BUILD__ON(sizeof(struct flowi4) % sizeof(flow_compare_t));
 		return sizeof(struct flowi4) / sizeof(flow_compare_t);
 	case AF_INET6:
-		BUILD_BUG_ON(sizeof(struct flowi6) % sizeof(flow_compare_t));
+		BUILD__ON(sizeof(struct flowi6) % sizeof(flow_compare_t));
 		return sizeof(struct flowi6) / sizeof(flow_compare_t);
 	case AF_DECnet:
-		BUILD_BUG_ON(sizeof(struct flowidn) % sizeof(flow_compare_t));
+		BUILD__ON(sizeof(struct flowidn) % sizeof(flow_compare_t));
 		return sizeof(struct flowidn) / sizeof(flow_compare_t);
 	}
 	return 0;

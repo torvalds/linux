@@ -26,7 +26,7 @@
 
 #pragma pack(push, 1)
 
-#define ENABLE_DEBUG_FEATURES
+#define ENABLE_DE_FEATURES
 
 struct SMU8_Firmware_Header {
 	uint32_t Version;

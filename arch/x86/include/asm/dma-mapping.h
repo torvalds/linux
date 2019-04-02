@@ -8,7 +8,7 @@
  */
 
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
 #include <linux/dma-contiguous.h>

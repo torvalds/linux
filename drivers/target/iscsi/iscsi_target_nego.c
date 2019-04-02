@@ -358,7 +358,7 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 	login_rsp->exp_cmdsn		= cpu_to_be32(conn->sess->exp_cmd_sn);
 	login_rsp->max_cmdsn		= cpu_to_be32((u32) atomic_read(&conn->sess->max_cmd_sn));
 
-	pr_debug("Sending Login Response, Flags: 0x%02x, ITT: 0x%08x,"
+	pr_de("Sending Login Response, Flags: 0x%02x, ITT: 0x%08x,"
 		" ExpCmdSN; 0x%08x, MaxCmdSN: 0x%08x, StatSN: 0x%08x, Length:"
 		" %u\n", login_rsp->flags, (__force u32)login_rsp->itt,
 		ntohl(login_rsp->exp_cmdsn), ntohl(login_rsp->max_cmdsn),
@@ -412,7 +412,7 @@ static void iscsi_target_sk_data_ready(struct sock *sk)
 	struct iscsi_conn *conn = sk->sk_user_data;
 	bool rc;
 
-	pr_debug("Entering iscsi_target_sk_data_ready: conn: %p\n", conn);
+	pr_de("Entering iscsi_target_sk_data_ready: conn: %p\n", conn);
 
 	write_lock_bh(&sk->sk_callback_lock);
 	if (!sk->sk_user_data) {
@@ -421,17 +421,17 @@ static void iscsi_target_sk_data_ready(struct sock *sk)
 	}
 	if (!test_bit(LOGIN_FLAGS_READY, &conn->login_flags)) {
 		write_unlock_bh(&sk->sk_callback_lock);
-		pr_debug("Got LOGIN_FLAGS_READY=0, conn: %p >>>>\n", conn);
+		pr_de("Got LOGIN_FLAGS_READY=0, conn: %p >>>>\n", conn);
 		return;
 	}
 	if (test_bit(LOGIN_FLAGS_CLOSED, &conn->login_flags)) {
 		write_unlock_bh(&sk->sk_callback_lock);
-		pr_debug("Got LOGIN_FLAGS_CLOSED=1, conn: %p >>>>\n", conn);
+		pr_de("Got LOGIN_FLAGS_CLOSED=1, conn: %p >>>>\n", conn);
 		return;
 	}
 	if (test_and_set_bit(LOGIN_FLAGS_READ_ACTIVE, &conn->login_flags)) {
 		write_unlock_bh(&sk->sk_callback_lock);
-		pr_debug("Got LOGIN_FLAGS_READ_ACTIVE=1, conn: %p >>>>\n", conn);
+		pr_de("Got LOGIN_FLAGS_READ_ACTIVE=1, conn: %p >>>>\n", conn);
 		if (iscsi_target_sk_data_ready == conn->orig_data_ready)
 			return;
 		conn->orig_data_ready(sk);
@@ -440,7 +440,7 @@ static void iscsi_target_sk_data_ready(struct sock *sk)
 
 	rc = schedule_delayed_work(&conn->login_work, 0);
 	if (!rc) {
-		pr_debug("iscsi_target_sk_data_ready, schedule_delayed_work"
+		pr_de("iscsi_target_sk_data_ready, schedule_delayed_work"
 			 " got false\n");
 	}
 	write_unlock_bh(&sk->sk_callback_lock);
@@ -456,7 +456,7 @@ static void iscsi_target_set_sock_callbacks(struct iscsi_conn *conn)
 		return;
 
 	sk = conn->sock->sk;
-	pr_debug("Entering iscsi_target_set_sock_callbacks: conn: %p\n", conn);
+	pr_de("Entering iscsi_target_set_sock_callbacks: conn: %p\n", conn);
 
 	write_lock_bh(&sk->sk_callback_lock);
 	sk->sk_user_data = conn;
@@ -478,7 +478,7 @@ static void iscsi_target_restore_sock_callbacks(struct iscsi_conn *conn)
 		return;
 
 	sk = conn->sock->sk;
-	pr_debug("Entering iscsi_target_restore_sock_callbacks: conn: %p\n", conn);
+	pr_de("Entering iscsi_target_restore_sock_callbacks: conn: %p\n", conn);
 
 	write_lock_bh(&sk->sk_callback_lock);
 	if (!sk->sk_user_data) {
@@ -499,7 +499,7 @@ static int iscsi_target_do_login(struct iscsi_conn *, struct iscsi_login *);
 static bool __iscsi_target_sk_check_close(struct sock *sk)
 {
 	if (sk->sk_state == TCP_CLOSE_WAIT || sk->sk_state == TCP_CLOSE) {
-		pr_debug("__iscsi_target_sk_check_close: TCP_CLOSE_WAIT|TCP_CLOSE,"
+		pr_de("__iscsi_target_sk_check_close: TCP_CLOSE_WAIT|TCP_CLOSE,"
 			"returning FALSE\n");
 		return true;
 	}
@@ -572,10 +572,10 @@ static void iscsi_target_login_timeout(struct timer_list *t)
 	struct conn_timeout *timeout = from_timer(timeout, t, timer);
 	struct iscsi_conn *conn = timeout->conn;
 
-	pr_debug("Entering iscsi_target_login_timeout >>>>>>>>>>>>>>>>>>>\n");
+	pr_de("Entering iscsi_target_login_timeout >>>>>>>>>>>>>>>>>>>\n");
 
 	if (conn->login_kworker) {
-		pr_debug("Sending SIGINT to conn->login_kworker %s/%d\n",
+		pr_de("Sending SIGINT to conn->login_kworker %s/%d\n",
 			 conn->login_kworker->comm, conn->login_kworker->pid);
 		send_sig(SIGINT, conn->login_kworker, 1);
 	}
@@ -593,7 +593,7 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 	int rc, zero_tsih = login->zero_tsih;
 	bool state;
 
-	pr_debug("entering iscsi_target_do_login_rx, conn: %p, %s:%d\n",
+	pr_de("entering iscsi_target_do_login_rx, conn: %p, %s:%d\n",
 			conn, current->comm, current->pid);
 	/*
 	 * If iscsi_target_do_login_rx() has been invoked by ->sk_data_ready()
@@ -615,12 +615,12 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 	spin_unlock(&tpg->tpg_state_lock);
 
 	if (!state) {
-		pr_debug("iscsi_target_do_login_rx: tpg_state != TPG_STATE_ACTIVE\n");
+		pr_de("iscsi_target_do_login_rx: tpg_state != TPG_STATE_ACTIVE\n");
 		goto err;
 	}
 
 	if (iscsi_target_sk_check_close(conn)) {
-		pr_debug("iscsi_target_do_login_rx, TCP state CLOSE\n");
+		pr_de("iscsi_target_do_login_rx, TCP state CLOSE\n");
 		goto err;
 	}
 
@@ -630,7 +630,7 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 	timeout.conn = conn;
 	timer_setup_on_stack(&timeout.timer, iscsi_target_login_timeout, 0);
 	mod_timer(&timeout.timer, jiffies + TA_LOGIN_TIMEOUT * HZ);
-	pr_debug("Starting login timer for %s/%d\n", current->comm, current->pid);
+	pr_de("Starting login timer for %s/%d\n", current->comm, current->pid);
 
 	rc = conn->conn_transport->iscsit_get_login_rx(conn, login);
 	del_timer_sync(&timeout.timer);
@@ -641,7 +641,7 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 	if (rc < 0)
 		goto err;
 
-	pr_debug("iscsi_target_do_login_rx after rx_login_io, %p, %s:%d\n",
+	pr_de("iscsi_target_do_login_rx after rx_login_io, %p, %s:%d\n",
 			conn, current->comm, current->pid);
 
 	rc = iscsi_target_do_login(conn, login);
@@ -669,7 +669,7 @@ static void iscsi_target_sk_state_change(struct sock *sk)
 	void (*orig_state_change)(struct sock *);
 	bool state;
 
-	pr_debug("Entering iscsi_target_sk_state_change\n");
+	pr_de("Entering iscsi_target_sk_state_change\n");
 
 	write_lock_bh(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
@@ -680,17 +680,17 @@ static void iscsi_target_sk_state_change(struct sock *sk)
 	orig_state_change = conn->orig_state_change;
 
 	if (!test_bit(LOGIN_FLAGS_READY, &conn->login_flags)) {
-		pr_debug("Got LOGIN_FLAGS_READY=0 sk_state_change conn: %p\n",
+		pr_de("Got LOGIN_FLAGS_READY=0 sk_state_change conn: %p\n",
 			 conn);
 		write_unlock_bh(&sk->sk_callback_lock);
 		orig_state_change(sk);
 		return;
 	}
 	state = __iscsi_target_sk_check_close(sk);
-	pr_debug("__iscsi_target_sk_close_change: state: %d\n", state);
+	pr_de("__iscsi_target_sk_close_change: state: %d\n", state);
 
 	if (test_bit(LOGIN_FLAGS_READ_ACTIVE, &conn->login_flags)) {
-		pr_debug("Got LOGIN_FLAGS_READ_ACTIVE=1 sk_state_change"
+		pr_de("Got LOGIN_FLAGS_READ_ACTIVE=1 sk_state_change"
 			 " conn: %p\n", conn);
 		if (state)
 			set_bit(LOGIN_FLAGS_CLOSED, &conn->login_flags);
@@ -699,7 +699,7 @@ static void iscsi_target_sk_state_change(struct sock *sk)
 		return;
 	}
 	if (test_bit(LOGIN_FLAGS_CLOSED, &conn->login_flags)) {
-		pr_debug("Got LOGIN_FLAGS_CLOSED=1 sk_state_change conn: %p\n",
+		pr_de("Got LOGIN_FLAGS_CLOSED=1 sk_state_change conn: %p\n",
 			 conn);
 		write_unlock_bh(&sk->sk_callback_lock);
 		orig_state_change(sk);
@@ -721,7 +721,7 @@ static void iscsi_target_sk_state_change(struct sock *sk)
 	 * the remaining iscsi connection resources.
 	 */
 	if (state) {
-		pr_debug("iscsi_target_sk_state_change got failed state\n");
+		pr_de("iscsi_target_sk_state_change got failed state\n");
 		set_bit(LOGIN_FLAGS_CLOSED, &conn->login_flags);
 		state = test_bit(LOGIN_FLAGS_INITIAL_PDU, &conn->login_flags);
 		write_unlock_bh(&sk->sk_callback_lock);
@@ -785,11 +785,11 @@ static int iscsi_target_do_authentication(
 			param->value);
 	switch (authret) {
 	case 0:
-		pr_debug("Received OK response"
+		pr_de("Received OK response"
 		" from LIO Authentication, continuing.\n");
 		break;
 	case 1:
-		pr_debug("iSCSI security negotiation"
+		pr_de("iSCSI security negotiation"
 			" completed successfully.\n");
 		login->auth_complete = 1;
 		if ((login_req->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE1) &&
@@ -1192,7 +1192,7 @@ get_target:
 		ret = -1;
 		goto out;
 	}
-	pr_debug("Located Storage Object: %s\n", tiqn->tiqn);
+	pr_de("Located Storage Object: %s\n", tiqn->tiqn);
 
 	/*
 	 * Locate Target Portal Group from Storage Node.
@@ -1208,7 +1208,7 @@ get_target:
 		goto out;
 	}
 	conn->tpg_np = tpg_np;
-	pr_debug("Located Portal Group Object: %hu\n", conn->tpg->tpgt);
+	pr_de("Located Portal Group Object: %hu\n", conn->tpg->tpgt);
 	/*
 	 * Setup crc32c modules from libcrypto
 	 */

@@ -52,7 +52,7 @@
 #define mmIH_PERFMON_CNTL                                                       0xe39
 #define mmIH_PERFCOUNTER0_RESULT                                                0xe3a
 #define mmIH_PERFCOUNTER1_RESULT                                                0xe3b
-#define mmIH_DEBUG                                                              0xe3c
+#define mmIH_DE                                                              0xe3c
 #define mmIH_DSM_MATCH_VALUE_BIT_31_0                                           0xe3d
 #define mmIH_DSM_MATCH_VALUE_BIT_63_32                                          0xe3e
 #define mmIH_DSM_MATCH_VALUE_BIT_95_64                                          0xe3f
@@ -91,8 +91,8 @@
 #define mmSRBM_STATUS                                                           0x394
 #define mmSRBM_STATUS3                                                          0x395
 #define mmSRBM_SOFT_RESET                                                       0x398
-#define mmSRBM_DEBUG_CNTL                                                       0x399
-#define mmSRBM_DEBUG_DATA                                                       0x39a
+#define mmSRBM_DE_CNTL                                                       0x399
+#define mmSRBM_DE_DATA                                                       0x39a
 #define mmSRBM_CHIP_REVISION                                                    0x39b
 #define mmSRBM_CREDIT_RECOVER_CNTL                                              0x39c
 #define mmSRBM_CREDIT_RECOVER                                                   0x39d
@@ -108,9 +108,9 @@
 #define mmSRBM_SAM_CLKEN_CNTL                                                   0x3b8
 #define mmSRBM_ISP_CLKEN_CNTL                                                   0x3b9
 #define mmSRBM_VP8_CLKEN_CNTL                                                   0x3ba
-#define mmSRBM_DEBUG                                                            0x3a4
-#define mmSRBM_DEBUG_SNAPSHOT                                                   0x3a5
-#define mmSRBM_DEBUG_SNAPSHOT2                                                  0x3ad
+#define mmSRBM_DE                                                            0x3a4
+#define mmSRBM_DE_SNAPSHOT                                                   0x3a5
+#define mmSRBM_DE_SNAPSHOT2                                                  0x3ad
 #define mmSRBM_READ_ERROR                                                       0x3a6
 #define mmSRBM_READ_ERROR2                                                      0x3ae
 #define mmSRBM_INT_CNTL                                                         0x3a8
@@ -286,8 +286,8 @@
 #define ixCLIENT4_BM                                                            0x314
 #define ixCLIENT4_OFFSET                                                        0x318
 #define ixCLIENT4_STATUS                                                        0x31c
-#define mmDC_TEST_DEBUG_INDEX                                                   0x157c
-#define mmDC_TEST_DEBUG_DATA                                                    0x157d
+#define mmDC_TEST_DE_INDEX                                                   0x157c
+#define mmDC_TEST_DE_DATA                                                    0x157d
 #define mmSDMA0_UCODE_ADDR                                                      0x3400
 #define mmSDMA0_UCODE_DATA                                                      0x3401
 #define mmSDMA0_POWER_CNTL                                                      0x3402
@@ -599,8 +599,8 @@
 #define mmHDP_NONSURF_FLAGS                                                     0xbc9
 #define mmHDP_NONSURF_FLAGS_CLR                                                 0xbca
 #define mmHDP_SW_SEMAPHORE                                                      0xbcb
-#define mmHDP_DEBUG0                                                            0xbcc
-#define mmHDP_DEBUG1                                                            0xbcd
+#define mmHDP_DE0                                                            0xbcc
+#define mmHDP_DE1                                                            0xbcd
 #define mmHDP_LAST_SURFACE_HIT                                                  0xbce
 #define mmHDP_TILING_CONFIG                                                     0xbcf
 #define mmHDP_SC_MULTI_CHIP_CNTL                                                0xbd0

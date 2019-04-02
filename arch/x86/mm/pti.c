@@ -30,7 +30,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
@@ -67,13 +67,13 @@
 
 static void __init pti_print_if_insecure(const char *reason)
 {
-	if (boot_cpu_has_bug(X86_BUG_CPU_MELTDOWN))
+	if (boot_cpu_has_(X86__CPU_MELTDOWN))
 		pr_info("%s\n", reason);
 }
 
 static void __init pti_print_if_secure(const char *reason)
 {
-	if (!boot_cpu_has_bug(X86_BUG_CPU_MELTDOWN))
+	if (!boot_cpu_has_(X86__CPU_MELTDOWN))
 		pr_info("%s\n", reason);
 }
 
@@ -122,7 +122,7 @@ void __init pti_check_boottime_disable(void)
 	}
 
 autosel:
-	if (!boot_cpu_has_bug(X86_BUG_CPU_MELTDOWN))
+	if (!boot_cpu_has_(X86__CPU_MELTDOWN))
 		return;
 enable:
 	setup_force_cpu_cap(X86_FEATURE_PTI);
@@ -192,7 +192,7 @@ static p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
 
 		set_pgd(pgd, __pgd(_KERNPG_TABLE | __pa(new_p4d_page)));
 	}
-	BUILD_BUG_ON(pgd_large(*pgd) != 0);
+	BUILD__ON(pgd_large(*pgd) != 0);
 
 	return p4d_offset(pgd, address);
 }
@@ -213,7 +213,7 @@ static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 	if (!p4d)
 		return NULL;
 
-	BUILD_BUG_ON(p4d_large(*p4d) != 0);
+	BUILD__ON(p4d_large(*p4d) != 0);
 	if (p4d_none(*p4d)) {
 		unsigned long new_pud_page = __get_free_page(gfp);
 		if (WARN_ON_ONCE(!new_pud_page))
@@ -409,7 +409,7 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 			addr += PAGE_SIZE;
 
 		} else {
-			BUG();
+			();
 		}
 	}
 }
@@ -583,7 +583,7 @@ static void pti_clone_kernel_text(void)
 	if (!pti_kernel_image_global_ok())
 		return;
 
-	pr_debug("mapping partial kernel image into user address space\n");
+	pr_de("mapping partial kernel image into user address space\n");
 
 	/*
 	 * Note that this will undo _some_ of the work that
@@ -679,5 +679,5 @@ void pti_finalize(void)
 	pti_clone_entry_text();
 	pti_clone_kernel_text();
 
-	debug_checkwx_user();
+	de_checkwx_user();
 }

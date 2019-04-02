@@ -174,7 +174,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 		return 0;
 	}
 
-	dmz_dev_debug(dmz->dev, "READ chunk %llu -> %s zone %u, block %llu, %u blocks",
+	dmz_dev_de(dmz->dev, "READ chunk %llu -> %s zone %u, block %llu, %u blocks",
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
 		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
 		      dmz_id(dmz->metadata, zone),
@@ -311,7 +311,7 @@ static int dmz_handle_write(struct dmz_target *dmz, struct dm_zone *zone,
 	if (!zone)
 		return -ENOSPC;
 
-	dmz_dev_debug(dmz->dev, "WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
+	dmz_dev_de(dmz->dev, "WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
 		      (dmz_is_rnd(zone) ? "RND" : "SEQ"),
 		      dmz_id(dmz->metadata, zone),
@@ -352,7 +352,7 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 	if (dmz_is_readonly(zone))
 		return -EROFS;
 
-	dmz_dev_debug(dmz->dev, "DISCARD chunk %llu -> zone %u, block %llu, %u blocks",
+	dmz_dev_de(dmz->dev, "DISCARD chunk %llu -> zone %u, block %llu, %u blocks",
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
 		      dmz_id(zmd, zone),
 		      (unsigned long long)chunk_block, nr_blocks);
@@ -565,7 +565,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	unsigned int nr_sectors = bio_sectors(bio);
 	sector_t chunk_sector;
 
-	dmz_dev_debug(dev, "BIO op %d sector %llu + %u => chunk %llu, block %llu, %u blocks",
+	dmz_dev_de(dev, "BIO op %d sector %llu + %u => chunk %llu, block %llu, %u blocks",
 		      bio_op(bio), (unsigned long long)sector, nr_sectors,
 		      (unsigned long long)dmz_bio_chunk(dmz->dev, bio),
 		      (unsigned long long)dmz_chunk_block(dmz->dev, dmz_bio_block(bio)),

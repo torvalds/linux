@@ -168,7 +168,7 @@ static int __init parse_apic(char *arg)
 		}
 	}
 
-	/* Parsed again by __setup for debug/verbose */
+	/* Parsed again by __setup for de/verbose */
 	return 0;
 }
 early_param("apic", parse_apic);

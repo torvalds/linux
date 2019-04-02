@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  This file contains work-arounds for many known SD/MMC
- *  and SDIO hardware bugs.
+ *  and SDIO hardware s.
  *
  *  Copyright (c) 2011 Andrei Warkentin <andreiw@motorola.com>
  *  Copyright (c) 2011 Pierre Tardy <tardyp@gmail.com>
@@ -71,7 +71,7 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 	/*
 	 * On these Samsung MoviNAND parts, performing secure erase or
 	 * secure trim can result in unrecoverable corruption due to a
-	 * firmware bug.
+	 * firmware .
 	 */
 	MMC_FIXUP("M8G2FA", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
@@ -92,7 +92,7 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 
 	/*
 	 *  On Some Kingston eMMCs, performing trim can result in
-	 *  unrecoverable data conrruption occasionally due to a firmware bug.
+	 *  unrecoverable data conrruption occasionally due to a firmware .
 	 */
 	MMC_FIXUP("V10008", CID_MANFID_KINGSTON, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_TRIM_BROKEN),
@@ -105,13 +105,13 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 static const struct mmc_fixup mmc_ext_csd_fixups[] = {
 	/*
 	 * Certain Hynix eMMC 4.41 cards might get broken when HPI feature
-	 * is used so disable the HPI feature for such buggy cards.
+	 * is used so disable the HPI feature for such gy cards.
 	 */
 	MMC_FIXUP_EXT_CSD_REV(CID_NAME_ANY, CID_MANFID_HYNIX,
 			      0x014a, add_quirk, MMC_QUIRK_BROKEN_HPI, 5),
 	/*
 	 * Certain Micron (Numonyx) eMMC 4.5 cards might get broken when HPI
-	 * feature is used so disable the HPI feature for such buggy cards.
+	 * feature is used so disable the HPI feature for such gy cards.
 	 */
 	MMC_FIXUP_EXT_CSD_REV(CID_NAME_ANY, CID_MANFID_NUMONYX,
 			      0x014e, add_quirk, MMC_QUIRK_BROKEN_HPI, 6),

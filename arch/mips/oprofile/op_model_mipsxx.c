@@ -91,7 +91,7 @@ static inline unsigned int r_c0_ ## r ## n(void)			\
 	case 1:								\
 		return read_c0_ ## r ## np();				\
 	default:							\
-		BUG();							\
+		();							\
 	}								\
 	return 0;							\
 }									\
@@ -108,7 +108,7 @@ static inline void w_c0_ ## r ## n(unsigned int value)			\
 		write_c0_ ## r ## np(value);				\
 		return;							\
 	default:							\
-		BUG();							\
+		();							\
 	}								\
 	return;								\
 }									\

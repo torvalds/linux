@@ -179,7 +179,7 @@ retry:
 
 	if (rc->rc_result == -ESRCH) {
 		/* we pretend the remote lockspace exists with 0 status */
-		log_debug(ls, "remote node %d not ready", nodeid);
+		log_de(ls, "remote node %d not ready", nodeid);
 		rc->rc_result = 0;
 		error = 0;
 	} else {
@@ -238,7 +238,7 @@ static void receive_rcom_status(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	spin_lock(&ls->ls_recover_lock);
 	if (ls->ls_num_slots != num_slots) {
 		spin_unlock(&ls->ls_recover_lock);
-		log_debug(ls, "receive_rcom_status num_slots %d to %d",
+		log_de(ls, "receive_rcom_status num_slots %d to %d",
 			  num_slots, ls->ls_num_slots);
 		rc->rc_result = 0;
 		set_rcom_config(ls, (struct rcom_config *)rc->rc_buf, 0);
@@ -257,7 +257,7 @@ static void receive_sync_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	spin_lock(&ls->ls_rcom_spin);
 	if (!test_bit(LSFL_RCOM_WAIT, &ls->ls_flags) ||
 	    rc_in->rc_id != ls->ls_rcom_seq) {
-		log_debug(ls, "reject reply %d from %d seq %llx expect %llx",
+		log_de(ls, "reject reply %d from %d seq %llx expect %llx",
 			  rc_in->rc_type, rc_in->rc_header.h_nodeid,
 			  (unsigned long long)rc_in->rc_id,
 			  (unsigned long long)ls->ls_rcom_seq);
@@ -349,7 +349,7 @@ static void receive_rcom_lookup(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	if (error)
 		return;
 
-	/* Old code would send this special id to trigger a debug dump. */
+	/* Old code would send this special id to trigger a de dump. */
 	if (rc_in->rc_id == 0xFFFFFFFF) {
 		log_error(ls, "receive_rcom_lookup dump from %d", nodeid);
 		dlm_dump_rsb_name(ls, rc_in->rc_buf, len);

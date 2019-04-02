@@ -40,7 +40,7 @@
 #include "sym_glue.h"
 #include "sym_nvram.h"
 
-#ifdef	SYM_CONF_DEBUG_NVRAM
+#ifdef	SYM_CONF_DE_NVRAM
 static u_char Tekram_boot_delay[7] = {3, 5, 10, 20, 30, 60, 120};
 #endif
 
@@ -149,9 +149,9 @@ void sym_nvram_setup_target(struct sym_tcb *tp, int target, struct sym_nvram *nv
 	}
 }
 
-#ifdef	SYM_CONF_DEBUG_NVRAM
+#ifdef	SYM_CONF_DE_NVRAM
 /*
- *  Dump Symbios format NVRAM for debugging purpose.
+ *  Dump Symbios format NVRAM for deging purpose.
  */
 static void sym_display_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvram)
 {
@@ -183,7 +183,7 @@ static void sym_display_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvra
 }
 
 /*
- *  Dump TEKRAM format NVRAM for debugging purpose.
+ *  Dump TEKRAM format NVRAM for deging purpose.
  */
 static void sym_display_Tekram_nvram(struct sym_device *np, Tekram_nvram *nvram)
 {
@@ -234,7 +234,7 @@ static void sym_display_Tekram_nvram(struct sym_device *np, Tekram_nvram *nvram)
 #else
 static void sym_display_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvram) { (void)np; (void)nvram; }
 static void sym_display_Tekram_nvram(struct sym_device *np, Tekram_nvram *nvram) { (void)np; (void)nvram; }
-#endif	/* SYM_CONF_DEBUG_NVRAM */
+#endif	/* SYM_CONF_DE_NVRAM */
 
 
 /*

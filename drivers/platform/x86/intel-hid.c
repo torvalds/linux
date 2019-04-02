@@ -145,7 +145,7 @@ static bool intel_hid_execute_method(acpi_handle handle,
 
 	obj = acpi_evaluate_dsm(handle, &intel_dsm_guid, 1, fn_index, &argv4);
 	if (obj) {
-		acpi_handle_debug(handle, "Exec DSM Fn code: %d[%s] success\n",
+		acpi_handle_de(handle, "Exec DSM Fn code: %d[%s] success\n",
 				  fn_index, method_name);
 		ACPI_FREE(obj);
 		return true;
@@ -181,7 +181,7 @@ static bool intel_hid_evaluate_method(acpi_handle handle,
 				      NULL,  ACPI_TYPE_INTEGER);
 	if (obj) {
 		*result = obj->integer.value;
-		acpi_handle_debug(handle,
+		acpi_handle_de(handle,
 				  "Eval DSM Fn code: %d[%s] results: 0x%llx\n",
 				  fn_index, method_name, *result);
 		ACPI_FREE(obj);
@@ -209,7 +209,7 @@ static void intel_hid_init_dsm(acpi_handle handle)
 		ACPI_FREE(obj);
 	}
 
-	acpi_handle_debug(handle, "intel_hid_dsm_fn_mask = %llx\n",
+	acpi_handle_de(handle, "intel_hid_dsm_fn_mask = %llx\n",
 			  intel_hid_dsm_fn_mask);
 }
 

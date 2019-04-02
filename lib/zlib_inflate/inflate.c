@@ -456,7 +456,7 @@ int zlib_inflate(z_streamp strm, int flush)
             DROPBITS(5);
             state->ncode = BITS(4) + 4;
             DROPBITS(4);
-#ifndef PKZIP_BUG_WORKAROUND
+#ifndef PKZIP__WORKAROUND
             if (state->nlen > 286 || state->ndist > 30) {
                 strm->msg = (char *)"too many length or distance symbols";
                 state->mode = BAD;

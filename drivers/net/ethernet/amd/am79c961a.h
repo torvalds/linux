@@ -9,13 +9,13 @@
 #ifndef _LINUX_am79c961a_H
 #define _LINUX_am79c961a_H
 
-/* use 0 for production, 1 for verification, >2 for debug. debug flags: */
-#define DEBUG_TX	 2
-#define DEBUG_RX	 4
-#define DEBUG_INT	 8
-#define DEBUG_IC	16
-#ifndef NET_DEBUG
-#define NET_DEBUG 	0
+/* use 0 for production, 1 for verification, >2 for de. de flags: */
+#define DE_TX	 2
+#define DE_RX	 4
+#define DE_INT	 8
+#define DE_IC	16
+#ifndef NET_DE
+#define NET_DE 	0
 #endif
 
 #define NET_UID		0

@@ -23,7 +23,7 @@
 
 #include "aops.h"
 #include "collate.h"
-#include "debug.h"
+#include "de.h"
 #include "index.h"
 #include "ntfs.h"
 
@@ -65,7 +65,7 @@ void ntfs_index_ctx_put(ntfs_index_context *ictx)
 		} else {
 			struct page *page = ictx->page;
 			if (page) {
-				BUG_ON(!PageLocked(page));
+				_ON(!PageLocked(page));
 				unlock_page(page);
 				ntfs_unmap_page(page);
 			}
@@ -134,13 +134,13 @@ int ntfs_index_lookup(const void *key, const int key_len,
 	struct page *page;
 	int rc, err = 0;
 
-	ntfs_debug("Entering.");
-	BUG_ON(!NInoAttr(idx_ni));
-	BUG_ON(idx_ni->type != AT_INDEX_ALLOCATION);
-	BUG_ON(idx_ni->nr_extents != -1);
-	BUG_ON(!base_ni);
-	BUG_ON(!key);
-	BUG_ON(key_len <= 0);
+	ntfs_de("Entering.");
+	_ON(!NInoAttr(idx_ni));
+	_ON(idx_ni->type != AT_INDEX_ALLOCATION);
+	_ON(idx_ni->nr_extents != -1);
+	_ON(!base_ni);
+	_ON(!key);
+	_ON(key_len <= 0);
 	if (!ntfs_is_collation_rule_supported(
 			idx_ni->itype.index.collation_rule)) {
 		ntfs_error(sb, "Index uses unsupported collation rule 0x%x.  "
@@ -217,7 +217,7 @@ done:
 			ictx->data = (u8*)ie +
 					le16_to_cpu(ie->data.vi.data_offset);
 			ictx->data_len = le16_to_cpu(ie->data.vi.data_length);
-			ntfs_debug("Done.");
+			ntfs_de("Done.");
 			return err;
 		}
 		/*
@@ -247,7 +247,7 @@ done:
 	 * -ENOENT.
 	 */
 	if (!(ie->flags & INDEX_ENTRY_NODE)) {
-		ntfs_debug("Entry not found.");
+		ntfs_de("Entry not found.");
 		err = -ENOENT;
 		goto ir_done;
 	} /* Child node present, descend into it. */
@@ -255,7 +255,7 @@ done:
 	if (!NInoIndexAllocPresent(idx_ni)) {
 		ntfs_error(sb, "No index allocation attribute but index entry "
 				"requires one.  Inode 0x%lx is corrupt or "
-				"driver bug.", idx_ni->mft_no);
+				"driver .", idx_ni->mft_no);
 		goto err_out;
 	}
 	/* Get the starting vcn of the index_block holding the child node. */
@@ -292,7 +292,7 @@ fast_descend_into_child_node:
 	/* Bounds checks. */
 	if ((u8*)ia < kaddr || (u8*)ia > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Out of bounds check failed.  Corrupt inode "
-				"0x%lx or driver bug.", idx_ni->mft_no);
+				"0x%lx or driver .", idx_ni->mft_no);
 		goto unm_err_out;
 	}
 	/* Catch multi sector transfer fixup errors. */
@@ -305,7 +305,7 @@ fast_descend_into_child_node:
 	if (sle64_to_cpu(ia->index_block_vcn) != vcn) {
 		ntfs_error(sb, "Actual VCN (0x%llx) of index buffer is "
 				"different from expected VCN (0x%llx).  Inode "
-				"0x%lx is corrupt or driver bug.",
+				"0x%lx is corrupt or driver .",
 				(unsigned long long)
 				sle64_to_cpu(ia->index_block_vcn),
 				(unsigned long long)vcn, idx_ni->mft_no);
@@ -316,7 +316,7 @@ fast_descend_into_child_node:
 		ntfs_error(sb, "Index buffer (VCN 0x%llx) of inode 0x%lx has "
 				"a size (%u) differing from the index "
 				"specified size (%u).  Inode is corrupt or "
-				"driver bug.", (unsigned long long)vcn,
+				"driver .", (unsigned long long)vcn,
 				idx_ni->mft_no,
 				le32_to_cpu(ia->index.allocated_size) + 0x18,
 				idx_ni->itype.index.block_size);
@@ -326,7 +326,7 @@ fast_descend_into_child_node:
 	if (index_end > kaddr + PAGE_SIZE) {
 		ntfs_error(sb, "Index buffer (VCN 0x%llx) of inode 0x%lx "
 				"crosses page boundary.  Impossible!  Cannot "
-				"access!  This is probably a bug in the "
+				"access!  This is probably a  in the "
 				"driver.", (unsigned long long)vcn,
 				idx_ni->mft_no);
 		goto unm_err_out;
@@ -409,7 +409,7 @@ ia_done:
 	 * the presence of a child node and if not present return -ENOENT.
 	 */
 	if (!(ie->flags & INDEX_ENTRY_NODE)) {
-		ntfs_debug("Entry not found.");
+		ntfs_de("Entry not found.");
 		err = -ENOENT;
 		goto ia_done;
 	}

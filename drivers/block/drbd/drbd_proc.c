@@ -69,7 +69,7 @@ static void drbd_get_syncer_progress(struct drbd_device *device,
 	/* >> 10 to prevent overflow,
 	 * +1 to prevent division by zero */
 	if (*bits_left > *rs_total) {
-		/* D'oh. Maybe a logic bug somewhere.  More likely just a race
+		/* D'oh. Maybe a logic  somewhere.  More likely just a race
 		 * between state change and reset of rs_total.
 		 */
 		*bits_left = *rs_total;

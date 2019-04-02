@@ -76,26 +76,26 @@ static void intel_dsm_platform_mux_info(acpi_handle dhandle)
 			INTEL_DSM_REVISION_ID, INTEL_DSM_FN_PLATFORM_MUX_INFO,
 			NULL, ACPI_TYPE_PACKAGE);
 	if (!pkg) {
-		DRM_DEBUG_DRIVER("failed to evaluate _DSM\n");
+		DRM_DE_DRIVER("failed to evaluate _DSM\n");
 		return;
 	}
 
 	connector_count = &pkg->package.elements[0];
-	DRM_DEBUG_DRIVER("MUX info connectors: %lld\n",
+	DRM_DE_DRIVER("MUX info connectors: %lld\n",
 		  (unsigned long long)connector_count->integer.value);
 	for (i = 1; i < pkg->package.count; i++) {
 		union acpi_object *obj = &pkg->package.elements[i];
 		union acpi_object *connector_id = &obj->package.elements[0];
 		union acpi_object *info = &obj->package.elements[1];
-		DRM_DEBUG_DRIVER("Connector id: 0x%016llx\n",
+		DRM_DE_DRIVER("Connector id: 0x%016llx\n",
 			  (unsigned long long)connector_id->integer.value);
-		DRM_DEBUG_DRIVER("  port id: %s\n",
+		DRM_DE_DRIVER("  port id: %s\n",
 		       intel_dsm_port_name(info->buffer.pointer[0]));
-		DRM_DEBUG_DRIVER("  display mux info: %s\n",
+		DRM_DE_DRIVER("  display mux info: %s\n",
 		       intel_dsm_mux_type(info->buffer.pointer[1]));
-		DRM_DEBUG_DRIVER("  aux/dc mux info: %s\n",
+		DRM_DE_DRIVER("  aux/dc mux info: %s\n",
 		       intel_dsm_mux_type(info->buffer.pointer[2]));
-		DRM_DEBUG_DRIVER("  hpd mux info: %s\n",
+		DRM_DE_DRIVER("  hpd mux info: %s\n",
 		       intel_dsm_mux_type(info->buffer.pointer[3]));
 	}
 
@@ -112,7 +112,7 @@ static acpi_handle intel_dsm_pci_probe(struct pci_dev *pdev)
 
 	if (!acpi_check_dsm(dhandle, &intel_dsm_guid, INTEL_DSM_REVISION_ID,
 			    1 << INTEL_DSM_FN_PLATFORM_MUX_INFO)) {
-		DRM_DEBUG_KMS("no _DSM method for intel device\n");
+		DRM_DE_KMS("no _DSM method for intel device\n");
 		return NULL;
 	}
 
@@ -136,7 +136,7 @@ static bool intel_dsm_detect(void)
 
 	if (vga_count == 2 && dhandle) {
 		acpi_get_name(dhandle, ACPI_FULL_PATHNAME, &buffer);
-		DRM_DEBUG_DRIVER("vga_switcheroo: detected DSM switching method %s handle\n",
+		DRM_DE_DRIVER("vga_switcheroo: detected DSM switching method %s handle\n",
 				 acpi_method_name);
 		return true;
 	}

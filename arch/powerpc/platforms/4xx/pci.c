@@ -16,7 +16,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -672,7 +672,7 @@ static int __init ppc4xx_pciex_wait_on_sdr(struct ppc4xx_pciex_port *port,
 	while(timeout_ms--) {
 		val = mfdcri(SDR0, port->sdr_base + sdr_offset);
 		if ((val & mask) == value) {
-			pr_debug("PCIE%d: Wait on SDR %x success with tm %d (%08x)\n",
+			pr_de("PCIE%d: Wait on SDR %x success with tm %d (%08x)\n",
 				 port->index, sdr_offset, timeout_ms, val);
 			return 0;
 		}
@@ -739,7 +739,7 @@ static int __init ppc440spe_pciex_check_reset(struct device_node *np)
 		 *
 		 * -- Shouldn't we also re-reset the whole thing ? -- BenH
 		 */
-		pr_debug("PCIE: SDR0_PLLLCT1 already reset.\n");
+		pr_de("PCIE: SDR0_PLLLCT1 already reset.\n");
 		mtdcri(SDR0, PESDR0_440SPE_RCSSET, 0x01010000);
 		mtdcri(SDR0, PESDR1_440SPE_RCSSET, 0x01010000);
 		mtdcri(SDR0, PESDR2_440SPE_RCSSET, 0x01010000);
@@ -835,7 +835,7 @@ static int __init ppc440spe_pciex_core_init(struct device_node *np)
 		return -1;
 	}
 
-	pr_debug("PCIE initialization OK\n");
+	pr_de("PCIE initialization OK\n");
 
 	return 3;
 }
@@ -1510,7 +1510,7 @@ static int __init ppc4xx_pciex_port_init(struct ppc4xx_pciex_port *port)
 	 * Map UTL
 	 */
 	port->utl_base = ioremap(port->utl_regs.start, 0x100);
-	BUG_ON(port->utl_base == NULL);
+	_ON(port->utl_base == NULL);
 
 	/*
 	 * Setup UTL registers --BenH.
@@ -1609,7 +1609,7 @@ static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 	void __iomem *addr;
 	u32 gpl_cfg;
 
-	BUG_ON(hose != port->hose);
+	_ON(hose != port->hose);
 
 	if (ppc4xx_pciex_validate_bdf(port, bus, devfn) != 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -1639,14 +1639,14 @@ static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 		break;
 	}
 
-	pr_debug("pcie-config-read: bus=%3d [%3d..%3d] devfn=0x%04x"
+	pr_de("pcie-config-read: bus=%3d [%3d..%3d] devfn=0x%04x"
 		 " offset=0x%04x len=%d, addr=0x%p val=0x%08x\n",
 		 bus->number, hose->first_busno, hose->last_busno,
 		 devfn, offset, len, addr + offset, *val);
 
 	/* Check for CRS (440SPe rev B does that for us but heh ..) */
 	if (in_be32(port->utl_base + PEUTL_RCSTA) & 0x00040000) {
-		pr_debug("Got CRS !\n");
+		pr_de("Got CRS !\n");
 		if (len != 4 || offset != 0)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 		*val = 0xffff0001;
@@ -1679,7 +1679,7 @@ static int ppc4xx_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 	gpl_cfg = dcr_read(port->dcrs, DCRO_PEGPL_CFG);
 	dcr_write(port->dcrs, DCRO_PEGPL_CFG, gpl_cfg | GPL_DMER_MASK_DISA);
 
-	pr_debug("pcie-config-write: bus=%3d [%3d..%3d] devfn=0x%04x"
+	pr_de("pcie-config-write: bus=%3d [%3d..%3d] devfn=0x%04x"
 		 " offset=0x%04x len=%d, addr=0x%p val=0x%08x\n",
 		 bus->number, hose->first_busno, hose->last_busno,
 		 devfn, offset, len, addr + offset, val);
@@ -1979,9 +1979,9 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	}
 	hose->cfg_addr = mbase;
 
-	pr_debug("PCIE %pOF, bus %d..%d\n", port->node,
+	pr_de("PCIE %pOF, bus %d..%d\n", port->node,
 		 hose->first_busno, hose->last_busno);
-	pr_debug("     config space mapped at: root @0x%p, other @0x%p\n",
+	pr_de("     config space mapped at: root @0x%p, other @0x%p\n",
 		 hose->cfg_addr, hose->cfg_data);
 
 	/* Setup config space */

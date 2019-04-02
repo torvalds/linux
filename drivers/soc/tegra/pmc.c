@@ -23,7 +23,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/clk/tegra.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/export.h>
@@ -286,7 +286,7 @@ static const char * const tegra30_reset_sources[] = {
  * @clk: pointer to pclk clock
  * @soc: pointer to SoC data structure
  * @tz_only: flag specifying if the PMC can only be accessed via TrustZone
- * @debugfs: pointer to debugfs entry
+ * @defs: pointer to defs entry
  * @rate: currently configured rate of pclk
  * @suspend_mode: lowest suspend mode available
  * @cpu_good_time: CPU power good time (in microseconds)
@@ -313,7 +313,7 @@ struct tegra_pmc {
 	void __iomem *aotag;
 	void __iomem *scratch;
 	struct clk *clk;
-	struct dentry *debugfs;
+	struct dentry *defs;
 
 	const struct tegra_pmc_soc *soc;
 	bool tz_only;
@@ -505,7 +505,7 @@ static int __tegra_powergate_remove_clamping(struct tegra_pmc *pmc,
 	}
 
 	/*
-	 * Tegra 2 has a bug where PCIE and VDE clamping masks are
+	 * Tegra 2 has a  where PCIE and VDE clamping masks are
 	 * swapped relatively to the partition ids
 	 */
 	if (id == TEGRA_POWERGATE_VDEC)
@@ -885,11 +885,11 @@ static int powergate_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(powergate);
 
-static int tegra_powergate_debugfs_init(void)
+static int tegra_powergate_defs_init(void)
 {
-	pmc->debugfs = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
+	pmc->defs = defs_create_file("powergate", S_IRUGO, NULL, NULL,
 					   &powergate_fops);
-	if (!pmc->debugfs)
+	if (!pmc->defs)
 		return -ENOMEM;
 
 	return 0;
@@ -1996,8 +1996,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	tegra_pmc_reset_sysfs_init(pmc);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_powergate_debugfs_init();
+	if (IS_ENABLED(CONFIG_DE_FS)) {
+		err = tegra_powergate_defs_init();
 		if (err < 0)
 			return err;
 	}
@@ -2006,7 +2006,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
 			err);
-		goto cleanup_debugfs;
+		goto cleanup_defs;
 	}
 
 	err = tegra_pmc_pinctrl_init(pmc);
@@ -2028,8 +2028,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 cleanup_restart_handler:
 	unregister_restart_handler(&tegra_pmc_restart_handler);
-cleanup_debugfs:
-	debugfs_remove(pmc->debugfs);
+cleanup_defs:
+	defs_remove(pmc->defs);
 	return err;
 }
 
@@ -2398,7 +2398,7 @@ static const u8 tegra210_cpu_powergates[] = {
 	_pad(TEGRA_IO_PAD_CSIE,	       44,	 UINT_MAX, "csie"),	   \
 	_pad(TEGRA_IO_PAD_CSIF,	       45,	 UINT_MAX, "csif"),	   \
 	_pad(TEGRA_IO_PAD_DBG,	       25,	 19,	   "dbg"),	   \
-	_pad(TEGRA_IO_PAD_DEBUG_NONAO, 26,	 UINT_MAX, "debug-nonao"), \
+	_pad(TEGRA_IO_PAD_DE_NONAO, 26,	 UINT_MAX, "de-nonao"), \
 	_pad(TEGRA_IO_PAD_DMIC,	       50,	 20,	   "dmic"),	   \
 	_pad(TEGRA_IO_PAD_DP,	       51,	 UINT_MAX, "dp"),	   \
 	_pad(TEGRA_IO_PAD_DSI,	       2,	 UINT_MAX, "dsi"),	   \

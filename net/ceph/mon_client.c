@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -10,7 +10,7 @@
 #include <linux/ceph/ceph_features.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/libceph.h>
-#include <linux/ceph/debugfs.h>
+#include <linux/ceph/defs.h>
 #include <linux/ceph/decode.h>
 #include <linux/ceph/auth.h>
 
@@ -135,7 +135,7 @@ static void pick_new_mon(struct ceph_mon_client *monc)
 {
 	int old_mon = monc->cur_mon;
 
-	BUG_ON(monc->monmap->num_mon < 1);
+	_ON(monc->monmap->num_mon < 1);
 
 	if (monc->monmap->num_mon == 1) {
 		monc->cur_mon = 0;
@@ -195,7 +195,7 @@ static void __open_session(struct ceph_mon_client *monc)
 	ret = ceph_auth_build_hello(monc->auth,
 				    monc->m_auth->front.iov_base,
 				    monc->m_auth->front_alloc_len);
-	BUG_ON(ret <= 0);
+	_ON(ret <= 0);
 	__send_prepared_auth_request(monc, ret);
 }
 
@@ -255,7 +255,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 
 	dout("%s sent %lu\n", __func__, monc->sub_renew_sent);
 
-	BUG_ON(monc->cur_mon < 0);
+	_ON(monc->cur_mon < 0);
 
 	if (!monc->sub_renew_sent)
 		monc->sub_renew_sent = jiffies | 1; /* never 0 */
@@ -266,7 +266,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		if (monc->subs[i].want)
 			num++;
 	}
-	BUG_ON(num < 1); /* monmap sub is always there */
+	_ON(num < 1); /* monmap sub is always there */
 	ceph_encode_32(&p, num);
 	for (i = 0; i < ARRAY_SIZE(monc->subs); i++) {
 		char buf[32];
@@ -288,7 +288,7 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 		p += sizeof(monc->subs[i].item);
 	}
 
-	BUG_ON(p > end);
+	_ON(p > end);
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 	ceph_msg_revoke(msg);

@@ -65,7 +65,7 @@ struct lasat_eeprom_struct {
 	unsigned char ts_ref;
 	unsigned char ts_signoff;
 	unsigned char reserved[11];
-	unsigned char debugaccess;
+	unsigned char deaccess;
 	unsigned short prid;
 	unsigned int  serviceflag;
 	unsigned int  ipaddr;
@@ -190,7 +190,7 @@ struct lasat_info {
 	unsigned long li_flashpart_size[LASAT_MTD_LAST];
 	struct lasat_eeprom_struct li_eeprom_info;
 	unsigned int  li_eeprom_upgrade_version;
-	unsigned int  li_debugaccess;
+	unsigned int  li_deaccess;
 };
 
 extern struct lasat_info lasat_board_info;

@@ -10,7 +10,7 @@
  *
  * The driver supports a high level "read/write" interface which
  * handles retries and converts the status to Linux error codes,
- * however low level tools an debugger need to access the "raw"
+ * however low level tools an deger need to access the "raw"
  * HW status information and interpret it themselves, so this
  * ioctl interface is also provided for their use case.
  */

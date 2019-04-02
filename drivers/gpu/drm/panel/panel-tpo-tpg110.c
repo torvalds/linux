@@ -274,7 +274,7 @@ static int tpg110_startup(struct tpg110 *tpg)
 	/* De-assert the reset signal */
 	gpiod_set_value_cansleep(tpg->grestb, 0);
 	usleep_range(1000, 2000);
-	DRM_DEV_DEBUG(tpg->dev, "de-asserted GRESTB\n");
+	DRM_DEV_DE(tpg->dev, "de-asserted GRESTB\n");
 
 	/* Test display communication */
 	tpg110_write_reg(tpg, TPG110_TEST, 0x55);

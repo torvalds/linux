@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/compiler.h>
 #include <linux/linkage.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 
@@ -487,7 +487,7 @@ static void bmips_set_reset_vec_remote(void *vinfo)
 					 info, 1);
 	} else {
 		if (info->cpu & 0x02) {
-			/* BMIPS5200 "should" use mask/shift, but it's buggy */
+			/* BMIPS5200 "should" use mask/shift, but it's gy */
 			bmips_write_zscm_reg(0xa0, (val << 16) | val);
 			bmips_read_zscm_reg(0xa0);
 		} else {
@@ -526,7 +526,7 @@ void bmips_ebase_setup(void)
 {
 	unsigned long new_ebase = ebase;
 
-	BUG_ON(ebase != CKSEG0);
+	_ON(ebase != CKSEG0);
 
 	switch (current_cpu_type()) {
 	case CPU_BMIPS4350:

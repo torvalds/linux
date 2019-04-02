@@ -168,7 +168,7 @@ bool f2fs_is_valid_blkaddr(struct f2fs_sb_info *sbi,
 			return false;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return true;
@@ -222,7 +222,7 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			fio.new_blkaddr = blkno;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		page = f2fs_grab_cache_page(META_MAPPING(sbi),
@@ -439,7 +439,7 @@ static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino,
 	if (!e) {
 		e = tmp;
 		if (unlikely(radix_tree_insert(&im->ino_root, ino, e)))
-			f2fs_bug_on(sbi, 1);
+			f2fs__on(sbi, 1);
 
 		memset(e, 0, sizeof(struct ino_entry));
 		e->ino = ino;
@@ -568,7 +568,7 @@ void f2fs_release_orphan_inode(struct f2fs_sb_info *sbi)
 	struct inode_management *im = &sbi->im[ORPHAN_INO];
 
 	spin_lock(&im->ino_lock);
-	f2fs_bug_on(sbi, im->ino_num == 0);
+	f2fs__on(sbi, im->ino_num == 0);
 	im->ino_num--;
 	spin_unlock(&im->ino_lock);
 }
@@ -595,10 +595,10 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	inode = f2fs_iget_retry(sbi->sb, ino);
 	if (IS_ERR(inode)) {
 		/*
-		 * there should be a bug that we can't find the entry
+		 * there should be a  that we can't find the entry
 		 * to orphan inode.
 		 */
-		f2fs_bug_on(sbi, PTR_ERR(inode) == -ENOENT);
+		f2fs__on(sbi, PTR_ERR(inode) == -ENOENT);
 		return PTR_ERR(inode);
 	}
 
@@ -1303,7 +1303,7 @@ static void commit_checkpoint(struct f2fs_sb_info *sbi,
 
 	set_page_dirty(page);
 	if (unlikely(!clear_page_dirty_for_io(page)))
-		f2fs_bug_on(sbi, 1);
+		f2fs__on(sbi, 1);
 
 	/* writeout cp pack 2 page */
 	err = __f2fs_write_meta_page(page, &wbc, FS_CP_META_IO);
@@ -1312,7 +1312,7 @@ static void commit_checkpoint(struct f2fs_sb_info *sbi,
 		return;
 	}
 
-	f2fs_bug_on(sbi, err);
+	f2fs__on(sbi, err);
 	f2fs_put_page(page, 0);
 
 	/* submit checkpoint (with barrier if NOBARRIER is not set) */
@@ -1336,7 +1336,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* Flush all the NAT/SIT pages */
 	f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_CP_META_IO);
-	f2fs_bug_on(sbi, get_pages(sbi, F2FS_DIRTY_META) &&
+	f2fs__on(sbi, get_pages(sbi, F2FS_DIRTY_META) &&
 					!f2fs_cp_error(sbi));
 
 	/*
@@ -1445,7 +1445,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* Here, we have one bio having CP pack except cp pack 2 page */
 	f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_CP_META_IO);
-	f2fs_bug_on(sbi, get_pages(sbi, F2FS_DIRTY_META) &&
+	f2fs__on(sbi, get_pages(sbi, F2FS_DIRTY_META) &&
 					!f2fs_cp_error(sbi));
 
 	/* wait for previous submitted meta pages writeback */
@@ -1486,7 +1486,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			get_pages(sbi, F2FS_DIRTY_IMETA))
 		set_sbi_flag(sbi, SBI_IS_DIRTY);
 
-	f2fs_bug_on(sbi, get_pages(sbi, F2FS_DIRTY_DENTS));
+	f2fs__on(sbi, get_pages(sbi, F2FS_DIRTY_DENTS));
 
 	return unlikely(f2fs_cp_error(sbi)) ? -EIO : 0;
 }

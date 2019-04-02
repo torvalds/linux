@@ -1768,7 +1768,7 @@ void getrusage(struct task_struct *p, int who, struct rusage *r)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	unlock_task_sighand(p, &flags);
 
@@ -1980,8 +1980,8 @@ static int prctl_set_mm_map(int opt, const void __user *addr, unsigned long data
 	struct mm_struct *mm = current->mm;
 	int error;
 
-	BUILD_BUG_ON(sizeof(user_auxv) != sizeof(mm->saved_auxv));
-	BUILD_BUG_ON(sizeof(struct prctl_mm_map) > 256);
+	BUILD__ON(sizeof(user_auxv) != sizeof(mm->saved_auxv));
+	BUILD__ON(sizeof(struct prctl_mm_map) > 256);
 
 	if (opt == PR_SET_MM_MAP_SIZE)
 		return put_user((unsigned int)sizeof(prctl_map),
@@ -2084,7 +2084,7 @@ static int prctl_set_auxv(struct mm_struct *mm, unsigned long addr,
 	user_auxv[AT_VECTOR_SIZE - 2] = 0;
 	user_auxv[AT_VECTOR_SIZE - 1] = 0;
 
-	BUILD_BUG_ON(sizeof(user_auxv) != sizeof(mm->saved_auxv));
+	BUILD__ON(sizeof(user_auxv) != sizeof(mm->saved_auxv));
 
 	task_lock(current);
 	memcpy(mm->saved_auxv, user_auxv, len);

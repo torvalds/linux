@@ -57,10 +57,10 @@ enum fixed_addresses {
 #define IOBASE_VADDR		0xfe000000
 #define IOBASE_END		0xfe600000
 
-#define KADB_DEBUGGER_BEGVM	0xffc00000 /* Where kern debugger is in virt-mem */
-#define KADB_DEBUGGER_ENDVM	0xffd00000
-#define DEBUG_FIRSTVADDR	KADB_DEBUGGER_BEGVM
-#define DEBUG_LASTVADDR		KADB_DEBUGGER_ENDVM
+#define KADB_DEGER_BEGVM	0xffc00000 /* Where kern deger is in virt-mem */
+#define KADB_DEGER_ENDVM	0xffd00000
+#define DE_FIRSTVADDR	KADB_DEGER_BEGVM
+#define DE_LASTVADDR		KADB_DEGER_ENDVM
 
 #define LINUX_OPPROM_BEGVM	0xffd00000
 #define LINUX_OPPROM_ENDVM	0xfff00000

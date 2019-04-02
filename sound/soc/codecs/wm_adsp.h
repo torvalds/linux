@@ -97,8 +97,8 @@ struct wm_adsp {
 
 	unsigned int lock_regions;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_root;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_root;
 	char *wmfw_file_name;
 	char *bin_file_name;
 #endif

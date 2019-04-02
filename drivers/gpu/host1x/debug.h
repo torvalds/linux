@@ -1,5 +1,5 @@
 /*
- * Tegra host1x Debug
+ * Tegra host1x De
  *
  * Copyright (c) 2011-2013 NVIDIA Corporation.
  *
@@ -15,10 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __HOST1X_DEBUG_H
-#define __HOST1X_DEBUG_H
+#ifndef __HOST1X_DE_H
+#define __HOST1X_DE_H
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 struct host1x;
@@ -44,14 +44,14 @@ static inline void write_to_printk(void *ctx, const char *str, size_t len,
 		pr_info("%s", str);
 }
 
-void __printf(2, 3) host1x_debug_output(struct output *o, const char *fmt, ...);
-void __printf(2, 3) host1x_debug_cont(struct output *o, const char *fmt, ...);
+void __printf(2, 3) host1x_de_output(struct output *o, const char *fmt, ...);
+void __printf(2, 3) host1x_de_cont(struct output *o, const char *fmt, ...);
 
-extern unsigned int host1x_debug_trace_cmdbuf;
+extern unsigned int host1x_de_trace_cmdbuf;
 
-void host1x_debug_init(struct host1x *host1x);
-void host1x_debug_deinit(struct host1x *host1x);
-void host1x_debug_dump(struct host1x *host1x);
-void host1x_debug_dump_syncpts(struct host1x *host1x);
+void host1x_de_init(struct host1x *host1x);
+void host1x_de_deinit(struct host1x *host1x);
+void host1x_de_dump(struct host1x *host1x);
+void host1x_de_dump_syncpts(struct host1x *host1x);
 
 #endif

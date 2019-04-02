@@ -37,18 +37,18 @@ Compilation of kernel
   'make zImage' instead of 'make Image'.
 
 
-Bug reports etc
+ reports etc
 ---------------
 
   Please send patches to the patch system.  For more information, see
   http://www.arm.linux.org.uk/developer/patches/info.php Always include some
   explanation as to what the patch does and why it is needed.
 
-  Bug reports should be sent to linux-arm-kernel@lists.arm.linux.org.uk,
+   reports should be sent to linux-arm-kernel@lists.arm.linux.org.uk,
   or submitted through the web form at
   http://www.arm.linux.org.uk/developer/ 
 
-  When sending bug reports, please ensure that they contain all relevant
+  When sending  reports, please ensure that they contain all relevant
   information, eg. the kernel messages that were printed before/during
   the problem, what you were doing, etc.
 
@@ -136,7 +136,7 @@ ST506 hard drives
   RiscOS gets; but it's a heck of a lot better than the 50K/s I was getting
   last week :-)
 
-  Known bug: Drive data errors can cause a hang; including cases where
+  Known : Drive data errors can cause a hang; including cases where
   the controller has fixed the error using ECC. (Possibly ONLY
   in that case...hmm).
 

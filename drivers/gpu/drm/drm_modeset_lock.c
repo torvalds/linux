@@ -168,7 +168,7 @@ EXPORT_SYMBOL(drm_modeset_unlock_all);
  * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
  * @dev: device
  *
- * Useful as a debug assert.
+ * Useful as a de assert.
  */
 void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
 {

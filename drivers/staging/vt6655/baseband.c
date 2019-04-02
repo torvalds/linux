@@ -12,7 +12,7 @@
  * Date: Aug.22, 2002
  *
  * Functions:
- *      BBuGetFrameTime        - Calculate data frame transmitting time
+ *      BetFrameTime        - Calculate data frame transmitting time
  *      BBvCalculateParameter   - Calculate PhyLength, PhyService and Phy Signal
  *                               parameter for baseband Tx
  *      BBbReadEmbedded         - Embedded read baseband register via MAC
@@ -22,7 +22,7 @@
  * Revision History:
  *      06-10-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
  *      08-07-2003 Bryan YC Fan:  Add MAXIM2827/2825 and RFMD2959 support.
- *      08-26-2003 Kyle Hsu    :  Modify BBuGetFrameTime() and
+ *      08-26-2003 Kyle Hsu    :  Modify BetFrameTime() and
  *				  BBvCalculateParameter().
  *                                cancel the setting of MAC_REG_SOFTPWRCTL on
  *				  BBbVT3253Init().
@@ -1704,7 +1704,7 @@ static const unsigned short awcFrameTime[MAX_RATE] = {
  * Return Value: FrameTime
  *
  */
-unsigned int BBuGetFrameTime(unsigned char byPreambleType,
+unsigned int BetFrameTime(unsigned char byPreambleType,
 			     unsigned char byPktType,
 			     unsigned int cbFrameLength, unsigned short wRate)
 {
@@ -1929,7 +1929,7 @@ bool BBbReadEmbedded(struct vnt_private *priv,
 	VNSvInPortB(iobase + MAC_REG_BBREGDATA, pbyData);
 
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x30)\n");
+		pr_de(" DBG_PORT80(0x30)\n");
 		return false;
 	}
 	return true;
@@ -1971,7 +1971,7 @@ bool BBbWriteEmbedded(struct vnt_private *priv,
 	}
 
 	if (ww == W_MAX_TIMEOUT) {
-		pr_debug(" DBG_PORT80(0x31)\n");
+		pr_de(" DBG_PORT80(0x31)\n");
 		return false;
 	}
 	return true;

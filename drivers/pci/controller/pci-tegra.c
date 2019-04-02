@@ -14,7 +14,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
@@ -308,7 +308,7 @@ struct tegra_pcie {
 	unsigned int num_supplies;
 
 	const struct tegra_pcie_soc *soc;
-	struct dentry *debugfs;
+	struct dentry *defs;
 };
 
 struct tegra_pcie_port {
@@ -2323,21 +2323,21 @@ static const struct file_operations tegra_pcie_ports_ops = {
 	.release = seq_release,
 };
 
-static void tegra_pcie_debugfs_exit(struct tegra_pcie *pcie)
+static void tegra_pcie_defs_exit(struct tegra_pcie *pcie)
 {
-	debugfs_remove_recursive(pcie->debugfs);
-	pcie->debugfs = NULL;
+	defs_remove_recursive(pcie->defs);
+	pcie->defs = NULL;
 }
 
-static int tegra_pcie_debugfs_init(struct tegra_pcie *pcie)
+static int tegra_pcie_defs_init(struct tegra_pcie *pcie)
 {
 	struct dentry *file;
 
-	pcie->debugfs = debugfs_create_dir("pcie", NULL);
-	if (!pcie->debugfs)
+	pcie->defs = defs_create_dir("pcie", NULL);
+	if (!pcie->defs)
 		return -ENOMEM;
 
-	file = debugfs_create_file("ports", S_IFREG | S_IRUGO, pcie->debugfs,
+	file = defs_create_file("ports", S_IFREG | S_IRUGO, pcie->defs,
 				   pcie, &tegra_pcie_ports_ops);
 	if (!file)
 		goto remove;
@@ -2345,7 +2345,7 @@ static int tegra_pcie_debugfs_init(struct tegra_pcie *pcie)
 	return 0;
 
 remove:
-	tegra_pcie_debugfs_exit(pcie);
+	tegra_pcie_defs_exit(pcie);
 	return -ENOMEM;
 }
 
@@ -2416,10 +2416,10 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 
 	pci_bus_add_devices(host->bus);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_pcie_debugfs_init(pcie);
+	if (IS_ENABLED(CONFIG_DE_FS)) {
+		err = tegra_pcie_defs_init(pcie);
 		if (err < 0)
-			dev_err(dev, "failed to setup debugfs: %d\n", err);
+			dev_err(dev, "failed to setup defs: %d\n", err);
 	}
 
 	return 0;
@@ -2442,8 +2442,8 @@ static int tegra_pcie_remove(struct platform_device *pdev)
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 	struct tegra_pcie_port *port, *tmp;
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		tegra_pcie_debugfs_exit(pcie);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		tegra_pcie_defs_exit(pcie);
 
 	pci_stop_root_bus(host->bus);
 	pci_remove_root_bus(host->bus);

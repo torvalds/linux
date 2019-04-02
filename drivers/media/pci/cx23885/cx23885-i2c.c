@@ -24,17 +24,17 @@
 
 #include <media/v4l2-common.h>
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
+static unsigned int i2c_de;
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de, "enable de messages [i2c]");
 
 static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
 #define dprintk(level, fmt, arg...)\
-	do { if (i2c_debug >= level)\
-		printk(KERN_DEBUG pr_fmt("%s: i2c:" fmt), \
+	do { if (i2c_de >= level)\
+		printk(KERN_DE pr_fmt("%s: i2c:" fmt), \
 			__func__, ##arg); \
 	} while (0)
 
@@ -118,8 +118,8 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	if (!i2c_wait_done(i2c_adap))
 		goto eio;
-	if (i2c_debug) {
-		printk(KERN_DEBUG " <W %02x %02x", msg->addr << 1, msg->buf[0]);
+	if (i2c_de) {
+		printk(KERN_DE " <W %02x %02x", msg->addr << 1, msg->buf[0]);
 		if (!(ctrl & I2C_NOSTOP))
 			pr_cont(" >\n");
 	}
@@ -140,7 +140,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 		if (!i2c_wait_done(i2c_adap))
 			goto eio;
-		if (i2c_debug) {
+		if (i2c_de) {
 			pr_cont(" %02x", msg->buf[cnt]);
 			if (!(ctrl & I2C_NOSTOP))
 				pr_cont(" >\n");
@@ -150,7 +150,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
  eio:
 	retval = -EIO;
-	if (i2c_debug)
+	if (i2c_de)
 		pr_err(" ERR: %d\n", retval);
 	return retval;
 }
@@ -164,7 +164,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	int retval;
 
 
-	if (i2c_debug && !joined)
+	if (i2c_de && !joined)
 		dprintk(1, "%s(msg->len=%d)\n", __func__, msg->len);
 
 	/* Deal with i2c probe functions with zero payload */
@@ -181,7 +181,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		return 0;
 	}
 
-	if (i2c_debug) {
+	if (i2c_de) {
 		if (joined)
 			dprintk(1, " R");
 		else
@@ -201,7 +201,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_wait_done(i2c_adap))
 			goto eio;
 		msg->buf[cnt] = cx_read(bus->reg_rdata) & 0xff;
-		if (i2c_debug) {
+		if (i2c_de) {
 			dprintk(1, " %02x", msg->buf[cnt]);
 			if (!(ctrl & I2C_NOSTOP))
 				dprintk(1, " >\n");
@@ -211,7 +211,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
  eio:
 	retval = -EIO;
-	if (i2c_debug)
+	if (i2c_de)
 		pr_err(" ERR: %d\n", retval);
 	return retval;
 }

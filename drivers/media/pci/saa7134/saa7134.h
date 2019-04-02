@@ -809,7 +809,7 @@ int saa7134_i2c_unregister(struct saa7134_dev *dev);
 /* ----------------------------------------------------------- */
 /* saa7134-video.c                                             */
 
-extern unsigned int video_debug;
+extern unsigned int video_de;
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 

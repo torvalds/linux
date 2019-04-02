@@ -221,7 +221,7 @@ static struct usbmix_name_map live24ext_map[] = {
 	{ 0 } /* terminator */
 };
 
-/* LineX FM Transmitter entry - needed to bypass controls bug */
+/* LineX FM Transmitter entry - needed to bypass controls  */
 static struct usbmix_name_map linex_map[] = {
 	/* 1: IT pcm */
 	/* 2: OT Speaker */ 
@@ -245,7 +245,7 @@ static struct usbmix_name_map maya44_map[] = {
 	{ }
 };
 
-/* Section "justlink_map" below added by James Courtier-Dutton <James@superbug.demon.co.uk>
+/* Section "justlink_map" below added by James Courtier-Dutton <James@super.demon.co.uk>
  * sourced from Maplin Electronics (http://www.maplin.co.uk), part number A56AK
  * Part has 2 connectors that act as a single output. (TOSLINK Optical for digital out, and 3.5mm Jack for Analogue out.)
  * The USB Mixer publishes a Microphone and extra Volume controls for it, but none exist on the device,

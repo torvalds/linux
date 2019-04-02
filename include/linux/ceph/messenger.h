@@ -93,7 +93,7 @@ struct ceph_bio_iter {
 	unsigned int __n = (n), __cur_n;				      \
 									      \
 	while (__n) {							      \
-		BUG_ON(!(it)->iter.bi_size);				      \
+		_ON(!(it)->iter.bi_size);				      \
 		__cur_n = min((it)->iter.bi_size, __n);			      \
 		(void)(STEP);						      \
 		bio_advance_iter((it)->bio, &(it)->iter, __cur_n);	      \
@@ -134,7 +134,7 @@ struct ceph_bvec_iter {
 };
 
 #define __ceph_bvec_iter_advance_step(it, n, STEP) do {			      \
-	BUG_ON((n) > (it)->iter.bi_size);				      \
+	_ON((n) > (it)->iter.bi_size);				      \
 	(void)(STEP);							      \
 	bvec_iter_advance((it)->bvecs, &(it)->iter, (n));		      \
 } while (0)
@@ -160,7 +160,7 @@ struct ceph_bvec_iter {
 	}))
 
 #define ceph_bvec_iter_shorten(it, n) do {				      \
-	BUG_ON((n) > (it)->iter.bi_size);				      \
+	_ON((n) > (it)->iter.bi_size);				      \
 	(it)->iter.bi_size = (n);					      \
 } while (0)
 

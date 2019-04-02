@@ -45,7 +45,7 @@ static void dump_hci_status(struct usb_hcd *hcd, const char *label)
 {
 	unsigned long status = readl_relaxed(hcd->regs + USB_STATUS);
 
-	printk(KERN_DEBUG "%s USB_STATUS = { %s%s%s%s%s}\n", label,
+	printk(KERN_DE "%s USB_STATUS = { %s%s%s%s%s}\n", label,
 	     ((status & USB_STATUS_IRQHCIRMTWKUP) ? "IRQHCIRMTWKUP " : ""),
 	     ((status & USB_STATUS_IRQHCIBUFFACC) ? "IRQHCIBUFFACC " : ""),
 	     ((status & USB_STATUS_NIRQHCIM) ? "" : "IRQHCIM "),
@@ -187,7 +187,7 @@ static int ohci_hcd_sa1111_probe(struct sa1111_dev *dev)
 	/*
 	 * We don't call dma_set_mask_and_coherent() here because the
 	 * DMA mask has already been appropraitely setup by the core
-	 * SA-1111 bus code (which includes bug workarounds.)
+	 * SA-1111 bus code (which includes  workarounds.)
 	 */
 
 	hcd = usb_create_hcd(&ohci_sa1111_hc_driver, &dev->dev, "sa1111");

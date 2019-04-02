@@ -162,46 +162,46 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 }
 
 /*
- * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
+ * de_rcu_head_queue()/de_rcu_head_unqueue() are used internally
  * by call_rcu() and rcu callback execution, and are therefore not part
  * of the RCU API. These are in rcupdate.h because they are used by all
  * RCU implementations.
  */
 
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+#ifdef CONFIG_DE_OBJECTS_RCU_HEAD
 # define STATE_RCU_HEAD_READY	0
 # define STATE_RCU_HEAD_QUEUED	1
 
-extern struct debug_obj_descr rcuhead_debug_descr;
+extern struct de_obj_descr rcuhead_de_descr;
 
-static inline int debug_rcu_head_queue(struct rcu_head *head)
+static inline int de_rcu_head_queue(struct rcu_head *head)
 {
 	int r1;
 
-	r1 = debug_object_activate(head, &rcuhead_debug_descr);
-	debug_object_active_state(head, &rcuhead_debug_descr,
+	r1 = de_object_activate(head, &rcuhead_de_descr);
+	de_object_active_state(head, &rcuhead_de_descr,
 				  STATE_RCU_HEAD_READY,
 				  STATE_RCU_HEAD_QUEUED);
 	return r1;
 }
 
-static inline void debug_rcu_head_unqueue(struct rcu_head *head)
+static inline void de_rcu_head_unqueue(struct rcu_head *head)
 {
-	debug_object_active_state(head, &rcuhead_debug_descr,
+	de_object_active_state(head, &rcuhead_de_descr,
 				  STATE_RCU_HEAD_QUEUED,
 				  STATE_RCU_HEAD_READY);
-	debug_object_deactivate(head, &rcuhead_debug_descr);
+	de_object_deactivate(head, &rcuhead_de_descr);
 }
-#else	/* !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
-static inline int debug_rcu_head_queue(struct rcu_head *head)
+#else	/* !CONFIG_DE_OBJECTS_RCU_HEAD */
+static inline int de_rcu_head_queue(struct rcu_head *head)
 {
 	return 0;
 }
 
-static inline void debug_rcu_head_unqueue(struct rcu_head *head)
+static inline void de_rcu_head_unqueue(struct rcu_head *head)
 {
 }
-#endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+#endif	/* #else !CONFIG_DE_OBJECTS_RCU_HEAD */
 
 void kfree(const void *);
 

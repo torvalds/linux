@@ -35,7 +35,7 @@ static inline int eeprom_no_data_bits(struct scsi_qla_host *ha)
 
 static int fm93c56a_select(struct scsi_qla_host * ha)
 {
-	DEBUG5(printk(KERN_ERR "fm93c56a_select:\n"));
+	DE5(printk(KERN_ERR "fm93c56a_select:\n"));
 
 	ha->eeprom_cmd_data = AUBURN_EEPROM_CS_1 | 0x000f0000;
 	eeprom_cmd(ha->eeprom_cmd_data, ha);
@@ -206,7 +206,7 @@ int ql4xxx_sem_spinlock(struct scsi_qla_host * ha, u32 sem_mask, u32 sem_bits)
 	unsigned long flags;
 	unsigned int seconds = 30;
 
-	DEBUG2(printk("scsi%ld : Trying to get SEM lock - mask= 0x%x, code = "
+	DE2(printk("scsi%ld : Trying to get SEM lock - mask= 0x%x, code = "
 		      "0x%x\n", ha->host_no, sem_mask, sem_bits));
 	do {
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -214,7 +214,7 @@ int ql4xxx_sem_spinlock(struct scsi_qla_host * ha, u32 sem_mask, u32 sem_bits)
 		value = readw(isp_semaphore(ha));
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		if ((value & (sem_mask >> 16)) == sem_bits) {
-			DEBUG2(printk("scsi%ld : Got SEM LOCK - mask= 0x%x, "
+			DE2(printk("scsi%ld : Got SEM LOCK - mask= 0x%x, "
 				      "code = 0x%x\n", ha->host_no,
 				      sem_mask, sem_bits));
 			return QLA_SUCCESS;
@@ -233,7 +233,7 @@ void ql4xxx_sem_unlock(struct scsi_qla_host * ha, u32 sem_mask)
 	readl(isp_semaphore(ha));
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	DEBUG2(printk("scsi%ld : UNLOCK SEM - mask= 0x%x\n", ha->host_no,
+	DE2(printk("scsi%ld : UNLOCK SEM - mask= 0x%x\n", ha->host_no,
 		      sem_mask));
 }
 
@@ -247,7 +247,7 @@ int ql4xxx_sem_lock(struct scsi_qla_host * ha, u32 sem_mask, u32 sem_bits)
 	value = readw(isp_semaphore(ha));
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if ((value & (sem_mask >> 16)) == sem_bits) {
-		DEBUG2(printk("scsi%ld : Got SEM LOCK - mask= 0x%x, code = "
+		DE2(printk("scsi%ld : Got SEM LOCK - mask= 0x%x, code = "
 			      "0x%x, sema code=0x%x\n", ha->host_no,
 			      sem_mask, sem_bits, value));
 		return 1;

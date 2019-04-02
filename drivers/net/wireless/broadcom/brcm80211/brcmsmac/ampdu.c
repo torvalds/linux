@@ -21,7 +21,7 @@
 #include "antsel.h"
 #include "main.h"
 #include "ampdu.h"
-#include "debug.h"
+#include "de.h"
 #include "brcms_trace_events.h"
 
 /* max number of mpdus in an ampdu */
@@ -856,7 +856,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	u8 retry_limit, rr_retry_limit;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
 
-#ifdef DEBUG
+#ifdef DE
 	u8 hole[AMPDU_MAX_MPDU];
 	memset(hole, 0, sizeof(hole));
 #endif

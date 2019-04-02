@@ -105,7 +105,7 @@ extern const struct pci_error_handlers qib_pci_err_handler;
  * Below contains all data related to a single context (formerly called port).
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 struct qib_opcode_stats_perctx;
 #endif
 
@@ -221,7 +221,7 @@ struct qib_ctxtdata {
 	u32 head;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	/* verbs stats per CTX */
 	struct qib_opcode_stats_perctx *opstats;
 #endif
@@ -490,7 +490,7 @@ struct qib_sdma_state {
 	unsigned             go_s99_running;
 	unsigned             first_sendbuf;
 	unsigned             last_sendbuf; /* really last +1 */
-	/* debugging/devel */
+	/* deging/devel */
 	enum qib_sdma_states previous_state;
 	unsigned             previous_op;
 	enum qib_sdma_events last_event;
@@ -875,7 +875,7 @@ struct qib_devdata {
 	 */
 	u32 upd_pio_shadow;
 
-	/* internal debugging stats */
+	/* internal deging stats */
 	u32 maxpkts_call;
 	u32 avgpkts_call;
 	u64 nopiobufs;

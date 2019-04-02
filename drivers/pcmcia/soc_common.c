@@ -53,28 +53,28 @@
 
 static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev);
 
-#ifdef CONFIG_PCMCIA_DEBUG
+#ifdef CONFIG_PCMCIA_DE
 
-static int pc_debug;
-module_param(pc_debug, int, 0644);
+static int pc_de;
+module_param(pc_de, int, 0644);
 
-void soc_pcmcia_debug(struct soc_pcmcia_socket *skt, const char *func,
+void soc_pcmcia_de(struct soc_pcmcia_socket *skt, const char *func,
 		      int lvl, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	if (pc_debug > lvl) {
+	if (pc_de > lvl) {
 		va_start(args, fmt);
 
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		printk(KERN_DEBUG "skt%u: %s: %pV", skt->nr, func, &vaf);
+		printk(KERN_DE "skt%u: %s: %pV", skt->nr, func, &vaf);
 
 		va_end(args);
 	}
 }
-EXPORT_SYMBOL(soc_pcmcia_debug);
+EXPORT_SYMBOL(soc_pcmcia_de);
 
 #endif
 
@@ -398,7 +398,7 @@ static int soc_common_pcmcia_sock_init(struct pcmcia_socket *sock)
 {
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 
-	debug(skt, 2, "initializing socket\n");
+	de(skt, 2, "initializing socket\n");
 	if (skt->ops->socket_init)
 		skt->ops->socket_init(skt);
 	soc_pcmcia_hw_enable(skt);
@@ -419,7 +419,7 @@ static int soc_common_pcmcia_suspend(struct pcmcia_socket *sock)
 {
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 
-	debug(skt, 2, "suspending socket\n");
+	de(skt, 2, "suspending socket\n");
 
 	soc_pcmcia_hw_disable(skt);
 	if (skt->ops->socket_suspend)
@@ -434,7 +434,7 @@ static void soc_common_check_status(struct soc_pcmcia_socket *skt)
 {
 	unsigned int events;
 
-	debug(skt, 4, "entering PCMCIA monitoring thread\n");
+	de(skt, 4, "entering PCMCIA monitoring thread\n");
 
 	do {
 		unsigned int status;
@@ -447,7 +447,7 @@ static void soc_common_check_status(struct soc_pcmcia_socket *skt)
 		skt->status = status;
 		spin_unlock_irqrestore(&status_lock, flags);
 
-		debug(skt, 4, "events: %s%s%s%s%s%s\n",
+		de(skt, 4, "events: %s%s%s%s%s%s\n",
 			events == 0         ? "<NONE>"   : "",
 			events & SS_DETECT  ? "DETECT "  : "",
 			events & SS_READY   ? "READY "   : "",
@@ -464,7 +464,7 @@ static void soc_common_check_status(struct soc_pcmcia_socket *skt)
 static void soc_common_pcmcia_poll_event(struct timer_list *t)
 {
 	struct soc_pcmcia_socket *skt = from_timer(skt, t, poll_timer);
-	debug(skt, 4, "polling for events\n");
+	de(skt, 4, "polling for events\n");
 
 	mod_timer(&skt->poll_timer, jiffies + SOC_PCMCIA_POLL_PERIOD);
 
@@ -484,7 +484,7 @@ static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
 {
 	struct soc_pcmcia_socket *skt = dev;
 
-	debug(skt, 3, "servicing IRQ %d\n", irq);
+	de(skt, 3, "servicing IRQ %d\n", irq);
 
 	soc_common_check_status(skt);
 
@@ -498,7 +498,7 @@ static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
  * fills in bits in `status' according to internal driver state or
  * the value of the voltage detect chipselect register.
  *
- * As a debugging note, during card startup, the PCMCIA core issues
+ * As a deging note, during card startup, the PCMCIA core issues
  * three set_socket() commands in a row the first with RESET deasserted,
  * the second with RESET asserted, and the last with RESET deasserted
  * again. Following the third set_socket(), a get_status() command will
@@ -531,7 +531,7 @@ static int soc_common_pcmcia_set_socket(
 {
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 
-	debug(skt, 2, "mask: %s%s%s%s%s%s flags: %s%s%s%s%s%s Vcc %d Vpp %d irq %d\n",
+	de(skt, 2, "mask: %s%s%s%s%s%s flags: %s%s%s%s%s%s Vcc %d Vpp %d irq %d\n",
 			(state->csc_mask == 0)		? "<NONE> " :	"",
 			(state->csc_mask & SS_DETECT)	? "DETECT " :	"",
 			(state->csc_mask & SS_READY)	? "READY " :	"",
@@ -564,10 +564,10 @@ static int soc_common_pcmcia_set_io_map(
 	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
 	unsigned short speed = map->speed;
 
-	debug(skt, 2, "map %u  speed %u start 0x%08llx stop 0x%08llx\n",
+	de(skt, 2, "map %u  speed %u start 0x%08llx stop 0x%08llx\n",
 		map->map, map->speed, (unsigned long long)map->start,
 		(unsigned long long)map->stop);
-	debug(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
+	de(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
 		(map->flags == 0)		? "<NONE>"	: "",
 		(map->flags & MAP_ACTIVE)	? "ACTIVE "	: "",
 		(map->flags & MAP_16BIT)	? "16BIT "	: "",
@@ -619,9 +619,9 @@ static int soc_common_pcmcia_set_mem_map(
 	struct resource *res;
 	unsigned short speed = map->speed;
 
-	debug(skt, 2, "map %u speed %u card_start %08x\n",
+	de(skt, 2, "map %u speed %u card_start %08x\n",
 		map->map, map->speed, map->card_start);
-	debug(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
+	de(skt, 2, "flags: %s%s%s%s%s%s%s%s\n",
 		(map->flags == 0)		? "<NONE>"	: "",
 		(map->flags & MAP_ACTIVE)	? "ACTIVE "	: "",
 		(map->flags & MAP_16BIT)	? "16BIT "	: "",

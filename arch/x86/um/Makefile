@@ -9,7 +9,7 @@ else
 	BITS := 64
 endif
 
-obj-y = bugs_$(BITS).o delay.o fault.o ldt.o \
+obj-y = s_$(BITS).o delay.o fault.o ldt.o \
 	ptrace_$(BITS).o ptrace_user.o setjmp_$(BITS).o signal.o \
 	stub_$(BITS).o stub_segv.o \
 	sys_call_table_$(BITS).o sysrq_$(BITS).o tls_$(BITS).o \
@@ -34,7 +34,7 @@ endif
 
 subarch-$(CONFIG_MODULES) += ../kernel/module.o
 
-USER_OBJS := bugs_$(BITS).o ptrace_user.o fault.o
+USER_OBJS := s_$(BITS).o ptrace_user.o fault.o
 
 $(obj)/user-offsets.s: c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS) \
 	-Iarch/x86/include/generated

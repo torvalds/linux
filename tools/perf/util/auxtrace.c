@@ -44,14 +44,14 @@
 #include "cpumap.h"
 #include "symbol.h"
 #include "thread_map.h"
-#include "asm/bug.h"
+#include "asm/.h"
 #include "auxtrace.h"
 
 #include <linux/hash.h>
 
 #include "event.h"
 #include "session.h"
-#include "debug.h"
+#include "de.h"
 #include <subcmd/parse-options.h>
 
 #include "cs-etm.h"
@@ -100,7 +100,7 @@ int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 
 	mm->base = mmap(NULL, mp->len, mp->prot, MAP_SHARED, fd, mp->offset);
 	if (mm->base == MAP_FAILED) {
-		pr_debug2("failed to mmap AUX area\n");
+		pr_de2("failed to mmap AUX area\n");
 		mm->base = NULL;
 		return -1;
 	}
@@ -126,7 +126,7 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 		mp->len = auxtrace_pages * (size_t)page_size;
 		mp->mask = is_power_of_2(mp->len) ? mp->len - 1 : 0;
 		mp->prot = PROT_READ | (auxtrace_overwrite ? 0 : PROT_WRITE);
-		pr_debug2("AUX area mmap length %zu\n", mp->len);
+		pr_de2("AUX area mmap length %zu\n", mp->len);
 	} else {
 		mp->len = 0;
 	}
@@ -890,7 +890,7 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 	size_t priv_size;
 	int err;
 
-	pr_debug2("Synthesizing auxtrace information\n");
+	pr_de2("Synthesizing auxtrace information\n");
 	priv_size = auxtrace_record__info_priv_size(itr, session->evlist);
 	ev = zalloc(sizeof(struct auxtrace_info_event) + priv_size);
 	if (!ev)
@@ -1243,7 +1243,7 @@ static int __auxtrace_mmap__read(struct perf_mmap *map,
 	if (old == head)
 		return 0;
 
-	pr_debug3("auxtrace idx %d old %#"PRIx64" head %#"PRIx64" diff %#"PRIx64"\n",
+	pr_de3("auxtrace idx %d old %#"PRIx64" head %#"PRIx64" diff %#"PRIx64"\n",
 		  mm->idx, old, head, head - old);
 
 	if (mm->mask) {
@@ -2185,7 +2185,7 @@ int auxtrace_parse_filters(struct perf_evlist *evlist)
 		free(filter);
 		if (err)
 			return err;
-		pr_debug("Address filter: %s\n", evsel->filter);
+		pr_de("Address filter: %s\n", evsel->filter);
 	}
 
 	return 0;

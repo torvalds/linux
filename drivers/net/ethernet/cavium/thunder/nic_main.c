@@ -1298,7 +1298,7 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8     max_lmac;
 	int    err;
 
-	BUILD_BUG_ON(sizeof(union nic_mbx) > 16);
+	BUILD__ON(sizeof(union nic_mbx) > 16);
 
 	nic = devm_kzalloc(dev, sizeof(*nic), GFP_KERNEL);
 	if (!nic)

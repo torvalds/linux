@@ -33,7 +33,7 @@
 #include <linux/ratelimit.h>
 #include <linux/pm_runtime.h>
 #include <linux/blk-cgroup.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/bpf.h>
 
 #define CREATE_TRACE_POINTS
@@ -45,8 +45,8 @@
 #include "blk-pm.h"
 #include "blk-rq-qos.h"
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *blk_debugfs_root;
+#ifdef CONFIG_DE_FS
+struct dentry *blk_defs_root;
 #endif
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
@@ -768,15 +768,15 @@ static bool should_fail_request(struct hd_struct *part, unsigned int bytes)
 	return part->make_it_fail && should_fail(&fail_make_request, bytes);
 }
 
-static int __init fail_make_request_debugfs(void)
+static int __init fail_make_request_defs(void)
 {
-	struct dentry *dir = fault_create_debugfs_attr("fail_make_request",
+	struct dentry *dir = fault_create_defs_attr("fail_make_request",
 						NULL, &fail_make_request);
 
 	return PTR_ERR_OR_ZERO(dir);
 }
 
-late_initcall(fail_make_request_debugfs);
+late_initcall(fail_make_request_defs);
 
 #else /* CONFIG_FAIL_MAKE_REQUEST */
 
@@ -1061,7 +1061,7 @@ blk_qc_t generic_make_request(struct bio *bio)
 	 * of the top of the list (no pretending) and so remove it from
 	 * bio_list, and call into ->make_request() again.
 	 */
-	BUG_ON(bio->bi_next);
+	_ON(bio->bi_next);
 	bio_list_init(&bio_list_on_stack[0]);
 	current->bio_list = bio_list_on_stack;
 	do {
@@ -1186,7 +1186,7 @@ blk_qc_t submit_bio(struct bio *bio)
 
 		if (unlikely(block_dump)) {
 			char b[BDEVNAME_SIZE];
-			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s (%u sectors)\n",
+			printk(KERN_DE "%s(%d): %s block %Lu on %s (%u sectors)\n",
 			current->comm, task_pid_nr(current),
 				op_is_write(bio_op(bio)) ? "WRITE" : "READ",
 				(unsigned long long)bio->bi_iter.bi_sector,
@@ -1302,7 +1302,7 @@ unsigned int blk_rq_err_bytes(const struct request *rq)
 	}
 
 	/* this could lead to infinite loop */
-	BUG_ON(blk_rq_bytes(rq) && !bytes);
+	_ON(blk_rq_bytes(rq) && !bytes);
 	return bytes;
 }
 EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
@@ -1757,7 +1757,7 @@ struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug, void *data,
 			return cb;
 
 	/* Not currently on the callback list */
-	BUG_ON(size < sizeof(*cb));
+	_ON(size < sizeof(*cb));
 	cb = kzalloc(size, GFP_ATOMIC);
 	if (cb) {
 		cb->data = data;
@@ -1798,10 +1798,10 @@ EXPORT_SYMBOL(blk_finish_plug);
 
 int __init blk_dev_init(void)
 {
-	BUILD_BUG_ON(REQ_OP_LAST >= (1 << REQ_OP_BITS));
-	BUILD_BUG_ON(REQ_OP_BITS + REQ_FLAG_BITS > 8 *
+	BUILD__ON(REQ_OP_LAST >= (1 << REQ_OP_BITS));
+	BUILD__ON(REQ_OP_BITS + REQ_FLAG_BITS > 8 *
 			FIELD_SIZEOF(struct request, cmd_flags));
-	BUILD_BUG_ON(REQ_OP_BITS + REQ_FLAG_BITS > 8 *
+	BUILD__ON(REQ_OP_BITS + REQ_FLAG_BITS > 8 *
 			FIELD_SIZEOF(struct bio, bi_opf));
 
 	/* used for unplugging and affects IO latency/throughput - HIGHPRI */
@@ -1813,8 +1813,8 @@ int __init blk_dev_init(void)
 	blk_requestq_cachep = kmem_cache_create("request_queue",
 			sizeof(struct request_queue), 0, SLAB_PANIC, NULL);
 
-#ifdef CONFIG_DEBUG_FS
-	blk_debugfs_root = debugfs_create_dir("block", NULL);
+#ifdef CONFIG_DE_FS
+	blk_defs_root = defs_create_dir("block", NULL);
 #endif
 
 	return 0;

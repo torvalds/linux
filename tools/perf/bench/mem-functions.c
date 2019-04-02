@@ -7,7 +7,7 @@
  * Written by Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
  */
 
-#include "debug.h"
+#include "de.h"
 #include "../perf.h"
 #include "../util/util.h"
 #include <subcmd/parse-options.h>
@@ -72,7 +72,7 @@ static int init_cycles(void)
 	cycles_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, perf_event_open_cloexec_flag());
 
 	if (cycles_fd < 0 && errno == ENOSYS) {
-		pr_debug("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
+		pr_de("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		return -1;
 	}
 
@@ -85,7 +85,7 @@ static u64 get_cycles(void)
 	u64 clk;
 
 	ret = read(cycles_fd, &clk, sizeof(u64));
-	BUG_ON(ret != sizeof(u64));
+	_ON(ret != sizeof(u64));
 
 	return clk;
 }
@@ -159,7 +159,7 @@ static void __bench_mem_function(struct bench_mem_info *info, int r_idx, size_t 
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 
@@ -257,10 +257,10 @@ static double do_memcpy_gettimeofday(const struct function *r, size_t size, void
 	 */
 	fn(dst, src, size);
 
-	BUG_ON(gettimeofday(&tv_start, NULL));
+	_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < nr_loops; ++i)
 		fn(dst, src, size);
-	BUG_ON(gettimeofday(&tv_end, NULL));
+	_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
 
@@ -331,10 +331,10 @@ static double do_memset_gettimeofday(const struct function *r, size_t size, void
 	 */
 	fn(dst, -1, size);
 
-	BUG_ON(gettimeofday(&tv_start, NULL));
+	_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < nr_loops; ++i)
 		fn(dst, i, size);
-	BUG_ON(gettimeofday(&tv_end, NULL));
+	_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
 

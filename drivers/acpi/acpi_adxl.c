@@ -144,7 +144,7 @@ static int __init adxl_init(void)
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status)) {
-		pr_debug("No ACPI handle for path %s\n", path);
+		pr_de("No ACPI handle for path %s\n", path);
 		return -ENODEV;
 	}
 

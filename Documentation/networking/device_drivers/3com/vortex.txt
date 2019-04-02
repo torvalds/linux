@@ -70,20 +70,20 @@ There are several parameters which may be provided to the driver when
 its module is loaded.  These are usually placed in /etc/modprobe.d/*.conf
 configuration files.  Example:
 
-options 3c59x debug=3 rx_copybreak=300
+options 3c59x de=3 rx_copybreak=300
 
 If you are using the PCMCIA tools (cardmgr) then the options may be
 placed in /etc/pcmcia/config.opts:
 
-module "3c59x" opts "debug=3 rx_copybreak=300"
+module "3c59x" opts "de=3 rx_copybreak=300"
 
 
 The supported parameters are:
 
-debug=N
+de=N
 
   Where N is a number from 0 to 7.  Anything above 3 produces a lot
-  of output in your system logs.  debug=1 is default.
+  of output in your system logs.  de=1 is default.
 
 options=N1,N2,N3,...
 
@@ -112,8 +112,8 @@ options=N1,N2,N3,...
   When generating a value for the 'options' setting, the above media
   selection values may be OR'ed (or added to) the following:
 
-  0x8000  Set driver debugging level to 7
-  0x4000  Set driver debugging level to 2
+  0x8000  Set driver deging level to 7
+  0x4000  Set driver deging level to 2
   0x0400  Enable Wake-on-LAN
   0x0200  Force full duplex mode.
   0x0010  Bus-master enable bit (Old Vortex cards only)
@@ -220,7 +220,7 @@ watchdog=N
 
   Sets the time duration (in milliseconds) after which the kernel
   decides that the transmitter has become stuck and needs to be reset. 
-  This is mainly for debugging purposes, although it may be advantageous
+  This is mainly for deging purposes, although it may be advantageous
   to increase this value on LANs which have very high collision rates.
   The default value is 5000 (5.0 seconds).
 
@@ -364,7 +364,7 @@ steps you should take:
 
 - The contents of your report will vary a lot depending upon the
   problem.  If it's a kernel crash then you should refer to the
-  admin-guide/reporting-bugs.rst file.
+  admin-guide/reporting-s.rst file.
 
   But for most problems it is useful to provide the following:
 
@@ -378,10 +378,10 @@ steps you should take:
      MII transceiver found at address 24, status 782d.
      Enabling bus-master transmits and whole-frame receives.
 
-     NOTE: You must provide the `debug=2' modprobe option to generate
+     NOTE: You must provide the `de=2' modprobe option to generate
      a full detection message.  Please do this:
 
-	modprobe 3c59x debug=2
+	modprobe 3c59x de=2
 
    o If it is a PCI device, the relevant output from 'lspci -vx', eg:
 
@@ -422,13 +422,13 @@ steps you should take:
     o If your problem is reproducible then that's great.  Try the
       following:
 
-      1) Increase the debug level.  Usually this is done via:
+      1) Increase the de level.  Usually this is done via:
 
-         a) modprobe driver debug=7
+         a) modprobe driver de=7
          b) In /etc/modprobe.d/driver.conf:
-            options driver debug=7
+            options driver de=7
 
-      2) Recreate the problem with the higher debug level,
+      2) Recreate the problem with the higher de level,
          send all logs to the maintainer.
 
       3) Download you card's diagnostic tool from Donald

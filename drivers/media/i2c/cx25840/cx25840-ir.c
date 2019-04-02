@@ -24,9 +24,9 @@
 
 #include "cx25840-core.h"
 
-static unsigned int ir_debug;
-module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug, "enable integrated IR debug messages");
+static unsigned int ir_de;
+module_param(ir_de, int, 0644);
+MODULE_PARM_DESC(ir_de, "enable integrated IR de messages");
 
 #define CX25840_IR_REG_BASE	0x200
 
@@ -553,13 +553,13 @@ int cx25840_ir_irq_handler(struct v4l2_subdev *sd, u32 status, bool *handled)
 	rte = irqen & IRQEN_RTE; /* Rx Pulse Width Timer Time Out IRQ Enable */
 	roe = irqen & IRQEN_ROE; /* Rx FIFO Over Run IRQ Enable */
 
-	v4l2_dbg(2, ir_debug, sd, "IR IRQ Status:  %s %s %s %s %s %s\n",
+	v4l2_dbg(2, ir_de, sd, "IR IRQ Status:  %s %s %s %s %s %s\n",
 		 tsr ? "tsr" : "   ", rsr ? "rsr" : "   ",
 		 rto ? "rto" : "   ", ror ? "ror" : "   ",
 		 stats & STATS_TBY ? "tby" : "   ",
 		 stats & STATS_RBY ? "rby" : "   ");
 
-	v4l2_dbg(2, ir_debug, sd, "IR IRQ Enables: %s %s %s %s\n",
+	v4l2_dbg(2, ir_de, sd, "IR IRQ Enables: %s %s %s %s\n",
 		 tse ? "tse" : "   ", rse ? "rse" : "   ",
 		 rte ? "rte" : "   ", roe ? "roe" : "   ");
 
@@ -704,10 +704,10 @@ static int cx25840_ir_rx_read(struct v4l2_subdev *sd, u8 *buf, size_t count,
 		p->ir_core_data = (struct ir_raw_event)
 			{ .pulse = u, .duration = v, .timeout = w };
 
-		v4l2_dbg(2, ir_debug, sd, "rx read: %10u ns  %s  %s\n",
+		v4l2_dbg(2, ir_de, sd, "rx read: %10u ns  %s  %s\n",
 			 v, u ? "mark" : "space", w ? "(timed out)" : "");
 		if (w)
-			v4l2_dbg(2, ir_debug, sd, "rx read: end of rx\n");
+			v4l2_dbg(2, ir_de, sd, "rx read: end of rx\n");
 	}
 	return 0;
 }

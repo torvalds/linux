@@ -118,7 +118,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		handle = 0;
 	}
 
-	DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n", handle,
+	DRM_DE("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n", handle,
 		  plane->state->crtc_w, plane->state->crtc_h,
 		  plane->state->crtc_x, plane->state->crtc_y,
 		  plane->state->src_w >> 16,
@@ -220,7 +220,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 	}
 
 	if (plane->state->fb != old_state->fb) {
-		DRM_DEBUG("update, handle %d, pos +%d+%d, hot %d,%d\n", handle,
+		DRM_DE("update, handle %d, pos +%d+%d, hot %d,%d\n", handle,
 			  plane->state->crtc_x,
 			  plane->state->crtc_y,
 			  plane->state->fb ? plane->state->fb->hot_x : 0,
@@ -238,7 +238,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 			output->cursor.hot_y = cpu_to_le32(0);
 		}
 	} else {
-		DRM_DEBUG("move +%d+%d\n",
+		DRM_DE("move +%d+%d\n",
 			  plane->state->crtc_x,
 			  plane->state->crtc_y);
 		output->cursor.hdr.type =

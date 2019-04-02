@@ -283,14 +283,14 @@ struct _scsi_io_transfer {
 };
 
 /**
- * _scsih_set_debug_level - global setting of ioc->logging_level.
+ * _scsih_set_de_level - global setting of ioc->logging_level.
  * @val: ?
  * @kp: ?
  *
- * Note: The logging levels are defined in mpt3sas_debug.h.
+ * Note: The logging levels are defined in mpt3sas_de.h.
  */
 static int
-_scsih_set_debug_level(const char *val, const struct kernel_param *kp)
+_scsih_set_de_level(const char *val, const struct kernel_param *kp)
 {
 	int ret = param_set_int(val, kp);
 	struct MPT3SAS_ADAPTER *ioc;
@@ -305,7 +305,7 @@ _scsih_set_debug_level(const char *val, const struct kernel_param *kp)
 	spin_unlock(&gioc_lock);
 	return 0;
 }
-module_param_call(logging_level, _scsih_set_debug_level, param_get_int,
+module_param_call(logging_level, _scsih_set_de_level, param_get_int,
 	&logging_level, 0644);
 
 /**
@@ -2709,10 +2709,10 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, u64 lun,
 				   le16_to_cpu(mpi_reply->IOCStatus),
 				   le32_to_cpu(mpi_reply->IOCLogInfo),
 				   le32_to_cpu(mpi_reply->TerminationCount)));
-		if (ioc->logging_level & MPT_DEBUG_TM) {
+		if (ioc->logging_level & MPT_DE_TM) {
 			_scsih_response_code(ioc, mpi_reply->ResponseCode);
 			if (mpi_reply->IOCStatus)
-				_debug_dump_mf(mpi_request,
+				_de_dump_mf(mpi_request,
 				    sizeof(Mpi2SCSITaskManagementRequest_t)/4);
 		}
 	}
@@ -4383,7 +4383,7 @@ _scsih_check_ir_config_unhide_events(struct MPT3SAS_ADAPTER *ioc,
 			_scsih_tm_tr_send(ioc, handle);
 		else if (volume_handle == a || volume_handle == b) {
 			delayed_tr = kzalloc(sizeof(*delayed_tr), GFP_ATOMIC);
-			BUG_ON(!delayed_tr);
+			_ON(!delayed_tr);
 			INIT_LIST_HEAD(&delayed_tr->list);
 			delayed_tr->handle = handle;
 			list_add_tail(&delayed_tr->list, &ioc->delayed_tr_list);
@@ -4607,7 +4607,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	u16 smid;
 	u16 handle;
 
-	if (ioc->logging_level & MPT_DEBUG_SCSI)
+	if (ioc->logging_level & MPT_DE_SCSI)
 		scsi_print_command(scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
@@ -4649,7 +4649,7 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	}
 
 	/*
-	 * Bug work around for firmware SATL handling.  The loop
+	 *  work around for firmware SATL handling.  The loop
 	 * is based on atomic operations and ensures consistency
 	 * since we're lockless at this point
 	 */
@@ -5264,7 +5264,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 			    le16_to_cpu(mpi_reply->DevHandle));
 		mpt3sas_trigger_scsi(ioc, data.skey, data.asc, data.ascq);
 
-		if ((ioc->logging_level & MPT_DEBUG_REPLY) &&
+		if ((ioc->logging_level & MPT_DE_REPLY) &&
 		     ((scmd->sense_buffer[2] == UNIT_ATTENTION) ||
 		     (scmd->sense_buffer[2] == MEDIUM_ERROR) ||
 		     (scmd->sense_buffer[2] == HARDWARE_ERROR)))
@@ -5382,7 +5382,7 @@ _scsih_io_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 
 	}
 
-	if (scmd->result && (ioc->logging_level & MPT_DEBUG_REPLY))
+	if (scmd->result && (ioc->logging_level & MPT_DE_REPLY))
 		_scsih_scsi_ioc_info(ioc , scmd, mpi_reply, smid);
 
  out:
@@ -6177,13 +6177,13 @@ _scsih_remove_device(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_sas_topology_change_event_debug - debug for topology event
+ * _scsih_sas_topology_change_event_de - de for topology event
  * @ioc: per adapter object
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_sas_topology_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_sas_topology_change_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataSasTopologyChangeList_t *event_data)
 {
 	int i;
@@ -6276,8 +6276,8 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataSasTopologyChangeList_t *)
 		fw_event->event_data;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_sas_topology_change_event_debug(ioc, event_data);
+	if (ioc->logging_level & MPT_DE_EVENT_WORK_TASK)
+		_scsih_sas_topology_change_event_de(ioc, event_data);
 
 	if (ioc->shost_recovery || ioc->remove_host || ioc->pci_error_recovery)
 		return 0;
@@ -6387,13 +6387,13 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_sas_device_status_change_event_debug - debug for device event
+ * _scsih_sas_device_status_change_event_de - de for device event
  * @ioc: ?
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_sas_device_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_sas_device_status_change_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataSasDeviceStatusChange_t *event_data)
 {
 	char *reason_str = NULL;
@@ -6470,8 +6470,8 @@ _scsih_sas_device_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataSasDeviceStatusChange_t *)
 		fw_event->event_data;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_sas_device_status_change_event_debug(ioc,
+	if (ioc->logging_level & MPT_DE_EVENT_WORK_TASK)
+		_scsih_sas_device_status_change_event_de(ioc,
 		     event_data);
 
 	/* In MPI Revision K (0xC), the internal device reset complete was
@@ -6887,14 +6887,14 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 }
 
 /**
- * _scsih_pcie_topology_change_event_debug - debug for topology
+ * _scsih_pcie_topology_change_event_de - de for topology
  * event
  * @ioc: per adapter object
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_pcie_topology_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_pcie_topology_change_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi26EventDataPCIeTopologyChangeList_t *event_data)
 {
 	int i;
@@ -6987,8 +6987,8 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi26EventDataPCIeTopologyChangeList_t *) fw_event->event_data;
 	struct _pcie_device *pcie_device;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_pcie_topology_change_event_debug(ioc, event_data);
+	if (ioc->logging_level & MPT_DE_EVENT_WORK_TASK)
+		_scsih_pcie_topology_change_event_de(ioc, event_data);
 
 	if (ioc->shost_recovery || ioc->remove_host ||
 		ioc->pci_error_recovery)
@@ -7080,13 +7080,13 @@ _scsih_pcie_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_pcie_device_status_change_event_debug - debug for device event
+ * _scsih_pcie_device_status_change_event_de - de for device event
  * @ioc: ?
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_pcie_device_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_pcie_device_status_change_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi26EventDataPCIeDeviceStatusChange_t *event_data)
 {
 	char *reason_str = NULL;
@@ -7161,8 +7161,8 @@ _scsih_pcie_device_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 	unsigned long flags;
 	Mpi26EventDataPCIeDeviceStatusChange_t *event_data =
 		(Mpi26EventDataPCIeDeviceStatusChange_t *)fw_event->event_data;
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_pcie_device_status_change_event_debug(ioc,
+	if (ioc->logging_level & MPT_DE_EVENT_WORK_TASK)
+		_scsih_pcie_device_status_change_event_de(ioc,
 			event_data);
 
 	if (event_data->ReasonCode !=
@@ -7195,14 +7195,14 @@ out:
 }
 
 /**
- * _scsih_sas_enclosure_dev_status_change_event_debug - debug for enclosure
+ * _scsih_sas_enclosure_dev_status_change_event_de - de for enclosure
  * event
  * @ioc: per adapter object
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_sas_enclosure_dev_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_sas_enclosure_dev_status_change_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataSasEnclDevStatusChange_t *event_data)
 {
 	char *reason_str = NULL;
@@ -7244,8 +7244,8 @@ _scsih_sas_enclosure_dev_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 	int rc;
 	u16 enclosure_handle = le16_to_cpu(event_data->EnclosureHandle);
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_sas_enclosure_dev_status_change_event_debug(ioc,
+	if (ioc->logging_level & MPT_DE_EVENT_WORK_TASK)
+		_scsih_sas_enclosure_dev_status_change_event_de(ioc,
 		     (Mpi2EventDataSasEnclDevStatusChange_t *)
 		     fw_event->event_data);
 	if (ioc->shost_recovery)
@@ -7470,7 +7470,7 @@ _scsih_sas_discovery_event(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataSasDiscovery_t *event_data =
 		(Mpi2EventDataSasDiscovery_t *) fw_event->event_data;
 
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) {
+	if (ioc->logging_level & MPT_DE_EVENT_WORK_TASK) {
 		ioc_info(ioc, "discovery event: (%s)",
 			 event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED ?
 			 "start" : "stop");
@@ -7536,7 +7536,7 @@ _scsih_pcie_enumeration_event(struct MPT3SAS_ADAPTER *ioc,
 	Mpi26EventDataPCIeEnumeration_t *event_data =
 		(Mpi26EventDataPCIeEnumeration_t *)fw_event->event_data;
 
-	if (!(ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK))
+	if (!(ioc->logging_level & MPT_DE_EVENT_WORK_TASK))
 		return;
 
 	ioc_info(ioc, "pcie enumeration event: (%s) Flag 0x%02x",
@@ -7898,13 +7898,13 @@ _scsih_sas_pd_add(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_sas_ir_config_change_event_debug - debug for IR Config Change events
+ * _scsih_sas_ir_config_change_event_de - de for IR Config Change events
  * @ioc: per adapter object
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_sas_ir_config_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_sas_ir_config_change_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataIrConfigChangeList_t *event_data)
 {
 	Mpi2EventIrConfigElement_t *element;
@@ -7992,9 +7992,9 @@ _scsih_sas_ir_config_change_event(struct MPT3SAS_ADAPTER *ioc,
 		(Mpi2EventDataIrConfigChangeList_t *)
 		fw_event->event_data;
 
-	if ((ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) &&
+	if ((ioc->logging_level & MPT_DE_EVENT_WORK_TASK) &&
 	     (!ioc->hide_ir_msg))
-		_scsih_sas_ir_config_change_event_debug(ioc, event_data);
+		_scsih_sas_ir_config_change_event_de(ioc, event_data);
 
 	foreign_config = (le32_to_cpu(event_data->Flags) &
 	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG) ? 1 : 0;
@@ -8212,13 +8212,13 @@ _scsih_sas_ir_physical_disk_event(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_sas_ir_operation_status_event_debug - debug for IR op event
+ * _scsih_sas_ir_operation_status_event_de - de for IR op event
  * @ioc: per adapter object
  * @event_data: event data payload
  * Context: user.
  */
 static void
-_scsih_sas_ir_operation_status_event_debug(struct MPT3SAS_ADAPTER *ioc,
+_scsih_sas_ir_operation_status_event_de(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2EventDataIrOperationStatus_t *event_data)
 {
 	char *reason_str = NULL;
@@ -8267,9 +8267,9 @@ _scsih_sas_ir_operation_status_event(struct MPT3SAS_ADAPTER *ioc,
 	unsigned long flags;
 	u16 handle;
 
-	if ((ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) &&
+	if ((ioc->logging_level & MPT_DE_EVENT_WORK_TASK) &&
 	    (!ioc->hide_ir_msg))
-		_scsih_sas_ir_operation_status_event_debug(ioc,
+		_scsih_sas_ir_operation_status_event_de(ioc,
 		     event_data);
 
 	/* code added for raid transport support */
@@ -10712,7 +10712,7 @@ scsih_pci_resume(struct pci_dev *pdev)
 }
 
 /**
- * scsih_pci_mmio_enabled - Enable MMIO and dump debug registers
+ * scsih_pci_mmio_enabled - Enable MMIO and dump de registers
  * @pdev: pointer to PCI device
  */
 static pci_ers_result_t
@@ -10723,7 +10723,7 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 
 	ioc_info(ioc, "PCI error: mmio enabled callback!!\n");
 
-	/* TODO - dump whatever for debugging purposes */
+	/* TODO - dump whatever for deging purposes */
 
 	/* This called only if scsih_pci_error_detected returns
 	 * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still

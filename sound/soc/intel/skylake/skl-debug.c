@@ -1,5 +1,5 @@
 /*
- *  skl-debug.c - Debugfs for skl driver
+ *  skl-de.c - Defs for skl driver
  *
  *  Copyright (C) 2016-17 Intel Corp
  *
@@ -14,7 +14,7 @@
  */
 
 #include <linux/pci.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <uapi/sound/skl-tplg-interface.h>
 #include "skl.h"
 #include "skl-sst-dsp.h"
@@ -27,7 +27,7 @@
 #define FW_REG_BUF	PAGE_SIZE
 #define FW_REG_SIZE	0x60
 
-struct skl_debug {
+struct skl_de {
 	struct skl *skl;
 	struct device *dev;
 
@@ -166,20 +166,20 @@ static const struct file_operations mcfg_fops = {
 };
 
 
-void skl_debug_init_module(struct skl_debug *d,
+void skl_de_init_module(struct skl_de *d,
 			struct snd_soc_dapm_widget *w,
 			struct skl_module_cfg *mconfig)
 {
-	if (!debugfs_create_file(w->name, 0444,
+	if (!defs_create_file(w->name, 0444,
 				d->modules, mconfig,
 				&mcfg_fops))
-		dev_err(d->dev, "%s: module debugfs init failed\n", w->name);
+		dev_err(d->dev, "%s: module defs init failed\n", w->name);
 }
 
 static ssize_t fw_softreg_read(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
-	struct skl_debug *d = file->private_data;
+	struct skl_de *d = file->private_data;
 	struct sst_dsp *sst = d->skl->skl_sst->dsp;
 	size_t w0_stat_sz = sst->addr.w0_stat_sz;
 	void __iomem *in_base = sst->mailbox.in_base;
@@ -221,19 +221,19 @@ static const struct file_operations soft_regs_ctrl_fops = {
 	.llseek = default_llseek,
 };
 
-struct skl_debug *skl_debugfs_init(struct skl *skl)
+struct skl_de *skl_defs_init(struct skl *skl)
 {
-	struct skl_debug *d;
+	struct skl_de *d;
 
 	d = devm_kzalloc(&skl->pci->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
 		return NULL;
 
-	/* create the debugfs dir with platform component's debugfs as parent */
-	d->fs = debugfs_create_dir("dsp",
-				   skl->component->debugfs_root);
+	/* create the defs dir with platform component's defs as parent */
+	d->fs = defs_create_dir("dsp",
+				   skl->component->defs_root);
 	if (IS_ERR(d->fs) || !d->fs) {
-		dev_err(&skl->pci->dev, "debugfs root creation failed\n");
+		dev_err(&skl->pci->dev, "defs root creation failed\n");
 		return NULL;
 	}
 
@@ -241,21 +241,21 @@ struct skl_debug *skl_debugfs_init(struct skl *skl)
 	d->dev = &skl->pci->dev;
 
 	/* now create the module dir */
-	d->modules = debugfs_create_dir("modules", d->fs);
+	d->modules = defs_create_dir("modules", d->fs);
 	if (IS_ERR(d->modules) || !d->modules) {
-		dev_err(&skl->pci->dev, "modules debugfs create failed\n");
+		dev_err(&skl->pci->dev, "modules defs create failed\n");
 		goto err;
 	}
 
-	if (!debugfs_create_file("fw_soft_regs_rd", 0444, d->fs, d,
+	if (!defs_create_file("fw_soft_regs_rd", 0444, d->fs, d,
 				 &soft_regs_ctrl_fops)) {
-		dev_err(d->dev, "fw soft regs control debugfs init failed\n");
+		dev_err(d->dev, "fw soft regs control defs init failed\n");
 		goto err;
 	}
 
 	return d;
 
 err:
-	debugfs_remove_recursive(d->fs);
+	defs_remove_recursive(d->fs);
 	return NULL;
 }

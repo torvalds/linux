@@ -248,7 +248,7 @@ static __u8 sctp_events[] = {
  * New states (not in diagram):
  * - INIT1 state: use shorter timeout for dropped INIT packets
  * - REJECTED state: use shorter timeout if INIT is rejected with ABORT
- * - INIT, COOKIE_SENT, COOKIE_REPLIED, COOKIE states: for better debugging
+ * - INIT, COOKIE_SENT, COOKIE_REPLIED, COOKIE states: for better deging
  *
  * The states are as seen in real server. In the diagram, INIT1, INIT,
  * COOKIE_SENT and COOKIE_REPLIED processing happens in CLOSED state.
@@ -361,7 +361,7 @@ static const char *sctp_state_name_table[IP_VS_SCTP_S_LAST + 1] = {
 	[IP_VS_SCTP_S_SHUTDOWN_ACK_SENT]	= "S-ACK-SENT",
 	[IP_VS_SCTP_S_REJECTED]			= "REJECTED",
 	[IP_VS_SCTP_S_CLOSED]			= "CLOSED",
-	[IP_VS_SCTP_S_LAST]			= "BUG!",
+	[IP_VS_SCTP_S_LAST]			= "!",
 };
 
 
@@ -590,6 +590,6 @@ struct ip_vs_protocol ip_vs_protocol_sctp = {
 	.state_name	= sctp_state_name,
 	.state_transition = sctp_state_transition,
 	.app_conn_bind	= sctp_app_conn_bind,
-	.debug_packet	= ip_vs_tcpudp_debug_packet,
+	.de_packet	= ip_vs_tcpudp_de_packet,
 	.timeout_change	= NULL,
 };

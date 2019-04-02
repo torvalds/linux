@@ -487,7 +487,7 @@ EXPORT_SYMBOL(drm_sched_resubmit_jobs);
  *
  * @job: scheduler job to init
  * @entity: scheduler entity to use
- * @owner: job owner for debugging
+ * @owner: job owner for deging
  *
  * Refer to drm_sched_entity_push_job() documentation
  * for locking considerations.
@@ -701,7 +701,7 @@ static int drm_sched_main(void *param)
  * @hw_submission: number of hw submissions that can be in flight
  * @hang_limit: number of times to allow a job to hang before dropping it
  * @timeout: timeout value in jiffies for the scheduler
- * @name: name used for debugging
+ * @name: name used for deging
  *
  * Return 0 on success, otherwise error code.
  */

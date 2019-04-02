@@ -536,11 +536,11 @@
 #define THM_TMON0_INT_DATA__Z_MASK                                                                            0x000007FFL
 #define THM_TMON0_INT_DATA__VALID_MASK                                                                        0x00000800L
 #define THM_TMON0_INT_DATA__TEMP_MASK                                                                         0x00FFF000L
-//THM_TMON0_DEBUG
-#define THM_TMON0_DEBUG__DEBUG_RDI__SHIFT                                                                     0x0
-#define THM_TMON0_DEBUG__DEBUG_Z__SHIFT                                                                       0x5
-#define THM_TMON0_DEBUG__DEBUG_RDI_MASK                                                                       0x0000001FL
-#define THM_TMON0_DEBUG__DEBUG_Z_MASK                                                                         0x0000FFE0L
+//THM_TMON0_DE
+#define THM_TMON0_DE__DE_RDI__SHIFT                                                                     0x0
+#define THM_TMON0_DE__DE_Z__SHIFT                                                                       0x5
+#define THM_TMON0_DE__DE_RDI_MASK                                                                       0x0000001FL
+#define THM_TMON0_DE__DE_Z_MASK                                                                         0x0000FFE0L
 //THM_TMON1_RDIL0_DATA
 #define THM_TMON1_RDIL0_DATA__Z__SHIFT                                                                        0x0
 #define THM_TMON1_RDIL0_DATA__VALID__SHIFT                                                                    0xb
@@ -772,11 +772,11 @@
 #define THM_TMON1_INT_DATA__Z_MASK                                                                            0x000007FFL
 #define THM_TMON1_INT_DATA__VALID_MASK                                                                        0x00000800L
 #define THM_TMON1_INT_DATA__TEMP_MASK                                                                         0x00FFF000L
-//THM_TMON1_DEBUG
-#define THM_TMON1_DEBUG__DEBUG_RDI__SHIFT                                                                     0x0
-#define THM_TMON1_DEBUG__DEBUG_Z__SHIFT                                                                       0x5
-#define THM_TMON1_DEBUG__DEBUG_RDI_MASK                                                                       0x0000001FL
-#define THM_TMON1_DEBUG__DEBUG_Z_MASK                                                                         0x0000FFE0L
+//THM_TMON1_DE
+#define THM_TMON1_DE__DE_RDI__SHIFT                                                                     0x0
+#define THM_TMON1_DE__DE_Z__SHIFT                                                                       0x5
+#define THM_TMON1_DE__DE_RDI_MASK                                                                       0x0000001FL
+#define THM_TMON1_DE__DE_Z_MASK                                                                         0x0000FFE0L
 //THM_DIE1_TEMP
 #define THM_DIE1_TEMP__TEMP__SHIFT                                                                            0x0
 #define THM_DIE1_TEMP__VALID__SHIFT                                                                           0xb

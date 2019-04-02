@@ -96,7 +96,7 @@ static int __init smack_nf_ip_init(void)
 	if (smack_enabled == 0)
 		return 0;
 
-	printk(KERN_DEBUG "Smack: Registering netfilter hooks\n");
+	printk(KERN_DE "Smack: Registering netfilter hooks\n");
 	return register_pernet_subsys(&smack_net_ops);
 }
 

@@ -37,19 +37,19 @@ EEH was originally designed to guard against hardware failure, such
 as PCI cards dying from heat, humidity, dust, vibration and bad
 electrical connections. The vast majority of EEH errors seen in
 "real life" are due to either poorly seated PCI cards, or,
-unfortunately quite commonly, due to device driver bugs, device firmware
-bugs, and sometimes PCI card hardware bugs.
+unfortunately quite commonly, due to device driver s, device firmware
+s, and sometimes PCI card hardware s.
 
-The most common software bug, is one that causes the device to
+The most common software , is one that causes the device to
 attempt to DMA to a location in system memory that has not been
 reserved for DMA access for that card.  This is a powerful feature,
 as it prevents what; otherwise, would have been silent memory
 corruption caused by the bad DMA.  A number of device driver
-bugs have been found and fixed in this way over the past few
+s have been found and fixed in this way over the past few
 years.  Other possible causes of EEH errors include data or
 address line parity errors (for example, due to poor electrical
 connectivity due to a poorly seated card), and PCI-X split-completion
-errors (due to software, device firmware, or device PCI hardware bugs).
+errors (due to software, device firmware, or device PCI hardware s).
 The vast majority of "true hardware failures" can be cured by
 physically removing and re-seating the PCI card.
 

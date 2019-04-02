@@ -101,7 +101,7 @@
 
 #define REG_WL_BT_PWR_CTRL				0x0068
 
-#define REG_SDM_DEBUG					0x006C
+#define REG_SDM_DE					0x006C
 
 #define REG_SYS_SDIO_CTRL				0x0070
 
@@ -1014,7 +1014,7 @@
 					 * bit[1] : InRdyIntEn
 					 */
 
-/* MCU ERROR debug REG */
+/* MCU ERROR de REG */
 #define REG_MCUERR_PCLSB	0xFD90	/* PC[7:0] */
 #define REG_MCUERR_PCMSB	0xFD91	/* PC[15:8] */
 #define REG_MCUERR_ACC		0xFD92

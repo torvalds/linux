@@ -250,7 +250,7 @@
 
 
 #define D_SUBMODULE tx
-#include "debug-levels.h"
+#include "de-levels.h"
 
 enum {
 	/**
@@ -482,7 +482,7 @@ void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size,
 /*
  * Mark the tail of the FIFO buffer as 'to-skip'
  *
- * We should never hit the BUG_ON() because all the sizes we push to
+ * We should never hit the _ON() because all the sizes we push to
  * the FIFO are padded to be a multiple of 16 -- the size of *msg
  * (I2400M_PL_PAD for the payloads, I2400M_TX_PLD_SIZE for the
  * header).
@@ -510,7 +510,7 @@ void i2400m_tx_skip_tail(struct i2400m *i2400m)
 	struct i2400m_msg_hdr *msg = i2400m->tx_buf + tx_in;
 	if (unlikely(tail_room == 0))
 		return;
-	BUG_ON(tail_room < sizeof(*msg));
+	_ON(tail_room < sizeof(*msg));
 	msg->size = tail_room | I2400M_TX_SKIP;
 	d_printf(2, dev, "skip tail: skipping %zu bytes @%zu\n",
 		 tail_room, tx_in);
@@ -563,7 +563,7 @@ void i2400m_tx_new(struct i2400m *i2400m)
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_msg_hdr *tx_msg;
 	bool try_head = false;
-	BUG_ON(i2400m->tx_msg != NULL);
+	_ON(i2400m->tx_msg != NULL);
 	/*
 	 * In certain situations, TX queue might have enough space to
 	 * accommodate the new message header I2400M_TX_PLD_SIZE, but
@@ -661,7 +661,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 			 * there is always space left at least to append
 			 * tx_block_size */
 			dev_err(dev,
-				"SW BUG! Possible data leakage from memory the "
+				"SW ! Possible data leakage from memory the "
 				"device should not read for padding - "
 				"size %lu aligned_size %zu tx_buf %p in "
 				"%zu out %zu\n",
@@ -942,7 +942,7 @@ void i2400m_tx_msg_sent(struct i2400m *i2400m)
 	i2400m->tx_out += i2400m->tx_msg_size;
 	d_printf(2, dev, "TX: sent %zu b\n", (size_t) i2400m->tx_msg_size);
 	i2400m->tx_msg_size = 0;
-	BUG_ON(i2400m->tx_out > i2400m->tx_in);
+	_ON(i2400m->tx_out > i2400m->tx_in);
 	/* level them FIFO markers off */
 	n = i2400m->tx_out / I2400M_TX_BUF_SIZE;
 	i2400m->tx_out %= I2400M_TX_BUF_SIZE;
@@ -983,7 +983,7 @@ int i2400m_tx_setup(struct i2400m *i2400m)
 	 * Fail the build if we can't fit at least two maximum size messages
 	 * on the TX FIFO [one being delivered while one is constructed].
 	 */
-	BUILD_BUG_ON(2 * I2400M_TX_MSG_SIZE > I2400M_TX_BUF_SIZE);
+	BUILD__ON(2 * I2400M_TX_MSG_SIZE > I2400M_TX_BUF_SIZE);
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
 	i2400m->tx_sequence = 0;
 	i2400m->tx_in = 0;
@@ -993,7 +993,7 @@ int i2400m_tx_setup(struct i2400m *i2400m)
 	i2400m->tx_buf = tx_buf;
 	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 	/* Huh? the bus layer has to define this... */
-	BUG_ON(i2400m->bus_tx_block_size == 0);
+	_ON(i2400m->bus_tx_block_size == 0);
 error_kmalloc:
 	return result;
 

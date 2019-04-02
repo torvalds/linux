@@ -222,7 +222,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Acquiring: Mutex SyncLevel %u, Thread SyncLevel %u, "
 			  "Depth %u TID %p\n",
 			  obj_desc->mutex.sync_level,
@@ -249,7 +249,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 		acpi_ex_link_mutex(obj_desc, walk_state->thread);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Acquired: Mutex SyncLevel %u, Thread SyncLevel %u, Depth %u\n",
 			  obj_desc->mutex.sync_level,
 			  walk_state->thread->current_sync_level,
@@ -408,7 +408,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	previous_sync_level =
 	    owner_thread->acquired_mutex_list->mutex.original_sync_level;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Releasing: Object SyncLevel %u, Thread SyncLevel %u, "
 			  "Prev SyncLevel %u, Depth %u TID %p\n",
 			  obj_desc->mutex.sync_level,
@@ -429,7 +429,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 		owner_thread->current_sync_level = previous_sync_level;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Released: Object SyncLevel %u, Thread SyncLevel, %u, "
 			  "Prev SyncLevel %u, Depth %u\n",
 			  obj_desc->mutex.sync_level,
@@ -469,7 +469,7 @@ void acpi_ex_release_all_mutexes(struct acpi_thread_state *thread)
 
 	while (next) {
 		obj_desc = next;
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Mutex [%4.4s] force-release, SyncLevel %u Depth %u\n",
 				  obj_desc->mutex.node->name.ascii,
 				  obj_desc->mutex.sync_level,

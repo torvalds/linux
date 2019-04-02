@@ -34,7 +34,7 @@
 #include "ucode_loader.h"
 #include "mac80211_if.h"
 #include "main.h"
-#include "debug.h"
+#include "de.h"
 #include "led.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
@@ -104,11 +104,11 @@ MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
 #if defined(CONFIG_BRCMDBG)
 /*
- * Module parameter for setting the debug message level. Available
+ * Module parameter for setting the de message level. Available
  * flags are specified by the BRCM_DL_* macros in
  * drivers/net/wireless/brcm80211/include/defs.h.
  */
-module_param_named(debug, brcm_msg_level, uint, 0644);
+module_param_named(de, brcm_msg_level, uint, 0644);
 #endif
 
 static struct ieee80211_channel brcms_2ghz_chantable[] = {
@@ -298,7 +298,7 @@ static void brcms_free(struct brcms_info *wl)
 	tasklet_kill(&wl->tasklet);
 
 	if (wl->pub) {
-		brcms_debugfs_detach(wl->pub);
+		brcms_defs_detach(wl->pub);
 		brcms_c_module_unregister(wl->pub, "linux", wl);
 	}
 
@@ -318,7 +318,7 @@ static void brcms_free(struct brcms_info *wl)
 	/* free timers */
 	for (t = wl->timers; t; t = next) {
 		next = t->next;
-#ifdef DEBUG
+#ifdef DE
 		kfree(t->name);
 #endif
 		kfree(t);
@@ -1199,8 +1199,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	    regulatory_hint(wl->wiphy, wl->pub->srom_ccode))
 		wiphy_err(wl->wiphy, "%s: regulatory hint failed\n", __func__);
 
-	brcms_debugfs_attach(wl->pub);
-	brcms_debugfs_create_files(wl->pub);
+	brcms_defs_attach(wl->pub);
+	brcms_defs_create_files(wl->pub);
 	n_adapters_found++;
 	return wl;
 
@@ -1311,7 +1311,7 @@ static DECLARE_WORK(brcms_driver_work, brcms_driver_init);
 
 static int __init brcms_module_init(void)
 {
-	brcms_debugfs_init();
+	brcms_defs_init();
 	if (!schedule_work(&brcms_driver_work))
 		return -EBUSY;
 
@@ -1329,7 +1329,7 @@ static void __exit brcms_module_exit(void)
 {
 	cancel_work_sync(&brcms_driver_work);
 	bcma_driver_unregister(&brcms_bcma_driver);
-	brcms_debugfs_exit();
+	brcms_defs_exit();
 }
 
 module_init(brcms_module_init);
@@ -1501,7 +1501,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	t->next = wl->timers;
 	wl->timers = t;
 
-#ifdef DEBUG
+#ifdef DE
 	t->name = kstrdup(name, GFP_ATOMIC);
 #endif
 
@@ -1518,7 +1518,7 @@ void brcms_add_timer(struct brcms_timer *t, uint ms, int periodic)
 {
 	struct ieee80211_hw *hw = t->wl->pub->ieee_hw;
 
-#ifdef DEBUG
+#ifdef DE
 	if (t->set)
 		brcms_dbg_info(t->wl->wlc->hw->d11core,
 			       "%s: Already set. Name: %s, per %d\n",
@@ -1565,7 +1565,7 @@ void brcms_free_timer(struct brcms_timer *t)
 
 	if (wl->timers == t) {
 		wl->timers = wl->timers->next;
-#ifdef DEBUG
+#ifdef DE
 		kfree(t->name);
 #endif
 		kfree(t);
@@ -1577,7 +1577,7 @@ void brcms_free_timer(struct brcms_timer *t)
 	while (tmp) {
 		if (tmp->next == t) {
 			tmp->next = t->next;
-#ifdef DEBUG
+#ifdef DE
 			kfree(t->name);
 #endif
 			kfree(t);

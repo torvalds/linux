@@ -39,7 +39,7 @@ struct dpu_vbif_set_memtype_params {
  * @vbif_idx: vbif identifier
  * @xin_id: client interface identifier
  * @clk_ctrl: clock control identifier of the xin
- * @num: pipe identifier (debug only)
+ * @num: pipe identifier (de only)
  * @is_rt: true if pipe is used in real-time use case
  */
 struct dpu_vbif_set_qos_params {
@@ -78,6 +78,6 @@ void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms);
  */
 void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms);
 
-void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root);
+void dpu_defs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *defs_root);
 
 #endif /* __DPU_VBIF_H__ */

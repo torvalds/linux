@@ -19,7 +19,7 @@
 #include <linux/usb/otg-fsm.h>
 
 #ifdef VERBOSE
-#define VDBG(fmt, args...) pr_debug("[%s]  " fmt, \
+#define VDBG(fmt, args...) pr_de("[%s]  " fmt, \
 				 __func__, ## args)
 #else
 #define VDBG(stuff...)	do {} while (0)

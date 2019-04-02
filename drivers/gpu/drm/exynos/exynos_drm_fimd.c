@@ -315,7 +315,7 @@ static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
 				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
+		DRM_DE_KMS("vblank wait timed out.\n");
 }
 
 static void fimd_enable_video_output(struct fimd_context *ctx, unsigned int win,
@@ -350,7 +350,7 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
+	DRM_DE_KMS("%s\n", __FILE__);
 
 	/* Hardware is in unknown state, so ensure it gets enabled properly */
 	pm_runtime_get_sync(ctx->dev);
@@ -814,9 +814,9 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)(dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
-	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
+	DRM_DE_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
 			(unsigned long)dma_addr, val, size);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
+	DRM_DE_KMS("ovl_width = %d, ovl_height = %d\n",
 			state->crtc.w, state->crtc.h);
 
 	/* buffer size */
@@ -847,7 +847,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(val, ctx->regs + VIDOSD_B(win));
 
-	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
+	DRM_DE_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
 			state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD size */
@@ -858,7 +858,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		val = state->crtc.w * state->crtc.h;
 		writel(val, ctx->regs + offset);
 
-		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
+		DRM_DE_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
 	fimd_win_set_pixfmt(ctx, win, fb, state->src.w);

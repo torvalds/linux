@@ -13,7 +13,7 @@
 #include "accommon.h"
 #include "acevents.h"
 #include "acnamesp.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "actables.h"
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -42,7 +42,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_subsystem(void)
 	ACPI_FUNCTION_TRACE(acpi_initialize_subsystem);
 
 	acpi_gbl_startup_flags = ACPI_SUBSYSTEM_INITIALIZE;
-	ACPI_DEBUG_EXEC(acpi_ut_init_stack_ptr_trace());
+	ACPI_DE_EXEC(acpi_ut_init_stack_ptr_trace());
 
 	/* Initialize the OS-Dependent layer */
 
@@ -125,7 +125,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	/* Enable ACPI mode */
 
 	if (!(flags & ACPI_NO_ACPI_ENABLE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "[Init] Going into ACPI mode\n"));
 
 		acpi_gbl_original_mode = acpi_hw_get_mode();
@@ -164,7 +164,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	 * entire namespace.
 	 */
 	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "[Init] Initializing ACPI events\n"));
 
 		status = acpi_ev_initialize_events();
@@ -178,7 +178,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	 * hardware initialization.
 	 */
 	if (!(flags & ACPI_NO_HANDLER_INIT)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "[Init] Installing SCI/GL handlers\n"));
 
 		status = acpi_ev_install_xrupt_handlers();

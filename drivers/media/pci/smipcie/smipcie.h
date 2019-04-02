@@ -39,7 +39,7 @@
 /* -------- Register Base -------- */
 #define    MSI_CONTROL_REG_BASE                 0x0800
 #define    SYSTEM_CONTROL_REG_BASE              0x0880
-#define    PCIE_EP_DEBUG_REG_BASE               0x08C0
+#define    PCIE_EP_DE_REG_BASE               0x08C0
 #define    IR_CONTROL_REG_BASE                  0x0900
 #define    I2C_A_CONTROL_REG_BASE               0x0940
 #define    I2C_B_CONTROL_REG_BASE               0x0980

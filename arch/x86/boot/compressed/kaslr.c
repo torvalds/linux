@@ -299,7 +299,7 @@ out:
  * regions that are unsafe to overlap with during decompression, and other
  * things like the initrd, cmdline and boot_params. This comment seeks to
  * explain mem_avoid as clearly as possible since incorrect mem_avoid
- * memory ranges lead to really hard to debug boot failures.
+ * memory ranges lead to really hard to de boot failures.
  *
  * The initrd, cmdline, and boot_params are trivial to identify for
  * avoiding. They are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
@@ -569,7 +569,7 @@ static unsigned long slots_fetch_random(void)
 	}
 
 	if (i == slot_area_index)
-		debug_putstr("slots_fetch_random() failed!?\n");
+		de_putstr("slots_fetch_random() failed!?\n");
 	return 0;
 }
 
@@ -664,7 +664,7 @@ static bool process_mem_region(struct mem_vector *region,
 		__process_mem_region(region, minimum, image_size);
 
 		if (slot_area_index == MAX_SLOT_AREA) {
-			debug_putstr("Aborted e820/efi memmap scan (slot_areas full)!\n");
+			de_putstr("Aborted e820/efi memmap scan (slot_areas full)!\n");
 			return 1;
 		}
 		return 0;
@@ -693,7 +693,7 @@ static bool process_mem_region(struct mem_vector *region,
 		__process_mem_region(&entry, minimum, image_size);
 
 		if (slot_area_index == MAX_SLOT_AREA) {
-			debug_putstr("Aborted e820/efi memmap scan when walking immovable regions(slot_areas full)!\n");
+			de_putstr("Aborted e820/efi memmap scan when walking immovable regions(slot_areas full)!\n");
 			return 1;
 		}
 	}
@@ -804,7 +804,7 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 {
 	/* Check if we had too many memmaps. */
 	if (memmap_too_large) {
-		debug_putstr("Aborted memory entries scan (more than 4 memmap= args)!\n");
+		de_putstr("Aborted memory entries scan (more than 4 memmap= args)!\n");
 		return 0;
 	}
 

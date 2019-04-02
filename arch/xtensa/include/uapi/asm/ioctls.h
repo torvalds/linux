@@ -115,7 +115,7 @@
 #define TIOCSERSWILD	_IOW('T', 85,  int)
 #define TIOCGLCKTRMIOS	0x5456
 #define TIOCSLCKTRMIOS	0x5457
-#define TIOCSERGSTRUCT	0x5458		     /* For debugging only */
+#define TIOCSERGSTRUCT	0x5458		     /* For deging only */
 #define TIOCSERGETLSR   _IOR('T', 89, unsigned int) /* Get line status reg. */
   /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 # define TIOCSER_TEMT    0x01		     /* Transmitter physically empty */

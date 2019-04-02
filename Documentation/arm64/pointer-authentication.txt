@@ -64,7 +64,7 @@ specifies which keys are to be reinitialized; specifying 0 means "all
 keys".
 
 
-Debugging
+Deging
 ---------
 
 When CONFIG_ARM64_PTR_AUTH is selected, and HW support for address

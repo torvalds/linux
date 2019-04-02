@@ -14,7 +14,7 @@ int device_dax_test(void);
 #define nfit_test_watermark(x)				\
 int x##_test(void)					\
 {							\
-	pr_debug("%s for nfit_test\n", KBUILD_MODNAME);	\
+	pr_de("%s for nfit_test\n", KBUILD_MODNAME);	\
 	return 0;					\
 }							\
 EXPORT_SYMBOL(x##_test)

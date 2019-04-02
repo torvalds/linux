@@ -104,7 +104,7 @@ const struct _vcs_dpi_ip_params_st dcn1_0_ip = {
 	.dcfclk_cstate_latency = 10,
 	.max_inter_dcn_tile_repeaters = 8,
 	.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one = 0,
-	.bug_forcing_LC_req_same_size_fixed = 0,
+	._forcing_LC_req_same_size_fixed = 0,
 };
 
 const struct _vcs_dpi_soc_bounding_box_st dcn1_0_soc = {
@@ -389,13 +389,13 @@ static const struct dcn_dpp_registers tf_regs[] = {
 
 static const struct dcn_dpp_shift tf_shift = {
 	TF_REG_LIST_SH_MASK_DCN10(__SHIFT),
-	TF_DEBUG_REG_LIST_SH_DCN10
+	TF_DE_REG_LIST_SH_DCN10
 
 };
 
 static const struct dcn_dpp_mask tf_mask = {
 	TF_REG_LIST_SH_MASK_DCN10(_MASK),
-	TF_DEBUG_REG_LIST_MASK_DCN10
+	TF_DE_REG_LIST_MASK_DCN10
 };
 
 static const struct dcn_mpc_registers mpc_regs = {
@@ -516,7 +516,7 @@ static const struct resource_caps rv2_res_cap = {
 };
 #endif
 
-static const struct dc_debug_options debug_defaults_drv = {
+static const struct dc_de_options de_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = true,
 		.force_abm_enable = false,
@@ -544,7 +544,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.max_downscale_src_width = 3840,
 };
 
-static const struct dc_debug_options debug_defaults_diags = {
+static const struct dc_de_options de_defaults_diags = {
 		.disable_dmcu = true,
 		.force_abm_enable = false,
 		.timing_trace = true,
@@ -582,7 +582,7 @@ static struct input_pixel_processor *dcn10_ipp_create(
 		kzalloc(sizeof(struct dcn10_ipp), GFP_KERNEL);
 
 	if (!ipp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -599,7 +599,7 @@ static struct output_pixel_processor *dcn10_opp_create(
 		kzalloc(sizeof(struct dcn10_opp), GFP_KERNEL);
 
 	if (!opp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -764,7 +764,7 @@ struct clock_source *dcn10_clock_source_create(
 		return &clk_src->base;
 	}
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -1269,9 +1269,9 @@ static bool construct(
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
-		dc->debug = debug_defaults_drv;
+		dc->de = de_defaults_drv;
 	else
-		dc->debug = debug_defaults_diags;
+		dc->de = de_defaults_diags;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -1320,14 +1320,14 @@ static bool construct(
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto fail;
 		}
 	}
 	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto fail;
 	}
 
@@ -1337,7 +1337,7 @@ static bool construct(
 			&dmcu_mask);
 	if (pool->base.dmcu == NULL) {
 		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto fail;
 	}
 
@@ -1347,7 +1347,7 @@ static bool construct(
 			&abm_mask);
 	if (pool->base.abm == NULL) {
 		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto fail;
 	}
 
@@ -1369,14 +1369,14 @@ static bool construct(
 #endif
 	if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
 		dc->dcn_soc->urgent_latency = 3;
-		dc->debug.disable_dmcu = true;
+		dc->de.disable_dmcu = true;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = 41.60f;
 	}
 
 
 	dc->dcn_soc->number_of_channels = dc->ctx->asic_id.vram_width / ddr4_dram_width;
 	ASSERT(dc->dcn_soc->number_of_channels < 3);
-	if (dc->dcn_soc->number_of_channels == 0)/*old sbios bug*/
+	if (dc->dcn_soc->number_of_channels == 0)/*old sbios */
 		dc->dcn_soc->number_of_channels = 2;
 
 	if (dc->dcn_soc->number_of_channels == 1) {
@@ -1391,10 +1391,10 @@ static bool construct(
 
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 
-	if (!dc->debug.disable_pplib_clock_request)
+	if (!dc->de.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);
 	dcn_bw_sync_calcs_and_dml(dc);
-	if (!dc->debug.disable_pplib_wm_range) {
+	if (!dc->de.disable_pplib_wm_range) {
 		dc->res_pool = &pool->base;
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
 	}
@@ -1419,7 +1419,7 @@ static bool construct(
 
 		pool->base.hubps[j] = dcn10_hubp_create(ctx, i);
 		if (pool->base.hubps[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto fail;
@@ -1427,7 +1427,7 @@ static bool construct(
 
 		pool->base.ipps[j] = dcn10_ipp_create(ctx, i);
 		if (pool->base.ipps[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto fail;
@@ -1435,7 +1435,7 @@ static bool construct(
 
 		pool->base.dpps[j] = dcn10_dpp_create(ctx, i);
 		if (pool->base.dpps[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create dpp!\n");
 			goto fail;
@@ -1443,7 +1443,7 @@ static bool construct(
 
 		pool->base.opps[j] = dcn10_opp_create(ctx, i);
 		if (pool->base.opps[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 			goto fail;
@@ -1452,7 +1452,7 @@ static bool construct(
 		pool->base.timing_generators[j] = dcn10_timing_generator_create(
 				ctx, i);
 		if (pool->base.timing_generators[j] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create tg!\n");
 			goto fail;
 		}
@@ -1463,14 +1463,14 @@ static bool construct(
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dcn10_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
 			goto fail;
 		}
 		pool->base.hw_i2cs[i] = dcn10_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create hw i2c!!\n");
 			goto fail;
@@ -1490,14 +1490,14 @@ static bool construct(
 
 	pool->base.mpc = dcn10_mpc_create(ctx);
 	if (pool->base.mpc == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		dm_error("DC: failed to create mpc!\n");
 		goto fail;
 	}
 
 	pool->base.hubbub = dcn10_hubbub_create(ctx);
 	if (pool->base.hubbub == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		dm_error("DC: failed to create hubbub!\n");
 		goto fail;
 	}
@@ -1534,6 +1534,6 @@ struct resource_pool *dcn10_create_resource_pool(
 	if (construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }

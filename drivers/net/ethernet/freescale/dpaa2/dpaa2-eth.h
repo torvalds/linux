@@ -16,7 +16,7 @@
 #include "dpni-cmd.h"
 
 #include "dpaa2-eth-trace.h"
-#include "dpaa2-eth-debugfs.h"
+#include "dpaa2-eth-defs.h"
 
 #define DPAA2_WRIOP_VERSION(x, y, z) ((x) << 10 | (y) << 5 | (z) << 0)
 
@@ -191,7 +191,7 @@ static inline struct dpaa2_faead *dpaa2_get_faead(void *buf_addr, bool swa)
 }
 
 /* Error and status bits in the frame annotation status word */
-/* Debug frame, otherwise supposed to be discarded */
+/* De frame, otherwise supposed to be discarded */
 #define DPAA2_FAS_DISC			0x80000000
 /* MACSEC frame */
 #define DPAA2_FAS_MS			0x40000000
@@ -396,8 +396,8 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
 	struct bpf_prog *xdp_prog;
-#ifdef CONFIG_DEBUG_FS
-	struct dpaa2_debugfs dbg;
+#ifdef CONFIG_DE_FS
+	struct dpaa2_defs dbg;
 #endif
 };
 

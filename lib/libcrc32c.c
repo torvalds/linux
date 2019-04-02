@@ -51,7 +51,7 @@ u32 crc32c(u32 crc, const void *address, unsigned int length)
 	*ctx = crc;
 
 	err = crypto_shash_update(shash, address, length);
-	BUG_ON(err);
+	_ON(err);
 
 	ret = *ctx;
 	barrier_data(ctx);

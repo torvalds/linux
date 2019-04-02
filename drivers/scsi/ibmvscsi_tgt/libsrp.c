@@ -390,11 +390,11 @@ int srp_get_desc_table(struct srp_cmd *srp_cmd, enum dma_data_direction *dir,
 	 * if srp_cmd::add_data is declared as s8*, u8*, s8[] or u8[], so check
 	 * whether srp_cmd::add_data has been declared as a byte pointer.
 	 */
-	BUILD_BUG_ON(!__same_type(srp_cmd->add_data[0], (s8)0)
+	BUILD__ON(!__same_type(srp_cmd->add_data[0], (s8)0)
 		     && !__same_type(srp_cmd->add_data[0], (u8)0));
 
-	BUG_ON(!dir);
-	BUG_ON(!data_len);
+	_ON(!dir);
+	_ON(!data_len);
 
 	rc = 0;
 	*data_len = 0;

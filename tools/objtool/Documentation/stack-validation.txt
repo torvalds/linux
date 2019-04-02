@@ -20,7 +20,7 @@ alternative execution paths to a given instruction (or set of
 instructions).  Similarly, it knows how to follow switch statements, for
 which gcc sometimes uses jump tables.
 
-(Objtool also has an 'orc generate' subcommand which generates debuginfo
+(Objtool also has an 'orc generate' subcommand which generates deinfo
 for the ORC unwinder.  See Documentation/x86/orc-unwinder.txt in the
 kernel tree for more details.)
 
@@ -32,8 +32,8 @@ Here are some of the benefits of validating stack metadata:
 
 a) More reliable stack traces for frame pointer enabled kernels
 
-   Frame pointers are used for debugging purposes.  They allow runtime
-   code and debug tools to be able to walk the stack to determine the
+   Frame pointers are used for deging purposes.  They allow runtime
+   code and de tools to be able to walk the stack to determine the
    chain of function call sites that led to the currently executing
    code.
 
@@ -279,18 +279,18 @@ they mean, and suggestions for how to fix them.
 
    1) funcA()'s last instruction is a call to a "noreturn" function like
       panic().  In this case the noreturn function needs to be added to
-      objtool's hard-coded global_noreturns array.  Feel free to bug the
+      objtool's hard-coded global_noreturns array.  Feel free to  the
       objtool maintainer, or you can submit a patch.
 
    2) funcA() uses the unreachable() annotation in a section of code
       that is actually reachable.
 
    3) If funcA() calls an inline function, the object code for funcA()
-      might be corrupt due to a gcc bug.  For more details, see:
-      https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70646
+      might be corrupt due to a gcc .  For more details, see:
+      https://gcc.gnu.org/zilla/show_.cgi?id=70646
 
 
-If the error doesn't seem to make sense, it could be a bug in objtool.
+If the error doesn't seem to make sense, it could be a  in objtool.
 Feel free to ask the objtool maintainer for help.
 
 

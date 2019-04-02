@@ -10,7 +10,7 @@
  * kind, whether express or implied.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/pci.h>
 #include <asm/mpc52xx.h>
@@ -121,9 +121,9 @@ mpc52xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 		(offset & 0xfc));
 	mb();
 
-#if defined(CONFIG_PPC_MPC5200_BUGFIX)
+#if defined(CONFIG_PPC_MPC5200_FIX)
 	if (bus->number) {
-		/* workaround for the bug 435 of the MPC5200 (L25R);
+		/* workaround for the  435 of the MPC5200 (L25R);
 		 * Don't do 32 bits config access during type-1 cycles */
 		switch (len) {
 		      case 1:
@@ -178,9 +178,9 @@ mpc52xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 		(offset & 0xfc));
 	mb();
 
-#if defined(CONFIG_PPC_MPC5200_BUGFIX)
+#if defined(CONFIG_PPC_MPC5200_FIX)
 	if (bus->number) {
-		/* workaround for the bug 435 of the MPC5200 (L25R);
+		/* workaround for the  435 of the MPC5200 (L25R);
 		 * Don't do 32 bits config access during type-1 cycles */
 		switch (len) {
 		      case 1:
@@ -242,7 +242,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	u32 tmp;
 	int iwcr0 = 0, iwcr1 = 0, iwcr2 = 0;
 
-	pr_debug("mpc52xx_pci_setup(hose=%p, pci_regs=%p)\n", hose, pci_regs);
+	pr_de("mpc52xx_pci_setup(hose=%p, pci_regs=%p)\n", hose, pci_regs);
 
 	/* pci_process_bridge_OF_ranges() found all our addresses for us;
 	 * now store them in the right places */
@@ -257,7 +257,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 	/* Memory windows */
 	res = &hose->mem_resources[0];
 	if (res->flags) {
-		pr_debug("mem_resource[0] = "
+		pr_de("mem_resource[0] = "
 		         "{.start=%llx, .end=%llx, .flags=%llx}\n",
 		         (unsigned long long)res->start,
 			 (unsigned long long)res->end,
@@ -274,7 +274,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 
 	res = &hose->mem_resources[1];
 	if (res->flags) {
-		pr_debug("mem_resource[1] = {.start=%x, .end=%x, .flags=%lx}\n",
+		pr_de("mem_resource[1] = {.start=%x, .end=%x, .flags=%lx}\n",
 		         res->start, res->end, res->flags);
 		out_be32(&pci_regs->iw1btar,
 		         MPC52xx_PCI_IWBTAR_TRANSLATION(res->start, res->start,
@@ -292,7 +292,7 @@ mpc52xx_pci_setup(struct pci_controller *hose,
 		printk(KERN_ERR "%s: Didn't find IO resources\n", __FILE__);
 		return;
 	}
-	pr_debug(".io_resource={.start=%llx,.end=%llx,.flags=%llx} "
+	pr_de(".io_resource={.start=%llx,.end=%llx,.flags=%llx} "
 	         ".io_base_phys=0x%p\n",
 	         (unsigned long long)res->start,
 		 (unsigned long long)res->end,
@@ -336,7 +336,7 @@ mpc52xx_pci_fixup_resources(struct pci_dev *dev)
 {
 	int i;
 
-	pr_debug("mpc52xx_pci_fixup_resources() %.4x:%.4x\n",
+	pr_de("mpc52xx_pci_fixup_resources() %.4x:%.4x\n",
 	         dev->vendor, dev->device);
 
 	/* We don't rely on boot loader for PCI and resets all
@@ -369,7 +369,7 @@ mpc52xx_add_bridge(struct device_node *node)
 	const int *bus_range;
 	struct resource rsrc;
 
-	pr_debug("Adding MPC52xx PCI host bridge %pOF\n", node);
+	pr_de("Adding MPC52xx PCI host bridge %pOF\n", node);
 
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 

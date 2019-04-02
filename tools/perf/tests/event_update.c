@@ -4,7 +4,7 @@
 #include "evsel.h"
 #include "machine.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 
 static int process_event_unit(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,

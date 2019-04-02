@@ -7,7 +7,7 @@
  * this file has functions to:
  * - scan the PCI very early on boot for all OHCI 1394-compliant controllers
  * - reset and initialize them and make them join the IEEE1394 bus and
- * - enable physical DMA on them to allow remote debugging
+ * - enable physical DMA on them to allow remote deging
  *
  * All code and data is marked as __init and __initdata, respective as
  * during boot, all OHCI1394 controllers may be claimed by the firewire
@@ -201,7 +201,7 @@ static inline void __init init_ohci1394_wait_for_busresets(struct ohci *ohci)
 }
 
 /**
- * init_ohci1394_enable_physical_dma - Enable physical DMA for remote debugging
+ * init_ohci1394_enable_physical_dma - Enable physical DMA for remote deging
  * This enables remote DMA access over IEEE1394 from every host for the low
  * 4GB of address space. DMA accesses above 4GB are not available currently.
  */
@@ -237,7 +237,7 @@ static inline void __init init_ohci1394_reset_and_init_dma(struct ohci *ohci)
 	 */
 	init_ohci1394_wait_for_busresets(ohci);
 
-	/* We had to wait and do this now if we want to debug early problems */
+	/* We had to wait and do this now if we want to de early problems */
 	init_ohci1394_enable_physical_dma(ohci);
 }
 
@@ -264,7 +264,7 @@ static inline void __init init_ohci1394_controller(int num, int slot, int func)
 }
 
 /**
- * debug_init_ohci1394_dma - scan for OHCI1394 controllers and init DMA on them
+ * de_init_ohci1394_dma - scan for OHCI1394 controllers and init DMA on them
  * Scans the whole PCI space for OHCI1394 controllers and inits DMA on them
  */
 void __init init_ohci1394_dma_on_all_controllers(void)

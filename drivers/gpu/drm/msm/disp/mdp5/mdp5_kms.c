@@ -231,7 +231,7 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int smp_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -250,21 +250,21 @@ static int smp_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static struct drm_info_list mdp5_debugfs_list[] = {
+static struct drm_info_list mdp5_defs_list[] = {
 		{"smp", smp_show },
 };
 
-static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
+static int mdp5_kms_defs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	int ret;
 
-	ret = drm_debugfs_create_files(mdp5_debugfs_list,
-			ARRAY_SIZE(mdp5_debugfs_list),
-			minor->debugfs_root, minor);
+	ret = drm_defs_create_files(mdp5_defs_list,
+			ARRAY_SIZE(mdp5_defs_list),
+			minor->defs_root, minor);
 
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not install mdp5_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could not install mdp5_defs_list\n");
 		return ret;
 	}
 
@@ -289,8 +289,8 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.set_split_display = mdp5_set_split_display,
 		.set_encoder_mode = mdp5_set_encoder_mode,
 		.destroy         = mdp5_kms_destroy,
-#ifdef CONFIG_DEBUG_FS
-		.debugfs_init    = mdp5_kms_debugfs_init,
+#ifdef CONFIG_DE_FS
+		.defs_init    = mdp5_kms_defs_init,
 #endif
 	},
 	.set_irqmask         = mdp5_set_irqmask,

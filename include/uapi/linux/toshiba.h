@@ -53,7 +53,7 @@ typedef struct {
  * Convenience toshiba_acpi command.
  *
  * The System Configuration Interface (SCI) is opened/closed internally
- * to avoid userspace of buggy BIOSes.
+ * to avoid userspace of gy BIOSes.
  *
  * The toshiba_acpi module checks whether the eax register is set with
  * SCI_GET (0xf300) or SCI_SET (0xf400), returning -EINVAL if not.

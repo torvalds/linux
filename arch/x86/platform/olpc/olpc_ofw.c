@@ -50,7 +50,7 @@ int __olpc_ofw(const char *name, int nr_args, const void **args, int nr_res,
 	unsigned long flags;
 	int ret, i, *p;
 
-	BUG_ON(nr_args + nr_res > MAXARGS);
+	_ON(nr_args + nr_res > MAXARGS);
 
 	if (!olpc_ofw_cif)
 		return -EIO;

@@ -22,7 +22,7 @@
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
 		user {
-			label = "debug";
+			label = "de";
 			gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>;
 		};
 	};

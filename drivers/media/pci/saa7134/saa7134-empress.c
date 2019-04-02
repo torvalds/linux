@@ -219,9 +219,9 @@ static void empress_signal_update(struct work_struct *work)
 		container_of(work, struct saa7134_dev, empress_workqueue);
 
 	if (dev->nosignal) {
-		pr_debug("no video signal\n");
+		pr_de("no video signal\n");
 	} else {
-		pr_debug("video signal acquired\n");
+		pr_de("video signal acquired\n");
 	}
 }
 
@@ -253,7 +253,7 @@ static int empress_init(struct saa7134_dev *dev)
 	struct vb2_queue *q;
 	int err;
 
-	pr_debug("%s: %s\n", dev->name, __func__);
+	pr_de("%s: %s\n", dev->name, __func__);
 	dev->empress_dev = video_device_alloc();
 	if (NULL == dev->empress_dev)
 		return -ENOMEM;
@@ -316,7 +316,7 @@ static int empress_init(struct saa7134_dev *dev)
 
 static int empress_fini(struct saa7134_dev *dev)
 {
-	pr_debug("%s: %s\n", dev->name, __func__);
+	pr_de("%s: %s\n", dev->name, __func__);
 
 	if (NULL == dev->empress_dev)
 		return 0;

@@ -1,7 +1,7 @@
 /*
  *		Swansea University Computer Society NET3
  *
- *	This work is derived from NET2Debugged, which is in turn derived
+ *	This work is derived from NET2Deged, which is in turn derived
  *	from NET2D which was written by:
  * 		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *

@@ -50,7 +50,7 @@ static int speedlink_event(struct hid_device *hdev, struct hid_field *field,
 	/* This fixes the "jumpy" cursor occuring due to invalid events sent
 	 * by the device. Some devices only send them with value==+256, others
 	 * don't. However, catching abs(value)>=256 is restrictive enough not
-	 * to interfere with devices that were bug-free (has been tested).
+	 * to interfere with devices that were -free (has been tested).
 	 */
 	if (abs(value) >= 256)
 		return 1;

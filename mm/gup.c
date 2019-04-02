@@ -245,7 +245,7 @@ retry:
 	if (!pmd_present(pmdval)) {
 		if (likely(!(flags & FOLL_MIGRATION)))
 			return no_page_table(vma, flags);
-		VM_BUG_ON(thp_migration_supported() &&
+		VM__ON(thp_migration_supported() &&
 				  !is_pmd_migration_entry(pmdval));
 		if (is_pmd_migration_entry(pmdval))
 			pmd_migration_entry_wait(mm, pmd);
@@ -368,7 +368,7 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
 	p4d = p4d_offset(pgdp, address);
 	if (p4d_none(*p4d))
 		return no_page_table(vma, flags);
-	BUILD_BUG_ON(p4d_huge(*p4d));
+	BUILD__ON(p4d_huge(*p4d));
 	if (unlikely(p4d_bad(*p4d)))
 		return no_page_table(vma, flags);
 
@@ -415,7 +415,7 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
 	/* make this handle hugepd */
 	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
 	if (!IS_ERR(page)) {
-		BUG_ON(flags & FOLL_GET);
+		_ON(flags & FOLL_GET);
 		return page;
 	}
 
@@ -472,15 +472,15 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 		pgd = pgd_offset_k(address);
 	else
 		pgd = pgd_offset_gate(mm, address);
-	BUG_ON(pgd_none(*pgd));
+	_ON(pgd_none(*pgd));
 	p4d = p4d_offset(pgd, address);
-	BUG_ON(p4d_none(*p4d));
+	_ON(p4d_none(*p4d));
 	pud = pud_offset(p4d, address);
-	BUG_ON(pud_none(*pud));
+	_ON(pud_none(*pud));
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
 		return -EFAULT;
-	VM_BUG_ON(pmd_trans_huge(*pmd));
+	VM__ON(pmd_trans_huge(*pmd));
 	pte = pte_offset_map(pmd, address);
 	if (pte_none(*pte))
 		goto unmap;
@@ -541,7 +541,7 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
 
 		if (err)
 			return err;
-		BUG();
+		();
 	}
 
 	if (tsk) {
@@ -686,7 +686,7 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	if (!nr_pages)
 		return 0;
 
-	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
+	VM__ON(!!pages != !!(gup_flags & FOLL_GET));
 
 	/*
 	 * If FOLL_FORCE is set then do not force a full fault as the hinting
@@ -753,7 +753,7 @@ retry:
 			case -ENOENT:
 				goto next_page;
 			}
-			BUG();
+			();
 		} else if (PTR_ERR(page) == -EEXIST) {
 			/*
 			 * Proper page table entry exists, but no corresponding
@@ -866,7 +866,7 @@ retry:
 
 		if (err)
 			return err;
-		BUG();
+		();
 	}
 
 	if (ret & VM_FAULT_RETRY) {
@@ -903,9 +903,9 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 
 	if (locked) {
 		/* if VM_FAULT_RETRY can be returned, vmas become invalid */
-		BUG_ON(vmas);
+		_ON(vmas);
 		/* check caller initialized locked */
-		BUG_ON(*locked != 1);
+		_ON(*locked != 1);
 	}
 
 	if (pages)
@@ -922,8 +922,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 
 		/* VM_FAULT_RETRY cannot return errors */
 		if (!*locked) {
-			BUG_ON(ret < 0);
-			BUG_ON(ret >= nr_pages);
+			_ON(ret < 0);
+			_ON(ret >= nr_pages);
 		}
 
 		if (!pages)
@@ -960,7 +960,7 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 		ret = __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
 				       pages, NULL, NULL);
 		if (ret != 1) {
-			BUG_ON(ret > 1);
+			_ON(ret > 1);
 			if (!pages_done)
 				pages_done = ret;
 			break;
@@ -1368,11 +1368,11 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 	unsigned long nr_pages = (end - start) / PAGE_SIZE;
 	int gup_flags;
 
-	VM_BUG_ON(start & ~PAGE_MASK);
-	VM_BUG_ON(end   & ~PAGE_MASK);
-	VM_BUG_ON_VMA(start < vma->vm_start, vma);
-	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
-	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+	VM__ON(start & ~PAGE_MASK);
+	VM__ON(end   & ~PAGE_MASK);
+	VM__ON_VMA(start < vma->vm_start, vma);
+	VM__ON_VMA(end   > vma->vm_end, vma);
+	VM__ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
 
 	gup_flags = FOLL_TOUCH | FOLL_POPULATE | FOLL_MLOCK;
 	if (vma->vm_flags & VM_LOCKONFAULT)
@@ -1577,7 +1577,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		} else if (pte_special(pte))
 			goto pte_unmap;
 
-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+		VM__ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		head = compound_head(page);
 
@@ -1589,7 +1589,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 			goto pte_unmap;
 		}
 
-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+		VM__ON_PAGE(compound_head(page) != head, page);
 
 		SetPageReferenced(page);
 		pages[*nr] = page;
@@ -1687,14 +1687,14 @@ static int __gup_device_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 		unsigned long end, struct page **pages, int *nr)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 
 static int __gup_device_huge_pud(pud_t pud, pud_t *pudp, unsigned long addr,
 		unsigned long end, struct page **pages, int *nr)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 #endif
@@ -1785,7 +1785,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 	if (!pgd_access_permitted(orig, write))
 		return 0;
 
-	BUILD_BUG_ON(pgd_devmap(orig));
+	BUILD__ON(pgd_devmap(orig));
 	refs = 0;
 	page = pgd_page(orig) + ((addr & ~PGDIR_MASK) >> PAGE_SHIFT);
 	do {
@@ -1896,7 +1896,7 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
 		next = p4d_addr_end(addr, end);
 		if (p4d_none(p4d))
 			return 0;
-		BUILD_BUG_ON(p4d_huge(p4d));
+		BUILD__ON(p4d_huge(p4d));
 		if (unlikely(is_hugepd(__hugepd(p4d_val(p4d))))) {
 			if (!gup_huge_pd(__hugepd(p4d_val(p4d)), addr,
 					 P4D_SHIFT, next, write, pages, nr))

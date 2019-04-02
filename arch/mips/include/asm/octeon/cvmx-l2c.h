@@ -26,7 +26,7 @@
  ***********************license end**************************************/
 
 /*
- * Interface to the Level 2 Cache (L2C) control, measurement, and debugging
+ * Interface to the Level 2 Cache (L2C) control, measurement, and deging
  * facilities.
  */
 
@@ -266,7 +266,7 @@ int cvmx_l2c_lock_mem_region(uint64_t start, uint64_t len);
 /**
  * Unlock and flush a cache line from the L2 cache.
  * IMPORTANT: Must only be run by one core at a time due to use
- * of L2C debug features.
+ * of L2C de features.
  * Note that this function will flush a matching but unlocked cache line.
  * (If address is not in L2, no lines are flushed.)
  *
@@ -321,7 +321,7 @@ uint32_t cvmx_l2c_address_to_index(uint64_t addr);
 /**
  * Flushes (and unlocks) the entire L2 cache.
  * IMPORTANT: Must only be run by one core at a time due to use
- * of L2C debug features.
+ * of L2C de features.
  */
 void cvmx_l2c_flush(void);
 
@@ -354,7 +354,7 @@ int cvmx_l2c_get_num_assoc(void);
 /**
  * Flush a line from the L2 cache
  * This should only be called from one core at a time, as this routine
- * sets the core to the 'debug' core in order to flush the line.
+ * sets the core to the 'de' core in order to flush the line.
  *
  * @assoc:  Association (or way) to flush
  * @index:  Index to flush

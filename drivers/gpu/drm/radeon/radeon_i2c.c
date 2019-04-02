@@ -96,7 +96,7 @@ static int pre_xfer(struct i2c_adapter *i2c_adap)
 
 	mutex_lock(&i2c->mutex);
 
-	/* RV410 appears to have a bug where the hw i2c in reset
+	/* RV410 appears to have a  where the hw i2c in reset
 	 * holds the i2c port in a bad state - switch hw i2c away before
 	 * doing DDC - do this for all r200s/r300s/r400s for safety sake
 	 */
@@ -483,7 +483,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if (tmp & RADEON_I2C_DONE)
 				break;
 			else {
-				DRM_DEBUG("i2c write error 0x%08x\n", tmp);
+				DRM_DE("i2c write error 0x%08x\n", tmp);
 				WREG32(i2c_cntl_0, tmp | RADEON_I2C_ABORT);
 				ret = -EIO;
 				goto done;
@@ -515,7 +515,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 					if (tmp & RADEON_I2C_DONE)
 						break;
 					else {
-						DRM_DEBUG("i2c read error 0x%08x\n", tmp);
+						DRM_DE("i2c read error 0x%08x\n", tmp);
 						WREG32(i2c_cntl_0, tmp | RADEON_I2C_ABORT);
 						ret = -EIO;
 						goto done;
@@ -543,7 +543,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 					if (tmp & RADEON_I2C_DONE)
 						break;
 					else {
-						DRM_DEBUG("i2c write error 0x%08x\n", tmp);
+						DRM_DE("i2c write error 0x%08x\n", tmp);
 						WREG32(i2c_cntl_0, tmp | RADEON_I2C_ABORT);
 						ret = -EIO;
 						goto done;
@@ -691,7 +691,7 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if (tmp & AVIVO_DC_I2C_DONE)
 				break;
 			else {
-				DRM_DEBUG("i2c write error 0x%08x\n", tmp);
+				DRM_DE("i2c write error 0x%08x\n", tmp);
 				WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_ABORT);
 				ret = -EIO;
 				goto done;
@@ -733,7 +733,7 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 					if (tmp & AVIVO_DC_I2C_DONE)
 						break;
 					else {
-						DRM_DEBUG("i2c read error 0x%08x\n", tmp);
+						DRM_DE("i2c read error 0x%08x\n", tmp);
 						WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_ABORT);
 						ret = -EIO;
 						goto done;
@@ -776,7 +776,7 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 					if (tmp & AVIVO_DC_I2C_DONE)
 						break;
 					else {
-						DRM_DEBUG("i2c write error 0x%08x\n", tmp);
+						DRM_DE("i2c write error 0x%08x\n", tmp);
 						WREG32(AVIVO_DC_I2C_RESET, AVIVO_DC_I2C_ABORT);
 						ret = -EIO;
 						goto done;
@@ -1070,9 +1070,9 @@ void radeon_i2c_get_byte(struct radeon_i2c_chan *i2c_bus,
 
 	if (i2c_transfer(&i2c_bus->adapter, msgs, 2) == 2) {
 		*val = in_buf[0];
-		DRM_DEBUG("val = 0x%02x\n", *val);
+		DRM_DE("val = 0x%02x\n", *val);
 	} else {
-		DRM_DEBUG("i2c 0x%02x 0x%02x read failed\n",
+		DRM_DE("i2c 0x%02x 0x%02x read failed\n",
 			  addr, *val);
 	}
 }
@@ -1094,7 +1094,7 @@ void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c_bus,
 	out_buf[1] = val;
 
 	if (i2c_transfer(&i2c_bus->adapter, &msg, 1) != 1)
-		DRM_DEBUG("i2c 0x%02x 0x%02x write failed\n",
+		DRM_DE("i2c 0x%02x 0x%02x write failed\n",
 			  addr, val);
 }
 

@@ -113,18 +113,18 @@ unsigned long ccu_sdm_helper_read_rate(struct ccu_common *common,
 	unsigned int i;
 	u32 reg;
 
-	pr_debug("%s: Read sigma-delta modulation setting\n",
+	pr_de("%s: Read sigma-delta modulation setting\n",
 		 clk_hw_get_name(&common->hw));
 
 	if (!(common->features & CCU_FEATURE_SIGMA_DELTA_MOD))
 		return 0;
 
-	pr_debug("%s: clock is sigma-delta modulated\n",
+	pr_de("%s: clock is sigma-delta modulated\n",
 		 clk_hw_get_name(&common->hw));
 
 	reg = readl(common->base + sdm->tuning_reg);
 
-	pr_debug("%s: pattern reg is 0x%x",
+	pr_de("%s: pattern reg is 0x%x",
 		 clk_hw_get_name(&common->hw), reg);
 
 	for (i = 0; i < sdm->table_size; i++)

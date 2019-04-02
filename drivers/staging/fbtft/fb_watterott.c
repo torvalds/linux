@@ -45,7 +45,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 		*buf++ = (u8)va_arg(args, unsigned int);
 	va_end(args);
 
-	fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,
+	fbtft_par_dbg_hex(DE_WRITE_REGISTER, par,
 			  par->info->device, u8, par->buf,
 			  len, "%s: ", __func__);
 
@@ -175,7 +175,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x00);
 
 	version = firmware_version(par);
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "Firmware version: %x.%02x\n",
+	fbtft_par_dbg(DE_INIT_DISPLAY, par, "Firmware version: %x.%02x\n",
 		      version >> 8, version & 0xFF);
 
 	if (mode == 332)
@@ -226,7 +226,7 @@ static int backlight_chip_update_status(struct backlight_device *bd)
 	struct fbtft_par *par = bl_get_data(bd);
 	int brightness = bd->props.brightness;
 
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
+	fbtft_par_dbg(DE_BACKLIGHT, par,
 		      "%s: brightness=%d, power=%d, fb_blank=%d\n", __func__,
 		      bd->props.brightness, bd->props.power,
 		      bd->props.fb_blank);

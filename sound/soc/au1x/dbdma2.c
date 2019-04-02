@@ -30,12 +30,12 @@
 
 #include "psc.h"
 
-/*#define PCM_DEBUG*/
+/*#define PCM_DE*/
 
 #define DRV_NAME "dbdma2"
 
 #define MSG(x...)	printk(KERN_INFO "au1xpsc_pcm: " x)
-#ifdef PCM_DEBUG
+#ifdef PCM_DE
 #define DBG		MSG
 #else
 #define DBG(x...)	do {} while (0)

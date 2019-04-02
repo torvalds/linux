@@ -192,7 +192,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 	int err;
 	D_ASSERT(device, atomic_read(&device->md_io.in_use) == 1);
 
-	BUG_ON(!bdev->md_bdev);
+	_ON(!bdev->md_bdev);
 
 	dynamic_drbd_dbg(device, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
 	     current->comm, current->pid, __func__,
@@ -360,7 +360,7 @@ static int __al_write_transaction(struct drbd_device *device, struct al_transact
 		i++;
 	}
 	spin_unlock_irq(&device->al_lock);
-	BUG_ON(i > AL_UPDATES_PER_TRANSACTION);
+	_ON(i > AL_UPDATES_PER_TRANSACTION);
 
 	buffer->n_updates = cpu_to_be16(i);
 	for ( ; i < AL_UPDATES_PER_TRANSACTION; i++) {
@@ -548,7 +548,7 @@ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *
 		struct lc_element *al_ext;
 		al_ext = lc_get_cumulative(device->act_log, enr);
 		if (!al_ext)
-			drbd_info(device, "LOGIC BUG for enr=%u\n", enr);
+			drbd_info(device, "LOGIC  for enr=%u\n", enr);
 	}
 	return 0;
 }
@@ -945,7 +945,7 @@ struct bm_extent *_bme_get(struct drbd_device *device, unsigned int enr)
 		if (rs_flags & LC_STARVING)
 			drbd_warn(device, "Have to wait for element"
 			     " (resync LRU too small?)\n");
-		BUG_ON(rs_flags & LC_LOCKED);
+		_ON(rs_flags & LC_LOCKED);
 	}
 
 	return bm_ext;
@@ -1066,7 +1066,7 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 			}
 			wake_up(&device->al_wait);
 		} else {
-			drbd_alert(device, "LOGIC BUG\n");
+			drbd_alert(device, "LOGIC \n");
 		}
 	}
 	/* TRY. */
@@ -1098,7 +1098,7 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 			if (rs_flags & LC_STARVING)
 				drbd_warn(device, "Have to wait for element"
 				     " (resync LRU too small?)\n");
-			BUG_ON(rs_flags & LC_LOCKED);
+			_ON(rs_flags & LC_LOCKED);
 			goto try_again;
 		}
 		if (bm_ext->lce.lc_number != enr) {

@@ -766,7 +766,7 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->dcb           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DCBEN);
 	hw_feat->sph           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, SPHEN);
 	hw_feat->tso           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, TSOEN);
-	hw_feat->dma_debug     = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DBGMEMA);
+	hw_feat->dma_de     = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, DBGMEMA);
 	hw_feat->rss           = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, RSSEN);
 	hw_feat->tc_cnt	       = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R, NUMTC);
 	hw_feat->hash_table_size = XGMAC_GET_BITS(mac_hfr1, MAC_HWF1R,
@@ -877,8 +877,8 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 			hw_feat->sph ? "yes" : "no");
 		dev_dbg(pdata->dev, "  TCP Segmentation Offload  : %s\n",
 			hw_feat->tso ? "yes" : "no");
-		dev_dbg(pdata->dev, "  Debug memory interface    : %s\n",
-			hw_feat->dma_debug ? "yes" : "no");
+		dev_dbg(pdata->dev, "  De memory interface    : %s\n",
+			hw_feat->dma_de ? "yes" : "no");
 		dev_dbg(pdata->dev, "  Receive Side Scaling      : %s\n",
 			hw_feat->rss ? "yes" : "no");
 		dev_dbg(pdata->dev, "  Traffic Class count       : %u\n",

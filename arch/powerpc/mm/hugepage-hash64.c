@@ -74,7 +74,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 	 */
 	shift = mmu_psize_defs[psize].shift;
 	index = (ea & ~HPAGE_PMD_MASK) >> shift;
-	BUG_ON(index >= PTE_FRAG_SIZE);
+	_ON(index >= PTE_FRAG_SIZE);
 
 	vpn = hpt_vpn(ea, vsid, ssize);
 	hpte_slot_array = get_hpte_slot_array(pmdp);
@@ -163,7 +163,7 @@ repeat:
 		 */
 		if (unlikely(slot == -2)) {
 			*pmdp = __pmd(old_pmd);
-			hash_failure_debug(ea, access, vsid, trap, ssize,
+			hash_failure_de(ea, access, vsid, trap, ssize,
 					   psize, lpsize, old_pmd);
 			return -1;
 		}

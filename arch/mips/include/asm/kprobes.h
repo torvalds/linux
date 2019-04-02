@@ -29,7 +29,7 @@
 #include <linux/types.h>
 
 #include <asm/cacheflush.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/inst.h>
 
 #define	 __ARCH_WANT_KPROBES_INSN_SLOT

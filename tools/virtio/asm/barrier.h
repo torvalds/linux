@@ -11,7 +11,7 @@
 			  __ATOMIC_SEQ_CST); \
 	barrier(); \
 } while (0);
-/* Weak barriers should be used. If not - it's a bug */
+/* Weak barriers should be used. If not - it's a  */
 # define mb() abort()
 # define dma_rmb() abort()
 # define dma_wmb() abort()

@@ -313,7 +313,7 @@ intel_plane_atomic_get_property(struct drm_plane *plane,
 				struct drm_property *property,
 				u64 *val)
 {
-	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
+	DRM_DE_KMS("Unknown property [PROP:%d:%s]\n",
 		      property->base.id, property->name);
 	return -EINVAL;
 }
@@ -336,7 +336,7 @@ intel_plane_atomic_set_property(struct drm_plane *plane,
 				struct drm_property *property,
 				u64 val)
 {
-	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
+	DRM_DE_KMS("Unknown property [PROP:%d:%s]\n",
 		      property->base.id, property->name);
 	return -EINVAL;
 }

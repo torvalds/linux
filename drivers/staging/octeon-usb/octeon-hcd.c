@@ -354,7 +354,7 @@ struct cvmx_usb_tx_fifo {
  *			   determine splits.
  * pipe_for_channel:	   Map channels to pipes.
  * pipe:		   Storage for pipes.
- * indent:		   Used by debug output to indent functions.
+ * indent:		   Used by de output to indent functions.
  * port_status:		   Last port status used for change notification.
  * idle_pipes:		   List of open pipes that have no transactions.
  * active_pipes:	   Active pipes indexed by transfer type.
@@ -512,7 +512,7 @@ static void octeon_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 /**
  * Read a USB 32bit CSR. It performs the necessary address swizzle
  * for 32bit CSRs and logs the value in a readable format if
- * debugging is on.
+ * deging is on.
  *
  * @usb:     USB block this access is for
  * @address: 64bit address to read
@@ -528,7 +528,7 @@ static inline u32 cvmx_usb_read_csr32(struct octeon_hcd *usb, u64 address)
 /**
  * Write a USB 32bit CSR. It performs the necessary address
  * swizzle for 32bit CSRs and logs the value in a readable format
- * if debugging is on.
+ * if deging is on.
  *
  * @usb:     USB block this access is for
  * @address: 64bit address to write
@@ -2618,7 +2618,7 @@ static int cvmx_usb_poll_channel(struct octeon_hcd *usb, int channel)
 
 		if (usbc_hcchar.s.chena && usbc_hcchar.s.chdis) {
 			/*
-			 * There seems to be a bug in CN31XX which can cause
+			 * There seems to be a  in CN31XX which can cause
 			 * interrupt IN transfers to get stuck until we do a
 			 * write of HCCHARX without changing things
 			 */

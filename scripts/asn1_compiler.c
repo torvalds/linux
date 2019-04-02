@@ -313,10 +313,10 @@ struct token {
 static struct token *token_list;
 static unsigned nr_tokens;
 static bool verbose_opt;
-static bool debug_opt;
+static bool de_opt;
 
 #define verbose(fmt, ...) do { if (verbose_opt) printf(fmt, ## __VA_ARGS__); } while (0)
-#define debug(fmt, ...) do { if (debug_opt) printf(fmt, ## __VA_ARGS__); } while (0)
+#define de(fmt, ...) do { if (de_opt) printf(fmt, ## __VA_ARGS__); } while (0)
 
 static int directive_compare(const void *_key, const void *_pdir)
 {
@@ -328,19 +328,19 @@ static int directive_compare(const void *_key, const void *_pdir)
 	dlen = strlen(dir);
 	clen = (dlen < token->size) ? dlen : token->size;
 
-	//debug("cmp(%s,%s) = ", token->content, dir);
+	//de("cmp(%s,%s) = ", token->content, dir);
 
 	val = memcmp(token->content, dir, clen);
 	if (val != 0) {
-		//debug("%d [cmp]\n", val);
+		//de("%d [cmp]\n", val);
 		return val;
 	}
 
 	if (dlen == token->size) {
-		//debug("0\n");
+		//de("0\n");
 		return 0;
 	}
-	//debug("%d\n", (int)dlen - (int)token->size);
+	//de("%d\n", (int)dlen - (int)token->size);
 	return dlen - token->size; /* shorter -> negative */
 }
 
@@ -548,7 +548,7 @@ static void tokenise(char *buffer, char *end)
 	{
 		int n;
 		for (n = 0; n < nr_tokens; n++)
-			debug("Token %3u: '%s'\n", n, token_list[n].content);
+			de("Token %3u: '%s'\n", n, token_list[n].content);
 	}
 #endif
 }
@@ -578,7 +578,7 @@ int main(int argc, char **argv)
 		if (strcmp(argv[1], "-v") == 0)
 			verbose_opt = true;
 		else if (strcmp(argv[1], "-d") == 0)
-			debug_opt = true;
+			de_opt = true;
 		else
 			break;
 		memmove(&argv[1], &argv[2], (argc - 2) * sizeof(char *));
@@ -794,7 +794,7 @@ static void build_type_list(void)
 #if 0
 	for (n = 0; n < nr_types; n++) {
 		struct type *type = type_index[n];
-		debug("- %*.*s\n", type->name->content);
+		de("- %*.*s\n", type->name->content);
 	}
 #endif
 }
@@ -1253,7 +1253,7 @@ static void dump_element(const struct element *e, int level)
 
 static void dump_elements(void)
 {
-	if (debug_opt)
+	if (de_opt)
 		dump_element(type_list[0].element, 0);
 }
 

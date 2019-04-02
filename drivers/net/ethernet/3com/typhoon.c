@@ -2469,7 +2469,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    dev->dev_addr);
 
 	/* xp_resp still contains the response to the READ_VERSIONS command.
-	 * For debugging, let the user know what version he has.
+	 * For deging, let the user know what version he has.
 	 */
 	if(xp_resp[0].numDesc == 0) {
 		/* This is the Typhoon 1.0 type Sleep Image, last 16 bits

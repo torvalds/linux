@@ -22,7 +22,7 @@
 #include "event.h"
 #include "scan.h"
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 
 int wl12xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 			  bool *timeout)
@@ -54,10 +54,10 @@ int wl12xx_process_mailbox_events(struct wl1271 *wl)
 	vector = le32_to_cpu(mbox->events_vector);
 	vector &= ~(le32_to_cpu(mbox->events_mask));
 
-	wl1271_debug(DEBUG_EVENT, "MBOX vector: 0x%x", vector);
+	wl1271_de(DE_EVENT, "MBOX vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "status: 0x%x",
+		wl1271_de(DE_EVENT, "status: 0x%x",
 			     mbox->scheduled_scan_status);
 
 		if (wl->scan_wlvif)
@@ -65,7 +65,7 @@ int wl12xx_process_mailbox_events(struct wl1271 *wl)
 	}
 
 	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT,
+		wl1271_de(DE_EVENT,
 			     "PERIODIC_SCAN_REPORT_EVENT (status 0x%0x)",
 			     mbox->scheduled_scan_status);
 

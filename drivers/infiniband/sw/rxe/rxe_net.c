@@ -446,7 +446,7 @@ int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 	}
 
 	if (unlikely(net_xmit_eval(err))) {
-		pr_debug("error sending packet: %d\n", err);
+		pr_de("error sending packet: %d\n", err);
 		return -EAGAIN;
 	}
 

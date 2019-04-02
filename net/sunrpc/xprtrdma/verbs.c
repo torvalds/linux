@@ -66,7 +66,7 @@
  * Globals/Macros
  */
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
@@ -245,7 +245,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		complete(&ia->ri_done);
 		return 0;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 		pr_info("rpcrdma: removing device %s for %s:%s\n",
 			ia->ri_device->name,
 			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));

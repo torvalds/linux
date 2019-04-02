@@ -12,7 +12,7 @@
  * for more details.
  */
 
-/* #define DEBUG 1 */
+/* #define DE 1 */
 #include <linux/export.h>
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
@@ -98,12 +98,12 @@ static unsigned long *find_frame_creation(unsigned long *pc)
 
 		frame_size = get_frame_size(instr);
 		if ((frame_size < 8) || (frame_size & 3)) {
-			pr_debug("    Invalid frame size %d at 0x%p\n",
+			pr_de("    Invalid frame size %d at 0x%p\n",
 				 frame_size, pc);
 			return NULL;
 		}
 
-		pr_debug("    Found frame creation at 0x%p, size %d\n", pc,
+		pr_de("    Found frame creation at 0x%p, size %d\n", pc,
 			 frame_size);
 		return pc;
 	}
@@ -192,9 +192,9 @@ static void microblaze_unwind_inner(struct task_struct *task,
 {
 	int ofs = 0;
 
-	pr_debug("    Unwinding with PC=%p, FP=%p\n", (void *)pc, (void *)fp);
+	pr_de("    Unwinding with PC=%p, FP=%p\n", (void *)pc, (void *)fp);
 	if (!pc || !fp || (pc & 3) || (fp & 3)) {
-		pr_debug("    Invalid state for unwind, aborting\n");
+		pr_de("    Invalid state for unwind, aborting\n");
 		return;
 	}
 	for (; pc != 0;) {
@@ -268,11 +268,11 @@ static void microblaze_unwind_inner(struct task_struct *task,
 			fp = next_fp;
 			leaf_return = 0;
 		} else {
-			pr_debug("    Failed to find previous stack frame\n");
+			pr_de("    Failed to find previous stack frame\n");
 			break;
 		}
 
-		pr_debug("    Next PC=%p, next FP=%p\n",
+		pr_de("    Next PC=%p, next FP=%p\n",
 			 (void *)next_pc, (void *)next_fp);
 	}
 }

@@ -56,23 +56,23 @@ config AIC79XX_BUILD_FIRMWARE
 	or modify the assembler Makefile or the files it includes if your
 	build environment is different than that of the author.
 
-config AIC79XX_DEBUG_ENABLE
-	bool "Compile in Debugging Code"
+config AIC79XX_DE_ENABLE
+	bool "Compile in Deging Code"
 	depends on SCSI_AIC79XX
 	default y
 	help
-	Compile in aic79xx debugging code that can be useful in diagnosing
+	Compile in aic79xx deging code that can be useful in diagnosing
 	driver errors.
 
-config AIC79XX_DEBUG_MASK
-	int "Debug code enable mask (16383 for all debugging)"
+config AIC79XX_DE_MASK
+	int "De code enable mask (16383 for all deging)"
 	depends on SCSI_AIC79XX
 	default "0"
 	help
-	Bit mask of debug options that is only valid if the
-	CONFIG_AIC79XX_DEBUG_ENABLE option is enabled.  The bits in this mask
+	Bit mask of de options that is only valid if the
+	CONFIG_AIC79XX_DE_ENABLE option is enabled.  The bits in this mask
 	are defined in the drivers/scsi/aic7xxx/aic79xx.h - search for the
-	variable ahd_debug in that file to find them.
+	variable ahd_de in that file to find them.
 
 config AIC79XX_REG_PRETTY_PRINT
 	bool "Decode registers during diagnostics"
@@ -80,6 +80,6 @@ config AIC79XX_REG_PRETTY_PRINT
 	default y
 	help
 	Compile in register value tables for the output of expanded register
-	contents in diagnostics.  This make it much easier to understand debug
+	contents in diagnostics.  This make it much easier to understand de
 	output without having to refer to a data book and/or the aic7xxx.reg
 	file.

@@ -1488,7 +1488,7 @@ static void iucv_path_pending(struct iucv_irq_data *data)
 	struct iucv_path *path;
 	char *error;
 
-	BUG_ON(iucv_path_table[ipp->ippathid]);
+	_ON(iucv_path_table[ipp->ippathid]);
 	/* New pathid, handler found. Create a new path struct. */
 	error = iucv_error_no_memory;
 	path = iucv_path_alloc(ipp->ipmsglim, ipp->ipflags1, GFP_ATOMIC);
@@ -1827,7 +1827,7 @@ static void iucv_external_interrupt(struct ext_code ext_code,
 		iucv_sever_pathid(p->ippathid, iucv_error_no_listener);
 		return;
 	}
-	BUG_ON(p->iptype  < 0x01 || p->iptype > 0x09);
+	_ON(p->iptype  < 0x01 || p->iptype > 0x09);
 	work = kmalloc(sizeof(struct iucv_irq_list), GFP_ATOMIC);
 	if (!work) {
 		pr_warn("iucv_external_interrupt: out of memory\n");
@@ -1851,7 +1851,7 @@ static int iucv_pm_prepare(struct device *dev)
 {
 	int rc = 0;
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 	printk(KERN_INFO "iucv_pm_prepare\n");
 #endif
 	if (dev->driver && dev->driver->pm && dev->driver->pm->prepare)
@@ -1861,7 +1861,7 @@ static int iucv_pm_prepare(struct device *dev)
 
 static void iucv_pm_complete(struct device *dev)
 {
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 	printk(KERN_INFO "iucv_pm_complete\n");
 #endif
 	if (dev->driver && dev->driver->pm && dev->driver->pm->complete)
@@ -1899,7 +1899,7 @@ static int iucv_pm_freeze(struct device *dev)
 	struct iucv_irq_list *p, *n;
 	int rc = 0;
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 	printk(KERN_WARNING "iucv_pm_freeze\n");
 #endif
 	if (iucv_pm_state != IUCV_PM_FREEZING) {
@@ -1934,7 +1934,7 @@ static int iucv_pm_thaw(struct device *dev)
 {
 	int rc = 0;
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 	printk(KERN_WARNING "iucv_pm_thaw\n");
 #endif
 	iucv_pm_state = IUCV_PM_THAWING;
@@ -1969,7 +1969,7 @@ static int iucv_pm_restore(struct device *dev)
 {
 	int rc = 0;
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 	printk(KERN_WARNING "iucv_pm_restore %p\n", iucv_path_table);
 #endif
 	if ((iucv_pm_state != IUCV_PM_RESTORING) && iucv_path_table)

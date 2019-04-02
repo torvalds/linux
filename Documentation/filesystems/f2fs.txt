@@ -19,10 +19,10 @@ F2FS and its tools support various parameters not only for configuring on-disk
 layout, but also for selecting allocation and cleaning algorithms.
 
 The following git tree provides the file system formatting tool (mkfs.f2fs),
-a consistency checking tool (fsck.f2fs), and a debugging tool (dump.f2fs).
+a consistency checking tool (fsck.f2fs), and a deging tool (dump.f2fs).
 >> git://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
 
-For reporting bugs and sending patches, please use the following mailing list:
+For reporting s and sending patches, please use the following mailing list:
 >> linux-f2fs-devel@lists.sourceforge.net
 
 ================================================================================
@@ -221,13 +221,13 @@ checkpoint=%s          Set to "disable" to turn off checkpointing. Set to "enabl
                        filesystem was mounted with that option.
 
 ================================================================================
-DEBUGFS ENTRIES
+DEFS ENTRIES
 ================================================================================
 
-/sys/kernel/debug/f2fs/ contains information about all the partitions mounted as
+/sys/kernel/de/f2fs/ contains information about all the partitions mounted as
 f2fs. Each file shows the whole f2fs information.
 
-/sys/kernel/debug/f2fs/status includes:
+/sys/kernel/de/f2fs/status includes:
  - major file system information managed by f2fs currently
  - average SIT information about whole segments
  - current memory footprint consumed by f2fs.
@@ -369,20 +369,20 @@ are cross-referenced correctly or not.
 Note that, initial version of the tool does not fix any inconsistency.
 
 The options consist of:
-  -d debug level [default:0]
+  -d de level [default:0]
 
 dump.f2fs
 ---------
 The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
 file. Each file is dump_ssa and dump_sit.
 
-The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
+The dump.f2fs is used to de on-disk data structures of the f2fs filesystem.
 It shows on-disk inode information recognized by a given inode number, and is
 able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
 ./dump_sit respectively.
 
 The options consist of:
-  -d debug level [default:0]
+  -d de level [default:0]
   -i inode no (hex)
   -s [SIT dump segno from #1~#2 (decimal), for all 0~-1]
   -a [SSA dump segno from #1~#2 (decimal), for all 0~-1]

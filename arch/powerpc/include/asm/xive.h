@@ -53,7 +53,7 @@ struct xive_irq_data {
 };
 #define XIVE_IRQ_FLAG_STORE_EOI	0x01
 #define XIVE_IRQ_FLAG_LSI	0x02
-#define XIVE_IRQ_FLAG_SHIFT_BUG	0x04
+#define XIVE_IRQ_FLAG_SHIFT_	0x04
 #define XIVE_IRQ_FLAG_MASK_FW	0x08
 #define XIVE_IRQ_FLAG_EOI_FW	0x10
 #define XIVE_IRQ_FLAG_H_INT_ESB	0x20

@@ -81,7 +81,7 @@ static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 #ifdef CONFIG_MTD_UBI_FASTMAP
 /* UBI module parameter to enable fastmap automatically on non-fastmap images */
 static bool fm_autoconvert;
-static bool fm_debug;
+static bool fm_de;
 #endif
 
 /* Slab cache for wear-leveling entries */
@@ -916,7 +916,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 
 	ubi->fm_wl_pool.max_size = ubi->fm_pool.max_size / 2;
 	ubi->fm_disabled = !fm_autoconvert;
-	if (fm_debug)
+	if (fm_de)
 		ubi_enable_dbg_chk_fastmap(ubi);
 
 	if (!ubi->fm_disabled && (int)mtd_div_by_eb(ubi->mtd->size, ubi->mtd)
@@ -976,7 +976,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	if (err)
 		goto out_detach;
 
-	err = ubi_debugfs_init_dev(ubi);
+	err = ubi_defs_init_dev(ubi);
 	if (err)
 		goto out_uif;
 
@@ -985,7 +985,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		err = PTR_ERR(ubi->bgt_thread);
 		ubi_err(ubi, "cannot spawn \"%s\", error %d",
 			ubi->bgt_name, err);
-		goto out_debugfs;
+		goto out_defs;
 	}
 
 	ubi_msg(ubi, "attached mtd%d (name \"%s\", size %llu MiB)",
@@ -1019,8 +1019,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	ubi_notify_all(ubi, UBI_VOLUME_ADDED, NULL);
 	return ubi_num;
 
-out_debugfs:
-	ubi_debugfs_exit_dev(ubi);
+out_defs:
+	ubi_defs_exit_dev(ubi);
 out_uif:
 	uif_close(ubi);
 out_detach:
@@ -1067,7 +1067,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 			spin_unlock(&ubi_devices_lock);
 			return -EBUSY;
 		}
-		/* This may only happen if there is a bug */
+		/* This may only happen if there is a  */
 		ubi_err(ubi, "%s reference count %d, destroy anyway",
 			ubi->ubi_name, ubi->ref_count);
 	}
@@ -1080,7 +1080,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	/* If we don't write a new fastmap at detach time we lose all
 	 * EC updates that have been made since the last written fastmap.
-	 * In case of fastmap debugging we omit the update to simulate an
+	 * In case of fastmap deging we omit the update to simulate an
 	 * unclean shutdown. */
 	if (!ubi_dbg_chk_fastmap(ubi))
 		ubi_update_fastmap(ubi);
@@ -1095,7 +1095,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	cancel_work_sync(&ubi->fm_work);
 #endif
-	ubi_debugfs_exit_dev(ubi);
+	ubi_defs_exit_dev(ubi);
 	uif_close(ubi);
 
 	ubi_wl_close(ubi);
@@ -1186,8 +1186,8 @@ static int __init ubi_init(void)
 	int err, i, k;
 
 	/* Ensure that EC and VID headers have correct size */
-	BUILD_BUG_ON(sizeof(struct ubi_ec_hdr) != 64);
-	BUILD_BUG_ON(sizeof(struct ubi_vid_hdr) != 64);
+	BUILD__ON(sizeof(struct ubi_ec_hdr) != 64);
+	BUILD__ON(sizeof(struct ubi_vid_hdr) != 64);
 
 	if (mtd_devs > UBI_MAX_DEVICES) {
 		pr_err("UBI error: too many MTD devices, maximum is %d\n",
@@ -1214,7 +1214,7 @@ static int __init ubi_init(void)
 		goto out_dev_unreg;
 	}
 
-	err = ubi_debugfs_init();
+	err = ubi_defs_init();
 	if (err)
 		goto out_slab;
 
@@ -1282,7 +1282,7 @@ out_detach:
 			ubi_detach_mtd_dev(ubi_devices[k]->ubi_num, 1);
 			mutex_unlock(&ubi_devices_mutex);
 		}
-	ubi_debugfs_exit();
+	ubi_defs_exit();
 out_slab:
 	kmem_cache_destroy(ubi_wl_entry_slab);
 out_dev_unreg:
@@ -1306,7 +1306,7 @@ static void __exit ubi_exit(void)
 			ubi_detach_mtd_dev(ubi_devices[i]->ubi_num, 1);
 			mutex_unlock(&ubi_devices_mutex);
 		}
-	ubi_debugfs_exit();
+	ubi_defs_exit();
 	kmem_cache_destroy(ubi_wl_entry_slab);
 	misc_deregister(&ubi_ctrl_cdev);
 	class_unregister(&ubi_class);
@@ -1458,8 +1458,8 @@ MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|pa
 #ifdef CONFIG_MTD_UBI_FASTMAP
 module_param(fm_autoconvert, bool, 0644);
 MODULE_PARM_DESC(fm_autoconvert, "Set this parameter to enable fastmap automatically on images without a fastmap.");
-module_param(fm_debug, bool, 0);
-MODULE_PARM_DESC(fm_debug, "Set this parameter to enable fastmap debugging by default. Warning, this will make fastmap slow!");
+module_param(fm_de, bool, 0);
+MODULE_PARM_DESC(fm_de, "Set this parameter to enable fastmap deging by default. Warning, this will make fastmap slow!");
 #endif
 MODULE_VERSION(__stringify(UBI_VERSION));
 MODULE_DESCRIPTION("UBI - Unsorted Block Images");

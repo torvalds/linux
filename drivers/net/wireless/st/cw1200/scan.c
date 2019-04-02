@@ -107,7 +107,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 
 	wsm_lock_tx(priv);
 
-	BUG_ON(priv->scan.req);
+	_ON(priv->scan.req);
 	priv->scan.req = req;
 	priv->scan.n_ssids = 0;
 	priv->scan.status = 0;
@@ -161,7 +161,7 @@ void cw1200_scan_work(struct work_struct *work)
 			pm.mode = WSM_PSM_PS;
 			cw1200_set_pm(priv, &pm);
 		} else if (priv->join_status == CW1200_JOIN_STATUS_MONITOR) {
-			/* FW bug: driver has to restart p2p-dev mode
+			/* FW : driver has to restart p2p-dev mode
 			 * after scan
 			 */
 			cw1200_disable_listening(priv);
@@ -273,7 +273,7 @@ fail:
 
 static void cw1200_scan_restart_delayed(struct cw1200_common *priv)
 {
-	/* FW bug: driver has to restart p2p-dev mode after scan. */
+	/* FW : driver has to restart p2p-dev mode after scan. */
 	if (priv->join_status == CW1200_JOIN_STATUS_MONITOR) {
 		cw1200_enable_listening(priv);
 		cw1200_update_filtering(priv);
@@ -443,7 +443,7 @@ void cw1200_probe_work(struct work_struct *work)
 		}
 	}
 
-	/* FW bug: driver has to restart p2p-dev mode after scan */
+	/* FW : driver has to restart p2p-dev mode after scan */
 	if (priv->join_status == CW1200_JOIN_STATUS_MONITOR)
 		cw1200_disable_listening(priv);
 	ret = wsm_set_template_frame(priv, &frame);
@@ -457,7 +457,7 @@ void cw1200_probe_work(struct work_struct *work)
 	skb_push(frame.skb, txpriv->offset);
 	if (!ret)
 		IEEE80211_SKB_CB(frame.skb)->flags |= IEEE80211_TX_STAT_ACK;
-	BUG_ON(cw1200_queue_remove(queue, priv->pending_frame_id));
+	_ON(cw1200_queue_remove(queue, priv->pending_frame_id));
 
 	if (ret) {
 		priv->scan.direct_probe = 0;

@@ -341,7 +341,7 @@ static void pps_device_destruct(struct device *dev)
 	cdev_del(&pps->cdev);
 
 	/* Now we can release the ID for re-use */
-	pr_debug("deallocating pps%d\n", pps->id);
+	pr_de("deallocating pps%d\n", pps->id);
 	mutex_lock(&pps_idr_lock);
 	idr_remove(&pps_idr, pps->id);
 	mutex_unlock(&pps_idr_lock);
@@ -393,7 +393,7 @@ int pps_register_cdev(struct pps_device *pps)
 	/* Override the release function with our own */
 	pps->dev->release = pps_device_destruct;
 
-	pr_debug("source %s got cdev (%d:%d)\n", pps->info.name,
+	pr_de("source %s got cdev (%d:%d)\n", pps->info.name,
 			MAJOR(pps_devt), pps->id);
 
 	return 0;
@@ -411,7 +411,7 @@ out_unlock:
 
 void pps_unregister_cdev(struct pps_device *pps)
 {
-	pr_debug("unregistering pps%d\n", pps->id);
+	pr_de("unregistering pps%d\n", pps->id);
 	pps->lookup_cookie = NULL;
 	device_destroy(pps_class, pps->dev->devt);
 }

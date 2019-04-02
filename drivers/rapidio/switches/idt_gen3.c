@@ -45,7 +45,7 @@ idtg3_route_add_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 	u32 entry = route_port;
 	int err = 0;
 
-	pr_debug("RIO: %s t=0x%x did_%x to p_%x\n",
+	pr_de("RIO: %s t=0x%x did_%x to p_%x\n",
 		 __func__, table, route_destid, entry);
 
 	if (route_destid > 0xFF)
@@ -167,7 +167,7 @@ idtg3_em_init(struct rio_dev *rdev)
 	int i, tmp;
 	u32 rval;
 
-	pr_debug("RIO: %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
+	pr_de("RIO: %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
 
 	/* Disable assertion of interrupt signal */
 	rio_write_config_32(rdev, RIO_EM_DEV_INT_EN, 0);
@@ -273,7 +273,7 @@ static struct rio_switch_ops idtg3_switch_ops = {
 
 static int idtg3_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 
 	spin_lock(&rdev->rswitch->lock);
 
@@ -299,7 +299,7 @@ static int idtg3_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 
 static void idtg3_remove(struct rio_dev *rdev)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 	spin_lock(&rdev->rswitch->lock);
 	if (rdev->rswitch->ops == &idtg3_switch_ops)
 		rdev->rswitch->ops = NULL;
@@ -321,7 +321,7 @@ static void idtg3_shutdown(struct rio_dev *rdev)
 	if (!rdev->do_enum)
 		return;
 
-	pr_debug("RIO: %s(%s)\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s(%s)\n", __func__, rio_name(rdev));
 
 	rio_read_config_32(rdev, RIO_PW_ROUTE, &rval);
 	i = RIO_GET_PORT_NUM(rdev->swpinfo);
@@ -343,7 +343,7 @@ static void idtg3_shutdown(struct rio_dev *rdev)
 	if (rdev->net->hport->host_deviceid == destid) {
 		rio_write_config_32(rdev,
 				    rdev->em_efptr + RIO_EM_PW_TX_CTRL, 0);
-		pr_debug("RIO: %s(%s) PW transmission disabled\n",
+		pr_de("RIO: %s(%s) PW transmission disabled\n",
 			 __func__, rio_name(rdev));
 	}
 }
@@ -369,9 +369,9 @@ static int __init idtg3_init(void)
 
 static void __exit idtg3_exit(void)
 {
-	pr_debug("RIO: %s\n", __func__);
+	pr_de("RIO: %s\n", __func__);
 	rio_unregister_driver(&idtg3_driver);
-	pr_debug("RIO: %s done\n", __func__);
+	pr_de("RIO: %s done\n", __func__);
 }
 
 device_initcall(idtg3_init);

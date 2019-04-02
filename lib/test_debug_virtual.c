@@ -18,7 +18,7 @@ struct foo {
 
 static struct foo *foo;
 
-static int __init test_debug_virtual_init(void)
+static int __init test_de_virtual_init(void)
 {
 	phys_addr_t pa;
 	void *va;
@@ -38,13 +38,13 @@ static int __init test_debug_virtual_init(void)
 
 	return 0;
 }
-module_init(test_debug_virtual_init);
+module_init(test_de_virtual_init);
 
-static void __exit test_debug_virtual_exit(void)
+static void __exit test_de_virtual_exit(void)
 {
 	kfree(foo);
 }
-module_exit(test_debug_virtual_exit);
+module_exit(test_de_virtual_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Test module for CONFIG_DEBUG_VIRTUAL");
+MODULE_DESCRIPTION("Test module for CONFIG_DE_VIRTUAL");

@@ -262,10 +262,10 @@ static void oaktrail_hdmi_i2c_gpio_fix(void)
 	}
 
 	temp = readl(base + 0x44);
-	DRM_DEBUG_DRIVER("old gpio val %x\n", temp);
+	DRM_DE_DRIVER("old gpio val %x\n", temp);
 	writel((temp | 0x00000a00), (base +  0x44));
 	temp = readl(base + 0x44);
-	DRM_DEBUG_DRIVER("new gpio val %x\n", temp);
+	DRM_DE_DRIVER("new gpio val %x\n", temp);
 
 	iounmap(base);
 }

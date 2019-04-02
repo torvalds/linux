@@ -20,7 +20,7 @@
 #include <linux/highmem.h>
 #include <linux/console.h>
 #include <linux/pfn.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kexec.h>
 #include <linux/sizes.h>
 #include <linux/device.h>
@@ -30,11 +30,11 @@
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/cache.h>
 #include <asm/cdmm.h>
 #include <asm/cpu.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/dma-coherence.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -151,7 +151,7 @@ void __init detect_memory_region(phys_addr_t start, phys_addr_t sz_min, phys_add
 			break;
 	}
 
-	pr_debug("Memory: %lluMB of RAM detected at 0x%llx (min: %lluMB, max: %lluMB)\n",
+	pr_de("Memory: %lluMB of RAM detected at 0x%llx (min: %lluMB, max: %lluMB)\n",
 		((unsigned long long) size) / SZ_1M,
 		(unsigned long long) start,
 		((unsigned long long) sz_min) / SZ_1M,
@@ -563,9 +563,9 @@ static void __init bootmem_init(void)
 		offset = __pa_symbol(_text) - __pa_symbol(VMLINUX_LOAD_ADDRESS);
 		memblock_free(__pa_symbol(VMLINUX_LOAD_ADDRESS), offset);
 
-#if defined(CONFIG_DEBUG_KERNEL) && defined(CONFIG_DEBUG_INFO)
+#if defined(CONFIG_DE_KERNEL) && defined(CONFIG_DE_INFO)
 		/*
-		 * This information is necessary when debugging the kernel
+		 * This information is necessary when deging the kernel
 		 * But is a security vulnerability otherwise!
 		 */
 		show_kernel_relocation(KERN_INFO);
@@ -983,7 +983,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_early_printk();
 #endif
 	cpu_report();
-	check_bugs_early();
+	check_s_early();
 
 #if defined(CONFIG_VT)
 #if defined(CONFIG_VGA_CONSOLE)
@@ -1010,14 +1010,14 @@ unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 unsigned long fw_passed_dtb;
 #endif
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *mips_debugfs_dir;
-static int __init debugfs_mips(void)
+#ifdef CONFIG_DE_FS
+struct dentry *mips_defs_dir;
+static int __init defs_mips(void)
 {
-	mips_debugfs_dir = debugfs_create_dir("mips", NULL);
+	mips_defs_dir = defs_create_dir("mips", NULL);
 	return 0;
 }
-arch_initcall(debugfs_mips);
+arch_initcall(defs_mips);
 #endif
 
 #ifdef CONFIG_DMA_MAYBE_COHERENT

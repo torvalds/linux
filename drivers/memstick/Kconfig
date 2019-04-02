@@ -12,11 +12,11 @@ menuconfig MEMSTICK
 
 if MEMSTICK
 
-config MEMSTICK_DEBUG
-	bool "MemoryStick debugging"
+config MEMSTICK_DE
+	bool "MemoryStick deging"
 	help
 	  This is an option for use by developers; most people should
-	  say N here.  This enables MemoryStick core and driver debugging.
+	  say N here.  This enables MemoryStick core and driver deging.
 
 
 source "drivers/memstick/core/Kconfig"

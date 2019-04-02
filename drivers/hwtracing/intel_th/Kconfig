@@ -6,7 +6,7 @@ config INTEL_TH
 	  produce, switch and output trace data from multiple hardware and
 	  software sources over several types of trace output ports encoded
 	  in System Trace Protocol (MIPI STPv2) and is intended to perform
-	  full system debugging.
+	  full system deging.
 
 	  This option enables intel_th bus and common code used by TH
 	  subdevices to interact with each other and hardware and for
@@ -31,8 +31,8 @@ config INTEL_TH_ACPI
 	help
 	  Intel(R) Trace Hub may exist as an ACPI device. This option enables
 	  support glue layer for ACPI-based Intel TH. This typically implies
-	  'host debugger' mode, that is, the trace configuration and capture
-	  is handled by an external debug host and corresponding controls will
+	  'host deger' mode, that is, the trace configuration and capture
+	  is handled by an external de host and corresponding controls will
 	  not be available on the target.
 
 	  Say Y here to enable ACPI Intel TH support.
@@ -76,10 +76,10 @@ config INTEL_TH_PTI
 
 	  Say Y to enable PTI output of Intel TH data.
 
-config INTEL_TH_DEBUG
-	bool "Intel(R) Trace Hub debugging"
-	depends on DEBUG_FS
+config INTEL_TH_DE
+	bool "Intel(R) Trace Hub deging"
+	depends on DE_FS
 	help
-	  Say Y here to enable debugging.
+	  Say Y here to enable deging.
 
 endif

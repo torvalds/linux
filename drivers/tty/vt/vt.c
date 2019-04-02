@@ -29,7 +29,7 @@
  * User-defined bell sound, new setterm control sequences and printk
  * redirection by Martin Mares <mj@k332.feld.cvut.cz> 19-Nov-95
  *
- * APM screenblank bug fixed Takashi Manabe <manabe@roy.dsl.tutics.tut.jp>
+ * APM screenblank  fixed Takashi Manabe <manabe@roy.dsl.tutics.tut.jp>
  *
  * Merge with the abstract console driver by Geert Uytterhoeven
  * <geert@linux-m68k.org>, Jan 1997.
@@ -194,7 +194,7 @@ static DECLARE_WORK(con_driver_unregister_work, con_driver_unregister_callback);
  * fg_console is the current virtual console,
  * last_console is the last used one,
  * want_console is the console we want to switch to,
- * saved_* variants are for save/restore around kernel debugger enter/leave
+ * saved_* variants are for save/restore around kernel deger enter/leave
  */
 int fg_console;
 int last_console;
@@ -329,7 +329,7 @@ void schedule_console_callback(void)
 #define get_vc_uniscr(vc) vc->vc_uni_screen
 #endif
 
-#define VC_UNI_SCREEN_DEBUG 0
+#define VC_UNI_SCREEN_DE 0
 
 typedef uint32_t char32_t;
 
@@ -552,7 +552,7 @@ void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
 	int offset = row * vc->vc_size_row + col * 2;
 	unsigned long pos;
 
-	BUG_ON(!uniscr);
+	_ON(!uniscr);
 
 	pos = (unsigned long)screenpos(vc, offset, viewed);
 	if (pos >= vc->vc_origin && pos < vc->vc_scr_end) {
@@ -581,14 +581,14 @@ void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
 	}
 }
 
-/* this is for validation and debugging only */
-static void vc_uniscr_debug_check(struct vc_data *vc)
+/* this is for validation and deging only */
+static void vc_uniscr_de_check(struct vc_data *vc)
 {
 	struct uni_screen *uniscr = get_vc_uniscr(vc);
 	unsigned short *p;
 	int x, y, mask;
 
-	if (!VC_UNI_SCREEN_DEBUG || !uniscr)
+	if (!VC_UNI_SCREEN_DE || !uniscr)
 		return;
 
 	WARN_CONSOLE_UNLOCKED();
@@ -2789,7 +2789,7 @@ rescan_last_byte:
 		do_con_trol(tty, vc, orig);
 	}
 	con_flush(vc, draw_from, draw_to, &draw_x);
-	vc_uniscr_debug_check(vc);
+	vc_uniscr_de_check(vc);
 	console_conditional_schedule();
 	notify_update(vc);
 	console_unlock();
@@ -3264,7 +3264,7 @@ static void con_close(struct tty_struct *tty, struct file *filp)
 static void con_shutdown(struct tty_struct *tty)
 {
 	struct vc_data *vc = tty->driver_data;
-	BUG_ON(vc == NULL);
+	_ON(vc == NULL);
 	console_lock();
 	vc->port.tty = NULL;
 	console_unlock();
@@ -3825,18 +3825,18 @@ int con_is_bound(const struct consw *csw)
 EXPORT_SYMBOL(con_is_bound);
 
 /**
- * con_debug_enter - prepare the console for the kernel debugger
+ * con_de_enter - prepare the console for the kernel deger
  * @sw: console driver
  *
- * Called when the console is taken over by the kernel debugger, this
+ * Called when the console is taken over by the kernel deger, this
  * function needs to save the current console state, then put the console
- * into a state suitable for the kernel debugger.
+ * into a state suitable for the kernel deger.
  *
  * RETURNS:
  * Zero on success, nonzero if a failure occurred when trying to prepare
- * the console for the debugger.
+ * the console for the deger.
  */
-int con_debug_enter(struct vc_data *vc)
+int con_de_enter(struct vc_data *vc)
 {
 	int ret = 0;
 
@@ -3847,8 +3847,8 @@ int con_debug_enter(struct vc_data *vc)
 	saved_console_blanked = console_blanked;
 	vc->vc_mode = KD_TEXT;
 	console_blanked = 0;
-	if (vc->vc_sw->con_debug_enter)
-		ret = vc->vc_sw->con_debug_enter(vc);
+	if (vc->vc_sw->con_de_enter)
+		ret = vc->vc_sw->con_de_enter(vc);
 #ifdef CONFIG_KGDB_KDB
 	/* Set the initial LINES variable if it is not already set */
 	if (vc->vc_rows < 999) {
@@ -3880,20 +3880,20 @@ int con_debug_enter(struct vc_data *vc)
 #endif /* CONFIG_KGDB_KDB */
 	return ret;
 }
-EXPORT_SYMBOL_GPL(con_debug_enter);
+EXPORT_SYMBOL_GPL(con_de_enter);
 
 /**
- * con_debug_leave - restore console state
+ * con_de_leave - restore console state
  * @sw: console driver
  *
- * Restore the console state to what it was before the kernel debugger
+ * Restore the console state to what it was before the kernel deger
  * was invoked.
  *
  * RETURNS:
  * Zero on success, nonzero if a failure occurred when trying to restore
  * the console.
  */
-int con_debug_leave(void)
+int con_de_leave(void)
 {
 	struct vc_data *vc;
 	int ret = 0;
@@ -3905,11 +3905,11 @@ int con_debug_leave(void)
 	vc_cons[fg_console].d->vc_mode = saved_vc_mode;
 
 	vc = vc_cons[fg_console].d;
-	if (vc->vc_sw->con_debug_leave)
-		ret = vc->vc_sw->con_debug_leave(vc);
+	if (vc->vc_sw->con_de_leave)
+		ret = vc->vc_sw->con_de_leave(vc);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(con_debug_leave);
+EXPORT_SYMBOL_GPL(con_de_leave);
 
 static int do_register_con_driver(const struct consw *csw, int first, int last)
 {

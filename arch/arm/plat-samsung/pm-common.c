@@ -46,7 +46,7 @@ void s3c_pm_do_save(struct sleep_save *ptr, int count)
 void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
 {
 	for (; count > 0; count--, ptr++) {
-		pr_debug("restore %p (restore %08lx, was %08x)\n",
+		pr_de("restore %p (restore %08lx, was %08x)\n",
 				ptr->reg, ptr->val, readl_relaxed(ptr->reg));
 
 		writel_relaxed(ptr->val, ptr->reg);
@@ -60,7 +60,7 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
  * side effects of the function in case registers that hardware might need
  * to work has been restored.
  *
- * WARNING: Do not put any debug in here that may effect memory or use
+ * WARNING: Do not put any de in here that may effect memory or use
  * peripherals, as things may be changing!
 */
 

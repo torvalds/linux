@@ -24,7 +24,7 @@
 #include "smumgr.h"
 #include "vega10_inc.h"
 #include "soc15_common.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 
 /* MP Apertures */

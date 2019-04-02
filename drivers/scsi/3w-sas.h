@@ -38,7 +38,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-   Bugs/Comments/Suggestions should be mailed to:
+   s/Comments/Suggestions should be mailed to:
    aradford@gmail.com
 */
 
@@ -48,7 +48,7 @@
 /* AEN severity table */
 static char *twl_aen_severity_table[] =
 {
-	"None", "ERROR", "WARNING", "INFO", "DEBUG", NULL
+	"None", "ERROR", "WARNING", "INFO", "DE", NULL
 };
 
 /* Liberator register offsets */
@@ -84,7 +84,7 @@ static char *twl_aen_severity_table[] =
 #define TW_AEN_SOFT_RESET        0x0001
 #define TW_AEN_SYNC_TIME_WITH_HOST 0x031
 #define TW_AEN_SEVERITY_ERROR    0x1
-#define TW_AEN_SEVERITY_DEBUG    0x4
+#define TW_AEN_SEVERITY_DE    0x4
 #define TW_AEN_NOT_RETRIEVED 0x1
 
 /* Command state defines */

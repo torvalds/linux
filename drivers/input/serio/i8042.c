@@ -114,15 +114,15 @@ module_param_named(nopnp, i8042_nopnp, bool, 0);
 MODULE_PARM_DESC(nopnp, "Do not use PNP to detect controller settings");
 #endif
 
-#define DEBUG
-#ifdef DEBUG
-static bool i8042_debug;
-module_param_named(debug, i8042_debug, bool, 0600);
-MODULE_PARM_DESC(debug, "Turn i8042 debugging mode on and off");
+#define DE
+#ifdef DE
+static bool i8042_de;
+module_param_named(de, i8042_de, bool, 0600);
+MODULE_PARM_DESC(de, "Turn i8042 deging mode on and off");
 
 static bool i8042_unmask_kbd_data;
 module_param_named(unmask_kbd_data, i8042_unmask_kbd_data, bool, 0600);
-MODULE_PARM_DESC(unmask_kbd_data, "Unconditional enable (may reveal sensitive data) of normally sanitize-filtered kbd data traffic debug log [pre-condition: i8042.debug=1 enabled]");
+MODULE_PARM_DESC(unmask_kbd_data, "Unconditional enable (may reveal sensitive data) of normally sanitize-filtered kbd data traffic de log [pre-condition: i8042.de=1 enabled]");
 #endif
 
 static bool i8042_bypass_aux_irq_test;

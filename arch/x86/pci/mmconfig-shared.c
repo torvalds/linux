@@ -754,7 +754,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 		dev_warn(dev, "fail to add MMCONFIG (out of memory)\n");
 		rc = -ENOMEM;
 	} else if (!pci_mmcfg_check_reserved(dev, cfg, 0)) {
-		dev_warn(dev, FW_BUG "MMCONFIG %pR isn't reserved\n",
+		dev_warn(dev, FW_ "MMCONFIG %pR isn't reserved\n",
 			 &cfg->res);
 	} else {
 		/* Insert resource if it's not in boot stage */

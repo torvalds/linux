@@ -2,25 +2,25 @@
 
 #include "notifier-error-inject.h"
 
-static int debugfs_errno_set(void *data, u64 val)
+static int defs_errno_set(void *data, u64 val)
 {
 	*(int *)data = clamp_t(int, val, -MAX_ERRNO, 0);
 	return 0;
 }
 
-static int debugfs_errno_get(void *data, u64 *val)
+static int defs_errno_get(void *data, u64 *val)
 {
 	*val = *(int *)data;
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_errno, debugfs_errno_get, debugfs_errno_set,
+DEFINE_SIMPLE_ATTRIBUTE(fops_errno, defs_errno_get, defs_errno_set,
 			"%lld\n");
 
-static struct dentry *debugfs_create_errno(const char *name, umode_t mode,
+static struct dentry *defs_create_errno(const char *name, umode_t mode,
 				struct dentry *parent, int *value)
 {
-	return debugfs_create_file(name, mode, parent, value, &fops_errno);
+	return defs_create_file(name, mode, parent, value, &fops_errno);
 }
 
 static int notifier_err_inject_callback(struct notifier_block *nb,
@@ -57,33 +57,33 @@ struct dentry *notifier_err_inject_init(const char *name, struct dentry *parent,
 	err_inject->nb.notifier_call = notifier_err_inject_callback;
 	err_inject->nb.priority = priority;
 
-	dir = debugfs_create_dir(name, parent);
+	dir = defs_create_dir(name, parent);
 	if (!dir)
 		return ERR_PTR(-ENOMEM);
 
-	actions_dir = debugfs_create_dir("actions", dir);
+	actions_dir = defs_create_dir("actions", dir);
 	if (!actions_dir)
 		goto fail;
 
 	for (action = err_inject->actions; action->name; action++) {
 		struct dentry *action_dir;
 
-		action_dir = debugfs_create_dir(action->name, actions_dir);
+		action_dir = defs_create_dir(action->name, actions_dir);
 		if (!action_dir)
 			goto fail;
 
 		/*
-		 * Create debugfs r/w file containing action->error. If
+		 * Create defs r/w file containing action->error. If
 		 * notifier call chain is called with action->val, it will
 		 * fail with the error code
 		 */
-		if (!debugfs_create_errno("error", mode, action_dir,
+		if (!defs_create_errno("error", mode, action_dir,
 					&action->error))
 			goto fail;
 	}
 	return dir;
 fail:
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL_GPL(notifier_err_inject_init);
@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(notifier_err_inject_init);
 static int __init err_inject_init(void)
 {
 	notifier_err_inject_dir =
-		debugfs_create_dir("notifier-error-inject", NULL);
+		defs_create_dir("notifier-error-inject", NULL);
 
 	if (!notifier_err_inject_dir)
 		return -ENOMEM;
@@ -101,7 +101,7 @@ static int __init err_inject_init(void)
 
 static void __exit err_inject_exit(void)
 {
-	debugfs_remove_recursive(notifier_err_inject_dir);
+	defs_remove_recursive(notifier_err_inject_dir);
 }
 
 module_init(err_inject_init);

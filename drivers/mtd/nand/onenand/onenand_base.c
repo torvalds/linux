@@ -591,7 +591,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 				mtd->ecc_stats.failed++;
 				return -EBADMSG;
 			} else if (ecc & ONENAND_ECC_1BIT_ALL) {
-				printk(KERN_DEBUG "%s: correctable ECC error = 0x%04x\n",
+				printk(KERN_DE "%s: correctable ECC error = 0x%04x\n",
 					__func__, ecc);
 				mtd->ecc_stats.corrected++;
 			}
@@ -1133,7 +1133,7 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int ret = 0;
 	int writesize = this->writesize;
 
-	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
+	pr_de("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
 			(int)len);
 
 	oobsize = mtd_oobavail(mtd, ops);
@@ -1234,7 +1234,7 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int ret = 0, boundary = 0;
 	int writesize = this->writesize;
 
-	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
+	pr_de("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
 			(int)len);
 
 	oobsize = mtd_oobavail(mtd, ops);
@@ -1362,7 +1362,7 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 
 	from += ops->ooboffs;
 
-	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
+	pr_de("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
 			(int)len);
 
 	/* Initialize return length value */
@@ -1501,7 +1501,7 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
 	if (interrupt & ONENAND_INT_READ) {
 		ecc = onenand_read_ecc(this);
 		if (ecc & ONENAND_ECC_2BIT_ALL) {
-			printk(KERN_DEBUG "%s: ecc 0x%04x ctrl 0x%04x "
+			printk(KERN_DE "%s: ecc 0x%04x ctrl 0x%04x "
 			       "intr 0x%04x addr1 %#x addr8 %#x\n",
 			       __func__, ecc, ctrl, interrupt, addr1, addr8);
 			return ONENAND_BBT_READ_ECC_ERROR;
@@ -1515,7 +1515,7 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
 
 	/* Initial bad block case: 0x2400 or 0x0400 */
 	if (ctrl & ONENAND_CTRL_ERROR) {
-		printk(KERN_DEBUG "%s: ctrl 0x%04x intr 0x%04x addr1 %#x "
+		printk(KERN_DE "%s: ctrl 0x%04x intr 0x%04x addr1 %#x "
 		       "addr8 %#x\n", __func__, ctrl, interrupt, addr1, addr8);
 		return ONENAND_BBT_READ_ERROR;
 	}
@@ -1540,7 +1540,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 	size_t len = ops->ooblen;
 	u_char *buf = ops->oobbuf;
 
-	pr_debug("%s: from = 0x%08x, len = %zi\n", __func__, (unsigned int)from,
+	pr_de("%s: from = 0x%08x, len = %zi\n", __func__, (unsigned int)from,
 			len);
 
 	/* Initialize return value */
@@ -1713,7 +1713,7 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Wait for any existing operation to clear */
 	onenand_panic_wait(mtd);
 
-	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
+	pr_de("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
 			(int)len);
 
 	/* Reject writes, which are not page aligned */
@@ -1804,7 +1804,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 	u_char *oobbuf;
 	int ret = 0, cmd;
 
-	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
+	pr_de("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
 			(int)len);
 
 	/* Initialize retlen, in case of early exit */
@@ -1987,7 +1987,7 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 
 	to += ops->ooboffs;
 
-	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
+	pr_de("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
 			(int)len);
 
 	/* Initialize retlen, in case of early exit */
@@ -2349,7 +2349,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct mtd_erase_region_info *region = NULL;
 	loff_t region_offset = 0;
 
-	pr_debug("%s: start=0x%012llx, len=%llu\n", __func__,
+	pr_de("%s: start=0x%012llx, len=%llu\n", __func__,
 			(unsigned long long)instr->addr,
 			(unsigned long long)instr->len);
 
@@ -2405,7 +2405,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
  */
 static void onenand_sync(struct mtd_info *mtd)
 {
-	pr_debug("%s: called\n", __func__);
+	pr_de("%s: called\n", __func__);
 
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_SYNCING);
@@ -2862,19 +2862,19 @@ static int onenand_otp_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 		status &= 0x60;
 
 		if (status == 0x60) {
-			printk(KERN_DEBUG "\nBLOCK\tSTATUS\n");
-			printk(KERN_DEBUG "1st Block\tLOCKED\n");
-			printk(KERN_DEBUG "OTP Block\tLOCKED\n");
+			printk(KERN_DE "\nBLOCK\tSTATUS\n");
+			printk(KERN_DE "1st Block\tLOCKED\n");
+			printk(KERN_DE "OTP Block\tLOCKED\n");
 		} else if (status == 0x20) {
-			printk(KERN_DEBUG "\nBLOCK\tSTATUS\n");
-			printk(KERN_DEBUG "1st Block\tLOCKED\n");
-			printk(KERN_DEBUG "OTP Block\tUN-LOCKED\n");
+			printk(KERN_DE "\nBLOCK\tSTATUS\n");
+			printk(KERN_DE "1st Block\tLOCKED\n");
+			printk(KERN_DE "OTP Block\tUN-LOCKED\n");
 		} else if (status == 0x40) {
-			printk(KERN_DEBUG "\nBLOCK\tSTATUS\n");
-			printk(KERN_DEBUG "1st Block\tUN-LOCKED\n");
-			printk(KERN_DEBUG "OTP Block\tLOCKED\n");
+			printk(KERN_DE "\nBLOCK\tSTATUS\n");
+			printk(KERN_DE "1st Block\tUN-LOCKED\n");
+			printk(KERN_DE "OTP Block\tLOCKED\n");
 		} else {
-			printk(KERN_DEBUG "Reboot to check\n");
+			printk(KERN_DE "Reboot to check\n");
 		}
 
 		written += thislen;
@@ -3231,7 +3231,7 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 	else if (otp == 3)
 		buf[otp_lock_offset] = 0xF0;
 	else if (otp != 0)
-		printk(KERN_DEBUG "[OneNAND] Invalid option selected for OTP\n");
+		printk(KERN_DE "[OneNAND] Invalid option selected for OTP\n");
 
 	ret = onenand_otp_walk(mtd, from, len, &retlen, buf, do_otp_lock, MTD_OTP_USER);
 
@@ -3313,15 +3313,15 @@ static void onenand_check_features(struct mtd_info *mtd)
 	}
 
 	if (this->options & ONENAND_HAS_CONT_LOCK)
-		printk(KERN_DEBUG "Lock scheme is Continuous Lock\n");
+		printk(KERN_DE "Lock scheme is Continuous Lock\n");
 	if (this->options & ONENAND_HAS_UNLOCK_ALL)
-		printk(KERN_DEBUG "Chip support all block unlock\n");
+		printk(KERN_DE "Chip support all block unlock\n");
 	if (this->options & ONENAND_HAS_2PLANE)
-		printk(KERN_DEBUG "Chip has 2 plane\n");
+		printk(KERN_DE "Chip has 2 plane\n");
 	if (this->options & ONENAND_HAS_4KB_PAGE)
-		printk(KERN_DEBUG "Chip has 4KiB pagesize\n");
+		printk(KERN_DE "Chip has 4KiB pagesize\n");
 	if (this->options & ONENAND_HAS_CACHE_PROGRAM)
-		printk(KERN_DEBUG "Chip has cache program feature\n");
+		printk(KERN_DE "Chip has cache program feature\n");
 }
 
 /**
@@ -3376,7 +3376,7 @@ static int onenand_check_maf(int manuf)
 	else
 		name = "Unknown";
 
-	printk(KERN_DEBUG "OneNAND Manufacturer: %s (0x%0x)\n", name, manuf);
+	printk(KERN_DE "OneNAND Manufacturer: %s (0x%0x)\n", name, manuf);
 
 	return (i == size);
 }
@@ -3521,7 +3521,7 @@ static int flexonenand_check_blocks_erased(struct mtd_info *mtd, int start, int 
 	};
 	loff_t addr;
 
-	printk(KERN_DEBUG "Check blocks from %d to %d\n", start, end);
+	printk(KERN_DE "Check blocks from %d to %d\n", start, end);
 
 	for (block = start; block <= end; block++) {
 		addr = flexonenand_addr(this, block);

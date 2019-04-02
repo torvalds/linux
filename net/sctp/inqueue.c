@@ -27,7 +27,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -231,7 +231,7 @@ new_skb:
 		chunk->end_of_packet = 1;
 	}
 
-	pr_debug("+++sctp_inq_pop+++ chunk:%p[%s], length:%d, skb->len:%d\n",
+	pr_de("+++sctp_inq_pop+++ chunk:%p[%s], length:%d, skb->len:%d\n",
 		 chunk, sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)),
 		 ntohs(chunk->chunk_hdr->length), chunk->skb->len);
 

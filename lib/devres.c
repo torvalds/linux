@@ -136,7 +136,7 @@ void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res)
 	resource_size_t size;
 	void __iomem *dest_ptr;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!res || resource_type(res) != IORESOURCE_MEM) {
 		dev_err(dev, "invalid resource\n");
@@ -320,7 +320,7 @@ void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 {
 	void __iomem **tbl;
 
-	BUG_ON(bar >= PCIM_IOMAP_MAX);
+	_ON(bar >= PCIM_IOMAP_MAX);
 
 	tbl = (void __iomem **)pcim_iomap_table(pdev);
 	if (!tbl || tbl[bar])	/* duplicate mappings not allowed */
@@ -346,7 +346,7 @@ void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr)
 	pci_iounmap(pdev, addr);
 
 	tbl = (void __iomem **)pcim_iomap_table(pdev);
-	BUG_ON(!tbl);
+	_ON(!tbl);
 
 	for (i = 0; i < PCIM_IOMAP_MAX; i++)
 		if (tbl[i] == addr) {

@@ -187,7 +187,7 @@ regex_c=(
 	'/^TASK_PFA_SET([^,]*, *\([[:alnum:]_]*\))/task_set_\1/'
 	'/^TASK_PFA_CLEAR([^,]*, *\([[:alnum:]_]*\))/task_clear_\1/'
 	'/^DEF_MMIO_\(IN\|OUT\)_[XD](\([[:alnum:]_]*\),[^)]*)/\2/'
-	'/^DEBUGGER_BOILERPLATE(\([[:alnum:]_]*\))/\1/'
+	'/^DEGER_BOILERPLATE(\([[:alnum:]_]*\))/\1/'
 	'/^DEF_PCI_AC_\(\|NO\)RET(\([[:alnum:]_]*\).*/\2/'
 	'/^PCI_OP_READ(\(\w*\).*[1-4])/pci_bus_read_config_\1/'
 	'/^PCI_OP_WRITE(\(\w*\).*[1-4])/pci_bus_write_config_\1/'

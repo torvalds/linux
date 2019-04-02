@@ -280,7 +280,7 @@ static void radeon_wait_pll_lock(struct drm_encoder *encoder, unsigned n_tests,
 	uint32_t save_pll_test;
 	unsigned int i, j;
 
-	WREG32(RADEON_TEST_DEBUG_MUX, (RREG32(RADEON_TEST_DEBUG_MUX) & 0xffff60ff) | 0x100);
+	WREG32(RADEON_TEST_DE_MUX, (RREG32(RADEON_TEST_DE_MUX) & 0xffff60ff) | 0x100);
 	save_pll_test = RREG32_PLL(RADEON_PLL_TEST_CNTL);
 	WREG32_PLL(RADEON_PLL_TEST_CNTL, save_pll_test & ~RADEON_PLL_MASK_READ_B);
 
@@ -292,7 +292,7 @@ static void radeon_wait_pll_lock(struct drm_encoder *encoder, unsigned n_tests,
 				break;
 	}
 	WREG32_PLL(RADEON_PLL_TEST_CNTL, save_pll_test);
-	WREG32(RADEON_TEST_DEBUG_MUX, RREG32(RADEON_TEST_DEBUG_MUX) & 0xffffe0ff);
+	WREG32(RADEON_TEST_DE_MUX, RREG32(RADEON_TEST_DE_MUX) & 0xffffe0ff);
 }
 
 
@@ -487,7 +487,7 @@ static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 
 	restart -= v_offset + h_offset;
 
-	DRM_DEBUG_KMS("compute_restarts: def = %u h = %d v = %d, p1 = %04x, p2 = %04x, restart = %d\n",
+	DRM_DE_KMS("compute_restarts: def = %u h = %d v = %d, p1 = %04x, p2 = %04x, restart = %d\n",
 		  const_ptr->def_restart, tv_dac->h_pos, tv_dac->v_pos, p1, p2, restart);
 
 	tv_dac->tv.hrestart = restart % h_total;
@@ -496,7 +496,7 @@ static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 	restart /= v_total;
 	tv_dac->tv.frestart = restart % f_total;
 
-	DRM_DEBUG_KMS("compute_restart: F/H/V=%u,%u,%u\n",
+	DRM_DE_KMS("compute_restart: F/H/V=%u,%u,%u\n",
 		  (unsigned)tv_dac->tv.frestart,
 		  (unsigned)tv_dac->tv.vrestart,
 		  (unsigned)tv_dac->tv.hrestart);
@@ -514,7 +514,7 @@ static bool radeon_legacy_tv_init_restarts(struct drm_encoder *encoder)
 	tv_dac->tv.timing_cntl = (tv_dac->tv.timing_cntl & ~RADEON_H_INC_MASK) |
 		((u32)h_inc << RADEON_H_INC_SHIFT);
 
-	DRM_DEBUG_KMS("compute_restart: h_size = %d h_inc = %d\n", tv_dac->h_size, h_inc);
+	DRM_DE_KMS("compute_restart: h_size = %d h_inc = %d\n", tv_dac->h_size, h_inc);
 
 	return h_changed;
 }

@@ -36,9 +36,9 @@
  *  multiple processes don't get into the driver simultaneously.
  *
  *  This driver accesses the processor directly vs going through
- *  the PDC INTRIGUE calls.  This is done to eliminate bugs introduced
+ *  the PDC INTRIGUE calls.  This is done to eliminate s introduced
  *  in various PDC revisions.  The code is much more maintainable
- *  and reliable this way vs having to debug on every version of PDC
+ *  and reliable this way vs having to de on every version of PDC
  *  on every box.
  */
 
@@ -816,9 +816,9 @@ static int perf_write_image(uint64_t *memaddr)
 	__raw_writeq(tmp64 | (*memaddr++ & 0x0013000000000000ul),
 		     runway + RUNWAY_STATUS);
 
-	/* Write RUNWAY DEBUG registers */
+	/* Write RUNWAY DE registers */
 	for (i = 0; i < 8; i++) {
-		__raw_writeq(*memaddr++, runway + RUNWAY_DEBUG);
+		__raw_writeq(*memaddr++, runway + RUNWAY_DE);
 	}
 
 	return 0;

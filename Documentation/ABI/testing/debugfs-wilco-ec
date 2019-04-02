@@ -1,4 +1,4 @@
-What:		/sys/kernel/debug/wilco_ec/raw
+What:		/sys/kernel/de/wilco_ec/raw
 Date:		January 2019
 KernelVersion:	5.1
 Description:

@@ -135,7 +135,7 @@ good_area:
 			goto out_of_memory;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 
 	/*

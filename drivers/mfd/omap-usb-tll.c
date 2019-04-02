@@ -86,7 +86,7 @@
 #define	OMAP_TLL_ULPI_INT_EN_FALL(num)			(0x810 + 0x100 * num)
 #define	OMAP_TLL_ULPI_INT_STATUS(num)			(0x813 + 0x100 * num)
 #define	OMAP_TLL_ULPI_INT_LATCH(num)			(0x814 + 0x100 * num)
-#define	OMAP_TLL_ULPI_DEBUG(num)			(0x815 + 0x100 * num)
+#define	OMAP_TLL_ULPI_DE(num)			(0x815 + 0x100 * num)
 #define	OMAP_TLL_ULPI_SCRATCH_REGISTER(num)		(0x816 + 0x100 * num)
 
 #define OMAP_REV2_TLL_CHANNEL_COUNT			2

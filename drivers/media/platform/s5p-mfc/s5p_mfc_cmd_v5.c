@@ -13,7 +13,7 @@
 #include "regs-mfc.h"
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_common.h"
-#include "s5p_mfc_debug.h"
+#include "s5p_mfc_de.h"
 #include "s5p_mfc_cmd_v5.h"
 
 /* This function is used to send a command to the MFC */
@@ -79,7 +79,7 @@ static int s5p_mfc_open_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 	int ret;
 
 	/* Preparing decoding - getting instance number */
-	mfc_debug(2, "Getting instance number (codec: %d)\n", ctx->codec_mode);
+	mfc_de(2, "Getting instance number (codec: %d)\n", ctx->codec_mode);
 	dev->curr_ctx = ctx->num;
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
 	switch (ctx->codec_mode) {
@@ -137,7 +137,7 @@ static int s5p_mfc_close_inst_cmd_v5(struct s5p_mfc_ctx *ctx)
 		return -EINVAL;
 	}
 	/* Closing decoding instance  */
-	mfc_debug(2, "Returning instance number %d\n", ctx->inst_no);
+	mfc_de(2, "Returning instance number %d\n", ctx->inst_no);
 	dev->curr_ctx = ctx->num;
 	memset(&h2r_args, 0, sizeof(struct s5p_mfc_cmd_args));
 	h2r_args.arg[0] = ctx->inst_no;

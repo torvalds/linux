@@ -565,7 +565,7 @@ static int snd_es1938_playback1_trigger(struct snd_pcm_substream *substream,
 		snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL1, 0x93);
                 /* This two stage init gives the FIFO -> DAC connection time to
                  * settle before first data from DMA flows in.  This should ensure
-                 * no swapping of stereo channels.  Report a bug if otherwise :-) */
+                 * no swapping of stereo channels.  Report a  if otherwise :-) */
 		outb(0x0a, SLIO_REG(chip, AUDIO2MODE));
 		chip->active |= DAC2;
 		break;
@@ -613,7 +613,7 @@ static int snd_es1938_playback_trigger(struct snd_pcm_substream *substream,
 	case 1:
 		return snd_es1938_playback2_trigger(substream, cmd);
 	}
-	snd_BUG();
+	snd_();
 	return -EINVAL;
 }
 
@@ -755,7 +755,7 @@ static int snd_es1938_playback_prepare(struct snd_pcm_substream *substream)
 	case 1:
 		return snd_es1938_playback2_prepare(substream);
 	}
-	snd_BUG();
+	snd_();
 	return -EINVAL;
 }
 
@@ -834,7 +834,7 @@ static snd_pcm_uframes_t snd_es1938_playback_pointer(struct snd_pcm_substream *s
 	case 1:
 		return snd_es1938_playback2_pointer(substream);
 	}
-	snd_BUG();
+	snd_();
 	return -EINVAL;
 }
 
@@ -845,7 +845,7 @@ static int snd_es1938_capture_copy(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
 
-	if (snd_BUG_ON(pos + count > chip->dma1_size))
+	if (snd__ON(pos + count > chip->dma1_size))
 		return -EINVAL;
 	if (pos + count < chip->dma1_size) {
 		if (copy_to_user(dst, runtime->dma_area + pos + 1, count))
@@ -867,7 +867,7 @@ static int snd_es1938_capture_copy_kernel(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
 
-	if (snd_BUG_ON(pos + count > chip->dma1_size))
+	if (snd__ON(pos + count > chip->dma1_size))
 		return -EINVAL;
 	if (pos + count < chip->dma1_size) {
 		memcpy(dst, runtime->dma_area + pos + 1, count);
@@ -972,7 +972,7 @@ static int snd_es1938_playback_open(struct snd_pcm_substream *substream)
 		chip->playback2_substream = substream;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	runtime->hw = snd_es1938_playback;
@@ -1002,7 +1002,7 @@ static int snd_es1938_playback_close(struct snd_pcm_substream *substream)
 		chip->playback2_substream = NULL;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	return 0;
@@ -1660,22 +1660,22 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 	status = inb(SLIO_REG(chip, IRQCONTROL));
 #if 0
 	dev_dbg(chip->card->dev,
-		"Es1938debug - interrupt status: =0x%x\n", status);
+		"Es1938de - interrupt status: =0x%x\n", status);
 #endif
 	
 	/* AUDIO 1 */
 	if (status & 0x10) {
 #if 0
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 1 interrupt\n");
+		       "Es1938de - AUDIO channel 1 interrupt\n");
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 1 DMAC DMA count: %u\n",
+		       "Es1938de - AUDIO channel 1 DMAC DMA count: %u\n",
 		       inw(SLDM_REG(chip, DMACOUNT)));
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 1 DMAC DMA base: %u\n",
+		       "Es1938de - AUDIO channel 1 DMAC DMA base: %u\n",
 		       inl(SLDM_REG(chip, DMAADDR)));
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 1 DMAC DMA status: 0x%x\n",
+		       "Es1938de - AUDIO channel 1 DMAC DMA status: 0x%x\n",
 		       inl(SLDM_REG(chip, DMASTATUS)));
 #endif
 		/* clear irq */
@@ -1691,12 +1691,12 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 	if (status & 0x20) {
 #if 0
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 2 interrupt\n");
+		       "Es1938de - AUDIO channel 2 interrupt\n");
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 2 DMAC DMA count: %u\n",
+		       "Es1938de - AUDIO channel 2 DMAC DMA count: %u\n",
 		       inw(SLIO_REG(chip, AUDIO2DMACOUNT)));
 		dev_dbg(chip->card->dev,
-		       "Es1938debug - AUDIO channel 2 DMAC DMA base: %u\n",
+		       "Es1938de - AUDIO channel 2 DMAC DMA base: %u\n",
 		       inl(SLIO_REG(chip, AUDIO2DMAADDR)));
 
 #endif

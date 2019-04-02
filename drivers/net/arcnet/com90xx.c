@@ -118,7 +118,7 @@ static void __init com90xx_probe(void)
 		return;
 	}
 
-	if (BUGLVL(D_NORMAL))
+	if (LVL(D_NORMAL))
 		pr_info("%s\n", "COM90xx chipset support");
 
 	/* set up the arrays where we'll store the possible probe addresses */
@@ -153,7 +153,7 @@ static void __init com90xx_probe(void)
 				    "arcnet (90xx)")) {
 			arc_cont(D_INIT_REASONS, "(request_region)\n");
 			arc_cont(D_INIT_REASONS, "S1: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			*port-- = ports[--numports];
 			continue;
@@ -161,7 +161,7 @@ static void __init com90xx_probe(void)
 		if (arcnet_inb(ioaddr, COM9026_REG_R_STATUS) == 0xFF) {
 			arc_cont(D_INIT_REASONS, "(empty)\n");
 			arc_cont(D_INIT_REASONS, "S1: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
 			*port-- = ports[--numports];
@@ -172,7 +172,7 @@ static void __init com90xx_probe(void)
 
 		arc_cont(D_INIT_REASONS, "\n");
 		arc_cont(D_INIT_REASONS, "S1: ");
-		if (BUGLVL(D_INIT_REASONS))
+		if (LVL(D_INIT_REASONS))
 			numprint = 0;
 	}
 	arc_cont(D_INIT, "\n");
@@ -218,7 +218,7 @@ static void __init com90xx_probe(void)
 		if (!request_mem_region(*p, MIRROR_SIZE, "arcnet (90xx)")) {
 			arc_cont(D_INIT_REASONS, "(request_mem_region)\n");
 			arc_cont(D_INIT_REASONS, "Stage 3: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			goto out;
 		}
@@ -226,7 +226,7 @@ static void __init com90xx_probe(void)
 		if (!base) {
 			arc_cont(D_INIT_REASONS, "(ioremap)\n");
 			arc_cont(D_INIT_REASONS, "Stage 3: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			goto out1;
 		}
@@ -235,7 +235,7 @@ static void __init com90xx_probe(void)
 				 arcnet_readb(base, COM9026_REG_R_STATUS),
 				 TESTvalue);
 			arc_cont(D_INIT_REASONS, "S3: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			goto out2;
 		}
@@ -252,7 +252,7 @@ static void __init com90xx_probe(void)
 		}
 		arc_cont(D_INIT_REASONS, "\n");
 		arc_cont(D_INIT_REASONS, "S3: ");
-		if (BUGLVL(D_INIT_REASONS))
+		if (LVL(D_INIT_REASONS))
 			numprint = 0;
 		iomem[index] = base;
 		continue;
@@ -315,7 +315,7 @@ static void __init com90xx_probe(void)
 		    != (NORXflag | RECONflag | TXFREEflag | RESETflag)) {
 			arc_cont(D_INIT_REASONS, "(status=%Xh)\n", status);
 			arc_cont(D_INIT_REASONS, "S5: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
 			*port-- = ports[--numports];
@@ -328,7 +328,7 @@ static void __init com90xx_probe(void)
 			arc_cont(D_INIT_REASONS, " (eternal reset, status=%Xh)\n",
 				 status);
 			arc_cont(D_INIT_REASONS, "S5: ");
-			if (BUGLVL(D_INIT_REASONS))
+			if (LVL(D_INIT_REASONS))
 				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
 			*port-- = ports[--numports];
@@ -351,7 +351,7 @@ static void __init com90xx_probe(void)
 			if (airq <= 0) {
 				arc_cont(D_INIT_REASONS, "(airq=%d)\n", airq);
 				arc_cont(D_INIT_REASONS, "S5: ");
-				if (BUGLVL(D_INIT_REASONS))
+				if (LVL(D_INIT_REASONS))
 					numprint = 0;
 				release_region(*port, ARCNET_TOTAL_SIZE);
 				*port-- = ports[--numports];
@@ -408,9 +408,9 @@ static void __init com90xx_probe(void)
 		}
 
 		if (openparen) {
-			if (BUGLVL(D_INIT))
+			if (LVL(D_INIT))
 				pr_cont("no matching shmem)\n");
-			if (BUGLVL(D_INIT_REASONS)) {
+			if (LVL(D_INIT_REASONS)) {
 				pr_cont("S5: ");
 				numprint = 0;
 			}
@@ -420,7 +420,7 @@ static void __init com90xx_probe(void)
 		*port-- = ports[--numports];
 	}
 
-	if (BUGLVL(D_INIT_REASONS))
+	if (LVL(D_INIT_REASONS))
 		pr_cont("\n");
 
 	/* Now put back TESTvalue on all leftover shmems. */
@@ -618,8 +618,8 @@ static int com90xx_reset(struct net_device *dev, int really_reset)
 	/* enable extended (512-byte) packets */
 	arcnet_outb(CONFIGcmd | EXTconf, ioaddr, COM9026_REG_W_COMMAND);
 
-	/* clean out all the memory to make debugging make more sense :) */
-	if (BUGLVL(D_DURING))
+	/* clean out all the memory to make deging make more sense :) */
+	if (LVL(D_DURING))
 		memset_io(lp->mem_start, 0x42, 2048);
 
 	/* done!  return success. */

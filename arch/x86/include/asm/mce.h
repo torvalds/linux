@@ -130,7 +130,7 @@
 /*
  * This structure contains all data related to the MCE log.  Also
  * carries a signature to make it easier to find from external
- * debugging tools.  Each entry is only valid when its finished flag
+ * deging tools.  Each entry is only valid when its finished flag
  * is set.
  */
 struct mce_log_buffer {

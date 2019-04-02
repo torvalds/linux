@@ -160,7 +160,7 @@ unsigned int ehv_pic_get_irq(void)
 {
 	int irq;
 
-	BUG_ON(global_ehv_pic == NULL);
+	_ON(global_ehv_pic == NULL);
 
 	if (global_ehv_pic->coreint_flag)
 		irq = mfspr(SPRN_EPR); /* if core int mode */

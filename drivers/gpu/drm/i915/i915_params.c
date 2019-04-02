@@ -74,7 +74,7 @@ i915_param_named_unsafe(vbt_firmware, charp, 0400,
 i915_param_named(error_capture, bool, 0600,
 	"Record the GPU state following a hang. "
 	"This information in /sys/class/drm/card<N>/error is vital for "
-	"triaging and debugging hangs.");
+	"triaging and deging hangs.");
 #endif
 
 i915_param_named_unsafe(enable_hangcheck, bool, 0600,
@@ -124,8 +124,8 @@ i915_param_named_unsafe(invert_brightness, int, 0600,
 i915_param_named(disable_display, bool, 0400,
 	"Disable display (default: false)");
 
-i915_param_named(mmio_debug, int, 0600,
-	"Enable the MMIO debug code for the first N failures (default: off). "
+i915_param_named(mmio_de, int, 0600,
+	"Enable the MMIO de code for the first N failures (default: off). "
 	"This may negatively affect performance.");
 
 i915_param_named(verbose_state_checks, bool, 0600,
@@ -161,7 +161,7 @@ i915_param_named_unsafe(dmc_firmware_path, charp, 0400,
 i915_param_named_unsafe(enable_dp_mst, bool, 0600,
 	"Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)");
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
+#if IS_ENABLED(CONFIG_DRM_I915_DE)
 i915_param_named_unsafe(inject_load_failure, uint, 0400,
 	"Force an error after a number of failure check points (0:disabled (default), N:force failure at the Nth failure check point)");
 #endif

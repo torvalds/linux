@@ -164,7 +164,7 @@ static int spu_write(struct if_spi_card *card, u16 reg, const u8 *buf, int len)
 
 	/* You must give an even number of bytes to the SPU, even if it
 	 * doesn't care about the last one.  */
-	BUG_ON(len & 0x1);
+	_ON(len & 0x1);
 
 	spu_transaction_init(card);
 
@@ -217,7 +217,7 @@ static int spu_read(struct if_spi_card *card, u16 reg, u8 *buf, int len)
 	 * You must take an even number of bytes from the SPU, even if you
 	 * don't care about the last one.
 	 */
-	BUG_ON(len & 0x1);
+	_ON(len & 0x1);
 
 	spu_transaction_init(card);
 
@@ -685,15 +685,15 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 	 * We need a buffer big enough to handle whatever people send to
 	 * hw_host_to_card
 	 */
-	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE < LBS_CMD_BUFFER_SIZE);
-	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE < LBS_UPLD_SIZE);
+	BUILD__ON(IF_SPI_CMD_BUF_SIZE < LBS_CMD_BUFFER_SIZE);
+	BUILD__ON(IF_SPI_CMD_BUF_SIZE < LBS_UPLD_SIZE);
 
 	/*
 	 * It's just annoying if the buffer size isn't a multiple of 4, because
 	 * then we might have len < IF_SPI_CMD_BUF_SIZE but
 	 * ALIGN(len, 4) > IF_SPI_CMD_BUF_SIZE
 	 */
-	BUILD_BUG_ON(IF_SPI_CMD_BUF_SIZE % 4 != 0);
+	BUILD__ON(IF_SPI_CMD_BUF_SIZE % 4 != 0);
 
 	/* How many bytes are there to read? */
 	err = spu_read_u16(card, IF_SPI_SCRATCH_2_REG, &len);
@@ -720,7 +720,7 @@ static int if_spi_c2h_cmd(struct if_spi_card *card)
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	i = (priv->resp_idx == 0) ? 1 : 0;
-	BUG_ON(priv->resp_len[i]);
+	_ON(priv->resp_len[i]);
 	priv->resp_len[i] = len;
 	memcpy(priv->resp_buf[i], card->cmd_buffer, len);
 	lbs_notify_command_response(priv, i);

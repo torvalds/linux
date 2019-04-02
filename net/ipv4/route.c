@@ -1194,9 +1194,9 @@ static void ipv4_link_failure(struct sk_buff *skb)
 		dst_set_expires(&rt->dst, 0);
 }
 
-static int ip_rt_bug(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int ip_rt_(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	pr_debug("%s: %pI4 -> %pI4, %s\n",
+	pr_de("%s: %pI4 -> %pI4, %s\n",
 		 __func__, &ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
 		 skb->dev ? skb->dev->name : "?");
 	kfree_skb(skb);
@@ -1652,7 +1652,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
-	rth->dst.output = ip_rt_bug;
+	rth->dst.output = ip_rt_;
 	rth->rt_is_input= 1;
 
 #ifdef CONFIG_IP_MROUTE
@@ -1707,7 +1707,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	/* get a working reference to the output device */
 	out_dev = __in_dev_get_rcu(FIB_RES_DEV(*res));
 	if (!out_dev) {
-		net_crit_ratelimited("Bug in ip_route_input_slow(). Please report.\n");
+		net_crit_ratelimited(" in ip_route_input_slow(). Please report.\n");
 		return -EINVAL;
 	}
 
@@ -2057,7 +2057,7 @@ local_input:
 	if (!rth)
 		goto e_nobufs;
 
-	rth->dst.output= ip_rt_bug;
+	rth->dst.output= ip_rt_;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
@@ -3166,7 +3166,7 @@ static __net_exit void sysctl_route_net_exit(struct net *net)
 
 	tbl = net->ipv4.route_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.route_hdr);
-	BUG_ON(tbl == ipv4_route_flush_table);
+	_ON(tbl == ipv4_route_flush_table);
 	kfree(tbl);
 }
 

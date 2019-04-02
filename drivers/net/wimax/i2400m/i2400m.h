@@ -432,7 +432,7 @@ struct i2400m_barker_db;
  *
  * @rx_size_min: smallest RX message received.
  *
- * @rx_size_max: buggest RX message received.
+ * @rx_size_max: gest RX message received.
  *
  * @rx_roq: RX ReOrder queues. (fw >= v1.4) When packets are received
  *     out of order, the device will ask the driver to hold certain
@@ -502,9 +502,9 @@ struct i2400m_barker_db;
  *     as from it we'll process device reports, which might require
  *     further communication with the device.
  *
- * @debugfs_dentry: hookup for debugfs files.
+ * @defs_dentry: hookup for defs files.
  *     These have to be in a separate directory, a child of
- *     (wimax_dev->debugfs_dentry) so they can be removed when the
+ *     (wimax_dev->defs_dentry) so they can be removed when the
  *     module unloads, as we don't keep each dentry.
  *
  * @fw_name: name of the firmware image that is currently being used.
@@ -572,7 +572,7 @@ struct i2400m {
 	unsigned ready:1;		/* Device comm infrastructure ready */
 	unsigned rx_reorder:1;		/* RX reorder is enabled */
 	u8 trace_msg_from_user;		/* echo rx msgs to 'trace' pipe */
-					/* typed u8 so /sys/kernel/debug/u8 can tweak */
+					/* typed u8 so /sys/kernel/de/u8 can tweak */
 	enum i2400m_system_state state;
 	wait_queue_head_t state_wq;	/* Woken up when on state updates */
 
@@ -636,7 +636,7 @@ struct i2400m {
 
 	struct work_struct recovery_ws;
 
-	struct dentry *debugfs_dentry;
+	struct dentry *defs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
 	const struct i2400m_bcf_hdr **fw_hdrs;
@@ -811,15 +811,15 @@ void i2400m_net_wake_stop(struct i2400m *);
 enum i2400m_pt;
 int i2400m_tx(struct i2400m *, const void *, size_t, enum i2400m_pt);
 
-#ifdef CONFIG_DEBUG_FS
-int i2400m_debugfs_add(struct i2400m *);
-void i2400m_debugfs_rm(struct i2400m *);
+#ifdef CONFIG_DE_FS
+int i2400m_defs_add(struct i2400m *);
+void i2400m_defs_rm(struct i2400m *);
 #else
-static inline int i2400m_debugfs_add(struct i2400m *i2400m)
+static inline int i2400m_defs_add(struct i2400m *i2400m)
 {
 	return 0;
 }
-static inline void i2400m_debugfs_rm(struct i2400m *i2400m) {}
+static inline void i2400m_defs_rm(struct i2400m *i2400m) {}
 #endif
 
 /* Initialize/shutdown the device */
@@ -952,7 +952,7 @@ unsigned i2400m_ge_v1_4(struct i2400m *i2400m)
 
 /*
  * Do a millisecond-sleep for allowing wireshark to dump all the data
- * packets. Used only for debugging.
+ * packets. Used only for deging.
  */
 static inline
 void __i2400m_msleep(unsigned ms)

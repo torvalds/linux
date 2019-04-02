@@ -12,8 +12,8 @@
 #define TRACE_CGROUP_PATH_LEN 1024
 extern spinlock_t trace_cgroup_path_lock;
 extern char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
-extern bool cgroup_debug;
-extern void __init enable_debug_cgroup(void);
+extern bool cgroup_de;
+extern void __init enable_de_cgroup(void);
 
 /*
  * cgroup_path() takes a spin lock. It is good practice not to take

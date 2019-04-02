@@ -202,7 +202,7 @@ int dpu_mdss_init(struct drm_device *dev)
 	if (IS_ERR(dpu_mdss->mmio))
 		return PTR_ERR(dpu_mdss->mmio);
 
-	DRM_DEBUG("mapped mdss address space @%pK\n", dpu_mdss->mmio);
+	DRM_DE("mapped mdss address space @%pK\n", dpu_mdss->mmio);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mdss");
 	if (!res) {

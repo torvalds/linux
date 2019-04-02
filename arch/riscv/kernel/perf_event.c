@@ -23,7 +23,7 @@
 
 #include <linux/kprobes.h>
 #include <linux/kernel.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/mutex.h>
 #include <linux/bitmap.h>
 #include <linux/irq.h>

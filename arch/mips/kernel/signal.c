@@ -183,7 +183,7 @@ static int save_msa_extcontext(void __user *buf)
 		 * should already have been done when handling scalar FP
 		 * context.
 		 */
-		BUG_ON(IS_ENABLED(CONFIG_EVA));
+		_ON(IS_ENABLED(CONFIG_EVA));
 
 		err = __put_user(read_msa_csr(), &msa->csr);
 		err |= _save_msa_all_upper(&msa->wr);
@@ -230,7 +230,7 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 		 * scalar FP context, so FPU & MSA should have already been
 		 * disabled whilst handling scalar FP context.
 		 */
-		BUG_ON(IS_ENABLED(CONFIG_EVA));
+		_ON(IS_ENABLED(CONFIG_EVA));
 
 		write_msa_csr(csr);
 		err |= _restore_msa_all_upper(&msa->wr);
@@ -730,7 +730,7 @@ static int setup_frame(void *sig_return, struct ksignal *ksig,
 	regs->regs[31] = (unsigned long) sig_return;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ksig->ka.sa.sa_handler;
 
-	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
+	DEP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 	return 0;
@@ -777,7 +777,7 @@ static int setup_rt_frame(void *sig_return, struct ksignal *ksig,
 	regs->regs[31] = (unsigned long) sig_return;
 	regs->cp0_epc = regs->regs[25] = (unsigned long) ksig->ka.sa.sa_handler;
 
-	DEBUGP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
+	DEP("SIG deliver (%s:%d): sp=0x%p pc=0x%lx ra=0x%lx\n",
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 
@@ -932,7 +932,7 @@ static int signal_setup(void)
 	 * regardless of the type of signal, such that userland can always know
 	 * where to look if it wishes to find the extended context structures.
 	 */
-	BUILD_BUG_ON((offsetof(struct sigframe, sf_extcontext) -
+	BUILD__ON((offsetof(struct sigframe, sf_extcontext) -
 		      offsetof(struct sigframe, sf_sc)) !=
 		     (offsetof(struct rt_sigframe, rs_uc.uc_extcontext) -
 		      offsetof(struct rt_sigframe, rs_uc.uc_mcontext)));

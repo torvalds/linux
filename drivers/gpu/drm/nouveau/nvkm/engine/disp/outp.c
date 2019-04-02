@@ -73,7 +73,7 @@ nvkm_outp_xlat(struct nvkm_outp *outp, enum nvkm_ior_type *type)
 	case 1:
 		switch (outp->info.type) {
 		case DCB_OUTPUT_TMDS: *type = PIOR; return TMDS;
-		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* not a bug */
+		case DCB_OUTPUT_DP  : *type = PIOR; return TMDS; /* not a  */
 		default:
 			break;
 		}

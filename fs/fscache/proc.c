@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL OPERATION
+#define FSCACHE_DE_LEVEL OPERATION
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

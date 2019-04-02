@@ -339,7 +339,7 @@ cache_flush_060 (unsigned long addr, int scope, int cache, unsigned long len)
     default:
     case FLUSH_SCOPE_PAGE:
       len += (addr & ~PAGE_MASK) + (PAGE_SIZE - 1);
-      addr &= PAGE_MASK;	/* Workaround for bug in some
+      addr &= PAGE_MASK;	/* Workaround for  in some
 				   revisions of the 68060 */
       for (len >>= PAGE_SHIFT; len--; addr += PAGE_SIZE)
 	{

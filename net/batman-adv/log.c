@@ -20,7 +20,7 @@
 #include "main.h"
 
 #include <linux/compiler.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/errno.h>
 #include <linux/eventpoll.h>
 #include <linux/export.h>
@@ -40,56 +40,56 @@
 #include <linux/wait.h>
 #include <stdarg.h>
 
-#include "debugfs.h"
+#include "defs.h"
 #include "trace.h"
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 
 #define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
 
 static const int batadv_log_buff_len = BATADV_LOG_BUF_LEN;
 
-static char *batadv_log_char_addr(struct batadv_priv_debug_log *debug_log,
+static char *batadv_log_char_addr(struct batadv_priv_de_log *de_log,
 				  size_t idx)
 {
-	return &debug_log->log_buff[idx & BATADV_LOG_BUFF_MASK];
+	return &de_log->log_buff[idx & BATADV_LOG_BUFF_MASK];
 }
 
-static void batadv_emit_log_char(struct batadv_priv_debug_log *debug_log,
+static void batadv_emit_log_char(struct batadv_priv_de_log *de_log,
 				 char c)
 {
 	char *char_addr;
 
-	char_addr = batadv_log_char_addr(debug_log, debug_log->log_end);
+	char_addr = batadv_log_char_addr(de_log, de_log->log_end);
 	*char_addr = c;
-	debug_log->log_end++;
+	de_log->log_end++;
 
-	if (debug_log->log_end - debug_log->log_start > batadv_log_buff_len)
-		debug_log->log_start = debug_log->log_end - batadv_log_buff_len;
+	if (de_log->log_end - de_log->log_start > batadv_log_buff_len)
+		de_log->log_start = de_log->log_end - batadv_log_buff_len;
 }
 
 __printf(2, 3)
-static int batadv_fdebug_log(struct batadv_priv_debug_log *debug_log,
+static int batadv_fde_log(struct batadv_priv_de_log *de_log,
 			     const char *fmt, ...)
 {
 	va_list args;
-	static char debug_log_buf[256];
+	static char de_log_buf[256];
 	char *p;
 
-	if (!debug_log)
+	if (!de_log)
 		return 0;
 
-	spin_lock_bh(&debug_log->lock);
+	spin_lock_bh(&de_log->lock);
 	va_start(args, fmt);
-	vscnprintf(debug_log_buf, sizeof(debug_log_buf), fmt, args);
+	vscnprintf(de_log_buf, sizeof(de_log_buf), fmt, args);
 	va_end(args);
 
-	for (p = debug_log_buf; *p != 0; p++)
-		batadv_emit_log_char(debug_log, *p);
+	for (p = de_log_buf; *p != 0; p++)
+		batadv_emit_log_char(de_log, *p);
 
-	spin_unlock_bh(&debug_log->lock);
+	spin_unlock_bh(&de_log->lock);
 
-	wake_up(&debug_log->queue_wait);
+	wake_up(&de_log->queue_wait);
 
 	return 0;
 }
@@ -99,7 +99,7 @@ static int batadv_log_open(struct inode *inode, struct file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	batadv_debugfs_deprecated(file,
+	batadv_defs_deprecated(file,
 				  "Use tracepoint batadv:batadv_dbg instead\n");
 
 	nonseekable_open(inode, file);
@@ -113,21 +113,21 @@ static int batadv_log_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static bool batadv_log_empty(struct batadv_priv_debug_log *debug_log)
+static bool batadv_log_empty(struct batadv_priv_de_log *de_log)
 {
-	return !(debug_log->log_start - debug_log->log_end);
+	return !(de_log->log_start - de_log->log_end);
 }
 
 static ssize_t batadv_log_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
 	struct batadv_priv *bat_priv = file->private_data;
-	struct batadv_priv_debug_log *debug_log = bat_priv->debug_log;
+	struct batadv_priv_de_log *de_log = bat_priv->de_log;
 	int error, i = 0;
 	char *char_addr;
 	char c;
 
-	if ((file->f_flags & O_NONBLOCK) && batadv_log_empty(debug_log))
+	if ((file->f_flags & O_NONBLOCK) && batadv_log_empty(de_log))
 		return -EAGAIN;
 
 	if (!buf)
@@ -139,33 +139,33 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 	if (!access_ok(buf, count))
 		return -EFAULT;
 
-	error = wait_event_interruptible(debug_log->queue_wait,
-					 (!batadv_log_empty(debug_log)));
+	error = wait_event_interruptible(de_log->queue_wait,
+					 (!batadv_log_empty(de_log)));
 
 	if (error)
 		return error;
 
-	spin_lock_bh(&debug_log->lock);
+	spin_lock_bh(&de_log->lock);
 
 	while ((!error) && (i < count) &&
-	       (debug_log->log_start != debug_log->log_end)) {
-		char_addr = batadv_log_char_addr(debug_log,
-						 debug_log->log_start);
+	       (de_log->log_start != de_log->log_end)) {
+		char_addr = batadv_log_char_addr(de_log,
+						 de_log->log_start);
 		c = *char_addr;
 
-		debug_log->log_start++;
+		de_log->log_start++;
 
-		spin_unlock_bh(&debug_log->lock);
+		spin_unlock_bh(&de_log->lock);
 
 		error = __put_user(c, buf);
 
-		spin_lock_bh(&debug_log->lock);
+		spin_lock_bh(&de_log->lock);
 
 		buf++;
 		i++;
 	}
 
-	spin_unlock_bh(&debug_log->lock);
+	spin_unlock_bh(&de_log->lock);
 
 	if (!error)
 		return i;
@@ -176,11 +176,11 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 static __poll_t batadv_log_poll(struct file *file, poll_table *wait)
 {
 	struct batadv_priv *bat_priv = file->private_data;
-	struct batadv_priv_debug_log *debug_log = bat_priv->debug_log;
+	struct batadv_priv_de_log *de_log = bat_priv->de_log;
 
-	poll_wait(file, &debug_log->queue_wait, wait);
+	poll_wait(file, &de_log->queue_wait, wait);
 
-	if (!batadv_log_empty(debug_log))
+	if (!batadv_log_empty(de_log))
 		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
@@ -195,26 +195,26 @@ static const struct file_operations batadv_log_fops = {
 };
 
 /**
- * batadv_debug_log_setup() - Initialize debug log
+ * batadv_de_log_setup() - Initialize de log
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success or negative error number in case of failure
  */
-int batadv_debug_log_setup(struct batadv_priv *bat_priv)
+int batadv_de_log_setup(struct batadv_priv *bat_priv)
 {
 	struct dentry *d;
 
-	if (!bat_priv->debug_dir)
+	if (!bat_priv->de_dir)
 		goto err;
 
-	bat_priv->debug_log = kzalloc(sizeof(*bat_priv->debug_log), GFP_ATOMIC);
-	if (!bat_priv->debug_log)
+	bat_priv->de_log = kzalloc(sizeof(*bat_priv->de_log), GFP_ATOMIC);
+	if (!bat_priv->de_log)
 		goto err;
 
-	spin_lock_init(&bat_priv->debug_log->lock);
-	init_waitqueue_head(&bat_priv->debug_log->queue_wait);
+	spin_lock_init(&bat_priv->de_log->lock);
+	init_waitqueue_head(&bat_priv->de_log->queue_wait);
 
-	d = debugfs_create_file("log", 0400, bat_priv->debug_dir, bat_priv,
+	d = defs_create_file("log", 0400, bat_priv->de_dir, bat_priv,
 				&batadv_log_fops);
 	if (!d)
 		goto err;
@@ -226,25 +226,25 @@ err:
 }
 
 /**
- * batadv_debug_log_cleanup() - Destroy debug log
+ * batadv_de_log_cleanup() - Destroy de log
  * @bat_priv: the bat priv with all the soft interface information
  */
-void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
+void batadv_de_log_cleanup(struct batadv_priv *bat_priv)
 {
-	kfree(bat_priv->debug_log);
-	bat_priv->debug_log = NULL;
+	kfree(bat_priv->de_log);
+	bat_priv->de_log = NULL;
 }
 
-#endif /* CONFIG_BATMAN_ADV_DEBUGFS */
+#endif /* CONFIG_BATMAN_ADV_DEFS */
 
 /**
- * batadv_debug_log() - Add debug log entry
+ * batadv_de_log() - Add de log entry
  * @bat_priv: the bat priv with all the soft interface information
  * @fmt: format string
  *
  * Return: 0 on success or negative error number in case of failure
  */
-int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
+int batadv_de_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -254,8 +254,8 @@ int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	batadv_fdebug_log(bat_priv->debug_log, "[%10u] %pV",
+#ifdef CONFIG_BATMAN_ADV_DEFS
+	batadv_fde_log(bat_priv->de_log, "[%10u] %pV",
 			  jiffies_to_msecs(jiffies), &vaf);
 #endif
 

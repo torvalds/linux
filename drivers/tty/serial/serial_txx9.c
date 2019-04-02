@@ -48,7 +48,7 @@ static char *serial_name = "TX39/49 Serial driver";
 #endif
 
 /* flag aliases */
-#define UPF_TXX9_HAVE_CTS_LINE	UPF_BUGGY_UART
+#define UPF_TXX9_HAVE_CTS_LINE	UPF_GY_UART
 #define UPF_TXX9_USE_SCLK	UPF_MAGIC_MULTIPLIER
 
 #ifdef CONFIG_PCI
@@ -246,7 +246,7 @@ static void serial_txx9_initialize(struct uart_port *port)
 	unsigned int tmout = 10000;
 
 	sio_out(up, TXX9_SIFCR, TXX9_SIFCR_SWRST);
-	/* TX4925 BUG WORKAROUND.  Accessing SIOC register
+	/* TX4925  WORKAROUND.  Accessing SIOC register
 	 * immediately after soft reset causes bus error. */
 	mmiowb();
 	udelay(1);
@@ -482,7 +482,7 @@ static void wait_for_xmitr(struct uart_txx9_port *up)
 #ifdef CONFIG_CONSOLE_POLL
 /*
  * Console polling routines for writing and reading from the uart while
- * in an interrupt or debug context.
+ * in an interrupt or de context.
  */
 
 static int serial_txx9_get_poll_char(struct uart_port *port)

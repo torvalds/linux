@@ -329,12 +329,12 @@ static int ef4_ethtool_fill_self_tests(struct ef4_nic *efx,
 		      "core", 0, "registers", NULL);
 
 	if (efx->phy_op->run_tests != NULL) {
-		EF4_BUG_ON_PARANOID(efx->phy_op->test_name == NULL);
+		EF4__ON_PARANOID(efx->phy_op->test_name == NULL);
 
 		for (i = 0; true; ++i) {
 			const char *name;
 
-			EF4_BUG_ON_PARANOID(i >= EF4_MAX_PHY_TESTS);
+			EF4__ON_PARANOID(i >= EF4_MAX_PHY_TESTS);
 			name = efx->phy_op->test_name(efx, i);
 			if (name == NULL)
 				break;
@@ -705,7 +705,7 @@ static int ef4_ethtool_set_pauseparam(struct net_device *net_dev,
 		goto out;
 	}
 
-	/* Hook for Falcon bug 11482 workaround */
+	/* Hook for Falcon  11482 workaround */
 	if (efx->type->prepare_enable_fc_tx &&
 	    (wanted_fc & EF4_FC_TX) && !(efx->wanted_fc & EF4_FC_TX))
 		efx->type->prepare_enable_fc_tx(efx);

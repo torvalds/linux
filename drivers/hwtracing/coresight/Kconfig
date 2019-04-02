@@ -6,7 +6,7 @@ menuconfig CORESIGHT
 	select ARM_AMBA
 	select PERF_EVENTS
 	help
-	  This framework provides a kernel interface for the CoreSight debug
+	  This framework provides a kernel interface for the CoreSight de
 	  and trace drivers to register themselves with. It's intended to build
 	  a topological view of the CoreSight components based on a DT
 	  specification and configure the right series of components when a
@@ -100,18 +100,18 @@ config CORESIGHT_STM
 	  logging useful software events or data coming from various entities
 	  in the system, possibly running different OSs
 
-config CORESIGHT_CPU_DEBUG
-	tristate "CoreSight CPU Debug driver"
+config CORESIGHT_CPU_DE
+	tristate "CoreSight CPU De driver"
 	depends on ARM || ARM64
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
-	  This driver provides support for coresight debugging module. This
+	  This driver provides support for coresight deging module. This
 	  is primarily used to dump sample-based profiling registers when
 	  system triggers panic, the driver will parse context registers so
 	  can quickly get to know program counter (PC), secure state,
-	  exception level, etc. Before use debugging functionality, platform
+	  exception level, etc. Before use deging functionality, platform
 	  needs to ensure the clock domain and power domain are enabled
-	  properly, please refer Documentation/trace/coresight-cpu-debug.txt
+	  properly, please refer Documentation/trace/coresight-cpu-de.txt
 	  for detailed description and the example for usage.
 
 endif

@@ -48,7 +48,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 		    && (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
-		pr_debug("table entry %u: %u kHz\n", (int)(pos - table), freq);
+		pr_de("table entry %u: %u kHz\n", (int)(pos - table), freq);
 		if (freq < min_freq)
 			min_freq = freq;
 		if (freq > max_freq)
@@ -71,7 +71,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	unsigned int freq, next_larger = ~0;
 	bool found = false;
 
-	pr_debug("request for verification of policy (%u - %u kHz) for cpu %u\n",
+	pr_de("request for verification of policy (%u - %u kHz) for cpu %u\n",
 					policy->min, policy->max, policy->cpu);
 
 	cpufreq_verify_within_cpu_limits(policy);
@@ -93,7 +93,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 		cpufreq_verify_within_cpu_limits(policy);
 	}
 
-	pr_debug("verification lead to (%u - %u kHz) for cpu %u\n",
+	pr_de("verification lead to (%u - %u kHz) for cpu %u\n",
 				policy->min, policy->max, policy->cpu);
 
 	return 0;
@@ -130,7 +130,7 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 	unsigned int freq, diff, i = 0;
 	int index;
 
-	pr_debug("request for target %u kHz (relation: %u) for cpu %u\n",
+	pr_de("request for target %u kHz (relation: %u) for cpu %u\n",
 					target_freq, relation, policy->cpu);
 
 	switch (relation) {
@@ -200,7 +200,7 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 	} else
 		index = optimal.driver_data;
 
-	pr_debug("target index is %u, freq is:%u kHz\n", index,
+	pr_de("target index is %u, freq is:%u kHz\n", index,
 		 table[index].frequency);
 	return index;
 }
@@ -213,7 +213,7 @@ int cpufreq_frequency_table_get_index(struct cpufreq_policy *policy,
 	int idx;
 
 	if (unlikely(!table)) {
-		pr_debug("%s: Unable to find frequency table\n", __func__);
+		pr_de("%s: Unable to find frequency table\n", __func__);
 		return -ENOENT;
 	}
 
@@ -321,7 +321,7 @@ static int set_freq_table_sorted(struct cpufreq_policy *policy)
 		if (pos->frequency > prev->frequency) {
 			/* But frequency was decreasing earlier */
 			if (ascending < 0) {
-				pr_debug("Freq table is unsorted\n");
+				pr_de("Freq table is unsorted\n");
 				return 0;
 			}
 
@@ -331,7 +331,7 @@ static int set_freq_table_sorted(struct cpufreq_policy *policy)
 
 			/* But frequency was increasing earlier */
 			if (ascending > 0) {
-				pr_debug("Freq table is unsorted\n");
+				pr_de("Freq table is unsorted\n");
 				return 0;
 			}
 
@@ -346,7 +346,7 @@ static int set_freq_table_sorted(struct cpufreq_policy *policy)
 	else
 		policy->freq_table_sorted = CPUFREQ_TABLE_SORTED_DESCENDING;
 
-	pr_debug("Freq table is sorted in %s order\n",
+	pr_de("Freq table is sorted in %s order\n",
 		 ascending > 0 ? "ascending" : "descending");
 
 	return 0;

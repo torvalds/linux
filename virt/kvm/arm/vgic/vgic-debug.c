@@ -16,7 +16,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <linux/seq_file.h>
@@ -91,7 +91,7 @@ static bool end_of_vgic(struct vgic_state_iter *iter)
 		iter->lpi_idx > iter->nr_lpis;
 }
 
-static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
+static void *vgic_de_start(struct seq_file *s, loff_t *pos)
 {
 	struct kvm *kvm = (struct kvm *)s->private;
 	struct vgic_state_iter *iter;
@@ -119,7 +119,7 @@ out:
 	return iter;
 }
 
-static void *vgic_debug_next(struct seq_file *s, void *v, loff_t *pos)
+static void *vgic_de_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	struct kvm *kvm = (struct kvm *)s->private;
 	struct vgic_state_iter *iter = kvm->arch.vgic.iter;
@@ -131,7 +131,7 @@ static void *vgic_debug_next(struct seq_file *s, void *v, loff_t *pos)
 	return iter;
 }
 
-static void vgic_debug_stop(struct seq_file *s, void *v)
+static void vgic_de_stop(struct seq_file *s, void *v)
 {
 	struct kvm *kvm = (struct kvm *)s->private;
 	struct vgic_state_iter *iter;
@@ -226,7 +226,7 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 			(irq->vcpu) ? irq->vcpu->vcpu_id : -1);
 }
 
-static int vgic_debug_show(struct seq_file *s, void *v)
+static int vgic_de_show(struct seq_file *s, void *v)
 {
 	struct kvm *kvm = (struct kvm *)s->private;
 	struct vgic_state_iter *iter = (struct vgic_state_iter *)v;
@@ -259,17 +259,17 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static const struct seq_operations vgic_debug_seq_ops = {
-	.start = vgic_debug_start,
-	.next  = vgic_debug_next,
-	.stop  = vgic_debug_stop,
-	.show  = vgic_debug_show
+static const struct seq_operations vgic_de_seq_ops = {
+	.start = vgic_de_start,
+	.next  = vgic_de_next,
+	.stop  = vgic_de_stop,
+	.show  = vgic_de_show
 };
 
-static int debug_open(struct inode *inode, struct file *file)
+static int de_open(struct inode *inode, struct file *file)
 {
 	int ret;
-	ret = seq_open(file, &vgic_debug_seq_ops);
+	ret = seq_open(file, &vgic_de_seq_ops);
 	if (!ret) {
 		struct seq_file *seq;
 		/* seq_open will have modified file->private_data */
@@ -280,20 +280,20 @@ static int debug_open(struct inode *inode, struct file *file)
 	return ret;
 };
 
-static const struct file_operations vgic_debug_fops = {
+static const struct file_operations vgic_de_fops = {
 	.owner   = THIS_MODULE,
-	.open    = debug_open,
+	.open    = de_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release
 };
 
-void vgic_debug_init(struct kvm *kvm)
+void vgic_de_init(struct kvm *kvm)
 {
-	debugfs_create_file("vgic-state", 0444, kvm->debugfs_dentry, kvm,
-			    &vgic_debug_fops);
+	defs_create_file("vgic-state", 0444, kvm->defs_dentry, kvm,
+			    &vgic_de_fops);
 }
 
-void vgic_debug_destroy(struct kvm *kvm)
+void vgic_de_destroy(struct kvm *kvm)
 {
 }

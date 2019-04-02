@@ -27,8 +27,8 @@
 #define PRIORITY_HIGH	 sched_get_priority_max(SCHEDULER)
 #define PRIORITY_LOW	 sched_get_priority_min(SCHEDULER)
 
-/* enable further debug messages */
-#ifdef DEBUG
+/* enable further de messages */
+#ifdef DE
 #define dprintf printf
 #else
 #define dprintf(...) do { } while (0)

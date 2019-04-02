@@ -123,7 +123,7 @@ void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 			  DP_TRAINING_AUX_RD_MASK;
 
 	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+		DRM_DE_KMS("AUX interval %d, out of range (max 4)\n",
 			      rd_interval);
 
 	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
@@ -138,7 +138,7 @@ void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
 			  DP_TRAINING_AUX_RD_MASK;
 
 	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+		DRM_DE_KMS("AUX interval %d, out of range (max 4)\n",
 			      rd_interval);
 
 	if (rd_interval == 0)
@@ -194,10 +194,10 @@ drm_dp_dump_access(const struct drm_dp_aux *aux,
 	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
 
 	if (ret > 0)
-		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+		DRM_DE_DP("%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
 			     aux->name, offset, arrow, ret, min(ret, 20), buffer);
 	else
-		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d)\n",
+		DRM_DE_DP("%s: 0x%05x AUX %s (ret=%3d)\n",
 			     aux->name, offset, arrow, ret);
 }
 
@@ -262,7 +262,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			err = ret;
 	}
 
-	DRM_DEBUG_KMS("Too many retries, giving up. First error: %d\n", err);
+	DRM_DE_KMS("Too many retries, giving up. First error: %d\n", err);
 	ret = err;
 
 unlock:
@@ -575,14 +575,14 @@ int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6])
 EXPORT_SYMBOL(drm_dp_downstream_id);
 
 /**
- * drm_dp_downstream_debug() - debug DP branch devices
- * @m: pointer for debugfs file
+ * drm_dp_downstream_de() - de DP branch devices
+ * @m: pointer for defs file
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
  * @aux: DisplayPort AUX channel
  *
  */
-void drm_dp_downstream_debug(struct seq_file *m,
+void drm_dp_downstream_de(struct seq_file *m,
 			     const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			     const u8 port_cap[4], struct drm_dp_aux *aux)
 {
@@ -658,7 +658,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 			seq_printf(m, "\t\tMax bpc: %d\n", bpc);
 	}
 }
-EXPORT_SYMBOL(drm_dp_downstream_debug);
+EXPORT_SYMBOL(drm_dp_downstream_de);
 
 /*
  * I2C-over-AUX implementation
@@ -803,9 +803,9 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			 * Avoid spamming the kernel log with timeout errors.
 			 */
 			if (ret == -ETIMEDOUT)
-				DRM_DEBUG_KMS_RATELIMITED("transaction timed out\n");
+				DRM_DE_KMS_RATELIMITED("transaction timed out\n");
 			else
-				DRM_DEBUG_KMS("transaction failed: %d\n", ret);
+				DRM_DE_KMS("transaction failed: %d\n", ret);
 
 			return ret;
 		}
@@ -820,11 +820,11 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			break;
 
 		case DP_AUX_NATIVE_REPLY_NACK:
-			DRM_DEBUG_KMS("native nack (result=%d, size=%zu)\n", ret, msg->size);
+			DRM_DE_KMS("native nack (result=%d, size=%zu)\n", ret, msg->size);
 			return -EREMOTEIO;
 
 		case DP_AUX_NATIVE_REPLY_DEFER:
-			DRM_DEBUG_KMS("native defer\n");
+			DRM_DE_KMS("native defer\n");
 			/*
 			 * We could check for I2C bit rate capabilities and if
 			 * available adjust this interval. We could also be
@@ -853,13 +853,13 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return ret;
 
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu)\n",
+			DRM_DE_KMS("I2C nack (result=%d, size=%zu)\n",
 				      ret, msg->size);
 			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
 		case DP_AUX_I2C_REPLY_DEFER:
-			DRM_DEBUG_KMS("I2C defer\n");
+			DRM_DE_KMS("I2C defer\n");
 			/* DP Compliance Test 4.2.2.5 Requirement:
 			 * Must have at least 7 retries for I2C defers on the
 			 * transaction to pass this test
@@ -878,7 +878,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		}
 	}
 
-	DRM_DEBUG_KMS("too many retries, giving up\n");
+	DRM_DE_KMS("too many retries, giving up\n");
 	return -EREMOTEIO;
 }
 
@@ -907,7 +907,7 @@ static int drm_dp_i2c_drain_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *o
 			return err == 0 ? -EPROTO : err;
 
 		if (err < msg.size && err < ret) {
-			DRM_DEBUG_KMS("Partial I2C reply: requested %zu bytes got %d bytes\n",
+			DRM_DE_KMS("Partial I2C reply: requested %zu bytes got %d bytes\n",
 				      msg.size, err);
 			ret = err;
 		}
@@ -1087,11 +1087,11 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 		}
 
 		if (ret == -EAGAIN) {
-			DRM_DEBUG_KMS("Get CRC failed after retrying: %d\n",
+			DRM_DE_KMS("Get CRC failed after retrying: %d\n",
 				      ret);
 			continue;
 		} else if (ret) {
-			DRM_DEBUG_KMS("Failed to get a CRC: %d\n", ret);
+			DRM_DE_KMS("Failed to get a CRC: %d\n", ret);
 			continue;
 		}
 
@@ -1327,7 +1327,7 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
  * @desc: Device decriptor to fill from DPCD
  * @is_branch: true for branch devices, false for sink devices
  *
- * Read DPCD 0x400 (sink) or 0x500 (branch) into @desc. Also debug log the
+ * Read DPCD 0x400 (sink) or 0x500 (branch) into @desc. Also de log the
  * identification.
  *
  * Returns 0 on success or a negative error code on failure.
@@ -1347,7 +1347,7 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 
 	dev_id_len = strnlen(ident->device_id, sizeof(ident->device_id));
 
-	DRM_DEBUG_KMS("DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
+	DRM_DE_KMS("DP %s: OUI %*phD dev-ID %*pE HW-rev %d.%d SW-rev %d.%d quirks 0x%04x\n",
 		      is_branch ? "branch" : "sink",
 		      (int)sizeof(ident->oui), ident->oui,
 		      dev_id_len, ident->device_id,

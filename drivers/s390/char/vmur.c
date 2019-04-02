@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/diag.h>
 
 #include "vmur.h"
@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 
 static dev_t ur_first_dev_maj_min;
 static struct class *vmur_class;
-static struct debug_info *vmur_dbf;
+static struct de_info *vmur_dbf;
 
 /* We put the device's record length (for writes) in the driver_info field */
 static struct ccw_device_id ur_ids[] = {
@@ -317,7 +317,7 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 	urd = dev_get_drvdata(&cdev->dev);
-	BUG_ON(!urd);
+	_ON(!urd);
 	/* On special conditions irb is an error pointer */
 	if (IS_ERR(irb))
 		urd->io_request_rc = PTR_ERR(irb);
@@ -1006,14 +1006,14 @@ static int __init ur_init(void)
 		return -ENODEV;
 	}
 
-	vmur_dbf = debug_register("vmur", 4, 1, 4 * sizeof(long));
+	vmur_dbf = de_register("vmur", 4, 1, 4 * sizeof(long));
 	if (!vmur_dbf)
 		return -ENOMEM;
-	rc = debug_register_view(vmur_dbf, &debug_sprintf_view);
+	rc = de_register_view(vmur_dbf, &de_sprintf_view);
 	if (rc)
 		goto fail_free_dbf;
 
-	debug_set_level(vmur_dbf, 6);
+	de_set_level(vmur_dbf, 6);
 
 	vmur_class = class_create(THIS_MODULE, "vmur");
 	if (IS_ERR(vmur_class)) {
@@ -1041,7 +1041,7 @@ fail_unregister_driver:
 fail_class_destroy:
 	class_destroy(vmur_class);
 fail_free_dbf:
-	debug_unregister(vmur_dbf);
+	de_unregister(vmur_dbf);
 	return rc;
 }
 
@@ -1050,7 +1050,7 @@ static void __exit ur_exit(void)
 	unregister_chrdev_region(ur_first_dev_maj_min, NUM_MINORS);
 	ccw_driver_unregister(&ur_driver);
 	class_destroy(vmur_class);
-	debug_unregister(vmur_dbf);
+	de_unregister(vmur_dbf);
 	pr_info("%s unloaded.\n", ur_banner);
 }
 

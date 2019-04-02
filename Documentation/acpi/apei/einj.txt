@@ -2,7 +2,7 @@
 			~~~~~~~~~~~~~~~~~~~~
 
 EINJ provides a hardware error injection mechanism. It is very useful
-for debugging and testing APEI and RAS features in general.
+for deging and testing APEI and RAS features in general.
 
 You need to check whether your BIOS supports EINJ first. For that, look
 for early boot messages similar to this one:
@@ -25,11 +25,11 @@ the BIOS menu.
 To use EINJ, make sure the following are options enabled in your kernel
 configuration:
 
-CONFIG_DEBUG_FS
+CONFIG_DE_FS
 CONFIG_ACPI_APEI
 CONFIG_ACPI_APEI_EINJ
 
-The EINJ user interface is in <debugfs mount point>/apei/einj.
+The EINJ user interface is in <defs mount point>/apei/einj.
 
 The following files belong to it:
 
@@ -154,7 +154,7 @@ creativity in using this feature expands beyond our expectations).
 
 An error injection example:
 
-# cd /sys/kernel/debug/apei/einj
+# cd /sys/kernel/de/apei/einj
 # cat available_error_type		# See which errors can be injected
 0x00000002	Processor Uncorrectable non-fatal
 0x00000008	Memory Correctable

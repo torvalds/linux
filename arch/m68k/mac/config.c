@@ -867,17 +867,17 @@ static void __init mac_identify(void)
 	/*
 	 * Report booter data:
 	 */
-	printk(KERN_DEBUG " Penguin bootinfo data:\n");
-	printk(KERN_DEBUG " Video: addr 0x%lx row 0x%lx depth %lx dimensions %ld x %ld\n",
+	printk(KERN_DE " Penguin bootinfo data:\n");
+	printk(KERN_DE " Video: addr 0x%lx row 0x%lx depth %lx dimensions %ld x %ld\n",
 		mac_bi_data.videoaddr, mac_bi_data.videorow,
 		mac_bi_data.videodepth, mac_bi_data.dimensions & 0xFFFF,
 		mac_bi_data.dimensions >> 16);
-	printk(KERN_DEBUG " Videological 0x%lx phys. 0x%lx, SCC at 0x%lx\n",
+	printk(KERN_DE " Videological 0x%lx phys. 0x%lx, SCC at 0x%lx\n",
 		mac_bi_data.videological, mac_orig_videoaddr,
 		mac_bi_data.sccbase);
-	printk(KERN_DEBUG " Boottime: 0x%lx GMTBias: 0x%lx\n",
+	printk(KERN_DE " Boottime: 0x%lx GMTBias: 0x%lx\n",
 		mac_bi_data.boottime, mac_bi_data.gmtbias);
-	printk(KERN_DEBUG " Machine ID: %ld CPUid: 0x%lx memory size: 0x%lx\n",
+	printk(KERN_DE " Machine ID: %ld CPUid: 0x%lx memory size: 0x%lx\n",
 		mac_bi_data.id, mac_bi_data.cpuid, mac_bi_data.memsize);
 
 	iop_init();

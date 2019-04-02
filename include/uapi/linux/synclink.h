@@ -235,11 +235,11 @@ struct gpio_desc {
 	__u32 dmask;
 };
 
-#define DEBUG_LEVEL_DATA	1
-#define DEBUG_LEVEL_ERROR 	2
-#define DEBUG_LEVEL_INFO  	3
-#define DEBUG_LEVEL_BH    	4
-#define DEBUG_LEVEL_ISR		5
+#define DE_LEVEL_DATA	1
+#define DE_LEVEL_ERROR 	2
+#define DE_LEVEL_INFO  	3
+#define DE_LEVEL_BH    	4
+#define DE_LEVEL_ISR		5
 
 /*
 ** Event bit flags for use with MgslWaitEvent

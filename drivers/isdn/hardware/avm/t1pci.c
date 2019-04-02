@@ -25,8 +25,8 @@
 #include <linux/isdn/capilli.h>
 #include "avmcard.h"
 
-#undef CONFIG_T1PCI_DEBUG
-#undef CONFIG_T1PCI_POLLDEBUG
+#undef CONFIG_T1PCI_DE
+#undef CONFIG_T1PCI_POLLDE
 
 /* ------------------------------------------------------------- */
 static char *revision = "$Revision: 1.1.2.2 $";

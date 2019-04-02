@@ -88,7 +88,7 @@
 #define mmLCDD_CNTL2        0x04C8
 #define mmGENLCD_CNTL1      0x04CC
 #define mmGENLCD_CNTL2      0x04D0
-#define mmDISP_DEBUG        0x04D4
+#define mmDISP_DE        0x04D4
 #define mmDISP_DB_BUF_CNTL  0x04D8
 #define mmDISP_CRC_SIG      0x04DC
 #define mmCRTC_DEFAULT_COUNT    0x04E0
@@ -112,8 +112,8 @@
 #define mmGPIO_CNTL3        0x052C
 #define mmGPIO_CNTL4        0x0530
 #define mmCHIP_STRAP        0x0534
-#define mmDISP_DEBUG2       0x0538
-#define mmDEBUG_BUS_CNTL    0x053C
+#define mmDISP_DE2       0x0538
+#define mmDE_BUS_CNTL    0x053C
 #define mmGAMMA_VALUE1      0x0540
 #define mmGAMMA_VALUE2      0x0544
 #define mmGAMMA_SLOPE       0x0548
@@ -169,7 +169,7 @@
 #define mmMEM_EXT_TIMING_CNTL  0x0194
 #define mmMEM_SDRAM_MODE_REG   0x0198
 #define mmMEM_IO_CNTL          0x019C
-#define mmMC_DEBUG             0x01A0
+#define mmMC_DE             0x01A0
 #define mmMC_BIST_CTRL         0x01A4
 #define mmMC_BIST_COLLAR_READ  0x01A8
 #define mmTC_MISMATCH          0x01AC
@@ -186,7 +186,7 @@
 #define mmBM_MEM_IO_CNTL          0x0A18
 #define mmBM_CONFIG               0x0A1C
 #define mmBM_STATUS               0x0A20
-#define mmBM_DEBUG                0x0A24
+#define mmBM_DE                0x0A24
 #define mmBM_PERF_MON_CNTL        0x0A28
 #define mmBM_PERF_COUNTERS        0x0A2C
 #define mmBM_PERF2_MON_CNTL       0x0A30
@@ -653,7 +653,7 @@ struct clk_pin_cntl_t {
 	u32 xtalin_pm_en     : 1;
 	u32 xtalin_dbl_en    : 1;
 	u32                  : 7;
-	u32 cg_debug         : 16;
+	u32 cg_de         : 16;
 } __attribute__((packed));
 
 union clk_pin_cntl_u {

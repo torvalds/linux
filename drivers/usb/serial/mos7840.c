@@ -677,11 +677,11 @@ static int mos7840_port_paranoia_check(struct usb_serial_port *port,
 				       const char *function)
 {
 	if (!port) {
-		pr_debug("%s - port == NULL\n", function);
+		pr_de("%s - port == NULL\n", function);
 		return -1;
 	}
 	if (!port->serial) {
-		pr_debug("%s - port->serial == NULL\n", function);
+		pr_de("%s - port->serial == NULL\n", function);
 		return -1;
 	}
 
@@ -693,11 +693,11 @@ static int mos7840_serial_paranoia_check(struct usb_serial *serial,
 					 const char *function)
 {
 	if (!serial) {
-		pr_debug("%s - serial == NULL\n", function);
+		pr_de("%s - serial == NULL\n", function);
 		return -1;
 	}
 	if (!serial->type) {
-		pr_debug("%s - serial->type == NULL!\n", function);
+		pr_de("%s - serial->type == NULL!\n", function);
 		return -1;
 	}
 
@@ -757,7 +757,7 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	}
 
 	data = urb->transfer_buffer;
-	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
+	usb_serial_de_data(&port->dev, __func__, urb->actual_length, data);
 
 	if (urb->actual_length) {
 		struct tty_port *tport = &mos7840_port->port->port;

@@ -251,7 +251,7 @@ struct drxk_state {
 	s32    m_Quality83percent;  /* MER level (*0.1 dB) for 83% quality indication */
 	s32    m_Quality93percent;  /* MER level (*0.1 dB) for 93% quality indication */
 	bool   m_smart_ant_inverted;
-	bool   m_b_debug_enable_bridge;
+	bool   m_b_de_enable_bridge;
 	bool   m_b_p_down_open_bridge;  /* only open DRXK bridge before power-down once it has been accessed */
 	bool   m_b_power_down;        /* Power down when not used */
 

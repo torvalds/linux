@@ -60,10 +60,10 @@ void key_schedule_gc(time64_t gc_at)
 	kenter("%lld", gc_at - now);
 
 	if (gc_at <= now || test_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags)) {
-		kdebug("IMMEDIATE");
+		kde("IMMEDIATE");
 		schedule_work(&key_gc_work);
 	} else if (gc_at < key_gc_next_run) {
-		kdebug("DEFERRED");
+		kde("DEFERRED");
 		key_gc_next_run = gc_at;
 		expires = jiffies + (gc_at - now) * HZ;
 		mod_timer(&key_gc_timer, expires);
@@ -109,10 +109,10 @@ void key_gc_keytype(struct key_type *ktype)
 	smp_mb();
 	set_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags);
 
-	kdebug("schedule");
+	kde("schedule");
 	schedule_work(&key_gc_work);
 
-	kdebug("sleep");
+	kde("sleep");
 	wait_on_bit(&key_gc_flags, KEY_GC_REAPING_KEYTYPE,
 		    TASK_UNINTERRUPTIBLE);
 
@@ -132,7 +132,7 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 
 		list_del(&key->graveyard_link);
 
-		kdebug("- %u", key->serial);
+		kde("- %u", key->serial);
 		key_check(key);
 
 		/* Throw away the key data if the key is instantiated */
@@ -201,7 +201,7 @@ static void key_garbage_collector(struct work_struct *work)
 
 	if (test_and_clear_bit(KEY_GC_REAP_KEYTYPE, &key_gc_flags))
 		gc_state |= KEY_GC_REAPING_DEAD_1;
-	kdebug("new pass %x", gc_state);
+	kde("new pass %x", gc_state);
 
 	new_timer = TIME64_MAX;
 
@@ -234,7 +234,7 @@ continue_scanning:
 
 		if (gc_state & KEY_GC_SET_TIMER) {
 			if (key->expiry > limit && key->expiry < new_timer) {
-				kdebug("will expire %x in %lld",
+				kde("will expire %x in %lld",
 				       key_serial(key), key->expiry - limit);
 				new_timer = key->expiry;
 			}
@@ -273,7 +273,7 @@ maybe_resched:
 	 * new cycle if necessary.  We keep executing cycles until we find one
 	 * where we didn't reap any keys.
 	 */
-	kdebug("pass complete");
+	kde("pass complete");
 
 	if (gc_state & KEY_GC_SET_TIMER && new_timer != (time64_t)TIME64_MAX) {
 		new_timer += key_gc_delay;
@@ -287,12 +287,12 @@ maybe_resched:
 		 * dying keys that they don't have a reference upon or a link
 		 * to.
 		 */
-		kdebug("gc sync");
+		kde("gc sync");
 		synchronize_rcu();
 	}
 
 	if (!list_empty(&graveyard)) {
-		kdebug("gc keys");
+		kde("gc keys");
 		key_gc_unused_keys(&graveyard);
 	}
 
@@ -302,7 +302,7 @@ maybe_resched:
 			/* No remaining dead keys: short circuit the remaining
 			 * keytype reap cycles.
 			 */
-			kdebug("dead short");
+			kde("dead short");
 			gc_state &= ~(KEY_GC_REAPING_DEAD_1 | KEY_GC_REAPING_DEAD_2);
 			gc_state |= KEY_GC_REAPING_DEAD_3;
 		} else {
@@ -311,7 +311,7 @@ maybe_resched:
 	}
 
 	if (unlikely(gc_state & KEY_GC_REAPING_DEAD_3)) {
-		kdebug("dead wake");
+		kde("dead wake");
 		smp_mb();
 		clear_bit(KEY_GC_REAPING_KEYTYPE, &key_gc_flags);
 		wake_up_bit(&key_gc_flags, KEY_GC_REAPING_KEYTYPE);
@@ -326,7 +326,7 @@ maybe_resched:
 	 * we can safely drop the lock.
 	 */
 found_unreferenced_key:
-	kdebug("unrefd key %d", key->serial);
+	kde("unrefd key %d", key->serial);
 	rb_erase(&key->serial_node, &key_serial_tree);
 	spin_unlock(&key_serial_lock);
 
@@ -357,7 +357,7 @@ found_keyring:
 	 */
 destroy_dead_key:
 	spin_unlock(&key_serial_lock);
-	kdebug("destroy key %d", key->serial);
+	kde("destroy key %d", key->serial);
 	down_write(&key->sem);
 	key->type = &key_type_dead;
 	if (key_gc_dead_keytype->destroy)

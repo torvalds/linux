@@ -108,7 +108,7 @@ static inline int snd_seq_write_pool_allocated(struct snd_seq_client *client)
 static struct snd_seq_client *clientptr(int clientid)
 {
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
-		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
+		pr_de("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
@@ -121,7 +121,7 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 	struct snd_seq_client *client;
 
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
-		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
+		pr_de("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
@@ -397,7 +397,7 @@ static ssize_t snd_seq_read(struct file *file, char __user *buf, size_t count,
 		return -EFAULT;
 
 	/* check client structures are in place */
-	if (snd_BUG_ON(!client))
+	if (snd__ON(!client))
 		return -ENXIO;
 
 	if (!client->accept_input || (fifo = client->data.user.fifo) == NULL)
@@ -775,7 +775,7 @@ static int broadcast_event(struct snd_seq_client *client,
 static int multicast_event(struct snd_seq_client *client, struct snd_seq_event *event,
 			   int atomic, int hop)
 {
-	pr_debug("ALSA: seq: multicast not supported yet.\n");
+	pr_de("ALSA: seq: multicast not supported yet.\n");
 	return 0; /* ignored */
 }
 #endif /* SUPPORT_BROADCAST */
@@ -796,14 +796,14 @@ static int snd_seq_deliver_event(struct snd_seq_client *client, struct snd_seq_e
 
 	hop++;
 	if (hop >= SNDRV_SEQ_MAX_HOPS) {
-		pr_debug("ALSA: seq: too long delivery path (%d:%d->%d:%d)\n",
+		pr_de("ALSA: seq: too long delivery path (%d:%d->%d:%d)\n",
 			   event->source.client, event->source.port,
 			   event->dest.client, event->dest.port);
 		return -EMLINK;
 	}
 
 	if (snd_seq_ev_is_variable(event) &&
-	    snd_BUG_ON(atomic && (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR)))
+	    snd__ON(atomic && (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR)))
 		return -EINVAL;
 
 	if (event->queue == SNDRV_SEQ_ADDRESS_SUBSCRIBERS ||
@@ -839,7 +839,7 @@ int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop)
 	struct snd_seq_client *client;
 	int result;
 
-	if (snd_BUG_ON(!cell))
+	if (snd__ON(!cell))
 		return -EINVAL;
 
 	client = snd_seq_client_use_ptr(cell->event.source.client);
@@ -1011,7 +1011,7 @@ static ssize_t snd_seq_write(struct file *file, const char __user *buf,
 		return -ENXIO;
 
 	/* check client structures are in place */
-	if (snd_BUG_ON(!client))
+	if (snd__ON(!client))
 		return -ENXIO;
 		
 	if (!client->accept_output || client->pool == NULL)
@@ -1099,7 +1099,7 @@ static __poll_t snd_seq_poll(struct file *file, poll_table * wait)
 	__poll_t mask = 0;
 
 	/* check client structures are in place */
-	if (snd_BUG_ON(!client))
+	if (snd__ON(!client))
 		return EPOLLERR;
 
 	if ((snd_seq_file_flags(file) & SNDRV_SEQ_LFLG_INPUT) &&
@@ -2112,7 +2112,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 	unsigned long size;
 	int err;
 
-	if (snd_BUG_ON(!client))
+	if (snd__ON(!client))
 		return -ENXIO;
 
 	for (handler = ioctl_handlers; handler->cmd > 0; ++handler) {
@@ -2138,7 +2138,7 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd,
 	err = handler->func(client, &buf);
 	mutex_unlock(&client->ioctl_mutex);
 	if (err >= 0) {
-		/* Some commands includes a bug in 'dir' field. */
+		/* Some commands includes a  in 'dir' field. */
 		if (handler->cmd == SNDRV_SEQ_IOCTL_SET_QUEUE_CLIENT ||
 		    handler->cmd == SNDRV_SEQ_IOCTL_SET_CLIENT_POOL ||
 		    (handler->cmd & IOC_OUT))
@@ -2165,7 +2165,7 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	struct snd_seq_client *client;
 	va_list args;
 
-	if (snd_BUG_ON(in_interrupt()))
+	if (snd__ON(in_interrupt()))
 		return -EBUSY;
 
 	if (card && client_index >= SNDRV_SEQ_CLIENTS_PER_CARD)
@@ -2214,7 +2214,7 @@ int snd_seq_delete_kernel_client(int client)
 {
 	struct snd_seq_client *ptr;
 
-	if (snd_BUG_ON(in_interrupt()))
+	if (snd__ON(in_interrupt()))
 		return -EBUSY;
 
 	ptr = clientptr(client);
@@ -2237,7 +2237,7 @@ static int kernel_client_enqueue(int client, struct snd_seq_event *ev,
 	struct snd_seq_client *cptr;
 	int result;
 
-	if (snd_BUG_ON(!ev))
+	if (snd__ON(!ev))
 		return -EINVAL;
 
 	if (ev->type == SNDRV_SEQ_EVENT_NONE)
@@ -2303,7 +2303,7 @@ int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event * ev,
 	struct snd_seq_client *cptr;
 	int result;
 
-	if (snd_BUG_ON(!ev))
+	if (snd__ON(!ev))
 		return -EINVAL;
 
 	/* fill in client number */
@@ -2353,7 +2353,7 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 			return handler->func(client, arg);
 	}
 
-	pr_debug("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
+	pr_de("ALSA: seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
 		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
 	return -ENOTTY;
 }

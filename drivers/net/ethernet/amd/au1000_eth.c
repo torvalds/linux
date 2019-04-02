@@ -69,10 +69,10 @@
 
 #include "au1000_eth.h"
 
-#ifdef AU1000_ETH_DEBUG
-static int au1000_debug = 5;
+#ifdef AU1000_ETH_DE
+static int au1000_de = 5;
 #else
-static int au1000_debug = 3;
+static int au1000_de = 3;
 #endif
 
 #define AU1000_DEF_MSG_ENABLE	(NETIF_MSG_DRV	| \
@@ -418,7 +418,7 @@ au1000_adjust_link(struct net_device *dev)
 
 	int status_change = 0;
 
-	BUG_ON(!phydev);
+	_ON(!phydev);
 
 	spin_lock_irqsave(&aup->lock, flags);
 
@@ -496,7 +496,7 @@ static int au1000_mii_probe(struct net_device *dev)
 	int phy_addr;
 
 	if (aup->phy_static_config) {
-		BUG_ON(aup->mac_id < 0 || aup->mac_id > 1);
+		_ON(aup->mac_id < 0 || aup->mac_id > 1);
 
 		if (aup->phy_addr)
 			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
@@ -554,7 +554,7 @@ static int au1000_mii_probe(struct net_device *dev)
 	}
 
 	/* now we are supposed to have a proper phydev, to attach to... */
-	BUG_ON(phydev->attached_dev);
+	_ON(phydev->attached_dev);
 
 	phydev = phy_connect(dev, phydev_name(phydev),
 			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
@@ -821,7 +821,7 @@ static int au1000_rx(struct net_device *dev)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);	/* pass the packet to upper layers */
 		} else {
-			if (au1000_debug > 4) {
+			if (au1000_de > 4) {
 				pr_err("rx_error(s):");
 				if (status & RX_MISSED_FRAME)
 					pr_cont(" miss");
@@ -1161,8 +1161,8 @@ static int au1000_probe(struct platform_device *pdev)
 	aup = netdev_priv(dev);
 
 	spin_lock_init(&aup->lock);
-	aup->msg_enable = (au1000_debug < 4 ?
-				AU1000_DEF_MSG_ENABLE : au1000_debug);
+	aup->msg_enable = (au1000_de < 4 ?
+				AU1000_DEF_MSG_ENABLE : au1000_de);
 
 	/* Allocate the data buffers
 	 * Snooping works fine with eth on all au1xxx

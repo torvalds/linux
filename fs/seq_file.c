@@ -257,7 +257,7 @@ Fill:
 
 		p = m->op->next(m, p, &m->index);
 		if (pos == m->index)
-			/* Buggy ->next function */
+			/* gy ->next function */
 			m->index++;
 		if (!p || IS_ERR(p)) {
 			err = PTR_ERR(p);

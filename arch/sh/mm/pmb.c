@@ -16,7 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
@@ -846,31 +846,31 @@ static int pmb_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int pmb_debugfs_open(struct inode *inode, struct file *file)
+static int pmb_defs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pmb_seq_show, NULL);
 }
 
-static const struct file_operations pmb_debugfs_fops = {
+static const struct file_operations pmb_defs_fops = {
 	.owner		= THIS_MODULE,
-	.open		= pmb_debugfs_open,
+	.open		= pmb_defs_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static int __init pmb_debugfs_init(void)
+static int __init pmb_defs_init(void)
 {
 	struct dentry *dentry;
 
-	dentry = debugfs_create_file("pmb", S_IFREG | S_IRUGO,
-				     arch_debugfs_dir, NULL, &pmb_debugfs_fops);
+	dentry = defs_create_file("pmb", S_IFREG | S_IRUGO,
+				     arch_defs_dir, NULL, &pmb_defs_fops);
 	if (!dentry)
 		return -ENOMEM;
 
 	return 0;
 }
-subsys_initcall(pmb_debugfs_init);
+subsys_initcall(pmb_defs_init);
 
 #ifdef CONFIG_PM
 static void pmb_syscore_resume(void)

@@ -61,7 +61,7 @@
 #include <linux/export.h>
 
 #include "iwl-drv.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-eeprom-read.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
@@ -107,7 +107,7 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
-			IWL_DEBUG_EEPROM(trans->dev,
+			IWL_DE_EEPROM(trans->dev,
 					 "Acquired semaphore after %d tries.\n",
 					 count+1);
 			return ret;
@@ -127,7 +127,7 @@ static int iwl_eeprom_verify_signature(struct iwl_trans *trans, bool nvm_is_otp)
 {
 	u32 gp = iwl_read32(trans, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
 
-	IWL_DEBUG_EEPROM(trans->dev, "EEPROM signature=0x%08x\n", gp);
+	IWL_DE_EEPROM(trans->dev, "EEPROM signature=0x%08x\n", gp);
 
 	switch (gp) {
 	case CSR_EEPROM_GP_BAD_SIG_EEP_GOOD_SIG_OTP:
@@ -311,7 +311,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 		 */
 		valid_addr = next_link_addr;
 		next_link_addr = le16_to_cpu(link_value) * sizeof(u16);
-		IWL_DEBUG_EEPROM(trans->dev, "OTP blocks %d addr 0x%x\n",
+		IWL_DE_EEPROM(trans->dev, "OTP blocks %d addr 0x%x\n",
 				 usedblocks, next_link_addr);
 		if (iwl_read_otp_word(trans, next_link_addr, &link_value))
 			return -EINVAL;
@@ -331,7 +331,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 	} while (usedblocks <= trans->cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
-	IWL_DEBUG_EEPROM(trans->dev, "OTP has no valid blocks\n");
+	IWL_DE_EEPROM(trans->dev, "OTP has no valid blocks\n");
 	return -EINVAL;
 }
 
@@ -341,7 +341,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
  * Load the EEPROM contents from adapter and return it
  * and its size.
  *
- * NOTE:  This routine uses the non-debug IO access functions.
+ * NOTE:  This routine uses the non-de IO access functions.
  */
 int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 {
@@ -362,7 +362,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 		return nvm_is_otp;
 
 	sz = trans->cfg->base_params->eeprom_size;
-	IWL_DEBUG_EEPROM(trans->dev, "NVM size = %d\n", sz);
+	IWL_DE_EEPROM(trans->dev, "NVM size = %d\n", sz);
 
 	e = kmalloc(sz, GFP_KERNEL);
 	if (!e)
@@ -433,7 +433,7 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 		}
 	}
 
-	IWL_DEBUG_EEPROM(trans->dev, "NVM Type: %s\n",
+	IWL_DE_EEPROM(trans->dev, "NVM Type: %s\n",
 			 nvm_is_otp ? "OTP" : "EEPROM");
 
 	iwl_eeprom_release_semaphore(trans);

@@ -279,8 +279,8 @@ struct rpc_xprt {
 	struct net		*xprt_net;
 	const char		*servername;
 	const char		*address_strings[RPC_DISPLAY_MAX];
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	struct dentry		*debugfs;		/* debugfs directory */
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
+	struct dentry		*defs;		/* defs directory */
 	atomic_t		inject_disconnect;
 #endif
 	struct rcu_head		rcu;
@@ -481,7 +481,7 @@ static inline int xprt_test_and_set_binding(struct rpc_xprt *xprt)
 	return test_and_set_bit(XPRT_BINDING, &xprt->state);
 }
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 extern unsigned int rpc_inject_disconnect;
 static inline void xprt_inject_disconnect(struct rpc_xprt *xprt)
 {

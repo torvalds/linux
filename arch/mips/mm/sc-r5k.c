@@ -38,7 +38,7 @@ static void r5k_dma_cache_inv_sc(unsigned long addr, unsigned long size)
 	unsigned long end, a;
 
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	_ON(size == 0);
 
 	if (size >= scache_size) {
 		blast_r5000_scache();

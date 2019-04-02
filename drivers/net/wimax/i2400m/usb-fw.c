@@ -78,7 +78,7 @@
 
 
 #define D_SUBMODULE fw
-#include "usb-debug-levels.h"
+#include "usb-de-levels.h"
 
 
 /*
@@ -201,7 +201,7 @@ ssize_t i2400mu_bus_bm_cmd_send(struct i2400m *i2400m,
 		memset(i2400m->bm_cmd_buf + cmd_size, 0, cmd_size_a - cmd_size);
 	if ((flags & I2400M_BM_CMD_RAW) == 0) {
 		if (WARN_ON(i2400m_brh_get_response_required(cmd) == 0))
-			dev_warn(dev, "SW BUG: response_required == 0\n");
+			dev_warn(dev, "SW : response_required == 0\n");
 		i2400m_bm_cmd_prepare(cmd);
 	}
 	result = i2400mu_tx_bulk_out(i2400mu, i2400m->bm_cmd_buf, cmd_size);
@@ -289,7 +289,7 @@ ssize_t i2400mu_bus_bm_wait_for_ack(struct i2400m *i2400m,
 
 	d_fnstart(8, dev, "(i2400m %p ack %p size %zu)\n",
 		  i2400m, ack, ack_size);
-	BUG_ON(_ack == i2400m->bm_ack_buf);
+	_ON(_ack == i2400m->bm_ack_buf);
 	result = usb_autopm_get_interface(i2400mu->usb_iface);
 	if (result < 0) {
 		dev_err(dev, "BM-ACK: can't get autopm: %d\n", (int) result);

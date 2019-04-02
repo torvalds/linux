@@ -86,7 +86,7 @@ void udf_truncate_tail_extent(struct inode *inode)
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 		adsize = sizeof(struct long_ad);
 	else
-		BUG();
+		();
 
 	/* Find the last extent in the file */
 	while ((netype = udf_next_aext(inode, &epos, &eloc, &elen, 1)) != -1) {
@@ -216,7 +216,7 @@ int udf_truncate_extents(struct inode *inode)
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 		adsize = sizeof(struct long_ad);
 	else
-		BUG();
+		();
 
 	etype = inode_bmap(inode, first_block, &epos, &eloc, &elen, &offset);
 	byte_offset = (offset << sb->s_blocksize_bits) +
@@ -246,7 +246,7 @@ int udf_truncate_extents(struct inode *inode)
 			if (indirect_ext_len) {
 				/* We managed to free all extents in the
 				 * indirect extent - free it too */
-				BUG_ON(!epos.bh);
+				_ON(!epos.bh);
 				udf_free_blocks(sb, NULL, &epos.block,
 						0, indirect_ext_len);
 			} else if (!epos.bh) {
@@ -276,7 +276,7 @@ int udf_truncate_extents(struct inode *inode)
 	}
 
 	if (indirect_ext_len) {
-		BUG_ON(!epos.bh);
+		_ON(!epos.bh);
 		udf_free_blocks(sb, NULL, &epos.block, 0, indirect_ext_len);
 	} else if (!epos.bh) {
 		iinfo->i_lenAlloc = lenalloc;

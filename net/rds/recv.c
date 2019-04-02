@@ -69,15 +69,15 @@ EXPORT_SYMBOL_GPL(rds_inc_path_init);
 
 static void rds_inc_addref(struct rds_incoming *inc)
 {
-	rdsdebug("addref inc %p ref %d\n", inc, refcount_read(&inc->i_refcount));
+	rdsde("addref inc %p ref %d\n", inc, refcount_read(&inc->i_refcount));
 	refcount_inc(&inc->i_refcount);
 }
 
 void rds_inc_put(struct rds_incoming *inc)
 {
-	rdsdebug("put inc %p ref %d\n", inc, refcount_read(&inc->i_refcount));
+	rdsde("put inc %p ref %d\n", inc, refcount_read(&inc->i_refcount));
 	if (refcount_dec_and_test(&inc->i_refcount)) {
-		BUG_ON(!list_empty(&inc->i_item));
+		_ON(!list_empty(&inc->i_item));
 
 		inc->i_conn->c_trans->inc_free(inc);
 	}
@@ -105,7 +105,7 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 
 	now_congested = rs->rs_rcv_bytes > rds_sk_rcvbuf(rs);
 
-	rdsdebug("rs %p (%pI6c:%u) recv bytes %d buf %d "
+	rdsde("rs %p (%pI6c:%u) recv bytes %d buf %d "
 	  "now_cong %d delta %d\n",
 	  rs, &rs->rs_bound_addr,
 	  ntohs(rs->rs_bound_port), rs->rs_rcv_bytes,
@@ -295,7 +295,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 	else
 		cp = &conn->c_path[0];
 
-	rdsdebug("conn %p next %llu inc %p seq %llu len %u sport %u dport %u "
+	rdsde("conn %p next %llu inc %p seq %llu len %u sport %u dport %u "
 		 "flags 0x%x rx_jiffies %lu\n", conn,
 		 (unsigned long long)cp->cp_next_rx_seq,
 		 inc,
@@ -335,7 +335,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 
 	if (rds_sysctl_ping_enable && inc->i_hdr.h_dport == 0) {
 		if (inc->i_hdr.h_sport == 0) {
-			rdsdebug("ignore ping with 0 sport from %pI6c\n",
+			rdsde("ignore ping with 0 sport from %pI6c\n",
 				 saddr);
 			goto out;
 		}
@@ -374,7 +374,7 @@ void rds_recv_incoming(struct rds_connection *conn, struct in6_addr *saddr,
 	/* serialize with rds_release -> sock_orphan */
 	write_lock_irqsave(&rs->rs_recv_lock, flags);
 	if (!sock_flag(sk, SOCK_DEAD)) {
-		rdsdebug("adding inc %p to rs %p's recv queue\n", inc, rs);
+		rdsde("adding inc %p to rs %p's recv queue\n", inc, rs);
 		rds_stats_inc(s_recv_queued);
 		rds_recv_rcvbuf_delta(rs, sk, inc->i_conn->c_lcong,
 				      be32_to_cpu(inc->i_hdr.h_len),
@@ -439,7 +439,7 @@ static int rds_still_queued(struct rds_sock *rs, struct rds_incoming *inc,
 	}
 	write_unlock_irqrestore(&rs->rs_recv_lock, flags);
 
-	rdsdebug("inc %p rs %p still %d dropped %d\n", inc, rs, ret, drop);
+	rdsde("inc %p rs %p still %d dropped %d\n", inc, rs, ret, drop);
 	return ret;
 }
 
@@ -641,7 +641,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	/* udp_recvmsg()->sock_recvtimeo() gets away without locking too.. */
 	timeo = sock_rcvtimeo(sk, nonblock);
 
-	rdsdebug("size %zu flags 0x%x timeo %ld\n", size, msg_flags, timeo);
+	rdsde("size %zu flags 0x%x timeo %ld\n", size, msg_flags, timeo);
 
 	if (msg_flags & MSG_OOB)
 		goto out;
@@ -672,7 +672,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 					(!list_empty(&rs->rs_notify_queue) ||
 					 rs->rs_cong_notify ||
 					 rds_next_incoming(rs, &inc)), timeo);
-			rdsdebug("recvmsg woke inc %p timeo %ld\n", inc,
+			rdsde("recvmsg woke inc %p timeo %ld\n", inc,
 				 timeo);
 			if (timeo > 0 || timeo == MAX_SCHEDULE_TIMEOUT)
 				continue;
@@ -683,7 +683,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			break;
 		}
 
-		rdsdebug("copying inc %p from %pI6c:%u to user\n", inc,
+		rdsde("copying inc %p from %pI6c:%u to user\n", inc,
 			 &inc->i_conn->c_faddr,
 			 ntohs(inc->i_hdr.h_sport));
 		ret = inc->i_conn->c_trans->inc_copy_to_user(inc, &msg->msg_iter);

@@ -238,7 +238,7 @@ enum av7110_command_type {
 #define DATA_FSECTION		 0x01
 #define DATA_IPMPE		 0x02
 #define DATA_MPEG_RECORD	 0x03
-#define DATA_DEBUG_MESSAGE	 0x04
+#define DATA_DE_MESSAGE	 0x04
 #define DATA_COMMON_INTERFACE	 0x05
 #define DATA_MPEG_PLAY		 0x06
 #define DATA_BMP_LOAD		 0x07

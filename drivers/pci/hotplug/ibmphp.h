@@ -18,15 +18,15 @@
 
 #include <linux/pci_hotplug.h>
 
-extern int ibmphp_debug;
+extern int ibmphp_de;
 
 #if !defined(MODULE)
 	#define MY_NAME "ibmphpd"
 #else
 	#define MY_NAME THIS_MODULE->name
 #endif
-#define debug(fmt, arg...) do { if (ibmphp_debug == 1) printk(KERN_DEBUG "%s: " fmt, MY_NAME, ## arg); } while (0)
-#define debug_pci(fmt, arg...) do { if (ibmphp_debug) printk(KERN_DEBUG "%s: " fmt, MY_NAME, ## arg); } while (0)
+#define de(fmt, arg...) do { if (ibmphp_de == 1) printk(KERN_DE "%s: " fmt, MY_NAME, ## arg); } while (0)
+#define de_pci(fmt, arg...) do { if (ibmphp_de) printk(KERN_DE "%s: " fmt, MY_NAME, ## arg); } while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
@@ -376,7 +376,7 @@ int ibmphp_remove_bus(struct bus_node *, u8);
 void ibmphp_free_resources(void);
 int ibmphp_add_pfmem_from_mem(struct resource_node *);
 struct bus_node *ibmphp_find_res_bus(u8);
-void ibmphp_print_test(void);	/* for debugging purposes */
+void ibmphp_print_test(void);	/* for deging purposes */
 
 int ibmphp_hpc_readslot(struct slot *, u8, u8 *);
 int ibmphp_hpc_writeslot(struct slot *, u8);

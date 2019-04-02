@@ -15,7 +15,7 @@
     GNU General Public License for more details.
 */
 
-#define DEBUG 1
+#define DE 1
 #define pr_fmt(fmt) "i2c-stub: " fmt
 
 #include <linux/errno.h>
@@ -344,7 +344,7 @@ static int __init i2c_stub_allocate_banks(int i)
 	if (!chip->bank_words)
 		return -ENOMEM;
 
-	pr_debug("Allocated %u banks of %u words each (registers 0x%02x to 0x%02x)\n",
+	pr_de("Allocated %u banks of %u words each (registers 0x%02x to 0x%02x)\n",
 		 chip->bank_mask, chip->bank_size, chip->bank_start,
 		 chip->bank_end);
 

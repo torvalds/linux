@@ -134,7 +134,7 @@ void rs600_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DE("Update pending now high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
@@ -304,7 +304,7 @@ void rs600_pm_misc(struct radeon_device *rdev)
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
 				      ps->pcie_lanes);
-		DRM_DEBUG("Setting: p: %d\n", ps->pcie_lanes);
+		DRM_DE("Setting: p: %d\n", ps->pcie_lanes);
 	}
 }
 
@@ -804,15 +804,15 @@ int rs600_irq_process(struct radeon_device *rdev)
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
 			queue_hotplug = true;
-			DRM_DEBUG("HPD1\n");
+			DRM_DE("HPD1\n");
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
 			queue_hotplug = true;
-			DRM_DEBUG("HPD2\n");
+			DRM_DE("HPD2\n");
 		}
 		if (G_007404_HDMI0_AZ_FORMAT_WTRIG(rdev->irq.stat_regs.r500.hdmi0_status)) {
 			queue_hdmi = true;
-			DRM_DEBUG("HDMI0\n");
+			DRM_DE("HDMI0\n");
 		}
 		status = rs600_irq_ack(rdev);
 	}
@@ -940,10 +940,10 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
-static void rs600_debugfs(struct radeon_device *rdev)
+static void rs600_defs(struct radeon_device *rdev)
 {
-	if (r100_debugfs_rbbm_init(rdev))
-		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
+	if (r100_defs_rbbm_init(rdev))
+		DRM_ERROR("Failed to register defs file for RBBM !\n");
 }
 
 void rs600_set_safe_registers(struct radeon_device *rdev)
@@ -1131,7 +1131,7 @@ int rs600_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* initialize memory controller */
 	rs600_mc_init(rdev);
-	rs600_debugfs(rdev);
+	rs600_defs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

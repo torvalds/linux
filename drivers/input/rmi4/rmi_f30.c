@@ -114,7 +114,7 @@ static void rmi_f30_report_button(struct rmi_function *fn,
 	    button <= TRACKSTICK_RANGE_END) {
 		rmi_f03_overwrite_button(f30->f03, key_code, key_down);
 	} else {
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+		rmi_dbg(RMI_DE_FN, &fn->dev,
 			"%s: call input report key (0x%04x) value (0x%02x)",
 			__func__, key_code, key_down);
 

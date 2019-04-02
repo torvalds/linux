@@ -9,7 +9,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "wmi-ops.h"
 
 static int

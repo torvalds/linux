@@ -5,14 +5,14 @@
  * Copyright (C) 2006 Loping Dog Embedded Systems
  * Copyright (C) 2009 Martin Fuzzey
  * Originally written by Jay Monkman <jtm@lopingdog.com>
- * Ported to 2.6.30, debugged and enhanced by Martin Fuzzey
+ * Ported to 2.6.30, deged and enhanced by Martin Fuzzey
  */
 
 #ifndef __LINUX_IMX21_HCD_H__
 #define __LINUX_IMX21_HCD_H__
 
-#ifdef CONFIG_DYNAMIC_DEBUG
-#define DEBUG
+#ifdef CONFIG_DYNAMIC_DE
+#define DE
 #endif
 
 #include <linux/platform_data/usb-mx2.h>
@@ -359,7 +359,7 @@ struct etd_priv {
 	int dmem_size;
 	int dmem_offset;
 	int active_count;
-#ifdef DEBUG
+#ifdef DE
 	int activated_frame;
 	int disactivated_frame;
 	int last_int_frame;
@@ -376,13 +376,13 @@ struct imx21_dmem_area {
 	struct list_head list;
 };
 
-#ifdef DEBUG
-struct debug_usage_stats {
+#ifdef DE
+struct de_usage_stats {
 	unsigned int value;
 	unsigned int maximum;
 };
 
-struct debug_stats {
+struct de_stats {
 	unsigned long submitted;
 	unsigned long completed_ok;
 	unsigned long completed_failed;
@@ -391,7 +391,7 @@ struct debug_stats {
 	unsigned long queue_dmem;
 };
 
-struct debug_isoc_trace {
+struct de_isoc_trace {
 	int schedule_frame;
 	int submit_frame;
 	int request_len;
@@ -414,15 +414,15 @@ struct imx21 {
 	struct etd_priv etd[USB_NUM_ETD];
 	struct clk *clk;
 	void __iomem *regs;
-#ifdef DEBUG
-	struct dentry *debug_root;
-	struct debug_stats nonisoc_stats;
-	struct debug_stats isoc_stats;
-	struct debug_usage_stats etd_usage;
-	struct debug_usage_stats dmem_usage;
-	struct debug_isoc_trace isoc_trace[20];
-	struct debug_isoc_trace isoc_trace_failed[20];
-	unsigned long debug_unblocks;
+#ifdef DE
+	struct dentry *de_root;
+	struct de_stats nonisoc_stats;
+	struct de_stats isoc_stats;
+	struct de_usage_stats etd_usage;
+	struct de_usage_stats dmem_usage;
+	struct de_isoc_trace isoc_trace[20];
+	struct de_isoc_trace isoc_trace_failed[20];
+	unsigned long de_unblocks;
 	int isoc_trace_index;
 	int isoc_trace_index_failed;
 #endif

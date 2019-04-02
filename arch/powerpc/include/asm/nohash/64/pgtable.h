@@ -348,7 +348,7 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 
 /* Encode and de-code a swap entry */
 #define MAX_SWAPFILES_CHECK() do { \
-	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
+	BUILD__ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS); \
 	} while (0)
 
 #define SWP_TYPE_BITS 5

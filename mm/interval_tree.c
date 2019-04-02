@@ -34,7 +34,7 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 	struct vm_area_struct *parent;
 	unsigned long last = vma_last_pgoff(node);
 
-	VM_BUG_ON_VMA(vma_start_pgoff(node) != vma_start_pgoff(prev), node);
+	VM__ON_VMA(vma_start_pgoff(node) != vma_start_pgoff(prev), node);
 
 	if (!prev->shared.rb.rb_right) {
 		parent = prev;
@@ -76,7 +76,7 @@ INTERVAL_TREE_DEFINE(struct anon_vma_chain, rb, unsigned long, rb_subtree_last,
 void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
 				   struct rb_root_cached *root)
 {
-#ifdef CONFIG_DEBUG_VM_RB
+#ifdef CONFIG_DE_VM_RB
 	node->cached_vma_start = avc_start_pgoff(node);
 	node->cached_vma_last = avc_last_pgoff(node);
 #endif
@@ -103,7 +103,7 @@ anon_vma_interval_tree_iter_next(struct anon_vma_chain *node,
 	return __anon_vma_interval_tree_iter_next(node, first, last);
 }
 
-#ifdef CONFIG_DEBUG_VM_RB
+#ifdef CONFIG_DE_VM_RB
 void anon_vma_interval_tree_verify(struct anon_vma_chain *node)
 {
 	WARN_ON_ONCE(node->cached_vma_start != avc_start_pgoff(node));

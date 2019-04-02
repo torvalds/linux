@@ -67,7 +67,7 @@
  * [1] CONST (anon) type_id=2
  * [2] PTR (anon) type_id=0
  *
- * The above is the btf_verifier debug log:
+ * The above is the btf_verifier de log:
  *   - Each line started with "[?]" is a btf_type object
  *   - [?] is the type_id of the btf_type object.
  *   - CONST/PTR is the BTF_KIND_XXX
@@ -887,7 +887,7 @@ static bool env_type_is_resolve_sink(const struct btf_verifier_env *env,
 			!btf_type_is_array(next_type) &&
 			!btf_type_is_struct(next_type);
 	default:
-		BUG();
+		();
 	}
 }
 

@@ -18,7 +18,7 @@
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
@@ -27,7 +27,7 @@
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
 #include <asm/checksum.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/os_info.h>
 #include <asm/sections.h>
 #include <asm/boot_data.h>
@@ -1460,7 +1460,7 @@ static void __do_restart(void *ignore)
 void do_restart(void)
 {
 	tracing_off();
-	debug_locks_off();
+	de_locks_off();
 	lgr_info_log();
 	smp_call_online_cpu(__do_restart, NULL);
 }
@@ -1652,7 +1652,7 @@ static struct notifier_block on_panic_nb = {
 
 void __init setup_ipl(void)
 {
-	BUILD_BUG_ON(sizeof(struct ipl_parameter_block) != PAGE_SIZE);
+	BUILD__ON(sizeof(struct ipl_parameter_block) != PAGE_SIZE);
 
 	ipl_info.type = get_ipl_type();
 	switch (ipl_info.type) {

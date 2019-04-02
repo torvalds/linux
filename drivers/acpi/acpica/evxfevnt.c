@@ -50,7 +50,7 @@ acpi_status acpi_enable(void)
 	/* Check current mode */
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
+		ACPI_DE_PRINT((ACPI_DB_INIT,
 				  "System is already in ACPI mode\n"));
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -106,7 +106,7 @@ acpi_status acpi_disable(void)
 	}
 
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_LEGACY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
+		ACPI_DE_PRINT((ACPI_DB_INIT,
 				  "System is already in legacy (non-ACPI) mode\n"));
 	} else {
 		/* Transition to LEGACY mode */
@@ -119,7 +119,7 @@ acpi_status acpi_disable(void)
 			return_ACPI_STATUS(status);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT, "ACPI mode disabled\n"));
+		ACPI_DE_PRINT((ACPI_DB_INIT, "ACPI mode disabled\n"));
 	}
 
 	return_ACPI_STATUS(status);

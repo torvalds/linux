@@ -19,7 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/export.h>
 #include <linux/notifier.h>

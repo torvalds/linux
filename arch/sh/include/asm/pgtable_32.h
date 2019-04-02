@@ -10,7 +10,7 @@
  *
  * - Bits 0 and 7 are reserved on SH-3 (_PAGE_WT and _PAGE_SZ1 on SH-4).
  *
- * - Bit 1 is the SH-bit, but is unused on SH-3 due to an MMU bug (the
+ * - Bit 1 is the SH-bit, but is unused on SH-3 due to an MMU  (the
  *   hardware PTEL value can't have the SH-bit set when MMUCR.IX is set,
  *   which is the default in cpu-sh3/mmu_context.h:MMU_CONTROL_INIT).
  *

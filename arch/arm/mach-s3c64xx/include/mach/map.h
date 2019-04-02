@@ -39,7 +39,7 @@
 #define S3C_PA_UART3		(S3C_PA_UART + 0xC00)
 #define S3C_UART_OFFSET		(0x400)
 
-/* See notes on UART VA mapping in debug-macro.S */
+/* See notes on UART VA mapping in de-macro.S */
 #define S3C_VA_UARTx(x)	(S3C_VA_UART + (S3C_PA_UART & 0xfffff) + ((x) * S3C_UART_OFFSET))
 
 #define S3C_VA_UART0		S3C_VA_UARTx(0)

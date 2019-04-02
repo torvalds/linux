@@ -350,7 +350,7 @@ static inline int s3c24xx_handle_intc(struct s3c_irq_intc *intc,
 	 * the prioritiser, and this causes the INTOFFSET register to show
 	 * what looks like the logical-or of the two interrupt numbers.
 	 *
-	 * Thanks to Klaus, Shannon, et al for helping to debug this problem
+	 * Thanks to Klaus, Shannon, et al for helping to de this problem
 	 */
 	offset = readl_relaxed(intc->reg_intpnd + 4);
 
@@ -548,7 +548,7 @@ static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
 	 */
 	switch (address) {
 	case 0x4a000000:
-		pr_debug("irq: found main intc\n");
+		pr_de("irq: found main intc\n");
 		intc->reg_pending = base;
 		intc->reg_mask = base + 0x08;
 		intc->reg_intpnd = base + 0x10;
@@ -556,14 +556,14 @@ static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
 		irq_start = S3C2410_IRQ(0);
 		break;
 	case 0x4a000018:
-		pr_debug("irq: found subintc\n");
+		pr_de("irq: found subintc\n");
 		intc->reg_pending = base + 0x18;
 		intc->reg_mask = base + 0x1c;
 		irq_num = 29;
 		irq_start = S3C2410_IRQSUB(0);
 		break;
 	case 0x4a000040:
-		pr_debug("irq: found intc2\n");
+		pr_de("irq: found intc2\n");
 		intc->reg_pending = base + 0x40;
 		intc->reg_mask = base + 0x48;
 		intc->reg_intpnd = base + 0x50;
@@ -571,7 +571,7 @@ static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
 		irq_start = S3C2416_IRQ(0);
 		break;
 	case 0x560000a4:
-		pr_debug("irq: found eintc\n");
+		pr_de("irq: found eintc\n");
 		base = (void *)0xfd000000;
 
 		intc->reg_mask = base + 0xa4;
@@ -1254,7 +1254,7 @@ static int __init s3c_init_intc_of(struct device_node *np,
 	for (i = 0; i < num_ctrl; i++) {
 		ctrl = &s3c_ctrl[i];
 
-		pr_debug("irq: found controller %s\n", ctrl->name);
+		pr_de("irq: found controller %s\n", ctrl->name);
 
 		intc = kzalloc(sizeof(struct s3c_irq_intc), GFP_KERNEL);
 		if (!intc)

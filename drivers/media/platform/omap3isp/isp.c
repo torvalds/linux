@@ -646,7 +646,7 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 
 	omap3isp_flush(isp);
 
-#if defined(DEBUG) && defined(ISP_ISR_DEBUG)
+#if defined(DE) && defined(ISP_ISR_DE)
 	isp_isr_dbg(isp, irqstatus);
 #endif
 
@@ -1440,7 +1440,7 @@ static void __omap3isp_put(struct isp_device *isp, bool save_ctx)
 		return;
 
 	mutex_lock(&isp->isp_mutex);
-	BUG_ON(isp->ref_count == 0);
+	_ON(isp->ref_count == 0);
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
 		if (save_ctx) {

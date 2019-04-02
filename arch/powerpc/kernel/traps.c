@@ -17,7 +17,7 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pkeys.h>
@@ -34,8 +34,8 @@
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
 #include <linux/backlight.h>
-#include <linux/bug.h>
-#include <linux/kdebug.h>
+#include <linux/.h>
+#include <linux/kde.h>
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
 #include <linux/smp.h>
@@ -45,7 +45,7 @@
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
 #include <linux/uaccess.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
@@ -65,7 +65,7 @@
 #include <asm/fadump.h>
 #include <asm/switch_to.h>
 #include <asm/tm.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/asm-prototypes.h>
 #include <asm/hmi.h>
 #include <sysdev/fsl_pci.h>
@@ -73,29 +73,29 @@
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
 
-#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
-int (*__debugger)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_ipi)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_bpt)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_sstep)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_iabr_match)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_break_match)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_fault_handler)(struct pt_regs *regs) __read_mostly;
+#if defined(CONFIG_DEGER) || defined(CONFIG_KEXEC_CORE)
+int (*__deger)(struct pt_regs *regs) __read_mostly;
+int (*__deger_ipi)(struct pt_regs *regs) __read_mostly;
+int (*__deger_bpt)(struct pt_regs *regs) __read_mostly;
+int (*__deger_sstep)(struct pt_regs *regs) __read_mostly;
+int (*__deger_iabr_match)(struct pt_regs *regs) __read_mostly;
+int (*__deger_break_match)(struct pt_regs *regs) __read_mostly;
+int (*__deger_fault_handler)(struct pt_regs *regs) __read_mostly;
 
-EXPORT_SYMBOL(__debugger);
-EXPORT_SYMBOL(__debugger_ipi);
-EXPORT_SYMBOL(__debugger_bpt);
-EXPORT_SYMBOL(__debugger_sstep);
-EXPORT_SYMBOL(__debugger_iabr_match);
-EXPORT_SYMBOL(__debugger_break_match);
-EXPORT_SYMBOL(__debugger_fault_handler);
+EXPORT_SYMBOL(__deger);
+EXPORT_SYMBOL(__deger_ipi);
+EXPORT_SYMBOL(__deger_bpt);
+EXPORT_SYMBOL(__deger_sstep);
+EXPORT_SYMBOL(__deger_iabr_match);
+EXPORT_SYMBOL(__deger_break_match);
+EXPORT_SYMBOL(__deger_fault_handler);
 #endif
 
-/* Transactional Memory trap debug */
-#ifdef TM_DEBUG_SW
-#define TM_DEBUG(x...) printk(KERN_INFO x)
+/* Transactional Memory trap de */
+#ifdef TM_DE_SW
+#define TM_DE(x...) printk(KERN_INFO x)
 #else
-#define TM_DEBUG(x...) do { } while(0)
+#define TM_DE(x...) do { } while(0)
 #endif
 
 static const char *signame(int signr)
@@ -178,7 +178,7 @@ extern void panic_flush_kmsg_end(void)
 	printk_safe_flush_on_panic();
 	kmsg_dump(KMSG_DUMP_PANIC);
 	bust_spinlocks(0);
-	debug_locks_off();
+	de_locks_off();
 	console_flush_on_panic();
 }
 
@@ -224,7 +224,7 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 	raw_local_irq_restore(flags);
 
 	/*
-	 * system_reset_excption handles debugger, crash dump, panic, for 0x100
+	 * system_reset_excption handles deger, crash dump, panic, for 0x100
 	 */
 	if (TRAP(regs) == 0x100)
 		return;
@@ -266,7 +266,7 @@ static int __die(const char *str, struct pt_regs *regs, long err)
 	       IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT" : "",
 	       IS_ENABLED(CONFIG_SMP) ? " SMP" : "",
 	       IS_ENABLED(CONFIG_SMP) ? (" NR_CPUS=" __stringify(NR_CPUS)) : "",
-	       debug_pagealloc_enabled() ? " DEBUG_PAGEALLOC" : "",
+	       de_pagealloc_enabled() ? " DE_PAGEALLOC" : "",
 	       IS_ENABLED(CONFIG_NUMA) ? " NUMA" : "",
 	       ppc_md.name ? ppc_md.name : "");
 
@@ -285,10 +285,10 @@ void die(const char *str, struct pt_regs *regs, long err)
 	unsigned long flags;
 
 	/*
-	 * system_reset_excption handles debugger, crash dump, panic, for 0x100
+	 * system_reset_excption handles deger, crash dump, panic, for 0x100
 	 */
 	if (TRAP(regs) != 0x100) {
-		if (debugger(regs))
+		if (deger(regs))
 			return;
 	}
 
@@ -473,7 +473,7 @@ void system_reset_exception(struct pt_regs *regs)
 			goto out;
 	}
 
-	if (debugger(regs))
+	if (deger(regs))
 		goto out;
 
 	/*
@@ -493,7 +493,7 @@ void system_reset_exception(struct pt_regs *regs)
 	crash_kexec_secondary(regs);
 
 	/*
-	 * No debugger or crash dump registered, print logs then
+	 * No deger or crash dump registered, print logs then
 	 * panic.
 	 */
 	die("System Reset", regs, SIGABRT);
@@ -504,7 +504,7 @@ void system_reset_exception(struct pt_regs *regs)
 
 out:
 #ifdef CONFIG_PPC_BOOK3S_64
-	BUG_ON(get_paca()->in_nmi == 0);
+	_ON(get_paca()->in_nmi == 0);
 	if (get_paca()->in_nmi > 1)
 		nmi_panic(regs, "Unrecoverable nested System Reset");
 #endif
@@ -547,7 +547,7 @@ static inline int check_io_access(struct pt_regs *regs)
 		 * in the twi; isync; nop sequence that inb/inw/inl uses.
 		 * As the address is in the exception table
 		 * we should be able to read the instr there.
-		 * For the debug message, we look at the preceding
+		 * For the de message, we look at the preceding
 		 * load or store.
 		 */
 		if (*nip == PPC_INST_NOP)
@@ -559,7 +559,7 @@ static inline int check_io_access(struct pt_regs *regs)
 
 			--nip;
 			rb = (*nip >> 11) & 0x1f;
-			printk(KERN_DEBUG "%s bad port %lx at %p\n",
+			printk(KERN_DE "%s bad port %lx at %p\n",
 			       (*nip & 0x100)? "OUT to": "IN from",
 			       regs->gpr[rb] - _IO_BASE, nip);
 			regs->msr |= MSR_RI;
@@ -571,7 +571,7 @@ static inline int check_io_access(struct pt_regs *regs)
 	return 0;
 }
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 /* On 4xx, the reason for the machine check or program exception
    is in the ESR. */
 #define get_reason(regs)	((regs)->dsisr)
@@ -581,8 +581,8 @@ static inline int check_io_access(struct pt_regs *regs)
 #define REASON_TRAP		ESR_PTR
 
 /* single-step stuff */
-#define single_stepping(regs)	(current->thread.debug.dbcr0 & DBCR0_IC)
-#define clear_single_step(regs)	(current->thread.debug.dbcr0 &= ~DBCR0_IC)
+#define single_stepping(regs)	(current->thread.de.dbcr0 & DBCR0_IC)
+#define clear_single_step(regs)	(current->thread.de.dbcr0 &= ~DBCR0_IC)
 #define clear_br_trace(regs)	do {} while(0)
 #else
 /* On non-4xx, the reason for the machine check or program
@@ -841,7 +841,7 @@ void machine_check_exception(struct pt_regs *regs)
 	if (recover > 0)
 		goto bail;
 
-	if (debugger_fault_handler(regs))
+	if (deger_fault_handler(regs))
 		goto bail;
 
 	if (check_io_access(regs))
@@ -1097,7 +1097,7 @@ void instruction_breakpoint_exception(struct pt_regs *regs)
 	if (notify_die(DIE_IABR_MATCH, "iabr_match", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
 		goto bail;
-	if (debugger_iabr_match(regs))
+	if (deger_iabr_match(regs))
 		goto bail;
 	_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 
@@ -1123,7 +1123,7 @@ void single_step_exception(struct pt_regs *regs)
 	if (notify_die(DIE_SSTEP, "single_step", regs, 5,
 					5, SIGTRAP) == NOTIFY_STOP)
 		goto bail;
-	if (debugger_sstep(regs))
+	if (deger_sstep(regs))
 		goto bail;
 
 	_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
@@ -1417,7 +1417,7 @@ static int emulate_instruction(struct pt_regs *regs)
 	return -EINVAL;
 }
 
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	return is_kernel_addr(addr);
 }
@@ -1467,10 +1467,10 @@ void program_check_exception(struct pt_regs *regs)
 		goto bail;
 	}
 	if (reason & REASON_TRAP) {
-		unsigned long bugaddr;
-		/* Debugger is first in line to stop recursive faults in
+		unsigned long addr;
+		/* Deger is first in line to stop recursive faults in
 		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
-		if (debugger_bpt(regs))
+		if (deger_bpt(regs))
 			goto bail;
 
 		if (kprobe_handler(regs))
@@ -1481,15 +1481,15 @@ void program_check_exception(struct pt_regs *regs)
 				== NOTIFY_STOP)
 			goto bail;
 
-		bugaddr = regs->nip;
+		addr = regs->nip;
 		/*
-		 * Fixup bugaddr for BUG_ON() in real mode
+		 * Fixup addr for _ON() in real mode
 		 */
-		if (!is_kernel_addr(bugaddr) && !(regs->msr & MSR_IR))
-			bugaddr += PAGE_OFFSET;
+		if (!is_kernel_addr(addr) && !(regs->msr & MSR_IR))
+			addr += PAGE_OFFSET;
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
-		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
+		    report_(addr, regs) == _TRAP_TYPE_WARN) {
 			regs->nip += 4;
 			goto bail;
 		}
@@ -1540,7 +1540,7 @@ void program_check_exception(struct pt_regs *regs)
 		local_irq_enable();
 
 	/* (reason & REASON_ILLEGAL) would be the obvious thing here,
-	 * but there seems to be a hardware bug on the 405GP (RevD)
+	 * but there seems to be a hardware  on the 405GP (RevD)
 	 * that means ESR is sometimes set incorrectly - either to
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
 	 * hardware people - not sure if it can happen on any illegal
@@ -1628,7 +1628,7 @@ void StackOverflow(struct pt_regs *regs)
 {
 	pr_crit("Kernel stack overflow in process %s[%d], r1=%lx\n",
 		current->comm, task_pid_nr(current), regs->gpr[1]);
-	debugger(regs);
+	deger(regs);
 	show_regs(regs);
 	panic("kernel stack overflow");
 }
@@ -1817,7 +1817,7 @@ void fp_unavailable_tm(struct pt_regs *regs)
 {
 	/* Note:  This does not handle any kind of FP laziness. */
 
-	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
+	TM_DE("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
 		 regs->nip, regs->msr);
 
         /* We can only have got here if the task started using FP after
@@ -1852,7 +1852,7 @@ void altivec_unavailable_tm(struct pt_regs *regs)
 	 * the same way.
 	 */
 
-	TM_DEBUG("Vector Unavailable trap whilst transactional at 0x%lx,"
+	TM_DE("Vector Unavailable trap whilst transactional at 0x%lx,"
 		 "MSR=%lx\n",
 		 regs->nip, regs->msr);
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
@@ -1870,7 +1870,7 @@ void vsx_unavailable_tm(struct pt_regs *regs)
 	 * regs.  Either way, set MSR_VSX.
 	 */
 
-	TM_DEBUG("VSX Unavailable trap whilst transactional at 0x%lx,"
+	TM_DE("VSX Unavailable trap whilst transactional at 0x%lx,"
 		 "MSR=%lx\n",
 		 regs->nip, regs->msr);
 
@@ -1893,76 +1893,76 @@ void performance_monitor_exception(struct pt_regs *regs)
 	perf_irq(regs);
 }
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
+#ifdef CONFIG_PPC_ADV_DE_REGS
+static void handle_de(struct pt_regs *regs, unsigned long de_status)
 {
 	int changed = 0;
 	/*
-	 * Determine the cause of the debug event, clear the
+	 * Determine the cause of the de event, clear the
 	 * event flags and send a trap to the handler. Torez
 	 */
-	if (debug_status & (DBSR_DAC1R | DBSR_DAC1W)) {
+	if (de_status & (DBSR_DAC1R | DBSR_DAC1W)) {
 		dbcr_dac(current) &= ~(DBCR_DAC1R | DBCR_DAC1W);
-#ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
-		current->thread.debug.dbcr2 &= ~DBCR2_DAC12MODE;
+#ifdef CONFIG_PPC_ADV_DE_DAC_RANGE
+		current->thread.de.dbcr2 &= ~DBCR2_DAC12MODE;
 #endif
-		do_send_trap(regs, mfspr(SPRN_DAC1), debug_status,
+		do_send_trap(regs, mfspr(SPRN_DAC1), de_status,
 			     5);
 		changed |= 0x01;
-	}  else if (debug_status & (DBSR_DAC2R | DBSR_DAC2W)) {
+	}  else if (de_status & (DBSR_DAC2R | DBSR_DAC2W)) {
 		dbcr_dac(current) &= ~(DBCR_DAC2R | DBCR_DAC2W);
-		do_send_trap(regs, mfspr(SPRN_DAC2), debug_status,
+		do_send_trap(regs, mfspr(SPRN_DAC2), de_status,
 			     6);
 		changed |= 0x01;
-	}  else if (debug_status & DBSR_IAC1) {
-		current->thread.debug.dbcr0 &= ~DBCR0_IAC1;
+	}  else if (de_status & DBSR_IAC1) {
+		current->thread.de.dbcr0 &= ~DBCR0_IAC1;
 		dbcr_iac_range(current) &= ~DBCR_IAC12MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC1), debug_status,
+		do_send_trap(regs, mfspr(SPRN_IAC1), de_status,
 			     1);
 		changed |= 0x01;
-	}  else if (debug_status & DBSR_IAC2) {
-		current->thread.debug.dbcr0 &= ~DBCR0_IAC2;
-		do_send_trap(regs, mfspr(SPRN_IAC2), debug_status,
+	}  else if (de_status & DBSR_IAC2) {
+		current->thread.de.dbcr0 &= ~DBCR0_IAC2;
+		do_send_trap(regs, mfspr(SPRN_IAC2), de_status,
 			     2);
 		changed |= 0x01;
-	}  else if (debug_status & DBSR_IAC3) {
-		current->thread.debug.dbcr0 &= ~DBCR0_IAC3;
+	}  else if (de_status & DBSR_IAC3) {
+		current->thread.de.dbcr0 &= ~DBCR0_IAC3;
 		dbcr_iac_range(current) &= ~DBCR_IAC34MODE;
-		do_send_trap(regs, mfspr(SPRN_IAC3), debug_status,
+		do_send_trap(regs, mfspr(SPRN_IAC3), de_status,
 			     3);
 		changed |= 0x01;
-	}  else if (debug_status & DBSR_IAC4) {
-		current->thread.debug.dbcr0 &= ~DBCR0_IAC4;
-		do_send_trap(regs, mfspr(SPRN_IAC4), debug_status,
+	}  else if (de_status & DBSR_IAC4) {
+		current->thread.de.dbcr0 &= ~DBCR0_IAC4;
+		do_send_trap(regs, mfspr(SPRN_IAC4), de_status,
 			     4);
 		changed |= 0x01;
 	}
 	/*
 	 * At the point this routine was called, the MSR(DE) was turned off.
-	 * Check all other debug flags and see if that bit needs to be turned
+	 * Check all other de flags and see if that bit needs to be turned
 	 * back on or not.
 	 */
-	if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
-			       current->thread.debug.dbcr1))
+	if (DBCR_ACTIVE_EVENTS(current->thread.de.dbcr0,
+			       current->thread.de.dbcr1))
 		regs->msr |= MSR_DE;
 	else
 		/* Make sure the IDM flag is off */
-		current->thread.debug.dbcr0 &= ~DBCR0_IDM;
+		current->thread.de.dbcr0 &= ~DBCR0_IDM;
 
 	if (changed & 0x01)
-		mtspr(SPRN_DBCR0, current->thread.debug.dbcr0);
+		mtspr(SPRN_DBCR0, current->thread.de.dbcr0);
 }
 
-void DebugException(struct pt_regs *regs, unsigned long debug_status)
+void DeException(struct pt_regs *regs, unsigned long de_status)
 {
-	current->thread.debug.dbsr = debug_status;
+	current->thread.de.dbsr = de_status;
 
 	/* Hack alert: On BookE, Branch Taken stops on the branch itself, while
 	 * on server, it stops on the target of the branch. In order to simulate
 	 * the server behaviour, we thus restart right away with a single step
 	 * instead of stopping here when hitting a BT
 	 */
-	if (debug_status & DBSR_BT) {
+	if (de_status & DBSR_BT) {
 		regs->msr &= ~MSR_DE;
 
 		/* Disable BT */
@@ -1972,8 +1972,8 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 
 		/* Do the single step trick only when coming from userspace */
 		if (user_mode(regs)) {
-			current->thread.debug.dbcr0 &= ~DBCR0_BT;
-			current->thread.debug.dbcr0 |= DBCR0_IDM | DBCR0_IC;
+			current->thread.de.dbcr0 &= ~DBCR0_BT;
+			current->thread.de.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 			regs->msr |= MSR_DE;
 			return;
 		}
@@ -1985,9 +1985,9 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 			       5, SIGTRAP) == NOTIFY_STOP) {
 			return;
 		}
-		if (debugger_sstep(regs))
+		if (deger_sstep(regs))
 			return;
-	} else if (debug_status & DBSR_IC) { 	/* Instruction complete */
+	} else if (de_status & DBSR_IC) { 	/* Instruction complete */
 		regs->msr &= ~MSR_DE;
 
 		/* Disable instruction completion */
@@ -2003,25 +2003,25 @@ void DebugException(struct pt_regs *regs, unsigned long debug_status)
 			return;
 		}
 
-		if (debugger_sstep(regs))
+		if (deger_sstep(regs))
 			return;
 
 		if (user_mode(regs)) {
-			current->thread.debug.dbcr0 &= ~DBCR0_IC;
-			if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
-					       current->thread.debug.dbcr1))
+			current->thread.de.dbcr0 &= ~DBCR0_IC;
+			if (DBCR_ACTIVE_EVENTS(current->thread.de.dbcr0,
+					       current->thread.de.dbcr1))
 				regs->msr |= MSR_DE;
 			else
 				/* Make sure the IDM bit is off */
-				current->thread.debug.dbcr0 &= ~DBCR0_IDM;
+				current->thread.de.dbcr0 &= ~DBCR0_IDM;
 		}
 
 		_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
 	} else
-		handle_debug(regs, debug_status);
+		handle_de(regs, de_status);
 }
-NOKPROBE_SYMBOL(DebugException);
-#endif /* CONFIG_PPC_ADV_DEBUG_REGS */
+NOKPROBE_SYMBOL(DeException);
+#endif /* CONFIG_PPC_ADV_DE_REGS */
 
 #if !defined(CONFIG_TAU_INT)
 void TAUException(struct pt_regs *regs)
@@ -2261,21 +2261,21 @@ static int __init ppc_warn_emulated_init(void)
 	unsigned int i;
 	struct ppc_emulated_entry *entries = (void *)&ppc_emulated;
 
-	if (!powerpc_debugfs_root)
+	if (!powerpc_defs_root)
 		return -ENODEV;
 
-	dir = debugfs_create_dir("emulated_instructions",
-				 powerpc_debugfs_root);
+	dir = defs_create_dir("emulated_instructions",
+				 powerpc_defs_root);
 	if (!dir)
 		return -ENOMEM;
 
-	d = debugfs_create_u32("do_warn", 0644, dir,
+	d = defs_create_u32("do_warn", 0644, dir,
 			       &ppc_warn_emulated);
 	if (!d)
 		goto fail;
 
 	for (i = 0; i < sizeof(ppc_emulated)/sizeof(*entries); i++) {
-		d = debugfs_create_u32(entries[i].name, 0644, dir,
+		d = defs_create_u32(entries[i].name, 0644, dir,
 				       (u32 *)&entries[i].val.counter);
 		if (!d)
 			goto fail;
@@ -2284,7 +2284,7 @@ static int __init ppc_warn_emulated_init(void)
 	return 0;
 
 fail:
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 	return -ENOMEM;
 }
 

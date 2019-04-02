@@ -2,11 +2,11 @@
 #ifndef __NVKM_GR_REGS_H__
 #define __NVKM_GR_REGS_H__
 
-#define NV04_PGRAPH_DEBUG_0                                0x00400080
-#define NV04_PGRAPH_DEBUG_1                                0x00400084
-#define NV04_PGRAPH_DEBUG_2                                0x00400088
-#define NV04_PGRAPH_DEBUG_3                                0x0040008c
-#define NV10_PGRAPH_DEBUG_4                                0x00400090
+#define NV04_PGRAPH_DE_0                                0x00400080
+#define NV04_PGRAPH_DE_1                                0x00400084
+#define NV04_PGRAPH_DE_2                                0x00400088
+#define NV04_PGRAPH_DE_3                                0x0040008c
+#define NV10_PGRAPH_DE_4                                0x00400090
 #define NV03_PGRAPH_INTR                                   0x00400100
 #define NV03_PGRAPH_NSTATUS                                0x00400104
 #    define NV04_PGRAPH_NSTATUS_STATE_IN_USE                  (1<<11)
@@ -130,7 +130,7 @@
 #define NV04_PGRAPH_BETA_PREMULT                           0x0040060C
 #define NV04_PGRAPH_LIMIT_VIOL_PIX                         0x00400610
 #define NV04_PGRAPH_FORMATS                                0x00400618
-#define NV10_PGRAPH_DEBUG_2                                0x00400620
+#define NV10_PGRAPH_DE_2                                0x00400620
 #define NV04_PGRAPH_BOFFSET0                               0x00400640
 #define NV04_PGRAPH_BOFFSET1                               0x00400644
 #define NV04_PGRAPH_BOFFSET2                               0x00400648

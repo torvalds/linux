@@ -77,7 +77,7 @@ int show_single_ref;
 int show_totals;
 int sort_size;
 int sort_active;
-int set_debug;
+int set_de;
 int show_ops;
 int show_activity;
 int output_lines = -1;
@@ -86,7 +86,7 @@ int extended_totals;
 int show_bytes;
 int unreclaim_only;
 
-/* Debug options */
+/* De options */
 int sanity;
 int redzone;
 int poison;
@@ -136,11 +136,11 @@ static void usage(void)
 		"-X|--Xtotals           Show extended summary information\n"
 
 		"\n"
-		"-d  | --debug          Switch off all debug options\n"
-		"-da | --debug=a        Switch on all debug options (--debug=FZPU)\n"
+		"-d  | --de          Switch off all de options\n"
+		"-da | --de=a        Switch on all de options (--de=FZPU)\n"
 
 		"\n"
-		"-d[afzput] | --debug=[afzput]\n"
+		"-d[afzput] | --de=[afzput]\n"
 		"    f | F              Sanity Checks (SLAB_CONSISTENCY_CHECKS)\n"
 		"    z | Z              Redzoning\n"
 		"    p | P              Poisoning\n"
@@ -539,7 +539,7 @@ static void report(struct slabinfo *s)
 	if (s->reclaim_account)
 		printf("** Reclaim accounting active\n");
 
-	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+	printf("\nSizes (bytes)     Slabs              De                Memory\n");
 	printf("------------------------------------------------------------------------\n");
 	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
 			s->object_size, s->slabs, onoff(s->sanity_checks),
@@ -644,9 +644,9 @@ static void slabcache(struct slabinfo *s)
 }
 
 /*
- * Analyze debug options. Return false if something is amiss.
+ * Analyze de options. Return false if something is amiss.
  */
-static int debug_opt_scan(char *opt)
+static int de_opt_scan(char *opt)
 {
 	if (!opt || !opt[0] || strcmp(opt, "-") == 0)
 		return 1;
@@ -710,7 +710,7 @@ static int slab_empty(struct slabinfo *s)
 	return 1;
 }
 
-static void slab_debug(struct slabinfo *s)
+static void slab_de(struct slabinfo *s)
 {
 	if (strcmp(s->name, "*") == 0)
 		return;
@@ -1296,8 +1296,8 @@ static void output_slabs(void)
 			slab_validate(slab);
 		else if (shrink)
 			slab_shrink(slab);
-		else if (set_debug)
-			slab_debug(slab);
+		else if (set_de)
+			slab_de(slab);
 		else if (show_ops)
 			ops(slab);
 		else if (show_slab)
@@ -1334,7 +1334,7 @@ static void xtotals(void)
 struct option opts[] = {
 	{ "aliases", no_argument, NULL, 'a' },
 	{ "activity", no_argument, NULL, 'A' },
-	{ "debug", optional_argument, NULL, 'd' },
+	{ "de", optional_argument, NULL, 'd' },
 	{ "display-activity", no_argument, NULL, 'D' },
 	{ "empty", no_argument, NULL, 'e' },
 	{ "first-alias", no_argument, NULL, 'f' },
@@ -1380,9 +1380,9 @@ int main(int argc, char *argv[])
 			sort_active = 1;
 			break;
 		case 'd':
-			set_debug = 1;
-			if (!debug_opt_scan(optarg))
-				fatal("Invalid debug option '%s'\n", optarg);
+			set_de = 1;
+			if (!de_opt_scan(optarg))
+				fatal("Invalid de option '%s'\n", optarg);
 			break;
 		case 'D':
 			show_activity = 1;
@@ -1457,7 +1457,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!show_slab && !show_alias && !show_track && !show_report
-		&& !validate && !shrink && !set_debug && !show_ops)
+		&& !validate && !shrink && !set_de && !show_ops)
 			show_slab = 1;
 
 	if (argc > optind)

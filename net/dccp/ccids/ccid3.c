@@ -37,17 +37,17 @@
 
 #include <asm/unaligned.h>
 
-#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
-static bool ccid3_debug;
-#define ccid3_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid3_debug, format, ##a)
+#ifdef CONFIG_IP_DCCP_CCID3_DE
+static bool ccid3_de;
+#define ccid3_pr_de(format, a...)	DCCP_PR_DE(ccid3_de, format, ##a)
 #else
-#define ccid3_pr_debug(format, a...)
+#define ccid3_pr_de(format, a...)
 #endif
 
 /*
  *	Transmitter Half-Connection Routines
  */
-#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
+#ifdef CONFIG_IP_DCCP_CCID3_DE
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
 	static const char *const ccid3_state_names[] = {
@@ -66,7 +66,7 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 	enum ccid3_hc_tx_states oldstate = hc->tx_state;
 
-	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
+	ccid3_pr_de("%s(%p) %-8.8s -> %s\n",
 		       dccp_role(sk), sk, ccid3_tx_state_name(oldstate),
 		       ccid3_tx_state_name(state));
 	WARN_ON(state == oldstate);
@@ -98,8 +98,8 @@ static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hc)
 {
 	hc->tx_t_ipi = scaled_div32(((u64)hc->tx_s) << 6, hc->tx_x);
 
-	DCCP_BUG_ON(hc->tx_t_ipi == 0);
-	ccid3_pr_debug("t_ipi=%u, s=%u, X=%u\n", hc->tx_t_ipi,
+	DCCP__ON(hc->tx_t_ipi == 0);
+	ccid3_pr_de("t_ipi=%u, s=%u, X=%u\n", hc->tx_t_ipi,
 		       hc->tx_s, (unsigned int)(hc->tx_x >> 6));
 }
 
@@ -153,7 +153,7 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 	}
 
 	if (hc->tx_x != old_x) {
-		ccid3_pr_debug("X_prev=%u, X_now=%u, X_calc=%u, "
+		ccid3_pr_de("X_prev=%u, X_now=%u, X_calc=%u, "
 			       "X_recv=%u\n", (unsigned int)(old_x >> 6),
 			       (unsigned int)(hc->tx_x >> 6), hc->tx_x_calc,
 			       (unsigned int)(hc->tx_x_recv >> 6));
@@ -208,7 +208,7 @@ static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 		goto restart_timer;
 	}
 
-	ccid3_pr_debug("%s(%p, state=%s) - entry\n", dccp_role(sk), sk,
+	ccid3_pr_de("%s(%p, state=%s) - entry\n", dccp_role(sk), sk,
 		       ccid3_tx_state_name(hc->tx_state));
 
 	/* Ignore and do not restart after leaving the established state */
@@ -250,7 +250,7 @@ static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 		}
 		ccid3_hc_tx_update_x(sk, NULL);
 	}
-	ccid3_pr_debug("Reduced X to %llu/64 bytes/sec\n",
+	ccid3_pr_de("Reduced X to %llu/64 bytes/sec\n",
 			(unsigned long long)hc->tx_x);
 
 	/*
@@ -309,7 +309,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		 * draft rfc3448bis, section 4.2. Remember, X is scaled by 2^6.
 		 */
 		if (dp->dccps_syn_rtt) {
-			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
+			ccid3_pr_de("SYN RTT = %uus\n", dp->dccps_syn_rtt);
 			hc->tx_rtt  = dp->dccps_syn_rtt;
 			hc->tx_x    = rfc3390_initial_rate(sk);
 			hc->tx_t_ld = now;
@@ -330,7 +330,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 
 	} else {
 		delay = ktime_us_delta(hc->tx_t_nom, now);
-		ccid3_pr_debug("delay=%ld\n", (long)delay);
+		ccid3_pr_de("delay=%ld\n", (long)delay);
 		/*
 		 *	Scheduling of packet transmissions (RFC 5348, 8.3)
 		 *
@@ -425,7 +425,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	ccid3_hc_tx_update_x(sk, &now);
 
 done_computing_x:
-	ccid3_pr_debug("%s(%p), RTT=%uus (sample=%uus), s=%u, "
+	ccid3_pr_de("%s(%p), RTT=%uus (sample=%uus), s=%u, "
 			       "p=%u, X_calc=%u, X_recv=%u, X=%u\n",
 			       dccp_role(sk), sk, hc->tx_rtt, r_sample,
 			       hc->tx_s, hc->tx_p, hc->tx_x_calc,
@@ -454,7 +454,7 @@ done_computing_x:
 	 */
 	t_nfb = max(hc->tx_t_rto, 2 * hc->tx_t_ipi);
 
-	ccid3_pr_debug("%s(%p), Scheduled no feedback timer to "
+	ccid3_pr_de("%s(%p), Scheduled no feedback timer to "
 		       "expire in %lu jiffies (%luus)\n",
 		       dccp_role(sk), sk, usecs_to_jiffies(t_nfb), t_nfb);
 
@@ -486,13 +486,13 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, u8 packet_type,
 			hc->tx_x_recv = opt_val;
 			hc->tx_x_recv <<= 6;
 
-			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
+			ccid3_pr_de("%s(%p), RECEIVE_RATE=%u\n",
 				       dccp_role(sk), sk, opt_val);
 		} else {
 			/* Update the fixpoint Loss Event Rate fraction */
 			hc->tx_p = tfrc_invert_loss_event_rate(opt_val);
 
-			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
+			ccid3_pr_de("%s(%p), LOSS_EVENT_RATE=%u\n",
 				       dccp_role(sk), sk, opt_val);
 		}
 	}
@@ -569,7 +569,7 @@ enum ccid3_fback_type {
 	CCID3_FBACK_PARAM_CHANGE
 };
 
-#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
+#ifdef CONFIG_IP_DCCP_CCID3_DE
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
 	static const char *const ccid3_rx_state_names[] = {
@@ -587,7 +587,7 @@ static void ccid3_hc_rx_set_state(struct sock *sk,
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
 	enum ccid3_hc_rx_states oldstate = hc->rx_state;
 
-	ccid3_pr_debug("%s(%p) %-8.8s -> %s\n",
+	ccid3_pr_de("%s(%p) %-8.8s -> %s\n",
 		       dccp_role(sk), sk, ccid3_rx_state_name(oldstate),
 		       ccid3_rx_state_name(state));
 	WARN_ON(state == oldstate);
@@ -632,7 +632,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 		return;
 	}
 
-	ccid3_pr_debug("Interval %lldusec, X_recv=%u, 1/p=%u\n", delta,
+	ccid3_pr_de("Interval %lldusec, X_recv=%u, 1/p=%u\n", delta,
 		       hc->rx_x_recv, hc->rx_pinv);
 
 	hc->rx_tstamp_last_feedback = now;
@@ -695,7 +695,7 @@ static u32 ccid3_first_li(struct sock *sk)
 	if (x_recv == 0) {		/* would also trigger divide-by-zero */
 		DCCP_WARN("X_recv==0\n");
 		if (hc->rx_x_recv == 0) {
-			DCCP_BUG("stored value of X_recv is zero");
+			DCCP_("stored value of X_recv is zero");
 			return ~0U;
 		}
 		x_recv = hc->rx_x_recv;
@@ -705,7 +705,7 @@ static u32 ccid3_first_li(struct sock *sk)
 	fval = scaled_div32(fval, x_recv);
 	p = tfrc_calc_x_reverse_lookup(fval);
 
-	ccid3_pr_debug("%s(%p), receive rate=%u bytes/s, implied "
+	ccid3_pr_de("%s(%p), receive rate=%u bytes/s, implied "
 		       "loss rate=%u\n", dccp_role(sk), sk, x_recv, p);
 
 	return p == 0 ? ~0U : scaled_div(1, p);
@@ -867,7 +867,7 @@ struct ccid_operations ccid3_ops = {
 	.ccid_hc_tx_getsockopt	   = ccid3_hc_tx_getsockopt,
 };
 
-#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
-module_param(ccid3_debug, bool, 0644);
-MODULE_PARM_DESC(ccid3_debug, "Enable CCID-3 debug messages");
+#ifdef CONFIG_IP_DCCP_CCID3_DE
+module_param(ccid3_de, bool, 0644);
+MODULE_PARM_DESC(ccid3_de, "Enable CCID-3 de messages");
 #endif

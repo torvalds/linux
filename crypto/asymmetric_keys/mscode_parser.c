@@ -53,7 +53,7 @@ int mscode_note_content_type(void *context, size_t hdrlen,
 	}
 
 	/*
-	 * pesign utility had a bug where it was putting
+	 * pesign utility had a  where it was putting
 	 * OID_msIndividualSPKeyPurpose instead of OID_msPeImageDataObjId
 	 * So allow both OIDs.
 	 */

@@ -258,10 +258,10 @@ struct dma_buf_ops {
  * @lock: used internally to serialize list manipulation, attach/detach and vmap/unmap
  * @vmapping_counter: used internally to refcnt the vmaps
  * @vmap_ptr: the current vmap ptr if vmapping_counter > 0
- * @exp_name: name of the exporter; useful for debugging.
+ * @exp_name: name of the exporter; useful for deging.
  * @owner: pointer to exporter module; used for refcounting when exporter is a
  *         kernel module.
- * @list_node: node for dma_buf accounting and debugging.
+ * @list_node: node for dma_buf accounting and deging.
  * @priv: exporter specific private data for this buffer object.
  * @resv: reservation object linked to this dma-buf
  * @poll: for userspace poll support
@@ -327,7 +327,7 @@ struct dma_buf_attachment {
 
 /**
  * struct dma_buf_export_info - holds information needed to export a dma_buf
- * @exp_name:	name of the exporter - useful for debugging.
+ * @exp_name:	name of the exporter - useful for deging.
  * @owner:	pointer to exporter module - used for refcounting kernel module
  * @ops:	Attach allocator-defined dma buf ops to the new buffer
  * @size:	Size of the buffer

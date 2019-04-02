@@ -9,7 +9,7 @@
 #ifndef AMD5536UDC_H
 #define AMD5536UDC_H
 
-/* debug control */
+/* de control */
 /* #define UDC_VERBOSE */
 
 #include <linux/extcon.h>
@@ -649,7 +649,7 @@ MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 #define AMD_UNMASK_BIT(bit_stub_name) (~AMD_BIT(bit_stub_name))
 #define AMD_CLEAR_BIT(bit_stub_name) (~AMD_BIT(bit_stub_name))
 
-/* debug macros ------------------------------------------------------------*/
+/* de macros ------------------------------------------------------------*/
 
 #define DBG(udc , args...)	dev_dbg(udc->dev, args)
 

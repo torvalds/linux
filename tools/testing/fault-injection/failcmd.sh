@@ -69,15 +69,15 @@ if [ $UID != 0 ]; then
 	exit 1
 fi
 
-DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3}'`
+DEFS=`mount -t defs | head -1 | awk '{ print $3}'`
 
-if [ ! -d "$DEBUGFS" ]; then
-	echo debugfs is not mounted >&2
+if [ ! -d "$DEFS" ]; then
+	echo defs is not mounted >&2
 	exit 1
 fi
 
 FAILCMD_TYPE=${FAILCMD_TYPE:-failslab}
-FAULTATTR=$DEBUGFS/$FAILCMD_TYPE
+FAULTATTR=$DEFS/$FAILCMD_TYPE
 
 if [ ! -d $FAULTATTR ]; then
 	echo $FAILCMD_TYPE is not available >&2

@@ -43,7 +43,7 @@
 static void
 vxfs_typdump(struct vxfs_typed *typ)
 {
-	printk(KERN_DEBUG "type=%Lu ", typ->vt_hdr >> VXFS_TYPED_TYPESHIFT);
+	printk(KERN_DE "type=%Lu ", typ->vt_hdr >> VXFS_TYPED_TYPESHIFT);
 	printk("offset=%Lx ", typ->vt_hdr & VXFS_TYPED_OFFSETMASK);
 	printk("block=%x ", typ->vt_block);
 	printk("size=%x\n", typ->vt_size);
@@ -183,7 +183,7 @@ vxfs_bmap_indir(struct inode *ip, long indir, int size, long block)
 		default:
 			printk(KERN_ERR "%s:%d vt_hdr %llu\n", __func__,
 				__LINE__, fs64_to_cpu(sbi, typ->vt_hdr));
-			BUG();
+			();
 		}
 		brelse(bp);
 	}
@@ -251,7 +251,7 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
 			return 0;
 		}
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -286,7 +286,7 @@ vxfs_bmap1(struct inode *ip, long iblock)
 
 	printk(KERN_WARNING "vxfs: inode %ld has no valid orgtype (%x)\n",
 			ip->i_ino, vip->vii_orgtype);
-	BUG();
+	();
 
 unsupp:
 	printk(KERN_WARNING "vxfs: inode %ld has an unsupported orgtype (%x)\n",

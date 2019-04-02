@@ -298,7 +298,7 @@ static const struct tv_mode *sun4i_tv_find_tv_by_mode(const struct drm_display_m
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		const struct tv_mode *tv_mode = &tv_modes[i];
 
-		DRM_DEBUG_DRIVER("Comparing mode %s vs %s",
+		DRM_DE_DRIVER("Comparing mode %s vs %s",
 				 mode->name, tv_mode->name);
 
 		if (!strcmp(mode->name, tv_mode->name))
@@ -309,7 +309,7 @@ static const struct tv_mode *sun4i_tv_find_tv_by_mode(const struct drm_display_m
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		const struct tv_mode *tv_mode = &tv_modes[i];
 
-		DRM_DEBUG_DRIVER("Comparing mode %s vs %s (X: %d vs %d)",
+		DRM_DE_DRIVER("Comparing mode %s vs %s (X: %d vs %d)",
 				 mode->name, tv_mode->name,
 				 mode->vdisplay, tv_mode->vdisplay);
 
@@ -323,7 +323,7 @@ static const struct tv_mode *sun4i_tv_find_tv_by_mode(const struct drm_display_m
 static void sun4i_tv_mode_to_drm_mode(const struct tv_mode *tv_mode,
 				      struct drm_display_mode *mode)
 {
-	DRM_DEBUG_DRIVER("Creating mode %s\n", mode->name);
+	DRM_DE_DRIVER("Creating mode %s\n", mode->name);
 
 	mode->type = DRM_MODE_TYPE_DRIVER;
 	mode->clock = 13500;
@@ -345,7 +345,7 @@ static void sun4i_tv_disable(struct drm_encoder *encoder)
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
 
-	DRM_DEBUG_DRIVER("Disabling the TV Output\n");
+	DRM_DE_DRIVER("Disabling the TV Output\n");
 
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
 			   SUN4I_TVE_EN_ENABLE,
@@ -359,7 +359,7 @@ static void sun4i_tv_enable(struct drm_encoder *encoder)
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
 
-	DRM_DEBUG_DRIVER("Enabling the TV Output\n");
+	DRM_DE_DRIVER("Enabling the TV Output\n");
 
 	sunxi_engine_apply_color_correction(crtc->engine);
 

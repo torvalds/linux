@@ -59,31 +59,31 @@ void dsp_dtmf_hardware(struct dsp *dsp)
 
 	/* check for volume change */
 	if (dsp->tx_volume) {
-		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+		if (dsp_de & DE_DSP_DTMF)
+			printk(KERN_DE "%s dsp %s cannot do hardware DTMF, "
 			       "because tx_volume is changed\n",
 			       __func__, dsp->name);
 		hardware = 0;
 	}
 	if (dsp->rx_volume) {
-		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+		if (dsp_de & DE_DSP_DTMF)
+			printk(KERN_DE "%s dsp %s cannot do hardware DTMF, "
 			       "because rx_volume is changed\n",
 			       __func__, dsp->name);
 		hardware = 0;
 	}
 	/* check if encryption is enabled */
 	if (dsp->bf_enable) {
-		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+		if (dsp_de & DE_DSP_DTMF)
+			printk(KERN_DE "%s dsp %s cannot do hardware DTMF, "
 			       "because encryption is enabled\n",
 			       __func__, dsp->name);
 		hardware = 0;
 	}
 	/* check if pipeline exists */
 	if (dsp->pipeline.inuse) {
-		if (dsp_debug & DEBUG_DSP_DTMF)
-			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
+		if (dsp_de & DE_DSP_DTMF)
+			printk(KERN_DE "%s dsp %s cannot do hardware DTMF, "
 			       "because pipeline exists.\n",
 			       __func__, dsp->name);
 		hardware = 0;
@@ -222,16 +222,16 @@ coefficients:
 		goto storedigit;
 	}
 
-	if (dsp_debug & DEBUG_DSP_DTMFCOEFF) {
+	if (dsp_de & DE_DSP_DTMFCOEFF) {
 		s32 tresh_100 = tresh/100;
 
 		if (tresh_100 == 0) {
 			tresh_100 = 1;
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"tresh(%d) too small set tresh/100 to 1\n",
 				tresh);
 		}
-		printk(KERN_DEBUG "a %3d %3d %3d %3d %3d %3d %3d %3d"
+		printk(KERN_DE "a %3d %3d %3d %3d %3d %3d %3d %3d"
 		       " tr:%3d r %3d %3d %3d %3d %3d %3d %3d %3d\n",
 		       result[0] / 10000, result[1] / 10000, result[2] / 10000,
 		       result[3] / 10000, result[4] / 10000, result[5] / 10000,
@@ -281,8 +281,8 @@ coefficients:
 		what = dtmf_matrix[lowgroup][highgroup];
 
 storedigit:
-	if (what && (dsp_debug & DEBUG_DSP_DTMF))
-		printk(KERN_DEBUG "DTMF what: %c\n", what);
+	if (what && (dsp_de & DE_DSP_DTMF))
+		printk(KERN_DE "DTMF what: %c\n", what);
 
 	if (dsp->dtmf.lastwhat != what)
 		dsp->dtmf.count = 0;
@@ -292,8 +292,8 @@ storedigit:
 		if (dsp->dtmf.lastdigit != what) {
 			dsp->dtmf.lastdigit = what;
 			if (what) {
-				if (dsp_debug & DEBUG_DSP_DTMF)
-					printk(KERN_DEBUG "DTMF digit: %c\n",
+				if (dsp_de & DE_DSP_DTMF)
+					printk(KERN_DE "DTMF digit: %c\n",
 					       what);
 				if ((strlen(dsp->dtmf.digits) + 1)
 				    < sizeof(dsp->dtmf.digits)) {

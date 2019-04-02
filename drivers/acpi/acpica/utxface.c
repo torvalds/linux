@@ -11,7 +11,7 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utxface")
@@ -139,10 +139,10 @@ acpi_status acpi_get_system_info(struct acpi_buffer *out_buffer)
 	info_ptr->reserved1 = 0;
 	info_ptr->reserved2 = 0;
 
-	/* Current debug levels */
+	/* Current de levels */
 
-	info_ptr->debug_layer = acpi_dbg_layer;
-	info_ptr->debug_level = acpi_dbg_level;
+	info_ptr->de_layer = acpi_dbg_layer;
+	info_ptr->de_level = acpi_dbg_level;
 
 	return_ACPI_STATUS(AE_OK);
 }

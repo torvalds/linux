@@ -24,9 +24,9 @@
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 
-int tda18271_debug;
-module_param_named(debug, tda18271_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
+int tda18271_de;
+module_param_named(de, tda18271_de, int, 0644);
+MODULE_PARM_DESC(de, "set de level (info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
 
 static int tda18271_cal_on_startup = -1;
 module_param_named(cal, tda18271_cal_on_startup, int, 0644);
@@ -633,7 +633,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 			map[i].rf3   = rf_freq[RF3] / 1000;
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -870,7 +870,7 @@ static int tda18271_agc(struct dvb_frontend *fe)
 	switch (priv->config) {
 	case TDA8290_LNA_OFF:
 		/* no external agc configuration required */
-		if (tda18271_debug & DBG_ADV)
+		if (tda18271_de & DBG_ADV)
 			tda_dbg("no agc configuration provided\n");
 		break;
 	case TDA8290_LNA_ON_BRIDGE:
@@ -1338,7 +1338,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	if (tda18271_debug & (DBG_MAP | DBG_ADV))
+	if (tda18271_de & (DBG_MAP | DBG_ADV))
 		tda18271_dump_std_map(fe);
 
 	return fe;

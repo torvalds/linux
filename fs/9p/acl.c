@@ -93,7 +93,7 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 	 * instantiating the inode (v9fs_inode_from_fid)
 	 */
 	acl = get_cached_acl(inode, type);
-	BUG_ON(is_uncached_acl(acl));
+	_ON(is_uncached_acl(acl));
 	return acl;
 }
 
@@ -139,7 +139,7 @@ static int v9fs_set_acl(struct p9_fid *fid, int type, struct posix_acl *acl)
 		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 	retval = v9fs_fid_xattr_set(fid, name, buffer, size, 0);
 err_free_out:
@@ -307,7 +307,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 	retval = v9fs_xattr_set(dentry, handler->name, value, size, flags);
 	if (!retval)

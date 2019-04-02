@@ -137,7 +137,7 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 {
 	void *page;
 
-	BUG_ON(max > KVM_NR_MEM_OBJS);
+	_ON(max > KVM_NR_MEM_OBJS);
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < max) {
@@ -159,7 +159,7 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 {
 	void *p;
 
-	BUG_ON(!mc || !mc->nobjs);
+	_ON(!mc || !mc->nobjs);
 	p = mc->objects[--mc->nobjs];
 	return p;
 }
@@ -176,7 +176,7 @@ static void clear_stage2_pgd_entry(struct kvm *kvm, pgd_t *pgd, phys_addr_t addr
 static void clear_stage2_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr)
 {
 	pmd_t *pmd_table __maybe_unused = stage2_pmd_offset(kvm, pud, 0);
-	VM_BUG_ON(stage2_pud_huge(kvm, *pud));
+	VM__ON(stage2_pud_huge(kvm, *pud));
 	stage2_pud_clear(kvm, pud);
 	kvm_tlb_flush_vmid_ipa(kvm, addr);
 	stage2_pmd_free(kvm, pmd_table);
@@ -186,7 +186,7 @@ static void clear_stage2_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr
 static void clear_stage2_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
 {
 	pte_t *pte_table = pte_offset_kernel(pmd, 0);
-	VM_BUG_ON(pmd_thp_or_huge(*pmd));
+	VM__ON(pmd_thp_or_huge(*pmd));
 	pmd_clear(pmd);
 	kvm_tlb_flush_vmid_ipa(kvm, addr);
 	pte_free_kernel(NULL, pte_table);
@@ -468,7 +468,7 @@ static void clear_hyp_pgd_entry(pgd_t *pgd)
 static void clear_hyp_pud_entry(pud_t *pud)
 {
 	pmd_t *pmd_table __maybe_unused = pmd_offset(pud, 0);
-	VM_BUG_ON(pud_huge(*pud));
+	VM__ON(pud_huge(*pud));
 	pud_clear(pud);
 	pmd_free(NULL, pmd_table);
 	put_page(virt_to_page(pud));
@@ -477,7 +477,7 @@ static void clear_hyp_pud_entry(pud_t *pud)
 static void clear_hyp_pmd_entry(pmd_t *pmd)
 {
 	pte_t *pte_table = pte_offset_kernel(pmd, 0);
-	VM_BUG_ON(pmd_thp_or_huge(*pmd));
+	VM__ON(pmd_thp_or_huge(*pmd));
 	pmd_clear(pmd);
 	pte_free_kernel(NULL, pte_table);
 	put_page(virt_to_page(pmd));
@@ -642,7 +642,7 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 	do {
 		pmd = pmd_offset(pud, addr);
 
-		BUG_ON(pmd_sect(*pmd));
+		_ON(pmd_sect(*pmd));
 
 		if (pmd_none(*pmd)) {
 			pte = pte_alloc_one_kernel(NULL);
@@ -736,7 +736,7 @@ out:
 static phys_addr_t kvm_kaddr_to_phys(void *kaddr)
 {
 	if (!is_vmalloc_addr(kaddr)) {
-		BUG_ON(!virt_addr_valid(kaddr));
+		_ON(!virt_addr_valid(kaddr));
 		return __pa(kaddr);
 	} else {
 		return page_to_phys(vmalloc_to_page(kaddr)) +
@@ -880,7 +880,7 @@ int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
 	unsigned long addr;
 	int ret;
 
-	BUG_ON(is_kernel_in_hyp_mode());
+	_ON(is_kernel_in_hyp_mode());
 
 	ret = __create_hyp_private_mapping(phys_addr, size,
 					   &addr, PAGE_HYP_EXEC);
@@ -1066,7 +1066,7 @@ static int stage2_set_pmd_huge(struct kvm *kvm, struct kvm_mmu_memory_cache
 
 retry:
 	pmd = stage2_get_pmd(kvm, cache, addr);
-	VM_BUG_ON(!pmd);
+	VM__ON(!pmd);
 
 	old_pmd = *pmd;
 	/*
@@ -1130,7 +1130,7 @@ static int stage2_set_pud_huge(struct kvm *kvm, struct kvm_mmu_memory_cache *cac
 
 retry:
 	pudp = stage2_get_pud(kvm, cache, addr);
-	VM_BUG_ON(!pudp);
+	VM__ON(!pudp);
 
 	old_pud = *pudp;
 
@@ -1235,7 +1235,7 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 	bool iomap = flags & KVM_S2PTE_FLAG_IS_IOMAP;
 	bool logging_active = flags & KVM_S2_FLAG_LOGGING_ACTIVE;
 
-	VM_BUG_ON(logging_active && !cache);
+	VM__ON(logging_active && !cache);
 
 	/* Create stage-2 page table mapping - Levels 0 and 1 */
 	pud = stage2_get_pud(kvm, cache, addr);
@@ -1412,7 +1412,7 @@ static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
 		 * page accordingly.
 		 */
 		mask = PTRS_PER_PMD - 1;
-		VM_BUG_ON((gfn & mask) != (pfn & mask));
+		VM__ON((gfn & mask) != (pfn & mask));
 		if (pfn & mask) {
 			*ipap &= PMD_MASK;
 			kvm_release_pfn_clean(pfn);
@@ -1692,7 +1692,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 
 	write_fault = kvm_is_write_fault(vcpu);
 	exec_fault = kvm_vcpu_trap_is_iabt(vcpu);
-	VM_BUG_ON(write_fault && exec_fault);
+	VM__ON(write_fault && exec_fault);
 
 	if (fault_status == FSC_PERM && !write_fault && !exec_fault) {
 		kvm_err("Unexpected L2 read permission error\n");
@@ -1989,7 +1989,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 
 	/* Userspace should not be able to register out-of-bounds IPAs */
-	VM_BUG_ON(fault_ipa >= kvm_phys_size(vcpu->kvm));
+	VM__ON(fault_ipa >= kvm_phys_size(vcpu->kvm));
 
 	if (fault_status == FSC_ACCESS) {
 		handle_access_fault(vcpu, fault_ipa);
@@ -2193,10 +2193,10 @@ int kvm_mmu_init(void)
 	 * We rely on the linker script to ensure at build time that the HYP
 	 * init code does not cross a page boundary.
 	 */
-	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
+	_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
-	kvm_debug("IDMAP page: %lx\n", hyp_idmap_start);
-	kvm_debug("HYP VA range: %lx:%lx\n",
+	kvm_de("IDMAP page: %lx\n", hyp_idmap_start);
+	kvm_de("HYP VA range: %lx:%lx\n",
 		  kern_hyp_va(PAGE_OFFSET),
 		  kern_hyp_va((unsigned long)high_memory - 1));
 

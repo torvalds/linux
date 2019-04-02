@@ -50,11 +50,11 @@ struct mt312_state {
 	u8 freq_mult;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "mt312: " args); \
+		if (de) \
+			printk(KERN_DE "mt312: " args); \
 	} while (0)
 
 #define MT312_PLL_CLK		10000000UL	/* 10 MHz */
@@ -79,11 +79,11 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_DEBUG "%s: ret == %d\n", __func__, ret);
+		printk(KERN_DE "%s: ret == %d\n", __func__, ret);
 		return -EREMOTEIO;
 	}
 
-	if (debug) {
+	if (de) {
 		int i;
 		dprintk("R(%d):", reg & 0x7f);
 		for (i = 0; i < count; i++)
@@ -107,7 +107,7 @@ static int mt312_write(struct mt312_state *state, const enum mt312_reg_addr reg,
 		return -EINVAL;
 	}
 
-	if (debug) {
+	if (de) {
 		int i;
 		dprintk("W(%d):", reg & 0x7f);
 		for (i = 0; i < count; i++)
@@ -142,7 +142,7 @@ static inline int mt312_readreg(struct mt312_state *state,
 static inline int mt312_writereg(struct mt312_state *state,
 				 const enum mt312_reg_addr reg, const u8 val)
 {
-	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = val; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 
 	return mt312_write(state, reg, &tmp, 1);
@@ -847,8 +847,8 @@ error:
 }
 EXPORT_SYMBOL(mt312_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Zarlink VP310/MT312/ZL10313 DVB-S Demodulator driver");
 MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>");

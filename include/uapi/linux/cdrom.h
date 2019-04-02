@@ -127,7 +127,7 @@
 #define CDROM_DISC_STATUS	0x5327  /* Get disc type, etc. */
 #define CDROM_CHANGER_NSLOTS    0x5328  /* Get number of slots */
 #define CDROM_LOCKDOOR		0x5329  /* lock or unlock door */
-#define CDROM_DEBUG		0x5330	/* Turn debug messages on/off */
+#define CDROM_DE		0x5330	/* Turn de messages on/off */
 #define CDROM_GET_CAPABILITY	0x5331	/* get capabilities */
 
 /* Note that scsi/scsi_ioctl.h also uses 0x5382 - 0x5386.

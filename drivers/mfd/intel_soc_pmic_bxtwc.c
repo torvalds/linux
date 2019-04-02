@@ -562,7 +562,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * There is known hw bug. Upon reset BIT 5 of register
+	 * There is known hw . Upon reset BIT 5 of register
 	 * BXTWC_CHGR_LVL1_IRQ is 0 which is the expected value. However,
 	 * later it's set to 1(masked) automatically by hardware. So we
 	 * have the software workaround here to unmaksed it in order to let

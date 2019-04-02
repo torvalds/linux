@@ -26,7 +26,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 
@@ -903,8 +903,8 @@ static struct elv_fs_entry kyber_sched_attrs[] = {
 };
 #undef KYBER_LAT_ATTR
 
-#ifdef CONFIG_BLK_DEBUG_FS
-#define KYBER_DEBUGFS_DOMAIN_ATTRS(domain, name)			\
+#ifdef CONFIG_BLK_DE_FS
+#define KYBER_DEFS_DOMAIN_ATTRS(domain, name)			\
 static int kyber_##name##_tokens_show(void *data, struct seq_file *m)	\
 {									\
 	struct request_queue *q = data;					\
@@ -946,7 +946,7 @@ static const struct seq_operations kyber_##name##_rqs_seq_ops = {	\
 	.start	= kyber_##name##_rqs_start,				\
 	.next	= kyber_##name##_rqs_next,				\
 	.stop	= kyber_##name##_rqs_stop,				\
-	.show	= blk_mq_debugfs_rq_show,				\
+	.show	= blk_mq_defs_rq_show,				\
 };									\
 									\
 static int kyber_##name##_waiting_show(void *data, struct seq_file *m)	\
@@ -958,11 +958,11 @@ static int kyber_##name##_waiting_show(void *data, struct seq_file *m)	\
 	seq_printf(m, "%d\n", !list_empty_careful(&wait->entry));	\
 	return 0;							\
 }
-KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_READ, read)
-KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_WRITE, write)
-KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_DISCARD, discard)
-KYBER_DEBUGFS_DOMAIN_ATTRS(KYBER_OTHER, other)
-#undef KYBER_DEBUGFS_DOMAIN_ATTRS
+KYBER_DEFS_DOMAIN_ATTRS(KYBER_READ, read)
+KYBER_DEFS_DOMAIN_ATTRS(KYBER_WRITE, write)
+KYBER_DEFS_DOMAIN_ATTRS(KYBER_DISCARD, discard)
+KYBER_DEFS_DOMAIN_ATTRS(KYBER_OTHER, other)
+#undef KYBER_DEFS_DOMAIN_ATTRS
 
 static int kyber_async_depth_show(void *data, struct seq_file *m)
 {
@@ -993,7 +993,7 @@ static int kyber_batching_show(void *data, struct seq_file *m)
 
 #define KYBER_QUEUE_DOMAIN_ATTRS(name)	\
 	{#name "_tokens", 0400, kyber_##name##_tokens_show}
-static const struct blk_mq_debugfs_attr kyber_queue_debugfs_attrs[] = {
+static const struct blk_mq_defs_attr kyber_queue_defs_attrs[] = {
 	KYBER_QUEUE_DOMAIN_ATTRS(read),
 	KYBER_QUEUE_DOMAIN_ATTRS(write),
 	KYBER_QUEUE_DOMAIN_ATTRS(discard),
@@ -1006,7 +1006,7 @@ static const struct blk_mq_debugfs_attr kyber_queue_debugfs_attrs[] = {
 #define KYBER_HCTX_DOMAIN_ATTRS(name)					\
 	{#name "_rqs", 0400, .seq_ops = &kyber_##name##_rqs_seq_ops},	\
 	{#name "_waiting", 0400, kyber_##name##_waiting_show}
-static const struct blk_mq_debugfs_attr kyber_hctx_debugfs_attrs[] = {
+static const struct blk_mq_defs_attr kyber_hctx_defs_attrs[] = {
 	KYBER_HCTX_DOMAIN_ATTRS(read),
 	KYBER_HCTX_DOMAIN_ATTRS(write),
 	KYBER_HCTX_DOMAIN_ATTRS(discard),
@@ -1034,9 +1034,9 @@ static struct elevator_type kyber_sched = {
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,
 	},
-#ifdef CONFIG_BLK_DEBUG_FS
-	.queue_debugfs_attrs = kyber_queue_debugfs_attrs,
-	.hctx_debugfs_attrs = kyber_hctx_debugfs_attrs,
+#ifdef CONFIG_BLK_DE_FS
+	.queue_defs_attrs = kyber_queue_defs_attrs,
+	.hctx_defs_attrs = kyber_hctx_defs_attrs,
 #endif
 	.elevator_attrs = kyber_sched_attrs,
 	.elevator_name = "kyber",

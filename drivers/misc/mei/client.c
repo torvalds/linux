@@ -1849,7 +1849,7 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 		mei_cl_set_disconnected(cl);
 		break;
 	default:
-		BUG_ON(0);
+		_ON(0);
 	}
 }
 

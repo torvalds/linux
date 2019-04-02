@@ -1,5 +1,5 @@
 /*
- * cfg80211 debugfs
+ * cfg80211 defs
  *
  * Copyright 2009	Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
@@ -11,9 +11,9 @@
 
 #include <linux/slab.h>
 #include "core.h"
-#include "debugfs.h"
+#include "defs.h"
 
-#define DEBUGFS_READONLY_FILE(name, buflen, fmt, value...)		\
+#define DEFS_READONLY_FILE(name, buflen, fmt, value...)		\
 static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 			    size_t count, loff_t *ppos)			\
 {									\
@@ -31,13 +31,13 @@ static const struct file_operations name## _ops = {			\
 	.llseek = generic_file_llseek,					\
 }
 
-DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
+DEFS_READONLY_FILE(rts_threshold, 20, "%d",
 		      wiphy->rts_threshold);
-DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
+DEFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
 		      wiphy->frag_threshold);
-DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
+DEFS_READONLY_FILE(short_retry_limit, 20, "%d",
 		      wiphy->retry_short);
-DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
+DEFS_READONLY_FILE(long_retry_limit, 20, "%d",
 		      wiphy->retry_long);
 
 static int ht_print_chan(struct ieee80211_channel *chan,
@@ -102,16 +102,16 @@ static const struct file_operations ht40allow_map_ops = {
 	.llseek = default_llseek,
 };
 
-#define DEBUGFS_ADD(name)						\
-	debugfs_create_file(#name, 0444, phyd, &rdev->wiphy, &name## _ops)
+#define DEFS_ADD(name)						\
+	defs_create_file(#name, 0444, phyd, &rdev->wiphy, &name## _ops)
 
-void cfg80211_debugfs_rdev_add(struct cfg80211_registered_device *rdev)
+void cfg80211_defs_rdev_add(struct cfg80211_registered_device *rdev)
 {
-	struct dentry *phyd = rdev->wiphy.debugfsdir;
+	struct dentry *phyd = rdev->wiphy.defsdir;
 
-	DEBUGFS_ADD(rts_threshold);
-	DEBUGFS_ADD(fragmentation_threshold);
-	DEBUGFS_ADD(short_retry_limit);
-	DEBUGFS_ADD(long_retry_limit);
-	DEBUGFS_ADD(ht40allow_map);
+	DEFS_ADD(rts_threshold);
+	DEFS_ADD(fragmentation_threshold);
+	DEFS_ADD(short_retry_limit);
+	DEFS_ADD(long_retry_limit);
+	DEFS_ADD(ht40allow_map);
 }

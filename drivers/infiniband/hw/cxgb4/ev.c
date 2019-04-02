@@ -47,7 +47,7 @@ static void print_tpte(struct c4iw_dev *dev, u32 stag)
 			"%s cxgb4_read_tpte err %d\n", __func__, ret);
 		return;
 	}
-	pr_debug("stag idx 0x%x valid %d key 0x%x state %d pdid %d perm 0x%x ps %d len 0x%llx va 0x%llx\n",
+	pr_de("stag idx 0x%x valid %d key 0x%x state %d pdid %d perm 0x%x ps %d len 0x%llx va 0x%llx\n",
 		 stag & 0xffffff00,
 		 FW_RI_TPTE_VALID_G(ntohl(tpte.valid_to_pdid)),
 		 FW_RI_TPTE_STAGKEY_G(ntohl(tpte.valid_to_pdid)),
@@ -70,7 +70,7 @@ static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		CQE_STATUS(err_cqe), CQE_TYPE(err_cqe), ntohl(err_cqe->len),
 		CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
 
-	pr_debug("%016llx %016llx %016llx %016llx - %016llx %016llx %016llx %016llx\n",
+	pr_de("%016llx %016llx %016llx %016llx - %016llx %016llx %016llx %016llx\n",
 		 be64_to_cpu(p[0]), be64_to_cpu(p[1]), be64_to_cpu(p[2]),
 		 be64_to_cpu(p[3]), be64_to_cpu(p[4]), be64_to_cpu(p[5]),
 		 be64_to_cpu(p[6]), be64_to_cpu(p[7]));
@@ -237,7 +237,7 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 		if (atomic_dec_and_test(&chp->refcnt))
 			wake_up(&chp->wait);
 	} else {
-		pr_debug("unknown cqid 0x%x\n", qid);
+		pr_de("unknown cqid 0x%x\n", qid);
 		spin_unlock_irqrestore(&dev->lock, flag);
 	}
 	return 0;

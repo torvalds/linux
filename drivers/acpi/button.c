@@ -180,7 +180,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 				ms_to_ktime(lid_report_interval));
 	if (button->last_state == !!state &&
 	    ktime_after(ktime_get(), next_report)) {
-		/* Complain the buggy firmware */
+		/* Complain the gy firmware */
 		pr_warn_once("The lid device is not compliant to SW_LID.\n");
 
 		/*
@@ -190,11 +190,11 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 		 * there are exceptions:
 		 * 1. Platforms returning initial lid state as "close" by
 		 *    default after booting/resuming:
-		 *     https://bugzilla.kernel.org/show_bug.cgi?id=89211
-		 *     https://bugzilla.kernel.org/show_bug.cgi?id=106151
+		 *     https://zilla.kernel.org/show_.cgi?id=89211
+		 *     https://zilla.kernel.org/show_.cgi?id=106151
 		 * 2. Platforms never reporting "open" events:
-		 *     https://bugzilla.kernel.org/show_bug.cgi?id=106941
-		 * On these buggy platforms, the usage model of the ACPI
+		 *     https://zilla.kernel.org/show_.cgi?id=106941
+		 * On these gy platforms, the usage model of the ACPI
 		 * lid device actually is:
 		 * 1. The initial returning value of _LID may not be
 		 *    reliable.
@@ -228,7 +228,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	}
 	/* Send the platform triggered reliable event */
 	if (do_update) {
-		acpi_handle_debug(device->handle, "ACPI LID %s\n",
+		acpi_handle_de(device->handle, "ACPI LID %s\n",
 				  state ? "open" : "closed");
 		input_report_switch(button->input, SW_LID, !state);
 		input_sync(button->input);
@@ -434,7 +434,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 		}
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}

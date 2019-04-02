@@ -123,10 +123,10 @@ struct thread_struct {
 	unsigned int gmap_write_flag;	/* gmap fault write indication */
 	unsigned int gmap_int_code;	/* int code of last gmap fault */
 	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
-	/* Per-thread information related to debugging */
+	/* Per-thread information related to deging */
 	struct per_regs per_user;	/* User specified PER registers */
 	struct per_event per_event;	/* Cause of the last PER trap */
-	unsigned long per_flags;	/* Flags to control debug behavior */
+	unsigned long per_flags;	/* Flags to control de behavior */
 	unsigned int system_call;	/* system call number in signal */
 	unsigned long last_break;	/* last breaking-event-address. */
         /* pfault_wait is used to block the process on a pfault event */
@@ -417,7 +417,7 @@ extern void memcpy_absolute(void *, void *, size_t);
 #define mem_assign_absolute(dest, val) do {			\
 	__typeof__(dest) __tmp = (val);				\
 								\
-	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
+	BUILD__ON(sizeof(__tmp) != sizeof(val));		\
 	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
 } while (0)
 

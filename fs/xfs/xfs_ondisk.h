@@ -7,11 +7,11 @@
 #define __XFS_ONDISK_H
 
 #define XFS_CHECK_STRUCT_SIZE(structname, size) \
-	BUILD_BUG_ON_MSG(sizeof(structname) != (size), "XFS: sizeof(" \
+	BUILD__ON_MSG(sizeof(structname) != (size), "XFS: sizeof(" \
 		#structname ") is wrong, expected " #size)
 
 #define XFS_CHECK_OFFSET(structname, member, off) \
-	BUILD_BUG_ON_MSG(offsetof(structname, member) != (off), \
+	BUILD__ON_MSG(offsetof(structname, member) != (off), \
 		"XFS: offsetof(" #structname ", " #member ") is wrong, " \
 		"expected " #off)
 

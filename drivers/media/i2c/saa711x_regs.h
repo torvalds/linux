@@ -213,7 +213,7 @@
 #define SAA7113_R_13_ADLSB_MASK (0x1 << SAA7113_R_13_ADLSB_OFFSET)
 
 #if 0
-/* Those structs will be used in the future for debug purposes */
+/* Those structs will be used in the future for de purposes */
 struct saa711x_reg_descr {
 	u8 reg;
 	int count;

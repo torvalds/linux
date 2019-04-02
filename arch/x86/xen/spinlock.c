@@ -59,7 +59,7 @@ static void xen_qlock_wait(u8 *byte, u8 val)
 
 static irqreturn_t dummy_handler(int irq, void *dev_id)
 {
-	BUG();
+	();
 	return IRQ_HANDLED;
 }
 
@@ -123,10 +123,10 @@ void __init xen_init_spinlocks(void)
 		xen_pvspin = false;
 
 	if (!xen_pvspin) {
-		printk(KERN_DEBUG "xen: PV spinlocks disabled\n");
+		printk(KERN_DE "xen: PV spinlocks disabled\n");
 		return;
 	}
-	printk(KERN_DEBUG "xen: PV spinlocks enabled\n");
+	printk(KERN_DE "xen: PV spinlocks enabled\n");
 
 	__pv_init_lock_hash();
 	pv_ops.lock.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;

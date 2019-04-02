@@ -69,8 +69,8 @@ config USBIP_VUDC
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbip-vudc.
 
-config USBIP_DEBUG
-	bool "Debug messages for USB/IP"
+config USBIP_DE
+	bool "De messages for USB/IP"
 	depends on USBIP_CORE
 	---help---
-	  This enables the debug messages from the USB/IP drivers.
+	  This enables the de messages from the USB/IP drivers.

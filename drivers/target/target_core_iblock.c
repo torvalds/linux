@@ -54,7 +54,7 @@ static inline struct iblock_dev *IBLOCK_DEV(struct se_device *dev)
 
 static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 {
-	pr_debug("CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
+	pr_de("CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		IBLOCK_VERSION, TARGET_CORE_VERSION);
 	return 0;
@@ -74,7 +74,7 @@ static struct se_device *iblock_alloc_device(struct se_hba *hba, const char *nam
 		return NULL;
 	}
 
-	pr_debug( "IBLOCK: Allocated ib_dev for %s\n", name);
+	pr_de( "IBLOCK: Allocated ib_dev for %s\n", name);
 
 	return &ib_dev->dev;
 }
@@ -100,7 +100,7 @@ static int iblock_configure_device(struct se_device *dev)
 		goto out;
 	}
 
-	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
+	pr_de( "IBLOCK: Claiming struct block_device: %s\n",
 			ib_dev->ibd_udev_path);
 
 	mode = FMODE_READ|FMODE_EXCL;
@@ -123,7 +123,7 @@ static int iblock_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
 
 	if (target_configure_unmap_from_queue(&dev->dev_attrib, q))
-		pr_debug("IBLOCK: BLOCK Discard support available,"
+		pr_de("IBLOCK: BLOCK Discard support available,"
 			 " disabled by default\n");
 
 	/*
@@ -163,7 +163,7 @@ static int iblock_configure_device(struct se_device *dev)
 				ret = -ENOMEM;
 				goto out_blkdev_put;
 			}
-			pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
+			pr_de("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
 				 &bs->bio_integrity_pool);
 		}
 		dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
@@ -574,7 +574,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 				ret = -EINVAL;
 				break;
 			}
-			pr_debug("IBLOCK: Referencing UDEV path: %s\n",
+			pr_de("IBLOCK: Referencing UDEV path: %s\n",
 					ib_dev->ibd_udev_path);
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;
 			break;
@@ -592,7 +592,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 				goto out;
 			}
 			ib_dev->ibd_readonly = tmp_readonly;
-			pr_debug("IBLOCK: readonly: %d\n", ib_dev->ibd_readonly);
+			pr_de("IBLOCK: readonly: %d\n", ib_dev->ibd_readonly);
 			break;
 		case Opt_force:
 			break;
@@ -661,7 +661,7 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 	bip->bip_iter.bi_size = bio_integrity_bytes(bi, bio_sectors(bio));
 	bip_set_seed(bip, bio->bi_iter.bi_sector);
 
-	pr_debug("IBLOCK BIP Size: %u Sector: %llu\n", bip->bip_iter.bi_size,
+	pr_de("IBLOCK BIP Size: %u Sector: %llu\n", bip->bip_iter.bi_size,
 		 (unsigned long long)bip->bip_iter.bi_sector);
 
 	resid = bip->bip_iter.bi_size;
@@ -676,7 +676,7 @@ iblock_alloc_bip(struct se_cmd *cmd, struct bio *bio,
 			return -ENOMEM;
 		}
 
-		pr_debug("Added bio integrity page: %p length: %zu offset: %lu\n",
+		pr_de("Added bio integrity page: %p length: %zu offset: %lu\n",
 			  miter->page, len, offset_in_page(miter->addr));
 
 		resid -= len;

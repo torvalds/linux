@@ -393,14 +393,14 @@ struct sock_reuseport;
 #define BPF_SIZEOF(type)					\
 	({							\
 		const int __size = bytes_to_bpf_size(sizeof(type)); \
-		BUILD_BUG_ON(__size < 0);			\
+		BUILD__ON(__size < 0);			\
 		__size;						\
 	})
 
 #define BPF_FIELD_SIZEOF(type, field)				\
 	({							\
 		const int __size = bytes_to_bpf_size(FIELD_SIZEOF(type, field)); \
-		BUILD_BUG_ON(__size < 0);			\
+		BUILD__ON(__size < 0);			\
 		__size;						\
 	})
 
@@ -475,7 +475,7 @@ struct sock_reuseport;
 
 #define bpf_target_off(TYPE, MEMBER, SIZE, PTR_SIZE)				\
 	({									\
-		BUILD_BUG_ON(FIELD_SIZEOF(TYPE, MEMBER) != (SIZE));		\
+		BUILD__ON(FIELD_SIZEOF(TYPE, MEMBER) != (SIZE));		\
 		*(PTR_SIZE) = (SIZE);						\
 		offsetof(TYPE, MEMBER);						\
 	})
@@ -583,7 +583,7 @@ static inline void bpf_compute_data_pointers(struct sk_buff *skb)
 {
 	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
 
-	BUILD_BUG_ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD__ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
 	cb->data_meta = skb->data - skb_metadata_len(skb);
 	cb->data_end  = skb->data + skb_headlen(skb);
 }
@@ -621,8 +621,8 @@ static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 	 * attached to sockets, we need to clear the bpf_skb_cb() area
 	 * to not leak previous contents to user space.
 	 */
-	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) != BPF_SKB_CB_LEN);
-	BUILD_BUG_ON(FIELD_SIZEOF(struct __sk_buff, cb) !=
+	BUILD__ON(FIELD_SIZEOF(struct __sk_buff, cb) != BPF_SKB_CB_LEN);
+	BUILD__ON(FIELD_SIZEOF(struct __sk_buff, cb) !=
 		     FIELD_SIZEOF(struct qdisc_skb_cb, data));
 
 	return qdisc_skb_cb(skb)->data;
@@ -1097,7 +1097,7 @@ static inline bool bpf_needs_clear_a(const struct sock_filter *first)
 
 static inline u16 bpf_anc_helper(const struct sock_filter *ftest)
 {
-	BUG_ON(ftest->code & BPF_ANC);
+	_ON(ftest->code & BPF_ANC);
 
 	switch (ftest->code) {
 	case BPF_LD | BPF_W | BPF_ABS:

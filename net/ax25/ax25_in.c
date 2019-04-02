@@ -112,7 +112,7 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 	pid = *skb->data;
 
 	if (pid == AX25_P_IP) {
-		/* working around a TCP bug to keep additional listeners
+		/* working around a TCP  to keep additional listeners
 		 * happy. TCP re-uses the buffer and destroys the original
 		 * content.
 		 */

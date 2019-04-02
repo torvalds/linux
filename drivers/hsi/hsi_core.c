@@ -645,7 +645,7 @@ void hsi_release_port(struct hsi_client *cl)
 	port->release(cl);
 	if (cl->pclaimed)
 		port->claimed--;
-	BUG_ON(port->claimed < 0);
+	_ON(port->claimed < 0);
 	cl->pclaimed = 0;
 	if (!port->claimed)
 		port->shared = 0;

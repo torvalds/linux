@@ -148,7 +148,7 @@ static int snd_ice1712_ews88mt_chip_select(struct snd_ice1712 *ice, int chip_mas
 	struct ews_spec *spec = ice->spec;
 	unsigned char data, ndata;
 
-	if (snd_BUG_ON(chip_mask < 0 || chip_mask > 0x0f))
+	if (snd__ON(chip_mask < 0 || chip_mask > 0x0f))
 		return -EINVAL;
 	snd_i2c_lock(ice->i2c);
 	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF2], &data, 1) != 1)
@@ -681,7 +681,7 @@ static int snd_ice1712_ews88mt_input_sense_get(struct snd_kcontrol *kcontrol, st
 	int channel = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned char data;
 
-	if (snd_BUG_ON(channel < 0 || channel > 7))
+	if (snd__ON(channel < 0 || channel > 7))
 		return 0;
 	snd_i2c_lock(ice->i2c);
 	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF1], &data, 1) != 1) {
@@ -702,7 +702,7 @@ static int snd_ice1712_ews88mt_input_sense_put(struct snd_kcontrol *kcontrol, st
 	int channel = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned char data, ndata;
 
-	if (snd_BUG_ON(channel < 0 || channel > 7))
+	if (snd__ON(channel < 0 || channel > 7))
 		return 0;
 	snd_i2c_lock(ice->i2c);
 	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_PCF1], &data, 1) != 1) {

@@ -134,7 +134,7 @@ static int phase22_init(struct snd_ice1712 *ice)
 		ice->vt1720 = 1; /* Envy24HT-S have 16 bit wide GPIO */
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 

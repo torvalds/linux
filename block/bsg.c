@@ -31,7 +31,7 @@
 #define BSG_VERSION	"0.4"
 
 #define bsg_dbg(bd, fmt, ...) \
-	pr_debug("%s: " fmt, (bd)->name, ##__VA_ARGS__)
+	pr_de("%s: " fmt, (bd)->name, ##__VA_ARGS__)
 
 struct bsg_device {
 	struct request_queue *queue;

@@ -56,7 +56,7 @@ enum btt_init_state {
 /*
  * A log group represents one log 'lane', and consists of four log entries.
  * Two of the four entries are valid entries, and the remaining two are
- * padding. Due to an old bug in the padding location, we need to perform a
+ * padding. Due to an old  in the padding location, we need to perform a
  * test to determine the padding scheme being used, and use that scheme
  * thereafter.
  *
@@ -166,7 +166,7 @@ struct aligned_lock {
  * @map_locks:		Spinlocks protecting concurrent map writes
  * @nd_btt:		Pointer to parent nd_btt structure.
  * @list:		List head for list of arenas
- * @debugfs_dir:	Debugfs dentry
+ * @defs_dir:	Defs dentry
  * @flags:		Arena flags - may signify error states.
  * @err_lock:		Mutex for synchronizing error clearing.
  * @log_index:		Indices of the valid log entries in a log_group
@@ -198,7 +198,7 @@ struct arena_info {
 	struct aligned_lock *map_locks;
 	struct nd_btt *nd_btt;
 	struct list_head list;
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 	/* Arena flags */
 	u32 flags;
 	struct mutex err_lock;
@@ -210,7 +210,7 @@ struct arena_info {
  * @btt_disk:		Pointer to the gendisk for BTT device
  * @btt_queue:		Pointer to the request queue for the BTT device
  * @arena_list:		Head of the list of arenas
- * @debugfs_dir:	Debugfs dentry
+ * @defs_dir:	Defs dentry
  * @nd_btt:		Parent nd_btt struct
  * @nlba:		Number of logical blocks exposed to the	upper layers
  *			after removing the amount of space needed by metadata
@@ -228,7 +228,7 @@ struct btt {
 	struct gendisk *btt_disk;
 	struct request_queue *btt_queue;
 	struct list_head arena_list;
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 	struct nd_btt *nd_btt;
 	u64 nlba;
 	unsigned long long rawsize;

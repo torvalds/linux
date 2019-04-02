@@ -31,14 +31,14 @@ extern __printf(3, 4) void _udf_warn(struct super_block *sb,
 #define udf_info(fmt, ...)					\
 	pr_info("INFO " fmt, ##__VA_ARGS__)
 
-#undef UDFFS_DEBUG
+#undef UDFFS_DE
 
-#ifdef UDFFS_DEBUG
-#define udf_debug(fmt, ...)					\
-	printk(KERN_DEBUG pr_fmt("%s:%d:%s: " fmt),		\
+#ifdef UDFFS_DE
+#define udf_de(fmt, ...)					\
+	printk(KERN_DE pr_fmt("%s:%d:%s: " fmt),		\
 	       __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 #else
-#define udf_debug(fmt, ...)					\
+#define udf_de(fmt, ...)					\
 	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
@@ -118,7 +118,7 @@ static inline void udf_updated_lvid(struct super_block *sb)
 {
 	struct buffer_head *bh = UDF_SB(sb)->s_lvid_bh;
 
-	BUG_ON(!bh);
+	_ON(!bh);
 	WARN_ON_ONCE(((struct logicalVolIntegrityDesc *)
 		     bh->b_data)->integrityType !=
 		     cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN));

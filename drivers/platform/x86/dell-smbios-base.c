@@ -590,10 +590,10 @@ static int __init dell_smbios_init(void)
 	/* register backends */
 	wmi = init_dell_smbios_wmi();
 	if (wmi)
-		pr_debug("Failed to initialize WMI backend: %d\n", wmi);
+		pr_de("Failed to initialize WMI backend: %d\n", wmi);
 	smm = init_dell_smbios_smm();
 	if (smm)
-		pr_debug("Failed to initialize SMM backend: %d\n", smm);
+		pr_de("Failed to initialize SMM backend: %d\n", smm);
 	if (wmi && smm) {
 		pr_err("No SMBIOS backends available (wmi: %d, smm: %d)\n",
 			wmi, smm);

@@ -215,7 +215,7 @@ static void split_core(int new_mode)
 
 	/* Convert new_mode (2 or 4) into an index into our parms array */
 	i = (new_mode >> 1) - 1;
-	BUG_ON(i < 0 || i > 1);
+	_ON(i < 0 || i > 1);
 
 	cpu = smp_processor_id();
 	if (cpu_thread_in_core(cpu) != 0) {
@@ -341,7 +341,7 @@ static int set_subcores_per_core(int new_mode)
 	 * We are only called at boot, or from the sysfs write. If that ever
 	 * changes we'll need a lock here.
 	 */
-	BUG_ON(new_mode < 1 || new_mode > 4 || new_mode == 3);
+	_ON(new_mode < 1 || new_mode > 4 || new_mode == 3);
 
 	for_each_present_cpu(cpu) {
 		state = &per_cpu(split_state, cpu);
@@ -425,7 +425,7 @@ static int subcore_init(void)
 	if (setup_max_cpus % threads_per_core)
 		return 0;
 
-	BUG_ON(!alloc_cpumask_var(&cpu_offline_mask, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&cpu_offline_mask, GFP_KERNEL));
 
 	set_subcores_per_core(1);
 

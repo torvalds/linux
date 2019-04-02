@@ -85,9 +85,9 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, i40e_pci_tbl);
 
 #define I40E_MAX_VF_COUNT 128
-static int debug = -1;
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all), Debug mask (0x8XXXXXXX)");
+static int de = -1;
+module_param(de, uint, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all), De mask (0x8XXXXXXX)");
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Ethernet Connection XL710 Network Driver");
@@ -3911,7 +3911,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 	if (icr0 & I40E_PFINT_ICR0_ADMINQ_MASK) {
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
 		set_bit(__I40E_ADMINQ_EVENT_PENDING, pf->state);
-		i40e_debug(&pf->hw, I40E_DEBUG_NVM, "AdminQ event\n");
+		i40e_de(&pf->hw, I40E_DE_NVM, "AdminQ event\n");
 	}
 
 	if (icr0 & I40E_PFINT_ICR0_MAL_DETECT_MASK) {
@@ -8206,7 +8206,7 @@ static void i40e_reenable_fdir_sb(struct i40e_pf *pf)
 {
 	if (test_and_clear_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state))
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
-		    (I40E_DEBUG_FD & pf->hw.debug_mask))
+		    (I40E_DE_FD & pf->hw.de_mask))
 			dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
 }
 
@@ -8227,7 +8227,7 @@ static void i40e_reenable_fdir_atr(struct i40e_pf *pf)
 					I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    (I40E_DEBUG_FD & pf->hw.debug_mask))
+		    (I40E_DE_FD & pf->hw.de_mask))
 			dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
 	}
 }
@@ -8342,7 +8342,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 
 	if (!(time_after(jiffies, min_flush_time)) &&
 	    (fd_room < I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR)) {
-		if (I40E_DEBUG_FD & pf->hw.debug_mask)
+		if (I40E_DE_FD & pf->hw.de_mask)
 			dev_info(&pf->pdev->dev, "ATR disabled, not enough FD filter space.\n");
 		disable_atr = true;
 	}
@@ -8370,7 +8370,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 		if (!disable_atr && !pf->fd_tcp4_filter_cnt)
 			clear_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 		clear_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
-		if (I40E_DEBUG_FD & pf->hw.debug_mask)
+		if (I40E_DE_FD & pf->hw.de_mask)
 			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
 	}
 }
@@ -8674,18 +8674,18 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
 	oldval = val;
 	if (val & I40E_PF_ARQLEN_ARQVFE_MASK) {
-		if (hw->debug_mask & I40E_DEBUG_AQ)
+		if (hw->de_mask & I40E_DE_AQ)
 			dev_info(&pf->pdev->dev, "ARQ VF Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQVFE_MASK;
 	}
 	if (val & I40E_PF_ARQLEN_ARQOVFL_MASK) {
-		if (hw->debug_mask & I40E_DEBUG_AQ)
+		if (hw->de_mask & I40E_DE_AQ)
 			dev_info(&pf->pdev->dev, "ARQ Overflow Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQOVFL_MASK;
 		pf->arq_overflows++;
 	}
 	if (val & I40E_PF_ARQLEN_ARQCRIT_MASK) {
-		if (hw->debug_mask & I40E_DEBUG_AQ)
+		if (hw->de_mask & I40E_DE_AQ)
 			dev_info(&pf->pdev->dev, "ARQ Critical Error detected\n");
 		val &= ~I40E_PF_ARQLEN_ARQCRIT_MASK;
 	}
@@ -8695,17 +8695,17 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	val = rd32(&pf->hw, pf->hw.aq.asq.len);
 	oldval = val;
 	if (val & I40E_PF_ATQLEN_ATQVFE_MASK) {
-		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
+		if (pf->hw.de_mask & I40E_DE_AQ)
 			dev_info(&pf->pdev->dev, "ASQ VF Error detected\n");
 		val &= ~I40E_PF_ATQLEN_ATQVFE_MASK;
 	}
 	if (val & I40E_PF_ATQLEN_ATQOVFL_MASK) {
-		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
+		if (pf->hw.de_mask & I40E_DE_AQ)
 			dev_info(&pf->pdev->dev, "ASQ Overflow Error detected\n");
 		val &= ~I40E_PF_ATQLEN_ATQOVFL_MASK;
 	}
 	if (val & I40E_PF_ATQLEN_ATQCRIT_MASK) {
-		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
+		if (pf->hw.de_mask & I40E_DE_AQ)
 			dev_info(&pf->pdev->dev, "ASQ Critical Error detected\n");
 		val &= ~I40E_PF_ATQLEN_ATQCRIT_MASK;
 	}
@@ -8758,7 +8758,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		case i40e_aqc_opc_nvm_erase:
 		case i40e_aqc_opc_nvm_update:
 		case i40e_aqc_opc_oem_post_update:
-			i40e_debug(&pf->hw, I40E_DEBUG_NVM,
+			i40e_de(&pf->hw, I40E_DE_NVM,
 				   "ARQ NVM operation 0x%04x completed\n",
 				   opcode);
 			break;
@@ -8891,7 +8891,7 @@ static void i40e_config_bridge_mode(struct i40e_veb *veb)
 {
 	struct i40e_pf *pf = veb->pf;
 
-	if (pf->hw.debug_mask & I40E_DEBUG_LAN)
+	if (pf->hw.de_mask & I40E_DE_LAN)
 		dev_info(&pf->pdev->dev, "enabling bridge mode: %s\n",
 			 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
 	if (veb->bridge_mode & BRIDGE_MODE_VEPA)
@@ -9025,7 +9025,7 @@ static int i40e_get_capabilities(struct i40e_pf *pf,
 		}
 	} while (err);
 
-	if (pf->hw.debug_mask & I40E_DEBUG_USER) {
+	if (pf->hw.de_mask & I40E_DE_USER) {
 		if (list_type == i40e_aqc_opc_list_func_capabilities) {
 			dev_info(&pf->pdev->dev,
 				 "pf=%d, num_vfs=%d, msix_pf=%d, msix_vf=%d, fd_g=%d, fd_b=%d, pf_max_q=%d num_vsi=%d\n",
@@ -10409,7 +10409,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	vectors_left -= extra_vectors;
 
 	WARN(vectors_left < 0,
-	     "Calculation of remaining vectors underflowed. This is an accounting bug when determining total MSI-X vectors.\n");
+	     "Calculation of remaining vectors underflowed. This is an accounting  when determining total MSI-X vectors.\n");
 
 	v_budget += pf->num_lan_msix;
 	pf->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
@@ -10506,7 +10506,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		dev_info(&pf->pdev->dev, "IWARP disabled, not enough MSI-X vectors\n");
 		pf->flags &= ~I40E_FLAG_IWARP_ENABLED;
 	}
-	i40e_debug(&pf->hw, I40E_DEBUG_INIT,
+	i40e_de(&pf->hw, I40E_DE_INIT,
 		   "MSI-X vector distribution: PF %d, VMDq %d, FDSB %d, iWARP %d\n",
 		   pf->num_lan_msix,
 		   pf->num_vmdq_msix * pf->num_vmdq_vsis,
@@ -11389,7 +11389,7 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 		/* if ATR was auto disabled it can be re-enabled. */
 		if (test_and_clear_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-			    (I40E_DEBUG_FD & pf->hw.debug_mask))
+			    (I40E_DE_FD & pf->hw.de_mask))
 				dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
 	}
 	return need_reset;
@@ -13184,7 +13184,7 @@ static void i40e_switch_branch_release(struct i40e_veb *branch)
 
 	/* There's one corner case where the VEB might not have been
 	 * removed, so double check it here and remove it if needed.
-	 * This case happens if the veb was created from the debugfs
+	 * This case happens if the veb was created from the defs
 	 * commands and no VSIs were added to it.
 	 */
 	if (pf->veb[veb_idx])
@@ -13963,12 +13963,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mutex_init(&hw->aq.asq_mutex);
 	mutex_init(&hw->aq.arq_mutex);
 
-	pf->msg_enable = netif_msg_init(debug,
+	pf->msg_enable = netif_msg_init(de,
 					NETIF_MSG_DRV |
 					NETIF_MSG_PROBE |
 					NETIF_MSG_LINK);
-	if (debug < -1)
-		pf->hw.debug_mask = debug;
+	if (de < -1)
+		pf->hw.de_mask = de;
 
 	/* do a special CORER for clearing PXE mode once at init */
 	if (hw->revision_id == 0 &&

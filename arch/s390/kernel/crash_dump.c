@@ -676,7 +676,7 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	loads_init(phdr_loads, hdr_off);
 	*addr = (unsigned long long) hdr;
 	*size = (unsigned long long) hdr_off;
-	BUG_ON(elfcorehdr_size > alloc_size);
+	_ON(elfcorehdr_size > alloc_size);
 	return 0;
 }
 

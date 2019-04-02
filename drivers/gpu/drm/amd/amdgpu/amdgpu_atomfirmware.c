@@ -78,7 +78,7 @@ int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 
 	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
 		firmware_usage = (struct vram_usagebyfirmware_v2_1 *)(ctx->bios + data_offset);
-		DRM_DEBUG("atom firmware requested %08x %dkb fw %dkb drv\n",
+		DRM_DE("atom firmware requested %08x %dkb fw %dkb drv\n",
 			  le32_to_cpu(firmware_usage->start_address_in_kb),
 			  le16_to_cpu(firmware_usage->used_by_firmware_in_kb),
 			  le16_to_cpu(firmware_usage->used_by_driver_in_kb));

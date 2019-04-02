@@ -89,7 +89,7 @@ map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi
 	/* First, determine what the bit-pattern should be for a single
 	   device, according to chip mode and endianness... */
 	switch (chip_mode) {
-	default: BUG();
+	default: ();
 	case 1:
 		onecmd = cmd;
 		break;
@@ -104,7 +104,7 @@ map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi
 	/* Now replicate it across the size of an unsigned long, or
 	   just to the bus width as appropriate */
 	switch (chips_per_word) {
-	default: BUG();
+	default: ();
 #if BITS_PER_LONG >= 64
 	case 8:
 		onecmd |= (onecmd << (chip_mode * 32));
@@ -157,7 +157,7 @@ unsigned long cfi_merge_status(map_word val, struct map_info *map,
 
 	res = onestat;
 	switch(chips_per_word) {
-	default: BUG();
+	default: ();
 #if BITS_PER_LONG >= 64
 	case 8:
 		res |= (onestat >> (chip_mode * 32));
@@ -181,7 +181,7 @@ unsigned long cfi_merge_status(map_word val, struct map_info *map,
 	case 4:
 		res = cfi32_to_cpu(map, res);
 		break;
-	default: BUG();
+	default: ();
 	}
 	return res;
 }

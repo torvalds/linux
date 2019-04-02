@@ -259,7 +259,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	int err;
 
 	if (msg->msg_flags & MSG_OOB) {
-		pr_debug("msg->msg_flags = 0x%x\n", msg->msg_flags);
+		pr_de("msg->msg_flags = 0x%x\n", msg->msg_flags);
 		return -EOPNOTSUPP;
 	}
 
@@ -271,16 +271,16 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	release_sock(sk);
 
 	if (!dev) {
-		pr_debug("no dev\n");
+		pr_de("no dev\n");
 		err = -ENXIO;
 		goto out;
 	}
 
 	mtu = IEEE802154_MTU;
-	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
+	pr_de("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %zu, mtu = %u\n", size, mtu);
+		pr_de("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
 		goto out_dev;
 	}
@@ -624,7 +624,7 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	int err;
 
 	if (msg->msg_flags & MSG_OOB) {
-		pr_debug("msg->msg_flags = 0x%x\n", msg->msg_flags);
+		pr_de("msg->msg_flags = 0x%x\n", msg->msg_flags);
 		return -EOPNOTSUPP;
 	}
 
@@ -639,15 +639,15 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		dev = ieee802154_get_dev(sock_net(sk), &ro->src_addr);
 
 	if (!dev) {
-		pr_debug("no dev\n");
+		pr_de("no dev\n");
 		err = -ENXIO;
 		goto out;
 	}
 	mtu = IEEE802154_MTU;
-	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
+	pr_de("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %zu, mtu = %u\n", size, mtu);
+		pr_de("size = %zu, mtu = %u\n", size, mtu);
 		err = -EMSGSIZE;
 		goto out_dev;
 	}
@@ -806,7 +806,7 @@ static int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	__le64 hw_addr;
 
 	/* Data frame processing */
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
+	_ON(dev->type != ARPHRD_IEEE802154);
 
 	pan_id = dev->ieee802154_ptr->pan_id;
 	short_addr = dev->ieee802154_ptr->short_addr;
@@ -1073,8 +1073,8 @@ static int ieee802154_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	if (!netif_running(dev))
 		goto drop;
-	pr_debug("got frame, type %d, dev %p\n", dev->type, dev);
-#ifdef DEBUG
+	pr_de("got frame, type %d, dev %p\n", dev->type, dev);
+#ifdef DE
 	print_hex_dump_bytes("ieee802154_rcv ",
 			     DUMP_PREFIX_NONE, skb->data, skb->len);
 #endif

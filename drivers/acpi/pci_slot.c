@@ -58,7 +58,7 @@ check_slot(acpi_handle handle, unsigned long long *sun)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-	pr_debug("Checking slot on path: %s\n", (char *)buffer.pointer);
+	pr_de("Checking slot on path: %s\n", (char *)buffer.pointer);
 
 	if (check_sta_before_sun) {
 		/* If SxFy doesn't have _STA, we just assume it's there */
@@ -69,7 +69,7 @@ check_slot(acpi_handle handle, unsigned long long *sun)
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
-		pr_debug("_ADR returned %d on %s\n",
+		pr_de("_ADR returned %d on %s\n",
 			 status, (char *)buffer.pointer);
 		goto out;
 	}
@@ -77,7 +77,7 @@ check_slot(acpi_handle handle, unsigned long long *sun)
 	/* No _SUN == not a slot == bail */
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, sun);
 	if (ACPI_FAILURE(status)) {
-		pr_debug("_SUN returned %d on %s\n",
+		pr_de("_SUN returned %d on %s\n",
 			 status, (char *)buffer.pointer);
 		goto out;
 	}
@@ -132,7 +132,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	get_device(&pci_bus->dev);
 
-	pr_debug("%p, pci_bus: %x, device: %d, name: %s\n",
+	pr_de("%p, pci_bus: %x, device: %d, name: %s\n",
 		 pci_slot, pci_bus->number, device, name);
 
 	return AE_OK;

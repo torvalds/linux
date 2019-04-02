@@ -37,79 +37,79 @@
 /* SCSI bus reset settle time in seconds.  */
 static int esp_bus_reset_settle = 3;
 
-static u32 esp_debug;
-#define ESP_DEBUG_INTR		0x00000001
-#define ESP_DEBUG_SCSICMD	0x00000002
-#define ESP_DEBUG_RESET		0x00000004
-#define ESP_DEBUG_MSGIN		0x00000008
-#define ESP_DEBUG_MSGOUT	0x00000010
-#define ESP_DEBUG_CMDDONE	0x00000020
-#define ESP_DEBUG_DISCONNECT	0x00000040
-#define ESP_DEBUG_DATASTART	0x00000080
-#define ESP_DEBUG_DATADONE	0x00000100
-#define ESP_DEBUG_RECONNECT	0x00000200
-#define ESP_DEBUG_AUTOSENSE	0x00000400
-#define ESP_DEBUG_EVENT		0x00000800
-#define ESP_DEBUG_COMMAND	0x00001000
+static u32 esp_de;
+#define ESP_DE_INTR		0x00000001
+#define ESP_DE_SCSICMD	0x00000002
+#define ESP_DE_RESET		0x00000004
+#define ESP_DE_MSGIN		0x00000008
+#define ESP_DE_MSGOUT	0x00000010
+#define ESP_DE_CMDDONE	0x00000020
+#define ESP_DE_DISCONNECT	0x00000040
+#define ESP_DE_DATASTART	0x00000080
+#define ESP_DE_DATADONE	0x00000100
+#define ESP_DE_RECONNECT	0x00000200
+#define ESP_DE_AUTOSENSE	0x00000400
+#define ESP_DE_EVENT		0x00000800
+#define ESP_DE_COMMAND	0x00001000
 
 #define esp_log_intr(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_INTR) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_INTR) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_reset(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_RESET) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_RESET) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_msgin(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_MSGIN) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_MSGIN) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_msgout(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_MSGOUT) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_MSGOUT) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_cmddone(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_CMDDONE) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_CMDDONE) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_disconnect(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_DISCONNECT) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_DISCONNECT) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_datastart(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_DATASTART) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_DATASTART) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_datadone(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_DATADONE) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_DATADONE) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_reconnect(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_RECONNECT) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_RECONNECT) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_autosense(f, a...) \
-do {	if (esp_debug & ESP_DEBUG_AUTOSENSE) \
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {	if (esp_de & ESP_DE_AUTOSENSE) \
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_event(f, a...) \
-do {   if (esp_debug & ESP_DEBUG_EVENT)	\
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {   if (esp_de & ESP_DE_EVENT)	\
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_log_command(f, a...) \
-do {   if (esp_debug & ESP_DEBUG_COMMAND)	\
-		shost_printk(KERN_DEBUG, esp->host, f, ## a);	\
+do {   if (esp_de & ESP_DE_COMMAND)	\
+		shost_printk(KERN_DE, esp->host, f, ## a);	\
 } while (0)
 
 #define esp_read8(REG)		esp->ops->esp_read8(esp, REG)
@@ -596,7 +596,7 @@ static int esp_alloc_lun_tag(struct esp_cmd_entry *ent,
 	if (lp->non_tagged_cmd || lp->hold)
 		return -EBUSY;
 
-	BUG_ON(lp->tagged_cmds[ent->orig_tag[1]]);
+	_ON(lp->tagged_cmds[ent->orig_tag[1]]);
 
 	lp->tagged_cmds[ent->orig_tag[1]] = ent;
 	lp->num_tagged++;
@@ -608,11 +608,11 @@ static void esp_free_lun_tag(struct esp_cmd_entry *ent,
 			     struct esp_lun_data *lp)
 {
 	if (ent->orig_tag[0]) {
-		BUG_ON(lp->tagged_cmds[ent->orig_tag[1]] != ent);
+		_ON(lp->tagged_cmds[ent->orig_tag[1]] != ent);
 		lp->tagged_cmds[ent->orig_tag[1]] = NULL;
 		lp->num_tagged--;
 	} else {
-		BUG_ON(lp->non_tagged_cmd != ent);
+		_ON(lp->non_tagged_cmd != ent);
 		lp->non_tagged_cmd = NULL;
 	}
 }
@@ -855,7 +855,7 @@ build_identify:
 
 	val = (p - esp->command_block);
 
-	if (esp_debug & ESP_DEBUG_SCSICMD) {
+	if (esp_de & ESP_DE_SCSICMD) {
 		printk("ESP: tgt[%d] lun[%d] scsi_cmd [ ", tgt, lun);
 		for (i = 0; i < cmd->cmd_len; i++)
 			printk("%02x ", cmd->cmnd[i]);
@@ -915,7 +915,7 @@ static void esp_cmd_is_done(struct esp *esp, struct esp_cmd_entry *ent,
 			       (SAM_STAT_CHECK_CONDITION << 0));
 
 		ent->flags &= ~ESP_CMD_FLAG_AUTOSENSE;
-		if (esp_debug & ESP_DEBUG_AUTOSENSE) {
+		if (esp_de & ESP_DE_AUTOSENSE) {
 			int i;
 
 			printk("esp%d: tgt[%d] lun[%d] AUTO SENSE[ ",
@@ -1140,7 +1140,7 @@ static int esp_reconnect(struct esp *esp)
 	struct scsi_device *dev;
 	int target, lun;
 
-	BUG_ON(esp->active_cmd);
+	_ON(esp->active_cmd);
 	if (esp->rev == FASHME) {
 		/* FASHME puts the target and lun numbers directly
 		 * into the fifo.
@@ -1168,7 +1168,7 @@ static int esp_reconnect(struct esp *esp)
 		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
 		if (esp->rev == ESP100) {
 			u8 ireg = esp_read8(ESP_INTRPT);
-			/* This chip has a bug during reselection that can
+			/* This chip has a  during reselection that can
 			 * cause a spurious illegal-command interrupt, which
 			 * we simply ACK here.  Another possibility is a bus
 			 * reset so we must check for that.
@@ -1374,7 +1374,7 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 		if (esp->rev == ESP100) {
 			u32 fflags, phase;
 
-			/* ESP100 has a chip bug where in the synchronous data
+			/* ESP100 has a chip  where in the synchronous data
 			 * phase it can mistake a final long REQ pulse from the
 			 * target as an extra data byte.  Fun.
 			 *
@@ -1890,7 +1890,7 @@ again:
 	case ESP_EVENT_MSGOUT: {
 		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
 
-		if (esp_debug & ESP_DEBUG_MSGOUT) {
+		if (esp_de & ESP_DE_MSGOUT) {
 			int i;
 			printk("ESP: Sending message [ ");
 			for (i = 0; i < esp->msg_out_len; i++)
@@ -2046,7 +2046,7 @@ static void esp_clear_hold(struct scsi_device *dev, void *data)
 {
 	struct esp_lun_data *lp = dev->hostdata;
 
-	BUG_ON(lp->num_tagged);
+	_ON(lp->num_tagged);
 	lp->hold = 0;
 }
 
@@ -2070,7 +2070,7 @@ static void esp_reset_cleanup(struct esp *esp)
 		esp_reset_cleanup_one(esp, ent);
 	}
 
-	BUG_ON(esp->active_cmd != NULL);
+	_ON(esp->active_cmd != NULL);
 
 	/* Force renegotiation of sync/wide transfers.  */
 	for (i = 0; i < ESP_MAX_TARGET; i++) {
@@ -2494,7 +2494,7 @@ static int esp_eh_abort_handler(struct scsi_cmnd *cmd)
 	struct completion eh_done;
 	unsigned long flags;
 
-	/* XXX This helps a lot with debugging but might be a bit
+	/* XXX This helps a lot with deging but might be a bit
 	 * XXX much for the final driver.
 	 */
 	spin_lock_irqsave(esp->host->host_lock, flags);
@@ -2739,7 +2739,7 @@ static struct spi_function_template esp_transport_ops = {
 
 static int __init esp_init(void)
 {
-	BUILD_BUG_ON(sizeof(struct scsi_pointer) <
+	BUILD__ON(sizeof(struct scsi_pointer) <
 		     sizeof(struct esp_cmd_priv));
 
 	esp_transport_template = spi_attach_transport(&esp_transport_ops);
@@ -2763,9 +2763,9 @@ module_param(esp_bus_reset_settle, int, 0);
 MODULE_PARM_DESC(esp_bus_reset_settle,
 		 "ESP scsi bus reset delay in seconds");
 
-module_param(esp_debug, int, 0);
-MODULE_PARM_DESC(esp_debug,
-"ESP bitmapped debugging message enable value:\n"
+module_param(esp_de, int, 0);
+MODULE_PARM_DESC(esp_de,
+"ESP bitmapped deging message enable value:\n"
 "	0x00000001	Log interrupt events\n"
 "	0x00000002	Log scsi commands\n"
 "	0x00000004	Log resets\n"

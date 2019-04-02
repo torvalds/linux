@@ -329,7 +329,7 @@ static int __init scif_init(void)
 	rc = misc_register(mdev);
 	if (rc)
 		goto unreg_scif;
-	scif_init_debugfs();
+	scif_init_defs();
 	return 0;
 unreg_scif:
 	scif_unregister_driver(&scif_driver);
@@ -342,7 +342,7 @@ exit:
 
 static void __exit scif_exit(void)
 {
-	scif_exit_debugfs();
+	scif_exit_defs();
 	misc_deregister(&scif_info.mdev);
 	scif_unregister_driver(&scif_driver);
 	scif_peer_bus_exit();

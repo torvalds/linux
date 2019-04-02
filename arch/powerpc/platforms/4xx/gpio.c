@@ -99,7 +99,7 @@ ppc4xx_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_unlock_irqrestore(&chip->lock, flags);
 
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
+	pr_de("%s: gpio: %d val: %d\n", __func__, gpio, val);
 }
 
 static int ppc4xx_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
@@ -161,7 +161,7 @@ ppc4xx_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_unlock_irqrestore(&chip->lock, flags);
 
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
+	pr_de("%s: gpio: %d val: %d\n", __func__, gpio, val);
 
 	return 0;
 }

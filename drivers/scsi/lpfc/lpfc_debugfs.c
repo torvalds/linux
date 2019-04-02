@@ -55,84 +55,84 @@
 #include "lpfc_vport.h"
 #include "lpfc_version.h"
 #include "lpfc_compat.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 #include "lpfc_bsg.h"
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 /*
- * debugfs interface
+ * defs interface
  *
  * To access this interface the user should:
- * # mount -t debugfs none /sys/kernel/debug
+ * # mount -t defs none /sys/kernel/de
  *
- * The lpfc debugfs directory hierarchy is:
- * /sys/kernel/debug/lpfc/fnX/vportY
+ * The lpfc defs directory hierarchy is:
+ * /sys/kernel/de/lpfc/fnX/vportY
  * where X is the lpfc hba function unique_id
  * where Y is the vport VPI on that hba
  *
- * Debugging services available per vport:
+ * Deging services available per vport:
  * discovery_trace
  * This is an ACSII readable file that contains a trace of the last
- * lpfc_debugfs_max_disc_trc events that happened on a specific vport.
- * See lpfc_debugfs.h for different categories of  discovery events.
+ * lpfc_defs_max_disc_trc events that happened on a specific vport.
+ * See lpfc_defs.h for different categories of  discovery events.
  * To enable the discovery trace, the following module parameters must be set:
- * lpfc_debugfs_enable=1         Turns on lpfc debugfs filesystem support
- * lpfc_debugfs_max_disc_trc=X   Where X is the event trace depth for
+ * lpfc_defs_enable=1         Turns on lpfc defs filesystem support
+ * lpfc_defs_max_disc_trc=X   Where X is the event trace depth for
  *                               EACH vport. X MUST also be a power of 2.
- * lpfc_debugfs_mask_disc_trc=Y  Where Y is an event mask as defined in
- *                               lpfc_debugfs.h .
+ * lpfc_defs_mask_disc_trc=Y  Where Y is an event mask as defined in
+ *                               lpfc_defs.h .
  *
  * slow_ring_trace
  * This is an ACSII readable file that contains a trace of the last
- * lpfc_debugfs_max_slow_ring_trc events that happened on a specific HBA.
+ * lpfc_defs_max_slow_ring_trc events that happened on a specific HBA.
  * To enable the slow ring trace, the following module parameters must be set:
- * lpfc_debugfs_enable=1         Turns on lpfc debugfs filesystem support
- * lpfc_debugfs_max_slow_ring_trc=X   Where X is the event trace depth for
+ * lpfc_defs_enable=1         Turns on lpfc defs filesystem support
+ * lpfc_defs_max_slow_ring_trc=X   Where X is the event trace depth for
  *                               the HBA. X MUST also be a power of 2.
  */
-static int lpfc_debugfs_enable = 1;
-module_param(lpfc_debugfs_enable, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_debugfs_enable, "Enable debugfs services");
+static int lpfc_defs_enable = 1;
+module_param(lpfc_defs_enable, int, S_IRUGO);
+MODULE_PARM_DESC(lpfc_defs_enable, "Enable defs services");
 
 /* This MUST be a power of 2 */
-static int lpfc_debugfs_max_disc_trc;
-module_param(lpfc_debugfs_max_disc_trc, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_debugfs_max_disc_trc,
-	"Set debugfs discovery trace depth");
+static int lpfc_defs_max_disc_trc;
+module_param(lpfc_defs_max_disc_trc, int, S_IRUGO);
+MODULE_PARM_DESC(lpfc_defs_max_disc_trc,
+	"Set defs discovery trace depth");
 
 /* This MUST be a power of 2 */
-static int lpfc_debugfs_max_slow_ring_trc;
-module_param(lpfc_debugfs_max_slow_ring_trc, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_debugfs_max_slow_ring_trc,
-	"Set debugfs slow ring trace depth");
+static int lpfc_defs_max_slow_ring_trc;
+module_param(lpfc_defs_max_slow_ring_trc, int, S_IRUGO);
+MODULE_PARM_DESC(lpfc_defs_max_slow_ring_trc,
+	"Set defs slow ring trace depth");
 
 /* This MUST be a power of 2 */
-static int lpfc_debugfs_max_nvmeio_trc;
-module_param(lpfc_debugfs_max_nvmeio_trc, int, 0444);
-MODULE_PARM_DESC(lpfc_debugfs_max_nvmeio_trc,
-		 "Set debugfs NVME IO trace depth");
+static int lpfc_defs_max_nvmeio_trc;
+module_param(lpfc_defs_max_nvmeio_trc, int, 0444);
+MODULE_PARM_DESC(lpfc_defs_max_nvmeio_trc,
+		 "Set defs NVME IO trace depth");
 
-static int lpfc_debugfs_mask_disc_trc;
-module_param(lpfc_debugfs_mask_disc_trc, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_debugfs_mask_disc_trc,
-	"Set debugfs discovery trace mask");
+static int lpfc_defs_mask_disc_trc;
+module_param(lpfc_defs_mask_disc_trc, int, S_IRUGO);
+MODULE_PARM_DESC(lpfc_defs_mask_disc_trc,
+	"Set defs discovery trace mask");
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-static atomic_t lpfc_debugfs_seq_trc_cnt = ATOMIC_INIT(0);
-static unsigned long lpfc_debugfs_start_time = 0L;
+static atomic_t lpfc_defs_seq_trc_cnt = ATOMIC_INIT(0);
+static unsigned long lpfc_defs_start_time = 0L;
 
 /* iDiag */
 static struct lpfc_idiag idiag;
 
 /**
- * lpfc_debugfs_disc_trc_data - Dump discovery logging to a buffer
+ * lpfc_defs_disc_trc_data - Dump discovery logging to a buffer
  * @vport: The vport to gather the log info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
  * Description:
- * This routine gathers the lpfc discovery debugfs data from the @vport and
+ * This routine gathers the lpfc discovery defs data from the @vport and
  * dumps it to @buf up to @size number of bytes. It will start at the next entry
  * in the log and process the log until the end of the buffer. Then it will
  * gather from the beginning of the log and process until the current entry.
@@ -145,30 +145,30 @@ static struct lpfc_idiag idiag;
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_defs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int i, index, len, enable;
 	uint32_t ms;
-	struct lpfc_debugfs_trc *dtp;
+	struct lpfc_defs_trc *dtp;
 	char *buffer;
 
-	buffer = kmalloc(LPFC_DEBUG_TRC_ENTRY_SIZE, GFP_KERNEL);
+	buffer = kmalloc(LPFC_DE_TRC_ENTRY_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return 0;
 
-	enable = lpfc_debugfs_enable;
-	lpfc_debugfs_enable = 0;
+	enable = lpfc_defs_enable;
+	lpfc_defs_enable = 0;
 
 	len = 0;
 	index = (atomic_read(&vport->disc_trc_cnt) + 1) &
-		(lpfc_debugfs_max_disc_trc - 1);
-	for (i = index; i < lpfc_debugfs_max_disc_trc; i++) {
+		(lpfc_defs_max_disc_trc - 1);
+	for (i = index; i < lpfc_defs_max_disc_trc; i++) {
 		dtp = vport->disc_trc + i;
 		if (!dtp->fmt)
 			continue;
-		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
+		ms = jiffies_to_msecs(dtp->jif - lpfc_defs_start_time);
 		snprintf(buffer,
-			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
+			LPFC_DE_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
 			dtp->seq_cnt, ms, dtp->fmt);
 		len +=  snprintf(buf+len, size-len, buffer,
 			dtp->data1, dtp->data2, dtp->data3);
@@ -177,28 +177,28 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
 		dtp = vport->disc_trc + i;
 		if (!dtp->fmt)
 			continue;
-		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
+		ms = jiffies_to_msecs(dtp->jif - lpfc_defs_start_time);
 		snprintf(buffer,
-			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
+			LPFC_DE_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
 			dtp->seq_cnt, ms, dtp->fmt);
 		len +=  snprintf(buf+len, size-len, buffer,
 			dtp->data1, dtp->data2, dtp->data3);
 	}
 
-	lpfc_debugfs_enable = enable;
+	lpfc_defs_enable = enable;
 	kfree(buffer);
 
 	return len;
 }
 
 /**
- * lpfc_debugfs_slow_ring_trc_data - Dump slow ring logging to a buffer
+ * lpfc_defs_slow_ring_trc_data - Dump slow ring logging to a buffer
  * @phba: The HBA to gather the log info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
  *
  * Description:
- * This routine gathers the lpfc slow ring debugfs data from the @phba and
+ * This routine gathers the lpfc slow ring defs data from the @phba and
  * dumps it to @buf up to @size number of bytes. It will start at the next entry
  * in the log and process the log until the end of the buffer. Then it will
  * gather from the beginning of the log and process until the current entry.
@@ -211,30 +211,30 @@ lpfc_debugfs_disc_trc_data(struct lpfc_vport *vport, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	int i, index, len, enable;
 	uint32_t ms;
-	struct lpfc_debugfs_trc *dtp;
+	struct lpfc_defs_trc *dtp;
 	char *buffer;
 
-	buffer = kmalloc(LPFC_DEBUG_TRC_ENTRY_SIZE, GFP_KERNEL);
+	buffer = kmalloc(LPFC_DE_TRC_ENTRY_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return 0;
 
-	enable = lpfc_debugfs_enable;
-	lpfc_debugfs_enable = 0;
+	enable = lpfc_defs_enable;
+	lpfc_defs_enable = 0;
 
 	len = 0;
 	index = (atomic_read(&phba->slow_ring_trc_cnt) + 1) &
-		(lpfc_debugfs_max_slow_ring_trc - 1);
-	for (i = index; i < lpfc_debugfs_max_slow_ring_trc; i++) {
+		(lpfc_defs_max_slow_ring_trc - 1);
+	for (i = index; i < lpfc_defs_max_slow_ring_trc; i++) {
 		dtp = phba->slow_ring_trc + i;
 		if (!dtp->fmt)
 			continue;
-		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
+		ms = jiffies_to_msecs(dtp->jif - lpfc_defs_start_time);
 		snprintf(buffer,
-			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
+			LPFC_DE_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
 			dtp->seq_cnt, ms, dtp->fmt);
 		len +=  snprintf(buf+len, size-len, buffer,
 			dtp->data1, dtp->data2, dtp->data3);
@@ -243,24 +243,24 @@ lpfc_debugfs_slow_ring_trc_data(struct lpfc_hba *phba, char *buf, int size)
 		dtp = phba->slow_ring_trc + i;
 		if (!dtp->fmt)
 			continue;
-		ms = jiffies_to_msecs(dtp->jif - lpfc_debugfs_start_time);
+		ms = jiffies_to_msecs(dtp->jif - lpfc_defs_start_time);
 		snprintf(buffer,
-			LPFC_DEBUG_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
+			LPFC_DE_TRC_ENTRY_SIZE, "%010d:%010d ms:%s\n",
 			dtp->seq_cnt, ms, dtp->fmt);
 		len +=  snprintf(buf+len, size-len, buffer,
 			dtp->data1, dtp->data2, dtp->data3);
 	}
 
-	lpfc_debugfs_enable = enable;
+	lpfc_defs_enable = enable;
 	kfree(buffer);
 
 	return len;
 }
 
-static int lpfc_debugfs_last_hbq = -1;
+static int lpfc_defs_last_hbq = -1;
 
 /**
- * lpfc_debugfs_hbqinfo_data - Dump host buffer queue info to a buffer
+ * lpfc_defs_hbqinfo_data - Dump host buffer queue info to a buffer
  * @phba: The HBA to gather host buffer info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -279,7 +279,7 @@ static int lpfc_debugfs_last_hbq = -1;
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	int len = 0;
 	int i, j, found, posted, low;
@@ -298,14 +298,14 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 	/* toggle between multiple hbqs, if any */
 	i = lpfc_sli_hbq_count();
 	if (i > 1) {
-		 lpfc_debugfs_last_hbq++;
-		 if (lpfc_debugfs_last_hbq >= i)
-			lpfc_debugfs_last_hbq = 0;
+		 lpfc_defs_last_hbq++;
+		 if (lpfc_defs_last_hbq >= i)
+			lpfc_defs_last_hbq = 0;
 	}
 	else
-		lpfc_debugfs_last_hbq = 0;
+		lpfc_defs_last_hbq = 0;
 
-	i = lpfc_debugfs_last_hbq;
+	i = lpfc_defs_last_hbq;
 
 	len +=  snprintf(buf+len, size-len, "HBQ %d Info\n", i);
 
@@ -378,10 +378,10 @@ skipit:
 	return len;
 }
 
-static int lpfc_debugfs_last_xripool;
+static int lpfc_defs_last_xripool;
 
 /**
- * lpfc_debugfs_common_xri_data - Dump Hardware Queue info to a buffer
+ * lpfc_defs_common_xri_data - Dump Hardware Queue info to a buffer
  * @phba: The HBA to gather host buffer info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -401,7 +401,7 @@ static int lpfc_debugfs_last_xripool;
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	struct lpfc_sli4_hdw_queue *qp;
 	int len = 0;
@@ -411,7 +411,7 @@ lpfc_debugfs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
 		if (len > (LPFC_DUMP_MULTIXRIPOOL_SIZE - 80))
 			break;
-		qp = &phba->sli4_hba.hdwq[lpfc_debugfs_last_xripool];
+		qp = &phba->sli4_hba.hdwq[lpfc_defs_last_xripool];
 
 		len +=  snprintf(buf + len, size - len, "HdwQ %d Info ", i);
 		spin_lock_irqsave(&qp->abts_scsi_buf_list_lock, iflag);
@@ -431,16 +431,16 @@ lpfc_debugfs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
 		spin_unlock(&qp->abts_nvme_buf_list_lock);
 		spin_unlock_irqrestore(&qp->abts_scsi_buf_list_lock, iflag);
 
-		lpfc_debugfs_last_xripool++;
-		if (lpfc_debugfs_last_xripool >= phba->cfg_hdw_queue)
-			lpfc_debugfs_last_xripool = 0;
+		lpfc_defs_last_xripool++;
+		if (lpfc_defs_last_xripool >= phba->cfg_hdw_queue)
+			lpfc_defs_last_xripool = 0;
 	}
 
 	return len;
 }
 
 /**
- * lpfc_debugfs_multixripools_data - Display multi-XRI pools information
+ * lpfc_defs_multixripools_data - Display multi-XRI pools information
  * @phba: The HBA to gather host buffer info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -455,7 +455,7 @@ lpfc_debugfs_commonxripools_data(struct lpfc_hba *phba, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	u32 i;
 	u32 hwq_count;
@@ -464,7 +464,7 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 	struct lpfc_pvt_pool *pvt_pool;
 	struct lpfc_pbl_pool *pbl_pool;
 	u32 txcmplq_cnt;
-	char tmp[LPFC_DEBUG_OUT_LINE_SZ] = {0};
+	char tmp[LPFC_DE_OUT_LINE_SZ] = {0};
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return 0;
@@ -473,7 +473,7 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 		return 0;
 
 	if (!phba->cfg_xri_rebalancing) {
-		i = lpfc_debugfs_commonxripools_data(phba, buf, size);
+		i = lpfc_defs_commonxripools_data(phba, buf, size);
 		return i;
 	}
 
@@ -572,10 +572,10 @@ lpfc_debugfs_multixripools_data(struct lpfc_hba *phba, char *buf, int size)
 
 
 #ifdef LPFC_HDWQ_LOCK_STAT
-static int lpfc_debugfs_last_lock;
+static int lpfc_defs_last_lock;
 
 /**
- * lpfc_debugfs_lockstat_data - Dump Hardware Queue info to a buffer
+ * lpfc_defs_lockstat_data - Dump Hardware Queue info to a buffer
  * @phba: The HBA to gather host buffer info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -595,7 +595,7 @@ static int lpfc_debugfs_last_lock;
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_lockstat_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_lockstat_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	struct lpfc_sli4_hdw_queue *qp;
 	int len = 0;
@@ -610,7 +610,7 @@ lpfc_debugfs_lockstat_data(struct lpfc_hba *phba, char *buf, int size)
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
 		if (len > (LPFC_HDWQINFO_SIZE - 100))
 			break;
-		qp = &phba->sli4_hba.hdwq[lpfc_debugfs_last_lock];
+		qp = &phba->sli4_hba.hdwq[lpfc_defs_last_lock];
 
 		len +=  snprintf(buf + len, size - len, "HdwQ %03d Lock ", i);
 		if (phba->cfg_xri_rebalancing) {
@@ -634,19 +634,19 @@ lpfc_debugfs_lockstat_data(struct lpfc_hba *phba, char *buf, int size)
 					 qp->lock_conflict.wq_access);
 		}
 
-		lpfc_debugfs_last_lock++;
-		if (lpfc_debugfs_last_lock >= phba->cfg_hdw_queue)
-			lpfc_debugfs_last_lock = 0;
+		lpfc_defs_last_lock++;
+		if (lpfc_defs_last_lock >= phba->cfg_hdw_queue)
+			lpfc_defs_last_lock = 0;
 	}
 
 	return len;
 }
 #endif
 
-static int lpfc_debugfs_last_hba_slim_off;
+static int lpfc_defs_last_hba_slim_off;
 
 /**
- * lpfc_debugfs_dumpHBASlim_data - Dump HBA SLIM info to a buffer
+ * lpfc_defs_dumpHBASlim_data - Dump HBA SLIM info to a buffer
  * @phba: The HBA to gather SLIM info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -664,7 +664,7 @@ static int lpfc_debugfs_last_hba_slim_off;
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	int len = 0;
 	int i, off;
@@ -680,15 +680,15 @@ lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
 
 	len +=  snprintf(buf+len, size-len, "HBA SLIM\n");
 	lpfc_memcpy_from_slim(buffer,
-		phba->MBslimaddr + lpfc_debugfs_last_hba_slim_off, 1024);
+		phba->MBslimaddr + lpfc_defs_last_hba_slim_off, 1024);
 
 	ptr = (uint32_t *)&buffer[0];
-	off = lpfc_debugfs_last_hba_slim_off;
+	off = lpfc_defs_last_hba_slim_off;
 
 	/* Set it up for the next time */
-	lpfc_debugfs_last_hba_slim_off += 1024;
-	if (lpfc_debugfs_last_hba_slim_off >= 4096)
-		lpfc_debugfs_last_hba_slim_off = 0;
+	lpfc_defs_last_hba_slim_off += 1024;
+	if (lpfc_defs_last_hba_slim_off >= 4096)
+		lpfc_defs_last_hba_slim_off = 0;
 
 	i = 1024;
 	while (i > 0) {
@@ -708,7 +708,7 @@ lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_dumpHostSlim_data - Dump host SLIM info to a buffer
+ * lpfc_defs_dumpHostSlim_data - Dump host SLIM info to a buffer
  * @phba: The HBA to gather Host SLIM info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -723,7 +723,7 @@ lpfc_debugfs_dumpHBASlim_data(struct lpfc_hba *phba, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 {
 	int len = 0;
 	int i, off;
@@ -791,7 +791,7 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_nodelist_data - Dump target node list to a buffer
+ * lpfc_defs_nodelist_data - Dump target node list to a buffer
  * @vport: The vport to gather target node info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -806,7 +806,7 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_defs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int len = 0;
 	int i, iocnt, outio, cnt;
@@ -1019,7 +1019,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_nvmestat_data - Dump target node list to a buffer
+ * lpfc_defs_nvmestat_data - Dump target node list to a buffer
  * @vport: The vport to gather target node info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -1032,7 +1032,7 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_defs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -1142,7 +1142,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			list_for_each_entry_safe(ctxp, next_ctxp,
 				    &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				    list) {
-				if (len >= (size - LPFC_DEBUG_OUT_LINE_SZ))
+				if (len >= (size - LPFC_DE_OUT_LINE_SZ))
 					break;
 				len += snprintf(buf + len, size - len,
 						"Entry: oxid %x state %x "
@@ -1195,7 +1195,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 			data3 = cstat->control_requests;
 			totout += (data1 + data2 + data3);
 
-			/* Limit to 32, debugfs display buffer limitation */
+			/* Limit to 32, defs display buffer limitation */
 			if (i >= 32)
 				continue;
 
@@ -1241,7 +1241,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_scsistat_data - Dump target node list to a buffer
+ * lpfc_defs_scsistat_data - Dump target node list to a buffer
  * @vport: The vport to gather target node info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -1254,7 +1254,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_scsistat_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_defs_scsistat_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	int len;
 	struct lpfc_hba *phba = vport->phba;
@@ -1302,7 +1302,7 @@ buffer_done:
 }
 
 /**
- * lpfc_debugfs_nvmektime_data - Dump target node list to a buffer
+ * lpfc_defs_nvmektime_data - Dump target node list to a buffer
  * @vport: The vport to gather target node info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -1315,7 +1315,7 @@ buffer_done:
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_defs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
 	int len = 0;
@@ -1502,7 +1502,7 @@ lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
 }
 
 /**
- * lpfc_debugfs_nvmeio_trc_data - Dump NVME IO trace list to a buffer
+ * lpfc_defs_nvmeio_trc_data - Dump NVME IO trace list to a buffer
  * @phba: The phba to gather target node info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -1515,9 +1515,9 @@ lpfc_debugfs_nvmektime_data(struct lpfc_vport *vport, char *buf, int size)
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_nvmeio_trc_data(struct lpfc_hba *phba, char *buf, int size)
+lpfc_defs_nvmeio_trc_data(struct lpfc_hba *phba, char *buf, int size)
 {
-	struct lpfc_debugfs_nvmeio_trc *dtp;
+	struct lpfc_defs_nvmeio_trc *dtp;
 	int i, state, index, skip;
 	int len = 0;
 
@@ -1559,7 +1559,7 @@ lpfc_debugfs_nvmeio_trc_data(struct lpfc_hba *phba, char *buf, int size)
 			goto out;
 		}
 
-		if (len >= (size - LPFC_DEBUG_OUT_LINE_SZ)) {
+		if (len >= (size - LPFC_DE_OUT_LINE_SZ)) {
 			len += snprintf(buf + len, size - len,
 					"Trace Continue (%d of %d)\n",
 					phba->nvmeio_trc_output_idx,
@@ -1588,7 +1588,7 @@ lpfc_debugfs_nvmeio_trc_data(struct lpfc_hba *phba, char *buf, int size)
 			goto out;
 		}
 
-		if (len >= (size - LPFC_DEBUG_OUT_LINE_SZ)) {
+		if (len >= (size - LPFC_DE_OUT_LINE_SZ)) {
 			len += snprintf(buf + len, size - len,
 					"Trace Continue (%d of %d)\n",
 					phba->nvmeio_trc_output_idx,
@@ -1604,7 +1604,7 @@ out:
 }
 
 /**
- * lpfc_debugfs_cpucheck_data - Dump target node list to a buffer
+ * lpfc_defs_cpucheck_data - Dump target node list to a buffer
  * @vport: The vport to gather target node info from.
  * @buf: The buffer to dump log into.
  * @size: The maximum amount of data to process.
@@ -1617,7 +1617,7 @@ out:
  * not exceed @size.
  **/
 static int
-lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
+lpfc_defs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_sli4_hdw_queue *qp;
@@ -1639,7 +1639,7 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 	} else {
 		len += snprintf(buf + len, PAGE_SIZE - len, "\n");
 	}
-	max_cnt = size - LPFC_DEBUG_OUT_LINE_SZ;
+	max_cnt = size - LPFC_DE_OUT_LINE_SZ;
 
 	for (i = 0; i < phba->cfg_hdw_queue; i++) {
 		qp = &phba->sli4_hba.hdwq[i];
@@ -1693,7 +1693,7 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
 #endif
 
 /**
- * lpfc_debugfs_disc_trc - Store discovery trace log
+ * lpfc_defs_disc_trc - Store discovery trace log
  * @vport: The vport to associate this trace string with for retrieval.
  * @mask: Log entry classification.
  * @fmt: Format string to be displayed when dumping the log.
@@ -1702,42 +1702,42 @@ lpfc_debugfs_cpucheck_data(struct lpfc_vport *vport, char *buf, int size)
  * @data3: 3rd data parameter to be applied to @fmt.
  *
  * Description:
- * This routine is used by the driver code to add a debugfs log entry to the
+ * This routine is used by the driver code to add a defs log entry to the
  * discovery trace buffer associated with @vport. Only entries with a @mask that
- * match the current debugfs discovery mask will be saved. Entries that do not
+ * match the current defs discovery mask will be saved. Entries that do not
  * match will be thrown away. @fmt, @data1, @data2, and @data3 are used like
  * printf when displaying the log.
  **/
 inline void
-lpfc_debugfs_disc_trc(struct lpfc_vport *vport, int mask, char *fmt,
+lpfc_defs_disc_trc(struct lpfc_vport *vport, int mask, char *fmt,
 	uint32_t data1, uint32_t data2, uint32_t data3)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	struct lpfc_debugfs_trc *dtp;
+#ifdef CONFIG_SCSI_LPFC_DE_FS
+	struct lpfc_defs_trc *dtp;
 	int index;
 
-	if (!(lpfc_debugfs_mask_disc_trc & mask))
+	if (!(lpfc_defs_mask_disc_trc & mask))
 		return;
 
-	if (!lpfc_debugfs_enable || !lpfc_debugfs_max_disc_trc ||
+	if (!lpfc_defs_enable || !lpfc_defs_max_disc_trc ||
 		!vport || !vport->disc_trc)
 		return;
 
 	index = atomic_inc_return(&vport->disc_trc_cnt) &
-		(lpfc_debugfs_max_disc_trc - 1);
+		(lpfc_defs_max_disc_trc - 1);
 	dtp = vport->disc_trc + index;
 	dtp->fmt = fmt;
 	dtp->data1 = data1;
 	dtp->data2 = data2;
 	dtp->data3 = data3;
-	dtp->seq_cnt = atomic_inc_return(&lpfc_debugfs_seq_trc_cnt);
+	dtp->seq_cnt = atomic_inc_return(&lpfc_defs_seq_trc_cnt);
 	dtp->jif = jiffies;
 #endif
 	return;
 }
 
 /**
- * lpfc_debugfs_slow_ring_trc - Store slow ring trace log
+ * lpfc_defs_slow_ring_trc - Store slow ring trace log
  * @phba: The phba to associate this trace string with for retrieval.
  * @fmt: Format string to be displayed when dumping the log.
  * @data1: 1st data parameter to be applied to @fmt.
@@ -1745,37 +1745,37 @@ lpfc_debugfs_disc_trc(struct lpfc_vport *vport, int mask, char *fmt,
  * @data3: 3rd data parameter to be applied to @fmt.
  *
  * Description:
- * This routine is used by the driver code to add a debugfs log entry to the
+ * This routine is used by the driver code to add a defs log entry to the
  * discovery trace buffer associated with @vport. @fmt, @data1, @data2, and
  * @data3 are used like printf when displaying the log.
  **/
 inline void
-lpfc_debugfs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
+lpfc_defs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
 	uint32_t data1, uint32_t data2, uint32_t data3)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	struct lpfc_debugfs_trc *dtp;
+#ifdef CONFIG_SCSI_LPFC_DE_FS
+	struct lpfc_defs_trc *dtp;
 	int index;
 
-	if (!lpfc_debugfs_enable || !lpfc_debugfs_max_slow_ring_trc ||
+	if (!lpfc_defs_enable || !lpfc_defs_max_slow_ring_trc ||
 		!phba || !phba->slow_ring_trc)
 		return;
 
 	index = atomic_inc_return(&phba->slow_ring_trc_cnt) &
-		(lpfc_debugfs_max_slow_ring_trc - 1);
+		(lpfc_defs_max_slow_ring_trc - 1);
 	dtp = phba->slow_ring_trc + index;
 	dtp->fmt = fmt;
 	dtp->data1 = data1;
 	dtp->data2 = data2;
 	dtp->data3 = data3;
-	dtp->seq_cnt = atomic_inc_return(&lpfc_debugfs_seq_trc_cnt);
+	dtp->seq_cnt = atomic_inc_return(&lpfc_defs_seq_trc_cnt);
 	dtp->jif = jiffies;
 #endif
 	return;
 }
 
 /**
- * lpfc_debugfs_nvme_trc - Store NVME/NVMET trace log
+ * lpfc_defs_nvme_trc - Store NVME/NVMET trace log
  * @phba: The phba to associate this trace string with for retrieval.
  * @fmt: Format string to be displayed when dumping the log.
  * @data1: 1st data parameter to be applied to @fmt.
@@ -1783,16 +1783,16 @@ lpfc_debugfs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
  * @data3: 3rd data parameter to be applied to @fmt.
  *
  * Description:
- * This routine is used by the driver code to add a debugfs log entry to the
+ * This routine is used by the driver code to add a defs log entry to the
  * nvme trace buffer associated with @phba. @fmt, @data1, @data2, and
  * @data3 are used like printf when displaying the log.
  **/
 inline void
-lpfc_debugfs_nvme_trc(struct lpfc_hba *phba, char *fmt,
+lpfc_defs_nvme_trc(struct lpfc_hba *phba, char *fmt,
 		      uint16_t data1, uint16_t data2, uint32_t data3)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	struct lpfc_debugfs_nvmeio_trc *dtp;
+#ifdef CONFIG_SCSI_LPFC_DE_FS
+	struct lpfc_defs_nvmeio_trc *dtp;
 	int index;
 
 	if (!phba->nvmeio_trc_on || !phba->nvmeio_trc)
@@ -1808,14 +1808,14 @@ lpfc_debugfs_nvme_trc(struct lpfc_hba *phba, char *fmt,
 #endif
 }
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 /**
- * lpfc_debugfs_disc_trc_open - Open the discovery trace log
+ * lpfc_defs_disc_trc_open - Open the discovery trace log
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -1825,34 +1825,34 @@ lpfc_debugfs_nvme_trc(struct lpfc_hba *phba, char *fmt,
  * error value.
  **/
 static int
-lpfc_debugfs_disc_trc_open(struct inode *inode, struct file *file)
+lpfc_defs_disc_trc_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_vport *vport = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int size;
 	int rc = -ENOMEM;
 
-	if (!lpfc_debugfs_max_disc_trc) {
+	if (!lpfc_defs_max_disc_trc) {
 		rc = -ENOSPC;
 		goto out;
 	}
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	size =  (lpfc_debugfs_max_disc_trc * LPFC_DEBUG_TRC_ENTRY_SIZE);
+	size =  (lpfc_defs_max_disc_trc * LPFC_DE_TRC_ENTRY_SIZE);
 	size = PAGE_ALIGN(size);
 
-	debug->buffer = kmalloc(size, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(size, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_disc_trc_data(vport, debug->buffer, size);
-	file->private_data = debug;
+	de->len = lpfc_defs_disc_trc_data(vport, de->buffer, size);
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -1860,12 +1860,12 @@ out:
 }
 
 /**
- * lpfc_debugfs_slow_ring_trc_open - Open the Slow Ring trace log
+ * lpfc_defs_slow_ring_trc_open - Open the Slow Ring trace log
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -1875,34 +1875,34 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_slow_ring_trc_open(struct inode *inode, struct file *file)
+lpfc_defs_slow_ring_trc_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int size;
 	int rc = -ENOMEM;
 
-	if (!lpfc_debugfs_max_slow_ring_trc) {
+	if (!lpfc_defs_max_slow_ring_trc) {
 		rc = -ENOSPC;
 		goto out;
 	}
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	size =  (lpfc_debugfs_max_slow_ring_trc * LPFC_DEBUG_TRC_ENTRY_SIZE);
+	size =  (lpfc_defs_max_slow_ring_trc * LPFC_DE_TRC_ENTRY_SIZE);
 	size = PAGE_ALIGN(size);
 
-	debug->buffer = kmalloc(size, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(size, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_slow_ring_trc_data(phba, debug->buffer, size);
-	file->private_data = debug;
+	de->len = lpfc_defs_slow_ring_trc_data(phba, de->buffer, size);
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -1910,12 +1910,12 @@ out:
 }
 
 /**
- * lpfc_debugfs_hbqinfo_open - Open the hbqinfo debugfs buffer
+ * lpfc_defs_hbqinfo_open - Open the hbqinfo defs buffer
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -1925,26 +1925,26 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_hbqinfo_open(struct inode *inode, struct file *file)
+lpfc_defs_hbqinfo_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_HBQINFO_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_HBQINFO_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_hbqinfo_data(phba, debug->buffer,
+	de->len = lpfc_defs_hbqinfo_data(phba, de->buffer,
 		LPFC_HBQINFO_SIZE);
-	file->private_data = debug;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -1952,12 +1952,12 @@ out:
 }
 
 /**
- * lpfc_debugfs_multixripools_open - Open the multixripool debugfs buffer
+ * lpfc_defs_multixripools_open - Open the multixripool defs buffer
  * @inode: The inode pointer that contains a hba pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the hba from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this hba, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -1967,28 +1967,28 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_multixripools_open(struct inode *inode, struct file *file)
+lpfc_defs_multixripools_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	debug->buffer = kzalloc(LPFC_DUMP_MULTIXRIPOOL_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kzalloc(LPFC_DUMP_MULTIXRIPOOL_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_multixripools_data(
-		phba, debug->buffer, LPFC_DUMP_MULTIXRIPOOL_SIZE);
+	de->len = lpfc_defs_multixripools_data(
+		phba, de->buffer, LPFC_DUMP_MULTIXRIPOOL_SIZE);
 
-	debug->i_private = inode->i_private;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -1997,12 +1997,12 @@ out:
 
 #ifdef LPFC_HDWQ_LOCK_STAT
 /**
- * lpfc_debugfs_lockstat_open - Open the lockstat debugfs buffer
+ * lpfc_defs_lockstat_open - Open the lockstat defs buffer
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -2012,26 +2012,26 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_lockstat_open(struct inode *inode, struct file *file)
+lpfc_defs_lockstat_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_HDWQINFO_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_HDWQINFO_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_lockstat_data(phba, debug->buffer,
+	de->len = lpfc_defs_lockstat_data(phba, de->buffer,
 		LPFC_HBQINFO_SIZE);
-	file->private_data = debug;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2039,11 +2039,11 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_lockstat_write(struct file *file, const char __user *buf,
+lpfc_defs_lockstat_write(struct file *file, const char __user *buf,
 			    size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	struct lpfc_sli4_hdw_queue *qp;
 	char mybuf[64];
 	char *pbuf;
@@ -2081,12 +2081,12 @@ lpfc_debugfs_lockstat_write(struct file *file, const char __user *buf,
 #endif
 
 /**
- * lpfc_debugfs_dumpHBASlim_open - Open the Dump HBA SLIM debugfs buffer
+ * lpfc_defs_dumpHBASlim_open - Open the Dump HBA SLIM defs buffer
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -2096,26 +2096,26 @@ lpfc_debugfs_lockstat_write(struct file *file, const char __user *buf,
  * error value.
  **/
 static int
-lpfc_debugfs_dumpHBASlim_open(struct inode *inode, struct file *file)
+lpfc_defs_dumpHBASlim_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_DUMPHBASLIM_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_DUMPHBASLIM_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_dumpHBASlim_data(phba, debug->buffer,
+	de->len = lpfc_defs_dumpHBASlim_data(phba, de->buffer,
 		LPFC_DUMPHBASLIM_SIZE);
-	file->private_data = debug;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2123,12 +2123,12 @@ out:
 }
 
 /**
- * lpfc_debugfs_dumpHostSlim_open - Open the Dump Host SLIM debugfs buffer
+ * lpfc_defs_dumpHostSlim_open - Open the Dump Host SLIM defs buffer
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -2138,26 +2138,26 @@ out:
  * error value.
  **/
 static int
-lpfc_debugfs_dumpHostSlim_open(struct inode *inode, struct file *file)
+lpfc_defs_dumpHostSlim_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_DUMPHOSTSLIM_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_DUMPHOSTSLIM_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_dumpHostSlim_data(phba, debug->buffer,
+	de->len = lpfc_defs_dumpHostSlim_data(phba, de->buffer,
 		LPFC_DUMPHOSTSLIM_SIZE);
-	file->private_data = debug;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2165,29 +2165,29 @@ out:
 }
 
 static int
-lpfc_debugfs_dumpData_open(struct inode *inode, struct file *file)
+lpfc_defs_dumpData_open(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
 	if (!_dump_buf_data)
 		return -EBUSY;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
 	pr_err("9059 BLKGRD:  %s: _dump_buf_data=0x%p\n",
 			__func__, _dump_buf_data);
-	debug->buffer = _dump_buf_data;
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = _dump_buf_data;
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = (1 << _dump_buf_data_order) << PAGE_SHIFT;
-	file->private_data = debug;
+	de->len = (1 << _dump_buf_data_order) << PAGE_SHIFT;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2195,29 +2195,29 @@ out:
 }
 
 static int
-lpfc_debugfs_dumpDif_open(struct inode *inode, struct file *file)
+lpfc_defs_dumpDif_open(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
 	if (!_dump_buf_dif)
 		return -EBUSY;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
 	pr_err("9060 BLKGRD: %s: _dump_buf_dif=0x%p file=%pD\n",
 			__func__, _dump_buf_dif, file);
-	debug->buffer = _dump_buf_dif;
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = _dump_buf_dif;
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = (1 << _dump_buf_dif_order) << PAGE_SHIFT;
-	file->private_data = debug;
+	de->len = (1 << _dump_buf_dif_order) << PAGE_SHIFT;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2225,7 +2225,7 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_dumpDataDif_write(struct file *file, const char __user *buf,
+lpfc_defs_dumpDataDif_write(struct file *file, const char __user *buf,
 		  size_t nbytes, loff_t *ppos)
 {
 	/*
@@ -2248,7 +2248,7 @@ lpfc_debugfs_dumpDataDif_write(struct file *file, const char __user *buf,
 }
 
 static ssize_t
-lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
+lpfc_defs_dif_err_read(struct file *file, char __user *buf,
 	size_t nbytes, loff_t *ppos)
 {
 	struct dentry *dent = file->f_path.dentry;
@@ -2257,25 +2257,25 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 	uint64_t tmp = 0;
 	int cnt = 0;
 
-	if (dent == phba->debug_writeGuard)
+	if (dent == phba->de_writeGuard)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_wgrd_cnt);
-	else if (dent == phba->debug_writeApp)
+	else if (dent == phba->de_writeApp)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_wapp_cnt);
-	else if (dent == phba->debug_writeRef)
+	else if (dent == phba->de_writeRef)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_wref_cnt);
-	else if (dent == phba->debug_readGuard)
+	else if (dent == phba->de_readGuard)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rgrd_cnt);
-	else if (dent == phba->debug_readApp)
+	else if (dent == phba->de_readApp)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rapp_cnt);
-	else if (dent == phba->debug_readRef)
+	else if (dent == phba->de_readRef)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rref_cnt);
-	else if (dent == phba->debug_InjErrNPortID)
+	else if (dent == phba->de_InjErrNPortID)
 		cnt = snprintf(cbuf, 32, "0x%06x\n", phba->lpfc_injerr_nportid);
-	else if (dent == phba->debug_InjErrWWPN) {
+	else if (dent == phba->de_InjErrWWPN) {
 		memcpy(&tmp, &phba->lpfc_injerr_wwpn, sizeof(struct lpfc_name));
 		tmp = cpu_to_be64(tmp);
 		cnt = snprintf(cbuf, 32, "0x%016llx\n", tmp);
-	} else if (dent == phba->debug_InjErrLBA) {
+	} else if (dent == phba->de_InjErrLBA) {
 		if (phba->lpfc_injerr_lba == (sector_t)(-1))
 			cnt = snprintf(cbuf, 32, "off\n");
 		else
@@ -2283,13 +2283,13 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 				 (uint64_t) phba->lpfc_injerr_lba);
 	} else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			 "0547 Unknown debugfs error injection entry\n");
+			 "0547 Unknown defs error injection entry\n");
 
 	return simple_read_from_buffer(buf, nbytes, ppos, &cbuf, cnt);
 }
 
 static ssize_t
-lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
+lpfc_defs_dif_err_write(struct file *file, const char __user *buf,
 	size_t nbytes, loff_t *ppos)
 {
 	struct dentry *dent = file->f_path.dentry;
@@ -2303,7 +2303,7 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 	if (copy_from_user(dstbuf, buf, size))
 		return 0;
 
-	if (dent == phba->debug_InjErrLBA) {
+	if (dent == phba->de_InjErrLBA) {
 		if ((buf[0] == 'o') && (buf[1] == 'f') && (buf[2] == 'f'))
 			tmp = (uint64_t)(-1);
 	}
@@ -2311,45 +2311,45 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 	if ((tmp == 0) && (kstrtoull(dstbuf, 0, &tmp)))
 		return 0;
 
-	if (dent == phba->debug_writeGuard)
+	if (dent == phba->de_writeGuard)
 		phba->lpfc_injerr_wgrd_cnt = (uint32_t)tmp;
-	else if (dent == phba->debug_writeApp)
+	else if (dent == phba->de_writeApp)
 		phba->lpfc_injerr_wapp_cnt = (uint32_t)tmp;
-	else if (dent == phba->debug_writeRef)
+	else if (dent == phba->de_writeRef)
 		phba->lpfc_injerr_wref_cnt = (uint32_t)tmp;
-	else if (dent == phba->debug_readGuard)
+	else if (dent == phba->de_readGuard)
 		phba->lpfc_injerr_rgrd_cnt = (uint32_t)tmp;
-	else if (dent == phba->debug_readApp)
+	else if (dent == phba->de_readApp)
 		phba->lpfc_injerr_rapp_cnt = (uint32_t)tmp;
-	else if (dent == phba->debug_readRef)
+	else if (dent == phba->de_readRef)
 		phba->lpfc_injerr_rref_cnt = (uint32_t)tmp;
-	else if (dent == phba->debug_InjErrLBA)
+	else if (dent == phba->de_InjErrLBA)
 		phba->lpfc_injerr_lba = (sector_t)tmp;
-	else if (dent == phba->debug_InjErrNPortID)
+	else if (dent == phba->de_InjErrNPortID)
 		phba->lpfc_injerr_nportid = (uint32_t)(tmp & Mask_DID);
-	else if (dent == phba->debug_InjErrWWPN) {
+	else if (dent == phba->de_InjErrWWPN) {
 		tmp = cpu_to_be64(tmp);
 		memcpy(&phba->lpfc_injerr_wwpn, &tmp, sizeof(struct lpfc_name));
 	} else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			 "0548 Unknown debugfs error injection entry\n");
+			 "0548 Unknown defs error injection entry\n");
 
 	return nbytes;
 }
 
 static int
-lpfc_debugfs_dif_err_release(struct inode *inode, struct file *file)
+lpfc_defs_dif_err_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
 /**
- * lpfc_debugfs_nodelist_open - Open the nodelist debugfs file
+ * lpfc_defs_nodelist_open - Open the nodelist defs file
  * @inode: The inode pointer that contains a vport pointer.
  * @file: The file pointer to attach the log output.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It gets
+ * This routine is the entry point for the defs open file operation. It gets
  * the vport from the i_private field in @inode, allocates the necessary buffer
  * for the log, fills the buffer from the in-memory log for this vport, and then
  * returns a pointer to that log in the private_data field in @file.
@@ -2359,26 +2359,26 @@ lpfc_debugfs_dif_err_release(struct inode *inode, struct file *file)
  * error value.
  **/
 static int
-lpfc_debugfs_nodelist_open(struct inode *inode, struct file *file)
+lpfc_defs_nodelist_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_vport *vport = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	/* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_NODELIST_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_NODELIST_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_nodelist_data(vport, debug->buffer,
+	de->len = lpfc_defs_nodelist_data(vport, de->buffer,
 		LPFC_NODELIST_SIZE);
-	file->private_data = debug;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2386,16 +2386,16 @@ out:
 }
 
 /**
- * lpfc_debugfs_lseek - Seek through a debugfs file
+ * lpfc_defs_lseek - Seek through a defs file
  * @file: The file pointer to seek through.
  * @off: The offset to seek to or the amount to seek by.
  * @whence: Indicates how to seek.
  *
  * Description:
- * This routine is the entry point for the debugfs lseek file operation. The
+ * This routine is the entry point for the defs lseek file operation. The
  * @whence parameter indicates whether @off is the offset to directly seek to,
  * or if it is a value to seek forward or reverse by. This function figures out
- * what the new offset of the debugfs file will be and assigns that value to the
+ * what the new offset of the defs file will be and assigns that value to the
  * f_pos field of @file.
  *
  * Returns:
@@ -2403,14 +2403,14 @@ out:
  * error if unable to process the seek.
  **/
 static loff_t
-lpfc_debugfs_lseek(struct file *file, loff_t off, int whence)
+lpfc_defs_lseek(struct file *file, loff_t off, int whence)
 {
-	struct lpfc_debug *debug = file->private_data;
-	return fixed_size_llseek(file, off, whence, debug->len);
+	struct lpfc_de *de = file->private_data;
+	return fixed_size_llseek(file, off, whence, de->len);
 }
 
 /**
- * lpfc_debugfs_read - Read a debugfs file
+ * lpfc_defs_read - Read a defs file
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -2426,51 +2426,51 @@ lpfc_debugfs_lseek(struct file *file, loff_t off, int whence)
  * than @nbytes if the end of the file was reached) or a negative error value.
  **/
 static ssize_t
-lpfc_debugfs_read(struct file *file, char __user *buf,
+lpfc_defs_read(struct file *file, char __user *buf,
 		  size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 
-	return simple_read_from_buffer(buf, nbytes, ppos, debug->buffer,
-				       debug->len);
+	return simple_read_from_buffer(buf, nbytes, ppos, de->buffer,
+				       de->len);
 }
 
 /**
- * lpfc_debugfs_release - Release the buffer used to store debugfs file data
+ * lpfc_defs_release - Release the buffer used to store defs file data
  * @inode: The inode pointer that contains a vport pointer. (unused)
  * @file: The file pointer that contains the buffer to release.
  *
  * Description:
- * This routine frees the buffer that was allocated when the debugfs file was
+ * This routine frees the buffer that was allocated when the defs file was
  * opened.
  *
  * Returns:
  * This function returns zero.
  **/
 static int
-lpfc_debugfs_release(struct inode *inode, struct file *file)
+lpfc_defs_release(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 
-	kfree(debug->buffer);
-	kfree(debug);
+	kfree(de->buffer);
+	kfree(de);
 
 	return 0;
 }
 
 static int
-lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
+lpfc_defs_dumpDataDif_release(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 
-	debug->buffer = NULL;
-	kfree(debug);
+	de->buffer = NULL;
+	kfree(de);
 
 	return 0;
 }
 
 /**
- * lpfc_debugfs_multixripools_write - Clear multi-XRI pools statistics
+ * lpfc_defs_multixripools_write - Clear multi-XRI pools statistics
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the user data from.
  * @nbytes: The number of bytes to get.
@@ -2480,16 +2480,16 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
  * This routine clears multi-XRI pools statistics when buf contains "clear".
  *
  * Return Value:
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  **/
 static ssize_t
-lpfc_debugfs_multixripools_write(struct file *file, const char __user *buf,
+lpfc_defs_multixripools_write(struct file *file, const char __user *buf,
 				 size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	char mybuf[64];
 	char *pbuf;
 	u32 i;
@@ -2540,28 +2540,28 @@ lpfc_debugfs_multixripools_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_nvmestat_open(struct inode *inode, struct file *file)
+lpfc_defs_nvmestat_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_vport *vport = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	 /* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_NVMESTAT_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_NVMESTAT_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_nvmestat_data(vport, debug->buffer,
+	de->len = lpfc_defs_nvmestat_data(vport, de->buffer,
 		LPFC_NVMESTAT_SIZE);
 
-	debug->i_private = inode->i_private;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2569,11 +2569,11 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
+lpfc_defs_nvmestat_write(struct file *file, const char __user *buf,
 			    size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_vport *vport = (struct lpfc_vport *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_vport *vport = (struct lpfc_vport *)de->i_private;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
 	char mybuf[64];
@@ -2628,28 +2628,28 @@ lpfc_debugfs_nvmestat_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_scsistat_open(struct inode *inode, struct file *file)
+lpfc_defs_scsistat_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_vport *vport = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	 /* Round to page boundary */
-	debug->buffer = kzalloc(LPFC_SCSISTAT_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kzalloc(LPFC_SCSISTAT_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_scsistat_data(vport, debug->buffer,
+	de->len = lpfc_defs_scsistat_data(vport, de->buffer,
 		LPFC_SCSISTAT_SIZE);
 
-	debug->i_private = inode->i_private;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2657,11 +2657,11 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_scsistat_write(struct file *file, const char __user *buf,
+lpfc_defs_scsistat_write(struct file *file, const char __user *buf,
 			    size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_vport *vport = (struct lpfc_vport *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_vport *vport = (struct lpfc_vport *)de->i_private;
 	struct lpfc_hba *phba = vport->phba;
 	char mybuf[6] = {0};
 	int i;
@@ -2686,28 +2686,28 @@ lpfc_debugfs_scsistat_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_nvmektime_open(struct inode *inode, struct file *file)
+lpfc_defs_nvmektime_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_vport *vport = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	 /* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_NVMEKTIME_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_NVMEKTIME_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_nvmektime_data(vport, debug->buffer,
+	de->len = lpfc_defs_nvmektime_data(vport, de->buffer,
 		LPFC_NVMEKTIME_SIZE);
 
-	debug->i_private = inode->i_private;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2715,11 +2715,11 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_nvmektime_write(struct file *file, const char __user *buf,
+lpfc_defs_nvmektime_write(struct file *file, const char __user *buf,
 			     size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_vport *vport = (struct lpfc_vport *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_vport *vport = (struct lpfc_vport *)de->i_private;
 	struct lpfc_hba   *phba = vport->phba;
 	char mybuf[64];
 	char *pbuf;
@@ -2813,28 +2813,28 @@ lpfc_debugfs_nvmektime_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_nvmeio_trc_open(struct inode *inode, struct file *file)
+lpfc_defs_nvmeio_trc_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_hba *phba = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	 /* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_NVMEIO_TRC_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_NVMEIO_TRC_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_nvmeio_trc_data(phba, debug->buffer,
+	de->len = lpfc_defs_nvmeio_trc_data(phba, de->buffer,
 		LPFC_NVMEIO_TRC_SIZE);
 
-	debug->i_private = inode->i_private;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2842,11 +2842,11 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
+lpfc_defs_nvmeio_trc_write(struct file *file, const char __user *buf,
 			      size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	int i;
 	unsigned long sz;
 	char mybuf[64];
@@ -2902,11 +2902,11 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 	kfree(phba->nvmeio_trc);
 
 	/* Allocate new trace buffer and initialize */
-	phba->nvmeio_trc = kzalloc((sizeof(struct lpfc_debugfs_nvmeio_trc) *
+	phba->nvmeio_trc = kzalloc((sizeof(struct lpfc_defs_nvmeio_trc) *
 				    sz), GFP_KERNEL);
 	if (!phba->nvmeio_trc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0573 Cannot create debugfs "
+				"0573 Cannot create defs "
 				"nvmeio_trc buffer\n");
 		return -ENOMEM;
 	}
@@ -2918,28 +2918,28 @@ lpfc_debugfs_nvmeio_trc_write(struct file *file, const char __user *buf,
 }
 
 static int
-lpfc_debugfs_cpucheck_open(struct inode *inode, struct file *file)
+lpfc_defs_cpucheck_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_vport *vport = inode->i_private;
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		goto out;
 
 	 /* Round to page boundary */
-	debug->buffer = kmalloc(LPFC_CPUCHECK_SIZE, GFP_KERNEL);
-	if (!debug->buffer) {
-		kfree(debug);
+	de->buffer = kmalloc(LPFC_CPUCHECK_SIZE, GFP_KERNEL);
+	if (!de->buffer) {
+		kfree(de);
 		goto out;
 	}
 
-	debug->len = lpfc_debugfs_cpucheck_data(vport, debug->buffer,
+	de->len = lpfc_defs_cpucheck_data(vport, de->buffer,
 		LPFC_CPUCHECK_SIZE);
 
-	debug->i_private = inode->i_private;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	file->private_data = de;
 
 	rc = 0;
 out:
@@ -2947,11 +2947,11 @@ out:
 }
 
 static ssize_t
-lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
+lpfc_defs_cpucheck_write(struct file *file, const char __user *buf,
 			    size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_vport *vport = (struct lpfc_vport *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_vport *vport = (struct lpfc_vport *)de->i_private;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_sli4_hdw_queue *qp;
 	char mybuf[64];
@@ -3012,22 +3012,22 @@ lpfc_debugfs_cpucheck_write(struct file *file, const char __user *buf,
 
 /*
  * ---------------------------------
- * iDiag debugfs file access methods
+ * iDiag defs file access methods
  * ---------------------------------
  *
- * All access methods are through the proper SLI4 PCI function's debugfs
+ * All access methods are through the proper SLI4 PCI function's defs
  * iDiag directory:
  *
- *     /sys/kernel/debug/lpfc/fn<#>/iDiag
+ *     /sys/kernel/de/lpfc/fn<#>/iDiag
  */
 
 /**
- * lpfc_idiag_cmd_get - Get and parse idiag debugfs comands from user space
+ * lpfc_idiag_cmd_get - Get and parse idiag defs comands from user space
  * @buf: The pointer to the user space buffer.
  * @nbytes: The number of bytes in the user space buffer.
  * @idiag_cmd: pointer to the idiag command struct.
  *
- * This routine reads data from debugfs user space buffer and parses the
+ * This routine reads data from defs user space buffer and parses the
  * buffer for getting the idiag command and arguments. The while space in
  * between the set of data is used as the parsing separator.
  *
@@ -3069,12 +3069,12 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
 }
 
 /**
- * lpfc_idiag_open - idiag open debugfs
+ * lpfc_idiag_open - idiag open defs
  * @inode: The inode pointer that contains a pointer to phba.
  * @file: The file pointer to attach the file operation.
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation. It
+ * This routine is the entry point for the defs open file operation. It
  * gets the reference to phba from the i_private field in @inode, it then
  * allocates buffer for the file operation, performs the necessary PCI config
  * space read into the allocated buffer according to the idiag user command
@@ -3088,15 +3088,15 @@ static int lpfc_idiag_cmd_get(const char __user *buf, size_t nbytes,
 static int
 lpfc_idiag_open(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug;
+	struct lpfc_de *de;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
-	if (!debug)
+	de = kmalloc(sizeof(*de), GFP_KERNEL);
+	if (!de)
 		return -ENOMEM;
 
-	debug->i_private = inode->i_private;
-	debug->buffer = NULL;
-	file->private_data = debug;
+	de->i_private = inode->i_private;
+	de->buffer = NULL;
+	file->private_data = de;
 
 	return 0;
 }
@@ -3108,7 +3108,7 @@ lpfc_idiag_open(struct inode *inode, struct file *file)
  *
  * Description:
  * This routine is the generic release routine for the idiag access file
- * operation, it frees the buffer that was allocated when the debugfs file
+ * operation, it frees the buffer that was allocated when the defs file
  * was opened.
  *
  * Returns:
@@ -3117,11 +3117,11 @@ lpfc_idiag_open(struct inode *inode, struct file *file)
 static int
 lpfc_idiag_release(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 
 	/* Free the buffers to the file operation */
-	kfree(debug->buffer);
-	kfree(debug);
+	kfree(de->buffer);
+	kfree(de);
 
 	return 0;
 }
@@ -3132,7 +3132,7 @@ lpfc_idiag_release(struct inode *inode, struct file *file)
  * @file: The file pointer that contains the buffer to release.
  *
  * Description:
- * This routine frees the buffer that was allocated when the debugfs file
+ * This routine frees the buffer that was allocated when the defs file
  * was opened. It also reset the fields in the idiag command struct in the
  * case of command for write operation.
  *
@@ -3142,9 +3142,9 @@ lpfc_idiag_release(struct inode *inode, struct file *file)
 static int
 lpfc_idiag_cmd_release(struct inode *inode, struct file *file)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 
-	if (debug->op == LPFC_IDIAG_OP_WR) {
+	if (de->op == LPFC_IDIAG_OP_WR) {
 		switch (idiag.cmd.opcode) {
 		case LPFC_IDIAG_CMD_PCICFG_WR:
 		case LPFC_IDIAG_CMD_PCICFG_ST:
@@ -3160,14 +3160,14 @@ lpfc_idiag_cmd_release(struct inode *inode, struct file *file)
 	}
 
 	/* Free the buffers to the file operation */
-	kfree(debug->buffer);
-	kfree(debug);
+	kfree(de->buffer);
+	kfree(de);
 
 	return 0;
 }
 
 /**
- * lpfc_idiag_pcicfg_read - idiag debugfs read pcicfg
+ * lpfc_idiag_pcicfg_read - idiag defs read pcicfg
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -3188,8 +3188,8 @@ static ssize_t
 lpfc_idiag_pcicfg_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	int offset_label, offset, len = 0, index = LPFC_PCI_CFG_RD_SIZE;
 	int where, count;
 	char *pbuffer;
@@ -3203,13 +3203,13 @@ lpfc_idiag_pcicfg_read(struct file *file, char __user *buf, size_t nbytes,
 		return 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_PCI_CFG_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_PCI_CFG_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 
 	if (*ppos)
 		return 0;
@@ -3295,14 +3295,14 @@ pcicfg_browse:
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and
+ * This routine get the defs idiag command struct from user space and
  * then perform the syntax check for PCI config space read or write command
  * accordingly. In the case of PCI config space read command, it sets up
- * the command in the idiag command struct for the debugfs read operation.
+ * the command in the idiag command struct for the defs read operation.
  * In the case of PCI config space write operation, it executes the write
  * operation into the PCI config space accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  */
@@ -3310,8 +3310,8 @@ static ssize_t
 lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t where, value, count;
 	uint32_t u32val;
 	uint16_t u16val;
@@ -3324,7 +3324,7 @@ lpfc_idiag_pcicfg_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -3466,7 +3466,7 @@ error_out:
 }
 
 /**
- * lpfc_idiag_baracc_read - idiag debugfs pci bar access read
+ * lpfc_idiag_baracc_read - idiag defs pci bar access read
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -3484,8 +3484,8 @@ static ssize_t
 lpfc_idiag_baracc_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	int offset_label, offset, offset_run, len = 0, index;
 	int bar_num, acc_range, bar_size;
 	char *pbuffer;
@@ -3499,13 +3499,13 @@ lpfc_idiag_baracc_read(struct file *file, char __user *buf, size_t nbytes,
 		return 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_PCI_BAR_RD_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_PCI_BAR_RD_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 
 	if (*ppos)
 		return 0;
@@ -3619,15 +3619,15 @@ baracc_browse:
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and
+ * This routine get the defs idiag command struct from user space and
  * then perform the syntax check for PCI bar memory mapped space read or
  * write command accordingly. In the case of PCI bar memory mapped space
  * read command, it sets up the command in the idiag command struct for
- * the debugfs read operation. In the case of PCI bar memorpy mapped space
+ * the defs read operation. In the case of PCI bar memorpy mapped space
  * write operation, it executes the write operation into the PCI bar memory
  * mapped space accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  */
@@ -3635,8 +3635,8 @@ static ssize_t
 lpfc_idiag_baracc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t bar_num, bar_size, offset, value, acc_range;
 	struct pci_dev *pdev;
 	void __iomem *mem_mapped_bar;
@@ -3649,7 +3649,7 @@ lpfc_idiag_baracc_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -3944,7 +3944,7 @@ __lpfc_idiag_print_eq(struct lpfc_queue *qp, char *eqtype,
 }
 
 /**
- * lpfc_idiag_queinfo_read - idiag debugfs read queue information
+ * lpfc_idiag_queinfo_read - idiag defs read queue information
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -3965,17 +3965,17 @@ static ssize_t
 lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	char *pbuffer;
 	int max_cnt, rc, x, len = 0;
 	struct lpfc_queue *qp = NULL;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_QUE_INFO_GET_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 	max_cnt = LPFC_QUE_INFO_GET_BUF_SIZE - 256;
 
 	if (*ppos)
@@ -4152,7 +4152,7 @@ lpfc_idiag_queacc_read_qe(char *pbuffer, int len, struct lpfc_queue *pque,
 }
 
 /**
- * lpfc_idiag_queacc_read - idiag debugfs read port queue
+ * lpfc_idiag_queacc_read - idiag defs read port queue
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -4172,20 +4172,20 @@ static ssize_t
 lpfc_idiag_queacc_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 	uint32_t last_index, index, count;
 	struct lpfc_queue *pque = NULL;
 	char *pbuffer;
 	int len = 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_QUE_ACC_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_QUE_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 
 	if (*ppos)
 		return 0;
@@ -4234,14 +4234,14 @@ que_browse:
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and then
+ * This routine get the defs idiag command struct from user space and then
  * perform the syntax check for port queue read (dump) or write (set) command
  * accordingly. In the case of port queue read command, it sets up the command
- * in the idiag command struct for the following debugfs read operation. In
+ * in the idiag command struct for the following defs read operation. In
  * the case of port queue write operation, it executes the write operation
  * into the port queue entry accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  **/
@@ -4249,15 +4249,15 @@ static ssize_t
 lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t qidx, quetp, queid, index, count, offset, value;
 	uint32_t *pentry;
 	struct lpfc_queue *pque, *qp;
 	int rc;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -4503,7 +4503,7 @@ error_out:
 }
 
 /**
- * lpfc_idiag_drbacc_read_reg - idiag debugfs read a doorbell register
+ * lpfc_idiag_drbacc_read_reg - idiag defs read a doorbell register
  * @phba: The pointer to hba structure.
  * @pbuffer: The pointer to the buffer to copy the data to.
  * @len: The lenght of bytes to copied.
@@ -4558,7 +4558,7 @@ lpfc_idiag_drbacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
 }
 
 /**
- * lpfc_idiag_drbacc_read - idiag debugfs read port doorbell
+ * lpfc_idiag_drbacc_read - idiag defs read port doorbell
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -4578,20 +4578,20 @@ static ssize_t
 lpfc_idiag_drbacc_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t drb_reg_id, i;
 	char *pbuffer;
 	int len = 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_DRB_ACC_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_DRB_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 
 	if (*ppos)
 		return 0;
@@ -4619,14 +4619,14 @@ lpfc_idiag_drbacc_read(struct file *file, char __user *buf, size_t nbytes,
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and then
+ * This routine get the defs idiag command struct from user space and then
  * perform the syntax check for port doorbell register read (dump) or write
  * (set) command accordingly. In the case of port queue read command, it sets
- * up the command in the idiag command struct for the following debugfs read
+ * up the command in the idiag command struct for the following defs read
  * operation. In the case of port doorbell register write operation, it
  * executes the write operation into the port doorbell register accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  **/
@@ -4634,14 +4634,14 @@ static ssize_t
 lpfc_idiag_drbacc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t drb_reg_id, value, reg_val = 0;
 	void __iomem *drb_reg;
 	int rc;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -4713,7 +4713,7 @@ error_out:
 }
 
 /**
- * lpfc_idiag_ctlacc_read_reg - idiag debugfs read a control registers
+ * lpfc_idiag_ctlacc_read_reg - idiag defs read a control registers
  * @phba: The pointer to hba structure.
  * @pbuffer: The pointer to the buffer to copy the data to.
  * @len: The lenght of bytes to copied.
@@ -4778,7 +4778,7 @@ lpfc_idiag_ctlacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
 }
 
 /**
- * lpfc_idiag_ctlacc_read - idiag debugfs read port and device control register
+ * lpfc_idiag_ctlacc_read - idiag defs read port and device control register
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -4796,20 +4796,20 @@ static ssize_t
 lpfc_idiag_ctlacc_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t ctl_reg_id, i;
 	char *pbuffer;
 	int len = 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_CTL_ACC_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_CTL_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 
 	if (*ppos)
 		return 0;
@@ -4837,11 +4837,11 @@ lpfc_idiag_ctlacc_read(struct file *file, char __user *buf, size_t nbytes,
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and then
+ * This routine get the defs idiag command struct from user space and then
  * perform the syntax check for port and device control register read (dump)
  * or write (set) command accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  **/
@@ -4849,14 +4849,14 @@ static ssize_t
 lpfc_idiag_ctlacc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	uint32_t ctl_reg_id, value, reg_val = 0;
 	void __iomem *ctl_reg;
 	int rc;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -4937,12 +4937,12 @@ error_out:
 }
 
 /**
- * lpfc_idiag_mbxacc_get_setup - idiag debugfs get mailbox access setup
+ * lpfc_idiag_mbxacc_get_setup - idiag defs get mailbox access setup
  * @phba: Pointer to HBA context object.
  * @pbuffer: Pointer to data buffer.
  *
  * Description:
- * This routine gets the driver mailbox access debugfs setup information.
+ * This routine gets the driver mailbox access defs setup information.
  *
  * Returns:
  * This function returns the amount of data that was read (this could be less
@@ -4972,14 +4972,14 @@ lpfc_idiag_mbxacc_get_setup(struct lpfc_hba *phba, char *pbuffer)
 }
 
 /**
- * lpfc_idiag_mbxacc_read - idiag debugfs read on mailbox access
+ * lpfc_idiag_mbxacc_read - idiag defs read on mailbox access
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
  * @ppos: The position in the file to start reading from.
  *
  * Description:
- * This routine reads data from the @phba driver mailbox access debugfs setup
+ * This routine reads data from the @phba driver mailbox access defs setup
  * information.
  *
  * Returns:
@@ -4990,19 +4990,19 @@ static ssize_t
 lpfc_idiag_mbxacc_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	char *pbuffer;
 	int len = 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_MBX_ACC_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_MBX_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 
 	if (*ppos)
 		return 0;
@@ -5023,11 +5023,11 @@ lpfc_idiag_mbxacc_read(struct file *file, char __user *buf, size_t nbytes,
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and then
+ * This routine get the defs idiag command struct from user space and then
  * perform the syntax check for driver mailbox command (dump) and sets up the
  * necessary states in the idiag command struct accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  **/
@@ -5035,12 +5035,12 @@ static ssize_t
 lpfc_idiag_mbxacc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 	uint32_t mbx_dump_map, mbx_dump_cnt, mbx_word_cnt, mbx_mbox_cmd;
 	int rc;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -5297,11 +5297,11 @@ lpfc_idiag_extacc_drivr_get(struct lpfc_hba *phba, char *pbuffer, int len)
  * @nbytes: The number of bytes to get.
  * @ppos: The position in the file to start reading from.
  *
- * This routine get the debugfs idiag command struct from user space and then
+ * This routine get the defs idiag command struct from user space and then
  * perform the syntax check for extent information access commands and sets
  * up the necessary states in the idiag command struct accordingly.
  *
- * It returns the @nbytges passing in from debugfs user space when successful.
+ * It returns the @nbytges passing in from defs user space when successful.
  * In case of error conditions, it returns proper error code back to the user
  * space.
  **/
@@ -5309,12 +5309,12 @@ static ssize_t
 lpfc_idiag_extacc_write(struct file *file, const char __user *buf,
 			size_t nbytes, loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
+	struct lpfc_de *de = file->private_data;
 	uint32_t ext_map;
 	int rc;
 
 	/* This is a user write operation */
-	debug->op = LPFC_IDIAG_OP_WR;
+	de->op = LPFC_IDIAG_OP_WR;
 
 	rc = lpfc_idiag_cmd_get(buf, nbytes, &idiag.cmd);
 	if (rc < 0)
@@ -5337,7 +5337,7 @@ error_out:
 }
 
 /**
- * lpfc_idiag_extacc_read - idiag debugfs read access to extent information
+ * lpfc_idiag_extacc_read - idiag defs read access to extent information
  * @file: The file pointer to read from.
  * @buf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -5355,20 +5355,20 @@ static ssize_t
 lpfc_idiag_extacc_read(struct file *file, char __user *buf, size_t nbytes,
 		       loff_t *ppos)
 {
-	struct lpfc_debug *debug = file->private_data;
-	struct lpfc_hba *phba = (struct lpfc_hba *)debug->i_private;
+	struct lpfc_de *de = file->private_data;
+	struct lpfc_hba *phba = (struct lpfc_hba *)de->i_private;
 	char *pbuffer;
 	uint32_t ext_map;
 	int len = 0;
 
 	/* This is a user read operation */
-	debug->op = LPFC_IDIAG_OP_RD;
+	de->op = LPFC_IDIAG_OP_RD;
 
-	if (!debug->buffer)
-		debug->buffer = kmalloc(LPFC_EXT_ACC_BUF_SIZE, GFP_KERNEL);
-	if (!debug->buffer)
+	if (!de->buffer)
+		de->buffer = kmalloc(LPFC_EXT_ACC_BUF_SIZE, GFP_KERNEL);
+	if (!de->buffer)
 		return 0;
-	pbuffer = debug->buffer;
+	pbuffer = de->buffer;
 	if (*ppos)
 		return 0;
 	if (idiag.cmd.opcode != LPFC_IDIAG_CMD_EXTACC_RD)
@@ -5385,173 +5385,173 @@ lpfc_idiag_extacc_read(struct file *file, char __user *buf, size_t nbytes,
 	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
 }
 
-#undef lpfc_debugfs_op_disc_trc
-static const struct file_operations lpfc_debugfs_op_disc_trc = {
+#undef lpfc_defs_op_disc_trc
+static const struct file_operations lpfc_defs_op_disc_trc = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_disc_trc_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_disc_trc_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_nodelist
-static const struct file_operations lpfc_debugfs_op_nodelist = {
+#undef lpfc_defs_op_nodelist
+static const struct file_operations lpfc_defs_op_nodelist = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_nodelist_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_nodelist_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_multixripools
-static const struct file_operations lpfc_debugfs_op_multixripools = {
+#undef lpfc_defs_op_multixripools
+static const struct file_operations lpfc_defs_op_multixripools = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_multixripools_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_multixripools_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_multixripools_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_multixripools_write,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_hbqinfo
-static const struct file_operations lpfc_debugfs_op_hbqinfo = {
+#undef lpfc_defs_op_hbqinfo
+static const struct file_operations lpfc_defs_op_hbqinfo = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_hbqinfo_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_hbqinfo_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.release =      lpfc_defs_release,
 };
 
 #ifdef LPFC_HDWQ_LOCK_STAT
-#undef lpfc_debugfs_op_lockstat
-static const struct file_operations lpfc_debugfs_op_lockstat = {
+#undef lpfc_defs_op_lockstat
+static const struct file_operations lpfc_defs_op_lockstat = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_lockstat_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =        lpfc_debugfs_lockstat_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_lockstat_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =        lpfc_defs_lockstat_write,
+	.release =      lpfc_defs_release,
 };
 #endif
 
-#undef lpfc_debugfs_op_dumpHBASlim
-static const struct file_operations lpfc_debugfs_op_dumpHBASlim = {
+#undef lpfc_defs_op_dumpHBASlim
+static const struct file_operations lpfc_defs_op_dumpHBASlim = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_dumpHBASlim_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_dumpHBASlim_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_dumpHostSlim
-static const struct file_operations lpfc_debugfs_op_dumpHostSlim = {
+#undef lpfc_defs_op_dumpHostSlim
+static const struct file_operations lpfc_defs_op_dumpHostSlim = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_dumpHostSlim_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_dumpHostSlim_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_nvmestat
-static const struct file_operations lpfc_debugfs_op_nvmestat = {
+#undef lpfc_defs_op_nvmestat
+static const struct file_operations lpfc_defs_op_nvmestat = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_nvmestat_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_nvmestat_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_nvmestat_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_nvmestat_write,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_scsistat
-static const struct file_operations lpfc_debugfs_op_scsistat = {
+#undef lpfc_defs_op_scsistat
+static const struct file_operations lpfc_defs_op_scsistat = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_scsistat_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_scsistat_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_scsistat_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_scsistat_write,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_nvmektime
-static const struct file_operations lpfc_debugfs_op_nvmektime = {
+#undef lpfc_defs_op_nvmektime
+static const struct file_operations lpfc_defs_op_nvmektime = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_nvmektime_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_nvmektime_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_nvmektime_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_nvmektime_write,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_nvmeio_trc
-static const struct file_operations lpfc_debugfs_op_nvmeio_trc = {
+#undef lpfc_defs_op_nvmeio_trc
+static const struct file_operations lpfc_defs_op_nvmeio_trc = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_nvmeio_trc_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_nvmeio_trc_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_nvmeio_trc_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_nvmeio_trc_write,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_cpucheck
-static const struct file_operations lpfc_debugfs_op_cpucheck = {
+#undef lpfc_defs_op_cpucheck
+static const struct file_operations lpfc_defs_op_cpucheck = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_cpucheck_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_cpucheck_write,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_cpucheck_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_cpucheck_write,
+	.release =      lpfc_defs_release,
 };
 
-#undef lpfc_debugfs_op_dumpData
-static const struct file_operations lpfc_debugfs_op_dumpData = {
+#undef lpfc_defs_op_dumpData
+static const struct file_operations lpfc_defs_op_dumpData = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_dumpData_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_dumpDataDif_write,
-	.release =      lpfc_debugfs_dumpDataDif_release,
+	.open =         lpfc_defs_dumpData_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_dumpDataDif_write,
+	.release =      lpfc_defs_dumpDataDif_release,
 };
 
-#undef lpfc_debugfs_op_dumpDif
-static const struct file_operations lpfc_debugfs_op_dumpDif = {
+#undef lpfc_defs_op_dumpDif
+static const struct file_operations lpfc_defs_op_dumpDif = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_dumpDif_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.write =	lpfc_debugfs_dumpDataDif_write,
-	.release =      lpfc_debugfs_dumpDataDif_release,
+	.open =         lpfc_defs_dumpDif_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.write =	lpfc_defs_dumpDataDif_write,
+	.release =      lpfc_defs_dumpDataDif_release,
 };
 
-#undef lpfc_debugfs_op_dif_err
-static const struct file_operations lpfc_debugfs_op_dif_err = {
+#undef lpfc_defs_op_dif_err
+static const struct file_operations lpfc_defs_op_dif_err = {
 	.owner =	THIS_MODULE,
 	.open =		simple_open,
-	.llseek =	lpfc_debugfs_lseek,
-	.read =		lpfc_debugfs_dif_err_read,
-	.write =	lpfc_debugfs_dif_err_write,
-	.release =	lpfc_debugfs_dif_err_release,
+	.llseek =	lpfc_defs_lseek,
+	.read =		lpfc_defs_dif_err_read,
+	.write =	lpfc_defs_dif_err_write,
+	.release =	lpfc_defs_dif_err_release,
 };
 
-#undef lpfc_debugfs_op_slow_ring_trc
-static const struct file_operations lpfc_debugfs_op_slow_ring_trc = {
+#undef lpfc_defs_op_slow_ring_trc
+static const struct file_operations lpfc_defs_op_slow_ring_trc = {
 	.owner =        THIS_MODULE,
-	.open =         lpfc_debugfs_slow_ring_trc_open,
-	.llseek =       lpfc_debugfs_lseek,
-	.read =         lpfc_debugfs_read,
-	.release =      lpfc_debugfs_release,
+	.open =         lpfc_defs_slow_ring_trc_open,
+	.llseek =       lpfc_defs_lseek,
+	.read =         lpfc_defs_read,
+	.release =      lpfc_defs_release,
 };
 
-static struct dentry *lpfc_debugfs_root = NULL;
-static atomic_t lpfc_debugfs_hba_count;
+static struct dentry *lpfc_defs_root = NULL;
+static atomic_t lpfc_defs_hba_count;
 
 /*
- * File operations for the iDiag debugfs
+ * File operations for the iDiag defs
  */
 #undef lpfc_idiag_op_pciCfg
 static const struct file_operations lpfc_idiag_op_pciCfg = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_pcicfg_read,
 	.write =        lpfc_idiag_pcicfg_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5561,7 +5561,7 @@ static const struct file_operations lpfc_idiag_op_pciCfg = {
 static const struct file_operations lpfc_idiag_op_barAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_baracc_read,
 	.write =        lpfc_idiag_baracc_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5579,7 +5579,7 @@ static const struct file_operations lpfc_idiag_op_queInfo = {
 static const struct file_operations lpfc_idiag_op_queAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_queacc_read,
 	.write =        lpfc_idiag_queacc_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5589,7 +5589,7 @@ static const struct file_operations lpfc_idiag_op_queAcc = {
 static const struct file_operations lpfc_idiag_op_drbAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_drbacc_read,
 	.write =        lpfc_idiag_drbacc_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5599,7 +5599,7 @@ static const struct file_operations lpfc_idiag_op_drbAcc = {
 static const struct file_operations lpfc_idiag_op_ctlAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_ctlacc_read,
 	.write =        lpfc_idiag_ctlacc_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5609,7 +5609,7 @@ static const struct file_operations lpfc_idiag_op_ctlAcc = {
 static const struct file_operations lpfc_idiag_op_mbxAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_mbxacc_read,
 	.write =        lpfc_idiag_mbxacc_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5619,7 +5619,7 @@ static const struct file_operations lpfc_idiag_op_mbxAcc = {
 static const struct file_operations lpfc_idiag_op_extAcc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_idiag_open,
-	.llseek =       lpfc_debugfs_lseek,
+	.llseek =       lpfc_defs_lseek,
 	.read =         lpfc_idiag_extacc_read,
 	.write =        lpfc_idiag_extacc_write,
 	.release =      lpfc_idiag_cmd_release,
@@ -5627,7 +5627,7 @@ static const struct file_operations lpfc_idiag_op_extAcc = {
 
 #endif
 
-/* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag debugfs dump bsg mailbox command
+/* lpfc_idiag_mbxacc_dump_bsg_mbox - idiag defs dump bsg mailbox command
  * @phba: Pointer to HBA context object.
  * @dmabuf: Pointer to a DMA buffer descriptor.
  *
@@ -5641,7 +5641,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 				enum sta_type sta_tp,
 				struct lpfc_dmabuf *dmabuf, uint32_t ext_buf)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint32_t *mbx_mbox_cmd, *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt;
 	char line_buf[LPFC_MBX_ACC_LBUF_SZ];
 	int len = 0;
@@ -5726,7 +5726,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 #endif
 }
 
-/* lpfc_idiag_mbxacc_dump_issue_mbox - idiag debugfs dump issue mailbox command
+/* lpfc_idiag_mbxacc_dump_issue_mbox - idiag defs dump issue mailbox command
  * @phba: Pointer to HBA context object.
  * @dmabuf: Pointer to a DMA buffer descriptor.
  *
@@ -5737,7 +5737,7 @@ lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *phba, enum nemb_type nemb_tp,
 void
 lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint32_t *mbx_dump_map, *mbx_dump_cnt, *mbx_word_cnt, *mbx_mbox_cmd;
 	char line_buf[LPFC_MBX_ACC_LBUF_SZ];
 	int len = 0;
@@ -5824,242 +5824,242 @@ lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *phba, MAILBOX_t *pmbox)
 }
 
 /**
- * lpfc_debugfs_initialize - Initialize debugfs for a vport
+ * lpfc_defs_initialize - Initialize defs for a vport
  * @vport: The vport pointer to initialize.
  *
  * Description:
- * When Debugfs is configured this routine sets up the lpfc debugfs file system.
+ * When Defs is configured this routine sets up the lpfc defs file system.
  * If not already created, this routine will create the lpfc directory, and
  * lpfcX directory (for this HBA), and vportX directory for this vport. It will
- * also create each file used to access lpfc specific debugfs information.
+ * also create each file used to access lpfc specific defs information.
  **/
 inline void
-lpfc_debugfs_initialize(struct lpfc_vport *vport)
+lpfc_defs_initialize(struct lpfc_vport *vport)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	struct lpfc_hba   *phba = vport->phba;
 	char name[64];
 	uint32_t num, i;
 	bool pport_setup = false;
 
-	if (!lpfc_debugfs_enable)
+	if (!lpfc_defs_enable)
 		return;
 
 	/* Setup lpfc root directory */
-	if (!lpfc_debugfs_root) {
-		lpfc_debugfs_root = debugfs_create_dir("lpfc", NULL);
-		atomic_set(&lpfc_debugfs_hba_count, 0);
+	if (!lpfc_defs_root) {
+		lpfc_defs_root = defs_create_dir("lpfc", NULL);
+		atomic_set(&lpfc_defs_hba_count, 0);
 	}
-	if (!lpfc_debugfs_start_time)
-		lpfc_debugfs_start_time = jiffies;
+	if (!lpfc_defs_start_time)
+		lpfc_defs_start_time = jiffies;
 
 	/* Setup funcX directory for specific HBA PCI function */
 	snprintf(name, sizeof(name), "fn%d", phba->brd_no);
-	if (!phba->hba_debugfs_root) {
+	if (!phba->hba_defs_root) {
 		pport_setup = true;
-		phba->hba_debugfs_root =
-			debugfs_create_dir(name, lpfc_debugfs_root);
-		atomic_inc(&lpfc_debugfs_hba_count);
-		atomic_set(&phba->debugfs_vport_count, 0);
+		phba->hba_defs_root =
+			defs_create_dir(name, lpfc_defs_root);
+		atomic_inc(&lpfc_defs_hba_count);
+		atomic_set(&phba->defs_vport_count, 0);
 
 		/* Multi-XRI pools */
 		snprintf(name, sizeof(name), "multixripools");
-		phba->debug_multixri_pools =
-			debugfs_create_file(name, S_IFREG | 0644,
-					    phba->hba_debugfs_root,
+		phba->de_multixri_pools =
+			defs_create_file(name, S_IFREG | 0644,
+					    phba->hba_defs_root,
 					    phba,
-					    &lpfc_debugfs_op_multixripools);
-		if (!phba->debug_multixri_pools) {
+					    &lpfc_defs_op_multixripools);
+		if (!phba->de_multixri_pools) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0527 Cannot create debugfs multixripools\n");
-			goto debug_failed;
+					 "0527 Cannot create defs multixripools\n");
+			goto de_failed;
 		}
 
 		/* Setup hbqinfo */
 		snprintf(name, sizeof(name), "hbqinfo");
-		phba->debug_hbqinfo =
-			debugfs_create_file(name, S_IFREG | 0644,
-					    phba->hba_debugfs_root,
-					    phba, &lpfc_debugfs_op_hbqinfo);
+		phba->de_hbqinfo =
+			defs_create_file(name, S_IFREG | 0644,
+					    phba->hba_defs_root,
+					    phba, &lpfc_defs_op_hbqinfo);
 
 #ifdef LPFC_HDWQ_LOCK_STAT
 		/* Setup lockstat */
 		snprintf(name, sizeof(name), "lockstat");
-		phba->debug_lockstat =
-			debugfs_create_file(name, S_IFREG | 0644,
-					    phba->hba_debugfs_root,
-					    phba, &lpfc_debugfs_op_lockstat);
-		if (!phba->debug_lockstat) {
+		phba->de_lockstat =
+			defs_create_file(name, S_IFREG | 0644,
+					    phba->hba_defs_root,
+					    phba, &lpfc_defs_op_lockstat);
+		if (!phba->de_lockstat) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0913 Cant create debugfs lockstat\n");
-			goto debug_failed;
+					 "0913 Cant create defs lockstat\n");
+			goto de_failed;
 		}
 #endif
 
 		/* Setup dumpHBASlim */
 		if (phba->sli_rev < LPFC_SLI_REV4) {
 			snprintf(name, sizeof(name), "dumpHBASlim");
-			phba->debug_dumpHBASlim =
-				debugfs_create_file(name,
+			phba->de_dumpHBASlim =
+				defs_create_file(name,
 					S_IFREG|S_IRUGO|S_IWUSR,
-					phba->hba_debugfs_root,
-					phba, &lpfc_debugfs_op_dumpHBASlim);
+					phba->hba_defs_root,
+					phba, &lpfc_defs_op_dumpHBASlim);
 		} else
-			phba->debug_dumpHBASlim = NULL;
+			phba->de_dumpHBASlim = NULL;
 
 		/* Setup dumpHostSlim */
 		if (phba->sli_rev < LPFC_SLI_REV4) {
 			snprintf(name, sizeof(name), "dumpHostSlim");
-			phba->debug_dumpHostSlim =
-				debugfs_create_file(name,
+			phba->de_dumpHostSlim =
+				defs_create_file(name,
 					S_IFREG|S_IRUGO|S_IWUSR,
-					phba->hba_debugfs_root,
-					phba, &lpfc_debugfs_op_dumpHostSlim);
+					phba->hba_defs_root,
+					phba, &lpfc_defs_op_dumpHostSlim);
 		} else
-			phba->debug_dumpHostSlim = NULL;
+			phba->de_dumpHostSlim = NULL;
 
 		/* Setup dumpData */
 		snprintf(name, sizeof(name), "dumpData");
-		phba->debug_dumpData =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 phba->hba_debugfs_root,
-				 phba, &lpfc_debugfs_op_dumpData);
+		phba->de_dumpData =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_defs_root,
+				 phba, &lpfc_defs_op_dumpData);
 
 		/* Setup dumpDif */
 		snprintf(name, sizeof(name), "dumpDif");
-		phba->debug_dumpDif =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 phba->hba_debugfs_root,
-				 phba, &lpfc_debugfs_op_dumpDif);
+		phba->de_dumpDif =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_defs_root,
+				 phba, &lpfc_defs_op_dumpDif);
 
 		/* Setup DIF Error Injections */
 		snprintf(name, sizeof(name), "InjErrLBA");
-		phba->debug_InjErrLBA =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_InjErrLBA =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 		phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
 
 		snprintf(name, sizeof(name), "InjErrNPortID");
-		phba->debug_InjErrNPortID =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_InjErrNPortID =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "InjErrWWPN");
-		phba->debug_InjErrWWPN =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_InjErrWWPN =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "writeGuardInjErr");
-		phba->debug_writeGuard =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_writeGuard =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "writeAppInjErr");
-		phba->debug_writeApp =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_writeApp =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "writeRefInjErr");
-		phba->debug_writeRef =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_writeRef =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "readGuardInjErr");
-		phba->debug_readGuard =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_readGuard =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "readAppInjErr");
-		phba->debug_readApp =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_readApp =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		snprintf(name, sizeof(name), "readRefInjErr");
-		phba->debug_readRef =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-			phba->hba_debugfs_root,
-			phba, &lpfc_debugfs_op_dif_err);
+		phba->de_readRef =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_defs_root,
+			phba, &lpfc_defs_op_dif_err);
 
 		/* Setup slow ring trace */
-		if (lpfc_debugfs_max_slow_ring_trc) {
-			num = lpfc_debugfs_max_slow_ring_trc - 1;
-			if (num & lpfc_debugfs_max_slow_ring_trc) {
+		if (lpfc_defs_max_slow_ring_trc) {
+			num = lpfc_defs_max_slow_ring_trc - 1;
+			if (num & lpfc_defs_max_slow_ring_trc) {
 				/* Change to be a power of 2 */
-				num = lpfc_debugfs_max_slow_ring_trc;
+				num = lpfc_defs_max_slow_ring_trc;
 				i = 0;
 				while (num > 1) {
 					num = num >> 1;
 					i++;
 				}
-				lpfc_debugfs_max_slow_ring_trc = (1 << i);
-				pr_err("lpfc_debugfs_max_disc_trc changed to "
-				       "%d\n", lpfc_debugfs_max_disc_trc);
+				lpfc_defs_max_slow_ring_trc = (1 << i);
+				pr_err("lpfc_defs_max_disc_trc changed to "
+				       "%d\n", lpfc_defs_max_disc_trc);
 			}
 		}
 
 		snprintf(name, sizeof(name), "slow_ring_trace");
-		phba->debug_slow_ring_trc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 phba->hba_debugfs_root,
-				 phba, &lpfc_debugfs_op_slow_ring_trc);
+		phba->de_slow_ring_trc =
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_defs_root,
+				 phba, &lpfc_defs_op_slow_ring_trc);
 		if (!phba->slow_ring_trc) {
 			phba->slow_ring_trc = kmalloc(
-				(sizeof(struct lpfc_debugfs_trc) *
-				lpfc_debugfs_max_slow_ring_trc),
+				(sizeof(struct lpfc_defs_trc) *
+				lpfc_defs_max_slow_ring_trc),
 				GFP_KERNEL);
 			if (!phba->slow_ring_trc) {
 				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-						 "0416 Cannot create debugfs "
+						 "0416 Cannot create defs "
 						 "slow_ring buffer\n");
-				goto debug_failed;
+				goto de_failed;
 			}
 			atomic_set(&phba->slow_ring_trc_cnt, 0);
 			memset(phba->slow_ring_trc, 0,
-				(sizeof(struct lpfc_debugfs_trc) *
-				lpfc_debugfs_max_slow_ring_trc));
+				(sizeof(struct lpfc_defs_trc) *
+				lpfc_defs_max_slow_ring_trc));
 		}
 
 		snprintf(name, sizeof(name), "nvmeio_trc");
-		phba->debug_nvmeio_trc =
-			debugfs_create_file(name, 0644,
-					    phba->hba_debugfs_root,
-					    phba, &lpfc_debugfs_op_nvmeio_trc);
+		phba->de_nvmeio_trc =
+			defs_create_file(name, 0644,
+					    phba->hba_defs_root,
+					    phba, &lpfc_defs_op_nvmeio_trc);
 
 		atomic_set(&phba->nvmeio_trc_cnt, 0);
-		if (lpfc_debugfs_max_nvmeio_trc) {
-			num = lpfc_debugfs_max_nvmeio_trc - 1;
-			if (num & lpfc_debugfs_max_disc_trc) {
+		if (lpfc_defs_max_nvmeio_trc) {
+			num = lpfc_defs_max_nvmeio_trc - 1;
+			if (num & lpfc_defs_max_disc_trc) {
 				/* Change to be a power of 2 */
-				num = lpfc_debugfs_max_nvmeio_trc;
+				num = lpfc_defs_max_nvmeio_trc;
 				i = 0;
 				while (num > 1) {
 					num = num >> 1;
 					i++;
 				}
-				lpfc_debugfs_max_nvmeio_trc = (1 << i);
+				lpfc_defs_max_nvmeio_trc = (1 << i);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"0575 lpfc_debugfs_max_nvmeio_trc "
+						"0575 lpfc_defs_max_nvmeio_trc "
 						"changed to %d\n",
-						lpfc_debugfs_max_nvmeio_trc);
+						lpfc_defs_max_nvmeio_trc);
 			}
-			phba->nvmeio_trc_size = lpfc_debugfs_max_nvmeio_trc;
+			phba->nvmeio_trc_size = lpfc_defs_max_nvmeio_trc;
 
 			/* Allocate trace buffer and initialize */
 			phba->nvmeio_trc = kzalloc(
-				(sizeof(struct lpfc_debugfs_nvmeio_trc) *
+				(sizeof(struct lpfc_defs_nvmeio_trc) *
 				phba->nvmeio_trc_size), GFP_KERNEL);
 
 			if (!phba->nvmeio_trc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"0576 Cannot create debugfs "
+						"0576 Cannot create defs "
 						"nvmeio_trc buffer\n");
 				goto nvmeio_off;
 			}
@@ -6076,79 +6076,79 @@ nvmeio_off:
 	}
 
 	snprintf(name, sizeof(name), "vport%d", vport->vpi);
-	if (!vport->vport_debugfs_root) {
-		vport->vport_debugfs_root =
-			debugfs_create_dir(name, phba->hba_debugfs_root);
-		atomic_inc(&phba->debugfs_vport_count);
+	if (!vport->vport_defs_root) {
+		vport->vport_defs_root =
+			defs_create_dir(name, phba->hba_defs_root);
+		atomic_inc(&phba->defs_vport_count);
 	}
 
-	if (lpfc_debugfs_max_disc_trc) {
-		num = lpfc_debugfs_max_disc_trc - 1;
-		if (num & lpfc_debugfs_max_disc_trc) {
+	if (lpfc_defs_max_disc_trc) {
+		num = lpfc_defs_max_disc_trc - 1;
+		if (num & lpfc_defs_max_disc_trc) {
 			/* Change to be a power of 2 */
-			num = lpfc_debugfs_max_disc_trc;
+			num = lpfc_defs_max_disc_trc;
 			i = 0;
 			while (num > 1) {
 				num = num >> 1;
 				i++;
 			}
-			lpfc_debugfs_max_disc_trc = (1 << i);
-			pr_err("lpfc_debugfs_max_disc_trc changed to %d\n",
-			       lpfc_debugfs_max_disc_trc);
+			lpfc_defs_max_disc_trc = (1 << i);
+			pr_err("lpfc_defs_max_disc_trc changed to %d\n",
+			       lpfc_defs_max_disc_trc);
 		}
 	}
 
 	vport->disc_trc = kzalloc(
-		(sizeof(struct lpfc_debugfs_trc) * lpfc_debugfs_max_disc_trc),
+		(sizeof(struct lpfc_defs_trc) * lpfc_defs_max_disc_trc),
 		GFP_KERNEL);
 
 	if (!vport->disc_trc) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0418 Cannot create debugfs disc trace "
+				 "0418 Cannot create defs disc trace "
 				 "buffer\n");
-		goto debug_failed;
+		goto de_failed;
 	}
 	atomic_set(&vport->disc_trc_cnt, 0);
 
 	snprintf(name, sizeof(name), "discovery_trace");
-	vport->debug_disc_trc =
-		debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 vport->vport_debugfs_root,
-				 vport, &lpfc_debugfs_op_disc_trc);
+	vport->de_disc_trc =
+		defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 vport->vport_defs_root,
+				 vport, &lpfc_defs_op_disc_trc);
 	snprintf(name, sizeof(name), "nodelist");
-	vport->debug_nodelist =
-		debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
-				 vport->vport_debugfs_root,
-				 vport, &lpfc_debugfs_op_nodelist);
+	vport->de_nodelist =
+		defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 vport->vport_defs_root,
+				 vport, &lpfc_defs_op_nodelist);
 
 	snprintf(name, sizeof(name), "nvmestat");
-	vport->debug_nvmestat =
-		debugfs_create_file(name, 0644,
-				    vport->vport_debugfs_root,
-				    vport, &lpfc_debugfs_op_nvmestat);
+	vport->de_nvmestat =
+		defs_create_file(name, 0644,
+				    vport->vport_defs_root,
+				    vport, &lpfc_defs_op_nvmestat);
 
 	snprintf(name, sizeof(name), "scsistat");
-	vport->debug_scsistat =
-		debugfs_create_file(name, 0644,
-				    vport->vport_debugfs_root,
-				    vport, &lpfc_debugfs_op_scsistat);
-	if (!vport->debug_scsistat) {
+	vport->de_scsistat =
+		defs_create_file(name, 0644,
+				    vport->vport_defs_root,
+				    vport, &lpfc_defs_op_scsistat);
+	if (!vport->de_scsistat) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0914 Cannot create debugfs scsistat\n");
-		goto debug_failed;
+				 "0914 Cannot create defs scsistat\n");
+		goto de_failed;
 	}
 
 	snprintf(name, sizeof(name), "nvmektime");
-	vport->debug_nvmektime =
-		debugfs_create_file(name, 0644,
-				    vport->vport_debugfs_root,
-				    vport, &lpfc_debugfs_op_nvmektime);
+	vport->de_nvmektime =
+		defs_create_file(name, 0644,
+				    vport->vport_defs_root,
+				    vport, &lpfc_defs_op_nvmektime);
 
 	snprintf(name, sizeof(name), "cpucheck");
-	vport->debug_cpucheck =
-		debugfs_create_file(name, 0644,
-				    vport->vport_debugfs_root,
-				    vport, &lpfc_debugfs_op_cpucheck);
+	vport->de_cpucheck =
+		defs_create_file(name, 0644,
+				    vport->vport_defs_root,
+				    vport, &lpfc_defs_op_cpucheck);
 
 	/*
 	 * The following section is for additional directories/files for the
@@ -6156,18 +6156,18 @@ nvmeio_off:
 	 */
 
 	if (!pport_setup)
-		goto debug_failed;
+		goto de_failed;
 
 	/*
-	 * iDiag debugfs root entry points for SLI4 device only
+	 * iDiag defs root entry points for SLI4 device only
 	 */
 	if (phba->sli_rev < LPFC_SLI_REV4)
-		goto debug_failed;
+		goto de_failed;
 
 	snprintf(name, sizeof(name), "iDiag");
 	if (!phba->idiag_root) {
 		phba->idiag_root =
-			debugfs_create_dir(name, phba->hba_debugfs_root);
+			defs_create_dir(name, phba->hba_defs_root);
 		/* Initialize iDiag data structure */
 		memset(&idiag, 0, sizeof(idiag));
 	}
@@ -6176,7 +6176,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "pciCfg");
 	if (!phba->idiag_pci_cfg) {
 		phba->idiag_pci_cfg =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_pciCfg);
 		idiag.offset.last_rd = 0;
 	}
@@ -6185,7 +6185,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "barAcc");
 	if (!phba->idiag_bar_acc) {
 		phba->idiag_bar_acc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_barAcc);
 		idiag.offset.last_rd = 0;
 	}
@@ -6194,7 +6194,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "queInfo");
 	if (!phba->idiag_que_info) {
 		phba->idiag_que_info =
-			debugfs_create_file(name, S_IFREG|S_IRUGO,
+			defs_create_file(name, S_IFREG|S_IRUGO,
 			phba->idiag_root, phba, &lpfc_idiag_op_queInfo);
 	}
 
@@ -6202,7 +6202,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "queAcc");
 	if (!phba->idiag_que_acc) {
 		phba->idiag_que_acc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_queAcc);
 	}
 
@@ -6210,7 +6210,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "drbAcc");
 	if (!phba->idiag_drb_acc) {
 		phba->idiag_drb_acc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_drbAcc);
 	}
 
@@ -6218,7 +6218,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "ctlAcc");
 	if (!phba->idiag_ctl_acc) {
 		phba->idiag_ctl_acc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_ctlAcc);
 	}
 
@@ -6226,7 +6226,7 @@ nvmeio_off:
 	snprintf(name, sizeof(name), "mbxAcc");
 	if (!phba->idiag_mbx_acc) {
 		phba->idiag_mbx_acc =
-			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			defs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
 				phba->idiag_root, phba, &lpfc_idiag_op_mbxAcc);
 	}
 
@@ -6235,122 +6235,122 @@ nvmeio_off:
 		snprintf(name, sizeof(name), "extAcc");
 		if (!phba->idiag_ext_acc) {
 			phba->idiag_ext_acc =
-				debugfs_create_file(name,
+				defs_create_file(name,
 						    S_IFREG|S_IRUGO|S_IWUSR,
 						    phba->idiag_root, phba,
 						    &lpfc_idiag_op_extAcc);
 		}
 	}
 
-debug_failed:
+de_failed:
 	return;
 #endif
 }
 
 /**
- * lpfc_debugfs_terminate -  Tear down debugfs infrastructure for this vport
- * @vport: The vport pointer to remove from debugfs.
+ * lpfc_defs_terminate -  Tear down defs infrastructure for this vport
+ * @vport: The vport pointer to remove from defs.
  *
  * Description:
- * When Debugfs is configured this routine removes debugfs file system elements
+ * When Defs is configured this routine removes defs file system elements
  * that are specific to this vport. It also checks to see if there are any
- * users left for the debugfs directories associated with the HBA and driver. If
+ * users left for the defs directories associated with the HBA and driver. If
  * this is the last user of the HBA directory or driver directory then it will
- * remove those from the debugfs infrastructure as well.
+ * remove those from the defs infrastructure as well.
  **/
 inline void
-lpfc_debugfs_terminate(struct lpfc_vport *vport)
+lpfc_defs_terminate(struct lpfc_vport *vport)
 {
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	struct lpfc_hba   *phba = vport->phba;
 
 	kfree(vport->disc_trc);
 	vport->disc_trc = NULL;
 
-	debugfs_remove(vport->debug_disc_trc); /* discovery_trace */
-	vport->debug_disc_trc = NULL;
+	defs_remove(vport->de_disc_trc); /* discovery_trace */
+	vport->de_disc_trc = NULL;
 
-	debugfs_remove(vport->debug_nodelist); /* nodelist */
-	vport->debug_nodelist = NULL;
+	defs_remove(vport->de_nodelist); /* nodelist */
+	vport->de_nodelist = NULL;
 
-	debugfs_remove(vport->debug_nvmestat); /* nvmestat */
-	vport->debug_nvmestat = NULL;
+	defs_remove(vport->de_nvmestat); /* nvmestat */
+	vport->de_nvmestat = NULL;
 
-	debugfs_remove(vport->debug_scsistat); /* scsistat */
-	vport->debug_scsistat = NULL;
+	defs_remove(vport->de_scsistat); /* scsistat */
+	vport->de_scsistat = NULL;
 
-	debugfs_remove(vport->debug_nvmektime); /* nvmektime */
-	vport->debug_nvmektime = NULL;
+	defs_remove(vport->de_nvmektime); /* nvmektime */
+	vport->de_nvmektime = NULL;
 
-	debugfs_remove(vport->debug_cpucheck); /* cpucheck */
-	vport->debug_cpucheck = NULL;
+	defs_remove(vport->de_cpucheck); /* cpucheck */
+	vport->de_cpucheck = NULL;
 
-	if (vport->vport_debugfs_root) {
-		debugfs_remove(vport->vport_debugfs_root); /* vportX */
-		vport->vport_debugfs_root = NULL;
-		atomic_dec(&phba->debugfs_vport_count);
+	if (vport->vport_defs_root) {
+		defs_remove(vport->vport_defs_root); /* vportX */
+		vport->vport_defs_root = NULL;
+		atomic_dec(&phba->defs_vport_count);
 	}
 
-	if (atomic_read(&phba->debugfs_vport_count) == 0) {
+	if (atomic_read(&phba->defs_vport_count) == 0) {
 
-		debugfs_remove(phba->debug_multixri_pools); /* multixripools*/
-		phba->debug_multixri_pools = NULL;
+		defs_remove(phba->de_multixri_pools); /* multixripools*/
+		phba->de_multixri_pools = NULL;
 
-		debugfs_remove(phba->debug_hbqinfo); /* hbqinfo */
-		phba->debug_hbqinfo = NULL;
+		defs_remove(phba->de_hbqinfo); /* hbqinfo */
+		phba->de_hbqinfo = NULL;
 
 #ifdef LPFC_HDWQ_LOCK_STAT
-		debugfs_remove(phba->debug_lockstat); /* lockstat */
-		phba->debug_lockstat = NULL;
+		defs_remove(phba->de_lockstat); /* lockstat */
+		phba->de_lockstat = NULL;
 #endif
-		debugfs_remove(phba->debug_dumpHBASlim); /* HBASlim */
-		phba->debug_dumpHBASlim = NULL;
+		defs_remove(phba->de_dumpHBASlim); /* HBASlim */
+		phba->de_dumpHBASlim = NULL;
 
-		debugfs_remove(phba->debug_dumpHostSlim); /* HostSlim */
-		phba->debug_dumpHostSlim = NULL;
+		defs_remove(phba->de_dumpHostSlim); /* HostSlim */
+		phba->de_dumpHostSlim = NULL;
 
-		debugfs_remove(phba->debug_dumpData); /* dumpData */
-		phba->debug_dumpData = NULL;
+		defs_remove(phba->de_dumpData); /* dumpData */
+		phba->de_dumpData = NULL;
 
-		debugfs_remove(phba->debug_dumpDif); /* dumpDif */
-		phba->debug_dumpDif = NULL;
+		defs_remove(phba->de_dumpDif); /* dumpDif */
+		phba->de_dumpDif = NULL;
 
-		debugfs_remove(phba->debug_InjErrLBA); /* InjErrLBA */
-		phba->debug_InjErrLBA = NULL;
+		defs_remove(phba->de_InjErrLBA); /* InjErrLBA */
+		phba->de_InjErrLBA = NULL;
 
-		debugfs_remove(phba->debug_InjErrNPortID);
-		phba->debug_InjErrNPortID = NULL;
+		defs_remove(phba->de_InjErrNPortID);
+		phba->de_InjErrNPortID = NULL;
 
-		debugfs_remove(phba->debug_InjErrWWPN); /* InjErrWWPN */
-		phba->debug_InjErrWWPN = NULL;
+		defs_remove(phba->de_InjErrWWPN); /* InjErrWWPN */
+		phba->de_InjErrWWPN = NULL;
 
-		debugfs_remove(phba->debug_writeGuard); /* writeGuard */
-		phba->debug_writeGuard = NULL;
+		defs_remove(phba->de_writeGuard); /* writeGuard */
+		phba->de_writeGuard = NULL;
 
-		debugfs_remove(phba->debug_writeApp); /* writeApp */
-		phba->debug_writeApp = NULL;
+		defs_remove(phba->de_writeApp); /* writeApp */
+		phba->de_writeApp = NULL;
 
-		debugfs_remove(phba->debug_writeRef); /* writeRef */
-		phba->debug_writeRef = NULL;
+		defs_remove(phba->de_writeRef); /* writeRef */
+		phba->de_writeRef = NULL;
 
-		debugfs_remove(phba->debug_readGuard); /* readGuard */
-		phba->debug_readGuard = NULL;
+		defs_remove(phba->de_readGuard); /* readGuard */
+		phba->de_readGuard = NULL;
 
-		debugfs_remove(phba->debug_readApp); /* readApp */
-		phba->debug_readApp = NULL;
+		defs_remove(phba->de_readApp); /* readApp */
+		phba->de_readApp = NULL;
 
-		debugfs_remove(phba->debug_readRef); /* readRef */
-		phba->debug_readRef = NULL;
+		defs_remove(phba->de_readRef); /* readRef */
+		phba->de_readRef = NULL;
 
 		kfree(phba->slow_ring_trc);
 		phba->slow_ring_trc = NULL;
 
 		/* slow_ring_trace */
-		debugfs_remove(phba->debug_slow_ring_trc);
-		phba->debug_slow_ring_trc = NULL;
+		defs_remove(phba->de_slow_ring_trc);
+		phba->de_slow_ring_trc = NULL;
 
-		debugfs_remove(phba->debug_nvmeio_trc);
-		phba->debug_nvmeio_trc = NULL;
+		defs_remove(phba->de_nvmeio_trc);
+		phba->de_nvmeio_trc = NULL;
 
 		kfree(phba->nvmeio_trc);
 		phba->nvmeio_trc = NULL;
@@ -6360,51 +6360,51 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		 */
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			/* iDiag extAcc */
-			debugfs_remove(phba->idiag_ext_acc);
+			defs_remove(phba->idiag_ext_acc);
 			phba->idiag_ext_acc = NULL;
 
 			/* iDiag mbxAcc */
-			debugfs_remove(phba->idiag_mbx_acc);
+			defs_remove(phba->idiag_mbx_acc);
 			phba->idiag_mbx_acc = NULL;
 
 			/* iDiag ctlAcc */
-			debugfs_remove(phba->idiag_ctl_acc);
+			defs_remove(phba->idiag_ctl_acc);
 			phba->idiag_ctl_acc = NULL;
 
 			/* iDiag drbAcc */
-			debugfs_remove(phba->idiag_drb_acc);
+			defs_remove(phba->idiag_drb_acc);
 			phba->idiag_drb_acc = NULL;
 
 			/* iDiag queAcc */
-			debugfs_remove(phba->idiag_que_acc);
+			defs_remove(phba->idiag_que_acc);
 			phba->idiag_que_acc = NULL;
 
 			/* iDiag queInfo */
-			debugfs_remove(phba->idiag_que_info);
+			defs_remove(phba->idiag_que_info);
 			phba->idiag_que_info = NULL;
 
 			/* iDiag barAcc */
-			debugfs_remove(phba->idiag_bar_acc);
+			defs_remove(phba->idiag_bar_acc);
 			phba->idiag_bar_acc = NULL;
 
 			/* iDiag pciCfg */
-			debugfs_remove(phba->idiag_pci_cfg);
+			defs_remove(phba->idiag_pci_cfg);
 			phba->idiag_pci_cfg = NULL;
 
-			/* Finally remove the iDiag debugfs root */
-			debugfs_remove(phba->idiag_root);
+			/* Finally remove the iDiag defs root */
+			defs_remove(phba->idiag_root);
 			phba->idiag_root = NULL;
 		}
 
-		if (phba->hba_debugfs_root) {
-			debugfs_remove(phba->hba_debugfs_root); /* fnX */
-			phba->hba_debugfs_root = NULL;
-			atomic_dec(&lpfc_debugfs_hba_count);
+		if (phba->hba_defs_root) {
+			defs_remove(phba->hba_defs_root); /* fnX */
+			phba->hba_defs_root = NULL;
+			atomic_dec(&lpfc_defs_hba_count);
 		}
 
-		if (atomic_read(&lpfc_debugfs_hba_count) == 0) {
-			debugfs_remove(lpfc_debugfs_root); /* lpfc */
-			lpfc_debugfs_root = NULL;
+		if (atomic_read(&lpfc_defs_hba_count) == 0) {
+			defs_remove(lpfc_defs_root); /* lpfc */
+			lpfc_defs_root = NULL;
 		}
 	}
 #endif
@@ -6412,57 +6412,57 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 }
 
 /*
- * Driver debug utility routines outside of debugfs. The debug utility
+ * Driver de utility routines outside of defs. The de utility
  * routines implemented here is intended to be used in the instrumented
- * debug driver for debugging host or port issues.
+ * de driver for deging host or port issues.
  */
 
 /**
- * lpfc_debug_dump_all_queues - dump all the queues with a hba
+ * lpfc_de_dump_all_queues - dump all the queues with a hba
  * @phba: Pointer to HBA context object.
  *
  * This function dumps entries of all the queues asociated with the @phba.
  **/
 void
-lpfc_debug_dump_all_queues(struct lpfc_hba *phba)
+lpfc_de_dump_all_queues(struct lpfc_hba *phba)
 {
 	int idx;
 
 	/*
 	 * Dump Work Queues (WQs)
 	 */
-	lpfc_debug_dump_wq(phba, DUMP_MBX, 0);
-	lpfc_debug_dump_wq(phba, DUMP_ELS, 0);
-	lpfc_debug_dump_wq(phba, DUMP_NVMELS, 0);
+	lpfc_de_dump_wq(phba, DUMP_MBX, 0);
+	lpfc_de_dump_wq(phba, DUMP_ELS, 0);
+	lpfc_de_dump_wq(phba, DUMP_NVMELS, 0);
 
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
-		lpfc_debug_dump_wq(phba, DUMP_FCP, idx);
+		lpfc_de_dump_wq(phba, DUMP_FCP, idx);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
-			lpfc_debug_dump_wq(phba, DUMP_NVME, idx);
+			lpfc_de_dump_wq(phba, DUMP_NVME, idx);
 	}
 
-	lpfc_debug_dump_hdr_rq(phba);
-	lpfc_debug_dump_dat_rq(phba);
+	lpfc_de_dump_hdr_rq(phba);
+	lpfc_de_dump_dat_rq(phba);
 	/*
 	 * Dump Complete Queues (CQs)
 	 */
-	lpfc_debug_dump_cq(phba, DUMP_MBX, 0);
-	lpfc_debug_dump_cq(phba, DUMP_ELS, 0);
-	lpfc_debug_dump_cq(phba, DUMP_NVMELS, 0);
+	lpfc_de_dump_cq(phba, DUMP_MBX, 0);
+	lpfc_de_dump_cq(phba, DUMP_ELS, 0);
+	lpfc_de_dump_cq(phba, DUMP_NVMELS, 0);
 
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
-		lpfc_debug_dump_cq(phba, DUMP_FCP, idx);
+		lpfc_de_dump_cq(phba, DUMP_FCP, idx);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
-			lpfc_debug_dump_cq(phba, DUMP_NVME, idx);
+			lpfc_de_dump_cq(phba, DUMP_NVME, idx);
 	}
 
 	/*
 	 * Dump Event Queues (EQs)
 	 */
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++)
-		lpfc_debug_dump_hba_eq(phba, idx);
+		lpfc_de_dump_hba_eq(phba, idx);
 }

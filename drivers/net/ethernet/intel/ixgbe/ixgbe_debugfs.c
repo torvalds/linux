@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 1999 - 2018 Intel Corporation. */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 
 #include "ixgbe.h"
@@ -184,54 +184,54 @@ static const struct file_operations ixgbe_dbg_netdev_ops_fops = {
 };
 
 /**
- * ixgbe_dbg_adapter_init - setup the debugfs directory for the adapter
+ * ixgbe_dbg_adapter_init - setup the defs directory for the adapter
  * @adapter: the adapter that is starting up
  **/
 void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter)
 {
 	const char *name = pci_name(adapter->pdev);
 	struct dentry *pfile;
-	adapter->ixgbe_dbg_adapter = debugfs_create_dir(name, ixgbe_dbg_root);
+	adapter->ixgbe_dbg_adapter = defs_create_dir(name, ixgbe_dbg_root);
 	if (adapter->ixgbe_dbg_adapter) {
-		pfile = debugfs_create_file("reg_ops", 0600,
+		pfile = defs_create_file("reg_ops", 0600,
 					    adapter->ixgbe_dbg_adapter, adapter,
 					    &ixgbe_dbg_reg_ops_fops);
 		if (!pfile)
-			e_dev_err("debugfs reg_ops for %s failed\n", name);
-		pfile = debugfs_create_file("netdev_ops", 0600,
+			e_dev_err("defs reg_ops for %s failed\n", name);
+		pfile = defs_create_file("netdev_ops", 0600,
 					    adapter->ixgbe_dbg_adapter, adapter,
 					    &ixgbe_dbg_netdev_ops_fops);
 		if (!pfile)
-			e_dev_err("debugfs netdev_ops for %s failed\n", name);
+			e_dev_err("defs netdev_ops for %s failed\n", name);
 	} else {
-		e_dev_err("debugfs entry for %s failed\n", name);
+		e_dev_err("defs entry for %s failed\n", name);
 	}
 }
 
 /**
- * ixgbe_dbg_adapter_exit - clear out the adapter's debugfs entries
+ * ixgbe_dbg_adapter_exit - clear out the adapter's defs entries
  * @adapter: the adapter that is exiting
  **/
 void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter)
 {
-	debugfs_remove_recursive(adapter->ixgbe_dbg_adapter);
+	defs_remove_recursive(adapter->ixgbe_dbg_adapter);
 	adapter->ixgbe_dbg_adapter = NULL;
 }
 
 /**
- * ixgbe_dbg_init - start up debugfs for the driver
+ * ixgbe_dbg_init - start up defs for the driver
  **/
 void ixgbe_dbg_init(void)
 {
-	ixgbe_dbg_root = debugfs_create_dir(ixgbe_driver_name, NULL);
+	ixgbe_dbg_root = defs_create_dir(ixgbe_driver_name, NULL);
 	if (ixgbe_dbg_root == NULL)
-		pr_err("init of debugfs failed\n");
+		pr_err("init of defs failed\n");
 }
 
 /**
- * ixgbe_dbg_exit - clean out the driver's debugfs entries
+ * ixgbe_dbg_exit - clean out the driver's defs entries
  **/
 void ixgbe_dbg_exit(void)
 {
-	debugfs_remove_recursive(ixgbe_dbg_root);
+	defs_remove_recursive(ixgbe_dbg_root);
 }

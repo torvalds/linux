@@ -30,7 +30,7 @@
 struct dlm_lock;
 struct dlm_ctxt;
 
-/* NOTE: changes made to this enum should be reflected in dlmdebug.c */
+/* NOTE: changes made to this enum should be reflected in dlmde.c */
 enum dlm_status {
 	DLM_NORMAL = 0,           /*  0: request in progress */
 	DLM_GRANTED,              /*  1: request granted */

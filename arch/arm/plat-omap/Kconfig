@@ -11,14 +11,14 @@ config ARCH_OMAP_OTG
 
 comment "OMAP Feature Selections"
 
-config OMAP_DEBUG_DEVICES
+config OMAP_DE_DEVICES
 	bool
 	help
-	  For debug cards on TI reference boards.
+	  For de cards on TI reference boards.
 
-config OMAP_DEBUG_LEDS
+config OMAP_DE_LEDS
 	def_bool y if NEW_LEDS
-	depends on OMAP_DEBUG_DEVICES
+	depends on OMAP_DE_DEVICES
 	select LEDS_CLASS
 
 config POWER_AVS_OMAP
@@ -37,7 +37,7 @@ config POWER_AVS_OMAP
 	  initialized and not enabled. To enable the automatic voltage
 	  compensation for vdd mpu and vdd core from user space,
 	  user must write 1 to
-		/debug/smartreflex/sr_<X>/autocomp,
+		/de/smartreflex/sr_<X>/autocomp,
 	  where X is mpu_iva or core for OMAP3.
 	  Optionally autocompensation can be enabled in the kernel
 	  by default during system init via the enable_on_init flag

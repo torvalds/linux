@@ -163,7 +163,7 @@ struct mongroup {
  * @kmem:		the kernel memory associated with pseudo-locked region
  * @minor:		minor number of character device associated with this
  *			region
- * @debugfs_dir:	pointer to this region's directory in the debugfs
+ * @defs_dir:	pointer to this region's directory in the defs
  *			filesystem
  * @pm_reqs:		Power management QoS requests related to this region
  */
@@ -178,7 +178,7 @@ struct pseudo_lock_region {
 	unsigned int		size;
 	void			*kmem;
 	unsigned int		minor;
-	struct dentry		*debugfs_dir;
+	struct dentry		*defs_dir;
 	struct list_head	pm_reqs;
 };
 
@@ -475,7 +475,7 @@ extern struct rdt_resource rdt_resources_all[];
 extern struct rdtgroup rdtgroup_default;
 DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 
-extern struct dentry *debugfs_resctrl;
+extern struct dentry *defs_resctrl;
 
 enum {
 	RDT_RESOURCE_L3,

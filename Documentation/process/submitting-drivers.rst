@@ -101,7 +101,7 @@ Portability:
 
 Clarity:
 		It helps if anyone can see how to fix the driver. It helps
-		you because you get patches not bug reports. If you submit a
+		you because you get patches not  reports. If you submit a
 		driver that intentionally obfuscates how the hardware works
 		it will go in the bitbucket.
 

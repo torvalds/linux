@@ -17,7 +17,7 @@
 		: "r" (gr), "i" (cr) : "memory")
 
 /* these are here to de-mystefy the calling code, and to provide hooks */
-/* which I needed for debugging EIEM problems -PB */
+/* which I needed for deging EIEM problems -PB */
 #define get_eiem() mfctl(15)
 static inline void set_eiem(unsigned long val)
 {

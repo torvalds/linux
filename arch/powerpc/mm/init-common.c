@@ -19,7 +19,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/string.h>
 #include <asm/pgalloc.h>
@@ -35,7 +35,7 @@ CTOR(8); CTOR(9); CTOR(10); CTOR(11); CTOR(12); CTOR(13); CTOR(14); CTOR(15);
 
 static inline void (*ctor(int shift))(void *)
 {
-	BUILD_BUG_ON(MAX_PGTABLE_INDEX_SIZE != 15);
+	BUILD__ON(MAX_PGTABLE_INDEX_SIZE != 15);
 
 	switch (shift) {
 	case 0: return ctor_0;
@@ -85,11 +85,11 @@ void pgtable_cache_add(unsigned int shift)
 				     HUGEPD_SHIFT_MASK + 1);
 	struct kmem_cache *new;
 
-	/* It would be nice if this was a BUILD_BUG_ON(), but at the
+	/* It would be nice if this was a BUILD__ON(), but at the
 	 * moment, gcc doesn't seem to recognize is_power_of_2 as a
 	 * constant expression, so so much for that. */
-	BUG_ON(!is_power_of_2(minalign));
-	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+	_ON(!is_power_of_2(minalign));
+	_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 
 	if (PGT_CACHE(shift))
 		return; /* Already have a cache of this size */
@@ -103,7 +103,7 @@ void pgtable_cache_add(unsigned int shift)
 	kfree(name);
 	pgtable_cache[shift] = new;
 
-	pr_debug("Allocated pgtable cache for order %d\n", shift);
+	pr_de("Allocated pgtable cache for order %d\n", shift);
 }
 EXPORT_SYMBOL_GPL(pgtable_cache_add);	/* used by kvm_hv module */
 

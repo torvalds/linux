@@ -67,7 +67,7 @@
 
 /*
  * The pullup and pulldown state of the MFP pin at run mode is by default
- * determined by the selected alternate function. In case that some buggy
+ * determined by the selected alternate function. In case that some gy
  * devices need to override this default behavior,  the definitions below
  * indicates the setting of corresponding MFPR bits
  *
@@ -174,7 +174,7 @@ void mfp_config(unsigned long *mfp_cfgs, int num)
 		int pin, af, drv, lpm, edge, pull;
 
 		pin = MFP_PIN(c);
-		BUG_ON(pin >= MFP_PIN_MAX);
+		_ON(pin >= MFP_PIN_MAX);
 		p = &mfp_table[pin];
 
 		af  = MFP_AF(c);
@@ -208,7 +208,7 @@ unsigned long mfp_read(int mfp)
 {
 	unsigned long val, flags;
 
-	BUG_ON(mfp < 0 || mfp >= MFP_PIN_MAX);
+	_ON(mfp < 0 || mfp >= MFP_PIN_MAX);
 
 	spin_lock_irqsave(&mfp_spin_lock, flags);
 	val = mfpr_readl(mfp_table[mfp].mfpr_off);
@@ -221,7 +221,7 @@ void mfp_write(int mfp, unsigned long val)
 {
 	unsigned long flags;
 
-	BUG_ON(mfp < 0 || mfp >= MFP_PIN_MAX);
+	_ON(mfp < 0 || mfp >= MFP_PIN_MAX);
 
 	spin_lock_irqsave(&mfp_spin_lock, flags);
 	mfpr_writel(mfp_table[mfp].mfpr_off, val);

@@ -40,7 +40,7 @@
  *			  - Added 4:3 interpolation for /dev/audio
  *
  *	1995/9/20	Torsten Scherer:
- *			  - Fixed a bug in sq_write and changed /dev/audio
+ *			  - Fixed a  in sq_write and changed /dev/audio
  *			    converting to play at 12517Hz instead of 6258Hz.
  *
  *	1995/9/23	Torsten Scherer:
@@ -66,7 +66,7 @@
  *			  - Buffer size is now a kernel runtime option
  *			  - Implemented fsync() & several minor improvements
  *			Guenther Kelleter:
- *			  - Useful hints and bug fixes
+ *			  - Useful hints and  fixes
  *			  - Cross-checked it for Falcons
  *
  *	1996/3/9	Geert Uytterhoeven:
@@ -129,11 +129,11 @@
  *			  - made the ioctls, read & write comply with the OSS
  *			    rules on setting params.
  *			  - added parsing of _setup() params for record.
- *	2001/04/04 [1.6]  - fix bug where sample rates higher than maximum were
+ *	2001/04/04 [1.6]  - fix  where sample rates higher than maximum were
  *			    being reported as OK.
  *			  - fix open() to return -EBUSY as per OSS doc. when
  *			    audio is in use - this is independent of O_NOBLOCK.
- *			  - fix bug where SNDCTL_DSP_POST was blocking.
+ *			  - fix  where SNDCTL_DSP_POST was blocking.
  */
 
  /* Record capability notes 30/01/2001:
@@ -455,7 +455,7 @@ static int sq_setup(struct sound_queue *sq)
 	int hard_frame ;
 
 	if (sq->locked) { /* are we already set? - and not changeable */
-#ifdef DEBUG_DMASOUND
+#ifdef DE_DMASOUND
 printk("dmasound_core: tried to sq_setup a locked queue\n") ;
 #endif
 		return -EINVAL ;
@@ -508,7 +508,7 @@ printk("dmasound_core: tried to sq_setup a locked queue\n") ;
 		sq->block_size &= ~(hard_frame - 1) ; /* make sure we are aligned */
 		/* let's just check for obvious mistakes */
 		if ( sq->block_size <= 0 || sq->block_size > sq->bufSize) {
-#ifdef DEBUG_DMASOUND
+#ifdef DE_DMASOUND
 printk("dmasound_core: invalid frag size (user set %d)\n", sq->user_frag_size) ;
 #endif
 			sq->block_size = sq->bufSize ;
@@ -519,7 +519,7 @@ printk("dmasound_core: invalid frag size (user set %d)\n", sq->user_frag_size) ;
 			sq->max_active = (sq->max_active <= sq->max_count) ?
 				sq->max_active : sq->max_count ;
 		} else {
-#ifdef DEBUG_DMASOUND
+#ifdef DE_DMASOUND
 printk("dmasound_core: invalid frag count (user set %d)\n", sq->user_frags) ;
 #endif
 			sq->max_count =
@@ -957,7 +957,7 @@ static int queues_are_quiescent(void)
 static int set_queue_frags(struct sound_queue *sq, int bufs, int size)
 {
 	if (sq->locked) {
-#ifdef DEBUG_DMASOUND
+#ifdef DE_DMASOUND
 printk("dmasound_core: tried to set_queue_frags on a locked queue\n") ;
 #endif
 		return -EINVAL ;
@@ -1331,7 +1331,7 @@ static int state_open(struct inode *inode, struct file *file)
 		write_sq.max_active, write_sq.front, write_sq.rear,
 		write_sq.count, write_sq.rear_size, write_sq.active,
 		write_sq.busy, write_sq.syncing, write_sq.locked, write_sq.xruns) ;
-#ifdef DEBUG_DMASOUND
+#ifdef DE_DMASOUND
 printk("dmasound: stat buffer used %d bytes\n", len) ;
 #endif
 

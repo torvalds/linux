@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
@@ -20,7 +20,7 @@
 #include <asm/opal.h>
 #include <asm/prom.h>
 #include <linux/uaccess.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/isa-bridge.h>
 
 static int opal_lpc_chip_id = -1;
@@ -180,15 +180,15 @@ static const struct ppc_pci_io opal_lpc_io = {
 	.outsl	= opal_lpc_outsl,
 };
 
-#ifdef CONFIG_DEBUG_FS
-struct lpc_debugfs_entry {
+#ifdef CONFIG_DE_FS
+struct lpc_defs_entry {
 	enum OpalLPCAddressType lpc_type;
 };
 
-static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
+static ssize_t lpc_de_read(struct file *filp, char __user *ubuf,
 			      size_t count, loff_t *ppos)
 {
-	struct lpc_debugfs_entry *lpc = filp->private_data;
+	struct lpc_defs_entry *lpc = filp->private_data;
 	u32 data, pos, len, todo;
 	int rc;
 
@@ -276,10 +276,10 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 	return count;
 }
 
-static ssize_t lpc_debug_write(struct file *filp, const char __user *ubuf,
+static ssize_t lpc_de_write(struct file *filp, const char __user *ubuf,
 			       size_t count, loff_t *ppos)
 {
-	struct lpc_debugfs_entry *lpc = filp->private_data;
+	struct lpc_defs_entry *lpc = filp->private_data;
 	u32 data, pos, len, todo;
 	int rc;
 
@@ -348,26 +348,26 @@ static ssize_t lpc_debug_write(struct file *filp, const char __user *ubuf,
 }
 
 static const struct file_operations lpc_fops = {
-	.read =		lpc_debug_read,
-	.write =	lpc_debug_write,
+	.read =		lpc_de_read,
+	.write =	lpc_de_write,
 	.open =		simple_open,
 	.llseek =	default_llseek,
 };
 
-static int opal_lpc_debugfs_create_type(struct dentry *folder,
+static int opal_lpc_defs_create_type(struct dentry *folder,
 					const char *fname,
 					enum OpalLPCAddressType type)
 {
-	struct lpc_debugfs_entry *entry;
+	struct lpc_defs_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 	entry->lpc_type = type;
-	debugfs_create_file(fname, 0600, folder, entry, &lpc_fops);
+	defs_create_file(fname, 0600, folder, entry, &lpc_fops);
 	return 0;
 }
 
-static int opal_lpc_init_debugfs(void)
+static int opal_lpc_init_defs(void)
 {
 	struct dentry *root;
 	int rc = 0;
@@ -375,15 +375,15 @@ static int opal_lpc_init_debugfs(void)
 	if (opal_lpc_chip_id < 0)
 		return -ENODEV;
 
-	root = debugfs_create_dir("lpc", powerpc_debugfs_root);
+	root = defs_create_dir("lpc", powerpc_defs_root);
 
-	rc |= opal_lpc_debugfs_create_type(root, "io", OPAL_LPC_IO);
-	rc |= opal_lpc_debugfs_create_type(root, "mem", OPAL_LPC_MEM);
-	rc |= opal_lpc_debugfs_create_type(root, "fw", OPAL_LPC_FW);
+	rc |= opal_lpc_defs_create_type(root, "io", OPAL_LPC_IO);
+	rc |= opal_lpc_defs_create_type(root, "mem", OPAL_LPC_MEM);
+	rc |= opal_lpc_defs_create_type(root, "fw", OPAL_LPC_FW);
 	return rc;
 }
-machine_device_initcall(powernv, opal_lpc_init_debugfs);
-#endif  /* CONFIG_DEBUG_FS */
+machine_device_initcall(powernv, opal_lpc_init_defs);
+#endif  /* CONFIG_DE_FS */
 
 void __init opal_lpc_init(void)
 {

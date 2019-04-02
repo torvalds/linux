@@ -49,25 +49,25 @@ extern u64 x86_amd_ls_cfg_ssbd_mask;
 
 static inline u64 ssbd_tif_to_spec_ctrl(u64 tifn)
 {
-	BUILD_BUG_ON(TIF_SSBD < SPEC_CTRL_SSBD_SHIFT);
+	BUILD__ON(TIF_SSBD < SPEC_CTRL_SSBD_SHIFT);
 	return (tifn & _TIF_SSBD) >> (TIF_SSBD - SPEC_CTRL_SSBD_SHIFT);
 }
 
 static inline u64 stibp_tif_to_spec_ctrl(u64 tifn)
 {
-	BUILD_BUG_ON(TIF_SPEC_IB < SPEC_CTRL_STIBP_SHIFT);
+	BUILD__ON(TIF_SPEC_IB < SPEC_CTRL_STIBP_SHIFT);
 	return (tifn & _TIF_SPEC_IB) >> (TIF_SPEC_IB - SPEC_CTRL_STIBP_SHIFT);
 }
 
 static inline unsigned long ssbd_spec_ctrl_to_tif(u64 spec_ctrl)
 {
-	BUILD_BUG_ON(TIF_SSBD < SPEC_CTRL_SSBD_SHIFT);
+	BUILD__ON(TIF_SSBD < SPEC_CTRL_SSBD_SHIFT);
 	return (spec_ctrl & SPEC_CTRL_SSBD) << (TIF_SSBD - SPEC_CTRL_SSBD_SHIFT);
 }
 
 static inline unsigned long stibp_spec_ctrl_to_tif(u64 spec_ctrl)
 {
-	BUILD_BUG_ON(TIF_SPEC_IB < SPEC_CTRL_STIBP_SHIFT);
+	BUILD__ON(TIF_SPEC_IB < SPEC_CTRL_STIBP_SHIFT);
 	return (spec_ctrl & SPEC_CTRL_STIBP) << (TIF_SPEC_IB - SPEC_CTRL_STIBP_SHIFT);
 }
 

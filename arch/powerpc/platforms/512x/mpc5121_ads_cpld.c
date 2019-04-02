@@ -12,7 +12,7 @@
  * (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -165,7 +165,7 @@ mpc5121_ads_cpld_pic_init(void)
 	unsigned int cascade_irq;
 	struct device_node *np = NULL;
 
-	pr_debug("cpld_ic_init\n");
+	pr_de("cpld_ic_init\n");
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121ads-cpld-pic");
 	if (!np) {

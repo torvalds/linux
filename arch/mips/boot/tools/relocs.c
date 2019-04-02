@@ -628,7 +628,7 @@ static void emit_relocs(int as_text, int as_bin, FILE *outf)
 }
 
 /*
- * As an aid to debugging problems with different linkers
+ * As an aid to deging problems with different linkers
  * print summary information about the relocs.
  * Since different linkers tend to emit the sections in
  * different orders we use the section names in the output.

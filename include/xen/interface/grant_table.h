@@ -316,7 +316,7 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_setup_table);
 
 /*
  * GNTTABOP_dump_table: Dump the contents of the grant table to the
- * xen console. Debugging use only.
+ * xen console. Deging use only.
  */
 #define GNTTABOP_dump_table           3
 struct gnttab_dump_table {

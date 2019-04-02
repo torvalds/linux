@@ -30,9 +30,9 @@
 #include "xc5000.h"
 #include "tuner-i2c.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
@@ -43,7 +43,7 @@ MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
 static DEFINE_MUTEX(xc5000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
-#define dprintk(level, fmt, arg...) if (debug >= level) \
+#define dprintk(level, fmt, arg...) if (de >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
 struct xc5000_priv {
@@ -630,7 +630,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe,
 	return ret;
 }
 
-static void xc_debug_dump(struct xc5000_priv *priv)
+static void xc_de_dump(struct xc5000_priv *priv)
 {
 	u16 adc_envelope;
 	u32 freq_error_hz = 0;
@@ -725,8 +725,8 @@ static int xc5000_tune_digital(struct dvb_frontend *fe)
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
-	if (debug)
-		xc_debug_dump(priv);
+	if (de)
+		xc_de_dump(priv);
 
 	priv->bandwidth = bw;
 
@@ -931,8 +931,8 @@ tune_channel:
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
 
-	if (debug)
-		xc_debug_dump(priv);
+	if (de)
+		xc_de_dump(priv);
 
 	if (priv->pll_register_no != 0) {
 		msleep(20);
@@ -1300,8 +1300,8 @@ static int xc5000_init(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 
-	if (debug)
-		xc_debug_dump(priv);
+	if (de)
+		xc_de_dump(priv);
 
 	return 0;
 }

@@ -211,7 +211,7 @@
 #define E1000_FWSM	0x05B54	/* FW Semaphore */
 /* Driver-only SW semaphore (not used by BOOT agents) */
 #define E1000_SWSM2	0x05B58
-#define E1000_FFLT_DBG	0x05F04	/* Debug Register */
+#define E1000_FFLT_DBG	0x05F04	/* De Register */
 #define E1000_HICR	0x08F00	/* Host Interface Control */
 
 /* RSS registers */

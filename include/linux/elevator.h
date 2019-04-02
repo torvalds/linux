@@ -9,8 +9,8 @@
 
 struct io_cq;
 struct elevator_type;
-#ifdef CONFIG_BLK_DEBUG_FS
-struct blk_mq_debugfs_attr;
+#ifdef CONFIG_BLK_DE_FS
+struct blk_mq_defs_attr;
 #endif
 
 /*
@@ -77,9 +77,9 @@ struct elevator_type
 	char elevator_name[ELV_NAME_MAX];
 	const char *elevator_alias;
 	struct module *elevator_owner;
-#ifdef CONFIG_BLK_DEBUG_FS
-	const struct blk_mq_debugfs_attr *queue_debugfs_attrs;
-	const struct blk_mq_debugfs_attr *hctx_debugfs_attrs;
+#ifdef CONFIG_BLK_DE_FS
+	const struct blk_mq_defs_attr *queue_defs_attrs;
+	const struct blk_mq_defs_attr *hctx_defs_attrs;
 #endif
 
 	/* managed by elevator core */

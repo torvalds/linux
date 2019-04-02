@@ -61,7 +61,7 @@ static int mpc52xx_wkup_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 
 	ret = (in_8(&regs->wkup_ival) >> (7 - gpio)) & 1;
 
-	pr_debug("%s: gpio: %d ret: %d\n", __func__, gpio, ret);
+	pr_de("%s: gpio: %d ret: %d\n", __func__, gpio, ret);
 
 	return ret;
 }
@@ -92,7 +92,7 @@ mpc52xx_wkup_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
+	pr_de("%s: gpio: %d val: %d\n", __func__, gpio, val);
 }
 
 static int mpc52xx_wkup_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
@@ -139,7 +139,7 @@ mpc52xx_wkup_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
+	pr_de("%s: gpio: %d val: %d\n", __func__, gpio, val);
 
 	return 0;
 }
@@ -253,7 +253,7 @@ mpc52xx_simple_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
+	pr_de("%s: gpio: %d val: %d\n", __func__, gpio, val);
 }
 
 static int mpc52xx_simple_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
@@ -301,7 +301,7 @@ mpc52xx_simple_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
+	pr_de("%s: gpio: %d val: %d\n", __func__, gpio, val);
 
 	return 0;
 }

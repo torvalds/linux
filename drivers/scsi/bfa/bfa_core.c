@@ -1159,7 +1159,7 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg)
 			BFA_CACHELINE_SZ);
 
 	/* Claim IOCFC kva memory */
-	bfa_ioc_debug_memclaim(&bfa->ioc, bfa_mem_kva_curp(iocfc));
+	bfa_ioc_de_memclaim(&bfa->ioc, bfa_mem_kva_curp(iocfc));
 	bfa_mem_kva_curp(iocfc) += BFA_DBG_FWTRC_LEN;
 }
 

@@ -184,7 +184,7 @@ static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 	if (!stream->ops->pointer)
 		return -ENOTSUPP;
 	stream->ops->pointer(stream, tstamp);
-	pr_debug("dsp consumed till %d total %d bytes\n",
+	pr_de("dsp consumed till %d total %d bytes\n",
 		tstamp->byte_offset, tstamp->copied_total);
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		stream->runtime->total_bytes_transferred = tstamp->copied_total;
@@ -203,19 +203,19 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 	if (stream->runtime->total_bytes_available == 0 &&
 			stream->runtime->state == SNDRV_PCM_STATE_SETUP &&
 			stream->direction == SND_COMPRESS_PLAYBACK) {
-		pr_debug("detected init and someone forgot to do a write\n");
+		pr_de("detected init and someone forgot to do a write\n");
 		return stream->runtime->buffer_size;
 	}
-	pr_debug("app wrote %lld, DSP consumed %lld\n",
+	pr_de("app wrote %lld, DSP consumed %lld\n",
 			stream->runtime->total_bytes_available,
 			stream->runtime->total_bytes_transferred);
 	if (stream->runtime->total_bytes_available ==
 				stream->runtime->total_bytes_transferred) {
 		if (stream->direction == SND_COMPRESS_PLAYBACK) {
-			pr_debug("both pointers are same, returning full avail\n");
+			pr_de("both pointers are same, returning full avail\n");
 			return stream->runtime->buffer_size;
 		} else {
-			pr_debug("both pointers are same, returning no avail\n");
+			pr_de("both pointers are same, returning no avail\n");
 			return 0;
 		}
 	}
@@ -225,7 +225,7 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		avail->avail = stream->runtime->buffer_size - avail->avail;
 
-	pr_debug("ret avail as %lld\n", avail->avail);
+	pr_de("ret avail as %lld\n", avail->avail);
 	return avail->avail;
 }
 
@@ -273,7 +273,7 @@ static int snd_compr_write_data(struct snd_compr_stream *stream,
 		      (app_pointer * runtime->buffer_size);
 
 	dstn = runtime->buffer + app_pointer;
-	pr_debug("copying %ld at %lld\n",
+	pr_de("copying %ld at %lld\n",
 			(unsigned long)count, app_pointer);
 	if (count < runtime->buffer_size - app_pointer) {
 		if (copy_from_user(dstn, buf, count))
@@ -299,7 +299,7 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	size_t avail;
 	int retval;
 
-	if (snd_BUG_ON(!data))
+	if (snd__ON(!data))
 		return -EFAULT;
 
 	stream = &data->stream;
@@ -316,7 +316,7 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	}
 
 	avail = snd_compr_get_avail(stream);
-	pr_debug("avail returned %ld\n", (unsigned long)avail);
+	pr_de("avail returned %ld\n", (unsigned long)avail);
 	/* calculate how much we can write to buffer */
 	if (avail > count)
 		avail = count;
@@ -334,7 +334,7 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	 * call, so in setup move state */
 	if (stream->runtime->state == SNDRV_PCM_STATE_SETUP) {
 		stream->runtime->state = SNDRV_PCM_STATE_PREPARED;
-		pr_debug("stream prepared, Houston we are good to go\n");
+		pr_de("stream prepared, Houston we are good to go\n");
 	}
 
 	mutex_unlock(&stream->device->lock);
@@ -350,7 +350,7 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	size_t avail;
 	int retval;
 
-	if (snd_BUG_ON(!data))
+	if (snd__ON(!data))
 		return -EFAULT;
 
 	stream = &data->stream;
@@ -373,7 +373,7 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	}
 
 	avail = snd_compr_get_avail(stream);
-	pr_debug("avail returned %ld\n", (unsigned long)avail);
+	pr_de("avail returned %ld\n", (unsigned long)avail);
 	/* calculate how much we can read from buffer */
 	if (avail > count)
 		avail = count;
@@ -412,7 +412,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 	size_t avail;
 	__poll_t retval = 0;
 
-	if (snd_BUG_ON(!data))
+	if (snd__ON(!data))
 		return EPOLLERR;
 
 	stream = &data->stream;
@@ -431,7 +431,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 	poll_wait(f, &stream->runtime->sleep, wait);
 
 	avail = snd_compr_get_avail(stream);
-	pr_debug("avail is %ld\n", (unsigned long)avail);
+	pr_de("avail is %ld\n", (unsigned long)avail);
 	/* check if we have at least one fragment to fill */
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_DRAINING:
@@ -761,7 +761,7 @@ int snd_compr_stop_error(struct snd_compr_stream *stream,
 
 	stream->runtime->state = state;
 
-	pr_debug("Changing state to: %d\n", state);
+	pr_de("Changing state to: %d\n", state);
 
 	queue_delayed_work(system_power_efficient_wq, &stream->error_work, 0);
 
@@ -793,9 +793,9 @@ static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 	ret = wait_event_interruptible(stream->runtime->sleep,
 			(stream->runtime->state != SNDRV_PCM_STATE_DRAINING));
 	if (ret == -ERESTARTSYS)
-		pr_debug("wait aborted by a signal\n");
+		pr_de("wait aborted by a signal\n");
 	else if (ret)
-		pr_debug("wait for drain failed with %d\n", ret);
+		pr_de("wait for drain failed with %d\n", ret);
 
 
 	wake_up(&stream->runtime->sleep);
@@ -814,7 +814,7 @@ static int snd_compr_drain(struct snd_compr_stream *stream)
 
 	retval = stream->ops->trigger(stream, SND_COMPR_TRIGGER_DRAIN);
 	if (retval) {
-		pr_debug("SND_COMPR_TRIGGER_DRAIN failed %d\n", retval);
+		pr_de("SND_COMPR_TRIGGER_DRAIN failed %d\n", retval);
 		wake_up(&stream->runtime->sleep);
 		return retval;
 	}
@@ -856,7 +856,7 @@ static int snd_compr_partial_drain(struct snd_compr_stream *stream)
 
 	retval = stream->ops->trigger(stream, SND_COMPR_TRIGGER_PARTIAL_DRAIN);
 	if (retval) {
-		pr_debug("Partial drain returned failure\n");
+		pr_de("Partial drain returned failure\n");
 		wake_up(&stream->runtime->sleep);
 		return retval;
 	}
@@ -871,7 +871,7 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	struct snd_compr_stream *stream;
 	int retval = -ENOTTY;
 
-	if (snd_BUG_ON(!data))
+	if (snd__ON(!data))
 		return -EFAULT;
 
 	stream = &data->stream;
@@ -963,11 +963,11 @@ static int snd_compress_dev_register(struct snd_device *device)
 	int ret = -EINVAL;
 	struct snd_compr *compr;
 
-	if (snd_BUG_ON(!device || !device->device_data))
+	if (snd__ON(!device || !device->device_data))
 		return -EBADFD;
 	compr = device->device_data;
 
-	pr_debug("reg device %s, direction %d\n", compr->name,
+	pr_de("reg device %s, direction %d\n", compr->name,
 			compr->direction);
 	/* register compressed device */
 	ret = snd_register_device(SNDRV_DEVICE_TYPE_COMPRESS,
@@ -1134,14 +1134,14 @@ int snd_compress_register(struct snd_compr *device)
 	if (device->name == NULL || device->ops == NULL)
 		return -EINVAL;
 
-	pr_debug("Registering compressed device %s\n", device->name);
-	if (snd_BUG_ON(!device->ops->open))
+	pr_de("Registering compressed device %s\n", device->name);
+	if (snd__ON(!device->ops->open))
 		return -EINVAL;
-	if (snd_BUG_ON(!device->ops->free))
+	if (snd__ON(!device->ops->free))
 		return -EINVAL;
-	if (snd_BUG_ON(!device->ops->set_params))
+	if (snd__ON(!device->ops->set_params))
 		return -EINVAL;
-	if (snd_BUG_ON(!device->ops->trigger))
+	if (snd__ON(!device->ops->trigger))
 		return -EINVAL;
 
 	mutex_init(&device->lock);
@@ -1156,7 +1156,7 @@ EXPORT_SYMBOL_GPL(snd_compress_register);
 
 int snd_compress_deregister(struct snd_compr *device)
 {
-	pr_debug("Removing compressed device %s\n", device->name);
+	pr_de("Removing compressed device %s\n", device->name);
 	mutex_lock(&device_mutex);
 	snd_compress_remove_device(device);
 	mutex_unlock(&device_mutex);

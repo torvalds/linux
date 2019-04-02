@@ -87,7 +87,7 @@ static void tda18271_dump_regs(struct dvb_frontend *fe, int extended)
 	tda_reg("MAIN_DIV_BYTE_3    = 0x%02x\n", 0xff & regs[R_MD3]);
 
 	/* only dump extended regs if DBG_ADV is set */
-	if (!(tda18271_debug & DBG_ADV))
+	if (!(tda18271_de & DBG_ADV))
 		return;
 
 	/* W indicates write-only registers.
@@ -141,7 +141,7 @@ int tda18271_read_regs(struct dvb_frontend *fe)
 	if (ret != 2)
 		tda_err("ERROR: i2c_transfer returned: %d\n", ret);
 
-	if (tda18271_debug & DBG_REG)
+	if (tda18271_de & DBG_REG)
 		tda18271_dump_regs(fe, 0);
 
 	return (ret == 2 ? 0 : ret);
@@ -181,7 +181,7 @@ int tda18271_read_extended(struct dvb_frontend *fe)
 			regs[i] = regdump[i];
 	}
 
-	if (tda18271_debug & DBG_REG)
+	if (tda18271_de & DBG_REG)
 		tda18271_dump_regs(fe, 1);
 
 	return (ret == 2 ? 0 : ret);
@@ -197,7 +197,7 @@ static int __tda18271_write_regs(struct dvb_frontend *fe, int idx, int len,
 			       .buf = buf };
 	int i, ret = 1, max;
 
-	BUG_ON((len == 0) || (idx + len > sizeof(buf)));
+	_ON((len == 0) || (idx + len > sizeof(buf)));
 
 	switch (priv->small_i2c) {
 	case TDA18271_03_BYTE_CHUNK_INIT:
@@ -546,7 +546,7 @@ int tda18271_set_standby_mode(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
-	if (tda18271_debug & DBG_ADV)
+	if (tda18271_de & DBG_ADV)
 		tda_dbg("sm = %d, sm_lt = %d, sm_xt = %d\n", sm, sm_lt, sm_xt);
 
 	regs[R_EP3]  &= ~0xe0; /* clear sm, sm_lt, sm_xt */

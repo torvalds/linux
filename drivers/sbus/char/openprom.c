@@ -199,7 +199,7 @@ static int opromnext(void __user *argp, unsigned int cmd, struct device_node *dp
 {
 	phandle ph;
 
-	BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
+	BUILD__ON(sizeof(phandle) != sizeof(int));
 
 	if (bufsize < sizeof(phandle))
 		return -EINVAL;
@@ -510,7 +510,7 @@ static int opiocgetnext(unsigned int cmd, void __user *argp)
 	struct device_node *dp;
 	phandle nd;
 
-	BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
+	BUILD__ON(sizeof(phandle) != sizeof(int));
 
 	if (copy_from_user(&nd, argp, sizeof(phandle)))
 		return -EFAULT;
@@ -559,7 +559,7 @@ static int openprom_bsd_ioctl(struct file * file,
 		break;
 
 	case OPIOCGETOPTNODE:
-		BUILD_BUG_ON(sizeof(phandle) != sizeof(int));
+		BUILD__ON(sizeof(phandle) != sizeof(int));
 
 		err = 0;
 		if (copy_to_user(argp, &options_node->phandle, sizeof(phandle)))

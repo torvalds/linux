@@ -18,7 +18,7 @@
 #define DMA_CSR		0x00UL		/* rw  DMA control/status register    0x00   */
 #define DMA_ADDR	0x04UL		/* rw  DMA transfer address register  0x04   */
 #define DMA_COUNT	0x08UL		/* rw  DMA transfer count register    0x08   */
-#define DMA_TEST	0x0cUL		/* rw  DMA test/debug register        0x0c   */
+#define DMA_TEST	0x0cUL		/* rw  DMA test/de register        0x0c   */
 
 /* Fields in the cond_reg register */
 /* First, the version identification bits */
@@ -85,9 +85,9 @@
 /* From PCI */
 
 #ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 #else
-#define isa_dma_bridge_buggy 	(0)
+#define isa_dma_bridge_gy 	(0)
 #endif
 
 #ifdef CONFIG_SPARC32

@@ -64,7 +64,7 @@ static void c4iw_dealloc_ucontext(struct ib_ucontext *context)
 	struct c4iw_dev *rhp;
 	struct c4iw_mm_entry *mm, *tmp;
 
-	pr_debug("context %p\n", context);
+	pr_de("context %p\n", context);
 	rhp = to_c4iw_dev(ucontext->ibucontext.device);
 
 	list_for_each_entry_safe(mm, tmp, &ucontext->mmaps, entry)
@@ -82,7 +82,7 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 	int ret = 0;
 	struct c4iw_mm_entry *mm = NULL;
 
-	pr_debug("ibdev %p\n", ibdev);
+	pr_de("ibdev %p\n", ibdev);
 	c4iw_init_dev_ucontext(&rhp->rdev, &context->uctx);
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
@@ -131,7 +131,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	struct c4iw_ucontext *ucontext;
 	u64 addr;
 
-	pr_debug("pgoff 0x%lx key 0x%x len %d\n", vma->vm_pgoff,
+	pr_de("pgoff 0x%lx key 0x%x len %d\n", vma->vm_pgoff,
 		 key, len);
 
 	if (vma->vm_start & (PAGE_SIZE-1))
@@ -197,7 +197,7 @@ static void c4iw_deallocate_pd(struct ib_pd *pd)
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
-	pr_debug("ibpd %p pdid 0x%x\n", pd, php->pdid);
+	pr_de("ibpd %p pdid 0x%x\n", pd, php->pdid);
 	c4iw_put_resource(&rhp->rdev.resource.pdid_table, php->pdid);
 	mutex_lock(&rhp->rdev.stats.lock);
 	rhp->rdev.stats.pd.cur--;
@@ -212,7 +212,7 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 	u32 pdid;
 	struct c4iw_dev *rhp;
 
-	pr_debug("ibdev %p\n", ibdev);
+	pr_de("ibdev %p\n", ibdev);
 	rhp = (struct c4iw_dev *) ibdev;
 	pdid =  c4iw_get_resource(&rhp->rdev.resource.pdid_table);
 	if (!pdid)
@@ -233,14 +233,14 @@ static int c4iw_allocate_pd(struct ib_pd *pd, struct ib_ucontext *context,
 	if (rhp->rdev.stats.pd.cur > rhp->rdev.stats.pd.max)
 		rhp->rdev.stats.pd.max = rhp->rdev.stats.pd.cur;
 	mutex_unlock(&rhp->rdev.stats.lock);
-	pr_debug("pdid 0x%0x ptr 0x%p\n", pdid, php);
+	pr_de("pdid 0x%0x ptr 0x%p\n", pdid, php);
 	return 0;
 }
 
 static int c4iw_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 			   u16 *pkey)
 {
-	pr_debug("ibdev %p\n", ibdev);
+	pr_de("ibdev %p\n", ibdev);
 	*pkey = 0;
 	return 0;
 }
@@ -250,7 +250,7 @@ static int c4iw_query_gid(struct ib_device *ibdev, u8 port, int index,
 {
 	struct c4iw_dev *dev;
 
-	pr_debug("ibdev %p, port %d, index %d, gid %p\n",
+	pr_de("ibdev %p, port %d, index %d, gid %p\n",
 		 ibdev, port, index, gid);
 	if (!port)
 		return -EINVAL;
@@ -266,7 +266,7 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 
 	struct c4iw_dev *dev;
 
-	pr_debug("ibdev %p\n", ibdev);
+	pr_de("ibdev %p\n", ibdev);
 
 	if (uhw->inlen || uhw->outlen)
 		return -EINVAL;
@@ -311,7 +311,7 @@ static int c4iw_query_port(struct ib_device *ibdev, u8 port,
 	struct net_device *netdev;
 	struct in_device *inetdev;
 
-	pr_debug("ibdev %p\n", ibdev);
+	pr_de("ibdev %p\n", ibdev);
 
 	dev = to_c4iw_dev(ibdev);
 	netdev = dev->rdev.lldi.ports[port-1];
@@ -354,7 +354,7 @@ static ssize_t hw_rev_show(struct device *dev,
 	struct c4iw_dev *c4iw_dev =
 			rdma_device_to_drv_device(dev, struct c4iw_dev, ibdev);
 
-	pr_debug("dev 0x%p\n", dev);
+	pr_de("dev 0x%p\n", dev);
 	return sprintf(buf, "%d\n",
 		       CHELSIO_CHIP_RELEASE(c4iw_dev->rdev.lldi.adapter_type));
 }
@@ -368,7 +368,7 @@ static ssize_t hca_type_show(struct device *dev,
 	struct ethtool_drvinfo info;
 	struct net_device *lldev = c4iw_dev->rdev.lldi.ports[0];
 
-	pr_debug("dev 0x%p\n", dev);
+	pr_de("dev 0x%p\n", dev);
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
 	return sprintf(buf, "%s\n", info.driver);
 }
@@ -380,7 +380,7 @@ static ssize_t board_id_show(struct device *dev, struct device_attribute *attr,
 	struct c4iw_dev *c4iw_dev =
 			rdma_device_to_drv_device(dev, struct c4iw_dev, ibdev);
 
-	pr_debug("dev 0x%p\n", dev);
+	pr_de("dev 0x%p\n", dev);
 	return sprintf(buf, "%x.%x\n", c4iw_dev->rdev.lldi.pdev->vendor,
 		       c4iw_dev->rdev.lldi.pdev->device);
 }
@@ -412,7 +412,7 @@ static const char * const names[] = {
 static struct rdma_hw_stats *c4iw_alloc_stats(struct ib_device *ibdev,
 					      u8 port_num)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(names) != NR_COUNTERS);
+	BUILD__ON(ARRAY_SIZE(names) != NR_COUNTERS);
 
 	if (port_num != 0)
 		return NULL;
@@ -474,7 +474,7 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 {
 	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
 						 ibdev);
-	pr_debug("dev 0x%p\n", dev);
+	pr_de("dev 0x%p\n", dev);
 
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u.%u.%u",
 		 FW_HDR_FW_VER_MAJOR_G(c4iw_dev->rdev.lldi.fw_vers),
@@ -555,7 +555,7 @@ void c4iw_register_device(struct work_struct *work)
 	struct uld_ctx *ctx = container_of(work, struct uld_ctx, reg_work);
 	struct c4iw_dev *dev = ctx->dev;
 
-	pr_debug("c4iw_dev %p\n", dev);
+	pr_de("c4iw_dev %p\n", dev);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
@@ -586,7 +586,7 @@ void c4iw_register_device(struct work_struct *work)
 	    (1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
-	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
+	BUILD__ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
@@ -629,7 +629,7 @@ err_dealloc_ctx:
 
 void c4iw_unregister_device(struct c4iw_dev *dev)
 {
-	pr_debug("c4iw_dev %p\n", dev);
+	pr_de("c4iw_dev %p\n", dev);
 	ib_unregister_device(&dev->ibdev);
 	kfree(dev->ibdev.iwcm);
 	return;

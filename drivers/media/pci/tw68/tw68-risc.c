@@ -177,13 +177,13 @@ int tw68_risc_buffer(struct pci_dev *pci,
 	buf->jmp = rp;
 	buf->cpu[1] = cpu_to_le32(buf->dma + 8);
 	/* assure risc buffer hasn't overflowed */
-	BUG_ON((buf->jmp - buf->cpu + 2) * sizeof(buf->cpu[0]) > buf->size);
+	_ON((buf->jmp - buf->cpu + 2) * sizeof(buf->cpu[0]) > buf->size);
 	return 0;
 }
 
 #if 0
 /* ------------------------------------------------------------------ */
-/* debug helper code                                                  */
+/* de helper code                                                  */
 
 static void tw68_risc_decode(u32 risc, u32 addr)
 {
@@ -204,26 +204,26 @@ static void tw68_risc_decode(u32 risc, u32 addr)
 
 	p = RISC_OP(risc);
 	if (!(risc & 0x80000000) || !instr[p].name) {
-		pr_debug("0x%08x [ INVALID ]\n", risc);
+		pr_de("0x%08x [ INVALID ]\n", risc);
 		return;
 	}
-	pr_debug("0x%08x %-9s IRQ=%d",
+	pr_de("0x%08x %-9s IRQ=%d",
 		risc, instr[p].name, (risc >> 27) & 1);
 	if (instr[p].has_data_type)
-		pr_debug(" Type=%d", (risc >> 24) & 7);
+		pr_de(" Type=%d", (risc >> 24) & 7);
 	if (instr[p].has_byte_info)
-		pr_debug(" Start=0x%03x Count=%03u",
+		pr_de(" Start=0x%03x Count=%03u",
 			(risc >> 12) & 0xfff, risc & 0xfff);
 	if (instr[p].has_addr)
-		pr_debug(" StartAddr=0x%08x", addr);
-	pr_debug("\n");
+		pr_de(" StartAddr=0x%08x", addr);
+	pr_de("\n");
 }
 
 void tw68_risc_program_dump(struct tw68_core *core, struct tw68_buf *buf)
 {
 	const __le32 *addr;
 
-	pr_debug("%s: risc_program_dump: risc=%p, buf->cpu=0x%p, buf->jmp=0x%p\n",
+	pr_de("%s: risc_program_dump: risc=%p, buf->cpu=0x%p, buf->jmp=0x%p\n",
 		  core->name, buf, buf->cpu, buf->jmp);
 	for (addr = buf->cpu; addr <= buf->jmp; addr += 2)
 		tw68_risc_decode(*addr, *(addr+1));

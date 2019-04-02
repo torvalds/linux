@@ -550,7 +550,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 
 	/*
 	 * At this point, if the device is part of an IOMMU domain, this would
-	 * be a strong hint towards a bug in the IOMMU API (common) code and/or
+	 * be a strong hint towards a  in the IOMMU API (common) code and/or
 	 * simultaneous access via IOMMU and DMA API. So let's issue a warning.
 	 */
 	WARN_ON(zdev->s390_domain);
@@ -614,7 +614,7 @@ void zpci_dma_exit_device(struct zpci_dev *zdev)
 {
 	/*
 	 * At this point, if the device is part of an IOMMU domain, this would
-	 * be a strong hint towards a bug in the IOMMU API (common) code and/or
+	 * be a strong hint towards a  in the IOMMU API (common) code and/or
 	 * simultaneous access via IOMMU and DMA API. So let's issue a warning.
 	 */
 	WARN_ON(zdev->s390_domain);

@@ -418,7 +418,7 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Sets the background color value */
 	reg_write(ldev->regs, LTDC_BCCR, BCCR_BCBLACK);
@@ -440,7 +440,7 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	drm_crtc_vblank_off(crtc);
 
@@ -468,7 +468,7 @@ ltdc_crtc_mode_valid(struct drm_crtc *crtc,
 
 	result = clk_round_rate(ldev->pixel_clk, target);
 
-	DRM_DEBUG_DRIVER("clk rate target %d, available %d\n", target, result);
+	DRM_DE_DRIVER("clk rate target %d, available %d\n", target, result);
 
 	/* Filter modes according to the max frequency supported by the pads */
 	if (result > ldev->caps.pad_max_freq_hz)
@@ -530,9 +530,9 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	drm_display_mode_to_videomode(mode, &vm);
 
-	DRM_DEBUG_DRIVER("CRTC:%d mode:%s\n", crtc->base.id, mode->name);
-	DRM_DEBUG_DRIVER("Video mode: %dx%d", vm.hactive, vm.vactive);
-	DRM_DEBUG_DRIVER(" hfp %d hbp %d hsl %d vfp %d vbp %d vsl %d\n",
+	DRM_DE_DRIVER("CRTC:%d mode:%s\n", crtc->base.id, mode->name);
+	DRM_DE_DRIVER("Video mode: %dx%d", vm.hactive, vm.vactive);
+	DRM_DE_DRIVER(" hfp %d hbp %d hsl %d vfp %d vbp %d vsl %d\n",
 			 vm.hfront_porch, vm.hback_porch, vm.hsync_len,
 			 vm.vfront_porch, vm.vback_porch, vm.vsync_len);
 
@@ -589,7 +589,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
-	DRM_DEBUG_ATOMIC("\n");
+	DRM_DE_ATOMIC("\n");
 
 	ltdc_crtc_update_clut(crtc);
 
@@ -621,7 +621,7 @@ static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 	reg_set(ldev->regs, LTDC_IER, IER_LIE);
 
 	return 0;
@@ -631,7 +631,7 @@ static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
 }
 
@@ -700,7 +700,7 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->fb;
 	u32 src_w, src_h;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (!fb)
 		return 0;
@@ -734,7 +734,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	enum ltdc_pix_fmt pf;
 
 	if (!state->crtc || !fb) {
-		DRM_DEBUG_DRIVER("fb or crtc NULL");
+		DRM_DE_DRIVER("fb or crtc NULL");
 		return;
 	}
 
@@ -744,7 +744,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
 
-	DRM_DEBUG_DRIVER("plane:%d fb:%d (%dx%d)@(%d,%d) -> (%dx%d)@(%d,%d)\n",
+	DRM_DE_DRIVER("plane:%d fb:%d (%dx%d)@(%d,%d) -> (%dx%d)@(%d,%d)\n",
 			 plane->base.id, fb->base.id,
 			 src_w, src_h, src_x, src_y,
 			 state->crtc_w, state->crtc_h,
@@ -809,7 +809,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	/* Sets the FB address */
 	paddr = (u32)drm_fb_cma_get_gem_addr(fb, state, 0);
 
-	DRM_DEBUG_DRIVER("fb: phys 0x%08x", paddr);
+	DRM_DE_DRIVER("fb: phys 0x%08x", paddr);
 	reg_write(ldev->regs, LTDC_L1CFBAR + lofs, paddr);
 
 	/* Enable layer and CLUT if needed */
@@ -822,11 +822,11 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 
 	mutex_lock(&ldev->err_lock);
 	if (ldev->error_status & ISR_FUIF) {
-		DRM_DEBUG_DRIVER("Fifo underrun\n");
+		DRM_DE_DRIVER("Fifo underrun\n");
 		ldev->error_status &= ~ISR_FUIF;
 	}
 	if (ldev->error_status & ISR_TERRIF) {
-		DRM_DEBUG_DRIVER("Transfer error\n");
+		DRM_DE_DRIVER("Transfer error\n");
 		ldev->error_status &= ~ISR_TERRIF;
 	}
 	mutex_unlock(&ldev->err_lock);
@@ -841,7 +841,7 @@ static void ltdc_plane_atomic_disable(struct drm_plane *plane,
 	/* disable layer */
 	reg_clear(ldev->regs, LTDC_L1CR + lofs, LXCR_LEN);
 
-	DRM_DEBUG_DRIVER("CRTC:%d plane:%d\n",
+	DRM_DE_DRIVER("CRTC:%d plane:%d\n",
 			 oldstate->crtc->base.id, plane->base.id);
 }
 
@@ -924,7 +924,7 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 
 	drm_plane_helper_add(plane, &ltdc_plane_helper_funcs);
 
-	DRM_DEBUG_DRIVER("plane:%d created\n", plane->base.id);
+	DRM_DE_DRIVER("plane:%d created\n", plane->base.id);
 
 	return plane;
 }
@@ -963,7 +963,7 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 	drm_mode_crtc_set_gamma_size(crtc, CLUT_SIZE);
 	drm_crtc_enable_color_mgmt(crtc, 0, false, CLUT_SIZE);
 
-	DRM_DEBUG_DRIVER("CRTC:%d created\n", crtc->base.id);
+	DRM_DE_DRIVER("CRTC:%d created\n", crtc->base.id);
 
 	/* Add planes. Note : the first layer is used by primary plane */
 	for (i = 1; i < ldev->caps.nb_layers; i++) {
@@ -1011,7 +1011,7 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER("Bridge encoder:%d created\n", encoder->base.id);
+	DRM_DE_DRIVER("Bridge encoder:%d created\n", encoder->base.id);
 
 	return 0;
 }
@@ -1075,7 +1075,7 @@ int ltdc_load(struct drm_device *ddev)
 	struct resource *res;
 	int irq, ret, i, endpoint_not_ready = -ENODEV;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Get endpoints if any */
 	for (i = 0; i < MAX_ENDPOINTS; i++) {
@@ -1210,7 +1210,7 @@ void ltdc_unload(struct drm_device *ddev)
 	struct ltdc_device *ldev = ddev->dev_private;
 	int i;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	for (i = 0; i < MAX_ENDPOINTS; i++)
 		drm_of_panel_bridge_remove(ddev->dev->of_node, 0, i);

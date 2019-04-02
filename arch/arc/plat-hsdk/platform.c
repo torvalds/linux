@@ -105,7 +105,7 @@ static void __init hsdk_enable_gpio_intc_wire(void)
 static void __init hsdk_init_early(void)
 {
 	/*
-	 * PAE remapping for DMA clients does not work due to an RTL bug, so
+	 * PAE remapping for DMA clients does not work due to an RTL , so
 	 * CREG_PAE register must be programmed to all zeroes, otherwise it
 	 * will cause problems with DMA to/from peripherals even if PAE40 is
 	 * not used.

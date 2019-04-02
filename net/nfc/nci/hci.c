@@ -301,7 +301,7 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 	struct nci_hci_delete_pipe_noti *delete_info;
 	struct nci_hci_all_pipe_cleared_noti *cleared_info;
 
-	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
+	pr_de("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
 
 	switch (cmd) {
 	case NCI_HCI_ADM_NOTIFY_PIPE_CREATED:
@@ -353,7 +353,7 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 		nci_hci_reset_pipes_per_host(ndev, cleared_info->host);
 		break;
 	default:
-		pr_debug("Discarded unknown cmd %x to gate %x\n", cmd, gate);
+		pr_de("Discarded unknown cmd %x to gate %x\n", cmd, gate);
 		break;
 	}
 
@@ -441,7 +441,7 @@ void nci_hci_data_received_cb(void *context,
 	struct sk_buff *frag_skb;
 	int msg_len;
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	if (err) {
 		nci_req_complete(ndev, err);
@@ -534,7 +534,7 @@ static u8 nci_hci_create_pipe(struct nci_dev *ndev, u8 dest_host,
 	struct nci_hci_create_pipe_params params;
 	struct nci_hci_create_pipe_resp *resp;
 
-	pr_debug("gate=%d\n", dest_gate);
+	pr_de("gate=%d\n", dest_gate);
 
 	params.src_gate = NCI_HCI_ADMIN_GATE;
 	params.dest_host = dest_host;
@@ -550,14 +550,14 @@ static u8 nci_hci_create_pipe(struct nci_dev *ndev, u8 dest_host,
 	pipe = resp->pipe;
 	kfree_skb(skb);
 
-	pr_debug("pipe created=%d\n", pipe);
+	pr_de("pipe created=%d\n", pipe);
 
 	return pipe;
 }
 
 static int nci_hci_delete_pipe(struct nci_dev *ndev, u8 pipe)
 {
-	pr_debug("\n");
+	pr_de("\n");
 
 	return nci_hci_send_cmd(ndev, NCI_HCI_ADMIN_GATE,
 				NCI_HCI_ADM_DELETE_PIPE, &pipe, 1, NULL);
@@ -573,7 +573,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 	u8 *tmp;
 	u8 pipe = ndev->hci_dev->gate2pipe[gate];
 
-	pr_debug("idx=%d to gate %d\n", idx, gate);
+	pr_de("idx=%d to gate %d\n", idx, gate);
 
 	if (pipe == NCI_HCI_INVALID_PIPE)
 		return -EADDRNOTAVAIL;
@@ -620,7 +620,7 @@ int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 	int r;
 	u8 pipe = ndev->hci_dev->gate2pipe[gate];
 
-	pr_debug("idx=%d to gate %d\n", idx, gate);
+	pr_de("idx=%d to gate %d\n", idx, gate);
 
 	if (pipe == NCI_HCI_INVALID_PIPE)
 		return -EADDRNOTAVAIL;

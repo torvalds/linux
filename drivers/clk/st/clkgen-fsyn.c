@@ -329,7 +329,7 @@ static long quadfs_pll_fs660c32_round_rate(struct clk_hw *hw,
 
 	clk_fs660c32_vco_get_rate(*prate, &params, &rate);
 
-	pr_debug("%s: %s new rate %ld [ndiv=%u]\n",
+	pr_de("%s: %s new rate %ld [ndiv=%u]\n",
 		 __func__, clk_hw_get_name(hw),
 		 rate, (unsigned int)params.ndiv);
 
@@ -354,7 +354,7 @@ static int quadfs_pll_fs660c32_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	clk_fs660c32_vco_get_rate(parent_rate, &params, &hwrate);
 
-	pr_debug("%s: %s new rate %ld [ndiv=0x%x]\n",
+	pr_de("%s: %s new rate %ld [ndiv=0x%x]\n",
 		 __func__, clk_hw_get_name(hw),
 		 hwrate, (unsigned int)params.ndiv);
 
@@ -513,7 +513,7 @@ static int quadfs_fsynth_enable(struct clk_hw *hw)
 	struct st_clk_quadfs_fsynth *fs = to_quadfs_fsynth(hw);
 	unsigned long flags = 0;
 
-	pr_debug("%s: %s\n", __func__, clk_hw_get_name(hw));
+	pr_de("%s: %s\n", __func__, clk_hw_get_name(hw));
 
 	quadfs_fsynth_program_rate(fs);
 
@@ -538,7 +538,7 @@ static void quadfs_fsynth_disable(struct clk_hw *hw)
 	struct st_clk_quadfs_fsynth *fs = to_quadfs_fsynth(hw);
 	unsigned long flags = 0;
 
-	pr_debug("%s: %s\n", __func__, clk_hw_get_name(hw));
+	pr_de("%s: %s\n", __func__, clk_hw_get_name(hw));
 
 	if (fs->lock)
 		spin_lock_irqsave(fs->lock, flags);
@@ -554,7 +554,7 @@ static int quadfs_fsynth_is_enabled(struct clk_hw *hw)
 	struct st_clk_quadfs_fsynth *fs = to_quadfs_fsynth(hw);
 	u32 nsb = CLKGEN_READ(fs, nsb[fs->chan]);
 
-	pr_debug("%s: %s enable bit = 0x%x\n",
+	pr_de("%s: %s enable bit = 0x%x\n",
 		 __func__, clk_hw_get_name(hw), nsb);
 
 	return fs->data->standby_polarity ? !nsb : !!nsb;
@@ -752,7 +752,7 @@ static unsigned long quadfs_recalc_rate(struct clk_hw *hw,
 		       clk_hw_get_name(hw), __func__);
 	}
 
-	pr_debug("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
+	pr_de("%s:%s rate %lu\n", clk_hw_get_name(hw), __func__, rate);
 
 	return rate;
 }
@@ -764,7 +764,7 @@ static long quadfs_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	rate = quadfs_find_best_rate(hw, rate, *prate, &params);
 
-	pr_debug("%s: %s new rate %ld [sdiv=0x%x,md=0x%x,pe=0x%x,nsdiv3=%u]\n",
+	pr_de("%s: %s new rate %ld [sdiv=0x%x,md=0x%x,pe=0x%x,nsdiv3=%u]\n",
 		 __func__, clk_hw_get_name(hw),
 		 rate, (unsigned int)params.sdiv, (unsigned int)params.mdiv,
 			 (unsigned int)params.pe, (unsigned int)params.nsdiv);
@@ -910,7 +910,7 @@ static void __init st_of_create_quadfs_fsynths(
 		 */
 		if (!IS_ERR(clk)) {
 			clk_data->clks[fschan] = clk;
-			pr_debug("%s: parent %s rate %u\n",
+			pr_de("%s: parent %s rate %u\n",
 				__clk_get_name(clk),
 				__clk_get_name(clk_get_parent(clk)),
 				(unsigned int)clk_get_rate(clk));
@@ -951,7 +951,7 @@ static void __init st_of_quadfs_setup(struct device_node *np,
 	if (IS_ERR(clk))
 		goto err_exit;
 	else
-		pr_debug("%s: parent %s rate %u\n",
+		pr_de("%s: parent %s rate %u\n",
 			__clk_get_name(clk),
 			__clk_get_name(clk_get_parent(clk)),
 			(unsigned int)clk_get_rate(clk));

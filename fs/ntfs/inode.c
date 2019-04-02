@@ -33,7 +33,7 @@
 #include "attrib.h"
 #include "bitmap.h"
 #include "dir.h"
-#include "debug.h"
+#include "de.h"
 #include "inode.h"
 #include "lcnalloc.h"
 #include "malloc.h"
@@ -116,8 +116,8 @@ static int ntfs_init_locked_inode(struct inode *vi, ntfs_attr *na)
 
 	/* If initializing a normal inode, we are done. */
 	if (likely(na->type == AT_UNUSED)) {
-		BUG_ON(na->name);
-		BUG_ON(na->name_len);
+		_ON(na->name);
+		_ON(na->name_len);
 		return 0;
 	}
 
@@ -134,7 +134,7 @@ static int ntfs_init_locked_inode(struct inode *vi, ntfs_attr *na)
 	if (na->name_len && na->name != I30) {
 		unsigned int i;
 
-		BUG_ON(!na->name);
+		_ON(!na->name);
 		i = na->name_len * sizeof(ntfschar);
 		ni->name = kmalloc(i + sizeof(ntfschar), GFP_ATOMIC);
 		if (!ni->name)
@@ -232,7 +232,7 @@ struct inode *ntfs_attr_iget(struct inode *base_vi, ATTR_TYPE type,
 	ntfs_attr na;
 
 	/* Make sure no one calls ntfs_attr_iget() for indices. */
-	BUG_ON(type == AT_INDEX_ALLOCATION);
+	_ON(type == AT_INDEX_ALLOCATION);
 
 	na.mft_no = base_vi->i_ino;
 	na.type = type;
@@ -322,7 +322,7 @@ struct inode *ntfs_alloc_big_inode(struct super_block *sb)
 {
 	ntfs_inode *ni;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	ni = kmem_cache_alloc(ntfs_big_inode_cache, GFP_NOFS);
 	if (likely(ni != NULL)) {
 		ni->state = 0;
@@ -342,10 +342,10 @@ void ntfs_destroy_big_inode(struct inode *inode)
 {
 	ntfs_inode *ni = NTFS_I(inode);
 
-	ntfs_debug("Entering.");
-	BUG_ON(ni->page);
+	ntfs_de("Entering.");
+	_ON(ni->page);
 	if (!atomic_dec_and_test(&ni->count))
-		BUG();
+		();
 	call_rcu(&inode->i_rcu, ntfs_i_callback);
 }
 
@@ -353,7 +353,7 @@ static inline ntfs_inode *ntfs_alloc_extent_inode(void)
 {
 	ntfs_inode *ni;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	ni = kmem_cache_alloc(ntfs_inode_cache, GFP_NOFS);
 	if (likely(ni != NULL)) {
 		ni->state = 0;
@@ -365,10 +365,10 @@ static inline ntfs_inode *ntfs_alloc_extent_inode(void)
 
 static void ntfs_destroy_extent_inode(ntfs_inode *ni)
 {
-	ntfs_debug("Entering.");
-	BUG_ON(ni->page);
+	ntfs_de("Entering.");
+	_ON(ni->page);
 	if (!atomic_dec_and_test(&ni->count))
-		BUG();
+		();
 	kmem_cache_free(ntfs_inode_cache, ni);
 }
 
@@ -392,7 +392,7 @@ static struct lock_class_key attr_list_rl_lock_class;
  */
 void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 {
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	rwlock_init(&ni->size_lock);
 	ni->initialized_size = ni->allocated_size = 0;
 	ni->seq_no = 0;
@@ -429,7 +429,7 @@ inline ntfs_inode *ntfs_new_extent_inode(struct super_block *sb,
 {
 	ntfs_inode *ni = ntfs_alloc_extent_inode();
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	if (likely(ni != NULL)) {
 		__ntfs_init_inode(sb, ni);
 		lockdep_set_class(&ni->mrec_lock, &extent_inode_mrec_lock_key);
@@ -557,7 +557,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	ntfs_attr_search_ctx *ctx;
 	int err = 0;
 
-	ntfs_debug("Entering for i_ino 0x%lx.", vi->i_ino);
+	ntfs_de("Entering for i_ino 0x%lx.", vi->i_ino);
 
 	/* Setup the generic vfs inode parts now. */
 	vi->i_uid = vol->uid;
@@ -692,7 +692,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	} else /* if (!err) */ {
 		if (vi->i_ino == FILE_MFT)
 			goto skip_attr_list_load;
-		ntfs_debug("Attribute list found in inode 0x%lx.", vi->i_ino);
+		ntfs_de("Attribute list found in inode 0x%lx.", vi->i_ino);
 		NInoSetAttrList(ni);
 		a = ctx->attr;
 		if (a->flags & ATTR_COMPRESSION_MASK) {
@@ -1174,7 +1174,7 @@ no_data_attr_special_case:
 		vi->i_blocks = ni->itype.compressed.size >> 9;
 	else
 		vi->i_blocks = ni->allocated_size >> 9;
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 iput_unm_err_out:
 	iput(bvi);
@@ -1225,7 +1225,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	ntfs_attr_search_ctx *ctx;
 	int err = 0;
 
-	ntfs_debug("Entering for i_ino 0x%lx.", vi->i_ino);
+	ntfs_de("Entering for i_ino 0x%lx.", vi->i_ino);
 
 	ntfs_init_big_inode(vi);
 
@@ -1427,7 +1427,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
 
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 
 unm_err_out:
@@ -1494,7 +1494,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	u8 *ir_end, *index_end;
 	int err = 0;
 
-	ntfs_debug("Entering for i_ino 0x%lx.", vi->i_ino);
+	ntfs_de("Entering for i_ino 0x%lx.", vi->i_ino);
 	ntfs_init_big_inode(vi);
 	ni	= NTFS_I(vi);
 	base_ni = NTFS_I(base_vi);
@@ -1568,7 +1568,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 		goto unm_err_out;
 	}
 	ni->itype.index.collation_rule = ir->collation_rule;
-	ntfs_debug("Index collation rule is 0x%x.",
+	ntfs_de("Index collation rule is 0x%x.",
 			le32_to_cpu(ir->collation_rule));
 	ni->itype.index.block_size = le32_to_cpu(ir->index_block_size);
 	if (!is_power_of_2(ni->itype.index.block_size)) {
@@ -1707,7 +1707,7 @@ skip_large_index_stuff:
 	ni->ext.base_ntfs_ino = base_ni;
 	ni->nr_extents = -1;
 
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 iput_unm_err_out:
 	iput(bvi);
@@ -1777,7 +1777,7 @@ int ntfs_read_inode_mount(struct inode *vi)
 	unsigned int i, nr_blocks;
 	int err;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 
 	/* Initialize the ntfs specific part of @vi. */
 	ntfs_init_big_inode(vi);
@@ -1868,7 +1868,7 @@ int ntfs_read_inode_mount(struct inode *vi)
 		static const char *es = "  Not allowed.  $MFT is corrupt.  "
 				"You should run chkdsk.";
 
-		ntfs_debug("Attribute list attribute found in $MFT.");
+		ntfs_de("Attribute list attribute found in $MFT.");
 		NInoSetAttrList(ni);
 		a = ctx->attr;
 		if (a->flags & ATTR_COMPRESSION_MASK) {
@@ -1987,7 +1987,7 @@ int ntfs_read_inode_mount(struct inode *vi)
 			/* First entry has to be in the base mft record. */
 			if (MREF_LE(al_entry->mft_reference) != vi->i_ino) {
 				/* MFT references do not match, logic fails. */
-				ntfs_error(sb, "BUG: The first $DATA extent "
+				ntfs_error(sb, ": The first $DATA extent "
 						"of $MFT is not in the base "
 						"mft record. Please report "
 						"you saw this message to "
@@ -2100,7 +2100,7 @@ int ntfs_read_inode_mount(struct inode *vi)
 			ntfs_read_locked_inode(vi);
 			if (is_bad_inode(vi)) {
 				ntfs_error(sb, "ntfs_read_inode() of $MFT "
-						"failed. BUG or corrupt $MFT. "
+						"failed.  or corrupt $MFT. "
 						"Run chkdsk and if no errors "
 						"are found, please report you "
 						"saw this message to "
@@ -2153,15 +2153,15 @@ int ntfs_read_inode_mount(struct inode *vi)
 	}
 	if (highest_vcn && highest_vcn != last_vcn - 1) {
 		ntfs_error(sb, "Failed to load the complete runlist for "
-				"$MFT/$DATA. Driver bug or corrupt $MFT. "
+				"$MFT/$DATA. Driver  or corrupt $MFT. "
 				"Run chkdsk.");
-		ntfs_debug("highest_vcn = 0x%llx, last_vcn - 1 = 0x%llx",
+		ntfs_de("highest_vcn = 0x%llx, last_vcn - 1 = 0x%llx",
 				(unsigned long long)highest_vcn,
 				(unsigned long long)last_vcn - 1);
 		goto put_err_out;
 	}
 	ntfs_attr_put_search_ctx(ctx);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	ntfs_free(m);
 
 	/*
@@ -2208,24 +2208,24 @@ static void __ntfs_clear_inode(ntfs_inode *ni)
 	up_write(&ni->attr_list_rl.lock);
 
 	if (ni->name_len && ni->name != I30) {
-		/* Catch bugs... */
-		BUG_ON(!ni->name);
+		/* Catch s... */
+		_ON(!ni->name);
 		kfree(ni->name);
 	}
 }
 
 void ntfs_clear_extent_inode(ntfs_inode *ni)
 {
-	ntfs_debug("Entering for inode 0x%lx.", ni->mft_no);
+	ntfs_de("Entering for inode 0x%lx.", ni->mft_no);
 
-	BUG_ON(NInoAttr(ni));
-	BUG_ON(ni->nr_extents != -1);
+	_ON(NInoAttr(ni));
+	_ON(ni->nr_extents != -1);
 
 #ifdef NTFS_RW
 	if (NInoDirty(ni)) {
 		if (!is_bad_inode(VFS_I(ni->ext.base_ntfs_ino)))
 			ntfs_error(ni->vol->sb, "Clearing dirty extent inode!  "
-					"Losing data!  This is a BUG!!!");
+					"Losing data!  This is a !!!");
 		// FIXME:  Do something!!!
 	}
 #endif /* NTFS_RW */
@@ -2365,11 +2365,11 @@ int ntfs_truncate(struct inode *vi)
 	int err, mp_size, size_change, alloc_change;
 	u32 attr_len;
 
-	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
-	BUG_ON(NInoAttr(ni));
-	BUG_ON(S_ISDIR(vi->i_mode));
-	BUG_ON(NInoMstProtected(ni));
-	BUG_ON(ni->nr_extents < 0);
+	ntfs_de("Entering for inode 0x%lx.", vi->i_ino);
+	_ON(NInoAttr(ni));
+	_ON(S_ISDIR(vi->i_mode));
+	_ON(NInoMstProtected(ni));
+	_ON(ni->nr_extents < 0);
 retry_truncate:
 	/*
 	 * Lock the runlist for writing and map the mft record to ensure it is
@@ -2489,7 +2489,7 @@ retry_truncate:
 	}
 	if (a->non_resident)
 		goto do_non_resident_truncate;
-	BUG_ON(NInoNonResident(ni));
+	_ON(NInoNonResident(ni));
 	/* Resize the attribute record to best fit the new attribute size. */
 	if (new_size < vol->mft_record_size &&
 			!ntfs_resident_attr_value_resize(m, a, new_size)) {
@@ -2533,7 +2533,7 @@ retry_truncate:
 		goto unm_done;
 	}
 	/* If the above resize failed, this must be an attribute extension. */
-	BUG_ON(size_change < 0);
+	_ON(size_change < 0);
 	/*
 	 * We have to drop all the locks so we can call
 	 * ntfs_attr_make_non_resident().  This could be optimised by try-
@@ -2608,7 +2608,7 @@ retry_truncate:
 	goto err_out;
 #endif
 do_non_resident_truncate:
-	BUG_ON(!NInoNonResident(ni));
+	_ON(!NInoNonResident(ni));
 	if (alloc_change < 0) {
 		highest_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn);
 		if (highest_vcn > 0 &&
@@ -2654,7 +2654,7 @@ do_non_resident_truncate:
 		 * If the size is shrinking it makes no sense for the
 		 * allocation to be growing.
 		 */
-		BUG_ON(alloc_change > 0);
+		_ON(alloc_change > 0);
 	} else /* if (size_change >= 0) */ {
 		/*
 		 * The file size is growing or staying the same but the
@@ -2740,7 +2740,7 @@ do_non_resident_truncate:
 	attr_len = le32_to_cpu(a->length);
 	err = ntfs_attr_record_resize(m, a, mp_size +
 			le16_to_cpu(a->data.non_resident.mapping_pairs_offset));
-	BUG_ON(err);
+	_ON(err);
 	/*
 	 * Generate the mapping pairs array directly into the attribute record.
 	 */
@@ -2766,7 +2766,7 @@ do_non_resident_truncate:
 		if (nr_freed) {
 			ni->itype.compressed.size -= nr_freed <<
 					vol->cluster_size_bits;
-			BUG_ON(ni->itype.compressed.size < 0);
+			_ON(ni->itype.compressed.size < 0);
 			a->data.non_resident.compressed_size = cpu_to_sle64(
 					ni->itype.compressed.size);
 			vi->i_blocks = ni->itype.compressed.size >> 9;
@@ -2819,7 +2819,7 @@ done:
 
 	if (likely(!err)) {
 		NInoClearTruncateFailed(ni);
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 	}
 	return err;
 old_bad_out:
@@ -2838,7 +2838,7 @@ err_out:
 		unmap_mft_record(base_ni);
 	up_write(&ni->runlist.lock);
 out:
-	ntfs_debug("Failed.  Returning error code %i.", err);
+	ntfs_de("Failed.  Returning error code %i.", err);
 	return err;
 conv_err_out:
 	if (err != -ENOMEM && err != -EOPNOTSUPP)
@@ -2964,7 +2964,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	int err = 0;
 	bool modified = false;
 
-	ntfs_debug("Entering for %sinode 0x%lx.", NInoAttr(ni) ? "attr " : "",
+	ntfs_de("Entering for %sinode 0x%lx.", NInoAttr(ni) ? "attr " : "",
 			vi->i_ino);
 	/*
 	 * Dirty attribute inodes are written via their real inodes so just
@@ -2973,7 +2973,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	 */
 	if (NInoAttr(ni)) {
 		NInoClearDirty(ni);
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 		return 0;
 	}
 	/* Map, pin, and lock the mft record belonging to the inode. */
@@ -2999,7 +2999,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	/* Update the access times if they have changed. */
 	nt = utc2ntfs(vi->i_mtime);
 	if (si->last_data_change_time != nt) {
-		ntfs_debug("Updating mtime for inode 0x%lx: old = 0x%llx, "
+		ntfs_de("Updating mtime for inode 0x%lx: old = 0x%llx, "
 				"new = 0x%llx", vi->i_ino, (long long)
 				sle64_to_cpu(si->last_data_change_time),
 				(long long)sle64_to_cpu(nt));
@@ -3008,7 +3008,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	}
 	nt = utc2ntfs(vi->i_ctime);
 	if (si->last_mft_change_time != nt) {
-		ntfs_debug("Updating ctime for inode 0x%lx: old = 0x%llx, "
+		ntfs_de("Updating ctime for inode 0x%lx: old = 0x%llx, "
 				"new = 0x%llx", vi->i_ino, (long long)
 				sle64_to_cpu(si->last_mft_change_time),
 				(long long)sle64_to_cpu(nt));
@@ -3017,7 +3017,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	}
 	nt = utc2ntfs(vi->i_atime);
 	if (si->last_access_time != nt) {
-		ntfs_debug("Updating atime for inode 0x%lx: old = 0x%llx, "
+		ntfs_de("Updating atime for inode 0x%lx: old = 0x%llx, "
 				"new = 0x%llx", vi->i_ino,
 				(long long)sle64_to_cpu(si->last_access_time),
 				(long long)sle64_to_cpu(nt));
@@ -3056,7 +3056,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 		ntfs_inode **extent_nis = ni->ext.extent_ntfs_inos;
 		int i;
 
-		ntfs_debug("Writing %i extent inodes.", ni->nr_extents);
+		ntfs_de("Writing %i extent inodes.", ni->nr_extents);
 		for (i = 0; i < ni->nr_extents; i++) {
 			ntfs_inode *tni = extent_nis[i];
 
@@ -3082,7 +3082,7 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	unmap_mft_record(ni);
 	if (unlikely(err))
 		goto err_out;
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 unm_err_out:
 	unmap_mft_record(ni);

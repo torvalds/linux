@@ -27,7 +27,7 @@
 #include <net/arp.h>
 #include <net/ip.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/idals.h>
 #include <asm/timex.h>
 #include <linux/device.h>
@@ -63,36 +63,36 @@ static int lcs_send_delipm(struct lcs_card *, struct lcs_ipm_list *);
 static int lcs_recovery(void *ptr);
 
 /**
- * Debug Facility Stuff
+ * De Facility Stuff
  */
-static char debug_buffer[255];
-static debug_info_t *lcs_dbf_setup;
-static debug_info_t *lcs_dbf_trace;
+static char de_buffer[255];
+static de_info_t *lcs_dbf_setup;
+static de_info_t *lcs_dbf_trace;
 
 /**
- *  LCS Debug Facility functions
+ *  LCS De Facility functions
  */
 static void
-lcs_unregister_debug_facility(void)
+lcs_unregister_de_facility(void)
 {
-	debug_unregister(lcs_dbf_setup);
-	debug_unregister(lcs_dbf_trace);
+	de_unregister(lcs_dbf_setup);
+	de_unregister(lcs_dbf_trace);
 }
 
 static int
-lcs_register_debug_facility(void)
+lcs_register_de_facility(void)
 {
-	lcs_dbf_setup = debug_register("lcs_setup", 2, 1, 8);
-	lcs_dbf_trace = debug_register("lcs_trace", 4, 1, 8);
+	lcs_dbf_setup = de_register("lcs_setup", 2, 1, 8);
+	lcs_dbf_trace = de_register("lcs_trace", 4, 1, 8);
 	if (lcs_dbf_setup == NULL || lcs_dbf_trace == NULL) {
-		pr_err("Not enough memory for debug facility.\n");
-		lcs_unregister_debug_facility();
+		pr_err("Not enough memory for de facility.\n");
+		lcs_unregister_de_facility();
 		return -ENOMEM;
 	}
-	debug_register_view(lcs_dbf_setup, &debug_hex_ascii_view);
-	debug_set_level(lcs_dbf_setup, 2);
-	debug_register_view(lcs_dbf_trace, &debug_hex_ascii_view);
-	debug_set_level(lcs_dbf_trace, 2);
+	de_register_view(lcs_dbf_setup, &de_hex_ascii_view);
+	de_set_level(lcs_dbf_setup, 2);
+	de_register_view(lcs_dbf_trace, &de_hex_ascii_view);
+	de_set_level(lcs_dbf_trace, 2);
 	return 0;
 }
 
@@ -664,7 +664,7 @@ lcs_ready_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	int index, rc;
 
 	LCS_DBF_TEXT(5, trace, "rdybuff");
-	BUG_ON(buffer->state != LCS_BUF_STATE_LOCKED &&
+	_ON(buffer->state != LCS_BUF_STATE_LOCKED &&
 	       buffer->state != LCS_BUF_STATE_PROCESSED);
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	buffer->state = LCS_BUF_STATE_READY;
@@ -689,7 +689,7 @@ __lcs_processed_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	int index, prev, next;
 
 	LCS_DBF_TEXT(5, trace, "prcsbuff");
-	BUG_ON(buffer->state != LCS_BUF_STATE_READY);
+	_ON(buffer->state != LCS_BUF_STATE_READY);
 	buffer->state = LCS_BUF_STATE_PROCESSED;
 	index = buffer - channel->iob;
 	prev = (index - 1) & (LCS_NUM_BUFFS - 1);
@@ -721,7 +721,7 @@ lcs_release_buffer(struct lcs_channel *channel, struct lcs_buffer *buffer)
 	unsigned long flags;
 
 	LCS_DBF_TEXT(5, trace, "relbuff");
-	BUG_ON(buffer->state != LCS_BUF_STATE_LOCKED &&
+	_ON(buffer->state != LCS_BUF_STATE_LOCKED &&
 	       buffer->state != LCS_BUF_STATE_PROCESSED);
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	buffer->state = LCS_BUF_STATE_EMPTY;
@@ -2419,7 +2419,7 @@ __init lcs_init_module(void)
 	int rc;
 
 	pr_info("Loading %s\n", version);
-	rc = lcs_register_debug_facility();
+	rc = lcs_register_de_facility();
 	LCS_DBF_TEXT(0, setup, "lcsinit");
 	if (rc)
 		goto out_err;
@@ -2441,7 +2441,7 @@ ccwgroup_err:
 ccw_err:
 	root_device_unregister(lcs_root_dev);
 register_err:
-	lcs_unregister_debug_facility();
+	lcs_unregister_de_facility();
 out_err:
 	pr_err("Initializing the lcs device driver failed\n");
 	return rc;
@@ -2459,7 +2459,7 @@ __exit lcs_cleanup_module(void)
 	ccwgroup_driver_unregister(&lcs_group_driver);
 	ccw_driver_unregister(&lcs_ccw_driver);
 	root_device_unregister(lcs_root_dev);
-	lcs_unregister_debug_facility();
+	lcs_unregister_de_facility();
 }
 
 module_init(lcs_init_module);

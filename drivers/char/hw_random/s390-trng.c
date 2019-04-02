@@ -21,11 +21,11 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/miscdevice.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/atomic.h>
 #include <linux/random.h>
 #include <linux/sched/signal.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/cpacf.h>
 
 MODULE_LICENSE("GPL v2");
@@ -33,14 +33,14 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("s390 CPACF TRNG device driver");
 
 
-/* trng related debug feature things */
+/* trng related de feature things */
 
-static debug_info_t *debug_info;
+static de_info_t *de_info;
 
-#define DEBUG_DBG(...)	debug_sprintf_event(debug_info, 6, ##__VA_ARGS__)
-#define DEBUG_INFO(...) debug_sprintf_event(debug_info, 5, ##__VA_ARGS__)
-#define DEBUG_WARN(...) debug_sprintf_event(debug_info, 4, ##__VA_ARGS__)
-#define DEBUG_ERR(...)	debug_sprintf_event(debug_info, 3, ##__VA_ARGS__)
+#define DE_DBG(...)	de_sprintf_event(de_info, 6, ##__VA_ARGS__)
+#define DE_INFO(...) de_sprintf_event(de_info, 5, ##__VA_ARGS__)
+#define DE_WARN(...) de_sprintf_event(de_info, 4, ##__VA_ARGS__)
+#define DE_ERR(...)	de_sprintf_event(de_info, 3, ##__VA_ARGS__)
 
 
 /* trng helpers */
@@ -100,7 +100,7 @@ static ssize_t trng_read(struct file *file, char __user *ubuf,
 	if (p != buf)
 		free_page((unsigned long) p);
 
-	DEBUG_DBG("trng_read()=%zd\n", ret);
+	DE_DBG("trng_read()=%zd\n", ret);
 	return ret;
 }
 
@@ -178,7 +178,7 @@ static int trng_hwrng_data_read(struct hwrng *rng, u32 *data)
 
 	_trng_hwrng_read((u8 *) data, len);
 
-	DEBUG_DBG("trng_hwrng_data_read()=%zu\n", len);
+	DE_DBG("trng_hwrng_data_read()=%zu\n", len);
 
 	return len;
 }
@@ -189,7 +189,7 @@ static int trng_hwrng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 
 	_trng_hwrng_read((u8 *) data, len);
 
-	DEBUG_DBG("trng_hwrng_read()=%zu\n", len);
+	DE_DBG("trng_hwrng_read()=%zu\n", len);
 
 	return len;
 }
@@ -209,51 +209,51 @@ static struct hwrng trng_hwrng_dev = {
 
 /* init and exit */
 
-static void __init trng_debug_init(void)
+static void __init trng_de_init(void)
 {
-	debug_info = debug_register("trng", 1, 1, 4 * sizeof(long));
-	debug_register_view(debug_info, &debug_sprintf_view);
-	debug_set_level(debug_info, 3);
+	de_info = de_register("trng", 1, 1, 4 * sizeof(long));
+	de_register_view(de_info, &de_sprintf_view);
+	de_set_level(de_info, 3);
 }
 
-static void trng_debug_exit(void)
+static void trng_de_exit(void)
 {
-	debug_unregister(debug_info);
+	de_unregister(de_info);
 }
 
 static int __init trng_init(void)
 {
 	int ret;
 
-	trng_debug_init();
+	trng_de_init();
 
 	/* check if subfunction CPACF_PRNO_TRNG is available */
 	if (!cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG)) {
-		DEBUG_INFO("trng_init CPACF_PRNO_TRNG not available\n");
+		DE_INFO("trng_init CPACF_PRNO_TRNG not available\n");
 		ret = -ENODEV;
 		goto out_dbg;
 	}
 
 	ret = misc_register(&trng_dev);
 	if (ret) {
-		DEBUG_WARN("trng_init misc_register() failed rc=%d\n", ret);
+		DE_WARN("trng_init misc_register() failed rc=%d\n", ret);
 		goto out_dbg;
 	}
 
 	ret = hwrng_register(&trng_hwrng_dev);
 	if (ret) {
-		DEBUG_WARN("trng_init hwrng_register() failed rc=%d\n", ret);
+		DE_WARN("trng_init hwrng_register() failed rc=%d\n", ret);
 		goto out_misc;
 	}
 
-	DEBUG_DBG("trng_init successful\n");
+	DE_DBG("trng_init successful\n");
 
 	return 0;
 
 out_misc:
 	misc_deregister(&trng_dev);
 out_dbg:
-	trng_debug_exit();
+	trng_de_exit();
 	return ret;
 }
 
@@ -261,7 +261,7 @@ static void __exit trng_exit(void)
 {
 	hwrng_unregister(&trng_hwrng_dev);
 	misc_deregister(&trng_dev);
-	trng_debug_exit();
+	trng_de_exit();
 }
 
 module_cpu_feature_match(MSA, trng_init);

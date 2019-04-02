@@ -16,7 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/jump_label.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/of_irq.h>
 
 /* No one else should require these constants, so define them locally here. */
@@ -62,7 +62,7 @@ static void intc_enable_or_unmask(struct irq_data *d)
 {
 	unsigned long mask = 1 << d->hwirq;
 
-	pr_debug("irq-xilinx: enable_or_unmask: %ld\n", d->hwirq);
+	pr_de("irq-xilinx: enable_or_unmask: %ld\n", d->hwirq);
 
 	/* ack level irqs because they can't be acked during
 	 * ack function since the handle_level_irq function
@@ -76,13 +76,13 @@ static void intc_enable_or_unmask(struct irq_data *d)
 
 static void intc_disable_or_mask(struct irq_data *d)
 {
-	pr_debug("irq-xilinx: disable: %ld\n", d->hwirq);
+	pr_de("irq-xilinx: disable: %ld\n", d->hwirq);
 	xintc_write(CIE, 1 << d->hwirq);
 }
 
 static void intc_ack(struct irq_data *d)
 {
-	pr_debug("irq-xilinx: ack: %ld\n", d->hwirq);
+	pr_de("irq-xilinx: ack: %ld\n", d->hwirq);
 	xintc_write(IAR, 1 << d->hwirq);
 }
 
@@ -90,7 +90,7 @@ static void intc_mask_ack(struct irq_data *d)
 {
 	unsigned long mask = 1 << d->hwirq;
 
-	pr_debug("irq-xilinx: disable_and_ack: %ld\n", d->hwirq);
+	pr_de("irq-xilinx: disable_and_ack: %ld\n", d->hwirq);
 	xintc_write(CIE, mask);
 	xintc_write(IAR, mask);
 }
@@ -111,7 +111,7 @@ unsigned int xintc_get_irq(void)
 	if (hwirq != -1U)
 		irq = irq_find_mapping(xintc_irqc->root_domain, hwirq);
 
-	pr_debug("irq-xilinx: hwirq=%d, irq=%d\n", hwirq, irq);
+	pr_de("irq-xilinx: hwirq=%d, irq=%d\n", hwirq, irq);
 
 	return irq;
 }
@@ -169,7 +169,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	xintc_irqc = irqc;
 
 	irqc->base = of_iomap(intc, 0);
-	BUG_ON(!irqc->base);
+	_ON(!irqc->base);
 
 	ret = of_property_read_u32(intc, "xlnx,num-intr-inputs", &nr_irq);
 	if (ret < 0) {

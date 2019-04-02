@@ -17,7 +17,7 @@
 #include "bpf_helpers.h"
 
 #define DEFAULT_PKTGEN_UDP_PORT 9
-#define DEBUG 0
+#define DE 0
 
 static int tcp(void *data, uint64_t tp_off, void *data_end)
 {
@@ -38,7 +38,7 @@ static int udp(void *data, uint64_t tp_off, void *data_end)
 		return 0;
 	if (udp->dest == htons(DEFAULT_PKTGEN_UDP_PORT) ||
 	    udp->source == htons(DEFAULT_PKTGEN_UDP_PORT)) {
-		if (DEBUG) {
+		if (DE) {
 			char fmt[] = "udp port 9 indeed\n";
 
 			bpf_trace_printk(fmt, sizeof(fmt));

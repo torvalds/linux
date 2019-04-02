@@ -232,7 +232,7 @@ static struct ufs_dev_fix ufs_fixups[] = {
 	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME),
 	UFS_FIX(UFS_VENDOR_SKHYNIX, "hB8aL1" /*H28U62301AMR*/,
-		UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME),
+		UFS_DEVICE_QUIRK_HOST_VS_DESAVECONFIGTIME),
 
 	END_FIX
 };
@@ -2401,7 +2401,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		dev_err(hba->dev,
 			"%s: invalid command tag %d: cmd=0x%p, cmd->request=0x%p",
 			__func__, tag, cmd, cmd->request);
-		BUG();
+		();
 	}
 
 	if (!down_read_trylock(&hba->clk_scaling_lock))
@@ -2778,7 +2778,7 @@ int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	int err, index = 0, selector = 0;
 	int timeout = QUERY_REQ_TIMEOUT;
 
-	BUG_ON(!hba);
+	_ON(!hba);
 
 	ufshcd_hold(hba, false);
 	mutex_lock(&hba->dev_cmd.lock);
@@ -2846,7 +2846,7 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 	struct ufs_query_res *response = NULL;
 	int err;
 
-	BUG_ON(!hba);
+	_ON(!hba);
 
 	ufshcd_hold(hba, false);
 	if (!attr_val) {
@@ -2937,7 +2937,7 @@ static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 	struct ufs_query_res *response = NULL;
 	int err;
 
-	BUG_ON(!hba);
+	_ON(!hba);
 
 	ufshcd_hold(hba, false);
 	if (!desc_buf) {
@@ -5963,7 +5963,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		dev_err(hba->dev,
 			"%s: invalid command tag %d: cmd=0x%p, cmd->request=0x%p",
 			__func__, tag, cmd, cmd->request);
-		BUG();
+		();
 	}
 
 	/*
@@ -6803,7 +6803,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	hba->urgent_bkops_lvl = BKOPS_STATUS_PERF_IMPACT;
 	hba->is_urgent_bkops_lvl_checked = false;
 
-	/* Debug counters initialization */
+	/* De counters initialization */
 	ufshcd_clear_dbg_ufs_stats(hba);
 
 	/* UniPro link is active now */
@@ -7033,7 +7033,7 @@ static int ufshcd_config_vreg(struct device *dev,
 	const char *name;
 	int min_uV, uA_load;
 
-	BUG_ON(!vreg);
+	_ON(!vreg);
 
 	reg = vreg->reg;
 	name = vreg->name;

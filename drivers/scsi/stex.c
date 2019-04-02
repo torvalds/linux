@@ -157,7 +157,7 @@ enum {
 	SINBAND_MGT_CMD				= 0xd9,
 	ARRAY_CMD				= 0xe0,
 	CONTROLLER_CMD				= 0xe1,
-	DEBUGGING_CMD				= 0xe2,
+	DEGING_CMD				= 0xe2,
 	PASSTHRU_CMD				= 0xe3,
 
 	PASSTHRU_GET_ADAPTER			= 0x05,
@@ -438,7 +438,7 @@ static int stex_map_sg(struct st_hba *hba,
 
 	cmd = ccb->cmd;
 	nseg = scsi_dma_map(cmd);
-	BUG_ON(nseg < 0);
+	_ON(nseg < 0);
 	if (nseg) {
 		dst = (struct st_sgtable *)req->variable;
 
@@ -470,7 +470,7 @@ static int stex_ss_map_sg(struct st_hba *hba,
 
 	cmd = ccb->cmd;
 	nseg = scsi_dma_map(cmd);
-	BUG_ON(nseg < 0);
+	_ON(nseg < 0);
 	if (nseg) {
 		dst = (struct st_sgtable *)req->variable;
 

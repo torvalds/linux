@@ -883,6 +883,6 @@ static void self_vtbl_check(const struct ubi_device *ubi)
 
 	if (vtbl_check(ubi, ubi->vtbl)) {
 		ubi_err(ubi, "self-check failed");
-		BUG();
+		();
 	}
 }

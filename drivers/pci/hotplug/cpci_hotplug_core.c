@@ -31,8 +31,8 @@
 
 #define dbg(format, arg...)					\
 	do {							\
-		if (cpci_debug)					\
-			printk(KERN_DEBUG "%s: " format "\n",	\
+		if (cpci_de)					\
+			printk(KERN_DE "%s: " format "\n",	\
 				MY_NAME, ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME, ## arg)
@@ -44,7 +44,7 @@ static DECLARE_RWSEM(list_rwsem);
 static LIST_HEAD(slot_list);
 static int slots;
 static atomic_t extracting;
-int cpci_debug;
+int cpci_de;
 static struct cpci_hp_controller *controller;
 static struct task_struct *cpci_thread;
 static int thread_finished;
@@ -352,7 +352,7 @@ check_slots(void)
 			/* Process insertion */
 			dbg("%s - slot %s inserted", __func__, slot_name(slot));
 
-			/* GSM, debug */
+			/* GSM, de */
 			hs_csr = cpci_get_hs_csr(slot);
 			dbg("%s - slot %s HS_CSR (1) = %04x",
 			    __func__, slot_name(slot), hs_csr);
@@ -368,7 +368,7 @@ check_slots(void)
 			dbg("%s - finished configuring slot %s",
 			    __func__, slot_name(slot));
 
-			/* GSM, debug */
+			/* GSM, de */
 			hs_csr = cpci_get_hs_csr(slot);
 			dbg("%s - slot %s HS_CSR (2) = %04x",
 			    __func__, slot_name(slot), hs_csr);
@@ -378,7 +378,7 @@ check_slots(void)
 
 			cpci_led_off(slot);
 
-			/* GSM, debug */
+			/* GSM, de */
 			hs_csr = cpci_get_hs_csr(slot);
 			dbg("%s - slot %s HS_CSR (3) = %04x",
 			    __func__, slot_name(slot), hs_csr);
@@ -389,7 +389,7 @@ check_slots(void)
 			dbg("%s - slot %s extracted",
 			    __func__, slot_name(slot));
 
-			/* GSM, debug */
+			/* GSM, de */
 			hs_csr = cpci_get_hs_csr(slot);
 			dbg("%s - slot %s HS_CSR = %04x",
 			    __func__, slot_name(slot), hs_csr);
@@ -638,8 +638,8 @@ cpci_hp_stop(void)
 EXPORT_SYMBOL_GPL(cpci_hp_stop);
 
 int __init
-cpci_hotplug_init(int debug)
+cpci_hotplug_init(int de)
 {
-	cpci_debug = debug;
+	cpci_de = de;
 	return 0;
 }

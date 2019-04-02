@@ -8,7 +8,7 @@
  * OMAP2 & DMA support by Kyungmin Park <kyungmin.park@samsung.com>
  */
 
-#undef	DEBUG
+#undef	DE
 #undef	VERBOSE
 
 #include <linux/module.h>
@@ -821,7 +821,7 @@ static void dma_channel_release(struct omap_ep *ep)
 			(ep->bEndpointAddress & USB_DIR_IN) ? 't' : 'r',
 			ep->dma_channel - 1, req);
 
-	/* NOTE: re-setting RX_REQ/TX_REQ because of a chip bug (before
+	/* NOTE: re-setting RX_REQ/TX_REQ because of a chip  (before
 	 * OMAP 1710 ES2.0) where reading the DMA_CFG can clear them.
 	 */
 
@@ -2130,7 +2130,7 @@ static int omap_udc_stop(struct usb_gadget *g)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 
 #include <linux/seq_file.h>
 
@@ -2473,8 +2473,8 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 	if (addr & USB_DIR_IN)
 		ep += 16;
 
-	/* in case of ep init table bugs */
-	BUG_ON(ep->name[0]);
+	/* in case of ep init table s */
+	_ON(ep->name[0]);
 
 	/* chip setup ... bit values are same for IN, OUT */
 	if (type == USB_ENDPOINT_XFER_ISOC) {
@@ -2501,7 +2501,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 			epn_rxtx = 6 << 12;
 			break;
 		default:
-			BUG();
+			();
 		}
 		epn_rxtx |= UDC_EPN_RX_ISO;
 		dbuf = 1;
@@ -2527,7 +2527,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 			epn_rxtx = 3 << 12;
 			break;
 		default:
-			BUG();
+			();
 		}
 		if (dbuf && addr)
 			epn_rxtx |= UDC_EPN_RX_DB;
@@ -2535,7 +2535,7 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 	}
 	if (addr)
 		epn_rxtx |= UDC_EPN_RX_VALID;
-	BUG_ON(buf & 0x07);
+	_ON(buf & 0x07);
 	epn_rxtx |= buf >> 3;
 
 	DBG("%s addr %02x rxtx %04x maxp %d%s buf %d\n",
@@ -2550,10 +2550,10 @@ omap_ep_setup(char *name, u8 addr, u8 type,
 	buf += maxp;
 	if (dbuf)
 		buf += maxp;
-	BUG_ON(buf > 2048);
+	_ON(buf > 2048);
 
 	/* set up driver data structures */
-	BUG_ON(strlen(name) >= sizeof ep->name);
+	_ON(strlen(name) >= sizeof ep->name);
 	strlcpy(ep->name, name, sizeof ep->name);
 	INIT_LIST_HEAD(&ep->queue);
 	INIT_LIST_HEAD(&ep->iso);
@@ -2767,7 +2767,7 @@ static int omap_udc_probe(struct platform_device *pdev)
 	if (cpu_is_omap16xx()) {
 		dc_clk = clk_get(&pdev->dev, "usb_dc_ck");
 		hhc_clk = clk_get(&pdev->dev, "usb_hhc_ck");
-		BUG_ON(IS_ERR(dc_clk) || IS_ERR(hhc_clk));
+		_ON(IS_ERR(dc_clk) || IS_ERR(hhc_clk));
 		/* can't use omap_udc_enable_clock yet */
 		clk_enable(dc_clk);
 		clk_enable(hhc_clk);
@@ -2777,7 +2777,7 @@ static int omap_udc_probe(struct platform_device *pdev)
 	if (cpu_is_omap7xx()) {
 		dc_clk = clk_get(&pdev->dev, "usb_dc_ck");
 		hhc_clk = clk_get(&pdev->dev, "l3_ocpi_ck");
-		BUG_ON(IS_ERR(dc_clk) || IS_ERR(hhc_clk));
+		_ON(IS_ERR(dc_clk) || IS_ERR(hhc_clk));
 		/* can't use omap_udc_enable_clock yet */
 		clk_enable(dc_clk);
 		clk_enable(hhc_clk);

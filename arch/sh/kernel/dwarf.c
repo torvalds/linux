@@ -11,7 +11,7 @@
  *	- Registers with DWARF_VAL_OFFSET rules aren't handled properly.
  */
 
-/* #define DEBUG */
+/* #define DE */
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/list.h>
@@ -71,7 +71,7 @@ static struct dwarf_reg *dwarf_frame_alloc_reg(struct dwarf_frame *frame,
 		 * Let's just bomb hard here, we have no way to
 		 * gracefully recover.
 		 */
-		UNWINDER_BUG();
+		UNWINDER_();
 	}
 
 	reg->number = reg_num;
@@ -233,8 +233,8 @@ static int dwarf_read_encoded_value(char *addr, unsigned long *val,
 		decoded_addr = (unsigned long)addr;
 		break;
 	default:
-		pr_debug("encoding=0x%x\n", (encoding & 0x70));
-		UNWINDER_BUG();
+		pr_de("encoding=0x%x\n", (encoding & 0x70));
+		UNWINDER_();
 	}
 
 	if ((encoding & 0x07) == 0x00)
@@ -248,8 +248,8 @@ static int dwarf_read_encoded_value(char *addr, unsigned long *val,
 		__raw_writel(decoded_addr, val);
 		break;
 	default:
-		pr_debug("encoding=0x%x\n", encoding);
-		UNWINDER_BUG();
+		pr_de("encoding=0x%x\n", encoding);
+		UNWINDER_();
 	}
 
 	return count;
@@ -321,7 +321,7 @@ static struct dwarf_cie *dwarf_lookup_cie(unsigned long cie_ptr)
 		struct dwarf_cie *cie_tmp;
 
 		cie_tmp = rb_entry(*rb_node, struct dwarf_cie, node);
-		BUG_ON(!cie_tmp);
+		_ON(!cie_tmp);
 
 		if (cie_ptr == cie_tmp->cie_pointer) {
 			cie = cie_tmp;
@@ -357,7 +357,7 @@ struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
 		unsigned long tmp_start, tmp_end;
 
 		fde_tmp = rb_entry(*rb_node, struct dwarf_fde, node);
-		BUG_ON(!fde_tmp);
+		_ON(!fde_tmp);
 
 		tmp_start = fde_tmp->initial_location;
 		tmp_end = fde_tmp->initial_location + fde_tmp->address_range;
@@ -540,8 +540,8 @@ static int dwarf_cfa_execute_insns(unsigned char *insn_start,
 			regp->addr = -offset;
 			break;
 		default:
-			pr_debug("unhandled DWARF instruction 0x%x\n", insn);
-			UNWINDER_BUG();
+			pr_de("unhandled DWARF instruction 0x%x\n", insn);
+			UNWINDER_();
 			break;
 		}
 	}
@@ -623,7 +623,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	frame = mempool_alloc(dwarf_frame_pool, GFP_ATOMIC);
 	if (!frame) {
 		printk(KERN_ERR "Unable to allocate a dwarf frame\n");
-		UNWINDER_BUG();
+		UNWINDER_();
 	}
 
 	INIT_LIST_HEAD(&frame->reg_list);
@@ -643,7 +643,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		 *	frame that was called from some assembly code
 		 *	that has no DWARF info, e.g. syscalls.
 		 *
-		 *	b) the DEBUG info for pc is bogus. There's
+		 *	b) the DE info for pc is bogus. There's
 		 *	really no way to distinguish this case from the
 		 *	case above, which sucks because we could print a
 		 *	warning here.
@@ -669,8 +669,8 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	case DWARF_FRAME_CFA_REG_OFFSET:
 		if (prev) {
 			reg = dwarf_frame_reg(prev, frame->cfa_register);
-			UNWINDER_BUG_ON(!reg);
-			UNWINDER_BUG_ON(reg->flags != DWARF_REG_OFFSET);
+			UNWINDER__ON(!reg);
+			UNWINDER__ON(reg->flags != DWARF_REG_OFFSET);
 
 			addr = prev->cfa + reg->addr;
 			frame->cfa = __raw_readl(addr);
@@ -689,7 +689,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 		frame->cfa += frame->cfa_offset;
 		break;
 	default:
-		UNWINDER_BUG();
+		UNWINDER_();
 	}
 
 	reg = dwarf_frame_reg(frame, DWARF_ARCH_RA_REG);
@@ -702,7 +702,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	if (!reg || reg->flags == DWARF_UNDEFINED)
 		goto bail;
 
-	UNWINDER_BUG_ON(reg->flags != DWARF_REG_OFFSET);
+	UNWINDER__ON(reg->flags != DWARF_REG_OFFSET);
 
 	addr = frame->cfa + reg->addr;
 	frame->return_addr = __raw_readl(addr);
@@ -756,7 +756,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	cie->cie_pointer = (unsigned long)entry;
 
 	cie->version = *(char *)p++;
-	UNWINDER_BUG_ON(cie->version != 1);
+	UNWINDER__ON(cie->version != 1);
 
 	cie->augmentation = p;
 	p += strlen(cie->augmentation) + 1;
@@ -786,7 +786,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 		count = dwarf_read_uleb128(p, &length);
 		p += count;
 
-		UNWINDER_BUG_ON((unsigned char *)p > end);
+		UNWINDER__ON((unsigned char *)p > end);
 
 		cie->initial_instructions = p + length;
 		cie->augmentation++;
@@ -814,16 +814,16 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 			 * routine in the CIE
 			 * augmentation.
 			 */
-			UNWINDER_BUG();
+			UNWINDER_();
 		} else if (*cie->augmentation == 'S') {
-			UNWINDER_BUG();
+			UNWINDER_();
 		} else {
 			/*
 			 * Unknown augmentation. Assume
 			 * 'z' augmentation.
 			 */
 			p = cie->initial_instructions;
-			UNWINDER_BUG_ON(!p);
+			UNWINDER__ON(!p);
 			break;
 		}
 	}

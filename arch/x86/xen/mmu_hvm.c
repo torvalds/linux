@@ -64,7 +64,7 @@ static int is_pagetable_dying_supported(void)
 	a.gpa = 0x00;
 	rc = HYPERVISOR_hvm_op(HVMOP_pagetable_dying, &a);
 	if (rc < 0) {
-		printk(KERN_DEBUG "HVMOP_pagetable_dying not supported\n");
+		printk(KERN_DE "HVMOP_pagetable_dying not supported\n");
 		return 0;
 	}
 	return 1;

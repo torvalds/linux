@@ -100,7 +100,7 @@ void ide_complete_power_step(ide_drive_t *drive, struct request *rq)
 {
 	struct ide_pm_state *pm = ide_req(rq)->special;
 
-#ifdef DEBUG_PM
+#ifdef DE_PM
 	printk(KERN_INFO "%s: complete_power_step(step: %d)\n",
 		drive->name, pm->pm_step);
 #endif
@@ -206,7 +206,7 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 	if (pm->pm_step != IDE_PM_COMPLETED)
 		return;
 
-#ifdef DEBUG_PM
+#ifdef DE_PM
 	printk("%s: completing PM request, %s\n", drive->name,
 	       (ide_req(rq)->type == ATA_PRIV_PM_SUSPEND) ? "suspend" : "resume");
 #endif
@@ -244,7 +244,7 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 		struct request_queue *q = drive->queue;
 		int rc;
-#ifdef DEBUG_PM
+#ifdef DE_PM
 		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
 #endif
 		rc = ide_wait_not_busy(hwif, 35000);

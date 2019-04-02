@@ -30,7 +30,7 @@
 #include <subcmd/parse-options.h>
 #include "../../util/parse-events.h"
 #include "../../util/pmu.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/auxtrace.h"
 #include "../../util/tsc.h"
 #include "../../util/intel-pt.h"
@@ -165,7 +165,7 @@ static size_t intel_pt_psb_period(struct perf_pmu *intel_pt_pmu,
 
 	psb_period = 1 << (val + 11);
 out:
-	pr_debug2("%s psb_period %zu\n", intel_pt_pmu->name, psb_period);
+	pr_de2("%s psb_period %zu\n", intel_pt_pmu->name, psb_period);
 	return psb_period;
 }
 
@@ -230,7 +230,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	    perf_pmu__scan_file(intel_pt_pmu, "format/branch", "%c", &c) == 1)
 		pos += scnprintf(buf + pos, sizeof(buf) - pos, ",pt,branch");
 
-	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
+	pr_de2("%s default config: %s\n", intel_pt_pmu->name, buf);
 
 	intel_pt_parse_terms(&intel_pt_pmu->format, buf, &config);
 
@@ -417,7 +417,7 @@ static int intel_pt_track_switches(struct perf_evlist *evlist)
 
 	err = parse_events(evlist, sched_switch, NULL);
 	if (err) {
-		pr_debug2("%s: failed to parse %s, error %d\n",
+		pr_de2("%s: failed to parse %s, error %d\n",
 			  __func__, sched_switch, err);
 		return err;
 	}
@@ -639,7 +639,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			pr_err("Failed to calculate default snapshot size and/or AUX area tracing mmap pages\n");
 			return -EINVAL;
 		}
-		pr_debug2("Intel PT snapshot size: %zu\n",
+		pr_de2("Intel PT snapshot size: %zu\n",
 			  opts->auxtrace_snapshot_size);
 		if (psb_period &&
 		    opts->auxtrace_snapshot_size <= psb_period +
@@ -727,7 +727,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		} else {
 			err = intel_pt_track_switches(evlist);
 			if (err == -EPERM)
-				pr_debug2("Unable to select sched:sched_switch\n");
+				pr_de2("Unable to select sched:sched_switch\n");
 			else if (err)
 				return err;
 			else
@@ -1013,7 +1013,7 @@ static int intel_pt_find_snapshot(struct auxtrace_record *itr, int idx,
 	bool wrapped;
 	int err;
 
-	pr_debug3("%s: mmap index %d old head %zu new head %zu\n",
+	pr_de3("%s: mmap index %d old head %zu new head %zu\n",
 		  __func__, idx, (size_t)*old, (size_t)*head);
 
 	err = intel_pt_snapshot_init(ptr, mm->len);
@@ -1059,7 +1059,7 @@ static int intel_pt_find_snapshot(struct auxtrace_record *itr, int idx,
 			*head += mm->len;
 	}
 
-	pr_debug3("%s: wrap-around %sdetected, adjusted old head %zu adjusted new head %zu\n",
+	pr_de3("%s: wrap-around %sdetected, adjusted old head %zu adjusted new head %zu\n",
 		  __func__, wrapped ? "" : "not ", (size_t)*old, (size_t)*head);
 
 	return 0;

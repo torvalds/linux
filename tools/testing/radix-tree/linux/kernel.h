@@ -15,7 +15,7 @@
 
 #define printk printf
 #define pr_info printk
-#define pr_debug printk
+#define pr_de printk
 #define pr_cont printk
 
 #define __acquires(x)

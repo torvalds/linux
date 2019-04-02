@@ -100,7 +100,7 @@ static int xen_register_pirq(u32 gsi, int gsi_override, int triggering,
 	if (irq < 0)
 		goto out;
 
-	printk(KERN_DEBUG "xen: --> pirq=%d -> irq=%d (gsi=%d)\n", map_irq.pirq, irq, gsi);
+	printk(KERN_DE "xen: --> pirq=%d -> irq=%d (gsi=%d)\n", map_irq.pirq, irq, gsi);
 out:
 	return irq;
 }
@@ -124,7 +124,7 @@ static int xen_register_gsi(u32 gsi, int gsi_override, int triggering, int polar
 	if (!xen_pv_domain())
 		return -1;
 
-	printk(KERN_DEBUG "xen: registering gsi %u triggering %d polarity %d\n",
+	printk(KERN_DE "xen: registering gsi %u triggering %d polarity %d\n",
 			gsi, triggering, polarity);
 
 	irq = xen_register_pirq(gsi, gsi_override, triggering, true);

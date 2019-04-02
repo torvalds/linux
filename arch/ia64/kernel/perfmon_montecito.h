@@ -172,9 +172,9 @@ pfm_mont_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cn
 	is_loaded = ctx->ctx_state == PFM_CTX_LOADED || ctx->ctx_state == PFM_CTX_MASKED;
 
 	/*
-	 * we must clear the debug registers if pmc41 has a value which enable
+	 * we must clear the de registers if pmc41 has a value which enable
 	 * memory pipeline event constraints. In this case we need to clear the
-	 * the debug registers if they have not yet been accessed. This is required
+	 * the de registers if they have not yet been accessed. This is required
 	 * to avoid picking stale state.
 	 * PMC41 is "active" if:
 	 * 	one of the pmc41.cfg_dtagXX field is different from 0x3
@@ -190,18 +190,18 @@ pfm_mont_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cn
 
 		DPRINT(("pmc[%d]=0x%lx has active pmc41 settings, clearing dbr\n", cnum, tmpval));
 
-		/* don't mix debug with perfmon */
+		/* don't mix de with perfmon */
 		if (task && (task->thread.flags & IA64_THREAD_DBG_VALID) != 0) return -EINVAL;
 
 		/*
-		 * a count of 0 will mark the debug registers if:
+		 * a count of 0 will mark the de registers if:
 		 * AND
 		 */
 		ret = pfm_write_ibr_dbr(PFM_DATA_RR, ctx, NULL, 0, regs);
 		if (ret) return ret;
 	}
 	/*
-	 * we must clear the (instruction) debug registers if:
+	 * we must clear the (instruction) de registers if:
 	 * 	pmc38.ig_ibrpX is 0 (enabled)
 	 * AND
 	 *	ctx_fl_using_dbreg == 0  (i.e., dbr not yet used)
@@ -210,11 +210,11 @@ pfm_mont_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cn
 
 		DPRINT(("pmc38=0x%lx has active pmc38 settings, clearing ibr\n", tmpval));
 
-		/* don't mix debug with perfmon */
+		/* don't mix de with perfmon */
 		if (task && (task->thread.flags & IA64_THREAD_DBG_VALID) != 0) return -EINVAL;
 
 		/*
-		 * a count of 0 will mark the debug registers as in use and also
+		 * a count of 0 will mark the de registers as in use and also
 		 * ensure that they are properly cleared.
 		 */
 		ret = pfm_write_ibr_dbr(PFM_CODE_RR, ctx, NULL, 0, regs);
@@ -266,5 +266,5 @@ static pmu_config_t pmu_conf_mont={
 	.pmc_desc        = pfm_mont_pmc_desc,
 	.num_ibrs        = 8,
 	.num_dbrs        = 8,
-	.use_rr_dbregs   = 1 /* debug register are use for range retrictions */
+	.use_rr_dbregs   = 1 /* de register are use for range retrictions */
 };

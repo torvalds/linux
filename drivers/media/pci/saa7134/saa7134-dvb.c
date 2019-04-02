@@ -98,7 +98,7 @@ static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
 	saa_setl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 28));
 	udelay(10);
 	ok = saa_readl(SAA7134_GPIO_GPSTATUS0) & (1 << 27);
-	pr_debug("%s %s\n", __func__, ok ? "on" : "off");
+	pr_de("%s %s\n", __func__, ok ? "on" : "off");
 
 	if (!ok)
 		saa_clearl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 26));
@@ -117,7 +117,7 @@ static int mt352_pinnacle_init(struct dvb_frontend* fe)
 	static u8 scan_ctl_cfg []  = { SCAN_CTL,   0x0d };
 	static u8 irq_cfg []       = { INTERRUPT_EN_0, 0x00, 0x00, 0x00, 0x00 };
 
-	pr_debug("%s called\n", __func__);
+	pr_de("%s called\n", __func__);
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
 	udelay(200);
@@ -557,11 +557,11 @@ static int philips_tda827x_tuner_init(struct dvb_frontend *fe)
 	case 0:
 		break;
 	case 1:
-		pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
+		pr_de("setting GPIO21 to 0 (TV antenna?)\n");
 		saa7134_set_gpio(dev, 21, 0);
 		break;
 	case 2:
-		pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
+		pr_de("setting GPIO21 to 1 (Radio antenna?)\n");
 		saa7134_set_gpio(dev, 21, 1);
 		break;
 	}
@@ -577,11 +577,11 @@ static int philips_tda827x_tuner_sleep(struct dvb_frontend *fe)
 	case 0:
 		break;
 	case 1:
-		pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
+		pr_de("setting GPIO21 to 1 (Radio antenna?)\n");
 		saa7134_set_gpio(dev, 21, 1);
 		break;
 	case 2:
-		pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
+		pr_de("setting GPIO21 to 0 (TV antenna?)\n");
 		saa7134_set_gpio(dev, 21, 0);
 		break;
 	}
@@ -1243,7 +1243,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
-		pr_debug("pinnacle 300i dvb setup\n");
+		pr_de("pinnacle 300i dvb setup\n");
 		fe0->dvb.frontend = dvb_attach(mt352_attach, &pinnacle_300i,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend) {
@@ -1252,7 +1252,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
-		pr_debug("avertv 777 dvb setup\n");
+		pr_de("avertv 777 dvb setup\n");
 		fe0->dvb.frontend = dvb_attach(mt352_attach, &avermedia_777,
 					       &dev->i2c_adap);
 		if (fe0->dvb.frontend) {
@@ -1262,7 +1262,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
-		pr_debug("AverMedia A16D dvb setup\n");
+		pr_de("AverMedia A16D dvb setup\n");
 		fe0->dvb.frontend = dvb_attach(mt352_attach,
 						&avermedia_xc3028_mt352_dev,
 						&dev->i2c_adap);
@@ -1609,7 +1609,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			goto detach_frontend;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
-		pr_debug("AverMedia E506R dvb setup\n");
+		pr_de("AverMedia E506R dvb setup\n");
 		saa7134_set_gpio(dev, 25, 0);
 		msleep(10);
 		saa7134_set_gpio(dev, 25, 1);

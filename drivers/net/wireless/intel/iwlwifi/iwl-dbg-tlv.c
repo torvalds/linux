@@ -132,7 +132,7 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 		hdr = (void *)&tlv->data[0];
 		apply = le32_to_cpu(hdr->apply_point);
 
-		IWL_DEBUG_FW(trans, "Read TLV %x, apply point %d\n",
+		IWL_DE_FW(trans, "Read TLV %x, apply point %d\n",
 			     le32_to_cpu(tlv->type), apply);
 
 		if (WARN_ON(apply >= IWL_FW_INI_APPLY_NUM))
@@ -218,7 +218,7 @@ static int iwl_parse_fw_dbg_tlv(struct iwl_trans *trans, const u8 *data,
 		case IWL_UCODE_TLV_TYPE_HCMD:
 		case IWL_UCODE_TLV_TYPE_REGIONS:
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
-		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
+		case IWL_UCODE_TLV_TYPE_DE_FLOW:
 			iwl_fw_dbg_copy_tlv(trans, tlv, true);
 			break;
 		default:

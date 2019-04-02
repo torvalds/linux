@@ -834,9 +834,9 @@ static int calculate_video_dma_grab_planar(struct saa7146_dev* dev, struct saa71
 	int height = buf->fmt->height;
 	enum v4l2_field field = buf->fmt->field;
 
-	BUG_ON(0 == buf->pt[0].dma);
-	BUG_ON(0 == buf->pt[1].dma);
-	BUG_ON(0 == buf->pt[2].dma);
+	_ON(0 == buf->pt[0].dma);
+	_ON(0 == buf->pt[1].dma);
+	_ON(0 == buf->pt[2].dma);
 
 	DEB_CAP("[size=%dx%d,fields=%s]\n",
 		width, height, v4l2_field_names[field]);

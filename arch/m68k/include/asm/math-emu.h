@@ -48,7 +48,7 @@
 #define FPCR_PRECISION_D	2	/* float */
 
 
-/* Flags to select the debugging output */
+/* Flags to select the deging output */
 #define PDECODE		0
 #define PEXECUTE	1
 #define PCONV		2
@@ -103,11 +103,11 @@ struct fp_data {
 	struct fp_ext temp[2];
 };
 
-#ifdef FPU_EMU_DEBUG
-extern unsigned int fp_debugprint;
+#ifdef FPU_EMU_DE
+extern unsigned int fp_deprint;
 
 #define dprint(bit, fmt, ...) ({			\
-	if (fp_debugprint & (1 << (bit)))		\
+	if (fp_deprint & (1 << (bit)))		\
 		pr_info(fmt, ##__VA_ARGS__);		\
 })
 #else
@@ -251,7 +251,7 @@ old_gas=old_gas+1
 .endm
 
 .macro	printf	bit=-1,string,nr=0,arg1,arg2,arg3,arg4,arg5
-#ifdef FPU_EMU_DEBUG
+#ifdef FPU_EMU_DE
 	.data
 .Lpdata\@:
 	.string	"\string"
@@ -262,9 +262,9 @@ old_gas=old_gas+1
 #if 0
 	moveq	#\bit,%d0
 	andw	#7,%d0
-	btst	%d0,fp_debugprint+((31-\bit)/8)
+	btst	%d0,fp_deprint+((31-\bit)/8)
 #else
-	btst	#\bit,fp_debugprint+((31-\bit)/8)
+	btst	#\bit,fp_deprint+((31-\bit)/8)
 #endif
 	jeq	.Lpskip\@
 	.endif
@@ -278,7 +278,7 @@ old_gas=old_gas+1
 .endm
 
 .macro	printx	bit,fp
-#ifdef FPU_EMU_DEBUG
+#ifdef FPU_EMU_DE
 	movem.l	%d0/%a0,-(%sp)
 	lea	\fp,%a0
 #if 0
@@ -304,8 +304,8 @@ old_gas=old_gas+1
 #endif
 .endm
 
-.macro	debug	instr,args
-#ifdef FPU_EMU_DEBUG
+.macro	de	instr,args
+#ifdef FPU_EMU_DE
 	\instr	\args
 #endif
 .endm

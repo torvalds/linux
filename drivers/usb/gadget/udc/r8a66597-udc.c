@@ -685,7 +685,7 @@ static void sudmac_free_channel(struct r8a66597 *r8a66597,
 static void sudmac_start(struct r8a66597 *r8a66597, struct r8a66597_ep *ep,
 			 struct r8a66597_request *req)
 {
-	BUG_ON(req->req.length == 0);
+	_ON(req->req.length == 0);
 
 	r8a66597_sudmac_write(r8a66597, LBA_WAIT, CH0CFG);
 	r8a66597_sudmac_write(r8a66597, req->req.dma, CH0BA);
@@ -1562,7 +1562,7 @@ static int r8a66597_disable(struct usb_ep *_ep)
 	unsigned long flags;
 
 	ep = container_of(_ep, struct r8a66597_ep, ep);
-	BUG_ON(!ep);
+	_ON(!ep);
 
 	while (!list_empty(&ep->queue)) {
 		req = get_request_from_ep(ep);

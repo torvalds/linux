@@ -2,7 +2,7 @@
 #define _KDBPRIVATE_H
 
 /*
- * Kernel Debugger Architecture Independent Private Headers
+ * Kernel Deger Architecture Independent Private Headers
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,27 +13,27 @@
  */
 
 #include <linux/kgdb.h>
-#include "../debug_core.h"
+#include "../de_core.h"
 
-/* Kernel Debugger Command codes.  Must not overlap with error codes. */
+/* Kernel Deger Command codes.  Must not overlap with error codes. */
 #define KDB_CMD_GO	(-1001)
 #define KDB_CMD_CPU	(-1002)
 #define KDB_CMD_SS	(-1003)
 #define KDB_CMD_KGDB (-1005)
 
-/* Internal debug flags */
-#define KDB_DEBUG_FLAG_BP	0x0002	/* Breakpoint subsystem debug */
-#define KDB_DEBUG_FLAG_BB_SUMM	0x0004	/* Basic block analysis, summary only */
-#define KDB_DEBUG_FLAG_AR	0x0008	/* Activation record, generic */
-#define KDB_DEBUG_FLAG_ARA	0x0010	/* Activation record, arch specific */
-#define KDB_DEBUG_FLAG_BB	0x0020	/* All basic block analysis */
-#define KDB_DEBUG_FLAG_STATE	0x0040	/* State flags */
-#define KDB_DEBUG_FLAG_MASK	0xffff	/* All debug flags */
-#define KDB_DEBUG_FLAG_SHIFT	16	/* Shift factor for dbflags */
+/* Internal de flags */
+#define KDB_DE_FLAG_BP	0x0002	/* Breakpoint subsystem de */
+#define KDB_DE_FLAG_BB_SUMM	0x0004	/* Basic block analysis, summary only */
+#define KDB_DE_FLAG_AR	0x0008	/* Activation record, generic */
+#define KDB_DE_FLAG_ARA	0x0010	/* Activation record, arch specific */
+#define KDB_DE_FLAG_BB	0x0020	/* All basic block analysis */
+#define KDB_DE_FLAG_STATE	0x0040	/* State flags */
+#define KDB_DE_FLAG_MASK	0xffff	/* All de flags */
+#define KDB_DE_FLAG_SHIFT	16	/* Shift factor for dbflags */
 
-#define KDB_DEBUG(flag)	(kdb_flags & \
-	(KDB_DEBUG_FLAG_##flag << KDB_DEBUG_FLAG_SHIFT))
-#define KDB_DEBUG_STATE(text, value) if (KDB_DEBUG(STATE)) \
+#define KDB_DE(flag)	(kdb_flags & \
+	(KDB_DE_FLAG_##flag << KDB_DE_FLAG_SHIFT))
+#define KDB_DE_STATE(text, value) if (KDB_DE(STATE)) \
 		kdb_print_state(text, value)
 
 #if BITS_PER_LONG == 32
@@ -113,7 +113,7 @@ extern void kdbnearsym_cleanup(void);
 extern char *kdb_strdup(const char *str, gfp_t type);
 extern void kdb_symbol_print(unsigned long, const kdb_symtab_t *, unsigned int);
 
-/* Routine for debugging the debugger state. */
+/* Routine for deging the deger state. */
 extern void kdb_print_state(const char *, int);
 
 extern int kdb_state;
@@ -223,7 +223,7 @@ extern void kdb_gdb_state_pass(char *buf);
 #define KDB_SP_DEFAULT (KDB_SP_VALUE|KDB_SP_PAREN)
 
 #define KDB_TSK(cpu) kgdb_info[cpu].task
-#define KDB_TSKREGS(cpu) kgdb_info[cpu].debuggerinfo
+#define KDB_TSKREGS(cpu) kgdb_info[cpu].degerinfo
 
 extern struct task_struct *kdb_curr_task(int);
 
@@ -235,9 +235,9 @@ extern struct task_struct *kdb_curr_task(int);
 
 #define GFP_KDB (in_interrupt() ? GFP_ATOMIC : GFP_KERNEL)
 
-extern void *debug_kmalloc(size_t size, gfp_t flags);
-extern void debug_kfree(void *);
-extern void debug_kusage(void);
+extern void *de_kmalloc(size_t size, gfp_t flags);
+extern void de_kfree(void *);
+extern void de_kusage(void);
 
 extern void kdb_set_current_task(struct task_struct *);
 extern struct task_struct *kdb_current_task;

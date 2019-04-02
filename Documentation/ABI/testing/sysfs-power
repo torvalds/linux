@@ -107,13 +107,13 @@ Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/pm_trace file controls the code which saves the
 		last PM event point in the RTC across reboots, so that you can
-		debug a machine that just hangs during suspend (or more
+		de a machine that just hangs during suspend (or more
 		commonly, during resume).  Namely, the RTC is only used to save
 		the last PM event point if this file contains '1'.  Initially
 		it contains '0' which may be changed to '1' by writing a
 		string representing a nonzero integer into it.
 
-		To use this debugging feature you should attempt to suspend
+		To use this deging feature you should attempt to suspend
 		the machine, then reboot it and run
 
 		dmesg -s 1000000 | grep 'hash matches'
@@ -276,15 +276,15 @@ Description:
 		This output is useful for system wakeup diagnostics of spurious
 		wakeup interrupts.
 
-What:		/sys/power/pm_debug_messages
+What:		/sys/power/pm_de_messages
 Date:		July 2017
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
-		The /sys/power/pm_debug_messages file controls the printing
-		of debug messages from the system suspend/hiberbation
+		The /sys/power/pm_de_messages file controls the printing
+		of de messages from the system suspend/hiberbation
 		infrastructure to the kernel log.
 
-		Writing a "1" to this file enables the debug messages and
+		Writing a "1" to this file enables the de messages and
 		writing a "0" (default) to it disables them.  Reads from
 		this file return the current value.
 

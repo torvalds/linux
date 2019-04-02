@@ -903,7 +903,7 @@ const cpumask_t *qman_affine_cpus(void);
  * @cpu: the cpu whose affine portal is the subject of the query
  *
  * If @cpu is -1, the affine portal for the current CPU will be used. It is a
- * bug to call this function for any value of @cpu (other than -1) that is not a
+ *  to call this function for any value of @cpu (other than -1) that is not a
  * member of the mask returned from qman_affine_cpus().
  */
 u16 qman_affine_channel(int cpu);

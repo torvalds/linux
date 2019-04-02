@@ -50,8 +50,8 @@ struct saved_context {
 	unsigned long return_address;
 } __attribute__((packed));
 
-#define loaddebug(thread,register) \
-	set_debugreg((thread)->debugreg##register, register)
+#define loadde(thread,register) \
+	set_dereg((thread)->dereg##register, register)
 
 /* routines for saving/restoring kernel state */
 extern char core_restore_code[];

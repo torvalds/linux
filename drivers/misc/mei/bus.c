@@ -1126,7 +1126,7 @@ int __mei_cldev_driver_register(struct mei_cl_driver *cldrv,
 	if (err)
 		return err;
 
-	pr_debug("mei: driver [%s] registered\n", cldrv->driver.name);
+	pr_de("mei: driver [%s] registered\n", cldrv->driver.name);
 
 	return 0;
 }
@@ -1136,7 +1136,7 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv)
 {
 	driver_unregister(&cldrv->driver);
 
-	pr_debug("mei: driver [%s] unregistered\n", cldrv->driver.name);
+	pr_de("mei: driver [%s] unregistered\n", cldrv->driver.name);
 }
 EXPORT_SYMBOL_GPL(mei_cldev_driver_unregister);
 

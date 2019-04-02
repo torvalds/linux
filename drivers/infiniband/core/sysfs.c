@@ -393,7 +393,7 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		/* If reading GID fails, it is likely due to GID entry being
 		 * empty (invalid) or reserved GID in the table.  User space
 		 * expects to read GID table entries as long as it given index
-		 * is within GID table size.  Administrative/debugging tool
+		 * is within GID table size.  Administrative/deging tool
 		 * fails to query rest of the GID entries if it hits error
 		 * while querying a GID of the given index.  To avoid user
 		 * space throwing such error on fail to read gid, return zero

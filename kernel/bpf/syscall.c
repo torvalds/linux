@@ -496,7 +496,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 		if (map->spin_lock_off + sizeof(struct bpf_spin_lock) >
 		    map->value_size) {
 			WARN_ONCE(1,
-				  "verifier bug spin_lock_off %d value_size %d\n",
+				  "verifier  spin_lock_off %d value_size %d\n",
 				  map->spin_lock_off, map->value_size);
 			return -EFAULT;
 		}

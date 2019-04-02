@@ -302,11 +302,11 @@ nv40_gr_init(struct nvkm_gr *base)
 	nvkm_wr32(device, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nvkm_wr32(device, NV40_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0xFFFFFFFF);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x00000000);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x401287c0);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xe0de8055);
-	nvkm_wr32(device, NV10_PGRAPH_DEBUG_4, 0x00008000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0xFFFFFFFF);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x00000000);
+	nvkm_wr32(device, NV04_PGRAPH_DE_1, 0x401287c0);
+	nvkm_wr32(device, NV04_PGRAPH_DE_3, 0xe0de8055);
+	nvkm_wr32(device, NV10_PGRAPH_DE_4, 0x00008000);
 	nvkm_wr32(device, NV04_PGRAPH_LIMIT_VIOL_PIX, 0x00be3c5f);
 
 	nvkm_wr32(device, NV10_PGRAPH_CTX_CONTROL, 0x10010100);

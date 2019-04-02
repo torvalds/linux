@@ -240,7 +240,7 @@ static void perf_pmu_assign_str(char *name, const char *field, char **old_str,
 
 	if (*new_str) {	/* Have new string, check with old */
 		if (strcasecmp(*old_str, *new_str))
-			pr_debug("alias %s differs in field '%s'\n",
+			pr_de("alias %s differs in field '%s'\n",
 				 name, field);
 		zfree(old_str);
 	} else		/* Nothing new --> keep old string */
@@ -448,12 +448,12 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 
 		file = fopen(path, "r");
 		if (!file) {
-			pr_debug("Cannot open %s\n", path);
+			pr_de("Cannot open %s\n", path);
 			continue;
 		}
 
 		if (perf_pmu__new_alias(head, dir, name, file) < 0)
-			pr_debug("Cannot set up %s\n", name);
+			pr_de("Cannot set up %s\n", name);
 		fclose(file);
 	}
 
@@ -667,7 +667,7 @@ static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 		return NULL;
 
 	if (!printed) {
-		pr_debug("Using CPUID %s\n", cpuid);
+		pr_de("Using CPUID %s\n", cpuid);
 		printed = true;
 	}
 	return cpuid;

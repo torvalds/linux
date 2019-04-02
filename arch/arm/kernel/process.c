@@ -12,7 +12,7 @@
 
 #include <linux/export.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
@@ -212,7 +212,7 @@ void flush_thread(void)
 	flush_ptrace_hw_breakpoint(tsk);
 
 	memset(thread->used_cp, 0, sizeof(thread->used_cp));
-	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
+	memset(&tsk->thread.de, 0, sizeof(struct de_info));
 	memset(&thread->fpstate, 0, sizeof(union fp_state));
 
 	flush_tls();

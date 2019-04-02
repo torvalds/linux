@@ -24,7 +24,7 @@
  * Special hack: we have to be careful, because no indirections are
  * allowed here, and paravirt_ops is a kind of one. As it will only run in
  * baremetal anyway, we just keep it from happening. (This list needs to
- * be extended when new paravirt and debugging variants are added.)
+ * be extended when new paravirt and deging variants are added.)
  */
 #undef CONFIG_PARAVIRT
 #undef CONFIG_PARAVIRT_XXL

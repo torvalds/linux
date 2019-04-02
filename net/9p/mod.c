@@ -38,19 +38,19 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#ifdef CONFIG_NET_9P_DEBUG
-unsigned int p9_debug_level = 0;	/* feature-rific global debug level  */
-EXPORT_SYMBOL(p9_debug_level);
-module_param_named(debug, p9_debug_level, uint, 0);
-MODULE_PARM_DESC(debug, "9P debugging level");
+#ifdef CONFIG_NET_9P_DE
+unsigned int p9_de_level = 0;	/* feature-rific global de level  */
+EXPORT_SYMBOL(p9_de_level);
+module_param_named(de, p9_de_level, uint, 0);
+MODULE_PARM_DESC(de, "9P deging level");
 
-void _p9_debug(enum p9_debug_flags level, const char *func,
+void _p9_de(enum p9_de_flags level, const char *func,
 		const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	if ((p9_debug_level & level) != level)
+	if ((p9_de_level & level) != level)
 		return;
 
 	va_start(args, fmt);
@@ -58,14 +58,14 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (level == P9_DEBUG_9P)
+	if (level == P9_DE_9P)
 		pr_notice("(%8.8d) %pV", task_pid_nr(current), &vaf);
 	else
 		pr_notice("-- %s (%d): %pV", func, task_pid_nr(current), &vaf);
 
 	va_end(args);
 }
-EXPORT_SYMBOL(_p9_debug);
+EXPORT_SYMBOL(_p9_de);
 #endif
 
 /*

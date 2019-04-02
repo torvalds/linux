@@ -16,7 +16,7 @@
 #include <linux/memblock.h>
 #include <linux/sizes.h>
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/powernv.h>
 #include <asm/opal.h>
 

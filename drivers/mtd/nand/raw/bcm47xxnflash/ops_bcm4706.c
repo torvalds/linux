@@ -97,7 +97,7 @@ static void bcm47xxnflash_ops_bcm4706_read(struct mtd_info *mtd, uint8_t *buf,
 	int i;
 	int toread;
 
-	BUG_ON(b47n->curr_page_addr & ~nand_chip->pagemask);
+	_ON(b47n->curr_page_addr & ~nand_chip->pagemask);
 	/* Don't validate column using nand_chip->page_shift, it may be bigger
 	 * when accessing OOB */
 
@@ -147,7 +147,7 @@ static void bcm47xxnflash_ops_bcm4706_write(struct mtd_info *mtd,
 	const u32 *data = (u32 *)buf;
 	int i;
 
-	BUG_ON(b47n->curr_page_addr & ~nand_chip->pagemask);
+	_ON(b47n->curr_page_addr & ~nand_chip->pagemask);
 	/* Don't validate column using nand_chip->page_shift, it may be bigger
 	 * when accessing OOB */
 

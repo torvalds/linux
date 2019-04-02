@@ -40,7 +40,7 @@ extern struct task_struct *__curr(void);
 
 #define current (__curr())
 
-static inline int debug_locks_off(void)
+static inline int de_locks_off(void)
 {
 	return 1;
 }
@@ -61,8 +61,8 @@ static inline int debug_locks_off(void)
 #define print_tainted() ""
 #define static_obj(x) 1
 
-#define debug_show_all_locks()
-extern void debug_check_no_locks_held(void);
+#define de_show_all_locks()
+extern void de_check_no_locks_held(void);
 
 static __used bool __is_kernel_percpu_address(unsigned long addr, void *can_addr)
 {

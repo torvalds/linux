@@ -41,9 +41,9 @@ MODULE_DESCRIPTION("Brooktree-866 video encoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* ----------------------------------------------------------------------- */
@@ -69,7 +69,7 @@ static int bt866_write(struct bt866 *encoder, u8 subaddr, u8 data)
 
 	encoder->reg[subaddr] = data;
 
-	v4l_dbg(1, debug, client, "write 0x%02x = 0x%02x\n", subaddr, data);
+	v4l_dbg(1, de, client, "write 0x%02x = 0x%02x\n", subaddr, data);
 
 	for (err = 0; err < 3;) {
 		if (i2c_master_send(client, buffer, 2) == 2)
@@ -89,7 +89,7 @@ static int bt866_write(struct bt866 *encoder, u8 subaddr, u8 data)
 
 static int bt866_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, de, sd, "set norm %llx\n", (unsigned long long)std);
 
 	/* Only PAL supported by this driver at the moment! */
 	if (!(std & V4L2_STD_NTSC))
@@ -150,7 +150,7 @@ static int bt866_s_routing(struct v4l2_subdev *sd,
 		val &= ~0x01; /* !OSDBAR */
 	bt866_write(encoder, 0xcc, val);
 
-	v4l2_dbg(1, debug, sd, "set input %d\n", input);
+	v4l2_dbg(1, de, sd, "set input %d\n", input);
 
 	switch (input) {
 	case 0:

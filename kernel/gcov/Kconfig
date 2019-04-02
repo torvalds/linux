@@ -2,7 +2,7 @@ menu "GCOV-based kernel profiling"
 
 config GCOV_KERNEL
 	bool "Enable gcov-based kernel profiling"
-	depends on DEBUG_FS
+	depends on DE_FS
 	select CONSTRUCTORS if !UML
 	default n
 	---help---
@@ -29,7 +29,7 @@ config GCOV_KERNEL
 	and:
 	        GCOV_PROFILE := n
 
-	Note that the debugfs filesystem has to be mounted to access
+	Note that the defs filesystem has to be mounted to access
 	profiling data.
 
 config ARCH_HAS_GCOV_PROFILE_ALL

@@ -15,7 +15,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -194,7 +194,7 @@ static int amd_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 	return amd_gpio_set_debounce(gc, offset, debounce);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 {
 	u32 pin_reg;

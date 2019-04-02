@@ -152,7 +152,7 @@ const struct dcn_ip_params dcn10_ip_defaults = {
 		.under_scan_factor = 1.11f,
 		.max_inter_dcn_tile_repeaters = 8,
 		.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one = dcn_bw_no,
-		.bug_forcing_luma_and_chroma_request_to_same_size_fixed = dcn_bw_no,
+		._forcing_luma_and_chroma_request_to_same_size_fixed = dcn_bw_no,
 		.dcfclk_cstate_latency = 10 /*TODO clone of something else? sr_enter_plus_exit_time?*/
 };
 
@@ -199,7 +199,7 @@ static enum dcn_bw_defs tl_sw_mode_to_bw_defs(enum swizzle_mode_values sw_mode)
 	case DC_SW_64KB_R_X:
 	case DC_SW_VAR_R_X:
 	default:
-		BREAK_TO_DEBUGGER(); /*not in formula*/
+		BREAK_TO_DEGER(); /*not in formula*/
 		return dcn_bw_sw_4_kb_s;
 	}
 }
@@ -257,7 +257,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 	else if (pipe->bottom_pipe != NULL && pipe->bottom_pipe->plane_state == pipe->plane_state)
 		input->src.is_hsplit = true;
 
-	if (pipe->plane_res.dpp->ctx->dc->debug.optimized_watermark) {
+	if (pipe->plane_res.dpp->ctx->dc->de.optimized_watermark) {
 		/*
 		 * this method requires us to always re-calculate watermark when dcc change
 		 * between flip.
@@ -613,40 +613,40 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 	bool updated = false;
 
 	kernel_fpu_begin();
-	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->debug.sr_exit_time_ns
-			&& dc->debug.sr_exit_time_ns) {
+	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->de.sr_exit_time_ns
+			&& dc->de.sr_exit_time_ns) {
 		updated = true;
-		dc->dcn_soc->sr_exit_time = dc->debug.sr_exit_time_ns / 1000.0;
+		dc->dcn_soc->sr_exit_time = dc->de.sr_exit_time_ns / 1000.0;
 	}
 
 	if ((int)(dc->dcn_soc->sr_enter_plus_exit_time * 1000)
-				!= dc->debug.sr_enter_plus_exit_time_ns
-			&& dc->debug.sr_enter_plus_exit_time_ns) {
+				!= dc->de.sr_enter_plus_exit_time_ns
+			&& dc->de.sr_enter_plus_exit_time_ns) {
 		updated = true;
 		dc->dcn_soc->sr_enter_plus_exit_time =
-				dc->debug.sr_enter_plus_exit_time_ns / 1000.0;
+				dc->de.sr_enter_plus_exit_time_ns / 1000.0;
 	}
 
-	if ((int)(dc->dcn_soc->urgent_latency * 1000) != dc->debug.urgent_latency_ns
-			&& dc->debug.urgent_latency_ns) {
+	if ((int)(dc->dcn_soc->urgent_latency * 1000) != dc->de.urgent_latency_ns
+			&& dc->de.urgent_latency_ns) {
 		updated = true;
-		dc->dcn_soc->urgent_latency = dc->debug.urgent_latency_ns / 1000.0;
+		dc->dcn_soc->urgent_latency = dc->de.urgent_latency_ns / 1000.0;
 	}
 
 	if ((int)(dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency * 1000)
-				!= dc->debug.percent_of_ideal_drambw
-			&& dc->debug.percent_of_ideal_drambw) {
+				!= dc->de.percent_of_ideal_drambw
+			&& dc->de.percent_of_ideal_drambw) {
 		updated = true;
 		dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency =
-				dc->debug.percent_of_ideal_drambw;
+				dc->de.percent_of_ideal_drambw;
 	}
 
 	if ((int)(dc->dcn_soc->dram_clock_change_latency * 1000)
-				!= dc->debug.dram_clock_change_latency_ns
-			&& dc->debug.dram_clock_change_latency_ns) {
+				!= dc->de.dram_clock_change_latency_ns
+			&& dc->de.dram_clock_change_latency_ns) {
 		updated = true;
 		dc->dcn_soc->dram_clock_change_latency =
-				dc->debug.dram_clock_change_latency_ns / 1000.0;
+				dc->de.dram_clock_change_latency_ns / 1000.0;
 	}
 	kernel_fpu_end();
 
@@ -676,7 +676,7 @@ static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 }
 
 static void hack_bounding_box(struct dcn_bw_internal_vars *v,
-		struct dc_debug_options *dbg,
+		struct dc_de_options *dbg,
 		struct dc_state *context)
 {
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)
@@ -783,8 +783,8 @@ bool dcn_validate_bandwidth(
 	v->max_inter_dcn_tile_repeaters = dc->dcn_ip->max_inter_dcn_tile_repeaters;
 	v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one =
 			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
-	v->bug_forcing_luma_and_chroma_request_to_same_size_fixed =
-			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed;
+	v->_forcing_luma_and_chroma_request_to_same_size_fixed =
+			dc->dcn_ip->_forcing_luma_and_chroma_request_to_same_size_fixed;
 
 	v->voltage[5] = dcn_bw_no_support;
 	v->voltage[4] = dcn_bw_v_max0p9;
@@ -910,7 +910,7 @@ bool dcn_validate_bandwidth(
 					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
 			}
 
-			if (dc->debug.optimized_watermark) {
+			if (dc->de.optimized_watermark) {
 				/*
 				 * this method requires us to always re-calculate watermark when dcc change
 				 * between flip.
@@ -979,27 +979,27 @@ bool dcn_validate_bandwidth(
 
 	scaler_settings_calculation(v);
 
-	hack_bounding_box(v, &dc->debug, context);
+	hack_bounding_box(v, &dc->de, context);
 
 	mode_support_and_system_configuration(v);
 
 	/* Unhack dppclk: dont bother with trying to pipe split if we cannot maintain dpm0 */
 	if (v->voltage_level != 0
 			&& context->stream_count == 1
-			&& dc->debug.force_single_disp_pipe_split) {
+			&& dc->de.force_single_disp_pipe_split) {
 		v->max_dppclk[0] = v->max_dppclk_vmin0p65;
 		mode_support_and_system_configuration(v);
 	}
 
 	if (v->voltage_level == 0 &&
-			(dc->debug.sr_exit_time_dpm0_ns
-				|| dc->debug.sr_enter_plus_exit_time_dpm0_ns)) {
+			(dc->de.sr_exit_time_dpm0_ns
+				|| dc->de.sr_enter_plus_exit_time_dpm0_ns)) {
 
-		if (dc->debug.sr_enter_plus_exit_time_dpm0_ns)
+		if (dc->de.sr_enter_plus_exit_time_dpm0_ns)
 			v->sr_enter_plus_exit_time =
-				dc->debug.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
-		if (dc->debug.sr_exit_time_dpm0_ns)
-			v->sr_exit_time =  dc->debug.sr_exit_time_dpm0_ns / 1000.0f;
+				dc->de.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
+		if (dc->de.sr_exit_time_dpm0_ns)
+			v->sr_exit_time =  dc->de.sr_exit_time_dpm0_ns / 1000.0f;
 		dc->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
 		dc->dml.soc.sr_exit_time_us = v->sr_exit_time;
 		mode_support_and_system_configuration(v);
@@ -1017,13 +1017,13 @@ bool dcn_validate_bandwidth(
 			bw_consumed = v->fabric_and_dram_bandwidth_vmax0p9;
 
 		if (bw_consumed < v->fabric_and_dram_bandwidth)
-			if (dc->debug.voltage_align_fclk)
+			if (dc->de.voltage_align_fclk)
 				bw_consumed = v->fabric_and_dram_bandwidth;
 
 		display_pipe_configuration(v);
 		/*calc_wm_sets_and_perf_params(context, v);*/
 		/* Only 1 set is used by dcn since no noticeable
-		 * performance improvement was measured and due to hw bug DEGVIDCN10-254
+		 * performance improvement was measured and due to hw  DEGVIDCN10-254
 		 */
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
@@ -1049,13 +1049,13 @@ bool dcn_validate_bandwidth(
 		context->bw.dcn.clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
 		context->bw.dcn.clk.dispclk_khz = (int)(v->dispclk * 1000);
-		if (dc->debug.max_disp_clk == true)
+		if (dc->de.max_disp_clk == true)
 			context->bw.dcn.clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 
 		if (context->bw.dcn.clk.dispclk_khz <
-				dc->debug.min_disp_clk_khz) {
+				dc->de.min_disp_clk_khz) {
 			context->bw.dcn.clk.dispclk_khz =
-					dc->debug.min_disp_clk_khz;
+					dc->de.min_disp_clk_khz;
 		}
 
 		context->bw.dcn.clk.dppclk_khz = context->bw.dcn.clk.dispclk_khz / v->dispclk_dppclk_ratio;
@@ -1209,7 +1209,7 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
 		if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmax0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vnom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmid0p72*1000) {
@@ -1222,7 +1222,7 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
 		if (clocks_in_khz > dc->dcn_soc->phyclkv_max0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_nom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_mid0p72*1000) {
@@ -1236,7 +1236,7 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 	case DM_PP_CLOCK_TYPE_DPPCLK:
 		if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmax0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vnom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmid0p72*1000) {
@@ -1253,7 +1253,7 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 
 			if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9*1000000/factor) {
 				vdd_level = dcn_bw_v_max0p91;
-				BREAK_TO_DEBUGGER();
+				BREAK_TO_DEGER();
 			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8*1000000/factor) {
 				vdd_level = dcn_bw_v_max0p9;
 			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72*1000000/factor) {
@@ -1268,7 +1268,7 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 	case DM_PP_CLOCK_TYPE_DCFCLK:
 		if (clocks_in_khz > dc->dcn_soc->dcfclkv_max0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_nom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_mid0p72*1000) {
@@ -1312,7 +1312,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	/*find that level conresponding dcfclk*/
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
 	if (vdd_level == dcn_bw_v_max0p91) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		dcf_clk = dc->dcn_soc->dcfclkv_max0p9*1000;
 	} else if (vdd_level == dcn_bw_v_max0p9)
 		dcf_clk =  dc->dcn_soc->dcfclkv_max0p9*1000;
@@ -1370,7 +1370,7 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 				(fclks.data[fclks.num_levels - 1].clocks_in_khz / 1000.0)
 				* ddr4_dram_factor_single_Channel / 1000.0;
 	} else
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 
 	kernel_fpu_end();
 
@@ -1388,7 +1388,7 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks.data[dcfclks.num_levels - 2].clocks_in_khz / 1000.0;
 		dc->dcn_soc->dcfclkv_max0p9 = dcfclks.data[dcfclks.num_levels - 1].clocks_in_khz / 1000.0;
 	} else
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 
 	kernel_fpu_end();
 }
@@ -1412,7 +1412,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and
 	 * Memory clock member variables for Watermarks calculations for each
-	 * Watermark Set. Only one watermark set for dcn1 due to hw bug DEGVIDCN10-254.
+	 * Watermark Set. Only one watermark set for dcn1 due to hw  DEGVIDCN10-254.
 	 */
 	/* SOCCLK does not affect anytihng but writeback for DCN so for now we dont
 	 * care what the value is, hence min to overdrive level
@@ -1430,7 +1430,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	ranges.writer_wm_sets[0].min_drain_clk_mhz = min_fclk_khz / 1000;
 	ranges.writer_wm_sets[0].max_drain_clk_mhz = overdrive / 1000;
 
-	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
+	if (dc->de.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		ranges.reader_wm_sets[0].wm_inst = WM_A;
 		ranges.reader_wm_sets[0].min_drain_clk_mhz = 300;
 		ranges.reader_wm_sets[0].max_drain_clk_mhz = 5000;
@@ -1559,7 +1559,7 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			"under_scan_factor: %f %%\n"
 			"max_inter_dcn_tile_repeaters: %d\n"
 			"can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one: %d\n"
-			"bug_forcing_luma_and_chroma_request_to_same_size_fixed: %d\n"
+			"_forcing_luma_and_chroma_request_to_same_size_fixed: %d\n"
 			"dcfclk_cstate_latency: %d\n",
 			dc->dcn_ip->rob_buffer_size_in_kbyte,
 			dc->dcn_ip->det_buffer_size_in_kbyte,
@@ -1593,7 +1593,7 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_ip->under_scan_factor * 100,
 			dc->dcn_ip->max_inter_dcn_tile_repeaters,
 			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one,
-			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed,
+			dc->dcn_ip->_forcing_luma_and_chroma_request_to_same_size_fixed,
 			dc->dcn_ip->dcfclk_cstate_latency);
 
 	dc->dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
@@ -1644,8 +1644,8 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 	dc->dml.ip.max_inter_dcn_tile_repeaters = dc->dcn_ip->max_inter_dcn_tile_repeaters;
 	dc->dml.ip.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one =
 		dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_yes;
-	dc->dml.ip.bug_forcing_LC_req_same_size_fixed =
-		dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes;
+	dc->dml.ip._forcing_LC_req_same_size_fixed =
+		dc->dcn_ip->_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes;
 	dc->dml.ip.dcfclk_cstate_latency = dc->dcn_ip->dcfclk_cstate_latency;
 	kernel_fpu_end();
 }

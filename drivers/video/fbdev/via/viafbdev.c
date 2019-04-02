@@ -175,13 +175,13 @@ static void viafb_setup_fixinfo(struct fb_fix_screeninfo *fix,
 }
 static int viafb_open(struct fb_info *info, int user)
 {
-	DEBUG_MSG(KERN_INFO "viafb_open!\n");
+	DE_MSG(KERN_INFO "viafb_open!\n");
 	return 0;
 }
 
 static int viafb_release(struct fb_info *info, int user)
 {
-	DEBUG_MSG(KERN_INFO "viafb_release!\n");
+	DE_MSG(KERN_INFO "viafb_release!\n");
 	return 0;
 }
 
@@ -203,7 +203,7 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct viafb_par *ppar = info->par;
 	u32 line;
 
-	DEBUG_MSG(KERN_INFO "viafb_check_var!\n");
+	DE_MSG(KERN_INFO "viafb_check_var!\n");
 	/* Sanity check */
 	/* HW neither support interlacte nor double-scaned mode */
 	if (var->vmode & FB_VMODE_INTERLACED || var->vmode & FB_VMODE_DOUBLE)
@@ -213,7 +213,7 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	 * whether the resolution exists
 	 */
 	if (!viafb_get_best_mode(var->xres, var->yres, 60)) {
-		DEBUG_MSG(KERN_INFO
+		DE_MSG(KERN_INFO
 			  "viafb: Mode %dx%dx%d not supported!!\n",
 			  var->xres, var->yres, var->bits_per_pixel);
 		return -EINVAL;
@@ -267,7 +267,7 @@ static int viafb_set_par(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
 	int refresh;
-	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
+	DE_MSG(KERN_INFO "viafb_set_par!\n");
 
 	viafb_update_fix(info);
 	viapar->depth = fb_get_color_depth(&info->var, &info->fix);
@@ -279,7 +279,7 @@ static int viafb_set_par(struct fb_info *info)
 			viafbinfo1->var.yres, viafbinfo1->var.bits_per_pixel,
 			1);
 	} else if (viafb_SAMM_ON == 1) {
-		DEBUG_MSG(KERN_INFO
+		DE_MSG(KERN_INFO
 		"viafb_second_xres = %d, viafb_second_yres = %d, bpp = %d\n",
 			  viafb_second_xres, viafb_second_yres, viafb_bpp1);
 
@@ -348,7 +348,7 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 		+ var->yoffset * info->fix.line_length
 		+ var->xoffset * info->var.bits_per_pixel / 8;
 
-	DEBUG_MSG(KERN_DEBUG "viafb_pan_display, address = %d\n", vram_addr);
+	DE_MSG(KERN_DE "viafb_pan_display, address = %d\n", vram_addr);
 	if (!viafb_dual_fb) {
 		via_set_primary_address(vram_addr);
 		via_set_secondary_address(vram_addr);
@@ -362,7 +362,7 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 
 static int viafb_blank(int blank_mode, struct fb_info *info)
 {
-	DEBUG_MSG(KERN_INFO "viafb_blank!\n");
+	DE_MSG(KERN_INFO "viafb_blank!\n");
 	/* clear DPMS setting */
 
 	switch (blank_mode) {
@@ -409,7 +409,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 	u32 __user *argp = (u32 __user *) arg;
 	u32 gpu32;
 
-	DEBUG_MSG(KERN_INFO "viafb_ioctl: 0x%X !!\n", cmd);
+	DE_MSG(KERN_INFO "viafb_ioctl: 0x%X !!\n", cmd);
 	printk(KERN_WARNING "viafb_ioctl: Please avoid this interface as it is unstable and might change or vanish at any time!\n");
 	memset(&u, 0, sizeof(u));
 
@@ -615,7 +615,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 			return -EFAULT;
 		break;
 	case VIAFB_SYNC_SURFACE:
-		DEBUG_MSG(KERN_INFO "lobo VIAFB_SYNC_SURFACE\n");
+		DE_MSG(KERN_INFO "lobo VIAFB_SYNC_SURFACE\n");
 		break;
 	case VIAFB_GET_DRIVER_CAPS:
 		break;
@@ -702,7 +702,7 @@ static void viafb_fillrect(struct fb_info *info,
 	else
 		rop = 0xF0;
 
-	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: fillrect\n");
+	DE_MSG(KERN_DE "viafb 2D engine: fillrect\n");
 	if (shared->hw_bitblt(shared->vdev->engine_mmio, VIA_BITBLT_FILL,
 		rect->width, rect->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, rect->dx, rect->dy,
@@ -724,7 +724,7 @@ static void viafb_copyarea(struct fb_info *info,
 	if (!area->width || !area->height)
 		return;
 
-	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: copyarea\n");
+	DE_MSG(KERN_DE "viafb 2D engine: copyarea\n");
 	if (shared->hw_bitblt(shared->vdev->engine_mmio, VIA_BITBLT_COLOR,
 		area->width, area->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, area->dx, area->dy,
@@ -761,7 +761,7 @@ static void viafb_imageblit(struct fb_info *info,
 	} else
 		op = VIA_BITBLT_COLOR;
 
-	DEBUG_MSG(KERN_DEBUG "viafb 2D engine: imageblit\n");
+	DE_MSG(KERN_DE "viafb 2D engine: imageblit\n");
 	if (shared->hw_bitblt(shared->vdev->engine_mmio, op,
 		image->width, image->height, info->var.bits_per_pixel,
 		viapar->vram_addr, info->fix.line_length, image->dx, image->dy,
@@ -932,13 +932,13 @@ static int get_primary_device(void)
 	if (viafb_SAMM_ON) {
 		if (viafb_CRT_ON) {
 			if (viaparinfo->shared->iga1_devices & VIA_CRT) {
-				DEBUG_MSG(KERN_INFO "CRT IGA Path:%d\n", IGA1);
+				DE_MSG(KERN_INFO "CRT IGA Path:%d\n", IGA1);
 				primary_device = CRT_Device;
 			}
 		}
 		if (viafb_DVI_ON) {
 			if (viaparinfo->tmds_setting_info->iga_path == IGA1) {
-				DEBUG_MSG(KERN_INFO "DVI IGA Path:%d\n",
+				DE_MSG(KERN_INFO "DVI IGA Path:%d\n",
 					viaparinfo->
 					tmds_setting_info->iga_path);
 				primary_device = DVI_Device;
@@ -946,7 +946,7 @@ static int get_primary_device(void)
 		}
 		if (viafb_LCD_ON) {
 			if (viaparinfo->lvds_setting_info->iga_path == IGA1) {
-				DEBUG_MSG(KERN_INFO "LCD IGA Path:%d\n",
+				DE_MSG(KERN_INFO "LCD IGA Path:%d\n",
 					viaparinfo->
 					lvds_setting_info->iga_path);
 				primary_device = LCD_Device;
@@ -954,7 +954,7 @@ static int get_primary_device(void)
 		}
 		if (viafb_LCD2_ON) {
 			if (viaparinfo->lvds_setting_info2->iga_path == IGA1) {
-				DEBUG_MSG(KERN_INFO "LCD2 IGA Path:%d\n",
+				DE_MSG(KERN_INFO "LCD2 IGA Path:%d\n",
 					viaparinfo->
 					lvds_setting_info2->iga_path);
 				primary_device = LCD2_Device;
@@ -1098,7 +1098,7 @@ static void parse_lcd_port(void)
 	viaparinfo->chip_info->lvds_chip_info2.output_interface =
 	INTERFACE_NONE;
 
-	DEBUG_MSG(KERN_INFO "parse_lcd_port: viafb_lcd_port:%s,interface:%d\n",
+	DE_MSG(KERN_INFO "parse_lcd_port: viafb_lcd_port:%s,interface:%d\n",
 		  viafb_lcd_port, viaparinfo->chip_info->lvds_chip_info.
 		  output_interface);
 }
@@ -1108,7 +1108,7 @@ static void parse_dvi_port(void)
 	parse_port(viafb_dvi_port, &viaparinfo->chip_info->tmds_chip_info.
 		output_interface);
 
-	DEBUG_MSG(KERN_INFO "parse_dvi_port: viafb_dvi_port:%s,interface:%d\n",
+	DE_MSG(KERN_INFO "parse_dvi_port: viafb_dvi_port:%s,interface:%d\n",
 		  viafb_dvi_port, viaparinfo->chip_info->tmds_chip_info.
 		  output_interface);
 }
@@ -1158,7 +1158,7 @@ static ssize_t viafb_dvp0_proc_write(struct file *file,
 		if (value != NULL) {
 			if (kstrtou8(value, 0, &reg_val) < 0)
 				return -EINVAL;
-			DEBUG_MSG(KERN_INFO "DVP0:reg_val[%l]=:%x\n", i,
+			DE_MSG(KERN_INFO "DVP0:reg_val[%l]=:%x\n", i,
 				  reg_val);
 			switch (i) {
 			case 0:
@@ -1746,7 +1746,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 	int rc;
 	u32 viafb_par_length;
 
-	DEBUG_MSG(KERN_INFO "VIAFB PCI Probe!!\n");
+	DE_MSG(KERN_INFO "VIAFB PCI Probe!!\n");
 	memset(&default_var, 0, sizeof(default_var));
 	viafb_par_length = ALIGN(sizeof(struct viafb_par), BITS_PER_LONG/8);
 
@@ -1902,7 +1902,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 		if (rc)
 			goto out_fb_unreg;
 	}
-	DEBUG_MSG(KERN_INFO "fb%d: %s frame buffer device %dx%d-%dbpp\n",
+	DE_MSG(KERN_INFO "fb%d: %s frame buffer device %dx%d-%dbpp\n",
 		  viafbinfo->node, viafbinfo->fix.id, default_var.xres,
 		  default_var.yres, default_var.bits_per_pixel);
 
@@ -1932,7 +1932,7 @@ out_fb_release:
 
 void via_fb_pci_remove(struct pci_dev *pdev)
 {
-	DEBUG_MSG(KERN_INFO "via_pci_remove!\n");
+	DE_MSG(KERN_INFO "via_pci_remove!\n");
 	fb_dealloc_cmap(&viafbinfo->cmap);
 	unregister_framebuffer(viafbinfo);
 	if (viafb_dual_fb)
@@ -1950,7 +1950,7 @@ static int __init viafb_setup(void)
 	char *this_opt;
 	char *options;
 
-	DEBUG_MSG(KERN_INFO "viafb_setup!\n");
+	DE_MSG(KERN_INFO "viafb_setup!\n");
 
 	if (fb_get_options("viafb", &options))
 		return -ENODEV;
@@ -2062,7 +2062,7 @@ int __init viafb_init(void)
 
 void __exit viafb_exit(void)
 {
-	DEBUG_MSG(KERN_INFO "viafb_exit!\n");
+	DE_MSG(KERN_INFO "viafb_exit!\n");
 }
 
 static struct fb_ops viafb_ops = {

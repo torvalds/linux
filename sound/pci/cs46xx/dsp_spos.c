@@ -63,7 +63,7 @@ static int shadow_and_reallocate_code (struct snd_cs46xx * chip, u32 * data, u32
 	u32 mop_operands,mop_type,wide_op;
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(size %2))
+	if (snd__ON(size %2))
 		return -EINVAL;
   
 	while (i < size) {
@@ -293,7 +293,7 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 	int i;
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(!ins))
+	if (snd__ON(!ins))
 		return;
 
 	mutex_lock(&chip->spos_mutex);
@@ -420,7 +420,7 @@ int cs46xx_dsp_load_module (struct snd_cs46xx * chip, struct dsp_module_desc * m
 
 		/* if module has a code segment it must have
 		   symbol table */
-		if (snd_BUG_ON(!module->symbol_table.symbols))
+		if (snd__ON(!module->symbol_table.symbols))
 			return -ENOMEM;
 		if (add_symbols(chip,module)) {
 			dev_err(chip->card->dev,
@@ -1348,7 +1348,7 @@ int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip)
 
 	valid_slots = snd_cs46xx_peekBA0(chip, BA0_ACOSV);
 
-	if (snd_BUG_ON(chip->nr_ac97_codecs != 1 && chip->nr_ac97_codecs != 2))
+	if (snd__ON(chip->nr_ac97_codecs != 1 && chip->nr_ac97_codecs != 2))
 		goto _fail_end;
 
 	if (chip->nr_ac97_codecs == 1) {
@@ -1592,13 +1592,13 @@ static int cs46xx_dsp_async_init (struct snd_cs46xx *chip,
 
 		spdifo_scb_desc = cs46xx_dsp_create_scb(chip,"SPDIFOSCB",(u32 *)&spdifo_scb,SPDIFO_SCB_INST);
 
-		if (snd_BUG_ON(!spdifo_scb_desc))
+		if (snd__ON(!spdifo_scb_desc))
 			return -EIO;
 		spdifi_scb_desc = cs46xx_dsp_create_scb(chip,"SPDIFISCB",(u32 *)&spdifi_scb,SPDIFI_SCB_INST);
-		if (snd_BUG_ON(!spdifi_scb_desc))
+		if (snd__ON(!spdifi_scb_desc))
 			return -EIO;
 		async_codec_scb_desc = cs46xx_dsp_create_scb(chip,"AsynCodecInputSCB",(u32 *)&async_codec_input_scb, HFG_TREE_SCB);
-		if (snd_BUG_ON(!async_codec_scb_desc))
+		if (snd__ON(!async_codec_scb_desc))
 			return -EIO;
 
 		async_codec_scb_desc->parent_scb_ptr = NULL;
@@ -1684,9 +1684,9 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 	chip->active_ctrl(chip, 1);
 	chip->amplifier_ctrl(chip, 1);
 
-	if (snd_BUG_ON(ins->asynch_rx_scb))
+	if (snd__ON(ins->asynch_rx_scb))
 		return -EINVAL;
-	if (snd_BUG_ON(!ins->spdif_in_src))
+	if (snd__ON(!ins->spdif_in_src))
 		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
@@ -1742,9 +1742,9 @@ int cs46xx_dsp_disable_spdif_in (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(!ins->asynch_rx_scb))
+	if (snd__ON(!ins->asynch_rx_scb))
 		return -EINVAL;
-	if (snd_BUG_ON(!ins->spdif_in_src))
+	if (snd__ON(!ins->spdif_in_src))
 		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
@@ -1770,9 +1770,9 @@ int cs46xx_dsp_enable_pcm_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(ins->pcm_input))
+	if (snd__ON(ins->pcm_input))
 		return -EINVAL;
-	if (snd_BUG_ON(!ins->ref_snoop_scb))
+	if (snd__ON(!ins->ref_snoop_scb))
 		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
@@ -1787,7 +1787,7 @@ int cs46xx_dsp_disable_pcm_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(!ins->pcm_input))
+	if (snd__ON(!ins->pcm_input))
 		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
@@ -1802,9 +1802,9 @@ int cs46xx_dsp_enable_adc_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(ins->adc_input))
+	if (snd__ON(ins->adc_input))
 		return -EINVAL;
-	if (snd_BUG_ON(!ins->codec_in_scb))
+	if (snd__ON(!ins->codec_in_scb))
 		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
@@ -1819,7 +1819,7 @@ int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	if (snd_BUG_ON(!ins->adc_input))
+	if (snd__ON(!ins->adc_input))
 		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);

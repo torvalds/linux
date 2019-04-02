@@ -31,12 +31,12 @@ config EDAC_LEGACY_SYSFS
 	  Use 'Y' if your edac utilities aren't ported to work with the newer
 	  structures.
 
-config EDAC_DEBUG
-	bool "Debugging"
-	select DEBUG_FS
+config EDAC_DE
+	bool "Deging"
+	select DE_FS
 	help
-	  This turns on debugging information for the entire EDAC subsystem.
-	  You do so by inserting edac_module with "edac_debug_level=x." Valid
+	  This turns on deging information for the entire EDAC subsystem.
+	  You do so by inserting edac_module with "edac_de_level=x." Valid
 	  levels are 0-4 (from low to high) and by default it is set to 2.
 	  Usually you should select 'N' here.
 
@@ -492,7 +492,7 @@ config EDAC_QCOM
 	  As of now, it supports error reporting for Last Level Cache Controller (LLCC)
 	  of Tag RAM and Data RAM.
 
-	  For debugging issues having to do with stability and overall system
+	  For deging issues having to do with stability and overall system
 	  health, you should probably say 'Y' here.
 
 config EDAC_ASPEED

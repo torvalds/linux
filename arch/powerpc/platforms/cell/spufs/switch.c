@@ -71,7 +71,7 @@
 	else break;					\
     } while (_c);					\
   }
-#endif				/* debug */
+#endif				/* de */
 
 #define POLL_WHILE_FALSE(_c)	POLL_WHILE_TRUE(!(_c))
 

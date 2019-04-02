@@ -49,12 +49,12 @@ CSRT   Signature Reserved (signature == "CSRT")
        Optional, not currently supported.
 
 DBG2   Signature Reserved (signature == "DBG2")
-       == DeBuG port table 2 ==
+       == De port table 2 ==
        License has changed and should be usable.  Optional if used instead
        of earlycon=<device> on the command line.
 
 DBGP   Signature Reserved (signature == "DBGP")
-       == DeBuG Port table ==
+       == De Port table ==
        Microsoft only table, will not be supported.
 
 DSDT   Section 5.2.11.1 (signature == "DSDT")

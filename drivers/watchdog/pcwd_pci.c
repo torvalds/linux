@@ -133,10 +133,10 @@ static struct {
 /* module parameters */
 #define QUIET	0	/* Default */
 #define VERBOSE	1	/* Verbose */
-#define DEBUG	2	/* print fancy stuff too */
-static int debug = QUIET;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
+#define DE	2	/* print fancy stuff too */
+static int de = QUIET;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level: 0=Quiet, 1=Verbose, 2=De (default=0)");
 
 #define WATCHDOG_HEARTBEAT 0	/* default heartbeat =
 						delay-time from dip-switches */
@@ -159,8 +159,8 @@ static int send_command(int cmd, int *msb, int *lsb)
 {
 	int got_response, count;
 
-	if (debug >= DEBUG)
-		pr_debug("sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x\n",
+	if (de >= DE)
+		pr_de("sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x\n",
 			 cmd, *msb, *lsb);
 
 	spin_lock(&pcipcwd_private.io_lock);
@@ -184,12 +184,12 @@ static int send_command(int cmd, int *msb, int *lsb)
 		got_response = inb_p(pcipcwd_private.io_addr + 2) & WD_PCI_WRSP;
 	}
 
-	if (debug >= DEBUG) {
+	if (de >= DE) {
 		if (got_response) {
-			pr_debug("time to process command was: %d ms\n",
+			pr_de("time to process command was: %d ms\n",
 				 count);
 		} else {
-			pr_debug("card did not respond on command!\n");
+			pr_de("card did not respond on command!\n");
 		}
 	}
 
@@ -201,8 +201,8 @@ static int send_command(int cmd, int *msb, int *lsb)
 		/* clear WRSP bit */
 		inb_p(pcipcwd_private.io_addr + 6);
 
-		if (debug >= DEBUG)
-			pr_debug("received following data for cmd=0x%02x: msb=0x%02x lsb=0x%02x\n",
+		if (de >= DE)
+			pr_de("received following data for cmd=0x%02x: msb=0x%02x lsb=0x%02x\n",
 				 cmd, *msb, *lsb);
 	}
 
@@ -276,8 +276,8 @@ static int pcipcwd_start(void)
 		return -1;
 	}
 
-	if (debug >= VERBOSE)
-		pr_debug("Watchdog started\n");
+	if (de >= VERBOSE)
+		pr_de("Watchdog started\n");
 
 	return 0;
 }
@@ -301,8 +301,8 @@ static int pcipcwd_stop(void)
 		return -1;
 	}
 
-	if (debug >= VERBOSE)
-		pr_debug("Watchdog stopped\n");
+	if (de >= VERBOSE)
+		pr_de("Watchdog stopped\n");
 
 	return 0;
 }
@@ -314,8 +314,8 @@ static int pcipcwd_keepalive(void)
 	outb_p(0x42, pcipcwd_private.io_addr);	/* send out any data */
 	spin_unlock(&pcipcwd_private.io_lock);
 
-	if (debug >= DEBUG)
-		pr_debug("Watchdog keepalive signal send\n");
+	if (de >= DE)
+		pr_de("Watchdog keepalive signal send\n");
 
 	return 0;
 }
@@ -332,8 +332,8 @@ static int pcipcwd_set_heartbeat(int t)
 	send_command(CMD_WRITE_WATCHDOG_TIMEOUT, &t_msb, &t_lsb);
 
 	heartbeat = t;
-	if (debug >= VERBOSE)
-		pr_debug("New heartbeat: %d\n", heartbeat);
+	if (de >= VERBOSE)
+		pr_de("New heartbeat: %d\n", heartbeat);
 
 	return 0;
 }
@@ -352,8 +352,8 @@ static int pcipcwd_get_status(int *status)
 			panic(KBUILD_MODNAME ": Temperature overheat trip!\n");
 	}
 
-	if (debug >= DEBUG)
-		pr_debug("Control Status #1: 0x%02x\n", control_status);
+	if (de >= DE)
+		pr_de("Control Status #1: 0x%02x\n", control_status);
 
 	return 0;
 }
@@ -364,14 +364,14 @@ static int pcipcwd_clear_status(void)
 	int msb;
 	int reset_counter;
 
-	if (debug >= VERBOSE)
+	if (de >= VERBOSE)
 		pr_info("clearing watchdog trip status & LED\n");
 
 	control_status = inb_p(pcipcwd_private.io_addr + 1);
 
-	if (debug >= DEBUG) {
-		pr_debug("status was: 0x%02x\n", control_status);
-		pr_debug("sending: 0x%02x\n",
+	if (de >= DE) {
+		pr_de("status was: 0x%02x\n", control_status);
+		pr_de("sending: 0x%02x\n",
 			 (control_status & WD_PCI_R2DS) | WD_PCI_WTRP);
 	}
 
@@ -384,8 +384,8 @@ static int pcipcwd_clear_status(void)
 	reset_counter = 0xff;
 	send_command(CMD_GET_CLEAR_RESET_COUNT, &msb, &reset_counter);
 
-	if (debug >= DEBUG) {
-		pr_debug("reset count was: 0x%02x\n", reset_counter);
+	if (de >= DE) {
+		pr_de("reset count was: 0x%02x\n", reset_counter);
 	}
 
 	return 0;
@@ -407,8 +407,8 @@ static int pcipcwd_get_temperature(int *temperature)
 	 */
 	*temperature = (*temperature * 9 / 5) + 32;
 
-	if (debug >= DEBUG) {
-		pr_debug("temperature is: %d F\n", *temperature);
+	if (de >= DE) {
+		pr_de("temperature is: %d F\n", *temperature);
 	}
 
 	return 0;
@@ -425,8 +425,8 @@ static int pcipcwd_get_timeleft(int *time_left)
 
 	*time_left = (msb << 8) + lsb;
 
-	if (debug >= VERBOSE)
-		pr_debug("Time left before next reboot: %d\n", *time_left);
+	if (de >= VERBOSE)
+		pr_de("Time left before next reboot: %d\n", *time_left);
 
 	return 0;
 }
@@ -570,7 +570,7 @@ static int pcipcwd_open(struct inode *inode, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &is_active)) {
-		if (debug >= VERBOSE)
+		if (de >= VERBOSE)
 			pr_err("Attempt to open already opened device\n");
 		return -EBUSY;
 	}

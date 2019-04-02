@@ -92,14 +92,14 @@ struct wmi_block {
 #define ACPI_WMI_STRING      0x4	/* GUID takes & returns a string */
 #define ACPI_WMI_EVENT       0x8	/* GUID is an event */
 
-static bool debug_event;
-module_param(debug_event, bool, 0444);
-MODULE_PARM_DESC(debug_event,
+static bool de_event;
+module_param(de_event, bool, 0444);
+MODULE_PARM_DESC(de_event,
 		 "Log WMI Events [0/1]");
 
-static bool debug_dump_wdg;
-module_param(debug_dump_wdg, bool, 0444);
-MODULE_PARM_DESC(debug_dump_wdg,
+static bool de_dump_wdg;
+module_param(de_dump_wdg, bool, 0444);
+MODULE_PARM_DESC(de_dump_wdg,
 		 "Dump available WMI interfaces [0/1]");
 
 static int acpi_wmi_remove(struct platform_device *device);
@@ -467,7 +467,7 @@ static void wmi_dump_wdg(const struct guid_block *g)
 
 }
 
-static void wmi_notify_debug(u32 value, void *context)
+static void wmi_notify_de(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -484,7 +484,7 @@ static void wmi_notify_debug(u32 value, void *context)
 	if (!obj)
 		return;
 
-	pr_info("DEBUG Event ");
+	pr_info("DE Event ");
 	switch(obj->type) {
 	case ACPI_TYPE_BUFFER:
 		pr_cont("BUFFER_TYPE - length %d\n", obj->buffer.length);
@@ -529,7 +529,7 @@ wmi_notify_handler handler, void *data)
 
 		if (memcmp(block->gblock.guid, &guid_input, 16) == 0) {
 			if (block->handler &&
-			    block->handler != wmi_notify_debug)
+			    block->handler != wmi_notify_de)
 				return AE_ALREADY_ACQUIRED;
 
 			block->handler = handler;
@@ -568,11 +568,11 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 
 		if (memcmp(block->gblock.guid, &guid_input, 16) == 0) {
 			if (!block->handler ||
-			    block->handler == wmi_notify_debug)
+			    block->handler == wmi_notify_de)
 				return AE_NULL_ENTRY;
 
-			if (debug_event) {
-				block->handler = wmi_notify_debug;
+			if (de_event) {
+				block->handler = wmi_notify_de;
 				status = AE_OK;
 			} else {
 				wmi_status = wmi_method_enable(block, 0);
@@ -1144,7 +1144,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 	total = obj->buffer.length / sizeof(struct guid_block);
 
 	for (i = 0; i < total; i++) {
-		if (debug_dump_wdg)
+		if (de_dump_wdg)
 			wmi_dump_wdg(&gblock[i]);
 
 		/*
@@ -1173,8 +1173,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 
 		list_add_tail(&wblock->list, &wmi_block_list);
 
-		if (debug_event) {
-			wblock->handler = wmi_notify_debug;
+		if (de_event) {
+			wblock->handler = wmi_notify_de;
 			wmi_method_enable(wblock, 1);
 		}
 	}
@@ -1191,7 +1191,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct acpi_device *device)
 		if (retval) {
 			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				wblock->gblock.guid);
-			if (debug_event)
+			if (de_event)
 				wmi_method_enable(wblock, 0);
 			list_del(&wblock->list);
 			put_device(&wblock->dev.dev);
@@ -1303,8 +1303,8 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		wblock->handler(event, wblock->handler_data);
 	}
 
-	if (debug_event) {
-		pr_info("DEBUG Event GUID: %pUL\n",
+	if (de_event) {
+		pr_info("DE Event GUID: %pUL\n",
 			wblock->gblock.guid);
 	}
 

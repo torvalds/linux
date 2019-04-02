@@ -2310,7 +2310,7 @@ static int team_nl_fill_one_option_get(struct sk_buff *skb, struct team *team,
 			goto nest_cancel;
 		break;
 	default:
-		BUG();
+		();
 	}
 	if (opt_inst->removed && nla_put_flag(skb, TEAM_ATTR_OPTION_REMOVED))
 		goto nest_cancel;
@@ -2566,7 +2566,7 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 				ctx.data.s32_val = nla_get_s32(attr_data);
 				break;
 			default:
-				BUG();
+				();
 			}
 			err = team_option_set(team, opt_inst, &ctx);
 			if (err)

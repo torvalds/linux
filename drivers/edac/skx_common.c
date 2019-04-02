@@ -592,16 +592,16 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	else
 		type = "Event";
 
-	skx_mc_printk(mci, KERN_DEBUG, "HANDLING MCE MEMORY ERROR\n");
+	skx_mc_printk(mci, KERN_DE, "HANDLING MCE MEMORY ERROR\n");
 
-	skx_mc_printk(mci, KERN_DEBUG, "CPU %d: Machine Check %s: 0x%llx "
+	skx_mc_printk(mci, KERN_DE, "CPU %d: Machine Check %s: 0x%llx "
 			   "Bank %d: 0x%llx\n", mce->extcpu, type,
 			   mce->mcgstatus, mce->bank, mce->status);
-	skx_mc_printk(mci, KERN_DEBUG, "TSC 0x%llx ", mce->tsc);
-	skx_mc_printk(mci, KERN_DEBUG, "ADDR 0x%llx ", mce->addr);
-	skx_mc_printk(mci, KERN_DEBUG, "MISC 0x%llx ", mce->misc);
+	skx_mc_printk(mci, KERN_DE, "TSC 0x%llx ", mce->tsc);
+	skx_mc_printk(mci, KERN_DE, "ADDR 0x%llx ", mce->addr);
+	skx_mc_printk(mci, KERN_DE, "MISC 0x%llx ", mce->misc);
 
-	skx_mc_printk(mci, KERN_DEBUG, "PROCESSOR %u:0x%x TIME %llu SOCKET "
+	skx_mc_printk(mci, KERN_DE, "PROCESSOR %u:0x%x TIME %llu SOCKET "
 			   "%u APIC 0x%x\n", mce->cpuvendor, mce->cpuid,
 			   mce->time, mce->socketid, mce->apicid);
 
@@ -645,19 +645,19 @@ void skx_remove(void)
 	}
 }
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 /*
- * Debug feature.
+ * De feature.
  * Exercise the address decode logic by writing an address to
- * /sys/kernel/debug/edac/dirname/addr.
+ * /sys/kernel/de/edac/dirname/addr.
  */
 static struct dentry *skx_test;
 
-static int debugfs_u64_set(void *data, u64 val)
+static int defs_u64_set(void *data, u64 val)
 {
 	struct mce m;
 
-	pr_warn_once("Fake error to 0x%llx injected via debugfs\n", val);
+	pr_warn_once("Fake error to 0x%llx injected via defs\n", val);
 
 	memset(&m, 0, sizeof(m));
 	/* ADDRV + MemRd + Unknown channel */
@@ -669,23 +669,23 @@ static int debugfs_u64_set(void *data, u64 val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, defs_u64_set, "%llu\n");
 
-void setup_skx_debug(const char *dirname)
+void setup_skx_de(const char *dirname)
 {
-	skx_test = edac_debugfs_create_dir(dirname);
+	skx_test = edac_defs_create_dir(dirname);
 	if (!skx_test)
 		return;
 
-	if (!edac_debugfs_create_file("addr", 0200, skx_test,
+	if (!edac_defs_create_file("addr", 0200, skx_test,
 				      NULL, &fops_u64_wo)) {
-		debugfs_remove(skx_test);
+		defs_remove(skx_test);
 		skx_test = NULL;
 	}
 }
 
-void teardown_skx_debug(void)
+void teardown_skx_de(void)
 {
-	debugfs_remove_recursive(skx_test);
+	defs_remove_recursive(skx_test);
 }
-#endif /*CONFIG_EDAC_DEBUG*/
+#endif /*CONFIG_EDAC_DE*/

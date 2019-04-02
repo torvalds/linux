@@ -306,7 +306,7 @@ static int mc13892_powermisc_rmw(struct mc13xxx_regulator_priv *priv, u32 mask,
 	int ret;
 	u32 valread;
 
-	BUG_ON(val & ~mask);
+	_ON(val & ~mask);
 
 	mc13xxx_lock(priv->mc13xxx);
 	ret = mc13xxx_reg_read(mc13892, MC13892_POWERMISC, &valread);

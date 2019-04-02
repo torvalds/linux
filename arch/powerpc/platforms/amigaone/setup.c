@@ -77,7 +77,7 @@ void __init amigaone_setup_arch(void)
 	for_each_compatible_node(np, "pci", "mai-logic,articia-s")
 		phb = amigaone_add_bridge(np);
 
-	BUG_ON(phb != 0);
+	_ON(phb != 0);
 
 	if (ppc_md.progress)
 		ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0);
@@ -92,7 +92,7 @@ void __init amigaone_init_IRQ(void)
 	/* Search for ISA interrupt controller. */
 	pic = of_find_compatible_node(NULL, "interrupt-controller",
 	                              "pnpPNP,000");
-	BUG_ON(pic == NULL);
+	_ON(pic == NULL);
 
 	/* Look for interrupt acknowledge address in the PCI root node. */
 	np = of_find_compatible_node(NULL, "pci", "mai-logic,articia-s");

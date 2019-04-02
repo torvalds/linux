@@ -686,8 +686,8 @@ struct ace_private
 	u16			pci_command;
 	u8			pci_latency;
 	const char		*name;
-#ifdef INDEX_DEBUG
-	spinlock_t		debug_lock
+#ifdef INDEX_DE
+	spinlock_t		de_lock
 				__attribute__ ((aligned (SMP_CACHE_BYTES)));
 	u32			last_tx, last_std_rx, last_mini_rx;
 #endif
@@ -721,15 +721,15 @@ static inline void set_aceaddr(aceaddr *aa, dma_addr_t addr)
 static inline void ace_set_txprd(struct ace_regs __iomem *regs,
 				 struct ace_private *ap, u32 value)
 {
-#ifdef INDEX_DEBUG
+#ifdef INDEX_DE
 	unsigned long flags;
-	spin_lock_irqsave(&ap->debug_lock, flags);
+	spin_lock_irqsave(&ap->de_lock, flags);
 	writel(value, &regs->TxPrd);
 	if (value == ap->last_tx)
 		printk(KERN_ERR "AceNIC RACE ALERT! writing identical value "
 		       "to tx producer (%i)\n", value);
 	ap->last_tx = value;
-	spin_unlock_irqrestore(&ap->debug_lock, flags);
+	spin_unlock_irqrestore(&ap->de_lock, flags);
 #else
 	writel(value, &regs->TxPrd);
 #endif

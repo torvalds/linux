@@ -24,7 +24,7 @@
 #include "r592.h"
 
 static bool r592_enable_dma = 1;
-static int debug;
+static int de;
 
 static const char *tpc_names[] = {
 	"MS_TPC_READ_MG_STATUS",
@@ -44,14 +44,14 @@ static const char *tpc_names[] = {
 };
 
 /**
- * memstick_debug_get_tpc_name - debug helper that returns string for
+ * memstick_de_get_tpc_name - de helper that returns string for
  * a TPC number
  */
-const char *memstick_debug_get_tpc_name(int tpc)
+const char *memstick_de_get_tpc_name(int tpc)
 {
 	return tpc_names[tpc-1];
 }
-EXPORT_SYMBOL(memstick_debug_get_tpc_name);
+EXPORT_SYMBOL(memstick_de_get_tpc_name);
 
 
 /* Read a register*/
@@ -460,7 +460,7 @@ static void r592_execute_tpc(struct r592_device *dev)
 	u32 status, reg;
 
 	if (!dev->req) {
-		message("BUG: tpc execution without request!");
+		message(": tpc execution without request!");
 		return;
 	}
 
@@ -482,7 +482,7 @@ static void r592_execute_tpc(struct r592_device *dev)
 	}
 
 	dbg("IO: executing %s LEN=%d",
-			memstick_debug_get_tpc_name(dev->req->tpc), len);
+			memstick_de_get_tpc_name(dev->req->tpc), len);
 
 	/* Set IO direction */
 	if (is_write)
@@ -888,8 +888,8 @@ module_pci_driver(r852_pci_driver);
 
 module_param_named(enable_dma, r592_enable_dma, bool, S_IRUGO);
 MODULE_PARM_DESC(enable_dma, "Enable usage of the DMA (default)");
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level (0-3)");
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level (0-3)");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Maxim Levitsky <maximlevitsky@gmail.com>");

@@ -126,7 +126,7 @@ struct cafe_camera {
 
 
 /*
- * Debugging and related.
+ * Deging and related.
  */
 #define cam_err(cam, fmt, arg...) \
 	dev_err(&(cam)->pdev->dev, fmt, ##arg);

@@ -11,8 +11,8 @@
 /*---------------------------------------------------------------------------*/
 /*----------------- Default undef */
 #if 0
-#define DEBUG
-#define UDC_DEBUG_DUMP
+#define DE
+#define UDC_DE_DUMP
 #endif
 
 /*----------------- Default define */

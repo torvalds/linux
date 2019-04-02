@@ -139,7 +139,7 @@ ACPI_GLOBAL(u32, acpi_gbl_original_mode);
 ACPI_GLOBAL(u32, acpi_gbl_ns_lookup_count);
 ACPI_GLOBAL(u32, acpi_gbl_ps_find_count);
 ACPI_GLOBAL(u16, acpi_gbl_pm1_enable_register_save);
-ACPI_GLOBAL(u8, acpi_gbl_debugger_configuration);
+ACPI_GLOBAL(u8, acpi_gbl_deger_configuration);
 ACPI_GLOBAL(u8, acpi_gbl_step_to_next_call);
 ACPI_GLOBAL(u8, acpi_gbl_acpi_hardware_present);
 ACPI_GLOBAL(u8, acpi_gbl_events_initialized);
@@ -157,7 +157,7 @@ extern const char acpi_gbl_lower_hex_digits[];
 extern const char acpi_gbl_upper_hex_digits[];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 
-/* Lists for tracking memory allocations (debug only) */
+/* Lists for tracking memory allocations (de only) */
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_global_list);
@@ -184,7 +184,7 @@ extern const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES];
 extern const struct acpi_predefined_names
     acpi_gbl_pre_defined_names[NUM_PREDEFINED_NAMES];
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 ACPI_GLOBAL(u32, acpi_gbl_current_node_count);
 ACPI_GLOBAL(u32, acpi_gbl_current_node_size);
 ACPI_GLOBAL(u32, acpi_gbl_max_concurrent_node_count);
@@ -243,7 +243,7 @@ extern struct acpi_fixed_event_info
 
 /*****************************************************************************
  *
- * Debug support
+ * De support
  *
  ****************************************************************************/
 
@@ -261,7 +261,7 @@ ACPI_GLOBAL(u32, acpi_gbl_original_dbg_layer);
 
 /*****************************************************************************
  *
- * Debugger and Disassembler
+ * Deger and Disassembler
  *
  ****************************************************************************/
 
@@ -288,7 +288,7 @@ ACPI_GLOBAL(struct acpi_external_list *, acpi_gbl_external_list);
 ACPI_GLOBAL(struct acpi_external_file *, acpi_gbl_external_file_list);
 #endif
 
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 ACPI_INIT_GLOBAL(u8, acpi_gbl_abort_method, FALSE);
 ACPI_INIT_GLOBAL(acpi_thread_id, acpi_gbl_db_thread_id, ACPI_INVALID_THREAD_ID);
 
@@ -297,19 +297,19 @@ ACPI_GLOBAL(u8, acpi_gbl_db_opt_no_region_support);
 ACPI_GLOBAL(u8, acpi_gbl_db_output_to_file);
 ACPI_GLOBAL(char *, acpi_gbl_db_buffer);
 ACPI_GLOBAL(char *, acpi_gbl_db_filename);
-ACPI_GLOBAL(u32, acpi_gbl_db_debug_level);
-ACPI_GLOBAL(u32, acpi_gbl_db_console_debug_level);
+ACPI_GLOBAL(u32, acpi_gbl_db_de_level);
+ACPI_GLOBAL(u32, acpi_gbl_db_console_de_level);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_db_scope_node);
 ACPI_GLOBAL(u8, acpi_gbl_db_terminate_loop);
 ACPI_GLOBAL(u8, acpi_gbl_db_threads_terminated);
-ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEBUGGER_MAX_ARGS]);
-ACPI_GLOBAL(acpi_object_type, acpi_gbl_db_arg_types[ACPI_DEBUGGER_MAX_ARGS]);
+ACPI_GLOBAL(char *, acpi_gbl_db_args[ACPI_DEGER_MAX_ARGS]);
+ACPI_GLOBAL(acpi_object_type, acpi_gbl_db_arg_types[ACPI_DEGER_MAX_ARGS]);
 
 /* These buffers should all be the same size */
 
 ACPI_GLOBAL(char, acpi_gbl_db_parsed_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 ACPI_GLOBAL(char, acpi_gbl_db_scope_buf[ACPI_DB_LINE_BUFFER_SIZE]);
-ACPI_GLOBAL(char, acpi_gbl_db_debug_filename[ACPI_DB_LINE_BUFFER_SIZE]);
+ACPI_GLOBAL(char, acpi_gbl_db_de_filename[ACPI_DB_LINE_BUFFER_SIZE]);
 
 /* Statistics globals */
 
@@ -319,7 +319,7 @@ ACPI_GLOBAL(u16, acpi_gbl_obj_type_count_misc);
 ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
-#endif				/* ACPI_DEBUGGER */
+#endif				/* ACPI_DEGER */
 
 #if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
 ACPI_GLOBAL(const char, *acpi_gbl_pld_panel_list[]);
@@ -373,15 +373,15 @@ ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_reg_comment_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_comment_addr_cache);
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_file_cache);
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_asl_conversion, FALSE);
-ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_conv_debug_file, NULL);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_de_asl_conversion, FALSE);
+ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_conv_de_file, NULL);
 ACPI_GLOBAL(char, acpi_gbl_table_sig[4]);
 #endif
 
 #ifdef ACPI_APPLICATION
-ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_debug_file, NULL);
+ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_de_file, NULL);
 ACPI_INIT_GLOBAL(ACPI_FILE, acpi_gbl_output_file, NULL);
-ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_de_timeout, FALSE);
 
 /* Print buffer */
 

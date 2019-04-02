@@ -21,7 +21,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "dwarf-aux.h"
 #include "string2.h"
 
@@ -360,7 +360,7 @@ int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 			return -ENOENT;
 
 		if (expr[0].atom != DW_OP_plus_uconst || nexpr != 1) {
-			pr_debug("Unable to get offset:Unexpected OP %x (%zd)\n",
+			pr_de("Unable to get offset:Unexpected OP %x (%zd)\n",
 				 expr[0].atom, nexpr);
 			return -ENOTSUP;
 		}
@@ -775,16 +775,16 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	} else
 		cu_die = rt_die;
 	if (!cu_die) {
-		pr_debug2("Failed to get CU from given DIE.\n");
+		pr_de2("Failed to get CU from given DIE.\n");
 		return -EINVAL;
 	}
 
 	/* Get lines list in the CU */
 	if (dwarf_getsrclines(cu_die, &lines, &nlines) != 0) {
-		pr_debug2("Failed to get source lines on this CU.\n");
+		pr_de2("Failed to get source lines on this CU.\n");
 		return -ENOENT;
 	}
-	pr_debug2("Get %zd lines from this CU\n", nlines);
+	pr_de2("Get %zd lines from this CU\n", nlines);
 
 	/* Walk on the lines on lines list */
 	for (i = 0; i < nlines; i++) {
@@ -792,8 +792,8 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 		if (line == NULL ||
 		    dwarf_lineno(line, &lineno) != 0 ||
 		    dwarf_lineaddr(line, &addr) != 0) {
-			pr_debug2("Failed to get line info. "
-				  "Possible error in debuginfo.\n");
+			pr_de2("Failed to get line info. "
+				  "Possible error in deinfo.\n");
 			continue;
 		}
 		/* Filter lines based on address */
@@ -972,7 +972,7 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 
 	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
-		pr_debug("Failed to get type, make it unknown.\n");
+		pr_de("Failed to get type, make it unknown.\n");
 		ret = strbuf_add(buf, " (unknown_type)", 14);
 	}
 

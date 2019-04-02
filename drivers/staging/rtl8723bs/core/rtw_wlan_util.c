@@ -7,7 +7,7 @@
 #define _RTW_WLAN_UTIL_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <hal_com_h2c.h>
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)

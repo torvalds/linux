@@ -38,7 +38,7 @@ static inline bool check_tmds_chip(int device_id_subaddr, int device_id)
 void viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
 			 struct tmds_setting_information *tmds_setting)
 {
-	DEBUG_MSG(KERN_INFO "viafb_init_dvi_size()\n");
+	DE_MSG(KERN_INFO "viafb_init_dvi_size()\n");
 
 	viafb_dvi_sense();
 	if (viafb_dvi_query_EDID() == 1)
@@ -92,21 +92,21 @@ bool viafb_tmds_trasmitter_identify(void)
 		 */
 		tmds_register_write(0x08, 0x3b);
 
-		DEBUG_MSG(KERN_INFO "\n VT1632 TMDS ! \n");
-		DEBUG_MSG(KERN_INFO "\n %2d",
+		DE_MSG(KERN_INFO "\n VT1632 TMDS ! \n");
+		DE_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->tmds_chip_info.tmds_chip_name);
-		DEBUG_MSG(KERN_INFO "\n %2d",
+		DE_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->tmds_chip_info.i2c_port);
 		return true;
 	} else {
 		viaparinfo->chip_info->tmds_chip_info.i2c_port = VIA_PORT_2C;
 		if (check_tmds_chip(VT1632_DEVICE_ID_REG, VT1632_DEVICE_ID)) {
 			tmds_register_write(0x08, 0x3b);
-			DEBUG_MSG(KERN_INFO "\n VT1632 TMDS ! \n");
-			DEBUG_MSG(KERN_INFO "\n %2d",
+			DE_MSG(KERN_INFO "\n VT1632 TMDS ! \n");
+			DE_MSG(KERN_INFO "\n %2d",
 				  viaparinfo->chip_info->
 				  tmds_chip_info.tmds_chip_name);
-			DEBUG_MSG(KERN_INFO "\n %2d",
+			DE_MSG(KERN_INFO "\n %2d",
 				  viaparinfo->chip_info->
 				  tmds_chip_info.i2c_port);
 			return true;
@@ -118,7 +118,7 @@ bool viafb_tmds_trasmitter_identify(void)
 	if ((viaparinfo->chip_info->gfx_chip_name == UNICHROME_CX700) &&
 	    ((viafb_display_hardware_layout == HW_LAYOUT_DVI_ONLY) ||
 	     (viafb_display_hardware_layout == HW_LAYOUT_LCD_DVI))) {
-		DEBUG_MSG(KERN_INFO "\n Integrated TMDS ! \n");
+		DE_MSG(KERN_INFO "\n Integrated TMDS ! \n");
 		return true;
 	}
 
@@ -196,7 +196,7 @@ int viafb_dvi_sense(void)
 		RegCR93 = 0, RegCR9B = 0, data;
 	int ret = false;
 
-	DEBUG_MSG(KERN_INFO "viafb_dvi_sense!!\n");
+	DE_MSG(KERN_INFO "viafb_dvi_sense!!\n");
 
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
 		/* DI1 Pad on */
@@ -268,7 +268,7 @@ static int viafb_dvi_query_EDID(void)
 	u8 data0, data1;
 	int restore;
 
-	DEBUG_MSG(KERN_INFO "viafb_dvi_query_EDID!!\n");
+	DE_MSG(KERN_INFO "viafb_dvi_query_EDID!!\n");
 
 	restore = viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr;
 	viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr = 0xA0;
@@ -292,7 +292,7 @@ static void dvi_get_panel_size_from_DDCv1(
 	int i, restore;
 	unsigned char EDID_DATA[18];
 
-	DEBUG_MSG(KERN_INFO "\n dvi_get_panel_size_from_DDCv1 \n");
+	DE_MSG(KERN_INFO "\n dvi_get_panel_size_from_DDCv1 \n");
 
 	restore = tmds_chip->tmds_chip_slave_addr;
 	tmds_chip->tmds_chip_slave_addr = 0xA0;
@@ -318,7 +318,7 @@ static void dvi_get_panel_size_from_DDCv1(
 		}
 	}
 
-	DEBUG_MSG(KERN_INFO "DVI max pixelclock = %d\n",
+	DE_MSG(KERN_INFO "DVI max pixelclock = %d\n",
 		tmds_setting->max_pixel_clock);
 	tmds_chip->tmds_chip_slave_addr = restore;
 }

@@ -310,14 +310,14 @@ static void __init xen_init_capabilities(void)
 	}
 }
 
-static void xen_set_debugreg(int reg, unsigned long val)
+static void xen_set_dereg(int reg, unsigned long val)
 {
-	HYPERVISOR_set_debugreg(reg, val);
+	HYPERVISOR_set_dereg(reg, val);
 }
 
-static unsigned long xen_get_debugreg(int reg)
+static unsigned long xen_get_dereg(int reg)
 {
-	return HYPERVISOR_get_debugreg(reg);
+	return HYPERVISOR_get_dereg(reg);
 }
 
 static void xen_end_context_switch(struct task_struct *next)
@@ -347,7 +347,7 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	unsigned char dummy;
 
 	ptep = lookup_address((unsigned long)v, &level);
-	BUG_ON(ptep == NULL);
+	_ON(ptep == NULL);
 
 	pfn = pte_pfn(*ptep);
 	page = pfn_to_page(pfn);
@@ -379,14 +379,14 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	probe_kernel_read(&dummy, v, 1);
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)v, pte, 0))
-		BUG();
+		();
 
 	if (!PageHighMem(page)) {
 		void *av = __va(PFN_PHYS(pfn));
 
 		if (av != v)
 			if (HYPERVISOR_update_va_mapping((unsigned long)av, pte, 0))
-				BUG();
+				();
 	} else
 		kmap_flush_unused();
 
@@ -449,8 +449,8 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 	void *virt;
 
 	/* @size should be at most GDT_SIZE which is smaller than PAGE_SIZE. */
-	BUG_ON(size > PAGE_SIZE);
-	BUG_ON(va & ~PAGE_MASK);
+	_ON(size > PAGE_SIZE);
+	_ON(va & ~PAGE_MASK);
 
 	/*
 	 * The GDT is per-cpu and is in the percpu data area.
@@ -460,7 +460,7 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 	 * linear range, so we need to RO that mapping too.
 	 */
 	ptep = lookup_address(va, &level);
-	BUG_ON(ptep == NULL);
+	_ON(ptep == NULL);
 
 	pfn = pte_pfn(*ptep);
 	mfn = pfn_to_mfn(pfn);
@@ -470,7 +470,7 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 	make_lowmem_page_readonly(virt);
 
 	if (HYPERVISOR_set_gdt(&mfn, size / sizeof(struct desc_struct)))
-		BUG();
+		();
 }
 
 /*
@@ -484,8 +484,8 @@ static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 	pte_t pte;
 
 	/* @size should be at most GDT_SIZE which is smaller than PAGE_SIZE. */
-	BUG_ON(size > PAGE_SIZE);
-	BUG_ON(va & ~PAGE_MASK);
+	_ON(size > PAGE_SIZE);
+	_ON(va & ~PAGE_MASK);
 
 	pfn = virt_to_pfn(va);
 	mfn = pfn_to_mfn(pfn);
@@ -493,10 +493,10 @@ static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 	pte = pfn_pte(pfn, PAGE_KERNEL_RO);
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)va, pte, 0))
-		BUG();
+		();
 
 	if (HYPERVISOR_set_gdt(&mfn, size / sizeof(struct desc_struct)))
-		BUG();
+		();
 }
 
 static inline bool desc_equal(const struct desc_struct *d1,
@@ -566,7 +566,7 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 static void xen_load_gs_index(unsigned int idx)
 {
 	if (HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, idx))
-		BUG();
+		();
 }
 #endif
 
@@ -582,7 +582,7 @@ static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
 
 	xen_mc_flush();
 	if (HYPERVISOR_update_descriptor(mach_lp.maddr, entry))
-		BUG();
+		();
 
 	preempt_enable();
 }
@@ -595,7 +595,7 @@ struct trap_array_entry {
 };
 
 static struct trap_array_entry trap_array[] = {
-	{ debug,                       xen_xendebug,                    true },
+	{ de,                       xen_xende,                    true },
 	{ int3,                        xen_xenint3,                     true },
 	{ double_fault,                xen_double_fault,                true },
 #ifdef CONFIG_X86_MCE
@@ -616,7 +616,7 @@ static struct trap_array_entry trap_array[] = {
 	{ segment_not_present,         xen_segment_not_present,         false },
 	{ stack_segment,               xen_stack_segment,               false },
 	{ general_protection,          xen_general_protection,          false },
-	{ spurious_interrupt_bug,      xen_spurious_interrupt_bug,      false },
+	{ spurious_interrupt_,      xen_spurious_interrupt_,      false },
 	{ coprocessor_error,           xen_coprocessor_error,           false },
 	{ alignment_check,             xen_alignment_check,             false },
 	{ simd_coprocessor_error,      xen_simd_coprocessor_error,      false },
@@ -630,7 +630,7 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 	/*
 	 * Replace trap handler addresses by Xen specific ones.
 	 * Check for known traps using IST and whitelist them.
-	 * The debugger ones are the only ones we care about.
+	 * The deger ones are the only ones we care about.
 	 * Xen will handle faults like double_fault, * so we should never see
 	 * them.  Warn if there's an unexpected IST-using fault handler.
 	 */
@@ -713,7 +713,7 @@ static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 
 		if (cvt_gate_to_trap(entrynum, g, &info[0]))
 			if (HYPERVISOR_set_trap_table(info))
-				BUG();
+				();
 	}
 
 	preempt_enable();
@@ -725,7 +725,7 @@ static void xen_convert_trap_info(const struct desc_ptr *desc,
 	unsigned in, out, count;
 
 	count = (desc->size+1) / sizeof(gate_desc);
-	BUG_ON(count > 256);
+	_ON(count > 256);
 
 	for (in = out = 0; in < count; in++) {
 		gate_desc *entry = (gate_desc *)(desc->address) + in;
@@ -761,7 +761,7 @@ static void xen_load_idt(const struct desc_ptr *desc)
 
 	xen_mc_flush();
 	if (HYPERVISOR_set_trap_table(traps))
-		BUG();
+		();
 
 	spin_unlock(&lock);
 }
@@ -786,7 +786,7 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 
 		xen_mc_flush();
 		if (HYPERVISOR_update_descriptor(maddr.maddr, *(u64 *)desc))
-			BUG();
+			();
 	}
 
 	}
@@ -884,7 +884,7 @@ static inline unsigned long xen_read_cr8(void)
 }
 static inline void xen_write_cr8(unsigned long val)
 {
-	BUG_ON(val);
+	_ON(val);
 }
 #endif
 
@@ -1014,8 +1014,8 @@ static const struct pv_info xen_info __initconst = {
 static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.cpuid = xen_cpuid,
 
-	.set_debugreg = xen_set_debugreg,
-	.get_debugreg = xen_get_debugreg,
+	.set_dereg = xen_set_dereg,
+	.get_dereg = xen_get_dereg,
 
 	.read_cr0 = xen_read_cr0,
 	.write_cr0 = xen_write_cr0,

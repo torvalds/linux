@@ -47,7 +47,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	 * supported IOMMU page size; both *must* be capable of
 	 * representing individual CPU pages exactly.
 	 */
-	BUG_ON((granule > PAGE_SIZE) || !is_power_of_2(granule));
+	_ON((granule > PAGE_SIZE) || !is_power_of_2(granule));
 
 	spin_lock_init(&iovad->iova_rbtree_lock);
 	iovad->rbroot = RB_ROOT;
@@ -810,7 +810,7 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		BUG_ON(!iova);
+		_ON(!iova);
 		private_free_iova(iovad, iova);
 	}
 
@@ -835,7 +835,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 	int i;
 	unsigned long pfn;
 
-	BUG_ON(iova_magazine_empty(mag));
+	_ON(iova_magazine_empty(mag));
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
 	for (i = mag->size - 1; mag->pfns[i] > limit_pfn; i--)
@@ -851,7 +851,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 
 static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 {
-	BUG_ON(iova_magazine_full(mag));
+	_ON(iova_magazine_full(mag));
 
 	mag->pfns[mag->size++] = pfn;
 }

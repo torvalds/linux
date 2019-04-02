@@ -49,8 +49,8 @@ well as the most recent release of this driver and the latest firmware for the
 BT-948/958/958D, will always be available from my Linux Home Page at URL
 "http://sourceforge.net/projects/dandelion/".
 
-Bug reports should be sent via electronic mail to "lnz@dandelion.com".  Please
-include with the bug report the complete configuration messages reported by the
+ reports should be sent via electronic mail to "lnz@dandelion.com".  Please
+include with the  report the complete configuration messages reported by the
 driver and SCSI subsystem at startup, along with any subsequent system messages
 relevant to SCSI operations, and a detailed description of your system's
 hardware configuration.
@@ -360,7 +360,7 @@ Line or via the Loadable Kernel Module Installation Facility.  Driver Options
 for multiple host adapters may be specified either by separating the option
 strings by a semicolon, or by specifying multiple "BusLogic=" strings on the
 command line.  Individual option specifications for a single host adapter are
-separated by commas.  The Probing and Debugging Options apply to all host
+separated by commas.  The Probing and Deging Options apply to all host
 adapters whereas the remaining options apply individually only to the
 selected host adapter.
 
@@ -489,7 +489,7 @@ InhibitTargetInquiry
   Adapters.  This may be necessary with some older Target Devices that do not
   respond correctly when Logical Units above 0 are addressed.
 
-The BusLogic Driver Debugging Options comprise the following:
+The BusLogic Driver Deging Options comprise the following:
 
 TraceProbe
 
@@ -511,9 +511,9 @@ TraceErrors
   error from the Target Device.  The CDB and Sense Data will be printed for
   each SCSI Command that fails.
 
-Debug
+De
 
-  The "Debug" option enables all debugging options.
+  The "De" option enables all deging options.
 
 The following examples demonstrate setting the Queue Depth for Target Devices
 1 and 2 on the first host adapter to 7 and 15, the Queue Depth for all Target

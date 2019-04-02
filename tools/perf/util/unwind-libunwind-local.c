@@ -9,7 +9,7 @@
  * Copyright (C) 2002-2007 Hewlett-Packard Co
  *	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
  *
- * And the bugs have been added by:
+ * And the s have been added by:
  *
  * Copyright (C) 2010, Frederic Weisbecker <fweisbec@gmail.com>
  * Copyright (C) 2012, Jiri Olsa <jolsa@redhat.com>
@@ -37,8 +37,8 @@
 #include "map.h"
 #include "symbol.h"
 #include "util.h"
-#include "debug.h"
-#include "asm/bug.h"
+#include "de.h"
+#include "asm/.h"
 #include "dso.h"
 
 extern int
@@ -51,13 +51,13 @@ UNW_OBJ(dwarf_search_unwind_table) (unw_addr_space_t as,
 #define dwarf_search_unwind_table UNW_OBJ(dwarf_search_unwind_table)
 
 extern int
-UNW_OBJ(dwarf_find_debug_frame) (int found, unw_dyn_info_t *di_debug,
+UNW_OBJ(dwarf_find_de_frame) (int found, unw_dyn_info_t *di_de,
 				 unw_word_t ip,
 				 unw_word_t segbase,
 				 const char *obj_name, unw_word_t start,
 				 unw_word_t end);
 
-#define dwarf_find_debug_frame UNW_OBJ(dwarf_find_debug_frame)
+#define dwarf_find_de_frame UNW_OBJ(dwarf_find_de_frame)
 
 #define DW_EH_PE_FORMAT_MASK	0x0f	/* format of the encoded value */
 #define DW_EH_PE_APPL_MASK	0x70	/* how the value is to be applied */
@@ -193,7 +193,7 @@ static u64 elf_section_offset(int fd, const char *name)
 	return offset;
 }
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
+#ifndef NO_LIBUNWIND_DE_FRAME
 static int elf_is_exec(int fd, const char *name)
 {
 	Elf *elf;
@@ -210,7 +210,7 @@ static int elf_is_exec(int fd, const char *name)
 
 out:
 	elf_end(elf);
-	pr_debug("unwind: elf_is_exec(%s): %d\n", name, retval);
+	pr_de("unwind: elf_is_exec(%s): %d\n", name, retval);
 	return retval;
 }
 #endif
@@ -295,46 +295,46 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
 	return ret;
 }
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
-static int read_unwind_spec_debug_frame(struct dso *dso,
+#ifndef NO_LIBUNWIND_DE_FRAME
+static int read_unwind_spec_de_frame(struct dso *dso,
 					struct machine *machine, u64 *offset)
 {
 	int fd;
-	u64 ofs = dso->data.debug_frame_offset;
+	u64 ofs = dso->data.de_frame_offset;
 
-	/* debug_frame can reside in:
+	/* de_frame can reside in:
 	 *  - dso
-	 *  - debug pointed by symsrc_filename
-	 *  - gnu_debuglink, which doesn't necessary
+	 *  - de pointed by symsrc_filename
+	 *  - gnu_delink, which doesn't necessary
 	 *    has to be pointed by symsrc_filename
 	 */
 	if (ofs == 0) {
 		fd = dso__data_get_fd(dso, machine);
 		if (fd >= 0) {
-			ofs = elf_section_offset(fd, ".debug_frame");
+			ofs = elf_section_offset(fd, ".de_frame");
 			dso__data_put_fd(dso);
 		}
 
 		if (ofs <= 0) {
 			fd = open(dso->symsrc_filename, O_RDONLY);
 			if (fd >= 0) {
-				ofs = elf_section_offset(fd, ".debug_frame");
+				ofs = elf_section_offset(fd, ".de_frame");
 				close(fd);
 			}
 		}
 
 		if (ofs <= 0) {
-			char *debuglink = malloc(PATH_MAX);
+			char *delink = malloc(PATH_MAX);
 			int ret = 0;
 
 			ret = dso__read_binary_type_filename(
-				dso, DSO_BINARY_TYPE__DEBUGLINK,
-				machine->root_dir, debuglink, PATH_MAX);
+				dso, DSO_BINARY_TYPE__DELINK,
+				machine->root_dir, delink, PATH_MAX);
 			if (!ret) {
-				fd = open(debuglink, O_RDONLY);
+				fd = open(delink, O_RDONLY);
 				if (fd >= 0) {
 					ofs = elf_section_offset(fd,
-							".debug_frame");
+							".de_frame");
 					close(fd);
 				}
 			}
@@ -344,16 +344,16 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 						"%s: overwrite symsrc(%s,%s)\n",
 							__func__,
 							dso->symsrc_filename,
-							debuglink);
+							delink);
 					free(dso->symsrc_filename);
 				}
-				dso->symsrc_filename = debuglink;
+				dso->symsrc_filename = delink;
 			} else {
-				free(debuglink);
+				free(delink);
 			}
 		}
 
-		dso->data.debug_frame_offset = ofs;
+		dso->data.de_frame_offset = ofs;
 	}
 
 	*offset = ofs;
@@ -384,7 +384,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	if (!map || !map->dso)
 		return -EINVAL;
 
-	pr_debug("unwind: find_proc_info dso %s\n", map->dso->name);
+	pr_de("unwind: find_proc_info dso %s\n", map->dso->name);
 
 	/* Check the .eh_frame section for unwinding info */
 	if (!read_unwind_spec_eh_frame(map->dso, ui->machine,
@@ -401,10 +401,10 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 						need_unwind_info, arg);
 	}
 
-#ifndef NO_LIBUNWIND_DEBUG_FRAME
-	/* Check the .debug_frame section for unwinding info */
+#ifndef NO_LIBUNWIND_DE_FRAME
+	/* Check the .de_frame section for unwinding info */
 	if (ret < 0 &&
-	    !read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+	    !read_unwind_spec_de_frame(map->dso, ui->machine, &segbase)) {
 		int fd = dso__data_get_fd(map->dso, ui->machine);
 		int is_exec = elf_is_exec(fd, map->dso->name);
 		unw_word_t base = is_exec ? 0 : map->start;
@@ -416,7 +416,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		symfile = map->dso->symsrc_filename ?: map->dso->name;
 
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, base, symfile,
+		if (dwarf_find_de_frame(0, &di, ip, base, symfile,
 					   map->start, map->end))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
@@ -469,7 +469,7 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 
 	map = find_map(addr, ui);
 	if (!map) {
-		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
+		pr_de("unwind: no map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
@@ -512,7 +512,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	if (addr < start || addr + sizeof(unw_word_t) >= end) {
 		ret = access_dso_mem(ui, addr, valp);
 		if (ret) {
-			pr_debug("unwind: access_mem %p not inside range"
+			pr_de("unwind: access_mem %p not inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
 				 (void *) (uintptr_t) addr, start, end);
 			*valp = 0;
@@ -523,7 +523,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 
 	offset = addr - start;
 	*valp  = *(unw_word_t *)&stack->data[offset];
-	pr_debug("unwind: access_mem addr %p val %lx, offset %d\n",
+	pr_de("unwind: access_mem addr %p val %lx, offset %d\n",
 		 (void *) (uintptr_t) addr, (unsigned long)*valp, offset);
 	return 0;
 }
@@ -558,7 +558,7 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 	}
 
 	*valp = (unw_word_t) val;
-	pr_debug("unwind: reg %d, val %lx\n", regnum, (unsigned long)*valp);
+	pr_de("unwind: reg %d, val %lx\n", regnum, (unsigned long)*valp);
 	return 0;
 }
 
@@ -566,7 +566,7 @@ static void put_unwind_info(unw_addr_space_t __maybe_unused as,
 			    unw_proc_info_t *pi __maybe_unused,
 			    void *arg __maybe_unused)
 {
-	pr_debug("unwind: put_unwind_info called\n");
+	pr_de("unwind: put_unwind_info called\n");
 }
 
 static int entry(u64 ip, struct thread *thread,
@@ -579,7 +579,7 @@ static int entry(u64 ip, struct thread *thread,
 	e.ip  = ip;
 	e.map = al.map;
 
-	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
+	pr_de("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
 		 al.sym ? al.sym->name : "''",
 		 ip,
 		 al.map ? al.map->map_ip(al.map, ip) : (u64) 0);

@@ -16,13 +16,13 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/numa.h>
 #include <asm/machdep.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 
 /* This enables us to keep track of the memory removed from each node. */
 struct memtrace_entry {
@@ -169,9 +169,9 @@ static int memtrace_init_regions_runtime(u64 size)
 	return 0;
 }
 
-static struct dentry *memtrace_debugfs_dir;
+static struct dentry *memtrace_defs_dir;
 
-static int memtrace_init_debugfs(void)
+static int memtrace_init_defs(void)
 {
 	int ret = 0;
 	int i;
@@ -190,17 +190,17 @@ static int memtrace_init_debugfs(void)
 		}
 
 		snprintf(ent->name, 16, "%08x", ent->nid);
-		dir = debugfs_create_dir(ent->name, memtrace_debugfs_dir);
+		dir = defs_create_dir(ent->name, memtrace_defs_dir);
 		if (!dir) {
-			pr_err("Failed to create debugfs directory for node %d\n",
+			pr_err("Failed to create defs directory for node %d\n",
 				ent->nid);
 			return -1;
 		}
 
 		ent->dir = dir;
-		debugfs_create_file("trace", 0400, dir, ent, &memtrace_fops);
-		debugfs_create_x64("start", 0400, dir, &ent->start);
-		debugfs_create_x64("size", 0400, dir, &ent->size);
+		defs_create_file("trace", 0400, dir, ent, &memtrace_fops);
+		defs_create_x64("start", 0400, dir, &ent->start);
+		defs_create_x64("size", 0400, dir, &ent->size);
 	}
 
 	return ret;
@@ -256,7 +256,7 @@ static int memtrace_online(void)
 		 * Memory was added successfully so clean up references to it
 		 * so on reentry we can tell that this chunk was added.
 		 */
-		debugfs_remove_recursive(ent->dir);
+		defs_remove_recursive(ent->dir);
 		pr_info("Added trace memory back to node %d\n", ent->nid);
 		ent->size = ent->start = ent->nid = NUMA_NO_NODE;
 	}
@@ -298,7 +298,7 @@ static int memtrace_enable_set(void *data, u64 val)
 	if (memtrace_init_regions_runtime(val))
 		return -EINVAL;
 
-	if (memtrace_init_debugfs())
+	if (memtrace_init_defs())
 		return -EINVAL;
 
 	memtrace_size = val;
@@ -317,12 +317,12 @@ DEFINE_SIMPLE_ATTRIBUTE(memtrace_init_fops, memtrace_enable_get,
 
 static int memtrace_init(void)
 {
-	memtrace_debugfs_dir = debugfs_create_dir("memtrace",
-						  powerpc_debugfs_root);
-	if (!memtrace_debugfs_dir)
+	memtrace_defs_dir = defs_create_dir("memtrace",
+						  powerpc_defs_root);
+	if (!memtrace_defs_dir)
 		return -1;
 
-	debugfs_create_file("enable", 0600, memtrace_debugfs_dir,
+	defs_create_file("enable", 0600, memtrace_defs_dir,
 			    NULL, &memtrace_init_fops);
 
 	return 0;

@@ -70,7 +70,7 @@ the physical hardware, both with regard to SPI and to GPIOs.
 
 		Connect the necessary callback functions.
 		Indicate clock speed (used to calculate toggle delays).
-		Chose a suitable name (helps debugging if you use several CAIF
+		Chose a suitable name (helps deging if you use several CAIF
 		SPI slave devices).
 		Assign your private data (can be used to map to your structure).
 

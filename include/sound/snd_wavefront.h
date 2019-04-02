@@ -79,7 +79,7 @@ struct _snd_wavefront {
 
 	volatile int irq_ok;               /* set by interrupt handler */
         volatile int irq_cnt;              /* ditto */
-	char debug;                        /* debugging flags */
+	char de;                        /* deging flags */
 	int freemem;                       /* installed RAM, in bytes */ 
 
 	char fw_version[2];                /* major = [0], minor = [1] */

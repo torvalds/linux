@@ -38,7 +38,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	if (snd_BUG_ON((subdevice_id & 0xfff0) != INDIGO))
+	if (snd__ON((subdevice_id & 0xfff0) != INDIGO))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
@@ -136,7 +136,7 @@ static int set_vmixer_gain(struct echoaudio *chip, u16 output, u16 pipe,
 {
 	int index;
 
-	if (snd_BUG_ON(pipe >= num_pipes_out(chip) ||
+	if (snd__ON(pipe >= num_pipes_out(chip) ||
 		       output >= num_busses_out(chip)))
 		return -EINVAL;
 

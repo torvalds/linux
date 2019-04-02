@@ -78,12 +78,12 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 		break;
 
 	default:
-		pr_debug("Unknown PEOPT magic = %04hx\n", pe32->magic);
+		pr_de("Unknown PEOPT magic = %04hx\n", pe32->magic);
 		return -ELIBBAD;
 	}
 
-	pr_debug("checksum @ %x\n", ctx->image_checksum_offset);
-	pr_debug("header size = %x\n", ctx->header_size);
+	pr_de("checksum @ %x\n", ctx->image_checksum_offset);
+	pr_de("header size = %x\n", ctx->header_size);
 
 	if (cursor >= ctx->header_size || ctx->header_size >= datalen)
 		return -ELIBBAD;
@@ -99,7 +99,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 	ctx->certs_size = ddir->certs.size;
 
 	if (!ddir->certs.virtual_address || !ddir->certs.size) {
-		pr_debug("Unsigned PE binary\n");
+		pr_de("Unsigned PE binary\n");
 		return -EKEYREJECTED;
 	}
 
@@ -107,7 +107,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 		ddir->certs.size);
 	ctx->sig_offset = ddir->certs.virtual_address;
 	ctx->sig_len = ddir->certs.size;
-	pr_debug("cert = %x @%x [%*ph]\n",
+	pr_de("cert = %x @%x [%*ph]\n",
 		 ctx->sig_len, ctx->sig_offset,
 		 ctx->sig_len, pebuf + ctx->sig_offset);
 
@@ -131,27 +131,27 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	unsigned len;
 
 	if (ctx->sig_len < sizeof(wrapper)) {
-		pr_debug("Signature wrapper too short\n");
+		pr_de("Signature wrapper too short\n");
 		return -ELIBBAD;
 	}
 
 	memcpy(&wrapper, pebuf + ctx->sig_offset, sizeof(wrapper));
-	pr_debug("sig wrapper = { %x, %x, %x }\n",
+	pr_de("sig wrapper = { %x, %x, %x }\n",
 		 wrapper.length, wrapper.revision, wrapper.cert_type);
 
 	/* Both pesign and sbsign round up the length of certificate table
 	 * (in optional header data directories) to 8 byte alignment.
 	 */
 	if (round_up(wrapper.length, 8) != ctx->sig_len) {
-		pr_debug("Signature wrapper len wrong\n");
+		pr_de("Signature wrapper len wrong\n");
 		return -ELIBBAD;
 	}
 	if (wrapper.revision != WIN_CERT_REVISION_2_0) {
-		pr_debug("Signature is not revision 2.0\n");
+		pr_de("Signature is not revision 2.0\n");
 		return -ENOTSUPP;
 	}
 	if (wrapper.cert_type != WIN_CERT_TYPE_PKCS_SIGNED_DATA) {
-		pr_debug("Signature certificate type is not PKCS\n");
+		pr_de("Signature certificate type is not PKCS\n");
 		return -ENOTSUPP;
 	}
 
@@ -164,7 +164,7 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 	ctx->sig_offset += sizeof(wrapper);
 	ctx->sig_len -= sizeof(wrapper);
 	if (ctx->sig_len < 4) {
-		pr_debug("Signature data missing\n");
+		pr_de("Signature data missing\n");
 		return -EKEYREJECTED;
 	}
 
@@ -198,7 +198,7 @@ check_len:
 		return 0;
 	}
 not_pkcs7:
-	pr_debug("Signature data not PKCS#7\n");
+	pr_de("Signature data not PKCS#7\n");
 	return -ELIBBAD;
 }
 
@@ -341,12 +341,12 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 	digest_size = crypto_shash_digestsize(tfm);
 
 	if (digest_size != ctx->digest_len) {
-		pr_debug("Digest size mismatch (%zx != %x)\n",
+		pr_de("Digest size mismatch (%zx != %x)\n",
 			 digest_size, ctx->digest_len);
 		ret = -EBADMSG;
 		goto error_no_desc;
 	}
-	pr_debug("Digest: desc=%zu size=%zu\n", desc_size, digest_size);
+	pr_de("Digest: desc=%zu size=%zu\n", desc_size, digest_size);
 
 	ret = -ENOMEM;
 	desc = kzalloc(desc_size + digest_size, GFP_KERNEL);
@@ -368,16 +368,16 @@ static int pefile_digest_pe(const void *pebuf, unsigned int pelen,
 	if (ret < 0)
 		goto error;
 
-	pr_debug("Digest calc = [%*ph]\n", ctx->digest_len, digest);
+	pr_de("Digest calc = [%*ph]\n", ctx->digest_len, digest);
 
 	/* Check that the PE file digest matches that in the MSCODE part of the
 	 * PKCS#7 certificate.
 	 */
 	if (memcmp(digest, ctx->digest, ctx->digest_len) != 0) {
-		pr_debug("Digest mismatch\n");
+		pr_de("Digest mismatch\n");
 		ret = -EKEYREJECTED;
 	} else {
-		pr_debug("The digests match!\n");
+		pr_de("The digests match!\n");
 	}
 
 error:
@@ -441,7 +441,7 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	if (ret < 0)
 		goto error;
 
-	pr_debug("Digest: %u [%*ph]\n",
+	pr_de("Digest: %u [%*ph]\n",
 		 ctx.digest_len, ctx.digest_len, ctx.digest);
 
 	/* Generate the digest and check against the PKCS7 certificate

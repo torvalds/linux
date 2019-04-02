@@ -47,7 +47,7 @@ static void psb_lid_timer_func(struct timer_list *t)
 			/*FIXME: should be backlight level before*/
 			psb_intel_lvds_set_brightness(dev, 100);
 		} else {
-			DRM_DEBUG("LVDS panel never powered up");
+			DRM_DE("LVDS panel never powered up");
 			return;
 		}
 	} else {

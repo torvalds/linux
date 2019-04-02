@@ -945,7 +945,7 @@ the current flags.
   these flags.
 \item[CDROM_LOCKDOOR] Locks the door of the drive. $arg == \rm0$
   unlocks the door, any other value locks it.
-\item[CDROM_DEBUG] Turns on debugging info. Only root is allowed
+\item[CDROM_DE] Turns on deging info. Only root is allowed
   to do this. Same semantics as CDROM_LOCKDOOR.
 \end{description}
 
@@ -1002,7 +1002,7 @@ $\&<your-drive>_fops$ to $\&cdrom_fops$.
   $<device>_release()$, and remove any strategic code (\ie, tray
   movement, door locking, etc.).
 \item Try to recompile the drivers. We advise you to use modules, both
-  for {\tt {cdrom.o}} and your driver, as debugging is much easier this
+  for {\tt {cdrom.o}} and your driver, as deging is much easier this
   way.
 \end{enumerate} 
 

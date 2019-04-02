@@ -247,7 +247,7 @@
       0.2     13-Jan-95   Added PCI support for DE435's.
       0.21    19-Jan-95   Added auto media detection.
       0.22    10-Feb-95   Fix interrupt handler call <chris@cosy.sbg.ac.at>.
-                          Fix recognition bug reported by <bkm@star.rl.ac.uk>.
+                          Fix recognition  reported by <bkm@star.rl.ac.uk>.
 			  Add request/release_region code.
 			  Add loadable modules support for PCI.
 			  Clean up loadable modules support.
@@ -296,39 +296,39 @@
 			  Fix SMC ethernet address in enet_det[].
 			  Print chip name instead of "UNKNOWN" during boot.
       0.42    26-Apr-96   Fix MII write TA bit error.
-                          Fix bug in dc21040 and dc21041 autosense code.
+                          Fix  in dc21040 and dc21041 autosense code.
 			  Remove buffer copies on receive for Intels.
 			  Change sk_buff handling during media disconnects to
 			   eliminate DUP packets.
 			  Add dynamic TX thresholding.
 			  Change all chips to use perfect multicast filtering.
-			  Fix alloc_device() bug <jari@markkus2.fimr.fi>
-      0.43   21-Jun-96    Fix unconnected media TX retry bug.
+			  Fix alloc_device()  <jari@markkus2.fimr.fi>
+      0.43   21-Jun-96    Fix unconnected media TX retry .
                           Add Accton to the list of broken cards.
-			  Fix TX under-run bug for non DC21140 chips.
-			  Fix boot command probe bug in alloc_device() as
+			  Fix TX under-run  for non DC21140 chips.
+			  Fix boot command probe  in alloc_device() as
 			   reported by <koen.gadeyne@barco.com> and
 			   <orava@nether.tky.hut.fi>.
 			  Add cache locks to prevent a race condition as
 			   reported by <csd@microplex.com> and
 			   <baba@beckman.uiuc.edu>.
 			  Upgraded alloc_device() code.
-      0.431  28-Jun-96    Fix potential bug in queue_pkt() from discussion
+      0.431  28-Jun-96    Fix potential  in queue_pkt() from discussion
                           with <csd@microplex.com>
-      0.44   13-Aug-96    Fix RX overflow bug in 2114[023] chips.
-                          Fix EISA probe bugs reported by <os2@kpi.kharkov.ua>
+      0.44   13-Aug-96    Fix RX overflow  in 2114[023] chips.
+                          Fix EISA probe s reported by <os2@kpi.kharkov.ua>
 			  and <michael@compurex.com>.
       0.441   9-Sep-96    Change dc21041_autoconf() to probe quiet BNC media
                            with a loopback packet.
-      0.442   9-Sep-96    Include AUI in dc21041 media printout. Bug reported
+      0.442   9-Sep-96    Include AUI in dc21041 media printout.  reported
                            by <bhat@mundook.cs.mu.OZ.AU>
       0.45    8-Dec-96    Include endian functions for PPC use, from work
                            by <cort@cs.nmt.edu> and <g.thomas@opengroup.org>.
       0.451  28-Dec-96    Added fix to allow autoprobe for modules after
                            suggestion from <mjacob@feral.com>.
       0.5    30-Jan-97    Added SROM decoding functions.
-                          Updated debug flags.
-			  Fix sleep/wakeup calls for PCI cards, bug reported
+                          Updated de flags.
+			  Fix sleep/wakeup calls for PCI cards,  reported
 			   by <cross@gweep.lkg.dec.com>.
 			  Added multi-MAC, one SROM feature from discussion
 			   with <mjacob@feral.com>.
@@ -356,16 +356,16 @@
 			  Added IRQF_DISABLED temporary fix from
 			   <mjacob@feral.com>.
       0.53   12-Nov-97    Fix the *_probe() to include 'eth??' name during
-                           module load: bug reported by
+                           module load:  reported by
 			   <Piete.Brooks@cl.cam.ac.uk>
 			  Fix multi-MAC, one SROM, to work with 2114x chips:
-			   bug reported by <cmetz@inner.net>.
+			    reported by <cmetz@inner.net>.
 			  Make above search independent of BIOS device scan
 			   direction.
 			  Completed DC2114[23] autosense functions.
-      0.531  21-Dec-97    Fix DE500-XA 100Mb/s bug reported by
+      0.531  21-Dec-97    Fix DE500-XA 100Mb/s  reported by
                            <robin@intercore.com
-			  Fix type1_infoblock() bug introduced in 0.53, from
+			  Fix type1_infoblock()  introduced in 0.53, from
 			   problem reports by
 			   <parmee@postecss.ncrfran.france.ncr.com> and
 			   <jo@ice.dillingen.baynet.de>.
@@ -374,13 +374,13 @@
 			  Added generic MII PHY functionality to deal with
 			   newer PHY chips.
 			  Fix the mess in 2.1.67.
-      0.532   5-Jan-98    Fix bug in mii_get_phy() reported by
+      0.532   5-Jan-98    Fix  in mii_get_phy() reported by
                            <redhat@cococo.net>.
-                          Fix bug in pci_probe() for 64 bit systems reported
+                          Fix  in pci_probe() for 64 bit systems reported
 			   by <belliott@accessone.com>.
-      0.533   9-Jan-98    Fix more 64 bit bugs reported by <jal@cs.brown.edu>.
-      0.534  24-Jan-98    Fix last (?) endian bug from <geert@linux-m68k.org>
-      0.535  21-Feb-98    Fix Ethernet Address PROM reset bug for DC21040.
+      0.533   9-Jan-98    Fix more 64 bit s reported by <jal@cs.brown.edu>.
+      0.534  24-Jan-98    Fix last (?) endian  from <geert@linux-m68k.org>
+      0.535  21-Feb-98    Fix Ethernet Address PROM reset  for DC21040.
       0.536  21-Mar-98    Change pci_probe() to use the pci_dev structure.
 			  **Incompatible with 2.0.x from here.**
       0.540   5-Jul-98    Atomicize assertion of dev->interrupt for SMP
@@ -398,22 +398,22 @@
 			   version. I hope nothing is broken...
           		  Add TX done interrupt modification from suggestion
 			   by <Austin.Donnelly@cl.cam.ac.uk>.
-			  Fix is_anc_capable() bug reported by
+			  Fix is_anc_capable()  reported by
 			   <Austin.Donnelly@cl.cam.ac.uk>.
-			  Fix type[13]_infoblock() bug: during MII search, PHY
+			  Fix type[13]_infoblock() : during MII search, PHY
 			   lp->rst not run because lp->ibn not initialised -
 			   from report & fix by <paubert@iram.es>.
-			  Fix probe bug with EISA & PCI cards present from
+			  Fix probe  with EISA & PCI cards present from
                            report by <eirik@netcom.com>.
       0.541  24-Aug-98    Fix compiler problems associated with i386-string
-                           ops from multiple bug reports and temporary fix
+                           ops from multiple  reports and temporary fix
 			   from <paubert@iram.es>.
 			  Fix pci_probe() to correctly emulate the old
 			   pcibios_find_class() function.
 			  Add an_exception() for old ZYNX346 and fix compile
 			   warning on PPC & SPARC, from <ecd@skynet.be>.
 			  Fix lastPCI to correctly work with compiled in
-			   kernels and modules from bug report by
+			   kernels and modules from  report by
 			   <Zlatko.Calusic@CARNet.hr> et al.
       0.542  15-Sep-98    Fix dc2114x_autoconf() to stop multiple messages
                            when media is unconnected.
@@ -422,12 +422,12 @@
 			   access traps. This flag is merely for log messages:
 			   should do something more definitive though...
       0.543  30-Dec-98    Add SMP spin locking.
-      0.544   8-May-99    Fix for buggy SROM in Motorola embedded boards using
+      0.544   8-May-99    Fix for gy SROM in Motorola embedded boards using
                            a 21143 by <mmporter@home.com>.
 			  Change PCI/EISA bus probing order.
-      0.545  28-Nov-99    Further Moto SROM bug fix from
+      0.545  28-Nov-99    Further Moto SROM  fix from
                            <mporter@eng.mcd.mot.com>
-                          Remove double checking for DEBUG_RX in de4x5_dbg_rx()
+                          Remove double checking for DE_RX in de4x5_dbg_rx()
 			   from report by <geert@linux-m68k.org>
       0.546  22-Feb-01    Fixes Alpha XP1000 oops.  The srom_search function
                            was causing a page fault when initializing the
@@ -574,11 +574,11 @@ static c_char srom_repair_info[][100] = {
 };
 
 
-#ifdef DE4X5_DEBUG
-static int de4x5_debug = DE4X5_DEBUG;
+#ifdef DE4X5_DE
+static int de4x5_de = DE4X5_DE;
 #else
-/*static int de4x5_debug = (DEBUG_MII | DEBUG_SROM | DEBUG_PCICFG | DEBUG_MEDIA | DEBUG_VERSION);*/
-static int de4x5_debug = (DEBUG_MEDIA | DEBUG_VERSION);
+/*static int de4x5_de = (DE_MII | DE_SROM | DE_PCICFG | DE_MEDIA | DE_VERSION);*/
+static int de4x5_de = (DE_MEDIA | DE_VERSION);
 #endif
 
 /*
@@ -1016,12 +1016,12 @@ static int     compact_infoblock(struct net_device *dev, u_char count, u_char *p
 static int io=0x0;/* EDIT THIS LINE FOR YOUR CONFIGURATION IF NEEDED        */
 
 module_param_hw(io, int, ioport, 0);
-module_param(de4x5_debug, int, 0);
+module_param(de4x5_de, int, 0);
 module_param(dec_only, int, 0);
 module_param(args, charp, 0);
 
 MODULE_PARM_DESC(io, "de4x5 I/O base address");
-MODULE_PARM_DESC(de4x5_debug, "de4x5 debug mask");
+MODULE_PARM_DESC(de4x5_de, "de4x5 de mask");
 MODULE_PARM_DESC(dec_only, "de4x5 probe only for Digital boards (0-1)");
 MODULE_PARM_DESC(args, "de4x5 full duplex and media type settings; see de4x5.c for details");
 MODULE_LICENSE("GPL");
@@ -1232,7 +1232,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 	/* Create a loopback packet frame for later media probing */
 	create_packet(dev, lp->frame, sizeof(lp->frame));
 
-	/* Check if the RX overflow bug needs testing for */
+	/* Check if the RX overflow  needs testing for */
 	i = lp->cfrv & 0x000000fe;
 	if ((lp->chipset == DC21140) && (i == 0x20)) {
 	    lp->rx_ovf = 1;
@@ -1262,7 +1262,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 	       ((lp->bus == PCI) ? "PCI BIOS" : "EISA CNFG"));
     }
 
-    if (de4x5_debug & DEBUG_VERSION) {
+    if (de4x5_de & DE_VERSION) {
 	printk(version);
     }
 
@@ -1339,7 +1339,7 @@ de4x5_open(struct net_device *dev)
 
     de4x5_setup_intr(dev);
 
-    if (de4x5_debug & DEBUG_OPEN) {
+    if (de4x5_de & DE_OPEN) {
 	printk("\tsts:  0x%08x\n", inl(DE4X5_STS));
 	printk("\tbmr:  0x%08x\n", inl(DE4X5_BMR));
 	printk("\timr:  0x%08x\n", inl(DE4X5_IMR));
@@ -1484,7 +1484,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 	} else {
 	    de4x5_put_cache(dev, skb);
 	}
-	if (de4x5_debug & DEBUG_TX) {
+	if (de4x5_de & DE_TX) {
 	    printk("%s: transmit busy, lost media or stale skb found:\n  STS:%08x\n  tbusy:%d\n  IMR:%08x\n  OMR:%08x\n Stale skb: %s\n",dev->name, inl(DE4X5_STS), netif_queue_stopped(dev), inl(DE4X5_IMR), inl(DE4X5_OMR), ((u_long) lp->tx_skb[lp->tx_new] > 1) ? "YES" : "NO");
 	}
     } else if (skb->len > 0) {
@@ -1820,7 +1820,7 @@ de4x5_close(struct net_device *dev)
 
     netif_stop_queue(dev);
 
-    if (de4x5_debug & DEBUG_CLOSE) {
+    if (de4x5_de & DE_CLOSE) {
 	printk("%s: Shutting down ethercard, status was %8.8x.\n",
 	       dev->name, inl(DE4X5_STS));
     }
@@ -4708,7 +4708,7 @@ type3_infoblock(struct net_device *dev, u_char count, u_char *p)
     if (lp->state == INITIALISED) {
         lp->ibn = 3;
         lp->active = *p++;
-	if (MOTO_SROM_BUG) lp->active = 0;
+	if (MOTO_SROM_) lp->active = 0;
 	lp->phy[lp->active].gep = (*p ? p : NULL); p += (2 * (*p) + 1);
 	lp->phy[lp->active].rst = (*p ? p : NULL); p += (2 * (*p) + 1);
 	lp->phy[lp->active].mc  = get_unaligned_le16(p); p += 2;
@@ -4720,7 +4720,7 @@ type3_infoblock(struct net_device *dev, u_char count, u_char *p)
     } else if ((lp->media == INIT) && (lp->timeout < 0)) {
         lp->ibn = 3;
 	lp->active = *p;
-	if (MOTO_SROM_BUG) lp->active = 0;
+	if (MOTO_SROM_) lp->active = 0;
 	lp->infoblock_csr6 = OMR_MII_100;
 	lp->useMII = true;
 	lp->infoblock_media = ANS;
@@ -5008,10 +5008,10 @@ mii_get_phy(struct net_device *dev)
 	    lp->mii_cnt++;
 	    lp->active++;
 	    printk("%s: Using generic MII device control. If the board doesn't operate,\nplease mail the following dump to the author:\n", dev->name);
-	    j = de4x5_debug;
-	    de4x5_debug |= DEBUG_MII;
+	    j = de4x5_de;
+	    de4x5_de |= DE_MII;
 	    de4x5_dbg_mii(dev, k);
-	    de4x5_debug = j;
+	    de4x5_de = j;
 	    printk("\n");
 	}
     }
@@ -5224,7 +5224,7 @@ de4x5_dbg_open(struct net_device *dev)
     struct de4x5_private *lp = netdev_priv(dev);
     int i;
 
-    if (de4x5_debug & DEBUG_OPEN) {
+    if (de4x5_de & DE_OPEN) {
 	printk("%s: de4x5 opening with irq %d\n",dev->name,dev->irq);
 	printk("\tphysical address: %pM\n", dev->dev_addr);
 	printk("Descriptor head addresses:\n");
@@ -5269,7 +5269,7 @@ de4x5_dbg_mii(struct net_device *dev, int k)
     struct de4x5_private *lp = netdev_priv(dev);
     u_long iobase = dev->base_addr;
 
-    if (de4x5_debug & DEBUG_MII) {
+    if (de4x5_de & DE_MII) {
 	printk("\nMII device address: %d\n", lp->phy[k].addr);
 	printk("MII CR:  %x\n",mii_rd(MII_CR,lp->phy[k].addr,DE4X5_MII));
 	printk("MII SR:  %x\n",mii_rd(MII_SR,lp->phy[k].addr,DE4X5_MII));
@@ -5295,7 +5295,7 @@ de4x5_dbg_media(struct net_device *dev)
     struct de4x5_private *lp = netdev_priv(dev);
 
     if (lp->media != lp->c_media) {
-	if (de4x5_debug & DEBUG_MEDIA) {
+	if (de4x5_de & DE_MEDIA) {
 	    printk("%s: media is %s%s\n", dev->name,
 		   (lp->media == NC  ? "unconnected, link down or incompatible connection" :
 		    (lp->media == TP  ? "TP" :
@@ -5318,7 +5318,7 @@ de4x5_dbg_srom(struct de4x5_srom *p)
 {
     int i;
 
-    if (de4x5_debug & DEBUG_SROM) {
+    if (de4x5_de & DE_SROM) {
 	printk("Sub-system Vendor ID: %04x\n", *((u_short *)p->sub_vendor_id));
 	printk("Sub-system ID:        %04x\n", *((u_short *)p->sub_system_id));
 	printk("ID Block CRC:         %02x\n", (u_char)(p->id_block_crc));
@@ -5338,7 +5338,7 @@ de4x5_dbg_rx(struct sk_buff *skb, int len)
 {
     int i, j;
 
-    if (de4x5_debug & DEBUG_RX) {
+    if (de4x5_de & DE_RX) {
 	printk("R: %pM <- %pM len/SAP:%02x%02x [%d]\n",
 	       skb->data, &skb->data[6],
 	       (u_char)skb->data[12],

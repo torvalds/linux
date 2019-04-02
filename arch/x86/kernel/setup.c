@@ -91,7 +91,7 @@
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/kasan.h>
 
 #include <asm/vsyscall.h>
@@ -254,11 +254,11 @@ void * __init extend_brk(size_t size, size_t align)
 	size_t mask = align - 1;
 	void *ret;
 
-	BUG_ON(_brk_start == 0);
-	BUG_ON(align & mask);
+	_ON(_brk_start == 0);
+	_ON(align & mask);
 
 	_brk_end = (_brk_end + mask) & ~mask;
-	BUG_ON((char *)(_brk_end + size) > __brk_limit);
+	_ON((char *)(_brk_end + size) > __brk_limit);
 
 	ret = (void *)_brk_end;
 	_brk_end += size;
@@ -686,7 +686,7 @@ static void __init trim_snb_memory(void)
 	if (!snb_gfx_workaround_needed())
 		return;
 
-	printk(KERN_DEBUG "reserving inaccessible SNB gfx pages\n");
+	printk(KERN_DE "reserving inaccessible SNB gfx pages\n");
 
 	/*
 	 * Reserve all memory below the 1 MB mark that has not
@@ -952,7 +952,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * x86_configure_nx() is called before parse_early_param() to detect
-	 * whether hardware doesn't support NX (so that the early EHCI debug
+	 * whether hardware doesn't support NX (so that the early EHCI de
 	 * console setup can safely call set_fixmap()). It may then be called
 	 * again from within noexec_setup() during parsing early parameters
 	 * to honor the respective command line option.
@@ -1018,7 +1018,7 @@ void __init setup_arch(char **cmdline_p)
 	tsc_early_init();
 	x86_init.resources.probe_roms();
 
-	/* after parse_early_param, so could debug it */
+	/* after parse_early_param, so could de it */
 	insert_resource(&iomem_resource, &code_resource);
 	insert_resource(&iomem_resource, &data_resource);
 	insert_resource(&iomem_resource, &bss_resource);
@@ -1026,7 +1026,7 @@ void __init setup_arch(char **cmdline_p)
 	e820_add_kernel_range();
 	trim_bios_range();
 #ifdef CONFIG_X86_32
-	if (ppro_with_ram_bug()) {
+	if (ppro_with_ram_()) {
 		e820__range_update(0x70000000ULL, 0x40000ULL, E820_TYPE_RAM,
 				  E820_TYPE_RESERVED);
 		e820__update_table(e820_table);
@@ -1122,7 +1122,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_X86_32
-	printk(KERN_DEBUG "initial memory mapped: [mem 0x00000000-%#010lx]\n",
+	printk(KERN_DE "initial memory mapped: [mem 0x00000000-%#010lx]\n",
 			(max_pfn_mapped<<PAGE_SHIFT) - 1);
 #endif
 

@@ -65,10 +65,10 @@
 #define USBOTGSS_RXFIFO_DEPTH			0x050c
 #define USBOTGSS_MMRAM_OFFSET			0x0100
 #define USBOTGSS_FLADJ				0x0104
-#define USBOTGSS_DEBUG_CFG			0x0108
-#define USBOTGSS_DEBUG_DATA			0x010c
+#define USBOTGSS_DE_CFG			0x0108
+#define USBOTGSS_DE_DATA			0x010c
 #define USBOTGSS_DEV_EBC_EN			0x0110
-#define USBOTGSS_DEBUG_OFFSET			0x0600
+#define USBOTGSS_DE_OFFSET			0x0600
 
 /* SYSCONFIG REGISTER */
 #define USBOTGSS_SYSCONFIG_DMADISABLE		BIT(16)
@@ -116,7 +116,7 @@ struct dwc3_omap {
 	u32			utmi_otg_offset;
 	u32			irqmisc_offset;
 	u32			irq_eoi_offset;
-	u32			debug_offset;
+	u32			de_offset;
 	u32			irq0_offset;
 
 	struct extcon_dev	*edev;
@@ -377,7 +377,7 @@ static void dwc3_omap_map_offset(struct dwc3_omap *omap)
 		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
 		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
 		omap->utmi_otg_offset = USBOTGSS_UTMI_OTG_OFFSET;
-		omap->debug_offset = USBOTGSS_DEBUG_OFFSET;
+		omap->de_offset = USBOTGSS_DE_OFFSET;
 	}
 }
 

@@ -67,5 +67,5 @@ Please also check the in-kernel documentation for details. The i2c-sh_mobile
 driver can be used as a reference example how to use the above helpers.
 
 Final note: If you plan to use DMA with I2C (or with anything else, actually)
-make sure you have CONFIG_DMA_API_DEBUG enabled during development. It can help
-you find various issues which can be complex to debug otherwise.
+make sure you have CONFIG_DMA_API_DE enabled during development. It can help
+you find various issues which can be complex to de otherwise.

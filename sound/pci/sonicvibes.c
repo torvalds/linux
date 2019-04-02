@@ -2,7 +2,7 @@
  *  Driver for S3 SonicVibes soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- *  BUGS:
+ *  S:
  *    It looks like 86c617 rev 3 doesn't supports DDMA buffers above 16MB?
  *    Driver sometimes hangs... Nobody knows why at this moment...
  *
@@ -354,7 +354,7 @@ static unsigned char snd_sonicvibes_in(struct sonicvibes * sonic, unsigned char 
 }
 
 #if 0
-static void snd_sonicvibes_debug(struct sonicvibes * sonic)
+static void snd_sonicvibes_de(struct sonicvibes * sonic)
 {
 	dev_dbg(sonic->card->dev,
 		"SV REGS:          INDEX = 0x%02x                   STATUS = 0x%02x\n",
@@ -570,8 +570,8 @@ static int snd_sonicvibes_hw_constraint_dac_rate(struct snd_pcm_hw_params *param
 			params->rate_den = 1;
 		} else {
 			snd_sonicvibes_pll(rate, &r, &m, &n);
-			snd_BUG_ON(SV_REFFREQUENCY % 16);
-			snd_BUG_ON(SV_ADCMULT % 512);
+			snd__ON(SV_REFFREQUENCY % 16);
+			snd__ON(SV_ADCMULT % 512);
 			params->rate_num = (SV_REFFREQUENCY/16) * (n+2) * r;
 			params->rate_den = (SV_ADCMULT/512) * (m+2);
 		}
@@ -886,7 +886,7 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device)
 
 	if ((err = snd_pcm_new(sonic->card, "s3_86c617", device, 1, 1, &pcm)) < 0)
 		return err;
-	if (snd_BUG_ON(!pcm))
+	if (snd__ON(!pcm))
 		return -EINVAL;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sonicvibes_playback_ops);
@@ -1119,7 +1119,7 @@ static int snd_sonicvibes_mixer(struct sonicvibes *sonic)
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!sonic || !sonic->card))
+	if (snd__ON(!sonic || !sonic->card))
 		return -EINVAL;
 	card = sonic->card;
 	strcpy(card->mixername, "S3 SonicVibes");
@@ -1386,7 +1386,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	snd_sonicvibes_out(sonic, SV_IREG_RIGHT_PCM, 0xbf);
 	snd_sonicvibes_out(sonic, SV_IREG_ADC_OUTPUT_CTRL, 0xfc);
 #if 0
-	snd_sonicvibes_debug(sonic);
+	snd_sonicvibes_de(sonic);
 #endif
 	sonic->revision = snd_sonicvibes_in(sonic, SV_IREG_REVISION);
 

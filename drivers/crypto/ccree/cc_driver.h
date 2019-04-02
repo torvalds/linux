@@ -127,7 +127,7 @@ struct cc_drvdata {
 	void *fips_handle;
 	void *ivgen_handle;
 	void *sram_mgr_handle;
-	void *debugfs;
+	void *defs;
 	struct clk *clk;
 	bool coherent;
 	char *hw_rev_name;

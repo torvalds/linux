@@ -88,7 +88,7 @@ Given a $HOME/.perfconfig like this:
 
 	[buildid]
 		# Default, disable using /dev/null
-		dir = ~/.debug
+		dir = ~/.de
 
 	[annotate]
 		# Defaults
@@ -227,12 +227,12 @@ buildid.*::
 		symbol resolution, code annotation, etc.
 
 		The recording tools also stores a hard link or copy in a per-user
-		directory, $HOME/.debug/, of binaries, shared libraries, /proc/kallsyms
+		directory, $HOME/.de/, of binaries, shared libraries, /proc/kallsyms
 		and /proc/kcore files to be used at analysis time.
 
 		The buildid.dir variable can be used to either change this directory
 		cache location, or to disable it altogether. If you want to disable it,
-		set buildid.dir to /dev/null. The default is $HOME/.debug
+		set buildid.dir to /dev/null. The default is $HOME/.de
 
 annotate.*::
 	These options work only for TUI.
@@ -509,7 +509,7 @@ record.*::
 	record.build-id::
 		This option can be 'cache', 'no-cache' or 'skip'.
 		'cache' is to post-process data and save/update the binaries into
-		the build-id cache (in ~/.debug). This is the default.
+		the build-id cache (in ~/.de). This is the default.
 		But if this option is 'no-cache', it will not update the build-id cache.
 		'skip' skips post-processing and does not update the cache.
 

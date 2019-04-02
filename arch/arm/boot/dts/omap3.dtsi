@@ -48,7 +48,7 @@
 		compatible = "arm,cortex-a8-pmu";
 		reg = <0x54000000 0x800000>;
 		interrupts = <3>;
-		ti,hwmods = "debugss";
+		ti,hwmods = "dess";
 	};
 
 	/*

@@ -263,7 +263,7 @@ const struct de2_fmt_info *sun8i_mixer_format_info(u32 format)
 
 static void sun8i_mixer_commit(struct sunxi_engine *engine)
 {
-	DRM_DEBUG_DRIVER("Committing changes\n");
+	DRM_DE_DRIVER("Committing changes\n");
 
 	regmap_write(engine->regs, SUN8I_MIXER_GLOBAL_DBUFF,
 		     SUN8I_MIXER_GLOBAL_DBUFF_ENABLE);

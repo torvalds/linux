@@ -2348,7 +2348,7 @@ typedef enum SQ_IND_CMD_CMD {
 	SQ_IND_CMD_CMD_HALT                              = 0x1,
 	SQ_IND_CMD_CMD_RESUME                            = 0x2,
 	SQ_IND_CMD_CMD_KILL                              = 0x3,
-	SQ_IND_CMD_CMD_DEBUG                             = 0x4,
+	SQ_IND_CMD_CMD_DE                             = 0x4,
 	SQ_IND_CMD_CMD_TRAP                              = 0x5,
 } SQ_IND_CMD_CMD;
 typedef enum SQ_IND_CMD_MODE {
@@ -5255,7 +5255,7 @@ typedef enum NumLowerPipes {
 	ADDR_CONFIG_1_LOWER_PIPES                        = 0x0,
 	ADDR_CONFIG_2_LOWER_PIPES                        = 0x1,
 } NumLowerPipes;
-typedef enum DebugBlockId {
+typedef enum DeBlockId {
 	DBG_CLIENT_BLKID_RESERVED                        = 0x0,
 	DBG_CLIENT_BLKID_dbg                             = 0x1,
 	DBG_CLIENT_BLKID_dco0                            = 0x2,
@@ -5405,8 +5405,8 @@ typedef enum DebugBlockId {
 	DBG_CLIENT_BLKID_scb3                            = 0x92,
 	DBG_CLIENT_BLKID_tmonw01                         = 0x93,
 	DBG_CLIENT_BLKID_RESERVED_LAST                   = 0x94,
-} DebugBlockId;
-typedef enum DebugBlockId_OLD {
+} DeBlockId;
+typedef enum DeBlockId_OLD {
 	DBG_BLOCK_ID_RESERVED                            = 0x0,
 	DBG_BLOCK_ID_DBG                                 = 0x1,
 	DBG_BLOCK_ID_VMC                                 = 0x2,
@@ -5639,8 +5639,8 @@ typedef enum DebugBlockId_OLD {
 	DBG_BLOCK_ID_MCD5                                = 0xe5,
 	DBG_BLOCK_ID_UNUSED51                            = 0xe6,
 	DBG_BLOCK_ID_UNUSED52                            = 0xe7,
-} DebugBlockId_OLD;
-typedef enum DebugBlockId_BY2 {
+} DeBlockId_OLD;
+typedef enum DeBlockId_BY2 {
 	DBG_BLOCK_ID_RESERVED_BY2                        = 0x0,
 	DBG_BLOCK_ID_VMC_BY2                             = 0x1,
 	DBG_BLOCK_ID_CG_BY2                              = 0x2,
@@ -5757,8 +5757,8 @@ typedef enum DebugBlockId_BY2 {
 	DBG_BLOCK_ID_MCD2_BY2                            = 0x71,
 	DBG_BLOCK_ID_MCD4_BY2                            = 0x72,
 	DBG_BLOCK_ID_UNUSED51_BY2                        = 0x73,
-} DebugBlockId_BY2;
-typedef enum DebugBlockId_BY4 {
+} DeBlockId_BY2;
+typedef enum DeBlockId_BY4 {
 	DBG_BLOCK_ID_RESERVED_BY4                        = 0x0,
 	DBG_BLOCK_ID_CG_BY4                              = 0x1,
 	DBG_BLOCK_ID_CSC_BY4                             = 0x2,
@@ -5817,8 +5817,8 @@ typedef enum DebugBlockId_BY4 {
 	DBG_BLOCK_ID_UNUSED47_BY4                        = 0x37,
 	DBG_BLOCK_ID_MCD0_BY4                            = 0x38,
 	DBG_BLOCK_ID_MCD4_BY4                            = 0x39,
-} DebugBlockId_BY4;
-typedef enum DebugBlockId_BY8 {
+} DeBlockId_BY4;
+typedef enum DeBlockId_BY8 {
 	DBG_BLOCK_ID_RESERVED_BY8                        = 0x0,
 	DBG_BLOCK_ID_CSC_BY8                             = 0x1,
 	DBG_BLOCK_ID_DMA0_BY8                            = 0x2,
@@ -5848,8 +5848,8 @@ typedef enum DebugBlockId_BY8 {
 	DBG_BLOCK_ID_TD10_BY8                            = 0x1a,
 	DBG_BLOCK_ID_TD18_BY8                            = 0x1b,
 	DBG_BLOCK_ID_MCD0_BY8                            = 0x1c,
-} DebugBlockId_BY8;
-typedef enum DebugBlockId_BY16 {
+} DeBlockId_BY8;
+typedef enum DeBlockId_BY16 {
 	DBG_BLOCK_ID_RESERVED_BY16                       = 0x0,
 	DBG_BLOCK_ID_DMA0_BY16                           = 0x1,
 	DBG_BLOCK_ID_VGT0_BY16                           = 0x2,
@@ -5865,7 +5865,7 @@ typedef enum DebugBlockId_BY16 {
 	DBG_BLOCK_ID_TD00_BY16                           = 0xc,
 	DBG_BLOCK_ID_TD10_BY16                           = 0xd,
 	DBG_BLOCK_ID_MCD0_BY16                           = 0xe,
-} DebugBlockId_BY16;
+} DeBlockId_BY16;
 typedef enum CompareRef {
 	REF_NEVER                                        = 0x0,
 	REF_LESS                                         = 0x1,

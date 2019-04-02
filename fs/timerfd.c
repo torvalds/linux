@@ -390,8 +390,8 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 	struct timerfd_ctx *ctx;
 
 	/* Check the TFD_* constants for consistency.  */
-	BUILD_BUG_ON(TFD_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(TFD_NONBLOCK != O_NONBLOCK);
+	BUILD__ON(TFD_CLOEXEC != O_CLOEXEC);
+	BUILD__ON(TFD_NONBLOCK != O_NONBLOCK);
 
 	if ((flags & ~TFD_CREATE_FLAGS) ||
 	    (clockid != CLOCK_MONOTONIC &&

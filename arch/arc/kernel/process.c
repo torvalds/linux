@@ -283,13 +283,13 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 	regs->eflags = 0;
 #endif
 
-	/* bogus seed values for debugging */
+	/* bogus seed values for deging */
 	regs->lp_start = 0x10;
 	regs->lp_end = 0x80;
 }
 
 /*
- * Some archs flush debug and FPU info here
+ * Some archs flush de and FPU info here
  */
 void flush_thread(void)
 {

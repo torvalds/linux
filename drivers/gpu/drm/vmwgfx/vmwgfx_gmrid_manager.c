@@ -121,7 +121,7 @@ static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
 		gman->max_gmr_pages = dev_priv->max_mob_pages;
 		break;
 	default:
-		BUG();
+		();
 	}
 	man->priv = (void *) gman;
 	return 0;
@@ -139,10 +139,10 @@ static int vmw_gmrid_man_takedown(struct ttm_mem_type_manager *man)
 	return 0;
 }
 
-static void vmw_gmrid_man_debug(struct ttm_mem_type_manager *man,
+static void vmw_gmrid_man_de(struct ttm_mem_type_manager *man,
 				struct drm_printer *printer)
 {
-	drm_printf(printer, "No debug info available for the GMR id manager\n");
+	drm_printf(printer, "No de info available for the GMR id manager\n");
 }
 
 const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
@@ -150,5 +150,5 @@ const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
 	.takedown = vmw_gmrid_man_takedown,
 	.get_node = vmw_gmrid_man_get_node,
 	.put_node = vmw_gmrid_man_put_node,
-	.debug = vmw_gmrid_man_debug
+	.de = vmw_gmrid_man_de
 };

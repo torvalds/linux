@@ -86,7 +86,7 @@ extern int hp300_uart_scode;
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 /*
  * Parse the bootinfo to find descriptions for headless console and
- * debug serial ports and register them with the 8250 driver.
+ * de serial ports and register them with the 8250 driver.
  */
 int __init hp300_setup_serial_console(void)
 {

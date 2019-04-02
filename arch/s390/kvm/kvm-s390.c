@@ -59,7 +59,7 @@
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 
-struct kvm_stats_debugfs_item debugfs_entries[] = {
+struct kvm_stats_defs_item defs_entries[] = {
 	{ "userspace_handled", VCPU_STAT(exit_userspace) },
 	{ "exit_null", VCPU_STAT(exit_null) },
 	{ "exit_validity", VCPU_STAT(exit_validity) },
@@ -197,9 +197,9 @@ static unsigned long kvm_s390_fac_ext[SIZE_INTERNAL] = { FACILITIES_KVM_CPUMODEL
 
 static unsigned long kvm_s390_fac_size(void)
 {
-	BUILD_BUG_ON(SIZE_INTERNAL > S390_ARCH_FAC_MASK_SIZE_U64);
-	BUILD_BUG_ON(SIZE_INTERNAL > S390_ARCH_FAC_LIST_SIZE_U64);
-	BUILD_BUG_ON(SIZE_INTERNAL * sizeof(unsigned long) >
+	BUILD__ON(SIZE_INTERNAL > S390_ARCH_FAC_MASK_SIZE_U64);
+	BUILD__ON(SIZE_INTERNAL > S390_ARCH_FAC_LIST_SIZE_U64);
+	BUILD__ON(SIZE_INTERNAL * sizeof(unsigned long) >
 		sizeof(S390_lowcore.stfle_fac_list));
 
 	return SIZE_INTERNAL;
@@ -212,7 +212,7 @@ static struct kvm_s390_vm_cpu_subfunc kvm_s390_available_subfunc;
 
 static struct gmap_notifier gmap_notifier;
 static struct gmap_notifier vsie_gmap_notifier;
-debug_info_t *kvm_s390_dbf;
+de_info_t *kvm_s390_dbf;
 
 /* Section: not file related */
 int kvm_arch_hardware_enable(void)
@@ -418,13 +418,13 @@ int kvm_arch_init(void *opaque)
 {
 	int rc;
 
-	kvm_s390_dbf = debug_register("kvm-trace", 32, 1, 7 * sizeof(long));
+	kvm_s390_dbf = de_register("kvm-trace", 32, 1, 7 * sizeof(long));
 	if (!kvm_s390_dbf)
 		return -ENOMEM;
 
-	if (debug_register_view(kvm_s390_dbf, &debug_sprintf_view)) {
+	if (de_register_view(kvm_s390_dbf, &de_sprintf_view)) {
 		rc = -ENOMEM;
-		goto out_debug_unreg;
+		goto out_de_unreg;
 	}
 
 	kvm_s390_cpu_feat_init();
@@ -433,7 +433,7 @@ int kvm_arch_init(void *opaque)
 	rc = kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
 	if (rc) {
 		pr_err("A FLIC registration call failed with rc=%d\n", rc);
-		goto out_debug_unreg;
+		goto out_de_unreg;
 	}
 
 	rc = kvm_s390_gib_init(GAL_ISC);
@@ -444,15 +444,15 @@ int kvm_arch_init(void *opaque)
 
 out_gib_destroy:
 	kvm_s390_gib_destroy();
-out_debug_unreg:
-	debug_unregister(kvm_s390_dbf);
+out_de_unreg:
+	de_unregister(kvm_s390_dbf);
 	return rc;
 }
 
 void kvm_arch_exit(void)
 {
 	kvm_s390_gib_destroy();
-	debug_unregister(kvm_s390_dbf);
+	de_unregister(kvm_s390_dbf);
 }
 
 /* Section: device related */
@@ -2314,7 +2314,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	gfp_t alloc_flags = GFP_KERNEL;
 	int i, rc;
-	char debug_name[16];
+	char de_name[16];
 	static unsigned long sca_offset;
 
 	rc = -EINVAL;
@@ -2349,13 +2349,13 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 			((char *) kvm->arch.sca + sca_offset);
 	spin_unlock(&kvm_lock);
 
-	sprintf(debug_name, "kvm-%u", current->pid);
+	sprintf(de_name, "kvm-%u", current->pid);
 
-	kvm->arch.dbf = debug_register(debug_name, 32, 1, 7 * sizeof(long));
+	kvm->arch.dbf = de_register(de_name, 32, 1, 7 * sizeof(long));
 	if (!kvm->arch.dbf)
 		goto out_err;
 
-	BUILD_BUG_ON(sizeof(struct sie_page2) != 4096);
+	BUILD__ON(sizeof(struct sie_page2) != 4096);
 	kvm->arch.sie_page2 =
 	     (struct sie_page2 *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!kvm->arch.sie_page2)
@@ -2396,7 +2396,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	init_waitqueue_head(&kvm->arch.ipte_wq);
 	mutex_init(&kvm->arch.ipte_mutex);
 
-	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
+	de_register_view(kvm->arch.dbf, &de_sprintf_view);
 	VM_EVENT(kvm, 3, "vm created with type %lu", type);
 
 	if (type & KVM_VM_S390_UCONTROL) {
@@ -2425,18 +2425,18 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	return 0;
 out_err:
 	free_page((unsigned long)kvm->arch.sie_page2);
-	debug_unregister(kvm->arch.dbf);
+	de_unregister(kvm->arch.dbf);
 	sca_dispose(kvm);
 	KVM_EVENT(3, "creation of vm failed: %d", rc);
 	return rc;
 }
 
-bool kvm_arch_has_vcpu_debugfs(void)
+bool kvm_arch_has_vcpu_defs(void)
 {
 	return false;
 }
 
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+int kvm_arch_create_vcpu_defs(struct kvm_vcpu *vcpu)
 {
 	return 0;
 }
@@ -2481,7 +2481,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_free_vcpus(kvm);
 	sca_dispose(kvm);
-	debug_unregister(kvm->arch.dbf);
+	de_unregister(kvm->arch.dbf);
 	kvm_s390_gisa_destroy(kvm);
 	free_page((unsigned long)kvm->arch.sie_page2);
 	if (!kvm_is_ucontrol(kvm))
@@ -2952,7 +2952,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	if (!vcpu)
 		goto out;
 
-	BUILD_BUG_ON(sizeof(struct sie_page) != 4096);
+	BUILD__ON(sizeof(struct sie_page) != 4096);
 	sie_page = (struct sie_page *) get_zeroed_page(GFP_KERNEL);
 	if (!sie_page)
 		goto out_free_cpu;
@@ -3071,7 +3071,7 @@ static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 {
 	/* kvm common code refers to this, but never calls it */
-	BUG();
+	();
 	return 0;
 }
 
@@ -3285,14 +3285,14 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 			      KVM_GUESTDBG_USE_HW_BP | \
 			      KVM_GUESTDBG_ENABLE)
 
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-					struct kvm_guest_debug *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_de(struct kvm_vcpu *vcpu,
+					struct kvm_guest_de *dbg)
 {
 	int rc = 0;
 
 	vcpu_load(vcpu);
 
-	vcpu->guest_debug = 0;
+	vcpu->guest_de = 0;
 	kvm_s390_clear_bp_data(vcpu);
 
 	if (dbg->control & ~VALID_GUESTDBG_FLAGS) {
@@ -3305,7 +3305,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	}
 
 	if (dbg->control & KVM_GUESTDBG_ENABLE) {
-		vcpu->guest_debug = dbg->control;
+		vcpu->guest_de = dbg->control;
 		/* enforce guest PER */
 		kvm_s390_set_cpuflags(vcpu, CPUSTAT_P);
 
@@ -3317,7 +3317,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	}
 
 	if (rc) {
-		vcpu->guest_debug = 0;
+		vcpu->guest_de = 0;
 		kvm_s390_clear_bp_data(vcpu);
 		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_P);
 	}
@@ -3890,7 +3890,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	vcpu_load(vcpu);
 
 	if (guestdbg_exit_pending(vcpu)) {
-		kvm_s390_prepare_debug_exit(vcpu);
+		kvm_s390_prepare_de_exit(vcpu);
 		rc = 0;
 		goto out;
 	}
@@ -3918,7 +3918,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if (guestdbg_exit_pending(vcpu) && !rc)  {
-		kvm_s390_prepare_debug_exit(vcpu);
+		kvm_s390_prepare_de_exit(vcpu);
 		rc = 0;
 	}
 

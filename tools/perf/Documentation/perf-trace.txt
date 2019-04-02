@@ -198,7 +198,7 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --print-sample::
 	Print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info for the
-	raw_syscalls:sys_{enter,exit} tracepoints, for debugging.
+	raw_syscalls:sys_{enter,exit} tracepoints, for deging.
 
 --proc-map-timeout::
 	When processing pre-existing threads /proc/XXX/mmap, it may take a long time,
@@ -228,12 +228,12 @@ When tracing pagefaults, the format of the trace is as follows:
 
 - min/maj indicates whether fault event is minor or major;
 - ip.symbol shows symbol for instruction pointer (the code that generated the
-  fault); if no debug symbols available, perf trace will print raw IP;
+  fault); if no de symbols available, perf trace will print raw IP;
 - addr.dso shows DSO for the faulted address;
 - map type is either 'd' for non-executable maps or 'x' for executable maps;
 - addr level is either 'k' for kernel dso or '.' for user dso.
 
-For symbols resolution you may need to install debugging symbols.
+For symbols resolution you may need to install deging symbols.
 
 Please be aware that duration is currently always 0 and doesn't reflect actual
 time it took for fault to be handled!

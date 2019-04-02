@@ -61,13 +61,13 @@ MODULE_VERSION(DRV_VERSION);
 
 struct workqueue_struct *mlx4_wq;
 
-#ifdef CONFIG_MLX4_DEBUG
+#ifdef CONFIG_MLX4_DE
 
-int mlx4_debug_level; /* 0 by default */
-module_param_named(debug_level, mlx4_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+int mlx4_de_level; /* 0 by default */
+module_param_named(de_level, mlx4_de_level, int, 0644);
+MODULE_PARM_DESC(de_level, "Enable de tracing if > 0");
 
-#endif /* CONFIG_MLX4_DEBUG */
+#endif /* CONFIG_MLX4_DE */
 
 #ifdef CONFIG_PCI_MSI
 
@@ -3000,7 +3000,7 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 no_msi:
 	dev->caps.num_comp_vectors = 1;
 
-	BUG_ON(MLX4_EQ_ASYNC >= 2);
+	_ON(MLX4_EQ_ASYNC >= 2);
 	for (i = 0; i < 2; ++i) {
 		priv->eq_table.eq[i].irq = dev->persist->pdev->irq;
 		if (i != MLX4_EQ_ASYNC) {

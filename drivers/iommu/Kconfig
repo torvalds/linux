@@ -64,14 +64,14 @@ config IOMMU_IO_PGTABLE_ARMV7S_SELFTEST
 
 endmenu
 
-config IOMMU_DEBUGFS
-	bool "Export IOMMU internals in DebugFS"
-	depends on DEBUG_FS
+config IOMMU_DEFS
+	bool "Export IOMMU internals in DeFS"
+	depends on DE_FS
 	help
 	  Allows exposure of IOMMU device internals. This option enables
-	  the use of debugfs by IOMMU drivers as required. Devices can,
+	  the use of defs by IOMMU drivers as required. Devices can,
 	  at initialization time, cause the IOMMU code to create a top-level
-	  debug/iommu directory, and then populate a subdirectory with
+	  de/iommu directory, and then populate a subdirectory with
 	  entries as required.
 
 config IOMMU_DEFAULT_PASSTHROUGH
@@ -157,14 +157,14 @@ config AMD_IOMMU_V2
 	  hardware. Select this option if you want to use devices that support
 	  the PCI PRI and PASID interface.
 
-config AMD_IOMMU_DEBUGFS
-	bool "Enable AMD IOMMU internals in DebugFS"
-	depends on AMD_IOMMU && IOMMU_DEBUGFS
+config AMD_IOMMU_DEFS
+	bool "Enable AMD IOMMU internals in DeFS"
+	depends on AMD_IOMMU && IOMMU_DEFS
 	---help---
 	  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!  !!!WARNING!!!
 
 	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY, -REALLY- KNOW WHAT YOU ARE DOING!!!
-	  Exposes AMD IOMMU device internals in DebugFS.
+	  Exposes AMD IOMMU device internals in DeFS.
 
 	  This option is -NOT- intended for production environments, and should
 	  not generally be enabled.
@@ -187,18 +187,18 @@ config INTEL_IOMMU
 	  and include PCI device scope covered by these DMA
 	  remapping devices.
 
-config INTEL_IOMMU_DEBUGFS
-	bool "Export Intel IOMMU internals in Debugfs"
-	depends on INTEL_IOMMU && IOMMU_DEBUGFS
+config INTEL_IOMMU_DEFS
+	bool "Export Intel IOMMU internals in Defs"
+	depends on INTEL_IOMMU && IOMMU_DEFS
 	help
 	  !!!WARNING!!!
 
 	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY KNOW WHAT YOU ARE DOING!!!
 
-	  Expose Intel IOMMU internals in Debugfs.
+	  Expose Intel IOMMU internals in Defs.
 
 	  This option is -NOT- intended for production environments, and should
-	  only be enabled for debugging Intel IOMMU.
+	  only be enabled for deging Intel IOMMU.
 
 config INTEL_IOMMU_SVM
 	bool "Support for Shared Virtual Memory with Intel IOMMU"
@@ -258,12 +258,12 @@ config OMAP_IOMMU
 	  The OMAP3 media platform drivers depend on iommu support,
 	  if you need them say Y here.
 
-config OMAP_IOMMU_DEBUG
-	bool "Export OMAP IOMMU internals in DebugFS"
-	depends on OMAP_IOMMU && DEBUG_FS
+config OMAP_IOMMU_DE
+	bool "Export OMAP IOMMU internals in DeFS"
+	depends on OMAP_IOMMU && DE_FS
 	---help---
 	  Select this to see extensive information about
-	  the internal state of OMAP IOMMU in debugfs.
+	  the internal state of OMAP IOMMU in defs.
 
 	  Say N unless you know you need this.
 
@@ -315,14 +315,14 @@ config EXYNOS_IOMMU
 
 	  If unsure, say N here.
 
-config EXYNOS_IOMMU_DEBUG
-	bool "Debugging log for Exynos IOMMU"
+config EXYNOS_IOMMU_DE
+	bool "Deging log for Exynos IOMMU"
 	depends on EXYNOS_IOMMU
 	help
 	  Select this to see the detailed log message that shows what
 	  happens in the IOMMU driver.
 
-	  Say N unless you need kernel log message for IOMMU debugging.
+	  Say N unless you need kernel log message for IOMMU deging.
 
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"

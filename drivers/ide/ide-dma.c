@@ -289,7 +289,7 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
 		mask &= hwif->swdma_mask;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

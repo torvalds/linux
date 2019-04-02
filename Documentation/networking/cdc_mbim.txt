@@ -332,7 +332,7 @@ References
 [5] "MBIM (Mobile Broadband Interface Model) Registry"
        - http://compliance.usb.org/mbim/
 
-[6] "/sys/kernel/debug/usb/devices output format"
+[6] "/sys/kernel/de/usb/devices output format"
        - Documentation/driver-api/usb/usb.rst
 
 [7] "/sys/bus/usb/devices/.../descriptors"

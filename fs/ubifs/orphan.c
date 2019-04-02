@@ -727,7 +727,7 @@ int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only)
 }
 
 /*
- * Everything below is related to debugging.
+ * Everything below is related to deging.
  */
 
 struct check_orphan {

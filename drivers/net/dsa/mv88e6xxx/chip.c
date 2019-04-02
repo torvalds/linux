@@ -2447,7 +2447,7 @@ static int mv88e6xxx_stats_setup(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_g1_stats_clear(chip);
 }
 
-/* The mv88e6390 has some hidden registers used for debug and
+/* The mv88e6390 has some hidden registers used for de and
  * development. The errata also makes use of them.
  */
 static int mv88e6390_hidden_write(struct mv88e6xxx_chip *chip, int port,

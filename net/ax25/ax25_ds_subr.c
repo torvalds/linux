@@ -60,7 +60,7 @@ void ax25_ds_enquiry_response(ax25_cb *ax25)
 	 * Flexnet refuses to send us *any* I frame if we send
 	 * a REJ in case AX25_COND_REJECT is set. It is superfluous in
 	 * this mode anyway (a RR or RNR invokes the retransmission).
-	 * Is this a Flexnet bug?
+	 * Is this a Flexnet ?
 	 */
 
 	ax25_std_enquiry_response(ax25);

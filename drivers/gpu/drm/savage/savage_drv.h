@@ -490,7 +490,7 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t * dev_priv,
 /*
  * access to the burst command interface (BCI)
  */
-#define SAVAGE_BCI_DEBUG 1
+#define SAVAGE_BCI_DE 1
 
 #define BCI_LOCALS    volatile uint32_t *bci_ptr;
 
@@ -504,7 +504,7 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t * dev_priv,
 /*
  * command DMA support
  */
-#define SAVAGE_DMA_DEBUG 1
+#define SAVAGE_DMA_DE 1
 
 #define DMA_LOCALS   uint32_t *dma_ptr;
 
@@ -531,7 +531,7 @@ extern void savage_emit_clip_rect_s4(drm_savage_private_t * dev_priv,
 	dma_ptr += n;						\
 } while(0)
 
-#if SAVAGE_DMA_DEBUG
+#if SAVAGE_DMA_DE
 #define DMA_COMMIT() do {						\
 	unsigned int cur = dev_priv->current_dma_page;			\
 	uint32_t *expected = (uint32_t *)dev_priv->cmd_dma->handle +	\

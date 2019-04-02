@@ -7,7 +7,7 @@ The seq_file interface
 
 There are numerous ways for a device driver (or other kernel component) to
 provide information to the user or system administrator.  One useful
-technique is the creation of virtual files, in debugfs, /proc or elsewhere.
+technique is the creation of virtual files, in defs, /proc or elsewhere.
 Virtual files can provide human-readable output that is easy to get at
 without any special utility programs; they can also make life easier for
 script writers. It is not surprising that the use of virtual files has

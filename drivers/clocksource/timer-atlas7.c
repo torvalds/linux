@@ -198,7 +198,7 @@ static int sirfsoc_local_timer_starting_cpu(unsigned int cpu)
 	ce->cpumask = cpumask_of(cpu);
 
 	action->dev_id = ce;
-	BUG_ON(setup_irq(ce->irq, action));
+	_ON(setup_irq(ce->irq, action));
 	irq_force_affinity(action->irq, cpumask_of(cpu));
 
 	clockevents_register_device(ce);
@@ -219,7 +219,7 @@ static int sirfsoc_local_timer_dying_cpu(unsigned int cpu)
 static int __init sirfsoc_clockevent_init(void)
 {
 	sirfsoc_clockevent = alloc_percpu(struct clock_event_device);
-	BUG_ON(!sirfsoc_clockevent);
+	_ON(!sirfsoc_clockevent);
 
 	/* Install and invoke hotplug callbacks */
 	return cpuhp_setup_state(CPUHP_AP_MARCO_TIMER_STARTING,
@@ -234,9 +234,9 @@ static int __init sirfsoc_atlas7_timer_init(struct device_node *np)
 	struct clk *clk;
 
 	clk = of_clk_get(np, 0);
-	BUG_ON(IS_ERR(clk));
+	_ON(IS_ERR(clk));
 
-	BUG_ON(clk_prepare_enable(clk));
+	_ON(clk_prepare_enable(clk));
 
 	atlas7_timer_rate = clk_get_rate(clk);
 
@@ -256,7 +256,7 @@ static int __init sirfsoc_atlas7_timer_init(struct device_node *np)
 	/* Clear all interrupts */
 	writel_relaxed(0xFFFF, sirfsoc_timer_base + SIRFSOC_TIMER_INTR_STATUS);
 
-	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, atlas7_timer_rate));
+	_ON(clocksource_register_hz(&sirfsoc_clocksource, atlas7_timer_rate));
 
 	return sirfsoc_clockevent_init();
 }

@@ -26,17 +26,17 @@
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int vbi_debug;
-module_param(vbi_debug, int, 0644);
-MODULE_PARM_DESC(vbi_debug,"enable debug messages [vbi]");
+static unsigned int vbi_de;
+module_param(vbi_de, int, 0644);
+MODULE_PARM_DESC(vbi_de,"enable de messages [vbi]");
 
 static unsigned int vbibufs = 4;
 module_param(vbibufs, int, 0444);
 MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32");
 
 #define vbi_dbg(fmt, arg...) do { \
-	if (vbi_debug) \
-		printk(KERN_DEBUG pr_fmt("vbi: " fmt), ## arg); \
+	if (vbi_de) \
+		printk(KERN_DE pr_fmt("vbi: " fmt), ## arg); \
 	} while (0)
 
 /* ------------------------------------------------------------------ */

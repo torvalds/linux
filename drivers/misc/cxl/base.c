@@ -37,7 +37,7 @@ static inline struct cxl_calls *cxl_calls_get(void)
 
 static inline void cxl_calls_put(struct cxl_calls *calls)
 {
-	BUG_ON(calls != cxl_calls);
+	_ON(calls != cxl_calls);
 
 	/* we don't need to rcu this, as we hold a reference to the module */
 	module_put(cxl_calls->owner);
@@ -93,7 +93,7 @@ EXPORT_SYMBOL_GPL(register_cxl_calls);
 
 void unregister_cxl_calls(struct cxl_calls *calls)
 {
-	BUG_ON(cxl_calls->owner != calls->owner);
+	_ON(cxl_calls->owner != calls->owner);
 	RCU_INIT_POINTER(cxl_calls, NULL);
 	synchronize_rcu();
 }

@@ -232,7 +232,7 @@
 	};
 
 	pinctrl_hog: hoggrp {
-		fsl,pins = <	/* Enable ARM Debugger */
+		fsl,pins = <	/* Enable ARM Deger */
 			MX6QDL_PAD_CSI0_MCLK__ARM_TRACE_CTL	0x1b0b0
 			MX6QDL_PAD_CSI0_PIXCLK__ARM_EVENTO	0x1b0b0
 			MX6QDL_PAD_CSI0_VSYNC__ARM_TRACE00	0x1b0b0

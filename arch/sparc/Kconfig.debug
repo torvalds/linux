@@ -4,9 +4,9 @@ config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
 
-config DEBUG_DCFLUSH
-	bool "D-cache flush debugging"
-	depends on SPARC64 && DEBUG_KERNEL
+config DE_DCFLUSH
+	bool "D-cache flush deging"
+	depends on SPARC64 && DE_KERNEL
 
 config MCOUNT
 	bool

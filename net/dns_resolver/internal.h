@@ -36,16 +36,16 @@ enum {
 extern const struct cred *dns_resolver_cache;
 
 /*
- * debug tracing
+ * de tracing
  */
-extern unsigned int dns_resolver_debug;
+extern unsigned int dns_resolver_de;
 
-#define	kdebug(FMT, ...)				\
+#define	kde(FMT, ...)				\
 do {							\
-	if (unlikely(dns_resolver_debug))		\
-		printk(KERN_DEBUG "[%-6.6s] "FMT"\n",	\
+	if (unlikely(dns_resolver_de))		\
+		printk(KERN_DE "[%-6.6s] "FMT"\n",	\
 		       current->comm, ##__VA_ARGS__);	\
 } while (0)
 
-#define kenter(FMT, ...) kdebug("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define kleave(FMT, ...) kdebug("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define kenter(FMT, ...) kde("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define kleave(FMT, ...) kde("<== %s()"FMT"", __func__, ##__VA_ARGS__)

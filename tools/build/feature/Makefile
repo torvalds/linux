@@ -33,13 +33,13 @@ FILES=                                          \
          test-libslang.bin                      \
          test-libcrypto.bin                     \
          test-libunwind.bin                     \
-         test-libunwind-debug-frame.bin         \
+         test-libunwind-de-frame.bin         \
          test-libunwind-x86.bin                 \
          test-libunwind-x86_64.bin              \
          test-libunwind-arm.bin                 \
          test-libunwind-aarch64.bin             \
-         test-libunwind-debug-frame-arm.bin     \
-         test-libunwind-debug-frame-aarch64.bin \
+         test-libunwind-de-frame-arm.bin     \
+         test-libunwind-de-frame-aarch64.bin \
          test-pthread-attr-setaffinity-np.bin   \
          test-pthread-barrier.bin		\
          test-stackprotector-all.bin            \
@@ -156,7 +156,7 @@ $(OUTPUT)test-numa_num_possible_cpus.bin:
 $(OUTPUT)test-libunwind.bin:
 	$(BUILD) -lelf
 
-$(OUTPUT)test-libunwind-debug-frame.bin:
+$(OUTPUT)test-libunwind-de-frame.bin:
 	$(BUILD) -lelf
 $(OUTPUT)test-libunwind-x86.bin:
 	$(BUILD) -lelf -lunwind-x86
@@ -170,10 +170,10 @@ $(OUTPUT)test-libunwind-arm.bin:
 $(OUTPUT)test-libunwind-aarch64.bin:
 	$(BUILD) -lelf -lunwind-aarch64
 
-$(OUTPUT)test-libunwind-debug-frame-arm.bin:
+$(OUTPUT)test-libunwind-de-frame-arm.bin:
 	$(BUILD) -lelf -lunwind-arm
 
-$(OUTPUT)test-libunwind-debug-frame-aarch64.bin:
+$(OUTPUT)test-libunwind-de-frame-aarch64.bin:
 	$(BUILD) -lelf -lunwind-aarch64
 
 $(OUTPUT)test-libaudit.bin:

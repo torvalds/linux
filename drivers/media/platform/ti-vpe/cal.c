@@ -49,23 +49,23 @@ static unsigned video_nr = -1;
 module_param(video_nr, uint, 0644);
 MODULE_PARM_DESC(video_nr, "videoX start number, -1 is autodetect");
 
-static unsigned debug;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "activates debug info");
+static unsigned de;
+module_param(de, uint, 0644);
+MODULE_PARM_DESC(de, "activates de info");
 
 /* timeperframe: min/max and default */
 static const struct v4l2_fract
 	tpf_default = {.numerator = 1001,	.denominator = 30000};
 
 #define cal_dbg(level, caldev, fmt, arg...)	\
-		v4l2_dbg(level, debug, &caldev->v4l2_dev, fmt, ##arg)
+		v4l2_dbg(level, de, &caldev->v4l2_dev, fmt, ##arg)
 #define cal_info(caldev, fmt, arg...)	\
 		v4l2_info(&caldev->v4l2_dev, fmt, ##arg)
 #define cal_err(caldev, fmt, arg...)	\
 		v4l2_err(&caldev->v4l2_dev, fmt, ##arg)
 
 #define ctx_dbg(level, ctx, fmt, arg...)	\
-		v4l2_dbg(level, debug, &ctx->v4l2_dev, fmt, ##arg)
+		v4l2_dbg(level, de, &ctx->v4l2_dev, fmt, ##arg)
 #define ctx_info(ctx, fmt, arg...)	\
 		v4l2_info(&ctx->v4l2_dev, fmt, ##arg)
 #define ctx_err(ctx, fmt, arg...)	\
@@ -1325,7 +1325,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err;
 	}
 
-	if (debug >= 4)
+	if (de >= 4)
 		cal_quickdump_regs(ctx->dev);
 
 	return 0;

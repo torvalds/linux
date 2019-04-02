@@ -50,7 +50,7 @@ struct msr_hwp_request {
 	unsigned char hwp_use_pkg;
 } req_update;
 
-unsigned int debug;
+unsigned int de;
 unsigned int verbose;
 unsigned int force;
 char *progname;
@@ -125,7 +125,7 @@ int ratio_2_msr_perf(int ratio)
 
 	msr_perf = ratio * 255 / bdx_highest_ratio;
 
-	if (debug)
+	if (de)
 		fprintf(stderr, "%d = ratio_to_msr_perf(%d)\n", msr_perf, ratio);
 
 	return msr_perf;
@@ -142,7 +142,7 @@ int msr_perf_2_ratio(int msr_perf)
 	d = d + 0.5;	/* round */
 	ratio = (int)d;
 
-	if (debug)
+	if (de)
 		fprintf(stderr, "%d = msr_perf_ratio(%d) {%f}\n", ratio, msr_perf, d);
 
 	return ratio;
@@ -250,7 +250,7 @@ int parse_cmdline_hwp_window(int i)
 		usage();
 	}
 	for (exponent = 0; ; ++exponent) {
-		if (debug)
+		if (de)
 			printf("%d 10^%d\n", i, exponent);
 
 		if (i <= 127)
@@ -258,7 +258,7 @@ int parse_cmdline_hwp_window(int i)
 
 		i = i / 10;
 	}
-	if (debug)
+	if (de)
 		fprintf(stderr, "%d*10^%d: 0x%x\n", i, exponent, (exponent << 7) | i);
 
 	return (exponent << 7) | i;
@@ -527,7 +527,7 @@ void cmdline(int argc, char **argv)
 		{"all",		required_argument,	0, 'a'},
 		{"cpu",		required_argument,	0, 'c'},
 		{"pkg",		required_argument,	0, 'p'},
-		{"debug",	no_argument,		0, 'd'},
+		{"de",	no_argument,		0, 'd'},
 		{"hwp-desired",	required_argument,	0, 'D'},
 		{"epb",	required_argument,	0, 'B'},
 		{"force",	no_argument,	0, 'f'},
@@ -565,7 +565,7 @@ void cmdline(int argc, char **argv)
 			usage();
 			break;
 		case 'd':
-			debug++;
+			de++;
 			verbose++;
 			break;
 		case 'f':
@@ -639,7 +639,7 @@ int get_msr(int cpu, int offset, unsigned long long *msr)
 	if (retval != sizeof(*msr))
 		err(-1, "%s offset 0x%llx read failed", pathname, (unsigned long long)offset);
 
-	if (debug > 1)
+	if (de > 1)
 		fprintf(stderr, "get_msr(cpu%d, 0x%X, 0x%llX)\n", cpu, offset, *msr);
 
 	close(fd);
@@ -663,7 +663,7 @@ int put_msr(int cpu, int offset, unsigned long long new_msr)
 
 	close(fd);
 
-	if (debug > 1)
+	if (de > 1)
 		fprintf(stderr, "put_msr(cpu%d, 0x%X, 0x%llX)\n", cpu, offset, new_msr);
 
 	return 0;
@@ -730,7 +730,7 @@ void write_hwp_request(int cpu, struct msr_hwp_request *hwp_req, unsigned int ms
 {
 	unsigned long long msr = 0;
 
-	if (debug > 1)
+	if (de > 1)
 		printf("cpu%d: requesting min %d max %d des %d epp %d window 0x%0x use_pkg %d\n",
 			cpu, hwp_req->hwp_min, hwp_req->hwp_max,
 			hwp_req->hwp_desired, hwp_req->hwp_epp,
@@ -827,7 +827,7 @@ void update_cpufreq_scaling_freq(int is_max, int cpu, unsigned int ratio)
 
 	fp = fopen(pathname, "w");
 	if (!fp) {
-		if (debug)
+		if (de)
 			perror(pathname);
 		return;
 	}
@@ -835,9 +835,9 @@ void update_cpufreq_scaling_freq(int is_max, int cpu, unsigned int ratio)
 	khz = ratio_2_sysfs_khz(ratio);
 	retval = fprintf(fp, "%d", khz);
 	if (retval < 0)
-		if (debug)
+		if (de)
 			perror("fprintf");
-	if (debug)
+	if (de)
 		printf("echo %d > %s\n", khz, pathname);
 
 	fclose(fp);
@@ -845,7 +845,7 @@ void update_cpufreq_scaling_freq(int is_max, int cpu, unsigned int ratio)
 
 /*
  * We update all sysfs before updating any MSRs because of
- * bugs in cpufreq/intel_pstate where the sysfs writes
+ * s in cpufreq/intel_pstate where the sysfs writes
  * for a CPU may change the min/max values on other CPUS.
  */
 
@@ -941,7 +941,7 @@ int update_hwp_request(int cpu)
 	int msr_offset = MSR_HWP_REQUEST;
 
 	read_hwp_request(cpu, &req, msr_offset);
-	if (debug)
+	if (de)
 		print_hwp_request(cpu, &req, "old: ");
 
 	if (update_hwp_min)
@@ -962,7 +962,7 @@ int update_hwp_request(int cpu)
 	req.hwp_use_pkg = req_update.hwp_use_pkg;
 
 	read_hwp_cap(cpu, &cap, MSR_HWP_CAPABILITIES);
-	if (debug)
+	if (de)
 		print_hwp_cap(cpu, &cap, "");
 
 	if (!force)
@@ -972,7 +972,7 @@ int update_hwp_request(int cpu)
 
 	write_hwp_request(cpu, &req, msr_offset);
 
-	if (debug) {
+	if (de) {
 		read_hwp_request(cpu, &req, msr_offset);
 		print_hwp_request(cpu, &req, "new: ");
 	}
@@ -987,7 +987,7 @@ int update_hwp_request_pkg(int pkg)
 	int msr_offset = MSR_HWP_REQUEST_PKG;
 
 	read_hwp_request(cpu, &req, msr_offset);
-	if (debug)
+	if (de)
 		print_hwp_request_pkg(pkg, &req, "old: ");
 
 	if (update_hwp_min)
@@ -1006,7 +1006,7 @@ int update_hwp_request_pkg(int pkg)
 		req.hwp_epp = req_update.hwp_epp;
 
 	read_hwp_cap(cpu, &cap, MSR_HWP_CAPABILITIES);
-	if (debug)
+	if (de)
 		print_hwp_cap(cpu, &cap, "");
 
 	if (!force)
@@ -1016,7 +1016,7 @@ int update_hwp_request_pkg(int pkg)
 
 	write_hwp_request(cpu, &req, msr_offset);
 
-	if (debug) {
+	if (de) {
 		read_hwp_request(cpu, &req, msr_offset);
 		print_hwp_request_pkg(pkg, &req, "new: ");
 	}
@@ -1312,7 +1312,7 @@ void parse_cpuid(void)
 	if (ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e)
 		genuine_intel = 1;
 
-	if (debug)
+	if (de)
 		fprintf(stderr, "CPUID(0): %.4s%.4s%.4s ",
 			(char *)&ebx, (char *)&edx, (char *)&ecx);
 
@@ -1323,7 +1323,7 @@ void parse_cpuid(void)
 	if (family == 6 || family == 0xf)
 		model += ((fms >> 16) & 0xf) << 4;
 
-	if (debug) {
+	if (de) {
 		fprintf(stderr, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
 		fprintf(stderr, "CPUID(1): %s %s %s %s %s %s %s %s\n",
@@ -1354,7 +1354,7 @@ void parse_cpuid(void)
 
 	/* has_epb already set */
 
-	if (debug)
+	if (de)
 		fprintf(stderr,
 			"CPUID(6): %sTURBO, %sHWP, %sHWPnotify, %sHWPwindow, %sHWPepp, %sHWPpkg, %sEPB\n",
 			turbo_is_enabled ? "" : "No-",
@@ -1378,7 +1378,7 @@ int main(int argc, char **argv)
 
 	cmdline(argc, argv);
 
-	if (debug)
+	if (de)
 		print_version();
 
 	parse_cpuid();

@@ -99,7 +99,7 @@ __aa_get_loaddata(struct aa_loaddata *data)
  * @data: reference to get a count on
  *
  * Returns: point to reference
- * Requires: @data to have a valid reference count on it. It is a bug
+ * Requires: @data to have a valid reference count on it. It is a 
  *           if the race to reap can be encountered when it is used.
  */
 static inline struct aa_loaddata *
@@ -107,7 +107,7 @@ aa_get_loaddata(struct aa_loaddata *data)
 {
 	struct aa_loaddata *tmp = __aa_get_loaddata(data);
 
-	AA_BUG(data && !tmp);
+	AA_(data && !tmp);
 
 	return tmp;
 }

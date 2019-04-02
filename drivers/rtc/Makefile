@@ -3,7 +3,7 @@
 # Makefile for RTC class/drivers.
 #
 
-ccflags-$(CONFIG_RTC_DEBUG)	:= -DDEBUG
+ccflags-$(CONFIG_RTC_DE)	:= -DDE
 
 obj-$(CONFIG_RTC_LIB)		+= lib.o
 obj-$(CONFIG_RTC_HCTOSYS)	+= hctosys.o

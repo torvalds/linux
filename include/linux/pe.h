@@ -63,7 +63,7 @@
 #define IMAGE_FILE_16BIT_MACHINE             0x0040
 #define IMAGE_FILE_BYTES_REVERSED_LO         0x0080
 #define IMAGE_FILE_32BIT_MACHINE             0x0100
-#define IMAGE_FILE_DEBUG_STRIPPED            0x0200
+#define IMAGE_FILE_DE_STRIPPED            0x0200
 #define IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP   0x0400
 #define IMAGE_FILE_NET_RUN_FROM_SWAP         0x0800
 #define IMAGE_FILE_SYSTEM                    0x1000
@@ -142,7 +142,7 @@
 #define IMAGE_SCN_MEM_READ	0x40000000 /* readable */
 #define IMAGE_SCN_MEM_WRITE	0x80000000 /* writeable */
 
-#define IMAGE_DEBUG_TYPE_CODEVIEW	2
+#define IMAGE_DE_TYPE_CODEVIEW	2
 
 #ifndef __ASSEMBLY__
 
@@ -269,7 +269,7 @@ struct data_directory {
 	struct data_dirent exceptions;		/* .pdata */
 	struct data_dirent certs;		/* certs */
 	struct data_dirent base_relocations;	/* .reloc */
-	struct data_dirent debug;		/* .debug */
+	struct data_dirent de;		/* .de */
 	struct data_dirent arch;		/* reservered */
 	struct data_dirent global_ptr;		/* global pointer reg. Size=0 */
 	struct data_dirent tls;			/* .tls */

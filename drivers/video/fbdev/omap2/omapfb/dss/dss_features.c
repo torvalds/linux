@@ -486,7 +486,7 @@ static const enum dss_feat_id omap3430_dss_feat_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_OMAP3_DSI_FIFO_,
 	FEAT_DPI_USES_VDDS_DSI,
 };
 
@@ -505,7 +505,7 @@ static const enum dss_feat_id am35xx_dss_feat_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_OMAP3_DSI_FIFO_,
 };
 
 static const enum dss_feat_id am43xx_dss_feat_list[] = {
@@ -531,13 +531,13 @@ static const enum dss_feat_id omap3630_dss_feat_list[] = {
 	FEAT_LINEBUFFERSPLIT,
 	FEAT_ROWREPEATENABLE,
 	FEAT_RESIZECONF,
-	FEAT_DSI_PLL_PWR_BUG,
+	FEAT_DSI_PLL_PWR_,
 	FEAT_CPR,
 	FEAT_PRELOAD,
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_OMAP3_DSI_FIFO_,
 	FEAT_DPI_USES_VDDS_DSI,
 };
 
@@ -891,7 +891,7 @@ bool dss_has_feature(enum dss_feat_id id)
 
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end)
 {
-	BUG_ON(id >= omap_current_dss_features->num_reg_fields);
+	_ON(id >= omap_current_dss_features->num_reg_fields);
 
 	*start = omap_current_dss_features->reg_fields[id].start;
 	*end = omap_current_dss_features->reg_fields[id].end;

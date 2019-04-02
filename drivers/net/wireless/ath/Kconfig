@@ -22,15 +22,15 @@ config WLAN_VENDOR_ATH
 
 if WLAN_VENDOR_ATH
 
-config ATH_DEBUG
-	bool "Atheros wireless debugging"
+config ATH_DE
+	bool "Atheros wireless deging"
 	---help---
-	  Say Y, if you want to debug atheros wireless drivers.
+	  Say Y, if you want to de atheros wireless drivers.
 	  Right now only ath9k makes use of this.
 
 config ATH_TRACEPOINTS
        bool "Atheros wireless tracing"
-       depends on ATH_DEBUG
+       depends on ATH_DE
        depends on EVENT_TRACING
        ---help---
          This option enables tracepoints for atheros wireless drivers.

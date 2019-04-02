@@ -97,7 +97,7 @@ struct dht11 {
 	struct {s64 ts; int value; }	edges[DHT11_EDGES_PER_READ];
 };
 
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 /*
  * dht11_edges_print: show the data as actually received by the
  *                    driver.
@@ -113,7 +113,7 @@ static void dht11_edges_print(struct dht11 *dht11)
 			dht11->edges[i - 1].value ? "high" : "low");
 	}
 }
-#endif /* CONFIG_DYNAMIC_DEBUG */
+#endif /* CONFIG_DYNAMIC_DE */
 
 static unsigned char dht11_decode_byte(char *bits)
 {
@@ -246,7 +246,7 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 
 		free_irq(dht11->irq, iio_dev);
 
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 		dht11_edges_print(dht11);
 #endif
 

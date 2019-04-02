@@ -77,7 +77,7 @@ macvlan_dev_real_dev(const struct net_device *dev)
 static inline struct net_device *
 macvlan_dev_real_dev(const struct net_device *dev)
 {
-	BUG();
+	();
 	return NULL;
 }
 #endif

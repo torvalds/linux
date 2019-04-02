@@ -23,7 +23,7 @@ static void __init dove_init(void)
 #ifdef CONFIG_CACHE_TAUROS2
 	tauros2_init(0);
 #endif
-	BUG_ON(mvebu_mbus_dt_init(false));
+	_ON(mvebu_mbus_dt_init(false));
 	dove_init_pmu();
 }
 

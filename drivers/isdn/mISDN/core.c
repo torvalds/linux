@@ -20,11 +20,11 @@
 #include <linux/mISDNif.h>
 #include "core.h"
 
-static u_int debug;
+static u_int de;
 
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL");
-module_param(debug, uint, S_IRUGO | S_IWUSR);
+module_param(de, uint, S_IRUGO | S_IWUSR);
 
 static u64		device_ids;
 #define MAX_DEVICE_ID	63
@@ -239,8 +239,8 @@ mISDN_register_device(struct mISDNdevice *dev,
 		dev_set_name(&dev->dev, "%s", name);
 	else
 		dev_set_name(&dev->dev, "mISDN%d", dev->id);
-	if (debug & DEBUG_CORE)
-		printk(KERN_DEBUG "mISDN_register %s %d\n",
+	if (de & DE_CORE)
+		printk(KERN_DE "mISDN_register %s %d\n",
 		       dev_name(&dev->dev), dev->id);
 	err = create_stack(dev);
 	if (err)
@@ -267,8 +267,8 @@ EXPORT_SYMBOL(mISDN_register_device);
 
 void
 mISDN_unregister_device(struct mISDNdevice *dev) {
-	if (debug & DEBUG_CORE)
-		printk(KERN_DEBUG "mISDN_unregister %s %d\n",
+	if (de & DE_CORE)
+		printk(KERN_DE "mISDN_unregister %s %d\n",
 		       dev_name(&dev->dev), dev->id);
 	/* sysfs_remove_link(&dev->dev.kobj, "device"); */
 	device_del(&dev->dev);
@@ -328,8 +328,8 @@ mISDN_register_Bprotocol(struct Bprotocol *bp)
 	u_long			flags;
 	struct Bprotocol	*old;
 
-	if (debug & DEBUG_CORE)
-		printk(KERN_DEBUG "%s: %s/%x\n", __func__,
+	if (de & DE_CORE)
+		printk(KERN_DE "%s: %s/%x\n", __func__,
 		       bp->name, bp->Bprotocols);
 	old = get_Bprotocol4mask(bp->Bprotocols);
 	if (old) {
@@ -350,8 +350,8 @@ mISDN_unregister_Bprotocol(struct Bprotocol *bp)
 {
 	u_long	flags;
 
-	if (debug & DEBUG_CORE)
-		printk(KERN_DEBUG "%s: %s/%x\n", __func__, bp->name,
+	if (de & DE_CORE)
+		printk(KERN_DE "%s: %s/%x\n", __func__, bp->name,
 		       bp->Bprotocols);
 	write_lock_irqsave(&bp_lock, flags);
 	list_del(&bp->list);
@@ -382,21 +382,21 @@ mISDNInit(void)
 
 	printk(KERN_INFO "Modular ISDN core version %d.%d.%d\n",
 	       MISDN_MAJOR_VERSION, MISDN_MINOR_VERSION, MISDN_RELEASE);
-	mISDN_init_clock(&debug);
-	mISDN_initstack(&debug);
+	mISDN_init_clock(&de);
+	mISDN_initstack(&de);
 	err = class_register(&mISDN_class);
 	if (err)
 		goto error1;
-	err = mISDN_inittimer(&debug);
+	err = mISDN_inittimer(&de);
 	if (err)
 		goto error2;
-	err = l1_init(&debug);
+	err = l1_init(&de);
 	if (err)
 		goto error3;
-	err = Isdnl2_Init(&debug);
+	err = Isdnl2_Init(&de);
 	if (err)
 		goto error4;
-	err = misdn_sock_init(&debug);
+	err = misdn_sock_init(&de);
 	if (err)
 		goto error5;
 	return 0;
@@ -421,7 +421,7 @@ static void mISDN_cleanup(void)
 	mISDN_timer_cleanup();
 	class_unregister(&mISDN_class);
 
-	printk(KERN_DEBUG "mISDNcore unloaded\n");
+	printk(KERN_DE "mISDNcore unloaded\n");
 }
 
 module_init(mISDNInit);

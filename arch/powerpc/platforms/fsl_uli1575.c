@@ -308,13 +308,13 @@ static void hpcd_quirk_uli5229(struct pci_dev *dev)
 }
 
 /*
- * SATA interrupt pin bug fix
- * There's a chip bug for 5288, The interrupt pin should be 2,
+ * SATA interrupt pin  fix
+ * There's a chip  for 5288, The interrupt pin should be 2,
  * not the read only value 1, So it use INTB#, not INTA# which
  * actually used by the IDE device 5229.
- * As of this bug, during the PCI initialization, 5288 read the
+ * As of this , during the PCI initialization, 5288 read the
  * irq of IDE device from the device tree, this function fix this
- * bug by re-assigning a correct irq to 5288.
+ *  by re-assigning a correct irq to 5288.
  *
  */
 static void hpcd_final_uli5288(struct pci_dev *dev)

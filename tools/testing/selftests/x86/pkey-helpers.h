@@ -16,8 +16,8 @@
 #define NR_PKEYS 16
 #define PKRU_BITS_PER_PKEY 2
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 0
+#ifndef DE_LEVEL
+#define DE_LEVEL 0
 #endif
 #define DPRINT_IN_SIGNAL_BUF_SIZE 4096
 extern int dprint_in_signal;
@@ -44,7 +44,7 @@ static inline void sigsafe_printf(const char *format, ...)
 	}
 }
 #define dprintf_level(level, args...) do {	\
-	if (level <= DEBUG_LEVEL)		\
+	if (level <= DE_LEVEL)		\
 		sigsafe_printf(args);		\
 } while (0)
 #define dprintf0(args...) dprintf_level(0, args)

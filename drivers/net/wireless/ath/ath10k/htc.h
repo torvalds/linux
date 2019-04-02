@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 
@@ -332,7 +332,7 @@ struct ath10k_htc_ep {
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
 
-	u8 seq_no; /* for debugging */
+	u8 seq_no; /* for deging */
 	int tx_credits;
 	bool tx_credit_flow_enabled;
 };

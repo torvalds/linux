@@ -18,7 +18,7 @@
 #include <net/caif/caif_device.h>
 #include <net/caif/cfcnfg.h>
 #include <linux/err.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sjur Brendeland");
@@ -57,7 +57,7 @@ module_param(ser_write_chunk, int, 0444);
 
 MODULE_PARM_DESC(ser_write_chunk, "Maximum size of data written to UART.");
 
-static struct dentry *debugfsdir;
+static struct dentry *defsdir;
 
 static int caif_net_open(struct net_device *dev);
 static int caif_net_close(struct net_device *dev);
@@ -70,10 +70,10 @@ struct ser_device {
 	struct tty_struct *tty;
 	bool tx_started;
 	unsigned long state;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_tty_dir;
-	struct debugfs_blob_wrapper tx_blob;
-	struct debugfs_blob_wrapper rx_blob;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_tty_dir;
+	struct defs_blob_wrapper tx_blob;
+	struct defs_blob_wrapper rx_blob;
 	u8 rx_data[128];
 	u8 tx_data[128];
 	u8 tty_status;
@@ -83,7 +83,7 @@ struct ser_device {
 
 static void caifdev_setup(struct net_device *dev);
 static void ldisc_tx_wakeup(struct tty_struct *tty);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static inline void update_tty_status(struct ser_device *ser)
 {
 	ser->tty_status =
@@ -92,25 +92,25 @@ static inline void update_tty_status(struct ser_device *ser)
 		ser->tty->packet << 2 |
 		ser->tty->port->low_latency << 1;
 }
-static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
+static inline void defs_init(struct ser_device *ser, struct tty_struct *tty)
 {
-	ser->debugfs_tty_dir =
-			debugfs_create_dir(tty->name, debugfsdir);
-	if (!IS_ERR(ser->debugfs_tty_dir)) {
-		debugfs_create_blob("last_tx_msg", 0400,
-				    ser->debugfs_tty_dir,
+	ser->defs_tty_dir =
+			defs_create_dir(tty->name, defsdir);
+	if (!IS_ERR(ser->defs_tty_dir)) {
+		defs_create_blob("last_tx_msg", 0400,
+				    ser->defs_tty_dir,
 				    &ser->tx_blob);
 
-		debugfs_create_blob("last_rx_msg", 0400,
-				    ser->debugfs_tty_dir,
+		defs_create_blob("last_rx_msg", 0400,
+				    ser->defs_tty_dir,
 				    &ser->rx_blob);
 
-		debugfs_create_x32("ser_state", 0400,
-				   ser->debugfs_tty_dir,
+		defs_create_x32("ser_state", 0400,
+				   ser->defs_tty_dir,
 				   (u32 *)&ser->state);
 
-		debugfs_create_x8("tty_status", 0400,
-				  ser->debugfs_tty_dir,
+		defs_create_x8("tty_status", 0400,
+				  ser->defs_tty_dir,
 				  &ser->tty_status);
 
 	}
@@ -120,12 +120,12 @@ static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 	ser->rx_blob.size = 0;
 }
 
-static inline void debugfs_deinit(struct ser_device *ser)
+static inline void defs_deinit(struct ser_device *ser)
 {
-	debugfs_remove_recursive(ser->debugfs_tty_dir);
+	defs_remove_recursive(ser->defs_tty_dir);
 }
 
-static inline void debugfs_rx(struct ser_device *ser, const u8 *data, int size)
+static inline void defs_rx(struct ser_device *ser, const u8 *data, int size)
 {
 	if (size > sizeof(ser->rx_data))
 		size = sizeof(ser->rx_data);
@@ -134,7 +134,7 @@ static inline void debugfs_rx(struct ser_device *ser, const u8 *data, int size)
 	ser->rx_blob.size = size;
 }
 
-static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
+static inline void defs_tx(struct ser_device *ser, const u8 *data, int size)
 {
 	if (size > sizeof(ser->tx_data))
 		size = sizeof(ser->tx_data);
@@ -143,11 +143,11 @@ static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
 	ser->tx_blob.size = size;
 }
 #else
-static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
+static inline void defs_init(struct ser_device *ser, struct tty_struct *tty)
 {
 }
 
-static inline void debugfs_deinit(struct ser_device *ser)
+static inline void defs_deinit(struct ser_device *ser)
 {
 }
 
@@ -155,11 +155,11 @@ static inline void update_tty_status(struct ser_device *ser)
 {
 }
 
-static inline void debugfs_rx(struct ser_device *ser, const u8 *data, int size)
+static inline void defs_rx(struct ser_device *ser, const u8 *data, int size)
 {
 }
 
-static inline void debugfs_tx(struct ser_device *ser, const u8 *data, int size)
+static inline void defs_tx(struct ser_device *ser, const u8 *data, int size)
 {
 }
 
@@ -191,7 +191,7 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 		return;
 	}
 
-	BUG_ON(ser->dev == NULL);
+	_ON(ser->dev == NULL);
 
 	/* Get a suitable caif packet and copy in data. */
 	skb = netdev_alloc_skb(ser->dev, count+1);
@@ -201,7 +201,7 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 
 	skb->protocol = htons(ETH_P_CAIF);
 	skb_reset_mac_header(skb);
-	debugfs_rx(ser, data, count);
+	defs_rx(ser, data, count);
 	/* Push received packet up the stack. */
 	ret = netif_rx_ni(skb);
 	if (!ret) {
@@ -276,7 +276,7 @@ static int caif_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ser_device *ser;
 
-	BUG_ON(dev == NULL);
+	_ON(dev == NULL);
 	ser = netdev_priv(dev);
 
 	/* Send flow off once, on high water mark */
@@ -296,7 +296,7 @@ static void ldisc_tx_wakeup(struct tty_struct *tty)
 	struct ser_device *ser;
 
 	ser = tty->disc_data;
-	BUG_ON(ser == NULL);
+	_ON(ser == NULL);
 	WARN_ON(ser->tty != tty);
 	handle_tx(ser);
 }
@@ -316,7 +316,7 @@ static void ser_release(struct work_struct *work)
 		list_for_each_entry_safe(ser, tmp, &list, node) {
 			dev_close(ser->dev);
 			unregister_netdevice(ser->dev);
-			debugfs_deinit(ser);
+			defs_deinit(ser);
 		}
 		rtnl_unlock();
 	}
@@ -351,7 +351,7 @@ static int ldisc_open(struct tty_struct *tty)
 	ser = netdev_priv(dev);
 	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;
-	debugfs_init(ser, tty);
+	defs_init(ser, tty);
 	tty->receive_room = N_TTY_BUF_SIZE;
 	tty->disc_data = ser;
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
@@ -450,7 +450,7 @@ static int __init caif_ser_init(void)
 	int ret;
 
 	ret = register_ldisc();
-	debugfsdir = debugfs_create_dir("caif_serial", NULL);
+	defsdir = defs_create_dir("caif_serial", NULL);
 	return ret;
 }
 
@@ -462,7 +462,7 @@ static void __exit caif_ser_exit(void)
 	ser_release(NULL);
 	cancel_work_sync(&ser_release_work);
 	tty_unregister_ldisc(N_CAIF);
-	debugfs_remove_recursive(debugfsdir);
+	defs_remove_recursive(defsdir);
 }
 
 module_init(caif_ser_init);

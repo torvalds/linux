@@ -86,7 +86,7 @@ typedef struct sg_io_hdr
 				/* command block (when <= SCSI_2) */
 #define SG_FLAG_MMAP_IO 4       /* request memory mapped IO */
 #define SG_FLAG_NO_DXFER 0x10000 /* no transfer of kernel buffers to/from */
-				/* user space (debug indirect IO) */
+				/* user space (de indirect IO) */
 /* defaults:: for sg driver: Q_AT_HEAD; for block layer: Q_AT_TAIL */
 #define SG_FLAG_Q_AT_TAIL 0x10
 #define SG_FLAG_Q_AT_HEAD 0x20
@@ -253,8 +253,8 @@ struct sg_header
 #define SG_SET_COMMAND_Q 0x2271   /* Change queuing state with 0 or 1 */
 
 /* Turn on/off error sense trace (1 and 0 respectively, default is off).
-   Try using: "# cat /proc/scsi/sg/debug" instead in the v3 driver */
-#define SG_SET_DEBUG 0x227e    /* 0 -> turn off debug */
+   Try using: "# cat /proc/scsi/sg/de" instead in the v3 driver */
+#define SG_SET_DE 0x227e    /* 0 -> turn off de */
 
 #define SG_NEXT_CMD_LEN 0x2283  /* override SCSI command length with given
 		   number on the next write() on this file descriptor */

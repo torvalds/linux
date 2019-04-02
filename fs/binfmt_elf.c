@@ -1380,7 +1380,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
 			u32 cmp;
 			char elfmag[SELFMAG];
 		} magic;
-		BUILD_BUG_ON(SELFMAG != sizeof word);
+		BUILD__ON(SELFMAG != sizeof word);
 		magic.elfmag[EI_MAG0] = ELFMAG0;
 		magic.elfmag[EI_MAG1] = ELFMAG1;
 		magic.elfmag[EI_MAG2] = ELFMAG2;

@@ -12,7 +12,7 @@
  *
  *  Dedicated to my daughter Matilda, without whose loving attention this
  *  driver would have been finished in half the time and with a fraction
- *  of the bugs.
+ *  of the s.
  *
  *  Written using:
  *    o Winbond WPCD376I datasheet helpfully provided by Jesse Barnes at Intel

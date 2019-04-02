@@ -55,7 +55,7 @@ endif
 #
 # This must happen before we try the -mpreferred-stack-boundary, see:
 #
-#    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
+#    https://gcc.gnu.org/zilla/show_.cgi?id=53383
 #
 KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
 KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
@@ -150,8 +150,8 @@ export CONFIG_X86_X32_ABI
 
 #
 # If the function graph tracer is used with mcount instead of fentry,
-# '-maccumulate-outgoing-args' is needed to prevent a GCC bug
-# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=42109)
+# '-maccumulate-outgoing-args' is needed to prevent a GCC 
+# (https://gcc.gnu.org/zilla/show_.cgi?id=42109)
 #
 ifdef CONFIG_FUNCTION_GRAPH_TRACER
   ifndef CONFIG_HAVE_FENTRY
@@ -184,7 +184,7 @@ sp-$(CONFIG_X86_64) := rsp
 cfi := $(call as-instr,.cfi_startproc\n.cfi_rel_offset $(sp-y)$(comma)0\n.cfi_endproc,-DCONFIG_AS_CFI=1)
 # is .cfi_signal_frame supported too?
 cfi-sigframe := $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONFIG_AS_CFI_SIGNAL_FRAME=1)
-cfi-sections := $(call as-instr,.cfi_sections .debug_frame,-DCONFIG_AS_CFI_SECTIONS=1)
+cfi-sections := $(call as-instr,.cfi_sections .de_frame,-DCONFIG_AS_CFI_SECTIONS=1)
 
 # does binutils support specific instructions?
 asinstr += $(call as-instr,pshufb %xmm0$(comma)%xmm0,-DCONFIG_AS_SSSE3=1)
@@ -221,7 +221,7 @@ ifdef CONFIG_RETPOLINE
   # clang turns off jump table generation by default when under
   # retpoline builds, however, gcc does not for x86. This has
   # only been fixed starting from gcc stable version 8.4.0 and
-  # onwards, but not for older ones. See gcc bug #86952.
+  # onwards, but not for older ones. See gcc  #86952.
   ifndef CONFIG_CC_IS_CLANG
     KBUILD_CFLAGS += $(call cc-option,-fno-jump-tables)
   endif

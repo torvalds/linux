@@ -133,7 +133,7 @@ static void p9_virtio_close(struct p9_client *client)
  * sent.  Figure out which requests now have responses and wake up
  * those threads.
  *
- * Bugs: could do with some additional sanity checking, but appears to work.
+ * s: could do with some additional sanity checking, but appears to work.
  *
  */
 
@@ -145,7 +145,7 @@ static void req_done(struct virtqueue *vq)
 	bool need_wakeup = false;
 	unsigned long flags;
 
-	p9_debug(P9_DEBUG_TRANS, ": request done\n");
+	p9_de(P9_DE_TRANS, ": request done\n");
 
 	spin_lock_irqsave(&chan->lock, flags);
 	while ((req = virtqueue_get_buf(chan->vq, &len)) != NULL) {
@@ -189,7 +189,7 @@ static int pack_sg_list(struct scatterlist *sg, int start,
 		s = rest_of_page(data);
 		if (s > count)
 			s = count;
-		BUG_ON(index >= limit);
+		_ON(index >= limit);
 		/* Make sure we don't terminate early. */
 		sg_unmark_end(&sg[index]);
 		sg_set_buf(&sg[index++], data, s);
@@ -232,7 +232,7 @@ pack_sg_list_p(struct scatterlist *sg, int start, int limit,
 	int data_off = offs;
 	int index = start;
 
-	BUG_ON(nr_pages > (limit - start));
+	_ON(nr_pages > (limit - start));
 	/*
 	 * if the first page doesn't start at
 	 * page boundary find the offset
@@ -241,7 +241,7 @@ pack_sg_list_p(struct scatterlist *sg, int start, int limit,
 		s = PAGE_SIZE - data_off;
 		if (s > count)
 			s = count;
-		BUG_ON(index >= limit);
+		_ON(index >= limit);
 		/* Make sure we don't terminate early. */
 		sg_unmark_end(&sg[index]);
 		sg_set_page(&sg[index++], pdata[i++], s, data_off);
@@ -271,7 +271,7 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 	struct virtio_chan *chan = client->trans;
 	struct scatterlist *sgs[2];
 
-	p9_debug(P9_DEBUG_TRANS, "9p debug: virtio request\n");
+	p9_de(P9_DE_TRANS, "9p de: virtio request\n");
 
 	req->status = REQ_STATUS_SENT;
 req_retry:
@@ -300,11 +300,11 @@ req_retry:
 			if (err  == -ERESTARTSYS)
 				return err;
 
-			p9_debug(P9_DEBUG_TRANS, "Retry virtio request\n");
+			p9_de(P9_DE_TRANS, "Retry virtio request\n");
 			goto req_retry;
 		} else {
 			spin_unlock_irqrestore(&chan->lock, flags);
-			p9_debug(P9_DEBUG_TRANS,
+			p9_de(P9_DE_TRANS,
 				 "virtio rpc add_sgs returned failure\n");
 			return -EIO;
 		}
@@ -312,7 +312,7 @@ req_retry:
 	virtqueue_kick(chan->vq);
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	p9_debug(P9_DEBUG_TRANS, "virtio request kicked\n");
+	p9_de(P9_DE_TRANS, "virtio request kicked\n");
 	return 0;
 }
 
@@ -413,7 +413,7 @@ p9_virtio_zc_request(struct p9_client *client, struct p9_req_t *req,
 	int need_drop = 0;
 	int kicked = 0;
 
-	p9_debug(P9_DEBUG_TRANS, "virtio request\n");
+	p9_de(P9_DE_TRANS, "virtio request\n");
 
 	if (uodata) {
 		__le32 sz;
@@ -486,7 +486,7 @@ req_retry_pinned:
 				     in_pages, in_nr_pages, offs, inlen);
 	}
 
-	BUG_ON(out_sgs + in_sgs > ARRAY_SIZE(sgs));
+	_ON(out_sgs + in_sgs > ARRAY_SIZE(sgs));
 	err = virtqueue_add_sgs(chan->vq, sgs, out_sgs, in_sgs, req,
 				GFP_ATOMIC);
 	if (err < 0) {
@@ -498,11 +498,11 @@ req_retry_pinned:
 			if (err  == -ERESTARTSYS)
 				goto err_out;
 
-			p9_debug(P9_DEBUG_TRANS, "Retry virtio request\n");
+			p9_de(P9_DE_TRANS, "Retry virtio request\n");
 			goto req_retry_pinned;
 		} else {
 			spin_unlock_irqrestore(&chan->lock, flags);
-			p9_debug(P9_DEBUG_TRANS,
+			p9_de(P9_DE_TRANS,
 				 "virtio rpc add_sgs returned failure\n");
 			err = -EIO;
 			goto err_out;
@@ -511,7 +511,7 @@ req_retry_pinned:
 	virtqueue_kick(chan->vq);
 	spin_unlock_irqrestore(&chan->lock, flags);
 	kicked = 1;
-	p9_debug(P9_DEBUG_TRANS, "virtio request kicked\n");
+	p9_de(P9_DE_TRANS, "virtio request kicked\n");
 	err = wait_event_killable(req->wq, req->status >= REQ_STATUS_RCVD);
 	/*
 	 * Non kernel buffers are pinned, unpin them

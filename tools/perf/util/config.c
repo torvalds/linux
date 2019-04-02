@@ -28,7 +28,7 @@
 
 #define MAXNAME (256)
 
-#define DEBUG_CACHE_DIR ".debug"
+#define DE_CACHE_DIR ".de"
 
 
 char buildid_dir[MAXPATHLEN]; /* root dir for buildid, binary cache */
@@ -539,7 +539,7 @@ static struct perf_config_section *add_section(struct list_head *sections,
 	INIT_LIST_HEAD(&section->items);
 	section->name = strdup(section_name);
 	if (!section->name) {
-		pr_debug("%s: strdup failed\n", __func__);
+		pr_de("%s: strdup failed\n", __func__);
 		free(section);
 		return NULL;
 	}
@@ -558,7 +558,7 @@ static struct perf_config_item *add_config_item(struct perf_config_section *sect
 
 	item->name = strdup(name);
 	if (!item->name) {
-		pr_debug("%s: strdup failed\n", __func__);
+		pr_de("%s: strdup failed\n", __func__);
 		free(item);
 		return NULL;
 	}
@@ -596,7 +596,7 @@ static int collect_config(const char *var, const char *value,
 	sections = &set->sections;
 	key = ptr = strdup(var);
 	if (!key) {
-		pr_debug("%s: strdup failed\n", __func__);
+		pr_de("%s: strdup failed\n", __func__);
 		return -1;
 	}
 
@@ -817,15 +817,15 @@ void set_buildid_dir(const char *dir)
 	if (dir)
 		scnprintf(buildid_dir, MAXPATHLEN, "%s", dir);
 
-	/* default to $HOME/.debug */
+	/* default to $HOME/.de */
 	if (buildid_dir[0] == '\0') {
 		char *home = getenv("HOME");
 
 		if (home) {
 			snprintf(buildid_dir, MAXPATHLEN, "%s/%s",
-				 home, DEBUG_CACHE_DIR);
+				 home, DE_CACHE_DIR);
 		} else {
-			strncpy(buildid_dir, DEBUG_CACHE_DIR, MAXPATHLEN-1);
+			strncpy(buildid_dir, DE_CACHE_DIR, MAXPATHLEN-1);
 		}
 		buildid_dir[MAXPATHLEN-1] = '\0';
 	}

@@ -240,7 +240,7 @@ struct v4l2_file_operations {
  * @index: attribute to differentiate multiple indices on one physical device
  * @fh_lock: Lock for all v4l2_fhs
  * @fh_list: List of &struct v4l2_fh
- * @dev_debug: Internal device debug flags, not for use by drivers
+ * @dev_de: Internal device de flags, not for use by drivers
  * @tvnorms: Supported tv norms
  *
  * @release: video device release() callback
@@ -290,7 +290,7 @@ struct video_device
 	spinlock_t		fh_lock;
 	struct list_head	fh_list;
 
-	int dev_debug;
+	int dev_de;
 
 	v4l2_std_id tvnorms;
 

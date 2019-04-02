@@ -801,7 +801,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_rate);
 static void _remove_opp_dev(struct opp_device *opp_dev,
 			    struct opp_table *opp_table)
 {
-	opp_debug_unregister(opp_dev, opp_table);
+	opp_de_unregister(opp_dev, opp_table);
 	list_del(&opp_dev->node);
 	kfree(opp_dev);
 }
@@ -820,8 +820,8 @@ static struct opp_device *_add_opp_dev_unlocked(const struct device *dev,
 
 	list_add(&opp_dev->node, &opp_table->dev_list);
 
-	/* Create debugfs entries for the opp_table */
-	opp_debug_register(opp_dev, opp_table);
+	/* Create defs entries for the opp_table */
+	opp_de_register(opp_dev, opp_table);
 
 	return opp_dev;
 }
@@ -1010,7 +1010,7 @@ static void _opp_kref_release(struct dev_pm_opp *opp,
 	 */
 	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_REMOVE, opp);
 	_of_opp_free_required_opps(opp_table, opp);
-	opp_debug_remove_one(opp);
+	opp_de_remove_one(opp);
 	list_del(&opp->node);
 	kfree(opp);
 }
@@ -1242,7 +1242,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	new_opp->opp_table = opp_table;
 	kref_init(&new_opp->kref);
 
-	opp_debug_create_one(new_opp, opp_table);
+	opp_de_create_one(new_opp, opp_table);
 
 	if (!_opp_supported_by_regulators(new_opp, opp_table)) {
 		new_opp->available = false;

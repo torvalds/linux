@@ -15,7 +15,7 @@
 #include <linux/netdevice.h>
 
 #include "fsm.h"
-#include "ctcm_dbug.h"
+#include "ctcm_d.h"
 #include "ctcm_mpc.h"
 
 #define CTC_DRIVER_NAME	"ctcm"
@@ -38,29 +38,29 @@
 #define LOG_FLAG_OVERRUN	4
 #define LOG_FLAG_NOMEM		8
 
-#define ctcm_pr_debug(fmt, arg...) printk(KERN_DEBUG fmt, ##arg)
+#define ctcm_pr_de(fmt, arg...) printk(KERN_DE fmt, ##arg)
 
-#define CTCM_PR_DEBUG(fmt, arg...) \
+#define CTCM_PR_DE(fmt, arg...) \
 	do { \
-		if (do_debug) \
-			printk(KERN_DEBUG fmt, ##arg); \
+		if (do_de) \
+			printk(KERN_DE fmt, ##arg); \
 	} while (0)
 
 #define	CTCM_PR_DBGDATA(fmt, arg...) \
 	do { \
-		if (do_debug_data) \
-			printk(KERN_DEBUG fmt, ##arg); \
+		if (do_de_data) \
+			printk(KERN_DE fmt, ##arg); \
 	} while (0)
 
 #define	CTCM_D3_DUMP(buf, len) \
 	do { \
-		if (do_debug_data) \
+		if (do_de_data) \
 			ctcmpc_dumpit(buf, len); \
 	} while (0)
 
 #define	CTCM_CCW_DUMP(buf, len) \
 	do { \
-		if (do_debug_ccw) \
+		if (do_de_ccw) \
 			ctcmpc_dumpit(buf, len); \
 	} while (0)
 

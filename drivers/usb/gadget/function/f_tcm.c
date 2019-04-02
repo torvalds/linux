@@ -603,7 +603,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	return;
 
@@ -1144,7 +1144,7 @@ static int usbg_submit_command(struct f_uas *fu,
 		cmd->prio_attr = TCM_ACA_TAG;
 		break;
 	default:
-		pr_debug_once("Unsupported prio_attr: %02x.\n",
+		pr_de_once("Unsupported prio_attr: %02x.\n",
 				cmd_iu->prio_attr);
 		/* fall through */
 	case UAS_SIMPLE_TAG:
@@ -1569,7 +1569,7 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 	mutex_lock(&tpg->tpg_mutex);
 	if (tpg->tpg_nexus) {
 		ret = -EEXIST;
-		pr_debug("tpg->tpg_nexus already exists\n");
+		pr_de("tpg->tpg_nexus already exists\n");
 		goto out_unlock;
 	}
 
@@ -1586,7 +1586,7 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 						     tv_nexus, usbg_alloc_sess_cb);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 #define MAKE_NEXUS_MSG "core_tpg_check_initiator_node_acl() failed for %s\n"
-		pr_debug(MAKE_NEXUS_MSG, name);
+		pr_de(MAKE_NEXUS_MSG, name);
 #undef MAKE_NEXUS_MSG
 		ret = PTR_ERR(tv_nexus->tvn_se_sess);
 		kfree(tv_nexus);
@@ -1620,7 +1620,7 @@ static int tcm_usbg_drop_nexus(struct usbg_tpg *tpg)
 		goto out;
 	}
 
-	pr_debug("Removing I_T Nexus to Initiator Port: %s\n",
+	pr_de("Removing I_T Nexus to Initiator Port: %s\n",
 			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
 	/*
 	 * Release the SCSI I_T Nexus to the emulated vHost Target Port
@@ -2220,7 +2220,7 @@ static int tcm_set_name(struct usb_function_instance *f, const char *name)
 {
 	struct f_tcm_opts *opts = container_of(f, struct f_tcm_opts, func_inst);
 
-	pr_debug("tcm: Activating %s\n", name);
+	pr_de("tcm: Activating %s\n", name);
 
 	mutex_lock(&opts->dep_lock);
 	opts->ready = true;

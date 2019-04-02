@@ -47,9 +47,9 @@
  *	- timer/fastsize write calls
  */
 
-#undef PDCS_DEBUG
-#ifdef PDCS_DEBUG
-#define DPRINTK(fmt, args...)	printk(KERN_DEBUG fmt, ## args)
+#undef PDCS_DE
+#ifdef PDCS_DE
+#define DPRINTK(fmt, args...)	printk(KERN_DE fmt, ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -194,7 +194,7 @@ pdcspath_store(struct pdcspath_entry *entry)
 {
 	struct device_path *devpath;
 
-	BUG_ON(!entry);
+	_ON(!entry);
 
 	devpath = &entry->devpath;
 	
@@ -203,7 +203,7 @@ pdcspath_store(struct pdcspath_entry *entry)
 	   First case, we don't have a preset hwpath... */
 	if (!entry->ready) {
 		/* ...but we have a device, map it */
-		BUG_ON(!entry->dev);
+		_ON(!entry->dev);
 		device_to_hwpath(entry->dev, (struct hardware_path *)devpath);
 	}
 	/* else, we expect the provided hwpath to be valid. */

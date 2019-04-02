@@ -295,7 +295,7 @@ static void sg_complete(struct urb *urb)
 			usb_endpoint_num(&urb->ep->desc),
 			usb_urb_dir_in(urb) ? "in" : "out",
 			status, io->status);
-		/* BUG (); */
+		/*  (); */
 	}
 
 	if (io->status == 0 && status && status != -ECONNRESET) {
@@ -1436,7 +1436,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	}
 	mutex_unlock(hcd->bandwidth_mutex);
 
-	/* FIXME drivers shouldn't need to replicate/bugfix the logic here
+	/* FIXME drivers shouldn't need to replicate/fix the logic here
 	 * when they implement async or easily-killable versions of this or
 	 * other "should-be-internal" functions (like clear_halt).
 	 * should hcd+usbcore postprocess control requests?

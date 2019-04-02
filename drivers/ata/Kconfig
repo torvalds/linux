@@ -41,7 +41,7 @@ config ATA_VERBOSE_ERROR
 	  This option adds parsing of ATA command descriptions and error bits
 	  in libata kernel output, making it easier to interpret.
 	  This option will enlarge the kernel by approx. 6KB. Disable it only
-	  if kernel size is more important than ease of debugging.
+	  if kernel size is more important than ease of deging.
 
 	  If unsure, say Y.
 
@@ -383,17 +383,17 @@ config SATA_DWC_OLD_DMA
 	  This option enables support for old device trees without the
 	  "dmas" property.
 
-config SATA_DWC_DEBUG
-	bool "Debugging driver version"
+config SATA_DWC_DE
+	bool "Deging driver version"
 	depends on SATA_DWC
 	help
-	  This option enables debugging output in the driver.
+	  This option enables deging output in the driver.
 
-config SATA_DWC_VDEBUG
-	bool "Verbose debug output"
-	depends on SATA_DWC_DEBUG
+config SATA_DWC_VDE
+	bool "Verbose de output"
+	depends on SATA_DWC_DE
 	help
-	  This option enables the taskfile dumping and NCQ debugging.
+	  This option enables the taskfile dumping and NCQ deging.
 
 config SATA_HIGHBANK
 	tristate "Calxeda Highbank SATA support"

@@ -49,7 +49,7 @@
 		}				\
 	} while (0)
 
-#if CVMX_ENABLE_DEBUG_PRINTS
+#if CVMX_ENABLE_DE_PRINTS
 static const char *modes[] =
     { "UNKNOWN", "TX Halfplex", "Rx Halfplex", "Duplex" };
 #endif

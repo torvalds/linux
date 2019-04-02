@@ -243,7 +243,7 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 			div  = (hclk + ((hz << 2) - 1)) / (hz << 2);
 			sclk = (hclk >> 2) / div;
 		}
-	} else if (hz >= hclk) { /* bug fix */
+	} else if (hz >= hclk) { /*  fix */
 		mode = 0x1; /* no divisor and divisor is ignored */
 		div  = 0;
 		sclk = hclk;
@@ -464,7 +464,7 @@ static unsigned int msdc_command_start(struct msdc_host   *host,
 		}
 	}
 
-	//BUG_ON(in_interrupt());
+	//_ON(in_interrupt());
 	host->cmd     = cmd;
 	host->cmd_rsp = resp;
 
@@ -489,7 +489,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 		    MSDC_INT_ACMDRDY | MSDC_INT_ACMDCRCERR | MSDC_INT_ACMDTMO |
 		    MSDC_INT_ACMD19_DONE;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	//init_completion(&host->cmd_done);
 	//sdr_set_bits(host->base + MSDC_INTEN, wints);
 
@@ -593,7 +593,7 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	struct bd *bd;
 	u32 j;
 
-	BUG_ON(sglen > MAX_BD_NUM); /* not support currently */
+	_ON(sglen > MAX_BD_NUM); /* not support currently */
 
 	gpd = dma->gpd;
 	bd  = dma->bd;
@@ -641,8 +641,8 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 #define SND_DAT 0
 #define SND_CMD 1
 
-	BUG_ON(!mmc);
-	BUG_ON(!mrq);
+	_ON(!mmc);
+	_ON(!mrq);
 
 	host->error = 0;
 
@@ -654,7 +654,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		if (msdc_do_command(host, cmd, 1, CMD_TIMEOUT) != 0)
 			goto done;
 	} else {
-		BUG_ON(data->blksz > HOST_MAX_BLKSZ);
+		_ON(data->blksz > HOST_MAX_BLKSZ);
 		send_type = SND_DAT;
 
 		data->error = 0;
@@ -1202,7 +1202,7 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct msdc_host *host = mmc_priv(mmc);
 	u32 ddr = 0;
 
-#ifdef MT6575_SD_DEBUG
+#ifdef MT6575_SD_DE
 	static const char * const vdd[] = {
 		"1.50v", "1.55v", "1.60v", "1.65v", "1.70v", "1.80v", "1.90v",
 		"2.00v", "2.10v", "2.20v", "2.30v", "2.40v", "2.50v", "2.60v",
@@ -1247,7 +1247,7 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				      MSDC_SMPL_FALLING);
 			sdr_set_field(host->base + MSDC_IOCON, MSDC_IOCON_DSPL,
 				      MSDC_SMPL_FALLING);
-			//} /* for tuning debug */
+			//} /* for tuning de */
 		} else { /* default value */
 			writel(0x00000000, host->base + MSDC_IOCON);
 			// writel(0x00000000, host->base + MSDC_DAT_RDDLY0);
@@ -1744,10 +1744,10 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	struct msdc_host *host;
 
 	mmc  = platform_get_drvdata(pdev);
-	BUG_ON(!mmc);
+	_ON(!mmc);
 
 	host = mmc_priv(mmc);
-	BUG_ON(!host);
+	_ON(!host);
 
 	dev_err(mmc_dev(host->mmc), "%d -> removed !!!\n",
 		host->id);
@@ -1837,8 +1837,8 @@ static int __init mt_msdc_init(void)
 		return ret;
 	}
 
-#if defined(MT6575_SD_DEBUG)
-	msdc_debug_proc_init();
+#if defined(MT6575_SD_DE)
+	msdc_de_proc_init();
 #endif
 	return 0;
 }

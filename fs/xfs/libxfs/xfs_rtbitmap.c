@@ -940,7 +940,7 @@ xfs_rtcheck_range(
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 /*
  * Check that the given extent (block range) is allocated already.
  */

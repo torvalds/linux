@@ -1048,7 +1048,7 @@ static int lpc_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		   buffers */
 		netif_stop_queue(ndev);
 		spin_unlock_irq(&pldat->lock);
-		WARN(1, "BUG! TX request when no free TX buffers!\n");
+		WARN(1, "! TX request when no free TX buffers!\n");
 		return NETDEV_TX_BUSY;
 	}
 

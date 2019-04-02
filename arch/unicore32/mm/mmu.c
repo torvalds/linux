@@ -154,7 +154,7 @@ static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
 
 		__pmd_populate(pmd, __pa(pte) | prot);
 	}
-	BUG_ON(pmd_bad(*pmd));
+	_ON(pmd_bad(*pmd));
 	return pte_offset_kernel(pmd, addr);
 }
 
@@ -210,7 +210,7 @@ static void __init create_mapping(struct map_desc *md)
 	pgd_t *pgd;
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
-		printk(KERN_WARNING "BUG: not creating mapping for "
+		printk(KERN_WARNING ": not creating mapping for "
 		       "0x%08llx at 0x%08lx in user region\n",
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
@@ -218,7 +218,7 @@ static void __init create_mapping(struct map_desc *md)
 
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
-		printk(KERN_WARNING "BUG: mapping for 0x%08llx at 0x%08lx "
+		printk(KERN_WARNING ": mapping for 0x%08llx at 0x%08lx "
 		       "overlaps vmalloc space\n",
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 	}
@@ -230,7 +230,7 @@ static void __init create_mapping(struct map_desc *md)
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
-		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
+		printk(KERN_WARNING ": map for 0x%08lx at 0x%08lx can not "
 		       "be mapped using pages, ignoring.\n",
 		       __pfn_to_phys(md->pfn), addr);
 		return;
@@ -339,9 +339,9 @@ void __init uc32_mm_memblock_reserve(void)
 
 /*
  * Set up device the mappings.  Since we clear out the page tables for all
- * mappings above VMALLOC_END, we will remove any debug device mappings.
- * This means you have to be careful how you debug this function, or any
- * called function.  This means you can't use any function or debugging
+ * mappings above VMALLOC_END, we will remove any de device mappings.
+ * This means you have to be careful how you de this function, or any
+ * called function.  This means you can't use any function or deging
  * method which may touch any device, otherwise the kernel _will_ crash.
  */
 static void __init devicemaps_init(void)

@@ -154,34 +154,34 @@ static inline void phydm_print_csi(struct phy_dm_struct *dm, u32 used,
 	}
 }
 
-void phydm_init_debug_setting(struct phy_dm_struct *dm)
+void phydm_init_de_setting(struct phy_dm_struct *dm)
 {
-	dm->debug_level = ODM_DBG_TRACE;
+	dm->de_level = ODM_DBG_TRACE;
 
-	dm->fw_debug_components = 0;
-	dm->debug_components = 0;
+	dm->fw_de_components = 0;
+	dm->de_components = 0;
 
 	dm->fw_buff_is_enpty = true;
 	dm->pre_c2h_seq = 0;
 }
 
-u8 phydm_set_bb_dbg_port(void *dm_void, u8 curr_dbg_priority, u32 debug_port)
+u8 phydm_set_bb_dbg_port(void *dm_void, u8 curr_dbg_priority, u32 de_port)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
 	u8 dbg_port_result = false;
 
 	if (curr_dbg_priority > dm->pre_dbg_priority) {
 		if (dm->support_ic_type & ODM_IC_11AC_SERIES) {
-			odm_set_bb_reg(dm, 0x8fc, MASKDWORD, debug_port);
+			odm_set_bb_reg(dm, 0x8fc, MASKDWORD, de_port);
 			/**/
 		} else /*if (dm->support_ic_type & ODM_IC_11N_SERIES)*/ {
-			odm_set_bb_reg(dm, 0x908, MASKDWORD, debug_port);
+			odm_set_bb_reg(dm, 0x908, MASKDWORD, de_port);
 			/**/
 		}
 		ODM_RT_TRACE(
 			dm, ODM_COMP_API,
 			"DbgPort set success, Reg((0x%x)), Cur_priority=((%d)), Pre_priority=((%d))\n",
-			debug_port, curr_dbg_priority, dm->pre_dbg_priority);
+			de_port, curr_dbg_priority, dm->pre_dbg_priority);
 		dm->pre_dbg_priority = curr_dbg_priority;
 		dbg_port_result = true;
 	}
@@ -418,7 +418,7 @@ static void phydm_bb_rx_hang_info(void *dm_void, u32 *_used, char *output,
 	}
 }
 
-static void phydm_bb_debug_info_n_series(void *dm_void, u32 *_used,
+static void phydm_bb_de_info_n_series(void *dm_void, u32 *_used,
 					 char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -596,7 +596,7 @@ static void phydm_bb_debug_info_n_series(void *dm_void, u32 *_used,
 		       "ACQ CFO(Hz) <A/B>", acq_cfo_a, acq_cfo_b);
 }
 
-static void phydm_bb_debug_info(void *dm_void, u32 *_used, char *output,
+static void phydm_bb_de_info(void *dm_void, u32 *_used, char *output,
 				u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -628,7 +628,7 @@ static void phydm_bb_debug_info(void *dm_void, u32 *_used, char *output,
 				 "24M", "36M", "48M", "54M"};
 
 	if (dm->support_ic_type & ODM_IC_11N_SERIES) {
-		phydm_bb_debug_info_n_series(dm, &used, output, &out_len);
+		phydm_bb_de_info_n_series(dm, &used, output, &out_len);
 		return;
 	}
 
@@ -1316,7 +1316,7 @@ void phydm_basic_profile(void *dm_void, u32 *_used, char *output, u32 *_out_len)
 	*_out_len = out_len;
 }
 
-void phydm_fw_trace_en_h2c(void *dm_void, bool enable, u32 fw_debug_component,
+void phydm_fw_trace_en_h2c(void *dm_void, bool enable, u32 fw_de_component,
 			   u32 monitor_mode, u32 macid)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -1325,10 +1325,10 @@ void phydm_fw_trace_en_h2c(void *dm_void, bool enable, u32 fw_debug_component,
 
 	if (dm->support_ic_type & PHYDM_IC_3081_SERIES) {
 		h2c_parameter[0] = enable;
-		h2c_parameter[1] = (u8)(fw_debug_component & MASKBYTE0);
-		h2c_parameter[2] = (u8)((fw_debug_component & MASKBYTE1) >> 8);
-		h2c_parameter[3] = (u8)((fw_debug_component & MASKBYTE2) >> 16);
-		h2c_parameter[4] = (u8)((fw_debug_component & MASKBYTE3) >> 24);
+		h2c_parameter[1] = (u8)(fw_de_component & MASKBYTE0);
+		h2c_parameter[2] = (u8)((fw_de_component & MASKBYTE1) >> 8);
+		h2c_parameter[3] = (u8)((fw_de_component & MASKBYTE2) >> 16);
+		h2c_parameter[4] = (u8)((fw_de_component & MASKBYTE3) >> 24);
 		h2c_parameter[5] = (u8)monitor_mode;
 		h2c_parameter[6] = (u8)macid;
 		cmd_length = 7;
@@ -1340,14 +1340,14 @@ void phydm_fw_trace_en_h2c(void *dm_void, bool enable, u32 fw_debug_component,
 		cmd_length = 3;
 	}
 
-	ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "---->\n");
+	ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "---->\n");
 	if (monitor_mode == 0)
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
-			     "[H2C] FW_debug_en: (( %d ))\n", enable);
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
+			     "[H2C] FW_de_en: (( %d ))\n", enable);
 	else
 		ODM_RT_TRACE(
-			dm, ODM_FW_DEBUG_TRACE,
-			"[H2C] FW_debug_en: (( %d )), mode: (( %d )), macid: (( %d ))\n",
+			dm, ODM_FW_DE_TRACE,
+			"[H2C] FW_de_en: (( %d )), mode: (( %d )), macid: (( %d ))\n",
 			enable, monitor_mode, macid);
 	odm_fill_h2c_cmd(dm, PHYDM_H2C_FW_TRACE_EN, cmd_length, h2c_parameter);
 }
@@ -1520,204 +1520,204 @@ static void phydm_set_txagc(void *dm_void, u32 *const dm_value, u32 *_used,
 	}
 }
 
-static void phydm_debug_trace(void *dm_void, u32 *const dm_value, u32 *_used,
+static void phydm_de_trace(void *dm_void, u32 *const dm_value, u32 *_used,
 			      char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
-	u32 pre_debug_components, one = 1;
+	u32 pre_de_components, one = 1;
 	u32 used = *_used;
 	u32 out_len = *_out_len;
 
-	pre_debug_components = dm->debug_components;
+	pre_de_components = dm->de_components;
 
 	PHYDM_SNPRINTF(output + used, out_len - used, "\n%s\n",
 		       "================================");
 	if (dm_value[0] == 100) {
 		PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
-			       "[Debug Message] PhyDM Selection");
+			       "[De Message] PhyDM Selection");
 		PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
 			       "================================");
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "00. (( %s ))DIG\n",
-			       ((dm->debug_components & ODM_COMP_DIG) ? ("V") :
+			       ((dm->de_components & ODM_COMP_DIG) ? ("V") :
 									(".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "01. (( %s ))RA_MASK\n",
-			((dm->debug_components & ODM_COMP_RA_MASK) ? ("V") :
+			((dm->de_components & ODM_COMP_RA_MASK) ? ("V") :
 								     (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used,
 			"02. (( %s ))DYNAMIC_TXPWR\n",
-			((dm->debug_components & ODM_COMP_DYNAMIC_TXPWR) ?
+			((dm->de_components & ODM_COMP_DYNAMIC_TXPWR) ?
 				 ("V") :
 				 (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "03. (( %s ))FA_CNT\n",
-			((dm->debug_components & ODM_COMP_FA_CNT) ? ("V") :
+			((dm->de_components & ODM_COMP_FA_CNT) ? ("V") :
 								    (".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "04. (( %s ))RSSI_MONITOR\n",
-			       ((dm->debug_components & ODM_COMP_RSSI_MONITOR) ?
+			       ((dm->de_components & ODM_COMP_RSSI_MONITOR) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "05. (( %s ))SNIFFER\n",
-			((dm->debug_components & ODM_COMP_SNIFFER) ? ("V") :
+			((dm->de_components & ODM_COMP_SNIFFER) ? ("V") :
 								     (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "06. (( %s ))ANT_DIV\n",
-			((dm->debug_components & ODM_COMP_ANT_DIV) ? ("V") :
+			((dm->de_components & ODM_COMP_ANT_DIV) ? ("V") :
 								     (".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "07. (( %s ))DFS\n",
-			       ((dm->debug_components & ODM_COMP_DFS) ? ("V") :
+			       ((dm->de_components & ODM_COMP_DFS) ? ("V") :
 									(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "08. (( %s ))NOISY_DETECT\n",
-			       ((dm->debug_components & ODM_COMP_NOISY_DETECT) ?
+			       ((dm->de_components & ODM_COMP_NOISY_DETECT) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used,
 			"09. (( %s ))RATE_ADAPTIVE\n",
-			((dm->debug_components & ODM_COMP_RATE_ADAPTIVE) ?
+			((dm->de_components & ODM_COMP_RATE_ADAPTIVE) ?
 				 ("V") :
 				 (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "10. (( %s ))PATH_DIV\n",
-			((dm->debug_components & ODM_COMP_PATH_DIV) ? ("V") :
+			((dm->de_components & ODM_COMP_PATH_DIV) ? ("V") :
 								      (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used,
 			"12. (( %s ))DYNAMIC_PRICCA\n",
-			((dm->debug_components & ODM_COMP_DYNAMIC_PRICCA) ?
+			((dm->de_components & ODM_COMP_DYNAMIC_PRICCA) ?
 				 ("V") :
 				 (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "14. (( %s ))MP\n",
-			((dm->debug_components & ODM_COMP_MP) ? ("V") : (".")));
+			((dm->de_components & ODM_COMP_MP) ? ("V") : (".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "15. (( %s ))struct cfo_tracking\n",
-			       ((dm->debug_components & ODM_COMP_CFO_TRACKING) ?
+			       ((dm->de_components & ODM_COMP_CFO_TRACKING) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "16. (( %s ))struct acs_info\n",
-			       ((dm->debug_components & ODM_COMP_ACS) ? ("V") :
+			       ((dm->de_components & ODM_COMP_ACS) ? ("V") :
 									(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "17. (( %s ))ADAPTIVITY\n",
-			       ((dm->debug_components & PHYDM_COMP_ADAPTIVITY) ?
+			       ((dm->de_components & PHYDM_COMP_ADAPTIVITY) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "18. (( %s ))RA_DBG\n",
-			((dm->debug_components & PHYDM_COMP_RA_DBG) ? ("V") :
+			((dm->de_components & PHYDM_COMP_RA_DBG) ? ("V") :
 								      (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "19. (( %s ))TXBF\n",
-			((dm->debug_components & PHYDM_COMP_TXBF) ? ("V") :
+			((dm->de_components & PHYDM_COMP_TXBF) ? ("V") :
 								    (".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "20. (( %s ))EDCA_TURBO\n",
-			       ((dm->debug_components & ODM_COMP_EDCA_TURBO) ?
+			       ((dm->de_components & ODM_COMP_EDCA_TURBO) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
-			       "22. (( %s ))FW_DEBUG_TRACE\n",
-			       ((dm->debug_components & ODM_FW_DEBUG_TRACE) ?
+			       "22. (( %s ))FW_DE_TRACE\n",
+			       ((dm->de_components & ODM_FW_DE_TRACE) ?
 					("V") :
 					(".")));
 
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "24. (( %s ))TX_PWR_TRACK\n",
-			       ((dm->debug_components & ODM_COMP_TX_PWR_TRACK) ?
+			       ((dm->de_components & ODM_COMP_TX_PWR_TRACK) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "26. (( %s ))CALIBRATION\n",
-			       ((dm->debug_components & ODM_COMP_CALIBRATION) ?
+			       ((dm->de_components & ODM_COMP_CALIBRATION) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "28. (( %s ))PHY_CONFIG\n",
-			       ((dm->debug_components & ODM_PHY_CONFIG) ?
+			       ((dm->de_components & ODM_PHY_CONFIG) ?
 					("V") :
 					(".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "29. (( %s ))INIT\n",
-			((dm->debug_components & ODM_COMP_INIT) ? ("V") :
+			((dm->de_components & ODM_COMP_INIT) ? ("V") :
 								  (".")));
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "30. (( %s ))COMMON\n",
-			((dm->debug_components & ODM_COMP_COMMON) ? ("V") :
+			((dm->de_components & ODM_COMP_COMMON) ? ("V") :
 								    (".")));
 		PHYDM_SNPRINTF(output + used, out_len - used,
 			       "31. (( %s ))API\n",
-			       ((dm->debug_components & ODM_COMP_API) ? ("V") :
+			       ((dm->de_components & ODM_COMP_API) ? ("V") :
 									(".")));
 		PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
 			       "================================");
 
 	} else if (dm_value[0] == 101) {
-		dm->debug_components = 0;
+		dm->de_components = 0;
 		PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
-			       "Disable all debug components");
+			       "Disable all de components");
 	} else {
 		if (dm_value[1] == 1) /*enable*/
-			dm->debug_components |= (one << dm_value[0]);
+			dm->de_components |= (one << dm_value[0]);
 		else if (dm_value[1] == 2) /*disable*/
-			dm->debug_components &= ~(one << dm_value[0]);
+			dm->de_components &= ~(one << dm_value[0]);
 		else
 			PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
 				       "[Warning!!!]  1:enable,  2:disable");
 	}
 	PHYDM_SNPRINTF(output + used, out_len - used,
-		       "pre-DbgComponents = 0x%x\n", pre_debug_components);
+		       "pre-DbgComponents = 0x%x\n", pre_de_components);
 	PHYDM_SNPRINTF(output + used, out_len - used,
-		       "Curr-DbgComponents = 0x%x\n", dm->debug_components);
+		       "Curr-DbgComponents = 0x%x\n", dm->de_components);
 	PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
 		       "================================");
 }
 
-static void phydm_fw_debug_trace(void *dm_void, u32 *const dm_value, u32 *_used,
+static void phydm_fw_de_trace(void *dm_void, u32 *const dm_value, u32 *_used,
 				 char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
-	u32 pre_fw_debug_components, one = 1;
+	u32 pre_fw_de_components, one = 1;
 	u32 used = *_used;
 	u32 out_len = *_out_len;
 
-	pre_fw_debug_components = dm->fw_debug_components;
+	pre_fw_de_components = dm->fw_de_components;
 
 	PHYDM_SNPRINTF(output + used, out_len - used, "\n%s\n",
 		       "================================");
 	if (dm_value[0] == 100) {
 		PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
-			       "[FW Debug Component]");
+			       "[FW De Component]");
 		PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
 			       "================================");
 		PHYDM_SNPRINTF(
 			output + used, out_len - used, "00. (( %s ))RA\n",
-			((dm->fw_debug_components & PHYDM_FW_COMP_RA) ? ("V") :
+			((dm->fw_de_components & PHYDM_FW_COMP_RA) ? ("V") :
 									(".")));
 
 		if (dm->support_ic_type & PHYDM_IC_3081_SERIES) {
 			PHYDM_SNPRINTF(
 				output + used, out_len - used,
 				"01. (( %s ))MU\n",
-				((dm->fw_debug_components & PHYDM_FW_COMP_MU) ?
+				((dm->fw_de_components & PHYDM_FW_COMP_MU) ?
 					 ("V") :
 					 (".")));
 			PHYDM_SNPRINTF(output + used, out_len - used,
 				       "02. (( %s ))path Div\n",
-				       ((dm->fw_debug_components &
+				       ((dm->fw_de_components &
 					 PHYDM_FW_COMP_PHY_CONFIG) ?
 						("V") :
 						(".")));
 			PHYDM_SNPRINTF(output + used, out_len - used,
 				       "03. (( %s ))Phy Config\n",
-				       ((dm->fw_debug_components &
+				       ((dm->fw_de_components &
 					 PHYDM_FW_COMP_PHY_CONFIG) ?
 						("V") :
 						(".")));
@@ -1727,14 +1727,14 @@ static void phydm_fw_debug_trace(void *dm_void, u32 *const dm_value, u32 *_used,
 
 	} else {
 		if (dm_value[0] == 101) {
-			dm->fw_debug_components = 0;
+			dm->fw_de_components = 0;
 			PHYDM_SNPRINTF(output + used, out_len - used, "%s\n",
-				       "Clear all fw debug components");
+				       "Clear all fw de components");
 		} else {
 			if (dm_value[1] == 1) /*enable*/
-				dm->fw_debug_components |= (one << dm_value[0]);
+				dm->fw_de_components |= (one << dm_value[0]);
 			else if (dm_value[1] == 2) /*disable*/
-				dm->fw_debug_components &=
+				dm->fw_de_components &=
 					~(one << dm_value[0]);
 			else
 				PHYDM_SNPRINTF(
@@ -1742,15 +1742,15 @@ static void phydm_fw_debug_trace(void *dm_void, u32 *const dm_value, u32 *_used,
 					"[Warning!!!]  1:enable,  2:disable");
 		}
 
-		if (dm->fw_debug_components == 0) {
-			dm->debug_components &= ~ODM_FW_DEBUG_TRACE;
+		if (dm->fw_de_components == 0) {
+			dm->de_components &= ~ODM_FW_DE_TRACE;
 			phydm_fw_trace_en_h2c(
-				dm, false, dm->fw_debug_components, dm_value[2],
+				dm, false, dm->fw_de_components, dm_value[2],
 				dm_value[3]); /*H2C to enable C2H Msg*/
 		} else {
-			dm->debug_components |= ODM_FW_DEBUG_TRACE;
+			dm->de_components |= ODM_FW_DE_TRACE;
 			phydm_fw_trace_en_h2c(
-				dm, true, dm->fw_debug_components, dm_value[2],
+				dm, true, dm->fw_de_components, dm_value[2],
 				dm_value[3]); /*H2C to enable C2H Msg*/
 		}
 	}
@@ -1997,8 +1997,8 @@ enum PHYDM_CMD_ID {
 	PHYDM_PROFILE,
 	PHYDM_ANTDIV,
 	PHYDM_PATHDIV,
-	PHYDM_DEBUG,
-	PHYDM_FW_DEBUG,
+	PHYDM_DE,
+	PHYDM_FW_DE,
 	PHYDM_SUPPORT_ABILITY,
 	PHYDM_GET_TXAGC,
 	PHYDM_SET_TXAGC,
@@ -2024,7 +2024,7 @@ enum PHYDM_CMD_ID {
 	PHYDM_ANT_SWITCH,
 	PHYDM_DYNAMIC_RA_PATH,
 	PHYDM_PSD,
-	PHYDM_DEBUG_PORT
+	PHYDM_DE_PORT
 };
 
 static struct phydm_command phy_dm_ary[] = {
@@ -2034,8 +2034,8 @@ static struct phydm_command phy_dm_ary[] = {
 	{"profile", PHYDM_PROFILE},
 	{"antdiv", PHYDM_ANTDIV},
 	{"pathdiv", PHYDM_PATHDIV},
-	{"dbg", PHYDM_DEBUG},
-	{"fw_dbg", PHYDM_FW_DEBUG},
+	{"dbg", PHYDM_DE},
+	{"fw_dbg", PHYDM_FW_DE},
 	{"ability", PHYDM_SUPPORT_ABILITY},
 	{"get_txagc", PHYDM_GET_TXAGC},
 	{"set_txagc", PHYDM_SET_TXAGC},
@@ -2061,7 +2061,7 @@ static struct phydm_command phy_dm_ary[] = {
 	{"ant_switch", PHYDM_ANT_SWITCH},
 	{"drp", PHYDM_DYNAMIC_RA_PATH},
 	{"psd", PHYDM_PSD},
-	{"dbgport", PHYDM_DEBUG_PORT},
+	{"dbgport", PHYDM_DE_PORT},
 };
 
 void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
@@ -2141,7 +2141,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1) {
-			phydm_RA_debug_PCR(dm, (u32 *)var1, &used, output,
+			phydm_RA_de_PCR(dm, (u32 *)var1, &used, output,
 					   &out_len);
 		}
 
@@ -2171,7 +2171,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 
 		break;
 
-	case PHYDM_DEBUG:
+	case PHYDM_DE:
 
 		for (i = 0; i < 5; i++) {
 			if (input[i + 1]) {
@@ -2183,13 +2183,13 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1) {
-			phydm_debug_trace(dm, (u32 *)var1, &used, output,
+			phydm_de_trace(dm, (u32 *)var1, &used, output,
 					  &out_len);
 		}
 
 		break;
 
-	case PHYDM_FW_DEBUG:
+	case PHYDM_FW_DE:
 
 		for (i = 0; i < 5; i++) {
 			if (input[i + 1]) {
@@ -2200,7 +2200,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1)
-			phydm_fw_debug_trace(dm, (u32 *)var1, &used, output,
+			phydm_fw_de_trace(dm, (u32 *)var1, &used, output,
 					     &out_len);
 
 		break;
@@ -2217,7 +2217,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1) {
-			phydm_support_ability_debug(dm, (u32 *)var1, &used,
+			phydm_support_ability_de(dm, (u32 *)var1, &used,
 						    output, &out_len);
 		}
 
@@ -2266,7 +2266,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		} else {
 			dm->is_disable_phy_api = false;
 			PHYDM_SNPRINTF(output + used, out_len - used,
-				       "Disable API debug mode\n");
+				       "Disable API de mode\n");
 		}
 		break;
 
@@ -2304,7 +2304,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 			} else {
 				dm->is_disable_phy_api = false;
 				PHYDM_SNPRINTF(output + used, out_len - used,
-					       "Disable API debug mode\n");
+					       "Disable API de mode\n");
 			}
 		}
 	} break;
@@ -2338,7 +2338,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 			} else {
 				dm->is_disable_phy_api = false;
 				PHYDM_SNPRINTF(output + used, out_len - used,
-					       "Disable API debug mode\n");
+					       "Disable API de mode\n");
 			}
 		} else {
 			phydm_config_trx_path(dm, (u32 *)var1, &used, output,
@@ -2452,7 +2452,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1) {
-			phydm_api_debug(dm, PHYDM_API_NBI, (u32 *)var1, &used,
+			phydm_api_de(dm, PHYDM_API_NBI, (u32 *)var1, &used,
 					output, &out_len);
 			/**/
 		}
@@ -2470,7 +2470,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1) {
-			phydm_api_debug(dm, PHYDM_API_CSI_MASK, (u32 *)var1,
+			phydm_api_de(dm, PHYDM_API_CSI_MASK, (u32 *)var1,
 					&used, output, &out_len);
 			/**/
 		}
@@ -2625,7 +2625,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 	case PHYDM_BB_INFO: {
 		s32 value32 = 0;
 
-		phydm_bb_debug_info(dm, &used, output, &out_len);
+		phydm_bb_de_info(dm, &used, output, &out_len);
 
 		if (dm->support_ic_type & ODM_RTL8822B && input[1]) {
 			PHYDM_SSCANF(input[1], DCMD_DECIMAL, &var1[0]);
@@ -2685,7 +2685,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 		}
 
 		if (input_idx >= 1)
-			phydm_h2C_debug(dm, (u32 *)var1, &used, output,
+			phydm_h2C_de(dm, (u32 *)var1, &used, output,
 					&out_len);
 
 		break;
@@ -2715,24 +2715,24 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][MAX_ARGV],
 
 	case PHYDM_PSD:
 
-		phydm_psd_debug(dm, &input[0], &used, output, &out_len,
+		phydm_psd_de(dm, &input[0], &used, output, &out_len,
 				input_num);
 
 		break;
 
-	case PHYDM_DEBUG_PORT: {
+	case PHYDM_DE_PORT: {
 		u32 dbg_port_value;
 
 		PHYDM_SSCANF(input[1], DCMD_HEX, &var1[0]);
 
 		if (phydm_set_bb_dbg_port(dm, BB_DBGPORT_PRIORITY_3,
-					  var1[0])) { /*set debug port to 0x0*/
+					  var1[0])) { /*set de port to 0x0*/
 
 			dbg_port_value = phydm_get_bb_dbg_port_value(dm);
 			phydm_release_bb_dbg_port(dm);
 
 			PHYDM_SNPRINTF(output + used, out_len - used,
-				       "Debug Port[0x%x] = ((0x%x))\n", var1[1],
+				       "De Port[0x%x] = ((0x%x))\n", var1[1],
 				       dbg_port_value);
 		}
 	} break;
@@ -2773,7 +2773,7 @@ void phydm_fw_trace_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
 
-	/*u8	debug_trace_11byte[60];*/
+	/*u8	de_trace_11byte[60];*/
 	u8 freg_num, c2h_seq, buf_0 = 0;
 
 	if (!(dm->support_ic_type & PHYDM_IC_3081_SERIES))
@@ -2787,36 +2787,36 @@ void phydm_fw_trace_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 	c2h_seq = (buf_0 & 0xf0) >> 4;
 
 	if (c2h_seq != dm->pre_c2h_seq && !dm->fw_buff_is_enpty) {
-		dm->fw_debug_trace[dm->c2h_cmd_start] = '\0';
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+		dm->fw_de_trace[dm->c2h_cmd_start] = '\0';
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "[FW Dbg Queue Overflow] %s\n",
-			     dm->fw_debug_trace);
+			     dm->fw_de_trace);
 		dm->c2h_cmd_start = 0;
 	}
 
 	if ((cmd_len - 1) > (60 - dm->c2h_cmd_start)) {
-		dm->fw_debug_trace[dm->c2h_cmd_start] = '\0';
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+		dm->fw_de_trace[dm->c2h_cmd_start] = '\0';
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "[FW Dbg Queue error: wrong C2H length] %s\n",
-			     dm->fw_debug_trace);
+			     dm->fw_de_trace);
 		dm->c2h_cmd_start = 0;
 		return;
 	}
 
-	strncpy((char *)&dm->fw_debug_trace[dm->c2h_cmd_start],
+	strncpy((char *)&dm->fw_de_trace[dm->c2h_cmd_start],
 		(char *)&cmd_buf[1], (cmd_len - 1));
 	dm->c2h_cmd_start += (cmd_len - 1);
 	dm->fw_buff_is_enpty = false;
 
 	if (freg_num == 0 || dm->c2h_cmd_start >= 60) {
 		if (dm->c2h_cmd_start < 60)
-			dm->fw_debug_trace[dm->c2h_cmd_start] = '\0';
+			dm->fw_de_trace[dm->c2h_cmd_start] = '\0';
 		else
-			dm->fw_debug_trace[59] = '\0';
+			dm->fw_de_trace[59] = '\0';
 
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "[FW DBG Msg] %s\n",
-			     dm->fw_debug_trace);
-		/*dbg_print("[FW DBG Msg] %s\n", dm->fw_debug_trace);*/
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "[FW DBG Msg] %s\n",
+			     dm->fw_de_trace);
+		/*dbg_print("[FW DBG Msg] %s\n", dm->fw_de_trace);*/
 		dm->c2h_cmd_start = 0;
 		dm->fw_buff_is_enpty = true;
 	}
@@ -2836,12 +2836,12 @@ void phydm_fw_trace_handler_code(void *dm_void, u8 *buffer, u8 cmd_len)
 	u16 content_4 = (((u16)buffer[11]) << 8) | ((u16)buffer[10]);
 
 	if (cmd_len > 12)
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "[FW Msg] Invalid cmd length (( %d )) >12\n",
 			     cmd_len);
 
 	/*--------------------------------------------*/
-	ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+	ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 		     "[FW][general][%d, %d, %d] = {%d, %d, %d, %d}\n", function,
 		     dbg_num, content_0, content_1, content_2, content_3,
 		     content_4);
@@ -2855,7 +2855,7 @@ void phydm_fw_trace_handler_8051(void *dm_void, u8 *buffer, u8 cmd_len)
 	int i = 0;
 	u8 extend_c2h_sub_id = 0, extend_c2h_dbg_len = 0,
 	   extend_c2h_dbg_seq = 0;
-	u8 fw_debug_trace[128];
+	u8 fw_de_trace[128];
 	u8 *extend_c2h_dbg_content = NULL;
 
 	if (cmd_len > 127)
@@ -2871,16 +2871,16 @@ go_backfor_aggre_dbg_pkt:
 	extend_c2h_dbg_content = buffer + 3;
 
 	for (;; i++) {
-		fw_debug_trace[i] = extend_c2h_dbg_content[i];
+		fw_de_trace[i] = extend_c2h_dbg_content[i];
 		if (extend_c2h_dbg_content[i + 1] == '\0') {
-			fw_debug_trace[i + 1] = '\0';
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "[FW DBG Msg] %s",
-				     &fw_debug_trace[0]);
+			fw_de_trace[i + 1] = '\0';
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "[FW DBG Msg] %s",
+				     &fw_de_trace[0]);
 			break;
 		} else if (extend_c2h_dbg_content[i] == '\n') {
-			fw_debug_trace[i + 1] = '\0';
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "[FW DBG Msg] %s",
-				     &fw_debug_trace[0]);
+			fw_de_trace[i + 1] = '\0';
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "[FW DBG Msg] %s",
+				     &fw_de_trace[0]);
 			buffer = extend_c2h_dbg_content + i + 3;
 			goto go_backfor_aggre_dbg_pkt;
 		}

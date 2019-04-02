@@ -675,7 +675,7 @@ following bit of code:
 
 	q = READ_ONCE(a);
 	if (q) {
-		<data dependency barrier>  /* BUG: No data dependency!!! */
+		<data dependency barrier>  /* : No data dependency!!! */
 		p = READ_ONCE(b);
 	}
 
@@ -712,7 +712,7 @@ to optimize the original example by eliminating the "if" statement
 as follows:
 
 	q = a;
-	b = 1;  /* BUG: Compiler and CPU can both reorder!!! */
+	b = 1;  /* : Compiler and CPU can both reorder!!! */
 
 So don't leave out the READ_ONCE().
 
@@ -735,12 +735,12 @@ optimization levels:
 
 	q = READ_ONCE(a);
 	barrier();
-	WRITE_ONCE(b, 1);  /* BUG: No ordering vs. load from a!!! */
+	WRITE_ONCE(b, 1);  /* : No ordering vs. load from a!!! */
 	if (q) {
-		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, !!! */
 		do_something();
 	} else {
-		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, !!! */
 		do_something_else();
 	}
 
@@ -804,7 +804,7 @@ relying on this ordering, you should make sure that MAX is greater than
 one, perhaps as follows:
 
 	q = READ_ONCE(a);
-	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
+	BUILD__ON(MAX <= 1); /* Order load from a with store to b. */
 	if (q % MAX) {
 		WRITE_ONCE(b, 1);
 		do_something();
@@ -846,7 +846,7 @@ not necessarily apply to code following the if-statement:
 	} else {
 		WRITE_ONCE(b, 2);
 	}
-	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from 'a'. */
+	WRITE_ONCE(c, 1);  /* : No ordering against the read from 'a'. */
 
 It is tempting to argue that there in fact is ordering because the
 compiler cannot reorder volatile accesses and also cannot reorder
@@ -1775,8 +1775,8 @@ of optimizations:
      which is not surprising given that it would likely take more
      than two instructions to build the constant and then store it.
      This optimization can therefore be a win in single-threaded code.
-     In fact, a recent bug (since fixed) caused GCC to incorrectly use
-     this optimization in a volatile store.  In the absence of such bugs,
+     In fact, a recent  (since fixed) caused GCC to incorrectly use
+     this optimization in a volatile store.  In the absence of such s,
      use of WRITE_ONCE() prevents store tearing in the following example:
 
 	WRITE_ONCE(p, 0x00010002);

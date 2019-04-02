@@ -9,7 +9,7 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/bitmap.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -84,10 +84,10 @@ struct ti_sci_desc {
  * @dev:	Device pointer
  * @desc:	SoC description for this instance
  * @nb:	Reboot Notifier block
- * @d:		Debugfs file entry
- * @debug_region: Memory region where the debug message are available
- * @debug_region_size: Debug region size
- * @debug_buffer: Buffer allocated to copy debug messages.
+ * @d:		Defs file entry
+ * @de_region: Memory region where the de message are available
+ * @de_region_size: De region size
+ * @de_buffer: Buffer allocated to copy de messages.
  * @handle:	Instance of TI SCI handle to send to clients.
  * @cl:		Mailbox Client
  * @chan_tx:	Transmit mailbox channel
@@ -102,9 +102,9 @@ struct ti_sci_info {
 	struct notifier_block nb;
 	const struct ti_sci_desc *desc;
 	struct dentry *d;
-	void __iomem *debug_region;
-	char *debug_buffer;
-	size_t debug_region_size;
+	void __iomem *de_region;
+	char *de_buffer;
+	size_t de_region_size;
 	struct ti_sci_handle handle;
 	struct mbox_client cl;
 	struct mbox_chan *chan_tx;
@@ -121,100 +121,100 @@ struct ti_sci_info {
 #define handle_to_ti_sci_info(h) container_of(h, struct ti_sci_info, handle)
 #define reboot_to_ti_sci_info(n) container_of(n, struct ti_sci_info, nb)
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 /**
- * ti_sci_debug_show() - Helper to dump the debug log
+ * ti_sci_de_show() - Helper to dump the de log
  * @s:	sequence file pointer
  * @unused:	unused.
  *
  * Return: 0
  */
-static int ti_sci_debug_show(struct seq_file *s, void *unused)
+static int ti_sci_de_show(struct seq_file *s, void *unused)
 {
 	struct ti_sci_info *info = s->private;
 
-	memcpy_fromio(info->debug_buffer, info->debug_region,
-		      info->debug_region_size);
+	memcpy_fromio(info->de_buffer, info->de_region,
+		      info->de_region_size);
 	/*
 	 * We don't trust firmware to leave NULL terminated last byte (hence
 	 * we have allocated 1 extra 0 byte). Since we cannot guarantee any
-	 * specific data format for debug messages, We just present the data
+	 * specific data format for de messages, We just present the data
 	 * in the buffer as is - we expect the messages to be self explanatory.
 	 */
-	seq_puts(s, info->debug_buffer);
+	seq_puts(s, info->de_buffer);
 	return 0;
 }
 
 /* Provide the log file operations interface*/
-DEFINE_SHOW_ATTRIBUTE(ti_sci_debug);
+DEFINE_SHOW_ATTRIBUTE(ti_sci_de);
 
 /**
- * ti_sci_debugfs_create() - Create log debug file
+ * ti_sci_defs_create() - Create log de file
  * @pdev:	platform device pointer
  * @info:	Pointer to SCI entity information
  *
  * Return: 0 if all went fine, else corresponding error.
  */
-static int ti_sci_debugfs_create(struct platform_device *pdev,
+static int ti_sci_defs_create(struct platform_device *pdev,
 				 struct ti_sci_info *info)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	char debug_name[50] = "ti_sci_debug@";
+	char de_name[50] = "ti_sci_de@";
 
-	/* Debug region is optional */
+	/* De region is optional */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "debug_messages");
-	info->debug_region = devm_ioremap_resource(dev, res);
-	if (IS_ERR(info->debug_region))
+					   "de_messages");
+	info->de_region = devm_ioremap_resource(dev, res);
+	if (IS_ERR(info->de_region))
 		return 0;
-	info->debug_region_size = resource_size(res);
+	info->de_region_size = resource_size(res);
 
-	info->debug_buffer = devm_kcalloc(dev, info->debug_region_size + 1,
+	info->de_buffer = devm_kcalloc(dev, info->de_region_size + 1,
 					  sizeof(char), GFP_KERNEL);
-	if (!info->debug_buffer)
+	if (!info->de_buffer)
 		return -ENOMEM;
 	/* Setup NULL termination */
-	info->debug_buffer[info->debug_region_size] = 0;
+	info->de_buffer[info->de_region_size] = 0;
 
-	info->d = debugfs_create_file(strncat(debug_name, dev_name(dev),
-					      sizeof(debug_name) -
-					      sizeof("ti_sci_debug@")),
-				      0444, NULL, info, &ti_sci_debug_fops);
+	info->d = defs_create_file(strncat(de_name, dev_name(dev),
+					      sizeof(de_name) -
+					      sizeof("ti_sci_de@")),
+				      0444, NULL, info, &ti_sci_de_fops);
 	if (IS_ERR(info->d))
 		return PTR_ERR(info->d);
 
-	dev_dbg(dev, "Debug region => %p, size = %zu bytes, resource: %pr\n",
-		info->debug_region, info->debug_region_size, res);
+	dev_dbg(dev, "De region => %p, size = %zu bytes, resource: %pr\n",
+		info->de_region, info->de_region_size, res);
 	return 0;
 }
 
 /**
- * ti_sci_debugfs_destroy() - clean up log debug file
+ * ti_sci_defs_destroy() - clean up log de file
  * @pdev:	platform device pointer
  * @info:	Pointer to SCI entity information
  */
-static void ti_sci_debugfs_destroy(struct platform_device *pdev,
+static void ti_sci_defs_destroy(struct platform_device *pdev,
 				   struct ti_sci_info *info)
 {
-	if (IS_ERR(info->debug_region))
+	if (IS_ERR(info->de_region))
 		return;
 
-	debugfs_remove(info->d);
+	defs_remove(info->d);
 }
-#else /* CONFIG_DEBUG_FS */
-static inline int ti_sci_debugfs_create(struct platform_device *dev,
+#else /* CONFIG_DE_FS */
+static inline int ti_sci_defs_create(struct platform_device *dev,
 					struct ti_sci_info *info)
 {
 	return 0;
 }
 
-static inline void ti_sci_debugfs_destroy(struct platform_device *dev,
+static inline void ti_sci_defs_destroy(struct platform_device *dev,
 					  struct ti_sci_info *info)
 {
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 /**
  * ti_sci_dump_header_dbg() - Helper to dump a message header.
@@ -1840,7 +1840,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 	/*
 	 * Pre-allocate messages
 	 * NEVER allocate more than what we can indicate in hdr.seq
-	 * if we have data description bug, force a fix..
+	 * if we have data description , force a fix..
 	 */
 	if (WARN_ON(desc->max_msgs >=
 		    1 << 8 * sizeof(((struct ti_sci_msg_hdr *)0)->seq)))
@@ -1872,9 +1872,9 @@ static int ti_sci_probe(struct platform_device *pdev)
 		init_completion(&xfer->done);
 	}
 
-	ret = ti_sci_debugfs_create(pdev, info);
+	ret = ti_sci_defs_create(pdev, info);
 	if (ret)
-		dev_warn(dev, "Failed to create debug file\n");
+		dev_warn(dev, "Failed to create de file\n");
 
 	platform_set_drvdata(pdev, info);
 
@@ -1932,7 +1932,7 @@ out:
 		mbox_free_channel(info->chan_tx);
 	if (!IS_ERR(info->chan_rx))
 		mbox_free_channel(info->chan_rx);
-	debugfs_remove(info->d);
+	defs_remove(info->d);
 	return ret;
 }
 
@@ -1957,7 +1957,7 @@ static int ti_sci_remove(struct platform_device *pdev)
 	mutex_unlock(&ti_sci_list_mutex);
 
 	if (!ret) {
-		ti_sci_debugfs_destroy(pdev, info);
+		ti_sci_defs_destroy(pdev, info);
 
 		/* Safe to free channels since no more users */
 		mbox_free_channel(info->chan_tx);

@@ -325,7 +325,7 @@ static int pn544_hci_ready(struct nfc_hci_dev *hdev)
 		return -EINVAL;
 	}
 
-	print_hex_dump(KERN_DEBUG, "FULL VERSION SOFTWARE INFO: ",
+	print_hex_dump(KERN_DE, "FULL VERSION SOFTWARE INFO: ",
 		       DUMP_PREFIX_NONE, 16, 1,
 		       skb->data, FULL_VERSION_LEN, false);
 
@@ -391,7 +391,7 @@ static int pn544_hci_start_poll(struct nfc_hci_dev *hdev,
 	if ((im_protocols | tm_protocols) & NFC_PROTO_NFC_DEP_MASK) {
 		hdev->gb = nfc_get_local_general_bytes(hdev->ndev,
 							&hdev->gb_len);
-		pr_debug("generate local bytes %p\n", hdev->gb);
+		pr_de("generate local bytes %p\n", hdev->gb);
 		if (hdev->gb == NULL || hdev->gb_len == 0) {
 			im_protocols &= ~NFC_PROTO_NFC_DEP_MASK;
 			tm_protocols &= ~NFC_PROTO_NFC_DEP_MASK;
@@ -468,7 +468,7 @@ static int pn544_hci_dep_link_up(struct nfc_hci_dev *hdev,
 		r = -EPROTO;
 		goto exit;
 	}
-	print_hex_dump(KERN_DEBUG, "remote gb: ", DUMP_PREFIX_OFFSET,
+	print_hex_dump(KERN_DE, "remote gb: ", DUMP_PREFIX_OFFSET,
 			16, 1, rgb_skb->data, rgb_skb->len, true);
 
 	r = nfc_set_remote_general_bytes(hdev->ndev, rgb_skb->data,
@@ -693,7 +693,7 @@ static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 				   struct nfc_target *target)
 {
-	pr_debug("supported protocol %d\b", target->supported_protocols);
+	pr_de("supported protocol %d\b", target->supported_protocols);
 	if (target->supported_protocols & (NFC_PROTO_ISO14443_MASK |
 					NFC_PROTO_ISO14443_B_MASK)) {
 		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
@@ -731,7 +731,7 @@ static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 	u8 gate = hdev->pipes[pipe].gate;
 	int r;
 
-	pr_debug("hci event %d\n", event);
+	pr_de("hci event %d\n", event);
 	switch (event) {
 	case PN544_HCI_EVT_ACTIVATED:
 		if (gate == PN544_RF_READER_NFCIP1_INITIATOR_GATE) {
@@ -762,7 +762,7 @@ static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		}
 
 		if (skb->data[0] != 0) {
-			pr_debug("data0 %d\n", skb->data[0]);
+			pr_de("data0 %d\n", skb->data[0]);
 			r = -EPROTO;
 			goto exit;
 		}

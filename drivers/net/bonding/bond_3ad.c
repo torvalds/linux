@@ -517,10 +517,10 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 		if ((port->sm_vars & AD_PORT_MATCHED) &&
 		    (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION)) {
 			partner->port_state |= AD_STATE_SYNCHRONIZATION;
-			pr_debug("%s partner sync=1\n", port->slave->dev->name);
+			pr_de("%s partner sync=1\n", port->slave->dev->name);
 		} else {
 			partner->port_state &= ~AD_STATE_SYNCHRONIZATION;
-			pr_debug("%s partner sync=0\n", port->slave->dev->name);
+			pr_de("%s partner sync=0\n", port->slave->dev->name);
 		}
 	}
 }
@@ -806,7 +806,7 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	lacpdu->actor_port_priority = htons(port->actor_port_priority);
 	lacpdu->actor_port = htons(port->actor_port_number);
 	lacpdu->actor_state = port->actor_oper_port_state;
-	pr_debug("update lacpdu: %s, actor port state %x\n",
+	pr_de("update lacpdu: %s, actor port state %x\n",
 		 port->slave->dev->name, port->actor_oper_port_state);
 
 	/* lacpdu->reserved_3_1              initialized
@@ -1039,7 +1039,7 @@ static void ad_mux_machine(struct port *port, bool *update_slave_arr)
 
 	/* check if the state machine was changed */
 	if (port->sm_mux_state != last_state) {
-		pr_debug("Mux Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
+		pr_de("Mux Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
 			 port->actor_port_number,
 			 port->slave->dev->name,
 			 last_state,
@@ -1157,7 +1157,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 
 	/* check if the State machine was changed or new lacpdu arrived */
 	if ((port->sm_rx_state != last_state) || (lacpdu)) {
-		pr_debug("Rx Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
+		pr_de("Rx Machine: Port=%d (%s), Last State=%d, Curr State=%d\n",
 			 port->actor_port_number,
 			 port->slave->dev->name,
 			 last_state,
@@ -1280,7 +1280,7 @@ static void ad_tx_machine(struct port *port)
 			__update_lacpdu_from_port(port);
 
 			if (ad_lacpdu_send(port) >= 0) {
-				pr_debug("Sent LACPDU on port %d\n",
+				pr_de("Sent LACPDU on port %d\n",
 					 port->actor_port_number);
 
 				/* mark ntt as false, so it will not be sent
@@ -1360,7 +1360,7 @@ static void ad_periodic_machine(struct port *port)
 
 	/* check if the state machine was changed */
 	if (port->sm_periodic_state != last_state) {
-		pr_debug("Periodic Machine: Port=%d, Last State=%d, Curr State=%d\n",
+		pr_de("Periodic Machine: Port=%d, Last State=%d, Curr State=%d\n",
 			 port->actor_port_number, last_state,
 			 port->sm_periodic_state);
 		switch (port->sm_periodic_state) {
@@ -1805,7 +1805,7 @@ static void ad_clear_agg(struct aggregator *aggregator)
 		aggregator->lag_ports = NULL;
 		aggregator->is_active = 0;
 		aggregator->num_of_ports = 0;
-		pr_debug("LAG %d was cleared\n",
+		pr_de("LAG %d was cleared\n",
 			 aggregator->aggregator_identifier);
 	}
 }
@@ -1902,7 +1902,7 @@ static void ad_enable_collecting_distributing(struct port *port,
 					      bool *update_slave_arr)
 {
 	if (port->aggregator->is_active) {
-		pr_debug("Enabling port %d(LAG %d)\n",
+		pr_de("Enabling port %d(LAG %d)\n",
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
 		__enable_port(port);
@@ -1922,7 +1922,7 @@ static void ad_disable_collecting_distributing(struct port *port,
 	if (port->aggregator &&
 	    !MAC_ADDRESS_EQUAL(&(port->aggregator->partner_system),
 			       &(null_mac_addr))) {
-		pr_debug("Disabling port %d(LAG %d)\n",
+		pr_de("Disabling port %d(LAG %d)\n",
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
 		__disable_port(port);
@@ -1951,7 +1951,7 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
 
 	/* send the marker response */
 	if (ad_marker_send(port, &marker) >= 0) {
-		pr_debug("Sent Marker Response on port %d\n",
+		pr_de("Sent Marker Response on port %d\n",
 			 port->actor_port_number);
 	}
 }

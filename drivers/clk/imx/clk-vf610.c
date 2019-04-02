@@ -202,12 +202,12 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,vf610-anatop");
 	anatop_base = of_iomap(np, 0);
-	BUG_ON(!anatop_base);
+	_ON(!anatop_base);
 	of_node_put(np);
 
 	np = ccm_node;
 	ccm_base = of_iomap(np, 0);
-	BUG_ON(!ccm_base);
+	_ON(!ccm_base);
 
 	clk[VF610_CLK_SLOW_CLK_SEL] = imx_clk_mux("slow_clk_sel", CCM_CCSR, 4, 1, slow_sels, ARRAY_SIZE(slow_sels));
 	clk[VF610_CLK_FASK_CLK_SEL] = imx_clk_mux("fast_clk_sel", CCM_CCSR, 5, 1, fast_sels, ARRAY_SIZE(fast_sels));

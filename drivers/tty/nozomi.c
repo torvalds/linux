@@ -25,8 +25,8 @@
  * --------------------------------------------------------------------------
  */
 
-/* Enable this to have a lot of debug printouts */
-#define DEBUG
+/* Enable this to have a lot of de printouts */
+#define DE
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -50,16 +50,16 @@
 
 #define VERSION_STRING DRIVER_DESC " 2.1d"
 
-/* Default debug printout level */
-#define NOZOMI_DEBUG_LEVEL 0x00
-static int debug = NOZOMI_DEBUG_LEVEL;
-module_param(debug, int, S_IRUGO | S_IWUSR);
+/* Default de printout level */
+#define NOZOMI_DE_LEVEL 0x00
+static int de = NOZOMI_DE_LEVEL;
+module_param(de, int, S_IRUGO | S_IWUSR);
 
 /*    Macros definitions */
 #define DBG_(lvl, fmt, args...)				\
 do {							\
-	if (lvl & debug)				\
-		pr_debug("[%d] %s(): " fmt "\n",	\
+	if (lvl & de)				\
+		pr_de("[%d] %s(): " fmt "\n",	\
 			 __LINE__, __func__,  ##args);	\
 } while (0)
 
@@ -571,7 +571,7 @@ static void nozomi_setup_memory(struct nozomi *dc)
 }
 
 /* Dump config table under initalization phase */
-#ifdef DEBUG
+#ifdef DE
 static void dump_table(const struct nozomi *dc)
 {
 	DBG3("signature: 0x%08X", dc->config_table.signature);
@@ -832,8 +832,8 @@ put:
 	return ret;
 }
 
-/* Debug for interrupts */
-#ifdef DEBUG
+/* De for interrupts */
+#ifdef DE
 static char *interrupt2str(u16 interrupt)
 {
 	static char buf[TMP_BUF_MAX];

@@ -215,7 +215,7 @@ unsigned int cpm2_get_irq(void)
 static int cpm2_pic_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
-	pr_debug("cpm2_pic_host_map(%d, 0x%lx)\n", virq, hw);
+	pr_de("cpm2_pic_host_map(%d, 0x%lx)\n", virq, hw);
 
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_and_handler(virq, &cpm2_pic, handle_level_irq);

@@ -150,7 +150,7 @@
 #define AVS_STATUS_NO_MAP	0xf3
 /* Cannot change P-Map after initial P-Map set */
 #define AVS_STATUS_MAP_SET	0xf4
-/* Max AVS status; higher numbers are used for debugging */
+/* Max AVS status; higher numbers are used for deging */
 #define AVS_STATUS_MAX		0xff
 
 /* Other AVS related constants */

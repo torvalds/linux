@@ -76,7 +76,7 @@ struct nx_stats {
 	atomic_t last_error_pid;
 };
 
-struct nx_debugfs {
+struct nx_defs {
 	struct dentry *dfs_root;
 	struct dentry *dfs_aes_ops, *dfs_aes_bytes;
 	struct dentry *dfs_sha256_ops, *dfs_sha256_bytes;
@@ -89,7 +89,7 @@ struct nx_crypto_driver {
 	struct nx_of       of;
 	struct vio_dev    *viodev;
 	struct vio_driver  viodriver;
-	struct nx_debugfs  dfs;
+	struct nx_defs  dfs;
 };
 
 #define NX_GCM4106_NONCE_LEN		(4)
@@ -173,15 +173,15 @@ struct nx_sg *nx_walk_and_build(struct nx_sg *, unsigned int,
 				struct scatterlist *, unsigned int,
 				unsigned int *);
 
-#ifdef CONFIG_DEBUG_FS
-#define NX_DEBUGFS_INIT(drv)	nx_debugfs_init(drv)
-#define NX_DEBUGFS_FINI(drv)	nx_debugfs_fini(drv)
+#ifdef CONFIG_DE_FS
+#define NX_DEFS_INIT(drv)	nx_defs_init(drv)
+#define NX_DEFS_FINI(drv)	nx_defs_fini(drv)
 
-int nx_debugfs_init(struct nx_crypto_driver *);
-void nx_debugfs_fini(struct nx_crypto_driver *);
+int nx_defs_init(struct nx_crypto_driver *);
+void nx_defs_fini(struct nx_crypto_driver *);
 #else
-#define NX_DEBUGFS_INIT(drv)	(0)
-#define NX_DEBUGFS_FINI(drv)	(0)
+#define NX_DEFS_INIT(drv)	(0)
+#define NX_DEFS_FINI(drv)	(0)
 #endif
 
 #define NX_PAGE_NUM(x)		((u64)(x) & 0xfffffffffffff000ULL)

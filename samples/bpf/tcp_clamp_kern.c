@@ -20,7 +20,7 @@
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 
-#define DEBUG 1
+#define DE 1
 
 #define bpf_printk(fmt, ...)					\
 ({								\
@@ -48,7 +48,7 @@ int bpf_clamp(struct bpf_sock_ops *skops)
 
 	op = (int) skops->op;
 
-#ifdef DEBUG
+#ifdef DE
 	bpf_printk("BPF command: %d\n", op);
 #endif
 
@@ -95,7 +95,7 @@ int bpf_clamp(struct bpf_sock_ops *skops)
 	} else {
 		rv = -1;
 	}
-#ifdef DEBUG
+#ifdef DE
 	bpf_printk("Returning %d\n", rv);
 #endif
 	skops->reply = rv;

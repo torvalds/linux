@@ -71,7 +71,7 @@ properties:
   secure-reg-access:
     type: boolean
     description:
-      Indicates that the ARMv7 Secure Debug Enable Register
+      Indicates that the ARMv7 Secure De Enable Register
       (SDER) is accessible. This will cause the driver to do
       any setup required that is only possible in ARMv7 secure
       state. If not present the ARMv7 SDER will not be touched,

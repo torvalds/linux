@@ -50,7 +50,7 @@ MODULE_PARM_DESC(dst_algo, "tuning algo: default is 0=(SW), 1=(HW)");
 
 #define dprintk(level, fmt, arg...) do {				\
 	if (level >= verbose)						\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while(0)
 
@@ -964,7 +964,7 @@ static int dst_get_vendor(struct dst_state *state)
 	return 0;
 }
 
-static void debug_dst_buffer(struct dst_state *state)
+static void de_dst_buffer(struct dst_state *state)
 {
 	dprintk(3, "%s: [ %*ph ]\n", __func__, 8, state->rxbuffer);
 }
@@ -978,7 +978,7 @@ static int dst_check_stv0299(struct dst_state *state)
 		pr_err("Cmd=[0x04] failed\n");
 		return -1;
 	}
-	debug_dst_buffer(state);
+	de_dst_buffer(state);
 
 	if (memcmp(&check_stv0299, &state->rxbuffer, 8)) {
 		pr_err("Found a STV0299 NIM\n");
@@ -998,7 +998,7 @@ static int dst_check_mb86a15(struct dst_state *state)
 		pr_err("Cmd=[0x10], failed\n");
 		return -1;
 	}
-	debug_dst_buffer(state);
+	de_dst_buffer(state);
 
 	if (memcmp(&check_mb86a15, &state->rxbuffer, 8) < 0) {
 		pr_err("Found a MB86A15 NIM\n");

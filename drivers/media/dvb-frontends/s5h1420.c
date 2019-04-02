@@ -63,13 +63,13 @@ static int s5h1420_get_tune_settings(struct dvb_frontend* fe,
 				     struct dvb_frontend_tune_settings* fesettings);
 
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debugging");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable deging");
 
 #define dprintk(x...) do { \
-	if (debug) \
-		printk(KERN_DEBUG "S5H1420: " x); \
+	if (de) \
+		printk(KERN_DE "S5H1420: " x); \
 } while (0)
 
 static u8 s5h1420_readreg(struct s5h1420_state *state, u8 reg)

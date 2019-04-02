@@ -52,7 +52,7 @@ static u64 qgroup_rsv_total(const struct btrfs_qgroup *qgroup)
 	return ret;
 }
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 static const char *qgroup_rsv_type_str(enum btrfs_qgroup_rsv_type type)
 {
 	if (type == BTRFS_QGROUP_RSV_DATA)
@@ -82,7 +82,7 @@ static void qgroup_rsv_release(struct btrfs_fs_info *fs_info,
 		qgroup->rsv.values[type] -= num_bytes;
 		return;
 	}
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	WARN_RATELIMIT(1,
 		"qgroup %llu %s reserved space underflow, have %llu to free %llu",
 		qgroup->qgroupid, qgroup_rsv_type_str(type),
@@ -1783,7 +1783,7 @@ static int qgroup_trace_extent_swap(struct btrfs_trans_handle* trans,
 	int cur_level = root_level;
 	int ret;
 
-	BUG_ON(dst_level > root_level);
+	_ON(dst_level > root_level);
 	/* Level mismatch */
 	if (btrfs_header_level(src_eb) != root_level)
 		return -EINVAL;
@@ -2085,8 +2085,8 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb = root_eb;
 	struct btrfs_path *path = NULL;
 
-	BUG_ON(root_level < 0 || root_level >= BTRFS_MAX_LEVEL);
-	BUG_ON(root_eb == NULL);
+	_ON(root_level < 0 || root_level >= BTRFS_MAX_LEVEL);
+	_ON(root_eb == NULL);
 
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
@@ -2430,7 +2430,7 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	if (nr_old_roots == 0 && nr_new_roots == 0)
 		goto out_free;
 
-	BUG_ON(!fs_info->quota_root);
+	_ON(!fs_info->quota_root);
 
 	trace_btrfs_qgroup_account_extent(fs_info, trans->transid, bytenr,
 					num_bytes, nr_old_roots, nr_new_roots);
@@ -3027,7 +3027,7 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 					 &fs_info->qgroup_rescan_progress,
 					 path, 1, 0);
 
-	btrfs_debug(fs_info,
+	btrfs_de(fs_info,
 		"current progress key (%llu %u %llu), search_slot ret %d",
 		fs_info->qgroup_rescan_progress.objectid,
 		fs_info->qgroup_rescan_progress.type,
@@ -3589,7 +3589,7 @@ int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 	    !is_fstree(root->root_key.objectid) || num_bytes == 0)
 		return 0;
 
-	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
+	_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	trace_qgroup_meta_reserve(root, type, (s64)num_bytes);
 	ret = qgroup_reserve(root, num_bytes, enforce, type);
 	if (ret < 0)
@@ -3636,7 +3636,7 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 	 * Here ensure we will only free what we really have reserved.
 	 */
 	num_bytes = sub_root_meta_rsv(root, num_bytes, type);
-	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
+	_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	trace_qgroup_meta_reserve(root, type, -(s64)num_bytes);
 	btrfs_qgroup_free_refroot(fs_info, root->root_key.objectid,
 				  num_bytes, type);
@@ -3864,7 +3864,7 @@ int btrfs_qgroup_add_swapped_blocks(struct btrfs_trans_handle *trans,
 				 * Marking qgroup inconsistent should be enough
 				 * for end users.
 				 */
-				WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+				WARN_ON(IS_ENABLED(CONFIG_BTRFS_DE));
 				ret = -EEXIST;
 			}
 			kfree(block);

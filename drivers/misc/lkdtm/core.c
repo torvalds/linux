@@ -26,7 +26,7 @@
  * It is adapted from the Linux Kernel Dump Test Tool by
  * Fernando Luis Vazquez Cao <http://lkdtt.sourceforge.net>
  *
- * Debugfs support added by Simon Kagstrom <simon.kagstrom@netinsight.net>
+ * Defs support added by Simon Kagstrom <simon.kagstrom@netinsight.net>
  *
  * See Documentation/fault-injection/provoke-crashes.txt for instructions
  */
@@ -38,19 +38,19 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #define DEFAULT_COUNT 10
 
-static int lkdtm_debugfs_open(struct inode *inode, struct file *file);
-static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
+static int lkdtm_defs_open(struct inode *inode, struct file *file);
+static ssize_t lkdtm_defs_read(struct file *f, char __user *user_buf,
 		size_t count, loff_t *off);
 static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 			    size_t count, loff_t *off);
 
 #ifdef CONFIG_KPROBES
 static int lkdtm_kprobe_handler(struct kprobe *kp, struct pt_regs *regs);
-static ssize_t lkdtm_debugfs_entry(struct file *f,
+static ssize_t lkdtm_defs_entry(struct file *f,
 				   const char __user *user_buf,
 				   size_t count, loff_t *off);
 # define CRASHPOINT_KPROBE(_symbol)				\
@@ -59,7 +59,7 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 			.pre_handler = lkdtm_kprobe_handler,	\
 		},
 # define CRASHPOINT_WRITE(_symbol)				\
-		(_symbol) ? lkdtm_debugfs_entry : direct_entry
+		(_symbol) ? lkdtm_defs_entry : direct_entry
 #else
 # define CRASHPOINT_KPROBE(_symbol)
 # define CRASHPOINT_WRITE(_symbol)		direct_entry
@@ -76,9 +76,9 @@ struct crashpoint {
 	{							\
 		.name = _name,					\
 		.fops = {					\
-			.read	= lkdtm_debugfs_read,		\
+			.read	= lkdtm_defs_read,		\
 			.llseek	= generic_file_llseek,		\
-			.open	= lkdtm_debugfs_open,		\
+			.open	= lkdtm_defs_open,		\
 			.write	= CRASHPOINT_WRITE(_symbol)	\
 		},						\
 		CRASHPOINT_KPROBE(_symbol)			\
@@ -115,7 +115,7 @@ struct crashtype {
 /* Define the possible types of crashes that can be triggered. */
 static const struct crashtype crashtypes[] = {
 	CRASHTYPE(PANIC),
-	CRASHTYPE(BUG),
+	CRASHTYPE(),
 	CRASHTYPE(WARNING),
 	CRASHTYPE(EXCEPTION),
 	CRASHTYPE(LOOP),
@@ -290,7 +290,7 @@ static int lkdtm_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
 	return 0;
 }
 
-static ssize_t lkdtm_debugfs_entry(struct file *f,
+static ssize_t lkdtm_defs_entry(struct file *f,
 				   const char __user *user_buf,
 				   size_t count, loff_t *off)
 {
@@ -330,7 +330,7 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 #endif
 
 /* Generic read callback that just prints out the available crash types */
-static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
+static ssize_t lkdtm_defs_read(struct file *f, char __user *user_buf,
 		size_t count, loff_t *off)
 {
 	char *buf;
@@ -354,7 +354,7 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 	return out;
 }
 
-static int lkdtm_debugfs_open(struct inode *inode, struct file *file)
+static int lkdtm_defs_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
@@ -394,7 +394,7 @@ static ssize_t direct_entry(struct file *f, const char __user *user_buf,
 	return count;
 }
 
-static struct dentry *lkdtm_debugfs_root;
+static struct dentry *lkdtm_defs_root;
 
 static int __init lkdtm_module_init(void)
 {
@@ -436,23 +436,23 @@ static int __init lkdtm_module_init(void)
 #endif
 
 	/* Handle test-specific initialization. */
-	lkdtm_bugs_init(&recur_count);
+	lkdtm_s_init(&recur_count);
 	lkdtm_perms_init();
 	lkdtm_usercopy_init();
 
-	/* Register debugfs interface */
-	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
-	if (!lkdtm_debugfs_root) {
+	/* Register defs interface */
+	lkdtm_defs_root = defs_create_dir("provoke-crash", NULL);
+	if (!lkdtm_defs_root) {
 		pr_err("creating root dir failed\n");
 		return -ENODEV;
 	}
 
-	/* Install debugfs trigger files. */
+	/* Install defs trigger files. */
 	for (i = 0; i < ARRAY_SIZE(crashpoints); i++) {
 		struct crashpoint *cur = &crashpoints[i];
 		struct dentry *de;
 
-		de = debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root,
+		de = defs_create_file(cur->name, 0644, lkdtm_defs_root,
 					 cur, &cur->fops);
 		if (de == NULL) {
 			pr_err("could not create crashpoint %s\n", cur->name);
@@ -470,19 +470,19 @@ static int __init lkdtm_module_init(void)
 		pr_info("Crash point %s of type %s registered\n",
 			crashpoint->name, cpoint_type);
 	} else {
-		pr_info("No crash points registered, enable through debugfs\n");
+		pr_info("No crash points registered, enable through defs\n");
 	}
 
 	return 0;
 
 out_err:
-	debugfs_remove_recursive(lkdtm_debugfs_root);
+	defs_remove_recursive(lkdtm_defs_root);
 	return ret;
 }
 
 static void __exit lkdtm_module_exit(void)
 {
-	debugfs_remove_recursive(lkdtm_debugfs_root);
+	defs_remove_recursive(lkdtm_defs_root);
 
 	/* Handle test-specific clean-up. */
 	lkdtm_usercopy_exit();

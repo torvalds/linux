@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/list.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -257,7 +257,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	pindesc->drv_data = pin->drv_data;
 
 	radix_tree_insert(&pctldev->pin_desc_tree, pin->number, pindesc);
-	pr_debug("registered pin %d (%s) on %s\n",
+	pr_de("registered pin %d (%s) on %s\n",
 		 pin->number, pindesc->name, pctldev->desc->name);
 	return 0;
 }
@@ -1365,7 +1365,7 @@ int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 	int i, ret;
 	struct pinctrl_maps *maps_node;
 
-	pr_debug("add %u pinctrl maps\n", num_maps);
+	pr_de("add %u pinctrl maps\n", num_maps);
 
 	/* First sanity check the new mapping */
 	for (i = 0; i < num_maps; i++) {
@@ -1580,7 +1580,7 @@ int pinctrl_pm_select_idle_state(struct device *dev)
 EXPORT_SYMBOL_GPL(pinctrl_pm_select_idle_state);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int pinctrl_pins_show(struct seq_file *s, void *what)
 {
@@ -1824,80 +1824,80 @@ static int pinctrl_show(struct seq_file *s, void *what)
 }
 DEFINE_SHOW_ATTRIBUTE(pinctrl);
 
-static struct dentry *debugfs_root;
+static struct dentry *defs_root;
 
-static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
+static void pinctrl_init_device_defs(struct pinctrl_dev *pctldev)
 {
 	struct dentry *device_root;
-	const char *debugfs_name;
+	const char *defs_name;
 
 	if (pctldev->desc->name &&
 			strcmp(dev_name(pctldev->dev), pctldev->desc->name)) {
-		debugfs_name = devm_kasprintf(pctldev->dev, GFP_KERNEL,
+		defs_name = devm_kasprintf(pctldev->dev, GFP_KERNEL,
 				"%s-%s", dev_name(pctldev->dev),
 				pctldev->desc->name);
-		if (!debugfs_name) {
-			pr_warn("failed to determine debugfs dir name for %s\n",
+		if (!defs_name) {
+			pr_warn("failed to determine defs dir name for %s\n",
 				dev_name(pctldev->dev));
 			return;
 		}
 	} else {
-		debugfs_name = dev_name(pctldev->dev);
+		defs_name = dev_name(pctldev->dev);
 	}
 
-	device_root = debugfs_create_dir(debugfs_name, debugfs_root);
+	device_root = defs_create_dir(defs_name, defs_root);
 	pctldev->device_root = device_root;
 
 	if (IS_ERR(device_root) || !device_root) {
-		pr_warn("failed to create debugfs directory for %s\n",
+		pr_warn("failed to create defs directory for %s\n",
 			dev_name(pctldev->dev));
 		return;
 	}
-	debugfs_create_file("pins", S_IFREG | S_IRUGO,
+	defs_create_file("pins", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_pins_fops);
-	debugfs_create_file("pingroups", S_IFREG | S_IRUGO,
+	defs_create_file("pingroups", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_groups_fops);
-	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
+	defs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_gpioranges_fops);
 	if (pctldev->desc->pmxops)
-		pinmux_init_device_debugfs(device_root, pctldev);
+		pinmux_init_device_defs(device_root, pctldev);
 	if (pctldev->desc->confops)
-		pinconf_init_device_debugfs(device_root, pctldev);
+		pinconf_init_device_defs(device_root, pctldev);
 }
 
-static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
+static void pinctrl_remove_device_defs(struct pinctrl_dev *pctldev)
 {
-	debugfs_remove_recursive(pctldev->device_root);
+	defs_remove_recursive(pctldev->device_root);
 }
 
-static void pinctrl_init_debugfs(void)
+static void pinctrl_init_defs(void)
 {
-	debugfs_root = debugfs_create_dir("pinctrl", NULL);
-	if (IS_ERR(debugfs_root) || !debugfs_root) {
-		pr_warn("failed to create debugfs directory\n");
-		debugfs_root = NULL;
+	defs_root = defs_create_dir("pinctrl", NULL);
+	if (IS_ERR(defs_root) || !defs_root) {
+		pr_warn("failed to create defs directory\n");
+		defs_root = NULL;
 		return;
 	}
 
-	debugfs_create_file("pinctrl-devices", S_IFREG | S_IRUGO,
-			    debugfs_root, NULL, &pinctrl_devices_fops);
-	debugfs_create_file("pinctrl-maps", S_IFREG | S_IRUGO,
-			    debugfs_root, NULL, &pinctrl_maps_fops);
-	debugfs_create_file("pinctrl-handles", S_IFREG | S_IRUGO,
-			    debugfs_root, NULL, &pinctrl_fops);
+	defs_create_file("pinctrl-devices", S_IFREG | S_IRUGO,
+			    defs_root, NULL, &pinctrl_devices_fops);
+	defs_create_file("pinctrl-maps", S_IFREG | S_IRUGO,
+			    defs_root, NULL, &pinctrl_maps_fops);
+	defs_create_file("pinctrl-handles", S_IFREG | S_IRUGO,
+			    defs_root, NULL, &pinctrl_fops);
 }
 
-#else /* CONFIG_DEBUG_FS */
+#else /* CONFIG_DE_FS */
 
-static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
+static void pinctrl_init_device_defs(struct pinctrl_dev *pctldev)
 {
 }
 
-static void pinctrl_init_debugfs(void)
+static void pinctrl_init_defs(void)
 {
 }
 
-static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
+static void pinctrl_remove_device_defs(struct pinctrl_dev *pctldev)
 {
 }
 
@@ -2049,7 +2049,7 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 	list_add_tail(&pctldev->node, &pinctrldev_list);
 	mutex_unlock(&pinctrldev_list_mutex);
 
-	pinctrl_init_device_debugfs(pctldev);
+	pinctrl_init_device_defs(pctldev);
 
 	return 0;
 }
@@ -2131,7 +2131,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 		return;
 
 	mutex_lock(&pctldev->mutex);
-	pinctrl_remove_device_debugfs(pctldev);
+	pinctrl_remove_device_defs(pctldev);
 	mutex_unlock(&pctldev->mutex);
 
 	if (!IS_ERR_OR_NULL(pctldev->p))
@@ -2259,7 +2259,7 @@ EXPORT_SYMBOL_GPL(devm_pinctrl_unregister);
 static int __init pinctrl_init(void)
 {
 	pr_info("initialized pinctrl subsystem\n");
-	pinctrl_init_debugfs();
+	pinctrl_init_defs();
 	return 0;
 }
 

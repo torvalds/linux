@@ -2,7 +2,7 @@
  *  The driver for the EMU10K1 (SB Live!) based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.demon.co.uk>
  *      Added support for Audigy 2 Value.
  *
  *

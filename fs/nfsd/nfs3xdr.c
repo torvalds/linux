@@ -1003,7 +1003,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 				cd->offset -= len1 >> 2;
 			} else {
 				/* sitting on the fence */
-				BUG_ON(offset_r != len1 - 4);
+				_ON(offset_r != len1 - 4);
 				cd->offset = p + (cd->offset - tmp);
 				cd->offset1 = tmp;
 			}

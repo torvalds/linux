@@ -228,14 +228,14 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 		rate = pll->input_rate;
 
 	if (!clk->div) {
-		pr_debug("%s: (no divider) rate = %lu KHz\n",
+		pr_de("%s: (no divider) rate = %lu KHz\n",
 			 clk->name, rate / 1000);
 		return rate;
 	}
 
 	if (clk->flags & FIXED_DIV_PLL) {
 		rate /= clk->div;
-		pr_debug("%s: (fixed divide by %d) rate = %lu KHz\n",
+		pr_de("%s: (fixed divide by %d) rate = %lu KHz\n",
 			 clk->name, clk->div, rate / 1000);
 		return rate;
 	}
@@ -249,7 +249,7 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 
 	rate /= plldiv;
 
-	pr_debug("%s: (divide by %d) rate = %lu KHz\n",
+	pr_de("%s: (divide by %d) rate = %lu KHz\n",
 		 clk->name, plldiv, rate / 1000);
 
 	return rate;
@@ -260,7 +260,7 @@ static unsigned long clk_leafclk_recalc(struct clk *clk)
 	if (WARN_ON(!clk->parent))
 		return clk->rate;
 
-	pr_debug("%s: (parent %s) rate = %lu KHz\n",
+	pr_de("%s: (parent %s) rate = %lu KHz\n",
 		 clk->name, clk->parent->name,	clk->parent->rate / 1000);
 
 	return clk->parent->rate;
@@ -311,12 +311,12 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 		if (postdiv)
 			rate /= postdiv;
 
-		pr_debug("PLL%d: input = %luMHz, pre[%d] mul[%d] post[%d] "
+		pr_de("PLL%d: input = %luMHz, pre[%d] mul[%d] post[%d] "
 			 "--> %luMHz output.\n",
 			 pll->num, clk->parent->rate / 1000000,
 			 prediv, mult, postdiv, rate / 1000000);
 	} else
-		pr_debug("PLL%d: input = %luMHz, bypass mode.\n",
+		pr_de("PLL%d: input = %luMHz, bypass mode.\n",
 			 pll->num, clk->parent->rate / 1000000);
 
 	return rate;
@@ -366,9 +366,9 @@ void __init c6x_clks_init(struct clk_lookup *clocks)
 	clkdev_add_table(clocks, num_clocks);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #define CLKNAME_MAX	10		/* longest clock name */
@@ -433,12 +433,12 @@ static const struct file_operations c6x_ck_operations = {
 	.release	= single_release,
 };
 
-static int __init c6x_clk_debugfs_init(void)
+static int __init c6x_clk_defs_init(void)
 {
-	debugfs_create_file("c6x_clocks", S_IFREG | S_IRUGO, NULL, NULL,
+	defs_create_file("c6x_clocks", S_IFREG | S_IRUGO, NULL, NULL,
 			    &c6x_ck_operations);
 
 	return 0;
 }
-device_initcall(c6x_clk_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+device_initcall(c6x_clk_defs_init);
+#endif /* CONFIG_DE_FS */

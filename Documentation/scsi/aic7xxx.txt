@@ -200,9 +200,9 @@ The following information is available in this file:
      Possible Values: This option is a flag
        Default Value: disabled
    -----------------------------------------------------------------
-              Option: debug:[value]
-          Definition: Enables various levels of debugging information
-     Possible Values: 0x0000 = no debugging, 0xffff = full debugging
+              Option: de:[value]
+          Definition: Enables various levels of deging information
+     Possible Values: 0x0000 = no deging, 0xffff = full deging
        Default Value: 0x0000
    -----------------------------------------------------------------
               Option: no_probe

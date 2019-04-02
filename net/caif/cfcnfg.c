@@ -191,7 +191,7 @@ int caif_disconnect_client(struct net *net, struct cflayer *adap_layer)
 		if (servl != NULL)
 			layer_set_up(servl, NULL);
 	} else
-		pr_debug("nothing to disconnect\n");
+		pr_de("nothing to disconnect\n");
 
 	/* Do RCU sync before initiating cleanup */
 	synchronize_rcu();
@@ -286,7 +286,7 @@ static int caif_connect_req_to_link_param(struct cfcnfg *cnfg,
 		       l->u.utility.paramlen);
 
 		break;
-	case CAIFPROTO_DEBUG:
+	case CAIFPROTO_DE:
 		l->linktype = CFCTRL_SRV_DBG;
 		l->endpoint = s->sockaddr.u.dbg.service;
 		l->chtype = s->sockaddr.u.dbg.type;
@@ -388,7 +388,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	rcu_read_lock();
 
 	if (adapt_layer == NULL) {
-		pr_debug("link setup response but no client exist, send linkdown back\n");
+		pr_de("link setup response but no client exist, send linkdown back\n");
 		cfctrl_linkdown_req(cnfg->ctrl, channel_id, NULL);
 		goto unlock;
 	}

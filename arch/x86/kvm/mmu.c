@@ -67,9 +67,9 @@ enum {
 	AUDIT_POST_SYNC
 };
 
-#undef MMU_DEBUG
+#undef MMU_DE
 
-#ifdef MMU_DEBUG
+#ifdef MMU_DE
 static bool dbg = 0;
 module_param(dbg, bool, 0644);
 
@@ -297,7 +297,7 @@ static void kvm_flush_remote_tlbs_with_address(struct kvm *kvm,
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value)
 {
-	BUG_ON((mmio_mask & mmio_value) != mmio_value);
+	_ON((mmio_mask & mmio_value) != mmio_value);
 	shadow_mmio_value = mmio_value | SPTE_SPECIAL_MASK;
 	shadow_mmio_mask = mmio_mask | SPTE_SPECIAL_MASK;
 }
@@ -455,9 +455,9 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
 		u64 acc_track_mask, u64 me_mask)
 {
-	BUG_ON(!dirty_mask != !accessed_mask);
-	BUG_ON(!accessed_mask && !acc_track_mask);
-	BUG_ON(acc_track_mask & shadow_acc_track_value);
+	_ON(!dirty_mask != !accessed_mask);
+	_ON(!accessed_mask && !acc_track_mask);
+	_ON(acc_track_mask & shadow_acc_track_value);
 
 	shadow_user_mask = user_mask;
 	shadow_accessed_mask = accessed_mask;
@@ -1042,7 +1042,7 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 {
 	void *p;
 
-	BUG_ON(!mc->nobjs);
+	_ON(!mc->nobjs);
 	p = mc->objects[--mc->nobjs];
 	return p;
 }
@@ -1068,7 +1068,7 @@ static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index)
 static void kvm_mmu_page_set_gfn(struct kvm_mmu_page *sp, int index, gfn_t gfn)
 {
 	if (sp->role.direct)
-		BUG_ON(gfn != kvm_mmu_page_get_gfn(sp, index));
+		_ON(gfn != kvm_mmu_page_get_gfn(sp, index));
 	else
 		sp->gfns[index] = gfn;
 }
@@ -1312,13 +1312,13 @@ static void __pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 	int i;
 
 	if (!rmap_head->val) {
-		pr_err("%s: %p 0->BUG\n", __func__, spte);
-		BUG();
+		pr_err("%s: %p 0->\n", __func__, spte);
+		();
 	} else if (!(rmap_head->val & 1)) {
 		rmap_printk("%s:  %p 1->0\n", __func__, spte);
 		if ((u64 *)rmap_head->val != spte) {
-			pr_err("%s:  %p 1->BUG\n", __func__, spte);
-			BUG();
+			pr_err("%s:  %p 1->\n", __func__, spte);
+			();
 		}
 		rmap_head->val = 0;
 	} else {
@@ -1337,7 +1337,7 @@ static void __pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 			desc = desc->more;
 		}
 		pr_err("%s: %p many->many\n", __func__, spte);
-		BUG();
+		();
 	}
 }
 
@@ -1433,7 +1433,7 @@ static u64 *rmap_get_first(struct kvm_rmap_head *rmap_head,
 	iter->pos = 0;
 	sptep = iter->desc->sptes[iter->pos];
 out:
-	BUG_ON(!is_shadow_present_pte(*sptep));
+	_ON(!is_shadow_present_pte(*sptep));
 	return sptep;
 }
 
@@ -1466,7 +1466,7 @@ static u64 *rmap_get_next(struct rmap_iterator *iter)
 
 	return NULL;
 out:
-	BUG_ON(!is_shadow_present_pte(*sptep));
+	_ON(!is_shadow_present_pte(*sptep));
 	return sptep;
 }
 
@@ -1985,7 +1985,7 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 	return kvm_handle_hva(kvm, hva, 0, kvm_test_age_rmapp);
 }
 
-#ifdef MMU_DEBUG
+#ifdef MMU_DE
 static int is_empty_shadow_page(u64 *spt)
 {
 	u64 *pos;
@@ -2518,7 +2518,7 @@ static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterato
 		 * prev_root is currently only used for 64-bit hosts. So only
 		 * the active root_hpa is valid here.
 		 */
-		BUG_ON(root != vcpu->arch.mmu->root_hpa);
+		_ON(root != vcpu->arch.mmu->root_hpa);
 
 		iterator->shadow_addr
 			= vcpu->arch.mmu->pae_root[(addr >> 30) & 3];
@@ -2568,7 +2568,7 @@ static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
 {
 	u64 spte;
 
-	BUILD_BUG_ON(VMX_EPT_WRITABLE_MASK != PT_WRITABLE_MASK);
+	BUILD__ON(VMX_EPT_WRITABLE_MASK != PT_WRITABLE_MASK);
 
 	spte = __pa(sp->spt) | shadow_present_mask | PT_WRITABLE_MASK |
 	       shadow_user_mask | shadow_x_mask | shadow_me_mask;
@@ -3237,7 +3237,7 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 		 */
 		*levelp = level = PT_DIRECTORY_LEVEL;
 		mask = KVM_PAGES_PER_HPAGE(level) - 1;
-		VM_BUG_ON((gfn & mask) != (pfn & mask));
+		VM__ON((gfn & mask) != (pfn & mask));
 		if (pfn & mask) {
 			gfn &= ~mask;
 			*gfnp = gfn;
@@ -3539,7 +3539,7 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	LIST_HEAD(invalid_list);
 	bool free_active_root = roots_to_free & KVM_MMU_ROOT_CURRENT;
 
-	BUILD_BUG_ON(KVM_MMU_NUM_PREV_ROOTS >= BITS_PER_LONG);
+	BUILD__ON(KVM_MMU_NUM_PREV_ROOTS >= BITS_PER_LONG);
 
 	/* Before acquiring the MMU lock, see if we need to do any real work. */
 	if (!(free_active_root && VALID_PAGE(mmu->root_hpa))) {
@@ -3627,7 +3627,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 		}
 		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->pae_root);
 	} else
-		BUG();
+		();
 	vcpu->arch.mmu->root_cr3 = vcpu->arch.mmu->get_cr3(vcpu);
 
 	return 0;
@@ -5426,7 +5426,7 @@ emulate:
 	case EMULATE_FAIL:
 		return 0;
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
@@ -5910,7 +5910,7 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 	 * zap all shadow pages.
 	 */
 	if (unlikely(gen == 0)) {
-		kvm_debug_ratelimited("kvm: zapping shadow pages for mmio generation wraparound\n");
+		kvm_de_ratelimited("kvm: zapping shadow pages for mmio generation wraparound\n");
 		__kvm_mmu_zap_all(kvm, true);
 	}
 }
@@ -5996,9 +5996,9 @@ int kvm_mmu_module_init(void)
 	 * and the current status quo is unlikely to change. Guardians below are
 	 * supposed to let us know if the assumption becomes false.
 	 */
-	BUILD_BUG_ON(sizeof(union kvm_mmu_page_role) != sizeof(u32));
-	BUILD_BUG_ON(sizeof(union kvm_mmu_extended_role) != sizeof(u32));
-	BUILD_BUG_ON(sizeof(union kvm_mmu_role) != sizeof(u64));
+	BUILD__ON(sizeof(union kvm_mmu_page_role) != sizeof(u32));
+	BUILD__ON(sizeof(union kvm_mmu_extended_role) != sizeof(u32));
+	BUILD__ON(sizeof(union kvm_mmu_role) != sizeof(u64));
 
 	kvm_mmu_reset_all_pte_masks();
 

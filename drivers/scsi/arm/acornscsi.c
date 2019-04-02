@@ -16,11 +16,11 @@
  * Changelog:
  *  26-Sep-1997	RMK	Re-jigged to use the queue module.
  *			Re-coded state machine to be based on driver
- *			state not scsi state.  Should be easier to debug.
+ *			state not scsi state.  Should be easier to de.
  *			Added acornscsi_release to clean up properly.
  *			Updated proc/scsi reporting.
  *  05-Oct-1997	RMK	Implemented writing to SCSI devices.
- *  06-Oct-1997	RMK	Corrected small (non-serious) bug with the connect/
+ *  06-Oct-1997	RMK	Corrected small (non-serious)  with the connect/
  *			reconnect race condition causing a warning message.
  *  12-Oct-1997	RMK	Added catch for re-entering interrupt routine.
  *  15-Oct-1997	RMK	Improved handling of commands.
@@ -28,20 +28,20 @@
  *  13-Dec-1998	RMK	Better abort code and command handling.  Extra state
  *			transitions added to allow dodgy devices to work.
  */
-#define DEBUG_NO_WRITE	1
-#define DEBUG_QUEUES	2
-#define DEBUG_DMA	4
-#define DEBUG_ABORT	8
-#define DEBUG_DISCON	16
-#define DEBUG_CONNECT	32
-#define DEBUG_PHASES	64
-#define DEBUG_WRITE	128
-#define DEBUG_LINK	256
-#define DEBUG_MESSAGES	512
-#define DEBUG_RESET	1024
-#define DEBUG_ALL	(DEBUG_RESET|DEBUG_MESSAGES|DEBUG_LINK|DEBUG_WRITE|\
-			 DEBUG_PHASES|DEBUG_CONNECT|DEBUG_DISCON|DEBUG_ABORT|\
-			 DEBUG_DMA|DEBUG_QUEUES)
+#define DE_NO_WRITE	1
+#define DE_QUEUES	2
+#define DE_DMA	4
+#define DE_ABORT	8
+#define DE_DISCON	16
+#define DE_CONNECT	32
+#define DE_PHASES	64
+#define DE_WRITE	128
+#define DE_LINK	256
+#define DE_MESSAGES	512
+#define DE_RESET	1024
+#define DE_ALL	(DE_RESET|DE_MESSAGES|DE_LINK|DE_WRITE|\
+			 DE_PHASES|DE_CONNECT|DE_DISCON|DE_ABORT|\
+			 DE_DMA|DE_QUEUES)
 
 /* DRIVER CONFIGURATION
  *
@@ -57,7 +57,7 @@
  * as '2 TAG'.
  *
  * Also note that CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE is normally set in the config
- * scripts, but disabled here.  Once debugged, remove the #undef, otherwise to debug,
+ * scripts, but disabled here.  Once deged, remove the #undef, otherwise to de,
  * comment out the undef.
  */
 #undef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
@@ -75,16 +75,16 @@
 #define DEFAULT_PERIOD	500
 
 /*
- * Debugging information
+ * Deging information
  *
- * DEBUG	  - bit mask from list above
- * DEBUG_TARGET   - is defined to the target number if you want to debug
+ * DE	  - bit mask from list above
+ * DE_TARGET   - is defined to the target number if you want to de
  *		    a specific target. [only recon/write/dma].
  */
-#define DEBUG (DEBUG_RESET|DEBUG_WRITE|DEBUG_NO_WRITE)
+#define DE (DE_RESET|DE_WRITE|DE_NO_WRITE)
 /* only allow writing to SCSI device 0 */
 #define NO_WRITE 0xFE
-/*#define DEBUG_TARGET 2*/
+/*#define DE_TARGET 2*/
 /*
  * Select timeout time (in 10ms units)
  *
@@ -107,9 +107,9 @@
  * ====================================================================================
  */
 
-#ifdef DEBUG_TARGET
+#ifdef DE_TARGET
 #define DBG(cmd,xxx...) \
-  if (cmd->device->id == DEBUG_TARGET) { \
+  if (cmd->device->id == DE_TARGET) { \
     xxx; \
   }
 #else
@@ -397,7 +397,7 @@ void acornscsi_resetcard(AS_Host *host)
 }
 
 /*=============================================================================================
- * Utility routines (eg. debug)
+ * Utility routines (eg. de)
  */
 #ifdef CONFIG_ACORNSCSI_CONSTANTS
 static char *acornscsi_interrupttype[] = {
@@ -716,7 +716,7 @@ intr_ret_t acornscsi_kick(AS_Host *host)
     if (host->scsi.disconnectable && host->SCpnt) {
 	queue_add_cmd_tail(&host->queues.disconnected, host->SCpnt);
 	host->scsi.disconnectable = 0;
-#if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
+#if (DE & (DE_QUEUES|DE_DISCON))
 	DBG(host->SCpnt, printk("scsi%d.%c: moved command to disconnected queue\n",
 		host->host->host_no, acornscsi_target(host)));
 #endif
@@ -743,7 +743,7 @@ intr_ret_t acornscsi_kick(AS_Host *host)
     host->dma.xfer_required = 0;
     host->dma.xfer_done = 0;
 
-#if (DEBUG & (DEBUG_ABORT|DEBUG_CONNECT))
+#if (DE & (DE_ABORT|DE_CONNECT))
     DBG(SCpnt,printk("scsi%d.%c: starting cmd %02X\n",
 	    host->host->host_no, '0' + SCpnt->device->id,
 	    SCpnt->cmnd[0]));
@@ -999,7 +999,7 @@ void acornscsi_dma_stop(AS_Host *host)
     dmac_write(host, DMAC_MASKREG, MASK_ON);
     dmac_clearintr(host);
 
-#if (DEBUG & DEBUG_DMA)
+#if (DE & DE_DMA)
     DBG(host->SCpnt, acornscsi_dumpdma(host, "stop"));
 #endif
 }
@@ -1022,7 +1022,7 @@ void acornscsi_dma_setup(AS_Host *host, dmadir_t direction)
     dmac_write(host, DMAC_MASKREG, MASK_ON);
 
     if (direction == DMA_OUT) {
-#if (DEBUG & DEBUG_NO_WRITE)
+#if (DE & DE_NO_WRITE)
 	if (NO_WRITE & (1 << host->SCpnt->device->id)) {
 	    printk(KERN_CRIT "scsi%d.%c: I can't handle DMA_OUT!\n",
 		    host->host->host_no, acornscsi_target(host));
@@ -1058,7 +1058,7 @@ void acornscsi_dma_setup(AS_Host *host, dmadir_t direction)
 	dmac_write(host, DMAC_MODECON, mode);
 	dmac_write(host, DMAC_MASKREG, MASK_OFF);
 
-#if (DEBUG & DEBUG_DMA)
+#if (DE & DE_DMA)
 	DBG(host->SCpnt, acornscsi_dumpdma(host, "strt"));
 #endif
 	host->dma.xfer_setup = 1;
@@ -1097,7 +1097,7 @@ void acornscsi_dma_cleanup(AS_Host *host)
 
 	host->dma.xfer_setup = 0;
 
-#if (DEBUG & DEBUG_DMA)
+#if (DE & DE_DMA)
 	DBG(host->SCpnt, acornscsi_dumpdma(host, "cupi"));
 #endif
 
@@ -1115,7 +1115,7 @@ void acornscsi_dma_cleanup(AS_Host *host)
 	 * Update SCSI pointers
 	 */
 	acornscsi_data_updateptr(host, &host->scsi.SCp, transferred);
-#if (DEBUG & DEBUG_DMA)
+#if (DE & DE_DMA)
 	DBG(host->SCpnt, acornscsi_dumpdma(host, "cupo"));
 #endif
     }
@@ -1136,7 +1136,7 @@ void acornscsi_dma_intr(AS_Host *host)
 {
     unsigned int address, length, transferred;
 
-#if (DEBUG & DEBUG_DMA)
+#if (DE & DE_DMA)
     DBG(host->SCpnt, acornscsi_dumpdma(host, "inti"));
 #endif
 
@@ -1185,7 +1185,7 @@ void acornscsi_dma_intr(AS_Host *host)
 	dmac_write(host, DMAC_TXADRHI, 0);
 	dmac_write(host, DMAC_MASKREG, MASK_OFF);
 
-#if (DEBUG & DEBUG_DMA)
+#if (DE & DE_DMA)
 	DBG(host->SCpnt, acornscsi_dumpdma(host, "into"));
 #endif
     } else {
@@ -1237,7 +1237,7 @@ void acornscsi_dma_adjust(AS_Host *host)
 {
     if (host->dma.xfer_setup) {
 	signed long transferred;
-#if (DEBUG & (DEBUG_DMA|DEBUG_WRITE))
+#if (DE & (DE_DMA|DE_WRITE))
 	DBG(host->SCpnt, acornscsi_dumpdma(host, "adji"));
 #endif
 	/*
@@ -1262,7 +1262,7 @@ void acornscsi_dma_adjust(AS_Host *host)
 	    dmac_write(host, DMAC_TXADRLO, transferred);
 	    dmac_write(host, DMAC_TXADRMD, transferred >> 8);
 	    dmac_write(host, DMAC_TXADRHI, transferred >> 16);
-#if (DEBUG & (DEBUG_DMA|DEBUG_WRITE))
+#if (DE & (DE_DMA|DE_WRITE))
 	    DBG(host->SCpnt, acornscsi_dumpdma(host, "adjo"));
 #endif
 	}
@@ -1328,7 +1328,7 @@ void acornscsi_sendmessage(AS_Host *host)
     unsigned int msgnr;
     struct message *msg;
 
-#if (DEBUG & DEBUG_MESSAGES)
+#if (DE & DE_MESSAGES)
     printk("scsi%d.%c: sending message ",
 	    host->host->host_no, acornscsi_target(host));
 #endif
@@ -1342,7 +1342,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	sbic_arm_write(host, SBIC_DATA, NOP);
 
 	host->scsi.last_message = NOP;
-#if (DEBUG & DEBUG_MESSAGES)
+#if (DE & DE_MESSAGES)
 	printk("NOP");
 #endif
 	break;
@@ -1356,7 +1356,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	sbic_arm_write(host, SBIC_DATA, msg->msg[0]);
 
 	host->scsi.last_message = msg->msg[0];
-#if (DEBUG & DEBUG_MESSAGES)
+#if (DE & DE_MESSAGES)
 	spi_print_msg(msg->msg);
 #endif
 	break;
@@ -1378,7 +1378,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	msgnr = 0;
 	while ((msg = msgqueue_getmsg(&host->scsi.msgs, msgnr++)) != NULL) {
 	    unsigned int i;
-#if (DEBUG & DEBUG_MESSAGES)
+#if (DE & DE_MESSAGES)
 	    spi_print_msg(msg);
 #endif
 	    i = 0;
@@ -1394,7 +1394,7 @@ void acornscsi_sendmessage(AS_Host *host)
 	}
 	break;
     }
-#if (DEBUG & DEBUG_MESSAGES)
+#if (DE & DE_MESSAGES)
     printk("\n");
 #endif
 }
@@ -1472,7 +1472,7 @@ void acornscsi_message(AS_Host *host)
 	}
     } while (msgidx < msglen);
 
-#if (DEBUG & DEBUG_MESSAGES)
+#if (DE & DE_MESSAGES)
     printk("scsi%d.%c: message in: ",
 	    host->host->host_no, acornscsi_target(host));
     spi_print_msg(message);
@@ -1832,13 +1832,13 @@ int acornscsi_reconnect_finish(AS_Host *host)
 	if (host->SCpnt->device->id  == host->scsi.reconnected.target &&
 	    host->SCpnt->device->lun == host->scsi.reconnected.lun &&
 	    host->SCpnt->tag         == host->scsi.reconnected.tag) {
-#if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
+#if (DE & (DE_QUEUES|DE_DISCON))
 	    DBG(host->SCpnt, printk("scsi%d.%c: reconnected",
 		    host->host->host_no, acornscsi_target(host)));
 #endif
 	} else {
 	    queue_add_cmd_tail(&host->queues.disconnected, host->SCpnt);
-#if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
+#if (DE & (DE_QUEUES|DE_DISCON))
 	    DBG(host->SCpnt, printk("scsi%d.%c: had to move command "
 		    "to disconnected queue\n",
 		    host->host->host_no, acornscsi_target(host)));
@@ -1851,7 +1851,7 @@ int acornscsi_reconnect_finish(AS_Host *host)
 				host->scsi.reconnected.target,
 				host->scsi.reconnected.lun,
 				host->scsi.reconnected.tag);
-#if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
+#if (DE & (DE_QUEUES|DE_DISCON))
 	DBG(host->SCpnt, printk("scsi%d.%c: had to get command",
 		host->host->host_no, acornscsi_target(host)));
 #endif
@@ -1864,12 +1864,12 @@ int acornscsi_reconnect_finish(AS_Host *host)
 	 * Restore data pointer from SAVED pointers.
 	 */
 	host->scsi.SCp = host->SCpnt->SCp;
-#if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
+#if (DE & (DE_QUEUES|DE_DISCON))
 	printk(", data pointers: [%p, %X]",
 		host->scsi.SCp.ptr, host->scsi.SCp.this_residual);
 #endif
     }
-#if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
+#if (DE & (DE_QUEUES|DE_DISCON))
     printk("\n");
 #endif
 
@@ -1888,7 +1888,7 @@ void acornscsi_disconnect_unexpected(AS_Host *host)
 {
     printk(KERN_ERR "scsi%d.%c: unexpected disconnect\n",
 	    host->host->host_no, acornscsi_target(host));
-#if (DEBUG & DEBUG_ABORT)
+#if (DE & DE_ABORT)
     acornscsi_dumplog(host, 8);
 #endif
 
@@ -1938,7 +1938,7 @@ intr_ret_t acornscsi_sbicintr(AS_Host *host, int in_irq)
 
     ssr = sbic_arm_read(host, SBIC_SSR);
 
-#if (DEBUG & DEBUG_PHASES)
+#if (DE & DE_PHASES)
     print_sbic_status(asr, ssr, host->scsi.phase);
 #endif
 
@@ -2479,7 +2479,7 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
 	return -EINVAL;
     }
 
-#if (DEBUG & DEBUG_NO_WRITE)
+#if (DE & DE_NO_WRITE)
     if (acornscsi_cmdtype(SCpnt->cmnd[0]) == CMD_WRITE && (NO_WRITE & (1 << SCpnt->device->id))) {
 	printk(KERN_CRIT "scsi%d.%c: WRITE attempted with NO_WRITE flag set\n",
 	    host->host->host_no, '0' + SCpnt->device->id);
@@ -2563,7 +2563,7 @@ static enum res_abort acornscsi_do_abort(AS_Host *host, struct scsi_cmnd *SCpnt)
 		 * and acknowledge the abort.  Neither the devices nor the
 		 * interface know about the command.
 		 */
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("on issue queue ");
 //#endif
 		res = res_success;
@@ -2575,14 +2575,14 @@ static enum res_abort acornscsi_do_abort(AS_Host *host, struct scsi_cmnd *SCpnt)
 		 * target should then disconnect, and we will clear
 		 * the busylun bit.
 		 */
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("on disconnected queue ");
 //#endif
 		res = res_success;
 	} else if (host->SCpnt == SCpnt) {
 		unsigned long flags;
 
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("executing ");
 //#endif
 
@@ -2628,7 +2628,7 @@ static enum res_abort acornscsi_do_abort(AS_Host *host, struct scsi_cmnd *SCpnt)
 		 * been set.
 		 */
 		host->origSCpnt = NULL;
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("waiting for execution ");
 //#endif
 		res = res_success_clear;
@@ -2651,7 +2651,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 
 	host->stats.aborts += 1;
 
-#if (DEBUG & DEBUG_ABORT)
+#if (DE & DE_ABORT)
 	{
 		int asr, ssr;
 		asr = sbic_arm_read(host, SBIC_ASR);
@@ -2672,7 +2672,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 	 * target, but we have set the busylun bit.
 	 */
 	case res_success_clear:
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("clear ");
 //#endif
 		clear_bit(SCpnt->device->id * 8 +
@@ -2684,7 +2684,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 	 * target, or the busylun bit is not set.
 	 */
 	case res_success:
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("success\n");
 //#endif
 		result = SUCCESS;
@@ -2696,7 +2696,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 	 * still doesn't complete, reset the interface.
 	 */
 	case res_snooze:
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("snooze\n");
 //#endif
 		result = FAILED;
@@ -2710,7 +2710,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
 	case res_not_running:
 		acornscsi_dumplog(host, SCpnt->device->id);
 		result = FAILED;
-//#if (DEBUG & DEBUG_ABORT)
+//#if (DE & DE_ABORT)
 		printk("not running\n");
 //#endif
 		break;
@@ -2732,7 +2732,7 @@ int acornscsi_host_reset(struct scsi_cmnd *SCpnt)
     
     host->stats.resets += 1;
 
-#if (DEBUG & DEBUG_RESET)
+#if (DE & DE_RESET)
     {
 	int asr, ssr, devidx;
 
@@ -2784,7 +2784,7 @@ char *acornscsi_info(struct Scsi_Host *host)
 #ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
     " TAG"
 #endif
-#if (DEBUG & DEBUG_NO_WRITE)
+#if (DE & DE_NO_WRITE)
     " NOWRITE (" __stringify(NO_WRITE) ")"
 #endif
 		, host->hostt->name, host->io_port, host->irq,
@@ -2807,7 +2807,7 @@ static int acornscsi_show_info(struct seq_file *m, struct Scsi_Host *instance)
 #ifdef CONFIG_SCSI_ACORNSCSI_TAGGED_QUEUE
     " TAG"
 #endif
-#if (DEBUG & DEBUG_NO_WRITE)
+#if (DE & DE_NO_WRITE)
     " NOWRITE (" __stringify(NO_WRITE) ")"
 #endif
 		"\n\n", VER_MAJOR, VER_MINOR, VER_PATCH);

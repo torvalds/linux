@@ -922,7 +922,7 @@ enum caldac_enum {
 	ad8522,
 	ad8804,
 	ad8842,
-	ad8804_debug
+	ad8804_de
 };
 
 enum ni_reg_type {

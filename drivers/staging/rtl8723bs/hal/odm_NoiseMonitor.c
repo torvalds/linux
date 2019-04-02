@@ -39,7 +39,7 @@ static s16 odm_InbandNoise_Monitor_NSeries(
 	else
 		max_rf_path = 1;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_DebugControlInbandNoise_Nseries() ==>\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_DeControlInbandNoise_Nseries() ==>\n"));
 
 	memset(&noise_data, 0, sizeof(struct noise_level));
 
@@ -52,7 +52,7 @@ static s16 odm_InbandNoise_Monitor_NSeries(
 	/*  */
 	/*  Step 2. Disable all power save for read registers */
 	/*  */
-	/* dcmd_DebugControlPowerSave(padapter, PSDisable); */
+	/* dcmd_DeControlPowerSave(padapter, PSDisable); */
 
 	/*  */
 	/*  Step 3. Get noise power level */
@@ -156,7 +156,7 @@ static s16 odm_InbandNoise_Monitor_NSeries(
 	/* pDM_Odm->noise_level.noise[ODM_RF_PATH_B], */
 	/* pDM_Odm->noise_level.noise_all, func_end); */
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_DebugControlInbandNoise_Nseries() <==\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_DeControlInbandNoise_Nseries() <==\n"));
 	return pDM_Odm->noise_level.noise_all;
 
 }

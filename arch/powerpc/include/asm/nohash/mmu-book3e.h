@@ -222,7 +222,7 @@
 #define TLBILX_T_CLASS3			7
 
 #ifndef __ASSEMBLY__
-#include <asm/bug.h>
+#include <asm/.h>
 
 extern unsigned int tlbcam_index;
 
@@ -263,7 +263,7 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 {
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
-	BUG();
+	();
 }
 
 /* The page sizes use the same names as 64-bit hash but are

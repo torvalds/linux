@@ -645,7 +645,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_store_next);
  * @fcnt: the queried frame count.
  * @bcnt: the queried byte count.
  *
- * Knowing the FQ count at run-time can be useful in debugging situations.
+ * Knowing the FQ count at run-time can be useful in deging situations.
  * The instantaneous frame- and byte-count are hereby returned.
  *
  * Return 0 for a successful query, and negative error code if query fails.

@@ -470,7 +470,7 @@ static void raw3215_drop_line(struct raw3215_info *raw)
 	int ix;
 	char ch;
 
-	BUG_ON(raw->written != 0);
+	_ON(raw->written != 0);
 	ix = (raw->head - raw->count) & (RAW3215_BUFFER_SIZE - 1);
 	while (raw->count > 0) {
 		ch = raw->buffer[ix];

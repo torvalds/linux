@@ -313,7 +313,7 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 	struct diskparm *param = (struct diskparm *)geom;
 	unsigned char *buf;
 
-	dprintk((KERN_DEBUG "aac_biosparm.\n"));
+	dprintk((KERN_DE "aac_biosparm.\n"));
 
 	/*
 	 *	Assuming extended translation is enabled - #REVISIT#
@@ -377,12 +377,12 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 		param->cylinders = cap_to_cyls(capacity, param->heads * param->sectors);
 		if (num < 4 && end_sec == param->sectors) {
 			if (param->cylinders != saved_cylinders)
-				dprintk((KERN_DEBUG "Adopting geometry: heads=%d, sectors=%d from partition table %d.\n",
+				dprintk((KERN_DE "Adopting geometry: heads=%d, sectors=%d from partition table %d.\n",
 					param->heads, param->sectors, num));
 		} else if (end_head > 0 || end_sec > 0) {
-			dprintk((KERN_DEBUG "Strange geometry: heads=%d, sectors=%d in partition table %d.\n",
+			dprintk((KERN_DE "Strange geometry: heads=%d, sectors=%d in partition table %d.\n",
 				end_head + 1, end_sec, num));
-			dprintk((KERN_DEBUG "Using geometry: heads=%d, sectors=%d.\n",
+			dprintk((KERN_DE "Using geometry: heads=%d, sectors=%d.\n",
 					param->heads, param->sectors));
 		}
 	}
@@ -1121,7 +1121,7 @@ int aac_eh_host_reset(struct scsi_cmnd *cmd)
  *	Called when the configuration device is opened. Does the needed
  *	set up on the handle and then returns
  *
- *	Bugs: This needs extending to check a given adapter is present
+ *	s: This needs extending to check a given adapter is present
  *	so we can support hot plugging, and to ref count adapters.
  */
 
@@ -1154,8 +1154,8 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
  *	Handles a configuration ioctl. Currently this involves wrapping it
  *	up and feeding it into the nasty windowsalike glue layer.
  *
- *	Bugs: Needs locking against parallel ioctls lower down
- *	Bugs: Needs to handle hot plugging
+ *	s: Needs locking against parallel ioctls lower down
+ *	s: Needs to handle hot plugging
  */
 
 static long aac_cfg_ioctl(struct file *file,

@@ -21,7 +21,7 @@
  * (Condolences to Napoleon XIV)
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -71,15 +71,15 @@ struct tlb_reg_save {
 
 static struct tlb_reg_save handler_reg_save[NR_CPUS];
 
-static inline int r45k_bvahwbug(void)
+static inline int r45k_bvahw(void)
 {
-	/* XXX: We should probe for the presence of this bug, but we don't. */
+	/* XXX: We should probe for the presence of this , but we don't. */
 	return 0;
 }
 
-static inline int r4k_250MHZhwbug(void)
+static inline int r4k_250MHZhw(void)
 {
-	/* XXX: We should probe for the presence of this bug, but we don't. */
+	/* XXX: We should probe for the presence of this , but we don't. */
 	return 0;
 }
 
@@ -138,7 +138,7 @@ static bool scratchpad_available(void)
 }
 static int scratchpad_offset(int i)
 {
-	BUG();
+	();
 	/* Really unreachable, but evidently some GCC want this. */
 	return 0;
 }
@@ -205,7 +205,7 @@ static void uasm_bgezl_hazard(u32 **p, struct uasm_reloc **r, int instance)
 		uasm_il_bgezl(p, r, 0, label_tlbw_hazard_0 + instance);
 		return;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -216,7 +216,7 @@ static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
 		uasm_build_label(l, *p, label_tlbw_hazard_0 + instance);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -229,11 +229,11 @@ static void uasm_bgezl_label(struct uasm_label **l, u32 **p, int instance)
 static void output_pgtable_bits_defines(void)
 {
 #define pr_define(fmt, ...)					\
-	pr_debug("#define " fmt, ##__VA_ARGS__)
+	pr_de("#define " fmt, ##__VA_ARGS__)
 
-	pr_debug("#include <asm/asm.h>\n");
-	pr_debug("#include <asm/regdef.h>\n");
-	pr_debug("\n");
+	pr_de("#include <asm/asm.h>\n");
+	pr_de("#include <asm/regdef.h>\n");
+	pr_de("\n");
 
 	pr_define("_PAGE_PRESENT_SHIFT %d\n", _PAGE_PRESENT_SHIFT);
 	pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
@@ -251,7 +251,7 @@ static void output_pgtable_bits_defines(void)
 	pr_define("_PAGE_VALID_SHIFT %d\n", _PAGE_VALID_SHIFT);
 	pr_define("_PAGE_DIRTY_SHIFT %d\n", _PAGE_DIRTY_SHIFT);
 	pr_define("_PFN_SHIFT %d\n", _PFN_SHIFT);
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 static inline void dump_handler(const char *symbol, const void *start, const void *end)
@@ -260,17 +260,17 @@ static inline void dump_handler(const char *symbol, const void *start, const voi
 	const u32 *handler = start;
 	int i;
 
-	pr_debug("LEAF(%s)\n", symbol);
+	pr_de("LEAF(%s)\n", symbol);
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_de("\t.set push\n");
+	pr_de("\t.set noreorder\n");
 
 	for (i = 0; i < count; i++)
-		pr_debug("\t.word\t0x%08x\t\t# %p\n", handler[i], &handler[i]);
+		pr_de("\t.word\t0x%08x\t\t# %p\n", handler[i], &handler[i]);
 
-	pr_debug("\t.set\tpop\n");
+	pr_de("\t.set\tpop\n");
 
-	pr_debug("\tEND(%s)\n", symbol);
+	pr_de("\tEND(%s)\n", symbol);
 }
 
 /* The only general purpose registers allowed in TLB handlers. */
@@ -436,7 +436,7 @@ static void build_r3000_tlb_refill_handler(void)
 	if (p > tlb_handler + 32)
 		panic("TLB refill handler space exceeded");
 
-	pr_debug("Wrote TLB refill handler (%u instructions).\n",
+	pr_de("Wrote TLB refill handler (%u instructions).\n",
 		 (unsigned int)(p - tlb_handler));
 
 	memcpy((void *)ebase, tlb_handler, 0x80);
@@ -767,7 +767,7 @@ static void build_huge_handler_tail(u32 **p, struct uasm_reloc **r,
 	UASM_i_SW(p, pte, 0, ptr);
 #endif
 	if (cpu_has_ftlb && flush) {
-		BUG_ON(!cpu_has_tlbinv);
+		_ON(!cpu_has_tlbinv);
 
 		UASM_i_MFC0(p, ptr, C0_ENTRYHI);
 		uasm_i_ori(p, ptr, ptr, MIPS_ENTRYHI_EHINV);
@@ -1012,7 +1012,7 @@ static void build_adjust_context(u32 **p, unsigned int ctx)
 void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 {
 	/*
-	 * Bug workaround for the Nevada. It seems as if under certain
+	 *  workaround for the Nevada. It seems as if under certain
 	 * circumstances the move from cp0_context might produce a
 	 * bogus result when the mfc0 instruction and its consumer are
 	 * in a different cacheline or a load instruction, probably any
@@ -1071,16 +1071,16 @@ void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 
 	UASM_i_LW(p, tmp, pte_off_even, ptep); /* get even pte */
 	UASM_i_LW(p, ptep, pte_off_odd, ptep); /* get odd pte */
-	if (r45k_bvahwbug())
+	if (r45k_bvahw())
 		build_tlb_probe_entry(p);
 	build_convert_pte_to_entrylo(p, tmp);
-	if (r4k_250MHZhwbug())
+	if (r4k_250MHZhw())
 		UASM_i_MTC0(p, 0, C0_ENTRYLO0);
 	UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
 	build_convert_pte_to_entrylo(p, ptep);
-	if (r45k_bvahwbug())
+	if (r45k_bvahw())
 		uasm_i_mfc0(p, tmp, C0_INDEX);
-	if (r4k_250MHZhwbug())
+	if (r4k_250MHZhw())
 		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
 	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
 }
@@ -1404,7 +1404,7 @@ static void build_r4000_tlb_refill_handler(void)
 
 				for (i = 0; i < ARRAY_SIZE(labels) && labels[i].lab != ls; i++)
 					;
-				BUG_ON(i == ARRAY_SIZE(labels));
+				_ON(i == ARRAY_SIZE(labels));
 				split = labels[i].addr;
 
 				/*
@@ -1459,7 +1459,7 @@ static void build_r4000_tlb_refill_handler(void)
 	}
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB refill handler (%u instructions).\n",
+	pr_de("Wrote TLB refill handler (%u instructions).\n",
 		 final_len);
 
 	memcpy((void *)ebase, final_handler, 0x100);
@@ -1637,7 +1637,7 @@ static void build_setup_pgd(void)
 		panic("tlbmiss_handler_setup_pgd space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
+	pr_de("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)tlbmiss_handler_setup_pgd));
 
 	dump_handler("tlbmiss_handler", tlbmiss_handler_setup_pgd,
@@ -1676,7 +1676,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	if (IS_ENABLED(CONFIG_XPA) && !cpu_has_64bits) {
 		uasm_i_lui(p, scratch, swmode >> 16);
 		uasm_i_or(p, pte, pte, scratch);
-		BUG_ON(swmode & 0xffff);
+		_ON(swmode & 0xffff);
 	} else {
 		uasm_i_ori(p, pte, pte, mode);
 	}
@@ -1699,7 +1699,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 		/* no uasm_i_nop needed */
 		uasm_i_ll(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_ori(p, pte, pte, hwmode);
-		BUG_ON(hwmode & ~0xffff);
+		_ON(hwmode & ~0xffff);
 		uasm_i_sc(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_il_beqz(p, r, pte, label_smp_pgtable_change);
 		/* no uasm_i_nop needed */
@@ -1721,7 +1721,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 	if (!cpu_has_64bits) {
 		uasm_i_lw(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_ori(p, pte, pte, hwmode);
-		BUG_ON(hwmode & ~0xffff);
+		_ON(hwmode & ~0xffff);
 		uasm_i_sw(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_lw(p, pte, 0, ptr);
 	}
@@ -1934,7 +1934,7 @@ static void build_r3000_tlb_load_handler(void)
 		panic("TLB load handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
+	pr_de("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)handle_tlbl));
 
 	dump_handler("r3000_tlb_load", handle_tlbl, handle_tlbl_end);
@@ -1964,7 +1964,7 @@ static void build_r3000_tlb_store_handler(void)
 		panic("TLB store handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
+	pr_de("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)handle_tlbs));
 
 	dump_handler("r3000_tlb_store", handle_tlbs, handle_tlbs_end);
@@ -1994,7 +1994,7 @@ static void build_r3000_tlb_modify_handler(void)
 		panic("TLB modify handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
+	pr_de("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)handle_tlbm));
 
 	dump_handler("r3000_tlb_modify", handle_tlbm, handle_tlbm_end);
@@ -2280,7 +2280,7 @@ static void build_r4000_tlb_load_handler(void)
 		panic("TLB load handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
+	pr_de("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)handle_tlbl));
 
 	dump_handler("r4000_tlb_load", handle_tlbl, handle_tlbl_end);
@@ -2336,7 +2336,7 @@ static void build_r4000_tlb_store_handler(void)
 		panic("TLB store handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
+	pr_de("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)handle_tlbs));
 
 	dump_handler("r4000_tlb_store", handle_tlbs, handle_tlbs_end);
@@ -2393,7 +2393,7 @@ static void build_r4000_tlb_modify_handler(void)
 		panic("TLB modify handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
+	pr_de("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - (u32 *)handle_tlbm));
 
 	dump_handler("r4000_tlb_modify", handle_tlbm, handle_tlbm_end);
@@ -2418,7 +2418,7 @@ static void print_htw_config(void)
 	const int field = 2 * sizeof(unsigned long);
 
 	config = read_c0_pwfield();
-	pr_debug("PWField (0x%0*lx): GDI: 0x%02lx  UDI: 0x%02lx  MDI: 0x%02lx  PTI: 0x%02lx  PTEI: 0x%02lx\n",
+	pr_de("PWField (0x%0*lx): GDI: 0x%02lx  UDI: 0x%02lx  MDI: 0x%02lx  PTI: 0x%02lx  PTEI: 0x%02lx\n",
 		field, config,
 		(config & MIPS_PWFIELD_GDI_MASK) >> MIPS_PWFIELD_GDI_SHIFT,
 		(config & MIPS_PWFIELD_UDI_MASK) >> MIPS_PWFIELD_UDI_SHIFT,
@@ -2427,7 +2427,7 @@ static void print_htw_config(void)
 		(config & MIPS_PWFIELD_PTEI_MASK) >> MIPS_PWFIELD_PTEI_SHIFT);
 
 	config = read_c0_pwsize();
-	pr_debug("PWSize  (0x%0*lx): PS: 0x%lx  GDW: 0x%02lx  UDW: 0x%02lx  MDW: 0x%02lx  PTW: 0x%02lx  PTEW: 0x%02lx\n",
+	pr_de("PWSize  (0x%0*lx): PS: 0x%lx  GDW: 0x%02lx  UDW: 0x%02lx  MDW: 0x%02lx  PTW: 0x%02lx  PTEW: 0x%02lx\n",
 		field, config,
 		(config & MIPS_PWSIZE_PS_MASK) >> MIPS_PWSIZE_PS_SHIFT,
 		(config & MIPS_PWSIZE_GDW_MASK) >> MIPS_PWSIZE_GDW_SHIFT,
@@ -2437,7 +2437,7 @@ static void print_htw_config(void)
 		(config & MIPS_PWSIZE_PTEW_MASK) >> MIPS_PWSIZE_PTEW_SHIFT);
 
 	pwctl = read_c0_pwctl();
-	pr_debug("PWCtl   (0x%x): PWEn: 0x%x  XK: 0x%x  XS: 0x%x  XU: 0x%x  DPH: 0x%x  HugePg: 0x%x  Psn: 0x%x\n",
+	pr_de("PWCtl   (0x%x): PWEn: 0x%x  XK: 0x%x  XS: 0x%x  XU: 0x%x  DPH: 0x%x  HugePg: 0x%x  Psn: 0x%x\n",
 		pwctl,
 		(pwctl & MIPS_PWCTL_PWEN_MASK) >> MIPS_PWCTL_PWEN_SHIFT,
 		(pwctl & MIPS_PWCTL_XK_MASK) >> MIPS_PWCTL_XK_SHIFT,
@@ -2576,7 +2576,7 @@ static void check_pabits(void)
 	if (fillbits >= ilog2(_PAGE_NO_EXEC))
 		fill_includes_sw_bits = true;
 
-	pr_debug("Entry* registers contain %u fill bits\n", fillbits);
+	pr_de("Entry* registers contain %u fill bits\n", fillbits);
 }
 
 void build_tlb_refill_handler(void)

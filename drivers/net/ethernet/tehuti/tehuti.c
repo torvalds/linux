@@ -1304,7 +1304,7 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 }
 
 /*************************************************************************
- * Debug / Temprorary Code                                               *
+ * De / Temprorary Code                                               *
  *************************************************************************/
 static void print_rxdd(struct rxd_desc *rxdd, u32 rxd_val1, u16 len,
 		       u16 rxd_vlan)
@@ -1598,7 +1598,7 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
  * Return codes:
  * o NETDEV_TX_OK everything ok.
  * o NETDEV_TX_BUSY Cannot transmit packet, try later
- *   Usually a bug, means queue start/stop flow control is broken in
+ *   Usually a , means queue start/stop flow control is broken in
  *   the driver. Note: the driver must NOT put the skb in its DMA ring.
  */
 static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,

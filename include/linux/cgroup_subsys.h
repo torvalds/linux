@@ -64,8 +64,8 @@ SUBSYS(rdma)
 /*
  * The following subsystems are not supported on the default hierarchy.
  */
-#if IS_ENABLED(CONFIG_CGROUP_DEBUG)
-SUBSYS(debug)
+#if IS_ENABLED(CONFIG_CGROUP_DE)
+SUBSYS(de)
 #endif
 
 /*

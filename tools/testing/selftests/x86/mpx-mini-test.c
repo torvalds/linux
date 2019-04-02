@@ -37,7 +37,7 @@ int zap_all_every_this_many_mallocs = 1000;
 #include <unistd.h>
 
 #include "mpx-hw.h"
-#include "mpx-debug.h"
+#include "mpx-de.h"
 #include "mpx-mm.h"
 
 #ifndef __always_inline
@@ -73,15 +73,15 @@ void write_pid_to(char *prefix, char *file)
 void trace_me(void)
 {
 /* tracing events dir */
-#define TED "/sys/kernel/debug/tracing/events/"
+#define TED "/sys/kernel/de/tracing/events/"
 /*
 	write_pid_to("common_pid=", TED "signal/filter");
 	write_pid_to("common_pid=", TED "exceptions/filter");
 	write_int_to("", TED "signal/enable", 1);
 	write_int_to("", TED "exceptions/enable", 1);
 */
-	write_pid_to("", "/sys/kernel/debug/tracing/set_ftrace_pid");
-	write_int_to("", "/sys/kernel/debug/tracing/trace", 0);
+	write_pid_to("", "/sys/kernel/de/tracing/set_ftrace_pid");
+	write_int_to("", "/sys/kernel/de/tracing/trace", 0);
 }
 
 #define test_failed() __test_failed(__FILE__, __LINE__)
@@ -677,7 +677,7 @@ bool process_specific_init(void)
 		dir = (void *)_dir;
 	} else {
 		/*
-		 * This makes debugging easier because the address
+		 * This makes deging easier because the address
 		 * calculations are simpler:
 		 */
 		dir = mmap((void *)0x200000000000, size + pad,
@@ -892,7 +892,7 @@ void __print_context(void *__print_xsave_buffer, int line)
 	eprintf("cpcfg: %jx  cpstatus: %jx\n", cfg[0], cfg[1]);
 }
 #define print_context(x) __print_context(x, __LINE__)
-#ifdef DEBUG
+#ifdef DE
 #define dprint_context(x) print_context(x)
 #else
 #define dprint_context(x) do{}while(0)

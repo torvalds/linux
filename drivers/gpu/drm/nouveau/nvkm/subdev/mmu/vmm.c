@@ -80,7 +80,7 @@ struct nvkm_vmm_iter {
 	int flush;
 };
 
-#ifdef CONFIG_NOUVEAU_DEBUG_MMU
+#ifdef CONFIG_NOUVEAU_DE_MMU
 static const char *
 nvkm_vmm_desc_type(const struct nvkm_vmm_desc *desc)
 {
@@ -762,7 +762,7 @@ nvkm_vma_tail(struct nvkm_vma *vma, u64 tail)
 {
 	struct nvkm_vma *new;
 
-	BUG_ON(vma->size == tail);
+	_ON(vma->size == tail);
 
 	if (!(new = nvkm_vma_new(vma->addr + (vma->size - tail), tail)))
 		return NULL;
@@ -816,7 +816,7 @@ nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 		if (vma->addr > this->addr)
 			ptr = &parent->rb_right;
 		else
-			BUG();
+			();
 	}
 
 	rb_link_node(&vma->tree, parent, ptr);
@@ -852,7 +852,7 @@ nvkm_vmm_node_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 		if (vma->addr > this->addr)
 			ptr = &parent->rb_right;
 		else
-			BUG();
+			();
 	}
 
 	rb_link_node(&vma->tree, parent, ptr);
@@ -894,7 +894,7 @@ nvkm_vmm_node_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
 			}
 			return vma;
 		}
-		BUG_ON(prev);
+		_ON(prev);
 
 		nvkm_vmm_node_remove(vmm, next);
 		vma->size -= size;
@@ -1045,7 +1045,7 @@ nvkm_vmm_ctor(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 	vmm->func = func;
 	vmm->mmu = mmu;
 	vmm->name = name;
-	vmm->debug = mmu->subdev.debug;
+	vmm->de = mmu->subdev.de;
 	kref_init(&vmm->kref);
 
 	__mutex_init(&vmm->mutex, "&vmm->mutex", key ? key : &_key);
@@ -1227,7 +1227,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 	if (!page->shift || !IS_ALIGNED(addr, 1ULL << shift) ||
 			    !IS_ALIGNED(size, 1ULL << shift) ||
 	    addr + size < addr || addr + size > vmm->limit) {
-		VMM_DEBUG(vmm, "paged map %d %d %016llx %016llx\n",
+		VMM_DE(vmm, "paged map %d %d %016llx %016llx\n",
 			  shift, page->shift, addr, size);
 		return -EINVAL;
 	}
@@ -1379,14 +1379,14 @@ nvkm_vmm_map_valid(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	switch (nvkm_memory_target(map->memory)) {
 	case NVKM_MEM_TARGET_VRAM:
 		if (!(map->page->type & NVKM_VMM_PAGE_VRAM)) {
-			VMM_DEBUG(vmm, "%d !VRAM", map->page->shift);
+			VMM_DE(vmm, "%d !VRAM", map->page->shift);
 			return -EINVAL;
 		}
 		break;
 	case NVKM_MEM_TARGET_HOST:
 	case NVKM_MEM_TARGET_NCOH:
 		if (!(map->page->type & NVKM_VMM_PAGE_HOST)) {
-			VMM_DEBUG(vmm, "%d !HOST", map->page->shift);
+			VMM_DE(vmm, "%d !HOST", map->page->shift);
 			return -EINVAL;
 		}
 		break;
@@ -1399,7 +1399,7 @@ nvkm_vmm_map_valid(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	    !IS_ALIGNED((u64)vma->size, 1ULL << map->page->shift) ||
 	    !IS_ALIGNED(   map->offset, 1ULL << map->page->shift) ||
 	    nvkm_memory_page(map->memory) < map->page->shift) {
-		VMM_DEBUG(vmm, "alignment %016llx %016llx %016llx %d %d",
+		VMM_DE(vmm, "alignment %016llx %016llx %016llx %d %d",
 		    vma->addr, (u64)vma->size, map->offset, map->page->shift,
 		    nvkm_memory_page(map->memory));
 		return -EINVAL;
@@ -1413,7 +1413,7 @@ nvkm_vmm_map_choose(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		    void *argv, u32 argc, struct nvkm_vmm_map *map)
 {
 	for (map->page = vmm->func->page; map->page->shift; map->page++) {
-		VMM_DEBUG(vmm, "trying %d", map->page->shift);
+		VMM_DE(vmm, "trying %d", map->page->shift);
 		if (!nvkm_vmm_map_valid(vmm, vma, argv, argc, map))
 			return 0;
 	}
@@ -1429,7 +1429,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 
 	/* Make sure we won't overrun the end of the memory object. */
 	if (unlikely(nvkm_memory_size(map->memory) < map->offset + vma->size)) {
-		VMM_DEBUG(vmm, "overrun %016llx %016llx %016llx",
+		VMM_DE(vmm, "overrun %016llx %016llx %016llx",
 			  nvkm_memory_size(map->memory),
 			  map->offset, (u64)vma->size);
 		return -EINVAL;
@@ -1439,12 +1439,12 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	if (vma->page == NVKM_VMA_PAGE_NONE &&
 	    vma->refd == NVKM_VMA_PAGE_NONE) {
 		/* Find the largest page size we can perform the mapping at. */
-		const u32 debug = vmm->debug;
-		vmm->debug = 0;
+		const u32 de = vmm->de;
+		vmm->de = 0;
 		ret = nvkm_vmm_map_choose(vmm, vma, argv, argc, map);
-		vmm->debug = debug;
+		vmm->de = de;
 		if (ret) {
-			VMM_DEBUG(vmm, "invalid at any page size");
+			VMM_DE(vmm, "invalid at any page size");
 			nvkm_vmm_map_choose(vmm, vma, argv, argc, map);
 			return -EINVAL;
 		}
@@ -1457,7 +1457,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 
 		ret = nvkm_vmm_map_valid(vmm, vma, argv, argc, map);
 		if (ret) {
-			VMM_DEBUG(vmm, "invalid %d\n", ret);
+			VMM_DE(vmm, "invalid %d\n", ret);
 			return ret;
 		}
 	}
@@ -1543,7 +1543,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	const struct nvkm_vmm_page *page = vmm->func->page;
 	struct nvkm_vma *next = vma;
 
-	BUG_ON(vma->part);
+	_ON(vma->part);
 
 	if (vma->mapref || !vma->sparse) {
 		do {
@@ -1648,7 +1648,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 
 	/* Zero-sized, or lazily-allocated sparse VMAs, make no sense. */
 	if (unlikely(!size || (!getref && !mapref && sparse))) {
-		VMM_DEBUG(vmm, "args %016llx %d %d %d",
+		VMM_DE(vmm, "args %016llx %d %d %d",
 			  size, getref, mapref, sparse);
 		return -EINVAL;
 	}
@@ -1660,7 +1660,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	 * The same goes if we're requesting up-front allocation of PTES.
 	 */
 	if (unlikely((getref || vmm->func->page_block) && !shift)) {
-		VMM_DEBUG(vmm, "page size required: %d %016llx",
+		VMM_DE(vmm, "page size required: %d %016llx",
 			  getref, vmm->func->page_block);
 		return -EINVAL;
 	}
@@ -1675,7 +1675,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 		}
 
 		if (!page->shift || !IS_ALIGNED(size, 1ULL << page->shift)) {
-			VMM_DEBUG(vmm, "page %d %016llx", shift, size);
+			VMM_DE(vmm, "page %d %016llx", shift, size);
 			return -EINVAL;
 		}
 		align = max_t(u8, align, shift);

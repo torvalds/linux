@@ -274,7 +274,7 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 	 * we can do some in-place patching if needed. We know
 	 * the EP buffer is big enough but ensure that doesn't
 	 * change. We do that now rather than later after we
-	 * have checked sizes etc... to avoid a gcc bug where
+	 * have checked sizes etc... to avoid a gcc  where
 	 * it thinks len is constant and barfs about read
 	 * overflows in memcpy.
 	 */
@@ -282,20 +282,20 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 	case USB_DT_DEVICE:
 		dsize = USB_DT_DEVICE_SIZE;
 		memcpy(ep->buf, &ast_vhub_dev_desc, dsize);
-		BUILD_BUG_ON(dsize > sizeof(ast_vhub_dev_desc));
-		BUILD_BUG_ON(USB_DT_DEVICE_SIZE >= AST_VHUB_EP0_MAX_PACKET);
+		BUILD__ON(dsize > sizeof(ast_vhub_dev_desc));
+		BUILD__ON(USB_DT_DEVICE_SIZE >= AST_VHUB_EP0_MAX_PACKET);
 		break;
 	case USB_DT_CONFIG:
 		dsize = AST_VHUB_CONF_DESC_SIZE;
 		memcpy(ep->buf, &ast_vhub_conf_desc, dsize);
-		BUILD_BUG_ON(dsize > sizeof(ast_vhub_conf_desc));
-		BUILD_BUG_ON(AST_VHUB_CONF_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
+		BUILD__ON(dsize > sizeof(ast_vhub_conf_desc));
+		BUILD__ON(AST_VHUB_CONF_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
 		break;
 	case USB_DT_HUB:
 		dsize = AST_VHUB_HUB_DESC_SIZE;
 		memcpy(ep->buf, &ast_vhub_hub_desc, dsize);
-		BUILD_BUG_ON(dsize > sizeof(ast_vhub_hub_desc));
-		BUILD_BUG_ON(AST_VHUB_HUB_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
+		BUILD__ON(dsize > sizeof(ast_vhub_hub_desc));
+		BUILD__ON(AST_VHUB_HUB_DESC_SIZE >= AST_VHUB_EP0_MAX_PACKET);
 		break;
 	default:
 		return std_req_stall;
@@ -323,7 +323,7 @@ static int ast_vhub_rep_string(struct ast_vhub_ep *ep,
 	 * This should never happen unless we put too big strings in
 	 * the array above
 	 */
-	BUG_ON(rc >= AST_VHUB_EP0_MAX_PACKET);
+	_ON(rc >= AST_VHUB_EP0_MAX_PACKET);
 
 	if (rc < 0)
 		return std_req_stall;

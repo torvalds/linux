@@ -76,8 +76,8 @@ struct bpf_map_def SEC("maps") pstate_duration = {
 
 /*
  * The trace events for cpu_idle and cpu_frequency are taken from:
- * /sys/kernel/debug/tracing/events/power/cpu_idle/format
- * /sys/kernel/debug/tracing/events/power/cpu_frequency/format
+ * /sys/kernel/de/tracing/events/power/cpu_idle/format
+ * /sys/kernel/de/tracing/events/power/cpu_frequency/format
  *
  * These two events have same format, so define one common structure.
  */

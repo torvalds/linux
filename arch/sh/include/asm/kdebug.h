@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_SH_KDEBUG_H
-#define __ASM_SH_KDEBUG_H
+#ifndef __ASM_SH_KDE_H
+#define __ASM_SH_KDE_H
 
 /* Grossly misnamed. */
 enum die_val {
@@ -15,4 +15,4 @@ enum die_val {
 extern void printk_address(unsigned long address, int reliable);
 extern void dump_mem(const char *str, unsigned long bottom, unsigned long top);
 
-#endif /* __ASM_SH_KDEBUG_H */
+#endif /* __ASM_SH_KDE_H */

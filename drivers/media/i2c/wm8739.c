@@ -31,11 +31,11 @@ MODULE_DESCRIPTION("wm8739 driver");
 MODULE_AUTHOR("T. Adachi, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug;
+static int de;
 
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* ------------------------------------------------------------------------ */
@@ -80,7 +80,7 @@ static int wm8739_write(struct v4l2_subdev *sd, int reg, u16 val)
 		return -1;
 	}
 
-	v4l2_dbg(1, debug, sd, "write: %02x %02x\n", reg, val);
+	v4l2_dbg(1, de, sd, "write: %02x %02x\n", reg, val);
 
 	for (i = 0; i < 3; i++)
 		if (i2c_smbus_write_byte_data(client,

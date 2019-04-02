@@ -131,7 +131,7 @@ static void nlm_sata_firmware_init(int node)
 			(PHY3_RESET_N | PHY2_RESET_N
 			 | PHY1_RESET_N | PHY0_RESET_N));
 
-	pr_debug("Waiting for PHYs to come up.\n");
+	pr_de("Waiting for PHYs to come up.\n");
 	i = 0;
 	do {
 		reg_val = nlm_read_sata_reg(regbase, SATA_STATUS);

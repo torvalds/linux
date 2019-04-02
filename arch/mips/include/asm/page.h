@@ -64,10 +64,10 @@ static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 #else /* !CONFIG_MIPS_HUGE_TLB_SUPPORT */
-#define HPAGE_SHIFT	({BUILD_BUG(); 0; })
-#define HPAGE_SIZE	({BUILD_BUG(); 0; })
-#define HPAGE_MASK	({BUILD_BUG(); 0; })
-#define HUGETLB_PAGE_ORDER	({BUILD_BUG(); 0; })
+#define HPAGE_SHIFT	({BUILD_(); 0; })
+#define HPAGE_SIZE	({BUILD_(); 0; })
+#define HPAGE_MASK	({BUILD_(); 0; })
+#define HUGETLB_PAGE_ORDER	({BUILD_(); 0; })
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 #include <linux/pfn.h>

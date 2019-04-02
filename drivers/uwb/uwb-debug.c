@@ -1,6 +1,6 @@
 /*
  * Ultra Wide Band
- * Debug support
+ * De support
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
@@ -29,20 +29,20 @@
 #include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 
-#include <linux/uwb/debug-cmd.h>
+#include <linux/uwb/de-cmd.h>
 
 #include "uwb-internal.h"
 
 /*
- * Debug interface
+ * De interface
  *
- * Per radio controller debugfs files (in uwb/uwbN/):
+ * Per radio controller defs files (in uwb/uwbN/):
  *
- * command: Flexible command interface (see <linux/uwb/debug-cmd.h>).
+ * command: Flexible command interface (see <linux/uwb/de-cmd.h>).
  *
  * reservations: information on reservations.
  *
@@ -72,7 +72,7 @@ static void uwb_dbg_rsv_cb(struct uwb_rsv *rsv)
 {
 	struct uwb_dbg *dbg = rsv->pal_priv;
 
-	uwb_rsv_dump("debug", rsv);
+	uwb_rsv_dump("de", rsv);
 
 	if (rsv->state == UWB_RSV_STATE_NONE) {
 		spin_lock(&dbg->list_lock);
@@ -259,9 +259,9 @@ static void uwb_dbg_channel_changed(struct uwb_pal *pal, int channel)
 	struct device *dev = &pal->rc->uwb_dev.dev;
 
 	if (channel > 0)
-		dev_info(dev, "debug: channel %d started\n", channel);
+		dev_info(dev, "de: channel %d started\n", channel);
 	else
-		dev_info(dev, "debug: channel stopped\n");
+		dev_info(dev, "de: channel stopped\n");
 }
 
 static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
@@ -277,7 +277,7 @@ static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
 }
 
 /**
- * uwb_dbg_add_rc - add a debug interface for a radio controller
+ * uwb_dbg_add_rc - add a de interface for a radio controller
  * @rc: the radio controller
  */
 void uwb_dbg_add_rc(struct uwb_rc *rc)
@@ -296,25 +296,25 @@ void uwb_dbg_add_rc(struct uwb_rc *rc)
 	uwb_pal_register(&rc->dbg->pal);
 
 	if (root_dir) {
-		rc->dbg->root_d = debugfs_create_dir(dev_name(&rc->uwb_dev.dev),
+		rc->dbg->root_d = defs_create_dir(dev_name(&rc->uwb_dev.dev),
 						     root_dir);
-		rc->dbg->command_f = debugfs_create_file("command", 0200,
+		rc->dbg->command_f = defs_create_file("command", 0200,
 							 rc->dbg->root_d, rc,
 							 &command_fops);
-		rc->dbg->reservations_f = debugfs_create_file("reservations", 0444,
+		rc->dbg->reservations_f = defs_create_file("reservations", 0444,
 							      rc->dbg->root_d, rc,
 							      &reservations_fops);
-		rc->dbg->accept_f = debugfs_create_bool("accept", 0644,
+		rc->dbg->accept_f = defs_create_bool("accept", 0644,
 							rc->dbg->root_d,
 							&rc->dbg->accept);
-		rc->dbg->drp_avail_f = debugfs_create_file("drp_avail", 0444,
+		rc->dbg->drp_avail_f = defs_create_file("drp_avail", 0444,
 							   rc->dbg->root_d, rc,
 							   &drp_avail_fops);
 	}
 }
 
 /**
- * uwb_dbg_del_rc - remove a radio controller's debug interface
+ * uwb_dbg_del_rc - remove a radio controller's de interface
  * @rc: the radio controller
  */
 void uwb_dbg_del_rc(struct uwb_rc *rc)
@@ -331,32 +331,32 @@ void uwb_dbg_del_rc(struct uwb_rc *rc)
 	uwb_pal_unregister(&rc->dbg->pal);
 
 	if (root_dir) {
-		debugfs_remove(rc->dbg->drp_avail_f);
-		debugfs_remove(rc->dbg->accept_f);
-		debugfs_remove(rc->dbg->reservations_f);
-		debugfs_remove(rc->dbg->command_f);
-		debugfs_remove(rc->dbg->root_d);
+		defs_remove(rc->dbg->drp_avail_f);
+		defs_remove(rc->dbg->accept_f);
+		defs_remove(rc->dbg->reservations_f);
+		defs_remove(rc->dbg->command_f);
+		defs_remove(rc->dbg->root_d);
 	}
 }
 
 /**
- * uwb_dbg_exit - initialize the debug interface sub-module
+ * uwb_dbg_exit - initialize the de interface sub-module
  */
 void uwb_dbg_init(void)
 {
-	root_dir = debugfs_create_dir("uwb", NULL);
+	root_dir = defs_create_dir("uwb", NULL);
 }
 
 /**
- * uwb_dbg_exit - clean-up the debug interface sub-module
+ * uwb_dbg_exit - clean-up the de interface sub-module
  */
 void uwb_dbg_exit(void)
 {
-	debugfs_remove(root_dir);
+	defs_remove(root_dir);
 }
 
 /**
- * uwb_dbg_create_pal_dir - create a debugfs directory for a PAL
+ * uwb_dbg_create_pal_dir - create a defs directory for a PAL
  * @pal: The PAL.
  */
 struct dentry *uwb_dbg_create_pal_dir(struct uwb_pal *pal)
@@ -364,6 +364,6 @@ struct dentry *uwb_dbg_create_pal_dir(struct uwb_pal *pal)
 	struct uwb_rc *rc = pal->rc;
 
 	if (root_dir && rc->dbg && rc->dbg->root_d && pal->name)
-		return debugfs_create_dir(pal->name, rc->dbg->root_d);
+		return defs_create_dir(pal->name, rc->dbg->root_d);
 	return NULL;
 }

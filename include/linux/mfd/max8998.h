@@ -70,7 +70,7 @@ struct max8998_regulator_data {
  * @buck2_set3: BUCK2 gpio pin to set output voltage
  * @buck2_default_idx: Default for BUCK2 gpio pin.
  * @wakeup: Allow to wake up from suspend
- * @rtc_delay: LP3974 RTC chip bug that requires delay after a register
+ * @rtc_delay: LP3974 RTC chip  that requires delay after a register
  * write before reading it.
  * @eoc: End of Charge Level in percent: 10% ~ 45% by 5% step
  *   If it equals 0, leave it unchanged.

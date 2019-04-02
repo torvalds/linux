@@ -701,7 +701,7 @@ static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
 		return;
 	}
 
-	BUG();
+	();
 }
 
 /**

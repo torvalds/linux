@@ -31,12 +31,12 @@
 
 extern bool shpchp_poll_mode;
 extern int shpchp_poll_time;
-extern bool shpchp_debug;
+extern bool shpchp_de;
 
 #define dbg(format, arg...)						\
 do {									\
-	if (shpchp_debug)						\
-		printk(KERN_DEBUG "%s: " format, MY_NAME, ## arg);	\
+	if (shpchp_de)						\
+		printk(KERN_DE "%s: " format, MY_NAME, ## arg);	\
 } while (0)
 #define err(format, arg...)						\
 	printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
@@ -47,8 +47,8 @@ do {									\
 
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
-		if (shpchp_debug)					\
-			pci_printk(KERN_DEBUG, ctrl->pci_dev,		\
+		if (shpchp_de)					\
+			pci_printk(KERN_DE, ctrl->pci_dev,		\
 					format, ## arg);		\
 	} while (0)
 #define ctrl_err(ctrl, format, arg...)					\

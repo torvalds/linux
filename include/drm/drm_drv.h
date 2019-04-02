@@ -189,7 +189,7 @@ struct drm_driver {
 	 * Since the display/modeset side of DRM can only be owned by exactly
 	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
 	 * there should never be a need to set up any modeset related resources
-	 * in this callback. Doing so would be a driver design bug.
+	 * in this callback. Doing so would be a driver design .
 	 *
 	 * Returns:
 	 *
@@ -208,7 +208,7 @@ struct drm_driver {
 	 * Since the display/modeset side of DRM can only be owned by exactly
 	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
 	 * there should never be a need to tear down any modeset related
-	 * resources in this callback. Doing so would be a driver design bug.
+	 * resources in this callback. Doing so would be a driver design .
 	 */
 	void (*postclose) (struct drm_device *, struct drm_file *);
 
@@ -485,11 +485,11 @@ struct drm_driver {
 	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
 
 	/**
-	 * @debugfs_init:
+	 * @defs_init:
 	 *
-	 * Allows drivers to create driver-specific debugfs files.
+	 * Allows drivers to create driver-specific defs files.
 	 */
-	int (*debugfs_init)(struct drm_minor *minor);
+	int (*defs_init)(struct drm_minor *minor);
 
 	/**
 	 * @gem_free_object: deconstructor for drm_gem_objects
@@ -713,7 +713,7 @@ struct drm_driver {
 	int dev_priv_size;
 };
 
-extern unsigned int drm_debug;
+extern unsigned int drm_de;
 
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,

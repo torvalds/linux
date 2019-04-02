@@ -69,7 +69,7 @@ README for the ISDN-subsystem
             also the boot-code and the protocol software can be loaded into
             the card.
 
-   O N L Y !!!  for debugging (no locking against other devices):
+   O N L Y !!!  for deging (no locking against other devices):
    One raw-data-device with the following functions:
      write: data to B-channel.
      read:  data from B-channel.
@@ -336,7 +336,7 @@ README for the ISDN-subsystem
 
      43 for the ISDN-tty's.
      44 for the ISDN-callout-tty's.
-     45 for control/info/debug devices.
+     45 for control/info/de devices.
 
 5. Application
 

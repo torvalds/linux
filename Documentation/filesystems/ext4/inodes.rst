@@ -512,7 +512,7 @@ accuracy. Therefore, timestamps should not overflow until May 2446.
 dtime was not widened. There is also a fifth timestamp to record inode
 creation time (crtime); this field is 64-bits wide and decoded in the
 same manner as 64-bit [cma]time. Neither crtime nor dtime are accessible
-through the regular stat() interface, though debugfs will report them.
+through the regular stat() interface, though defs will report them.
 
 We use the 32-bit signed time value plus (2^32 \* (extra epoch bits)).
 In other words:
@@ -569,7 +569,7 @@ In other words:
 
 This is a somewhat odd encoding since there are effectively seven times
 as many positive values as negative values. There have also been
-long-standing bugs decoding and encoding dates beyond 2038, which don't
+long-standing s decoding and encoding dates beyond 2038, which don't
 seem to be fixed as of kernel 3.12 and e2fsprogs 1.42.8. 64-bit kernels
 incorrectly use the extra epoch bits 1,1 for dates between 1901 and
 1970. At some point the kernel will be fixed and e2fsck will fix this

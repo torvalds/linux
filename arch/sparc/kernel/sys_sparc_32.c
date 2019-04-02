@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -29,7 +29,7 @@
 
 #include "systbls.h"
 
-/* #define DEBUG_UNIMP_SYSCALL */
+/* #define DE_UNIMP_SYSCALL */
 
 /* XXX Make this per-binary type, this way we can detect the type of
  * XXX a binary.  Every Sparc executable calls this very early on.
@@ -136,24 +136,24 @@ SYSCALL_DEFINE0(nis_syscall)
 		return -ENOSYS;
 	printk ("%s[%d]: Unimplemented SPARC system call %d\n",
 		current->comm, task_pid_nr(current), (int)regs->u_regs[1]);
-#ifdef DEBUG_UNIMP_SYSCALL	
+#ifdef DE_UNIMP_SYSCALL	
 	show_regs (regs);
 #endif
 	return -ENOSYS;
 }
 
-/* #define DEBUG_SPARC_BREAKPOINT */
+/* #define DE_SPARC_BREAKPOINT */
 
 asmlinkage void
 sparc_breakpoint (struct pt_regs *regs)
 {
 
-#ifdef DEBUG_SPARC_BREAKPOINT
+#ifdef DE_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
 	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc, 0, current);
 
-#ifdef DEBUG_SPARC_BREAKPOINT
+#ifdef DE_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
 #endif
 }

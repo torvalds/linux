@@ -1575,7 +1575,7 @@ static int nfs_writeback_done(struct rpc_task *task,
 		/* We tried a write call, but the server did not
 		 * commit data to stable storage even though we
 		 * requested it.
-		 * Note: There is a known bug in Tru64 < 5.0 in which
+		 * Note: There is a known  in Tru64 < 5.0 in which
 		 *	 the server reports NFS_DATA_SYNC, but performs
 		 *	 NFS_FILE_SYNC. We therefore implement this checking
 		 *	 as a dprintk() in order to avoid filling syslog.

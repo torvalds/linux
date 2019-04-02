@@ -1761,7 +1761,7 @@ static void ahash_done(struct device *dev,
  * SEC1 doesn't like hashing of 0 sized message, so we do the padding
  * ourself and submit a padded block
  */
-static void talitos_handle_buggy_hash(struct talitos_ctx *ctx,
+static void talitos_handle_gy_hash(struct talitos_ctx *ctx,
 			       struct talitos_edesc *edesc,
 			       struct talitos_ptr *ptr)
 {
@@ -1772,7 +1772,7 @@ static void talitos_handle_buggy_hash(struct talitos_ctx *ctx,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	};
 
-	pr_err_once("Bug in SEC1, padding ourself\n");
+	pr_err_once(" in SEC1, padding ourself\n");
 	edesc->desc.hdr &= ~DESC_HDR_MODE0_MDEU_PAD;
 	map_single_talitos_ptr(ctx->dev, ptr, sizeof(padded_hash),
 			       (char *)padded_hash, DMA_TO_DEVICE);
@@ -1855,7 +1855,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 	/* last DWORD empty */
 
 	if (is_sec1 && from_talitos_ptr_len(&desc->ptr[3], true) == 0)
-		talitos_handle_buggy_hash(ctx, edesc, &desc->ptr[3]);
+		talitos_handle_gy_hash(ctx, edesc, &desc->ptr[3]);
 
 	if (is_sec1 && req_ctx->nbuf && length) {
 		struct talitos_desc *desc2 = desc + 1;

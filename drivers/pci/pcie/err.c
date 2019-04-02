@@ -154,7 +154,7 @@ static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 	int rc;
 
 	rc = pci_bus_error_reset(dev);
-	pci_printk(KERN_DEBUG, dev, "downstream link has been reset\n");
+	pci_printk(KERN_DE, dev, "downstream link has been reset\n");
 	return rc ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -169,13 +169,13 @@ static pci_ers_result_t reset_link(struct pci_dev *dev, u32 service)
 	} else if (dev->has_secondary_link) {
 		status = default_reset_link(dev);
 	} else {
-		pci_printk(KERN_DEBUG, dev, "no link-reset support at upstream device %s\n",
+		pci_printk(KERN_DE, dev, "no link-reset support at upstream device %s\n",
 			pci_name(dev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
 	if (status != PCI_ERS_RESULT_RECOVERED) {
-		pci_printk(KERN_DEBUG, dev, "link reset at upstream device %s failed\n",
+		pci_printk(KERN_DE, dev, "link reset at upstream device %s failed\n",
 			pci_name(dev));
 		return PCI_ERS_RESULT_DISCONNECT;
 	}

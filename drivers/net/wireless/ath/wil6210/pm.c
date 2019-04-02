@@ -90,9 +90,9 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 
 	wil_dbg_pm(wil, "can_suspend: %s\n", is_runtime ? "runtime" : "system");
 
-	if (wmi_only || debug_fw) {
+	if (wmi_only || de_fw) {
 		wil_dbg_pm(wil, "Deny any suspend - %s mode\n",
-			   wmi_only ? "wmi_only" : "debug_fw");
+			   wmi_only ? "wmi_only" : "de_fw");
 		rc = -EBUSY;
 		goto out;
 	}

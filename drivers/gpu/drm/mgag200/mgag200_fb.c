@@ -225,7 +225,7 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	info->screen_size = size;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
-	DRM_DEBUG_KMS("allocated %dx%d\n",
+	DRM_DE_KMS("allocated %dx%d\n",
 		      fb->width, fb->height);
 
 	return 0;

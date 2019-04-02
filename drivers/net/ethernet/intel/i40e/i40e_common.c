@@ -264,49 +264,49 @@ const char *i40e_stat_str(struct i40e_hw *hw, i40e_status stat_err)
 }
 
 /**
- * i40e_debug_aq
- * @hw: debug mask related to admin queue
- * @mask: debug mask
+ * i40e_de_aq
+ * @hw: de mask related to admin queue
+ * @mask: de mask
  * @desc: pointer to admin queue descriptor
  * @buffer: pointer to command buffer
  * @buf_len: max length of buffer
  *
- * Dumps debug log about adminq command with descriptor contents.
+ * Dumps de log about adminq command with descriptor contents.
  **/
-void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
+void i40e_de_aq(struct i40e_hw *hw, enum i40e_de_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
 	u16 len;
 	u8 *buf = (u8 *)buffer;
 
-	if ((!(mask & hw->debug_mask)) || (desc == NULL))
+	if ((!(mask & hw->de_mask)) || (desc == NULL))
 		return;
 
 	len = le16_to_cpu(aq_desc->datalen);
 
-	i40e_debug(hw, mask,
+	i40e_de(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		   le16_to_cpu(aq_desc->opcode),
 		   le16_to_cpu(aq_desc->flags),
 		   le16_to_cpu(aq_desc->datalen),
 		   le16_to_cpu(aq_desc->retval));
-	i40e_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
+	i40e_de(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->cookie_high),
 		   le32_to_cpu(aq_desc->cookie_low));
-	i40e_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
+	i40e_de(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.internal.param0),
 		   le32_to_cpu(aq_desc->params.internal.param1));
-	i40e_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
+	i40e_de(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.external.addr_high),
 		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
-		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
+		i40e_de(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
 		/* write the full 16-byte chunks */
-		if (hw->debug_mask & mask) {
+		if (hw->de_mask & mask) {
 			char prefix[27];
 
 			snprintf(prefix, sizeof(prefix),
@@ -1934,23 +1934,23 @@ i40e_status i40e_aq_set_phy_int_mask(struct i40e_hw *hw,
 }
 
 /**
- * i40e_aq_set_phy_debug
+ * i40e_aq_set_phy_de
  * @hw: pointer to the hw struct
- * @cmd_flags: debug command flags
+ * @cmd_flags: de command flags
  * @cmd_details: pointer to command details structure or NULL
  *
  * Reset the external PHY.
  **/
-i40e_status i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
+i40e_status i40e_aq_set_phy_de(struct i40e_hw *hw, u8 cmd_flags,
 				  struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
-	struct i40e_aqc_set_phy_debug *cmd =
-		(struct i40e_aqc_set_phy_debug *)&desc.params.raw;
+	struct i40e_aqc_set_phy_de *cmd =
+		(struct i40e_aqc_set_phy_de *)&desc.params.raw;
 	i40e_status status;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
-					  i40e_aqc_opc_set_phy_debug);
+					  i40e_aqc_opc_set_phy_de);
 
 	cmd->command_flags = cmd_flags;
 
@@ -2550,7 +2550,7 @@ i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
 		status = i40e_update_link_info(hw);
 
 		if (status)
-			i40e_debug(hw, I40E_DEBUG_LINK, "get link failed: status %d\n",
+			i40e_de(hw, I40E_DE_LINK, "get link failed: status %d\n",
 				   status);
 	}
 
@@ -2965,7 +2965,7 @@ i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 }
 
 /**
- * i40e_aq_debug_read_register
+ * i40e_aq_de_read_register
  * @hw: pointer to the hw struct
  * @reg_addr: register address
  * @reg_val: register value
@@ -2973,19 +2973,19 @@ i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
  *
  * Read the register using the admin queue commands
  **/
-i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
+i40e_status i40e_aq_de_read_register(struct i40e_hw *hw,
 				u32 reg_addr, u64 *reg_val,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
-	struct i40e_aqc_debug_reg_read_write *cmd_resp =
-		(struct i40e_aqc_debug_reg_read_write *)&desc.params.raw;
+	struct i40e_aqc_de_reg_read_write *cmd_resp =
+		(struct i40e_aqc_de_reg_read_write *)&desc.params.raw;
 	i40e_status status;
 
 	if (reg_val == NULL)
 		return I40E_ERR_PARAM;
 
-	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_debug_read_reg);
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_de_read_reg);
 
 	cmd_resp->address = cpu_to_le32(reg_addr);
 
@@ -3000,7 +3000,7 @@ i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
 }
 
 /**
- * i40e_aq_debug_write_register
+ * i40e_aq_de_write_register
  * @hw: pointer to the hw struct
  * @reg_addr: register address
  * @reg_val: register value
@@ -3008,16 +3008,16 @@ i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
  *
  * Write to a register using the admin queue commands
  **/
-i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,
+i40e_status i40e_aq_de_write_register(struct i40e_hw *hw,
 					u32 reg_addr, u64 reg_val,
 					struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
-	struct i40e_aqc_debug_reg_read_write *cmd =
-		(struct i40e_aqc_debug_reg_read_write *)&desc.params.raw;
+	struct i40e_aqc_de_reg_read_write *cmd =
+		(struct i40e_aqc_de_reg_read_write *)&desc.params.raw;
 	i40e_status status;
 
-	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_debug_write_reg);
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_de_write_reg);
 
 	cmd->address = cpu_to_le32(reg_addr);
 	cmd->value_high = cpu_to_le32((u32)(reg_val >> 32));
@@ -3232,7 +3232,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			p->management_mode = number;
 			if (major_rev > 1) {
 				p->mng_protocols_over_mctp = logical_id;
-				i40e_debug(hw, I40E_DEBUG_INIT,
+				i40e_de(hw, I40E_DE_INIT,
 					   "HW Capability: Protocols over MCTP = %d\n",
 					   p->mng_protocols_over_mctp);
 			} else {
@@ -3301,7 +3301,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			break;
 		case I40E_AQ_CAP_ID_MSIX:
 			p->num_msix_vectors = number;
-			i40e_debug(hw, I40E_DEBUG_INIT,
+			i40e_de(hw, I40E_DE_INIT,
 				   "HW Capability: MSIX vector count = %d\n",
 				   p->num_msix_vectors);
 			break;
@@ -3371,7 +3371,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	}
 
 	if (p->fcoe)
-		i40e_debug(hw, I40E_DEBUG_ALL, "device is FCoE capable\n");
+		i40e_de(hw, I40E_DE_ALL, "device is FCoE capable\n");
 
 	/* Software override ensuring FCoE is disabled if npar or mfp
 	 * mode because it is not supported in these modes.
@@ -3388,7 +3388,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		/* use AQ read to get the physical register offset instead
 		 * of the port relative offset
 		 */
-		i40e_aq_debug_read_register(hw, port_cfg_reg, &port_cfg, NULL);
+		i40e_aq_de_read_register(hw, port_cfg_reg, &port_cfg, NULL);
 		if (!(port_cfg & I40E_PRTGEN_CNF_PORT_DIS_MASK))
 			hw->num_ports++;
 	}
@@ -4456,7 +4456,7 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 }
 
 /**
- * i40e_aq_debug_dump
+ * i40e_aq_de_dump
  * @hw: pointer to the hardware structure
  * @cluster_id: specific cluster to dump
  * @table_id: table id within cluster
@@ -4468,27 +4468,27 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
  * @ret_next_index: next index to read
  * @cmd_details: pointer to command details structure or NULL
  *
- * Dump internal FW/HW data for debug purposes.
+ * Dump internal FW/HW data for de purposes.
  *
  **/
-i40e_status i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
+i40e_status i40e_aq_de_dump(struct i40e_hw *hw, u8 cluster_id,
 			       u8 table_id, u32 start_index, u16 buff_size,
 			       void *buff, u16 *ret_buff_size,
 			       u8 *ret_next_table, u32 *ret_next_index,
 			       struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
-	struct i40e_aqc_debug_dump_internals *cmd =
-		(struct i40e_aqc_debug_dump_internals *)&desc.params.raw;
-	struct i40e_aqc_debug_dump_internals *resp =
-		(struct i40e_aqc_debug_dump_internals *)&desc.params.raw;
+	struct i40e_aqc_de_dump_internals *cmd =
+		(struct i40e_aqc_de_dump_internals *)&desc.params.raw;
+	struct i40e_aqc_de_dump_internals *resp =
+		(struct i40e_aqc_de_dump_internals *)&desc.params.raw;
 	i40e_status status;
 
 	if (buff_size == 0 || !buff)
 		return I40E_ERR_PARAM;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
-					  i40e_aqc_opc_debug_dump_internals);
+					  i40e_aqc_opc_de_dump_internals);
 	/* Indirect Command */
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
 	if (buff_size > I40E_AQ_LARGE_BUF)
@@ -4623,7 +4623,7 @@ i40e_status i40e_read_phy_register_clause22(struct i40e_hw *hw,
 	} while (retry);
 
 	if (status) {
-		i40e_debug(hw, I40E_DEBUG_PHY,
+		i40e_de(hw, I40E_DE_PHY,
 			   "PHY: Can't write command to external PHY.\n");
 	} else {
 		command = rd32(hw, I40E_GLGEN_MSRWD(port_num));
@@ -4711,7 +4711,7 @@ i40e_status i40e_read_phy_register_clause45(struct i40e_hw *hw,
 	} while (retry);
 
 	if (status) {
-		i40e_debug(hw, I40E_DEBUG_PHY,
+		i40e_de(hw, I40E_DE_PHY,
 			   "PHY: Can't write command to external PHY.\n");
 		goto phy_read_end;
 	}
@@ -4740,7 +4740,7 @@ i40e_status i40e_read_phy_register_clause45(struct i40e_hw *hw,
 		*value = (command & I40E_GLGEN_MSRWD_MDIRDDATA_MASK) >>
 			 I40E_GLGEN_MSRWD_MDIRDDATA_SHIFT;
 	} else {
-		i40e_debug(hw, I40E_DEBUG_PHY,
+		i40e_de(hw, I40E_DE_PHY,
 			   "PHY: Can't read register value from external PHY.\n");
 	}
 
@@ -4784,7 +4784,7 @@ i40e_status i40e_write_phy_register_clause45(struct i40e_hw *hw,
 		retry--;
 	} while (retry);
 	if (status) {
-		i40e_debug(hw, I40E_DEBUG_PHY,
+		i40e_de(hw, I40E_DE_PHY,
 			   "PHY: Can't write command to external PHY.\n");
 		goto phy_write_end;
 	}
@@ -5479,7 +5479,7 @@ i40e_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 				break;
 	}
 	if (i == dev_cnt) {
-		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Device doesn't support DDP");
+		i40e_de(hw, I40E_DE_PACKAGE, "Device doesn't support DDP");
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
 	}
 
@@ -5501,7 +5501,7 @@ i40e_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 		status = i40e_aq_write_ddp(hw, (void *)sec, (u16)section_size,
 					   track_id, &offset, &info, NULL);
 		if (status) {
-			i40e_debug(hw, I40E_DEBUG_PACKAGE,
+			i40e_de(hw, I40E_DE_PACKAGE,
 				   "Failed to write profile: offset %d, info %d",
 				   offset, info);
 			break;

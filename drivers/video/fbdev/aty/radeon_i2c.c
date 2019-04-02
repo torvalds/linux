@@ -148,21 +148,21 @@ int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn,
 	if (out_edid)
 		*out_edid = edid;
 	if (!edid) {
-		pr_debug("radeonfb: I2C (port %d) ... not found\n", conn);
+		pr_de("radeonfb: I2C (port %d) ... not found\n", conn);
 		return MT_NONE;
 	}
 	if (edid[0x14] & 0x80) {
 		/* Fix detection using BIOS tables */
 		if (rinfo->is_mobility /*&& conn == ddc_dvi*/ &&
 		    (INREG(LVDS_GEN_CNTL) & LVDS_ON)) {
-			pr_debug("radeonfb: I2C (port %d) ... found LVDS panel\n", conn);
+			pr_de("radeonfb: I2C (port %d) ... found LVDS panel\n", conn);
 			return MT_LCD;
 		} else {
-			pr_debug("radeonfb: I2C (port %d) ... found TMDS panel\n", conn);
+			pr_de("radeonfb: I2C (port %d) ... found TMDS panel\n", conn);
 			return MT_DFP;
 		}
 	}
-	pr_debug("radeonfb: I2C (port %d) ... found CRT display\n", conn);
+	pr_de("radeonfb: I2C (port %d) ... found CRT display\n", conn);
 	return MT_CRT;
 }
 

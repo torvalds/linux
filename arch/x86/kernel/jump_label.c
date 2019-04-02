@@ -24,15 +24,15 @@ union jump_code_union {
 	} __attribute__((packed));
 };
 
-static void bug_at(unsigned char *ip, int line)
+static void _at(unsigned char *ip, int line)
 {
 	/*
 	 * The location is not an op that we were expecting.
 	 * Something went wrong. Crash the box, as something could be
 	 * corrupting the kernel.
 	 */
-	pr_crit("jump_label: Fatal kernel bug, unexpected op at %pS [%p] (%5ph) %d\n", ip, ip, ip, line);
-	BUG();
+	pr_crit("jump_label: Fatal kernel , unexpected op at %pS [%p] (%5ph) %d\n", ip, ip, ip, line);
+	();
 }
 
 static void __ref __jump_label_transform(struct jump_entry *entry,
@@ -72,7 +72,7 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
 	}
 
 	if (memcmp((void *)jump_entry_code(entry), expect, JUMP_LABEL_NOP_SIZE))
-		bug_at((void *)jump_entry_code(entry), line);
+		_at((void *)jump_entry_code(entry), line);
 
 	/*
 	 * Make text_poke_bp() a default fallback poker.

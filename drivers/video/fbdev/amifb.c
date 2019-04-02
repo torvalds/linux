@@ -29,7 +29,7 @@
  *
  *   - 24 Jul 96: Copper generates now vblank interrupt and
  *                VESA Power Saving Protocol is fully implemented
- *   - 14 Jul 96: Rework and hopefully last ECS bugs fixed
+ *   - 14 Jul 96: Rework and hopefully last ECS s fixed
  *   -  7 Mar 96: Hardware sprite support by Roman Zippel
  *   - 18 Feb 96: OCS and ECS support by Roman Zippel
  *                Hardware functions completely rewritten
@@ -61,7 +61,7 @@
 #include "c2p.h"
 
 
-#define DEBUG
+#define DE
 
 #if !defined(CONFIG_FB_AMIGA_OCS) && !defined(CONFIG_FB_AMIGA_ECS) && !defined(CONFIG_FB_AMIGA_AGA)
 #define CONFIG_FB_AMIGA_OCS   /* define at least one fb driver, this will change later */
@@ -94,8 +94,8 @@
 #  define IS_AGA (1)
 #endif
 
-#ifdef DEBUG
-#  define DPRINTK(fmt, args...)	printk(KERN_DEBUG "%s: " fmt, __func__ , ## args)
+#ifdef DE
+#  define DPRINTK(fmt, args...)	printk(KERN_DE "%s: " fmt, __func__ , ## args)
 #else
 #  define DPRINTK(fmt, args...)
 #endif
@@ -1285,7 +1285,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 			}
 		} else {
 			/* NTSC video mode
-			 * In the AGA chipset seems to be hardware bug with BPC3_BRDRBLNK
+			 * In the AGA chipset seems to be hardware  with BPC3_BRDRBLNK
 			 * and NTSC activated, so than better let diwstop_h <= 1812
 			 */
 			if (par->htotal != NTSC_HTOTAL) {

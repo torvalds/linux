@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/tty.h>
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/export.h>
@@ -19,7 +19,7 @@
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/delay.h>		/* for ssleep() */
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 
 #include <asm/fpswa.h>
@@ -107,7 +107,7 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 		if (notify_die(DIE_BREAK, "break 0", regs, break_num, TRAP_BRKPT, SIGTRAP)
 			       	== NOTIFY_STOP)
 			return;
-		if (die_if_kernel("bugcheck!", regs, break_num))
+		if (die_if_kernel("check!", regs, break_num))
 			return;
 		sig = SIGILL; code = ILL_ILLOPC;
 		break;
@@ -499,7 +499,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		sprintf(buf, "Unsupported data reference");
 		break;
 
-	      case 29: /* Debug */
+	      case 29: /* De */
 	      case 35: /* Taken Branch Trap */
 	      case 36: /* Single Step Trap */
 		if (fsys_mode(current, &regs)) {
@@ -507,7 +507,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			/*
 			 * Got a trap in fsys-mode: Taken Branch Trap
 			 * and Single Step trap need special handling;
-			 * Debug trap is ignored (we disable it here
+			 * De trap is ignored (we disable it here
 			 * and re-enable it in the lower-privilege trap).
 			 */
 			if (unlikely(vector == 29)) {
@@ -558,7 +558,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		if (isr & 0x2) {
 			/* Lower-Privilege Transfer Trap */
 
-			/* If we disabled debug traps during an fsyscall,
+			/* If we disabled de traps during an fsyscall,
 			 * re-enable them here.
 			 */
 			if (test_thread_flag(TIF_DB_DISABLED)) {

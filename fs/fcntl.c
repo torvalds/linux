@@ -563,8 +563,8 @@ static int put_compat_flock64(const struct flock *kfl, struct compat_flock64 __u
 {
 	struct compat_flock64 fl;
 
-	BUILD_BUG_ON(sizeof(kfl->l_start) > sizeof(ufl->l_start));
-	BUILD_BUG_ON(sizeof(kfl->l_len) > sizeof(ufl->l_len));
+	BUILD__ON(sizeof(kfl->l_start) > sizeof(ufl->l_start));
+	BUILD__ON(sizeof(kfl->l_len) > sizeof(ufl->l_len));
 
 	memset(&fl, 0, sizeof(struct compat_flock64));
 	copy_flock_fields(&fl, kfl);
@@ -761,7 +761,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			/* Make sure we are called with one of the POLL_*
 			   reasons, otherwise we could leak kernel stack into
 			   userspace.  */
-			BUG_ON((reason < POLL_IN) || ((reason - POLL_IN) >= NSIGPOLL));
+			_ON((reason < POLL_IN) || ((reason - POLL_IN) >= NSIGPOLL));
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else
@@ -1031,7 +1031,7 @@ static int __init fcntl_init(void)
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
 	 * is defined as O_NONBLOCK on some platforms and not on others.
 	 */
-	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ !=
+	BUILD__ON(21 - 1 /* for O_RDONLY being 0 */ !=
 		HWEIGHT32(
 			(VALID_OPEN_FLAGS & ~(O_NONBLOCK | O_NDELAY)) |
 			__FMODE_EXEC | __FMODE_NONOTIFY));

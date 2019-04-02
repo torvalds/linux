@@ -19,7 +19,7 @@
 #   $6 - inird image file
 #
 
-# Use "make V=1" to debug this script
+# Use "make V=1" to de this script
 case "${KBUILD_VERBOSE}" in
 *1*)
         set -x

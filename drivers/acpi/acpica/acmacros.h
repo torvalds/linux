@@ -379,7 +379,7 @@
 /*
  * Macros for the master AML opcode table
  */
-#if defined (ACPI_DISASSEMBLER) || defined (ACPI_DEBUG_OUTPUT)
+#if defined (ACPI_DISASSEMBLER) || defined (ACPI_DE_OUTPUT)
 #define ACPI_OP(name, Pargs, Iargs, obj_type, class, type, flags) \
 	{name, (u32)(Pargs), (u32)(Iargs), (u32)(flags), obj_type, class, type}
 #else
@@ -419,7 +419,7 @@
 /*
  * Error reporting. The callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
- * These macros are used for both the debug and non-debug versions of the code.
+ * These macros are used for both the de and non-de versions of the code.
  */
 #define ACPI_ERROR_NAMESPACE(s, p, e)       acpi_ut_prefixed_namespace_error (AE_INFO, s, p, e);
 #define ACPI_ERROR_METHOD(s, n, p, e)       acpi_ut_method_error (AE_INFO, s, n, p, e);

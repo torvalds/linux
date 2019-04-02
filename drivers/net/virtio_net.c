@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-//#define DEBUG
+//#define DE
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -440,7 +440,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 		dev_kfree_skb(skb);
 		return NULL;
 	}
-	BUG_ON(offset >= PAGE_SIZE);
+	_ON(offset >= PAGE_SIZE);
 	while (len) {
 		unsigned int frag_size = min((unsigned)PAGE_SIZE - offset, len);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page, offset,
@@ -928,7 +928,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 	truesize = mergeable_ctx_to_truesize(ctx);
 	if (unlikely(len > truesize)) {
-		pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
+		pr_de("%s: rx error: len %u exceeds truesize %lu\n",
 			 dev->name, len, (unsigned long)ctx);
 		dev->stats.rx_length_errors++;
 		goto err_skb;
@@ -944,7 +944,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 		buf = virtqueue_get_buf_ctx(rq->vq, &len, &ctx);
 		if (unlikely(!buf)) {
-			pr_debug("%s: rx error: %d buffers out of %d missing\n",
+			pr_de("%s: rx error: %d buffers out of %d missing\n",
 				 dev->name, num_buf,
 				 virtio16_to_cpu(vi->vdev,
 						 hdr->num_buffers));
@@ -957,7 +957,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 		truesize = mergeable_ctx_to_truesize(ctx);
 		if (unlikely(len > truesize)) {
-			pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
+			pr_de("%s: rx error: len %u exceeds truesize %lu\n",
 				 dev->name, len, (unsigned long)ctx);
 			dev->stats.rx_length_errors++;
 			goto err_skb;
@@ -1004,7 +1004,7 @@ err_skb:
 	while (num_buf-- > 1) {
 		buf = virtqueue_get_buf(rq->vq, &len);
 		if (unlikely(!buf)) {
-			pr_debug("%s: rx error: %d buffers missing\n",
+			pr_de("%s: rx error: %d buffers missing\n",
 				 dev->name, num_buf);
 			dev->stats.rx_length_errors++;
 			break;
@@ -1030,7 +1030,7 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
 
 	if (unlikely(len < vi->hdr_len + ETH_HLEN)) {
-		pr_debug("%s: short packet %i\n", dev->name, len);
+		pr_de("%s: short packet %i\n", dev->name, len);
 		dev->stats.rx_length_errors++;
 		if (vi->mergeable_rx_bufs) {
 			put_page(virt_to_head_page(buf));
@@ -1068,7 +1068,7 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 
 	skb_record_rx_queue(skb, vq2rxq(rq->vq));
 	skb->protocol = eth_type_trans(skb, dev);
-	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
+	pr_de("Receiving skb proto 0x%04x len %i type %i\n",
 		 ntohs(skb->protocol), skb->len, skb->pkt_type);
 
 	napi_gro_receive(&rq->napi, skb);
@@ -1373,7 +1373,7 @@ static void free_old_xmit_skbs(struct send_queue *sq, bool in_napi)
 		if (likely(!is_xdp_frame(ptr))) {
 			struct sk_buff *skb = ptr;
 
-			pr_debug("Sent skb %p\n", skb);
+			pr_de("Sent skb %p\n", skb);
 
 			bytes += skb->len;
 			napi_consume_skb(skb, in_napi);
@@ -1523,7 +1523,7 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 	unsigned hdr_len = vi->hdr_len;
 	bool can_push;
 
-	pr_debug("%s: xmit %p %pM\n", vi->dev->name, skb, dest);
+	pr_de("%s: xmit %p %pM\n", vi->dev->name, skb, dest);
 
 	can_push = vi->any_header_sg &&
 		!((unsigned long)skb->data & (__alignof__(*hdr) - 1)) &&
@@ -1538,7 +1538,7 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 	if (virtio_net_hdr_from_skb(skb, &hdr->hdr,
 				    virtio_is_little_endian(vi->vdev), false,
 				    0))
-		BUG();
+		();
 
 	if (vi->mergeable_rx_bufs)
 		hdr->num_buffers = 0;
@@ -1646,7 +1646,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	unsigned out_num = 0, tmp;
 
 	/* Caller should know better */
-	BUG_ON(!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ));
+	_ON(!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ));
 
 	vi->ctrl->status = ~0;
 	vi->ctrl->hdr.class = class;
@@ -1662,7 +1662,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	sg_init_one(&stat, &vi->ctrl->status, sizeof(vi->ctrl->status));
 	sgs[out_num] = &stat;
 
-	BUG_ON(out_num + 1 > ARRAY_SIZE(sgs));
+	_ON(out_num + 1 > ARRAY_SIZE(sgs));
 	virtqueue_add_sgs(vi->cvq, sgs, out_num, 1, vi, GFP_ATOMIC);
 
 	if (unlikely(!virtqueue_kick(vi->cvq)))
@@ -2917,7 +2917,7 @@ static ssize_t mergeable_rx_buffer_size_show(struct netdev_rx_queue *queue,
 	unsigned int tailroom = headroom ? sizeof(struct skb_shared_info) : 0;
 	struct ewma_pkt_len *avg;
 
-	BUG_ON(queue_index >= vi->max_queue_pairs);
+	_ON(queue_index >= vi->max_queue_pairs);
 	avg = &vi->rq[queue_index].mrg_avg_pkt_len;
 	return sprintf(buf, "%u\n",
 		       get_mergeable_buf_len(&vi->rq[queue_index], avg,
@@ -3162,7 +3162,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	err = register_netdev(dev);
 	if (err) {
-		pr_debug("virtio_net: registering device failed\n");
+		pr_de("virtio_net: registering device failed\n");
 		goto free_failover;
 	}
 
@@ -3170,7 +3170,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	err = virtnet_cpu_notif_add(vi);
 	if (err) {
-		pr_debug("virtio_net: registering cpu notifier failed\n");
+		pr_de("virtio_net: registering cpu notifier failed\n");
 		goto free_unregister_netdev;
 	}
 
@@ -3192,7 +3192,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 			set_bit(guest_offloads[i], &vi->guest_offloads);
 	vi->guest_offloads_capable = vi->guest_offloads;
 
-	pr_debug("virtnet: registered device %s with %d RX and TX vq's\n",
+	pr_de("virtnet: registered device %s with %d RX and TX vq's\n",
 		 dev->name, max_queue_pairs);
 
 	return 0;

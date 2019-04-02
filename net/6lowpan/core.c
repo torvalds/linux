@@ -48,7 +48,7 @@ int lowpan_register_netdevice(struct net_device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = lowpan_dev_debugfs_init(dev);
+	ret = lowpan_dev_defs_init(dev);
 	if (ret < 0)
 		unregister_netdevice(dev);
 
@@ -71,7 +71,7 @@ EXPORT_SYMBOL(lowpan_register_netdev);
 void lowpan_unregister_netdevice(struct net_device *dev)
 {
 	unregister_netdevice(dev);
-	lowpan_dev_debugfs_exit(dev);
+	lowpan_dev_defs_exit(dev);
 }
 EXPORT_SYMBOL(lowpan_unregister_netdevice);
 
@@ -158,13 +158,13 @@ static int __init lowpan_module_init(void)
 {
 	int ret;
 
-	ret = lowpan_debugfs_init();
+	ret = lowpan_defs_init();
 	if (ret < 0)
 		return ret;
 
 	ret = register_netdevice_notifier(&lowpan_notifier);
 	if (ret < 0) {
-		lowpan_debugfs_exit();
+		lowpan_defs_exit();
 		return ret;
 	}
 
@@ -181,7 +181,7 @@ static int __init lowpan_module_init(void)
 
 static void __exit lowpan_module_exit(void)
 {
-	lowpan_debugfs_exit();
+	lowpan_defs_exit();
 	unregister_netdevice_notifier(&lowpan_notifier);
 }
 

@@ -1,6 +1,6 @@
 generic-y += asm-offsets.h
 generic-y += barrier.h
-generic-y += bugs.h
+generic-y += s.h
 generic-y += cacheflush.h
 generic-y += checksum.h
 generic-y += compat.h
@@ -20,7 +20,7 @@ generic-y += hardirq.h
 generic-y += hw_irq.h
 generic-y += irq_regs.h
 generic-y += irq_work.h
-generic-y += kdebug.h
+generic-y += kde.h
 generic-y += kmap_types.h
 generic-y += kprobes.h
 generic-y += kvm_para.h

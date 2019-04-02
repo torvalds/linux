@@ -21,7 +21,7 @@ struct thread_info {
 
 	mm_segment_t		addr_limit;	/* thread address space */
 	unsigned		cpu;		/* current CPU */
-	int			preempt_count; /* 0 => preemptable, <0 => BUG */
+	int			preempt_count; /* 0 => preemptable, <0 =>  */
 	unsigned int		status;		/* thread-synchronous flags */
 
 	int bpt_nsaved;

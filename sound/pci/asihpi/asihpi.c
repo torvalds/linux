@@ -49,14 +49,14 @@ MODULE_AUTHOR("AudioScience inc. <support@audioscience.com>");
 MODULE_DESCRIPTION("AudioScience ALSA ASI5xxx ASI6xxx ASI87xx ASI89xx "
 			HPI_VER_STRING);
 
-#if defined CONFIG_SND_DEBUG_VERBOSE
+#if defined CONFIG_SND_DE_VERBOSE
 /**
- * snd_printddd - very verbose debug printk
+ * snd_printddd - very verbose de printk
  * @format: format string
  *
- * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
- * Must set snd module debug parameter to 3 to enable at runtime.
+ * Works like snd_printk() for deging purposes.
+ * Ignored when CONFIG_SND_DE_VERBOSE is not set.
+ * Must set snd module de parameter to 3 to enable at runtime.
  */
 #define snd_printddd(format, args...) \
 	__snd_printk(3, __FILE__, __LINE__, format, ##args)
@@ -297,7 +297,7 @@ static void print_hwparams(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *p)
 {
 	char name[16];
-	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_pcm_de_name(substream, name, sizeof(name));
 	snd_printdd("%s HWPARAMS\n", name);
 	snd_printdd(" samplerate=%dHz channels=%d format=%d subformat=%d\n",
 		params_rate(p), params_channels(p),
@@ -600,7 +600,7 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 	u16 e;
 	char name[16];
 
-	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_pcm_de_name(substream, name, sizeof(name));
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -766,7 +766,7 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 	char name[16];
 
 
-	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_pcm_de_name(substream, name, sizeof(name));
 
 	/* find minimum newdata and buffer pos in group */
 	snd_pcm_group_for_each_entry(s, substream) {
@@ -964,7 +964,7 @@ static int snd_card_asihpi_playback_ioctl(struct snd_pcm_substream *substream,
 					  unsigned int cmd, void *arg)
 {
 	char name[16];
-	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_pcm_de_name(substream, name, sizeof(name));
 	snd_printddd(KERN_INFO "%s ioctl %d\n", name, cmd);
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
@@ -991,7 +991,7 @@ snd_card_asihpi_playback_pointer(struct snd_pcm_substream *substream)
 	struct snd_card_asihpi_pcm *dpcm = runtime->private_data;
 	snd_pcm_uframes_t ptr;
 	char name[16];
-	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_pcm_de_name(substream, name, sizeof(name));
 
 	ptr = bytes_to_frames(runtime, dpcm->pcm_buf_dma_ofs  % dpcm->buffer_bytes);
 	snd_printddd("%s, pointer=%ld\n", name, (unsigned long)ptr);
@@ -1150,7 +1150,7 @@ snd_card_asihpi_capture_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_card_asihpi_pcm *dpcm = runtime->private_data;
 	char name[16];
-	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_pcm_de_name(substream, name, sizeof(name));
 
 	snd_printddd("%s, pointer=%d\n", name, dpcm->pcm_buf_dma_ofs);
 	/* NOTE Unlike playback can't use actual samples_played
@@ -2537,7 +2537,7 @@ static int snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
 	int i, j;
 	u16 source;
 
-	if (snd_BUG_ON(!asihpi))
+	if (snd__ON(!asihpi))
 		return -EINVAL;
 	card = asihpi->card;
 	clkcache = &asihpi->cc;
@@ -2614,7 +2614,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 	int err;
 	struct hpi_control hpi_ctl, prev_ctl;
 
-	if (snd_BUG_ON(!asihpi))
+	if (snd__ON(!asihpi))
 		return -EINVAL;
 	card = asihpi->card;
 	strcpy(card->mixername, "Asihpi Mixer");

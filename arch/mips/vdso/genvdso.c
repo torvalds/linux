@@ -19,7 +19,7 @@
  * We need to be passed both a stripped and unstripped VDSO image. The stripped
  * image is compiled into the kernel, but we must also patch up the unstripped
  * image's ABI flags sections so that it can be installed and used for
- * debugging.
+ * deging.
  */
 
 #include <sys/mman.h>
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 
 	if (argc < 4 || argc > 5) {
 		fprintf(stderr,
-			"Usage: %s <debug VDSO> <stripped VDSO> <output file> [<name>]\n",
+			"Usage: %s <de VDSO> <stripped VDSO> <output file> [<name>]\n",
 			program_name);
 		return EXIT_FAILURE;
 	}

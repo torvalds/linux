@@ -272,7 +272,7 @@ struct hci_dev {
 	__u16		discov_interleaved_timeout;
 	__u16		conn_info_min_age;
 	__u16		conn_info_max_age;
-	__u8		ssp_debug_mode;
+	__u8		ssp_de_mode;
 	__u8		hw_error_code;
 	__u32		clock;
 
@@ -397,7 +397,7 @@ struct hci_dev {
 
 	const char		*hw_info;
 	const char		*fw_info;
-	struct dentry		*debugfs;
+	struct dentry		*defs;
 
 	struct device		dev;
 
@@ -511,7 +511,7 @@ struct hci_conn {
 	struct work_struct  le_scan_cleanup;
 
 	struct device	dev;
-	struct dentry	*debugfs;
+	struct dentry	*defs;
 
 	struct hci_dev	*hdev;
 	void		*l2cap_data;

@@ -456,7 +456,7 @@ enum atom_dtd_format_modemiscinfo{
 
 
 /* utilitypipeline
- * when format_revision==1 && content_revision==1, then this an info table for atomworks to use during debug session, no structure is associated with it.
+ * when format_revision==1 && content_revision==1, then this an info table for atomworks to use during de session, no structure is associated with it.
  * the location of it can't change
 */
 

@@ -72,11 +72,11 @@ NOTE2: When operating in manual mode outside the vbios-defined
 [PWM_min, PWM_max] range, the reported fan speed (RPM) may not be accurate
 depending on your hardware.
 
-Bug reports
+ reports
 ---------
 
 Thermal management on Nouveau is new and may not work on all cards. If you have
 inquiries, please ping mupuf on IRC (#nouveau, freenode).
 
-Bug reports should be filled on Freedesktop's bug tracker. Please follow
-http://nouveau.freedesktop.org/wiki/Bugs
+ reports should be filled on Freedesktop's  tracker. Please follow
+http://nouveau.freedesktop.org/wiki/s

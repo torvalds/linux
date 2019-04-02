@@ -155,7 +155,7 @@ clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
 	int		status = 0;
 	unsigned int	val;
 
-	BUG_ON(delta < 2);
+	_ON(delta < 2);
 
 	/* The alarm IRQ uses absolute time (now+delta), not the relative
 	 * time (delta) in our calling convention.  Like all clockevents

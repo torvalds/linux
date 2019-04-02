@@ -151,7 +151,7 @@ static struct pci_driver xircom_ops = {
 };
 
 
-#if defined DEBUG && DEBUG > 1
+#if defined DE && DE > 1
 static void print_binary(unsigned int number)
 {
 	int i,i2;
@@ -166,7 +166,7 @@ static void print_binary(unsigned int number)
 		if ((i&3)==0)
 			buffer[i2++]=' ';
 	}
-	pr_debug("%s\n",buffer);
+	pr_de("%s\n",buffer);
 }
 #endif
 
@@ -332,11 +332,11 @@ static irqreturn_t xircom_interrupt(int irq, void *dev_instance)
 	spin_lock(&card->lock);
 	status = xr32(CSR5);
 
-#if defined DEBUG && DEBUG > 1
+#if defined DE && DE > 1
 	print_binary(status);
-	pr_debug("tx status 0x%08x 0x%08x\n",
+	pr_de("tx status 0x%08x 0x%08x\n",
 		 card->tx_buffer[0], card->tx_buffer[4]);
-	pr_debug("rx status 0x%08x 0x%08x\n",
+	pr_de("rx status 0x%08x 0x%08x\n",
 		 card->rx_buffer[0], card->rx_buffer[4]);
 #endif
 	/* Handle shared irq and hotplug */
@@ -563,8 +563,8 @@ static void setup_descriptors(struct xircom_private *card)
 	u32 address;
 	int i;
 
-	BUG_ON(card->rx_buffer == NULL);
-	BUG_ON(card->tx_buffer == NULL);
+	_ON(card->rx_buffer == NULL);
+	_ON(card->tx_buffer == NULL);
 
 	/* Receive descriptors */
 	memset(card->rx_buffer, 0, 128);	/* clear the descriptors */
@@ -1027,7 +1027,7 @@ static void read_mac_address(struct xircom_private *card)
 		}
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
-	pr_debug(" %pM\n", card->dev->dev_addr);
+	pr_de(" %pM\n", card->dev->dev_addr);
 }
 
 

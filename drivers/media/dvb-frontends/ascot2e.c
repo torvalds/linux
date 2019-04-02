@@ -109,7 +109,7 @@ static struct ascot2e_band_sett ascot2e_sett[] = {
 	  ASCOT2E_OFFSET(-2), ASCOT2E_OFFSET(2),  ASCOT2E_BW_8,  0x09, 0x00 }
 };
 
-static void ascot2e_i2c_debug(struct ascot2e_priv *priv,
+static void ascot2e_i2c_de(struct ascot2e_priv *priv,
 			      u8 reg, u8 write, const u8 *data, u32 len)
 {
 	dev_dbg(&priv->i2c->dev, "ascot2e: I2C %s reg 0x%02x size %d\n",
@@ -138,7 +138,7 @@ static int ascot2e_write_regs(struct ascot2e_priv *priv,
 		return -E2BIG;
 	}
 
-	ascot2e_i2c_debug(priv, reg, 1, data, len);
+	ascot2e_i2c_de(priv, reg, 1, data, len);
 	buf[0] = reg;
 	memcpy(&buf[1], data, len);
 	ret = i2c_transfer(priv->i2c, msg, 1);
@@ -155,7 +155,7 @@ static int ascot2e_write_regs(struct ascot2e_priv *priv,
 
 static int ascot2e_write_reg(struct ascot2e_priv *priv, u8 reg, u8 val)
 {
-	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = val; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 	return ascot2e_write_regs(priv, reg, &tmp, 1);
 }
@@ -196,7 +196,7 @@ static int ascot2e_read_regs(struct ascot2e_priv *priv,
 			KBUILD_MODNAME, ret, priv->i2c_address, reg);
 		return ret;
 	}
-	ascot2e_i2c_debug(priv, reg, 0, val, len);
+	ascot2e_i2c_de(priv, reg, 0, val, len);
 	return 0;
 }
 

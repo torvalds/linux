@@ -463,7 +463,7 @@ enum change_attr_type4 {
 #define NFS4_VERSION 4
 #define NFS4_MINOR_VERSION 0
 
-#define NFS4_DEBUG 1
+#define NFS4_DE 1
 
 /*
  * Index of predefined Linux client operations

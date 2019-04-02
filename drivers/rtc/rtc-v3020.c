@@ -32,7 +32,7 @@
 
 #include <linux/io.h>
 
-#undef DEBUG
+#undef DE
 
 struct v3020;
 

@@ -366,7 +366,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 
 #define cgw_hops(skb) ((skb)->csum_start)
 
-	BUG_ON(skb->ip_summed != CHECKSUM_UNNECESSARY);
+	_ON(skb->ip_summed != CHECKSUM_UNNECESSARY);
 
 	if (cgw_hops(skb) >= max_hops) {
 		/* indicate deleted frames due to misconfiguration */

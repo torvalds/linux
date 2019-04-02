@@ -195,7 +195,7 @@ int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
 				*listp = p->conns;
 			return p->len;
 		}
-		if (snd_BUG_ON(added))
+		if (snd__ON(added))
 			return -EINVAL;
 
 		err = read_and_add_raw_conns(codec, nid);
@@ -861,9 +861,9 @@ static int snd_hda_codec_device_init(struct hda_bus *bus, struct snd_card *card,
 
 	dev_dbg(card->dev, "%s: entry\n", __func__);
 
-	if (snd_BUG_ON(!bus))
+	if (snd__ON(!bus))
 		return -EINVAL;
-	if (snd_BUG_ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
+	if (snd__ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
 		return -EINVAL;
 
 	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
@@ -917,9 +917,9 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 
 	dev_dbg(card->dev, "%s: entry\n", __func__);
 
-	if (snd_BUG_ON(!bus))
+	if (snd__ON(!bus))
 		return -EINVAL;
-	if (snd_BUG_ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
+	if (snd__ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
 		return -EINVAL;
 
 	codec->core.dev.release = snd_hda_codec_dev_release;
@@ -1303,7 +1303,7 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 {
 	int ch, ret = 0;
 
-	if (snd_BUG_ON(mask & ~0xff))
+	if (snd__ON(mask & ~0xff))
 		mask &= 0xff;
 	for (ch = 0; ch < 2; ch++)
 		ret |= snd_hda_codec_amp_update(codec, nid, ch, direction,
@@ -1358,7 +1358,7 @@ int snd_hda_codec_amp_init_stereo(struct hda_codec *codec, hda_nid_t nid,
 {
 	int ch, ret = 0;
 
-	if (snd_BUG_ON(mask & ~0xff))
+	if (snd__ON(mask & ~0xff))
 		mask &= 0xff;
 	for (ch = 0; ch < 2; ch++)
 		ret |= snd_hda_codec_amp_init(codec, nid, ch, dir,
@@ -1583,7 +1583,7 @@ find_mixer_ctl(struct hda_codec *codec, const char *name, int dev, int idx)
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	id.device = dev;
 	id.index = idx;
-	if (snd_BUG_ON(strlen(name) >= sizeof(id.name)))
+	if (snd__ON(strlen(name) >= sizeof(id.name)))
 		return NULL;
 	strcpy(id.name, name);
 	return snd_ctl_find_id(codec->card, &id);
@@ -3112,12 +3112,12 @@ static int set_pcm_default_values(struct hda_codec *codec,
 	if (info->ops.close == NULL)
 		info->ops.close = hda_pcm_default_open_close;
 	if (info->ops.prepare == NULL) {
-		if (snd_BUG_ON(!info->nid))
+		if (snd__ON(!info->nid))
 			return -EINVAL;
 		info->ops.prepare = hda_pcm_default_prepare;
 	}
 	if (info->ops.cleanup == NULL) {
-		if (snd_BUG_ON(!info->nid))
+		if (snd__ON(!info->nid))
 			return -EINVAL;
 		info->ops.cleanup = hda_pcm_default_cleanup;
 	}

@@ -8,7 +8,7 @@
  * Licensed under the GPL v2 or later.
  */
 #include <linux/completion.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -150,10 +150,10 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 /*
- * debugfs support for "generic commands", to allow sending
+ * defs support for "generic commands", to allow sending
  * arbitrary EC commands from userspace.
  */
 
@@ -184,7 +184,7 @@ static ssize_t ec_dbgfs_cmd_write(struct file *file, const char __user *buf,
 		/* reset to prevent overflow on read */
 		ec_dbgfs_resp_bytes = 0;
 
-		pr_debug("olpc-ec: bad ec cmd:  cmd:response-count [arg1 [arg2 ...]]\n");
+		pr_de("olpc-ec: bad ec cmd:  cmd:response-count [arg1 [arg2 ...]]\n");
 		size = -EINVAL;
 		goto out;
 	}
@@ -194,14 +194,14 @@ static ssize_t ec_dbgfs_cmd_write(struct file *file, const char __user *buf,
 	for (i = 0; i <= ec_cmd_bytes; i++)
 		ec_cmd[i] = ec_cmd_int[i];
 
-	pr_debug("olpc-ec: debugfs cmd 0x%02x with %d args %5ph, want %d returns\n",
+	pr_de("olpc-ec: defs cmd 0x%02x with %d args %5ph, want %d returns\n",
 			ec_cmd[0], ec_cmd_bytes, ec_cmd + 1,
 			ec_dbgfs_resp_bytes);
 
 	olpc_ec_cmd(ec_cmd[0], (ec_cmd_bytes == 0) ? NULL : &ec_cmd[1],
 			ec_cmd_bytes, ec_dbgfs_resp, ec_dbgfs_resp_bytes);
 
-	pr_debug("olpc-ec: response %8ph (%d bytes expected)\n",
+	pr_de("olpc-ec: response %8ph (%d bytes expected)\n",
 			ec_dbgfs_resp, ec_dbgfs_resp_bytes);
 
 out:
@@ -233,27 +233,27 @@ static const struct file_operations ec_dbgfs_ops = {
 	.read = ec_dbgfs_cmd_read,
 };
 
-static struct dentry *olpc_ec_setup_debugfs(void)
+static struct dentry *olpc_ec_setup_defs(void)
 {
 	struct dentry *dbgfs_dir;
 
-	dbgfs_dir = debugfs_create_dir("olpc-ec", NULL);
+	dbgfs_dir = defs_create_dir("olpc-ec", NULL);
 	if (IS_ERR_OR_NULL(dbgfs_dir))
 		return NULL;
 
-	debugfs_create_file("cmd", 0600, dbgfs_dir, NULL, &ec_dbgfs_ops);
+	defs_create_file("cmd", 0600, dbgfs_dir, NULL, &ec_dbgfs_ops);
 
 	return dbgfs_dir;
 }
 
 #else
 
-static struct dentry *olpc_ec_setup_debugfs(void)
+static struct dentry *olpc_ec_setup_defs(void)
 {
 	return NULL;
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int olpc_ec_probe(struct platform_device *pdev)
 {
@@ -282,7 +282,7 @@ static int olpc_ec_probe(struct platform_device *pdev)
 		ec_priv = NULL;
 		kfree(ec);
 	} else {
-		ec->dbgfs_dir = olpc_ec_setup_debugfs();
+		ec->dbgfs_dir = olpc_ec_setup_defs();
 	}
 
 	return err;

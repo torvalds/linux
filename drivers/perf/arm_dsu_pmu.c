@@ -16,7 +16,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>

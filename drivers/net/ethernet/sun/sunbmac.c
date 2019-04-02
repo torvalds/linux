@@ -51,23 +51,23 @@ MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_DESCRIPTION("Sun BigMAC 100baseT ethernet driver");
 MODULE_LICENSE("GPL");
 
-#undef DEBUG_PROBE
-#undef DEBUG_TX
-#undef DEBUG_IRQ
+#undef DE_PROBE
+#undef DE_TX
+#undef DE_IRQ
 
-#ifdef DEBUG_PROBE
+#ifdef DE_PROBE
 #define DP(x)  printk x
 #else
 #define DP(x)
 #endif
 
-#ifdef DEBUG_TX
+#ifdef DE_TX
 #define DTX(x)  printk x
 #else
 #define DTX(x)
 #endif
 
-#ifdef DEBUG_IRQ
+#ifdef DE_IRQ
 #define DIRQ(x)  printk x
 #else
 #define DIRQ(x)

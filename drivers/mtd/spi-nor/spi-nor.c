@@ -206,7 +206,7 @@ struct sfdp_header {
  */
 #define BFPT_DWORD15_QER_MASK			GENMASK(22, 20)
 #define BFPT_DWORD15_QER_NONE			(0x0UL << 20) /* Micron */
-#define BFPT_DWORD15_QER_SR2_BIT1_BUGGY		(0x1UL << 20)
+#define BFPT_DWORD15_QER_SR2_BIT1_GY		(0x1UL << 20)
 #define BFPT_DWORD15_QER_SR1_BIT6		(0x2UL << 20) /* Macronix */
 #define BFPT_DWORD15_QER_SR2_BIT7		(0x3UL << 20)
 #define BFPT_DWORD15_QER_SR2_BIT1_NO_RD		(0x4UL << 20)
@@ -1467,7 +1467,7 @@ static int macronix_quad_enable(struct spi_nor *nor)
  * Set the Quad Enable (QE) bit in the Configuration Register.
  * This function is kept for legacy purpose because it has been used for a
  * long time without anybody complaining but it should be considered as
- * deprecated and maybe buggy.
+ * deprecated and maybe gy.
  * First, this function doesn't care about the previous values of the Status
  * and Configuration Registers when it sets the QE bit (bit 1) in the
  * Configuration Register: all other bits are cleared, which may have unwanted
@@ -2903,7 +2903,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 		params->quad_enable = NULL;
 		break;
 
-	case BFPT_DWORD15_QER_SR2_BIT1_BUGGY:
+	case BFPT_DWORD15_QER_SR2_BIT1_GY:
 	case BFPT_DWORD15_QER_SR2_BIT1_NO_RD:
 		params->quad_enable = spansion_no_read_cr_quad_enable;
 		break;

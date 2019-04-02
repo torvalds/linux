@@ -43,7 +43,7 @@ static pmd_t *resume_one_md_table_init(pgd_t *pgd)
 	p4d = p4d_offset(pgd, 0);
 	pud = pud_offset(p4d, 0);
 
-	BUG_ON(pmd_table != pmd_offset(pud, 0));
+	_ON(pmd_table != pmd_offset(pud, 0));
 #else
 	p4d = p4d_offset(pgd, 0);
 	pud = pud_offset(p4d, 0);
@@ -66,7 +66,7 @@ static pte_t *resume_one_page_table_init(pmd_t *pmd)
 
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
 
-		BUG_ON(page_table != pte_offset_kernel(pmd, 0));
+		_ON(page_table != pte_offset_kernel(pmd, 0));
 
 		return page_table;
 	}

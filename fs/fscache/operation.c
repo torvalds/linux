@@ -11,14 +11,14 @@
  * See Documentation/filesystems/caching/operations.txt
  */
 
-#define FSCACHE_DEBUG_LEVEL OPERATION
+#define FSCACHE_DE_LEVEL OPERATION
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include "internal.h"
 
-atomic_t fscache_op_debug_id;
-EXPORT_SYMBOL(fscache_op_debug_id);
+atomic_t fscache_op_de_id;
+EXPORT_SYMBOL(fscache_op_de_id);
 
 static void fscache_operation_dummy_cancel(struct fscache_operation *op)
 {
@@ -41,7 +41,7 @@ void fscache_operation_init(struct fscache_cookie *cookie,
 	INIT_WORK(&op->work, fscache_op_work_func);
 	atomic_set(&op->usage, 1);
 	op->state = FSCACHE_OP_ST_INITIALISED;
-	op->debug_id = atomic_inc_return(&fscache_op_debug_id);
+	op->de_id = atomic_inc_return(&fscache_op_de_id);
 	op->processor = processor;
 	op->cancel = cancel ?: fscache_operation_dummy_cancel;
 	op->release = release;
@@ -64,7 +64,7 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	struct fscache_cookie *cookie = op->object->cookie;
 	
 	_enter("{OBJ%x OP%x,%u}",
-	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       op->object->de_id, op->de_id, atomic_read(&op->usage));
 
 	ASSERT(list_empty(&op->pend_link));
 	ASSERT(op->processor != NULL);
@@ -77,18 +77,18 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	switch (op->flags & FSCACHE_OP_TYPE) {
 	case FSCACHE_OP_ASYNC:
 		trace_fscache_op(cookie, op, fscache_op_enqueue_async);
-		_debug("queue async");
+		_de("queue async");
 		atomic_inc(&op->usage);
 		if (!queue_work(fscache_op_wq, &op->work))
 			fscache_put_operation(op);
 		break;
 	case FSCACHE_OP_MYTHREAD:
 		trace_fscache_op(cookie, op, fscache_op_enqueue_mythread);
-		_debug("queue for caller's attention");
+		_de("queue for caller's attention");
 		break;
 	default:
 		pr_err("Unexpected op type %lx", op->flags);
-		BUG();
+		();
 		break;
 	}
 }
@@ -128,23 +128,23 @@ static void fscache_report_unexpected_submission(struct fscache_object *object,
 		return;
 	once_only = true;
 
-	kdebug("unexpected submission OP%x [OBJ%x %s]",
-	       op->debug_id, object->debug_id, object->state->name);
-	kdebug("objstate=%s [%s]", object->state->name, ostate->name);
-	kdebug("objflags=%lx", object->flags);
-	kdebug("objevent=%lx [%lx]", object->events, object->event_mask);
-	kdebug("ops=%u inp=%u exc=%u",
+	kde("unexpected submission OP%x [OBJ%x %s]",
+	       op->de_id, object->de_id, object->state->name);
+	kde("objstate=%s [%s]", object->state->name, ostate->name);
+	kde("objflags=%lx", object->flags);
+	kde("objevent=%lx [%lx]", object->events, object->event_mask);
+	kde("ops=%u inp=%u exc=%u",
 	       object->n_ops, object->n_in_progress, object->n_exclusive);
 
 	if (!list_empty(&object->pending_ops)) {
 		n = 0;
 		list_for_each_entry(p, &object->pending_ops, pend_link) {
 			ASSERTCMP(p->object, ==, object);
-			kdebug("%p %p", op->processor, op->release);
+			kde("%p %p", op->processor, op->release);
 			n++;
 		}
 
-		kdebug("n=%u", n);
+		kde("n=%u", n);
 	}
 
 	dump_stack();
@@ -162,7 +162,7 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 	unsigned long flags;
 	int ret;
 
-	_enter("{OBJ%x OP%x},", object->debug_id, op->debug_id);
+	_enter("{OBJ%x OP%x},", object->de_id, op->de_id);
 
 	trace_fscache_op(object->cookie, op, fscache_op_submit_ex);
 
@@ -249,7 +249,7 @@ int fscache_submit_op(struct fscache_object *object,
 	int ret;
 
 	_enter("{OBJ%x OP%x},{%u}",
-	       object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       object->de_id, op->de_id, atomic_read(&op->usage));
 
 	trace_fscache_op(object->cookie, op, fscache_op_submit);
 
@@ -322,7 +322,7 @@ int fscache_submit_op(struct fscache_object *object,
  */
 void fscache_abort_object(struct fscache_object *object)
 {
-	_enter("{OBJ%x}", object->debug_id);
+	_enter("{OBJ%x}", object->de_id);
 
 	fscache_raise_event(object, FSCACHE_OBJECT_EV_ERROR);
 }
@@ -354,8 +354,8 @@ void fscache_start_operations(struct fscache_object *object)
 
 	ASSERTCMP(object->n_in_progress, <=, object->n_ops);
 
-	_debug("woke %d ops on OBJ%x",
-	       object->n_in_progress, object->debug_id);
+	_de("woke %d ops on OBJ%x",
+	       object->n_in_progress, object->de_id);
 }
 
 /*
@@ -368,7 +368,7 @@ int fscache_cancel_op(struct fscache_operation *op,
 	bool put = false;
 	int ret;
 
-	_enter("OBJ%x OP%x}", op->object->debug_id, op->debug_id);
+	_enter("OBJ%x OP%x}", op->object->de_id, op->de_id);
 
 	trace_fscache_op(object->cookie, op, fscache_op_cancel);
 
@@ -424,7 +424,7 @@ void fscache_cancel_all_ops(struct fscache_object *object)
 {
 	struct fscache_operation *op;
 
-	_enter("OBJ%x", object->debug_id);
+	_enter("OBJ%x", object->de_id);
 
 	spin_lock(&object->lock);
 
@@ -459,7 +459,7 @@ void fscache_op_complete(struct fscache_operation *op, bool cancelled)
 {
 	struct fscache_object *object = op->object;
 
-	_enter("OBJ%x", object->debug_id);
+	_enter("OBJ%x", object->de_id);
 
 	ASSERTCMP(op->state, ==, FSCACHE_OP_ST_IN_PROGRESS);
 	ASSERTCMP(object->n_in_progress, >, 0);
@@ -500,8 +500,8 @@ void fscache_put_operation(struct fscache_operation *op)
 	struct fscache_cache *cache;
 
 	_enter("{OBJ%x OP%x,%d}",
-	       op->object ? op->object->debug_id : 0,
-	       op->debug_id, atomic_read(&op->usage));
+	       op->object ? op->object->de_id : 0,
+	       op->de_id, atomic_read(&op->usage));
 
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
 
@@ -510,7 +510,7 @@ void fscache_put_operation(struct fscache_operation *op)
 
 	trace_fscache_op(op->object ? op->object->cookie : NULL, op, fscache_op_put);
 
-	_debug("PUT OP");
+	_de("PUT OP");
 	ASSERTIFCMP(op->state != FSCACHE_OP_ST_INITIALISED &&
 		    op->state != FSCACHE_OP_ST_COMPLETE,
 		    op->state, ==, FSCACHE_OP_ST_CANCELLED);
@@ -534,7 +534,7 @@ void fscache_put_operation(struct fscache_operation *op)
 		 * complete the cleanup here only if we can immediately acquire the
 		 * lock, and defer it otherwise */
 		if (!spin_trylock(&object->lock)) {
-			_debug("defer put");
+			_de("defer put");
 			fscache_stat(&fscache_n_op_deferred_release);
 
 			cache = object->cache;
@@ -589,8 +589,8 @@ void fscache_operation_gc(struct work_struct *work)
 
 		spin_lock(&object->lock);
 
-		_debug("GC DEFERRED REL OBJ%x OP%x",
-		       object->debug_id, op->debug_id);
+		_de("GC DEFERRED REL OBJ%x OP%x",
+		       object->de_id, op->de_id);
 		fscache_stat(&fscache_n_op_gc);
 
 		ASSERTCMP(atomic_read(&op->usage), ==, 0);
@@ -623,7 +623,7 @@ void fscache_op_work_func(struct work_struct *work)
 	unsigned long start;
 
 	_enter("{OBJ%x OP%x,%d}",
-	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       op->object->de_id, op->de_id, atomic_read(&op->usage));
 
 	trace_fscache_op(op->object->cookie, op, fscache_op_work);
 

@@ -28,7 +28,7 @@
 #include "vega20_processpptables.h"
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "cgs_common.h"
 #include "vega20_pptable.h"
 
@@ -513,7 +513,7 @@ static void dump_pptable(PPTable_t *pptable)
 	for (i = 0; i < NUM_XGMI_LEVELS; i++)
 		pr_info("  .[%d] = %d\n", i, pptable->XgmiSocVoltage[i]);
 
-	pr_info("DebugOverrides = 0x%x\n", pptable->DebugOverrides);
+	pr_info("DeOverrides = 0x%x\n", pptable->DeOverrides);
 	pr_info("ReservedEquation0{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->ReservedEquation0.a,
 			pptable->ReservedEquation0.b,

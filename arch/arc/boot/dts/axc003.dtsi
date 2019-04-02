@@ -74,7 +74,7 @@
 			};
 		};
 
-		debug_uart: dw-apb-uart@5000 {
+		de_uart: dw-apb-uart@5000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x5000 0x100>;
 			clock-frequency = <33333000>;

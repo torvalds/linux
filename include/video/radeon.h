@@ -86,7 +86,7 @@
 #define MC_INIT_MISC_LAT_TIMER                 0x0180
 #define MEM_IO_CNTL_B1                         0x0184
 #define MC_IOPAD_CNTL                          0x0184
-#define MC_DEBUG                               0x0188
+#define MC_DE                               0x0188
 #define MC_STATUS                              0x0150
 #define MEM_IO_OE_CNTL                         0x018C
 #define MC_CHIP_IO_OE_CNTL_AB                  0x018C
@@ -94,7 +94,7 @@
 #define HOST_PATH_CNTL                         0x0130
 #define MEM_VGA_WP_SEL                         0x0038
 #define MEM_VGA_RP_SEL                         0x003C
-#define HDP_DEBUG                              0x0138
+#define HDP_DE                              0x0138
 #define SW_SEMAPHORE                           0x013C
 #define CRTC2_GEN_CNTL                         0x03f8
 #define CRTC2_DISPLAY_BASE_ADDR                0x033c
@@ -139,7 +139,7 @@
 #define RBBM_SOFT_RESET                        0x00F0
 #define RBBM_SOFT_RESET_alt_1                  0x0E48
 #define NQWAIT_UNTIL                           0x0E50
-#define RBBM_DEBUG                             0x0E6C
+#define RBBM_DE                             0x0E6C
 #define RBBM_CMDFIFO_ADDR                      0x0E70
 #define RBBM_CMDFIFO_DATAL                     0x0E74
 #define RBBM_CMDFIFO_DATAH                     0x0E78
@@ -159,7 +159,7 @@
 #define CRTC_VLINE_CRNT_VLINE                  0x0210
 #define CRTC_CRNT_FRAME                        0x0214
 #define CRTC_GUI_TRIG_VLINE                    0x0218
-#define CRTC_DEBUG                             0x021C
+#define CRTC_DE                             0x021C
 #define CRTC_OFFSET_RIGHT                      0x0220
 #define CRTC_OFFSET                            0x0224
 #define CRTC_OFFSET_CNTL                       0x0228
@@ -263,8 +263,8 @@
 #define DISP_MISC_CNTL                         0x0D00
 #define DAC_MACRO_CNTL                         0x0D04
 #define DISP_PWR_MAN                           0x0D08
-#define DISP_TEST_DEBUG_CNTL                   0x0D10
-#define DISP_HW_DEBUG                          0x0D14
+#define DISP_TEST_DE_CNTL                   0x0D10
+#define DISP_HW_DE                          0x0D14
 #define DAC_CRC_SIG1                           0x0D18
 #define DAC_CRC_SIG2                           0x0D1C
 #define OV0_LIN_TRANS_A                        0x0D20
@@ -1055,7 +1055,7 @@
 #define	CLK_PWRMGT_CNTL__DLL_READY__SHIFT               0x00000013
 #define	CLK_PWRMGT_CNTL__DISP_PM__SHIFT                 0x00000014
 #define	CLK_PWRMGT_CNTL__DYN_STOP_MODE__SHIFT           0x00000015
-#define	CLK_PWRMGT_CNTL__CG_NO1_DEBUG__SHIFT            0x00000018
+#define	CLK_PWRMGT_CNTL__CG_NO1_DE__SHIFT            0x00000018
 #define	CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF__SHIFT        0x0000001e
 #define	CLK_PWRMGT_CNTL__TVCLK_TURNOFF__SHIFT           0x0000001f
 
@@ -1293,7 +1293,7 @@
 #define PLL_PWRMGT_CNTL__TCL_BYPASS_DISABLE                0x00100000L
 #define PLL_PWRMGT_CNTL__TCL_CLOCK_CTIVE_RD_MASK          0x00200000L
 #define PLL_PWRMGT_CNTL__TCL_CLOCK_ACTIVE_RD               0x00200000L
-#define PLL_PWRMGT_CNTL__CG_NO2_DEBUG_MASK                 0xff000000L
+#define PLL_PWRMGT_CNTL__CG_NO2_DE_MASK                 0xff000000L
 
 // CLK_PWRMGT_CNTL
 #define CLK_PWRMGT_CNTL__MPLL_PWRMGT_OFF_MASK           0x00000001L
@@ -1334,7 +1334,7 @@
 #define CLK_PWRMGT_CNTL__DISP_PM_MASK                   0x00100000L
 #define CLK_PWRMGT_CNTL__DISP_PM                        0x00100000L
 #define CLK_PWRMGT_CNTL__DYN_STOP_MODE_MASK             0x00e00000L
-#define CLK_PWRMGT_CNTL__CG_NO1_DEBUG_MASK              0x3f000000L
+#define CLK_PWRMGT_CNTL__CG_NO1_DE_MASK              0x3f000000L
 #define CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF_MASK          0x40000000L
 #define CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF               0x40000000L
 #define CLK_PWRMGT_CNTL__TVCLK_TURNOFF_MASK             0x80000000L
@@ -1978,7 +1978,7 @@
 #define ixR300_MC_CHP_IO_OE_CNTL_CD                0x0023
 #define ixR300_MC_READ_CNTL_CD                     0x0024
 #define ixR300_MC_MC_INIT_WR_LAT_TIMER             0x0025
-#define ixR300_MC_DEBUG_CNTL                       0x0026
+#define ixR300_MC_DE_CNTL                       0x0026
 #define ixR300_MC_BIST_CNTL_0                      0x0028
 #define ixR300_MC_BIST_CNTL_1                      0x0029
 #define ixR300_MC_BIST_CNTL_2                      0x002a

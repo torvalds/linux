@@ -81,8 +81,8 @@
 #define mmSRBM_STATUS                                                           0x394
 #define mmSRBM_STATUS3                                                          0x395
 #define mmSRBM_SOFT_RESET                                                       0x398
-#define mmSRBM_DEBUG_CNTL                                                       0x399
-#define mmSRBM_DEBUG_DATA                                                       0x39a
+#define mmSRBM_DE_CNTL                                                       0x399
+#define mmSRBM_DE_DATA                                                       0x39a
 #define mmSRBM_CHIP_REVISION                                                    0x39b
 #define mmCC_SYS_RB_REDUNDANCY                                                  0x39f
 #define mmCC_SYS_RB_BACKEND_DISABLE                                             0x3a0
@@ -94,9 +94,9 @@
 #define mmSRBM_SDMA_CLKEN_CNTL                                                  0x3b7
 #define mmSRBM_SAM_CLKEN_CNTL                                                   0x3b8
 #define mmSRBM_ISP_CLKEN_CNTL                                                   0x3b9
-#define mmSRBM_DEBUG                                                            0x3a4
-#define mmSRBM_DEBUG_SNAPSHOT                                                   0x3a5
-#define mmSRBM_DEBUG_SNAPSHOT2                                                  0x3ad
+#define mmSRBM_DE                                                            0x3a4
+#define mmSRBM_DE_SNAPSHOT                                                   0x3a5
+#define mmSRBM_DE_SNAPSHOT2                                                  0x3ad
 #define mmSRBM_READ_ERROR                                                       0x3a6
 #define mmSRBM_READ_ERROR2                                                      0x3ae
 #define mmSRBM_INT_CNTL                                                         0x3a8
@@ -383,8 +383,8 @@
 #define mmHDP_NONSURF_FLAGS                                                     0xbc9
 #define mmHDP_NONSURF_FLAGS_CLR                                                 0xbca
 #define mmHDP_SW_SEMAPHORE                                                      0xbcb
-#define mmHDP_DEBUG0                                                            0xbcc
-#define mmHDP_DEBUG1                                                            0xbcd
+#define mmHDP_DE0                                                            0xbcc
+#define mmHDP_DE1                                                            0xbcd
 #define mmHDP_LAST_SURFACE_HIT                                                  0xbce
 #define mmHDP_TILING_CONFIG                                                     0xbcf
 #define mmHDP_SC_MULTI_CHIP_CNTL                                                0xbd0

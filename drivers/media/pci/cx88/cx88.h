@@ -248,7 +248,7 @@ enum cx88_itype {
 	CX88_VMUX_TELEVISION,
 	CX88_VMUX_CABLE,
 	CX88_VMUX_DVB,
-	CX88_VMUX_DEBUG,
+	CX88_VMUX_DE,
 	CX88_RADIO,
 };
 
@@ -616,7 +616,7 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
 
-extern unsigned int cx88_core_debug;
+extern unsigned int cx88_core_de;
 
 void cx88_print_irqbits(const char *tag, const char *strings[],
 			int len, u32 bits, u32 mask);

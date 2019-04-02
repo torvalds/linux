@@ -79,16 +79,16 @@
 #define	RD_FS_LOCAL	0x80
 
 	/*
-	 * DEBUG FLAGS
+	 * DE FLAGS
 	 */
-#define	DEBUG_SMTF	1
-#define	DEBUG_SMT	2
-#define	DEBUG_ECM	3
-#define	DEBUG_RMT	4
-#define	DEBUG_CFM	5
-#define	DEBUG_PCM	6
-#define	DEBUG_SBA	7
-#define	DEBUG_ESS	8
+#define	DE_SMTF	1
+#define	DE_SMT	2
+#define	DE_ECM	3
+#define	DE_RMT	4
+#define	DE_CFM	5
+#define	DE_PCM	6
+#define	DE_SBA	7
+#define	DE_ESS	8
 
 #define	DB_HWM_RX	10
 #define	DB_HWM_TX	11
@@ -150,22 +150,22 @@ struct hw_modul {
 
 
 /*
- * DEBUG structs and macros
+ * DE structs and macros
  */
 
-#ifdef	DEBUG
-struct os_debug {
+#ifdef	DE
+struct os_de {
 	int	hwm_rx ;
 	int	hwm_tx ;
 	int	hwm_gen ;
 } ;
 #endif
 
-#ifdef	DEBUG
-#ifdef	DEBUG_BRD
-#define	DB_P	smc->debug
+#ifdef	DE
+#ifdef	DE_BRD
+#define	DB_P	smc->de
 #else
-#define DB_P	debug
+#define DB_P	de
 #endif
 
 #define DB_RX(lev, fmt, ...)						\
@@ -183,11 +183,11 @@ do {									\
 	if (DB_P.d_os.hwm_gen >= (lev))					\
 		printf(fmt "\n", ##__VA_ARGS__);			\
 } while (0)
-#else	/* DEBUG */
+#else	/* DE */
 #define DB_RX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
 #define DB_TX(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
 #define DB_GEN(lev, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
-#endif	/* DEBUG */
+#endif	/* DE */
 
 #ifndef	SK_BREAK
 #define	SK_BREAK()
@@ -307,7 +307,7 @@ do {									\
  *
  * return	the used RXD count of receive queue 1
  *
- * NOTE: Remember, because of an ASIC bug at least one RXD should be unused
+ * NOTE: Remember, because of an ASIC  at least one RXD should be unused
  *	 in the descriptor ring !
  *
  *	END_MANUAL_ENTRY

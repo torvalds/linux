@@ -111,18 +111,18 @@ static void __init print_bus_info(void)
 	struct bus_info *ptr;
 
 	list_for_each_entry(ptr, &bus_info_head, bus_info_list) {
-		debug("%s - slot_min = %x\n", __func__, ptr->slot_min);
-		debug("%s - slot_max = %x\n", __func__, ptr->slot_max);
-		debug("%s - slot_count = %x\n", __func__, ptr->slot_count);
-		debug("%s - bus# = %x\n", __func__, ptr->busno);
-		debug("%s - current_speed = %x\n", __func__, ptr->current_speed);
-		debug("%s - controller_id = %x\n", __func__, ptr->controller_id);
+		de("%s - slot_min = %x\n", __func__, ptr->slot_min);
+		de("%s - slot_max = %x\n", __func__, ptr->slot_max);
+		de("%s - slot_count = %x\n", __func__, ptr->slot_count);
+		de("%s - bus# = %x\n", __func__, ptr->busno);
+		de("%s - current_speed = %x\n", __func__, ptr->current_speed);
+		de("%s - controller_id = %x\n", __func__, ptr->controller_id);
 
-		debug("%s - slots_at_33_conv = %x\n", __func__, ptr->slots_at_33_conv);
-		debug("%s - slots_at_66_conv = %x\n", __func__, ptr->slots_at_66_conv);
-		debug("%s - slots_at_66_pcix = %x\n", __func__, ptr->slots_at_66_pcix);
-		debug("%s - slots_at_100_pcix = %x\n", __func__, ptr->slots_at_100_pcix);
-		debug("%s - slots_at_133_pcix = %x\n", __func__, ptr->slots_at_133_pcix);
+		de("%s - slots_at_33_conv = %x\n", __func__, ptr->slots_at_33_conv);
+		de("%s - slots_at_66_conv = %x\n", __func__, ptr->slots_at_66_conv);
+		de("%s - slots_at_66_pcix = %x\n", __func__, ptr->slots_at_66_pcix);
+		de("%s - slots_at_100_pcix = %x\n", __func__, ptr->slots_at_100_pcix);
+		de("%s - slots_at_133_pcix = %x\n", __func__, ptr->slots_at_133_pcix);
 
 	}
 }
@@ -130,14 +130,14 @@ static void __init print_bus_info(void)
 static void print_lo_info(void)
 {
 	struct rio_detail *ptr;
-	debug("print_lo_info ----\n");
+	de("print_lo_info ----\n");
 	list_for_each_entry(ptr, &rio_lo_head, rio_detail_list) {
-		debug("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
-		debug("%s - rio_type = %x\n", __func__, ptr->rio_type);
-		debug("%s - owner_id = %x\n", __func__, ptr->owner_id);
-		debug("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
-		debug("%s - wpindex = %x\n", __func__, ptr->wpindex);
-		debug("%s - chassis_num = %x\n", __func__, ptr->chassis_num);
+		de("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
+		de("%s - rio_type = %x\n", __func__, ptr->rio_type);
+		de("%s - owner_id = %x\n", __func__, ptr->owner_id);
+		de("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
+		de("%s - wpindex = %x\n", __func__, ptr->wpindex);
+		de("%s - chassis_num = %x\n", __func__, ptr->chassis_num);
 
 	}
 }
@@ -145,14 +145,14 @@ static void print_lo_info(void)
 static void print_vg_info(void)
 {
 	struct rio_detail *ptr;
-	debug("%s ---\n", __func__);
+	de("%s ---\n", __func__);
 	list_for_each_entry(ptr, &rio_vg_head, rio_detail_list) {
-		debug("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
-		debug("%s - rio_type = %x\n", __func__, ptr->rio_type);
-		debug("%s - owner_id = %x\n", __func__, ptr->owner_id);
-		debug("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
-		debug("%s - wpindex = %x\n", __func__, ptr->wpindex);
-		debug("%s - chassis_num = %x\n", __func__, ptr->chassis_num);
+		de("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
+		de("%s - rio_type = %x\n", __func__, ptr->rio_type);
+		de("%s - owner_id = %x\n", __func__, ptr->owner_id);
+		de("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
+		de("%s - wpindex = %x\n", __func__, ptr->wpindex);
+		de("%s - chassis_num = %x\n", __func__, ptr->chassis_num);
 
 	}
 }
@@ -162,7 +162,7 @@ static void __init print_ebda_pci_rsrc(void)
 	struct ebda_pci_rsrc *ptr;
 
 	list_for_each_entry(ptr, &ibmphp_ebda_pci_rsrc_head, ebda_pci_rsrc_list) {
-		debug("%s - rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n",
+		de("%s - rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n",
 			__func__, ptr->rsrc_type, ptr->bus_num, ptr->dev_fun, ptr->start_addr, ptr->end_addr);
 	}
 }
@@ -172,19 +172,19 @@ static void __init print_ibm_slot(void)
 	struct slot *ptr;
 
 	list_for_each_entry(ptr, &ibmphp_slot_head, ibm_slot_list) {
-		debug("%s - slot_number: %x\n", __func__, ptr->number);
+		de("%s - slot_number: %x\n", __func__, ptr->number);
 	}
 }
 
 static void __init print_opt_vg(void)
 {
 	struct opt_rio *ptr;
-	debug("%s ---\n", __func__);
+	de("%s ---\n", __func__);
 	list_for_each_entry(ptr, &opt_vg_head, opt_rio_list) {
-		debug("%s - rio_type %x\n", __func__, ptr->rio_type);
-		debug("%s - chassis_num: %x\n", __func__, ptr->chassis_num);
-		debug("%s - first_slot_num: %x\n", __func__, ptr->first_slot_num);
-		debug("%s - middle_num: %x\n", __func__, ptr->middle_num);
+		de("%s - rio_type %x\n", __func__, ptr->rio_type);
+		de("%s - chassis_num: %x\n", __func__, ptr->chassis_num);
+		de("%s - first_slot_num: %x\n", __func__, ptr->first_slot_num);
+		de("%s - middle_num: %x\n", __func__, ptr->middle_num);
 	}
 }
 
@@ -195,34 +195,34 @@ static void __init print_ebda_hpc(void)
 
 	list_for_each_entry(hpc_ptr, &ebda_hpc_head, ebda_hpc_list) {
 		for (index = 0; index < hpc_ptr->slot_count; index++) {
-			debug("%s - physical slot#: %x\n", __func__, hpc_ptr->slots[index].slot_num);
-			debug("%s - pci bus# of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_bus_num);
-			debug("%s - index into ctlr addr: %x\n", __func__, hpc_ptr->slots[index].ctl_index);
-			debug("%s - cap of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_cap);
+			de("%s - physical slot#: %x\n", __func__, hpc_ptr->slots[index].slot_num);
+			de("%s - pci bus# of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_bus_num);
+			de("%s - index into ctlr addr: %x\n", __func__, hpc_ptr->slots[index].ctl_index);
+			de("%s - cap of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_cap);
 		}
 
 		for (index = 0; index < hpc_ptr->bus_count; index++)
-			debug("%s - bus# of each bus controlled by this ctlr: %x\n", __func__, hpc_ptr->buses[index].bus_num);
+			de("%s - bus# of each bus controlled by this ctlr: %x\n", __func__, hpc_ptr->buses[index].bus_num);
 
-		debug("%s - type of hpc: %x\n", __func__, hpc_ptr->ctlr_type);
+		de("%s - type of hpc: %x\n", __func__, hpc_ptr->ctlr_type);
 		switch (hpc_ptr->ctlr_type) {
 		case 1:
-			debug("%s - bus: %x\n", __func__, hpc_ptr->u.pci_ctlr.bus);
-			debug("%s - dev_fun: %x\n", __func__, hpc_ptr->u.pci_ctlr.dev_fun);
-			debug("%s - irq: %x\n", __func__, hpc_ptr->irq);
+			de("%s - bus: %x\n", __func__, hpc_ptr->u.pci_ctlr.bus);
+			de("%s - dev_fun: %x\n", __func__, hpc_ptr->u.pci_ctlr.dev_fun);
+			de("%s - irq: %x\n", __func__, hpc_ptr->irq);
 			break;
 
 		case 0:
-			debug("%s - io_start: %x\n", __func__, hpc_ptr->u.isa_ctlr.io_start);
-			debug("%s - io_end: %x\n", __func__, hpc_ptr->u.isa_ctlr.io_end);
-			debug("%s - irq: %x\n", __func__, hpc_ptr->irq);
+			de("%s - io_start: %x\n", __func__, hpc_ptr->u.isa_ctlr.io_start);
+			de("%s - io_end: %x\n", __func__, hpc_ptr->u.isa_ctlr.io_end);
+			de("%s - irq: %x\n", __func__, hpc_ptr->irq);
 			break;
 
 		case 2:
 		case 4:
-			debug("%s - wpegbbar: %lx\n", __func__, hpc_ptr->u.wpeg_ctlr.wpegbbar);
-			debug("%s - i2c_addr: %x\n", __func__, hpc_ptr->u.wpeg_ctlr.i2c_addr);
-			debug("%s - irq: %x\n", __func__, hpc_ptr->irq);
+			de("%s - wpegbbar: %lx\n", __func__, hpc_ptr->u.wpeg_ctlr.wpegbbar);
+			de("%s - i2c_addr: %x\n", __func__, hpc_ptr->u.wpeg_ctlr.i2c_addr);
+			de("%s - irq: %x\n", __func__, hpc_ptr->irq);
 			break;
 		}
 	}
@@ -243,14 +243,14 @@ int __init ibmphp_access_ebda(void)
 		return -ENOMEM;
 	ebda_seg = readw(io_mem);
 	iounmap(io_mem);
-	debug("returned ebda segment: %x\n", ebda_seg);
+	de("returned ebda segment: %x\n", ebda_seg);
 
 	io_mem = ioremap(ebda_seg<<4, 1);
 	if (!io_mem)
 		return -ENOMEM;
 	ebda_sz = readb(io_mem);
 	iounmap(io_mem);
-	debug("ebda size: %d(KiB)\n", ebda_sz);
+	de("ebda size: %d(KiB)\n", ebda_sz);
 	if (ebda_sz == 0)
 		return -ENOMEM;
 
@@ -280,14 +280,14 @@ int __init ibmphp_access_ebda(void)
 			continue;
 		/* found hs table */
 		if (blk_id == 0x4853) {
-			debug("now enter hot swap block---\n");
-			debug("hot blk id: %x\n", blk_id);
+			de("now enter hot swap block---\n");
+			de("hot blk id: %x\n", blk_id);
 			format = readb(io_mem + offset);
 
 			offset += 1;
 			if (format != 4)
 				goto error_nodev;
-			debug("hot blk format: %x\n", format);
+			de("hot blk format: %x\n", format);
 			/* hot swap sub blk */
 			base = offset;
 
@@ -312,10 +312,10 @@ int __init ibmphp_access_ebda(void)
 			hpc_list_ptr->format = format;
 			hpc_list_ptr->num_ctlrs = num_ctlrs;
 			hpc_list_ptr->phys_addr = sub_addr;	/*  offset of RSRC_CONTROLLER blk */
-			debug("info about hpc descriptor---\n");
-			debug("hot blk format: %x\n", format);
-			debug("num of controller: %x\n", num_ctlrs);
-			debug("offset of hpc data structure entries: %x\n ", sub_addr);
+			de("info about hpc descriptor---\n");
+			de("hot blk format: %x\n", format);
+			de("num of controller: %x\n", num_ctlrs);
+			de("offset of hpc data structure entries: %x\n ", sub_addr);
 
 			sub_addr = base + re;	/* re sub blk */
 			/* FIXME: rc is never used/checked */
@@ -341,16 +341,16 @@ int __init ibmphp_access_ebda(void)
 			rsrc_list_ptr->num_entries = num_entries;
 			rsrc_list_ptr->phys_addr = sub_addr;
 
-			debug("info about rsrc descriptor---\n");
-			debug("format: %x\n", format);
-			debug("num of rsrc: %x\n", num_entries);
-			debug("offset of rsrc data structure entries: %x\n ", sub_addr);
+			de("info about rsrc descriptor---\n");
+			de("format: %x\n", format);
+			de("num of rsrc: %x\n", num_entries);
+			de("offset of rsrc data structure entries: %x\n ", sub_addr);
 
 			hs_complete = 1;
 		} else {
 		/* found rio table, blk_id == 0x4752 */
-			debug("now enter io table ---\n");
-			debug("rio blk id: %x\n", blk_id);
+			de("now enter io table ---\n");
+			de("rio blk id: %x\n", blk_id);
 
 			rio_table_ptr = kzalloc(sizeof(struct rio_table_hdr), GFP_KERNEL);
 			if (!rio_table_ptr) {
@@ -362,8 +362,8 @@ int __init ibmphp_access_ebda(void)
 			rio_table_ptr->riodev_count = readb(io_mem + offset + 2);
 			rio_table_ptr->offset = offset + 3 ;
 
-			debug("info about rio table hdr ---\n");
-			debug("ver_num: %x\nscal_count: %x\nriodev_count: %x\noffset of rio table: %x\n ",
+			de("info about rio table hdr ---\n");
+			de("ver_num: %x\nscal_count: %x\nriodev_count: %x\noffset of rio table: %x\n ",
 				rio_table_ptr->ver_num, rio_table_ptr->scal_count,
 				rio_table_ptr->riodev_count, rio_table_ptr->offset);
 
@@ -423,7 +423,7 @@ static int __init ebda_rio_table(void)
 		rio_detail_ptr->status = readb(io_mem + offset + 12);
 		rio_detail_ptr->wpindex = readb(io_mem + offset + 13);
 		rio_detail_ptr->chassis_num = readb(io_mem + offset + 14);
-//		debug("rio_node_id: %x\nbbar: %x\nrio_type: %x\nowner_id: %x\nport0_node: %x\nport0_port: %x\nport1_node: %x\nport1_port: %x\nfirst_slot_num: %x\nstatus: %x\n", rio_detail_ptr->rio_node_id, rio_detail_ptr->bbar, rio_detail_ptr->rio_type, rio_detail_ptr->owner_id, rio_detail_ptr->port0_node_connect, rio_detail_ptr->port0_port_connect, rio_detail_ptr->port1_node_connect, rio_detail_ptr->port1_port_connect, rio_detail_ptr->first_slot_num, rio_detail_ptr->status);
+//		de("rio_node_id: %x\nbbar: %x\nrio_type: %x\nowner_id: %x\nport0_node: %x\nport0_port: %x\nport1_node: %x\nport1_port: %x\nfirst_slot_num: %x\nstatus: %x\n", rio_detail_ptr->rio_node_id, rio_detail_ptr->bbar, rio_detail_ptr->rio_type, rio_detail_ptr->owner_id, rio_detail_ptr->port0_node_connect, rio_detail_ptr->port0_port_connect, rio_detail_ptr->port1_node_connect, rio_detail_ptr->port1_port_connect, rio_detail_ptr->first_slot_num, rio_detail_ptr->status);
 		//create linked list of chassis
 		if (rio_detail_ptr->rio_type == 4 || rio_detail_ptr->rio_type == 5)
 			list_add(&rio_detail_ptr->rio_detail_list, &rio_vg_head);
@@ -721,11 +721,11 @@ static int __init ebda_rsrc_controller(void)
 		hpc_ptr->ctlr_relative_id = ctlr;
 		hpc_ptr->slot_count = slot_num;
 		hpc_ptr->bus_count = bus_num;
-		debug("now enter ctlr data structure ---\n");
-		debug("ctlr id: %x\n", ctlr_id);
-		debug("ctlr_relative_id: %x\n", hpc_ptr->ctlr_relative_id);
-		debug("count of slots controlled by this ctlr: %x\n", slot_num);
-		debug("count of buses controlled by this ctlr: %x\n", bus_num);
+		de("now enter ctlr data structure ---\n");
+		de("ctlr id: %x\n", ctlr_id);
+		de("ctlr_relative_id: %x\n", hpc_ptr->ctlr_relative_id);
+		de("count of slots controlled by this ctlr: %x\n", slot_num);
+		de("count of buses controlled by this ctlr: %x\n", bus_num);
 
 		/* init slot structure, fetch slot, bus, cap... */
 		slot_ptr = hpc_ptr->slots;
@@ -801,7 +801,7 @@ static int __init ebda_rsrc_controller(void)
 				hpc_ptr->u.pci_ctlr.dev_fun = readb(io_mem + addr + 1);
 				hpc_ptr->irq = readb(io_mem + addr + 2);
 				addr += 3;
-				debug("ctrl bus = %x, ctlr devfun = %x, irq = %x\n",
+				de("ctrl bus = %x, ctlr devfun = %x, irq = %x\n",
 					hpc_ptr->u.pci_ctlr.bus,
 					hpc_ptr->u.pci_ctlr.dev_fun, hpc_ptr->irq);
 				break;
@@ -927,8 +927,8 @@ static int __init ebda_rsrc_rsrc(void)
 	struct ebda_pci_rsrc *rsrc_ptr;
 
 	addr = rsrc_list_ptr->phys_addr;
-	debug("now entering rsrc land\n");
-	debug("offset of rsrc: %x\n", rsrc_list_ptr->phys_addr);
+	de("now entering rsrc land\n");
+	de("offset of rsrc: %x\n", rsrc_list_ptr->phys_addr);
 
 	for (rsrc = 0; rsrc < rsrc_list_ptr->num_entries; rsrc++) {
 		type = readb(io_mem + addr);
@@ -950,8 +950,8 @@ static int __init ebda_rsrc_rsrc(void)
 			rsrc_ptr->end_addr = readw(io_mem + addr + 4);
 			addr += 6;
 
-			debug("rsrc from io type ----\n");
-			debug("rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n",
+			de("rsrc from io type ----\n");
+			de("rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n",
 				rsrc_ptr->rsrc_type, rsrc_ptr->bus_num, rsrc_ptr->dev_fun, rsrc_ptr->start_addr, rsrc_ptr->end_addr);
 
 			list_add(&rsrc_ptr->ebda_pci_rsrc_list, &ibmphp_ebda_pci_rsrc_head);
@@ -971,8 +971,8 @@ static int __init ebda_rsrc_rsrc(void)
 			rsrc_ptr->end_addr = readl(io_mem + addr + 6);
 			addr += 10;
 
-			debug("rsrc from mem or pfm ---\n");
-			debug("rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n",
+			de("rsrc from mem or pfm ---\n");
+			de("rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n",
 				rsrc_ptr->rsrc_type, rsrc_ptr->bus_num, rsrc_ptr->dev_fun, rsrc_ptr->start_addr, rsrc_ptr->end_addr);
 
 			list_add(&rsrc_ptr->ebda_pci_rsrc_list, &ibmphp_ebda_pci_rsrc_head);
@@ -1105,14 +1105,14 @@ static int ibmphp_probe(struct pci_dev *dev, const struct pci_device_id *ids)
 {
 	struct controller *ctrl;
 
-	debug("inside ibmphp_probe\n");
+	de("inside ibmphp_probe\n");
 
 	list_for_each_entry(ctrl, &ebda_hpc_head, ebda_hpc_list) {
 		if (ctrl->ctlr_type == 1) {
 			if ((dev->devfn == ctrl->u.pci_ctlr.dev_fun) && (dev->bus->number == ctrl->u.pci_ctlr.bus)) {
 				ctrl->ctrl_dev = dev;
-				debug("found device!!!\n");
-				debug("dev->device = %x, dev->subsystem_device = %x\n", dev->device, dev->subsystem_device);
+				de("found device!!!\n");
+				de("dev->device = %x, dev->subsystem_device = %x\n", dev->device, dev->subsystem_device);
 				return 0;
 			}
 		}

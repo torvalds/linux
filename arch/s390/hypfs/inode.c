@@ -356,7 +356,7 @@ static struct dentry *hypfs_create_file(struct dentry *parent, const char *name,
 		inode->i_fop = &simple_dir_operations;
 		inc_nlink(d_inode(parent));
 	} else
-		BUG();
+		();
 	inode->i_private = data;
 	d_instantiate(dentry, inode);
 	dget(dentry);

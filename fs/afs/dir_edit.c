@@ -268,7 +268,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 
 		block = &dir_page->blocks[b % AFS_DIR_BLOCKS_PER_PAGE];
 
-		_debug("block %u: %2u %3u %u",
+		_de("block %u: %2u %3u %u",
 		       b,
 		       (b < AFS_DIR_BLOCKS_WITH_CTR) ? meta->meta.alloc_ctrs[b] : 99,
 		       ntohs(block->hdr.npages),
@@ -276,7 +276,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 
 		/* Initialise the block if necessary. */
 		if (b == nr_blocks) {
-			_debug("init %u", b);
+			_de("init %u", b);
 			afs_edit_init_block(meta, block, b);
 			i_size_write(&vnode->vfs_inode, (b + 1) * AFS_DIR_BLOCK_SIZE);
 		}
@@ -289,7 +289,7 @@ void afs_edit_dir_add(struct afs_vnode *vnode,
 			 */
 			slot = afs_find_contig_bits(block, need_slots);
 			if (slot >= 0) {
-				_debug("slot %u", slot);
+				_de("slot %u", slot);
 				goto found_space;
 			}
 		}
@@ -345,7 +345,7 @@ found_space:
 
 	inode_inc_iversion_raw(&vnode->vfs_inode);
 	afs_stat_v(vnode, n_dir_cr);
-	_debug("Insert %s in %u[%u]", name->name, b, slot);
+	_de("Insert %s in %u[%u]", name->name, b, slot);
 
 out_unmap:
 	unlock_page(page0);
@@ -477,7 +477,7 @@ found_dirent:
 
 	inode_set_iversion_raw(&vnode->vfs_inode, vnode->status.data_version);
 	afs_stat_v(vnode, n_dir_rm);
-	_debug("Remove %s from %u[%u]", name->name, b, slot);
+	_de("Remove %s from %u[%u]", name->name, b, slot);
 
 out_unmap:
 	unlock_page(page0);

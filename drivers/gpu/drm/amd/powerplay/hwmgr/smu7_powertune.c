@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "hwmgr.h"
 #include "smumgr.h"
 #include "smu7_hwmgr.h"

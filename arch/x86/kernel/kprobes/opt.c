@@ -25,7 +25,7 @@
 #include <linux/hardirq.h>
 #include <linux/preempt.h>
 #include <linux/extable.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/frame.h>
@@ -37,7 +37,7 @@
 #include <linux/uaccess.h>
 #include <asm/alternative.h>
 #include <asm/insn.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/set_memory.h>
 #include <asm/sections.h>
 #include <asm/nospec-branch.h>

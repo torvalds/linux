@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _FS_CEPH_DEBUGFS_H
-#define _FS_CEPH_DEBUGFS_H
+#ifndef _FS_CEPH_DEFS_H
+#define _FS_CEPH_DEFS_H
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 #include <linux/ceph/types.h>
 
 #define CEPH_DEFINE_SHOW_FUNC(name)					\
@@ -18,11 +18,11 @@ static const struct file_operations name##_fops = {			\
 	.release	= single_release,				\
 };
 
-/* debugfs.c */
-extern int ceph_debugfs_init(void);
-extern void ceph_debugfs_cleanup(void);
-extern int ceph_debugfs_client_init(struct ceph_client *client);
-extern void ceph_debugfs_client_cleanup(struct ceph_client *client);
+/* defs.c */
+extern int ceph_defs_init(void);
+extern void ceph_defs_cleanup(void);
+extern int ceph_defs_client_init(struct ceph_client *client);
+extern void ceph_defs_client_cleanup(struct ceph_client *client);
 
 #endif
 

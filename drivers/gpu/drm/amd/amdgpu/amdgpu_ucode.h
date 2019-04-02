@@ -39,8 +39,8 @@ struct common_firmware_header {
 /* version_major=1, version_minor=0 */
 struct mc_firmware_header_v1_0 {
 	struct common_firmware_header header;
-	uint32_t io_debug_size_bytes; /* size of debug array in dwords */
-	uint32_t io_debug_array_offset_bytes; /* payload offset from the start of the header */
+	uint32_t io_de_size_bytes; /* size of de array in dwords */
+	uint32_t io_de_array_offset_bytes; /* payload offset from the start of the header */
 };
 
 /* version_major=1, version_minor=0 */

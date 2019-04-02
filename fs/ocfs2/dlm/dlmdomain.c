@@ -32,7 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/sched/signal.h>
 
 #include "cluster/heartbeat.h"
@@ -42,7 +42,7 @@
 #include "dlmapi.h"
 #include "dlmcommon.h"
 #include "dlmdomain.h"
-#include "dlmdebug.h"
+#include "dlmde.h"
 
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
@@ -306,7 +306,7 @@ static int dlm_wait_on_domain_helper(const char *domain)
 
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
-	dlm_destroy_debugfs_subroot(dlm);
+	dlm_destroy_defs_subroot(dlm);
 
 	if (dlm->lockres_hash)
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
@@ -327,8 +327,8 @@ static void dlm_ctxt_release(struct kref *kref)
 
 	dlm = container_of(kref, struct dlm_ctxt, dlm_refs);
 
-	BUG_ON(dlm->num_joins);
-	BUG_ON(dlm->dlm_state == DLM_CTXT_JOINED);
+	_ON(dlm->num_joins);
+	_ON(dlm->dlm_state == DLM_CTXT_JOINED);
 
 	/* we may still be in the list if we hit an error during join. */
 	list_del_init(&dlm->list);
@@ -402,7 +402,7 @@ static void dlm_destroy_dlm_worker(struct dlm_ctxt *dlm)
 static void dlm_complete_dlm_shutdown(struct dlm_ctxt *dlm)
 {
 	dlm_unregister_domain_handlers(dlm);
-	dlm_debug_shutdown(dlm);
+	dlm_de_shutdown(dlm);
 	dlm_complete_thread(dlm);
 	dlm_complete_recovery_thread(dlm);
 	dlm_destroy_dlm_worker(dlm);
@@ -694,8 +694,8 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 	struct dlm_lock_resource *res;
 
 	spin_lock(&dlm_domain_lock);
-	BUG_ON(dlm->dlm_state != DLM_CTXT_JOINED);
-	BUG_ON(!dlm->num_joins);
+	_ON(dlm->dlm_state != DLM_CTXT_JOINED);
+	_ON(!dlm->num_joins);
 
 	dlm->num_joins--;
 	if (!dlm->num_joins) {
@@ -944,7 +944,7 @@ static int dlm_assert_joined_handler(struct o2net_msg *msg, u32 len, void *data,
 		/* Alright, this node has officially joined our
 		 * domain. Set him in the map and clean up our
 		 * leftover join state. */
-		BUG_ON(dlm->joining_node != assert->node_idx);
+		_ON(dlm->joining_node != assert->node_idx);
 
 		if (dlm->reco.state & DLM_RECO_STATE_ACTIVE) {
 			mlog(0, "dlm recovery is ongoing, disallow join\n");
@@ -1219,7 +1219,7 @@ static int dlm_match_nodes(struct dlm_ctxt *dlm, struct dlm_query_nodeinfo *qn)
 				     local->nd_num, &(local->nd_ipv4_address),
 				     ntohs(local->nd_ipv4_port),
 				     dlm->node_num, qn->qn_nodenum);
-			BUG_ON((!local && !remote));
+			_ON((!local && !remote));
 		}
 
 		if (local)
@@ -1355,7 +1355,7 @@ static int dlm_cancel_join_handler(struct o2net_msg *msg, u32 len, void *data,
 
 		/* Yikes, this guy wants to cancel his join. No
 		 * problem, we simply cleanup our join state. */
-		BUG_ON(dlm->joining_node != cancel->node_idx);
+		_ON(dlm->joining_node != cancel->node_idx);
 		__dlm_set_joining_node(dlm, DLM_LOCK_RES_OWNER_UNKNOWN);
 
 		spin_unlock(&dlm->spinlock);
@@ -1874,7 +1874,7 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 	unsigned int total_backoff = 0;
 	char wq_name[O2NM_MAX_NAME_LEN];
 
-	BUG_ON(!dlm);
+	_ON(!dlm);
 
 	mlog(0, "Join domain %s\n", dlm->name);
 
@@ -1896,7 +1896,7 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
-	status = dlm_debug_init(dlm);
+	status = dlm_de_init(dlm);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1957,7 +1957,7 @@ bail:
 
 	if (status) {
 		dlm_unregister_domain_handlers(dlm);
-		dlm_debug_shutdown(dlm);
+		dlm_de_shutdown(dlm);
 		dlm_complete_thread(dlm);
 		dlm_complete_recovery_thread(dlm);
 		dlm_destroy_dlm_worker(dlm);
@@ -2011,7 +2011,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
-	ret = dlm_create_debugfs_subroot(dlm);
+	ret = dlm_create_defs_subroot(dlm);
 	if (ret < 0)
 		goto leave;
 
@@ -2361,7 +2361,7 @@ static int __init dlm_init(void)
 		goto error;
 	}
 
-	status = dlm_create_debugfs_root();
+	status = dlm_create_defs_root();
 	if (status)
 		goto error;
 
@@ -2376,7 +2376,7 @@ error:
 
 static void __exit dlm_exit (void)
 {
-	dlm_destroy_debugfs_root();
+	dlm_destroy_defs_root();
 	dlm_unregister_net_handlers();
 	dlm_destroy_lock_cache();
 	dlm_destroy_master_caches();

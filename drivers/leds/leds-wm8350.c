@@ -166,7 +166,7 @@ static int wm8350_led_set(struct led_classdev *led_cdev,
 	 */
 	uA = (led->max_uA_index * led->value) / LED_FULL;
 	spin_unlock_irqrestore(&led->value_lock, flags);
-	BUG_ON(uA >= ARRAY_SIZE(isink_cur));
+	_ON(uA >= ARRAY_SIZE(isink_cur));
 
 	ret = regulator_set_current_limit(led->isink, isink_cur[uA],
 					  isink_cur[uA]);

@@ -441,7 +441,7 @@ bool CARDbRadioPowerOff(struct vnt_private *priv)
 	BBvSetDeepSleep(priv, priv->byLocalID);
 
 	priv->bRadioOff = true;
-	pr_debug("chester power off\n");
+	pr_de("chester power off\n");
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_GPIOCTL0,
 		      LED_ACTSET);  /* LED issue */
 	return bResult;
@@ -462,16 +462,16 @@ bool CARDbRadioPowerOn(struct vnt_private *priv)
 {
 	bool bResult = true;
 
-	pr_debug("chester power on\n");
+	pr_de("chester power on\n");
 	if (priv->bRadioControlOff) {
 		if (priv->bHWRadioOff)
-			pr_debug("chester bHWRadioOff\n");
+			pr_de("chester bHWRadioOff\n");
 		if (priv->bRadioControlOff)
-			pr_debug("chester bRadioControlOff\n");
+			pr_de("chester bRadioControlOff\n");
 		return false; }
 
 	if (!priv->bRadioOff) {
-		pr_debug("chester pbRadioOff\n");
+		pr_de("chester pbRadioOff\n");
 		return true; }
 
 	BBvExitDeepSleep(priv, priv->byLocalID);
@@ -495,7 +495,7 @@ bool CARDbRadioPowerOn(struct vnt_private *priv)
 	}
 
 	priv->bRadioOff = false;
-	pr_debug("chester power on\n");
+	pr_de("chester power on\n");
 	MACvRegBitsOff(priv->PortOffset, MAC_REG_GPIOCTL0,
 		       LED_ACTSET); /* LED issue */
 	return bResult;
@@ -626,22 +626,22 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
 {
 	unsigned int ui = (unsigned int)wRateIdx;
 
-	pr_debug("BASIC RATE: %X\n", priv->basic_rates);
+	pr_de("BASIC RATE: %X\n", priv->basic_rates);
 
 	if (!CARDbIsOFDMinBasicRate((void *)priv)) {
-		pr_debug("%s:(NO OFDM) %d\n", __func__, wRateIdx);
+		pr_de("%s:(NO OFDM) %d\n", __func__, wRateIdx);
 		if (wRateIdx > RATE_24M)
 			wRateIdx = RATE_24M;
 		return wRateIdx;
 	}
 	while (ui > RATE_11M) {
 		if (priv->basic_rates & ((u32)0x1 << ui)) {
-			pr_debug("%s : %d\n", __func__, ui);
+			pr_de("%s : %d\n", __func__, ui);
 			return (unsigned short)ui;
 		}
 		ui--;
 	}
-	pr_debug("%s: 6M\n", __func__);
+	pr_de("%s: 6M\n", __func__);
 	return (unsigned short)RATE_24M;
 }
 
@@ -1011,5 +1011,5 @@ void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 qwTSF,
 	VNSvOutPortD(iobase + MAC_REG_NEXTTBTT, (u32)qwTSF);
 	VNSvOutPortD(iobase + MAC_REG_NEXTTBTT + 4, (u32)(qwTSF >> 32));
 	MACvRegBitsOn(iobase, MAC_REG_TFTCTL, TFTCTL_TBTTSYNCEN);
-	pr_debug("Card:Update Next TBTT[%8llx]\n", qwTSF);
+	pr_de("Card:Update Next TBTT[%8llx]\n", qwTSF);
 }

@@ -107,8 +107,8 @@ struct imx6_pcie {
 #define PCIE_PL_PFLR (PL_OFFSET + 0x08)
 #define PCIE_PL_PFLR_LINK_STATE_MASK		(0x3f << 16)
 #define PCIE_PL_PFLR_FORCE_LINK			(1 << 15)
-#define PCIE_PHY_DEBUG_R0 (PL_OFFSET + 0x28)
-#define PCIE_PHY_DEBUG_R1 (PL_OFFSET + 0x2c)
+#define PCIE_PHY_DE_R0 (PL_OFFSET + 0x28)
+#define PCIE_PHY_DE_R1 (PL_OFFSET + 0x2c)
 
 #define PCIE_PHY_CTRL (PL_OFFSET + 0x114)
 #define PCIE_PHY_CTRL_DATA_LOC 0
@@ -739,9 +739,9 @@ static int imx6_pcie_wait_for_link(struct imx6_pcie *imx6_pcie)
 	if (!dw_pcie_wait_for_link(pci))
 		return 0;
 
-	dev_dbg(dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R0),
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R1));
+	dev_dbg(dev, "DE_R0: 0x%08x, DE_R1: 0x%08x\n",
+		dw_pcie_readl_dbi(pci, PCIE_PHY_DE_R0),
+		dw_pcie_readl_dbi(pci, PCIE_PHY_DE_R1));
 	return -ETIMEDOUT;
 }
 
@@ -855,9 +855,9 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	return 0;
 
 err_reset_phy:
-	dev_dbg(dev, "PHY DEBUG_R0=0x%08x DEBUG_R1=0x%08x\n",
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R0),
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R1));
+	dev_dbg(dev, "PHY DE_R0=0x%08x DE_R1=0x%08x\n",
+		dw_pcie_readl_dbi(pci, PCIE_PHY_DE_R0),
+		dw_pcie_readl_dbi(pci, PCIE_PHY_DE_R1));
 	imx6_pcie_reset_phy(imx6_pcie);
 	return ret;
 }

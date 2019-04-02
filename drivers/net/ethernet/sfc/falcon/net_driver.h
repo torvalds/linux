@@ -43,11 +43,11 @@
 
 #define EF4_DRIVER_VERSION	"4.1"
 
-#ifdef DEBUG
-#define EF4_BUG_ON_PARANOID(x) BUG_ON(x)
+#ifdef DE
+#define EF4__ON_PARANOID(x) _ON(x)
 #define EF4_WARN_ON_PARANOID(x) WARN_ON(x)
 #else
-#define EF4_BUG_ON_PARANOID(x) do {} while (0)
+#define EF4__ON_PARANOID(x) do {} while (0)
 #define EF4_WARN_ON_PARANOID(x) do {} while (0)
 #endif
 
@@ -1169,7 +1169,7 @@ struct ef4_nic_type {
 static inline struct ef4_channel *
 ef4_get_channel(struct ef4_nic *efx, unsigned index)
 {
-	EF4_BUG_ON_PARANOID(index >= efx->n_channels);
+	EF4__ON_PARANOID(index >= efx->n_channels);
 	return efx->channel[index];
 }
 
@@ -1190,7 +1190,7 @@ ef4_get_channel(struct ef4_nic *efx, unsigned index)
 static inline struct ef4_tx_queue *
 ef4_get_tx_queue(struct ef4_nic *efx, unsigned index, unsigned type)
 {
-	EF4_BUG_ON_PARANOID(index >= efx->n_tx_channels ||
+	EF4__ON_PARANOID(index >= efx->n_tx_channels ||
 			    type >= EF4_TXQ_TYPES);
 	return &efx->channel[efx->tx_channel_offset + index]->tx_queue[type];
 }
@@ -1204,7 +1204,7 @@ static inline bool ef4_channel_has_tx_queues(struct ef4_channel *channel)
 static inline struct ef4_tx_queue *
 ef4_channel_get_tx_queue(struct ef4_channel *channel, unsigned type)
 {
-	EF4_BUG_ON_PARANOID(!ef4_channel_has_tx_queues(channel) ||
+	EF4__ON_PARANOID(!ef4_channel_has_tx_queues(channel) ||
 			    type >= EF4_TXQ_TYPES);
 	return &channel->tx_queue[type];
 }
@@ -1242,7 +1242,7 @@ static inline bool ef4_channel_has_rx_queue(struct ef4_channel *channel)
 static inline struct ef4_rx_queue *
 ef4_channel_get_rx_queue(struct ef4_channel *channel)
 {
-	EF4_BUG_ON_PARANOID(!ef4_channel_has_rx_queue(channel));
+	EF4__ON_PARANOID(!ef4_channel_has_rx_queue(channel));
 	return &channel->rx_queue;
 }
 
@@ -1329,9 +1329,9 @@ ef4_tx_queue_get_insert_buffer(const struct ef4_tx_queue *tx_queue)
 	struct ef4_tx_buffer *buffer =
 		__ef4_tx_queue_get_insert_buffer(tx_queue);
 
-	EF4_BUG_ON_PARANOID(buffer->len);
-	EF4_BUG_ON_PARANOID(buffer->flags);
-	EF4_BUG_ON_PARANOID(buffer->unmap_len);
+	EF4__ON_PARANOID(buffer->len);
+	EF4__ON_PARANOID(buffer->flags);
+	EF4__ON_PARANOID(buffer->unmap_len);
 
 	return buffer;
 }

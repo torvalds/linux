@@ -59,7 +59,7 @@
  *****************************************************************************/
 
 #include "iwl-drv.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "acpi.h"
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method)
@@ -71,7 +71,7 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 
 	root_handle = ACPI_HANDLE(dev);
 	if (!root_handle) {
-		IWL_DEBUG_DEV_RADIO(dev,
+		IWL_DE_DEV_RADIO(dev,
 				    "Could not retrieve root port ACPI handle\n");
 		return ERR_PTR(-ENOENT);
 	}
@@ -79,14 +79,14 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 	/* Get the method's handle */
 	status = acpi_get_handle(root_handle, method, &handle);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_DEV_RADIO(dev, "%s method not found\n", method);
+		IWL_DE_DEV_RADIO(dev, "%s method not found\n", method);
 		return ERR_PTR(-ENOENT);
 	}
 
 	/* Call the method with no arguments */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_DEV_RADIO(dev, "%s invocation failed (0x%x)\n",
+		IWL_DE_DEV_RADIO(dev, "%s invocation failed (0x%x)\n",
 				    method, status);
 		return ERR_PTR(-ENOENT);
 	}
@@ -119,7 +119,7 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 	    data->package.count < 2 ||
 	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
 	    data->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_DEV_RADIO(dev, "Unsupported packages structure\n");
+		IWL_DE_DEV_RADIO(dev, "Unsupported packages structure\n");
 		return ERR_PTR(-EINVAL);
 	}
 

@@ -121,7 +121,7 @@ void coda_replace_fid(struct inode *inode, struct CodaFid *oldfid,
 	struct coda_inode_info *cii = ITOC(inode);
 	unsigned long hash = coda_f2i(newfid);
 	
-	BUG_ON(!coda_fideq(&cii->c_fid, oldfid));
+	_ON(!coda_fideq(&cii->c_fid, oldfid));
 
 	/* replace fid and rehash inode */
 	/* XXX we probably need to hold some lock here! */
@@ -148,7 +148,7 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 
 	/* we should never see newly created inodes because we intentionally
 	 * fail in the initialization callback */
-	BUG_ON(inode->i_state & I_NEW);
+	_ON(inode->i_state & I_NEW);
 
 	return inode;
 }

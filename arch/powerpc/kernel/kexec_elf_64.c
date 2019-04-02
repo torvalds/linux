@@ -93,15 +93,15 @@ static uint32_t elf32_to_cpu(const struct elfhdr *ehdr, uint32_t value)
 static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 {
 	if (ehdr->e_phnum > 0 && ehdr->e_phentsize != sizeof(struct elf_phdr)) {
-		pr_debug("Bad program header size.\n");
+		pr_de("Bad program header size.\n");
 		return false;
 	} else if (ehdr->e_shnum > 0 &&
 		   ehdr->e_shentsize != sizeof(struct elf_shdr)) {
-		pr_debug("Bad section header size.\n");
+		pr_de("Bad section header size.\n");
 		return false;
 	} else if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
 		   ehdr->e_version != EV_CURRENT) {
-		pr_debug("Unknown ELF version.\n");
+		pr_de("Unknown ELF version.\n");
 		return false;
 	}
 
@@ -116,10 +116,10 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 
 		/* Sanity check the program header table location. */
 		if (ehdr->e_phoff + phdr_size < ehdr->e_phoff) {
-			pr_debug("Program headers at invalid location.\n");
+			pr_de("Program headers at invalid location.\n");
 			return false;
 		} else if (ehdr->e_phoff + phdr_size > buf_len) {
-			pr_debug("Program headers truncated.\n");
+			pr_de("Program headers truncated.\n");
 			return false;
 		}
 	}
@@ -135,10 +135,10 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 
 		/* Sanity check the section header table location. */
 		if (ehdr->e_shoff + shdr_size < ehdr->e_shoff) {
-			pr_debug("Section headers at invalid location.\n");
+			pr_de("Section headers at invalid location.\n");
 			return false;
 		} else if (ehdr->e_shoff + shdr_size > buf_len) {
-			pr_debug("Section headers truncated.\n");
+			pr_de("Section headers truncated.\n");
 			return false;
 		}
 	}
@@ -151,29 +151,29 @@ static int elf_read_ehdr(const char *buf, size_t len, struct elfhdr *ehdr)
 	struct elfhdr *buf_ehdr;
 
 	if (len < sizeof(*buf_ehdr)) {
-		pr_debug("Buffer is too small to hold ELF header.\n");
+		pr_de("Buffer is too small to hold ELF header.\n");
 		return -ENOEXEC;
 	}
 
 	memset(ehdr, 0, sizeof(*ehdr));
 	memcpy(ehdr->e_ident, buf, sizeof(ehdr->e_ident));
 	if (!elf_is_elf_file(ehdr)) {
-		pr_debug("No ELF header magic.\n");
+		pr_de("No ELF header magic.\n");
 		return -ENOEXEC;
 	}
 
 	if (ehdr->e_ident[EI_CLASS] != ELF_CLASS) {
-		pr_debug("Not a supported ELF class.\n");
+		pr_de("Not a supported ELF class.\n");
 		return -ENOEXEC;
 	} else  if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB &&
 		ehdr->e_ident[EI_DATA] != ELFDATA2MSB) {
-		pr_debug("Not a supported ELF data format.\n");
+		pr_de("Not a supported ELF data format.\n");
 		return -ENOEXEC;
 	}
 
 	buf_ehdr = (struct elfhdr *) buf;
 	if (elf16_to_cpu(ehdr, buf_ehdr->e_ehsize) != sizeof(*buf_ehdr)) {
-		pr_debug("Bad ELF header size.\n");
+		pr_de("Bad ELF header size.\n");
 		return -ENOEXEC;
 	}
 
@@ -201,13 +201,13 @@ static bool elf_is_phdr_sane(const struct elf_phdr *phdr, size_t buf_len)
 {
 
 	if (phdr->p_offset + phdr->p_filesz < phdr->p_offset) {
-		pr_debug("ELF segment location wraps around.\n");
+		pr_de("ELF segment location wraps around.\n");
 		return false;
 	} else if (phdr->p_offset + phdr->p_filesz > buf_len) {
-		pr_debug("ELF segment not in file.\n");
+		pr_de("ELF segment not in file.\n");
 		return false;
 	} else if (phdr->p_paddr + phdr->p_memsz < phdr->p_paddr) {
-		pr_debug("ELF segment address wraps around.\n");
+		pr_de("ELF segment address wraps around.\n");
 		return false;
 	}
 
@@ -320,19 +320,19 @@ static bool elf_is_shdr_sane(const struct elf_shdr *shdr, size_t buf_len)
 	}
 
 	if (!size_ok) {
-		pr_debug("ELF section with wrong entry size.\n");
+		pr_de("ELF section with wrong entry size.\n");
 		return false;
 	} else if (shdr->sh_addr + shdr->sh_size < shdr->sh_addr) {
-		pr_debug("ELF section address wraps around.\n");
+		pr_de("ELF section address wraps around.\n");
 		return false;
 	}
 
 	if (shdr->sh_type != SHT_NOBITS) {
 		if (shdr->sh_offset + shdr->sh_size < shdr->sh_offset) {
-			pr_debug("ELF section location wraps around.\n");
+			pr_de("ELF section location wraps around.\n");
 			return false;
 		} else if (shdr->sh_offset + shdr->sh_size > buf_len) {
-			pr_debug("ELF section not in file.\n");
+			pr_de("ELF section not in file.\n");
 			return false;
 		}
 	}
@@ -591,7 +591,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	if (ret)
 		goto out;
 
-	pr_debug("Loaded the kernel at 0x%lx\n", kernel_load_addr);
+	pr_de("Loaded the kernel at 0x%lx\n", kernel_load_addr);
 
 	ret = kexec_load_purgatory(image, &pbuf);
 	if (ret) {
@@ -599,7 +599,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 		goto out;
 	}
 
-	pr_debug("Loaded purgatory at 0x%lx\n", pbuf.mem);
+	pr_de("Loaded purgatory at 0x%lx\n", pbuf.mem);
 
 	if (initrd != NULL) {
 		kbuf.buffer = initrd;
@@ -611,7 +611,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 			goto out;
 		initrd_load_addr = kbuf.mem;
 
-		pr_debug("Loaded initrd at 0x%lx\n", initrd_load_addr);
+		pr_de("Loaded initrd at 0x%lx\n", initrd_load_addr);
 	}
 
 	fdt_size = fdt_totalsize(initial_boot_params) * 2;
@@ -643,7 +643,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 		goto out;
 	fdt_load_addr = kbuf.mem;
 
-	pr_debug("Loaded device tree at 0x%lx\n", fdt_load_addr);
+	pr_de("Loaded device tree at 0x%lx\n", fdt_load_addr);
 
 	slave_code = elf_info.buffer + elf_info.proghdrs[0].p_offset;
 	ret = setup_purgatory(image, slave_code, fdt, kernel_load_addr,

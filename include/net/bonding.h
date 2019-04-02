@@ -140,7 +140,7 @@ struct bond_parm_tbl {
 };
 
 struct slave {
-	struct net_device *dev; /* first - useful for panic debug */
+	struct net_device *dev; /* first - useful for panic de */
 	struct bonding *bond; /* our master */
 	int    delay;
 	/* all three in jiffies */
@@ -187,7 +187,7 @@ struct bond_up_slave {
  * Get rcu_read_lock when reading or RTNL when writing slave list.
  */
 struct bonding {
-	struct   net_device *dev; /* first - useful for panic debug */
+	struct   net_device *dev; /* first - useful for panic de */
 	struct   slave __rcu *curr_active_slave;
 	struct   slave __rcu *current_arp_slave;
 	struct   slave __rcu *primary_slave;
@@ -224,10 +224,10 @@ struct bonding {
 	struct   delayed_work ad_work;
 	struct   delayed_work mcast_work;
 	struct   delayed_work slave_arr_work;
-#ifdef CONFIG_DEBUG_FS
-	/* debugging support via debugfs */
-	struct	 dentry *debug_dir;
-#endif /* CONFIG_DEBUG_FS */
+#ifdef CONFIG_DE_FS
+	/* deging support via defs */
+	struct	 dentry *de_dir;
+#endif /* CONFIG_DE_FS */
 	struct rtnl_link_stats64 bond_stats;
 };
 
@@ -615,11 +615,11 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb);
 int bond_set_carrier(struct bonding *bond);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
-void bond_create_debugfs(void);
-void bond_destroy_debugfs(void);
-void bond_debug_register(struct bonding *bond);
-void bond_debug_unregister(struct bonding *bond);
-void bond_debug_reregister(struct bonding *bond);
+void bond_create_defs(void);
+void bond_destroy_defs(void);
+void bond_de_register(struct bonding *bond);
+void bond_de_unregister(struct bonding *bond);
+void bond_de_reregister(struct bonding *bond);
 const char *bond_mode_name(int mode);
 void bond_setup(struct net_device *bond_dev);
 unsigned int bond_get_num_tx_queues(void);

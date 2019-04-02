@@ -339,13 +339,13 @@ static unsigned int ps3fb_find_mode(struct fb_var_screeninfo *var,
 
 	best_id = 0;
 	best_diff = INT_MAX;
-	pr_debug("%s: wanted %u [%u] %u x %u [%u] %u\n", __func__,
+	pr_de("%s: wanted %u [%u] %u x %u [%u] %u\n", __func__,
 		 var->left_margin, var->xres, var->right_margin,
 		 var->upper_margin, var->yres, var->lower_margin);
 	for (id = PS3AV_MODE_480I; id <= PS3AV_MODE_WUXGA; id++) {
 		vmode = ps3fb_native_vmode(id);
 		diff = ps3fb_cmp_mode(vmode, var);
-		pr_debug("%s: mode %u: %u [%u] %u x %u [%u] %u: diff = %d\n",
+		pr_de("%s: mode %u: %u [%u] %u x %u [%u] %u: diff = %d\n",
 			 __func__, id, vmode->left_margin, vmode->xres,
 			 vmode->right_margin, vmode->upper_margin,
 			 vmode->yres, vmode->lower_margin, diff);
@@ -360,7 +360,7 @@ static unsigned int ps3fb_find_mode(struct fb_var_screeninfo *var,
 	}
 
 	if (!best_id) {
-		pr_debug("%s: no suitable mode found\n", __func__);
+		pr_de("%s: no suitable mode found\n", __func__);
 		return 0;
 	}
 
@@ -399,7 +399,7 @@ static unsigned int ps3fb_find_mode(struct fb_var_screeninfo *var,
 	if (gap > 0) {
 		var->left_margin += gap/2;
 		var->right_margin += (gap+1)/2;
-		pr_debug("%s: rounded up H to %u [%u] %u\n", __func__,
+		pr_de("%s: rounded up H to %u [%u] %u\n", __func__,
 			 var->left_margin, var->xres, var->right_margin);
 	}
 
@@ -410,7 +410,7 @@ static unsigned int ps3fb_find_mode(struct fb_var_screeninfo *var,
 	if (gap > 0) {
 		var->upper_margin += gap/2;
 		var->lower_margin += (gap+1)/2;
-		pr_debug("%s: rounded up V to %u [%u] %u\n", __func__,
+		pr_de("%s: rounded up V to %u [%u] %u\n", __func__,
 			 var->upper_margin, var->yres, var->lower_margin);
 	}
 
@@ -433,7 +433,7 @@ static unsigned int ps3fb_find_mode(struct fb_var_screeninfo *var,
 			id |= PS3AV_MODE_FULL;
 	}
 
-	pr_debug("%s: mode %u\n", __func__, id);
+	pr_de("%s: mode %u\n", __func__, id);
 	return id;
 }
 
@@ -1293,9 +1293,9 @@ static int __init ps3fb_init(void)
 
 static void __exit ps3fb_exit(void)
 {
-	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+	pr_de(" -> %s:%d\n", __func__, __LINE__);
 	ps3_system_bus_driver_unregister(&ps3fb_driver);
-	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	pr_de(" <- %s:%d\n", __func__, __LINE__);
 }
 
 module_init(ps3fb_init);

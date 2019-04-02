@@ -148,19 +148,19 @@ do_fscc=0
 	jsr	fp_get_addr_reg
 	move.l	%a0,%d0
 2\@:
-debug	lea	"'l'.w,%a0"
+de	lea	"'l'.w,%a0"
 	btst	#11,%d2			| 16/32 bit size?
 	jne	3\@f
-debug	lea	"'w'.w,%a0"
+de	lea	"'w'.w,%a0"
 	ext.l	%d0
 3\@:	printf	PDECODE,":%c",1,%a0
 	move.w	%d2,%d1			| scale factor
 	rol.w	#7,%d1
 	and.w	#3,%d1
-debug	move.l	"%d1,-(%sp)"
-debug	ext.l	"%d1"
+de	move.l	"%d1,-(%sp)"
+de	ext.l	"%d1"
 	printf	PDECODE,":%d",1,%d1
-debug	move.l	"(%sp)+,%d1"
+de	move.l	"(%sp)+,%d1"
 	lsl.l	%d1,%d0
 .endm
 
@@ -312,7 +312,7 @@ debug	move.l	"(%sp)+,%d1"
 	jne	1f
 	printf	PDECODE,")@("
 	getuser.l (%a1),%a1,fp_err_ua1,%a1
-debug	jra	"2f"
+de	jra	"2f"
 1:	printf	PDECODE,","
 2:
 .endm
@@ -323,7 +323,7 @@ debug	jra	"2f"
 	jeq	1f
 	printf	PDECODE,")@("
 	getuser.l (%a1),%a1,fp_err_ua1,%a1
-debug	jra	"2f"
+de	jra	"2f"
 1:	printf	PDECODE,","
 2:
 .endm
@@ -345,7 +345,7 @@ debug	jra	"2f"
 	| addressing mode: address register/programm counter indirect
 	|		   with index and 8bit displacement
 	fp_decode_disp8
-debug	ext.l	"%d0"
+de	ext.l	"%d0"
 	printf	PDECODE,"@(%x,",1,%d0
 	add.w	%d0,%a1
 	fp_decode_index
@@ -364,7 +364,7 @@ debug	ext.l	"%d0"
 	.long	fp_ill,1f
 	.long	2f,3f
 
-#ifdef FPU_EMU_DEBUG
+#ifdef FPU_EMU_DE
 1:	printf	PDECODE,"0"		| null base displacement
 	jra	1f
 #endif
@@ -386,7 +386,7 @@ debug	ext.l	"%d0"
 	.long	5f,1f
 	.long	2f,3f
 
-#ifdef FPU_EMU_DEBUG
+#ifdef FPU_EMU_DE
 1:	printf	PDECODE,"0"		| null outer displacement
 	jra	1f
 #endif

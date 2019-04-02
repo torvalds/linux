@@ -140,7 +140,7 @@ retry:
 
 static void pasemi_free_tx_chan(int chan)
 {
-	BUG_ON(test_bit(chan, txch_free));
+	_ON(test_bit(chan, txch_free));
 	set_bit(chan, txch_free);
 }
 
@@ -159,7 +159,7 @@ retry:
 
 static void pasemi_free_rx_chan(int chan)
 {
-	BUG_ON(test_bit(chan, rxch_free));
+	_ON(test_bit(chan, rxch_free));
 	set_bit(chan, rxch_free);
 }
 
@@ -185,7 +185,7 @@ void *pasemi_dma_alloc_chan(enum pasemi_dmachan_type type,
 	struct pasemi_dmachan *chan;
 	int chno;
 
-	BUG_ON(total_size < sizeof(struct pasemi_dmachan));
+	_ON(total_size < sizeof(struct pasemi_dmachan));
 
 	buf = kzalloc(total_size, GFP_KERNEL);
 
@@ -251,7 +251,7 @@ EXPORT_SYMBOL(pasemi_dma_free_chan);
  */
 int pasemi_dma_alloc_ring(struct pasemi_dmachan *chan, int ring_size)
 {
-	BUG_ON(chan->ring_virt);
+	_ON(chan->ring_virt);
 
 	chan->ring_size = ring_size;
 
@@ -273,7 +273,7 @@ EXPORT_SYMBOL(pasemi_dma_alloc_ring);
  */
 void pasemi_dma_free_ring(struct pasemi_dmachan *chan)
 {
-	BUG_ON(!chan->ring_virt);
+	_ON(!chan->ring_virt);
 
 	dma_free_coherent(&dma_pdev->dev, chan->ring_size * sizeof(u64),
 			  chan->ring_virt, chan->ring_dma);
@@ -405,8 +405,8 @@ EXPORT_SYMBOL(pasemi_dma_alloc_flag);
  */
 void pasemi_dma_free_flag(int flag)
 {
-	BUG_ON(test_bit(flag, flags_free));
-	BUG_ON(flag >= MAX_FLAGS);
+	_ON(test_bit(flag, flags_free));
+	_ON(flag >= MAX_FLAGS);
 	set_bit(flag, flags_free);
 }
 EXPORT_SYMBOL(pasemi_dma_free_flag);
@@ -419,7 +419,7 @@ EXPORT_SYMBOL(pasemi_dma_free_flag);
  */
 void pasemi_dma_set_flag(int flag)
 {
-	BUG_ON(flag >= MAX_FLAGS);
+	_ON(flag >= MAX_FLAGS);
 	if (flag < 32)
 		pasemi_write_dma_reg(PAS_DMA_TXF_SFLG0, 1 << flag);
 	else
@@ -434,7 +434,7 @@ EXPORT_SYMBOL(pasemi_dma_set_flag);
  */
 void pasemi_dma_clear_flag(int flag)
 {
-	BUG_ON(flag >= MAX_FLAGS);
+	_ON(flag >= MAX_FLAGS);
 	if (flag < 32)
 		pasemi_write_dma_reg(PAS_DMA_TXF_CFLG0, 1 << flag);
 	else
@@ -470,8 +470,8 @@ EXPORT_SYMBOL(pasemi_dma_alloc_fun);
  */
 void pasemi_dma_free_fun(int fun)
 {
-	BUG_ON(test_bit(fun, fun_free));
-	BUG_ON(fun >= MAX_FLAGS);
+	_ON(test_bit(fun, fun_free));
+	_ON(fun >= MAX_FLAGS);
 	set_bit(fun, fun_free);
 }
 EXPORT_SYMBOL(pasemi_dma_free_fun);
@@ -528,7 +528,7 @@ int pasemi_dma_init(void)
 
 	iob_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
 	if (!iob_pdev) {
-		BUG();
+		();
 		pr_warn("Can't find I/O Bridge\n");
 		err = -ENODEV;
 		goto out;
@@ -537,7 +537,7 @@ int pasemi_dma_init(void)
 
 	dma_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa007, NULL);
 	if (!dma_pdev) {
-		BUG();
+		();
 		pr_warn("Can't find DMA controller\n");
 		err = -ENODEV;
 		goto out;

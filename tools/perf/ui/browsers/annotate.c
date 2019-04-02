@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <sys/ttydefaults.h>
-#include <asm/bug.h>
+#include <asm/.h>
 
 struct disasm_line_samples {
 	double		      percent;

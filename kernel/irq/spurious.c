@@ -426,19 +426,19 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	desc->irqs_unhandled = 0;
 }
 
-bool noirqdebug __read_mostly;
+bool noirqde __read_mostly;
 
-int noirqdebug_setup(char *str)
+int noirqde_setup(char *str)
 {
-	noirqdebug = 1;
+	noirqde = 1;
 	printk(KERN_INFO "IRQ lockup detection disabled\n");
 
 	return 1;
 }
 
-__setup("noirqdebug", noirqdebug_setup);
-module_param(noirqdebug, bool, 0644);
-MODULE_PARM_DESC(noirqdebug, "Disable irq lockup detection when true");
+__setup("noirqde", noirqde_setup);
+module_param(noirqde, bool, 0644);
+MODULE_PARM_DESC(noirqde, "Disable irq lockup detection when true");
 
 static int __init irqfixup_setup(char *str)
 {

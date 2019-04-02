@@ -47,12 +47,12 @@ config RAPIDIO_DMA_ENGINE
 
 	  If you are unsure about this, say Y here.
 
-config RAPIDIO_DEBUG
-	bool "RapidIO subsystem debug messages"
+config RAPIDIO_DE
+	bool "RapidIO subsystem de messages"
 	depends on RAPIDIO
 	help
 	  Say Y here if you want the RapidIO subsystem to produce a bunch of
-	  debug messages to the system log. Select this if you are having a
+	  de messages to the system log. Select this if you are having a
 	  problem with the RapidIO subsystem and want to see more of what is
 	  going on.
 

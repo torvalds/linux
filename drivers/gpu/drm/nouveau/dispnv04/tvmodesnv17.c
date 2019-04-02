@@ -575,10 +575,10 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 	regs->fp_vert_regs[FP_VALID_START] = vmargin;
 	regs->fp_vert_regs[FP_VALID_END] = output_mode->vdisplay - vmargin - 1;
 
-	regs->fp_debug_1 = NV_PRAMDAC_FP_DEBUG_1_YSCALE_TESTMODE_ENABLE |
-		XLATE(vratio, 0, NV_PRAMDAC_FP_DEBUG_1_YSCALE_VALUE) |
-		NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
-		XLATE(hratio, 0, NV_PRAMDAC_FP_DEBUG_1_XSCALE_VALUE);
+	regs->fp_de_1 = NV_PRAMDAC_FP_DE_1_YSCALE_TESTMODE_ENABLE |
+		XLATE(vratio, 0, NV_PRAMDAC_FP_DE_1_YSCALE_VALUE) |
+		NV_PRAMDAC_FP_DE_1_XSCALE_TESTMODE_ENABLE |
+		XLATE(hratio, 0, NV_PRAMDAC_FP_DE_1_XSCALE_VALUE);
 
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HVALID_START,
 		      regs->fp_horiz_regs[FP_VALID_START]);
@@ -588,5 +588,5 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 		      regs->fp_vert_regs[FP_VALID_START]);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_VVALID_END,
 		      regs->fp_vert_regs[FP_VALID_END]);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_1, regs->fp_debug_1);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DE_1, regs->fp_de_1);
 }

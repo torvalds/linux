@@ -1054,7 +1054,7 @@ static int tusb_musb_start(struct musb *musb)
 	/* Select PHY free running 60MHz as a system clock */
 	tusb_set_clock_source(musb, 1);
 
-	/* VBus valid timer 1us, disable DFT/Debug and VLYNQ clocks for
+	/* VBus valid timer 1us, disable DFT/De and VLYNQ clocks for
 	 * power saving, enable VBus detect and session end comparators,
 	 * enable IDpullup, enable VBus charging */
 	musb_writel(tbase, TUSB_PRCM_MNGMT,
@@ -1107,7 +1107,7 @@ static int tusb_musb_init(struct musb *musb)
 	/* dma address for sync dma */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!mem) {
-		pr_debug("no sync dma resource?\n");
+		pr_de("no sync dma resource?\n");
 		ret = -ENODEV;
 		goto done;
 	}
@@ -1115,7 +1115,7 @@ static int tusb_musb_init(struct musb *musb)
 
 	sync = ioremap(mem->start, resource_size(mem));
 	if (!sync) {
-		pr_debug("ioremap for sync failed\n");
+		pr_de("ioremap for sync failed\n");
 		ret = -ENOMEM;
 		goto done;
 	}

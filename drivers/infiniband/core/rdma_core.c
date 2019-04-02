@@ -820,7 +820,7 @@ void uverbs_close_fd(struct file *f)
 		 * lookup_get_fd_uobject holds the kref on the struct file any
 		 * time a FD uobj is locked, which prevents this release
 		 * method from being invoked. Meaning we can always get the
-		 * write lock here, or we have a kernel bug.
+		 * write lock here, or we have a kernel .
 		 */
 		WARN_ON(uverbs_try_lock_object(uobj, UVERBS_LOOKUP_WRITE));
 		uverbs_destroy_uobject(uobj, RDMA_REMOVE_CLOSE);

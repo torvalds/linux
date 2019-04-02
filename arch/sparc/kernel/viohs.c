@@ -85,12 +85,12 @@ static void flush_rx_dring(struct vio_driver_state *vio)
 	struct vio_dring_state *dr;
 	u64 ident;
 
-	BUG_ON(!(vio->dr_state & VIO_DR_STATE_RXREG));
+	_ON(!(vio->dr_state & VIO_DR_STATE_RXREG));
 
 	dr = &vio->drings[VIO_DRIVER_RX_RING];
 	ident = dr->ident;
 
-	BUG_ON(!vio->desc_buf);
+	_ON(!vio->desc_buf);
 	kfree(vio->desc_buf);
 	vio->desc_buf = NULL;
 
@@ -449,7 +449,7 @@ static int process_dreg_info(struct vio_driver_state *vio,
 		pkt->options = VIO_TX_DRING;
 	}
 
-	BUG_ON(vio->desc_buf);
+	_ON(vio->desc_buf);
 
 	vio->desc_buf = kzalloc(pkt->descr_size, GFP_ATOMIC);
 	if (!vio->desc_buf)

@@ -518,7 +518,7 @@ musb_host_packet_rx(struct musb *musb, struct urb *urb, u8 epnum, u8 iso_err)
  * when we do, use tx/rx reinit routine and then construct a new CSR
  * to address data toggle, NYET, and DMA or PIO.
  *
- * it's possible that driver bugs (especially for DMA) or aborting a
+ * it's possible that driver s (especially for DMA) or aborting a
  * transfer might have left the endpoint busier than it should be.
  * the busy/not-empty tests are basically paranoia.
  */
@@ -2070,7 +2070,7 @@ static int musb_schedule(
 		if (diff >= 0 && best_diff > diff) {
 
 			/*
-			 * Mentor controller has a bug in that if we schedule
+			 * Mentor controller has a  in that if we schedule
 			 * a BULK Tx transfer on an endpoint that had earlier
 			 * handled ISOC then the BULK transfer has to start on
 			 * a zero toggle.  If the BULK transfer starts on a 1
@@ -2179,7 +2179,7 @@ static int musb_urb_enqueue(
 	 * hw_ep gets reprogrammed, or with irqs blocked.  Then schedule it.
 	 *
 	 * REVISIT consider a dedicated qh kmem_cache, so it's harder
-	 * for bugs in other kernel code to break this driver...
+	 * for s in other kernel code to break this driver...
 	 */
 	qh = kzalloc(sizeof *qh, mem_flags);
 	if (!qh) {

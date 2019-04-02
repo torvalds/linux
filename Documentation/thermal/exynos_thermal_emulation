@@ -9,7 +9,7 @@ Description
 -----------
 
 Exynos 4x12 (4212, 4412) and 5 series provide emulation mode for thermal management unit.
-Thermal emulation mode supports software debug for TMU's operation. User can set temperature
+Thermal emulation mode supports software de for TMU's operation. User can set temperature
 manually with software code and TMU will read current temperature from user value not from
 sensor's value.
 

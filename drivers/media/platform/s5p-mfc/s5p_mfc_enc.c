@@ -26,7 +26,7 @@
 #include <media/videobuf2-v4l2.h>
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_ctrl.h"
-#include "s5p_mfc_debug.h"
+#include "s5p_mfc_de.h"
 #include "s5p_mfc_enc.h"
 #include "s5p_mfc_intr.h"
 #include "s5p_mfc_opr.h"
@@ -1099,7 +1099,7 @@ static const char * const *mfc51_get_menu(u32 id)
 
 static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 {
-	mfc_debug(2, "src=%d, dst=%d, state=%d\n",
+	mfc_de(2, "src=%d, dst=%d, state=%d\n",
 		  ctx->src_queue_cnt, ctx->dst_queue_cnt, ctx->state);
 	/* context is ready to make header */
 	if (ctx->state == MFCINST_GOT_INST && ctx->dst_queue_cnt >= 1)
@@ -1113,7 +1113,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 	if (ctx->state == MFCINST_FINISHING &&
 		ctx->dst_queue_cnt >= 1)
 		return 1;
-	mfc_debug(2, "ctx is not ready\n");
+	mfc_de(2, "ctx is not ready\n");
 	return 0;
 }
 
@@ -1130,7 +1130,7 @@ static void cleanup_ref_queue(struct s5p_mfc_ctx *ctx)
 		list_add_tail(&mb_entry->list, &ctx->src_queue);
 		ctx->src_queue_cnt++;
 	}
-	mfc_debug(2, "enc src count: %d, enc ref count: %d\n",
+	mfc_de(2, "enc src count: %d, enc ref count: %d\n",
 		  ctx->src_queue_cnt, ctx->ref_queue_cnt);
 	INIT_LIST_HEAD(&ctx->ref_queue);
 	ctx->ref_queue_cnt = 0;
@@ -1227,9 +1227,9 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 
 	slice_type = s5p_mfc_hw_call(dev->mfc_ops, get_enc_slice_type, dev);
 	strm_size = s5p_mfc_hw_call(dev->mfc_ops, get_enc_strm_size, dev);
-	mfc_debug(2, "Encoded slice type: %d\n", slice_type);
-	mfc_debug(2, "Encoded stream size: %d\n", strm_size);
-	mfc_debug(2, "Display order: %d\n",
+	mfc_de(2, "Encoded slice type: %d\n", slice_type);
+	mfc_de(2, "Encoded stream size: %d\n", strm_size);
+	mfc_de(2, "Display order: %d\n",
 		  mfc_read(dev, S5P_FIMV_ENC_SI_PIC_CNT));
 	if (slice_type >= 0) {
 		s5p_mfc_hw_call(dev->mfc_ops, get_enc_frame_buffer, ctx,
@@ -1273,7 +1273,7 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 			ctx->ref_queue_cnt++;
 		}
 	}
-	mfc_debug(2, "enc src count: %d, enc ref count: %d\n",
+	mfc_de(2, "enc src count: %d, enc ref count: %d\n",
 		  ctx->src_queue_cnt, ctx->ref_queue_cnt);
 	if ((ctx->dst_queue_cnt > 0) && (strm_size > 0)) {
 		mb_entry = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf,
@@ -1371,7 +1371,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
-	mfc_debug(2, "f->type = %d ctx->state = %d\n", f->type, ctx->state);
+	mfc_de(2, "f->type = %d ctx->state = %d\n", f->type, ctx->state);
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		/* This is run on output (encoder dest) */
 		pix_fmt_mp->width = 0;
@@ -1471,8 +1471,8 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		ctx->src_fmt = find_format(f, MFC_FMT_RAW);
 		ctx->img_width = pix_fmt_mp->width;
 		ctx->img_height = pix_fmt_mp->height;
-		mfc_debug(2, "codec number: %d\n", ctx->src_fmt->codec_mode);
-		mfc_debug(2, "fmt - w: %d, h: %d, ctx - w: %d, h: %d\n",
+		mfc_de(2, "codec number: %d\n", ctx->src_fmt->codec_mode);
+		mfc_de(2, "fmt - w: %d, h: %d, ctx - w: %d, h: %d\n",
 			pix_fmt_mp->width, pix_fmt_mp->height,
 			ctx->img_width, ctx->img_height);
 
@@ -1489,7 +1489,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		ret = -EINVAL;
 	}
 out:
-	mfc_debug_leave();
+	mfc_de_leave();
 	return ret;
 }
 
@@ -1506,7 +1506,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		return -EINVAL;
 	if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		if (reqbufs->count == 0) {
-			mfc_debug(2, "Freeing buffers\n");
+			mfc_de(2, "Freeing buffers\n");
 			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
 			s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers,
 					ctx);
@@ -1535,7 +1535,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		}
 	} else if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (reqbufs->count == 0) {
-			mfc_debug(2, "Freeing buffers\n");
+			mfc_de(2, "Freeing buffers\n");
 			ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 			s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers,
 					ctx);
@@ -1553,7 +1553,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			if (ctx->pb_count &&
 				(reqbufs->count < ctx->pb_count)) {
 				reqbufs->count = ctx->pb_count;
-				mfc_debug(2, "Minimum %d output buffers needed\n",
+				mfc_de(2, "Minimum %d output buffers needed\n",
 						ctx->pb_count);
 			} else {
 				ctx->pb_count = reqbufs->count;
@@ -2306,14 +2306,14 @@ static int vidioc_encoder_cmd(struct file *file, void *priv,
 
 		spin_lock_irqsave(&dev->irqlock, flags);
 		if (list_empty(&ctx->src_queue)) {
-			mfc_debug(2, "EOS: empty src queue, entering finishing state\n");
+			mfc_de(2, "EOS: empty src queue, entering finishing state\n");
 			ctx->state = MFCINST_FINISHING;
 			if (s5p_mfc_ctx_ready(ctx))
 				set_work_bit_irqsave(ctx);
 			spin_unlock_irqrestore(&dev->irqlock, flags);
 			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		} else {
-			mfc_debug(2, "EOS: marking last buffer of stream\n");
+			mfc_de(2, "EOS: marking last buffer of stream\n");
 			buf = list_entry(ctx->src_queue.prev,
 						struct s5p_mfc_buf, list);
 			if (buf->flags & MFC_BUF_FLAG_USED)
@@ -2381,7 +2381,7 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 			mfc_err("failed to get plane cookie\n");
 			return -EINVAL;
 		}
-		mfc_debug(2, "index: %d, plane[%d] cookie: %pad\n",
+		mfc_de(2, "index: %d, plane[%d] cookie: %pad\n",
 			  vb->index, i, &dma);
 	}
 	return 0;
@@ -2483,7 +2483,7 @@ static int s5p_mfc_buf_prepare(struct vb2_buffer *vb)
 		ret = check_vb_with_fmt(ctx->dst_fmt, vb);
 		if (ret < 0)
 			return ret;
-		mfc_debug(2, "plane size: %ld, dst size: %zu\n",
+		mfc_de(2, "plane size: %ld, dst size: %zu\n",
 			vb2_plane_size(vb, 0), ctx->enc_dst_buf_size);
 		if (vb2_plane_size(vb, 0) < ctx->enc_dst_buf_size) {
 			mfc_err("plane size is too small for capture\n");
@@ -2493,9 +2493,9 @@ static int s5p_mfc_buf_prepare(struct vb2_buffer *vb)
 		ret = check_vb_with_fmt(ctx->src_fmt, vb);
 		if (ret < 0)
 			return ret;
-		mfc_debug(2, "plane size: %ld, luma size: %d\n",
+		mfc_de(2, "plane size: %ld, luma size: %d\n",
 			vb2_plane_size(vb, 0), ctx->luma_size);
-		mfc_debug(2, "plane size: %ld, chroma size: %d\n",
+		mfc_de(2, "plane size: %ld, chroma size: %d\n",
 			vb2_plane_size(vb, 1), ctx->chroma_size);
 		if (vb2_plane_size(vb, 0) < ctx->luma_size ||
 		    vb2_plane_size(vb, 1) < ctx->chroma_size) {

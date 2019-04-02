@@ -343,7 +343,7 @@ void __init tegra_register_devclks(struct tegra_devclk *dev_clks, int num)
 	for (i = 0; i < clk_num; i++) {
 		if (!IS_ERR_OR_NULL(clks[i]))
 			clk_register_clkdev(clks[i], __clk_get_name(clks[i]),
-				"tegra-clk-debug");
+				"tegra-clk-de");
 	}
 }
 

@@ -53,7 +53,7 @@ endif
 
 obj-$(CONFIG_PPC_SCOM)		+= scom.o
 
-obj-$(CONFIG_PPC_EARLY_DEBUG_MEMCONS)	+= udbg_memcons.o
+obj-$(CONFIG_PPC_EARLY_DE_MEMCONS)	+= udbg_memcons.o
 
 obj-$(CONFIG_PPC_XICS)		+= xics/
 obj-$(CONFIG_PPC_XIVE)		+= xive/

@@ -464,7 +464,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 #ifdef CONFIG_X86_LOCAL_APIC
 		smp_found_config = 0;
 #endif
-		pr_err("BIOS bug, MP table errors detected!...\n");
+		pr_err("BIOS , MP table errors detected!...\n");
 		pr_cont("... disabling SMP support. (tell your hw vendor)\n");
 		early_memunmap(mpc, size);
 		return -1;
@@ -483,7 +483,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 	if (!mp_irq_entries) {
 		struct mpc_bus bus;
 
-		pr_err("BIOS bug, no explicit IRQ entries, using default mptable. (tell your hw vendor)\n");
+		pr_err("BIOS , no explicit IRQ entries, using default mptable. (tell your hw vendor)\n");
 
 		bus.type = MP_BUS;
 		bus.busid = 0;
@@ -558,7 +558,7 @@ void __init default_get_smp_config(unsigned int early)
 			return;
 		}
 	} else
-		BUG();
+		();
 
 	if (!early)
 		pr_info("Processors: %d\n", num_processors);
@@ -582,7 +582,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 
 	apic_printk(APIC_VERBOSE, "Scan for SMP in [mem %#010lx-%#010lx]\n",
 		    base, base + length - 1);
-	BUILD_BUG_ON(sizeof(*mpf) != 16);
+	BUILD__ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
 		bp = early_memremap(base, length);
@@ -645,7 +645,7 @@ void __init default_find_smp_config(void)
 	 * NOTE! There are Linux loaders that will corrupt the EBDA
 	 * area, and as such this kind of SMP config may be less
 	 * trustworthy, simply because the SMP table may have been
-	 * stomped on during early boot. These loaders are buggy and
+	 * stomped on during early boot. These loaders are gy and
 	 * should be fixed.
 	 *
 	 * MP1.4 SPEC states to only scan first 1K of 4K EBDA.

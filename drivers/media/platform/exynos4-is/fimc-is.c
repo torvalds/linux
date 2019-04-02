@@ -13,7 +13,7 @@
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dma-contiguous.h>
 #include <linux/errno.h>
@@ -147,7 +147,7 @@ static int fimc_is_enable_clocks(struct fimc_is *is)
 				clk_disable(is->clocks[i]);
 			return ret;
 		}
-		pr_debug("enabled clock: %s\n", fimc_is_clocks[i]);
+		pr_de("enabled clock: %s\n", fimc_is_clocks[i]);
 	}
 	return 0;
 }
@@ -159,7 +159,7 @@ static void fimc_is_disable_clocks(struct fimc_is *is)
 	for (i = 0; i < ISS_GATE_CLKS_MAX; i++) {
 		if (!IS_ERR(is->clocks[i])) {
 			clk_disable_unprepare(is->clocks[i]);
-			pr_debug("disabled clock: %s\n", fimc_is_clocks[i]);
+			pr_de("disabled clock: %s\n", fimc_is_clocks[i]);
 		}
 	}
 }
@@ -247,7 +247,7 @@ static int fimc_is_load_setfile(struct fimc_is *is, char *file_name)
 	fimc_is_mem_barrier();
 	is->setfile.size = fw->size;
 
-	pr_debug("mem vaddr: %p, setfile buf: %p\n", is->memory.vaddr, buf);
+	pr_de("mem vaddr: %p, setfile buf: %p\n", is->memory.vaddr, buf);
 
 	memcpy(is->fw.setfile_info,
 		fw->data + fw->size - FIMC_IS_SETFILE_INFO_LEN,
@@ -256,7 +256,7 @@ static int fimc_is_load_setfile(struct fimc_is *is, char *file_name)
 	is->fw.setfile_info[FIMC_IS_SETFILE_INFO_LEN - 1] = '\0';
 	is->setfile.state = 1;
 
-	pr_debug("FIMC-IS setfile loaded: base: %#x, size: %zu B\n",
+	pr_de("FIMC-IS setfile loaded: base: %#x, size: %zu B\n",
 		 is->setfile.base, fw->size);
 
 	release_firmware(fw);
@@ -455,7 +455,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 		fimc_is_hw_get_params(is, 1);
 		fimc_is_hw_wait_intmsr0_intmsd0(is);
 		fimc_is_hw_set_sensor_num(is);
-		pr_debug("ISP FW version: %#x\n", is->i2h_cmd.args[0]);
+		pr_de("ISP FW version: %#x\n", is->i2h_cmd.args[0]);
 		break;
 	case IHC_SET_FACE_MARK:
 	case IHC_FRAME_DONE:
@@ -496,12 +496,12 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 		break;
 
 	case IHC_AA_DONE:
-		pr_debug("AA_DONE - %d, %d, %d\n", is->i2h_cmd.args[0],
+		pr_de("AA_DONE - %d, %d, %d\n", is->i2h_cmd.args[0],
 			 is->i2h_cmd.args[1], is->i2h_cmd.args[2]);
 		break;
 
 	case IH_REPLY_DONE:
-		pr_debug("ISR_DONE: args[0]: %#x\n", is->i2h_cmd.args[0]);
+		pr_de("ISR_DONE: args[0]: %#x\n", is->i2h_cmd.args[0]);
 
 		switch (is->i2h_cmd.args[0]) {
 		case HIC_PREVIEW_STILL...HIC_CAPTURE_VIDEO:
@@ -509,7 +509,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 			set_bit(IS_ST_CHANGE_MODE, &is->state);
 			is->isp.cac_margin_x = is->i2h_cmd.args[1];
 			is->isp.cac_margin_y = is->i2h_cmd.args[2];
-			pr_debug("CAC margin (x,y): (%d,%d)\n",
+			pr_de("CAC margin (x,y): (%d,%d)\n",
 				 is->isp.cac_margin_x, is->isp.cac_margin_y);
 			break;
 
@@ -527,7 +527,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 			is->config[is->config_index].p_region_index[0] = 0;
 			is->config[is->config_index].p_region_index[1] = 0;
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
-			pr_debug("HIC_SET_PARAMETER\n");
+			pr_de("HIC_SET_PARAMETER\n");
 			break;
 
 		case HIC_GET_PARAMETER:
@@ -541,7 +541,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 
 		case HIC_OPEN_SENSOR:
 			set_bit(IS_ST_OPEN_SENSOR, &is->state);
-			pr_debug("data lanes: %d, settle line: %d\n",
+			pr_de("data lanes: %d, settle line: %d\n",
 				 is->i2h_cmd.args[2], is->i2h_cmd.args[1]);
 			break;
 
@@ -551,7 +551,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 			break;
 
 		case HIC_MSG_TEST:
-			pr_debug("config MSG level completed\n");
+			pr_de("config MSG level completed\n");
 			break;
 
 		case HIC_POWER_DOWN:
@@ -678,7 +678,7 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 		dev_err(dev, "get setfile address timed out\n");
 		return ret;
 	}
-	pr_debug("setfile.base: %#x\n", is->setfile.base);
+	pr_de("setfile.base: %#x\n", is->setfile.base);
 
 	/* Load the setfile. */
 	fimc_is_load_setfile(is, FIMC_IS_SETFILE_6A3);
@@ -691,7 +691,7 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 		return ret;
 	}
 
-	pr_debug("setfile: base: %#x, size: %d\n",
+	pr_de("setfile: base: %#x, size: %d\n",
 		 is->setfile.base, is->setfile.size);
 	pr_info("FIMC-IS Setfile info: %s\n", is->fw.setfile_info);
 
@@ -702,7 +702,7 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 		return -EIO;
 	}
 
-	pr_debug("shared region: %pad, parameter region: %pad\n",
+	pr_de("shared region: %pad, parameter region: %pad\n",
 		 &is->memory.paddr + FIMC_IS_SHARED_REGION_OFFSET,
 		 &is->is_dma_p_region);
 
@@ -741,7 +741,7 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 static int fimc_is_show(struct seq_file *s, void *data)
 {
 	struct fimc_is *is = s->private;
-	const u8 *buf = is->memory.vaddr + FIMC_IS_DEBUG_REGION_OFFSET;
+	const u8 *buf = is->memory.vaddr + FIMC_IS_DE_REGION_OFFSET;
 
 	if (is->memory.vaddr == NULL) {
 		dev_err(&is->pdev->dev, "firmware memory is not initialized\n");
@@ -754,24 +754,24 @@ static int fimc_is_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(fimc_is);
 
-static void fimc_is_debugfs_remove(struct fimc_is *is)
+static void fimc_is_defs_remove(struct fimc_is *is)
 {
-	debugfs_remove_recursive(is->debugfs_entry);
-	is->debugfs_entry = NULL;
+	defs_remove_recursive(is->defs_entry);
+	is->defs_entry = NULL;
 }
 
-static int fimc_is_debugfs_create(struct fimc_is *is)
+static int fimc_is_defs_create(struct fimc_is *is)
 {
 	struct dentry *dentry;
 
-	is->debugfs_entry = debugfs_create_dir("fimc_is", NULL);
+	is->defs_entry = defs_create_dir("fimc_is", NULL);
 
-	dentry = debugfs_create_file("fw_log", S_IRUGO, is->debugfs_entry,
+	dentry = defs_create_file("fw_log", S_IRUGO, is->defs_entry,
 				     is, &fimc_is_fops);
 	if (!dentry)
-		fimc_is_debugfs_remove(is);
+		fimc_is_defs_remove(is);
 
-	return is->debugfs_entry == NULL ? -EIO : 0;
+	return is->defs_entry == NULL ? -EIO : 0;
 }
 
 static int fimc_is_runtime_resume(struct device *dev);
@@ -856,7 +856,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm;
 
-	ret = fimc_is_debugfs_create(is);
+	ret = fimc_is_defs_create(is);
 	if (ret < 0)
 		goto err_sd;
 
@@ -870,7 +870,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	return 0;
 
 err_dfs:
-	fimc_is_debugfs_remove(is);
+	fimc_is_defs_remove(is);
 err_sd:
 	fimc_is_unregister_subdevs(is);
 err_pm:
@@ -938,7 +938,7 @@ static int fimc_is_remove(struct platform_device *pdev)
 	vb2_dma_contig_clear_max_seg_size(dev);
 	fimc_is_put_clocks(is);
 	iounmap(is->pmu_regs);
-	fimc_is_debugfs_remove(is);
+	fimc_is_defs_remove(is);
 	release_firmware(is->fw.f_w);
 	fimc_is_free_cpu_memory(is);
 

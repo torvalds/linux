@@ -210,7 +210,7 @@ static void sun_82077_fd_outb(unsigned char value, int port)
  * floppy interrupt c-code.  I tried very hard but I could not get the
  * pseudo-dma to work in c-code without getting many overruns and
  * underruns.  If non-zero, doing_pdma encodes the direction of
- * the transfer for debugging.  1=read 2=write
+ * the transfer for deging.  1=read 2=write
  */
 
 /* Common routines to all controller types on the Sparc. */

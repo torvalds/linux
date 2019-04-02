@@ -473,7 +473,7 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	/* we have to remember current mute status for each DAC */
 	changed = 0xFFFF;
 	stac9460_dac_mute_all(ice, 0, &changed);
-	/*printk(KERN_DEBUG "Rate change: %d, new MC: 0x%02x\n", rate, new);*/
+	/*printk(KERN_DE "Rate change: %d, new MC: 0x%02x\n", rate, new);*/
 	stac9460_put(ice, STAC946X_MASTER_CLOCKING, new);
 	stac9460_2_put(ice, STAC946X_MASTER_CLOCKING, new);
 	udelay(10);

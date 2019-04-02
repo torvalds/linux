@@ -99,8 +99,8 @@ void r100_hpd_fini(struct radeon_device *rdev);
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 void r100_hpd_set_polarity(struct radeon_device *rdev,
 			   enum radeon_hpd_id hpd);
-int r100_debugfs_rbbm_init(struct radeon_device *rdev);
-int r100_debugfs_cp_init(struct radeon_device *rdev);
+int r100_defs_rbbm_init(struct radeon_device *rdev);
+int r100_defs_cp_init(struct radeon_device *rdev);
 void r100_cp_disable(struct radeon_device *rdev);
 int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
 void r100_cp_fini(struct radeon_device *rdev);
@@ -108,7 +108,7 @@ int r100_pci_gart_init(struct radeon_device *rdev);
 void r100_pci_gart_fini(struct radeon_device *rdev);
 int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
-int r100_debugfs_mc_info_init(struct radeon_device *rdev);
+int r100_defs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
 int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r100_irq_disable(struct radeon_device *rdev);
@@ -199,7 +199,7 @@ extern int r420_resume(struct radeon_device *rdev);
 extern void r420_pm_init_profile(struct radeon_device *rdev);
 extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
 extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
-extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
+extern int r420_defs_pipes_info_init(struct radeon_device *rdev);
 extern void r420_pipes_init(struct radeon_device *rdev);
 
 /*
@@ -294,7 +294,7 @@ void rv515_set_safe_registers(struct radeon_device *rdev);
 void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save);
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save);
 void rv515_clock_startup(struct radeon_device *rdev);
-void rv515_debugfs(struct radeon_device *rdev);
+void rv515_defs(struct radeon_device *rdev);
 int rv515_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
@@ -431,7 +431,7 @@ u32 rv6xx_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rv6xx_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rv6xx_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
-void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void rv6xx_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
 int rv6xx_dpm_force_performance_level(struct radeon_device *rdev,
 				      enum radeon_dpm_forced_level level);
@@ -449,7 +449,7 @@ u32 rs780_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rs780_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rs780_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
-void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void rs780_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
 int rs780_dpm_force_performance_level(struct radeon_device *rdev,
 				      enum radeon_dpm_forced_level level);
@@ -490,7 +490,7 @@ u32 rv770_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rv770_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
-void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void rv770_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
 int rv770_dpm_force_performance_level(struct radeon_device *rdev,
 				      enum radeon_dpm_forced_level level);
@@ -572,7 +572,7 @@ void btc_dpm_fini(struct radeon_device *rdev);
 u32 btc_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 btc_dpm_get_mclk(struct radeon_device *rdev, bool low);
 bool btc_dpm_vblank_too_short(struct radeon_device *rdev);
-void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void btc_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						     struct seq_file *m);
 u32 btc_dpm_get_current_sclk(struct radeon_device *rdev);
 u32 btc_dpm_get_current_mclk(struct radeon_device *rdev);
@@ -590,7 +590,7 @@ u32 sumo_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 sumo_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void sumo_dpm_print_power_state(struct radeon_device *rdev,
 				struct radeon_ps *ps);
-void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void sumo_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						      struct seq_file *m);
 int sumo_dpm_force_performance_level(struct radeon_device *rdev,
 				     enum radeon_dpm_forced_level level);
@@ -667,7 +667,7 @@ u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 ni_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void ni_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *ps);
-void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void ni_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
 int ni_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
@@ -688,7 +688,7 @@ u32 trinity_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 trinity_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void trinity_dpm_print_power_state(struct radeon_device *rdev,
 				   struct radeon_ps *ps);
-void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void trinity_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 							 struct seq_file *m);
 int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 					enum radeon_dpm_forced_level level);
@@ -761,7 +761,7 @@ int si_dpm_set_power_state(struct radeon_device *rdev);
 void si_dpm_post_set_power_state(struct radeon_device *rdev);
 void si_dpm_fini(struct radeon_device *rdev);
 void si_dpm_display_configuration_changed(struct radeon_device *rdev);
-void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void si_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
 int si_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
@@ -885,7 +885,7 @@ u32 ci_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 ci_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void ci_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *ps);
-void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void ci_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
 int ci_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
@@ -915,7 +915,7 @@ u32 kv_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 kv_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void kv_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *ps);
-void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void kv_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
 int kv_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);

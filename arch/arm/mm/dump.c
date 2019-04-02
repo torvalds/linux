@@ -1,5 +1,5 @@
 /*
- * Debug helper to dump the current kernel pagetables of the system
+ * De helper to dump the current kernel pagetables of the system
  * so that we can see what the various memory ranges are set to.
  *
  * Derived from x86 implementation:
@@ -12,7 +12,7 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
@@ -450,7 +450,7 @@ void ptdump_check_wx(void)
 static int ptdump_init(void)
 {
 	ptdump_initialize();
-	return ptdump_debugfs_register(&kernel_ptdump_info,
+	return ptdump_defs_register(&kernel_ptdump_info,
 					"kernel_page_tables");
 }
 __initcall(ptdump_init);

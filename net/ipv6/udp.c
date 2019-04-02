@@ -1480,10 +1480,10 @@ back_from_confirm:
 	lock_sock(sk);
 	if (unlikely(up->pending)) {
 		/* The socket is already corked while preparing it. */
-		/* ... which is an evident application bug. --ANK */
+		/* ... which is an evident application . --ANK */
 		release_sock(sk);
 
-		net_dbg_ratelimited("udp cork app bug 2\n");
+		net_dbg_ratelimited("udp cork app  2\n");
 		err = -EINVAL;
 		goto out;
 	}

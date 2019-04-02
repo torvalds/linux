@@ -13,10 +13,10 @@
  *		Alan Cox	:	Split from ip.c , see ip_input.c for history.
  *		David S. Miller :	Begin massive cleanup...
  *		Andi Kleen	:	Add sysctls.
- *		xxxx		:	Overlapfrag bug.
+ *		xxxx		:	Overlapfrag .
  *		Ultima          :       ip_expire() kernel panic.
  *		Bill Hawes	:	Frag accounting and evictor fixes.
- *		John McDonald	:	0 length frag bug.
+ *		John McDonald	:	0 length frag .
  *		Alexey Kuznetsov:	SMP races, threading, cleanup.
  *		Patrick McHardy :	LRU queue of frag heads for evictor.
  */

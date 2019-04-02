@@ -72,9 +72,9 @@ config MMC_TEST
 	tristate "MMC host test driver"
 	help
 	  Development driver that performs a series of reads and writes
-	  to a memory card in order to expose certain well known bugs
+	  to a memory card in order to expose certain well known s
 	  in host controllers. The tests are executed by writing to the
-	  "test" file in debugfs under each card. Note that whatever is
+	  "test" file in defs under each card. Note that whatever is
 	  on your card will be overwritten by these tests.
 
 	  This driver is only of interest to those developing or

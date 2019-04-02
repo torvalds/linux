@@ -81,7 +81,7 @@
 		unsigned int __smc_r = r;				\
 		SMC_16BIT(lp) ? readw((a) + __smc_r) :			\
 		SMC_8BIT(lp) ? SMC_inw_b(a, __smc_r) :			\
-		({ BUG(); 0; });					\
+		({ (); 0; });					\
 	})
 
 #define SMC_inl(a, r)		readl((a) + (r))
@@ -94,7 +94,7 @@
 		else if (SMC_8BIT(lp))					\
 			SMC_outw_b(__v, a, __smc_r);			\
 		else							\
-			BUG();						\
+			();						\
 	} while (0)
 
 #define SMC_outl(v, a, r)	writel(v, (a) + (r))
@@ -420,48 +420,48 @@ smc_pxa_dma_insw(void __iomem *ioaddr, struct smc_local *lp, int reg, int dma,
 /*
  * Everything a particular hardware setup needs should have been defined
  * at this point.  Add stubs for the undefined cases, mainly to avoid
- * compilation warnings since they'll be optimized away, or to prevent buggy
+ * compilation warnings since they'll be optimized away, or to prevent gy
  * use of them.
  */
 
 #if ! SMC_CAN_USE_32BIT
-#define SMC_inl(ioaddr, reg)		({ BUG(); 0; })
-#define SMC_outl(x, ioaddr, reg)	BUG()
-#define SMC_insl(a, r, p, l)		BUG()
-#define SMC_outsl(a, r, p, l)		BUG()
+#define SMC_inl(ioaddr, reg)		({ (); 0; })
+#define SMC_outl(x, ioaddr, reg)	()
+#define SMC_insl(a, r, p, l)		()
+#define SMC_outsl(a, r, p, l)		()
 #endif
 
 #if !defined(SMC_insl) || !defined(SMC_outsl)
-#define SMC_insl(a, r, p, l)		BUG()
-#define SMC_outsl(a, r, p, l)		BUG()
+#define SMC_insl(a, r, p, l)		()
+#define SMC_outsl(a, r, p, l)		()
 #endif
 
 #if ! SMC_CAN_USE_16BIT
 
 #define SMC_outw(lp, x, ioaddr, reg)	SMC_outw_b(x, ioaddr, reg)
 #define SMC_inw(ioaddr, reg)		SMC_inw_b(ioaddr, reg)
-#define SMC_insw(a, r, p, l)		BUG()
-#define SMC_outsw(a, r, p, l)		BUG()
+#define SMC_insw(a, r, p, l)		()
+#define SMC_outsw(a, r, p, l)		()
 
 #endif
 
 #if !defined(SMC_insw) || !defined(SMC_outsw)
-#define SMC_insw(a, r, p, l)		BUG()
-#define SMC_outsw(a, r, p, l)		BUG()
+#define SMC_insw(a, r, p, l)		()
+#define SMC_outsw(a, r, p, l)		()
 #endif
 
 #if ! SMC_CAN_USE_8BIT
 #undef SMC_inb
-#define SMC_inb(ioaddr, reg)		({ BUG(); 0; })
+#define SMC_inb(ioaddr, reg)		({ (); 0; })
 #undef SMC_outb
-#define SMC_outb(x, ioaddr, reg)	BUG()
-#define SMC_insb(a, r, p, l)		BUG()
-#define SMC_outsb(a, r, p, l)		BUG()
+#define SMC_outb(x, ioaddr, reg)	()
+#define SMC_insb(a, r, p, l)		()
+#define SMC_outsb(a, r, p, l)		()
 #endif
 
 #if !defined(SMC_insb) || !defined(SMC_outsb)
-#define SMC_insb(a, r, p, l)		BUG()
-#define SMC_outsb(a, r, p, l)		BUG()
+#define SMC_insb(a, r, p, l)		()
+#define SMC_outsb(a, r, p, l)		()
 #endif
 
 #ifndef SMC_CAN_USE_DATACS
@@ -845,22 +845,22 @@ static const char * chip_ids[ 16 ] =  {
  * capabilities.  Please use those and not the in/out primitives.
  * Note: the following macros do *not* select the bank -- this must
  * be done separately as needed in the main code.  The SMC_REG() macro
- * only uses the bank argument for debugging purposes (when enabled).
+ * only uses the bank argument for deging purposes (when enabled).
  *
  * Note: despite inline functions being safer, everything leading to this
- * should preferably be macros to let BUG() display the line number in
+ * should preferably be macros to let () display the line number in
  * the core source code since we're interested in the top call site
  * not in any inline function location.
  */
 
-#if SMC_DEBUG > 0
+#if SMC_DE > 0
 #define SMC_REG(lp, reg, bank)					\
 	({								\
 		int __b = SMC_CURRENT_BANK(lp);			\
 		if (unlikely((__b & ~0xf0) != (0x3300 | bank))) {	\
 			pr_err("%s: bank reg screwed (0x%04x)\n",	\
 			       CARDNAME, __b);				\
-			BUG();						\
+			();						\
 		}							\
 		reg<<SMC_IO_SHIFT;					\
 	})

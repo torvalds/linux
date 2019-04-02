@@ -1,6 +1,6 @@
 /*
  * Xtensa Performance Monitor Module driver
- * See Tensilica Debug User's Guide for PMU registers documentation.
+ * See Tensilica De User's Guide for PMU registers documentation.
  *
  * Copyright (C) 2015 Cadence Design Systems Inc.
  *
@@ -343,7 +343,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			      callchain_trace, entry);
 }
 
-void perf_event_print_debug(void)
+void perf_event_print_de(void)
 {
 	unsigned long flags;
 	unsigned i;

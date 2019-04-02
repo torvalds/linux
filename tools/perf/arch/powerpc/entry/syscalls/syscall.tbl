@@ -298,9 +298,9 @@
 254	32	fadvise64_64			ppc_fadvise64_64
 254	spu	fadvise64_64			sys_ni_syscall
 255	common	rtas				sys_rtas
-256	32	sys_debug_setcontext		sys_debug_setcontext		sys_ni_syscall
-256	64	sys_debug_setcontext		sys_ni_syscall
-256	spu	sys_debug_setcontext		sys_ni_syscall
+256	32	sys_de_setcontext		sys_de_setcontext		sys_ni_syscall
+256	64	sys_de_setcontext		sys_ni_syscall
+256	spu	sys_de_setcontext		sys_ni_syscall
 # 257 reserved for vserver
 258	nospu	migrate_pages			sys_migrate_pages		compat_sys_migrate_pages
 259	nospu	mbind				sys_mbind			compat_sys_mbind

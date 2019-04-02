@@ -112,14 +112,14 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 	//category(1) + action field(1) + Dialog Token(1) + BA Parameter Set(2) +  BA Timeout Value(2) +  BA Start SeqCtrl(2)(or StatusCode(2))
-	IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA, "========>%s(), frame(%d) sentd to:%pM, ieee->dev:%p\n", __func__, type, Dst, ieee->dev);
+	IEEE80211_DE(IEEE80211_DL_TRACE | IEEE80211_DL_BA, "========>%s(), frame(%d) sentd to:%pM, ieee->dev:%p\n", __func__, type, Dst, ieee->dev);
 	if (pBA == NULL) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "pBA is NULL\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "pBA is NULL\n");
 		return NULL;
 	}
 	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (!skb) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
 	}
 
@@ -164,7 +164,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, s
 		tag += 2;
 	}
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DE_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	return skb;
 	//return NULL;
 }
@@ -195,7 +195,7 @@ static struct sk_buff *ieee80211_DELBA(
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
-		IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
+		IEEE80211_DE(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
 				"========>%s(), ReasonCode(%d) sentd to:%pM\n",
 				__func__, ReasonCode, dst);
 
@@ -206,7 +206,7 @@ static struct sk_buff *ieee80211_DELBA(
 
 	skb = dev_alloc_skb(len + sizeof(struct rtl_80211_hdr_3addr)); //need to add something others? FIXME
 	if (!skb) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
 	}
 //	memset(skb->data, 0, len+sizeof( struct rtl_80211_hdr_3addr));
@@ -233,9 +233,9 @@ static struct sk_buff *ieee80211_DELBA(
 	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DE_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	if (net_ratelimit())
-		IEEE80211_DEBUG(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
+		IEEE80211_DE(IEEE80211_DL_TRACE | IEEE80211_DL_BA,
 				"<=====%s()\n", __func__);
 	return skb;
 }
@@ -259,7 +259,7 @@ static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 		//and skb will be freed in softmac_mgmt_xmit(), so omit all dev_kfree_skb_any() outside softmac_mgmt_xmit()
 		//WB
 	} else {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
 }
 
@@ -280,7 +280,7 @@ static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
 		softmac_mgmt_xmit(skb, ieee);
 		//same above
 	} else {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
 
 	return;
@@ -306,7 +306,7 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
 		softmac_mgmt_xmit(skb, ieee);
 		//same above
 	} else {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "alloc skb error in function %s()\n", __func__);
 	}
 }
 
@@ -328,14 +328,14 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	struct rx_ts_record  *pTS = NULL;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 9) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				" Invalid skb len in BAREQ(%d / %zu)\n",
 				skb->len,
 				(sizeof(struct rtl_80211_hdr_3addr) + 9));
 		return -1;
 	}
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DE_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 
 	req = (struct rtl_80211_hdr_3addr *) skb->data;
 	tag = (u8 *)req;
@@ -353,7 +353,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	//	(!ieee->pStaQos->bEnableRxImmBA)	)
 	{
 		rc = ADDBA_STATUS_REFUSED;
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
+		IEEE80211_DE(IEEE80211_DL_ERR, "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
 		goto OnADDBAReq_Fail;
 	}
 	// Search for related traffic stream.
@@ -366,7 +366,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 			RX_DIR,
 			true)) {
 		rc = ADDBA_STATUS_REFUSED;
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
 		goto OnADDBAReq_Fail;
 	}
 	pBA = &pTS->rx_admitted_ba_record;
@@ -376,7 +376,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	//
 	if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "BA Policy is not correct in %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "BA Policy is not correct in %s()\n", __func__);
 		goto OnADDBAReq_Fail;
 	}
 		// Admit the ADDBA Request
@@ -427,7 +427,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	u16			ReasonCode;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 9) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				" Invalid skb len in BARSP(%d / %zu)\n",
 				skb->len,
 				(sizeof(struct rtl_80211_hdr_3addr) + 9));
@@ -447,7 +447,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	if (ieee->current_network.qos_data.active == 0  ||
 	    !ieee->pHTInfo->bCurrentHTSupport ||
 	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bCurrentAMPDUEnable);
+		IEEE80211_DE(IEEE80211_DL_ERR, "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bCurrentAMPDUEnable);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
@@ -464,7 +464,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 			(u8)(pBaParamSet->field.tid),
 			TX_DIR,
 			false)) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_ERR, "can't get TS in %s()\n", __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
@@ -480,14 +480,14 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	//
 	if (pAdmittedBA->valid) {
 		// Since BA is already setup, we ignore all other ADDBA Response.
-		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
+		IEEE80211_DE(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it! \n");
 		return -1;
 	} else if ((!pPendingBA->valid) || (*pDialogToken != pPendingBA->dialog_token)) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. BA invalid, DELBA! \n");
+		IEEE80211_DE(IEEE80211_DL_ERR,  "OnADDBARsp(): Recv ADDBA Rsp. BA invalid, DELBA! \n");
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	} else {
-		IEEE80211_DEBUG(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n", *pStatusCode);
+		IEEE80211_DE(IEEE80211_DL_BA, "OnADDBARsp(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n", *pStatusCode);
 		DeActivateBAEntry(ieee, pPendingBA);
 	}
 
@@ -547,7 +547,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	u8			*dst = NULL;
 
 	if (skb->len < sizeof(struct rtl_80211_hdr_3addr) + 6) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				" Invalid skb len in DELBA(%d / %zu)\n",
 				skb->len,
 				(sizeof(struct rtl_80211_hdr_3addr) + 6));
@@ -556,11 +556,11 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	if (ieee->current_network.qos_data.active == 0 ||
 	    !ieee->pHTInfo->bCurrentHTSupport) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "received DELBA while QOS or HT is not supported(%d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
+		IEEE80211_DE(IEEE80211_DL_ERR, "received DELBA while QOS or HT is not supported(%d, %d)\n", ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport);
 		return -1;
 	}
 
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
+	IEEE80211_DE_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	delba = (struct rtl_80211_hdr_3addr *)skb->data;
 	dst = &delba->addr2[0];
 	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
@@ -575,7 +575,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 				(u8)pDelBaParamSet->field.tid,
 				RX_DIR,
 				false)) {
-			IEEE80211_DEBUG(IEEE80211_DL_ERR,  "can't get TS for RXTS in %s()\n", __func__);
+			IEEE80211_DE(IEEE80211_DL_ERR,  "can't get TS for RXTS in %s()\n", __func__);
 			return -1;
 		}
 
@@ -590,7 +590,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 			(u8)pDelBaParamSet->field.tid,
 			TX_DIR,
 			false)) {
-			IEEE80211_DEBUG(IEEE80211_DL_ERR,  "can't get TS for TXTS in %s()\n", __func__);
+			IEEE80211_DE(IEEE80211_DL_ERR,  "can't get TS for TXTS in %s()\n", __func__);
 			return -1;
 		}
 

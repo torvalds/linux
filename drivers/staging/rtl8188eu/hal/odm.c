@@ -10,7 +10,7 @@
 #include "odm_precomp.h"
 #include "phy.h"
 
-u32 GlobalDebugLevel;
+u32 GlobalDeLevel;
 
 /* avoid to warn in FreeBSD ==> To DO modify */
 static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {
@@ -149,11 +149,11 @@ u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8] = {
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
 
-void ODM_InitDebugSetting(struct odm_dm_struct *pDM_Odm)
+void ODM_InitDeSetting(struct odm_dm_struct *pDM_Odm)
 {
-	pDM_Odm->DebugLevel = ODM_DBG_TRACE;
+	pDM_Odm->DeLevel = ODM_DBG_TRACE;
 
-	pDM_Odm->DebugComponents = 0;
+	pDM_Odm->DeComponents = 0;
 }
 
 /* 3 Export Interface */
@@ -163,7 +163,7 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 {
 	/* 2012.05.03 Luke: For all IC series */
 	odm_CommonInfoSelfInit(pDM_Odm);
-	odm_CmnInfoInit_Debug(pDM_Odm);
+	odm_CmnInfoInit_De(pDM_Odm);
 	odm_DIGInit(pDM_Odm);
 	odm_RateAdaptiveMaskInit(pDM_Odm);
 
@@ -183,8 +183,8 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 {
 	/* 2012.05.03 Luke: For all IC series */
-	odm_CmnInfoHook_Debug(pDM_Odm);
-	odm_CmnInfoUpdate_Debug(pDM_Odm);
+	odm_CmnInfoHook_De(pDM_Odm);
+	odm_CmnInfoUpdate_De(pDM_Odm);
 	odm_CommonInfoSelfUpdate(pDM_Odm);
 	odm_FalseAlarmCounterStatistics(pDM_Odm);
 	odm_RSSIMonitorCheck(pDM_Odm);
@@ -220,7 +220,7 @@ void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)
 	pDM_Odm->bCckHighPower = (bool)phy_query_bb_reg(adapter, 0x824, BIT(9));
 	pDM_Odm->RFPathRxEnable = (u8)phy_query_bb_reg(adapter, 0xc04, 0x0F);
 
-	ODM_InitDebugSetting(pDM_Odm);
+	ODM_InitDeSetting(pDM_Odm);
 }
 
 void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
@@ -249,9 +249,9 @@ void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
 		pDM_Odm->bOneEntryOnly = false;
 }
 
-void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm)
+void odm_CmnInfoInit_De(struct odm_dm_struct *pDM_Odm)
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoInit_Debug==>\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoInit_De==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportPlatform=%d\n", pDM_Odm->SupportPlatform));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportAbility=0x%x\n", pDM_Odm->SupportAbility));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("SupportInterface=%d\n", pDM_Odm->SupportInterface));
@@ -267,9 +267,9 @@ void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bDualMacSmartConcurrent=%d\n", pDM_Odm->bDualMacSmartConcurrent));
 }
 
-void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm)
+void odm_CmnInfoHook_De(struct odm_dm_struct *pDM_Odm)
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug==>\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_De==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumTxBytesUnicast=%llu\n", *(pDM_Odm->pNumTxBytesUnicast)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumRxBytesUnicast=%llu\n", *(pDM_Odm->pNumRxBytesUnicast)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pWirelessMode=0x%x\n", *(pDM_Odm->pWirelessMode)));
@@ -282,9 +282,9 @@ void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving=%d\n", *(pDM_Odm->pbPowerSaving)));
 }
 
-void odm_CmnInfoUpdate_Debug(struct odm_dm_struct *pDM_Odm)
+void odm_CmnInfoUpdate_De(struct odm_dm_struct *pDM_Odm)
 {
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoUpdate_Debug==>\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoUpdate_De==>\n"));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bWIFI_Direct=%d\n", pDM_Odm->bWIFI_Direct));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bWIFI_Display=%d\n", pDM_Odm->bWIFI_Display));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bLinked=%d\n", pDM_Odm->bLinked));

@@ -79,7 +79,7 @@ static int rmi_f03_pt_write(struct serio *id, unsigned char val)
 	struct f03_data *f03 = id->port_data;
 	int error;
 
-	rmi_dbg(RMI_DEBUG_FN, &f03->fn->dev,
+	rmi_dbg(RMI_DE_FN, &f03->fn->dev,
 		"%s: Wrote %.2hhx to PS/2 passthrough address",
 		__func__, val);
 
@@ -155,7 +155,7 @@ static int rmi_f03_pt_open(struct serio *serio)
 	 */
 	error = rmi_read_block(fn->rmi_dev, data_addr, &obs, ob_len);
 	if (!error)
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+		rmi_dbg(RMI_DE_FN, &fn->dev,
 			"%s: Consumed %*ph (%d) from PS2 guest\n",
 			__func__, ob_len, obs, ob_len);
 
@@ -295,7 +295,7 @@ static irqreturn_t rmi_f03_attention(int irq, void *ctx)
 		if (ob_status & RMI_F03_OB_FLAG_PARITY)
 			serio_flags |= SERIO_PARITY;
 
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+		rmi_dbg(RMI_DE_FN, &fn->dev,
 			"%s: Received %.2hhx from PS2 guest T: %c P: %c\n",
 			__func__, ob_data,
 			serio_flags & SERIO_TIMEOUT ?  'Y' : 'N',

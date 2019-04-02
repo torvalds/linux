@@ -6,7 +6,7 @@
 # tx: show only tx chart
 # rx: show only rx chart
 # dev=: show only thing related to specified device
-# debug: work with debug mode. It shows buffer status.
+# de: work with de mode. It shows buffer status.
 
 from __future__ import print_function
 
@@ -46,7 +46,7 @@ tx_free_list = [];  # list of packets which is freed
 show_tx = 0;
 show_rx = 0;
 dev = 0; # store a name of device specified by option "dev="
-debug = 0;
+de = 0;
 
 # indices of event_info tuple
 EINFO_IDX_NAME=   0
@@ -157,7 +157,7 @@ def trace_begin():
 	global show_tx
 	global show_rx
 	global dev
-	global debug
+	global de
 
 	for i in range(len(sys.argv)):
 		if i == 0:
@@ -169,8 +169,8 @@ def trace_begin():
 			show_rx = 1
 		elif arg.find('dev=',0, 4) >= 0:
 			dev = arg[4:]
-		elif arg == 'debug':
-			debug = 1
+		elif arg == 'de':
+			de = 1
 	if show_tx == 0  and show_rx == 0:
 		show_tx = 1
 		show_rx = 1
@@ -218,8 +218,8 @@ def trace_end():
 			"       netdevice             free")
 		for i in range(len(tx_free_list)):
 			print_transmit(tx_free_list[i])
-	if debug:
-		print("debug buffer status")
+	if de:
+		print("de buffer status")
 		print("----------------------------")
 		print("xmit Qdisc:remain:%d overflow:%d" %
 			(len(tx_queue_list), of_count_tx_queue_list))

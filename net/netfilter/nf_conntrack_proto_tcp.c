@@ -355,7 +355,7 @@ static void tcp_options(const struct sk_buff *skb,
 
 	ptr = skb_header_pointer(skb, dataoff + sizeof(struct tcphdr),
 				 length, buff);
-	BUG_ON(ptr == NULL);
+	_ON(ptr == NULL);
 
 	state->td_scale =
 	state->flags = 0;
@@ -411,7 +411,7 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 
 	ptr = skb_header_pointer(skb, dataoff + sizeof(struct tcphdr),
 				 length, buff);
-	BUG_ON(ptr == NULL);
+	_ON(ptr == NULL);
 
 	/* Fast path for timestamp-only option */
 	if (length == TCPOLEN_TSTAMP_ALIGNED
@@ -494,12 +494,12 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	ack -= receiver_offset;
 	sack -= receiver_offset;
 
-	pr_debug("tcp_in_window: START\n");
-	pr_debug("tcp_in_window: ");
+	pr_de("tcp_in_window: START\n");
+	pr_de("tcp_in_window: ");
 	nf_ct_dump_tuple(tuple);
-	pr_debug("seq=%u ack=%u+(%d) sack=%u+(%d) win=%u end=%u\n",
+	pr_de("seq=%u ack=%u+(%d) sack=%u+(%d) win=%u end=%u\n",
 		 seq, ack, receiver_offset, sack, receiver_offset, win, end);
-	pr_debug("tcp_in_window: sender end=%u maxend=%u maxwin=%u scale=%i "
+	pr_de("tcp_in_window: sender end=%u maxend=%u maxwin=%u scale=%i "
 		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		 sender->td_end, sender->td_maxend, sender->td_maxwin,
 		 sender->td_scale,
@@ -588,11 +588,11 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 */
 		seq = end = sender->td_end;
 
-	pr_debug("tcp_in_window: ");
+	pr_de("tcp_in_window: ");
 	nf_ct_dump_tuple(tuple);
-	pr_debug("seq=%u ack=%u+(%d) sack=%u+(%d) win=%u end=%u\n",
+	pr_de("seq=%u ack=%u+(%d) sack=%u+(%d) win=%u end=%u\n",
 		 seq, ack, receiver_offset, sack, receiver_offset, win, end);
-	pr_debug("tcp_in_window: sender end=%u maxend=%u maxwin=%u scale=%i "
+	pr_de("tcp_in_window: sender end=%u maxend=%u maxwin=%u scale=%i "
 		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		 sender->td_end, sender->td_maxend, sender->td_maxwin,
 		 sender->td_scale,
@@ -603,7 +603,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	in_recv_win = !receiver->td_maxwin ||
 		      after(end, sender->td_end - receiver->td_maxwin - 1);
 
-	pr_debug("tcp_in_window: I=%i II=%i III=%i IV=%i\n",
+	pr_de("tcp_in_window: I=%i II=%i III=%i IV=%i\n",
 		 before(seq, sender->td_maxend + 1),
 		 (in_recv_win ? 1 : 0),
 		 before(sack, receiver->td_end + 1),
@@ -681,7 +681,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			before(seq, sender->td_maxend + 1) ?
 			in_recv_win ?
 			before(sack, receiver->td_end + 1) ?
-			after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1) ? "BUG"
+			after(sack, receiver->td_end - MAXACKWINDOW(sender) - 1) ? ""
 			: "ACK is under the lower bound (possible overly delayed ACK)"
 			: "ACK is over the upper bound (ACKed data not seen yet)"
 			: "SEQ is under the lower bound (already ACKed data retransmitted)"
@@ -689,7 +689,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		}
 	}
 
-	pr_debug("tcp_in_window: res=%u sender end=%u maxend=%u maxwin=%u "
+	pr_de("tcp_in_window: res=%u sender end=%u maxend=%u maxwin=%u "
 		 "receiver end=%u maxend=%u maxwin=%u\n",
 		 res, sender->td_end, sender->td_maxend, sender->td_maxwin,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin);
@@ -771,7 +771,7 @@ static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 	/* Invalid: delete conntrack */
 	if (new_state >= TCP_CONNTRACK_MAX) {
-		pr_debug("nf_ct_tcp: invalid new deleting.\n");
+		pr_de("nf_ct_tcp: invalid new deleting.\n");
 		return false;
 	}
 
@@ -818,7 +818,7 @@ static noinline bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	/* tcp_packet will set them */
 	ct->proto.tcp.last_index = TCP_NONE_SET;
 
-	pr_debug("%s: sender end=%u maxend=%u maxwin=%u scale=%i "
+	pr_de("%s: sender end=%u maxend=%u maxwin=%u scale=%i "
 		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		 __func__,
 		 sender->td_end, sender->td_maxend, sender->td_maxwin,
@@ -996,13 +996,13 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		    index == TCP_ACK_SET && dir == IP_CT_DIR_ORIGINAL &&
 		    ct->proto.tcp.last_dir == IP_CT_DIR_ORIGINAL &&
 		    ct->proto.tcp.seen[dir].td_end - 1 == ntohl(th->seq)) {
-			pr_debug("nf_ct_tcp: SYN proxy client keep alive\n");
+			pr_de("nf_ct_tcp: SYN proxy client keep alive\n");
 			spin_unlock_bh(&ct->lock);
 			return NF_ACCEPT;
 		}
 
 		/* Invalid packet */
-		pr_debug("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
+		pr_de("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 			 dir, get_conntrack_index(th), old_state);
 		spin_unlock_bh(&ct->lock);
 		nf_ct_l4proto_log_invalid(skb, ct, "invalid state");
@@ -1099,9 +1099,9 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 	ct->proto.tcp.last_index = index;
 	ct->proto.tcp.last_dir = dir;
 
-	pr_debug("tcp_conntracks: ");
+	pr_de("tcp_conntracks: ");
 	nf_ct_dump_tuple(tuple);
-	pr_debug("syn=%i ack=%i fin=%i rst=%i old=%i new=%i\n",
+	pr_de("syn=%i ack=%i fin=%i rst=%i old=%i new=%i\n",
 		 (th->syn ? 1 : 0), (th->ack ? 1 : 0),
 		 (th->fin ? 1 : 0), (th->rst ? 1 : 0),
 		 old_state, new_state);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/dma-direct.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 #include <linux/dmar.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
@@ -20,7 +20,7 @@ static bool disable_dac_quirk __read_mostly;
 const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
-#ifdef CONFIG_IOMMU_DEBUG
+#ifdef CONFIG_IOMMU_DE
 int panic_on_overflow __read_mostly = 1;
 int force_iommu __read_mostly = 1;
 #else

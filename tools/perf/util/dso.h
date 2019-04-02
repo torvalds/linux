@@ -22,12 +22,12 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__VMLINUX,
 	DSO_BINARY_TYPE__GUEST_VMLINUX,
 	DSO_BINARY_TYPE__JAVA_JIT,
-	DSO_BINARY_TYPE__DEBUGLINK,
+	DSO_BINARY_TYPE__DELINK,
 	DSO_BINARY_TYPE__BUILD_ID_CACHE,
-	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO,
-	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
-	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
-	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
+	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEINFO,
+	DSO_BINARY_TYPE__FEDORA_DEINFO,
+	DSO_BINARY_TYPE__UBUNTU_DEINFO,
+	DSO_BINARY_TYPE__BUILDID_DEINFO,
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
 	DSO_BINARY_TYPE__GUEST_KMODULE_COMP,
@@ -35,7 +35,7 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP,
 	DSO_BINARY_TYPE__KCORE,
 	DSO_BINARY_TYPE__GUEST_KCORE,
-	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
+	DSO_BINARY_TYPE__OPENEMBEDDED_DEINFO,
 	DSO_BINARY_TYPE__BPF_PROG_INFO,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
@@ -97,7 +97,7 @@ enum dso_load_errno {
 #define DSO__SWAP(dso, type, val)			\
 ({							\
 	type ____r = val;				\
-	BUG_ON(dso->needs_swap == DSO_SWAP__UNSET);	\
+	_ON(dso->needs_swap == DSO_SWAP__UNSET);	\
 	if (dso->needs_swap == DSO_SWAP__YES) {		\
 		switch (sizeof(____r)) {		\
 		case 2:					\
@@ -110,7 +110,7 @@ enum dso_load_errno {
 			____r = bswap_64(val);		\
 			break;				\
 		default:				\
-			BUG_ON(1);			\
+			_ON(1);			\
 		}					\
 	}						\
 	____r;						\
@@ -176,7 +176,7 @@ struct dso {
 	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
-	void		*dwfl;			/* DWARF debug info */
+	void		*dwfl;			/* DWARF de info */
 	struct auxtrace_cache *auxtrace_cache;
 	int		 comp;
 
@@ -188,7 +188,7 @@ struct dso {
 		u32		 status_seen;
 		size_t		 file_size;
 		struct list_head open_entry;
-		u64		 debug_frame_offset;
+		u64		 de_frame_offset;
 		u64		 eh_frame_hdr_offset;
 	} data;
 	/* bpf prog information */

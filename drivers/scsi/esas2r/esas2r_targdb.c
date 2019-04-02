@@ -125,7 +125,7 @@ struct esas2r_target *esas2r_targ_db_add_raid(struct esas2r_adapter *a,
 	esas2r_trace_enter();
 
 	if (dc->curr_virt_id >= ESAS2R_MAX_TARGETS) {
-		esas2r_bugon();
+		esas2r_on();
 		esas2r_trace_exit();
 		return NULL;
 	}
@@ -137,7 +137,7 @@ struct esas2r_target *esas2r_targ_db_add_raid(struct esas2r_adapter *a,
 		return NULL;
 	}
 
-	esas2r_hdebug("add RAID %s, T:%d", dc->raid_grp_name,
+	esas2r_hde("add RAID %s, T:%d", dc->raid_grp_name,
 		      esas2r_targ_get_id(
 			      t,
 			      a));
@@ -146,7 +146,7 @@ struct esas2r_target *esas2r_targ_db_add_raid(struct esas2r_adapter *a,
 	    || dc->block_size  == 0) {
 		/* these are invalid values, don't create the target entry. */
 
-		esas2r_hdebug("invalid RAID group dimensions");
+		esas2r_hde("invalid RAID group dimensions");
 
 		esas2r_trace_exit();
 
@@ -179,7 +179,7 @@ struct esas2r_target *esas2r_targ_db_add_pthru(struct esas2r_adapter *a,
 	esas2r_trace_enter();
 
 	if (dc->curr_virt_id >= ESAS2R_MAX_TARGETS) {
-		esas2r_bugon();
+		esas2r_on();
 		esas2r_trace_exit();
 		return NULL;
 	}
@@ -198,7 +198,7 @@ struct esas2r_target *esas2r_targ_db_add_pthru(struct esas2r_adapter *a,
 		}
 	}
 
-	esas2r_hdebug("add PT; T:%d, V:%d, P:%d", esas2r_targ_get_id(t, a),
+	esas2r_hde("add PT; T:%d, V:%d, P:%d", esas2r_targ_get_id(t, a),
 		      dc->curr_virt_id,
 		      dc->curr_phys_id);
 

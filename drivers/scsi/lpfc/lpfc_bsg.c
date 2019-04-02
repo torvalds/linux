@@ -46,7 +46,7 @@
 #include "lpfc.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 #include "lpfc_vport.h"
 #include "lpfc_version.h"
 
@@ -3194,13 +3194,13 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 		} else
 			segment_offset = 0;
 
-		BUG_ON(segment_offset >= segment_len);
+		_ON(segment_offset >= segment_len);
 		memcpy(curr->virt + segment_offset,
 			ptr + current_offset,
 			segment_len - segment_offset);
 
 		current_offset += segment_len - segment_offset;
-		BUG_ON(current_offset > size);
+		_ON(current_offset > size);
 	}
 	list_del(&head);
 
@@ -3486,7 +3486,7 @@ static int lpfc_bsg_check_cmd_access(struct lpfc_hba *phba,
 	case MBX_LOAD_EXP_ROM:
 	case MBX_BEACON:
 	case MBX_DEL_LD_ENTRY:
-	case MBX_SET_DEBUG:
+	case MBX_SET_DE:
 	case MBX_WRITE_WWN:
 	case MBX_SLI4_CONFIG:
 	case MBX_READ_EVENT_LOG:

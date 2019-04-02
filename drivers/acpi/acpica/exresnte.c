@@ -61,7 +61,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	source_desc = acpi_ns_get_attached_object(node);
 	entry_type = acpi_ns_get_type((acpi_handle)node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
 			  node, source_desc,
 			  acpi_ut_get_type_name(entry_type)));
 
@@ -169,7 +169,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "FieldRead Node=%p SourceDesc=%p Type=%X\n",
 				  node, source_desc, entry_type));
 

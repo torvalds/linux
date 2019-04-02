@@ -36,7 +36,7 @@
 #include <media/tuner.h>
 #include <linux/videodev2.h>
 
-#define USBVISION_DEBUG		/* Turn on debug messages */
+#define USBVISION_DE		/* Turn on de messages */
 
 #define USBVISION_PWR_REG		0x00
 	#define USBVISION_SSPND_EN		(1 << 1)

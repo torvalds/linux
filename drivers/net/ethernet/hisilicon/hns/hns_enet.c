@@ -887,7 +887,7 @@ static bool hns_nic_rx_fini_pro(struct hns_nic_ring_data *ring_data)
 
 	hns_update_rx_rate(ring);
 
-	/* for hardware bug fixed */
+	/* for hardware  fixed */
 	ring_data->ring->q->handle->dev->ops->toggle_ring_irq(ring, 0);
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 
@@ -1454,10 +1454,10 @@ void hns_nic_net_reinit(struct net_device *netdev)
 
 	hns_nic_net_down(netdev);
 
-	/* Only do hns_nic_net_reset in debug mode
+	/* Only do hns_nic_net_reset in de mode
 	 * because of hardware limitation.
 	 */
-	if (type == HNAE_PORT_DEBUG)
+	if (type == HNAE_PORT_DE)
 		hns_nic_net_reset(netdev);
 
 	(void)hns_nic_net_up(netdev);
@@ -2058,7 +2058,7 @@ static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 
 	hns_nic_dump(priv);
 	netdev_info(priv->netdev, "try to reset %s port!\n",
-		    (type == HNAE_PORT_DEBUG ? "debug" : "service"));
+		    (type == HNAE_PORT_DE ? "de" : "service"));
 
 	rtnl_lock();
 	/* put off any impending NetWatchDogTimeout */
@@ -2350,7 +2350,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		if (ret)
 			goto out_read_prop_fail;
 		/* for old dts, we need to caculate the port offset */
-		port_id = port_id < HNS_SRV_OFFSET ? port_id + HNS_DEBUG_OFFSET
+		port_id = port_id < HNS_SRV_OFFSET ? port_id + HNS_DE_OFFSET
 			: port_id - HNS_SRV_OFFSET;
 	}
 	priv->port_id = port_id;

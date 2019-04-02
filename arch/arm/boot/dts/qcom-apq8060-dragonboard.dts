@@ -576,7 +576,7 @@
 			pinctrl-0 = <&dragon_ebi2_pins>;
 
 			/*
-			 * An on-board SMSC LAN9221 chip for "debug ethernet",
+			 * An on-board SMSC LAN9221 chip for "de ethernet",
 			 * which is actually just an ordinary ethernet on the
 			 * EBI2. This has a 25MHz chrystal next to it, so no
 			 * clocking is needed.

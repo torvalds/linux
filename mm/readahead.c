@@ -48,7 +48,7 @@ static void read_cache_pages_invalidate_page(struct address_space *mapping,
 {
 	if (page_has_private(page)) {
 		if (!trylock_page(page))
-			BUG();
+			();
 		page->mapping = mapping;
 		do_invalidatepage(page, 0, PAGE_SIZE);
 		page->mapping = NULL;
@@ -209,7 +209,7 @@ unsigned int __do_page_cache_readahead(struct address_space *mapping,
 	 */
 	if (nr_pages)
 		read_pages(mapping, filp, &page_pool, nr_pages, gfp_mask);
-	BUG_ON(!list_empty(&page_pool));
+	_ON(!list_empty(&page_pool));
 out:
 	return nr_pages;
 }

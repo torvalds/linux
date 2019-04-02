@@ -29,10 +29,10 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 {
 	bool r;
 
-	pr_debug("spi_match:%c 0x%x <= 0x%x <= 0x%x\n",
+	pr_de("spi_match:%c 0x%x <= 0x%x <= 0x%x\n",
 		 invert ? '!' : ' ', min, spi, max);
 	r = (spi >= min && spi <= max) ^ invert;
-	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
+	pr_de(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
@@ -60,20 +60,20 @@ static bool ah_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 
 	hdrlen = (ah->hdrlen + 2) << 2;
 
-	pr_debug("IPv6 AH LEN %u %u ", hdrlen, ah->hdrlen);
-	pr_debug("RES %04X ", ah->reserved);
-	pr_debug("SPI %u %08X\n", ntohl(ah->spi), ntohl(ah->spi));
+	pr_de("IPv6 AH LEN %u %u ", hdrlen, ah->hdrlen);
+	pr_de("RES %04X ", ah->reserved);
+	pr_de("SPI %u %08X\n", ntohl(ah->spi), ntohl(ah->spi));
 
-	pr_debug("IPv6 AH spi %02X ",
+	pr_de("IPv6 AH spi %02X ",
 		 spi_match(ahinfo->spis[0], ahinfo->spis[1],
 			   ntohl(ah->spi),
 			   !!(ahinfo->invflags & IP6T_AH_INV_SPI)));
-	pr_debug("len %02X %04X %02X ",
+	pr_de("len %02X %04X %02X ",
 		 ahinfo->hdrlen, hdrlen,
 		 (!ahinfo->hdrlen ||
 		  (ahinfo->hdrlen == hdrlen) ^
 		  !!(ahinfo->invflags & IP6T_AH_INV_LEN)));
-	pr_debug("res %02X %04X %02X\n",
+	pr_de("res %02X %04X %02X\n",
 		 ahinfo->hdrres, ah->reserved,
 		 !(ahinfo->hdrres && ah->reserved));
 
@@ -92,7 +92,7 @@ static int ah_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_ah *ahinfo = par->matchinfo;
 
 	if (ahinfo->invflags & ~IP6T_AH_INV_MASK) {
-		pr_debug("unknown flags %X\n", ahinfo->invflags);
+		pr_de("unknown flags %X\n", ahinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

@@ -61,7 +61,7 @@ struct cfctrl_link_param {
 	u8 phyid;		  /* (U2-U0) Physical interface to connect */
 	u8 endpoint;		  /* (E1,E0) Endpoint for data channels */
 	u8 chtype;		  /* (H1,H0) Channel-Type, applies to
-				   *            VEI, DEBUG */
+				   *            VEI, DE */
 	union {
 		struct {
 			u8 connid;	/*  (D7,D0) Video LinkId */

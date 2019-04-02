@@ -436,7 +436,7 @@ struct ensoniq {
 	unsigned int spdif_stream;
 
 #ifdef CHIP1370
-	struct snd_dma_buffer dma_bug;
+	struct snd_dma_buffer dma_;
 #endif
 
 #ifdef SUPPORT_JOYSTICK
@@ -918,7 +918,7 @@ static int snd_ensoniq_playback1_prepare(struct snd_pcm_substream *substream)
 	case 11025: ensoniq->ctrl |= ES_1370_WTSRSEL(1); break;
 	case 22050: ensoniq->ctrl |= ES_1370_WTSRSEL(2); break;
 	case 44100: ensoniq->ctrl |= ES_1370_WTSRSEL(3); break;
-	default: snd_BUG();
+	default: snd_();
 	}
 #endif
 	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
@@ -1927,8 +1927,8 @@ static int snd_ensoniq_free(struct ensoniq *ensoniq)
 	pci_set_power_state(ensoniq->pci, PCI_D3hot);
       __hw_end:
 #ifdef CHIP1370
-	if (ensoniq->dma_bug.area)
-		snd_dma_free_pages(&ensoniq->dma_bug);
+	if (ensoniq->dma_.area)
+		snd_dma_free_pages(&ensoniq->dma_);
 #endif
 	if (ensoniq->irq >= 0)
 		free_irq(ensoniq->irq, ensoniq);
@@ -1975,7 +1975,7 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
 	outl(ensoniq->sctrl, ES_REG(ensoniq, SERIAL));
 	outl(ES_MEM_PAGEO(ES_PAGE_ADC), ES_REG(ensoniq, MEM_PAGE));
-	outl(ensoniq->dma_bug.addr, ES_REG(ensoniq, PHANTOM_FRAME));
+	outl(ensoniq->dma_.addr, ES_REG(ensoniq, PHANTOM_FRAME));
 	outl(0, ES_REG(ensoniq, PHANTOM_COUNT));
 #else
 	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
@@ -2110,8 +2110,8 @@ static int snd_ensoniq_create(struct snd_card *card,
 	ensoniq->irq = pci->irq;
 #ifdef CHIP1370
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				16, &ensoniq->dma_bug) < 0) {
-		dev_err(card->dev, "unable to allocate space for phantom area - dma_bug\n");
+				16, &ensoniq->dma_) < 0) {
+		dev_err(card->dev, "unable to allocate space for phantom area - dma_\n");
 		snd_ensoniq_free(ensoniq);
 		return -EBUSY;
 	}

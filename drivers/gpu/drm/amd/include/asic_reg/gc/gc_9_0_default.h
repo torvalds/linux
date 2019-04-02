@@ -139,7 +139,7 @@
 #define mmCP_CE_ROQ_RB_STAT_DEFAULT                                              0x00000000
 #define mmCP_CE_ROQ_IB1_STAT_DEFAULT                                             0x00000000
 #define mmCP_CE_ROQ_IB2_STAT_DEFAULT                                             0x00000000
-#define mmCP_INT_STAT_DEBUG_DEFAULT                                              0x00000000
+#define mmCP_INT_STAT_DE_DEFAULT                                              0x00000000
 
 
 // addressBlock: gc_padec
@@ -149,7 +149,7 @@
 #define mmVGT_DRAW_INIT_FIFO_DEPTH_DEFAULT                                       0x00000020
 #define mmVGT_LAST_COPY_STATE_DEFAULT                                            0x00000000
 #define mmVGT_CACHE_INVALIDATION_DEFAULT                                         0x09000000
-#define mmVGT_RESET_DEBUG_DEFAULT                                                0x00000000
+#define mmVGT_RESET_DE_DEFAULT                                                0x00000000
 #define mmVGT_STRMOUT_DELAY_DEFAULT                                              0x00092420
 #define mmVGT_FIFO_DEPTHS_DEFAULT                                                0x08000040
 #define mmVGT_GS_VERTEX_REUSE_DEFAULT                                            0x00000010
@@ -177,7 +177,7 @@
 #define mmWD_BUF_RESOURCE_2_DEFAULT                                              0x00000000
 #define mmPA_CL_CNTL_STATUS_DEFAULT                                              0x00000000
 #define mmPA_CL_ENHANCE_DEFAULT                                                  0x00000007
-#define mmPA_CL_RESET_DEBUG_DEFAULT                                              0x00000000
+#define mmPA_CL_RESET_DE_DEFAULT                                              0x00000000
 #define mmPA_SU_CNTL_STATUS_DEFAULT                                              0x00000000
 #define mmPA_SC_FIFO_DEPTH_CNTL_DEFAULT                                          0x00000100
 #define mmPA_SC_P3D_TRAP_SCREEN_HV_LOCK_DEFAULT                                  0x00000000
@@ -345,20 +345,20 @@
 
 
 // addressBlock: gc_shsdec
-#define mmSX_DEBUG_BUSY_DEFAULT                                                  0x00000000
-#define mmSX_DEBUG_BUSY_2_DEFAULT                                                0x00000000
-#define mmSX_DEBUG_BUSY_3_DEFAULT                                                0x00000000
-#define mmSX_DEBUG_BUSY_4_DEFAULT                                                0x00000000
-#define mmSX_DEBUG_BUSY_5_DEFAULT                                                0x00000000
-#define mmSX_DEBUG_1_DEFAULT                                                     0x00000020
+#define mmSX_DE_BUSY_DEFAULT                                                  0x00000000
+#define mmSX_DE_BUSY_2_DEFAULT                                                0x00000000
+#define mmSX_DE_BUSY_3_DEFAULT                                                0x00000000
+#define mmSX_DE_BUSY_4_DEFAULT                                                0x00000000
+#define mmSX_DE_BUSY_5_DEFAULT                                                0x00000000
+#define mmSX_DE_1_DEFAULT                                                     0x00000020
 #define mmSPI_PS_MAX_WAVE_ID_DEFAULT                                             0x0200017f
 #define mmSPI_START_PHASE_DEFAULT                                                0x00000000
 #define mmSPI_GFX_CNTL_DEFAULT                                                   0x00000000
-#define mmSPI_DEBUG_READ_DEFAULT                                                 0x00000000
+#define mmSPI_DE_READ_DEFAULT                                                 0x00000000
 #define mmSPI_DSM_CNTL_DEFAULT                                                   0x00000000
 #define mmSPI_DSM_CNTL2_DEFAULT                                                  0x00000000
 #define mmSPI_EDC_CNT_DEFAULT                                                    0x00000000
-#define mmSPI_DEBUG_BUSY_DEFAULT                                                 0x00000000
+#define mmSPI_DE_BUSY_DEFAULT                                                 0x00000000
 #define mmSPI_CONFIG_PS_CU_EN_DEFAULT                                            0x00000000
 #define mmSPI_WF_LIFETIME_CNTL_DEFAULT                                           0x00000000
 #define mmSPI_WF_LIFETIME_LIMIT_0_DEFAULT                                        0x00000100
@@ -392,7 +392,7 @@
 #define mmSPI_WF_LIFETIME_STATUS_18_DEFAULT                                      0x00000000
 #define mmSPI_WF_LIFETIME_STATUS_19_DEFAULT                                      0x00000000
 #define mmSPI_WF_LIFETIME_STATUS_20_DEFAULT                                      0x00000000
-#define mmSPI_WF_LIFETIME_DEBUG_DEFAULT                                          0x00000000
+#define mmSPI_WF_LIFETIME_DE_DEFAULT                                          0x00000000
 #define mmSPI_LB_CTR_CTRL_DEFAULT                                                0x00000000
 #define mmSPI_LB_CU_MASK_DEFAULT                                                 0x0000ffff
 #define mmSPI_LB_DATA_REG_DEFAULT                                                0x00000000
@@ -413,8 +413,8 @@
 #define mmSPI_LB_DATA_PERCU_WAVE_HSGS_DEFAULT                                    0x00000000
 #define mmSPI_LB_DATA_PERCU_WAVE_VSPS_DEFAULT                                    0x00000000
 #define mmSPI_LB_DATA_PERCU_WAVE_CS_DEFAULT                                      0x00000000
-#define mmSPIS_DEBUG_READ_DEFAULT                                                0x00000000
-#define mmBCI_DEBUG_READ_DEFAULT                                                 0x00000000
+#define mmSPIS_DE_READ_DEFAULT                                                0x00000000
+#define mmBCI_DE_READ_DEFAULT                                                 0x00000000
 #define mmSPI_P0_TRAP_SCREEN_PSBA_LO_DEFAULT                                     0x00000000
 #define mmSPI_P0_TRAP_SCREEN_PSBA_HI_DEFAULT                                     0x00000000
 #define mmSPI_P0_TRAP_SCREEN_PSMA_LO_DEFAULT                                     0x00000000
@@ -457,10 +457,10 @@
 
 
 // addressBlock: gc_rbdec
-#define mmDB_DEBUG_DEFAULT                                                       0x00000000
-#define mmDB_DEBUG2_DEFAULT                                                      0x00000000
-#define mmDB_DEBUG3_DEFAULT                                                      0x00000000
-#define mmDB_DEBUG4_DEFAULT                                                      0x00000000
+#define mmDB_DE_DEFAULT                                                       0x00000000
+#define mmDB_DE2_DEFAULT                                                      0x00000000
+#define mmDB_DE3_DEFAULT                                                      0x00000000
+#define mmDB_DE4_DEFAULT                                                      0x00000000
 #define mmDB_CREDIT_LIMIT_DEFAULT                                                0x00000000
 #define mmDB_WATERMARKS_DEFAULT                                                  0x01020204
 #define mmDB_SUBTILE_CONTROL_DEFAULT                                             0x00000000
@@ -569,7 +569,7 @@
 #define mmRMI_XBAR_ARBITER_CONFIG_1_DEFAULT                                      0xffffffff
 #define mmRMI_CLOCK_CNTRL_DEFAULT                                                0x04208822
 #define mmRMI_UTCL1_STATUS_DEFAULT                                               0x00000000
-#define mmRMI_XNACK_DEBUG_DEFAULT                                                0x00000000
+#define mmRMI_XNACK_DE_DEFAULT                                                0x00000000
 #define mmRMI_SPARE_DEFAULT                                                      0x00000001
 #define mmRMI_SPARE_1_DEFAULT                                                    0x00000000
 #define mmRMI_SPARE_2_DEFAULT                                                    0x00000000
@@ -1269,8 +1269,8 @@
 #define mmCP_ME2_PIPE1_INT_STATUS_DEFAULT                                        0x00000000
 #define mmCP_ME2_PIPE2_INT_STATUS_DEFAULT                                        0x00000000
 #define mmCP_ME2_PIPE3_INT_STATUS_DEFAULT                                        0x00000000
-#define mmCP_ME1_INT_STAT_DEBUG_DEFAULT                                          0x00000000
-#define mmCP_ME2_INT_STAT_DEBUG_DEFAULT                                          0x00000000
+#define mmCP_ME1_INT_STAT_DE_DEFAULT                                          0x00000000
+#define mmCP_ME2_INT_STAT_DE_DEFAULT                                          0x00000000
 #define mmCC_GC_EDC_CONFIG_DEFAULT                                               0x00000000
 #define mmCP_ME1_PIPE_PRIORITY_CNTS_DEFAULT                                      0x08081020
 #define mmCP_ME1_PIPE0_PRIORITY_DEFAULT                                          0x00000002
@@ -1360,7 +1360,7 @@
 #define mmSPI_GDBG_WAVE_CNTL3_DEFAULT                                            0x00000000
 #define mmSPI_GDBG_TRAP_DATA0_DEFAULT                                            0x00000000
 #define mmSPI_GDBG_TRAP_DATA1_DEFAULT                                            0x00000000
-#define mmSPI_RESET_DEBUG_DEFAULT                                                0x00000000
+#define mmSPI_RESET_DE_DEFAULT                                                0x00000000
 #define mmSPI_COMPUTE_QUEUE_RESET_DEFAULT                                        0x00000000
 #define mmSPI_RESOURCE_RESERVE_CU_0_DEFAULT                                      0x00000000
 #define mmSPI_RESOURCE_RESERVE_CU_1_DEFAULT                                      0x00000000

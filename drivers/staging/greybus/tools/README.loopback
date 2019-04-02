@@ -80,12 +80,12 @@ Here is the summary of the available options:
    -i     iteration count - the number of iterations to run the test over
  Optional arguments
    -S     sysfs location - location for greybus 'endo' entries default /sys/bus/greybus/devices/
-   -D     debugfs location - location for loopback debugfs entries default /sys/kernel/debug/gb_loopback/
+   -D     defs location - location for loopback defs entries default /sys/kernel/de/gb_loopback/
    -s     size of data packet to send during test - defaults to zero
    -m     mask - a bit mask of connections to include example: -m 8 = 4th connection -m 9 = 1st and 4th connection etc
                  default is zero which means broadcast to all connections
    -v     verbose output
-   -d     debug output
+   -d     de output
    -r     raw data output - when specified the full list of latency values are included in the output CSV
    -p     porcelain - when specified printout is in a user-friendly non-CSV format. This option suppresses writing to CSV file
    -a     aggregate - show aggregation of all enabled devies

@@ -289,7 +289,7 @@ ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 	u32 coef_scaled, coef_exp, coef_man,
 		ds_coef_exp, ds_coef_man, clock;
 
-	BUG_ON(!(ah->ah_version == AR5K_AR5212) ||
+	_ON(!(ah->ah_version == AR5K_AR5212) ||
 		(channel->hw_value == AR5K_MODE_11B));
 
 	/* Get coefficient
@@ -408,7 +408,7 @@ ath5k_hw_wait_for_synth(struct ath5k_hw *ah,
  * "http://www.cnri.dit.ie/publications/ICT08%20-%20Practical%20Issues
  * %20of%20Power%20Control.pdf"
  *
- * And this is the MadWiFi bug entry related to the above
+ * And this is the MadWiFi  entry related to the above
  * "http://madwifi-project.org/ticket/1659"
  * with various measurements and diagrams
  */
@@ -656,7 +656,7 @@ ath5k_hw_rf_gainf_adjust(struct ath5k_hw *ah)
 	}
 
 done:
-	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+	ATH5K_DBG(ah, ATH5K_DE_CALIBRATE,
 		"ret %d, gain step %u, current gain %u, target gain %u\n",
 		ret, ah->ah_gain.g_step_idx, ah->ah_gain.g_current,
 		ah->ah_gain.g_target);
@@ -1576,7 +1576,7 @@ ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
 		}
 	}
 	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX; i++) {
-		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG(ah, ATH5K_DE_CALIBRATE,
 			"cal %d:%d\n", i, sort[i]);
 	}
 	return sort[(ATH5K_NF_CAL_HIST_MAX - 1) / 2];
@@ -1600,7 +1600,7 @@ ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 
 	/* keep last value if calibration hasn't completed */
 	if (ath5k_hw_reg_read(ah, AR5K_PHY_AGCCTL) & AR5K_PHY_AGCCTL_NF) {
-		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG(ah, ATH5K_DE_CALIBRATE,
 			"NF did not complete in calibration window\n");
 
 		return;
@@ -1615,7 +1615,7 @@ ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 	threshold = ee->ee_noise_floor_thr[ee_mode];
 
 	if (nf > threshold) {
-		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG(ah, ATH5K_DE_CALIBRATE,
 			"noise floor failure detected; "
 			"read %d, threshold %d\n",
 			nf, threshold);
@@ -1654,7 +1654,7 @@ ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 
 	ah->ah_cal_mask &= ~AR5K_CALIBRATION_NF;
 
-	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+	ATH5K_DBG(ah, ATH5K_DE_CALIBRATE,
 		"noise floor calibrated: %d\n", nf);
 }
 
@@ -1779,7 +1779,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 	if (!ah->ah_iq_cal_needed)
 		return -EINVAL;
 	else if (ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_CALIBRATE,
 				"I/Q calibration still running");
 		return -EBUSY;
 	}
@@ -1792,7 +1792,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
 		i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
 		q_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_Q);
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_CALIBRATE,
 			"iq_corr:%x i_pwr:%x q_pwr:%x", iq_corr, i_pwr, q_pwr);
 		if (i_pwr && q_pwr)
 			break;
@@ -1822,7 +1822,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 		q_coff = (i_pwr / q_coffd) - 128;
 	q_coff = clamp(q_coff, -16, 15); /* signed 5 bit */
 
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_CALIBRATE,
 			"new I:%d Q:%d (i_coffd:%x q_coffd:%x)",
 			i_coff, q_coff, i_coffd, q_coffd);
 
@@ -1860,7 +1860,7 @@ ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 
 	ret = ath5k_hw_rf511x_iq_calibrate(ah);
 	if (ret) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_CALIBRATE,
 			"No I/Q correction performed (%uMHz)\n",
 			channel->center_freq);
 
@@ -2184,7 +2184,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
  *
  * AR5K_ANTMODE_SECTOR_STA -> STA with tx antenna set on tx desc
  *
- * AR5K_ANTMODE_DEBUG Debug mode -A -> Rx, B-> Tx-
+ * AR5K_ANTMODE_DE De mode -A -> Rx, B-> Tx-
  *
  * Also note that when setting antenna to F on tx descriptor card inverts
  * current tx antenna.
@@ -2363,7 +2363,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 		use_def_for_sg = false;
 		fast_div = true;
 		break;
-	case AR5K_ANTMODE_DEBUG:
+	case AR5K_ANTMODE_DE:
 		def_ant = 1;
 		tx_ant = 2;
 		use_def_for_tx = false;
@@ -3723,7 +3723,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 int
 ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 {
-	ATH5K_DBG(ah, ATH5K_DEBUG_TXPOWER,
+	ATH5K_DBG(ah, ATH5K_DE_TXPOWER,
 		"changing txpower to %d\n", txpower);
 
 	return ath5k_hw_txpower(ah, ah->ah_current_channel, txpower);

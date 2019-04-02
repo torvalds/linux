@@ -91,7 +91,7 @@ trick:
    can avoid indirect access and save a cache line.
  - if size of spinlock_t is bigger then size of long, we use page->ptl as
    pointer to spinlock_t and allocate it dynamically. This allows to use
-   split lock with enabled DEBUG_SPINLOCK or DEBUG_LOCK_ALLOC, but costs
+   split lock with enabled DE_SPINLOCK or DE_LOCK_ALLOC, but costs
    one more cache line for indirect access;
 
 The spinlock_t allocated in pgtable_page_ctor() for PTE table and in

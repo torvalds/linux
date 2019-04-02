@@ -22,10 +22,10 @@
 #include "tuner-simple.h"
 #include <asm/unaligned.h>
 
-/* debug */
-static int dvb_usb_m920x_debug;
-module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_m920x_de;
+module_param_named(de,dvb_usb_m920x_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=rc (or-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 

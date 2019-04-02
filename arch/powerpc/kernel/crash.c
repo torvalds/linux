@@ -26,7 +26,7 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/setjmp.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 /*
  * The primary CPU waits a while for all secondary CPUs to enter. This is to
@@ -152,8 +152,8 @@ again:
 	 * The primary CPU returns here via setjmp, and the secondary
 	 * CPUs reexecute the crash_kexec_secondary path.
 	 */
-	old_handler = __debugger;
-	__debugger = handle_fault;
+	old_handler = __deger;
+	__deger = handle_fault;
 	crash_shutdown_cpu = smp_processor_id();
 
 	if (setjmp(crash_shutdown_buf) == 0) {
@@ -173,7 +173,7 @@ again:
 	}
 
 	crash_shutdown_cpu = -1;
-	__debugger = old_handler;
+	__deger = old_handler;
 
 	tries++;
 	goto again;
@@ -351,10 +351,10 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 
 	/*
 	 * Call registered shutdown routines safely.  Swap out
-	 * __debugger_fault_handler, and replace on exit.
+	 * __deger_fault_handler, and replace on exit.
 	 */
-	old_handler = __debugger_fault_handler;
-	__debugger_fault_handler = handle_fault;
+	old_handler = __deger_fault_handler;
+	__deger_fault_handler = handle_fault;
 	crash_shutdown_cpu = smp_processor_id();
 	for (i = 0; i < CRASH_HANDLER_MAX && crash_shutdown_handles[i]; i++) {
 		if (setjmp(crash_shutdown_buf) == 0) {
@@ -370,7 +370,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 		}
 	}
 	crash_shutdown_cpu = -1;
-	__debugger_fault_handler = old_handler;
+	__deger_fault_handler = old_handler;
 
 	if (ppc_md.kexec_cpu_down)
 		ppc_md.kexec_cpu_down(1, 0);

@@ -30,9 +30,9 @@ MODULE_DESCRIPTION("cx23415/6/8 driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 /********************** COMMON CODE *********************/
 

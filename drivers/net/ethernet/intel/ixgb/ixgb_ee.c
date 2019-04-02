@@ -447,7 +447,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 
 	ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
-	pr_debug("Reading eeprom data\n");
+	pr_de("Reading eeprom data\n");
 	for (i = 0; i < IXGB_EEPROM_SIZE ; i++) {
 		u16 ee_data;
 		ee_data = ixgb_read_eeprom(hw, i);
@@ -456,7 +456,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 	}
 
 	if (checksum != (u16) EEPROM_SUM) {
-		pr_debug("Checksum invalid\n");
+		pr_de("Checksum invalid\n");
 		/* clear the init_ctrl_reg_1 to signify that the cache is
 		 * invalidated */
 		ee_map->init_ctrl_reg_1 = cpu_to_le16(EEPROM_ICW1_SIGNATURE_CLEAR);
@@ -465,7 +465,7 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 
 	if ((ee_map->init_ctrl_reg_1 & cpu_to_le16(EEPROM_ICW1_SIGNATURE_MASK))
 		 != cpu_to_le16(EEPROM_ICW1_SIGNATURE_VALID)) {
-		pr_debug("Signature invalid\n");
+		pr_de("Signature invalid\n");
 		return false;
 	}
 
@@ -535,7 +535,7 @@ ixgb_get_ee_mac_addr(struct ixgb_hw *hw,
 		for (i = 0; i < ETH_ALEN; i++) {
 			mac_addr[i] = ee_map->mac_addr[i];
 		}
-		pr_debug("eeprom mac address = %pM\n", mac_addr);
+		pr_de("eeprom mac address = %pM\n", mac_addr);
 	}
 }
 

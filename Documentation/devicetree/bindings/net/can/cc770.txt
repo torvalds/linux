@@ -1,7 +1,7 @@
 Memory mapped Bosch CC770 and Intel AN82527 CAN controller
 
 Note: The CC770 is a CAN controller from Bosch, which is 100%
-compatible with the old AN82527 from Intel, but with "bugs" being fixed.
+compatible with the old AN82527 from Intel, but with "s" being fixed.
 
 Required properties:
 

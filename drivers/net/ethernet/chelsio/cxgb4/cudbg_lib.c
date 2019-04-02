@@ -87,10 +87,10 @@ static int is_fw_attached(struct cudbg_init *pdbg_init)
 	return 1;
 }
 
-/* This function will add additional padding bytes into debug_buffer to make it
+/* This function will add additional padding bytes into de_buffer to make it
  * 4 byte aligned.
  */
-void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
+void cudbg_align_de_buffer(struct cudbg_buffer *dbg_buff,
 			      struct cudbg_entity_hdr *entity_hdr)
 {
 	u8 zero_buf[4] = {0};
@@ -2647,19 +2647,19 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 	}
 
 	for (i = 0; i < CUDBG_NUM_ULPTX_ASIC_READ; i++) {
-		t4_write_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A, 0x1);
+		t4_write_reg(padap, ULP_TX_ASIC_DE_CTRL_A, 0x1);
 		ulptx_la_buff->rdptr_asic[i] =
-				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A);
+				t4_read_reg(padap, ULP_TX_ASIC_DE_CTRL_A);
 		ulptx_la_buff->rddata_asic[i][0] =
-				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_0_A);
+				t4_read_reg(padap, ULP_TX_ASIC_DE_0_A);
 		ulptx_la_buff->rddata_asic[i][1] =
-				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_1_A);
+				t4_read_reg(padap, ULP_TX_ASIC_DE_1_A);
 		ulptx_la_buff->rddata_asic[i][2] =
-				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_2_A);
+				t4_read_reg(padap, ULP_TX_ASIC_DE_2_A);
 		ulptx_la_buff->rddata_asic[i][3] =
-				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_3_A);
+				t4_read_reg(padap, ULP_TX_ASIC_DE_3_A);
 		ulptx_la_buff->rddata_asic[i][4] =
-				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_4_A);
+				t4_read_reg(padap, ULP_TX_ASIC_DE_4_A);
 		ulptx_la_buff->rddata_asic[i][5] =
 				t4_read_reg(padap, PM_RX_BASE_ADDR);
 	}

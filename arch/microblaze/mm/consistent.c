@@ -75,7 +75,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 #endif
 
 	if (in_interrupt())
-		BUG();
+		();
 
 	/* Only allocate page size areas. */
 	size = PAGE_ALIGN(size);
@@ -186,7 +186,7 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	struct page *page;
 
 	if (in_interrupt())
-		BUG();
+		();
 
 	size = PAGE_ALIGN(size);
 

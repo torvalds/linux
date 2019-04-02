@@ -11,10 +11,10 @@ config VLYNQ
 
 	  If unsure, say N
 
-config VLYNQ_DEBUG
-	bool "VLYNQ bus debug"
-	depends on VLYNQ && DEBUG_KERNEL
+config VLYNQ_DE
+	bool "VLYNQ bus de"
+	depends on VLYNQ && DE_KERNEL
 	help
-	  Turn on VLYNQ bus debugging.
+	  Turn on VLYNQ bus deging.
 
 endmenu

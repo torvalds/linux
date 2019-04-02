@@ -77,14 +77,14 @@
 #define	ENABLE_HEXDUMP	0	/* Enable if you need it */
 
 
-#ifdef USBVISION_DEBUG
-	#define PDEBUG(level, fmt, args...) { \
-		if (video_debug & (level)) \
+#ifdef USBVISION_DE
+	#define PDE(level, fmt, args...) { \
+		if (video_de & (level)) \
 			printk(KERN_INFO KBUILD_MODNAME ":[%s:%d] " fmt, \
 				__func__, __LINE__ , ## args); \
 	}
 #else
-	#define PDEBUG(level, fmt, args...) do {} while (0)
+	#define PDE(level, fmt, args...) do {} while (0)
 #endif
 
 #define DBG_IO		(1 << 1)
@@ -116,8 +116,8 @@ static void usbvision_release(struct usb_usbvision *usbvision);
 /* Default initialization of device driver parameters */
 /* Set the default format for ISOC endpoint */
 static int isoc_mode = ISOC_MODE_COMPRESS;
-/* Set the default Debug Mode of the device driver */
-static int video_debug;
+/* Set the default De Mode of the device driver */
+static int video_de;
 /* Sequential Number of Video Device */
 static int video_nr = -1;
 /* Sequential Number of Radio Device */
@@ -127,12 +127,12 @@ static int radio_nr = -1;
 
 /* Showing parameters under SYSFS */
 module_param(isoc_mode, int, 0444);
-module_param(video_debug, int, 0444);
+module_param(video_de, int, 0444);
 module_param(video_nr, int, 0444);
 module_param(radio_nr, int, 0444);
 
 MODULE_PARM_DESC(isoc_mode, " Set the default format for ISOC endpoint.  Default: 0x60 (Compression On)");
-MODULE_PARM_DESC(video_debug, " Set the default Debug Mode of the device driver.  Default: 0 (Off)");
+MODULE_PARM_DESC(video_de, " Set the default De Mode of the device driver.  Default: 0 (Off)");
 MODULE_PARM_DESC(video_nr, "Set video device number (/dev/videoX).  Default: -1 (autodetect)");
 MODULE_PARM_DESC(radio_nr, "Set radio device number (/dev/radioX).  Default: -1 (autodetect)");
 
@@ -322,7 +322,7 @@ static int usbvision_v4l2_open(struct file *file)
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int err_code = 0;
 
-	PDEBUG(DBG_IO, "open");
+	PDE(DBG_IO, "open");
 
 	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
 		return -ERESTARTSYS;
@@ -375,7 +375,7 @@ static int usbvision_v4l2_open(struct file *file)
 unlock:
 	mutex_unlock(&usbvision->v4l2_lock);
 
-	PDEBUG(DBG_IO, "success");
+	PDE(DBG_IO, "success");
 	return err_code;
 }
 
@@ -391,7 +391,7 @@ static int usbvision_v4l2_close(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	PDEBUG(DBG_IO, "close");
+	PDE(DBG_IO, "close");
 
 	mutex_lock(&usbvision->v4l2_lock);
 	usbvision_audio_off(usbvision);
@@ -412,7 +412,7 @@ static int usbvision_v4l2_close(struct file *file)
 		return 0;
 	}
 
-	PDEBUG(DBG_IO, "success");
+	PDE(DBG_IO, "success");
 	return v4l2_fh_release(file);
 }
 
@@ -423,7 +423,7 @@ static int usbvision_v4l2_close(struct file *file)
  * This is part of Video 4 Linux API. The procedure handles ioctl() calls.
  *
  */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_register(struct file *file, void *priv,
 				struct v4l2_dbg_register *reg)
 {
@@ -902,7 +902,7 @@ static ssize_t usbvision_read(struct file *file, char __user *buf,
 	int ret, i;
 	struct usbvision_frame *frame;
 
-	PDEBUG(DBG_IO, "%s: %ld bytes, noblock=%d", __func__,
+	PDE(DBG_IO, "%s: %ld bytes, noblock=%d", __func__,
 	       (unsigned long)count, noblock);
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision) || !buf)
@@ -970,7 +970,7 @@ static ssize_t usbvision_read(struct file *file, char __user *buf,
 		return 0;
 	}
 
-	PDEBUG(DBG_IO, "%s: frmx=%d, bytes_read=%ld, scanlength=%ld",
+	PDE(DBG_IO, "%s: frmx=%d, bytes_read=%ld, scanlength=%ld",
 	       __func__,
 	       frame->index, frame->bytes_read, frame->scanlength);
 
@@ -982,7 +982,7 @@ static ssize_t usbvision_read(struct file *file, char __user *buf,
 		return -EFAULT;
 
 	frame->bytes_read += count;
-	PDEBUG(DBG_IO, "%s: {copy} count used=%ld, new bytes_read=%ld",
+	PDE(DBG_IO, "%s: {copy} count used=%ld, new bytes_read=%ld",
 	       __func__,
 	       (unsigned long)count, frame->bytes_read);
 
@@ -1029,7 +1029,7 @@ static int usbvision_mmap(struct file *file, struct vm_area_struct *vma)
 	u32 i;
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	PDEBUG(DBG_MMAP, "mmap");
+	PDE(DBG_MMAP, "mmap");
 
 	if (!USBVISION_IS_OPERATIONAL(usbvision))
 		return -EFAULT;
@@ -1045,7 +1045,7 @@ static int usbvision_mmap(struct file *file, struct vm_area_struct *vma)
 			break;
 	}
 	if (i == usbvision->num_frames) {
-		PDEBUG(DBG_MMAP,
+		PDE(DBG_MMAP,
 		       "mmap: user supplied mapping address is out of range");
 		return -EINVAL;
 	}
@@ -1056,7 +1056,7 @@ static int usbvision_mmap(struct file *file, struct vm_area_struct *vma)
 	pos = usbvision->frame[i].data;
 	while (size > 0) {
 		if (vm_insert_page(vma, start, vmalloc_to_page(pos))) {
-			PDEBUG(DBG_MMAP, "mmap: vm_insert_page failed");
+			PDE(DBG_MMAP, "mmap: vm_insert_page failed");
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -1088,7 +1088,7 @@ static int usbvision_radio_open(struct file *file)
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int err_code = 0;
 
-	PDEBUG(DBG_IO, "%s:", __func__);
+	PDE(DBG_IO, "%s:", __func__);
 
 	if (mutex_lock_interruptible(&usbvision->v4l2_lock))
 		return -ERESTARTSYS;
@@ -1125,7 +1125,7 @@ static int usbvision_radio_close(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	PDEBUG(DBG_IO, "");
+	PDE(DBG_IO, "");
 
 	mutex_lock(&usbvision->v4l2_lock);
 	/* Set packet size to 0 */
@@ -1145,7 +1145,7 @@ static int usbvision_radio_close(struct file *file)
 		return 0;
 	}
 
-	PDEBUG(DBG_IO, "success");
+	PDE(DBG_IO, "success");
 	return v4l2_fh_release(file);
 }
 
@@ -1185,7 +1185,7 @@ static const struct v4l2_ioctl_ops usbvision_ioctl_ops = {
 	.vidioc_log_status    = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
@@ -1253,14 +1253,14 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 {
 	/* Radio Device: */
 	if (video_is_registered(&usbvision->rdev)) {
-		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
+		PDE(DBG_PROBE, "unregister %s [v4l2]",
 		       video_device_node_name(&usbvision->rdev));
 		video_unregister_device(&usbvision->rdev);
 	}
 
 	/* Video Device: */
 	if (video_is_registered(&usbvision->vdev)) {
-		PDEBUG(DBG_PROBE, "unregister %s [v4l2]",
+		PDE(DBG_PROBE, "unregister %s [v4l2]",
 		       video_device_node_name(&usbvision->vdev));
 		video_unregister_device(&usbvision->vdev);
 	}
@@ -1357,7 +1357,7 @@ err_free:
  */
 static void usbvision_release(struct usb_usbvision *usbvision)
 {
-	PDEBUG(DBG_PROBE, "");
+	PDE(DBG_PROBE, "");
 
 	usbvision->initialized = 0;
 
@@ -1371,7 +1371,7 @@ static void usbvision_release(struct usb_usbvision *usbvision)
 	v4l2_device_unregister(&usbvision->v4l2_dev);
 	kfree(usbvision);
 
-	PDEBUG(DBG_PROBE, "success");
+	PDE(DBG_PROBE, "success");
 }
 
 
@@ -1427,13 +1427,13 @@ static int usbvision_probe(struct usb_interface *intf,
 	const struct usb_endpoint_descriptor *endpoint;
 	int model, i, ret;
 
-	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
+	PDE(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
 				le16_to_cpu(dev->descriptor.idVendor),
 				le16_to_cpu(dev->descriptor.idProduct), ifnum);
 
 	model = devid->driver_info;
 	if (model < 0 || model >= usbvision_device_data_size) {
-		PDEBUG(DBG_PROBE, "model out of bounds %d", model);
+		PDE(DBG_PROBE, "model out of bounds %d", model);
 		ret = -ENODEV;
 		goto err_usb;
 	}
@@ -1487,13 +1487,13 @@ static int usbvision_probe(struct usb_interface *intf,
 		usbvision->bridge_type = BRIDGE_NT1005;
 	else
 		usbvision->bridge_type = BRIDGE_NT1003;
-	PDEBUG(DBG_PROBE, "bridge_type %d", usbvision->bridge_type);
+	PDE(DBG_PROBE, "bridge_type %d", usbvision->bridge_type);
 
 	/* compute alternate max packet sizes */
 	uif = dev->actconfig->interface[0];
 
 	usbvision->num_alt = uif->num_altsetting;
-	PDEBUG(DBG_PROBE, "Alternate settings: %i", usbvision->num_alt);
+	PDE(DBG_PROBE, "Alternate settings: %i", usbvision->num_alt);
 	usbvision->alt_max_pkt_size = kmalloc_array(32, usbvision->num_alt,
 						    GFP_KERNEL);
 	if (!usbvision->alt_max_pkt_size) {
@@ -1513,7 +1513,7 @@ static int usbvision_probe(struct usb_interface *intf,
 				      wMaxPacketSize);
 		usbvision->alt_max_pkt_size[i] =
 			(tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		PDEBUG(DBG_PROBE, "Alternate setting %i, max size= %i", i,
+		PDE(DBG_PROBE, "Alternate setting %i, max size= %i", i,
 		       usbvision->alt_max_pkt_size[i]);
 	}
 
@@ -1542,7 +1542,7 @@ static int usbvision_probe(struct usb_interface *intf,
 
 	usbvision_create_sysfs(&usbvision->vdev);
 
-	PDEBUG(DBG_PROBE, "success");
+	PDE(DBG_PROBE, "success");
 	return 0;
 
 err_pkt:
@@ -1565,7 +1565,7 @@ static void usbvision_disconnect(struct usb_interface *intf)
 {
 	struct usb_usbvision *usbvision = to_usbvision(usb_get_intfdata(intf));
 
-	PDEBUG(DBG_PROBE, "");
+	PDE(DBG_PROBE, "");
 
 	if (!usbvision) {
 		pr_err("%s: usb_get_intfdata() failed\n", __func__);
@@ -1595,7 +1595,7 @@ static void usbvision_disconnect(struct usb_interface *intf)
 		usbvision_release(usbvision);
 	}
 
-	PDEBUG(DBG_PROBE, "success");
+	PDE(DBG_PROBE, "success");
 }
 
 static struct usb_driver usbvision_driver = {
@@ -1615,11 +1615,11 @@ static int __init usbvision_init(void)
 {
 	int err_code;
 
-	PDEBUG(DBG_PROBE, "");
+	PDE(DBG_PROBE, "");
 
-	PDEBUG(DBG_IO,  "IO      debugging is enabled [video]");
-	PDEBUG(DBG_PROBE, "PROBE   debugging is enabled [video]");
-	PDEBUG(DBG_MMAP, "MMAP    debugging is enabled [video]");
+	PDE(DBG_IO,  "IO      deging is enabled [video]");
+	PDE(DBG_PROBE, "PROBE   deging is enabled [video]");
+	PDE(DBG_MMAP, "MMAP    deging is enabled [video]");
 
 	/* disable planar mode support unless compression enabled */
 	if (isoc_mode != ISOC_MODE_COMPRESS) {
@@ -1632,17 +1632,17 @@ static int __init usbvision_init(void)
 
 	if (err_code == 0) {
 		printk(KERN_INFO DRIVER_DESC " : " USBVISION_VERSION_STRING "\n");
-		PDEBUG(DBG_PROBE, "success");
+		PDE(DBG_PROBE, "success");
 	}
 	return err_code;
 }
 
 static void __exit usbvision_exit(void)
 {
-	PDEBUG(DBG_PROBE, "");
+	PDE(DBG_PROBE, "");
 
 	usb_deregister(&usbvision_driver);
-	PDEBUG(DBG_PROBE, "success");
+	PDE(DBG_PROBE, "success");
 }
 
 module_init(usbvision_init);

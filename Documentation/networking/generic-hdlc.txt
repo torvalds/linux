@@ -124,8 +124,8 @@ If you have a problem with N2, C101 or PLX200SYN card, you can issue the
 
 	sethdlc hdlc0 private
 
-The hardware driver has to be build with #define DEBUG_RINGS.
-Attaching this info to bug reports would be helpful. Anyway, let me know
+The hardware driver has to be build with #define DE_RINGS.
+Attaching this info to  reports would be helpful. Anyway, let me know
 if you have problems using this.
 
 For patches and other info look at:

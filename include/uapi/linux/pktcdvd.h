@@ -16,9 +16,9 @@
 #include <linux/types.h>
 
 /*
- * 1 for normal debug messages, 2 is very verbose. 0 to turn it off.
+ * 1 for normal de messages, 2 is very verbose. 0 to turn it off.
  */
-#define PACKET_DEBUG		1
+#define PACKET_DE		1
 
 #define	MAX_WRITERS		8
 

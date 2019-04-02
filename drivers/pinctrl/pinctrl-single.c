@@ -971,8 +971,8 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
  * Also note that this driver tries to avoid understanding pin and function
  * names because of the extra bloat they would cause especially in the case of
  * a large number of pins. This driver just sets what is specified for the board
- * in the .dts file. Further user space debugging tools can be developed to
- * decipher the pin and function names using debugfs.
+ * in the .dts file. Further user space deging tools can be developed to
+ * decipher the pin and function names using defs.
  *
  * If you are concerned about the boot time, set up the static pins in
  * the bootloader, and only set up selected pins as device tree entries.

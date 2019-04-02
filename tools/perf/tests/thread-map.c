@@ -5,7 +5,7 @@
 #include <sys/prctl.h>
 #include "tests.h"
 #include "thread_map.h"
-#include "debug.h"
+#include "de.h"
 
 #define NAME	(const char *) "perf"
 #define NAMEUL	(unsigned long) NAME

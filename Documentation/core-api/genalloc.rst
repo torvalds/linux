@@ -43,7 +43,7 @@ A pool is shut down with:
 
 It's worth noting that, if there are still allocations outstanding from the
 given pool, this function will take the rather extreme step of invoking
-BUG(), crashing the entire system.  You have been warned.
+(), crashing the entire system.  You have been warned.
 
 A freshly created pool has no memory to allocate.  It is fairly useless in
 that state, so one of the first orders of business is usually to add memory

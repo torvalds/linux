@@ -172,9 +172,9 @@ config CRC32_BIT
 	bool "Classic Algorithm (one bit at a time)"
 	help
 	  Calculate checksum one bit at a time.  This is VERY slow, but has
-	  no lookup table.  This is provided as a debugging option.
+	  no lookup table.  This is provided as a deging option.
 
-	  Only choose this option if you are debugging crc32.
+	  Only choose this option if you are deging crc32.
 
 endchoice
 
@@ -451,7 +451,7 @@ config CHECK_SIGNATURE
 	bool
 
 config CPUMASK_OFFSTACK
-	bool "Force CPU masks off stack" if DEBUG_PER_CPU_MAPS
+	bool "Force CPU masks off stack" if DE_PER_CPU_MAPS
 	help
 	  Use dynamic allocation for cpumask_var_t, instead of putting
 	  them on the stack.  This is a bit more expensive, but avoids

@@ -19,17 +19,17 @@ MODULE_AUTHOR("Stephane Eranian <eranian@hpl.hp.com>");
 MODULE_DESCRIPTION("perfmon default sampling format");
 MODULE_LICENSE("GPL");
 
-#define DEFAULT_DEBUG 1
+#define DEFAULT_DE 1
 
-#ifdef DEFAULT_DEBUG
+#ifdef DEFAULT_DE
 #define DPRINT(a) \
 	do { \
-		if (unlikely(pfm_sysctl.debug >0)) { printk("%s.%d: CPU%d ", __func__, __LINE__, smp_processor_id()); printk a; } \
+		if (unlikely(pfm_sysctl.de >0)) { printk("%s.%d: CPU%d ", __func__, __LINE__, smp_processor_id()); printk a; } \
 	} while (0)
 
 #define DPRINT_ovfl(a) \
 	do { \
-		if (unlikely(pfm_sysctl.debug > 0 && pfm_sysctl.debug_ovfl >0)) { printk("%s.%d: CPU%d ", __func__, __LINE__, smp_processor_id()); printk a; } \
+		if (unlikely(pfm_sysctl.de > 0 && pfm_sysctl.de_ovfl >0)) { printk("%s.%d: CPU%d ", __func__, __LINE__, smp_processor_id()); printk a; } \
 	} while (0)
 
 #else

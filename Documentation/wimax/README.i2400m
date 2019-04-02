@@ -146,57 +146,57 @@ i2400m.PARAMETER=VALUE
    parameter, once set, will take effect only when the device is
    reinitialized by the driver (eg: following a reset or a reconnect).
 
-5.2. Debug operations: debugfs entries
+5.2. De operations: defs entries
 
-   The driver will register debugfs entries that allow the user to tweak
-   debug settings. There are three main container directories where
+   The driver will register defs entries that allow the user to tweak
+   de settings. There are three main container directories where
    entries are placed, which correspond to the three blocks a i2400m WiMAX
    driver has:
-     * /sys/kernel/debug/wimax:DEVNAME/ for the generic WiMAX stack
+     * /sys/kernel/de/wimax:DEVNAME/ for the generic WiMAX stack
        controls
-     * /sys/kernel/debug/wimax:DEVNAME/i2400m for the i2400m generic
+     * /sys/kernel/de/wimax:DEVNAME/i2400m for the i2400m generic
        driver controls
-     * /sys/kernel/debug/wimax:DEVNAME/i2400m-usb (or -sdio) for the
+     * /sys/kernel/de/wimax:DEVNAME/i2400m-usb (or -sdio) for the
        bus-specific i2400m-usb or i2400m-sdio controls).
 
-   Of course, if debugfs is mounted in a directory other than
-   /sys/kernel/debug, those paths will change.
+   Of course, if defs is mounted in a directory other than
+   /sys/kernel/de, those paths will change.
 
-5.2.1. Increasing debug output
+5.2.1. Increasing de output
 
-   The files named *dl_* indicate knobs for controlling the debug output
+   The files named *dl_* indicate knobs for controlling the de output
    of different submodules:
      *
-# find /sys/kernel/debug/wimax\:wmx0 -name \*dl_\*
-/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_tx
-/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_rx
-/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_notif
-/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_fw
-/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_usb
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_tx
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_rx
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_rfkill
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_netdev
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_fw
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_debugfs
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_driver
-/sys/kernel/debug/wimax:wmx0/i2400m/dl_control
-/sys/kernel/debug/wimax:wmx0/wimax_dl_stack
-/sys/kernel/debug/wimax:wmx0/wimax_dl_op_rfkill
-/sys/kernel/debug/wimax:wmx0/wimax_dl_op_reset
-/sys/kernel/debug/wimax:wmx0/wimax_dl_op_msg
-/sys/kernel/debug/wimax:wmx0/wimax_dl_id_table
-/sys/kernel/debug/wimax:wmx0/wimax_dl_debugfs
+# find /sys/kernel/de/wimax\:wmx0 -name \*dl_\*
+/sys/kernel/de/wimax:wmx0/i2400m-usb/dl_tx
+/sys/kernel/de/wimax:wmx0/i2400m-usb/dl_rx
+/sys/kernel/de/wimax:wmx0/i2400m-usb/dl_notif
+/sys/kernel/de/wimax:wmx0/i2400m-usb/dl_fw
+/sys/kernel/de/wimax:wmx0/i2400m-usb/dl_usb
+/sys/kernel/de/wimax:wmx0/i2400m/dl_tx
+/sys/kernel/de/wimax:wmx0/i2400m/dl_rx
+/sys/kernel/de/wimax:wmx0/i2400m/dl_rfkill
+/sys/kernel/de/wimax:wmx0/i2400m/dl_netdev
+/sys/kernel/de/wimax:wmx0/i2400m/dl_fw
+/sys/kernel/de/wimax:wmx0/i2400m/dl_defs
+/sys/kernel/de/wimax:wmx0/i2400m/dl_driver
+/sys/kernel/de/wimax:wmx0/i2400m/dl_control
+/sys/kernel/de/wimax:wmx0/wimax_dl_stack
+/sys/kernel/de/wimax:wmx0/wimax_dl_op_rfkill
+/sys/kernel/de/wimax:wmx0/wimax_dl_op_reset
+/sys/kernel/de/wimax:wmx0/wimax_dl_op_msg
+/sys/kernel/de/wimax:wmx0/wimax_dl_id_table
+/sys/kernel/de/wimax:wmx0/wimax_dl_defs
 
-   By reading the file you can obtain the current value of said debug
+   By reading the file you can obtain the current value of said de
    level; by writing to it, you can set it.
 
-   To increase the debug level of, for example, the i2400m's generic TX
+   To increase the de level of, for example, the i2400m's generic TX
    engine, just write:
 
-$ echo 3 > /sys/kernel/debug/wimax:wmx0/i2400m/dl_tx
+$ echo 3 > /sys/kernel/de/wimax:wmx0/i2400m/dl_tx
 
-   Increasing numbers yield increasing debug information; for details of
+   Increasing numbers yield increasing de information; for details of
    what is printed and the available levels, check the source. The code
    uses 0 for disabled and increasing values until 8.
 
@@ -205,7 +205,7 @@ $ echo 3 > /sys/kernel/debug/wimax:wmx0/i2400m/dl_tx
    The i2400m/rx_stats and i2400m/tx_stats provide statistics about the
    data reception/delivery from the device:
 
-$ cat /sys/kernel/debug/wimax:wmx0/i2400m/rx_stats
+$ cat /sys/kernel/de/wimax:wmx0/i2400m/rx_stats
 45 1 3 34 3104 48 480
 
    The numbers reported are
@@ -218,32 +218,32 @@ $ cat /sys/kernel/debug/wimax:wmx0/i2400m/rx_stats
 
    To clear the statistics back to 0, write anything to the rx_stats file:
 
-$ echo 1 > /sys/kernel/debug/wimax:wmx0/i2400m_rx_stats
+$ echo 1 > /sys/kernel/de/wimax:wmx0/i2400m_rx_stats
 
    Likewise for TX.
 
-   Note the packets this debug file refers to are not network packet, but
+   Note the packets this de file refers to are not network packet, but
    packets in the sense of the device-specific protocol for communication
    to the host. See drivers/net/wimax/i2400m/tx.c.
 
 5.2.3. Tracing messages received from user space
 
    To echo messages received from user space into the trace pipe that the
-   i2400m driver creates, set the debug file i2400m/trace_msg_from_user to
+   i2400m driver creates, set the de file i2400m/trace_msg_from_user to
    1:
      *
-$ echo 1 > /sys/kernel/debug/wimax:wmx0/i2400m/trace_msg_from_user
+$ echo 1 > /sys/kernel/de/wimax:wmx0/i2400m/trace_msg_from_user
 
 5.2.4. Performing a device reset
 
    By writing a 0, a 1 or a 2 to the file
-   /sys/kernel/debug/wimax:wmx0/reset, the driver performs a warm (without
+   /sys/kernel/de/wimax:wmx0/reset, the driver performs a warm (without
    disconnecting from the bus), cold (disconnecting from the bus) or bus
    (bus specific) reset on the device.
 
 5.2.5. Asking the device to enter power saving mode
 
-   By writing any value to the /sys/kernel/debug/wimax:wmx0 file, the
+   By writing any value to the /sys/kernel/de/wimax:wmx0 file, the
    device will attempt to enter power saving mode.
 
 6. Troubleshooting

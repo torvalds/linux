@@ -23,10 +23,10 @@
 #define WM831X_WDOG_ENA_MASK                    0x8000  /* WDOG_ENA */
 #define WM831X_WDOG_ENA_SHIFT                       15  /* WDOG_ENA */
 #define WM831X_WDOG_ENA_WIDTH                        1  /* WDOG_ENA */
-#define WM831X_WDOG_DEBUG                       0x4000  /* WDOG_DEBUG */
-#define WM831X_WDOG_DEBUG_MASK                  0x4000  /* WDOG_DEBUG */
-#define WM831X_WDOG_DEBUG_SHIFT                     14  /* WDOG_DEBUG */
-#define WM831X_WDOG_DEBUG_WIDTH                      1  /* WDOG_DEBUG */
+#define WM831X_WDOG_DE                       0x4000  /* WDOG_DE */
+#define WM831X_WDOG_DE_MASK                  0x4000  /* WDOG_DE */
+#define WM831X_WDOG_DE_SHIFT                     14  /* WDOG_DE */
+#define WM831X_WDOG_DE_WIDTH                      1  /* WDOG_DE */
 #define WM831X_WDOG_RST_SRC                     0x2000  /* WDOG_RST_SRC */
 #define WM831X_WDOG_RST_SRC_MASK                0x2000  /* WDOG_RST_SRC */
 #define WM831X_WDOG_RST_SRC_SHIFT                   13  /* WDOG_RST_SRC */

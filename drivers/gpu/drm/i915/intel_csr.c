@@ -228,21 +228,21 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 	return &no_stepping_info;
 }
 
-static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
+static void gen9_set_dc_state_demask(struct drm_i915_private *dev_priv)
 {
 	u32 val, mask;
 
-	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
+	mask = DC_STATE_DE_MASK_MEMORY_UP;
 
 	if (IS_GEN9_LP(dev_priv))
-		mask |= DC_STATE_DEBUG_MASK_CORES;
+		mask |= DC_STATE_DE_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
-	val = I915_READ(DC_STATE_DEBUG);
+	val = I915_READ(DC_STATE_DE);
 	if ((val & mask) != mask) {
 		val |= mask;
-		I915_WRITE(DC_STATE_DEBUG, val);
-		POSTING_READ(DC_STATE_DEBUG);
+		I915_WRITE(DC_STATE_DE, val);
+		POSTING_READ(DC_STATE_DE);
 	}
 }
 
@@ -286,7 +286,7 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 
 	dev_priv->csr.dc_state = 0;
 
-	gen9_set_dc_state_debugmask(dev_priv);
+	gen9_set_dc_state_demask(dev_priv);
 }
 
 static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
@@ -525,13 +525,13 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (csr->fw_path == NULL) {
-		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		DRM_DE_KMS("No known CSR firmware for platform, disabling runtime PM\n");
 		WARN_ON(!IS_ALPHA_SUPPORT(INTEL_INFO(dev_priv)));
 
 		return;
 	}
 
-	DRM_DEBUG_KMS("Loading %s\n", csr->fw_path);
+	DRM_DE_KMS("Loading %s\n", csr->fw_path);
 	schedule_work(&dev_priv->csr.work);
 }
 

@@ -370,7 +370,7 @@ static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 		l = 9;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	ea_size = l + ea->ea_name_len + 1;

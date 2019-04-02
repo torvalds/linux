@@ -31,7 +31,7 @@
 #define BULK_URB_TIMEOUT   90 /* 0.09 seconds */
 
 #define print_buffer_status() { \
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,	\
+		v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,	\
 			 "%s:%d buffer stat: %d free, %d proc\n",	\
 			 __func__, __LINE__,				\
 			 list_size(&dev->free_buff_list),		\
@@ -141,7 +141,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 	struct hdpvr_buffer *buf;
 	struct urb *urb;
 
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "allocating %u buffers\n", count);
 
 	for (i = 0; i < count; i++) {
@@ -262,11 +262,11 @@ static void hdpvr_transmit_buffers(struct work_struct *work)
 			goto error;
 	}
 
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "transmit worker exited\n");
 	return;
 error:
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "transmit buffers errored\n");
 	dev->status = STATUS_ERROR;
 }
@@ -288,12 +288,12 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 
 	if (!vidinf.valid) {
 		msleep(250);
-		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 				"no video signal at input %d\n", dev->options.video_input);
 		return -EAGAIN;
 	}
 
-	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,
 			"video signal: %dx%d@%dhz\n", vidinf.width,
 			vidinf.height, vidinf.fps);
 
@@ -301,7 +301,7 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 	ret = usb_control_msg(dev->udev,
 			usb_sndctrlpipe(dev->udev, 0),
 			0xb8, 0x38, 0x1, 0, NULL, 0, 8000);
-	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,
 			"encoder start control request returned %d\n", ret);
 	if (ret < 0)
 		return ret;
@@ -315,7 +315,7 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 	INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
 	schedule_work(&dev->worker);
 
-	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,
 			"streaming started\n");
 
 	return 0;
@@ -358,11 +358,11 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 					     dev->bulk_in_endpointAddr),
 			     buf, dev->bulk_in_size, &actual_length,
 			     BULK_URB_TIMEOUT)) {
-		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+		v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,
 			 "%2d: got %d bytes\n", c, actual_length);
 	}
 	kfree(buf);
-	v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,
 		 "used %d urbs to empty device buffers\n", c-1);
 	msleep(10);
 
@@ -423,7 +423,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 	mutex_lock(&dev->io_mutex);
 	if (dev->status == STATUS_IDLE) {
 		if (hdpvr_start_streaming(dev)) {
-			v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+			v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 				 "start_streaming failed\n");
 			ret = -EIO;
 			msleep(200);
@@ -465,7 +465,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 				goto err;
 			}
 			if (!err) {
-				v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+				v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 					"timeout: restart streaming\n");
 				hdpvr_stop_streaming(dev);
 				msecs_to_jiffies(4000);
@@ -535,7 +535,7 @@ static __poll_t hdpvr_poll(struct file *filp, poll_table *wait)
 
 	if (dev->status == STATUS_IDLE) {
 		if (hdpvr_start_streaming(dev)) {
-			v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
+			v4l2_dbg(MSG_BUFFER, hdpvr_de, &dev->v4l2_dev,
 				 "start_streaming failed\n");
 			dev->status = STATUS_IDLE;
 		} else {
@@ -1078,7 +1078,7 @@ static int vidioc_encoder_cmd(struct file *filp, void *priv,
 			dev->owner = NULL;
 		break;
 	default:
-		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 			 "Unsupported encoder cmd %d\n", a->cmd);
 		res = -EINVAL;
 		break;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * f2fs debugging statistics
+ * f2fs deging statistics
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com/
@@ -12,7 +12,7 @@
 #include <linux/backing-dev.h>
 #include <linux/f2fs_fs.h>
 #include <linux/blkdev.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include "f2fs.h"
@@ -21,7 +21,7 @@
 #include "gc.h"
 
 static LIST_HEAD(f2fs_stat_list);
-static struct dentry *f2fs_debugfs_root;
+static struct dentry *f2fs_defs_root;
 static DEFINE_MUTEX(f2fs_stat_mutex);
 
 static void update_general_status(struct f2fs_sb_info *sbi)
@@ -513,14 +513,14 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 
 void __init f2fs_create_root_stats(void)
 {
-	f2fs_debugfs_root = debugfs_create_dir("f2fs", NULL);
+	f2fs_defs_root = defs_create_dir("f2fs", NULL);
 
-	debugfs_create_file("status", S_IRUGO, f2fs_debugfs_root, NULL,
+	defs_create_file("status", S_IRUGO, f2fs_defs_root, NULL,
 			    &stat_fops);
 }
 
 void f2fs_destroy_root_stats(void)
 {
-	debugfs_remove_recursive(f2fs_debugfs_root);
-	f2fs_debugfs_root = NULL;
+	defs_remove_recursive(f2fs_defs_root);
+	f2fs_defs_root = NULL;
 }

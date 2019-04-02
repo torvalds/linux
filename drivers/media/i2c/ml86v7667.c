@@ -260,7 +260,7 @@ static int ml86v7667_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ml86v7667_g_register(struct v4l2_subdev *sd,
 				struct v4l2_dbg_register *reg)
 {
@@ -305,7 +305,7 @@ static const struct v4l2_subdev_pad_ops ml86v7667_subdev_pad_ops = {
 };
 
 static const struct v4l2_subdev_core_ops ml86v7667_subdev_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = ml86v7667_g_register,
 	.s_register = ml86v7667_s_register,
 #endif

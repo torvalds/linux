@@ -198,7 +198,7 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 	__le16 w;
 	__le32 l;
 
-	BUG_ON(offset + len > vp_dev->device_len);
+	_ON(offset + len > vp_dev->device_len);
 
 	switch (len) {
 	case 1:
@@ -220,7 +220,7 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 		memcpy(buf + sizeof l, &l, sizeof l);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -234,7 +234,7 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 	__le16 w;
 	__le32 l;
 
-	BUG_ON(offset + len > vp_dev->device_len);
+	_ON(offset + len > vp_dev->device_len);
 
 	switch (len) {
 	case 1:
@@ -256,7 +256,7 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 		iowrite32(le32_to_cpu(l), vp_dev->device + offset + sizeof l);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -277,7 +277,7 @@ static void vp_set_status(struct virtio_device *vdev, u8 status)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	/* We should never be setting status to 0. */
-	BUG_ON(status == 0);
+	_ON(status == 0);
 	vp_iowrite8(status, &vp_dev->common->device_status);
 }
 
@@ -521,62 +521,62 @@ static inline int virtio_pci_find_capability(struct pci_dev *dev, u8 cfg_type,
 static inline void check_offsets(void)
 {
 	/* Note: disk space was harmed in compilation of this function. */
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_VNDR !=
+	BUILD__ON(VIRTIO_PCI_CAP_VNDR !=
 		     offsetof(struct virtio_pci_cap, cap_vndr));
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_NEXT !=
+	BUILD__ON(VIRTIO_PCI_CAP_NEXT !=
 		     offsetof(struct virtio_pci_cap, cap_next));
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_LEN !=
+	BUILD__ON(VIRTIO_PCI_CAP_LEN !=
 		     offsetof(struct virtio_pci_cap, cap_len));
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_CFG_TYPE !=
+	BUILD__ON(VIRTIO_PCI_CAP_CFG_TYPE !=
 		     offsetof(struct virtio_pci_cap, cfg_type));
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_BAR !=
+	BUILD__ON(VIRTIO_PCI_CAP_BAR !=
 		     offsetof(struct virtio_pci_cap, bar));
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_OFFSET !=
+	BUILD__ON(VIRTIO_PCI_CAP_OFFSET !=
 		     offsetof(struct virtio_pci_cap, offset));
-	BUILD_BUG_ON(VIRTIO_PCI_CAP_LENGTH !=
+	BUILD__ON(VIRTIO_PCI_CAP_LENGTH !=
 		     offsetof(struct virtio_pci_cap, length));
-	BUILD_BUG_ON(VIRTIO_PCI_NOTIFY_CAP_MULT !=
+	BUILD__ON(VIRTIO_PCI_NOTIFY_CAP_MULT !=
 		     offsetof(struct virtio_pci_notify_cap,
 			      notify_off_multiplier));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_DFSELECT !=
+	BUILD__ON(VIRTIO_PCI_COMMON_DFSELECT !=
 		     offsetof(struct virtio_pci_common_cfg,
 			      device_feature_select));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_DF !=
+	BUILD__ON(VIRTIO_PCI_COMMON_DF !=
 		     offsetof(struct virtio_pci_common_cfg, device_feature));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_GFSELECT !=
+	BUILD__ON(VIRTIO_PCI_COMMON_GFSELECT !=
 		     offsetof(struct virtio_pci_common_cfg,
 			      guest_feature_select));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_GF !=
+	BUILD__ON(VIRTIO_PCI_COMMON_GF !=
 		     offsetof(struct virtio_pci_common_cfg, guest_feature));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_MSIX !=
+	BUILD__ON(VIRTIO_PCI_COMMON_MSIX !=
 		     offsetof(struct virtio_pci_common_cfg, msix_config));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_NUMQ !=
+	BUILD__ON(VIRTIO_PCI_COMMON_NUMQ !=
 		     offsetof(struct virtio_pci_common_cfg, num_queues));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_STATUS !=
+	BUILD__ON(VIRTIO_PCI_COMMON_STATUS !=
 		     offsetof(struct virtio_pci_common_cfg, device_status));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_CFGGENERATION !=
+	BUILD__ON(VIRTIO_PCI_COMMON_CFGGENERATION !=
 		     offsetof(struct virtio_pci_common_cfg, config_generation));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_SELECT !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_SELECT !=
 		     offsetof(struct virtio_pci_common_cfg, queue_select));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_SIZE !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_SIZE !=
 		     offsetof(struct virtio_pci_common_cfg, queue_size));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_MSIX !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_MSIX !=
 		     offsetof(struct virtio_pci_common_cfg, queue_msix_vector));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_ENABLE !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_ENABLE !=
 		     offsetof(struct virtio_pci_common_cfg, queue_enable));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_NOFF !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_NOFF !=
 		     offsetof(struct virtio_pci_common_cfg, queue_notify_off));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_DESCLO !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_DESCLO !=
 		     offsetof(struct virtio_pci_common_cfg, queue_desc_lo));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_DESCHI !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_DESCHI !=
 		     offsetof(struct virtio_pci_common_cfg, queue_desc_hi));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_AVAILLO !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_AVAILLO !=
 		     offsetof(struct virtio_pci_common_cfg, queue_avail_lo));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_AVAILHI !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_AVAILHI !=
 		     offsetof(struct virtio_pci_common_cfg, queue_avail_hi));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_USEDLO !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_USEDLO !=
 		     offsetof(struct virtio_pci_common_cfg, queue_used_lo));
-	BUILD_BUG_ON(VIRTIO_PCI_COMMON_Q_USEDHI !=
+	BUILD__ON(VIRTIO_PCI_COMMON_Q_USEDHI !=
 		     offsetof(struct virtio_pci_common_cfg, queue_used_hi));
 }
 

@@ -52,7 +52,7 @@ Sat Apr 1  12:00 2000 Gerard Roudier (groudier@club-internet.fr)
 	- Move from `sym' to this driver a tiny change for __sparc__ that 
 	  applies to cache line size (? Probably from David S Miller).
 	- Make sure no data transfer will happen for Scsi_Cmnd requests 
-	  that supply SCSI_DATA_NONE direction (this avoids some BUG() 
+	  that supply SCSI_DATA_NONE direction (this avoids some () 
 	  statement in the PCI code when a data buffer is also supplied).
 
 Thu Mar 16   9:30 2000 Pam Delaney (pam.delaney@lsil.com)
@@ -184,7 +184,7 @@ Thu Mar 11  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
 
 Sat Mar 6  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	* revision 3.1h
-	- Fix some oooold bug that hangs the bus if a device rejects a 
+	- Fix some oooold  that hangs the bus if a device rejects a 
 	  negotiation. Btw, the corresponding stuff also needed some cleanup 
 	  and thus the change is a bit larger than it could have been.
 	- Still some typo that made compilation fail for 64 bit (trivial fix).
@@ -227,7 +227,7 @@ Sat Nov 21  18:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* revision 3.1c
 	- Ignore chips that are driven by SISL RAID (DAC 960).
 	  Change sent by Leonard Zubkoff and slightly reworked.
-	- Still a buglet in the tags initial settings that needed to be fixed.
+	- Still a let in the tags initial settings that needed to be fixed.
 	  It was not possible to disable TGQ at system startup for devices 
 	  that claim TGQ support. The driver used at least 2 for the queue 
 	  depth but did'nt keep track of user settings for tags depth lower 
@@ -274,7 +274,7 @@ Sun Oct  4 14:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  This optimization is broken and has been removed.
 	- Some broken scsi devices are confused when a negotiation is started 
 	  on a LUN that does not correspond to a real device. According to 
-	  SCSI specs, this is a device firmware bug. This has been worked 
+	  SCSI specs, this is a device firmware . This has been worked 
 	  around by only starting negotiation if the LUN has previously be 
 	  used for at least 1 successful SCSI command.
 	- The 'last message sent' printed out on M_REJECT message reception 
@@ -319,7 +319,7 @@ Sun Jun 15 23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	- Support for up to 64 TAGS per LUN.
 	- Rewrite the TARGET vs LUN capabilities management.
 	  CmdQueue is now handled as a LUN capability as it shall be.
-	  This also fixes a bug triggered when disabling tagged command 
+	  This also fixes a  triggered when disabling tagged command 
 	  queuing for a device that had this feature enabled.
 	- Remove the ncr_opennings() stuff that was useless under Linux 
 	  and hard to understand to me.
@@ -380,7 +380,7 @@ Sat May 1 16:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  architectures.
 	- Add some barriers to enforce memory ordering for x86 and 
 	  Alpha architectures.
-	- Fix something that looks like an old bug in the nego SIR 
+	- Fix something that looks like an old  in the nego SIR 
 	  interrupt code in case of negotiation failure.
 
 Sat Apr 25 21:00 1998 Gerard Roudier (groudier@club-internet.fr)
@@ -395,14 +395,14 @@ Sat Apr 25 21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  on-chip RAM useable for linux-1.2.13 and for Linux-Alpha for 
 	  instance.
 	- Some simplifications and cleanups in the SCRIPTS and C code.
-	- Buglet fixed in parity error recovery SCRIPTS (never tested).
+	- let fixed in parity error recovery SCRIPTS (never tested).
 	- Minor updates in README.ncr53c8xx.
 
 Wed Apr 15 21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* revision 2.6j
 	- Incorporate changes from linux-2.1.95 ncr53c8xx driver version.
 	- Add SMP support for linux-2.1.95 and above.
-	- Fix a bug when QUEUE FULL is returned and no commands are 
+	- Fix a  when QUEUE FULL is returned and no commands are 
 	  disconnected. This happens with Atlas I / L912 and may happen 
 	  with Atlas II / LXY4.
 	- Nail another one on CHECK condition when requeuing the command 

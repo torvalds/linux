@@ -2018,7 +2018,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		} else {
 			/* Middle or Last descriptor */
 			if (unlikely(!rxq->skb)) {
-				pr_debug("no skb for rx_status 0x%x\n",
+				pr_de("no skb for rx_status 0x%x\n",
 					 rx_status);
 				continue;
 			}

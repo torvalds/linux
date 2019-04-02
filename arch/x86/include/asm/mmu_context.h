@@ -173,7 +173,7 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 		load_mm_ldt(next);
 #endif
 
-	DEBUG_LOCKS_WARN_ON(preemptible());
+	DE_LOCKS_WARN_ON(preemptible());
 }
 
 void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
@@ -352,7 +352,7 @@ static inline unsigned long __get_current_cr3_fast(void)
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || preemptible());
 
-	VM_BUG_ON(cr3 != __read_cr3());
+	VM__ON(cr3 != __read_cr3());
 	return cr3;
 }
 

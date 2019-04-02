@@ -479,6 +479,6 @@ int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_erasebloc
 int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 #endif
 
-#include "debug.h"
+#include "de.h"
 
 #endif /* __JFFS2_NODELIST_H__ */

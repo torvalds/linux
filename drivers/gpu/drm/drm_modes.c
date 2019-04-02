@@ -42,16 +42,16 @@
 #include "drm_crtc_internal.h"
 
 /**
- * drm_mode_debug_printmodeline - print a mode to dmesg
+ * drm_mode_de_printmodeline - print a mode to dmesg
  * @mode: mode to print
  *
- * Describe @mode using DRM_DEBUG.
+ * Describe @mode using DRM_DE.
  */
-void drm_mode_debug_printmodeline(const struct drm_display_mode *mode)
+void drm_mode_de_printmodeline(const struct drm_display_mode *mode)
 {
-	DRM_DEBUG_KMS("Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+	DRM_DE_KMS("Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 }
-EXPORT_SYMBOL(drm_mode_debug_printmodeline);
+EXPORT_SYMBOL(drm_mode_de_printmodeline);
 
 /**
  * drm_mode_create - create a new display mode
@@ -709,9 +709,9 @@ int of_get_drm_display_mode(struct device_node *np,
 	if (bus_flags)
 		drm_bus_flags_from_videomode(&vm, bus_flags);
 
-	pr_debug("%pOF: got %dx%d display mode\n",
+	pr_de("%pOF: got %dx%d display mode\n",
 		np, vm.hactive, vm.vactive);
-	drm_mode_debug_printmodeline(dmode);
+	drm_mode_de_printmodeline(dmode);
 
 	return 0;
 }
@@ -1285,8 +1285,8 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 		if (mode->status != MODE_OK) {
 			list_del(&mode->head);
 			if (verbose) {
-				drm_mode_debug_printmodeline(mode);
-				DRM_DEBUG_KMS("Not using %s mode: %s\n",
+				drm_mode_de_printmodeline(mode);
+				DRM_DE_KMS("Not using %s mode: %s\n",
 					      mode->name,
 					      drm_get_mode_status_name(mode->status));
 			}

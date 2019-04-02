@@ -140,8 +140,8 @@
 #define TO_AMO(x)		(AMO_BASE     | TO_PHYS(x))
 #define TO_GET(x)		(GET_BASE     | TO_PHYS(x))
 #else
-#define TO_AMO(x)		({ BUG(); x; })
-#define TO_GET(x)		({ BUG(); x; })
+#define TO_AMO(x)		({ (); x; })
+#define TO_GET(x)		({ (); x; })
 #endif
 
 /*

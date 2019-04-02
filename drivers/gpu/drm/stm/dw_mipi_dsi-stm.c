@@ -116,7 +116,7 @@ static enum dsi_color dsi_color_from_mipi(enum mipi_dsi_pixel_format fmt)
 	case MIPI_DSI_FMT_RGB565:
 		return DSI_RGB565_CONF1;
 	default:
-		DRM_DEBUG_DRIVER("MIPI color invalid, so we use rgb888\n");
+		DRM_DE_DRIVER("MIPI color invalid, so we use rgb888\n");
 	}
 	return DSI_RGB888;
 }
@@ -199,14 +199,14 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 	ret = readl_poll_timeout(dsi->base + DSI_WISR, val, val & WISR_RRS,
 				 SLEEP_US, TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("!TIMEOUT! waiting REGU, let's continue\n");
+		DRM_DE_DRIVER("!TIMEOUT! waiting REGU, let's continue\n");
 
 	/* Enable the DSI PLL & wait for its lock */
 	dsi_set(dsi, DSI_WRPCR, WRPCR_PLLEN);
 	ret = readl_poll_timeout(dsi->base + DSI_WISR, val, val & WISR_PLLLS,
 				 SLEEP_US, TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("!TIMEOUT! waiting PLL, let's continue\n");
+		DRM_DE_DRIVER("!TIMEOUT! waiting PLL, let's continue\n");
 
 	/* Enable the DSI wrapper */
 	dsi_set(dsi, DSI_WCR, WCR_DSIEN);
@@ -278,7 +278,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 
 	*lane_mbps = pll_out_khz / 1000;
 
-	DRM_DEBUG_DRIVER("pll_in %ukHz pll_out %ukHz lane_mbps %uMHz\n",
+	DRM_DE_DRIVER("pll_in %ukHz pll_out %ukHz lane_mbps %uMHz\n",
 			 pll_in_khz, pll_out_khz, *lane_mbps);
 
 	return 0;

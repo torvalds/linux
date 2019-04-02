@@ -539,7 +539,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 {
 	struct proc_dir_entry *p;
 
-	BUG_ON(proc_fops == NULL);
+	_ON(proc_fops == NULL);
 
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)

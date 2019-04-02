@@ -310,9 +310,9 @@ extern void free_dma(unsigned int dmanr);
 /* From PCI */
 
 #ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 #else
-#define isa_dma_bridge_buggy	(0)
+#define isa_dma_bridge_gy	(0)
 #endif
 
 #endif /* _ASM_X86_DMA_H */

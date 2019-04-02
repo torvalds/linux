@@ -27,18 +27,18 @@ are configurable at compile, boot or run time.
    l1tf
 
 Here is a set of documents aimed at users who are trying to track down
-problems and bugs in particular.
+problems and s in particular.
 
 .. toctree::
    :maxdepth: 1
 
-   reporting-bugs
-   security-bugs
-   bug-hunting
-   bug-bisect
+   reporting-s
+   security-s
+   -hunting
+   -bisect
    tainted-kernels
    ramoops
-   dynamic-debug-howto
+   dynamic-de-howto
    init
 
 This is the beginning of a section with information of interest to

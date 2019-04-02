@@ -6,7 +6,7 @@
 #include "../../perf.h"
 #include "../../util/util.h"
 #include "../../util/perf_regs.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(r0, PERF_REG_POWERPC_R0),
@@ -87,7 +87,7 @@ static int sdt_init_op_regex(void)
 free_regex1:
 	regfree(&sdt_op_regex1);
 error:
-	pr_debug4("Regex compilation error.\n");
+	pr_de4("Regex compilation error.\n");
 	return ret;
 }
 
@@ -117,7 +117,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 
 	/* Constant argument. Uprobe does not support it */
 	if (old_op[0] == 'i') {
-		pr_debug4("Skipping unsupported SDT argument: %s\n", old_op);
+		pr_de4("Skipping unsupported SDT argument: %s\n", old_op);
 		return SDT_ARG_SKIP;
 	}
 
@@ -156,7 +156,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 			(int)(rm[2].rm_eo - rm[2].rm_so), old_op + rm[2].rm_so,
 			(int)(rm[4].rm_eo - rm[4].rm_so), old_op + rm[4].rm_so);
 	} else {
-		pr_debug4("Skipping unsupported SDT argument: %s\n", old_op);
+		pr_de4("Skipping unsupported SDT argument: %s\n", old_op);
 		return SDT_ARG_SKIP;
 	}
 

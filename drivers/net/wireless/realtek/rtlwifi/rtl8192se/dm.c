@@ -664,7 +664,7 @@ static void _rtl92s_dm_init_dig(struct ieee80211_hw *hw)
 	digtable->rssi_highpower_lowthresh = DM_DIG_HIGH_PWR_THRESH_LOW;
 	digtable->rssi_highpower_highthresh = DM_DIG_HIGH_PWR_THRESH_HIGH;
 
-	/* for dig debug rssi value */
+	/* for dig de rssi value */
 	digtable->rssi_val = 50;
 	digtable->back_val = DM_DIG_BACKOFF_MAX;
 	digtable->rx_gain_max = DM_DIG_MAX;

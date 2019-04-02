@@ -24,7 +24,7 @@
 #include "hwio.h"
 #include "wsm.h"
 #include "hwbus.h"
-#include "debug.h"
+#include "de.h"
 #include "fwio.h"
 
 static int cw1200_bh(void *arg);
@@ -68,7 +68,7 @@ int cw1200_register_bh(struct cw1200_common *priv)
 
 	INIT_WORK(&priv->bh_work, cw1200_bh_work);
 
-	pr_debug("[BH] register.\n");
+	pr_de("[BH] register.\n");
 
 	atomic_set(&priv->bh_rx, 0);
 	atomic_set(&priv->bh_tx, 0);
@@ -96,12 +96,12 @@ void cw1200_unregister_bh(struct cw1200_common *priv)
 	destroy_workqueue(priv->bh_workqueue);
 	priv->bh_workqueue = NULL;
 
-	pr_debug("[BH] unregistered.\n");
+	pr_de("[BH] unregistered.\n");
 }
 
 void cw1200_irq_handler(struct cw1200_common *priv)
 {
-	pr_debug("[BH] irq.\n");
+	pr_de("[BH] irq.\n");
 
 	/* Disable Interrupts! */
 	/* NOTE:  hwbus_ops->lock already held */
@@ -117,7 +117,7 @@ EXPORT_SYMBOL_GPL(cw1200_irq_handler);
 
 void cw1200_bh_wakeup(struct cw1200_common *priv)
 {
-	pr_debug("[BH] wakeup.\n");
+	pr_de("[BH] wakeup.\n");
 	if (priv->bh_error) {
 		pr_err("[BH] wakeup failed (BH error)\n");
 		return;
@@ -129,7 +129,7 @@ void cw1200_bh_wakeup(struct cw1200_common *priv)
 
 int cw1200_bh_suspend(struct cw1200_common *priv)
 {
-	pr_debug("[BH] suspend.\n");
+	pr_de("[BH] suspend.\n");
 	if (priv->bh_error) {
 		wiphy_warn(priv->hw->wiphy, "BH error -- can't suspend\n");
 		return -EINVAL;
@@ -144,7 +144,7 @@ int cw1200_bh_suspend(struct cw1200_common *priv)
 
 int cw1200_bh_resume(struct cw1200_common *priv)
 {
-	pr_debug("[BH] resume.\n");
+	pr_de("[BH] resume.\n");
 	if (priv->bh_error) {
 		wiphy_warn(priv->hw->wiphy, "BH error -- can't resume\n");
 		return -EINVAL;
@@ -199,7 +199,7 @@ static int cw1200_device_wakeup(struct cw1200_common *priv)
 	u16 ctrl_reg;
 	int ret;
 
-	pr_debug("[BH] Device wakeup.\n");
+	pr_de("[BH] Device wakeup.\n");
 
 	/* First, set the dpll register */
 	ret = cw1200_reg_write_32(priv, ST90TDS_TSET_GEN_R_W_REG_ID,
@@ -221,7 +221,7 @@ static int cw1200_device_wakeup(struct cw1200_common *priv)
 	 * remain active.
 	 */
 	if (ctrl_reg & ST90TDS_CONT_RDY_BIT) {
-		pr_debug("[BH] Device awake.\n");
+		pr_de("[BH] Device awake.\n");
 		return 1;
 	}
 
@@ -232,7 +232,7 @@ static int cw1200_device_wakeup(struct cw1200_common *priv)
 void cw1200_enable_powersave(struct cw1200_common *priv,
 			     bool enable)
 {
-	pr_debug("[BH] Powerave is %s.\n",
+	pr_de("[BH] Powerave is %s.\n",
 		 enable ? "enabled" : "disabled");
 	priv->powersave_enabled = enable;
 }
@@ -258,7 +258,7 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 
 	if (WARN_ON((read_len < sizeof(struct wsm_hdr)) ||
 		    (read_len > EFFECTIVE_BUF_SIZE))) {
-		pr_debug("Invalid read len: %zu (%04x)",
+		pr_de("Invalid read len: %zu (%04x)",
 			 read_len, *ctrl_reg);
 		goto err;
 	}
@@ -273,7 +273,7 @@ static int cw1200_bh_rx_helper(struct cw1200_common *priv,
 
 	/* Check if not exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(alloc_len > EFFECTIVE_BUF_SIZE)) {
-		pr_debug("Read aligned len: %zu\n",
+		pr_de("Read aligned len: %zu\n",
 			 alloc_len);
 	}
 
@@ -382,8 +382,8 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 	}
 
 	wsm = (struct wsm_hdr *)data;
-	BUG_ON(tx_len < sizeof(*wsm));
-	BUG_ON(__le16_to_cpu(wsm->len) != tx_len);
+	_ON(tx_len < sizeof(*wsm));
+	_ON(__le16_to_cpu(wsm->len) != tx_len);
 
 	atomic_add(1, &priv->bh_tx);
 
@@ -392,7 +392,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 
 	/* Check if not exceeding CW1200 capabilities */
 	if (WARN_ON_ONCE(tx_len > EFFECTIVE_BUF_SIZE))
-		pr_debug("Write aligned len: %zu\n", tx_len);
+		pr_de("Write aligned len: %zu\n", tx_len);
 
 	wsm->id &= __cpu_to_le16(0xffff ^ WSM_TX_SEQ(WSM_TX_SEQ_MAX));
 	wsm->id |= __cpu_to_le16(WSM_TX_SEQ(priv->wsm_tx_seq));
@@ -413,7 +413,7 @@ static int cw1200_bh_tx_helper(struct cw1200_common *priv,
 	priv->wsm_tx_seq = (priv->wsm_tx_seq + 1) & WSM_TX_SEQ_MAX;
 
 	if (*tx_burst > 1) {
-		cw1200_debug_tx_burst(priv);
+		cw1200_de_tx_burst(priv);
 		return 1; /* Work remains */
 	}
 
@@ -438,7 +438,7 @@ static int cw1200_bh(void *arg)
 		    !priv->device_can_sleep &&
 		    !atomic_read(&priv->recent_scan)) {
 			status = 1 * HZ;
-			pr_debug("[BH] Device wakedown. No data.\n");
+			pr_de("[BH] Device wakedown. No data.\n");
 			cw1200_reg_write_16(priv, ST90TDS_CONTROL_REG_ID, 0);
 			priv->device_can_sleep = true;
 		} else if (priv->hw_bufs_used) {
@@ -455,7 +455,7 @@ static int cw1200_bh(void *arg)
 			cw1200_reg_read(priv, ST90TDS_CONFIG_REG_ID,
 					&dummy, sizeof(dummy));
 
-		pr_debug("[BH] waiting ...\n");
+		pr_de("[BH] waiting ...\n");
 		status = wait_event_interruptible_timeout(priv->bh_wq, ({
 				rx = atomic_xchg(&priv->bh_rx, 0);
 				tx = atomic_xchg(&priv->bh_tx, 0);
@@ -465,7 +465,7 @@ static int cw1200_bh(void *arg)
 				(rx || tx || term || suspend || priv->bh_error);
 			}), status);
 
-		pr_debug("[BH] - rx: %d, tx: %d, term: %d, bh_err: %d, suspend: %d, status: %ld\n",
+		pr_de("[BH] - rx: %d, tx: %d, term: %d, bh_err: %d, suspend: %d, status: %ld\n",
 			 rx, tx, term, suspend, priv->bh_error, status);
 
 		/* Did an error occur? */
@@ -512,16 +512,16 @@ static int cw1200_bh(void *arg)
 				}
 			} else if (!priv->device_can_sleep &&
 				   !atomic_read(&priv->recent_scan)) {
-				pr_debug("[BH] Device wakedown. Timeout.\n");
+				pr_de("[BH] Device wakedown. Timeout.\n");
 				cw1200_reg_write_16(priv,
 						    ST90TDS_CONTROL_REG_ID, 0);
 				priv->device_can_sleep = true;
 			}
 			goto done;
 		} else if (suspend) {
-			pr_debug("[BH] Device suspend.\n");
+			pr_de("[BH] Device suspend.\n");
 			if (priv->powersave_enabled) {
-				pr_debug("[BH] Device wakedown. Suspend.\n");
+				pr_de("[BH] Device wakedown. Suspend.\n");
 				cw1200_reg_write_16(priv,
 						    ST90TDS_CONTROL_REG_ID, 0);
 				priv->device_can_sleep = true;
@@ -537,7 +537,7 @@ static int cw1200_bh(void *arg)
 					  status);
 				break;
 			}
-			pr_debug("[BH] Device resume.\n");
+			pr_de("[BH] Device resume.\n");
 			atomic_set(&priv->bh_suspend, CW1200_BH_RESUMED);
 			wake_up(&priv->bh_evt_wq);
 			atomic_add(1, &priv->bh_rx);
@@ -568,7 +568,7 @@ static int cw1200_bh(void *arg)
 		if (tx) {
 			tx = 0;
 
-			BUG_ON(priv->hw_bufs_used > priv->wsm_caps.input_buffers);
+			_ON(priv->hw_bufs_used > priv->wsm_caps.input_buffers);
 			tx_burst = priv->wsm_caps.input_buffers - priv->hw_bufs_used;
 			tx_allowed = tx_burst > 0;
 

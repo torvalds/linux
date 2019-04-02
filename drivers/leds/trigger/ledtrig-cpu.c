@@ -134,7 +134,7 @@ static int __init ledtrig_cpu_init(void)
 	int ret;
 
 	/* Supports up to 9999 cpu cores */
-	BUILD_BUG_ON(CONFIG_NR_CPUS > 9999);
+	BUILD__ON(CONFIG_NR_CPUS > 9999);
 
 	/*
 	 * Registering a trigger for all CPUs.

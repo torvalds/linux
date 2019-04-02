@@ -1,5 +1,5 @@
 /*
- * Some debug functions
+ * Some de functions
  *
  * MIPS floating point support
  *

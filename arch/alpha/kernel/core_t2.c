@@ -28,10 +28,10 @@
 #include "pci_impl.h"
 
 /* For dumping initial DMA window settings. */
-#define DEBUG_PRINT_INITIAL_SETTINGS 0
+#define DE_PRINT_INITIAL_SETTINGS 0
 
 /* For dumping final DMA window settings. */
-#define DEBUG_PRINT_FINAL_SETTINGS 0
+#define DE_PRINT_FINAL_SETTINGS 0
 
 /*
  * By default, we direct-map starting at 2GB, in order to allow the
@@ -68,9 +68,9 @@
  * BIOS32-style PCI interface:
  */
 
-#define DEBUG_CONFIG 0
+#define DE_CONFIG 0
 
-#if DEBUG_CONFIG
+#if DE_CONFIG
 # define DBG(args)	printk args
 #else
 # define DBG(args)
@@ -336,7 +336,7 @@ t2_direct_map_window1(unsigned long base, unsigned long length)
 	*(vulp)T2_WMASK1 = temp;
 	*(vulp)T2_TBASE1 = 0;
 
-#if DEBUG_PRINT_FINAL_SETTINGS
+#if DE_PRINT_FINAL_SETTINGS
 	printk("%s: setting WBASE1=0x%lx WMASK1=0x%lx TBASE1=0x%lx\n",
 	       __func__, *(vulp)T2_WBASE1, *(vulp)T2_WMASK1, *(vulp)T2_TBASE1);
 #endif
@@ -363,7 +363,7 @@ t2_sg_map_window2(struct pci_controller *hose,
 
 	t2_pci_tbi(hose, 0, -1); /* flush TLB all */
 
-#if DEBUG_PRINT_FINAL_SETTINGS
+#if DE_PRINT_FINAL_SETTINGS
 	printk("%s: setting WBASE2=0x%lx WMASK2=0x%lx TBASE2=0x%lx\n",
 	       __func__, *(vulp)T2_WBASE2, *(vulp)T2_WMASK2, *(vulp)T2_TBASE2);
 #endif
@@ -372,7 +372,7 @@ t2_sg_map_window2(struct pci_controller *hose,
 static void __init
 t2_save_configuration(void)
 {
-#if DEBUG_PRINT_INITIAL_SETTINGS
+#if DE_PRINT_INITIAL_SETTINGS
 	printk("%s: HAE_1 was 0x%lx\n", __func__, srm_hae); /* HW is 0 */
 	printk("%s: HAE_2 was 0x%lx\n", __func__, *(vulp)T2_HAE_2);
 	printk("%s: HAE_3 was 0x%lx\n", __func__, *(vulp)T2_HAE_3);

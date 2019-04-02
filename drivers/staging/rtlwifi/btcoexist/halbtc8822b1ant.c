@@ -1094,7 +1094,7 @@ static void halbtc8822b1ant_enable_gnt_to_gpio(struct btc_coexist *btcoexist,
 	state = isenable;
 
 	if (isenable) {
-		/* enable GNT_WL, GNT_BT to GPIO for debug */
+		/* enable GNT_WL, GNT_BT to GPIO for de */
 		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x73, 0x8, 0x1);
 
 		/* store original value */
@@ -3676,7 +3676,7 @@ static void halbtc8822b1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 		halbtc8822b1ant_sw_mechanism(btcoexist, true);
 		halbtc8822b1ant_run_sw_coexist_mechanism(
-			btcoexist); /* just print debug message */
+			btcoexist); /* just print de message */
 	} else {
 		halbtc8822b1ant_limited_tx(btcoexist, NORMAL_EXEC, 0, 0, 0, 0);
 
@@ -3685,7 +3685,7 @@ static void halbtc8822b1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 		halbtc8822b1ant_sw_mechanism(btcoexist, false);
 		halbtc8822b1ant_run_sw_coexist_mechanism(
-			btcoexist); /* just print debug message */
+			btcoexist); /* just print de message */
 	}
 
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_HS_OPERATION, &bt_hs_on);

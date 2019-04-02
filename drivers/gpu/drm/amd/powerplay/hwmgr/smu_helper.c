@@ -21,7 +21,7 @@
  *
  */
 #include "hwmgr.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "ppatomctrl.h"
 #include "ppsmc.h"
 #include "atom.h"
@@ -432,7 +432,7 @@ uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, u
 			return vddci_table->entries[i].value;
 	}
 
-	pr_debug("vddci is larger than max value in vddci_table\n");
+	pr_de("vddci is larger than max value in vddci_table\n");
 	return vddci_table->entries[i-1].value;
 }
 
@@ -472,7 +472,7 @@ int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 	}
 
 	if (entry_id >= table_info->vdd_dep_on_sclk->count) {
-		pr_debug("Can't find requested voltage id in vdd_dep_on_sclk table\n");
+		pr_de("Can't find requested voltage id in vdd_dep_on_sclk table\n");
 		return -EINVAL;
 	}
 

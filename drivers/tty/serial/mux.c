@@ -91,7 +91,7 @@ static int __init get_mux_port_count(struct parisc_device *dev)
 		return 1;
 
 	status = pdc_iodc_read(&bytecnt, dev->hpa.start, 0, iodc_data, 32);
-	BUG_ON(status != PDC_OK);
+	_ON(status != PDC_OK);
 
 	/* Return the number of ports specified in the iodc data. */
 	return ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8;
@@ -340,7 +340,7 @@ static int mux_request_port(struct uart_port *port)
  *
  * Perform any autoconfiguration steps for the port.  This function is
  * called if the UPF_BOOT_AUTOCONF flag is specified for the port.
- * [Note: This is required for now because of a bug in the Serial core.
+ * [Note: This is required for now because of a  in the Serial core.
  *  rmk has already submitted a patch to linus, should be available for
  *  2.5.47.]
  */
@@ -493,7 +493,7 @@ static int __init mux_probe(struct parisc_device *dev)
 		spin_lock_init(&port->lock);
 
 		status = uart_add_one_port(&mux_driver, port);
-		BUG_ON(status);
+		_ON(status);
 	}
 
 	return 0;
@@ -509,7 +509,7 @@ static int __exit mux_remove(struct parisc_device *dev)
 		if(mux_ports[i].port.mapbase == dev->hpa.start + MUX_OFFSET)
 			break;
 	}
-	BUG_ON(i + port_count > port_cnt);
+	_ON(i + port_count > port_cnt);
 
 	/* Release the resources associated with each port on the device. */
 	for(j = 0; j < port_count; ++j, ++i) {

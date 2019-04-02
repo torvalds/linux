@@ -125,7 +125,7 @@ module_param_array(remote,   int, NULL, 0444);
 module_param_array(audiodev, int, NULL, 0444);
 module_param_array(audiomux, int, NULL, 0444);
 
-MODULE_PARM_DESC(triton1, "set ETBF pci config bit [enable bug compatibility for triton1 + others]");
+MODULE_PARM_DESC(triton1, "set ETBF pci config bit [enable  compatibility for triton1 + others]");
 MODULE_PARM_DESC(vsfx, "set VSFX pci config bit [yet another chipset flaw workaround]");
 MODULE_PARM_DESC(latency,"pci latency timer");
 MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a list");
@@ -2589,7 +2589,7 @@ struct tvcard bttv_tvcards[] = {
 		 * Slightly different from original MachTV definition (0x60)
 
 		 * FIXME: RegSpy says gpiomask should be "0x001c800f", but it
-		 * stuffs up remote chip. Bug is a pin on the jaecs is not set
+		 * stuffs up remote chip.  is a pin on the jaecs is not set
 		 * properly (methinks) causing no keyup bits being set */
 
 		.name           = "MagicTV", /* rebranded MachTV */
@@ -2929,7 +2929,7 @@ void bttv_idcard(struct bttv *btv)
 			pr_info("%d: subsystem: %04x:%04x (UNKNOWN)\n",
 				btv->c.nr, btv->cardid & 0xffff,
 				(btv->cardid >> 16) & 0xffff);
-			pr_debug("please mail id, board name and the correct card= insmod option to linux-media@vger.kernel.org\n");
+			pr_de("please mail id, board name and the correct card= insmod option to linux-media@vger.kernel.org\n");
 		}
 	}
 
@@ -3213,7 +3213,7 @@ static void gvc1100_muxsel(struct bttv *btv, unsigned int input)
 
 static void init_lmlbt4x(struct bttv *btv)
 {
-	pr_debug("LMLBT4x init\n");
+	pr_de("LMLBT4x init\n");
 	btwrite(0x000000, BT848_GPIO_REG_INP);
 	gpio_inout(0xffffff, 0x0006C0);
 	gpio_write(0x000000);
@@ -3292,8 +3292,8 @@ static void bttv_reset_audio(struct bttv *btv)
 	if (btv->id != 878)
 		return;
 
-	if (bttv_debug)
-		pr_debug("%d: BT878A ARESET\n", btv->c.nr);
+	if (bttv_de)
+		pr_de("%d: BT878A ARESET\n", btv->c.nr);
 	btwrite((1<<7), 0x058);
 	udelay(10);
 	btwrite(     0, 0x058);
@@ -4330,7 +4330,7 @@ init_PCI8604PW(struct bttv *btv)
 		case 5:
 		case 6:
 		case 4:
-			pr_debug("PCI-8604PW in state %i, toggling pin\n",
+			pr_de("PCI-8604PW in state %i, toggling pin\n",
 				 state);
 			btwrite(0x080000, BT848_GPIO_DATA);
 			msleep(1);
@@ -4699,7 +4699,7 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 	buf[1]=0;
 	rc=bttv_I2CWrite(btv,(PX_I2C_PIC<<1),buf[0],buf[1],1);
 	if (rc) {
-		pr_debug("%d: PXC200_muxsel: pic cfg write failed:%d\n",
+		pr_de("%d: PXC200_muxsel: pic cfg write failed:%d\n",
 			 btv->c.nr, rc);
 	  /* not PXC ? do nothing */
 		return;
@@ -4707,7 +4707,7 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 
 	rc=bttv_I2CRead(btv,(PX_I2C_PIC<<1),NULL);
 	if (!(rc & PX_CFG_PXC200F)) {
-		pr_debug("%d: PXC200_muxsel: not PXC200F rc:%d\n",
+		pr_de("%d: PXC200_muxsel: not PXC200F rc:%d\n",
 			 btv->c.nr, rc);
 		return;
 	}
@@ -4748,7 +4748,7 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 	else /* older device */
 	  btand(~BT848_IFORM_MUXSEL,BT848_IFORM);
 
-	pr_debug("%d: setting input channel to:%d\n", btv->c.nr, (int)mux);
+	pr_de("%d: setting input channel to:%d\n", btv->c.nr, (int)mux);
 }
 
 static void phytec_muxsel(struct bttv *btv, unsigned int input)
@@ -4914,7 +4914,7 @@ void __init bttv_check_chipset(void)
 				      PCI_DEVICE_ID_INTEL_82441, dev))) {
 		unsigned char b;
 		pci_read_config_byte(dev, 0x53, &b);
-		if (bttv_debug)
+		if (bttv_de)
 			pr_info("Host bridge: 82441FX Natoma, bufcon=0x%02x\n",
 				b);
 	}

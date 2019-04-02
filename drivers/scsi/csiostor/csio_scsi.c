@@ -552,7 +552,7 @@ csio_scsi_write(struct csio_ioreq *req)
 static inline void
 csio_setup_ddp(struct csio_scsim *scsim, struct csio_ioreq *req)
 {
-#ifdef __CSIO_DEBUG__
+#ifdef __CSIO_DE__
 	struct csio_hw *hw = req->lnode->hwp;
 #endif
 	struct scatterlist *sgel = NULL;
@@ -1423,7 +1423,7 @@ csio_disable_port(struct device *dev,
 	return count;
 }
 
-/* Show debug level */
+/* Show de level */
 static ssize_t
 csio_show_dbg_level(struct device *dev,
 		   struct device_attribute *attr, char *buf)
@@ -1433,7 +1433,7 @@ csio_show_dbg_level(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%x\n", ln->params.log_level);
 }
 
-/* Store debug level */
+/* Store de level */
 static ssize_t
 csio_store_dbg_level(struct device *dev,
 		   struct device_attribute *attr, const char *buf, size_t count)

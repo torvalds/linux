@@ -421,7 +421,7 @@ static int audit_field_compare(struct task_struct *tsk,
 	case AUDIT_COMPARE_SGID_TO_FSGID:
 		return audit_gid_comparator(cred->sgid, f->op, cred->fsgid);
 	default:
-		WARN(1, "Missing AUDIT_COMPARE define.  Report as a bug\n");
+		WARN(1, "Missing AUDIT_COMPARE define.  Report as a \n");
 		return 0;
 	}
 	return 0;
@@ -1615,7 +1615,7 @@ void __audit_syscall_entry(int major, unsigned long a1, unsigned long a2,
 	if (!audit_enabled || !context)
 		return;
 
-	BUG_ON(context->in_syscall || context->name_count);
+	_ON(context->in_syscall || context->name_count);
 
 	state = context->state;
 	if (state == AUDIT_DISABLED)
@@ -2410,7 +2410,7 @@ int audit_signal_info(int sig, struct task_struct *t)
 		axp->d.next = ctx->aux_pids;
 		ctx->aux_pids = (void *)axp;
 	}
-	BUG_ON(axp->pid_count >= AUDIT_AUX_PIDS);
+	_ON(axp->pid_count >= AUDIT_AUX_PIDS);
 
 	axp->target_pid[axp->pid_count] = task_tgid_nr(t);
 	axp->target_auid[axp->pid_count] = audit_get_loginuid(t);

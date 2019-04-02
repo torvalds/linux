@@ -38,7 +38,7 @@ pcc-cpufreq.txt -	PCC cpufreq driver specific file.
 Mailing List
 ------------
 There is a CPU frequency changing CVS commit and general list where
-you can report bugs, problems or submit patches. To post a message,
+you can report s, problems or submit patches. To post a message,
 send an email to linux-pm@vger.kernel.org.
 
 Links

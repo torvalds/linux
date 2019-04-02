@@ -1150,7 +1150,7 @@ static int __init nft_ct_module_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > NFT_REG_SIZE);
+	BUILD__ON(NF_CT_LABELS_MAX_SIZE > NFT_REG_SIZE);
 
 	err = nft_register_expr(&nft_ct_type);
 	if (err < 0)

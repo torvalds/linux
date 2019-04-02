@@ -69,12 +69,12 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	int i, ret;
 	u8 *buf = par->buf;
 
-	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
+	if (unlikely(par->de & DE_WRITE_REGISTER)) {
 		va_start(args, len);
 		for (i = 0; i < len; i++)
 			buf[i] = (u8)va_arg(args, unsigned int);
 		va_end(args);
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device, u8, buf, len, "%s: ", __func__);
+		fbtft_par_dbg_hex(DE_WRITE_REGISTER, par, par->info->device, u8, buf, len, "%s: ", __func__);
 	}
 
 	va_start(args, len);
@@ -168,7 +168,7 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 
 static int blank(struct fbtft_par *par, bool on)
 {
-	fbtft_par_dbg(DEBUG_BLANK, par, "(%s=%s)\n",
+	fbtft_par_dbg(DE_BLANK, par, "(%s=%s)\n",
 		      __func__, on ? "true" : "false");
 	if (on)
 		write_reg(par, 0xAE);

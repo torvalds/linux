@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <asm/unaligned.h>

@@ -446,19 +446,19 @@ config USB_G_HID
 
 # Standalone / single function gadgets
 config USB_G_DBGP
-	tristate "EHCI Debug Device Gadget"
+	tristate "EHCI De Device Gadget"
 	depends on TTY
 	select USB_LIBCOMPOSITE
 	help
-	  This gadget emulates an EHCI Debug device. This is useful when you want
-	  to interact with an EHCI Debug Port.
+	  This gadget emulates an EHCI De device. This is useful when you want
+	  to interact with an EHCI De Port.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_dbgp".
 
 if USB_G_DBGP
 choice
-	prompt "EHCI Debug Device mode"
+	prompt "EHCI De Device mode"
 	default USB_G_DBGP_SERIAL
 
 config USB_G_DBGP_PRINTK

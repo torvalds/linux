@@ -414,7 +414,7 @@ static void lapb_state3_machine(struct lapb_cb *lapb, struct sk_buff *skb,
 			 * a frame lost on the wire.
 			 */
 			if (cn == NET_RX_DROP) {
-				pr_debug("rx congestion\n");
+				pr_de("rx congestion\n");
 				break;
 			}
 			lapb->vr = (lapb->vr + 1) % modulus;

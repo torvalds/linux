@@ -374,7 +374,7 @@ static inline uint32_t REG_EDP_PHY_LN_PD_CTL(uint32_t i0) { return 0x00000404 + 
 
 #define REG_EDP_28nm_PHY_PLL_EFUSE_CFG				0x0000009c
 
-#define REG_EDP_28nm_PHY_PLL_DEBUG_BUS_SEL			0x000000a0
+#define REG_EDP_28nm_PHY_PLL_DE_BUS_SEL			0x000000a0
 
 
 #endif /* EDP_XML */

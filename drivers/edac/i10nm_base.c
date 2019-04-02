@@ -15,7 +15,7 @@
 #define I10NM_REVISION	"v0.0.3"
 #define EDAC_MOD_STR	"i10nm_edac"
 
-/* Debug macros */
+/* De macros */
 #define i10nm_printk(level, fmt, arg...)	\
 	edac_printk(level, "i10nm", fmt, ##arg)
 
@@ -249,7 +249,7 @@ static int __init i10nm_init(void)
 
 	opstate_init();
 	mce_register_decode_chain(&i10nm_mce_dec);
-	setup_skx_debug("i10nm_test");
+	setup_skx_de("i10nm_test");
 
 	i10nm_printk(KERN_INFO, "%s\n", I10NM_REVISION);
 
@@ -262,7 +262,7 @@ fail:
 static void __exit i10nm_exit(void)
 {
 	edac_dbg(2, "\n");
-	teardown_skx_debug();
+	teardown_skx_de();
 	mce_unregister_decode_chain(&i10nm_mce_dec);
 	skx_adxl_put();
 	skx_remove();

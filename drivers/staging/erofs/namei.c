@@ -28,11 +28,11 @@ static inline int dirnamecmp(const struct erofs_qstr *qn,
 	unsigned int i = *matched;
 
 	/*
-	 * on-disk error, let's only BUG_ON in the debugging mode.
+	 * on-disk error, let's only _ON in the deging mode.
 	 * otherwise, it will return 1 to just skip the invalid name
 	 * and go on (in consideration of the lookup performance).
 	 */
-	DBG_BUGON(qd->name > qd->end);
+	DBG_ON(qd->name > qd->end);
 
 	/* qd could not have trailing '\0' */
 	/* However it is absolutely safe if < qd->end */
@@ -121,7 +121,7 @@ static struct page *find_target_block_classic(struct inode *dir,
 			struct erofs_qstr dname;
 
 			if (unlikely(!ndirents)) {
-				DBG_BUGON(1);
+				DBG_ON(1);
 				kunmap_atomic(de);
 				put_page(page);
 				page = ERR_PTR(-EIO);
@@ -218,9 +218,9 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	unsigned int d_type;
 	struct inode *inode;
 
-	DBG_BUGON(!d_really_is_negative(dentry));
+	DBG_ON(!d_really_is_negative(dentry));
 	/* dentry must be unhashed in lookup, no need to worry about */
-	DBG_BUGON(!d_unhashed(dentry));
+	DBG_ON(!d_unhashed(dentry));
 
 	trace_erofs_lookup(dir, dentry, flags);
 
@@ -237,7 +237,7 @@ static struct dentry *erofs_lookup(struct inode *dir,
 	} else if (unlikely(err)) {
 		inode = ERR_PTR(err);
 	} else {
-		debugln("%s, %s (nid %llu) found, d_type %u", __func__,
+		deln("%s, %s (nid %llu) found, d_type %u", __func__,
 			dentry->d_name.name, nid, d_type);
 		inode = erofs_iget(dir->i_sb, nid, d_type == EROFS_FT_DIR);
 	}

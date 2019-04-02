@@ -129,14 +129,14 @@ static void pt_info_set(struct usb_device *dev, u8 v)
 			      'I',
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      v, 0, NULL, 0, 1000);
-	snd_printdd(KERN_DEBUG "%i\n", ret);
+	snd_printdd(KERN_DE "%i\n", ret);
 }
 
 static void usb_stream_hwdep_vm_open(struct vm_area_struct *area)
 {
 	struct us122l *us122l = area->vm_private_data;
 	atomic_inc(&us122l->mmap_count);
-	snd_printdd(KERN_DEBUG "%i\n", atomic_read(&us122l->mmap_count));
+	snd_printdd(KERN_DE "%i\n", atomic_read(&us122l->mmap_count));
 }
 
 static vm_fault_t usb_stream_hwdep_vm_fault(struct vm_fault *vmf)
@@ -179,7 +179,7 @@ static void usb_stream_hwdep_vm_close(struct vm_area_struct *area)
 {
 	struct us122l *us122l = area->vm_private_data;
 	atomic_dec(&us122l->mmap_count);
-	snd_printdd(KERN_DEBUG "%i\n", atomic_read(&us122l->mmap_count));
+	snd_printdd(KERN_DE "%i\n", atomic_read(&us122l->mmap_count));
 }
 
 static const struct vm_operations_struct usb_stream_hwdep_vm_ops = {
@@ -193,7 +193,7 @@ static int usb_stream_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
 	struct us122l	*us122l = hw->private_data;
 	struct usb_interface *iface;
-	snd_printdd(KERN_DEBUG "%p %p\n", hw, file);
+	snd_printdd(KERN_DE "%p %p\n", hw, file);
 	if (hw->used >= 2)
 		return -EBUSY;
 
@@ -213,7 +213,7 @@ static int usb_stream_hwdep_release(struct snd_hwdep *hw, struct file *file)
 {
 	struct us122l	*us122l = hw->private_data;
 	struct usb_interface *iface;
-	snd_printdd(KERN_DEBUG "%p %p\n", hw, file);
+	snd_printdd(KERN_DE "%p %p\n", hw, file);
 
 	if (us122l->is_us144) {
 		iface = usb_ifnum_to_if(us122l->dev, 0);
@@ -250,7 +250,7 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 		err = -EPERM;
 		goto out;
 	}
-	snd_printdd(KERN_DEBUG "%lu %u\n", size,
+	snd_printdd(KERN_DE "%lu %u\n", size,
 		    read ? s->read_size : s->write_size);
 	/* if userspace tries to mmap beyond end of our buffer, fail */
 	if (size > PAGE_ALIGN(read ? s->read_size : s->write_size)) {
@@ -608,7 +608,7 @@ static int snd_us122l_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	snd_printdd(KERN_DEBUG"%p:%i\n",
+	snd_printdd(KERN_DE"%p:%i\n",
 		    intf, intf->cur_altsetting->desc.bInterfaceNumber);
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 1)
 		return 0;

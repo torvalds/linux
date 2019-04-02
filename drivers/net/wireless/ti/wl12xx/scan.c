@@ -21,7 +21,7 @@
 
 #include <linux/ieee80211.h>
 #include "scan.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/tx.h"
 
 static int wl1271_get_scan_channels(struct wl1271 *wl,
@@ -48,17 +48,17 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 		     * marked as passive.
 		     */
 		    (passive || !(flags & IEEE80211_CHAN_NO_IR))) {
-			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
+			wl1271_de(DE_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);
-			wl1271_debug(DEBUG_SCAN, "hw_value %d, flags %X",
+			wl1271_de(DE_SCAN, "hw_value %d, flags %X",
 				     req->channels[i]->hw_value,
 				     req->channels[i]->flags);
-			wl1271_debug(DEBUG_SCAN,
+			wl1271_de(DE_SCAN,
 				     "max_antenna_gain %d, max_power %d",
 				     req->channels[i]->max_antenna_gain,
 				     req->channels[i]->max_power);
-			wl1271_debug(DEBUG_SCAN, "beacon_found %d",
+			wl1271_de(DE_SCAN, "beacon_found %d",
 				     req->channels[i]->beacon_found);
 
 			if (!passive) {
@@ -174,7 +174,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 
-	wl1271_dump(DEBUG_SCAN, "SCAN: ", cmd, sizeof(*cmd));
+	wl1271_dump(DE_SCAN, "SCAN: ", cmd, sizeof(*cmd));
 
 	ret = wl1271_cmd_send(wl, CMD_SCAN, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -196,7 +196,7 @@ int wl12xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (WARN_ON(wl->scan.state == WL1271_SCAN_STATE_IDLE))
 		return -EINVAL;
 
-	wl1271_debug(DEBUG_CMD, "cmd scan stop");
+	wl1271_de(DE_CMD, "cmd scan stop");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -329,7 +329,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	int i, ret;
 	bool force_passive = !req->n_ssids;
 
-	wl1271_debug(DEBUG_CMD, "cmd sched_scan scan config");
+	wl1271_de(DE_CMD, "cmd sched_scan scan config");
 
 	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
@@ -360,7 +360,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 
 	cfg->filter_type = ret;
 
-	wl1271_debug(DEBUG_SCAN, "filter_type = %d", cfg->filter_type);
+	wl1271_de(DE_SCAN, "filter_type = %d", cfg->filter_type);
 
 	cfg_channels = kzalloc(sizeof(*cfg_channels), GFP_KERNEL);
 	if (!cfg_channels) {
@@ -411,7 +411,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 		}
 	}
 
-	wl1271_dump(DEBUG_SCAN, "SCAN_CFG: ", cfg, sizeof(*cfg));
+	wl1271_dump(DE_SCAN, "SCAN_CFG: ", cfg, sizeof(*cfg));
 
 	ret = wl1271_cmd_send(wl, CMD_CONNECTION_SCAN_CFG, cfg,
 			      sizeof(*cfg), 0);
@@ -430,7 +430,7 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct wl1271_cmd_sched_scan_start *start;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd periodic scan start");
+	wl1271_de(DE_CMD, "cmd periodic scan start");
 
 	if (wlvif->bss_type != BSS_TYPE_STA_BSS)
 		return -EOPNOTSUPP;
@@ -476,7 +476,7 @@ void wl12xx_scan_sched_scan_stop(struct wl1271 *wl,  struct wl12xx_vif *wlvif)
 	struct wl1271_cmd_sched_scan_stop *stop;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd periodic scan stop");
+	wl1271_de(DE_CMD, "cmd periodic scan stop");
 
 	/* FIXME: what to do if alloc'ing to stop fails? */
 	stop = kzalloc(sizeof(*stop), GFP_KERNEL);

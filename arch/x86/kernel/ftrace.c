@@ -113,7 +113,7 @@ ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are paranoid about modifying text, as if a  was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
@@ -605,7 +605,7 @@ void ftrace_replace_code(int enable)
 
  remove_breakpoints:
 	pr_warn("Failed on %s (%d):\n", report, count);
-	ftrace_bug(ret, rec);
+	ftrace_(ret, rec);
 	for_ftrace_rec_iter(iter) {
 		rec = ftrace_rec_iter_record(iter);
 		/*
@@ -613,7 +613,7 @@ void ftrace_replace_code(int enable)
 		 * progress. The system could not work with them.
 		 */
 		if (remove_breakpoint(rec))
-			BUG();
+			();
 	}
 	run_sync();
 }
@@ -641,7 +641,7 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 	 * The breakpoint is handled only when this function is in progress.
 	 * The system could not work if we could not remove it.
 	 */
-	BUG_ON(ret);
+	_ON(ret);
  out:
 	run_sync();
 	return ret;
@@ -649,7 +649,7 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
  fail_update:
 	/* Also here the system could not work with the breakpoint */
 	if (ftrace_write(ip, old_code, 1))
-		BUG();
+		();
 	goto out;
 }
 

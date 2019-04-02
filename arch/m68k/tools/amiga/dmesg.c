@@ -1,7 +1,7 @@
 /*
  *  linux/arch/m68k/tools/amiga/dmesg.c -- Retrieve the kernel messages stored
  *					   in Chip RAM with the kernel command
- *					   line option `debug=mem'.
+ *					   line option `de=mem'.
  *
  *  © Copyright 1996 by Geert Uytterhoeven <geert@linux-m68k.org>
  *

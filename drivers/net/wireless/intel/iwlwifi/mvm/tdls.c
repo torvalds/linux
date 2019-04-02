@@ -161,7 +161,7 @@ static void iwl_mvm_tdls_config(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	}
 
 	tdls_cfg_cmd.tdls_peer_count = cnt;
-	IWL_DEBUG_TDLS(mvm, "send TDLS config to FW for %d peers\n", cnt);
+	IWL_DE_TDLS(mvm, "send TDLS config to FW for %d peers\n", cnt);
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (WARN_ON_ONCE(ret))
@@ -245,7 +245,7 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 	if (mvm->tdls_cs.state == state)
 		return;
 
-	IWL_DEBUG_TDLS(mvm, "TDLS channel switch state: %s -> %s\n",
+	IWL_DE_TDLS(mvm, "TDLS channel switch state: %s -> %s\n",
 		       iwl_mvm_tdls_cs_state_str(mvm->tdls_cs.state),
 		       iwl_mvm_tdls_cs_state_str(state));
 	mvm->tdls_cs.state = state;
@@ -375,7 +375,7 @@ iwl_mvm_tdls_check_action(struct iwl_mvm *mvm,
 	}
 
 	if (ret)
-		IWL_DEBUG_TDLS(mvm,
+		IWL_DE_TDLS(mvm,
 			       "Invalid TDLS action %d state %d peer %pM same_peer %d initiator %d\n",
 			       type, mvm->tdls_cs.state, peer, same_peer,
 			       peer_initiator);
@@ -570,12 +570,12 @@ iwl_mvm_tdls_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	IWL_DEBUG_TDLS(mvm, "TDLS channel switch with %pM ch %d width %d\n",
+	IWL_DE_TDLS(mvm, "TDLS channel switch with %pM ch %d width %d\n",
 		       sta->addr, chandef->chan->center_freq, chandef->width);
 
 	/* we only support a single peer for channel switching */
 	if (mvm->tdls_cs.peer.sta_id != IWL_MVM_INVALID_STA) {
-		IWL_DEBUG_TDLS(mvm,
+		IWL_DE_TDLS(mvm,
 			       "Existing peer. Can't start switch with %pM\n",
 			       sta->addr);
 		ret = -EBUSY;
@@ -631,11 +631,11 @@ void iwl_mvm_tdls_cancel_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	IWL_DEBUG_TDLS(mvm, "TDLS cancel channel switch with %pM\n", sta->addr);
+	IWL_DE_TDLS(mvm, "TDLS cancel channel switch with %pM\n", sta->addr);
 
 	/* we only support a single peer for channel switching */
 	if (mvm->tdls_cs.peer.sta_id == IWL_MVM_INVALID_STA) {
-		IWL_DEBUG_TDLS(mvm, "No ch switch peer - %pM\n", sta->addr);
+		IWL_DE_TDLS(mvm, "No ch switch peer - %pM\n", sta->addr);
 		goto out;
 	}
 
@@ -670,7 +670,7 @@ out:
 	/* flush the channel switch state */
 	flush_delayed_work(&mvm->tdls_cs.dwork);
 
-	IWL_DEBUG_TDLS(mvm, "TDLS ending channel switch with %pM\n", sta->addr);
+	IWL_DE_TDLS(mvm, "TDLS ending channel switch with %pM\n", sta->addr);
 }
 
 void
@@ -687,7 +687,7 @@ iwl_mvm_tdls_recv_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	IWL_DEBUG_TDLS(mvm,
+	IWL_DE_TDLS(mvm,
 		       "Received TDLS ch switch action %s from %pM status %d\n",
 		       action_str, params->sta->addr, params->status);
 

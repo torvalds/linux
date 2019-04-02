@@ -31,8 +31,8 @@
 #define DRIVER_ATM_HORIZON_H
 
 
-#ifdef CONFIG_ATM_HORIZON_DEBUG
-#define DEBUG_HORIZON
+#ifdef CONFIG_ATM_HORIZON_DE
+#define DE_HORIZON
 #endif
 
 #define DEV_LABEL                         "hrz"
@@ -49,7 +49,7 @@
 #define PRINTK(severity,format,args...) \
   printk(severity DEV_LABEL ": " format "\n" , ## args)
 
-#ifdef DEBUG_HORIZON
+#ifdef DE_HORIZON
 
 #define DBG_ERR  0x0001
 #define DBG_WARN 0x0002
@@ -67,15 +67,15 @@
 #define DBG_MASK 0x1fff
 
 /* the ## prevents the annoying double expansion of the macro arguments */
-/* KERN_INFO is used since KERN_DEBUG often does not make it to the console */
+/* KERN_INFO is used since KERN_DE often does not make it to the console */
 #define PRINTDB(bits,format,args...) \
-  ( (debug & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format , ## args) : 1 )
+  ( (de & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format , ## args) : 1 )
 #define PRINTDM(bits,format,args...) \
-  ( (debug & (bits)) ? printk (format , ## args) : 1 )
+  ( (de & (bits)) ? printk (format , ## args) : 1 )
 #define PRINTDE(bits,format,args...) \
-  ( (debug & (bits)) ? printk (format "\n" , ## args) : 1 )
+  ( (de & (bits)) ? printk (format "\n" , ## args) : 1 )
 #define PRINTD(bits,format,args...) \
-  ( (debug & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format "\n" , ## args) : 1 )
+  ( (de & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format "\n" , ## args) : 1 )
 
 #else
 
@@ -141,17 +141,17 @@
 #define SEEPROM_DI                        0x00000002
 #define SEEPROM_SK                        0x00000004
 #define SEEPROM_CS                        0x00000008
-#define DEBUG_BIT_0                       0x00000010
-#define DEBUG_BIT_1                       0x00000020
-#define DEBUG_BIT_2                       0x00000040
+#define DE_BIT_0                       0x00000010
+#define DE_BIT_1                       0x00000020
+#define DE_BIT_2                       0x00000040
 //      RESERVED                          0x00000080
-#define DEBUG_BIT_0_OE                    0x00000100
-#define DEBUG_BIT_1_OE                    0x00000200
-#define DEBUG_BIT_2_OE                    0x00000400
+#define DE_BIT_0_OE                    0x00000100
+#define DE_BIT_1_OE                    0x00000200
+#define DE_BIT_2_OE                    0x00000400
 //      RESERVED                          0x00000800
-#define DEBUG_BIT_0_STATE                 0x00001000
-#define DEBUG_BIT_1_STATE                 0x00002000
-#define DEBUG_BIT_2_STATE                 0x00004000
+#define DE_BIT_0_STATE                 0x00001000
+#define DE_BIT_1_STATE                 0x00002000
+#define DE_BIT_2_STATE                 0x00004000
 //      RESERVED                          0x00008000
 #define GENERAL_BIT_0                     0x00010000
 #define GENERAL_BIT_1                     0x00020000
@@ -177,7 +177,7 @@
 #define RX_BUS_MASTER_COMPLETE            0x00000010
 #define TX_BUS_MASTER_COMPLETE            0x00000020
 #define ABR_TX_CELL_COUNT_INT             0x00000040
-#define DEBUG_INT                         0x00000080
+#define DE_INT                         0x00000080
 //      RESERVED                          0xFFFFFF00
 
 /* PIO and Bus Mastering */
@@ -481,13 +481,13 @@ typedef struct hrz_dev hrz_dev;
 #define HRZ_VCC(atm_vcc) ((hrz_vcc *) (atm_vcc)->dev_data)
 
 /* Turn the LEDs on and off                                                 */
-// The LEDs bits are upside down in that setting the bit in the debug
+// The LEDs bits are upside down in that setting the bit in the de
 // register will turn the appropriate LED off.
 
-#define YELLOW_LED    DEBUG_BIT_0
-#define GREEN_LED     DEBUG_BIT_1
-#define YELLOW_LED_OE DEBUG_BIT_0_OE
-#define GREEN_LED_OE  DEBUG_BIT_1_OE
+#define YELLOW_LED    DE_BIT_0
+#define GREEN_LED     DE_BIT_1
+#define YELLOW_LED_OE DE_BIT_0_OE
+#define GREEN_LED_OE  DE_BIT_1_OE
 
 #define GREEN_LED_OFF(dev)                      \
   wr_regl (dev, CONTROL_0_REG, rd_regl (dev, CONTROL_0_REG) | GREEN_LED)

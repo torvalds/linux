@@ -176,7 +176,7 @@ gv100_fault_intr(struct nvkm_fault *fault)
 	}
 
 	if (stat) {
-		nvkm_debug(subdev, "intr %08x\n", stat);
+		nvkm_de(subdev, "intr %08x\n", stat);
 	}
 }
 

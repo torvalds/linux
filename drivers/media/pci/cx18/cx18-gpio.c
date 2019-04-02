@@ -276,7 +276,7 @@ void cx18_gpio_init(struct cx18 *cx)
 		return;
 	}
 
-	CX18_DEBUG_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
+	CX18_DE_INFO("GPIO initial dir: %08x/%08x out: %08x/%08x\n",
 			cx18_read_reg(cx, CX18_REG_GPIO_DIR1),
 			cx18_read_reg(cx, CX18_REG_GPIO_DIR2),
 			cx18_read_reg(cx, CX18_REG_GPIO_OUT1),
@@ -321,7 +321,7 @@ void cx18_reset_ir_gpio(void *data)
 	if (cx->card->gpio_i2c_slave_reset.ir_reset_mask == 0)
 		return;
 
-	CX18_DEBUG_INFO("Resetting IR microcontroller\n");
+	CX18_DE_INFO("Resetting IR microcontroller\n");
 
 	v4l2_subdev_call(&cx->sd_resetctrl,
 			 core, reset, CX18_GPIO_RESET_Z8F0811);
@@ -340,7 +340,7 @@ int cx18_reset_tuner_gpio(void *dev, int component, int cmd, int value)
 	    cx->card->tuners[0].tuner != TUNER_XC2028)
 		return 0;
 
-	CX18_DEBUG_INFO("Resetting XCeive tuner\n");
+	CX18_DE_INFO("Resetting XCeive tuner\n");
 	return v4l2_subdev_call(&cx->sd_resetctrl,
 				core, reset, CX18_GPIO_RESET_XC2028);
 }

@@ -57,7 +57,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
-#define DEBUG 0
+#define DE 0
 
 #include "au1100fb.h"
 

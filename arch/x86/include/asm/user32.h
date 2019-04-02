@@ -64,7 +64,7 @@ struct user32 {
   __u32 u_fpstate;	/* Math Co-processor pointer. */
   __u32 magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
-  int u_debugreg[8];
+  int u_dereg[8];
 };
 
 

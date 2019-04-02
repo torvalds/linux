@@ -30,7 +30,7 @@
 #else
 /* Default values for RZ/A RTC */
 #define rtc_reg_size		sizeof(u16)
-#define RTC_BIT_INVERTED        0	/* no chip bugs */
+#define RTC_BIT_INVERTED        0	/* no chip s */
 #define RTC_CAP_4_DIGIT_YEAR    (1 << 0)
 #define RTC_DEF_CAPABILITIES    RTC_CAP_4_DIGIT_YEAR
 #endif

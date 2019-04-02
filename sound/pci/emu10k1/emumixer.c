@@ -5,10 +5,10 @@
  *  Routines for control of EMU10K1 chips / mixer routines
  *  Multichannel PCM support Copyright (c) Lee Revell <rlrevell@joe-job.com>
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.co.uk>
  *  	Added EMU 1010 support.
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -1950,7 +1950,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		} else {
 			/*
 			 * Credits for cards based on STAC9758:
-			 *   James Courtier-Dutton <James@superbug.demon.co.uk>
+			 *   James Courtier-Dutton <James@super.demon.co.uk>
 			 *   Voluspa <voluspa@comhem.se>
 			 */
 			if (emu->ac97->id == AC97_ID_STAC9758) {

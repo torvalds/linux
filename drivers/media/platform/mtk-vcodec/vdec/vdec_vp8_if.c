@@ -292,9 +292,9 @@ static void get_pic_info(struct vdec_vp8_inst *inst, struct vdec_pic_info *pic)
 {
 	*pic = inst->vsi->pic;
 
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
+	mtk_vcodec_de(inst, "pic(%d, %d), buf(%d, %d)",
 			 pic->pic_w, pic->pic_h, pic->buf_w, pic->buf_h);
-	mtk_vcodec_debug(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
+	mtk_vcodec_de(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
 			 pic->y_len_sz, pic->c_bs_sz, pic->c_len_sz);
 }
 
@@ -303,7 +303,7 @@ static void vp8_dec_finish(struct vdec_vp8_inst *inst)
 	struct vdec_fb_node *node;
 	uint64_t prev_y_dma = inst->vsi->dec.prev_y_dma;
 
-	mtk_vcodec_debug(inst, "prev fb base dma=%llx", prev_y_dma);
+	mtk_vcodec_de(inst, "prev fb base dma=%llx", prev_y_dma);
 
 	/* put last decode ok frame to fb_free_list */
 	if (prev_y_dma != 0) {
@@ -425,7 +425,7 @@ static int vdec_vp8_init(struct mtk_vcodec_ctx *ctx, unsigned long *h_vdec)
 		goto error_deinit;
 
 	get_hw_reg_base(inst);
-	mtk_vcodec_debug(inst, "VP8 Instance >> %p", inst);
+	mtk_vcodec_de(inst, "VP8 Instance >> %p", inst);
 
 	*h_vdec = (unsigned long)inst;
 	return 0;
@@ -458,7 +458,7 @@ static int vdec_vp8_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	y_fb_dma = fb ? (u64)fb->base_y.dma_addr : 0;
 	c_fb_dma = fb ? (u64)fb->base_c.dma_addr : 0;
 
-	mtk_vcodec_debug(inst, "+ [%d] FB y_dma=%llx c_dma=%llx fb=%p",
+	mtk_vcodec_de(inst, "+ [%d] FB y_dma=%llx c_dma=%llx fb=%p",
 			 inst->frm_cnt, y_fb_dma, c_fb_dma, fb);
 
 	inst->cur_fb = fb;
@@ -467,7 +467,7 @@ static int vdec_vp8_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	dec->cur_y_fb_dma = y_fb_dma;
 	dec->cur_c_fb_dma = c_fb_dma;
 
-	mtk_vcodec_debug(inst, "\n + FRAME[%d] +\n", inst->frm_cnt);
+	mtk_vcodec_de(inst, "\n + FRAME[%d] +\n", inst->frm_cnt);
 
 	write_hw_segmentation_data(inst);
 	enable_hw_rw_function(inst);
@@ -482,7 +482,7 @@ static int vdec_vp8_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	if (err) {
 		add_fb_to_free_list(inst, fb);
 		if (dec->wait_key_frame) {
-			mtk_vcodec_debug(inst, "wait key frame !");
+			mtk_vcodec_de(inst, "wait key frame !");
 			return 0;
 		}
 
@@ -490,7 +490,7 @@ static int vdec_vp8_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	}
 
 	if (dec->resolution_changed) {
-		mtk_vcodec_debug(inst, "- resolution_changed -");
+		mtk_vcodec_de(inst, "- resolution_changed -");
 		*res_chg = true;
 		add_fb_to_free_list(inst, fb);
 		return 0;
@@ -510,7 +510,7 @@ static int vdec_vp8_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	if (err)
 		goto error;
 
-	mtk_vcodec_debug(inst, "\n - FRAME[%d] - show=%d\n", inst->frm_cnt,
+	mtk_vcodec_de(inst, "\n - FRAME[%d] - show=%d\n", inst->frm_cnt,
 			 dec->show_frame);
 	inst->frm_cnt++;
 	*res_chg = false;
@@ -532,11 +532,11 @@ static void get_disp_fb(struct vdec_vp8_inst *inst, struct vdec_fb **out_fb)
 		list_move_tail(&node->list, &inst->available_fb_node_list);
 		fb = (struct vdec_fb *)node->fb;
 		fb->status |= FB_ST_DISPLAY;
-		mtk_vcodec_debug(inst, "[FB] get disp fb %p st=%d",
+		mtk_vcodec_de(inst, "[FB] get disp fb %p st=%d",
 				 node->fb, fb->status);
 	} else {
 		fb = NULL;
-		mtk_vcodec_debug(inst, "[FB] there is no disp fb");
+		mtk_vcodec_de(inst, "[FB] there is no disp fb");
 	}
 
 	*out_fb = fb;
@@ -553,11 +553,11 @@ static void get_free_fb(struct vdec_vp8_inst *inst, struct vdec_fb **out_fb)
 		list_move_tail(&node->list, &inst->available_fb_node_list);
 		fb = (struct vdec_fb *)node->fb;
 		fb->status |= FB_ST_FREE;
-		mtk_vcodec_debug(inst, "[FB] get free fb %p st=%d",
+		mtk_vcodec_de(inst, "[FB] get free fb %p st=%d",
 				 node->fb, fb->status);
 	} else {
 		fb = NULL;
-		mtk_vcodec_debug(inst, "[FB] there is no free fb");
+		mtk_vcodec_de(inst, "[FB] there is no free fb");
 	}
 
 	*out_fb = fb;
@@ -569,7 +569,7 @@ static void get_crop_info(struct vdec_vp8_inst *inst, struct v4l2_rect *cr)
 	cr->top = 0;
 	cr->width = inst->vsi->pic.pic_w;
 	cr->height = inst->vsi->pic.pic_h;
-	mtk_vcodec_debug(inst, "get crop info l=%d, t=%d, w=%d, h=%d",
+	mtk_vcodec_de(inst, "get crop info l=%d, t=%d, w=%d, h=%d",
 			 cr->left, cr->top, cr->width, cr->height);
 }
 
@@ -611,7 +611,7 @@ static void vdec_vp8_deinit(unsigned long h_vdec)
 {
 	struct vdec_vp8_inst *inst = (struct vdec_vp8_inst *)h_vdec;
 
-	mtk_vcodec_debug_enter(inst);
+	mtk_vcodec_de_enter(inst);
 
 	vpu_dec_deinit(&inst->vpu);
 	free_working_buf(inst);

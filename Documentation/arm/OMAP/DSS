@@ -203,7 +203,7 @@ panel_name
 tear_elim	Tearing elimination 0=off, 1=on
 output_type	Output type (video encoder only): "composite" or "svideo"
 
-There are also some debugfs files at <debugfs>/omapdss/ which show information
+There are also some defs files at <defs>/omapdss/ which show information
 about clocks and registers.
 
 Examples
@@ -316,13 +316,13 @@ omapfb.vram=<fbnum>:<size>[@<physaddr>][,...]
 	  more or define the physical address of each framebuffer. For example,
 	  "1:4M" to allocate 4M for fb1.
 
-omapfb.debug=<y|n>
-	- Enable debug printing. You have to have OMAPFB debug support enabled
+omapfb.de=<y|n>
+	- Enable de printing. You have to have OMAPFB de support enabled
 	  in kernel config.
 
 omapfb.test=<y|n>
 	- Draw test pattern to framebuffer whenever framebuffer settings change.
-	  You need to have OMAPFB debug support enabled in kernel config.
+	  You need to have OMAPFB de support enabled in kernel config.
 
 omapfb.vrfb=<y|n>
 	- Use VRFB rotation for all framebuffers.
@@ -341,8 +341,8 @@ omapdss.def_disp=<display>
 	- Name of default display, to which all overlays will be connected.
 	  Common examples are "lcd" or "tv".
 
-omapdss.debug=<y|n>
-	- Enable debug printing. You have to have DSS debug support enabled in
+omapdss.de=<y|n>
+	- Enable de printing. You have to have DSS de support enabled in
 	  kernel config.
 
 TODO
@@ -351,7 +351,7 @@ TODO
 DSS locking
 
 Error checking
-- Lots of checks are missing or implemented just as BUG()
+- Lots of checks are missing or implemented just as ()
 
 System DMA update for DSI
 - Can be used for RGB16 and RGB24P modes. Probably not for RGB24U (how

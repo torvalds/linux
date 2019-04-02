@@ -189,6 +189,6 @@ config COREDUMP
 	help
 	  This option enables support for performing core dumps. You almost
 	  certainly want to say Y here. Not necessary on systems that never
-	  need debugging or only ever run flawless code.
+	  need deging or only ever run flawless code.
 
 endmenu

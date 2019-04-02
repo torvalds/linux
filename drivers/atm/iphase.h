@@ -23,7 +23,7 @@
       in terms of PHY type, the size of control memory and the size of 
       packet memory. The following are the change log and history:
      
-          Bugfix the Mona's UBR driver.
+          fix the Mona's UBR driver.
           Modify the basic memory allocation and dma logic.
           Port the driver to the latest kernel from 2.0.46.
           Complete the ABR logic of the driver, and added the ABR work-
@@ -45,21 +45,21 @@
 
 
 /************************ IADBG DEFINE *********************************/
-/* IADebugFlag Bit Map */ 
+/* IADeFlag Bit Map */ 
 #define IF_IADBG_INIT_ADAPTER   0x00000001        // init adapter info
-#define IF_IADBG_TX             0x00000002        // debug TX
-#define IF_IADBG_RX             0x00000004        // debug RX
-#define IF_IADBG_QUERY_INFO     0x00000008        // debug Request call
-#define IF_IADBG_SHUTDOWN       0x00000010        // debug shutdown event
-#define IF_IADBG_INTR           0x00000020        // debug interrupt DPC
-#define IF_IADBG_TXPKT          0x00000040  	  // debug TX PKT
-#define IF_IADBG_RXPKT          0x00000080  	  // debug RX PKT
-#define IF_IADBG_ERR            0x00000100        // debug system error
-#define IF_IADBG_EVENT          0x00000200        // debug event
-#define IF_IADBG_DIS_INTR       0x00001000        // debug disable interrupt
-#define IF_IADBG_EN_INTR        0x00002000        // debug enable interrupt
-#define IF_IADBG_LOUD           0x00004000        // debugging info
-#define IF_IADBG_VERY_LOUD      0x00008000        // excessive debugging info
+#define IF_IADBG_TX             0x00000002        // de TX
+#define IF_IADBG_RX             0x00000004        // de RX
+#define IF_IADBG_QUERY_INFO     0x00000008        // de Request call
+#define IF_IADBG_SHUTDOWN       0x00000010        // de shutdown event
+#define IF_IADBG_INTR           0x00000020        // de interrupt DPC
+#define IF_IADBG_TXPKT          0x00000040  	  // de TX PKT
+#define IF_IADBG_RXPKT          0x00000080  	  // de RX PKT
+#define IF_IADBG_ERR            0x00000100        // de system error
+#define IF_IADBG_EVENT          0x00000200        // de event
+#define IF_IADBG_DIS_INTR       0x00001000        // de disable interrupt
+#define IF_IADBG_EN_INTR        0x00002000        // de enable interrupt
+#define IF_IADBG_LOUD           0x00004000        // deging info
+#define IF_IADBG_VERY_LOUD      0x00008000        // excessive deging info
 #define IF_IADBG_CBR            0x00100000  	  //
 #define IF_IADBG_UBR            0x00200000  	  //
 #define IF_IADBG_ABR            0x00400000        //
@@ -67,9 +67,9 @@
 #define IF_IADBG_SUNI_STAT      0x02000000        // suni statistics
 #define IF_IADBG_RESET          0x04000000        
 
-#define IF_IADBG(f) if (IADebugFlag & (f))
+#define IF_IADBG(f) if (IADeFlag & (f))
 
-#ifdef  CONFIG_ATM_IA_DEBUG   /* Debug build */
+#ifdef  CONFIG_ATM_IA_DE   /* De build */
 
 #define IF_LOUD(A) IF_IADBG(IF_IADBG_LOUD) { A }
 #define IF_ERR(A) IF_IADBG(IF_IADBG_ERR) { A }
@@ -111,7 +111,7 @@
 #define IF_EN_INTR(A)
 #define IF_TX(A)
 #define IF_RX(A)
-#define IF_TXDEBUG(A)
+#define IF_TXDE(A)
 #define IF_VC(A)
 #define IF_ERR(A) 
 #define IF_CBR(A)
@@ -122,7 +122,7 @@
 #define IF_EVENT(A)
 #define IF_TXPKT(A) 
 #define IF_RXPKT(A)
-#endif /* CONFIG_ATM_IA_DEBUG */ 
+#endif /* CONFIG_ATM_IA_DE */ 
 
 #define isprint(a) ((a >=' ')&&(a <= '~'))  
 #define ATM_DESC(skb) (skb->protocol)
@@ -1336,7 +1336,7 @@ enum suni_pm7345 {
  *
  *	The following defines are used to turn on and off
  *	various options in the header files. Primarily useful
- *	for debugging.
+ *	for deging.
  *
  ***********/
 

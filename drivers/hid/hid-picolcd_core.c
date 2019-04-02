@@ -18,7 +18,7 @@
  ***************************************************************************/
 
 #include <linux/hid.h>
-#include <linux/hid-debug.h>
+#include <linux/hid-de.h>
 #include <linux/input.h>
 #include "hid-ids.h"
 
@@ -376,7 +376,7 @@ static int picolcd_raw_event(struct hid_device *hdev,
 		spin_unlock_irqrestore(&data->lock, flags);
 	}
 
-	picolcd_debug_raw_event(data, hdev, report, raw_data, size);
+	picolcd_de_raw_event(data, hdev, report, raw_data, size);
 	return 1;
 }
 

@@ -165,7 +165,7 @@ static const char * const logtypes[] = {
 	"warning",
 	"notice",
 	"info",
-	"debug",
+	"de",
 };
 
 
@@ -258,7 +258,7 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 }
 /*
  * __btrfs_panic decodes unexpected, fatal errors from the caller,
- * issues an alert, and either panics or BUGs, depending on mount options.
+ * issues an alert, and either panics or s, depending on mount options.
  */
 __cold
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
@@ -283,7 +283,7 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 	btrfs_crit(fs_info, "panic in %s:%d: %pV (errno=%d %s)",
 		   function, line, &vaf, errno, errstr);
 	va_end(args);
-	/* Caller calls BUG() */
+	/* Caller calls () */
 }
 
 static void btrfs_put_super(struct super_block *sb)
@@ -332,12 +332,12 @@ enum {
 	Opt_recovery,
 	Opt_subvolrootid,
 
-	/* Debugging options */
+	/* Deging options */
 	Opt_check_integrity,
 	Opt_check_integrity_including_extent_data,
 	Opt_check_integrity_print_mask,
-	Opt_enospc_debug, Opt_noenospc_debug,
-#ifdef CONFIG_BTRFS_DEBUG
+	Opt_enospc_de, Opt_noenospc_de,
+#ifdef CONFIG_BTRFS_DE
 	Opt_fragment_data, Opt_fragment_metadata, Opt_fragment_all,
 #endif
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
@@ -399,13 +399,13 @@ static const match_table_t tokens = {
 	{Opt_recovery, "recovery"},
 	{Opt_subvolrootid, "subvolrootid=%d"},
 
-	/* Debugging options */
+	/* Deging options */
 	{Opt_check_integrity, "check_int"},
 	{Opt_check_integrity_including_extent_data, "check_int_data"},
 	{Opt_check_integrity_print_mask, "check_int_print_mask=%u"},
-	{Opt_enospc_debug, "enospc_debug"},
-	{Opt_noenospc_debug, "noenospc_debug"},
-#ifdef CONFIG_BTRFS_DEBUG
+	{Opt_enospc_de, "enospc_de"},
+	{Opt_noenospc_de, "noenospc_de"},
+#ifdef CONFIG_BTRFS_DE
 	{Opt_fragment_data, "fragment=data"},
 	{Opt_fragment_metadata, "fragment=metadata"},
 	{Opt_fragment_all, "fragment=all"},
@@ -745,11 +745,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_user_subvol_rm_allowed:
 			btrfs_set_opt(info->mount_opt, USER_SUBVOL_RM_ALLOWED);
 			break;
-		case Opt_enospc_debug:
-			btrfs_set_opt(info->mount_opt, ENOSPC_DEBUG);
+		case Opt_enospc_de:
+			btrfs_set_opt(info->mount_opt, ENOSPC_DE);
 			break;
-		case Opt_noenospc_debug:
-			btrfs_clear_opt(info->mount_opt, ENOSPC_DEBUG);
+		case Opt_noenospc_de:
+			btrfs_clear_opt(info->mount_opt, ENOSPC_DE);
 			break;
 		case Opt_defrag:
 			btrfs_set_and_info(info, AUTO_DEFRAG,
@@ -804,7 +804,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			if (strcmp(args[0].from, "panic") == 0)
 				btrfs_set_opt(info->mount_opt,
 					      PANIC_ON_FATAL_ERROR);
-			else if (strcmp(args[0].from, "bug") == 0)
+			else if (strcmp(args[0].from, "") == 0)
 				btrfs_clear_opt(info->mount_opt,
 					      PANIC_ON_FATAL_ERROR);
 			else {
@@ -828,7 +828,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			}
 			info->commit_interval = intarg;
 			break;
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 		case Opt_fragment_all:
 			btrfs_info(info, "fragmenting all space");
 			btrfs_set_opt(info->mount_opt, FRAGMENT_DATA);
@@ -1335,8 +1335,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",clear_cache");
 	if (btrfs_test_opt(info, USER_SUBVOL_RM_ALLOWED))
 		seq_puts(seq, ",user_subvol_rm_allowed");
-	if (btrfs_test_opt(info, ENOSPC_DEBUG))
-		seq_puts(seq, ",enospc_debug");
+	if (btrfs_test_opt(info, ENOSPC_DE))
+		seq_puts(seq, ",enospc_de");
 	if (btrfs_test_opt(info, AUTO_DEFRAG))
 		seq_puts(seq, ",autodefrag");
 	if (btrfs_test_opt(info, INODE_MAP_CACHE))
@@ -1358,7 +1358,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",fatal_errors=panic");
 	if (info->commit_interval != BTRFS_DEFAULT_COMMIT_INTERVAL)
 		seq_printf(seq, ",commit=%u", info->commit_interval);
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	if (btrfs_test_opt(info, FRAGMENT_DATA))
 		seq_puts(seq, ",fragment=data");
 	if (btrfs_test_opt(info, FRAGMENT_METADATA))
@@ -2334,8 +2334,8 @@ static __cold void btrfs_interface_exit(void)
 static void __init btrfs_print_mod_info(void)
 {
 	static const char options[] = ""
-#ifdef CONFIG_BTRFS_DEBUG
-			", debug=on"
+#ifdef CONFIG_BTRFS_DE
+			", de=on"
 #endif
 #ifdef CONFIG_BTRFS_ASSERT
 			", assert=on"

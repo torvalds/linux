@@ -7,7 +7,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/iommu.h>
 #include <linux/kernel.h>
@@ -43,7 +43,7 @@ struct tegra_smmu {
 
 	struct list_head list;
 
-	struct dentry *debugfs;
+	struct dentry *defs;
 
 	struct iommu_device iommu;	/* IOMMU Core code handle */
 };
@@ -956,21 +956,21 @@ static int tegra_smmu_clients_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(tegra_smmu_clients);
 
-static void tegra_smmu_debugfs_init(struct tegra_smmu *smmu)
+static void tegra_smmu_defs_init(struct tegra_smmu *smmu)
 {
-	smmu->debugfs = debugfs_create_dir("smmu", NULL);
-	if (!smmu->debugfs)
+	smmu->defs = defs_create_dir("smmu", NULL);
+	if (!smmu->defs)
 		return;
 
-	debugfs_create_file("swgroups", S_IRUGO, smmu->debugfs, smmu,
+	defs_create_file("swgroups", S_IRUGO, smmu->defs, smmu,
 			    &tegra_smmu_swgroups_fops);
-	debugfs_create_file("clients", S_IRUGO, smmu->debugfs, smmu,
+	defs_create_file("clients", S_IRUGO, smmu->defs, smmu,
 			    &tegra_smmu_clients_fops);
 }
 
-static void tegra_smmu_debugfs_exit(struct tegra_smmu *smmu)
+static void tegra_smmu_defs_exit(struct tegra_smmu *smmu)
 {
-	debugfs_remove_recursive(smmu->debugfs);
+	defs_remove_recursive(smmu->defs);
 }
 
 struct tegra_smmu *tegra_smmu_probe(struct device *dev,
@@ -1059,8 +1059,8 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 		return ERR_PTR(err);
 	}
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		tegra_smmu_debugfs_init(smmu);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		tegra_smmu_defs_init(smmu);
 
 	return smmu;
 }
@@ -1070,6 +1070,6 @@ void tegra_smmu_remove(struct tegra_smmu *smmu)
 	iommu_device_unregister(&smmu->iommu);
 	iommu_device_sysfs_remove(&smmu->iommu);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		tegra_smmu_debugfs_exit(smmu);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		tegra_smmu_defs_exit(smmu);
 }

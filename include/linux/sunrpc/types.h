@@ -13,7 +13,7 @@
 #include <linux/timer.h>
 #include <linux/sched/signal.h>
 #include <linux/workqueue.h>
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 #include <linux/list.h>
 
 /*

@@ -906,7 +906,7 @@ repeat:
 		goto repeat;
 	}
 	rcu_read_unlock();
-	BUG_ON(!ret->d_lockref.count);
+	_ON(!ret->d_lockref.count);
 	ret->d_lockref.count++;
 	spin_unlock(&ret->d_lock);
 	return ret;
@@ -1346,7 +1346,7 @@ out_unlock:
 rename_retry:
 	spin_unlock(&this_parent->d_lock);
 	rcu_read_unlock();
-	BUG_ON(seq & 1);
+	_ON(seq & 1);
 	if (!retry)
 		return;
 	seq = 1;
@@ -1517,7 +1517,7 @@ static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 	if (dentry == _data && dentry->d_lockref.count == 1)
 		return D_WALK_CONTINUE;
 
-	printk(KERN_ERR "BUG: Dentry %p{i=%lx,n=%pd} "
+	printk(KERN_ERR ": Dentry %p{i=%lx,n=%pd} "
 			" still in use (%d) [unmount of %s %s]\n",
 		       dentry,
 		       dentry->d_inode ?
@@ -1873,7 +1873,7 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
  
 void d_instantiate(struct dentry *entry, struct inode * inode)
 {
-	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
+	_ON(!hlist_unhashed(&entry->d_u.d_alias));
 	if (inode) {
 		security_d_instantiate(entry, inode);
 		spin_lock(&inode->i_lock);
@@ -1891,8 +1891,8 @@ EXPORT_SYMBOL(d_instantiate);
  */
 void d_instantiate_new(struct dentry *entry, struct inode *inode)
 {
-	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-	BUG_ON(!inode);
+	_ON(!hlist_unhashed(&entry->d_u.d_alias));
+	_ON(!inode);
 	lockdep_annotate_inode_mutex_key(inode);
 	security_d_instantiate(entry, inode);
 	spin_lock(&inode->i_lock);
@@ -2690,7 +2690,7 @@ static void swap_names(struct dentry *dentry, struct dentry *target)
 			 * Both are internal.
 			 */
 			unsigned int i;
-			BUILD_BUG_ON(!IS_ALIGNED(DNAME_INLINE_LEN, sizeof(long)));
+			BUILD__ON(!IS_ALIGNED(DNAME_INLINE_LEN, sizeof(long)));
 			for (i = 0; i < DNAME_INLINE_LEN / sizeof(long); i++) {
 				swap(((long *) &dentry->d_iname)[i],
 				     ((long *) &target->d_iname)[i]);
@@ -2740,18 +2740,18 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	if (WARN_ON(dentry == target))
 		return;
 
-	BUG_ON(d_ancestor(target, dentry));
+	_ON(d_ancestor(target, dentry));
 	old_parent = dentry->d_parent;
 	p = d_ancestor(old_parent, target);
 	if (IS_ROOT(dentry)) {
-		BUG_ON(p);
+		_ON(p);
 		spin_lock(&target->d_parent->d_lock);
 	} else if (!p) {
 		/* target is not a descendent of dentry->d_parent */
 		spin_lock(&target->d_parent->d_lock);
 		spin_lock_nested(&old_parent->d_lock, DENTRY_D_LOCK_NESTED);
 	} else {
-		BUG_ON(p == dentry);
+		_ON(p == dentry);
 		spin_lock(&old_parent->d_lock);
 		if (p != target)
 			spin_lock_nested(&target->d_parent->d_lock,
@@ -2931,7 +2931,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	BUG_ON(!d_unhashed(dentry));
+	_ON(!d_unhashed(dentry));
 
 	if (!inode)
 		goto out;
@@ -3045,7 +3045,7 @@ EXPORT_SYMBOL(d_genocide);
 void d_tmpfile(struct dentry *dentry, struct inode *inode)
 {
 	inode_dec_link_count(inode);
-	BUG_ON(dentry->d_name.name != dentry->d_iname ||
+	_ON(dentry->d_name.name != dentry->d_iname ||
 		!hlist_unhashed(&dentry->d_u.d_alias) ||
 		!d_unlinked(dentry));
 	spin_lock(&dentry->d_parent->d_lock);

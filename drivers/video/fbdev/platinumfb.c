@@ -17,7 +17,7 @@
  *  more details.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/module.h>
 #include <linux/kernel.h>

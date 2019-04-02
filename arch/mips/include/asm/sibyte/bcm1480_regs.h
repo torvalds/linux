@@ -466,12 +466,12 @@
     ********************************************************************* */
 
 
-/* Same as 1250 except BUS_ERR_STATUS_DEBUG is in a different place. */
+/* Same as 1250 except BUS_ERR_STATUS_DE is in a different place. */
 
-#define A_BCM1480_BUS_ERR_STATUS_DEBUG	    0x00100208D8
+#define A_BCM1480_BUS_ERR_STATUS_DE	    0x00100208D8
 
 /*  *********************************************************************
-    * System Debug Controller Registers (Section 19)
+    * System De Controller Registers (Section 19)
     ********************************************************************* */
 
 /* Same as 1250 */
@@ -618,12 +618,12 @@
 #define R_BCM1480_PM_PFINDX		    0x0000000020
 #define R_BCM1480_PM_INT_WMK		    0x0000000028
 #define R_BCM1480_PM_CONFIG0		    0x0000000030
-#define R_BCM1480_PM_LOCALDEBUG		    0x0000000078
+#define R_BCM1480_PM_LOCALDE		    0x0000000078
 #define R_BCM1480_PM_CACHEABILITY	    0x0000000080   /* PMI only */
 #define R_BCM1480_PM_INT_CNFG		    0x0000000088
 #define R_BCM1480_PM_DESC_MERGE_TIMER	    0x0000000090
-#define R_BCM1480_PM_LOCALDEBUG_PIB	    0x00000000F8   /* PMI only */
-#define R_BCM1480_PM_LOCALDEBUG_POB	    0x00000000F8   /* PMO only */
+#define R_BCM1480_PM_LOCALDE_PIB	    0x00000000F8   /* PMI only */
+#define R_BCM1480_PM_LOCALDE_POB	    0x00000000F8   /* PMO only */
 
 /*
  * Global Registers (Not Channelized)
@@ -662,15 +662,15 @@
 #define R_BCM1480_PM_MRGD_INT		    0x00000000C0
 
 /*
- * Debug registers (global)
+ * De registers (global)
  */
 
-#define A_BCM1480_PM_GLOBALDEBUGMODE_PMI    0x0010056000
-#define A_BCM1480_PM_GLOBALDEBUG_PID	    0x00100567F8
-#define A_BCM1480_PM_GLOBALDEBUG_PIB	    0x0010056FF8
-#define A_BCM1480_PM_GLOBALDEBUGMODE_PMO    0x0010057000
-#define A_BCM1480_PM_GLOBALDEBUG_POD	    0x00100577F8
-#define A_BCM1480_PM_GLOBALDEBUG_POB	    0x0010057FF8
+#define A_BCM1480_PM_GLOBALDEMODE_PMI    0x0010056000
+#define A_BCM1480_PM_GLOBALDE_PID	    0x00100567F8
+#define A_BCM1480_PM_GLOBALDE_PIB	    0x0010056FF8
+#define A_BCM1480_PM_GLOBALDEMODE_PMO    0x0010057000
+#define A_BCM1480_PM_GLOBALDE_POD	    0x00100577F8
+#define A_BCM1480_PM_GLOBALDE_POB	    0x0010057FF8
 
 /*  *********************************************************************
     *  Switch performance counters
@@ -698,7 +698,7 @@
 #define A_BCM1480_SWTRC_CFG			0xDFB91500
 #define A_BCM1480_SWTRC_READ			0xDFB91508
 
-#define A_BCM1480_SWDEBUG_SCHEDSTOP		0xDFB92000
+#define A_BCM1480_SWDE_SCHEDSTOP		0xDFB92000
 
 #define A_BCM1480_SWTRC_MATCH_CONTROL(x) (A_BCM1480_SWTRC_MATCH_CONTROL_0 + ((x)*8))
 #define A_BCM1480_SWTRC_EVENT(x) (A_BCM1480_SWTRC_EVENT_0 + ((x)*8))

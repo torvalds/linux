@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/auth.h>
-#include <linux/ceph/debugfs.h>
+#include <linux/ceph/defs.h>
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 /*
- * Implement /sys/kernel/debug/ceph fun
+ * Implement /sys/kernel/de/ceph fun
  *
- * /sys/kernel/debug/ceph/client*  - an instance of the ceph client
+ * /sys/kernel/de/ceph/client*  - an instance of the ceph client
  *      .../osdmap      - current osdmap
  *      .../monmap      - current monmap
  *      .../osdc        - active osd requests
@@ -29,7 +29,7 @@
  *      .../bdi         - symlink to ../../bdi/something
  */
 
-static struct dentry *ceph_debugfs_dir;
+static struct dentry *ceph_defs_dir;
 
 static int monmap_show(struct seq_file *s, void *p)
 {
@@ -389,20 +389,20 @@ CEPH_DEFINE_SHOW_FUNC(monc_show)
 CEPH_DEFINE_SHOW_FUNC(osdc_show)
 CEPH_DEFINE_SHOW_FUNC(client_options_show)
 
-int __init ceph_debugfs_init(void)
+int __init ceph_defs_init(void)
 {
-	ceph_debugfs_dir = debugfs_create_dir("ceph", NULL);
-	if (!ceph_debugfs_dir)
+	ceph_defs_dir = defs_create_dir("ceph", NULL);
+	if (!ceph_defs_dir)
 		return -ENOMEM;
 	return 0;
 }
 
-void ceph_debugfs_cleanup(void)
+void ceph_defs_cleanup(void)
 {
-	debugfs_remove(ceph_debugfs_dir);
+	defs_remove(ceph_defs_dir);
 }
 
-int ceph_debugfs_client_init(struct ceph_client *client)
+int ceph_defs_client_init(struct ceph_client *client)
 {
 	int ret = -ENOMEM;
 	char name[80];
@@ -410,89 +410,89 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	snprintf(name, sizeof(name), "%pU.client%lld", &client->fsid,
 		 client->monc.auth->global_id);
 
-	dout("ceph_debugfs_client_init %p %s\n", client, name);
+	dout("ceph_defs_client_init %p %s\n", client, name);
 
-	BUG_ON(client->debugfs_dir);
-	client->debugfs_dir = debugfs_create_dir(name, ceph_debugfs_dir);
-	if (!client->debugfs_dir)
+	_ON(client->defs_dir);
+	client->defs_dir = defs_create_dir(name, ceph_defs_dir);
+	if (!client->defs_dir)
 		goto out;
 
-	client->monc.debugfs_file = debugfs_create_file("monc",
+	client->monc.defs_file = defs_create_file("monc",
 						      0400,
-						      client->debugfs_dir,
+						      client->defs_dir,
 						      client,
 						      &monc_show_fops);
-	if (!client->monc.debugfs_file)
+	if (!client->monc.defs_file)
 		goto out;
 
-	client->osdc.debugfs_file = debugfs_create_file("osdc",
+	client->osdc.defs_file = defs_create_file("osdc",
 						      0400,
-						      client->debugfs_dir,
+						      client->defs_dir,
 						      client,
 						      &osdc_show_fops);
-	if (!client->osdc.debugfs_file)
+	if (!client->osdc.defs_file)
 		goto out;
 
-	client->debugfs_monmap = debugfs_create_file("monmap",
+	client->defs_monmap = defs_create_file("monmap",
 					0400,
-					client->debugfs_dir,
+					client->defs_dir,
 					client,
 					&monmap_show_fops);
-	if (!client->debugfs_monmap)
+	if (!client->defs_monmap)
 		goto out;
 
-	client->debugfs_osdmap = debugfs_create_file("osdmap",
+	client->defs_osdmap = defs_create_file("osdmap",
 					0400,
-					client->debugfs_dir,
+					client->defs_dir,
 					client,
 					&osdmap_show_fops);
-	if (!client->debugfs_osdmap)
+	if (!client->defs_osdmap)
 		goto out;
 
-	client->debugfs_options = debugfs_create_file("client_options",
+	client->defs_options = defs_create_file("client_options",
 					0400,
-					client->debugfs_dir,
+					client->defs_dir,
 					client,
 					&client_options_show_fops);
-	if (!client->debugfs_options)
+	if (!client->defs_options)
 		goto out;
 
 	return 0;
 
 out:
-	ceph_debugfs_client_cleanup(client);
+	ceph_defs_client_cleanup(client);
 	return ret;
 }
 
-void ceph_debugfs_client_cleanup(struct ceph_client *client)
+void ceph_defs_client_cleanup(struct ceph_client *client)
 {
-	dout("ceph_debugfs_client_cleanup %p\n", client);
-	debugfs_remove(client->debugfs_options);
-	debugfs_remove(client->debugfs_osdmap);
-	debugfs_remove(client->debugfs_monmap);
-	debugfs_remove(client->osdc.debugfs_file);
-	debugfs_remove(client->monc.debugfs_file);
-	debugfs_remove(client->debugfs_dir);
+	dout("ceph_defs_client_cleanup %p\n", client);
+	defs_remove(client->defs_options);
+	defs_remove(client->defs_osdmap);
+	defs_remove(client->defs_monmap);
+	defs_remove(client->osdc.defs_file);
+	defs_remove(client->monc.defs_file);
+	defs_remove(client->defs_dir);
 }
 
-#else  /* CONFIG_DEBUG_FS */
+#else  /* CONFIG_DE_FS */
 
-int __init ceph_debugfs_init(void)
-{
-	return 0;
-}
-
-void ceph_debugfs_cleanup(void)
-{
-}
-
-int ceph_debugfs_client_init(struct ceph_client *client)
+int __init ceph_defs_init(void)
 {
 	return 0;
 }
 
-void ceph_debugfs_client_cleanup(struct ceph_client *client)
+void ceph_defs_cleanup(void)
 {
 }
 
-#endif  /* CONFIG_DEBUG_FS */
+int ceph_defs_client_init(struct ceph_client *client)
+{
+	return 0;
+}
+
+void ceph_defs_client_cleanup(struct ceph_client *client)
+{
+}
+
+#endif  /* CONFIG_DE_FS */

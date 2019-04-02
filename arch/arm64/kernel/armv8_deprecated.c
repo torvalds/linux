@@ -67,7 +67,7 @@ static void register_emulation_hooks(struct insn_emulation_ops *ops)
 {
 	struct undef_hook *hook;
 
-	BUG_ON(!ops->hooks);
+	_ON(!ops->hooks);
 
 	for (hook = ops->hooks; hook->instr_mask; hook++)
 		register_undef_hook(hook);
@@ -79,7 +79,7 @@ static void remove_emulation_hooks(struct insn_emulation_ops *ops)
 {
 	struct undef_hook *hook;
 
-	BUG_ON(!ops->hooks);
+	_ON(!ops->hooks);
 
 	for (hook = ops->hooks; hook->instr_mask; hook++)
 		unregister_undef_hook(hook);
@@ -321,7 +321,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	if ((type != TYPE_SWPB) && (address & 0x3)) {
 		/* SWP to unaligned address not permitted */
-		pr_debug("SWP instruction on unaligned pointer!\n");
+		pr_de("SWP instruction on unaligned pointer!\n");
 		return -EFAULT;
 	}
 
@@ -396,14 +396,14 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 	data	= (u32)regs->user_regs.regs[rt2];
 	destreg = aarch32_insn_extract_reg_num(instr, A32_RT_OFFSET);
 
-	pr_debug("addr in r%d->0x%08x, dest is r%d, source in r%d->0x%08x)\n",
+	pr_de("addr in r%d->0x%08x, dest is r%d, source in r%d->0x%08x)\n",
 		rn, address, destreg,
 		aarch32_insn_extract_reg_num(instr, A32_RT2_OFFSET), data);
 
 	/* Check access in reasonable access range for both SWP and SWPB */
 	user_ptr = (const void __user *)(unsigned long)(address & ~3);
 	if (!access_ok(user_ptr, 4)) {
-		pr_debug("SWP{B} emulation: access to 0x%08x not allowed!\n",
+		pr_de("SWP{B} emulation: access to 0x%08x not allowed!\n",
 			address);
 		goto fault;
 	}
@@ -427,7 +427,7 @@ ret:
 	return 0;
 
 fault:
-	pr_debug("SWP{B} emulation: access caused memory abort!\n");
+	pr_de("SWP{B} emulation: access caused memory abort!\n");
 	arm64_notify_segfault(address);
 
 	return 0;

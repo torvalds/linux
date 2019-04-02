@@ -389,7 +389,7 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 			}
 			if (!dbg_is_chk_index(c)) {
 				/*
-				 * Do not print scary warnings if the debugging
+				 * Do not print scary warnings if the deging
 				 * option which forces in-the-gaps is enabled.
 				 */
 				ubifs_warn(c, "out of space");
@@ -941,7 +941,7 @@ static int write_index(struct ubifs_info *c)
 		 *
 		 * Q: why we cannot increment @c->clean_zn_cnt?
 		 * A: because we do not have the @c->tnc_mutex locked, and the
-		 *    following code would be racy and buggy:
+		 *    following code would be racy and gy:
 		 *
 		 *    if (!ubifs_zn_obsolete(znode)) {
 		 *            atomic_long_inc(&c->clean_zn_cnt);

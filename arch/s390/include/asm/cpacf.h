@@ -198,7 +198,7 @@ static inline int __cpacf_check_opcode(unsigned int opcode)
 	case CPACF_KMA:
 		return test_facility(146);	/* check for MSA8 */
 	default:
-		BUG();
+		();
 	}
 }
 

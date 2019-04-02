@@ -517,7 +517,7 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 			exception->retry = 1;
 			break;
 		case -NFS4ERR_BADOWNER:
-			/* The following works around a Linux server bug! */
+			/* The following works around a Linux server ! */
 		case -NFS4ERR_BADNAME:
 			if (server->caps & NFS_CAP_UIDGID_NOMAP) {
 				server->caps &= ~NFS_CAP_UIDGID_NOMAP;
@@ -3081,7 +3081,7 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 		/* NOTE: BAD_SEQID means the server and client disagree about the
 		 * book-keeping w.r.t. state-changing operations
 		 * (OPEN/CLOSE/LOCK/LOCKU...)
-		 * It is actually a sign of a bug on the client or on the server.
+		 * It is actually a sign of a  on the client or on the server.
 		 *
 		 * If we receive a BAD_SEQID error in the particular case of
 		 * doing an OPEN, we assume that nfs_increment_open_seqid() will
@@ -3658,7 +3658,7 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		server->cache_consistency_bitmask[1] &= FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
 		server->cache_consistency_bitmask[2] = 0;
 
-		/* Avoid a regression due to buggy server */
+		/* Avoid a regression due to gy server */
 		for (i = 0; i < ARRAY_SIZE(res.exclcreat_bitmask); i++)
 			res.exclcreat_bitmask[i] &= res.attr_bitmask[i];
 		memcpy(server->exclcreat_bitmask, res.exclcreat_bitmask,

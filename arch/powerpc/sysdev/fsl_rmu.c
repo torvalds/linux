@@ -321,7 +321,7 @@ fsl_rio_dbell_handler(int irq, void *dev_instance)
 		struct rio_dbell *dbell;
 		int found = 0;
 
-		pr_debug
+		pr_de
 			("RIO: processing doorbell,"
 			" sid %2.2x tid %2.2x info %4.4x\n",
 			dmsg->sid, dmsg->tid, dmsg->info);
@@ -349,7 +349,7 @@ fsl_rio_dbell_handler(int irq, void *dev_instance)
 		}
 
 		if (!found) {
-			pr_debug
+			pr_de
 				("RIO: spurious doorbell,"
 				" sid %2.2x tid %2.2x info %4.4x\n",
 				dmsg->sid, dmsg->tid,
@@ -402,19 +402,19 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 	ipwmr = in_be32(&pw->pw_regs->pwmr);
 	ipwsr = in_be32(&pw->pw_regs->pwsr);
 
-#ifdef DEBUG_PW
-	pr_debug("PW Int->IPWMR: 0x%08x IPWSR: 0x%08x (", ipwmr, ipwsr);
+#ifdef DE_PW
+	pr_de("PW Int->IPWMR: 0x%08x IPWSR: 0x%08x (", ipwmr, ipwsr);
 	if (ipwsr & RIO_IPWSR_QF)
-		pr_debug(" QF");
+		pr_de(" QF");
 	if (ipwsr & RIO_IPWSR_TE)
-		pr_debug(" TE");
+		pr_de(" TE");
 	if (ipwsr & RIO_IPWSR_QFI)
-		pr_debug(" QFI");
+		pr_de(" QFI");
 	if (ipwsr & RIO_IPWSR_PWD)
-		pr_debug(" PWD");
+		pr_de(" PWD");
 	if (ipwsr & RIO_IPWSR_PWB)
-		pr_debug(" PWB");
-	pr_debug(" )\n");
+		pr_de(" PWB");
+	pr_de(" )\n");
 #endif
 	/* Schedule deferred processing if PW was received */
 	if (ipwsr & RIO_IPWSR_QFI) {
@@ -427,7 +427,7 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 				 RIO_PW_MSG_SIZE);
 		} else {
 			pw->port_write_msg.discard_count++;
-			pr_debug("RIO: ISR Discarded Port-Write Msg(s) (%d)\n",
+			pr_de("RIO: ISR Discarded Port-Write Msg(s) (%d)\n",
 				 pw->port_write_msg.discard_count);
 		}
 		/* Clear interrupt and issue Clear Queue command. This allows
@@ -441,7 +441,7 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 
 	if ((ipwmr & RIO_IPWMR_EIE) && (ipwsr & RIO_IPWSR_TE)) {
 		pw->port_write_msg.err_count++;
-		pr_debug("RIO: Port-Write Transaction Err (%d)\n",
+		pr_de("RIO: Port-Write Transaction Err (%d)\n",
 			 pw->port_write_msg.err_count);
 		/* Clear Transaction Error: port-write controller should be
 		 * disabled when clearing this error
@@ -453,7 +453,7 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 
 	if (ipwsr & RIO_IPWSR_PWD) {
 		pw->port_write_msg.discard_count++;
-		pr_debug("RIO: Port Discarded Port-Write Msg(s) (%d)\n",
+		pr_de("RIO: Port Discarded Port-Write Msg(s) (%d)\n",
 			 pw->port_write_msg.discard_count);
 		out_be32(&pw->pw_regs->pwsr, RIO_IPWSR_PWD);
 	}
@@ -461,19 +461,19 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 pw_done:
 	if (epwisr & RIO_EPWISR_PINT1) {
 		tmp = in_be32(rio_regs_win + RIO_LTLEDCSR);
-		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		pr_de("RIO_LTLEDCSR = 0x%x\n", tmp);
 		fsl_rio_port_error_handler(0);
 	}
 
 	if (epwisr & RIO_EPWISR_PINT2) {
 		tmp = in_be32(rio_regs_win + RIO_LTLEDCSR);
-		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		pr_de("RIO_LTLEDCSR = 0x%x\n", tmp);
 		fsl_rio_port_error_handler(1);
 	}
 
 	if (epwisr & RIO_EPWISR_MU) {
 		tmp = in_be32(rio_regs_win + RIO_LTLEDCSR);
-		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		pr_de("RIO_LTLEDCSR = 0x%x\n", tmp);
 		msg_unit_error_handler();
 	}
 
@@ -491,18 +491,18 @@ static void fsl_pw_dpc(struct work_struct *work)
 	 */
 	while (kfifo_out_spinlocked(&pw->pw_fifo, (unsigned char *)&msg_buffer,
 			 RIO_PW_MSG_SIZE, &pw->pw_fifo_lock)) {
-#ifdef DEBUG_PW
+#ifdef DE_PW
 		{
 		u32 i;
-		pr_debug("%s : Port-Write Message:", __func__);
+		pr_de("%s : Port-Write Message:", __func__);
 		for (i = 0; i < RIO_PW_MSG_SIZE/sizeof(u32); i++) {
 			if ((i%4) == 0)
-				pr_debug("\n0x%02x: 0x%08x", i*4,
+				pr_de("\n0x%02x: 0x%08x", i*4,
 					 msg_buffer.raw[i]);
 			else
-				pr_debug(" 0x%08x", msg_buffer.raw[i]);
+				pr_de(" 0x%08x", msg_buffer.raw[i]);
 		}
-		pr_debug("\n");
+		pr_de("\n");
 		}
 #endif
 		/* Pass the port-write message to RIO core for processing */
@@ -568,7 +568,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 	out_be32(&pw->pw_regs->epwqbar, 0);
 	out_be32(&pw->pw_regs->pwqbar, (u32) pw->port_write_msg.phys);
 
-	pr_debug("EIPWQBAR: 0x%08x IPWQBAR: 0x%08x\n",
+	pr_de("EIPWQBAR: 0x%08x IPWQBAR: 0x%08x\n",
 		 in_be32(&pw->pw_regs->epwqbar),
 		 in_be32(&pw->pw_regs->pwqbar));
 
@@ -600,7 +600,7 @@ int fsl_rio_port_write_init(struct fsl_rio_pw *pw)
 		goto err_out_irq;
 	}
 
-	pr_debug("IPWMR: 0x%08x IPWSR: 0x%08x\n",
+	pr_de("IPWMR: 0x%08x IPWSR: 0x%08x\n",
 		 in_be32(&pw->pw_regs->pwmr),
 		 in_be32(&pw->pw_regs->pwsr));
 
@@ -630,7 +630,7 @@ int fsl_rio_doorbell_send(struct rio_mport *mport,
 {
 	unsigned long flags;
 
-	pr_debug("fsl_doorbell_send: index %d destid %4.4x data %4.4x\n",
+	pr_de("fsl_doorbell_send: index %d destid %4.4x data %4.4x\n",
 		 index, destid, data);
 
 	spin_lock_irqsave(&fsl_rio_doorbell_lock, flags);
@@ -670,7 +670,7 @@ fsl_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
 					+ rmu->msg_tx_ring.tx_slot;
 	int ret = 0;
 
-	pr_debug("RIO: fsl_add_outb_message(): destid %4.4x mbox %d buffer " \
+	pr_de("RIO: fsl_add_outb_message(): destid %4.4x mbox %d buffer " \
 		 "%p len %8.8zx\n", rdev->destid, mbox, buffer, len);
 	if ((len < 8) || (len > RIO_MAX_MSG_SIZE)) {
 		ret = -EINVAL;
@@ -955,7 +955,7 @@ int fsl_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 	int rc = 0;
 	struct fsl_rmu *rmu = GET_RMM_HANDLE(mport);
 
-	pr_debug("RIO: fsl_add_inb_buffer(), msg_rx_ring.rx_slot %d\n",
+	pr_de("RIO: fsl_add_inb_buffer(), msg_rx_ring.rx_slot %d\n",
 		 rmu->msg_rx_ring.rx_slot);
 
 	if (rmu->msg_rx_ring.virt_buffer[rmu->msg_rx_ring.rx_slot]) {

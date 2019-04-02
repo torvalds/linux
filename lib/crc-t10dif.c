@@ -75,7 +75,7 @@ __u16 crc_t10dif_update(__u16 crc, const unsigned char *buffer, size_t len)
 	err = crypto_shash_update(&desc.shash, buffer, len);
 	rcu_read_unlock();
 
-	BUG_ON(err);
+	_ON(err);
 
 	return *(__u16 *)desc.ctx;
 }

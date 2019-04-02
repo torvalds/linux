@@ -38,7 +38,7 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 	$(call if_changed,objcopy)
 
 #
-# Don't omit frame pointers for ease of userspace debugging, but do
+# Don't omit frame pointers for ease of userspace deging, but do
 # optimize sibling calls.
 #
 CFL := $(PROFILING) -mcmodel=small -fPIC -O2 -fasynchronous-unwind-tables -m64 \

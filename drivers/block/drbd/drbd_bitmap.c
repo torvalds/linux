@@ -116,7 +116,7 @@ struct drbd_bitmap {
 
 	enum bm_flag bm_flags;
 
-	/* debugging aid, in case we are still racy somewhere */
+	/* deging aid, in case we are still racy somewhere */
 	char          *bm_why;
 	struct task_struct *bm_task;
 };
@@ -208,7 +208,7 @@ void drbd_bm_unlock(struct drbd_device *device)
  * requires it all to be atomic as well. */
 static void bm_store_page_idx(struct page *page, unsigned long idx)
 {
-	BUG_ON(0 != (idx & ~BM_PAGE_IDX_MASK));
+	_ON(0 != (idx & ~BM_PAGE_IDX_MASK));
 	set_page_private(page, idx);
 }
 
@@ -273,7 +273,7 @@ void drbd_bm_mark_for_writeout(struct drbd_device *device, int page_nr)
 		return;
 	}
 	page = device->bitmap->bm_pages[page_nr];
-	BUG_ON(b->n_bitmap_hints >= ARRAY_SIZE(b->al_bitmap_hints));
+	_ON(b->n_bitmap_hints >= ARRAY_SIZE(b->al_bitmap_hints));
 	if (!test_and_set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page)))
 		b->al_bitmap_hints[b->n_bitmap_hints++] = page_nr;
 }
@@ -309,7 +309,7 @@ static unsigned int bm_word_to_page_idx(struct drbd_bitmap *b, unsigned long lon
 {
 	/* page_nr = (word*sizeof(long)) >> PAGE_SHIFT; */
 	unsigned int page_nr = long_nr >> (PAGE_SHIFT - LN2_BPL + 3);
-	BUG_ON(page_nr >= b->bm_number_of_pages);
+	_ON(page_nr >= b->bm_number_of_pages);
 	return page_nr;
 }
 
@@ -317,7 +317,7 @@ static unsigned int bm_bit_to_page_idx(struct drbd_bitmap *b, u64 bitnr)
 {
 	/* page_nr = (bitnr/8) >> PAGE_SHIFT; */
 	unsigned int page_nr = bitnr >> (PAGE_SHIFT + 3);
-	BUG_ON(page_nr >= b->bm_number_of_pages);
+	_ON(page_nr >= b->bm_number_of_pages);
 	return page_nr;
 }
 
@@ -357,7 +357,7 @@ static void bm_unmap(unsigned long *p_addr)
 
 /*
  * actually most functions herein should take a struct drbd_bitmap*, not a
- * struct drbd_device*, but for the debug macros I like to have the device around
+ * struct drbd_device*, but for the de macros I like to have the device around
  * to be able to report device specific.
  */
 
@@ -394,8 +394,8 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 	unsigned int i, bytes;
 	unsigned long have = b->bm_number_of_pages;
 
-	BUG_ON(have == 0 && old_pages != NULL);
-	BUG_ON(have != 0 && old_pages == NULL);
+	_ON(have == 0 && old_pages != NULL);
+	_ON(have != 0 && old_pages == NULL);
 
 	if (have == want)
 		return old_pages;
@@ -612,7 +612,7 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
 		p_addr = bm_map_pidx(b, idx);
 		bm = p_addr + MLPP(offset);
 		if (bm+do_now > p_addr + LWPP) {
-			pr_alert("BUG BUG BUG! p_addr:%p bm:%p do_now:%d\n",
+			pr_alert("  ! p_addr:%p bm:%p do_now:%d\n",
 			       p_addr, bm, (int)do_now);
 		} else
 			memset(bm, c, do_now * sizeof(long));
@@ -1595,7 +1595,7 @@ int drbd_bm_count_bits(struct drbd_device *device, const unsigned long s, const 
 	unsigned int page_nr = -1U;
 	int c = 0;
 
-	/* If this is called without a bitmap, that is a bug.  But just to be
+	/* If this is called without a bitmap, that is a .  But just to be
 	 * robust in case we screwed up elsewhere, in that case pretend there
 	 * was one dirty bit in the requested area, so we won't try to do a
 	 * local read there (no bitmap probably implies no disk) */

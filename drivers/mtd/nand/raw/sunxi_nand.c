@@ -45,7 +45,7 @@
 #define NFC_REG_IO_DATA		0x0030
 #define NFC_REG_ECC_CTL		0x0034
 #define NFC_REG_ECC_ST		0x0038
-#define NFC_REG_DEBUG		0x003C
+#define NFC_REG_DE		0x003C
 #define NFC_REG_ECC_ERR_CNT(x)	((0x0040 + (x)) & ~0x3)
 #define NFC_REG_USER_DATA(x)	(0x0050 + ((x) * 4))
 #define NFC_REG_SPARE_AREA	0x00A0
@@ -68,7 +68,7 @@
 #define NFC_PAGE_SHIFT(x)	(((x) < 10 ? 0 : (x) - 10) << 8)
 #define NFC_SAM			BIT(12)
 #define NFC_RAM_METHOD		BIT(14)
-#define NFC_DEBUG_CTL		BIT(31)
+#define NFC_DE_CTL		BIT(31)
 
 /* define bit use in NFC_ST */
 #define NFC_RB_B2R		BIT(0)

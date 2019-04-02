@@ -66,7 +66,7 @@ static int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
 }
 
 /* TODO: move dlflags into dev-> and change to write/readl/b */
-/* TODO: Excessive levels of debug */
+/* TODO: Excessive levels of de */
 static int saa7164_downloadimage(struct saa7164_dev *dev, u8 *src, u32 srcsize,
 				 u32 dlflags, u8 __iomem *dst, u32 dstsize)
 {
@@ -193,7 +193,7 @@ out:
 	return ret;
 }
 
-/* TODO: Excessive debug */
+/* TODO: Excessive de */
 /* Load the firmware. Optionally it can be in ROM or newer versions
  * can be on disk, saving the expense of the ROM hardware. */
 int saa7164_downloadfirmware(struct saa7164_dev *dev)

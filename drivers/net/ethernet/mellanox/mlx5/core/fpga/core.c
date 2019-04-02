@@ -346,7 +346,7 @@ static int mlx5_fpga_event(struct mlx5_fpga_device *fdev,
 	/* We tear-down the card's interfaces and functionality because
 	 * the FPGA bump-on-the-wire is misbehaving and we lose ability
 	 * to communicate with the network. User may still be able to
-	 * recover by re-programming or debugging the FPGA
+	 * recover by re-programming or deging the FPGA
 	 */
 	if (teardown)
 		mlx5_trigger_health_work(fdev->mdev);

@@ -10,7 +10,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/gpio.h>
 #include <linux/kernel.h>

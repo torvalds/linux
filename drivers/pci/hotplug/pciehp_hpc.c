@@ -232,8 +232,8 @@ static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
 		delay -= step;
 	} while (delay > 0);
 
-	if (count > 1 && pciehp_debug)
-		printk(KERN_DEBUG "pci %04x:%02x:%02x.%d id reading try %d times with interval %d ms to get %08x\n",
+	if (count > 1 && pciehp_de)
+		printk(KERN_DE "pci %04x:%02x:%02x.%d id reading try %d times with interval %d ms to get %08x\n",
 			pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
 			PCI_FUNC(devfn), count, step, l);
 
@@ -822,7 +822,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	struct pci_dev *pdev = ctrl->pcie->port;
 	u16 reg16;
 
-	if (!pciehp_debug)
+	if (!pciehp_de)
 		return;
 
 	ctrl_info(ctrl, "Slot Capabilities      : 0x%08x\n", ctrl->slot_cap);

@@ -146,12 +146,12 @@ extern void tlb_unwire_entry(void);
 static inline void tlb_wire_entry(struct vm_area_struct *vma ,
 				  unsigned long addr, pte_t pte)
 {
-	BUG();
+	();
 }
 
 static inline void tlb_unwire_entry(void)
 {
-	BUG();
+	();
 }
 #endif
 

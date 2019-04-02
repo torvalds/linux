@@ -133,7 +133,7 @@
 
 &i2c4 {
 	status = "okay";
-	// BMC Debug Header
+	// BMC De Header
 };
 
 &i2c5 {
@@ -178,7 +178,7 @@
 
 &i2c9 {
 	status = "okay";
-	//USB Debug Connector
+	//USB De Connector
 };
 
 &pwm_tacho {

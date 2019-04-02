@@ -24,7 +24,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -214,7 +214,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	__u8 tclass = np->tclass;
 	int res;
 
-	pr_debug("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n", __func__, skb,
+	pr_de("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n", __func__, skb,
 		 skb->len, &fl6->saddr, &fl6->daddr);
 
 	if (transport->dscp & SCTP_DSCP_SET_MASK)
@@ -273,7 +273,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		fl6_sock_release(flowlabel);
 	}
 
-	pr_debug("%s: dst=%pI6 ", __func__, &fl6->daddr);
+	pr_de("%s: dst=%pI6 ", __func__, &fl6->daddr);
 
 	if (asoc)
 		fl6->fl6_sport = htons(asoc->base.bind_addr.port);
@@ -283,7 +283,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		if (!fl6->fl6_sport)
 			fl6->fl6_sport = saddr->v6.sin6_port;
 
-		pr_debug("src=%pI6 - ", &fl6->saddr);
+		pr_de("src=%pI6 - ", &fl6->saddr);
 	}
 
 	rcu_read_lock();
@@ -376,13 +376,13 @@ out:
 		rt = (struct rt6_info *)dst;
 		t->dst = dst;
 		t->dst_cookie = rt6_get_cookie(rt);
-		pr_debug("rt6_dst:%pI6/%d rt6_src:%pI6\n",
+		pr_de("rt6_dst:%pI6/%d rt6_src:%pI6\n",
 			 &rt->rt6i_dst.addr, rt->rt6i_dst.plen,
 			 &fl6->saddr);
 	} else {
 		t->dst = NULL;
 
-		pr_debug("no route\n");
+		pr_de("no route\n");
 	}
 }
 
@@ -405,7 +405,7 @@ static void sctp_v6_get_saddr(struct sctp_sock *sk,
 	struct flowi6 *fl6 = &fl->u.ip6;
 	union sctp_addr *saddr = &t->saddr;
 
-	pr_debug("%s: asoc:%p dst:%p\n", __func__, t->asoc, t->dst);
+	pr_de("%s: asoc:%p dst:%p\n", __func__, t->asoc, t->dst);
 
 	if (t->dst) {
 		saddr->v6.sin6_family = AF_INET6;
@@ -543,7 +543,7 @@ static void sctp_v6_from_addr_param(union sctp_addr *addr,
 {
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_port = port;
-	addr->v6.sin6_flowinfo = 0; /* BUG */
+	addr->v6.sin6_flowinfo = 0; /*  */
 	addr->v6.sin6_addr = param->v6.addr;
 	addr->v6.sin6_scope_id = iif;
 }
@@ -753,7 +753,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 
 	newsk->sk_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 
-	sk_refcnt_debug_inc(newsk);
+	sk_refcnt_de_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);

@@ -56,7 +56,7 @@
 	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x080 : 0x140) + (n) * 0x70)
 #define HW_APBHX_CHn_BAR(d, n) \
 	(((dma_is_apbh(d) && apbh_is_old(d)) ? 0x070 : 0x130) + (n) * 0x70)
-#define HW_APBX_CHn_DEBUG1(d, n) (0x150 + (n) * 0x70)
+#define HW_APBX_CHn_DE1(d, n) (0x150 + (n) * 0x70)
 
 /*
  * ccw bits definitions
@@ -221,7 +221,7 @@ static void mxs_dma_reset_chan(struct dma_chan *chan)
 		unsigned long elapsed = 0;
 		const unsigned long max_wait = 50000; /* 50ms */
 		void __iomem *reg_dbg1 = mxs_dma->base +
-				HW_APBX_CHn_DEBUG1(mxs_dma, chan_id);
+				HW_APBX_CHn_DE1(mxs_dma, chan_id);
 
 		/*
 		 * On i.MX28 APBX, the DMA channel can stop working if we reset
@@ -521,7 +521,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 	 * will be appended to the last prepared sg.
 	 */
 	if (append) {
-		BUG_ON(idx < 1);
+		_ON(idx < 1);
 		ccw = &mxs_chan->ccw[idx - 1];
 		ccw->next = mxs_chan->ccw_phys + sizeof(*ccw) * idx;
 		ccw->bits |= CCW_CHAIN;

@@ -75,7 +75,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 	if (i == 0) {
 		args[0] = regs->orig_a0;
 		args++;
@@ -90,7 +90,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
         if (i == 0) {
                 regs->orig_a0 = args[0];
                 args++;

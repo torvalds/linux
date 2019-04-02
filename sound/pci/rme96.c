@@ -39,7 +39,7 @@
 #include <sound/asoundef.h>
 #include <sound/initval.h>
 
-/* note, two last pcis should be equal, it is not a bug */
+/* note, two last pcis should be equal, it is not a  */
 
 MODULE_AUTHOR("Anders Torger <torger@ludd.luth.se>");
 MODULE_DESCRIPTION("RME Digi96, Digi96/8, Digi96/8 PRO, Digi96/8 PST, "
@@ -981,7 +981,7 @@ snd_rme96_set_period_properties(struct rme96 *rme96,
 		rme96->wcreg |= RME96_WCR_ISEL;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 	rme96->wcreg &= ~RME96_WCR_IDIS;
@@ -1935,7 +1935,7 @@ snd_rme96_info_inputtype_control(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 		}
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	return snd_ctl_enum_info(uinfo, 1, num_items, texts);
@@ -1969,7 +1969,7 @@ snd_rme96_get_inputtype_control(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 		}
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 	if (ucontrol->value.enumerated.item[0] >= items) {
@@ -2002,7 +2002,7 @@ snd_rme96_put_inputtype_control(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 		}
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 	val = ucontrol->value.enumerated.item[0] % items;

@@ -18,7 +18,7 @@
 
 #include <net/mac80211.h>
 
-#include "debugfs.h"
+#include "defs.h"
 #include "leds.h"
 #include "rfkill.h"
 #include "phy.h"
@@ -246,7 +246,7 @@
 #define B43legacy_IRQ_TXFIFO_FLUSH_OK	0x00010000
 #define B43legacy_IRQ_CCA_MEASURE_OK	0x00020000
 #define B43legacy_IRQ_NOISESAMPLE_OK	0x00040000
-#define B43legacy_IRQ_UCODE_DEBUG	0x08000000
+#define B43legacy_IRQ_UCODE_DE	0x08000000
 #define B43legacy_IRQ_RFKILL		0x10000000
 #define B43legacy_IRQ_TX_OK		0x20000000
 #define B43legacy_IRQ_PHY_G_CHANGED	0x40000000
@@ -262,7 +262,7 @@
 					 B43legacy_IRQ_DMA |		\
 					 B43legacy_IRQ_TXFIFO_FLUSH_OK | \
 					 B43legacy_IRQ_NOISESAMPLE_OK | \
-					 B43legacy_IRQ_UCODE_DEBUG |	\
+					 B43legacy_IRQ_UCODE_DE |	\
 					 B43legacy_IRQ_RFKILL |		\
 					 B43legacy_IRQ_TX_OK)
 
@@ -331,23 +331,23 @@ enum {
 #ifdef assert
 # undef assert
 #endif
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_B43LEGACY_DE
 # define B43legacy_WARN_ON(x)	WARN_ON(x)
-# define B43legacy_BUG_ON(expr)						\
+# define B43legacy__ON(expr)						\
 	do {								\
 		if (unlikely((expr))) {					\
 			printk(KERN_INFO PFX "Test (%s) failed\n",	\
 					      #expr);			\
-			BUG_ON(expr);					\
+			_ON(expr);					\
 		}							\
 	} while (0)
-# define B43legacy_DEBUG	1
+# define B43legacy_DE	1
 #else
-/* This will evaluate the argument even if debugging is disabled. */
+/* This will evaluate the argument even if deging is disabled. */
 static inline bool __b43legacy_warn_on_dummy(bool x) { return x; }
 # define B43legacy_WARN_ON(x)	__b43legacy_warn_on_dummy(unlikely(!!(x)))
-# define B43legacy_BUG_ON(x)	do { /* nothing */ } while (0)
-# define B43legacy_DEBUG	0
+# define B43legacy__ON(x)	do { /* nothing */ } while (0)
+# define B43legacy_DE	0
 #endif
 
 
@@ -510,12 +510,12 @@ struct b43legacy_phy {
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
 
-#if B43legacy_DEBUG
+#if B43legacy_DE
 	/* Manual TX-power control enabled? */
 	bool manual_txpower_control;
 	/* PHY registers locked by b43legacy_phy_lock()? */
 	bool phy_locked;
-#endif /* B43legacy_DEBUG */
+#endif /* B43legacy_DE */
 };
 
 /* Data structures for DMA transmission, per 80211 core. */
@@ -743,8 +743,8 @@ struct b43legacy_wldev {
 	/* Devicelist in struct b43legacy_wl (all 802.11 cores) */
 	struct list_head list;
 
-	/* Debugging stuff follows. */
-#ifdef CONFIG_B43LEGACY_DEBUG
+	/* Deging stuff follows. */
+#ifdef CONFIG_B43LEGACY_DE
 	struct b43legacy_dfsentry *dfsentry;
 #endif
 };
@@ -845,12 +845,12 @@ __printf(2, 3)
 void b43legacyerr(struct b43legacy_wl *wl, const char *fmt, ...);
 __printf(2, 3)
 void b43legacywarn(struct b43legacy_wl *wl, const char *fmt, ...);
-#if B43legacy_DEBUG
+#if B43legacy_DE
 __printf(2, 3)
 void b43legacydbg(struct b43legacy_wl *wl, const char *fmt, ...);
-#else /* DEBUG */
+#else /* DE */
 # define b43legacydbg(wl, fmt...) do { /* nothing */ } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
 /* Macros for printing a value in Q5.2 format */
 #define Q52_FMT		"%u.%u"

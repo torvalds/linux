@@ -543,7 +543,7 @@ static inline int esp_remove_trailer(struct sk_buff *skb)
 	}
 
 	if (skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2))
-		BUG();
+		();
 
 	ret = -EINVAL;
 	padlen = nexthdr[0];
@@ -792,7 +792,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 		net_adj = 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ((mtu - x->props.header_len - crypto_aead_authsize(aead) -
@@ -934,7 +934,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 		p += (x->aalg->alg_key_len + 7) / 8;
 
 		aalg_desc = xfrm_aalg_get_byname(x->aalg->alg_name, 0);
-		BUG_ON(!aalg_desc);
+		_ON(!aalg_desc);
 
 		err = -EINVAL;
 		if (aalg_desc->uinfo.auth.icv_fullbits / 8 !=

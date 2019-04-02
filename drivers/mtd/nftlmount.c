@@ -82,7 +82,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		if (retlen < 6 || memcmp(buf, "ANAND", 6)) {
 			/* ANAND\0 not found. Continue */
 #if 0
-			printk(KERN_DEBUG "ANAND header not found at 0x%x in mtd%d\n",
+			printk(KERN_DE "ANAND header not found at 0x%x in mtd%d\n",
 			       block * nftl->EraseSize, nftl->mbd.mtd->index);
 #endif
 			continue;
@@ -134,7 +134,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
 			if (memcmp(mh, buf, sizeof(struct NFTLMediaHeader))) {
 				printk(KERN_NOTICE "NFTL Media Headers at 0x%x and 0x%x disagree.\n",
 				       nftl->MediaUnit * nftl->EraseSize, block * nftl->EraseSize);
-				/* if (debug) Print both side by side */
+				/* if (de) Print both side by side */
 				if (boot_record_count < 2) {
 					/* We haven't yet seen two real ones */
 					return -1;

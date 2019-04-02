@@ -61,7 +61,7 @@ static unsigned outcnt;		/* bytes in output buffer */
 #define get_byte()  (inptr < insize ? inbuf[inptr++] : fill_inbuf())
 
 /* Diagnostic functions */
-#ifdef DEBUG
+#ifdef DE
 #  define Assert(cond,msg) {if(!(cond)) error(msg);}
 #  define Trace(x) fprintf x
 #  define Tracev(x) {if (verbose) fprintf x ;}

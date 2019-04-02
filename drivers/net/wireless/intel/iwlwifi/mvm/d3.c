@@ -1024,7 +1024,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (mvm->d3_wake_sysassert)
 		d3_cfg_cmd_data.wakeup_flags |=
 			cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR);
@@ -1041,7 +1041,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
 	if (ret)
 		goto out;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	len = iwl_rx_packet_payload_len(d3_cfg_cmd.resp_pkt);
 	if (len >= sizeof(u32)) {
 		mvm->d3_test_pme_ptr =
@@ -1201,7 +1201,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 		struct ieee80211_hdr *hdr = (void *)pktdata;
 		int truncated = pktlen - pktsize;
 
-		/* this would be a firmware bug */
+		/* this would be a firmware  */
 		if (WARN_ON_ONCE(truncated < 0))
 			truncated = 0;
 
@@ -1303,7 +1303,7 @@ static void iwl_mvm_set_aes_rx_seq(struct iwl_mvm *mvm, struct aes_sc *scs,
 {
 	int tid;
 
-	BUILD_BUG_ON(IWL_NUM_RSC != IEEE80211_NUM_TIDS);
+	BUILD__ON(IWL_NUM_RSC != IEEE80211_NUM_TIDS);
 
 	if (sta && iwl_mvm_has_new_rx_api(mvm)) {
 		struct iwl_mvm_sta *mvmsta;
@@ -1341,7 +1341,7 @@ static void iwl_mvm_set_tkip_rx_seq(struct tkip_sc *scs,
 {
 	int tid;
 
-	BUILD_BUG_ON(IWL_NUM_RSC != IEEE80211_NUM_TIDS);
+	BUILD__ON(IWL_NUM_RSC != IEEE80211_NUM_TIDS);
 
 	for (tid = 0; tid < IWL_NUM_RSC; tid++) {
 		struct ieee80211_key_seq seq = {};
@@ -1579,9 +1579,9 @@ struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm)
 		if (!status)
 			goto out_free_resp;
 
-		BUILD_BUG_ON(sizeof(v6->gtk.decrypt_key) >
+		BUILD__ON(sizeof(v6->gtk.decrypt_key) >
 			     sizeof(status->gtk[0].key));
-		BUILD_BUG_ON(sizeof(v6->gtk.tkip_mic_key) >
+		BUILD__ON(sizeof(v6->gtk.tkip_mic_key) >
 			     sizeof(status->gtk[0].tkip_mic_key));
 
 		/* copy GTK info to the right place */
@@ -1762,7 +1762,7 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 	results->matched_profiles = le32_to_cpu(query->matched_profiles);
 	memcpy(results->matches, query->matches, sizeof(results->matches));
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	mvm->last_netdetect_scans = le32_to_cpu(query->n_scans_done);
 #endif
 
@@ -1867,7 +1867,7 @@ out:
 
 static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
 {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	const struct fw_img *img = &mvm->fw->img[IWL_UCODE_WOWLAN];
 	u32 len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	u32 offs = img->sec[IWL_UCODE_SECTION_DATA].offset;
@@ -1946,7 +1946,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		goto err;
 	}
 
-	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
+	iwl_fw_dbg_read_d3_de_data(&mvm->fwrt);
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
 
@@ -1994,7 +1994,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		goto out;
 	} else {
 		keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 		if (keep)
 			mvm->keep_vif = vif;
 #endif
@@ -2069,7 +2069,7 @@ static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
 					&mvm->d0i3_suspend_flags);
 	mutex_unlock(&mvm->d0i3_suspend_mutex);
 	if (exit_now) {
-		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
+		IWL_DE_RPM(mvm, "Run deferred d0i3 exit\n");
 		_iwl_mvm_exit_d0i3(mvm);
 	}
 
@@ -2114,7 +2114,7 @@ void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 	device_set_wakeup_enable(mvm->trans->dev, enabled);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 {
 	struct iwl_mvm *mvm = inode->i_private;
@@ -2188,7 +2188,7 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 
 	mvm->d3_test_active = false;
 
-	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
+	iwl_fw_dbg_read_d3_de_data(&mvm->fwrt);
 
 	rtnl_lock();
 	__iwl_mvm_resume(mvm, true);

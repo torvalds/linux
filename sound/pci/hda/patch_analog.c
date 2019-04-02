@@ -614,7 +614,7 @@ static const struct snd_pci_quirk ad1981_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x1014, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1981_FIXUP_HP_EAPD),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
-	/* HP nx6320 (reversed SSID, H/W bug) */
+	/* HP nx6320 (reversed SSID, H/W ) */
 	SND_PCI_QUIRK(0x30b0, 0x103c, "HP nx6320", AD1981_FIXUP_HP_EAPD),
 	{}
 };
@@ -670,7 +670,7 @@ static int patch_ad1981(struct hda_codec *codec)
  * mono   0x13 (mute/amp)<- 0x1e <- 0x36 <- 03/04/06
  *
  * DAC0 = 03h, DAC1 = 04h, DAC2 = 05h, DAC3 = 06h, DAC4 = 0ah
- * (*) DAC2/3/4 are swapped to DAC3/4/2 on AD198A rev.2 due to a h/w bug.
+ * (*) DAC2/3/4 are swapped to DAC3/4/2 on AD198A rev.2 due to a h/w .
  *
  * Input pins and routes
  *

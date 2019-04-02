@@ -71,10 +71,10 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	ret = kernel_sendmsg(local->socket, &msg, iov, 2, len);
 	if (ret < 0)
-		trace_rxrpc_tx_fail(local->debug_id, 0, ret,
+		trace_rxrpc_tx_fail(local->de_id, 0, ret,
 				    rxrpc_tx_point_version_reply);
 	else
-		trace_rxrpc_tx_packet(local->debug_id, &whdr,
+		trace_rxrpc_tx_packet(local->de_id, &whdr,
 				      rxrpc_tx_point_version_reply);
 
 	_leave("");
@@ -95,7 +95,7 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
 		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
-		_debug("{%d},{%u}", local->debug_id, sp->hdr.type);
+		_de("{%d},{%u}", local->de_id, sp->hdr.type);
 
 		switch (sp->hdr.type) {
 		case RXRPC_PACKET_TYPE_VERSION:

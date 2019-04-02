@@ -21,7 +21,7 @@
 #include <assert.h>
 #include <string.h>
 #include "srccode.h"
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 
 #define MAXSRCCACHE (32*1024*1024)
@@ -127,7 +127,7 @@ static struct srcfile *find_srcfile(char *fn)
 
 	fd = open(fn, O_RDONLY);
 	if (fd < 0 || fstat(fd, &st) < 0) {
-		pr_debug("cannot open source file %s\n", fn);
+		pr_de("cannot open source file %s\n", fn);
 		return NULL;
 	}
 
@@ -144,7 +144,7 @@ static struct srcfile *find_srcfile(char *fn)
 	h->map = mmap(NULL, sz, PROT_READ, MAP_SHARED, fd, 0);
 	close(fd);
 	if (h->map == (char *)-1) {
-		pr_debug("cannot mmap source file %s\n", fn);
+		pr_de("cannot mmap source file %s\n", fn);
 		goto out_fn;
 	}
 	h->numlines = countlines(h->map, h->maplen);

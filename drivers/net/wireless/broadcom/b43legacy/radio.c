@@ -53,7 +53,7 @@ static u16 flip_4bit(u16 value)
 {
 	u16 flipped = 0x0000;
 
-	B43legacy_BUG_ON(!((value & ~0x000F) == 0x0000));
+	B43legacy__ON(!((value & ~0x000F) == 0x0000));
 
 	flipped |= (value & 0x0001) << 3;
 	flipped |= (value & 0x0002) << 1;
@@ -131,7 +131,7 @@ u16 b43legacy_radio_read16(struct b43legacy_wldev *dev, u16 offset)
 		offset |= 0x80;
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 
 	b43legacy_write16(dev, B43legacy_MMIO_RADIO_CONTROL, offset);
@@ -811,7 +811,7 @@ void b43legacy_calc_nrssi_slope(struct b43legacy_wldev *dev)
 		b43legacy_calc_nrssi_threshold(dev);
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 }
 
@@ -910,7 +910,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 		}
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 }
 
@@ -946,7 +946,7 @@ static u16 _stack_restore(u32 *stackptr,
 			continue;
 		return ((*stackptr & 0xFFFF0000) >> 16);
 	}
-	B43legacy_BUG_ON(1);
+	B43legacy__ON(1);
 
 	return 0;
 }
@@ -1227,7 +1227,7 @@ b43legacy_radio_interference_mitigation_enable(struct b43legacy_wldev *dev,
 		b43legacy_calc_nrssi_slope(dev);
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 }
 
@@ -1325,7 +1325,7 @@ b43legacy_radio_interference_mitigation_disable(struct b43legacy_wldev *dev,
 		b43legacy_calc_nrssi_slope(dev);
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 }
 
@@ -1419,7 +1419,7 @@ static u16 b43legacy_get_812_value(struct b43legacy_wldev *dev, u8 lpd)
 			case LPD(1, 0, 0):
 				return 0x30B3;
 			default:
-				B43legacy_BUG_ON(1);
+				B43legacy__ON(1);
 			}
 		} else {
 			switch (lpd) {
@@ -1432,7 +1432,7 @@ static u16 b43legacy_get_812_value(struct b43legacy_wldev *dev, u8 lpd)
 			case LPD(1, 0, 0):
 				return 0x20B3;
 			default:
-				B43legacy_BUG_ON(1);
+				B43legacy__ON(1);
 			}
 		}
 	} else {
@@ -1474,7 +1474,7 @@ static u16 b43legacy_get_812_value(struct b43legacy_wldev *dev, u8 lpd)
 			case LPD(1, 0, 0):
 				return (0x2093 | loop_or);
 			default:
-				B43legacy_BUG_ON(1);
+				B43legacy__ON(1);
 			}
 		} else {
 			switch (lpd) {
@@ -1486,7 +1486,7 @@ static u16 b43legacy_get_812_value(struct b43legacy_wldev *dev, u8 lpd)
 			case LPD(1, 0, 0):
 				return (0x0093 | loop_or);
 			default:
-				B43legacy_BUG_ON(1);
+				B43legacy__ON(1);
 			}
 		}
 	}
@@ -2092,7 +2092,7 @@ void b43legacy_radio_turn_on(struct b43legacy_wldev *dev)
 		B43legacy_WARN_ON(err);
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 	phy->radio_on = true;
 }

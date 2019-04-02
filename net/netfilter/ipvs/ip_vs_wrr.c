@@ -10,10 +10,10 @@
  *
  * Changes:
  *     Wensong Zhang            :     changed the ip_vs_wrr_schedule to return dest
- *     Wensong Zhang            :     changed some comestics things for debugging
+ *     Wensong Zhang            :     changed some comestics things for deging
  *     Wensong Zhang            :     changed for the d-linked destination list
  *     Wensong Zhang            :     added the ip_vs_wrr_update_svc
- *     Julian Anastasov         :     fixed the bug of returning destination
+ *     Julian Anastasov         :     fixed the  of returning destination
  *                                    with weight 0 when all weights are zero
  *
  */

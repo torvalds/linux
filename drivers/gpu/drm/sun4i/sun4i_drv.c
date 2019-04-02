@@ -212,7 +212,7 @@ static bool sun4i_drv_node_is_tcon_top(struct device_node *node)
 
 static int compare_of(struct device *dev, void *data)
 {
-	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
+	DRM_DE_DRIVER("Comparing of node %pOF with %pOF\n",
 			 dev->of_node,
 			 data);
 
@@ -252,14 +252,14 @@ static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
 
 	port = of_graph_get_port_by_id(node, port_id);
 	if (!port) {
-		DRM_DEBUG_DRIVER("No output to bind on port %d\n", port_id);
+		DRM_DE_DRIVER("No output to bind on port %d\n", port_id);
 		return;
 	}
 
 	for_each_available_child_of_node(port, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote) {
-			DRM_DEBUG_DRIVER("Error retrieving the output node\n");
+			DRM_DE_DRIVER("Error retrieving the output node\n");
 			continue;
 		}
 
@@ -271,7 +271,7 @@ static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
 			 * between TCON TOP and TCON.
 			 */
 			if (sun4i_drv_node_is_tcon_top(remote)) {
-				DRM_DEBUG_DRIVER("TCON output endpoint is TCON TOP... skipping\n");
+				DRM_DE_DRIVER("TCON output endpoint is TCON TOP... skipping\n");
 				of_node_put(remote);
 				continue;
 			}
@@ -285,13 +285,13 @@ static void sun4i_drv_traverse_endpoints(struct endpoint_list *list,
 				struct of_endpoint endpoint;
 
 				if (of_graph_parse_endpoint(ep, &endpoint)) {
-					DRM_DEBUG_DRIVER("Couldn't parse endpoint\n");
+					DRM_DE_DRIVER("Couldn't parse endpoint\n");
 					of_node_put(remote);
 					continue;
 				}
 
 				if (!endpoint.id) {
-					DRM_DEBUG_DRIVER("Endpoint is our panel... skipping\n");
+					DRM_DE_DRIVER("Endpoint is our panel... skipping\n");
 					of_node_put(remote);
 					continue;
 				}
@@ -337,7 +337,7 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	    (sun4i_drv_node_is_supported_frontend(node) &&
 	     of_device_is_available(node))) {
 		/* Add current component */
-		DRM_DEBUG_DRIVER("Adding component %pOF\n", node);
+		DRM_DE_DRIVER("Adding component %pOF\n", node);
 		drm_of_component_match_add(dev, match, compare_of, node);
 		count++;
 	}

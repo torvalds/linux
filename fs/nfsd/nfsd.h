@@ -19,16 +19,16 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/msg_prot.h>
 
-#include <uapi/linux/nfsd/debug.h>
+#include <uapi/linux/nfsd/de.h>
 
 #include "stats.h"
 #include "export.h"
 
-#undef ifdebug
-#ifdef CONFIG_SUNRPC_DEBUG
-# define ifdebug(flag)		if (nfsd_debug & NFSDDBG_##flag)
+#undef ifde
+#ifdef CONFIG_SUNRPC_DE
+# define ifde(flag)		if (nfsd_de & NFSDDBG_##flag)
 #else
-# define ifdebug(flag)		if (0)
+# define ifde(flag)		if (0)
 #endif
 
 /*

@@ -31,7 +31,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	unsigned long int old_value;
 #endif
 
-	pr_debug("Applying add relocation section %u to %u\n",
+	pr_de("Applying add relocation section %u to %u\n",
 		relsec, sechdrs[relsec].sh_info);
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rela); i++) {
@@ -56,7 +56,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			old_value = *location;
 			*location = value + old_value;
 
-			pr_debug("R_MICROBLAZE_32 (%08lx->%08lx)\n",
+			pr_de("R_MICROBLAZE_32 (%08lx->%08lx)\n",
 				old_value, value);
 #else
 			*location = value;
@@ -75,7 +75,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			location[1] = (location[1] & 0xFFFF0000) |
 					(value & 0xFFFF);
 #if __GNUC__ < 4
-			pr_debug("R_MICROBLAZE_64 (%08lx->%08lx)\n",
+			pr_de("R_MICROBLAZE_64 (%08lx->%08lx)\n",
 				old_value, value);
 #endif
 			break;
@@ -91,20 +91,20 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 					(value >> 16);
 			location[1] = (location[1] & 0xFFFF0000) |
 					(value & 0xFFFF);
-			pr_debug("R_MICROBLAZE_64_PCREL (%08lx)\n",
+			pr_de("R_MICROBLAZE_64_PCREL (%08lx)\n",
 				value);
 			break;
 
 		case R_MICROBLAZE_32_PCREL_LO:
-			pr_debug("R_MICROBLAZE_32_PCREL_LO\n");
+			pr_de("R_MICROBLAZE_32_PCREL_LO\n");
 			break;
 
 		case R_MICROBLAZE_64_NONE:
-			pr_debug("R_MICROBLAZE_64_NONE\n");
+			pr_de("R_MICROBLAZE_64_NONE\n");
 			break;
 
 		case R_MICROBLAZE_NONE:
-			pr_debug("R_MICROBLAZE_NONE\n");
+			pr_de("R_MICROBLAZE_NONE\n");
 			break;
 
 		default:

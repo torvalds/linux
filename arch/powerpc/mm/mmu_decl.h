@@ -79,7 +79,7 @@ extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
 static inline void _tlbivax_bcast(unsigned long address, unsigned int pid,
 				   unsigned int tsize, unsigned int ind)
 {
-	BUG();
+	();
 }
 #endif
 

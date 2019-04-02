@@ -221,7 +221,7 @@ static unsigned long from_device(void *dst, const void *src, unsigned long cnt)
 	unsigned long src_addr = (unsigned long)src;
 	unsigned long long tmp;
 
-	pr_debug("trapped io read 0x%08lx (%ld)\n", src_addr, cnt);
+	pr_de("trapped io read 0x%08lx (%ld)\n", src_addr, cnt);
 	tiop = lookup_tiop(src_addr);
 	WARN_ON(!tiop || (tiop->magic != IO_TRAPPED_MAGIC));
 
@@ -234,7 +234,7 @@ static unsigned long from_device(void *dst, const void *src, unsigned long cnt)
 			      (tiop->minimum_bus_width / 8)),
 			(unsigned long)dst, cnt);
 
-	pr_debug("trapped io read 0x%08lx -> 0x%08llx\n", src_addr, tmp);
+	pr_de("trapped io read 0x%08lx -> 0x%08llx\n", src_addr, tmp);
 	return 0;
 }
 
@@ -244,7 +244,7 @@ static unsigned long to_device(void *dst, const void *src, unsigned long cnt)
 	unsigned long dst_addr = (unsigned long)dst;
 	unsigned long long tmp;
 
-	pr_debug("trapped io write 0x%08lx (%ld)\n", dst_addr, cnt);
+	pr_de("trapped io write 0x%08lx (%ld)\n", dst_addr, cnt);
 	tiop = lookup_tiop(dst_addr);
 	WARN_ON(!tiop || (tiop->magic != IO_TRAPPED_MAGIC));
 
@@ -256,7 +256,7 @@ static unsigned long to_device(void *dst, const void *src, unsigned long cnt)
 			dst_addr, max_t(unsigned long, cnt,
 					(tiop->minimum_bus_width / 8)));
 
-	pr_debug("trapped io write 0x%08lx -> 0x%08llx\n", dst_addr, tmp);
+	pr_de("trapped io write 0x%08lx -> 0x%08llx\n", dst_addr, tmp);
 	return 0;
 }
 

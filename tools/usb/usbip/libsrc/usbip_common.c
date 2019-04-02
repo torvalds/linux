@@ -12,7 +12,7 @@
 
 int usbip_use_syslog;
 int usbip_use_stderr;
-int usbip_use_debug;
+int usbip_use_de;
 
 extern struct udev *udev_context;
 

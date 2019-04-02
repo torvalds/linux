@@ -35,7 +35,7 @@
  * The trf7970a is very timing sensitive and the VIN, EN2, and EN
  * pins must asserted in that order and with specific delays in between.
  * The delays used in the driver were provided by TI and have been
- * confirmed to work with this driver.  There is a bug with the current
+ * confirmed to work with this driver.  There is a  with the current
  * version of the trf7970a that requires that EN2 remain low no matter
  * what.  If it goes high, it will generate an RF field even when in
  * passive target mode.  TI has indicated that the chip will work okay
@@ -611,7 +611,7 @@ static void trf7970a_send_upstream(struct trf7970a *trf)
 	trf->tx_skb = NULL;
 
 	if (trf->rx_skb && !IS_ERR(trf->rx_skb) && !trf->aborting)
-		print_hex_dump_debug("trf7970a rx data: ", DUMP_PREFIX_NONE,
+		print_hex_dump_de("trf7970a rx data: ", DUMP_PREFIX_NONE,
 				     16, 1, trf->rx_skb->data, trf->rx_skb->len,
 				     false);
 
@@ -654,7 +654,7 @@ static int trf7970a_transmit(struct trf7970a *trf, struct sk_buff *skb,
 	unsigned int timeout;
 	int ret;
 
-	print_hex_dump_debug("trf7970a tx data: ", DUMP_PREFIX_NONE,
+	print_hex_dump_de("trf7970a tx data: ", DUMP_PREFIX_NONE,
 			     16, 1, skb->data, len, false);
 
 	spi_message_init(&m);

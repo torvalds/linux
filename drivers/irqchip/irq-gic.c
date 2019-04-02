@@ -429,7 +429,7 @@ static const struct irq_chip gic_chip = {
 
 void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 {
-	BUG_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
+	_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
 	irq_set_chained_handler_and_data(irq, gic_handle_cascade_irq,
 					 &gic_data[gic_nr]);
 }
@@ -838,7 +838,7 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
  */
 void gic_send_sgi(unsigned int cpu_id, unsigned int irq)
 {
-	BUG_ON(cpu_id >= NR_GIC_CPU_IF);
+	_ON(cpu_id >= NR_GIC_CPU_IF);
 	cpu_id = 1 << cpu_id;
 	/* this always happens on GIC0 */
 	writel_relaxed((cpu_id << 16) | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
@@ -882,7 +882,7 @@ void gic_migrate_target(unsigned int new_cpu_id)
 	int i, ror_val, cpu = smp_processor_id();
 	u32 val, cur_target_mask, active_mask;
 
-	BUG_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
+	_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
 
 	dist_base = gic_data_dist_base(&gic_data[gic_nr]);
 	if (!dist_base)

@@ -100,7 +100,7 @@ anyway:
    that you only test for one single error path in each subtest by submitting
    otherwise perfectly valid data. Without this an earlier check might reject
    the ioctl already and shadow the codepath you actually want to test, hiding
-   bugs and regressions.
+   s and regressions.
 
  * Make all your ioctls restartable. First X really loves signals and second
    this will allow you to test 90% of all error handling paths by just
@@ -151,7 +151,7 @@ still tons more lessons to learn here.
    ioctl restartable relative timeouts tend to be too coarse and can
    indefinitely extend your wait time due to rounding on each restart.
    Especially if your reference clock is something really slow like the display
-   frame counter. With a spec lawyer hat on this isn't a bug since timeouts can
+   frame counter. With a spec lawyer hat on this isn't a  since timeouts can
    always be extended - but users will surely hate you if their neat animations
    starts to stutter due to this.
 
@@ -189,7 +189,7 @@ entails its own little set of pitfalls:
    suitable.
 
  * Think about uniqueness requirements for userspace handles. E.g. for most drm
-   drivers it's a userspace bug to submit the same object twice in the same
+   drivers it's a userspace  to submit the same object twice in the same
    command submission ioctl. But then if objects are shareable userspace needs
    to know whether it has seen an imported object from a different process
    already or not. I haven't tried this myself yet due to lack of a new class
@@ -213,7 +213,7 @@ Not every problem needs a new ioctl:
  * Consider other interfaces than ioctls. A sysfs attribute is much better for
    per-device settings, or for child objects with fairly static lifetimes (like
    output connectors in drm with all the detection override attributes). Or
-   maybe only your testsuite needs this interface, and then debugfs with its
+   maybe only your testsuite needs this interface, and then defs with its
    disclaimer of not having a stable ABI would be better.
 
 Finally, the name of the game is to get it right on the first attempt, since if

@@ -33,8 +33,8 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 #define S5K4ECGX_DRIVER_NAME		"s5k4ecgx"
 #define S5K4ECGX_FIRMWARE		"s5k4ecgx.bin"
@@ -222,7 +222,7 @@ static int s5k4ecgx_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	ret = i2c_transfer(client->adapter, msg, 2);
 	*val = be16_to_cpu(*((__be16 *)rbuf));
 
-	v4l2_dbg(4, debug, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
+	v4l2_dbg(4, de, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
 
 	return ret == 2 ? 0 : ret;
 }
@@ -232,7 +232,7 @@ static int s5k4ecgx_i2c_write(struct i2c_client *client, u16 addr, u16 val)
 	u8 buf[4] = { addr >> 8, addr & 0xff, val >> 8, val & 0xff };
 
 	int ret = i2c_master_send(client, buf, 4);
-	v4l2_dbg(4, debug, client, "i2c_write: 0x%04x : 0x%04x\n", addr, val);
+	v4l2_dbg(4, de, client, "i2c_write: 0x%04x : 0x%04x\n", addr, val);
 
 	return ret == 4 ? 0 : ret;
 }
@@ -242,7 +242,7 @@ static int s5k4ecgx_write(struct i2c_client *client, u32 addr, u16 val)
 	u16 high = addr >> 16, low = addr & 0xffff;
 	int ret;
 
-	v4l2_dbg(3, debug, client, "write: 0x%08x : 0x%04x\n", addr, val);
+	v4l2_dbg(3, de, client, "write: 0x%08x : 0x%04x\n", addr, val);
 
 	ret = s5k4ecgx_i2c_write(client, REG_CMDWR_ADDRH, high);
 	if (!ret)
@@ -341,7 +341,7 @@ static int s5k4ecgx_load_firmware(struct v4l2_subdev *sd)
 	}
 	regs_num = get_unaligned_le32(fw->data);
 
-	v4l2_dbg(3, debug, sd, "FW: %s size %zu register sets %d\n",
+	v4l2_dbg(3, de, sd, "FW: %s size %zu register sets %d\n",
 		 S5K4ECGX_FIRMWARE, fw->size, regs_num);
 
 	regs_num++; /* Add header */
@@ -632,7 +632,7 @@ static int s5k4ecgx_s_ctrl(struct v4l2_ctrl *ctrl)
 	unsigned int i;
 	int err = 0;
 
-	v4l2_dbg(1, debug, sd, "ctrl: 0x%x, value: %d\n", ctrl->id, ctrl->val);
+	v4l2_dbg(1, de, sd, "ctrl: 0x%x, value: %d\n", ctrl->id, ctrl->val);
 
 	mutex_lock(&priv->lock);
 	switch (ctrl->id) {
@@ -711,7 +711,7 @@ static int s5k4ecgx_s_power(struct v4l2_subdev *sd, int on)
 	struct s5k4ecgx *priv = to_s5k4ecgx(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "Switching %s\n", on ? "on" : "off");
+	v4l2_dbg(1, de, sd, "Switching %s\n", on ? "on" : "off");
 
 	if (on) {
 		ret = __s5k4ecgx_power_on(priv);
@@ -816,7 +816,7 @@ static int s5k4ecgx_s_stream(struct v4l2_subdev *sd, int on)
 	struct s5k4ecgx *priv = to_s5k4ecgx(sd);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "Turn streaming %s\n", on ? "on" : "off");
+	v4l2_dbg(1, de, sd, "Turn streaming %s\n", on ? "on" : "off");
 
 	mutex_lock(&priv->lock);
 

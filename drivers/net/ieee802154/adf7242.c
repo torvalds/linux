@@ -20,7 +20,7 @@
 #include <linux/skbuff.h>
 #include <linux/of.h>
 #include <linux/irq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/bitops.h>
 #include <linux/ieee802154.h>
 #include <net/mac802154.h>
@@ -274,7 +274,7 @@ struct adf7242_local {
 	struct mutex bmux; /* protect SPI messages */
 	struct spi_message stat_msg;
 	struct spi_transfer stat_xfer;
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	struct delayed_work work;
 	struct workqueue_struct *wqueue;
 	unsigned long flags;
@@ -539,7 +539,7 @@ static int adf7242_upload_firmware(struct adf7242_local *lp, u8 *data, u16 len)
 static int adf7242_verify_firmware(struct adf7242_local *lp,
 				   const u8 *data, size_t len)
 {
-#ifdef DEBUG
+#ifdef DE
 	int i, j;
 	unsigned int page;
 	u8 *buf = kmalloc(PRAM_PAGESIZE, GFP_KERNEL);
@@ -937,9 +937,9 @@ static const struct ieee802154_ops adf7242_ops = {
 	.set_cca_ed_level = adf7242_set_cca_ed_level,
 };
 
-static void adf7242_debug(struct adf7242_local *lp, u8 irq1)
+static void adf7242_de(struct adf7242_local *lp, u8 irq1)
 {
-#ifdef DEBUG
+#ifdef DE
 	u8 stat;
 
 	adf7242_status(lp, &stat);
@@ -982,7 +982,7 @@ static irqreturn_t adf7242_isr(int irq, void *data)
 		dev_err(&lp->spi->dev, "%s :ERROR IRQ1 = 0x%X\n",
 			__func__, irq1);
 
-	adf7242_debug(lp, irq1);
+	adf7242_de(lp, irq1);
 
 	xmit = test_bit(FLAG_XMIT, &lp->flags);
 
@@ -1159,19 +1159,19 @@ static int adf7242_stats_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int adf7242_debugfs_init(struct adf7242_local *lp)
+static int adf7242_defs_init(struct adf7242_local *lp)
 {
-	char debugfs_dir_name[DNAME_INLINE_LEN + 1] = "adf7242-";
+	char defs_dir_name[DNAME_INLINE_LEN + 1] = "adf7242-";
 	struct dentry *stats;
 
-	strncat(debugfs_dir_name, dev_name(&lp->spi->dev), DNAME_INLINE_LEN);
+	strncat(defs_dir_name, dev_name(&lp->spi->dev), DNAME_INLINE_LEN);
 
-	lp->debugfs_root = debugfs_create_dir(debugfs_dir_name, NULL);
-	if (IS_ERR_OR_NULL(lp->debugfs_root))
-		return PTR_ERR_OR_ZERO(lp->debugfs_root);
+	lp->defs_root = defs_create_dir(defs_dir_name, NULL);
+	if (IS_ERR_OR_NULL(lp->defs_root))
+		return PTR_ERR_OR_ZERO(lp->defs_root);
 
-	stats = debugfs_create_devm_seqfile(&lp->spi->dev, "status",
-					    lp->debugfs_root,
+	stats = defs_create_devm_seqfile(&lp->spi->dev, "status",
+					    lp->defs_root,
 					    adf7242_stats_show);
 	return PTR_ERR_OR_ZERO(stats);
 
@@ -1295,7 +1295,7 @@ static int adf7242_probe(struct spi_device *spi)
 
 	dev_set_drvdata(&spi->dev, lp);
 
-	adf7242_debugfs_init(lp);
+	adf7242_defs_init(lp);
 
 	dev_info(&spi->dev, "mac802154 IRQ-%d registered\n", spi->irq);
 
@@ -1312,7 +1312,7 @@ static int adf7242_remove(struct spi_device *spi)
 {
 	struct adf7242_local *lp = spi_get_drvdata(spi);
 
-	debugfs_remove_recursive(lp->debugfs_root);
+	defs_remove_recursive(lp->defs_root);
 
 	cancel_delayed_work_sync(&lp->work);
 	destroy_workqueue(lp->wqueue);

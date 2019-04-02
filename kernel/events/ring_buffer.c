@@ -352,7 +352,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	 *
 	 * Checking rb::aux_mmap_count and rb::refcount has to be done in
 	 * the same order, see perf_mmap_close. Otherwise we end up freeing
-	 * aux pages in this path, which is a bug, because in_atomic().
+	 * aux pages in this path, which is a , because in_atomic().
 	 */
 	if (!atomic_read(&rb->aux_mmap_count))
 		goto err;

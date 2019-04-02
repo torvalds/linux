@@ -71,13 +71,13 @@
 
 #define SHARED_SIZE	PAGE_ALIGN(sizeof(struct pxa3xx_gcu_shared))
 
-/* #define PXA3XX_GCU_DEBUG */
-/* #define PXA3XX_GCU_DEBUG_TIMER */
+/* #define PXA3XX_GCU_DE */
+/* #define PXA3XX_GCU_DE_TIMER */
 
-#ifdef PXA3XX_GCU_DEBUG
+#ifdef PXA3XX_GCU_DE
 #define QDUMP(msg)					\
 	do {						\
-		QPRINT(priv, KERN_DEBUG, msg);		\
+		QPRINT(priv, KERN_DE, msg);		\
 	} while (0)
 #else
 #define QDUMP(msg)	do {} while (0)
@@ -186,7 +186,7 @@ dump_whole_state(struct pxa3xx_gcu_priv *priv)
 
 	QDUMP("DUMP");
 
-	printk(KERN_DEBUG "== PXA3XX-GCU DUMP ==\n"
+	printk(KERN_DE "== PXA3XX-GCU DUMP ==\n"
 		"%s, STATUS 0x%02lx, B 0x%08lx [%ld], E %5ld, H %5ld, T %5ld\n",
 		sh->hw_running ? "running" : "idle   ",
 		gc_readl(priv, REG_GCISCR),
@@ -222,7 +222,7 @@ run_ready(struct pxa3xx_gcu_priv *priv)
 
 	QDUMP("Start");
 
-	BUG_ON(!ready);
+	_ON(!ready);
 
 	shared->buffer[num++] = 0x05000000;
 
@@ -444,7 +444,7 @@ pxa3xx_gcu_write(struct file *file, const char *buff,
 	buffer->next = NULL;
 
 	if (priv->ready) {
-		BUG_ON(priv->ready_last == NULL);
+		_ON(priv->ready_last == NULL);
 
 		priv->ready_last->next = buffer;
 	} else
@@ -513,28 +513,28 @@ pxa3xx_gcu_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 
-#ifdef PXA3XX_GCU_DEBUG_TIMER
-static struct timer_list pxa3xx_gcu_debug_timer;
-static struct pxa3xx_gcu_priv *debug_timer_priv;
+#ifdef PXA3XX_GCU_DE_TIMER
+static struct timer_list pxa3xx_gcu_de_timer;
+static struct pxa3xx_gcu_priv *de_timer_priv;
 
-static void pxa3xx_gcu_debug_timedout(struct timer_list *unused)
+static void pxa3xx_gcu_de_timedout(struct timer_list *unused)
 {
-	struct pxa3xx_gcu_priv *priv = debug_timer_priv;
+	struct pxa3xx_gcu_priv *priv = de_timer_priv;
 
 	QERROR("Timer DUMP");
 
-	mod_timer(&pxa3xx_gcu_debug_timer, jiffies + 5 * HZ);
+	mod_timer(&pxa3xx_gcu_de_timer, jiffies + 5 * HZ);
 }
 
-static void pxa3xx_gcu_init_debug_timer(struct pxa3xx_gcu_priv *priv)
+static void pxa3xx_gcu_init_de_timer(struct pxa3xx_gcu_priv *priv)
 {
 	/* init the timer structure */
-	debug_timer_priv = priv;
-	timer_setup(&pxa3xx_gcu_debug_timer, pxa3xx_gcu_debug_timedout, 0);
-	pxa3xx_gcu_debug_timedout(NULL);
+	de_timer_priv = priv;
+	timer_setup(&pxa3xx_gcu_de_timer, pxa3xx_gcu_de_timedout, 0);
+	pxa3xx_gcu_de_timedout(NULL);
 }
 #else
-static inline void pxa3xx_gcu_init_debug_timer(struct pxa3xx_gcu_priv *priv) {}
+static inline void pxa3xx_gcu_init_de_timer(struct pxa3xx_gcu_priv *priv) {}
 #endif
 
 static int
@@ -671,7 +671,7 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	priv->resource_mem = r;
 	pxa3xx_gcu_reset(priv);
-	pxa3xx_gcu_init_debug_timer(priv);
+	pxa3xx_gcu_init_de_timer(priv);
 
 	dev_info(dev, "registered @0x%p, DMA 0x%p (%d bytes), IRQ %d\n",
 			(void *) r->start, (void *) priv->shared_phys,

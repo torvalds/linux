@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef B43_DEBUGFS_H_
-#define B43_DEBUGFS_H_
+#ifndef B43_DEFS_H_
+#define B43_DEFS_H_
 
 struct b43_wldev;
 struct b43_txstatus;
 
-enum b43_dyndbg {		/* Dynamic debugging features */
+enum b43_dyndbg {		/* Dynamic deging features */
 	B43_DBG_XMITPOWER,
 	B43_DBG_DMAOVERFLOW,
 	B43_DBG_DMAVERBOSE,
@@ -18,7 +18,7 @@ enum b43_dyndbg {		/* Dynamic debugging features */
 	__B43_NR_DYNDBG,
 };
 
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_B43_DE
 
 struct dentry;
 
@@ -68,45 +68,45 @@ struct b43_dfsentry {
 	u32 shm32read_routing_next;
 	u32 shm32read_addr_next;
 
-	/* Enabled/Disabled list for the dynamic debugging features. */
-	bool dyn_debug[__B43_NR_DYNDBG];
-	/* Dentries for the dynamic debugging entries. */
-	struct dentry *dyn_debug_dentries[__B43_NR_DYNDBG];
+	/* Enabled/Disabled list for the dynamic deging features. */
+	bool dyn_de[__B43_NR_DYNDBG];
+	/* Dentries for the dynamic deging entries. */
+	struct dentry *dyn_de_dentries[__B43_NR_DYNDBG];
 };
 
-bool b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature);
+bool b43_de(struct b43_wldev *dev, enum b43_dyndbg feature);
 
-void b43_debugfs_init(void);
-void b43_debugfs_exit(void);
-void b43_debugfs_add_device(struct b43_wldev *dev);
-void b43_debugfs_remove_device(struct b43_wldev *dev);
-void b43_debugfs_log_txstat(struct b43_wldev *dev,
+void b43_defs_init(void);
+void b43_defs_exit(void);
+void b43_defs_add_device(struct b43_wldev *dev);
+void b43_defs_remove_device(struct b43_wldev *dev);
+void b43_defs_log_txstat(struct b43_wldev *dev,
 			    const struct b43_txstatus *status);
 
-#else /* CONFIG_B43_DEBUG */
+#else /* CONFIG_B43_DE */
 
-static inline bool b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature)
+static inline bool b43_de(struct b43_wldev *dev, enum b43_dyndbg feature)
 {
 	return false;
 }
 
-static inline void b43_debugfs_init(void)
+static inline void b43_defs_init(void)
 {
 }
-static inline void b43_debugfs_exit(void)
+static inline void b43_defs_exit(void)
 {
 }
-static inline void b43_debugfs_add_device(struct b43_wldev *dev)
+static inline void b43_defs_add_device(struct b43_wldev *dev)
 {
 }
-static inline void b43_debugfs_remove_device(struct b43_wldev *dev)
+static inline void b43_defs_remove_device(struct b43_wldev *dev)
 {
 }
-static inline void b43_debugfs_log_txstat(struct b43_wldev *dev,
+static inline void b43_defs_log_txstat(struct b43_wldev *dev,
 					  const struct b43_txstatus *status)
 {
 }
 
-#endif /* CONFIG_B43_DEBUG */
+#endif /* CONFIG_B43_DE */
 
-#endif /* B43_DEBUGFS_H_ */
+#endif /* B43_DEFS_H_ */

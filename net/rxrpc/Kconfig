@@ -34,11 +34,11 @@ config AF_RXRPC_INJECT_LOSS
 	  transmitted packets.
 
 
-config AF_RXRPC_DEBUG
-	bool "RxRPC dynamic debugging"
+config AF_RXRPC_DE
+	bool "RxRPC dynamic deging"
 	depends on AF_RXRPC
 	help
-	  Say Y here to make runtime controllable debugging messages appear.
+	  Say Y here to make runtime controllable deging messages appear.
 
 	  See Documentation/networking/rxrpc.txt.
 

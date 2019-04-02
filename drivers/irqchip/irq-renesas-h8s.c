@@ -86,7 +86,7 @@ static int __init h8s_intc_of_init(struct device_node *intc,
 	int n;
 
 	intc_baseaddr = of_iomap(intc, 0);
-	BUG_ON(!intc_baseaddr);
+	_ON(!intc_baseaddr);
 
 	/* All interrupt priority is 0 (disable) */
 	/* IPRA to IPRK */
@@ -94,7 +94,7 @@ static int __init h8s_intc_of_init(struct device_node *intc,
 		writew(0x0000, IPRA + (n * 2));
 
 	domain = irq_domain_add_linear(intc, NR_IRQS, &irq_ops, NULL);
-	BUG_ON(!domain);
+	_ON(!domain);
 	irq_set_default_host(domain);
 	return 0;
 }

@@ -878,7 +878,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 	txst = readl(priv->base + IFI_CANFD_TXSTCMD);
 	if (txst & IFI_CANFD_TXSTCMD_FULL) {
 		netif_stop_queue(ndev);
-		netdev_err(ndev, "BUG! TX FIFO full when queue awake!\n");
+		netdev_err(ndev, "! TX FIFO full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 

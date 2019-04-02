@@ -116,7 +116,7 @@ static int check_acpi_tpm2(struct device *dev)
 	st =
 	    acpi_get_table(ACPI_SIG_TPM2, 1, (struct acpi_table_header **)&tbl);
 	if (ACPI_FAILURE(st) || tbl->header.length < sizeof(*tbl)) {
-		dev_err(dev, FW_BUG "failed to get TPM2 ACPI table\n");
+		dev_err(dev, FW_ "failed to get TPM2 ACPI table\n");
 		return -EINVAL;
 	}
 

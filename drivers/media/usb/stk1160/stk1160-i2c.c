@@ -27,14 +27,14 @@
 #include "stk1160.h"
 #include "stk1160-reg.h"
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
+static unsigned int i2c_de;
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de, "enable de messages [i2c]");
 
 #define dprintk_i2c(fmt, args...)				\
 do {								\
-	if (i2c_debug)						\
-		printk(KERN_DEBUG fmt, ##args);			\
+	if (i2c_de)						\
+		printk(KERN_DE fmt, ##args);			\
 } while (0)
 
 static int stk1160_i2c_busy_wait(struct stk1160 *dev, u8 wait_bit_mask)

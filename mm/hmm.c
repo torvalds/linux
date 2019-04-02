@@ -194,7 +194,7 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 	struct hmm_update update;
 	struct hmm *hmm = range->mm->hmm;
 
-	VM_BUG_ON(!hmm);
+	VM__ON(!hmm);
 
 	update.start = range->start;
 	update.end = range->end;
@@ -209,7 +209,7 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
 	struct hmm_update update;
 	struct hmm *hmm = range->mm->hmm;
 
-	VM_BUG_ON(!hmm);
+	VM__ON(!hmm);
 
 	update.start = range->start;
 	update.end = range->end;
@@ -806,7 +806,7 @@ bool hmm_vma_range_done(struct hmm_range *range)
 	struct hmm *hmm;
 
 	if (range->end <= range->start) {
-		BUG();
+		();
 		return false;
 	}
 

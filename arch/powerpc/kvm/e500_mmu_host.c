@@ -313,7 +313,7 @@ static void kvmppc_e500_setup_stlbe(
 	kvm_pfn_t pfn = ref->pfn;
 	u32 pr = vcpu->arch.shared->msr & MSR_PR;
 
-	BUG_ON(!(ref->flags & E500_TLB_VALID));
+	_ON(!(ref->flags & E500_TLB_VALID));
 
 	/* Force IPROT=0 for all guest mappings. */
 	stlbe->mas1 = MAS1_TSIZE(tsize) | get_tlb_sts(gtlbe) | MAS1_VALID;
@@ -619,7 +619,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 	}
 
 	default:
-		BUG();
+		();
 		break;
 	}
 }

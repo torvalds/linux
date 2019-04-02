@@ -84,7 +84,7 @@ void machine_crash_nonpanic_core(void *unused)
 	struct pt_regs regs;
 
 	crash_setup_regs(&regs, get_irq_regs());
-	printk(KERN_DEBUG "CPU %u will stop doing anything useful since another CPU has crashed\n",
+	printk(KERN_DE "CPU %u will stop doing anything useful since another CPU has crashed\n",
 	       smp_processor_id());
 	crash_save_cpu(&regs, smp_processor_id());
 	flush_cache_all();
@@ -168,9 +168,9 @@ void machine_kexec(struct kimage *image)
 	 * This can only happen if machine_shutdown() failed to disable some
 	 * CPU, and that can only happen if the checks in
 	 * machine_kexec_prepare() were not correct. If this fails, we can't
-	 * reliably kexec anyway, so BUG_ON is appropriate.
+	 * reliably kexec anyway, so _ON is appropriate.
 	 */
-	BUG_ON(num_online_cpus() > 1);
+	_ON(num_online_cpus() > 1);
 
 	page_list = image->head & PAGE_MASK;
 

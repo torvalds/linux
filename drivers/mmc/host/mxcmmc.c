@@ -937,7 +937,7 @@ static void mxcmci_init_card(struct mmc_host *host, struct mmc_card *card)
 	struct mxcmci_host *mxcmci = mmc_priv(host);
 
 	/*
-	 * MX3 SoCs have a silicon bug which corrupts CRC calculation of
+	 * MX3 SoCs have a silicon  which corrupts CRC calculation of
 	 * multi-block transfers when connected SDIO peripheral doesn't
 	 * drive the BUSY line as required by the specs.
 	 * One way to prevent this is to only allow 1-bit transfers.

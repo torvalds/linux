@@ -108,7 +108,7 @@ void __init spear13xx_timer_init(void)
 	gpt_clk = clk_get_sys("gpt0", NULL);
 	if (IS_ERR(gpt_clk)) {
 		pr_err("%s:couldn't get clk for gpt\n", __func__);
-		BUG();
+		();
 	}
 
 	/* get the suitable parent clock for timer*/
@@ -116,7 +116,7 @@ void __init spear13xx_timer_init(void)
 	if (IS_ERR(pclk)) {
 		pr_err("%s:couldn't get %s as parent for gpt\n", __func__,
 				pclk_name);
-		BUG();
+		();
 	}
 
 	clk_set_parent(gpt_clk, pclk);

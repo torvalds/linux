@@ -57,7 +57,7 @@
  *   Release 1 of the Architecture) or EHB (in Release 2 of the Architecture),
  *   to guarantee that memory reference results are visible across operating
  *   mode changes. For example, a completion barrier is required on some
- *   implementations on entry to and exit from Debug Mode to guarantee that
+ *   implementations on entry to and exit from De Mode to guarantee that
  *   memory effects are handled correctly.
  */
 
@@ -237,10 +237,10 @@
 #define __smp_mb__after_atomic()	smp_llsc_mb()
 
 /*
- * Some Loongson 3 CPUs have a bug wherein execution of a memory access (load,
+ * Some Loongson 3 CPUs have a  wherein execution of a memory access (load,
  * store or pref) in between an ll & sc can cause the sc instruction to
  * erroneously succeed, breaking atomicity. Whilst it's unusual to write code
- * containing such sequences, this bug bites harder than we might otherwise
+ * containing such sequences, this  bites harder than we might otherwise
  * expect due to reordering & speculation:
  *
  * 1) A memory access appearing prior to the ll in program order may actually

@@ -47,7 +47,7 @@
 */
 
 
-#undef DEBUG
+#undef DE
 
 #define MAX_BOARD 8		/* maximum of pc board possible */
 #define MAX_ISA_BOARD 4
@@ -361,7 +361,7 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 	unsigned long flags;	/* Current priority              */
 	struct st_ram_io st_loc;
 	struct mailbox tmpmailbox;
-#ifdef DEBUG
+#ifdef DE
 	int c;
 #endif
 	DECLARE_WAITQUEUE(wait, current);
@@ -394,7 +394,7 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 	if (!apbs[IndexCard].RamIO)
 		return -EINVAL;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("Write to applicom card #%d. struct st_ram_io follows:",
 	       IndexCard+1);
 
@@ -486,7 +486,7 @@ static int do_ac_read(int IndexCard, char __user *buf,
 {
 	void __iomem *from = apbs[IndexCard].RamIO + RAM_TO_PC;
 	unsigned char *to = (unsigned char *)mailbox;
-#ifdef DEBUG
+#ifdef DE
 	int c;
 #endif
 
@@ -510,7 +510,7 @@ static int do_ac_read(int IndexCard, char __user *buf,
 	writeb(2, apbs[IndexCard].RamIO + RAM_IT_FROM_PC);
 	Dummy = readb(apbs[IndexCard].RamIO + VERS);
 
-#ifdef DEBUG
+#ifdef DE
 		printk("Read from applicom card #%d. struct st_ram_io follows:", NumCard);
 
 		for (c = 0; c < sizeof(struct st_ram_io);) {
@@ -542,7 +542,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 	unsigned char tmp;
 	int ret = 0;
 	DECLARE_WAITQUEUE(wait, current);
-#ifdef DEBUG
+#ifdef DE
 	int loopcount=0;
 #endif
 	/* No need to ratelimit this. Only root can trigger it anyway */
@@ -611,9 +611,9 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 		if (signal_pending(current))
 			return -EINTR;
 
-#ifdef DEBUG
+#ifdef DE
 		if (loopcount++ > 2) {
-			printk(KERN_DEBUG "Looping in ac_read. loopcount %d\n", loopcount);
+			printk(KERN_DE "Looping in ac_read. loopcount %d\n", loopcount);
 		}
 #endif
 	} 

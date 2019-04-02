@@ -114,7 +114,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 	ACPI_FUNCTION_TRACE_PTR(ds_load1_begin_op, walk_state->op);
 
 	op = walk_state->op;
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
 			  walk_state));
 
 	/* We are only interested in opcodes that have an associated name */
@@ -139,7 +139,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 	object_type = walk_state->op_info->object_type;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "State=%p Op=%p [%s]\n", walk_state, op,
 			  acpi_ut_get_type_name(object_type)));
 
@@ -204,7 +204,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			 * Note: silently change the type here. On the second pass,
 			 * we will report a warning
 			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Type override - [%4.4s] had invalid type (%s) "
 					  "for Scope operator, changed to type ANY\n",
 					  acpi_ut_get_node_name(node),
@@ -282,19 +282,19 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		    (!(walk_state->parse_flags & ACPI_PARSE_DEFERRED_OP))) {
 			if (walk_state->namespace_override) {
 				flags |= ACPI_NS_OVERRIDE_IF_FOUND;
-				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 						  "[%s] Override allowed\n",
 						  acpi_ut_get_type_name
 						  (object_type)));
 			} else {
 				flags |= ACPI_NS_ERROR_IF_FOUND;
-				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 						  "[%s] Cannot already exist\n",
 						  acpi_ut_get_type_name
 						  (object_type)));
 			}
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 					  "[%s] Both Find or Create allowed\n",
 					  acpi_ut_get_type_name(object_type)));
 		}
@@ -407,7 +407,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	ACPI_FUNCTION_TRACE(ds_load1_end_op);
 
 	op = walk_state->op;
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
 			  walk_state));
 
 	/* We are only interested in opcodes that have an associated name */
@@ -529,7 +529,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 			 * of invocations of the method (need to know the number of
 			 * arguments.)
 			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 					  "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
 					  walk_state, op, op->named.node));
 
@@ -566,7 +566,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	if (!walk_state->method_node &&
 	    op->common.aml_opcode != AML_EXTERNAL_OP &&
 	    acpi_ns_opens_scope(object_type)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+		ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 				  "(%s): Popping scope for Op %p\n",
 				  acpi_ut_get_type_name(object_type), op));
 

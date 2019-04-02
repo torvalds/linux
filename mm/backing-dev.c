@@ -30,18 +30,18 @@ LIST_HEAD(bdi_list);
 /* bdi_wq serves all asynchronous writeback tasks */
 struct workqueue_struct *bdi_wq;
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
-static struct dentry *bdi_debug_root;
+static struct dentry *bdi_de_root;
 
-static void bdi_debug_init(void)
+static void bdi_de_init(void)
 {
-	bdi_debug_root = debugfs_create_dir("bdi", NULL);
+	bdi_de_root = defs_create_dir("bdi", NULL);
 }
 
-static int bdi_debug_stats_show(struct seq_file *m, void *v)
+static int bdi_de_stats_show(struct seq_file *m, void *v)
 {
 	struct backing_dev_info *bdi = m->private;
 	struct bdi_writeback *wb = &bdi->wb;
@@ -100,43 +100,43 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(bdi_debug_stats);
+DEFINE_SHOW_ATTRIBUTE(bdi_de_stats);
 
-static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+static int bdi_de_register(struct backing_dev_info *bdi, const char *name)
 {
-	if (!bdi_debug_root)
+	if (!bdi_de_root)
 		return -ENOMEM;
 
-	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
-	if (!bdi->debug_dir)
+	bdi->de_dir = defs_create_dir(name, bdi_de_root);
+	if (!bdi->de_dir)
 		return -ENOMEM;
 
-	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
-					       bdi, &bdi_debug_stats_fops);
-	if (!bdi->debug_stats) {
-		debugfs_remove(bdi->debug_dir);
-		bdi->debug_dir = NULL;
+	bdi->de_stats = defs_create_file("stats", 0444, bdi->de_dir,
+					       bdi, &bdi_de_stats_fops);
+	if (!bdi->de_stats) {
+		defs_remove(bdi->de_dir);
+		bdi->de_dir = NULL;
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-static void bdi_debug_unregister(struct backing_dev_info *bdi)
+static void bdi_de_unregister(struct backing_dev_info *bdi)
 {
-	debugfs_remove(bdi->debug_stats);
-	debugfs_remove(bdi->debug_dir);
+	defs_remove(bdi->de_stats);
+	defs_remove(bdi->de_dir);
 }
 #else
-static inline void bdi_debug_init(void)
+static inline void bdi_de_init(void)
 {
 }
-static inline int bdi_debug_register(struct backing_dev_info *bdi,
+static inline int bdi_de_register(struct backing_dev_info *bdi,
 				      const char *name)
 {
 	return 0;
 }
-static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
+static inline void bdi_de_unregister(struct backing_dev_info *bdi)
 {
 }
 #endif
@@ -237,7 +237,7 @@ static __init int bdi_class_init(void)
 		return PTR_ERR(bdi_class);
 
 	bdi_class->dev_groups = bdi_dev_groups;
-	bdi_debug_init();
+	bdi_de_init();
 
 	return 0;
 }
@@ -886,7 +886,7 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 	cgwb_bdi_register(bdi);
 	bdi->dev = dev;
 
-	bdi_debug_register(bdi, dev_name(dev));
+	bdi_de_register(bdi, dev_name(dev));
 	set_bit(WB_registered, &bdi->wb.state);
 
 	spin_lock_bh(&bdi_lock);
@@ -945,7 +945,7 @@ void bdi_unregister(struct backing_dev_info *bdi)
 	cgwb_bdi_unregister(bdi);
 
 	if (bdi->dev) {
-		bdi_debug_unregister(bdi);
+		bdi_de_unregister(bdi);
 		device_unregister(bdi->dev);
 		bdi->dev = NULL;
 	}

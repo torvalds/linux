@@ -69,7 +69,7 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	} else {
 		/* For some reason, it is possible to enter this routine
 		 * without interruptions enabled, it has been tested with
-		 * several units (Bug in SA11xx chip?).
+		 * several units ( in SA11xx chip?).
 		 *
 		 * This situation leads to an infinite "loop" of interrupt
 		 * routine calling and as a result the processor seems to

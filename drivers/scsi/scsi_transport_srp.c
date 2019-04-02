@@ -482,7 +482,7 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
 	delay = rport->reconnect_delay;
 	fast_io_fail_tmo = rport->fast_io_fail_tmo;
 	dev_loss_tmo = rport->dev_loss_tmo;
-	pr_debug("%s current state: %d\n", dev_name(&shost->shost_gendev),
+	pr_de("%s current state: %d\n", dev_name(&shost->shost_gendev),
 		 rport->state);
 
 	if (rport->state == SRP_RPORT_LOST)
@@ -492,7 +492,7 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
 				   1UL * delay * HZ);
 	if ((fast_io_fail_tmo >= 0 || dev_loss_tmo >= 0) &&
 	    srp_rport_set_state(rport, SRP_RPORT_BLOCKED) == 0) {
-		pr_debug("%s new state: %d\n", dev_name(&shost->shost_gendev),
+		pr_de("%s new state: %d\n", dev_name(&shost->shost_gendev),
 			 rport->state);
 		scsi_target_block(&shost->shost_gendev);
 		if (fast_io_fail_tmo >= 0)
@@ -550,14 +550,14 @@ int srp_reconnect_rport(struct srp_rport *rport)
 	struct scsi_device *sdev;
 	int res;
 
-	pr_debug("SCSI host %s\n", dev_name(&shost->shost_gendev));
+	pr_de("SCSI host %s\n", dev_name(&shost->shost_gendev));
 
 	res = mutex_lock_interruptible(&rport->mutex);
 	if (res)
 		goto out;
 	scsi_target_block(&shost->shost_gendev);
 	res = rport->state != SRP_RPORT_LOST ? i->f->reconnect(rport) : -ENODEV;
-	pr_debug("%s (state %d): transport.reconnect() returned %d\n",
+	pr_de("%s (state %d): transport.reconnect() returned %d\n",
 		 dev_name(&shost->shost_gendev), rport->state, res);
 	if (res == 0) {
 		cancel_delayed_work(&rport->fast_io_fail_work);
@@ -616,7 +616,7 @@ enum blk_eh_timer_return srp_timed_out(struct scsi_cmnd *scmd)
 	struct srp_internal *i = to_srp_internal(shost->transportt);
 	struct srp_rport *rport = shost_to_rport(shost);
 
-	pr_debug("timeout for sdev %s\n", dev_name(&sdev->sdev_gendev));
+	pr_de("timeout for sdev %s\n", dev_name(&sdev->sdev_gendev));
 	return rport && rport->fast_io_fail_tmo < 0 &&
 		rport->dev_loss_tmo < 0 &&
 		i->f->reset_timer_if_blocked && scsi_device_blocked(sdev) ?
@@ -853,7 +853,7 @@ srp_attach_transport(struct srp_function_template *ft)
 	if (ft->rport_delete)
 		i->rport_attrs[count++] = &dev_attr_delete;
 	i->rport_attrs[count++] = NULL;
-	BUG_ON(count > ARRAY_SIZE(i->rport_attrs));
+	_ON(count > ARRAY_SIZE(i->rport_attrs));
 
 	transport_container_register(&i->rport_attr_cont);
 

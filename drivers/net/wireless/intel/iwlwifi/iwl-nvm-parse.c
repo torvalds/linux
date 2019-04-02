@@ -219,13 +219,13 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 	((flags & NVM_CHANNEL_##x) ? " " #x : "")
 
 	if (!(flags & NVM_CHANNEL_VALID)) {
-		IWL_DEBUG_DEV(dev, level, "Ch. %d: 0x%x: No traffic\n",
+		IWL_DE_DEV(dev, level, "Ch. %d: 0x%x: No traffic\n",
 			      chan, flags);
 		return;
 	}
 
 	/* Note: already can print up to 101 characters, 110 is the limit! */
-	IWL_DEBUG_DEV(dev, level,
+	IWL_DE_DEV(dev, level,
 		      "Ch. %d: 0x%x:%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		      chan, flags,
 		      CHECK_AND_PRINT_I(VALID),
@@ -371,7 +371,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		iwl_nvm_print_channel_flags(dev, IWL_DL_EEPROM,
 					    channel->hw_value, ch_flags);
-		IWL_DEBUG_EEPROM(dev, "Ch. %d: %ddBm\n",
+		IWL_DE_EEPROM(dev, "Ch. %d: %ddBm\n",
 				 channel->hw_value, channel->max_power);
 	}
 
@@ -890,7 +890,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 			const __be16 *nvm_hw)
 {
 	/*
-	 * Workaround a bug in Indonesia SKUs where the regulatory in
+	 * Workaround a  in Indonesia SKUs where the regulatory in
 	 * some 7000-family OTPs erroneously allow wide channels in
 	 * 5GHz.  To check for Indonesia, we take the SKU value from
 	 * bits 1-4 in the subsystem ID and check if it is either 5 or
@@ -907,7 +907,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 		u8 sku = (subsystem_id & 0x1e) >> 1;
 
 		if (sku == 5 || sku == 9) {
-			IWL_DEBUG_EEPROM(dev,
+			IWL_DE_EEPROM(dev,
 					 "disabling wide channels in 5GHz (0x%0x %d)\n",
 					 subsystem_id, sku);
 			return true;
@@ -1093,7 +1093,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
 		return ERR_PTR(-EINVAL);
 
-	IWL_DEBUG_DEV(dev, IWL_DL_LAR, "building regdom for %d channels\n",
+	IWL_DE_DEV(dev, IWL_DL_LAR, "building regdom for %d channels\n",
 		      num_of_ch);
 
 	/* build a regdomain rule for every valid channel */
@@ -1206,7 +1206,7 @@ void iwl_nvm_fixups(u32 hw_id, unsigned int section, u8 *data,
 	if (section == NVM_SECTION_TYPE_PHY_SKU &&
 	    hw_id == IWL_4165_DEVICE_ID && data && len >= 5 &&
 	    (data[4] & NVM_SKU_CAP_MIMO_DISABLE))
-		/* OTP 0x52 bug work around: it's a 1x1 device */
+		/* OTP 0x52  work around: it's a 1x1 device */
 		data[3] = ANT_B | (ANT_B << 4);
 }
 IWL_EXPORT_SYMBOL(iwl_nvm_fixups);
@@ -1257,7 +1257,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 #define NVM_HEADER_1	(0x4E564D2A)
 #define NVM_HEADER_SIZE	(4 * sizeof(u32))
 
-	IWL_DEBUG_EEPROM(trans->dev, "Read from external NVM\n");
+	IWL_DE_EEPROM(trans->dev, "Read from external NVM\n");
 
 	/* Maximal size depends on NVM version */
 	if (trans->cfg->nvm_type != IWL_NVM_EXT)

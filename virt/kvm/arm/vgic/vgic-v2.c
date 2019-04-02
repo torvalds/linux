@@ -63,7 +63,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 	struct vgic_v2_cpu_if *cpuif = &vgic_cpu->vgic_v2;
 	int lr;
 
-	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
+	DE_SPINLOCK__ON(!irqs_disabled());
 
 	cpuif->vgic_hcr &= ~GICH_HCR_UIE;
 
@@ -195,7 +195,7 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 		if (vgic_irq_is_sgi(irq->intid)) {
 			u32 src = ffs(irq->source);
 
-			BUG_ON(!src);
+			_ON(!src);
 			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
 			irq->source &= ~(1 << (src - 1));
 			if (irq->source) {
@@ -419,7 +419,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.type = VGIC_V2;
 	kvm_vgic_global_state.max_gic_vcpus = VGIC_V2_MAX_CPUS;
 
-	kvm_debug("vgic-v2@%llx\n", info->vctrl.start);
+	kvm_de("vgic-v2@%llx\n", info->vctrl.start);
 
 	return 0;
 out:

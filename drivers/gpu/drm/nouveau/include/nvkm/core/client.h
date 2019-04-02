@@ -8,7 +8,7 @@ struct nvkm_client {
 	struct nvkm_object object;
 	char name[32];
 	u64 device;
-	u32 debug;
+	u32 de;
 
 	struct nvkm_client_notify *notify[32];
 	struct rb_root objroot;
@@ -37,13 +37,13 @@ int nvkm_client_notify_put(struct nvkm_client *, int index);
 #define nvif_printk(o,l,p,f,a...) do {                                         \
 	const struct nvkm_object *_object = (o);                               \
 	const struct nvkm_client *_client = _object->client;                   \
-	if (_client->debug >= NV_DBG_##l)                                      \
+	if (_client->de >= NV_DBG_##l)                                      \
 		printk(KERN_##p "nouveau: %s:%08x:%08x: "f, _client->name,     \
 		       _object->handle, _object->oclass, ##a);                 \
 } while(0)
 #define nvif_fatal(o,f,a...) nvif_printk((o), FATAL, CRIT, f, ##a)
 #define nvif_error(o,f,a...) nvif_printk((o), ERROR,  ERR, f, ##a)
-#define nvif_debug(o,f,a...) nvif_printk((o), DEBUG, INFO, f, ##a)
+#define nvif_de(o,f,a...) nvif_printk((o), DE, INFO, f, ##a)
 #define nvif_trace(o,f,a...) nvif_printk((o), TRACE, INFO, f, ##a)
 #define nvif_info(o,f,a...)  nvif_printk((o),  INFO, INFO, f, ##a)
 #define nvif_ioctl(o,f,a...) nvif_trace((o), "ioctl: "f, ##a)

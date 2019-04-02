@@ -560,7 +560,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	 * If mismatch happens, security may be compromised due to buffer
 	 * overflow, so it's better to crash.
 	 */
-	BUG_ON((char *)nl - (char *)orig_nl != needed);
+	_ON((char *)nl - (char *)orig_nl != needed);
 
  out:
 	up_write(&_hash_lock);
@@ -712,7 +712,7 @@ static void __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 	/*
 	 * Yes, this will be out of date by the time it gets back
 	 * to userland, but it is still very useful for
-	 * debugging.
+	 * deging.
 	 */
 	param->open_count = dm_open_count(md);
 
@@ -846,7 +846,7 @@ static int dev_remove(struct file *filp, struct dm_ioctl *param, size_t param_si
 	hc = __find_device_hash_cell(param);
 
 	if (!hc) {
-		DMDEBUG_LIMIT("device doesn't appear to be in the dev hash table.");
+		DMDE_LIMIT("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
 		return -ENXIO;
 	}
@@ -863,7 +863,7 @@ static int dev_remove(struct file *filp, struct dm_ioctl *param, size_t param_si
 			dm_put(md);
 			return 0;
 		}
-		DMDEBUG_LIMIT("unable to remove open device %s", hc->name);
+		DMDE_LIMIT("unable to remove open device %s", hc->name);
 		up_write(&_hash_lock);
 		dm_put(md);
 		return r;
@@ -1018,7 +1018,7 @@ static int do_resume(struct dm_ioctl *param)
 
 	hc = __find_device_hash_cell(param);
 	if (!hc) {
-		DMDEBUG_LIMIT("device doesn't appear to be in the dev hash table.");
+		DMDE_LIMIT("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
 		return -ENXIO;
 	}
@@ -1399,7 +1399,7 @@ static int table_clear(struct file *filp, struct dm_ioctl *param, size_t param_s
 
 	hc = __find_device_hash_cell(param);
 	if (!hc) {
-		DMDEBUG_LIMIT("device doesn't appear to be in the dev hash table.");
+		DMDE_LIMIT("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
 		return -ENXIO;
 	}

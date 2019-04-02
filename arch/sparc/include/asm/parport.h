@@ -73,7 +73,7 @@ static inline void enable_dma(unsigned int dmanr)
 	if (ebus_dma_request(&sparc_ebus_dmas[dmanr].info,
 			     sparc_ebus_dmas[dmanr].addr,
 			     sparc_ebus_dmas[dmanr].count))
-		BUG();
+		();
 }
 
 static inline void disable_dma(unsigned int dmanr)

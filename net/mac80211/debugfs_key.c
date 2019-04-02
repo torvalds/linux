@@ -13,8 +13,8 @@
 #include <linux/slab.h>
 #include "ieee80211_i.h"
 #include "key.h"
-#include "debugfs.h"
-#include "debugfs_key.h"
+#include "defs.h"
+#include "defs_key.h"
 
 #define KEY_READ(name, prop, format_string)				\
 static ssize_t key_##name##_read(struct file *file,			\
@@ -320,128 +320,128 @@ static ssize_t key_key_read(struct file *file, char __user *userbuf,
 }
 KEY_OPS(key);
 
-#define DEBUGFS_ADD(name) \
-	debugfs_create_file(#name, 0400, key->debugfs.dir, \
+#define DEFS_ADD(name) \
+	defs_create_file(#name, 0400, key->defs.dir, \
 			    key, &key_##name##_ops);
-#define DEBUGFS_ADD_W(name) \
-	debugfs_create_file(#name, 0600, key->debugfs.dir, \
+#define DEFS_ADD_W(name) \
+	defs_create_file(#name, 0600, key->defs.dir, \
 			    key, &key_##name##_ops);
 
-void ieee80211_debugfs_key_add(struct ieee80211_key *key)
+void ieee80211_defs_key_add(struct ieee80211_key *key)
 {
 	static int keycount;
 	char buf[100];
 	struct sta_info *sta;
 
-	if (!key->local->debugfs.keys)
+	if (!key->local->defs.keys)
 		return;
 
 	sprintf(buf, "%d", keycount);
-	key->debugfs.cnt = keycount;
+	key->defs.cnt = keycount;
 	keycount++;
-	key->debugfs.dir = debugfs_create_dir(buf,
-					key->local->debugfs.keys);
+	key->defs.dir = defs_create_dir(buf,
+					key->local->defs.keys);
 
-	if (!key->debugfs.dir)
+	if (!key->defs.dir)
 		return;
 
 	sta = key->sta;
 	if (sta) {
 		sprintf(buf, "../../netdev:%s/stations/%pM",
 			sta->sdata->name, sta->sta.addr);
-		key->debugfs.stalink =
-			debugfs_create_symlink("station", key->debugfs.dir, buf);
+		key->defs.stalink =
+			defs_create_symlink("station", key->defs.dir, buf);
 	}
 
-	DEBUGFS_ADD(keylen);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(keyidx);
-	DEBUGFS_ADD(hw_key_idx);
-	DEBUGFS_ADD(algorithm);
-	DEBUGFS_ADD_W(tx_spec);
-	DEBUGFS_ADD(rx_spec);
-	DEBUGFS_ADD(replays);
-	DEBUGFS_ADD(icverrors);
-	DEBUGFS_ADD(mic_failures);
-	DEBUGFS_ADD(key);
-	DEBUGFS_ADD(ifindex);
+	DEFS_ADD(keylen);
+	DEFS_ADD(flags);
+	DEFS_ADD(keyidx);
+	DEFS_ADD(hw_key_idx);
+	DEFS_ADD(algorithm);
+	DEFS_ADD_W(tx_spec);
+	DEFS_ADD(rx_spec);
+	DEFS_ADD(replays);
+	DEFS_ADD(icverrors);
+	DEFS_ADD(mic_failures);
+	DEFS_ADD(key);
+	DEFS_ADD(ifindex);
 };
 
-void ieee80211_debugfs_key_remove(struct ieee80211_key *key)
+void ieee80211_defs_key_remove(struct ieee80211_key *key)
 {
 	if (!key)
 		return;
 
-	debugfs_remove_recursive(key->debugfs.dir);
-	key->debugfs.dir = NULL;
+	defs_remove_recursive(key->defs.dir);
+	key->defs.dir = NULL;
 }
 
-void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
+void ieee80211_defs_key_update_default(struct ieee80211_sub_if_data *sdata)
 {
 	char buf[50];
 	struct ieee80211_key *key;
 
-	if (!sdata->vif.debugfs_dir)
+	if (!sdata->vif.defs_dir)
 		return;
 
 	lockdep_assert_held(&sdata->local->key_mtx);
 
-	debugfs_remove(sdata->debugfs.default_unicast_key);
-	sdata->debugfs.default_unicast_key = NULL;
+	defs_remove(sdata->defs.default_unicast_key);
+	sdata->defs.default_unicast_key = NULL;
 
 	if (sdata->default_unicast_key) {
 		key = key_mtx_dereference(sdata->local,
 					  sdata->default_unicast_key);
-		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_unicast_key =
-			debugfs_create_symlink("default_unicast_key",
-					       sdata->vif.debugfs_dir, buf);
+		sprintf(buf, "../keys/%d", key->defs.cnt);
+		sdata->defs.default_unicast_key =
+			defs_create_symlink("default_unicast_key",
+					       sdata->vif.defs_dir, buf);
 	}
 
-	debugfs_remove(sdata->debugfs.default_multicast_key);
-	sdata->debugfs.default_multicast_key = NULL;
+	defs_remove(sdata->defs.default_multicast_key);
+	sdata->defs.default_multicast_key = NULL;
 
 	if (sdata->default_multicast_key) {
 		key = key_mtx_dereference(sdata->local,
 					  sdata->default_multicast_key);
-		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_multicast_key =
-			debugfs_create_symlink("default_multicast_key",
-					       sdata->vif.debugfs_dir, buf);
+		sprintf(buf, "../keys/%d", key->defs.cnt);
+		sdata->defs.default_multicast_key =
+			defs_create_symlink("default_multicast_key",
+					       sdata->vif.defs_dir, buf);
 	}
 }
 
-void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
+void ieee80211_defs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 {
 	char buf[50];
 	struct ieee80211_key *key;
 
-	if (!sdata->vif.debugfs_dir)
+	if (!sdata->vif.defs_dir)
 		return;
 
 	key = key_mtx_dereference(sdata->local,
 				  sdata->default_mgmt_key);
 	if (key) {
-		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->debugfs.default_mgmt_key =
-			debugfs_create_symlink("default_mgmt_key",
-					       sdata->vif.debugfs_dir, buf);
+		sprintf(buf, "../keys/%d", key->defs.cnt);
+		sdata->defs.default_mgmt_key =
+			defs_create_symlink("default_mgmt_key",
+					       sdata->vif.defs_dir, buf);
 	} else
-		ieee80211_debugfs_key_remove_mgmt_default(sdata);
+		ieee80211_defs_key_remove_mgmt_default(sdata);
 }
 
-void ieee80211_debugfs_key_remove_mgmt_default(struct ieee80211_sub_if_data *sdata)
+void ieee80211_defs_key_remove_mgmt_default(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata)
 		return;
 
-	debugfs_remove(sdata->debugfs.default_mgmt_key);
-	sdata->debugfs.default_mgmt_key = NULL;
+	defs_remove(sdata->defs.default_mgmt_key);
+	sdata->defs.default_mgmt_key = NULL;
 }
 
-void ieee80211_debugfs_key_sta_del(struct ieee80211_key *key,
+void ieee80211_defs_key_sta_del(struct ieee80211_key *key,
 				   struct sta_info *sta)
 {
-	debugfs_remove(key->debugfs.stalink);
-	key->debugfs.stalink = NULL;
+	defs_remove(key->defs.stalink);
+	key->defs.stalink = NULL;
 }

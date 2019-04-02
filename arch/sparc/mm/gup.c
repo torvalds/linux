@@ -43,7 +43,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 
 		if ((pte_val(pte) & mask) != result)
 			return 0;
-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+		VM__ON(!pfn_valid(pte_pfn(pte)));
 
 		/* The hugepage case is simplified on sparc64 because
 		 * we encode the sub-page pfn offsets into the
@@ -83,7 +83,7 @@ static int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	page = pmd_page(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
 	head = compound_head(page);
 	do {
-		VM_BUG_ON(compound_head(page) != head);
+		VM__ON(compound_head(page) != head);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;
@@ -122,7 +122,7 @@ static int gup_huge_pud(pud_t *pudp, pud_t pud, unsigned long addr,
 	page = pud_page(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
 	head = compound_head(page);
 	do {
-		VM_BUG_ON(compound_head(page) != head);
+		VM__ON(compound_head(page) != head);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;
@@ -309,7 +309,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 
 	local_irq_enable();
 
-	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+	VM__ON(nr != (end - start) >> PAGE_SHIFT);
 	return nr;
 
 	{

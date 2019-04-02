@@ -454,7 +454,7 @@ static int ext4_splice_branch(handle_t *handle,
 		 * the new i_size.  But that is not done here - it is done in
 		 * generic_commit_write->__mark_inode_dirty->ext4_dirty_inode.
 		 */
-		jbd_debug(5, "splicing indirect only\n");
+		jbd_de(5, "splicing indirect only\n");
 		BUFFER_TRACE(where->bh, "call ext4_handle_dirty_metadata");
 		err = ext4_handle_dirty_metadata(handle, ar->inode, where->bh);
 		if (err)
@@ -464,7 +464,7 @@ static int ext4_splice_branch(handle_t *handle,
 		 * OK, we spliced it into the inode itself on a direct block.
 		 */
 		ext4_mark_inode_dirty(handle, ar->inode);
-		jbd_debug(5, "splicing direct\n");
+		jbd_de(5, "splicing direct\n");
 	}
 	return err;
 
@@ -1238,7 +1238,7 @@ int ext4_ind_remove_space(handle_t *handle, struct inode *inode,
 	n = ext4_block_to_path(inode, start, offsets, NULL);
 	n2 = ext4_block_to_path(inode, end, offsets2, NULL);
 
-	BUG_ON(n > n2);
+	_ON(n > n2);
 
 	if ((n == 1) && (n == n2)) {
 		/* We're punching only within direct block range */

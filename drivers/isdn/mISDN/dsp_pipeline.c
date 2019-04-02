@@ -34,8 +34,8 @@
 #include "dsp.h"
 #include "dsp_hwec.h"
 
-/* uncomment for debugging */
-/*#define PIPELINE_DEBUG*/
+/* uncomment for deging */
+/*#define PIPELINE_DE*/
 
 struct dsp_pipeline_entry {
 	struct mISDN_dsp_element *elem;
@@ -121,8 +121,8 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 		}
 	}
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: %s registered\n", __func__, elem->name);
+#ifdef PIPELINE_DE
+	printk(KERN_DE "%s: %s registered\n", __func__, elem->name);
 #endif
 
 	return 0;
@@ -146,8 +146,8 @@ void mISDN_dsp_element_unregister(struct mISDN_dsp_element *elem)
 	list_for_each_entry_safe(entry, n, &dsp_elements, list)
 		if (entry->elem == elem) {
 			device_unregister(&entry->dev);
-#ifdef PIPELINE_DEBUG
-			printk(KERN_DEBUG "%s: %s unregistered\n",
+#ifdef PIPELINE_DE
+			printk(KERN_DE "%s: %s unregistered\n",
 			       __func__, elem->name);
 #endif
 			return;
@@ -162,8 +162,8 @@ int dsp_pipeline_module_init(void)
 	if (IS_ERR(elements_class))
 		return PTR_ERR(elements_class);
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline module initialized\n", __func__);
+#ifdef PIPELINE_DE
+	printk(KERN_DE "%s: dsp pipeline module initialized\n", __func__);
 #endif
 
 	dsp_hwec_init();
@@ -186,8 +186,8 @@ void dsp_pipeline_module_exit(void)
 		kfree(entry);
 	}
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline module exited\n", __func__);
+#ifdef PIPELINE_DE
+	printk(KERN_DE "%s: dsp pipeline module exited\n", __func__);
 #endif
 }
 
@@ -198,8 +198,8 @@ int dsp_pipeline_init(struct dsp_pipeline *pipeline)
 
 	INIT_LIST_HEAD(&pipeline->list);
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline ready\n", __func__);
+#ifdef PIPELINE_DE
+	printk(KERN_DE "%s: dsp pipeline ready\n", __func__);
 #endif
 
 	return 0;
@@ -228,8 +228,8 @@ void dsp_pipeline_destroy(struct dsp_pipeline *pipeline)
 
 	_dsp_pipeline_destroy(pipeline);
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline destroyed\n", __func__);
+#ifdef PIPELINE_DE
+	printk(KERN_DE "%s: dsp pipeline destroyed\n", __func__);
 #endif
 }
 
@@ -285,8 +285,8 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 					if (pipeline_entry->p) {
 						list_add_tail(&pipeline_entry->
 							      list, &pipeline->list);
-#ifdef PIPELINE_DEBUG
-						printk(KERN_DEBUG "%s: created "
+#ifdef PIPELINE_DE
+						printk(KERN_DE "%s: created "
 						       "instance of %s%s%s\n",
 						       __func__, name, args ?
 						       " with args " : "", args ?
@@ -320,8 +320,8 @@ _out:
 	else
 		pipeline->inuse = 0;
 
-#ifdef PIPELINE_DEBUG
-	printk(KERN_DEBUG "%s: dsp pipeline built%s: %s\n",
+#ifdef PIPELINE_DE
+	printk(KERN_DE "%s: dsp pipeline built%s: %s\n",
 	       __func__, incomplete ? " incomplete" : "", cfg);
 #endif
 	kfree(dup);

@@ -40,13 +40,13 @@ static int check_offs_len(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	/* Start address must align on block boundary */
 	if (mtd_mod_by_eb(ofs, mtd)) {
-		pr_debug("%s: unaligned address\n", __func__);
+		pr_de("%s: unaligned address\n", __func__);
 		ret = -EINVAL;
 	}
 
 	/* Length must align on block boundary */
 	if (mtd_mod_by_eb(len, mtd)) {
-		pr_debug("%s: length not block aligned\n", __func__);
+		pr_de("%s: length not block aligned\n", __func__);
 		ret = -EINVAL;
 	}
 

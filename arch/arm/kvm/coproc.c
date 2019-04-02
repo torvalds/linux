@@ -231,7 +231,7 @@ bool access_vm_reg(struct kvm_vcpu *vcpu,
 {
 	bool was_enabled = vcpu_has_cache_enabled(vcpu);
 
-	BUG_ON(!p->is_write);
+	_ON(!p->is_write);
 
 	vcpu_cp15(vcpu, r->reg) = *vcpu_reg(vcpu, p->Rt1);
 	if (p->is_64bit)
@@ -539,7 +539,7 @@ static struct kvm_coproc_target_table *target_tables[KVM_ARM_NUM_TARGETS];
 
 void kvm_register_target_coproc_table(struct kvm_coproc_target_table *table)
 {
-	BUG_ON(check_reg_table(table->table, table->num));
+	_ON(check_reg_table(table->table, table->num));
 	target_tables[table->target] = table;
 }
 
@@ -599,7 +599,7 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 
 	if (likely(r)) {
 		/* If we don't have an accessor, we should never get here! */
-		BUG_ON(!r->access);
+		_ON(!r->access);
 
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
@@ -1340,7 +1340,7 @@ static int walk_cp15(struct kvm_vcpu *vcpu, u64 __user *uind)
 	i2 = cp15_regs;
 	end2 = cp15_regs + ARRAY_SIZE(cp15_regs);
 
-	BUG_ON(i1 == end1 || i2 == end2);
+	_ON(i1 == end1 || i2 == end2);
 
 	/* Walk carefully, as both tables may refer to the same register. */
 	while (i1 || i2) {
@@ -1408,8 +1408,8 @@ void kvm_coproc_table_init(void)
 	unsigned int i;
 
 	/* Make sure tables are unique and in order. */
-	BUG_ON(check_reg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
-	BUG_ON(check_reg_table(invariant_cp15, ARRAY_SIZE(invariant_cp15)));
+	_ON(check_reg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
+	_ON(check_reg_table(invariant_cp15, ARRAY_SIZE(invariant_cp15)));
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_cp15); i++)

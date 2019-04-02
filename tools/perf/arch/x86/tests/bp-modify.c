@@ -10,19 +10,19 @@
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>
 #include <errno.h>
-#include "debug.h"
+#include "de.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
 
 static noinline int bp_1(void)
 {
-	pr_debug("in %s\n", __func__);
+	pr_de("in %s\n", __func__);
 	return 0;
 }
 
 static noinline int bp_2(void)
 {
-	pr_debug("in %s\n", __func__);
+	pr_de("in %s\n", __func__);
 	return 0;
 }
 
@@ -39,7 +39,7 @@ static int spawn_child(void)
 		int err = ptrace(PTRACE_TRACEME, 0, NULL, NULL);
 
 		if (err) {
-			pr_debug("failed to PTRACE_TRACEME\n");
+			pr_de("failed to PTRACE_TRACEME\n");
 			exit(1);
 		}
 
@@ -65,7 +65,7 @@ static int bp_modify1(void)
 
 	waitpid(child, &status, 0);
 	if (WIFEXITED(status)) {
-		pr_debug("tracee exited prematurely 1\n");
+		pr_de("tracee exited prematurely 1\n");
 		return TEST_FAIL;
 	}
 
@@ -78,49 +78,49 @@ static int bp_modify1(void)
 	 *  - detaches the child
 	 */
 	if (ptrace(PTRACE_POKEUSER, child,
-		   offsetof(struct user, u_debugreg[0]), bp_2)) {
-		pr_debug("failed to set breakpoint, 1st time: %s\n",
+		   offsetof(struct user, u_dereg[0]), bp_2)) {
+		pr_de("failed to set breakpoint, 1st time: %s\n",
 			 strerror(errno));
 		goto out;
 	}
 
 	if (ptrace(PTRACE_POKEUSER, child,
-		   offsetof(struct user, u_debugreg[0]), bp_1)) {
-		pr_debug("failed to set breakpoint, 2nd time: %s\n",
+		   offsetof(struct user, u_dereg[0]), bp_1)) {
+		pr_de("failed to set breakpoint, 2nd time: %s\n",
 			 strerror(errno));
 		goto out;
 	}
 
 	if (ptrace(PTRACE_POKEUSER, child,
-		   offsetof(struct user, u_debugreg[7]), dr7)) {
-		pr_debug("failed to set dr7: %s\n", strerror(errno));
+		   offsetof(struct user, u_dereg[7]), dr7)) {
+		pr_de("failed to set dr7: %s\n", strerror(errno));
 		goto out;
 	}
 
 	if (ptrace(PTRACE_CONT, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_CONT: %s\n", strerror(errno));
+		pr_de("failed to PTRACE_CONT: %s\n", strerror(errno));
 		goto out;
 	}
 
 	waitpid(child, &status, 0);
 	if (WIFEXITED(status)) {
-		pr_debug("tracee exited prematurely 2\n");
+		pr_de("tracee exited prematurely 2\n");
 		return TEST_FAIL;
 	}
 
 	rip = ptrace(PTRACE_PEEKUSER, child,
 		     offsetof(struct user_regs_struct, rip), NULL);
 	if (rip == (unsigned long) -1) {
-		pr_debug("failed to PTRACE_PEEKUSER: %s\n",
+		pr_de("failed to PTRACE_PEEKUSER: %s\n",
 			 strerror(errno));
 		goto out;
 	}
 
-	pr_debug("rip %lx, bp_1 %p\n", rip, bp_1);
+	pr_de("rip %lx, bp_1 %p\n", rip, bp_1);
 
 out:
 	if (ptrace(PTRACE_DETACH, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_DETACH: %s", strerror(errno));
+		pr_de("failed to PTRACE_DETACH: %s", strerror(errno));
 		return TEST_FAIL;
 	}
 
@@ -142,7 +142,7 @@ static int bp_modify2(void)
 
 	waitpid(child, &status, 0);
 	if (WIFEXITED(status)) {
-		pr_debug("tracee exited prematurely 1\n");
+		pr_de("tracee exited prematurely 1\n");
 		return TEST_FAIL;
 	}
 
@@ -155,48 +155,48 @@ static int bp_modify2(void)
 	 *  - detaches the child
 	 */
 	if (ptrace(PTRACE_POKEUSER, child,
-		   offsetof(struct user, u_debugreg[0]), bp_1)) {
-		pr_debug("failed to set breakpoint: %s\n",
+		   offsetof(struct user, u_dereg[0]), bp_1)) {
+		pr_de("failed to set breakpoint: %s\n",
 			 strerror(errno));
 		goto out;
 	}
 
 	if (ptrace(PTRACE_POKEUSER, child,
-		   offsetof(struct user, u_debugreg[7]), dr7)) {
-		pr_debug("failed to set dr7: %s\n", strerror(errno));
+		   offsetof(struct user, u_dereg[7]), dr7)) {
+		pr_de("failed to set dr7: %s\n", strerror(errno));
 		goto out;
 	}
 
 	if (!ptrace(PTRACE_POKEUSER, child,
-		   offsetof(struct user, u_debugreg[0]), (unsigned long) (-1))) {
-		pr_debug("failed, breakpoint set to bogus address\n");
+		   offsetof(struct user, u_dereg[0]), (unsigned long) (-1))) {
+		pr_de("failed, breakpoint set to bogus address\n");
 		goto out;
 	}
 
 	if (ptrace(PTRACE_CONT, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_CONT: %s\n", strerror(errno));
+		pr_de("failed to PTRACE_CONT: %s\n", strerror(errno));
 		goto out;
 	}
 
 	waitpid(child, &status, 0);
 	if (WIFEXITED(status)) {
-		pr_debug("tracee exited prematurely 2\n");
+		pr_de("tracee exited prematurely 2\n");
 		return TEST_FAIL;
 	}
 
 	rip = ptrace(PTRACE_PEEKUSER, child,
 		     offsetof(struct user_regs_struct, rip), NULL);
 	if (rip == (unsigned long) -1) {
-		pr_debug("failed to PTRACE_PEEKUSER: %s\n",
+		pr_de("failed to PTRACE_PEEKUSER: %s\n",
 			 strerror(errno));
 		goto out;
 	}
 
-	pr_debug("rip %lx, bp_1 %p\n", rip, bp_1);
+	pr_de("rip %lx, bp_1 %p\n", rip, bp_1);
 
 out:
 	if (ptrace(PTRACE_DETACH, child, NULL, NULL)) {
-		pr_debug("failed to PTRACE_DETACH: %s", strerror(errno));
+		pr_de("failed to PTRACE_DETACH: %s", strerror(errno));
 		return TEST_FAIL;
 	}
 

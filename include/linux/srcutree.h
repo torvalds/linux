@@ -82,9 +82,9 @@ struct srcu_struct {
 						/*  callback for the barrier */
 						/*  operation. */
 	struct delayed_work work;
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map dep_map;
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #ifdef CONFIG_DE_LOCK_ALLOC */
 };
 
 /* Values for state variable (bottom bits of ->srcu_gp_seq). */

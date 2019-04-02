@@ -40,15 +40,15 @@
 #define DRIVER_NAME "sdhci"
 
 #define DBG(f, x...) \
-	pr_debug("%s: " DRIVER_NAME ": " f, mmc_hostname(host->mmc), ## x)
+	pr_de("%s: " DRIVER_NAME ": " f, mmc_hostname(host->mmc), ## x)
 
 #define SDHCI_DUMP(f, x...) \
 	pr_err("%s: " DRIVER_NAME ": " f, mmc_hostname(host->mmc), ## x)
 
 #define MAX_TUNING_LOOP 40
 
-static unsigned int debug_quirks = 0;
-static unsigned int debug_quirks2;
+static unsigned int de_quirks = 0;
+static unsigned int de_quirks2;
 
 static void sdhci_finish_data(struct sdhci_host *);
 
@@ -467,7 +467,7 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 	local_irq_save(flags);
 
 	while (blksize) {
-		BUG_ON(!sg_miter_next(&host->sg_miter));
+		_ON(!sg_miter_next(&host->sg_miter));
 
 		len = min(host->sg_miter.length, blksize);
 
@@ -512,7 +512,7 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 	local_irq_save(flags);
 
 	while (blksize) {
-		BUG_ON(!sg_miter_next(&host->sg_miter));
+		_ON(!sg_miter_next(&host->sg_miter));
 
 		len = min(host->sg_miter.length, blksize);
 
@@ -722,7 +722,7 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 			__sdhci_adma_write_desc(host, &desc, align_addr,
 						offset, ADMA2_TRAN_VALID);
 
-			BUG_ON(offset > 65536);
+			_ON(offset > 65536);
 
 			align += SDHCI_ADMA2_ALIGN;
 			align_addr += SDHCI_ADMA2_ALIGN;
@@ -731,7 +731,7 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 			len -= offset;
 		}
 
-		BUG_ON(len > 65536);
+		_ON(len > 65536);
 
 		/* tran, valid */
 		if (len)
@@ -739,7 +739,7 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 						ADMA2_TRAN_VALID);
 
 		/*
-		 * If this triggers then we have a calculation bug
+		 * If this triggers then we have a calculation 
 		 * somewhere. :/
 		 */
 		WARN_ON((desc - host->adma_table) >= host->adma_table_sz);
@@ -1007,9 +1007,9 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 	WARN_ON(host->data);
 
 	/* Sanity checks */
-	BUG_ON(data->blksz * data->blocks > 524288);
-	BUG_ON(data->blksz > host->mmc->max_blk_size);
-	BUG_ON(data->blocks > 65535);
+	_ON(data->blksz * data->blocks > 524288);
+	_ON(data->blksz > host->mmc->max_blk_size);
+	_ON(data->blocks > 65535);
 
 	host->data = data;
 	host->data_early = 0;
@@ -2266,7 +2266,7 @@ void sdhci_start_tuning(struct sdhci_host *host)
 	 * Note: The spec clearly says that when tuning sequence
 	 * is being performed, the controller does not generate
 	 * interrupts other than Buffer Read Ready interrupt. But
-	 * to make sure we don't hit a controller bug, we _only_
+	 * to make sure we don't hit a controller , we _only_
 	 * enable Buffer Read Ready interrupt here.
 	 */
 	sdhci_writel(host, SDHCI_INT_DATA_AVAIL, SDHCI_INT_ENABLE);
@@ -3387,7 +3387,7 @@ void sdhci_cqe_enable(struct mmc_host *mmc)
 
 	host->cqe_on = true;
 
-	pr_debug("%s: sdhci: CQE on, IRQ mask %#x, IRQ status %#x\n",
+	pr_de("%s: sdhci: CQE on, IRQ mask %#x, IRQ status %#x\n",
 		 mmc_hostname(mmc), host->ier,
 		 sdhci_readl(host, SDHCI_INT_STATUS));
 
@@ -3412,7 +3412,7 @@ void sdhci_cqe_disable(struct mmc_host *mmc, bool recovery)
 		sdhci_do_reset(host, SDHCI_RESET_DATA);
 	}
 
-	pr_debug("%s: sdhci: CQE off, IRQ mask %#x, IRQ status %#x\n",
+	pr_de("%s: sdhci: CQE off, IRQ mask %#x, IRQ status %#x\n",
 		 mmc_hostname(mmc), host->ier,
 		 sdhci_readl(host, SDHCI_INT_STATUS));
 
@@ -3550,11 +3550,11 @@ void __sdhci_read_caps(struct sdhci_host *host, u16 *ver, u32 *caps, u32 *caps1)
 
 	host->read_caps = true;
 
-	if (debug_quirks)
-		host->quirks = debug_quirks;
+	if (de_quirks)
+		host->quirks = de_quirks;
 
-	if (debug_quirks2)
-		host->quirks2 = debug_quirks2;
+	if (de_quirks2)
+		host->quirks2 = de_quirks2;
 
 	sdhci_do_reset(host, SDHCI_RESET_ALL);
 
@@ -4386,12 +4386,12 @@ static void __exit sdhci_drv_exit(void)
 module_init(sdhci_drv_init);
 module_exit(sdhci_drv_exit);
 
-module_param(debug_quirks, uint, 0444);
-module_param(debug_quirks2, uint, 0444);
+module_param(de_quirks, uint, 0444);
+module_param(de_quirks2, uint, 0444);
 
 MODULE_AUTHOR("Pierre Ossman <pierre@ossman.eu>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface core driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM_DESC(debug_quirks, "Force certain quirks.");
-MODULE_PARM_DESC(debug_quirks2, "Force certain other quirks.");
+MODULE_PARM_DESC(de_quirks, "Force certain quirks.");
+MODULE_PARM_DESC(de_quirks2, "Force certain other quirks.");

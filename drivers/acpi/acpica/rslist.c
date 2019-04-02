@@ -89,7 +89,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+	ACPI_DE_PRINT((ACPI_DB_RESOURCES,
 			  "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
 			  acpi_ut_get_resource_type(aml), length,
 			  resource->length));

@@ -329,7 +329,7 @@ static void efx_siena_sriov_reset_tx_filter(struct siena_vf *vf)
 	rc = efx_filter_set_eth_local(&filter,
 				      vlan ? vlan : EFX_FILTER_VID_UNSPEC,
 				      vf->addr.mac_addr);
-	BUG_ON(rc);
+	_ON(rc);
 
 	rc = efx_filter_insert_filter(efx, &filter, true);
 	if (rc < 0) {
@@ -369,7 +369,7 @@ static void efx_siena_sriov_reset_rx_filter(struct siena_vf *vf)
 	rc = efx_filter_set_eth_local(&filter,
 				      vlan ? vlan : EFX_FILTER_VID_UNSPEC,
 				      vf->addr.mac_addr);
-	BUG_ON(rc);
+	_ON(rc);
 
 	rc = efx_filter_insert_filter(efx, &filter, true);
 	if (rc < 0) {
@@ -687,7 +687,7 @@ static int efx_vfdi_fini_all_queues(struct siena_vf *vf)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FLUSH_RX_QUEUES_IN_LENMAX);
 	int rc;
 
-	BUILD_BUG_ON(VF_MAX_RX_QUEUES >
+	BUILD__ON(VF_MAX_RX_QUEUES >
 		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
 
 	rtnl_lock();
@@ -950,11 +950,11 @@ static void efx_siena_sriov_reset_vf(struct siena_vf *vf,
 	efx_dword_t ptr;
 	int rc;
 
-	BUG_ON(buffer->len != EFX_PAGE_SIZE);
+	_ON(buffer->len != EFX_PAGE_SIZE);
 
 	if (!vf->evq0_count)
 		return;
-	BUG_ON(vf->evq0_count & (vf->evq0_count - 1));
+	_ON(vf->evq0_count & (vf->evq0_count - 1));
 
 	mutex_lock(&vf->status_lock);
 	EFX_POPULATE_QWORD_3(event,
@@ -1111,7 +1111,7 @@ static void efx_siena_sriov_peer_work(struct work_struct *data)
 			*peer++ = vf->addr;
 			++peer_count;
 			--peer_space;
-			BUG_ON(peer_space == 0);
+			_ON(peer_space == 0);
 		}
 		mutex_unlock(&vf->status_lock);
 	}
@@ -1293,9 +1293,9 @@ int efx_siena_sriov_init(struct efx_nic *efx)
 	int rc;
 
 	/* Ensure there's room for vf_channel */
-	BUILD_BUG_ON(EFX_MAX_CHANNELS + 1 >= EFX_VI_BASE);
+	BUILD__ON(EFX_MAX_CHANNELS + 1 >= EFX_VI_BASE);
 	/* Ensure that VI_BASE is aligned on VI_SCALE */
-	BUILD_BUG_ON(EFX_VI_BASE & ((1 << EFX_VI_SCALE_MAX) - 1));
+	BUILD__ON(EFX_VI_BASE & ((1 << EFX_VI_SCALE_MAX) - 1));
 
 	if (efx->vf_count == 0)
 		return 0;
@@ -1377,7 +1377,7 @@ void efx_siena_sriov_fini(struct efx_nic *efx)
 		return;
 
 	/* Disable all interfaces to reconfiguration */
-	BUG_ON(nic_data->vfdi_channel->enabled);
+	_ON(nic_data->vfdi_channel->enabled);
 	efx_siena_sriov_usrev(efx, false);
 	rtnl_lock();
 	efx->vf_init_count = 0;
@@ -1410,7 +1410,7 @@ void efx_siena_sriov_event(struct efx_channel *channel, efx_qword_t *event)
 	qid = EFX_QWORD_FIELD(*event, FSF_CZ_USER_QID);
 
 	/* USR_EV_REG_VALUE is dword0, so access the VFDI_EV fields directly */
-	BUILD_BUG_ON(FSF_CZ_USER_EV_REG_VALUE_LBN != 0);
+	BUILD__ON(FSF_CZ_USER_EV_REG_VALUE_LBN != 0);
 	seq = EFX_QWORD_FIELD(*event, VFDI_EV_SEQ);
 	type = EFX_QWORD_FIELD(*event, VFDI_EV_TYPE);
 	data = EFX_QWORD_FIELD(*event, VFDI_EV_DATA);

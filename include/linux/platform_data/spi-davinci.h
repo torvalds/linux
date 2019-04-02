@@ -36,7 +36,7 @@ enum {
  * @num_chipselect: number of chipselects supported by this SPI master
  * @intr_line:	interrupt line used to connect the SPI IP to the ARM interrupt
  *		controller withn the SoC. Possible values are 0 and 1.
- * @cshold_bug:	set this to true if the SPI controller on your chip requires
+ * @cshold_:	set this to true if the SPI controller on your chip requires
  *		a write to CSHOLD bit in between transfers (like in DM355).
  * @dma_event_q: DMA event queue to use if SPI_IO_TYPE_DMA is used for any
  *		device on the bus.
@@ -46,7 +46,7 @@ struct davinci_spi_platform_data {
 	u8			num_chipselect;
 	u8			intr_line;
 	u8			prescaler_limit;
-	bool			cshold_bug;
+	bool			cshold_;
 	enum dma_event_q	dma_event_q;
 };
 

@@ -74,7 +74,7 @@ static struct caam_qi_priv qipriv ____cacheline_aligned;
 bool caam_congested __read_mostly;
 EXPORT_SYMBOL(caam_congested);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
  * This is a counter for the number of times the congestion group (where all
  * the request and response queueus are) reached congestion. Incremented
@@ -515,13 +515,13 @@ static void cgr_cb(struct qman_portal *qm, struct qman_cgr *cgr, int congested)
 	caam_congested = congested;
 
 	if (congested) {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 		times_congested++;
 #endif
-		pr_debug_ratelimited("CAAM entered congestion\n");
+		pr_de_ratelimited("CAAM entered congestion\n");
 
 	} else {
-		pr_debug_ratelimited("CAAM exited congestion\n");
+		pr_de_ratelimited("CAAM exited congestion\n");
 	}
 }
 
@@ -762,8 +762,8 @@ int caam_qi_init(struct platform_device *caam_pdev)
 		return -ENOMEM;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("qi_congested", 0444, ctrlpriv->ctl,
+#ifdef CONFIG_DE_FS
+	defs_create_file("qi_congested", 0444, ctrlpriv->ctl,
 			    &times_congested, &caam_fops_u64_ro);
 #endif
 	dev_info(qidev, "Linux CAAM Queue I/F driver initialised\n");

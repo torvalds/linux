@@ -18,7 +18,7 @@ fnmadds(void *frD, void *frA, void *frB, void *frC)
 	FP_DECL_D(T);
 	FP_DECL_EX;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: %p %p %p %p\n", __func__, frD, frA, frB, frC);
 #endif
 
@@ -26,7 +26,7 @@ fnmadds(void *frD, void *frA, void *frB, void *frC)
 	FP_UNPACK_DP(B, frB);
 	FP_UNPACK_DP(C, frC);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("A: %ld %lu %lu %ld (%ld)\n", A_s, A_f1, A_f0, A_e, A_c);
 	printk("B: %ld %lu %lu %ld (%ld)\n", B_s, B_f1, B_f0, B_e, B_c);
 	printk("C: %ld %lu %lu %ld (%ld)\n", C_s, C_f1, C_f0, C_e, C_c);
@@ -46,7 +46,7 @@ fnmadds(void *frD, void *frA, void *frB, void *frC)
 	if (R_c != FP_CLS_NAN)
 		R_s ^= 1;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("D: %ld %lu %lu %ld (%ld)\n", R_s, R_f1, R_f0, R_e, R_c);
 #endif
 

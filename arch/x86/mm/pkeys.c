@@ -11,7 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#include <linux/debugfs.h>		/* debugfs_create_u32()		*/
+#include <linux/defs.h>		/* defs_create_u32()		*/
 #include <linux/mm_types.h>             /* mm_struct, vma, etc...       */
 #include <linux/pkeys.h>                /* PKEY_*                       */
 #include <uapi/asm-generic/mman-common.h>
@@ -207,8 +207,8 @@ static const struct file_operations fops_init_pkru = {
 
 static int __init create_init_pkru_value(void)
 {
-	debugfs_create_file("init_pkru", S_IRUSR | S_IWUSR,
-			arch_debugfs_dir, NULL, &fops_init_pkru);
+	defs_create_file("init_pkru", S_IRUSR | S_IWUSR,
+			arch_defs_dir, NULL, &fops_init_pkru);
 	return 0;
 }
 late_initcall(create_init_pkru_value);

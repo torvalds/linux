@@ -13,7 +13,7 @@ static const char *__doc__ =
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
-	{"debug",	no_argument,		NULL, 'D' },
+	{"de",	no_argument,		NULL, 'D' },
 	{"quiet",	no_argument,		NULL, 'q' },
 	{0, 0, NULL,  0 }
 };
@@ -34,11 +34,11 @@ static void usage(char *argv[])
 	printf("\n");
 }
 
-static bool debug = 0;
-static int libbpf_debug_print(enum libbpf_print_level level,
+static bool de = 0;
+static int libbpf_de_print(enum libbpf_print_level level,
 			      const char *fmt, va_list args)
 {
-	if (level == LIBBPF_DEBUG && !debug)
+	if (level == LIBBPF_DE && !de)
 		return 0;
 
 	fprintf(stderr, "[%d] ", level);
@@ -113,14 +113,14 @@ int main(int argc, char **argv)
 	int longindex = 0;
 	int opt;
 
-	libbpf_set_print(libbpf_debug_print);
+	libbpf_set_print(libbpf_de_print);
 
 	/* Parse commands line args */
 	while ((opt = getopt_long(argc, argv, "hDq",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'D':
-			debug = 1;
+			de = 1;
 			break;
 		case 'q': /* Use in scripting mode */
 			verbose = 0;

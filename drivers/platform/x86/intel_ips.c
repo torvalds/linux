@@ -45,7 +45,7 @@
  *   - ref 26921 - Ibex Peak BIOS Specification
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -284,7 +284,7 @@ struct ips_driver {
 
 	struct task_struct *monitor;
 	struct task_struct *adjust;
-	struct dentry *debug_root;
+	struct dentry *de_root;
 	struct timer_list timer;
 
 	/* Average CPU core temps (all averages in .01 degrees C for precision) */
@@ -842,7 +842,7 @@ static u16 read_mgtv(struct ips_driver *ips)
 
 	ret = ((val * slope + 0x40) >> 7) + offset;
 
-	return 0; /* MCH temp reporting buggy */
+	return 0; /* MCH temp reporting gy */
 }
 
 static u16 read_ptv(struct ips_driver *ips)
@@ -1203,12 +1203,12 @@ static irqreturn_t ips_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-#ifndef CONFIG_DEBUG_FS
-static void ips_debugfs_init(struct ips_driver *ips) { return; }
-static void ips_debugfs_cleanup(struct ips_driver *ips) { return; }
+#ifndef CONFIG_DE_FS
+static void ips_defs_init(struct ips_driver *ips) { return; }
+static void ips_defs_cleanup(struct ips_driver *ips) { return; }
 #else
 
-/* Expose current state and limits in debugfs if possible */
+/* Expose current state and limits in defs if possible */
 
 static int cpu_temp_show(struct seq_file *m, void *data)
 {
@@ -1274,22 +1274,22 @@ static int mch_power_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(mch_power);
 
-static void ips_debugfs_cleanup(struct ips_driver *ips)
+static void ips_defs_cleanup(struct ips_driver *ips)
 {
-	debugfs_remove_recursive(ips->debug_root);
+	defs_remove_recursive(ips->de_root);
 }
 
-static void ips_debugfs_init(struct ips_driver *ips)
+static void ips_defs_init(struct ips_driver *ips)
 {
-	ips->debug_root = debugfs_create_dir("ips", NULL);
+	ips->de_root = defs_create_dir("ips", NULL);
 
-	debugfs_create_file("cpu_temp", 0444, ips->debug_root, ips, &cpu_temp_fops);
-	debugfs_create_file("cpu_power", 0444, ips->debug_root, ips, &cpu_power_fops);
-	debugfs_create_file("cpu_clamp", 0444, ips->debug_root, ips, &cpu_clamp_fops);
-	debugfs_create_file("mch_temp", 0444, ips->debug_root, ips, &mch_temp_fops);
-	debugfs_create_file("mch_power", 0444, ips->debug_root, ips, &mch_power_fops);
+	defs_create_file("cpu_temp", 0444, ips->de_root, ips, &cpu_temp_fops);
+	defs_create_file("cpu_power", 0444, ips->de_root, ips, &cpu_power_fops);
+	defs_create_file("cpu_clamp", 0444, ips->de_root, ips, &cpu_clamp_fops);
+	defs_create_file("mch_temp", 0444, ips->de_root, ips, &mch_temp_fops);
+	defs_create_file("mch_power", 0444, ips->de_root, ips, &mch_power_fops);
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 /**
  * ips_detect_cpu - detect whether CPU supports IPS
@@ -1520,7 +1520,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/*
 	 * IRQ handler for ME interaction
-	 * Note: don't use MSI here as the PCH has bugs.
+	 * Note: don't use MSI here as the PCH has s.
 	 */
 	ret = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY);
 	if (ret < 0)
@@ -1579,7 +1579,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	thm_writew(THM_HTSHI, htshi);
 	thm_writel(THM_HTS, hts);
 
-	ips_debugfs_init(ips);
+	ips_defs_init(ips);
 
 	dev_info(&dev->dev, "IPS driver initialized, MCP temp limit %d\n",
 		 ips->mcp_temp_limit);
@@ -1598,7 +1598,7 @@ static void ips_remove(struct pci_dev *dev)
 	struct ips_driver *ips = pci_get_drvdata(dev);
 	u64 turbo_override;
 
-	ips_debugfs_cleanup(ips);
+	ips_defs_cleanup(ips);
 
 	/* Release i915 driver */
 	if (ips->read_mch_val)

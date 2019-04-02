@@ -52,7 +52,7 @@ static int kgdboc_reset_connect(struct input_handler *handler,
 static void kgdboc_reset_disconnect(struct input_handle *handle)
 {
 	/* We do not expect anyone to actually bind to us */
-	BUG();
+	();
 }
 
 static const struct input_device_id kgdboc_reset_ids[] = {
@@ -272,21 +272,21 @@ static void kgdboc_pre_exp_handler(void)
 {
 	if (!dbg_restore_graphics && kgdboc_use_kms) {
 		dbg_restore_graphics = 1;
-		con_debug_enter(vc_cons[fg_console].d);
+		con_de_enter(vc_cons[fg_console].d);
 	}
-	/* Increment the module count when the debugger is active */
+	/* Increment the module count when the deger is active */
 	if (!kgdb_connected)
 		try_module_get(THIS_MODULE);
 }
 
 static void kgdboc_post_exp_handler(void)
 {
-	/* decrement the module count when the debugger detaches */
+	/* decrement the module count when the deger detaches */
 	if (!kgdb_connected)
 		module_put(THIS_MODULE);
 	if (kgdboc_use_kms && dbg_restore_graphics) {
 		dbg_restore_graphics = 0;
-		con_debug_leave();
+		con_de_leave();
 	}
 	kgdboc_restore_input();
 }
@@ -319,7 +319,7 @@ static int kgdboc_option_setup(char *opt)
 __setup("kgdboc=", kgdboc_option_setup);
 
 
-/* This is only available if kgdboc is a built in for early debugging */
+/* This is only available if kgdboc is a built in for early deging */
 static int __init kgdboc_early_init(char *opt)
 {
 	/* save the first character of the config string because the

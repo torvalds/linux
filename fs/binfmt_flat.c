@@ -184,7 +184,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 	z_stream strm;
 	int ret, retval;
 
-	pr_debug("decompress_exec(offset=%llx,buf=%p,len=%lx)\n", fpos, dst, len);
+	pr_de("decompress_exec(offset=%llx,buf=%p,len=%lx)\n", fpos, dst, len);
 
 	memset(&strm, 0, sizeof(strm));
 	strm.workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
@@ -208,25 +208,25 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 
 	/* Check minimum size -- gzip header */
 	if (ret < 10) {
-		pr_debug("file too small?\n");
+		pr_de("file too small?\n");
 		goto out_free_buf;
 	}
 
 	/* Check gzip magic number */
 	if ((buf[0] != 037) || ((buf[1] != 0213) && (buf[1] != 0236))) {
-		pr_debug("unknown compression magic?\n");
+		pr_de("unknown compression magic?\n");
 		goto out_free_buf;
 	}
 
 	/* Check gzip method */
 	if (buf[2] != 8) {
-		pr_debug("unknown compression method?\n");
+		pr_de("unknown compression method?\n");
 		goto out_free_buf;
 	}
 	/* Check gzip flags */
 	if ((buf[3] & ENCRYPTED) || (buf[3] & CONTINUATION) ||
 	    (buf[3] & RESERVED)) {
-		pr_debug("unknown flags?\n");
+		pr_de("unknown flags?\n");
 		goto out_free_buf;
 	}
 
@@ -234,7 +234,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 	if (buf[3] & EXTRA_FIELD) {
 		ret += 2 + buf[10] + (buf[11] << 8);
 		if (unlikely(ret >= LBUFSIZE)) {
-			pr_debug("buffer overflow (EXTRA)?\n");
+			pr_de("buffer overflow (EXTRA)?\n");
 			goto out_free_buf;
 		}
 	}
@@ -242,7 +242,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 		while (ret < LBUFSIZE && buf[ret++] != 0)
 			;
 		if (unlikely(ret == LBUFSIZE)) {
-			pr_debug("buffer overflow (ORIG_NAME)?\n");
+			pr_de("buffer overflow (ORIG_NAME)?\n");
 			goto out_free_buf;
 		}
 	}
@@ -250,7 +250,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 		while (ret < LBUFSIZE && buf[ret++] != 0)
 			;
 		if (unlikely(ret == LBUFSIZE)) {
-			pr_debug("buffer overflow (COMMENT)?\n");
+			pr_de("buffer overflow (COMMENT)?\n");
 			goto out_free_buf;
 		}
 	}
@@ -263,7 +263,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 	strm.total_out = 0;
 
 	if (zlib_inflateInit2(&strm, -MAX_WBITS) != Z_OK) {
-		pr_debug("zlib init failed?\n");
+		pr_de("zlib init failed?\n");
 		goto out_free_buf;
 	}
 
@@ -279,7 +279,7 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 	}
 
 	if (ret < 0) {
-		pr_debug("decompression failed (%d), %s\n",
+		pr_de("decompression failed (%d), %s\n",
 			ret, strm.msg);
 		goto out_zlib;
 	}
@@ -383,7 +383,7 @@ static void old_reloc(unsigned long rl)
 #endif
 	get_user(val, ptr);
 
-	pr_debug("Relocation of variable at DATASEG+%x "
+	pr_de("Relocation of variable at DATASEG+%x "
 		 "(address %p, currently %lx) into segment %s\n",
 		 r.reloc.offset, ptr, val, segment[r.reloc.type]);
 
@@ -403,7 +403,7 @@ static void old_reloc(unsigned long rl)
 	}
 	put_user(val, ptr);
 
-	pr_debug("Relocation became %lx\n", val);
+	pr_de("Relocation became %lx\n", val);
 }
 
 /****************************************************************************/
@@ -535,7 +535,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		 * this should give us a ROM ptr,  but if it doesn't we don't
 		 * really care
 		 */
-		pr_debug("ROM mapping of file (we hope)\n");
+		pr_de("ROM mapping of file (we hope)\n");
 
 		textpos = vm_mmap(bprm->file, 0, text_len, PROT_READ|PROT_EXEC,
 				  MAP_PRIVATE|MAP_EXECUTABLE, 0);
@@ -565,7 +565,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 				MAX_SHARED_LIBS * sizeof(unsigned long),
 				FLAT_DATA_ALIGN);
 
-		pr_debug("Allocated data+bss+stack (%u bytes): %lx\n",
+		pr_de("Allocated data+bss+stack (%u bytes): %lx\n",
 			 data_len + bss_len + stack_len, datapos);
 
 		fpos = ntohl(hdr->data_start);
@@ -961,7 +961,7 @@ static int load_flat_binary(struct linux_binprm *bprm)
 	/* Stash our initial stack pointer into the mm structure */
 	current->mm->start_stack =
 		((current->mm->context.end_brk + stack_len + 3) & ~3) - 4;
-	pr_debug("sp=%lx\n", current->mm->start_stack);
+	pr_de("sp=%lx\n", current->mm->start_stack);
 
 	/* copy the arg pages onto the stack */
 	res = transfer_args_to_stack(bprm, &current->mm->start_stack);
@@ -995,7 +995,7 @@ static int load_flat_binary(struct linux_binprm *bprm)
 #endif
 
 	finalize_exec(bprm);
-	pr_debug("start_thread(regs=0x%p, entry=0x%lx, start_stack=0x%lx)\n",
+	pr_de("start_thread(regs=0x%p, entry=0x%lx, start_stack=0x%lx)\n",
 		 regs, start_addr, current->mm->start_stack);
 	start_thread(regs, start_addr, current->mm->start_stack);
 

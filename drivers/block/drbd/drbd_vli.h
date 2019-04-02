@@ -142,7 +142,7 @@ prefix    data bits                                    max val  Nº data bits
 /* finds a suitable level to decode the least significant part of in.
  * returns number of bits consumed.
  *
- * BUG() for bad input, as that would mean a buggy code table. */
+ * () for bad input, as that would mean a gy code table. */
 static inline int vli_decode_bits(u64 *out, const u64 in)
 {
 	u64 adj = 1;
@@ -159,7 +159,7 @@ static inline int vli_decode_bits(u64 *out, const u64 in)
 	VLI_L_1_1();
 
 	/* NOT REACHED, if VLI_LEVELS code table is defined properly */
-	BUG();
+	();
 #undef LEVEL
 }
 

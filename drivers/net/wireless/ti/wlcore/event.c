@@ -22,7 +22,7 @@
  */
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "io.h"
 #include "event.h"
 #include "ps.h"
@@ -118,7 +118,7 @@ void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr)
 	enum nl80211_cqm_rssi_threshold_event event;
 	s8 metric = metric_arr[0];
 
-	wl1271_debug(DEBUG_EVENT, "RSSI trigger metric: %d", metric);
+	wl1271_de(DE_EVENT, "RSSI trigger metric: %d", metric);
 
 	/* TODO: check actual multi-role support */
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
@@ -180,7 +180,7 @@ EXPORT_SYMBOL_GPL(wlcore_event_soft_gemini_sense);
 void wlcore_event_sched_scan_completed(struct wl1271 *wl,
 				       u8 status)
 {
-	wl1271_debug(DEBUG_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT (status 0x%0x)",
+	wl1271_de(DE_EVENT, "PERIODIC_SCAN_COMPLETE_EVENT (status 0x%0x)",
 		     status);
 
 	if (wl->sched_vif) {
@@ -196,7 +196,7 @@ void wlcore_event_ba_rx_constraint(struct wl1271 *wl,
 {
 	struct wl12xx_vif *wlvif;
 
-	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx allowed=0x%lx",
+	wl1271_de(DE_EVENT, "%s: roles=0x%lx allowed=0x%lx",
 		     __func__, roles_bitmap, allowed_bitmap);
 
 	wl12xx_for_each_wlvif(wl, wlvif) {
@@ -219,7 +219,7 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 	struct wl12xx_vif *wlvif;
 	struct ieee80211_vif *vif;
 
-	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx success=%d",
+	wl1271_de(DE_EVENT, "%s: roles=0x%lx success=%d",
 		     __func__, roles_bitmap, success);
 
 	wl12xx_for_each_wlvif(wl, wlvif) {
@@ -247,11 +247,11 @@ EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
 	if (wl->plt) {
-		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW , ignoring.");
 		return;
 	}
 
-	wl1271_debug(DEBUG_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
+	wl1271_de(DE_EVENT, "DUMMY_PACKET_ID_EVENT_ID");
 	wl1271_tx_dummy_packet(wl);
 }
 EXPORT_SYMBOL_GPL(wlcore_event_dummy_packet);
@@ -283,7 +283,7 @@ static void wlcore_disconnect_sta(struct wl1271 *wl, unsigned long sta_bitmap)
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, addr);
 		if (sta) {
-			wl1271_debug(DEBUG_EVENT, "remove sta %d", h);
+			wl1271_de(DE_EVENT, "remove sta %d", h);
 			ieee80211_report_low_ack(sta, num_packets);
 		}
 		rcu_read_unlock();
@@ -292,21 +292,21 @@ static void wlcore_disconnect_sta(struct wl1271 *wl, unsigned long sta_bitmap)
 
 void wlcore_event_max_tx_failure(struct wl1271 *wl, unsigned long sta_bitmap)
 {
-	wl1271_debug(DEBUG_EVENT, "MAX_TX_FAILURE_EVENT_ID");
+	wl1271_de(DE_EVENT, "MAX_TX_FAILURE_EVENT_ID");
 	wlcore_disconnect_sta(wl, sta_bitmap);
 }
 EXPORT_SYMBOL_GPL(wlcore_event_max_tx_failure);
 
 void wlcore_event_inactive_sta(struct wl1271 *wl, unsigned long sta_bitmap)
 {
-	wl1271_debug(DEBUG_EVENT, "INACTIVE_STA_EVENT_ID");
+	wl1271_de(DE_EVENT, "INACTIVE_STA_EVENT_ID");
 	wlcore_disconnect_sta(wl, sta_bitmap);
 }
 EXPORT_SYMBOL_GPL(wlcore_event_inactive_sta);
 
 void wlcore_event_roc_complete(struct wl1271 *wl)
 {
-	wl1271_debug(DEBUG_EVENT, "REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID");
+	wl1271_de(DE_EVENT, "REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID");
 	if (wl->roc_vif)
 		ieee80211_ready_on_channel(wl->hw);
 }
@@ -356,7 +356,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 {
 	int ret;
 
-	wl1271_debug(DEBUG_EVENT, "unmasking event_mask 0x%x", wl->event_mask);
+	wl1271_de(DE_EVENT, "unmasking event_mask 0x%x", wl->event_mask);
 	ret = wl1271_acx_event_mbox_mask(wl, ~(wl->event_mask));
 	if (ret < 0)
 		return ret;
@@ -368,7 +368,7 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 {
 	int ret;
 
-	wl1271_debug(DEBUG_EVENT, "EVENT on mbox %d", mbox_num);
+	wl1271_de(DE_EVENT, "EVENT on mbox %d", mbox_num);
 
 	if (mbox_num > 1)
 		return -EINVAL;

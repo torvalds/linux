@@ -443,7 +443,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		u16 *buf16 = data->status_reg_buf;
 		u32 *buf32 = data->status_reg_buf;
 
-		BUG_ON(!data->status_reg_buf);
+		_ON(!data->status_reg_buf);
 
 		ret = regmap_bulk_read(map, chip->status_base,
 				       data->status_reg_buf,
@@ -466,7 +466,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 				data->status_buf[i] = buf32[i];
 				break;
 			default:
-				BUG();
+				();
 				goto exit;
 			}
 		}

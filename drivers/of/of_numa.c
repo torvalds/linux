@@ -31,7 +31,7 @@ static void __init of_numa_parse_cpu_nodes(void)
 		if (r)
 			continue;
 
-		pr_debug("CPU on %u\n", nid);
+		pr_de("CPU on %u\n", nid);
 		if (nid >= MAX_NUMNODES)
 			pr_warn("Node id %u exceeds maximum value\n", nid);
 		else

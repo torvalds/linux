@@ -62,7 +62,7 @@
 #define ADVANSYS_STATS
 
 /* Enable driver tracing. */
-#undef ADVANSYS_DEBUG
+#undef ADVANSYS_DE
 
 typedef unsigned char uchar;
 
@@ -110,7 +110,7 @@ typedef unsigned char uchar;
 #define ASC_CHIP_MAX_VER_ISA     (0x27)
 #define ASC_CHIP_VER_ISA_BIT     (0x30)
 #define ASC_CHIP_VER_ISAPNP_BIT  (0x20)
-#define ASC_CHIP_VER_ASYN_BUG    (0x21)
+#define ASC_CHIP_VER_ASYN_    (0x21)
 #define ASC_CHIP_VER_PCI             0x08
 #define ASC_CHIP_VER_PCI_ULTRA_3150  (ASC_CHIP_VER_PCI | 0x02)
 #define ASC_CHIP_VER_PCI_ULTRA_3050  (ASC_CHIP_VER_PCI | 0x03)
@@ -491,8 +491,8 @@ typedef struct asc_dvc_cfg {
 #define ASC_INIT_STATE_END_INQUIRY   0x0080
 #define ASC_INIT_RESET_SCSI_DONE     0x0100
 #define ASC_INIT_STATE_WITHOUT_EEP   0x8000
-#define ASC_BUG_FIX_IF_NOT_DWB       0x0001
-#define ASC_BUG_FIX_ASYN_USE_SYN     0x0002
+#define ASC__FIX_IF_NOT_DWB       0x0001
+#define ASC__FIX_ASYN_USE_SYN     0x0002
 #define ASC_MIN_TAGGED_CMD  7
 #define ASC_MAX_SCSI_RESET_WAIT      30
 #define ASC_OVERRUN_BSIZE		64
@@ -503,7 +503,7 @@ typedef struct asc_dvc_var {
 	PortAddr iop_base;
 	ushort err_code;
 	ushort dvc_cntl;
-	ushort bug_fix_cntl;
+	ushort _fix_cntl;
 	ushort bus_type;
 	ASC_SCSI_BIT_ID_TYPE init_sdtr;
 	ASC_SCSI_BIT_ID_TYPE sdtr_done;
@@ -983,7 +983,7 @@ typedef struct adveep_3550_config {
 	uchar max_host_qng;	/* 15 maximum host queuing */
 	uchar max_dvc_qng;	/*    maximum per device queuing */
 	ushort dvc_cntl;	/* 16 control bit for driver */
-	ushort bug_fix;		/* 17 control bit for bug fix */
+	ushort _fix;		/* 17 control bit for  fix */
 	ushort serial_number_word1;	/* 18 Board serial number word 1 */
 	ushort serial_number_word2;	/* 19 Board serial number word 2 */
 	ushort serial_number_word3;	/* 20 Board serial number word 3 */
@@ -2141,7 +2141,7 @@ do { \
         printk((s), (a1), (a2), (a3), (a4)); \
     }
 
-#ifndef ADVANSYS_DEBUG
+#ifndef ADVANSYS_DE
 
 #define ASC_DBG(lvl, s...)
 #define ASC_DBG_PRT_SCSI_HOST(lvl, s)
@@ -2154,10 +2154,10 @@ do { \
 #define ASC_DBG_PRT_SENSE(lvl, sense, len)
 #define ASC_DBG_PRT_INQUIRY(lvl, inq, len)
 
-#else /* ADVANSYS_DEBUG */
+#else /* ADVANSYS_DE */
 
 /*
- * Debugging Message Levels:
+ * Deging Message Levels:
  * 0: Errors Only
  * 1: High-Level Tracing
  * 2-N: Verbose Tracing
@@ -2165,7 +2165,7 @@ do { \
 
 #define ASC_DBG(lvl, format, arg...) {					\
 	if (asc_dbglvl >= (lvl))					\
-		printk(KERN_DEBUG "%s: %s: " format, DRV_NAME,		\
+		printk(KERN_DE "%s: %s: " format, DRV_NAME,		\
 			__func__ , ## arg);				\
 }
 
@@ -2212,7 +2212,7 @@ do { \
 
 #define ASC_DBG_PRT_INQUIRY(lvl, inq, len) \
         ASC_DBG_PRT_HEX((lvl), "INQUIRY", (uchar *) (inq), (len));
-#endif /* ADVANSYS_DEBUG */
+#endif /* ADVANSYS_DE */
 
 #ifdef ADVANSYS_STATS
 
@@ -2300,7 +2300,7 @@ struct asc_board {
 							dvc_var.adv_dvc_var)
 #define adv_dvc_to_pdev(adv_dvc) to_pci_dev(adv_dvc_to_board(adv_dvc)->dev)
 
-#ifdef ADVANSYS_DEBUG
+#ifdef ADVANSYS_DE
 static int asc_dbglvl = 3;
 
 /*
@@ -2310,8 +2310,8 @@ static void asc_prt_asc_dvc_var(ASC_DVC_VAR *h)
 {
 	printk("ASC_DVC_VAR at addr 0x%lx\n", (ulong)h);
 
-	printk(" iop_base 0x%x, err_code 0x%x, dvc_cntl 0x%x, bug_fix_cntl "
-	       "%d,\n", h->iop_base, h->err_code, h->dvc_cntl, h->bug_fix_cntl);
+	printk(" iop_base 0x%x, err_code 0x%x, dvc_cntl 0x%x, _fix_cntl "
+	       "%d,\n", h->iop_base, h->err_code, h->dvc_cntl, h->_fix_cntl);
 
 	printk(" bus_type %d, init_sdtr 0x%x,\n", h->bus_type,
 		(unsigned)h->init_sdtr);
@@ -2560,9 +2560,9 @@ static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
 	       (ulong)b, sgblockno);
 	printk("  sg_cnt %u, sg_ptr 0x%x\n",
 	       b->sg_cnt, (u32)le32_to_cpu(b->sg_ptr));
-	BUG_ON(b->sg_cnt > NO_OF_SG_PER_BLOCK);
+	_ON(b->sg_cnt > NO_OF_SG_PER_BLOCK);
 	if (b->sg_ptr != 0)
-		BUG_ON(b->sg_cnt != NO_OF_SG_PER_BLOCK);
+		_ON(b->sg_cnt != NO_OF_SG_PER_BLOCK);
 	for (i = 0; i < b->sg_cnt; i++) {
 		printk("  [%u]: sg_addr 0x%x, sg_count 0x%x\n",
 		       i, (u32)le32_to_cpu(b->sg_list[i].sg_addr),
@@ -2619,7 +2619,7 @@ static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
 		}
 	}
 }
-#endif /* ADVANSYS_DEBUG */
+#endif /* ADVANSYS_DE */
 
 /*
  * advansys_info()
@@ -2699,7 +2699,7 @@ static const char *advansys_info(struct Scsi_Host *shost)
 			ASC_VERSION, widename, (ulong)adv_dvc_varp->iop_base,
 			(ulong)adv_dvc_varp->iop_base + boardp->asc_n_io_port - 1, boardp->irq);
 	}
-	BUG_ON(strlen(info) >= ASC_INFO_SIZE);
+	_ON(strlen(info) >= ASC_INFO_SIZE);
 	ASC_DBG(1, "end\n");
 	return info;
 }
@@ -4038,7 +4038,7 @@ static int AscInitMicroCodeVar(ASC_DVC_VAR *asc_dvc)
 			 ASC_TID_TO_TARGET_ID(asc_dvc->cfg->chip_scsi_id));
 
 	/* Ensure overrun buffer is aligned on an 8 byte boundary. */
-	BUG_ON((unsigned long)asc_dvc->overrun_buf & 7);
+	_ON((unsigned long)asc_dvc->overrun_buf & 7);
 	asc_dvc->overrun_dma = dma_map_single(board->dev, asc_dvc->overrun_buf,
 					ASC_OVERRUN_BSIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(board->dev, asc_dvc->overrun_dma)) {
@@ -4241,7 +4241,7 @@ static ADV_CARR_T *adv_get_carrier(struct adv_dvc_var *adv_dvc, u32 offset)
 {
 	int index;
 
-	BUG_ON(offset > ADV_CARRIER_BUFSIZE);
+	_ON(offset > ADV_CARRIER_BUFSIZE);
 
 	index = offset / sizeof(ADV_CARR_T);
 	return &adv_dvc->carrier[index];
@@ -4273,7 +4273,7 @@ static adv_req_t * adv_get_reqp(struct adv_dvc_var *adv_dvc, u32 offset)
 {
 	struct asc_board *boardp = adv_dvc->drv_ptr;
 
-	BUG_ON(offset > adv_dvc->max_host_qng);
+	_ON(offset > adv_dvc->max_host_qng);
 	return &boardp->adv_reqp[offset];
 }
 
@@ -4342,7 +4342,7 @@ AdvSendIdleCmd(ADV_DVC_VAR *asc_dvc,
 		}
 	}
 
-	BUG();		/* The idle command should never timeout. */
+	();		/* The idle command should never timeout. */
 	return ADV_ERROR;
 }
 
@@ -6383,7 +6383,7 @@ static void AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 	uchar scsi_status;
 	struct asc_board *boardp;
 
-	BUG_ON(!asc_dvc->drv_ptr);
+	_ON(!asc_dvc->drv_ptr);
 	boardp = asc_dvc->drv_ptr;
 
 	iop_base = asc_dvc->iop_base;
@@ -7290,7 +7290,7 @@ static void AscAsyncFix(ASC_DVC_VAR *asc_dvc, struct scsi_device *sdev)
 	char type = sdev->type;
 	ASC_SCSI_BIT_ID_TYPE tid_bits = 1 << sdev->id;
 
-	if (!(asc_dvc->bug_fix_cntl & ASC_BUG_FIX_ASYN_USE_SYN))
+	if (!(asc_dvc->_fix_cntl & ASC__FIX_ASYN_USE_SYN))
 		return;
 	if (asc_dvc->init_sdtr & tid_bits)
 		return;
@@ -7458,7 +7458,7 @@ advansys_wide_slave_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
 		 * Tag Queuing is disabled for the BIOS which runs in polled
 		 * mode and would see no benefit from Tag Queuing. Also by
 		 * disabling Tag Queuing in the BIOS devices with Tag Queuing
-		 * bugs will at least work with the BIOS.
+		 * s will at least work with the BIOS.
 		 */
 		if ((adv_dvc->tagqng_able & tidmask) &&
 		    sdev->tagged_supported) {
@@ -8261,8 +8261,8 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 		scsiq->q2.tag_code &= 0x27;
 	}
 	if ((scsiq->q1.cntl & QC_SG_HEAD) != 0) {
-		if (asc_dvc->bug_fix_cntl) {
-			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
+		if (asc_dvc->_fix_cntl) {
+			if (asc_dvc->_fix_cntl & ASC__FIX_IF_NOT_DWB) {
 				if ((scsi_cmd == READ_6) ||
 				    (scsi_cmd == READ_10)) {
 					addr = le32_to_cpu(sg_head->
@@ -8313,8 +8313,8 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 			}
 		}
 	} else {
-		if (asc_dvc->bug_fix_cntl) {
-			if (asc_dvc->bug_fix_cntl & ASC_BUG_FIX_IF_NOT_DWB) {
+		if (asc_dvc->_fix_cntl) {
+			if (asc_dvc->_fix_cntl & ASC__FIX_IF_NOT_DWB) {
 				if ((scsi_cmd == READ_6) ||
 				    (scsi_cmd == READ_10)) {
 					addr =
@@ -8767,7 +8767,7 @@ static void AscInitAscDvcVar(ASC_DVC_VAR *asc_dvc)
 	}
 	AscSetChipControl(iop_base, CC_HALT);
 	AscSetChipStatus(iop_base, 0);
-	asc_dvc->bug_fix_cntl = 0;
+	asc_dvc->_fix_cntl = 0;
 	asc_dvc->pci_fix_asyn_xfer = 0;
 	asc_dvc->pci_fix_asyn_xfer_always = 0;
 	/* asc_dvc->init_state initialized in AscInitGetConfig(). */
@@ -9357,17 +9357,17 @@ static int AscInitSetConfig(struct pci_dev *pdev, struct Scsi_Host *shost)
 		} else {
 			if ((pdev->device == PCI_DEVICE_ID_ASP_1200A) ||
 			    (pdev->device == PCI_DEVICE_ID_ASP_ABP940)) {
-				asc_dvc->bug_fix_cntl |= ASC_BUG_FIX_IF_NOT_DWB;
-				asc_dvc->bug_fix_cntl |=
-				    ASC_BUG_FIX_ASYN_USE_SYN;
+				asc_dvc->_fix_cntl |= ASC__FIX_IF_NOT_DWB;
+				asc_dvc->_fix_cntl |=
+				    ASC__FIX_ASYN_USE_SYN;
 			}
 		}
 	} else
 #endif /* CONFIG_PCI */
 	if (asc_dvc->bus_type == ASC_IS_ISAPNP) {
 		if (AscGetChipVersion(iop_base, asc_dvc->bus_type)
-		    == ASC_CHIP_VER_ASYN_BUG) {
-			asc_dvc->bug_fix_cntl |= ASC_BUG_FIX_ASYN_USE_SYN;
+		    == ASC_CHIP_VER_ASYN_) {
+			asc_dvc->_fix_cntl |= ASC__FIX_ASYN_USE_SYN;
 		}
 	}
 	if (AscSetChipScsiID(iop_base, asc_dvc->cfg->chip_scsi_id) !=
@@ -9456,7 +9456,7 @@ static ADVEEP_3550_CONFIG Default_3550_EEPROM_Config = {
 	ASC_DEF_MAX_HOST_QNG,	/* max_host_qng */
 	ASC_DEF_MAX_DVC_QNG,	/* max_dvc_qng */
 	0,			/* dvc_cntl */
-	0,			/* bug_fix */
+	0,			/* _fix */
 	0,			/* serial_number_word1 */
 	0,			/* serial_number_word2 */
 	0,			/* serial_number_word3 */
@@ -9494,7 +9494,7 @@ static ADVEEP_3550_CONFIG ADVEEP_3550_Config_Field_IsChar = {
 	1,			/* max_host_qng */
 	1,			/* max_dvc_qng */
 	0,			/* dvc_cntl */
-	0,			/* bug_fix */
+	0,			/* _fix */
 	0,			/* serial_number_word1 */
 	0,			/* serial_number_word2 */
 	0,			/* serial_number_word3 */
@@ -9786,7 +9786,7 @@ static void AdvWaitEEPCmd(AdvPortAddr iop_base)
 	}
 	if ((AdvReadWordRegister(iop_base, IOPW_EE_CMD) & ASC_EEP_CMD_DONE) ==
 	    0)
-		BUG();
+		();
 }
 
 /*
@@ -10956,7 +10956,7 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 
 		/*
 		 * Even though it isn't used to access wide boards, other
-		 * than for the debug line below, save I/O Port address so
+		 * than for the de line below, save I/O Port address so
 		 * that it can be reported.
 		 */
 		boardp->ioport = iop;

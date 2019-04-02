@@ -84,7 +84,7 @@ static const struct snd_kcontrol_new amp_gain_controls[] = {
  */
 static void spk_unmute_state(int to)
 {
-	pr_debug("%s: to=%d\n", __func__, to);
+	pr_de("%s: to=%d\n", __func__, to);
 
 	spk_unmute = to;
 	gpio_set_value(pdata->amp_gpio, to);
@@ -137,14 +137,14 @@ void simtec_audio_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card = rtd->card;
 
 	if (pdata->amp_gpio > 0) {
-		pr_debug("%s: adding amp routes\n", __func__);
+		pr_de("%s: adding amp routes\n", __func__);
 
 		snd_soc_add_card_controls(card, amp_unmute_controls,
 				     ARRAY_SIZE(amp_unmute_controls));
 	}
 
 	if (pdata->amp_gain[0] > 0) {
-		pr_debug("%s: adding amp controls\n", __func__);
+		pr_de("%s: adding amp controls\n", __func__);
 		snd_soc_add_card_controls(card, amp_gain_controls,
 				     ARRAY_SIZE(amp_gain_controls));
 	}

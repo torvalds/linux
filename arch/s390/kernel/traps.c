@@ -14,11 +14,11 @@
  * state in 'asm.s'.
  */
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/extable.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -37,7 +37,7 @@ static inline void __user *get_trap_ip(struct pt_regs *regs)
 	return (void __user *) (address - (regs->int_code >> 16));
 }
 
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	return 1;
 }
@@ -53,10 +53,10 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
                 if (fixup)
 			regs->psw.addr = extable_fixup(fixup);
 		else {
-			enum bug_trap_type btt;
+			enum _trap_type btt;
 
-			btt = report_bug(regs->psw.addr, regs);
-			if (btt == BUG_TRAP_TYPE_WARN)
+			btt = report_(regs->psw.addr, regs);
+			if (btt == _TRAP_TYPE_WARN)
 				return;
 			die(regs, str);
 		}

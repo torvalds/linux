@@ -20,7 +20,7 @@
 #define _MEDIA_ENTITY_H
 
 #include <linux/bitmap.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/fwnode.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -291,7 +291,7 @@ enum media_entity_type {
  *
  *    @stream_count and @use_count reference counts must never be
  *    negative, but are signed integers on purpose: a simple ``WARN_ON(<0)``
- *    check can be used to detect reference count bugs that would make them
+ *    check can be used to detect reference count s that would make them
  *    negative.
  */
 struct media_entity {

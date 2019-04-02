@@ -249,7 +249,7 @@ static int hac_hw_params(struct snd_pcm_substream *substream,
 		HACREG(HACACR) |= d ?  ACR_DMARX20 :  ACR_DMATX20;
 		break;
 	default:
-		pr_debug("hac: invalid depth %d bit\n", params->msbits);
+		pr_de("hac: invalid depth %d bit\n", params->msbits);
 		return -EINVAL;
 		break;
 	}

@@ -260,7 +260,7 @@ static int run_test(struct testcase *test, int count)
 		} else {
 			/*
 			 * Do a dereference of the address returned so that we catch
-			 * bugs in page fault handling
+			 * s in page fault handling
 			 */
 			memset(p, 0, t->size);
 			printf("OK\n");

@@ -37,7 +37,7 @@ static struct pci_controller lasat_pci_controller = {
 
 static int __init lasat_pci_setup(void)
 {
-	printk(KERN_DEBUG "PCI: starting\n");
+	printk(KERN_DE "PCI: starting\n");
 
 	if (IS_LASAT_200())
 		lasat_pci_controller.pci_ops = &nile4_pci_ops;

@@ -1010,7 +1010,7 @@ static void encode_createhow3(struct xdr_stream *xdr,
 		encode_createverf3(xdr, args->verifier);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1123,7 +1123,7 @@ static void encode_mknoddata3(struct xdr_stream *xdr,
 	case NF3DIR:
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1336,12 +1336,12 @@ static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
 			    (args->mask & NFS_ACL) ?
 			    args->acl_access : NULL, 1, 0);
 	/* FIXME: this is just broken */
-	BUG_ON(error < 0);
+	_ON(error < 0);
 	error = nfsacl_encode(xdr->buf, base + error, args->inode,
 			    (args->mask & NFS_DFACL) ?
 			    args->acl_default : NULL, 1,
 			    NFS_ACL_DEFAULT);
-	BUG_ON(error < 0);
+	_ON(error < 0);
 }
 
 #endif  /* CONFIG_NFS_V3_ACL */

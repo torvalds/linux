@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 
 #include <linux/firmware/xlnx-zynqmp.h>
-#include "zynqmp-debug.h"
+#include "zynqmp-de.h"
 
 static const struct mfd_cell firmware_devs[] = {
 	{
@@ -694,7 +694,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	pr_info("%s Trustzone version v%d.%d\n", __func__,
 		pm_tz_version >> 16, pm_tz_version & 0xFFFF);
 
-	zynqmp_pm_api_debugfs_init();
+	zynqmp_pm_api_defs_init();
 
 	ret = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE, firmware_devs,
 			      ARRAY_SIZE(firmware_devs), NULL, 0, NULL);
@@ -709,7 +709,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 static int zynqmp_firmware_remove(struct platform_device *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
-	zynqmp_pm_api_debugfs_exit();
+	zynqmp_pm_api_defs_exit();
 
 	return 0;
 }

@@ -602,7 +602,7 @@ static bool sh_mmcif_next_block(struct sh_mmcif_host *host, u32 *p)
 	host->sg_blkidx += host->blocksize;
 
 	/* data->sg->length must be a multiple of host->blocksize? */
-	BUG_ON(host->sg_blkidx > data->sg->length);
+	_ON(host->sg_blkidx > data->sg->length);
 
 	if (host->sg_blkidx == data->sg->length) {
 		host->sg_blkidx = 0;
@@ -682,7 +682,7 @@ static bool sh_mmcif_mread_block(struct sh_mmcif_host *host)
 		return false;
 	}
 
-	BUG_ON(!data->sg->length);
+	_ON(!data->sg->length);
 
 	for (i = 0; i < host->blocksize / 4; i++)
 		*p++ = sh_mmcif_readl(host->addr, MMCIF_CE_DATA);
@@ -762,7 +762,7 @@ static bool sh_mmcif_mwrite_block(struct sh_mmcif_host *host)
 		return false;
 	}
 
-	BUG_ON(!data->sg->length);
+	_ON(!data->sg->length);
 
 	for (i = 0; i < host->blocksize / 4; i++)
 		sh_mmcif_writel(host->addr, MMCIF_CE_DATA, *p++);
@@ -1239,7 +1239,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (wait) {
@@ -1355,7 +1355,7 @@ static void sh_mmcif_timeout_work(struct work_struct *work)
 		mrq->data->error = sh_mmcif_error_manage(host);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	host->state = STATE_IDLE;

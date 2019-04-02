@@ -566,10 +566,10 @@ static void mpc_dma_free_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&mchan->lock, flags);
 
 	/* Channel must be idle */
-	BUG_ON(!list_empty(&mchan->prepared));
-	BUG_ON(!list_empty(&mchan->queued));
-	BUG_ON(!list_empty(&mchan->active));
-	BUG_ON(!list_empty(&mchan->completed));
+	_ON(!list_empty(&mchan->prepared));
+	_ON(!list_empty(&mchan->queued));
+	_ON(!list_empty(&mchan->active));
+	_ON(!list_empty(&mchan->completed));
 
 	/* Move data */
 	list_splice_tail_init(&mchan->free, &descs);

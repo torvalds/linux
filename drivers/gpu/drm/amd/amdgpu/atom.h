@@ -143,7 +143,7 @@ struct atom_context {
 	char vbios_version[20];
 };
 
-extern int amdgpu_atom_debug;
+extern int amdgpu_atom_de;
 
 struct atom_context *amdgpu_atom_parse(struct card_info *, void *);
 int amdgpu_atom_execute_table(struct atom_context *, int, uint32_t *);

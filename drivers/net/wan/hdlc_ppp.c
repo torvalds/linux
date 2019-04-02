@@ -22,9 +22,9 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#define DEBUG_CP		0 /* also bytes# to dump */
-#define DEBUG_STATE		0
-#define DEBUG_HARD_HEADER	0
+#define DE_CP		0 /* also bytes# to dump */
+#define DE_STATE		0
+#define DE_HARD_HEADER	0
 
 #define HDLC_ADDR_ALLSTATIONS	0xFF
 #define HDLC_CTRL_UI		0x03
@@ -39,12 +39,12 @@ enum {IDX_LCP = 0, IDX_IPCP, IDX_IPV6CP, IDX_COUNT};
 enum {CP_CONF_REQ = 1, CP_CONF_ACK, CP_CONF_NAK, CP_CONF_REJ, CP_TERM_REQ,
       CP_TERM_ACK, CP_CODE_REJ, LCP_PROTO_REJ, LCP_ECHO_REQ, LCP_ECHO_REPLY,
       LCP_DISC_REQ, CP_CODES};
-#if DEBUG_CP
+#if DE_CP
 static const char *const code_names[CP_CODES] = {
 	"0", "ConfReq", "ConfAck", "ConfNak", "ConfRej", "TermReq",
 	"TermAck", "CodeRej", "ProtoRej", "EchoReq", "EchoReply", "Discard"
 };
-static char debug_buffer[64 + 3 * DEBUG_CP];
+static char de_buffer[64 + 3 * DE_CP];
 #endif
 
 enum {LCP_OPTION_MRU = 1, LCP_OPTION_ACCM, LCP_OPTION_MAGIC = 5};
@@ -89,7 +89,7 @@ enum {START = 0, STOP, TO_GOOD, TO_BAD, RCR_GOOD, RCR_BAD, RCA, RCN, RTR, RTA,
 enum {INV = 0x10, IRC = 0x20, ZRC = 0x40, SCR = 0x80, SCA = 0x100,
       SCN = 0x200, STR = 0x400, STA = 0x800, SCJ = 0x1000};
 
-#if DEBUG_STATE
+#if DE_STATE
 static const char *const state_names[STATES] = {
 	"Closed", "Stopped", "Stopping", "ReqSent", "AckRecv", "AckSent",
 	"Opened"
@@ -169,8 +169,8 @@ static int ppp_hard_header(struct sk_buff *skb, struct net_device *dev,
 			   unsigned int len)
 {
 	struct hdlc_header *data;
-#if DEBUG_HARD_HEADER
-	printk(KERN_DEBUG "%s: ppp_hard_header() called\n", dev->name);
+#if DE_HARD_HEADER
+	printk(KERN_DE "%s: ppp_hard_header() called\n", dev->name);
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));
@@ -212,7 +212,7 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 	unsigned int magic_len = 0;
 	static u32 magic;
 
-#if DEBUG_CP
+#if DE_CP
 	int i;
 	char *ptr;
 #endif
@@ -238,16 +238,16 @@ static void ppp_tx_cp(struct net_device *dev, u16 pid, u8 code,
 	if (len)
 		skb_put_data(skb, data, len);
 
-#if DEBUG_CP
-	BUG_ON(code >= CP_CODES);
-	ptr = debug_buffer;
+#if DE_CP
+	_ON(code >= CP_CODES);
+	ptr = de_buffer;
 	*ptr = '\x0';
-	for (i = 0; i < min_t(unsigned int, magic_len + len, DEBUG_CP); i++) {
+	for (i = 0; i < min_t(unsigned int, magic_len + len, DE_CP); i++) {
 		sprintf(ptr, " %02X", skb->data[sizeof(struct cp_header) + i]);
 		ptr += strlen(ptr);
 	}
-	printk(KERN_DEBUG "%s: TX %s [%s id 0x%X]%s\n", dev->name,
-	       proto_name(pid), code_names[code], id, debug_buffer);
+	printk(KERN_DE "%s: TX %s [%s id 0x%X]%s\n", dev->name,
+	       proto_name(pid), code_names[code], id, de_buffer);
 #endif
 
 	ppp_hard_header(skb, dev, pid, NULL, NULL, 0);
@@ -309,11 +309,11 @@ static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
 	struct proto *proto = get_proto(dev, pid);
 
 	old_state = proto->state;
-	BUG_ON(old_state >= STATES);
-	BUG_ON(event >= EVENTS);
+	_ON(old_state >= STATES);
+	_ON(event >= EVENTS);
 
-#if DEBUG_STATE
-	printk(KERN_DEBUG "%s: %s ppp_cp_event(%s) %s ...\n", dev->name,
+#if DE_STATE
+	printk(KERN_DE "%s: %s ppp_cp_event(%s) %s ...\n", dev->name,
 	       proto_name(pid), event_names[event], state_names[proto->state]);
 #endif
 
@@ -365,8 +365,8 @@ static void ppp_cp_event(struct net_device *dev, u16 pid, u16 event, u8 code,
 	if (old_state != CLOSED && proto->state == CLOSED)
 		del_timer(&proto->timer);
 
-#if DEBUG_STATE
-	printk(KERN_DEBUG "%s: %s ppp_cp_event(%s) ... %s\n", dev->name,
+#if DE_STATE
+	printk(KERN_DE "%s: %s ppp_cp_event(%s) ... %s\n", dev->name,
 	       proto_name(pid), event_names[event], state_names[proto->state]);
 #endif
 }
@@ -439,7 +439,7 @@ static int ppp_rx(struct sk_buff *skb)
 	unsigned long flags;
 	unsigned int len;
 	u16 pid;
-#if DEBUG_CP
+#if DE_CP
 	int i;
 	char *ptr;
 #endif
@@ -470,19 +470,19 @@ static int ppp_rx(struct sk_buff *skb)
 	len -= sizeof(struct cp_header);
 
 	/* HDLC and CP headers stripped from skb */
-#if DEBUG_CP
+#if DE_CP
 	if (cp->code < CP_CODES)
-		sprintf(debug_buffer, "[%s id 0x%X]", code_names[cp->code],
+		sprintf(de_buffer, "[%s id 0x%X]", code_names[cp->code],
 			cp->id);
 	else
-		sprintf(debug_buffer, "[code %u id 0x%X]", cp->code, cp->id);
-	ptr = debug_buffer + strlen(debug_buffer);
-	for (i = 0; i < min_t(unsigned int, len, DEBUG_CP); i++) {
+		sprintf(de_buffer, "[code %u id 0x%X]", cp->code, cp->id);
+	ptr = de_buffer + strlen(de_buffer);
+	for (i = 0; i < min_t(unsigned int, len, DE_CP); i++) {
 		sprintf(ptr, " %02X", skb->data[i]);
 		ptr += strlen(ptr);
 	}
-	printk(KERN_DEBUG "%s: RX %s %s\n", dev->name, proto_name(pid),
-	       debug_buffer);
+	printk(KERN_DE "%s: RX %s %s\n", dev->name, proto_name(pid),
+	       de_buffer);
 #endif
 
 	/* LCP only */

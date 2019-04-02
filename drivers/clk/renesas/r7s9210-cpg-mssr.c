@@ -131,7 +131,7 @@ static void __init r7s9210_update_clk_table(struct clk *extal_clk,
 	else if (frqcr == 0x333)
 		index = 4;
 	else
-		BUG_ON(1);	/* Illegal FRQCR value */
+		_ON(1);	/* Illegal FRQCR value */
 
 	for (i = 0; i < ARRAY_SIZE(r7s9210_core_clks); i++) {
 		switch (r7s9210_core_clks[i].id) {

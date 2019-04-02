@@ -31,7 +31,7 @@
  *
  * This file also contains register values found on a memory dump of
  * Atheros's ART program (Atheros Radio Test), on ath9k, on legacy-hal
- * released by Atheros and on various debug messages found on the net.
+ * released by Atheros and on various de messages found on the net.
  */
 
 #include "../reg.h"
@@ -466,7 +466,7 @@
 #define AR5K_SIMR4_QTRIG_S	0
 
 /*
- * DMA Debug registers 0-7
+ * DMA De registers 0-7
  * 0xe0 - 0xfc
  */
 

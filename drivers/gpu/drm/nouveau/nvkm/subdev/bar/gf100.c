@@ -103,7 +103,7 @@ gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
 		return ret;
 
 	atomic_inc(&bar_vm->vmm->engref[NVKM_SUBDEV_BAR]);
-	bar_vm->vmm->debug = bar->base.subdev.debug;
+	bar_vm->vmm->de = bar->base.subdev.de;
 
 	/*
 	 * Bootstrap page table lookup.

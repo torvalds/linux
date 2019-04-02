@@ -538,7 +538,7 @@ xfs_iget_cache_miss(
 	 */
 	if (lock_flags) {
 		if (!xfs_ilock_nowait(ip, lock_flags))
-			BUG();
+			();
 	}
 
 	/*

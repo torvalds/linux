@@ -22,7 +22,7 @@
  * work on the X server.
  *
  * Voodoo3 support was contributed Harold Oga. Lots of additions
- * (proper acceleration, 24 bpp, hardware cursor) and bug fixes by Attila
+ * (proper acceleration, 24 bpp, hardware cursor) and  fixes by Attila
  * Kesmarki. Thanks guys!
  *
  * Voodoo1 and Voodoo2 support aren't relevant to this driver as they
@@ -56,7 +56,7 @@
  *				and my changes to get rid of hardcoded
  *				VGA i/o register locations (uses PCI
  *				configuration info now)
- * 0.1.2 (released 1999-10-19)	added Attila Kesmarki's bug fixes and
+ * 0.1.2 (released 1999-10-19)	added Attila Kesmarki's  fixes and
  *				improvements
  * 0.1.1 (released 1999-10-07)	added Voodoo3 support by Harold Oga.
  * 0.1.0 (released 1999-10-06)	initial version
@@ -76,7 +76,7 @@
 
 #include <video/tdfx.h>
 
-#define DPRINTK(a, b...) pr_debug("fb: %s: " a, __func__ , ## b)
+#define DPRINTK(a, b...) pr_de("fb: %s: " a, __func__ , ## b)
 
 #define BANSHEE_MAX_PIXCLOCK 270000
 #define VOODOO3_MAX_PIXCLOCK 300000

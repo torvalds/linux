@@ -7,7 +7,7 @@
 //	Ben Dooks <ben@simtec.co.uk>
 //	http://armlinux.simtec.co.uk/
 //
-// Samsung common power management (suspend to RAM) debug support
+// Samsung common power management (suspend to RAM) de support
 
 #include <linux/serial_core.h>
 #include <linux/serial_s3c.h>
@@ -22,7 +22,7 @@
 #include <plat/pm.h>
 #include <mach/pm-core.h>
 #else
-static inline void s3c_pm_debug_init_uart(void) {}
+static inline void s3c_pm_de_init_uart(void) {}
 static inline void s3c_pm_arch_update_uart(void __iomem *regs,
 					   struct pm_uart_save *save) {}
 #endif
@@ -43,10 +43,10 @@ void s3c_pm_dbg(const char *fmt, ...)
 	printascii(buff);
 }
 
-void s3c_pm_debug_init(void)
+void s3c_pm_de_init(void)
 {
 	/* restart uart clocks so we can use them to output */
-	s3c_pm_debug_init_uart();
+	s3c_pm_de_init_uart();
 }
 
 static inline void __iomem *s3c_pm_uart_base(void)
@@ -54,7 +54,7 @@ static inline void __iomem *s3c_pm_uart_base(void)
 	unsigned long paddr;
 	unsigned long vaddr;
 
-	debug_ll_addr(&paddr, &vaddr);
+	de_ll_addr(&paddr, &vaddr);
 
 	return (void __iomem *)vaddr;
 }

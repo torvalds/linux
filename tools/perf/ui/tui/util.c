@@ -6,7 +6,7 @@
 #include <sys/ttydefaults.h>
 
 #include "../../util/cache.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../browser.h"
 #include "../keysyms.h"
 #include "../helpline.h"

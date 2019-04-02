@@ -17,7 +17,7 @@
 #include "pvrusb2-io.h"
 #include "pvrusb2-ioread.h"
 #include "pvrusb2-hdw.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include <linux/wait.h>
 #include <linux/kthread.h>
 #include <linux/errno.h>

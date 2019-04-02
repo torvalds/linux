@@ -216,7 +216,7 @@ void ast_vhub_init_hw(struct ast_vhub *vhub)
 		ctrl |= VHUB_CTRL_LONG_DESC;
 		writel(ctrl, vhub->regs + AST_VHUB_CTRL);
 	} else {
-		BUILD_BUG_ON(AST_VHUB_DESCS_COUNT != 32);
+		BUILD__ON(AST_VHUB_DESCS_COUNT != 32);
 	}
 
 	/* Reset all devices */

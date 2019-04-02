@@ -104,7 +104,7 @@
 #define NO_SYSCALL (-1)
 
 #ifndef __ASSEMBLY__
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/types.h>
 
 /* sizeof(struct user) for AArch32 */

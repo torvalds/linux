@@ -101,14 +101,14 @@ static bool should_fail_iommu(struct device *dev)
 	return dev->archdata.fail_iommu && should_fail(&fail_iommu, 1);
 }
 
-static int __init fail_iommu_debugfs(void)
+static int __init fail_iommu_defs(void)
 {
-	struct dentry *dir = fault_create_debugfs_attr("fail_iommu",
+	struct dentry *dir = fault_create_defs_attr("fail_iommu",
 						       NULL, &fail_iommu);
 
 	return PTR_ERR_OR_ZERO(dir);
 }
-late_initcall(fail_iommu_debugfs);
+late_initcall(fail_iommu_defs);
 
 static ssize_t fail_iommu_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -386,7 +386,7 @@ static struct iommu_pool *get_pool(struct iommu_table *tbl,
 	} else {
 		unsigned int pool_nr = entry / tbl->poolsize;
 
-		BUG_ON(pool_nr > tbl->nr_pools);
+		_ON(pool_nr > tbl->nr_pools);
 		p = &tbl->pools[pool_nr];
 	}
 
@@ -440,7 +440,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	unsigned long handle;
 	unsigned int max_seg_size;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	if ((nelems == 0) || !tbl)
 		return 0;
@@ -579,7 +579,7 @@ void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 {
 	struct scatterlist *sg;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	if (!tbl)
 		return;
@@ -658,7 +658,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	unsigned int i;
 	struct iommu_pool *p;
 
-	BUG_ON(!tbl->it_ops);
+	_ON(!tbl->it_ops);
 
 	/* number of bytes needed for the bitmap */
 	sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
@@ -671,7 +671,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 
 	/*
 	 * Reserve page 0 so it will not be used for any mappings.
-	 * This avoids buggy drivers that consider page 0 to be invalid
+	 * This avoids gy drivers that consider page 0 to be invalid
 	 * to crash the machine or even lose data.
 	 */
 	if (tbl->it_offset == 0)
@@ -782,7 +782,7 @@ dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 	unsigned long uaddr;
 	unsigned int npages, align;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	vaddr = page_address(page) + offset;
 	uaddr = (unsigned long)vaddr;
@@ -817,7 +817,7 @@ void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
 {
 	unsigned int npages;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	if (tbl) {
 		npages = iommu_num_pages(dma_handle, size,
@@ -845,7 +845,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 
  	/*
 	 * Client asked for way too much space.  This is checked later
-	 * anyway.  It is easier to debug here for the drivers than in
+	 * anyway.  It is easier to de here for the drivers than in
 	 * the tce tables.
 	 */
 	if (order >= IOMAP_MAX_ORDER) {
@@ -1089,13 +1089,13 @@ int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 		return -ENOENT;
 
 	if (device_iommu_mapped(dev)) {
-		pr_debug("%s: Skipping device %s with iommu group %d\n",
+		pr_de("%s: Skipping device %s with iommu group %d\n",
 			 __func__, dev_name(dev),
 			 iommu_group_id(dev->iommu_group));
 		return -EBUSY;
 	}
 
-	pr_debug("%s: Adding %s to iommu group %d\n",
+	pr_de("%s: Adding %s to iommu group %d\n",
 		 __func__, dev_name(dev),  iommu_group_id(table_group->group));
 
 	return iommu_group_add_device(table_group->group, dev);
@@ -1110,7 +1110,7 @@ void iommu_del_device(struct device *dev)
 	 * IOMMU groups
 	 */
 	if (!device_iommu_mapped(dev)) {
-		pr_debug("iommu_tce: skipping device %s with no tbl\n",
+		pr_de("iommu_tce: skipping device %s with no tbl\n",
 			 dev_name(dev));
 		return;
 	}

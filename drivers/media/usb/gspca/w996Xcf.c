@@ -390,7 +390,7 @@ static void w9968cf_init(struct sd *sd)
 	reg_w(sd, 0x33, y1 >> 16);    /* JPEG buf 0 high */
 
 	reg_w(sd, 0x34, y1 & 0xffff); /* JPEG buf 1 low */
-	reg_w(sd, 0x35, y1 >> 16);    /* JPEG bug 1 high */
+	reg_w(sd, 0x35, y1 >> 16);    /* JPEG  1 high */
 
 	reg_w(sd, 0x36, 0x0000);/* JPEG restart interval */
 	reg_w(sd, 0x37, 0x0804);/*JPEG VLE FIFO threshold*/
@@ -494,7 +494,7 @@ static void w9968cf_mode_init_regs(struct sd *sd)
 
 	/* Video Capture Control Register */
 	if (sd->sensor == SEN_OV7620) {
-		/* Seems to work around a bug in the image sensor */
+		/* Seems to work around a  in the image sensor */
 		vs_polarity = 1;
 		hs_polarity = 1;
 	} else {

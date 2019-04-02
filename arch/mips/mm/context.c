@@ -27,7 +27,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 	 * This function is specific to ASIDs, and should not be called when
 	 * MMIDs are in use.
 	 */
-	if (WARN_ON(IS_ENABLED(CONFIG_DEBUG_VM) && cpu_has_mmid))
+	if (WARN_ON(IS_ENABLED(CONFIG_DE_VM) && cpu_has_mmid))
 		return;
 
 	cpu = smp_processor_id();
@@ -52,7 +52,7 @@ void check_mmu_context(struct mm_struct *mm)
 	 * This function is specific to ASIDs, and should not be called when
 	 * MMIDs are in use.
 	 */
-	if (WARN_ON(IS_ENABLED(CONFIG_DEBUG_VM) && cpu_has_mmid))
+	if (WARN_ON(IS_ENABLED(CONFIG_DE_VM) && cpu_has_mmid))
 		return;
 
 	/* Check if our ASID is of an older version and thus invalid */

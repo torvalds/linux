@@ -378,7 +378,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	}
 
 	if (val > rps->rp0_freq)
-		DRM_DEBUG("User requested overclocking to %d\n",
+		DRM_DE("User requested overclocking to %d\n",
 			  intel_gpu_freq(dev_priv, val));
 
 	rps->max_freq_softlimit = val;
@@ -481,7 +481,7 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	else if (attr == &dev_attr_gt_RPn_freq_mhz)
 		val = intel_gpu_freq(dev_priv, rps->min_freq);
 	else
-		BUG();
+		();
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
@@ -547,7 +547,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
 
-	DRM_DEBUG_DRIVER("Resetting error state\n");
+	DRM_DE_DRIVER("Resetting error state\n");
 	i915_reset_error_state(dev_priv);
 
 	return count;

@@ -510,11 +510,11 @@ struct wl1271_acx_mem_map {
 	__le32 packet_memory_pool_start;
 	__le32 packet_memory_pool_end;
 
-	__le32 debug_buffer1_start;
-	__le32 debug_buffer1_end;
+	__le32 de_buffer1_start;
+	__le32 de_buffer1_end;
 
-	__le32 debug_buffer2_start;
-	__le32 debug_buffer2_end;
+	__le32 de_buffer2_start;
+	__le32 de_buffer2_end;
 
 	/* Number of blocks FW allocated for TX packets */
 	__le32 num_tx_mem_blocks;

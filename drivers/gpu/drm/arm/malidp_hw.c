@@ -409,7 +409,7 @@ static long malidp500_se_calc_mclk(struct malidp_hw_device *hwdev,
 	mclk = a * pxlclk / 10;
 	ret = clk_get_rate(hwdev->mclk);
 	if (ret < mclk) {
-		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
+		DRM_DE_DRIVER("mclk requirement of %lu kHz can't be met.\n",
 				 mclk / 1000);
 		return -EINVAL;
 	}
@@ -692,7 +692,7 @@ static long malidp550_se_calc_mclk(struct malidp_hw_device *hwdev,
 	mclk = (pxlclk * numerator) / denominator;
 	ret = clk_get_rate(hwdev->mclk);
 	if (ret < mclk) {
-		DRM_DEBUG_DRIVER("mclk requirement of %lu kHz can't be met.\n",
+		DRM_DE_DRIVER("mclk requirement of %lu kHz can't be met.\n",
 				 mclk / 1000);
 		return -EINVAL;
 	}
@@ -1003,7 +1003,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	if ((status & de->vsync_irq) && malidp->crtc.enabled)
 		drm_crtc_handle_vblank(&malidp->crtc);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	if (status & de->err_mask) {
 		malidp_error(malidp, &malidp->de_errors, status,
 			     drm_crtc_vblank_count(&malidp->crtc));
@@ -1095,7 +1095,7 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 	if (!(status & (se->irq_mask | se->err_mask)))
 		return IRQ_NONE;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	if (status & se->err_mask)
 		malidp_error(malidp, &malidp->se_errors, status,
 			     drm_crtc_vblank_count(&malidp->crtc));

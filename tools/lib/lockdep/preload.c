@@ -192,7 +192,7 @@ static struct lock_lookup *__get_lock(void *lock)
 	l->orig = lock;
 	/*
 	 * Currently the name of the lock is the ptr value of the pthread lock,
-	 * while not optimal, it makes debugging a bit easier.
+	 * while not optimal, it makes deging a bit easier.
 	 *
 	 * TODO: Get the real name of the lock using libdwarf
 	 */
@@ -317,7 +317,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex)
 	 *
 	 * TODO: Hook into free() and add that check there as well.
 	 */
-	debug_check_no_locks_freed(mutex, sizeof(*mutex));
+	de_check_no_locks_freed(mutex, sizeof(*mutex));
 	__del_lock(__get_lock(mutex));
 	return ll_pthread_mutex_destroy(mutex);
 }
@@ -341,7 +341,7 @@ int pthread_rwlock_destroy(pthread_rwlock_t *rwlock)
 {
 	try_init_preload();
 
-	debug_check_no_locks_freed(rwlock, sizeof(*rwlock));
+	de_check_no_locks_freed(rwlock, sizeof(*rwlock));
 	__del_lock(__get_lock(rwlock));
 	return ll_pthread_rwlock_destroy(rwlock);
 }

@@ -31,7 +31,7 @@ ACPI_MODULE_NAME("utstrtoul64")
  *  iASL        - Data Table Compiler parser (constants and math expressions)
  *  interpreter - Implicit and explicit conversions, GPE method names
  *  interpreter - Repair code for return values from predefined names
- *  debugger    - Command line input string conversion
+ *  deger    - Command line input string conversion
  *  acpi_dump   - ACPI table physical addresses
  *  acpi_exec   - Support for namespace overrides
  *

@@ -36,8 +36,8 @@ MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.1");
 
-static bool debug;
-module_param(debug, bool, 0644);
+static bool de;
+module_param(de, bool, 0644);
 
 #define MIN_W 32
 #define MIN_H 32
@@ -59,7 +59,7 @@ module_param(debug, bool, 0644);
 #define MEM2MEM_VID_MEM_LIMIT	SZ_16M
 
 #define dprintk(dev, fmt, arg...) \
-	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(1, de, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 /* EMMA PrP */
 #define PRP_CNTL                        0x00
@@ -230,7 +230,7 @@ static struct emmaprp_q_data *get_q_data(struct emmaprp_ctx *ctx,
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		return &(ctx->q_data[V4L2_M2M_DST]);
 	default:
-		BUG();
+		();
 	}
 	return NULL;
 }

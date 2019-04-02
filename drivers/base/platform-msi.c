@@ -68,7 +68,7 @@ static void platform_msi_update_dom_ops(struct msi_domain_info *info)
 {
 	struct msi_domain_ops *ops = info->ops;
 
-	BUG_ON(!ops);
+	_ON(!ops);
 
 	if (ops->msi_init == NULL)
 		ops->msi_init = platform_msi_init;
@@ -90,7 +90,7 @@ static void platform_msi_update_chip_ops(struct msi_domain_info *info)
 {
 	struct irq_chip *chip = info->chip;
 
-	BUG_ON(!chip);
+	_ON(!chip);
 	if (!chip->irq_mask)
 		chip->irq_mask = irq_chip_mask_parent;
 	if (!chip->irq_unmask)

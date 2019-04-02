@@ -49,7 +49,7 @@ static inline const char *printk_skip_headers(const char *buffer)
 /* We show everything that is MORE important than this.. */
 #define CONSOLE_LOGLEVEL_SILENT  0 /* Mum's the word */
 #define CONSOLE_LOGLEVEL_MIN	 1 /* Minimum loglevel we let people use */
-#define CONSOLE_LOGLEVEL_DEBUG	10 /* issue debug messages */
+#define CONSOLE_LOGLEVEL_DE	10 /* issue de messages */
 #define CONSOLE_LOGLEVEL_MOTORMOUTH 15	/* You can't shut this one up */
 
 /*
@@ -88,26 +88,26 @@ struct va_format {
 };
 
 /*
- * FW_BUG
- * Add this to a message where you are sure the firmware is buggy or behaves
+ * FW_
+ * Add this to a message where you are sure the firmware is gy or behaves
  * really stupid or out of spec. Be aware that the responsible BIOS developer
  * should be able to fix this issue or at least get a concrete idea of the
  * problem by reading your message without the need of looking at the kernel
  * code.
  *
- * Use it for definite and high priority BIOS bugs.
+ * Use it for definite and high priority BIOS s.
  *
  * FW_WARN
  * Use it for not that clear (e.g. could the kernel messed up things already?)
- * and medium priority BIOS bugs.
+ * and medium priority BIOS s.
  *
  * FW_INFO
  * Use this one if you want to tell the user or vendor about something
  * suspicious, but generally harmless related to the firmware.
  *
- * Use it for information or very low priority BIOS bugs.
+ * Use it for information or very low priority BIOS s.
  */
-#define FW_BUG		"[Firmware Bug]: "
+#define FW_		"[Firmware ]: "
 #define FW_WARN		"[Firmware Warn]: "
 #define FW_INFO		"[Firmware Info]: "
 
@@ -126,7 +126,7 @@ struct va_format {
 #define DEPRECATED	"[Deprecated]: "
 
 /*
- * Dummy printk for disabled debugging statements to use whilst maintaining
+ * Dummy printk for disabled deging statements to use whilst maintaining
  * gcc's format checking.
  */
 #define no_printk(fmt, ...)				\
@@ -288,9 +288,9 @@ extern int kptr_restrict;
 
 /*
  * These can be used to print at the various log levels.
- * All of these will print unconditionally, although note that pr_debug()
- * and other debug macros are compiled out unless either DEBUG is defined
- * or CONFIG_DYNAMIC_DEBUG is set.
+ * All of these will print unconditionally, although note that pr_de()
+ * and other de macros are compiled out unless either DE is defined
+ * or CONFIG_DYNAMIC_DE is set.
  */
 #define pr_emerg(fmt, ...) \
 	printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
@@ -315,29 +315,29 @@ extern int kptr_restrict;
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
 
-/* pr_devel() should produce zero code unless DEBUG is defined */
-#ifdef DEBUG
+/* pr_devel() should produce zero code unless DE is defined */
+#ifdef DE
 #define pr_devel(fmt, ...) \
-	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 
 /* If you are writing a driver, please use dev_dbg instead */
-#if defined(CONFIG_DYNAMIC_DEBUG)
-#include <linux/dynamic_debug.h>
+#if defined(CONFIG_DYNAMIC_DE)
+#include <linux/dynamic_de.h>
 
-/* dynamic_pr_debug() uses pr_fmt() internally so we don't need it here */
-#define pr_debug(fmt, ...) \
-	dynamic_pr_debug(fmt, ##__VA_ARGS__)
-#elif defined(DEBUG)
-#define pr_debug(fmt, ...) \
-	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+/* dynamic_pr_de() uses pr_fmt() internally so we don't need it here */
+#define pr_de(fmt, ...) \
+	dynamic_pr_de(fmt, ##__VA_ARGS__)
+#elif defined(DE)
+#define pr_de(fmt, ...) \
+	printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
-#define pr_debug(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_de(fmt, ...) \
+	no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /*
@@ -391,21 +391,21 @@ extern int kptr_restrict;
 #define pr_cont_once(fmt, ...)					\
 	printk_once(KERN_CONT pr_fmt(fmt), ##__VA_ARGS__)
 
-#if defined(DEBUG)
+#if defined(DE)
 #define pr_devel_once(fmt, ...)					\
-	printk_once(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	printk_once(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel_once(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
-#if defined(DEBUG)
-#define pr_debug_once(fmt, ...)					\
-	printk_once(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#if defined(DE)
+#define pr_de_once(fmt, ...)					\
+	printk_once(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
-#define pr_debug_once(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_de_once(fmt, ...)					\
+	no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /*
@@ -443,33 +443,33 @@ extern int kptr_restrict;
 	printk_ratelimited(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 /* no pr_cont_ratelimited, don't do that... */
 
-#if defined(DEBUG)
+#if defined(DE)
 #define pr_devel_ratelimited(fmt, ...)					\
-	printk_ratelimited(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	printk_ratelimited(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
 #define pr_devel_ratelimited(fmt, ...)					\
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+	no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 /* descriptor check is first to prevent flooding with "callbacks suppressed" */
-#define pr_debug_ratelimited(fmt, ...)					\
+#define pr_de_ratelimited(fmt, ...)					\
 do {									\
 	static DEFINE_RATELIMIT_STATE(_rs,				\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
-	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, pr_fmt(fmt));		\
-	if (DYNAMIC_DEBUG_BRANCH(descriptor) &&				\
+	DEFINE_DYNAMIC_DE_METADATA(descriptor, pr_fmt(fmt));		\
+	if (DYNAMIC_DE_BRANCH(descriptor) &&				\
 	    __ratelimit(&_rs))						\
-		__dynamic_pr_debug(&descriptor, pr_fmt(fmt), ##__VA_ARGS__);	\
+		__dynamic_pr_de(&descriptor, pr_fmt(fmt), ##__VA_ARGS__);	\
 } while (0)
-#elif defined(DEBUG)
-#define pr_debug_ratelimited(fmt, ...)					\
-	printk_ratelimited(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#elif defined(DE)
+#define pr_de_ratelimited(fmt, ...)					\
+	printk_ratelimited(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
-#define pr_debug_ratelimited(fmt, ...) \
-	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_de_ratelimited(fmt, ...) \
+	no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 extern const struct file_operations kmsg_fops;
@@ -486,13 +486,13 @@ extern int hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
 extern void print_hex_dump(const char *level, const char *prefix_str,
 			   int prefix_type, int rowsize, int groupsize,
 			   const void *buf, size_t len, bool ascii);
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 #define print_hex_dump_bytes(prefix_str, prefix_type, buf, len)	\
 	dynamic_hex_dump(prefix_str, prefix_type, 16, 1, buf, len, true)
 #else
 extern void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 				 const void *buf, size_t len);
-#endif /* defined(CONFIG_DYNAMIC_DEBUG) */
+#endif /* defined(CONFIG_DYNAMIC_DE) */
 #else
 static inline void print_hex_dump(const char *level, const char *prefix_str,
 				  int prefix_type, int rowsize, int groupsize,
@@ -506,18 +506,18 @@ static inline void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 
 #endif
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
-#define print_hex_dump_debug(prefix_str, prefix_type, rowsize,	\
+#if defined(CONFIG_DYNAMIC_DE)
+#define print_hex_dump_de(prefix_str, prefix_type, rowsize,	\
 			     groupsize, buf, len, ascii)	\
 	dynamic_hex_dump(prefix_str, prefix_type, rowsize,	\
 			 groupsize, buf, len, ascii)
-#elif defined(DEBUG)
-#define print_hex_dump_debug(prefix_str, prefix_type, rowsize,		\
+#elif defined(DE)
+#define print_hex_dump_de(prefix_str, prefix_type, rowsize,		\
 			     groupsize, buf, len, ascii)		\
-	print_hex_dump(KERN_DEBUG, prefix_str, prefix_type, rowsize,	\
+	print_hex_dump(KERN_DE, prefix_str, prefix_type, rowsize,	\
 		       groupsize, buf, len, ascii)
 #else
-static inline void print_hex_dump_debug(const char *prefix_str, int prefix_type,
+static inline void print_hex_dump_de(const char *prefix_str, int prefix_type,
 					int rowsize, int groupsize,
 					const void *buf, size_t len, bool ascii)
 {

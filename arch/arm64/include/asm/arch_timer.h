@@ -22,7 +22,7 @@
 #include <asm/barrier.h>
 #include <asm/sysreg.h>
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/jump_label.h>
 #include <linux/smp.h>
@@ -129,7 +129,7 @@ u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 		}
 	}
 
-	BUG();
+	();
 }
 
 static inline u32 arch_timer_get_cntfrq(void)

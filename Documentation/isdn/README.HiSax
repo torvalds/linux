@@ -348,22 +348,22 @@ from within isdn4linux, you should also define a driver ID while doing
 insmod: Simply append hisax_id=<SomeString> to the insmod command line. This
 string MUST NOT start with a digit or a small 'x'!
 
-At this point you can run a 'cat /dev/isdnctrl0' and view debugging messages.
+At this point you can run a 'cat /dev/isdnctrl0' and view deging messages.
 
-At the moment, debugging messages are enabled with the hisaxctrl tool:
+At the moment, deging messages are enabled with the hisaxctrl tool:
 
-    hisaxctrl <DriverId> DebugCmd <debugging_flags>
+    hisaxctrl <DriverId> DeCmd <deging_flags>
 
 <DriverId> default is HiSax, if you didn't specify one.
 
-DebugCmd is  1  for generic debugging
-            11  for layer 1 development debugging
-            13  for layer 3 development debugging
+DeCmd is  1  for generic deging
+            11  for layer 1 development deging
+            13  for layer 3 development deging
 
-where <debugging_flags> is the integer sum of the following debugging
+where <deging_flags> is the integer sum of the following deging
 options you wish enabled:
 
-With DebugCmd set to 1:
+With DeCmd set to 1:
 
    0x0001  Link-level <--> hardware-level communication
    0x0002  Top state machine
@@ -372,15 +372,15 @@ With DebugCmd set to 1:
    0x0010  B-Channel X.75
    0x0020  D-Channel l2
    0x0040  B-Channel l2
-   0x0080  D-Channel link state debugging
-   0x0100  B-Channel link state debugging
-   0x0200  TEI debug
-   0x0400  LOCK debug in callc.c
-   0x0800  More paranoid debug in callc.c (not for normal use)
-   0x1000  D-Channel l1 state debugging
-   0x2000  B-Channel l1 state debugging
+   0x0080  D-Channel link state deging
+   0x0100  B-Channel link state deging
+   0x0200  TEI de
+   0x0400  LOCK de in callc.c
+   0x0800  More paranoid de in callc.c (not for normal use)
+   0x1000  D-Channel l1 state deging
+   0x2000  B-Channel l1 state deging
 
-With DebugCmd set to 11:
+With DeCmd set to 11:
 
    0x0001  Warnings (default: on)
    0x0002  IRQ status
@@ -389,20 +389,20 @@ With DebugCmd set to 11:
    0x0010  HSCX
    0x0020  HSCX FIFO (attention: full B-Channel output!)
    0x0040  D-Channel LAPD frame types
-   0x0080  IPAC debug
-   0x0100  HFC receive debug
-   0x0200  ISAC monitor debug
+   0x0080  IPAC de
+   0x0100  HFC receive de
+   0x0200  ISAC monitor de
    0x0400  D-Channel frames for isdnlog (set with 1 0x4 too)
    0x0800  D-Channel message verbose
 
-With DebugCmd set to 13:
+With DeCmd set to 13:
 
          1  Warnings (default: on)
          2  l3 protocol descriptor errors
          4  l3 state machine
-         8  charge info debugging (1TR6)
+         8  charge info deging (1TR6)
 
-For example, 'hisaxctrl HiSax 1 0x3ff' enables full generic debugging.
+For example, 'hisaxctrl HiSax 1 0x3ff' enables full generic deging.
 
 Because of some obscure problems with some switch equipment, the delay
 between the CONNECT message and sending the first data on the B-channel is now
@@ -436,7 +436,7 @@ Limitations
 At this time, HiSax only works on Euro ISDN lines and German 1TR6 lines.
 For leased lines see appendix.
 
-Bugs
+s
 ----
 If you find any, please let me know.
 
@@ -459,7 +459,7 @@ Special thanks to:
 	Ton van Rosmalen for Teles PCI
 	Petr Novak <petr.novak@i.cz> for Winbond W6692 support
 	Werner Cornelius <werner@isdn4linux.de> for HFC-PCI, HFC-S(+/P) and supplementary services support
-        and more people who are hunting bugs. (If I forgot somebody, please
+        and more people who are hunting s. (If I forgot somebody, please
 	send me a mail).
 
         Firma ELSA GmbH
@@ -582,7 +582,7 @@ Here an example script:
 I4L_AS_MODULE=yes
 I4L_REMOTE_IS_CISCO=no
 I4L_MODULE_PARAMS="type=16 io=0x268 irq=7 "
-I4L_DEBUG=no
+I4L_DE=no
 I4L_LEASED_128K=yes
 LOCAL_IP=192.168.1.1
 REMOTE_IP=192.168.2.1
@@ -597,7 +597,7 @@ case "$1" in
 	# configure interface
 	/sbin/isdnctrl addif isdn0
 	/sbin/isdnctrl secure isdn0 on
-	if [ ${I4L_DEBUG} = "yes" ]; then
+	if [ ${I4L_DE} = "yes" ]; then
 		/sbin/isdnctrl verbose 7
 		/sbin/hisaxctrl HiSax 1 0xffff
 		/sbin/hisaxctrl HiSax 11 0xff
@@ -642,7 +642,7 @@ case "$1" in
     stop)
 	/sbin/ifconfig isdn0 down
 	/sbin/isdnctrl delif isdn0
-	if [ ${I4L_DEBUG} = "yes" ]; then
+	if [ ${I4L_DE} = "yes" ]; then
 		killall cat
 	fi
 	if [ ${I4L_AS_MODULE} = "yes" ]; then

@@ -26,7 +26,7 @@ CONFIG_PCI=y
 CONFIG_PCI_LEGACY=n
 
 ### Boot options
-#	for debug, adding: earlyprintk=ocd,keep initcall_debug
+#	for de, adding: earlyprintk=ocd,keep initcall_de
 #	others support: test_suspend=mem root=/dev/sda
 #	hibernate support: resume=/dev/sda3
 CONFIG_CMDLINE="earlyprintk=ocd,keep ignore_loglevel"
@@ -206,9 +206,9 @@ CONFIG_NLS_UTF8=m
 ### Kernel hacking
 CONFIG_FRAME_WARN=8096
 CONFIG_MAGIC_SYSRQ=y
-CONFIG_DEBUG_KERNEL=y
+CONFIG_DE_KERNEL=y
 CONFIG_PROVE_LOCKING=n
-CONFIG_DEBUG_BUGVERBOSE=y
+CONFIG_DE_VERBOSE=y
 CONFIG_FRAME_POINTER=y
-CONFIG_DEBUG_LL=y
+CONFIG_DE_LL=y
 

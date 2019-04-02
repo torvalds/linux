@@ -26,7 +26,7 @@
 /*
  * Current version of this protocol
  *
- * TODO(crosbug.com/p/11223): This is effectively useless; protocol is
+ * TODO(cros.com/p/11223): This is effectively useless; protocol is
  * determined in other ways.  Remove this once the kernel code no longer
  * depends on it.
  */
@@ -345,7 +345,7 @@ struct ec_lpc_host_args {
 /*
  * Byte codes returned by EC over SPI interface.
  *
- * These can be used by the AP to debug the EC interface, and to determine
+ * These can be used by the AP to de the EC interface, and to determine
  * when the EC is not in a state where it will ever get around to responding
  * to the AP.
  *
@@ -2375,7 +2375,7 @@ enum gpio_get_subcmd {
 /* I2C commands. Only available when flash write protect is unlocked. */
 
 /*
- * TODO(crosbug.com/p/23570): These commands are deprecated, and will be
+ * TODO(cros.com/p/23570): These commands are deprecated, and will be
  * removed soon.  Use EC_CMD_I2C_XFER instead.
  */
 
@@ -2888,7 +2888,7 @@ struct ec_response_codec_gain {
 /* System commands */
 
 /*
- * TODO(crosbug.com/p/23747): This is a confusing name, since it doesn't
+ * TODO(cros.com/p/23747): This is a confusing name, since it doesn't
  * necessarily reboot the EC.  Rename to "image" or something similar?
  */
 #define EC_CMD_REBOOT_EC 0xd2

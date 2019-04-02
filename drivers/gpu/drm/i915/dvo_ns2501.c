@@ -420,7 +420,7 @@ static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, u8 *ch)
 	}
 
 	if (!ns->quiet) {
-		DRM_DEBUG_KMS
+		DRM_DE_KMS
 		    ("Unable to read register 0x%02x from %s:0x%02x.\n", addr,
 		     adapter->name, dvo->slave_addr);
 	}
@@ -455,7 +455,7 @@ static bool ns2501_writeb(struct intel_dvo_device *dvo, int addr, u8 ch)
 	}
 
 	if (!ns->quiet) {
-		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d\n",
+		DRM_DE_KMS("Unable to write register 0x%02x to %s:%d\n",
 			      addr, adapter->name, dvo->slave_addr);
 	}
 
@@ -487,7 +487,7 @@ static bool ns2501_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (ch != (NS2501_VID & 0xff)) {
-		DRM_DEBUG_KMS("ns2501 not detected got %d: from %s Slave %d.\n",
+		DRM_DE_KMS("ns2501 not detected got %d: from %s Slave %d.\n",
 			      ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -496,13 +496,13 @@ static bool ns2501_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (ch != (NS2501_DID & 0xff)) {
-		DRM_DEBUG_KMS("ns2501 not detected got %d: from %s Slave %d.\n",
+		DRM_DE_KMS("ns2501 not detected got %d: from %s Slave %d.\n",
 			      ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 	ns->quiet = false;
 
-	DRM_DEBUG_KMS("init ns2501 dvo controller successfully!\n");
+	DRM_DE_KMS("init ns2501 dvo controller successfully!\n");
 
 	return true;
 
@@ -526,7 +526,7 @@ static enum drm_connector_status ns2501_detect(struct intel_dvo_device *dvo)
 static enum drm_mode_status ns2501_mode_valid(struct intel_dvo_device *dvo,
 					      struct drm_display_mode *mode)
 {
-	DRM_DEBUG_KMS
+	DRM_DE_KMS
 	    ("is mode valid (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d)\n",
 	     mode->hdisplay, mode->htotal, mode->vdisplay, mode->vtotal);
 
@@ -553,11 +553,11 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 	int mode_idx, i;
 
-	DRM_DEBUG_KMS
+	DRM_DE_KMS
 	    ("set mode (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d).\n",
 	     mode->hdisplay, mode->htotal, mode->vdisplay, mode->vtotal);
 
-	DRM_DEBUG_KMS("Detailed requested mode settings are:\n"
+	DRM_DE_KMS("Detailed requested mode settings are:\n"
 			"clock		: %d kHz\n"
 			"hdisplay	: %d\n"
 			"hblank start	: %d\n"
@@ -656,7 +656,7 @@ static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 
-	DRM_DEBUG_KMS("Trying set the dpms of the DVO to %i\n", enable);
+	DRM_DE_KMS("Trying set the dpms of the DVO to %i\n", enable);
 
 	if (enable) {
 		ns2501_writeb(dvo, NS2501_REGC0, ns->conf->sync | 0x08);

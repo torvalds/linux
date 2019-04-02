@@ -8,30 +8,30 @@ config FB_OMAP2_DSS
 	select FB_OMAP2_DSS_INIT
 	select HDMI
 
-config FB_OMAP2_DSS_DEBUG
-	bool "Debug support"
+config FB_OMAP2_DSS_DE
+	bool "De support"
 	help
-	  This enables printing of debug messages. Alternatively, debug messages
-	  can also be enabled by setting CONFIG_DYNAMIC_DEBUG and then setting
-	  appropriate flags in <debugfs>/dynamic_debug/control.
+	  This enables printing of de messages. Alternatively, de messages
+	  can also be enabled by setting CONFIG_DYNAMIC_DE and then setting
+	  appropriate flags in <defs>/dynamic_de/control.
 
-config FB_OMAP2_DSS_DEBUGFS
-	bool "Debugfs filesystem support"
-	depends on DEBUG_FS
+config FB_OMAP2_DSS_DEFS
+	bool "Defs filesystem support"
+	depends on DE_FS
 	help
-	  This enables debugfs for OMAPDSS at <debugfs>/omapdss. This enables
+	  This enables defs for OMAPDSS at <defs>/omapdss. This enables
 	  querying about clock configuration and register configuration of dss,
 	  dispc, dsi, hdmi and rfbi.
 
 config FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	bool "Collect DSS IRQ statistics"
-	depends on FB_OMAP2_DSS_DEBUGFS
+	depends on FB_OMAP2_DSS_DEFS
 	help
-	  Collect DSS IRQ statistics, printable via debugfs.
+	  Collect DSS IRQ statistics, printable via defs.
 
 	  The statistics can be found from
-	  <debugfs>/omapdss/dispc_irq for DISPC interrupts, and
-	  <debugfs>/omapdss/dsi_irq for DSI interrupts.
+	  <defs>/omapdss/dispc_irq for DISPC interrupts, and
+	  <defs>/omapdss/dsi_irq for DSI interrupts.
 
 config FB_OMAP2_DSS_DPI
 	bool "DPI support"
@@ -116,7 +116,7 @@ config FB_OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 	default y
 	help
 	  There is a 20ms sleep after VENC reset which seemed to fix the
-	  reset. The reason for the bug is unclear, and it's also unclear
+	  reset. The reason for the  is unclear, and it's also unclear
 	  on what platforms this happens.
 
 	  This option enables the sleep, and is enabled by default. You can

@@ -153,7 +153,7 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 	spin_unlock_irqrestore(&therm->lock, flags);
 
 	if (duty >= 0) {
-		nvkm_debug(subdev, "FAN target request: %d%%\n", duty);
+		nvkm_de(subdev, "FAN target request: %d%%\n", duty);
 		nvkm_therm_fan_set(therm, immd, duty);
 	}
 }
@@ -164,7 +164,7 @@ nvkm_therm_cstate(struct nvkm_therm *therm, int fan, int dir)
 	struct nvkm_subdev *subdev = &therm->subdev;
 	if (!dir || (dir < 0 && fan < therm->cstate) ||
 		    (dir > 0 && fan > therm->cstate)) {
-		nvkm_debug(subdev, "default fan speed -> %d%%\n", fan);
+		nvkm_de(subdev, "default fan speed -> %d%%\n", fan);
 		therm->cstate = fan;
 		nvkm_therm_update(therm, -1);
 	}
@@ -205,7 +205,7 @@ nvkm_therm_fan_mode(struct nvkm_therm *therm, int mode)
 	if (therm->mode == mode)
 		return 0;
 
-	nvkm_debug(subdev, "fan management: %s\n", name[mode]);
+	nvkm_de(subdev, "fan management: %s\n", name[mode]);
 	nvkm_therm_update(therm, mode);
 	return 0;
 }
@@ -305,7 +305,7 @@ nvkm_therm_clkgate_enable(struct nvkm_therm *therm)
 	if (!therm || !therm->func->clkgate_enable || !therm->clkgating_enabled)
 		return;
 
-	nvkm_debug(&therm->subdev,
+	nvkm_de(&therm->subdev,
 		   "Enabling clockgating\n");
 	therm->func->clkgate_enable(therm);
 }
@@ -316,7 +316,7 @@ nvkm_therm_clkgate_fini(struct nvkm_therm *therm, bool suspend)
 	if (!therm || !therm->func->clkgate_fini || !therm->clkgating_enabled)
 		return;
 
-	nvkm_debug(&therm->subdev,
+	nvkm_de(&therm->subdev,
 		   "Preparing clockgating for %s\n",
 		   suspend ? "suspend" : "fini");
 	therm->func->clkgate_fini(therm, suspend);

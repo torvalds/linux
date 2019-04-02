@@ -61,7 +61,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph = ipv6_hdr(skb);
 	if (unlikely(optlen)) {
 
-		BUG_ON(optlen < 0);
+		_ON(optlen < 0);
 
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = optlen / 8;
@@ -122,7 +122,7 @@ static void __exit xfrm6_beet_exit(void)
 	int err;
 
 	err = xfrm_unregister_mode(&xfrm6_beet_mode, AF_INET6);
-	BUG_ON(err);
+	_ON(err);
 }
 
 module_init(xfrm6_beet_init);

@@ -38,7 +38,7 @@ torture_type	  Type of lock to torture. By default, only spinlocks will
 		  be tortured. This module can torture the following locks,
 		  with string values as follows:
 
-		     o "lock_busted": Simulates a buggy lock implementation.
+		     o "lock_busted": Simulates a gy lock implementation.
 
 		     o "spin_lock": spin_lock() and spin_unlock() pairs.
 
@@ -96,7 +96,7 @@ shuffle_interval  The number of seconds to keep the test threads affinitied
 		  to a particular subset of the CPUs, defaults to 3 seconds.
 		  Used in conjunction with test_no_idle_hz.
 
-verbose		  Enable verbose debugging printing, via printk(). Enabled
+verbose		  Enable verbose deging printing, via printk(). Enabled
 		  by default. This extra information is mostly related to
 		  high-level errors and reports from the main 'torture'
 		  framework.
@@ -119,7 +119,7 @@ spin_lock-torture: Writes:  Total: 93746064  Max/Min: 0/0   Fail: 0
 (D): Min and max number of times threads failed to acquire the lock.
 
 (E): true/false values if there were errors acquiring the lock. This should
-     -only- be positive if there is a bug in the locking primitive's
+     -only- be positive if there is a  in the locking primitive's
      implementation. Otherwise a lock should never fail (i.e., spin_lock()).
      Of course, the same applies for (C), above. A dummy example of this is
      the "lock_busted" type.

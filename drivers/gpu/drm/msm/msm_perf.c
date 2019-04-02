@@ -17,15 +17,15 @@
 
 /* For profiling, userspace can:
  *
- *   tail -f /sys/kernel/debug/dri/<minor>/gpu
+ *   tail -f /sys/kernel/de/dri/<minor>/gpu
  *
  * This will enable performance counters/profiling to track the busy time
  * and any gpu specific performance counters that are supported.
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
@@ -193,7 +193,7 @@ static int perf_release(struct inode *inode, struct file *file)
 }
 
 
-static const struct file_operations perf_debugfs_fops = {
+static const struct file_operations perf_defs_fops = {
 	.owner = THIS_MODULE,
 	.open = perf_open,
 	.read = perf_read,
@@ -201,7 +201,7 @@ static const struct file_operations perf_debugfs_fops = {
 	.release = perf_release,
 };
 
-int msm_perf_debugfs_init(struct drm_minor *minor)
+int msm_perf_defs_init(struct drm_minor *minor)
 {
 	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_perf_state *perf;
@@ -220,22 +220,22 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	mutex_init(&perf->read_lock);
 	priv->perf = perf;
 
-	ent = debugfs_create_file("perf", S_IFREG | S_IRUGO,
-			minor->debugfs_root, perf, &perf_debugfs_fops);
+	ent = defs_create_file("perf", S_IFREG | S_IRUGO,
+			minor->defs_root, perf, &perf_defs_fops);
 	if (!ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/perf\n",
-				minor->debugfs_root);
+		DRM_ERROR("Cannot create /sys/kernel/de/dri/%pd/perf\n",
+				minor->defs_root);
 		goto fail;
 	}
 
 	return 0;
 
 fail:
-	msm_perf_debugfs_cleanup(priv);
+	msm_perf_defs_cleanup(priv);
 	return -1;
 }
 
-void msm_perf_debugfs_cleanup(struct msm_drm_private *priv)
+void msm_perf_defs_cleanup(struct msm_drm_private *priv)
 {
 	struct msm_perf_state *perf = priv->perf;
 

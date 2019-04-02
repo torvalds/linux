@@ -89,7 +89,7 @@ static irqreturn_t arizona_ctrlif_err(int irq, void *data)
 
 	/*
 	 * For pretty much all potential sources a register cache sync
-	 * won't help, we've just got a software bug somewhere.
+	 * won't help, we've just got a software  somewhere.
 	 */
 	dev_err(arizona->dev, "Control interface error\n");
 
@@ -269,7 +269,7 @@ int arizona_irq_init(struct arizona *arizona)
 		break;
 #endif
 	default:
-		BUG_ON("Unknown Arizona class device" == NULL);
+		_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;
 	}
 

@@ -12,14 +12,14 @@
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\
-		pr_debug(#x " failed!\n");	\
+		pr_de(#x " failed!\n");	\
 		goto out_err;			\
 	}					\
 }
 
 #define CHECK_NOT_NULL__(x) {			\
 	while ((x) == NULL) {			\
-		pr_debug(#x " failed!\n");	\
+		pr_de(#x " failed!\n");	\
 		goto out_err;			\
 	}					\
 }
@@ -95,7 +95,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	evsel->attr.enable_on_exec = 0;
 
 	if (perf_evlist__open(evlist) < 0) {
-		pr_debug("Unable to open dummy and cycles event\n");
+		pr_de("Unable to open dummy and cycles event\n");
 		err = TEST_SKIP;
 		goto out_err;
 	}
@@ -116,7 +116,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 
 	found = find_comm(evlist, comm);
 	if (found != 1) {
-		pr_debug("First time, failed to find tracking event.\n");
+		pr_de("First time, failed to find tracking event.\n");
 		goto out_err;
 	}
 
@@ -138,7 +138,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 
 	found = find_comm(evlist, comm);
 	if (found != 1) {
-		pr_debug("Seconf time, failed to find tracking event.\n");
+		pr_de("Seconf time, failed to find tracking event.\n");
 		goto out_err;
 	}
 

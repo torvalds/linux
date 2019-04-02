@@ -50,7 +50,7 @@ nv04_devinit_meminit(struct nvkm_devinit *init)
 
 	/* Sequencer and refresh off */
 	nvkm_wrvgas(device, 0, 1, nvkm_rdvgas(device, 0, 1) | 0x20);
-	nvkm_mask(device, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
+	nvkm_mask(device, NV04_PFB_DE_0, 0, NV04_PFB_DE_0_REFRESH_OFF);
 
 	nvkm_mask(device, NV04_PFB_BOOT_0, ~0,
 		      NV04_PFB_BOOT_0_RAM_AMOUNT_16MB |
@@ -66,8 +66,8 @@ nv04_devinit_meminit(struct nvkm_devinit *init)
 		nvkm_mask(device, NV04_PFB_BOOT_0,
 			      NV04_PFB_BOOT_0_RAM_TYPE,
 			      NV04_PFB_BOOT_0_RAM_TYPE_SDRAM_16MBIT);
-		nvkm_mask(device, NV04_PFB_DEBUG_0,
-			      NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+		nvkm_mask(device, NV04_PFB_DE_0,
+			      NV04_PFB_DE_0_REFRESH_OFF, 0);
 
 		for (i = 0; i < 4; i++)
 			fbmem_poke(fb, 4 * i, patt);
@@ -104,7 +104,7 @@ nv04_devinit_meminit(struct nvkm_devinit *init)
 	}
 
 	/* Refresh on, sequencer on */
-	nvkm_mask(device, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+	nvkm_mask(device, NV04_PFB_DE_0, NV04_PFB_DE_0_REFRESH_OFF, 0);
 	nvkm_wrvgas(device, 0, 1, nvkm_rdvgas(device, 0, 1) & ~0x20);
 	fbmem_fini(fb);
 }
@@ -418,7 +418,7 @@ nv04_devinit_preinit(struct nvkm_devinit *base)
 		htotal |= (nvkm_rdvgac(device, 0, 0x25) & 0x01) << 10;
 		htotal |= (nvkm_rdvgac(device, 0, 0x41) & 0x01) << 11;
 		if (!htotal) {
-			nvkm_debug(subdev, "adaptor not initialised\n");
+			nvkm_de(subdev, "adaptor not initialised\n");
 			init->base.post = true;
 		}
 	}

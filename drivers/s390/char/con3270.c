@@ -126,7 +126,7 @@ static void
 con3270_update_string(struct con3270 *cp, struct string *s, int nr)
 {
 	if (s->len < 4) {
-		/* This indicates a bug, but printing a warning would
+		/* This indicates a , but printing a warning would
 		 * cause a deadlock. */
 		return;
 	}
@@ -182,7 +182,7 @@ con3270_alloc_string(struct con3270 *cp, size_t size)
 			break;
 	}
 	s = alloc_string(&cp->freemem, size);
-	BUG_ON(!s);
+	_ON(!s);
 	if (cp->nr_up != 0 && cp->nr_up + cp->view.rows > cp->nr_lines) {
 		cp->nr_up = cp->nr_lines - cp->view.rows + 1;
 		con3270_rebuild_update(cp);

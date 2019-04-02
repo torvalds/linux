@@ -24,7 +24,7 @@
 #include "lmc.h"
 #include "lmc_var.h"
 #include "lmc_ioctl.h"
-#include "lmc_debug.h"
+#include "lmc_de.h"
 
 #define CONFIG_LMC_IGNORE_HARDWARE_HANDSHAKE 1
 

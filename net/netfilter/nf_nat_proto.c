@@ -295,11 +295,11 @@ gre_manip_pkt(struct sk_buff *skb,
 		 * Try to behave like "nf_nat_proto_unknown" */
 		break;
 	case GRE_VERSION_1:
-		pr_debug("call_id -> 0x%04x\n", ntohs(tuple->dst.u.gre.key));
+		pr_de("call_id -> 0x%04x\n", ntohs(tuple->dst.u.gre.key));
 		pgreh->call_id = tuple->dst.u.gre.key;
 		break;
 	default:
-		pr_debug("can't nat unknown GRE version\n");
+		pr_de("can't nat unknown GRE version\n");
 		return false;
 	}
 #endif

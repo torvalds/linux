@@ -21,7 +21,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email addresched(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *

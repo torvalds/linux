@@ -46,9 +46,9 @@
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
- * Define statements used for debugging
+ * Define statements used for deging
  */
-//#define MPT_LAN_IO_DEBUG
+//#define MPT_LAN_IO_DE
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
@@ -200,7 +200,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 //			dioprintk((MYNAM "/lan_reply: "
 //				  "calling mpt_lan_send_reply (turbo)\n"));
 
-			// Potential BUG here?
+			// Potential  here?
 			//	FreeReqFrame = mpt_lan_send_turbo(dev, tmsg);
 			//  If/when mpt_lan_send_turbo would return 1 here,
 			//  calling routine (mptbase.c|mpt_interrupt)
@@ -1500,7 +1500,7 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 		swab32s(p + 2);
 		swab32s(p + 3);
 
-		printk (KERN_WARNING MYNAM ": %s: WARNING - Broadcast swap F/W bug detected!\n",
+		printk (KERN_WARNING MYNAM ": %s: WARNING - Broadcast swap F/W  detected!\n",
 				NETDEV_PTR_TO_IOC_NAME_s(dev));
 		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %pM\n",
 				fch->saddr);

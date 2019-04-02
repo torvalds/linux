@@ -40,8 +40,8 @@
 #endif
 /* EATA PassThrough Command	*/
 #define EATAUSRCMD      _IOWR('D',65,EATA_CP)
-/* Set Debug Level If Enabled	*/
-#define DPT_DEBUG       _IOW('D',66,int)
+/* Set De Level If Enabled	*/
+#define DPT_DE       _IOW('D',66,int)
 /* Get Signature Structure	*/
 #define DPT_SIGNATURE   _IOR('D',67,dpt_sig_S)
 #if defined __bsdi__

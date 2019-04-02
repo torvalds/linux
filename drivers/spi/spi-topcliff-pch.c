@@ -1320,7 +1320,7 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	struct pch_spi_board_data *board_dat = dev_get_platdata(&plat_dev->dev);
 	struct pch_spi_data *data;
 
-	dev_dbg(&plat_dev->dev, "%s:debug\n", __func__);
+	dev_dbg(&plat_dev->dev, "%s:de\n", __func__);
 
 	master = spi_alloc_master(&board_dat->pdev->dev,
 				  sizeof(struct pch_spi_data));

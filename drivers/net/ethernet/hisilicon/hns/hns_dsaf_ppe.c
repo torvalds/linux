@@ -78,10 +78,10 @@ static int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 	struct ppe_common_cb *ppe_common;
 	int ppe_num;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (!HNS_DSAF_IS_DE(dsaf_dev))
 		ppe_num = HNS_PPE_SERVICE_NW_ENGINE_NUM;
 	else
-		ppe_num = HNS_PPE_DEBUG_NW_ENGINE_NUM;
+		ppe_num = HNS_PPE_DE_NW_ENGINE_NUM;
 
 	ppe_common = devm_kzalloc(dsaf_dev->dev,
 				  struct_size(ppe_common, ppe_cb, ppe_num),
@@ -92,10 +92,10 @@ static int hns_ppe_common_get_cfg(struct dsaf_device *dsaf_dev, int comm_index)
 	ppe_common->ppe_num = ppe_num;
 	ppe_common->dsaf_dev = dsaf_dev;
 	ppe_common->comm_index = comm_index;
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (!HNS_DSAF_IS_DE(dsaf_dev))
 		ppe_common->ppe_mode = PPE_COMMON_MODE_SERVICE;
 	else
-		ppe_common->ppe_mode = PPE_COMMON_MODE_DEBUG;
+		ppe_common->ppe_mode = PPE_COMMON_MODE_DE;
 	ppe_common->dev = dsaf_dev->dev;
 
 	ppe_common->io_base = hns_ppe_common_get_ioaddr(ppe_common);
@@ -320,7 +320,7 @@ static void hns_ppe_init_hw(struct hns_ppe_cb *ppe_cb)
 	/* clr and msk except irq*/
 	hns_ppe_exc_irq_en(ppe_cb, 0);
 
-	if (ppe_common_cb->ppe_mode == PPE_COMMON_MODE_DEBUG) {
+	if (ppe_common_cb->ppe_mode == PPE_COMMON_MODE_DE) {
 		hns_ppe_set_port_mode(ppe_cb, PPE_MODE_GE);
 		dsaf_write_dev(ppe_cb, PPE_CFG_PAUSE_IDLE_CNT_REG, 0);
 	} else {

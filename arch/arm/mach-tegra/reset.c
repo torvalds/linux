@@ -67,8 +67,8 @@ static void __init tegra_cpu_reset_handler_enable(void)
 						tegra_cpu_reset_handler_offset;
 	int err;
 
-	BUG_ON(is_enabled);
-	BUG_ON(tegra_cpu_reset_handler_size > TEGRA_IRAM_RESET_HANDLER_SIZE);
+	_ON(is_enabled);
+	_ON(tegra_cpu_reset_handler_size > TEGRA_IRAM_RESET_HANDLER_SIZE);
 
 	memcpy(iram_base, (void *)__tegra_cpu_reset_handler_start,
 			tegra_cpu_reset_handler_size);
@@ -83,7 +83,7 @@ static void __init tegra_cpu_reset_handler_enable(void)
 		break;
 	default:
 		pr_crit("Cannot set CPU reset handler: %d\n", err);
-		BUG();
+		();
 	}
 }
 

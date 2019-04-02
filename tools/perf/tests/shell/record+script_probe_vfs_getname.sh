@@ -28,7 +28,7 @@ perf_script_filenames() {
 	egrep " +touch +[0-9]+ +\[[0-9]+\] +[0-9]+\.[0-9]+: +probe:vfs_getname: +\([[:xdigit:]]+\) +pathname=\"${file}\""
 }
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname || skip_if_no_deinfo
 err=$?
 if [ $err -ne 0 ] ; then
 	exit $err

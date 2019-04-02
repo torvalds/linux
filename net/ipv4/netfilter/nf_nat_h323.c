@@ -114,7 +114,7 @@ static int set_sig_addr(struct sk_buff *skb, struct nf_conn *ct,
 				    (ntohl(addr.ip) & 0xff000000) == 0x7f000000)
 					i = 0;
 
-				pr_debug("nf_nat_ras: set signal address %pI4:%hu->%pI4:%hu\n",
+				pr_de("nf_nat_ras: set signal address %pI4:%hu->%pI4:%hu\n",
 					 &addr.ip, port,
 					 &ct->tuplehash[!dir].tuple.dst.u3.ip,
 					 info->sig_port[!dir]);
@@ -126,7 +126,7 @@ static int set_sig_addr(struct sk_buff *skb, struct nf_conn *ct,
 			} else if (addr.ip == ct->tuplehash[dir].tuple.dst.u3.ip &&
 				   port == info->sig_port[dir]) {
 				/* GK->GW */
-				pr_debug("nf_nat_ras: set signal address %pI4:%hu->%pI4:%hu\n",
+				pr_de("nf_nat_ras: set signal address %pI4:%hu->%pI4:%hu\n",
 					 &addr.ip, port,
 					 &ct->tuplehash[!dir].tuple.src.u3.ip,
 					 info->sig_port[!dir]);
@@ -157,7 +157,7 @@ static int set_ras_addr(struct sk_buff *skb, struct nf_conn *ct,
 		if (get_h225_addr(ct, *data, &taddr[i], &addr, &port) &&
 		    addr.ip == ct->tuplehash[dir].tuple.src.u3.ip &&
 		    port == ct->tuplehash[dir].tuple.src.u.udp.port) {
-			pr_debug("nf_nat_ras: set rasAddress %pI4:%hu->%pI4:%hu\n",
+			pr_de("nf_nat_ras: set rasAddress %pI4:%hu->%pI4:%hu\n",
 				 &addr.ip, ntohs(port),
 				 &ct->tuplehash[!dir].tuple.dst.u3.ip,
 				 ntohs(ct->tuplehash[!dir].tuple.dst.u.udp.port));
@@ -263,12 +263,12 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	info->rtp_port[i][!dir] = htons(nated_port);
 
 	/* Success */
-	pr_debug("nf_nat_h323: expect RTP %pI4:%hu->%pI4:%hu\n",
+	pr_de("nf_nat_h323: expect RTP %pI4:%hu->%pI4:%hu\n",
 		 &rtp_exp->tuple.src.u3.ip,
 		 ntohs(rtp_exp->tuple.src.u.udp.port),
 		 &rtp_exp->tuple.dst.u3.ip,
 		 ntohs(rtp_exp->tuple.dst.u.udp.port));
-	pr_debug("nf_nat_h323: expect RTCP %pI4:%hu->%pI4:%hu\n",
+	pr_de("nf_nat_h323: expect RTCP %pI4:%hu->%pI4:%hu\n",
 		 &rtcp_exp->tuple.src.u3.ip,
 		 ntohs(rtcp_exp->tuple.src.u.udp.port),
 		 &rtcp_exp->tuple.dst.u3.ip,
@@ -319,7 +319,7 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 		return -1;
 	}
 
-	pr_debug("nf_nat_h323: expect T.120 %pI4:%hu->%pI4:%hu\n",
+	pr_de("nf_nat_h323: expect T.120 %pI4:%hu->%pI4:%hu\n",
 		 &exp->tuple.src.u3.ip,
 		 ntohs(exp->tuple.src.u.tcp.port),
 		 &exp->tuple.dst.u3.ip,
@@ -379,7 +379,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 	info->sig_port[dir] = port;
 	info->sig_port[!dir] = htons(nated_port);
 
-	pr_debug("nf_nat_q931: expect H.245 %pI4:%hu->%pI4:%hu\n",
+	pr_de("nf_nat_q931: expect H.245 %pI4:%hu->%pI4:%hu\n",
 		 &exp->tuple.src.u3.ip,
 		 ntohs(exp->tuple.src.u.tcp.port),
 		 &exp->tuple.dst.u3.ip,
@@ -403,7 +403,7 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 	}
 
 	/* This must be a fresh one. */
-	BUG_ON(new->status & IPS_NAT_DONE_MASK);
+	_ON(new->status & IPS_NAT_DONE_MASK);
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
@@ -484,7 +484,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	/* Success */
-	pr_debug("nf_nat_ras: expect Q.931 %pI4:%hu->%pI4:%hu\n",
+	pr_de("nf_nat_ras: expect Q.931 %pI4:%hu->%pI4:%hu\n",
 		 &exp->tuple.src.u3.ip,
 		 ntohs(exp->tuple.src.u.tcp.port),
 		 &exp->tuple.dst.u3.ip,
@@ -500,7 +500,7 @@ static void ip_nat_callforwarding_expect(struct nf_conn *new,
 	struct nf_nat_range2 range;
 
 	/* This must be a fresh one. */
-	BUG_ON(new->status & IPS_NAT_DONE_MASK);
+	_ON(new->status & IPS_NAT_DONE_MASK);
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
@@ -561,7 +561,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	}
 
 	/* Success */
-	pr_debug("nf_nat_q931: expect Call Forwarding %pI4:%hu->%pI4:%hu\n",
+	pr_de("nf_nat_q931: expect Call Forwarding %pI4:%hu->%pI4:%hu\n",
 		 &exp->tuple.src.u3.ip,
 		 ntohs(exp->tuple.src.u.tcp.port),
 		 &exp->tuple.dst.u3.ip,
@@ -583,15 +583,15 @@ static struct nf_ct_helper_expectfn callforwarding_nat = {
 /****************************************************************************/
 static int __init init(void)
 {
-	BUG_ON(set_h245_addr_hook != NULL);
-	BUG_ON(set_h225_addr_hook != NULL);
-	BUG_ON(set_sig_addr_hook != NULL);
-	BUG_ON(set_ras_addr_hook != NULL);
-	BUG_ON(nat_rtp_rtcp_hook != NULL);
-	BUG_ON(nat_t120_hook != NULL);
-	BUG_ON(nat_h245_hook != NULL);
-	BUG_ON(nat_callforwarding_hook != NULL);
-	BUG_ON(nat_q931_hook != NULL);
+	_ON(set_h245_addr_hook != NULL);
+	_ON(set_h225_addr_hook != NULL);
+	_ON(set_sig_addr_hook != NULL);
+	_ON(set_ras_addr_hook != NULL);
+	_ON(nat_rtp_rtcp_hook != NULL);
+	_ON(nat_t120_hook != NULL);
+	_ON(nat_h245_hook != NULL);
+	_ON(nat_callforwarding_hook != NULL);
+	_ON(nat_q931_hook != NULL);
 
 	RCU_INIT_POINTER(set_h245_addr_hook, set_h245_addr);
 	RCU_INIT_POINTER(set_h225_addr_hook, set_h225_addr);

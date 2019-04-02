@@ -28,11 +28,11 @@
 #include "au8522.h"
 #include "au8522_priv.h"
 
-static int debug;
+static int de;
 static int zv_mode = 1; /* default to on */
 
 #define dprintk(arg...)\
-	do { if (debug)\
+	do { if (de)\
 		printk(arg);\
 	} while (0)
 
@@ -917,8 +917,8 @@ static const struct dvb_frontend_ops au8522_ops = {
 	.release              = au8522_release,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable verbose de messages");
 
 module_param(zv_mode, int, 0644);
 MODULE_PARM_DESC(zv_mode, "Turn on/off ZeeVee modulator compatibility mode (default:on).\n"

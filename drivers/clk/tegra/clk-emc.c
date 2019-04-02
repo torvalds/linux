@@ -209,12 +209,12 @@ static int emc_set_timing(struct tegra_clk_emc *tegra,
 	if (!emc)
 		return -ENOENT;
 
-	pr_debug("going to rate %ld prate %ld p %s\n", timing->rate,
+	pr_de("going to rate %ld prate %ld p %s\n", timing->rate,
 		 timing->parent_rate, __clk_get_name(timing->parent));
 
 	if (emc_get_parent(&tegra->hw) == timing->parent_index &&
 	    clk_get_rate(timing->parent) != timing->parent_rate) {
-		BUG();
+		();
 		return -EINVAL;
 	}
 
@@ -354,7 +354,7 @@ static int emc_set_rate(struct clk_hw *hw, unsigned long rate,
 			return -EINVAL;
 		}
 
-		pr_debug("using %ld as backup rate when going to %ld\n",
+		pr_de("using %ld as backup rate when going to %ld\n",
 			 backup_timing->rate, rate);
 
 		err = emc_set_timing(tegra, backup_timing);
@@ -529,8 +529,8 @@ struct clk *tegra_clk_register_emc(void __iomem *base, struct device_node *np,
 		&tegra->hw, emc_get_parent(&tegra->hw))->clk;
 	tegra->changing_timing = false;
 
-	/* Allow debugging tools to see the EMC clock */
-	clk_register_clkdev(clk, "emc", "tegra-clk-debug");
+	/* Allow deging tools to see the EMC clock */
+	clk_register_clkdev(clk, "emc", "tegra-clk-de");
 
 	clk_prepare_enable(clk);
 

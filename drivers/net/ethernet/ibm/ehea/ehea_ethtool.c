@@ -60,7 +60,7 @@ static int ehea_get_link_ksettings(struct net_device *dev,
 			break;
 		default:
 			speed = -1;
-			break; /* BUG */
+			break; /*  */
 		}
 		cmd->base.duplex = port->full_duplex == 1 ?
 						     DUPLEX_FULL : DUPLEX_HALF;

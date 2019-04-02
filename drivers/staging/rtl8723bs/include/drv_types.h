@@ -353,7 +353,7 @@ struct int_logs {
 
 #endif /*  CONFIG_DBG_COUNTER */
 
-struct debug_priv {
+struct de_priv {
 	u32 dbg_sdio_free_irq_error_cnt;
 	u32 dbg_sdio_alloc_irq_error_cnt;
 	u32 dbg_sdio_free_irq_cnt;
@@ -434,7 +434,7 @@ struct dvobj_priv
 
 	s32	processing_dev_remove;
 
-	struct debug_priv drv_dbg;
+	struct de_priv drv_dbg;
 
 	/* for local/global synchronization */
 	/*  */
@@ -613,7 +613,7 @@ struct adapter {
        /* IFACE_ID1 is equals to SECONDARY_ADAPTER */
 	u8 iface_id;
 
-	/* for debug purpose */
+	/* for de purpose */
 	u8 fix_rate;
 	u8 driver_vcs_en; /* Enable = 1, Disable = 0 driver control vrtl_carrier_sense for tx */
 	u8 driver_vcs_type;/* force 0:disable VCS, 1:RTS-CTS, 2:CTS-to-self when vcs_en = 1. */

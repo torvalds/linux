@@ -114,7 +114,7 @@ bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 {
 	*mask = kmalloc_node(cpumask_size(), flags, node);
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+#ifdef CONFIG_DE_PER_CPU_MAPS
 	if (!*mask) {
 		printk(KERN_ERR "=> alloc_cpumask_var: failed!\n");
 		dump_stack();
@@ -229,6 +229,6 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 				return cpu;
 		}
 	}
-	BUG();
+	();
 }
 EXPORT_SYMBOL(cpumask_local_spread);

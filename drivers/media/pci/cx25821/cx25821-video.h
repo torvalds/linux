@@ -37,12 +37,12 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 
-#define VIDEO_DEBUG 0
+#define VIDEO_DE 0
 
 #define dprintk(level, fmt, arg...)					\
 do {									\
-	if (VIDEO_DEBUG >= level)					\
-		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ##arg);	\
+	if (VIDEO_DE >= level)					\
+		printk(KERN_DE "%s/0: " fmt, dev->name, ##arg);	\
 } while (0)
 
 #define FORMAT_FLAGS_PACKED       0x01

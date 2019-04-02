@@ -109,7 +109,7 @@ struct p54_hdr {
  */
 #define IF_ID_ISL36356A			0x0001	/* ISL36356A <-> Firmware */
 #define IF_ID_MVC			0x0003	/* MAC Virtual Coprocessor */
-#define IF_ID_DEBUG			0x0008	/* PolDebug Interface */
+#define IF_ID_DE			0x0008	/* PolDe Interface */
 #define IF_ID_PRODUCT			0x0009
 #define IF_ID_OEM			0x000a
 #define IF_ID_PCI3877			0x000b	/* 3877 <-> Host PCI */

@@ -36,13 +36,13 @@ static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "i2c debug message level (1: normal debug, 2: show I2C transfers)");
+static unsigned int i2c_de;
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de, "i2c de message level (1: normal de, 2: show I2C transfers)");
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (i2c_debug > level)						\
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (i2c_de > level)						\
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "i2c: %s: " fmt, __func__, ## arg);		\
 } while (0)
 
@@ -714,9 +714,9 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 		goto error;
 	}
 
-	if (i2c_debug) {
+	if (i2c_de) {
 		/* Display eeprom content */
-		print_hex_dump(KERN_DEBUG, "em28xx eeprom ", DUMP_PREFIX_OFFSET,
+		print_hex_dump(KERN_DE, "em28xx eeprom ", DUMP_PREFIX_OFFSET,
 			       16, 1, data, len, true);
 
 		if (dev->eeprom_addrwidth_16bit)

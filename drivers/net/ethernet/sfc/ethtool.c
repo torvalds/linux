@@ -727,7 +727,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 		goto out;
 	}
 
-	/* Hook for Falcon bug 11482 workaround */
+	/* Hook for Falcon  11482 workaround */
 	if (efx->type->prepare_enable_fc_tx &&
 	    (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX))
 		efx->type->prepare_enable_fc_tx(efx);

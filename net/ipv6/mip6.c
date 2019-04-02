@@ -168,7 +168,7 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 			calc_padlen(sizeof(*dstopt), 6));
 
 	hao->type = IPV6_TLV_HAO;
-	BUILD_BUG_ON(sizeof(*hao) != 18);
+	BUILD__ON(sizeof(*hao) != 18);
 	hao->length = sizeof(*hao) - 2;
 
 	len = ((char *)hao - (char *)dstopt) + sizeof(*hao);

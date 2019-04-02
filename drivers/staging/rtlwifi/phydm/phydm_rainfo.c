@@ -18,7 +18,7 @@
 #include "mp_precomp.h"
 #include "phydm_precomp.h"
 
-void phydm_h2C_debug(void *dm_void, u32 *const dm_value, u32 *_used,
+void phydm_h2C_de(void *dm_void, u32 *const dm_value, u32 *_used,
 		     char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -40,7 +40,7 @@ void phydm_h2C_debug(void *dm_void, u32 *const dm_value, u32 *_used,
 	odm_fill_h2c_cmd(dm, phydm_h2c_id, H2C_MAX_LENGTH, h2c_parameter);
 }
 
-void phydm_RA_debug_PCR(void *dm_void, u32 *const dm_value, u32 *_used,
+void phydm_RA_de_PCR(void *dm_void, u32 *const dm_value, u32 *_used,
 			char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -86,96 +86,96 @@ void odm_c2h_ra_para_report_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len)
 		     "[ From FW C2H RA Para ]  cmd_buf[0]= (( %d ))\n",
 		     cmd_buf[0]);
 
-	if (para_idx == RADBG_DEBUG_MONITOR1) {
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+	if (para_idx == RADBG_DE_MONITOR1) {
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "-------------------------------\n");
 		if (dm->support_ic_type & PHYDM_IC_3081_SERIES) {
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "RSSI =", cmd_buf[1]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "rate =", cmd_buf[2] & 0x7f);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "SGI =", (cmd_buf[2] & 0x80) >> 7);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "BW =", cmd_buf[3]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "BW_max =", cmd_buf[4]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "multi_rate0 =", cmd_buf[5]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "multi_rate1 =", cmd_buf[6]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "DISRA =", cmd_buf[7]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "VHT_EN =", cmd_buf[8]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "SGI_support =", cmd_buf[9]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "try_ness =", cmd_buf[10]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "pre_rate =", cmd_buf[11]);
 		} else {
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "RSSI =", cmd_buf[1]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %x\n",
 				     "BW =", cmd_buf[2]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "DISRA =", cmd_buf[3]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "VHT_EN =", cmd_buf[4]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "Highest rate =", cmd_buf[5]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "Lowest rate =", cmd_buf[6]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "SGI_support =", cmd_buf[7]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "Rate_ID =", cmd_buf[8]);
 		}
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "-------------------------------\n");
-	} else if (para_idx == RADBG_DEBUG_MONITOR2) {
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+	} else if (para_idx == RADBG_DE_MONITOR2) {
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "-------------------------------\n");
 		if (dm->support_ic_type & PHYDM_IC_3081_SERIES) {
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 				     "rate_id =", cmd_buf[1]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "highest_rate =", cmd_buf[2]);
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 				     "lowest_rate =", cmd_buf[3]);
 
 			for (i = 4; i <= 11; i++)
-				ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+				ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 					     "RAMASK =  0x%x\n", cmd_buf[i]);
 		} else {
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 				     "%5s  %x%x  %x%x  %x%x  %x%x\n",
 				     "RA Mask:", cmd_buf[8], cmd_buf[7],
 				     cmd_buf[6], cmd_buf[5], cmd_buf[4],
 				     cmd_buf[3], cmd_buf[2], cmd_buf[1]);
 		}
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 			     "-------------------------------\n");
-	} else if (para_idx == RADBG_DEBUG_MONITOR3) {
+	} else if (para_idx == RADBG_DE_MONITOR3) {
 		for (i = 0; i < (cmd_len - 1); i++)
-			ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE,
+			ODM_RT_TRACE(dm, ODM_FW_DE_TRACE,
 				     "content[%d] = %d\n", i, cmd_buf[1 + i]);
-	} else if (para_idx == RADBG_DEBUG_MONITOR4) {
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  {%d.%d}\n",
+	} else if (para_idx == RADBG_DE_MONITOR4) {
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  {%d.%d}\n",
 			     "RA version =", cmd_buf[1], cmd_buf[2]);
-	} else if (para_idx == RADBG_DEBUG_MONITOR5) {
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+	} else if (para_idx == RADBG_DE_MONITOR5) {
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 			     "Current rate =", cmd_buf[1]);
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 			     "Retry ratio =", cmd_buf[2]);
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  %d\n",
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  %d\n",
 			     "rate down ratio =", cmd_buf[3]);
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x\n",
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x\n",
 			     "highest rate =", cmd_buf[4]);
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  {0x%x 0x%x}\n",
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  {0x%x 0x%x}\n",
 			     "Muti-try =", cmd_buf[5], cmd_buf[6]);
-		ODM_RT_TRACE(dm, ODM_FW_DEBUG_TRACE, "%5s  0x%x%x%x%x%x\n",
+		ODM_RT_TRACE(dm, ODM_FW_DE_TRACE, "%5s  0x%x%x%x%x%x\n",
 			     "RA mask =", cmd_buf[11], cmd_buf[10], cmd_buf[9],
 			     cmd_buf[8], cmd_buf[7]);
 	}

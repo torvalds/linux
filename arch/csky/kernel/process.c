@@ -5,7 +5,7 @@
 #include <linux/version.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
@@ -20,7 +20,7 @@ asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
 /*
- * Some archs flush debug and FPU info here
+ * Some archs flush de and FPU info here
  */
 void flush_thread(void){}
 

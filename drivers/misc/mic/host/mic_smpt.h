@@ -59,9 +59,9 @@ struct mic_smpt_hw_info {
  * @entry: Array of SMPT entries.
  * @smpt_lock: Spin lock protecting access to SMPT data structures.
  * @info: Hardware specific SMPT information.
- * @ref_count: Number of active SMPT mappings (for debug).
- * @map_count: Number of SMPT mappings created (for debug).
- * @unmap_count: Number of SMPT mappings destroyed (for debug).
+ * @ref_count: Number of active SMPT mappings (for de).
+ * @map_count: Number of SMPT mappings created (for de).
+ * @unmap_count: Number of SMPT mappings destroyed (for de).
  */
 struct mic_smpt_info {
 	struct mic_smpt *entry;

@@ -280,7 +280,7 @@ static void dccp_xmit_packet(struct sock *sk)
 
 	err = dccp_transmit_skb(sk, skb);
 	if (err)
-		dccp_pr_debug("transmit_skb() returned err=%d\n", err);
+		dccp_pr_de("transmit_skb() returned err=%d\n", err);
 	/*
 	 * Register this one as sent even if an error occurred. To the remote
 	 * end a local packet drop is indistinguishable from network loss, i.e.
@@ -339,7 +339,7 @@ void dccp_flush_write_queue(struct sock *sk, long *time_budget)
 		case CCID_PACKET_ERR:
 			skb_dequeue(&sk->sk_write_queue);
 			kfree_skb(skb);
-			dccp_pr_debug("packet discarded due to err=%ld\n", rc);
+			dccp_pr_de("packet discarded due to err=%ld\n", rc);
 		}
 	}
 }
@@ -364,7 +364,7 @@ void dccp_write_xmit(struct sock *sk)
 			break;
 		case CCID_PACKET_ERR:
 			dccp_qpolicy_drop(sk, skb);
-			dccp_pr_debug("packet discarded due to err=%d\n", rc);
+			dccp_pr_de("packet discarded due to err=%d\n", rc);
 		}
 	}
 }

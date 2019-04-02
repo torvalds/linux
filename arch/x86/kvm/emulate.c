@@ -24,7 +24,7 @@
 #include "kvm_cache_regs.h"
 #include <asm/kvm_emulate.h>
 #include <linux/stringify.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/nospec-branch.h>
 
 #include "x86.h"
@@ -1080,7 +1080,7 @@ static void read_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data, int reg)
 	case 14: asm("movdqa %%xmm14, %0" : "=m"(*data)); break;
 	case 15: asm("movdqa %%xmm15, %0" : "=m"(*data)); break;
 #endif
-	default: BUG();
+	default: ();
 	}
 }
 
@@ -1106,7 +1106,7 @@ static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
 	case 14: asm("movdqa %0, %%xmm14" : : "m"(*data)); break;
 	case 15: asm("movdqa %0, %%xmm15" : : "m"(*data)); break;
 #endif
-	default: BUG();
+	default: ();
 	}
 }
 
@@ -1121,7 +1121,7 @@ static void read_mmx_reg(struct x86_emulate_ctxt *ctxt, u64 *data, int reg)
 	case 5: asm("movq %%mm5, %0" : "=m"(*data)); break;
 	case 6: asm("movq %%mm6, %0" : "=m"(*data)); break;
 	case 7: asm("movq %%mm7, %0" : "=m"(*data)); break;
-	default: BUG();
+	default: ();
 	}
 }
 
@@ -1136,7 +1136,7 @@ static void write_mmx_reg(struct x86_emulate_ctxt *ctxt, u64 *data, int reg)
 	case 5: asm("movq %0, %%mm5" : : "m"(*data)); break;
 	case 6: asm("movq %0, %%mm6" : : "m"(*data)); break;
 	case 7: asm("movq %0, %%mm7" : : "m"(*data)); break;
-	default: BUG();
+	default: ();
 	}
 }
 
@@ -3626,7 +3626,7 @@ static int em_movbe(struct x86_emulate_ctxt *ctxt)
 		ctxt->dst.val = swab64(ctxt->src.val);
 		break;
 	default:
-		BUG();
+		();
 	}
 	return X86EMUL_CONTINUE;
 }
@@ -5673,7 +5673,7 @@ special_insn:
 
 writeback:
 	if (ctxt->d & SrcWrite) {
-		BUG_ON(ctxt->src.type == OP_MEM || ctxt->src.type == OP_MEM_STR);
+		_ON(ctxt->src.type == OP_MEM || ctxt->src.type == OP_MEM_STR);
 		rc = writeback(ctxt, &ctxt->src);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;

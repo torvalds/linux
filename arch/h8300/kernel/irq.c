@@ -61,7 +61,7 @@ static void __init setup_vector(void)
 	if (ramvec == NULL)
 		panic("interrupt vector serup failed.");
 	else
-		pr_debug("virtual vector at 0x%p\n", ramvec);
+		pr_de("virtual vector at 0x%p\n", ramvec);
 
 	/* create redirect table */
 	ramvec_p = ramvec;

@@ -31,8 +31,8 @@
 /* struct snd_pcm_substream, struct snd_pcm_runtime, snd_pcm_uframes_t */
 #include <sound/pcm.h>
 
-/* Debug options for code which may be removed completely in a final version */
-#ifdef CONFIG_SND_DEBUG
+/* De options for code which may be removed completely in a final version */
+#ifdef CONFIG_SND_DE
 #define SND_PCM_INDIRECT2_STAT    /* turn on some "statistics" about the
 				   * process of copying bytes from the
 				   * intermediate buffer to the hardware

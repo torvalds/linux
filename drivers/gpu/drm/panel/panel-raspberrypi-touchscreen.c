@@ -188,7 +188,7 @@ enum REG_ADDR {
 /* Chip/Rev Registers */
 #define IDREG			0x04A0
 
-/* Debug Registers */
+/* De Registers */
 #define WCMDQUEUE		0x0500
 #define RCMDQUEUE		0x0504
 

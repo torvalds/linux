@@ -16,7 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/if_arp.h>
 #include <net/caif/caif_layer.h>
 #include <net/caif/caif_spi.h>
@@ -76,7 +76,7 @@ MODULE_PARM_DESC(spi_down_tail_align, "SPI downlink tail alignment.");
 #ifndef CONFIG_HAS_DMA
 
 /*
- * We sometimes use UML for debugging, but it cannot handle
+ * We sometimes use UML for deging, but it cannot handle
  * dma_alloc_coherent so we have to wrap it.
  */
 static inline void *dma_alloc(struct cfspi *cfspi, dma_addr_t *daddr)
@@ -105,27 +105,27 @@ static inline void dma_free(struct cfspi *cfspi, void *cpu_addr,
 }
 #endif	/* CONFIG_HAS_DMA */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-#define DEBUGFS_BUF_SIZE	4096
+#define DEFS_BUF_SIZE	4096
 
 static struct dentry *dbgfs_root;
 
-static inline void driver_debugfs_create(void)
+static inline void driver_defs_create(void)
 {
-	dbgfs_root = debugfs_create_dir(cfspi_spi_driver.driver.name, NULL);
+	dbgfs_root = defs_create_dir(cfspi_spi_driver.driver.name, NULL);
 }
 
-static inline void driver_debugfs_remove(void)
+static inline void driver_defs_remove(void)
 {
-	debugfs_remove(dbgfs_root);
+	defs_remove(dbgfs_root);
 }
 
-static inline void dev_debugfs_rem(struct cfspi *cfspi)
+static inline void dev_defs_rem(struct cfspi *cfspi)
 {
-	debugfs_remove(cfspi->dbgfs_frame);
-	debugfs_remove(cfspi->dbgfs_state);
-	debugfs_remove(cfspi->dbgfs_dir);
+	defs_remove(cfspi->dbgfs_frame);
+	defs_remove(cfspi->dbgfs_state);
+	defs_remove(cfspi->dbgfs_dir);
 }
 
 static ssize_t dbgfs_state(struct file *file, char __user *user_buf,
@@ -136,37 +136,37 @@ static ssize_t dbgfs_state(struct file *file, char __user *user_buf,
 	ssize_t size;
 	struct cfspi *cfspi = file->private_data;
 
-	buf = kzalloc(DEBUGFS_BUF_SIZE, GFP_KERNEL);
+	buf = kzalloc(DEFS_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return 0;
 
-	/* Print out debug information. */
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
-			"CAIF SPI debug information:\n");
+	/* Print out de information. */
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
+			"CAIF SPI de information:\n");
 
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len), FLAVOR);
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len), FLAVOR);
 
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"STATE: %d\n", cfspi->dbg_state);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Previous CMD: 0x%x\n", cfspi->pcmd);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Current CMD: 0x%x\n", cfspi->cmd);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Previous TX len: %d\n", cfspi->tx_ppck_len);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Previous RX len: %d\n", cfspi->rx_ppck_len);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Current TX len: %d\n", cfspi->tx_cpck_len);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Current RX len: %d\n", cfspi->rx_cpck_len);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Next TX len: %d\n", cfspi->tx_npck_len);
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Next RX len: %d\n", cfspi->rx_npck_len);
 
-	if (len > DEBUGFS_BUF_SIZE)
-		len = DEBUGFS_BUF_SIZE;
+	if (len > DEFS_BUF_SIZE)
+		len = DEFS_BUF_SIZE;
 
 	size = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
@@ -192,11 +192,11 @@ static ssize_t print_frame(char *buf, size_t size, char *frm,
 		}
 
 		if ((!(i % 10)) && i) {
-			len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+			len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 					"\n");
 		}
 	}
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len), "\n");
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len), "\n");
 	return len;
 }
 
@@ -209,25 +209,25 @@ static ssize_t dbgfs_frame(struct file *file, char __user *user_buf,
 	struct cfspi *cfspi;
 
 	cfspi = file->private_data;
-	buf = kzalloc(DEBUGFS_BUF_SIZE, GFP_KERNEL);
+	buf = kzalloc(DEFS_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return 0;
 
-	/* Print out debug information. */
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	/* Print out de information. */
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Current frame:\n");
 
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Tx data (Len: %d):\n", cfspi->tx_cpck_len);
 
-	len += print_frame((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += print_frame((buf + len), (DEFS_BUF_SIZE - len),
 			   cfspi->xfer.va_tx[0],
 			   (cfspi->tx_cpck_len + SPI_CMD_SZ), 100);
 
-	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += snprintf((buf + len), (DEFS_BUF_SIZE - len),
 			"Rx data (Len: %d):\n", cfspi->rx_cpck_len);
 
-	len += print_frame((buf + len), (DEBUGFS_BUF_SIZE - len),
+	len += print_frame((buf + len), (DEFS_BUF_SIZE - len),
 			   cfspi->xfer.va_rx,
 			   (cfspi->rx_cpck_len + SPI_CMD_SZ), 100);
 
@@ -249,13 +249,13 @@ static const struct file_operations dbgfs_frame_fops = {
 	.owner = THIS_MODULE
 };
 
-static inline void dev_debugfs_add(struct cfspi *cfspi)
+static inline void dev_defs_add(struct cfspi *cfspi)
 {
-	cfspi->dbgfs_dir = debugfs_create_dir(cfspi->pdev->name, dbgfs_root);
-	cfspi->dbgfs_state = debugfs_create_file("state", 0444,
+	cfspi->dbgfs_dir = defs_create_dir(cfspi->pdev->name, dbgfs_root);
+	cfspi->dbgfs_state = defs_create_file("state", 0444,
 						 cfspi->dbgfs_dir, cfspi,
 						 &dbgfs_state_fops);
-	cfspi->dbgfs_frame = debugfs_create_file("frame", 0444,
+	cfspi->dbgfs_frame = defs_create_file("frame", 0444,
 						 cfspi->dbgfs_dir, cfspi,
 						 &dbgfs_frame_fops);
 }
@@ -266,26 +266,26 @@ inline void cfspi_dbg_state(struct cfspi *cfspi, int state)
 };
 #else
 
-static inline void driver_debugfs_create(void)
+static inline void driver_defs_create(void)
 {
 }
 
-static inline void driver_debugfs_remove(void)
+static inline void driver_defs_remove(void)
 {
 }
 
-static inline void dev_debugfs_add(struct cfspi *cfspi)
+static inline void dev_defs_add(struct cfspi *cfspi)
 {
 }
 
-static inline void dev_debugfs_rem(struct cfspi *cfspi)
+static inline void dev_defs_rem(struct cfspi *cfspi)
 {
 }
 
 inline void cfspi_dbg_state(struct cfspi *cfspi, int state)
 {
 }
-#endif				/* CONFIG_DEBUG_FS */
+#endif				/* CONFIG_DE_FS */
 
 static LIST_HEAD(cfspi_list);
 static spinlock_t cfspi_list_lock;
@@ -648,8 +648,8 @@ static int cfspi_init(struct net_device *dev)
 	/* Initialize work queue. */
 	init_completion(&cfspi->comp);
 
-	/* Create debugfs entries. */
-	dev_debugfs_add(cfspi);
+	/* Create defs entries. */
+	dev_defs_add(cfspi);
 
 	/* Set up the ifc. */
 	cfspi->ifc.ss_cb = cfspi_ss_cb;
@@ -690,8 +690,8 @@ static void cfspi_uninit(struct net_device *dev)
 	set_bit(SPI_TERMINATE, &cfspi->state);
 	wake_up_interruptible(&cfspi->wait);
 	destroy_workqueue(cfspi->wq);
-	/* Destroy debugfs directory and files. */
-	dev_debugfs_rem(cfspi);
+	/* Destroy defs directory and files. */
+	dev_defs_rem(cfspi);
 	return;
 }
 
@@ -791,8 +791,8 @@ static void __exit cfspi_exit_module(void)
 	driver_remove_file(&cfspi_spi_driver.driver, &driver_attr_frame_align);
 	/* Unregister platform driver. */
 	platform_driver_unregister(&cfspi_spi_driver);
-	/* Destroy debugfs root directory. */
-	driver_debugfs_remove();
+	/* Destroy defs root directory. */
+	driver_defs_remove();
 }
 
 static int __init cfspi_init_module(void)
@@ -849,7 +849,7 @@ static int __init cfspi_init_module(void)
 		printk(KERN_ERR "Sysfs creation failed 5.\n");
 		goto err_create_frame_align;
 	}
-	driver_debugfs_create();
+	driver_defs_create();
 	return result;
 
  err_create_frame_align:

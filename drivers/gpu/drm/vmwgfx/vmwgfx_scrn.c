@@ -127,7 +127,7 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 		SVGAScreenObject obj;
 	} *cmd;
 
-	BUG_ON(!sou->buffer);
+	_ON(!sou->buffer);
 
 	fifo_size = sizeof(*cmd);
 	cmd = vmw_fifo_reserve(dev_priv, fifo_size);

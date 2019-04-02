@@ -50,19 +50,19 @@
 void
 vxfs_dumpi(struct vxfs_inode_info *vip, ino_t ino)
 {
-	printk(KERN_DEBUG "\n\n");
+	printk(KERN_DE "\n\n");
 	if (ino)
-		printk(KERN_DEBUG "dumping vxfs inode %ld\n", ino);
+		printk(KERN_DE "dumping vxfs inode %ld\n", ino);
 	else
-		printk(KERN_DEBUG "dumping unknown vxfs inode\n");
+		printk(KERN_DE "dumping unknown vxfs inode\n");
 
-	printk(KERN_DEBUG "---------------------------\n");
-	printk(KERN_DEBUG "mode is %x\n", vip->vii_mode);
-	printk(KERN_DEBUG "nlink:%u, uid:%u, gid:%u\n",
+	printk(KERN_DE "---------------------------\n");
+	printk(KERN_DE "mode is %x\n", vip->vii_mode);
+	printk(KERN_DE "nlink:%u, uid:%u, gid:%u\n",
 			vip->vii_nlink, vip->vii_uid, vip->vii_gid);
-	printk(KERN_DEBUG "size:%Lx, blocks:%u\n",
+	printk(KERN_DE "size:%Lx, blocks:%u\n",
 			vip->vii_size, vip->vii_blocks);
-	printk(KERN_DEBUG "orgtype:%u\n", vip->vii_orgtype);
+	printk(KERN_DE "orgtype:%u\n", vip->vii_orgtype);
 }
 #endif
 

@@ -325,7 +325,7 @@ static const struct i2c_algorithm bcm2835_i2c_algo = {
 
 /*
  * This HW was reported to have problems with clock stretching:
- * http://www.advamation.com/knowhow/raspberrypi/rpi-i2c-bug.html
+ * http://www.advamation.com/knowhow/raspberrypi/rpi-i2c-.html
  * https://www.raspberrypi.org/forums/viewtopic.php?p=146272
  */
 static const struct i2c_adapter_quirks bcm2835_i2c_quirks = {

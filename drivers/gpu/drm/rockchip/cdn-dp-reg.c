@@ -323,7 +323,7 @@ int cdn_dp_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
 	reg = readl(dp->regs + VER_LIB_H_ADDR) & 0xff;
 	dp->fw_version |= reg << 24;
 
-	DRM_DEV_DEBUG(dp->dev, "firmware version: %x\n", dp->fw_version);
+	DRM_DEV_DE(dp->dev, "firmware version: %x\n", dp->fw_version);
 
 	return 0;
 }
@@ -568,7 +568,7 @@ int cdn_dp_train_link(struct cdn_dp_device *dp)
 		return ret;
 	}
 
-	DRM_DEV_DEBUG_KMS(dp->dev, "rate:0x%x, lanes:%d\n", dp->link.rate,
+	DRM_DEV_DE_KMS(dp->dev, "rate:0x%x, lanes:%d\n", dp->link.rate,
 			  dp->link.num_lanes);
 	return ret;
 }

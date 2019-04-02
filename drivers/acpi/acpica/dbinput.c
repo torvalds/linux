@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbinput - user front-end to the AML debugger
+ * Module Name: dbinput - user front-end to the AML deger
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 
 #ifdef ACPI_APPLICATION
 #include "acapps.h"
 #endif
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbinput")
 
 /* Local prototypes */
@@ -30,11 +30,11 @@ acpi_db_match_command_help(const char *command,
 			   const struct acpi_db_command_help *help);
 
 /*
- * Top-level debugger commands.
+ * Top-level deger commands.
  *
  * This list of commands must match the string table below it
  */
-enum acpi_ex_debugger_commands {
+enum acpi_ex_deger_commands {
 	CMD_NOT_FOUND = 0,
 	CMD_NULL,
 	CMD_ALLOCATIONS,
@@ -43,7 +43,7 @@ enum acpi_ex_debugger_commands {
 	CMD_BREAKPOINT,
 	CMD_BUSINFO,
 	CMD_CALL,
-	CMD_DEBUG,
+	CMD_DE,
 	CMD_DISASSEMBLE,
 	CMD_DISASM,
 	CMD_DUMP,
@@ -120,7 +120,7 @@ static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
 	{"BREAKPOINT", 1},
 	{"BUSINFO", 0},
 	{"CALL", 0},
-	{"DEBUG", 1},
+	{"DE", 1},
 	{"DISASSEMBLE", 1},
 	{"DISASM", 1},
 	{"DUMP", 1},
@@ -186,11 +186,11 @@ static const struct acpi_db_command_info acpi_gbl_db_commands[] = {
 };
 
 /*
- * Help for all debugger commands. First argument is the number of lines
+ * Help for all deger commands. First argument is the number of lines
  * of help to output for the command.
  *
  * Note: Some commands are not supported by the kernel-level version of
- * the debugger.
+ * the deger.
  */
 static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{0, "\nNamespace Access:", "\n"},
@@ -227,7 +227,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Thread <Threads><Loops><NamePath>",
 	 "Spawn threads to execute method(s)\n"},
 #endif
-	{1, "  Debug <Namepath> [Arguments]", "Single-Step a control method\n"},
+	{1, "  De <Namepath> [Arguments]", "Single-Step a control method\n"},
 	{7, "  [Arguments] formats:", "Control method argument formats\n"},
 	{1, "     Hex Integer", "Integer\n"},
 	{1, "     \"Ascii String\"", "String\n"},
@@ -245,8 +245,8 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  Handlers", "Info about global handlers\n"},
 	{1, "  Help [Command]", "This help screen or individual command\n"},
 	{1, "  History", "Display command history buffer\n"},
-	{1, "  Level <DebugLevel>] [console]",
-	 "Get/Set debug level for file or console\n"},
+	{1, "  Level <DeLevel>] [console]",
+	 "Get/Set de level for file or console\n"},
 	{1, "  Locks", "Current status of internal mutexes\n"},
 	{1, "  Osi [Install|Remove <name>]",
 	 "Display or modify global _OSI list\n"},
@@ -267,14 +267,14 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 	{1, "  ! <CommandNumber>", "Execute command from history buffer\n"},
 	{1, "  !!", "Execute last command again\n"},
 
-	{0, "\nMethod and Namespace Debugging:", "\n"},
+	{0, "\nMethod and Namespace Deging:", "\n"},
 	{5, "  Trace <State> [<Namepath>] [Once]",
 	 "Trace control method execution\n"},
 	{1, "     Enable", "Enable all messages\n"},
 	{1, "     Disable", "Disable tracing\n"},
 	{1, "     Method", "Enable method execution messages\n"},
 	{1, "     Opcode", "Enable opcode execution messages\n"},
-	{3, "  Test <TestName>", "Invoke a debug test\n"},
+	{3, "  Test <TestName>", "Invoke a de test\n"},
 	{1, "     Objects", "Read/write/compare all namespace data objects\n"},
 	{1, "     Predefined",
 	 "Validate all ACPI predefined names (_STA, etc.)\n"},
@@ -298,9 +298,9 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
 
 #ifdef ACPI_APPLICATION
 	{0, "\nFile Operations:", "\n"},
-	{1, "  Close", "Close debug output file\n"},
+	{1, "  Close", "Close de output file\n"},
 	{1, "  Load <Input Filename>", "Load ACPI table from a file\n"},
-	{1, "  Open <Output Filename>", "Open a file for debug output\n"},
+	{1, "  Open <Output Filename>", "Open a file for de output\n"},
 	{1, "  Unload <Namepath>",
 	 "Unload an ACPI table via namespace object\n"},
 
@@ -380,7 +380,7 @@ acpi_db_match_command_help(const char *command,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display help information for a Debugger command.
+ * DESCRIPTION: Display help information for a Deger command.
  *
  ******************************************************************************/
 
@@ -405,12 +405,12 @@ static void acpi_db_display_command_info(const char *command, u8 display_all)
  * FUNCTION:    acpi_db_display_help
  *
  * PARAMETERS:  command             - Optional command string to display help.
- *                                    if not specified, all debugger command
+ *                                    if not specified, all deger command
  *                                    help strings are displayed
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display help for a single debugger command, or all of them.
+ * DESCRIPTION: Display help for a single deger command, or all of them.
  *
  ******************************************************************************/
 
@@ -422,7 +422,7 @@ static void acpi_db_display_help(char *command)
 
 		/* No argument to help, display help for all commands */
 
-		acpi_os_printf("\nSummary of AML Debugger Commands\n\n");
+		acpi_os_printf("\nSummary of AML Deger Commands\n\n");
 
 		while (next->invocation) {
 			acpi_os_printf("%-38s%s", next->invocation,
@@ -598,7 +598,7 @@ static u32 acpi_db_get_line(char *input_buffer)
 	}
 
 	this = acpi_gbl_db_parsed_buf;
-	for (i = 0; i < ACPI_DEBUGGER_MAX_ARGS; i++) {
+	for (i = 0; i < ACPI_DEGER_MAX_ARGS; i++) {
 		acpi_gbl_db_args[i] = acpi_db_get_next_token(this, &next,
 							     &acpi_gbl_db_arg_types
 							     [i]);
@@ -753,7 +753,7 @@ acpi_db_command_dispatch(char *input_buffer,
 		status = AE_OK;
 		break;
 
-	case CMD_DEBUG:
+	case CMD_DE:
 
 		acpi_db_execute(acpi_gbl_db_args[1],
 				&acpi_gbl_db_args[2], &acpi_gbl_db_arg_types[2],
@@ -853,25 +853,25 @@ acpi_db_command_dispatch(char *input_buffer,
 
 		if (param_count == 0) {
 			acpi_os_printf
-			    ("Current debug level for file output is:    %8.8lX\n",
-			     acpi_gbl_db_debug_level);
+			    ("Current de level for file output is:    %8.8lX\n",
+			     acpi_gbl_db_de_level);
 			acpi_os_printf
-			    ("Current debug level for console output is: %8.8lX\n",
-			     acpi_gbl_db_console_debug_level);
+			    ("Current de level for console output is: %8.8lX\n",
+			     acpi_gbl_db_console_de_level);
 		} else if (param_count == 2) {
-			temp = acpi_gbl_db_console_debug_level;
-			acpi_gbl_db_console_debug_level =
+			temp = acpi_gbl_db_console_de_level;
+			acpi_gbl_db_console_de_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for console output was %8.8lX, now %8.8lX\n",
-			     temp, acpi_gbl_db_console_debug_level);
+			    ("De Level for console output was %8.8lX, now %8.8lX\n",
+			     temp, acpi_gbl_db_console_de_level);
 		} else {
-			temp = acpi_gbl_db_debug_level;
-			acpi_gbl_db_debug_level =
+			temp = acpi_gbl_db_de_level;
+			acpi_gbl_db_de_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for file output was %8.8lX, now %8.8lX\n",
-			     temp, acpi_gbl_db_debug_level);
+			    ("De Level for file output was %8.8lX, now %8.8lX\n",
+			     temp, acpi_gbl_db_de_level);
 		}
 		break;
 
@@ -1044,7 +1044,7 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	case CMD_CLOSE:
 
-		acpi_db_close_debug_file();
+		acpi_db_close_de_file();
 		break;
 
 	case CMD_LOAD:{
@@ -1062,7 +1062,7 @@ acpi_db_command_dispatch(char *input_buffer,
 
 	case CMD_OPEN:
 
-		acpi_db_open_debug_file(acpi_gbl_db_args[1]);
+		acpi_db_open_de_file(acpi_gbl_db_args[1]);
 		break;
 
 		/* User space commands. */
@@ -1095,7 +1095,7 @@ acpi_db_command_dispatch(char *input_buffer,
 						 acpi_gbl_db_args[3]);
 		break;
 
-		/* Debug test commands. */
+		/* De test commands. */
 
 	case CMD_PREDEFINED:
 
@@ -1122,10 +1122,10 @@ acpi_db_command_dispatch(char *input_buffer,
 		}
 
 		if (!acpi_gbl_db_output_to_file) {
-			acpi_dbg_level = ACPI_DEBUG_DEFAULT;
+			acpi_dbg_level = ACPI_DE_DEFAULT;
 		}
 #ifdef ACPI_APPLICATION
-		acpi_db_close_debug_file();
+		acpi_db_close_de_file();
 #endif
 		acpi_gbl_db_terminate_loop = TRUE;
 		return (AE_CTRL_TERMINATE);
@@ -1152,7 +1152,7 @@ acpi_db_command_dispatch(char *input_buffer,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Debugger execute thread. Waits for a command line, then
+ * DESCRIPTION: Deger execute thread. Waits for a command line, then
  *              simply dispatches it.
  *
  ******************************************************************************/
@@ -1172,7 +1172,7 @@ void ACPI_SYSTEM_XFACE acpi_db_execute_thread(void *context)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Command line execution for the AML debugger. Commands are
+ * DESCRIPTION: Command line execution for the AML deger. Commands are
  *              matched and dispatched here.
  *
  ******************************************************************************/

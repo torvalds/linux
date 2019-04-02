@@ -268,7 +268,7 @@ static const struct arm64_ftr_bits ftr_id_aa64dfr0[] = {
 	 */
 	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_EXACT, ID_AA64DFR0_PMUVER_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_EXACT, ID_AA64DFR0_TRACEVER_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_EXACT, ID_AA64DFR0_DEBUGVER_SHIFT, 4, 0x6),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_EXACT, ID_AA64DFR0_DEVER_SHIFT, 4, 0x6),
 	ARM64_FTR_END,
 };
 
@@ -473,7 +473,7 @@ static s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new,
 		ret = new > cur ? new : cur;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ret;
@@ -485,7 +485,7 @@ static void __init sort_ftr_regs(void)
 
 	/* Check that the array is sorted so that we can do the binary search */
 	for (i = 1; i < ARRAY_SIZE(arm64_ftr_regs); i++)
-		BUG_ON(arm64_ftr_regs[i].sys_id < arm64_ftr_regs[i - 1].sys_id);
+		_ON(arm64_ftr_regs[i].sys_id < arm64_ftr_regs[i - 1].sys_id);
 }
 
 /*
@@ -504,7 +504,7 @@ static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
 	const struct arm64_ftr_bits *ftrp;
 	struct arm64_ftr_reg *reg = get_arm64_ftr_reg(sys_reg);
 
-	BUG_ON(!reg);
+	_ON(!reg);
 
 	for (ftrp  = reg->ftr_bits; ftrp->width; ftrp++) {
 		u64 ftr_mask = arm64_ftr_mask(ftrp);
@@ -633,7 +633,7 @@ static int check_update_ftr_reg(u32 sys_id, int cpu, u64 val, u64 boot)
 {
 	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(sys_id);
 
-	BUG_ON(!regp);
+	_ON(!regp);
 	update_cpu_ftr_reg(regp, val);
 	if ((boot & regp->strict_mask) == (val & regp->strict_mask))
 		return 0;
@@ -674,8 +674,8 @@ void update_cpu_features(int cpu,
 				      info->reg_cntfrq, boot->reg_cntfrq);
 
 	/*
-	 * The kernel uses self-hosted debug features and expects CPUs to
-	 * support identical debug features. We presently need CTX_CMPs, WRPs,
+	 * The kernel uses self-hosted de features and expects CPUs to
+	 * support identical de features. We presently need CTX_CMPs, WRPs,
 	 * and BRPs to be identical.
 	 * ID_AA64DFR1 is currently RES0.
 	 */
@@ -787,7 +787,7 @@ u64 read_sanitised_ftr_reg(u32 id)
 	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(id);
 
 	/* We shouldn't get a request for an unsupported register */
-	BUG_ON(!regp);
+	_ON(!regp);
 	return regp->sys_val;
 }
 
@@ -833,7 +833,7 @@ static u64 __read_sysreg_by_encoding(u32 sys_id)
 	read_sysreg_case(SYS_DCZID_EL0);
 
 	default:
-		BUG();
+		();
 		return 0;
 	}
 }

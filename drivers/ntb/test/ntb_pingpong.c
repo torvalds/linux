@@ -54,7 +54,7 @@
  * How to use this tool, by example.
  *
  * Assuming $DBG_DIR is something like:
- * '/sys/kernel/debug/ntb_perf/0000:00:03.0'
+ * '/sys/kernel/de/ntb_perf/0000:00:03.0'
  * Suppose aside from local device there is at least one remote device
  * connected to NTB with index 0.
  *-----------------------------------------------------------------------------
@@ -76,7 +76,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/hrtimer.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <linux/ntb.h>
 
@@ -356,16 +356,16 @@ static void pp_setup_dbgfs(struct pp_ctx *pp)
 	struct pci_dev *pdev = pp->ntb->pdev;
 	void *ret;
 
-	pp->dbgfs_dir = debugfs_create_dir(pci_name(pdev), pp_dbgfs_topdir);
+	pp->dbgfs_dir = defs_create_dir(pci_name(pdev), pp_dbgfs_topdir);
 
-	ret = debugfs_create_atomic_t("count", 0600, pp->dbgfs_dir, &pp->count);
+	ret = defs_create_atomic_t("count", 0600, pp->dbgfs_dir, &pp->count);
 	if (!ret)
-		dev_warn(&pp->ntb->dev, "DebugFS unsupported\n");
+		dev_warn(&pp->ntb->dev, "DeFS unsupported\n");
 }
 
 static void pp_clear_dbgfs(struct pp_ctx *pp)
 {
-	debugfs_remove_recursive(pp->dbgfs_dir);
+	defs_remove_recursive(pp->dbgfs_dir);
 }
 
 static int pp_probe(struct ntb_client *client, struct ntb_dev *ntb)
@@ -418,12 +418,12 @@ static int __init pp_init(void)
 {
 	int ret;
 
-	if (debugfs_initialized())
-		pp_dbgfs_topdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized())
+		pp_dbgfs_topdir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	ret = ntb_register_client(&pp_client);
 	if (ret)
-		debugfs_remove_recursive(pp_dbgfs_topdir);
+		defs_remove_recursive(pp_dbgfs_topdir);
 
 	return ret;
 }
@@ -432,7 +432,7 @@ module_init(pp_init);
 static void __exit pp_exit(void)
 {
 	ntb_unregister_client(&pp_client);
-	debugfs_remove_recursive(pp_dbgfs_topdir);
+	defs_remove_recursive(pp_dbgfs_topdir);
 }
 module_exit(pp_exit);
 

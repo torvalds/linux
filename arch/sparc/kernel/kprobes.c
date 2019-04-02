@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/extable.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/slab.h>
 #include <linux/context_tracking.h>
 #include <asm/signal.h>
@@ -163,7 +163,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			/*
 			 * The breakpoint instruction was removed right
 			 * after we hit it.  Another cpu has removed
-			 * either a probepoint or a debugger breakpoint
+			 * either a probepoint or a deger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
 			 */
@@ -399,11 +399,11 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 		return ret;
 
 	switch (val) {
-	case DIE_DEBUG:
+	case DIE_DE:
 		if (kprobe_handler(args->regs))
 			ret = NOTIFY_STOP;
 		break;
-	case DIE_DEBUG_2:
+	case DIE_DE_2:
 		if (post_kprobe_handler(args->regs))
 			ret = NOTIFY_STOP;
 		break;
@@ -418,7 +418,7 @@ asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
 {
 	enum ctx_state prev_state = exception_enter();
 
-	BUG_ON(trap_level != 0x170 && trap_level != 0x171);
+	_ON(trap_level != 0x170 && trap_level != 0x171);
 
 	if (user_mode(regs)) {
 		local_irq_enable();
@@ -429,8 +429,8 @@ asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
 	/* trap_level == 0x170 --> ta 0x70
 	 * trap_level == 0x171 --> ta 0x71
 	 */
-	if (notify_die((trap_level == 0x170) ? DIE_DEBUG : DIE_DEBUG_2,
-		       (trap_level == 0x170) ? "debug" : "debug_2",
+	if (notify_die((trap_level == 0x170) ? DIE_DE : DIE_DE_2,
+		       (trap_level == 0x170) ? "de" : "de_2",
 		       regs, 0, trap_level, SIGTRAP) != NOTIFY_STOP)
 		bad_trap(regs, trap_level);
 out:

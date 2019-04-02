@@ -4,7 +4,7 @@
 #include "evlist.h"
 #include <api/fs/fs.h>
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 #include <dirent.h>
 #include <errno.h>
@@ -1746,7 +1746,7 @@ static int test_event(struct evlist_test *e)
 	int ret;
 
 	if (e->valid && !e->valid()) {
-		pr_debug("... SKIP");
+		pr_de("... SKIP");
 		return 0;
 	}
 
@@ -1756,7 +1756,7 @@ static int test_event(struct evlist_test *e)
 
 	ret = parse_events(evlist, e->name, &err);
 	if (ret) {
-		pr_debug("failed to parse event '%s', err %d, str '%s'\n",
+		pr_de("failed to parse event '%s', err %d, str '%s'\n",
 			 e->name, ret, err.str);
 		parse_events_print_error(&err, e->name);
 	} else {
@@ -1776,11 +1776,11 @@ static int test_events(struct evlist_test *events, unsigned cnt)
 	for (i = 0; i < cnt; i++) {
 		struct evlist_test *e = &events[i];
 
-		pr_debug("running test %d '%s'", e->id, e->name);
+		pr_de("running test %d '%s'", e->id, e->name);
 		ret1 = test_event(e);
 		if (ret1)
 			ret2 = ret1;
-		pr_debug("\n");
+		pr_de("\n");
 	}
 
 	return ret2;
@@ -1795,7 +1795,7 @@ static int test_term(struct terms_test *t)
 
 	ret = parse_events_terms(&terms, t->str);
 	if (ret) {
-		pr_debug("failed to parse terms '%s', err %d\n",
+		pr_de("failed to parse terms '%s', err %d\n",
 			 t->str , ret);
 		return ret;
 	}
@@ -1814,7 +1814,7 @@ static int test_terms(struct terms_test *terms, unsigned cnt)
 	for (i = 0; i < cnt; i++) {
 		struct terms_test *t = &terms[i];
 
-		pr_debug("running test %d '%s'\n", i, t->str);
+		pr_de("running test %d '%s'\n", i, t->str);
 		ret = test_term(t);
 		if (ret)
 			break;
@@ -1834,7 +1834,7 @@ static int test_pmu(void)
 
 	ret = stat(path, &st);
 	if (ret)
-		pr_debug("omitting PMU cpu tests\n");
+		pr_de("omitting PMU cpu tests\n");
 	return !ret;
 }
 
@@ -1851,13 +1851,13 @@ static int test_pmu_events(void)
 
 	ret = stat(path, &st);
 	if (ret) {
-		pr_debug("omitting PMU cpu events tests\n");
+		pr_de("omitting PMU cpu events tests\n");
 		return 0;
 	}
 
 	dir = opendir(path);
 	if (!dir) {
-		pr_debug("can't open pmu event dir");
+		pr_de("can't open pmu event dir");
 		return -1;
 	}
 

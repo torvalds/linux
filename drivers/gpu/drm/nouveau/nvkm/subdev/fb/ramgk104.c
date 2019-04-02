@@ -1070,7 +1070,7 @@ gk104_ram_calc_xits(struct gk104_ram *ram, struct nvkm_ram_data *next)
 			nvkm_error(subdev, "unable to calc plls\n");
 			return -EINVAL;
 		}
-		nvkm_debug(subdev, "sucessfully calced PLLs for clock %i kHz"
+		nvkm_de(subdev, "sucessfully calced PLLs for clock %i kHz"
 				" (refclock: %i kHz)\n", next->freq, ret);
 	} else {
 		/* calculate refpll coefficients */
@@ -1144,7 +1144,7 @@ gk104_ram_calc(struct nvkm_ram *base, u32 freq)
 		if (memcmp(xits, &ram->base.former, sizeof(xits->bios)))
 			ram->base.next = &ram->base.xition;
 	} else {
-		BUG_ON(ram->base.next != &ram->base.xition);
+		_ON(ram->base.next != &ram->base.xition);
 		ram->base.next = &ram->base.target;
 	}
 

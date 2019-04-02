@@ -288,13 +288,13 @@ static int hv_gpci_init(void)
 	hv_gpci_assert_offsets_correct();
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_debug("not a virtualized system, not enabling\n");
+		pr_de("not a virtualized system, not enabling\n");
 		return -ENODEV;
 	}
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
+		pr_de("could not obtain capabilities, not enabling, rc=%ld\n",
 				hret);
 		return -ENODEV;
 	}

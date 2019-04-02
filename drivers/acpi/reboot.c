@@ -17,7 +17,7 @@ static void acpi_pci_reboot(struct acpi_generic_address *rr, u8 reset_value)
 	/* Form PCI device/function pair. */
 	devfn = PCI_DEVFN((rr->address >> 32) & 0xffff,
 			  (rr->address >> 16) & 0xffff);
-	pr_debug("Resetting with ACPI PCI RESET_REG.\n");
+	pr_de("Resetting with ACPI PCI RESET_REG.\n");
 	/* Write the value that resets us. */
 	pci_bus_write_config_byte(bus0, devfn,
 			(rr->address & 0xffff), reset_value);
@@ -62,7 +62,7 @@ void acpi_reboot(void)
 
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	case ACPI_ADR_SPACE_SYSTEM_IO:
-		printk(KERN_DEBUG "ACPI MEMORY or I/O RESET_REG.\n");
+		printk(KERN_DE "ACPI MEMORY or I/O RESET_REG.\n");
 		acpi_reset();
 		break;
 	}

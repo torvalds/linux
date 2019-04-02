@@ -97,7 +97,7 @@ drm_plane_state_to_eba(struct drm_plane_state *state, int plane)
 	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, plane);
-	BUG_ON(!cma_obj);
+	_ON(!cma_obj);
 
 	return cma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
 	       fb->format->cpp[plane] * x;
@@ -113,7 +113,7 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
-	BUG_ON(!cma_obj);
+	_ON(!cma_obj);
 
 	x /= drm_format_horz_chroma_subsampling(fb->format->format);
 	y /= drm_format_vert_chroma_subsampling(fb->format->format);
@@ -132,7 +132,7 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
-	BUG_ON(!cma_obj);
+	_ON(!cma_obj);
 
 	x /= drm_format_horz_chroma_subsampling(fb->format->format);
 	y /= drm_format_vert_chroma_subsampling(fb->format->format);
@@ -230,7 +230,7 @@ void ipu_plane_disable(struct ipu_plane *ipu_plane, bool disable_dp_channel)
 {
 	int ret;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+	DRM_DE_KMS("[%d] %s\n", __LINE__, __func__);
 
 	ret = ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 	if (ret == -ETIMEDOUT) {
@@ -265,7 +265,7 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 {
 	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+	DRM_DE_KMS("[%d] %s\n", __LINE__, __func__);
 
 	drm_plane_cleanup(plane);
 	kfree(ipu_plane);
@@ -829,7 +829,7 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	unsigned int zpos = (type == DRM_PLANE_TYPE_PRIMARY) ? 0 : 1;
 	int ret;
 
-	DRM_DEBUG_KMS("channel %d, dp flow %d, possible_crtcs=0x%x\n",
+	DRM_DE_KMS("channel %d, dp flow %d, possible_crtcs=0x%x\n",
 		      dma, dp, possible_crtcs);
 
 	ipu_plane = kzalloc(sizeof(*ipu_plane), GFP_KERNEL);

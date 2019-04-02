@@ -14,7 +14,7 @@
  * version 2 (GPLv2) along with this source code.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "cipher.h"
 #include "util.h"
@@ -288,7 +288,7 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 	unsigned int num_out = 0;	/* number of bytes dumped so far */
 	unsigned int count;
 
-	if (packet_debug_logging) {
+	if (packet_de_logging) {
 		while (num_out < len) {
 			count = (len - num_out > 16) ? 16 : len - num_out;
 			sg_copy_part_to_buf(sg, dbuf, count, idx);
@@ -298,8 +298,8 @@ void __dump_sg(struct scatterlist *sg, unsigned int skip, unsigned int len)
 			idx += 16;
 		}
 	}
-	if (debug_logging_sleep)
-		msleep(debug_logging_sleep);
+	if (de_logging_sleep)
+		msleep(de_logging_sleep);
 }
 
 /* Returns the name for a given cipher alg/mode */
@@ -357,7 +357,7 @@ char *spu_alg_name(enum spu_cipher_alg alg, enum spu_cipher_mode mode)
 	}
 }
 
-static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
+static ssize_t spu_defs_read(struct file *filp, char __user *ubuf,
 				size_t count, loff_t *offp)
 {
 	struct device_private *ipriv;
@@ -481,36 +481,36 @@ static ssize_t spu_debugfs_read(struct file *filp, char __user *ubuf,
 	return ret;
 }
 
-static const struct file_operations spu_debugfs_stats = {
+static const struct file_operations spu_defs_stats = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = spu_debugfs_read,
+	.read = spu_defs_read,
 };
 
 /*
- * Create the debug FS directories. If the top-level directory has not yet
+ * Create the de FS directories. If the top-level directory has not yet
  * been created, create it now. Create a stats file in this directory for
  * a SPU.
  */
-void spu_setup_debugfs(void)
+void spu_setup_defs(void)
 {
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return;
 
-	if (!iproc_priv.debugfs_dir)
-		iproc_priv.debugfs_dir = debugfs_create_dir(KBUILD_MODNAME,
+	if (!iproc_priv.defs_dir)
+		iproc_priv.defs_dir = defs_create_dir(KBUILD_MODNAME,
 							    NULL);
 
-	if (!iproc_priv.debugfs_stats)
+	if (!iproc_priv.defs_stats)
 		/* Create file with permissions S_IRUSR */
-		debugfs_create_file("stats", 0400, iproc_priv.debugfs_dir,
-				    &iproc_priv, &spu_debugfs_stats);
+		defs_create_file("stats", 0400, iproc_priv.defs_dir,
+				    &iproc_priv, &spu_defs_stats);
 }
 
-void spu_free_debugfs(void)
+void spu_free_defs(void)
 {
-	debugfs_remove_recursive(iproc_priv.debugfs_dir);
-	iproc_priv.debugfs_dir = NULL;
+	defs_remove_recursive(iproc_priv.defs_dir);
+	iproc_priv.defs_dir = NULL;
 }
 
 /**

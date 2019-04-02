@@ -56,14 +56,14 @@ MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(GSPCA_VERSION);
 
-int gspca_debug;
-EXPORT_SYMBOL(gspca_debug);
+int gspca_de;
+EXPORT_SYMBOL(gspca_de);
 
-static void PDEBUG_MODE(struct gspca_dev *gspca_dev, int debug, char *txt,
+static void PDE_MODE(struct gspca_dev *gspca_dev, int de, char *txt,
 			__u32 pixfmt, int w, int h)
 {
 	if ((pixfmt >> 24) >= '0' && (pixfmt >> 24) <= 'z') {
-		gspca_dbg(gspca_dev, debug, "%s %c%c%c%c %dx%d\n",
+		gspca_dbg(gspca_dev, de, "%s %c%c%c%c %dx%d\n",
 			  txt,
 			  pixfmt & 0xff,
 			  (pixfmt >> 8) & 0xff,
@@ -71,7 +71,7 @@ static void PDEBUG_MODE(struct gspca_dev *gspca_dev, int debug, char *txt,
 			  pixfmt >> 24,
 			  w, h);
 	} else {
-		gspca_dbg(gspca_dev, debug, "%s 0x%08x %dx%d\n",
+		gspca_dbg(gspca_dev, de, "%s 0x%08x %dx%d\n",
 			  txt,
 			  pixfmt,
 			  w, h);
@@ -969,7 +969,7 @@ static int gspca_get_mode(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_chip_info(struct file *file, void *priv,
 				struct v4l2_dbg_chip_info *chip)
 {
@@ -1061,7 +1061,7 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
-	PDEBUG_MODE(gspca_dev, D_CONF, "try fmt cap",
+	PDE_MODE(gspca_dev, D_CONF, "try fmt cap",
 		    fmt->fmt.pix.pixelformat, w, h);
 
 	/* search the nearest mode for width and height */
@@ -1433,7 +1433,7 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_streamon	= vb2_ioctl_streamon,
 	.vidioc_streamoff	= vb2_ioctl_streamoff,
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info	= vidioc_g_chip_info,
 	.vidioc_g_register	= vidioc_g_register,
 	.vidioc_s_register	= vidioc_s_register,
@@ -1556,7 +1556,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	if (ret)
 		goto out;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	if (!gspca_dev->sd_desc->get_register)
 		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_G_REGISTER);
 	if (!gspca_dev->sd_desc->set_register)
@@ -1723,6 +1723,6 @@ static void __exit gspca_exit(void)
 module_init(gspca_init);
 module_exit(gspca_exit);
 
-module_param_named(debug, gspca_debug, int, 0644);
-MODULE_PARM_DESC(debug,
+module_param_named(de, gspca_de, int, 0644);
+MODULE_PARM_DESC(de,
 		"1:probe 2:config 3:stream 4:frame 5:packet 6:usbi 7:usbo");

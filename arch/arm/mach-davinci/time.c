@@ -370,7 +370,7 @@ void __init davinci_timer_init(struct clk *timer_clk)
 		}
 	}
 
-	BUG_ON(IS_ERR(timer_clk));
+	_ON(IS_ERR(timer_clk));
 	clk_prepare_enable(timer_clk);
 
 	/* init timer hw */

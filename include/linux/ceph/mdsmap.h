@@ -2,7 +2,7 @@
 #ifndef _FS_CEPH_MDSMAP_H
 #define _FS_CEPH_MDSMAP_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/ceph/types.h>
 
 /*
@@ -49,7 +49,7 @@ ceph_mdsmap_get_addr(struct ceph_mdsmap *m, int w)
 
 static inline int ceph_mdsmap_get_state(struct ceph_mdsmap *m, int w)
 {
-	BUG_ON(w < 0);
+	_ON(w < 0);
 	if (w >= m->m_num_mds)
 		return CEPH_MDS_STATE_DNE;
 	return m->m_info[w].state;

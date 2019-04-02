@@ -180,7 +180,7 @@ static void o2quo_set_hold(struct o2quo_state *qs, u8 node)
 
 	if (!test_and_set_bit(node, qs->qs_hold_bm)) {
 		qs->qs_holds++;
-		mlog_bug_on_msg(qs->qs_holds == O2NM_MAX_NODES,
+		mlog__on_msg(qs->qs_holds == O2NM_MAX_NODES,
 			        "node %u\n", node);
 		mlog(0, "node %u, %d total\n", node, qs->qs_holds);
 	}
@@ -198,7 +198,7 @@ static void o2quo_clear_hold(struct o2quo_state *qs, u8 node)
 				schedule_work(&qs->qs_work);
 			}
 		}
-		mlog_bug_on_msg(qs->qs_holds < 0, "node %u, holds %d\n",
+		mlog__on_msg(qs->qs_holds < 0, "node %u, holds %d\n",
 				node, qs->qs_holds);
 	}
 }
@@ -214,9 +214,9 @@ void o2quo_hb_up(u8 node)
 	spin_lock(&qs->qs_lock);
 
 	qs->qs_heartbeating++;
-	mlog_bug_on_msg(qs->qs_heartbeating == O2NM_MAX_NODES,
+	mlog__on_msg(qs->qs_heartbeating == O2NM_MAX_NODES,
 		        "node %u\n", node);
-	mlog_bug_on_msg(test_bit(node, qs->qs_hb_bm), "node %u\n", node);
+	mlog__on_msg(test_bit(node, qs->qs_hb_bm), "node %u\n", node);
 	set_bit(node, qs->qs_hb_bm);
 
 	mlog(0, "node %u, %d total\n", node, qs->qs_heartbeating);
@@ -238,10 +238,10 @@ void o2quo_hb_down(u8 node)
 	spin_lock(&qs->qs_lock);
 
 	qs->qs_heartbeating--;
-	mlog_bug_on_msg(qs->qs_heartbeating < 0,
+	mlog__on_msg(qs->qs_heartbeating < 0,
 			"node %u, %d heartbeating\n",
 			node, qs->qs_heartbeating);
-	mlog_bug_on_msg(!test_bit(node, qs->qs_hb_bm), "node %u\n", node);
+	mlog__on_msg(!test_bit(node, qs->qs_hb_bm), "node %u\n", node);
 	clear_bit(node, qs->qs_hb_bm);
 
 	mlog(0, "node %u, %d total\n", node, qs->qs_heartbeating);
@@ -282,9 +282,9 @@ void o2quo_conn_up(u8 node)
 	spin_lock(&qs->qs_lock);
 
 	qs->qs_connected++;
-	mlog_bug_on_msg(qs->qs_connected == O2NM_MAX_NODES,
+	mlog__on_msg(qs->qs_connected == O2NM_MAX_NODES,
 		        "node %u\n", node);
-	mlog_bug_on_msg(test_bit(node, qs->qs_conn_bm), "node %u\n", node);
+	mlog__on_msg(test_bit(node, qs->qs_conn_bm), "node %u\n", node);
 	set_bit(node, qs->qs_conn_bm);
 
 	mlog(0, "node %u, %d total\n", node, qs->qs_connected);
@@ -309,7 +309,7 @@ void o2quo_conn_err(u8 node)
 
 	if (test_bit(node, qs->qs_conn_bm)) {
 		qs->qs_connected--;
-		mlog_bug_on_msg(qs->qs_connected < 0,
+		mlog__on_msg(qs->qs_connected < 0,
 				"node %u, connected %d\n",
 				node, qs->qs_connected);
 

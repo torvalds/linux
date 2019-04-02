@@ -1,10 +1,10 @@
-What:		/sys/kernel/debug/cec/*/error-inj
+What:		/sys/kernel/de/cec/*/error-inj
 Date:		March 2018
 Contact:	Hans Verkuil <hans.verkuil@cisco.com>
 Description:
 
 The CEC Framework allows for CEC error injection commands through
-debugfs. Drivers that support this will create an error-inj file
+defs. Drivers that support this will create an error-inj file
 through which the error injection commands can be given.
 
 The basic syntax is as follows:

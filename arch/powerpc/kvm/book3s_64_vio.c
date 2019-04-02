@@ -81,7 +81,7 @@ static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
 		current->mm->locked_vm -= stt_pages;
 	}
 
-	pr_debug("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
+	pr_de("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
 			inc ? '+' : '-',
 			stt_pages << PAGE_SHIFT,
 			current->mm->locked_vm << PAGE_SHIFT,
@@ -688,7 +688,7 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	/* Check permission bits only to allow userspace poison TCE for debug */
+	/* Check permission bits only to allow userspace poison TCE for de */
 	if (tce_value & (TCE_PCI_WRITE | TCE_PCI_READ))
 		return H_PARAMETER;
 

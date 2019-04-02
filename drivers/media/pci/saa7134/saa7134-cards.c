@@ -7466,7 +7466,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00040000, 0x00000000);
 		break;
 	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
-		/* this turns the remote control chip off to work around a bug in it */
+		/* this turns the remote control chip off to work around a  in it */
 		saa_writeb(SAA7134_GPIO_GPMODE1, 0x80);
 		saa_writeb(SAA7134_GPIO_GPSTATUS1, 0x80);
 		break;

@@ -212,7 +212,7 @@ static int __init nf_conntrack_amanda_init(void)
 {
 	int ret, i;
 
-	NF_CT_HELPER_BUILD_BUG_ON(0);
+	NF_CT_HELPER_BUILD__ON(0);
 
 	for (i = 0; i < ARRAY_SIZE(search); i++) {
 		search[i].ts = textsearch_prepare(ts_algo, search[i].string,

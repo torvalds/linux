@@ -22,9 +22,9 @@ MODULE_AUTHOR("Tigran Aivazian <aivazian.tigran@gmail.com>");
 MODULE_DESCRIPTION("SCO UnixWare BFS filesystem for Linux");
 MODULE_LICENSE("GPL");
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define dprintf(x...)	printf(x)
 #else
 #define dprintf(x...)
@@ -296,7 +296,7 @@ static const struct super_operations bfs_sops = {
 
 void bfs_dump_imap(const char *prefix, struct super_block *s)
 {
-#ifdef DEBUG
+#ifdef DE
 	int i;
 	char *tmpbuf = (char *)get_zeroed_page(GFP_KERNEL);
 

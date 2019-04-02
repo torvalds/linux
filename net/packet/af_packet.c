@@ -386,7 +386,7 @@ static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 		break;
 	default:
 		WARN(1, "TPACKET version not supported.\n");
-		BUG();
+		();
 	}
 
 	smp_wmb();
@@ -411,7 +411,7 @@ static int __packet_get_status(struct packet_sock *po, void *frame)
 		return h.h3->tp_status;
 	default:
 		WARN(1, "TPACKET version not supported.\n");
-		BUG();
+		();
 		return 0;
 	}
 }
@@ -458,7 +458,7 @@ static __u32 __packet_set_timestamp(struct packet_sock *po, void *frame,
 		break;
 	default:
 		WARN(1, "TPACKET version not supported.\n");
-		BUG();
+		();
 	}
 
 	/* one flush is safe, as both fields always lie on the same cacheline */
@@ -1086,7 +1086,7 @@ static void *packet_current_rx_frame(struct packet_sock *po,
 		return __packet_lookup_frame_in_block(po, skb, status, len);
 	default:
 		WARN(1, "TPACKET version not supported\n");
-		BUG();
+		();
 		return NULL;
 	}
 }
@@ -1143,7 +1143,7 @@ static void packet_increment_rx_head(struct packet_sock *po,
 	case TPACKET_V3:
 	default:
 		WARN(1, "TPACKET version not supported.\n");
-		BUG();
+		();
 		return;
 	}
 }
@@ -1291,7 +1291,7 @@ static void packet_sock_destruct(struct sock *sk)
 		return;
 	}
 
-	sk_refcnt_debug_dec(sk);
+	sk_refcnt_de_dec(sk);
 }
 
 static bool fanout_flow_is_huge(struct packet_sock *po, struct sk_buff *skb)
@@ -1485,7 +1485,7 @@ static void __fanout_unlink(struct sock *sk, struct packet_sock *po)
 		if (f->arr[i] == sk)
 			break;
 	}
-	BUG_ON(i >= f->num_members);
+	_ON(i >= f->num_members);
 	f->arr[i] = f->arr[f->num_members - 1];
 	f->num_members--;
 	if (f->num_members == 0)
@@ -2174,8 +2174,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * We may add members to them until current aligned size without forcing
 	 * userspace to call getsockopt(..., PACKET_HDRLEN, ...).
 	 */
-	BUILD_BUG_ON(TPACKET_ALIGN(sizeof(*h.h2)) != 32);
-	BUILD_BUG_ON(TPACKET_ALIGN(sizeof(*h.h3)) != 48);
+	BUILD__ON(TPACKET_ALIGN(sizeof(*h.h2)) != 32);
+	BUILD__ON(TPACKET_ALIGN(sizeof(*h.h3)) != 48);
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto drop;
@@ -2338,7 +2338,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		hdrlen = sizeof(*h.h3);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	sll = h.raw + TPACKET_ALIGN(hdrlen);
@@ -3027,7 +3027,7 @@ static int packet_release(struct socket *sock)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 	packet_free_pending(po);
-	sk_refcnt_debug_release(sk);
+	sk_refcnt_de_release(sk);
 
 	sock_put(sk);
 	return 0;
@@ -3094,7 +3094,7 @@ static int packet_do_bind(struct sock *sk, const char *name, int ifindex,
 								 dev->ifindex);
 		}
 
-		BUG_ON(po->running);
+		_ON(po->running);
 		po->num = proto;
 		po->prot_hook.type = proto;
 
@@ -3222,7 +3222,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	packet_cached_dev_reset(po);
 
 	sk->sk_destruct = packet_sock_destruct;
-	sk_refcnt_debug_inc(sk);
+	sk_refcnt_de_inc(sk);
 
 	/*
 	 *	Attach a protocol block

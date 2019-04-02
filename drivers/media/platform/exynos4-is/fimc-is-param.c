@@ -13,7 +13,7 @@
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>

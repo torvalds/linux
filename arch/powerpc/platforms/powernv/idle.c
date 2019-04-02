@@ -387,7 +387,7 @@ void power9_idle(void)
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
- * This is used in working around bugs in thread reconfiguration
+ * This is used in working around s in thread reconfiguration
  * on POWER9 (at least up to Nimbus DD2.2) relating to transactional
  * memory and the way that XER[SO] is checkpointed.
  * This function forces the core into SMT4 in order by asking

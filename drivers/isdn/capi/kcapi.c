@@ -186,7 +186,7 @@ static void notify_up(u32 contr)
 	mutex_lock(&capi_controller_lock);
 
 	if (showcapimsgs & 1)
-		printk(KERN_DEBUG "kcapi: notify up contr %d\n", contr);
+		printk(KERN_DE "kcapi: notify up contr %d\n", contr);
 
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr) {
@@ -240,7 +240,7 @@ static void notify_down(u32 contr)
 	mutex_lock(&capi_controller_lock);
 
 	if (showcapimsgs & 1)
-		printk(KERN_DEBUG "kcapi: notify down contr %d\n", contr);
+		printk(KERN_DE "kcapi: notify down contr %d\n", contr);
 
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr)
@@ -374,18 +374,18 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 	showctl |= (ctr->traceflag & 1);
 	if (showctl & 2) {
 		if (showctl & 1) {
-			printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u\n",
+			printk(KERN_DE "kcapi: got [%03d] id#%d %s len=%u\n",
 			       ctr->cnr, CAPIMSG_APPID(skb->data),
 			       capi_cmd2str(cmd, subcmd),
 			       CAPIMSG_LEN(skb->data));
 		} else {
 			cdb = capi_message2str(skb->data);
 			if (cdb) {
-				printk(KERN_DEBUG "kcapi: got [%03d] %s\n",
+				printk(KERN_DE "kcapi: got [%03d] %s\n",
 				       ctr->cnr, cdb->buf);
 				cdebbuf_free(cdb);
 			} else
-				printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u, cannot trace\n",
+				printk(KERN_DE "kcapi: got [%03d] id#%d %s len=%u, cannot trace\n",
 				       ctr->cnr, CAPIMSG_APPID(skb->data),
 				       capi_cmd2str(cmd, subcmd),
 				       CAPIMSG_LEN(skb->data));
@@ -467,7 +467,7 @@ EXPORT_SYMBOL(capi_ctr_down);
 void capi_ctr_suspend_output(struct capi_ctr *ctr)
 {
 	if (!ctr->blocked) {
-		printk(KERN_DEBUG "kcapi: controller [%03d] suspend\n",
+		printk(KERN_DE "kcapi: controller [%03d] suspend\n",
 		       ctr->cnr);
 		ctr->blocked = 1;
 	}
@@ -488,7 +488,7 @@ EXPORT_SYMBOL(capi_ctr_suspend_output);
 void capi_ctr_resume_output(struct capi_ctr *ctr)
 {
 	if (ctr->blocked) {
-		printk(KERN_DEBUG "kcapi: controller [%03d] resumed\n",
+		printk(KERN_DE "kcapi: controller [%03d] resumed\n",
 		       ctr->cnr);
 		ctr->blocked = 0;
 	}
@@ -705,7 +705,7 @@ u16 capi20_register(struct capi20_appl *ap)
 	mutex_unlock(&capi_controller_lock);
 
 	if (showcapimsgs & 1) {
-		printk(KERN_DEBUG "kcapi: appl %d up\n", applid);
+		printk(KERN_DE "kcapi: appl %d up\n", applid);
 	}
 
 	return CAPI_NOERROR;
@@ -749,7 +749,7 @@ u16 capi20_release(struct capi20_appl *ap)
 	skb_queue_purge(&ap->recv_queue);
 
 	if (showcapimsgs & 1) {
-		printk(KERN_DEBUG "kcapi: appl %d down\n", ap->applid);
+		printk(KERN_DE "kcapi: appl %d down\n", ap->applid);
 	}
 
 	return CAPI_NOERROR;
@@ -811,7 +811,7 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 	showctl |= (ctr->traceflag & 1);
 	if (showctl & 2) {
 		if (showctl & 1) {
-			printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u\n",
+			printk(KERN_DE "kcapi: put [%03d] id#%d %s len=%u\n",
 			       CAPIMSG_CONTROLLER(skb->data),
 			       CAPIMSG_APPID(skb->data),
 			       capi_cmd2str(cmd, subcmd),
@@ -819,12 +819,12 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 		} else {
 			_cdebbuf *cdb = capi_message2str(skb->data);
 			if (cdb) {
-				printk(KERN_DEBUG "kcapi: put [%03d] %s\n",
+				printk(KERN_DE "kcapi: put [%03d] %s\n",
 				       CAPIMSG_CONTROLLER(skb->data),
 				       cdb->buf);
 				cdebbuf_free(cdb);
 			} else
-				printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u cannot trace\n",
+				printk(KERN_DE "kcapi: put [%03d] id#%d %s len=%u cannot trace\n",
 				       CAPIMSG_CONTROLLER(skb->data),
 				       CAPIMSG_APPID(skb->data),
 				       capi_cmd2str(cmd, subcmd),
@@ -1100,18 +1100,18 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		}
 
 		if (ctr->load_firmware == NULL) {
-			printk(KERN_DEBUG "kcapi: load: no load function\n");
+			printk(KERN_DE "kcapi: load: no load function\n");
 			retval = -ESRCH;
 			goto load_unlock_out;
 		}
 
 		if (ldef.t4file.len <= 0) {
-			printk(KERN_DEBUG "kcapi: load: invalid parameter: length of t4file is %d ?\n", ldef.t4file.len);
+			printk(KERN_DE "kcapi: load: invalid parameter: length of t4file is %d ?\n", ldef.t4file.len);
 			retval = -EINVAL;
 			goto load_unlock_out;
 		}
 		if (ldef.t4file.data == NULL) {
-			printk(KERN_DEBUG "kcapi: load: invalid parameter: dataptr is 0\n");
+			printk(KERN_DE "kcapi: load: invalid parameter: dataptr is 0\n");
 			retval = -EINVAL;
 			goto load_unlock_out;
 		}
@@ -1160,7 +1160,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 			goto reset_unlock_out;
 
 		if (ctr->reset_ctr == NULL) {
-			printk(KERN_DEBUG "kcapi: reset: no reset function\n");
+			printk(KERN_DE "kcapi: reset: no reset function\n");
 			retval = -ESRCH;
 			goto reset_unlock_out;
 		}
@@ -1294,7 +1294,7 @@ static int __init kcapi_init(void)
 
 	register_capictr_notifier(&capictr_nb);
 
-	err = cdebug_init();
+	err = cde_init();
 	if (err) {
 		unregister_capictr_notifier(&capictr_nb);
 		destroy_workqueue(kcapi_wq);
@@ -1310,7 +1310,7 @@ static void __exit kcapi_exit(void)
 	kcapi_proc_exit();
 
 	unregister_capictr_notifier(&capictr_nb);
-	cdebug_exit();
+	cde_exit();
 	destroy_workqueue(kcapi_wq);
 }
 

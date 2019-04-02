@@ -51,7 +51,7 @@ static void i915_clflush_release(struct dma_fence *fence)
 
 	i915_sw_fence_fini(&clflush->wait);
 
-	BUILD_BUG_ON(offsetof(typeof(*clflush), dma));
+	BUILD__ON(offsetof(typeof(*clflush), dma));
 	dma_fence_free(&clflush->dma);
 }
 
@@ -63,7 +63,7 @@ static const struct dma_fence_ops i915_clflush_ops = {
 
 static void __i915_do_clflush(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(!i915_gem_object_has_pages(obj));
+	GEM__ON(!i915_gem_object_has_pages(obj));
 	drm_clflush_sg(obj->mm.pages);
 	intel_fb_obj_flush(obj, ORIGIN_CPU);
 }
@@ -143,7 +143,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	if (!(flags & I915_CLFLUSH_SYNC))
 		clflush = kmalloc(sizeof(*clflush), GFP_KERNEL);
 	if (clflush) {
-		GEM_BUG_ON(!obj->cache_dirty);
+		GEM__ON(!obj->cache_dirty);
 
 		dma_fence_init(&clflush->dma,
 			       &i915_clflush_ops,
@@ -170,7 +170,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	} else if (obj->mm.pages) {
 		__i915_do_clflush(obj);
 	} else {
-		GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
+		GEM__ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 	}
 
 	obj->cache_dirty = false;

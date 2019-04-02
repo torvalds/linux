@@ -243,7 +243,7 @@ Write:
 =================
 
 An arena would be in an error state if any of the metadata is corrupted
-irrecoverably, either due to a bug or a media error. The following conditions
+irrecoverably, either due to a  or a media error. The following conditions
 indicate an error:
 - Info block checksum does not match (and recovering from the copy also fails)
 - All internal available blocks are not uniquely and entirely addressed by the

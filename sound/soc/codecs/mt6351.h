@@ -22,7 +22,7 @@
 #define MT6351_AUDIO_TOP_CON0               (0x2000 + 0x0014)
 #define MT6351_AFE_DL_SRC_MON0              (0x2000 + 0x0016)
 #define MT6351_AFE_DL_SDM_TEST0             (0x2000 + 0x0018)
-#define MT6351_AFE_MON_DEBUG0               (0x2000 + 0x001a)
+#define MT6351_AFE_MON_DE0               (0x2000 + 0x001a)
 #define MT6351_AFUNC_AUD_CON0               (0x2000 + 0x001c)
 #define MT6351_AFUNC_AUD_CON1               (0x2000 + 0x001e)
 #define MT6351_AFUNC_AUD_CON2               (0x2000 + 0x0020)

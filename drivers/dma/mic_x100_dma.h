@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/mic_bus.h>
@@ -134,7 +134,7 @@ struct mic_dma_chan {
  * @dma_dev: underlying dma device
  * @mbdev: mic bus dma device
  * @mmio: virtual address of the mmio space
- * @dbg_dir: debugfs directory
+ * @dbg_dir: defs directory
  * @start_ch: first channel number that can be used
  * @max_xfer_size: maximum transfer size per dma descriptor
  */

@@ -26,7 +26,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -444,7 +444,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 			fl4->fl4_sport = saddr->v4.sin_port;
 	}
 
-	pr_debug("%s: dst:%pI4, src:%pI4 - ", __func__, &fl4->daddr,
+	pr_de("%s: dst:%pI4, src:%pI4 - ", __func__, &fl4->daddr,
 		 &fl4->saddr);
 
 	rt = ip_route_output_key(sock_net(sk), fl4);
@@ -529,10 +529,10 @@ out_unlock:
 out:
 	t->dst = dst;
 	if (dst)
-		pr_debug("rt_dst:%pI4, rt_src:%pI4\n",
+		pr_de("rt_dst:%pI4, rt_src:%pI4\n",
 			 &fl4->daddr, &fl4->saddr);
 	else
-		pr_debug("no route\n");
+		pr_de("no route\n");
 }
 
 /* For v4, the source address is cached in the route entry(dst). So no need
@@ -586,7 +586,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 
 	newinet->inet_daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
 
-	sk_refcnt_debug_inc(newsk);
+	sk_refcnt_de_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);
@@ -623,7 +623,7 @@ static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 	spin_lock_bh(&net->sctp.addr_wq_lock);
 
 	list_for_each_entry_safe(addrw, temp, &net->sctp.addr_waitq, list) {
-		pr_debug("%s: the first ent in wq:%p is addr:%pISc for cmd:%d at "
+		pr_de("%s: the first ent in wq:%p is addr:%pISc for cmd:%d at "
 			 "entry:%p\n", __func__, &net->sctp.addr_waitq, &addrw->a.sa,
 			 addrw->state, addrw);
 
@@ -642,7 +642,7 @@ static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 			    addrw->state == SCTP_ADDR_NEW) {
 				unsigned long timeo_val;
 
-				pr_debug("%s: this is on DAD, trying %d sec "
+				pr_de("%s: this is on DAD, trying %d sec "
 					 "later\n", __func__,
 					 SCTP_ADDRESS_TICK_DELAY);
 
@@ -662,7 +662,7 @@ static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 				continue;
 			bh_lock_sock(sk);
 			if (sctp_asconf_mgmt(sp, addrw) < 0)
-				pr_debug("%s: sctp_asconf_mgmt failed\n", __func__);
+				pr_de("%s: sctp_asconf_mgmt failed\n", __func__);
 			bh_unlock_sock(sk);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
@@ -728,7 +728,7 @@ void sctp_addr_wq_mgmt(struct net *net, struct sctp_sockaddr_entry *addr, int cm
 	addrw = sctp_addr_wq_lookup(net, addr);
 	if (addrw) {
 		if (addrw->state != cmd) {
-			pr_debug("%s: offsets existing entry for %d, addr:%pISc "
+			pr_de("%s: offsets existing entry for %d, addr:%pISc "
 				 "in wq:%p\n", __func__, addrw->state, &addrw->a.sa,
 				 &net->sctp.addr_waitq);
 
@@ -748,7 +748,7 @@ void sctp_addr_wq_mgmt(struct net *net, struct sctp_sockaddr_entry *addr, int cm
 	addrw->state = cmd;
 	list_add_tail(&addrw->list, &net->sctp.addr_waitq);
 
-	pr_debug("%s: add new entry for cmd:%d, addr:%pISc in wq:%p\n",
+	pr_de("%s: add new entry for cmd:%d, addr:%pISc in wq:%p\n",
 		 __func__, addrw->state, &addrw->a.sa, &net->sctp.addr_waitq);
 
 	if (!timer_pending(&net->sctp.addr_wq_timer)) {
@@ -975,7 +975,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 	struct inet_sock *inet = inet_sk(skb->sk);
 	__u8 dscp = inet->tos;
 
-	pr_debug("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n", __func__, skb,
+	pr_de("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n", __func__, skb,
 		 skb->len, &transport->fl.u.ip4.saddr,
 		 &transport->fl.u.ip4.daddr);
 
@@ -1568,7 +1568,7 @@ err_chunk_cachep:
 /* Exit handler for the SCTP protocol.  */
 static __exit void sctp_exit(void)
 {
-	/* BUG.  This should probably do something useful like clean
+	/* .  This should probably do something useful like clean
 	 * up all the remaining associations and all that memory.
 	 */
 

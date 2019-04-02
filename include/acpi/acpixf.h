@@ -136,9 +136,9 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_use_default_register_widths, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_table_validation, TRUE);
 
 /*
- * Optionally enable output from the AML Debug Object.
+ * Optionally enable output from the AML De Object.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_aml_debug_object, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_aml_de_object, FALSE);
 
 /*
  * Optionally copy the entire DSDT to local memory (instead of simply
@@ -170,7 +170,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_fadt_addresses, FALSE);
  * Optionally use 32-bit FACS table addresses.
  * It is reported that some platforms fail to resume from system suspending
  * if 64-bit FACS table address is selected:
- * https://bugzilla.kernel.org/show_bug.cgi?id=74021
+ * https://zilla.kernel.org/show_.cgi?id=74021
  * Default is TRUE, favor the 32-bit addresses.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_facs_addresses, TRUE);
@@ -191,7 +191,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_auto_repair, FALSE);
 
 /*
  * Optionally do not install any SSDTs from the RSDT/XSDT during initialization.
- * This can be useful for debugging ACPI problems on some machines.
+ * This can be useful for deging ACPI problems on some machines.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_install, FALSE);
 
@@ -240,22 +240,22 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_dbg_level, ACPI_TRACE_LEVEL_DEFAULT);
 ACPI_INIT_GLOBAL(u32, acpi_gbl_trace_dbg_layer, ACPI_TRACE_LAYER_DEFAULT);
 
 /*
- * Runtime configuration of debug output control masks. We want the debug
- * switches statically initialized so they are already set when the debugger
+ * Runtime configuration of de output control masks. We want the de
+ * switches statically initialized so they are already set when the deger
  * is entered.
  */
-ACPI_INIT_GLOBAL(u32, acpi_dbg_level, ACPI_DEBUG_DEFAULT);
+ACPI_INIT_GLOBAL(u32, acpi_dbg_level, ACPI_DE_DEFAULT);
 ACPI_INIT_GLOBAL(u32, acpi_dbg_layer, 0);
 
-/* Optionally enable timer output with Debug Object output */
+/* Optionally enable timer output with De Object output */
 
-ACPI_INIT_GLOBAL(u8, acpi_gbl_display_debug_timer, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_display_de_timer, FALSE);
 
 /*
- * Debugger command handshake globals. Host OSes need to access these
+ * Deger command handshake globals. Host OSes need to access these
  * variables to implement their own command handshake mechanism.
  */
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 ACPI_INIT_GLOBAL(u8, acpi_gbl_method_executing, FALSE);
 ACPI_GLOBAL(char, acpi_gbl_db_line_buf[ACPI_DB_LINE_BUFFER_SIZE]);
 #endif
@@ -330,13 +330,13 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 
 /*
- * Debugging output prototypes (default: no debug output).
+ * Deging output prototypes (default: no de output).
  *
- * All interfaces related to debug output messages
+ * All interfaces related to de output messages
  * will be configured out of the ACPICA build unless the
- * ACPI_DEBUG_OUTPUT flag is defined.
+ * ACPI_DE_OUTPUT flag is defined.
  */
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 #define ACPI_DBG_DEPENDENT_RETURN_VOID(prototype) \
 	prototype;
 
@@ -344,7 +344,7 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #define ACPI_DBG_DEPENDENT_RETURN_VOID(prototype) \
 	static ACPI_INLINE prototype {return;}
 
-#endif				/* ACPI_DEBUG_OUTPUT */
+#endif				/* ACPI_DE_OUTPUT */
 
 /*
  * Application prototypes
@@ -364,13 +364,13 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #endif				/* ACPI_APPLICATION */
 
 /*
- * Debugger prototypes
+ * Deger prototypes
  *
- * All interfaces used by debugger will be configured
- * out of the ACPICA build unless the ACPI_DEBUGGER
+ * All interfaces used by deger will be configured
+ * out of the ACPICA build unless the ACPI_DEGER
  * flag is defined.
  */
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 #define ACPI_DBR_DEPENDENT_RETURN_OK(prototype) \
 	ACPI_EXTERNAL_RETURN_OK(prototype)
 
@@ -384,7 +384,7 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #define ACPI_DBR_DEPENDENT_RETURN_VOID(prototype) \
 	static ACPI_INLINE prototype {return;}
 
-#endif				/* ACPI_DEBUGGER */
+#endif				/* ACPI_DEGER */
 
 /*****************************************************************************
  *
@@ -528,8 +528,8 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					   acpi_object_handler handler,
 					   void **data))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			     acpi_debug_trace(const char *name, u32 debug_level,
-					      u32 debug_layer, u32 flags))
+			     acpi_de_trace(const char *name, u32 de_level,
+					      u32 de_layer, u32 flags))
 
 /*
  * Object manipulation and enumeration
@@ -908,11 +908,11 @@ ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 						  const char *format, ...))
 
 /*
- * Debug output
+ * De output
  */
 ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 			       void ACPI_INTERNAL_VAR_XFACE
-			       acpi_debug_print(u32 requested_debug_level,
+			       acpi_de_print(u32 requested_de_level,
 						u32 line_number,
 						const char *function_name,
 						const char *module_name,
@@ -920,7 +920,7 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 						const char *format, ...))
 ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 				void ACPI_INTERNAL_VAR_XFACE
-				acpi_debug_print_raw(u32 requested_debug_level,
+				acpi_de_print_raw(u32 requested_de_level,
 						     u32 line_number,
 						     const char *function_name,
 						     const char *module_name,
@@ -932,9 +932,9 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(void
 						u8 begin,
 						u8 *aml, char *pathname))
 
-acpi_status acpi_initialize_debugger(void);
+acpi_status acpi_initialize_deger(void);
 
-void acpi_terminate_debugger(void);
+void acpi_terminate_deger(void);
 
 /*
  * Divergences
@@ -945,8 +945,8 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 					       void **data,
 					       void (*callback)(void *)))
 
-void acpi_run_debugger(char *batch_buffer);
+void acpi_run_deger(char *batch_buffer);
 
-void acpi_set_debugger_thread_id(acpi_thread_id thread_id);
+void acpi_set_deger_thread_id(acpi_thread_id thread_id);
 
 #endif				/* __ACXFACE_H__ */

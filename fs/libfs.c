@@ -718,7 +718,7 @@ void simple_transaction_set(struct file *file, size_t n)
 {
 	struct simple_transaction_argresp *ar = file->private_data;
 
-	BUG_ON(n > SIMPLE_TRANSACTION_LIMIT);
+	_ON(n > SIMPLE_TRANSACTION_LIMIT);
 
 	/*
 	 * The barrier ensures that ar->size will really remain zero until

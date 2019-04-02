@@ -18,7 +18,7 @@
 #include <mach/regs-clock.h>
 #include <mach/map.h>
 
-static inline void s3c_pm_debug_init_uart(void)
+static inline void s3c_pm_de_init_uart(void)
 {
 	u32 tmp = __raw_readl(S3C_PCLK_GATE);
 

@@ -52,7 +52,7 @@ Module Parameters
 
 * disable_features (bit vector)
 Disable selected features normally supported by the device. This makes it
-possible to work around possible driver or hardware bugs if the feature in
+possible to work around possible driver or hardware s if the feature in
 question doesn't work as intended for whatever reason. Bit values:
  0x01  disable SMBus PEC
  0x02  disable the block buffer

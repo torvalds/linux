@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/extable.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
 #include <asm/pgtable.h>
 #include <asm/sections.h>
@@ -833,7 +833,7 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			/*
 			 * The breakpoint instruction was removed right
 			 * after we hit it.  Another cpu has removed
-			 * either a probepoint or a debugger breakpoint
+			 * either a probepoint or a deger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
 			 */

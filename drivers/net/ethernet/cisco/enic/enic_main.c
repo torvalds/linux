@@ -887,7 +887,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	    skb_shinfo(skb)->nr_frags + ENIC_DESC_MAX_SPLITS) {
 		netif_tx_stop_queue(txq);
 		/* This is a hard error, log it */
-		netdev_err(netdev, "BUG! Tx ring full when queue awake!\n");
+		netdev_err(netdev, "! Tx ring full when queue awake!\n");
 		spin_unlock(&enic->wq_lock[txq_map]);
 		return NETDEV_TX_BUSY;
 	}
@@ -2142,7 +2142,7 @@ static int enic_dev_wait(struct vnic_dev *vdev,
 	int done;
 	int err;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	err = start(vdev, arg);
 	if (err)
@@ -2391,7 +2391,7 @@ static int enic_set_intr_mode(struct enic *enic)
 	 * (the last INTR is used for notifications)
 	 */
 
-	BUG_ON(ARRAY_SIZE(enic->msix_entry) < n + m + 2);
+	_ON(ARRAY_SIZE(enic->msix_entry) < n + m + 2);
 	for (i = 0; i < n + m + 2; i++)
 		enic->msix_entry[i].entry = i;
 

@@ -1740,7 +1740,7 @@ static void max98095_handle_bq_pdata(struct snd_soc_component *component)
 			max98095_get_bq_enum,
 			max98095_put_bq_enum),
 	};
-	BUILD_BUG_ON(ARRAY_SIZE(controls) != ARRAY_SIZE(bq_mode_name));
+	BUILD__ON(ARRAY_SIZE(controls) != ARRAY_SIZE(bq_mode_name));
 
 	cfg = pdata->bq_cfg;
 	cfgcnt = pdata->bq_cfgcnt;

@@ -27,7 +27,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <dt-bindings/pwm/pwm.h>
@@ -979,7 +979,7 @@ void devm_pwm_put(struct device *dev, struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(devm_pwm_put);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 {
 	unsigned int i;
@@ -1053,7 +1053,7 @@ static int pwm_seq_open(struct inode *inode, struct file *file)
 	return seq_open(file, &pwm_seq_ops);
 }
 
-static const struct file_operations pwm_debugfs_ops = {
+static const struct file_operations pwm_defs_ops = {
 	.owner = THIS_MODULE,
 	.open = pwm_seq_open,
 	.read = seq_read,
@@ -1061,12 +1061,12 @@ static const struct file_operations pwm_debugfs_ops = {
 	.release = seq_release,
 };
 
-static int __init pwm_debugfs_init(void)
+static int __init pwm_defs_init(void)
 {
-	debugfs_create_file("pwm", S_IFREG | S_IRUGO, NULL, NULL,
-			    &pwm_debugfs_ops);
+	defs_create_file("pwm", S_IFREG | S_IRUGO, NULL, NULL,
+			    &pwm_defs_ops);
 
 	return 0;
 }
-subsys_initcall(pwm_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+subsys_initcall(pwm_defs_init);
+#endif /* CONFIG_DE_FS */

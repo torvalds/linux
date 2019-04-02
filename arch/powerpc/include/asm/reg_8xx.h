@@ -17,7 +17,7 @@
 #define SPRN_DC_ADR	569	/* Address needed for some commands */
 #define SPRN_DC_DAT	570	/* Read-only data register */
 
-/* Misc Debug */
+/* Misc De */
 #define SPRN_DPDR	630
 #define SPRN_MI_CAM	816
 #define SPRN_MI_RAM0	817
@@ -31,7 +31,7 @@
 #define SPRN_EID	81	/* External interrupt disable (EE=0, RI=1) */
 #define SPRN_NRI	82	/* Non recoverable interrupt (EE=0, RI=0) */
 
-/* Debug registers */
+/* De registers */
 #define SPRN_CMPA	144
 #define SPRN_COUNTA	150
 #define SPRN_CMPE	152

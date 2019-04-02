@@ -373,8 +373,8 @@ static void snd_ac97_proc_read(struct snd_info_entry *entry, struct snd_info_buf
 	mutex_unlock(&ac97->page_mutex);
 }
 
-#ifdef CONFIG_SND_DEBUG
-/* direct register write for debugging */
+#ifdef CONFIG_SND_DE
+/* direct register write for deging */
 static void snd_ac97_proc_regs_write(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	struct snd_ac97 *ac97 = entry->private_data;
@@ -446,7 +446,7 @@ void snd_ac97_proc_init(struct snd_ac97 * ac97)
 					   ac97->bus->proc);
 	if (entry) {
 		snd_info_set_text_ops(entry, ac97, snd_ac97_proc_regs_read);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 		entry->mode |= 0200;
 		entry->c.text.write = snd_ac97_proc_regs_write;
 #endif

@@ -11,7 +11,7 @@
 	Hardware Reference Manual" is currently available at :
 	http://developer.intel.com/design/network/manuals/278074.htm
 
-	Please submit bugs to http://bugzilla.kernel.org/ .
+	Please submit s to http://zilla.kernel.org/ .
 */
 
 #include <linux/delay.h>
@@ -39,7 +39,7 @@ void t21142_media_task(struct work_struct *work)
 	/* CSR12[LS10,LS100] are not reliable during autonegotiation */
 	if ((csr14 & 0x80) && (csr12 & 0x7000) != 0x5000)
 		csr12 |= 6;
-	if (tulip_debug > 2)
+	if (tulip_de > 2)
 		dev_info(&dev->dev, "21143 negotiation status %08x, %s\n",
 			 csr12, medianame[dev->if_port]);
 	if (tulip_media_cap[dev->if_port] & MediaIsMII) {
@@ -52,7 +52,7 @@ void t21142_media_task(struct work_struct *work)
 		}
 	} else if (tp->nwayset) {
 		/* Don't screw up a negotiated session! */
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev,
 				 "Using NWay-set %s media, csr12 %08x\n",
 				 medianame[dev->if_port], csr12);
@@ -60,7 +60,7 @@ void t21142_media_task(struct work_struct *work)
 			;
 	} else if (dev->if_port == 3) {
 		if (csr12 & 2) {	/* No 100mbps link beat, revert to 10mbps. */
-			if (tulip_debug > 1)
+			if (tulip_de > 1)
 				dev_info(&dev->dev,
 					 "No 21143 100baseTx link beat, %08x, trying NWay\n",
 					 csr12);
@@ -69,7 +69,7 @@ void t21142_media_task(struct work_struct *work)
 		}
 	} else if ((csr12 & 0x7000) != 0x5000) {
 		/* Negotiation failed.  Search media types. */
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev,
 				 "21143 negotiation failed, status %08x\n",
 				 csr12);
@@ -89,7 +89,7 @@ void t21142_media_task(struct work_struct *work)
 			iowrite16(8, ioaddr + CSR15);
 			iowrite32(1, ioaddr + CSR13);
 		}
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev, "Testing new 21143 media %s\n",
 				 medianame[dev->if_port]);
 		if (new_csr6 != (tp->csr6 & ~0x00D5)) {
@@ -118,7 +118,7 @@ void t21142_start_nway(struct net_device *dev)
 	dev->if_port = 0;
 	tp->nway = tp->mediasense = 1;
 	tp->nwayset = tp->lpar = 0;
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		netdev_dbg(dev, "Restarting 21143 autonegotiation, csr14=%08x\n",
 			   csr14);
 	iowrite32(0x0001, ioaddr + CSR13);
@@ -146,7 +146,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 	/* CSR12[LS10,LS100] are not reliable during autonegotiation */
 	if ((csr14 & 0x80) && (csr12 & 0x7000) != 0x5000)
 		csr12 |= 6;
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		dev_info(&dev->dev,
 			 "21143 link status interrupt %08x, CSR5 %x, %08x\n",
 			 csr12, csr5, csr14);
@@ -170,7 +170,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		}
 		tp->full_duplex = (tulip_media_cap[dev->if_port] & MediaAlwaysFD) ? 1:0;
 
-		if (tulip_debug > 1) {
+		if (tulip_de > 1) {
 			if (tp->nwayset)
 				dev_info(&dev->dev,
 					 "Switching to %s based on link negotiation %04x & %04x = %04x\n",
@@ -202,12 +202,12 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		}
 #if 0							/* Restart shouldn't be needed. */
 		iowrite32(tp->csr6 | RxOn, ioaddr + CSR6);
-		if (tulip_debug > 2)
+		if (tulip_de > 2)
 			netdev_dbg(dev, " Restarting Tx and Rx, CSR5 is %08x\n",
 				   ioread32(ioaddr + CSR5));
 #endif
 		tulip_start_rxtx(tp);
-		if (tulip_debug > 2)
+		if (tulip_de > 2)
 			netdev_dbg(dev, " Setting CSR6 %08x/%x CSR12 %08x\n",
 				   tp->csr6, ioread32(ioaddr + CSR6),
 				   ioread32(ioaddr + CSR12));
@@ -221,7 +221,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		tp->timer.expires = RUN_AT(3*HZ);
 		add_timer(&tp->timer);
 	} else if (dev->if_port == 3  ||  dev->if_port == 5) {
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev, "21143 %s link beat %s\n",
 				 medianame[dev->if_port],
 				 (csr12 & 2) ? "failed" : "good");
@@ -236,15 +236,15 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		if ((csr12 & 4) == 0)
 			dev_info(&dev->dev, "21143 10baseT link beat good\n");
 	} else if (!(csr12 & 4)) {		/* 10mbps link beat good. */
-		if (tulip_debug)
+		if (tulip_de)
 			dev_info(&dev->dev, "21143 10mbps sensed media\n");
 		dev->if_port = 0;
 	} else if (tp->nwayset) {
-		if (tulip_debug)
+		if (tulip_de)
 			dev_info(&dev->dev, "21143 using NWay-set %s, csr6 %08x\n",
 				 medianame[dev->if_port], tp->csr6);
 	} else {		/* 100mbps link beat good. */
-		if (tulip_debug)
+		if (tulip_de)
 			dev_info(&dev->dev, "21143 100baseTx sensed media\n");
 		dev->if_port = 3;
 		tp->csr6 = 0x838E0000 | (tp->csr6 & 0x20ff);

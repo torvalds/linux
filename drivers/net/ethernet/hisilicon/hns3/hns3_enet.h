@@ -688,6 +688,6 @@ static inline void hns3_dcbnl_setup(struct hnae3_handle *handle) {}
 
 void hns3_dbg_init(struct hnae3_handle *handle);
 void hns3_dbg_uninit(struct hnae3_handle *handle);
-void hns3_dbg_register_debugfs(const char *debugfs_dir_name);
-void hns3_dbg_unregister_debugfs(void);
+void hns3_dbg_register_defs(const char *defs_dir_name);
+void hns3_dbg_unregister_defs(void);
 #endif

@@ -259,7 +259,7 @@ struct carl9170_cmd {
  */
 struct carl9170_tx_status {
 	/*
-	 * Beware of compiler bugs in all gcc pre 4.4!
+	 * Beware of compiler s in all gcc pre 4.4!
 	 */
 
 	u8 cookie;
@@ -272,7 +272,7 @@ struct carl9170_tx_status {
 
 struct _carl9170_tx_status {
 	/*
-	 * This version should be immune to all alignment bugs.
+	 * This version should be immune to all alignment s.
 	 */
 
 	u8 cookie;
@@ -288,7 +288,7 @@ struct _carl9170_tx_status {
 #define	CARL9170_TX_MAX_RATES		4
 #define	CARL9170_TX_MAX_RETRY_RATES	(CARL9170_TX_MAX_RATES - 1)
 #define	CARL9170_ERR_MAGIC		"ERR:"
-#define	CARL9170_BUG_MAGIC		"BUG:"
+#define	CARL9170__MAGIC		":"
 
 struct carl9170_gpio {
 	__le32 gpio;

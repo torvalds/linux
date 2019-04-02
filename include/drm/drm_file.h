@@ -73,10 +73,10 @@ struct drm_minor {
 	struct device *kdev;		/* Linux device */
 	struct drm_device *dev;
 
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 
-	struct list_head debugfs_list;
-	struct mutex debugfs_lock; /* Protects debugfs_list. */
+	struct list_head defs_list;
+	struct mutex defs_lock; /* Protects defs_list. */
 };
 
 /**

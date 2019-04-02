@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2001
  *
  */
@@ -14,7 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/ebcdic.h>
 #include <linux/uaccess.h>
 
@@ -33,7 +33,7 @@ dasd_alloc_erp_request(char *magic, int cplength, int datasize,
 	int size;
 
 	/* Sanity checks */
-	BUG_ON( magic == NULL || datasize > PAGE_SIZE ||
+	_ON( magic == NULL || datasize > PAGE_SIZE ||
 	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	size = (sizeof(struct dasd_ccw_req) + 7L) & -8L;
@@ -93,7 +93,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 
         /* just retry - there is nothing to save ... I got no sense data.... */
         if (cqr->retries > 0) {
-		DBF_DEV_EVENT(DBF_DEBUG, device,
+		DBF_DEV_EVENT(DBF_DE, device,
                              "default ERP called (%i retries left)",
                              cqr->retries);
 		if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))
@@ -128,7 +128,7 @@ struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *cqr)
 	unsigned long startclk, stopclk;
 	struct dasd_device *startdev;
 
-	BUG_ON(cqr->refers == NULL || cqr->function == NULL);
+	_ON(cqr->refers == NULL || cqr->function == NULL);
 
 	success = cqr->status == DASD_CQR_DONE;
 	startclk = cqr->startclk;
@@ -189,7 +189,7 @@ dasd_log_sense_dbf(struct dasd_ccw_req *cqr, struct irb *irb)
 	struct dasd_device *device;
 
 	device = cqr->startdev;
-	/* dump sense data to s390 debugfeature*/
+	/* dump sense data to s390 defeature*/
 	if (device->discipline && device->discipline->dump_sense_dbf)
 		device->discipline->dump_sense_dbf(device, irb, "log");
 }

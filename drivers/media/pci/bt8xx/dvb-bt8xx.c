@@ -33,16 +33,16 @@
 #include "dvb-bt8xx.h"
 #include "bt878.h"
 
-static int debug;
+static int de;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk(fmt, arg...) do {				\
-	if (debug)						\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),		\
+	if (de)						\
+		printk(KERN_DE pr_fmt("%s: " fmt),		\
 		       __func__, ##arg);			\
 } while (0)
 
@@ -206,7 +206,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 		0x00120000,0x00140000};
 
 	#define XTAL 1011100 /* Hz, really 1.0111 MHz and a /10 prescaler */
-	dprintk("cx24108 debug: entering SetTunerFreq, freq=%d\n", freq);
+	dprintk("cx24108 de: entering SetTunerFreq, freq=%d\n", freq);
 
 	/* This is really the bit driving the tuner chip cx24108 */
 
@@ -217,7 +217,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 
 	/* decide which VCO to use for the input frequency */
 	for(i = 1; (i < ARRAY_SIZE(osci) - 1) && (osci[i] < freq); i++);
-	dprintk("cx24108 debug: select vco #%d (f=%d)\n", i, freq);
+	dprintk("cx24108 de: select vco #%d (f=%d)\n", i, freq);
 	band=bandsel[i];
 	/* the gain values must be set by SetSymbolrate */
 	/* compute the pll divider needed, from Conexant data sheet,
@@ -233,7 +233,7 @@ static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 	    ((a&0x1f)<<11);
 	/* everything is shifted left 11 bits to left-align the bits in the
 	   32bit word. Output to the tuner goes MSB-aligned, after all */
-	dprintk("cx24108 debug: pump=%d, n=%d, a=%d\n", pump, n, a);
+	dprintk("cx24108 de: pump=%d, n=%d, a=%d\n", pump, n, a);
 	cx24110_pll_write(fe,band);
 	/* set vga and vca to their widest-band settings, as a precaution.
 	   SetSymbolrate might not be called to set this up */

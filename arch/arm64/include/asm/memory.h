@@ -24,7 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <linux/types.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/page-def.h>
 #include <asm/sizes.h>
 
@@ -122,7 +122,7 @@
 /*
  * Alignment of kernel segments (e.g. .text, .data).
  */
-#if defined(CONFIG_DEBUG_ALIGN_RODATA)
+#if defined(CONFIG_DE_ALIGN_RODATA)
 /*
  *  4 KB granule:   1 level 2 entry
  * 16 KB granule: 128 level 3 entries, with contiguous bit
@@ -170,11 +170,11 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 
 extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
-#define PHYS_OFFSET		({ VM_BUG_ON(memstart_addr & 1); memstart_addr; })
+#define PHYS_OFFSET		({ VM__ON(memstart_addr & 1); memstart_addr; })
 
 /* the virtual base of the kernel image (minus TEXT_OFFSET) */
 extern u64			kimage_vaddr;
@@ -243,20 +243,20 @@ extern u64			vabits_user;
 #define __lm_to_phys(addr)	(((addr) & ~PAGE_OFFSET) + PHYS_OFFSET)
 #define __kimg_to_phys(addr)	((addr) - kimage_voffset)
 
-#define __virt_to_phys_nodebug(x) ({					\
+#define __virt_to_phys_node(x) ({					\
 	phys_addr_t __x = (phys_addr_t)(x);				\
 	__is_lm_address(__x) ? __lm_to_phys(__x) :			\
 			       __kimg_to_phys(__x);			\
 })
 
-#define __pa_symbol_nodebug(x)	__kimg_to_phys((phys_addr_t)(x))
+#define __pa_symbol_node(x)	__kimg_to_phys((phys_addr_t)(x))
 
-#ifdef CONFIG_DEBUG_VIRTUAL
+#ifdef CONFIG_DE_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __virt_to_phys(x)	__virt_to_phys_node(x)
+#define __phys_addr_symbol(x)	__pa_symbol_node(x)
 #endif
 
 #define __phys_to_virt(x)	((unsigned long)((x) - PHYS_OFFSET) | PAGE_OFFSET)
@@ -290,7 +290,7 @@ static inline void *phys_to_virt(phys_addr_t x)
  */
 #define __pa(x)			__virt_to_phys((unsigned long)(x))
 #define __pa_symbol(x)		__phys_addr_symbol(RELOC_HIDE((unsigned long)(x), 0))
-#define __pa_nodebug(x)		__virt_to_phys_nodebug((unsigned long)(x))
+#define __pa_node(x)		__virt_to_phys_node((unsigned long)(x))
 #define __va(x)			((void *)__phys_to_virt((phys_addr_t)(x)))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define virt_to_pfn(x)      __phys_to_pfn(__virt_to_phys((unsigned long)(x)))

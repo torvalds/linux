@@ -21,7 +21,7 @@ obj-y			:= cacheinfo.o scattered.o topology.o
 obj-y			+= common.o
 obj-y			+= rdrand.o
 obj-y			+= match.o
-obj-y			+= bugs.o
+obj-y			+= s.o
 obj-y			+= aperfmperf.o
 obj-y			+= cpuid-deps.o
 

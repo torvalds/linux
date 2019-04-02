@@ -267,10 +267,10 @@ static void shuffle(const_tree type, tree *newtree, unsigned long length)
 
 	structname = ORIG_TYPE_NAME(type);
 
-#ifdef __DEBUG_PLUGIN
+#ifdef __DE_PLUGIN
 	fprintf(stderr, "Shuffling struct %s %p\n", (const char *)structname, type);
-#ifdef __DEBUG_VERBOSE
-	debug_tree((tree)type);
+#ifdef __DE_VERBOSE
+	de_tree((tree)type);
 #endif
 #endif
 
@@ -472,10 +472,10 @@ static void randomize_type(tree type)
 		TYPE_ATTRIBUTES(type) = copy_list(TYPE_ATTRIBUTES(type));
 		TYPE_ATTRIBUTES(type) = tree_cons(get_identifier("randomize_considered"), NULL_TREE, TYPE_ATTRIBUTES(type));
 	}
-#ifdef __DEBUG_PLUGIN
+#ifdef __DE_PLUGIN
 	fprintf(stderr, "Marking randomize_considered on struct %s\n", ORIG_TYPE_NAME(type));
-#ifdef __DEBUG_VERBOSE
-	debug_tree(type);
+#ifdef __DE_VERBOSE
+	de_tree(type);
 #endif
 #endif
 }
@@ -569,11 +569,11 @@ static void finish_type(void *event_data, void *data)
 	if (lookup_attribute("randomize_considered", TYPE_ATTRIBUTES(type)))
 		return;
 
-#ifdef __DEBUG_PLUGIN
+#ifdef __DE_PLUGIN
 	fprintf(stderr, "Calling randomize_type on %s\n", ORIG_TYPE_NAME(type));
 #endif
-#ifdef __DEBUG_VERBOSE
-	debug_tree(type);
+#ifdef __DE_VERBOSE
+	de_tree(type);
 #endif
 	randomize_type(type);
 
@@ -762,7 +762,7 @@ static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_n
 			type_name = "char";
 		else {
 			INFORM(gimple_location(stmt), "found non-char INTEGER_TYPE cast comparison: %qT\n", type_tree);
-			debug_tree(type_tree);
+			de_tree(type_tree);
 			return false;
 		}
 		break;
@@ -772,12 +772,12 @@ static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_n
 			break;
 		} else {
 			INFORM(gimple_location(stmt), "found non-void POINTER_TYPE cast comparison %qT\n", type_tree);
-			debug_tree(type_tree);
+			de_tree(type_tree);
 			return false;
 		}
 	default:
 		INFORM(gimple_location(stmt), "unhandled cast comparison: %qT\n", type_tree);
-		debug_tree(type_tree);
+		de_tree(type_tree);
 		return false;
 	}
 
@@ -829,19 +829,19 @@ static unsigned int find_bad_casts_execute(void)
 
 			stmt = gsi_stmt(gsi);
 
-#ifdef __DEBUG_PLUGIN
-#ifdef __DEBUG_VERBOSE
-			debug_gimple_stmt(stmt);
-			debug_tree(gimple_get_lhs(stmt));
+#ifdef __DE_PLUGIN
+#ifdef __DE_VERBOSE
+			de_gimple_stmt(stmt);
+			de_tree(gimple_get_lhs(stmt));
 #endif
 #endif
 
 			if (gimple_code(stmt) != GIMPLE_ASSIGN)
 				continue;
 
-#ifdef __DEBUG_PLUGIN
-#ifdef __DEBUG_VERBOSE
-			debug_tree(gimple_assign_rhs1(stmt));
+#ifdef __DE_PLUGIN
+#ifdef __DE_VERBOSE
+			de_tree(gimple_assign_rhs1(stmt));
 #endif
 #endif
 
@@ -873,7 +873,7 @@ static unsigned int find_bad_casts_execute(void)
 				continue;
 
 			if (TREE_CODE(ptr_rhs_type) != RECORD_TYPE) {
-#ifndef __DEBUG_PLUGIN
+#ifndef __DE_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_lhs_type)))
 #endif
 				{
@@ -899,7 +899,7 @@ static unsigned int find_bad_casts_execute(void)
 				if (op0_type == ptr_lhs_type)
 					continue;
 
-#ifndef __DEBUG_PLUGIN
+#ifndef __DE_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(op0_type)))
 #endif
 				{
@@ -912,7 +912,7 @@ static unsigned int find_bad_casts_execute(void)
 				if (ssa_name_var != NULL_TREE && DECL_NAME(ssa_name_var) && 
 				    !strcmp((const char *)DECL_NAME_POINTER(ssa_name_var), "__mptr"))
 					continue;
-#ifndef __DEBUG_PLUGIN
+#ifndef __DE_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_rhs_type)))
 #endif
 				{

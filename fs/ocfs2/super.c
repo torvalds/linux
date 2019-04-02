@@ -37,7 +37,7 @@
 #include <linux/inet.h>
 #include <linux/parser.h>
 #include <linux/crc32.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/quotaops.h>
@@ -81,7 +81,7 @@ static struct kmem_cache *ocfs2_inode_cachep;
 struct kmem_cache *ocfs2_dquot_cachep;
 struct kmem_cache *ocfs2_qf_chunk_cachep;
 
-static struct dentry *ocfs2_debugfs_root;
+static struct dentry *ocfs2_defs_root;
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
@@ -225,7 +225,7 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 {
 	struct ocfs2_cluster_connection *cconn = osb->cconn;
@@ -353,7 +353,7 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 	return out;
 }
 
-static int ocfs2_osb_debug_open(struct inode *inode, struct file *file)
+static int ocfs2_osb_de_open(struct inode *inode, struct file *file)
 {
 	struct ocfs2_super *osb = inode->i_private;
 	char *buf = NULL;
@@ -371,38 +371,38 @@ bail:
 	return -ENOMEM;
 }
 
-static int ocfs2_debug_release(struct inode *inode, struct file *file)
+static int ocfs2_de_release(struct inode *inode, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
 }
 
-static ssize_t ocfs2_debug_read(struct file *file, char __user *buf,
+static ssize_t ocfs2_de_read(struct file *file, char __user *buf,
 				size_t nbytes, loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, nbytes, ppos, file->private_data,
 				       i_size_read(file->f_mapping->host));
 }
 #else
-static int ocfs2_osb_debug_open(struct inode *inode, struct file *file)
+static int ocfs2_osb_de_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
-static int ocfs2_debug_release(struct inode *inode, struct file *file)
+static int ocfs2_de_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
-static ssize_t ocfs2_debug_read(struct file *file, char __user *buf,
+static ssize_t ocfs2_de_read(struct file *file, char __user *buf,
 				size_t nbytes, loff_t *ppos)
 {
 	return 0;
 }
-#endif	/* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DE_FS */
 
-static const struct file_operations ocfs2_osb_debug_fops = {
-	.open =		ocfs2_osb_debug_open,
-	.release =	ocfs2_debug_release,
-	.read =		ocfs2_debug_read,
+static const struct file_operations ocfs2_osb_de_fops = {
+	.open =		ocfs2_osb_de_open,
+	.release =	ocfs2_de_release,
+	.read =		ocfs2_de_read,
 	.llseek =	generic_file_llseek,
 };
 
@@ -601,7 +601,7 @@ static unsigned long long ocfs2_max_file_offset(unsigned int bbits,
 
 #if BITS_PER_LONG == 32
 # if defined(CONFIG_LBDAF)
-	BUILD_BUG_ON(sizeof(sector_t) != 8);
+	BUILD__ON(sizeof(sector_t) != 8);
 	/*
 	 * We might be limited by page cache size.
 	 */
@@ -1107,18 +1107,18 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 		goto read_super_error;
 	}
 
-	osb->osb_debug_root = debugfs_create_dir(osb->uuid_str,
-						 ocfs2_debugfs_root);
-	if (!osb->osb_debug_root) {
+	osb->osb_de_root = defs_create_dir(osb->uuid_str,
+						 ocfs2_defs_root);
+	if (!osb->osb_de_root) {
 		status = -EINVAL;
-		mlog(ML_ERROR, "Unable to create per-mount debugfs root.\n");
+		mlog(ML_ERROR, "Unable to create per-mount defs root.\n");
 		goto read_super_error;
 	}
 
-	osb->osb_ctxt = debugfs_create_file("fs_state", S_IFREG|S_IRUSR,
-					    osb->osb_debug_root,
+	osb->osb_ctxt = defs_create_file("fs_state", S_IFREG|S_IRUSR,
+					    osb->osb_de_root,
 					    osb,
-					    &ocfs2_osb_debug_fops);
+					    &ocfs2_osb_de_fops);
 	if (!osb->osb_ctxt) {
 		status = -EINVAL;
 		mlog_errno(status);
@@ -1126,9 +1126,9 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (ocfs2_meta_ecc(osb)) {
-		status = ocfs2_blockcheck_stats_debugfs_install(
+		status = ocfs2_blockcheck_stats_defs_install(
 						&osb->osb_ecc_stats,
-						osb->osb_debug_root);
+						osb->osb_de_root);
 		if (status) {
 			mlog(ML_ERROR,
 			     "Unable to create blockcheck statistics "
@@ -1621,10 +1621,10 @@ static int __init ocfs2_init(void)
 	if (status < 0)
 		goto out2;
 
-	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
-	if (!ocfs2_debugfs_root) {
+	ocfs2_defs_root = defs_create_dir("ocfs2", NULL);
+	if (!ocfs2_defs_root) {
 		status = -ENOMEM;
-		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
+		mlog(ML_ERROR, "Unable to create ocfs2 defs root.\n");
 		goto out3;
 	}
 
@@ -1639,7 +1639,7 @@ static int __init ocfs2_init(void)
 
 	unregister_quota_format(&ocfs2_quota_format);
 out3:
-	debugfs_remove(ocfs2_debugfs_root);
+	defs_remove(ocfs2_defs_root);
 	ocfs2_free_mem_caches();
 out2:
 	exit_ocfs2_uptodate_cache();
@@ -1652,7 +1652,7 @@ static void __exit ocfs2_exit(void)
 {
 	unregister_quota_format(&ocfs2_quota_format);
 
-	debugfs_remove(ocfs2_debugfs_root);
+	defs_remove(ocfs2_defs_root);
 
 	ocfs2_free_mem_caches();
 
@@ -1904,9 +1904,9 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	trace_ocfs2_dismount_volume(sb);
 
-	BUG_ON(!sb);
+	_ON(!sb);
 	osb = OCFS2_SB(sb);
-	BUG_ON(!osb);
+	_ON(!osb);
 
 	/* Remove file check sysfs related directores/files,
 	 * and wait for the pending file check operations */
@@ -1914,7 +1914,7 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	kset_unregister(osb->osb_dev_kset);
 
-	debugfs_remove(osb->osb_ctxt);
+	defs_remove(osb->osb_ctxt);
 
 	/* Orphan scan should be stopped as early as possible */
 	ocfs2_orphan_scan_stop(osb);
@@ -1970,8 +1970,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	if (osb->cconn)
 		ocfs2_dlm_shutdown(osb, hangup_needed);
 
-	ocfs2_blockcheck_stats_debugfs_remove(&osb->osb_ecc_stats);
-	debugfs_remove(osb->osb_debug_root);
+	ocfs2_blockcheck_stats_defs_remove(&osb->osb_ecc_stats);
+	defs_remove(osb->osb_de_root);
 
 	if (hangup_needed)
 		ocfs2_cluster_hangup(osb->uuid_str, strlen(osb->uuid_str));
@@ -1998,7 +1998,7 @@ static int ocfs2_setup_osb_uuid(struct ocfs2_super *osb, const unsigned char *uu
 	int i, ret;
 	char *ptr;
 
-	BUG_ON(uuid_bytes != OCFS2_VOL_UUID_LEN);
+	_ON(uuid_bytes != OCFS2_VOL_UUID_LEN);
 
 	osb->uuid_str = kzalloc(OCFS2_VOL_UUID_LEN * 2 + 1, GFP_KERNEL);
 	if (osb->uuid_str == NULL)
@@ -2091,7 +2091,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->sb = sb;
 	osb->s_sectsize_bits = blksize_bits(sector_size);
-	BUG_ON(!osb->s_sectsize_bits);
+	_ON(!osb->s_sectsize_bits);
 
 	spin_lock_init(&osb->dc_task_lock);
 	init_waitqueue_head(&osb->dc_event);
@@ -2305,8 +2305,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 				     (unsigned long long)osb->system_dir_blkno,
 				     osb->s_clustersize_bits);
 
-	osb->osb_dlm_debug = ocfs2_new_dlm_debug();
-	if (!osb->osb_dlm_debug) {
+	osb->osb_dlm_de = ocfs2_new_dlm_de();
+	if (!osb->osb_dlm_de) {
 		status = -ENOMEM;
 		mlog_errno(status);
 		goto bail;
@@ -2555,7 +2555,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	kfree(osb->local_alloc_copy);
 	kfree(osb->uuid_str);
 	kfree(osb->vol_label);
-	ocfs2_put_dlm_debug(osb->osb_dlm_debug);
+	ocfs2_put_dlm_de(osb->osb_dlm_de);
 	memset(osb, 0, sizeof(struct ocfs2_super));
 }
 
@@ -2659,13 +2659,13 @@ void ocfs2_block_signals(sigset_t *oldset)
 
 	sigfillset(&blocked);
 	rc = sigprocmask(SIG_BLOCK, &blocked, oldset);
-	BUG_ON(rc);
+	_ON(rc);
 }
 
 void ocfs2_unblock_signals(sigset_t *oldset)
 {
 	int rc = sigprocmask(SIG_SETMASK, oldset, NULL);
-	BUG_ON(rc);
+	_ON(rc);
 }
 
 module_init(ocfs2_init);

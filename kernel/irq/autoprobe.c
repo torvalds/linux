@@ -150,7 +150,7 @@ EXPORT_SYMBOL(probe_irq_mask);
  *	The interrupt probe logic state is returned to its previous
  *	value.
  *
- *	BUGS: When used in a module (which arguably shouldn't happen)
+ *	S: When used in a module (which arguably shouldn't happen)
  *	nothing prevents two IRQ probe callers from overlapping. The
  *	results of this are non-optimal.
  */

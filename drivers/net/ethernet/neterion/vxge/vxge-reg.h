@@ -474,17 +474,17 @@
 #define	VXGE_HW_RX_FRM_TRANSFERRED_GET_RX_FRM_TRANSFERRED(bits) \
 							vxge_bVALn(bits, 32, 32)
 #define	VXGE_HW_RXD_RETURNED_GET_RXD_RETURNED(bits)	vxge_bVALn(bits, 48, 16)
-#define	VXGE_HW_VPATH_DEBUG_STATS0_GET_INI_NUM_MWR_SENT(bits) \
+#define	VXGE_HW_VPATH_DE_STATS0_GET_INI_NUM_MWR_SENT(bits) \
 							vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_VPATH_DEBUG_STATS1_GET_INI_NUM_MRD_SENT(bits) \
+#define	VXGE_HW_VPATH_DE_STATS1_GET_INI_NUM_MRD_SENT(bits) \
 							vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_VPATH_DEBUG_STATS2_GET_INI_NUM_CPL_RCVD(bits) \
+#define	VXGE_HW_VPATH_DE_STATS2_GET_INI_NUM_CPL_RCVD(bits) \
 							vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_VPATH_DEBUG_STATS3_GET_INI_NUM_MWR_BYTE_SENT(bits)	(bits)
-#define	VXGE_HW_VPATH_DEBUG_STATS4_GET_INI_NUM_CPL_BYTE_RCVD(bits)	(bits)
-#define	VXGE_HW_VPATH_DEBUG_STATS5_GET_WRCRDTARB_XOFF(bits) \
+#define	VXGE_HW_VPATH_DE_STATS3_GET_INI_NUM_MWR_BYTE_SENT(bits)	(bits)
+#define	VXGE_HW_VPATH_DE_STATS4_GET_INI_NUM_CPL_BYTE_RCVD(bits)	(bits)
+#define	VXGE_HW_VPATH_DE_STATS5_GET_WRCRDTARB_XOFF(bits) \
 							vxge_bVALn(bits, 32, 32)
-#define	VXGE_HW_VPATH_DEBUG_STATS6_GET_RDCRDTARB_XOFF(bits) \
+#define	VXGE_HW_VPATH_DE_STATS6_GET_RDCRDTARB_XOFF(bits) \
 							vxge_bVALn(bits, 32, 32)
 #define	VXGE_HW_VPATH_GENSTATS_COUNT01_GET_PPIF_VPATH_GENSTATS_COUNT1(bits) \
 							vxge_bVALn(bits, 0, 32)
@@ -511,20 +511,20 @@
 #define	VXGE_HW_DBG_STATS_GET_RX_FAU_RX_PERMITTED_FRMS(bits) \
 							vxge_bVALn(bits, 32, 16)
 
-#define	VXGE_HW_MRPCIM_DEBUG_STATS0_GET_INI_WR_DROP(bits) \
+#define	VXGE_HW_MRPCIM_DE_STATS0_GET_INI_WR_DROP(bits) \
 							vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_MRPCIM_DEBUG_STATS0_GET_INI_RD_DROP(bits) \
+#define	VXGE_HW_MRPCIM_DE_STATS0_GET_INI_RD_DROP(bits) \
 							vxge_bVALn(bits, 32, 32)
-#define	VXGE_HW_MRPCIM_DEBUG_STATS1_GET_VPLANE_WRCRDTARB_PH_CRDT_DEPLETED(bits\
+#define	VXGE_HW_MRPCIM_DE_STATS1_GET_VPLANE_WRCRDTARB_PH_CRDT_DEPLETED(bits\
 ) vxge_bVALn(bits, 32, 32)
-#define	VXGE_HW_MRPCIM_DEBUG_STATS2_GET_VPLANE_WRCRDTARB_PD_CRDT_DEPLETED(bits\
+#define	VXGE_HW_MRPCIM_DE_STATS2_GET_VPLANE_WRCRDTARB_PD_CRDT_DEPLETED(bits\
 ) vxge_bVALn(bits, 32, 32)
 #define \
-VXGE_HW_MRPCIM_DEBUG_STATS3_GET_VPLANE_RDCRDTARB_NPH_CRDT_DEPLETED(bits) \
+VXGE_HW_MRPCIM_DE_STATS3_GET_VPLANE_RDCRDTARB_NPH_CRDT_DEPLETED(bits) \
 	vxge_bVALn(bits, 32, 32)
-#define	VXGE_HW_MRPCIM_DEBUG_STATS4_GET_INI_WR_VPIN_DROP(bits) \
+#define	VXGE_HW_MRPCIM_DE_STATS4_GET_INI_WR_VPIN_DROP(bits) \
 							vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_MRPCIM_DEBUG_STATS4_GET_INI_RD_VPIN_DROP(bits) \
+#define	VXGE_HW_MRPCIM_DE_STATS4_GET_INI_RD_VPIN_DROP(bits) \
 							vxge_bVALn(bits, 32, 32)
 #define	VXGE_HW_GENSTATS_COUNT01_GET_GENSTATS_COUNT1(bits) \
 							vxge_bVALn(bits, 0, 32)
@@ -539,17 +539,17 @@ VXGE_HW_MRPCIM_DEBUG_STATS3_GET_VPLANE_RDCRDTARB_NPH_CRDT_DEPLETED(bits) \
 #define	VXGE_HW_GENSTATS_COUNT5_GET_GENSTATS_COUNT5(bits) \
 							vxge_bVALn(bits, 32, 32)
 
-#define	VXGE_HW_DEBUG_STATS0_GET_RSTDROP_MSG(bits)	vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_DEBUG_STATS0_GET_RSTDROP_CPL(bits)	vxge_bVALn(bits, 32, 32)
-#define	VXGE_HW_DEBUG_STATS1_GET_RSTDROP_CLIENT0(bits)	vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_DEBUG_STATS1_GET_RSTDROP_CLIENT1(bits)	vxge_bVALn(bits, 32, 32)
-#define	VXGE_HW_DEBUG_STATS2_GET_RSTDROP_CLIENT2(bits)	vxge_bVALn(bits, 0, 32)
-#define	VXGE_HW_DEBUG_STATS3_GET_VPLANE_DEPL_PH(bits)	vxge_bVALn(bits, 0, 16)
-#define	VXGE_HW_DEBUG_STATS3_GET_VPLANE_DEPL_NPH(bits)	vxge_bVALn(bits, 16, 16)
-#define	VXGE_HW_DEBUG_STATS3_GET_VPLANE_DEPL_CPLH(bits)	vxge_bVALn(bits, 32, 16)
-#define	VXGE_HW_DEBUG_STATS4_GET_VPLANE_DEPL_PD(bits)	vxge_bVALn(bits, 0, 16)
-#define	VXGE_HW_DEBUG_STATS4_GET_VPLANE_DEPL_NPD(bits)	bVAL(bits, 16, 16)
-#define	VXGE_HW_DEBUG_STATS4_GET_VPLANE_DEPL_CPLD(bits)	vxge_bVALn(bits, 32, 16)
+#define	VXGE_HW_DE_STATS0_GET_RSTDROP_MSG(bits)	vxge_bVALn(bits, 0, 32)
+#define	VXGE_HW_DE_STATS0_GET_RSTDROP_CPL(bits)	vxge_bVALn(bits, 32, 32)
+#define	VXGE_HW_DE_STATS1_GET_RSTDROP_CLIENT0(bits)	vxge_bVALn(bits, 0, 32)
+#define	VXGE_HW_DE_STATS1_GET_RSTDROP_CLIENT1(bits)	vxge_bVALn(bits, 32, 32)
+#define	VXGE_HW_DE_STATS2_GET_RSTDROP_CLIENT2(bits)	vxge_bVALn(bits, 0, 32)
+#define	VXGE_HW_DE_STATS3_GET_VPLANE_DEPL_PH(bits)	vxge_bVALn(bits, 0, 16)
+#define	VXGE_HW_DE_STATS3_GET_VPLANE_DEPL_NPH(bits)	vxge_bVALn(bits, 16, 16)
+#define	VXGE_HW_DE_STATS3_GET_VPLANE_DEPL_CPLH(bits)	vxge_bVALn(bits, 32, 16)
+#define	VXGE_HW_DE_STATS4_GET_VPLANE_DEPL_PD(bits)	vxge_bVALn(bits, 0, 16)
+#define	VXGE_HW_DE_STATS4_GET_VPLANE_DEPL_NPD(bits)	bVAL(bits, 16, 16)
+#define	VXGE_HW_DE_STATS4_GET_VPLANE_DEPL_CPLD(bits)	vxge_bVALn(bits, 32, 16)
 
 #define	VXGE_HW_DBG_STATS_TPA_TX_PATH_GET_TX_PERMITTED_FRMS(bits) \
 							vxge_bVALn(bits, 32, 32)
@@ -797,7 +797,7 @@ struct vxge_hw_common_reg {
 #define	VXGE_HW_GEN_CTRL_SPI_MRPCIM_RD_DIS	vxge_mBIT(1)
 #define	VXGE_HW_GEN_CTRL_SPI_SRPCIM_WR_DIS	vxge_mBIT(2)
 #define	VXGE_HW_GEN_CTRL_SPI_SRPCIM_RD_DIS	vxge_mBIT(3)
-#define	VXGE_HW_GEN_CTRL_SPI_DEBUG_DIS	vxge_mBIT(4)
+#define	VXGE_HW_GEN_CTRL_SPI_DE_DIS	vxge_mBIT(4)
 #define	VXGE_HW_GEN_CTRL_SPI_APP_LTSSM_TIMER_DIS	vxge_mBIT(5)
 #define VXGE_HW_GEN_CTRL_SPI_NOT_USED(val) vxge_vBIT(val, 6, 4)
 	u8	unused00ed0[0x00ed0-0x00ec0];
@@ -2905,22 +2905,22 @@ VXGE_HAL_SRPCIM_TO_MRPCIM_VPLANE_RMSG_SWIF_SRPCIM_TO_MRPCIM_VPLANE_RMSG(val)\
 							vxge_vBIT(val, 0, 64)
 /*0x064a8*/	u64	mrpcim_to_srpcim_vplane_wmsg_trig[17];
 
-/*0x06530*/	u64	debug_stats0;
-#define VXGE_HW_DEBUG_STATS0_RSTDROP_MSG(val) vxge_vBIT(val, 0, 32)
-#define VXGE_HW_DEBUG_STATS0_RSTDROP_CPL(val) vxge_vBIT(val, 32, 32)
-/*0x06538*/	u64	debug_stats1;
-#define VXGE_HW_DEBUG_STATS1_RSTDROP_CLIENT0(val) vxge_vBIT(val, 0, 32)
-#define VXGE_HW_DEBUG_STATS1_RSTDROP_CLIENT1(val) vxge_vBIT(val, 32, 32)
-/*0x06540*/	u64	debug_stats2;
-#define VXGE_HW_DEBUG_STATS2_RSTDROP_CLIENT2(val) vxge_vBIT(val, 0, 32)
-/*0x06548*/	u64	debug_stats3_vplane[17];
-#define VXGE_HW_DEBUG_STATS3_VPLANE_DEPL_PH(val) vxge_vBIT(val, 0, 16)
-#define VXGE_HW_DEBUG_STATS3_VPLANE_DEPL_NPH(val) vxge_vBIT(val, 16, 16)
-#define VXGE_HW_DEBUG_STATS3_VPLANE_DEPL_CPLH(val) vxge_vBIT(val, 32, 16)
-/*0x065d0*/	u64	debug_stats4_vplane[17];
-#define VXGE_HW_DEBUG_STATS4_VPLANE_DEPL_PD(val) vxge_vBIT(val, 0, 16)
-#define VXGE_HW_DEBUG_STATS4_VPLANE_DEPL_NPD(val) vxge_vBIT(val, 16, 16)
-#define VXGE_HW_DEBUG_STATS4_VPLANE_DEPL_CPLD(val) vxge_vBIT(val, 32, 16)
+/*0x06530*/	u64	de_stats0;
+#define VXGE_HW_DE_STATS0_RSTDROP_MSG(val) vxge_vBIT(val, 0, 32)
+#define VXGE_HW_DE_STATS0_RSTDROP_CPL(val) vxge_vBIT(val, 32, 32)
+/*0x06538*/	u64	de_stats1;
+#define VXGE_HW_DE_STATS1_RSTDROP_CLIENT0(val) vxge_vBIT(val, 0, 32)
+#define VXGE_HW_DE_STATS1_RSTDROP_CLIENT1(val) vxge_vBIT(val, 32, 32)
+/*0x06540*/	u64	de_stats2;
+#define VXGE_HW_DE_STATS2_RSTDROP_CLIENT2(val) vxge_vBIT(val, 0, 32)
+/*0x06548*/	u64	de_stats3_vplane[17];
+#define VXGE_HW_DE_STATS3_VPLANE_DEPL_PH(val) vxge_vBIT(val, 0, 16)
+#define VXGE_HW_DE_STATS3_VPLANE_DEPL_NPH(val) vxge_vBIT(val, 16, 16)
+#define VXGE_HW_DE_STATS3_VPLANE_DEPL_CPLH(val) vxge_vBIT(val, 32, 16)
+/*0x065d0*/	u64	de_stats4_vplane[17];
+#define VXGE_HW_DE_STATS4_VPLANE_DEPL_PD(val) vxge_vBIT(val, 0, 16)
+#define VXGE_HW_DE_STATS4_VPLANE_DEPL_NPD(val) vxge_vBIT(val, 16, 16)
+#define VXGE_HW_DE_STATS4_VPLANE_DEPL_CPLD(val) vxge_vBIT(val, 32, 16)
 
 	u8	unused07000[0x07000-0x06658];
 
@@ -3284,21 +3284,21 @@ VXGE_HW_MRPCIM_PPIF_INT_STATUS_VPATH_TO_MRPCIM_ALARM_VPATH_TO_MRPCIM_ALARM_INT \
 #define	VXGE_HW_SW_RESET_STATUS_INIT_CMPLT	vxge_mBIT(15)
 	u8	unused07d30[0x07d30-0x07bf8];
 
-/*0x07d30*/	u64	mrpcim_debug_stats0;
-#define VXGE_HW_MRPCIM_DEBUG_STATS0_INI_WR_DROP(val) vxge_vBIT(val, 0, 32)
-#define VXGE_HW_MRPCIM_DEBUG_STATS0_INI_RD_DROP(val) vxge_vBIT(val, 32, 32)
-/*0x07d38*/	u64	mrpcim_debug_stats1_vplane[17];
-#define	VXGE_HW_MRPCIM_DEBUG_STATS1_VPLANE_WRCRDTARB_PH_CRDT_DEPLETED(val) \
+/*0x07d30*/	u64	mrpcim_de_stats0;
+#define VXGE_HW_MRPCIM_DE_STATS0_INI_WR_DROP(val) vxge_vBIT(val, 0, 32)
+#define VXGE_HW_MRPCIM_DE_STATS0_INI_RD_DROP(val) vxge_vBIT(val, 32, 32)
+/*0x07d38*/	u64	mrpcim_de_stats1_vplane[17];
+#define	VXGE_HW_MRPCIM_DE_STATS1_VPLANE_WRCRDTARB_PH_CRDT_DEPLETED(val) \
 							vxge_vBIT(val, 32, 32)
-/*0x07dc0*/	u64	mrpcim_debug_stats2_vplane[17];
-#define	VXGE_HW_MRPCIM_DEBUG_STATS2_VPLANE_WRCRDTARB_PD_CRDT_DEPLETED(val) \
+/*0x07dc0*/	u64	mrpcim_de_stats2_vplane[17];
+#define	VXGE_HW_MRPCIM_DE_STATS2_VPLANE_WRCRDTARB_PD_CRDT_DEPLETED(val) \
 							vxge_vBIT(val, 32, 32)
-/*0x07e48*/	u64	mrpcim_debug_stats3_vplane[17];
-#define	VXGE_HW_MRPCIM_DEBUG_STATS3_VPLANE_RDCRDTARB_NPH_CRDT_DEPLETED(val) \
+/*0x07e48*/	u64	mrpcim_de_stats3_vplane[17];
+#define	VXGE_HW_MRPCIM_DE_STATS3_VPLANE_RDCRDTARB_NPH_CRDT_DEPLETED(val) \
 							vxge_vBIT(val, 32, 32)
-/*0x07ed0*/	u64	mrpcim_debug_stats4;
-#define VXGE_HW_MRPCIM_DEBUG_STATS4_INI_WR_VPIN_DROP(val) vxge_vBIT(val, 0, 32)
-#define	VXGE_HW_MRPCIM_DEBUG_STATS4_INI_RD_VPIN_DROP(val) \
+/*0x07ed0*/	u64	mrpcim_de_stats4;
+#define VXGE_HW_MRPCIM_DE_STATS4_INI_WR_VPIN_DROP(val) vxge_vBIT(val, 0, 32)
+#define	VXGE_HW_MRPCIM_DE_STATS4_INI_RD_VPIN_DROP(val) \
 							vxge_vBIT(val, 32, 32)
 /*0x07ed8*/	u64	genstats_count01;
 #define VXGE_HW_GENSTATS_COUNT01_GENSTATS_COUNT1(val) vxge_vBIT(val, 0, 32)
@@ -4591,22 +4591,22 @@ VXGE_HW_VPATH_PPIF_INT_STATUS_SRPCIM_TO_VPATH_ALARM_SRPCIM_TO_VPATH_ALARM_INT \
 #define VXGE_HW_PCI_CONFIG_ACCESS_STATUS_DATA(val) vxge_vBIT(val, 32, 32)
 	u8	unused02300[0x02300-0x022c8];
 
-/*0x02300*/	u64	vpath_debug_stats0;
-#define VXGE_HW_VPATH_DEBUG_STATS0_INI_NUM_MWR_SENT(val) vxge_vBIT(val, 0, 32)
-/*0x02308*/	u64	vpath_debug_stats1;
-#define VXGE_HW_VPATH_DEBUG_STATS1_INI_NUM_MRD_SENT(val) vxge_vBIT(val, 0, 32)
-/*0x02310*/	u64	vpath_debug_stats2;
-#define VXGE_HW_VPATH_DEBUG_STATS2_INI_NUM_CPL_RCVD(val) vxge_vBIT(val, 0, 32)
-/*0x02318*/	u64	vpath_debug_stats3;
-#define VXGE_HW_VPATH_DEBUG_STATS3_INI_NUM_MWR_BYTE_SENT(val) \
+/*0x02300*/	u64	vpath_de_stats0;
+#define VXGE_HW_VPATH_DE_STATS0_INI_NUM_MWR_SENT(val) vxge_vBIT(val, 0, 32)
+/*0x02308*/	u64	vpath_de_stats1;
+#define VXGE_HW_VPATH_DE_STATS1_INI_NUM_MRD_SENT(val) vxge_vBIT(val, 0, 32)
+/*0x02310*/	u64	vpath_de_stats2;
+#define VXGE_HW_VPATH_DE_STATS2_INI_NUM_CPL_RCVD(val) vxge_vBIT(val, 0, 32)
+/*0x02318*/	u64	vpath_de_stats3;
+#define VXGE_HW_VPATH_DE_STATS3_INI_NUM_MWR_BYTE_SENT(val) \
 							vxge_vBIT(val, 0, 64)
-/*0x02320*/	u64	vpath_debug_stats4;
-#define VXGE_HW_VPATH_DEBUG_STATS4_INI_NUM_CPL_BYTE_RCVD(val) \
+/*0x02320*/	u64	vpath_de_stats4;
+#define VXGE_HW_VPATH_DE_STATS4_INI_NUM_CPL_BYTE_RCVD(val) \
 							vxge_vBIT(val, 0, 64)
-/*0x02328*/	u64	vpath_debug_stats5;
-#define VXGE_HW_VPATH_DEBUG_STATS5_WRCRDTARB_XOFF(val) vxge_vBIT(val, 32, 32)
-/*0x02330*/	u64	vpath_debug_stats6;
-#define VXGE_HW_VPATH_DEBUG_STATS6_RDCRDTARB_XOFF(val) vxge_vBIT(val, 32, 32)
+/*0x02328*/	u64	vpath_de_stats5;
+#define VXGE_HW_VPATH_DE_STATS5_WRCRDTARB_XOFF(val) vxge_vBIT(val, 32, 32)
+/*0x02330*/	u64	vpath_de_stats6;
+#define VXGE_HW_VPATH_DE_STATS6_RDCRDTARB_XOFF(val) vxge_vBIT(val, 32, 32)
 /*0x02338*/	u64	vpath_genstats_count01;
 #define	VXGE_HW_VPATH_GENSTATS_COUNT01_PPIF_VPATH_GENSTATS_COUNT1(val) \
 							vxge_vBIT(val, 0, 32)

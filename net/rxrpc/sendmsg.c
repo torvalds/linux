@@ -189,7 +189,7 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 		trace_rxrpc_transmit(call, rxrpc_transmit_queue);
 
 	if (last || call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
-		_debug("________awaiting reply/ACK__________");
+		_de("________awaiting reply/ACK__________");
 		write_lock_bh(&call->state_lock);
 		switch (call->state) {
 		case RXRPC_CALL_CLIENT_SEND_REQUEST:
@@ -230,7 +230,7 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 						  0, ret);
 			goto out;
 		}
-		_debug("need instant resend %d", ret);
+		_de("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
 	} else {
 		unsigned long now = jiffies, resend_at;
@@ -300,7 +300,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 		if (!skb) {
 			size_t size, chunk, max, space;
 
-			_debug("alloc");
+			_de("alloc");
 
 			if (call->tx_top - call->tx_hard_ack >=
 			    min_t(unsigned int, call->tx_winsize,
@@ -328,7 +328,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			size = space + call->conn->security_size;
 
-			_debug("SIZE: %zu/%zu/%zu", chunk, space, size);
+			_de("SIZE: %zu/%zu/%zu", chunk, space, size);
 
 			/* create a buffer that we can retain until it's ACK'd */
 			skb = sock_alloc_send_skb(
@@ -338,11 +338,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			rxrpc_new_skb(skb, rxrpc_skb_tx_new);
 
-			_debug("ALLOC SEND %p", skb);
+			_de("ALLOC SEND %p", skb);
 
 			ASSERTCMP(skb->mark, ==, 0);
 
-			_debug("HS: %u", call->conn->security_size);
+			_de("HS: %u", call->conn->security_size);
 			skb_reserve(skb, call->conn->security_size);
 			skb->len += call->conn->security_size;
 
@@ -360,7 +360,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 
-		_debug("append");
+		_de("append");
 		sp = rxrpc_skb(skb);
 
 		/* append next segment of data to the current buffer */
@@ -372,9 +372,9 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (copy > sp->remain)
 				copy = sp->remain;
 
-			_debug("add");
+			_de("add");
 			ret = skb_add_data(skb, &msg->msg_iter, copy);
-			_debug("added");
+			_de("added");
 			if (ret < 0)
 				goto efault;
 			sp->remain -= copy;
@@ -401,7 +401,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				pad = conn->security_size + skb->mark;
 				pad = conn->size_align - pad;
 				pad &= conn->size_align - 1;
-				_debug("pad %zu", pad);
+				_de("pad %zu", pad);
 				if (pad)
 					skb_put_zero(skb, pad);
 			}
@@ -469,7 +469,7 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 			return -EINVAL;
 
 		len = cmsg->cmsg_len - sizeof(struct cmsghdr);
-		_debug("CMSG %d, %d, %d",
+		_de("CMSG %d, %d, %d",
 		       cmsg->cmsg_level, cmsg->cmsg_type, len);
 
 		if (cmsg->cmsg_level != SOL_RXRPC)
@@ -591,7 +591,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.upgrade		= p->upgrade;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, &p->call, GFP_KERNEL,
-				     atomic_inc_return(&rxrpc_debug_id));
+				     atomic_inc_return(&rxrpc_de_id));
 	/* The socket is now unlocked */
 
 	rxrpc_put_peer(cp.peer);
@@ -707,8 +707,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	}
 
 	state = READ_ONCE(call->state);
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, state, call->conn);
+	_de("CALL %d USR %lx ST %d on CONN %p",
+	       call->de_id, call->user_call_ID, state, call->conn);
 
 	if (state >= RXRPC_CALL_COMPLETE) {
 		/* it's too late for this call */
@@ -763,15 +763,15 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 {
 	int ret;
 
-	_enter("{%d,%s},", call->debug_id, rxrpc_call_states[call->state]);
+	_enter("{%d,%s},", call->de_id, rxrpc_call_states[call->state]);
 
 	ASSERTCMP(msg->msg_name, ==, NULL);
 	ASSERTCMP(msg->msg_control, ==, NULL);
 
 	mutex_lock(&call->user_mutex);
 
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
+	_de("CALL %d USR %lx ST %d on CONN %p",
+	       call->de_id, call->user_call_ID, call->state, call->conn);
 
 	switch (READ_ONCE(call->state)) {
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
@@ -814,7 +814,7 @@ bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 {
 	bool aborted;
 
-	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
+	_enter("{%d},%d,%d,%s", call->de_id, abort_code, error, why);
 
 	mutex_lock(&call->user_mutex);
 

@@ -209,7 +209,7 @@ static inline void __init show_version (void) {
   must be atomic. The lock needs to work over context switches, so we
   use a semaphore.
   
-  III Hardware Features and Microcode Bugs
+  III Hardware Features and Microcode s
   
   1. Byte Ordering
   
@@ -223,7 +223,7 @@ static inline void __init show_version (void) {
   There is a DMA memory hole at E0000000-E00000FF (groan).
   
   TX fragments (DMA read) must not cross 4MB boundaries (would be 16MB
-  but for a hardware bug).
+  but for a hardware ).
   
   RX buffers (DMA write) must not cross 16MB boundaries and must
   include spare trailing bytes up to the next 4-byte boundary; they
@@ -257,11 +257,11 @@ static inline void __init show_version (void) {
   
   IV To Do List
   
-  . Fix bugs!
+  . Fix s!
   
   . Timer code may be broken.
   
-  . Deal with buggy VC close (somehow) in microcode 12.
+  . Deal with gy VC close (somehow) in microcode 12.
   
   . Handle interrupted and/or non-blocking writes - is this a job for
     the protocol layer?
@@ -296,7 +296,7 @@ static inline void __init show_version (void) {
 static void do_housekeeping (struct timer_list *t);
 /********** globals **********/
 
-static unsigned short debug = 0;
+static unsigned short de = 0;
 static unsigned int cmds = 8;
 static unsigned int txs = 32;
 static unsigned int rxs[NUM_RX_POOLS] = { 64, 64, 64, 64 };
@@ -351,8 +351,8 @@ static inline u32 rd_mem (const amb_dev * dev, size_t addr) {
 /********** dump routines **********/
 
 static inline void dump_registers (const amb_dev * dev) {
-#ifdef DEBUG_AMBASSADOR
-  if (debug & DBG_REGS) {
+#ifdef DE_AMBASSADOR
+  if (de & DBG_REGS) {
     size_t i;
     PRINTD (DBG_REGS, "reading PLX control: ");
     for (i = 0x00; i < 0x30; i += sizeof(u32))
@@ -371,7 +371,7 @@ static inline void dump_registers (const amb_dev * dev) {
 }
 
 static inline void dump_loader_block (volatile loader_block * lb) {
-#ifdef DEBUG_AMBASSADOR
+#ifdef DE_AMBASSADOR
   unsigned int i;
   PRINTDB (DBG_LOAD, "lb @ %p; res: %d, cmd: %d, pay:",
 	   lb, be32_to_cpu (lb->result), be32_to_cpu (lb->command));
@@ -385,7 +385,7 @@ static inline void dump_loader_block (volatile loader_block * lb) {
 }
 
 static inline void dump_command (command * cmd) {
-#ifdef DEBUG_AMBASSADOR
+#ifdef DE_AMBASSADOR
   unsigned int i;
   PRINTDB (DBG_CMD, "cmd @ %p, req: %08x, pars:",
 	   cmd, /*be32_to_cpu*/ (cmd->request));
@@ -399,7 +399,7 @@ static inline void dump_command (command * cmd) {
 }
 
 static inline void dump_skb (char * prefix, unsigned int vc, struct sk_buff * skb) {
-#ifdef DEBUG_AMBASSADOR
+#ifdef DE_AMBASSADOR
   unsigned int i;
   unsigned char * data = skb->data;
   PRINTDB (DBG_DATA, "%s(%u) ", prefix, vc);
@@ -515,7 +515,7 @@ static void rx_complete (amb_dev * dev, rx_out * rx) {
       
     } else {
       PRINTD (DBG_WARN|DBG_RX, "got frame but RX closed for channel %hu", vc);
-      // this is an adapter bug, only in new version of microcode
+      // this is an adapter , only in new version of microcode
     }
     
   } else {
@@ -905,7 +905,7 @@ static int make_rate (unsigned int rate, rounding r,
   // find position of top bit, this gives e
   // remove top bit and shift (rounding if feeling clever) by 9-e
   
-  // ucode bug: please don't set bit 14! so 0 rate not representable
+  // ucode : please don't set bit 14! so 0 rate not representable
   
   if (rate > 0xffc00000U) {
     // larger than largest representable rate
@@ -1394,7 +1394,7 @@ static void amb_free_rx_skb (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
   // This may be unsafe for various reasons that I cannot really guess
   // at. However, I note that the ATM layer calls kfree_skb rather
   // than dev_kfree_skb at this point so we are least covered as far
-  // as buffer locking goes. There may be bugs if pcap clones RX skbs.
+  // as buffer locking goes. There may be s if pcap clones RX skbs.
 
   PRINTD (DBG_FLOW|DBG_SKB, "amb_rx_free skb %p (atm_vcc %p, vcc %p)",
 	  skb, atm_vcc, vcc);
@@ -2314,11 +2314,11 @@ static void __init amb_check_args (void) {
   unsigned char pool;
   unsigned int max_rx_size;
   
-#ifdef DEBUG_AMBASSADOR
-  PRINTK (KERN_NOTICE, "debug bitmap is %hx", debug &= DBG_MASK);
+#ifdef DE_AMBASSADOR
+  PRINTK (KERN_NOTICE, "de bitmap is %hx", de &= DBG_MASK);
 #else
-  if (debug)
-    PRINTK (KERN_NOTICE, "no debugging support");
+  if (de)
+    PRINTK (KERN_NOTICE, "no deging support");
 #endif
   
   if (cmds < MIN_QUEUE_SIZE)
@@ -2356,14 +2356,14 @@ MODULE_AUTHOR(maintainer_string);
 MODULE_DESCRIPTION(description_string);
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("atmsar11.fw");
-module_param(debug,   ushort, 0644);
+module_param(de,   ushort, 0644);
 module_param(cmds,    uint, 0);
 module_param(txs,     uint, 0);
 module_param_array(rxs,     uint, NULL, 0);
 module_param_array(rxs_bs,  uint, NULL, 0);
 module_param(rx_lats, uint, 0);
 module_param(pci_lat, byte, 0);
-MODULE_PARM_DESC(debug,   "debug bitmap, see .h file");
+MODULE_PARM_DESC(de,   "de bitmap, see .h file");
 MODULE_PARM_DESC(cmds,    "number of command queue entries");
 MODULE_PARM_DESC(txs,     "number of TX queue entries");
 MODULE_PARM_DESC(rxs,     "number of RX queue entries [" __MODULE_STRING(NUM_RX_POOLS) "]");
@@ -2392,7 +2392,7 @@ static int __init amb_module_init (void)
 {
   PRINTD (DBG_FLOW|DBG_INIT, "init_module");
   
-  BUILD_BUG_ON(sizeof(amb_mem) != 4*16 + 4*12);
+  BUILD__ON(sizeof(amb_mem) != 4*16 + 4*12);
   
   show_version();
   

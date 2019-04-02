@@ -236,7 +236,7 @@ MLXSW_ITEM32(cmd_mbox, query_fw, core_clk, 0x08, 16, 16);
 MLXSW_ITEM32(cmd_mbox, query_fw, cmd_interface_rev, 0x08, 0, 16);
 
 /* cmd_mbox_query_fw_dt
- * If set, Debug Trace is supported
+ * If set, De Trace is supported
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, dt, 0x0C, 31, 1);
 
@@ -1086,7 +1086,7 @@ static inline int mlxsw_cmd_hw2sw_cq(struct mlxsw_core *mlxsw_core,
  * The QUERY_CQ command retrieves a snapshot of the current CQ context entry.
  * The command stores the snapshot in the output mailbox in the software format.
  * Note that the CQ context state and values are not affected by the QUERY_CQ
- * command. The QUERY_CQ command is for debug purposes only.
+ * command. The QUERY_CQ command is for de purposes only.
  *
  * Note: Output mailbox has the same format as SW2HW_CQ.
  */

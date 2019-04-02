@@ -230,8 +230,8 @@ configuration options are available on the command line:
 * duplex=full          - specify forced half/full/autonegotiate duplex
    or duplex=half
    or duplex=auto
-* debug=#              - debug level (only available if the driver was compiled
-                         for debugging)
+* de=#              - de level (only available if the driver was compiled
+                         for deging)
 
 NOTES:
 

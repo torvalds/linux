@@ -26,7 +26,7 @@
 #include <linux/uprobes.h>
 #include <linux/uaccess.h>
 
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <asm/processor.h>
 #include <asm/insn.h>
 #include <asm/mmu_context.h>
@@ -681,7 +681,7 @@ static bool push_emulate_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 static int branch_post_xol_op(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
-	BUG_ON(!branch_is_call(auprobe));
+	_ON(!branch_is_call(auprobe));
 	/*
 	 * We can only get here if branch_emulate_op() failed to push the ret
 	 * address _and_ another thread expanded our stack before the (mangled)
@@ -1021,7 +1021,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 
 		break;
 
-	case DIE_DEBUG:
+	case DIE_DE:
 		if (uprobe_post_sstep_notifier(regs))
 			ret = NOTIFY_STOP;
 

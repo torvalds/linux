@@ -585,7 +585,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 	unsigned long events = 0;
 	u8 num_irqs = 0;
 
-	/* Abort early if the device isn't ready yet (i.e., DEBUG_SHIRQ). */
+	/* Abort early if the device isn't ready yet (i.e., DE_SHIRQ). */
 	if (unlikely(!rtc))
 		return IRQ_HANDLED;
 

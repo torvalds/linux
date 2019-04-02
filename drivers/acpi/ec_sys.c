@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/acpi.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include "internal.h"
@@ -26,7 +26,7 @@ MODULE_PARM_DESC(write_support, "Dangerous, reboot and removal of battery may "
 
 #define EC_SPACE_SIZE 256
 
-static struct dentry *acpi_ec_debugfs_dir;
+static struct dentry *acpi_ec_defs_dir;
 
 static ssize_t acpi_ec_read_io(struct file *f, char __user *buf,
 			       size_t count, loff_t *off)
@@ -108,37 +108,37 @@ static const struct file_operations acpi_ec_io_ops = {
 	.llseek = default_llseek,
 };
 
-static void acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+static void acpi_ec_add_defs(struct acpi_ec *ec, unsigned int ec_device_count)
 {
 	struct dentry *dev_dir;
 	char name[64];
 	umode_t mode = 0400;
 
 	if (ec_device_count == 0)
-		acpi_ec_debugfs_dir = debugfs_create_dir("ec", NULL);
+		acpi_ec_defs_dir = defs_create_dir("ec", NULL);
 
 	sprintf(name, "ec%u", ec_device_count);
-	dev_dir = debugfs_create_dir(name, acpi_ec_debugfs_dir);
+	dev_dir = defs_create_dir(name, acpi_ec_defs_dir);
 
-	debugfs_create_x32("gpe", 0444, dev_dir, &first_ec->gpe);
-	debugfs_create_bool("use_global_lock", 0444, dev_dir,
+	defs_create_x32("gpe", 0444, dev_dir, &first_ec->gpe);
+	defs_create_bool("use_global_lock", 0444, dev_dir,
 			    &first_ec->global_lock);
 
 	if (write_support)
 		mode = 0600;
-	debugfs_create_file("io", mode, dev_dir, ec, &acpi_ec_io_ops);
+	defs_create_file("io", mode, dev_dir, ec, &acpi_ec_io_ops);
 }
 
 static int __init acpi_ec_sys_init(void)
 {
 	if (first_ec)
-		acpi_ec_add_debugfs(first_ec, 0);
+		acpi_ec_add_defs(first_ec, 0);
 	return 0;
 }
 
 static void __exit acpi_ec_sys_exit(void)
 {
-	debugfs_remove_recursive(acpi_ec_debugfs_dir);
+	defs_remove_recursive(acpi_ec_defs_dir);
 }
 
 module_init(acpi_ec_sys_init);

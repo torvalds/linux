@@ -52,17 +52,17 @@ static inline int omap4_opp_init(void)
 extern int omap3_pm_get_suspend_state(struct powerdomain *pwrdm);
 extern int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state);
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_DE
 extern u32 enable_off_mode;
 #else
 #define enable_off_mode 0
 #endif
 
-#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_PM_DE) && defined(CONFIG_DE_FS)
 extern void pm_dbg_update_time(struct powerdomain *pwrdm, int prev);
 #else
 #define pm_dbg_update_time(pwrdm, prev) do {} while (0);
-#endif /* CONFIG_PM_DEBUG */
+#endif /* CONFIG_PM_DE */
 
 /* 24xx */
 extern void omap24xx_idle_loop_suspend(void);

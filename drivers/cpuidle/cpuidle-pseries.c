@@ -282,7 +282,7 @@ static int __init pseries_processor_idle_init(void)
 	pseries_cpuidle_driver_init();
 	retval = cpuidle_register(&pseries_idle_driver, NULL);
 	if (retval) {
-		printk(KERN_DEBUG "Registration of pseries driver failed.\n");
+		printk(KERN_DE "Registration of pseries driver failed.\n");
 		return retval;
 	}
 
@@ -294,7 +294,7 @@ static int __init pseries_processor_idle_init(void)
 					   "cpuidle/pseries:DEAD", NULL,
 					   pseries_cpuidle_cpu_dead);
 	WARN_ON(retval < 0);
-	printk(KERN_DEBUG "pseries_idle_driver registered\n");
+	printk(KERN_DE "pseries_idle_driver registered\n");
 	return 0;
 }
 

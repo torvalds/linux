@@ -21,7 +21,7 @@ Quick Start
 Design and Implementation Goals
 -------------------------------
 o Tests should be as self contained as is practical so as to facilitate sharing
-  the individual tests on mailing list discussions and bug reports.
+  the individual tests on mailing list discussions and  reports.
 o The build system shall remain as simple as possible, avoiding any archive or
   shared object building and linking.
 o Where possible, any helper functions or other package-wide code shall be

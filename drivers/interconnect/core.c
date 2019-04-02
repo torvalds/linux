@@ -6,7 +6,7 @@
  * Author: Georgi Djakov <georgi.djakov@linaro.org>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/init.h>
@@ -22,7 +22,7 @@
 static DEFINE_IDR(icc_idr);
 static LIST_HEAD(icc_providers);
 static DEFINE_MUTEX(icc_lock);
-static struct dentry *icc_debugfs_dir;
+static struct dentry *icc_defs_dir;
 
 /**
  * struct icc_req - constraints that are attached to each node
@@ -439,7 +439,7 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 
 	ret = apply_constraints(path);
 	if (ret) {
-		pr_debug("interconnect: error applying constraints (%d)\n",
+		pr_de("interconnect: error applying constraints (%d)\n",
 			 ret);
 
 		for (i = 0; i < path->num_nodes; i++) {
@@ -781,15 +781,15 @@ EXPORT_SYMBOL_GPL(icc_provider_del);
 
 static int __init icc_init(void)
 {
-	icc_debugfs_dir = debugfs_create_dir("interconnect", NULL);
-	debugfs_create_file("interconnect_summary", 0444,
-			    icc_debugfs_dir, NULL, &icc_summary_fops);
+	icc_defs_dir = defs_create_dir("interconnect", NULL);
+	defs_create_file("interconnect_summary", 0444,
+			    icc_defs_dir, NULL, &icc_summary_fops);
 	return 0;
 }
 
 static void __exit icc_exit(void)
 {
-	debugfs_remove_recursive(icc_debugfs_dir);
+	defs_remove_recursive(icc_defs_dir);
 }
 module_init(icc_init);
 module_exit(icc_exit);

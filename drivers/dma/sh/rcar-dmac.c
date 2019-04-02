@@ -1802,7 +1802,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 		return ret;
 
 	/*
-	 * A still unconfirmed hardware bug prevents the IPMMU microTLB 0 to be
+	 * A still unconfirmed hardware  prevents the IPMMU microTLB 0 to be
 	 * flushed correctly, resulting in memory corruption. DMAC 0 channel 0
 	 * is connected to microTLB 0 on currently supported platforms, so we
 	 * can't use it with the IPMMU. As the IOMMU API operates at the device

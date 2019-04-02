@@ -129,7 +129,7 @@ static bool s626_mc_test(struct comedi_device *dev,
 	return (val & cmd) ? true : false;
 }
 
-#define S626_BUGFIX_STREG(REGADRS)   ((REGADRS) - 4)
+#define S626_FIX_STREG(REGADRS)   ((REGADRS) - 4)
 
 /* Write a time slot control record to TSL2. */
 #define S626_VECTPORT(VECTNUM)		(S626_P_TSL2 + ((VECTNUM) << 2))
@@ -1303,7 +1303,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 	}
 
 	/*
-	 * SAA7146 BUG WORKAROUND Do a dummy DEBI Write.  This is necessary
+	 * SAA7146  WORKAROUND Do a dummy DEBI Write.  This is necessary
 	 * because the first RPS DEBI Write following a non-RPS DEBI write
 	 * seems to always fail.  If we don't do this dummy write, the ADC
 	 * gain might not be set to the value required for the first slot in
@@ -1408,7 +1408,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 
 		/* Transfer ADC data from FB BUFFER 1 register to DMA buffer. */
 		*rps++ = S626_RPS_STREG |
-			 (S626_BUGFIX_STREG(S626_P_FB_BUFFER1) >> 2);
+			 (S626_FIX_STREG(S626_P_FB_BUFFER1) >> 2);
 		*rps++ = (u32)devpriv->ana_buf.physical_base +
 			 (devpriv->adc_items << 2);
 
@@ -1452,7 +1452,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 	*rps++ = S626_RPS_PAUSE | S626_RPS_GPIO2;	/* Wait for ADC done. */
 
 	/* Transfer final ADC data from FB BUFFER 1 register to DMA buffer. */
-	*rps++ = S626_RPS_STREG | (S626_BUGFIX_STREG(S626_P_FB_BUFFER1) >> 2);
+	*rps++ = S626_RPS_STREG | (S626_FIX_STREG(S626_P_FB_BUFFER1) >> 2);
 	*rps++ = (u32)devpriv->ana_buf.physical_base +
 		 (devpriv->adc_items << 2);
 
@@ -2258,7 +2258,7 @@ static int s626_initialize(struct comedi_device *dev)
 
 #if 0
 	/*
-	 * SAA7146 BUG WORKAROUND
+	 * SAA7146  WORKAROUND
 	 *
 	 * Initialize SAA7146 ADC interface to a known state by
 	 * invoking ADCs until FB BUFFER 1 register shows that it
@@ -2299,7 +2299,7 @@ static int s626_initialize(struct comedi_device *dev)
 				break;
 		}
 	}
-#endif	/* SAA7146 BUG WORKAROUND */
+#endif	/* SAA7146  WORKAROUND */
 
 	/*
 	 * Initialize the DAC interface

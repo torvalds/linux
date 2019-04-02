@@ -26,7 +26,7 @@
 #include "p54.h"
 #include "lmac.h"
 
-#ifdef P54_MM_DEBUG
+#ifdef P54_MM_DE
 static void p54_dump_tx_queue(struct p54_common *priv)
 {
 	unsigned long flags;
@@ -39,7 +39,7 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 	u32 largest_hole = 0, free;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
-	wiphy_debug(priv->hw->wiphy, "/ --- tx queue dump (%d entries) ---\n",
+	wiphy_de(priv->hw->wiphy, "/ --- tx queue dump (%d entries) ---\n",
 		    skb_queue_len(&priv->tx_queue));
 
 	prev_addr = priv->rx_start;
@@ -49,7 +49,7 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 		hdr = (void *) skb->data;
 
 		free = range->start_addr - prev_addr;
-		wiphy_debug(priv->hw->wiphy,
+		wiphy_de(priv->hw->wiphy,
 			    "| [%02d] => [skb:%p skb_len:0x%04x "
 			    "hdr:{flags:%02x len:%04x req_id:%04x type:%02x} "
 			    "mem:{start:%04x end:%04x, free:%d}]\n",
@@ -63,12 +63,12 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 	}
 	free = priv->rx_end - prev_addr;
 	largest_hole = max(largest_hole, free);
-	wiphy_debug(priv->hw->wiphy,
+	wiphy_de(priv->hw->wiphy,
 		    "\\ --- [free: %d], largest free block: %d ---\n",
 		    free, largest_hole);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 }
-#endif /* P54_MM_DEBUG */
+#endif /* P54_MM_DE */
 
 /*
  * So, the firmware is somewhat stupid and doesn't know what places in its
@@ -428,7 +428,7 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 	memset(&info->status.ack_signal, 0,
 	       sizeof(struct ieee80211_tx_info) -
 	       offsetof(struct ieee80211_tx_info, status.ack_signal));
-	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info,
+	BUILD__ON(offsetof(struct ieee80211_tx_info,
 			      status.ack_signal) != 20);
 
 	if (entry_hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_ALIGN))
@@ -657,7 +657,7 @@ static int p54_rx_control(struct p54_common *priv, struct sk_buff *skb)
 		p54_rx_eeprom_readback(priv, skb);
 		break;
 	default:
-		wiphy_debug(priv->hw->wiphy,
+		wiphy_de(priv->hw->wiphy,
 			    "not handling 0x%02x type control frame\n",
 			    le16_to_cpu(hdr->type));
 		break;

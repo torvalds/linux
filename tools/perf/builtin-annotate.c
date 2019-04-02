@@ -16,7 +16,7 @@
 #include "util/symbol.h"
 
 #include "perf.h"
-#include "util/debug.h"
+#include "util/de.h"
 
 #include "util/evlist.h"
 #include "util/evsel.h"

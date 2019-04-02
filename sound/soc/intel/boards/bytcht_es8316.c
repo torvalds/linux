@@ -386,10 +386,10 @@ static int byt_cht_es8316_resume(struct snd_soc_card *card)
 	}
 
 	/*
-	 * Some Cherry Trail boards with an ES8316 codec have a bug in their
+	 * Some Cherry Trail boards with an ES8316 codec have a  in their
 	 * ACPI tables where the MSSL1680 touchscreen's _PS0 and _PS3 methods
 	 * wrongly also set the speaker-enable GPIO to 1/0. Testing has shown
-	 * that this really is a bug and the GPIO has no influence on the
+	 * that this really is a  and the GPIO has no influence on the
 	 * touchscreen at all.
 	 *
 	 * The silead.c touchscreen driver does not support runtime suspend, so

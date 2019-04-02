@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
 #include <linux/string.h>
@@ -128,7 +128,7 @@ void list_sort(void *priv, struct list_head *head,
 		}
 		if (lev > max_lev) {
 			if (unlikely(lev >= ARRAY_SIZE(part)-1)) {
-				printk_once(KERN_DEBUG "list too long for efficiency\n");
+				printk_once(KERN_DE "list too long for efficiency\n");
 				lev--;
 			}
 			max_lev = lev;

@@ -466,7 +466,7 @@ static int vmw_legacy_srf_dma(struct vmw_resource *res,
 	uint8_t *cmd;
 	struct vmw_private *dev_priv = res->dev_priv;
 
-	BUG_ON(!val_buf->bo);
+	_ON(!val_buf->bo);
 	submit_size = vmw_surface_dma_size(srf);
 	cmd = vmw_fifo_reserve(dev_priv, submit_size);
 	if (unlikely(!cmd)) {
@@ -549,7 +549,7 @@ static int vmw_legacy_srf_destroy(struct vmw_resource *res)
 	uint32_t submit_size;
 	uint8_t *cmd;
 
-	BUG_ON(res->id == -1);
+	_ON(res->id == -1);
 
 	/*
 	 * Encode the dma- and surface destroy commands.
@@ -598,7 +598,7 @@ static int vmw_surface_init(struct vmw_private *dev_priv,
 	int ret;
 	struct vmw_resource *res = &srf->res;
 
-	BUG_ON(!res_free);
+	_ON(!res_free);
 	ret = vmw_resource_init(dev_priv, res, true, res_free,
 				(dev_priv->has_mob) ? &vmw_gb_surface_func :
 				&vmw_legacy_surface_func);
@@ -1167,7 +1167,7 @@ static int vmw_gb_surface_bind(struct vmw_resource *res,
 	uint32_t submit_size;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	submit_size = sizeof(*cmd1) + (res->backup_dirty ? sizeof(*cmd2) : 0);
 
@@ -1218,7 +1218,7 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 	uint8_t *cmd;
 
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	submit_size = sizeof(*cmd3) + (readback ? sizeof(*cmd1) : sizeof(*cmd2));
 	cmd = vmw_fifo_reserve(dev_priv, submit_size);

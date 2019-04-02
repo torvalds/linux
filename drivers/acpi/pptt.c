@@ -119,7 +119,7 @@ static int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
 			if (*found != NULL && cache != *found)
 				pr_warn("Found duplicate cache level/type unable to determine uniqueness\n");
 
-			pr_debug("Found cache @ level %d\n", level);
+			pr_de("Found cache @ level %d\n", level);
 			*found = cache;
 			/*
 			 * continue looking at this node's resource list
@@ -297,14 +297,14 @@ static u8 acpi_cache_type(enum cache_type type)
 {
 	switch (type) {
 	case CACHE_TYPE_DATA:
-		pr_debug("Looking for data cache\n");
+		pr_de("Looking for data cache\n");
 		return ACPI_PPTT_CACHE_TYPE_DATA;
 	case CACHE_TYPE_INST:
-		pr_debug("Looking for instruction cache\n");
+		pr_de("Looking for instruction cache\n");
 		return ACPI_PPTT_CACHE_TYPE_INSTR;
 	default:
 	case CACHE_TYPE_UNIFIED:
-		pr_debug("Looking for unified cache\n");
+		pr_de("Looking for unified cache\n");
 		/*
 		 * It is important that ACPI_PPTT_CACHE_TYPE_UNIFIED
 		 * contains the bit pattern that will match both
@@ -326,7 +326,7 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
 	struct acpi_pptt_processor *cpu_node;
 	u8 acpi_type = acpi_cache_type(type);
 
-	pr_debug("Looking for CPU %d's level %d cache type %d\n",
+	pr_de("Looking for CPU %d's level %d cache type %d\n",
 		 acpi_cpu_id, level, acpi_type);
 
 	cpu_node = acpi_find_processor_node(table_hdr, acpi_cpu_id);
@@ -422,7 +422,7 @@ static void cache_setup_acpi_cpu(struct acpi_table_header *table,
 						   this_leaf->type,
 						   this_leaf->level,
 						   &cpu_node);
-		pr_debug("found = %p %p\n", found_cache, cpu_node);
+		pr_de("found = %p %p\n", found_cache, cpu_node);
 		if (found_cache)
 			update_cache_properties(this_leaf,
 						found_cache,
@@ -444,7 +444,7 @@ static struct acpi_pptt_processor *acpi_find_processor_package_id(struct acpi_ta
 	while (cpu && level) {
 		if (cpu->flags & flag)
 			break;
-		pr_debug("level %d\n", level);
+		pr_de("level %d\n", level);
 		prev_node = fetch_pptt_node(table_hdr, cpu->parent);
 		if (prev_node == NULL)
 			break;
@@ -510,7 +510,7 @@ static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
 		return -ENOENT;
 	}
 	retval = topology_get_acpi_cpu_tag(table, cpu, level, flag);
-	pr_debug("Topology Setup ACPI cpu %d, level %d ret = %d\n",
+	pr_de("Topology Setup ACPI cpu %d, level %d ret = %d\n",
 		 cpu, level, retval);
 	acpi_put_table(table);
 
@@ -534,7 +534,7 @@ int acpi_find_last_cache_level(unsigned int cpu)
 	int number_of_levels = 0;
 	acpi_status status;
 
-	pr_debug("Cache Setup find last level cpu=%d\n", cpu);
+	pr_de("Cache Setup find last level cpu=%d\n", cpu);
 
 	acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
@@ -544,7 +544,7 @@ int acpi_find_last_cache_level(unsigned int cpu)
 		number_of_levels = acpi_find_cache_levels(table, acpi_cpu_id);
 		acpi_put_table(table);
 	}
-	pr_debug("Cache Setup find last level level=%d\n", number_of_levels);
+	pr_de("Cache Setup find last level level=%d\n", number_of_levels);
 
 	return number_of_levels;
 }
@@ -567,7 +567,7 @@ int cache_setup_acpi(unsigned int cpu)
 	struct acpi_table_header *table;
 	acpi_status status;
 
-	pr_debug("Cache Setup ACPI cpu %d\n", cpu);
+	pr_de("Cache Setup ACPI cpu %d\n", cpu);
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {

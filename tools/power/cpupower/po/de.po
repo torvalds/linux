@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: cpufrequtils 006\n"
-"Report-Msgid-Bugs-To: \n"
+"Report-Msgid-s-To: \n"
 "POT-Creation-Date: 2011-03-08 17:03+0100\n"
 "PO-Revision-Date: 2009-08-08 17:18+0100\n"
 "Last-Translator:  <linux@dominikbrodowski.net>\n"
@@ -211,7 +211,7 @@ msgstr ""
 
 #: utils/cpupower.c:91
 #, c-format
-msgid "Report errors and bugs to %s, please.\n"
+msgid "Report errors and s to %s, please.\n"
 msgstr "Bitte melden Sie Fehler an %s.\n"
 
 #: utils/cpupower.c:114
@@ -378,9 +378,9 @@ msgstr "Optionen:\n"
 
 #: utils/cpufreq-info.c:474
 #, fuzzy, c-format
-msgid "  -e, --debug          Prints out debug information [default]\n"
+msgid "  -e, --de          Prints out de information [default]\n"
 msgstr ""
-"  -e, --debug          Erzeugt detaillierte Informationen, hilfreich\n"
+"  -e, --de          Erzeugt detaillierte Informationen, hilfreich\n"
 "                       zum Aufspüren von Fehlern\n"
 
 #: utils/cpufreq-info.c:475
@@ -496,8 +496,8 @@ msgstr "  -h, --help           Gibt diese Kurzübersicht aus\n"
 #: utils/cpufreq-info.c:495
 #, c-format
 msgid ""
-"If no argument or only the -c, --cpu parameter is given, debug output about\n"
-"cpufreq is printed which is useful e.g. for reporting bugs.\n"
+"If no argument or only the -c, --cpu parameter is given, de output about\n"
+"cpufreq is printed which is useful e.g. for reporting s.\n"
 msgstr ""
 "Sofern kein anderer Parameter als '-c, --cpu' angegeben wird, liefert "
 "dieses\n"
@@ -923,7 +923,7 @@ msgstr "Aufruf: cpufreq-info [Optionen]\n"
 #, fuzzy, c-format
 msgid "  -s, --silent         Only show general C-state information\n"
 msgstr ""
-"  -e, --debug          Erzeugt detaillierte Informationen, hilfreich\n"
+"  -e, --de          Erzeugt detaillierte Informationen, hilfreich\n"
 "                       zum Aufspüren von Fehlern\n"
 
 #: utils/cpuidle-info.c:150

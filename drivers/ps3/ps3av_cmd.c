@@ -411,7 +411,7 @@ u32 ps3av_cmd_set_video_mode(void *p, u32 head, int video_vid, int video_fmt,
 		video_mode->video_cl_cnv = PS3AV_CMD_VIDEO_CL_CNV_ENABLE_LUT;
 	video_mode->video_order = ps3av_video_fmt_table[video_fmt].order;
 
-	pr_debug("%s: video_mode:vid:%x width:%d height:%d pitch:%d out_format:%d format:%x order:%x\n",
+	pr_de("%s: video_mode:vid:%x width:%d height:%d pitch:%d out_format:%d format:%x order:%x\n",
 		__func__, video_vid, video_mode->width, video_mode->height,
 		video_mode->pitch, video_mode->video_out_format,
 		video_mode->video_format, video_mode->video_order);
@@ -875,7 +875,7 @@ int ps3av_cmd_avb_param(struct ps3av_pkt_avb_param *avb, u32 send_len)
 
 	res = get_status(avb);
 	if (res)
-		pr_debug("%s: PS3AV_CID_AVB_PARAM: failed %x\n", __func__,
+		pr_de("%s: PS3AV_CID_AVB_PARAM: failed %x\n", __func__,
 			 res);
 
       out:

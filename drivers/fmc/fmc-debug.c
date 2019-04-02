@@ -9,7 +9,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <asm/byteorder.h>
 
@@ -31,7 +31,7 @@ static char *__strip_trailing_space(char *buf, char *str, int len)
 }
 
 #define __sdb_string(buf, field) ({			\
-	BUILD_BUG_ON(sizeof(buf) < sizeof(field));	\
+	BUILD__ON(sizeof(buf) < sizeof(field));	\
 	__strip_trailing_space(buf, (void *)(field), sizeof(field));	\
 		})
 
@@ -148,26 +148,26 @@ const struct file_operations fmc_dbgfs_sdb_dump = {
 	.release = single_release,
 };
 
-int fmc_debug_init(struct fmc_device *fmc)
+int fmc_de_init(struct fmc_device *fmc)
 {
-	fmc->dbg_dir = debugfs_create_dir(dev_name(&fmc->dev), NULL);
+	fmc->dbg_dir = defs_create_dir(dev_name(&fmc->dev), NULL);
 	if (IS_ERR_OR_NULL(fmc->dbg_dir)) {
-		pr_err("FMC: Cannot create debugfs\n");
+		pr_err("FMC: Cannot create defs\n");
 		return PTR_ERR(fmc->dbg_dir);
 	}
 
-	fmc->dbg_sdb_dump = debugfs_create_file(FMC_DBG_SDB_DUMP, 0444,
+	fmc->dbg_sdb_dump = defs_create_file(FMC_DBG_SDB_DUMP, 0444,
 						fmc->dbg_dir, fmc,
 						&fmc_dbgfs_sdb_dump);
 	if (IS_ERR_OR_NULL(fmc->dbg_sdb_dump))
-		pr_err("FMC: Cannot create debugfs file %s\n",
+		pr_err("FMC: Cannot create defs file %s\n",
 		       FMC_DBG_SDB_DUMP);
 
 	return 0;
 }
 
-void fmc_debug_exit(struct fmc_device *fmc)
+void fmc_de_exit(struct fmc_device *fmc)
 {
 	if (fmc->dbg_dir)
-		debugfs_remove_recursive(fmc->dbg_dir);
+		defs_remove_recursive(fmc->dbg_dir);
 }

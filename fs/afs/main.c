@@ -23,9 +23,9 @@ MODULE_DESCRIPTION("AFS Client File System");
 MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
 
-unsigned afs_debug;
-module_param_named(debug, afs_debug, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(debug, "AFS debugging mask");
+unsigned afs_de;
+module_param_named(de, afs_de, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(de, "AFS deging mask");
 
 static char *rootcell;
 

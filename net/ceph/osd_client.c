@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/module.h>
 #include <linux/err.h>
@@ -175,14 +175,14 @@ static void ceph_osd_data_bvecs_init(struct ceph_osd_data *osd_data,
 ({									\
 	struct ceph_osd_request *__oreq = (oreq);			\
 	unsigned int __whch = (whch);					\
-	BUG_ON(__whch >= __oreq->r_num_ops);				\
+	_ON(__whch >= __oreq->r_num_ops);				\
 	&__oreq->r_ops[__whch].typ.fld;					\
 })
 
 static struct ceph_osd_data *
 osd_req_op_raw_data_in(struct ceph_osd_request *osd_req, unsigned int which)
 {
-	BUG_ON(which >= osd_req->r_num_ops);
+	_ON(which >= osd_req->r_num_ops);
 
 	return &osd_req->r_ops[which].raw_data_in;
 }
@@ -379,7 +379,7 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 {
 	struct ceph_osd_req_op *op;
 
-	BUG_ON(which >= osd_req->r_num_ops);
+	_ON(which >= osd_req->r_num_ops);
 	op = &osd_req->r_ops[which];
 
 	switch (op->op) {
@@ -589,12 +589,12 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	struct ceph_osd_request *req;
 
 	if (use_mempool) {
-		BUG_ON(num_ops > CEPH_OSD_SLAB_OPS);
+		_ON(num_ops > CEPH_OSD_SLAB_OPS);
 		req = mempool_alloc(osdc->req_mempool, gfp_flags);
 	} else if (num_ops <= CEPH_OSD_SLAB_OPS) {
 		req = kmem_cache_alloc(ceph_osd_request_cache, gfp_flags);
 	} else {
-		BUG_ON(num_ops > CEPH_OSD_MAX_OPS);
+		_ON(num_ops > CEPH_OSD_MAX_OPS);
 		req = kmalloc(struct_size(req, r_ops, num_ops), gfp_flags);
 	}
 	if (unlikely(!req))
@@ -758,8 +758,8 @@ _osd_req_op_init(struct ceph_osd_request *osd_req, unsigned int which,
 {
 	struct ceph_osd_req_op *op;
 
-	BUG_ON(which >= osd_req->r_num_ops);
-	BUG_ON(!osd_req_opcode_valid(opcode));
+	_ON(which >= osd_req->r_num_ops);
+	_ON(!osd_req_opcode_valid(opcode));
 
 	op = &osd_req->r_ops[which];
 	memset(op, 0, sizeof (*op));
@@ -785,7 +785,7 @@ void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
 						      opcode, 0);
 	size_t payload_len = 0;
 
-	BUG_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE &&
+	_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE &&
 	       opcode != CEPH_OSD_OP_WRITEFULL && opcode != CEPH_OSD_OP_ZERO &&
 	       opcode != CEPH_OSD_OP_TRUNCATE);
 
@@ -806,13 +806,13 @@ void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 	struct ceph_osd_req_op *op;
 	u64 previous;
 
-	BUG_ON(which >= osd_req->r_num_ops);
+	_ON(which >= osd_req->r_num_ops);
 	op = &osd_req->r_ops[which];
 	previous = op->extent.length;
 
 	if (length == previous)
 		return;		/* Nothing to do */
-	BUG_ON(length > previous);
+	_ON(length > previous);
 
 	op->extent.length = length;
 	if (op->op == CEPH_OSD_OP_WRITE || op->op == CEPH_OSD_OP_WRITEFULL)
@@ -825,7 +825,7 @@ void osd_req_op_extent_dup_last(struct ceph_osd_request *osd_req,
 {
 	struct ceph_osd_req_op *op, *prev_op;
 
-	BUG_ON(which + 1 >= osd_req->r_num_ops);
+	_ON(which + 1 >= osd_req->r_num_ops);
 
 	prev_op = &osd_req->r_ops[which];
 	op = _osd_req_op_init(osd_req, which + 1, prev_op->op, prev_op->flags);
@@ -858,14 +858,14 @@ int osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 
 	op->cls.class_name = class;
 	size = strlen(class);
-	BUG_ON(size > (size_t) U8_MAX);
+	_ON(size > (size_t) U8_MAX);
 	op->cls.class_len = size;
 	ceph_pagelist_append(pagelist, class, size);
 	payload_len += size;
 
 	op->cls.method_name = method;
 	size = strlen(method);
-	BUG_ON(size > (size_t) U8_MAX);
+	_ON(size > (size_t) U8_MAX);
 	op->cls.method_len = size;
 	ceph_pagelist_append(pagelist, method, size);
 	payload_len += size;
@@ -886,7 +886,7 @@ int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
 	struct ceph_pagelist *pagelist;
 	size_t payload_len;
 
-	BUG_ON(opcode != CEPH_OSD_OP_SETXATTR && opcode != CEPH_OSD_OP_CMPXATTR);
+	_ON(opcode != CEPH_OSD_OP_SETXATTR && opcode != CEPH_OSD_OP_CMPXATTR);
 
 	pagelist = ceph_pagelist_alloc(GFP_NOFS);
 	if (!pagelist)
@@ -950,12 +950,12 @@ static void ceph_osdc_msg_data_add(struct ceph_msg *msg,
 	u64 length = ceph_osd_data_length(osd_data);
 
 	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
-		BUG_ON(length > (u64) SIZE_MAX);
+		_ON(length > (u64) SIZE_MAX);
 		if (length)
 			ceph_msg_data_add_pages(msg, osd_data->pages,
 					length, osd_data->alignment);
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGELIST) {
-		BUG_ON(!length);
+		_ON(!length);
 		ceph_msg_data_add_pagelist(msg, osd_data->pagelist);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
@@ -964,7 +964,7 @@ static void ceph_osdc_msg_data_add(struct ceph_msg *msg,
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BVECS) {
 		ceph_msg_data_add_bvecs(msg, &osd_data->bvec_pos);
 	} else {
-		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
+		_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
 	}
 }
 
@@ -1068,7 +1068,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	u64 objlen = 0;
 	int r;
 
-	BUG_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE &&
+	_ON(opcode != CEPH_OSD_OP_READ && opcode != CEPH_OSD_OP_WRITE &&
 	       opcode != CEPH_OSD_OP_ZERO && opcode != CEPH_OSD_OP_TRUNCATE &&
 	       opcode != CEPH_OSD_OP_CREATE && opcode != CEPH_OSD_OP_DELETE);
 
@@ -1262,7 +1262,7 @@ static void __move_osd_to_lru(struct ceph_osd *osd)
 	struct ceph_osd_client *osdc = osd->o_osdc;
 
 	dout("%s osd %p osd%d\n", __func__, osd, osd->o_osd);
-	BUG_ON(!list_empty(&osd->o_osd_lru));
+	_ON(!list_empty(&osd->o_osd_lru));
 
 	spin_lock(&osdc->osd_lru_lock);
 	list_add_tail(&osd->o_osd_lru, &osdc->osd_lru);
@@ -2090,7 +2090,7 @@ static void encode_request_partial(struct ceph_osd_request *req,
 	}
 
 	ceph_encode_32(&p, req->r_attempts); /* retry_attempt */
-	BUG_ON(p > end - 8); /* space for features */
+	_ON(p > end - 8); /* space for features */
 
 	msg->hdr.version = cpu_to_le16(8); /* MOSDOp v8 */
 	/* front_len is finalized in encode_request_finish() */
@@ -2171,26 +2171,26 @@ static void encode_request_finish(struct ceph_msg *msg)
 		memset(p, 0, sizeof(struct ceph_eversion));
 		p += sizeof(struct ceph_eversion);
 
-		BUG_ON(p >= oloc);
+		_ON(p >= oloc);
 		memmove(p, oloc, oloc_len);
 		p += oloc_len;
 
 		pgid.seed = le32_to_cpu(head.hash);
 		encode_pgid(&p, &pgid); /* raw pg */
 
-		BUG_ON(p >= oid);
+		_ON(p >= oid);
 		memmove(p, oid, oid_len);
 		p += oid_len;
 
 		/* tail -- ops, snapid, snapc, retry_attempt */
-		BUG_ON(p >= tail);
+		_ON(p >= tail);
 		memmove(p, tail, tail_len);
 		p += tail_len;
 
 		msg->hdr.version = cpu_to_le16(4); /* MOSDOp v4 */
 	}
 
-	BUG_ON(p > end);
+	_ON(p > end);
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
@@ -4188,7 +4188,7 @@ static struct ceph_msg *create_backoff_message(
 	ceph_encode_64(&p, backoff->id);
 	encode_hoid(&p, end, backoff->begin);
 	encode_hoid(&p, end, backoff->end);
-	BUG_ON(p != end);
+	_ON(p != end);
 
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.version = cpu_to_le16(1); /* MOSDBackoff v1 */
@@ -4283,7 +4283,7 @@ static void handle_backoff_unblock(struct ceph_osd *osd,
 	}
 
 	spg = lookup_spg_mapping(&osd->o_backoff_mappings, &backoff->spgid);
-	BUG_ON(!spg);
+	_ON(!spg);
 
 	erase_backoff(&spg->backoffs, backoff);
 	erase_backoff_by_id(&osd->o_backoffs_by_id, backoff);
@@ -5350,7 +5350,7 @@ int __init ceph_osdc_setup(void)
 	size_t size = sizeof(struct ceph_osd_request) +
 	    CEPH_OSD_SLAB_OPS * sizeof(struct ceph_osd_req_op);
 
-	BUG_ON(ceph_osd_request_cache);
+	_ON(ceph_osd_request_cache);
 	ceph_osd_request_cache = kmem_cache_create("ceph_osd_request", size,
 						   0, 0, NULL);
 
@@ -5359,7 +5359,7 @@ int __init ceph_osdc_setup(void)
 
 void ceph_osdc_cleanup(void)
 {
-	BUG_ON(!ceph_osd_request_cache);
+	_ON(!ceph_osd_request_cache);
 	kmem_cache_destroy(ceph_osd_request_cache);
 	ceph_osd_request_cache = NULL;
 }

@@ -181,7 +181,7 @@ void scsi_remove_host(struct Scsi_Host *shost)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_DEL))
-		BUG_ON(scsi_host_set_state(shost, SHOST_DEL_RECOVERY));
+		_ON(scsi_host_set_state(shost, SHOST_DEL_RECOVERY));
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	transport_unregister_device(&shost->shost_gendev);

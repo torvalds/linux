@@ -56,7 +56,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	unsigned char *location;
 	uint32_t value;
 
-	pr_debug("Applying relocate section %u to %u\n", relsec,
+	pr_de("Applying relocate section %u to %u\n", relsec,
 		 sechdrs[relsec].sh_info);
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rela); i++) {

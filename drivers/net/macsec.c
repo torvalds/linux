@@ -385,7 +385,7 @@ static void macsec_txsa_put(struct macsec_tx_sa *sa)
 
 static struct macsec_cb *macsec_skb_cb(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct macsec_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct macsec_cb) > sizeof(skb->cb));
 	return (struct macsec_cb *)skb->cb;
 }
 
@@ -546,7 +546,7 @@ static u32 tx_sa_update_pn(struct macsec_tx_sa *tx_sa, struct macsec_secy *secy)
 
 	tx_sa->next_pn++;
 	if (tx_sa->next_pn == 0) {
-		pr_debug("PN wrapped, transitioning to !oper\n");
+		pr_de("PN wrapped, transitioning to !oper\n");
 		tx_sa->active = false;
 		if (secy->protect_frames)
 			secy->operational = false;

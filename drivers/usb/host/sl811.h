@@ -123,7 +123,7 @@ struct sl811 {
 	void __iomem		*addr_reg;
 	void __iomem		*data_reg;
 	struct sl811_platform_data	*board;
-	struct dentry 		*debug_file;
+	struct dentry 		*de_file;
 
 	unsigned long		stat_insrmv;
 	unsigned long		stat_wake;
@@ -244,7 +244,7 @@ sl811_read_buf(struct sl811 *sl811, int addr, void *buf, size_t count)
 /*-------------------------------------------------------------------------*/
 
 #ifdef PACKET_TRACE
-#    define PACKET		pr_debug("sl811: "stuff)
+#    define PACKET		pr_de("sl811: "stuff)
 #else
 #    define PACKET(stuff...)	do{}while(0)
 #endif

@@ -146,7 +146,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 		evsel = find_evsel(perf_evlist, eg->ids, eg->idnum,
 				   metric_events);
 		if (!evsel) {
-			pr_debug("Cannot resolve %s: %s\n",
+			pr_de("Cannot resolve %s: %s\n",
 					eg->metric_name, eg->metric_expr);
 			continue;
 		}
@@ -397,7 +397,7 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			int idnum;
 			struct egroup *eg;
 
-			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
+			pr_de("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
 			if (expr__find_other(pe->metric_expr,
 					     NULL, &ids, &idnum) < 0)
@@ -405,7 +405,7 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			if (events->len > 0)
 				strbuf_addf(events, ",");
 			for (j = 0; j < idnum; j++) {
-				pr_debug("found event %s\n", ids[j]);
+				pr_de("found event %s\n", ids[j]);
 				strbuf_addf(events, "%s%s",
 					j == 0 ? "{" : ",",
 					ids[j]);
@@ -482,7 +482,7 @@ int metricgroup__parse_groups(const struct option *opt,
 	ret = metricgroup__add_metric_list(str, &extra_events, &group_list);
 	if (ret)
 		return ret;
-	pr_debug("adding %s\n", extra_events.buf);
+	pr_de("adding %s\n", extra_events.buf);
 	memset(&parse_error, 0, sizeof(struct parse_events_error));
 	ret = parse_events(perf_evlist, extra_events.buf, &parse_error);
 	if (ret) {

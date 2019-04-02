@@ -1170,13 +1170,13 @@ config AB8500_CORE
 	  the irq_chip parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia funtionalities as well.
 
-config AB8500_DEBUG
-       bool "Enable debug info via debugfs"
-       depends on AB8500_GPADC && DEBUG_FS
-       default y if DEBUG_FS
+config AB8500_DE
+       bool "Enable de info via defs"
+       depends on AB8500_GPADC && DE_FS
+       default y if DE_FS
        help
-         Select this option if you want debug information using the debug
-         filesystem, debugfs.
+         Select this option if you want de information using the de
+         filesystem, defs.
 
 config AB8500_GPADC
 	bool "ST-Ericsson AB8500 GPADC driver"

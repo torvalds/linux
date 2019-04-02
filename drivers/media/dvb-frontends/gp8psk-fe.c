@@ -18,13 +18,13 @@
 #include "gp8psk-fe.h"
 #include <media/dvb_frontend.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 

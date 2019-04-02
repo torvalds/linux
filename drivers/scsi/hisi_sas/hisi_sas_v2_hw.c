@@ -782,7 +782,7 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 
 	if (!sata_dev) {
 		/*
-		 * STP link SoC bug workaround: index starts from 1.
+		 * STP link SoC  workaround: index starts from 1.
 		 * additionally, we can only allocate odd IPTT(1~4095)
 		 * for SAS/SMP device.
 		 */
@@ -796,7 +796,7 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 		 * For SATA device: allocate even IPTT in this interval
 		 * [64*(sata_idx+1), 64*(sata_idx+2)], then each SATA device
 		 * own 32 IPTTs. IPTT 0 shall not be used duing to STP link
-		 * SoC bug workaround. So we ignore the first 32 even IPTTs.
+		 * SoC  workaround. So we ignore the first 32 even IPTTs.
 		 */
 		start = 64 * (sata_idx + 1);
 		end = 64 * (sata_idx + 2);
@@ -1008,7 +1008,7 @@ static void free_device_v2_hw(struct hisi_sas_device *sas_dev)
 {
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
 
-	/* SoC bug workaround */
+	/* SoC  workaround */
 	if (dev_is_sata(sas_dev->sas_device))
 		clear_bit(sas_dev->sata_idx, hisi_hba->sata_dev_bitmap);
 }

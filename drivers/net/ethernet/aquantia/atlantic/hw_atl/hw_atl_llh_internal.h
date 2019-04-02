@@ -476,23 +476,23 @@
  */
 #define HW_ATL_RX_FLR_CONTROL2_ADR 0x00005104u
 
-/* tx tx dma debug control [1f:0] bitfield definitions
- * preprocessor definitions for the bitfield "tx dma debug control [1f:0]".
- * port="pif_tdm_debug_cntl_i[31:0]"
+/* tx tx dma de control [1f:0] bitfield definitions
+ * preprocessor definitions for the bitfield "tx dma de control [1f:0]".
+ * port="pif_tdm_de_cntl_i[31:0]"
  */
 
-/* register address for bitfield tx dma debug control [1f:0] */
-#define HW_ATL_TDM_TX_DMA_DEBUG_CTL_ADR 0x00008920
-/* bitmask for bitfield tx dma debug control [1f:0] */
-#define HW_ATL_TDM_TX_DMA_DEBUG_CTL_MSK 0xffffffff
-/* inverted bitmask for bitfield tx dma debug control [1f:0] */
-#define HW_ATL_TDM_TX_DMA_DEBUG_CTL_MSKN 0x00000000
-/* lower bit position of bitfield tx dma debug control [1f:0] */
-#define HW_ATL_TDM_TX_DMA_DEBUG_CTL_SHIFT 0
-/* width of bitfield tx dma debug control [1f:0] */
-#define HW_ATL_TDM_TX_DMA_DEBUG_CTL_WIDTH 32
-/* default value of bitfield tx dma debug control [1f:0] */
-#define HW_ATL_TDM_TX_DMA_DEBUG_CTL_DEFAULT 0x0
+/* register address for bitfield tx dma de control [1f:0] */
+#define HW_ATL_TDM_TX_DMA_DE_CTL_ADR 0x00008920
+/* bitmask for bitfield tx dma de control [1f:0] */
+#define HW_ATL_TDM_TX_DMA_DE_CTL_MSK 0xffffffff
+/* inverted bitmask for bitfield tx dma de control [1f:0] */
+#define HW_ATL_TDM_TX_DMA_DE_CTL_MSKN 0x00000000
+/* lower bit position of bitfield tx dma de control [1f:0] */
+#define HW_ATL_TDM_TX_DMA_DE_CTL_SHIFT 0
+/* width of bitfield tx dma de control [1f:0] */
+#define HW_ATL_TDM_TX_DMA_DE_CTL_WIDTH 32
+/* default value of bitfield tx dma de control [1f:0] */
+#define HW_ATL_TDM_TX_DMA_DE_CTL_DEFAULT 0x0
 
 /* tx dma descriptor base address lsw definitions
  * preprocessor definitions for tx dma descriptor base address lsw
@@ -2432,8 +2432,8 @@
 /* default value of bitfield register reset disable */
 #define HW_ATL_GLB_REG_RES_DIS_DEFAULT 0x1
 
-/* tx dma debug control definitions */
-#define HW_ATL_TX_DMA_DEBUG_CTL_ADR 0x00008920u
+/* tx dma de control definitions */
+#define HW_ATL_TX_DMA_DE_CTL_ADR 0x00008920u
 
 /* tx dma descriptor base address msw definitions */
 #define HW_ATL_TX_DMA_DESC_BASE_ADDRMSW_ADR(descriptor) \

@@ -53,7 +53,7 @@ irq_handler_idx dm_register_interrupt(
  *
  */
 
-/* enable for debugging new code, this adds 50k to the driver size. */
+/* enable for deging new code, this adds 50k to the driver size. */
 /* #define DM_CHECK_ADDR_0 */
 
 #define dm_read_reg(ctx, address)	\
@@ -364,7 +364,7 @@ unsigned long long dm_get_elapse_time_in_ns(struct dc_context *ctx,
 
 
 /*
- * Debug and verification hooks
+ * De and verification hooks
  */
 
 void dm_dtn_log_begin(struct dc_context *ctx,

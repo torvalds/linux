@@ -249,7 +249,7 @@
 #define A_GPR_DBAC	0xdb		/* TRAM Delay Base Address Counter - internal */
 #define A_GPR_DBACE	0xde		/* TRAM Delay Base Address Counter - external */
 
-/* definitions for debug register */
+/* definitions for de register */
 #define EMU10K1_DBG_ZC			0x80000000	/* zero tram counter */
 #define EMU10K1_DBG_SATURATION_OCCURED	0x02000000	/* saturation control */
 #define EMU10K1_DBG_SATURATION_ADDR	0x01ff0000	/* saturation address */

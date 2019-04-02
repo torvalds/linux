@@ -28,7 +28,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/imr.h>
 #include <asm/iosf_mbi.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/types.h>
@@ -227,14 +227,14 @@ static int imr_dbgfs_state_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(imr_dbgfs_state);
 
 /**
- * imr_debugfs_register - register debugfs hooks.
+ * imr_defs_register - register defs hooks.
  *
  * @idev:	pointer to imr_device structure.
  * @return:	0 on success - errno on failure.
  */
-static int imr_debugfs_register(struct imr_device *idev)
+static int imr_defs_register(struct imr_device *idev)
 {
-	idev->file = debugfs_create_file("imr_state", 0444, NULL, idev,
+	idev->file = defs_create_file("imr_state", 0444, NULL, idev,
 					 &imr_dbgfs_state_fops);
 	return PTR_ERR_OR_ZERO(idev->file);
 }
@@ -333,7 +333,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 	/*
 	 * Find a free IMR while checking for an existing overlapping range.
 	 * Note there's no restriction in silicon to prevent IMR overlaps.
-	 * For the sake of simplicity and ease in defining/debugging an IMR
+	 * For the sake of simplicity and ease in defining/deging an IMR
 	 * memory map we exclude IMR overlaps.
 	 */
 	reg = -1;
@@ -360,7 +360,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 		goto failed;
 	}
 
-	pr_debug("add %d phys %pa-%pa size %zx mask 0x%08x wmask 0x%08x\n",
+	pr_de("add %d phys %pa-%pa size %zx mask 0x%08x wmask 0x%08x\n",
 		 reg, &base, &end, raw_size, rmask, wmask);
 
 	/* Enable IMR at specified range and access mask. */
@@ -468,7 +468,7 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 		goto failed;
 	}
 
-	pr_debug("remove %d phys %pa-%pa size %zx\n", reg, &base, &end, raw_size);
+	pr_de("remove %d phys %pa-%pa size %zx\n", reg, &base, &end, raw_size);
 
 	/* Tear down the IMR. */
 	imr.addr_lo = 0;
@@ -591,9 +591,9 @@ static int __init imr_init(void)
 	idev->init = true;
 
 	mutex_init(&idev->lock);
-	ret = imr_debugfs_register(idev);
+	ret = imr_defs_register(idev);
 	if (ret != 0)
-		pr_warn("debugfs register failed!\n");
+		pr_warn("defs register failed!\n");
 	imr_fixup_memmap(idev);
 	return 0;
 }

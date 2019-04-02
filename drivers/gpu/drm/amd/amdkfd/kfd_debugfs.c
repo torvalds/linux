@@ -20,21 +20,21 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 
 #include "kfd_priv.h"
 
-static struct dentry *debugfs_root;
+static struct dentry *defs_root;
 
-static int kfd_debugfs_open(struct inode *inode, struct file *file)
+static int kfd_defs_open(struct inode *inode, struct file *file)
 {
 	int (*show)(struct seq_file *, void *) = inode->i_private;
 
 	return single_open(file, show, NULL);
 }
 
-static ssize_t kfd_debugfs_hang_hws_write(struct file *file,
+static ssize_t kfd_defs_hang_hws_write(struct file *file,
 	const char __user *user_buf, size_t size, loff_t *ppos)
 {
 	struct kfd_dev *dev;
@@ -57,7 +57,7 @@ static ssize_t kfd_debugfs_hang_hws_write(struct file *file,
 	}
 	dev = kfd_device_by_id(gpu_id);
 	if (dev) {
-		kfd_debugfs_hang_hws(dev);
+		kfd_defs_hang_hws(dev);
 		ret = size;
 	} else
 		pr_err("Cannot find device %d.\n", gpu_id);
@@ -66,58 +66,58 @@ out:
 	return ret;
 }
 
-static const struct file_operations kfd_debugfs_fops = {
+static const struct file_operations kfd_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = kfd_debugfs_open,
+	.open = kfd_defs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static const struct file_operations kfd_debugfs_hang_hws_fops = {
+static const struct file_operations kfd_defs_hang_hws_fops = {
 	.owner = THIS_MODULE,
-	.open = kfd_debugfs_open,
+	.open = kfd_defs_open,
 	.read = seq_read,
-	.write = kfd_debugfs_hang_hws_write,
+	.write = kfd_defs_hang_hws_write,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-void kfd_debugfs_init(void)
+void kfd_defs_init(void)
 {
 	struct dentry *ent;
 
-	debugfs_root = debugfs_create_dir("kfd", NULL);
-	if (!debugfs_root || debugfs_root == ERR_PTR(-ENODEV)) {
-		pr_warn("Failed to create kfd debugfs dir\n");
+	defs_root = defs_create_dir("kfd", NULL);
+	if (!defs_root || defs_root == ERR_PTR(-ENODEV)) {
+		pr_warn("Failed to create kfd defs dir\n");
 		return;
 	}
 
-	ent = debugfs_create_file("mqds", S_IFREG | 0444, debugfs_root,
-				  kfd_debugfs_mqds_by_process,
-				  &kfd_debugfs_fops);
+	ent = defs_create_file("mqds", S_IFREG | 0444, defs_root,
+				  kfd_defs_mqds_by_process,
+				  &kfd_defs_fops);
 	if (!ent)
-		pr_warn("Failed to create mqds in kfd debugfs\n");
+		pr_warn("Failed to create mqds in kfd defs\n");
 
-	ent = debugfs_create_file("hqds", S_IFREG | 0444, debugfs_root,
-				  kfd_debugfs_hqds_by_device,
-				  &kfd_debugfs_fops);
+	ent = defs_create_file("hqds", S_IFREG | 0444, defs_root,
+				  kfd_defs_hqds_by_device,
+				  &kfd_defs_fops);
 	if (!ent)
-		pr_warn("Failed to create hqds in kfd debugfs\n");
+		pr_warn("Failed to create hqds in kfd defs\n");
 
-	ent = debugfs_create_file("rls", S_IFREG | 0444, debugfs_root,
-				  kfd_debugfs_rls_by_device,
-				  &kfd_debugfs_fops);
+	ent = defs_create_file("rls", S_IFREG | 0444, defs_root,
+				  kfd_defs_rls_by_device,
+				  &kfd_defs_fops);
 
-	ent = debugfs_create_file("hang_hws", S_IFREG | 0644, debugfs_root,
+	ent = defs_create_file("hang_hws", S_IFREG | 0644, defs_root,
 				  NULL,
-				  &kfd_debugfs_hang_hws_fops);
+				  &kfd_defs_hang_hws_fops);
 
 	if (!ent)
-		pr_warn("Failed to create rls in kfd debugfs\n");
+		pr_warn("Failed to create rls in kfd defs\n");
 }
 
-void kfd_debugfs_fini(void)
+void kfd_defs_fini(void)
 {
-	debugfs_remove_recursive(debugfs_root);
+	defs_remove_recursive(defs_root);
 }

@@ -60,7 +60,7 @@ udl_gem_create(struct drm_file *file,
 static void update_vm_cache_attr(struct udl_gem_object *obj,
 				 struct vm_area_struct *vma)
 {
-	DRM_DEBUG_KMS("flags = 0x%x\n", obj->flags);
+	DRM_DE_KMS("flags = 0x%x\n", obj->flags);
 
 	/* non-cacheable as default. */
 	if (obj->flags & UDL_BO_CACHEABLE) {

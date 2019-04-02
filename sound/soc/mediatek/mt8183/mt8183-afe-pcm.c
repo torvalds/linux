@@ -751,8 +751,8 @@ static bool mt8183_is_volatile_reg(struct device *dev, unsigned int reg)
 	case AFE_MEMIF_MON7:
 	case AFE_MEMIF_MON8:
 	case AFE_MEMIF_MON9:
-	case AFE_ADDA_SRC_DEBUG_MON0:
-	case AFE_ADDA_SRC_DEBUG_MON1:
+	case AFE_ADDA_SRC_DE_MON0:
+	case AFE_ADDA_SRC_DE_MON1:
 	case AFE_ADDA_UL_SRC_MON0:
 	case AFE_ADDA_UL_SRC_MON1:
 	case AFE_SIDETONE_MON:
@@ -807,7 +807,7 @@ static bool mt8183_is_volatile_reg(struct device *dev, unsigned int reg)
 	case AFE_CBIP_MON0:
 	case AFE_CBIP_SLV_MUX_MON0:
 	case AFE_CBIP_SLV_DECODER_MON0:
-	case AFE_ADDA6_SRC_DEBUG_MON0:
+	case AFE_ADDA6_SRC_DE_MON0:
 	case AFE_ADD6A_UL_SRC_MON0:
 	case AFE_ADDA6_UL_SRC_MON1:
 	case AFE_DL1_CUR_MSB:

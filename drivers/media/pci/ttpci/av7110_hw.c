@@ -22,8 +22,8 @@
  * the project's page is at https://linuxtv.org
  */
 
-/* for debugging ARM communication: */
-//#define COM_DEBUG
+/* for deging ARM communication: */
+//#define COM_DE
 
 #include <stdarg.h>
 #include <linux/types.h>
@@ -437,7 +437,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 	if (FW_VERSION(av7110->arm_app) <= 0x261f)
 		wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0x0000, 2);
 
-#ifdef COM_DEBUG
+#ifdef COM_DE
 	start = jiffies;
 	while (1) {
 		err = time_after(jiffies, start + ARM_WAIT_FREE);
@@ -547,7 +547,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 	int err;
 	s16 i;
 	unsigned long start;
-#ifdef COM_DEBUG
+#ifdef COM_DE
 	u32 stat;
 #endif
 
@@ -597,7 +597,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 	}
 #endif
 
-#ifdef COM_DEBUG
+#ifdef COM_DE
 	stat = rdebi(av7110, DEBINOSWAP, MSGSTATE, 0, 2);
 	if (stat & GPMQOver) {
 		printk(KERN_ERR "%s: GPMQOver\n", __func__);
@@ -1019,7 +1019,7 @@ static int OSDSetBlock(struct av7110 *av7110, int x0, int y0,
 
 	if (av7110->bmp_state == BMP_LOADING) {
 		/* possible if syscall is repeated by -ERESTARTSYS and if firmware cannot abort */
-		BUG_ON (FW_VERSION(av7110->arm_app) >= 0x261e);
+		_ON (FW_VERSION(av7110->arm_app) >= 0x261e);
 		rc = WaitUntilBmpLoaded(av7110);
 		if (rc)
 			return rc;

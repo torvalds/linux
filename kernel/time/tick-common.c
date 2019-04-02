@@ -48,7 +48,7 @@ ktime_t tick_period;
 int tick_do_timer_cpu __read_mostly = TICK_DO_TIMER_BOOT;
 
 /*
- * Debugging: see timer_list.c
+ * Deging: see timer_list.c
  */
 struct tick_device *tick_get_device(int cpu)
 {

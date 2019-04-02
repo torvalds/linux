@@ -54,7 +54,7 @@ static const u8 pci_cap_length[PCI_CAP_ID_MAX + 1] = {
 	[PCI_CAP_ID_PCIX]	= 0xFF,		/* 8 or 24 */
 	[PCI_CAP_ID_HT]		= 0xFF,		/* hypertransport */
 	[PCI_CAP_ID_VNDR]	= 0xFF,		/* variable */
-	[PCI_CAP_ID_DBG]	= 0,		/* debug - don't care */
+	[PCI_CAP_ID_DBG]	= 0,		/* de - don't care */
 	[PCI_CAP_ID_CCRC]	= 0,		/* cpci - not yet */
 	[PCI_CAP_ID_SHPC]	= 0,		/* hotswap - not yet */
 	[PCI_CAP_ID_SSVID]	= 0,		/* bridge - don't care */
@@ -1491,7 +1491,7 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 				pos + i, map[pos + i], cap);
 		}
 
-		BUILD_BUG_ON(PCI_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
+		BUILD__ON(PCI_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
 
 		memset(map + pos, cap, len);
 		ret = vfio_fill_vconfig_bytes(vdev, pos, len);
@@ -1582,7 +1582,7 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 		 * from exceeding 1 byte capabilities.  If we ever make it
 		 * up to 0xFE we'll need to up this to a two-byte, byte map.
 		 */
-		BUILD_BUG_ON(PCI_EXT_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
+		BUILD__ON(PCI_EXT_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
 
 		memset(map + epos, ecap, len);
 		ret = vfio_fill_vconfig_bytes(vdev, epos, len);
@@ -1612,7 +1612,7 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 }
 
 /*
- * Nag about hardware bugs, hopefully to have vendors fix them, but at least
+ * Nag about hardware s, hopefully to have vendors fix them, but at least
  * to collect a list of dependencies for the VF INTx pin quirk below.
  */
 static const struct pci_device_id known_bogus_vf_intx_pin[] = {
@@ -1699,7 +1699,7 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 		if (vconfig[PCI_INTERRUPT_PIN] &&
 		    !pci_match_id(known_bogus_vf_intx_pin, pdev))
 			pci_warn(pdev,
-				 "Hardware bug: VF reports bogus INTx pin %d\n",
+				 "Hardware : VF reports bogus INTx pin %d\n",
 				 vconfig[PCI_INTERRUPT_PIN]);
 
 		vconfig[PCI_INTERRUPT_PIN] = 0; /* Gratuitous for good VFs */

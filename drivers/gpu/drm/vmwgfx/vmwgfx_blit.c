@@ -431,7 +431,7 @@ static int vmw_bo_cpu_blit_line(struct vmw_bo_blit_line_data *d,
  * @w: Width of blit.
  * @h: Height of blit.
  * return: Zero on success. Negative error value on failure. Will print out
- * kernel warnings on caller bugs.
+ * kernel warnings on caller s.
  *
  * Performs a CPU blit from one buffer object to another avoiding a full
  * bo vmap which may exhaust- or fragment vmalloc space.

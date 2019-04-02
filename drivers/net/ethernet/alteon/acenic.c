@@ -85,7 +85,7 @@
 
 #define DRV_NAME "acenic"
 
-#undef INDEX_DEBUG
+#undef INDEX_DE
 
 #ifdef CONFIG_ACENIC_OMIT_TIGON_I
 #define ACE_IS_TIGON_I(ap)	0
@@ -206,7 +206,7 @@ MODULE_DEVICE_TABLE(pci, acenic_pci_tbl);
  *
  *  trace=<val> - Firmware trace level. This requires special traced
  *                firmware to replace the firmware supplied with
- *                the driver - for debugging purposes only.
+ *                the driver - for deging purposes only.
  *
  *  link=<val>  - Link state. Normally you want to use the default link
  *                parameters set by the driver. This can be used to
@@ -1171,8 +1171,8 @@ static int ace_init(struct net_device *dev)
 	} else
 		dev->irq = pdev->irq;
 
-#ifdef INDEX_DEBUG
-	spin_lock_init(&ap->debug_lock);
+#ifdef INDEX_DE
+	spin_lock_init(&ap->de_lock);
 	ap->last_tx = ACE_TX_RING_ENTRIES(ap) - 1;
 	ap->last_std_rx = 0;
 	ap->last_mini_rx = 0;
@@ -1562,7 +1562,7 @@ static void ace_watchdog(struct net_device *data)
 		       dev->name, (unsigned int)readl(&regs->HostCtrl));
 		/* This can happen due to ieee flow control. */
 	} else {
-		printk(KERN_DEBUG "%s: BUG... transmitter died. Kicking it.\n",
+		printk(KERN_DE "%s: ... transmitter died. Kicking it.\n",
 		       dev->name);
 #if 0
 		netif_wake_queue(dev);
@@ -1580,7 +1580,7 @@ static void ace_tasklet(unsigned long arg)
 	cur_size = atomic_read(&ap->cur_rx_bufs);
 	if ((cur_size < RX_LOW_STD_THRES) &&
 	    !test_and_set_bit(0, &ap->std_refill_busy)) {
-#ifdef DEBUG
+#ifdef DE
 		printk("refilling buffers (current %i)\n", cur_size);
 #endif
 		ace_load_std_rx_ring(dev, RX_RING_SIZE - cur_size);
@@ -1590,7 +1590,7 @@ static void ace_tasklet(unsigned long arg)
 		cur_size = atomic_read(&ap->cur_mini_bufs);
 		if ((cur_size < RX_LOW_MINI_THRES) &&
 		    !test_and_set_bit(0, &ap->mini_refill_busy)) {
-#ifdef DEBUG
+#ifdef DE
 			printk("refilling mini buffers (current %i)\n",
 			       cur_size);
 #endif
@@ -1601,7 +1601,7 @@ static void ace_tasklet(unsigned long arg)
 	cur_size = atomic_read(&ap->cur_jumbo_bufs);
 	if (ap->jumbo && (cur_size < RX_LOW_JUMBO_THRES) &&
 	    !test_and_set_bit(0, &ap->jumbo_refill_busy)) {
-#ifdef DEBUG
+#ifdef DE
 		printk("refilling jumbo buffers (current %i)\n", cur_size);
 #endif
 		ace_load_jumbo_rx_ring(dev, RX_JUMBO_SIZE - cur_size);
@@ -2178,7 +2178,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 		if (cur_size < RX_LOW_STD_THRES) {
 			if ((cur_size < RX_PANIC_STD_THRES) &&
 			    !test_and_set_bit(0, &ap->std_refill_busy)) {
-#ifdef DEBUG
+#ifdef DE
 				printk("low on std buffers %i\n", cur_size);
 #endif
 				ace_load_std_rx_ring(dev,
@@ -2193,7 +2193,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 				if ((cur_size < RX_PANIC_MINI_THRES) &&
 				    !test_and_set_bit(0,
 						      &ap->mini_refill_busy)) {
-#ifdef DEBUG
+#ifdef DE
 					printk("low on mini buffers %i\n",
 					       cur_size);
 #endif
@@ -2210,7 +2210,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev_id)
 				if ((cur_size < RX_PANIC_JUMBO_THRES) &&
 				    !test_and_set_bit(0,
 						      &ap->jumbo_refill_busy)){
-#ifdef DEBUG
+#ifdef DE
 					printk("low on jumbo buffers %i\n",
 					       cur_size);
 #endif
@@ -2947,7 +2947,7 @@ static int ace_load_firmware(struct net_device *dev)
  *
  * Oh yes, this is only the beginning!
  *
- * Thanks to Stevarino Webinski for helping tracking down the bugs in the
+ * Thanks to Stevarino Webinski for helping tracking down the s in the
  * code i2c readout code by beta testing all my hacks.
  */
 static void eeprom_start(struct ace_regs __iomem *regs)

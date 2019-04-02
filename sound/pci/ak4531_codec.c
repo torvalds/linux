@@ -48,7 +48,7 @@ static void snd_ak4531_dump(struct snd_ak4531 *ak4531)
 	int idx;
 	
 	for (idx = 0; idx < 0x19; idx++)
-		printk(KERN_DEBUG "ak4531 0x%x: 0x%x\n",
+		printk(KERN_DE "ak4531 0x%x: 0x%x\n",
 		       idx, ak4531->regs[idx]);
 }
 
@@ -390,7 +390,7 @@ int snd_ak4531_mixer(struct snd_card *card,
 		.dev_free =	snd_ak4531_dev_free,
 	};
 
-	if (snd_BUG_ON(!card || !_ak4531))
+	if (snd__ON(!card || !_ak4531))
 		return -EINVAL;
 	if (rak4531)
 		*rak4531 = NULL;

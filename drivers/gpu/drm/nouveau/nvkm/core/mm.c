@@ -116,7 +116,7 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 	u32 splitoff;
 	u32 s, e;
 
-	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
+	_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry(this, &mm->free, fl_entry) {
 		if (unlikely(heap != NVKM_MM_HEAP_ANY)) {
@@ -189,7 +189,7 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 	struct nvkm_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
 
-	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
+	_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
 
 	list_for_each_entry_reverse(this, &mm->free, fl_entry) {
 		u32 e = this->offset + this->length;
@@ -246,7 +246,7 @@ nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 		prev = list_last_entry(&mm->nodes, typeof(*node), nl_entry);
 		next = prev->offset + prev->length;
 		if (next != offset) {
-			BUG_ON(next > offset);
+			_ON(next > offset);
 			if (!(node = kzalloc(sizeof(*node), GFP_KERNEL)))
 				return -ENOMEM;
 			node->type   = NVKM_MM_TYPE_HOLE;
@@ -254,7 +254,7 @@ nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 			node->length = offset - next;
 			list_add_tail(&node->nl_entry, &mm->nodes);
 		}
-		BUG_ON(block != mm->block_size);
+		_ON(block != mm->block_size);
 	} else {
 		INIT_LIST_HEAD(&mm->nodes);
 		INIT_LIST_HEAD(&mm->free);

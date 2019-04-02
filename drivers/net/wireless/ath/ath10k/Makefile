@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: ISC
 obj-$(CONFIG_ATH10K) += ath10k_core.o
 ath10k_core-y += mac.o \
-		 debug.o \
+		 de.o \
 		 core.o \
 		 htc.o \
 		 htt.o \
@@ -19,7 +19,7 @@ ath10k_core-$(CONFIG_ATH10K_SPECTRAL) += spectral.o
 ath10k_core-$(CONFIG_NL80211_TESTMODE) += testmode.o
 ath10k_core-$(CONFIG_ATH10K_TRACING) += trace.o
 ath10k_core-$(CONFIG_THERMAL) += thermal.o
-ath10k_core-$(CONFIG_MAC80211_DEBUGFS) += debugfs_sta.o
+ath10k_core-$(CONFIG_MAC80211_DEFS) += defs_sta.o
 ath10k_core-$(CONFIG_PM) += wow.o
 ath10k_core-$(CONFIG_DEV_COREDUMP) += coredump.o
 ath10k_core-$(CONFIG_ATH10K_CE) += ce.o

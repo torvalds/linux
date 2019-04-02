@@ -184,8 +184,8 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
-	if (MLX5_CAP_GEN(dev, debug))
-		mlx5_core_get_caps(dev, MLX5_CAP_DEBUG);
+	if (MLX5_CAP_GEN(dev, de))
+		mlx5_core_get_caps(dev, MLX5_CAP_DE);
 
 	if (MLX5_CAP_GEN(dev, pcam_reg))
 		mlx5_get_pcam_reg(dev);

@@ -20,13 +20,13 @@
 
 /*
  * Flags to pass to kmem_cache_create().
- * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
+ * The ones marked DE are only valid if CONFIG_DE_SLAB is set.
  */
-/* DEBUG: Perform (expensive) checks on alloc/free */
+/* DE: Perform (expensive) checks on alloc/free */
 #define SLAB_CONSISTENCY_CHECKS	((slab_flags_t __force)0x00000100U)
-/* DEBUG: Red zone objs in a cache */
+/* DE: Red zone objs in a cache */
 #define SLAB_RED_ZONE		((slab_flags_t __force)0x00000400U)
-/* DEBUG: Poison objects */
+/* DE: Poison objects */
 #define SLAB_POISON		((slab_flags_t __force)0x00000800U)
 /* Align objs on cache lines */
 #define SLAB_HWCACHE_ALIGN	((slab_flags_t __force)0x00002000U)
@@ -34,7 +34,7 @@
 #define SLAB_CACHE_DMA		((slab_flags_t __force)0x00004000U)
 /* Use GFP_DMA32 memory */
 #define SLAB_CACHE_DMA32	((slab_flags_t __force)0x00008000U)
-/* DEBUG: Store the last owner for bug hunting */
+/* DE: Store the last owner for  hunting */
 #define SLAB_STORE_USER		((slab_flags_t __force)0x00010000U)
 /* Panic if kmem_cache_create() fails */
 #define SLAB_PANIC		((slab_flags_t __force)0x00040000U)
@@ -83,10 +83,10 @@
 #define SLAB_TRACE		((slab_flags_t __force)0x00200000U)
 
 /* Flag to prevent checks on free */
-#ifdef CONFIG_DEBUG_OBJECTS
-# define SLAB_DEBUG_OBJECTS	((slab_flags_t __force)0x00400000U)
+#ifdef CONFIG_DE_OBJECTS
+# define SLAB_DE_OBJECTS	((slab_flags_t __force)0x00400000U)
 #else
-# define SLAB_DEBUG_OBJECTS	0
+# define SLAB_DE_OBJECTS	0
 #endif
 
 /* Avoid kmemleak tracing */
@@ -378,7 +378,7 @@ static __always_inline unsigned int kmalloc_index(size_t size)
 	if (size <=  16 * 1024 * 1024) return 24;
 	if (size <=  32 * 1024 * 1024) return 25;
 	if (size <=  64 * 1024 * 1024) return 26;
-	BUG();
+	();
 
 	/* Will never be reached. Needed because the compiler may complain */
 	return -1;

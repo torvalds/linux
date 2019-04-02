@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
@@ -165,7 +165,7 @@ static void gsc_m2m_device_run(void *priv)
 
 	/* Reconfigure hardware if the context has changed. */
 	if (gsc->m2m.ctx != ctx) {
-		pr_debug("gsc->m2m.ctx = 0x%p, current_ctx = 0x%p",
+		pr_de("gsc->m2m.ctx = 0x%p, current_ctx = 0x%p",
 				gsc->m2m.ctx, ctx);
 		ctx->state |= GSC_PARAMS;
 		gsc->m2m.ctx = ctx;
@@ -272,7 +272,7 @@ static void gsc_m2m_buf_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct gsc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
-	pr_debug("ctx: %p, ctx->state: 0x%x", ctx, ctx->state);
+	pr_de("ctx: %p, ctx->state: 0x%x", ctx, ctx->state);
 
 	if (ctx->m2m_ctx)
 		v4l2_m2m_buf_queue(ctx->m2m_ctx, vbuf);
@@ -366,7 +366,7 @@ static int gsc_m2m_s_fmt_mplane(struct file *file, void *fh,
 	else
 		gsc_ctx_state_lock_set(GSC_PARAMS | GSC_SRC_FMT, ctx);
 
-	pr_debug("f_w: %d, f_h: %d", frame->f_width, frame->f_height);
+	pr_de("f_w: %d, f_h: %d", frame->f_width, frame->f_height);
 
 	return 0;
 }
@@ -622,7 +622,7 @@ static int gsc_m2m_open(struct file *file)
 	struct gsc_ctx *ctx = NULL;
 	int ret;
 
-	pr_debug("pid: %d, state: 0x%lx", task_pid_nr(current), gsc->state);
+	pr_de("pid: %d, state: 0x%lx", task_pid_nr(current), gsc->state);
 
 	if (mutex_lock_interruptible(&gsc->lock))
 		return -ERESTARTSYS;
@@ -663,7 +663,7 @@ static int gsc_m2m_open(struct file *file)
 	if (gsc->m2m.refcnt++ == 0)
 		set_bit(ST_M2M_OPEN, &gsc->state);
 
-	pr_debug("gsc m2m driver is opened, ctx(0x%p)", ctx);
+	pr_de("gsc m2m driver is opened, ctx(0x%p)", ctx);
 
 	mutex_unlock(&gsc->lock);
 	return 0;
@@ -684,7 +684,7 @@ static int gsc_m2m_release(struct file *file)
 	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
-	pr_debug("pid: %d, state: 0x%lx, refcnt= %d",
+	pr_de("pid: %d, state: 0x%lx, refcnt= %d",
 		task_pid_nr(current), gsc->state, gsc->m2m.refcnt);
 
 	mutex_lock(&gsc->lock);
@@ -782,7 +782,7 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 		goto err_m2m_release;
 	}
 
-	pr_debug("gsc m2m driver registered as /dev/video%d", gsc->vdev.num);
+	pr_de("gsc m2m driver registered as /dev/video%d", gsc->vdev.num);
 	return 0;
 
 err_m2m_release:

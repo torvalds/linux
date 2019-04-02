@@ -315,7 +315,7 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 	dev_dbg(dev->dev, "mode = %d, pipe = %d\n", mode, pipe);
 
 	/* Note: Old code uses pipe a stat for pipe b but that appears
-	   to be a bug */
+	   to be a  */
 
 	if (!gma_power_begin(dev, true))
 		return;

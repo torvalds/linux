@@ -58,7 +58,7 @@ What about __vmalloc(GFP_NOFS)
 vmalloc doesn't support GFP_NOFS semantic because there are hardcoded
 GFP_KERNEL allocations deep inside the allocator which are quite non-trivial
 to fix up. That means that calling ``vmalloc`` with GFP_NOFS/GFP_NOIO is
-almost always a bug. The good news is that the NOFS/NOIO semantic can be
+almost always a . The good news is that the NOFS/NOIO semantic can be
 achieved by the scope API.
 
 In the ideal world, upper layers should already mark dangerous contexts

@@ -281,7 +281,7 @@ error:
 	force_sigsegv(sig, t);
 }
 
-#ifdef CONFIG_DEBUG_RSEQ
+#ifdef CONFIG_DE_RSEQ
 
 /*
  * Terminate the process if a syscall is issued within a restartable

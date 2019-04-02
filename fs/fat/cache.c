@@ -66,7 +66,7 @@ static inline struct fat_cache *fat_cache_alloc(struct inode *inode)
 
 static inline void fat_cache_free(struct fat_cache *cache)
 {
-	BUG_ON(!list_empty(&cache->cache_list));
+	_ON(!list_empty(&cache->cache_list));
 	kmem_cache_free(fat_cache_cachep, cache);
 }
 
@@ -122,7 +122,7 @@ static struct fat_cache *fat_cache_merge(struct inode *inode,
 	list_for_each_entry(p, &MSDOS_I(inode)->cache_lru, cache_list) {
 		/* Find the same part as "new" in cluster-chain. */
 		if (p->fcluster == new->fcluster) {
-			BUG_ON(p->dcluster != new->dcluster);
+			_ON(p->dcluster != new->dcluster);
 			if (new->nr_contig > p->nr_contig)
 				p->nr_contig = new->nr_contig;
 			return p;
@@ -231,7 +231,7 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
 	struct fat_cache_id cid;
 	int nr;
 
-	BUG_ON(MSDOS_I(inode)->i_start == 0);
+	_ON(MSDOS_I(inode)->i_start == 0);
 
 	*fclus = 0;
 	*dclus = MSDOS_I(inode)->i_start;

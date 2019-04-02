@@ -28,7 +28,7 @@
 
 #include <asm/io.h>
 
-/* #define DEBUG */  /* remove comments for DEBUG messages */
+/* #define DE */  /* remove comments for DE messages */
 
 /*
  * The special i/o-port that HT-6560B uses to configuration:
@@ -145,7 +145,7 @@ static void ht6560b_dev_select(ide_drive_t *drive)
 		 */
 		outb(timing, hwif->io_ports.device_addr);
 		(void)inb(hwif->io_ports.status_addr);
-#ifdef DEBUG
+#ifdef DE
 		printk("ht6560b: %s: select=%#x timing=%#x\n",
 			drive->name, select, timing);
 #endif
@@ -188,8 +188,8 @@ static int __init try_to_init_ht6560b(void)
 
 	printk("ht6560b " HT6560B_VERSION
 	       ": chipset detected and initialized"
-#ifdef DEBUG
-	       " with debug enabled"
+#ifdef DE
+	       " with de enabled"
 #endif
 	       "\n"
 		);
@@ -228,14 +228,14 @@ static u8 ht_pio2timings(ide_drive_t *drive, const u8 pio)
 		if (active_cycles   > 15) active_cycles   = 15;
 		if (recovery_cycles > 15) recovery_cycles = 0;  /* 0==16 */
 		
-#ifdef DEBUG
+#ifdef DE
 		printk("ht6560b: drive %s setting pio=%d recovery=%d (%dns) active=%d (%dns)\n", drive->name, pio, recovery_cycles, recovery_time, active_cycles, active_time);
 #endif
 		
 		return (u8)((recovery_cycles << 4) | active_cycles);
 	} else {
 		
-#ifdef DEBUG
+#ifdef DE
 		printk("ht6560b: drive %s setting pio=0\n", drive->name);
 #endif
 		
@@ -273,7 +273,7 @@ static void ht_set_prefetch(ide_drive_t *drive, u8 state)
 
 	spin_unlock_irqrestore(&ht6560b_lock, flags);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("ht6560b: drive %s prefetch mode %sabled\n", drive->name, (state ? "en" : "dis"));
 #endif
 }
@@ -300,7 +300,7 @@ static void ht6560b_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	ide_set_drivedata(drive, (void *)config);
 	spin_unlock_irqrestore(&ht6560b_lock, flags);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("ht6560b: drive %s tuned to pio mode %#x timing=%#x\n", drive->name, pio, timing);
 #endif
 }

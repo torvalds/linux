@@ -71,13 +71,13 @@ static int text_area_cpu_down(unsigned int cpu)
  * Run as a late init call. This allows all the boot time patching to be done
  * simply by patching the code, and then we're called here prior to
  * mark_rodata_ro(), which happens after all init calls are run. Although
- * BUG_ON() is rude, in this case it should only happen if ENOMEM, and we judge
+ * _ON() is rude, in this case it should only happen if ENOMEM, and we judge
  * it as being preferable to a kernel that will crash later when someone tries
  * to use patch_instruction().
  */
 static int __init setup_text_poke_area(void)
 {
-	BUG_ON(!cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+	_ON(!cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 		"powerpc/text_poke:online", text_area_cpu_up,
 		text_area_cpu_down));
 
@@ -192,7 +192,7 @@ int patch_instruction(unsigned int *addr, unsigned int instr)
 {
 	/* Make sure we aren't patching a freed init section */
 	if (init_mem_is_free && init_section_contains(addr, 4)) {
-		pr_debug("Skipping init section patching addr: 0x%px\n", addr);
+		pr_de("Skipping init section patching addr: 0x%px\n", addr);
 		return 0;
 	}
 	return do_patch_instruction(addr, instr);
@@ -677,7 +677,7 @@ static void __init test_translate_branch(void)
 
 static int __init test_code_patching(void)
 {
-	printk(KERN_DEBUG "Running code patching self-tests ...\n");
+	printk(KERN_DE "Running code patching self-tests ...\n");
 
 	test_branch_iform();
 	test_branch_bform();

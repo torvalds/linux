@@ -130,16 +130,16 @@ config CROS_EC_VBC
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_vbc.
 
-config CROS_EC_DEBUGFS
-	tristate "Export ChromeOS EC internals in DebugFS"
-	depends on MFD_CROS_EC_CHARDEV && DEBUG_FS
+config CROS_EC_DEFS
+	tristate "Export ChromeOS EC internals in DeFS"
+	depends on MFD_CROS_EC_CHARDEV && DE_FS
 	default MFD_CROS_EC_CHARDEV
 	help
 	  This option exposes the ChromeOS EC device internals to
 	  userspace.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cros_ec_debugfs.
+	  module will be called cros_ec_defs.
 
 config CROS_EC_SYSFS
 	tristate "ChromeOS EC control and information through sysfs"

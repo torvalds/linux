@@ -66,7 +66,7 @@ void do_page_fault(struct pt_regs *regs)
 		    exccause == EXCCAUSE_ITLB_MISS ||
 		    exccause == EXCCAUSE_FETCH_CACHE_ATTRIBUTE) ? 1 : 0;
 
-	pr_debug("[%s:%d:%08x:%d:%08lx:%s%s]\n",
+	pr_de("[%s:%d:%08x:%d:%08lx:%s%s]\n",
 		 current->comm, current->pid,
 		 address, exccause, regs->pc,
 		 is_write ? "w" : "", is_exec ? "x" : "");
@@ -120,7 +120,7 @@ good_area:
 			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
 		if (fault & VM_FAULT_MAJOR)
@@ -237,7 +237,7 @@ bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* Are we prepared to handle this kernel fault?  */
 	if ((entry = search_exception_tables(regs->pc)) != NULL) {
-		pr_debug("%s: Exception at pc=%#010lx (%lx)\n",
+		pr_de("%s: Exception at pc=%#010lx (%lx)\n",
 			 current->comm, regs->pc, entry->fixup);
 		current->thread.bad_uaddr = address;
 		regs->pc = entry->fixup;

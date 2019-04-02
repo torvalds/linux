@@ -27,7 +27,7 @@
 #include "vega20_smumgr.h"
 #include "vega20_ppsmc.h"
 #include "vega20_inc.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 int vega20_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {

@@ -12,7 +12,7 @@
  * This is an extension to the Linux operating system, and is covered by the
  * same GNU General Public License that covers the Linux-kernel.
  *
- * comments/bugs/suggestions can be sent to:
+ * comments/s/suggestions can be sent to:
  *   Michael Hipp
  *   email: hippm@informatik.uni-tuebingen.de
  *
@@ -33,7 +33,7 @@
  *
  * credits:
  *   thanx to Jason Sullivan for sending me a ni6510 card!
- *   lot of debug runs with ASUS SP3G Boards (Intel Saturn) by Harald Koenig
+ *   lot of de runs with ASUS SP3G Boards (Intel Saturn) by Harald Koenig
  *
  * simple performance test: (486DX-33/Ni6510-EB receives from 486DX4-100/Ni6510-EB)
  *    average: FTP -> 8384421 bytes received in 8.5 seconds
@@ -49,14 +49,14 @@
  * 96.April.13: enhanced error handling .. more tests (MH)
  * 96.April.5/6: a lot of performance tests. Got it stable now (hopefully) (MH)
  * 96.April.1: (no joke ;) .. added EtherBlaster and Module support (MH)
- * 96.Feb.19: fixed a few bugs .. cleanups .. tested for 1.3.66 (MH)
+ * 96.Feb.19: fixed a few s .. cleanups .. tested for 1.3.66 (MH)
  *            hopefully no more 16MB limit
  *
  * 95.Nov.18: multicast tweaked (AC).
  *
  * 94.Aug.22: changes in xmit_intr (ack more than one xmitted-packet), ni65_send_packet (p->lock) (MH)
  *
- * 94.July.16: fixed bugs in recv_skb and skb-alloc stuff  (MH)
+ * 94.July.16: fixed s in recv_skb and skb-alloc stuff  (MH)
  */
 
 #include <linux/kernel.h>
@@ -263,7 +263,7 @@ static void set_multicast_list(struct net_device *dev);
 static int irqtab[] __initdata = { 9,12,15,5 }; /* irq config-translate */
 static int dmatab[] __initdata = { 0,3,5,6,7 }; /* dma config-translate and autodetect */
 
-static int debuglevel = 1;
+static int delevel = 1;
 
 /*
  * set 'performance' registers .. we must STOP lance for that
@@ -724,8 +724,8 @@ static void ni65_stop_start(struct net_device *dev,struct priv *p)
 
 	writedatareg(CSR0_STOP);
 
-	if(debuglevel > 1)
-		printk(KERN_DEBUG "ni65_stop_start\n");
+	if(delevel > 1)
+		printk(KERN_DE "ni65_stop_start\n");
 
 	if(p->features & INIT_RING_BEFORE_START) {
 		int i;
@@ -900,7 +900,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 
 		if(csr0 & CSR0_ERR)
 		{
-			if(debuglevel > 1)
+			if(delevel > 1)
 				printk(KERN_ERR "%s: general error: %04x.\n",dev->name,csr0);
 			if(csr0 & CSR0_BABL)
 				dev->stats.tx_errors++;
@@ -912,7 +912,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 				dev->stats.rx_errors++;
 			}
 			if(csr0 & CSR0_MERR) {
-				if(debuglevel > 1)
+				if(delevel > 1)
 					printk(KERN_ERR "%s: Ooops .. memory error: %04x.\n",dev->name,csr0);
 				ni65_stop_start(dev,p);
 			}
@@ -941,7 +941,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 		if(!k)
 			break;
 
-		if(debuglevel > 0)
+		if(delevel > 0)
 		{
 			char buf[256],*buf1;
 			buf1 = buf;
@@ -965,7 +965,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 #endif
 
 	if( (csr0 & (CSR0_RXON | CSR0_TXON)) != (CSR0_RXON | CSR0_TXON) ) {
-		printk(KERN_DEBUG "%s: RX or TX was offline -> restart\n",dev->name);
+		printk(KERN_DE "%s: RX or TX was offline -> restart\n",dev->name);
 		ni65_stop_start(dev,p);
 	}
 	else
@@ -994,7 +994,7 @@ static void ni65_xmit_intr(struct net_device *dev,int csr0)
 		if(tmdstat & XMIT_ERR)
 		{
 #if 0
-			if(tmdp->status2 & XMIT_TDRMASK && debuglevel > 3)
+			if(tmdp->status2 & XMIT_TDRMASK && delevel > 3)
 				printk(KERN_ERR "%s: tdr-problems (e.g. no resistor)\n",dev->name);
 #endif
 		 /* checking some errors */
@@ -1005,7 +1005,7 @@ static void ni65_xmit_intr(struct net_device *dev,int csr0)
 			if(tmdp->status2 & (XMIT_BUFF | XMIT_UFLO )) {
 		/* this stops the xmitter */
 				dev->stats.tx_fifo_errors++;
-				if(debuglevel > 0)
+				if(delevel > 0)
 					printk(KERN_ERR "%s: Xmit FIFO/BUFF error\n",dev->name);
 				if(p->features & INIT_RING_BEFORE_START) {
 					tmdp->u.s.status = XMIT_OWN | XMIT_START | XMIT_END;	/* test: resend this frame */
@@ -1015,7 +1015,7 @@ static void ni65_xmit_intr(struct net_device *dev,int csr0)
 				else
 				 ni65_stop_start(dev,p);
 			}
-			if(debuglevel > 2)
+			if(delevel > 2)
 				printk(KERN_ERR "%s: xmit-error: %04x %02x-%04x\n",dev->name,csr0,(int) tmdstat,(int) tmdp->status2);
 			if(!(csr0 & CSR0_BABL)) /* don't count errors twice */
 				dev->stats.tx_errors++;
@@ -1064,7 +1064,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 				}
 			}
 			else {
-				if(debuglevel > 2)
+				if(delevel > 2)
 					printk(KERN_ERR "%s: receive-error: %04x, lance-status: %04x/%04x\n",
 									dev->name,(int) rmdstat,csr0,(int) inw(PORT+L_DATAREG) );
 				if(rmdstat & RCV_FRAM)

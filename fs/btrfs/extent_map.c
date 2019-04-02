@@ -493,7 +493,7 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 	u64 end;
 	u64 start_diff;
 
-	BUG_ON(map_start < em->start || map_start >= extent_map_end(em));
+	_ON(map_start < em->start || map_start >= extent_map_end(em));
 
 	if (existing->start > map_start) {
 		next = existing;

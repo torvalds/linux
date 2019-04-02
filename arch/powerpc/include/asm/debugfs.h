@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_DEBUGFS_H
-#define _ASM_POWERPC_DEBUGFS_H
+#ifndef _ASM_POWERPC_DEFS_H
+#define _ASM_POWERPC_DEFS_H
 
 /*
  * Copyright 2017, Michael Ellerman, IBM Corporation.
@@ -10,8 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-extern struct dentry *powerpc_debugfs_root;
+extern struct dentry *powerpc_defs_root;
 
-#endif /* _ASM_POWERPC_DEBUGFS_H */
+#endif /* _ASM_POWERPC_DEFS_H */

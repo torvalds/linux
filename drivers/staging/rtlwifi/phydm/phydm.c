@@ -531,7 +531,7 @@ void odm_dm_reset(struct phy_dm_struct *dm)
 	phydm_set_edcca_threshold_api(dm, dig_tab->cur_ig_value);
 }
 
-void phydm_support_ability_debug(void *dm_void, u32 *const dm_value, u32 *_used,
+void phydm_support_ability_de(void *dm_void, u32 *const dm_value, u32 *_used,
 				 char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -1094,11 +1094,11 @@ void odm_cmn_info_update(struct phy_dm_struct *dm, u32 cmn_info, u64 value)
 		break;
 
 	case ODM_CMNINFO_DBG_COMP:
-		dm->debug_components = (u32)value;
+		dm->de_components = (u32)value;
 		break;
 
 	case ODM_CMNINFO_DBG_LEVEL:
-		dm->debug_level = (u32)value;
+		dm->de_level = (u32)value;
 		break;
 	case ODM_CMNINFO_RA_THRESHOLD_HIGH:
 		dm->rate_adaptive.high_rssi_thresh = (u8)value;
@@ -1302,7 +1302,7 @@ static void odm_update_power_training_state(struct phy_dm_struct *dm)
 	ODM_RT_TRACE(dm, ODM_COMP_RA_MASK, "%s()============>\n", __func__);
 	dm->is_change_state = false;
 
-	/* Debug command */
+	/* De command */
 	if (dm->force_power_training_state) {
 		if (dm->force_power_training_state == 1 &&
 		    !dm->is_disable_power_training) {
@@ -1875,7 +1875,7 @@ u8 phydm_nbi_setting(void *dm_void, u32 enable, u32 channel, u32 bw,
 	return set_result;
 }
 
-void phydm_api_debug(void *dm_void, u32 function_map, u32 *const dm_value,
+void phydm_api_de(void *dm_void, u32 function_map, u32 *const dm_value,
 		     u32 *_used, char *output, u32 *_out_len)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;

@@ -26,11 +26,11 @@ config USB_STORAGE
 
 if USB_STORAGE
 
-config USB_STORAGE_DEBUG
-	bool "USB Mass Storage verbose debug"
+config USB_STORAGE_DE
+	bool "USB Mass Storage verbose de"
 	help
 	  Say Y here in order to have the USB Mass Storage code generate
-	  verbose debugging messages.
+	  verbose deging messages.
 
 config USB_STORAGE_REALTEK
 	tristate "Realtek Card Reader support"

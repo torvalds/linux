@@ -28,7 +28,7 @@
 #include "vega20_ppsmc.h"
 #include "smu11_driver_if.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "smu_ucode_xfer_vi.h"
 #include "smu7_smumgr.h"
 #include "vega20_hwmgr.h"

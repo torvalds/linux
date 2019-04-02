@@ -115,7 +115,7 @@ void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
 	append_seq_store(desc, icvsize, LDST_CLASS_2_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "aead null enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -204,7 +204,7 @@ void cnstr_shdsc_aead_null_decap(u32 * const desc, struct alginfo *adata,
 	append_seq_fifo_load(desc, icvsize, FIFOLD_CLASS_CLASS2 |
 			     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "aead null dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -358,7 +358,7 @@ void cnstr_shdsc_aead_encap(u32 * const desc, struct alginfo *cdata,
 	append_seq_store(desc, icvsize, LDST_CLASS_2_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "aead enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
@@ -475,7 +475,7 @@ void cnstr_shdsc_aead_decap(u32 * const desc, struct alginfo *cdata,
 	append_seq_fifo_load(desc, icvsize, FIFOLD_CLASS_CLASS2 |
 			     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "aead dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
@@ -613,7 +613,7 @@ copy_iv:
 	append_seq_store(desc, icvsize, LDST_CLASS_2_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "aead givenc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -742,7 +742,7 @@ void cnstr_shdsc_gcm_encap(u32 * const desc, struct alginfo *cdata,
 	append_seq_store(desc, icvsize, LDST_CLASS_1_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "gcm enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
@@ -838,7 +838,7 @@ void cnstr_shdsc_gcm_decap(u32 * const desc, struct alginfo *cdata,
 	append_seq_fifo_load(desc, icvsize, FIFOLD_CLASS_CLASS1 |
 			     FIFOLD_TYPE_ICV | FIFOLD_TYPE_LAST1);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "gcm dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
@@ -933,7 +933,7 @@ void cnstr_shdsc_rfc4106_encap(u32 * const desc, struct alginfo *cdata,
 	append_seq_store(desc, icvsize, LDST_CLASS_1_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "rfc4106 enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1030,7 +1030,7 @@ void cnstr_shdsc_rfc4106_decap(u32 * const desc, struct alginfo *cdata,
 	append_seq_fifo_load(desc, icvsize, FIFOLD_CLASS_CLASS1 |
 			     FIFOLD_TYPE_ICV | FIFOLD_TYPE_LAST1);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "rfc4106 dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1115,7 +1115,7 @@ void cnstr_shdsc_rfc4543_encap(u32 * const desc, struct alginfo *cdata,
 	append_seq_store(desc, icvsize, LDST_CLASS_1_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "rfc4543 enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1205,7 +1205,7 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 	append_seq_fifo_load(desc, icvsize, FIFOLD_CLASS_CLASS1 |
 			     FIFOLD_TYPE_ICV | FIFOLD_TYPE_LAST1);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "rfc4543 dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1340,7 +1340,7 @@ void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
 				     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_ICV);
 	}
 
-	print_hex_dump_debug("chachapoly shdesc@" __stringify(__LINE__)": ",
+	print_hex_dump_de("chachapoly shdesc@" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
 			     1);
 }
@@ -1416,7 +1416,7 @@ void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
 	/* Perform operation */
 	skcipher_append_src_dst(desc);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "skcipher enc shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1487,7 +1487,7 @@ void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
 	/* Perform operation */
 	skcipher_append_src_dst(desc);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "skcipher dec shdesc@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1538,7 +1538,7 @@ void cnstr_shdsc_xts_skcipher_encap(u32 * const desc, struct alginfo *cdata)
 	/* Perform operation */
 	skcipher_append_src_dst(desc);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "xts skcipher enc shdesc@" __stringify(__LINE__) ": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1588,7 +1588,7 @@ void cnstr_shdsc_xts_skcipher_decap(u32 * const desc, struct alginfo *cdata)
 	/* Perform operation */
 	skcipher_append_src_dst(desc);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "xts skcipher dec shdesc@" __stringify(__LINE__) ": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);

@@ -258,16 +258,16 @@ enum {
 /* check the EROFS on-disk layout strictly at compile time */
 static inline void erofs_check_ondisk_layout_definitions(void)
 {
-	BUILD_BUG_ON(sizeof(struct erofs_super_block) != 128);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_v1) != 32);
-	BUILD_BUG_ON(sizeof(struct erofs_inode_v2) != 64);
-	BUILD_BUG_ON(sizeof(struct erofs_xattr_ibody_header) != 12);
-	BUILD_BUG_ON(sizeof(struct erofs_xattr_entry) != 4);
-	BUILD_BUG_ON(sizeof(struct erofs_extent_header) != 16);
-	BUILD_BUG_ON(sizeof(struct z_erofs_vle_decompressed_index) != 8);
-	BUILD_BUG_ON(sizeof(struct erofs_dirent) != 12);
+	BUILD__ON(sizeof(struct erofs_super_block) != 128);
+	BUILD__ON(sizeof(struct erofs_inode_v1) != 32);
+	BUILD__ON(sizeof(struct erofs_inode_v2) != 64);
+	BUILD__ON(sizeof(struct erofs_xattr_ibody_header) != 12);
+	BUILD__ON(sizeof(struct erofs_xattr_entry) != 4);
+	BUILD__ON(sizeof(struct erofs_extent_header) != 16);
+	BUILD__ON(sizeof(struct z_erofs_vle_decompressed_index) != 8);
+	BUILD__ON(sizeof(struct erofs_dirent) != 12);
 
-	BUILD_BUG_ON(BIT(Z_EROFS_VLE_DI_CLUSTER_TYPE_BITS) <
+	BUILD__ON(BIT(Z_EROFS_VLE_DI_CLUSTER_TYPE_BITS) <
 		     Z_EROFS_VLE_CLUSTER_TYPE_MAX - 1);
 }
 

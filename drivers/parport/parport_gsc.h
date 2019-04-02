@@ -34,7 +34,7 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 
-#undef	DEBUG_PARPORT	/* undefine for production */
+#undef	DE_PARPORT	/* undefine for production */
 #define DELAY_TIME 	0
 
 #if DELAY_TIME == 0
@@ -84,8 +84,8 @@ struct parport_gsc_private {
 
 static inline void parport_gsc_write_data(struct parport *p, unsigned char d)
 {
-#ifdef DEBUG_PARPORT
-	printk (KERN_DEBUG "parport_gsc_write_data(%p,0x%02x)\n", p, d);
+#ifdef DE_PARPORT
+	printk (KERN_DE "parport_gsc_write_data(%p,0x%02x)\n", p, d);
 #endif
 	parport_writeb(d, DATA(p));
 }
@@ -93,8 +93,8 @@ static inline void parport_gsc_write_data(struct parport *p, unsigned char d)
 static inline unsigned char parport_gsc_read_data(struct parport *p)
 {
 	unsigned char val = parport_readb (DATA (p));
-#ifdef DEBUG_PARPORT
-	printk (KERN_DEBUG "parport_gsc_read_data(%p) = 0x%02x\n",
+#ifdef DE_PARPORT
+	printk (KERN_DE "parport_gsc_read_data(%p) = 0x%02x\n",
 		p, val);
 #endif
 	return val;
@@ -108,8 +108,8 @@ static inline unsigned char __parport_gsc_frob_control(struct parport *p,
 {
 	struct parport_gsc_private *priv = p->physport->private_data;
 	unsigned char ctr = priv->ctr;
-#ifdef DEBUG_PARPORT
-	printk (KERN_DEBUG
+#ifdef DE_PARPORT
+	printk (KERN_DE
 		"__parport_gsc_frob_control(%02x,%02x): %02x -> %02x\n",
 		mask, val, ctr, ((ctr & ~mask) ^ val) & priv->ctr_writable);
 #endif
@@ -140,7 +140,7 @@ static inline void parport_gsc_write_control(struct parport *p,
 
 	/* Take this out when drivers have adapted to newer interface. */
 	if (d & 0x20) {
-		printk (KERN_DEBUG "%s (%s): use data_reverse for this!\n",
+		printk (KERN_DE "%s (%s): use data_reverse for this!\n",
 			p->name, p->cad->name);
 		parport_gsc_data_reverse (p);
 	}
@@ -169,7 +169,7 @@ static inline unsigned char parport_gsc_frob_control(struct parport *p,
 
 	/* Take this out when drivers have adapted to newer interface. */
 	if (mask & 0x20) {
-		printk (KERN_DEBUG "%s (%s): use data_%s for this!\n",
+		printk (KERN_DE "%s (%s): use data_%s for this!\n",
 			p->name, p->cad->name,
 			(val & 0x20) ? "reverse" : "forward");
 		if (val & 0x20)

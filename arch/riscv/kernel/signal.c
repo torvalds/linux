@@ -30,7 +30,7 @@
 #include <asm/switch_to.h>
 #include <asm/csr.h>
 
-#define DEBUG_SIG 0
+#define DE_SIG 0
 
 struct rt_sigframe {
 	struct siginfo info;
@@ -210,7 +210,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	 * Registers that we don't modify keep the value they had from
 	 * user-space at the time we took the signal.
 	 * We always pass siginfo and mcontext, regardless of SA_SIGINFO,
-	 * since some things rely on this (e.g. glibc's debug/segfault.c).
+	 * since some things rely on this (e.g. glibc's de/segfault.c).
 	 */
 	regs->sepc = (unsigned long)ksig->ka.sa.sa_handler;
 	regs->sp = (unsigned long)frame;
@@ -218,7 +218,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->a1 = (unsigned long)(&frame->info); /* a1: siginfo pointer */
 	regs->a2 = (unsigned long)(&frame->uc);   /* a2: ucontext pointer */
 
-#if DEBUG_SIG
+#if DE_SIG
 	pr_info("SIG deliver (%s:%d): sig=%d pc=%p ra=%p sp=%p\n",
 		current->comm, task_pid_nr(current), ksig->sig,
 		(void *)regs->sepc, (void *)regs->ra, frame);

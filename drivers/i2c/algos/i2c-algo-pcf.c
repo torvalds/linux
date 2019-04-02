@@ -31,16 +31,16 @@
 #include "i2c-algo-pcf.h"
 
 
-#define DEB2(x) if (i2c_debug >= 2) x
-#define DEB3(x) if (i2c_debug >= 3) x /* print several statistical values */
-#define DEBPROTO(x) if (i2c_debug >= 9) x;
-	/* debug the protocol by showing transferred bits */
+#define DEB2(x) if (i2c_de >= 2) x
+#define DEB3(x) if (i2c_de >= 3) x /* print several statistical values */
+#define DEBPROTO(x) if (i2c_de >= 9) x;
+	/* de the protocol by showing transferred bits */
 #define DEF_TIMEOUT 16
 
 /*
  * module parameters:
  */
-static int i2c_debug;
+static int i2c_de;
 
 /* setting states on the bus with the right timing: */
 
@@ -55,7 +55,7 @@ static int i2c_debug;
 
 static void i2c_start(struct i2c_algo_pcf_data *adap)
 {
-	DEBPROTO(printk(KERN_DEBUG "S "));
+	DEBPROTO(printk(KERN_DE "S "));
 	set_pcf(adap, 1, I2C_PCF_START);
 }
 
@@ -159,7 +159,7 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 {
 	unsigned char temp;
 
-	DEB3(printk(KERN_DEBUG "i2c-algo-pcf.o: PCF state 0x%02x\n",
+	DEB3(printk(KERN_DE "i2c-algo-pcf.o: PCF state 0x%02x\n",
 				get_pcf(adap, 1)));
 
 	/* S1=0x80: S0 selected, serial interface off */
@@ -206,7 +206,7 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 		return -ENXIO;
 	}
 
-	printk(KERN_DEBUG "i2c-algo-pcf.o: detected and initialized PCF8584.\n");
+	printk(KERN_DE "i2c-algo-pcf.o: detected and initialized PCF8584.\n");
 
 	return 0;
 }
@@ -324,7 +324,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 	for (i = 0;ret >= 0 && i < num; i++) {
 		pmsg = &msgs[i];
 
-		DEB2(printk(KERN_DEBUG "i2c-algo-pcf.o: Doing %s %d bytes to 0x%02x - %d of %d messages\n",
+		DEB2(printk(KERN_DE "i2c-algo-pcf.o: Doing %s %d bytes to 0x%02x - %d of %d messages\n",
 		     pmsg->flags & I2C_M_RD ? "read" : "write",
 		     pmsg->len, pmsg->addr, i + 1, num);)
 
@@ -357,7 +357,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 			goto out;
 		}
 
-		DEB3(printk(KERN_DEBUG "i2c-algo-pcf.o: Msg %d, addr=0x%x, flags=0x%x, len=%d\n",
+		DEB3(printk(KERN_DE "i2c-algo-pcf.o: Msg %d, addr=0x%x, flags=0x%x, len=%d\n",
 			    i, msgs[i].addr, msgs[i].flags, msgs[i].len);)
 
 		if (pmsg->flags & I2C_M_RD) {
@@ -365,20 +365,20 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 					    (i + 1 == num));
 
 			if (ret != pmsg->len) {
-				DEB2(printk(KERN_DEBUG "i2c-algo-pcf.o: fail: "
+				DEB2(printk(KERN_DE "i2c-algo-pcf.o: fail: "
 					    "only read %d bytes.\n",ret));
 			} else {
-				DEB2(printk(KERN_DEBUG "i2c-algo-pcf.o: read %d bytes.\n",ret));
+				DEB2(printk(KERN_DE "i2c-algo-pcf.o: read %d bytes.\n",ret));
 			}
 		} else {
 			ret = pcf_sendbytes(i2c_adap, pmsg->buf, pmsg->len,
 					    (i + 1 == num));
 
 			if (ret != pmsg->len) {
-				DEB2(printk(KERN_DEBUG "i2c-algo-pcf.o: fail: "
+				DEB2(printk(KERN_DE "i2c-algo-pcf.o: fail: "
 					    "only wrote %d bytes.\n",ret));
 			} else {
-				DEB2(printk(KERN_DEBUG "i2c-algo-pcf.o: wrote %d bytes.\n",ret));
+				DEB2(printk(KERN_DE "i2c-algo-pcf.o: wrote %d bytes.\n",ret));
 			}
 		}
 	}
@@ -427,6 +427,6 @@ MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");
 MODULE_DESCRIPTION("I2C-Bus PCF8584 algorithm");
 MODULE_LICENSE("GPL");
 
-module_param(i2c_debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(i2c_debug,
-	"debug level - 0 off; 1 normal; 2,3 more verbose; 9 pcf-protocol");
+module_param(i2c_de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(i2c_de,
+	"de level - 0 off; 1 normal; 2,3 more verbose; 9 pcf-protocol");

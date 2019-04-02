@@ -10,7 +10,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/clockchips.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -57,14 +57,14 @@ EXPORT_SYMBOL(perf_irq);
 unsigned int mips_hpt_frequency;
 EXPORT_SYMBOL_GPL(mips_hpt_frequency);
 
-static __init int cpu_has_mfc0_count_bug(void)
+static __init int cpu_has_mfc0_count_(void)
 {
 	switch (current_cpu_type()) {
 	case CPU_R4000PC:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 		/*
-		 * V3.0 is documented as suffering from the mfc0 from count bug.
+		 * V3.0 is documented as suffering from the mfc0 from count .
 		 * Afaik this is the last version of the R4000.	 Later versions
 		 * were marketed as R4400.
 		 */
@@ -75,7 +75,7 @@ static __init int cpu_has_mfc0_count_bug(void)
 	case CPU_R4400MC:
 		/*
 		 * The published errata for the R4400 up to 3.0 say the CPU
-		 * has the mfc0 from count bug.
+		 * has the mfc0 from count .
 		 */
 		if ((current_cpu_data.processor_id & 0xff) <= 0x30)
 			return 1;
@@ -101,6 +101,6 @@ void __init time_init(void)
 	 * timer interrupt isn't reliable; the interference doesn't
 	 * matter then, because we don't use the interrupt.
 	 */
-	if (mips_clockevent_init() != 0 || !cpu_has_mfc0_count_bug())
+	if (mips_clockevent_init() != 0 || !cpu_has_mfc0_count_())
 		init_mips_clocksource();
 }

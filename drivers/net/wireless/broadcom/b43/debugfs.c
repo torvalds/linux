@@ -2,7 +2,7 @@
 
   Broadcom B43 wireless driver
 
-  debugfs driver debugging code
+  defs driver deging code
 
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
 
@@ -24,7 +24,7 @@
 */
 
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
@@ -32,7 +32,7 @@
 
 #include "b43.h"
 #include "main.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "dma.h"
 #include "xmit.h"
 
@@ -40,7 +40,7 @@
 /* The root directory. */
 static struct dentry *rootdir;
 
-struct b43_debugfs_fops {
+struct b43_defs_fops {
 	ssize_t (*read)(struct b43_wldev *dev, char *buf, size_t bufsize);
 	int (*write)(struct b43_wldev *dev, const char *buf, size_t count);
 	struct file_operations fops;
@@ -50,7 +50,7 @@ struct b43_debugfs_fops {
 
 static inline
 struct b43_dfs_file *fops_to_dfs_file(struct b43_wldev *dev,
-				      const struct b43_debugfs_fops *dfops)
+				      const struct b43_defs_fops *dfops)
 {
 	void *p;
 
@@ -72,7 +72,7 @@ struct b43_dfs_file *fops_to_dfs_file(struct b43_wldev *dev,
 	} while (0)
 
 
-/* The biggest address values for SHM access from the debugfs files. */
+/* The biggest address values for SHM access from the defs files. */
 #define B43_MAX_SHM_ROUTING	4
 #define B43_MAX_SHM_ADDR	0xFFFF
 
@@ -228,7 +228,7 @@ static int shm32write__write_file(struct b43_wldev *dev,
 	return 0;
 }
 
-/* The biggest MMIO address that we allow access to from the debugfs files. */
+/* The biggest MMIO address that we allow access to from the defs files. */
 #define B43_MAX_MMIO_ACCESS	(0xF00 - 1)
 
 static ssize_t mmio16read__read_file(struct b43_wldev *dev,
@@ -500,11 +500,11 @@ out:
 
 #undef fappend
 
-static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
+static ssize_t b43_defs_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
 	struct b43_wldev *dev;
-	struct b43_debugfs_fops *dfops;
+	struct b43_defs_fops *dfops;
 	struct b43_dfs_file *dfile;
 	ssize_t uninitialized_var(ret);
 	char *buf;
@@ -524,8 +524,8 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 		goto out_unlock;
 	}
 
-	dfops = container_of(debugfs_real_fops(file),
-			     struct b43_debugfs_fops, fops);
+	dfops = container_of(defs_real_fops(file),
+			     struct b43_defs_fops, fops);
 	if (!dfops->read) {
 		err = -ENOSYS;
 		goto out_unlock;
@@ -563,12 +563,12 @@ out_unlock:
 	return err ? err : ret;
 }
 
-static ssize_t b43_debugfs_write(struct file *file,
+static ssize_t b43_defs_write(struct file *file,
 				 const char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
 	struct b43_wldev *dev;
-	struct b43_debugfs_fops *dfops;
+	struct b43_defs_fops *dfops;
 	char *buf;
 	int err = 0;
 
@@ -586,8 +586,8 @@ static ssize_t b43_debugfs_write(struct file *file,
 		goto out_unlock;
 	}
 
-	dfops = container_of(debugfs_real_fops(file),
-			     struct b43_debugfs_fops, fops);
+	dfops = container_of(defs_real_fops(file),
+			     struct b43_defs_fops, fops);
 	if (!dfops->write) {
 		err = -ENOSYS;
 		goto out_unlock;
@@ -615,81 +615,81 @@ out_unlock:
 }
 
 
-#define B43_DEBUGFS_FOPS(name, _read, _write)			\
-	static struct b43_debugfs_fops fops_##name = {		\
+#define B43_DEFS_FOPS(name, _read, _write)			\
+	static struct b43_defs_fops fops_##name = {		\
 		.read	= _read,				\
 		.write	= _write,				\
 		.fops	= {					\
 			.open	= simple_open,			\
-			.read	= b43_debugfs_read,		\
-			.write	= b43_debugfs_write,		\
+			.read	= b43_defs_read,		\
+			.write	= b43_defs_write,		\
 			.llseek = generic_file_llseek,		\
 		},						\
 		.file_struct_offset = offsetof(struct b43_dfsentry, \
 					       file_##name),	\
 	}
 
-B43_DEBUGFS_FOPS(shm16read, shm16read__read_file, shm16read__write_file);
-B43_DEBUGFS_FOPS(shm16write, NULL, shm16write__write_file);
-B43_DEBUGFS_FOPS(shm32read, shm32read__read_file, shm32read__write_file);
-B43_DEBUGFS_FOPS(shm32write, NULL, shm32write__write_file);
-B43_DEBUGFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file);
-B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file);
-B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file);
-B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file);
-B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL);
-B43_DEBUGFS_FOPS(restart, NULL, restart_write_file);
-B43_DEBUGFS_FOPS(loctls, loctls_read_file, NULL);
+B43_DEFS_FOPS(shm16read, shm16read__read_file, shm16read__write_file);
+B43_DEFS_FOPS(shm16write, NULL, shm16write__write_file);
+B43_DEFS_FOPS(shm32read, shm32read__read_file, shm32read__write_file);
+B43_DEFS_FOPS(shm32write, NULL, shm32write__write_file);
+B43_DEFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file);
+B43_DEFS_FOPS(mmio16write, NULL, mmio16write__write_file);
+B43_DEFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file);
+B43_DEFS_FOPS(mmio32write, NULL, mmio32write__write_file);
+B43_DEFS_FOPS(txstat, txstat_read_file, NULL);
+B43_DEFS_FOPS(restart, NULL, restart_write_file);
+B43_DEFS_FOPS(loctls, loctls_read_file, NULL);
 
 
-bool b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature)
+bool b43_de(struct b43_wldev *dev, enum b43_dyndbg feature)
 {
 	bool enabled;
 
-	enabled = (dev->dfsentry && dev->dfsentry->dyn_debug[feature]);
+	enabled = (dev->dfsentry && dev->dfsentry->dyn_de[feature]);
 	if (unlikely(enabled)) {
-		/* Force full debugging messages, if the user enabled
-		 * some dynamic debugging feature. */
+		/* Force full deging messages, if the user enabled
+		 * some dynamic deging feature. */
 		b43_modparam_verbose = B43_VERBOSITY_MAX;
 	}
 
 	return enabled;
 }
 
-static void b43_remove_dynamic_debug(struct b43_wldev *dev)
+static void b43_remove_dynamic_de(struct b43_wldev *dev)
 {
 	struct b43_dfsentry *e = dev->dfsentry;
 	int i;
 
 	for (i = 0; i < __B43_NR_DYNDBG; i++)
-		debugfs_remove(e->dyn_debug_dentries[i]);
+		defs_remove(e->dyn_de_dentries[i]);
 }
 
-static void b43_add_dynamic_debug(struct b43_wldev *dev)
+static void b43_add_dynamic_de(struct b43_wldev *dev)
 {
 	struct b43_dfsentry *e = dev->dfsentry;
 
 #define add_dyn_dbg(name, id, initstate) do {			\
-	e->dyn_debug[id] = (initstate);				\
-	e->dyn_debug_dentries[id] =				\
-		debugfs_create_bool(name, 0600, e->subdir,	\
-				&(e->dyn_debug[id]));		\
+	e->dyn_de[id] = (initstate);				\
+	e->dyn_de_dentries[id] =				\
+		defs_create_bool(name, 0600, e->subdir,	\
+				&(e->dyn_de[id]));		\
 	} while (0)
 
-	add_dyn_dbg("debug_xmitpower", B43_DBG_XMITPOWER, false);
-	add_dyn_dbg("debug_dmaoverflow", B43_DBG_DMAOVERFLOW, false);
-	add_dyn_dbg("debug_dmaverbose", B43_DBG_DMAVERBOSE, false);
-	add_dyn_dbg("debug_pwork_fast", B43_DBG_PWORK_FAST, false);
-	add_dyn_dbg("debug_pwork_stop", B43_DBG_PWORK_STOP, false);
-	add_dyn_dbg("debug_lo", B43_DBG_LO, false);
-	add_dyn_dbg("debug_firmware", B43_DBG_FIRMWARE, false);
-	add_dyn_dbg("debug_keys", B43_DBG_KEYS, false);
-	add_dyn_dbg("debug_verbose_stats", B43_DBG_VERBOSESTATS, false);
+	add_dyn_dbg("de_xmitpower", B43_DBG_XMITPOWER, false);
+	add_dyn_dbg("de_dmaoverflow", B43_DBG_DMAOVERFLOW, false);
+	add_dyn_dbg("de_dmaverbose", B43_DBG_DMAVERBOSE, false);
+	add_dyn_dbg("de_pwork_fast", B43_DBG_PWORK_FAST, false);
+	add_dyn_dbg("de_pwork_stop", B43_DBG_PWORK_STOP, false);
+	add_dyn_dbg("de_lo", B43_DBG_LO, false);
+	add_dyn_dbg("de_firmware", B43_DBG_FIRMWARE, false);
+	add_dyn_dbg("de_keys", B43_DBG_KEYS, false);
+	add_dyn_dbg("de_verbose_stats", B43_DBG_VERBOSESTATS, false);
 
 #undef add_dyn_dbg
 }
 
-void b43_debugfs_add_device(struct b43_wldev *dev)
+void b43_defs_add_device(struct b43_wldev *dev)
 {
 	struct b43_dfsentry *e;
 	struct b43_txstatus_log *log;
@@ -698,7 +698,7 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	B43_WARN_ON(!dev);
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e) {
-		b43err(dev->wl, "debugfs: add device OOM\n");
+		b43err(dev->wl, "defs: add device OOM\n");
 		return;
 	}
 	e->dev = dev;
@@ -706,7 +706,7 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	log->log = kcalloc(B43_NR_LOGGED_TXSTATUS,
 			   sizeof(struct b43_txstatus), GFP_KERNEL);
 	if (!log->log) {
-		b43err(dev->wl, "debugfs: add device txstatus OOM\n");
+		b43err(dev->wl, "defs: add device txstatus OOM\n");
 		kfree(e);
 		return;
 	}
@@ -715,7 +715,7 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	dev->dfsentry = e;
 
 	snprintf(devdir, sizeof(devdir), "%s", wiphy_name(dev->wl->hw->wiphy));
-	e->subdir = debugfs_create_dir(devdir, rootdir);
+	e->subdir = defs_create_dir(devdir, rootdir);
 
 	e->mmio16read_next = 0xFFFF; /* invalid address */
 	e->mmio32read_next = 0xFFFF; /* invalid address */
@@ -727,7 +727,7 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 #define ADD_FILE(name, mode)	\
 	do {							\
 		e->file_##name.dentry =				\
-			debugfs_create_file(__stringify(name),	\
+			defs_create_file(__stringify(name),	\
 					mode, e->subdir, dev,	\
 					&fops_##name.fops);	\
 	} while (0)
@@ -747,10 +747,10 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 
 #undef ADD_FILE
 
-	b43_add_dynamic_debug(dev);
+	b43_add_dynamic_de(dev);
 }
 
-void b43_debugfs_remove_device(struct b43_wldev *dev)
+void b43_defs_remove_device(struct b43_wldev *dev)
 {
 	struct b43_dfsentry *e;
 
@@ -759,26 +759,26 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 	e = dev->dfsentry;
 	if (!e)
 		return;
-	b43_remove_dynamic_debug(dev);
+	b43_remove_dynamic_de(dev);
 
-	debugfs_remove(e->file_shm16read.dentry);
-	debugfs_remove(e->file_shm16write.dentry);
-	debugfs_remove(e->file_shm32read.dentry);
-	debugfs_remove(e->file_shm32write.dentry);
-	debugfs_remove(e->file_mmio16read.dentry);
-	debugfs_remove(e->file_mmio16write.dentry);
-	debugfs_remove(e->file_mmio32read.dentry);
-	debugfs_remove(e->file_mmio32write.dentry);
-	debugfs_remove(e->file_txstat.dentry);
-	debugfs_remove(e->file_restart.dentry);
-	debugfs_remove(e->file_loctls.dentry);
+	defs_remove(e->file_shm16read.dentry);
+	defs_remove(e->file_shm16write.dentry);
+	defs_remove(e->file_shm32read.dentry);
+	defs_remove(e->file_shm32write.dentry);
+	defs_remove(e->file_mmio16read.dentry);
+	defs_remove(e->file_mmio16write.dentry);
+	defs_remove(e->file_mmio32read.dentry);
+	defs_remove(e->file_mmio32write.dentry);
+	defs_remove(e->file_txstat.dentry);
+	defs_remove(e->file_restart.dentry);
+	defs_remove(e->file_loctls.dentry);
 
-	debugfs_remove(e->subdir);
+	defs_remove(e->subdir);
 	kfree(e->txstatlog.log);
 	kfree(e);
 }
 
-void b43_debugfs_log_txstat(struct b43_wldev *dev,
+void b43_defs_log_txstat(struct b43_wldev *dev,
 			    const struct b43_txstatus *status)
 {
 	struct b43_dfsentry *e = dev->dfsentry;
@@ -797,12 +797,12 @@ void b43_debugfs_log_txstat(struct b43_wldev *dev,
 	memcpy(cur, status, sizeof(*cur));
 }
 
-void b43_debugfs_init(void)
+void b43_defs_init(void)
 {
-	rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	rootdir = defs_create_dir(KBUILD_MODNAME, NULL);
 }
 
-void b43_debugfs_exit(void)
+void b43_defs_exit(void)
 {
-	debugfs_remove(rootdir);
+	defs_remove(rootdir);
 }

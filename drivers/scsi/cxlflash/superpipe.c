@@ -577,7 +577,7 @@ int cxlflash_lun_attach(struct glun_info *gli, enum lun_mode mode, bool locked)
 	if (gli->mode == MODE_NONE)
 		gli->mode = mode;
 	else if (gli->mode != mode) {
-		pr_debug("%s: gli_mode=%d requested_mode=%d\n",
+		pr_de("%s: gli_mode=%d requested_mode=%d\n",
 			 __func__, gli->mode, mode);
 		rc = -EINVAL;
 		goto out;
@@ -586,7 +586,7 @@ int cxlflash_lun_attach(struct glun_info *gli, enum lun_mode mode, bool locked)
 	gli->users++;
 	WARN_ON(gli->users <= 0);
 out:
-	pr_debug("%s: Returning rc=%d gli->mode=%u gli->users=%u\n",
+	pr_de("%s: Returning rc=%d gli->mode=%u gli->users=%u\n",
 		 __func__, rc, gli->mode, gli->users);
 	if (!locked)
 		mutex_unlock(&gli->mutex);
@@ -611,7 +611,7 @@ void cxlflash_lun_detach(struct glun_info *gli)
 		gli->mode = MODE_NONE;
 		cxlflash_ba_terminate(&gli->blka.ba_lun);
 	}
-	pr_debug("%s: gli->users=%u\n", __func__, gli->users);
+	pr_de("%s: gli->users=%u\n", __func__, gli->users);
 	WARN_ON(gli->users < 0);
 	mutex_unlock(&gli->mutex);
 }

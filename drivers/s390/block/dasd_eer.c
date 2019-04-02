@@ -146,7 +146,7 @@ static void dasd_eer_write_buffer(struct eerbuffer *eerb,
 		eerb->head += len;
 		if (eerb->head == eerb->buffersize)
 			eerb->head = 0; /* wrap around */
-		BUG_ON(eerb->head > eerb->buffersize);
+		_ON(eerb->head > eerb->buffersize);
 	}
 }
 
@@ -173,7 +173,7 @@ static int dasd_eer_read_buffer(struct eerbuffer *eerb, char *data, int count)
 		eerb->tail += len;
 		if (eerb->tail == eerb->buffersize)
 			eerb->tail = 0; /* wrap around */
-		BUG_ON(eerb->tail > eerb->buffersize);
+		_ON(eerb->tail > eerb->buffersize);
 	}
 	return finalcount;
 }

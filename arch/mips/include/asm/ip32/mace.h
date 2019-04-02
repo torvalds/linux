@@ -117,7 +117,7 @@ struct mace_ethernet {
 	volatile unsigned long mac_addr2;
 	volatile unsigned long mcast_filter;
 	volatile unsigned long tx_ring_base;
-	/* Following are read-only registers for debugging */
+	/* Following are read-only registers for deging */
 	volatile unsigned long tx_pkt1_hdr;
 	volatile unsigned long tx_pkt1_ptr[3];
 	volatile unsigned long tx_pkt2_hdr;

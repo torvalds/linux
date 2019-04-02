@@ -329,7 +329,7 @@ static int lvt_off_valid(struct threshold_block *b, int apic, u32 lo, u32 hi)
 	int msr = (hi & MASK_LVTOFF_HI) >> 20;
 
 	if (apic < 0) {
-		pr_err(FW_BUG "cpu %d, failed to setup threshold interrupt "
+		pr_err(FW_ "cpu %d, failed to setup threshold interrupt "
 		       "for bank %d, block %d (MSR%08X=0x%x%08x)\n", b->cpu,
 		       b->bank, b->block, b->address, hi, lo);
 		return 0;
@@ -344,7 +344,7 @@ static int lvt_off_valid(struct threshold_block *b, int apic, u32 lo, u32 hi)
 		if (mce_flags.smca)
 			return 0;
 
-		pr_err(FW_BUG "cpu %d, invalid threshold interrupt offset %d "
+		pr_err(FW_ "cpu %d, invalid threshold interrupt offset %d "
 		       "for bank %d, block %d (MSR%08X=0x%x%08x)\n",
 		       b->cpu, apic, b->bank, b->block, b->address, hi, lo);
 		return 0;
@@ -439,7 +439,7 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 
 	def_new = (low & MASK_DEF_LVTOFF) >> 4;
 	if (!(low & MASK_DEF_LVTOFF)) {
-		pr_err(FW_BUG "Your BIOS is not setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
+		pr_err(FW_ "Your BIOS is not setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
 		def_new = DEF_LVT_OFF;
 		low = (low & ~MASK_DEF_LVTOFF) | (DEF_LVT_OFF << 4);
 	}

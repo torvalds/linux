@@ -167,7 +167,7 @@ static inline void sk_msg_clear_meta(struct sk_msg *msg)
 
 static inline void sk_msg_init(struct sk_msg *msg)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(msg->sg.data) - 1 != MAX_MSG_FRAGS);
+	BUILD__ON(ARRAY_SIZE(msg->sg.data) - 1 != MAX_MSG_FRAGS);
 	memset(msg, 0, sizeof(*msg));
 	sg_init_marker(msg->sg.data, MAX_MSG_FRAGS);
 }

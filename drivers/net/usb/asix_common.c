@@ -27,7 +27,7 @@ int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, void *, u16);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!in_pm)
 		fn = usbnet_read_cmd;
@@ -50,7 +50,7 @@ int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, const void *, u16);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!in_pm)
 		fn = usbnet_write_cmd;

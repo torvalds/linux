@@ -865,7 +865,7 @@ static int rockchip_pcie_wait_l2(struct rockchip_pcie *rockchip)
 	writel(0x0, rockchip->msg_region + PCIE_RC_SEND_PME_OFF);
 
 	/* read LTSSM and wait for falling into L2 link state */
-	err = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_DEBUG_OUT_0,
+	err = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_DE_OUT_0,
 				 value, PCIE_LINK_IS_L2(value), 20,
 				 jiffies_to_usecs(5 * HZ));
 	if (err) {

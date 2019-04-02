@@ -40,7 +40,7 @@
 #define HDMI_CEC_DEV_ID                         0x900
 #define HDMI_CEC_SPEC                           0x904
 
-/* Not really a debug register, more a low-level control register */
+/* Not really a de register, more a low-level control register */
 #define HDMI_CEC_DBG_3                          0x91C
 #define HDMI_CEC_TX_INIT                        0x920
 #define HDMI_CEC_TX_DEST                        0x924

@@ -31,7 +31,7 @@ extern const unsigned char arm64_relocate_new_kernel[];
 extern const unsigned long arm64_relocate_new_kernel_size;
 
 /**
- * kexec_image_info - For debugging output.
+ * kexec_image_info - For deging output.
  */
 #define kexec_image_info(_i) _kexec_image_info(__func__, __LINE__, _i)
 static void _kexec_image_info(const char *func, int line,
@@ -39,15 +39,15 @@ static void _kexec_image_info(const char *func, int line,
 {
 	unsigned long i;
 
-	pr_debug("%s:%d:\n", func, line);
-	pr_debug("  kexec kimage info:\n");
-	pr_debug("    type:        %d\n", kimage->type);
-	pr_debug("    start:       %lx\n", kimage->start);
-	pr_debug("    head:        %lx\n", kimage->head);
-	pr_debug("    nr_segments: %lu\n", kimage->nr_segments);
+	pr_de("%s:%d:\n", func, line);
+	pr_de("  kexec kimage info:\n");
+	pr_de("    type:        %d\n", kimage->type);
+	pr_de("    start:       %lx\n", kimage->start);
+	pr_de("    head:        %lx\n", kimage->head);
+	pr_de("    nr_segments: %lu\n", kimage->nr_segments);
 
 	for (i = 0; i < kimage->nr_segments; i++) {
-		pr_debug("      segment[%lu]: %016lx - %016lx, 0x%lx bytes, %lu pages\n",
+		pr_de("      segment[%lu]: %016lx - %016lx, 0x%lx bytes, %lu pages\n",
 			i,
 			kimage->segment[i].mem,
 			kimage->segment[i].mem + kimage->segment[i].memsz,
@@ -112,7 +112,7 @@ static void kexec_list_flush(struct kimage *kimage)
 		case IND_DESTINATION:
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 }
@@ -124,10 +124,10 @@ static void kexec_segment_flush(const struct kimage *kimage)
 {
 	unsigned long i;
 
-	pr_debug("%s:\n", __func__);
+	pr_de("%s:\n", __func__);
 
 	for (i = 0; i < kimage->nr_segments; i++) {
-		pr_debug("  segment[%lu]: %016lx - %016lx, 0x%lx bytes, %lu pages\n",
+		pr_de("  segment[%lu]: %016lx - %016lx, 0x%lx bytes, %lu pages\n",
 			i,
 			kimage->segment[i].mem,
 			kimage->segment[i].mem + kimage->segment[i].memsz,
@@ -154,7 +154,7 @@ void machine_kexec(struct kimage *kimage)
 	/*
 	 * New cpus may have become stuck_in_kernel after we loaded the image.
 	 */
-	BUG_ON(!in_kexec_crash && (stuck_cpus || (num_online_cpus() > 1)));
+	_ON(!in_kexec_crash && (stuck_cpus || (num_online_cpus() > 1)));
 	WARN(in_kexec_crash && (stuck_cpus || smp_crash_stop_failed()),
 		"Some CPUs may be stale, kdump will be unreliable.\n");
 
@@ -163,15 +163,15 @@ void machine_kexec(struct kimage *kimage)
 
 	kexec_image_info(kimage);
 
-	pr_debug("%s:%d: control_code_page:        %p\n", __func__, __LINE__,
+	pr_de("%s:%d: control_code_page:        %p\n", __func__, __LINE__,
 		kimage->control_code_page);
-	pr_debug("%s:%d: reboot_code_buffer_phys:  %pa\n", __func__, __LINE__,
+	pr_de("%s:%d: reboot_code_buffer_phys:  %pa\n", __func__, __LINE__,
 		&reboot_code_buffer_phys);
-	pr_debug("%s:%d: reboot_code_buffer:       %p\n", __func__, __LINE__,
+	pr_de("%s:%d: reboot_code_buffer:       %p\n", __func__, __LINE__,
 		reboot_code_buffer);
-	pr_debug("%s:%d: relocate_new_kernel:      %p\n", __func__, __LINE__,
+	pr_de("%s:%d: relocate_new_kernel:      %p\n", __func__, __LINE__,
 		arm64_relocate_new_kernel);
-	pr_debug("%s:%d: relocate_new_kernel_size: 0x%lx(%lu) bytes\n",
+	pr_de("%s:%d: relocate_new_kernel_size: 0x%lx(%lu) bytes\n",
 		__func__, __LINE__, arm64_relocate_new_kernel_size,
 		arm64_relocate_new_kernel_size);
 
@@ -224,7 +224,7 @@ void machine_kexec(struct kimage *kimage)
 						0);
 #endif
 
-	BUG(); /* Should never get here. */
+	(); /* Should never get here. */
 }
 
 static void machine_kexec_mask_interrupts(void)

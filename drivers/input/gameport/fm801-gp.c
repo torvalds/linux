@@ -107,7 +107,7 @@ static int fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	gp->gameport = port;
 	gp->res_port = request_region(port->io, 0x10, "FM801 GP");
 	if (!gp->res_port) {
-		printk(KERN_DEBUG "fm801-gp: unable to grab region 0x%x-0x%x\n",
+		printk(KERN_DE "fm801-gp: unable to grab region 0x%x-0x%x\n",
 			port->io, port->io + 0x0f);
 		error = -EBUSY;
 		goto err_out_disable_dev;

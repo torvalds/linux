@@ -289,7 +289,7 @@ static void sisfb_get_vga_mode_from_kernel(void)
 					screen_info.lfb_height,
 					mydepth);
 
-		printk(KERN_DEBUG
+		printk(KERN_DE
 			"sisfb: Using vga mode %s pre-set by kernel as default\n",
 			mymode);
 
@@ -358,7 +358,7 @@ sisfb_search_specialtiming(const char *name)
 
 	if(!strncasecmp(name, "none", 4)) {
 		sisfb_specialtiming = CUT_FORCENONE;
-		printk(KERN_DEBUG "sisfb: Special timing disabled\n");
+		printk(KERN_DE "sisfb: Special timing disabled\n");
 	} else {
 		while(mycustomttable[i].chipID != 0) {
 			if(!strncasecmp(name,mycustomttable[i].optionName,
@@ -435,10 +435,10 @@ static void sisfb_detect_custom_timing(struct sis_video_info *ivideo)
 			}
 			if(footprint) {
 				ivideo->SiS_Pr.SiS_CustomT = mycustomttable[i].SpecialID;
-				printk(KERN_DEBUG "sisfb: Identified [%s %s], special timing applies\n",
+				printk(KERN_DE "sisfb: Identified [%s %s], special timing applies\n",
 					mycustomttable[i].vendorName,
 				mycustomttable[i].cardName);
-				printk(KERN_DEBUG "sisfb: [specialtiming parameter name: %s]\n",
+				printk(KERN_DE "sisfb: [specialtiming parameter name: %s]\n",
 					mycustomttable[i].optionName);
 				break;
 			}
@@ -456,7 +456,7 @@ static bool sisfb_interpret_edid(struct sisfb_monitor *monitor, u8 *buffer)
 	   buffer[2] != 0xff || buffer[3] != 0xff ||
 	   buffer[4] != 0xff || buffer[5] != 0xff ||
 	   buffer[6] != 0xff || buffer[7] != 0x00) {
-		printk(KERN_DEBUG "sisfb: Bad EDID header\n");
+		printk(KERN_DE "sisfb: Bad EDID header\n");
 		return false;
 	}
 
@@ -1538,7 +1538,7 @@ sisfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		   search_idx++;
 		}
 		if(found_mode) {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"sisfb: Adapted from %dx%dx%d to %dx%dx%d\n",
 				var->xres, var->yres, var->bits_per_pixel,
 				sisbios_mode[search_idx].xres,
@@ -2965,7 +2965,7 @@ static void sisfb_detect_lcd_type(struct sis_video_info *ivideo)
 		ivideo->CRT2LCDType = LCD_1024x768;
 		SiS_SetRegANDOR(SISCR, 0x36, 0xf0, 0x02);
 		SiS_SetRegANDOR(SISCR, 0x37, 0xee, 0x01);
-		printk(KERN_DEBUG "sisfb: Invalid panel ID (%02x), assuming 1024x768, RGB18\n", reg);
+		printk(KERN_DE "sisfb: Invalid panel ID (%02x), assuming 1024x768, RGB18\n", reg);
 	}
 
 	for(i = 0; i < SIS_LCD_NUMBER; i++) {
@@ -2990,7 +2990,7 @@ static void sisfb_detect_lcd_type(struct sis_video_info *ivideo)
 	}
 #endif
 
-	printk(KERN_DEBUG "sisfb: Detected %dx%d flat panel\n",
+	printk(KERN_DE "sisfb: Detected %dx%d flat panel\n",
 			ivideo->lcdxres, ivideo->lcdyres);
 }
 
@@ -4519,7 +4519,7 @@ static void sisfb_post_sis300(struct pci_dev *pdev)
 			sisfb_post_300_ramsize(pdev, mapsize);
 			iounmap(ivideo->video_vbase);
 		} else {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"sisfb: Failed to map memory for size detection, assuming 8MB\n");
 			SiS_SetReg(SISSR, 0x13, 0x28);  /* ? */
 			SiS_SetReg(SISSR, 0x14, 0x47);  /* 8MB, 64bit default */
@@ -5796,16 +5796,16 @@ static int sisfb_post_xgi(struct pci_dev *pdev)
 	}
 
 #if 0
-	printk(KERN_DEBUG "-----------------\n");
+	printk(KERN_DE "-----------------\n");
 	for(i = 0; i < 0xff; i++) {
 		reg = SiS_GetReg(SISCR, i);
-		printk(KERN_DEBUG "CR%02x(%x) = 0x%02x\n", i, SISCR, reg);
+		printk(KERN_DE "CR%02x(%x) = 0x%02x\n", i, SISCR, reg);
 	}
 	for(i = 0; i < 0x40; i++) {
 		reg = SiS_GetReg(SISSR, i);
-		printk(KERN_DEBUG "SR%02x(%x) = 0x%02x\n", i, SISSR, reg);
+		printk(KERN_DE "SR%02x(%x) = 0x%02x\n", i, SISSR, reg);
 	}
-	printk(KERN_DEBUG "-----------------\n");
+	printk(KERN_DE "-----------------\n");
 #endif
 
 	/* Sense CRT1 */
@@ -5926,9 +5926,9 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if(ivideo->sisvga_enabled)
 			ivideo->sisfb_was_boot_device = 1;
 		else {
-			printk(KERN_DEBUG "sisfb: PCI device is disabled, "
+			printk(KERN_DE "sisfb: PCI device is disabled, "
 				"but marked as boot video device ???\n");
-			printk(KERN_DEBUG "sisfb: I will not accept this "
+			printk(KERN_DE "sisfb: I will not accept this "
 				"as the primary VGA device\n");
 		}
 	}
@@ -6064,7 +6064,7 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if(mychswtable[i].subsysVendor == ivideo->subsysvendor &&
 			   mychswtable[i].subsysCard   == ivideo->subsysdevice) {
 				ivideo->SiS_Pr.SiS_ChSW = true;
-				printk(KERN_DEBUG "sisfb: Identified [%s %s] "
+				printk(KERN_DE "sisfb: Identified [%s %s] "
 					"requiring Chrontel/GPIO setup\n",
 					mychswtable[i].vendorName,
 					mychswtable[i].cardName);
@@ -6491,7 +6491,7 @@ error_3:	vfree(ivideo->bios_abase);
 
 		fb_alloc_cmap(&sis_fb_info->cmap, 256 , 0);
 
-		printk(KERN_DEBUG "sisfb: Initial vbflags 0x%x\n", (int)ivideo->vbflags);
+		printk(KERN_DE "sisfb: Initial vbflags 0x%x\n", (int)ivideo->vbflags);
 
 		ivideo->wc_cookie = arch_phys_wc_add(ivideo->video_base,
 						     ivideo->video_size);
@@ -6718,7 +6718,7 @@ static int __init sisfb_init_module(void)
 static void __exit sisfb_remove_module(void)
 {
 	pci_unregister_driver(&sisfb_driver);
-	printk(KERN_DEBUG "sisfb: Module unloaded\n");
+	printk(KERN_DE "sisfb: Module unloaded\n");
 }
 
 module_init(sisfb_init_module);

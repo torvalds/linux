@@ -2,7 +2,7 @@
 /* Copyright(c) 2018 Oracle and/or its affiliates. All rights reserved. */
 
 #include <crypto/aead.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <net/xfrm.h>
 
 #include "netdevsim.h"
@@ -283,7 +283,7 @@ void nsim_ipsec_init(struct netdevsim *ns)
 	ns->netdev->features |= NSIM_ESP_FEATURES;
 	ns->netdev->hw_enc_features |= NSIM_ESP_FEATURES;
 
-	ns->ipsec.pfile = debugfs_create_file("ipsec", 0400, ns->ddir, ns,
+	ns->ipsec.pfile = defs_create_file("ipsec", 0400, ns->ddir, ns,
 					      &ipsec_dbg_fops);
 }
 
@@ -294,5 +294,5 @@ void nsim_ipsec_teardown(struct netdevsim *ns)
 	if (ipsec->count)
 		netdev_err(ns->netdev, "tearing down IPsec offload with %d SAs left\n",
 			   ipsec->count);
-	debugfs_remove_recursive(ipsec->pfile);
+	defs_remove_recursive(ipsec->pfile);
 }

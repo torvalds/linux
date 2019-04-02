@@ -24,7 +24,7 @@
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-devattr.h"
 #include "pvrusb2-context.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include "pvrusb2-v4l2.h"
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 #include "pvrusb2-sysfs.h"
@@ -34,17 +34,17 @@
 #define DRIVER_DESC "Hauppauge WinTV-PVR-USB2 MPEG2 Encoder/Tuner"
 #define DRIVER_VERSION "V4L in-tree version"
 
-#define DEFAULT_DEBUG_MASK (PVR2_TRACE_ERROR_LEGS| \
+#define DEFAULT_DE_MASK (PVR2_TRACE_ERROR_LEGS| \
 			    PVR2_TRACE_INFO| \
 			    PVR2_TRACE_STD| \
 			    PVR2_TRACE_TOLERANCE| \
 			    PVR2_TRACE_TRAP| \
 			    0)
 
-int pvrusb2_debug = DEFAULT_DEBUG_MASK;
+int pvrusb2_de = DEFAULT_DE_MASK;
 
-module_param_named(debug,pvrusb2_debug,int,S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug trace mask");
+module_param_named(de,pvrusb2_de,int,S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(de, "De trace mask");
 
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 static struct pvr2_sysfs_class *class_ptr = NULL;
@@ -134,9 +134,9 @@ static int __init pvr_init(void)
 	if (ret == 0)
 		pr_info("pvrusb2: " DRIVER_VERSION ":"
 		       DRIVER_DESC "\n");
-	if (pvrusb2_debug)
-		pr_info("pvrusb2: Debug mask is %d (0x%x)\n",
-		       pvrusb2_debug,pvrusb2_debug);
+	if (pvrusb2_de)
+		pr_info("pvrusb2: De mask is %d (0x%x)\n",
+		       pvrusb2_de,pvrusb2_de);
 
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_init complete");
 

@@ -118,14 +118,14 @@ void *rw_ctl_loop(int ctl_fd)
 			 */
 			global_run_operation = true;
 			pthread_cond_broadcast(&cond_wakeup);
-			pr_debug("Wake up all read/write threads\n");
+			pr_de("Wake up all read/write threads\n");
 		} else if (rlen == 2 && buf[0] == '0') {
 			/*
 			 * If host writes '0' to a control path, read/write
 			 * threads will wait for notification from Host.
 			 */
 			global_run_operation = false;
-			pr_debug("Stop all read/write threads\n");
+			pr_de("Stop all read/write threads\n");
 		} else
 			pr_info("Invalid host notification: %s\n", buf);
 	}

@@ -10,10 +10,10 @@ Keep in mind:
 
 You are using several new parts of the 2.2.x kernel series which
 have not been tested in a large scale. Therefore, you might encounter
-more bugs as usual.
+more s as usual.
 
 - If you connect to an X.25 neighbour not operated by yourself, ASK the
-  other side first. Be prepared that bugs in the protocol implementation
+  other side first. Be prepared that s in the protocol implementation
   might result in problems.
 
 - This implementation has never wiped out my whole hard disk yet. But as

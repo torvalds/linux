@@ -808,7 +808,7 @@ static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 	analogix_dp_set_training_pattern(dp, DP_NONE);
 
 	/*
-	 * Useful for debugging issues with fast link training, disable for more
+	 * Useful for deging issues with fast link training, disable for more
 	 * speed
 	 */
 	if (verify_fast_training) {

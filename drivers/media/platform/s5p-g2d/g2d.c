@@ -559,13 +559,13 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 	g2d_clear_int(dev);
 	clk_disable(dev->gate);
 
-	BUG_ON(ctx == NULL);
+	_ON(ctx == NULL);
 
 	src = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
-	BUG_ON(src == NULL);
-	BUG_ON(dst == NULL);
+	_ON(src == NULL);
+	_ON(dst == NULL);
 
 	dst->timecode = src->timecode;
 	dst->vb2_buf.timestamp = src->vb2_buf.timestamp;

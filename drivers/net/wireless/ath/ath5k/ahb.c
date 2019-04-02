@@ -22,7 +22,7 @@
 #include <linux/etherdevice.h>
 #include <ath25_platform.h>
 #include "ath5k.h"
-#include "debug.h"
+#include "de.h"
 #include "base.h"
 #include "reg.h"
 

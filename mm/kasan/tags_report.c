@@ -34,7 +34,7 @@
 #include "kasan.h"
 #include "../slab.h"
 
-const char *get_bug_type(struct kasan_access_info *info)
+const char *get__type(struct kasan_access_info *info)
 {
 	return "invalid-access";
 }

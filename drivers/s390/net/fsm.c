@@ -83,7 +83,7 @@ kfree_fsm(fsm_instance *this)
 			"fsm: kfree_fsm called with NULL argument\n");
 }
 
-#if FSM_DEBUG_HISTORY
+#if FSM_DE_HISTORY
 void
 fsm_print_history(fsm_instance *fi)
 {
@@ -93,16 +93,16 @@ fsm_print_history(fsm_instance *fi)
 	if (fi->history_size >= FSM_HISTORY_SIZE)
 		idx = fi->history_index;
 
-	printk(KERN_DEBUG "fsm(%s): History:\n", fi->name);
+	printk(KERN_DE "fsm(%s): History:\n", fi->name);
 	for (i = 0; i < fi->history_size; i++) {
 		int e = fi->history[idx].event;
 		int s = fi->history[idx++].state;
 		idx %= FSM_HISTORY_SIZE;
 		if (e == -1)
-			printk(KERN_DEBUG "  S=%s\n",
+			printk(KERN_DE "  S=%s\n",
 			       fi->f->state_names[s]);
 		else
-			printk(KERN_DEBUG "  S=%s E=%s\n",
+			printk(KERN_DE "  S=%s E=%s\n",
 			       fi->f->state_names[s],
 			       fi->f->event_names[e]);
 	}
@@ -133,8 +133,8 @@ static void
 fsm_expire_timer(struct timer_list *t)
 {
 	fsm_timer *this = from_timer(this, t, tl);
-#if FSM_TIMER_DEBUG
-	printk(KERN_DEBUG "fsm(%s): Timer %p expired\n",
+#if FSM_TIMER_DE
+	printk(KERN_DE "fsm(%s): Timer %p expired\n",
 	       this->fi->name, this);
 #endif
 	fsm_event(this->fi, this->expire_event, this->event_arg);
@@ -144,8 +144,8 @@ void
 fsm_settimer(fsm_instance *fi, fsm_timer *this)
 {
 	this->fi = fi;
-#if FSM_TIMER_DEBUG
-	printk(KERN_DEBUG "fsm(%s): Create timer %p\n", fi->name,
+#if FSM_TIMER_DE
+	printk(KERN_DE "fsm(%s): Create timer %p\n", fi->name,
 	       this);
 #endif
 	timer_setup(&this->tl, fsm_expire_timer, 0);
@@ -154,8 +154,8 @@ fsm_settimer(fsm_instance *fi, fsm_timer *this)
 void
 fsm_deltimer(fsm_timer *this)
 {
-#if FSM_TIMER_DEBUG
-	printk(KERN_DEBUG "fsm(%s): Delete timer %p\n", this->fi->name,
+#if FSM_TIMER_DE
+	printk(KERN_DE "fsm(%s): Delete timer %p\n", this->fi->name,
 		this);
 #endif
 	del_timer(&this->tl);
@@ -165,8 +165,8 @@ int
 fsm_addtimer(fsm_timer *this, int millisec, int event, void *arg)
 {
 
-#if FSM_TIMER_DEBUG
-	printk(KERN_DEBUG "fsm(%s): Add timer %p %dms\n",
+#if FSM_TIMER_DE
+	printk(KERN_DE "fsm(%s): Add timer %p %dms\n",
 	       this->fi->name, this, millisec);
 #endif
 
@@ -183,8 +183,8 @@ void
 fsm_modtimer(fsm_timer *this, int millisec, int event, void *arg)
 {
 
-#if FSM_TIMER_DEBUG
-	printk(KERN_DEBUG "fsm(%s): Restart timer %p %dms\n",
+#if FSM_TIMER_DE
+	printk(KERN_DE "fsm(%s): Restart timer %p %dms\n",
 		this->fi->name, this, millisec);
 #endif
 
@@ -204,7 +204,7 @@ EXPORT_SYMBOL(fsm_addtimer);
 EXPORT_SYMBOL(fsm_modtimer);
 EXPORT_SYMBOL(fsm_getstate_str);
 
-#if FSM_DEBUG_HISTORY
+#if FSM_DE_HISTORY
 EXPORT_SYMBOL(fsm_print_history);
 EXPORT_SYMBOL(fsm_record_history);
 #endif

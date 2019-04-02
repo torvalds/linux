@@ -36,7 +36,7 @@
 #include "bh.h"
 #include "sta.h"
 #include "scan.h"
-#include "debug.h"
+#include "de.h"
 #include "pm.h"
 
 MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>");
@@ -431,7 +431,7 @@ static int cw1200_register_common(struct ieee80211_hw *dev)
 		return err;
 	}
 
-	cw1200_debug_init(priv);
+	cw1200_de_init(priv);
 
 	pr_info("Registered as '%s'\n", wiphy_name(dev->wiphy));
 	return 0;
@@ -452,7 +452,7 @@ static void cw1200_unregister_common(struct ieee80211_hw *dev)
 	del_timer_sync(&priv->mcast_timeout);
 	cw1200_unregister_bh(priv);
 
-	cw1200_debug_release(priv);
+	cw1200_de_release(priv);
 
 	mutex_destroy(&priv->conf_mutex);
 

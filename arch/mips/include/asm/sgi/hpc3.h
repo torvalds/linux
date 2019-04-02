@@ -190,12 +190,12 @@ struct hpc3_regs {
 	 * our grubby paws in here so it's just padding. */
 	u32 _unused0[0x18000/4];
 
-	/* HPC3 irq status regs.  Due to a peculiar bug you need to
+	/* HPC3 irq status regs.  Due to a peculiar  you need to
 	 * look at two different register addresses to get at all of
 	 * the status bits.  The first reg can only reliably report
 	 * bits 4:0 of the status, and the second reg can only
 	 * reliably report bits 9:5 of the hpc3 irq status.  I told
-	 * you it was a peculiar bug. ;-)
+	 * you it was a peculiar . ;-)
 	 */
 	volatile u32 istat0;		/* Irq status, only bits <4:0> reliable. */
 #define HPC3_ISTAT_PBIMASK	0x0ff	/* irq bits for pbus devs 0 --> 7 */

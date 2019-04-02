@@ -35,32 +35,32 @@ Usage Quick Reference
 ---------------------
 ::
 
-	$ mount -t debugfs debugfs /sys/kernel/debug
-	$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
-	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+	$ mount -t defs defs /sys/kernel/de
+	$ echo mmiotrace > /sys/kernel/de/tracing/current_tracer
+	$ cat /sys/kernel/de/tracing/trace_pipe > mydump.txt &
 	Start X or whatever.
-	$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
-	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	$ echo "X is up" > /sys/kernel/de/tracing/trace_marker
+	$ echo nop > /sys/kernel/de/tracing/current_tracer
 	Check for lost events.
 
 
 Usage
 -----
 
-Make sure debugfs is mounted to /sys/kernel/debug.
+Make sure defs is mounted to /sys/kernel/de.
 If not (requires root privileges)::
 
-	$ mount -t debugfs debugfs /sys/kernel/debug
+	$ mount -t defs defs /sys/kernel/de
 
 Check that the driver you are about to trace is not loaded.
 
 Activate mmiotrace (requires root privileges)::
 
-	$ echo mmiotrace > /sys/kernel/debug/tracing/current_tracer
+	$ echo mmiotrace > /sys/kernel/de/tracing/current_tracer
 
 Start storing the trace::
 
-	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
+	$ cat /sys/kernel/de/tracing/trace_pipe > mydump.txt &
 
 The 'cat' process should stay running (sleeping) in the background.
 
@@ -68,14 +68,14 @@ Load the driver you want to trace and use it. Mmiotrace will only catch MMIO
 accesses to areas that are ioremapped while mmiotrace is active.
 
 During tracing you can place comments (markers) into the trace by
-$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
+$ echo "X is up" > /sys/kernel/de/tracing/trace_marker
 This makes it easier to see which part of the (huge) trace corresponds to
 which action. It is recommended to place descriptive markers about what you
 do.
 
 Shut down mmiotrace (requires root privileges)::
 
-	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	$ echo nop > /sys/kernel/de/tracing/current_tracer
 
 The 'cat' process exits. If it does not, kill it by issuing 'fg' command and
 pressing ctrl+c.
@@ -93,12 +93,12 @@ events were lost, the trace is incomplete. You should enlarge the buffers and
 try again. Buffers are enlarged by first seeing how large the current buffers
 are::
 
-	$ cat /sys/kernel/debug/tracing/buffer_size_kb
+	$ cat /sys/kernel/de/tracing/buffer_size_kb
 
 gives you a number. Approximately double this number and write it back, for
 instance::
 
-	$ echo 128000 > /sys/kernel/debug/tracing/buffer_size_kb
+	$ echo 128000 > /sys/kernel/de/tracing/buffer_size_kb
 
 Then start again from the top.
 
@@ -127,7 +127,7 @@ MMIO accesses are recorded via page faults. Just before __ioremap() returns,
 the mapped pages are marked as not present. Any access to the pages causes a
 fault. The page fault handler calls mmiotrace to handle the fault. Mmiotrace
 marks the page present, sets TF flag to achieve single stepping and exits the
-fault handler. The instruction that faulted is executed and debug trap is
+fault handler. The instruction that faulted is executed and de trap is
 entered. Here mmiotrace again marks the page as not present. The instruction
 is decoded to get the type of operation (read/write), data width and the value
 read or written. These are stored to the trace log.

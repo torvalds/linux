@@ -373,7 +373,7 @@ static const struct iio_chan_spec adf4350_chan = {
 };
 
 static const struct iio_info adf4350_info = {
-	.debugfs_reg_access = &adf4350_reg_access,
+	.defs_reg_access = &adf4350_reg_access,
 };
 
 #ifdef CONFIG_OF

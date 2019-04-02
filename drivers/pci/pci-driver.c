@@ -839,7 +839,7 @@ static int pci_pm_suspend_noirq(struct device *dev)
 	pci_pm_set_unknown_state(pci_dev);
 
 	/*
-	 * Some BIOSes from ASUS have a bug: If a USB EHCI host controller's
+	 * Some BIOSes from ASUS have a : If a USB EHCI host controller's
 	 * PCI COMMAND register isn't 0, the BIOS assumes that the controller
 	 * hasn't been quiesced and tries to turn it off.  If the controller
 	 * is already in D3, this can hang or cause memory corruption.
@@ -1256,7 +1256,7 @@ static int pci_pm_runtime_suspend(struct device *dev)
 		error = pm->runtime_suspend(dev);
 		/*
 		 * -EBUSY and -EAGAIN is used to request the runtime PM core
-		 * to schedule a new suspend, so log the event only with debug
+		 * to schedule a new suspend, so log the event only with de
 		 * log level.
 		 */
 		if (error == -EBUSY || error == -EAGAIN) {
@@ -1663,7 +1663,7 @@ static int __init pci_driver_init(void)
 	if (ret)
 		return ret;
 #endif
-	dma_debug_add_bus(&pci_bus_type);
+	dma_de_add_bus(&pci_bus_type);
 	return 0;
 }
 postcore_initcall(pci_driver_init);

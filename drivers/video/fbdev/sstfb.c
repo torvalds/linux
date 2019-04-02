@@ -25,7 +25,7 @@
  *	add /sys/class/graphics/fbX/vgapass sysfs-interface
  *	add module option "mode_option" to set initial screen mode
  *	use fbdev default videomode database
- *	remove debug functions from ioctl
+ *	remove de functions from ioctl
  */
 
 /*
@@ -53,26 +53,26 @@
  */
 
 /*
- * debug info
- * SST_DEBUG : enable debugging
- * SST_DEBUG_REG : debug registers
- *   0 :  no debug
+ * de info
+ * SST_DE : enable deging
+ * SST_DE_REG : de registers
+ *   0 :  no de
  *   1 : dac calls, [un]set_bits, FbiInit
- *   2 : insane debug level (log every register read/write)
- * SST_DEBUG_FUNC : functions
- *   0 : no debug
- *   1 : function call / debug ioctl
+ *   2 : insane de level (log every register read/write)
+ * SST_DE_FUNC : functions
+ *   0 : no de
+ *   1 : function call / de ioctl
  *   2 : variables
  *   3 : flood . you don't want to do that. trust me.
- * SST_DEBUG_VAR : debug display/var structs
- *   0 : no debug
+ * SST_DE_VAR : de display/var structs
+ *   0 : no de
  *   1 : dumps display, fb_var
  *
  * sstfb specific ioctls:
  *   		toggle vga (0x46db) : toggle vga_pass_through
  */
 
-#undef SST_DEBUG
+#undef SST_DE
 
 
 /*
@@ -120,10 +120,10 @@ static struct sst_spec voodoo_spec[] = {
 
 
 /*
- * debug functions
+ * de functions
  */
 
-#if (SST_DEBUG_REG > 0)
+#if (SST_DE_REG > 0)
 static void sst_dbg_print_read_reg(u32 reg, u32 val) {
 	const char *regname;
 	switch (reg) {
@@ -159,10 +159,10 @@ static void sst_dbg_print_write_reg(u32 reg, u32 val) {
 	else
 		r_dprintk(" sst_write(%s, %#x)\n", regname, val);
 }
-#else /*  (SST_DEBUG_REG > 0) */
+#else /*  (SST_DE_REG > 0) */
 #  define sst_dbg_print_read_reg(reg, val)	do {} while(0)
 #  define sst_dbg_print_write_reg(reg, val)	do {} while(0)
-#endif /*  (SST_DEBUG_REG > 0) */
+#endif /*  (SST_DE_REG > 0) */
 
 /*
  * hardware access functions

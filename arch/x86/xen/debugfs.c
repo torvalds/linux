@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
-#include "debugfs.h"
+#include "defs.h"
 
-static struct dentry *d_xen_debug;
+static struct dentry *d_xen_de;
 
-struct dentry * __init xen_init_debugfs(void)
+struct dentry * __init xen_init_defs(void)
 {
-	if (!d_xen_debug) {
-		d_xen_debug = debugfs_create_dir("xen", NULL);
+	if (!d_xen_de) {
+		d_xen_de = defs_create_dir("xen", NULL);
 
-		if (!d_xen_debug)
-			pr_warning("Could not create 'xen' debugfs directory\n");
+		if (!d_xen_de)
+			pr_warning("Could not create 'xen' defs directory\n");
 	}
 
-	return d_xen_debug;
+	return d_xen_de;
 }
 

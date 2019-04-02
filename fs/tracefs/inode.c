@@ -1,7 +1,7 @@
 /*
  *  inode.c - part of tracefs, a pseudo file system for activating tracing
  *
- * Based on debugfs by: Greg Kroah-Hartman <greg@kroah.com>
+ * Based on defs by: Greg Kroah-Hartman <greg@kroah.com>
  *
  *  Copyright (C) 2014 Red Hat Inc, author: Steven Rostedt <srostedt@redhat.com>
  *
@@ -317,7 +317,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	struct dentry *dentry;
 	int error;
 
-	pr_debug("tracefs: creating file '%s'\n",name);
+	pr_de("tracefs: creating file '%s'\n",name);
 
 	error = simple_pin_fs(&trace_fs_type, &tracefs_mount,
 			      &tracefs_mount_count);
@@ -396,7 +396,7 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 
 	if (!(mode & S_IFMT))
 		mode |= S_IFREG;
-	BUG_ON(!S_ISREG(mode));
+	_ON(!S_ISREG(mode));
 	dentry = start_creating(name, parent);
 
 	if (IS_ERR(dentry))

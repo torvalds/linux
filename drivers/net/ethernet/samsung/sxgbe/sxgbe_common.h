@@ -430,7 +430,7 @@ struct sxgbe_hw_features {
 	unsigned int dcb_enable;
 	unsigned int splithead_enable;
 	unsigned int tcpseg_offload;
-	unsigned int debug_mem;
+	unsigned int de_mem;
 	unsigned int rss_enable;
 	unsigned int hash_tsize;
 	unsigned int l3l4_filer_size;

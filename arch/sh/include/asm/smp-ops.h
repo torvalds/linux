@@ -20,7 +20,7 @@ extern struct plat_smp_ops shx3_smp_ops;
 
 static inline void plat_smp_setup(void)
 {
-	BUG_ON(!mp_ops);
+	_ON(!mp_ops);
 	mp_ops->smp_setup();
 }
 
@@ -44,7 +44,7 @@ static inline void register_smp_ops(struct plat_smp_ops *ops)
 
 static inline void play_dead(void)
 {
-	BUG();
+	();
 }
 
 #endif /* CONFIG_SMP */

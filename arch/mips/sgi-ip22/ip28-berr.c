@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/signal.h>
 #include <linux/seq_file.h>
 
@@ -28,7 +28,7 @@
 static unsigned int count_be_is_fixup;
 static unsigned int count_be_handler;
 static unsigned int count_be_interrupt;
-static int debug_be_interrupt;
+static int de_be_interrupt;
 
 static unsigned int cpu_err_stat;	/* Status reg for CPU */
 static unsigned int gio_err_stat;	/* Status reg for GIO */
@@ -442,7 +442,7 @@ static int ip28_be_interrupt(const struct pt_regs *regs)
 		goto mips_be_fatal;
 	}
 	/* A speculative bus error... */
-	if (debug_be_interrupt) {
+	if (de_be_interrupt) {
 		print_buserr(regs);
 		printk(KERN_ERR "discarded!\n");
 	}
@@ -463,7 +463,7 @@ void ip22_be_interrupt(int irq)
 		/* Assume it would be too dangerous to continue ... */
 		die_if_kernel("Oops", regs);
 		force_sig(SIGBUS, current);
-	} else if (debug_be_interrupt)
+	} else if (de_be_interrupt)
 		show_regs(regs);
 }
 
@@ -496,9 +496,9 @@ int ip28_show_be_info(struct seq_file *m)
 	return 0;
 }
 
-static int __init debug_be_setup(char *str)
+static int __init de_be_setup(char *str)
 {
-	debug_be_interrupt++;
+	de_be_interrupt++;
 	return 1;
 }
-__setup("ip28_debug_be", debug_be_setup);
+__setup("ip28_de_be", de_be_setup);

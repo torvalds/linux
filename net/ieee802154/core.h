@@ -31,7 +31,7 @@ struct cfg802154_registered_device {
 static inline struct cfg802154_registered_device *
 wpan_phy_to_rdev(struct wpan_phy *wpan_phy)
 {
-	BUG_ON(!wpan_phy);
+	_ON(!wpan_phy);
 	return container_of(wpan_phy, struct cfg802154_registered_device,
 			    wpan_phy);
 }

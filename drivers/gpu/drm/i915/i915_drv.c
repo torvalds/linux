@@ -59,7 +59,7 @@
 
 static struct drm_driver driver;
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
+#if IS_ENABLED(CONFIG_DRM_I915_DE)
 static unsigned int i915_load_fail_count;
 
 bool __i915_inject_load_failure(const char *func, int line)
@@ -84,22 +84,22 @@ bool i915_error_injected(void)
 
 #endif
 
-#define FDO_BUG_URL "https://bugs.freedesktop.org/enter_bug.cgi?product=DRI"
-#define FDO_BUG_MSG "Please file a bug at " FDO_BUG_URL " against DRM/Intel " \
-		    "providing the dmesg log by booting with drm.debug=0xf"
+#define FDO__URL "https://s.freedesktop.org/enter_.cgi?product=DRI"
+#define FDO__MSG "Please file a  at " FDO__URL " against DRM/Intel " \
+		    "providing the dmesg log by booting with drm.de=0xf"
 
 void
 __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	      const char *fmt, ...)
 {
-	static bool shown_bug_once;
+	static bool shown__once;
 	struct device *kdev = dev_priv->drm.dev;
 	bool is_error = level[1] <= KERN_ERR[1];
-	bool is_debug = level[1] == KERN_DEBUG[1];
+	bool is_de = level[1] == KERN_DE[1];
 	struct va_format vaf;
 	va_list args;
 
-	if (is_debug && !(drm_debug & DRM_UT_DRIVER))
+	if (is_de && !(drm_de & DRM_UT_DRIVER))
 		return;
 
 	va_start(args, fmt);
@@ -115,15 +115,15 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 
 	va_end(args);
 
-	if (is_error && !shown_bug_once) {
+	if (is_error && !shown__once) {
 		/*
-		 * Ask the user to file a bug report for the error, except
-		 * if they may have caused the bug by fiddling with unsafe
+		 * Ask the user to file a  report for the error, except
+		 * if they may have caused the  by fiddling with unsafe
 		 * module parameters.
 		 */
 		if (!test_taint(TAINT_USER))
-			dev_notice(kdev, "%s", FDO_BUG_MSG);
-		shown_bug_once = true;
+			dev_notice(kdev, "%s", FDO__MSG);
+		shown__once = true;
 	}
 }
 
@@ -133,63 +133,63 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 {
 	switch (id) {
 	case INTEL_PCH_IBX_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
+		DRM_DE_KMS("Found Ibex Peak PCH\n");
 		WARN_ON(!IS_GEN(dev_priv, 5));
 		return PCH_IBX;
 	case INTEL_PCH_CPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+		DRM_DE_KMS("Found CougarPoint PCH\n");
 		WARN_ON(!IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
 		return PCH_CPT;
 	case INTEL_PCH_PPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found PantherPoint PCH\n");
+		DRM_DE_KMS("Found PantherPoint PCH\n");
 		WARN_ON(!IS_GEN(dev_priv, 6) && !IS_IVYBRIDGE(dev_priv));
 		/* PantherPoint is CPT compatible */
 		return PCH_CPT;
 	case INTEL_PCH_LPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found LynxPoint PCH\n");
+		DRM_DE_KMS("Found LynxPoint PCH\n");
 		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
 		WARN_ON(IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv));
 		return PCH_LPT;
 	case INTEL_PCH_LPT_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
+		DRM_DE_KMS("Found LynxPoint LP PCH\n");
 		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
 		WARN_ON(!IS_HSW_ULT(dev_priv) && !IS_BDW_ULT(dev_priv));
 		return PCH_LPT;
 	case INTEL_PCH_WPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found WildcatPoint PCH\n");
+		DRM_DE_KMS("Found WildcatPoint PCH\n");
 		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
 		WARN_ON(IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv));
 		/* WildcatPoint is LPT compatible */
 		return PCH_LPT;
 	case INTEL_PCH_WPT_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found WildcatPoint LP PCH\n");
+		DRM_DE_KMS("Found WildcatPoint LP PCH\n");
 		WARN_ON(!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv));
 		WARN_ON(!IS_HSW_ULT(dev_priv) && !IS_BDW_ULT(dev_priv));
 		/* WildcatPoint is LPT compatible */
 		return PCH_LPT;
 	case INTEL_PCH_SPT_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
+		DRM_DE_KMS("Found SunrisePoint PCH\n");
 		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv));
 		return PCH_SPT;
 	case INTEL_PCH_SPT_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
+		DRM_DE_KMS("Found SunrisePoint LP PCH\n");
 		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv));
 		return PCH_SPT;
 	case INTEL_PCH_KBP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Kaby Lake PCH (KBP)\n");
+		DRM_DE_KMS("Found Kaby Lake PCH (KBP)\n");
 		WARN_ON(!IS_SKYLAKE(dev_priv) && !IS_KABYLAKE(dev_priv) &&
 			!IS_COFFEELAKE(dev_priv));
 		return PCH_KBP;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
+		DRM_DE_KMS("Found Cannon Lake PCH (CNP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CNP_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
+		DRM_DE_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_ICP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Ice Lake PCH\n");
+		DRM_DE_KMS("Found Ice Lake PCH\n");
 		WARN_ON(!IS_ICELAKE(dev_priv));
 		return PCH_ICP;
 	default:
@@ -235,9 +235,9 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
 
 	if (id)
-		DRM_DEBUG_KMS("Assuming PCH ID %04x\n", id);
+		DRM_DE_KMS("Assuming PCH ID %04x\n", id);
 	else
-		DRM_DEBUG_KMS("Assuming no PCH\n");
+		DRM_DE_KMS("Assuming no PCH\n");
 
 	return id;
 }
@@ -291,13 +291,13 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 	 * display.
 	 */
 	if (pch && !HAS_DISPLAY(dev_priv)) {
-		DRM_DEBUG_KMS("Display disabled, reverting to NOP PCH\n");
+		DRM_DE_KMS("Display disabled, reverting to NOP PCH\n");
 		dev_priv->pch_type = PCH_NOP;
 		dev_priv->pch_id = 0;
 	}
 
 	if (!pch)
-		DRM_DEBUG_KMS("No PCH found.\n");
+		DRM_DE_KMS("No PCH found.\n");
 
 	pci_dev_put(pch);
 }
@@ -448,7 +448,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = INTEL_INFO(dev_priv)->has_coherent_ggtt;
 		break;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", param->param);
+		DRM_DE("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -502,7 +502,7 @@ intel_alloc_mchbar_resource(struct drm_i915_private *dev_priv)
 				     0, pcibios_align_resource,
 				     dev_priv->bridge_dev);
 	if (ret) {
-		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
+		DRM_DE_DRIVER("failed bus alloc: %d\n", ret);
 		dev_priv->mch_res.start = 0;
 		return ret;
 	}
@@ -824,7 +824,7 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 /*
  * We don't keep the workarounds for pre-production hardware, so we expect our
  * driver to fail on these machines in one way or another. A little warning on
- * dmesg may help both the user and the bug triagers.
+ * dmesg may help both the user and the  triagers.
  *
  * Our policy for removing pre-production workarounds is to keep the
  * current gen workarounds as a guide to the bring-up of the next gen
@@ -1103,7 +1103,7 @@ skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
 			   skl_is_16gb_dimm(ch->s_info.rank, ch->s_info.size,
 					    ch->s_info.width);
 
-	DRM_DEBUG_KMS("(size:width:rank) L(%dGB:X%d:%s) S(%dGB:X%d:%s)\n",
+	DRM_DE_KMS("(size:width:rank) L(%dGB:X%d:%s) S(%dGB:X%d:%s)\n",
 		      ch->l_info.size, ch->l_info.width,
 		      ch->l_info.rank ? "dual" : "single",
 		      ch->s_info.size, ch->s_info.width,
@@ -1168,7 +1168,7 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 								       val_ch1,
 								       &ch0);
 
-	DRM_DEBUG_KMS("memory configuration is %sSymmetric memory\n",
+	DRM_DE_KMS("memory configuration is %sSymmetric memory\n",
 		      dev_priv->dram_info.symmetric_memory ? "" : "not ");
 	return 0;
 }
@@ -1262,7 +1262,7 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 
 		tmp = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
 		width = (1 << tmp) * 8;
-		DRM_DEBUG_KMS("dram size:%dGB width:X%d rank:%s\n", size,
+		DRM_DE_KMS("dram size:%dGB width:X%d rank:%s\n", size,
 			      width, rank == I915_DRAM_RANK_SINGLE ? "single" :
 			      rank == I915_DRAM_RANK_DUAL ? "dual" : "unknown");
 
@@ -1322,9 +1322,9 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 		sprintf(bandwidth_str, "%d KBps", dram_info->bandwidth_kbps);
 	else
 		sprintf(bandwidth_str, "unknown");
-	DRM_DEBUG_KMS("DRAM bandwidth:%s, total-channels: %u\n",
+	DRM_DE_KMS("DRAM bandwidth:%s, total-channels: %u\n",
 		      bandwidth_str, dram_info->num_channels);
-	DRM_DEBUG_KMS("DRAM rank: %s rank 16GB-dimm:%s\n",
+	DRM_DE_KMS("DRAM rank: %s rank 16GB-dimm:%s\n",
 		      (dram_info->rank == I915_DRAM_RANK_DUAL) ?
 		      "dual" : "single", yesno(dram_info->is_16gb_dimm));
 }
@@ -1462,7 +1462,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 */
 	if (INTEL_GEN(dev_priv) >= 5) {
 		if (pci_enable_msi(pdev) < 0)
-			DRM_DEBUG_DRIVER("can't enable MSI");
+			DRM_DE_DRIVER("can't enable MSI");
 	}
 
 	ret = intel_gvt_init(dev_priv);
@@ -1530,7 +1530,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	/* Reveal our presence to userspace */
 	if (drm_dev_register(dev, 0) == 0) {
-		i915_debugfs_register(dev_priv);
+		i915_defs_register(dev_priv);
 		i915_setup_sysfs(dev_priv);
 
 		/* Depends on sysfs having been initialized */
@@ -1603,8 +1603,8 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 {
-	if (drm_debug & DRM_UT_DRIVER) {
-		struct drm_printer p = drm_debug_printer("i915 device info:");
+	if (drm_de & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_de_printer("i915 device info:");
 
 		drm_printf(&p, "pciid=0x%04x rev=0x%02x platform=%s gen=%i\n",
 			   INTEL_DEVID(dev_priv),
@@ -1616,12 +1616,12 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 		intel_device_info_dump_runtime(RUNTIME_INFO(dev_priv), &p);
 	}
 
-	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
-		DRM_INFO("DRM_I915_DEBUG enabled\n");
-	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-		DRM_INFO("DRM_I915_DEBUG_GEM enabled\n");
-	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM))
-		DRM_INFO("DRM_I915_DEBUG_RUNTIME_PM enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DE))
+		DRM_INFO("DRM_I915_DE enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DE_GEM))
+		DRM_INFO("DRM_I915_DE_GEM enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM))
+		DRM_INFO("DRM_I915_DE_RUNTIME_PM enabled\n");
 }
 
 static struct drm_i915_private *
@@ -1652,9 +1652,9 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	memcpy(device_info, match_info, sizeof(*device_info));
 	RUNTIME_INFO(i915)->device_id = pdev->device;
 
-	BUILD_BUG_ON(INTEL_MAX_PLATFORMS >
+	BUILD__ON(INTEL_MAX_PLATFORMS >
 		     BITS_PER_TYPE(device_info->platform_mask));
-	BUG_ON(device_info->gen > BITS_PER_TYPE(device_info->gen_mask));
+	_ON(device_info->gen > BITS_PER_TYPE(device_info->gen_mask));
 
 	return i915;
 }
@@ -2325,11 +2325,11 @@ static int i915_pm_restore(struct device *kdev)
  * - No, w/o marking: no need to save/restore, since the register is R/O or
  *                    used internally by the HW in a way that doesn't depend
  *                    keeping the content across a suspend/resume.
- * - Debug : used for debugging
+ * - De : used for deging
  *
  * We save/restore all registers marked with 'Driver', with the following
  * exceptions:
- * - Registers out of use, including also registers marked with 'Debug'.
+ * - Registers out of use, including also registers marked with 'De'.
  *   These have no effect on the driver's operation, so we don't save/restore
  *   them to reduce the overhead.
  * - Registers that are fully setup by an initialization function called from
@@ -2597,7 +2597,7 @@ static void vlv_wait_for_gt_wells(struct drm_i915_private *dev_priv,
 	 * reset and we are trying to force the machine to sleep.
 	 */
 	if (vlv_wait_for_pw_status(dev_priv, mask, val))
-		DRM_DEBUG_DRIVER("timeout waiting for GT wells to go %s\n",
+		DRM_DE_DRIVER("timeout waiting for GT wells to go %s\n",
 				 onoff(wait_for_on));
 }
 
@@ -2606,7 +2606,7 @@ static void vlv_check_no_gt_access(struct drm_i915_private *dev_priv)
 	if (!(I915_READ(VLV_GTLC_PW_STATUS) & VLV_GTLC_ALLOWWAKEERR))
 		return;
 
-	DRM_DEBUG_DRIVER("GT register access while GT waking disabled\n");
+	DRM_DE_DRIVER("GT register access while GT waking disabled\n");
 	I915_WRITE(VLV_GTLC_PW_STATUS, VLV_GTLC_ALLOWWAKEERR);
 }
 
@@ -2616,7 +2616,7 @@ static int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 	int err;
 
 	/*
-	 * Bspec defines the following GT well on flags as debug only, so
+	 * Bspec defines the following GT well on flags as de only, so
 	 * don't treat them as hard failures.
 	 */
 	vlv_wait_for_gt_wells(dev_priv, false);
@@ -2697,7 +2697,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))
 		return -ENODEV;
 
-	DRM_DEBUG_KMS("Suspending device\n");
+	DRM_DE_KMS("Suspending device\n");
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
@@ -2778,7 +2778,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_init(dev_priv);
 
-	DRM_DEBUG_KMS("Device suspended\n");
+	DRM_DE_KMS("Device suspended\n");
 	return 0;
 }
 
@@ -2792,7 +2792,7 @@ static int intel_runtime_resume(struct device *kdev)
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))
 		return -ENODEV;
 
-	DRM_DEBUG_KMS("Resuming device\n");
+	DRM_DE_KMS("Resuming device\n");
 
 	WARN_ON_ONCE(atomic_read(&dev_priv->runtime_pm.wakeref_count));
 	disable_rpm_wakeref_asserts(dev_priv);
@@ -2800,7 +2800,7 @@ static int intel_runtime_resume(struct device *kdev)
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 	dev_priv->runtime_pm.suspended = false;
 	if (intel_uncore_unclaimed_mmio(dev_priv))
-		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
+		DRM_DE_DRIVER("Unclaimed access during suspend, bios?\n");
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		bxt_disable_dc9(dev_priv);
@@ -2853,7 +2853,7 @@ static int intel_runtime_resume(struct device *kdev)
 	if (ret)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
 	else
-		DRM_DEBUG_KMS("Device resumed\n");
+		DRM_DE_KMS("Device resumed\n");
 
 	return ret;
 }

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.demon.co.uk>
  *  Driver p16v chips
  *  Version: 0.25
  *
@@ -51,7 +51,7 @@
  *  0.25
  *    Include capture buffer sizes.
  *
- *  BUGS:
+ *  S:
  *    Some stability problems when unloading the snd-p16v kernel module.
  *    --
  *
@@ -199,13 +199,13 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
         channel->number = channel_id;
 
         channel->use=1;
-#if 0 /* debug */
+#if 0 /* de */
 	dev_dbg(emu->card->dev,
 		   "p16v: open channel_id=%d, channel=%p, use=0x%x\n",
 		   channel_id, channel, channel->use);
 	dev_dbg(emu->card->dev, "open:channel_id=%d, chip=%p, channel=%p\n",
 	       channel_id, chip, channel);
-#endif /* debug */
+#endif /* de */
 	/* channel->interrupt = snd_p16v_pcm_channel_interrupt; */
 	channel->epcm = epcm;
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
@@ -247,13 +247,13 @@ static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream
 	channel->number = channel_id;
 
 	channel->use=1;
-#if 0 /* debug */
+#if 0 /* de */
 	dev_dbg(emu->card->dev,
 		   "p16v: open channel_id=%d, channel=%p, use=0x%x\n",
 		   channel_id, channel, channel->use);
 	dev_dbg(emu->card->dev, "open:channel_id=%d, chip=%p, channel=%p\n",
 	       channel_id, chip, channel);
-#endif /* debug */
+#endif /* de */
 	/* channel->interrupt = snd_p16v_pcm_channel_interrupt; */
 	channel->epcm = epcm;
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
@@ -337,7 +337,7 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	int i;
 	u32 tmp;
 	
-#if 0 /* debug */
+#if 0 /* de */
 	dev_dbg(emu->card->dev,
 		"prepare:channel_number=%d, rate=%d, "
 		   "format=0x%x, channels=%d, buffer_size=%ld, "
@@ -352,7 +352,7 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 		"dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
 		   emu->p16v_buffer.addr, emu->p16v_buffer.area,
 		   emu->p16v_buffer.bytes);
-#endif /* debug */
+#endif /* de */
 	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, channel);
         switch (runtime->rate) {
 	case 44100:

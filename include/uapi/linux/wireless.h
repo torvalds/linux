@@ -818,7 +818,7 @@ struct iw_scan_req {
  *	used only by an Authenticator (AP or an IBSS station) to get the
  *	current TX sequence number. Using TX_SEQ_VALID for SIOCSIWENCODEEXT and
  *	RX_SEQ_VALID for SIOCGIWENCODEEXT are optional, but can be useful for
- *	debugging/testing.
+ *	deging/testing.
  */
 struct iw_encode_ext {
 	__u32		ext_flags; /* IW_ENCODE_EXT_* */

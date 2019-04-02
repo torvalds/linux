@@ -30,9 +30,9 @@
 
 #include "zl10036.h"
 
-static int zl10036_debug;
+static int zl10036_de;
 #define dprintk(level, args...) \
-	do { if (zl10036_debug & level) printk(KERN_DEBUG "zl10036: " args); \
+	do { if (zl10036_de & level) printk(KERN_DE "zl10036: " args); \
 	} while (0)
 
 #define deb_info(args...)  dprintk(0x01, args)
@@ -96,9 +96,9 @@ static int zl10036_write(struct zl10036_state *state, u8 buf[], u8 count)
 	u8 reg = 0;
 	int ret;
 
-	if (zl10036_debug & 0x02) {
+	if (zl10036_de & 0x02) {
 		/* every 8bit-value satisifes this!
-		 * so only check for debug log */
+		 * so only check for de log */
 		if ((buf[0] & 0x80) == 0x00)
 			reg = 2;
 		else if ((buf[0] & 0xc0) == 0x80)
@@ -506,8 +506,8 @@ error:
 }
 EXPORT_SYMBOL(zl10036_attach);
 
-module_param_named(debug, zl10036_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param_named(de, zl10036_de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 MODULE_DESCRIPTION("DVB ZL10036 driver");
 MODULE_AUTHOR("Tino Reichardt");
 MODULE_AUTHOR("Matthias Schwarzott");

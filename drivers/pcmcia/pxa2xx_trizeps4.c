@@ -45,7 +45,7 @@ static int trizeps_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		break;
 	}
 	/* release the reset of this card */
-	pr_debug("%s: sock %d irq %d\n", __func__, skt->nr, skt->socket.pci_irq);
+	pr_de("%s: sock %d irq %d\n", __func__, skt->nr, skt->socket.pci_irq);
 
 	return 0;
 }

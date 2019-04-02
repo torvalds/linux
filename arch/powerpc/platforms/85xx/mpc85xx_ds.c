@@ -37,9 +37,9 @@
 
 #include "mpc85xx.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define DBG(fmt, args...)
@@ -79,7 +79,7 @@ void __init mpc85xx_ds_pic_init(void)
 			0, 256, " OpenPIC  ");
 	}
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	mpic_init(mpic);
 
 #ifdef CONFIG_PPC_I8259
@@ -91,7 +91,7 @@ void __init mpc85xx_ds_pic_init(void)
 	}
 
 	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "Could not find i8259 PIC\n");
+		printk(KERN_DE "Could not find i8259 PIC\n");
 		return;
 	}
 

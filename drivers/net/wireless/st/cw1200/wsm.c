@@ -20,7 +20,7 @@
 #include "wsm.h"
 #include "bh.h"
 #include "sta.h"
-#include "debug.h"
+#include "de.h"
 
 #define WSM_CMD_TIMEOUT		(2 * HZ) /* With respect to interrupt loss */
 #define WSM_CMD_START_TIMEOUT	(7 * HZ)
@@ -393,7 +393,7 @@ static int wsm_multi_tx_confirm(struct cw1200_common *priv,
 			cw1200_bh_wakeup(priv);
 	}
 
-	cw1200_debug_txed_multi(priv, count);
+	cw1200_de_txed_multi(priv, count);
 	do {
 		ret = wsm_tx_confirm(priv, buf, link_id);
 	} while (!ret && --count);
@@ -898,7 +898,7 @@ static int wsm_receive_indication(struct cw1200_common *priv,
 	if (!rx.status && ieee80211_is_deauth(fctl)) {
 		if (priv->join_status == CW1200_JOIN_STATUS_STA) {
 			/* Shedule unjoin work */
-			pr_debug("[WSM] Issue unjoin command (RX).\n");
+			pr_de("[WSM] Issue unjoin command (RX).\n");
 			wsm_lock_tx_async(priv);
 			if (queue_work(priv->workqueue,
 				       &priv->unjoin_work) <= 0)
@@ -932,7 +932,7 @@ static int wsm_event_indication(struct cw1200_common *priv, struct wsm_buf *buf)
 	event->evt.id = WSM_GET32(buf);
 	event->evt.data = WSM_GET32(buf);
 
-	pr_debug("[WSM] Event: %d(%d)\n",
+	pr_de("[WSM] Event: %d(%d)\n",
 		 event->evt.id, event->evt.data);
 
 	spin_lock(&priv->event_queue_lock);
@@ -1012,7 +1012,7 @@ static int wsm_join_complete_indication(struct cw1200_common *priv,
 {
 	struct wsm_join_complete arg;
 	arg.status = WSM_GET32(buf);
-	pr_debug("[WSM] Join complete indication, status: %d\n", arg.status);
+	pr_de("[WSM] Join complete indication, status: %d\n", arg.status);
 	cw1200_join_complete_cb(priv, &arg);
 
 	return 0;
@@ -1098,13 +1098,13 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 
 	if (cmd == WSM_WRITE_MIB_REQ_ID ||
 	    cmd == WSM_READ_MIB_REQ_ID)
-		pr_debug("[WSM] >>> 0x%.4X [MIB: 0x%.4X] (%zu)\n",
+		pr_de("[WSM] >>> 0x%.4X [MIB: 0x%.4X] (%zu)\n",
 			 cmd, __le16_to_cpu(((__le16 *)buf->begin)[2]),
 			 buf_len);
 	else
-		pr_debug("[WSM] >>> 0x%.4X (%zu)\n", cmd, buf_len);
+		pr_de("[WSM] >>> 0x%.4X (%zu)\n", cmd, buf_len);
 
-	/* Due to buggy SPI on CW1200, we need to
+	/* Due to gy SPI on CW1200, we need to
 	 * pad the message by a few bytes to ensure
 	 * that it's completely received.
 	 */
@@ -1116,7 +1116,7 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 	((__le16 *)buf->begin)[1] = __cpu_to_le16(cmd);
 
 	spin_lock(&priv->wsm_cmd.lock);
-	BUG_ON(priv->wsm_cmd.ptr);
+	_ON(priv->wsm_cmd.ptr);
 	priv->wsm_cmd.ptr = buf->begin;
 	priv->wsm_cmd.len = buf_len;
 	priv->wsm_cmd.arg = arg;
@@ -1150,7 +1150,7 @@ static int wsm_cmd_send(struct cw1200_common *priv,
 		}
 	} else {
 		spin_lock(&priv->wsm_cmd.lock);
-		BUG_ON(!priv->wsm_cmd.done);
+		_ON(!priv->wsm_cmd.done);
 		ret = priv->wsm_cmd.ret;
 		spin_unlock(&priv->wsm_cmd.lock);
 	}
@@ -1167,7 +1167,7 @@ void wsm_lock_tx(struct cw1200_common *priv)
 	wsm_cmd_lock(priv);
 	if (atomic_add_return(1, &priv->tx_lock) == 1) {
 		if (wsm_flush_tx(priv))
-			pr_debug("[WSM] TX is locked.\n");
+			pr_de("[WSM] TX is locked.\n");
 	}
 	wsm_cmd_unlock(priv);
 }
@@ -1175,7 +1175,7 @@ void wsm_lock_tx(struct cw1200_common *priv)
 void wsm_lock_tx_async(struct cw1200_common *priv)
 {
 	if (atomic_add_return(1, &priv->tx_lock) == 1)
-		pr_debug("[WSM] TX is locked (async).\n");
+		pr_de("[WSM] TX is locked (async).\n");
 }
 
 bool wsm_flush_tx(struct cw1200_common *priv)
@@ -1186,7 +1186,7 @@ bool wsm_flush_tx(struct cw1200_common *priv)
 	int i;
 
 	/* Flush must be called with TX lock held. */
-	BUG_ON(!atomic_read(&priv->tx_lock));
+	_ON(!atomic_read(&priv->tx_lock));
 
 	/* First check if we really need to do something.
 	 * It is safe to use unprotected access, as hw_bufs_used
@@ -1229,12 +1229,12 @@ void wsm_unlock_tx(struct cw1200_common *priv)
 {
 	int tx_lock;
 	tx_lock = atomic_sub_return(1, &priv->tx_lock);
-	BUG_ON(tx_lock < 0);
+	_ON(tx_lock < 0);
 
 	if (tx_lock == 0) {
 		if (!priv->bh_error)
 			cw1200_bh_wakeup(priv);
-		pr_debug("[WSM] TX is unlocked.\n");
+		pr_de("[WSM] TX is unlocked.\n");
 	}
 }
 
@@ -1311,7 +1311,7 @@ int wsm_handle_rx(struct cw1200_common *priv, u16 id,
 	wsm_buf.data = (u8 *)&wsm[1];
 	wsm_buf.end = &wsm_buf.begin[__le16_to_cpu(wsm->len)];
 
-	pr_debug("[WSM] <<< 0x%.4X (%td)\n", id,
+	pr_de("[WSM] <<< 0x%.4X (%td)\n", id,
 		 wsm_buf.end - wsm_buf.begin);
 
 	if (id == WSM_TX_CONFIRM_IND_ID) {
@@ -1526,7 +1526,7 @@ static bool wsm_handle_tx_data(struct cw1200_common *priv,
 			action = do_probe;
 		} else if (ieee80211_is_deauth(fctl) &&
 			   priv->mode != NL80211_IFTYPE_AP) {
-			pr_debug("[WSM] Issue unjoin command due to tx deauth.\n");
+			pr_de("[WSM] Issue unjoin command due to tx deauth.\n");
 			wsm_lock_tx_async(priv);
 			if (queue_work(priv->workqueue,
 				       &priv->unjoin_work) <= 0)
@@ -1546,7 +1546,7 @@ static bool wsm_handle_tx_data(struct cw1200_common *priv,
 		 * The easiest way to get it back is to convert
 		 * probe request into WSM start_scan command.
 		 */
-		pr_debug("[WSM] Convert probe request to scan.\n");
+		pr_de("[WSM] Convert probe request to scan.\n");
 		wsm_lock_tx_async(priv);
 		priv->pending_frame_id = wsm->packet_id;
 		if (queue_delayed_work(priv->workqueue,
@@ -1555,12 +1555,12 @@ static bool wsm_handle_tx_data(struct cw1200_common *priv,
 		handled = true;
 		break;
 	case do_drop:
-		pr_debug("[WSM] Drop frame (0x%.4X).\n", fctl);
-		BUG_ON(cw1200_queue_remove(queue, wsm->packet_id));
+		pr_de("[WSM] Drop frame (0x%.4X).\n", fctl);
+		_ON(cw1200_queue_remove(queue, wsm->packet_id));
 		handled = true;
 		break;
 	case do_wep:
-		pr_debug("[WSM] Issue set_default_wep_key.\n");
+		pr_de("[WSM] Issue set_default_wep_key.\n");
 		wsm_lock_tx_async(priv);
 		priv->wep_default_key_id = tx_info->control.hw_key->keyidx;
 		priv->pending_frame_id = wsm->packet_id;
@@ -1569,7 +1569,7 @@ static bool wsm_handle_tx_data(struct cw1200_common *priv,
 		handled = true;
 		break;
 	case do_tx:
-		pr_debug("[WSM] Transmit frame.\n");
+		pr_de("[WSM] Transmit frame.\n");
 		break;
 	default:
 		/* Do nothing */
@@ -1677,7 +1677,7 @@ int wsm_get_tx(struct cw1200_common *priv, u8 **data,
 	if (priv->wsm_cmd.ptr) { /* CMD request */
 		++count;
 		spin_lock(&priv->wsm_cmd.lock);
-		BUG_ON(!priv->wsm_cmd.ptr);
+		_ON(!priv->wsm_cmd.ptr);
 		*data = priv->wsm_cmd.ptr;
 		*tx_len = priv->wsm_cmd.len;
 		*burst = 1;
@@ -1754,7 +1754,7 @@ int wsm_get_tx(struct cw1200_common *priv, u8 **data,
 					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 			}
 
-			pr_debug("[WSM] >>> 0x%.4X (%zu) %p %c\n",
+			pr_de("[WSM] >>> 0x%.4X (%zu) %p %c\n",
 				 0x0004, *tx_len, *data,
 				 wsm->more ? 'M' : ' ');
 			++count;
@@ -1779,7 +1779,7 @@ void wsm_txed(struct cw1200_common *priv, u8 *data)
 
 void wsm_buf_init(struct wsm_buf *buf)
 {
-	BUG_ON(buf->begin);
+	_ON(buf->begin);
 	buf->begin = kmalloc(FWLOAD_BLOCK_SIZE, GFP_KERNEL | GFP_DMA);
 	buf->end = buf->begin ? &buf->begin[FWLOAD_BLOCK_SIZE] : buf->begin;
 	wsm_buf_reset(buf);

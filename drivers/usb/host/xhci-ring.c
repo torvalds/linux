@@ -1730,7 +1730,7 @@ struct xhci_segment *trb_in_td(struct xhci_hcd *xhci,
 		union xhci_trb	*start_trb,
 		union xhci_trb	*end_trb,
 		dma_addr_t	suspect_dma,
-		bool		debug)
+		bool		de)
 {
 	dma_addr_t start_dma;
 	dma_addr_t end_seg_dma;
@@ -1749,7 +1749,7 @@ struct xhci_segment *trb_in_td(struct xhci_hcd *xhci,
 		/* If the end TRB isn't in this segment, this is set to 0 */
 		end_trb_dma = xhci_trb_virt_to_dma(cur_seg, end_trb);
 
-		if (debug)
+		if (de)
 			xhci_warn(xhci,
 				"Looking for event-dma %016llx trb-start %016llx trb-end %016llx seg-start %016llx seg-end %016llx\n",
 				(unsigned long long)suspect_dma,

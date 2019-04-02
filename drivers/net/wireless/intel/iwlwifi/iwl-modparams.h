@@ -110,7 +110,7 @@ enum iwl_uapsd_disable {
  * @led_mode: system default, default = 0
  * @power_save: enable power save, default = false
  * @power_level: power level, default = 1
- * @debug_level: levels are IWL_DL_*
+ * @de_level: levels are IWL_DL_*
  * @antenna_coupling: antenna coupling in dB, default = 0
  * @nvm_file: specifies a external NVM file
  * @uapsd_disable: disable U-APSD, see &enum iwl_uapsd_disable, default =
@@ -122,7 +122,7 @@ enum iwl_uapsd_disable {
  * @fw_monitor: allow to use firmware monitor
  * @disable_11ac: disable VHT capabilities, default = false.
  * @remove_when_gone: remove an inaccessible device from the PCIe bus.
- * @enable_ini: enable new FW debug infratructure (INI TLVs)
+ * @enable_ini: enable new FW de infratructure (INI TLVs)
  */
 struct iwl_mod_params {
 	int swcrypto;
@@ -133,8 +133,8 @@ struct iwl_mod_params {
 	int led_mode;
 	bool power_save;
 	int power_level;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 debug_level;
+#ifdef CONFIG_IWLWIFI_DE
+	u32 de_level;
 #endif
 	int antenna_coupling;
 	char *nvm_file;

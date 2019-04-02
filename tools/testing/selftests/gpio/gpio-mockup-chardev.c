@@ -31,7 +31,7 @@ enum direction {
 	IN
 };
 
-static int get_debugfs(char **path)
+static int get_defs(char **path)
 {
 	struct libmnt_context *cxt;
 	struct libmnt_table *tb;
@@ -53,7 +53,7 @@ static int get_debugfs(char **path)
 	while (mnt_table_next_fs(tb, itr, &fs) == 0) {
 		const char *type = mnt_fs_get_fstype(fs);
 
-		if (!strcmp(type, "debugfs")) {
+		if (!strcmp(type, "defs")) {
 			found = 1;
 			break;
 		}
@@ -73,21 +73,21 @@ static int get_debugfs(char **path)
 	return 0;
 }
 
-static int gpio_debugfs_get(const char *consumer, int *dir, int *value)
+static int gpio_defs_get(const char *consumer, int *dir, int *value)
 {
-	char *debugfs;
+	char *defs;
 	FILE *f;
 	char *line = NULL;
 	size_t len = 0;
 	char *cur;
 	int found = 0;
 
-	if (get_debugfs(&debugfs) != 0)
-		err(EXIT_FAILURE, "debugfs is not mounted");
+	if (get_defs(&defs) != 0)
+		err(EXIT_FAILURE, "defs is not mounted");
 
-	f = fopen(debugfs, "r");
+	f = fopen(defs, "r");
 	if (!f)
-		err(EXIT_FAILURE, "read from gpio debugfs failed");
+		err(EXIT_FAILURE, "read from gpio defs failed");
 
 	/*
 	 * gpio-2   (                    |gpio-selftest               ) in  lo
@@ -118,7 +118,7 @@ static int gpio_debugfs_get(const char *consumer, int *dir, int *value)
 		found = 1;
 		break;
 	}
-	free(debugfs);
+	free(defs);
 	fclose(f);
 	free(line);
 
@@ -202,8 +202,8 @@ int gpio_pin_test(struct gpiochip_info *cinfo, int line, int flag, int value)
 	struct gpiohandle_data data;
 	unsigned int lines[] = {line};
 	int fd;
-	int debugfs_dir = IN;
-	int debugfs_value = 0;
+	int defs_dir = IN;
+	int defs_value = 0;
 	int ret;
 
 	data.values[0] = value;
@@ -214,21 +214,21 @@ int gpio_pin_test(struct gpiochip_info *cinfo, int line, int flag, int value)
 	else
 		fd = ret;
 
-	ret = gpio_debugfs_get(CONSUMER, &debugfs_dir, &debugfs_value);
+	ret = gpio_defs_get(CONSUMER, &defs_dir, &defs_value);
 	if (ret) {
 		ret = -EINVAL;
 		goto fail_out;
 	}
 	if (flag & GPIOHANDLE_REQUEST_INPUT) {
-		if (debugfs_dir != IN) {
+		if (defs_dir != IN) {
 			errno = -EINVAL;
 			ret = -errno;
 		}
 	} else if (flag & GPIOHANDLE_REQUEST_OUTPUT) {
 		if (flag & GPIOHANDLE_REQUEST_ACTIVE_LOW)
-			debugfs_value = !debugfs_value;
+			defs_value = !defs_value;
 
-		if (!(debugfs_dir == OUT && value == debugfs_value)) {
+		if (!(defs_dir == OUT && value == defs_value)) {
 			errno = -EINVAL;
 			ret = -errno;
 		}

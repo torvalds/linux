@@ -12,10 +12,10 @@
  */
 #include <linux/spinlock.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
-#include <linux/sched/debug.h>
+#include <linux/kde.h>
+#include <linux/sched/de.h>
 #include <linux/nmi.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <linux/ratelimit.h>
@@ -93,13 +93,13 @@ __setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 static u64 nmi_longest_ns = 1 * NSEC_PER_MSEC;
 
-static int __init nmi_warning_debugfs(void)
+static int __init nmi_warning_defs(void)
 {
-	debugfs_create_u64("nmi_longest_ns", 0644,
-			arch_debugfs_dir, &nmi_longest_ns);
+	defs_create_u64("nmi_longest_ns", 0644,
+			arch_defs_dir, &nmi_longest_ns);
 	return 0;
 }
-fs_initcall(nmi_warning_debugfs);
+fs_initcall(nmi_warning_defs);
 
 static void nmi_max_handler(struct irq_work *w)
 {
@@ -243,7 +243,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 		return;
 
 	pr_emerg(
-	"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
+	"NMI: IOCK error (de interrupt?) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 	show_regs(regs);
 
@@ -477,16 +477,16 @@ static DEFINE_PER_CPU(unsigned long, nmi_cr2);
  * some care, the inner breakpoint will clobber the outer breakpoint's
  * stack.
  *
- * If a breakpoint is being processed, and the debug stack is being
+ * If a breakpoint is being processed, and the de stack is being
  * used, if an NMI comes in and also hits a breakpoint, the stack
  * pointer will be set to the same fixed address as the breakpoint that
  * was interrupted, causing that stack to be corrupted. To handle this
- * case, check if the stack that was interrupted is the debug stack, and
+ * case, check if the stack that was interrupted is the de stack, and
  * if so, change the IDT so that new breakpoints will use the current
  * stack and not switch to the fixed address. On return of the NMI,
  * switch back to the original IDT.
  */
-static DEFINE_PER_CPU(int, update_debug_stack);
+static DEFINE_PER_CPU(int, update_de_stack);
 #endif
 
 dotraplinkage notrace void
@@ -507,9 +507,9 @@ nmi_restart:
 	 * change the IDT such that breakpoints that happen here
 	 * continue to use the NMI stack.
 	 */
-	if (unlikely(is_debug_stack(regs->sp))) {
-		debug_stack_set_zero();
-		this_cpu_write(update_debug_stack, 1);
+	if (unlikely(is_de_stack(regs->sp))) {
+		de_stack_set_zero();
+		this_cpu_write(update_de_stack, 1);
 	}
 #endif
 
@@ -523,9 +523,9 @@ nmi_restart:
 	nmi_exit();
 
 #ifdef CONFIG_X86_64
-	if (unlikely(this_cpu_read(update_debug_stack))) {
-		debug_stack_reset();
-		this_cpu_write(update_debug_stack, 0);
+	if (unlikely(this_cpu_read(update_de_stack))) {
+		de_stack_reset();
+		this_cpu_write(update_de_stack, 0);
 	}
 #endif
 

@@ -348,8 +348,8 @@ int mmc_add_card(struct mmc_card *card)
 			uhs_bus_speed_mode, type, card->rca);
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	mmc_add_card_debugfs(card);
+#ifdef CONFIG_DE_FS
+	mmc_add_card_defs(card);
 #endif
 	card->dev.of_node = mmc_of_find_child_device(card->host, 0);
 
@@ -372,8 +372,8 @@ void mmc_remove_card(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 
-#ifdef CONFIG_DEBUG_FS
-	mmc_remove_card_debugfs(card);
+#ifdef CONFIG_DE_FS
+	mmc_remove_card_defs(card);
 #endif
 
 	if (host->cqe_enabled) {

@@ -43,7 +43,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 
 		for (i = 0; i < nr; i++)
 			bio_add_page(bio, page + i, PAGE_SIZE, 0);
-		VM_BUG_ON(bio->bi_iter.bi_size != PAGE_SIZE * nr);
+		VM__ON(bio->bi_iter.bi_size != PAGE_SIZE * nr);
 	}
 	return bio;
 }
@@ -282,7 +282,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 	int ret;
 	struct swap_info_struct *sis = page_swap_info(page);
 
-	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+	VM__ON_PAGE(!PageSwapCache(page), page);
 	if (sis->flags & SWP_FS) {
 		struct kiocb kiocb;
 		struct file *swap_file = sis->swap_file;
@@ -356,9 +356,9 @@ int swap_readpage(struct page *page, bool synchronous)
 	blk_qc_t qc;
 	struct gendisk *disk;
 
-	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(PageUptodate(page), page);
+	VM__ON_PAGE(!PageSwapCache(page) && !synchronous, page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(PageUptodate(page), page);
 	if (frontswap_load(page) == 0) {
 		SetPageUptodate(page);
 		unlock_page(page);
@@ -428,7 +428,7 @@ int swap_set_page_dirty(struct page *page)
 	if (sis->flags & SWP_FS) {
 		struct address_space *mapping = sis->swap_file->f_mapping;
 
-		VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+		VM__ON_PAGE(!PageSwapCache(page), page);
 		return mapping->a_ops->set_page_dirty(page);
 	} else {
 		return __set_page_dirty_no_writeback(page);

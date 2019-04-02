@@ -31,7 +31,7 @@
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
 #include "jfs_txnmgr.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 #ifdef CONFIG_JFS_STATISTICS
 static struct {
@@ -133,7 +133,7 @@ static inline void remove_metapage(struct page *page, struct metapage *mp)
 
 	index = (mp->index >> l2mp_blocks) & (MPS_PER_PAGE - 1);
 
-	BUG_ON(a->mp[index] != mp);
+	_ON(a->mp[index] != mp);
 
 	a->mp[index] = NULL;
 	if (--a->mp_count == 0) {
@@ -335,7 +335,7 @@ static void metapage_write_end_io(struct bio *bio)
 {
 	struct page *page = bio->bi_private;
 
-	BUG_ON(!PagePrivate(page));
+	_ON(!PagePrivate(page));
 
 	if (bio->bi_status) {
 		printk(KERN_ERR "metapage_write_end_io: I/O error\n");
@@ -367,8 +367,8 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 
 	page_start = (sector_t)page->index <<
 		     (PAGE_SHIFT - inode->i_blkbits);
-	BUG_ON(!PageLocked(page));
-	BUG_ON(PageWriteback(page));
+	_ON(!PageLocked(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 
 	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
@@ -493,7 +493,7 @@ static int metapage_readpage(struct file *fp, struct page *page)
 	unsigned int len;
 	int offset;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	page_start = (sector_t)page->index <<
 		     (PAGE_SHIFT - inode->i_blkbits);
 
@@ -570,9 +570,9 @@ static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 static void metapage_invalidatepage(struct page *page, unsigned int offset,
 				    unsigned int length)
 {
-	BUG_ON(offset || length < PAGE_SIZE);
+	_ON(offset || length < PAGE_SIZE);
 
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 
 	metapage_releasepage(page, 0);
 }
@@ -744,7 +744,7 @@ void release_metapage(struct metapage * mp)
 	struct page *page = mp->page;
 	jfs_info("release_metapage: mp = 0x%p, flag = 0x%lx", mp, mp->flag);
 
-	BUG_ON(!page);
+	_ON(!page);
 
 	lock_page(page);
 	unlock_metapage(mp);

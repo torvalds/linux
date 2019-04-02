@@ -34,7 +34,7 @@ EXPORT_SYMBOL(ipv6_ext_hdr);
  * particular kind of extension header and process that header prior to
  * processing all preceding ones.
  *
- * We do exactly this. This is a protocol bug. We can't decide after a
+ * We do exactly this. This is a protocol . We can't decide after a
  * seeing an unknown discard-with-error flavour TLV option if it's a
  * ICMP error message or not (errors should never be send in reply to
  * ICMP error messages).

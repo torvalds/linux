@@ -42,9 +42,9 @@
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
-/* #define EXIT_DEBUG */
+/* #define EXIT_DE */
 
-struct kvm_stats_debugfs_item debugfs_entries[] = {
+struct kvm_stats_defs_item defs_entries[] = {
 	{ "exits",       VCPU_STAT(sum_exits) },
 	{ "mmio",        VCPU_STAT(mmio_exits) },
 	{ "sig",         VCPU_STAT(signal_exits) },
@@ -161,7 +161,7 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	case 0x800: prio = BOOK3S_IRQPRIO_FP_UNAVAIL;		break;
 	case 0x900: prio = BOOK3S_IRQPRIO_DECREMENTER;		break;
 	case 0xc00: prio = BOOK3S_IRQPRIO_SYSCALL;		break;
-	case 0xd00: prio = BOOK3S_IRQPRIO_DEBUG;		break;
+	case 0xd00: prio = BOOK3S_IRQPRIO_DE;		break;
 	case 0xf20: prio = BOOK3S_IRQPRIO_ALTIVEC;		break;
 	case 0xf40: prio = BOOK3S_IRQPRIO_VSX;			break;
 	case 0xf60: prio = BOOK3S_IRQPRIO_FAC_UNAVAIL;		break;
@@ -189,7 +189,7 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 
 	set_bit(kvmppc_book3s_vec2irqprio(vec),
 		&vcpu->arch.pending_exceptions);
-#ifdef EXIT_DEBUG
+#ifdef EXIT_DE
 	printk(KERN_INFO "Queueing interrupt %x\n", vec);
 #endif
 }
@@ -346,7 +346,7 @@ static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOK3S_IRQPRIO_SYSCALL:
 		vec = BOOK3S_INTERRUPT_SYSCALL;
 		break;
-	case BOOK3S_IRQPRIO_DEBUG:
+	case BOOK3S_IRQPRIO_DE:
 		vec = BOOK3S_INTERRUPT_TRACE;
 		break;
 	case BOOK3S_IRQPRIO_PERFORMANCE_MONITOR:
@@ -402,7 +402,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
 	unsigned int priority;
 
-#ifdef EXIT_DEBUG
+#ifdef EXIT_DE
 	if (vcpu->arch.pending_exceptions)
 		printk(KERN_EMERG "KVM: Check pending: %lx\n", vcpu->arch.pending_exceptions);
 #endif
@@ -636,7 +636,7 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 			}
 			break;
 #endif /* CONFIG_VSX */
-		case KVM_REG_PPC_DEBUG_INST:
+		case KVM_REG_PPC_DE_INST:
 			*val = get_reg_val(id, INS_TW);
 			break;
 #ifdef CONFIG_KVM_XICS
@@ -778,11 +778,11 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-					struct kvm_guest_debug *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_de(struct kvm_vcpu *vcpu,
+					struct kvm_guest_de *dbg)
 {
 	vcpu_load(vcpu);
-	vcpu->guest_debug = dbg->control;
+	vcpu->guest_de = dbg->control;
 	vcpu_put(vcpu);
 	return 0;
 }
@@ -928,7 +928,7 @@ int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return H_SUCCESS;

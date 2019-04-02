@@ -170,7 +170,7 @@ finish:
 /*
  * We will need multiple versions of update_mmu_cache(), one that just
  * updates the TLB with the new pte(s), and another which also checks
- * for the R4k "end of page" hardware bug and does the needy.
+ * for the R4k "end of page" hardware  and does the needy.
  */
 void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 {
@@ -181,7 +181,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	int pid;
 
 	/*
-	 * Handle debugger faulting in for debugee.
+	 * Handle deger faulting in for deee.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;

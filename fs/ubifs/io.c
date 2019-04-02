@@ -92,7 +92,7 @@ void ubifs_ro_mode(struct ubifs_info *c, int err)
 
 /*
  * Below are simple wrappers over UBI I/O functions which include some
- * additional checks and UBIFS debugging stuff. See corresponding UBI function
+ * additional checks and UBIFS deging stuff. See corresponding UBI function
  * for more information.
  */
 

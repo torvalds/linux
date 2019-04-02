@@ -248,48 +248,48 @@ const char *iavf_stat_str(struct iavf_hw *hw, iavf_status stat_err)
 }
 
 /**
- * iavf_debug_aq
- * @hw: debug mask related to admin queue
- * @mask: debug mask
+ * iavf_de_aq
+ * @hw: de mask related to admin queue
+ * @mask: de mask
  * @desc: pointer to admin queue descriptor
  * @buffer: pointer to command buffer
  * @buf_len: max length of buffer
  *
- * Dumps debug log about adminq command with descriptor contents.
+ * Dumps de log about adminq command with descriptor contents.
  **/
-void iavf_debug_aq(struct iavf_hw *hw, enum iavf_debug_mask mask, void *desc,
+void iavf_de_aq(struct iavf_hw *hw, enum iavf_de_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
 	u8 *buf = (u8 *)buffer;
 
-	if ((!(mask & hw->debug_mask)) || !desc)
+	if ((!(mask & hw->de_mask)) || !desc)
 		return;
 
-	iavf_debug(hw, mask,
+	iavf_de(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		   le16_to_cpu(aq_desc->opcode),
 		   le16_to_cpu(aq_desc->flags),
 		   le16_to_cpu(aq_desc->datalen),
 		   le16_to_cpu(aq_desc->retval));
-	iavf_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
+	iavf_de(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->cookie_high),
 		   le32_to_cpu(aq_desc->cookie_low));
-	iavf_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
+	iavf_de(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.internal.param0),
 		   le32_to_cpu(aq_desc->params.internal.param1));
-	iavf_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
+	iavf_de(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
 		   le32_to_cpu(aq_desc->params.external.addr_high),
 		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if (buffer && aq_desc->datalen) {
 		u16 len = le16_to_cpu(aq_desc->datalen);
 
-		iavf_debug(hw, mask, "AQ CMD Buffer:\n");
+		iavf_de(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
 		/* write the full 16-byte chunks */
-		if (hw->debug_mask & mask) {
+		if (hw->de_mask & mask) {
 			char prefix[27];
 
 			snprintf(prefix, sizeof(prefix),

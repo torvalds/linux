@@ -9,7 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL THREAD
+#define FSCACHE_DE_LEVEL THREAD
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

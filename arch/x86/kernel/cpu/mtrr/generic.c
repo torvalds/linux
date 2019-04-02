@@ -2,7 +2,7 @@
  * This only handles 32bit MTRR on 32bit hosts. This is strictly wrong
  * because MTRRs can span up to 40 bits (36bits on most modern x86)
  */
-#define DEBUG
+#define DE
 
 #include <linux/export.h>
 #include <linux/init.h>
@@ -362,7 +362,7 @@ static void __init print_fixed_last(void)
 	if (!last_fixed_end)
 		return;
 
-	pr_debug("  %05X-%05X %s\n", last_fixed_start,
+	pr_de("  %05X-%05X %s\n", last_fixed_start,
 		 last_fixed_end - 1, mtrr_attrib_to_str(last_fixed_type));
 
 	last_fixed_end = 0;
@@ -404,10 +404,10 @@ static void __init print_mtrr_state(void)
 	unsigned int i;
 	int high_width;
 
-	pr_debug("MTRR default type: %s\n",
+	pr_de("MTRR default type: %s\n",
 		 mtrr_attrib_to_str(mtrr_state.def_type));
 	if (mtrr_state.have_fixed) {
-		pr_debug("MTRR fixed ranges %sabled:\n",
+		pr_de("MTRR fixed ranges %sabled:\n",
 			((mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED) &&
 			 (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) ?
 			 "en" : "dis");
@@ -422,13 +422,13 @@ static void __init print_mtrr_state(void)
 		/* tail */
 		print_fixed_last();
 	}
-	pr_debug("MTRR variable ranges %sabled:\n",
+	pr_de("MTRR variable ranges %sabled:\n",
 		 mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED ? "en" : "dis");
 	high_width = (__ffs64(size_or_mask) - (32 - PAGE_SHIFT) + 3) / 4;
 
 	for (i = 0; i < num_var_ranges; ++i) {
 		if (mtrr_state.var_ranges[i].mask_lo & (1 << 11))
-			pr_debug("  %u base %0*X%05X000 mask %0*X%05X000 %s\n",
+			pr_de("  %u base %0*X%05X000 mask %0*X%05X000 %s\n",
 				 i,
 				 high_width,
 				 mtrr_state.var_ranges[i].base_hi,
@@ -438,10 +438,10 @@ static void __init print_mtrr_state(void)
 				 mtrr_state.var_ranges[i].mask_lo >> 12,
 				 mtrr_attrib_to_str(mtrr_state.var_ranges[i].base_lo & 0xff));
 		else
-			pr_debug("  %u disabled\n", i);
+			pr_de("  %u disabled\n", i);
 	}
 	if (mtrr_tom2)
-		pr_debug("TOM2: %016llx aka %lldM\n", mtrr_tom2, mtrr_tom2>>20);
+		pr_de("TOM2: %016llx aka %lldM\n", mtrr_tom2, mtrr_tom2>>20);
 }
 
 /* PAT setup for BP. We need to go through sync steps here */

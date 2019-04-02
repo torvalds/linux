@@ -1,4 +1,4 @@
-//#define DEBUG
+//#define DE
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
@@ -281,7 +281,7 @@ static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 	bool unmap = false;
 	u32 type;
 
-	BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
+	_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
 	switch (req_op(req)) {
 	case REQ_OP_READ:
@@ -425,7 +425,7 @@ static ssize_t serial_show(struct device *dev,
 	int err;
 
 	/* sysfs gives us a PAGE_SIZE buffer */
-	BUILD_BUG_ON(PAGE_SIZE < VIRTIO_BLK_ID_BYTES);
+	BUILD__ON(PAGE_SIZE < VIRTIO_BLK_ID_BYTES);
 
 	buf[VIRTIO_BLK_ID_BYTES] = '\0';
 	err = virtblk_get_id(disk, buf);
@@ -620,7 +620,7 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 	struct virtio_device *vdev = vblk->vdev;
 	int i;
 
-	BUG_ON(!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_CONFIG_WCE));
+	_ON(!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_CONFIG_WCE));
 	i = sysfs_match_string(virtblk_cache_types, buf);
 	if (i < 0)
 		return i;
@@ -637,7 +637,7 @@ cache_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct virtio_blk *vblk = disk->private_data;
 	u8 writeback = virtblk_get_cache_mode(vblk->vdev);
 
-	BUG_ON(writeback >= ARRAY_SIZE(virtblk_cache_types));
+	_ON(writeback >= ARRAY_SIZE(virtblk_cache_types));
 	return snprintf(buf, 40, "%s\n", virtblk_cache_types[writeback]);
 }
 

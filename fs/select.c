@@ -348,7 +348,7 @@ static int poll_select_copy_remaining(struct timespec64 *end_time,
 			return ret;
 		break;
 	default:
-		BUG();
+		();
 	}
 	/*
 	 * If an application puts its timeval in read-only memory, we
@@ -745,7 +745,7 @@ static long do_pselect(int n, fd_set __user *inp, fd_set __user *outp,
 				return -EFAULT;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		to = &end_time;
@@ -1337,7 +1337,7 @@ static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 				return -EFAULT;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		to = &end_time;

@@ -1,12 +1,12 @@
 /*
- * Architecture specific debugfs files
+ * Architecture specific defs files
  *
  * Copyright (C) 2007, Intel Corp.
  *	Huang Ying <ying.huang@intel.com>
  *
  * This file is released under the GPLv2.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -17,10 +17,10 @@
 
 #include <asm/setup.h>
 
-struct dentry *arch_debugfs_dir;
-EXPORT_SYMBOL(arch_debugfs_dir);
+struct dentry *arch_defs_dir;
+EXPORT_SYMBOL(arch_defs_dir);
 
-#ifdef CONFIG_DEBUG_BOOT_PARAMS
+#ifdef CONFIG_DE_BOOT_PARAMS
 struct setup_data_node {
 	u64 paddr;
 	u32 type;
@@ -76,24 +76,24 @@ create_setup_data_node(struct dentry *parent, int no,
 	char buf[16];
 
 	sprintf(buf, "%d", no);
-	d = debugfs_create_dir(buf, parent);
+	d = defs_create_dir(buf, parent);
 	if (!d)
 		return -ENOMEM;
 
-	type = debugfs_create_x32("type", S_IRUGO, d, &node->type);
+	type = defs_create_x32("type", S_IRUGO, d, &node->type);
 	if (!type)
 		goto err_dir;
 
-	data = debugfs_create_file("data", S_IRUGO, d, node, &fops_setup_data);
+	data = defs_create_file("data", S_IRUGO, d, node, &fops_setup_data);
 	if (!data)
 		goto err_type;
 
 	return 0;
 
 err_type:
-	debugfs_remove(type);
+	defs_remove(type);
 err_dir:
-	debugfs_remove(d);
+	defs_remove(d);
 	return -ENOMEM;
 }
 
@@ -106,7 +106,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 	u64 pa_data;
 	int no = 0;
 
-	d = debugfs_create_dir("setup_data", parent);
+	d = defs_create_dir("setup_data", parent);
 	if (!d)
 		return -ENOMEM;
 
@@ -141,30 +141,30 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 	return 0;
 
 err_dir:
-	debugfs_remove(d);
+	defs_remove(d);
 	return error;
 }
 
-static struct debugfs_blob_wrapper boot_params_blob = {
+static struct defs_blob_wrapper boot_params_blob = {
 	.data		= &boot_params,
 	.size		= sizeof(boot_params),
 };
 
-static int __init boot_params_kdebugfs_init(void)
+static int __init boot_params_kdefs_init(void)
 {
 	struct dentry *dbp, *version, *data;
 	int error = -ENOMEM;
 
-	dbp = debugfs_create_dir("boot_params", arch_debugfs_dir);
+	dbp = defs_create_dir("boot_params", arch_defs_dir);
 	if (!dbp)
 		return -ENOMEM;
 
-	version = debugfs_create_x16("version", S_IRUGO, dbp,
+	version = defs_create_x16("version", S_IRUGO, dbp,
 				     &boot_params.hdr.version);
 	if (!version)
 		goto err_dir;
 
-	data = debugfs_create_blob("data", S_IRUGO, dbp,
+	data = defs_create_blob("data", S_IRUGO, dbp,
 				   &boot_params_blob);
 	if (!data)
 		goto err_version;
@@ -176,27 +176,27 @@ static int __init boot_params_kdebugfs_init(void)
 	return 0;
 
 err_data:
-	debugfs_remove(data);
+	defs_remove(data);
 err_version:
-	debugfs_remove(version);
+	defs_remove(version);
 err_dir:
-	debugfs_remove(dbp);
+	defs_remove(dbp);
 	return error;
 }
-#endif /* CONFIG_DEBUG_BOOT_PARAMS */
+#endif /* CONFIG_DE_BOOT_PARAMS */
 
-static int __init arch_kdebugfs_init(void)
+static int __init arch_kdefs_init(void)
 {
 	int error = 0;
 
-	arch_debugfs_dir = debugfs_create_dir("x86", NULL);
-	if (!arch_debugfs_dir)
+	arch_defs_dir = defs_create_dir("x86", NULL);
+	if (!arch_defs_dir)
 		return -ENOMEM;
 
-#ifdef CONFIG_DEBUG_BOOT_PARAMS
-	error = boot_params_kdebugfs_init();
+#ifdef CONFIG_DE_BOOT_PARAMS
+	error = boot_params_kdefs_init();
 #endif
 
 	return error;
 }
-arch_initcall(arch_kdebugfs_init);
+arch_initcall(arch_kdefs_init);

@@ -377,7 +377,7 @@ found:
 	}
 
 	if (!timer)
-		pr_debug("%s: timer request failed!\n", __func__);
+		pr_de("%s: timer request failed!\n", __func__);
 
 	return timer;
 }
@@ -499,7 +499,7 @@ static struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
 
 __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 {
-	BUG();
+	();
 
 	return 0;
 }

@@ -36,7 +36,7 @@ static int mcpm_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	cpu_to_pcpu(cpu, &pcpu, &pcluster);
 
-	pr_debug("%s: logical CPU %d is physical CPU %d cluster %d\n",
+	pr_de("%s: logical CPU %d is physical CPU %d cluster %d\n",
 		 __func__, cpu, pcpu, pcluster);
 
 	mcpm_set_entry_vector(pcpu, pcluster, NULL);

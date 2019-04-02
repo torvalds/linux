@@ -52,8 +52,8 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 	typeof(size) _s = (size);					\
 	unsigned long _mask = array_index_mask_nospec(_i, _s);		\
 									\
-	BUILD_BUG_ON(sizeof(_i) > sizeof(long));			\
-	BUILD_BUG_ON(sizeof(_s) > sizeof(long));			\
+	BUILD__ON(sizeof(_i) > sizeof(long));			\
+	BUILD__ON(sizeof(_s) > sizeof(long));			\
 									\
 	(typeof(_i)) (_i & _mask);					\
 })

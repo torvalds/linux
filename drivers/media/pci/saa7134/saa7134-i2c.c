@@ -29,21 +29,21 @@
 
 /* ----------------------------------------------------------- */
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug,"enable debug messages [i2c]");
+static unsigned int i2c_de;
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de,"enable de messages [i2c]");
 
 static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 #define i2c_dbg(level, fmt, arg...) do { \
-	if (i2c_debug == level) \
-		printk(KERN_DEBUG pr_fmt("i2c: " fmt), ## arg); \
+	if (i2c_de == level) \
+		printk(KERN_DE pr_fmt("i2c: " fmt), ## arg); \
 	} while (0)
 
 #define i2c_cont(level, fmt, arg...) do { \
-	if (i2c_debug == level) \
+	if (i2c_de == level) \
 		pr_cont(fmt, ## arg); \
 	} while (0)
 
@@ -259,7 +259,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 			    I2C_M_RD && msgs[i].addr != 0x40 &&
 			    msgs[i].addr != 0x41 &&
 			    msgs[i].addr != 0x19) {
-				/* workaround for a saa7134 i2c bug
+				/* workaround for a saa7134 i2c 
 				 * needed to talk to the mt352 demux
 				 * thanks to pinnacle for the hint */
 				int quirk = 0xfe;
@@ -320,7 +320,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 	i2c_cont(1, "\n");
 	return num;
  err:
-	if (1 == i2c_debug) {
+	if (1 == i2c_de) {
 		status = i2c_get_status(dev);
 		i2c_cont(1, " ERROR: %s\n", str_i2c_status[status]);
 	}
@@ -368,7 +368,7 @@ static void saa7134_i2c_eeprom_md7134_gate(struct saa7134_dev *dev)
 
 	ret = i2c_transfer(&dev->i2c_adap, i2cgatemsg_r, 2);
 	if ((ret == 2) && (dmdregval & 0x2)) {
-		pr_debug("%s: DVB-T demod i2c gate was left closed\n",
+		pr_de("%s: DVB-T demod i2c gate was left closed\n",
 			 dev->name);
 
 		data[0] = subaddr;

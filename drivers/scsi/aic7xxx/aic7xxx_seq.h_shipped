@@ -894,7 +894,7 @@ static ahc_patch_func_t ahc_patch23_func;
 static int
 ahc_patch23_func(struct ahc_softc *ahc)
 {
-	return ((ahc->bugs & AHC_SCBCHAN_UPLOAD_BUG) != 0);
+	return ((ahc->s & AHC_SCBCHAN_UPLOAD_) != 0);
 }
 
 static ahc_patch_func_t ahc_patch22_func;
@@ -934,7 +934,7 @@ static ahc_patch_func_t ahc_patch18_func;
 static int
 ahc_patch18_func(struct ahc_softc *ahc)
 {
-	return ((ahc->bugs & AHC_PCI_2_1_RETRY_BUG) != 0);
+	return ((ahc->s & AHC_PCI_2_1_RETRY_) != 0);
 }
 
 static ahc_patch_func_t ahc_patch17_func;
@@ -942,7 +942,7 @@ static ahc_patch_func_t ahc_patch17_func;
 static int
 ahc_patch17_func(struct ahc_softc *ahc)
 {
-	return ((ahc->bugs & AHC_TMODE_WIDEODD_BUG) != 0);
+	return ((ahc->s & AHC_TMODE_WIDEODD_) != 0);
 }
 
 static ahc_patch_func_t ahc_patch16_func;
@@ -950,7 +950,7 @@ static ahc_patch_func_t ahc_patch16_func;
 static int
 ahc_patch16_func(struct ahc_softc *ahc)
 {
-	return ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0);
+	return ((ahc->s & AHC_AUTOFLUSH_) != 0);
 }
 
 static ahc_patch_func_t ahc_patch15_func;
@@ -966,7 +966,7 @@ static ahc_patch_func_t ahc_patch14_func;
 static int
 ahc_patch14_func(struct ahc_softc *ahc)
 {
-	return ((ahc->bugs & AHC_PCI_MWI_BUG) != 0 && ahc->pci_cachesize != 0);
+	return ((ahc->s & AHC_PCI_MWI_) != 0 && ahc->pci_cachesize != 0);
 }
 
 static ahc_patch_func_t ahc_patch13_func;
@@ -1038,7 +1038,7 @@ static ahc_patch_func_t ahc_patch5_func;
 static int
 ahc_patch5_func(struct ahc_softc *ahc)
 {
-	return ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0);
+	return ((ahc->flags & AHC_SEQUENCER_DE) != 0);
 }
 
 static ahc_patch_func_t ahc_patch4_func;

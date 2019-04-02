@@ -208,7 +208,7 @@ config SCSI_LOGGING
 	bool "SCSI logging facility"
 	depends on SCSI
 	---help---
-	  This turns on a logging facility that can be used to debug a number
+	  This turns on a logging facility that can be used to de a number
 	  of SCSI related problems.
 
 	  If you say Y here, no logging output will appear by default, but you
@@ -646,12 +646,12 @@ config SCSI_SNIC
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called snic.
 
-config SCSI_SNIC_DEBUG_FS
-	bool "Cisco SNIC Driver Debugfs Support"
-	depends on SCSI_SNIC && DEBUG_FS
+config SCSI_SNIC_DE_FS
+	bool "Cisco SNIC Driver Defs Support"
+	depends on SCSI_SNIC && DE_FS
 	help
-	  This enables to list debugging information from SNIC Driver
-	  available via debugfs file system
+	  This enables to list deging information from SNIC Driver
+	  available via defs file system
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
@@ -1155,12 +1155,12 @@ config SCSI_LPFC
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
-config SCSI_LPFC_DEBUG_FS
-	bool "Emulex LightPulse Fibre Channel debugfs Support"
-	depends on SCSI_LPFC && DEBUG_FS
+config SCSI_LPFC_DE_FS
+	bool "Emulex LightPulse Fibre Channel defs Support"
+	depends on SCSI_LPFC && DE_FS
 	---help---
-	  This makes debugging information from the lpfc driver
-	  available via the debugfs filesystem.
+	  This makes deging information from the lpfc driver
+	  available via the defs filesystem.
 
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"
@@ -1221,17 +1221,17 @@ config SCSI_WD719X
 	  This is a driver for Western Digital WD7193, WD7197 and WD7296 PCI
 	  SCSI controllers (based on WD33C296A chip).
 
-config SCSI_DEBUG
-	tristate "SCSI debugging host and device simulator"
+config SCSI_DE
+	tristate "SCSI deging host and device simulator"
 	depends on SCSI
 	select CRC_T10DIF
 	help
 	  This pseudo driver simulates one or more hosts (SCSI initiators),
 	  each with one or more targets, each with one or more logical units.
 	  Defaults to one of each, creating a small RAM disk device. Many
-	  parameters found in the /sys/bus/pseudo/drivers/scsi_debug
+	  parameters found in the /sys/bus/pseudo/drivers/scsi_de
 	  directory can be tweaked at run time.
-	  See <http://sg.danny.cz/sg/sdebug26.html> for more information.
+	  See <http://sg.danny.cz/sg/sde26.html> for more information.
 	  Mainly used for testing and best as a module. If unsure, say N.
 
 config SCSI_MESH

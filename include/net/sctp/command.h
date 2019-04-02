@@ -22,7 +22,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -214,7 +214,7 @@ struct sctp_cmd_seq {
  */
 static inline int sctp_init_cmd_seq(struct sctp_cmd_seq *seq)
 {
-	/* cmds[] is filled backwards to simplify the overflow BUG() check */
+	/* cmds[] is filled backwards to simplify the overflow () check */
 	seq->last_used_slot = seq->cmds + SCTP_MAX_NUM_COMMANDS;
 	seq->next_cmd = seq->last_used_slot;
 	return 1;		/* We always succeed.  */
@@ -231,7 +231,7 @@ static inline void sctp_add_cmd_sf(struct sctp_cmd_seq *seq,
 {
 	struct sctp_cmd *cmd = seq->last_used_slot - 1;
 
-	BUG_ON(cmd < seq->cmds);
+	_ON(cmd < seq->cmds);
 
 	cmd->verb = verb;
 	cmd->obj = obj;

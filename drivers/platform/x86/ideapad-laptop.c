@@ -33,7 +33,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/backlight.h>
 #include <linux/fb.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/i8042.h>
 #include <linux/dmi.h>
@@ -103,7 +103,7 @@ struct ideapad_private {
 	struct platform_device *platform_device;
 	struct input_dev *inputdev;
 	struct backlight_device *blightdev;
-	struct dentry *debug;
+	struct dentry *de;
 	unsigned long cfg;
 	bool has_hw_rfkill_switch;
 	const char *fnesc_guid;
@@ -239,9 +239,9 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 }
 
 /*
- * debugfs
+ * defs
  */
-static int debugfs_status_show(struct seq_file *s, void *data)
+static int defs_status_show(struct seq_file *s, void *data)
 {
 	struct ideapad_private *priv = s->private;
 	unsigned long value;
@@ -287,9 +287,9 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debugfs_status);
+DEFINE_SHOW_ATTRIBUTE(defs_status);
 
-static int debugfs_cfg_show(struct seq_file *s, void *data)
+static int defs_cfg_show(struct seq_file *s, void *data)
 {
 	struct ideapad_private *priv = s->private;
 
@@ -328,29 +328,29 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 	}
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debugfs_cfg);
+DEFINE_SHOW_ATTRIBUTE(defs_cfg);
 
-static int ideapad_debugfs_init(struct ideapad_private *priv)
+static int ideapad_defs_init(struct ideapad_private *priv)
 {
 	struct dentry *node;
 
-	priv->debug = debugfs_create_dir("ideapad", NULL);
-	if (priv->debug == NULL) {
-		pr_err("failed to create debugfs directory");
+	priv->de = defs_create_dir("ideapad", NULL);
+	if (priv->de == NULL) {
+		pr_err("failed to create defs directory");
 		goto errout;
 	}
 
-	node = debugfs_create_file("cfg", S_IRUGO, priv->debug, priv,
-				   &debugfs_cfg_fops);
+	node = defs_create_file("cfg", S_IRUGO, priv->de, priv,
+				   &defs_cfg_fops);
 	if (!node) {
-		pr_err("failed to create cfg in debugfs");
+		pr_err("failed to create cfg in defs");
 		goto errout;
 	}
 
-	node = debugfs_create_file("status", S_IRUGO, priv->debug, priv,
-				   &debugfs_status_fops);
+	node = defs_create_file("status", S_IRUGO, priv->de, priv,
+				   &defs_status_fops);
 	if (!node) {
-		pr_err("failed to create status in debugfs");
+		pr_err("failed to create status in defs");
 		goto errout;
 	}
 
@@ -360,10 +360,10 @@ errout:
 	return -ENOMEM;
 }
 
-static void ideapad_debugfs_exit(struct ideapad_private *priv)
+static void ideapad_defs_exit(struct ideapad_private *priv)
 {
-	debugfs_remove_recursive(priv->debug);
-	priv->debug = NULL;
+	defs_remove_recursive(priv->de);
+	priv->de = NULL;
 }
 
 /*
@@ -1317,9 +1317,9 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = ideapad_debugfs_init(priv);
+	ret = ideapad_defs_init(priv);
 	if (ret)
-		goto debugfs_failed;
+		goto defs_failed;
 
 	ret = ideapad_input_init(priv);
 	if (ret)
@@ -1375,8 +1375,8 @@ backlight_failed:
 		ideapad_unregister_rfkill(priv, i);
 	ideapad_input_exit(priv);
 input_failed:
-	ideapad_debugfs_exit(priv);
-debugfs_failed:
+	ideapad_defs_exit(priv);
+defs_failed:
 	ideapad_sysfs_exit(priv);
 	return ret;
 }
@@ -1396,7 +1396,7 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);
 	ideapad_input_exit(priv);
-	ideapad_debugfs_exit(priv);
+	ideapad_defs_exit(priv);
 	ideapad_sysfs_exit(priv);
 	dev_set_drvdata(&pdev->dev, NULL);
 

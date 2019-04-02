@@ -15,7 +15,7 @@ config IR_IMG_RAW
 	   changes to the IR raw decoders for software decoding. This is much
 	   less reliable (due to lack of timestamps) and consumes more
 	   processing power than using hardware decode, but can be useful for
-	   testing, debug, and to make more protocols available.
+	   testing, de, and to make more protocols available.
 
 config IR_IMG_HW
 	bool "Hardware decoder"

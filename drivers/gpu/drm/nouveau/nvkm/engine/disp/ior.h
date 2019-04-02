@@ -168,7 +168,7 @@ void gf119_hda_eld(struct nvkm_ior *, u8 *, u8);
 	nvkm_##l(&_ior->disp->engine.subdev, "%s: "f"\n", _ior->name, ##a);    \
 } while(0)
 #define IOR_WARN(i,f,a...) IOR_MSG((i), warn, f, ##a)
-#define IOR_DBG(i,f,a...) IOR_MSG((i), debug, f, ##a)
+#define IOR_DBG(i,f,a...) IOR_MSG((i), de, f, ##a)
 
 int nv50_dac_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_dac_new(struct nvkm_disp *, int);

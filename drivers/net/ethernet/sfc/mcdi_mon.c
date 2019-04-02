@@ -168,7 +168,7 @@ static int efx_mcdi_mon_get_entry(struct device *dev, unsigned int index,
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_READ_SENSORS_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_READ_SENSORS_OUT_LEN != 0);
 
 	mutex_lock(&hwmon->update_lock);
 

@@ -35,15 +35,15 @@
 
 static char *def_output = VPBE_DEFAULT_OUTPUT;
 static char *def_mode = VPBE_DEFAULT_MODE;
-static int debug;
+static int de;
 
 module_param(def_output, charp, S_IRUGO);
 module_param(def_mode, charp, S_IRUGO);
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 
 MODULE_PARM_DESC(def_output, "vpbe output name (default:Composite)");
 MODULE_PARM_DESC(def_mode, "vpbe output mode name (default:ntsc");
-MODULE_PARM_DESC(debug, "Debug level 0-1");
+MODULE_PARM_DESC(de, "De level 0-1");
 
 MODULE_DESCRIPTION("TI DMXXX VPBE Display controller");
 MODULE_LICENSE("GPL");

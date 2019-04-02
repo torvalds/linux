@@ -228,7 +228,7 @@ static inline int uv_hub_info_check(int version)
 	pr_crit("UV: uv_hub_info version(%x) mismatch, expecting(%x)\n",
 		uv_hub_info_version(), version);
 
-	BUG();	/* Catastrophic - cannot continue on unknown UV system */
+	();	/* Catastrophic - cannot continue on unknown UV system */
 }
 #define	_uv_hub_info_check()	uv_hub_info_check(UV_HUB_INFO_VERSION)
 
@@ -464,7 +464,7 @@ static inline struct uv_gam_range_s *uv_gam_range(unsigned long pa)
 		}
 	}
 	pr_crit("UV: GAM Range for 0x%lx not found at %p!\n", pa, gr);
-	BUG();
+	();
 }
 
 /* Return base address of node that contains global address  */

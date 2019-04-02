@@ -277,7 +277,7 @@ static int smp_85xx_kick_cpu(int nr)
 
 	WARN_ON(nr < 0 || nr >= num_possible_cpus());
 
-	pr_debug("kick CPU #%d\n", nr);
+	pr_de("kick CPU #%d\n", nr);
 
 #ifdef CONFIG_PPC64
 	if (threads_per_core == 2) {

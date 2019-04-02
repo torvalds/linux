@@ -23,9 +23,9 @@
 #include <asm/apc.h>
 #include <asm/processor.h>
 
-/* Debugging
+/* Deging
  * 
- * #define APC_DEBUG_LED
+ * #define APC_DE_LED
  */
 
 #define APC_MINOR	MISC_DYNAMIC_MINOR
@@ -60,13 +60,13 @@ __setup("apc=", apc_setup);
  */
 static void apc_swift_idle(void)
 {
-#ifdef APC_DEBUG_LED
+#ifdef APC_DE_LED
 	set_auxio(0x00, AUXIO_LED); 
 #endif
 
 	apc_writeb(apc_readb(APC_IDLE_REG) | APC_IDLE_ON, APC_IDLE_REG);
 
-#ifdef APC_DEBUG_LED
+#ifdef APC_DE_LED
 	set_auxio(AUXIO_LED, 0x00); 
 #endif
 } 

@@ -61,7 +61,7 @@ static u8 GLUE(X_PFX,esb_load)(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
 
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
+	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_)
 		offset |= offset << 4;
 
 	val =__x_readq(__x_eoi_page(xd) + offset);

@@ -88,7 +88,7 @@ nvkm_memx_fini(struct nvkm_memx **pmemx, bool exec)
 	if (exec) {
 		nvkm_pmu_send(pmu, reply, PROC_MEMX, MEMX_MSG_EXEC,
 			      memx->base, finish);
-		nvkm_debug(subdev, "Exec took %uns, PMU_IN %08x\n",
+		nvkm_de(subdev, "Exec took %uns, PMU_IN %08x\n",
 			   reply[0], reply[1]);
 	}
 
@@ -99,7 +99,7 @@ nvkm_memx_fini(struct nvkm_memx **pmemx, bool exec)
 void
 nvkm_memx_wr32(struct nvkm_memx *memx, u32 addr, u32 data)
 {
-	nvkm_debug(&memx->pmu->subdev, "R[%06x] = %08x\n", addr, data);
+	nvkm_de(&memx->pmu->subdev, "R[%06x] = %08x\n", addr, data);
 	memx_cmd(memx, MEMX_WR32, 2, (u32[]){ addr, data });
 }
 
@@ -107,7 +107,7 @@ void
 nvkm_memx_wait(struct nvkm_memx *memx,
 		  u32 addr, u32 mask, u32 data, u32 nsec)
 {
-	nvkm_debug(&memx->pmu->subdev, "R[%06x] & %08x == %08x, %d us\n",
+	nvkm_de(&memx->pmu->subdev, "R[%06x] & %08x == %08x, %d us\n",
 		   addr, mask, data, nsec);
 	memx_cmd(memx, MEMX_WAIT, 4, (u32[]){ addr, mask, data, nsec });
 	memx_out(memx); /* fuc can't handle multiple */
@@ -116,7 +116,7 @@ nvkm_memx_wait(struct nvkm_memx *memx,
 void
 nvkm_memx_nsec(struct nvkm_memx *memx, u32 nsec)
 {
-	nvkm_debug(&memx->pmu->subdev, "    DELAY = %d ns\n", nsec);
+	nvkm_de(&memx->pmu->subdev, "    DELAY = %d ns\n", nsec);
 	memx_cmd(memx, MEMX_DELAY, 1, (u32[]){ nsec });
 	memx_out(memx); /* fuc can't handle multiple */
 }
@@ -146,11 +146,11 @@ nvkm_memx_wait_vblank(struct nvkm_memx *memx)
 	}
 
 	if (px == 0) {
-		nvkm_debug(subdev, "WAIT VBLANK !NO ACTIVE HEAD\n");
+		nvkm_de(subdev, "WAIT VBLANK !NO ACTIVE HEAD\n");
 		return;
 	}
 
-	nvkm_debug(subdev, "WAIT VBLANK HEAD%d\n", head_sync);
+	nvkm_de(subdev, "WAIT VBLANK HEAD%d\n", head_sync);
 	memx_cmd(memx, MEMX_VBLANK, 1, (u32[]){ head_sync });
 	memx_out(memx); /* fuc can't handle multiple */
 }
@@ -158,7 +158,7 @@ nvkm_memx_wait_vblank(struct nvkm_memx *memx)
 void
 nvkm_memx_train(struct nvkm_memx *memx)
 {
-	nvkm_debug(&memx->pmu->subdev, "   MEM TRAIN\n");
+	nvkm_de(&memx->pmu->subdev, "   MEM TRAIN\n");
 	memx_cmd(memx, MEMX_TRAIN, 0, NULL);
 }
 
@@ -191,14 +191,14 @@ nvkm_memx_train_result(struct nvkm_pmu *pmu, u32 *res, int rsize)
 void
 nvkm_memx_block(struct nvkm_memx *memx)
 {
-	nvkm_debug(&memx->pmu->subdev, "   HOST BLOCKED\n");
+	nvkm_de(&memx->pmu->subdev, "   HOST BLOCKED\n");
 	memx_cmd(memx, MEMX_ENTER, 0, NULL);
 }
 
 void
 nvkm_memx_unblock(struct nvkm_memx *memx)
 {
-	nvkm_debug(&memx->pmu->subdev, "   HOST UNBLOCKED\n");
+	nvkm_de(&memx->pmu->subdev, "   HOST UNBLOCKED\n");
 	memx_cmd(memx, MEMX_LEAVE, 0, NULL);
 }
 #endif

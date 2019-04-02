@@ -65,21 +65,21 @@ static inline void gige_write32(struct ssb_gige *dev,
 static inline
 u8 gige_pcicfg_read8(struct ssb_gige *dev, unsigned int offset)
 {
-	BUG_ON(offset >= 256);
+	_ON(offset >= 256);
 	return gige_read8(dev, SSB_GIGE_PCICFG + offset);
 }
 
 static inline
 u16 gige_pcicfg_read16(struct ssb_gige *dev, unsigned int offset)
 {
-	BUG_ON(offset >= 256);
+	_ON(offset >= 256);
 	return gige_read16(dev, SSB_GIGE_PCICFG + offset);
 }
 
 static inline
 u32 gige_pcicfg_read32(struct ssb_gige *dev, unsigned int offset)
 {
-	BUG_ON(offset >= 256);
+	_ON(offset >= 256);
 	return gige_read32(dev, SSB_GIGE_PCICFG + offset);
 }
 
@@ -87,7 +87,7 @@ static inline
 void gige_pcicfg_write8(struct ssb_gige *dev,
 			unsigned int offset, u8 value)
 {
-	BUG_ON(offset >= 256);
+	_ON(offset >= 256);
 	gige_write8(dev, SSB_GIGE_PCICFG + offset, value);
 }
 
@@ -95,7 +95,7 @@ static inline
 void gige_pcicfg_write16(struct ssb_gige *dev,
 			 unsigned int offset, u16 value)
 {
-	BUG_ON(offset >= 256);
+	_ON(offset >= 256);
 	gige_write16(dev, SSB_GIGE_PCICFG + offset, value);
 }
 
@@ -103,7 +103,7 @@ static inline
 void gige_pcicfg_write32(struct ssb_gige *dev,
 			 unsigned int offset, u32 value)
 {
-	BUG_ON(offset >= 256);
+	_ON(offset >= 256);
 	gige_write32(dev, SSB_GIGE_PCICFG + offset, value);
 }
 

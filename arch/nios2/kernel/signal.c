@@ -247,7 +247,7 @@ static int do_signal(struct pt_regs *regs)
 
 		/*
 		 * Prepare for system call restart. We do this here so that a
-		 * debugger will see the already changed PC.
+		 * deger will see the already changed PC.
 		 */
 		switch (retval) {
 		case ERESTART_RESTARTBLOCK:

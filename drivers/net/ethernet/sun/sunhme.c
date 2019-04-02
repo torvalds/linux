@@ -88,10 +88,10 @@ static struct quattro *qfe_sbus_list;
 static struct quattro *qfe_pci_list;
 #endif
 
-#undef HMEDEBUG
-#undef SXDEBUG
-#undef RXDEBUG
-#undef TXDEBUG
+#undef HMEDE
+#undef SXDE
+#undef RXDE
+#undef TXDE
 #undef TXLOGGING
 
 #ifdef TXLOGGING
@@ -157,15 +157,15 @@ static __inline__ void tx_dump_ring(struct happy_meal *hp)
 #define tx_dump_ring(hp)		do { } while(0)
 #endif
 
-#ifdef HMEDEBUG
+#ifdef HMEDE
 #define HMD(x)  printk x
 #else
 #define HMD(x)
 #endif
 
-/* #define AUTO_SWITCH_DEBUG */
+/* #define AUTO_SWITCH_DE */
 
-#ifdef AUTO_SWITCH_DEBUG
+#ifdef AUTO_SWITCH_DE
 #define ASD(x)  printk x
 #else
 #define ASD(x)
@@ -881,7 +881,7 @@ static void happy_meal_tx_reset(struct happy_meal *hp, void __iomem *bregs)
 	while ((hme_read32(hp, bregs + BMAC_TXSWRESET) & 1) && --tries)
 		udelay(20);
 
-	/* Lettuce, tomato, buggy hardware (no extra charge)? */
+	/* Lettuce, tomato, gy hardware (no extra charge)? */
 	if (!tries)
 		printk(KERN_ERR "happy meal: Transceiver BigMac ATTACK!");
 
@@ -896,7 +896,7 @@ static void happy_meal_rx_reset(struct happy_meal *hp, void __iomem *bregs)
 
 	HMD(("happy_meal_rx_reset: reset, "));
 
-	/* We have a special on GNU/Viking hardware bugs today. */
+	/* We have a special on GNU/Viking hardware s today. */
 	hme_write32(hp, bregs + BMAC_RXSWRESET, 0);
 	while ((hme_read32(hp, bregs + BMAC_RXSWRESET) & 1) && --tries)
 		udelay(20);
@@ -927,7 +927,7 @@ static void happy_meal_stop(struct happy_meal *hp, void __iomem *gregs)
 	if (!tries)
 		printk(KERN_ERR "happy meal: Fry guys.");
 
-	/* Remember: "Different name, same old buggy as shit hardware." */
+	/* Remember: "Different name, same old gy as shit hardware." */
 	HMD(("done\n"));
 }
 
@@ -1338,7 +1338,7 @@ happy_meal_begin_auto_negotiation(struct happy_meal *hp,
 		 * XXX so I completely skip checking for it in the BMSR for now.
 		 */
 
-#ifdef AUTO_SWITCH_DEBUG
+#ifdef AUTO_SWITCH_DE
 		ASD(("%s: Advertising [ ", hp->dev->name));
 		if (hp->sw_advertise & ADVERTISE_10HALF)
 			ASD(("10H "));
@@ -1632,9 +1632,9 @@ static int happy_meal_init(struct happy_meal *hp)
 	/* This chip really rots, for the receiver sometimes when you
 	 * write to its control registers not all the bits get there
 	 * properly.  I cannot think of a sane way to provide complete
-	 * coverage for this hardware bug yet.
+	 * coverage for this hardware  yet.
 	 */
-	HMD(("erx regs bug old[%08x]\n",
+	HMD(("erx regs  old[%08x]\n",
 	     hme_read32(hp, erxregs + ERX_CFG)));
 	hme_write32(hp, erxregs + ERX_CFG, ERX_CFG_DEFAULT(RX_OFFSET));
 	regtmp = hme_read32(hp, erxregs + ERX_CFG);
@@ -1785,7 +1785,7 @@ static int happy_meal_is_not_so_happy(struct happy_meal *hp, u32 status)
 	if (status & GREG_STAT_RFIFOVF) {
 		/* Receive FIFO overflow is harmless and the hardware will take
 		   care of it, just some packets are lost. Who cares. */
-		printk(KERN_DEBUG "%s: Happy Meal receive FIFO overflow.\n", hp->dev->name);
+		printk(KERN_DE "%s: Happy Meal receive FIFO overflow.\n", hp->dev->name);
 	}
 
 	if (status & GREG_STAT_STSTERR) {
@@ -1834,7 +1834,7 @@ static int happy_meal_is_not_so_happy(struct happy_meal *hp, u32 status)
 	}
 
 	if (status & GREG_STAT_EOPERR) {
-		/* Driver bug, didn't set EOP bit in tx descriptor given
+		/* Driver , didn't set EOP bit in tx descriptor given
 		 * to the happy meal.
 		 */
 		printk(KERN_ERR "%s: EOP not set in happy meal transmit descriptor!\n",
@@ -1909,7 +1909,7 @@ static void happy_meal_mif_interrupt(struct happy_meal *hp)
 	happy_meal_poll_stop(hp, tregs);
 }
 
-#ifdef TXDEBUG
+#ifdef TXDE
 #define TXD(x) printk x
 #else
 #define TXD(x)
@@ -1973,7 +1973,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 		netif_wake_queue(dev);
 }
 
-#ifdef RXDEBUG
+#ifdef RXDE
 #define RXD(x) printk x
 #else
 #define RXD(x)
@@ -2240,7 +2240,7 @@ static int happy_meal_close(struct net_device *dev)
 	return 0;
 }
 
-#ifdef SXDEBUG
+#ifdef SXDE
 #define SXD(x) printk x
 #else
 #define SXD(x)
@@ -2305,7 +2305,7 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
  	if (TX_BUFFS_AVAIL(hp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irq(&hp->happy_lock);
-		printk(KERN_ERR "%s: BUG! Tx Ring full when queue awake!\n",
+		printk(KERN_ERR "%s: ! Tx Ring full when queue awake!\n",
 		       dev->name);
 		return NETDEV_TX_BUSY;
 	}

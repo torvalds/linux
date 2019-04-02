@@ -110,7 +110,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	struct list_head *l, *end = NULL;
 	int pass_counter = 0, handled = 0;
 
-	pr_debug("%s(%d): start\n", __func__, irq);
+	pr_de("%s(%d): start\n", __func__, irq);
 
 	spin_lock(&i->lock);
 
@@ -136,7 +136,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&i->lock);
 
-	pr_debug("%s(%d): end\n", __func__, irq);
+	pr_de("%s(%d): end\n", __func__, irq);
 
 	return IRQ_RETVAL(handled);
 }
@@ -157,7 +157,7 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 			i->head = i->head->next;
 		list_del(&up->list);
 	} else {
-		BUG_ON(i->head != &up->list);
+		_ON(i->head != &up->list);
 		i->head = NULL;
 	}
 	spin_unlock_irq(&i->lock);
@@ -238,8 +238,8 @@ static void serial_unlink_irq_chain(struct uart_8250_port *up)
 			break;
 	}
 
-	BUG_ON(n == NULL);
-	BUG_ON(i->head == NULL);
+	_ON(n == NULL);
+	_ON(i->head == NULL);
 
 	if (list_empty(i->head))
 		free_irq(up->port.irq, i);
@@ -318,8 +318,8 @@ static int univ8250_setup_irq(struct uart_8250_port *up)
 	 * The above check will only give an accurate result the first time
 	 * the port is opened so this value needs to be preserved.
 	 */
-	if (up->bugs & UART_BUG_THRE) {
-		pr_debug("%s - using backup timer\n", port->name);
+	if (up->s & UART__THRE) {
+		pr_de("%s - using backup timer\n", port->name);
 
 		up->timer.function = serial8250_backup_timeout;
 		mod_timer(&up->timer, jiffies +
@@ -994,7 +994,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.regshift     = up->port.regshift;
 		uart->port.iotype       = up->port.iotype;
 		uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
-		uart->bugs		= up->bugs;
+		uart->s		= up->s;
 		uart->port.mapbase      = up->port.mapbase;
 		uart->port.mapsize      = up->port.mapsize;
 		uart->port.private_data = up->port.private_data;
@@ -1217,7 +1217,7 @@ module_param(nr_uarts, uint, 0644);
 MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STRING(CONFIG_SERIAL_8250_NR_UARTS) ")");
 
 module_param(skip_txen_test, uint, 0644);
-MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
+MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN  at init time");
 
 #ifdef CONFIG_SERIAL_8250_RSA
 module_param_hw_array(probe_rsa, ulong, ioport, &probe_rsa_count, 0444);

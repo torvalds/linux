@@ -156,7 +156,7 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 
 	returned_size = ((struct vbg_ioctl_hdr *)buf)->size_out;
 	if (returned_size > size) {
-		vbg_debug("%s: too much output data %zu > %zu\n",
+		vbg_de("%s: too much output data %zu > %zu\n",
 			  __func__, returned_size, size);
 		returned_size = size;
 	}

@@ -40,7 +40,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 		if (minfo->pflags[i]) {
 			/* range port matching */
 			e = minfo->ports[++i];
-			pr_debug("src or dst matches with %d-%d?\n", s, e);
+			pr_de("src or dst matches with %d-%d?\n", s, e);
 
 			switch (minfo->flags) {
 			case XT_MULTIPORT_SOURCE:
@@ -61,7 +61,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 			}
 		} else {
 			/* exact port matching */
-			pr_debug("src or dst matches with %d?\n", s);
+			pr_de("src or dst matches with %d?\n", s);
 
 			switch (minfo->flags) {
 			case XT_MULTIPORT_SOURCE:
@@ -100,7 +100,7 @@ multiport_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
-		pr_debug("Dropping evil offset=0 tinygram.\n");
+		pr_de("Dropping evil offset=0 tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}

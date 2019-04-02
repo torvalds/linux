@@ -359,11 +359,11 @@ struct bnad {
 	char			mbox_irq_name[BNAD_NAME_LEN];
 	char			wq_name[BNAD_NAME_LEN];
 
-	/* debugfs specific data */
+	/* defs specific data */
 	char	*regdata;
 	u32	reglen;
 	struct dentry *bnad_dentry_files[5];
-	struct dentry *port_debugfs_root;
+	struct dentry *port_defs_root;
 };
 
 struct bnad_drvinfo {
@@ -410,9 +410,9 @@ void bnad_netdev_qstats_fill(struct bnad *bnad,
 void bnad_netdev_hwstats_fill(struct bnad *bnad,
 			      struct rtnl_link_stats64 *stats);
 
-/* Debugfs */
-void bnad_debugfs_init(struct bnad *bnad);
-void bnad_debugfs_uninit(struct bnad *bnad);
+/* Defs */
+void bnad_defs_init(struct bnad *bnad);
+void bnad_defs_uninit(struct bnad *bnad);
 
 /* MACROS */
 /* To set & get the stats counters */

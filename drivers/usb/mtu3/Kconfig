@@ -50,9 +50,9 @@ config USB_MTU3_DUAL_ROLE
 
 endchoice
 
-config USB_MTU3_DEBUG
-	bool "Enable Debugging Messages"
+config USB_MTU3_DE
+	bool "Enable Deging Messages"
 	help
-	  Say Y here to enable debugging messages in the MTU3 Driver.
+	  Say Y here to enable deging messages in the MTU3 Driver.
 
 endif

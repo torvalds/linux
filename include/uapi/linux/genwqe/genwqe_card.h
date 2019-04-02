@@ -23,14 +23,14 @@
  */
 
 /*
- * User-space API for the GenWQE card. For debugging and test purposes
+ * User-space API for the GenWQE card. For deging and test purposes
  * the register addresses are included here too.
  */
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-/* Basename of sysfs, debugfs and /dev interfaces */
+/* Basename of sysfs, defs and /dev interfaces */
 #define GENWQE_DEVNAME			"genwqe"
 
 #define GENWQE_TYPE_ALTERA_230		0x00 /* GenWQE4 Stratix-IV-230 */
@@ -71,7 +71,7 @@
 #define IO_SLU_ERR_ATTN_MASK		0x00000028
 #define IO_SLU_FIRX1_ACT_MASK		0x00000030
 #define IO_SLU_FIRX0_ACT_MASK		0x00000038
-#define IO_SLU_SEC_LEM_DEBUG_OVR	0x00000040
+#define IO_SLU_SEC_LEM_DE_OVR	0x00000040
 #define IO_SLU_EXTENDED_ERR_PTR		0x00000048
 #define IO_SLU_COMMON_CONFIG		0x00000060
 
@@ -164,10 +164,10 @@
 /* SLU: Soft Reset Register */
 #define IO_SLC_CFGREG_SOFTRESET		0x00020018
 
-/* SLU: Misc Debug Register */
-#define IO_SLC_MISC_DEBUG		0x00020060
-#define IO_SLC_MISC_DEBUG_CLR		0x00020068
-#define IO_SLC_MISC_DEBUG_SET		0x00020070
+/* SLU: Misc De Register */
+#define IO_SLC_MISC_DE		0x00020060
+#define IO_SLC_MISC_DE_CLR		0x00020068
+#define IO_SLC_MISC_DE_SET		0x00020070
 
 /* Temperature Sensor Reading */
 #define IO_SLU_TEMPERATURE_SENSOR	0x00030000
@@ -210,7 +210,7 @@
 #define IO_HSU_ERR_ATTN_MASK		0x01000028
 #define IO_HSU_FIRX1_ACT_MASK		0x01000030
 #define IO_HSU_FIRX0_ACT_MASK		0x01000038
-#define IO_HSU_SEC_LEM_DEBUG_OVR	0x01000040
+#define IO_HSU_SEC_LEM_DE_OVR	0x01000040
 #define IO_HSU_EXTENDED_ERR_PTR		0x01000048
 #define IO_HSU_COMMON_CONFIG		0x01000060
 
@@ -223,28 +223,28 @@
 #define IO_APP_ERR_ATTN_MASK		0x02000028
 #define IO_APP_FIRX1_ACT_MASK		0x02000030
 #define IO_APP_FIRX0_ACT_MASK		0x02000038
-#define IO_APP_SEC_LEM_DEBUG_OVR	0x02000040
+#define IO_APP_SEC_LEM_DE_OVR	0x02000040
 #define IO_APP_EXTENDED_ERR_PTR		0x02000048
 #define IO_APP_COMMON_CONFIG		0x02000060
 
-#define IO_APP_DEBUG_REG_01		0x02010000
-#define IO_APP_DEBUG_REG_02		0x02010008
-#define IO_APP_DEBUG_REG_03		0x02010010
-#define IO_APP_DEBUG_REG_04		0x02010018
-#define IO_APP_DEBUG_REG_05		0x02010020
-#define IO_APP_DEBUG_REG_06		0x02010028
-#define IO_APP_DEBUG_REG_07		0x02010030
-#define IO_APP_DEBUG_REG_08		0x02010038
-#define IO_APP_DEBUG_REG_09		0x02010040
-#define IO_APP_DEBUG_REG_10		0x02010048
-#define IO_APP_DEBUG_REG_11		0x02010050
-#define IO_APP_DEBUG_REG_12		0x02010058
-#define IO_APP_DEBUG_REG_13		0x02010060
-#define IO_APP_DEBUG_REG_14		0x02010068
-#define IO_APP_DEBUG_REG_15		0x02010070
-#define IO_APP_DEBUG_REG_16		0x02010078
-#define IO_APP_DEBUG_REG_17		0x02010080
-#define IO_APP_DEBUG_REG_18		0x02010088
+#define IO_APP_DE_REG_01		0x02010000
+#define IO_APP_DE_REG_02		0x02010008
+#define IO_APP_DE_REG_03		0x02010010
+#define IO_APP_DE_REG_04		0x02010018
+#define IO_APP_DE_REG_05		0x02010020
+#define IO_APP_DE_REG_06		0x02010028
+#define IO_APP_DE_REG_07		0x02010030
+#define IO_APP_DE_REG_08		0x02010038
+#define IO_APP_DE_REG_09		0x02010040
+#define IO_APP_DE_REG_10		0x02010048
+#define IO_APP_DE_REG_11		0x02010050
+#define IO_APP_DE_REG_12		0x02010058
+#define IO_APP_DE_REG_13		0x02010060
+#define IO_APP_DE_REG_14		0x02010068
+#define IO_APP_DE_REG_15		0x02010070
+#define IO_APP_DE_REG_16		0x02010078
+#define IO_APP_DE_REG_17		0x02010080
+#define IO_APP_DE_REG_18		0x02010088
 
 /* Read/write from/to registers */
 struct genwqe_reg_io {
@@ -351,13 +351,13 @@ struct genwqe_bitstream {
 };
 
 /* Issuing a specific DDCB command */
-#define DDCB_LENGTH			256 /* for debug data */
+#define DDCB_LENGTH			256 /* for de data */
 #define DDCB_ASIV_LENGTH		104 /* len of the DDCB ASIV array */
 #define DDCB_ASIV_LENGTH_ATS		96  /* ASIV in ATS architecture */
 #define DDCB_ASV_LENGTH			64  /* len of the DDCB ASV array  */
 #define DDCB_FIXUPS			12  /* maximum number of fixups */
 
-struct genwqe_debug_data {
+struct genwqe_de_data {
 	char driver_version[64];
 	__u64 slu_unitcfg;
 	__u64 app_unitcfg;
@@ -422,7 +422,7 @@ struct genwqe_ddcb_cmd {
 	__u64 disp_ts;			/* SW processing start */
 
 	/* move to end and avoid copy-back */
-	__u64 ddata_addr;		/* collect debug data */
+	__u64 ddata_addr;		/* collect de data */
 
 	/* command specific values */
 	__u8  asv[DDCB_ASV_LENGTH];

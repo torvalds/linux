@@ -47,19 +47,19 @@
 #define v4l_info(client, fmt, arg...) \
 	v4l_client_printk(KERN_INFO, client, fmt , ## arg)
 
-/* These three macros assume that the debug level is set with a module
-   parameter called 'debug'. */
-#define v4l_dbg(level, debug, client, fmt, arg...)			     \
+/* These three macros assume that the de level is set with a module
+   parameter called 'de'. */
+#define v4l_dbg(level, de, client, fmt, arg...)			     \
 	do {								     \
-		if (debug >= (level))					     \
-			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
+		if (de >= (level))					     \
+			v4l_client_printk(KERN_DE, client, fmt , ## arg); \
 	} while (0)
 
 /* Add a version of v4l_dbg to be used on drivers using dev_foo() macros */
-#define dev_dbg_lvl(__dev, __level, __debug, __fmt, __arg...)		\
+#define dev_dbg_lvl(__dev, __level, __de, __fmt, __arg...)		\
 	do {								\
-		if (__debug >= (__level))				\
-			dev_printk(KERN_DEBUG, __dev, __fmt, ##__arg);	\
+		if (__de >= (__level))				\
+			dev_printk(KERN_DE, __dev, __fmt, ##__arg);	\
 	} while (0)
 
 /* ------------------------------------------------------------------------- */
@@ -77,12 +77,12 @@
 #define v4l2_info(dev, fmt, arg...) \
 	v4l2_printk(KERN_INFO, dev, fmt , ## arg)
 
-/* These three macros assume that the debug level is set with a module
-   parameter called 'debug'. */
-#define v4l2_dbg(level, debug, dev, fmt, arg...)			\
+/* These three macros assume that the de level is set with a module
+   parameter called 'de'. */
+#define v4l2_dbg(level, de, dev, fmt, arg...)			\
 	do {								\
-		if (debug >= (level))					\
-			v4l2_printk(KERN_DEBUG, dev, fmt , ## arg);	\
+		if (de >= (level))					\
+			v4l2_printk(KERN_DE, dev, fmt , ## arg);	\
 	} while (0)
 
 /**
@@ -348,7 +348,7 @@ void v4l_bound_align_image(unsigned int *width, unsigned int wmin,
 #define v4l2_find_nearest_size(array, array_size, width_field, height_field, \
 			       width, height)				\
 	({								\
-		BUILD_BUG_ON(sizeof((array)->width_field) != sizeof(u32) || \
+		BUILD__ON(sizeof((array)->width_field) != sizeof(u32) || \
 			     sizeof((array)->height_field) != sizeof(u32)); \
 		(typeof(&(array)[0]))__v4l2_find_nearest_size(		\
 			(array), array_size, sizeof(*(array)),		\

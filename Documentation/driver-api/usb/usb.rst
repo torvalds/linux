@@ -101,7 +101,7 @@ necessarily report the same aspects of failures, and recovery from
 faults (including software-induced ones like unlinking an URB) isn't yet
 fully consistent. Device driver authors should make a point of doing
 disconnect testing (while the device is active) with each different host
-controller driver, to make sure drivers don't have bugs of their own as
+controller driver, to make sure drivers don't have s of their own as
 well as to make sure they aren't relying on some HCD-specific behavior.
 
 .. _usb_chapter9:
@@ -112,7 +112,7 @@ USB-Standard Types
 In ``<linux/usb/ch9.h>`` you will find the USB data types defined in
 chapter 9 of the USB specification. These data types are used throughout
 USB, and in APIs including this host side API, gadget APIs, usb character
-devices and debugfs interfaces.
+devices and defs interfaces.
 
 .. kernel-doc:: include/linux/usb/ch9.h
    :internal:
@@ -224,7 +224,7 @@ at http://www.linux-usb.org/
 .. note::
 
   - They were used to be implemented via *usbfs*, but this is not part of
-    the sysfs debug interface.
+    the sysfs de interface.
 
    - This particular documentation is incomplete, especially with respect
      to the asynchronous mode. As of kernel 2.5.66 the code and this
@@ -292,7 +292,7 @@ descriptors are in bus endian format! The configuration descriptor
 are wTotalLength bytes apart. If a device returns less configuration
 descriptor data than indicated by wTotalLength there will be a hole in
 the file for the missing bytes.  This information is also shown
-in text form by the ``/sys/kernel/debug/usb/devices`` file, described later.
+in text form by the ``/sys/kernel/de/usb/devices`` file, described later.
 
 These files may also be used to write user-level drivers for the USB
 devices.  You would open the ``/dev/bus/usb/BBB/DDD`` file read/write,
@@ -572,7 +572,7 @@ USBDEVFS_RESET
 
 .. warning::
 
-	*Avoid using this call* until some usbcore bugs get fixed, since
+	*Avoid using this call* until some usbcore s get fixed, since
 	it does not fully synchronize device, interface, and driver (not
 	just usbfs) state.
 
@@ -601,7 +601,7 @@ USBDEVFS_SETCONFIGURATION
 
 .. warning::
 
-	*Avoid using this call* until some usbcore bugs get fixed, since
+	*Avoid using this call* until some usbcore s get fixed, since
 	it does not fully synchronize device, interface, and driver (not
 	just usbfs) state.
 
@@ -678,13 +678,13 @@ USBDEVFS_SUBMITURB
 The USB devices
 ===============
 
-The USB devices are now exported via debugfs:
+The USB devices are now exported via defs:
 
--  ``/sys/kernel/debug/usb/devices`` ... a text file showing each of the USB
+-  ``/sys/kernel/de/usb/devices`` ... a text file showing each of the USB
    devices on known to the kernel, and their configuration descriptors.
    You can also poll() this to learn about new devices.
 
-/sys/kernel/debug/usb/devices
+/sys/kernel/de/usb/devices
 -----------------------------
 
 This file is handy for status viewing tools in user mode, which can scan
@@ -698,7 +698,7 @@ to detect when devices are added or removed::
     int fd;
     struct pollfd pfd;
 
-    fd = open("/sys/kernel/debug/usb/devices", O_RDONLY);
+    fd = open("/sys/kernel/de/usb/devices", O_RDONLY);
     pfd = { fd, POLLIN, 0 };
     for (;;) {
 	/* The first time through, this call will return immediately. */
@@ -709,7 +709,7 @@ to detect when devices are added or removed::
     }
 
 Note that this behavior is intended to be used for informational and
-debug purposes. It would be more appropriate to use programs such as
+de purposes. It would be more appropriate to use programs such as
 udev or HAL to initialize a device or start a user-mode helper program,
 for instance.
 
@@ -734,7 +734,7 @@ Each line is tagged with a one-character ID for that line::
 	I = Interface descriptor info.
 	E = Endpoint descriptor info.
 
-/sys/kernel/debug/usb/devices output format
+/sys/kernel/de/usb/devices output format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Legend::
@@ -931,16 +931,16 @@ Usage examples
 ~~~~~~~~~~~~~~
 
 If a user or script is interested only in Topology info, for
-example, use something like ``grep ^T: /sys/kernel/debug/usb/devices``
+example, use something like ``grep ^T: /sys/kernel/de/usb/devices``
 for only the Topology lines.  A command like
-``grep -i ^[tdp]: /sys/kernel/debug/usb/devices`` can be used to list
+``grep -i ^[tdp]: /sys/kernel/de/usb/devices`` can be used to list
 only the lines that begin with the characters in square brackets,
 where the valid characters are TDPCIE.  With a slightly more able
 script, it can display any selected lines (for example, only T, D,
 and P lines) and change their output format.  (The ``procusb``
 Perl script is the beginning of this idea.  It will list only
 selected lines [selected from TBDPSCIE] or "All" lines from
-``/sys/kernel/debug/usb/devices``.)
+``/sys/kernel/de/usb/devices``.)
 
 The Topology lines can be used to generate a graphic/pictorial
 of the USB devices on a system's root hub.  (See more below
@@ -951,7 +951,7 @@ being used for each device, and which altsetting it activated.
 
 The Configuration lines could be used to list maximum power
 (in milliamps) that a system's USB devices are using.
-For example, ``grep ^C: /sys/kernel/debug/usb/devices``.
+For example, ``grep ^C: /sys/kernel/de/usb/devices``.
 
 
 Here's an example, from a system which has a UHCI root hub,

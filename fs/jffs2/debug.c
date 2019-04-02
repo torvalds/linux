@@ -20,7 +20,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/slab.h>
 #include "nodelist.h"
-#include "debug.h"
+#include "de.h"
 
 #ifdef JFFS2_DBG_SANITY_CHECKS
 
@@ -35,7 +35,7 @@ __jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
 		JFFS2_ERROR("free %#08x + dirty %#08x + used %#08x + wasted %#08x + unchecked %#08x != total %#08x.\n",
 			jeb->free_size, jeb->dirty_size, jeb->used_size,
 			jeb->wasted_size, jeb->unchecked_size, c->sector_size);
-		BUG();
+		();
 	}
 
 	if (unlikely(c->used_size + c->dirty_size + c->free_size + c->erasing_size + c->bad_size
@@ -44,7 +44,7 @@ __jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
 		JFFS2_ERROR("free %#08x + dirty %#08x + used %#08x + erasing %#08x + bad %#08x + wasted %#08x + unchecked %#08x != total %#08x.\n",
 			c->free_size, c->dirty_size, c->used_size, c->erasing_size, c->bad_size,
 			c->wasted_size, c->unchecked_size, c->flash_size);
-		BUG();
+		();
 	}
 }
 
@@ -114,7 +114,7 @@ __jffs2_dbg_fragtree_paranoia_check_nolock(struct jffs2_inode_info *f)
 	if (bitched) {
 		JFFS2_ERROR("fragtree is corrupted.\n");
 		__jffs2_dbg_dump_fragtree_nolock(f);
-		BUG();
+		();
 	}
 }
 
@@ -151,7 +151,7 @@ __jffs2_dbg_prewrite_paranoia_check(struct jffs2_sb_info *c,
 			ofs, ofs + i);
 		__jffs2_dbg_dump_buffer(buf, len, ofs);
 		kfree(buf);
-		BUG();
+		();
 	}
 
 	kfree(buf);
@@ -290,7 +290,7 @@ do {									\
 
 	if (dump) {
 		__jffs2_dbg_dump_block_lists_nolock(c);
-		BUG();
+		();
 	}
 }
 
@@ -379,7 +379,7 @@ error:
 	__jffs2_dbg_dump_node_refs_nolock(c, jeb);
 	__jffs2_dbg_dump_jeb_nolock(jeb);
 	__jffs2_dbg_dump_block_lists_nolock(c);
-	BUG();
+	();
 
 }
 #endif /* JFFS2_DBG_PARANOIA_CHECKS */
@@ -704,7 +704,7 @@ __jffs2_dbg_dump_fragtree_nolock(struct jffs2_inode_info *f)
 {
 	struct jffs2_node_frag *this = frag_first(&f->fragtree);
 	uint32_t lastofs = 0;
-	int buggy = 0;
+	int gy = 0;
 
 	printk(JFFS2_DBG_MSG_PREFIX " dump fragtree of ino #%u\n", f->inocache->ino);
 	while(this) {
@@ -718,7 +718,7 @@ __jffs2_dbg_dump_fragtree_nolock(struct jffs2_inode_info *f)
 				this->ofs, this->ofs+this->size, this, frag_left(this),
 				frag_right(this), frag_parent(this));
 		if (this->ofs != lastofs)
-			buggy = 1;
+			gy = 1;
 		lastofs = this->ofs + this->size;
 		this = frag_next(this);
 	}
@@ -726,9 +726,9 @@ __jffs2_dbg_dump_fragtree_nolock(struct jffs2_inode_info *f)
 	if (f->metadata)
 		printk(JFFS2_DBG "metadata at 0x%08x\n", ref_offset(f->metadata->raw));
 
-	if (buggy) {
+	if (gy) {
 		JFFS2_ERROR("frag tree got a hole in it.\n");
-		BUG();
+		();
 	}
 }
 

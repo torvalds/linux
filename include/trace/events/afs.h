@@ -319,7 +319,7 @@ TRACE_EVENT(afs_receive_data,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call	= call->debug_id;
+		    __entry->call	= call->de_id;
 		    __entry->state	= call->state;
 		    __entry->unmarshall	= call->unmarshall;
 		    __entry->remain	= iov_iter_count(iter);
@@ -348,7 +348,7 @@ TRACE_EVENT(afs_notify_call,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call	= call->debug_id;
+		    __entry->call	= call->de_id;
 		    __entry->state	= call->state;
 		    __entry->unmarshall	= call->unmarshall;
 			   ),
@@ -370,7 +370,7 @@ TRACE_EVENT(afs_cb_call,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call	= call->debug_id;
+		    __entry->call	= call->de_id;
 		    __entry->name	= call->type->name;
 		    __entry->op		= call->operation_ID;
 			   ),
@@ -396,7 +396,7 @@ TRACE_EVENT(afs_call,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->outstanding = outstanding;
@@ -423,7 +423,7 @@ TRACE_EVENT(afs_make_fs_call,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->op = call->operation_ID;
 		    if (fid) {
 			    __entry->fid = *fid;
@@ -453,7 +453,7 @@ TRACE_EVENT(afs_make_vl_call,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->op = call->operation_ID;
 			   ),
 
@@ -475,7 +475,7 @@ TRACE_EVENT(afs_call_done,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->rx_call = call->rxcall;
 		    __entry->ret = call->error;
 		    __entry->abort_code = call->abort_code;
@@ -505,7 +505,7 @@ TRACE_EVENT(afs_send_pages,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->first = first;
 		    __entry->last = last;
 		    __entry->nr = msg->msg_iter.nr_segs;
@@ -536,7 +536,7 @@ TRACE_EVENT(afs_sent_pages,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->first = first;
 		    __entry->last = last;
 		    __entry->cursor = cursor;
@@ -626,7 +626,7 @@ TRACE_EVENT(afs_call_state,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->from = from;
 		    __entry->to = to;
 		    __entry->ret = ret;
@@ -699,7 +699,7 @@ TRACE_EVENT(afs_protocol_error,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call ? call->debug_id : 0;
+		    __entry->call = call ? call->de_id : 0;
 		    __entry->error = error;
 		    __entry->cause = cause;
 			   ),
@@ -766,7 +766,7 @@ TRACE_EVENT(afs_cm_no_server,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->op_id = call->operation_ID;
 		    memcpy(&__entry->srx, srx, sizeof(__entry->srx));
 			   ),
@@ -787,7 +787,7 @@ TRACE_EVENT(afs_cm_no_server_u,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
+		    __entry->call = call->de_id;
 		    __entry->op_id = call->operation_ID;
 		    memcpy(&__entry->uuid, uuid, sizeof(__entry->uuid));
 			   ),

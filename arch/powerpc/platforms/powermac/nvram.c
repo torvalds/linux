@@ -29,9 +29,9 @@
 
 #include "pmac.h"
 
-#define DEBUG
+#define DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)
@@ -504,7 +504,7 @@ static void core99_nvram_sync(void)
  bail:
 	raw_spin_unlock_irqrestore(&nv_lock, flags);
 
-#ifdef DEBUG
+#ifdef DE
        	mdelay(2000);
 #endif
 }

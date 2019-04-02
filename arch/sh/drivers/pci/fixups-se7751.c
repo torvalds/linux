@@ -96,10 +96,10 @@ int pci_fixup_pcic(struct pci_channel *chan)
 
 	/*
 	* Set the MBR so PCI address is one-to-one with window,
-	* meaning all calls go straight through... use BUG_ON to
+	* meaning all calls go straight through... use _ON to
 	* catch erroneous assumption.
 	*/
-	BUG_ON(chan->resources[1].start != SH7751_PCI_MEMORY_BASE);
+	_ON(chan->resources[1].start != SH7751_PCI_MEMORY_BASE);
 
 	PCIC_WRITE(SH7751_PCIMBR, chan->resources[1].start);
 

@@ -8,7 +8,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pfn.h>
 #include <linux/percpu.h>
 #include <linux/gfp.h>
@@ -54,7 +54,7 @@ enum cpa_warn {
 static const int cpa_warn_level = CPA_PROTECT;
 
 /*
- * Serialize cpa() (for !DEBUG_PAGEALLOC which uses large identity mappings)
+ * Serialize cpa() (for !DE_PAGEALLOC which uses large identity mappings)
  * using cpa_lock. So that we don't allow any other cpu, with stale large tlb
  * entries change the page attribute in parallel to some other cpu
  * splitting a large page entry along with changing the attribute.
@@ -172,7 +172,7 @@ static const struct file_operations cpastats_fops = {
 
 static int __init cpa_stats_init(void)
 {
-	debugfs_create_file("cpa_stats", S_IRUSR, arch_debugfs_dir, NULL,
+	defs_create_file("cpa_stats", S_IRUSR, arch_defs_dir, NULL,
 			    &cpastats_fops);
 	return 0;
 }
@@ -325,7 +325,7 @@ static void __cpa_flush_all(void *arg)
 
 static void cpa_flush_all(unsigned long cache)
 {
-	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+	_ON(irqs_disabled() && !early_boot_irqs_disabled);
 
 	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
@@ -344,7 +344,7 @@ static void cpa_flush(struct cpa_data *data, int cache)
 	struct cpa_data *cpa = data;
 	unsigned int i;
 
-	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+	_ON(irqs_disabled() && !early_boot_irqs_disabled);
 
 	if (cache && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		cpa_flush_all(cache);
@@ -664,7 +664,7 @@ phys_addr_t slow_virt_to_phys(void *__virt_addr)
 	pte_t *pte;
 
 	pte = lookup_address(virt_addr, &level);
-	BUG_ON(!pte);
+	_ON(!pte);
 
 	/*
 	 * pXX_pfn() returns unsigned long, which must be cast to phys_addr_t
@@ -1036,10 +1036,10 @@ static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
 {
 	struct page *base;
 
-	if (!debug_pagealloc_enabled())
+	if (!de_pagealloc_enabled())
 		spin_unlock(&cpa_lock);
 	base = alloc_pages(GFP_KERNEL, 0);
-	if (!debug_pagealloc_enabled())
+	if (!de_pagealloc_enabled())
 		spin_lock(&cpa_lock);
 	if (!base)
 		return -ENOMEM;
@@ -1620,10 +1620,10 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		if (cpa->flags & (CPA_ARRAY | CPA_PAGES_ARRAY))
 			cpa->numpages = 1;
 
-		if (!debug_pagealloc_enabled())
+		if (!de_pagealloc_enabled())
 			spin_lock(&cpa_lock);
 		ret = __change_page_attr(cpa, checkalias);
-		if (!debug_pagealloc_enabled())
+		if (!de_pagealloc_enabled())
 			spin_unlock(&cpa_lock);
 		if (ret)
 			goto out;
@@ -1639,7 +1639,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		 * CPA operation. Either a large page has been
 		 * preserved or a single page update happened.
 		 */
-		BUG_ON(cpa->numpages > rempages || !cpa->numpages);
+		_ON(cpa->numpages > rempages || !cpa->numpages);
 		rempages -= cpa->numpages;
 		cpa->curpage += cpa->numpages;
 	}
@@ -2209,7 +2209,7 @@ int set_pages_rw(struct page *page, int numpages)
 	return set_memory_rw(addr, numpages);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 
 static int __set_pages_p(struct page *page, int numpages)
 {
@@ -2254,7 +2254,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	if (PageHighMem(page))
 		return;
 	if (!enable) {
-		debug_check_no_locks_freed(page_address(page),
+		de_check_no_locks_freed(page_address(page),
 					   numpages * PAGE_SIZE);
 	}
 
@@ -2297,7 +2297,7 @@ bool kernel_page_present(struct page *page)
 
 #endif /* CONFIG_HIBERNATION */
 
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */
 
 int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
 				   unsigned numpages, unsigned long page_flags)
@@ -2375,6 +2375,6 @@ int __init kernel_unmap_pages_in_pgd(pgd_t *pgd, unsigned long address,
  * The testcases use internal knowledge of the implementation that shouldn't
  * be exposed to the rest of the kernel. Include these directly here.
  */
-#ifdef CONFIG_CPA_DEBUG
+#ifdef CONFIG_CPA_DE
 #include "pageattr-test.c"
 #endif

@@ -117,7 +117,7 @@ config FIRMWARE_MEMMAP
     help
       Add the firmware-provided (unmodified) memory map to /sys/firmware/memmap.
       That memory map is used for example by kexec to set up parameter area
-      for the next kernel, but can also be used for debugging purposes.
+      for the next kernel, but can also be used for deging purposes.
 
       See also Documentation/ABI/testing/sysfs-firmware-memmap.
 
@@ -246,7 +246,7 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
 	depends on QCOM_SCM
 	help
 	  A device with "download mode" enabled will upon an unexpected
-	  warm-restart enter a special debug mode that allows the user to
+	  warm-restart enter a special de mode that allows the user to
 	  "download" memory content over USB for offline postmortem analysis.
 	  The feature can be enabled/disabled on the kernel command line.
 

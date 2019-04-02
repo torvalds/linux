@@ -23,7 +23,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -93,7 +93,7 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 	struct sctp_sock *sp = NULL;
 	struct sock *sk;
 
-	pr_debug("%s: packet:%p vtag:0x%x\n", __func__, packet, vtag);
+	pr_de("%s: packet:%p vtag:0x%x\n", __func__, packet, vtag);
 	packet->vtag = vtag;
 
 	/* do the following jobs only once for a flush schedule */
@@ -158,7 +158,7 @@ void sctp_packet_init(struct sctp_packet *packet,
 		      struct sctp_transport *transport,
 		      __u16 sport, __u16 dport)
 {
-	pr_debug("%s: packet:%p transport:%p\n", __func__, packet, transport);
+	pr_de("%s: packet:%p transport:%p\n", __func__, packet, transport);
 
 	packet->transport = transport;
 	packet->source_port = sport;
@@ -175,7 +175,7 @@ void sctp_packet_free(struct sctp_packet *packet)
 {
 	struct sctp_chunk *chunk, *tmp;
 
-	pr_debug("%s: packet:%p\n", __func__, packet);
+	pr_de("%s: packet:%p\n", __func__, packet);
 
 	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
 		list_del_init(&chunk->list);
@@ -196,7 +196,7 @@ enum sctp_xmit sctp_packet_transmit_chunk(struct sctp_packet *packet,
 {
 	enum sctp_xmit retval;
 
-	pr_debug("%s: packet:%p size:%zu chunk:%p size:%d\n", __func__,
+	pr_de("%s: packet:%p size:%zu chunk:%p size:%d\n", __func__,
 		 packet, packet->size, chunk, chunk->skb ? chunk->skb->len : -1);
 
 	switch ((retval = (sctp_packet_append_chunk(packet, chunk)))) {
@@ -371,7 +371,7 @@ enum sctp_xmit sctp_packet_append_chunk(struct sctp_packet *packet,
 {
 	enum sctp_xmit retval = SCTP_XMIT_OK;
 
-	pr_debug("%s: packet:%p chunk:%p\n", __func__, packet, chunk);
+	pr_de("%s: packet:%p chunk:%p\n", __func__, packet, chunk);
 
 	/* Data chunks are special.  Before seeing what else we can
 	 * bundle into this packet, check to see if we are allowed to
@@ -481,7 +481,7 @@ merge:
 
 			skb_put_data(nskb, chunk->skb->data, chunk->skb->len);
 
-			pr_debug("*** Chunk:%p[%s] %s 0x%x, length:%d, chunk->skb->len:%d, rtt_in_progress:%d\n",
+			pr_de("*** Chunk:%p[%s] %s 0x%x, length:%d, chunk->skb->len:%d, rtt_in_progress:%d\n",
 				 chunk,
 				 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)),
 				 chunk->has_tsn ? "TSN" : "No TSN",
@@ -565,7 +565,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	struct sctphdr *sh;
 	struct sock *sk;
 
-	pr_debug("%s: packet:%p\n", __func__, packet);
+	pr_de("%s: packet:%p\n", __func__, packet);
 	if (list_empty(&packet->chunk_list))
 		return 0;
 	chunk = list_entry(packet->chunk_list.next, struct sctp_chunk, list);
@@ -611,7 +611,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		kfree_skb(head);
 		goto out;
 	}
-	pr_debug("***sctp_transmit_packet*** skb->len:%d\n", head->len);
+	pr_de("***sctp_transmit_packet*** skb->len:%d\n", head->len);
 
 	/* start autoclose timer */
 	if (packet->has_data && sctp_state(asoc, ESTABLISHED) &&

@@ -11,7 +11,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -62,7 +62,7 @@
 
 #include "maple.h"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -193,7 +193,7 @@ static void __init maple_setup_arch(void)
 #endif
 	maple_use_rtas_reboot_and_halt_if_present();
 
-	printk(KERN_DEBUG "Using native/NAP idle loop\n");
+	printk(KERN_DE "Using native/NAP idle loop\n");
 
 	mmio_nvram_init();
 }
@@ -212,7 +212,7 @@ static void __init maple_init_IRQ(void)
 	struct mpic *mpic;
 	unsigned int flags = 0;
 
-	/* Locate MPIC in the device-tree. Note that there is a bug
+	/* Locate MPIC in the device-tree. Note that there is a 
 	 * in Maple device-tree where the type of the controller is
 	 * open-pic and not interrupt-controller
 	 */
@@ -240,11 +240,11 @@ static void __init maple_init_IRQ(void)
 	if (opprop != 0) {
 		openpic_addr = of_read_number(opprop, naddr);
 		has_isus = (opplen > naddr);
-		printk(KERN_DEBUG "OpenPIC addr: %lx, has ISUs: %d\n",
+		printk(KERN_DE "OpenPIC addr: %lx, has ISUs: %d\n",
 		       openpic_addr, has_isus);
 	}
 
-	BUG_ON(openpic_addr == 0);
+	_ON(openpic_addr == 0);
 
 	/* Check for a big endian MPIC */
 	if (of_get_property(np, "big-endian", NULL) != NULL)
@@ -261,7 +261,7 @@ static void __init maple_init_IRQ(void)
 	 */
 	mpic = mpic_alloc(mpic_node, openpic_addr, flags,
 			  /*has_isus ? 16 :*/ 0, 0, " MPIC     ");
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	/* Add ISUs */
 	opplen /= sizeof(u32);

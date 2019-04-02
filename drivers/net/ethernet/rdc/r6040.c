@@ -985,7 +985,7 @@ static void r6040_adjust_link(struct net_device *dev)
 	int status_changed = 0;
 	void __iomem *ioaddr = lp->base;
 
-	BUG_ON(!phydev);
+	_ON(!phydev);
 
 	if (lp->old_link != phydev->link) {
 		status_changed = 1;

@@ -57,7 +57,7 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 
 	sb_start_pagefault(inode->i_sb);
 
-	f2fs_bug_on(sbi, f2fs_has_inline_data(inode));
+	f2fs__on(sbi, f2fs_has_inline_data(inode));
 
 	file_update_time(vmf->vma->vm_file);
 	down_read(&F2FS_I(inode)->i_mmap_sem);
@@ -582,7 +582,7 @@ truncate_out:
 	zero_user(page, offset, PAGE_SIZE - offset);
 
 	/* An encrypted inode should have a key and truncate the last page. */
-	f2fs_bug_on(F2FS_I_SB(inode), cache_only && IS_ENCRYPTED(inode));
+	f2fs__on(F2FS_I_SB(inode), cache_only && IS_ENCRYPTED(inode));
 	if (!cache_only)
 		set_page_dirty(page);
 	f2fs_put_page(page, 1);
@@ -632,7 +632,7 @@ int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock)
 	count = ADDRS_PER_PAGE(dn.node_page, inode);
 
 	count -= dn.ofs_in_node;
-	f2fs_bug_on(sbi, count < 0);
+	f2fs__on(sbi, count < 0);
 
 	if (dn.ofs_in_node || IS_INODE(dn.node_page)) {
 		f2fs_truncate_data_blocks_range(&dn, count);
@@ -919,7 +919,7 @@ int f2fs_truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 		end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
 		count = min(end_offset - dn.ofs_in_node, pg_end - pg_start);
 
-		f2fs_bug_on(F2FS_I_SB(inode), count == 0 || count > end_offset);
+		f2fs__on(F2FS_I_SB(inode), count == 0 || count > end_offset);
 
 		f2fs_truncate_data_blocks_range(&dn, count);
 		f2fs_put_dnode(&dn);

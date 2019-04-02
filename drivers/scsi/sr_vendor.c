@@ -51,7 +51,7 @@
 #include "sr.h"
 
 #if 0
-#define DEBUG
+#define DE
 #endif
 
 /* here are some constants to sort the vendors into groups */
@@ -123,7 +123,7 @@ int sr_set_blocklength(Scsi_CD *cd, int blocklength)
 	if (!buffer)
 		return -ENOMEM;
 
-#ifdef DEBUG
+#ifdef DE
 	sr_printk(KERN_INFO, cd, "MODE SELECT 0x%x/%d\n", density, blocklength);
 #endif
 	memset(&cgc, 0, sizeof(struct packet_command));
@@ -143,7 +143,7 @@ int sr_set_blocklength(Scsi_CD *cd, int blocklength)
 	if (0 == (rc = sr_do_ioctl(cd, &cgc))) {
 		cd->device->sector_size = blocklength;
 	}
-#ifdef DEBUG
+#ifdef DE
 	else
 		sr_printk(KERN_INFO, cd,
 			  "switching blocklength to %d bytes failed\n",
@@ -320,9 +320,9 @@ int sr_cd_check(struct cdrom_device_info *cdi)
 	if (no_multi)
 		cdi->mask |= CDC_MULTI_SESSION;
 
-#ifdef DEBUG
+#ifdef DE
 	if (sector)
-		sr_printk(KERN_DEBUG, cd, "multisession offset=%lu\n",
+		sr_printk(KERN_DE, cd, "multisession offset=%lu\n",
 			  sector);
 #endif
 	kfree(buffer);

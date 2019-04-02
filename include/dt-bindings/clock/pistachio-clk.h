@@ -103,7 +103,7 @@
 #define CLK_EVENT_TIMER_MUX		109
 #define CLK_SD_HOST_MUX			110
 #define CLK_BT_PLL_MUX			111
-#define CLK_DEBUG_MUX			112
+#define CLK_DE_MUX			112
 
 #define CLK_NR_CLKS			113
 

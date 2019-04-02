@@ -598,7 +598,7 @@ static int check_lut_size(const struct drm_property_blob *lut, int expected)
 
 	len = drm_color_lut_size(lut);
 	if (len != expected) {
-		DRM_DEBUG_KMS("Invalid LUT size; got %d, expected %d\n",
+		DRM_DE_KMS("Invalid LUT size; got %d, expected %d\n",
 			      len, expected);
 		return -EINVAL;
 	}

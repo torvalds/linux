@@ -46,8 +46,8 @@
 static unsigned int Num_of_ioc3_cards;
 static unsigned int Submodule_slot;
 
-/* defining this will get you LOTS of great debug info */
-//#define DEBUG_INTERRUPTS
+/* defining this will get you LOTS of great de info */
+//#define DE_INTERRUPTS
 #define DPRINT_CONFIG(_x...)	;
 //#define DPRINT_CONFIG(_x...)  printk _x
 #define NOT_PROGRESS()	;
@@ -459,7 +459,7 @@ static inline int port_init(struct ioc3_port *port)
 
 	/* uart experiences pauses at high baud rate reducing actual
 	 * throughput by 10% or so unless we enable high speed polling
-	 * XXX when this hardware bug is resolved we should revert to
+	 * XXX when this hardware  is resolved we should revert to
 	 * normal polling speed
 	 */
 	port->ip_sscr |= SSCR_HIGH_SPD;
@@ -680,7 +680,7 @@ static inline int do_write(struct ioc3_port *port, char *buf, int len)
 	struct ring_entry *entry;
 	struct port_hooks *hooks = port->ip_hooks;
 
-	BUG_ON(!(len >= 0));
+	_ON(!(len >= 0));
 
 	prod_ptr = port->ip_tx_prod;
 	cons_ptr = readl(&port->ip_serial_regs->stcir) & PROD_CONS_MASK;
@@ -775,7 +775,7 @@ static int set_notification(struct ioc3_port *port, int mask, int set_on)
 	struct port_hooks *hooks = port->ip_hooks;
 	uint32_t intrbits, sscrbits;
 
-	BUG_ON(!mask);
+	_ON(!mask);
 
 	intrbits = sscrbits = 0;
 
@@ -1122,8 +1122,8 @@ static inline int do_read(struct uart_port *the_port, char *buf, int len)
 	char *sc;
 	int loop_counter;
 
-	BUG_ON(!(len >= 0));
-	BUG_ON(!port);
+	_ON(!(len >= 0));
+	_ON(!port);
 	hooks = port->ip_hooks;
 
 	/* There is a nasty timing issue in the IOC3. When the rx_timer
@@ -1593,7 +1593,7 @@ ioc3uart_intr_one(struct ioc3_submodule *is,
 				 */
 				if (!(port->ip_notify
 				      & (N_DATA_READY | N_DDCD))) {
-					BUG_ON(!(port->ip_sscr
+					_ON(!(port->ip_sscr
 						 & SSCR_DMA_EN));
 					port->ip_sscr &= ~SSCR_DMA_EN;
 					writel(port->ip_sscr,
@@ -2073,7 +2073,7 @@ ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 			port->ip_cpu_ringbuf = pci_alloc_consistent(pdev,
 				TOTAL_RING_BUF_SIZE, &port->ip_dma_ringbuf);
 
-			BUG_ON(!((((int64_t) port->ip_dma_ringbuf) &
+			_ON(!((((int64_t) port->ip_dma_ringbuf) &
 				  (TOTAL_RING_BUF_SIZE - 1)) == 0));
 			port->ip_inring = RING(port, RX_A);
 			port->ip_outring = RING(port, TX_A);

@@ -3,7 +3,7 @@
 #include <linux/frame.h>
 #include <linux/percpu.h>
 
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/mmu_context.h>
 
 #include "cpuid.h"
@@ -177,7 +177,7 @@ static void nested_vmx_abort(struct kvm_vcpu *vcpu, u32 indicator)
 {
 	/* TODO: not to reset guest simply here. */
 	kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
-	pr_debug_ratelimited("kvm: nested vmx abort, indicator %d\n", indicator);
+	pr_de_ratelimited("kvm: nested vmx abort, indicator %d\n", indicator);
 }
 
 static void vmx_disable_shadow_vmcs(struct vcpu_vmx *vmx)
@@ -827,13 +827,13 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	for (i = 0; i < count; i++) {
 		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
 					&e, sizeof(e))) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			goto fail;
 		}
 		if (nested_vmx_load_msr_check(vcpu, &e)) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s check failed (%u, 0x%x, 0x%x)\n",
 				__func__, i, e.index, e.reserved);
 			goto fail;
@@ -841,7 +841,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		msr.index = e.index;
 		msr.data = e.value;
 		if (kvm_set_msr(vcpu, &msr)) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, e.value);
 			goto fail;
@@ -862,13 +862,13 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		if (kvm_vcpu_read_guest(vcpu,
 					gpa + i * sizeof(e),
 					&e, 2 * sizeof(u32))) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			return -EINVAL;
 		}
 		if (nested_vmx_store_msr_check(vcpu, &e)) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s check failed (%u, 0x%x, 0x%x)\n",
 				__func__, i, e.index, e.reserved);
 			return -EINVAL;
@@ -876,7 +876,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		msr_info.host_initiated = false;
 		msr_info.index = e.index;
 		if (kvm_get_msr(vcpu, &msr_info)) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s cannot read MSR (%u, 0x%x)\n",
 				__func__, i, e.index);
 			return -EINVAL;
@@ -885,7 +885,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 					 gpa + i * sizeof(e) +
 					     offsetof(struct vmx_msr_entry, value),
 					 &msr_info.data, sizeof(msr_info.data))) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, msr_info.data);
 			return -EINVAL;
@@ -1044,7 +1044,7 @@ vmx_restore_control_msr(struct vcpu_vmx *vmx, u32 msr_index, u64 data)
 		highp = &vmx->nested.msrs.secondary_ctls_high;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	supported = vmx_control_msr(*lowp, *highp);
@@ -1135,7 +1135,7 @@ static int vmx_restore_fixed0_msr(struct vcpu_vmx *vmx, u32 msr_index, u64 data)
 		msr = &vmx->nested.msrs.cr4_fixed0;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	/*
@@ -1525,7 +1525,7 @@ static int copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
 	if (unlikely(!(evmcs->hv_clean_fields &
 		       HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP1))) {
 		vmcs12->vmcs_link_pointer = evmcs->vmcs_link_pointer;
-		vmcs12->guest_ia32_debugctl = evmcs->guest_ia32_debugctl;
+		vmcs12->guest_ia32_dectl = evmcs->guest_ia32_dectl;
 		vmcs12->guest_ia32_pat = evmcs->guest_ia32_pat;
 		vmcs12->guest_ia32_efer = evmcs->guest_ia32_efer;
 		vmcs12->guest_pdptr0 = evmcs->guest_pdptr0;
@@ -1641,7 +1641,7 @@ static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
 	 * evmcs->cr3_target_count = vmcs12->cr3_target_count;
 	 * evmcs->virtual_apic_page_addr = vmcs12->virtual_apic_page_addr;
 	 * evmcs->tsc_offset = vmcs12->tsc_offset;
-	 * evmcs->guest_ia32_debugctl = vmcs12->guest_ia32_debugctl;
+	 * evmcs->guest_ia32_dectl = vmcs12->guest_ia32_dectl;
 	 * evmcs->cr0_guest_host_mask = vmcs12->cr0_guest_host_mask;
 	 * evmcs->cr4_guest_host_mask = vmcs12->cr4_guest_host_mask;
 	 * evmcs->cr0_read_shadow = vmcs12->cr0_read_shadow;
@@ -1804,7 +1804,7 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		 * which is one of the supported versions specified in
 		 * CPUID.0x4000000A.EAX[0:15].
 		 *
-		 * To overcome Hyper-V bug, we accept here either a supported
+		 * To overcome Hyper-V , we accept here either a supported
 		 * eVMCS version or VMCS12 revision_id as valid values for first
 		 * u32 field of eVMCS.
 		 */
@@ -2269,12 +2269,12 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	}
 
 	if (vmx->nested.nested_run_pending &&
-	    (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS)) {
+	    (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DE_CONTROLS)) {
 		kvm_set_dr(vcpu, 7, vmcs12->guest_dr7);
-		vmcs_write64(GUEST_IA32_DEBUGCTL, vmcs12->guest_ia32_debugctl);
+		vmcs_write64(GUEST_IA32_DECTL, vmcs12->guest_ia32_dectl);
 	} else {
 		kvm_set_dr(vcpu, 7, vcpu->arch.dr7);
-		vmcs_write64(GUEST_IA32_DEBUGCTL, vmx->nested.vmcs01_debugctl);
+		vmcs_write64(GUEST_IA32_DECTL, vmx->nested.vmcs01_dectl);
 	}
 	vmx_set_rflags(vcpu, vmcs12->guest_rflags);
 
@@ -2794,7 +2794,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	 */
 	local_irq_enable();
 	if (hw_breakpoint_active())
-		set_debugreg(__this_cpu_read(cpu_dr7), 7);
+		set_dereg(__this_cpu_read(cpu_dr7), 7);
 
 	/*
 	 * A non-failing VMEntry means we somehow entered guest mode with
@@ -2959,8 +2959,8 @@ int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	if (likely(!evaluate_pending_interrupts) && kvm_vcpu_apicv_active(vcpu))
 		evaluate_pending_interrupts |= vmx_has_apicv_interrupt(vcpu);
 
-	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
-		vmx->nested.vmcs01_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
+	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DE_CONTROLS))
+		vmx->nested.vmcs01_dectl = vmcs_read64(GUEST_IA32_DECTL);
 	if (kvm_mpx_supported() &&
 		!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_BNDCFGS))
 		vmx->nested.vmcs01_guest_bndcfgs = vmcs_read64(GUEST_BNDCFGS);
@@ -3482,9 +3482,9 @@ static void sync_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		(vmcs12->vm_entry_controls & ~VM_ENTRY_IA32E_MODE) |
 		(vm_entry_controls_get(to_vmx(vcpu)) & VM_ENTRY_IA32E_MODE);
 
-	if (vmcs12->vm_exit_controls & VM_EXIT_SAVE_DEBUG_CONTROLS) {
+	if (vmcs12->vm_exit_controls & VM_EXIT_SAVE_DE_CONTROLS) {
 		kvm_get_dr(vcpu, 7, (unsigned long *)&vmcs12->guest_dr7);
-		vmcs12->guest_ia32_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
+		vmcs12->guest_ia32_dectl = vmcs_read64(GUEST_IA32_DECTL);
 	}
 
 	/* TODO: These cannot have changed unless we have MSR bitmaps and
@@ -3703,7 +3703,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	vmx_set_segment(vcpu, &seg, VCPU_SREG_TR);
 
 	kvm_set_dr(vcpu, 7, 0x400);
-	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+	vmcs_write64(GUEST_IA32_DECTL, 0);
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(vcpu);
@@ -3747,14 +3747,14 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.pat = vmcs_read64(GUEST_IA32_PAT);
 
-	if (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS) {
+	if (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DE_CONTROLS) {
 		/*
 		 * L1's host DR7 is lost if KVM_GUESTDBG_USE_HW_BP is set
 		 * as vmcs01.GUEST_DR7 contains a userspace defined value
 		 * and vcpu->arch.dr7 is not squirreled away before the
 		 * nested VMENTER (not worth adding a variable in nested_vmx).
 		 */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
+		if (vcpu->guest_de & KVM_GUESTDBG_USE_HW_BP)
 			kvm_set_dr(vcpu, 7, DR7_FIXED_1);
 		else
 			WARN_ON(kvm_set_dr(vcpu, 7, vmcs_readl(GUEST_DR7)));
@@ -3804,7 +3804,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 	for (i = 0; i < vmcs12->vm_entry_msr_load_count; i++) {
 		gpa = vmcs12->vm_entry_msr_load_addr + (i * sizeof(g));
 		if (kvm_vcpu_read_guest(vcpu, gpa, &g, sizeof(g))) {
-			pr_debug_ratelimited(
+			pr_de_ratelimited(
 				"%s read MSR index failed (%u, 0x%08llx)\n",
 				__func__, i, gpa);
 			goto vmabort;
@@ -3813,7 +3813,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 		for (j = 0; j < vmcs12->vm_exit_msr_load_count; j++) {
 			gpa = vmcs12->vm_exit_msr_load_addr + (j * sizeof(h));
 			if (kvm_vcpu_read_guest(vcpu, gpa, &h, sizeof(h))) {
-				pr_debug_ratelimited(
+				pr_de_ratelimited(
 					"%s read MSR failed (%u, 0x%08llx)\n",
 					__func__, j, gpa);
 				goto vmabort;
@@ -3824,7 +3824,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 				break;
 
 			if (nested_vmx_load_msr_check(vcpu, &h)) {
-				pr_debug_ratelimited(
+				pr_de_ratelimited(
 					"%s check failed (%u, 0x%x, 0x%x)\n",
 					__func__, j, h.index, h.reserved);
 				goto vmabort;
@@ -3833,7 +3833,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 			msr.index = h.index;
 			msr.data = h.value;
 			if (kvm_set_msr(vcpu, &msr)) {
-				pr_debug_ratelimited(
+				pr_de_ratelimited(
 					"%s WRMSR failed (%u, 0x%x, 0x%llx)\n",
 					__func__, j, h.index, h.value);
 				goto vmabort;
@@ -3858,7 +3858,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 
-	/* trying to cancel vmlaunch/vmresume is a bug */
+	/* trying to cancel vmlaunch/vmresume is a  */
 	WARN_ON_ONCE(vmx->nested.nested_run_pending);
 
 	leave_guest_mode(vcpu);
@@ -4683,7 +4683,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 
@@ -5086,12 +5086,12 @@ bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 			return false;
 		else if (is_page_fault(intr_info))
 			return !vmx->vcpu.arch.apf.host_apf_reason && enable_ept;
-		else if (is_debug(intr_info) &&
-			 vcpu->guest_debug &
+		else if (is_de(intr_info) &&
+			 vcpu->guest_de &
 			 (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
 			return false;
 		else if (is_breakpoint(intr_info) &&
-			 vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+			 vcpu->guest_de & KVM_GUESTDBG_USE_SW_BP)
 			return false;
 		return vmcs12->exception_bitmap &
 				(1u << (intr_info & INTR_INFO_VECTOR_MASK));
@@ -5533,8 +5533,8 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 		VM_EXIT_LOAD_IA32_EFER | VM_EXIT_SAVE_IA32_EFER |
 		VM_EXIT_SAVE_VMX_PREEMPTION_TIMER | VM_EXIT_ACK_INTR_ON_EXIT;
 
-	/* We support free control of debug control saving. */
-	msrs->exit_ctls_low &= ~VM_EXIT_SAVE_DEBUG_CONTROLS;
+	/* We support free control of de control saving. */
+	msrs->exit_ctls_low &= ~VM_EXIT_SAVE_DE_CONTROLS;
 
 	/* entry controls */
 	rdmsr(MSR_IA32_VMX_ENTRY_CTLS,
@@ -5550,8 +5550,8 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	msrs->entry_ctls_high |=
 		(VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR | VM_ENTRY_LOAD_IA32_EFER);
 
-	/* We support free control of debug control loading. */
-	msrs->entry_ctls_low &= ~VM_ENTRY_LOAD_DEBUG_CONTROLS;
+	/* We support free control of de control loading. */
+	msrs->entry_ctls_low &= ~VM_ENTRY_LOAD_DE_CONTROLS;
 
 	/* cpu-based controls */
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS,

@@ -2573,7 +2573,7 @@ Open a branch to display disassembly. This only works if:
 <ol>
 <li>The disassembler is available. Currently, only Intel XED is supported - see <a href=#xed>Intel XED Setup</a></li>
 <li>The object code is available. Currently, only the perf build ID cache is searched for object code.
-The default directory ~/.debug can be overridden by setting environment variable PERF_BUILDID_DIR.
+The default directory ~/.de can be overridden by setting environment variable PERF_BUILDID_DIR.
 One exception is kcore where the DSO long name is used (refer dsos_view on the Tables menu),
 or alternatively, set environment variable PERF_KCORE to the kcore file name.</li>
 </ol>
@@ -2955,7 +2955,7 @@ class Glb():
 		if self.buildid_dir:
 			self.buildid_dir += "/.build-id/"
 		else:
-			self.buildid_dir = self.home_dir + "/.debug/.build-id/"
+			self.buildid_dir = self.home_dir + "/.de/.build-id/"
 		self.app = None
 		self.mainwindow = None
 		self.instances_to_shutdown_on_exit = weakref.WeakSet()

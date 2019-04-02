@@ -69,7 +69,7 @@ struct xen_dm_op_buf;
  *    Even unused parameters can be clobbered by the hypervisor, so we
  *    need to make sure gcc knows it.
  *
- * - Avoid compiler bugs.
+ * - Avoid compiler s.
  *    This is the tricky part.  Because x86_32 has such a constrained
  *    register set, gcc versions below 4.3 have trouble generating
  *    code when all the arg registers and memory are trashed by the
@@ -290,15 +290,15 @@ HYPERVISOR_platform_op(struct xen_platform_op *op)
 }
 
 static inline int
-HYPERVISOR_set_debugreg(int reg, unsigned long value)
+HYPERVISOR_set_dereg(int reg, unsigned long value)
 {
-	return _hypercall2(int, set_debugreg, reg, value);
+	return _hypercall2(int, set_dereg, reg, value);
 }
 
 static inline unsigned long
-HYPERVISOR_get_debugreg(int reg)
+HYPERVISOR_get_dereg(int reg)
 {
-	return _hypercall1(unsigned long, get_debugreg, reg);
+	return _hypercall1(unsigned long, get_dereg, reg);
 }
 
 static inline int

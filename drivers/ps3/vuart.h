@@ -62,7 +62,7 @@ static inline struct ps3_vuart_port_driver *
 {
 	struct ps3_system_bus_driver *sbd =
 		ps3_system_bus_dev_to_system_bus_drv(_dev);
-	BUG_ON(!sbd);
+	_ON(!sbd);
 	return container_of(sbd, struct ps3_vuart_port_driver, core);
 }
 static inline struct ps3_system_bus_device *ps3_vuart_work_to_system_bus_dev(

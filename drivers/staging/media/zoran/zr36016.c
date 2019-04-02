@@ -48,14 +48,14 @@
 /* amount of chips attached via this driver */
 static int zr36016_codecs;
 
-/* debugging is available via module parameter */
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-4)");
+/* deging is available via module parameter */
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-4)");
 
 #define dprintk(num, format, args...) \
 	do { \
-		if (debug >= num) \
+		if (de >= num) \
 			printk(format, ##args); \
 	} while (0)
 
@@ -173,7 +173,7 @@ zr36016_read_version (struct zr36016 *ptr)
 static int
 zr36016_basic_test (struct zr36016 *ptr)
 {
-	if (debug) {
+	if (de) {
 		int i;
 		zr36016_writei(ptr, ZR016I_PAX_LO, 0x55);
 		dprintk(1, KERN_INFO "%s: registers: ", ptr->name);

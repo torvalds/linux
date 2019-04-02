@@ -17,20 +17,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sizes.h>
 #include <linux/syscalls.h>
@@ -38,10 +38,10 @@
 #include <linux/kasan.h>
 
 #include <asm/atomic.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/esr.h>
 #include <asm/insn.h>
 #include <asm/traps.h>
@@ -104,7 +104,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	struct stackframe frame;
 	int skip;
 
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+	pr_de("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
 
 	if (!tsk)
 		tsk = current;
@@ -419,7 +419,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
-	BUG_ON(!user_mode(regs));
+	_ON(!user_mode(regs));
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 }
 
@@ -931,47 +931,47 @@ void __pgd_error(const char *file, int line, unsigned long val)
 	pr_err("%s:%d: bad pgd %016lx.\n", file, line, val);
 }
 
-/* GENERIC_BUG traps */
+/* GENERIC_ traps */
 
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	/*
-	 * bug_handler() only called for BRK #BUG_BRK_IMM.
+	 * _handler() only called for BRK #_BRK_IMM.
 	 * So the answer is trivial -- any spurious instances with no
-	 * bug table entry will be rejected by report_bug() and passed
-	 * back to the debug-monitors code and handled as a fatal
-	 * unexpected debug exception.
+	 *  table entry will be rejected by report_() and passed
+	 * back to the de-monitors code and handled as a fatal
+	 * unexpected de exception.
 	 */
 	return 1;
 }
 
-static int bug_handler(struct pt_regs *regs, unsigned int esr)
+static int _handler(struct pt_regs *regs, unsigned int esr)
 {
 	if (user_mode(regs))
 		return DBG_HOOK_ERROR;
 
-	switch (report_bug(regs->pc, regs)) {
-	case BUG_TRAP_TYPE_BUG:
-		die("Oops - BUG", regs, 0);
+	switch (report_(regs->pc, regs)) {
+	case _TRAP_TYPE_:
+		die("Oops - ", regs, 0);
 		break;
 
-	case BUG_TRAP_TYPE_WARN:
+	case _TRAP_TYPE_WARN:
 		break;
 
 	default:
-		/* unknown/unrecognised bug trap type */
+		/* unknown/unrecognised  trap type */
 		return DBG_HOOK_ERROR;
 	}
 
-	/* If thread survives, skip over the BUG instruction and continue: */
+	/* If thread survives, skip over the  instruction and continue: */
 	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 	return DBG_HOOK_HANDLED;
 }
 
-static struct break_hook bug_break_hook = {
-	.esr_val = 0xf2000000 | BUG_BRK_IMM,
+static struct break_hook _break_hook = {
+	.esr_val = 0xf2000000 | _BRK_IMM,
 	.esr_mask = 0xffffffff,
-	.fn = bug_handler,
+	.fn = _handler,
 };
 
 #ifdef CONFIG_KASAN_SW_TAGS
@@ -1028,7 +1028,7 @@ static struct break_hook kasan_break_hook = {
 
 /*
  * Initial handler for AArch64 BRK exceptions
- * This handler only used until debug_traps_init().
+ * This handler only used until de_traps_init().
  */
 int __init early_brk64(unsigned long addr, unsigned int esr,
 		struct pt_regs *regs)
@@ -1037,13 +1037,13 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 	if ((esr & KASAN_ESR_MASK) == KASAN_ESR_VAL)
 		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
-	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
+	return _handler(regs, esr) != DBG_HOOK_HANDLED;
 }
 
-/* This registration must happen early, before debug_traps_init(). */
+/* This registration must happen early, before de_traps_init(). */
 void __init trap_init(void)
 {
-	register_break_hook(&bug_break_hook);
+	register_break_hook(&_break_hook);
 #ifdef CONFIG_KASAN_SW_TAGS
 	register_break_hook(&kasan_break_hook);
 #endif

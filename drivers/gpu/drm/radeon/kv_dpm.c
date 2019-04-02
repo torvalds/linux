@@ -2797,7 +2797,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 	return 0;
 }
 
-void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void kv_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);

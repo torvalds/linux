@@ -1,4 +1,4 @@
-/* bnx2fc_debug.h: QLogic Linux FCoE offload driver.
+/* bnx2fc_de.h: QLogic Linux FCoE offload driver.
  * Handles operations such as session offload/upload etc, and manages
  * session resources such as connection id and qp resources.
  *
@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef __BNX2FC_DEBUG__
-#define __BNX2FC_DEBUG__
+#ifndef __BNX2FC_DE__
+#define __BNX2FC_DE__
 
 /* Log level bit mask */
 #define LOG_IO		0x01	/* scsi cmd error, cleanup */
@@ -23,17 +23,17 @@
 #define LOG_MISC	0x10	/* fcoe L2 frame related logs*/
 #define LOG_ALL		0xff	/* LOG all messages */
 
-extern unsigned int bnx2fc_debug_level;
+extern unsigned int bnx2fc_de_level;
 
 #define BNX2FC_ELS_DBG(fmt, ...)				\
 do {								\
-	if (unlikely(bnx2fc_debug_level & LOG_ELS))		\
+	if (unlikely(bnx2fc_de_level & LOG_ELS))		\
 		pr_info(fmt, ##__VA_ARGS__);			\
 } while (0)
 
 #define BNX2FC_MISC_DBG(fmt, ...)				\
 do {								\
-	if (unlikely(bnx2fc_debug_level & LOG_MISC))		\
+	if (unlikely(bnx2fc_de_level & LOG_MISC))		\
 		pr_info(fmt, ##__VA_ARGS__);			\
 } while (0)
 

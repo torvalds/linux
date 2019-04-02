@@ -30,7 +30,7 @@ config ARC
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DE_STACKOVERFLOW
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_IOREMAP_PROT
 	select HAVE_KERNEL_GZIP
@@ -206,7 +206,7 @@ config ARC_MCIP
 	default y if SMP
 	help
 	  This IP block enables SMP in ARC-HS38 cores.
-	  It provides for cross-core interrupts, multi-core debug
+	  It provides for cross-core interrupts, multi-core de
 	  hardware semaphores, shared memory,....
 
 menuconfig ARC_CACHE
@@ -493,22 +493,22 @@ config ARC_EMUL_UNALIGNED
 	help
 	  This enables misaligned 16 & 32 bit memory access from user space.
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
-	  potential bugs in code
+	  potential s in code
 
 config HZ
 	int "Timer Frequency"
 	default 100
 
 config ARC_METAWARE_HLINK
-	bool "Support for Metaware debugger assisted Host access"
+	bool "Support for Metaware deger assisted Host access"
 	help
 	  This options allows a Linux userland apps to directly access
 	  host file system (open/creat/read/write etc) with help from
-	  Metaware Debugger. This can come in handy for Linux-host communication
+	  Metaware Deger. This can come in handy for Linux-host communication
 	  when there is no real usable peripheral such as EMAC.
 
 menuconfig ARC_DBG
-	bool "ARC debugging"
+	bool "ARC deging"
 	default y
 
 if ARC_DBG
@@ -522,8 +522,8 @@ config ARC_DW2_UNWIND
 	  to get stack backtraces.
 
 	  If you say Y here the resulting kernel image will be slightly larger
-	  but not slower, and it will give very useful debugging information.
-	  If you don't debug the kernel, you can say N, but we may not be able
+	  but not slower, and it will give very useful deging information.
+	  If you don't de the kernel, you can say N, but we may not be able
 	  to solve problems without frame unwind information
 
 config ARC_DBG_TLB_PARANOIA

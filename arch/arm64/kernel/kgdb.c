@@ -19,14 +19,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/irq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
 #include <linux/sched/task_stack.h>
 
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/insn.h>
 #include <asm/traps.h>
 
@@ -220,7 +220,7 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 		/*
 		 * Update step address value with address passed
 		 * with step packet.
-		 * On debug exception return PC is copied to ELR
+		 * On de exception return PC is copied to ELR
 		 * So just update PC.
 		 * If no step address is passed, resume from the address
 		 * pointed by PC. Do not update PC
@@ -357,7 +357,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
 
-	BUILD_BUG_ON(AARCH64_INSN_SIZE != BREAK_INSTR_SIZE);
+	BUILD__ON(AARCH64_INSN_SIZE != BREAK_INSTR_SIZE);
 
 	err = aarch64_insn_read((void *)bpt->bpt_addr, (u32 *)bpt->saved_instr);
 	if (err)

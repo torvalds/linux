@@ -352,7 +352,7 @@ static int ulite_request_port(struct uart_port *port)
 	struct uartlite_data *pdata = port->private_data;
 	int ret;
 
-	pr_debug("ulite console: port=%p; port->mapbase=%llx\n",
+	pr_de("ulite console: port=%p; port->mapbase=%llx\n",
 		 port, (unsigned long long) port->mapbase);
 
 	if (!request_mem_region(port->mapbase, ULITE_REGION, "uartlite")) {
@@ -455,7 +455,7 @@ static void ulite_console_wait_tx(struct uart_port *port)
 
 	/*
 	 * Spin waiting for TX fifo to have space available.
-	 * When using the Microblaze Debug Module this can take up to 1s
+	 * When using the Microblaze De Module this can take up to 1s
 	 */
 	timeout = jiffies + msecs_to_jiffies(1000);
 	while (1) {
@@ -519,7 +519,7 @@ static int ulite_console_setup(struct console *co, char *options)
 
 	/* Has the device been initialized yet? */
 	if (!port->mapbase) {
-		pr_debug("console on ttyUL%i not present\n", co->index);
+		pr_de("console on ttyUL%i not present\n", co->index);
 		return -ENODEV;
 	}
 
@@ -890,7 +890,7 @@ static struct platform_driver ulite_platform_driver = {
 static int __init ulite_init(void)
 {
 
-	pr_debug("uartlite: calling platform_driver_register()\n");
+	pr_de("uartlite: calling platform_driver_register()\n");
 	return platform_driver_register(&ulite_platform_driver);
 }
 

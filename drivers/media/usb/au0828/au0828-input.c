@@ -156,7 +156,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 			}
 
 			/*
-			 * Fix an au8522 bug: the first pulse event
+			 * Fix an au8522 : the first pulse event
 			 * is lost. So, we need to fake it, based on the
 			 * protocol. That means that not all raw decoders
 			 * will work, as we need to add a hack for each

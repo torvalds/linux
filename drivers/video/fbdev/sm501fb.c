@@ -696,7 +696,7 @@ static int sm501fb_set_par_crt(struct fb_info *info)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	control |= SM501_DC_CRT_CONTROL_SEL;	/* CRT displays CRT data */
@@ -852,7 +852,7 @@ static int sm501fb_set_par_pnl(struct fb_info *info)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	smc501_writel(0x0, fbi->regs + SM501_DC_PANEL_PANNING_CONTROL);
@@ -1236,12 +1236,12 @@ static int sm501fb_show_regs(struct sm501fb_info *info, char *ptr,
 	return ptr - buf;
 }
 
-/* sm501fb_debug_show_crt
+/* sm501fb_de_show_crt
  *
  * show the crt control and cursor registers
 */
 
-static ssize_t sm501fb_debug_show_crt(struct device *dev,
+static ssize_t sm501fb_de_show_crt(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct sm501fb_info *info = dev_get_drvdata(dev);
@@ -1253,14 +1253,14 @@ static ssize_t sm501fb_debug_show_crt(struct device *dev,
 	return ptr - buf;
 }
 
-static DEVICE_ATTR(fbregs_crt, 0444, sm501fb_debug_show_crt, NULL);
+static DEVICE_ATTR(fbregs_crt, 0444, sm501fb_de_show_crt, NULL);
 
-/* sm501fb_debug_show_pnl
+/* sm501fb_de_show_pnl
  *
  * show the panel control and cursor registers
 */
 
-static ssize_t sm501fb_debug_show_pnl(struct device *dev,
+static ssize_t sm501fb_de_show_pnl(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct sm501fb_info *info = dev_get_drvdata(dev);
@@ -1272,7 +1272,7 @@ static ssize_t sm501fb_debug_show_pnl(struct device *dev,
 	return ptr - buf;
 }
 
-static DEVICE_ATTR(fbregs_pnl, 0444, sm501fb_debug_show_pnl, NULL);
+static DEVICE_ATTR(fbregs_pnl, 0444, sm501fb_de_show_pnl, NULL);
 
 /* acceleration operations */
 static int sm501fb_sync(struct fb_info *info)
@@ -1700,7 +1700,7 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 		pd = NULL;		/* stop compiler warnings */
 		ctrl = 0;
 		enable = 0;
-		BUG();
+		();
 	}
 
 	dev_info(info->dev, "fb %s %sabled at start\n",

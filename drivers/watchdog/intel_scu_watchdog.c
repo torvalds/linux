@@ -53,7 +53,7 @@
 #include "intel_scu_watchdog.h"
 
 /* Bounds number of times we will retry loading time count */
-/* This retry is a work around for a silicon bug.	   */
+/* This retry is a work around for a silicon .	   */
 #define MAX_RETRY 16
 
 #define IPC_SET_WATCHDOG_TIMER	0xF8
@@ -113,7 +113,7 @@ static int check_timer_margin(int new_margin)
 {
 	if ((new_margin < MIN_TIME_CYCLE) ||
 	    (new_margin > MAX_TIME - timer_set)) {
-		pr_debug("value of new_margin %d is out of the range %d to %d\n",
+		pr_de("value of new_margin %d is out of the range %d to %d\n",
 			 new_margin, MIN_TIME_CYCLE, MAX_TIME - timer_set);
 		return -EINVAL;
 	}
@@ -157,14 +157,14 @@ static irqreturn_t watchdog_timer_interrupt(int irq, void *dev_id)
 	int int_status;
 	int_status = ioread32(watchdog_device.timer_interrupt_status_addr);
 
-	pr_debug("irq, int_status: %x\n", int_status);
+	pr_de("irq, int_status: %x\n", int_status);
 
 	if (int_status != 0)
 		return IRQ_NONE;
 
 	/* has the timer been started? If not, then this is spurious */
 	if (watchdog_device.timer_started == 0) {
-		pr_debug("spurious interrupt received\n");
+		pr_de("spurious interrupt received\n");
 		return IRQ_HANDLED;
 	}
 
@@ -220,14 +220,14 @@ static int intel_scu_set_heartbeat(u32 t)
 		(watchdog_device.timer_set - timer_margin)
 		* watchdog_device.timer_tbl_ptr->freq_hz;
 
-	pr_debug("set_heartbeat: timer freq is %d\n",
+	pr_de("set_heartbeat: timer freq is %d\n",
 		 watchdog_device.timer_tbl_ptr->freq_hz);
-	pr_debug("set_heartbeat: timer_set is %x (hex)\n",
+	pr_de("set_heartbeat: timer_set is %x (hex)\n",
 		 watchdog_device.timer_set);
-	pr_debug("set_hearbeat: timer_margin is %x (hex)\n", timer_margin);
-	pr_debug("set_heartbeat: threshold is %x (hex)\n",
+	pr_de("set_hearbeat: timer_margin is %x (hex)\n", timer_margin);
+	pr_de("set_heartbeat: threshold is %x (hex)\n",
 		 watchdog_device.threshold);
-	pr_debug("set_heartbeat: soft_threshold is %x (hex)\n",
+	pr_de("set_heartbeat: soft_threshold is %x (hex)\n",
 		 watchdog_device.soft_threshold);
 
 	/* Adjust thresholds by FREQ_ADJUSTMENT factor, to make the */
@@ -319,13 +319,13 @@ static int intel_scu_release(struct inode *inode, struct file *file)
 	 */
 
 	if (!test_and_clear_bit(0, &watchdog_device.driver_open)) {
-		pr_debug("intel_scu_release, without open\n");
+		pr_de("intel_scu_release, without open\n");
 		return -ENOTTY;
 	}
 
 	if (!watchdog_device.timer_started) {
 		/* Just close, since timer has not been started */
-		pr_debug("closed, without starting timer\n");
+		pr_de("closed, without starting timer\n");
 		return 0;
 	}
 
@@ -463,18 +463,18 @@ static int __init intel_scu_watchdog_init(void)
 	watchdog_device.timer_tbl_ptr = sfi_get_mtmr(sfi_mtimer_num-1);
 
 	if (watchdog_device.timer_tbl_ptr == NULL) {
-		pr_debug("timer is not available\n");
+		pr_de("timer is not available\n");
 		return -ENODEV;
 	}
 	/* make sure the timer exists */
 	if (watchdog_device.timer_tbl_ptr->phys_addr == 0) {
-		pr_debug("timer %d does not have valid physical memory\n",
+		pr_de("timer %d does not have valid physical memory\n",
 			 sfi_mtimer_num);
 		return -ENODEV;
 	}
 
 	if (watchdog_device.timer_tbl_ptr->irq == 0) {
-		pr_debug("timer %d invalid irq\n", sfi_mtimer_num);
+		pr_de("timer %d invalid irq\n", sfi_mtimer_num);
 		return -ENODEV;
 	}
 
@@ -482,7 +482,7 @@ static int __init intel_scu_watchdog_init(void)
 			20);
 
 	if (tmp_addr == NULL) {
-		pr_debug("timer unable to ioremap\n");
+		pr_de("timer unable to ioremap\n");
 		return -ENOMEM;
 	}
 

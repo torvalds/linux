@@ -102,7 +102,7 @@ int fsnotify_add_event(struct fsnotify_group *group,
 	int ret = 0;
 	struct list_head *list = &group->notification_list;
 
-	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+	pr_de("%s: group=%p event=%p\n", __func__, group, event);
 
 	spin_lock(&group->notification_lock);
 
@@ -163,7 +163,7 @@ struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group)
 
 	assert_spin_locked(&group->notification_lock);
 
-	pr_debug("%s: group=%p\n", __func__, group);
+	pr_de("%s: group=%p\n", __func__, group);
 
 	event = list_first_entry(&group->notification_list,
 				 struct fsnotify_event, list);

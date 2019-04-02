@@ -2,7 +2,7 @@
 #ifndef _FCOE_LIBFCOE_H_
 #define _FCOE_LIBFCOE_H_
 
-extern unsigned int libfcoe_debug_logging;
+extern unsigned int libfcoe_de_logging;
 #define LIBFCOE_LOGGING	          0x01 /* General logging, not categorized */
 #define LIBFCOE_FIP_LOGGING       0x02 /* FIP logging */
 #define LIBFCOE_TRANSPORT_LOGGING 0x04 /* FCoE transport logging */
@@ -10,7 +10,7 @@ extern unsigned int libfcoe_debug_logging;
 
 #define LIBFCOE_CHECK_LOGGING(LEVEL, CMD)		\
 do {							\
-	if (unlikely(libfcoe_debug_logging & LEVEL))	\
+	if (unlikely(libfcoe_de_logging & LEVEL))	\
 		do {					\
 			CMD;				\
 		} while (0);				\

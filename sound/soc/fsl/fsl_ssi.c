@@ -242,7 +242,7 @@ struct fsl_ssi_soc_data {
  * @card_idx: The index of SSI to register a sound card for PowerPC or
  *            to register a CODEC platform device for AC97
  *
- * @dbg_stats: Debugging statistics
+ * @dbg_stats: Deging statistics
  *
  * @soc: SoC specific data
  * @dev: Pointer to &pdev->dev
@@ -1582,7 +1582,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = fsl_ssi_debugfs_create(&ssi->dbg_stats, dev);
+	ret = fsl_ssi_defs_create(&ssi->dbg_stats, dev);
 	if (ret)
 		goto error_asoc_register;
 
@@ -1614,7 +1614,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	return 0;
 
 error_sound_card:
-	fsl_ssi_debugfs_remove(&ssi->dbg_stats);
+	fsl_ssi_defs_remove(&ssi->dbg_stats);
 error_asoc_register:
 	if (fsl_ssi_is_ac97(ssi))
 		snd_soc_set_ac97_ops(NULL);
@@ -1632,7 +1632,7 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 {
 	struct fsl_ssi *ssi = dev_get_drvdata(&pdev->dev);
 
-	fsl_ssi_debugfs_remove(&ssi->dbg_stats);
+	fsl_ssi_defs_remove(&ssi->dbg_stats);
 
 	if (ssi->card_pdev)
 		platform_device_unregister(ssi->card_pdev);

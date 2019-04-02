@@ -14,11 +14,11 @@
  */
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
-	BUG_ON(!hugepd_ok(hpd));
+	_ON(!hugepd_ok(hpd));
 	/*
 	 * We have only four bits to encode, MMU page size
 	 */
-	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
+	BUILD__ON((MMU_PAGE_COUNT - 1) > 0xf);
 	return __va(hpd_val(hpd) & HUGEPD_ADDR_MASK);
 }
 
@@ -42,7 +42,7 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
-	BUG_ON(!hugepd_ok(hpd));
+	_ON(!hugepd_ok(hpd));
 #ifdef CONFIG_PPC_8xx
 	return (pte_t *)__va(hpd_val(hpd) & ~HUGEPD_SHIFT_MASK);
 #else

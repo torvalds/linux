@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/static_key.h>
 #include <linux/jump_label_ratelimit.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpu.h>
 #include <asm/sections.h>
 
@@ -83,7 +83,7 @@ static void jump_label_update(struct static_key *key);
  * kernel headers such as kernel.h and others. Since static_key_count() is not
  * used in the branch statements as it is for the !CONFIG_JUMP_LABEL case its ok
  * to have it be a function here. Similarly, for 'static_key_enable()' and
- * 'static_key_disable()', which require bug.h. This should allow jump_label.h
+ * 'static_key_disable()', which require .h. This should allow jump_label.h
  * to be included from most/all places for CONFIG_JUMP_LABEL.
  */
 int static_key_count(struct static_key *key)
@@ -407,8 +407,8 @@ void __init jump_label_init(void)
 	 * jump_label.h, let's make sure that is safe. There are only two
 	 * cases to check since we initialize to 0 or 1.
 	 */
-	BUILD_BUG_ON((int)ATOMIC_INIT(0) != 0);
-	BUILD_BUG_ON((int)ATOMIC_INIT(1) != 1);
+	BUILD__ON((int)ATOMIC_INIT(0) != 0);
+	BUILD__ON((int)ATOMIC_INIT(1) != 1);
 
 	if (static_key_initialized)
 		return;

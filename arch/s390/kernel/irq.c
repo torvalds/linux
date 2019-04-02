@@ -95,7 +95,7 @@ static const struct irq_class irqclass_sub_desc[] = {
 
 void __init init_IRQ(void)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(irqclass_sub_desc) != NR_ARCH_IRQS);
+	BUILD__ON(ARRAY_SIZE(irqclass_sub_desc) != NR_ARCH_IRQS);
 	init_cio_interrupts();
 	init_airq_interrupts();
 	init_ext_interrupts();
@@ -198,7 +198,7 @@ static DEFINE_SPINLOCK(ext_int_hash_lock);
 
 static inline int ext_hash(u16 code)
 {
-	BUILD_BUG_ON(!is_power_of_2(ARRAY_SIZE(ext_int_hash)));
+	BUILD__ON(!is_power_of_2(ARRAY_SIZE(ext_int_hash)));
 
 	return (code + (code >> 9)) & (ARRAY_SIZE(ext_int_hash) - 1);
 }

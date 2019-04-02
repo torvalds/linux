@@ -214,7 +214,7 @@ static inline struct page *dio_get_page(struct dio *dio,
 		ret = dio_refill_pages(dio, sdio);
 		if (ret)
 			return ERR_PTR(ret);
-		BUG_ON(dio_pages_present(sdio) == 0);
+		_ON(dio_pages_present(sdio) == 0);
 	}
 	return dio->pages[sdio->head];
 }
@@ -689,7 +689,7 @@ static int get_more_blocks(struct dio *dio, struct dio_submit *sdio,
 	 */
 	ret = dio->page_errors;
 	if (ret == 0) {
-		BUG_ON(sdio->block_in_file >= sdio->final_block_in_request);
+		_ON(sdio->block_in_file >= sdio->final_block_in_request);
 		fs_startblk = sdio->block_in_file >> sdio->blkfactor;
 		fs_endblk = (sdio->final_block_in_request - 1) >>
 					sdio->blkfactor;
@@ -742,7 +742,7 @@ static inline int dio_new_bio(struct dio *dio, struct dio_submit *sdio,
 		goto out;
 	sector = start_sector << (sdio->blkbits - 9);
 	nr_pages = min(sdio->pages_in_io, BIO_MAX_PAGES);
-	BUG_ON(nr_pages <= 0);
+	_ON(nr_pages <= 0);
 	dio_bio_alloc(dio, sdio, map_bh->b_bdev, sector, nr_pages);
 	sdio->boundary = 0;
 out:
@@ -828,7 +828,7 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
 		ret = dio_new_bio(dio, sdio, sdio->cur_page_block, map_bh);
 		if (ret == 0) {
 			ret = dio_bio_add_page(sdio);
-			BUG_ON(ret != 0);
+			_ON(ret != 0);
 		}
 	}
 out:
@@ -1091,7 +1091,7 @@ do_holes:
 			if (this_chunk_blocks > u)
 				this_chunk_blocks = u;
 			this_chunk_bytes = this_chunk_blocks << blkbits;
-			BUG_ON(this_chunk_bytes == 0);
+			_ON(this_chunk_bytes == 0);
 
 			if (this_chunk_blocks == sdio->blocks_available)
 				sdio->boundary = buffer_boundary(map_bh);
@@ -1111,7 +1111,7 @@ do_holes:
 			dio->result += this_chunk_bytes;
 			sdio->blocks_available -= this_chunk_blocks;
 next_block:
-			BUG_ON(sdio->block_in_file > sdio->final_block_in_request);
+			_ON(sdio->block_in_file > sdio->final_block_in_request);
 			if (sdio->block_in_file == sdio->final_block_in_request)
 				break;
 		}
@@ -1385,7 +1385,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	 * call aio_complete is when we return -EIOCBQUEUED, so we key on that.
 	 * This had *better* be the only place that raises -EIOCBQUEUED.
 	 */
-	BUG_ON(retval == -EIOCBQUEUED);
+	_ON(retval == -EIOCBQUEUED);
 	if (dio->is_async && retval == 0 && dio->result &&
 	    (iov_iter_rw(iter) == READ || dio->result == count))
 		retval = -EIOCBQUEUED;
@@ -1395,7 +1395,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	if (drop_refcount(dio) == 0) {
 		retval = dio_complete(dio, retval, DIO_COMPLETE_INVALIDATE);
 	} else
-		BUG_ON(retval != -EIOCBQUEUED);
+		_ON(retval != -EIOCBQUEUED);
 
 out:
 	return retval;

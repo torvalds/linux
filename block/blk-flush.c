@@ -161,7 +161,7 @@ static void blk_flush_complete_seq(struct request *rq,
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	unsigned int cmd_flags;
 
-	BUG_ON(rq->flush.seq & seq);
+	_ON(rq->flush.seq & seq);
 	rq->flush.seq |= seq;
 	cmd_flags = rq->cmd_flags;
 
@@ -191,14 +191,14 @@ static void blk_flush_complete_seq(struct request *rq,
 		 * flush data request completion path.  Restore @rq for
 		 * normal completion and end it.
 		 */
-		BUG_ON(!list_empty(&rq->queuelist));
+		_ON(!list_empty(&rq->queuelist));
 		list_del_init(&rq->flush.list);
 		blk_flush_restore_request(rq);
 		blk_mq_end_request(rq, error);
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	blk_kick_flush(q, fq, cmd_flags);
@@ -225,7 +225,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	}
 
 	running = &fq->flush_queue[fq->flush_running_idx];
-	BUG_ON(fq->flush_pending_idx == fq->flush_running_idx);
+	_ON(fq->flush_pending_idx == fq->flush_running_idx);
 
 	/* account completion of the flush request */
 	fq->flush_running_idx ^= 1;
@@ -234,7 +234,7 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	list_for_each_entry_safe(rq, n, running, flush.list) {
 		unsigned int seq = blk_flush_cur_seq(rq);
 
-		BUG_ON(seq != REQ_FSEQ_PREFLUSH && seq != REQ_FSEQ_POSTFLUSH);
+		_ON(seq != REQ_FSEQ_PREFLUSH && seq != REQ_FSEQ_POSTFLUSH);
 		blk_flush_complete_seq(rq, fq, seq, error);
 	}
 
@@ -380,7 +380,7 @@ void blk_insert_flush(struct request *rq)
 		return;
 	}
 
-	BUG_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
+	_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
 
 	/*
 	 * If there's data but flush is not necessary, the request can be

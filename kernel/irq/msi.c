@@ -107,7 +107,7 @@ int msi_domain_set_affinity(struct irq_data *irq_data,
 
 	ret = parent->chip->irq_set_affinity(parent, mask, force);
 	if (ret >= 0 && ret != IRQ_SET_MASK_OK_DONE) {
-		BUG_ON(irq_chip_compose_msi_msg(irq_data, msg));
+		_ON(irq_chip_compose_msi_msg(irq_data, msg));
 		msi_check_level(irq_data->domain, msg);
 		irq_chip_write_msi_msg(irq_data, msg);
 	}
@@ -120,7 +120,7 @@ static int msi_domain_activate(struct irq_domain *domain,
 {
 	struct msi_msg msg[2] = { [1] = { }, };
 
-	BUG_ON(irq_chip_compose_msi_msg(irq_data, msg));
+	_ON(irq_chip_compose_msi_msg(irq_data, msg));
 	msi_check_level(irq_data->domain, msg);
 	irq_chip_write_msi_msg(irq_data, msg);
 	return 0;
@@ -267,7 +267,7 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 {
 	struct irq_chip *chip = info->chip;
 
-	BUG_ON(!chip || !chip->irq_mask || !chip->irq_unmask);
+	_ON(!chip || !chip->irq_mask || !chip->irq_unmask);
 	if (!chip->irq_set_affinity)
 		chip->irq_set_affinity = msi_domain_set_affinity;
 }
@@ -428,7 +428,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 
 		for (i = 0; i < desc->nvec_used; i++) {
 			irq_set_msi_desc_off(virq, i, desc);
-			irq_debugfs_copy_devname(virq + i, dev);
+			irq_defs_copy_devname(virq + i, dev);
 		}
 	}
 

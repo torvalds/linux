@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/rbtree.h>
 #include <linux/seq_file.h>
@@ -132,7 +132,7 @@ static int regcache_rbtree_insert(struct regmap *map, struct rb_root *root,
 	return 1;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int rbtree_show(struct seq_file *s, void *ignored)
 {
 	struct regmap *map = s->private;
@@ -179,9 +179,9 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 
 DEFINE_SHOW_ATTRIBUTE(rbtree);
 
-static void rbtree_debugfs_init(struct regmap *map)
+static void rbtree_defs_init(struct regmap *map)
 {
-	debugfs_create_file("rbtree", 0400, map->debugfs, map, &rbtree_fops);
+	defs_create_file("rbtree", 0400, map->defs, map, &rbtree_fops);
 }
 #endif
 
@@ -548,8 +548,8 @@ struct regcache_ops regcache_rbtree_ops = {
 	.name = "rbtree",
 	.init = regcache_rbtree_init,
 	.exit = regcache_rbtree_exit,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init = rbtree_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init = rbtree_defs_init,
 #endif
 	.read = regcache_rbtree_read,
 	.write = regcache_rbtree_write,

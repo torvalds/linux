@@ -18,5 +18,5 @@ fm10k-y := fm10k_main.o \
 	   fm10k_iov.o \
 	   fm10k_tlv.o
 
-fm10k-$(CONFIG_DEBUG_FS) += fm10k_debugfs.o
+fm10k-$(CONFIG_DE_FS) += fm10k_defs.o
 fm10k-$(CONFIG_DCB) += fm10k_dcbnl.o

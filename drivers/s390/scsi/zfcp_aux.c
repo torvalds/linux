@@ -235,7 +235,7 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 	if (!adapter->pool.qtcb_pool)
 		return -ENOMEM;
 
-	BUILD_BUG_ON(sizeof(struct fsf_status_read_buffer) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct fsf_status_read_buffer) > PAGE_SIZE);
 	adapter->pool.sr_data =
 		mempool_create_page_pool(FSF_STATUS_READS_RECOM, 0);
 	if (!adapter->pool.sr_data)

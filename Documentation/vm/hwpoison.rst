@@ -113,7 +113,7 @@ Testing
 * madvise(MADV_HWPOISON, ....) (as root) - Poison a page in the
   process for testing
 
-* hwpoison-inject module through debugfs ``/sys/kernel/debug/hwpoison/``
+* hwpoison-inject module through defs ``/sys/kernel/de/hwpoison/``
 
   corrupt-pfn
 	Inject hwpoison fault at PFN echoed into this file. This does
@@ -145,7 +145,7 @@ Testing
 		echo `jobs -p` > /sys/fs/cgroup/mem/hwpoison/tasks
 
 		memcg_ino=$(ls -id /sys/fs/cgroup/mem/hwpoison | cut -f1 -d' ')
-		echo $memcg_ino > /debug/hwpoison/corrupt-filter-memcg
+		echo $memcg_ino > /de/hwpoison/corrupt-filter-memcg
 
 		page-types -p `pidof init`   --hwpoison  # shall do nothing
 		page-types -p `pidof usemem` --hwpoison  # poison its pages

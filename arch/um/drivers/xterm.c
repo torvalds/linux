@@ -70,7 +70,7 @@ static int __init xterm_setup(char *line, int *add)
 
 __uml_setup("xterm=", xterm_setup,
 "xterm=<terminal emulator>,<title switch>,<exec switch>\n"
-"    Specifies an alternate terminal emulator to use for the debugger,\n"
+"    Specifies an alternate terminal emulator to use for the deger,\n"
 "    consoles, and serial lines when they are attached to the xterm channel.\n"
 "    The values are the terminal emulator binary, the switch it uses to set\n"
 "    its title, and the switch it uses to execute a subprocess,\n"

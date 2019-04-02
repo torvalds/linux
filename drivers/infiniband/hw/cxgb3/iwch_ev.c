@@ -61,7 +61,7 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 
 	if ((qhp->attr.state == IWCH_QP_STATE_ERROR) ||
 	    (qhp->attr.state == IWCH_QP_STATE_TERMINATE)) {
-		pr_debug("%s AE received after RTS - qp state %d qpid 0x%x status 0x%x\n",
+		pr_de("%s AE received after RTS - qp state %d qpid 0x%x status 0x%x\n",
 			 __func__,
 			 qhp->attr.state, qhp->wq.qpid,
 			 CQE_STATUS(rsp_msg->cqe));
@@ -137,11 +137,11 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	if ((CQE_OPCODE(rsp_msg->cqe) == T3_TERMINATE) &&
 	    (CQE_STATUS(rsp_msg->cqe) == 0)) {
 		if (SQ_TYPE(rsp_msg->cqe)) {
-			pr_debug("%s QPID 0x%x ep %p disconnecting\n",
+			pr_de("%s QPID 0x%x ep %p disconnecting\n",
 				 __func__, qhp->wq.qpid, qhp->ep);
 			iwch_ep_disconnect(qhp->ep, 0, GFP_ATOMIC);
 		} else {
-			pr_debug("%s post REQ_ERR AE QPID 0x%x\n", __func__,
+			pr_de("%s post REQ_ERR AE QPID 0x%x\n", __func__,
 				 qhp->wq.qpid);
 			post_qp_event(rnicp, chp, rsp_msg,
 				      IB_EVENT_QP_REQ_ERR, 0);

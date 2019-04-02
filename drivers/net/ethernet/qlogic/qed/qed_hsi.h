@@ -1744,7 +1744,7 @@ struct sdm_op_gen {
 };
 
 /****************************************/
-/* Debug Tools HSI constants and macros */
+/* De Tools HSI constants and macros */
 /****************************************/
 
 enum block_addr {
@@ -1931,7 +1931,7 @@ enum block_id {
 	MAX_BLOCK_ID
 };
 
-/* binary debug buffer types */
+/* binary de buffer types */
 enum bin_dbg_buffer_type {
 	BIN_BUF_DBG_MODE_TREE,
 	BIN_BUF_DBG_DUMP_REG,
@@ -2031,21 +2031,21 @@ enum dbg_attn_type {
 	MAX_DBG_ATTN_TYPE
 };
 
-/* Debug Bus block data */
+/* De Bus block data */
 struct dbg_bus_block {
 	u8 num_of_lines;
 	u8 has_latency_events;
 	u16 lines_offset;
 };
 
-/* Debug Bus block user data */
+/* De Bus block user data */
 struct dbg_bus_block_user_data {
 	u8 num_of_lines;
 	u8 has_latency_events;
 	u16 names_offset;
 };
 
-/* Block Debug line data */
+/* Block De line data */
 struct dbg_bus_line {
 	u8 data;
 #define DBG_BUS_LINE_NUM_OF_GROUPS_MASK		0xF
@@ -2197,7 +2197,7 @@ enum dbg_idle_chk_severity_types {
 	MAX_DBG_IDLE_CHK_SEVERITY_TYPES
 };
 
-/* Debug Bus block data */
+/* De Bus block data */
 struct dbg_bus_block_data {
 	u16 data;
 #define DBG_BUS_BLOCK_DATA_ENABLE_MASK_MASK		0xF
@@ -2212,7 +2212,7 @@ struct dbg_bus_block_data {
 	u8 hw_id;
 };
 
-/* Debug Bus Clients */
+/* De Bus Clients */
 enum dbg_bus_clients {
 	DBG_BUS_CLIENT_RBCN,
 	DBG_BUS_CLIENT_RBCP,
@@ -2236,7 +2236,7 @@ enum dbg_bus_clients {
 	MAX_DBG_BUS_CLIENTS
 };
 
-/* Debug Bus constraint operation types */
+/* De Bus constraint operation types */
 enum dbg_bus_constraint_ops {
 	DBG_BUS_CONSTRAINT_OP_EQ,
 	DBG_BUS_CONSTRAINT_OP_NE,
@@ -2251,7 +2251,7 @@ enum dbg_bus_constraint_ops {
 	MAX_DBG_BUS_CONSTRAINT_OPS
 };
 
-/* Debug Bus trigger state data */
+/* De Bus trigger state data */
 struct dbg_bus_trigger_state_data {
 	u8 data;
 #define DBG_BUS_TRIGGER_STATE_DATA_BLOCK_SHIFTED_ENABLE_MASK_MASK	0xF
@@ -2260,38 +2260,38 @@ struct dbg_bus_trigger_state_data {
 #define DBG_BUS_TRIGGER_STATE_DATA_CONSTRAINT_DWORD_MASK_SHIFT		4
 };
 
-/* Debug Bus memory address */
+/* De Bus memory address */
 struct dbg_bus_mem_addr {
 	u32 lo;
 	u32 hi;
 };
 
-/* Debug Bus PCI buffer data */
+/* De Bus PCI buffer data */
 struct dbg_bus_pci_buf_data {
 	struct dbg_bus_mem_addr phys_addr; /* PCI buffer physical address */
 	struct dbg_bus_mem_addr virt_addr; /* PCI buffer virtual address */
 	u32 size; /* PCI buffer size in bytes */
 };
 
-/* Debug Bus Storm EID range filter params */
+/* De Bus Storm EID range filter params */
 struct dbg_bus_storm_eid_range_params {
 	u8 min; /* Minimal event ID to filter on */
 	u8 max; /* Maximal event ID to filter on */
 };
 
-/* Debug Bus Storm EID mask filter params */
+/* De Bus Storm EID mask filter params */
 struct dbg_bus_storm_eid_mask_params {
 	u8 val; /* Event ID value */
 	u8 mask; /* Event ID mask. 1s in the mask = dont care bits. */
 };
 
-/* Debug Bus Storm EID filter params */
+/* De Bus Storm EID filter params */
 union dbg_bus_storm_eid_params {
 	struct dbg_bus_storm_eid_range_params range;
 	struct dbg_bus_storm_eid_mask_params mask;
 };
 
-/* Debug Bus Storm data */
+/* De Bus Storm data */
 struct dbg_bus_storm_data {
 	u8 enabled;
 	u8 mode;
@@ -2303,7 +2303,7 @@ struct dbg_bus_storm_data {
 	u32 cid;
 };
 
-/* Debug Bus data */
+/* De Bus data */
 struct dbg_bus_data {
 	u32 app_version;
 	u8 state;
@@ -2331,7 +2331,7 @@ struct dbg_bus_data {
 	struct dbg_bus_storm_data storms[6];
 };
 
-/* Debug bus filter types */
+/* De bus filter types */
 enum dbg_bus_filter_types {
 	DBG_BUS_FILTER_TYPE_OFF,
 	DBG_BUS_FILTER_TYPE_PRE,
@@ -2340,7 +2340,7 @@ enum dbg_bus_filter_types {
 	MAX_DBG_BUS_FILTER_TYPES
 };
 
-/* Debug bus frame modes */
+/* De bus frame modes */
 enum dbg_bus_frame_modes {
 	DBG_BUS_FRAME_MODE_0HW_4ST = 0, /* 0 HW dwords, 4 Storm dwords */
 	DBG_BUS_FRAME_MODE_4HW_0ST = 3, /* 4 HW dwords, 0 Storm dwords */
@@ -2348,7 +2348,7 @@ enum dbg_bus_frame_modes {
 	MAX_DBG_BUS_FRAME_MODES
 };
 
-/* Debug bus other engine mode */
+/* De bus other engine mode */
 enum dbg_bus_other_engine_modes {
 	DBG_BUS_OTHER_ENGINE_MODE_NONE,
 	DBG_BUS_OTHER_ENGINE_MODE_DOUBLE_BW_TX,
@@ -2358,14 +2358,14 @@ enum dbg_bus_other_engine_modes {
 	MAX_DBG_BUS_OTHER_ENGINE_MODES
 };
 
-/* Debug bus post-trigger recording types */
+/* De bus post-trigger recording types */
 enum dbg_bus_post_trigger_types {
 	DBG_BUS_POST_TRIGGER_RECORD,
 	DBG_BUS_POST_TRIGGER_DROP,
 	MAX_DBG_BUS_POST_TRIGGER_TYPES
 };
 
-/* Debug bus pre-trigger recording types */
+/* De bus pre-trigger recording types */
 enum dbg_bus_pre_trigger_types {
 	DBG_BUS_PRE_TRIGGER_START_FROM_ZERO,
 	DBG_BUS_PRE_TRIGGER_NUM_CHUNKS,
@@ -2373,14 +2373,14 @@ enum dbg_bus_pre_trigger_types {
 	MAX_DBG_BUS_PRE_TRIGGER_TYPES
 };
 
-/* Debug bus SEMI frame modes */
+/* De bus SEMI frame modes */
 enum dbg_bus_semi_frame_modes {
 	DBG_BUS_SEMI_FRAME_MODE_0SLOW_4FAST = 0,
 	DBG_BUS_SEMI_FRAME_MODE_4SLOW_0FAST = 3,
 	MAX_DBG_BUS_SEMI_FRAME_MODES
 };
 
-/* Debug bus states */
+/* De bus states */
 enum dbg_bus_states {
 	DBG_BUS_STATE_IDLE,
 	DBG_BUS_STATE_READY,
@@ -2389,7 +2389,7 @@ enum dbg_bus_states {
 	MAX_DBG_BUS_STATES
 };
 
-/* Debug Bus Storm modes */
+/* De Bus Storm modes */
 enum dbg_bus_storm_modes {
 	DBG_BUS_STORM_MODE_PRINTF,
 	DBG_BUS_STORM_MODE_PRAM_ADDR,
@@ -2403,7 +2403,7 @@ enum dbg_bus_storm_modes {
 	MAX_DBG_BUS_STORM_MODES
 };
 
-/* Debug bus target IDs */
+/* De bus target IDs */
 enum dbg_bus_targets {
 	DBG_BUS_TARGET_ID_INT_BUF,
 	DBG_BUS_TARGET_ID_NIG,
@@ -2419,7 +2419,7 @@ struct dbg_grc_data {
 	u32 param_val[48];
 };
 
-/* Debug GRC params */
+/* De GRC params */
 enum dbg_grc_params {
 	DBG_GRC_PARAM_DUMP_TSTORM,
 	DBG_GRC_PARAM_DUMP_MSTORM,
@@ -2465,7 +2465,7 @@ enum dbg_grc_params {
 	MAX_DBG_GRC_PARAMS
 };
 
-/* Debug reset registers */
+/* De reset registers */
 enum dbg_reset_regs {
 	DBG_RESET_REG_MISCS_PL_UA,
 	DBG_RESET_REG_MISCS_PL_HV,
@@ -2478,7 +2478,7 @@ enum dbg_reset_regs {
 	MAX_DBG_RESET_REGS
 };
 
-/* Debug status codes */
+/* De status codes */
 enum dbg_status {
 	DBG_STATUS_OK,
 	DBG_STATUS_APP_VERSION_NOT_SET,
@@ -2530,14 +2530,14 @@ enum dbg_status {
 	DBG_STATUS_REG_FIFO_BAD_DATA,
 	DBG_STATUS_PROTECTION_OVERRIDE_BAD_DATA,
 	DBG_STATUS_DBG_ARRAY_NOT_SET,
-	DBG_STATUS_FILTER_BUG,
+	DBG_STATUS_FILTER_,
 	DBG_STATUS_NON_MATCHING_LINES,
 	DBG_STATUS_INVALID_TRIGGER_DWORD_OFFSET,
 	DBG_STATUS_DBG_BUS_IN_USE,
 	MAX_DBG_STATUS
 };
 
-/* Debug Storms IDs */
+/* De Storms IDs */
 enum dbg_storms {
 	DBG_TSTORM_ID,
 	DBG_MSTORM_ID,
@@ -2562,7 +2562,7 @@ struct pretend_params {
 	u16 split_id;
 };
 
-/* Debug Tools data (per HW function)
+/* De Tools data (per HW function)
  */
 struct dbg_tools_data {
 	struct dbg_grc_data grc;
@@ -2988,10 +2988,10 @@ struct iro {
 /***************************** Public Functions *******************************/
 
 /**
- * @brief qed_dbg_set_bin_ptr - Sets a pointer to the binary data with debug
+ * @brief qed_dbg_set_bin_ptr - Sets a pointer to the binary data with de
  *	arrays.
  *
- * @param bin_ptr - a pointer to the binary data with debug arrays.
+ * @param bin_ptr - a pointer to the binary data with de arrays.
  */
 enum dbg_status qed_dbg_set_bin_ptr(const u8 * const bin_ptr);
 
@@ -3365,14 +3365,14 @@ struct mcp_trace_format {
 
 /**
  * @brief qed_dbg_user_set_bin_ptr - Sets a pointer to the binary data with
- *	debug arrays.
+ *	de arrays.
  *
- * @param bin_ptr - a pointer to the binary data with debug arrays.
+ * @param bin_ptr - a pointer to the binary data with de arrays.
  */
 enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr);
 
 /**
- * @brief qed_dbg_alloc_user_data - Allocates user debug data.
+ * @brief qed_dbg_alloc_user_data - Allocates user de data.
  *
  * @param p_hwfn -		 HW device data
  */
@@ -3381,7 +3381,7 @@ enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn);
 /**
  * @brief qed_dbg_get_status_str - Returns a string for the specified status.
  *
- * @param status - a debug status code.
+ * @param status - a de status code.
  *
  * @return a string for the specified status
  */
@@ -3649,7 +3649,7 @@ enum dbg_status qed_print_fw_asserts_results(struct qed_hwfn *p_hwfn,
 enum dbg_status qed_dbg_parse_attn(struct qed_hwfn *p_hwfn,
 				   struct dbg_attn_block_result *results);
 
-/* Debug Bus blocks */
+/* De Bus blocks */
 static const u32 dbg_bus_blocks[] = {
 	0x0000000f,		/* grc, bb, 15 lines */
 	0x0000000f,		/* grc, k2, 15 lines */
@@ -11719,7 +11719,7 @@ struct mcp_trace {
 	u32 signature;		/* Help to identify that the trace is valid */
 	u32 size;		/* the size of the trace buffer in bytes */
 	u32 curr_level;		/* 2 - all will be written to the buffer
-				 * 1 - debug trace will not be written
+				 * 1 - de trace will not be written
 				 * 0 - just errors will be written to the buffer
 				 */
 	u32 modules_mask[2];	/* a bit per module, 1 means write it, 0 means
@@ -12094,7 +12094,7 @@ struct public_global {
 #define MODE_2P 2
 #define MODE_3P 3
 #define MODE_4P 4
-	u32 debug_mb_offset;
+	u32 de_mb_offset;
 	u32 phymod_dbg_mb_offset;
 	struct couple_mode_teaming cmt;
 	s32 internal_temperature;

@@ -59,7 +59,7 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
 	m->compute_static_thread_mgmt_se3 = se_mask[3];
 
-	pr_debug("Update cu mask to %#x %#x %#x %#x\n",
+	pr_de("Update cu mask to %#x %#x %#x %#x\n",
 		m->compute_static_thread_mgmt_se0,
 		m->compute_static_thread_mgmt_se1,
 		m->compute_static_thread_mgmt_se2,
@@ -358,16 +358,16 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int debugfs_show_mqd(struct seq_file *m, void *data)
+static int defs_show_mqd(struct seq_file *m, void *data)
 {
 	seq_hex_dump(m, "    ", DUMP_PREFIX_OFFSET, 32, 4,
 		     data, sizeof(struct cik_mqd), false);
 	return 0;
 }
 
-static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
+static int defs_show_mqd_sdma(struct seq_file *m, void *data)
 {
 	seq_hex_dump(m, "    ", DUMP_PREFIX_OFFSET, 32, 4,
 		     data, sizeof(struct cik_sdma_rlc_registers), false);
@@ -400,8 +400,8 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
-#if defined(CONFIG_DEBUG_FS)
-		mqd->debugfs_show_mqd = debugfs_show_mqd;
+#if defined(CONFIG_DE_FS)
+		mqd->defs_show_mqd = defs_show_mqd;
 #endif
 		break;
 	case KFD_MQD_TYPE_HIQ:
@@ -411,8 +411,8 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
-#if defined(CONFIG_DEBUG_FS)
-		mqd->debugfs_show_mqd = debugfs_show_mqd;
+#if defined(CONFIG_DE_FS)
+		mqd->defs_show_mqd = defs_show_mqd;
 #endif
 		break;
 	case KFD_MQD_TYPE_SDMA:
@@ -422,8 +422,8 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd_sdma;
 		mqd->destroy_mqd = destroy_mqd_sdma;
 		mqd->is_occupied = is_occupied_sdma;
-#if defined(CONFIG_DEBUG_FS)
-		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
+#if defined(CONFIG_DE_FS)
+		mqd->defs_show_mqd = defs_show_mqd_sdma;
 #endif
 		break;
 	default:

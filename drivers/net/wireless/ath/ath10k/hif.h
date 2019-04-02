@@ -10,12 +10,12 @@
 #include <linux/kernel.h>
 #include "core.h"
 #include "bmi.h"
-#include "debug.h"
+#include "de.h"
 
 struct ath10k_hif_sg_item {
 	u16 transfer_id;
 	void *transfer_context; /* NULL = tx completion callback not called */
-	void *vaddr; /* for debugging mostly */
+	void *vaddr; /* for deging mostly */
 	dma_addr_t paddr;
 	u16 len;
 };

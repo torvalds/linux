@@ -148,14 +148,14 @@ enum {
 	SMP_LTK,
 	SMP_LTK_SLAVE,
 	SMP_LTK_P256,
-	SMP_LTK_P256_DEBUG,
+	SMP_LTK_P256_DE,
 };
 
 static inline bool smp_ltk_is_sc(struct smp_ltk *key)
 {
 	switch (key->type) {
 	case SMP_LTK_P256:
-	case SMP_LTK_P256_DEBUG:
+	case SMP_LTK_P256_DE:
 		return true;
 	}
 

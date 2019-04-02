@@ -81,10 +81,10 @@ void __init init_IRQ(void)
 	if (!node)
 		node = of_find_compatible_node(NULL, NULL, "altr,nios2-1.1");
 
-	BUG_ON(!node);
+	_ON(!node);
 
 	domain = irq_domain_add_linear(node, NIOS2_CPU_NR_IRQS, &irq_ops, NULL);
-	BUG_ON(!domain);
+	_ON(!domain);
 
 	irq_set_default_host(domain);
 	of_node_put(node);

@@ -45,7 +45,7 @@ enum carl9170fw_feature_list {
 	/* usb upload (fw -> app) stream */
 	CARL9170FW_USB_UP_STREAM,
 
-	/* unusable - reserved to flag non-functional debug firmwares */
+	/* unusable - reserved to flag non-functional de firmwares */
 	CARL9170FW_UNUSABLE,
 
 	/* AR9170_CMD_RF_INIT, AR9170_CMD_FREQ_START, AR9170_CMD_FREQUENCY */
@@ -177,7 +177,7 @@ struct carl9170fw_dbg_desc {
 	__le32 rx_overrun_addr;
 	__le32 rx_filter;
 
-	/* Put your debugging definitions here */
+	/* Put your deging definitions here */
 } __packed;
 #define CARL9170FW_DBG_DESC_SIZE			\
 	(sizeof(struct carl9170fw_dbg_desc))

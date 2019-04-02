@@ -70,7 +70,7 @@ int transport_backend_register(const struct target_backend_ops *ops)
 	list_add_tail(&tb->list, &backend_list);
 	mutex_unlock(&backend_mutex);
 
-	pr_debug("TCM: Registered subsystem plugin: %s struct module: %p\n",
+	pr_de("TCM: Registered subsystem plugin: %s struct module: %p\n",
 			ops->name, ops->owner);
 	return 0;
 }
@@ -151,7 +151,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 	list_add_tail(&hba->hba_node, &hba_list);
 	spin_unlock(&hba_lock);
 
-	pr_debug("CORE_HBA[%d] - Attached HBA to Generic Target"
+	pr_de("CORE_HBA[%d] - Attached HBA to Generic Target"
 			" Core\n", hba->hba_id);
 
 	return hba;
@@ -175,7 +175,7 @@ core_delete_hba(struct se_hba *hba)
 	list_del(&hba->hba_node);
 	spin_unlock(&hba_lock);
 
-	pr_debug("CORE_HBA[%d] - Detached HBA from Generic Target"
+	pr_de("CORE_HBA[%d] - Detached HBA from Generic Target"
 			" Core\n", hba->hba_id);
 
 	module_put(hba->backend->ops->owner);

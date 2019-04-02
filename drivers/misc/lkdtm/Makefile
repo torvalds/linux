@@ -2,7 +2,7 @@
 obj-$(CONFIG_LKDTM)		+= lkdtm.o
 
 lkdtm-$(CONFIG_LKDTM)		+= core.o
-lkdtm-$(CONFIG_LKDTM)		+= bugs.o
+lkdtm-$(CONFIG_LKDTM)		+= s.o
 lkdtm-$(CONFIG_LKDTM)		+= heap.o
 lkdtm-$(CONFIG_LKDTM)		+= perms.o
 lkdtm-$(CONFIG_LKDTM)		+= refcount.o

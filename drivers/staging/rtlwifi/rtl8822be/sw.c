@@ -311,8 +311,8 @@ static struct rtl_mod_params rtl8822be_mod_params = {
 	.dma64 = false,
 	.aspm_support = 1,
 	.disable_watchdog = false,
-	.debug_level = 0,
-	.debug_mask = 0,
+	.de_level = 0,
+	.de_mask = 0,
 };
 
 static struct rtl_hal_cfg rtl8822be_hal_cfg = {
@@ -435,8 +435,8 @@ MODULE_DESCRIPTION("Realtek 8822BE 802.11n PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8822befw.bin");
 
 module_param_named(swenc, rtl8822be_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug_level, rtl8822be_mod_params.debug_level, int, 0644);
-module_param_named(debug_mask, rtl8822be_mod_params.debug_mask, ullong, 0644);
+module_param_named(de_level, rtl8822be_mod_params.de_level, int, 0644);
+module_param_named(de_mask, rtl8822be_mod_params.de_mask, ullong, 0644);
 module_param_named(ips, rtl8822be_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl8822be_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl8822be_mod_params.fwctrl_lps, bool, 0444);
@@ -452,8 +452,8 @@ MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
 MODULE_PARM_DESC(dma64, "Set to 1 to use DMA 64 (default 0)\n");
 MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
-MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
-MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
+MODULE_PARM_DESC(de, "Set de level (0-5) (default 0)");
+MODULE_PARM_DESC(de_mask, "Set de mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog,
 		 "Set to 1 to disable the watchdog (default 0)\n");
 

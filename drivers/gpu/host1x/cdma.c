@@ -30,7 +30,7 @@
 #include "cdma.h"
 #include "channel.h"
 #include "dev.h"
-#include "debug.h"
+#include "de.h"
 #include "job.h"
 
 /*
@@ -540,7 +540,7 @@ void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2)
 	struct push_buffer *pb = &cdma->push_buffer;
 	u32 slots_free = cdma->slots_free;
 
-	if (host1x_debug_trace_cmdbuf)
+	if (host1x_de_trace_cmdbuf)
 		trace_host1x_cdma_push(dev_name(cdma_to_channel(cdma)->dev),
 				       op1, op2);
 
@@ -573,7 +573,7 @@ void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
 	unsigned int needed = 2, extra = 0, i;
 	unsigned int space = cdma->slots_free;
 
-	if (host1x_debug_trace_cmdbuf)
+	if (host1x_de_trace_cmdbuf)
 		trace_host1x_cdma_push_wide(dev_name(channel->dev), op1, op2,
 					    op3, op4);
 

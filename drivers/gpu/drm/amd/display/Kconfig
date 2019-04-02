@@ -21,7 +21,7 @@ config DRM_AMD_DC_DCN1_01
 	help
 	  RV2 family for display engine
 
-config DEBUG_KERNEL_DC
+config DE_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC
 	help

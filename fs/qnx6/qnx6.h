@@ -48,8 +48,8 @@ extern struct inode *qnx6_iget(struct super_block *sb, unsigned ino);
 extern struct dentry *qnx6_lookup(struct inode *dir, struct dentry *dentry,
 					unsigned int flags);
 
-#ifdef CONFIG_QNX6FS_DEBUG
-extern void qnx6_superblock_debug(struct qnx6_super_block *,
+#ifdef CONFIG_QNX6FS_DE
+extern void qnx6_superblock_de(struct qnx6_super_block *,
 						struct super_block *);
 #endif
 

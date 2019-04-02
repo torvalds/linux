@@ -250,7 +250,7 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	fb->fb.screen_base = (char __force __iomem *)dma_alloc_coherent(
 						&pdev->dev, framesize,
 						&fbpaddr, GFP_KERNEL);
-	pr_debug("allocating frame buffer %d * %d, got %p\n",
+	pr_de("allocating frame buffer %d * %d, got %p\n",
 					width, height, fb->fb.screen_base);
 	if (fb->fb.screen_base == NULL) {
 		ret = -ENOMEM;

@@ -1123,7 +1123,7 @@ static int vbg_req_allowed(struct vbg_dev *gdev, struct vbg_session *session,
 	case VMMDEVREQ_SET_CPU_HOTPLUG_STATUS:
 	case VMMDEVREQ_CHECK_SHARED_MODULES:
 	case VMMDEVREQ_GET_PAGE_SHARING_STATUS:
-	case VMMDEVREQ_DEBUG_IS_PAGE_SHARED:
+	case VMMDEVREQ_DE_IS_PAGE_SHARED:
 	case VMMDEVREQ_REPORT_GUEST_STATS:
 	case VMMDEVREQ_REPORT_GUEST_USER_STATE:
 	case VMMDEVREQ_GET_STATISTICS_CHANGE_REQ:
@@ -1327,7 +1327,7 @@ static int vbg_ioctl_hgcm_call(struct vbg_dev *gdev,
 		actual_size += call->parm_count *
 			       sizeof(struct vmmdev_hgcm_function_parameter);
 	if (call->hdr.size_in < actual_size) {
-		vbg_debug("VBG_IOCTL_HGCM_CALL: hdr.size_in %d required size is %zd\n",
+		vbg_de("VBG_IOCTL_HGCM_CALL: hdr.size_in %d required size is %zd\n",
 			  call->hdr.size_in, actual_size);
 		return -EINVAL;
 	}
@@ -1342,7 +1342,7 @@ static int vbg_ioctl_hgcm_call(struct vbg_dev *gdev,
 			break;
 	mutex_unlock(&gdev->session_mutex);
 	if (i >= ARRAY_SIZE(session->hgcm_client_ids)) {
-		vbg_debug("VBG_IOCTL_HGCM_CALL: INVALID handle. u32Client=%#08x\n",
+		vbg_de("VBG_IOCTL_HGCM_CALL: INVALID handle. u32Client=%#08x\n",
 			  client_id);
 		return -EINVAL;
 	}
@@ -1529,7 +1529,7 @@ int vbg_core_ioctl(struct vbg_session *session, unsigned int req, void *data)
 		return vbg_ioctl_log(data);
 	}
 
-	vbg_debug("VGDrvCommonIoCtl: Unknown req %#08x\n", req);
+	vbg_de("VGDrvCommonIoCtl: Unknown req %#08x\n", req);
 	return -ENOTTY;
 }
 

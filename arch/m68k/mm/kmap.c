@@ -22,7 +22,7 @@
 #include <asm/pgalloc.h>
 #include <asm/io.h>
 
-#undef DEBUG
+#undef DE
 
 #define PTRTREESIZE	(256*1024)
 
@@ -131,7 +131,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		return (void __iomem *) physaddr;
 #endif
 
-#ifdef DEBUG
+#ifdef DE
 	printk("ioremap: 0x%lx,0x%lx(%d) - ", physaddr, size, cacheflag);
 #endif
 	/*
@@ -150,7 +150,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 
 	virtaddr = (unsigned long)area->addr;
 	retaddr = virtaddr + offset;
-#ifdef DEBUG
+#ifdef DE
 	printk("0x%lx,0x%lx,0x%lx", physaddr, virtaddr, retaddr);
 #endif
 
@@ -191,7 +191,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	}
 
 	while ((long)size > 0) {
-#ifdef DEBUG
+#ifdef DE
 		if (!(virtaddr & (PTRTREESIZE-1)))
 			printk ("\npa=%#lx va=%#lx ", physaddr, virtaddr);
 #endif
@@ -220,7 +220,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 			size -= PAGE_SIZE;
 		}
 	}
-#ifdef DEBUG
+#ifdef DE
 	printk("\n");
 #endif
 	flush_tlb_all();

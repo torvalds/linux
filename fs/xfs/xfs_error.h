@@ -63,7 +63,7 @@ extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
 		} \
 	}
 
-#ifdef DEBUG
+#ifdef DE
 extern int xfs_errortag_init(struct xfs_mount *mp);
 extern void xfs_errortag_del(struct xfs_mount *mp);
 extern bool xfs_errortag_test(struct xfs_mount *mp, const char *expression,
@@ -83,7 +83,7 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #define xfs_errortag_set(mp, tag, val)		(ENOSYS)
 #define xfs_errortag_add(mp, tag)		(ENOSYS)
 #define xfs_errortag_clearall(mp)		(ENOSYS)
-#endif /* DEBUG */
+#endif /* DE */
 
 /*
  * XFS panic tags -- allow a call to xfs_alert_tag() be turned into

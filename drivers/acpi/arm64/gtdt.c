@@ -175,13 +175,13 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 	}
 
 	if (!gtdt->platform_timer_count) {
-		pr_debug("No Platform Timer.\n");
+		pr_de("No Platform Timer.\n");
 		return 0;
 	}
 
 	platform_timer = (void *)gtdt + gtdt->platform_timer_offset;
 	if (platform_timer < (void *)table + sizeof(struct acpi_table_gtdt)) {
-		pr_err(FW_BUG "invalid timer data.\n");
+		pr_err(FW_ "invalid timer data.\n");
 		return -EINVAL;
 	}
 	acpi_gtdt_desc.platform_timer = platform_timer;
@@ -199,12 +199,12 @@ static int __init gtdt_parse_timer_block(struct acpi_gtdt_timer_block *block,
 	struct acpi_gtdt_timer_entry *gtdt_frame;
 
 	if (!block->timer_count) {
-		pr_err(FW_BUG "GT block present, but frame count is zero.\n");
+		pr_err(FW_ "GT block present, but frame count is zero.\n");
 		return -ENODEV;
 	}
 
 	if (block->timer_count > ARCH_TIMER_MEM_MAX_FRAMES) {
-		pr_err(FW_BUG "GT block lists %d frames, ACPI spec only allows 8\n",
+		pr_err(FW_ "GT block lists %d frames, ACPI spec only allows 8\n",
 		       block->timer_count);
 		return -EINVAL;
 	}
@@ -255,7 +255,7 @@ static int __init gtdt_parse_timer_block(struct acpi_gtdt_timer_block *block,
 				goto error;
 			}
 		} else {
-			pr_debug("virtual timer in frame %d not implemented.\n",
+			pr_de("virtual timer in frame %d not implemented.\n",
 				 gtdt_frame->frame_number);
 		}
 
@@ -345,12 +345,12 @@ static int __init gtdt_import_sbsa_gwdt(struct acpi_gtdt_watchdog *wd,
 	};
 	int nr_res = ARRAY_SIZE(res);
 
-	pr_debug("found a Watchdog (0x%llx/0x%llx gsi:%u flags:0x%x).\n",
+	pr_de("found a Watchdog (0x%llx/0x%llx gsi:%u flags:0x%x).\n",
 		 wd->refresh_frame_address, wd->control_frame_address,
 		 wd->timer_interrupt, wd->timer_flags);
 
 	if (!(wd->refresh_frame_address && wd->control_frame_address)) {
-		pr_err(FW_BUG "failed to get the Watchdog base address.\n");
+		pr_err(FW_ "failed to get the Watchdog base address.\n");
 		acpi_unregister_gsi(wd->timer_interrupt);
 		return -EINVAL;
 	}

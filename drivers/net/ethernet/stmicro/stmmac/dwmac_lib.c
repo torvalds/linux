@@ -85,7 +85,7 @@ void dwmac_dma_stop_rx(void __iomem *ioaddr, u32 chan)
 	writel(value, ioaddr + DMA_CONTROL);
 }
 
-#ifdef DWMAC_DMA_DEBUG
+#ifdef DWMAC_DMA_DE
 static void show_tx_process_state(unsigned int status)
 {
 	unsigned int state;
@@ -93,24 +93,24 @@ static void show_tx_process_state(unsigned int status)
 
 	switch (state) {
 	case 0:
-		pr_debug("- TX (Stopped): Reset or Stop command\n");
+		pr_de("- TX (Stopped): Reset or Stop command\n");
 		break;
 	case 1:
-		pr_debug("- TX (Running): Fetching the Tx desc\n");
+		pr_de("- TX (Running): Fetching the Tx desc\n");
 		break;
 	case 2:
-		pr_debug("- TX (Running): Waiting for end of tx\n");
+		pr_de("- TX (Running): Waiting for end of tx\n");
 		break;
 	case 3:
-		pr_debug("- TX (Running): Reading the data "
+		pr_de("- TX (Running): Reading the data "
 		       "and queuing the data into the Tx buf\n");
 		break;
 	case 6:
-		pr_debug("- TX (Suspended): Tx Buff Underflow "
+		pr_de("- TX (Suspended): Tx Buff Underflow "
 		       "or an unavailable Transmit descriptor\n");
 		break;
 	case 7:
-		pr_debug("- TX (Running): Closing Tx descriptor\n");
+		pr_de("- TX (Running): Closing Tx descriptor\n");
 		break;
 	default:
 		break;
@@ -124,29 +124,29 @@ static void show_rx_process_state(unsigned int status)
 
 	switch (state) {
 	case 0:
-		pr_debug("- RX (Stopped): Reset or Stop command\n");
+		pr_de("- RX (Stopped): Reset or Stop command\n");
 		break;
 	case 1:
-		pr_debug("- RX (Running): Fetching the Rx desc\n");
+		pr_de("- RX (Running): Fetching the Rx desc\n");
 		break;
 	case 2:
-		pr_debug("- RX (Running): Checking for end of pkt\n");
+		pr_de("- RX (Running): Checking for end of pkt\n");
 		break;
 	case 3:
-		pr_debug("- RX (Running): Waiting for Rx pkt\n");
+		pr_de("- RX (Running): Waiting for Rx pkt\n");
 		break;
 	case 4:
-		pr_debug("- RX (Suspended): Unavailable Rx buf\n");
+		pr_de("- RX (Suspended): Unavailable Rx buf\n");
 		break;
 	case 5:
-		pr_debug("- RX (Running): Closing Rx descriptor\n");
+		pr_de("- RX (Running): Closing Rx descriptor\n");
 		break;
 	case 6:
-		pr_debug("- RX(Running): Flushing the current frame"
+		pr_de("- RX(Running): Flushing the current frame"
 		       " from the Rx buf\n");
 		break;
 	case 7:
-		pr_debug("- RX (Running): Queuing the Rx frame"
+		pr_de("- RX (Running): Queuing the Rx frame"
 		       " from the Rx buf into memory\n");
 		break;
 	default:
@@ -162,9 +162,9 @@ int dwmac_dma_interrupt(void __iomem *ioaddr,
 	/* read the status register (CSR5) */
 	u32 intr_status = readl(ioaddr + DMA_STATUS);
 
-#ifdef DWMAC_DMA_DEBUG
+#ifdef DWMAC_DMA_DE
 	/* Enable it to monitor DMA rx/tx status in case of critical problems */
-	pr_debug("%s: [CSR5: 0x%08x]\n", __func__, intr_status);
+	pr_de("%s: [CSR5: 0x%08x]\n", __func__, intr_status);
 	show_tx_process_state(intr_status);
 	show_rx_process_state(intr_status);
 #endif

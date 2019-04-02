@@ -123,7 +123,7 @@ void t1_espi_intr_enable(struct peespi *espi)
 	 * interrupt incorrectly, namely the driver gets ESPI interrupts
 	 * but no data is actually dropped (can verify this reading the ESPI
 	 * drop registers).  Also, once the ESPI interrupt is asserted it
-	 * cannot be cleared (HW bug).
+	 * cannot be cleared (HW ).
 	 */
 	enable = t1_is_T1B(espi->adapter) ? 0 : ESPI_INTR_MASK;
 	writel(enable, espi->adapter->regs + A_ESPI_INTR_ENABLE);
@@ -213,7 +213,7 @@ static void espi_setup_for_vsc7321(adapter_t *adapter)
 }
 
 /*
- * Note that T1B requires at least 2 ports for IXF1010 due to a HW bug.
+ * Note that T1B requires at least 2 ports for IXF1010 due to a HW .
  */
 static void espi_setup_for_ixf1010(adapter_t *adapter, int nports)
 {

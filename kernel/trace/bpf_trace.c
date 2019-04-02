@@ -750,7 +750,7 @@ static bool tp_prog_is_valid_access(int off, int size, enum bpf_access_type type
 	if (off % size != 0)
 		return false;
 
-	BUILD_BUG_ON(PERF_MAX_TRACE_SIZE % sizeof(__u64));
+	BUILD__ON(PERF_MAX_TRACE_SIZE % sizeof(__u64));
 	return true;
 }
 

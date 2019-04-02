@@ -669,7 +669,7 @@ static void block_output(struct net_device *dev, int count,
 {
     unsigned int nic_base = dev->base_addr;
 
-    pr_debug("%s: [bo=%d]\n", dev->name, count);
+    pr_de("%s: [bo=%d]\n", dev->name, count);
 
     /* Round the count up for word writes.  Do we need to do this?
        What effect will an odd byte count have on the 8390?
@@ -768,7 +768,7 @@ module_pcmcia_driver(axnet_cs_driver);
   			  68K Macintosh. Support >16bit I/O spaces
   Paul Gortmaker	: add kmod support for auto-loading of the 8390
 			  module by all drivers that require it.
-  Alan Cox		: Spinlocking work, added 'BUG_83C690'
+  Alan Cox		: Spinlocking work, added '_83C690'
   Paul Gortmaker	: Separate out Tx timeout code from Tx path.
 
   Sources:
@@ -782,7 +782,7 @@ module_pcmcia_driver(axnet_cs_driver);
 #include <linux/in.h>
 #include <linux/interrupt.h>
 
-#define BUG_83C690
+#define _83C690
 
 /* These are the operational function interfaces to board-specific
    routines.
@@ -1136,7 +1136,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 		}
 		handled = 1;
 
-		/* AX88190 bug fix. */
+		/* AX88190  fix. */
 		outb_p(interrupts, e8390_base + EN0_ISR);
 		for (i = 0; i < 10; i++) {
 			if (!(inb(e8390_base + EN0_ISR) & interrupts))

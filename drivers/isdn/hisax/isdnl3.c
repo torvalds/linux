@@ -67,13 +67,13 @@ static char *strL3Event[] =
 };
 
 static __printf(2, 3) void
-	l3m_debug(struct FsmInst *fi, char *fmt, ...)
+	l3m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
 	struct PStack *st = fi->userdata;
 
 	va_start(args, fmt);
-	VHiSax_putstatus(st->l1.hardware, st->l3.debug_id, fmt, args);
+	VHiSax_putstatus(st->l1.hardware, st->l3.de_id, fmt, args);
 	va_end(args);
 }
 
@@ -152,8 +152,8 @@ newcallref(void)
 void
 newl3state(struct l3_process *pc, int state)
 {
-	if (pc->debug & L3_DEB_STATE)
-		l3_debug(pc->st, "%s cr %d %d --> %d", __func__,
+	if (pc->de & L3_DEB_STATE)
+		l3_de(pc->st, "%s cr %d %d --> %d", __func__,
 			 pc->callref & 0x7F,
 			 pc->state, state);
 	pc->state = state;
@@ -261,7 +261,7 @@ struct l3_process
 		np->next = p;
 	}
 	p->next = NULL;
-	p->debug = st->l3.debug;
+	p->de = st->l3.de;
 	p->callref = cr;
 	p->state = 0;
 	p->chan = NULL;
@@ -286,18 +286,18 @@ release_l3_process(struct l3_process *p)
 				pp->next = np->next;
 			else if (!(p->st->l3.proc = np->next) &&
 				 !test_bit(FLG_PTP, &p->st->l2.flag)) {
-				if (p->debug)
-					l3_debug(p->st, "release_l3_process: last process");
+				if (p->de)
+					l3_de(p->st, "release_l3_process: last process");
 				if (skb_queue_empty(&p->st->l3.squeue)) {
-					if (p->debug)
-						l3_debug(p->st, "release_l3_process: release link");
+					if (p->de)
+						l3_de(p->st, "release_l3_process: release link");
 					if (p->st->protocol != ISDN_PTYPE_NI1)
 						FsmEvent(&p->st->l3.l3m, EV_RELEASE_REQ, NULL);
 					else
 						FsmEvent(&p->st->l3.l3m, EV_RELEASE_IND, NULL);
 				} else {
-					if (p->debug)
-						l3_debug(p->st, "release_l3_process: not release link");
+					if (p->de)
+						l3_de(p->st, "release_l3_process: not release link");
 				}
 			}
 			kfree(p);
@@ -307,7 +307,7 @@ release_l3_process(struct l3_process *p)
 		np = np->next;
 	}
 	printk(KERN_ERR "HiSax internal L3 error CR(%d) not in list\n", p->callref);
-	l3_debug(p->st, "HiSax internal L3 error CR(%d) not in list", p->callref);
+	l3_de(p->st, "HiSax internal L3 error CR(%d) not in list", p->callref);
 };
 
 static void
@@ -334,12 +334,12 @@ setstack_l3dc(struct PStack *st, struct Channel *chanp)
 	skb_queue_head_init(&st->l3.squeue);
 	st->l3.l3m.fsm = &l3fsm;
 	st->l3.l3m.state = ST_L3_LC_REL;
-	st->l3.l3m.debug = 1;
+	st->l3.l3m.de = 1;
 	st->l3.l3m.userdata = st;
 	st->l3.l3m.userint = 0;
-	st->l3.l3m.printdebug = l3m_debug;
+	st->l3.l3m.printde = l3m_de;
 	FsmInitTimer(&st->l3.l3m, &st->l3.l3m_timer);
-	strcpy(st->l3.debug_id, "L3DC ");
+	strcpy(st->l3.de_id, "L3DC ");
 	st->lli.l4l3_proto = no_l3_proto_spec;
 
 #ifdef CONFIG_HISAX_EURO
@@ -404,11 +404,11 @@ setstack_l3bc(struct PStack *st, struct Channel *chanp)
 	skb_queue_head_init(&st->l3.squeue);
 	st->l3.l3m.fsm = &l3fsm;
 	st->l3.l3m.state = ST_L3_LC_REL;
-	st->l3.l3m.debug = 1;
+	st->l3.l3m.de = 1;
 	st->l3.l3m.userdata = st;
 	st->l3.l3m.userint = 0;
-	st->l3.l3m.printdebug = l3m_debug;
-	strcpy(st->l3.debug_id, "L3BC ");
+	st->l3.l3m.printde = l3m_de;
+	strcpy(st->l3.de_id, "L3BC ");
 	st->lli.l4l3 = isdnl3_trans;
 }
 
@@ -436,8 +436,8 @@ lc_connect(struct FsmInst *fi, int event, void *arg)
 		dequeued++;
 	}
 	if ((!st->l3.proc) &&  dequeued) {
-		if (st->l3.debug)
-			l3_debug(st, "lc_connect: release link");
+		if (st->l3.de)
+			l3_de(st, "lc_connect: release link");
 		FsmEvent(&st->l3.l3m, EV_RELEASE_REQ, NULL);
 	} else
 		l3ml3p(st, DL_ESTABLISH | INDICATION);
@@ -457,8 +457,8 @@ lc_connected(struct FsmInst *fi, int event, void *arg)
 		dequeued++;
 	}
 	if ((!st->l3.proc) &&  dequeued) {
-		if (st->l3.debug)
-			l3_debug(st, "lc_connected: release link");
+		if (st->l3.de)
+			l3_de(st, "lc_connected: release link");
 		FsmEvent(&st->l3.l3m, EV_RELEASE_REQ, NULL);
 	} else
 		l3ml3p(st, DL_ESTABLISH | CONFIRM);
@@ -491,8 +491,8 @@ lc_release_req(struct FsmInst *fi, int event, void *arg)
 	struct PStack *st = fi->userdata;
 
 	if (test_bit(FLG_L2BLOCK, &st->l2.flag)) {
-		if (st->l3.debug)
-			l3_debug(st, "lc_release_req: l2 blocked");
+		if (st->l3.de)
+			l3_de(st, "lc_release_req: l2 blocked");
 		/* restart release timer */
 		FsmAddTimer(&st->l3.l3m_timer, DREL_TIMER_VALUE, EV_TIMEOUT, NULL, 51);
 	} else {

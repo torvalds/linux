@@ -570,7 +570,7 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter)
 	event.type = PTP_CLOCK_PPS;
 
 	/* this check is necessary in case the interrupt was enabled via some
-	 * alternative means (ex. debug_fs). Better to check here than
+	 * alternative means (ex. de_fs). Better to check here than
 	 * everywhere that calls this function.
 	 */
 	if (!adapter->ptp_clock)

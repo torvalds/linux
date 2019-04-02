@@ -340,8 +340,8 @@ struct sparc_stackf {
 #define PTRACE_GETFPAREGS         20
 #define PTRACE_SETFPAREGS         21
 
-/* There are for debugging 64-bit processes, either from a 32 or 64 bit
- * parent.  Thus their complements are for debugging 32-bit processes only.
+/* There are for deging 64-bit processes, either from a 32 or 64 bit
+ * parent.  Thus their complements are for deging 32-bit processes only.
  */
 
 #define PTRACE_GETREGS64	  22

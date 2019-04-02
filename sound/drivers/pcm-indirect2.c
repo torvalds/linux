@@ -46,85 +46,85 @@ void snd_pcm_indirect2_stat(struct snd_pcm_substream *substream,
 	int k;
 	int seconds = (rec->lastbytetime - rec->firstbytetime) / HZ;
 
-	snd_printk(KERN_DEBUG "STAT: mul_elapsed: %u, mul_elapsed_real: %d, "
+	snd_printk(KERN_DE "STAT: mul_elapsed: %u, mul_elapsed_real: %d, "
 		   "irq_occurred: %d\n",
 		   rec->mul_elapsed, rec->mul_elapsed_real, rec->irq_occured);
-	snd_printk(KERN_DEBUG "STAT: min_multiple: %d (irqs/period)\n",
+	snd_printk(KERN_DE "STAT: min_multiple: %d (irqs/period)\n",
 		   rec->min_multiple);
-	snd_printk(KERN_DEBUG "STAT: firstbytetime: %lu, lastbytetime: %lu, "
+	snd_printk(KERN_DE "STAT: firstbytetime: %lu, lastbytetime: %lu, "
 		   "firstzerotime: %lu\n",
 		 rec->firstbytetime, rec->lastbytetime, rec->firstzerotime);
-	snd_printk(KERN_DEBUG "STAT: bytes2hw: %u Bytes => (by runtime->rate) "
+	snd_printk(KERN_DE "STAT: bytes2hw: %u Bytes => (by runtime->rate) "
 		   "length: %d s\n",
 		 rec->bytes2hw, rec->bytes2hw / 2 / 2 / runtime->rate);
-	snd_printk(KERN_DEBUG "STAT: (by measurement) length: %d => "
+	snd_printk(KERN_DE "STAT: (by measurement) length: %d => "
 		   "rate: %d Bytes/s = %d Frames/s|Hz\n",
 		   seconds, rec->bytes2hw / seconds,
 		   rec->bytes2hw / 2 / 2 / seconds);
-	snd_printk(KERN_DEBUG
+	snd_printk(KERN_DE
 		   "STAT: zeros2hw: %u = %d ms ~ %d * %d zero copies\n",
 		   rec->zeros2hw, ((rec->zeros2hw / 2 / 2) * 1000) /
 		   runtime->rate,
 		   rec->zeros2hw / (rec->hw_buffer_size / 2),
 		   (rec->hw_buffer_size / 2));
-	snd_printk(KERN_DEBUG "STAT: pointer_calls: %u, lastdifftime: %u\n",
+	snd_printk(KERN_DE "STAT: pointer_calls: %u, lastdifftime: %u\n",
 		   rec->pointer_calls, rec->lastdifftime);
-	snd_printk(KERN_DEBUG "STAT: sw_io: %d, sw_data: %d\n", rec->sw_io,
+	snd_printk(KERN_DE "STAT: sw_io: %d, sw_data: %d\n", rec->sw_io,
 		   rec->sw_data);
-	snd_printk(KERN_DEBUG "STAT: byte_sizes[]:\n");
+	snd_printk(KERN_DE "STAT: byte_sizes[]:\n");
 	k = 0;
 	for (j = 0; j < 8; j++) {
 		for (i = j * 8; i < (j + 1) * 8; i++)
 			if (rec->byte_sizes[i] != 0) {
-				snd_printk(KERN_DEBUG "%u: %u",
+				snd_printk(KERN_DE "%u: %u",
 					   i, rec->byte_sizes[i]);
 				k++;
 			}
 		if (((k % 8) == 0) && (k != 0)) {
-			snd_printk(KERN_DEBUG "\n");
+			snd_printk(KERN_DE "\n");
 			k = 0;
 		}
 	}
-	snd_printk(KERN_DEBUG "\n");
-	snd_printk(KERN_DEBUG "STAT: zero_sizes[]:\n");
+	snd_printk(KERN_DE "\n");
+	snd_printk(KERN_DE "STAT: zero_sizes[]:\n");
 	for (j = 0; j < 8; j++) {
 		k = 0;
 		for (i = j * 8; i < (j + 1) * 8; i++)
 			if (rec->zero_sizes[i] != 0)
-				snd_printk(KERN_DEBUG "%u: %u",
+				snd_printk(KERN_DE "%u: %u",
 					   i, rec->zero_sizes[i]);
 			else
 				k++;
 		if (!k)
-			snd_printk(KERN_DEBUG "\n");
+			snd_printk(KERN_DE "\n");
 	}
-	snd_printk(KERN_DEBUG "\n");
-	snd_printk(KERN_DEBUG "STAT: min_adds[]:\n");
+	snd_printk(KERN_DE "\n");
+	snd_printk(KERN_DE "STAT: min_adds[]:\n");
 	for (j = 0; j < 8; j++) {
 		if (rec->min_adds[j] != 0)
-			snd_printk(KERN_DEBUG "%u: %u", j, rec->min_adds[j]);
+			snd_printk(KERN_DE "%u: %u", j, rec->min_adds[j]);
 	}
-	snd_printk(KERN_DEBUG "\n");
-	snd_printk(KERN_DEBUG "STAT: mul_adds[]:\n");
+	snd_printk(KERN_DE "\n");
+	snd_printk(KERN_DE "STAT: mul_adds[]:\n");
 	for (j = 0; j < 8; j++) {
 		if (rec->mul_adds[j] != 0)
-			snd_printk(KERN_DEBUG "%u: %u", j, rec->mul_adds[j]);
+			snd_printk(KERN_DE "%u: %u", j, rec->mul_adds[j]);
 	}
-	snd_printk(KERN_DEBUG "\n");
-	snd_printk(KERN_DEBUG
+	snd_printk(KERN_DE "\n");
+	snd_printk(KERN_DE
 		   "STAT: zero_times_saved: %d, zero_times_notsaved: %d\n",
 		   rec->zero_times_saved, rec->zero_times_notsaved);
-	/* snd_printk(KERN_DEBUG "STAT: zero_times[]\n");
+	/* snd_printk(KERN_DE "STAT: zero_times[]\n");
 	i = 0;
 	for (j = 0; j < 3750; j++) {
 		if (rec->zero_times[j] != 0) {
-			snd_printk(KERN_DEBUG "%u: %u", j, rec->zero_times[j]);
+			snd_printk(KERN_DE "%u: %u", j, rec->zero_times[j]);
 			i++;
 		}
 		if (((i % 8) == 0) && (i != 0))
-			snd_printk(KERN_DEBUG "\n");
+			snd_printk(KERN_DE "\n");
 	}
-	snd_printk(KERN_DEBUG "\n"); */
+	snd_printk(KERN_DE "\n"); */
 	return;
 }
 #endif
@@ -163,14 +163,14 @@ snd_pcm_indirect2_increase_min_periods(struct snd_pcm_substream *substream,
 					    bytes2hw_aligned %
 					    rec->sw_buffer_size;
 #ifdef SND_PCM_INDIRECT2_STAT
-					snd_printk(KERN_DEBUG
+					snd_printk(KERN_DE
 						   "STAT: @re-align: aligned "
 						   "bytes2hw to next period "
 						   "size boundary: %d "
 						   "(instead of %d)\n",
 						   bytes2hw_aligned,
 						   rec->bytes2hw);
-					snd_printk(KERN_DEBUG
+					snd_printk(KERN_DE
 						   "STAT: @re-align: sw_data "
 						   "moves to: %d\n",
 						   rec->sw_data);
@@ -209,7 +209,7 @@ snd_pcm_indirect2_increase_min_periods(struct snd_pcm_substream *substream,
 #ifdef SND_PCM_INDIRECT2_STAT
 			if ((rec->min_period_count /
 			     (rec->hw_buffer_size / 2)) > 7)
-				snd_printk(KERN_DEBUG
+				snd_printk(KERN_DE
 					   "STAT: more than 7 (%d) min_adds "
 					   "at once - too big to save!\n",
 					   (rec->min_period_count /
@@ -276,11 +276,11 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 #ifdef SND_PCM_INDIRECT2_STAT
 		if (rec->firstzerotime == 0) {
 			rec->firstzerotime = jiffies;
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: @firstzerotime: mul_elapsed: %d, "
 				   "min_period_count: %d\n",
 				   rec->mul_elapsed, rec->min_period_count);
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: @firstzerotime: sw_io: %d, "
 				   "sw_data: %d, appl_ptr: %u\n",
 				   rec->sw_io, rec->sw_data,
@@ -299,7 +299,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 		if (bytes < 64)
 			rec->zero_sizes[bytes]++;
 		else
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: %d zero Bytes copied to hardware at "
 				   "once - too big to save!\n",
 				   bytes);
@@ -339,7 +339,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 		if (bytes < 64)
 			rec->byte_sizes[bytes]++;
 		else
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: %d Bytes copied to hardware at once "
 				   "- too big to save!\n",
 				   bytes);
@@ -390,7 +390,7 @@ snd_pcm_indirect2_playback_interrupt(struct snd_pcm_substream *substream,
 	if (rec->min_periods >= rec->min_multiple) {
 #ifdef SND_PCM_INDIRECT2_STAT
 		if ((rec->min_periods / rec->min_multiple) > 7)
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: more than 7 (%d) mul_adds - too big "
 				   "to save!\n",
 				   (rec->min_periods / rec->min_multiple));
@@ -437,11 +437,11 @@ snd_pcm_indirect2_capture_transfer(struct snd_pcm_substream *substream,
 #ifdef SND_PCM_INDIRECT2_STAT
 		if (rec->firstzerotime == 0) {
 			rec->firstzerotime = jiffies;
-			snd_printk(KERN_DEBUG "STAT: (capture) "
+			snd_printk(KERN_DE "STAT: (capture) "
 				   "@firstzerotime: mul_elapsed: %d, "
 				   "min_period_count: %d\n",
 				   rec->mul_elapsed, rec->min_period_count);
-			snd_printk(KERN_DEBUG "STAT: (capture) "
+			snd_printk(KERN_DE "STAT: (capture) "
 				   "@firstzerotime: sw_io: %d, sw_data: %d, "
 				   "appl_ptr: %u\n",
 				   rec->sw_io, rec->sw_data,
@@ -460,7 +460,7 @@ snd_pcm_indirect2_capture_transfer(struct snd_pcm_substream *substream,
 		if (bytes < 64)
 			rec->zero_sizes[bytes]++;
 		else
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: (capture) %d zero Bytes copied to "
 				   "hardware at once - too big to save!\n",
 				   bytes);
@@ -507,7 +507,7 @@ snd_pcm_indirect2_capture_transfer(struct snd_pcm_substream *substream,
 		if (bytes < 64)
 			rec->byte_sizes[bytes]++;
 		else
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: (capture) %d Bytes copied to "
 				   "hardware at once - too big to save!\n",
 				   bytes);
@@ -556,7 +556,7 @@ snd_pcm_indirect2_capture_interrupt(struct snd_pcm_substream *substream,
 
 #ifdef SND_PCM_INDIRECT2_STAT
 		if ((rec->min_periods / rec->min_multiple) > 7)
-			snd_printk(KERN_DEBUG
+			snd_printk(KERN_DE
 				   "STAT: more than 7 (%d) mul_adds - "
 				   "too big to save!\n",
 				   (rec->min_periods / rec->min_multiple));

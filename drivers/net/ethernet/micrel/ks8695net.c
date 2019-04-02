@@ -338,7 +338,7 @@ ks8695_init_partial_multicast(struct ks8695_priv *ksp,
 	i = 0;
 	netdev_for_each_mc_addr(ha, ndev) {
 		/* Ran out of space in chip? */
-		BUG_ON(i == KS8695_NR_ADDRESSES);
+		_ON(i == KS8695_NR_ADDRESSES);
 
 		low = (ha->addr[2] << 24) | (ha->addr[3] << 16) |
 		      (ha->addr[4] << 8) | (ha->addr[5]);
@@ -1181,7 +1181,7 @@ ks8695_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	buff_n = ksp->tx_ring_next_slot;
 
-	BUG_ON(ksp->tx_buffers[buff_n].skb);
+	_ON(ksp->tx_buffers[buff_n].skb);
 
 	dmap = dma_map_single(ksp->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(ksp->dev, dmap))) {

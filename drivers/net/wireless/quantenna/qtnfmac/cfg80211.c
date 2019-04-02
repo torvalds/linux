@@ -407,7 +407,7 @@ qtnf_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 
 	vif->mgmt_frames_bitmask = new_mask;
-	pr_debug("VIF%u.%u: %sregistered mgmt frame type 0x%x\n",
+	pr_de("VIF%u.%u: %sregistered mgmt frame type 0x%x\n",
 		 vif->mac->macid, vif->vifid, reg ? "" : "un", frame_type);
 }
 
@@ -440,7 +440,7 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	else
 		freq = 0;
 
-	pr_debug("%s freq:%u; FC:%.4X; DA:%pM; len:%zu; C:%.8X; FL:%.4X\n",
+	pr_de("%s freq:%u; FC:%.4X; DA:%pM; len:%zu; C:%.8X; FL:%.4X\n",
 		 wdev->netdev->name, freq,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
@@ -525,7 +525,7 @@ static int qtnf_del_key(struct wiphy *wiphy, struct net_device *dev,
 	ret = qtnf_cmd_send_del_key(vif, key_index, pairwise, mac_addr);
 	if (ret) {
 		if (ret == -ENOENT) {
-			pr_debug("VIF%u.%u: key index %d out of bounds\n",
+			pr_de("VIF%u.%u: key index %d out of bounds\n",
 				 vif->mac->macid, vif->vifid, key_index);
 		} else {
 			pr_err("VIF%u.%u: failed to delete key: idx=%u pw=%u\n",
@@ -620,7 +620,7 @@ qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		goto out;
 	}
 
-	pr_debug("MAC%u: scan started\n", mac->macid);
+	pr_de("MAC%u: scan started\n", mac->macid);
 	queue_delayed_work(mac->bus->workqueue, &mac->scan_timeout,
 			   QTNF_SCAN_TIMEOUT_SEC * HZ);
 
@@ -778,11 +778,11 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 		survey->noise = stats.chan_noise;
 		break;
 	case -ENOENT:
-		pr_debug("no stats for channel %u\n", chan->hw_value);
+		pr_de("no stats for channel %u\n", chan->hw_value);
 		ret = 0;
 		break;
 	default:
-		pr_debug("failed to get chan(%d) stats from card\n",
+		pr_de("failed to get chan(%d) stats from card\n",
 			 chan->hw_value);
 		break;
 	}
@@ -829,7 +829,7 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 	int ret;
 
-	pr_debug("%s: chan(%u) count(%u) radar(%u) block_tx(%u)\n", dev->name,
+	pr_de("%s: chan(%u) count(%u) radar(%u) block_tx(%u)\n", dev->name,
 		 params->chandef.chan->hw_value, params->count,
 		 params->radar_required, params->block_tx);
 
@@ -907,7 +907,7 @@ static int qtnf_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wowlan)
 	}
 
 	if (!wowlan) {
-		pr_debug("WoWLAN triggers are not enabled\n");
+		pr_de("WoWLAN triggers are not enabled\n");
 		qtnf_virtual_intf_cleanup(vif->netdev);
 		goto exit;
 	}
@@ -1003,7 +1003,7 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 	enum nl80211_band band;
 	int ret;
 
-	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
+	pr_de("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
 	ret = qtnf_cmd_reg_notify(bus, req);

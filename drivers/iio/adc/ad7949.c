@@ -216,7 +216,7 @@ static int ad7949_spi_reg_access(struct iio_dev *indio_dev,
 
 static const struct iio_info ad7949_spi_info = {
 	.read_raw = ad7949_spi_read_raw,
-	.debugfs_reg_access = ad7949_spi_reg_access,
+	.defs_reg_access = ad7949_spi_reg_access,
 };
 
 static int ad7949_spi_init(struct ad7949_adc_chip *ad7949_adc)

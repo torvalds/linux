@@ -46,9 +46,9 @@
 #define ASIZE 256
 
 #if 0
-#define DEBUGP printk
+#define DEP printk
 #else
-#define DEBUGP(args, format...)
+#define DEP(args, format...)
 #endif
 
 struct ts_bm
@@ -74,7 +74,7 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 			break;
 
 		while (shift < text_len) {
-			DEBUGP("Searching in position %d (%c)\n", 
+			DEP("Searching in position %d (%c)\n", 
 				shift, text[shift]);
 			for (i = 0; i < bm->patlen; i++) 
 				if ((icase ? toupper(text[shift-i])
@@ -83,7 +83,7 @@ static unsigned int bm_find(struct ts_config *conf, struct ts_state *state)
 				     goto next;
 
 			/* London calling... */
-			DEBUGP("found!\n");
+			DEP("found!\n");
 			return consumed += (shift-(bm->patlen-1));
 
 next:			bs = bm->bad_shift[text[shift-i]];

@@ -119,9 +119,9 @@ Also check the TODO list at the web site listed below to see what people
 might already be working on.
 
 
-BUGS
+S
 
-Send bug reports to:
+Send  reports to:
 linux-crypto@vger.kernel.org
 Cc: Herbert Xu <herbert@gondor.apana.org.au>,
     David S. Miller <davem@redhat.com>

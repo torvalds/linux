@@ -11,11 +11,11 @@
 
 /* Empirical constants... */
 #ifdef CONFIG_SUN3
-#define KADB_DEBUGGER_BEGVM     0x0fee0000    /* There is no kadb yet but...*/
+#define KADB_DEGER_BEGVM     0x0fee0000    /* There is no kadb yet but...*/
 #define LINUX_OPPROM_BEGVM      0x0fef0000
 #define LINUX_OPPROM_ENDVM      0x0ff10000    /* I think this is right - tm */
 #else
-#define KADB_DEBUGGER_BEGVM     0xffc00000    /* Where kern debugger is in virt-mem */
+#define KADB_DEGER_BEGVM     0xffc00000    /* Where kern deger is in virt-mem */
 #define	LINUX_OPPROM_BEGVM	0xffd00000
 #define	LINUX_OPPROM_ENDVM	0xfff00000
 #define	LINUX_OPPROM_MAGIC      0x10010407

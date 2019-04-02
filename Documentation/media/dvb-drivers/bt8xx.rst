@@ -7,7 +7,7 @@ Authors: Richard Walker,
 	 Jamie Honan,
 	 Michael Hunold,
 	 Manu Abraham,
-	 Uwe Bugla,
+	 Uwe la,
 	 Michael Krufky
 
 .. note::
@@ -59,7 +59,7 @@ Running TwinHan and Clones
 	$ modprobe bttv card=113
 	$ modprobe dst
 
-Useful parameters for verbosity level and debugging the dst module:
+Useful parameters for verbosity level and deging the dst module:
 
 .. code-block:: none
 
@@ -67,13 +67,13 @@ Useful parameters for verbosity level and debugging the dst module:
 		1:		only error messages are displayed
 		2:		notifications are displayed
 		3:		other useful messages are displayed
-		4:		debug setting
+		4:		de setting
 	dst_addons=0:		card is a free to air (FTA) card only
 		0x20:	card has a conditional access slot for scrambled channels
 
 The autodetected values are determined by the cards' "response string".
 In your logs see f. ex.: dst_get_device_id: Recognize [DSTMCI].
-For bug reports please send in a complete log with verbose=4 activated.
+For  reports please send in a complete log with verbose=4 activated.
 Please also see Documentation/media/dvb-drivers/ci.rst.
 
 Running multiple cards

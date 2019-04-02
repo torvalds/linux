@@ -85,7 +85,7 @@ static u32 psb_intel_lvds_get_max_backlight(struct drm_device *dev)
 
         ret *= 2;	/* Return a 16bit range as needed for setting */
         if (ret == 0)
-                dev_err(dev->dev, "BL bug: Reg %08x save %08X\n",
+                dev_err(dev->dev, "BL : Reg %08x save %08X\n",
                         REG_READ(BLC_PWM_CTL), dev_priv->regs.saveBLC_PWM_CTL);
 	return ret;
 }
@@ -148,7 +148,7 @@ static int psb_lvds_pwm_set_brightness(struct drm_device *dev, int level)
 	max_pwm_blc = psb_intel_lvds_get_max_backlight(dev);
 
 	/*BLC_PWM_CTL Should be initiated while backlight device init*/
-	BUG_ON(max_pwm_blc == 0);
+	_ON(max_pwm_blc == 0);
 
 	blc_pwm_duty_cycle = level * max_pwm_blc / BRIGHTNESS_MAX_LEVEL;
 
@@ -759,7 +759,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =
 			    drm_mode_duplicate(dev, scan);
-			DRM_DEBUG_KMS("Using mode from DDC\n");
+			DRM_DE_KMS("Using mode from DDC\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}
@@ -772,7 +772,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (mode_dev->panel_fixed_mode) {
 			mode_dev->panel_fixed_mode->type |=
 				DRM_MODE_TYPE_PREFERRED;
-			DRM_DEBUG_KMS("Using mode from VBT\n");
+			DRM_DE_KMS("Using mode from VBT\n");
 			goto out;
 		}
 	}
@@ -792,7 +792,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		if (mode_dev->panel_fixed_mode) {
 			mode_dev->panel_fixed_mode->type |=
 			    DRM_MODE_TYPE_PREFERRED;
-			DRM_DEBUG_KMS("Using pre-programmed mode\n");
+			DRM_DE_KMS("Using pre-programmed mode\n");
 			goto out;	/* FIXME: check for quirks */
 		}
 	}

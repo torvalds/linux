@@ -305,6 +305,6 @@ extern void nile4_set_pci_irq_level_or_edge(int pci_irq, int level);
 extern void nile4_clear_irq(int nile4_irq);
 extern void nile4_clear_irq_mask(u32 mask);
 extern u8 nile4_i8259_iack(void);
-extern void nile4_dump_irq_status(void);	/* Debug */
+extern void nile4_dump_irq_status(void);	/* De */
 
 #endif

@@ -126,23 +126,23 @@ struct radeon_px_quirk {
 
 static struct radeon_px_quirk radeon_px_quirk_list[] = {
 	/* Acer aspire 5560g (CPU: AMD A4-3305M; GPU: AMD Radeon HD 6480g + 7470m)
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=74551
+	 * https://zilla.kernel.org/show_.cgi?id=74551
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6760, 0x1025, 0x0672, RADEON_PX_QUIRK_DISABLE_PX },
 	/* Asus K73TA laptop with AMD A6-3400M APU and Radeon 6550 GPU
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=51381
+	 * https://zilla.kernel.org/show_.cgi?id=51381
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6741, 0x1043, 0x108c, RADEON_PX_QUIRK_DISABLE_PX },
 	/* Asus K53TK laptop with AMD A6-3420M APU and Radeon 7670m GPU
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=51381
+	 * https://zilla.kernel.org/show_.cgi?id=51381
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6840, 0x1043, 0x2122, RADEON_PX_QUIRK_DISABLE_PX },
 	/* Asus K53TK laptop with AMD A6-3420M APU and Radeon 7670m GPU
-	 * https://bugs.freedesktop.org/show_bug.cgi?id=101491
+	 * https://s.freedesktop.org/show_.cgi?id=101491
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6741, 0x1043, 0x2122, RADEON_PX_QUIRK_DISABLE_PX },
 	/* Asus K73TK laptop with AMD A6-3420M APU and Radeon 7670m GPU
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=51381#c52
+	 * https://zilla.kernel.org/show_.cgi?id=51381#c52
 	 */
 	{ PCI_VENDOR_ID_ATI, 0x6840, 0x1043, 0x2123, RADEON_PX_QUIRK_DISABLE_PX },
 	{ 0, 0, 0, 0, 0 },
@@ -545,11 +545,11 @@ int radeon_wb_init(struct radeon_device *rdev)
  *
  * Note: we use mc_vram_size as on some board we need to program the mc to
  * cover the whole aperture even if VRAM size is inferior to aperture size
- * Novell bug 204882 + along with lots of ubuntu ones
+ * Novell  204882 + along with lots of ubuntu ones
  *
  * Note: when limiting vram it's safe to overwritte real_vram_size because
  * we are not in case where real_vram_size is inferior to mc_vram_size (ie
- * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
+ * note afected by bogus hw of Novell  204882 + along with lots of ubuntu
  * ones)
  *
  * Note: IGP TOM addr should be the same as the aperture addr, we don't
@@ -1450,14 +1450,14 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		goto failed;
 
-	r = radeon_gem_debugfs_init(rdev);
+	r = radeon_gem_defs_init(rdev);
 	if (r) {
-		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
+		DRM_ERROR("registering gem defs failed (%d).\n", r);
 	}
 
-	r = radeon_mst_debugfs_init(rdev);
+	r = radeon_mst_defs_init(rdev);
 	if (r) {
-		DRM_ERROR("registering mst debugfs failed (%d).\n", r);
+		DRM_ERROR("registering mst defs failed (%d).\n", r);
 	}
 
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
@@ -1891,34 +1891,34 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 
 
 /*
- * Debugfs
+ * Defs
  */
-int radeon_debugfs_add_files(struct radeon_device *rdev,
+int radeon_defs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles)
 {
 	unsigned i;
 
-	for (i = 0; i < rdev->debugfs_count; i++) {
-		if (rdev->debugfs[i].files == files) {
+	for (i = 0; i < rdev->defs_count; i++) {
+		if (rdev->defs[i].files == files) {
 			/* Already registered */
 			return 0;
 		}
 	}
 
-	i = rdev->debugfs_count + 1;
-	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
-		DRM_ERROR("Reached maximum number of debugfs components.\n");
+	i = rdev->defs_count + 1;
+	if (i > RADEON_DEFS_MAX_COMPONENTS) {
+		DRM_ERROR("Reached maximum number of defs components.\n");
 		DRM_ERROR("Report so we increase "
-			  "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
+			  "RADEON_DEFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
-	rdev->debugfs[rdev->debugfs_count].files = files;
-	rdev->debugfs[rdev->debugfs_count].num_files = nfiles;
-	rdev->debugfs_count = i;
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_create_files(files, nfiles,
-				 rdev->ddev->primary->debugfs_root,
+	rdev->defs[rdev->defs_count].files = files;
+	rdev->defs[rdev->defs_count].num_files = nfiles;
+	rdev->defs_count = i;
+#if defined(CONFIG_DE_FS)
+	drm_defs_create_files(files, nfiles,
+				 rdev->ddev->primary->defs_root,
 				 rdev->ddev->primary);
 #endif
 	return 0;

@@ -23,7 +23,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DEBUG_VARIABLE debug
+#define DE_VARIABLE de
 
 #include <media/drv-intf/saa7146_vv.h>
 #include <media/tuner.h>
@@ -56,9 +56,9 @@ static int freq = 4148;
 module_param(freq, int, 0644);
 MODULE_PARM_DESC(freq, "initial frequency the tuner will be tuned to while setup");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off device deging (default:off).");
 
 #define MXB_INPUTS 4
 enum { TUNER, AUX1, AUX3, AUX3_YC };
@@ -665,7 +665,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
@@ -715,7 +715,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.vid_ops.vidioc_enumaudio = vidioc_enumaudio;
 	vv_data.vid_ops.vidioc_g_audio = vidioc_g_audio;
 	vv_data.vid_ops.vidioc_s_audio = vidioc_s_audio;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
 	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif

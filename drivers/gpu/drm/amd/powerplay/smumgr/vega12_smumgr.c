@@ -29,7 +29,7 @@
 #include "vega12_ppsmc.h"
 #include "vega12/smu9_driver_if.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 
 /*

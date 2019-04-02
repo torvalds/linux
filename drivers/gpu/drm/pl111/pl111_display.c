@@ -72,13 +72,13 @@ pl111_mode_valid(struct drm_crtc *crtc,
 	 * check if we are too fast.
 	 */
 	if (priv->memory_bw && (bw > priv->memory_bw)) {
-		DRM_DEBUG_KMS("%d x %d @ %d Hz, %d cpp, bw %llu too fast\n",
+		DRM_DE_KMS("%d x %d @ %d Hz, %d cpp, bw %llu too fast\n",
 			      mode->hdisplay, mode->vdisplay,
 			      mode->clock * 1000, cpp, bw);
 
 		return MODE_BAD;
 	}
-	DRM_DEBUG_KMS("%d x %d @ %d Hz, %d cpp, bw %llu bytes/s OK\n",
+	DRM_DE_KMS("%d x %d @ %d Hz, %d cpp, bw %llu bytes/s OK\n",
 		      mode->hdisplay, mode->vdisplay,
 		      mode->clock * 1000, cpp, bw);
 

@@ -321,7 +321,7 @@ static void at91_setup_mailboxes(struct net_device *dev)
 	u32 reg_mid;
 
 	/*
-	 * Due to a chip bug (errata 50.2.6.3 & 50.3.5.3) the first
+	 * Due to a chip  (errata 50.2.6.3 & 50.3.5.3) the first
 	 * mailbox is disabled. The next 11 mailboxes are used as a
 	 * reception FIFO. The last mailbox is configured with
 	 * overwrite option. The overwrite flag indicates a FIFO
@@ -467,7 +467,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!(at91_read(priv, AT91_MSR(mb)) & AT91_MSR_MRDY))) {
 		netif_stop_queue(dev);
 
-		netdev_err(dev, "BUG! TX buffer full when queue awake!\n");
+		netdev_err(dev, "! TX buffer full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 	reg_mid = at91_can_id_to_reg_mid(cf->can_id);
@@ -661,7 +661,7 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  *  ^
  *  |
  *   \
- *     unused, due to chip bug
+ *     unused, due to chip 
  *
  * The variable priv->rx_next points to the next mailbox to read a
  * message from. As long we're in the lower mailboxes we just read the
@@ -1029,7 +1029,7 @@ static void at91_irq_err(struct net_device *dev)
 		else if (likely(reg_sr & AT91_IRQ_ERRA))
 			new_state = CAN_STATE_ERROR_ACTIVE;
 		else {
-			netdev_err(dev, "BUG! hardware in undefined state\n");
+			netdev_err(dev, "! hardware in undefined state\n");
 			return;
 		}
 	} else {

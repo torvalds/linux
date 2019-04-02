@@ -23,12 +23,12 @@
 #include <asm/xics.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
-#include <asm/debug.h>
-#include <asm/debugfs.h>
+#include <asm/de.h>
+#include <asm/defs.h>
 #include <asm/time.h>
 #include <asm/opal.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include "book3s_xive.h"
@@ -1816,7 +1816,7 @@ static void kvmppc_xive_free(struct kvm_device *dev)
 	struct kvm *kvm = xive->kvm;
 	int i;
 
-	debugfs_remove(xive->dentry);
+	defs_remove(xive->dentry);
 
 	if (kvm)
 		kvm->arch.xive = NULL;
@@ -1884,7 +1884,7 @@ static int kvmppc_xive_create(struct kvm_device *dev, u32 type)
 }
 
 
-static int xive_debug_show(struct seq_file *m, void *private)
+static int xive_de_show(struct seq_file *m, void *private)
 {
 	struct kvmppc_xive *xive = m->private;
 	struct kvm *kvm = xive->kvm;
@@ -1968,9 +1968,9 @@ static int xive_debug_show(struct seq_file *m, void *private)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(xive_debug);
+DEFINE_SHOW_ATTRIBUTE(xive_de);
 
-static void xive_debugfs_init(struct kvmppc_xive *xive)
+static void xive_defs_init(struct kvmppc_xive *xive)
 {
 	char *name;
 
@@ -1980,10 +1980,10 @@ static void xive_debugfs_init(struct kvmppc_xive *xive)
 		return;
 	}
 
-	xive->dentry = debugfs_create_file(name, S_IRUGO, powerpc_debugfs_root,
-					   xive, &xive_debug_fops);
+	xive->dentry = defs_create_file(name, S_IRUGO, powerpc_defs_root,
+					   xive, &xive_de_fops);
 
-	pr_debug("%s: created %s\n", __func__, name);
+	pr_de("%s: created %s\n", __func__, name);
 	kfree(name);
 }
 
@@ -1991,8 +1991,8 @@ static void kvmppc_xive_init(struct kvm_device *dev)
 {
 	struct kvmppc_xive *xive = (struct kvmppc_xive *)dev->private;
 
-	/* Register some debug interfaces */
-	xive_debugfs_init(xive);
+	/* Register some de interfaces */
+	xive_defs_init(xive);
 }
 
 struct kvm_device_ops kvm_xive_ops = {

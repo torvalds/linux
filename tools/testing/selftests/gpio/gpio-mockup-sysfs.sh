@@ -8,12 +8,12 @@ is_consistent()
 	val_sysfs=`cat $GPIO_SYSFS/gpio$nr/value`
 	dir_sysfs=`cat $GPIO_SYSFS/gpio$nr/direction`
 
-	gpio_this_debugfs=`cat $GPIO_DEBUGFS |grep "gpio-$nr" | sed "s/(.*)//g"`
-	dir_debugfs=`echo $gpio_this_debugfs | awk '{print $2}'`
-	val_debugfs=`echo $gpio_this_debugfs | awk '{print $3}'`
-	if [ $val_debugfs = "lo" ]; then
+	gpio_this_defs=`cat $GPIO_DEFS |grep "gpio-$nr" | sed "s/(.*)//g"`
+	dir_defs=`echo $gpio_this_defs | awk '{print $2}'`
+	val_defs=`echo $gpio_this_defs | awk '{print $3}'`
+	if [ $val_defs = "lo" ]; then
 		val=0
-	elif [ $val_debugfs = "hi" ]; then
+	elif [ $val_defs = "hi" ]; then
 		val=1
 	fi
 
@@ -25,7 +25,7 @@ is_consistent()
 		fi
 	fi
 
-	if [ $val_sysfs = $val ] && [ $dir_sysfs = $dir_debugfs ]; then
+	if [ $val_sysfs = $val ] && [ $dir_sysfs = $dir_defs ]; then
 		echo -n "."
 	else
 		echo "test fail, exit"
@@ -61,7 +61,7 @@ test_one_pin()
 		die
 	fi
 
-	#"Checking if the sysfs is consistent with debugfs: "
+	#"Checking if the sysfs is consistent with defs: "
 	is_consistent $nr
 
 	#"Checking the logic of active_low: "

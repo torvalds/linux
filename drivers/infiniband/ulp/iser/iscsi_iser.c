@@ -85,9 +85,9 @@ static struct workqueue_struct *release_wq;
 static DEFINE_MUTEX(unbind_iser_conn_mutex);
 struct iser_global ig;
 
-int iser_debug_level = 0;
-module_param_named(debug_level, iser_debug_level, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:disabled)");
+int iser_de_level = 0;
+module_param_named(de_level, iser_de_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de_level, "Enable de tracing if > 0 (default:disabled)");
 
 static unsigned int iscsi_max_lun = 512;
 module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
@@ -329,7 +329,7 @@ iscsi_iser_task_xmit(struct iscsi_task *task)
 		return iscsi_iser_mtask_xmit(conn, task);
 
 	if (task->sc->sc_data_direction == DMA_TO_DEVICE) {
-		BUG_ON(scsi_bufflen(task->sc) == 0);
+		_ON(scsi_bufflen(task->sc) == 0);
 
 		iser_dbg("cmd [itt %x total %d imm %d unsol_data %d\n",
 			   task->itt, scsi_bufflen(task->sc),

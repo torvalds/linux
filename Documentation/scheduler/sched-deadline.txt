@@ -606,7 +606,7 @@ CONTENTS
   * the new scheduling related syscalls that manipulate it, i.e.,
     sched_setattr() and sched_getattr() are implemented.
 
- For debugging purposes, the leftover runtime and absolute deadline of a
+ For deging purposes, the leftover runtime and absolute deadline of a
  SCHED_DEADLINE task can be retrieved through /proc/<pid>/sched (entries
  dl.runtime and dl.deadline, both values in ns). A programmatic way to
  retrieve these values from production code is under discussion.

@@ -661,7 +661,7 @@ void f2fs_evict_inode(struct inode *inode)
 			inode->i_ino == F2FS_META_INO(sbi))
 		goto out_clear;
 
-	f2fs_bug_on(sbi, get_dirty_pages(inode));
+	f2fs__on(sbi, get_dirty_pages(inode));
 	f2fs_remove_dirty_inode(inode);
 
 	f2fs_destroy_extent_tree(inode);
@@ -719,7 +719,7 @@ no_delete:
 
 	if (likely(!is_set_ckpt_flags(sbi, CP_ERROR_FLAG) &&
 				!is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
-		f2fs_bug_on(sbi, is_inode_flag_set(inode, FI_DIRTY_INODE));
+		f2fs__on(sbi, is_inode_flag_set(inode, FI_DIRTY_INODE));
 	else
 		f2fs_inode_synced(inode);
 

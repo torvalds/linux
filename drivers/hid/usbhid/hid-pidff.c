@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-/* #define DEBUG */
+/* #define DE */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -220,7 +220,7 @@ static int pidff_rescale_signed(int i, struct hid_field *field)
 static void pidff_set(struct pidff_usage *usage, u16 value)
 {
 	usage->value[0] = pidff_rescale(value, 0xffff, usage->field);
-	pr_debug("calculated from %d to %d\n", value, usage->value[0]);
+	pr_de("calculated from %d to %d\n", value, usage->value[0]);
 }
 
 static void pidff_set_signed(struct pidff_usage *usage, s16 value)
@@ -235,7 +235,7 @@ static void pidff_set_signed(struct pidff_usage *usage, s16 value)
 			usage->value[0] =
 			    pidff_rescale(value, 0x7fff, usage->field);
 	}
-	pr_debug("calculated from %d to %d\n", value, usage->value[0]);
+	pr_de("calculated from %d to %d\n", value, usage->value[0]);
 }
 
 /*
@@ -777,13 +777,13 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 		for (i = 0; i < report->maxfield; i++) {
 			if (report->field[i]->maxusage !=
 			    report->field[i]->report_count) {
-				pr_debug("maxusage and report_count do not match, skipping\n");
+				pr_de("maxusage and report_count do not match, skipping\n");
 				continue;
 			}
 			for (j = 0; j < report->field[i]->maxusage; j++) {
 				if (report->field[i]->usage[j].hid ==
 				    (HID_UP_PID | table[k])) {
-					pr_debug("found %d at %d->%d\n",
+					pr_de("found %d at %d->%d\n",
 						 k, i, j);
 					usage[k].field = report->field[i];
 					usage[k].value =
@@ -796,7 +796,7 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 				break;
 		}
 		if (!found && strict) {
-			pr_debug("failed to locate %d\n", k);
+			pr_de("failed to locate %d\n", k);
 			return -1;
 		}
 	}

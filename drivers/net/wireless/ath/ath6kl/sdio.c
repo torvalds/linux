@@ -26,7 +26,7 @@
 #include "hif.h"
 #include "hif-ops.h"
 #include "target.h"
-#include "debug.h"
+#include "de.h"
 #include "cfg80211.h"
 #include "trace.h"
 
@@ -85,7 +85,7 @@ static inline struct ath6kl_sdio *ath6kl_sdio_priv(struct ath6kl *ar)
 /*
  * Macro to check if DMA buffer is WORD-aligned and DMA-able.
  * Most host controllers assume the buffer is DMA'able and will
- * bug-check otherwise (i.e. buffers on the stack). virt_addr_valid
+ * -check otherwise (i.e. buffers on the stack). virt_addr_valid
  * check fails on stack memory.
  */
 static inline bool buf_needs_bounce(u8 *buf)
@@ -1176,7 +1176,7 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 * HIF Read and removes some FIFO data.  So for large reads the
 	 * Host proceeds to post an HIF Read BEFORE all the data is
 	 * actually available to read.  Fortunately, large BMI reads do
-	 * not occur in practice -- they're supported for debug/development.
+	 * not occur in practice -- they're supported for de/development.
 	 *
 	 * So Host/Target BMI synchronization is divided into these cases:
 	 *  CASE 1: length < 4
@@ -1193,7 +1193,7 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 *
 	 * For most uses, a small timeout should be sufficient and we will
 	 * usually see a response quickly; but there may be some unusual
-	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
+	 * (de) cases of BMI_EXECUTE where we want an larger timeout.
 	 * For now, we use an unbounded busy loop while waiting for
 	 * BMI_EXECUTE.
 	 *

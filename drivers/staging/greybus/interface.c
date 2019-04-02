@@ -976,7 +976,7 @@ err_vsys_disable:
 /*
  * At present, we assume a UniPro-only module to be a Greybus module that
  * failed to send its mailbox poke. There is some reason to believe that this
- * is because of a bug in the ES3 bootrom.
+ * is because of a  in the ES3 bootrom.
  *
  * FIXME: Check if this is a Toshiba bridge before retrying?
  */

@@ -11,7 +11,7 @@ tc_check_packets()
 	local ret
 
 	output="$(tc -j -s filter show $id)"
-	# workaround the jq bug which causes jq to return 0 in case input is ""
+	# workaround the jq  which causes jq to return 0 in case input is ""
 	ret=$?
 	if [[ $ret -ne 0 ]]; then
 		return $ret

@@ -5,7 +5,7 @@
  *  Code extracted from drivers/block/genhd.c
  *  Copyright (C) 1991-1998  Linus Torvalds
  *
- *  Thanks to Branko Lankester, lankeste@fwi.uva.nl, who found a bug
+ *  Thanks to Branko Lankester, lankeste@fwi.uva.nl, who found a 
  *  in the early extended-partition checks and added DM partitions
  *
  *  Support for DiskManager v6.0x added by Mark Lord,

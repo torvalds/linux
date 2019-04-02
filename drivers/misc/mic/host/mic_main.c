@@ -245,17 +245,17 @@ static int mic_probe(struct pci_dev *pdev,
 		goto smpt_uninit;
 	}
 	mic_bootparam_init(mdev);
-	mic_create_debug_dir(mdev);
+	mic_create_de_dir(mdev);
 
 	mdev->cosm_dev = cosm_register_device(&mdev->pdev->dev, &cosm_hw_ops);
 	if (IS_ERR(mdev->cosm_dev)) {
 		rc = PTR_ERR(mdev->cosm_dev);
 		dev_err(&pdev->dev, "cosm_add_device failed rc %d\n", rc);
-		goto cleanup_debug_dir;
+		goto cleanup_de_dir;
 	}
 	return 0;
-cleanup_debug_dir:
-	mic_delete_debug_dir(mdev);
+cleanup_de_dir:
+	mic_delete_de_dir(mdev);
 	mic_dp_uninit(mdev);
 smpt_uninit:
 	mic_smpt_uninit(mdev);
@@ -294,7 +294,7 @@ static void mic_remove(struct pci_dev *pdev)
 		return;
 
 	cosm_unregister_device(mdev->cosm_dev);
-	mic_delete_debug_dir(mdev);
+	mic_delete_de_dir(mdev);
 	mic_dp_uninit(mdev);
 	mic_smpt_uninit(mdev);
 	mic_free_interrupts(mdev, pdev);
@@ -318,17 +318,17 @@ static int __init mic_init(void)
 	int ret;
 
 	request_module("mic_x100_dma");
-	mic_init_debugfs();
+	mic_init_defs();
 	ida_init(&g_mic_ida);
 	ret = pci_register_driver(&mic_driver);
 	if (ret) {
 		pr_err("pci_register_driver failed ret %d\n", ret);
-		goto cleanup_debugfs;
+		goto cleanup_defs;
 	}
 	return 0;
-cleanup_debugfs:
+cleanup_defs:
 	ida_destroy(&g_mic_ida);
-	mic_exit_debugfs();
+	mic_exit_defs();
 	return ret;
 }
 
@@ -336,7 +336,7 @@ static void __exit mic_exit(void)
 {
 	pci_unregister_driver(&mic_driver);
 	ida_destroy(&g_mic_ida);
-	mic_exit_debugfs();
+	mic_exit_defs();
 }
 
 module_init(mic_init);

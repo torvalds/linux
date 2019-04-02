@@ -370,7 +370,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		(*return_gpe_block) = gpe_block;
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 			      "    Initialized GPE %02X to %02X [%4.4s] %u regs on interrupt 0x%X%s\n",
 			      (u32)gpe_block->block_base_number,
 			      (u32)(gpe_block->block_base_number +

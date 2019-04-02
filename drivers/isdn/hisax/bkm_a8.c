@@ -149,8 +149,8 @@ bkm_interrupt_ipac(int intno, void *dev_id)
 		return IRQ_NONE;
 	}
 Start_IPAC:
-	if (cs->debug & L1_DEB_IPAC)
-		debugl1(cs, "IPAC ISTA %02X", ista);
+	if (cs->de & L1_DEB_IPAC)
+		del1(cs, "IPAC ISTA %02X", ista);
 	if (ista & 0x0f) {
 		val = readreg(cs->hw.ax.base, cs->hw.ax.data_adr, HSCX_ISTA + 0x40);
 		if (ista & 0x01)
@@ -242,7 +242,7 @@ BKM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 		return (0);
 	case CARD_INIT:
 		spin_lock_irqsave(&cs->lock, flags);
-		cs->debug |= L1_DEB_IPAC;
+		cs->de |= L1_DEB_IPAC;
 		set_ipac_active(cs, 1);
 		inithscxisac(cs, 3);
 		/* Enable ints */
@@ -323,7 +323,7 @@ int setup_sct_quadro(struct IsdnCard *card)
 			return (0);
 		}
 #ifdef ATTEMPT_PCI_REMAPPING
-/* HACK: PLX revision 1 bug: PLX address bit 7 must not be set */
+/* HACK: PLX revision 1 : PLX address bit 7 must not be set */
 		if ((pci_ioaddr1 & 0x80) && (dev_a8->revision == 1)) {
 			printk(KERN_WARNING "HiSax: Scitel Quadro (%s): "
 			       "PLX rev 1, remapping required!\n",

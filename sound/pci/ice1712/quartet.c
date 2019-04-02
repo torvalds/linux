@@ -205,7 +205,7 @@ static const char * const ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
 #define AK4620_SMUTE		(1<<7)
 
 /*
- * Conversion from int value to its binary form. Used for debugging.
+ * Conversion from int value to its binary form. Used for deging.
  * The output buffer must be allocated prior to calling the function.
  */
 static char *get_binary(char *buffer, int value)
@@ -277,7 +277,7 @@ static void qtet_akm_write(struct snd_akm4xxx *ak, int chip,
 	unsigned int addrdata;
 	struct snd_ice1712 *ice = ak->private_data[0];
 
-	if (snd_BUG_ON(chip < 0 || chip >= 4))
+	if (snd__ON(chip < 0 || chip >= 4))
 		return;
 	/*dev_dbg(ice->card->dev, "Writing to AK4620: chip=%d, addr=0x%x,
 	  data=0x%x\n", chip, addr, data);*/
@@ -568,8 +568,8 @@ static int qtet_ain12_sw_get(struct snd_kcontrol *kcontrol,
 		result = 2;
 		break;
 	default:
-		/* BUG - no other combinations allowed */
-		snd_BUG();
+		/*  - no other combinations allowed */
+		snd_();
 		result = 0;
 	}
 	ucontrol->value.integer.value[0] = result;
@@ -612,7 +612,7 @@ static int qtet_ain12_sw_put(struct snd_kcontrol *kcontrol,
 			set_scr(ice, new);
 			break;
 		default:
-			snd_BUG();
+			snd_();
 		}
 		return 1;
 	}
@@ -899,7 +899,7 @@ static int qtet_set_spdif_clock(struct snd_ice1712 *ice, int type)
 		new |= CPLD_EXT_WORDCLOCK_256FS;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 	}
 	if (old != new) {
 		set_cpld(ice, new);
@@ -932,7 +932,7 @@ static int qtet_get_spdif_master_type(struct snd_ice1712 *ice)
 			break;
 		default:
 			/* undefined combination of external clock setup */
-			snd_BUG();
+			snd_();
 			result = 0;
 		}
 	}

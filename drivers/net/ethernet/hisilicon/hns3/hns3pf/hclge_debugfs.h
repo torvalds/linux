@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Copyright (c) 2018-2019 Hisilicon Limited. */
 
-#ifndef __HCLGE_DEBUGFS_H
-#define __HCLGE_DEBUGFS_H
+#ifndef __HCLGE_DEFS_H
+#define __HCLGE_DEFS_H
 
 #define HCLGE_DBG_BUF_LEN	   256
 #define HCLGE_DBG_MNG_TBL_MAX	   64

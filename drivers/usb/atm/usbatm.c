@@ -40,11 +40,11 @@
  *  1.3.1:	- added the version number
  *
  *  1.3:	- Added multiple send urb support
- *		- fixed memory leak and vcc->tx_inuse starvation bug
+ *		- fixed memory leak and vcc->tx_inuse starvation 
  *		  when not enough memory left in vcc.
  *
  *  1.2:	- Fixed race condition in usbatm_usb_send_data()
- *  1.1:	- Turned off packet debugging
+ *  1.1:	- Turned off packet deging
  *
  */
 
@@ -69,12 +69,12 @@
 #include <linux/kthread.h>
 #include <linux/ratelimit.h>
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 static int usbatm_print_packet(struct usbatm_data *instance, const unsigned char *data, int len);
-#define PACKETDEBUG(arg...)	usbatm_print_packet(arg)
+#define PACKETDE(arg...)	usbatm_print_packet(arg)
 #define vdbg(arg...)		dev_dbg(arg)
 #else
-#define PACKETDEBUG(arg...)
+#define PACKETDE(arg...)
 #define vdbg(arg...)
 #endif
 
@@ -396,7 +396,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		     "%s: sending skb 0x%p, skb->len %u, skb->truesize %u",
 		     __func__, skb, skb->len, skb->truesize);
 
-		PACKETDEBUG(instance, skb->data, skb->len);
+		PACKETDE(instance, skb->data, skb->len);
 
 		vcc->push(vcc, skb);
 
@@ -647,8 +647,8 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	/* racy disconnection check - fine */
 	if (!instance || instance->disconnected) {
-#ifdef VERBOSE_DEBUG
-		printk_ratelimited(KERN_DEBUG "%s: %s!\n", __func__, instance ? "disconnected" : "NULL instance");
+#ifdef VERBOSE_DE
+		printk_ratelimited(KERN_DE "%s: %s!\n", __func__, instance ? "disconnected" : "NULL instance");
 #endif
 		err = -ENODEV;
 		goto fail;
@@ -667,7 +667,7 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		goto fail;
 	}
 
-	PACKETDEBUG(instance, skb->data, skb->len);
+	PACKETDE(instance, skb->data, skb->len);
 
 	/* initialize the control block */
 	ctrl->atm.vcc = vcc;
@@ -721,7 +721,7 @@ static void usbatm_atm_dev_close(struct atm_dev *atm_dev)
 	if (!instance)
 		return;
 
-	atm_dev->dev_data = NULL; /* catch bugs */
+	atm_dev->dev_data = NULL; /* catch s */
 	usbatm_put_instance(instance);	/* taken in usbatm_atm_init */
 }
 
@@ -1302,10 +1302,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 /************
-**  debug  **
+**  de  **
 ************/
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 static int usbatm_print_packet(struct usbatm_data *instance,
 			       const unsigned char *data, int len)
 {

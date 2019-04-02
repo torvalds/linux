@@ -56,10 +56,10 @@ int mtk_vcodec_mem_alloc(struct mtk_vcodec_ctx *data,
 		return -ENOMEM;
 	}
 
-	mtk_v4l2_debug(3, "[%d]  - va      = %p", ctx->id, mem->va);
-	mtk_v4l2_debug(3, "[%d]  - dma     = 0x%lx", ctx->id,
+	mtk_v4l2_de(3, "[%d]  - va      = %p", ctx->id, mem->va);
+	mtk_v4l2_de(3, "[%d]  - dma     = 0x%lx", ctx->id,
 		       (unsigned long)mem->dma_addr);
-	mtk_v4l2_debug(3, "[%d]    size = 0x%lx", ctx->id, size);
+	mtk_v4l2_de(3, "[%d]    size = 0x%lx", ctx->id, size);
 
 	return 0;
 }
@@ -78,10 +78,10 @@ void mtk_vcodec_mem_free(struct mtk_vcodec_ctx *data,
 		return;
 	}
 
-	mtk_v4l2_debug(3, "[%d]  - va      = %p", ctx->id, mem->va);
-	mtk_v4l2_debug(3, "[%d]  - dma     = 0x%lx", ctx->id,
+	mtk_v4l2_de(3, "[%d]  - va      = %p", ctx->id, mem->va);
+	mtk_v4l2_de(3, "[%d]  - dma     = 0x%lx", ctx->id,
 		       (unsigned long)mem->dma_addr);
-	mtk_v4l2_debug(3, "[%d]    size = 0x%lx", ctx->id, size);
+	mtk_v4l2_de(3, "[%d]    size = 0x%lx", ctx->id, size);
 
 	dma_free_coherent(dev, size, mem->va, mem->dma_addr);
 	mem->va = NULL;

@@ -45,7 +45,7 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 	if (IS_ERR(hdlcd->clk))
 		return PTR_ERR(hdlcd->clk);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	atomic_set(&hdlcd->buffer_underrun_count, 0);
 	atomic_set(&hdlcd->bus_error_count, 0);
 	atomic_set(&hdlcd->vsync_count, 0);
@@ -125,7 +125,7 @@ static irqreturn_t hdlcd_irq(int irq, void *arg)
 
 	irq_status = hdlcd_read(hdlcd, HDLCD_REG_INT_STATUS);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	if (irq_status & HDLCD_INTERRUPT_UNDERRUN)
 		atomic_inc(&hdlcd->buffer_underrun_count);
 
@@ -158,12 +158,12 @@ static void hdlcd_irq_preinstall(struct drm_device *drm)
 
 static int hdlcd_irq_postinstall(struct drm_device *drm)
 {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 	unsigned long irq_mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
 
-	/* enable debug interrupts */
-	irq_mask |= HDLCD_DEBUG_INT_MASK;
+	/* enable de interrupts */
+	irq_mask |= HDLCD_DE_INT_MASK;
 
 	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, irq_mask);
 #endif
@@ -176,9 +176,9 @@ static void hdlcd_irq_uninstall(struct drm_device *drm)
 	/* disable all the interrupts that we might have enabled */
 	unsigned long irq_mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
 
-#ifdef CONFIG_DEBUG_FS
-	/* disable debug interrupts */
-	irq_mask &= ~HDLCD_DEBUG_INT_MASK;
+#ifdef CONFIG_DE_FS
+	/* disable de interrupts */
+	irq_mask &= ~HDLCD_DE_INT_MASK;
 #endif
 
 	/* disable vsync interrupts */
@@ -187,7 +187,7 @@ static void hdlcd_irq_uninstall(struct drm_device *drm)
 	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, irq_mask);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int hdlcd_show_underrun_count(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -214,15 +214,15 @@ static int hdlcd_show_pxlclock(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static struct drm_info_list hdlcd_debugfs_list[] = {
+static struct drm_info_list hdlcd_defs_list[] = {
 	{ "interrupt_count", hdlcd_show_underrun_count, 0 },
 	{ "clocks", hdlcd_show_pxlclock, 0 },
 };
 
-static int hdlcd_debugfs_init(struct drm_minor *minor)
+static int hdlcd_defs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(hdlcd_debugfs_list,
-		ARRAY_SIZE(hdlcd_debugfs_list),	minor->debugfs_root, minor);
+	return drm_defs_create_files(hdlcd_defs_list,
+		ARRAY_SIZE(hdlcd_defs_list),	minor->defs_root, minor);
 }
 #endif
 
@@ -249,8 +249,8 @@ static struct drm_driver hdlcd_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init = hdlcd_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init = hdlcd_defs_init,
 #endif
 	.fops = &fops,
 	.name = "hdlcd",

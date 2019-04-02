@@ -78,7 +78,7 @@ static s16 odm_inband_noise_monitor_n_series(struct phy_dm_struct *dm,
 	/*  */
 	/* step 2. Disable all power save for read registers */
 	/*  */
-	/* dcmd_DebugControlPowerSave(adapter, PSDisable); */
+	/* dcmd_DeControlPowerSave(adapter, PSDisable); */
 
 	/*  */
 	/* step 3. Get noise power level */
@@ -206,7 +206,7 @@ static s16 odm_inband_noise_monitor_ac_series(struct phy_dm_struct *dm,
 		odm_pause_dig(dm, PHYDM_PAUSE, PHYDM_PAUSE_LEVEL_1, igi_value);
 
 	/* step 2. Disable all power save for read registers */
-	/*dcmd_DebugControlPowerSave(adapter, PSDisable); */
+	/*dcmd_DeControlPowerSave(adapter, PSDisable); */
 
 	/* step 3. Get noise power level */
 	start = odm_get_current_time(dm);
@@ -222,9 +222,9 @@ static s16 odm_inband_noise_monitor_ac_series(struct phy_dm_struct *dm,
 		/*stop CK320&CK88 */
 		odm_set_bb_reg(dm, 0x8B4, BIT(6), 1);
 		/*Read path-A */
-		odm_set_bb_reg(dm, 0x8FC, MASKDWORD, 0x200); /*set debug port*/
+		odm_set_bb_reg(dm, 0x8FC, MASKDWORD, 0x200); /*set de port*/
 		value32 = odm_get_bb_reg(dm, 0xFA0,
-					 MASKDWORD); /*read debug port*/
+					 MASKDWORD); /*read de port*/
 
 		rxi_buf_anta = (value32 & 0xFFC00) >>
 			       10; /*rxi_buf_anta=RegFA0[19:10]*/

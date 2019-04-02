@@ -3,10 +3,10 @@
  *                   Creative Labs, Inc.
  *  Routines for effect processor FX8010
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.co.uk>
  *  	Added EMU 1010 support.
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -475,7 +475,7 @@ static void snd_emu10k1_write_op(struct snd_emu10k1_fx8010_code *icode,
 				 u32 op, u32 r, u32 a, u32 x, u32 y)
 {
 	u_int32_t *code;
-	if (snd_BUG_ON(*ptr >= 512))
+	if (snd__ON(*ptr >= 512))
 		return;
 	code = (u_int32_t __force *)icode->code + (*ptr) * 2;
 	set_bit(*ptr, icode->code_valid);
@@ -492,7 +492,7 @@ static void snd_emu10k1_audigy_write_op(struct snd_emu10k1_fx8010_code *icode,
 					u32 op, u32 r, u32 a, u32 x, u32 y)
 {
 	u_int32_t *code;
-	if (snd_BUG_ON(*ptr >= 1024))
+	if (snd__ON(*ptr >= 1024))
 		return;
 	code = (u_int32_t __force *)icode->code + (*ptr) * 2;
 	set_bit(*ptr, icode->code_valid);
@@ -1598,10 +1598,10 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		A_SWITCH(icode, &ptr, tmp + 0, tmp + 2, gpr + z);
 		A_SWITCH_NEG(icode, &ptr, tmp + 1, gpr + z);
 		A_SWITCH(icode, &ptr, tmp + 1, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, tmp + 1);
-		if ((z==1) && (emu->card_capabilities->spdif_bug)) {
-			/* Due to a SPDIF output bug on some Audigy cards, this code delays the Right channel by 1 sample */
+		if ((z==1) && (emu->card_capabilities->spdif_)) {
+			/* Due to a SPDIF output  on some Audigy cards, this code delays the Right channel by 1 sample */
 			dev_info(emu->card->dev,
-				 "Installing spdif_bug patch: %s\n",
+				 "Installing spdif_ patch: %s\n",
 				 emu->card_capabilities->name);
 			A_OP(icode, &ptr, iACC3, A_EXTOUT(A_EXTOUT_FRONT_L + z), A_GPR(gpr - 3), A_C_00000000, A_C_00000000);
 			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 3), A_GPR(tmp + 0), A_GPR(tmp + 1), A_C_00000000);
@@ -1761,7 +1761,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	 */
 
 	if (gpr > tmp) {
-		snd_BUG();
+		snd_();
 		err = -EIO;
 		goto __err;
 	}
@@ -2379,12 +2379,12 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	    
 
 	if (gpr > tmp) {
-		snd_BUG();
+		snd_();
 		err = -EIO;
 		goto __err;
 	}
 	if (i > SND_EMU10K1_GPR_CONTROLS) {
-		snd_BUG();
+		snd_();
 		err = -EIO;
 		goto __err;
 	}

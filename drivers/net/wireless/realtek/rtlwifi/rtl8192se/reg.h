@@ -235,7 +235,7 @@
 #define	INTA_MASK				0x0300
 #define	ISR					0x0308
 
-/* 13. Test mode and Debug Control Registers */
+/* 13. Test mode and De Control Registers */
 #define	DBG_PORT_SWITCH				0x003A
 #define	BIST					0x0310
 #define	DBS					0x0314
@@ -861,7 +861,7 @@
 #define	RPMAC_TXLEGACYSIG			0x108
 #define	RPMAC_TXHTSIG1				0x10c
 #define	RPMAC_TXHTSIG2				0x110
-#define	RPMAC_PHYDEBUG				0x114
+#define	RPMAC_PHYDE				0x114
 #define	RPMAC_TXPACKETNNM			0x118
 #define	RPMAC_TXIDLE				0x11c
 #define	RPMAC_TXMACHEADER0			0x120
@@ -944,7 +944,7 @@
 #define	RFPGA1_RFMOD				0x900
 
 #define	RFPGA1_TXBLOCK				0x904
-#define	RFPGA1_DEBUGSELECT			0x908
+#define	RFPGA1_DESELECT			0x908
 #define	RFPGA1_TXINFO				0x90c
 
 #define	RCCK0_SYSTEM				0xa00
@@ -962,7 +962,7 @@
 
 #define	RCCK0_TXFILTER1				0xa20
 #define	RCCK0_TXFILTER2				0xa24
-#define	RCCK0_DEBUGPORT				0xa28
+#define	RCCK0_DEPORT				0xa28
 #define	RCCK0_FALSEALARMREPORT			0xa2c
 #define	RCCK0_TRSSIREPORT			0xa50
 #define	RCCK0_RXREPORT				0xa54

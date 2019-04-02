@@ -32,7 +32,7 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 	if (!(inode->i_state & I_NEW))
 		return inode;
 
-	pr_debug("affs_iget(%lu)\n", inode->i_ino);
+	pr_de("affs_iget(%lu)\n", inode->i_ino);
 
 	block = inode->i_ino;
 	bh = affs_bread(sb, block);
@@ -175,7 +175,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	uid_t			 uid;
 	gid_t			 gid;
 
-	pr_debug("write_inode(%lu)\n", inode->i_ino);
+	pr_de("write_inode(%lu)\n", inode->i_ino);
 
 	if (!inode->i_nlink)
 		// possibly free block
@@ -221,7 +221,7 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
+	pr_de("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
 	error = setattr_prepare(dentry, attr);
 	if (error)
@@ -262,7 +262,7 @@ void
 affs_evict_inode(struct inode *inode)
 {
 	unsigned long cache_page;
-	pr_debug("evict_inode(ino=%lu, nlink=%u)\n",
+	pr_de("evict_inode(ino=%lu, nlink=%u)\n",
 		 inode->i_ino, inode->i_nlink);
 	truncate_inode_pages_final(&inode->i_data);
 
@@ -276,7 +276,7 @@ affs_evict_inode(struct inode *inode)
 	affs_free_prealloc(inode);
 	cache_page = (unsigned long)AFFS_I(inode)->i_lc;
 	if (cache_page) {
-		pr_debug("freeing ext cache\n");
+		pr_de("freeing ext cache\n");
 		AFFS_I(inode)->i_lc = NULL;
 		AFFS_I(inode)->i_ac = NULL;
 		free_page(cache_page);
@@ -355,7 +355,7 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	u32 block = 0;
 	int retval;
 
-	pr_debug("%s(dir=%lu, inode=%lu, \"%pd\", type=%d)\n", __func__,
+	pr_de("%s(dir=%lu, inode=%lu, \"%pd\", type=%d)\n", __func__,
 		 dir->i_ino, inode->i_ino, dentry, type);
 
 	retval = -EIO;

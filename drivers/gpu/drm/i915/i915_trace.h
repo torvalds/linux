@@ -284,8 +284,8 @@ TRACE_EVENT(i915_pipe_update_start,
 			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
 										       crtc->pipe);
 			   __entry->scanline = intel_get_crtc_scanline(crtc);
-			   __entry->min = crtc->debug.min_vbl;
-			   __entry->max = crtc->debug.max_vbl;
+			   __entry->min = crtc->de.min_vbl;
+			   __entry->max = crtc->de.max_vbl;
 			   ),
 
 	    TP_printk("pipe %c, frame=%u, scanline=%u, min=%u, max=%u",
@@ -307,10 +307,10 @@ TRACE_EVENT(i915_pipe_update_vblank_evaded,
 
 	    TP_fast_assign(
 			   __entry->pipe = crtc->pipe;
-			   __entry->frame = crtc->debug.start_vbl_count;
-			   __entry->scanline = crtc->debug.scanline_start;
-			   __entry->min = crtc->debug.min_vbl;
-			   __entry->max = crtc->debug.max_vbl;
+			   __entry->frame = crtc->de.start_vbl_count;
+			   __entry->scanline = crtc->de.scanline_start;
+			   __entry->min = crtc->de.min_vbl;
+			   __entry->max = crtc->de.max_vbl;
 			   ),
 
 	    TP_printk("pipe %c, frame=%u, scanline=%u, min=%u, max=%u",
@@ -850,7 +850,7 @@ TRACE_EVENT(intel_gpu_freq_change,
  * With full ppgtt enabled each process using drm will allocate at least one
  * translation table. With these traces it is possible to keep track of the
  * allocation and of the lifetime of the tables; this can be used during
- * testing/debug to verify that we are not leaking ppgtts.
+ * testing/de to verify that we are not leaking ppgtts.
  * These traces identify the ppgtt through the vm pointer, which is also printed
  * by the i915_vma_bind and i915_vma_unbind tracepoints.
  */

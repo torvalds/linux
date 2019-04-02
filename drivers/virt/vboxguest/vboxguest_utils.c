@@ -28,9 +28,9 @@
 /* The max parameter buffer size for a kernel request. */
 #define VBG_MAX_HGCM_KERNEL_PARM	(16 * SZ_1M)
 
-#define VBG_DEBUG_PORT			0x504
+#define VBG_DE_PORT			0x504
 
-/* This protects vbg_log_buf and serializes VBG_DEBUG_PORT accesses */
+/* This protects vbg_log_buf and serializes VBG_DE_PORT accesses */
 static DEFINE_SPINLOCK(vbg_log_lock);
 static char vbg_log_buf[128];
 
@@ -46,7 +46,7 @@ void name(const char *fmt, ...)						\
 									\
 	count = vscnprintf(vbg_log_buf, sizeof(vbg_log_buf), fmt, args);\
 	for (i = 0; i < count; i++)					\
-		outb(vbg_log_buf[i], VBG_DEBUG_PORT);			\
+		outb(vbg_log_buf[i], VBG_DE_PORT);			\
 									\
 	pr_func("%s", vbg_log_buf);					\
 									\
@@ -58,8 +58,8 @@ EXPORT_SYMBOL(name)
 VBG_LOG(vbg_info, pr_info);
 VBG_LOG(vbg_warn, pr_warn);
 VBG_LOG(vbg_err, pr_err);
-#if defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
-VBG_LOG(vbg_debug, pr_debug);
+#if defined(DE) && !defined(CONFIG_DYNAMIC_DE)
+VBG_LOG(vbg_de, pr_de);
 #endif
 
 void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type,

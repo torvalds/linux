@@ -692,13 +692,13 @@ static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
 			   WLAN_MAC_BASE_ADDRESS + WAVE1_PCU_ACK_CTS_TIMEOUT,
 			   timeout_reg);
 
-	/* Ensure we have a debug level of WARN set for the case that the
+	/* Ensure we have a de level of WARN set for the case that the
 	 * coverage class is larger than 0. This is important as we need to
 	 * set the registers again if the firmware does an internal reset and
 	 * this way we will be notified of the event.
 	 */
-	fw_dbglog_mask = ath10k_debug_get_fw_dbglog_mask(ar);
-	fw_dbglog_level = ath10k_debug_get_fw_dbglog_level(ar);
+	fw_dbglog_mask = ath10k_de_get_fw_dbglog_mask(ar);
+	fw_dbglog_level = ath10k_de_get_fw_dbglog_level(ar);
 
 	if (value > 0) {
 		if (fw_dbglog_level > ATH10K_DBGLOG_LEVEL_WARN)

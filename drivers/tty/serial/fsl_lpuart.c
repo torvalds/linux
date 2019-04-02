@@ -959,7 +959,7 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 	 * length.
 	 */
 	ring->head = sport->rx_sgl.length - state.residue;
-	BUG_ON(ring->head > sport->rx_sgl.length);
+	_ON(ring->head > sport->rx_sgl.length);
 	/*
 	 * At this point ring->head may point to the first byte right after the
 	 * last byte of the dma buffer:

@@ -569,7 +569,7 @@ static void nx_unregister_shash(struct shash_alg *alg, u32 fc, u32 mode,
  * Called from nx_probe()
  *
  * If all OF properties are in an acceptable state, the driver flags will
- * indicate that we're ready and we'll create our debugfs files and register
+ * indicate that we're ready and we'll create our defs files and register
  * out crypto algorithms.
  */
 static int nx_register_algs(void)
@@ -581,7 +581,7 @@ static int nx_register_algs(void)
 
 	memset(&nx_driver.stats, 0, sizeof(struct nx_stats));
 
-	rc = NX_DEBUGFS_INIT(&nx_driver);
+	rc = NX_DEFS_INIT(&nx_driver);
 	if (rc)
 		goto out;
 
@@ -797,7 +797,7 @@ static int nx_remove(struct vio_dev *viodev)
 		viodev->unit_address);
 
 	if (nx_driver.of.status == NX_OKAY) {
-		NX_DEBUGFS_FINI(&nx_driver);
+		NX_DEFS_FINI(&nx_driver);
 
 		nx_unregister_shash(&nx_shash_aes_xcbc_alg,
 				    NX_FC_AES, NX_MODE_AES_XCBC_MAC, -1);

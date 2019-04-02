@@ -913,10 +913,10 @@ static void vi_invalidate_hdp(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring)
 {
 	if (!ring || !ring->funcs->emit_wreg) {
-		WREG32(mmHDP_DEBUG0, 1);
-		RREG32(mmHDP_DEBUG0);
+		WREG32(mmHDP_DE0, 1);
+		RREG32(mmHDP_DE0);
 	} else {
-		amdgpu_ring_emit_wreg(ring, mmHDP_DEBUG0, 1);
+		amdgpu_ring_emit_wreg(ring, mmHDP_DE0, 1);
 	}
 }
 

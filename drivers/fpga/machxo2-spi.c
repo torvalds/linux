@@ -88,7 +88,7 @@ static int get_status(struct spi_device *spi, unsigned long *status)
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static const char *get_err_string(u8 err)
 {
 	switch (err) {
@@ -108,8 +108,8 @@ static const char *get_err_string(u8 err)
 
 static void dump_status_reg(unsigned long *status)
 {
-#ifdef DEBUG
-	pr_debug("machxo2 status: 0x%08lX - done=%d, cfgena=%d, busy=%d, fail=%d, devver=%d, err=%s\n",
+#ifdef DE
+	pr_de("machxo2 status: 0x%08lX - done=%d, cfgena=%d, busy=%d, fail=%d, devver=%d, err=%s\n",
 		 *status, test_bit(DONE, status), test_bit(ENAB, status),
 		 test_bit(BUSY, status), test_bit(FAIL, status),
 		 test_bit(DVER, status), get_err_string(get_err(status)));

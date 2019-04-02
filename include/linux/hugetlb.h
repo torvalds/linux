@@ -3,7 +3,7 @@
 #define _LINUX_HUGETLB_H
 
 #include <linux/mm_types.h>
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/fs.h>
 #include <linux/hugetlb_inline.h>
 #include <linux/cgroup.h>
@@ -184,9 +184,9 @@ static inline void adjust_range_if_pmd_sharing_possible(
 {
 }
 
-#define follow_hugetlb_page(m,v,p,vs,a,b,i,w,n)	({ BUG(); 0; })
+#define follow_hugetlb_page(m,v,p,vs,a,b,i,w,n)	({ (); 0; })
 #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
-#define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+#define copy_hugetlb_page_range(src, dst, vma)	({ (); 0; })
 static inline void hugetlb_report_meminfo(struct seq_file *m)
 {
 }
@@ -202,9 +202,9 @@ static inline void hugetlb_show_meminfo(void)
 #define pmd_huge(x)	0
 #define pud_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
+#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({(); 0; })
 #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
-				src_addr, pagep)	({ BUG(); 0; })
+				src_addr, pagep)	({ (); 0; })
 #define huge_pte_offset(mm, address, sz)	0
 
 static inline bool isolate_huge_page(struct page *page, struct list_head *list)
@@ -224,20 +224,20 @@ static inline void __unmap_hugepage_range_final(struct mmu_gather *tlb,
 			struct vm_area_struct *vma, unsigned long start,
 			unsigned long end, struct page *ref_page)
 {
-	BUG();
+	();
 }
 
 static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
 			struct vm_area_struct *vma, unsigned long start,
 			unsigned long end, struct page *ref_page)
 {
-	BUG();
+	();
 }
 static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
 				struct vm_area_struct *vma, unsigned long address,
 				unsigned int flags)
 {
-	BUG();
+	();
 	return 0;
 }
 
@@ -256,7 +256,7 @@ static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
 #ifndef pgd_write
 static inline int pgd_write(pgd_t pgd)
 {
-	BUG();
+	();
 	return 0;
 }
 #endif
@@ -473,7 +473,7 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
 
 static inline struct hstate *page_hstate(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageHuge(page), page);
+	VM__ON_PAGE(!PageHuge(page), page);
 	return size_to_hstate(PAGE_SIZE << compound_order(page));
 }
 
@@ -556,7 +556,7 @@ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 {
 	if (huge_page_size(h) == PMD_SIZE)
 		return pmd_lockptr(mm, (pmd_t *) pte);
-	VM_BUG_ON(huge_page_size(h) == PAGE_SIZE);
+	VM__ON(huge_page_size(h) == PAGE_SIZE);
 	return &mm->page_table_lock;
 }
 

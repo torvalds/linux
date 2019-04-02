@@ -76,7 +76,7 @@ struct STRUCT_NAME(r_name) {				\
 #define REQUEST_(r_name, r_value, index, r_fields)			\
 r_fields
 #define __field_(r_name, r_value, r_idx_1, f_offset, f_size, f_name) \
-	BUILD_BUG_ON(offsetof(struct STRUCT_NAME(r_name), f_name) != f_offset);
+	BUILD__ON(offsetof(struct STRUCT_NAME(r_name), f_name) != f_offset);
 #define __count_(r_name, r_value, r_idx_1, c_offset, c_size, c_name) \
 	__field_(r_name, r_value, r_idx_1, c_offset, c_size, c_name)
 #define __array_(r_name, r_value, r_idx_1, a_offset, a_size, a_name) \

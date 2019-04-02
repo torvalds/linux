@@ -4,7 +4,7 @@
 
 /* Dummy header just to define km_type. */
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 #define  __WITH_KM_FENCE
 #endif
 

@@ -9,14 +9,14 @@ struct id_range {
 	u32 end;
 };
 
-#ifdef DEBUG
+#ifdef DE
 static void dump_list(struct list_head *head, char *type_str)
 {
 	struct id_range *cur;
 
-	pr_debug("%s ranges allocated:\n", type_str);
+	pr_de("%s ranges allocated:\n", type_str);
 	list_for_each_entry(cur, head, list) {
-		pr_debug("Range %d->%d\n", cur->start, cur->end);
+		pr_de("Range %d->%d\n", cur->start, cur->end);
 	}
 }
 #endif
@@ -52,7 +52,7 @@ static int range_alloc(struct list_head *head, u32 size, int max_id,
 		rc = new->start;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	dump_list(head, type_str);
 #endif
 	return rc;
@@ -73,7 +73,7 @@ static void range_free(struct list_head *head, u32 start, u32 size,
 		}
 	}
 	WARN_ON(!found);
-#ifdef DEBUG
+#ifdef DE
 	dump_list(head, type_str);
 #endif
 }

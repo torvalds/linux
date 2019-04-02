@@ -88,7 +88,7 @@ static void __init __sme_early_enc_dec(resource_size_t paddr,
 		 * then eventual access of that area in the desired mode
 		 * will cause a crash.
 		 */
-		BUG_ON(!src || !dst);
+		_ON(!src || !dst);
 
 		/*
 		 * Use a temporary buffer, of cache-line multiple size, to

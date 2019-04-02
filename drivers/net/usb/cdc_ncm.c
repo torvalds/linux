@@ -805,7 +805,7 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	ctx->mbim_desc = hdr.usb_cdc_mbim_desc;
 	ctx->mbim_extended_desc = hdr.usb_cdc_mbim_extended_desc;
 
-	/* some buggy devices have an IAD but no CDC Union */
+	/* some gy devices have an IAD but no CDC Union */
 	if (!hdr.usb_cdc_union_desc && intf->intf_assoc && intf->intf_assoc->bInterfaceCount == 2) {
 		ctx->data = usb_ifnum_to_if(dev->udev, intf->cur_altsetting->desc.bInterfaceNumber + 1);
 		dev_dbg(&intf->dev, "CDC Union missing - got slave from IAD\n");

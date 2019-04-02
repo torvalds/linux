@@ -119,7 +119,7 @@ static int add_system_zone(struct ext4_sb_info *sbi,
 	return 0;
 }
 
-static void debug_print_tree(struct ext4_sb_info *sbi)
+static void de_print_tree(struct ext4_sb_info *sbi)
 {
 	struct rb_node *node;
 	struct ext4_system_zone *entry;
@@ -172,8 +172,8 @@ int ext4_setup_system_zone(struct super_block *sb)
 			return ret;
 	}
 
-	if (test_opt(sb, DEBUG))
-		debug_print_tree(sbi);
+	if (test_opt(sb, DE))
+		de_print_tree(sbi);
 	return 0;
 }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "perf.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "symbol.h"
 #include "sort.h"
 #include "evsel.h"
@@ -123,7 +123,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	return 0;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_de("Not enough memory for adding a hist entry\n");
 	return -1;
 }
 
@@ -165,7 +165,7 @@ static int __validate_match(struct hists *hists)
 					he->thread, he->ms.map, he->ms.sym)) {
 				count++;
 			} else {
-				pr_debug("Can't find the matched entry\n");
+				pr_de("Can't find the matched entry\n");
 				return -1;
 			}
 		}
@@ -174,7 +174,7 @@ static int __validate_match(struct hists *hists)
 	}
 
 	if (count != ARRAY_SIZE(fake_common_samples)) {
-		pr_debug("Invalid count for matched entries: %zd of %zd\n",
+		pr_de("Invalid count for matched entries: %zd of %zd\n",
 			 count, ARRAY_SIZE(fake_common_samples));
 		return -1;
 	}
@@ -222,7 +222,7 @@ static int __validate_link(struct hists *hists, int idx)
 			}
 			count_pair++;
 		} else if (idx) {
-			pr_debug("A entry from the other hists should have pair\n");
+			pr_de("A entry from the other hists should have pair\n");
 			return -1;
 		}
 
@@ -235,23 +235,23 @@ static int __validate_link(struct hists *hists, int idx)
 	 */
 	if (idx == 0) {
 		if (count_dummy != ARRAY_SIZE(fake_samples[1]) - 1) {
-			pr_debug("Invalid count of dummy entries: %zd of %zd\n",
+			pr_de("Invalid count of dummy entries: %zd of %zd\n",
 				 count_dummy, ARRAY_SIZE(fake_samples[1]) - 1);
 			return -1;
 		}
 		if (count != count_pair + ARRAY_SIZE(fake_samples[0])) {
-			pr_debug("Invalid count of total leader entries: %zd of %zd\n",
+			pr_de("Invalid count of total leader entries: %zd of %zd\n",
 				 count, count_pair + ARRAY_SIZE(fake_samples[0]));
 			return -1;
 		}
 	} else {
 		if (count != count_pair) {
-			pr_debug("Invalid count of total other entries: %zd of %zd\n",
+			pr_de("Invalid count of total other entries: %zd of %zd\n",
 				 count, count_pair);
 			return -1;
 		}
 		if (count_dummy > 0) {
-			pr_debug("Other hists should not have dummy entries: %zd\n",
+			pr_de("Other hists should not have dummy entries: %zd\n",
 				 count_dummy);
 			return -1;
 		}

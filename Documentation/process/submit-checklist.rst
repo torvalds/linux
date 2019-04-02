@@ -63,10 +63,10 @@ and elsewhere regarding submitting Linux kernel patches.
     ``make htmldocs`` or ``make pdfdocs`` to check the
     :ref:`kernel-doc <kernel_doc>` and fix any issues.
 
-12) Has been tested with ``CONFIG_PREEMPT``, ``CONFIG_DEBUG_PREEMPT``,
-    ``CONFIG_DEBUG_SLAB``, ``CONFIG_DEBUG_PAGEALLOC``, ``CONFIG_DEBUG_MUTEXES``,
-    ``CONFIG_DEBUG_SPINLOCK``, ``CONFIG_DEBUG_ATOMIC_SLEEP``,
-    ``CONFIG_PROVE_RCU`` and ``CONFIG_DEBUG_OBJECTS_RCU_HEAD`` all
+12) Has been tested with ``CONFIG_PREEMPT``, ``CONFIG_DE_PREEMPT``,
+    ``CONFIG_DE_SLAB``, ``CONFIG_DE_PAGEALLOC``, ``CONFIG_DE_MUTEXES``,
+    ``CONFIG_DE_SPINLOCK``, ``CONFIG_DE_ATOMIC_SLEEP``,
+    ``CONFIG_PROVE_RCU`` and ``CONFIG_DE_OBJECTS_RCU_HEAD`` all
     simultaneously enabled.
 
 13) Has been build- and runtime tested with and without ``CONFIG_SMP`` and
@@ -99,7 +99,7 @@ and elsewhere regarding submitting Linux kernel patches.
 
 22) Newly-added code has been compiled with ``gcc -W`` (use
     ``make EXTRA_CFLAGS=-W``).  This will generate lots of noise, but is good
-    for finding bugs like "warning: comparison between signed and unsigned".
+    for finding s like "warning: comparison between signed and unsigned".
 
 23) Tested after it has been merged into the -mm patchset to make sure
     that it still works with all of the other queued patches and various

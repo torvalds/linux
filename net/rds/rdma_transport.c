@@ -54,7 +54,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 	int *err;
 	u8 len;
 
-	rdsdebug("conn %p id %p handling event %u (%s)\n", conn, cm_id,
+	rdsde("conn %p id %p handling event %u (%s)\n", conn, cm_id,
 		 event->event, rdma_event_msg(event->event));
 
 	if (cm_id->device->node_type == RDMA_NODE_IB_CA)
@@ -119,7 +119,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 			conn->c_tos = 0;
 			rds_conn_drop(conn);
 		}
-		rdsdebug("Connection rejected: %s\n",
+		rdsde("Connection rejected: %s\n",
 			 rdma_reject_msg(cm_id, event->status));
 		break;
 		/* FALLTHROUGH */
@@ -134,7 +134,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_DISCONNECTED:
-		rdsdebug("DISCONNECT event - dropping connection "
+		rdsde("DISCONNECT event - dropping connection "
 			 "%pI6c->%pI6c\n", &conn->c_laddr,
 			 &conn->c_faddr);
 		rds_conn_drop(conn);
@@ -159,7 +159,7 @@ out:
 	if (conn)
 		mutex_unlock(&conn->c_cm_lock);
 
-	rdsdebug("id %p event %u (%s) handling ret %d\n", cm_id, event->event,
+	rdsde("id %p event %u (%s) handling ret %d\n", cm_id, event->event,
 		 rdma_event_msg(event->event), ret);
 
 	return ret;
@@ -213,7 +213,7 @@ static int rds_rdma_listen_init_common(rdma_cm_event_handler handler,
 		goto out;
 	}
 
-	rdsdebug("cm %p listening on port %u\n", cm_id, RDS_PORT);
+	rdsde("cm %p listening on port %u\n", cm_id, RDS_PORT);
 
 	*ret_cm_id = cm_id;
 	cm_id = NULL;
@@ -257,7 +257,7 @@ static int rds_rdma_listen_init(void)
 					  &rds6_rdma_listen_id);
 	/* Keep going even when IPv6 is not enabled in the system. */
 	if (ret != 0)
-		rdsdebug("Cannot set up IPv6 RDMA listener\n");
+		rdsde("Cannot set up IPv6 RDMA listener\n");
 #endif
 	return 0;
 }
@@ -265,13 +265,13 @@ static int rds_rdma_listen_init(void)
 static void rds_rdma_listen_stop(void)
 {
 	if (rds_rdma_listen_id) {
-		rdsdebug("cm %p\n", rds_rdma_listen_id);
+		rdsde("cm %p\n", rds_rdma_listen_id);
 		rdma_destroy_id(rds_rdma_listen_id);
 		rds_rdma_listen_id = NULL;
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	if (rds6_rdma_listen_id) {
-		rdsdebug("cm %p\n", rds6_rdma_listen_id);
+		rdsde("cm %p\n", rds6_rdma_listen_id);
 		rdma_destroy_id(rds6_rdma_listen_id);
 		rds6_rdma_listen_id = NULL;
 	}

@@ -193,7 +193,7 @@ where holding rq->lock is required to safely update a rq's clock.
 The other family of macros is lockdep_*pin_lock(), which is admittedly only
 used for rq->lock ATM. Despite their limited adoption these annotations
 generate a WARN() if the lock of interest is "accidentally" unlocked. This turns
-out to be especially helpful to debug code with callbacks, where an upper
+out to be especially helpful to de code with callbacks, where an upper
 layer assumes a lock remains taken, but a lower layer thinks it can maybe drop
 and reacquire the lock ("unwittingly" introducing races). lockdep_pin_lock()
 returns a 'struct pin_cookie' that is then used by lockdep_unpin_lock() to check
@@ -212,7 +212,7 @@ that nobody tampered with the lock, e.g. kernel/sched/sched.h
   }
 
 While comments about locking requirements might provide useful information,
-the runtime checks performed by annotations are invaluable when debugging
+the runtime checks performed by annotations are invaluable when deging
 locking problems and they carry the same level of details when inspecting
 code.  Always prefer annotations when in doubt!
 
@@ -275,7 +275,7 @@ Troubleshooting:
 The validator tracks a maximum of MAX_LOCKDEP_KEYS number of lock classes.
 Exceeding this number will trigger the following lockdep warning:
 
-	(DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
+	(DE_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
 
 By default, MAX_LOCKDEP_KEYS is currently set to 8191, and typical
 desktop systems have less than 1,000 lock classes, so this warning

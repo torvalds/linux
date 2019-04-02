@@ -2,7 +2,7 @@
 #define _KDB_H
 
 /*
- * Kernel Debugger Architecture Independent Global Headers
+ * Kernel Deger Architecture Independent Global Headers
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -74,7 +74,7 @@ extern int kdb_poll_idx;
 
 /*
  * kdb_initial_cpu is initialized to -1, and is set to the cpu
- * number whenever the kernel debugger is entered.
+ * number whenever the kernel deger is entered.
  */
 extern int kdb_initial_cpu;
 
@@ -135,16 +135,16 @@ extern void kdb_restore_flags(void);
 #define KDB_FLAG_CLEAR(flag)	((void)(kdb_flags &= ~KDB_FLAG_##flag))
 
 /*
- * External entry point for the kernel debugger.  The pt_regs
+ * External entry point for the kernel deger.  The pt_regs
  * at the time of entry are supplied along with the reason for
- * entry to the kernel debugger.
+ * entry to the kernel deger.
  */
 
 typedef enum {
 	KDB_REASON_ENTER = 1,	/* KDB_ENTER() trap/fault - regs valid */
 	KDB_REASON_ENTER_SLAVE,	/* KDB_ENTER_SLAVE() trap/fault - regs valid */
 	KDB_REASON_BREAK,	/* Breakpoint inst. - regs valid */
-	KDB_REASON_DEBUG,	/* Debug Fault - regs valid */
+	KDB_REASON_DE,	/* De Fault - regs valid */
 	KDB_REASON_OOPS,	/* Kernel Oops - regs valid */
 	KDB_REASON_SWITCH,	/* CPU switch - regs valid*/
 	KDB_REASON_KEYBOARD,	/* Keyboard entry - regs valid */

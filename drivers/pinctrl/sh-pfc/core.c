@@ -107,7 +107,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc, u32 reg)
 		return window->virt + (address - window->phys);
 	}
 
-	BUG();
+	();
 	return NULL;
 }
 
@@ -151,7 +151,7 @@ u32 sh_pfc_read_raw_reg(void __iomem *mapped_reg, unsigned int reg_width)
 		return ioread32(mapped_reg);
 	}
 
-	BUG();
+	();
 	return 0;
 }
 
@@ -170,7 +170,7 @@ void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
 		return;
 	}
 
-	BUG();
+	();
 }
 
 u32 sh_pfc_read(struct sh_pfc *pfc, u32 reg)

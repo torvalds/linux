@@ -233,7 +233,7 @@ again:
 	knc_pmu_ack_status(status);
 	if (++loops > 100) {
 		WARN_ONCE(1, "perf: irq loop stuck!\n");
-		perf_event_print_debug();
+		perf_event_print_de();
 		goto done;
 	}
 

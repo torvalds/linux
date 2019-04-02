@@ -39,8 +39,8 @@
 
 /* Spinlocks for Octeon */
 
-/* define these to enable recursive spinlock debugging */
-/*#define CVMX_SPINLOCK_DEBUG */
+/* define these to enable recursive spinlock deging */
+/*#define CVMX_SPINLOCK_DE */
 
 /**
  * Spinlocks for Octeon CVMX

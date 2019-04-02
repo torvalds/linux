@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  */
 
-//#define DEBUG
+//#define DE
 
 #include <linux/module.h>
 #include <linux/sched.h>

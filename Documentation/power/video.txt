@@ -30,7 +30,7 @@ entry so that work does not need to be repeated.
 
 Currently, VBE_SAVE method (6 below) works on most
 systems. Unfortunately, vbetool only runs after userland is resumed,
-so it makes debugging of early resume problems
+so it makes deging of early resume problems
 hard/impossible. Methods that do not rely on userland are preferable.
 
 Details

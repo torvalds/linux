@@ -19,8 +19,8 @@
  *
 */
 
-#ifndef _H_CIFS_DEBUG
-#define _H_CIFS_DEBUG
+#ifndef _H_CIFS_DE
+#define _H_CIFS_DE
 
 void cifs_dump_mem(char *label, void *data, int length);
 void cifs_dump_detail(void *buf, struct TCP_Server_Info *ptcp_info);
@@ -34,7 +34,7 @@ void dump_smb(void *, int);
 #define VFS 1
 #define FYI 2
 extern int cifsFYI;
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 #define NOISY 4
 #else
 #define NOISY 0
@@ -42,20 +42,20 @@ extern int cifsFYI;
 #define ONCE 8
 
 /*
- *	debug ON
+ *	de ON
  *	--------
  */
-#ifdef CONFIG_CIFS_DEBUG
+#ifdef CONFIG_CIFS_DE
 
 
 /*
- * When adding tracepoints and debug messages we have various choices.
+ * When adding tracepoints and de messages we have various choices.
  * Some considerations:
  *
  * Use cifs_dbg(VFS, ...) for things we always want logged, and the user to see
  *     cifs_info(...) slightly less important, admin can filter via loglevel > 6
- *     cifs_dbg(FYI, ...) minor debugging messages, off by default
- *     trace_smb3_*  ftrace functions are preferred for complex debug messages
+ *     cifs_dbg(FYI, ...) minor deging messages, off by default
+ *     trace_smb3_*  ftrace functions are preferred for complex de messages
  *                 intended for developers or experienced admins, off by default
  */
 
@@ -74,13 +74,13 @@ do { 								\
 #define cifs_dbg_func(ratefunc, type, fmt, ...)			\
 do {								\
 	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
-		pr_debug_ ## ratefunc("%s: "			\
+		pr_de_ ## ratefunc("%s: "			\
 				fmt, __FILE__, ##__VA_ARGS__);	\
 	} else if ((type) & VFS) {				\
 		pr_err_ ## ratefunc("CIFS VFS: "		\
 				 fmt, ##__VA_ARGS__);		\
 	} else if ((type) & NOISY && (NOISY != 0)) {		\
-		pr_debug_ ## ratefunc(fmt, ##__VA_ARGS__);	\
+		pr_de_ ## ratefunc(fmt, ##__VA_ARGS__);	\
 	}							\
 } while (0)
 
@@ -95,14 +95,14 @@ do {							\
 } while (0)
 
 /*
- *	debug OFF
+ *	de OFF
  *	---------
  */
-#else		/* _CIFS_DEBUG */
+#else		/* _CIFS_DE */
 #define cifs_dbg(type, fmt, ...)					\
 do {									\
 	if (0)								\
-		pr_debug(fmt, ##__VA_ARGS__);				\
+		pr_de(fmt, ##__VA_ARGS__);				\
 } while (0)
 
 #define cifs_info(fmt, ...)						\
@@ -111,4 +111,4 @@ do {									\
 } while (0)
 #endif
 
-#endif				/* _H_CIFS_DEBUG */
+#endif				/* _H_CIFS_DE */

@@ -442,7 +442,7 @@
  * Capability TLV types
  *
  * %NFP_NET_CFG_TLV_TYPE_UNKNOWN:
- * Special TLV type to catch bugs, should never be encountered.  Drivers should
+ * Special TLV type to catch s, should never be encountered.  Drivers should
  * treat encountering this type as error and refuse to probe.
  *
  * %NFP_NET_CFG_TLV_TYPE_RESERVED:

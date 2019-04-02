@@ -24,7 +24,7 @@
 #include <linux/psci.h>
 #include <asm/ptrace.h>
 
-#define __KVM_HAVE_GUEST_DEBUG
+#define __KVM_HAVE_GUEST_DE
 #define __KVM_HAVE_IRQ_LINE
 #define __KVM_HAVE_READONLY_MEM
 #define __KVM_HAVE_VCPU_EVENTS
@@ -112,10 +112,10 @@ struct kvm_sregs {
 struct kvm_fpu {
 };
 
-struct kvm_guest_debug_arch {
+struct kvm_guest_de_arch {
 };
 
-struct kvm_debug_exit_arch {
+struct kvm_de_exit_arch {
 };
 
 struct kvm_sync_regs {

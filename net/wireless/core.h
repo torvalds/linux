@@ -10,7 +10,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/rbtree.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
 #include <linux/rtnetlink.h>
@@ -111,7 +111,7 @@ struct cfg80211_registered_device {
 static inline
 struct cfg80211_registered_device *wiphy_to_rdev(struct wiphy *wiphy)
 {
-	BUG_ON(!wiphy);
+	_ON(!wiphy);
 	return container_of(wiphy, struct cfg80211_registered_device, wiphy);
 }
 

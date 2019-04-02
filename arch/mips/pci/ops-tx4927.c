@@ -44,7 +44,7 @@ static void __init set_tx4927_pcicptr(struct pci_controller *channel,
 			return;
 		}
 	}
-	BUG();
+	();
 }
 
 struct tx4927_pcic_reg __iomem *get_tx4927_pcicptr(
@@ -357,7 +357,7 @@ void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
 		     &pcicptr->pcistatus);
 	local_irq_restore(flags);
 
-	printk(KERN_DEBUG
+	printk(KERN_DE
 	       "PCI: COMMAND=%04x,PCIMASK=%04x,"
 	       "TRDYTO=%02x,RETRYTO=%02x,GBWC=%03x\n",
 	       __raw_readl(&pcicptr->pcistatus) & 0xffff,

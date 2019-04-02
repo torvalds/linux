@@ -343,7 +343,7 @@ static int vmw_gb_context_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -384,7 +384,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	uint8_t *cmd;
 
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_binding_state_scrub(uctx->cbs);
@@ -519,7 +519,7 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
 	} *cmd;
 	struct ttm_buffer_object *bo = val_buf->bo;
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
@@ -601,7 +601,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	uint8_t *cmd;
 
 
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_context_scrub_cotables(res, readback);

@@ -38,7 +38,7 @@ typedef u32 ppc_opcode_t;
 #define is_trap(instr)		(IS_TW(instr) || IS_TWI(instr))
 #endif /* CONFIG_PPC64 */
 
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 #define MSR_SINGLESTEP	(MSR_DE)
 #else
 #define MSR_SINGLESTEP	(MSR_SE)
@@ -48,7 +48,7 @@ typedef u32 ppc_opcode_t;
 static inline void enable_single_step(struct pt_regs *regs)
 {
 	regs->msr |= MSR_SINGLESTEP;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 	/*
 	 * We turn off Critical Input Exception(CE) to ensure that the single
 	 * step will be for the instruction we have the probe on; if we don't,

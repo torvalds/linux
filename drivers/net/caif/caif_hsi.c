@@ -1304,7 +1304,7 @@ static void cfhsi_netlink_parms(struct nlattr *data[], struct cfhsi *cfhsi)
 	int i;
 
 	if (!data) {
-		pr_debug("no params data found\n");
+		pr_de("no params data found\n");
 		return;
 	}
 

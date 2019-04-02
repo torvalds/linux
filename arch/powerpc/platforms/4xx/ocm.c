@@ -30,7 +30,7 @@
 #include <asm/rheap.h>
 #include <asm/ppc4xx_ocm.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #define OCM_DISABLED	0
 #define OCM_ENABLED		1
@@ -225,7 +225,7 @@ static void __init ocm_init_node(int count, struct device_node *node)
 	ocm->ready = 1;
 }
 
-static int ocm_debugfs_show(struct seq_file *m, void *v)
+static int ocm_defs_show(struct seq_file *m, void *v)
 {
 	struct ocm_block *blk, *tmp;
 	unsigned int i;
@@ -268,30 +268,30 @@ static int ocm_debugfs_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ocm_debugfs_open(struct inode *inode, struct file *file)
+static int ocm_defs_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ocm_debugfs_show, NULL);
+	return single_open(file, ocm_defs_show, NULL);
 }
 
-static const struct file_operations ocm_debugfs_fops = {
-	.open = ocm_debugfs_open,
+static const struct file_operations ocm_defs_fops = {
+	.open = ocm_defs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static int ocm_debugfs_init(void)
+static int ocm_defs_init(void)
 {
 	struct dentry *junk;
 
-	junk = debugfs_create_dir("ppc4xx_ocm", 0);
+	junk = defs_create_dir("ppc4xx_ocm", 0);
 	if (!junk) {
-		printk(KERN_ALERT "debugfs ppc4xx ocm: failed to create dir\n");
+		printk(KERN_ALERT "defs ppc4xx ocm: failed to create dir\n");
 		return -1;
 	}
 
-	if (debugfs_create_file("info", 0644, junk, NULL, &ocm_debugfs_fops)) {
-		printk(KERN_ALERT "debugfs ppc4xx ocm: failed to create file\n");
+	if (defs_create_file("info", 0644, junk, NULL, &ocm_defs_fops)) {
+		printk(KERN_ALERT "defs ppc4xx ocm: failed to create file\n");
 		return -1;
 	}
 
@@ -396,7 +396,7 @@ static int __init ppc4xx_ocm_init(void)
 		count++;
 	}
 
-	ocm_debugfs_init();
+	ocm_defs_init();
 
 	return 0;
 }

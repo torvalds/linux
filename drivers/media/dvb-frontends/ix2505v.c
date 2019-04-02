@@ -21,10 +21,10 @@
 
 #include "ix2505v.h"
 
-static int ix2505v_debug;
+static int ix2505v_de;
 #define dprintk(level, args...) do { \
-	if (ix2505v_debug & level) \
-		printk(KERN_DEBUG "ix2505v: " args); \
+	if (ix2505v_de & level) \
+		printk(KERN_DE "ix2505v: " args); \
 } while (0)
 
 #define deb_info(args...)  dprintk(0x01, args)
@@ -313,8 +313,8 @@ error:
 }
 EXPORT_SYMBOL(ix2505v_attach);
 
-module_param_named(debug, ix2505v_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param_named(de, ix2505v_de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 MODULE_DESCRIPTION("DVB IX2505V tuner driver");
 MODULE_AUTHOR("Malcolm Priestley");
 MODULE_LICENSE("GPL");

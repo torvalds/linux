@@ -447,21 +447,21 @@ typedef enum _InitialGainOpType {
 	IG_Max
 } InitialGainOpType;
 
-/* debug macros */
-#define CONFIG_IEEE80211_DEBUG
-#ifdef CONFIG_IEEE80211_DEBUG
-extern u32 ieee80211_debug_level;
-#define IEEE80211_DEBUG(level, fmt, args...) \
-do { if (ieee80211_debug_level & (level)) \
-  printk(KERN_DEBUG "ieee80211: " fmt, ## args); } while (0)
-//wb added to debug out data buf
-//if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
-#define IEEE80211_DEBUG_DATA(level, data, datalen)	\
-	do { if ((ieee80211_debug_level & (level)) == (level))	\
+/* de macros */
+#define CONFIG_IEEE80211_DE
+#ifdef CONFIG_IEEE80211_DE
+extern u32 ieee80211_de_level;
+#define IEEE80211_DE(level, fmt, args...) \
+do { if (ieee80211_de_level & (level)) \
+  printk(KERN_DE "ieee80211: " fmt, ## args); } while (0)
+//wb added to de out data buf
+//if you want print DATA buffer related BA, please set ieee80211_de_level to DATA|BA
+#define IEEE80211_DE_DATA(level, data, datalen)	\
+	do { if ((ieee80211_de_level & (level)) == (level))	\
 		{	\
 			int i;					\
 			u8 *pdata = (u8 *) data;			\
-			printk(KERN_DEBUG "ieee80211: %s()\n", __func__);	\
+			printk(KERN_DE "ieee80211: %s()\n", __func__);	\
 			for (i = 0; i < (int)(datalen); i++)			\
 			{						\
 				printk("%2x ", pdata[i]);		\
@@ -471,16 +471,16 @@ do { if (ieee80211_debug_level & (level)) \
 		}					\
 	} while (0)
 #else
-#define IEEE80211_DEBUG (level, fmt, args...) do {} while (0)
-#define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while(0)
-#endif	/* CONFIG_IEEE80211_DEBUG */
+#define IEEE80211_DE (level, fmt, args...) do {} while (0)
+#define IEEE80211_DE_DATA (level, data, datalen) do {} while(0)
+#endif	/* CONFIG_IEEE80211_DE */
 
-/* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
+/* de macros not dependent on CONFIG_IEEE80211_DE */
 
 /*
- * To use the debug system;
+ * To use the de system;
  *
- * If you are defining a new debug classification, simply add it to the #define
+ * If you are defining a new de classification, simply add it to the #define
  * list here in the form of:
  *
  * #define IEEE80211_DL_xxxx VALUE
@@ -488,18 +488,18 @@ do { if (ieee80211_debug_level & (level)) \
  * shifting value to the left one bit from the previous entry.  xxxx should be
  * the name of the classification (for example, WEP)
  *
- * You then need to either add a IEEE80211_xxxx_DEBUG() macro definition for your
- * classification, or use IEEE80211_DEBUG(IEEE80211_DL_xxxx, ...) whenever you want
+ * You then need to either add a IEEE80211_xxxx_DE() macro definition for your
+ * classification, or use IEEE80211_DE(IEEE80211_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
- * To add your debug level to the list of levels seen when you perform
+ * To add your de level to the list of levels seen when you perform
  *
- * % cat /proc/net/ipw/debug_level
+ * % cat /proc/net/ipw/de_level
  *
- * you simply need to add your entry to the ipw_debug_levels array.
+ * you simply need to add your entry to the ipw_de_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
- * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
+ * If you do not see de_level in /proc/net/ipw then you do not have
+ * CONFIG_IEEE80211_DE defined in your kernel configuration
  *
  */
 
@@ -527,18 +527,18 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DL_ERR	   (1<<31)   //always open
 #define IEEE80211_ERROR(f, a...) printk(KERN_ERR "ieee80211: " f, ## a)
 #define IEEE80211_WARNING(f, a...) printk(KERN_WARNING "ieee80211: " f, ## a)
-#define IEEE80211_DEBUG_INFO(f, a...)   IEEE80211_DEBUG(IEEE80211_DL_INFO, f, ## a)
+#define IEEE80211_DE_INFO(f, a...)   IEEE80211_DE(IEEE80211_DL_INFO, f, ## a)
 
-#define IEEE80211_DEBUG_WX(f, a...)     IEEE80211_DEBUG(IEEE80211_DL_WX, f, ## a)
-#define IEEE80211_DEBUG_SCAN(f, a...)   IEEE80211_DEBUG(IEEE80211_DL_SCAN, f, ## a)
-#define IEEE80211_DEBUG_STATE(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_STATE, f, ## a)
-#define IEEE80211_DEBUG_MGMT(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_MGMT, f, ## a)
-#define IEEE80211_DEBUG_FRAG(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_FRAG, f, ## a)
-#define IEEE80211_DEBUG_EAP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_EAP, f, ## a)
-#define IEEE80211_DEBUG_DROP(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_DROP, f, ## a)
-#define IEEE80211_DEBUG_TX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_TX, f, ## a)
-#define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
-#define IEEE80211_DEBUG_QOS(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_QOS, f, ## a)
+#define IEEE80211_DE_WX(f, a...)     IEEE80211_DE(IEEE80211_DL_WX, f, ## a)
+#define IEEE80211_DE_SCAN(f, a...)   IEEE80211_DE(IEEE80211_DL_SCAN, f, ## a)
+#define IEEE80211_DE_STATE(f, a...)  IEEE80211_DE(IEEE80211_DL_STATE, f, ## a)
+#define IEEE80211_DE_MGMT(f, a...)  IEEE80211_DE(IEEE80211_DL_MGMT, f, ## a)
+#define IEEE80211_DE_FRAG(f, a...)  IEEE80211_DE(IEEE80211_DL_FRAG, f, ## a)
+#define IEEE80211_DE_EAP(f, a...)  IEEE80211_DE(IEEE80211_DL_EAP, f, ## a)
+#define IEEE80211_DE_DROP(f, a...)  IEEE80211_DE(IEEE80211_DL_DROP, f, ## a)
+#define IEEE80211_DE_TX(f, a...)  IEEE80211_DE(IEEE80211_DL_TX, f, ## a)
+#define IEEE80211_DE_RX(f, a...)  IEEE80211_DE(IEEE80211_DL_RX, f, ## a)
+#define IEEE80211_DE_QOS(f, a...)  IEEE80211_DE(IEEE80211_DL_QOS, f, ## a)
 
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
 
@@ -1336,7 +1336,7 @@ struct ieee80211_network {
 	bool	bMBssidValid;
 	u8	MBssid[ETH_ALEN];    /* u16 aligned! */
 	u8	MBssidMask;
-	/* Ensure null-terminated for any debug msgs */
+	/* Ensure null-terminated for any de msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 	struct ieee80211_qos_data qos_data;
@@ -2323,8 +2323,8 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 			  union iwreq_data *wrqu, char *b);
 
 /* ieee80211_module.c */
-int ieee80211_debug_init(void);
-void ieee80211_debug_exit(void);
+int ieee80211_de_init(void);
+void ieee80211_de_exit(void);
 
 //extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 void ieee80211_wx_sync_scan_wq(struct work_struct *work);
@@ -2355,8 +2355,8 @@ int ieee80211_wx_get_rts(struct ieee80211_device *ieee,
 			 union iwreq_data *wrqu, char *extra);
 //HT
 #define MAX_RECEIVE_BUFFER_SIZE 9100  //
-void HTDebugHTCapability(u8 *CapIE, u8 *TitleString);
-void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString);
+void HTDeHTCapability(u8 *CapIE, u8 *TitleString);
+void HTDeHTInfo(u8 *InfoIE, u8 *TitleString);
 
 void HTSetConnectBwMode(struct ieee80211_device *ieee,
 			enum ht_channel_width Bandwidth, enum ht_extension_chan_offset Offset);

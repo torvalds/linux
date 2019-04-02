@@ -37,8 +37,8 @@ static const char version[] =
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1; 			/* 1 normal messages, 0 quiet .. 7 verbose. */
-#define net_debug debug
+static int de = 1; 			/* 1 normal messages, 0 quiet .. 7 verbose. */
+#define net_de de
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 15;
@@ -150,12 +150,12 @@ MODULE_DESCRIPTION("RealTek RTL8002/8012 parallel port Ethernet driver");
 MODULE_LICENSE("GPL");
 
 module_param(max_interrupt_work, int, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param_hw_array(io, int, ioport, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_array(xcvr, int, NULL, 0);
 MODULE_PARM_DESC(max_interrupt_work, "ATP maximum events handled per interrupt");
-MODULE_PARM_DESC(debug, "ATP debug level (0-7)");
+MODULE_PARM_DESC(de, "ATP de level (0-7)");
 MODULE_PARM_DESC(io, "ATP I/O base address(es)");
 MODULE_PARM_DESC(irq, "ATP IRQ number(s)");
 MODULE_PARM_DESC(xcvr, "ATP transceiver(s) (0=internal, 1=external)");
@@ -261,12 +261,12 @@ static int __init atp_probe1(long ioaddr)
 	/* Save the original value of the Control register, in case we guessed
 	   wrong. */
 	saved_ctrl_reg = inb(ioaddr + PAR_CONTROL);
-	if (net_debug > 3)
+	if (net_de > 3)
 		printk("atp: Control register was %#2.2x.\n", saved_ctrl_reg);
 	/* IRQEN=0, SLCTB=high INITB=high, AUTOFDB=high, STBB=high. */
 	outb(0x04, ioaddr + PAR_CONTROL);
 #ifndef final_version
-	if (net_debug > 3) {
+	if (net_de > 3) {
 		/* Turn off the printer multiplexer on the 8012. */
 		for (i = 0; i < 8; i++)
 			outb(mux_8012[i], ioaddr + PAR_DATA);
@@ -284,8 +284,8 @@ static int __init atp_probe1(long ioaddr)
 	/* udelay() here? */
 	status = read_nibble(ioaddr, CMR1);
 
-	if (net_debug > 3) {
-		printk(KERN_DEBUG "atp: Status nibble was %#2.2x..", status);
+	if (net_de > 3) {
+		printk(KERN_DE "atp: Status nibble was %#2.2x..", status);
 		for (i = 0; i < 32; i++)
 			printk(" %2.2x", read_nibble(ioaddr, i));
 		printk("\n");
@@ -326,7 +326,7 @@ static int __init atp_probe1(long ioaddr)
 	get_node_ID(dev);
 
 #ifndef MODULE
-	if (net_debug)
+	if (net_de)
 		printk(KERN_INFO "%s", version);
 #endif
 
@@ -347,7 +347,7 @@ static int __init atp_probe1(long ioaddr)
 	else
 		dev->if_port = (dev->mem_start & 0xf) ? (dev->mem_start & 0x7) : 4;
 	if (dev->mem_end & 0xf)
-		net_debug = dev->mem_end & 7;
+		net_de = dev->mem_end & 7;
 
 	dev->netdev_ops 	= &atp_netdev_ops;
 	dev->watchdog_timeo	= TX_TIMEOUT;
@@ -466,8 +466,8 @@ static void hardware_init(struct net_device *dev)
 
 	write_reg_high(ioaddr, CMR2, lp->addr_mode);
 
-	if (net_debug > 2) {
-		printk(KERN_DEBUG "%s: Reset: current Rx mode %d.\n", dev->name,
+	if (net_de > 2) {
+		printk(KERN_DE "%s: Reset: current Rx mode %d.\n", dev->name,
 			   (read_nibble(ioaddr, CMR2_h) >> 3) & 0x0f);
 	}
 
@@ -610,11 +610,11 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 	write_reg(ioaddr, CMR2, CMR2_NULL);
 	write_reg(ioaddr, IMR, 0);
 
-	if (net_debug > 5)
-		printk(KERN_DEBUG "%s: In interrupt ", dev->name);
+	if (net_de > 5)
+		printk(KERN_DE "%s: In interrupt ", dev->name);
 	while (--boguscount > 0) {
 		int status = read_nibble(ioaddr, ISR);
-		if (net_debug > 5)
+		if (net_de > 5)
 			printk("loop status %02x..", status);
 
 		if (status & (ISR_RxOK<<3)) {
@@ -622,7 +622,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 			write_reg(ioaddr, ISR, ISR_RxOK); /* Clear the Rx interrupt. */
 			do {
 				int read_status = read_nibble(ioaddr, CMR1);
-				if (net_debug > 6)
+				if (net_de > 6)
 					printk("handling Rx packet %02x..", read_status);
 				/* We acknowledged the normal Rx interrupt, so if the interrupt
 				   is still outstanding we must have a Rx error. */
@@ -642,7 +642,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 			} while (--boguscount > 0);
 		} else if (status & ((ISR_TxErr + ISR_TxOK)<<3)) {
 			handled = 1;
-			if (net_debug > 6)
+			if (net_de > 6)
 				printk("handling Tx done..");
 			/* Clear the Tx interrupt.  We should check for too many failures
 			   and reinitialize the adapter. */
@@ -655,7 +655,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 					break;
 				}
 				/* Attempt to retransmit. */
-				if (net_debug > 6)  printk("attempting to ReTx");
+				if (net_de > 6)  printk("attempting to ReTx");
 				write_reg(ioaddr, CMR1, CMR1_ReXmit + CMR1_Xmit);
 			} else {
 				/* Finish up the transmit. */
@@ -672,8 +672,8 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 			num_tx_since_rx++;
 		} else if (num_tx_since_rx > 8 &&
 			   time_after(jiffies, lp->last_rx_time + HZ)) {
-			if (net_debug > 2)
-				printk(KERN_DEBUG "%s: Missed packet? No Rx after %d Tx and "
+			if (net_de > 2)
+				printk(KERN_DE "%s: Missed packet? No Rx after %d Tx and "
 					   "%ld jiffies status %02x  CMR1 %02x.\n", dev->name,
 					   num_tx_since_rx, jiffies - lp->last_rx_time, status,
 					   (read_nibble(ioaddr, CMR1) >> 3) & 15);
@@ -706,7 +706,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 
 	spin_unlock(&lp->lock);
 
-	if (net_debug > 5) printk("exiting interrupt.\n");
+	if (net_de > 5) printk("exiting interrupt.\n");
 	return IRQ_RETVAL(handled);
 }
 
@@ -760,15 +760,15 @@ static void net_rx(struct net_device *dev)
 	/* Process the received packet. */
 	outb(EOC+MAR, ioaddr + PAR_DATA);
 	read_block(ioaddr, 8, (unsigned char*)&rx_head, dev->if_port);
-	if (net_debug > 5)
-		printk(KERN_DEBUG " rx_count %04x %04x %04x %04x..", rx_head.pad,
+	if (net_de > 5)
+		printk(KERN_DE " rx_count %04x %04x %04x %04x..", rx_head.pad,
 			   rx_head.rx_count, rx_head.rx_status, rx_head.cur_addr);
 	if ((rx_head.rx_status & 0x77) != 0x01) {
 		dev->stats.rx_errors++;
 		if (rx_head.rx_status & 0x0004) dev->stats.rx_frame_errors++;
 		else if (rx_head.rx_status & 0x0002) dev->stats.rx_crc_errors++;
-		if (net_debug > 3)
-			printk(KERN_DEBUG "%s: Unknown ATP Rx error %04x.\n",
+		if (net_de > 3)
+			printk(KERN_DE "%s: Unknown ATP Rx error %04x.\n",
 				   dev->name, rx_head.rx_status);
 		if  (rx_head.rx_status & 0x0020) {
 			dev->stats.rx_fifo_errors++;
@@ -862,7 +862,7 @@ static void set_rx_mode(struct net_device *dev)
 }
 
 static int __init atp_init_module(void) {
-	if (debug)					/* Emit version even if no cards detected. */
+	if (de)					/* Emit version even if no cards detected. */
 		printk(KERN_INFO "%s", version);
 	return atp_init();
 }

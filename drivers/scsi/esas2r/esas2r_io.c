@@ -737,10 +737,10 @@ void esas2r_timer_tick(struct esas2r_adapter *a)
 				if ((currtime - a->heartbeat_time) >=
 				    ESAS2R_HEARTBEAT_TIME) {
 					clear_bit(AF_HEARTBEAT, &a->flags);
-					esas2r_hdebug("heartbeat failed");
+					esas2r_hde("heartbeat failed");
 					esas2r_log(ESAS2R_LOG_CRIT,
 						   "heartbeat failed");
-					esas2r_bugon();
+					esas2r_on();
 					esas2r_local_reset_adapter(a);
 				}
 			} else {

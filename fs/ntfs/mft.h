@@ -104,7 +104,7 @@ static inline int write_mft_record(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	struct page *page = ni->page;
 	int err;
 
-	BUG_ON(!page);
+	_ON(!page);
 	lock_page(page);
 	err = write_mft_record_nolock(ni, m, sync);
 	unlock_page(page);

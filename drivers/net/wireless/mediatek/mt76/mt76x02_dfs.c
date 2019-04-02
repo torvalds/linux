@@ -576,7 +576,7 @@ static void mt76x02_dfs_add_events(struct mt76x02_dev *dev)
 	struct mt76x02_dfs_event event;
 	int i, seq_len;
 
-	/* disable debug mode */
+	/* disable de mode */
 	mt76x02_dfs_set_capture_mode_ctrl(dev, false);
 	for (i = 0; i < MT_DFS_EVENT_LOOP; i++) {
 		if (!mt76x02_dfs_fetch_event(dev, &event))
@@ -839,7 +839,7 @@ void mt76x02_dfs_init_params(struct mt76x02_dev *dev)
 	    dev->dfs_pd.region != NL80211_DFS_UNSET) {
 		mt76x02_dfs_init_sw_detector(dev);
 		mt76x02_dfs_set_bbp_params(dev);
-		/* enable debug mode */
+		/* enable de mode */
 		mt76x02_dfs_set_capture_mode_ctrl(dev, true);
 
 		mt76x02_irq_enable(dev, MT_INT_GPTIMER);

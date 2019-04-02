@@ -258,24 +258,24 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	piic = 1000000000ULL * hvis;
 	do_div(piic, outd->h_vis);
 
-	dprintk(KERN_DEBUG "Want %u kHz pixclock\n", (unsigned int)piic);
+	dprintk(KERN_DE "Want %u kHz pixclock\n", (unsigned int)piic);
 	
 	mnp = matroxfb_g450_setclk(minfo, piic, M_VIDEO_PLL);
 	
 	mt->mnp = mnp;
 	mt->pixclock = g450_mnp2f(minfo, mnp);
 
-	dprintk(KERN_DEBUG "MNP=%08X\n", mnp);
+	dprintk(KERN_DE "MNP=%08X\n", mnp);
 
 	pixclock = 1000000000U / mt->pixclock;
 
-	dprintk(KERN_DEBUG "Got %u ps pixclock\n", pixclock);
+	dprintk(KERN_DE "Got %u ps pixclock\n", pixclock);
 
 	piic = outd->chromasc;
 	do_div(piic, mt->pixclock);
 	chromasc = piic;
 	
-	dprintk(KERN_DEBUG "Chroma is %08X\n", chromasc);
+	dprintk(KERN_DE "Chroma is %08X\n", chromasc);
 
 	r->regs[0] = piic >> 24;
 	r->regs[1] = piic >> 16;
@@ -287,7 +287,7 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	hlen = hvis + hfp + hsl + hbp;
 	over = hlen & 0x0F;
 	
-	dprintk(KERN_DEBUG "WL: vis=%u, hf=%u, hs=%u, hb=%u, total=%u\n", hvis, hfp, hsl, hbp, hlen);
+	dprintk(KERN_DE "WL: vis=%u, hf=%u, hs=%u, hb=%u, total=%u\n", hvis, hfp, hsl, hbp, hlen);
 
 	if (over) {
 		hfp -= over;
@@ -310,14 +310,14 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	r->regs[0x31] = hvis / 8;
 	r->regs[0x32] = hvis & 7;
 	
-	dprintk(KERN_DEBUG "PG: vis=%04X, hf=%02X, hs=%02X, hb=%02X, total=%04X\n", hvis, hfp, hsl, hbp, hlen);
+	dprintk(KERN_DE "PG: vis=%04X, hf=%02X, hs=%02X, hb=%02X, total=%04X\n", hvis, hfp, hsl, hbp, hlen);
 
 	r->regs[0x84] = 1;	/* x sync point */
 	r->regs[0x85] = 0;
 	hvis = hvis >> 1;
 	hlen = hlen >> 1;
 	
-	dprintk(KERN_DEBUG "hlen=%u hvis=%u\n", hlen, hvis);
+	dprintk(KERN_DE "hlen=%u hvis=%u\n", hlen, hvis);
 
 	mt->interlaced = 1;
 
@@ -520,7 +520,7 @@ static void cve2_init_TV(struct matrox_fb_info *minfo,
 static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
 	struct matrox_fb_info *minfo = md;
 
-	dprintk(KERN_DEBUG "Computing, mode=%u\n", minfo->outputs[1].mode);
+	dprintk(KERN_DE "Computing, mode=%u\n", minfo->outputs[1].mode);
 
 	if (mt->crtc == MATROXFB_SRC_CRTC2 &&
 	    minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
@@ -551,7 +551,7 @@ static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
 		mt->mnp = matroxfb_g450_setclk(minfo, mt->pixclock, (mt->crtc == MATROXFB_SRC_CRTC1) ? M_PIXEL_PLL_C : M_VIDEO_PLL);
 		mt->pixclock = g450_mnp2f(minfo, mt->mnp);
 	}
-	dprintk(KERN_DEBUG "Pixclock = %u\n", mt->pixclock);
+	dprintk(KERN_DE "Pixclock = %u\n", mt->pixclock);
 	return 0;
 }
 

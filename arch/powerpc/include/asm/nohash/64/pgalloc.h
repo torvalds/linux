@@ -131,7 +131,7 @@ static inline void pgtable_free(void *table, int shift)
 		pgtable_page_dtor(virt_to_page(table));
 		free_page((unsigned long)table);
 	} else {
-		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+		_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 		kmem_cache_free(PGT_CACHE(shift), table);
 	}
 }
@@ -142,7 +142,7 @@ static inline void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shi
 {
 	unsigned long pgf = (unsigned long)table;
 
-	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+	_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 	pgf |= shift;
 	tlb_remove_table(tlb, (void *)pgf);
 }

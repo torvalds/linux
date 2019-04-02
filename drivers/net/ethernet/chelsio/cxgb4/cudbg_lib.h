@@ -176,7 +176,7 @@ int cudbg_collect_qdesc(struct cudbg_init *pdbg_init,
 			struct cudbg_error *cudbg_err);
 
 struct cudbg_entity_hdr *cudbg_get_entity_hdr(void *outbuf, int i);
-void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
+void cudbg_align_de_buffer(struct cudbg_buffer *dbg_buff,
 			      struct cudbg_entity_hdr *entity_hdr);
 u32 cudbg_cim_obq_size(struct adapter *padap, int qid);
 int cudbg_dump_context_size(struct adapter *padap);

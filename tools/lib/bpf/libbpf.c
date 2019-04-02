@@ -57,7 +57,7 @@
 static int __base_pr(enum libbpf_print_level level, const char *format,
 		     va_list args)
 {
-	if (level == LIBBPF_DEBUG)
+	if (level == LIBBPF_DE)
 		return 0;
 
 	return vfprintf(stderr, format, args);
@@ -377,7 +377,7 @@ bpf_object__add_program(struct bpf_object *obj, void *data, size_t size,
 		return -ENOMEM;
 	}
 
-	pr_debug("found program %s\n", prog.section_name);
+	pr_de("found program %s\n", prog.section_name);
 	obj->programs = progs;
 	obj->nr_programs = nr_progs + 1;
 	prog.obj = obj;
@@ -584,7 +584,7 @@ bpf_object__init_license(struct bpf_object *obj,
 {
 	memcpy(obj->license, data,
 	       min(size, sizeof(obj->license) - 1));
-	pr_debug("license of %s is %s\n", obj->path, obj->license);
+	pr_de("license of %s is %s\n", obj->path, obj->license);
 	return 0;
 }
 
@@ -600,7 +600,7 @@ bpf_object__init_kversion(struct bpf_object *obj,
 	}
 	memcpy(&kver, data, sizeof(kver));
 	obj->kern_version = kver;
-	pr_debug("kernel version of %s is %x\n", obj->path,
+	pr_de("kernel version of %s is %x\n", obj->path,
 		 obj->kern_version);
 	return 0;
 }
@@ -662,7 +662,7 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 	}
 
 	/* Alloc obj->maps and fill nr_maps. */
-	pr_debug("maps in %s: %d maps in %zd bytes\n", obj->path,
+	pr_de("maps in %s: %d maps in %zd bytes\n", obj->path,
 		 nr_maps, data->d_size);
 
 	if (!nr_maps)
@@ -722,7 +722,7 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 			pr_warning("failed to alloc map name\n");
 			return -ENOMEM;
 		}
-		pr_debug("map %d is \"%s\"\n", map_idx,
+		pr_de("map %d is \"%s\"\n", map_idx,
 			 obj->maps[map_idx].name);
 		def = (struct bpf_map_def *)(data->d_buf + sym.st_value);
 		/*
@@ -823,7 +823,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			err = -LIBBPF_ERRNO__FORMAT;
 			goto out;
 		}
-		pr_debug("section(%d) %s, size %ld, link %d, flags %lx, type=%d\n",
+		pr_de("section(%d) %s, size %ld, link %d, flags %lx, type=%d\n",
 			 idx, name, (unsigned long)data->d_size,
 			 (int)sh.sh_link, (unsigned long)sh.sh_flags,
 			 (int)sh.sh_type);
@@ -887,7 +887,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 
 			/* Only do relo for section with exec instructions */
 			if (!section_have_execinstr(obj, sec)) {
-				pr_debug("skip relo %s(%d) for section(%d)\n",
+				pr_de("skip relo %s(%d) for section(%d)\n",
 					 name, idx, sec);
 				continue;
 			}
@@ -907,7 +907,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				obj->efile.reloc[n].data = data;
 			}
 		} else {
-			pr_debug("skip section(%d) %s\n", idx, name);
+			pr_de("skip section(%d) %s\n", idx, name);
 		}
 		if (err)
 			goto out;
@@ -919,7 +919,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 	}
 	if (btf_ext_data) {
 		if (!obj->btf) {
-			pr_debug("Ignore ELF section %s because its depending ELF section %s is not found.\n",
+			pr_de("Ignore ELF section %s because its depending ELF section %s is not found.\n",
 				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
 		} else {
 			obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
@@ -979,7 +979,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 	size_t nr_maps = obj->nr_maps;
 	int i, nrels;
 
-	pr_debug("collecting relocating info for: '%s'\n",
+	pr_de("collecting relocating info for: '%s'\n",
 		 prog->section_name);
 	nrels = shdr->sh_size / shdr->sh_entsize;
 
@@ -1009,7 +1009,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 				   GELF_R_SYM(rel.r_info));
 			return -LIBBPF_ERRNO__FORMAT;
 		}
-		pr_debug("relo for %lld value %lld name %d\n",
+		pr_de("relo for %lld value %lld name %d\n",
 			 (long long) (rel.r_info >> 32),
 			 (long long) sym.st_value, sym.st_name);
 
@@ -1020,7 +1020,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 		}
 
 		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
-		pr_debug("relocation: insn_idx=%u\n", insn_idx);
+		pr_de("relocation: insn_idx=%u\n", insn_idx);
 
 		if (insns[insn_idx].code == (BPF_JMP | BPF_CALL)) {
 			if (insns[insn_idx].src_reg != BPF_PSEUDO_CALL) {
@@ -1043,7 +1043,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 		/* TODO: 'maps' is sorted. We can use bsearch to make it faster. */
 		for (map_idx = 0; map_idx < nr_maps; map_idx++) {
 			if (maps[map_idx].offset == sym.st_value) {
-				pr_debug("relocation: find map %zd (%s) for insn %u\n",
+				pr_de("relocation: find map %zd (%s) for insn %u\n",
 					 map_idx, maps[map_idx].name, insn_idx);
 				break;
 			}
@@ -1201,7 +1201,7 @@ bpf_object__create_maps(struct bpf_object *obj)
 		int *pfd = &map->fd;
 
 		if (map->fd >= 0) {
-			pr_debug("skip map create (preset) %s: fd=%d\n",
+			pr_de("skip map create (preset) %s: fd=%d\n",
 				 map->name, map->fd);
 			continue;
 		}
@@ -1251,7 +1251,7 @@ bpf_object__create_maps(struct bpf_object *obj)
 				zclose(obj->maps[j].fd);
 			return err;
 		}
-		pr_debug("create map %s: fd=%d\n", map->name, *pfd);
+		pr_de("create map %s: fd=%d\n", map->name, *pfd);
 	}
 
 	return 0;
@@ -1377,7 +1377,7 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 		prog->insns = new_insn;
 		prog->main_prog_cnt = prog->insns_cnt;
 		prog->insns_cnt = new_cnt;
-		pr_debug("added %zd insn from %s to prog %s\n",
+		pr_de("added %zd insn from %s to prog %s\n",
 			 text->insns_cnt, text->section_name,
 			 prog->section_name);
 	}
@@ -1614,7 +1614,7 @@ bpf_program__load(struct bpf_program *prog,
 		}
 
 		if (!result.new_insn_ptr || !result.new_insn_cnt) {
-			pr_debug("Skip loading the %dth instance of program '%s'\n",
+			pr_de("Skip loading the %dth instance of program '%s'\n",
 				 i, prog->section_name);
 			prog->instances.fds[i] = -1;
 			if (result.pfd)
@@ -1747,7 +1747,7 @@ struct bpf_object *__bpf_object__open_xattr(struct bpf_object_open_attr *attr,
 	if (!attr->file)
 		return NULL;
 
-	pr_debug("loading %s\n", attr->file);
+	pr_de("loading %s\n", attr->file);
 
 	return __bpf_object__open(attr->file, NULL, 0,
 				  bpf_prog_type__needs_kver(attr->prog_type),
@@ -1786,7 +1786,7 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 		tmp_name[sizeof(tmp_name) - 1] = '\0';
 		name = tmp_name;
 	}
-	pr_debug("loading object '%s' from buffer\n",
+	pr_de("loading object '%s' from buffer\n",
 		 name);
 
 	return __bpf_object__open(name, obj_buf, obj_buf_sz, true, true);
@@ -1890,7 +1890,7 @@ int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
 		pr_warning("failed to pin program: %s\n", cp);
 		return -errno;
 	}
-	pr_debug("pinned program '%s'\n", path);
+	pr_de("pinned program '%s'\n", path);
 
 	return 0;
 }
@@ -1918,7 +1918,7 @@ int bpf_program__unpin_instance(struct bpf_program *prog, const char *path,
 	err = unlink(path);
 	if (err != 0)
 		return -errno;
-	pr_debug("unpinned program '%s'\n", path);
+	pr_de("unpinned program '%s'\n", path);
 
 	return 0;
 }
@@ -2071,7 +2071,7 @@ int bpf_map__pin(struct bpf_map *map, const char *path)
 		return -errno;
 	}
 
-	pr_debug("pinned map '%s'\n", path);
+	pr_de("pinned map '%s'\n", path);
 
 	return 0;
 }
@@ -2092,7 +2092,7 @@ int bpf_map__unpin(struct bpf_map *map, const char *path)
 	err = unlink(path);
 	if (err != 0)
 		return -errno;
-	pr_debug("unpinned map '%s'\n", path);
+	pr_de("unpinned map '%s'\n", path);
 
 	return 0;
 }
@@ -3121,7 +3121,7 @@ bpf_program__get_prog_info_linear(int fd, __u64 arrays)
 	/* step 1: get array dimensions */
 	err = bpf_obj_get_info_by_fd(fd, &info, &info_len);
 	if (err) {
-		pr_debug("can't get prog info: %s", strerror(errno));
+		pr_de("can't get prog info: %s", strerror(errno));
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -3184,7 +3184,7 @@ bpf_program__get_prog_info_linear(int fd, __u64 arrays)
 	/* step 5: call syscall again to get required arrays */
 	err = bpf_obj_get_info_by_fd(fd, &info_linear->info, &info_len);
 	if (err) {
-		pr_debug("can't get prog info: %s", strerror(errno));
+		pr_de("can't get prog info: %s", strerror(errno));
 		free(info_linear);
 		return ERR_PTR(-EFAULT);
 	}

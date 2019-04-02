@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * xhci-dbc.h - xHCI debug capability early driver
+ * xhci-dbc.h - xHCI de capability early driver
  *
  * Copyright (C) 2016 Intel Corporation
  *
@@ -14,7 +14,7 @@
 #include <linux/usb/ch9.h>
 
 /*
- * xHCI Debug Capability Register interfaces:
+ * xHCI De Capability Register interfaces:
  */
 struct xdbc_regs {
 	__le32	capability;
@@ -27,12 +27,12 @@ struct xdbc_regs {
 	__le32	status;
 	__le32	portsc;		/* Port status and control */
 	__le32	__reserved_1;	/* 2b~28 reserved bits */
-	__le64	dccp;		/* Debug Capability Context Pointer */
+	__le64	dccp;		/* De Capability Context Pointer */
 	__le32	devinfo1;	/* Device Descriptor Info Register 1 */
 	__le32	devinfo2;	/* Device Descriptor Info Register 2 */
 };
 
-#define DEBUG_MAX_BURST(p)	(((p) >> 16) & 0xff)
+#define DE_MAX_BURST(p)	(((p) >> 16) & 0xff)
 
 #define CTRL_DBC_RUN		BIT(0)
 #define CTRL_PORT_ENABLE	BIT(1)
@@ -41,7 +41,7 @@ struct xdbc_regs {
 #define CTRL_DBC_RUN_CHANGE	BIT(4)
 #define CTRL_DBC_ENABLE		BIT(31)
 
-#define DCST_DEBUG_PORT(p)	(((p) >> 24) & 0xff)
+#define DCST_DE_PORT(p)	(((p) >> 24) & 0xff)
 
 #define PORTSC_CONN_STATUS	BIT(0)
 #define PORTSC_CONN_CHANGE	BIT(17)
@@ -50,7 +50,7 @@ struct xdbc_regs {
 #define PORTSC_CONFIG_CHANGE	BIT(23)
 
 /*
- * xHCI Debug Capability data structures:
+ * xHCI De Capability data structures:
  */
 struct xdbc_trb {
 	__le32 field[4];
@@ -98,13 +98,13 @@ struct xdbc_strings {
 	char	serial[XDBC_MAX_STRING_LENGTH];
 };
 
-#define XDBC_PROTOCOL		1	/* GNU Remote Debug Command Set */
+#define XDBC_PROTOCOL		1	/* GNU Remote De Command Set */
 #define XDBC_VENDOR_ID		0x1d6b	/* Linux Foundation 0x1d6b */
 #define XDBC_PRODUCT_ID		0x0011	/* __le16 idProduct; device 0011 */
 #define XDBC_DEVICE_REV		0x0010	/* 0.10 */
 
 /*
- * xHCI Debug Capability software state structures:
+ * xHCI De Capability software state structures:
  */
 struct xdbc_segment {
 	struct xdbc_trb		*trbs;
@@ -150,7 +150,7 @@ struct xdbc_state {
 	struct xdbc_ring	evt_ring;
 	struct xdbc_segment	evt_seg;
 
-	/* debug capability contexts */
+	/* de capability contexts */
 	dma_addr_t		dbcc_dma;
 	size_t			dbcc_size;
 	void			*dbcc_base;

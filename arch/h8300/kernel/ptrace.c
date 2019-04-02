@@ -95,7 +95,7 @@ static int regs_get(struct task_struct *target,
 	long *reg = (long *)&regs;
 
 	/* build user regs in buffer */
-	BUILD_BUG_ON(sizeof(regs) % sizeof(long) != 0);
+	BUILD__ON(sizeof(regs) % sizeof(long) != 0);
 	for (r = 0; r < sizeof(regs) / sizeof(long); r++)
 		*reg++ = h8300_get_reg(target, r);
 
@@ -114,7 +114,7 @@ static int regs_set(struct task_struct *target,
 	long *reg;
 
 	/* build user regs in buffer */
-	BUILD_BUG_ON(sizeof(regs) % sizeof(long) != 0);
+	BUILD__ON(sizeof(regs) % sizeof(long) != 0);
 	for (reg = (long *)&regs, r = 0; r < sizeof(regs) / sizeof(long); r++)
 		*reg++ = h8300_get_reg(target, r);
 

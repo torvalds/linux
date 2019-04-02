@@ -158,7 +158,7 @@ static int mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 
 static int mpc85xx_l2ctlr_of_remove(struct platform_device *dev)
 {
-	BUG_ON(!l2ctlr);
+	_ON(!l2ctlr);
 
 	iounmap(l2ctlr);
 	remove_cache_sram(dev);

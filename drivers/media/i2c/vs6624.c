@@ -487,7 +487,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 	return &container_of(ctrl->handler, struct vs6624, hdl)->sd;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vs6624_read(struct v4l2_subdev *sd, u16 index)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -702,7 +702,7 @@ static int vs6624_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vs6624_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = vs6624_read(sd, reg->reg & 0xffff);
@@ -722,7 +722,7 @@ static const struct v4l2_ctrl_ops vs6624_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops vs6624_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = vs6624_g_register,
 	.s_register = vs6624_s_register,
 #endif

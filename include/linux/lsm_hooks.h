@@ -1259,7 +1259,7 @@
  *	Check that the @parent process has sufficient permission to trace the
  *	current process before allowing the current process to present itself
  *	to the @parent process for tracing.
- *	@parent contains the task_struct structure for debugger process.
+ *	@parent contains the task_struct structure for deger process.
  *	Return 0 if permission is granted.
  * @capget:
  *	Get the @effective, @inheritable, and @permitted capability sets for

@@ -152,21 +152,21 @@ Module Parameters:
 	series begins once all the doorbell bits have been shifted out of
 	range.
 * dyndbg - It is suggested to specify dyndbg=+p when loading this module, and
-	then to observe debugging output on the console.
+	then to observe deging output on the console.
 
 NTB Tool Test Client (ntb\_tool)
 --------------------------------
 
-The Tool test client serves for debugging, primarily, ntb hardware and drivers.
-The Tool provides access through debugfs for reading, setting, and clearing the
+The Tool test client serves for deging, primarily, ntb hardware and drivers.
+The Tool provides access through defs for reading, setting, and clearing the
 NTB doorbell, and reading and writing scratchpads.
 
 The Tool does not currently have any module parameters.
 
-Debugfs Files:
+Defs Files:
 
-* *debugfs*/ntb\_tool/*hw*/
-	A directory in debugfs will be created for each
+* *defs*/ntb\_tool/*hw*/
+	A directory in defs will be created for each
 	NTB device probed by the tool.  This directory is shortened to *hw*
 	below.
 * *hw*/db

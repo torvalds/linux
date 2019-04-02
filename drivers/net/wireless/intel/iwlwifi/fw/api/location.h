@@ -115,10 +115,10 @@ enum iwl_location_subcmd_ids {
 	 */
 	TOF_RESPONDER_STATS = 0xFD,
 	/**
-	 * @TOF_MCSI_DEBUG_NOTIF: MCSI debug notification, uses
+	 * @TOF_MCSI_DE_NOTIF: MCSI de notification, uses
 	 *	&struct iwl_tof_mcsi_notif
 	 */
-	TOF_MCSI_DEBUG_NOTIF = 0xFE,
+	TOF_MCSI_DE_NOTIF = 0xFE,
 	/**
 	 * @TOF_RANGE_RESPONSE_NOTIF: ranging response, using
 	 *	&struct iwl_tof_range_rsp_ntfy
@@ -130,13 +130,13 @@ enum iwl_location_subcmd_ids {
  * struct iwl_tof_config_cmd - ToF configuration
  * @tof_disabled: indicates if ToF is disabled (or not)
  * @one_sided_disabled: indicates if one-sided is disabled (or not)
- * @is_debug_mode: indiciates if debug mode is active
+ * @is_de_mode: indiciates if de mode is active
  * @is_buf_required: indicates if channel estimation buffer is required
  */
 struct iwl_tof_config_cmd {
 	u8 tof_disabled;
 	u8 one_sided_disabled;
-	u8 is_debug_mode;
+	u8 is_de_mode;
 	u8 is_buf_required;
 } __packed;
 
@@ -240,7 +240,7 @@ enum iwl_tof_responder_cfg_flags {
 };
 
 /**
- * struct iwl_tof_responder_config_cmd - ToF AP mode (for debug)
+ * struct iwl_tof_responder_config_cmd - ToF AP mode (for de)
  * @cmd_valid_fields: &iwl_tof_responder_cmd_valid_field
  * @responder_cfg_flags: &iwl_tof_responder_cfg_flags
  * @bandwidth: current AP Bandwidth: &enum iwl_tof_bandwidth
@@ -250,7 +250,7 @@ enum iwl_tof_responder_cfg_flags {
  *	the center frequency, see iwl_mvm_get_ctrl_pos()
  * @sta_id: index of the AP STA when in AP mode
  * @reserved1: reserved
- * @toa_offset: Artificial addition [pSec] for the ToA - to be used for debug
+ * @toa_offset: Artificial addition [pSec] for the ToA - to be used for de
  *	purposes, simulating station movement by adding various values
  *	to this field
  * @common_calib: XVT: common calibration value
@@ -778,13 +778,13 @@ struct iwl_tof_range_rsp_ntfy {
 
 #define IWL_MVM_TOF_MCSI_BUF_SIZE  (245)
 /**
- * struct iwl_tof_mcsi_notif - used for debug
+ * struct iwl_tof_mcsi_notif - used for de
  * @token: token ID for the current session
  * @role: '0' - initiator, '1' - responder
  * @reserved: reserved
  * @initiator_bssid: initiator machine
  * @responder_bssid: responder machine
- * @mcsi_buffer: debug data
+ * @mcsi_buffer: de data
  */
 struct iwl_tof_mcsi_notif {
 	u8 token;

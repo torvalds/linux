@@ -1473,7 +1473,7 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 #endif
 
 #if 0
-   printk(KERN_DEBUG "sisfb: (init301: VBInfo= 0x%04x, SetFlag=0x%04x)\n",
+   printk(KERN_DE "sisfb: (init301: VBInfo= 0x%04x, SetFlag=0x%04x)\n",
       SiS_Pr->SiS_VBInfo, SiS_Pr->SiS_SetFlag);
 #endif
 }
@@ -2461,7 +2461,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   }
 
 #if 0
-  printk(KERN_DEBUG "sisfb: (LCDInfo=0x%04x LCDResInfo=0x%02x LCDTypeInfo=0x%02x)\n",
+  printk(KERN_DE "sisfb: (LCDInfo=0x%04x LCDResInfo=0x%02x LCDTypeInfo=0x%02x)\n",
 	SiS_Pr->SiS_LCDInfo, SiS_Pr->SiS_LCDResInfo, SiS_Pr->SiS_LCDTypeInfo);
 #endif
 }
@@ -2931,7 +2931,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	   SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x2c,0xcf,tempah);
 	   SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x21,0x3f,tempbl);
 	} else if(SiS_Pr->SiS_VBType & VB_SIS301) {
-	   /* Fixes "TV-blue-bug" on 315+301 */
+	   /* Fixes "TV-blue-" on 315+301 */
 	   SiS_SetRegAND(SiS_Pr->SiS_Part1Port,0x2c,0xcf);	/* For 301   */
 	   SiS_SetRegAND(SiS_Pr->SiS_Part4Port,0x21,0x3f);
 	} else if(SiS_Pr->SiS_VBType & VB_SISLVDS) {
@@ -3106,7 +3106,7 @@ SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	      break;
 	   case Panel_1280x1024:
 	      if(!(SiS_Pr->SiS_LCDInfo & DontExpandLCD)) {
-		 /* BIOS bug - does this regardless of scaling */
+		 /* BIOS  - does this regardless of scaling */
 		 if(yres == 400) yres = 405;
 	      }
 	      if(yres == 350) yres = 360;
@@ -5305,7 +5305,7 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	    tempah |= 0x20;
 	    if(!(SiS_Pr->SiS_LCDInfo & LCDRGB18Bit)) tempah |= 0x10;
 	    if(SiS_Pr->SiS_VBType & VB_NoLCD) {
-	       /* Imitate BIOS bug */
+	       /* Imitate BIOS  */
 	       if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV)  tempah |= 0xc0;
 	    }
 	    if((SiS_Pr->SiS_VBType & VB_SIS30xC) && (SiS_Pr->SiS_VBInfo & SetCRT2ToRAMDAC)) {
@@ -5408,7 +5408,7 @@ SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeNo)
 	   index = (unsigned short)(((pciA0 >> 28) & 0x0f) * 3);
 	   index += (unsigned short)(((pci50 >> 9)) & 0x03);
 
-	   /* BIOS BUG (2.04.5d, 2.04.6a use ah here, which is unset!) */
+	   /* BIOS  (2.04.5d, 2.04.6a use ah here, which is unset!) */
 	   index = 0;  /* -- do it like the BIOS anyway... */
 
 	} else {
@@ -6387,7 +6387,7 @@ SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 
 	if(SiS_Pr->SiS_TVMode & (TVSetNTSC1024 | TVSet525p1024)) {
 	   tempbx = 1040;
-	   tempcx = 1044;   /* HWCursor bug! */
+	   tempcx = 1044;   /* HWCursor ! */
 	}
 
      }
@@ -10194,7 +10194,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
         if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
 	   if(IS_SIS740) {
 	      delay = SiS310_TVDelayCompensation_740301B[index];
-	      /* LV: use 301 data? BIOS bug? */
+	      /* LV: use 301 data? BIOS ? */
 	   } else {
               delay = SiS310_TVDelayCompensation_301B[index];
 	      if(SiS_Pr->SiS_VBType & VB_SIS301C) delay = 0x02;

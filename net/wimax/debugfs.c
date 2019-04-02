@@ -1,6 +1,6 @@
 /*
  * Linux WiMAX
- * Debugfs support
+ * Defs support
  *
  *
  * Copyright (C) 2005-2006 Intel Corporation <linux-wimax@intel.com>
@@ -20,23 +20,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/wimax.h>
 #include "wimax-internal.h"
 
-#define D_SUBMODULE debugfs
-#include "debug-levels.h"
+#define D_SUBMODULE defs
+#include "de-levels.h"
 
 
-#define __debugfs_register(prefix, name, parent)			\
+#define __defs_register(prefix, name, parent)			\
 do {									\
-	result = d_level_register_debugfs(prefix, name, parent);	\
+	result = d_level_register_defs(prefix, name, parent);	\
 	if (result < 0)							\
 		goto error;						\
 } while (0)
 
 
-int wimax_debugfs_add(struct wimax_dev *wimax_dev)
+int wimax_defs_add(struct wimax_dev *wimax_dev)
 {
 	int result;
 	struct net_device *net_dev = wimax_dev->net_dev;
@@ -45,34 +45,34 @@ int wimax_debugfs_add(struct wimax_dev *wimax_dev)
 	char buf[128];
 
 	snprintf(buf, sizeof(buf), "wimax:%s", net_dev->name);
-	dentry = debugfs_create_dir(buf, NULL);
+	dentry = defs_create_dir(buf, NULL);
 	result = PTR_ERR(dentry);
 	if (IS_ERR(dentry)) {
 		if (result == -ENODEV)
-			result = 0;	/* No debugfs support */
+			result = 0;	/* No defs support */
 		else
-			dev_err(dev, "Can't create debugfs dentry: %d\n",
+			dev_err(dev, "Can't create defs dentry: %d\n",
 				result);
 		goto out;
 	}
-	wimax_dev->debugfs_dentry = dentry;
-	__debugfs_register("wimax_dl_", debugfs, dentry);
-	__debugfs_register("wimax_dl_", id_table, dentry);
-	__debugfs_register("wimax_dl_", op_msg, dentry);
-	__debugfs_register("wimax_dl_", op_reset, dentry);
-	__debugfs_register("wimax_dl_", op_rfkill, dentry);
-	__debugfs_register("wimax_dl_", op_state_get, dentry);
-	__debugfs_register("wimax_dl_", stack, dentry);
+	wimax_dev->defs_dentry = dentry;
+	__defs_register("wimax_dl_", defs, dentry);
+	__defs_register("wimax_dl_", id_table, dentry);
+	__defs_register("wimax_dl_", op_msg, dentry);
+	__defs_register("wimax_dl_", op_reset, dentry);
+	__defs_register("wimax_dl_", op_rfkill, dentry);
+	__defs_register("wimax_dl_", op_state_get, dentry);
+	__defs_register("wimax_dl_", stack, dentry);
 	result = 0;
 out:
 	return result;
 
 error:
-	debugfs_remove_recursive(wimax_dev->debugfs_dentry);
+	defs_remove_recursive(wimax_dev->defs_dentry);
 	return result;
 }
 
-void wimax_debugfs_rm(struct wimax_dev *wimax_dev)
+void wimax_defs_rm(struct wimax_dev *wimax_dev)
 {
-	debugfs_remove_recursive(wimax_dev->debugfs_dentry);
+	defs_remove_recursive(wimax_dev->defs_dentry);
 }

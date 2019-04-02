@@ -104,7 +104,7 @@ struct dm_rf_calibration_struct {
 
 	bool is_reloadtxpowerindex;
 	u8 is_rf_pi_enable;
-	u32 txpowertracking_callback_cnt; /* cosa add for debug */
+	u32 txpowertracking_callback_cnt; /* cosa add for de */
 
 	/* ---------------------- Tx power Tracking ------------------------- */
 	u8 is_cck_in_ch14;

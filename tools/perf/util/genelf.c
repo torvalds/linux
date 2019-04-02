@@ -245,7 +245,7 @@ jit_add_eh_frame_info(Elf *e, void* unwinding, uint64_t unwinding_header_size,
 int
 jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	      const void *code, int csize,
-	      void *debug __maybe_unused, int nr_debug_entries __maybe_unused,
+	      void *de __maybe_unused, int nr_de_entries __maybe_unused,
 	      void *unwinding, uint64_t unwinding_header_size, uint64_t unwinding_size)
 {
 	Elf *e;
@@ -489,8 +489,8 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	shdr->sh_entsize = 0;
 
 #ifdef HAVE_DWARF_SUPPORT
-	if (debug && nr_debug_entries) {
-		retval = jit_add_debug_info(e, load_addr, debug, nr_debug_entries);
+	if (de && nr_de_entries) {
+		retval = jit_add_de_info(e, load_addr, de, nr_de_entries);
 		if (retval)
 			goto error;
 	} else

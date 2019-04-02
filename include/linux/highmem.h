@@ -4,7 +4,7 @@
 
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
@@ -117,9 +117,9 @@ static inline int kmap_atomic_idx_push(void)
 {
 	int idx = __this_cpu_inc_return(__kmap_atomic_idx) - 1;
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	WARN_ON_ONCE(in_irq() && !irqs_disabled());
-	BUG_ON(idx >= KM_TYPE_NR);
+	_ON(idx >= KM_TYPE_NR);
 #endif
 	return idx;
 }
@@ -131,10 +131,10 @@ static inline int kmap_atomic_idx(void)
 
 static inline void kmap_atomic_idx_pop(void)
 {
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	int idx = __this_cpu_dec_return(__kmap_atomic_idx);
 
-	BUG_ON(idx < 0);
+	_ON(idx < 0);
 #else
 	__this_cpu_dec(__kmap_atomic_idx);
 #endif
@@ -148,7 +148,7 @@ static inline void kmap_atomic_idx_pop(void)
  */
 #define kunmap_atomic(addr)                                     \
 do {                                                            \
-	BUILD_BUG_ON(__same_type((addr), struct page *));       \
+	BUILD__ON(__same_type((addr), struct page *));       \
 	__kunmap_atomic(addr);                                  \
 } while (0)
 
@@ -221,7 +221,7 @@ static inline void zero_user_segments(struct page *page,
 {
 	void *kaddr = kmap_atomic(page);
 
-	BUG_ON(end1 > PAGE_SIZE || end2 > PAGE_SIZE);
+	_ON(end1 > PAGE_SIZE || end2 > PAGE_SIZE);
 
 	if (end1 > start1)
 		memset(kaddr + start1, 0, end1 - start1);

@@ -465,13 +465,13 @@ either direction.  The platform guarantees that you may legally
 specify this, and that it will work, but this may be at the
 cost of performance for example.
 
-The value DMA_NONE is to be used for debugging.  One can
+The value DMA_NONE is to be used for deging.  One can
 hold this in a data structure before you come to know the
 precise direction, and this will help catch cases where your
 direction tracking logic has failed to set things up properly.
 
 Another advantage of specifying this value precisely (outside of
-potential platform-specific optimizations of such) is for debugging.
+potential platform-specific optimizations of such) is for deging.
 Some platforms actually have a write permission boolean which DMA
 mappings can be marked with, much like page protections in the user
 program address space.  Such platforms can and do report errors in the

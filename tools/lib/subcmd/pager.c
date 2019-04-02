@@ -33,7 +33,7 @@ void force_pager(const char *pager)
 static void pager_preexec(void)
 {
 	/*
-	 * Work around bug in "less" by not starting it until we
+	 * Work around  in "less" by not starting it until we
 	 * have real input
 	 */
 	fd_set in;

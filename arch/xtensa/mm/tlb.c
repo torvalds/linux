@@ -95,7 +95,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma,
 	if (mm->context.asid[cpu] == NO_CONTEXT)
 		return;
 
-	pr_debug("[tlbrange<%02lx,%08lx,%08lx>]\n",
+	pr_de("[tlbrange<%02lx,%08lx,%08lx>]\n",
 		 (unsigned long)mm->context.asid[cpu], start, end);
 	local_irq_save(flags);
 
@@ -162,7 +162,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 	}
 }
 
-#ifdef CONFIG_DEBUG_TLB_SANITY
+#ifdef CONFIG_DE_TLB_SANITY
 
 static unsigned get_pte_for_vaddr(unsigned vaddr)
 {
@@ -193,7 +193,7 @@ enum {
 
 static void tlb_insane(void)
 {
-	BUG_ON(1);
+	_ON(1);
 }
 
 static void tlb_suspicious(void)
@@ -257,20 +257,20 @@ void check_tlb_sanity(void)
 {
 	unsigned long flags;
 	unsigned w, e;
-	int bug = 0;
+	int  = 0;
 
 	local_irq_save(flags);
 	for (w = 0; w < DTLB_ARF_WAYS; ++w)
 		for (e = 0; e < (1 << XCHAL_DTLB_ARF_ENTRIES_LOG2); ++e)
-			bug |= check_tlb_entry(w, e, true);
+			 |= check_tlb_entry(w, e, true);
 	for (w = 0; w < ITLB_ARF_WAYS; ++w)
 		for (e = 0; e < (1 << XCHAL_ITLB_ARF_ENTRIES_LOG2); ++e)
-			bug |= check_tlb_entry(w, e, false);
-	if (bug & TLB_INSANE)
+			 |= check_tlb_entry(w, e, false);
+	if ( & TLB_INSANE)
 		tlb_insane();
-	if (bug & TLB_SUSPICIOUS)
+	if ( & TLB_SUSPICIOUS)
 		tlb_suspicious();
 	local_irq_restore(flags);
 }
 
-#endif /* CONFIG_DEBUG_TLB_SANITY */
+#endif /* CONFIG_DE_TLB_SANITY */

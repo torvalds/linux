@@ -516,8 +516,8 @@ struct caam_ctrl {
 	u64 sknonce;			/* SKNR - Secure Key Nonce */
 	u32 rsvd8[70];
 
-	/* RNG Test/Verification/Debug Access                   600-7ff */
-	/* (Useful in Test/Debug modes only...)                         */
+	/* RNG Test/Verification/De Access                   600-7ff */
+	/* (Useful in Test/De modes only...)                         */
 	union {
 		struct rngtst rtst[2];
 		struct rng4tst r4tst[2];
@@ -929,11 +929,11 @@ struct caam_deco {
 #define DESC_DBG_DECO_STAT_VALID	0x80000000
 #define DESC_DBG_DECO_STAT_MASK		0x00F00000
 #define DESC_DBG_DECO_STAT_SHIFT	20
-	u32 desc_dbg;		/* DxDDR - DECO Debug Register */
+	u32 desc_dbg;		/* DxDDR - DECO De Register */
 	u32 rsvd31[13];
 #define DESC_DER_DECO_STAT_MASK		0x000F0000
 #define DESC_DER_DECO_STAT_SHIFT	16
-	u32 dbg_exec;		/* DxDER - DECO Debug Exec Register */
+	u32 dbg_exec;		/* DxDER - DECO De Exec Register */
 	u32 rsvd32[112];
 };
 

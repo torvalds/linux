@@ -131,7 +131,7 @@ sysfs
 When a driver is registered, a sysfs directory is created in its
 bus's directory. In this directory, the driver can export an interface
 to userspace to control operation of the driver on a global basis;
-e.g. toggling debugging output in the driver.
+e.g. toggling deging output in the driver.
 
 A future feature of this directory will be a 'devices' directory. This
 directory will contain symlinks to the directories of devices it
@@ -202,11 +202,11 @@ macros.
 
 Example:
 
-DRIVER_ATTR_RW(debug);
+DRIVER_ATTR_RW(de);
 
 This is equivalent to declaring:
 
-struct driver_attribute driver_attr_debug;
+struct driver_attribute driver_attr_de;
 
 This can then be used to add and remove the attribute from the
 driver's directory using:

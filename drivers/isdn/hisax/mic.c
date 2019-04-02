@@ -135,14 +135,14 @@ Start_ISAC:
 		isac_interrupt(cs, val);
 	val = readreg(cs->hw.mic.adr, cs->hw.mic.hscx, HSCX_ISTA + 0x40);
 	if (val) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "HSCX IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "HSCX IntStat after IntRoutine");
 		goto Start_HSCX;
 	}
 	val = readreg(cs->hw.mic.adr, cs->hw.mic.isac, ISAC_ISTA);
 	if (val) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	writereg(cs->hw.mic.adr, cs->hw.mic.hscx, HSCX_MASK, 0xFF);

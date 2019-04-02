@@ -98,8 +98,8 @@ static void vc4_crtc_dump_regs(struct vc4_crtc *vc4_crtc)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_crtc_debugfs_regs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_crtc_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -431,9 +431,9 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
-	bool debug_dump_regs = false;
+	bool de_dump_regs = false;
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("CRTC %d regs before:\n", drm_crtc_index(crtc));
 		vc4_crtc_dump_regs(vc4_crtc);
 	}
@@ -475,7 +475,7 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	 */
 	vc4_crtc_lut_load(crtc);
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
 		vc4_crtc_dump_regs(vc4_crtc);
 	}
@@ -623,7 +623,7 @@ static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
 {
 	/* Do not allow doublescan modes from user space */
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
-		DRM_DEBUG_KMS("[CRTC:%d] Doublescan mode rejected.\n",
+		DRM_DE_KMS("[CRTC:%d] Doublescan mode rejected.\n",
 			      crtc->base.id);
 		return MODE_NO_DBLESCAN;
 	}
@@ -728,12 +728,12 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
 	struct drm_plane *plane;
 	struct vc4_plane_state *vc4_plane_state;
-	bool debug_dump_regs = false;
+	bool de_dump_regs = false;
 	bool enable_bg_fill = false;
 	u32 __iomem *dlist_start = vc4->hvs->dlist + vc4_state->mm.start;
 	u32 __iomem *dlist_next = dlist_start;
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("CRTC %d HVS before:\n", drm_crtc_index(crtc));
 		vc4_hvs_dump_state(dev);
 	}
@@ -796,7 +796,7 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 		HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel), dispbkgndx);
 	}
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
 		vc4_hvs_dump_state(dev);
 	}

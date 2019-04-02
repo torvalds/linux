@@ -52,28 +52,28 @@
 
 /*
  * compile-time options: to be removed as soon as all the drivers are
- * converted to the new debugging mechanism
+ * converted to the new deging mechanism
  */
-#undef ATA_DEBUG		/* debugging output */
-#undef ATA_VERBOSE_DEBUG	/* yet more debugging output */
+#undef ATA_DE		/* deging output */
+#undef ATA_VERBOSE_DE	/* yet more deging output */
 #undef ATA_IRQ_TRAP		/* define to ack screaming irqs */
-#undef ATA_NDEBUG		/* define to disable quick runtime checks */
+#undef ATA_NDE		/* define to disable quick runtime checks */
 
 
 /* note: prints function name for you */
-#ifdef ATA_DEBUG
+#ifdef ATA_DE
 #define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
-#ifdef ATA_VERBOSE_DEBUG
+#ifdef ATA_VERBOSE_DE
 #define VPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define VPRINTK(fmt, args...)
-#endif	/* ATA_VERBOSE_DEBUG */
+#endif	/* ATA_VERBOSE_DE */
 #else
 #define DPRINTK(fmt, args...)
 #define VPRINTK(fmt, args...)
-#endif	/* ATA_DEBUG */
+#endif	/* ATA_DE */
 
-#define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEBUGMSG) printk(KERN_ERR "%s: " fmt, __func__, ## args)
+#define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEMSG) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 
 #define ata_print_version_once(dev, version)			\
 ({								\
@@ -85,7 +85,7 @@
 	}							\
 })
 
-/* NEW: debug levels */
+/* NEW: de levels */
 #define HAVE_LIBATA_MSG 1
 
 enum {
@@ -219,7 +219,7 @@ enum {
 	ATA_FLAG_NCQ		= (1 << 10), /* host supports NCQ */
 	ATA_FLAG_NO_POWEROFF_SPINDOWN = (1 << 11), /* don't spindown before poweroff */
 	ATA_FLAG_NO_HIBERNATE_SPINDOWN = (1 << 12), /* don't spindown before hibernation */
-	ATA_FLAG_DEBUGMSG	= (1 << 13),
+	ATA_FLAG_DEMSG	= (1 << 13),
 	ATA_FLAG_FPDMA_AA		= (1 << 14), /* driver supports Auto-Activate */
 	ATA_FLAG_IGN_SIMPLEX	= (1 << 15), /* ignore SIMPLEX */
 	ATA_FLAG_NO_IORDY	= (1 << 16), /* controller lacks iordy */
@@ -418,7 +418,7 @@ enum {
 	ATA_HORKAGE_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
 	ATA_HORKAGE_DISABLE	= (1 << 5),	/* Disable it */
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
-	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
+	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit s */
 	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
 	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
 	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
@@ -1435,7 +1435,7 @@ void ata_dev_printk(const struct ata_device *dev, const char *level,
 #define ata_port_info(ap, fmt, ...)				\
 	ata_port_printk(ap, KERN_INFO, fmt, ##__VA_ARGS__)
 #define ata_port_dbg(ap, fmt, ...)				\
-	ata_port_printk(ap, KERN_DEBUG, fmt, ##__VA_ARGS__)
+	ata_port_printk(ap, KERN_DE, fmt, ##__VA_ARGS__)
 
 #define ata_link_err(link, fmt, ...)				\
 	ata_link_printk(link, KERN_ERR, fmt, ##__VA_ARGS__)
@@ -1446,7 +1446,7 @@ void ata_dev_printk(const struct ata_device *dev, const char *level,
 #define ata_link_info(link, fmt, ...)				\
 	ata_link_printk(link, KERN_INFO, fmt, ##__VA_ARGS__)
 #define ata_link_dbg(link, fmt, ...)				\
-	ata_link_printk(link, KERN_DEBUG, fmt, ##__VA_ARGS__)
+	ata_link_printk(link, KERN_DE, fmt, ##__VA_ARGS__)
 
 #define ata_dev_err(dev, fmt, ...)				\
 	ata_dev_printk(dev, KERN_ERR, fmt, ##__VA_ARGS__)
@@ -1457,7 +1457,7 @@ void ata_dev_printk(const struct ata_device *dev, const char *level,
 #define ata_dev_info(dev, fmt, ...)				\
 	ata_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
 #define ata_dev_dbg(dev, fmt, ...)				\
-	ata_dev_printk(dev, KERN_DEBUG, fmt, ##__VA_ARGS__)
+	ata_dev_printk(dev, KERN_DE, fmt, ##__VA_ARGS__)
 
 void ata_print_version(const struct device *dev, const char *version);
 
@@ -1979,9 +1979,9 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 {
 	u8 status = ata_sff_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
-#ifdef ATA_DEBUG
+#ifdef ATA_DE
 	if (status != 0xff && (status & (ATA_BUSY | ATA_DRQ)))
-		ata_port_printk(ap, KERN_DEBUG, "abnormal Status 0x%X\n",
+		ata_port_printk(ap, KERN_DE, "abnormal Status 0x%X\n",
 				status);
 #endif
 

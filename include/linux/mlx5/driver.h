@@ -185,7 +185,7 @@ struct mlx5_field_desc {
 	int			i;
 };
 
-struct mlx5_rsc_debug {
+struct mlx5_rsc_de {
 	struct mlx5_core_dev   *dev;
 	void		       *object;
 	enum dbg_rsc_type	type;
@@ -232,7 +232,7 @@ struct mlx5_cmd_msg {
 	struct mlx5_cmd_mailbox	       *next;
 };
 
-struct mlx5_cmd_debug {
+struct mlx5_cmd_de {
 	struct dentry	       *dbg_root;
 	struct dentry	       *dbg_in;
 	struct dentry	       *dbg_out;
@@ -300,7 +300,7 @@ struct mlx5_cmd {
 	int	mode;
 	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
 	struct dma_pool *pool;
-	struct mlx5_cmd_debug dbg;
+	struct mlx5_cmd_de dbg;
 	struct cmd_msg_cache cache[MLX5_NUM_COMMAND_CACHES];
 	int checksum_disabled;
 	struct mlx5_cmd_stats stats[MLX5_CMD_OP_MAX];
@@ -530,10 +530,10 @@ struct mlx5_priv {
 
 	/* start: qp staff */
 	struct mlx5_qp_table	qp_table;
-	struct dentry	       *qp_debugfs;
-	struct dentry	       *eq_debugfs;
-	struct dentry	       *cq_debugfs;
-	struct dentry	       *cmdif_debugfs;
+	struct dentry	       *qp_defs;
+	struct dentry	       *eq_defs;
+	struct dentry	       *cq_defs;
+	struct dentry	       *cmdif_defs;
 	/* end: qp staff */
 
 	/* start: mkey staff */
@@ -782,7 +782,7 @@ static inline struct mlx5_core_dev *pci2mlx5_core_dev(struct pci_dev *pdev)
 	return pci_get_drvdata(pdev);
 }
 
-extern struct dentry *mlx5_debugfs_root;
+extern struct dentry *mlx5_defs_root;
 
 static inline u16 fw_rev_maj(struct mlx5_core_dev *dev)
 {
@@ -929,8 +929,8 @@ void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s32 npages, bool ec_function);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
-void mlx5_register_debugfs(void);
-void mlx5_unregister_debugfs(void);
+void mlx5_register_defs(void);
+void mlx5_unregister_defs(void);
 
 void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas);
 void mlx5_fill_page_frag_array(struct mlx5_frag_buf *frag_buf, __be64 *pas);
@@ -939,8 +939,8 @@ int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 
-int mlx5_qp_debugfs_init(struct mlx5_core_dev *dev);
-void mlx5_qp_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_qp_defs_init(struct mlx5_core_dev *dev);
+void mlx5_qp_defs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
@@ -951,8 +951,8 @@ int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
 const char *mlx5_command_str(int command);
-int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
-void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_cmdif_defs_init(struct mlx5_core_dev *dev);
+void mlx5_cmdif_defs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);

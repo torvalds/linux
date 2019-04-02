@@ -332,7 +332,7 @@ static uint32_t get_sdma_base_addr(struct amdgpu_device *adev,
 	retval = base[engine_id] + queue_id * (mmSDMA0_RLC1_RB_CNTL -
 					       mmSDMA0_RLC0_RB_CNTL);
 
-	pr_debug("sdma base address: 0x%x\n", retval);
+	pr_de("sdma base address: 0x%x\n", retval);
 
 	return retval;
 }
@@ -368,7 +368,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 		mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
 		pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
-		pr_debug("kfd: set HIQ, mec:%d, pipe:%d, queue:%d.\n",
+		pr_de("kfd: set HIQ, mec:%d, pipe:%d, queue:%d.\n",
 			mec, pipe, queue_id);
 		value = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CP_SCHEDULERS));
 		value = REG_SET_FIELD(value, RLC_CP_SCHEDULERS, scheduler1,

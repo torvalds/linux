@@ -1234,7 +1234,7 @@ static int cdns_uart_console_setup(struct console *co, char *options)
 	int flow = 'n';
 
 	if (!port->membase) {
-		pr_debug("console on " CDNS_UART_TTY_NAME "%i not present\n",
+		pr_de("console on " CDNS_UART_TTY_NAME "%i not present\n",
 			 co->index);
 		return -ENODEV;
 	}

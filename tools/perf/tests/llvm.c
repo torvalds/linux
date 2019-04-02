@@ -5,7 +5,7 @@
 #include <util/cache.h>
 #include "llvm.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 
 #ifdef HAVE_LIBBPF_SUPPORT
@@ -23,7 +23,7 @@ static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 static int test__bpf_parsing(void *obj_buf __maybe_unused,
 			     size_t obj_buf_sz __maybe_unused)
 {
-	pr_debug("Skip bpf parsing\n");
+	pr_de("Skip bpf parsing\n");
 	return TEST_OK;
 }
 #endif
@@ -80,7 +80,7 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 	if (!force && (verbose <= 0 &&
 		       !llvm_param.user_set_param &&
 		       llvm__search_clang())) {
-		pr_debug("No clang and no verbosive, skip this test\n");
+		pr_de("No clang and no verbosive, skip this test\n");
 		return TEST_SKIP;
 	}
 
@@ -129,7 +129,7 @@ out:
 	free(tmpl_new);
 	free(clang_opt_new);
 	if (ret != TEST_OK)
-		pr_debug("Failed to compile test case: '%s'\n", desc);
+		pr_de("Failed to compile test case: '%s'\n", desc);
 	return ret;
 }
 
@@ -149,7 +149,7 @@ int test__llvm(struct test *test __maybe_unused, int subtest)
 	if (ret == TEST_OK && !should_load_fail) {
 		ret = test__bpf_parsing(obj_buf, obj_buf_sz);
 		if (ret != TEST_OK) {
-			pr_debug("Failed to parse test case '%s'\n",
+			pr_de("Failed to parse test case '%s'\n",
 				 bpf_source_table[subtest].desc);
 		}
 	}

@@ -243,7 +243,7 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 
 	if (model->cpu_id == NULL) {
 		/* No match at all */
-		pr_debug("no support for CPU model \"%s\": "
+		pr_de("no support for CPU model \"%s\": "
 		       "send /proc/cpuinfo to " MAINTAINER "\n",
 		       cpu->x86_model_id);
 		return -ENOENT;
@@ -251,15 +251,15 @@ static int centrino_cpu_init_table(struct cpufreq_policy *policy)
 
 	if (model->op_points == NULL) {
 		/* Matched a non-match */
-		pr_debug("no table support for CPU model \"%s\"\n",
+		pr_de("no table support for CPU model \"%s\"\n",
 		       cpu->x86_model_id);
-		pr_debug("try using the acpi-cpufreq driver\n");
+		pr_de("try using the acpi-cpufreq driver\n");
 		return -ENOENT;
 	}
 
 	per_cpu(centrino_model, policy->cpu) = model;
 
-	pr_debug("found \"%s\": max frequency: %dkHz\n",
+	pr_de("found \"%s\": max frequency: %dkHz\n",
 	       model->model_name, model->max_freq);
 
 	return 0;
@@ -289,7 +289,7 @@ static unsigned extract_clock(unsigned msr, unsigned int cpu, int failsafe)
 
 	/*
 	 * Extract clock in kHz from PERF_CTL value
-	 * for centrino, as some DSDTs are buggy.
+	 * for centrino, as some DSDTs are gy.
 	 * Ideally, this can be done using the acpi_data structure.
 	 */
 	if ((per_cpu(centrino_cpu, cpu) == &cpu_ids[CPU_BANIAS]) ||
@@ -366,7 +366,7 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 		per_cpu(centrino_cpu, policy->cpu) = &cpu_ids[i];
 
 	if (!per_cpu(centrino_cpu, policy->cpu)) {
-		pr_debug("found unsupported CPU with "
+		pr_de("found unsupported CPU with "
 		"Enhanced SpeedStep: send /proc/cpuinfo to "
 		MAINTAINER "\n");
 		return -ENODEV;
@@ -381,7 +381,7 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 
 	if (!(l & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 		l |= MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP;
-		pr_debug("trying to enable Enhanced SpeedStep (%x)\n", l);
+		pr_de("trying to enable Enhanced SpeedStep (%x)\n", l);
 		wrmsr(MSR_IA32_MISC_ENABLE, l, h);
 
 		/* check to see if it stuck */
@@ -450,7 +450,7 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 			good_cpu = j;
 
 		if (good_cpu >= nr_cpu_ids) {
-			pr_debug("couldn't limit to CPUs in this domain\n");
+			pr_de("couldn't limit to CPUs in this domain\n");
 			retval = -EAGAIN;
 			if (first_cpu) {
 				/* We haven't started the transition yet. */
@@ -464,7 +464,7 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 		if (first_cpu) {
 			rdmsr_on_cpu(good_cpu, MSR_IA32_PERF_CTL, &oldmsr, &h);
 			if (msr == (oldmsr & 0xffff)) {
-				pr_debug("no change needed - msr was and needs "
+				pr_de("no change needed - msr was and needs "
 					"to be %x\n", oldmsr);
 				retval = 0;
 				goto out;

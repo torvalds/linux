@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/kcov.h>
 #include <linux/refcount.h>
@@ -27,7 +27,7 @@
 #define KCOV_WORDS_PER_CMP 4
 
 /*
- * kcov descriptor (one per opened debugfs file).
+ * kcov descriptor (one per opened defs file).
  * State transitions of the descriptor:
  *  - initial state after open()
  *  - then there must be a single ioctl(KCOV_INIT_TRACE) call
@@ -441,11 +441,11 @@ static const struct file_operations kcov_fops = {
 static int __init kcov_init(void)
 {
 	/*
-	 * The kcov debugfs file won't ever get removed and thus,
+	 * The kcov defs file won't ever get removed and thus,
 	 * there is no need to protect it against removal races. The
-	 * use of debugfs_create_file_unsafe() is actually safe here.
+	 * use of defs_create_file_unsafe() is actually safe here.
 	 */
-	debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops);
+	defs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops);
 
 	return 0;
 }

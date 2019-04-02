@@ -22,7 +22,7 @@ Updated by Matthew Wilcox <matthew@wil.cx>
       8.1  Set minimum synchronous period
       8.2  Set wide size
       8.3  Set maximum number of concurrent tagged commands
-      8.4  Set debug mode
+      8.4  Set de mode
       8.5  Set flag (no_disc)
       8.6  Set verbose level
       8.7  Reset all logical units of a target
@@ -39,7 +39,7 @@ Updated by Matthew Wilcox <matthew@wil.cx>
              10.2.6  Check SCSI BUS 
              10.2.7  Suggest a default SCSI id for hosts
              10.2.8  Verbosity level
-             10.2.9  Debug mode
+             10.2.9  De mode
              10.2.10 Settle delay
              10.2.11 Serial NVRAM
              10.2.12 Exclude a host from being attached
@@ -154,7 +154,7 @@ Summary of other supported features:
 Module:                allow to load the driver
 Memory mapped I/O:     increases performance
 Control commands:      write operations to the proc SCSI file system
-Debugging information: written to syslog (expert only)
+Deging information: written to syslog (expert only)
 Scatter / gather
 Shared interrupt
 Boot setup commands
@@ -335,22 +335,22 @@ Available commands:
     tags:      number of concurrent tagged commands
                must not be greater than configured (default: 16)
 
-8.4 Set debug mode
+8.4 Set de mode
 
-    setdebug <list of debug flags>
+    setde <list of de flags>
 
-    Available debug flags:
+    Available de flags:
         alloc:   print info about memory allocations (ccb, lcb)
         queue:   print info about insertions into the command start queue
         result:  print sense data on CHECK CONDITION status
         scatter: print info about the scatter process
         scripts: print info about the script binding process
-	tiny:    print minimal debugging information
+	tiny:    print minimal deging information
 	timing:  print timing information of the NCR chip
 	nego:    print information about SCSI negotiations
 	phase:   print information on script interruptions
 
-    Use "setdebug" with no argument to reset debug flags.
+    Use "setde" with no argument to reset de flags.
 
 
 8.5 Set flag (no_disc)
@@ -431,16 +431,16 @@ parameters to modprobe, as described in Documentation/admin-guide/kernel-paramet
 
 Example of boot setup command under lilo prompt:
 
-lilo: linux root=/dev/sda2 sym53c8xx.cmd_per_lun=4 sym53c8xx.sync=10 sym53c8xx.debug=0x200
+lilo: linux root=/dev/sda2 sym53c8xx.cmd_per_lun=4 sym53c8xx.sync=10 sym53c8xx.de=0x200
 
 - enable tagged commands, up to 4 tagged commands queued.
 - set synchronous negotiation speed to 10 Mega-transfers / second.
-- set DEBUG_NEGO flag.
+- set DE_NEGO flag.
 
 The following command will install the driver module with the same
 options as above.
 
-    modprobe sym53c8xx cmd_per_lun=4 sync=10 debug=0x200
+    modprobe sym53c8xx cmd_per_lun=4 sync=10 de=0x200
 
 10.2 Available arguments
 
@@ -496,25 +496,25 @@ options as above.
         verb=1     normal
         verb=2     too much
 
-10.2.9 Debug mode
-        debug=0	 clear debug flags
-        debug=#x   set debug flags
+10.2.9 De mode
+        de=0	 clear de flags
+        de=#x   set de flags
   #x is an integer value combining the following power-of-2 values:
-  DEBUG_ALLOC       0x1
-  DEBUG_PHASE       0x2
-  DEBUG_POLL        0x4
-  DEBUG_QUEUE       0x8
-  DEBUG_RESULT     0x10
-  DEBUG_SCATTER    0x20
-  DEBUG_SCRIPT     0x40
-  DEBUG_TINY       0x80
-  DEBUG_TIMING    0x100
-  DEBUG_NEGO      0x200
-  DEBUG_TAGS      0x400
-  DEBUG_FREEZE    0x800
-  DEBUG_RESTART  0x1000
+  DE_ALLOC       0x1
+  DE_PHASE       0x2
+  DE_POLL        0x4
+  DE_QUEUE       0x8
+  DE_RESULT     0x10
+  DE_SCATTER    0x20
+  DE_SCRIPT     0x40
+  DE_TINY       0x80
+  DE_TIMING    0x100
+  DE_NEGO      0x200
+  DE_TAGS      0x400
+  DE_FREEZE    0x800
+  DE_RESTART  0x1000
 
-  You can play safely with DEBUG_NEGO. However, some of these flags may 
+  You can play safely with DE_NEGO. However, some of these flags may 
   generate bunches of syslog messages. 
 
 10.2.10 Settle delay
@@ -546,16 +546,16 @@ options as above.
 10.3 Converting from old style options
 
 Previously, the sym2 driver accepted arguments of the form
-	sym53c8xx=tags:4,sync:10,debug:0x200
+	sym53c8xx=tags:4,sync:10,de:0x200
 
 As a result of the new module parameters, this is no longer available.
 Most of the options have remained the same, but tags has become
 cmd_per_lun to reflect its different purposes.  The sample above would
 be specified as:
-	modprobe sym53c8xx cmd_per_lun=4 sync=10 debug=0x200
+	modprobe sym53c8xx cmd_per_lun=4 sync=10 de=0x200
 
 or on the kernel boot line as:
-	sym53c8xx.cmd_per_lun=4 sym53c8xx.sync=10 sym53c8xx.debug=0x200
+	sym53c8xx.cmd_per_lun=4 sym53c8xx.sync=10 sym53c8xx.de=0x200
 
 10.4 SCSI BUS checking boot option.
 
@@ -575,7 +575,7 @@ devices, ... may cause a SCSI signal to be wrong when te driver reads it.
 
 15.1 Problem tracking
 
-Most SCSI problems are due to a non conformant SCSI bus or too buggy
+Most SCSI problems are due to a non conformant SCSI bus or too gy
 devices.  If unfortunately you have SCSI problems, you can check the
 following things:
 
@@ -595,13 +595,13 @@ with this safe configuration but performances will not be optimal.
 
 If it still fails, then you can send your problem description to
 appropriate mailing lists or news-groups.  Send me a copy in order to
-be sure I will receive it.  Obviously, a bug in the driver code is
+be sure I will receive it.  Obviously, a  in the driver code is
 possible.
 
   My current email address: Gerard Roudier <groudier@free.fr>
 
 Allowing disconnections is important if you use several devices on
-your SCSI bus but often causes problems with buggy devices.
+your SCSI bus but often causes problems with gy devices.
 Synchronous data transfers increases throughput of fast devices like
 hard disks.  Good SCSI hard disks with a large cache gain advantage of
 tagged commands queuing.

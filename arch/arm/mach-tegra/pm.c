@@ -82,7 +82,7 @@ static void restore_cpu_complex(void)
 {
 	int cpu = smp_processor_id();
 
-	BUG_ON(cpu != 0);
+	_ON(cpu != 0);
 
 #ifdef CONFIG_SMP
 	cpu = cpu_logical_map(cpu);
@@ -106,7 +106,7 @@ static void suspend_cpu_complex(void)
 {
 	int cpu = smp_processor_id();
 
-	BUG_ON(cpu != 0);
+	_ON(cpu != 0);
 
 #ifdef CONFIG_SMP
 	cpu = cpu_logical_map(cpu);
@@ -125,7 +125,7 @@ void tegra_clear_cpu_in_lp2(void)
 
 	spin_lock(&tegra_lp2_lock);
 
-	BUG_ON(!(*cpu_in_lp2 & BIT(phy_cpu_id)));
+	_ON(!(*cpu_in_lp2 & BIT(phy_cpu_id)));
 	*cpu_in_lp2 &= ~BIT(phy_cpu_id);
 
 	spin_unlock(&tegra_lp2_lock);
@@ -140,7 +140,7 @@ bool tegra_set_cpu_in_lp2(void)
 
 	spin_lock(&tegra_lp2_lock);
 
-	BUG_ON((*cpu_in_lp2 & BIT(phy_cpu_id)));
+	_ON((*cpu_in_lp2 & BIT(phy_cpu_id)));
 	*cpu_in_lp2 |= BIT(phy_cpu_id);
 
 	if ((phy_cpu_id == 0) && cpumask_equal(cpu_lp2_mask, cpu_online_mask))
@@ -163,7 +163,7 @@ static int tegra_sleep_cpu(unsigned long v2p)
 	tegra_sleep_cpu_finish(v2p);
 
 	/* should never here */
-	BUG();
+	();
 
 	return 0;
 }
@@ -219,7 +219,7 @@ static int tegra_sleep_core(unsigned long v2p)
 	tegra_sleep_core_finish(v2p);
 
 	/* should never here */
-	BUG();
+	();
 
 	return 0;
 }

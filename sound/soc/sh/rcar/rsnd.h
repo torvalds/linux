@@ -842,7 +842,7 @@ void rsnd_cmd_remove(struct rsnd_priv *priv);
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id);
 
 void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
-#ifdef DEBUG
+#ifdef DE
 #define rsnd_mod_confirm_ssi(mssi)	rsnd_mod_make_sure(mssi, RSND_MOD_SSI)
 #define rsnd_mod_confirm_src(msrc)	rsnd_mod_make_sure(msrc, RSND_MOD_SRC)
 #define rsnd_mod_confirm_dvc(mdvc)	rsnd_mod_make_sure(mdvc, RSND_MOD_DVC)
@@ -853,23 +853,23 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type);
 #endif
 
 /*
- * If you don't need interrupt status debug message,
- * define RSND_DEBUG_NO_IRQ_STATUS as 1 on top of src.c/ssi.c
+ * If you don't need interrupt status de message,
+ * define RSND_DE_NO_IRQ_STATUS as 1 on top of src.c/ssi.c
  *
- * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ * #define RSND_DE_NO_IRQ_STATUS 1
  */
 #define rsnd_dbg_irq_status(dev, param...)		\
-	if (!IS_BUILTIN(RSND_DEBUG_NO_IRQ_STATUS))	\
+	if (!IS_BUILTIN(RSND_DE_NO_IRQ_STATUS))	\
 		dev_dbg(dev, param)
 
 /*
- * If you don't need rsnd_dai_call debug message,
- * define RSND_DEBUG_NO_DAI_CALL as 1 on top of core.c
+ * If you don't need rsnd_dai_call de message,
+ * define RSND_DE_NO_DAI_CALL as 1 on top of core.c
  *
- * #define RSND_DEBUG_NO_DAI_CALL 1
+ * #define RSND_DE_NO_DAI_CALL 1
  */
 #define rsnd_dbg_dai_call(dev, param...)		\
-	if (!IS_BUILTIN(RSND_DEBUG_NO_DAI_CALL))	\
+	if (!IS_BUILTIN(RSND_DE_NO_DAI_CALL))	\
 		dev_dbg(dev, param)
 
 #endif

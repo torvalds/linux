@@ -128,7 +128,7 @@ static inline int srmmu_device_memory(unsigned long x)
 static inline struct page *pmd_page(pmd_t pmd)
 {
 	if (srmmu_device_memory(pmd_val(pmd)))
-		BUG();
+		();
 	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
 }
 

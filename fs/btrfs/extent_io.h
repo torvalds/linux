@@ -127,7 +127,7 @@ struct extent_state {
 
 	struct io_failure_record *failrec;
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	struct list_head leak_list;
 #endif
 };
@@ -170,7 +170,7 @@ struct extent_buffer {
 	 */
 	wait_queue_head_t read_lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	struct list_head leak_list;
 #endif
 };

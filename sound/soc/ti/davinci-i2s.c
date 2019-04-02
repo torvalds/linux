@@ -216,7 +216,7 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 			int ret = component->driver->ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_STOP);
 			if (ret < 0)
-				printk(KERN_DEBUG "Playback DMA stop failed\n");
+				printk(KERN_DE "Playback DMA stop failed\n");
 		}
 
 		/* Enable the transmitter */
@@ -238,7 +238,7 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 			int ret = component->driver->ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_START);
 			if (ret < 0)
-				printk(KERN_DEBUG "Playback DMA start failed\n");
+				printk(KERN_DE "Playback DMA start failed\n");
 		}
 	}
 
@@ -490,7 +490,7 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
 		srgr = DAVINCI_MCBSP_SRGR_FSGM;
 		srgr |= DAVINCI_MCBSP_SRGR_FWID(snd_interval_value(i) - 1);
-		pr_debug("%s - %d  FWID set: re-read srgr = %X\n",
+		pr_de("%s - %d  FWID set: re-read srgr = %X\n",
 			__func__, __LINE__, snd_interval_value(i) - 1);
 
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_FRAME_BITS);
@@ -567,9 +567,9 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	else
 		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_RCR_REG, rcr);
 
-	pr_debug("%s - %d  srgr=%X\n", __func__, __LINE__, srgr);
-	pr_debug("%s - %d  xcr=%X\n", __func__, __LINE__, xcr);
-	pr_debug("%s - %d  rcr=%X\n", __func__, __LINE__, rcr);
+	pr_de("%s - %d  srgr=%X\n", __func__, __LINE__, srgr);
+	pr_de("%s - %d  xcr=%X\n", __func__, __LINE__, xcr);
+	pr_de("%s - %d  rcr=%X\n", __func__, __LINE__, rcr);
 	return 0;
 }
 

@@ -99,23 +99,23 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 	if (!kfd->doorbell_kernel_ptr)
 		return -ENOMEM;
 
-	pr_debug("Doorbell initialization:\n");
-	pr_debug("doorbell base           == 0x%08lX\n",
+	pr_de("Doorbell initialization:\n");
+	pr_de("doorbell base           == 0x%08lX\n",
 			(uintptr_t)kfd->doorbell_base);
 
-	pr_debug("doorbell_id_offset      == 0x%08lX\n",
+	pr_de("doorbell_id_offset      == 0x%08lX\n",
 			kfd->doorbell_id_offset);
 
-	pr_debug("doorbell_process_limit  == 0x%08lX\n",
+	pr_de("doorbell_process_limit  == 0x%08lX\n",
 			doorbell_process_limit);
 
-	pr_debug("doorbell_kernel_offset  == 0x%08lX\n",
+	pr_de("doorbell_kernel_offset  == 0x%08lX\n",
 			(uintptr_t)kfd->doorbell_base);
 
-	pr_debug("doorbell aperture size  == 0x%08lX\n",
+	pr_de("doorbell aperture size  == 0x%08lX\n",
 			kfd->shared_resources.doorbell_aperture_size);
 
-	pr_debug("doorbell kernel address == %p\n", kfd->doorbell_kernel_ptr);
+	pr_de("doorbell kernel address == %p\n", kfd->doorbell_kernel_ptr);
 
 	return 0;
 }
@@ -146,7 +146,7 @@ int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	pr_debug("Mapping doorbell page\n"
+	pr_de("Mapping doorbell page\n"
 		 "     target user address == 0x%08llX\n"
 		 "     physical address    == 0x%08llX\n"
 		 "     vm_flags            == 0x%04lX\n"
@@ -187,7 +187,7 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 	 */
 	*doorbell_off = kfd->doorbell_id_offset + inx;
 
-	pr_debug("Get kernel queue doorbell\n"
+	pr_de("Get kernel queue doorbell\n"
 			"     doorbell offset   == 0x%08X\n"
 			"     doorbell index    == 0x%x\n",
 		*doorbell_off, inx);
@@ -211,7 +211,7 @@ void write_kernel_doorbell(void __iomem *db, u32 value)
 {
 	if (db) {
 		writel(value, db);
-		pr_debug("Writing %d to doorbell address %p\n", value, db);
+		pr_de("Writing %d to doorbell address %p\n", value, db);
 	}
 }
 
@@ -221,7 +221,7 @@ void write_kernel_doorbell64(void __iomem *db, u64 value)
 		WARN(((unsigned long)db & 7) != 0,
 		     "Unaligned 64-bit doorbell");
 		writeq(value, (u64 __iomem *)db);
-		pr_debug("writing %llu to doorbell address %p\n", value, db);
+		pr_de("writing %llu to doorbell address %p\n", value, db);
 	}
 }
 

@@ -982,7 +982,7 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
 	case CARL9170_BW_20:
 		break;
 	default:
-		BUG();
+		();
 		return -ENOSYS;
 	}
 
@@ -1043,9 +1043,9 @@ carl9170_get_hw_dyn_params(struct ieee80211_channel *channel,
 		freq = channel->center_freq;
 	}
 
-	BUG_ON(chanidx >= ARRAY_SIZE(carl9170_phy_freq_params));
+	_ON(chanidx >= ARRAY_SIZE(carl9170_phy_freq_params));
 
-	BUILD_BUG_ON(__CARL9170_NUM_BW != 3);
+	BUILD__ON(__CARL9170_NUM_BW != 3);
 
 	WARN_ON(carl9170_phy_freq_params[chanidx].freq != freq);
 
@@ -1464,7 +1464,7 @@ static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 			ctpres = ar->power_2G_ofdm;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		for (n = 0; n < ntargets; n++) {
@@ -1504,7 +1504,7 @@ static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 			ctpres = ar->power_2G_ht40;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 		for (n = 0; n < ntargets; n++) {
@@ -1532,7 +1532,7 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 	u32 phy_res[ARRAY_SIZE(phy_regs)];
 	int err, i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(phy_regs) != ARRAY_SIZE(ar->noise));
+	BUILD__ON(ARRAY_SIZE(phy_regs) != ARRAY_SIZE(ar->noise));
 
 	err = carl9170_read_mreg(ar, ARRAY_SIZE(phy_regs), phy_regs, phy_res);
 	if (err)
@@ -1563,7 +1563,7 @@ static enum carl9170_bw nl80211_to_carl(enum nl80211_channel_type type)
 	case NL80211_CHAN_HT40PLUS:
 		return CARL9170_BW_40_ABOVE;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1644,7 +1644,7 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		offs = 1;
 		break;
 	default:
-		BUG();
+		();
 		return -ENOSYS;
 	}
 
@@ -1696,7 +1696,7 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			/* We have tried very hard to change to _another_
 			 * channel and we've failed to do so!
 			 * Chances are that the PHY/RF is no longer
-			 * operable (due to corruptions/fatal events/bugs?)
+			 * operable (due to corruptions/fatal events/s?)
 			 * and we need to reset at a higher level.
 			 */
 			carl9170_restart(ar, CARL9170_RR_TOO_MANY_PHY_ERRORS);

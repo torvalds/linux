@@ -86,7 +86,7 @@ typedef void hpi_handler_func(struct hpi_message *, struct hpi_response *);
 
 /* If the assert fails, compiler complains
    something like size of array `msg' is negative.
-   Unlike linux BUILD_BUG_ON, this works outside function scope.
+   Unlike linux BUILD__ON, this works outside function scope.
 */
 #define compile_time_assert(cond, msg) \
     typedef char ASSERT_##msg[(cond) ? 1 : -1]
@@ -423,7 +423,7 @@ enum HPI_FUNCTION_IDS {
 	HPI_ADAPTER_GET_PROPERTY = HPI_FUNC_ID(ADAPTER, 15),
 	HPI_ADAPTER_ENUM_PROPERTY = HPI_FUNC_ID(ADAPTER, 16),
 	HPI_ADAPTER_MODULE_INFO = HPI_FUNC_ID(ADAPTER, 17),
-	HPI_ADAPTER_DEBUG_READ = HPI_FUNC_ID(ADAPTER, 18),
+	HPI_ADAPTER_DE_READ = HPI_FUNC_ID(ADAPTER, 18),
 	HPI_ADAPTER_IRQ_QUERY_AND_CLEAR = HPI_FUNC_ID(ADAPTER, 19),
 	HPI_ADAPTER_IRQ_CALLBACK = HPI_FUNC_ID(ADAPTER, 20),
 	HPI_ADAPTER_DELETE = HPI_FUNC_ID(ADAPTER, 21),
@@ -658,7 +658,7 @@ union hpi_adapterx_msg {
 	struct {
 		u32 dsp_address;
 		u32 count_bytes;
-	} debug_read;
+	} de_read;
 	struct {
 		u32 adapter_mode;
 		u16 query_or_set;
@@ -1134,7 +1134,7 @@ struct hpi_res_adapter_get_info {
 	struct hpi_adapter_res p;
 };
 
-struct hpi_res_adapter_debug_read {
+struct hpi_res_adapter_de_read {
 	struct hpi_response_header h;
 	u8 bytes[1024];
 };

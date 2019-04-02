@@ -23,7 +23,7 @@
 #define __ARM_KGDB_H
 
 #include <linux/ptrace.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 
 #ifndef	__ASSEMBLY__
 

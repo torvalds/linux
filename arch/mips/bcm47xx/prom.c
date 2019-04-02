@@ -82,7 +82,7 @@ static __init void prom_init_mem(void)
 		/* Loop condition may be not enough, off may be over 1 MiB */
 		if (off + mem >= max) {
 			mem = max;
-			pr_debug("Assume 128MB RAM\n");
+			pr_de("Assume 128MB RAM\n");
 			break;
 		}
 		if (!memcmp(prom_init, prom_init + mem, 32))

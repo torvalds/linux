@@ -416,7 +416,7 @@ static bool amdgpu_vm_pt_descendant(struct amdgpu_device *adev,
 	if (!cursor->entry->entries)
 		return false;
 
-	BUG_ON(!cursor->entry->base.bo);
+	_ON(!cursor->entry->base.bo);
 	mask = amdgpu_vm_entries_mask(adev, cursor->level);
 	shift = amdgpu_vm_level_shift(adev, cursor->level);
 
@@ -1000,41 +1000,41 @@ static void amdgpu_vm_free_pts(struct amdgpu_device *adev,
 		kvfree(entry->entries);
 	}
 
-	BUG_ON(vm->root.base.bo);
+	_ON(vm->root.base.bo);
 }
 
 /**
- * amdgpu_vm_check_compute_bug - check whether asic has compute vm bug
+ * amdgpu_vm_check_compute_ - check whether asic has compute vm 
  *
  * @adev: amdgpu_device pointer
  */
-void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev)
+void amdgpu_vm_check_compute_(struct amdgpu_device *adev)
 {
 	const struct amdgpu_ip_block *ip_block;
-	bool has_compute_vm_bug;
+	bool has_compute_vm_;
 	struct amdgpu_ring *ring;
 	int i;
 
-	has_compute_vm_bug = false;
+	has_compute_vm_ = false;
 
 	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GFX);
 	if (ip_block) {
-		/* Compute has a VM bug for GFX version < 7.
-		   Compute has a VM bug for GFX 8 MEC firmware version < 673.*/
+		/* Compute has a VM  for GFX version < 7.
+		   Compute has a VM  for GFX 8 MEC firmware version < 673.*/
 		if (ip_block->version->major <= 7)
-			has_compute_vm_bug = true;
+			has_compute_vm_ = true;
 		else if (ip_block->version->major == 8)
 			if (adev->gfx.mec_fw_version < 673)
-				has_compute_vm_bug = true;
+				has_compute_vm_ = true;
 	}
 
 	for (i = 0; i < adev->num_rings; i++) {
 		ring = adev->rings[i];
 		if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
 			/* only compute rings */
-			ring->has_compute_vm_bug = has_compute_vm_bug;
+			ring->has_compute_vm_ = has_compute_vm_;
 		else
-			ring->has_compute_vm_bug = false;
+			ring->has_compute_vm_ = false;
 	}
 }
 
@@ -1055,7 +1055,7 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	struct amdgpu_vmid *id;
 	bool gds_switch_needed;
-	bool vm_flush_needed = job->vm_needs_flush || ring->has_compute_vm_bug;
+	bool vm_flush_needed = job->vm_needs_flush || ring->has_compute_vm_;
 
 	if (job->vmid == 0)
 		return false;
@@ -2324,7 +2324,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		spin_unlock(&vm->invalidated_lock);
 
 		/* Try to reserve the BO to avoid clearing its ptes */
-		if (!amdgpu_vm_debug && reservation_object_trylock(resv))
+		if (!amdgpu_vm_de && reservation_object_trylock(resv))
 			clear = false;
 		/* Somebody else is using the BO right now */
 		else
@@ -3014,7 +3014,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
 						AMDGPU_VM_USE_CPU_FOR_GFX);
 	}
-	DRM_DEBUG_DRIVER("VM update mode is %s\n",
+	DRM_DE_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
 	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
@@ -3145,7 +3145,7 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, uns
 	vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
 				    AMDGPU_VM_USE_CPU_FOR_COMPUTE);
 	vm->pte_support_ats = pte_support_ats;
-	DRM_DEBUG_DRIVER("VM update mode is %s\n",
+	DRM_DE_DRIVER("VM update mode is %s\n",
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
 	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");

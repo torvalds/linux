@@ -54,8 +54,8 @@
 #define RFD77402_I2C_INIT_CFG	0x1c
 #define RFD77402_I2C_ADDR_INCR	BIT(0)
 #define RFD77402_I2C_DATA_INCR	BIT(2)
-#define RFD77402_I2C_HOST_DEBUG	BIT(5)
-#define RFD77402_I2C_MCPU_DEBUG	BIT(6)
+#define RFD77402_I2C_HOST_DE	BIT(5)
+#define RFD77402_I2C_MCPU_DE	BIT(6)
 
 #define RFD77402_CMD_CFGR_A	0x0c
 #define RFD77402_CMD_CFGR_B	0x0e
@@ -210,8 +210,8 @@ static int rfd77402_init(struct rfd77402_data *data)
 	ret = i2c_smbus_write_word_data(data->client, RFD77402_I2C_INIT_CFG,
 					RFD77402_I2C_ADDR_INCR |
 					RFD77402_I2C_DATA_INCR |
-					RFD77402_I2C_HOST_DEBUG	|
-					RFD77402_I2C_MCPU_DEBUG);
+					RFD77402_I2C_HOST_DE	|
+					RFD77402_I2C_MCPU_DE);
 	if (ret < 0)
 		return ret;
 

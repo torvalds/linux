@@ -382,7 +382,7 @@ static int atl1e_phy_setup_autoneg_adv(struct atl1e_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *
- * Sets bit 15 and 12 of the MII control regiser (for F001 bug)
+ * Sets bit 15 and 12 of the MII control regiser (for F001 )
  */
 int atl1e_phy_commit(struct atl1e_hw *hw)
 {

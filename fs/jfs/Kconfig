@@ -30,12 +30,12 @@ config JFS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
-config JFS_DEBUG
-	bool "JFS debugging"
+config JFS_DE
+	bool "JFS deging"
 	depends on JFS_FS
 	help
 	  If you are experiencing any problems with the JFS filesystem, say
-	  Y here.  This will result in additional debugging messages to be
+	  Y here.  This will result in additional deging messages to be
 	  written to the system log.  Under normal circumstances, this
 	  results in very little overhead.
 

@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel SOC Telemetry debugfs Driver: Currently supports APL
+ * Intel SOC Telemetry defs Driver: Currently supports APL
  * Copyright (c) 2015, Intel Corporation.
  * All Rights Reserved.
  *
- * This file provides the debugfs interfaces for telemetry.
- * /sys/kernel/debug/telemetry/pss_info: Shows Primary Control Sub-Sys Counters
- * /sys/kernel/debug/telemetry/ioss_info: Shows IO Sub-System Counters
- * /sys/kernel/debug/telemetry/soc_states: Shows SoC State
- * /sys/kernel/debug/telemetry/pss_trace_verbosity: Read and Change Tracing
+ * This file provides the defs interfaces for telemetry.
+ * /sys/kernel/de/telemetry/pss_info: Shows Primary Control Sub-Sys Counters
+ * /sys/kernel/de/telemetry/ioss_info: Shows IO Sub-System Counters
+ * /sys/kernel/de/telemetry/soc_states: Shows SoC State
+ * /sys/kernel/de/telemetry/pss_trace_verbosity: Read and Change Tracing
  *				Verbosity via firmware
- * /sys/kernel/debug/telemetry/ioss_race_verbosity: Write and Change Tracing
+ * /sys/kernel/de/telemetry/ioss_race_verbosity: Write and Change Tracing
  *				Verbosity via firmware
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -25,7 +25,7 @@
 #include <asm/intel_pmc_ipc.h>
 #include <asm/intel_telemetry.h>
 
-#define DRIVER_NAME			"telemetry_soc_debugfs"
+#define DRIVER_NAME			"telemetry_soc_defs"
 #define DRIVER_VERSION			"1.0.0"
 
 /* ApolloLake SoC Event-IDs */
@@ -233,7 +233,7 @@ static struct telem_ioss_pg_info telem_apl_ioss_pg_data[] = {
 	{"PRTC",	25},
 };
 
-struct telemetry_debugfs_conf {
+struct telemetry_defs_conf {
 	struct telemetry_susp_stats suspend_stats;
 	struct dentry *telemetry_dbg_dir;
 
@@ -271,9 +271,9 @@ struct telemetry_debugfs_conf {
 	u16  ioss_pg_id;
 };
 
-static struct telemetry_debugfs_conf *debugfs_conf;
+static struct telemetry_defs_conf *defs_conf;
 
-static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
+static struct telemetry_defs_conf telem_apl_defs_conf = {
 	.pss_idle_data = telem_apl_pss_idle_data,
 	.pcs_idle_blkd_data = telem_apl_pcs_idle_blkd_data,
 	.pcs_s0ix_blkd_data = telem_apl_pcs_s0ix_blkd_data,
@@ -307,23 +307,23 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 	.ioss_pg_id = TELEM_APL_PG_ID,
 };
 
-static const struct x86_cpu_id telemetry_debugfs_cpu_ids[] = {
-	INTEL_CPU_FAM6(ATOM_GOLDMONT, telem_apl_debugfs_conf),
-	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS, telem_apl_debugfs_conf),
+static const struct x86_cpu_id telemetry_defs_cpu_ids[] = {
+	INTEL_CPU_FAM6(ATOM_GOLDMONT, telem_apl_defs_conf),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS, telem_apl_defs_conf),
 	{}
 };
 
-MODULE_DEVICE_TABLE(x86cpu, telemetry_debugfs_cpu_ids);
+MODULE_DEVICE_TABLE(x86cpu, telemetry_defs_cpu_ids);
 
-static int telemetry_debugfs_check_evts(void)
+static int telemetry_defs_check_evts(void)
 {
-	if ((debugfs_conf->pss_idle_evts > TELEM_PSS_IDLE_EVTS) ||
-	    (debugfs_conf->pcs_idle_blkd_evts > TELEM_PSS_IDLE_BLOCKED_EVTS) ||
-	    (debugfs_conf->pcs_s0ix_blkd_evts > TELEM_PSS_S0IX_BLOCKED_EVTS) ||
-	    (debugfs_conf->pss_ltr_evts > TELEM_PSS_LTR_BLOCKING_EVTS) ||
-	    (debugfs_conf->pss_wakeup_evts > TELEM_PSS_S0IX_WAKEUP_EVTS) ||
-	    (debugfs_conf->ioss_d0ix_evts > TELEM_IOSS_DX_D0IX_EVTS) ||
-	    (debugfs_conf->ioss_pg_evts > TELEM_IOSS_PG_EVTS))
+	if ((defs_conf->pss_idle_evts > TELEM_PSS_IDLE_EVTS) ||
+	    (defs_conf->pcs_idle_blkd_evts > TELEM_PSS_IDLE_BLOCKED_EVTS) ||
+	    (defs_conf->pcs_s0ix_blkd_evts > TELEM_PSS_S0IX_BLOCKED_EVTS) ||
+	    (defs_conf->pss_ltr_evts > TELEM_PSS_LTR_BLOCKING_EVTS) ||
+	    (defs_conf->pss_wakeup_evts > TELEM_PSS_S0IX_WAKEUP_EVTS) ||
+	    (defs_conf->ioss_d0ix_evts > TELEM_IOSS_DX_D0IX_EVTS) ||
+	    (defs_conf->ioss_pg_evts > TELEM_IOSS_PG_EVTS))
 		return -EINVAL;
 
 	return 0;
@@ -332,7 +332,7 @@ static int telemetry_debugfs_check_evts(void)
 static int telem_pss_states_show(struct seq_file *s, void *unused)
 {
 	struct telemetry_evtlog evtlog[TELEM_MAX_OS_ALLOCATED_EVENTS];
-	struct telemetry_debugfs_conf *conf = debugfs_conf;
+	struct telemetry_defs_conf *conf = defs_conf;
 	const char *name[TELEM_MAX_OS_ALLOCATED_EVENTS];
 	u32 pcs_idle_blkd[TELEM_PSS_IDLE_BLOCKED_EVTS],
 	    pcs_s0ix_blkd[TELEM_PSS_S0IX_BLOCKED_EVTS],
@@ -397,7 +397,7 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 					   evtlog[index].telem_evtlog,
 					   conf->pss_ltr_data, TELEM_MASK_BYTE);
 
-		if (evtlog[index].telem_evtid == debugfs_conf->pstates_id)
+		if (evtlog[index].telem_evtid == defs_conf->pstates_id)
 			pstates = evtlog[index].telem_evtlog;
 	}
 
@@ -417,9 +417,9 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 	seq_puts(s, "PSS IDLE Status\n");
 	seq_puts(s, "--------------------------------------\n");
 	seq_puts(s, "Device\t\t\t\t\tIDLE\n");
-	for (index = 0; index < debugfs_conf->pss_idle_evts; index++) {
+	for (index = 0; index < defs_conf->pss_idle_evts; index++) {
 		seq_printf(s, "%-32s\t%u\n",
-			   debugfs_conf->pss_idle_data[index].name,
+			   defs_conf->pss_idle_data[index].name,
 			   pss_idle[index]);
 	}
 
@@ -427,9 +427,9 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 	seq_puts(s, "PSS Idle blkd Status (~1ms saturating bucket)\n");
 	seq_puts(s, "--------------------------------------\n");
 	seq_puts(s, "Blocker\t\t\t\t\tCount\n");
-	for (index = 0; index < debugfs_conf->pcs_idle_blkd_evts; index++) {
+	for (index = 0; index < defs_conf->pcs_idle_blkd_evts; index++) {
 		seq_printf(s, "%-32s\t%u\n",
-			   debugfs_conf->pcs_idle_blkd_data[index].name,
+			   defs_conf->pcs_idle_blkd_data[index].name,
 			   pcs_idle_blkd[index]);
 	}
 
@@ -437,9 +437,9 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 	seq_puts(s, "PSS S0ix blkd Status (~1ms saturating bucket)\n");
 	seq_puts(s, "--------------------------------------\n");
 	seq_puts(s, "Blocker\t\t\t\t\tCount\n");
-	for (index = 0; index < debugfs_conf->pcs_s0ix_blkd_evts; index++) {
+	for (index = 0; index < defs_conf->pcs_s0ix_blkd_evts; index++) {
 		seq_printf(s, "%-32s\t%u\n",
-			   debugfs_conf->pcs_s0ix_blkd_data[index].name,
+			   defs_conf->pcs_s0ix_blkd_data[index].name,
 			   pcs_s0ix_blkd[index]);
 	}
 
@@ -447,9 +447,9 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 	seq_puts(s, "LTR Blocking Status (~1ms saturating bucket)\n");
 	seq_puts(s, "--------------------------------------\n");
 	seq_puts(s, "Blocker\t\t\t\t\tCount\n");
-	for (index = 0; index < debugfs_conf->pss_ltr_evts; index++) {
+	for (index = 0; index < defs_conf->pss_ltr_evts; index++) {
 		seq_printf(s, "%-32s\t%u\n",
-			   debugfs_conf->pss_ltr_data[index].name,
+			   defs_conf->pss_ltr_data[index].name,
 			   pss_s0ix_wakeup[index]);
 	}
 
@@ -457,9 +457,9 @@ static int telem_pss_states_show(struct seq_file *s, void *unused)
 	seq_puts(s, "Wakes Status (~1ms saturating bucket)\n");
 	seq_puts(s, "--------------------------------------\n");
 	seq_puts(s, "Wakes\t\t\t\t\tCount\n");
-	for (index = 0; index < debugfs_conf->pss_wakeup_evts; index++) {
+	for (index = 0; index < defs_conf->pss_wakeup_evts; index++) {
 		seq_printf(s, "%-32s\t%u\n",
-			   debugfs_conf->pss_wakeup[index].name,
+			   defs_conf->pss_wakeup[index].name,
 			   pss_ltr_blkd[index]);
 	}
 
@@ -504,7 +504,7 @@ static int telem_soc_states_show(struct seq_file *s, void *unused)
 	struct telemetry_evtlog evtlog[TELEM_MAX_OS_ALLOCATED_EVENTS];
 	u32 s0ix_total_ctr = 0, s0ix_shlw_ctr = 0, s0ix_deep_ctr = 0;
 	u64 s0ix_total_res = 0, s0ix_shlw_res = 0, s0ix_deep_res = 0;
-	struct telemetry_debugfs_conf *conf = debugfs_conf;
+	struct telemetry_defs_conf *conf = defs_conf;
 	struct pci_dev *dev = NULL;
 	int index, idx, ret;
 	u32 d3_state;
@@ -662,7 +662,7 @@ static int telem_s0ix_res_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(telem_s0ix_fops, telem_s0ix_res_get, NULL, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(telem_s0ix_fops, telem_s0ix_res_get, NULL, "%llu\n");
 
 static int telem_pss_trc_verb_show(struct seq_file *s, void *unused)
 {
@@ -761,7 +761,7 @@ static const struct file_operations telem_ioss_trc_verb_ops = {
 static int pm_suspend_prep_cb(void)
 {
 	struct telemetry_evtlog evtlog[TELEM_MAX_OS_ALLOCATED_EVENTS];
-	struct telemetry_debugfs_conf *conf = debugfs_conf;
+	struct telemetry_defs_conf *conf = defs_conf;
 	int ret, index;
 
 	ret = telemetry_raw_read_eventlog(TELEM_IOSS, evtlog,
@@ -795,7 +795,7 @@ static int pm_suspend_exit_cb(void)
 	struct telemetry_evtlog evtlog[TELEM_MAX_OS_ALLOCATED_EVENTS];
 	static u32 suspend_shlw_ctr_exit, suspend_deep_ctr_exit;
 	static u64 suspend_shlw_res_exit, suspend_deep_res_exit;
-	struct telemetry_debugfs_conf *conf = debugfs_conf;
+	struct telemetry_defs_conf *conf = defs_conf;
 	int ret, index;
 
 	if (!suspend_prep_ok)
@@ -896,18 +896,18 @@ static struct notifier_block pm_notifier = {
 	.notifier_call = pm_notification,
 };
 
-static int __init telemetry_debugfs_init(void)
+static int __init telemetry_defs_init(void)
 {
 	const struct x86_cpu_id *id;
 	int err;
 	struct dentry *f;
 
 	/* Only APL supported for now */
-	id = x86_match_cpu(telemetry_debugfs_cpu_ids);
+	id = x86_match_cpu(telemetry_defs_cpu_ids);
 	if (!id)
 		return -ENODEV;
 
-	debugfs_conf = (struct telemetry_debugfs_conf *)id->driver_data;
+	defs_conf = (struct telemetry_defs_conf *)id->driver_data;
 
 	err = telemetry_pltconfig_valid();
 	if (err < 0) {
@@ -915,89 +915,89 @@ static int __init telemetry_debugfs_init(void)
 		return -ENODEV;
 	}
 
-	err = telemetry_debugfs_check_evts();
+	err = telemetry_defs_check_evts();
 	if (err < 0) {
-		pr_info("telemetry_debugfs_check_evts failed\n");
+		pr_info("telemetry_defs_check_evts failed\n");
 		return -EINVAL;
 	}
 
 	register_pm_notifier(&pm_notifier);
 
 	err = -ENOMEM;
-	debugfs_conf->telemetry_dbg_dir = debugfs_create_dir("telemetry", NULL);
-	if (!debugfs_conf->telemetry_dbg_dir)
+	defs_conf->telemetry_dbg_dir = defs_create_dir("telemetry", NULL);
+	if (!defs_conf->telemetry_dbg_dir)
 		goto out_pm;
 
-	f = debugfs_create_file("pss_info", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
+	f = defs_create_file("pss_info", S_IFREG | S_IRUGO,
+				defs_conf->telemetry_dbg_dir, NULL,
 				&telem_pss_states_fops);
 	if (!f) {
-		pr_err("pss_sample_info debugfs register failed\n");
+		pr_err("pss_sample_info defs register failed\n");
 		goto out;
 	}
 
-	f = debugfs_create_file("ioss_info", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
+	f = defs_create_file("ioss_info", S_IFREG | S_IRUGO,
+				defs_conf->telemetry_dbg_dir, NULL,
 				&telem_ioss_states_fops);
 	if (!f) {
-		pr_err("ioss_sample_info debugfs register failed\n");
+		pr_err("ioss_sample_info defs register failed\n");
 		goto out;
 	}
 
-	f = debugfs_create_file("soc_states", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir,
+	f = defs_create_file("soc_states", S_IFREG | S_IRUGO,
+				defs_conf->telemetry_dbg_dir,
 				NULL, &telem_soc_states_fops);
 	if (!f) {
-		pr_err("ioss_sample_info debugfs register failed\n");
+		pr_err("ioss_sample_info defs register failed\n");
 		goto out;
 	}
 
-	f = debugfs_create_file("s0ix_residency_usec", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir,
+	f = defs_create_file("s0ix_residency_usec", S_IFREG | S_IRUGO,
+				defs_conf->telemetry_dbg_dir,
 				NULL, &telem_s0ix_fops);
 	if (!f) {
-		pr_err("s0ix_residency_usec debugfs register failed\n");
+		pr_err("s0ix_residency_usec defs register failed\n");
 		goto out;
 	}
 
-	f = debugfs_create_file("pss_trace_verbosity", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
+	f = defs_create_file("pss_trace_verbosity", S_IFREG | S_IRUGO,
+				defs_conf->telemetry_dbg_dir, NULL,
 				&telem_pss_trc_verb_ops);
 	if (!f) {
-		pr_err("pss_trace_verbosity debugfs register failed\n");
+		pr_err("pss_trace_verbosity defs register failed\n");
 		goto out;
 	}
 
-	f = debugfs_create_file("ioss_trace_verbosity", S_IFREG | S_IRUGO,
-				debugfs_conf->telemetry_dbg_dir, NULL,
+	f = defs_create_file("ioss_trace_verbosity", S_IFREG | S_IRUGO,
+				defs_conf->telemetry_dbg_dir, NULL,
 				&telem_ioss_trc_verb_ops);
 	if (!f) {
-		pr_err("ioss_trace_verbosity debugfs register failed\n");
+		pr_err("ioss_trace_verbosity defs register failed\n");
 		goto out;
 	}
 
 	return 0;
 
 out:
-	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
-	debugfs_conf->telemetry_dbg_dir = NULL;
+	defs_remove_recursive(defs_conf->telemetry_dbg_dir);
+	defs_conf->telemetry_dbg_dir = NULL;
 out_pm:
 	unregister_pm_notifier(&pm_notifier);
 
 	return err;
 }
 
-static void __exit telemetry_debugfs_exit(void)
+static void __exit telemetry_defs_exit(void)
 {
-	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
-	debugfs_conf->telemetry_dbg_dir = NULL;
+	defs_remove_recursive(defs_conf->telemetry_dbg_dir);
+	defs_conf->telemetry_dbg_dir = NULL;
 	unregister_pm_notifier(&pm_notifier);
 }
 
-late_initcall(telemetry_debugfs_init);
-module_exit(telemetry_debugfs_exit);
+late_initcall(telemetry_defs_init);
+module_exit(telemetry_defs_exit);
 
 MODULE_AUTHOR("Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>");
-MODULE_DESCRIPTION("Intel SoC Telemetry debugfs Interface");
+MODULE_DESCRIPTION("Intel SoC Telemetry defs Interface");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");

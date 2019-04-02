@@ -33,12 +33,12 @@ static inline void remap_area_pte(pte_t *pte, unsigned long address,
 	if (end > PMD_SIZE)
 		end = PMD_SIZE;
 	if (address >= end)
-		BUG();
+		();
 	pfn = PFN_DOWN(phys_addr);
 	do {
 		if (!pte_none(*pte)) {
 			pr_err("remap_area_pte: page already exists\n");
-			BUG();
+			();
 		}
 		set_pte(pte, pfn_pte(pfn, pgprot));
 		address += PAGE_SIZE;
@@ -59,7 +59,7 @@ static inline int remap_area_pmd(pmd_t *pmd, unsigned long address,
 		end = PGDIR_SIZE;
 	phys_addr -= address;
 	if (address >= end)
-		BUG();
+		();
 	do {
 		pte_t *pte = pte_alloc_kernel(pmd, address);
 
@@ -84,7 +84,7 @@ static int remap_area_pages(unsigned long address, unsigned long phys_addr,
 	dir = pgd_offset(&init_mm, address);
 	flush_cache_all();
 	if (address >= end)
-		BUG();
+		();
 	do {
 		pud_t *pud;
 		pmd_t *pmd;

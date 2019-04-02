@@ -477,7 +477,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
 
 	retval = pxa27x_start_hc(pxa_ohci, &pdev->dev);
 	if (retval < 0) {
-		pr_debug("pxa27x_start_hc failed");
+		pr_de("pxa27x_start_hc failed");
 		goto err;
 	}
 

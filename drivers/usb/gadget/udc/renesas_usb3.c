@@ -5,7 +5,7 @@
  * Copyright (C) 2015-2017  Renesas Electronics Corporation
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -2459,12 +2459,12 @@ static const struct file_operations renesas_usb3_b_device_fops = {
 	.release = single_release,
 };
 
-static void renesas_usb3_debugfs_init(struct renesas_usb3 *usb3,
+static void renesas_usb3_defs_init(struct renesas_usb3 *usb3,
 				      struct device *dev)
 {
-	usb3->dentry = debugfs_create_dir(dev_name(dev), NULL);
+	usb3->dentry = defs_create_dir(dev_name(dev), NULL);
 
-	debugfs_create_file("b_device", 0644, usb3->dentry, usb3,
+	defs_create_file("b_device", 0644, usb3->dentry, usb3,
 			    &renesas_usb3_b_device_fops);
 }
 
@@ -2473,7 +2473,7 @@ static int renesas_usb3_remove(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3 = platform_get_drvdata(pdev);
 
-	debugfs_remove_recursive(usb3->dentry);
+	defs_remove_recursive(usb3->dentry);
 	device_remove_file(&pdev->dev, &dev_attr_role);
 
 	usb_role_switch_unregister(usb3->role_sw);
@@ -2757,7 +2757,7 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 
 	usb3->workaround_for_vbus = priv->workaround_for_vbus;
 
-	renesas_usb3_debugfs_init(usb3, &pdev->dev);
+	renesas_usb3_defs_init(usb3, &pdev->dev);
 
 	dev_info(&pdev->dev, "probed%s\n", usb3->phy ? " with phy" : "");
 

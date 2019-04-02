@@ -18,7 +18,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "htc-ops.h"
 #include "trace.h"
 

@@ -42,7 +42,7 @@ struct brcms_timer {
 	bool periodic;
 	bool set;		/* indicates if timer is active */
 	struct brcms_timer *next;	/* for freeing on unload */
-#ifdef DEBUG
+#ifdef DE
 	char *name;		/* Description of the timer */
 #endif
 };

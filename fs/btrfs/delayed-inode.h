@@ -136,7 +136,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 int __init btrfs_delayed_inode_init(void);
 void __cold btrfs_delayed_inode_exit(void);
 
-/* for debugging */
+/* for deging */
 void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info);
 
 #endif

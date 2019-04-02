@@ -53,7 +53,7 @@
 #define LINT_USE(x)
 #endif
 
-#ifdef	DEBUG
+#ifdef	DE
 #define	DB_PR(flag, fmt, ...)						\
 	do { if (flag) printf(fmt "\n", ##__VA_ARGS__); } while (0)
 #else
@@ -61,10 +61,10 @@
 
 #endif
 
-#ifdef DEBUG_BRD
-#define DB_TEST (smc->debug)
+#ifdef DE_BRD
+#define DB_TEST (smc->de)
 #else
-#define DB_TEST (debug)
+#define DB_TEST (de)
 #endif
 
 #define DB_ECM(fmt, ...)						\
@@ -533,11 +533,11 @@ void sm_pm_bypass_req(struct s_smc *smc, int mode);
 void rmt_indication(struct s_smc *smc, int i);
 void cfm_state_change(struct s_smc *smc, int c_state);
 
-#if defined(DEBUG) || !defined(NO_SMT_PANIC)
+#if defined(DE) || !defined(NO_SMT_PANIC)
 void smt_panic(struct s_smc *smc, char *text);
 #else
 #define	smt_panic(smc,text)
-#endif /* DEBUG || !NO_SMT_PANIC */
+#endif /* DE || !NO_SMT_PANIC */
 
 void smt_stat_counter(struct s_smc *smc, int stat);
 void smt_timer_poll(struct s_smc *smc);
@@ -638,14 +638,14 @@ void smt_srf_event(struct s_smc *smc, int code, int index, int cond);
 void smt_emulate_token_ct(struct s_smc *smc, int mac_index);
 #endif
 
-#if defined(DEBUG) && !defined(BOOT)
+#if defined(DE) && !defined(BOOT)
 void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text);
 #else
 #define	dump_smt(smc,sm,text)
 #endif
 
 char* addr_to_string(struct fddi_addr *addr);
-#ifdef	DEBUG
+#ifdef	DE
 void dump_hex(char *p, int len);
 #endif
 

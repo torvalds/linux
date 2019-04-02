@@ -416,27 +416,27 @@ EXPORT_SYMBOL(vmalloc_32_user);
 
 void *vmap(struct page **pages, unsigned int count, unsigned long flags, pgprot_t prot)
 {
-	BUG();
+	();
 	return NULL;
 }
 EXPORT_SYMBOL(vmap);
 
 void vunmap(const void *addr)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL(vunmap);
 
 void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t prot)
 {
-	BUG();
+	();
 	return NULL;
 }
 EXPORT_SYMBOL(vm_map_ram);
 
 void vm_unmap_ram(const void *mem, unsigned int count)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL(vm_unmap_ram);
 
@@ -455,14 +455,14 @@ void __weak vmalloc_sync_all(void)
 
 struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
 {
-	BUG();
+	();
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(alloc_vm_area);
 
 void free_vm_area(struct vm_struct *area)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL_GPL(free_vm_area);
 
@@ -513,7 +513,7 @@ void __init mmap_init(void)
 	int ret;
 
 	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
-	VM_BUG_ON(ret);
+	VM__ON(ret);
 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC|SLAB_ACCOUNT);
 }
 
@@ -521,7 +521,7 @@ void __init mmap_init(void)
  * validate the region tree
  * - the caller must hold the region lock
  */
-#ifdef CONFIG_DEBUG_NOMMU_REGIONS
+#ifdef CONFIG_DE_NOMMU_REGIONS
 static noinline void validate_nommu_regions(void)
 {
 	struct vm_region *region, *last;
@@ -532,16 +532,16 @@ static noinline void validate_nommu_regions(void)
 		return;
 
 	last = rb_entry(lastp, struct vm_region, vm_rb);
-	BUG_ON(last->vm_end <= last->vm_start);
-	BUG_ON(last->vm_top < last->vm_end);
+	_ON(last->vm_end <= last->vm_start);
+	_ON(last->vm_top < last->vm_end);
 
 	while ((p = rb_next(lastp))) {
 		region = rb_entry(p, struct vm_region, vm_rb);
 		last = rb_entry(lastp, struct vm_region, vm_rb);
 
-		BUG_ON(region->vm_end <= region->vm_start);
-		BUG_ON(region->vm_top < region->vm_end);
-		BUG_ON(region->vm_start < last->vm_top);
+		_ON(region->vm_end <= region->vm_start);
+		_ON(region->vm_top < region->vm_end);
+		_ON(region->vm_start < last->vm_top);
 
 		lastp = p;
 	}
@@ -574,7 +574,7 @@ static void add_nommu_region(struct vm_region *region)
 		else if (pregion == region)
 			return;
 		else
-			BUG();
+			();
 	}
 
 	rb_link_node(&region->vm_rb, parent, p);
@@ -588,7 +588,7 @@ static void add_nommu_region(struct vm_region *region)
  */
 static void delete_nommu_region(struct vm_region *region)
 {
-	BUG_ON(!nommu_region_tree.rb_node);
+	_ON(!nommu_region_tree.rb_node);
 
 	validate_nommu_regions();
 	rb_erase(&region->vm_rb, &nommu_region_tree);
@@ -617,7 +617,7 @@ static void free_page_series(unsigned long from, unsigned long to)
 static void __put_nommu_region(struct vm_region *region)
 	__releases(nommu_region_sem)
 {
-	BUG_ON(!nommu_region_tree.rb_node);
+	_ON(!nommu_region_tree.rb_node);
 
 	if (--region->vm_usage == 0) {
 		if (region->vm_top > region->vm_start)
@@ -658,7 +658,7 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 	struct address_space *mapping;
 	struct rb_node **p, *parent, *rb_prev;
 
-	BUG_ON(!vma->vm_region);
+	_ON(!vma->vm_region);
 
 	mm->map_count++;
 	vma->vm_mm = mm;
@@ -699,7 +699,7 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 			rb_prev = parent;
 			p = &(*p)->rb_right;
 		} else
-			BUG();
+			();
 	}
 
 	rb_link_node(&vma->vm_rb, parent, p);
@@ -1087,7 +1087,7 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		ret = call_mmap(vma->vm_file, vma);
 		if (ret == 0) {
 			/* shouldn't return success if we're not sharing */
-			BUG_ON(!(vma->vm_flags & VM_MAYSHARE));
+			_ON(!(vma->vm_flags & VM_MAYSHARE));
 			vma->vm_region->vm_top = vma->vm_region->vm_end;
 			return 0;
 		}
@@ -1527,7 +1527,7 @@ static int shrink_vma(struct mm_struct *mm,
 
 	/* cut the backing region down to size */
 	region = vma->vm_region;
-	BUG_ON(region->vm_usage != 1);
+	_ON(region->vm_usage != 1);
 
 	down_write(&nommu_region_sem);
 	delete_nommu_region(region);
@@ -1759,7 +1759,7 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 
 vm_fault_t filemap_fault(struct vm_fault *vmf)
 {
-	BUG();
+	();
 	return 0;
 }
 EXPORT_SYMBOL(filemap_fault);
@@ -1767,7 +1767,7 @@ EXPORT_SYMBOL(filemap_fault);
 void filemap_map_pages(struct vm_fault *vmf,
 		pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL(filemap_map_pages);
 

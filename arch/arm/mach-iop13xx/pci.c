@@ -29,8 +29,8 @@
 #include <asm/mach/pci.h>
 #include "pci.h"
 
-#define IOP13XX_PCI_DEBUG 0
-#define PRINTK(x...) ((void)(IOP13XX_PCI_DEBUG && printk(x)))
+#define IOP13XX_PCI_DE 0
+#define PRINTK(x...) ((void)(IOP13XX_PCI_DE && printk(x)))
 
 u32 iop13xx_atux_pmmr_offset; /* This offset can change based on strapping */
 u32 iop13xx_atue_pmmr_offset; /* This offset can change based on strapping */
@@ -94,7 +94,7 @@ void iop13xx_map_pci_memory(void)
 					if (!iop13xx_atux_mem_base) {
 						printk("%s: atux allocation "
 						       "failed\n", __func__);
-						BUG();
+						();
 					}
 				} else
 					iop13xx_atux_mem_size = 0;
@@ -119,7 +119,7 @@ void iop13xx_map_pci_memory(void)
 					if (!iop13xx_atue_mem_base) {
 						printk("%s: atue allocation "
 						       "failed\n", __func__);
-						BUG();
+						();
 					}
 				} else
 					iop13xx_atue_mem_size = 0;
@@ -164,7 +164,7 @@ static int iop13xx_atu_function(int atu)
 			func = 5;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return func;
@@ -375,7 +375,7 @@ static int iop13xx_atue_pci_status(int clear)
 					__raw_readl(IOP13XX_ATUE_PIE_STS));
 				PRINTK("\t\t\tPCI-E error: ATUE_PIE_MSK %#08x",
 					__raw_readl(IOP13XX_ATUE_PIE_MSK));
-				BUG();
+				();
 			}
 
 			if(clear)
@@ -524,7 +524,7 @@ int iop13xx_scan_bus(int nr, struct pci_host_bridge *bridge)
 	}
 
 	if (!which_atu) {
-		BUG();
+		();
 		return -ENODEV;
 	}
 
@@ -913,7 +913,7 @@ void __init iop13xx_set_atu_mmr_bases(void)
 		iop13xx_atue_pmmr_offset = IOP13XX_ATU0_PMMR_OFFSET;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

@@ -27,12 +27,12 @@ static bool check_src_eq(struct drm_plane_state *plane_state,
 {
 	if (plane_state->src.x1 < 0) {
 		pr_err("src x coordinate %x should never be below 0.\n", plane_state->src.x1);
-		drm_rect_debug_print("src: ", &plane_state->src, true);
+		drm_rect_de_print("src: ", &plane_state->src, true);
 		return false;
 	}
 	if (plane_state->src.y1 < 0) {
 		pr_err("src y coordinate %x should never be below 0.\n", plane_state->src.y1);
-		drm_rect_debug_print("src: ", &plane_state->src, true);
+		drm_rect_de_print("src: ", &plane_state->src, true);
 		return false;
 	}
 
@@ -40,7 +40,7 @@ static bool check_src_eq(struct drm_plane_state *plane_state,
 	    plane_state->src.y1 != src_y ||
 	    drm_rect_width(&plane_state->src) != src_w ||
 	    drm_rect_height(&plane_state->src) != src_h) {
-		drm_rect_debug_print("src: ", &plane_state->src, true);
+		drm_rect_de_print("src: ", &plane_state->src, true);
 		return false;
 	}
 
@@ -65,7 +65,7 @@ static bool check_crtc_eq(struct drm_plane_state *plane_state,
 	    plane_state->dst.y1 != crtc_y ||
 	    drm_rect_width(&plane_state->dst) != crtc_w ||
 	    drm_rect_height(&plane_state->dst) != crtc_h) {
-		drm_rect_debug_print("dst: ", &plane_state->dst, false);
+		drm_rect_de_print("dst: ", &plane_state->dst, false);
 
 		return false;
 	}

@@ -228,7 +228,7 @@ static int read_bbt(struct nand_chip *this, uint8_t *buf, int page, int num,
 				}
 				/*
 				 * Leave it for now, if it's matured we can
-				 * move this message to pr_debug.
+				 * move this message to pr_de.
 				 */
 				pr_info("nand_read_bbt: bad block at 0x%012llx\n",
 					 (loff_t)(offs + act) <<
@@ -493,7 +493,7 @@ static int create_bbt(struct nand_chip *this, uint8_t *buf,
 	for (i = startblock; i < numblocks; i++) {
 		int ret;
 
-		BUG_ON(bd->options & NAND_BBT_NO_OOB);
+		_ON(bd->options & NAND_BBT_NO_OOB);
 
 		ret = scan_block_fast(this, bd, from, buf, numpages);
 		if (ret < 0)
@@ -1168,20 +1168,20 @@ static void verify_bbt_descr(struct nand_chip *this, struct nand_bbt_descr *bd)
 	pattern_len = bd->len;
 	bits = bd->options & NAND_BBT_NRBITS_MSK;
 
-	BUG_ON((this->bbt_options & NAND_BBT_NO_OOB) &&
+	_ON((this->bbt_options & NAND_BBT_NO_OOB) &&
 			!(this->bbt_options & NAND_BBT_USE_FLASH));
-	BUG_ON(!bits);
+	_ON(!bits);
 
 	if (bd->options & NAND_BBT_VERSION)
 		pattern_len++;
 
 	if (bd->options & NAND_BBT_NO_OOB) {
-		BUG_ON(!(this->bbt_options & NAND_BBT_USE_FLASH));
-		BUG_ON(!(this->bbt_options & NAND_BBT_NO_OOB));
-		BUG_ON(bd->offs);
+		_ON(!(this->bbt_options & NAND_BBT_USE_FLASH));
+		_ON(!(this->bbt_options & NAND_BBT_NO_OOB));
+		_ON(bd->offs);
 		if (bd->options & NAND_BBT_VERSION)
-			BUG_ON(bd->veroffs != bd->len);
-		BUG_ON(bd->options & NAND_BBT_SAVECONTENT);
+			_ON(bd->veroffs != bd->len);
+		_ON(bd->options & NAND_BBT_SAVECONTENT);
 	}
 
 	if (bd->options & NAND_BBT_PERCHIP)
@@ -1192,7 +1192,7 @@ static void verify_bbt_descr(struct nand_chip *this, struct nand_bbt_descr *bd)
 	table_size *= bits;
 	if (bd->options & NAND_BBT_NO_OOB)
 		table_size += pattern_len;
-	BUG_ON(table_size > (1 << this->bbt_erase_shift));
+	_ON(table_size > (1 << this->bbt_erase_shift));
 }
 
 /**
@@ -1416,7 +1416,7 @@ int nand_isbad_bbt(struct nand_chip *this, loff_t offs, int allowbbt)
 	block = (int)(offs >> this->bbt_erase_shift);
 	res = bbt_get_entry(this, block);
 
-	pr_debug("nand_isbad_bbt(): bbt info for offs 0x%08x: (block %d) 0x%02x\n",
+	pr_de("nand_isbad_bbt(): bbt info for offs 0x%08x: (block %d) 0x%02x\n",
 		 (unsigned int)offs, block, res);
 
 	switch (res) {

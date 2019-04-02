@@ -764,7 +764,7 @@ send:
 		actual_size = count +
 			      (priv->pkt_fmt == packet_format_1 ? 2 : 1);
 
-	usb_serial_debug_data(dev, __func__, port->interrupt_out_size,
+	usb_serial_de_data(dev, __func__, port->interrupt_out_size,
 			      port->interrupt_out_urb->transfer_buffer);
 
 	usb_fill_int_urb(port->interrupt_out_urb, port->serial->dev,
@@ -1128,7 +1128,7 @@ static void cypress_read_int_callback(struct urb *urb)
 		goto continue_read;
 	}
 
-	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
+	usb_serial_de_data(&port->dev, __func__, urb->actual_length, data);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	/* check to see if status has changed */

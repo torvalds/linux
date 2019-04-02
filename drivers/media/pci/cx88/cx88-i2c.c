@@ -30,9 +30,9 @@
 
 #include <media/v4l2-common.h>
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
+static unsigned int i2c_de;
+module_param(i2c_de, int, 0644);
+MODULE_PARM_DESC(i2c_de, "enable de messages [i2c]");
 
 static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
@@ -44,8 +44,8 @@ MODULE_PARM_DESC(i2c_udelay,
 		 "i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (i2c_debug >= level)						\
-		printk(KERN_DEBUG pr_fmt("%s: i2c:" fmt),		\
+	if (i2c_de >= level)						\
+		printk(KERN_DE pr_fmt("%s: i2c:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 

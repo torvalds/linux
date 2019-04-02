@@ -119,7 +119,7 @@ static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 		*val = data[0];
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return 0;
@@ -258,7 +258,7 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 		data[5] = val;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	for (retries = 0; retries < 5; retries++) {

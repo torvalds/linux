@@ -377,7 +377,7 @@ restart:
 					cp->cp_xmit_data_off = 0;
 					sg++;
 					cp->cp_xmit_sg++;
-					BUG_ON(ret != 0 && cp->cp_xmit_sg ==
+					_ON(ret != 0 && cp->cp_xmit_sg ==
 					       rm->data.op_nents);
 				}
 			}
@@ -464,7 +464,7 @@ static void rds_send_sndbuf_remove(struct rds_sock *rs, struct rds_message *rm)
 
 	assert_spin_locked(&rs->rs_lock);
 
-	BUG_ON(rs->rs_snd_bytes < len);
+	_ON(rs->rs_snd_bytes < len);
 	rs->rs_snd_bytes -= len;
 
 	if (rs->rs_snd_bytes == 0)
@@ -860,7 +860,7 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 		set_bit(RDS_MSG_ON_CONN, &rm->m_flags);
 		spin_unlock(&cp->cp_lock);
 
-		rdsdebug("queued msg %p len %d, rs %p bytes %d seq %llu\n",
+		rdsde("queued msg %p len %d, rs %p bytes %d seq %llu\n",
 			 rm, len, rs, rs->rs_snd_bytes,
 			 (unsigned long long)be64_to_cpu(rm->m_inc.i_hdr.h_sequence));
 
@@ -1350,7 +1350,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 							  dport,
 							  &queued),
 					timeo);
-		rdsdebug("sendmsg woke queued %d timeo %ld\n", queued, timeo);
+		rdsde("sendmsg woke queued %d timeo %ld\n", queued, timeo);
 		if (timeo > 0 || timeo == MAX_SCHEDULE_TIMEOUT)
 			continue;
 

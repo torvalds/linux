@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Please report bugs/comments/suggestions to linux@highpoint-tech.com
+ * Please report s/comments/suggestions to linux@highpoint-tech.com
  *
  * For more information, visit http://www.highpoint-tech.com
  */
@@ -187,7 +187,7 @@ static void hptiop_request_callback_mv(struct hptiop_hba *hba, u64 tag)
 
 	dprintk("hptiop_request_callback_mv: tag=%llx\n", tag);
 
-	BUG_ON((tag & MVIOP_MU_QUEUE_REQUEST_RETURN_CONTEXT) == 0);
+	_ON((tag & MVIOP_MU_QUEUE_REQUEST_RETURN_CONTEXT) == 0);
 
 	switch (req_type) {
 	case IOP_REQUEST_TYPE_GET_CONFIG:
@@ -289,7 +289,7 @@ static int iop_intr_mvfrey(struct hptiop_hba *hba)
 					cur_rptr = 0;
 
 				_tag = hba->u.mvfrey.outlist[cur_rptr].val;
-				BUG_ON(!(_tag & IOPMU_QUEUE_MASK_HOST_BITS));
+				_ON(!(_tag & IOPMU_QUEUE_MASK_HOST_BITS));
 				hptiop_request_callback_mvfrey(hba, _tag);
 				ret = 1;
 			}
@@ -731,8 +731,8 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 			req, req->header.type, req->header.result,
 			req->header.context, tag);
 
-	BUG_ON(!req->header.result);
-	BUG_ON(req->header.type != cpu_to_le32(IOP_REQUEST_TYPE_SCSI_COMMAND));
+	_ON(!req->header.result);
+	_ON(req->header.type != cpu_to_le32(IOP_REQUEST_TYPE_SCSI_COMMAND));
 
 	scp = hba->reqs[tag].scp;
 
@@ -813,8 +813,8 @@ static void hptiop_iop_request_callback_itl(struct hptiop_hba *hba, u32 tag)
 			req, readl(&req->type), readl(&req->result),
 			readl(&req->context), tag);
 
-	BUG_ON(!readl(&req->result));
-	BUG_ON(readl(&req->type) != IOP_REQUEST_TYPE_IOCTL_COMMAND);
+	_ON(!readl(&req->result));
+	_ON(readl(&req->type) != IOP_REQUEST_TYPE_IOCTL_COMMAND);
 
 	p = (struct hpt_iop_request_ioctl_command __iomem *)req;
 	arg = (struct hpt_ioctl_k *)(unsigned long)
@@ -860,14 +860,14 @@ static int hptiop_buildsgl(struct scsi_cmnd *scp, struct hpt_iopsg *psg)
 	int idx, nseg;
 
 	nseg = scsi_dma_map(scp);
-	BUG_ON(nseg < 0);
+	_ON(nseg < 0);
 	if (!nseg)
 		return 0;
 
 	HPT_SCP(scp)->sgcnt = nseg;
 	HPT_SCP(scp)->mapped = 1;
 
-	BUG_ON(HPT_SCP(scp)->sgcnt > hba->max_sg_descriptors);
+	_ON(HPT_SCP(scp)->sgcnt > hba->max_sg_descriptors);
 
 	scsi_for_each_sg(scp, sg, HPT_SCP(scp)->sgcnt, idx) {
 		psg[idx].pci_address = cpu_to_le64(sg_dma_address(sg)) |
@@ -1011,7 +1011,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp,
 	int sg_count = 0;
 	struct hptiop_request *_req;
 
-	BUG_ON(!done);
+	_ON(!done);
 	scp->scsi_done = done;
 
 	_req = get_req(hba);
@@ -1208,10 +1208,10 @@ static int hptiop_internal_memalloc_mvfrey(struct hptiop_hba *hba)
 	char *p;
 	dma_addr_t phy;
 
-	BUG_ON(hba->max_request_size == 0);
+	_ON(hba->max_request_size == 0);
 
 	if (list_count == 0) {
-		BUG_ON(1);
+		_ON(1);
 		return -1;
 	}
 

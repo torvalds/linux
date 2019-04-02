@@ -2229,7 +2229,7 @@ update to the latest status.
 Atomicity
 ---------
 
-One of the most important (and thus difficult to debug) problems in
+One of the most important (and thus difficult to de) problems in
 kernel programming are race conditions. In the Linux kernel, they are
 usually avoided via spin-locks, mutexes or semaphores. In general, if a
 race condition can happen in an interrupt handler, it has to be managed
@@ -3755,7 +3755,7 @@ Proc Interface
 ==============
 
 ALSA provides an easy interface for procfs. The proc files are very
-useful for debugging. I recommend you set up proc files if you write a
+useful for deging. I recommend you set up proc files if you write a
 driver and want to get a running status or register dumps. The API is
 found in ``<sound/info.h>``.
 
@@ -4199,35 +4199,35 @@ caller. The ``KERN_XXX`` prefix is processed as well as the original
 :c:func:`printk()` does, so it's recommended to add this prefix,
 e.g. snd_printk(KERN_ERR "Oh my, sorry, it's extremely bad!\\n");
 
-There are also :c:func:`printk()`'s for debugging.
-:c:func:`snd_printd()` can be used for general debugging purposes.
-If ``CONFIG_SND_DEBUG`` is set, this function is compiled, and works
+There are also :c:func:`printk()`'s for deging.
+:c:func:`snd_printd()` can be used for general deging purposes.
+If ``CONFIG_SND_DE`` is set, this function is compiled, and works
 just like :c:func:`snd_printk()`. If the ALSA is compiled without
-the debugging flag, it's ignored.
+the deging flag, it's ignored.
 
 :c:func:`snd_printdd()` is compiled in only when
-``CONFIG_SND_DEBUG_VERBOSE`` is set.
+``CONFIG_SND_DE_VERBOSE`` is set.
 
-:c:func:`snd_BUG()`
+:c:func:`snd_()`
 -------------------
 
-It shows the ``BUG?`` message and stack trace as well as
-:c:func:`snd_BUG_ON()` at the point. It's useful to show that a
+It shows the ``?`` message and stack trace as well as
+:c:func:`snd__ON()` at the point. It's useful to show that a
 fatal error happens there.
 
-When no debug flag is set, this macro is ignored.
+When no de flag is set, this macro is ignored.
 
-:c:func:`snd_BUG_ON()`
+:c:func:`snd__ON()`
 ----------------------
 
-:c:func:`snd_BUG_ON()` macro is similar with
-:c:func:`WARN_ON()` macro. For example, snd_BUG_ON(!pointer); or
-it can be used as the condition, if (snd_BUG_ON(non_zero_is_bug))
+:c:func:`snd__ON()` macro is similar with
+:c:func:`WARN_ON()` macro. For example, snd__ON(!pointer); or
+it can be used as the condition, if (snd__ON(non_zero_is_))
 return -EINVAL;
 
 The macro takes an conditional expression to evaluate. When
-``CONFIG_SND_DEBUG``, is set, if the expression is non-zero, it shows
-the warning message such as ``BUG? (xxx)`` normally followed by stack
+``CONFIG_SND_DE``, is set, if the expression is non-zero, it shows
+the warning message such as ``? (xxx)`` normally followed by stack
 trace. In both cases it returns the evaluated value.
 
 Acknowledgments

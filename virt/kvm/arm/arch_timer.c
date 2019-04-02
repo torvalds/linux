@@ -379,7 +379,7 @@ static void timer_save_state(struct arch_timer_context *ctx)
 
 		break;
 	case NR_KVM_TIMERS:
-		BUG();
+		();
 	}
 
 	trace_kvm_timer_save_state(ctx);
@@ -450,7 +450,7 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 		write_sysreg_el0(ctx->cnt_ctl, cntp_ctl);
 		break;
 	case NR_KVM_TIMERS:
-		BUG();
+		();
 	}
 
 	trace_kvm_timer_restore_state(ctx);
@@ -828,7 +828,7 @@ static u64 kvm_arm_timer_read(struct kvm_vcpu *vcpu,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return val;
@@ -870,7 +870,7 @@ static void kvm_arm_timer_write(struct kvm_vcpu *vcpu,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -949,7 +949,7 @@ int kvm_timer_hyp_init(bool has_gic)
 		static_branch_enable(&has_gic_active_state);
 	}
 
-	kvm_debug("virtual timer IRQ%d\n", host_vtimer_irq);
+	kvm_de("virtual timer IRQ%d\n", host_vtimer_irq);
 
 	/* Now let's do the physical EL1 timer irq */
 
@@ -980,7 +980,7 @@ int kvm_timer_hyp_init(bool has_gic)
 			}
 		}
 
-		kvm_debug("physical timer IRQ%d\n", host_ptimer_irq);
+		kvm_de("physical timer IRQ%d\n", host_ptimer_irq);
 	} else if (has_vhe()) {
 		kvm_err("kvm_arch_timer: invalid physical timer IRQ: %d\n",
 			info->physical_irq);
@@ -1038,7 +1038,7 @@ bool kvm_arch_timer_get_input_level(int vintid)
 	else if (vintid == vcpu_ptimer(vcpu)->irq.irq)
 		timer = vcpu_ptimer(vcpu);
 	else
-		BUG();
+		();
 
 	return kvm_timer_should_fire(timer);
 }
@@ -1060,7 +1060,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 		return -ENODEV;
 
 	if (!timer_irqs_are_valid(vcpu)) {
-		kvm_debug("incorrectly configured timer irqs\n");
+		kvm_de("incorrectly configured timer irqs\n");
 		return -EINVAL;
 	}
 

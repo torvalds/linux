@@ -61,7 +61,7 @@ Description:	The "durations" property shows the 3 vendor-specific values
 		Here the short, medium and long durations are displayed in
 		usecs. "[original]" indicates that the values are displayed
 		unmodified from when they were queried from the chip.
-		Durations can be modified in the case where a buggy chip
+		Durations can be modified in the case where a gy chip
 		reports them in msec instead of usec and they need to be
 		scaled to be displayed in usecs. In this case "[adjusted]"
 		will be displayed in place of "[original]".

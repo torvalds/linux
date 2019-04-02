@@ -21,7 +21,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bitops.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/compiler.h>
@@ -1063,7 +1063,7 @@ container_register:
 	kfree(tt_data);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 
 /**
  * batadv_tt_local_seq_print_text() - Print the local tt table in a seq file
@@ -1876,13 +1876,13 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 	return best_entry;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_tt_global_print_entry() - print all orig nodes who announce the
  *  address for this global entry
  * @bat_priv: the bat priv with all the soft interface information
  * @tt_global_entry: global translation table entry to be printed
- * @seq: debugfs table seq_file struct
+ * @seq: defs table seq_file struct
  *
  * This functon assumes the caller holds rcu_read_lock().
  */
@@ -2350,7 +2350,7 @@ batadv_tt_global_del_roaming(struct batadv_priv *bat_priv,
  * @addr: the mac address of the client
  * @vid: VLAN identifier
  * @message: a message explaining the reason for deleting the client to print
- *  for debugging purpose
+ *  for deging purpose
  * @roaming: true if the deletion has been triggered by a roaming event
  */
 static void batadv_tt_global_del(struct batadv_priv *bat_priv,
@@ -2416,7 +2416,7 @@ out:
  * @orig_node: the originator owning the entries to remove
  * @match_vid: the VLAN identifier to match. If negative all the entries will be
  *  removed
- * @message: debug message to print as "reason"
+ * @message: de message to print as "reason"
  */
 void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
 			       struct batadv_orig_node *orig_node,
@@ -4391,7 +4391,7 @@ int batadv_tt_init(struct batadv_priv *bat_priv)
 	int ret;
 
 	/* synchronized flags must be remote */
-	BUILD_BUG_ON(!(BATADV_TT_SYNC_MASK & BATADV_TT_REMOTE_MASK));
+	BUILD__ON(!(BATADV_TT_SYNC_MASK & BATADV_TT_REMOTE_MASK));
 
 	ret = batadv_tt_local_init(bat_priv);
 	if (ret < 0)

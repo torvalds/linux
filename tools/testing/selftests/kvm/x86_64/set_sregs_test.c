@@ -5,10 +5,10 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2.
  *
- * This is a regression test for the bug fixed by the following commit:
+ * This is a regression test for the  fixed by the following commit:
  * d3802286fa0f ("kvm: x86: Disallow illegal IA32_APIC_BASE MSR values")
  *
- * That bug allowed a user-mode program that called the KVM_SET_SREGS
+ * That  allowed a user-mode program that called the KVM_SET_SREGS
  * ioctl to put a VCPU's local APIC into an invalid state.
  *
  */

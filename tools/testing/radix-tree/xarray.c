@@ -4,7 +4,7 @@
  * Copyright (c) 2018 Matthew Wilcox <willy@infradead.org>
  */
 
-#define XA_DEBUG
+#define XA_DE
 #include "test.h"
 
 #define module_init(x)
@@ -14,7 +14,7 @@
 #define dump_stack()	assert(0)
 
 #include "../../../lib/xarray.c"
-#undef XA_DEBUG
+#undef XA_DE
 #include "../../../lib/test_xarray.c"
 
 void xarray_tests(void)

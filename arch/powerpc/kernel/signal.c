@@ -19,13 +19,13 @@
 #include <asm/hw_breakpoint.h>
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/tm.h>
 
 #include "signal.h"
 
 /* Log an error when sending an unhandled signal to a process. Controlled
- * through debug.exception-trace sysctl.
+ * through de.exception-trace sysctl.
  */
 
 int show_unhandled_signals = 1;
@@ -108,7 +108,7 @@ static void do_signal(struct task_struct *tsk)
 	int ret;
 	int is32 = is_32bit_task();
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	get_signal(&ksig);
 
@@ -122,7 +122,7 @@ static void do_signal(struct task_struct *tsk)
 		return;               /* no signals delivered */
 	}
 
-#ifndef CONFIG_PPC_ADV_DEBUG_REGS
+#ifndef CONFIG_PPC_ADV_DE_REGS
         /*
 	 * Reenable the DABR before delivering the signal to
 	 * user space. The DABR will have been cleared if it
@@ -163,7 +163,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 		klp_update_patch_state(current);
 
 	if (thread_info_flags & _TIF_SIGPENDING) {
-		BUG_ON(regs != current->thread.regs);
+		_ON(regs != current->thread.regs);
 		do_signal(current);
 	}
 
@@ -201,7 +201,7 @@ unsigned long get_tm_stackpointer(struct task_struct *tsk)
 	 */
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	if (MSR_TM_ACTIVE(tsk->thread.regs->msr)) {
 		tm_reclaim_current(TM_CAUSE_SIGNAL);

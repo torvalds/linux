@@ -167,7 +167,7 @@ void rtw_hal_dm_init(struct adapter *Adapter)
 
 	memset(pdmpriv, 0, sizeof(struct dm_priv));
 	Init_ODM_ComInfo_88E(Adapter);
-	ODM_InitDebugSetting(podmpriv);
+	ODM_InitDeSetting(podmpriv);
 }
 
 /*  Add new function to reset the state of antenna diversity before link. */

@@ -28,7 +28,7 @@
 #include <linux/bitops.h>
 #include <linux/math64.h>
 #include <linux/log2.h>
-#include <linux/dynamic_debug.h>
+#include <linux/dynamic_de.h>
 #include <linux/kernel.h>
 
 #include <media/dvb_math.h>
@@ -208,7 +208,7 @@ static const struct cxd2841er_cnr_data s2_cn_data[] = {
 static int cxd2841er_freeze_regs(struct cxd2841er_priv *priv);
 static int cxd2841er_unfreeze_regs(struct cxd2841er_priv *priv);
 
-static void cxd2841er_i2c_debug(struct cxd2841er_priv *priv,
+static void cxd2841er_i2c_de(struct cxd2841er_priv *priv,
 				u8 addr, u8 reg, u8 write,
 				const u8 *data, u32 len)
 {
@@ -239,7 +239,7 @@ static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
 		return -E2BIG;
 	}
 
-	cxd2841er_i2c_debug(priv, i2c_addr, reg, 1, data, len);
+	cxd2841er_i2c_de(priv, i2c_addr, reg, 1, data, len);
 	buf[0] = reg;
 	memcpy(&buf[1], data, len);
 
@@ -258,7 +258,7 @@ static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
 static int cxd2841er_write_reg(struct cxd2841er_priv *priv,
 			       u8 addr, u8 reg, u8 val)
 {
-	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = val; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 	return cxd2841er_write_regs(priv, addr, reg, &tmp, 1);
 }
@@ -292,7 +292,7 @@ static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
 			KBUILD_MODNAME, ret, i2c_addr, reg);
 		return ret;
 	}
-	cxd2841er_i2c_debug(priv, i2c_addr, reg, 0, val, len);
+	cxd2841er_i2c_de(priv, i2c_addr, reg, 0, val, len);
 	return 0;
 }
 

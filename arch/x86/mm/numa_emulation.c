@@ -527,13 +527,13 @@ no_emu:
 		emu_nid_to_phys[i] = i;
 }
 
-#ifndef CONFIG_DEBUG_PER_CPU_MAPS
+#ifndef CONFIG_DE_PER_CPU_MAPS
 void numa_add_cpu(int cpu)
 {
 	int physnid, nid;
 
 	nid = early_cpu_to_node(cpu);
-	BUG_ON(nid == NUMA_NO_NODE || !node_online(nid));
+	_ON(nid == NUMA_NO_NODE || !node_online(nid));
 
 	physnid = emu_nid_to_phys[nid];
 
@@ -553,7 +553,7 @@ void numa_remove_cpu(int cpu)
 	for_each_online_node(i)
 		cpumask_clear_cpu(cpu, node_to_cpumask_map[i]);
 }
-#else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+#else	/* !CONFIG_DE_PER_CPU_MAPS */
 static void numa_set_cpumask(int cpu, bool enable)
 {
 	int nid, physnid;
@@ -570,7 +570,7 @@ static void numa_set_cpumask(int cpu, bool enable)
 		if (emu_nid_to_phys[nid] != physnid)
 			continue;
 
-		debug_cpumask_set_cpu(cpu, nid, enable);
+		de_cpumask_set_cpu(cpu, nid, enable);
 	}
 }
 
@@ -583,4 +583,4 @@ void numa_remove_cpu(int cpu)
 {
 	numa_set_cpumask(cpu, false);
 }
-#endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+#endif	/* !CONFIG_DE_PER_CPU_MAPS */

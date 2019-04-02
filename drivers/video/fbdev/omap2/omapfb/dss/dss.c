@@ -271,7 +271,7 @@ void dss_sdi_init(int datapairs)
 {
 	u32 l;
 
-	BUG_ON(datapairs > 3 || datapairs < 1);
+	_ON(datapairs > 3 || datapairs < 1);
 
 	l = dss_read_reg(DSS_SDI_CONTROL);
 	l = FLD_MOD(l, 0xf, 19, 15);		/* SDI_PDIV */
@@ -419,7 +419,7 @@ static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 		b = 2;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -440,15 +440,15 @@ void dss_select_dsi_clk_source(int dsi_module,
 		b = 0;
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI:
-		BUG_ON(dsi_module != 0);
+		_ON(dsi_module != 0);
 		b = 1;
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI:
-		BUG_ON(dsi_module != 1);
+		_ON(dsi_module != 1);
 		b = 1;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -473,16 +473,16 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 		b = 0;
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD);
+		_ON(channel != OMAP_DSS_CHANNEL_LCD);
 		b = 1;
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
-		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD2 &&
+		_ON(channel != OMAP_DSS_CHANNEL_LCD2 &&
 		       channel != OMAP_DSS_CHANNEL_LCD3);
 		b = 1;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -621,7 +621,7 @@ void dss_set_venc_output(enum omap_dss_venc_type type)
 	else if (type == OMAP_DSS_VENC_TYPE_SVIDEO)
 		l = 1;
 	else
-		BUG();
+		();
 
 	/* venc out selection. 0 = comp, 1 = svideo */
 	REG_FLD_MOD(DSS_CONTROL, l, 6, 6);
@@ -793,9 +793,9 @@ void dss_runtime_put(void)
 	WARN_ON(r < 0 && r != -ENOSYS && r != -EBUSY);
 }
 
-/* DEBUGFS */
-#if defined(CONFIG_FB_OMAP2_DSS_DEBUGFS)
-void dss_debug_dump_clocks(struct seq_file *s)
+/* DEFS */
+#if defined(CONFIG_FB_OMAP2_DSS_DEFS)
+void dss_de_dump_clocks(struct seq_file *s)
 {
 	dss_dump_clocks(s);
 	dispc_dump_clocks(s);
@@ -1151,7 +1151,7 @@ static int dss_bind(struct device *dev)
 	if (r)
 		goto err_component;
 
-	dss_debugfs_create_file("dss", dss_dump_regs);
+	dss_defs_create_file("dss", dss_dump_regs);
 
 	pm_set_vt_switch(0);
 

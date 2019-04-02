@@ -32,7 +32,7 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 
 	sprintf(name, "id:%08x", keyid);
 
-	pr_debug("key search: \"%s\"\n", name);
+	pr_de("key search: \"%s\"\n", name);
 
 	key = get_ima_blacklist_keyring();
 	if (key) {
@@ -74,7 +74,7 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 		}
 	}
 
-	pr_debug("%s() = 0 [%x]\n", __func__, key_serial(key));
+	pr_de("%s() = 0 [%x]\n", __func__, key_serial(key));
 
 	return key;
 }
@@ -113,7 +113,7 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 	pks.s_size = siglen;
 	ret = verify_signature(key, &pks);
 	key_put(key);
-	pr_debug("%s() = %d\n", __func__, ret);
+	pr_de("%s() = %d\n", __func__, ret);
 	return ret;
 }
 

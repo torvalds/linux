@@ -63,7 +63,7 @@
 
 /*
  * These are compile time constants that you may want to enable or disable
- * if you are trying to debug problems with code or performance.
+ * if you are trying to de problems with code or performance.
  * HFI1_VERBOSE_TRACING define as 1 if you want additional tracing in
  * fast path code
  * HFI1_TRACE_REGWRITES define as 1 if you want register writes to be

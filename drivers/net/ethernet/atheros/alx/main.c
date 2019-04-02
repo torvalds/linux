@@ -667,8 +667,8 @@ static int alx_alloc_rings(struct alx_priv *alx)
 		return -ENOMEM;
 
 	/* alignment requirements */
-	BUILD_BUG_ON(sizeof(struct alx_txd) % 8);
-	BUILD_BUG_ON(sizeof(struct alx_rrd) % 8);
+	BUILD__ON(sizeof(struct alx_txd) % 8);
+	BUILD__ON(sizeof(struct alx_rrd) % 8);
 
 	for (i = 0; i < alx->num_txq; i++) {
 		offset = alx_alloc_tx_ring(alx, alx->qnapi[i]->txq, offset);
@@ -1763,8 +1763,8 @@ static int alx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->irq = pci_irq_vector(pdev, 0);
 	netdev->watchdog_timeo = ALX_WATCHDOG_TIME;
 
-	if (ent->driver_data & ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG)
-		pdev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG;
+	if (ent->driver_data & ALX_DEV_QUIRK_MSI_INTX_DISABLE_)
+		pdev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_;
 
 	err = alx_init_sw(alx);
 	if (err) {
@@ -1993,15 +1993,15 @@ static const struct pci_error_handlers alx_err_handlers = {
 
 static const struct pci_device_id alx_pci_tbl[] = {
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8161),
-	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
+	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_ },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_E2200),
-	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
+	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_ },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_E2400),
-	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
+	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_ },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_E2500),
-	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
+	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_ },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8162),
-	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_BUG },
+	  .driver_data = ALX_DEV_QUIRK_MSI_INTX_DISABLE_ },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8171) },
 	{ PCI_VDEVICE(ATTANSIC, ALX_DEV_ID_AR8172) },
 	{}

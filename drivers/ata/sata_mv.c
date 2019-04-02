@@ -1258,7 +1258,7 @@ static int mv_stop_edma(struct ata_port *ap)
 	return err;
 }
 
-#ifdef ATA_DEBUG
+#ifdef ATA_DE
 static void mv_dump_mem(void __iomem *start, unsigned bytes)
 {
 	int b, w;
@@ -1272,10 +1272,10 @@ static void mv_dump_mem(void __iomem *start, unsigned bytes)
 	}
 }
 #endif
-#if defined(ATA_DEBUG) || defined(CONFIG_PCI)
+#if defined(ATA_DE) || defined(CONFIG_PCI)
 static void mv_dump_pci_cfg(struct pci_dev *pdev, unsigned bytes)
 {
-#ifdef ATA_DEBUG
+#ifdef ATA_DE
 	int b, w;
 	u32 dw;
 	for (b = 0; b < bytes; ) {
@@ -1293,7 +1293,7 @@ static void mv_dump_pci_cfg(struct pci_dev *pdev, unsigned bytes)
 static void mv_dump_all_regs(void __iomem *mmio_base, int port,
 			     struct pci_dev *pdev)
 {
-#ifdef ATA_DEBUG
+#ifdef ATA_DE
 	void __iomem *hc_base = mv_hc_base(mmio_base,
 					   port >> MV_PORT_HC_SHIFT);
 	void __iomem *port_base;
@@ -2115,7 +2115,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 		 * FIXME: modify libata to give qc_prep a return value and
 		 * return error here.
 		 */
-		BUG_ON(tf->command);
+		_ON(tf->command);
 		break;
 	}
 	mv_crqb_pack_cmd(cw++, tf->nsect, ATA_REG_NSECT, 0);
@@ -3864,7 +3864,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 			 *
 			 * RAID metadata is at: (dev->n_sectors & ~0xfffff)
 			 *
-			 * Warn the user, lest they think we're just buggy.
+			 * Warn the user, lest they think we're just gy.
 			 */
 			printk(KERN_WARNING DRV_NAME ": Highpoint RocketRAID"
 				" BIOS CORRUPTS DATA on all attached drives,"
@@ -3903,7 +3903,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 
 	default:
-		dev_err(host->dev, "BUG: invalid board index %u\n", board_idx);
+		dev_err(host->dev, ": invalid board index %u\n", board_idx);
 		return 1;
 	}
 

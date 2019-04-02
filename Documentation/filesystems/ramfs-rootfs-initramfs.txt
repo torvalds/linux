@@ -272,7 +272,7 @@ User Mode Linux, like so:
   # Testing external initramfs using the initrd loading mechanism.
   qemu -kernel /boot/vmlinuz -initrd test.cpio.gz /dev/zero
 
-When debugging a normal root filesystem, it's nice to be able to boot with
+When deging a normal root filesystem, it's nice to be able to boot with
 "init=/bin/sh".  The initramfs equivalent is "rdinit=/bin/sh", and it's
 just as useful.
 

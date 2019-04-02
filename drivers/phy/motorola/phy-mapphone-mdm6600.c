@@ -241,7 +241,7 @@ static irqreturn_t phy_mdm6600_irq_thread(int irq, void *data)
  *
  * GPIO mode1 is used initially as output to configure the USB boot
  * mode for mdm6600. After booting it is used as input for OOB wake
- * signal from mdm6600 to the SoC. Just use it for debug info only
+ * signal from mdm6600 to the SoC. Just use it for de info only
  * for now.
  */
 static irqreturn_t phy_mdm6600_wakeirq_thread(int irq, void *data)

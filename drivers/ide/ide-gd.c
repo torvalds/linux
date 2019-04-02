@@ -10,7 +10,7 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 
-#if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
+#if !defined(CONFIG_DE_BLOCK_EXT_DEVT)
 #define IDE_DISK_MINORS		(1 << PARTN_BITS)
 #else
 #define IDE_DISK_MINORS		0
@@ -23,8 +23,8 @@
 
 /* module parameters */
 static DEFINE_MUTEX(ide_gd_mutex);
-static unsigned long debug_mask;
-module_param(debug_mask, ulong, 0644);
+static unsigned long de_mask;
+module_param(de_mask, ulong, 0644);
 
 static DEFINE_MUTEX(ide_disk_ref_mutex);
 
@@ -193,7 +193,7 @@ static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 
 	drive = idkp->drive;
 
-	ide_debug_log(IDE_DBG_FUNC, "enter");
+	ide_de_log(IDE_DBG_FUNC, "enter");
 
 	idkp->openers++;
 
@@ -255,7 +255,7 @@ static void ide_gd_release(struct gendisk *disk, fmode_t mode)
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	ide_debug_log(IDE_DBG_FUNC, "enter");
+	ide_de_log(IDE_DBG_FUNC, "enter");
 
 	mutex_lock(&ide_gd_mutex);
 	if (idkp->openers == 1)
@@ -404,7 +404,7 @@ static int ide_gd_probe(ide_drive_t *drive)
 	g->private_data = &idkp->driver;
 
 	drive->driver_data = idkp;
-	drive->debug_mask = debug_mask;
+	drive->de_mask = de_mask;
 	drive->disk_ops = disk_ops;
 
 	disk_ops->setup(drive);

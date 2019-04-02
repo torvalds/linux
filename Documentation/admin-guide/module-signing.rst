@@ -244,7 +244,7 @@ signature is present but it does not confirm that the signature is valid!
 Signed modules are BRITTLE as the signature is outside of the defined ELF
 container.  Thus they MAY NOT be stripped once the signature is computed and
 attached.  Note the entire module is the signed payload, including any and all
-debug information present at the time of signing.
+de information present at the time of signing.
 
 
 ======================

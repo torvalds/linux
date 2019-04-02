@@ -17,10 +17,10 @@ This documentation is provided for developers intending to support
 RapidIO on new architectures, write new drivers, or to understand the
 subsystem internals.
 
-Known Bugs and Limitations
+Known s and Limitations
 ==========================
 
-Bugs
+s
 ----
 
 None. ;)

@@ -42,9 +42,9 @@
 
 /* WARNING !!! This will cause calibrate_delay() to be called,
  * but this is an __init function ! So you MUST go edit
- * init/main.c to make it non-init before enabling DEBUG_FREQ
+ * init/main.c to make it non-init before enabling DE_FREQ
  */
-#undef DEBUG_FREQ
+#undef DE_FREQ
 
 extern void low_choose_7447a_dfs(int dfs);
 extern void low_choose_750fx_pll(int pll);
@@ -96,8 +96,8 @@ static inline void local_delay(unsigned long ms)
 		msleep(ms);
 }
 
-#ifdef DEBUG_FREQ
-static inline void debug_calc_bogomips(void)
+#ifdef DE_FREQ
+static inline void de_calc_bogomips(void)
 {
 	/* This will cause a recalc of bogomips and display the
 	 * result. We backup/restore the value to avoid affecting the
@@ -107,7 +107,7 @@ static inline void debug_calc_bogomips(void)
 	calibrate_delay();
 	loops_per_jiffy = save_lpj;
 }
-#endif /* DEBUG_FREQ */
+#endif /* DE_FREQ */
 
 /* Switch CPU speed under 750FX CPU control
  */
@@ -224,8 +224,8 @@ static int gpios_set_cpu_speed(int low_speed)
 		local_delay(10);
 	}
 
-#ifdef DEBUG_FREQ
-	debug_calc_bogomips();
+#ifdef DE_FREQ
+	de_calc_bogomips();
 #endif
 
 	return 0;
@@ -243,8 +243,8 @@ static int pmu_set_cpu_speed(int low_speed)
 
 	preempt_disable();
 
-#ifdef DEBUG_FREQ
-	printk(KERN_DEBUG "HID1, before: %x\n", mfspr(SPRN_HID1));
+#ifdef DE_FREQ
+	printk(KERN_DE "HID1, before: %x\n", mfspr(SPRN_HID1));
 #endif
 	pmu_suspend();
 
@@ -302,8 +302,8 @@ static int pmu_set_cpu_speed(int low_speed)
 	/* Restore userland MMU context */
 	switch_mmu_context(NULL, current->active_mm, NULL);
 
-#ifdef DEBUG_FREQ
-	printk(KERN_DEBUG "HID1, after: %x\n", mfspr(SPRN_HID1));
+#ifdef DE_FREQ
+	printk(KERN_DE "HID1, after: %x\n", mfspr(SPRN_HID1));
 #endif
 
 	/* Restore low level PMU operations */
@@ -322,8 +322,8 @@ static int pmu_set_cpu_speed(int low_speed)
 	/* Let interrupts flow again ... */
 	local_irq_restore(flags);
 
-#ifdef DEBUG_FREQ
-	debug_calc_bogomips();
+#ifdef DE_FREQ
+	de_calc_bogomips();
 #endif
 
 	pmu_resume();

@@ -36,7 +36,7 @@ extern void s3c_pm_do_save(struct sleep_save *ptr, int count);
 extern void s3c_pm_do_restore(const struct sleep_save *ptr, int count);
 extern void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count);
 
-/* PM debug functions */
+/* PM de functions */
 
 /**
  * struct pm_uart_save - save block for core UART
@@ -47,7 +47,7 @@ extern void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count);
  * @ubrdiv: Save value for S3C2410_UBRDIV
  *
  * Save block for UART registers to be held over sleep and restored if they
- * are needed (say by debug).
+ * are needed (say by de).
 */
 struct pm_uart_save {
 	u32	ulcon;
@@ -58,33 +58,33 @@ struct pm_uart_save {
 	u32	udivslot;
 };
 
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
+#ifdef CONFIG_SAMSUNG_PM_DE
 /**
- * s3c_pm_dbg() - low level debug function for use in suspend/resume.
+ * s3c_pm_dbg() - low level de function for use in suspend/resume.
  * @msg: The message to print.
  *
- * This function is used mainly to debug the resume process before the system
- * can rely on printk/console output. It uses the low-level debugging output
+ * This function is used mainly to de the resume process before the system
+ * can rely on printk/console output. It uses the low-level deging output
  * routine printascii() to do its work.
  */
 extern void s3c_pm_dbg(const char *msg, ...);
 
 /**
- * s3c_pm_debug_init() - suspend/resume low level debug initialization.
- * @base: Virtual base of UART to use for suspend/resume debugging.
+ * s3c_pm_de_init() - suspend/resume low level de initialization.
+ * @base: Virtual base of UART to use for suspend/resume deging.
  *
  * This function needs to be called before S3C_PMDBG() can be used, to set up
  * UART port base address and configuration.
  */
-extern void s3c_pm_debug_init(void);
+extern void s3c_pm_de_init(void);
 
 #define S3C_PMDBG(fmt...) s3c_pm_dbg(fmt)
 
 extern void s3c_pm_save_uarts(void);
 extern void s3c_pm_restore_uarts(void);
 #else
-#define S3C_PMDBG(fmt...) pr_debug(fmt)
-#define s3c_pm_debug_init() do { } while (0)
+#define S3C_PMDBG(fmt...) pr_de(fmt)
+#define s3c_pm_de_init() do { } while (0)
 
 static inline void s3c_pm_save_uarts(void) { }
 static inline void s3c_pm_restore_uarts(void) { }

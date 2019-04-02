@@ -27,7 +27,7 @@
 #define ASYNCB_HARDPPS_CD	11 /* Call hardpps when CD goes high  */
 #define ASYNCB_SPD_SHI		12 /* Use 230400 instead of 38400 bps */
 #define ASYNCB_LOW_LATENCY	13 /* Request low latency behaviour */
-#define ASYNCB_BUGGY_UART	14 /* This is a buggy UART, skip some safety
+#define ASYNCB_GY_UART	14 /* This is a gy UART, skip some safety
 				    * checks.  Note: can be dangerous! */
 #define ASYNCB_AUTOPROBE	15 /* [x] Port was autoprobed by PCI/PNP code */
 #define ASYNCB_MAGIC_MULTIPLIER	16 /* Use special CLK or divisor */
@@ -68,7 +68,7 @@
 #define ASYNC_HARDPPS_CD	(1U << ASYNCB_HARDPPS_CD)
 #define ASYNC_SPD_SHI		(1U << ASYNCB_SPD_SHI)
 #define ASYNC_LOW_LATENCY	(1U << ASYNCB_LOW_LATENCY)
-#define ASYNC_BUGGY_UART	(1U << ASYNCB_BUGGY_UART)
+#define ASYNC_GY_UART	(1U << ASYNCB_GY_UART)
 #define ASYNC_AUTOPROBE		(1U << ASYNCB_AUTOPROBE)
 #define ASYNC_MAGIC_MULTIPLIER	(1U << ASYNCB_MAGIC_MULTIPLIER)
 

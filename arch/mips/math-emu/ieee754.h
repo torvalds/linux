@@ -212,7 +212,7 @@ static inline int ieee754_sxtest(unsigned int n)
 	return (ieee754_csr.sx & n);
 }
 
-/* debugging */
+/* deging */
 union ieee754sp ieee754sp_dump(char *s, union ieee754sp x);
 union ieee754dp ieee754dp_dump(char *s, union ieee754dp x);
 

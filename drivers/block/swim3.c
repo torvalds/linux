@@ -16,7 +16,7 @@
  * handle GCR disks
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
@@ -213,7 +213,7 @@ struct floppy_state {
 #define swim3_warn(fmt, arg...)	dev_warn(&fs->mdev->ofdev.dev, "[fd%d] " fmt, fs->index, arg)
 #define swim3_info(fmt, arg...)	dev_info(&fs->mdev->ofdev.dev, "[fd%d] " fmt, fs->index, arg)
 
-#ifdef DEBUG
+#ifdef DE
 #define swim3_dbg(fmt, arg...)	dev_dbg(&fs->mdev->ofdev.dev, "[fd%d] " fmt, fs->index, arg)
 #else
 #define swim3_dbg(fmt, arg...)	do { } while(0)

@@ -40,7 +40,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/nohz.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
 
@@ -590,11 +590,11 @@ internal_add_timer(struct timer_base *base, struct timer_list *timer)
 	trigger_dyntick_cpu(base, timer);
 }
 
-#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+#ifdef CONFIG_DE_OBJECTS_TIMERS
 
-static struct debug_obj_descr timer_debug_descr;
+static struct de_obj_descr timer_de_descr;
 
-static void *timer_debug_hint(void *addr)
+static void *timer_de_hint(void *addr)
 {
 	return ((struct timer_list *) addr)->function;
 }
@@ -611,14 +611,14 @@ static bool timer_is_static_object(void *addr)
  * fixup_init is called when:
  * - an active object is initialized
  */
-static bool timer_fixup_init(void *addr, enum debug_obj_state state)
+static bool timer_fixup_init(void *addr, enum de_obj_state state)
 {
 	struct timer_list *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		del_timer_sync(timer);
-		debug_object_init(timer, &timer_debug_descr);
+		de_object_init(timer, &timer_de_descr);
 		return true;
 	default:
 		return false;
@@ -636,16 +636,16 @@ static void stub_timer(struct timer_list *unused)
  * - an active object is activated
  * - an unknown non-static object is activated
  */
-static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
+static bool timer_fixup_activate(void *addr, enum de_obj_state state)
 {
 	struct timer_list *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_NOTAVAILABLE:
+	case ODE_STATE_NOTAVAILABLE:
 		timer_setup(timer, stub_timer, 0);
 		return true;
 
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		WARN_ON(1);
 		/* fall through */
 	default:
@@ -657,14 +657,14 @@ static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static bool timer_fixup_free(void *addr, enum debug_obj_state state)
+static bool timer_fixup_free(void *addr, enum de_obj_state state)
 {
 	struct timer_list *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		del_timer_sync(timer);
-		debug_object_free(timer, &timer_debug_descr);
+		de_object_free(timer, &timer_de_descr);
 		return true;
 	default:
 		return false;
@@ -675,12 +675,12 @@ static bool timer_fixup_free(void *addr, enum debug_obj_state state)
  * fixup_assert_init is called when:
  * - an untracked/uninit-ed object is found
  */
-static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
+static bool timer_fixup_assert_init(void *addr, enum de_obj_state state)
 {
 	struct timer_list *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_NOTAVAILABLE:
+	case ODE_STATE_NOTAVAILABLE:
 		timer_setup(timer, stub_timer, 0);
 		return true;
 	default:
@@ -688,9 +688,9 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 	}
 }
 
-static struct debug_obj_descr timer_debug_descr = {
+static struct de_obj_descr timer_de_descr = {
 	.name			= "timer_list",
-	.debug_hint		= timer_debug_hint,
+	.de_hint		= timer_de_hint,
 	.is_static_object	= timer_is_static_object,
 	.fixup_init		= timer_fixup_init,
 	.fixup_activate		= timer_fixup_activate,
@@ -698,29 +698,29 @@ static struct debug_obj_descr timer_debug_descr = {
 	.fixup_assert_init	= timer_fixup_assert_init,
 };
 
-static inline void debug_timer_init(struct timer_list *timer)
+static inline void de_timer_init(struct timer_list *timer)
 {
-	debug_object_init(timer, &timer_debug_descr);
+	de_object_init(timer, &timer_de_descr);
 }
 
-static inline void debug_timer_activate(struct timer_list *timer)
+static inline void de_timer_activate(struct timer_list *timer)
 {
-	debug_object_activate(timer, &timer_debug_descr);
+	de_object_activate(timer, &timer_de_descr);
 }
 
-static inline void debug_timer_deactivate(struct timer_list *timer)
+static inline void de_timer_deactivate(struct timer_list *timer)
 {
-	debug_object_deactivate(timer, &timer_debug_descr);
+	de_object_deactivate(timer, &timer_de_descr);
 }
 
-static inline void debug_timer_free(struct timer_list *timer)
+static inline void de_timer_free(struct timer_list *timer)
 {
-	debug_object_free(timer, &timer_debug_descr);
+	de_object_free(timer, &timer_de_descr);
 }
 
-static inline void debug_timer_assert_init(struct timer_list *timer)
+static inline void de_timer_assert_init(struct timer_list *timer)
 {
-	debug_object_assert_init(timer, &timer_debug_descr);
+	de_object_assert_init(timer, &timer_de_descr);
 }
 
 static void do_init_timer(struct timer_list *timer,
@@ -733,46 +733,46 @@ void init_timer_on_stack_key(struct timer_list *timer,
 			     unsigned int flags,
 			     const char *name, struct lock_class_key *key)
 {
-	debug_object_init_on_stack(timer, &timer_debug_descr);
+	de_object_init_on_stack(timer, &timer_de_descr);
 	do_init_timer(timer, func, flags, name, key);
 }
 EXPORT_SYMBOL_GPL(init_timer_on_stack_key);
 
 void destroy_timer_on_stack(struct timer_list *timer)
 {
-	debug_object_free(timer, &timer_debug_descr);
+	de_object_free(timer, &timer_de_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_timer_on_stack);
 
 #else
-static inline void debug_timer_init(struct timer_list *timer) { }
-static inline void debug_timer_activate(struct timer_list *timer) { }
-static inline void debug_timer_deactivate(struct timer_list *timer) { }
-static inline void debug_timer_assert_init(struct timer_list *timer) { }
+static inline void de_timer_init(struct timer_list *timer) { }
+static inline void de_timer_activate(struct timer_list *timer) { }
+static inline void de_timer_deactivate(struct timer_list *timer) { }
+static inline void de_timer_assert_init(struct timer_list *timer) { }
 #endif
 
-static inline void debug_init(struct timer_list *timer)
+static inline void de_init(struct timer_list *timer)
 {
-	debug_timer_init(timer);
+	de_timer_init(timer);
 	trace_timer_init(timer);
 }
 
 static inline void
-debug_activate(struct timer_list *timer, unsigned long expires)
+de_activate(struct timer_list *timer, unsigned long expires)
 {
-	debug_timer_activate(timer);
+	de_timer_activate(timer);
 	trace_timer_start(timer, expires, timer->flags);
 }
 
-static inline void debug_deactivate(struct timer_list *timer)
+static inline void de_deactivate(struct timer_list *timer)
 {
-	debug_timer_deactivate(timer);
+	de_timer_deactivate(timer);
 	trace_timer_cancel(timer);
 }
 
-static inline void debug_assert_init(struct timer_list *timer)
+static inline void de_assert_init(struct timer_list *timer)
 {
-	debug_timer_assert_init(timer);
+	de_timer_assert_init(timer);
 }
 
 static void do_init_timer(struct timer_list *timer,
@@ -802,7 +802,7 @@ void init_timer_key(struct timer_list *timer,
 		    void (*func)(struct timer_list *), unsigned int flags,
 		    const char *name, struct lock_class_key *key)
 {
-	debug_init(timer);
+	de_init(timer);
 	do_init_timer(timer, func, flags, name, key);
 }
 EXPORT_SYMBOL(init_timer_key);
@@ -811,7 +811,7 @@ static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 {
 	struct hlist_node *entry = &timer->entry;
 
-	debug_deactivate(timer);
+	de_deactivate(timer);
 
 	__hlist_del(entry);
 	if (clear_pending)
@@ -954,7 +954,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 	unsigned long clk = 0, flags;
 	int ret = 0;
 
-	BUG_ON(!timer->function);
+	_ON(!timer->function);
 
 	/*
 	 * This is a common optimization triggered by the networking code - if
@@ -1037,7 +1037,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 		}
 	}
 
-	debug_activate(timer, expires);
+	de_activate(timer, expires);
 
 	timer->expires = expires;
 	/*
@@ -1133,7 +1133,7 @@ EXPORT_SYMBOL(timer_reduce);
  */
 void add_timer(struct timer_list *timer)
 {
-	BUG_ON(timer_pending(timer));
+	_ON(timer_pending(timer));
 	mod_timer(timer, timer->expires);
 }
 EXPORT_SYMBOL(add_timer);
@@ -1150,7 +1150,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	struct timer_base *new_base, *base;
 	unsigned long flags;
 
-	BUG_ON(timer_pending(timer) || !timer->function);
+	_ON(timer_pending(timer) || !timer->function);
 
 	new_base = get_timer_cpu_base(timer->flags, cpu);
 
@@ -1171,7 +1171,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	}
 	forward_timer_base(base);
 
-	debug_activate(timer, timer->expires);
+	de_activate(timer, timer->expires);
 	internal_add_timer(base, timer);
 	raw_spin_unlock_irqrestore(&base->lock, flags);
 }
@@ -1194,7 +1194,7 @@ int del_timer(struct timer_list *timer)
 	unsigned long flags;
 	int ret = 0;
 
-	debug_assert_init(timer);
+	de_assert_init(timer);
 
 	if (timer_pending(timer)) {
 		base = lock_timer_base(timer, &flags);
@@ -1219,7 +1219,7 @@ int try_to_del_timer_sync(struct timer_list *timer)
 	unsigned long flags;
 	int ret = -1;
 
-	debug_assert_init(timer);
+	de_assert_init(timer);
 
 	base = lock_timer_base(timer, &flags);
 
@@ -1334,7 +1334,7 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(struct timer_list
 		 * Restore the preempt count. That gives us a decent
 		 * chance to survive and extract information. If the
 		 * callback kept a lock held, bad luck, but not worse
-		 * than the BUG() we had.
+		 * than the () we had.
 		 */
 		preempt_count_set(count);
 	}
@@ -1884,7 +1884,7 @@ int timers_dead_cpu(unsigned int cpu)
 	struct timer_base *new_base;
 	int b, i;
 
-	BUG_ON(cpu_online(cpu));
+	_ON(cpu_online(cpu));
 
 	for (b = 0; b < NR_BASES; b++) {
 		old_base = per_cpu_ptr(&timer_bases[b], cpu);
@@ -1902,7 +1902,7 @@ int timers_dead_cpu(unsigned int cpu)
 		 */
 		forward_timer_base(new_base);
 
-		BUG_ON(old_base->running_timer);
+		_ON(old_base->running_timer);
 
 		for (i = 0; i < WHEEL_SIZE; i++)
 			migrate_timer_list(new_base, old_base->vectors + i);

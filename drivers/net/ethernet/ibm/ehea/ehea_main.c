@@ -1233,13 +1233,13 @@ static void ehea_neq_tasklet(unsigned long data)
 	u64 event_mask;
 
 	eqe = ehea_poll_eq(adapter->neq);
-	pr_debug("eqe=%p\n", eqe);
+	pr_de("eqe=%p\n", eqe);
 
 	while (eqe) {
-		pr_debug("*eqe=%lx\n", (unsigned long) eqe->entry);
+		pr_de("*eqe=%lx\n", (unsigned long) eqe->entry);
 		ehea_parse_eqe(adapter, eqe->entry);
 		eqe = ehea_poll_eq(adapter->neq);
-		pr_debug("next eqe=%p\n", eqe);
+		pr_de("next eqe=%p\n", eqe);
 	}
 
 	event_mask = EHEA_BMASK_SET(NELR_PORTSTATE_CHG, 1)

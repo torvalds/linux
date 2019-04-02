@@ -284,7 +284,7 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 	 */
 	if ((ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID)) &&
 	    (ia_valid & ATTR_MODE))
-		BUG();
+		();
 
 	if (ia_valid & ATTR_KILL_SUID) {
 		if (mode & S_ISUID) {

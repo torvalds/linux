@@ -19,16 +19,16 @@ config EARLY_PRINTK
           Pass "earlyprintk" on the kernel command line to get a
           boot console.
 
-          This is useful for kernel debugging when your machine crashes very
+          This is useful for kernel deging when your machine crashes very
           early, i.e. before the normal console driver is loaded.
-          You should normally say N here, unless you want to debug such a crash.
+          You should normally say N here, unless you want to de such a crash.
 
 if !MMU
 
-config FULLDEBUG
-	bool "Full Symbolic/Source Debugging support"
+config FULLDE
+	bool "Full Symbolic/Source Deging support"
 	help
-	  Enable debugging symbols on kernel build.
+	  Enable deging symbols on kernel build.
 
 config HIGHPROFILE
 	bool "Use fast second timer for profiling"
@@ -37,9 +37,9 @@ config HIGHPROFILE
 	  Use a fast secondary clock to produce profiling information.
 
 config NO_KERNEL_MSG
-	bool "Suppress Kernel BUG Messages"
+	bool "Suppress Kernel  Messages"
 	help
-	  Do not output any debug BUG messages within the kernel.
+	  Do not output any de  messages within the kernel.
 
 config BDM_DISABLE
 	bool "Disable BDM signals"

@@ -71,8 +71,8 @@ parameters may be changed at runtime by the command
 			Format: <buffer_size>,<write_threshold>
 			See also Documentation/scsi/st.txt.
 
-	scsi_debug_*=	[SCSI]
-			See drivers/scsi/scsi_debug.c.
+	scsi_de_*=	[SCSI]
+			See drivers/scsi/scsi_de.c.
 
 	scsi_mod.default_dev_flags=
 			[SCSI] SCSI default device flags

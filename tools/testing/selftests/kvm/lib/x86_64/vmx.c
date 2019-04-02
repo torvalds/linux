@@ -249,7 +249,7 @@ static inline void init_vmcs_guest_state(void *rip, void *rsp)
 	vmwrite(GUEST_PML_INDEX, 0);
 
 	vmwrite(VMCS_LINK_POINTER, -1ll);
-	vmwrite(GUEST_IA32_DEBUGCTL, 0);
+	vmwrite(GUEST_IA32_DECTL, 0);
 	vmwrite(GUEST_IA32_PAT, vmreadz(HOST_IA32_PAT));
 	vmwrite(GUEST_IA32_EFER, vmreadz(HOST_IA32_EFER));
 	vmwrite(GUEST_IA32_PERF_GLOBAL_CTRL,

@@ -30,21 +30,21 @@
 
 #define CVMX_PKO_MEM_COUNT0 (CVMX_ADD_IO_SEG(0x0001180050001080ull))
 #define CVMX_PKO_MEM_COUNT1 (CVMX_ADD_IO_SEG(0x0001180050001088ull))
-#define CVMX_PKO_MEM_DEBUG0 (CVMX_ADD_IO_SEG(0x0001180050001100ull))
-#define CVMX_PKO_MEM_DEBUG1 (CVMX_ADD_IO_SEG(0x0001180050001108ull))
-#define CVMX_PKO_MEM_DEBUG10 (CVMX_ADD_IO_SEG(0x0001180050001150ull))
-#define CVMX_PKO_MEM_DEBUG11 (CVMX_ADD_IO_SEG(0x0001180050001158ull))
-#define CVMX_PKO_MEM_DEBUG12 (CVMX_ADD_IO_SEG(0x0001180050001160ull))
-#define CVMX_PKO_MEM_DEBUG13 (CVMX_ADD_IO_SEG(0x0001180050001168ull))
-#define CVMX_PKO_MEM_DEBUG14 (CVMX_ADD_IO_SEG(0x0001180050001170ull))
-#define CVMX_PKO_MEM_DEBUG2 (CVMX_ADD_IO_SEG(0x0001180050001110ull))
-#define CVMX_PKO_MEM_DEBUG3 (CVMX_ADD_IO_SEG(0x0001180050001118ull))
-#define CVMX_PKO_MEM_DEBUG4 (CVMX_ADD_IO_SEG(0x0001180050001120ull))
-#define CVMX_PKO_MEM_DEBUG5 (CVMX_ADD_IO_SEG(0x0001180050001128ull))
-#define CVMX_PKO_MEM_DEBUG6 (CVMX_ADD_IO_SEG(0x0001180050001130ull))
-#define CVMX_PKO_MEM_DEBUG7 (CVMX_ADD_IO_SEG(0x0001180050001138ull))
-#define CVMX_PKO_MEM_DEBUG8 (CVMX_ADD_IO_SEG(0x0001180050001140ull))
-#define CVMX_PKO_MEM_DEBUG9 (CVMX_ADD_IO_SEG(0x0001180050001148ull))
+#define CVMX_PKO_MEM_DE0 (CVMX_ADD_IO_SEG(0x0001180050001100ull))
+#define CVMX_PKO_MEM_DE1 (CVMX_ADD_IO_SEG(0x0001180050001108ull))
+#define CVMX_PKO_MEM_DE10 (CVMX_ADD_IO_SEG(0x0001180050001150ull))
+#define CVMX_PKO_MEM_DE11 (CVMX_ADD_IO_SEG(0x0001180050001158ull))
+#define CVMX_PKO_MEM_DE12 (CVMX_ADD_IO_SEG(0x0001180050001160ull))
+#define CVMX_PKO_MEM_DE13 (CVMX_ADD_IO_SEG(0x0001180050001168ull))
+#define CVMX_PKO_MEM_DE14 (CVMX_ADD_IO_SEG(0x0001180050001170ull))
+#define CVMX_PKO_MEM_DE2 (CVMX_ADD_IO_SEG(0x0001180050001110ull))
+#define CVMX_PKO_MEM_DE3 (CVMX_ADD_IO_SEG(0x0001180050001118ull))
+#define CVMX_PKO_MEM_DE4 (CVMX_ADD_IO_SEG(0x0001180050001120ull))
+#define CVMX_PKO_MEM_DE5 (CVMX_ADD_IO_SEG(0x0001180050001128ull))
+#define CVMX_PKO_MEM_DE6 (CVMX_ADD_IO_SEG(0x0001180050001130ull))
+#define CVMX_PKO_MEM_DE7 (CVMX_ADD_IO_SEG(0x0001180050001138ull))
+#define CVMX_PKO_MEM_DE8 (CVMX_ADD_IO_SEG(0x0001180050001140ull))
+#define CVMX_PKO_MEM_DE9 (CVMX_ADD_IO_SEG(0x0001180050001148ull))
 #define CVMX_PKO_MEM_IPORT_PTRS (CVMX_ADD_IO_SEG(0x0001180050001030ull))
 #define CVMX_PKO_MEM_IPORT_QOS (CVMX_ADD_IO_SEG(0x0001180050001038ull))
 #define CVMX_PKO_MEM_IQUEUE_PTRS (CVMX_ADD_IO_SEG(0x0001180050001040ull))
@@ -62,11 +62,11 @@
 #define CVMX_PKO_REG_CRC_CTLX(offset) (CVMX_ADD_IO_SEG(0x0001180050000028ull) + ((offset) & 1) * 8)
 #define CVMX_PKO_REG_CRC_ENABLE (CVMX_ADD_IO_SEG(0x0001180050000020ull))
 #define CVMX_PKO_REG_CRC_IVX(offset) (CVMX_ADD_IO_SEG(0x0001180050000038ull) + ((offset) & 1) * 8)
-#define CVMX_PKO_REG_DEBUG0 (CVMX_ADD_IO_SEG(0x0001180050000098ull))
-#define CVMX_PKO_REG_DEBUG1 (CVMX_ADD_IO_SEG(0x00011800500000A0ull))
-#define CVMX_PKO_REG_DEBUG2 (CVMX_ADD_IO_SEG(0x00011800500000A8ull))
-#define CVMX_PKO_REG_DEBUG3 (CVMX_ADD_IO_SEG(0x00011800500000B0ull))
-#define CVMX_PKO_REG_DEBUG4 (CVMX_ADD_IO_SEG(0x00011800500000B8ull))
+#define CVMX_PKO_REG_DE0 (CVMX_ADD_IO_SEG(0x0001180050000098ull))
+#define CVMX_PKO_REG_DE1 (CVMX_ADD_IO_SEG(0x00011800500000A0ull))
+#define CVMX_PKO_REG_DE2 (CVMX_ADD_IO_SEG(0x00011800500000A8ull))
+#define CVMX_PKO_REG_DE3 (CVMX_ADD_IO_SEG(0x00011800500000B0ull))
+#define CVMX_PKO_REG_DE4 (CVMX_ADD_IO_SEG(0x00011800500000B8ull))
 #define CVMX_PKO_REG_ENGINE_INFLIGHT (CVMX_ADD_IO_SEG(0x0001180050000050ull))
 #define CVMX_PKO_REG_ENGINE_INFLIGHT1 (CVMX_ADD_IO_SEG(0x0001180050000318ull))
 #define CVMX_PKO_REG_ENGINE_STORAGEX(offset) (CVMX_ADD_IO_SEG(0x0001180050000300ull) + ((offset) & 1) * 8)
@@ -112,9 +112,9 @@ union cvmx_pko_mem_count1 {
 	} s;
 };
 
-union cvmx_pko_mem_debug0 {
+union cvmx_pko_mem_de0 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug0_s {
+	struct cvmx_pko_mem_de0_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t fau:28;
 		uint64_t cmd:14;
@@ -129,9 +129,9 @@ union cvmx_pko_mem_debug0 {
 	} s;
 };
 
-union cvmx_pko_mem_debug1 {
+union cvmx_pko_mem_de1 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug1_s {
+	struct cvmx_pko_mem_de1_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t i:1;
 		uint64_t back:4;
@@ -148,16 +148,16 @@ union cvmx_pko_mem_debug1 {
 	} s;
 };
 
-union cvmx_pko_mem_debug10 {
+union cvmx_pko_mem_de10 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug10_s {
+	struct cvmx_pko_mem_de10_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug10_cn30xx {
+	struct cvmx_pko_mem_de10_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t fau:28;
 		uint64_t cmd:14;
@@ -170,7 +170,7 @@ union cvmx_pko_mem_debug10 {
 		uint64_t fau:28;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug10_cn50xx {
+	struct cvmx_pko_mem_de10_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_49_63:15;
 		uint64_t ptrs1:17;
@@ -185,9 +185,9 @@ union cvmx_pko_mem_debug10 {
 	} cn50xx;
 };
 
-union cvmx_pko_mem_debug11 {
+union cvmx_pko_mem_de11 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug11_s {
+	struct cvmx_pko_mem_de11_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t i:1;
 		uint64_t back:4;
@@ -202,7 +202,7 @@ union cvmx_pko_mem_debug11 {
 		uint64_t i:1;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug11_cn30xx {
+	struct cvmx_pko_mem_de11_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t i:1;
 		uint64_t back:4;
@@ -217,7 +217,7 @@ union cvmx_pko_mem_debug11 {
 		uint64_t i:1;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug11_cn50xx {
+	struct cvmx_pko_mem_de11_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_23_63:41;
 		uint64_t maj:1;
@@ -240,23 +240,23 @@ union cvmx_pko_mem_debug11 {
 	} cn50xx;
 };
 
-union cvmx_pko_mem_debug12 {
+union cvmx_pko_mem_de12 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug12_s {
+	struct cvmx_pko_mem_de12_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug12_cn30xx {
+	struct cvmx_pko_mem_de12_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t data:64;
 #else
 		uint64_t data:64;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug12_cn50xx {
+	struct cvmx_pko_mem_de12_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t fau:28;
 		uint64_t cmd:14;
@@ -269,7 +269,7 @@ union cvmx_pko_mem_debug12 {
 		uint64_t fau:28;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug12_cn68xx {
+	struct cvmx_pko_mem_de12_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t state:64;
 #else
@@ -278,16 +278,16 @@ union cvmx_pko_mem_debug12 {
 	} cn68xx;
 };
 
-union cvmx_pko_mem_debug13 {
+union cvmx_pko_mem_de13 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug13_s {
+	struct cvmx_pko_mem_de13_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug13_cn30xx {
+	struct cvmx_pko_mem_de13_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_51_63:13;
 		uint64_t widx:17;
@@ -300,7 +300,7 @@ union cvmx_pko_mem_debug13 {
 		uint64_t reserved_51_63:13;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug13_cn50xx {
+	struct cvmx_pko_mem_de13_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t i:1;
 		uint64_t back:4;
@@ -315,7 +315,7 @@ union cvmx_pko_mem_debug13 {
 		uint64_t i:1;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug13_cn68xx {
+	struct cvmx_pko_mem_de13_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t state:64;
 #else
@@ -324,16 +324,16 @@ union cvmx_pko_mem_debug13 {
 	} cn68xx;
 };
 
-union cvmx_pko_mem_debug14 {
+union cvmx_pko_mem_de14 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug14_s {
+	struct cvmx_pko_mem_de14_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug14_cn30xx {
+	struct cvmx_pko_mem_de14_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_17_63:47;
 		uint64_t ridx:17;
@@ -342,7 +342,7 @@ union cvmx_pko_mem_debug14 {
 		uint64_t reserved_17_63:47;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug14_cn52xx {
+	struct cvmx_pko_mem_de14_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t data:64;
 #else
@@ -351,9 +351,9 @@ union cvmx_pko_mem_debug14 {
 	} cn52xx;
 };
 
-union cvmx_pko_mem_debug2 {
+union cvmx_pko_mem_de2 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug2_s {
+	struct cvmx_pko_mem_de2_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t i:1;
 		uint64_t back:4;
@@ -370,16 +370,16 @@ union cvmx_pko_mem_debug2 {
 	} s;
 };
 
-union cvmx_pko_mem_debug3 {
+union cvmx_pko_mem_de3 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug3_s {
+	struct cvmx_pko_mem_de3_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug3_cn30xx {
+	struct cvmx_pko_mem_de3_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t i:1;
 		uint64_t back:4;
@@ -394,7 +394,7 @@ union cvmx_pko_mem_debug3 {
 		uint64_t i:1;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug3_cn50xx {
+	struct cvmx_pko_mem_de3_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t data:64;
 #else
@@ -403,23 +403,23 @@ union cvmx_pko_mem_debug3 {
 	} cn50xx;
 };
 
-union cvmx_pko_mem_debug4 {
+union cvmx_pko_mem_de4 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug4_s {
+	struct cvmx_pko_mem_de4_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug4_cn30xx {
+	struct cvmx_pko_mem_de4_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t data:64;
 #else
 		uint64_t data:64;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug4_cn50xx {
+	struct cvmx_pko_mem_de4_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t cmnd_segs:3;
 		uint64_t cmnd_siz:16;
@@ -460,7 +460,7 @@ union cvmx_pko_mem_debug4 {
 		uint64_t cmnd_segs:3;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug4_cn52xx {
+	struct cvmx_pko_mem_de4_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t curr_siz:8;
 		uint64_t curr_off:16;
@@ -493,16 +493,16 @@ union cvmx_pko_mem_debug4 {
 	} cn52xx;
 };
 
-union cvmx_pko_mem_debug5 {
+union cvmx_pko_mem_de5 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug5_s {
+	struct cvmx_pko_mem_de5_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug5_cn30xx {
+	struct cvmx_pko_mem_de5_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t dwri_mod:1;
 		uint64_t dwri_sop:1;
@@ -545,7 +545,7 @@ union cvmx_pko_mem_debug5 {
 		uint64_t dwri_mod:1;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug5_cn50xx {
+	struct cvmx_pko_mem_de5_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t curr_ptr:29;
 		uint64_t curr_siz:16;
@@ -558,7 +558,7 @@ union cvmx_pko_mem_debug5 {
 		uint64_t curr_ptr:29;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug5_cn52xx {
+	struct cvmx_pko_mem_de5_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_54_63:10;
 		uint64_t nxt_inflt:6;
@@ -571,7 +571,7 @@ union cvmx_pko_mem_debug5 {
 		uint64_t reserved_54_63:10;
 #endif
 	} cn52xx;
-	struct cvmx_pko_mem_debug5_cn61xx {
+	struct cvmx_pko_mem_de5_cn61xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_56_63:8;
 		uint64_t ptp:1;
@@ -588,7 +588,7 @@ union cvmx_pko_mem_debug5 {
 		uint64_t reserved_56_63:8;
 #endif
 	} cn61xx;
-	struct cvmx_pko_mem_debug5_cn68xx {
+	struct cvmx_pko_mem_de5_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_57_63:7;
 		uint64_t uid_2:1;
@@ -609,9 +609,9 @@ union cvmx_pko_mem_debug5 {
 	} cn68xx;
 };
 
-union cvmx_pko_mem_debug6 {
+union cvmx_pko_mem_de6 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug6_s {
+	struct cvmx_pko_mem_de6_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_37_63:27;
 		uint64_t qid_offres:4;
@@ -640,7 +640,7 @@ union cvmx_pko_mem_debug6 {
 		uint64_t reserved_37_63:27;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug6_cn30xx {
+	struct cvmx_pko_mem_de6_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_11_63:53;
 		uint64_t qid_offm:3;
@@ -659,7 +659,7 @@ union cvmx_pko_mem_debug6 {
 		uint64_t reserved_11_63:53;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug6_cn50xx {
+	struct cvmx_pko_mem_de6_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_11_63:53;
 		uint64_t curr_ptr:11;
@@ -668,7 +668,7 @@ union cvmx_pko_mem_debug6 {
 		uint64_t reserved_11_63:53;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug6_cn52xx {
+	struct cvmx_pko_mem_de6_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_37_63:27;
 		uint64_t qid_offres:4;
@@ -701,16 +701,16 @@ union cvmx_pko_mem_debug6 {
 	} cn52xx;
 };
 
-union cvmx_pko_mem_debug7 {
+union cvmx_pko_mem_de7 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug7_s {
+	struct cvmx_pko_mem_de7_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_0_63:64;
 #else
 		uint64_t reserved_0_63:64;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug7_cn30xx {
+	struct cvmx_pko_mem_de7_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_58_63:6;
 		uint64_t dwb:9;
@@ -723,7 +723,7 @@ union cvmx_pko_mem_debug7 {
 		uint64_t reserved_58_63:6;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug7_cn50xx {
+	struct cvmx_pko_mem_de7_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t qos:5;
 		uint64_t tail:1;
@@ -740,7 +740,7 @@ union cvmx_pko_mem_debug7 {
 		uint64_t qos:5;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug7_cn68xx {
+	struct cvmx_pko_mem_de7_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t qos:3;
 		uint64_t tail:1;
@@ -759,9 +759,9 @@ union cvmx_pko_mem_debug7 {
 	} cn68xx;
 };
 
-union cvmx_pko_mem_debug8 {
+union cvmx_pko_mem_de8 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug8_s {
+	struct cvmx_pko_mem_de8_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_59_63:5;
 		uint64_t tail:1;
@@ -774,7 +774,7 @@ union cvmx_pko_mem_debug8 {
 		uint64_t reserved_59_63:5;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug8_cn30xx {
+	struct cvmx_pko_mem_de8_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t qos:5;
 		uint64_t tail:1;
@@ -791,7 +791,7 @@ union cvmx_pko_mem_debug8 {
 		uint64_t qos:5;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug8_cn50xx {
+	struct cvmx_pko_mem_de8_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_28_63:36;
 		uint64_t doorbell:20;
@@ -810,7 +810,7 @@ union cvmx_pko_mem_debug8 {
 		uint64_t reserved_28_63:36;
 #endif
 	} cn50xx;
-	struct cvmx_pko_mem_debug8_cn52xx {
+	struct cvmx_pko_mem_de8_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
 		uint64_t preempter:1;
@@ -833,7 +833,7 @@ union cvmx_pko_mem_debug8 {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn52xx;
-	struct cvmx_pko_mem_debug8_cn61xx {
+	struct cvmx_pko_mem_de8_cn61xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_42_63:22;
 		uint64_t qid_qqos:8;
@@ -862,7 +862,7 @@ union cvmx_pko_mem_debug8 {
 		uint64_t reserved_42_63:22;
 #endif
 	} cn61xx;
-	struct cvmx_pko_mem_debug8_cn68xx {
+	struct cvmx_pko_mem_de8_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_37_63:27;
 		uint64_t preempter:1;
@@ -887,9 +887,9 @@ union cvmx_pko_mem_debug8 {
 	} cn68xx;
 };
 
-union cvmx_pko_mem_debug9 {
+union cvmx_pko_mem_de9 {
 	uint64_t u64;
-	struct cvmx_pko_mem_debug9_s {
+	struct cvmx_pko_mem_de9_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_49_63:15;
 		uint64_t ptrs0:17;
@@ -900,7 +900,7 @@ union cvmx_pko_mem_debug9 {
 		uint64_t reserved_49_63:15;
 #endif
 	} s;
-	struct cvmx_pko_mem_debug9_cn30xx {
+	struct cvmx_pko_mem_de9_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_28_63:36;
 		uint64_t doorbell:20;
@@ -917,7 +917,7 @@ union cvmx_pko_mem_debug9 {
 		uint64_t reserved_28_63:36;
 #endif
 	} cn30xx;
-	struct cvmx_pko_mem_debug9_cn38xx {
+	struct cvmx_pko_mem_de9_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_28_63:36;
 		uint64_t doorbell:20;
@@ -936,7 +936,7 @@ union cvmx_pko_mem_debug9 {
 		uint64_t reserved_28_63:36;
 #endif
 	} cn38xx;
-	struct cvmx_pko_mem_debug9_cn50xx {
+	struct cvmx_pko_mem_de9_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_49_63:15;
 		uint64_t ptrs0:17;
@@ -1509,16 +1509,16 @@ union cvmx_pko_reg_crc_ivx {
 	} s;
 };
 
-union cvmx_pko_reg_debug0 {
+union cvmx_pko_reg_de0 {
 	uint64_t u64;
-	struct cvmx_pko_reg_debug0_s {
+	struct cvmx_pko_reg_de0_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t asserts:64;
 #else
 		uint64_t asserts:64;
 #endif
 	} s;
-	struct cvmx_pko_reg_debug0_cn30xx {
+	struct cvmx_pko_reg_de0_cn30xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_17_63:47;
 		uint64_t asserts:17;
@@ -1529,9 +1529,9 @@ union cvmx_pko_reg_debug0 {
 	} cn30xx;
 };
 
-union cvmx_pko_reg_debug1 {
+union cvmx_pko_reg_de1 {
 	uint64_t u64;
-	struct cvmx_pko_reg_debug1_s {
+	struct cvmx_pko_reg_de1_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t asserts:64;
 #else
@@ -1540,9 +1540,9 @@ union cvmx_pko_reg_debug1 {
 	} s;
 };
 
-union cvmx_pko_reg_debug2 {
+union cvmx_pko_reg_de2 {
 	uint64_t u64;
-	struct cvmx_pko_reg_debug2_s {
+	struct cvmx_pko_reg_de2_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t asserts:64;
 #else
@@ -1551,9 +1551,9 @@ union cvmx_pko_reg_debug2 {
 	} s;
 };
 
-union cvmx_pko_reg_debug3 {
+union cvmx_pko_reg_de3 {
 	uint64_t u64;
-	struct cvmx_pko_reg_debug3_s {
+	struct cvmx_pko_reg_de3_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t asserts:64;
 #else
@@ -1562,9 +1562,9 @@ union cvmx_pko_reg_debug3 {
 	} s;
 };
 
-union cvmx_pko_reg_debug4 {
+union cvmx_pko_reg_de4 {
 	uint64_t u64;
-	struct cvmx_pko_reg_debug4_s {
+	struct cvmx_pko_reg_de4_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t asserts:64;
 #else

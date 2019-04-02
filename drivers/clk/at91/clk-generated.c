@@ -43,7 +43,7 @@ static int clk_generated_enable(struct clk_hw *hw)
 	struct clk_generated *gck = to_clk_generated(hw);
 	unsigned long flags;
 
-	pr_debug("GCLK: %s, gckdiv = %d, parent id = %d\n",
+	pr_de("GCLK: %s, gckdiv = %d, parent id = %d\n",
 		 __func__, gck->gckdiv, gck->parent_id);
 
 	spin_lock_irqsave(gck->lock, flags);
@@ -180,7 +180,7 @@ static int clk_generated_determine_rate(struct clk_hw *hw,
 	}
 
 end:
-	pr_debug("GCLK: %s, best_rate = %ld, parent clk: %s @ %ld\n",
+	pr_de("GCLK: %s, best_rate = %ld, parent clk: %s @ %ld\n",
 		 __func__, best_rate,
 		 __clk_get_name((req->best_parent_hw)->clk),
 		 req->best_parent_rate);

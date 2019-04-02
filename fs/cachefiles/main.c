@@ -25,9 +25,9 @@
 #define CREATE_TRACE_POINTS
 #include "internal.h"
 
-unsigned cachefiles_debug;
-module_param_named(debug, cachefiles_debug, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(cachefiles_debug, "CacheFiles debugging mask");
+unsigned cachefiles_de;
+module_param_named(de, cachefiles_de, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(cachefiles_de, "CacheFiles deging mask");
 
 MODULE_DESCRIPTION("Mounted-filesystem based cache");
 MODULE_AUTHOR("Red Hat, Inc.");

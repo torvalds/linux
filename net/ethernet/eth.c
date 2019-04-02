@@ -19,7 +19,7 @@
  *		Alan Cox	: eth_header ntohs should be htons
  *		Alan Cox	: eth_rebuild_header missing an htons and
  *				  minor other things.
- *		Tegge		: Arp bug fixes.
+ *		Tegge		: Arp  fixes.
  *		Florian		: Removed many unnecessary functions, code cleanup
  *				  and changes for new arp and skbuff.
  *		Alan Cox	: Redid header building to reflect new format.

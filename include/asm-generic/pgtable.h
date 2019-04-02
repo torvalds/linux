@@ -8,7 +8,7 @@
 #ifdef CONFIG_MMU
 
 #include <linux/mm_types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/errno.h>
 
 #if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
@@ -45,14 +45,14 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
 					unsigned long address, pmd_t *pmdp,
 					pmd_t entry, int dirty)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 static inline int pudp_set_access_flags(struct vm_area_struct *vma,
 					unsigned long address, pud_t *pudp,
 					pud_t entry, int dirty)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -92,7 +92,7 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long address,
 					    pmd_t *pmdp)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -115,7 +115,7 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
 static inline int pmdp_clear_flush_young(struct vm_area_struct *vma,
 					 unsigned long address, pmd_t *pmdp)
 {
-	BUILD_BUG();
+	BUILD_();
 	return 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -262,7 +262,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 				      unsigned long address, pmd_t *pmdp)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
@@ -279,7 +279,7 @@ static inline void pudp_set_wrprotect(struct mm_struct *mm,
 static inline void pudp_set_wrprotect(struct mm_struct *mm,
 				      unsigned long address, pud_t *pudp)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 #endif /* CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
 #endif
@@ -293,7 +293,7 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 					unsigned long address,
 					pmd_t *pmdp)
 {
-	BUILD_BUG();
+	BUILD_();
 	return *pmdp;
 }
 #define pmdp_collapse_flush pmdp_collapse_flush
@@ -889,7 +889,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 #ifndef pmd_write
 static inline int pmd_write(pmd_t pmd)
 {
-	BUG();
+	();
 	return 0;
 }
 #endif /* pmd_write */
@@ -898,7 +898,7 @@ static inline int pmd_write(pmd_t pmd)
 #ifndef pud_write
 static inline int pud_write(pud_t pud)
 {
-	BUG();
+	();
 	return 0;
 }
 #endif /* pud_write */
@@ -1113,8 +1113,8 @@ static inline int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
 #define flush_pmd_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
 #define flush_pud_tlb_range(vma, addr, end)	flush_tlb_range(vma, addr, end)
 #else
-#define flush_pmd_tlb_range(vma, addr, end)	BUILD_BUG()
-#define flush_pud_tlb_range(vma, addr, end)	BUILD_BUG()
+#define flush_pmd_tlb_range(vma, addr, end)	BUILD_()
+#define flush_pud_tlb_range(vma, addr, end)	BUILD_()
 #endif
 #endif
 

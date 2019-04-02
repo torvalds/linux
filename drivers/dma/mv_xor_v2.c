@@ -726,7 +726,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	struct mv_xor_v2_sw_desc *sw_desc;
 	struct msi_desc *msi_desc;
 
-	BUILD_BUG_ON(sizeof(struct mv_xor_v2_descriptor) !=
+	BUILD__ON(sizeof(struct mv_xor_v2_descriptor) !=
 		     MV_XOR_V2_EXT_DESC_SIZE);
 
 	xor_dev = devm_kzalloc(&pdev->dev, sizeof(*xor_dev), GFP_KERNEL);

@@ -9,7 +9,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/types.h>
@@ -233,8 +233,8 @@ void bch_bio_map(struct bio *bio, void *base)
 	size_t size = bio->bi_iter.bi_size;
 	struct bio_vec *bv = bio->bi_io_vec;
 
-	BUG_ON(!bio->bi_iter.bi_size);
-	BUG_ON(bio->bi_vcnt);
+	_ON(!bio->bi_iter.bi_size);
+	_ON(bio->bi_vcnt);
 
 	bv->bv_offset = base ? offset_in_page(base) : 0;
 	goto start;

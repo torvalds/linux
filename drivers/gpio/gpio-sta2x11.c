@@ -279,7 +279,7 @@ static int gsta_irq_type(struct irq_data *d, unsigned int type)
 
 	/* We only support edge interrupts */
 	if (!(type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))) {
-		pr_debug("%s: unsupported type 0x%x\n", __func__, type);
+		pr_de("%s: unsupported type 0x%x\n", __func__, type);
 		return -EINVAL;
 	}
 
@@ -367,7 +367,7 @@ static int gsta_probe(struct platform_device *dev)
 
 	if (gpio_pdata == NULL)
 		dev_err(&dev->dev, "no gpio config\n");
-	pr_debug("gpio config: %p\n", gpio_pdata);
+	pr_de("gpio config: %p\n", gpio_pdata);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 

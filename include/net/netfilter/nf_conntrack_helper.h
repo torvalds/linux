@@ -73,8 +73,8 @@ struct nf_conn_help {
 	char data[32] __aligned(8);
 };
 
-#define NF_CT_HELPER_BUILD_BUG_ON(structsize) \
-	BUILD_BUG_ON((structsize) > FIELD_SIZEOF(struct nf_conn_help, data))
+#define NF_CT_HELPER_BUILD__ON(structsize) \
+	BUILD__ON((structsize) > FIELD_SIZEOF(struct nf_conn_help, data))
 
 struct nf_conntrack_helper *__nf_conntrack_helper_find(const char *name,
 						       u16 l3num, u8 protonum);

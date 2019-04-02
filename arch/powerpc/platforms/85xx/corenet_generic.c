@@ -48,7 +48,7 @@ void __init corenet_gen_pic_init(void)
 		flags |= MPIC_ENABLE_COREINT;
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 512, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	mpic_init(mpic);
 

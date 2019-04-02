@@ -251,7 +251,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
+	_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -294,7 +294,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 		gem_obj = drm_gem_object_lookup(file_priv,
 						mode_cmd->handles[0]);
 		if (!gem_obj) {
-			DRM_DEBUG("Failed to look up GEM BO %d\n",
+			DRM_DE("Failed to look up GEM BO %d\n",
 				  mode_cmd->handles[0]);
 			return ERR_PTR(-ENOENT);
 		}
@@ -360,7 +360,7 @@ vc4_ctm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 			 * than one CRTC at a time.
 			 */
 			if (ctm_state->fifo && ctm_state->fifo != fifo) {
-				DRM_DEBUG_DRIVER("Too many CTM configured\n");
+				DRM_DE_DRIVER("Too many CTM configured\n");
 				return -EINVAL;
 			}
 

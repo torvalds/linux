@@ -22,20 +22,20 @@ struct nodepda_s;
 #define IBCT_NOTIFY             (0x1UL << 4)
 #define IBCT_ZFIL_MODE          (0x1UL << 0)
 
-/* #define BTE_DEBUG */
-/* #define BTE_DEBUG_VERBOSE */
+/* #define BTE_DE */
+/* #define BTE_DE_VERBOSE */
 
-#ifdef BTE_DEBUG
+#ifdef BTE_DE
 #  define BTE_PRINTK(x) printk x	/* Terse */
-#  ifdef BTE_DEBUG_VERBOSE
+#  ifdef BTE_DE_VERBOSE
 #    define BTE_PRINTKV(x) printk x	/* Verbose */
 #  else
 #    define BTE_PRINTKV(x)
-#  endif /* BTE_DEBUG_VERBOSE */
+#  endif /* BTE_DE_VERBOSE */
 #else
 #  define BTE_PRINTK(x)
 #  define BTE_PRINTKV(x)
-#endif	/* BTE_DEBUG */
+#endif	/* BTE_DE */
 
 
 /* BTE status register only supports 16 bits for length field */

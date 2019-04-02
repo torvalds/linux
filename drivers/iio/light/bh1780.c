@@ -76,7 +76,7 @@ static int bh1780_read_word(struct bh1780_data *bh1780, u8 reg)
 	return ret;
 }
 
-static int bh1780_debugfs_reg_access(struct iio_dev *indio_dev,
+static int bh1780_defs_reg_access(struct iio_dev *indio_dev,
 			      unsigned int reg, unsigned int writeval,
 			      unsigned int *readval)
 {
@@ -129,7 +129,7 @@ static int bh1780_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info bh1780_info = {
 	.read_raw = bh1780_read_raw,
-	.debugfs_reg_access = bh1780_debugfs_reg_access,
+	.defs_reg_access = bh1780_defs_reg_access,
 };
 
 static const struct iio_chan_spec bh1780_channels[] = {

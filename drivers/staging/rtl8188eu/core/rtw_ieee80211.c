@@ -772,7 +772,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
  * @start: Pointer to the start of ies
  * @len: Length of IE buffer in octets
  * @elems: Data structure for parsed elements
- * @show_errors: Whether to show parsing errors in debug log
+ * @show_errors: Whether to show parsing errors in de log
  * Returns: Parsing result
  */
 enum parse_res rtw_ieee802_11_parse_elems(u8 *start, uint len,

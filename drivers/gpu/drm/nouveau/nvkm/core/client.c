@@ -55,7 +55,7 @@ nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	client->object.route  = oclass->route;
 	client->object.token  = oclass->token;
 	client->object.object = oclass->object;
-	client->debug = oclass->client->debug;
+	client->de = oclass->client->de;
 	*pobject = &client->object;
 	return 0;
 }
@@ -258,7 +258,7 @@ nvkm_client_fini(struct nvkm_object *object, bool suspend)
 	struct nvkm_client *client = nvkm_client(object);
 	const char *name[2] = { "fini", "suspend" };
 	int i;
-	nvif_debug(object, "%s notify\n", name[suspend]);
+	nvif_de(object, "%s notify\n", name[suspend]);
 	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 		nvkm_client_notify_put(client, i);
 	return 0;
@@ -298,7 +298,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	nvkm_object_ctor(&nvkm_client, &oclass, &client->object);
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->device = device;
-	client->debug = nvkm_dbgopt(dbg, "CLIENT");
+	client->de = nvkm_dbgopt(dbg, "CLIENT");
 	client->objroot = RB_ROOT;
 	client->ntfy = ntfy;
 	INIT_LIST_HEAD(&client->umem);

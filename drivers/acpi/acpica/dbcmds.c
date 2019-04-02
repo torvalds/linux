@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbcmds - Miscellaneous debug commands and output routines
+ * Module Name: dbcmds - Miscellaneous de commands and output routines
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acevents.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acnamesp.h"
 #include "acresrc.h"
 #include "actables.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbcmds")
 
 /* Local prototypes */
@@ -511,7 +511,7 @@ void acpi_db_display_template(char *buffer_arg)
 		return;
 	}
 
-	return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+	return_buffer.length = ACPI_DE_BUFFER_SIZE;
 	return_buffer.pointer = acpi_gbl_db_buffer;
 
 	/* Attempt to convert the raw buffer to a resource list */
@@ -535,7 +535,7 @@ void acpi_db_display_template(char *buffer_arg)
 
 dump_buffer:
 	acpi_os_printf("\nRaw data buffer:\n");
-	acpi_ut_debug_dump_buffer((u8 *)node->object->buffer.pointer,
+	acpi_ut_de_dump_buffer((u8 *)node->object->buffer.pointer,
 				  node->object->buffer.length,
 				  DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 
@@ -787,7 +787,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 	/* Prepare for a return object of arbitrary size */
 
 	return_buffer.pointer = acpi_gbl_db_buffer;
-	return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+	return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 	/* _PRT */
 
@@ -803,7 +803,7 @@ acpi_db_device_resources(acpi_handle obj_handle,
 		}
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
-		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+		return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 		status = acpi_get_irq_routing_table(node, &return_buffer);
 		if (ACPI_FAILURE(status)) {
@@ -822,7 +822,7 @@ get_crs:
 		acpi_os_printf("Evaluating _CRS\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
-		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+		return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 		status =
 		    acpi_evaluate_object(crs_node, NULL, NULL, &return_buffer);
@@ -900,7 +900,7 @@ get_prs:
 		acpi_os_printf("Evaluating _PRS\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
-		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+		return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 		status =
 		    acpi_evaluate_object(prs_node, NULL, NULL, &return_buffer);
@@ -911,7 +911,7 @@ get_prs:
 		}
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
-		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+		return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 		status = acpi_get_possible_resources(node, &return_buffer);
 		if (ACPI_FAILURE(status)) {
@@ -932,7 +932,7 @@ get_aei:
 		acpi_os_printf("Evaluating _AEI\n");
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
-		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+		return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 		status =
 		    acpi_evaluate_object(aei_node, NULL, NULL, &return_buffer);
@@ -943,7 +943,7 @@ get_aei:
 		}
 
 		return_buffer.pointer = acpi_gbl_db_buffer;
-		return_buffer.length = ACPI_DEBUG_BUFFER_SIZE;
+		return_buffer.length = ACPI_DE_BUFFER_SIZE;
 
 		status = acpi_get_event_resources(node, &return_buffer);
 		if (ACPI_FAILURE(status)) {
@@ -1091,8 +1091,8 @@ void acpi_db_generate_sci(void)
 
 void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg)
 {
-	u32 debug_level = 0;
-	u32 debug_layer = 0;
+	u32 de_level = 0;
+	u32 de_layer = 0;
 	u32 flags = 0;
 
 	acpi_ut_strupr(enable_arg);
@@ -1121,13 +1121,13 @@ void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg)
 
 			/* Inherit current console settings */
 
-			debug_level = acpi_gbl_db_console_debug_level;
-			debug_layer = acpi_dbg_layer;
+			de_level = acpi_gbl_db_console_de_level;
+			de_layer = acpi_dbg_layer;
 		} else {
 			/* Restrict console output to trace points only */
 
-			debug_level = ACPI_LV_TRACE_POINT;
-			debug_layer = ACPI_EXECUTER;
+			de_level = ACPI_LV_TRACE_POINT;
+			de_layer = ACPI_EXECUTER;
 		}
 
 		flags = ACPI_TRACE_ENABLED;
@@ -1141,6 +1141,6 @@ void acpi_db_trace(char *enable_arg, char *method_arg, char *once_arg)
 		}
 	}
 
-	(void)acpi_debug_trace(acpi_db_trace_method_name,
-			       debug_level, debug_layer, flags);
+	(void)acpi_de_trace(acpi_db_trace_method_name,
+			       de_level, de_layer, flags);
 }

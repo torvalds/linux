@@ -97,7 +97,7 @@ int PageMovable(struct page *page)
 {
 	struct address_space *mapping;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 	if (!__PageMovable(page))
 		return 0;
 
@@ -111,16 +111,16 @@ EXPORT_SYMBOL(PageMovable);
 
 void __SetPageMovable(struct page *page, struct address_space *mapping)
 {
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE((unsigned long)mapping & PAGE_MAPPING_MOVABLE, page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE((unsigned long)mapping & PAGE_MAPPING_MOVABLE, page);
 	page->mapping = (void *)((unsigned long)mapping | PAGE_MAPPING_MOVABLE);
 }
 EXPORT_SYMBOL(__SetPageMovable);
 
 void __ClearPageMovable(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageMovable(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageMovable(page), page);
 	/*
 	 * Clear registered address_space val with keeping PAGE_MAPPING_MOVABLE
 	 * flag so that VM can catch up released page by driver after isolation.
@@ -971,7 +971,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		if (__isolate_lru_page(page, isolate_mode) != 0)
 			goto isolate_fail;
 
-		VM_BUG_ON_PAGE(PageCompound(page), page);
+		VM__ON_PAGE(PageCompound(page), page);
 
 		/* Successfully isolated */
 		del_page_from_lru_list(page, lruvec, page_lru(page));
@@ -2074,7 +2074,7 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 		return ret;
 
 	/* huh, compaction_suitable is returning something unexpected */
-	VM_BUG_ON(ret != COMPACT_CONTINUE);
+	VM__ON(ret != COMPACT_CONTINUE);
 
 	/*
 	 * Clear pageblock skip if there were failures recently and compaction
@@ -2242,7 +2242,7 @@ out:
 		unsigned long free_pfn = release_freepages(&cc->freepages);
 
 		cc->nr_freepages = 0;
-		VM_BUG_ON(free_pfn == 0);
+		VM__ON(free_pfn == 0);
 		/* The cached pfn is always the first in a pageblock */
 		free_pfn = pageblock_start_pfn(free_pfn);
 		/*
@@ -2298,8 +2298,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
 
 	ret = compact_zone(&cc, &capc);
 
-	VM_BUG_ON(!list_empty(&cc.freepages));
-	VM_BUG_ON(!list_empty(&cc.migratepages));
+	VM__ON(!list_empty(&cc.freepages));
+	VM__ON(!list_empty(&cc.migratepages));
 
 	*capture = capc.page;
 	current->capture_control = NULL;
@@ -2419,8 +2419,8 @@ static void compact_node(int nid)
 
 		compact_zone(&cc, NULL);
 
-		VM_BUG_ON(!list_empty(&cc.freepages));
-		VM_BUG_ON(!list_empty(&cc.migratepages));
+		VM__ON(!list_empty(&cc.freepages));
+		VM__ON(!list_empty(&cc.migratepages));
 	}
 }
 
@@ -2577,8 +2577,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 		count_compact_events(KCOMPACTD_FREE_SCANNED,
 				     cc.total_free_scanned);
 
-		VM_BUG_ON(!list_empty(&cc.freepages));
-		VM_BUG_ON(!list_empty(&cc.migratepages));
+		VM__ON(!list_empty(&cc.freepages));
+		VM__ON(!list_empty(&cc.migratepages));
 	}
 
 	/*

@@ -25,18 +25,18 @@
 
 /*
  */
-#ifdef CONFIG_EXT4_DEBUG
-extern ushort ext4_mballoc_debug;
+#ifdef CONFIG_EXT4_DE
+extern ushort ext4_mballoc_de;
 
-#define mb_debug(n, fmt, ...)	                                        \
+#define mb_de(n, fmt, ...)	                                        \
 do {									\
-	if ((n) <= ext4_mballoc_debug) {				\
-		printk(KERN_DEBUG "(%s, %d): %s: " fmt,			\
+	if ((n) <= ext4_mballoc_de) {				\
+		printk(KERN_DE "(%s, %d): %s: " fmt,			\
 		       __FILE__, __LINE__, __func__, ##__VA_ARGS__);	\
 	}								\
 } while (0)
 #else
-#define mb_debug(n, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define mb_de(n, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define EXT4_MB_HISTORY_ALLOC		1	/* allocation */

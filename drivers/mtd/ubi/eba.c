@@ -660,7 +660,7 @@ retry:
 			if (err > 0) {
 				/*
 				 * The header is either absent or corrupted.
-				 * The former case means there is a bug -
+				 * The former case means there is a  -
 				 * switch to read-only mode just in case.
 				 * The latter case means a real corruption - we
 				 * may try to recover data. FIXME: but this is
@@ -674,7 +674,7 @@ retry:
 				} else {
 					/*
 					 * Ending up here in the non-Fastmap case
-					 * is a clear bug as the VID header had to
+					 * is a clear  as the VID header had to
 					 * be present at scan time to have it referenced.
 					 * With fastmap the story is more complicated.
 					 * Fastmap has the mapping info without the need

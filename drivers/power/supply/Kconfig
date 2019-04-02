@@ -8,10 +8,10 @@ menuconfig POWER_SUPPLY
 
 if POWER_SUPPLY
 
-config POWER_SUPPLY_DEBUG
-	bool "Power supply debug"
+config POWER_SUPPLY_DE
+	bool "Power supply de"
 	help
-	  Say Y here to enable debugging messages for power supply class
+	  Say Y here to enable deging messages for power supply class
 	  and drivers.
 
 config PDA_POWER

@@ -165,7 +165,7 @@ struct smu8_power_state {
 #define DPMFlags_VCE_Enabled			0x00000004
 #define DPMFlags_ACP_Enabled			0x00000008
 #define DPMFlags_ForceHighestValid		0x40000000
-#define DPMFlags_Debug				0x80000000
+#define DPMFlags_De				0x80000000
 
 #define SMU_EnabledFeatureScoreboard_AcpDpmOn   0x00000001 /* bit 0 */
 #define SMU_EnabledFeatureScoreboard_UvdDpmOn   0x00800000 /* bit 23 */

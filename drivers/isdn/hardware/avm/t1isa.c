@@ -252,7 +252,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			       card->name, ApplId, card->msgbuf);
 			break;
 
-		case RECEIVE_DEBUGMSG:
+		case RECEIVE_DEMSG:
 			MsgLen = t1_get_slice(card->port, card->msgbuf);
 			spin_unlock_irqrestore(&card->lock, flags);
 			card->msgbuf[MsgLen] = 0;
@@ -262,7 +262,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 				card->msgbuf[MsgLen - 1] = 0;
 				MsgLen--;
 			}
-			printk(KERN_INFO "%s: DEBUG: %s\n", card->name, card->msgbuf);
+			printk(KERN_INFO "%s: DE: %s\n", card->name, card->msgbuf);
 			break;
 
 

@@ -15,7 +15,7 @@
  * virtqueue - a queue to register buffers for sending or receiving.
  * @list: the chain of virtqueues for this device
  * @callback: the function to call when buffers are consumed (can be NULL).
- * @name: the name of this virtqueue (mainly for debugging)
+ * @name: the name of this virtqueue (mainly for deging)
  * @vdev: the virtio device this queue was created for.
  * @priv: a pointer for the virtqueue implementation to use.
  * @index: the zero-based ordinal number for this queue.

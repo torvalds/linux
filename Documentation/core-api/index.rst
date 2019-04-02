@@ -37,13 +37,13 @@ Core utilities
    memory-hotplug
 
 
-Interfaces for kernel debugging
+Interfaces for kernel deging
 ===============================
 
 .. toctree::
    :maxdepth: 1
 
-   debug-objects
+   de-objects
    tracepoint
 
 .. only::  subproject

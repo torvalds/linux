@@ -268,7 +268,7 @@ static int hi8435_write_event_value(struct iio_dev *idev,
 	return ret;
 }
 
-static int hi8435_debugfs_reg_access(struct iio_dev *idev,
+static int hi8435_defs_reg_access(struct iio_dev *idev,
 				     unsigned reg, unsigned writeval,
 				     unsigned *readval)
 {
@@ -413,7 +413,7 @@ static const struct iio_info hi8435_info = {
 	.write_event_config = hi8435_write_event_config,
 	.read_event_value = hi8435_read_event_value,
 	.write_event_value = hi8435_write_event_value,
-	.debugfs_reg_access = hi8435_debugfs_reg_access,
+	.defs_reg_access = hi8435_defs_reg_access,
 };
 
 static void hi8435_iio_push_event(struct iio_dev *idev, unsigned int val)

@@ -24,13 +24,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/stringify.h>
 #include <asm/traps.h>
 #include <asm/opcodes.h>
 #include <asm/cacheflush.h>
 #include <linux/percpu.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/patch.h>
 #include <asm/sections.h>
 
@@ -285,13 +285,13 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				restore_previous_kprobe(kcb);
 				break;
 			case KPROBE_REENTER:
-				/* A nested probe was hit in FIQ, it is a BUG */
+				/* A nested probe was hit in FIQ, it is a  */
 				pr_warn("Unrecoverable kprobe detected.\n");
 				dump_kprobe(p);
 				/* fall through */
 			default:
 				/* impossible cases */
-				BUG();
+				();
 			}
 		} else {
 			/* Probe hit and conditional execution check ok. */

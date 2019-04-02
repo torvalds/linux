@@ -29,9 +29,9 @@ MODULE_DESCRIPTION("vpx3220a/vpx3216b/vpx3214c video decoder driver");
 MODULE_AUTHOR("Laurent Pinchart");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 #define VPX_TIMEOUT_COUNT  10
@@ -104,7 +104,7 @@ static int vpx3220_fp_write(struct v4l2_subdev *sd, u8 fpaddr, u16 data)
 
 	/* Write the 16-bit address to the FPWR register */
 	if (i2c_smbus_write_word_data(client, 0x27, swab16(fpaddr)) == -1) {
-		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
@@ -113,7 +113,7 @@ static int vpx3220_fp_write(struct v4l2_subdev *sd, u8 fpaddr, u16 data)
 
 	/* Write the 16-bit data to the FPDAT register */
 	if (i2c_smbus_write_word_data(client, 0x28, swab16(data)) == -1) {
-		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
@@ -127,7 +127,7 @@ static int vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
 
 	/* Write the 16-bit address to the FPRD register */
 	if (i2c_smbus_write_word_data(client, 0x26, swab16(fpaddr)) == -1) {
-		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
@@ -137,7 +137,7 @@ static int vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
 	/* Read the 16-bit data from the FPDAT register */
 	data = i2c_smbus_read_word_data(client, 0x28);
 	if (data == -1) {
-		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
@@ -295,7 +295,7 @@ static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pst
 
 	status = vpx3220_fp_read(sd, 0x0f3);
 
-	v4l2_dbg(1, debug, sd, "status: 0x%04x\n", status);
+	v4l2_dbg(1, de, sd, "status: 0x%04x\n", status);
 
 	if (status < 0)
 		return status;
@@ -333,13 +333,13 @@ static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pst
 
 static int vpx3220_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
-	v4l2_dbg(1, debug, sd, "querystd\n");
+	v4l2_dbg(1, de, sd, "querystd\n");
 	return vpx3220_status(sd, NULL, std);
 }
 
 static int vpx3220_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
-	v4l2_dbg(1, debug, sd, "g_input_status\n");
+	v4l2_dbg(1, de, sd, "g_input_status\n");
 	return vpx3220_status(sd, status, NULL);
 }
 
@@ -353,16 +353,16 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	   chosen video norm */
 	temp_input = vpx3220_fp_read(sd, 0xf2);
 
-	v4l2_dbg(1, debug, sd, "s_std %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, de, sd, "s_std %llx\n", (unsigned long long)std);
 	if (std & V4L2_STD_NTSC) {
 		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
-		v4l2_dbg(1, debug, sd, "norm switched to NTSC\n");
+		v4l2_dbg(1, de, sd, "norm switched to NTSC\n");
 	} else if (std & V4L2_STD_PAL) {
 		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
-		v4l2_dbg(1, debug, sd, "norm switched to PAL\n");
+		v4l2_dbg(1, de, sd, "norm switched to PAL\n");
 	} else if (std & V4L2_STD_SECAM) {
 		vpx3220_write_fp_block(sd, init_secam, sizeof(init_secam) >> 1);
-		v4l2_dbg(1, debug, sd, "norm switched to SECAM\n");
+		v4l2_dbg(1, de, sd, "norm switched to SECAM\n");
 	} else {
 		return -EINVAL;
 	}
@@ -393,7 +393,7 @@ static int vpx3220_s_routing(struct v4l2_subdev *sd,
 	if (input > 2)
 		return -EINVAL;
 
-	v4l2_dbg(1, debug, sd, "input switched to %s\n", inputs[input]);
+	v4l2_dbg(1, de, sd, "input switched to %s\n", inputs[input]);
 
 	vpx3220_write(sd, 0x33, input_vals[input][0]);
 
@@ -410,7 +410,7 @@ static int vpx3220_s_routing(struct v4l2_subdev *sd,
 
 static int vpx3220_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	v4l2_dbg(1, debug, sd, "s_stream %s\n", enable ? "on" : "off");
+	v4l2_dbg(1, de, sd, "s_stream %s\n", enable ? "on" : "off");
 
 	vpx3220_write(sd, 0xf2, (enable ? 0x1b : 0x00));
 	return 0;

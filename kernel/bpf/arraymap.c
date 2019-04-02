@@ -452,7 +452,7 @@ static void fd_array_map_free(struct bpf_map *map)
 
 	/* make sure it's empty */
 	for (i = 0; i < array->map.max_entries; i++)
-		BUG_ON(array->ptrs[i] != NULL);
+		_ON(array->ptrs[i] != NULL);
 
 	bpf_map_area_free(array);
 }

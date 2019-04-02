@@ -55,7 +55,7 @@ static pte_t * fixmap_page_table;
 
 void *kmap(struct page *page)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return page_address(page);
 
@@ -135,11 +135,11 @@ static noinline pte_t * __init alloc_kmap_pgtable(unsigned long kvaddr)
 void __init kmap_init(void)
 {
 	/* Due to recursive include hell, we can't do this in processor.h */
-	BUILD_BUG_ON(PAGE_OFFSET < (VMALLOC_END + FIXMAP_SIZE + PKMAP_SIZE));
+	BUILD__ON(PAGE_OFFSET < (VMALLOC_END + FIXMAP_SIZE + PKMAP_SIZE));
 
-	BUILD_BUG_ON(KM_TYPE_NR > PTRS_PER_PTE);
+	BUILD__ON(KM_TYPE_NR > PTRS_PER_PTE);
 	pkmap_page_table = alloc_kmap_pgtable(PKMAP_BASE);
 
-	BUILD_BUG_ON(LAST_PKMAP > PTRS_PER_PTE);
+	BUILD__ON(LAST_PKMAP > PTRS_PER_PTE);
 	fixmap_page_table = alloc_kmap_pgtable(FIXMAP_BASE);
 }

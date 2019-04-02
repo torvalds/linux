@@ -236,7 +236,7 @@ static void __init mpc85xx_cds_pic_init(void)
 	struct mpic *mpic;
 	mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	mpic_init(mpic);
 }
 
@@ -256,7 +256,7 @@ static int mpc85xx_cds_8259_attach(void)
 		}
 
 	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "Could not find i8259 PIC\n");
+		printk(KERN_DE "Could not find i8259 PIC\n");
 		return -ENODEV;
 	}
 

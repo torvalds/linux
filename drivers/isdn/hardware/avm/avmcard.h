@@ -189,7 +189,7 @@ extern int b1_irq_table[16];
 					 * int32 tasknr
 					 * int32 Length Taskname ...
 					 */
-#define RECEIVE_DEBUGMSG	0x71	/*
+#define RECEIVE_DEMSG	0x71	/*
 					 * int32 Length message
 					 *
 					 */
@@ -410,7 +410,7 @@ static inline unsigned int t1_get_slice(unsigned int base,
 					unsigned char *dp)
 {
 	unsigned int len, i;
-#ifdef FASTLINK_DEBUG
+#ifdef FASTLINK_DE
 	unsigned wcnt = 0, bcnt = 0;
 #endif
 
@@ -426,13 +426,13 @@ static inline unsigned int t1_get_slice(unsigned int base,
 				insb(base + B1_READ, dp, FIFO_INPBSIZE);
 				dp += FIFO_INPBSIZE;
 				i -= FIFO_INPBSIZE;
-#ifdef FASTLINK_DEBUG
+#ifdef FASTLINK_DE
 				wcnt += FIFO_INPBSIZE;
 #endif
 				break;
 			case T1F_IREADY | T1F_IHALF:
 				insb(base + B1_READ, dp, i);
-#ifdef FASTLINK_DEBUG
+#ifdef FASTLINK_DE
 				wcnt += i;
 #endif
 				dp += i;
@@ -441,15 +441,15 @@ static inline unsigned int t1_get_slice(unsigned int base,
 			default:
 				*dp++ = b1_get_byte(base);
 				i--;
-#ifdef FASTLINK_DEBUG
+#ifdef FASTLINK_DE
 				bcnt++;
 #endif
 				break;
 			}
 		}
-#ifdef FASTLINK_DEBUG
+#ifdef FASTLINK_DE
 		if (wcnt)
-			printk(KERN_DEBUG "b1lli(0x%x): get_slice l=%d w=%d b=%d\n",
+			printk(KERN_DE "b1lli(0x%x): get_slice l=%d w=%d b=%d\n",
 			       base, len, wcnt, bcnt);
 #endif
 	} else {

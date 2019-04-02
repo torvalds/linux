@@ -26,23 +26,23 @@
 /* platform driver name to register */
 #define NVT_DRIVER_NAME "nuvoton-cir"
 
-/* debugging module parameter */
-static int debug;
+/* deging module parameter */
+static int de;
 
 
 #define nvt_dbg(text, ...) \
-	if (debug) \
-		printk(KERN_DEBUG \
+	if (de) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 #define nvt_dbg_verbose(text, ...) \
-	if (debug > 1) \
-		printk(KERN_DEBUG \
+	if (de > 1) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 #define nvt_dbg_wake(text, ...) \
-	if (debug > 2) \
-		printk(KERN_DEBUG \
+	if (de > 2) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 

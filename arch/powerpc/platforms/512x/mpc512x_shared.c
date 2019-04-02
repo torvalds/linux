@@ -103,15 +103,15 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 	 * determine the acceptable clock range for the monitor (+/- 5%),
 	 * do the calculation in steps to avoid integer overflow
 	 */
-	pr_debug("DIU pixclock in ps - %u\n", pixclock);
+	pr_de("DIU pixclock in ps - %u\n", pixclock);
 	pixclock = (1000000000 / pixclock) * 1000;
-	pr_debug("DIU pixclock freq  - %u\n", pixclock);
+	pr_de("DIU pixclock freq  - %u\n", pixclock);
 	epsilon = pixclock / 20; /* pixclock * 0.05 */
-	pr_debug("DIU deviation      - %lu\n", epsilon);
+	pr_de("DIU deviation      - %lu\n", epsilon);
 	minpixclock = pixclock - epsilon;
 	maxpixclock = pixclock + epsilon;
-	pr_debug("DIU minpixclock    - %lu\n", minpixclock);
-	pr_debug("DIU maxpixclock    - %lu\n", maxpixclock);
+	pr_de("DIU minpixclock    - %lu\n", minpixclock);
+	pr_de("DIU maxpixclock    - %lu\n", maxpixclock);
 
 	/*
 	 * check whether the DIU supports the desired pixel clock
@@ -139,7 +139,7 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 	 */
 	for (offset = 0; offset <= epsilon; offset += pixclock / 64) {
 		want = pixclock - offset;
-		pr_debug("DIU checking clock - %lu\n", want);
+		pr_de("DIU checking clock - %lu\n", want);
 		clk_set_rate(clk_diu, want);
 		got = clk_get_rate(clk_diu);
 		delta = abs(pixclock - got);
@@ -148,7 +148,7 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 		if (!offset)
 			continue;
 		want = pixclock + offset;
-		pr_debug("DIU checking clock - %lu\n", want);
+		pr_de("DIU checking clock - %lu\n", want);
 		clk_set_rate(clk_diu, want);
 		got = clk_get_rate(clk_diu);
 		delta = abs(pixclock - got);
@@ -156,8 +156,8 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 			break;
 	}
 	if (offset <= epsilon) {
-		pr_debug("DIU clock accepted - %lu\n", want);
-		pr_debug("DIU pixclock want %u, got %lu, delta %lu, eps %lu\n",
+		pr_de("DIU clock accepted - %lu\n", want);
+		pr_de("DIU pixclock want %u, got %lu, delta %lu, eps %lu\n",
 			 pixclock, got, delta, epsilon);
 		return;
 	}
@@ -173,7 +173,7 @@ static void mpc512x_set_pixel_clock(unsigned int pixclock)
 	clk_set_rate(clk_diu, pixclock);
 	got = clk_get_rate(clk_diu);
 	delta = abs(pixclock - got);
-	pr_debug("DIU pixclock want %u, got %lu, delta %lu, eps %lu\n",
+	pr_de("DIU pixclock want %u, got %lu, delta %lu, eps %lu\n",
 		 pixclock, got, delta, epsilon);
 }
 
@@ -187,8 +187,8 @@ static struct fsl_diu_shared_fb __attribute__ ((__aligned__(8))) diu_shared_fb;
 
 static inline void mpc512x_free_bootmem(struct page *page)
 {
-	BUG_ON(PageTail(page));
-	BUG_ON(page_ref_count(page) > 1);
+	_ON(PageTail(page));
+	_ON(page_ref_count(page) > 1);
 	free_reserved_page(page);
 }
 

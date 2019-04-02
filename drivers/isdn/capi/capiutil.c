@@ -725,12 +725,12 @@ static _cdebbuf *cdebbuf_alloc(void)
 		cdb = kmalloc(sizeof(_cdebbuf), GFP_ATOMIC);
 	if (!cdb)
 		return NULL;
-	cdb->buf = kmalloc(CDEBUG_SIZE, GFP_ATOMIC);
+	cdb->buf = kmalloc(CDE_SIZE, GFP_ATOMIC);
 	if (!cdb->buf) {
 		kfree(cdb);
 		return NULL;
 	}
-	cdb->size = CDEBUG_SIZE;
+	cdb->size = CDE_SIZE;
 init:
 	cdb->buf[0] = 0;
 	cdb->p = cdb->buf;
@@ -739,7 +739,7 @@ init:
 }
 
 /**
- * cdebbuf_free() - free CAPI debug buffer
+ * cdebbuf_free() - free CAPI de buffer
  * @cdb:	buffer to free
  */
 
@@ -759,9 +759,9 @@ void cdebbuf_free(_cdebbuf *cdb)
  * capi_message2str() - format CAPI 2.0 message for printing
  * @msg:	CAPI 2.0 message
  *
- * Allocates a CAPI debug buffer and fills it with a printable representation
+ * Allocates a CAPI de buffer and fills it with a printable representation
  * of the CAPI 2.0 message in @msg.
- * Return value: allocated debug buffer, NULL on error
+ * Return value: allocated de buffer, NULL on error
  * The returned buffer should be freed by a call to cdebbuf_free() after use.
  */
 
@@ -804,10 +804,10 @@ _cdebbuf *capi_message2str(u8 *msg)
  * capi_cmsg2str() - format _cmsg structure for printing
  * @cmsg:	_cmsg structure
  *
- * Allocates a CAPI debug buffer and fills it with a printable representation
+ * Allocates a CAPI de buffer and fills it with a printable representation
  * of the CAPI 2.0 message stored in @cmsg by a previous call to
  * capi_cmsg2message() or capi_message2cmsg().
- * Return value: allocated debug buffer, NULL on error
+ * Return value: allocated de buffer, NULL on error
  * The returned buffer should be freed by a call to cdebbuf_free() after use.
  */
 
@@ -831,7 +831,7 @@ _cdebbuf *capi_cmsg2str(_cmsg *cmsg)
 	return cdb;
 }
 
-int __init cdebug_init(void)
+int __init cde_init(void)
 {
 	g_cmsg = kmalloc(sizeof(_cmsg), GFP_KERNEL);
 	if (!g_cmsg)
@@ -841,20 +841,20 @@ int __init cdebug_init(void)
 		kfree(g_cmsg);
 		return -ENOMEM;
 	}
-	g_debbuf->buf = kmalloc(CDEBUG_GSIZE, GFP_KERNEL);
+	g_debbuf->buf = kmalloc(CDE_GSIZE, GFP_KERNEL);
 	if (!g_debbuf->buf) {
 		kfree(g_cmsg);
 		kfree(g_debbuf);
 		return -ENOMEM;
 	}
-	g_debbuf->size = CDEBUG_GSIZE;
+	g_debbuf->size = CDE_GSIZE;
 	g_debbuf->buf[0] = 0;
 	g_debbuf->p = g_debbuf->buf;
 	g_debbuf->pos = 0;
 	return 0;
 }
 
-void __exit cdebug_exit(void)
+void __exit cde_exit(void)
 {
 	if (g_debbuf)
 		kfree(g_debbuf->buf);
@@ -880,12 +880,12 @@ void cdebbuf_free(_cdebbuf *cdb)
 {
 }
 
-int __init cdebug_init(void)
+int __init cde_init(void)
 {
 	return 0;
 }
 
-void __exit cdebug_exit(void)
+void __exit cde_exit(void)
 {
 }
 

@@ -103,10 +103,10 @@
 #define KVM_VGIC_V3_RDIST_COUNT_MASK	GENMASK_ULL(63, 52)
 #define KVM_VGIC_V3_RDIST_COUNT_SHIFT	52
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-#define DEBUG_SPINLOCK_BUG_ON(p) BUG_ON(p)
+#ifdef CONFIG_DE_SPINLOCK
+#define DE_SPINLOCK__ON(p) _ON(p)
 #else
-#define DEBUG_SPINLOCK_BUG_ON(p)
+#define DE_SPINLOCK__ON(p)
 #endif
 
 /* Requires the irq_lock to be held by the caller. */
@@ -256,8 +256,8 @@ void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 int vgic_lazy_init(struct kvm *kvm);
 int vgic_init(struct kvm *kvm);
 
-void vgic_debug_init(struct kvm *kvm);
-void vgic_debug_destroy(struct kvm *kvm);
+void vgic_de_init(struct kvm *kvm);
+void vgic_de_destroy(struct kvm *kvm);
 
 bool lock_all_vcpus(struct kvm *kvm);
 void unlock_all_vcpus(struct kvm *kvm);

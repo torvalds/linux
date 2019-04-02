@@ -183,7 +183,7 @@ The following mount options are accepted:
 
   intr
     Some operations between the kernel client and the user space
-    filesystem can be interruptible, such as changes in debug levels
+    filesystem can be interruptible, such as changes in de levels
     and the setting of tunable parameters.
 
   local_lock
@@ -193,29 +193,29 @@ The following mount options are accepted:
     Distributed locking is being worked on for the future.
 
 
-DEBUGGING
+DEGING
 =========
 
-If you want the debug (GOSSIP) statements in a particular
+If you want the de (GOSSIP) statements in a particular
 source file (inode.c for example) go to syslog:
 
-  echo inode > /sys/kernel/debug/orangefs/kernel-debug
+  echo inode > /sys/kernel/de/orangefs/kernel-de
 
-No debugging (the default):
+No deging (the default):
 
-  echo none > /sys/kernel/debug/orangefs/kernel-debug
+  echo none > /sys/kernel/de/orangefs/kernel-de
 
-Debugging from several source files:
+Deging from several source files:
 
-  echo inode,dir > /sys/kernel/debug/orangefs/kernel-debug
+  echo inode,dir > /sys/kernel/de/orangefs/kernel-de
 
-All debugging:
+All deging:
 
-  echo all > /sys/kernel/debug/orangefs/kernel-debug
+  echo all > /sys/kernel/de/orangefs/kernel-de
 
-Get a list of all debugging keywords:
+Get a list of all deging keywords:
 
-  cat /sys/kernel/debug/orangefs/debug-help
+  cat /sys/kernel/de/orangefs/de-help
 
 
 PROTOCOL BETWEEN KERNEL MODULE AND USERSPACE

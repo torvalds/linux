@@ -64,5 +64,5 @@ void __init intc_irq_domain_init(struct intc_desc_int *d,
 	else
 		d->domain = irq_domain_add_tree(NULL, &intc_evt_ops, NULL);
 
-	BUG_ON(!d->domain);
+	_ON(!d->domain);
 }

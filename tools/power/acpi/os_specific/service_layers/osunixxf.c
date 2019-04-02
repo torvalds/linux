@@ -15,7 +15,7 @@
 #include "accommon.h"
 #include "amlcode.h"
 #include "acparser.h"
-#include "acdebug.h"
+#include "acde.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +65,7 @@ static void os_exit_line_edit_mode(void);
  *
  * DESCRIPTION: Enter/Exit the raw character input mode for the terminal.
  *
- * Interactive line-editing support for the AML debugger. Used with the
+ * Interactive line-editing support for the AML deger. Used with the
  * common/acgetline module.
  *
  * readline() is not used because of non-portability. It is not available
@@ -345,12 +345,12 @@ void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...)
 
 		/* Output is directable to either a file (if open) or the console */
 
-		if (acpi_gbl_debug_file) {
+		if (acpi_gbl_de_file) {
 
 			/* Output file is open, send the output there */
 
 			va_start(args, fmt);
-			vfprintf(acpi_gbl_debug_file, fmt, args);
+			vfprintf(acpi_gbl_de_file, fmt, args);
 			va_end(args);
 		} else {
 			/* No redirection, send output to console (once only!) */
@@ -403,11 +403,11 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 
 		/* Output is directable to either a file (if open) or the console */
 
-		if (acpi_gbl_debug_file) {
+		if (acpi_gbl_de_file) {
 
 			/* Output file is open, send the output there */
 
-			fputs(buffer, acpi_gbl_debug_file);
+			fputs(buffer, acpi_gbl_de_file);
 		} else {
 			/* No redirection, send output to console (once only!) */
 

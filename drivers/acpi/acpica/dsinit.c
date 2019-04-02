@@ -169,7 +169,7 @@ acpi_ds_initialize_objects(u32 table_index,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
 
 	/* Set all init info to zero */
@@ -201,13 +201,13 @@ acpi_ds_initialize_objects(u32 table_index,
 	/* DSDT is always the first AML table */
 
 	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT)) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+		ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 				      "\nInitializing Namespace objects:\n"));
 	}
 
 	/* Summary of objects initialized */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 			      "Table [%4.4s: %-8.8s] (id %.2X) - %4u Objects with %3u Devices, "
 			      "%3u Regions, %4u Methods (%u/%u/%u Serial/Non/Cvt)\n",
 			      table->signature, table->oem_table_id, owner_id,
@@ -217,7 +217,7 @@ acpi_ds_initialize_objects(u32 table_index,
 			      info.non_serial_method_count,
 			      info.serialized_method_count));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "%u Methods, %u Regions\n",
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH, "%u Methods, %u Regions\n",
 			  info.method_count, info.op_region_count));
 
 	return_ACPI_STATUS(AE_OK);

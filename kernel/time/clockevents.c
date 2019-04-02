@@ -105,7 +105,7 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 		return 0;
 
 	case CLOCK_EVT_STATE_PERIODIC:
-		/* Core internal bug */
+		/* Core internal  */
 		if (!(dev->features & CLOCK_EVT_FEAT_PERIODIC))
 			return -ENOSYS;
 		if (dev->set_state_periodic)
@@ -113,7 +113,7 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 		return 0;
 
 	case CLOCK_EVT_STATE_ONESHOT:
-		/* Core internal bug */
+		/* Core internal  */
 		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
 			return -ENOSYS;
 		if (dev->set_state_oneshot)
@@ -121,7 +121,7 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 		return 0;
 
 	case CLOCK_EVT_STATE_ONESHOT_STOPPED:
-		/* Core internal bug */
+		/* Core internal  */
 		if (WARN_ONCE(!clockevent_state_oneshot(dev),
 			      "Current state: %d\n",
 			      clockevent_get_state(dev)))
@@ -581,7 +581,7 @@ void clockevents_exchange_device(struct clock_event_device *old,
 	}
 
 	if (new) {
-		BUG_ON(!clockevent_state_detached(new));
+		_ON(!clockevent_state_detached(new));
 		clockevents_shutdown(new);
 	}
 }
@@ -637,7 +637,7 @@ void tick_cleanup_dead_cpu(int cpu)
 		if (cpumask_test_cpu(cpu, dev->cpumask) &&
 		    cpumask_weight(dev->cpumask) == 1 &&
 		    !tick_is_broadcast_device(dev)) {
-			BUG_ON(!clockevent_state_detached(dev));
+			_ON(!clockevent_state_detached(dev));
 			list_del(&dev->list);
 		}
 	}

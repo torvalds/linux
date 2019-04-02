@@ -652,7 +652,7 @@ static int __init dmi_sysfs_init(void)
 	int val;
 
 	if (!dmi_kobj) {
-		pr_debug("dmi-sysfs: dmi entry is absent.\n");
+		pr_de("dmi-sysfs: dmi entry is absent.\n");
 		error = -ENODATA;
 		goto err;
 	}
@@ -672,7 +672,7 @@ static int __init dmi_sysfs_init(void)
 		goto err;
 	}
 
-	pr_debug("dmi-sysfs: loaded.\n");
+	pr_de("dmi-sysfs: loaded.\n");
 
 	return 0;
 err:
@@ -684,7 +684,7 @@ err:
 /* clean up everything. */
 static void __exit dmi_sysfs_exit(void)
 {
-	pr_debug("dmi-sysfs: unloading.\n");
+	pr_de("dmi-sysfs: unloading.\n");
 	cleanup_entry_list();
 	kset_unregister(dmi_kset);
 }

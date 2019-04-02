@@ -148,7 +148,7 @@ EXPORT_SYMBOL_GPL(fpu_kernel_xstate_size);
  * because that's how C aligns structs.
  */
 #define CHECK_MEMBER_AT_END_OF(TYPE, MEMBER) \
-	BUILD_BUG_ON(sizeof(TYPE) != ALIGN(offsetofend(TYPE, MEMBER), \
+	BUILD__ON(sizeof(TYPE) != ALIGN(offsetofend(TYPE, MEMBER), \
 					   TYPE_ALIGN(TYPE)))
 
 /*

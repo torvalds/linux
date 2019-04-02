@@ -18,7 +18,7 @@ fctiw(u32 *frD, void *frB)
 	FP_TO_INT_D(r, B, 32, 1);
 	frD[1] = r;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: D %p, B %p: ", __func__, frD, frB);
 	dump_double(frD);
 	printk("\n");

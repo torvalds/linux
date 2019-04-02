@@ -1086,7 +1086,7 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 
 	dev->cq_tbl[cq->id] = NULL;
 	indx = ocrdma_get_eq_table_index(dev, cq->eqn);
-	BUG_ON(indx == -EINVAL);
+	_ON(indx == -EINVAL);
 
 	eq = &dev->eq_tbl[indx];
 	irq = ocrdma_get_irq(dev, eq);
@@ -1657,7 +1657,7 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 				wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
 					OCRDMA_CQE_BUFTAG_SHIFT) &
 					qp->srq->rq.max_wqe_idx;
-				BUG_ON(wqe_idx < 1);
+				_ON(wqe_idx < 1);
 				spin_lock_irqsave(&qp->srq->q_lock, flags);
 				ocrdma_hwq_inc_tail(&qp->srq->rq);
 				ocrdma_srq_toggle_bit(qp->srq, wqe_idx - 1);
@@ -2307,13 +2307,13 @@ static int ocrdma_srq_get_idx(struct ocrdma_srq *srq)
 		if (srq->idx_bit_fields[row]) {
 			indx = ffs(srq->idx_bit_fields[row]);
 			indx = (row * 32) + (indx - 1);
-			BUG_ON(indx >= srq->rq.max_cnt);
+			_ON(indx >= srq->rq.max_cnt);
 			ocrdma_srq_toggle_bit(srq, indx);
 			break;
 		}
 	}
 
-	BUG_ON(row == srq->bit_fields_len);
+	_ON(row == srq->bit_fields_len);
 	return indx + 1; /* Use from index 1 */
 }
 
@@ -2671,7 +2671,7 @@ static void ocrdma_update_free_srq_cqe(struct ib_wc *ibwc,
 	srq = get_ocrdma_srq(qp->ibqp.srq);
 	wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
 		OCRDMA_CQE_BUFTAG_SHIFT) & srq->rq.max_wqe_idx;
-	BUG_ON(wqe_idx < 1);
+	_ON(wqe_idx < 1);
 
 	ibwc->wr_id = srq->rqe_wr_id_tbl[wqe_idx];
 	spin_lock_irqsave(&srq->q_lock, flags);
@@ -2810,7 +2810,7 @@ static int ocrdma_poll_hwcq(struct ocrdma_cq *cq, int num_entries,
 		if (qpn == 0)
 			goto skip_cqe;
 		qp = dev->qp_tbl[qpn];
-		BUG_ON(qp == NULL);
+		_ON(qp == NULL);
 
 		if (is_cqe_for_sq(cqe)) {
 			expand = ocrdma_poll_scqe(qp, cqe, ibwc, &polled,

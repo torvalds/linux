@@ -118,7 +118,7 @@ extern struct percpu_stats pcpu_stats;
 extern struct pcpu_alloc_info pcpu_stats_ai;
 
 /*
- * For debug purposes. We don't care about the flexible array.
+ * For de purposes. We don't care about the flexible array.
  */
 static inline void pcpu_stats_save_ai(const struct pcpu_alloc_info *ai)
 {

@@ -215,7 +215,7 @@ extern const void *__pv_table_begin, *__pv_table_end;
 	: "r" (x), "I" (__PV_BITS_31_24)		\
 	: "cc")
 
-static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
+static inline phys_addr_t __virt_to_phys_node(unsigned long x)
 {
 	phys_addr_t t;
 
@@ -247,7 +247,7 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 #define PHYS_OFFSET	PLAT_PHYS_OFFSET
 #define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
-static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
+static inline phys_addr_t __virt_to_phys_node(unsigned long x)
 {
 	return (phys_addr_t)x - PAGE_OFFSET + PHYS_OFFSET;
 }
@@ -263,14 +263,14 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
 	 PHYS_PFN_OFFSET)
 
-#define __pa_symbol_nodebug(x)	__virt_to_phys_nodebug((x))
+#define __pa_symbol_node(x)	__virt_to_phys_node((x))
 
-#ifdef CONFIG_DEBUG_VIRTUAL
+#ifdef CONFIG_DE_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __virt_to_phys(x)	__virt_to_phys_node(x)
+#define __phys_addr_symbol(x)	__pa_symbol_node(x)
 #endif
 
 /*

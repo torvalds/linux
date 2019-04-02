@@ -62,7 +62,7 @@ void __init setup_smp(void)
 			continue;
 
 		if (hart == cpuid_to_hartid_map(0)) {
-			BUG_ON(found_boot_cpu);
+			_ON(found_boot_cpu);
 			found_boot_cpu = 1;
 			continue;
 		}
@@ -78,7 +78,7 @@ void __init setup_smp(void)
 		cpuid++;
 	}
 
-	BUG_ON(!found_boot_cpu);
+	_ON(!found_boot_cpu);
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)

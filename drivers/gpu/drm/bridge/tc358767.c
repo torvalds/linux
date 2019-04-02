@@ -176,7 +176,7 @@
 #define LSCLK_DIV_1			(0 << 0)
 #define LSCLK_DIV_2			(1 << 0)
 
-/* Test & Debug */
+/* Test & De */
 #define TSTCTL			0x0a00
 #define PLL_DBG			0x0a04
 

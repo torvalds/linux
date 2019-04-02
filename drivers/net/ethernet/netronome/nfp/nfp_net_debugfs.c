@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2015-2018 Netronome Systems, Inc. */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
 
@@ -81,7 +81,7 @@ static int nfp_tx_q_show(struct seq_file *file, void *data)
 
 	rtnl_lock();
 
-	if (debugfs_real_fops(file->file) == &nfp_tx_q_fops)
+	if (defs_real_fops(file->file) == &nfp_tx_q_fops)
 		tx_ring = r_vec->tx_ring;
 	else
 		tx_ring = r_vec->xdp_ring;
@@ -145,7 +145,7 @@ static int nfp_xdp_q_show(struct seq_file *file, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(nfp_xdp_q);
 
-void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
+void nfp_net_defs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
 {
 	struct dentry *queues, *tx, *rx, *xdp;
 	char name[20];
@@ -158,63 +158,63 @@ void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
 		sprintf(name, "vnic%d", nn->id);
 	else
 		strcpy(name, "ctrl-vnic");
-	nn->debugfs_dir = debugfs_create_dir(name, ddir);
-	if (IS_ERR_OR_NULL(nn->debugfs_dir))
+	nn->defs_dir = defs_create_dir(name, ddir);
+	if (IS_ERR_OR_NULL(nn->defs_dir))
 		return;
 
-	/* Create queue debugging sub-tree */
-	queues = debugfs_create_dir("queue", nn->debugfs_dir);
+	/* Create queue deging sub-tree */
+	queues = defs_create_dir("queue", nn->defs_dir);
 	if (IS_ERR_OR_NULL(queues))
 		return;
 
-	rx = debugfs_create_dir("rx", queues);
-	tx = debugfs_create_dir("tx", queues);
-	xdp = debugfs_create_dir("xdp", queues);
+	rx = defs_create_dir("rx", queues);
+	tx = defs_create_dir("tx", queues);
+	xdp = defs_create_dir("xdp", queues);
 	if (IS_ERR_OR_NULL(rx) || IS_ERR_OR_NULL(tx) || IS_ERR_OR_NULL(xdp))
 		return;
 
 	for (i = 0; i < min(nn->max_rx_rings, nn->max_r_vecs); i++) {
 		sprintf(name, "%d", i);
-		debugfs_create_file(name, 0400, rx,
+		defs_create_file(name, 0400, rx,
 				    &nn->r_vecs[i], &nfp_rx_q_fops);
-		debugfs_create_file(name, 0400, xdp,
+		defs_create_file(name, 0400, xdp,
 				    &nn->r_vecs[i], &nfp_xdp_q_fops);
 	}
 
 	for (i = 0; i < min(nn->max_tx_rings, nn->max_r_vecs); i++) {
 		sprintf(name, "%d", i);
-		debugfs_create_file(name, 0400, tx,
+		defs_create_file(name, 0400, tx,
 				    &nn->r_vecs[i], &nfp_tx_q_fops);
 	}
 }
 
-struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
+struct dentry *nfp_net_defs_device_add(struct pci_dev *pdev)
 {
 	struct dentry *dev_dir;
 
 	if (IS_ERR_OR_NULL(nfp_dir))
 		return NULL;
 
-	dev_dir = debugfs_create_dir(pci_name(pdev), nfp_dir);
+	dev_dir = defs_create_dir(pci_name(pdev), nfp_dir);
 	if (IS_ERR_OR_NULL(dev_dir))
 		return NULL;
 
 	return dev_dir;
 }
 
-void nfp_net_debugfs_dir_clean(struct dentry **dir)
+void nfp_net_defs_dir_clean(struct dentry **dir)
 {
-	debugfs_remove_recursive(*dir);
+	defs_remove_recursive(*dir);
 	*dir = NULL;
 }
 
-void nfp_net_debugfs_create(void)
+void nfp_net_defs_create(void)
 {
-	nfp_dir = debugfs_create_dir("nfp_net", NULL);
+	nfp_dir = defs_create_dir("nfp_net", NULL);
 }
 
-void nfp_net_debugfs_destroy(void)
+void nfp_net_defs_destroy(void)
 {
-	debugfs_remove_recursive(nfp_dir);
+	defs_remove_recursive(nfp_dir);
 	nfp_dir = NULL;
 }

@@ -11,7 +11,7 @@
  *  Copyright (C) 2004 Nadia Yvette Chambers
  */
 #include <linux/ring_buffer.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/slab.h>

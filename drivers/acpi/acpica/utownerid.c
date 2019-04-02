@@ -94,7 +94,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 				*owner_id =
 				    (acpi_owner_id)((k + 1) + ACPI_MUL_32(j));
 
-				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
+				ACPI_DE_PRINT((ACPI_DB_VALUES,
 						  "Allocated OwnerId: %2.2X\n",
 						  (unsigned int)*owner_id));
 				goto exit;
@@ -112,7 +112,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 	 * execution.
 	 *
 	 * If this error happens, there may be very deep nesting of invoked
-	 * control methods, or there may be a bug where the IDs are not released.
+	 * control methods, or there may be a  where the IDs are not released.
 	 */
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_ERROR((AE_INFO,

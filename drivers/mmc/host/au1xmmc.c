@@ -52,12 +52,12 @@
 
 #define DRIVER_NAME "au1xxx-mmc"
 
-/* Set this to enable special debugging macros */
-/* #define DEBUG */
+/* Set this to enable special deging macros */
+/* #define DE */
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt, idx, args...)	\
-	pr_debug("au1xmmc(%d): DEBUG: " fmt, idx, ##args)
+	pr_de("au1xmmc(%d): DE: " fmt, idx, ##args)
 #else
 #define DBG(fmt, idx, args...) do {} while (0)
 #endif
@@ -147,7 +147,7 @@ struct au1xmmc_host {
 #define HOST_CMD(h)	((h)->iobase + SD_CMD)
 #define HOST_CONFIG2(h)	((h)->iobase + SD_CONFIG2)
 #define HOST_TIMEOUT(h)	((h)->iobase + SD_TIMEOUT)
-#define HOST_DEBUG(h)	((h)->iobase + SD_DEBUG)
+#define HOST_DE(h)	((h)->iobase + SD_DE)
 
 #define DMA_CHANNEL(h)	\
 	(((h)->flags & HOST_F_XMIT) ? (h)->tx_chan : (h)->rx_chan)

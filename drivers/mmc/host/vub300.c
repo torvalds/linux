@@ -799,7 +799,7 @@ static void command_res_completed(struct urb *urb)
 	} else if (vub300->command_res_urb->actual_length == 0) {
 		/*
 		 * we have seen this happen once or twice and
-		 * we suspect a buggy USB host controller
+		 * we suspect a gy USB host controller
 		 */
 	} else if (!vub300->data) {
 		/* this means that the command (typically CMD52) succeeded */

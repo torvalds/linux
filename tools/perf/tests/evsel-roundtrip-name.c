@@ -3,7 +3,7 @@
 #include "evsel.h"
 #include "parse-events.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include <errno.h>
 #include <linux/kernel.h>
 
@@ -51,7 +51,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 				++idx;
 
 				if (strcmp(perf_evsel__name(evsel), name)) {
-					pr_debug("%s != %s\n", perf_evsel__name(evsel), name);
+					pr_de("%s != %s\n", perf_evsel__name(evsel), name);
 					ret = -1;
 				}
 
@@ -76,7 +76,7 @@ static int __perf_evsel__name_array_test(const char *names[], int nr_names)
 	for (i = 0; i < nr_names; ++i) {
 		err = parse_events(evlist, names[i], NULL);
 		if (err) {
-			pr_debug("failed to parse event '%s', err %d\n",
+			pr_de("failed to parse event '%s', err %d\n",
 				 names[i], err);
 			goto out_delete_evlist;
 		}
@@ -86,7 +86,7 @@ static int __perf_evsel__name_array_test(const char *names[], int nr_names)
 	evlist__for_each_entry(evlist, evsel) {
 		if (strcmp(perf_evsel__name(evsel), names[evsel->idx])) {
 			--err;
-			pr_debug("%s != %s\n", perf_evsel__name(evsel), names[evsel->idx]);
+			pr_de("%s != %s\n", perf_evsel__name(evsel), names[evsel->idx]);
 		}
 	}
 

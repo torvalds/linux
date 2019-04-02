@@ -1,24 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_X86_DEBUGREG_H
-#define _ASM_X86_DEBUGREG_H
+#ifndef _ASM_X86_DEREG_H
+#define _ASM_X86_DEREG_H
 
 
-#include <linux/bug.h>
-#include <uapi/asm/debugreg.h>
+#include <linux/.h>
+#include <uapi/asm/dereg.h>
 
 DECLARE_PER_CPU(unsigned long, cpu_dr7);
 
 #ifndef CONFIG_PARAVIRT_XXL
 /*
- * These special macros can be used to get or set a debugging register
+ * These special macros can be used to get or set a deging register
  */
-#define get_debugreg(var, register)				\
-	(var) = native_get_debugreg(register)
-#define set_debugreg(value, register)				\
-	native_set_debugreg(register, value)
+#define get_dereg(var, register)				\
+	(var) = native_get_dereg(register)
+#define set_dereg(value, register)				\
+	native_set_dereg(register, value)
 #endif
 
-static inline unsigned long native_get_debugreg(int regno)
+static inline unsigned long native_get_dereg(int regno)
 {
 	unsigned long val = 0;	/* Damn you, gcc! */
 
@@ -42,12 +42,12 @@ static inline unsigned long native_get_debugreg(int regno)
 		asm("mov %%db7, %0" :"=r" (val));
 		break;
 	default:
-		BUG();
+		();
 	}
 	return val;
 }
 
-static inline void native_set_debugreg(int regno, unsigned long value)
+static inline void native_set_dereg(int regno, unsigned long value)
 {
 	switch (regno) {
 	case 0:
@@ -69,20 +69,20 @@ static inline void native_set_debugreg(int regno, unsigned long value)
 		asm("mov %0, %%db7"	::"r" (value));
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
 static inline void hw_breakpoint_disable(void)
 {
 	/* Zero the control register for HW Breakpoint */
-	set_debugreg(0UL, 7);
+	set_dereg(0UL, 7);
 
 	/* Zero-out the individual HW breakpoint address registers */
-	set_debugreg(0UL, 0);
-	set_debugreg(0UL, 1);
-	set_debugreg(0UL, 2);
-	set_debugreg(0UL, 3);
+	set_dereg(0UL, 0);
+	set_dereg(0UL, 1);
+	set_dereg(0UL, 2);
+	set_dereg(0UL, 3);
 }
 
 static inline int hw_breakpoint_active(void)
@@ -90,29 +90,29 @@ static inline int hw_breakpoint_active(void)
 	return __this_cpu_read(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
 }
 
-extern void aout_dump_debugregs(struct user *dump);
+extern void aout_dump_deregs(struct user *dump);
 
 extern void hw_breakpoint_restore(void);
 
 #ifdef CONFIG_X86_64
-DECLARE_PER_CPU(int, debug_stack_usage);
-static inline void debug_stack_usage_inc(void)
+DECLARE_PER_CPU(int, de_stack_usage);
+static inline void de_stack_usage_inc(void)
 {
-	__this_cpu_inc(debug_stack_usage);
+	__this_cpu_inc(de_stack_usage);
 }
-static inline void debug_stack_usage_dec(void)
+static inline void de_stack_usage_dec(void)
 {
-	__this_cpu_dec(debug_stack_usage);
+	__this_cpu_dec(de_stack_usage);
 }
-int is_debug_stack(unsigned long addr);
-void debug_stack_set_zero(void);
-void debug_stack_reset(void);
+int is_de_stack(unsigned long addr);
+void de_stack_set_zero(void);
+void de_stack_reset(void);
 #else /* !X86_64 */
-static inline int is_debug_stack(unsigned long addr) { return 0; }
-static inline void debug_stack_set_zero(void) { }
-static inline void debug_stack_reset(void) { }
-static inline void debug_stack_usage_inc(void) { }
-static inline void debug_stack_usage_dec(void) { }
+static inline int is_de_stack(unsigned long addr) { return 0; }
+static inline void de_stack_set_zero(void) { }
+static inline void de_stack_reset(void) { }
+static inline void de_stack_usage_inc(void) { }
+static inline void de_stack_usage_dec(void) { }
 #endif /* X86_64 */
 
 #ifdef CONFIG_CPU_SUP_AMD
@@ -121,4 +121,4 @@ extern void set_dr_addr_mask(unsigned long mask, int dr);
 static inline void set_dr_addr_mask(unsigned long mask, int dr) { }
 #endif
 
-#endif /* _ASM_X86_DEBUGREG_H */
+#endif /* _ASM_X86_DEREG_H */

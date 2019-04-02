@@ -662,7 +662,7 @@ static int gbaudio_tplg_create_enum_kctl(struct gbaudio_module_info *gb,
 	gbe->max = le32_to_cpu(gb_enum->items);
 	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
 
-	/* debug enum info */
+	/* de enum info */
 	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gbe->max,
 		le16_to_cpu(gb_enum->names_length));
 	for (i = 0; i < gbe->max; i++)
@@ -871,7 +871,7 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 	gbe->max = le32_to_cpu(gb_enum->items);
 	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
 
-	/* debug enum info */
+	/* de enum info */
 	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gbe->max,
 		le16_to_cpu(gb_enum->names_length));
 	for (i = 0; i < gbe->max; i++)

@@ -28,7 +28,7 @@ struct thread_info {
 	__u32 last_cpu;			/* Last CPU thread ran on */
 	__u32 status;			/* Thread synchronous flags */
 	mm_segment_t addr_limit;	/* user-level address space limit */
-	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
+	int preempt_count;		/* 0=premptable, <0=; will also serve as bh-counter */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	__u64 utime;
 	__u64 stime;
@@ -106,7 +106,7 @@ struct thread_info {
 #define TIF_NOTIFY_RESUME	6	/* resumption notification requested */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
 #define TIF_MCA_INIT		18	/* this task is processing MCA or INIT */
-#define TIF_DB_DISABLED		19	/* debug trap disabled for fsyscall */
+#define TIF_DB_DISABLED		19	/* de trap disabled for fsyscall */
 #define TIF_RESTORE_RSE		21	/* user RBS is newer than kernel RBS */
 #define TIF_POLLING_NRFLAG	22	/* idle is polling for TIF_NEED_RESCHED */
 

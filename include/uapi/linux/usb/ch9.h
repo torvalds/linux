@@ -132,7 +132,7 @@
 #define USB_DEVICE_WUSB_DEVICE		3	/* (wireless)*/
 #define USB_DEVICE_A_HNP_SUPPORT	4	/* (otg) RH port supports HNP */
 #define USB_DEVICE_A_ALT_HNP_SUPPORT	5	/* (otg) other RH port does */
-#define USB_DEVICE_DEBUG_MODE		6	/* (special devices only) */
+#define USB_DEVICE_DE_MODE		6	/* (special devices only) */
 
 /*
  * Test Mode Selectors
@@ -247,7 +247,7 @@ struct usb_ctrlrequest {
 #define USB_DT_INTERFACE_POWER		0x08
 /* these are from a minor usb 2.0 revision (ECN) */
 #define USB_DT_OTG			0x09
-#define USB_DT_DEBUG			0x0a
+#define USB_DT_DE			0x0a
 #define USB_DT_INTERFACE_ASSOCIATION	0x0b
 /* these are from the Wireless USB spec */
 #define USB_DT_SECURITY			0x0c
@@ -760,14 +760,14 @@ struct usb_otg20_descriptor {
 #define OTG_STS_SELECTOR	0xF000		/* OTG status selector */
 /*-------------------------------------------------------------------------*/
 
-/* USB_DT_DEBUG:  for special highspeed devices, replacing serial console */
-struct usb_debug_descriptor {
+/* USB_DT_DE:  for special highspeed devices, replacing serial console */
+struct usb_de_descriptor {
 	__u8  bLength;
 	__u8  bDescriptorType;
 
 	/* bulk endpoints with 8 byte maxpacket */
-	__u8  bDebugInEndpoint;
-	__u8  bDebugOutEndpoint;
+	__u8  bDeInEndpoint;
+	__u8  bDeOutEndpoint;
 } __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/

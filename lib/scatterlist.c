@@ -108,7 +108,7 @@ struct scatterlist *sg_last(struct scatterlist *sgl, unsigned int nents)
 	for_each_sg(sgl, sg, nents, i)
 		ret = sg;
 
-	BUG_ON(!sg_is_last(ret));
+	_ON(!sg_is_last(ret));
 	return ret;
 }
 EXPORT_SYMBOL(sg_last);

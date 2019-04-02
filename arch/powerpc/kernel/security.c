@@ -11,7 +11,7 @@
 
 #include <asm/asm-prototypes.h>
 #include <asm/code-patching.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/security_features.h>
 #include <asm/setup.h>
 
@@ -69,7 +69,7 @@ static int __init handle_nospectre_v1(char *p)
 }
 early_param("nospectre_v1", handle_nospectre_v1);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int barrier_nospec_set(void *data, u64 val)
 {
 	switch (val) {
@@ -97,14 +97,14 @@ static int barrier_nospec_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(fops_barrier_nospec,
 			barrier_nospec_get, barrier_nospec_set, "%llu\n");
 
-static __init int barrier_nospec_debugfs_init(void)
+static __init int barrier_nospec_defs_init(void)
 {
-	debugfs_create_file("barrier_nospec", 0600, powerpc_debugfs_root, NULL,
+	defs_create_file("barrier_nospec", 0600, powerpc_defs_root, NULL,
 			    &fops_barrier_nospec);
 	return 0;
 }
-device_initcall(barrier_nospec_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+device_initcall(barrier_nospec_defs_init);
+#endif /* CONFIG_DE_FS */
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 static int __init handle_nospectre_v2(char *p)
@@ -331,7 +331,7 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *
 	return sprintf(buf, "Vulnerable\n");
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int stf_barrier_set(void *data, u64 val)
 {
 	bool enable;
@@ -358,13 +358,13 @@ static int stf_barrier_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_stf_barrier, stf_barrier_get, stf_barrier_set, "%llu\n");
 
-static __init int stf_barrier_debugfs_init(void)
+static __init int stf_barrier_defs_init(void)
 {
-	debugfs_create_file("stf_barrier", 0600, powerpc_debugfs_root, NULL, &fops_stf_barrier);
+	defs_create_file("stf_barrier", 0600, powerpc_defs_root, NULL, &fops_stf_barrier);
 	return 0;
 }
-device_initcall(stf_barrier_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+device_initcall(stf_barrier_defs_init);
+#endif /* CONFIG_DE_FS */
 
 static void toggle_count_cache_flush(bool enable)
 {
@@ -394,7 +394,7 @@ void setup_count_cache_flush(void)
 	toggle_count_cache_flush(true);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int count_cache_flush_set(void *data, u64 val)
 {
 	bool enable;
@@ -424,12 +424,12 @@ static int count_cache_flush_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
 			count_cache_flush_set, "%llu\n");
 
-static __init int count_cache_flush_debugfs_init(void)
+static __init int count_cache_flush_defs_init(void)
 {
-	debugfs_create_file("count_cache_flush", 0600, powerpc_debugfs_root,
+	defs_create_file("count_cache_flush", 0600, powerpc_defs_root,
 			    NULL, &fops_count_cache_flush);
 	return 0;
 }
-device_initcall(count_cache_flush_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+device_initcall(count_cache_flush_defs_init);
+#endif /* CONFIG_DE_FS */
 #endif /* CONFIG_PPC_BOOK3S_64 */

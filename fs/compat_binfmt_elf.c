@@ -119,7 +119,7 @@
 /*
  * Rename a few of the symbols that binfmt_elf.c will define.
  * These are all local so the names don't really matter, but it
- * might make some debugging less confusing not to duplicate them.
+ * might make some deging less confusing not to duplicate them.
  */
 #define elf_format		compat_elf_format
 #define init_elf_binfmt		init_compat_elf_binfmt

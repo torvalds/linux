@@ -67,7 +67,7 @@ struct bfa_plog_rec_s {
  */
 enum bfa_plog_mid {
 	BFA_PL_MID_INVALID	= 0,
-	BFA_PL_MID_DEBUG	= 1,
+	BFA_PL_MID_DE	= 1,
 	BFA_PL_MID_DRVR		= 2,
 	BFA_PL_MID_HAL		= 3,
 	BFA_PL_MID_HAL_FCXP	= 4,
@@ -110,7 +110,7 @@ enum bfa_plog_eid {
 	BFA_PL_EID_CT_OUT		= 15,
 	BFA_PL_EID_DRIVER_START		= 16,
 	BFA_PL_EID_RSCN			= 17,
-	BFA_PL_EID_DEBUG		= 18,
+	BFA_PL_EID_DE		= 18,
 	BFA_PL_EID_MISC			= 19,
 	BFA_PL_EID_FIP_FCF_DISC		= 20,
 	BFA_PL_EID_FIP_FCF_CVL		= 21,

@@ -22,7 +22,7 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 {
 	struct fanotify_event *old, *new;
 
-	pr_debug("%s: old=%p new=%p\n", __func__, old_fsn, new_fsn);
+	pr_de("%s: old=%p new=%p\n", __func__, old_fsn, new_fsn);
 	old = FANOTIFY_E(old_fsn);
 	new = FANOTIFY_E(new_fsn);
 
@@ -56,7 +56,7 @@ static int fanotify_merge(struct list_head *list, struct fsnotify_event *event)
 	struct fsnotify_event *test_event;
 	struct fanotify_event *new;
 
-	pr_debug("%s: list=%p event=%p\n", __func__, list, event);
+	pr_de("%s: list=%p event=%p\n", __func__, list, event);
 	new = FANOTIFY_E(event);
 
 	/*
@@ -90,7 +90,7 @@ static int fanotify_get_response(struct fsnotify_group *group,
 {
 	int ret;
 
-	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+	pr_de("%s: group=%p event=%p\n", __func__, group, event);
 
 	ret = wait_event_killable(group->fanotify_data.access_waitq,
 				  event->state == FAN_EVENT_ANSWERED);
@@ -130,7 +130,7 @@ static int fanotify_get_response(struct fsnotify_group *group,
 	if (event->response & FAN_AUDIT)
 		audit_fanotify(event->response & ~FAN_AUDIT);
 
-	pr_debug("%s: group=%p event=%p about to return ret=%d\n", __func__,
+	pr_de("%s: group=%p event=%p about to return ret=%d\n", __func__,
 		 group, event, ret);
 out:
 	fsnotify_destroy_event(group, &event->fae.fse);
@@ -155,7 +155,7 @@ static u32 fanotify_group_event_mask(struct fsnotify_group *group,
 	struct fsnotify_mark *mark;
 	int type;
 
-	pr_debug("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
+	pr_de("%s: report_mask=%x mask=%x data=%p data_type=%d\n",
 		 __func__, iter_info->report_mask, event_mask, data, data_type);
 
 	if (!FAN_GROUP_FLAG(group, FAN_REPORT_FID)) {
@@ -369,34 +369,34 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	struct fsnotify_event *fsn_event;
 	__kernel_fsid_t fsid = {};
 
-	BUILD_BUG_ON(FAN_ACCESS != FS_ACCESS);
-	BUILD_BUG_ON(FAN_MODIFY != FS_MODIFY);
-	BUILD_BUG_ON(FAN_ATTRIB != FS_ATTRIB);
-	BUILD_BUG_ON(FAN_CLOSE_NOWRITE != FS_CLOSE_NOWRITE);
-	BUILD_BUG_ON(FAN_CLOSE_WRITE != FS_CLOSE_WRITE);
-	BUILD_BUG_ON(FAN_OPEN != FS_OPEN);
-	BUILD_BUG_ON(FAN_MOVED_TO != FS_MOVED_TO);
-	BUILD_BUG_ON(FAN_MOVED_FROM != FS_MOVED_FROM);
-	BUILD_BUG_ON(FAN_CREATE != FS_CREATE);
-	BUILD_BUG_ON(FAN_DELETE != FS_DELETE);
-	BUILD_BUG_ON(FAN_DELETE_SELF != FS_DELETE_SELF);
-	BUILD_BUG_ON(FAN_MOVE_SELF != FS_MOVE_SELF);
-	BUILD_BUG_ON(FAN_EVENT_ON_CHILD != FS_EVENT_ON_CHILD);
-	BUILD_BUG_ON(FAN_Q_OVERFLOW != FS_Q_OVERFLOW);
-	BUILD_BUG_ON(FAN_OPEN_PERM != FS_OPEN_PERM);
-	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
-	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
-	BUILD_BUG_ON(FAN_OPEN_EXEC != FS_OPEN_EXEC);
-	BUILD_BUG_ON(FAN_OPEN_EXEC_PERM != FS_OPEN_EXEC_PERM);
+	BUILD__ON(FAN_ACCESS != FS_ACCESS);
+	BUILD__ON(FAN_MODIFY != FS_MODIFY);
+	BUILD__ON(FAN_ATTRIB != FS_ATTRIB);
+	BUILD__ON(FAN_CLOSE_NOWRITE != FS_CLOSE_NOWRITE);
+	BUILD__ON(FAN_CLOSE_WRITE != FS_CLOSE_WRITE);
+	BUILD__ON(FAN_OPEN != FS_OPEN);
+	BUILD__ON(FAN_MOVED_TO != FS_MOVED_TO);
+	BUILD__ON(FAN_MOVED_FROM != FS_MOVED_FROM);
+	BUILD__ON(FAN_CREATE != FS_CREATE);
+	BUILD__ON(FAN_DELETE != FS_DELETE);
+	BUILD__ON(FAN_DELETE_SELF != FS_DELETE_SELF);
+	BUILD__ON(FAN_MOVE_SELF != FS_MOVE_SELF);
+	BUILD__ON(FAN_EVENT_ON_CHILD != FS_EVENT_ON_CHILD);
+	BUILD__ON(FAN_Q_OVERFLOW != FS_Q_OVERFLOW);
+	BUILD__ON(FAN_OPEN_PERM != FS_OPEN_PERM);
+	BUILD__ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
+	BUILD__ON(FAN_ONDIR != FS_ISDIR);
+	BUILD__ON(FAN_OPEN_EXEC != FS_OPEN_EXEC);
+	BUILD__ON(FAN_OPEN_EXEC_PERM != FS_OPEN_EXEC_PERM);
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 19);
+	BUILD__ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 19);
 
 	mask = fanotify_group_event_mask(group, iter_info, mask, data,
 					 data_type);
 	if (!mask)
 		return 0;
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
+	pr_de("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
 		 mask);
 
 	if (fanotify_is_perm_event(mask)) {
@@ -428,7 +428,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
 	if (ret) {
 		/* Permission events shouldn't be merged */
-		BUG_ON(ret == 1 && mask & FANOTIFY_PERM_EVENTS);
+		_ON(ret == 1 && mask & FANOTIFY_PERM_EVENTS);
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
 

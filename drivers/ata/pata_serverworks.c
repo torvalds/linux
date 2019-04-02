@@ -113,7 +113,7 @@ static int serverworks_cable_detect(struct ata_port *ap)
 		cb++;
 	}
 
-	BUG();
+	();
 	return -1;	/* kill compiler warning */
 }
 
@@ -146,7 +146,7 @@ static u8 serverworks_is_csb(struct pci_dev *pdev)
  *
  *	Filter the offered modes for the device to apply controller
  *	specific rules. OSB4 requires no UDMA for disks due to a FIFO
- *	bug we hit.
+ *	 we hit.
  */
 
 static unsigned long serverworks_osb4_filter(struct ata_device *adev, unsigned long mask)
@@ -284,7 +284,7 @@ static int serverworks_fixup_osb4(struct pci_dev *pdev)
 		pci_read_config_dword(isa_dev, 0x64, &reg);
 		reg &= ~0x00002000; /* disable 600ns interrupt mask */
 		if (!(reg & 0x00004000))
-			printk(KERN_DEBUG DRV_NAME ": UDMA not BIOS enabled.\n");
+			printk(KERN_DE DRV_NAME ": UDMA not BIOS enabled.\n");
 		reg |=  0x00004000; /* enable UDMA/33 support */
 		pci_write_config_dword(isa_dev, 0x64, reg);
 		pci_dev_put(isa_dev);

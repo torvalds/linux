@@ -1925,7 +1925,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 		video_unregister_device(&stream->vdev);
 		video_unregister_device(&stream->meta.vdev);
 
-		uvc_debugfs_cleanup_stream(stream);
+		uvc_defs_cleanup_stream(stream);
 	}
 
 	uvc_status_unregister(dev);
@@ -2021,7 +2021,7 @@ static int uvc_register_video(struct uvc_device *dev,
 	else
 		stream->chain->caps |= V4L2_CAP_VIDEO_OUTPUT;
 
-	uvc_debugfs_init_stream(stream);
+	uvc_defs_init_stream(stream);
 
 	/* Register the device with V4L. */
 	return uvc_register_video_device(dev, stream, &stream->vdev,
@@ -2899,11 +2899,11 @@ static int __init uvc_init(void)
 {
 	int ret;
 
-	uvc_debugfs_init();
+	uvc_defs_init();
 
 	ret = usb_register(&uvc_driver.driver);
 	if (ret < 0) {
-		uvc_debugfs_cleanup();
+		uvc_defs_cleanup();
 		return ret;
 	}
 
@@ -2914,7 +2914,7 @@ static int __init uvc_init(void)
 static void __exit uvc_cleanup(void)
 {
 	usb_deregister(&uvc_driver.driver);
-	uvc_debugfs_cleanup();
+	uvc_defs_cleanup();
 }
 
 module_init(uvc_init);

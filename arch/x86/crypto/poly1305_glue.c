@@ -70,7 +70,7 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 	struct poly1305_simd_desc_ctx *sctx;
 	unsigned int blocks, datalen;
 
-	BUILD_BUG_ON(offsetof(struct poly1305_simd_desc_ctx, base));
+	BUILD__ON(offsetof(struct poly1305_simd_desc_ctx, base));
 	sctx = container_of(dctx, struct poly1305_simd_desc_ctx, base);
 
 	if (unlikely(!dctx->sset)) {

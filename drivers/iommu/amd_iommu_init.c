@@ -379,7 +379,7 @@ static void iommu_set_device_table(struct amd_iommu *iommu)
 {
 	u64 entry;
 
-	BUG_ON(iommu->mmio_base == NULL);
+	_ON(iommu->mmio_base == NULL);
 
 	entry = iommu_virt_to_phys(amd_iommu_dev_table);
 	entry |= (dev_table_size >> 12) - 1;
@@ -448,7 +448,7 @@ static u8 __iomem * __init iommu_map_mmio_space(u64 address, u64 end)
 	if (!request_mem_region(address, end, "amd_iommu")) {
 		pr_err("Can not reserve memory region %llx-%llx for mmio\n",
 			address, end);
-		pr_err("This is a BIOS bug. Please contact your hardware vendor\n");
+		pr_err("This is a BIOS . Please contact your hardware vendor\n");
 		return NULL;
 	}
 
@@ -556,7 +556,7 @@ static int __init check_ivrs_checksum(struct acpi_table_header *table)
 		checksum += p[i];
 	if (checksum != 0) {
 		/* ACPI table corrupt */
-		pr_err(FW_BUG "IVRS invalid checksum\n");
+		pr_err(FW_ "IVRS invalid checksum\n");
 		return -ENODEV;
 	}
 
@@ -637,7 +637,7 @@ static void iommu_enable_command_buffer(struct amd_iommu *iommu)
 {
 	u64 entry;
 
-	BUG_ON(iommu->cmd_buf == NULL);
+	_ON(iommu->cmd_buf == NULL);
 
 	entry = iommu_virt_to_phys(iommu->cmd_buf);
 	entry |= MMIO_CMD_SIZE_512;
@@ -674,7 +674,7 @@ static void iommu_enable_event_buffer(struct amd_iommu *iommu)
 {
 	u64 entry;
 
-	BUG_ON(iommu->evt_buf == NULL);
+	_ON(iommu->evt_buf == NULL);
 
 	entry = iommu_virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
 
@@ -1346,7 +1346,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			int ret;
 
 			if (h->type != 0x40) {
-				pr_err(FW_BUG "Invalid IVHD device type %#x\n",
+				pr_err(FW_ "Invalid IVHD device type %#x\n",
 				       e->type);
 				break;
 			}
@@ -1355,7 +1355,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			hid[ACPIHID_HID_LEN - 1] = '\0';
 
 			if (!(*hid)) {
-				pr_err(FW_BUG "Invalid HID.\n");
+				pr_err(FW_ "Invalid HID.\n");
 				break;
 			}
 
@@ -1363,7 +1363,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			case UID_NOT_PRESENT:
 
 				if (e->uidl != 0)
-					pr_warn(FW_BUG "Invalid UID length.\n");
+					pr_warn(FW_ "Invalid UID length.\n");
 
 				break;
 			case UID_IS_INTEGER:
@@ -1468,7 +1468,7 @@ static void amd_iommu_erratum_746_workaround(struct amd_iommu *iommu)
  * Family15h Model 30h-3fh (IOMMU Mishandles ATS Write Permission)
  * Workaround:
  *     BIOS should enable ATS write permission check by setting
- *     L2_DEBUG_3[AtsIgnoreIWDis](D0F2xF4_x47[0]) = 1b
+ *     L2_DE_3[AtsIgnoreIWDis](D0F2xF4_x47[0]) = 1b
  */
 static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 {
@@ -1479,13 +1479,13 @@ static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 	    (boot_cpu_data.x86_model > 0x3f))
 		return;
 
-	/* Test L2_DEBUG_3[AtsIgnoreIWDis] == 1 */
+	/* Test L2_DE_3[AtsIgnoreIWDis] == 1 */
 	value = iommu_read_l2(iommu, 0x47);
 
 	if (value & BIT(0))
 		return;
 
-	/* Set L2_DEBUG_3[AtsIgnoreIWDis] = 1 */
+	/* Set L2_DE_3[AtsIgnoreIWDis] = 1 */
 	iommu_write_l2(iommu, 0x47, value | BIT(0));
 
 	pci_info(iommu->dev, "Applying ATS write check workaround\n");
@@ -1763,7 +1763,7 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 
 		amd_iommu_max_pasid = min(amd_iommu_max_pasid, max_pasid);
 
-		BUG_ON(amd_iommu_max_pasid & ~PASID_MASK);
+		_ON(amd_iommu_max_pasid & ~PASID_MASK);
 
 		glxval   = iommu->features & FEATURE_GLXVAL_MASK;
 		glxval >>= FEATURE_GLXVAL_SHIFT;
@@ -2359,7 +2359,7 @@ static void __init free_iommu_resources(void)
 
 static bool __init check_ioapic_information(void)
 {
-	const char *fw_bug = FW_BUG;
+	const char *fw_ = FW_;
 	bool ret, has_sb_ioapic;
 	int idx;
 
@@ -2368,11 +2368,11 @@ static bool __init check_ioapic_information(void)
 
 	/*
 	 * If we have map overrides on the kernel command line the
-	 * messages in this function might not describe firmware bugs
+	 * messages in this function might not describe firmware s
 	 * anymore - so be careful
 	 */
 	if (cmdline_maps)
-		fw_bug = "";
+		fw_ = "";
 
 	for (idx = 0; idx < nr_ioapics; idx++) {
 		int devid, id = mpc_ioapic_id(idx);
@@ -2380,7 +2380,7 @@ static bool __init check_ioapic_information(void)
 		devid = get_ioapic_devid(id);
 		if (devid < 0) {
 			pr_err("%s: IOAPIC[%d] not in IVRS table\n",
-				fw_bug, id);
+				fw_, id);
 			ret = false;
 		} else if (devid == IOAPIC_SB_DEVID) {
 			has_sb_ioapic = true;
@@ -2394,10 +2394,10 @@ static bool __init check_ioapic_information(void)
 		 * table. The system timer is connected to the SB IOAPIC
 		 * and if we don't have it in the list the system will
 		 * panic at boot time.  This situation usually happens
-		 * when the BIOS is buggy and provides us the wrong
+		 * when the BIOS is gy and provides us the wrong
 		 * device id for the IOAPIC in the system.
 		 */
-		pr_err("%s: No southbridge IOAPIC found\n", fw_bug);
+		pr_err("%s: No southbridge IOAPIC found\n", fw_);
 	}
 
 	if (!ret)
@@ -2684,7 +2684,7 @@ static int __init state_next(void)
 		break;
 	default:
 		/* Unknown state */
-		BUG();
+		();
 	}
 
 	return ret;
@@ -2773,7 +2773,7 @@ static int __init amd_iommu_init(void)
 	}
 
 	for_each_iommu(iommu)
-		amd_iommu_debugfs_setup(iommu);
+		amd_iommu_defs_setup(iommu);
 
 	return ret;
 }

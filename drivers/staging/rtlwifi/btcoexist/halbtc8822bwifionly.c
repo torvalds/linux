@@ -25,7 +25,7 @@ void ex_hal8822b_wifi_only_hw_config(struct wifi_only_cfg *wifionlycfg)
 	halwifionly_phy_set_bb_reg(wifionlycfg, 0x1990, 0x300, 0x0);
 
 	halwifionly_phy_set_bb_reg(wifionlycfg, 0xcbc, 0x80000, 0x0);
-	/*switch to WL side controller and gnt_wl gnt_bt debug signal */
+	/*switch to WL side controller and gnt_wl gnt_bt de signal */
 	halwifionly_phy_set_bb_reg(wifionlycfg, 0x70, 0xff000000, 0x0e);
 	/*gnt_wl=1 , gnt_bt=0*/
 	halwifionly_phy_set_bb_reg(wifionlycfg, 0x1704, 0xffffffff, 0x7700);

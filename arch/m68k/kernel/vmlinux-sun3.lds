@@ -52,7 +52,7 @@ __init_begin = .;
 
   _end = . ;
 
-  STABS_DEBUG
+  STABS_DE
 
   /* Sections to be discarded */
   DISCARDS

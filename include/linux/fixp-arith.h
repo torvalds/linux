@@ -130,7 +130,7 @@ static inline s32 fixp_sin32_rad(u32 radians, u32 twopi)
 	/*
 	 * Avoid too large values for twopi, as we don't want overflows.
 	 */
-	BUG_ON(twopi > 1 << 18);
+	_ON(twopi > 1 << 18);
 
 	degrees = (radians * 360) / twopi;
 	tmp = radians - (degrees * twopi) / 360;

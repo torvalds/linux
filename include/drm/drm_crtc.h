@@ -45,7 +45,7 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_color_mgmt.h>
-#include <drm/drm_debugfs_crc.h>
+#include <drm/drm_defs_crc.h>
 #include <drm/drm_mode_config.h>
 
 struct drm_device;
@@ -707,7 +707,7 @@ struct drm_crtc_funcs {
 	 * @late_register:
 	 *
 	 * This optional hook can be used to register additional userspace
-	 * interfaces attached to the crtc like debugfs interfaces.
+	 * interfaces attached to the crtc like defs interfaces.
 	 * It is called late in the driver load sequence from drm_dev_register().
 	 * Everything added from this callback should be unregistered in
 	 * the early_unregister callback.
@@ -1044,13 +1044,13 @@ struct drm_crtc {
 	 */
 	spinlock_t commit_lock;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	/**
-	 * @debugfs_entry:
+	 * @defs_entry:
 	 *
-	 * Debugfs directory for this CRTC.
+	 * Defs directory for this CRTC.
 	 */
-	struct dentry *debugfs_entry;
+	struct dentry *defs_entry;
 #endif
 
 	/**

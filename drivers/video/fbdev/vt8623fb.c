@@ -495,7 +495,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 		svga_wseq_mask(par->state.vgabase, 0x15, 0xAE, 0xFE);
 		break;
 	default:
-		printk(KERN_ERR "vt8623fb: unsupported mode - bug\n");
+		printk(KERN_ERR "vt8623fb: unsupported mode - \n");
 		return (-EINVAL);
 	}
 
@@ -908,7 +908,7 @@ static struct pci_driver vt8623fb_pci_driver = {
 
 static void __exit vt8623fb_cleanup(void)
 {
-	pr_debug("vt8623fb: cleaning up\n");
+	pr_de("vt8623fb: cleaning up\n");
 	pci_unregister_driver(&vt8623fb_pci_driver);
 }
 
@@ -927,7 +927,7 @@ static int __init vt8623fb_init(void)
 		mode_option = option;
 #endif
 
-	pr_debug("vt8623fb: initializing\n");
+	pr_de("vt8623fb: initializing\n");
 	return pci_register_driver(&vt8623fb_pci_driver);
 }
 

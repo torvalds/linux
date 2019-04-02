@@ -21,12 +21,12 @@ menuconfig CAIF
 	See Documentation/networking/caif for a further explanation on how to
 	use and configure CAIF.
 
-config  CAIF_DEBUG
-	bool "Enable Debug"
+config  CAIF_DE
+	bool "Enable De"
 	depends on CAIF
 	default n
 	---help---
-	Enable the inclusion of debug code in the CAIF stack.
+	Enable the inclusion of de code in the CAIF stack.
 	Be aware that doing this will impact performance.
 	If unsure say N.
 

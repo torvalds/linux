@@ -105,7 +105,7 @@ struct ccsr_pci {
 	__be32	pex_err_cap_r2;		/* 0x.e30 - PCIE error capture register 0 */
 	__be32	pex_err_cap_r3;		/* 0x.e34 - PCIE error capture register 0 */
 	u8	res_e38[200];
-	__be32	pdb_stat;		/* 0x.f00 - PCIE Debug Status */
+	__be32	pdb_stat;		/* 0x.f00 - PCIE De Status */
 	u8	res_f04[16];
 	__be32	pex_csr0;		/* 0x.f14 - PEX Control/Status register 0*/
 #define PEX_CSR0_LTSSM_MASK	0xFC

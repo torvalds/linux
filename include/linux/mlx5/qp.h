@@ -469,7 +469,7 @@ struct mlx5_core_qp {
 	struct mlx5_core_rsc_common	common; /* must be first */
 	void (*event)		(struct mlx5_core_qp *, int);
 	int			qpn;
-	struct mlx5_rsc_debug	*dbg;
+	struct mlx5_rsc_de	*dbg;
 	int			pid;
 	u16			uid;
 };
@@ -582,8 +582,8 @@ int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
 void mlx5_init_qp_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev);
-int mlx5_debug_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
-void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
+int mlx5_de_qp_add(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
+void mlx5_de_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp);
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *rq);
 void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,

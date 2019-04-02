@@ -125,7 +125,7 @@ static int rxe_mem_alloc(struct rxe_mem *mem, int num_buf)
 			goto err2;
 	}
 
-	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
+	BUILD__ON(!is_power_of_2(RXE_BUF_PER_MAP));
 
 	mem->map_shift	= ilog2(RXE_BUF_PER_MAP);
 	mem->map_mask	= RXE_BUF_PER_MAP - 1;

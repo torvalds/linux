@@ -31,9 +31,9 @@
 
 #include "imx-pxp.h"
 
-static unsigned int debug;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "activates debug info");
+static unsigned int de;
+module_param(de, uint, 0644);
+MODULE_PARM_DESC(de, "activates de info");
 
 #define MIN_W 8
 #define MIN_H 8
@@ -53,7 +53,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define MEM2MEM_VFLIP	(1 << 1)
 
 #define dprintk(dev, fmt, arg...) \
-	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(1, de, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 struct pxp_fmt {
 	u32	fourcc;

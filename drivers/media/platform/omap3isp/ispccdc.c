@@ -59,7 +59,7 @@ static const unsigned int ccdc_fmts[] = {
  * ccdc_print_status - Print current CCDC Module register values.
  * @ccdc: Pointer to ISP CCDC device.
  *
- * Also prints other debug information stored in the CCDC module.
+ * Also prints other de information stored in the CCDC module.
  */
 #define CCDC_PRINT_REGISTER(isp, name)\
 	dev_dbg(isp->dev, "###CCDC " #name "=0x%08x\n", \
@@ -1586,7 +1586,7 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 
 	/* The CCDC generates VD0 interrupts even when disabled (the datasheet
 	 * doesn't explicitly state if that's supposed to happen or not, so it
-	 * can be considered as a hardware bug or as a feature, but we have to
+	 * can be considered as a hardware  or as a feature, but we have to
 	 * deal with it anyway). Disabling the CCDC when no buffer is available
 	 * would thus not be enough, we need to handle the situation explicitly.
 	 */

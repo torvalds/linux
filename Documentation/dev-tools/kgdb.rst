@@ -1,5 +1,5 @@
 =================================================
-Using kgdb, kdb and the kernel debugger internals
+Using kgdb, kdb and the kernel deger internals
 =================================================
 
 :Author: Jason Wessel
@@ -7,32 +7,32 @@ Using kgdb, kdb and the kernel debugger internals
 Introduction
 ============
 
-The kernel has two different debugger front ends (kdb and kgdb) which
-interface to the debug core. It is possible to use either of the
-debugger front ends and dynamically transition between them if you
+The kernel has two different deger front ends (kdb and kgdb) which
+interface to the de core. It is possible to use either of the
+deger front ends and dynamically transition between them if you
 configure the kernel properly at compile and runtime.
 
 Kdb is simplistic shell-style interface which you can use on a system
 console with a keyboard or serial console. You can use it to inspect
 memory, registers, process lists, dmesg, and even set breakpoints to
-stop in a certain location. Kdb is not a source level debugger, although
+stop in a certain location. Kdb is not a source level deger, although
 you can set breakpoints and execute some basic kernel run control. Kdb
 is mainly aimed at doing some analysis to aid in development or
 diagnosing kernel problems. You can access some symbols by name in
 kernel built-ins or in kernel modules if the code was built with
 ``CONFIG_KALLSYMS``.
 
-Kgdb is intended to be used as a source level debugger for the Linux
-kernel. It is used along with gdb to debug a Linux kernel. The
+Kgdb is intended to be used as a source level deger for the Linux
+kernel. It is used along with gdb to de a Linux kernel. The
 expectation is that gdb can be used to "break in" to the kernel to
 inspect memory, variables and look through call stack information
-similar to the way an application developer would use gdb to debug an
+similar to the way an application developer would use gdb to de an
 application. It is possible to place breakpoints in kernel code and
 perform some limited execution stepping.
 
 Two machines are required for using kgdb. One of these machines is a
 development machine and the other is the target machine. The kernel to
-be debugged runs on the target machine. The development machine runs an
+be deged runs on the target machine. The development machine runs an
 instance of gdb against the vmlinux file which contains the symbols (not
 a boot image such as bzImage, zImage, uImage...). In gdb the developer
 specifies the connection parameters and connects to kgdb. The type of
@@ -52,21 +52,21 @@ Kernel config options for kgdb
 ------------------------------
 
 To enable ``CONFIG_KGDB`` you should look under
-:menuselection:`Kernel hacking --> Kernel debugging` and select
-:menuselection:`KGDB: kernel debugger`.
+:menuselection:`Kernel hacking --> Kernel deging` and select
+:menuselection:`KGDB: kernel deger`.
 
 While it is not a hard requirement that you have symbols in your vmlinux
 file, gdb tends not to be very useful without the symbolic data, so you
-will want to turn on ``CONFIG_DEBUG_INFO`` which is called
-:menuselection:`Compile the kernel with debug info` in the config menu.
+will want to turn on ``CONFIG_DE_INFO`` which is called
+:menuselection:`Compile the kernel with de info` in the config menu.
 
 It is advised, but not required, that you turn on the
 ``CONFIG_FRAME_POINTER`` kernel option which is called :menuselection:`Compile
 the kernel with frame pointers` in the config menu. This option inserts code
 to into the compiled executable which saves the frame information in
-registers or on the stack at different points which allows a debugger
+registers or on the stack at different points which allows a deger
 such as gdb to more accurately construct stack back traces while
-debugging the kernel.
+deging the kernel.
 
 If the architecture that you are using supports the kernel option
 ``CONFIG_STRICT_KERNEL_RWX``, you should consider turning it off. This
@@ -76,9 +76,9 @@ supports it for the architecture you are using, you can use hardware
 breakpoints if you desire to run with the ``CONFIG_STRICT_KERNEL_RWX``
 option turned on, else you need to turn off this option.
 
-Next you should choose one of more I/O drivers to interconnect debugging
-host and debugged target. Early boot debugging requires a KGDB I/O
-driver that supports early debugging and the driver must be built into
+Next you should choose one of more I/O drivers to interconnect deging
+host and deged target. Early boot deging requires a KGDB I/O
+driver that supports early deging and the driver must be built into
 the kernel directly. Kgdb I/O driver configuration takes place via
 kernel or module parameters which you can learn more about in the in the
 section that describes the parameter kgdboc.
@@ -94,7 +94,7 @@ Kernel config options for kdb
 -----------------------------
 
 Kdb is quite a bit more complex than the simple gdbstub sitting on top
-of the kernel's debug core. Kdb must implement a shell, and also adds
+of the kernel's de core. Kdb must implement a shell, and also adds
 some helper functions in other parts of the kernel, responsible for
 printing out interesting data such as what you would see if you ran
 ``lsmod``, or ``ps``. In order to build kdb into the kernel you follow the
@@ -121,11 +121,11 @@ Here is an example set of ``.config`` symbols to enable/disable kdb::
   CONFIG_KGDB_KDB=y
   CONFIG_KDB_KEYBOARD=y
 
-Kernel Debugger Boot Arguments
+Kernel Deger Boot Arguments
 ==============================
 
 This section describes the various runtime kernel parameters that affect
-the configuration of the kernel debugger. The following chapter covers
+the configuration of the kernel deger. The following chapter covers
 using kdb and kgdb as well as providing some examples of the
 configuration parameters.
 
@@ -140,15 +140,15 @@ to interact with the kdb shell.
 For kgdb/gdb, kgdboc is designed to work with a single serial port. It
 is intended to cover the circumstance where you want to use a serial
 console as your primary console as well as using it to perform kernel
-debugging. It is also possible to use kgdb on a serial port which is not
+deging. It is also possible to use kgdb on a serial port which is not
 designated as a system console. Kgdboc may be configured as a kernel
 built-in or a kernel loadable module. You can only make use of
-``kgdbwait`` and early debugging if you build kgdboc into the kernel as
+``kgdbwait`` and early deging if you build kgdboc into the kernel as
 a built-in.
 
 Optionally you can elect to activate kms (Kernel Mode Setting)
 integration. When you use kms with kgdboc and you have a video driver
-that has atomic mode setting hooks, it is possible to enter the debugger
+that has atomic mode setting hooks, it is possible to enter the deger
 on the graphics console. When the kernel execution is resumed, the
 previous graphics mode will be restored. This integration can serve as a
 useful tool to aid in diagnosing crashes or doing analysis of memory
@@ -258,27 +258,27 @@ scenarios.
    Kgdboc does not support interrupting the target via the gdb remote
    protocol. You must manually send a :kbd:`SysRq-G` unless you have a proxy
    that splits console output to a terminal program. A console proxy has a
-   separate TCP port for the debugger and a separate TCP port for the
+   separate TCP port for the deger and a separate TCP port for the
    "human" console. The proxy can take care of sending the :kbd:`SysRq-G`
    for you.
 
-When using kgdboc with no debugger proxy, you can end up connecting the
-debugger at one of two entry points. If an exception occurs after you
+When using kgdboc with no deger proxy, you can end up connecting the
+deger at one of two entry points. If an exception occurs after you
 have loaded kgdboc, a message should print on the console stating it is
-waiting for the debugger. In this case you disconnect your terminal
-program and then connect the debugger in its place. If you want to
-interrupt the target system and forcibly enter a debug session you have
+waiting for the deger. In this case you disconnect your terminal
+program and then connect the deger in its place. If you want to
+interrupt the target system and forcibly enter a de session you have
 to issue a :kbd:`Sysrq` sequence and then type the letter :kbd:`g`. Then you
 disconnect the terminal session and connect gdb. Your options if you
 don't like this are to hack gdb to send the :kbd:`SysRq-G` for you as well as
-on the initial connect, or to use a debugger proxy that allows an
-unmodified gdb to do the debugging.
+on the initial connect, or to use a deger proxy that allows an
+unmodified gdb to do the deging.
 
 Kernel parameter: ``kgdbwait``
 ------------------------------
 
 The Kernel command line option ``kgdbwait`` makes kgdb wait for a
-debugger connection during booting of a kernel. You can only use this
+deger connection during booting of a kernel. You can only use this
 option if you compiled a kgdb I/O driver into the kernel and you
 specified the I/O driver configuration as a kernel command line option.
 The kgdbwait parameter should always follow the configuration parameter
@@ -297,7 +297,7 @@ while gdb is connected to the kernel. Kdb does not make use of the kgdbcon
 feature.
 
 Kgdb supports using the gdb serial protocol to send console messages to
-the debugger when the debugger is connected and running. There are two
+the deger when the deger is connected and running. There are two
 ways to activate this feature.
 
 1. Activate with the kernel command line option::
@@ -327,7 +327,7 @@ system console.
 Run time parameter: ``kgdbreboot``
 ----------------------------------
 
-The kgdbreboot feature allows you to change how the debugger deals with
+The kgdbreboot feature allows you to change how the deger deals with
 the reboot notification. You have 3 choices for the behavior. The
 default behavior is always set to 0.
 
@@ -337,16 +337,16 @@ default behavior is always set to 0.
   :widths: 1 10 8
 
   * - 1
-    - ``echo -1 > /sys/module/debug_core/parameters/kgdbreboot``
+    - ``echo -1 > /sys/module/de_core/parameters/kgdbreboot``
     - Ignore the reboot notification entirely.
 
   * - 2
-    - ``echo 0 > /sys/module/debug_core/parameters/kgdbreboot``
-    - Send the detach message to any attached debugger client.
+    - ``echo 0 > /sys/module/de_core/parameters/kgdbreboot``
+    - Send the detach message to any attached deger client.
 
   * - 3
-    - ``echo 1 > /sys/module/debug_core/parameters/kgdbreboot``
-    - Enter the debugger on reboot notify.
+    - ``echo 1 > /sys/module/de_core/parameters/kgdbreboot``
+    - Enter the deger on reboot notify.
 
 Kernel parameter: ``nokaslr``
 -----------------------------
@@ -376,8 +376,8 @@ This is a quick example of how to use kdb.
 
 	echo ttyS0 > /sys/module/kgdboc/parameters/kgdboc
 
-2. Enter the kernel debugger manually or by waiting for an oops or
-   fault. There are several ways you can enter the kernel debugger
+2. Enter the kernel deger manually or by waiting for an oops or
+   fault. There are several ways you can enter the kernel deger
    manually; all involve using the :kbd:`SysRq-G`, which means you must have
    enabled ``CONFIG_MAGIC_SysRq=y`` in your kernel config.
 
@@ -418,7 +418,7 @@ This is a quick example of how to use kdb.
    have paused the kernel for a lengthy period of time, applications
    that rely on timely networking or anything to do with real wall clock
    time could be adversely affected, so you should take this into
-   consideration when using the kernel debugger.
+   consideration when using the kernel deger.
 
 Quick start for kdb using a keyboard connected console
 ------------------------------------------------------
@@ -435,8 +435,8 @@ This is a quick example of how to use kdb with a keyboard.
 
 	echo kbd > /sys/module/kgdboc/parameters/kgdboc
 
-2. Enter the kernel debugger manually or by waiting for an oops or
-   fault. There are several ways you can enter the kernel debugger
+2. Enter the kernel deger manually or by waiting for an oops or
+   fault. There are several ways you can enter the kernel deger
    manually; all involve using the :kbd:`SysRq-G`, which means you must have
    enabled ``CONFIG_MAGIC_SysRq=y`` in your kernel config.
 
@@ -485,8 +485,8 @@ All kgdb I/O drivers can be reconfigured at run time, if
 ``CONFIG_SYSFS`` and ``CONFIG_MODULES`` are enabled, by echo'ing a new
 config string to ``/sys/module/<driver>/parameter/<option>``. The driver
 can be unconfigured by passing an empty string. You cannot change the
-configuration while the debugger is attached. Make sure to detach the
-debugger with the ``detach`` command prior to trying to unconfigure a
+configuration while the deger is attached. Make sure to detach the
+deger with the ``detach`` command prior to trying to unconfigure a
 kgdb I/O driver.
 
 Connecting with gdb to a serial port
@@ -504,12 +504,12 @@ Connecting with gdb to a serial port
 
 	echo ttyS0 > /sys/module/kgdboc/parameters/kgdboc
 
-2. Stop kernel execution (break into the debugger)
+2. Stop kernel execution (break into the deger)
 
    In order to connect to gdb via kgdboc, the kernel must first be
    stopped. There are several ways to stop the kernel which include
    using kgdbwait as a boot argument, via a :kbd:`SysRq-G`, or running the
-   kernel until it takes an exception where it waits for the debugger to
+   kernel until it takes an exception where it waits for the deger to
    attach.
 
    -  When logged in as root or with a super user session you can run::
@@ -544,25 +544,25 @@ Connecting with gdb to a serial port
            (gdb) target remote 192.168.2.2:2012
 
 
-   Once connected, you can debug a kernel the way you would debug an
+   Once connected, you can de a kernel the way you would de an
    application program.
 
    If you are having problems connecting or something is going seriously
-   wrong while debugging, it will most often be the case that you want
+   wrong while deging, it will most often be the case that you want
    to enable gdb to be verbose about its target communications. You do
    this prior to issuing the ``target remote`` command by typing in::
 
-	set debug remote 1
+	set de remote 1
 
 Remember if you continue in gdb, and need to "break in" again, you need
 to issue an other :kbd:`SysRq-G`. It is easy to create a simple entry point by
 putting a breakpoint at ``sys_sync`` and then you can run ``sync`` from a
-shell or script to break into the debugger.
+shell or script to break into the deger.
 
 kgdb and kdb interoperability
 =============================
 
-It is possible to transition between kdb and kgdb dynamically. The debug
+It is possible to transition between kdb and kgdb dynamically. The de
 core will remember which you used the last time and automatically start
 in the same mode.
 
@@ -574,10 +574,10 @@ Switching from kgdb to kdb
 
 There are two ways to switch from kgdb to kdb: you can use gdb to issue
 a maintenance packet, or you can blindly type the command ``$3#33``.
-Whenever the kernel debugger stops in kgdb mode it will print the
+Whenever the kernel deger stops in kgdb mode it will print the
 message ``KGDB or $3#33 for KDB``. It is important to note that you have
 to type the sequence correctly in one pass. You cannot type a backspace
-or delete because kgdb will interpret that as part of the debug stream.
+or delete because kgdb will interpret that as part of the de stream.
 
 1. Change from kgdb to kdb by blindly typing::
 
@@ -619,7 +619,7 @@ Running kdb commands from gdb
 It is possible to run a limited set of kdb commands from gdb, using the
 gdb monitor command. You don't want to execute any of the run control or
 breakpoint operations, because it can disrupt the state of the kernel
-debugger. You should be using gdb for breakpoints and run control
+deger. You should be using gdb for breakpoints and run control
 operations if you have gdb connected. The more useful commands to run
 are things like lsmod, dmesg, ps or possibly some of the memory
 information commands. To see all the kdb commands you can run
@@ -658,17 +658,17 @@ regression testing and does not require modifying the kernel boot config
 arguments. If this is turned on, the kgdb test suite can be disabled by
 specifying ``kgdbts=`` as a kernel boot argument.
 
-Kernel Debugger Internals
+Kernel Deger Internals
 =========================
 
 Architecture Specifics
 ----------------------
 
-The kernel debugger is organized into a number of components:
+The kernel deger is organized into a number of components:
 
-1. The debug core
+1. The de core
 
-   The debug core is found in ``kernel/debugger/debug_core.c``. It
+   The de core is found in ``kernel/deger/de_core.c``. It
    contains:
 
    -  A generic OS exception handler which includes sync'ing the
@@ -679,12 +679,12 @@ The kernel debugger is organized into a number of components:
    -  The API to make calls to the arch-specific kgdb implementation
 
    -  The logic to perform safe memory reads and writes to memory while
-      using the debugger
+      using the deger
 
    -  A full implementation for software breakpoints unless overridden
       by the arch
 
-   -  The API to invoke either the kdb or kgdb frontend to the debug
+   -  The API to invoke either the kdb or kgdb frontend to the de
       core.
 
    -  The structures and callback API for atomic kernel mode setting.
@@ -715,14 +715,14 @@ The kernel debugger is organized into a number of components:
 
 3. gdbstub frontend (aka kgdb)
 
-   The gdbstub is located in ``kernel/debug/gdbstub.c``. It contains:
+   The gdbstub is located in ``kernel/de/gdbstub.c``. It contains:
 
    -  All the logic to implement the gdb serial protocol
 
 4. kdb frontend
 
-   The kdb debugger shell is broken down into a number of components.
-   The kdb core is located in kernel/debug/kdb. There are a number of
+   The kdb deger shell is broken down into a number of components.
+   The kdb core is located in kernel/de/kdb. There are a number of
    helper functions in some of the other kernel components to make it
    possible for kdb to examine and report information about the kernel
    without taking locks that could cause a kernel deadlock. The kdb core
@@ -763,7 +763,7 @@ The kernel debugger is organized into a number of components:
 
    -  A cleanup handler for unconfiguring from the kgdb core
 
-   -  (optional) Early debug methodology
+   -  (optional) Early de methodology
 
    Any given kgdb I/O driver has to operate very closely with the
    hardware and must do it in such a way that does not enable interrupts
@@ -817,7 +817,7 @@ underlying low level to the hardware driver having "polling hooks" to
 which the tty driver is attached. In the initial implementation of
 kgdboc the serial_core was changed to expose a low level UART hook for
 doing polled mode reading and writing of a single character while in an
-atomic context. When kgdb makes an I/O request to the debugger, kgdboc
+atomic context. When kgdb makes an I/O request to the deger, kgdboc
 invokes a callback in the serial core which in turn uses the callback in
 the UART driver.
 
@@ -837,7 +837,7 @@ Any implementation specifics around creating a polling driver use the
 polling hooks have to be implemented in such a way that they can be
 called from an atomic context and have to restore the state of the UART
 chip on return such that the system can return to normal when the
-debugger detaches. You need to be very careful with any kind of lock you
+deger detaches. You need to be very careful with any kind of lock you
 consider, because failing here is most likely going to mean pressing the
 reset button.
 
@@ -849,7 +849,7 @@ attached keyboard. The keyboard infrastructure is only compiled into the
 kernel when ``CONFIG_KDB_KEYBOARD=y`` is set in the kernel configuration.
 
 The core polled keyboard driver driver for PS/2 type keyboards is in
-``drivers/char/kdb_keyboard.c``. This driver is hooked into the debug core
+``drivers/char/kdb_keyboard.c``. This driver is hooked into the de core
 when kgdboc populates the callback in the array called
 :c:type:`kdb_poll_funcs[]`. The :c:func:`kdb_get_kbd_char` is the top-level
 function which polls hardware for single character input.
@@ -862,16 +862,16 @@ switch to a text context when you are using ``kgdboc=kms,kbd``, provided
 that you have a video driver which has a frame buffer console and atomic
 kernel mode setting support.
 
-Every time the kernel debugger is entered it calls
-:c:func:`kgdboc_pre_exp_handler` which in turn calls :c:func:`con_debug_enter`
+Every time the kernel deger is entered it calls
+:c:func:`kgdboc_pre_exp_handler` which in turn calls :c:func:`con_de_enter`
 in the virtual console layer. On resuming kernel execution, the kernel
-debugger calls :c:func:`kgdboc_post_exp_handler` which in turn calls
-:c:func:`con_debug_leave`.
+deger calls :c:func:`kgdboc_post_exp_handler` which in turn calls
+:c:func:`con_de_leave`.
 
-Any video driver that wants to be compatible with the kernel debugger
+Any video driver that wants to be compatible with the kernel deger
 and the atomic kms callbacks must implement the ``mode_set_base_atomic``,
-``fb_debug_enter`` and ``fb_debug_leave operations``. For the
-``fb_debug_enter`` and ``fb_debug_leave`` the option exists to use the
+``fb_de_enter`` and ``fb_de_leave operations``. For the
+``fb_de_enter`` and ``fb_de_leave`` the option exists to use the
 generic drm fb helper functions or implement something custom for the
 hardware. The following example shows the initialization of the
 .mode_set_base_atomic operation in
@@ -886,14 +886,14 @@ drivers/gpu/drm/i915/intel_display.c::
 
 
 Here is an example of how the i915 driver initializes the
-fb_debug_enter and fb_debug_leave functions to use the generic drm
+fb_de_enter and fb_de_leave functions to use the generic drm
 helpers in ``drivers/gpu/drm/i915/intel_fb.c``::
 
 
     static struct fb_ops intelfb_ops = {
     [...]
-           .fb_debug_enter = drm_fb_helper_debug_enter,
-           .fb_debug_leave = drm_fb_helper_debug_leave,
+           .fb_de_enter = drm_fb_helper_de_enter,
+           .fb_de_leave = drm_fb_helper_de_leave,
     [...]
     };
 

@@ -149,7 +149,7 @@ static void calculate(int base, int target, int *prediv, int *postdiv,
 		       target, tmp_freq);
 	}
 
-	printk(KERN_DEBUG "Clocks: prediv: %d, postdiv: %d, mul: %d\n",
+	printk(KERN_DE "Clocks: prediv: %d, postdiv: %d, mul: %d\n",
 	       *prediv, *postdiv, *mul);
 }
 

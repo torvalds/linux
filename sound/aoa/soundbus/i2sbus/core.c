@@ -107,7 +107,7 @@ static irqreturn_t i2sbus_bus_intr(int irq, void *devid)
 
 /*
  * XXX FIXME: We test the layout_id's here to get the proper way of
- * mapping in various registers, thanks to bugs in Apple device-trees.
+ * mapping in various registers, thanks to s in Apple device-trees.
  * We could instead key off the machine model and the name of the i2s
  * node (i2s-a). This we'll do when we move it all to macio_asic.c
  * and have that export items for each sub-node too.
@@ -302,7 +302,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	}
 
 	if (soundbus_add_one(&dev->sound)) {
-		printk(KERN_DEBUG "i2sbus: device registration error!\n");
+		printk(KERN_DE "i2sbus: device registration error!\n");
 		goto err;
 	}
 

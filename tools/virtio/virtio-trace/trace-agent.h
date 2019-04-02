@@ -67,10 +67,10 @@ static inline void *zalloc(size_t size)
 
 #define pr_err(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
 #define pr_info(format, ...) fprintf(stdout, format, ## __VA_ARGS__)
-#ifdef DEBUG
-#define pr_debug(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
+#ifdef DE
+#define pr_de(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
 #else
-#define pr_debug(format, ...) do {} while (0)
+#define pr_de(format, ...) do {} while (0)
 #endif
 
 #endif /*__TRACE_AGENT_H__*/

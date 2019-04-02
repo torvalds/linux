@@ -146,7 +146,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 		encrypted = false;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	ui->flags = inherit_flags(dir, mode);
@@ -482,7 +482,7 @@ static unsigned int vfs_dent_type(uint8_t type)
 	case UBIFS_ITYPE_SOCK:
 		return DT_SOCK;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }

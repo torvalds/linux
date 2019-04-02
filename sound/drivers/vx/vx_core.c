@@ -65,7 +65,7 @@ int snd_vx_check_reg_bit(struct vx_core *chip, int reg, int mask, int bit, int t
 			return 0;
 		//msleep(10);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printd(KERN_DEBUG "vx_check_reg_bit: timeout, reg=%s, mask=0x%x, val=0x%x\n", reg_names[reg], mask, snd_vx_inb(chip, reg));
+	snd_printd(KERN_DE "vx_check_reg_bit: timeout, reg=%s, mask=0x%x, val=0x%x\n", reg_names[reg], mask, snd_vx_inb(chip, reg));
 	return -EIO;
 }
 
@@ -137,13 +137,13 @@ static int vx_transfer_end(struct vx_core *chip, int cmd)
 	/* If error, Read RX */
 	if ((err = vx_inb(chip, ISR)) & ISR_ERR) {
 		if ((err = vx_wait_for_rx_full(chip)) < 0) {
-			snd_printd(KERN_DEBUG "transfer_end: error in rx_full\n");
+			snd_printd(KERN_DE "transfer_end: error in rx_full\n");
 			return err;
 		}
 		err = vx_inb(chip, RXH) << 16;
 		err |= vx_inb(chip, RXM) << 8;
 		err |= vx_inb(chip, RXL);
-		snd_printd(KERN_DEBUG "transfer_end: error = 0x%x\n", err);
+		snd_printd(KERN_DE "transfer_end: error = 0x%x\n", err);
 		return -(VX_ERR_MASK | err);
 	}
 	return 0;
@@ -205,7 +205,7 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
 
 	if (size < 1)
 		return 0;
-	if (snd_BUG_ON(size >= SIZE_MAX_STATUS))
+	if (snd__ON(size >= SIZE_MAX_STATUS))
 		return -EINVAL;
 
 	for (i = 1; i <= size; i++) {
@@ -246,15 +246,15 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 		return -EBUSY;
 
 	if ((err = vx_reset_chk(chip)) < 0) {
-		snd_printd(KERN_DEBUG "vx_send_msg: vx_reset_chk error\n");
+		snd_printd(KERN_DE "vx_send_msg: vx_reset_chk error\n");
 		return err;
 	}
 
 #if 0
-	printk(KERN_DEBUG "rmh: cmd = 0x%06x, length = %d, stype = %d\n",
+	printk(KERN_DE "rmh: cmd = 0x%06x, length = %d, stype = %d\n",
 	       rmh->Cmd[0], rmh->LgCmd, rmh->DspStat);
 	if (rmh->LgCmd > 1) {
-		printk(KERN_DEBUG "  ");
+		printk(KERN_DE "  ");
 		for (i = 1; i < rmh->LgCmd; i++)
 			printk(KERN_CONT "0x%06x ", rmh->Cmd[i]);
 		printk(KERN_CONT "\n");
@@ -268,7 +268,7 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 
 	/* Wait for TX empty */
 	if ((err = vx_wait_isr_bit(chip, ISR_TX_EMPTY)) < 0) {
-		snd_printd(KERN_DEBUG "vx_send_msg: wait tx empty error\n");
+		snd_printd(KERN_DE "vx_send_msg: wait tx empty error\n");
 		return err;
 	}
 
@@ -279,7 +279,7 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 
 	/* Trigger irq MESSAGE */
 	if ((err = vx_send_irq_dsp(chip, IRQ_MESSAGE)) < 0) {
-		snd_printd(KERN_DEBUG "vx_send_msg: send IRQ_MESSAGE error\n");
+		snd_printd(KERN_DE "vx_send_msg: send IRQ_MESSAGE error\n");
 		return err;
 	}
 
@@ -290,13 +290,13 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	/* If error, get error value from RX */
 	if (vx_inb(chip, ISR) & ISR_ERR) {
 		if ((err = vx_wait_for_rx_full(chip)) < 0) {
-			snd_printd(KERN_DEBUG "vx_send_msg: rx_full read error\n");
+			snd_printd(KERN_DE "vx_send_msg: rx_full read error\n");
 			return err;
 		}
 		err = vx_inb(chip, RXH) << 16;
 		err |= vx_inb(chip, RXM) << 8;
 		err |= vx_inb(chip, RXL);
-		snd_printd(KERN_DEBUG "msg got error = 0x%x at cmd[0]\n", err);
+		snd_printd(KERN_DE "msg got error = 0x%x at cmd[0]\n", err);
 		err = -(VX_ERR_MASK | err);
 		return err;
 	}
@@ -306,7 +306,7 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 		for (i = 1; i < rmh->LgCmd; i++) {
 			/* Wait for TX ready */
 			if ((err = vx_wait_isr_bit(chip, ISR_TX_READY)) < 0) {
-				snd_printd(KERN_DEBUG "vx_send_msg: tx_ready error\n");
+				snd_printd(KERN_DE "vx_send_msg: tx_ready error\n");
 				return err;
 			}
 
@@ -317,13 +317,13 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 
 			/* Trigger irq MESS_READ_NEXT */
 			if ((err = vx_send_irq_dsp(chip, IRQ_MESS_READ_NEXT)) < 0) {
-				snd_printd(KERN_DEBUG "vx_send_msg: IRQ_READ_NEXT error\n");
+				snd_printd(KERN_DE "vx_send_msg: IRQ_READ_NEXT error\n");
 				return err;
 			}
 		}
 		/* Wait for TX empty */
 		if ((err = vx_wait_isr_bit(chip, ISR_TX_READY)) < 0) {
-			snd_printd(KERN_DEBUG "vx_send_msg: TX_READY error\n");
+			snd_printd(KERN_DE "vx_send_msg: TX_READY error\n");
 			return err;
 		}
 		/* End of transfer */
@@ -373,7 +373,7 @@ int vx_send_rih_nolock(struct vx_core *chip, int cmd)
 		return -EBUSY;
 
 #if 0
-	printk(KERN_DEBUG "send_rih: cmd = 0x%x\n", cmd);
+	printk(KERN_DE "send_rih: cmd = 0x%x\n", cmd);
 #endif
 	if ((err = vx_reset_chk(chip)) < 0)
 		return err;
@@ -510,7 +510,7 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 	if (events & 0x000800)
 		printk(KERN_ERR "DSP Stream underrun ! IRQ events = 0x%x\n", events);
 #endif
-	// printk(KERN_DEBUG "IRQ events = 0x%x\n", events);
+	// printk(KERN_DE "IRQ events = 0x%x\n", events);
 
 	/* We must prevent any application using this DSP
 	 * and block any further request until the application
@@ -560,7 +560,7 @@ EXPORT_SYMBOL(snd_vx_irq_handler);
  */
 static void vx_reset_board(struct vx_core *chip, int cold_reset)
 {
-	if (snd_BUG_ON(!chip->ops->reset_board))
+	if (snd__ON(!chip->ops->reset_board))
 		return;
 
 	/* current source, later sync'ed with target */
@@ -706,7 +706,7 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 		csum = (csum >> 24) | (csum << 8);
 		vx_outb(chip, TXL, *cptr++);
 	}
-	snd_printdd(KERN_DEBUG "checksum = 0x%08x\n", csum);
+	snd_printdd(KERN_DE "checksum = 0x%08x\n", csum);
 
 	msleep(200);
 
@@ -784,7 +784,7 @@ struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
 {
 	struct vx_core *chip;
 
-	if (snd_BUG_ON(!card || !hw || !ops))
+	if (snd__ON(!card || !hw || !ops))
 		return NULL;
 
 	chip = kzalloc(sizeof(*chip) + extra_size, GFP_KERNEL);

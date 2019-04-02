@@ -168,7 +168,7 @@ void pci_config_write32(u32 *addr, u32 val)
 
 static int ofpci_verbose;
 
-static int __init ofpci_debug(char *str)
+static int __init ofpci_de(char *str)
 {
 	int val = 0;
 
@@ -178,7 +178,7 @@ static int __init ofpci_debug(char *str)
 	return 1;
 }
 
-__setup("ofpci_debug=", ofpci_debug);
+__setup("ofpci_de=", ofpci_de);
 
 static unsigned long pci_parse_of_flags(u32 addr0)
 {

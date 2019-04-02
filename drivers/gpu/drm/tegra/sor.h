@@ -59,7 +59,7 @@
 #define SOR_HEAD_STATE5(x) (0x0f + (x))
 #define SOR_CRC_CNTRL 0x11
 #define  SOR_CRC_CNTRL_ENABLE			(1 << 0)
-#define SOR_DP_DEBUG_MVID 0x12
+#define SOR_DP_DE_MVID 0x12
 
 #define SOR_CLK_CNTRL 0x13
 #define  SOR_CLK_CNTRL_DP_LINK_SPEED_MASK	(0x1f << 2)
@@ -214,10 +214,10 @@
 #define SOR_COUNT_A1 0x41
 #define SOR_COUNT_B0 0x42
 #define SOR_COUNT_B1 0x43
-#define SOR_DEBUG_A0 0x44
-#define SOR_DEBUG_A1 0x45
-#define SOR_DEBUG_B0 0x46
-#define SOR_DEBUG_B1 0x47
+#define SOR_DE_A0 0x44
+#define SOR_DE_A1 0x45
+#define SOR_DE_B0 0x46
+#define SOR_DE_B1 0x47
 #define SOR_TRIG 0x48
 #define SOR_MSCHECK 0x49
 #define SOR_XBAR_CTRL 0x4a
@@ -293,8 +293,8 @@
 
 #define SOR_DP_PADCTL1 0x5d
 
-#define SOR_DP_DEBUG0 0x5e
-#define SOR_DP_DEBUG1 0x5f
+#define SOR_DP_DE0 0x5e
+#define SOR_DP_DE1 0x5f
 
 #define SOR_DP_SPARE0 0x60
 #define  SOR_DP_SPARE_DISP_VIDEO_PREAMBLE	(1 << 3)

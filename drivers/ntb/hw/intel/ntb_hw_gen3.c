@@ -44,7 +44,7 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -252,7 +252,7 @@ int gen3_init_dev(struct intel_ntb_dev *ndev)
 	return gen3_init_isr(ndev);
 }
 
-ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
+ssize_t ndev_ntb3_defs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp)
 {
 	struct intel_ntb_dev *ndev;

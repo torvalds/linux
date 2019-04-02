@@ -7,10 +7,10 @@
 
 /*
  * you can enable below define if you don't need
- * SSI interrupt status debug message when debugging
+ * SSI interrupt status de message when deging
  * see rsnd_dbg_irq_status()
  *
- * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ * #define RSND_DE_NO_IRQ_STATUS 1
  */
 
 #include "rsnd.h"

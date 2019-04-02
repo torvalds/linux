@@ -340,7 +340,7 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	uint32_t value;
 
 	/* It must not be 0, so we have to restore them
-	 * Bios bug w/a - period resets to zero,
+	 * Bios  w/a - period resets to zero,
 	 * restoring to cache values which is always correct
 	 */
 	REG_GET(BL_PWM_CNTL, BL_ACTIVE_INT_FRAC_CNT, &value);
@@ -458,7 +458,7 @@ struct abm *dce_abm_create(
 	struct dce_abm *abm_dce = kzalloc(sizeof(*abm_dce), GFP_KERNEL);
 
 	if (abm_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 

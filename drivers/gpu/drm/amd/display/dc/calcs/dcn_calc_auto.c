@@ -395,7 +395,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8 && v->source_scan[k] == dcn_bw_hor) {
 				v->min_swath_height_y[k] = v->max_swath_height_y[k] / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
 					v->min_swath_height_c[k] = v->max_swath_height_c[k];
 				}
 				else {
@@ -404,7 +404,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10 && v->source_scan[k] == dcn_bw_hor) {
 				v->min_swath_height_c[k] = v->max_swath_height_c[k] / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
 					v->min_swath_height_y[k] = v->max_swath_height_y[k];
 				}
 				else {
@@ -1112,7 +1112,7 @@ void display_pipe_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_8 && v->source_scan[k] == dcn_bw_hor) {
 				v->minimum_swath_height_y = v->maximum_swath_height_y / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
 					v->minimum_swath_height_c = v->maximum_swath_height_c;
 				}
 				else {
@@ -1121,7 +1121,7 @@ void display_pipe_configuration(struct dcn_bw_internal_vars *v)
 			}
 			else if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10 && v->source_scan[k] == dcn_bw_hor) {
 				v->minimum_swath_height_c = v->maximum_swath_height_c / 2.0;
-				if (v->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
+				if (v->_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes) {
 					v->minimum_swath_height_y = v->maximum_swath_height_y;
 				}
 				else {

@@ -46,12 +46,12 @@ raw_pci_read
 pci_read
 alloc_pages_current
 
-# debugfs and sysfs setup
-debugfs_remove_recursive
-debugfs_create_dir
-debugfs_create_files
-debugfs_create_dir
-debugfs_get_inode
+# defs and sysfs setup
+defs_remove_recursive
+defs_create_dir
+defs_create_files
+defs_create_dir
+defs_get_inode
 sysfs_add_file_mode_ns
 sysfs_add_file
 sysfs_create_dir_ns

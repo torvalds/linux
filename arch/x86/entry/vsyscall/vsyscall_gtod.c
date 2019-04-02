@@ -35,7 +35,7 @@ void update_vsyscall(struct timekeeper *tk)
 	u64 nsec;
 
 	/* Mark the new vclock used. */
-	BUILD_BUG_ON(VCLOCK_MAX >= 32);
+	BUILD__ON(VCLOCK_MAX >= 32);
 	WRITE_ONCE(vclocks_used, READ_ONCE(vclocks_used) | (1 << vclock_mode));
 
 	gtod_write_begin(vdata);

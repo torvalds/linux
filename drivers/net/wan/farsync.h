@@ -37,7 +37,7 @@
  *      "hdlc" is already in use I've chosen the even less informative "sync"
  *      for the present.
  */
-#define FST_NAME                "fst"           /* In debug/info etc */
+#define FST_NAME                "fst"           /* In de/info etc */
 #define FST_NDEV_NAME           "sync"          /* For net interface */
 #define FST_DEV_NAME            "farsync"       /* For misc interfaces */
 
@@ -112,7 +112,7 @@ struct fstioc_info {
         unsigned short clockStatus;     /* lsb: 0=> present, 1=> absent */
         unsigned short cableStatus;     /* lsb: 0=> present, 1=> absent */
         unsigned short cardMode;        /* lsb: LED id mode */
-        unsigned short debug;           /* Debug flags */
+        unsigned short de;           /* De flags */
         unsigned char  transparentMode; /* Not used always 0 */
         unsigned char  invertClock;     /* Invert clock feature for syncing */
         unsigned char  startingSlot;    /* Time slot to use for start of tx */
@@ -161,8 +161,8 @@ struct fstioc_info {
 #define FSTVAL_MODE     0x00000400      /* cardMode */
 #define FSTVAL_PHASE    0x00000800      /* Clock phase */
 #define FSTVAL_TE1      0x00001000      /* T1E1 Configuration */
-#define FSTVAL_DEBUG    0x80000000      /* debug */
-#define FSTVAL_ALL      0x00001FFF      /* Note: does not include DEBUG flag */
+#define FSTVAL_DE    0x80000000      /* de */
+#define FSTVAL_ALL      0x00001FFF      /* Note: does not include DE flag */
 
 /* "type" */
 #define FST_TYPE_NONE   0               /* Probably should never happen */
@@ -318,18 +318,18 @@ struct fstioc_info {
 #define BUFFER_96_BIT        2
 #define BUFFER_NONE          3
 
-/*      Debug support
+/*      De support
  *
  *      These should only be enabled for development kernels, production code
- *      should define FST_DEBUG=0 in order to exclude the code.
- *      Setting FST_DEBUG=1 will include all the debug code but in a disabled
- *      state, use the FSTSETCONF ioctl to enable specific debug actions, or
- *      FST_DEBUG can be set to prime the debug selection.
+ *      should define FST_DE=0 in order to exclude the code.
+ *      Setting FST_DE=1 will include all the de code but in a disabled
+ *      state, use the FSTSETCONF ioctl to enable specific de actions, or
+ *      FST_DE can be set to prime the de selection.
  */
-#define FST_DEBUG       0x0000
-#if FST_DEBUG
+#define FST_DE       0x0000
+#if FST_DE
 
-extern int fst_debug_mask;              /* Bit mask of actions to debug, bits
+extern int fst_de_mask;              /* Bit mask of actions to de, bits
                                          * listed below. Note: Bit 0 is used
                                          * to trigger the inclusion of this
                                          * code, without enabling any actions.
@@ -347,5 +347,5 @@ extern int fst_debug_mask;              /* Bit mask of actions to debug, bits
                                          * should never be reached, if you see
                                          * one of these then I've been an ass
                                          */
-#endif  /* FST_DEBUG */
+#endif  /* FST_DE */
 

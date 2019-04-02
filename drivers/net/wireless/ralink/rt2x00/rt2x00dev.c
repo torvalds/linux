@@ -440,10 +440,10 @@ void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
 	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
 
 	/*
-	 * Send frame to debugfs immediately, after this call is completed
+	 * Send frame to defs immediately, after this call is completed
 	 * we are going to overwrite the skb->cb array.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
+	rt2x00de_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
 
 	/*
 	 * Determine if the frame has been successfully transmitted and
@@ -517,10 +517,10 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 		rt2x00crypto_tx_insert_iv(entry->skb, header_length);
 
 	/*
-	 * Send frame to debugfs immediately, after this call is completed
+	 * Send frame to defs immediately, after this call is completed
 	 * we are going to overwrite the skb->cb array.
 	 */
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
+	rt2x00de_dump_frame(rt2x00dev, DUMP_FRAME_TXDONE, entry);
 
 	/*
 	 * Determine if the frame has been successfully transmitted and
@@ -843,8 +843,8 @@ void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 	 * Update extra components
 	 */
 	rt2x00link_update_stats(rt2x00dev, entry->skb, &rxdesc);
-	rt2x00debug_update_crypto(rt2x00dev, &rxdesc);
-	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry);
+	rt2x00de_update_crypto(rt2x00dev, &rxdesc);
+	rt2x00de_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry);
 
 	/*
 	 * Initialize RX status information, and send frame
@@ -1476,7 +1476,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
-	rt2x00debug_register(rt2x00dev);
+	rt2x00de_register(rt2x00dev);
 
 	/*
 	 * Start rfkill polling.
@@ -1540,7 +1540,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free extra components
 	 */
-	rt2x00debug_deregister(rt2x00dev);
+	rt2x00de_deregister(rt2x00dev);
 	rt2x00leds_unregister(rt2x00dev);
 
 	/*
@@ -1588,7 +1588,7 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 * Suspend/disable extra components.
 	 */
 	rt2x00leds_suspend(rt2x00dev);
-	rt2x00debug_deregister(rt2x00dev);
+	rt2x00de_deregister(rt2x00dev);
 
 	/*
 	 * Set device mode to sleep for power management,
@@ -1615,7 +1615,7 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Restore/enable extra components.
 	 */
-	rt2x00debug_register(rt2x00dev);
+	rt2x00de_register(rt2x00dev);
 	rt2x00leds_resume(rt2x00dev);
 
 	/*

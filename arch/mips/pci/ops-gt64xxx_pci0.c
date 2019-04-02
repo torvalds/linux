@@ -46,7 +46,7 @@ static int gt64xxx_pci0_pcibios_config_access(unsigned char access_type,
 	u32 intr;
 
 	if ((busnum == 0) && (devfn >= PCI_DEVFN(31, 0)))
-		return -1;	/* Because of a bug in the galileo (for slot 31). */
+		return -1;	/* Because of a  in the galileo (for slot 31). */
 
 	/* Clear cause register bits */
 	GT_WRITE(GT_INTRCAUSE_OFS, ~(GT_INTRCAUSE_MASABORT0_BIT |

@@ -20,7 +20,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
@@ -149,7 +149,7 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct copro_slb *slb
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
-	pr_debug("%s: adding SLB[%d] 0x%016llx 0x%016llx\n",
+	pr_de("%s: adding SLB[%d] 0x%016llx 0x%016llx\n",
 			__func__, slbe, slb->vsid, slb->esid);
 
 	out_be64(&priv2->slb_index_W, slbe);
@@ -187,7 +187,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
 	int ret;
 
-	pr_debug("%s, %llx, %lx\n", __func__, dsisr, ea);
+	pr_de("%s, %llx, %lx\n", __func__, dsisr, ea);
 
 	/*
 	 * Handle kernel space hash faults immediately. User hash
@@ -331,7 +331,7 @@ spu_irq_class_1(int irq, void *data)
 		spu_mfc_dsisr_set(spu, 0ul);
 	spu_int_stat_clear(spu, 1, stat);
 
-	pr_debug("%s: %lx %lx %lx %lx\n", __func__, mask, stat,
+	pr_de("%s: %lx %lx %lx %lx\n", __func__, mask, stat,
 			dar, dsisr);
 
 	if (stat & CLASS1_SEGMENT_FAULT_INTR)
@@ -376,7 +376,7 @@ spu_irq_class_2(int irq, void *data)
 	/* acknowledge all interrupts before the callbacks */
 	spu_int_stat_clear(spu, 2, stat);
 
-	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
+	pr_de("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
 
 	if (stat & CLASS2_MAILBOX_INTR)
 		spu->ibox_callback(spu);

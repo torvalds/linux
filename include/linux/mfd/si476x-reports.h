@@ -1,6 +1,6 @@
 /*
  * include/media/si476x-platform.h -- Definitions of the data formats
- * returned by debugfs hooks
+ * returned by defs hooks
  *
  * Copyright (C) 2013 Andrey Smirnov
  *

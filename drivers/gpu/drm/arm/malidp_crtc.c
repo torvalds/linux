@@ -37,7 +37,7 @@ static enum drm_mode_status malidp_crtc_mode_valid(struct drm_crtc *crtc,
 	if (req_rate) {
 		rate = clk_round_rate(hwdev->pxlclk, req_rate);
 		if (rate != req_rate) {
-			DRM_DEBUG_DRIVER("pxlclk doesn't support %ld Hz\n",
+			DRM_DE_DRIVER("pxlclk doesn't support %ld Hz\n",
 					 req_rate);
 			return MODE_NOCLOCK;
 		}
@@ -55,7 +55,7 @@ static void malidp_crtc_atomic_enable(struct drm_crtc *crtc,
 	int err = pm_runtime_get_sync(crtc->dev->dev);
 
 	if (err < 0) {
-		DRM_DEBUG_DRIVER("Failed to enable runtime power management: %d\n", err);
+		DRM_DE_DRIVER("Failed to enable runtime power management: %d\n", err);
 		return;
 	}
 
@@ -87,7 +87,7 @@ static void malidp_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	err = pm_runtime_put(crtc->dev->dev);
 	if (err < 0) {
-		DRM_DEBUG_DRIVER("Failed to disable runtime power management: %d\n", err);
+		DRM_DE_DRIVER("Failed to disable runtime power management: %d\n", err);
 	}
 }
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-pvrusb2-sysfs-$(CONFIG_VIDEO_PVRUSB2_SYSFS) := pvrusb2-sysfs.o
-obj-pvrusb2-debugifc-$(CONFIG_VIDEO_PVRUSB2_DEBUGIFC) := pvrusb2-debugifc.o
+obj-pvrusb2-deifc-$(CONFIG_VIDEO_PVRUSB2_DEIFC) := pvrusb2-deifc.o
 obj-pvrusb2-dvb-$(CONFIG_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
 
 pvrusb2-objs	:= pvrusb2-i2c-core.o \
@@ -13,7 +13,7 @@ pvrusb2-objs	:= pvrusb2-i2c-core.o \
 		   pvrusb2-cx2584x-v4l.o pvrusb2-wm8775.o \
 		   pvrusb2-cs53l32a.o \
 		   $(obj-pvrusb2-dvb-y) \
-		   $(obj-pvrusb2-sysfs-y) $(obj-pvrusb2-debugifc-y)
+		   $(obj-pvrusb2-sysfs-y) $(obj-pvrusb2-deifc-y)
 
 obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2.o
 

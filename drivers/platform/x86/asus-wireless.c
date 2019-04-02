@@ -59,7 +59,7 @@ static acpi_status asus_wireless_method(acpi_handle handle, const char *method,
 	union acpi_object obj;
 	acpi_status s;
 
-	acpi_handle_debug(handle, "Evaluating method %s, parameter %#x\n",
+	acpi_handle_de(handle, "Evaluating method %s, parameter %#x\n",
 			  method, param);
 	obj.type = ACPI_TYPE_INTEGER;
 	obj.integer.value = param;
@@ -72,7 +72,7 @@ static acpi_status asus_wireless_method(acpi_handle handle, const char *method,
 				"Failed to eval method %s, param %#x (%d)\n",
 				method, param, s);
 	else
-		acpi_handle_debug(handle, "%s returned %#llx\n", method, *ret);
+		acpi_handle_de(handle, "%s returned %#llx\n", method, *ret);
 
 	return s;
 }

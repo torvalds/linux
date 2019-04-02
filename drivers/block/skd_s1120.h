@@ -167,8 +167,8 @@
 #define FIT_MFD_PM_SLEEP		0x17u
 #define FIT_MFD_CMD_PROGRESS		0x18u
 
-#define FIT_MTD_DEBUG			0xFEu
-#define FIT_MFD_DEBUG			0xFFu
+#define FIT_MTD_DE			0xFEu
+#define FIT_MFD_DE			0xFFu
 
 #define FIT_MFD_MASK			(0xFFu)
 #define FIT_MFD_DATA_MASK		(0xFFu)

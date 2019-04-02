@@ -631,9 +631,9 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	adapter->rsi_host_intf = RSI_HOST_INTF_USB;
 	adapter->host_intf_ops = &usb_host_intf_ops;
 
-#ifdef CONFIG_RSI_DEBUGFS
-	/* In USB, one less than the MAX_DEBUGFS_ENTRIES entries is required */
-	adapter->num_debugfs_entries = (MAX_DEBUGFS_ENTRIES - 1);
+#ifdef CONFIG_RSI_DEFS
+	/* In USB, one less than the MAX_DEFS_ENTRIES entries is required */
+	adapter->num_defs_entries = (MAX_DEFS_ENTRIES - 1);
 #endif
 
 	rsi_dbg(INIT_ZONE, "%s: Enabled the interface\n", __func__);

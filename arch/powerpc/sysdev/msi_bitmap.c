@@ -31,7 +31,7 @@ int msi_bitmap_alloc_hwirqs(struct msi_bitmap *bmp, int num)
 	bitmap_set(bmp->bitmap, offset, num);
 	spin_unlock_irqrestore(&bmp->lock, flags);
 
-	pr_debug("msi_bitmap: allocated 0x%x at offset 0x%x\n", num, offset);
+	pr_de("msi_bitmap: allocated 0x%x at offset 0x%x\n", num, offset);
 
 	return offset;
 err:
@@ -45,7 +45,7 @@ void msi_bitmap_free_hwirqs(struct msi_bitmap *bmp, unsigned int offset,
 {
 	unsigned long flags;
 
-	pr_debug("msi_bitmap: freeing 0x%x at offset 0x%x\n",
+	pr_de("msi_bitmap: freeing 0x%x at offset 0x%x\n",
 		 num, offset);
 
 	spin_lock_irqsave(&bmp->lock, flags);
@@ -58,7 +58,7 @@ void msi_bitmap_reserve_hwirq(struct msi_bitmap *bmp, unsigned int hwirq)
 {
 	unsigned long flags;
 
-	pr_debug("msi_bitmap: reserving hwirq 0x%x\n", hwirq);
+	pr_de("msi_bitmap: reserving hwirq 0x%x\n", hwirq);
 
 	spin_lock_irqsave(&bmp->lock, flags);
 	bitmap_allocate_region(bmp->bitmap, hwirq, 0);
@@ -86,7 +86,7 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 
 	p = of_get_property(bmp->of_node, "msi-available-ranges", &len);
 	if (!p) {
-		pr_debug("msi_bitmap: no msi-available-ranges property " \
+		pr_de("msi_bitmap: no msi-available-ranges property " \
 			 "found on %pOF\n", bmp->of_node);
 		return 1;
 	}
@@ -122,7 +122,7 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 		return -EINVAL;
 
 	size = BITS_TO_LONGS(irq_count) * sizeof(long);
-	pr_debug("msi_bitmap: allocator bitmap size is 0x%x bytes\n", size);
+	pr_de("msi_bitmap: allocator bitmap size is 0x%x bytes\n", size);
 
 	bmp->bitmap_from_slab = slab_is_available();
 	if (bmp->bitmap_from_slab)
@@ -137,7 +137,7 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 	}
 
 	if (!bmp->bitmap) {
-		pr_debug("msi_bitmap: ENOMEM allocating allocator bitmap!\n");
+		pr_de("msi_bitmap: ENOMEM allocating allocator bitmap!\n");
 		return -ENOMEM;
 	}
 
@@ -269,7 +269,7 @@ static void __init test_of_node(void)
 
 static int __init msi_bitmap_selftest(void)
 {
-	printk(KERN_DEBUG "Running MSI bitmap self-tests ...\n");
+	printk(KERN_DE "Running MSI bitmap self-tests ...\n");
 
 	test_basics();
 	test_of_node();

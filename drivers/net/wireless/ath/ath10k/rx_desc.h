@@ -292,7 +292,7 @@ struct rx_mpdu_start {
  *
  * txbf_h_info
  *		The MPDU data will contain H information.  Primarily used
- *		for debug.
+ *		for de.
  *
  * seq_num
  *		The sequence number from the 802.11 header.  Only valid when
@@ -876,7 +876,7 @@ struct rx_ppdu_start {
  *
  * txbf_h_info
  *		Indicates that the packet data carries H information which
- *		is used for TxBF debug.
+ *		is used for TxBF de.
  *
  * reserved_7
  *		Reserved: HW should fill with 0, FW should ignore.
@@ -1225,7 +1225,7 @@ struct rx_ppdu_end {
  *
  * txbf_h_info
  *		Indicates that the packet data carries H information which
- *		is used for TxBF debug.
+ *		is used for TxBF de.
  *
  * reserved_18
  *		Reserved: HW should fill with 0, FW should ignore.
@@ -1251,7 +1251,7 @@ struct rx_ppdu_end {
  *		Indicates the number of bytes of baseband information for
  *		PPDUs where the BB descriptor preamble type is 0x80 to 0xFF
  *		which indicates that this is not a normal PPDU but rather
- *		contains baseband debug information.
+ *		contains baseband de information.
  *
  * reserved_20
  *		Reserved: HW should fill with 0, FW should ignore.

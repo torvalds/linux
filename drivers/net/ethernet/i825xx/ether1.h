@@ -14,9 +14,9 @@
 #define _LINUX_ether1_H
 
 #ifdef __ETHER1_C
-/* use 0 for production, 1 for verification, >2 for debug */
-#ifndef NET_DEBUG
-#define NET_DEBUG 0
+/* use 0 for production, 1 for verification, >2 for de */
+#ifndef NET_DE
+#define NET_DE 0
 #endif
 
 #define priv(dev)	((struct ether1_priv *)netdev_priv(dev))

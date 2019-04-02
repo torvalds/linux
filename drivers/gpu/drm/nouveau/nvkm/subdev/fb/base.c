@@ -119,7 +119,7 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 	 */
 	if (fb->func->tags) {
 		tags = fb->func->tags(fb);
-		nvkm_debug(subdev, "%d comptags\n", tags);
+		nvkm_de(subdev, "%d comptags\n", tags);
 	}
 
 	return nvkm_mm_init(&fb->tags, 0, 0, tags, 1);

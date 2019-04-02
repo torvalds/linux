@@ -33,7 +33,7 @@
 #include <linux/backlight.h>
 #include <linux/dmi.h>
 
-extern int atom_debug;
+extern int atom_de;
 
 static u8
 radeon_atom_get_backlight_level_from_reg(struct radeon_device *rdev)
@@ -308,7 +308,7 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	/* hw bug */
+	/* hw  */
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 	    && (mode->crtc_vsync_start < (mode->crtc_vdisplay + 2)))
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
@@ -1783,7 +1783,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	int encoder_mode = atombios_get_encoder_mode(encoder);
 
-	DRM_DEBUG_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
+	DRM_DE_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
 		  radeon_encoder->encoder_id, mode, radeon_encoder->devices,
 		  radeon_encoder->active_device);
 
@@ -2390,7 +2390,7 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 	uint32_t bios_0_scratch;
 
 	if (!atombios_dac_load_detect(encoder, connector)) {
-		DRM_DEBUG_KMS("detect returned false \n");
+		DRM_DE_KMS("detect returned false \n");
 		return connector_status_unknown;
 	}
 
@@ -2399,7 +2399,7 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 	else
 		bios_0_scratch = RREG32(RADEON_BIOS_0_SCRATCH);
 
-	DRM_DEBUG_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, radeon_encoder->devices);
+	DRM_DE_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, radeon_encoder->devices);
 	if (radeon_connector->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 		if (bios_0_scratch & ATOM_S0_CRT1_MASK)
 			return connector_status_connected;
@@ -2446,7 +2446,7 @@ radeon_atom_dig_detect(struct drm_encoder *encoder, struct drm_connector *connec
 
 	bios_0_scratch = RREG32(R600_BIOS_0_SCRATCH);
 
-	DRM_DEBUG_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, radeon_encoder->devices);
+	DRM_DE_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, radeon_encoder->devices);
 	if (radeon_connector->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 		if (bios_0_scratch & ATOM_S0_CRT1_MASK)
 			return connector_status_connected;

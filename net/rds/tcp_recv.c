@@ -43,7 +43,7 @@ static void rds_tcp_inc_purge(struct rds_incoming *inc)
 {
 	struct rds_tcp_incoming *tinc;
 	tinc = container_of(inc, struct rds_tcp_incoming, ti_inc);
-	rdsdebug("purging tinc %p inc %p\n", tinc, inc);
+	rdsde("purging tinc %p inc %p\n", tinc, inc);
 	skb_queue_purge(&tinc->ti_skb_list);
 }
 
@@ -52,7 +52,7 @@ void rds_tcp_inc_free(struct rds_incoming *inc)
 	struct rds_tcp_incoming *tinc;
 	tinc = container_of(inc, struct rds_tcp_incoming, ti_inc);
 	rds_tcp_inc_purge(inc);
-	rdsdebug("freeing tinc %p inc %p\n", tinc, inc);
+	rdsde("freeing tinc %p inc %p\n", tinc, inc);
 	kmem_cache_free(rds_tcp_incoming_slab, tinc);
 }
 
@@ -126,13 +126,13 @@ static void rds_tcp_cong_recv(struct rds_connection *conn,
 			to_copy = min_t(unsigned int, PAGE_SIZE - map_off,
 					skb->len - skb_off);
 
-			BUG_ON(map_page >= RDS_CONG_MAP_PAGES);
+			_ON(map_page >= RDS_CONG_MAP_PAGES);
 
 			/* only returns 0 or -error */
 			ret = skb_copy_bits(skb, skb_off,
 				(void *)map->m_page_addrs[map_page] + map_off,
 				to_copy);
-			BUG_ON(ret != 0);
+			_ON(ret != 0);
 
 			skb_off += to_copy;
 			map_off += to_copy;
@@ -161,7 +161,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 	struct sk_buff *clone;
 	size_t left = len, to_copy;
 
-	rdsdebug("tcp data tc %p skb %p offset %u len %zu\n", tc, skb, offset,
+	rdsde("tcp data tc %p skb %p offset %u len %zu\n", tc, skb, offset,
 		 len);
 
 	/*
@@ -177,7 +177,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 				goto out;
 			}
 			tc->t_tinc = tinc;
-			rdsdebug("alloced tinc %p\n", tinc);
+			rdsde("alloced tinc %p\n", tinc);
 			rds_inc_path_init(&tinc->ti_inc, cp,
 					  &cp->cp_conn->c_faddr);
 			tinc->ti_inc.i_rx_lat_trace[RDS_MSG_RX_HDR] =
@@ -192,7 +192,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 
 		if (left && tc->t_tinc_hdr_rem) {
 			to_copy = min(tc->t_tinc_hdr_rem, left);
-			rdsdebug("copying %zu header from skb %p\n", to_copy,
+			rdsde("copying %zu header from skb %p\n", to_copy,
 				 skb);
 			skb_copy_bits(skb, offset,
 				      (char *)&tinc->ti_inc.i_hdr +
@@ -223,7 +223,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 
 			skb_queue_tail(&tinc->ti_skb_list, clone);
 
-			rdsdebug("skb %p data %p len %d off %u to_copy %zu -> "
+			rdsde("skb %p data %p len %d off %u to_copy %zu -> "
 				 "clone %p data %p len %d\n",
 				 skb, skb->data, skb->len, offset, to_copy,
 				 clone, clone->data, clone->len);
@@ -252,7 +252,7 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 		}
 	}
 out:
-	rdsdebug("returning len %zu left %zu skb len %d rx queue depth %d\n",
+	rdsde("returning len %zu left %zu skb len %d rx queue depth %d\n",
 		 len, left, skb->len,
 		 skb_queue_len(&tc->t_sock->sk->sk_receive_queue));
 	return len - left;
@@ -274,7 +274,7 @@ static int rds_tcp_read_sock(struct rds_conn_path *cp, gfp_t gfp)
 	desc.count = 1; /* give more than one skb per call */
 
 	tcp_read_sock(sock->sk, &desc, rds_tcp_data_recv);
-	rdsdebug("tcp_read_sock for tc %p gfp 0x%x returned %d\n", tc, gfp,
+	rdsde("tcp_read_sock for tc %p gfp 0x%x returned %d\n", tc, gfp,
 		 desc.error);
 
 	return desc.error;
@@ -293,7 +293,7 @@ int rds_tcp_recv_path(struct rds_conn_path *cp)
 	struct socket *sock = tc->t_sock;
 	int ret = 0;
 
-	rdsdebug("recv worker path [%d] tc %p sock %p\n",
+	rdsde("recv worker path [%d] tc %p sock %p\n",
 		 cp->cp_index, tc, sock);
 
 	lock_sock(sock->sk);
@@ -309,7 +309,7 @@ void rds_tcp_data_ready(struct sock *sk)
 	struct rds_conn_path *cp;
 	struct rds_tcp_connection *tc;
 
-	rdsdebug("data ready sk %p\n", sk);
+	rdsde("data ready sk %p\n", sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
 	cp = sk->sk_user_data;

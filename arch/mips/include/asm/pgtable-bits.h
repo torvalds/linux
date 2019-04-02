@@ -26,7 +26,7 @@
  * process write to the page, this keeps a mod bit via the hardware
  * dirty bit.
  *
- * Certain revisions of the R4000 and R5000 have a bug where if a
+ * Certain revisions of the R4000 and R5000 have a  where if a
  * certain sequence occurs in the last 3 instructions of an executable
  * page, and the following page is not mapped, the cpu can do
  * unpredictable things.  The code (when it is written) to deal with

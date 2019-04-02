@@ -71,7 +71,7 @@
 #include "lmc.h"
 #include "lmc_var.h"
 #include "lmc_ioctl.h"
-#include "lmc_debug.h"
+#include "lmc_de.h"
 #include "lmc_proto.h"
 
 static int LMC_PKT_BUF_SZ = 1542;
@@ -317,7 +317,7 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
         ret = 0;
         break;
 
-#ifdef DEBUG
+#ifdef DE
     case LMCIOCDUMPEVENTLOG:
 	if (copy_to_user(ifr->ifr_data, &lmcEventLogIndex, sizeof(u32))) {
 		ret = -EFAULT;
@@ -557,7 +557,7 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
                            (timeout-- > 0))
                         cpu_relax();
 
-                    printk(KERN_DEBUG "%s: Waited %d for the Xilinx to clear it's memory\n", dev->name, 500000-timeout);
+                    printk(KERN_DE "%s: Waited %d for the Xilinx to clear it's memory\n", dev->name, 500000-timeout);
 
                     for(pos = 0; pos < xc.len; pos++){
                         switch(data[pos]){
@@ -588,7 +588,7 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
                         printk(KERN_WARNING "%s: Reprogramming FAILED. Needs to be reprogrammed. (done)\n", dev->name);
                     }
                     else {
-                        printk(KERN_DEBUG "%s: Done reprogramming Xilinx, %d bits, good luck!\n", dev->name, pos);
+                        printk(KERN_DE "%s: Done reprogramming Xilinx, %d bits, good luck!\n", dev->name, pos);
                     }
 
                     lmc_gpio_mkinput(sc, 0xff);
@@ -970,7 +970,7 @@ static void lmc_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		printk(KERN_DEBUG "%s: removing...\n", dev->name);
+		printk(KERN_DE "%s: removing...\n", dev->name);
 		unregister_hdlc_device(dev);
 		free_netdev(dev);
 	}
@@ -1338,7 +1338,7 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
 	    sc->extra_stats.tx_tbusy0++;
 
 
-#ifdef DEBUG
+#ifdef DE
 	    sc->extra_stats.dirtyTx = badtx;
 	    sc->extra_stats.lmc_next_tx = sc->lmc_next_tx;
 	    sc->extra_stats.lmc_txfull = sc->lmc_txfull;
@@ -1490,7 +1490,7 @@ static int lmc_rx(struct net_device *dev)
     lmc_softc_t *sc = dev_to_sc(dev);
     int i;
     int rx_work_limit = LMC_RXDESCS;
-    int rxIntLoopCnt;		/* debug -baz */
+    int rxIntLoopCnt;		/* de -baz */
     int localLengthErrCnt = 0;
     long stat;
     struct sk_buff *skb, *nsb;
@@ -1500,13 +1500,13 @@ static int lmc_rx(struct net_device *dev)
 
     lmc_led_on(sc, LMC_DS3_LED3);
 
-    rxIntLoopCnt = 0;		/* debug -baz */
+    rxIntLoopCnt = 0;		/* de -baz */
 
     i = sc->lmc_next_rx % LMC_RXDESCS;
 
     while (((stat = sc->lmc_rxring[i].status) & LMC_RDES_OWN_BIT) != DESC_OWNED_BY_DC21X4)
     {
-        rxIntLoopCnt++;		/* debug -baz */
+        rxIntLoopCnt++;		/* de -baz */
         len = ((stat & LMC_RDES_FRAME_LENGTH) >> RDES_FRAME_LENGTH_BIT_NUMBER);
         if ((stat & 0x0300) != 0x0300) {  /* Check first segment and last segment */
 		if ((stat & 0x0000ffff) != 0x7fff) {
@@ -1655,9 +1655,9 @@ static int lmc_rx(struct net_device *dev)
 
     /* save max count of receive descriptors serviced */
     if (rxIntLoopCnt > sc->extra_stats.rxIntLoopCnt)
-	    sc->extra_stats.rxIntLoopCnt = rxIntLoopCnt; /* debug -baz */
+	    sc->extra_stats.rxIntLoopCnt = rxIntLoopCnt; /* de -baz */
 
-#ifdef DEBUG
+#ifdef DE
     if (rxIntLoopCnt == 0)
     {
         for (i = 0; i < LMC_RXDESCS; i++)
@@ -2061,7 +2061,7 @@ static void lmc_driver_timeout(struct net_device *dev)
 
     sc->extra_stats.tx_tbusy_calls++;
     if (jiffies - dev_trans_start(dev) < TX_TIMEOUT)
-	    goto bug_out;
+	    goto _out;
 
     /*
      * Chip seems to have locked up
@@ -2094,7 +2094,7 @@ static void lmc_driver_timeout(struct net_device *dev)
 
     netif_trans_update(dev); /* prevent tx timeout */
 
-bug_out:
+_out:
 
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
 

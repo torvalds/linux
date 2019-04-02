@@ -48,8 +48,8 @@ enum {
 	MLX4_COMMAND_INTERFACE_NEW_PORT_CMDS	= 3,
 };
 
-extern void __buggy_use_of_MLX4_GET(void);
-extern void __buggy_use_of_MLX4_PUT(void);
+extern void __gy_use_of_MLX4_GET(void);
+extern void __gy_use_of_MLX4_PUT(void);
 
 static bool enable_qos;
 module_param(enable_qos, bool, 0444);
@@ -65,7 +65,7 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: off)");
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
 		case 8: val = get_unaligned((__be64 *)__p);           \
 			(dest) = be64_to_cpu(val);  break;            \
-		default: __buggy_use_of_MLX4_GET();		      \
+		default: __gy_use_of_MLX4_GET();		      \
 		}						      \
 	} while (0)
 
@@ -77,7 +77,7 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: off)");
 		case 2:	*(__be16 *) __d = cpu_to_be16(source); break; \
 		case 4:	*(__be32 *) __d = cpu_to_be32(source); break; \
 		case 8:	*(__be64 *) __d = cpu_to_be64(source); break; \
-		default: __buggy_use_of_MLX4_PUT();		      \
+		default: __gy_use_of_MLX4_PUT();		      \
 		}						      \
 	} while (0)
 

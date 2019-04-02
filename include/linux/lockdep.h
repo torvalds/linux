@@ -25,7 +25,7 @@ extern int lock_stat;
 
 #include <linux/linkage.h>
 #include <linux/list.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/stacktrace.h>
 
 /*
@@ -202,7 +202,7 @@ struct lock_list {
  * We record lock dependency chains, so that we can cache them:
  */
 struct lock_chain {
-	/* see BUILD_BUG_ON()s in lookup_chain_cache() */
+	/* see BUILD__ON()s in lookup_chain_cache() */
 	unsigned int			irq_context :  2,
 					depth       :  6,
 					base	    : 24;
@@ -215,7 +215,7 @@ struct lock_chain {
 /*
  * Subtract one because we offset hlock->class_idx by 1 in order
  * to make 0 mean no class. This avoids overflowing the class_idx
- * bitfield and hitting the BUG in hlock_class().
+ * bitfield and hitting the  in hlock_class().
  */
 #define MAX_LOCKDEP_KEYS		((1UL << MAX_LOCKDEP_KEYS_BITS) - 1)
 
@@ -267,7 +267,7 @@ struct held_lock {
 };
 
 /*
- * Initialization, self-test and debugging-output methods:
+ * Initialization, self-test and deging-output methods:
  */
 extern void lockdep_init(void);
 extern void lockdep_reset(void);
@@ -374,22 +374,22 @@ extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
 extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
 extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 
-#define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
+#define lockdep_depth(tsk)	(de_locks ? (tsk)->lockdep_depth : 0)
 
 #define lockdep_assert_held(l)	do {				\
-		WARN_ON(debug_locks && !lockdep_is_held(l));	\
+		WARN_ON(de_locks && !lockdep_is_held(l));	\
 	} while (0)
 
 #define lockdep_assert_held_exclusive(l)	do {			\
-		WARN_ON(debug_locks && !lockdep_is_held_type(l, 0));	\
+		WARN_ON(de_locks && !lockdep_is_held_type(l, 0));	\
 	} while (0)
 
 #define lockdep_assert_held_read(l)	do {				\
-		WARN_ON(debug_locks && !lockdep_is_held_type(l, 1));	\
+		WARN_ON(de_locks && !lockdep_is_held_type(l, 1));	\
 	} while (0)
 
 #define lockdep_assert_held_once(l)	do {				\
-		WARN_ON_ONCE(debug_locks && !lockdep_is_held(l));	\
+		WARN_ON_ONCE(de_locks && !lockdep_is_held(l));	\
 	} while (0)
 
 #define lockdep_recursing(tsk)	((tsk)->lockdep_recursion)
@@ -435,7 +435,7 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
  * #ifdef the call himself.
  */
 
-# define lockdep_reset()		do { debug_locks = 1; } while (0)
+# define lockdep_reset()		do { de_locks = 1; } while (0)
 # define lockdep_free_key_range(start, size)	do { } while (0)
 # define lockdep_sys_exit() 			do { } while (0)
 /*
@@ -568,7 +568,7 @@ static inline void print_irqtrace_events(struct task_struct *curr)
 
 /*
  * Map the dependency ops to NOP or to real lockdep ops, depending
- * on the per lock-class debug mode:
+ * on the per lock-class de mode:
  */
 
 #define lock_acquire_exclusive(l, s, t, n, i)		lock_acquire(l, s, t, 0, 1, n, i)
@@ -616,13 +616,13 @@ do {									\
 } while (0)
 
 #define lockdep_assert_irqs_enabled()	do {				\
-		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
+		WARN_ONCE(de_locks && !current->lockdep_recursion &&	\
 			  !current->hardirqs_enabled,			\
 			  "IRQs not enabled as expected\n");		\
 	} while (0)
 
 #define lockdep_assert_irqs_disabled()	do {				\
-		WARN_ONCE(debug_locks && !current->lockdep_recursion &&	\
+		WARN_ONCE(de_locks && !current->lockdep_recursion &&	\
 			  current->hardirqs_enabled,			\
 			  "IRQs not disabled as expected\n");		\
 	} while (0)

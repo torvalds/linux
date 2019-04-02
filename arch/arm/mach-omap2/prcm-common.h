@@ -378,7 +378,7 @@
 #define OMAP3430_EN_GPT2_SHIFT				3
 
 /* CM_FCLKEN_PER, CM_ICLKEN_PER, PM_WKEN_PER, PM_WKST_PER shared bits */
-/* XXX Possible TI documentation bug: should the PM_WKST_PER EN_* bits
+/* XXX Possible TI documentation : should the PM_WKST_PER EN_* bits
  * be ST_* bits instead? */
 #define OMAP3430_EN_MCBSP4_MASK				(1 << 2)
 #define OMAP3430_EN_MCBSP4_SHIFT			2

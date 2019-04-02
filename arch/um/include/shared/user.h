@@ -34,7 +34,7 @@ extern void panic(const char *fmt, ...)
 #define UM_KERN_WARNING	KERN_WARNING
 #define UM_KERN_NOTICE	KERN_NOTICE
 #define UM_KERN_INFO	KERN_INFO
-#define UM_KERN_DEBUG	KERN_DEBUG
+#define UM_KERN_DE	KERN_DE
 #define UM_KERN_CONT	KERN_CONT
 
 #ifdef UML_CONFIG_PRINTK

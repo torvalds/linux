@@ -166,7 +166,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 
 	pt = &policy[type];
 
-	BUG_ON(pt->type > NLA_TYPE_MAX);
+	_ON(pt->type > NLA_TYPE_MAX);
 
 	if ((nla_attr_len[pt->type] && attrlen != nla_attr_len[pt->type]) ||
 	    (pt->type == NLA_EXACT_LEN_WARN && attrlen != pt->len)) {

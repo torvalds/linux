@@ -83,8 +83,8 @@ static inline void sd_clear_error(struct rtsx_usb_sdmmc *host)
 	rtsx_usb_clear_fsm_err(ucr);
 }
 
-#ifdef DEBUG
-static void sd_print_debug_regs(struct rtsx_usb_sdmmc *host)
+#ifdef DE
+static void sd_print_de_regs(struct rtsx_usb_sdmmc *host)
 {
 	struct rtsx_ucr *ucr = host->ucr;
 	u8 val = 0;
@@ -97,8 +97,8 @@ static void sd_print_debug_regs(struct rtsx_usb_sdmmc *host)
 	dev_dbg(sdmmc_dev(host), "SD_BUS_STAT: 0x%x\n", val);
 }
 #else
-#define sd_print_debug_regs(host)
-#endif /* DEBUG */
+#define sd_print_de_regs(host)
+#endif /* DE */
 
 static int sd_read_data(struct rtsx_usb_sdmmc *host, struct mmc_command *cmd,
 	       u16 byte_cnt, u8 *buf, int buf_len, int timeout)
@@ -167,7 +167,7 @@ static int sd_read_data(struct rtsx_usb_sdmmc *host, struct mmc_command *cmd,
 
 	err = rtsx_usb_get_rsp(ucr, !cmd ? 1 : 5, timeout);
 	if (err || (ucr->rsp_buf[0] & SD_TRANSFER_ERR)) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 
 		if (!err) {
 			dev_dbg(sdmmc_dev(host),
@@ -278,7 +278,7 @@ static int sd_write_data(struct rtsx_usb_sdmmc *host, struct mmc_command *cmd,
 
 	err = rtsx_usb_get_rsp(ucr, !cmd ? 1 : 5, timeout);
 	if (err) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 		dev_dbg(sdmmc_dev(host),
 			"rtsx_usb_get_rsp failed (err = %d)\n", err);
 		return err;
@@ -394,7 +394,7 @@ static void sd_send_cmd_get_rsp(struct rtsx_usb_sdmmc *host,
 
 	err = rtsx_usb_get_rsp(ucr, len, timeout);
 	if (err || (ucr->rsp_buf[0] & SD_TRANSFER_ERR)) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 		sd_clear_error(host);
 
 		if (!err) {

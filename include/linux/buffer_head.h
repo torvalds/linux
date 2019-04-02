@@ -140,7 +140,7 @@ BUFFER_FNS(Defer_Completion, defer_completion)
 /* If we *know* page->private refers to buffer_heads */
 #define page_buffers(page)					\
 	({							\
-		BUG_ON(!PagePrivate(page));			\
+		_ON(!PagePrivate(page));			\
 		((struct buffer_head *)page_private(page));	\
 	})
 #define page_has_buffers(page)	PagePrivate(page)

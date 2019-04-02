@@ -40,7 +40,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 			  pmd_t *pmdp, pmd_t entry, int dirty)
 {
 	int changed;
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	WARN_ON(!pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
 	assert_spin_locked(pmd_lockptr(vma->vm_mm, pmdp));
 #endif
@@ -68,7 +68,7 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		pmd_t *pmdp, pmd_t pmd)
 {
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	/*
 	 * Make sure hardware valid bit is not set. We don't do
 	 * tlb flush for this update.
@@ -194,7 +194,7 @@ void __init mmu_partition_table_init(void)
 	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
 	unsigned long ptcr;
 
-	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
+	BUILD__ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
 	/* Initialize the Partition Table with no entries */
 	partition_tb = memblock_alloc(patb_size, patb_size);
 	if (!partition_tb)
@@ -318,7 +318,7 @@ void pmd_fragment_free(unsigned long *pmd)
 {
 	struct page *page = virt_to_page(pmd);
 
-	BUG_ON(atomic_read(&page->pt_frag_refcount) <= 0);
+	_ON(atomic_read(&page->pt_frag_refcount) <= 0);
 	if (atomic_dec_and_test(&page->pt_frag_refcount)) {
 		pgtable_pmd_page_dtor(page);
 		__free_page(page);
@@ -340,18 +340,18 @@ static inline void pgtable_free(void *table, int index)
 #if defined(CONFIG_PPC_4K_PAGES) && defined(CONFIG_HUGETLB_PAGE)
 		/* 16M hugepd directory at pud level */
 	case HTLB_16M_INDEX:
-		BUILD_BUG_ON(H_16M_CACHE_INDEX <= 0);
+		BUILD__ON(H_16M_CACHE_INDEX <= 0);
 		kmem_cache_free(PGT_CACHE(H_16M_CACHE_INDEX), table);
 		break;
 		/* 16G hugepd directory at the pgd level */
 	case HTLB_16G_INDEX:
-		BUILD_BUG_ON(H_16G_CACHE_INDEX <= 0);
+		BUILD__ON(H_16G_CACHE_INDEX <= 0);
 		kmem_cache_free(PGT_CACHE(H_16G_CACHE_INDEX), table);
 		break;
 #endif
 		/* We don't free pgd table via RCU callback */
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -360,7 +360,7 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int index)
 {
 	unsigned long pgf = (unsigned long)table;
 
-	BUG_ON(index > MAX_PGTABLE_INDEX_SIZE);
+	_ON(index > MAX_PGTABLE_INDEX_SIZE);
 	pgf |= index;
 	tlb_remove_table(tlb, (void *)pgf);
 }

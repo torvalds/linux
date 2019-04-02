@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  *  'traps.c' handles hardware exceptions after we have saved some state in
- *  'linux/arch/arm/lib/traps.S'.  Mostly a debugging aid, but will probably
+ *  'linux/arch/arm/lib/traps.S'.  Mostly a deging aid, but will probably
  *  kill the offending process.
  */
 #include <linux/signal.h>
@@ -18,15 +18,15 @@
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/irq.h>
 
@@ -52,15 +52,15 @@ static const char *handler[]= {
 
 void *vectors_page;
 
-#ifdef CONFIG_DEBUG_USER
-unsigned int user_debug;
+#ifdef CONFIG_DE_USER
+unsigned int user_de;
 
-static int __init user_debug_setup(char *str)
+static int __init user_de_setup(char *str)
 {
-	get_option(&str, &user_debug);
+	get_option(&str, &user_de);
 	return 1;
 }
-__setup("user_debug=", user_debug_setup);
+__setup("user_de=", user_de_setup);
 #endif
 
 static void dump_mem(const char *, const char *, unsigned long, unsigned long);
@@ -349,14 +349,14 @@ static void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
  */
 void die(const char *str, struct pt_regs *regs, int err)
 {
-	enum bug_trap_type bug_type = BUG_TRAP_TYPE_NONE;
+	enum _trap_type _type = _TRAP_TYPE_NONE;
 	unsigned long flags = oops_begin();
 	int sig = SIGSEGV;
 
 	if (!user_mode(regs))
-		bug_type = report_bug(regs->ARM_pc, regs);
-	if (bug_type != BUG_TRAP_TYPE_NONE)
-		str = "Oops - BUG";
+		_type = report_(regs->ARM_pc, regs);
+	if (_type != _TRAP_TYPE_NONE)
+		str = "Oops - ";
 
 	if (__die(str, err, regs))
 		sig = 0;
@@ -378,16 +378,16 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 	}
 }
 
-#ifdef CONFIG_GENERIC_BUG
+#ifdef CONFIG_GENERIC_
 
-int is_valid_bugaddr(unsigned long pc)
+int is_valid_addr(unsigned long pc)
 {
 #ifdef CONFIG_THUMB2_KERNEL
 	u16 bkpt;
-	u16 insn = __opcode_to_mem_thumb16(BUG_INSTR_VALUE);
+	u16 insn = __opcode_to_mem_thumb16(_INSTR_VALUE);
 #else
 	u32 bkpt;
-	u32 insn = __opcode_to_mem_arm(BUG_INSTR_VALUE);
+	u32 insn = __opcode_to_mem_arm(_INSTR_VALUE);
 #endif
 
 	if (probe_kernel_address((unsigned *)pc, bkpt))
@@ -476,8 +476,8 @@ asmlinkage void do_undefinstr(struct pt_regs *regs)
 		return;
 
 die_sig:
-#ifdef CONFIG_DEBUG_USER
-	if (user_debug & UDBG_UNDEFINED) {
+#ifdef CONFIG_DE_USER
+	if (user_de & UDBG_UNDEFINED) {
 		pr_info("%s (%d): undefined instruction: pc=%p\n",
 			current->comm, task_pid_nr(current), pc);
 		__show_regs(regs);
@@ -496,7 +496,7 @@ NOKPROBE_SYMBOL(do_undefinstr)
  * (NMIs can pre-empt critical sections meaning almost all locking is
  * forbidden) meaning this default FIQ handling must only be used in
  * circumstances where non-maskability improves robustness, such as
- * watchdog or debug logic.
+ * watchdog or de logic.
  *
  * This handler is not appropriate for general purpose use in drivers
  * platform code and can be overrideen using set_fiq_handler.
@@ -516,7 +516,7 @@ asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
 
 /*
  * bad_mode handles the impossible case in the vectors.  If you see one of
- * these, then it's extremely serious, and could mean you have buggy hardware.
+ * these, then it's extremely serious, and could mean you have gy hardware.
  * It never returns, and never tries to sync.  We hope that we can at least
  * dump out some state information...
  */
@@ -538,8 +538,8 @@ static int bad_syscall(int n, struct pt_regs *regs)
 		return regs->ARM_r0;
 	}
 
-#ifdef CONFIG_DEBUG_USER
-	if (user_debug & UDBG_SYSCALL) {
+#ifdef CONFIG_DE_USER
+	if (user_de & UDBG_SYSCALL) {
 		pr_err("[%d] %s: obsolete system call %08x.\n",
 			task_pid_nr(current), current->comm, n);
 		dump_instr(KERN_ERR, regs);
@@ -654,12 +654,12 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 			return -ENOSYS;
 		break;
 	}
-#ifdef CONFIG_DEBUG_USER
+#ifdef CONFIG_DE_USER
 	/*
 	 * experience shows that these seem to indicate that
 	 * something catastrophic has happened
 	 */
-	if (user_debug & UDBG_SYSCALL) {
+	if (user_de & UDBG_SYSCALL) {
 		pr_err("[%d] %s: arm syscall %d\n",
 		       task_pid_nr(current), current->comm, no);
 		dump_instr("", regs);
@@ -723,8 +723,8 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 
-#ifdef CONFIG_DEBUG_USER
-	if (user_debug & UDBG_BADABORT) {
+#ifdef CONFIG_DE_USER
+	if (user_de & UDBG_BADABORT) {
 		pr_err("[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 		       task_pid_nr(current), current->comm, code, instr);
 		dump_instr(KERN_ERR, regs);
@@ -736,12 +736,12 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 		       SIGILL, ILL_ILLOPC, (void __user *)addr, instr, 0);
 }
 
-void __readwrite_bug(const char *fn)
+void __readwrite_(const char *fn)
 {
 	pr_err("%s called, but not implemented\n", fn);
-	BUG();
+	();
 }
-EXPORT_SYMBOL(__readwrite_bug);
+EXPORT_SYMBOL(__readwrite_);
 
 void __pte_error(const char *file, int line, pte_t pte)
 {
@@ -767,7 +767,7 @@ EXPORT_SYMBOL(__div0);
 
 void abort(void)
 {
-	BUG();
+	();
 
 	/* if that doesn't kill us, halt */
 	panic("Oops failed to kill thread");

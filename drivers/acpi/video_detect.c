@@ -84,7 +84,7 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 }
 
 /* Force to use vendor driver when the ACPI device is known to be
- * buggy */
+ * gy */
 static int video_detect_force_vendor(const struct dmi_system_id *d)
 {
 	acpi_backlight_dmi = acpi_backlight_vendor;
@@ -147,7 +147,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	 * native backlight causes a regression where backlight does not work
 	 * when userspace is not handling brightness key events. Disable
 	 * native_backlight on these to fix this:
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=81691
+	 * https://zilla.kernel.org/show_.cgi?id=81691
 	 */
 	{
 	 .callback = video_detect_force_video,
@@ -184,7 +184,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/* The native backlight controls do not work on some older machines */
 	{
-	 /* https://bugs.freedesktop.org/show_bug.cgi?id=81515 */
+	 /* https://s.freedesktop.org/show_.cgi?id=81515 */
 	 .callback = video_detect_force_video,
 	 .ident = "HP ENVY 15 Notebook",
 	 .matches = {
@@ -210,7 +210,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1186097 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1186097 */
 	 .callback = video_detect_force_video,
 	 .ident = "SAMSUNG 3570R/370R/470R/450R/510R/4450RV",
 	 .matches = {
@@ -220,7 +220,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1557060 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1557060 */
 	 .callback = video_detect_force_video,
 	 .ident = "SAMSUNG 670Z5E",
 	 .matches = {
@@ -229,7 +229,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1094948 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1094948 */
 	 .callback = video_detect_force_video,
 	 .ident = "SAMSUNG 730U3E/740U3E",
 	 .matches = {
@@ -238,7 +238,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugs.freedesktop.org/show_bug.cgi?id=87286 */
+	 /* https://s.freedesktop.org/show_.cgi?id=87286 */
 	 .callback = video_detect_force_video,
 	 .ident = "SAMSUNG 900X3C/900X3D/900X3E/900X4C/900X4D",
 	 .matches = {
@@ -248,7 +248,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1272633 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1272633 */
 	 .callback = video_detect_force_video,
 	 .ident = "Dell XPS14 L421X",
 	 .matches = {
@@ -257,7 +257,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1163574 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1163574 */
 	 .callback = video_detect_force_video,
 	 .ident = "Dell XPS15 L521X",
 	 .matches = {
@@ -266,7 +266,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.kernel.org/show_bug.cgi?id=108971 */
+	 /* https://zilla.kernel.org/show_.cgi?id=108971 */
 	 .callback = video_detect_force_video,
 	 .ident = "SAMSUNG 530U4E/540U4E",
 	 .matches = {
@@ -277,7 +277,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 
 	/* Non win8 machines which need native backlight nevertheless */
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1201530 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1201530 */
 	 .callback = video_detect_force_native,
 	 .ident = "Lenovo Ideapad S405",
 	 .matches = {
@@ -286,7 +286,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1187004 */
 	 .callback = video_detect_force_native,
 	 .ident = "Lenovo Ideapad Z570",
 	 .matches = {
@@ -295,7 +295,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1217249 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1217249 */
 	 .callback = video_detect_force_native,
 	 .ident = "Apple MacBook Pro 12,1",
 	 .matches = {
@@ -312,7 +312,7 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		},
 	},
 	{
-	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1123661 */
+	 /* https://zilla.redhat.com/show_.cgi?id=1123661 */
 	 .callback = video_detect_force_native,
 	 .ident = "Dell XPS 17 L702X",
 	 .matches = {

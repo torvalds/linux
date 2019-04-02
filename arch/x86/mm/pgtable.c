@@ -308,7 +308,7 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
 	pud_t *pud;
 	int i;
 
-	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
+	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x  */
 		return;
 
 	p4d = p4d_offset(pgd, 0);
@@ -512,7 +512,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 {
 	int changed = !pmd_same(*pmdp, entry);
 
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	VM__ON(address & ~HPAGE_PMD_MASK);
 
 	if (changed && dirty) {
 		set_pmd(pmdp, entry);
@@ -532,7 +532,7 @@ int pudp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 {
 	int changed = !pud_same(*pudp, entry);
 
-	VM_BUG_ON(address & ~HPAGE_PUD_MASK);
+	VM__ON(address & ~HPAGE_PUD_MASK);
 
 	if (changed && dirty) {
 		set_pud(pudp, entry);
@@ -610,7 +610,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
 {
 	int young;
 
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+	VM__ON(address & ~HPAGE_PMD_MASK);
 
 	young = pmdp_test_and_clear_young(vma, address, pmdp);
 	if (young)
@@ -630,7 +630,7 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
 void __init reserve_top_address(unsigned long reserve)
 {
 #ifdef CONFIG_X86_32
-	BUG_ON(fixmaps_set > 0);
+	_ON(fixmaps_set > 0);
 	__FIXADDR_TOP = round_down(-reserve, 1 << PMD_SHIFT) - PAGE_SIZE;
 	printk(KERN_INFO "Reserving virtual address space above 0x%08lx (rounded to 0x%08lx)\n",
 	       -reserve, __FIXADDR_TOP + PAGE_SIZE);
@@ -648,12 +648,12 @@ void __native_set_fixmap(enum fixed_addresses idx, pte_t pte)
 	* Ensure that the static initial page tables are covering the
 	* fixmap completely.
 	*/
-	BUILD_BUG_ON(__end_of_permanent_fixed_addresses >
+	BUILD__ON(__end_of_permanent_fixed_addresses >
 		     (FIXMAP_PMD_NUM * PTRS_PER_PTE));
 #endif
 
 	if (idx >= __end_of_fixed_addresses) {
-		BUG();
+		();
 		return;
 	}
 	set_pte_vaddr(address, pte);

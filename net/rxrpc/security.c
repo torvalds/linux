@@ -76,7 +76,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 	struct key *key = conn->params.key;
 	int ret;
 
-	_enter("{%d},{%x}", conn->debug_id, key_serial(key));
+	_enter("{%d},{%x}", conn->de_id, key_serial(key));
 
 	if (!key)
 		return 0;

@@ -101,8 +101,8 @@ static int __must_check wl12xx_sdio_raw_read(struct device *child, int addr,
 		dev_err(child->parent, "sdio read failed (%d)\n", ret);
 
 	if (unlikely(dump)) {
-		printk(KERN_DEBUG "wlcore_sdio: READ from 0x%04x\n", addr);
-		print_hex_dump(KERN_DEBUG, "wlcore_sdio: READ ",
+		printk(KERN_DE "wlcore_sdio: READ from 0x%04x\n", addr);
+		print_hex_dump(KERN_DE, "wlcore_sdio: READ ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
 			       buf, len, false);
 	}
@@ -120,8 +120,8 @@ static int __must_check wl12xx_sdio_raw_write(struct device *child, int addr,
 	sdio_claim_host(func);
 
 	if (unlikely(dump)) {
-		printk(KERN_DEBUG "wlcore_sdio: WRITE to 0x%04x\n", addr);
-		print_hex_dump(KERN_DEBUG, "wlcore_sdio: WRITE ",
+		printk(KERN_DE "wlcore_sdio: WRITE to 0x%04x\n", addr);
+		print_hex_dump(KERN_DE, "wlcore_sdio: WRITE ",
 				DUMP_PREFIX_OFFSET, 16, 1,
 				buf, len, false);
 	}
@@ -326,7 +326,7 @@ static int wl1271_probe(struct sdio_func *func,
 	pm_runtime_put_noidle(&func->dev);
 
 	/*
-	 * Due to a hardware bug, we can't differentiate wl18xx from
+	 * Due to a hardware , we can't differentiate wl18xx from
 	 * wl12xx, because both report the same device ID.  The only
 	 * way to differentiate is by checking the SDIO revision,
 	 * which is 3.00 on the wl18xx chips.

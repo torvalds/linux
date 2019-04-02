@@ -447,7 +447,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 			f2fs_alloc_nid_failed(sbi, new_nid);
 			goto in_page_out;
 		}
-		f2fs_bug_on(sbi, new_nid);
+		f2fs__on(sbi, new_nid);
 		f2fs_wait_on_page_writeback(xpage, NODE, true, true);
 	} else {
 		struct dnode_of_data dn;

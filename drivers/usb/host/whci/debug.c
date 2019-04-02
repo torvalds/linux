@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Wireless Host Controller (WHC) debug.
+ * Wireless Host Controller (WHC) de.
  *
  * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
  */
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/export.h>
 
@@ -124,30 +124,30 @@ DEFINE_SHOW_ATTRIBUTE(pzl);
 
 void whc_dbg_init(struct whc *whc)
 {
-	if (whc->wusbhc.pal.debugfs_dir == NULL)
+	if (whc->wusbhc.pal.defs_dir == NULL)
 		return;
 
 	whc->dbg = kzalloc(sizeof(struct whc_dbg), GFP_KERNEL);
 	if (whc->dbg == NULL)
 		return;
 
-	whc->dbg->di_f = debugfs_create_file("di", 0444,
-					      whc->wusbhc.pal.debugfs_dir, whc,
+	whc->dbg->di_f = defs_create_file("di", 0444,
+					      whc->wusbhc.pal.defs_dir, whc,
 					      &di_fops);
-	whc->dbg->asl_f = debugfs_create_file("asl", 0444,
-					      whc->wusbhc.pal.debugfs_dir, whc,
+	whc->dbg->asl_f = defs_create_file("asl", 0444,
+					      whc->wusbhc.pal.defs_dir, whc,
 					      &asl_fops);
-	whc->dbg->pzl_f = debugfs_create_file("pzl", 0444,
-					      whc->wusbhc.pal.debugfs_dir, whc,
+	whc->dbg->pzl_f = defs_create_file("pzl", 0444,
+					      whc->wusbhc.pal.defs_dir, whc,
 					      &pzl_fops);
 }
 
 void whc_dbg_clean_up(struct whc *whc)
 {
 	if (whc->dbg) {
-		debugfs_remove(whc->dbg->pzl_f);
-		debugfs_remove(whc->dbg->asl_f);
-		debugfs_remove(whc->dbg->di_f);
+		defs_remove(whc->dbg->pzl_f);
+		defs_remove(whc->dbg->asl_f);
+		defs_remove(whc->dbg->di_f);
 		kfree(whc->dbg);
 	}
 }

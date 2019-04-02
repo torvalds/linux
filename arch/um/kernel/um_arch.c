@@ -147,16 +147,16 @@ __uml_setup("root=", uml_root_setup,
 "        root=/dev/ubd5\n\n"
 );
 
-static int __init no_skas_debug_setup(char *line, int *add)
+static int __init no_skas_de_setup(char *line, int *add)
 {
-	os_warn("'debug' is not necessary to gdb UML in skas mode - run\n");
+	os_warn("'de' is not necessary to gdb UML in skas mode - run\n");
 	os_warn("'gdb linux'\n");
 
 	return 0;
 }
 
-__uml_setup("debug", no_skas_debug_setup,
-"debug\n"
+__uml_setup("de", no_skas_de_setup,
+"de\n"
 "    this flag is not needed to run gdb on UML in skas mode\n\n"
 );
 
@@ -352,10 +352,10 @@ void __init setup_arch(char **cmdline_p)
 	setup_hostinfo(host_info, sizeof host_info);
 }
 
-void __init check_bugs(void)
+void __init check_s(void)
 {
-	arch_check_bugs();
-	os_check_bugs();
+	arch_check_s();
+	os_check_s();
 }
 
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)

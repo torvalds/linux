@@ -79,14 +79,14 @@ static int __init h8300h_intc_of_init(struct device_node *intc,
 	struct irq_domain *domain;
 
 	intc_baseaddr = of_iomap(intc, 0);
-	BUG_ON(!intc_baseaddr);
+	_ON(!intc_baseaddr);
 
 	/* All interrupt priority low */
 	writeb(0x00, IPR + 0);
 	writeb(0x00, IPR + 1);
 
 	domain = irq_domain_add_linear(intc, NR_IRQS, &irq_ops, NULL);
-	BUG_ON(!domain);
+	_ON(!domain);
 	irq_set_default_host(domain);
 	return 0;
 }

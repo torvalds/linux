@@ -152,7 +152,7 @@ static int __init armctrl_of_init(struct device_node *node,
 
 		for (i = 0; i < bank_irqs[b]; i++) {
 			irq = irq_create_mapping(intc.domain, MAKE_HWIRQ(b, i));
-			BUG_ON(irq <= 0);
+			_ON(irq <= 0);
 			irq_set_chip_and_handler(irq, &armctrl_chip,
 				handle_level_irq);
 			irq_set_probe(irq);
@@ -222,7 +222,7 @@ static u32 get_next_armctrl_hwirq(void)
 	else if (stat & BANK2_HWIRQ)
 		return armctrl_translate_bank(2);
 	else
-		BUG();
+		();
 }
 
 static void __exception_irq_entry bcm2835_handle_irq(

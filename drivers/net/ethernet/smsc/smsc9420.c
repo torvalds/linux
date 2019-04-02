@@ -90,10 +90,10 @@ MODULE_DEVICE_TABLE(pci, smsc9420_id_table);
 
 #define SMSC_MSG_DEFAULT (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-static uint smsc_debug;
-static uint debug = -1;
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "debug level");
+static uint smsc_de;
+static uint de = -1;
+module_param(de, uint, 0);
+MODULE_PARM_DESC(de, "de level");
 
 static inline u32 smsc9420_reg_read(struct smsc9420_pdata *pd, u32 offset)
 {
@@ -202,7 +202,7 @@ static int smsc9420_eeprom_reload(struct smsc9420_pdata *pd)
 {
 	int timeout = 100000;
 
-	BUG_ON(!pd);
+	_ON(!pd);
 
 	if (smsc9420_reg_read(pd, E2P_CMD) & E2P_CMD_EPC_BUSY_) {
 		netif_dbg(pd, drv, pd->dev, "%s: Eeprom busy\n", __func__);
@@ -508,7 +508,7 @@ static void smsc9420_free_tx_ring(struct smsc9420_pdata *pd)
 {
 	int i;
 
-	BUG_ON(!pd->tx_ring);
+	_ON(!pd->tx_ring);
 
 	if (!pd->tx_buffers)
 		return;
@@ -517,7 +517,7 @@ static void smsc9420_free_tx_ring(struct smsc9420_pdata *pd)
 		struct sk_buff *skb = pd->tx_buffers[i].skb;
 
 		if (skb) {
-			BUG_ON(!pd->tx_buffers[i].mapping);
+			_ON(!pd->tx_buffers[i].mapping);
 			pci_unmap_single(pd->pdev, pd->tx_buffers[i].mapping,
 					 skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(skb);
@@ -541,7 +541,7 @@ static void smsc9420_free_rx_ring(struct smsc9420_pdata *pd)
 {
 	int i;
 
-	BUG_ON(!pd->rx_ring);
+	_ON(!pd->rx_ring);
 
 	if (!pd->rx_buffers)
 		return;
@@ -612,8 +612,8 @@ static irqreturn_t smsc9420_isr(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 	ulong flags;
 
-	BUG_ON(!pd);
-	BUG_ON(!pd->ioaddr);
+	_ON(!pd);
+	_ON(!pd->ioaddr);
 
 	int_cfg = smsc9420_reg_read(pd, INT_CFG);
 
@@ -698,8 +698,8 @@ static int smsc9420_stop(struct net_device *dev)
 	u32 int_cfg;
 	ulong flags;
 
-	BUG_ON(!pd);
-	BUG_ON(!dev->phydev);
+	_ON(!pd);
+	_ON(!dev->phydev);
 
 	/* disable master interrupt */
 	spin_lock_irqsave(&pd->int_lock, flags);
@@ -797,8 +797,8 @@ static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
 	struct sk_buff *skb = netdev_alloc_skb(pd->dev, PKT_BUF_SZ);
 	dma_addr_t mapping;
 
-	BUG_ON(pd->rx_buffers[index].skb);
-	BUG_ON(pd->rx_buffers[index].mapping);
+	_ON(pd->rx_buffers[index].skb);
+	_ON(pd->rx_buffers[index].mapping);
 
 	if (unlikely(!skb))
 		return -ENOMEM;
@@ -919,8 +919,8 @@ static void smsc9420_complete_tx(struct net_device *dev)
 
 		smsc9420_tx_update_stats(dev, status, length);
 
-		BUG_ON(!pd->tx_buffers[index].skb);
-		BUG_ON(!pd->tx_buffers[index].mapping);
+		_ON(!pd->tx_buffers[index].skb);
+		_ON(!pd->tx_buffers[index].mapping);
 
 		pci_unmap_single(pd->pdev, pd->tx_buffers[index].mapping,
 			pd->tx_buffers[index].skb->len, PCI_DMA_TODEVICE);
@@ -949,9 +949,9 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 	smsc9420_complete_tx(dev);
 
 	rmb();
-	BUG_ON(pd->tx_ring[index].status & TDES0_OWN_);
-	BUG_ON(pd->tx_buffers[index].skb);
-	BUG_ON(pd->tx_buffers[index].mapping);
+	_ON(pd->tx_ring[index].status & TDES0_OWN_);
+	_ON(pd->tx_buffers[index].skb);
+	_ON(pd->tx_buffers[index].mapping);
 
 	mapping = pci_map_single(pd->pdev, skb->data,
 				 skb->len, PCI_DMA_TODEVICE);
@@ -1118,7 +1118,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
 
-	BUG_ON(dev->phydev);
+	_ON(dev->phydev);
 
 	/* Device only supports internal PHY at address 1 */
 	phydev = mdiobus_get_phy(pd->mii_bus, 1);
@@ -1192,7 +1192,7 @@ static int smsc9420_alloc_tx_ring(struct smsc9420_pdata *pd)
 {
 	int i;
 
-	BUG_ON(!pd->tx_ring);
+	_ON(!pd->tx_ring);
 
 	pd->tx_buffers = kmalloc_array(TX_RING_SIZE,
 				       sizeof(struct smsc9420_ring_info),
@@ -1225,7 +1225,7 @@ static int smsc9420_alloc_rx_ring(struct smsc9420_pdata *pd)
 {
 	int i;
 
-	BUG_ON(!pd->rx_ring);
+	_ON(!pd->rx_ring);
 
 	pd->rx_buffers = kmalloc_array(RX_RING_SIZE,
 				       sizeof(struct smsc9420_ring_info),
@@ -1594,7 +1594,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pd->pdev = pdev;
 	pd->dev = dev;
 	pd->ioaddr = virt_addr;
-	pd->msg_enable = smsc_debug;
+	pd->msg_enable = smsc_de;
 	pd->rx_csum = true;
 
 	netif_dbg(pd, probe, pd->dev, "lan_base=0x%08lx\n", (ulong)virt_addr);
@@ -1664,11 +1664,11 @@ static void smsc9420_remove(struct pci_dev *pdev)
 	unregister_netdev(dev);
 
 	/* tx_buffers and rx_buffers are freed in stop */
-	BUG_ON(pd->tx_buffers);
-	BUG_ON(pd->rx_buffers);
+	_ON(pd->tx_buffers);
+	_ON(pd->rx_buffers);
 
-	BUG_ON(!pd->tx_ring);
-	BUG_ON(!pd->rx_ring);
+	_ON(!pd->tx_ring);
+	_ON(!pd->rx_ring);
 
 	pci_free_consistent(pdev, sizeof(struct smsc9420_dma_desc) *
 		(RX_RING_SIZE + TX_RING_SIZE), pd->rx_ring, pd->rx_dma_addr);
@@ -1692,7 +1692,7 @@ static struct pci_driver smsc9420_driver = {
 
 static int __init smsc9420_init_module(void)
 {
-	smsc_debug = netif_msg_init(debug, SMSC_MSG_DEFAULT);
+	smsc_de = netif_msg_init(de, SMSC_MSG_DEFAULT);
 
 	return pci_register_driver(&smsc9420_driver);
 }

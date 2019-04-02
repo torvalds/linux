@@ -38,7 +38,7 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <net/calipso.h>
-#include <asm/bug.h>
+#include <asm/.h>
 
 #include "netlabel_mgmt.h"
 #include "netlabel_addrlist.h"
@@ -258,13 +258,13 @@ static void netlbl_domhsh_audit_add(struct netlbl_dom_map *entry,
 			audit_log_format(audit_buf, " nlbl_protocol=unlbl");
 			break;
 		case NETLBL_NLTYPE_CIPSOV4:
-			BUG_ON(cipsov4 == NULL);
+			_ON(cipsov4 == NULL);
 			audit_log_format(audit_buf,
 					 " nlbl_protocol=cipsov4 cipso_doi=%u",
 					 cipsov4->doi);
 			break;
 		case NETLBL_NLTYPE_CALIPSO:
-			BUG_ON(calipso == NULL);
+			_ON(calipso == NULL);
 			audit_log_format(audit_buf,
 					 " nlbl_protocol=calipso calipso_doi=%u",
 					 calipso->doi);

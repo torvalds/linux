@@ -48,14 +48,14 @@ MODULE_DESCRIPTION("TI AR7 ethernet driver (CPMAC)");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:cpmac");
 
-static int debug_level = 8;
+static int de_level = 8;
 static int dumb_switch;
 
 /* Next 2 are only used in cpmac_probe, so it's pointless to change them */
-module_param(debug_level, int, 0444);
+module_param(de_level, int, 0444);
 module_param(dumb_switch, int, 0444);
 
-MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
+MODULE_PARM_DESC(de_level, "Number of NETIF_MSG bits to enable");
 MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 
 #define CPMAC_VERSION "0.5.2"
@@ -1133,7 +1133,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->rx_lock);
 	priv->dev = dev;
 	priv->ring_size = 64;
-	priv->msg_enable = netif_msg_init(debug_level, 0xff);
+	priv->msg_enable = netif_msg_init(de_level, 0xff);
 	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(pdata->dev_addr));
 
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,

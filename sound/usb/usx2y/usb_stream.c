@@ -46,13 +46,13 @@ static void playback_prep_freqn(struct usb_stream_kernel *sk, struct urb *urb)
 		urb->iso_frame_desc[pack].length = l;
 		lb += l;
 	}
-	snd_printdd(KERN_DEBUG "%i\n", lb);
+	snd_printdd(KERN_DE "%i\n", lb);
 
 check:
 	urb->number_of_packets = pack;
 	urb->transfer_buffer_length = lb;
 	s->idle_outsize += lb - s->period_size;
-	snd_printdd(KERN_DEBUG "idle=%i ul=%i ps=%i\n", s->idle_outsize,
+	snd_printdd(KERN_DE "idle=%i ul=%i ps=%i\n", s->idle_outsize,
 		    lb, s->period_size);
 }
 
@@ -388,7 +388,7 @@ report_failure:
 	return err;
 }
 
-#ifdef DEBUG_LOOP_BACK
+#ifdef DE_LOOP_BACK
 /*
   This loop_back() shows how to read/write the period data.
  */
@@ -431,7 +431,7 @@ loop:
 	}
 	if (iu == sk->completed_inurb) {
 		if (l != s->period_size)
-			printk(KERN_DEBUG"%s:%i %i\n", __func__, __LINE__,
+			printk(KERN_DE"%s:%i %i\n", __func__, __LINE__,
 			       l/(int)s->cfg.frame_size);
 
 		return;
@@ -560,7 +560,7 @@ static void stream_start(struct usb_stream_kernel *sk,
 			diff = urb_size -
 				(min_frames >> 8) * s->cfg.frame_size;
 			if (diff < max_diff) {
-				snd_printdd(KERN_DEBUG "%i %i %i %i\n",
+				snd_printdd(KERN_DE "%i %i %i %i\n",
 					    s->insize_done,
 					    urb_size / (int)s->cfg.frame_size,
 					    inurb->number_of_packets, diff);
@@ -641,7 +641,7 @@ static void i_capture_start(struct urb *urb)
 	}
 #ifdef SHOW_EMPTY
 	if (empty) {
-		printk(KERN_DEBUG"%s:%i: %i", __func__, __LINE__,
+		printk(KERN_DE"%s:%i: %i", __func__, __LINE__,
 		       urb->iso_frame_desc[0].actual_length);
 		for (pack = 1; pack < urb->number_of_packets; ++pack) {
 			int l = urb->iso_frame_desc[pack].actual_length;
@@ -717,20 +717,20 @@ dotry:
 		}
 
 		if (inurb->start_frame != outurb->start_frame) {
-			snd_printd(KERN_DEBUG
+			snd_printd(KERN_DE
 				   "u[%i] start_frames differ in:%u out:%u\n",
 				   u, inurb->start_frame, outurb->start_frame);
 			goto check_retry;
 		}
 	}
-	snd_printdd(KERN_DEBUG "%i %i\n", frame, iters);
+	snd_printdd(KERN_DE "%i %i\n", frame, iters);
 	try = 0;
 check_retry:
 	if (try) {
 		usb_stream_stop(sk);
 		if (try < 5) {
 			msleep(1500);
-			snd_printd(KERN_DEBUG "goto dotry;\n");
+			snd_printd(KERN_DE "goto dotry;\n");
 			goto dotry;
 		}
 		snd_printk(KERN_WARNING"couldn't start"
@@ -747,7 +747,7 @@ check_retry:
 	{
 		int wait_ms = 3000;
 		while (s->state != usb_stream_ready && wait_ms > 0) {
-			snd_printdd(KERN_DEBUG "%i\n", s->state);
+			snd_printdd(KERN_DE "%i\n", s->state);
 			msleep(200);
 			wait_ms -= 200;
 		}

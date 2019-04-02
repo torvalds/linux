@@ -171,12 +171,12 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 			 * read valid data from another chunk so this case
 			 * is not an error.
 			 */
-			IWL_DEBUG_EEPROM(mvm->trans->dev,
+			IWL_DE_EEPROM(mvm->trans->dev,
 					 "NVM access command failed on offset 0x%x since that section size is multiple 2K\n",
 					 offset);
 			ret = 0;
 		} else {
-			IWL_DEBUG_EEPROM(mvm->trans->dev,
+			IWL_DE_EEPROM(mvm->trans->dev,
 					 "NVM access command failed with status %d (device: %s)\n",
 					 ret, mvm->cfg->name);
 			ret = -ENODATA;
@@ -256,7 +256,7 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 
 		ret = iwl_nvm_read_chunk(mvm, section, offset, length, data);
 		if (ret < 0) {
-			IWL_DEBUG_EEPROM(mvm->trans->dev,
+			IWL_DE_EEPROM(mvm->trans->dev,
 					 "Cannot read NVM from section %d offset %d, length %d\n",
 					 section, offset, length);
 			return ret;
@@ -266,7 +266,7 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 
 	iwl_nvm_fixups(mvm->trans->hw_id, section, data, offset);
 
-	IWL_DEBUG_EEPROM(mvm->trans->dev,
+	IWL_DE_EEPROM(mvm->trans->dev,
 			 "NVM section %d read completed\n", section);
 	return offset;
 }
@@ -343,7 +343,7 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 	int i, ret = 0;
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
 
-	IWL_DEBUG_EEPROM(mvm->trans->dev, "'Write to NVM\n");
+	IWL_DE_EEPROM(mvm->trans->dev, "'Write to NVM\n");
 
 	for (i = 0; i < ARRAY_SIZE(mvm->nvm_sections); i++) {
 		if (!mvm->nvm_sections[i].data || !mvm->nvm_sections[i].length)
@@ -370,7 +370,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 
 	/* load NVM values from nic */
 	/* Read From FW NVM */
-	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
+	IWL_DE_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
 	nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
 			     GFP_KERNEL);
@@ -398,7 +398,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		mvm->nvm_sections[section].data = temp;
 		mvm->nvm_sections[section].length = ret;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 		switch (section) {
 		case NVM_SECTION_TYPE_SW:
 			mvm->nvm_sw_blob.data = temp;
@@ -460,7 +460,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 	if (!mvm->nvm_data)
 		return -ENODATA;
-	IWL_DEBUG_EEPROM(mvm->trans->dev, "nvm version = %x\n",
+	IWL_DE_EEPROM(mvm->trans->dev, "nvm version = %x\n",
 			 mvm->nvm_data->nvm_version);
 
 	return ret < 0 ? ret : 0;
@@ -492,7 +492,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 
 	cmd.len[0] = sizeof(struct iwl_mcc_update_cmd);
 
-	IWL_DEBUG_LAR(mvm, "send MCC update to FW with '%c%c' src = %d\n",
+	IWL_DE_LAR(mvm, "send MCC update to FW with '%c%c' src = %d\n",
 		      alpha2[0], alpha2[1], src_id);
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
@@ -547,7 +547,7 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 		resp_cp->mcc = cpu_to_le16(mcc);
 	}
 
-	IWL_DEBUG_LAR(mvm,
+	IWL_DE_LAR(mvm,
 		      "MCC response status: 0x%x. new MCC: 0x%x ('%c%c') n_chans: %d\n",
 		      status, mcc, mcc >> 8, mcc & 0xff, n_channels);
 
@@ -624,7 +624,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_is_vif_assoc(mvm) && notif->source_id == MCC_SOURCE_WIFI) {
-		IWL_DEBUG_LAR(mvm, "Ignore mcc update while associated\n");
+		IWL_DE_LAR(mvm, "Ignore mcc update while associated\n");
 		return;
 	}
 
@@ -636,7 +636,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 	mcc[2] = '\0';
 	src = notif->source_id;
 
-	IWL_DEBUG_LAR(mvm,
+	IWL_DE_LAR(mvm,
 		      "RX: received chub update mcc cmd (mcc '%s' src %d)\n",
 		      mcc, src);
 	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, mcc, src, NULL);

@@ -233,7 +233,7 @@ static int map_seq_show(struct seq_file *m, void *v)
 	void *key = map_iter(m)->key;
 
 	if (unlikely(v == SEQ_START_TOKEN)) {
-		seq_puts(m, "# WARNING!! The output is for debug purpose only\n");
+		seq_puts(m, "# WARNING!! The output is for de purpose only\n");
 		seq_puts(m, "# WARNING!! The output format will change\n");
 	} else {
 		map->ops->map_seq_show_elem(map, key, m);

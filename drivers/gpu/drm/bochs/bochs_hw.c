@@ -180,7 +180,7 @@ int bochs_hw_init(struct drm_device *dev)
 			bochs->qext_size = 0;
 			goto noext;
 		}
-		DRM_DEBUG("Found qemu ext regs, size %ld\n",
+		DRM_DE("Found qemu ext regs, size %ld\n",
 			  bochs->qext_size);
 		bochs_hw_set_native_endian(bochs);
 	}
@@ -212,7 +212,7 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 	bochs->stride = mode->hdisplay * (bochs->bpp / 8);
 	bochs->yres_virtual = bochs->fb_size / bochs->stride;
 
-	DRM_DEBUG_DRIVER("%dx%d @ %d bpp, vy %d\n",
+	DRM_DE_DRIVER("%dx%d @ %d bpp, vy %d\n",
 			 bochs->xres, bochs->yres, bochs->bpp,
 			 bochs->yres_virtual);
 
@@ -236,7 +236,7 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 void bochs_hw_setformat(struct bochs_device *bochs,
 			const struct drm_format_info *format)
 {
-	DRM_DEBUG_DRIVER("format %c%c%c%c\n",
+	DRM_DE_DRIVER("format %c%c%c%c\n",
 			 (format->format >>  0) & 0xff,
 			 (format->format >>  8) & 0xff,
 			 (format->format >> 16) & 0xff,
@@ -266,7 +266,7 @@ void bochs_hw_setbase(struct bochs_device *bochs,
 	int vy = offset / bochs->stride;
 	int vx = (offset % bochs->stride) * 8 / bochs->bpp;
 
-	DRM_DEBUG_DRIVER("x %d, y %d, addr %llx -> offset %lx, vx %d, vy %d\n",
+	DRM_DE_DRIVER("x %d, y %d, addr %llx -> offset %lx, vx %d, vy %d\n",
 			 x, y, addr, offset, vx, vy);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_X_OFFSET, vx);
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_Y_OFFSET, vy);

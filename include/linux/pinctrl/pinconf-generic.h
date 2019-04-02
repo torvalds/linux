@@ -158,7 +158,7 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 
 #ifdef CONFIG_GENERIC_PINCONF
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #define PCONFDUMP(a, b, c, d) {					\
 	.param = a, .display = b, .format = c, .has_arg = d	\
 	}
@@ -169,7 +169,7 @@ struct pin_config_item {
 	const char * const format;
 	bool has_arg;
 };
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 #ifdef CONFIG_OF
 

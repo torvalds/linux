@@ -1102,7 +1102,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_SCIF0_TXD, NULL);
 	gpio_request(GPIO_FN_SCIF0_RXD, NULL);
 
-	/* enable debug LED */
+	/* enable de LED */
 	gpio_request(GPIO_PTG0, NULL);
 	gpio_request(GPIO_PTG1, NULL);
 	gpio_request(GPIO_PTG2, NULL);
@@ -1271,7 +1271,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_KEYOUT0,     NULL);
 	gpio_request(GPIO_FN_KEYIN0,      NULL);
 
-	/* enable user debug switch */
+	/* enable user de switch */
 	gpio_request(GPIO_PTR0, NULL);
 	gpio_request(GPIO_PTR4, NULL);
 	gpio_request(GPIO_PTR5, NULL);

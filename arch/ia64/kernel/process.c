@@ -20,7 +20,7 @@
 #include <linux/notifier.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -30,7 +30,7 @@
 #include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/utsname.h>
 #include <linux/tracehook.h>
 #include <linux/rcupdate.h>
@@ -226,12 +226,12 @@ static inline void play_dead(void)
 	 * The above is a point of no-return, the processor is
 	 * expected to be in SAL loop now.
 	 */
-	BUG();
+	();
 }
 #else
 static inline void play_dead(void)
 {
-	BUG();
+	();
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
@@ -268,7 +268,7 @@ ia64_save_extra (struct task_struct *task)
 #endif
 
 	if ((task->thread.flags & IA64_THREAD_DBG_VALID) != 0)
-		ia64_save_debug_regs(&task->thread.dbr[0]);
+		ia64_save_de_regs(&task->thread.dbr[0]);
 
 #ifdef CONFIG_PERFMON
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
@@ -288,7 +288,7 @@ ia64_load_extra (struct task_struct *task)
 #endif
 
 	if ((task->thread.flags & IA64_THREAD_DBG_VALID) != 0)
-		ia64_load_debug_regs(&task->thread.dbr[0]);
+		ia64_load_de_regs(&task->thread.dbr[0]);
 
 #ifdef CONFIG_PERFMON
 	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
@@ -565,7 +565,7 @@ dump_fpu (struct pt_regs *pt, elf_fpregset_t dst)
 void
 flush_thread (void)
 {
-	/* drop floating-point and debug-register state if it exists: */
+	/* drop floating-point and de-register state if it exists: */
 	current->thread.flags &= ~(IA64_THREAD_FPH_VALID | IA64_THREAD_DBG_VALID);
 	ia64_drop_fpu(current);
 }
@@ -584,9 +584,9 @@ exit_thread (struct task_struct *tsk)
 	if (tsk->thread.pfm_context)
 		pfm_exit_thread(tsk);
 
-	/* free debug register resources */
+	/* free de register resources */
 	if (tsk->thread.flags & IA64_THREAD_DBG_VALID)
-		pfm_release_debug_registers(tsk);
+		pfm_release_de_registers(tsk);
 #endif
 }
 

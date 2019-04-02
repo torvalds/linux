@@ -67,8 +67,8 @@ struct rpc_clnt {
 	struct rpc_timeout	cl_timeout_default;
 	const struct rpc_program *cl_program;
 	const char *		cl_principal;	/* use for machine cred */
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	struct dentry		*cl_debugfs;	/* debugfs directory */
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
+	struct dentry		*cl_defs;	/* defs directory */
 #endif
 	struct rpc_xprt_iter	cl_xpi;
 };

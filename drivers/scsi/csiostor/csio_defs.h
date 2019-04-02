@@ -39,7 +39,7 @@
 #include <linux/stddef.h>
 #include <linux/timer.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/pci.h>
 #include <linux/jiffies.h>
 
@@ -110,9 +110,9 @@ csio_match_state(void *smp, void *state)
 	return (csio_get_state(smp) == (csio_sm_state_t)state);
 }
 
-#define	CSIO_ASSERT(cond)		BUG_ON(!(cond))
+#define	CSIO_ASSERT(cond)		_ON(!(cond))
 
-#ifdef __CSIO_DEBUG__
+#ifdef __CSIO_DE__
 #define CSIO_DB_ASSERT(__c)		CSIO_ASSERT((__c))
 #else
 #define CSIO_DB_ASSERT(__c)

@@ -17,14 +17,14 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/topology.h>
 #include <linux/interrupt.h>
 #include <linux/bitmap.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/scatterlist.h>
 #include <linux/iommu-helper.h>
 #include <linux/syscore_ops.h>
@@ -54,7 +54,7 @@ static u32 *iommu_gatt_base;		/* Remapping table */
  * If this is disabled the IOMMU will use an optimized flushing strategy
  * of only flushing when an mapping is reused. With it true the GART is
  * flushed for every mapping. Problem is that doing the lazy flush seems
- * to trigger bugs with some popular PCI cards, in particular 3ware (but
+ * to trigger s with some popular PCI cards, in particular 3ware (but
  * has been also also seen with Qlogic at least).
  */
 static int iommu_fullflush = 1;
@@ -150,7 +150,7 @@ static void flush_gart(void)
 }
 
 #ifdef CONFIG_IOMMU_LEAK
-/* Debugging aid for drivers that don't free their IOMMU tables */
+/* Deging aid for drivers that don't free their IOMMU tables */
 static void dump_leak(void)
 {
 	static int dump;
@@ -160,7 +160,7 @@ static void dump_leak(void)
 	dump = 1;
 
 	show_stack(NULL, NULL);
-	debug_dma_dump_mappings(NULL);
+	de_dma_dump_mappings(NULL);
 }
 #endif
 
@@ -299,8 +299,8 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 	struct scatterlist *s;
 	int i;
 
-#ifdef CONFIG_IOMMU_DEBUG
-	pr_debug("dma_map_sg overflow\n");
+#ifdef CONFIG_IOMMU_DE
+	pr_de("dma_map_sg overflow\n");
 #endif
 
 	for_each_sg(sg, s, nents, i) {
@@ -341,7 +341,7 @@ static int __dma_map_cont(struct device *dev, struct scatterlist *start,
 		unsigned long pages, addr;
 		unsigned long phys_addr = s->dma_address;
 
-		BUG_ON(s != start && s->offset);
+		_ON(s != start && s->offset);
 		if (s == start) {
 			sout->dma_address = iommu_bus_base;
 			sout->dma_address += iommu_page*PAGE_SIZE + s->offset;
@@ -358,7 +358,7 @@ static int __dma_map_cont(struct device *dev, struct scatterlist *start,
 			iommu_page++;
 		}
 	}
-	BUG_ON(iommu_page - iommu_start != pages);
+	_ON(iommu_page - iommu_start != pages);
 
 	return 0;
 }
@@ -368,7 +368,7 @@ dma_map_cont(struct device *dev, struct scatterlist *start, int nelems,
 	     struct scatterlist *sout, unsigned long pages, int need)
 {
 	if (!need) {
-		BUG_ON(nelems != 1);
+		_ON(nelems != 1);
 		sout->dma_address = start->dma_address;
 		sout->dma_length = start->length;
 		return 0;
@@ -407,7 +407,7 @@ static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		dma_addr_t addr = sg_phys(s);
 
 		s->dma_address = addr;
-		BUG_ON(s->length == 0);
+		_ON(s->length == 0);
 
 		nextneed = need_iommu(dev, addr, s->length);
 
@@ -798,7 +798,7 @@ int __init gart_iommu_init(void)
 	enable_gart_translations();
 
 	/*
-	 * Try to workaround a bug (thanks to BenH):
+	 * Try to workaround a  (thanks to BenH):
 	 * Set unmapped entries to a scratch page instead of 0.
 	 * Any prefetches that hit unmapped entries won't get an bus abort
 	 * then. (P2P bridge may be prefetching on DMA reads).

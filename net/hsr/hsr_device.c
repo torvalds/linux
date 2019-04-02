@@ -457,7 +457,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		return res;
 
 	spin_lock_init(&hsr->seqnr_lock);
-	/* Overflow soon to find bugs easier: */
+	/* Overflow soon to find s easier: */
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 

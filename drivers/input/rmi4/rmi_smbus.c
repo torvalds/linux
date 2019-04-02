@@ -68,7 +68,7 @@ static int smb_block_write(struct rmi_transport_dev *xport,
 
 	retval = i2c_smbus_write_block_data(client, commandcode, len, buf);
 
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev,
+	rmi_dbg(RMI_DE_XPORT, &client->dev,
 		"wrote %zd bytes at %#04x: %d (%*ph)\n",
 		len, commandcode, retval, (int)len, buf);
 
@@ -302,7 +302,7 @@ static int rmi_smb_probe(struct i2c_client *client,
 	if (!rmi_smb)
 		return -ENOMEM;
 
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s\n",
+	rmi_dbg(RMI_DE_XPORT, &client->dev, "Probing %s\n",
 		dev_name(&client->dev));
 
 	rmi_smb->client = client;
@@ -319,7 +319,7 @@ static int rmi_smb_probe(struct i2c_client *client,
 	if (smbus_version < 0)
 		return smbus_version;
 
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Smbus version is %d",
+	rmi_dbg(RMI_DE_XPORT, &client->dev, "Smbus version is %d",
 		smbus_version);
 
 	if (smbus_version != 2 && smbus_version != 3) {

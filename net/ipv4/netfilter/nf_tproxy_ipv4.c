@@ -112,7 +112,7 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 						    in->ifindex);
 			break;
 		default:
-			BUG();
+			();
 		}
 		break;
 		}
@@ -141,7 +141,7 @@ nf_tproxy_get_sock_v4(struct net *net, struct sk_buff *skb,
 		sk = NULL;
 	}
 
-	pr_debug("tproxy socket lookup: proto %u %08x:%u -> %08x:%u, lookup type: %d, sock %p\n",
+	pr_de("tproxy socket lookup: proto %u %08x:%u -> %08x:%u, lookup type: %d, sock %p\n",
 		 protocol, ntohl(saddr), ntohs(sport), ntohl(daddr), ntohs(dport), lookup_type, sk);
 
 	return sk;

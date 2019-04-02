@@ -77,7 +77,7 @@ g84_therm_program_alarms(struct nvkm_therm *therm)
 	nvkm_wr32(device, 0x20414, sensor->thrs_down_clock.temp);
 	spin_unlock_irqrestore(&therm->sensor.alarm_program_lock, flags);
 
-	nvkm_debug(subdev,
+	nvkm_de(subdev,
 		   "Programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
 		   sensor->thrs_fan_boost.temp,
 		   sensor->thrs_fan_boost.hysteresis,

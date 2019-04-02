@@ -71,19 +71,19 @@
 #include "scsi_iu.h"
 #include "aiclib.h"
 
-/*********************************** Debugging ********************************/
-#ifdef CONFIG_AIC79XX_DEBUG_ENABLE
-#ifdef CONFIG_AIC79XX_DEBUG_MASK
-#define AHD_DEBUG 1
-#define AHD_DEBUG_OPTS CONFIG_AIC79XX_DEBUG_MASK
+/*********************************** Deging ********************************/
+#ifdef CONFIG_AIC79XX_DE_ENABLE
+#ifdef CONFIG_AIC79XX_DE_MASK
+#define AHD_DE 1
+#define AHD_DE_OPTS CONFIG_AIC79XX_DE_MASK
 #else
 /*
- * Compile in debugging code, but do not enable any printfs.
+ * Compile in deging code, but do not enable any printfs.
  */
-#define AHD_DEBUG 1
-#define AHD_DEBUG_OPTS 0
+#define AHD_DE 1
+#define AHD_DE_OPTS 0
 #endif
-/* No debugging code. */
+/* No deging code. */
 #endif
 
 /********************************** Misc Macros *******************************/
@@ -205,9 +205,9 @@ int	ahd_dmamap_unload(struct ahd_softc *, bus_dma_tag_t, bus_dmamap_t);
 
 /********************************** Includes **********************************/
 #ifdef CONFIG_AIC79XX_REG_PRETTY_PRINT
-#define AIC_DEBUG_REGISTERS 1
+#define AIC_DE_REGISTERS 1
 #else
-#define AIC_DEBUG_REGISTERS 0
+#define AIC_DE_REGISTERS 0
 #endif
 #include "aic79xx.h"
 

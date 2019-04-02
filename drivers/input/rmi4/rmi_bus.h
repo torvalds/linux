@@ -193,10 +193,10 @@ extern struct bus_type rmi_bus_type;
 int rmi_of_property_read_u32(struct device *dev, u32 *result,
 				const char *prop, bool optional);
 
-#define RMI_DEBUG_CORE			BIT(0)
-#define RMI_DEBUG_XPORT			BIT(1)
-#define RMI_DEBUG_FN			BIT(2)
-#define RMI_DEBUG_2D_SENSOR		BIT(3)
+#define RMI_DE_CORE			BIT(0)
+#define RMI_DE_XPORT			BIT(1)
+#define RMI_DE_FN			BIT(2)
+#define RMI_DE_2D_SENSOR		BIT(3)
 
 void rmi_dbg(int flags, struct device *dev, const char *fmt, ...);
 #endif

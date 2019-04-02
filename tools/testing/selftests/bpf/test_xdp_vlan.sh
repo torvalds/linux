@@ -37,7 +37,7 @@ cleanup()
 
 # Using external program "getopt" to get --long-options
 OPTIONS=$(getopt -o hvfi: \
-    --long verbose,flush,help,interactive,debug -- "$@")
+    --long verbose,flush,help,interactive,de -- "$@")
 if (( $? != 0 )); then
     usage
     echo "selftests: $TESTNAME [FAILED] Error calling getopt, unknown option?"
@@ -52,7 +52,7 @@ while true; do
 		export VERBOSE=yes
 		shift
 		;;
-	    -i | --interactive | --debug )
+	    -i | --interactive | --de )
 		INTERACTIVE=yes
 		shift
 		;;
@@ -182,7 +182,7 @@ ip netns exec ns1 ping -W 2 -c 3 $IPADDR2
 
 # Second test: Replace xdp prog, that fully remove vlan header
 #
-# Catch kernel bug for generic-XDP, that does didn't allow us to
+# Catch kernel  for generic-XDP, that does didn't allow us to
 # remove a VLAN header, because skb->protocol still contain VLAN
 # ETH_P_8021Q indication, and this cause overwriting of our changes.
 #

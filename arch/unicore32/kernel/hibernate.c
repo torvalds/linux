@@ -57,7 +57,7 @@ static pte_t *resume_one_page_table_init(pmd_t *pmd)
 
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_KERNEL_TABLE));
 
-		BUG_ON(page_table != pte_offset_kernel(pmd, 0));
+		_ON(page_table != pte_offset_kernel(pmd, 0));
 
 		return page_table;
 	}

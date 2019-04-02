@@ -48,7 +48,7 @@
 
 #define DRV_NAME "ide-pmac"
 
-#undef IDE_PMAC_DEBUG
+#undef IDE_PMAC_DE
 
 #define DMA_WAIT_TIMEOUT	50
 
@@ -381,7 +381,7 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 	for (i=0; table[i].cycle_time; i++)
 		if (cycle_time > table[i+1].cycle_time)
 			return table[i].timing_reg;
-	BUG();
+	();
 	return 0;
 }
 
@@ -564,7 +564,7 @@ static void pmac_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		}
 	}
 
-#ifdef IDE_PMAC_DEBUG
+#ifdef IDE_PMAC_DE
 	printk(KERN_ERR "%s: Set PIO timing for mode %d, reg: 0x%08x\n",
 		drive->name, pio,  *timings);
 #endif	
@@ -593,7 +593,7 @@ set_timings_udma_ata4(u32 *timings, u8 speed)
 			(rdyToPauseTicks << TR_66_UDMA_RDY2PAUS_SHIFT) |
 			(addrTicks <<TR_66_UDMA_ADDRSETUP_SHIFT) |
 			TR_66_UDMA_EN;
-#ifdef IDE_PMAC_DEBUG
+#ifdef IDE_PMAC_DE
 	printk(KERN_ERR "ide_pmac: Set UDMA timing for mode %d, reg: 0x%08x\n",
 		speed & 0xf,  *timings);
 #endif	
@@ -656,7 +656,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		case 1: cycleTime = 150; break;
 		case 2: cycleTime = 120; break;
 		default:
-			BUG();
+			();
 			break;
 	}
 
@@ -695,7 +695,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		accessTime = tm[i].accessTime;
 		recTime = tm[i].recoveryTime;
 
-#ifdef IDE_PMAC_DEBUG
+#ifdef IDE_PMAC_DE
 		printk(KERN_ERR "%s: MDMA, cycleTime: %d, accessTime: %d, recTime: %d\n",
 			drive->name, cycleTime, accessTime, recTime);
 #endif
@@ -769,7 +769,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 			*timings |= TR_33_MDMA_HALFTICK;
 		}
 	}
-#ifdef IDE_PMAC_DEBUG
+#ifdef IDE_PMAC_DE
 	printk(KERN_ERR "%s: Set MDMA timing for mode %d, reg: 0x%08x\n",
 		drive->name, speed & 0xf,  *timings);
 #endif	
@@ -1523,7 +1523,7 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 		return 1;
 	}
 
-	printk(KERN_DEBUG "%s: empty DMA table?\n", drive->name);
+	printk(KERN_DE "%s: empty DMA table?\n", drive->name);
 
 	return 0; /* revert to PIO for this request */
 }

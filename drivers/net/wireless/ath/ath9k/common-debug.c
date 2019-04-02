@@ -44,13 +44,13 @@ static const struct file_operations fops_modal_eeprom = {
 };
 
 
-void ath9k_cmn_debug_modal_eeprom(struct dentry *debugfs_phy,
+void ath9k_cmn_de_modal_eeprom(struct dentry *defs_phy,
 				  struct ath_hw *ah)
 {
-	debugfs_create_file("modal_eeprom", 0400, debugfs_phy, ah,
+	defs_create_file("modal_eeprom", 0400, defs_phy, ah,
 			    &fops_modal_eeprom);
 }
-EXPORT_SYMBOL(ath9k_cmn_debug_modal_eeprom);
+EXPORT_SYMBOL(ath9k_cmn_de_modal_eeprom);
 
 static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
@@ -79,15 +79,15 @@ static const struct file_operations fops_base_eeprom = {
 	.llseek = default_llseek,
 };
 
-void ath9k_cmn_debug_base_eeprom(struct dentry *debugfs_phy,
+void ath9k_cmn_de_base_eeprom(struct dentry *defs_phy,
 				 struct ath_hw *ah)
 {
-	debugfs_create_file("base_eeprom", 0400, debugfs_phy, ah,
+	defs_create_file("base_eeprom", 0400, defs_phy, ah,
 			    &fops_base_eeprom);
 }
-EXPORT_SYMBOL(ath9k_cmn_debug_base_eeprom);
+EXPORT_SYMBOL(ath9k_cmn_de_base_eeprom);
 
-void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
+void ath9k_cmn_de_stat_rx(struct ath_rx_stats *rxstats,
 			     struct ath_rx_status *rs)
 {
 #define RX_PHY_ERR_INC(c) rxstats->phy_err_stats[c]++
@@ -118,7 +118,7 @@ void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
 #undef RX_CMN_STAT_INC
 #undef RX_PHY_ERR_INC
 }
-EXPORT_SYMBOL(ath9k_cmn_debug_stat_rx);
+EXPORT_SYMBOL(ath9k_cmn_de_stat_rx);
 
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
@@ -177,12 +177,12 @@ static const struct file_operations fops_recv = {
 	.llseek = default_llseek,
 };
 
-void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
+void ath9k_cmn_de_recv(struct dentry *defs_phy,
 			  struct ath_rx_stats *rxstats)
 {
-	debugfs_create_file("recv", 0400, debugfs_phy, rxstats, &fops_recv);
+	defs_create_file("recv", 0400, defs_phy, rxstats, &fops_recv);
 }
-EXPORT_SYMBOL(ath9k_cmn_debug_recv);
+EXPORT_SYMBOL(ath9k_cmn_de_recv);
 
 static ssize_t read_file_phy_err(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
@@ -253,10 +253,10 @@ static const struct file_operations fops_phy_err = {
 	.llseek = default_llseek,
 };
 
-void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
+void ath9k_cmn_de_phy_err(struct dentry *defs_phy,
 			     struct ath_rx_stats *rxstats)
 {
-	debugfs_create_file("phy_err", 0400, debugfs_phy, rxstats,
+	defs_create_file("phy_err", 0400, defs_phy, rxstats,
 			    &fops_phy_err);
 }
-EXPORT_SYMBOL(ath9k_cmn_debug_phy_err);
+EXPORT_SYMBOL(ath9k_cmn_de_phy_err);

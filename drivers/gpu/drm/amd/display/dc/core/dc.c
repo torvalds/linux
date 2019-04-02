@@ -180,7 +180,7 @@ static bool create_links(
 		struct encoder_init_data enc_init = {0};
 
 		if (link == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto failed_alloc;
 		}
 
@@ -197,7 +197,7 @@ static bool create_links(
 		link->link_enc = kzalloc(sizeof(*link->link_enc), GFP_KERNEL);
 
 		if (!link->link_enc) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto failed_alloc;
 		}
 
@@ -1971,7 +1971,7 @@ bool dc_submit_i2c(
 static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
 {
 	if (dc_link->sink_count >= MAX_SINKS_PER_LINK) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -2003,12 +2003,12 @@ struct dc_sink *dc_link_add_remote_sink(
 	}
 
 	if (!init_data) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
 	if (!init_data->link) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -2057,7 +2057,7 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 	int i;
 
 	if (!link->sink_count) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 

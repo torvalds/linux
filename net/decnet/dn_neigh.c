@@ -166,7 +166,7 @@ static int dn_neigh_construct(struct neighbour *neigh)
 
 static void dn_neigh_error_report(struct neighbour *neigh, struct sk_buff *skb)
 {
-	printk(KERN_DEBUG "dn_neigh_error_report: called\n");
+	printk(KERN_DE "dn_neigh_error_report: called\n");
 	kfree_skb(skb);
 }
 

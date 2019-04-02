@@ -100,9 +100,9 @@ void greybus_deregister_driver(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
-void gb_debugfs_init(void);
-void gb_debugfs_cleanup(void);
-struct dentry *gb_debugfs_get(void);
+void gb_defs_init(void);
+void gb_defs_cleanup(void);
+struct dentry *gb_defs_get(void);
 
 extern struct bus_type greybus_bus_type;
 

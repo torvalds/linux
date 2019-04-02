@@ -67,7 +67,7 @@ static void sync_api_supported(void)
 	struct stat sbuf;
 	int ret;
 
-	ret = stat("/sys/kernel/debug/sync/sw_sync", &sbuf);
+	ret = stat("/sys/kernel/de/sync/sw_sync", &sbuf);
 	if (!ret)
 		return;
 
@@ -77,7 +77,7 @@ static void sync_api_supported(void)
 	if (errno == EACCES)
 		ksft_exit_skip("Run Sync test as root.\n");
 
-	ksft_exit_fail_msg("stat failed on /sys/kernel/debug/sync/sw_sync: %s",
+	ksft_exit_fail_msg("stat failed on /sys/kernel/de/sync/sw_sync: %s",
 				strerror(errno));
 }
 

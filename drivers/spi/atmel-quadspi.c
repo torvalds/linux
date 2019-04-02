@@ -6,7 +6,7 @@
  * Copyright (C) 2018 Cryptera A/S
  *
  * Author: Cyrille Pitchen <cyrille.pitchen@atmel.com>
- * Author: Piotr Bugalski <bugalski.piotr@gmail.com>
+ * Author: Piotr alski <alski.piotr@gmail.com>
  *
  * This driver is based on drivers/mtd/spi-nor/fsl-quadspi.c from Freescale.
  */
@@ -624,6 +624,6 @@ static struct platform_driver atmel_qspi_driver = {
 module_platform_driver(atmel_qspi_driver);
 
 MODULE_AUTHOR("Cyrille Pitchen <cyrille.pitchen@atmel.com>");
-MODULE_AUTHOR("Piotr Bugalski <bugalski.piotr@gmail.com");
+MODULE_AUTHOR("Piotr alski <alski.piotr@gmail.com");
 MODULE_DESCRIPTION("Atmel QSPI Controller driver");
 MODULE_LICENSE("GPL v2");

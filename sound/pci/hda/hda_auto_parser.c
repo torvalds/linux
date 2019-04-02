@@ -209,7 +209,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		loc = get_defcfg_location(def_conf);
 		dev = get_defcfg_device(def_conf);
 
-		/* workaround for buggy BIOS setups */
+		/* workaround for gy BIOS setups */
 		if (dev == AC_JACK_LINE_OUT) {
 			if (conn == AC_JACK_PORT_FIXED ||
 			    conn == AC_JACK_PORT_BOTH)
@@ -406,7 +406,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	     compare_input_type, NULL);
 
 	/*
-	 * debug prints of the parsed results
+	 * de prints of the parsed results
 	 */
 	codec_info(codec, "autoconfig for %s: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
 		   codec->core.chip_name, cfg->line_outs, cfg->line_out_pins[0],
@@ -941,7 +941,7 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			continue;
 		if (pin_config_match(codec, pq->pins)) {
 			codec->fixup_id = pq->value;
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 			codec->fixup_name = pq->name;
 			codec_dbg(codec, "%s: picked fixup %s (pin match)\n",
 				  codec->core.chip_name, codec->fixup_name);
@@ -1007,7 +1007,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		q = snd_pci_quirk_lookup(codec->bus->pci, quirk);
 		if (q) {
 			id = q->value;
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 			name = q->name;
 			codec_dbg(codec, "%s: picked fixup %s (PCI SSID%s)\n",
 				  codec->core.chip_name, name, q->subdevice_mask ? "" : " - vendor generic");
@@ -1021,7 +1021,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			unsigned int mask = 0xffff0000 | q->subdevice_mask;
 			if ((codec->core.subsystem_id & mask) == (vendorid & mask)) {
 				id = q->value;
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 				name = q->name;
 				codec_dbg(codec, "%s: picked fixup %s (codec SSID)\n",
 					  codec->core.chip_name, name);

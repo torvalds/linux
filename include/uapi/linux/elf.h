@@ -92,7 +92,7 @@ typedef __s64	Elf64_Sxword;
 #define DT_RELSZ	18
 #define DT_RELENT	19
 #define DT_PLTREL	20
-#define DT_DEBUG	21
+#define DT_DE	21
 #define DT_TEXTREL	22
 #define DT_JMPREL	23
 #define DT_ENCODING	32

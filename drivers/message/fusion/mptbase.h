@@ -189,7 +189,7 @@
 #define MPT_SCSI_FC_SG_DEPTH	40
 #endif
 
-/* debug print string length used for events and iocstatus */
+/* de print string length used for events and iocstatus */
 # define EVENT_DESCR_STR_SZ             100
 
 #define MPT_POLLING_INTERVAL		1000	/* in milliseconds */
@@ -206,7 +206,7 @@
  * themselves define their own MYNAM.
  */
 #define MYIOC_s_FMT			MYNAM ": %s: "
-#define MYIOC_s_DEBUG_FMT		KERN_DEBUG MYNAM ": %s: "
+#define MYIOC_s_DE_FMT		KERN_DE MYNAM ": %s: "
 #define MYIOC_s_INFO_FMT		KERN_INFO MYNAM ": %s: "
 #define MYIOC_s_NOTE_FMT		KERN_NOTICE MYNAM ": %s: "
 #define MYIOC_s_WARN_FMT		KERN_WARNING MYNAM ": %s: WARNING - "
@@ -615,7 +615,7 @@ typedef struct _MPT_ADAPTER
 	char			 board_tracer[16];
 	u16			 nvdata_version_persistent;
 	u16			 nvdata_version_default;
-	int			 debug_level;
+	int			 de_level;
 	u8			 io_missing_delay;
 	u16			 device_missing_delay;
 	SYSIF_REGS __iomem	*chip;		/* == c8817000 (mmap) */
@@ -836,7 +836,7 @@ typedef struct _mpt_sge {
 /*
  *  Funky (private) macros...
  */
-#include "mptdebug.h"
+#include "mptde.h"
 
 #define MPT_INDEX_2_MFPTR(ioc,idx) \
 	(MPT_FRAME_HDR*)( (u8*)(ioc)->req_frames + (ioc)->req_sz * (idx) )
@@ -952,7 +952,7 @@ extern void     mpt_halt_firmware(MPT_ADAPTER *ioc);
  *  Public data decl's...
  */
 extern struct list_head	  ioc_list;
-extern int mpt_fwfault_debug;
+extern int mpt_fwfault_de;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 #endif		/* } __KERNEL__ */

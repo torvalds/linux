@@ -25,7 +25,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -320,7 +320,7 @@ struct sctp_association *sctp_association_new(const struct sctp_endpoint *ep,
 
 	SCTP_DBG_OBJCNT_INC(assoc);
 
-	pr_debug("Created asoc %p\n", asoc);
+	pr_de("Created asoc %p\n", asoc);
 
 	return asoc;
 
@@ -506,7 +506,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 	struct list_head *pos;
 	struct sctp_chunk *ch;
 
-	pr_debug("%s: association:%p addr:%pISpc\n",
+	pr_de("%s: association:%p addr:%pISpc\n",
 		 __func__, asoc, &peer->ipaddr.sa);
 
 	/* If we are to remove the current retran_path, update it
@@ -614,7 +614,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* AF_INET and AF_INET6 share common port field. */
 	port = ntohs(addr->v4.sin_port);
 
-	pr_debug("%s: association:%p addr:%pISpc state:%d\n", __func__,
+	pr_de("%s: association:%p addr:%pISpc state:%d\n", __func__,
 		 asoc, &addr->sa, peer_state);
 
 	/* Set the port if it has not been set yet.  */
@@ -1329,7 +1329,7 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 
 	asoc->peer.retran_path = trans_next;
 
-	pr_debug("%s: association:%p updated new path to addr:%pISpc\n",
+	pr_de("%s: association:%p updated new path to addr:%pISpc\n",
 		 __func__, asoc, &asoc->peer.retran_path->ipaddr.sa);
 }
 
@@ -1439,7 +1439,7 @@ void sctp_assoc_set_pmtu(struct sctp_association *asoc, __u32 pmtu)
 		sctp_assoc_update_frag_point(asoc);
 	}
 
-	pr_debug("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
+	pr_de("%s: asoc:%p, pmtu:%d, frag_point:%d\n", __func__, asoc,
 		 asoc->pathmtu, asoc->frag_point);
 }
 
@@ -1517,7 +1517,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 		asoc->rwnd_press -= change;
 	}
 
-	pr_debug("%s: asoc:%p rwnd increased by %d to (%u, %u) - %u\n",
+	pr_de("%s: asoc:%p rwnd increased by %d to (%u, %u) - %u\n",
 		 __func__, asoc, len, asoc->rwnd, asoc->rwnd_over,
 		 asoc->a_rwnd);
 
@@ -1529,7 +1529,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 	if (sctp_peer_needs_update(asoc)) {
 		asoc->a_rwnd = asoc->rwnd;
 
-		pr_debug("%s: sending window update SACK- asoc:%p rwnd:%u "
+		pr_de("%s: sending window update SACK- asoc:%p rwnd:%u "
 			 "a_rwnd:%u\n", __func__, asoc, asoc->rwnd,
 			 asoc->a_rwnd);
 
@@ -1555,7 +1555,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
 	int over = 0;
 
 	if (unlikely(!asoc->rwnd || asoc->rwnd_over))
-		pr_debug("%s: association:%p has asoc->rwnd:%u, "
+		pr_de("%s: association:%p has asoc->rwnd:%u, "
 			 "asoc->rwnd_over:%u!\n", __func__, asoc,
 			 asoc->rwnd, asoc->rwnd_over);
 
@@ -1583,7 +1583,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
 		asoc->rwnd = 0;
 	}
 
-	pr_debug("%s: asoc:%p rwnd decreased by %d to (%u, %u, %u)\n",
+	pr_de("%s: asoc:%p rwnd decreased by %d to (%u, %u, %u)\n",
 		 __func__, asoc, len, asoc->rwnd, asoc->rwnd_over,
 		 asoc->rwnd_press);
 }

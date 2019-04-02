@@ -307,7 +307,7 @@ static int ucb1x00_ts_open(struct input_dev *idev)
 	unsigned long flags = 0;
 	int ret = 0;
 
-	BUG_ON(ts->rtask);
+	_ON(ts->rtask);
 
 	if (machine_is_collie())
 		flags = IRQF_TRIGGER_RISING;

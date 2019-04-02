@@ -70,7 +70,7 @@ Still doesn't work?
 
 I do NOT have a lab with 30+ different grabber boards and a
 PAL/NTSC/SECAM test signal generator at home, so I often can't
-reproduce your problems.  This makes debugging very difficult for me.
+reproduce your problems.  This makes deging very difficult for me.
 If you have some knowledge and spare time, please try to fix this
 yourself (patches very welcome of course...)  You know: The linux
 slogan is "Do it yourself".
@@ -114,7 +114,7 @@ bttv.o
 			2: 35 MHz crystal installed
 
 		triton1=0/1     for Triton1 (+others) compatibility
-		vsfx=0/1	yet another chipset bug compatibility bit
+		vsfx=0/1	yet another chipset  compatibility bit
 				see README.quirks for details on these two.
 
 		bigendian=n	Set the endianness of the gfx framebuffer.
@@ -126,9 +126,9 @@ bttv.o
 				default is 1 (on).
 		bttv_verbose=0/1/2  verbose level (at insmod time, while
 				looking at the hardware).  default is 1.
-		bttv_debug=0/1	debug messages (for capture).
+		bttv_de=0/1	de messages (for capture).
 				default is 0 (off).
-		irq_debug=0/1	irq handler debug messages.
+		irq_de=0/1	irq handler de messages.
 				default is 0 (off).
 		gbuffers=2-32	number of capture buffers for mmap'ed capture.
 				default is 4.
@@ -174,7 +174,7 @@ tuner.o
 	with a camera or external tuner ...
 
 	insmod args:
-		debug=1		print some debug info to the syslog
+		de=1		print some de info to the syslog
 		type=n		type of the tuner chip. n as follows:
 				see CARDLIST for a complete list.
 		pal=[bdgil]	select PAL variant (used for some tuners
@@ -198,7 +198,7 @@ tvaudio.o
 		tea6420  = 1	address and can't be disturgished from
 		pic16c54 = 1	each other, you might have to disable
 				the wrong one.
-		debug = 1	print debug messages
+		de = 1	print de messages
 
 	insmod args for tda9874a:
 		tda9874a_SIF=1/2	select sound IF input pin (1 or 2)
@@ -239,7 +239,7 @@ msp3400.o
 	stereo card, you probably want to insmod this one.
 
 	insmod args:
-		debug=1/2	print some debug info to the syslog,
+		de=1/2	print some de info to the syslog,
 				2 is more verbose.
 		simple=1	Use the "short programming" method.  Newer
 				msp34xx versions support this.  You need this
@@ -262,7 +262,7 @@ tea6300.o - OBSOLETE (use tvaudio instead)
 	Gateway OEM sold surplus on auction sites).
 
 	insmod args:
-		debug=1		print some debug info to the syslog.
+		de=1		print some de info to the syslog.
 
 tda8425.o - OBSOLETE (use tvaudio instead)
 
@@ -273,7 +273,7 @@ tda8425.o - OBSOLETE (use tvaudio instead)
 	anymore, try loading this module.
 
 	insmod args:
-		debug=1		print some debug info to the syslog.
+		de=1		print some de info to the syslog.
 
 tda985x.o - OBSOLETE (use tvaudio instead)
 
@@ -282,25 +282,25 @@ tda985x.o - OBSOLETE (use tvaudio instead)
 	The driver for the tda9850/55 audio chips.
 
 	insmod args:
-		debug=1		print some debug info to the syslog.
+		de=1		print some de info to the syslog.
 		chip=9850/9855	set the chip type.
 
 
 If the box freezes hard with bttv
 ---------------------------------
 
-It might be a bttv driver bug.  It also might be bad hardware.  It also
+It might be a bttv driver .  It also might be bad hardware.  It also
 might be something else ...
 
 Just mailing me "bttv freezes" isn't going to help much.  This README
 has a few hints how you can help to pin down the problem.
 
 
-bttv bugs
+bttv s
 ~~~~~~~~~
 
 If some version works and another doesn't it is likely to be a driver
-bug.  It is very helpful if you can tell where exactly it broke
+.  It is very helpful if you can tell where exactly it broke
 (i.e. the last working and the first broken version).
 
 With a hard freeze you probably doesn't find anything in the logfiles.
@@ -309,7 +309,7 @@ console and let some terminal application log the messages.  /me uses
 screen.  See Documentation/admin-guide/serial-console.rst for details on setting
 up a serial console.
 
-Read Documentation/admin-guide/bug-hunting.rst to learn how to get any useful
+Read Documentation/admin-guide/-hunting.rst to learn how to get any useful
 information out of a register+stack dump printed by the kernel on
 protection faults (so-called "kernel oops").
 
@@ -319,13 +319,13 @@ This way it is possible to figure where *exactly* some process in "D"
 state is stuck.
 
 I've seen reports that bttv 0.7.x crashes whereas 0.8.x works rock solid
-for some people.  Thus probably a small buglet left somewhere in bttv
+for some people.  Thus probably a small let left somewhere in bttv
 0.7.x.  I have no idea where exactly, it works stable for me and a lot of
 other people.  But in case you have problems with the 0.7.x versions you
 can give 0.8.x a try ...
 
 
-hardware bugs
+hardware s
 ~~~~~~~~~~~~~
 
 Some hardware can't deal with PCI-PCI transfers (i.e. grabber => vga).
@@ -342,7 +342,7 @@ Some mainboard have problems to deal correctly with multiple devices
 doing DMA at the same time.  bttv + ide seems to cause this sometimes,
 if this is the case you likely see freezes only with video and hard disk
 access at the same time.  Updating the IDE driver to get the latest and
-greatest workarounds for hardware bugs might fix these problems.
+greatest workarounds for hardware s might fix these problems.
 
 
 other
@@ -362,7 +362,7 @@ apci-enabled kernel).
 Bttv quirks
 -----------
 
-Below is what the bt878 data book says about the PCI bug compatibility
+Below is what the bt878 data book says about the PCI  compatibility
 modes of the bt878 chip.
 
 The triton1 insmod option sets the EN_TBFX bit in the control register.
@@ -371,7 +371,7 @@ stability problems you can try if one of these options makes your box
 work solid.
 
 drivers/pci/quirks.c knows about these issues, this way these bits are
-enabled automagically for known-buggy chipsets (look at the kernel
+enabled automagically for known-gy chipsets (look at the kernel
 messages, bttv tells you).
 
 Normal PCI Mode
@@ -534,11 +534,11 @@ connected at all and then start trial-and-error ...
 
 
 Starting with release 0.7.41 bttv has a number of insmod options to
-make the gpio debugging easier:
+make the gpio deging easier:
 
 .. code-block:: none
 
-	bttv_gpio=0/1		enable/disable gpio debug messages
+	bttv_gpio=0/1		enable/disable gpio de messages
 	gpiomask=n		set the gpiomask value
 	audiomux=i,j,...	set the values of the audiomux array
 	audioall=a		set the values of the audiomux array (one
@@ -953,8 +953,8 @@ To use the driver I use the following options, the tuner and pll settings might
 be different in your country
 
 insmod videodev
-insmod i2c scan=1 i2c_debug=0 verbose=0
-insmod tuner type=1 debug=0
+insmod i2c scan=1 i2c_de=0 verbose=0
+insmod tuner type=1 de=0
 insmod bttv  pll=1 radio=1 card=17
 
 
@@ -1895,7 +1895,7 @@ Many thanks to:
 
 - MIRO for providing a free PCTV card and detailed information about the
   components on their cards. (E.g. how the tuner type is detected)
-  Without their card I could not have debugged the NTSC mode.
+  Without their card I could not have deged the NTSC mode.
 
 - Hauppauge for telling how the sound input is selected and what components
   they do and will use on their radio cards.

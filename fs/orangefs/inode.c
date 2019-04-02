@@ -27,7 +27,7 @@ static int read_one_page(struct page *page)
 
 	iov_iter_bvec(&to, READ, &bv, 1, PAGE_SIZE);
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		    "orangefs_readpage called with page %p\n",
 		     page);
 
@@ -72,7 +72,7 @@ static int orangefs_readpages(struct file *file,
 	int page_idx;
 	int ret;
 
-	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_readpages called\n");
+	gossip_de(GOSSIP_INODE_DE, "orangefs_readpages called\n");
 
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
 		struct page *page;
@@ -84,14 +84,14 @@ static int orangefs_readpages(struct file *file,
 				       page->index,
 				       readahead_gfp_mask(mapping))) {
 			ret = read_one_page(page);
-			gossip_debug(GOSSIP_INODE_DEBUG,
+			gossip_de(GOSSIP_INODE_DE,
 				"failure adding page to cache, read_one_page returned: %d\n",
 				ret);
 	      } else {
 			put_page(page);
 	      }
 	}
-	BUG_ON(!list_empty(pages));
+	_ON(!list_empty(pages));
 	return 0;
 }
 
@@ -99,7 +99,7 @@ static void orangefs_invalidatepage(struct page *page,
 				 unsigned int offset,
 				 unsigned int length)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "orangefs_invalidatepage called on page %p "
 		     "(offset is %u)\n",
 		     page,
@@ -113,7 +113,7 @@ static void orangefs_invalidatepage(struct page *page,
 
 static int orangefs_releasepage(struct page *page, gfp_t foo)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "orangefs_releasepage called on page %p\n",
 		     page);
 	return 0;
@@ -130,7 +130,7 @@ static int orangefs_releasepage(struct page *page, gfp_t foo)
 static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 				  struct iov_iter *iter)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "orangefs_direct_IO: %pD\n",
 		     iocb->ki_filp);
 
@@ -153,7 +153,7 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	loff_t orig_size;
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "%s: %pU: Handle is %pU | fs_id %d | size is %llu\n",
 		     __func__,
 		     get_khandle_from_ino(inode),
@@ -189,7 +189,7 @@ static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 	 * the truncate has no downcall members to retrieve, but
 	 * the status value tells us if it went through ok or not
 	 */
-	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
+	gossip_de(GOSSIP_INODE_DE, "%s: ret:%d:\n", __func__, ret);
 
 	op_release(new_op);
 
@@ -210,7 +210,7 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	int ret = -EINVAL;
 	struct inode *inode = dentry->d_inode;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		"%s: called on %pd\n",
 		__func__,
 		dentry);
@@ -229,7 +229,7 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 	mark_inode_dirty(inode);
 
 	ret = orangefs_inode_setattr(inode, iattr);
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		"%s: orangefs_inode_setattr returned %d\n",
 		__func__,
 		ret);
@@ -239,7 +239,7 @@ int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
 		ret = posix_acl_chmod(inode, inode->i_mode);
 
 out:
-	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
+	gossip_de(GOSSIP_INODE_DE, "%s: ret:%d:\n", __func__, ret);
 	return ret;
 }
 
@@ -252,7 +252,7 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 	int ret = -ENOENT;
 	struct inode *inode = path->dentry->d_inode;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "orangefs_getattr: called on %pd\n",
 		     path->dentry);
 
@@ -281,7 +281,7 @@ int orangefs_permission(struct inode *inode, int mask)
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
-	gossip_debug(GOSSIP_INODE_DEBUG, "%s: refreshing\n", __func__);
+	gossip_de(GOSSIP_INODE_DE, "%s: refreshing\n", __func__);
 
 	/* Make sure the permission (and other common attrs) are up to date. */
 	ret = orangefs_inode_getattr(inode, 0, 0, STATX_MODE);
@@ -294,7 +294,7 @@ int orangefs_permission(struct inode *inode, int mask)
 int orangefs_update_time(struct inode *inode, struct timespec64 *time, int flags)
 {
 	struct iattr iattr;
-	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",
+	gossip_de(GOSSIP_INODE_DE, "orangefs_update_time: %pU\n",
 	    get_khandle_from_ino(inode));
 	generic_update_time(inode, time, flags);
 	memset(&iattr, 0, sizeof iattr);
@@ -335,7 +335,7 @@ static int orangefs_init_iops(struct inode *inode)
 		inode->i_fop = &orangefs_dir_operations;
 		break;
 	default:
-		gossip_debug(GOSSIP_INODE_DEBUG,
+		gossip_de(GOSSIP_INODE_DE,
 			     "%s: unsupported mode\n",
 			     __func__);
 		return -EINVAL;
@@ -419,7 +419,7 @@ struct inode *orangefs_iget(struct super_block *sb,
 	orangefs_init_iops(inode);
 	unlock_new_inode(inode);
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "iget handle %pU, fsid %d hash %ld i_ino %lu\n",
 		     &ref->khandle,
 		     ref->fs_id,
@@ -439,7 +439,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	struct inode *inode;
 	int error;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "%s:(sb is %p | MAJOR(dev)=%u | MINOR(dev)=%u mode=%o)\n",
 		     __func__,
 		     sb,
@@ -471,7 +471,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	if (error < 0)
 		goto out_iput;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_de(GOSSIP_INODE_DE,
 		     "Initializing ACL's for inode %pU\n",
 		     get_khandle_from_ino(inode));
 	orangefs_init_acl(inode, dir);

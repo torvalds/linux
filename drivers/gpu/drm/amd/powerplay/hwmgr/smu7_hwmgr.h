@@ -254,7 +254,7 @@ struct smu7_hwmgr {
 
 	uint32_t                             mgcg_cgtt_local2;
 	uint32_t                             mgcg_cgtt_local3;
-	uint32_t                             gpio_debug;
+	uint32_t                             gpio_de;
 	uint32_t                             mc_micro_code_feature;
 	uint32_t                             highest_mclk;
 	uint16_t                             acpi_vddci;

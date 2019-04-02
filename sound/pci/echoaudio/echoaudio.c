@@ -541,7 +541,7 @@ static int init_engine(struct snd_pcm_substream *substream,
 	if (pipe->index >= 0) {
 		dev_dbg(chip->card->dev, "hwp_ie free(%d)\n", pipe->index);
 		err = free_pipes(chip, pipe);
-		snd_BUG_ON(err);
+		snd__ON(err);
 		chip->substream[pipe->index] = NULL;
 	}
 
@@ -724,9 +724,9 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 		return -EINVAL;
 	}
 
-	if (snd_BUG_ON(pipe_index >= px_num(chip)))
+	if (snd__ON(pipe_index >= px_num(chip)))
 		return -EINVAL;
-	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe_index)))
+	if (snd__ON(!is_pipe_allocated(chip, pipe_index)))
 		return -EINVAL;
 	set_audio_format(chip, pipe_index, &format);
 	return 0;

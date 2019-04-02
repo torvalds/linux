@@ -1072,7 +1072,7 @@ int memac_init(struct fman_mac *memac)
 	    ((memac->fm_rev_info.minor == 0) ||
 	    (memac->fm_rev_info.minor == 3))) {
 		/* MAC strips CRC from received frames - this workaround
-		 * should decrease the likelihood of bug appearance
+		 * should decrease the likelihood of  appearance
 		 */
 		reg32 = ioread32be(&memac->regs->command_config);
 		reg32 &= ~CMD_CFG_CRC_FWD;

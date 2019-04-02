@@ -29,7 +29,7 @@
  *	Gerd Knorr	:	Fixed wired inode handling
  *	Martin Mares	: (2.2)	"0.0.0.0" addresses from command line ignored.
  *	Martin Mares	:	RARP replies not tested for server address.
- *	Gero Kuhlmann	: (2.3) Some bug fixes and code cleanup again (please
+ *	Gero Kuhlmann	: (2.3) Some  fixes and code cleanup again (please
  *				send me your new patches _before_ bothering
  *				Linus so that I don' always have to cleanup
  *				_afterwards_ - thanks)
@@ -39,7 +39,7 @@
  *				different RARP and NFS servers.
  *	Gero Kuhlmann	:	"0.0.0.0" addresses from command line are
  *				now mapped to INADDR_NONE.
- *	Gero Kuhlmann	:	Fixed a bug which prevented BOOTP path name
+ *	Gero Kuhlmann	:	Fixed a  which prevented BOOTP path name
  *				from being used (thanks to Leo Spiekman)
  *	Andy Walker	:	Allow to specify the NFS server in nfs_root
  *				without giving a path name
@@ -47,12 +47,12 @@
  *				without giving a path name. Fix BOOTP request
  *				for domainname (domainname is NIS domain, not
  *				DNS domain!). Skip dummy devices for BOOTP.
- *	Jacek Zapala	:	Fixed a bug which prevented server-ip address
+ *	Jacek Zapala	:	Fixed a  which prevented server-ip address
  *				from nfsroot parameter from being used.
  *	Olaf Kirch	:	Adapted to new NFS code.
  *	Jakub Jelinek	:	Free used code segment.
- *	Marko Kohtala	:	Fixed some bugs.
- *	Martin Mares	:	Debug message cleanup
+ *	Marko Kohtala	:	Fixed some s.
+ *	Martin Mares	:	De message cleanup
  *	Martin Mares	:	Changed to use the new generic IP layer autoconfig
  *				code. BOOTP and RARP moved there.
  *	Martin Mares	:	Default path now contains host name instead of
@@ -62,13 +62,13 @@
  *	Martin Mares	:	Rewrote parameter parsing, now hopefully giving
  *				correct overriding.
  *	Trond Myklebust :	Add in preliminary support for NFSv3 and TCP.
- *				Fix bug in root_nfs_addr(). nfs_data.namlen
+ *				Fix  in root_nfs_addr(). nfs_data.namlen
  *				is NOT for the length of the hostname.
  *	Hua Qin		:	Support for mounting root file system via
  *				NFS over TCP.
  *	Fabian Frederick:	Option parser rebuilt (using parser lib)
  *	Chuck Lever	:	Use super.c's text-based mount option parsing
- *	Chuck Lever	:	Add "nfsrootdebug".
+ *	Chuck Lever	:	Add "nfsrootde".
  */
 
 #include <linux/types.h>
@@ -105,18 +105,18 @@ static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = "";
 /* server:export path string passed to super.c */
 static char nfs_root_device[NFS_MAXPATHLEN + 1] __initdata = "";
 
-#ifdef NFS_DEBUG
+#ifdef NFS_DE
 /*
- * When the "nfsrootdebug" kernel command line option is specified,
- * enable debugging messages for NFSROOT.
+ * When the "nfsrootde" kernel command line option is specified,
+ * enable deging messages for NFSROOT.
  */
-static int __init nfs_root_debug(char *__unused)
+static int __init nfs_root_de(char *__unused)
 {
-	nfs_debug |= NFSDBG_ROOT | NFSDBG_MOUNT;
+	nfs_de |= NFSDBG_ROOT | NFSDBG_MOUNT;
 	return 1;
 }
 
-__setup("nfsrootdebug", nfs_root_debug);
+__setup("nfsrootde", nfs_root_de);
 #endif
 
 /*

@@ -30,7 +30,7 @@
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/traps.h>
 
 #define CREATE_TRACE_POINTS
@@ -117,28 +117,28 @@ static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 /**
- * kvm_handle_guest_debug - handle a debug exception instruction
+ * kvm_handle_guest_de - handle a de exception instruction
  *
  * @vcpu:	the vcpu pointer
  * @run:	access to the kvm_run structure for results
  *
- * We route all debug exceptions through the same handler. If both the
- * guest and host are using the same debug facilities it will be up to
+ * We route all de exceptions through the same handler. If both the
+ * guest and host are using the same de facilities it will be up to
  * userspace to re-inject the correct exception for guest delivery.
  *
  * @return: 0 (while setting run->exit_reason), -1 for error
  */
-static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_guest_de(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
 	int ret = 0;
 
-	run->exit_reason = KVM_EXIT_DEBUG;
-	run->debug.arch.hsr = hsr;
+	run->exit_reason = KVM_EXIT_DE;
+	run->de.arch.hsr = hsr;
 
 	switch (ESR_ELx_EC(hsr)) {
 	case ESR_ELx_EC_WATCHPT_LOW:
-		run->debug.arch.far = vcpu->arch.fault.far_el2;
+		run->de.arch.far = vcpu->arch.fault.far_el2;
 		/* fall through */
 	case ESR_ELx_EC_SOFTSTP_LOW:
 	case ESR_ELx_EC_BREAKPT_LOW:
@@ -206,11 +206,11 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_SVE]	= handle_sve,
 	[ESR_ELx_EC_IABT_LOW]	= kvm_handle_guest_abort,
 	[ESR_ELx_EC_DABT_LOW]	= kvm_handle_guest_abort,
-	[ESR_ELx_EC_SOFTSTP_LOW]= kvm_handle_guest_debug,
-	[ESR_ELx_EC_WATCHPT_LOW]= kvm_handle_guest_debug,
-	[ESR_ELx_EC_BREAKPT_LOW]= kvm_handle_guest_debug,
-	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_debug,
-	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_debug,
+	[ESR_ELx_EC_SOFTSTP_LOW]= kvm_handle_guest_de,
+	[ESR_ELx_EC_WATCHPT_LOW]= kvm_handle_guest_de,
+	[ESR_ELx_EC_BREAKPT_LOW]= kvm_handle_guest_de,
+	[ESR_ELx_EC_BKPT32]	= kvm_handle_guest_de,
+	[ESR_ELx_EC_BRK64]	= kvm_handle_guest_de,
 	[ESR_ELx_EC_FP_ASIMD]	= handle_no_fpsimd,
 	[ESR_ELx_EC_PAC]	= kvm_handle_ptrauth,
 };
@@ -226,7 +226,7 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 /*
  * We may be single-stepping an emulated instruction. If the emulation
  * has been completed in the kernel, we can return to userspace with a
- * KVM_EXIT_DEBUG, otherwise userspace needs to complete its
+ * KVM_EXIT_DE, otherwise userspace needs to complete its
  * emulation first.
  */
 static int handle_trap_exceptions(struct kvm_vcpu *vcpu, struct kvm_run *run)

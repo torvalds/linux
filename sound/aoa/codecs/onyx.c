@@ -1023,7 +1023,7 @@ static int onyx_i2c_probe(struct i2c_client *client,
 	if (aoa_codec_register(&onyx->codec)) {
 		goto fail;
 	}
-	printk(KERN_DEBUG PFX "created and attached onyx instance\n");
+	printk(KERN_DE PFX "created and attached onyx instance\n");
 	return 0;
  fail:
 	kfree(onyx);

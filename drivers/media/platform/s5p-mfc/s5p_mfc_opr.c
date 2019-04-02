@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "s5p_mfc_debug.h"
+#include "s5p_mfc_de.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_opr_v5.h"
 #include "s5p_mfc_opr_v6.h"
@@ -45,7 +45,7 @@ int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 	unsigned int align = (SZ_64K >> PAGE_SHIFT) - 1;
 	unsigned int start, offset;
 
-	mfc_debug(3, "Allocating priv: %zu\n", b->size);
+	mfc_de(3, "Allocating priv: %zu\n", b->size);
 
 	if (dev->mem_virt) {
 		start = bitmap_find_next_zero_area(dev->mem_bitmap, bits, 0, count, align);
@@ -72,7 +72,7 @@ int s5p_mfc_alloc_priv_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 		}
 	}
 
-	mfc_debug(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
+	mfc_de(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
 	return 0;
 no_mem:
 	mfc_err("Allocating private buffer of size %zu failed\n", b->size);
@@ -84,14 +84,14 @@ int s5p_mfc_alloc_generic_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
 {
 	struct device *mem_dev = dev->mem_dev[mem_ctx];
 
-	mfc_debug(3, "Allocating generic buf: %zu\n", b->size);
+	mfc_de(3, "Allocating generic buf: %zu\n", b->size);
 
 	b->ctx = mem_ctx;
 	b->virt = dma_alloc_coherent(mem_dev, b->size, &b->dma, GFP_KERNEL);
 	if (!b->virt)
 		goto no_mem;
 
-	mfc_debug(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
+	mfc_de(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
 	return 0;
 no_mem:
 	mfc_err("Allocating generic buffer of size %zu failed\n", b->size);

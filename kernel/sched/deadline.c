@@ -157,7 +157,7 @@ void dl_change_utilization(struct task_struct *p, u64 new_bw)
 {
 	struct rq *rq;
 
-	BUG_ON(p->dl.flags & SCHED_FLAG_SUGOV);
+	_ON(p->dl.flags & SCHED_FLAG_SUGOV);
 
 	if (task_on_rq_queued(p))
 		return;
@@ -451,7 +451,7 @@ static void enqueue_pushable_dl_task(struct rq *rq, struct task_struct *p)
 	struct task_struct *entry;
 	bool leftmost = true;
 
-	BUG_ON(!RB_EMPTY_NODE(&p->pushable_dl_tasks));
+	_ON(!RB_EMPTY_NODE(&p->pushable_dl_tasks));
 
 	while (*link) {
 		parent = *link;
@@ -545,7 +545,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 			 * Failed to find any suitable CPU.
 			 * The task will never come back!
 			 */
-			BUG_ON(dl_bandwidth_enabled());
+			_ON(dl_bandwidth_enabled());
 
 			/*
 			 * If admission control is disabled we
@@ -669,7 +669,7 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
 	struct rq *rq = rq_of_dl_rq(dl_rq);
 
-	BUG_ON(pi_se->dl_runtime <= 0);
+	_ON(pi_se->dl_runtime <= 0);
 
 	/*
 	 * This could be the case for a !-dl task that is boosted.
@@ -1375,7 +1375,7 @@ static void __enqueue_dl_entity(struct sched_dl_entity *dl_se)
 	struct sched_dl_entity *entry;
 	int leftmost = 1;
 
-	BUG_ON(!RB_EMPTY_NODE(&dl_se->rb_node));
+	_ON(!RB_EMPTY_NODE(&dl_se->rb_node));
 
 	while (*link) {
 		parent = *link;
@@ -1411,7 +1411,7 @@ static void
 enqueue_dl_entity(struct sched_dl_entity *dl_se,
 		  struct sched_dl_entity *pi_se, int flags)
 {
-	BUG_ON(on_dl_rq(dl_se));
+	_ON(on_dl_rq(dl_se));
 
 	/*
 	 * If this is a wakeup or a new instance, the scheduling
@@ -1460,7 +1460,7 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 		 * it, as it's going to return back to its original
 		 * scheduling class after this.
 		 */
-		BUG_ON(!p->dl.dl_boosted || flags != ENQUEUE_REPLENISH);
+		_ON(!p->dl.dl_boosted || flags != ENQUEUE_REPLENISH);
 		return;
 	}
 
@@ -1755,7 +1755,7 @@ pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 	put_prev_task(rq, prev);
 
 	dl_se = pick_next_dl_entity(rq, dl_rq);
-	BUG_ON(!dl_se);
+	_ON(!dl_se);
 
 	p = dl_task_of(dl_se);
 
@@ -2013,12 +2013,12 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 	p = rb_entry(rq->dl.pushable_dl_tasks_root.rb_leftmost,
 		     struct task_struct, pushable_dl_tasks);
 
-	BUG_ON(rq->cpu != task_cpu(p));
-	BUG_ON(task_current(rq, p));
-	BUG_ON(p->nr_cpus_allowed <= 1);
+	_ON(rq->cpu != task_cpu(p));
+	_ON(task_current(rq, p));
+	_ON(p->nr_cpus_allowed <= 1);
 
-	BUG_ON(!task_on_rq_queued(p));
-	BUG_ON(!dl_task(p));
+	_ON(!task_on_rq_queued(p));
+	_ON(!dl_task(p));
 
 	return p;
 }
@@ -2227,7 +2227,7 @@ static void set_cpus_allowed_dl(struct task_struct *p,
 	struct root_domain *src_rd;
 	struct rq *rq;
 
-	BUG_ON(!dl_task(p));
+	_ON(!dl_task(p));
 
 	rq = task_rq(p);
 	src_rd = rq->rd;
@@ -2748,9 +2748,9 @@ bool dl_cpu_busy(unsigned int cpu)
 }
 #endif
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 void print_dl_stats(struct seq_file *m, int cpu)
 {
 	print_dl_rq(m, cpu, &cpu_rq(cpu)->dl);
 }
-#endif /* CONFIG_SCHED_DEBUG */
+#endif /* CONFIG_SCHED_DE */

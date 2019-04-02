@@ -482,7 +482,7 @@ static int __init apbuart_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	pr_debug("apbuart_console_setup co=%p, co->index=%i, options=%s\n",
+	pr_de("apbuart_console_setup co=%p, co->index=%i, options=%s\n",
 		 co, co->index, options);
 
 	/*

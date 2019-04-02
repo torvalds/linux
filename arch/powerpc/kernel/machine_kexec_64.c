@@ -305,7 +305,7 @@ void default_machine_kexec(struct kimage *image)
         * into our wait loop and quiesce interrupts.
         * Otherwise, in the case of crashed mode (crashing_cpu >= 0),
         * stopping other CPUs and collecting their pt_regs is done before
-        * using debugger IPI.
+        * using deger IPI.
         */
 
 	if (!kdump_in_progress())

@@ -4,7 +4,7 @@
  *
  * The functions in this file provide an interface between
  * the PROC file system and the SCSI device drivers
- * It is mainly used for debugging, statistics and to pass 
+ * It is mainly used for deging, statistics and to pass 
  * information directly to the lowlevel driver.
  *
  * (c) 1995 Michael Neuffer neuffer@goofy.zdv.uni-mainz.de 

@@ -13,8 +13,8 @@
 #ifndef  __nsp_cs__
 #define  __nsp_cs__
 
-/* for debugging */
-//#define NSP_DEBUG 9
+/* for deging */
+//#define NSP_DE 9
 
 /*
 #define static
@@ -274,9 +274,9 @@ typedef struct _nsp_hw_data {
 	scsi_info_t   *ScsiInfo; /* attach <-> detect glue */
 
 
-#ifdef NSP_DEBUG
+#ifdef NSP_DE
 	int CmdId; /* Accepted command serial number.
-		      Used for debugging.             */
+		      Used for deging.             */
 #endif
 } nsp_hw_data;
 
@@ -326,8 +326,8 @@ static struct Scsi_Host *nsp_detect(struct scsi_host_template *sht);
 /* Interrupt handler */
 //static irqreturn_t nspintr(int irq, void *dev_id);
 
-/* Debug */
-#ifdef NSP_DEBUG
+/* De */
+#ifdef NSP_DE
 static void show_command (struct scsi_cmnd *SCpnt);
 static void show_phase   (struct scsi_cmnd *SCpnt);
 static void show_busphase(unsigned char stat);

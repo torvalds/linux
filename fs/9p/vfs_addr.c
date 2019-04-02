@@ -57,9 +57,9 @@ static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
 	struct iov_iter to;
 	int retval, err;
 
-	p9_debug(P9_DEBUG_VFS, "\n");
+	p9_de(P9_DE_VFS, "\n");
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	retval = v9fs_readpage_from_fscache(inode, page);
 	if (retval == 0)
@@ -116,14 +116,14 @@ static int v9fs_vfs_readpages(struct file *filp, struct address_space *mapping,
 	struct inode *inode;
 
 	inode = mapping->host;
-	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, filp);
+	p9_de(P9_DE_VFS, "inode: %p file: %p\n", inode, filp);
 
 	ret = v9fs_readpages_from_fscache(inode, mapping, pages, &nr_pages);
 	if (ret == 0)
 		return ret;
 
 	ret = read_cache_pages(mapping, pages, (void *)v9fs_vfs_readpage, filp);
-	p9_debug(P9_DEBUG_VFS, "  = %d\n", ret);
+	p9_de(P9_DE_VFS, "  = %d\n", ret);
 	return ret;
 }
 
@@ -178,7 +178,7 @@ static int v9fs_vfs_writepage_locked(struct page *page)
 	iov_iter_bvec(&from, WRITE, &bvec, 1, len);
 
 	/* We should have writeback_fid always set */
-	BUG_ON(!v9inode->writeback_fid);
+	_ON(!v9inode->writeback_fid);
 
 	set_page_writeback(page);
 
@@ -192,7 +192,7 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int retval;
 
-	p9_debug(P9_DEBUG_VFS, "page %p\n", page);
+	p9_de(P9_DE_VFS, "page %p\n", page);
 
 	retval = v9fs_vfs_writepage_locked(page);
 	if (retval < 0) {
@@ -276,7 +276,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 
 
-	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
+	p9_de(P9_DE_VFS, "filp %p, mapping %p\n", filp, mapping);
 
 	v9inode = V9FS_I(inode);
 start:
@@ -285,7 +285,7 @@ start:
 		retval = -ENOMEM;
 		goto out;
 	}
-	BUG_ON(!v9inode->writeback_fid);
+	_ON(!v9inode->writeback_fid);
 	if (PageUptodate(page))
 		goto out;
 
@@ -308,7 +308,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 	loff_t last_pos = pos + copied;
 	struct inode *inode = page->mapping->host;
 
-	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
+	p9_de(P9_DE_VFS, "filp %p, mapping %p\n", filp, mapping);
 
 	if (!PageUptodate(page)) {
 		if (unlikely(copied < len)) {

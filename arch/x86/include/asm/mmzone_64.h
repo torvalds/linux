@@ -7,7 +7,7 @@
 
 #ifdef CONFIG_NUMA
 
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <asm/smp.h>
 
 extern struct pglist_data *node_data[];

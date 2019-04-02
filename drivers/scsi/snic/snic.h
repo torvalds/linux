@@ -125,7 +125,7 @@
 /* snic module params */
 extern unsigned int snic_max_qdepth;
 
-/* snic debugging */
+/* snic deging */
 extern unsigned int snic_log_level;
 
 #define SNIC_MAIN_LOGGING	0x1
@@ -172,19 +172,19 @@ do {						\
 #define SNIC_ERR(fmt, args...)				\
 	pr_err(PFX fmt, ## args)
 
-#ifdef DEBUG
-#define SNIC_BUG_ON(EXPR) \
+#ifdef DE
+#define SNIC__ON(EXPR) \
 	({ \
 		if (EXPR) { \
-			SNIC_ERR("SNIC BUG(%s)\n", #EXPR); \
-			BUG_ON(EXPR); \
+			SNIC_ERR("SNIC (%s)\n", #EXPR); \
+			_ON(EXPR); \
 		} \
 	})
 #else
-#define SNIC_BUG_ON(EXPR) \
+#define SNIC__ON(EXPR) \
 	({ \
 		if (EXPR) { \
-			SNIC_ERR("SNIC BUG(%s) at %s : %d\n", \
+			SNIC_ERR("SNIC (%s) at %s : %d\n", \
 				 #EXPR, __func__, __LINE__); \
 			WARN_ON_ONCE(EXPR); \
 		} \
@@ -331,9 +331,9 @@ struct snic {
 	struct snic_stats s_stats;	/* Per SNIC driver stats */
 
 	/* platform specific */
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
-	struct dentry *stats_host;	/* Per snic debugfs root */
-	struct dentry *stats_file;	/* Per snic debugfs file */
+#ifdef CONFIG_SCSI_SNIC_DE_FS
+	struct dentry *stats_host;	/* Per snic defs root */
+	struct dentry *stats_file;	/* Per snic defs file */
 	struct dentry *reset_stats_file;/* Per snic reset stats file */
 #endif
 
@@ -359,8 +359,8 @@ struct snic_global {
 
 	struct workqueue_struct *event_q;
 
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
-	/* debugfs related global data */
+#ifdef CONFIG_SCSI_SNIC_DE_FS
+	/* defs related global data */
 	struct dentry *trc_root;
 	struct dentry *stats_root;
 

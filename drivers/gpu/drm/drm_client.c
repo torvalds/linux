@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 
 #include <drm/drm_client.h>
-#include <drm/drm_debugfs.h>
+#include <drm/drm_defs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -145,7 +145,7 @@ void drm_client_release(struct drm_client_dev *client)
 {
 	struct drm_device *dev = client->dev;
 
-	DRM_DEV_DEBUG_KMS(dev->dev, "%s\n", client->name);
+	DRM_DEV_DE_KMS(dev->dev, "%s\n", client->name);
 
 	drm_client_close(client);
 	drm_dev_put(dev);
@@ -197,7 +197,7 @@ void drm_client_dev_hotplug(struct drm_device *dev)
 			continue;
 
 		ret = client->funcs->hotplug(client);
-		DRM_DEV_DEBUG_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
+		DRM_DEV_DE_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
 	}
 	mutex_unlock(&dev->clientlist_mutex);
 }
@@ -217,7 +217,7 @@ void drm_client_dev_restore(struct drm_device *dev)
 			continue;
 
 		ret = client->funcs->restore(client);
-		DRM_DEV_DEBUG_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
+		DRM_DEV_DE_KMS(dev->dev, "%s: ret=%d\n", client->name, ret);
 		if (!ret) /* The first one to return zero gets the privilege to restore */
 			break;
 	}
@@ -392,8 +392,8 @@ void drm_client_framebuffer_delete(struct drm_client_buffer *buffer)
 }
 EXPORT_SYMBOL(drm_client_framebuffer_delete);
 
-#ifdef CONFIG_DEBUG_FS
-static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
+#ifdef CONFIG_DE_FS
+static int drm_client_defs_internal_clients(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -408,14 +408,14 @@ static int drm_client_debugfs_internal_clients(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list drm_client_debugfs_list[] = {
-	{ "internal_clients", drm_client_debugfs_internal_clients, 0 },
+static const struct drm_info_list drm_client_defs_list[] = {
+	{ "internal_clients", drm_client_defs_internal_clients, 0 },
 };
 
-int drm_client_debugfs_init(struct drm_minor *minor)
+int drm_client_defs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(drm_client_debugfs_list,
-					ARRAY_SIZE(drm_client_debugfs_list),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(drm_client_defs_list,
+					ARRAY_SIZE(drm_client_defs_list),
+					minor->defs_root, minor);
 }
 #endif

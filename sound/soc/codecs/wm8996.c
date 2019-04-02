@@ -1937,7 +1937,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 		}
 	}
 
-	pr_debug("FLL Fref=%u Fout=%u\n", Fref, Fout);
+	pr_de("FLL Fref=%u Fout=%u\n", Fref, Fout);
 
 	/* Apply the division for our remaining calculations */
 	Fref /= div;
@@ -1965,7 +1965,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	target = Fout * div;
 	fll_div->fll_outdiv = div - 1;
 
-	pr_debug("FLL Fvco=%dHz\n", target);
+	pr_de("FLL Fvco=%dHz\n", target);
 
 	/* Find an appropraite FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
@@ -1993,9 +1993,9 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 		fll_div->lambda = (fratio * Fref) / gcd_fll;
 	}
 
-	pr_debug("FLL N=%x THETA=%x LAMBDA=%x\n",
+	pr_de("FLL N=%x THETA=%x LAMBDA=%x\n",
 		 fll_div->n, fll_div->theta, fll_div->lambda);
-	pr_debug("FLL_FRATIO=%x FLL_OUTDIV=%x FLL_REFCLK_DIV=%x\n",
+	pr_de("FLL_FRATIO=%x FLL_OUTDIV=%x FLL_REFCLK_DIV=%x\n",
 		 fll_div->fll_fratio, fll_div->fll_outdiv,
 		 fll_div->fll_refclk_div);
 

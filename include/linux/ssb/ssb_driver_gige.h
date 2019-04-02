@@ -3,7 +3,7 @@
 #define LINUX_SSB_DRIVER_GIGE_H_
 
 #include <linux/ssb/ssb.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 
@@ -131,7 +131,7 @@ static inline void ssb_gige_exit(void)
 {
 	/* Currently we can not unregister the GigE driver,
 	 * because we can not unregister the PCI bridge. */
-	BUG();
+	();
 }
 
 

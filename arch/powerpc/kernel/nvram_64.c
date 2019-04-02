@@ -28,7 +28,7 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 
-#undef DEBUG_NVRAM
+#undef DE_NVRAM
 
 #define NVRAM_HEADER_LEN	sizeof(struct nvram_header)
 #define NVRAM_BLOCK_LEN		NVRAM_HEADER_LEN
@@ -708,7 +708,7 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 	spin_unlock_irqrestore(&lock, flags);
 }
 
-#ifdef DEBUG_NVRAM
+#ifdef DE_NVRAM
 static void __init nvram_print_partitions(char * label)
 {
 	struct nvram_partition * tmp_part;
@@ -855,7 +855,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	long size = 0;
 	int rc;
 
-	BUILD_BUG_ON(NVRAM_BLOCK_LEN != 16);
+	BUILD__ON(NVRAM_BLOCK_LEN != 16);
 
 	/* Convert sizes from bytes to blocks */
 	req_size = _ALIGN_UP(req_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
@@ -1049,7 +1049,7 @@ int __init nvram_scan_partitions(void)
 	}
 	err = 0;
 
-#ifdef DEBUG_NVRAM
+#ifdef DE_NVRAM
 	nvram_print_partitions("NVRAM Partitions");
 #endif
 

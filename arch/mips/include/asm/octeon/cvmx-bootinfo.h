@@ -72,8 +72,8 @@ struct cvmx_bootinfo {
 	uint32_t dram_size;
 	/* physical address of free memory descriptor block*/
 	uint32_t phy_mem_desc_addr;
-	/* used to pass flags from app to debugger */
-	uint32_t debugger_flags_base_addr;
+	/* used to pass flags from app to deger */
+	uint32_t deger_flags_base_addr;
 
 	/* CPU clock speed, in hz */
 	uint32_t eclock_hz;
@@ -157,7 +157,7 @@ struct cvmx_bootinfo {
 	uint32_t dram_size;
 
 	uint32_t eclock_hz;
-	uint32_t debugger_flags_base_addr;
+	uint32_t deger_flags_base_addr;
 
 	uint32_t reserved0;
 	uint32_t dclock_hz;
@@ -194,7 +194,7 @@ struct cvmx_bootinfo {
 
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_HOST			(1ull << 0)
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_TARGET		(1ull << 1)
-#define CVMX_BOOTINFO_CFG_FLAG_DEBUG			(1ull << 2)
+#define CVMX_BOOTINFO_CFG_FLAG_DE			(1ull << 2)
 #define CVMX_BOOTINFO_CFG_FLAG_NO_MAGIC			(1ull << 3)
 /* This flag is set if the TLB mappings are not contained in the
  * 0x10000000 - 0x20000000 boot bus region. */

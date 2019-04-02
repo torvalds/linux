@@ -35,7 +35,7 @@
 #define THREAD_IMC_ENABLE               0x8000000000000000ULL
 
 /*
- * For debugfs interface for imc-mode and imc-command
+ * For defs interface for imc-mode and imc-command
  */
 #define IMC_CNTL_BLK_OFFSET		0x3FC00
 #define IMC_CNTL_BLK_CMD_OFFSET		8

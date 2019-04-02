@@ -7,16 +7,16 @@
  * option) any later version.
  */
 
-#ifndef __MIPS_ASM_DEBUG_H__
-#define __MIPS_ASM_DEBUG_H__
+#ifndef __MIPS_ASM_DE_H__
+#define __MIPS_ASM_DE_H__
 
 #include <linux/dcache.h>
 
 /*
- * mips_debugfs_dir corresponds to the "mips" directory at the top level
- * of the DebugFS hierarchy. MIPS-specific DebugFS entires should be
+ * mips_defs_dir corresponds to the "mips" directory at the top level
+ * of the DeFS hierarchy. MIPS-specific DeFS entires should be
  * placed beneath this directory.
  */
-extern struct dentry *mips_debugfs_dir;
+extern struct dentry *mips_defs_dir;
 
-#endif /* __MIPS_ASM_DEBUG_H__ */
+#endif /* __MIPS_ASM_DE_H__ */

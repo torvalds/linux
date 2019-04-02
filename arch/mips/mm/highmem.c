@@ -28,7 +28,7 @@ EXPORT_SYMBOL(kmap);
 
 void kunmap(struct page *page)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return;
 	kunmap_high(page);
@@ -57,8 +57,8 @@ void *kmap_atomic(struct page *page)
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte - idx)));
+#ifdef CONFIG_DE_HIGHMEM
+	_ON(!pte_none(*(kmap_pte - idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, PAGE_KERNEL));
 	local_flush_tlb_one((unsigned long)vaddr);
@@ -79,11 +79,11 @@ void __kunmap_atomic(void *kvaddr)
 	}
 
 	type = kmap_atomic_idx();
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	{
 		int idx = type + KM_TYPE_NR * smp_processor_id();
 
-		BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
+		_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 
 		/*
 		 * force other mappings to Oops if they'll try to access

@@ -493,7 +493,7 @@ struct pmcraid_chip_details {
 #define INTRS_IOA_UNIT_CHECK			PMC_BIT32(4)
 #define INTRS_NO_HRRQ_FOR_CMD_RESPONSE		PMC_BIT32(5)
 #define INTRS_CRITICAL_OP_IN_PROGRESS		PMC_BIT32(6)
-#define INTRS_IO_DEBUG_ACK			PMC_BIT32(7)
+#define INTRS_IO_DE_ACK			PMC_BIT32(7)
 #define INTRS_IOARRIN_LOST			PMC_BIT32(27)
 #define INTRS_SYSTEM_BUS_MMIO_ERROR		PMC_BIT32(28)
 #define INTRS_IOA_PROCESSOR_ERROR		PMC_BIT32(29)
@@ -504,7 +504,7 @@ struct pmcraid_chip_details {
 /* Host to IOA Doorbells */
 #define DOORBELL_RUNTIME_RESET			PMC_BIT32(1)
 #define DOORBELL_IOA_RESET_ALERT		PMC_BIT32(7)
-#define DOORBELL_IOA_DEBUG_ALERT		PMC_BIT32(9)
+#define DOORBELL_IOA_DE_ALERT		PMC_BIT32(9)
 #define DOORBELL_ENABLE_DESTRUCTIVE_DIAGS	PMC_BIT32(8)
 #define DOORBELL_IOA_START_BIST			PMC_BIT32(23)
 #define DOORBELL_INTR_MODE_MSIX			PMC_BIT32(25)
@@ -992,12 +992,12 @@ static struct pmcraid_ioasc_error pmcraid_ioasc_error_table[] = {
 	 "Data Protect, other volume set problem"},
 };
 
-/* macros to help in debugging */
+/* macros to help in deging */
 #define pmcraid_err(...)  \
 	printk(KERN_ERR "MaxRAID: "__VA_ARGS__)
 
 #define pmcraid_info(...) \
-	if (pmcraid_debug_log) \
+	if (pmcraid_de_log) \
 		printk(KERN_INFO "MaxRAID: "__VA_ARGS__)
 
 /* check if given command is a SCSI READ or SCSI WRITE command */

@@ -25,11 +25,11 @@
 #include <linux/uaccess.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
-#ifdef PROC_FS_JFS /* see jfs_debug.h */
+#ifdef PROC_FS_JFS /* see jfs_de.h */
 
-#ifdef CONFIG_JFS_DEBUG
+#ifdef CONFIG_JFS_DE
 static int jfs_loglevel_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "%d\n", jfsloglevel);
@@ -79,7 +79,7 @@ void jfs_proc_init(void)
 	proc_create_single("xtstat", 0, base, jfs_xtstat_proc_show);
 	proc_create_single("mpstat", 0, base, jfs_mpstat_proc_show);
 #endif
-#ifdef CONFIG_JFS_DEBUG
+#ifdef CONFIG_JFS_DE
 	proc_create_single("TxAnchor", 0, base, jfs_txanchor_proc_show);
 	proc_create("loglevel", 0, base, &jfs_loglevel_proc_fops);
 #endif

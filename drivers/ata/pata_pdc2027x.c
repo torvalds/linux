@@ -36,9 +36,9 @@
 
 #define DRV_NAME	"pata_pdc2027x"
 #define DRV_VERSION	"1.0"
-#undef PDC_DEBUG
+#undef PDC_DE
 
-#ifdef PDC_DEBUG
+#ifdef PDC_DE
 #define PDPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define PDPRINTK(fmt, args...)
@@ -530,7 +530,7 @@ static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int b
 		return;
 	}
 
-#ifdef PDC_DEBUG
+#ifdef PDC_DE
 	PDPRINTK("pout_required is %ld\n", pout_required);
 
 	/* Show the current clock value of PLL control register
@@ -582,7 +582,7 @@ static void pdc_adjust_pll(struct ata_host *host, long pll_clock, unsigned int b
 	/* Wait the PLL circuit to be stable */
 	msleep(30);
 
-#ifdef PDC_DEBUG
+#ifdef PDC_DE
 	/*
 	 *  Show the current clock value of PLL control register
 	 * (maybe configured by the firmware)

@@ -277,7 +277,7 @@ void __init zylonite_pxa300_init(void)
 		gpio_eth_irq = mfp_to_gpio(MFP_PIN_GPIO102);
 	}
 
-	/* GPIOs for Debug LEDs */
-	gpio_debug_led1 = EXT_GPIO(25);
-	gpio_debug_led2 = EXT_GPIO(26);
+	/* GPIOs for De LEDs */
+	gpio_de_led1 = EXT_GPIO(25);
+	gpio_de_led2 = EXT_GPIO(26);
 }

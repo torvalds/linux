@@ -133,7 +133,7 @@ static int bcm_kona_do_smc(u32 service_id, u32 buffer_phys)
 		: "r" (r4), "r" (r5), "r" (r6)
 		: "r1", "r2", "r3", "r7", "lr");
 
-	BUG_ON(ip != SEC_EXIT_NORMAL);
+	_ON(ip != SEC_EXIT_NORMAL);
 
 	return r0;
 }
@@ -144,8 +144,8 @@ static void __bcm_kona_smc(void *info)
 	struct bcm_kona_smc_data *data = info;
 	u32 *args = bcm_smc_buffer;
 
-	BUG_ON(smp_processor_id() != 0);
-	BUG_ON(!args);
+	_ON(smp_processor_id() != 0);
+	_ON(!args);
 
 	/* Copy the four 32 bit argument values into the bounce area */
 	writel_relaxed(data->arg0, args++);

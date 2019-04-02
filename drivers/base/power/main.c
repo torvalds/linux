@@ -28,7 +28,7 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/async.h>
 #include <linux/suspend.h>
 #include <trace/events/power.h>
@@ -130,7 +130,7 @@ void device_pm_add(struct device *dev)
 	if (device_pm_not_required(dev))
 		return;
 
-	pr_debug("Adding info for %s:%s\n",
+	pr_de("Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
 	device_pm_check_callbacks(dev);
 	mutex_lock(&dpm_list_mtx);
@@ -151,7 +151,7 @@ void device_pm_remove(struct device *dev)
 	if (device_pm_not_required(dev))
 		return;
 
-	pr_debug("Removing info for %s:%s\n",
+	pr_de("Removing info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
 	complete_all(&dev->power.completion);
 	mutex_lock(&dpm_list_mtx);
@@ -170,7 +170,7 @@ void device_pm_remove(struct device *dev)
  */
 void device_pm_move_before(struct device *deva, struct device *devb)
 {
-	pr_debug("Moving %s:%s before %s:%s\n",
+	pr_de("Moving %s:%s before %s:%s\n",
 		 deva->bus ? deva->bus->name : "No Bus", dev_name(deva),
 		 devb->bus ? devb->bus->name : "No Bus", dev_name(devb));
 	/* Delete deva from dpm_list and reinsert before devb. */
@@ -184,7 +184,7 @@ void device_pm_move_before(struct device *deva, struct device *devb)
  */
 void device_pm_move_after(struct device *deva, struct device *devb)
 {
-	pr_debug("Moving %s:%s after %s:%s\n",
+	pr_de("Moving %s:%s after %s:%s\n",
 		 deva->bus ? deva->bus->name : "No Bus", dev_name(deva),
 		 devb->bus ? devb->bus->name : "No Bus", dev_name(devb));
 	/* Delete deva from dpm_list and reinsert after devb. */
@@ -197,12 +197,12 @@ void device_pm_move_after(struct device *deva, struct device *devb)
  */
 void device_pm_move_last(struct device *dev)
 {
-	pr_debug("Moving %s:%s to end of list\n",
+	pr_de("Moving %s:%s to end of list\n",
 		 dev->bus ? dev->bus->name : "No Bus", dev_name(dev));
 	list_move_tail(&dev->power.entry, &dpm_list);
 }
 
-static ktime_t initcall_debug_start(struct device *dev, void *cb)
+static ktime_t initcall_de_start(struct device *dev, void *cb)
 {
 	if (!pm_print_times_enabled)
 		return 0;
@@ -213,7 +213,7 @@ static ktime_t initcall_debug_start(struct device *dev, void *cb)
 	return ktime_get();
 }
 
-static void initcall_debug_report(struct device *dev, ktime_t calltime,
+static void initcall_de_report(struct device *dev, ktime_t calltime,
 				  void *cb, int error)
 {
 	ktime_t rettime;
@@ -453,7 +453,7 @@ static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 	if (!cb)
 		return 0;
 
-	calltime = initcall_debug_start(dev, cb);
+	calltime = initcall_de_start(dev, cb);
 
 	pm_dev_dbg(dev, state, info);
 	trace_device_pm_callback_start(dev, info, state.event);
@@ -461,7 +461,7 @@ static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 	trace_device_pm_callback_end(dev, error);
 	suspend_report_result(cb, error);
 
-	initcall_debug_report(dev, calltime, cb, error);
+	initcall_de_report(dev, calltime, cb, error);
 
 	return error;
 }
@@ -1672,14 +1672,14 @@ static int legacy_suspend(struct device *dev, pm_message_t state,
 	int error;
 	ktime_t calltime;
 
-	calltime = initcall_debug_start(dev, cb);
+	calltime = initcall_de_start(dev, cb);
 
 	trace_device_pm_callback_start(dev, info, state.event);
 	error = cb(dev, state);
 	trace_device_pm_callback_end(dev, error);
 	suspend_report_result(cb, error);
 
-	initcall_debug_report(dev, calltime, cb, error);
+	initcall_de_report(dev, calltime, cb, error);
 
 	return error;
 }

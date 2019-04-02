@@ -24,7 +24,7 @@ static void __iomem *sysc_base2;
 static int rmobile_reset_handler(struct notifier_block *this,
 				 unsigned long mode, void *cmd)
 {
-	pr_debug("%s %lu\n", __func__, mode);
+	pr_de("%s %lu\n", __func__, mode);
 
 	/* Let's assume we have acquired the HPB semaphore */
 	writel(RESCNT2_PRES, sysc_base2 + RESCNT2);

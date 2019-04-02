@@ -100,7 +100,7 @@
  */
 
 #include "bset.h"
-#include "debug.h"
+#include "de.h"
 
 struct btree_write {
 	atomic_t		*journal;

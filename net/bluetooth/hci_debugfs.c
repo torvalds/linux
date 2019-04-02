@@ -21,12 +21,12 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#include "hci_debugfs.h"
+#include "hci_defs.h"
 
 #define DEFINE_QUIRK_ATTRIBUTE(__name, __quirk)				      \
 static ssize_t __name ## _read(struct file *file,			      \
@@ -252,21 +252,21 @@ static int conn_info_max_age_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(conn_info_max_age_fops, conn_info_max_age_get,
 			conn_info_max_age_set, "%llu\n");
 
-static ssize_t use_debug_keys_read(struct file *file, char __user *user_buf,
+static ssize_t use_de_keys_read(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS) ? 'Y': 'N';
+	buf[0] = hci_dev_test_flag(hdev, HCI_USE_DE_KEYS) ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 
-static const struct file_operations use_debug_keys_fops = {
+static const struct file_operations use_de_keys_fops = {
 	.open		= simple_open,
-	.read		= use_debug_keys_read,
+	.read		= use_de_keys_read,
 	.llseek		= default_llseek,
 };
 
@@ -291,46 +291,46 @@ static const struct file_operations sc_only_mode_fops = {
 DEFINE_INFO_ATTRIBUTE(hardware_info, hw_info);
 DEFINE_INFO_ATTRIBUTE(firmware_info, fw_info);
 
-void hci_debugfs_create_common(struct hci_dev *hdev)
+void hci_defs_create_common(struct hci_dev *hdev)
 {
-	debugfs_create_file("features", 0444, hdev->debugfs, hdev,
+	defs_create_file("features", 0444, hdev->defs, hdev,
 			    &features_fops);
-	debugfs_create_u16("manufacturer", 0444, hdev->debugfs,
+	defs_create_u16("manufacturer", 0444, hdev->defs,
 			   &hdev->manufacturer);
-	debugfs_create_u8("hci_version", 0444, hdev->debugfs, &hdev->hci_ver);
-	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
-	debugfs_create_u8("hardware_error", 0444, hdev->debugfs,
+	defs_create_u8("hci_version", 0444, hdev->defs, &hdev->hci_ver);
+	defs_create_u16("hci_revision", 0444, hdev->defs, &hdev->hci_rev);
+	defs_create_u8("hardware_error", 0444, hdev->defs,
 			  &hdev->hw_error_code);
-	debugfs_create_file("device_id", 0444, hdev->debugfs, hdev,
+	defs_create_file("device_id", 0444, hdev->defs, hdev,
 			    &device_id_fops);
 
-	debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
+	defs_create_file("device_list", 0444, hdev->defs, hdev,
 			    &device_list_fops);
-	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
+	defs_create_file("blacklist", 0444, hdev->defs, hdev,
 			    &blacklist_fops);
-	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
-	debugfs_create_file("remote_oob", 0400, hdev->debugfs, hdev,
+	defs_create_file("uuids", 0444, hdev->defs, hdev, &uuids_fops);
+	defs_create_file("remote_oob", 0400, hdev->defs, hdev,
 			    &remote_oob_fops);
 
-	debugfs_create_file("conn_info_min_age", 0644, hdev->debugfs, hdev,
+	defs_create_file("conn_info_min_age", 0644, hdev->defs, hdev,
 			    &conn_info_min_age_fops);
-	debugfs_create_file("conn_info_max_age", 0644, hdev->debugfs, hdev,
+	defs_create_file("conn_info_max_age", 0644, hdev->defs, hdev,
 			    &conn_info_max_age_fops);
 
 	if (lmp_ssp_capable(hdev) || lmp_le_capable(hdev))
-		debugfs_create_file("use_debug_keys", 0444, hdev->debugfs,
-				    hdev, &use_debug_keys_fops);
+		defs_create_file("use_de_keys", 0444, hdev->defs,
+				    hdev, &use_de_keys_fops);
 
 	if (lmp_sc_capable(hdev) || lmp_le_capable(hdev))
-		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
+		defs_create_file("sc_only_mode", 0444, hdev->defs,
 				    hdev, &sc_only_mode_fops);
 
 	if (hdev->hw_info)
-		debugfs_create_file("hardware_info", 0444, hdev->debugfs,
+		defs_create_file("hardware_info", 0444, hdev->defs,
 				    hdev, &hardware_info_fops);
 
 	if (hdev->fw_info)
-		debugfs_create_file("firmware_info", 0444, hdev->debugfs,
+		defs_create_file("firmware_info", 0444, hdev->defs,
 				    hdev, &firmware_info_fops);
 }
 
@@ -404,21 +404,21 @@ static int voice_setting_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(voice_setting_fops, voice_setting_get,
 			NULL, "0x%4.4llx\n");
 
-static ssize_t ssp_debug_mode_read(struct file *file, char __user *user_buf,
+static ssize_t ssp_de_mode_read(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = hdev->ssp_debug_mode ? 'Y': 'N';
+	buf[0] = hdev->ssp_de_mode ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 
-static const struct file_operations ssp_debug_mode_fops = {
+static const struct file_operations ssp_de_mode_fops = {
 	.open		= simple_open,
-	.read		= ssp_debug_mode_read,
+	.read		= ssp_de_mode_read,
 	.llseek		= default_llseek,
 };
 
@@ -531,30 +531,30 @@ static int sniff_max_interval_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(sniff_max_interval_fops, sniff_max_interval_get,
 			sniff_max_interval_set, "%llu\n");
 
-void hci_debugfs_create_bredr(struct hci_dev *hdev)
+void hci_defs_create_bredr(struct hci_dev *hdev)
 {
-	debugfs_create_file("inquiry_cache", 0444, hdev->debugfs, hdev,
+	defs_create_file("inquiry_cache", 0444, hdev->defs, hdev,
 			    &inquiry_cache_fops);
-	debugfs_create_file("link_keys", 0400, hdev->debugfs, hdev,
+	defs_create_file("link_keys", 0400, hdev->defs, hdev,
 			    &link_keys_fops);
-	debugfs_create_file("dev_class", 0444, hdev->debugfs, hdev,
+	defs_create_file("dev_class", 0444, hdev->defs, hdev,
 			    &dev_class_fops);
-	debugfs_create_file("voice_setting", 0444, hdev->debugfs, hdev,
+	defs_create_file("voice_setting", 0444, hdev->defs, hdev,
 			    &voice_setting_fops);
 
 	if (lmp_ssp_capable(hdev)) {
-		debugfs_create_file("ssp_debug_mode", 0444, hdev->debugfs,
-				    hdev, &ssp_debug_mode_fops);
-		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
+		defs_create_file("ssp_de_mode", 0444, hdev->defs,
+				    hdev, &ssp_de_mode_fops);
+		defs_create_file("auto_accept_delay", 0644, hdev->defs,
 				    hdev, &auto_accept_delay_fops);
 	}
 
 	if (lmp_sniff_capable(hdev)) {
-		debugfs_create_file("idle_timeout", 0644, hdev->debugfs,
+		defs_create_file("idle_timeout", 0644, hdev->defs,
 				    hdev, &idle_timeout_fops);
-		debugfs_create_file("sniff_min_interval", 0644, hdev->debugfs,
+		defs_create_file("sniff_min_interval", 0644, hdev->defs,
 				    hdev, &sniff_min_interval_fops);
-		debugfs_create_file("sniff_max_interval", 0644, hdev->debugfs,
+		defs_create_file("sniff_max_interval", 0644, hdev->defs,
 				    hdev, &sniff_max_interval_fops);
 	}
 }
@@ -946,71 +946,71 @@ DEFINE_QUIRK_ATTRIBUTE(quirk_strict_duplicate_filter,
 DEFINE_QUIRK_ATTRIBUTE(quirk_simultaneous_discovery,
 		       HCI_QUIRK_SIMULTANEOUS_DISCOVERY);
 
-void hci_debugfs_create_le(struct hci_dev *hdev)
+void hci_defs_create_le(struct hci_dev *hdev)
 {
-	debugfs_create_file("identity", 0400, hdev->debugfs, hdev,
+	defs_create_file("identity", 0400, hdev->defs, hdev,
 			    &identity_fops);
-	debugfs_create_file("rpa_timeout", 0644, hdev->debugfs, hdev,
+	defs_create_file("rpa_timeout", 0644, hdev->defs, hdev,
 			    &rpa_timeout_fops);
-	debugfs_create_file("random_address", 0444, hdev->debugfs, hdev,
+	defs_create_file("random_address", 0444, hdev->defs, hdev,
 			    &random_address_fops);
-	debugfs_create_file("static_address", 0444, hdev->debugfs, hdev,
+	defs_create_file("static_address", 0444, hdev->defs, hdev,
 			    &static_address_fops);
 
-	/* For controllers with a public address, provide a debug
+	/* For controllers with a public address, provide a de
 	 * option to force the usage of the configured static
 	 * address. By default the public address is used.
 	 */
 	if (bacmp(&hdev->bdaddr, BDADDR_ANY))
-		debugfs_create_file("force_static_address", 0644,
-				    hdev->debugfs, hdev,
+		defs_create_file("force_static_address", 0644,
+				    hdev->defs, hdev,
 				    &force_static_address_fops);
 
-	debugfs_create_u8("white_list_size", 0444, hdev->debugfs,
+	defs_create_u8("white_list_size", 0444, hdev->defs,
 			  &hdev->le_white_list_size);
-	debugfs_create_file("white_list", 0444, hdev->debugfs, hdev,
+	defs_create_file("white_list", 0444, hdev->defs, hdev,
 			    &white_list_fops);
-	debugfs_create_u8("resolv_list_size", 0444, hdev->debugfs,
+	defs_create_u8("resolv_list_size", 0444, hdev->defs,
 			  &hdev->le_resolv_list_size);
-	debugfs_create_file("resolv_list", 0444, hdev->debugfs, hdev,
+	defs_create_file("resolv_list", 0444, hdev->defs, hdev,
 			    &resolv_list_fops);
-	debugfs_create_file("identity_resolving_keys", 0400, hdev->debugfs,
+	defs_create_file("identity_resolving_keys", 0400, hdev->defs,
 			    hdev, &identity_resolving_keys_fops);
-	debugfs_create_file("long_term_keys", 0400, hdev->debugfs, hdev,
+	defs_create_file("long_term_keys", 0400, hdev->defs, hdev,
 			    &long_term_keys_fops);
-	debugfs_create_file("conn_min_interval", 0644, hdev->debugfs, hdev,
+	defs_create_file("conn_min_interval", 0644, hdev->defs, hdev,
 			    &conn_min_interval_fops);
-	debugfs_create_file("conn_max_interval", 0644, hdev->debugfs, hdev,
+	defs_create_file("conn_max_interval", 0644, hdev->defs, hdev,
 			    &conn_max_interval_fops);
-	debugfs_create_file("conn_latency", 0644, hdev->debugfs, hdev,
+	defs_create_file("conn_latency", 0644, hdev->defs, hdev,
 			    &conn_latency_fops);
-	debugfs_create_file("supervision_timeout", 0644, hdev->debugfs, hdev,
+	defs_create_file("supervision_timeout", 0644, hdev->defs, hdev,
 			    &supervision_timeout_fops);
-	debugfs_create_file("adv_channel_map", 0644, hdev->debugfs, hdev,
+	defs_create_file("adv_channel_map", 0644, hdev->defs, hdev,
 			    &adv_channel_map_fops);
-	debugfs_create_file("adv_min_interval", 0644, hdev->debugfs, hdev,
+	defs_create_file("adv_min_interval", 0644, hdev->defs, hdev,
 			    &adv_min_interval_fops);
-	debugfs_create_file("adv_max_interval", 0644, hdev->debugfs, hdev,
+	defs_create_file("adv_max_interval", 0644, hdev->defs, hdev,
 			    &adv_max_interval_fops);
-	debugfs_create_u16("discov_interleaved_timeout", 0644, hdev->debugfs,
+	defs_create_u16("discov_interleaved_timeout", 0644, hdev->defs,
 			   &hdev->discov_interleaved_timeout);
 
-	debugfs_create_file("quirk_strict_duplicate_filter", 0644,
-			    hdev->debugfs, hdev,
+	defs_create_file("quirk_strict_duplicate_filter", 0644,
+			    hdev->defs, hdev,
 			    &quirk_strict_duplicate_filter_fops);
-	debugfs_create_file("quirk_simultaneous_discovery", 0644,
-			    hdev->debugfs, hdev,
+	defs_create_file("quirk_simultaneous_discovery", 0644,
+			    hdev->defs, hdev,
 			    &quirk_simultaneous_discovery_fops);
 }
 
-void hci_debugfs_create_conn(struct hci_conn *conn)
+void hci_defs_create_conn(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
 	char name[6];
 
-	if (IS_ERR_OR_NULL(hdev->debugfs))
+	if (IS_ERR_OR_NULL(hdev->defs))
 		return;
 
 	snprintf(name, sizeof(name), "%u", conn->handle);
-	conn->debugfs = debugfs_create_dir(name, hdev->debugfs);
+	conn->defs = defs_create_dir(name, hdev->defs);
 }

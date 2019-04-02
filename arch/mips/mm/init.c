@@ -8,7 +8,7 @@
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/signal.h>
@@ -90,7 +90,7 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	pte_t pte;
 	int tlbidx;
 
-	BUG_ON(Page_dcache_dirty(page));
+	_ON(Page_dcache_dirty(page));
 
 	preempt_disable();
 	pagefault_disable();
@@ -258,7 +258,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 						      PAGE_SIZE);
 
 					set_pmd(pmd, __pmd((unsigned long)pte));
-					BUG_ON(pte != pte_offset_kernel(pmd, 0));
+					_ON(pte != pte_offset_kernel(pmd, 0));
 				}
 				vaddr += PMD_SIZE;
 			}
@@ -327,7 +327,7 @@ void maar_init(void)
 	/* Set MAARs using values we recorded already */
 	if (recorded.used) {
 		used = maar_config(recorded.cfgs, recorded.used, num_maars / 2);
-		BUG_ON(used != recorded.used);
+		_ON(used != recorded.used);
 	} else {
 		/* Configure the required MAARs */
 		used = platform_maar_init(num_maars / 2);

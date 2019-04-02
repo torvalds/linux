@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsproto.h"
 
 /*****************************************************************************

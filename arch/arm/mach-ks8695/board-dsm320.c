@@ -47,7 +47,7 @@ static int dsm320_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		/* RealMAGIC chip */
 		return KS8695_IRQ_EXTERN0;
 	}
-	BUG();
+	();
 }
 
 static struct ks8695_pci_cfg __initdata dsm320_pci = {

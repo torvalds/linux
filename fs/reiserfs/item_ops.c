@@ -68,7 +68,7 @@ static int sd_create_vi(struct virtual_node *vn,
 static int sd_check_left(struct virtual_item *vi, int free,
 			 int start_skip, int end_skip)
 {
-	BUG_ON(start_skip || end_skip);
+	_ON(start_skip || end_skip);
 	return -1;
 }
 
@@ -79,7 +79,7 @@ static int sd_check_right(struct virtual_item *vi, int free)
 
 static int sd_part_size(struct virtual_item *vi, int first, int count)
 {
-	BUG_ON(count);
+	_ON(count);
 	return 0;
 }
 
@@ -466,7 +466,7 @@ static int direntry_create_vi(struct virtual_node *vn,
 
 	vi->vi_index = TYPE_DIRENTRY;
 
-	BUG_ON(!(vi->vi_ih) || !vi->vi_item);
+	_ON(!(vi->vi_ih) || !vi->vi_item);
 
 	dir_u->flags = 0;
 	if (le_ih_k_offset(vi->vi_ih) == DOT_OFFSET)
@@ -566,7 +566,7 @@ static int direntry_check_right(struct virtual_item *vi, int free)
 		free -= dir_u->entry_sizes[i];
 		entries++;
 	}
-	BUG_ON(entries == dir_u->entry_count);
+	_ON(entries == dir_u->entry_count);
 
 	/* "." and ".." can not be separated from each other */
 	if ((dir_u->flags & DIRENTRY_VI_FIRST_DIRENTRY_ITEM)

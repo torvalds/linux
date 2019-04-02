@@ -1,5 +1,5 @@
 /*
- * Motorola/Emerson MVME5100 with PPCBug firmware.
+ * Motorola/Emerson MVME5100 with PPC firmware.
  *
  * Author: Stephen Chivers <schivers@csc.com>
  *

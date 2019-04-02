@@ -33,9 +33,9 @@ MODULE_DESCRIPTION("Philips SAA7185 video encoder driver");
 MODULE_AUTHOR("Dave Perks");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* ----------------------------------------------------------------------- */
@@ -66,7 +66,7 @@ static int saa7185_write(struct v4l2_subdev *sd, u8 reg, u8 value)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct saa7185 *encoder = to_saa7185(sd);
 
-	v4l2_dbg(1, debug, sd, "%02x set to %02x\n", reg, value);
+	v4l2_dbg(1, de, sd, "%02x set to %02x\n", reg, value);
 	encoder->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
@@ -324,9 +324,9 @@ static int saa7185_probe(struct i2c_client *client,
 	if (i >= 0)
 		i = saa7185_write_block(sd, init_ntsc, sizeof(init_ntsc));
 	if (i < 0)
-		v4l2_dbg(1, debug, sd, "init error %d\n", i);
+		v4l2_dbg(1, de, sd, "init error %d\n", i);
 	else
-		v4l2_dbg(1, debug, sd, "revision 0x%x\n",
+		v4l2_dbg(1, de, sd, "revision 0x%x\n",
 				saa7185_read(sd) >> 5);
 	return 0;
 }

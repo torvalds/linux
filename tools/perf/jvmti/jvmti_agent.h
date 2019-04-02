@@ -23,7 +23,7 @@ int   jvmti_write_code(void *agent, char const *symbol_name,
 		       uint64_t vma, void const *code,
 		       const unsigned int code_size);
 
-int   jvmti_write_debug_info(void *agent, uint64_t code, int nr_lines,
+int   jvmti_write_de_info(void *agent, uint64_t code, int nr_lines,
 			     jvmti_line_info_t *li,
 			     const char * const * file_names);
 

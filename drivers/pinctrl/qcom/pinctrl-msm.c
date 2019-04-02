@@ -530,7 +530,7 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/seq_file.h>
 
 static void msm_gpio_dbg_show_one(struct seq_file *s,
@@ -713,7 +713,7 @@ static void msm_gpio_irq_mask(struct irq_data *d)
 	 * an irq that it's configured for (either edge for edge type or level
 	 * for level type irq). The 'non-raw' status enable bit causes the
 	 * hardware to assert the summary interrupt to the CPU if the latched
-	 * status bit is set. There's a bug though, the edge detection logic
+	 * status bit is set. There's a  though, the edge detection logic
 	 * seems to have a problem where toggling the RAW_STATUS_EN bit may
 	 * cause the status bit to latch spuriously when there isn't any edge
 	 * so we can't touch that bit for edge type irqs and we have to keep
@@ -861,7 +861,7 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 			break;
 		}
 	} else {
-		BUG();
+		();
 	}
 	msm_writel_intr_cfg(val, pctrl, g);
 

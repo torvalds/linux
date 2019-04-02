@@ -36,4 +36,4 @@ obj-$(CONFIG_PCI_ENDPOINT)	+= endpoint/
 obj-y				+= controller/
 obj-y				+= switch/
 
-ccflags-$(CONFIG_PCI_DEBUG) := -DDEBUG
+ccflags-$(CONFIG_PCI_DE) := -DDE

@@ -56,15 +56,15 @@
 #define EXCCAUSE_MAPPED_NMI	62
 
 /*
- * General exception cause assigned to debug exceptions. Debug exceptions go
+ * General exception cause assigned to de exceptions. De exceptions go
  * to their own vector, rather than the general exception vectors (user,
- * kernel, double); and their specific causes are reported via DEBUGCAUSE
- * rather than EXCCAUSE.  However it is sometimes convenient to redirect debug
+ * kernel, double); and their specific causes are reported via DECAUSE
+ * rather than EXCCAUSE.  However it is sometimes convenient to redirect de
  * exceptions to the general exception mechanism.  To do this, an otherwise
- * unused EXCCAUSE value was assigned to debug exceptions for this purpose.
+ * unused EXCCAUSE value was assigned to de exceptions for this purpose.
  */
 
-#define EXCCAUSE_MAPPED_DEBUG	63
+#define EXCCAUSE_MAPPED_DE	63
 
 /*
  * We use DEPC also as a flag to distinguish between double and regular

@@ -221,7 +221,7 @@ However the dma_API uses a strongly typed enumerator for its
 direction:
 
 ======================= =============================================
-DMA_NONE		no direction (used for debugging)
+DMA_NONE		no direction (used for deging)
 DMA_TO_DEVICE		data is going from the memory to the device
 DMA_FROM_DEVICE		data is coming from the device to the memory
 DMA_BIDIRECTIONAL	direction isn't known
@@ -606,7 +606,7 @@ unconditionally having removed all the required structures.  It is the
 driver's job to ensure that no parts of this memory region are
 currently in use.
 
-Part III - Debug drivers use of the DMA-API
+Part III - De drivers use of the DMA-API
 -------------------------------------------
 
 The DMA-API as described above has some constraints. DMA addresses must be
@@ -615,10 +615,10 @@ the advent of hardware IOMMUs it becomes more and more important that drivers
 do not violate those constraints. In the worst case such a violation can
 result in data corruption up to destroyed filesystems.
 
-To debug drivers and find bugs in the usage of the DMA-API checking code can
+To de drivers and find s in the usage of the DMA-API checking code can
 be compiled into the kernel which will tell the developer about those
 violations. If your architecture supports it you can select the "Enable
-debugging of DMA-API usage" option in your kernel configuration. Enabling this
+deging of DMA-API usage" option in your kernel configuration. Enabling this
 option has a performance impact. Do not enable it in production kernels.
 
 If you boot the resulting kernel will contain code which does some bookkeeping
@@ -626,7 +626,7 @@ about what DMA memory was allocated for which device. If this code detects an
 error it prints a warning message with some details into your kernel log. An
 example warning message may look like this::
 
-	WARNING: at /data2/repos/linux-2.6-iommu/lib/dma-debug.c:448
+	WARNING: at /data2/repos/linux-2.6-iommu/lib/dma-de.c:448
 		check_unmap+0x203/0x490()
 	Hardware name:
 	forcedeth 0000:00:08.0: DMA-API: device driver frees DMA memory with wrong
@@ -647,7 +647,7 @@ example warning message may look like this::
 	[<ffffffff80235177>] find_busiest_group+0x207/0x8a0
 	[<ffffffff8064784f>] _spin_lock_irqsave+0x1f/0x50
 	[<ffffffff803c7ea3>] check_unmap+0x203/0x490
-	[<ffffffff803c8259>] debug_dma_unmap_page+0x49/0x50
+	[<ffffffff803c8259>] de_dma_unmap_page+0x49/0x50
 	[<ffffffff80485f26>] nv_tx_done_optimized+0xc6/0x2c0
 	[<ffffffff80486c13>] nv_nic_irq_optimized+0x73/0x2b0
 	[<ffffffff8026df84>] handle_IRQ_event+0x34/0x70
@@ -661,22 +661,22 @@ of the DMA-API call which caused this warning.
 
 Per default only the first error will result in a warning message. All other
 errors will only silently counted. This limitation exist to prevent the code
-from flooding your kernel log. To support debugging a device driver this can
-be disabled via debugfs. See the debugfs interface documentation below for
+from flooding your kernel log. To support deging a device driver this can
+be disabled via defs. See the defs interface documentation below for
 details.
 
-The debugfs directory for the DMA-API debugging code is called dma-api/. In
+The defs directory for the DMA-API deging code is called dma-api/. In
 this directory the following files can currently be found:
 
 =============================== ===============================================
 dma-api/all_errors		This file contains a numeric value. If this
-				value is not equal to zero the debugging code
+				value is not equal to zero the deging code
 				will print a warning for every error it finds
 				into the kernel log. Be careful with this
 				option, as it can easily flood your logs.
 
 dma-api/disabled		This read-only file contains the character 'Y'
-				if the debugging code is disabled. This can
+				if the deging code is disabled. This can
 				happen when it runs out of memory or if it was
 				disabled at boot time
 
@@ -693,19 +693,19 @@ dma-api/num_errors		The number in this file shows how many
 				this file
 
 dma-api/min_free_entries	This read-only file can be read to get the
-				minimum number of free dma_debug_entries the
+				minimum number of free dma_de_entries the
 				allocator has ever seen. If this value goes
 				down to zero the code will attempt to increase
 				nr_total_entries to compensate.
 
-dma-api/num_free_entries	The current number of free dma_debug_entries
+dma-api/num_free_entries	The current number of free dma_de_entries
 				in the allocator.
 
-dma-api/nr_total_entries	The total number of dma_debug_entries in the
+dma-api/nr_total_entries	The total number of dma_de_entries in the
 				allocator, both free and used.
 
 dma-api/driver_filter		You can write a name of a driver into this file
-				to limit the debug output to requests from that
+				to limit the de output to requests from that
 				particular driver. Write an empty string to
 				that file to disable the filter and see
 				all errors again.
@@ -713,19 +713,19 @@ dma-api/driver_filter		You can write a name of a driver into this file
 
 If you have this code compiled into your kernel it will be enabled by default.
 If you want to boot without the bookkeeping anyway you can provide
-'dma_debug=off' as a boot parameter. This will disable DMA-API debugging.
+'dma_de=off' as a boot parameter. This will disable DMA-API deging.
 Notice that you can not enable it again at runtime. You have to reboot to do
 so.
 
-If you want to see debug messages only for a special device driver you can
-specify the dma_debug_driver=<drivername> parameter. This will enable the
-driver filter at boot time. The debug code will only print errors for that
-driver afterwards. This filter can be disabled or changed later using debugfs.
+If you want to see de messages only for a special device driver you can
+specify the dma_de_driver=<drivername> parameter. This will enable the
+driver filter at boot time. The de code will only print errors for that
+driver afterwards. This filter can be disabled or changed later using defs.
 
 When the code disables itself at runtime this is most likely because it ran
-out of dma_debug_entries and was unable to allocate more on-demand. 65536
+out of dma_de_entries and was unable to allocate more on-demand. 65536
 entries are preallocated at boot - if this is too low for you boot with
-'dma_debug_entries=<your_desired_number>' to overwrite the default. Note
+'dma_de_entries=<your_desired_number>' to overwrite the default. Note
 that the code allocates entries in batches, so the exact number of
 preallocated entries may be greater than the actual number requested. The
 code will print to the kernel log each time it has dynamically allocated
@@ -736,13 +736,13 @@ that a driver may be leaking mappings.
 ::
 
 	void
-	debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
+	de_dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
-dma-debug interface debug_dma_mapping_error() to debug drivers that fail
+dma-de interface de_dma_mapping_error() to de drivers that fail
 to check DMA mapping errors on addresses returned by dma_map_single() and
 dma_map_page() interfaces. This interface clears a flag set by
-debug_dma_map_page() to indicate that dma_mapping_error() has been called by
-the driver. When driver does unmap, debug_dma_unmap() checks the flag and if
+de_dma_map_page() to indicate that dma_mapping_error() has been called by
+the driver. When driver does unmap, de_dma_unmap() checks the flag and if
 this flag is still set, prints warning message that includes call trace that
 leads up to the unmap. This interface can be called from dma_mapping_error()
-routines to enable DMA mapping error check debugging.
+routines to enable DMA mapping error check deging.

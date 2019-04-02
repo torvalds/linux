@@ -282,11 +282,11 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 	*result = 0;
 
 	if (info->fully_qualified) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Returning [%p] (abs) \"\\%s\"\n",
 				  internal_name, internal_name));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Returning [%p] (rel) \"%s\"\n",
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "Returning [%p] (rel) \"%s\"\n",
 				  internal_name, internal_name));
 	}
 
@@ -591,7 +591,7 @@ void acpi_ns_terminate(void)
 	acpi_ns_delete_node(acpi_gbl_root_node);
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Namespace freed\n"));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Namespace freed\n"));
 	return_VOID;
 }
 
@@ -691,7 +691,7 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 				(flags | ACPI_NS_DONT_OPEN_SCOPE), NULL,
 				return_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s, %s\n",
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "%s, %s\n",
 				  pathname, acpi_format_exception(status)));
 	}
 

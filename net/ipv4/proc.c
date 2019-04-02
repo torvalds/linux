@@ -4,7 +4,7 @@
  *		interface as the means of communication with the user level.
  *
  *		This file implements the various access functions for the
- *		PROC file system.  It is mainly used for debugging and
+ *		PROC file system.  It is mainly used for deging and
  *		statistics.
  *
  * Authors:	Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
@@ -383,7 +383,7 @@ static int snmp_seq_show_ipstats(struct seq_file *seq, void *v)
 		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
 		   net->ipv4.sysctl_ip_default_ttl);
 
-	BUILD_BUG_ON(offsetof(struct ipstats_mib, mibs) != 0);
+	BUILD__ON(offsetof(struct ipstats_mib, mibs) != 0);
 	snmp_get_cpu_field64_batch(buff64, snmp4_ipstats_list,
 				   net->mib.ip_statistics,
 				   offsetof(struct ipstats_mib, syncp));

@@ -33,7 +33,7 @@
 #ifndef _ASM_ARM_XEN_HYPERCALL_H
 #define _ASM_ARM_XEN_HYPERCALL_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
@@ -78,14 +78,14 @@ static inline void
 MULTI_update_va_mapping(struct multicall_entry *mcl, unsigned long va,
 			unsigned int new_val, unsigned long flags)
 {
-	BUG();
+	();
 }
 
 static inline void
 MULTI_mmu_update(struct multicall_entry *mcl, struct mmu_update *req,
 		 int count, int *success_count, domid_t domid)
 {
-	BUG();
+	();
 }
 
 #endif /* _ASM_ARM_XEN_HYPERCALL_H */

@@ -43,7 +43,7 @@
 #include "../event.h"
 #include "../trace-event.h"
 #include "../evsel.h"
-#include "../debug.h"
+#include "../de.h"
 
 void boot_Perf__Trace__Context(pTHX_ CV *cv);
 void boot_DynaLoader(pTHX_ CV *cv);
@@ -357,7 +357,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 		return;
 
 	if (!event) {
-		pr_debug("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		pr_de("ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
 		return;
 	}
 

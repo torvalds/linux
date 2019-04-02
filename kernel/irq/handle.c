@@ -26,7 +26,7 @@ void (*handle_arch_irq)(struct pt_regs *) __ro_after_init;
  * handle_bad_irq - handle spurious and unhandled irqs
  * @desc:      description of the interrupt
  *
- * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
+ * Handles spurious and unhandled IRQ's. It also prints a demessage.
  */
 void handle_bad_irq(struct irq_desc *desc)
 {
@@ -190,7 +190,7 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 
 	add_interrupt_randomness(desc->irq_data.irq, flags);
 
-	if (!noirqdebug)
+	if (!noirqde)
 		note_interrupt(desc, retval);
 	return retval;
 }

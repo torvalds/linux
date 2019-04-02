@@ -13,7 +13,7 @@
  * Copyright (C) 2014, Imagination Technologies Ltd.
  */
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
 #include <linux/cpu_pm.h>
@@ -24,7 +24,7 @@
 #include <linux/extable.h>
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/kgdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kprobes.h>
 #include <linux/notifier.h>
 #include <linux/kdb.h>
@@ -61,7 +61,7 @@
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/siginfo.h>
-#include <asm/tlbdebug.h>
+#include <asm/tlbde.h>
 #include <asm/traps.h>
 #include <linux/uaccess.h>
 #include <asm/watch.h>
@@ -945,8 +945,8 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 				code == BRK_DIVZERO ? FPE_INTDIV : FPE_INTOVF,
 				(void __user *) regs->cp0_epc, current);
 		break;
-	case BRK_BUG:
-		die_if_kernel("Kernel bug detected", regs);
+	case BRK_:
+		die_if_kernel("Kernel  detected", regs);
 		force_sig(SIGTRAP, current);
 		break;
 	case BRK_MEMU:
@@ -1014,9 +1014,9 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	}
 
 	/*
-	 * There is the ancient bug in the MIPS assemblers that the break
+	 * There is the ancient  in the MIPS assemblers that the break
 	 * code starts left to bit 16 instead to bit 6 in the opcode.
-	 * Gas is bug-compatible, but not always, grrr...
+	 * Gas is -compatible, but not always, grrr...
 	 * We handle both cases with a simple heuristics.  --macro
 	 */
 	if (bcode >= (1 << 10))
@@ -1040,7 +1040,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		else
 			break;
 	case BRK_KPROBE_BP:
-		if (notify_die(DIE_BREAK, "debug", regs, bcode,
+		if (notify_die(DIE_BREAK, "de", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
@@ -1568,25 +1568,25 @@ asmlinkage void do_mt(struct pt_regs *regs)
 			>> VPECONTROL_EXCPT_SHIFT;
 	switch (subcode) {
 	case 0:
-		printk(KERN_DEBUG "Thread Underflow\n");
+		printk(KERN_DE "Thread Underflow\n");
 		break;
 	case 1:
-		printk(KERN_DEBUG "Thread Overflow\n");
+		printk(KERN_DE "Thread Overflow\n");
 		break;
 	case 2:
-		printk(KERN_DEBUG "Invalid YIELD Qualifier\n");
+		printk(KERN_DE "Invalid YIELD Qualifier\n");
 		break;
 	case 3:
-		printk(KERN_DEBUG "Gating Storage Exception\n");
+		printk(KERN_DE "Gating Storage Exception\n");
 		break;
 	case 4:
-		printk(KERN_DEBUG "YIELD Scheduler Exception\n");
+		printk(KERN_DE "YIELD Scheduler Exception\n");
 		break;
 	case 5:
-		printk(KERN_DEBUG "Gating Storage Scheduler Exception\n");
+		printk(KERN_DE "Gating Storage Scheduler Exception\n");
 		break;
 	default:
-		printk(KERN_DEBUG "*** UNKNOWN THREAD EXCEPTION %d ***\n",
+		printk(KERN_DE "*** UNKNOWN THREAD EXCEPTION %d ***\n",
 			subcode);
 		break;
 	}
@@ -1858,24 +1858,24 @@ asmlinkage void do_ftlb(void)
 }
 
 /*
- * SDBBP EJTAG debug exception handler.
+ * SDBBP EJTAG de exception handler.
  * We skip the instruction and return to the next instruction.
  */
 void ejtag_exception_handler(struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
 	unsigned long depc, old_epc, old_ra;
-	unsigned int debug;
+	unsigned int de;
 
-	printk(KERN_DEBUG "SDBBP EJTAG debug exception - not handled yet, just ignored!\n");
+	printk(KERN_DE "SDBBP EJTAG de exception - not handled yet, just ignored!\n");
 	depc = read_c0_depc();
-	debug = read_c0_debug();
-	printk(KERN_DEBUG "c0_depc = %0*lx, DEBUG = %08x\n", field, depc, debug);
-	if (debug & 0x80000000) {
+	de = read_c0_de();
+	printk(KERN_DE "c0_depc = %0*lx, DE = %08x\n", field, depc, de);
+	if (de & 0x80000000) {
 		/*
 		 * In branch delay slot.
 		 * We cheat a little bit here and use EPC to calculate the
-		 * debug return address (DEPC). EPC is restored after the
+		 * de return address (DEPC). EPC is restored after the
 		 * calculation.
 		 */
 		old_epc = regs->cp0_epc;
@@ -1890,8 +1890,8 @@ void ejtag_exception_handler(struct pt_regs *regs)
 	write_c0_depc(depc);
 
 #if 0
-	printk(KERN_DEBUG "\n\n----- Enable EJTAG single stepping ----\n\n");
-	write_c0_debug(debug | 0x100);
+	printk(KERN_DE "\n\n----- Enable EJTAG single stepping ----\n\n");
+	write_c0_de(de | 0x100);
 #endif
 }
 
@@ -1980,7 +1980,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 	u16 *h;
 	unsigned char *b;
 
-	BUG_ON(!cpu_has_veic && !cpu_has_vint);
+	_ON(!cpu_has_veic && !cpu_has_vint);
 
 	if (addr == NULL) {
 		handler = (unsigned long) do_default_vi;
@@ -2090,7 +2090,7 @@ int cp0_perfcount_irq;
 EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
 /*
- * Fast debug channel IRQ or -1 if not present
+ * Fast de channel IRQ or -1 if not present
  */
 int cp0_fdc_irq;
 EXPORT_SYMBOL_GPL(cp0_fdc_irq);
@@ -2190,7 +2190,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	 *
 	 *  o read IntCtl.IPTI to determine the timer interrupt
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
-	 *  o read IntCtl.IPFDC to determine the fast debug channel interrupt
+	 *  o read IntCtl.IPFDC to determine the fast de channel interrupt
 	 */
 	if (cpu_has_mips_r2_r6) {
 		/*
@@ -2230,7 +2230,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
 
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
+	_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	/* Boot CPU's cache setup in setup_arch(). */
@@ -2356,7 +2356,7 @@ void __init trap_init(void)
 		set_except_vector(i, handle_reserved);
 
 	/*
-	 * Copy the EJTAG debug exception vector handler code to it's final
+	 * Copy the EJTAG de exception vector handler code to it's final
 	 * destination.
 	 */
 	if (cpu_has_ejtag && board_ejtag_handler_setup)

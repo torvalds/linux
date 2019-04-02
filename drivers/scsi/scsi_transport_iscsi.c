@@ -50,18 +50,18 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(iscsi_dbg_tcp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(iscsi_dbg_sw_tcp);
 
 static int dbg_session;
-module_param_named(debug_session, dbg_session, int,
+module_param_named(de_session, dbg_session, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_session,
-		 "Turn on debugging for sessions in scsi_transport_iscsi "
+MODULE_PARM_DESC(de_session,
+		 "Turn on deging for sessions in scsi_transport_iscsi "
 		 "module. Set to 1 to turn on, and zero to turn off. Default "
 		 "is off.");
 
 static int dbg_conn;
-module_param_named(debug_conn, dbg_conn, int,
+module_param_named(de_conn, dbg_conn, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_conn,
-		 "Turn on debugging for connections in scsi_transport_iscsi "
+MODULE_PARM_DESC(de_conn,
+		 "Turn on deging for connections in scsi_transport_iscsi "
 		 "module. Set to 1 to turn on, and zero to turn off. Default "
 		 "is off.");
 
@@ -1535,7 +1535,7 @@ static int iscsi_bsg_host_dispatch(struct bsg_job *job)
 
 fail_host_msg:
 	/* return the errno failure code as the only status */
-	BUG_ON(job->reply_len < sizeof(uint32_t));
+	_ON(job->reply_len < sizeof(uint32_t));
 	reply->reply_payload_rcv_len = 0;
 	reply->result = ret;
 	job->reply_len = sizeof(uint32_t);
@@ -4427,7 +4427,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	unsigned long flags;
 	int err;
 
-	BUG_ON(!tt);
+	_ON(!tt);
 
 	priv = iscsi_if_transport_lookup(tt);
 	if (priv)
@@ -4491,12 +4491,12 @@ int iscsi_unregister_transport(struct iscsi_transport *tt)
 	struct iscsi_internal *priv;
 	unsigned long flags;
 
-	BUG_ON(!tt);
+	_ON(!tt);
 
 	mutex_lock(&rx_queue_mutex);
 
 	priv = iscsi_if_transport_lookup(tt);
-	BUG_ON (!priv);
+	_ON (!priv);
 
 	spin_lock_irqsave(&iscsi_transport_lock, flags);
 	list_del(&priv->list);

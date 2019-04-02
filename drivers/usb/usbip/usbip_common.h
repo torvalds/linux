@@ -22,74 +22,74 @@
 
 #undef pr_fmt
 
-#ifdef DEBUG
+#ifdef DE
 #define pr_fmt(fmt)     KBUILD_MODNAME ": %s:%d: " fmt, __func__, __LINE__
 #else
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
 #endif
 
 enum {
-	usbip_debug_xmit	= (1 << 0),
-	usbip_debug_sysfs	= (1 << 1),
-	usbip_debug_urb		= (1 << 2),
-	usbip_debug_eh		= (1 << 3),
+	usbip_de_xmit	= (1 << 0),
+	usbip_de_sysfs	= (1 << 1),
+	usbip_de_urb		= (1 << 2),
+	usbip_de_eh		= (1 << 3),
 
-	usbip_debug_stub_cmp	= (1 << 8),
-	usbip_debug_stub_dev	= (1 << 9),
-	usbip_debug_stub_rx	= (1 << 10),
-	usbip_debug_stub_tx	= (1 << 11),
+	usbip_de_stub_cmp	= (1 << 8),
+	usbip_de_stub_dev	= (1 << 9),
+	usbip_de_stub_rx	= (1 << 10),
+	usbip_de_stub_tx	= (1 << 11),
 
-	usbip_debug_vhci_rh	= (1 << 8),
-	usbip_debug_vhci_hc	= (1 << 9),
-	usbip_debug_vhci_rx	= (1 << 10),
-	usbip_debug_vhci_tx	= (1 << 11),
-	usbip_debug_vhci_sysfs  = (1 << 12)
+	usbip_de_vhci_rh	= (1 << 8),
+	usbip_de_vhci_hc	= (1 << 9),
+	usbip_de_vhci_rx	= (1 << 10),
+	usbip_de_vhci_tx	= (1 << 11),
+	usbip_de_vhci_sysfs  = (1 << 12)
 };
 
-#define usbip_dbg_flag_xmit	(usbip_debug_flag & usbip_debug_xmit)
-#define usbip_dbg_flag_vhci_rh	(usbip_debug_flag & usbip_debug_vhci_rh)
-#define usbip_dbg_flag_vhci_hc	(usbip_debug_flag & usbip_debug_vhci_hc)
-#define usbip_dbg_flag_vhci_rx	(usbip_debug_flag & usbip_debug_vhci_rx)
-#define usbip_dbg_flag_vhci_tx	(usbip_debug_flag & usbip_debug_vhci_tx)
-#define usbip_dbg_flag_stub_rx	(usbip_debug_flag & usbip_debug_stub_rx)
-#define usbip_dbg_flag_stub_tx	(usbip_debug_flag & usbip_debug_stub_tx)
-#define usbip_dbg_flag_vhci_sysfs  (usbip_debug_flag & usbip_debug_vhci_sysfs)
+#define usbip_dbg_flag_xmit	(usbip_de_flag & usbip_de_xmit)
+#define usbip_dbg_flag_vhci_rh	(usbip_de_flag & usbip_de_vhci_rh)
+#define usbip_dbg_flag_vhci_hc	(usbip_de_flag & usbip_de_vhci_hc)
+#define usbip_dbg_flag_vhci_rx	(usbip_de_flag & usbip_de_vhci_rx)
+#define usbip_dbg_flag_vhci_tx	(usbip_de_flag & usbip_de_vhci_tx)
+#define usbip_dbg_flag_stub_rx	(usbip_de_flag & usbip_de_stub_rx)
+#define usbip_dbg_flag_stub_tx	(usbip_de_flag & usbip_de_stub_tx)
+#define usbip_dbg_flag_vhci_sysfs  (usbip_de_flag & usbip_de_vhci_sysfs)
 
-extern unsigned long usbip_debug_flag;
-extern struct device_attribute dev_attr_usbip_debug;
+extern unsigned long usbip_de_flag;
+extern struct device_attribute dev_attr_usbip_de;
 
 #define usbip_dbg_with_flag(flag, fmt, args...)		\
 	do {						\
-		if (flag & usbip_debug_flag)		\
-			pr_debug(fmt, ##args);		\
+		if (flag & usbip_de_flag)		\
+			pr_de(fmt, ##args);		\
 	} while (0)
 
 #define usbip_dbg_sysfs(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_sysfs, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_sysfs, fmt , ##args)
 #define usbip_dbg_xmit(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_xmit, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_xmit, fmt , ##args)
 #define usbip_dbg_urb(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_urb, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_urb, fmt , ##args)
 #define usbip_dbg_eh(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_eh, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_eh, fmt , ##args)
 
 #define usbip_dbg_vhci_rh(fmt, args...)	\
-	usbip_dbg_with_flag(usbip_debug_vhci_rh, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_vhci_rh, fmt , ##args)
 #define usbip_dbg_vhci_hc(fmt, args...)	\
-	usbip_dbg_with_flag(usbip_debug_vhci_hc, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_vhci_hc, fmt , ##args)
 #define usbip_dbg_vhci_rx(fmt, args...)	\
-	usbip_dbg_with_flag(usbip_debug_vhci_rx, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_vhci_rx, fmt , ##args)
 #define usbip_dbg_vhci_tx(fmt, args...)	\
-	usbip_dbg_with_flag(usbip_debug_vhci_tx, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_vhci_tx, fmt , ##args)
 #define usbip_dbg_vhci_sysfs(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_vhci_sysfs, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_vhci_sysfs, fmt , ##args)
 
 #define usbip_dbg_stub_cmp(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_stub_cmp, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_stub_cmp, fmt , ##args)
 #define usbip_dbg_stub_rx(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_stub_rx, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_stub_rx, fmt , ##args)
 #define usbip_dbg_stub_tx(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_stub_tx, fmt , ##args)
+	usbip_dbg_with_flag(usbip_de_stub_tx, fmt , ##args)
 
 /*
  * USB/IP request headers

@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <asm/system_info.h>
 #include <asm/ptrace.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "decode.h"
 
@@ -55,7 +55,7 @@ bool load_write_pc_interworks;
 void __init test_load_write_pc_interworking(void)
 {
 	int arch = cpu_architecture();
-	BUG_ON(arch == CPU_ARCH_UNKNOWN);
+	_ON(arch == CPU_ARCH_UNKNOWN);
 	load_write_pc_interworks = arch >= CPU_ARCH_ARMv5T;
 }
 
@@ -69,7 +69,7 @@ bool alu_write_pc_interworks;
 void __init test_alu_write_pc_interworking(void)
 {
 	int arch = cpu_architecture();
-	BUG_ON(arch == CPU_ARCH_UNKNOWN);
+	_ON(arch == CPU_ARCH_UNKNOWN);
 	alu_write_pc_interworks = arch >= CPU_ARCH_ARMv7;
 }
 

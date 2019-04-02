@@ -155,7 +155,7 @@ static int partition_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	struct irq_fwspec *fwspec = arg;
 	struct partition_desc *part;
 
-	BUG_ON(nr_irqs != 1);
+	_ON(nr_irqs != 1);
 	ret = domain->ops->translate(domain, fwspec, &hwirq, &type);
 	if (ret)
 		return ret;
@@ -178,7 +178,7 @@ static void partition_domain_free(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_data *d;
 
-	BUG_ON(nr_irqs != 1);
+	_ON(nr_irqs != 1);
 
 	d = irq_domain_get_irq_data(domain, virq);
 	irq_set_handler(virq, NULL);
@@ -214,7 +214,7 @@ struct partition_desc *partition_create_desc(struct fwnode_handle *fwnode,
 	struct partition_desc *desc;
 	struct irq_domain *d;
 
-	BUG_ON(!ops->select || !ops->translate);
+	_ON(!ops->select || !ops->translate);
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)

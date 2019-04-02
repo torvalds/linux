@@ -1,7 +1,7 @@
 /*
  * Atheros CARL9170 driver
  *
- * debug(fs) probing
+ * de(fs) probing
  *
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2009, 2010, Christian Lamparter <chunkeey@googlemail.com>
@@ -48,7 +48,7 @@
 	off += snprintf(&buf[off], max - off, fmt, ##args);
 
 
-struct carl9170_debugfs_fops {
+struct carl9170_defs_fops {
 	unsigned int read_bufsize;
 	umode_t attr;
 	char *(*read)(struct ar9170 *ar, char *buf, size_t bufsize,
@@ -59,10 +59,10 @@ struct carl9170_debugfs_fops {
 	enum carl9170_device_state req_dev_state;
 };
 
-static ssize_t carl9170_debugfs_read(struct file *file, char __user *userbuf,
+static ssize_t carl9170_defs_read(struct file *file, char __user *userbuf,
 				     size_t count, loff_t *ppos)
 {
-	struct carl9170_debugfs_fops *dfops;
+	struct carl9170_defs_fops *dfops;
 	struct ar9170 *ar;
 	char *buf = NULL, *res_buf = NULL;
 	ssize_t ret = 0;
@@ -75,8 +75,8 @@ static ssize_t carl9170_debugfs_read(struct file *file, char __user *userbuf,
 
 	if (!ar)
 		return -ENODEV;
-	dfops = container_of(debugfs_real_fops(file),
-			     struct carl9170_debugfs_fops, fops);
+	dfops = container_of(defs_real_fops(file),
+			     struct carl9170_defs_fops, fops);
 
 	if (!dfops->read)
 		return -ENOSYS;
@@ -110,10 +110,10 @@ out_free:
 	return err;
 }
 
-static ssize_t carl9170_debugfs_write(struct file *file,
+static ssize_t carl9170_defs_write(struct file *file,
 	const char __user *userbuf, size_t count, loff_t *ppos)
 {
-	struct carl9170_debugfs_fops *dfops;
+	struct carl9170_defs_fops *dfops;
 	struct ar9170 *ar;
 	char *buf = NULL;
 	int err = 0;
@@ -128,8 +128,8 @@ static ssize_t carl9170_debugfs_write(struct file *file,
 
 	if (!ar)
 		return -ENODEV;
-	dfops = container_of(debugfs_real_fops(file),
-			     struct carl9170_debugfs_fops, fops);
+	dfops = container_of(defs_real_fops(file),
+			     struct carl9170_defs_fops, fops);
 
 	if (!dfops->write)
 		return -ENOSYS;
@@ -165,9 +165,9 @@ out_free:
 	return err;
 }
 
-#define __DEBUGFS_DECLARE_FILE(name, _read, _write, _read_bufsize,	\
+#define __DEFS_DECLARE_FILE(name, _read, _write, _read_bufsize,	\
 			       _attr, _dstate)				\
-static const struct carl9170_debugfs_fops carl_debugfs_##name ##_ops = {\
+static const struct carl9170_defs_fops carl_defs_##name ##_ops = {\
 	.read_bufsize = _read_bufsize,					\
 	.read = _read,							\
 	.write = _write,						\
@@ -175,45 +175,45 @@ static const struct carl9170_debugfs_fops carl_debugfs_##name ##_ops = {\
 	.req_dev_state = _dstate,					\
 	.fops = {							\
 		.open	= simple_open,					\
-		.read	= carl9170_debugfs_read,			\
-		.write	= carl9170_debugfs_write,			\
+		.read	= carl9170_defs_read,			\
+		.write	= carl9170_defs_write,			\
 		.owner	= THIS_MODULE					\
 	},								\
 }
 
-#define DEBUGFS_DECLARE_FILE(name, _read, _write, _read_bufsize, _attr)	\
-	__DEBUGFS_DECLARE_FILE(name, _read, _write, _read_bufsize,	\
+#define DEFS_DECLARE_FILE(name, _read, _write, _read_bufsize, _attr)	\
+	__DEFS_DECLARE_FILE(name, _read, _write, _read_bufsize,	\
 			       _attr, CARL9170_STARTED)			\
 
-#define DEBUGFS_DECLARE_RO_FILE(name, _read_bufsize)			\
-	DEBUGFS_DECLARE_FILE(name, carl9170_debugfs_##name ##_read,	\
+#define DEFS_DECLARE_RO_FILE(name, _read_bufsize)			\
+	DEFS_DECLARE_FILE(name, carl9170_defs_##name ##_read,	\
 			     NULL, _read_bufsize, 0400)
 
-#define DEBUGFS_DECLARE_WO_FILE(name)					\
-	DEBUGFS_DECLARE_FILE(name, NULL, carl9170_debugfs_##name ##_write,\
+#define DEFS_DECLARE_WO_FILE(name)					\
+	DEFS_DECLARE_FILE(name, NULL, carl9170_defs_##name ##_write,\
 			     0, 0200)
 
-#define DEBUGFS_DECLARE_RW_FILE(name, _read_bufsize)			\
-	DEBUGFS_DECLARE_FILE(name, carl9170_debugfs_##name ##_read,	\
-			     carl9170_debugfs_##name ##_write,		\
+#define DEFS_DECLARE_RW_FILE(name, _read_bufsize)			\
+	DEFS_DECLARE_FILE(name, carl9170_defs_##name ##_read,	\
+			     carl9170_defs_##name ##_write,		\
 			     _read_bufsize, 0600)
 
-#define __DEBUGFS_DECLARE_RW_FILE(name, _read_bufsize, _dstate)		\
-	__DEBUGFS_DECLARE_FILE(name, carl9170_debugfs_##name ##_read,	\
-			     carl9170_debugfs_##name ##_write,		\
+#define __DEFS_DECLARE_RW_FILE(name, _read_bufsize, _dstate)		\
+	__DEFS_DECLARE_FILE(name, carl9170_defs_##name ##_read,	\
+			     carl9170_defs_##name ##_write,		\
 			     _read_bufsize, 0600, _dstate)
 
-#define DEBUGFS_READONLY_FILE(name, _read_bufsize, fmt, value...)	\
-static char *carl9170_debugfs_ ##name ## _read(struct ar9170 *ar,	\
+#define DEFS_READONLY_FILE(name, _read_bufsize, fmt, value...)	\
+static char *carl9170_defs_ ##name ## _read(struct ar9170 *ar,	\
 					     char *buf, size_t buf_size,\
 					     ssize_t *len)		\
 {									\
 	ADD(buf, *len, buf_size, fmt "\n", ##value);			\
 	return buf;							\
 }									\
-DEBUGFS_DECLARE_RO_FILE(name, _read_bufsize)
+DEFS_DECLARE_RO_FILE(name, _read_bufsize)
 
-static char *carl9170_debugfs_mem_usage_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_mem_usage_read(struct ar9170 *ar, char *buf,
 					     size_t bufsize, ssize_t *len)
 {
 	spin_lock_bh(&ar->mem_lock);
@@ -234,9 +234,9 @@ static char *carl9170_debugfs_mem_usage_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(mem_usage, 512);
+DEFS_DECLARE_RO_FILE(mem_usage, 512);
 
-static char *carl9170_debugfs_qos_stat_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_qos_stat_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
 {
 	ADD(buf, *len, bufsize, "%s QoS AC\n", modparam_noht ? "Hardware" :
@@ -278,9 +278,9 @@ static char *carl9170_debugfs_qos_stat_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(qos_stat, 512);
+DEFS_DECLARE_RO_FILE(qos_stat, 512);
 
-static void carl9170_debugfs_format_frame(struct ar9170 *ar,
+static void carl9170_defs_format_frame(struct ar9170 *ar,
 	struct sk_buff *skb, const char *prefix, char *buf,
 	ssize_t *off, ssize_t bufsize)
 {
@@ -297,7 +297,7 @@ static void carl9170_debugfs_format_frame(struct ar9170 *ar,
 }
 
 
-static char *carl9170_debugfs_ampdu_state_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_ampdu_state_read(struct ar9170 *ar, char *buf,
 					       size_t bufsize, ssize_t *len)
 {
 	struct carl9170_sta_tid *iter;
@@ -339,7 +339,7 @@ static char *carl9170_debugfs_ampdu_state_read(struct ar9170 *ar, char *buf,
 			char prefix[32];
 
 			snprintf(prefix, sizeof(prefix), "\t\t%3d :", fc);
-			carl9170_debugfs_format_frame(ar, skb, prefix, buf,
+			carl9170_defs_format_frame(ar, skb, prefix, buf,
 						      len, bufsize);
 
 			fc++;
@@ -351,9 +351,9 @@ static char *carl9170_debugfs_ampdu_state_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(ampdu_state, 8000);
+DEFS_DECLARE_RO_FILE(ampdu_state, 8000);
 
-static void carl9170_debugfs_queue_dump(struct ar9170 *ar, char *buf,
+static void carl9170_defs_queue_dump(struct ar9170 *ar, char *buf,
 	ssize_t *len, size_t bufsize, struct sk_buff_head *queue)
 {
 	struct sk_buff *skb;
@@ -363,23 +363,23 @@ static void carl9170_debugfs_queue_dump(struct ar9170 *ar, char *buf,
 	spin_lock_bh(&queue->lock);
 	skb_queue_walk(queue, skb) {
 		snprintf(prefix, sizeof(prefix), "%3d :", fc);
-		carl9170_debugfs_format_frame(ar, skb, prefix, buf,
+		carl9170_defs_format_frame(ar, skb, prefix, buf,
 					      len, bufsize);
 		fc++;
 	}
 	spin_unlock_bh(&queue->lock);
 }
 
-#define DEBUGFS_QUEUE_DUMP(q, qi)					\
-static char *carl9170_debugfs_##q ##_##qi ##_read(struct ar9170 *ar,	\
+#define DEFS_QUEUE_DUMP(q, qi)					\
+static char *carl9170_defs_##q ##_##qi ##_read(struct ar9170 *ar,	\
 	char *buf, size_t bufsize, ssize_t *len)			\
 {									\
-	carl9170_debugfs_queue_dump(ar, buf, len, bufsize, &ar->q[qi]);	\
+	carl9170_defs_queue_dump(ar, buf, len, bufsize, &ar->q[qi]);	\
 	return buf;							\
 }									\
-DEBUGFS_DECLARE_RO_FILE(q##_##qi, 8000);
+DEFS_DECLARE_RO_FILE(q##_##qi, 8000);
 
-static char *carl9170_debugfs_sta_psm_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_sta_psm_read(struct ar9170 *ar, char *buf,
 					   size_t bufsize, ssize_t *len)
 {
 	ADD(buf, *len, bufsize, "psm state: %s\n", (ar->ps.off_override ?
@@ -393,9 +393,9 @@ static char *carl9170_debugfs_sta_psm_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(sta_psm, 160);
+DEFS_DECLARE_RO_FILE(sta_psm, 160);
 
-static char *carl9170_debugfs_tx_stuck_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_tx_stuck_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
 {
 	int i;
@@ -411,9 +411,9 @@ static char *carl9170_debugfs_tx_stuck_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(tx_stuck, 180);
+DEFS_DECLARE_RO_FILE(tx_stuck, 180);
 
-static char *carl9170_debugfs_phy_noise_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_phy_noise_read(struct ar9170 *ar, char *buf,
 					     size_t bufsize, ssize_t *len)
 {
 	int err;
@@ -431,9 +431,9 @@ static char *carl9170_debugfs_phy_noise_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(phy_noise, 180);
+DEFS_DECLARE_RO_FILE(phy_noise, 180);
 
-static char *carl9170_debugfs_vif_dump_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_vif_dump_read(struct ar9170 *ar, char *buf,
 					    size_t bufsize, ssize_t *len)
 {
 	struct carl9170_vif_info *iter;
@@ -458,7 +458,7 @@ static char *carl9170_debugfs_vif_dump_read(struct ar9170 *ar, char *buf,
 
 	return buf;
 }
-DEBUGFS_DECLARE_RO_FILE(vif_dump, 8000);
+DEFS_DECLARE_RO_FILE(vif_dump, 8000);
 
 #define UPDATE_COUNTER(ar, name)	({				\
 	u32 __tmp[ARRAY_SIZE(name##_regs)];				\
@@ -466,25 +466,25 @@ DEBUGFS_DECLARE_RO_FILE(vif_dump, 8000);
 									\
 	for (__i = 0; __i < ARRAY_SIZE(name##_regs); __i++) {		\
 		__tmp[__i] = name##_regs[__i].reg;			\
-		ar->debug.stats.name##_counter[__i] = 0;		\
+		ar->de.stats.name##_counter[__i] = 0;		\
 	}								\
 									\
 	if (IS_STARTED(ar))						\
 		__err = carl9170_read_mreg(ar, ARRAY_SIZE(name##_regs),	\
-			__tmp, ar->debug.stats.name##_counter);		\
+			__tmp, ar->de.stats.name##_counter);		\
 	(__err); })
 
 #define TALLY_SUM_UP(ar, name)	do {					\
 	unsigned int __i;						\
 									\
 	for (__i = 0; __i < ARRAY_SIZE(name##_regs); __i++) {		\
-		ar->debug.stats.name##_sum[__i] +=			\
-			ar->debug.stats.name##_counter[__i];		\
+		ar->de.stats.name##_sum[__i] +=			\
+			ar->de.stats.name##_counter[__i];		\
 	}								\
 } while (0)
 
-#define DEBUGFS_HW_TALLY_FILE(name, f)					\
-static char *carl9170_debugfs_##name ## _read(struct ar9170 *ar,	\
+#define DEFS_HW_TALLY_FILE(name, f)					\
+static char *carl9170_defs_##name ## _read(struct ar9170 *ar,	\
 	 char *dum, size_t bufsize, ssize_t *ret)			\
 {									\
 	char *buf;							\
@@ -505,16 +505,16 @@ static char *carl9170_debugfs_##name ## _read(struct ar9170 *ar,	\
 									\
 	for (i = 0; i < ARRAY_SIZE(name##_regs); i++) {			\
 		ADD(buf, *ret, max_len, "%22s = %" f "[+%" f "]\n",	\
-		    name##_regs[i].nreg, ar->debug.stats.name ##_sum[i],\
-		    ar->debug.stats.name ##_counter[i]);		\
+		    name##_regs[i].nreg, ar->de.stats.name ##_sum[i],\
+		    ar->de.stats.name ##_counter[i]);		\
 	}								\
 									\
 	return buf;							\
 }									\
-DEBUGFS_DECLARE_RO_FILE(name, 0);
+DEFS_DECLARE_RO_FILE(name, 0);
 
-#define DEBUGFS_HW_REG_FILE(name, f)					\
-static char *carl9170_debugfs_##name ## _read(struct ar9170 *ar,	\
+#define DEFS_HW_REG_FILE(name, f)					\
+static char *carl9170_defs_##name ## _read(struct ar9170 *ar,	\
 	char *dum, size_t bufsize, ssize_t *ret)			\
 {									\
 	char *buf;							\
@@ -534,14 +534,14 @@ static char *carl9170_debugfs_##name ## _read(struct ar9170 *ar,	\
 	for (i = 0; i < ARRAY_SIZE(name##_regs); i++) {			\
 		ADD(buf, *ret, max_len, "%22s = %" f "\n",		\
 		    name##_regs[i].nreg,				\
-		    ar->debug.stats.name##_counter[i]);			\
+		    ar->de.stats.name##_counter[i]);			\
 	}								\
 									\
 	return buf;							\
 }									\
-DEBUGFS_DECLARE_RO_FILE(name, 0);
+DEFS_DECLARE_RO_FILE(name, 0);
 
-static ssize_t carl9170_debugfs_hw_ioread32_write(struct ar9170 *ar,
+static ssize_t carl9170_defs_hw_ioread32_write(struct ar9170 *ar,
 	const char *buf, size_t count)
 {
 	int err = 0, i, n = 0, max_len = 32, res;
@@ -582,38 +582,38 @@ static ssize_t carl9170_debugfs_hw_ioread32_write(struct ar9170 *ar,
 		if (err)
 			goto out;
 
-		ar->debug.ring[ar->debug.ring_tail].reg = reg + (i << 2);
-		ar->debug.ring[ar->debug.ring_tail].value = tmp;
-		ar->debug.ring_tail++;
-		ar->debug.ring_tail %= CARL9170_DEBUG_RING_SIZE;
+		ar->de.ring[ar->de.ring_tail].reg = reg + (i << 2);
+		ar->de.ring[ar->de.ring_tail].value = tmp;
+		ar->de.ring_tail++;
+		ar->de.ring_tail %= CARL9170_DE_RING_SIZE;
 	}
 
 out:
 	return err ? err : count;
 }
 
-static char *carl9170_debugfs_hw_ioread32_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_hw_ioread32_read(struct ar9170 *ar, char *buf,
 					       size_t bufsize, ssize_t *ret)
 {
 	int i = 0;
 
-	while (ar->debug.ring_head != ar->debug.ring_tail) {
+	while (ar->de.ring_head != ar->de.ring_tail) {
 		ADD(buf, *ret, bufsize, "%.8x = %.8x\n",
-		    ar->debug.ring[ar->debug.ring_head].reg,
-		    ar->debug.ring[ar->debug.ring_head].value);
+		    ar->de.ring[ar->de.ring_head].reg,
+		    ar->de.ring[ar->de.ring_head].value);
 
-		ar->debug.ring_head++;
-		ar->debug.ring_head %= CARL9170_DEBUG_RING_SIZE;
+		ar->de.ring_head++;
+		ar->de.ring_head %= CARL9170_DE_RING_SIZE;
 
 		if (i++ == 64)
 			break;
 	}
-	ar->debug.ring_head = ar->debug.ring_tail;
+	ar->de.ring_head = ar->de.ring_tail;
 	return buf;
 }
-DEBUGFS_DECLARE_RW_FILE(hw_ioread32, CARL9170_DEBUG_RING_SIZE * 40);
+DEFS_DECLARE_RW_FILE(hw_ioread32, CARL9170_DE_RING_SIZE * 40);
 
-static ssize_t carl9170_debugfs_bug_write(struct ar9170 *ar, const char *buf,
+static ssize_t carl9170_defs__write(struct ar9170 *ar, const char *buf,
 					  size_t count)
 {
 	int err;
@@ -660,7 +660,7 @@ out:
 	return count;
 }
 
-static char *carl9170_debugfs_bug_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs__read(struct ar9170 *ar, char *buf,
 				       size_t bufsize, ssize_t *ret)
 {
 	ADD(buf, *ret, bufsize, "[P]hy reinit, [R]estart, [F]ull usb reset, "
@@ -671,13 +671,13 @@ static char *carl9170_debugfs_bug_read(struct ar9170 *ar, char *buf,
 		ar->total_chan_fail, ar->chan_fail);
 	ADD(buf, *ret, bufsize, "reported firmware errors:%d\n",
 		ar->fw.err_counter);
-	ADD(buf, *ret, bufsize, "reported firmware BUGs:%d\n",
-		ar->fw.bug_counter);
+	ADD(buf, *ret, bufsize, "reported firmware s:%d\n",
+		ar->fw._counter);
 	ADD(buf, *ret, bufsize, "pending restart requests:%d\n",
 		atomic_read(&ar->pending_restarts));
 	return buf;
 }
-__DEBUGFS_DECLARE_RW_FILE(bug, 400, CARL9170_STOPPED);
+__DEFS_DECLARE_RW_FILE(, 400, CARL9170_STOPPED);
 
 static const char *const erp_modes[] = {
 	[CARL9170_ERP_INVALID] = "INVALID",
@@ -688,7 +688,7 @@ static const char *const erp_modes[] = {
 	[CARL9170_ERP_CTS] = "Force CTS"
 };
 
-static char *carl9170_debugfs_erp_read(struct ar9170 *ar, char *buf,
+static char *carl9170_defs_erp_read(struct ar9170 *ar, char *buf,
 				       size_t bufsize, ssize_t *ret)
 {
 	ADD(buf, *ret, bufsize, "ERP Setting: (%d) -> %s\n", ar->erp_mode,
@@ -696,7 +696,7 @@ static char *carl9170_debugfs_erp_read(struct ar9170 *ar, char *buf,
 	return buf;
 }
 
-static ssize_t carl9170_debugfs_erp_write(struct ar9170 *ar, const char *buf,
+static ssize_t carl9170_defs_erp_write(struct ar9170 *ar, const char *buf,
 					  size_t count)
 {
 	int res, val;
@@ -716,9 +716,9 @@ static ssize_t carl9170_debugfs_erp_write(struct ar9170 *ar, const char *buf,
 	return count;
 }
 
-DEBUGFS_DECLARE_RW_FILE(erp, 80);
+DEFS_DECLARE_RW_FILE(erp, 80);
 
-static ssize_t carl9170_debugfs_hw_iowrite32_write(struct ar9170 *ar,
+static ssize_t carl9170_defs_hw_iowrite32_write(struct ar9170 *ar,
 	const char *buf, size_t count)
 {
 	int err = 0, max_len = 22, res;
@@ -753,134 +753,134 @@ static ssize_t carl9170_debugfs_hw_iowrite32_write(struct ar9170 *ar,
 out:
 	return err ? err : count;
 }
-DEBUGFS_DECLARE_WO_FILE(hw_iowrite32);
+DEFS_DECLARE_WO_FILE(hw_iowrite32);
 
-DEBUGFS_HW_TALLY_FILE(hw_tx_tally, "u");
-DEBUGFS_HW_TALLY_FILE(hw_rx_tally, "u");
-DEBUGFS_HW_TALLY_FILE(hw_phy_errors, "u");
-DEBUGFS_HW_REG_FILE(hw_wlan_queue, ".8x");
-DEBUGFS_HW_REG_FILE(hw_pta_queue, ".8x");
-DEBUGFS_HW_REG_FILE(hw_ampdu_info, ".8x");
-DEBUGFS_QUEUE_DUMP(tx_status, 0);
-DEBUGFS_QUEUE_DUMP(tx_status, 1);
-DEBUGFS_QUEUE_DUMP(tx_status, 2);
-DEBUGFS_QUEUE_DUMP(tx_status, 3);
-DEBUGFS_QUEUE_DUMP(tx_pending, 0);
-DEBUGFS_QUEUE_DUMP(tx_pending, 1);
-DEBUGFS_QUEUE_DUMP(tx_pending, 2);
-DEBUGFS_QUEUE_DUMP(tx_pending, 3);
-DEBUGFS_READONLY_FILE(usb_tx_anch_urbs, 20, "%d",
+DEFS_HW_TALLY_FILE(hw_tx_tally, "u");
+DEFS_HW_TALLY_FILE(hw_rx_tally, "u");
+DEFS_HW_TALLY_FILE(hw_phy_errors, "u");
+DEFS_HW_REG_FILE(hw_wlan_queue, ".8x");
+DEFS_HW_REG_FILE(hw_pta_queue, ".8x");
+DEFS_HW_REG_FILE(hw_ampdu_info, ".8x");
+DEFS_QUEUE_DUMP(tx_status, 0);
+DEFS_QUEUE_DUMP(tx_status, 1);
+DEFS_QUEUE_DUMP(tx_status, 2);
+DEFS_QUEUE_DUMP(tx_status, 3);
+DEFS_QUEUE_DUMP(tx_pending, 0);
+DEFS_QUEUE_DUMP(tx_pending, 1);
+DEFS_QUEUE_DUMP(tx_pending, 2);
+DEFS_QUEUE_DUMP(tx_pending, 3);
+DEFS_READONLY_FILE(usb_tx_anch_urbs, 20, "%d",
 		      atomic_read(&ar->tx_anch_urbs));
-DEBUGFS_READONLY_FILE(usb_rx_anch_urbs, 20, "%d",
+DEFS_READONLY_FILE(usb_rx_anch_urbs, 20, "%d",
 		      atomic_read(&ar->rx_anch_urbs));
-DEBUGFS_READONLY_FILE(usb_rx_work_urbs, 20, "%d",
+DEFS_READONLY_FILE(usb_rx_work_urbs, 20, "%d",
 		      atomic_read(&ar->rx_work_urbs));
-DEBUGFS_READONLY_FILE(usb_rx_pool_urbs, 20, "%d",
+DEFS_READONLY_FILE(usb_rx_pool_urbs, 20, "%d",
 		      atomic_read(&ar->rx_pool_urbs));
 
-DEBUGFS_READONLY_FILE(tx_total_queued, 20, "%d",
+DEFS_READONLY_FILE(tx_total_queued, 20, "%d",
 		      atomic_read(&ar->tx_total_queued));
-DEBUGFS_READONLY_FILE(tx_ampdu_scheduler, 20, "%d",
+DEFS_READONLY_FILE(tx_ampdu_scheduler, 20, "%d",
 		      atomic_read(&ar->tx_ampdu_scheduler));
 
-DEBUGFS_READONLY_FILE(tx_total_pending, 20, "%d",
+DEFS_READONLY_FILE(tx_total_pending, 20, "%d",
 		      atomic_read(&ar->tx_total_pending));
 
-DEBUGFS_READONLY_FILE(tx_ampdu_list_len, 20, "%d",
+DEFS_READONLY_FILE(tx_ampdu_list_len, 20, "%d",
 		      ar->tx_ampdu_list_len);
 
-DEBUGFS_READONLY_FILE(tx_ampdu_upload, 20, "%d",
+DEFS_READONLY_FILE(tx_ampdu_upload, 20, "%d",
 		      atomic_read(&ar->tx_ampdu_upload));
 
-DEBUGFS_READONLY_FILE(tx_janitor_last_run, 64, "last run:%d ms ago",
+DEFS_READONLY_FILE(tx_janitor_last_run, 64, "last run:%d ms ago",
 	jiffies_to_msecs(jiffies - ar->tx_janitor_last_run));
 
-DEBUGFS_READONLY_FILE(tx_dropped, 20, "%d", ar->tx_dropped);
+DEFS_READONLY_FILE(tx_dropped, 20, "%d", ar->tx_dropped);
 
-DEBUGFS_READONLY_FILE(rx_dropped, 20, "%d", ar->rx_dropped);
+DEFS_READONLY_FILE(rx_dropped, 20, "%d", ar->rx_dropped);
 
-DEBUGFS_READONLY_FILE(sniffer_enabled, 20, "%d", ar->sniffer_enabled);
-DEBUGFS_READONLY_FILE(rx_software_decryption, 20, "%d",
+DEFS_READONLY_FILE(sniffer_enabled, 20, "%d", ar->sniffer_enabled);
+DEFS_READONLY_FILE(rx_software_decryption, 20, "%d",
 		      ar->rx_software_decryption);
-DEBUGFS_READONLY_FILE(ampdu_factor, 20, "%d",
+DEFS_READONLY_FILE(ampdu_factor, 20, "%d",
 		      ar->current_factor);
-DEBUGFS_READONLY_FILE(ampdu_density, 20, "%d",
+DEFS_READONLY_FILE(ampdu_density, 20, "%d",
 		      ar->current_density);
 
-DEBUGFS_READONLY_FILE(beacon_int, 20, "%d TU", ar->global_beacon_int);
-DEBUGFS_READONLY_FILE(pretbtt, 20, "%d TU", ar->global_pretbtt);
+DEFS_READONLY_FILE(beacon_int, 20, "%d TU", ar->global_beacon_int);
+DEFS_READONLY_FILE(pretbtt, 20, "%d TU", ar->global_pretbtt);
 
-void carl9170_debugfs_register(struct ar9170 *ar)
+void carl9170_defs_register(struct ar9170 *ar)
 {
-	ar->debug_dir = debugfs_create_dir(KBUILD_MODNAME,
-		ar->hw->wiphy->debugfsdir);
+	ar->de_dir = defs_create_dir(KBUILD_MODNAME,
+		ar->hw->wiphy->defsdir);
 
-#define DEBUGFS_ADD(name)						\
-	debugfs_create_file(#name, carl_debugfs_##name ##_ops.attr,	\
-			    ar->debug_dir, ar,				\
-			    &carl_debugfs_##name ## _ops.fops);
+#define DEFS_ADD(name)						\
+	defs_create_file(#name, carl_defs_##name ##_ops.attr,	\
+			    ar->de_dir, ar,				\
+			    &carl_defs_##name ## _ops.fops);
 
-	DEBUGFS_ADD(usb_tx_anch_urbs);
-	DEBUGFS_ADD(usb_rx_pool_urbs);
-	DEBUGFS_ADD(usb_rx_anch_urbs);
-	DEBUGFS_ADD(usb_rx_work_urbs);
+	DEFS_ADD(usb_tx_anch_urbs);
+	DEFS_ADD(usb_rx_pool_urbs);
+	DEFS_ADD(usb_rx_anch_urbs);
+	DEFS_ADD(usb_rx_work_urbs);
 
-	DEBUGFS_ADD(tx_total_queued);
-	DEBUGFS_ADD(tx_total_pending);
-	DEBUGFS_ADD(tx_dropped);
-	DEBUGFS_ADD(tx_stuck);
-	DEBUGFS_ADD(tx_ampdu_upload);
-	DEBUGFS_ADD(tx_ampdu_scheduler);
-	DEBUGFS_ADD(tx_ampdu_list_len);
+	DEFS_ADD(tx_total_queued);
+	DEFS_ADD(tx_total_pending);
+	DEFS_ADD(tx_dropped);
+	DEFS_ADD(tx_stuck);
+	DEFS_ADD(tx_ampdu_upload);
+	DEFS_ADD(tx_ampdu_scheduler);
+	DEFS_ADD(tx_ampdu_list_len);
 
-	DEBUGFS_ADD(rx_dropped);
-	DEBUGFS_ADD(sniffer_enabled);
-	DEBUGFS_ADD(rx_software_decryption);
+	DEFS_ADD(rx_dropped);
+	DEFS_ADD(sniffer_enabled);
+	DEFS_ADD(rx_software_decryption);
 
-	DEBUGFS_ADD(mem_usage);
-	DEBUGFS_ADD(qos_stat);
-	DEBUGFS_ADD(sta_psm);
-	DEBUGFS_ADD(ampdu_state);
+	DEFS_ADD(mem_usage);
+	DEFS_ADD(qos_stat);
+	DEFS_ADD(sta_psm);
+	DEFS_ADD(ampdu_state);
 
-	DEBUGFS_ADD(hw_tx_tally);
-	DEBUGFS_ADD(hw_rx_tally);
-	DEBUGFS_ADD(hw_phy_errors);
-	DEBUGFS_ADD(phy_noise);
+	DEFS_ADD(hw_tx_tally);
+	DEFS_ADD(hw_rx_tally);
+	DEFS_ADD(hw_phy_errors);
+	DEFS_ADD(phy_noise);
 
-	DEBUGFS_ADD(hw_wlan_queue);
-	DEBUGFS_ADD(hw_pta_queue);
-	DEBUGFS_ADD(hw_ampdu_info);
+	DEFS_ADD(hw_wlan_queue);
+	DEFS_ADD(hw_pta_queue);
+	DEFS_ADD(hw_ampdu_info);
 
-	DEBUGFS_ADD(ampdu_density);
-	DEBUGFS_ADD(ampdu_factor);
+	DEFS_ADD(ampdu_density);
+	DEFS_ADD(ampdu_factor);
 
-	DEBUGFS_ADD(tx_janitor_last_run);
+	DEFS_ADD(tx_janitor_last_run);
 
-	DEBUGFS_ADD(tx_status_0);
-	DEBUGFS_ADD(tx_status_1);
-	DEBUGFS_ADD(tx_status_2);
-	DEBUGFS_ADD(tx_status_3);
+	DEFS_ADD(tx_status_0);
+	DEFS_ADD(tx_status_1);
+	DEFS_ADD(tx_status_2);
+	DEFS_ADD(tx_status_3);
 
-	DEBUGFS_ADD(tx_pending_0);
-	DEBUGFS_ADD(tx_pending_1);
-	DEBUGFS_ADD(tx_pending_2);
-	DEBUGFS_ADD(tx_pending_3);
+	DEFS_ADD(tx_pending_0);
+	DEFS_ADD(tx_pending_1);
+	DEFS_ADD(tx_pending_2);
+	DEFS_ADD(tx_pending_3);
 
-	DEBUGFS_ADD(hw_ioread32);
-	DEBUGFS_ADD(hw_iowrite32);
-	DEBUGFS_ADD(bug);
+	DEFS_ADD(hw_ioread32);
+	DEFS_ADD(hw_iowrite32);
+	DEFS_ADD();
 
-	DEBUGFS_ADD(erp);
+	DEFS_ADD(erp);
 
-	DEBUGFS_ADD(vif_dump);
+	DEFS_ADD(vif_dump);
 
-	DEBUGFS_ADD(beacon_int);
-	DEBUGFS_ADD(pretbtt);
+	DEFS_ADD(beacon_int);
+	DEFS_ADD(pretbtt);
 
-#undef DEBUGFS_ADD
+#undef DEFS_ADD
 }
 
-void carl9170_debugfs_unregister(struct ar9170 *ar)
+void carl9170_defs_unregister(struct ar9170 *ar)
 {
-	debugfs_remove_recursive(ar->debug_dir);
+	defs_remove_recursive(ar->de_dir);
 }

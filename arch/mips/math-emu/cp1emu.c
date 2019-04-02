@@ -34,7 +34,7 @@
  * better performance by compiling with -msoft-float!
  */
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/percpu-defs.h>
 #include <linux/perf_event.h>
 
@@ -866,7 +866,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	switch (MIPSInst_RD(ir)) {
 	case FPCREG_CSR:
 		value = fcr31;
-		pr_debug("%p gpr[%d]<-csr=%08x\n",
+		pr_de("%p gpr[%d]<-csr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		break;
 
@@ -876,7 +876,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		value = (fcr31 >> (FPU_CSR_FS_S - MIPS_FENR_FS_S)) &
 			MIPS_FENR_FS;
 		value |= fcr31 & (FPU_CSR_ALL_E | FPU_CSR_RM);
-		pr_debug("%p gpr[%d]<-enr=%08x\n",
+		pr_de("%p gpr[%d]<-enr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		break;
 
@@ -884,7 +884,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		if (!cpu_has_mips_r)
 			break;
 		value = fcr31 & (FPU_CSR_ALL_X | FPU_CSR_ALL_S);
-		pr_debug("%p gpr[%d]<-exr=%08x\n",
+		pr_de("%p gpr[%d]<-exr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		break;
 
@@ -895,7 +895,7 @@ static inline void cop1_cfc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 			MIPS_FCCR_COND0;
 		value |= (fcr31 >> (FPU_CSR_COND1_S - MIPS_FCCR_COND1_S)) &
 			 (MIPS_FCCR_CONDX & ~MIPS_FCCR_COND0);
-		pr_debug("%p gpr[%d]<-ccr=%08x\n",
+		pr_de("%p gpr[%d]<-ccr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		break;
 
@@ -928,7 +928,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 
 	switch (MIPSInst_RD(ir)) {
 	case FPCREG_CSR:
-		pr_debug("%p gpr[%d]->csr=%08x\n",
+		pr_de("%p gpr[%d]->csr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 
 		/* Preserve read-only bits.  */
@@ -939,7 +939,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	case FPCREG_FENR:
 		if (!cpu_has_mips_r)
 			break;
-		pr_debug("%p gpr[%d]->enr=%08x\n",
+		pr_de("%p gpr[%d]->enr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		fcr31 &= ~(FPU_CSR_FS | FPU_CSR_ALL_E | FPU_CSR_RM);
 		fcr31 |= (value << (FPU_CSR_FS_S - MIPS_FENR_FS_S)) &
@@ -950,7 +950,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	case FPCREG_FEXR:
 		if (!cpu_has_mips_r)
 			break;
-		pr_debug("%p gpr[%d]->exr=%08x\n",
+		pr_de("%p gpr[%d]->exr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		fcr31 &= ~(FPU_CSR_ALL_X | FPU_CSR_ALL_S);
 		fcr31 |= value & (FPU_CSR_ALL_X | FPU_CSR_ALL_S);
@@ -959,7 +959,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	case FPCREG_FCCR:
 		if (!cpu_has_mips_r)
 			break;
-		pr_debug("%p gpr[%d]->ccr=%08x\n",
+		pr_de("%p gpr[%d]->ccr=%08x\n",
 			 (void *)xcp->cp0_epc, MIPSInst_RT(ir), value);
 		fcr31 &= ~(FPU_CSR_CONDX | FPU_CSR_COND);
 		fcr31 |= (value << (FPU_CSR_COND_S - MIPS_FCCR_COND0_S)) &
@@ -1001,7 +1001,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 	if (!cpu_has_mmips && dec_insn.micro_mips_mode)
 		unreachable();
 
-	/* XXX NEC Vr54xx bug workaround */
+	/* XXX NEC Vr54xx  workaround */
 	if (delay_slot(xcp)) {
 		if (dec_insn.micro_mips_mode) {
 			if (!mm_isBranchInstr(xcp, dec_insn, &contpc))

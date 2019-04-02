@@ -232,7 +232,7 @@ static int ocfs2_find_actor(struct inode *inode, void *opaque)
 
 	args = opaque;
 
-	mlog_bug_on_msg(!inode, "No inode in find actor!\n");
+	mlog__on_msg(!inode, "No inode in find actor!\n");
 
 	trace_ocfs2_find_actor(inode, inode->i_ino, opaque, args->fi_blkno);
 
@@ -289,14 +289,14 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	/*
 	 * These have all been checked by ocfs2_read_inode_block() or set
-	 * by ocfs2_mknod_locked(), so a failure is a code bug.
+	 * by ocfs2_mknod_locked(), so a failure is a code .
 	 */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));  /* This means that read_inode
+	_ON(!OCFS2_IS_VALID_DINODE(fe));  /* This means that read_inode
 						cannot create a superblock
 						inode today.  change if
 						that is needed. */
-	BUG_ON(!(fe->i_flags & cpu_to_le32(OCFS2_VALID_FL)));
-	BUG_ON(le32_to_cpu(fe->i_fs_generation) != osb->fs_generation);
+	_ON(!(fe->i_flags & cpu_to_le32(OCFS2_VALID_FL)));
+	_ON(le32_to_cpu(fe->i_fs_generation) != osb->fs_generation);
 
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
@@ -349,7 +349,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	} else if (fe->i_flags & cpu_to_le32(OCFS2_SUPER_BLOCK_FL)) {
 		/* we can't actually hit this as read_inode can't
 		 * handle superblocks today ;-) */
-		BUG();
+		();
 	}
 
 	switch (inode->i_mode & S_IFMT) {
@@ -391,7 +391,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		 * the generation argument to
 		 * ocfs2_inode_lock_res_init() will have to change.
 		 */
-		BUG_ON(le32_to_cpu(fe->i_flags) & OCFS2_SYSTEM_FL);
+		_ON(le32_to_cpu(fe->i_flags) & OCFS2_SYSTEM_FL);
 
 		ocfs2_inode_lock_res_init(&OCFS2_I(inode)->ip_inode_lockres,
 					  OCFS2_LOCK_TYPE_META, 0, inode);
@@ -542,11 +542,11 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	fe = (struct ocfs2_dinode *) bh->b_data;
 
 	/*
-	 * This is a code bug. Right now the caller needs to
+	 * This is a code . Right now the caller needs to
 	 * understand whether it is asking for a system file inode or
 	 * not so the proper lock names can be built.
 	 */
-	mlog_bug_on_msg(!!(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) !=
+	mlog__on_msg(!!(fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) !=
 			!!(args->fi_flags & OCFS2_FI_FLAG_SYSFILE),
 			"Inode %llu: system file state is ambigous\n",
 			(unsigned long long)args->fi_blkno);
@@ -557,7 +557,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 
 	ocfs2_populate_inode(inode, fe, 0);
 
-	BUG_ON(args->fi_blkno != le64_to_cpu(fe->i_blkno));
+	_ON(args->fi_blkno != le64_to_cpu(fe->i_blkno));
 
 	if (buffer_dirty(bh) && !buffer_jbd(bh)) {
 		if (can_lock) {
@@ -1133,7 +1133,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	trace_ocfs2_clear_inode((unsigned long long)oi->ip_blkno,
 				inode->i_nlink);
 
-	mlog_bug_on_msg(osb == NULL,
+	mlog__on_msg(osb == NULL,
 			"Inode=%lu\n", inode->i_ino);
 
 	dquot_drop(inode);
@@ -1161,10 +1161,10 @@ static void ocfs2_clear_inode(struct inode *inode)
 	if (!(oi->ip_flags & OCFS2_INODE_DELETED))
 		ocfs2_checkpoint_inode(inode);
 
-	mlog_bug_on_msg(!list_empty(&oi->ip_io_markers),
+	mlog__on_msg(!list_empty(&oi->ip_io_markers),
 			"Clear inode of %llu, inode has io markers\n",
 			(unsigned long long)oi->ip_blkno);
-	mlog_bug_on_msg(!list_empty(&oi->ip_unwritten_list),
+	mlog__on_msg(!list_empty(&oi->ip_unwritten_list),
 			"Clear inode of %llu, inode has unwritten extents\n",
 			(unsigned long long)oi->ip_blkno);
 
@@ -1180,20 +1180,20 @@ static void ocfs2_clear_inode(struct inode *inode)
 
 	ocfs2_metadata_cache_exit(INODE_CACHE(inode));
 
-	mlog_bug_on_msg(INODE_CACHE(inode)->ci_num_cached,
+	mlog__on_msg(INODE_CACHE(inode)->ci_num_cached,
 			"Clear inode of %llu, inode has %u cache items\n",
 			(unsigned long long)oi->ip_blkno,
 			INODE_CACHE(inode)->ci_num_cached);
 
-	mlog_bug_on_msg(!(INODE_CACHE(inode)->ci_flags & OCFS2_CACHE_FL_INLINE),
+	mlog__on_msg(!(INODE_CACHE(inode)->ci_flags & OCFS2_CACHE_FL_INLINE),
 			"Clear inode of %llu, inode has a bad flag\n",
 			(unsigned long long)oi->ip_blkno);
 
-	mlog_bug_on_msg(spin_is_locked(&oi->ip_lock),
+	mlog__on_msg(spin_is_locked(&oi->ip_lock),
 			"Clear inode of %llu, inode is locked\n",
 			(unsigned long long)oi->ip_blkno);
 
-	mlog_bug_on_msg(!mutex_trylock(&oi->ip_io_mutex),
+	mlog__on_msg(!mutex_trylock(&oi->ip_io_mutex),
 			"Clear inode of %llu, io_mutex is locked\n",
 			(unsigned long long)oi->ip_blkno);
 	mutex_unlock(&oi->ip_io_mutex);
@@ -1202,12 +1202,12 @@ static void ocfs2_clear_inode(struct inode *inode)
 	 * down_trylock() returns 0, down_write_trylock() returns 1
 	 * kernel 1, world 0
 	 */
-	mlog_bug_on_msg(!down_write_trylock(&oi->ip_alloc_sem),
+	mlog__on_msg(!down_write_trylock(&oi->ip_alloc_sem),
 			"Clear inode of %llu, alloc_sem is locked\n",
 			(unsigned long long)oi->ip_blkno);
 	up_write(&oi->ip_alloc_sem);
 
-	mlog_bug_on_msg(oi->ip_open_count,
+	mlog__on_msg(oi->ip_open_count,
 			"Clear inode of %llu has open count %d\n",
 			(unsigned long long)oi->ip_blkno, oi->ip_open_count);
 
@@ -1382,7 +1382,7 @@ int ocfs2_validate_inode_block(struct super_block *sb,
 
 	trace_ocfs2_validate_inode_block((unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
@@ -1447,7 +1447,7 @@ static int ocfs2_filecheck_validate_inode_block(struct super_block *sb,
 	trace_ocfs2_filecheck_validate_inode_block(
 		(unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * Call ocfs2_validate_meta_ecc() first since it has ecc repair

@@ -208,7 +208,7 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
 	enum mc_cmd_status status;
 	unsigned long timeout_usecs = MC_CMD_COMPLETION_TIMEOUT_MS * 1000;
 
-	BUILD_BUG_ON((MC_CMD_COMPLETION_TIMEOUT_MS * 1000) %
+	BUILD__ON((MC_CMD_COMPLETION_TIMEOUT_MS * 1000) %
 		     MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS != 0);
 
 	for (;;) {

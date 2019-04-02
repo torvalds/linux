@@ -302,7 +302,7 @@ that counts the number of active users, you should call that
 Encoding the type of a function into the name (so-called Hungarian
 notation) is brain damaged - the compiler knows the types anyway and can
 check those, and it only confuses the programmer.  No wonder MicroSoft
-makes buggy programs.
+makes gy programs.
 
 LOCAL variable names should be short, and to the point.  If you have
 some random integer loop counter, it should probably be called ``i``.
@@ -495,7 +495,7 @@ The rationale for using gotos is:
 		return result;
 	}
 
-A common type of bug to be aware of is ``one err bugs`` which look like this:
+A common type of  to be aware of is ``one err s`` which look like this:
 
 .. code-block:: c
 
@@ -504,7 +504,7 @@ A common type of bug to be aware of is ``one err bugs`` which look like this:
 		kfree(foo);
 		return ret;
 
-The bug in this code is that on some exit paths ``foo`` is NULL.  Normally the
+The  in this code is that on some exit paths ``foo`` is NULL.  Normally the
 fix for this is to split it up into two error labels ``err_free_bar:`` and
 ``err_free_foo:``:
 
@@ -718,7 +718,7 @@ memory management (``struct mm_struct``: mm_users and mm_count), and in
 filesystem code (``struct super_block``: s_count and s_active).
 
 Remember: if another thread can find your data structure, and you don't
-have a reference count on it, you almost certainly have a bug.
+have a reference count on it, you almost certainly have a .
 
 
 12) Macros, Enums and RTL
@@ -756,7 +756,7 @@ Things to avoid when using macros:
 	#define FOO(x)					\
 		do {					\
 			if (blah(x) < 0)		\
-				return -EBUGGERED;	\
+				return -EGERED;	\
 		} while (0)
 
 is a **very** bad idea.  It looks like a function call but exits the ``calling``
@@ -821,19 +821,19 @@ dev_info(), and so forth.  For messages that aren't associated with a
 particular device, <linux/printk.h> defines pr_notice(), pr_info(),
 pr_warn(), pr_err(), etc.
 
-Coming up with good debugging messages can be quite a challenge; and once
+Coming up with good deging messages can be quite a challenge; and once
 you have them, they can be a huge help for remote troubleshooting.  However
-debug message printing is handled differently than printing other non-debug
+de message printing is handled differently than printing other non-de
 messages.  While the other pr_XXX() functions print unconditionally,
-pr_debug() does not; it is compiled out by default, unless either DEBUG is
-defined or CONFIG_DYNAMIC_DEBUG is set.  That is true for dev_dbg() also,
-and a related convention uses VERBOSE_DEBUG to add dev_vdbg() messages to
-the ones already enabled by DEBUG.
+pr_de() does not; it is compiled out by default, unless either DE is
+defined or CONFIG_DYNAMIC_DE is set.  That is true for dev_dbg() also,
+and a related convention uses VERBOSE_DE to add dev_vdbg() messages to
+the ones already enabled by DE.
 
-Many subsystems have Kconfig debug options to turn on -DDEBUG in the
-corresponding Makefile; in other cases specific files #define DEBUG.  And
-when a debug message should be unconditionally printed, such as if it is
-already inside a debug-related #ifdef section, printk(KERN_DEBUG ...) can be
+Many subsystems have Kconfig de options to turn on -DDE in the
+corresponding Makefile; in other cases specific files #define DE.  And
+when a de message should be unconditionally printed, such as if it is
+already inside a de-related #ifdef section, printk(KERN_DE ...) can be
 used.
 
 
@@ -852,7 +852,7 @@ The preferred form for passing a size of a struct is the following:
 	p = kmalloc(sizeof(*p), ...);
 
 The alternative form where struct name is spelled out hurts readability and
-introduces an opportunity for a bug when the pointer variable type is changed
+introduces an opportunity for a  when the pointer variable type is changed
 but the corresponding sizeof that is passed to a memory allocator is not.
 
 Casting the return value which is a void pointer is redundant. The conversion
@@ -913,9 +913,9 @@ failed.  Such a value can be represented as an error-code integer
 non-zero = success).
 
 Mixing up these two sorts of representations is a fertile source of
-difficult-to-find bugs.  If the C language included a strong distinction
+difficult-to-find s.  If the C language included a strong distinction
 between integers and booleans then the compiler would find these mistakes
-for us... but it doesn't.  To help prevent such bugs, always follow this
+for us... but it doesn't.  To help prevent such s, always follow this
 convention::
 
 	If the name of a function is an action or an imperative command,
@@ -944,7 +944,7 @@ NULL or the ERR_PTR mechanism to report failure.
 The Linux kernel bool type is an alias for the C99 _Bool type. bool values can
 only evaluate to 0 or 1, and implicit or explicit conversion to bool
 automatically converts the value to true or false. When using bool types the
-!! construction is not needed, which eliminates a class of bugs.
+!! construction is not needed, which eliminates a class of s.
 
 When working with bool values the true and false definitions should be used
 instead of 1 and 0.
@@ -1008,7 +1008,7 @@ Or like this:
 
 	/*
 	Local Variables:
-	compile-command: "gcc -DMAGIC_DEBUG_FLAG foo.c"
+	compile-command: "gcc -DMAGIC_DE_FLAG foo.c"
 	End:
 	*/
 

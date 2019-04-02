@@ -145,7 +145,7 @@ static struct adm1031_data *adm1031_update_device(struct device *dev)
 				data->ext_temp[chan] =
 				    adm1031_read_value(client,
 						       ADM1031_REG_EXT_TEMP);
-#ifdef DEBUG
+#ifdef DE
 				oldh =
 				    adm1031_read_value(client,
 						       ADM1031_REG_TEMP(chan));

@@ -91,7 +91,7 @@ void speakup_register_var(struct var_t *var)
 	int i;
 	struct st_var_header *p_header;
 
-	BUG_ON(!var || var->var_id < 0 || var->var_id >= MAXVARS);
+	_ON(!var || var->var_id < 0 || var->var_id >= MAXVARS);
 	if (!var_ptrs[0]) {
 		for (i = 0; i < MAXVARS; i++) {
 			p_header = &var_headers[i];
@@ -120,7 +120,7 @@ void speakup_unregister_var(enum var_id_t var_id)
 {
 	struct st_var_header *p_header;
 
-	BUG_ON(var_id < 0 || var_id >= MAXVARS);
+	_ON(var_id < 0 || var_id >= MAXVARS);
 	p_header = var_ptrs[var_id];
 	p_header->data = NULL;
 }
@@ -153,8 +153,8 @@ struct st_var_header *spk_var_header_by_name(const char *name)
 
 struct var_t *spk_get_var(enum var_id_t var_id)
 {
-	BUG_ON(var_id < 0 || var_id >= MAXVARS);
-	BUG_ON(!var_ptrs[var_id]);
+	_ON(var_id < 0 || var_id >= MAXVARS);
+	_ON(!var_ptrs[var_id]);
 	return var_ptrs[var_id]->data;
 }
 EXPORT_SYMBOL_GPL(spk_get_var);

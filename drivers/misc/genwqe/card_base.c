@@ -52,7 +52,7 @@ MODULE_LICENSE("GPL");
 
 static char genwqe_driver_name[] = GENWQE_DEVNAME;
 static struct class *class_genwqe;
-static struct dentry *debugfs_genwqe;
+static struct dentry *defs_genwqe;
 static struct genwqe_dev *genwqe_devices[GENWQE_CARD_NO_MAX];
 
 /* PCI structure for identifying device by PCI vendor and device ID */
@@ -136,11 +136,11 @@ static struct genwqe_dev *genwqe_dev_alloc(void)
 
 	cd->card_idx = i;
 	cd->class_genwqe = class_genwqe;
-	cd->debugfs_genwqe = debugfs_genwqe;
+	cd->defs_genwqe = defs_genwqe;
 
 	/*
 	 * This comes from kernel config option and can be overritten via
-	 * debugfs.
+	 * defs.
 	 */
 	cd->use_platform_recovery = CONFIG_GENWQE_PLATFORM_ERROR_RECOVERY;
 
@@ -260,7 +260,7 @@ static void genwqe_tweak_hardware(struct genwqe_dev *cd)
 			 "FIRs masked due to bitstream %016llx.%016llx\n",
 			 cd->slu_unitcfg, cd->app_unitcfg);
 
-		__genwqe_writeq(cd, IO_APP_SEC_LEM_DEBUG_OVR,
+		__genwqe_writeq(cd, IO_APP_SEC_LEM_DE_OVR,
 				0xFFFFFFFFFFFFFFFFull);
 
 		__genwqe_writeq(cd, IO_APP_ERR_ACT_MASK,
@@ -271,7 +271,7 @@ static void genwqe_tweak_hardware(struct genwqe_dev *cd)
 /**
  * genwqe_recovery_on_fatal_gfir_required() - Version depended actions
  *
- * Bitstreams older than 2013-02-17 have a bug where fatal GFIRs must
+ * Bitstreams older than 2013-02-17 have a  where fatal GFIRs must
  * be ignored. This is e.g. true for the bitstream we gave to the card
  * manufacturer, but also for some old bitstreams we released to our
  * test-lab.
@@ -384,7 +384,7 @@ static int genwqe_ffdc_buffs_alloc(struct genwqe_dev *cd)
 			break;
 		}
 
-		/* currently support only the debug units mentioned here */
+		/* currently support only the de units mentioned here */
 		cd->ffdc[type].entries = e;
 		cd->ffdc[type].regs =
 			kmalloc_array(e, sizeof(struct genwqe_reg),
@@ -657,7 +657,7 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 
 	/*
 	 * Avoid printing when to GFIR bit is on prevents contignous
-	 * printout e.g. for the following bug:
+	 * printout e.g. for the following :
 	 *   FIR set without a 2ndary FIR/FIR cannot be cleared
 	 * Comment out the following if to get the prints:
 	 */
@@ -1376,8 +1376,8 @@ static int __init genwqe_init_module(void)
 
 	class_genwqe->devnode = genwqe_devnode;
 
-	debugfs_genwqe = debugfs_create_dir(GENWQE_DEVNAME, NULL);
-	if (!debugfs_genwqe) {
+	defs_genwqe = defs_create_dir(GENWQE_DEVNAME, NULL);
+	if (!defs_genwqe) {
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -1391,7 +1391,7 @@ static int __init genwqe_init_module(void)
 	return rc;
 
  err_out0:
-	debugfs_remove(debugfs_genwqe);
+	defs_remove(defs_genwqe);
  err_out:
 	class_destroy(class_genwqe);
 	return rc;
@@ -1403,7 +1403,7 @@ static int __init genwqe_init_module(void)
 static void __exit genwqe_exit_module(void)
 {
 	pci_unregister_driver(&genwqe_driver);
-	debugfs_remove(debugfs_genwqe);
+	defs_remove(defs_genwqe);
 	class_destroy(class_genwqe);
 }
 

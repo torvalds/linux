@@ -117,8 +117,8 @@ struct pxa25x_udc {
 	u64					dma_mask;
 	struct pxa25x_ep			ep [PXA_UDC_NUM_ENDPOINTS];
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
-	struct dentry				*debugfs_udc;
+#ifdef CONFIG_USB_GADGET_DE_FS
+	struct dentry				*defs_udc;
 #endif
 	void __iomem				*regs;
 };
@@ -136,7 +136,7 @@ static struct pxa25x_udc *the_controller;
 /*-------------------------------------------------------------------------*/
 
 /*
- * Debugging support vanishes in non-debug builds.  DBG_NORMAL should be
+ * Deging support vanishes in non-de builds.  DBG_NORMAL should be
  * mostly silent during normal use/testing, with no timing side-effects.
  */
 #define DBG_NORMAL	1	/* error paths, device state transitions */
@@ -144,9 +144,9 @@ static struct pxa25x_udc *the_controller;
 #define DBG_NOISY	3	/* ... even more: request level */
 #define DBG_VERY_NOISY	4	/* ... even more: packet level */
 
-#define DMSG(stuff...)	pr_debug("udc: " stuff)
+#define DMSG(stuff...)	pr_de("udc: " stuff)
 
-#ifdef DEBUG
+#ifdef DE
 
 static const char *state_name[] = {
 	"EP0_IDLE",
@@ -154,10 +154,10 @@ static const char *state_name[] = {
 	"EP0_END_XFER", "EP0_STALL"
 };
 
-#ifdef VERBOSE_DEBUG
-#    define UDC_DEBUG DBG_VERBOSE
+#ifdef VERBOSE_DE
+#    define UDC_DE DBG_VERBOSE
 #else
-#    define UDC_DEBUG DBG_NORMAL
+#    define UDC_DE DBG_NORMAL
 #endif
 
 static void __maybe_unused
@@ -236,11 +236,11 @@ dump_state(struct pxa25x_udc *dev)
 #define	dump_udccs0(x)	do{}while(0)
 #define	dump_state(x)	do{}while(0)
 
-#define UDC_DEBUG ((unsigned)0)
+#define UDC_DE ((unsigned)0)
 
 #endif
 
-#define DBG(lvl, stuff...) do{if ((lvl) <= UDC_DEBUG) DMSG(stuff);}while(0)
+#define DBG(lvl, stuff...) do{if ((lvl) <= UDC_DE) DMSG(stuff);}while(0)
 
 #define ERR(stuff...)		pr_err("udc: " stuff)
 #define WARNING(stuff...)	pr_warn("udc: " stuff)

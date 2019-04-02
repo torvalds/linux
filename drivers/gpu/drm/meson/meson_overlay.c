@@ -181,11 +181,11 @@ static void meson_overlay_setup_scaler_params(struct meson_drm *priv,
 	video_width = state->crtc_w;
 	video_height = state->crtc_h;
 
-	DRM_DEBUG("crtc_width %d crtc_height %d interlace %d\n",
+	DRM_DE("crtc_width %d crtc_height %d interlace %d\n",
 		  crtc_width, crtc_height, interlace_mode);
-	DRM_DEBUG("w_in %d h_in %d crop_top %d crop_left %d\n",
+	DRM_DE("w_in %d h_in %d crop_top %d crop_left %d\n",
 		  w_in, h_in, crop_top, crop_left);
-	DRM_DEBUG("video top %d left %d width %d height %d\n",
+	DRM_DE("video top %d left %d width %d height %d\n",
 		  video_top, video_left, video_width, video_height);
 
 	ratio_x = (w_in << 18) / video_width;
@@ -194,12 +194,12 @@ static void meson_overlay_setup_scaler_params(struct meson_drm *priv,
 	if (ratio_x * video_width < (w_in << 18))
 		ratio_x++;
 
-	DRM_DEBUG("ratio x 0x%x y 0x%x\n", ratio_x, ratio_y);
+	DRM_DE("ratio x 0x%x y 0x%x\n", ratio_x, ratio_y);
 
 	meson_overlay_get_vertical_phase(ratio_y, &vphase, &vphase_repeat_skip,
 					 interlace_mode);
 
-	DRM_DEBUG("vphase 0x%x skip %d\n", vphase, vphase_repeat_skip);
+	DRM_DE("vphase 0x%x skip %d\n", vphase, vphase_repeat_skip);
 
 	/* Vertical */
 
@@ -244,7 +244,7 @@ static void meson_overlay_setup_scaler_params(struct meson_drm *priv,
 			 min_t(int, crtc_height - 1,
 			       video_top + video_height - 1));
 
-	DRM_DEBUG("vsc startp %d endp %d start_lines %d end_lines %d\n",
+	DRM_DE("vsc startp %d endp %d start_lines %d end_lines %d\n",
 		 vsc_startp, vsc_endp, vd_start_lines, vd_end_lines);
 
 	/* Horizontal */
@@ -279,7 +279,7 @@ static void meson_overlay_setup_scaler_params(struct meson_drm *priv,
 	hd_start_lines += crop_top;
 	hd_end_lines += crop_top;
 
-	DRM_DEBUG("hsc startp %d endp %d start_lines %d end_lines %d\n",
+	DRM_DE("hsc startp %d endp %d start_lines %d end_lines %d\n",
 		 hsc_startp, hsc_endp, hd_start_lines, hd_end_lines);
 
 	priv->viu.vpp_vsc_start_phase_step = ratio_y << 6;
@@ -348,7 +348,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 	unsigned long flags;
 	bool interlace_mode;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Fallback is canvas provider is not available */
 	if (!priv->canvas) {
@@ -476,7 +476,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 		priv->viu.vd1_height2 =
 			drm_format_plane_height(fb->height,
 						fb->format->format, 2);
-		DRM_DEBUG("plane 2 addr 0x%x stride %d height %d\n",
+		DRM_DE("plane 2 addr 0x%x stride %d height %d\n",
 			 priv->viu.vd1_addr2,
 			 priv->viu.vd1_stride2,
 			 priv->viu.vd1_height2);
@@ -488,7 +488,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 		priv->viu.vd1_height1 =
 			drm_format_plane_height(fb->height,
 						fb->format->format, 1);
-		DRM_DEBUG("plane 1 addr 0x%x stride %d height %d\n",
+		DRM_DE("plane 1 addr 0x%x stride %d height %d\n",
 			 priv->viu.vd1_addr1,
 			 priv->viu.vd1_stride1,
 			 priv->viu.vd1_height1);
@@ -500,7 +500,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 		priv->viu.vd1_height0 =
 			drm_format_plane_height(fb->height,
 						fb->format->format, 0);
-		DRM_DEBUG("plane 0 addr 0x%x stride %d height %d\n",
+		DRM_DE("plane 0 addr 0x%x stride %d height %d\n",
 			 priv->viu.vd1_addr0,
 			 priv->viu.vd1_stride0,
 			 priv->viu.vd1_height0);
@@ -510,7 +510,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 
 	spin_unlock_irqrestore(&priv->drm->event_lock, flags);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 }
 
 static void meson_overlay_atomic_disable(struct drm_plane *plane,
@@ -519,7 +519,7 @@ static void meson_overlay_atomic_disable(struct drm_plane *plane,
 	struct meson_overlay *meson_overlay = to_meson_overlay(plane);
 	struct meson_drm *priv = meson_overlay->priv;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	priv->viu.vd1_enabled = false;
 
@@ -561,7 +561,7 @@ int meson_overlay_create(struct meson_drm *priv)
 	struct meson_overlay *meson_overlay;
 	struct drm_plane *plane;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	meson_overlay = devm_kzalloc(priv->drm->dev, sizeof(*meson_overlay),
 				   GFP_KERNEL);
@@ -582,7 +582,7 @@ int meson_overlay_create(struct meson_drm *priv)
 
 	priv->overlay_plane = plane;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	return 0;
 }

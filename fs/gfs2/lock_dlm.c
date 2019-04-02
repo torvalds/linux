@@ -119,7 +119,7 @@ static void gdlm_ast(void *arg)
 	unsigned ret = gl->gl_state;
 
 	gfs2_update_reply_times(gl);
-	BUG_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
+	_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
 
 	if ((gl->gl_lksb.sb_flags & DLM_SBF_VALNOTVALID) && gl->gl_lksb.sb_lvbptr)
 		memset(gl->gl_lksb.sb_lvbptr, 0, GDLM_LVB_SIZE);
@@ -140,7 +140,7 @@ static void gdlm_ast(void *arg)
 	case 0: /* Success */
 		break;
 	default: /* Something unexpected */
-		BUG();
+		();
 	}
 
 	ret = gl->gl_req;
@@ -150,7 +150,7 @@ static void gdlm_ast(void *arg)
 		else if (gl->gl_req == LM_ST_DEFERRED)
 			ret = LM_ST_SHARED;
 		else
-			BUG();
+			();
 	}
 
 	set_bit(GLF_INITIAL, &gl->gl_flags);
@@ -178,7 +178,7 @@ static void gdlm_bast(void *arg, int mode)
 		break;
 	default:
 		fs_err(gl->gl_name.ln_sbd, "unknown bast mode %d\n", mode);
-		BUG();
+		();
 	}
 }
 
@@ -197,7 +197,7 @@ static int make_mode(struct gfs2_sbd *sdp, const unsigned int lmstate)
 		return DLM_LOCK_PR;
 	}
 	fs_err(sdp, "unknown LM state %d\n", lmstate);
-	BUG();
+	();
 	return -1;
 }
 
@@ -228,7 +228,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 		else if (req == DLM_LOCK_CW)
 			lkf |= DLM_LKF_ALTPR;
 		else
-			BUG();
+			();
 	}
 
 	if (gl->gl_lksb.sb_lkid != 0) {

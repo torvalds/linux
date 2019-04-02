@@ -10,12 +10,12 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
 
-/* DebugFS helpers */
+/* DeFS helpers */
 #define	OBUFP		(obuf + oboff)
 #define	OBUFLEN		512
 #define	OBUFSPC		(OBUFLEN - oboff)
@@ -42,7 +42,7 @@
 #define	RI_NLSB_SHIFT	19
 #define	RI_NLSB(r)	(((r) * RI_LSB_ENTRIES) >> RI_NLSB_SHIFT)
 
-static ssize_t ccp5_debugfs_info_read(struct file *filp, char __user *ubuf,
+static ssize_t ccp5_defs_info_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp)
 {
 	struct ccp_device *ccp = filp->private_data;
@@ -97,7 +97,7 @@ static ssize_t ccp5_debugfs_info_read(struct file *filp, char __user *ubuf,
 /* Return a formatted buffer containing the current
  * statistics across all queues for a CCP.
  */
-static ssize_t ccp5_debugfs_stats_read(struct file *filp, char __user *ubuf,
+static ssize_t ccp5_defs_stats_read(struct file *filp, char __user *ubuf,
 				       size_t count, loff_t *offp)
 {
 	struct ccp_device *ccp = filp->private_data;
@@ -158,7 +158,7 @@ static ssize_t ccp5_debugfs_stats_read(struct file *filp, char __user *ubuf,
 
 /* Reset the counters in a queue
  */
-static void ccp5_debugfs_reset_queue_stats(struct ccp_cmd_queue *cmd_q)
+static void ccp5_defs_reset_queue_stats(struct ccp_cmd_queue *cmd_q)
 {
 	cmd_q->total_ops = 0L;
 	cmd_q->total_aes_ops = 0L;
@@ -174,7 +174,7 @@ static void ccp5_debugfs_reset_queue_stats(struct ccp_cmd_queue *cmd_q)
  * should be used to reset the queue counters across
  * that device.
  */
-static ssize_t ccp5_debugfs_stats_write(struct file *filp,
+static ssize_t ccp5_defs_stats_write(struct file *filp,
 					const char __user *ubuf,
 					size_t count, loff_t *offp)
 {
@@ -182,7 +182,7 @@ static ssize_t ccp5_debugfs_stats_write(struct file *filp,
 	int i;
 
 	for (i = 0; i < ccp->cmd_q_count; i++)
-		ccp5_debugfs_reset_queue_stats(&ccp->cmd_q[i]);
+		ccp5_defs_reset_queue_stats(&ccp->cmd_q[i]);
 	ccp->total_interrupts = 0L;
 
 	return count;
@@ -191,7 +191,7 @@ static ssize_t ccp5_debugfs_stats_write(struct file *filp,
 /* Return a formatted buffer containing the current information
  * for that queue
  */
-static ssize_t ccp5_debugfs_queue_read(struct file *filp, char __user *ubuf,
+static ssize_t ccp5_defs_queue_read(struct file *filp, char __user *ubuf,
 				       size_t count, loff_t *offp)
 {
 	struct ccp_cmd_queue *cmd_q = filp->private_data;
@@ -245,82 +245,82 @@ static ssize_t ccp5_debugfs_queue_read(struct file *filp, char __user *ubuf,
 /* A value was written to the stats variable for a
  * queue. Reset the queue counters to this value.
  */
-static ssize_t ccp5_debugfs_queue_write(struct file *filp,
+static ssize_t ccp5_defs_queue_write(struct file *filp,
 					const char __user *ubuf,
 					size_t count, loff_t *offp)
 {
 	struct ccp_cmd_queue *cmd_q = filp->private_data;
 
-	ccp5_debugfs_reset_queue_stats(cmd_q);
+	ccp5_defs_reset_queue_stats(cmd_q);
 
 	return count;
 }
 
-static const struct file_operations ccp_debugfs_info_ops = {
+static const struct file_operations ccp_defs_info_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = ccp5_debugfs_info_read,
+	.read = ccp5_defs_info_read,
 	.write = NULL,
 };
 
-static const struct file_operations ccp_debugfs_queue_ops = {
+static const struct file_operations ccp_defs_queue_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = ccp5_debugfs_queue_read,
-	.write = ccp5_debugfs_queue_write,
+	.read = ccp5_defs_queue_read,
+	.write = ccp5_defs_queue_write,
 };
 
-static const struct file_operations ccp_debugfs_stats_ops = {
+static const struct file_operations ccp_defs_stats_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = ccp5_debugfs_stats_read,
-	.write = ccp5_debugfs_stats_write,
+	.read = ccp5_defs_stats_read,
+	.write = ccp5_defs_stats_write,
 };
 
-static struct dentry *ccp_debugfs_dir;
-static DEFINE_MUTEX(ccp_debugfs_lock);
+static struct dentry *ccp_defs_dir;
+static DEFINE_MUTEX(ccp_defs_lock);
 
 #define	MAX_NAME_LEN	20
 
-void ccp5_debugfs_setup(struct ccp_device *ccp)
+void ccp5_defs_setup(struct ccp_device *ccp)
 {
 	struct ccp_cmd_queue *cmd_q;
 	char name[MAX_NAME_LEN + 1];
-	struct dentry *debugfs_q_instance;
+	struct dentry *defs_q_instance;
 	int i;
 
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return;
 
-	mutex_lock(&ccp_debugfs_lock);
-	if (!ccp_debugfs_dir)
-		ccp_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	mutex_unlock(&ccp_debugfs_lock);
+	mutex_lock(&ccp_defs_lock);
+	if (!ccp_defs_dir)
+		ccp_defs_dir = defs_create_dir(KBUILD_MODNAME, NULL);
+	mutex_unlock(&ccp_defs_lock);
 
-	ccp->debugfs_instance = debugfs_create_dir(ccp->name, ccp_debugfs_dir);
+	ccp->defs_instance = defs_create_dir(ccp->name, ccp_defs_dir);
 
-	debugfs_create_file("info", 0400, ccp->debugfs_instance, ccp,
-			    &ccp_debugfs_info_ops);
+	defs_create_file("info", 0400, ccp->defs_instance, ccp,
+			    &ccp_defs_info_ops);
 
-	debugfs_create_file("stats", 0600, ccp->debugfs_instance, ccp,
-			    &ccp_debugfs_stats_ops);
+	defs_create_file("stats", 0600, ccp->defs_instance, ccp,
+			    &ccp_defs_stats_ops);
 
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
 
 		snprintf(name, MAX_NAME_LEN - 1, "q%d", cmd_q->id);
 
-		debugfs_q_instance =
-			debugfs_create_dir(name, ccp->debugfs_instance);
+		defs_q_instance =
+			defs_create_dir(name, ccp->defs_instance);
 
-		debugfs_create_file("stats", 0600, debugfs_q_instance, cmd_q,
-				    &ccp_debugfs_queue_ops);
+		defs_create_file("stats", 0600, defs_q_instance, cmd_q,
+				    &ccp_defs_queue_ops);
 	}
 
 	return;
 }
 
-void ccp5_debugfs_destroy(void)
+void ccp5_defs_destroy(void)
 {
-	debugfs_remove_recursive(ccp_debugfs_dir);
+	defs_remove_recursive(ccp_defs_dir);
 }

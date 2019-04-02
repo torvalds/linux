@@ -219,7 +219,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 	pkt->info = 0;
 	if (data == NULL) {
 		data = cq_get(&usb->ep0->dummy_packets_Q);
-		BUG_ON(!data);
+		_ON(!data);
 		pkt->info = PKT_DUMMY_PACKET;
 	}
 	pkt->data = data;

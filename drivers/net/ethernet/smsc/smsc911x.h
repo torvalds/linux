@@ -38,7 +38,7 @@
 
 #define TX_FIFO_LOW_THRESHOLD	((u32)1600)
 #define SMSC911X_EEPROM_SIZE	((u32)128)
-#define USE_DEBUG		0
+#define USE_DE		0
 
 /* This is the maximum number of packets to be received every
  * NAPI poll */
@@ -48,7 +48,7 @@
  * can be successfully looped back */
 #define USE_PHY_WORK_AROUND
 
-#if USE_DEBUG >= 1
+#if USE_DE >= 1
 #define SMSC_WARN(pdata, nlevel, fmt, args...)			\
 	netif_warn(pdata, nlevel, (pdata)->dev,			\
 		   "%s: " fmt "\n", __func__, ##args)
@@ -57,7 +57,7 @@
 	no_printk(fmt "\n", ##args)
 #endif
 
-#if USE_DEBUG >= 2
+#if USE_DE >= 2
 #define SMSC_TRACE(pdata, nlevel, fmt, args...)			\
 	netif_info(pdata, nlevel, pdata->dev, fmt "\n", ##args)
 #else
@@ -65,12 +65,12 @@
 	no_printk(fmt "\n", ##args)
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 #define SMSC_ASSERT_MAC_LOCK(pdata) \
 		lockdep_assert_held(&pdata->mac_lock)
 #else
 #define SMSC_ASSERT_MAC_LOCK(pdata) do {} while (0)
-#endif				/* CONFIG_DEBUG_SPINLOCK */
+#endif				/* CONFIG_DE_SPINLOCK */
 
 /* SMSC911x registers and bitfields */
 #define RX_DATA_FIFO			0x00

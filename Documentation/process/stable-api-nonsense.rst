@@ -106,7 +106,7 @@ keep a Linux kernel driver that is not in the main kernel tree up to
 date over time.
 
 Linux kernel development is continuous and at a rapid pace, never
-stopping to slow down.  As such, the kernel developers find bugs in
+stopping to slow down.  As such, the kernel developers find s in
 current interfaces, or figure out a better way to do things.  If they do
 that, they then fix the current interfaces to work better.  When they do
 so, function names may change, structures may grow or shrink, and
@@ -183,7 +183,7 @@ are:
   - The quality of the driver will rise as the maintenance costs (to the
     original developer) will decrease.
   - Other developers will add features to your driver.
-  - Other people will find and fix bugs in your driver.
+  - Other people will find and fix s in your driver.
   - Other people will find tuning opportunities in your driver.
   - Other people will update the driver for you when external interface
     changes require it.

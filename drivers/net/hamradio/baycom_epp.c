@@ -59,7 +59,7 @@
 
 /* --------------------------------------------------------------------- */
 
-#define BAYCOM_DEBUG
+#define BAYCOM_DE
 #define BAYCOM_MAGIC 19730510
 
 /* --------------------------------------------------------------------- */
@@ -207,8 +207,8 @@ struct baycom_state {
 	unsigned int ptt_keyed;
 	struct sk_buff *skb;  /* next transmit packet  */
 
-#ifdef BAYCOM_DEBUG
-	struct debug_vals {
+#ifdef BAYCOM_DE
+	struct de_vals {
 		unsigned long last_jiffies;
 		unsigned cur_intcnt;
 		unsigned last_intcnt;
@@ -216,8 +216,8 @@ struct baycom_state {
 		int last_pllcorr;
 		unsigned int mod_cycles;
 		unsigned int demod_cycles;
-	} debug_vals;
-#endif /* BAYCOM_DEBUG */
+	} de_vals;
+#endif /* BAYCOM_DE */
 };
 
 /* --------------------------------------------------------------------- */
@@ -278,20 +278,20 @@ static inline int calc_crc_ccitt(const unsigned char *buf, int cnt)
 
 static inline void baycom_int_freq(struct baycom_state *bc)
 {
-#ifdef BAYCOM_DEBUG
+#ifdef BAYCOM_DE
 	unsigned long cur_jiffies = jiffies;
 	/*
 	 * measure the interrupt frequency
 	 */
-	bc->debug_vals.cur_intcnt++;
-	if (time_after_eq(cur_jiffies, bc->debug_vals.last_jiffies + HZ)) {
-		bc->debug_vals.last_jiffies = cur_jiffies;
-		bc->debug_vals.last_intcnt = bc->debug_vals.cur_intcnt;
-		bc->debug_vals.cur_intcnt = 0;
-		bc->debug_vals.last_pllcorr = bc->debug_vals.cur_pllcorr;
-		bc->debug_vals.cur_pllcorr = 0;
+	bc->de_vals.cur_intcnt++;
+	if (time_after_eq(cur_jiffies, bc->de_vals.last_jiffies + HZ)) {
+		bc->de_vals.last_jiffies = cur_jiffies;
+		bc->de_vals.last_intcnt = bc->de_vals.cur_intcnt;
+		bc->de_vals.cur_intcnt = 0;
+		bc->de_vals.last_pllcorr = bc->de_vals.cur_pllcorr;
+		bc->de_vals.cur_pllcorr = 0;
 	}
-#endif /* BAYCOM_DEBUG */
+#endif /* BAYCOM_DE */
 }
 
 /* ---------------------------------------------------------------------- */
@@ -322,7 +322,7 @@ static int eppconfig(struct baycom_state *bc)
 		(bc->cfg.fclk + 8 * bc->cfg.bps) / (16 * bc->cfg.bps),
 		bc->cfg.loopback ? ",loopback" : "");
 	sprintf(portarg, "%ld", bc->pdev->port->base);
-	printk(KERN_DEBUG "%s: %s -s -p %s -m %s\n", bc_drvname, eppconfig_path, portarg, modearg);
+	printk(KERN_DE "%s: %s -s -p %s -m %s\n", bc_drvname, eppconfig_path, portarg, modearg);
 
 	return call_usermodehelper(eppconfig_path, argv, envp, UMH_WAIT_PROC);
 }
@@ -668,7 +668,7 @@ static void epp_bh(struct work_struct *work)
 	if (pp->ops->epp_read_addr(pp, &stat, 1, 0) != 1)
 		goto epptimeout;
 	bc->stat = stat;
-	bc->debug_vals.last_pllcorr = stat;
+	bc->de_vals.last_pllcorr = stat;
 	GETTICK(time1);
 	if (bc->modem == EPP_FPGAEXTSTATUS) {
 		/* get input count */
@@ -755,10 +755,10 @@ static void epp_bh(struct work_struct *work)
 		}
 	}
 	GETTICK(time3);
-#ifdef BAYCOM_DEBUG
-	bc->debug_vals.mod_cycles = time2 - time1;
-	bc->debug_vals.demod_cycles = time3 - time2;
-#endif /* BAYCOM_DEBUG */
+#ifdef BAYCOM_DE
+	bc->de_vals.mod_cycles = time2 - time1;
+	bc->de_vals.demod_cycles = time3 - time2;
+#endif /* BAYCOM_DE */
 	schedule_delayed_work(&bc->run_work, 1);
 	if (!bc->skb)
 		netif_wake_queue(dev);
@@ -816,9 +816,9 @@ static void epp_wakeup(void *handle)
         struct net_device *dev = (struct net_device *)handle;
         struct baycom_state *bc = netdev_priv(dev);
 
-        printk(KERN_DEBUG "baycom_epp: %s: why am I being woken up?\n", dev->name);
+        printk(KERN_DE "baycom_epp: %s: why am I being woken up?\n", dev->name);
         if (!parport_claim(bc->pdev))
-                printk(KERN_DEBUG "baycom_epp: %s: I'm broken.\n", dev->name);
+                printk(KERN_DE "baycom_epp: %s: I'm broken.\n", dev->name);
 }
 
 /* --------------------------------------------------------------------- */

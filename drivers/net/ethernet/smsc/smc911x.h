@@ -130,7 +130,7 @@ static inline unsigned int SMC_inl(struct smc911x_local *lp, int reg)
 	if (lp->cfg.flags & SMC911X_USE_16BIT)
 		return readw(ioaddr) | (readw(ioaddr + 2) << 16);
 
-	BUG();
+	();
 }
 
 static inline void SMC_outl(unsigned int value, struct smc911x_local *lp,
@@ -149,7 +149,7 @@ static inline void SMC_outl(unsigned int value, struct smc911x_local *lp,
 		return;
 	}
 
-	BUG();
+	();
 }
 
 static inline void SMC_insl(struct smc911x_local *lp, int reg,
@@ -167,7 +167,7 @@ static inline void SMC_insl(struct smc911x_local *lp, int reg,
 		return;
 	}
 
-	BUG();
+	();
 }
 
 static inline void SMC_outsl(struct smc911x_local *lp, int reg,
@@ -185,7 +185,7 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 		return;
 	}
 
-	BUG();
+	();
 }
 #else
 #if	SMC_USE_16BIT

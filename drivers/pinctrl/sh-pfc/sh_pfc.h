@@ -8,7 +8,7 @@
 #ifndef __SH_PFC_H
 #define __SH_PFC_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/spinlock.h>
 #include <linux/stringify.h>
@@ -42,7 +42,7 @@ struct sh_pfc_pin {
 		.pins = n##_pins,			\
 		.mux = n##_mux,				\
 		.nr_pins = ARRAY_SIZE(n##_pins) +	\
-		BUILD_BUG_ON_ZERO(sizeof(n##_pins) != sizeof(n##_mux)), \
+		BUILD__ON_ZERO(sizeof(n##_pins) != sizeof(n##_mux)), \
 	}
 #define SH_PFC_PIN_GROUP(n)	SH_PFC_PIN_GROUP_ALIAS(n, n)
 
@@ -127,7 +127,7 @@ struct pinmux_cfg_reg {
  */
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
 	.reg = r, .reg_width = r_width,					\
-	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width),	\
+	.field_width = f_width + BUILD__ON_ZERO(r_width % f_width),	\
 	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])
 
 /*

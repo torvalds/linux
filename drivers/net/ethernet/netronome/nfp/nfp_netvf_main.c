@@ -22,7 +22,7 @@
  * @nn:		NFP Net structure for this device
  * @irq_entries: Pre-allocated array of MSI-X entries
  * @q_bar:	Pointer to mapped QC memory (NULL if TX/RX mapped directly)
- * @ddir:	Per-device debugfs directory
+ * @ddir:	Per-device defs directory
  */
 struct nfp_net_vf {
 	struct nfp_net *nn;
@@ -251,8 +251,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		goto err_irqs_disable;
 
 	nfp_net_info(nn);
-	vf->ddir = nfp_net_debugfs_device_add(pdev);
-	nfp_net_debugfs_vnic_add(nn, vf->ddir);
+	vf->ddir = nfp_net_defs_device_add(pdev);
+	nfp_net_defs_vnic_add(nn, vf->ddir);
 
 	return 0;
 
@@ -288,8 +288,8 @@ static void nfp_netvf_pci_remove(struct pci_dev *pdev)
 	/* Note, the order is slightly different from above as we need
 	 * to keep the nn pointer around till we have freed everything.
 	 */
-	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-	nfp_net_debugfs_dir_clean(&vf->ddir);
+	nfp_net_defs_dir_clean(&nn->defs_dir);
+	nfp_net_defs_dir_clean(&vf->ddir);
 
 	nfp_net_clean(nn);
 

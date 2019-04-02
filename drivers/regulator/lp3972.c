@@ -9,7 +9,7 @@
  *
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>

@@ -5,33 +5,33 @@
  *
  */
 
-#ifndef _CTCM_DBUG_H_
-#define _CTCM_DBUG_H_
+#ifndef _CTCM_D_H_
+#define _CTCM_D_H_
 
 /*
- * Debug Facility stuff
+ * De Facility stuff
  */
 
-#include <asm/debug.h>
+#include <asm/de.h>
 
-#ifdef DEBUG
- #define do_debug 1
+#ifdef DE
+ #define do_de 1
 #else
- #define do_debug 0
+ #define do_de 0
 #endif
-#ifdef DEBUGCCW
- #define do_debug_ccw 1
- #define DEBUGDATA 1
+#ifdef DECCW
+ #define do_de_ccw 1
+ #define DEDATA 1
 #else
- #define do_debug_ccw 0
+ #define do_de_ccw 0
 #endif
-#ifdef DEBUGDATA
- #define do_debug_data 1
+#ifdef DEDATA
+ #define do_de_data 1
 #else
- #define do_debug_data 0
+ #define do_de_data 0
 #endif
 
-/* define dbf debug levels similar to kernel msg levels */
+/* define dbf de levels similar to kernel msg levels */
 #define	CTC_DBF_ALWAYS	0	/* always print this 			*/
 #define	CTC_DBF_EMERG	0	/* system is unusable			*/
 #define	CTC_DBF_ALERT	1	/* action must be taken immediately	*/
@@ -40,7 +40,7 @@
 #define	CTC_DBF_WARN	4	/* warning conditions			*/
 #define	CTC_DBF_NOTICE	5	/* normal but significant condition	*/
 #define	CTC_DBF_INFO	5	/* informational			*/
-#define	CTC_DBF_DEBUG	6	/* debug-level messages			*/
+#define	CTC_DBF_DE	6	/* de-level messages			*/
 
 enum ctcm_dbf_names {
 	CTCM_DBF_SETUP,
@@ -53,12 +53,12 @@ enum ctcm_dbf_names {
 };
 
 struct ctcm_dbf_info {
-	char name[DEBUG_MAX_NAME_LEN];
+	char name[DE_MAX_NAME_LEN];
 	int pages;
 	int areas;
 	int len;
 	int level;
-	debug_info_t *id;
+	de_info_t *id;
 };
 
 extern struct ctcm_dbf_info ctcm_dbf[CTCM_DBF_INFOS];
@@ -77,12 +77,12 @@ static inline const char *strtail(const char *s, int n)
 
 #define CTCM_DBF_TEXT(name, level, text) \
 	do { \
-		debug_text_event(ctcm_dbf[CTCM_DBF_##name].id, level, text); \
+		de_text_event(ctcm_dbf[CTCM_DBF_##name].id, level, text); \
 	} while (0)
 
 #define CTCM_DBF_HEX(name, level, addr, len) \
 	do { \
-		debug_event(ctcm_dbf[CTCM_DBF_##name].id, \
+		de_event(ctcm_dbf[CTCM_DBF_##name].id, \
 					level, (void *)(addr), len); \
 	} while (0)
 

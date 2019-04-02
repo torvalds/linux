@@ -72,7 +72,7 @@
 #define TS_MAX_PACKETS (TS_BUFLEN/TS_SIZE)
 
 
-int av7110_debug;
+int av7110_de;
 
 static int vidmode = CVBS_RGB_OUT;
 static int pids_off;
@@ -86,8 +86,8 @@ static int wss_cfg_16_9 = 0x0007;
 static int tv_standard;
 static int full_ts;
 
-module_param_named(debug, av7110_debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (bitmask, default 0)");
+module_param_named(de, av7110_de, int, 0644);
+MODULE_PARM_DESC(de, "de level (bitmask, default 0)");
 module_param(vidmode, int, 0444);
 MODULE_PARM_DESC(vidmode,"analog video out: 0 off, 1 CVBS+RGB (default), 2 CVBS+YC, 3 YC");
 module_param(pids_off, int, 0444);
@@ -344,10 +344,10 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 }
 
 
-//#define DEBUG_TIMING
+//#define DE_TIMING
 static inline void print_time(char *s)
 {
-#ifdef DEBUG_TIMING
+#ifdef DE_TIMING
 	struct timespec64 ts;
 	ktime_get_real_ts64(&ts);
 	printk("%s: %lld.%09ld\n", s, (s64)ts.tv_sec, ts.tv_nsec);
@@ -445,7 +445,7 @@ static void debiirq(unsigned long cookie)
 		xfer = RX_BUFF;
 		break;
 
-	case DATA_DEBUG_MESSAGE:
+	case DATA_DE_MESSAGE:
 		((s8*)av7110->debi_virt)[Reserved_SIZE - 1] = 0;
 		printk("%s\n", (s8 *) av7110->debi_virt);
 		xfer = RX_BUFF;
@@ -489,7 +489,7 @@ static void gpioirq(unsigned long cookie)
 
 	if (saa7146_wait_for_debi_done(av7110->dev, 0)) {
 		printk(KERN_ERR "%s: saa7146_wait_for_debi_done timed out\n", __func__);
-		BUG(); /* maybe we should try resetting the debi? */
+		(); /* maybe we should try resetting the debi? */
 	}
 
 	spin_lock(&av7110->debilock);
@@ -663,7 +663,7 @@ static void gpioirq(unsigned long cookie)
 		spin_unlock(&av7110->debilock);
 		return;
 
-	case DATA_DEBUG_MESSAGE:
+	case DATA_DE_MESSAGE:
 		if (!len || len > 0xff) {
 			iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 			break;
@@ -1121,9 +1121,9 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 	struct av7110 *av7110;
 
 	/* pointer casting paranoia... */
-	BUG_ON(!demux);
+	_ON(!demux);
 	dvbdemux = demux->priv;
-	BUG_ON(!dvbdemux);
+	_ON(!dvbdemux);
 	av7110 = dvbdemux->priv;
 
 	dprintk(4, "%p\n", av7110);
@@ -2344,7 +2344,7 @@ static int frontend_init(struct av7110 *av7110)
  * I *think* HPS setting has something to do with the phase
  * of HS but I can't be 100% sure in that.
  *
- * hardware debug note: a working budget card (including budget patch)
+ * hardware de note: a working budget card (including budget patch)
  * with vpeirq() interrupt setup in mode "0x90" (every 64K) will
  * generate 3 interrupts per 25-Hz DMA frame of 2*188*512 bytes
  * and that means 3*25=75 Hz of interrupt frequency, as seen by

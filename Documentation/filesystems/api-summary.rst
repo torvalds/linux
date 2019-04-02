@@ -137,14 +137,14 @@ The Filesystem for Exporting Kernel Objects
 .. kernel-doc:: fs/sysfs/symlink.c
    :export:
 
-The debugfs filesystem
+The defs filesystem
 ======================
 
-debugfs interface
+defs interface
 -----------------
 
-.. kernel-doc:: fs/debugfs/inode.c
+.. kernel-doc:: fs/defs/inode.c
    :export:
 
-.. kernel-doc:: fs/debugfs/file.c
+.. kernel-doc:: fs/defs/file.c
    :export:

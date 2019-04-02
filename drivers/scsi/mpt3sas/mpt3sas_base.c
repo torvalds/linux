@@ -94,8 +94,8 @@ module_param(max_msix_vectors, int, 0);
 MODULE_PARM_DESC(max_msix_vectors,
 	" max msix vectors");
 
-static int mpt3sas_fwfault_debug;
-MODULE_PARM_DESC(mpt3sas_fwfault_debug,
+static int mpt3sas_fwfault_de;
+MODULE_PARM_DESC(mpt3sas_fwfault_de,
 	" enable detection of firmware fault and halt firmware - (default=0)");
 
 static int
@@ -124,20 +124,20 @@ mpt3sas_base_check_cmd_timeout(struct MPT3SAS_ADAPTER *ioc,
 
 	ioc_err(ioc, "Command %s\n",
 		issue_reset == 0 ? "terminated due to Host Reset" : "Timeout");
-	_debug_dump_mf(mpi_request, sz);
+	_de_dump_mf(mpi_request, sz);
 
 	return issue_reset;
 }
 
 /**
- * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
+ * _scsih_set_fwfault_de - global setting of ioc->fwfault_de.
  * @val: ?
  * @kp: ?
  *
  * Return: ?
  */
 static int
-_scsih_set_fwfault_debug(const char *val, const struct kernel_param *kp)
+_scsih_set_fwfault_de(const char *val, const struct kernel_param *kp)
 {
 	int ret = param_set_int(val, kp);
 	struct MPT3SAS_ADAPTER *ioc;
@@ -146,15 +146,15 @@ _scsih_set_fwfault_debug(const char *val, const struct kernel_param *kp)
 		return ret;
 
 	/* global ioc spinlock to protect controller list on list operations */
-	pr_info("setting fwfault_debug(%d)\n", mpt3sas_fwfault_debug);
+	pr_info("setting fwfault_de(%d)\n", mpt3sas_fwfault_de);
 	spin_lock(&gioc_lock);
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list)
-		ioc->fwfault_debug = mpt3sas_fwfault_debug;
+		ioc->fwfault_de = mpt3sas_fwfault_de;
 	spin_unlock(&gioc_lock);
 	return 0;
 }
-module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
-	param_get_int, &mpt3sas_fwfault_debug, 0644);
+module_param_call(mpt3sas_fwfault_de, _scsih_set_fwfault_de,
+	param_get_int, &mpt3sas_fwfault_de, 0644);
 
 /**
  * _base_readl_aero - retry readl for max three times.
@@ -520,7 +520,7 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 				/*
 				 * Every single element in MPT will have
 				 * associated sg_next. Better to sanity that
-				 * sg_next is not NULL, but it will be a bug
+				 * sg_next is not NULL, but it will be a 
 				 * if it is null.
 				 */
 				if (is_scsiio_req) {
@@ -727,7 +727,7 @@ mpt3sas_base_fault_info(struct MPT3SAS_ADAPTER *ioc , u16 fault_code)
  * mpt3sas_halt_firmware - halt's mpt controller firmware
  * @ioc: per adapter object
  *
- * For debugging timeout related issues.  Writing 0xCOFFEE00
+ * For deging timeout related issues.  Writing 0xCOFFEE00
  * to the doorbell register will halt controller firmware. With
  * the purpose to stop both driver and firmware, the enduser can
  * obtain a ring buffer from controller UART.
@@ -737,7 +737,7 @@ mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc)
 {
 	u32 doorbell;
 
-	if (!ioc->fwfault_debug)
+	if (!ioc->fwfault_de)
 		return;
 
 	dump_stack();
@@ -750,7 +750,7 @@ mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc)
 		ioc_err(ioc, "Firmware is halted due to command timeout\n");
 	}
 
-	if (ioc->fwfault_debug == 2)
+	if (ioc->fwfault_de == 2)
 		for (;;)
 			;
 	else
@@ -977,7 +977,7 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 	ioc_warn(ioc, "ioc_status: %s(0x%04x), request(0x%p),(%s)\n",
 		 desc, ioc_status, request_hdr, func_str);
 
-	_debug_dump_mf(request_hdr, frame_sz/4);
+	_de_dump_mf(request_hdr, frame_sz/4);
 }
 
 /**
@@ -992,7 +992,7 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 	char *desc = NULL;
 	u16 event;
 
-	if (!(ioc->logging_level & MPT_DEBUG_EVENTS))
+	if (!(ioc->logging_level & MPT_DE_EVENTS))
 		return;
 
 	event = le16_to_cpu(mpi_reply->Event);
@@ -1174,7 +1174,7 @@ _base_display_reply_info(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	ioc_status = le16_to_cpu(mpi_reply->IOCStatus);
 
 	if ((ioc_status & MPI2_IOCSTATUS_MASK) &&
-	    (ioc->logging_level & MPT_DEBUG_REPLY)) {
+	    (ioc->logging_level & MPT_DE_REPLY)) {
 		_base_sas_ioc_info(ioc , mpi_reply,
 		   mpt3sas_base_get_msg_frame(ioc, smid));
 	}
@@ -3844,7 +3844,7 @@ _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 	ioc_info(ioc, "%s: complete\n", __func__);
 	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 				sizeof(Mpi25FWUploadRequest_t)/4);
 		r = -ETIME;
 	} else {
@@ -3864,7 +3864,7 @@ _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 						 FWImgHdr->PackageVersion.Struct.Dev);
 				}
 			} else {
-				_debug_dump_mf(&mpi_reply,
+				_de_dump_mf(&mpi_reply,
 						sizeof(Mpi2FWUploadReply_t)/4);
 			}
 		}
@@ -5252,7 +5252,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 	}
 	writel(0, &ioc->chip->HostInterruptStatus);
 
-	if (ioc->logging_level & MPT_DEBUG_INIT) {
+	if (ioc->logging_level & MPT_DE_INIT) {
 		mfp = (__le32 *)reply;
 		pr_info("\toffset:data\n");
 		for (i = 0; i < reply_bytes/4; i++)
@@ -5685,7 +5685,7 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 	current_time = ktime_get_real();
 	mpi_request.TimeStamp = cpu_to_le64(ktime_to_ms(current_time));
 
-	if (ioc->logging_level & MPT_DEBUG_INIT) {
+	if (ioc->logging_level & MPT_DE_INIT) {
 		__le32 *mfp;
 		int i;
 
@@ -5803,7 +5803,7 @@ _base_send_port_enable(struct MPT3SAS_ADAPTER *ioc)
 	wait_for_completion_timeout(&ioc->port_enable_cmds.done, 300*HZ);
 	if (!(ioc->port_enable_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 		    sizeof(Mpi2PortEnableRequest_t)/4);
 		if (ioc->port_enable_cmds.status & MPT3_CMD_RESET)
 			r = -EFAULT;
@@ -5978,7 +5978,7 @@ _base_event_notification(struct MPT3SAS_ADAPTER *ioc)
 	wait_for_completion_timeout(&ioc->base_cmds.done, 30*HZ);
 	if (!(ioc->base_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 		    sizeof(Mpi2EventNotificationRequest_t)/4);
 		if (ioc->base_cmds.status & MPT3_CMD_RESET)
 			r = -EFAULT;
@@ -6541,7 +6541,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	if (!ioc->device_remove_in_progress)
 		goto out_free_resources;
 
-	ioc->fwfault_debug = mpt3sas_fwfault_debug;
+	ioc->fwfault_de = mpt3sas_fwfault_de;
 
 	/* base internal command bits */
 	mutex_init(&ioc->base_cmds.mutex);
@@ -6801,7 +6801,7 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 		goto out_unlocked;
 	}
 
-	if (mpt3sas_fwfault_debug)
+	if (mpt3sas_fwfault_de)
 		mpt3sas_halt_firmware(ioc);
 
 	/* wait for an active reset in progress to complete */

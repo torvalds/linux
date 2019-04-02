@@ -51,7 +51,7 @@
  * #undef  FALLBACK_TO_1BPP to reject support for unsupported cards */
 #undef FALLBACK_TO_1BPP
 
-#undef DEBUG_STIFB_REGS		/* debug sti register accesses */
+#undef DE_STIFB_REGS		/* de sti register accesses */
 
 
 #include <linux/module.h>
@@ -157,24 +157,24 @@ static int __initdata stifb_bpp_pref[MAX_STI_ROMS];
 #define READ_WORD(fb,reg)		gsc_readl((fb)->info.fix.mmio_start + (reg))
 
 
-#ifndef DEBUG_STIFB_REGS
-# define  DEBUG_OFF()
-# define  DEBUG_ON()
+#ifndef DE_STIFB_REGS
+# define  DE_OFF()
+# define  DE_ON()
 # define WRITE_BYTE(value,fb,reg)	gsc_writeb((value),(fb)->info.fix.mmio_start + (reg))
 # define WRITE_WORD(value,fb,reg)	gsc_writel((value),(fb)->info.fix.mmio_start + (reg))
 #else
-  static int debug_on = 1;
-# define  DEBUG_OFF() debug_on=0
-# define  DEBUG_ON()  debug_on=1
-# define WRITE_BYTE(value,fb,reg)	do { if (debug_on) \
-						printk(KERN_DEBUG "%30s: WRITE_BYTE(0x%06x) = 0x%02x (old=0x%02x)\n", \
+  static int de_on = 1;
+# define  DE_OFF() de_on=0
+# define  DE_ON()  de_on=1
+# define WRITE_BYTE(value,fb,reg)	do { if (de_on) \
+						printk(KERN_DE "%30s: WRITE_BYTE(0x%06x) = 0x%02x (old=0x%02x)\n", \
 							__func__, reg, value, READ_BYTE(fb,reg)); 		  \
 					gsc_writeb((value),(fb)->info.fix.mmio_start + (reg)); } while (0)
-# define WRITE_WORD(value,fb,reg)	do { if (debug_on) \
-						printk(KERN_DEBUG "%30s: WRITE_WORD(0x%06x) = 0x%08x (old=0x%08x)\n", \
+# define WRITE_WORD(value,fb,reg)	do { if (de_on) \
+						printk(KERN_DE "%30s: WRITE_WORD(0x%06x) = 0x%08x (old=0x%08x)\n", \
 							__func__, reg, value, READ_WORD(fb,reg)); 		  \
 					gsc_writel((value),(fb)->info.fix.mmio_start + (reg)); } while (0)
-#endif /* DEBUG_STIFB_REGS */
+#endif /* DE_STIFB_REGS */
 
 
 #define ENABLE	1	/* for enabling/disabling screen */	
@@ -894,7 +894,7 @@ SETUP_HCRX(struct stifb_info *fb)
 			HYPERBOWL_MODE01_8_24_LUT0_TRANSPARENT_LUT1_OPAQUE :
 			HYPERBOWL_MODE01_8_24_LUT0_OPAQUE_LUT1_OPAQUE;
 
-		/* First write to Hyperbowl must happen twice (bug) */
+		/* First write to Hyperbowl must happen twice () */
 		WRITE_WORD(hyperbowl, fb, REG_40);
 		WRITE_WORD(hyperbowl, fb, REG_40);
 		
@@ -907,7 +907,7 @@ SETUP_HCRX(struct stifb_info *fb)
 	} else {
 		hyperbowl = HYPERBOWL_MODE_FOR_8_OVER_88_LUT0_NO_TRANSPARENCIES;
 
-		/* First write to Hyperbowl must happen twice (bug) */
+		/* First write to Hyperbowl must happen twice () */
 		WRITE_WORD(hyperbowl, fb, REG_40);
 		WRITE_WORD(hyperbowl, fb, REG_40);
 
@@ -935,7 +935,7 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 	green >>= 8;
 	blue  >>= 8;
 
-	DEBUG_OFF();
+	DE_OFF();
 
 	START_IMAGE_COLORMAP_ACCESS(fb);
 
@@ -977,7 +977,7 @@ stifb_setcolreg(u_int regno, u_int red, u_int green,
 		FINISH_IMAGE_COLORMAP_ACCESS(fb);
 	}
 
-	DEBUG_ON();
+	DE_ON();
 
 	return 0;
 }

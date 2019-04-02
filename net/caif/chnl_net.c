@@ -167,7 +167,7 @@ static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
 			     int phyid)
 {
 	struct chnl_net *priv = container_of(layr, struct chnl_net, chnl);
-	pr_debug("NET flowctrl func called flow: %s\n",
+	pr_de("NET flowctrl func called flow: %s\n",
 		flow == CAIF_CTRLCMD_FLOW_ON_IND ? "ON" :
 		flow == CAIF_CTRLCMD_INIT_RSP ? "INIT" :
 		flow == CAIF_CTRLCMD_FLOW_OFF_IND ? "OFF" :
@@ -228,7 +228,7 @@ static int chnl_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (!priv->flowenabled) {
-		pr_debug("dropping packets flow off\n");
+		pr_de("dropping packets flow off\n");
 		kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
@@ -265,7 +265,7 @@ static int chnl_net_open(struct net_device *dev)
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	if (!priv) {
-		pr_debug("chnl_net_open: no priv\n");
+		pr_de("chnl_net_open: no priv\n");
 		return -ENODEV;
 	}
 
@@ -275,7 +275,7 @@ static int chnl_net_open(struct net_device *dev)
 						&priv->chnl, &llifindex,
 						&headroom, &tailroom);
 		if (result != 0) {
-				pr_debug("err: "
+				pr_de("err: "
 					 "Unable to register and open device,"
 					 " Err:%d\n",
 					 result);
@@ -285,7 +285,7 @@ static int chnl_net_open(struct net_device *dev)
 		lldev = __dev_get_by_index(dev_net(dev), llifindex);
 
 		if (lldev == NULL) {
-			pr_debug("no interface?\n");
+			pr_de("no interface?\n");
 			result = -ENODEV;
 			goto error;
 		}
@@ -321,32 +321,32 @@ static int chnl_net_open(struct net_device *dev)
 	rtnl_lock();
 
 	if (result == -ERESTARTSYS) {
-		pr_debug("wait_event_interruptible woken by a signal\n");
+		pr_de("wait_event_interruptible woken by a signal\n");
 		result = -ERESTARTSYS;
 		goto error;
 	}
 
 	if (result == 0) {
-		pr_debug("connect timeout\n");
+		pr_de("connect timeout\n");
 		caif_disconnect_client(dev_net(dev), &priv->chnl);
 		priv->state = CAIF_DISCONNECTED;
-		pr_debug("state disconnected\n");
+		pr_de("state disconnected\n");
 		result = -ETIMEDOUT;
 		goto error;
 	}
 
 	if (priv->state != CAIF_CONNECTED) {
-		pr_debug("connect failed\n");
+		pr_de("connect failed\n");
 		result = -ECONNREFUSED;
 		goto error;
 	}
-	pr_debug("CAIF Netdevice connected\n");
+	pr_de("CAIF Netdevice connected\n");
 	return 0;
 
 error:
 	caif_disconnect_client(dev_net(dev), &priv->chnl);
 	priv->state = CAIF_DISCONNECTED;
-	pr_debug("state disconnected\n");
+	pr_de("state disconnected\n");
 	return result;
 
 }

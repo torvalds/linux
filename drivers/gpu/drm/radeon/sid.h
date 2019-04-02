@@ -562,8 +562,8 @@
 #define MC_SEQ_RESERVE_M                                0x2a08
 #define MC_PMG_CMD_EMRS                                 0x2a0c
 
-#define MC_SEQ_IO_DEBUG_INDEX           		0x2a44
-#define MC_SEQ_IO_DEBUG_DATA           			0x2a48
+#define MC_SEQ_IO_DE_INDEX           		0x2a44
+#define MC_SEQ_IO_DE_DATA           			0x2a48
 
 #define MC_SEQ_MISC5                                    0x2a54
 #define MC_SEQ_MISC6                                    0x2a58
@@ -1121,7 +1121,7 @@
 #define		LTI_RATIO_MASK				(0xf << 27)
 #define		LTI_RATIO_SHIFT				27
 
-#define	SX_DEBUG_1					0x9060
+#define	SX_DE_1					0x9060
 
 #define	SPI_STATIC_THREAD_MGMT_1			0x90E0
 #define	SPI_STATIC_THREAD_MGMT_2			0x90E4
@@ -1295,7 +1295,7 @@
 #define	CP_MEM_SLP_CNTL					0xC1E4
 #       define CP_MEM_LS_EN                             (1 << 0)
 
-#define	CP_DEBUG					0xC1FC
+#define	CP_DE					0xC1FC
 
 #define RLC_CNTL                                          0xC300
 #       define RLC_ENABLE                                 (1 << 0)

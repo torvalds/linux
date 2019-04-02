@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Greybus debugfs code
+ * Greybus defs code
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "greybus.h"
 
-static struct dentry *gb_debug_root;
+static struct dentry *gb_de_root;
 
-void __init gb_debugfs_init(void)
+void __init gb_defs_init(void)
 {
-	gb_debug_root = debugfs_create_dir("greybus", NULL);
+	gb_de_root = defs_create_dir("greybus", NULL);
 }
 
-void gb_debugfs_cleanup(void)
+void gb_defs_cleanup(void)
 {
-	debugfs_remove_recursive(gb_debug_root);
-	gb_debug_root = NULL;
+	defs_remove_recursive(gb_de_root);
+	gb_de_root = NULL;
 }
 
-struct dentry *gb_debugfs_get(void)
+struct dentry *gb_defs_get(void)
 {
-	return gb_debug_root;
+	return gb_de_root;
 }
-EXPORT_SYMBOL_GPL(gb_debugfs_get);
+EXPORT_SYMBOL_GPL(gb_defs_get);

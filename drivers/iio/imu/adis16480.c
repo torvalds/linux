@@ -24,7 +24,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #define ADIS16480_PAGE_SIZE 0x80
 
@@ -122,7 +122,7 @@ struct adis16480 {
 	struct adis adis;
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static ssize_t adis16480_show_firmware_revision(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
@@ -194,7 +194,7 @@ static int adis16480_show_serial_number(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(adis16480_serial_number_fops,
+DEFINE_DEFS_ATTRIBUTE(adis16480_serial_number_fops,
 	adis16480_show_serial_number, NULL, "0x%.4llx\n");
 
 static int adis16480_show_product_id(void *arg, u64 *val)
@@ -212,7 +212,7 @@ static int adis16480_show_product_id(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(adis16480_product_id_fops,
+DEFINE_DEFS_ATTRIBUTE(adis16480_product_id_fops,
 	adis16480_show_product_id, NULL, "%llu\n");
 
 static int adis16480_show_flash_count(void *arg, u64 *val)
@@ -230,27 +230,27 @@ static int adis16480_show_flash_count(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(adis16480_flash_count_fops,
+DEFINE_DEFS_ATTRIBUTE(adis16480_flash_count_fops,
 	adis16480_show_flash_count, NULL, "%lld\n");
 
-static int adis16480_debugfs_init(struct iio_dev *indio_dev)
+static int adis16480_defs_init(struct iio_dev *indio_dev)
 {
 	struct adis16480 *adis16480 = iio_priv(indio_dev);
 
-	debugfs_create_file_unsafe("firmware_revision", 0400,
-		indio_dev->debugfs_dentry, adis16480,
+	defs_create_file_unsafe("firmware_revision", 0400,
+		indio_dev->defs_dentry, adis16480,
 		&adis16480_firmware_revision_fops);
-	debugfs_create_file_unsafe("firmware_date", 0400,
-		indio_dev->debugfs_dentry, adis16480,
+	defs_create_file_unsafe("firmware_date", 0400,
+		indio_dev->defs_dentry, adis16480,
 		&adis16480_firmware_date_fops);
-	debugfs_create_file_unsafe("serial_number", 0400,
-		indio_dev->debugfs_dentry, adis16480,
+	defs_create_file_unsafe("serial_number", 0400,
+		indio_dev->defs_dentry, adis16480,
 		&adis16480_serial_number_fops);
-	debugfs_create_file_unsafe("product_id", 0400,
-		indio_dev->debugfs_dentry, adis16480,
+	defs_create_file_unsafe("product_id", 0400,
+		indio_dev->defs_dentry, adis16480,
 		&adis16480_product_id_fops);
-	debugfs_create_file_unsafe("flash_count", 0400,
-		indio_dev->debugfs_dentry, adis16480,
+	defs_create_file_unsafe("flash_count", 0400,
+		indio_dev->defs_dentry, adis16480,
 		&adis16480_flash_count_fops);
 
 	return 0;
@@ -258,7 +258,7 @@ static int adis16480_debugfs_init(struct iio_dev *indio_dev)
 
 #else
 
-static int adis16480_debugfs_init(struct iio_dev *indio_dev)
+static int adis16480_defs_init(struct iio_dev *indio_dev)
 {
 	return 0;
 }
@@ -865,7 +865,7 @@ static int adis16480_probe(struct spi_device *spi)
 	if (ret)
 		goto error_stop_device;
 
-	adis16480_debugfs_init(indio_dev);
+	adis16480_defs_init(indio_dev);
 
 	return 0;
 

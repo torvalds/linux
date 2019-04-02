@@ -54,7 +54,7 @@
  */
 
 #define TOSH_VERSION "1.11 26/9/2001"
-#define TOSH_DEBUG 0
+#define TOSH_DE 0
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -382,8 +382,8 @@ static int tosh_get_machine_id(void __iomem *bios)
 		   a different value! For the time being I will just fudge the
 		   value. This has been verified on a Satellite Pro 430CDT,
 		   Tecra 750CDT, Tecra 780DVD and Satellite 310CDT. */
-#if TOSH_DEBUG
-		printk("toshiba: debugging ID ebx=0x%04x\n", regs.ebx);
+#if TOSH_DE
+		printk("toshiba: deging ID ebx=0x%04x\n", regs.ebx);
 #endif
 		bx = 0xe6f5;
 

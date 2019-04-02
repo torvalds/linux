@@ -26,9 +26,9 @@
 #include <linux/highmem.h>
 #include <linux/kprobes.h>
 
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/paravirt.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
@@ -85,7 +85,7 @@ static unsigned paravirt_patch_call(void *insnbuf, const void *target,
 
 	b->opcode = 0xe8; /* call */
 	b->delta = delta;
-	BUILD_BUG_ON(sizeof(*b) != 5);
+	BUILD__ON(sizeof(*b) != 5);
 
 	return 5;
 }
@@ -136,7 +136,7 @@ unsigned paravirt_patch_default(u8 type, void *insnbuf,
 	unsigned ret;
 
 	if (opfunc == NULL)
-		/* If there's no function, patch it with a ud2a (BUG) */
+		/* If there's no function, patch it with a ud2a () */
 		ret = paravirt_patch_insns(insnbuf, len, ud2a, ud2a+sizeof(ud2a));
 	else if (opfunc == _paravirt_nop)
 		ret = 0;
@@ -225,14 +225,14 @@ static DEFINE_PER_CPU(enum paravirt_lazy_mode, paravirt_lazy_mode) = PARAVIRT_LA
 
 static inline void enter_lazy(enum paravirt_lazy_mode mode)
 {
-	BUG_ON(this_cpu_read(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
+	_ON(this_cpu_read(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
 
 	this_cpu_write(paravirt_lazy_mode, mode);
 }
 
 static void leave_lazy(enum paravirt_lazy_mode mode)
 {
-	BUG_ON(this_cpu_read(paravirt_lazy_mode) != mode);
+	_ON(this_cpu_read(paravirt_lazy_mode) != mode);
 
 	this_cpu_write(paravirt_lazy_mode, PARAVIRT_LAZY_NONE);
 }
@@ -262,7 +262,7 @@ void paravirt_flush_lazy_mmu(void)
 #ifdef CONFIG_PARAVIRT_XXL
 void paravirt_start_context_switch(struct task_struct *prev)
 {
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	if (this_cpu_read(paravirt_lazy_mode) == PARAVIRT_LAZY_MMU) {
 		arch_leave_lazy_mmu_mode();
@@ -273,7 +273,7 @@ void paravirt_start_context_switch(struct task_struct *prev)
 
 void paravirt_end_context_switch(struct task_struct *next)
 {
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	leave_lazy(PARAVIRT_LAZY_CPU);
 
@@ -318,8 +318,8 @@ struct paravirt_patch_template pv_ops = {
 
 #ifdef CONFIG_PARAVIRT_XXL
 	.cpu.cpuid		= native_cpuid,
-	.cpu.get_debugreg	= native_get_debugreg,
-	.cpu.set_debugreg	= native_set_debugreg,
+	.cpu.get_dereg	= native_get_dereg,
+	.cpu.set_dereg	= native_set_dereg,
 	.cpu.read_cr0		= native_read_cr0,
 	.cpu.write_cr0		= native_write_cr0,
 	.cpu.write_cr4		= native_write_cr4,
@@ -465,9 +465,9 @@ struct paravirt_patch_template pv_ops = {
 };
 
 #ifdef CONFIG_PARAVIRT_XXL
-/* At this point, native_get/set_debugreg has real function entries */
-NOKPROBE_SYMBOL(native_get_debugreg);
-NOKPROBE_SYMBOL(native_set_debugreg);
+/* At this point, native_get/set_dereg has real function entries */
+NOKPROBE_SYMBOL(native_get_dereg);
+NOKPROBE_SYMBOL(native_set_dereg);
 NOKPROBE_SYMBOL(native_load_idt);
 #endif
 

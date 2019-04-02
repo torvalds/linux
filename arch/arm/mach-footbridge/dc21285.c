@@ -159,13 +159,13 @@ static irqreturn_t dc21285_abort_irq(int irq, void *dev_id)
 	cmd = cmd & 0xffff;
 
 	if (status & PCI_STATUS_REC_MASTER_ABORT) {
-		printk(KERN_DEBUG "PCI: master abort, pc=0x%08lx\n",
+		printk(KERN_DE "PCI: master abort, pc=0x%08lx\n",
 			instruction_pointer(get_irq_regs()));
 		cmd |= PCI_STATUS_REC_MASTER_ABORT << 16;
 	}
 
 	if (status & PCI_STATUS_REC_TARGET_ABORT) {
-		printk(KERN_DEBUG "PCI: target abort: ");
+		printk(KERN_DE "PCI: target abort: ");
 		pcibios_report_status(PCI_STATUS_REC_MASTER_ABORT |
 				      PCI_STATUS_SIG_TARGET_ABORT |
 				      PCI_STATUS_REC_TARGET_ABORT, 1);
@@ -184,7 +184,7 @@ static irqreturn_t dc21285_serr_irq(int irq, void *dev_id)
 	struct timer_list *timer = dev_id;
 	unsigned int cntl;
 
-	printk(KERN_DEBUG "PCI: system error received: ");
+	printk(KERN_DE "PCI: system error received: ");
 	pcibios_report_status(PCI_STATUS_SIG_SYSTEM_ERROR, 1);
 	printk("\n");
 
@@ -203,7 +203,7 @@ static irqreturn_t dc21285_serr_irq(int irq, void *dev_id)
 
 static irqreturn_t dc21285_discard_irq(int irq, void *dev_id)
 {
-	printk(KERN_DEBUG "PCI: discard timer expired\n");
+	printk(KERN_DE "PCI: discard timer expired\n");
 	*CSR_SA110_CNTL &= 0xffffde07;
 
 	return IRQ_HANDLED;
@@ -213,7 +213,7 @@ static irqreturn_t dc21285_dparity_irq(int irq, void *dev_id)
 {
 	unsigned int cmd;
 
-	printk(KERN_DEBUG "PCI: data parity error detected: ");
+	printk(KERN_DE "PCI: data parity error detected: ");
 	pcibios_report_status(PCI_STATUS_PARITY | PCI_STATUS_DETECTED_PARITY, 1);
 	printk("\n");
 
@@ -228,7 +228,7 @@ static irqreturn_t dc21285_parity_irq(int irq, void *dev_id)
 	struct timer_list *timer = dev_id;
 	unsigned int cmd;
 
-	printk(KERN_DEBUG "PCI: parity error detected: ");
+	printk(KERN_DE "PCI: parity error detected: ");
 	pcibios_report_status(PCI_STATUS_PARITY | PCI_STATUS_DETECTED_PARITY, 1);
 	printk("\n");
 

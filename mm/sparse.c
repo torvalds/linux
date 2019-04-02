@@ -116,7 +116,7 @@ int __section_nr(struct mem_section* ms)
 		     break;
 	}
 
-	VM_BUG_ON(!root);
+	VM__ON(!root);
 
 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
 }
@@ -271,8 +271,8 @@ static unsigned long sparse_encode_mem_map(struct page *mem_map, unsigned long p
 {
 	unsigned long coded_mem_map =
 		(unsigned long)(mem_map - (section_nr_to_pfn(pnum)));
-	BUILD_BUG_ON(SECTION_MAP_LAST_BIT > (1UL<<PFN_SECTION_SHIFT));
-	BUG_ON(coded_mem_map & ~SECTION_MAP_MASK);
+	BUILD__ON(SECTION_MAP_LAST_BIT > (1UL<<PFN_SECTION_SHIFT));
+	_ON(coded_mem_map & ~SECTION_MAP_MASK);
 	return coded_mem_map;
 }
 
@@ -664,7 +664,7 @@ static void free_map_bootmem(struct page *memmap)
 	for (i = 0; i < nr_pages; i++, page++) {
 		magic = (unsigned long) page->freelist;
 
-		BUG_ON(magic == NODE_INFO);
+		_ON(magic == NODE_INFO);
 
 		maps_section_nr = pfn_to_section_nr(page_to_pfn(page));
 		removing_section_nr = page_private(page);

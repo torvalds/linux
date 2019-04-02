@@ -3,7 +3,7 @@
 #include <traceevent/event-parse.h>
 #include "evsel.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 
 static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 				  int size, bool should_be_signed)
@@ -13,19 +13,19 @@ static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 	int ret = 0;
 
 	if (field == NULL) {
-		pr_debug("%s: \"%s\" field not found!\n", evsel->name, name);
+		pr_de("%s: \"%s\" field not found!\n", evsel->name, name);
 		return -1;
 	}
 
 	is_signed = !!(field->flags & TEP_FIELD_IS_SIGNED);
 	if (should_be_signed && !is_signed) {
-		pr_debug("%s: \"%s\" signedness(%d) is wrong, should be %d\n",
+		pr_de("%s: \"%s\" signedness(%d) is wrong, should be %d\n",
 			 evsel->name, name, is_signed, should_be_signed);
 		ret = -1;
 	}
 
 	if (field->size != size) {
-		pr_debug("%s: \"%s\" size (%d) should be %d!\n",
+		pr_de("%s: \"%s\" size (%d) should be %d!\n",
 			 evsel->name, name, field->size, size);
 		ret = -1;
 	}
@@ -39,7 +39,7 @@ int test__perf_evsel__tp_sched_test(struct test *test __maybe_unused, int subtes
 	int ret = 0;
 
 	if (IS_ERR(evsel)) {
-		pr_debug("perf_evsel__newtp failed with %ld\n", PTR_ERR(evsel));
+		pr_de("perf_evsel__newtp failed with %ld\n", PTR_ERR(evsel));
 		return -1;
 	}
 
@@ -69,7 +69,7 @@ int test__perf_evsel__tp_sched_test(struct test *test __maybe_unused, int subtes
 	evsel = perf_evsel__newtp("sched", "sched_wakeup");
 
 	if (IS_ERR(evsel)) {
-		pr_debug("perf_evsel__newtp failed with %ld\n", PTR_ERR(evsel));
+		pr_de("perf_evsel__newtp failed with %ld\n", PTR_ERR(evsel));
 		return -1;
 	}
 

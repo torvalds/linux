@@ -27,7 +27,7 @@
 #include <linux/of_dma.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "dmaengine.h"
 #define PL330_MAX_CHAN		8
@@ -252,7 +252,7 @@ enum pl330_byteswap {
 /* Use this _only_ to wait on transient states */
 #define UNTIL(t, s)	while (!(_state(t) & (s))) cpu_relax();
 
-#ifdef PL330_DEBUG_MCGEN
+#ifdef PL330_DE_MCGEN
 static unsigned cmd_line;
 #define PL330_DBGCMD_DUMP(off, x...)	do { \
 						printk("%x:", cmd_line); \

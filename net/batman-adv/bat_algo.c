@@ -122,7 +122,7 @@ int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 	return 0;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 
 /**
  * batadv_algo_seq_print_text() - Print the supported algorithms in a seq file

@@ -164,7 +164,7 @@ static int radeon_cursor_move_locked(struct drm_crtc *crtc, int x, int y)
 		x += crtc->x;
 		y += crtc->y;
 	}
-	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+	DRM_DE("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
 
 	/* fixed on DCE6 and newer */
 	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE6(rdev)) {

@@ -1270,7 +1270,7 @@ static const char * const msc_mode[] = {
 	[MSC_MODE_SINGLE]	= "single",
 	[MSC_MODE_MULTI]	= "multi",
 	[MSC_MODE_EXI]		= "ExI",
-	[MSC_MODE_DEBUG]	= "debug",
+	[MSC_MODE_DE]	= "de",
 };
 
 static ssize_t

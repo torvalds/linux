@@ -90,7 +90,7 @@ static long snd_seq_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	struct snd_seq_client *client = file->private_data;
 	void __user *argp = compat_ptr(arg);
 
-	if (snd_BUG_ON(!client))
+	if (snd__ON(!client))
 		return -ENXIO;
 
 	switch (cmd) {

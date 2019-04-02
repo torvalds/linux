@@ -39,7 +39,7 @@ static const char rpaname[] = "IBM,RPA-Client-Config";
 
 /*
  * Note: setting ignore_my_client_config *should* mean that OF ignores
- * all the other fields, but there is a firmware bug which means that
+ * all the other fields, but there is a firmware  which means that
  * it looks at the splpar field at least.  So these values need to be
  * reasonable.
  */

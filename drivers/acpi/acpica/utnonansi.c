@@ -104,7 +104,7 @@ int acpi_ut_stricmp(char *string1, char *string2)
 	return (c1 - c2);
 }
 
-#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
+#if defined (ACPI_DEGER) || defined (ACPI_APPLICATION) || defined (ACPI_DE_OUTPUT)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_safe_strcpy, acpi_ut_safe_strcat, acpi_ut_safe_strncat

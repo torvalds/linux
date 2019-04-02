@@ -19,7 +19,7 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 
-#define DEBUG
+#define DE
 
 /* DP83865 phy identifier values */
 #define DP83865_PHY_ID	0x20005c7a
@@ -111,7 +111,7 @@ static void ns_10_base_t_hdx_loopack(struct phy_device *phydev, int disable)
 		ns_exp_write(phydev, 0x1c0,
 			     ns_exp_read(phydev, 0x1c0) & 0xfffe);
 
-	pr_debug("10BASE-T HDX loopback %s\n",
+	pr_de("10BASE-T HDX loopback %s\n",
 		 (ns_exp_read(phydev, 0x1c0) & 0x0001) ? "off" : "on");
 }
 

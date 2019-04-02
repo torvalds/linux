@@ -20,7 +20,7 @@
  * rewritten when we want to move/wear level the main journal.
  *
  * Currently, we don't journal BTREE_REPLACE operations - this will hopefully be
- * fixed eventually. This isn't a bug - BTREE_REPLACE is used for insertions
+ * fixed eventually. This isn't a  - BTREE_REPLACE is used for insertions
  * from cache misses, which don't have to be journaled, and for writeback and
  * moving gc we work around it by flushing the btree to disk before updating the
  * gc information. But it is a potential issue with incremental garbage

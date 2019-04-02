@@ -1,6 +1,6 @@
 /*
  * mac80211 glue code for mac80211 ST-Ericsson CW1200 drivers
- * DebugFS code
+ * DeFS code
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
@@ -11,14 +11,14 @@
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include "cw1200.h"
-#include "debug.h"
+#include "de.h"
 #include "fwio.h"
 
 /* join_status */
-static const char * const cw1200_debug_join_status[] = {
+static const char * const cw1200_de_join_status[] = {
 	"passive",
 	"monitor",
 	"station (joining)",
@@ -29,14 +29,14 @@ static const char * const cw1200_debug_join_status[] = {
 };
 
 /* WSM_JOIN_PREAMBLE_... */
-static const char * const cw1200_debug_preamble[] = {
+static const char * const cw1200_de_preamble[] = {
 	"long",
 	"short",
 	"long on 1 and 2 Mbps",
 };
 
 
-static const char * const cw1200_debug_link_id[] = {
+static const char * const cw1200_de_link_id[] = {
 	"OFF",
 	"REQ",
 	"SOFT",
@@ -45,7 +45,7 @@ static const char * const cw1200_debug_link_id[] = {
 	"RESET_REMAP",
 };
 
-static const char *cw1200_debug_mode(int mode)
+static const char *cw1200_de_mode(int mode)
 {
 	switch (mode) {
 	case NL80211_IFTYPE_UNSPECIFIED:
@@ -86,7 +86,7 @@ static void cw1200_queue_status_show(struct seq_file *seq,
 	seq_printf(seq, "<-%zu\n", q->stats->map_capacity);
 }
 
-static void cw1200_debug_print_map(struct seq_file *seq,
+static void cw1200_de_print_map(struct seq_file *seq,
 				   struct cw1200_common *priv,
 				   const char *label,
 				   u32 map)
@@ -103,7 +103,7 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 	int i;
 	struct list_head *item;
 	struct cw1200_common *priv = seq->private;
-	struct cw1200_debug_priv *d = priv->debug;
+	struct cw1200_de_priv *d = priv->de;
 
 	seq_puts(seq,   "CW1200 Wireless LAN driver status\n");
 	seq_printf(seq, "Hardware:   %d.%d\n",
@@ -120,10 +120,10 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "FW label:  '%s'\n",
 		   priv->wsm_caps.fw_label);
 	seq_printf(seq, "Mode:       %s%s\n",
-		   cw1200_debug_mode(priv->mode),
+		   cw1200_de_mode(priv->mode),
 		   priv->listening ? " (listening)" : "");
 	seq_printf(seq, "Join state: %s\n",
-		   cw1200_debug_join_status[priv->join_status]);
+		   cw1200_de_join_status[priv->join_status]);
 	if (priv->channel)
 		seq_printf(seq, "Channel:    %d%s\n",
 			   priv->channel->hw_value,
@@ -169,7 +169,7 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 			break;
 		}
 		seq_printf(seq, "Preamble:   %s\n",
-			   cw1200_debug_preamble[priv->association_mode.preamble]);
+			   cw1200_de_preamble[priv->association_mode.preamble]);
 		seq_printf(seq, "AMPDU spcn: %d\n",
 			   priv->association_mode.mpdu_start_spacing);
 		seq_printf(seq, "Basic rate: 0x%.8X\n",
@@ -211,11 +211,11 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "\n");
 	}
 
-	cw1200_debug_print_map(seq, priv, "Link map:   ",
+	cw1200_de_print_map(seq, priv, "Link map:   ",
 			       priv->link_id_map);
-	cw1200_debug_print_map(seq, priv, "Asleep map: ",
+	cw1200_de_print_map(seq, priv, "Asleep map: ",
 			       priv->sta_asleep_mask);
-	cw1200_debug_print_map(seq, priv, "PSPOLL map: ",
+	cw1200_de_print_map(seq, priv, "PSPOLL map: ",
 			       priv->pspoll_mask);
 
 	seq_puts(seq, "\n");
@@ -224,7 +224,7 @@ static int cw1200_status_show(struct seq_file *seq, void *v)
 		if (priv->link_id_db[i].status) {
 			seq_printf(seq, "Link %d:     %s, %pM\n",
 				   i + 1,
-				   cw1200_debug_link_id[priv->link_id_db[i].status],
+				   cw1200_de_link_id[priv->link_id_db[i].status],
 				   priv->link_id_db[i].mac);
 		}
 	}
@@ -360,33 +360,33 @@ static const struct file_operations fops_wsm_dumps = {
 	.llseek = default_llseek,
 };
 
-int cw1200_debug_init(struct cw1200_common *priv)
+int cw1200_de_init(struct cw1200_common *priv)
 {
 	int ret = -ENOMEM;
-	struct cw1200_debug_priv *d = kzalloc(sizeof(struct cw1200_debug_priv),
+	struct cw1200_de_priv *d = kzalloc(sizeof(struct cw1200_de_priv),
 			GFP_KERNEL);
-	priv->debug = d;
+	priv->de = d;
 	if (!d)
 		return ret;
 
-	d->debugfs_phy = debugfs_create_dir("cw1200",
-					    priv->hw->wiphy->debugfsdir);
-	debugfs_create_file("status", 0400, d->debugfs_phy, priv,
+	d->defs_phy = defs_create_dir("cw1200",
+					    priv->hw->wiphy->defsdir);
+	defs_create_file("status", 0400, d->defs_phy, priv,
 			    &cw1200_status_fops);
-	debugfs_create_file("counters", 0400, d->debugfs_phy, priv,
+	defs_create_file("counters", 0400, d->defs_phy, priv,
 			    &cw1200_counters_fops);
-	debugfs_create_file("wsm_dumps", 0200, d->debugfs_phy, priv,
+	defs_create_file("wsm_dumps", 0200, d->defs_phy, priv,
 			    &fops_wsm_dumps);
 
 	return 0;
 }
 
-void cw1200_debug_release(struct cw1200_common *priv)
+void cw1200_de_release(struct cw1200_common *priv)
 {
-	struct cw1200_debug_priv *d = priv->debug;
+	struct cw1200_de_priv *d = priv->de;
 	if (d) {
-		debugfs_remove_recursive(d->debugfs_phy);
-		priv->debug = NULL;
+		defs_remove_recursive(d->defs_phy);
+		priv->de = NULL;
 		kfree(d);
 	}
 }

@@ -390,7 +390,7 @@ static int af9015_read_config(struct dvb_usb_device *d)
 
 	/* IR remote controller */
 	req.addr = AF9015_EEPROM_IR_MODE;
-	/* first message will timeout often due to possible hw bug */
+	/* first message will timeout often due to possible hw  */
 	for (i = 0; i < 4; i++) {
 		ret = af9015_ctrl_msg(d, &req);
 		if (!ret)
@@ -1224,7 +1224,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 	} else {
 		dev_dbg(&intf->dev, "no key press\n");
 		/* Invalidate last keypress */
-		/* Not really needed, but helps with debug */
+		/* Not really needed, but helps with de */
 		state->rc_last[2] = state->rc_last[3];
 	}
 

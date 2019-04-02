@@ -215,7 +215,7 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 	cpufreq_freq_transition_end(policy, &freqs, ret != 0);
 
 	if (ret)
-		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
+		pr_de("Failed to set target on CPU:%d. ret:%d\n",
 				cpu->cpu, ret);
 
 	return ret;
@@ -237,7 +237,7 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 
 	ret = cppc_set_perf(cpu_num, &cpu->perf_ctrls);
 	if (ret)
-		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
+		pr_de("Err setting perf value:%d on CPU:%d. ret:%d\n",
 				cpu->perf_caps.lowest_perf, cpu_num, ret);
 }
 
@@ -296,7 +296,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	ret = cppc_get_perf_caps(policy->cpu, &cpu->perf_caps);
 
 	if (ret) {
-		pr_debug("Err reading CPU%d perf capabilities. ret:%d\n",
+		pr_de("Err reading CPU%d perf capabilities. ret:%d\n",
 				cpu_num, ret);
 		return ret;
 	}
@@ -337,7 +337,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		}
 	} else if (policy->shared_type == CPUFREQ_SHARED_TYPE_ALL) {
 		/* Support only SW_ANY for now. */
-		pr_debug("Unsupported CPU co-ord type\n");
+		pr_de("Unsupported CPU co-ord type\n");
 		return -EFAULT;
 	}
 
@@ -350,7 +350,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	ret = cppc_set_perf(cpu_num, &cpu->perf_ctrls);
 	if (ret)
-		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
+		pr_de("Err setting perf value:%d on CPU:%d. ret:%d\n",
 				cpu->perf_caps.highest_perf, cpu_num, ret);
 
 	return ret;
@@ -445,7 +445,7 @@ static int __init cppc_cpufreq_init(void)
 
 	ret = acpi_get_psd_map(all_cpu_data);
 	if (ret) {
-		pr_debug("Error parsing PSD data. Aborting cpufreq registration.\n");
+		pr_de("Error parsing PSD data. Aborting cpufreq registration.\n");
 		goto out;
 	}
 

@@ -287,7 +287,7 @@ static inline u16 ks_tx_fifo_space(struct ks_net *ks)
  */
 static inline void ks_save_cmd_reg(struct ks_net *ks)
 {
-	/*ks8851 MLL has a bug to read back the command register.
+	/*ks8851 MLL has a  to read back the command register.
 	* So rely on software to save the content of command register.
 	*/
 	ks->cmd_reg_cache_int = ks->cmd_reg_cache;

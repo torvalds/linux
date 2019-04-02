@@ -145,7 +145,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     dello sviluppo di Linux ed è molto importante per le persone che arrivano
     da esperienze con altri Sistemi Operativi.
 
-  :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`
+  :ref:`Documentation/translations/it_IT/admin-guide/security-s.rst <it_securitys>`
     Se ritenete di aver trovato un problema di sicurezza nel kernel Linux,
     seguite i passaggi scritti in questo documento per notificarlo agli
     sviluppatori del kernel, ed aiutare la risoluzione del problema.
@@ -354,22 +354,22 @@ Coloro che vorranno fare dei test d'esecuzione del kernel -next sono più che
 benvenuti.
 
 
-Riportare Bug
+Riportare 
 -------------
 
-https://bugzilla.kernel.org è dove gli sviluppatori del kernel Linux tracciano
+https://zilla.kernel.org è dove gli sviluppatori del kernel Linux tracciano
 i bachi del kernel. Gli utenti sono incoraggiati nel riportare tutti i bachi
 che trovano utilizzando questo strumento.
-Per maggiori dettagli su come usare il bugzilla del kernel, guardare:
+Per maggiori dettagli su come usare il zilla del kernel, guardare:
 
-	https://bugzilla.kernel.org/page.cgi?id=faq.html
+	https://zilla.kernel.org/page.cgi?id=faq.html
 
-Il file admin-guide/reporting-bugs.rst nella cartella principale del kernel
+Il file admin-guide/reporting-s.rst nella cartella principale del kernel
 fornisce un buon modello sul come segnalare un baco nel kernel, e spiega quali
 informazioni sono necessarie agli sviluppatori per poter aiutare il
 rintracciamento del problema.
 
-Gestire i rapporti sui bug
+Gestire i rapporti sui 
 --------------------------
 
 Uno dei modi migliori per mettere in pratica le vostre capacità di hacking è
@@ -381,7 +381,7 @@ acquisire meriti tra gli altri sviluppatori, perchè non a molte persone piace
 perdere tempo a sistemare i bachi di altri.
 
 Per lavorare sui rapporti di bachi già riportati, andate su
-https://bugzilla.kernel.org.
+https://zilla.kernel.org.
 
 Liste di discussione
 --------------------
@@ -560,7 +560,7 @@ I motivi per i quali dovreste frammentare le cose sono i seguenti:
    (il tempo necessario è esponenzialmente proporzionale alla dimensione della
    modifica, o giù di lì)
 
-   Piccole modifiche sono inoltre molto facili da debuggare quando qualcosa
+   Piccole modifiche sono inoltre molto facili da degare quando qualcosa
    non va. È molto più facile annullare le modifiche una per una che
    dissezionare una patch molto grande dopo la sua sottomissione (e rompere
    qualcosa).

@@ -20,11 +20,11 @@
 #include <babeltrace/ctf-ir/utils.h>
 #include <babeltrace/ctf/events.h>
 #include <traceevent/event-parse.h>
-#include "asm/bug.h"
+#include "asm/.h"
 #include "data-convert-bt.h"
 #include "session.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "tool.h"
 #include "evlist.h"
 #include "evsel.h"
@@ -33,12 +33,12 @@
 #include "sane_ctype.h"
 
 #define pr_N(n, fmt, ...) \
-	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
+	eprintf(n, de_data_convert, fmt, ##__VA_ARGS__)
 
 #define pr(fmt, ...)  pr_N(1, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr2(fmt, ...) pr_N(2, pr_fmt(fmt), ##__VA_ARGS__)
 
-#define pr_time2(t, fmt, ...) pr_time_N(2, debug_data_convert, t, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_time2(t, fmt, ...) pr_time_N(2, de_data_convert, t, pr_fmt(fmt), ##__VA_ARGS__)
 
 struct evsel_priv {
 	struct bt_ctf_event_class *event_class;
@@ -233,7 +233,7 @@ static unsigned long long adjust_signedness(unsigned long long value_int, int si
 		 */
 		/* Fall through */
 	default:
-		/* BUG! */
+		/* ! */
 		return value_int;
 	}
 

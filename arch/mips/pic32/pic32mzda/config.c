@@ -83,11 +83,11 @@ int pic32_set_sdhci_adma_fifo_threshold(u32 rthrsh, u32 wthrsh)
 	return pic32_conf_modify_atomic(PIC32_CFGCON2, clr, set);
 }
 
-void pic32_syskey_unlock_debug(const char *func, const ulong line)
+void pic32_syskey_unlock_de(const char *func, const ulong line)
 {
 	void __iomem *syskey = pic32_conf_base + PIC32_SYSKEY;
 
-	pr_debug("%s: called from %s:%lu\n", __func__, func, line);
+	pr_de("%s: called from %s:%lu\n", __func__, func, line);
 	writel(0x00000000, syskey);
 	writel(0xAA996655, syskey);
 	writel(0x556699AA, syskey);

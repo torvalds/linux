@@ -127,7 +127,7 @@ int ath9k_cmn_init_channels_rates(struct ath_common *common)
 	struct ath_hw *ah = (struct ath_hw *)common->ah;
 	void *channels;
 
-	BUILD_BUG_ON(ARRAY_SIZE(ath9k_2ghz_chantable) +
+	BUILD__ON(ARRAY_SIZE(ath9k_2ghz_chantable) +
 		     ARRAY_SIZE(ath9k_5ghz_chantable) !=
 		     ATH9K_NUM_CHANNELS);
 

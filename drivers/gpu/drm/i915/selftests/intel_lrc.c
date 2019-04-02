@@ -361,7 +361,7 @@ static int live_suppress_self_preempt(void *arg)
 			}
 			i915_request_add(rq_b);
 
-			GEM_BUG_ON(i915_request_completed(rq_a));
+			GEM__ON(i915_request_completed(rq_a));
 			engine->schedule(rq_a, &attr);
 			igt_spinner_end(&a.spin);
 

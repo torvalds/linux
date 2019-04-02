@@ -8,7 +8,7 @@
 /* For setsockopt(2) */
 #define SOL_SOCKET	1
 
-#define SO_DEBUG	1
+#define SO_DE	1
 #define SO_REUSEADDR	2
 #define SO_TYPE		3
 #define SO_ERROR	4

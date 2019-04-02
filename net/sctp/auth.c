@@ -19,7 +19,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -110,7 +110,7 @@ struct sctp_shared_key *sctp_auth_shkey_create(__u16 key_id, gfp_t gfp)
 /* Free the shared key structure */
 static void sctp_auth_shkey_destroy(struct sctp_shared_key *sh_key)
 {
-	BUG_ON(!list_empty(&sh_key->key_list));
+	_ON(!list_empty(&sh_key->key_list));
 	sctp_auth_key_put(sh_key->key);
 	sh_key->key = NULL;
 	kfree(sh_key);
@@ -372,7 +372,7 @@ int sctp_auth_asoc_copy_shkeys(const struct sctp_endpoint *ep,
 	struct sctp_shared_key *sh_key;
 	struct sctp_shared_key *new;
 
-	BUG_ON(!list_empty(&asoc->endpoint_shared_keys));
+	_ON(!list_empty(&asoc->endpoint_shared_keys));
 
 	key_for_each(sh_key, &ep->endpoint_shared_keys) {
 		new = sctp_auth_shkey_create(sh_key->key_id, gfp);
@@ -413,7 +413,7 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 	 * For key_id 0, endpoint pair shared key is a NULL key.
 	 */
 	ep_key = sctp_auth_get_shkey(asoc, asoc->active_key_id);
-	BUG_ON(!ep_key);
+	_ON(!ep_key);
 
 	secret = sctp_auth_asoc_create_secret(asoc, ep_key, gfp);
 	if (!secret)

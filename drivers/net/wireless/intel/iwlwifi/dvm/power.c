@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <net/mac80211.h>
 #include "iwl-io.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-trans.h"
 #include "iwl-modparams.h"
 #include "dev.h"
@@ -247,11 +247,11 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
 
-	IWL_DEBUG_POWER(priv, "numSkipDtim = %u, dtimPeriod = %d\n",
+	IWL_DE_POWER(priv, "numSkipDtim = %u, dtimPeriod = %d\n",
 			skip, period);
 	/* The power level here is 0-4 (used as array index), but user expects
 	to see 1-5 (according to spec). */
-	IWL_DEBUG_POWER(priv, "Sleep command for index %d\n", lvl + 1);
+	IWL_DE_POWER(priv, "Sleep command for index %d\n", lvl + 1);
 }
 
 static void iwl_power_sleep_cam_cmd(struct iwl_priv *priv,
@@ -262,16 +262,16 @@ static void iwl_power_sleep_cam_cmd(struct iwl_priv *priv,
 	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 
-	IWL_DEBUG_POWER(priv, "Sleep command for CAM\n");
+	IWL_DE_POWER(priv, "Sleep command for CAM\n");
 }
 
 static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 {
-	IWL_DEBUG_POWER(priv, "Sending power/sleep command\n");
-	IWL_DEBUG_POWER(priv, "Flags value = 0x%08X\n", cmd->flags);
-	IWL_DEBUG_POWER(priv, "Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
-	IWL_DEBUG_POWER(priv, "Rx timeout = %u\n", le32_to_cpu(cmd->rx_data_timeout));
-	IWL_DEBUG_POWER(priv, "Sleep interval vector = { %d , %d , %d , %d , %d }\n",
+	IWL_DE_POWER(priv, "Sending power/sleep command\n");
+	IWL_DE_POWER(priv, "Flags value = 0x%08X\n", cmd->flags);
+	IWL_DE_POWER(priv, "Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
+	IWL_DE_POWER(priv, "Rx timeout = %u\n", le32_to_cpu(cmd->rx_data_timeout));
+	IWL_DE_POWER(priv, "Sleep interval vector = { %d , %d , %d , %d , %d }\n",
 			le32_to_cpu(cmd->sleep_interval[0]),
 			le32_to_cpu(cmd->sleep_interval[1]),
 			le32_to_cpu(cmd->sleep_interval[2]),
@@ -306,9 +306,9 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 		    iwl_tt_current_power_mode(priv), dtimper);
 	} else if (!enabled)
 		iwl_power_sleep_cam_cmd(priv, cmd);
-	else if (priv->power_data.debug_sleep_level_override >= 0)
+	else if (priv->power_data.de_sleep_level_override >= 0)
 		iwl_static_sleep_cmd(priv, cmd,
-				     priv->power_data.debug_sleep_level_override,
+				     priv->power_data.de_sleep_level_override,
 				     dtimper);
 	else {
 		/* Note that the user parameter is 1-5 (according to spec),
@@ -344,7 +344,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 	/* scan complete use sleep_power_next, need to be updated */
 	memcpy(&priv->power_data.sleep_cmd_next, cmd, sizeof(*cmd));
 	if (test_bit(STATUS_SCANNING, &priv->status) && !force) {
-		IWL_DEBUG_INFO(priv, "Defer power set mode while scanning\n");
+		IWL_DE_INFO(priv, "Defer power set mode while scanning\n");
 		return 0;
 	}
 
@@ -359,7 +359,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 		if (update_chains)
 			iwl_update_chain_flags(priv);
 		else
-			IWL_DEBUG_POWER(priv,
+			IWL_DE_POWER(priv,
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					priv->chain_noise_data.state);
@@ -384,7 +384,7 @@ void iwl_power_initialize(struct iwl_priv *priv)
 {
 	priv->power_data.bus_pm = priv->trans->pm_support;
 
-	priv->power_data.debug_sleep_level_override = -1;
+	priv->power_data.de_sleep_level_override = -1;
 
 	memset(&priv->power_data.sleep_cmd, 0,
 		sizeof(priv->power_data.sleep_cmd));

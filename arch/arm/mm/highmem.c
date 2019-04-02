@@ -45,7 +45,7 @@ EXPORT_SYMBOL(kmap);
 
 void kunmap(struct page *page)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return;
 	kunmap_high(page);
@@ -64,10 +64,10 @@ void *kmap_atomic(struct page *page)
 	if (!PageHighMem(page))
 		return page_address(page);
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	/*
 	 * There is no cache coherency issue when non VIVT, so force the
-	 * dedicated kmap usage for better debugging purposes in that case.
+	 * dedicated kmap usage for better deging purposes in that case.
 	 */
 	if (!cache_is_vivt())
 		kmap = NULL;
@@ -81,15 +81,15 @@ void *kmap_atomic(struct page *page)
 
 	idx = FIX_KMAP_BEGIN + type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	/*
-	 * With debugging enabled, kunmap_atomic forces that entry to 0.
+	 * With deging enabled, kunmap_atomic forces that entry to 0.
 	 * Make sure it was indeed properly unmapped.
 	 */
-	BUG_ON(!pte_none(get_fixmap_pte(vaddr)));
+	_ON(!pte_none(get_fixmap_pte(vaddr)));
 #endif
 	/*
-	 * When debugging is off, kunmap_atomic leaves the previous mapping
+	 * When deging is off, kunmap_atomic leaves the previous mapping
 	 * in place, so the contained TLB flush ensures the TLB is updated
 	 * with the new mapping.
 	 */
@@ -110,8 +110,8 @@ void __kunmap_atomic(void *kvaddr)
 
 		if (cache_is_vivt())
 			__cpuc_flush_dcache_area((void *)vaddr, PAGE_SIZE);
-#ifdef CONFIG_DEBUG_HIGHMEM
-		BUG_ON(vaddr != __fix_to_virt(idx));
+#ifdef CONFIG_DE_HIGHMEM
+		_ON(vaddr != __fix_to_virt(idx));
 		set_fixmap_pte(idx, __pte(0));
 #else
 		(void) idx;  /* to kill a warning */
@@ -140,8 +140,8 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	type = kmap_atomic_idx_push();
 	idx = FIX_KMAP_BEGIN + type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(get_fixmap_pte(vaddr)));
+#ifdef CONFIG_DE_HIGHMEM
+	_ON(!pte_none(get_fixmap_pte(vaddr)));
 #endif
 	set_fixmap_pte(idx, pfn_pte(pfn, kmap_prot));
 

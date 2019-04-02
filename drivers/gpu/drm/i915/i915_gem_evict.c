@@ -73,7 +73,7 @@ static int ggtt_flush(struct drm_i915_private *i915)
 	if (err)
 		return err;
 
-	GEM_BUG_ON(!ggtt_is_idle(i915));
+	GEM__ON(!ggtt_is_idle(i915));
 	return 0;
 }
 
@@ -207,7 +207,7 @@ search_again:
 	/* Nothing found, clean up and bail out! */
 	list_for_each_entry_safe(vma, next, &eviction_list, evict_link) {
 		ret = drm_mm_scan_remove_block(&scan, &vma->node);
-		BUG_ON(ret);
+		_ON(ret);
 	}
 
 	/*
@@ -305,8 +305,8 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 	int ret = 0;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
-	GEM_BUG_ON(!IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
-	GEM_BUG_ON(!IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
+	GEM__ON(!IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
+	GEM__ON(!IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
 
 	trace_i915_gem_evict_node(vm, target, flags);
 
@@ -327,7 +327,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		/* Always look at the page afterwards to avoid the end-of-GTT */
 		end += I915_GTT_PAGE_SIZE;
 	}
-	GEM_BUG_ON(start >= end);
+	GEM__ON(start >= end);
 
 	drm_mm_for_each_node_in_range(node, &vm->mm, start, end) {
 		/* If we find any non-objects (!vma), we cannot evict them */
@@ -336,7 +336,7 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 			break;
 		}
 
-		GEM_BUG_ON(!node->allocated);
+		GEM__ON(!node->allocated);
 		vma = container_of(node, typeof(*vma), node);
 
 		/* If we are using coloring to insert guard pages between

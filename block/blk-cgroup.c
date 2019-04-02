@@ -51,7 +51,7 @@ static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
 static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
 
-static bool blkcg_debug_stats = false;
+static bool blkcg_de_stats = false;
 
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
@@ -450,7 +450,7 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 
 	/*
 	 * Note that stat reset is racy - it doesn't synchronize against
-	 * stat updates.  This is a debug feature which shouldn't exist
+	 * stat updates.  This is a de feature which shouldn't exist
 	 * anyway.  If you get hit by a race, retry.
 	 */
 	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
@@ -980,7 +980,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 					 dbytes, dios);
 		}
 
-		if (!blkcg_debug_stats)
+		if (!blkcg_de_stats)
 			goto next;
 
 		if (atomic_read(&blkg->use_delay)) {
@@ -1621,7 +1621,7 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
 		/*
 		 * This shouldn't happen, but handle it anyway.  Our delay_nsec
 		 * should only ever be growing except here where we subtract out
-		 * min(last_delay, 1 second), but lord knows bugs happen and I'd
+		 * min(last_delay, 1 second), but lord knows s happen and I'd
 		 * rather not end up with negative numbers.
 		 */
 		if (unlikely(cur < sub)) {
@@ -1782,5 +1782,5 @@ void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
 	atomic64_add(delta, &blkg->delay_nsec);
 }
 
-module_param(blkcg_debug_stats, bool, 0644);
-MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if not");
+module_param(blkcg_de_stats, bool, 0644);
+MODULE_PARM_DESC(blkcg_de_stats, "True if you want de stats, false if not");

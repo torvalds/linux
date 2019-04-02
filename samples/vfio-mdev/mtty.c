@@ -87,7 +87,7 @@ struct mdev_region_info {
 	u64 vfio_offset;
 };
 
-#if defined(DEBUG_REGS)
+#if defined(DE_REGS)
 const char *wr_reg[] = {
 	"TX",
 	"IER",
@@ -173,7 +173,7 @@ static struct mdev_state *find_mdev_state_by_uuid(const guid_t *uuid)
 
 void dump_buffer(u8 *buf, uint32_t count)
 {
-#if defined(DEBUG)
+#if defined(DE)
 	int i;
 
 	pr_info("Buffer:\n");
@@ -337,7 +337,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 			   (mdev_state->s[index].rxtx.count ==
 				    mdev_state->s[index].intr_trigger_level)) {
 				/* trigger interrupt */
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 				pr_err("Serial port %d: Fifo level trigger\n",
 					index);
 #endif
@@ -345,7 +345,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 						mdev_uuid(mdev_state->mdev));
 			}
 		} else {
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 			pr_err("Serial port %d: Buffer Overflow\n", index);
 #endif
 			mdev_state->s[index].overrun = true;
@@ -372,7 +372,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 			if ((data & UART_IER_THRI) &&
 			    (mdev_state->s[index].rxtx.head ==
 					mdev_state->s[index].rxtx.tail)) {
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 				pr_err("Serial port %d: IER_THRI write\n",
 					index);
 #endif
@@ -445,7 +445,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 
 		if ((mdev_state->s[index].uart_reg[UART_IER] & UART_IER_MSI) &&
 				(data & UART_MCR_OUT2)) {
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 			pr_err("Serial port %d: MCR_OUT2 write\n", index);
 #endif
 			mtty_trigger_interrupt(mdev_uuid(mdev_state->mdev));
@@ -453,7 +453,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 
 		if ((mdev_state->s[index].uart_reg[UART_IER] & UART_IER_MSI) &&
 				(data & (UART_MCR_RTS | UART_MCR_DTR))) {
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 			pr_err("Serial port %d: MCR RTS/DTR write\n", index);
 #endif
 			mtty_trigger_interrupt(mdev_uuid(mdev_state->mdev));
@@ -502,7 +502,7 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 		 *  Trigger interrupt if tx buffer empty interrupt is
 		 *  enabled and fifo is empty
 		 */
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 			pr_err("Serial port %d: Buffer Empty\n", index);
 #endif
 			if (mdev_state->s[index].uart_reg[UART_IER] &
@@ -674,7 +674,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, u8 *buf, size_t count,
 	switch (index) {
 	case VFIO_PCI_CONFIG_REGION_INDEX:
 
-#if defined(DEBUG)
+#if defined(DE)
 		pr_info("%s: PCI config space %s at offset 0x%llx\n",
 			 __func__, is_write ? "write" : "read", offset);
 #endif
@@ -695,7 +695,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, u8 *buf, size_t count,
 		if (is_write) {
 			dump_buffer(buf, count);
 
-#if defined(DEBUG_REGS)
+#if defined(DE_REGS)
 			pr_info("%s: BAR%d  WR @0x%llx %s val:0x%02x dlab:%d\n",
 				__func__, index, offset, wr_reg[offset],
 				*buf, mdev_state->s[index].dlab);
@@ -705,7 +705,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, u8 *buf, size_t count,
 			handle_bar_read(index, mdev_state, offset, buf, count);
 			dump_buffer(buf, count);
 
-#if defined(DEBUG_REGS)
+#if defined(DE_REGS)
 			pr_info("%s: BAR%d  RD @0x%llx %s val:0x%02x dlab:%d\n",
 				__func__, index, offset, rd_reg[offset],
 				*buf, mdev_state->s[index].dlab);
@@ -1058,7 +1058,7 @@ static int mtty_trigger_interrupt(const guid_t *uuid)
 	else
 		ret = eventfd_signal(mdev_state->intx_evtfd, 1);
 
-#if defined(DEBUG_INTR)
+#if defined(DE_INTR)
 	pr_info("Intx triggered\n");
 #endif
 	if (ret != 1)

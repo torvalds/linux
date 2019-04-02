@@ -34,7 +34,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DPRINTK(fmt, ...)				\
-	pr_debug("(%s:%d) " fmt "\n",			\
+	pr_de("(%s:%d) " fmt "\n",			\
 		 __func__, __LINE__, ##__VA_ARGS__)
 
 #include <linux/kernel.h>

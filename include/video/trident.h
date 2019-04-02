@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef TRIDENTFB_DEBUG
-#define TRIDENTFB_DEBUG 0
+#ifndef TRIDENTFB_DE
+#define TRIDENTFB_DE 0
 #endif
 
-#if TRIDENTFB_DEBUG
-#define debug(f, a...)	printk("%s:" f,  __func__ , ## a);
+#if TRIDENTFB_DE
+#define de(f, a...)	printk("%s:" f,  __func__ , ## a);
 #else
-#define debug(f, a...)
+#define de(f, a...)
 #endif
 
 #define output(f, a...) pr_info("tridentfb: " f, ## a)

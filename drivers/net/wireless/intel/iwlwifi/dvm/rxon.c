@@ -106,7 +106,7 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 	send->filter_flags = old_filter;
 
 	if (ret)
-		IWL_DEBUG_QUIET_RFKILL(priv,
+		IWL_DE_QUIET_RFKILL(priv,
 			"Error clearing ASSOC_MSK on BSS (%d)\n", ret);
 
 	return ret;
@@ -182,7 +182,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 	if (ctx->ht.enabled)
 		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
-	IWL_DEBUG_INFO(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+	IWL_DE_INFO(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
@@ -190,7 +190,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
-		IWL_DEBUG_QUIET_RFKILL(priv, "Failed to update QoS\n");
+		IWL_DE_QUIET_RFKILL(priv, "Failed to update QoS\n");
 }
 
 static int iwlagn_update_beacon(struct iwl_priv *priv,
@@ -225,7 +225,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 	    (rxon1->acquisition_data == rxon2->acquisition_data) &&
 	    (rxon1->rx_chain == rxon2->rx_chain) &&
 	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
-		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
+		IWL_DE_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}
 
@@ -343,7 +343,7 @@ static int iwl_send_rxon_timing(struct iwl_priv *priv,
 
 	ctx->timing.dtim_period = vif ? (vif->bss_conf.dtim_period ?: 1) : 1;
 
-	IWL_DEBUG_ASSOC(priv,
+	IWL_DE_ASSOC(priv,
 			"beacon interval %d beacon timer %d beacon tim %d\n",
 			le16_to_cpu(ctx->timing.beacon_interval),
 			le32_to_cpu(ctx->timing.beacon_init_val),
@@ -436,7 +436,7 @@ static int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	defer = test_bit(STATUS_SCANNING, &priv->status) ||
 		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
 	if (defer && !force) {
-		IWL_DEBUG_INFO(priv, "Deferring tx power set\n");
+		IWL_DE_INFO(priv, "Deferring tx power set\n");
 		return 0;
 	}
 
@@ -532,7 +532,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
 		return 0;
 
-	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+	BUILD__ON(NUM_IWL_RXON_CTX != 2);
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -686,7 +686,7 @@ static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 
 	iwlagn_set_rxon_chain(priv, ctx);
 
-	IWL_DEBUG_ASSOC(priv, "rxon flags 0x%X operation mode :0x%X "
+	IWL_DE_ASSOC(priv, "rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x\n",
 			le32_to_cpu(rxon->flags), ctx->ht.protection,
 			ctx->ht.extension_chan_offset);
@@ -725,7 +725,7 @@ void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	priv->band = band;
 
-	IWL_DEBUG_INFO(priv, "Staging channel set to %d [%d]\n", channel, band);
+	IWL_DE_INFO(priv, "Staging channel set to %d [%d]\n", channel, band);
 
 }
 
@@ -853,13 +853,13 @@ static int iwl_full_rxon_required(struct iwl_priv *priv,
 
 #define CHK(cond)							\
 	if ((cond)) {							\
-		IWL_DEBUG_INFO(priv, "need full RXON - " #cond "\n");	\
+		IWL_DE_INFO(priv, "need full RXON - " #cond "\n");	\
 		return 1;						\
 	}
 
 #define CHK_NEQ(c1, c2)						\
 	if ((c1) != (c2)) {					\
-		IWL_DEBUG_INFO(priv, "need full RXON - "	\
+		IWL_DE_INFO(priv, "need full RXON - "	\
 			       #c1 " != " #c2 " - %d != %d\n",	\
 			       (c1), (c2));			\
 		return 1;					\
@@ -900,29 +900,29 @@ static int iwl_full_rxon_required(struct iwl_priv *priv,
 	return 0;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     enum iwl_rxon_context_id ctxid)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[ctxid];
 	struct iwl_rxon_cmd *rxon = &ctx->staging;
 
-	IWL_DEBUG_RADIO(priv, "RX CONFIG:\n");
+	IWL_DE_RADIO(priv, "RX CONFIG:\n");
 	iwl_print_hex_dump(priv, IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
-	IWL_DEBUG_RADIO(priv, "u16 channel: 0x%x\n",
+	IWL_DE_RADIO(priv, "u16 channel: 0x%x\n",
 			le16_to_cpu(rxon->channel));
-	IWL_DEBUG_RADIO(priv, "u32 flags: 0x%08X\n",
+	IWL_DE_RADIO(priv, "u32 flags: 0x%08X\n",
 			le32_to_cpu(rxon->flags));
-	IWL_DEBUG_RADIO(priv, "u32 filter_flags: 0x%08x\n",
+	IWL_DE_RADIO(priv, "u32 filter_flags: 0x%08x\n",
 			le32_to_cpu(rxon->filter_flags));
-	IWL_DEBUG_RADIO(priv, "u8 dev_type: 0x%x\n", rxon->dev_type);
-	IWL_DEBUG_RADIO(priv, "u8 ofdm_basic_rates: 0x%02x\n",
+	IWL_DE_RADIO(priv, "u8 dev_type: 0x%x\n", rxon->dev_type);
+	IWL_DE_RADIO(priv, "u8 ofdm_basic_rates: 0x%02x\n",
 			rxon->ofdm_basic_rates);
-	IWL_DEBUG_RADIO(priv, "u8 cck_basic_rates: 0x%02x\n",
+	IWL_DE_RADIO(priv, "u8 cck_basic_rates: 0x%02x\n",
 			rxon->cck_basic_rates);
-	IWL_DEBUG_RADIO(priv, "u8[6] node_addr: %pM\n", rxon->node_addr);
-	IWL_DEBUG_RADIO(priv, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
-	IWL_DEBUG_RADIO(priv, "u16 assoc_id: 0x%x\n",
+	IWL_DE_RADIO(priv, "u8[6] node_addr: %pM\n", rxon->node_addr);
+	IWL_DE_RADIO(priv, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
+	IWL_DE_RADIO(priv, "u16 assoc_id: 0x%x\n",
 			le16_to_cpu(rxon->assoc_id));
 }
 #endif
@@ -949,7 +949,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 				if (lowest_present_ofdm > hw)
 					lowest_present_ofdm = hw;
 			} else {
-				BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
+				BUILD__ON(IWL_FIRST_CCK_RATE != 0);
 
 				cck |= BIT(hw);
 				if (lowest_present_cck > hw)
@@ -1010,7 +1010,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 	/* 1M already there or needed so always add */
 	cck |= IWL_RATE_1M_MASK >> IWL_FIRST_CCK_RATE;
 
-	IWL_DEBUG_RATE(priv, "Set basic rates cck:0x%.2x ofdm:0x%.2x\n",
+	IWL_DE_RATE(priv, "Set basic rates cck:0x%.2x ofdm:0x%.2x\n",
 		       cck, ofdm);
 
 	/* "basic_rates" is a misnomer here -- should be called ACK rates */
@@ -1049,7 +1049,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		return -EBUSY;
 
 	/* This function hardcodes a bunch of dual-mode assumptions */
-	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+	BUILD__ON(NUM_IWL_RXON_CTX != 2);
 
 	if (!ctx->is_active)
 		return 0;
@@ -1086,7 +1086,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 */
 	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
 	    (priv->switch_channel != ctx->staging.channel)) {
-		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
+		IWL_DE_11H(priv, "abort channel switch on %d\n",
 			      le16_to_cpu(priv->switch_channel));
 		iwl_chswitch_done(priv, false);
 	}
@@ -1118,7 +1118,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	iwl_set_rxon_hwcrypto(priv, ctx, !iwlwifi_mod_params.swcrypto);
 
-	IWL_DEBUG_INFO(priv,
+	IWL_DE_INFO(priv,
 		       "Going to commit RXON\n"
 		       "  * with%s RXON_FILTER_ASSOC_MSK\n"
 		       "  * channel = %d\n"
@@ -1173,17 +1173,17 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_channel *channel = conf->chandef.chan;
 	int ret = 0;
 
-	IWL_DEBUG_MAC80211(priv, "enter: changed %#x\n", changed);
+	IWL_DE_MAC80211(priv, "enter: changed %#x\n", changed);
 
 	mutex_lock(&priv->mutex);
 
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
-		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
+		IWL_DE_MAC80211(priv, "leave - scanning\n");
 		goto out;
 	}
 
 	if (!iwl_is_ready(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		IWL_DE_MAC80211(priv, "leave - not ready\n");
 		goto out;
 	}
 
@@ -1245,11 +1245,11 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 			IEEE80211_CONF_CHANGE_IDLE)) {
 		ret = iwl_power_update_mode(priv, false);
 		if (ret)
-			IWL_DEBUG_MAC80211(priv, "Error setting sleep level\n");
+			IWL_DE_MAC80211(priv, "Error setting sleep level\n");
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		IWL_DEBUG_MAC80211(priv, "TX Power old=%d new=%d\n",
+		IWL_DE_MAC80211(priv, "TX Power old=%d new=%d\n",
 			priv->tx_power_user_lmt, conf->power_level);
 
 		iwl_set_tx_power(priv, conf->power_level, false);
@@ -1262,7 +1262,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
  out:
 	mutex_unlock(&priv->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
+	IWL_DE_MAC80211(priv, "leave\n");
 
 	return ret;
 }
@@ -1392,7 +1392,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 			IWL_ERR(priv,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
-		IWL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
+		IWL_DE_CALIB(priv, "Run chain_noise_calibrate\n");
 	}
 }
 
@@ -1417,13 +1417,13 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (unlikely(!iwl_is_ready(priv))) {
-		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		IWL_DE_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->mutex);
 		return;
         }
 
 	if (unlikely(!ctx->vif)) {
-		IWL_DEBUG_MAC80211(priv, "leave - vif is NULL\n");
+		IWL_DE_MAC80211(priv, "leave - vif is NULL\n");
 		mutex_unlock(&priv->mutex);
 		return;
 	}

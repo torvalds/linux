@@ -488,7 +488,7 @@ static void pata_s3c_hwinit(struct s3c_ide_info *info,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 }
 

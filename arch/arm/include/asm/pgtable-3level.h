@@ -268,7 +268,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t pmd)
 {
-	BUG_ON(addr >= TASK_SIZE);
+	_ON(addr >= TASK_SIZE);
 
 	/* create a faulting entry if PROT_NONE protected */
 	if (pmd_val(pmd) & L_PMD_SECT_NONE)

@@ -256,7 +256,7 @@ static int rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	print_hex_dump_bytes("rtllib_classify(): ", DUMP_PREFIX_NONE, skb->data,
 			     skb->len);
 #endif

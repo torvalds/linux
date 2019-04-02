@@ -579,7 +579,7 @@ void inet6_netconf_notify_devconf(struct net *net, int event, int type,
 	err = inet6_netconf_fill_devconf(skb, ifindex, devconf, 0, 0,
 					 event, 0, type);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet6_netconf_msgsize_devconf() */
+		/* -EMSGSIZE implies  in inet6_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -684,7 +684,7 @@ static int inet6_netconf_get_devconf(struct sk_buff *in_skb,
 					 nlh->nlmsg_seq, RTM_NEWNETCONF, 0,
 					 NETCONFA_ALL);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet6_netconf_msgsize_devconf() */
+		/* -EMSGSIZE implies  in inet6_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -951,8 +951,8 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 {
 	WARN_ON(!hlist_unhashed(&ifp->addr_lst));
 
-#ifdef NET_REFCNT_DEBUG
-	pr_debug("%s\n", __func__);
+#ifdef NET_REFCNT_DE
+	pr_de("%s\n", __func__);
 #endif
 
 	in6_dev_put(ifp->idev);
@@ -3157,7 +3157,7 @@ static void init_loopback(struct net_device *dev)
 
 	idev = ipv6_find_idev(dev);
 	if (!idev) {
-		pr_debug("%s: add_dev failed\n", __func__);
+		pr_de("%s: add_dev failed\n", __func__);
 		return;
 	}
 
@@ -3232,7 +3232,7 @@ static int ipv6_generate_stable_address(struct in6_addr *address,
 	struct in6_addr temp;
 	struct net *net = dev_net(idev->dev);
 
-	BUILD_BUG_ON(sizeof(data.__data) != sizeof(data));
+	BUILD__ON(sizeof(data.__data) != sizeof(data));
 
 	if (idev->cnf.stable_secret.initialized)
 		secret = idev->cnf.stable_secret.secret;
@@ -3372,7 +3372,7 @@ static void addrconf_sit_config(struct net_device *dev)
 
 	idev = ipv6_find_idev(dev);
 	if (!idev) {
-		pr_debug("%s: add_dev failed\n", __func__);
+		pr_de("%s: add_dev failed\n", __func__);
 		return;
 	}
 
@@ -3397,7 +3397,7 @@ static void addrconf_gre_config(struct net_device *dev)
 
 	idev = ipv6_find_idev(dev);
 	if (!idev) {
-		pr_debug("%s: add_dev failed\n", __func__);
+		pr_de("%s: add_dev failed\n", __func__);
 		return;
 	}
 
@@ -3531,7 +3531,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 
 			if (!addrconf_link_ready(dev)) {
 				/* device is not ready yet. */
-				pr_debug("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
+				pr_de("ADDRCONF(NETDEV_UP): %s: link is not ready\n",
 					 dev->name);
 				break;
 			}
@@ -3891,7 +3891,7 @@ static void addrconf_rs_timer(struct timer_list *t)
 		 * Note: we do not support deprecated "all on-link"
 		 * assumption any longer.
 		 */
-		pr_debug("%s: no IPv6 routers present\n", idev->dev->name);
+		pr_de("%s: no IPv6 routers present\n", idev->dev->name);
 	}
 
 out:
@@ -4506,7 +4506,7 @@ restart:
 	if (time_before(next_sched, jiffies + ADDRCONF_TIMER_FUZZ_MAX))
 		next_sched = jiffies + ADDRCONF_TIMER_FUZZ_MAX;
 
-	pr_debug("now = %lu, schedule = %lu, rounded schedule = %lu => %lu\n",
+	pr_de("now = %lu, schedule = %lu, rounded schedule = %lu => %lu\n",
 		 now, next, next_sec, next_sched);
 	mod_delayed_work(addrconf_wq, &addr_chk_work, next_sched - now);
 	rcu_read_unlock_bh();
@@ -5318,7 +5318,7 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	err = inet6_fill_ifaddr(skb, ifa, &fillargs);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet6_ifaddr_msgsize() */
+		/* -EMSGSIZE implies  in inet6_ifaddr_msgsize() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout_ifa;
@@ -5354,7 +5354,7 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 
 	err = inet6_fill_ifaddr(skb, ifa, &fillargs);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet6_ifaddr_msgsize() */
+		/* -EMSGSIZE implies  in inet6_ifaddr_msgsize() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -5369,7 +5369,7 @@ errout:
 static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 				__s32 *array, int bytes)
 {
-	BUG_ON(bytes < (DEVCONF_MAX * 4));
+	_ON(bytes < (DEVCONF_MAX * 4));
 
 	memset(array, 0, bytes);
 	array[DEVCONF_FORWARDING] = cnf->forwarding;
@@ -5469,7 +5469,7 @@ static inline void __snmp6_fill_statsdev(u64 *stats, atomic_long_t *mib,
 {
 	int i;
 	int pad = bytes - sizeof(u64) * ICMP6_MIB_MAX;
-	BUG_ON(pad < 0);
+	_ON(pad < 0);
 
 	/* Use put_unaligned() because stats may not be aligned for u64. */
 	put_unaligned(ICMP6_MIB_MAX, &stats[0]);
@@ -5486,7 +5486,7 @@ static inline void __snmp6_fill_stats64(u64 *stats, void __percpu *mib,
 	u64 buff[IPSTATS_MIB_MAX];
 	int pad = bytes - sizeof(u64) * IPSTATS_MIB_MAX;
 
-	BUG_ON(pad < 0);
+	_ON(pad < 0);
 
 	memset(buff, 0, sizeof(buff));
 	buff[0] = IPSTATS_MIB_MAX;
@@ -5608,7 +5608,7 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 
 	write_lock_bh(&idev->lock);
 
-	BUILD_BUG_ON(sizeof(token->s6_addr) != 16);
+	BUILD__ON(sizeof(token->s6_addr) != 16);
 	memcpy(idev->token.s6_addr + 8, token->s6_addr + 8, 8);
 
 	write_unlock_bh(&idev->lock);
@@ -5701,7 +5701,7 @@ static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 		return -EAFNOSUPPORT;
 
 	if (nla_parse_nested(tb, IFLA_INET6_MAX, nla, NULL, NULL) < 0)
-		BUG();
+		();
 
 	if (tb[IFLA_INET6_TOKEN]) {
 		err = inet6_set_iftoken(idev, nla_data(tb[IFLA_INET6_TOKEN]));
@@ -5854,7 +5854,7 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 
 	err = inet6_fill_ifinfo(skb, idev, 0, 0, event, 0);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet6_if_nlmsg_size() */
+		/* -EMSGSIZE implies  in inet6_if_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -5926,7 +5926,7 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 
 	err = inet6_fill_prefix(skb, idev, pinfo, 0, 0, event, 0);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet6_prefix_nlmsg_size() */
+		/* -EMSGSIZE implies  in inet6_prefix_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

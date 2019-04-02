@@ -28,8 +28,8 @@ MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.1");
 
-static bool debug;
-module_param(debug, bool, 0644);
+static bool de;
+module_param(de, bool, 0644);
 
 /* Flags that indicate a format can be used for capture/output */
 #define MEM2MEM_CAPTURE	(1 << 0)
@@ -38,7 +38,7 @@ module_param(debug, bool, 0644);
 #define MEM2MEM_NAME		"m2m-deinterlace"
 
 #define dprintk(dev, fmt, arg...) \
-	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(1, de, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 struct deinterlace_fmt {
 	char	*name;
@@ -102,7 +102,7 @@ static struct deinterlace_q_data *get_q_data(enum v4l2_buf_type type)
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		return &q_data[V4L2_M2M_DST];
 	default:
-		BUG();
+		();
 	}
 	return NULL;
 }

@@ -122,7 +122,7 @@ struct pamu_mmap_regs {
 #define PAMU_ACCESS_VIOLATION_STAT   0x8
 #define PAMU_ACCESS_VIOLATION_ENABLE 0x4
 
-/* PAMU Debug Registers */
+/* PAMU De Registers */
 #define PAMU_PD1 0x0F00
 #define PAMU_PD2 0x0F04
 #define PAMU_PD3 0x0F08

@@ -32,7 +32,7 @@ static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
 
 	val = __raw_readb(BAST_VA_CTRL3);
 
-	printk(KERN_DEBUG "%s(%d)\n", __func__, vpp);
+	printk(KERN_DE "%s(%d)\n", __func__, vpp);
 
 	if (vpp)
 		val |= BAST_CPLD_CTRL3_ROMWEN;

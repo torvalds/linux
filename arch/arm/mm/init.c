@@ -203,7 +203,7 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
 {
 	phys_addr_t phys;
 
-	BUG_ON(!arm_memblock_steal_permitted);
+	_ON(!arm_memblock_steal_permitted);
 
 	phys = memblock_phys_alloc(size, align);
 	if (!phys)
@@ -491,13 +491,13 @@ void __init mem_init(void)
 	 * be detected at build time already.
 	 */
 #ifdef CONFIG_MMU
-	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
-	BUG_ON(TASK_SIZE 				> MODULES_VADDR);
+	BUILD__ON(TASK_SIZE				> MODULES_VADDR);
+	_ON(TASK_SIZE 				> MODULES_VADDR);
 #endif
 
 #ifdef CONFIG_HIGHMEM
-	BUILD_BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > PAGE_OFFSET);
-	BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE	> PAGE_OFFSET);
+	BUILD__ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > PAGE_OFFSET);
+	_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE	> PAGE_OFFSET);
 #endif
 }
 
@@ -603,7 +603,7 @@ void set_section_perms(struct section_perm *perms, int n, bool set,
 	for (i = 0; i < n; i++) {
 		if (!IS_ALIGNED(perms[i].start, SECTION_SIZE) ||
 		    !IS_ALIGNED(perms[i].end, SECTION_SIZE)) {
-			pr_err("BUG: %s section %lx-%lx not aligned to %lx\n",
+			pr_err(": %s section %lx-%lx not aligned to %lx\n",
 				perms[i].name, perms[i].start, perms[i].end,
 				SECTION_SIZE);
 			continue;
@@ -660,7 +660,7 @@ void mark_rodata_ro(void)
 {
 	kernel_set_to_readonly = 1;
 	stop_machine(__mark_rodata_ro, NULL, NULL);
-	debug_checkwx();
+	de_checkwx();
 }
 
 void set_kernel_text_rw(void)

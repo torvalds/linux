@@ -14,7 +14,7 @@
 static DEFINE_PER_CPU(struct xen_common_irq, xen_resched_irq) = { .irq = -1 };
 static DEFINE_PER_CPU(struct xen_common_irq, xen_callfunc_irq) = { .irq = -1 };
 static DEFINE_PER_CPU(struct xen_common_irq, xen_callfuncsingle_irq) = { .irq = -1 };
-static DEFINE_PER_CPU(struct xen_common_irq, xen_debug_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_de_irq) = { .irq = -1 };
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
@@ -44,11 +44,11 @@ void xen_smp_intr_free(unsigned int cpu)
 		kfree(per_cpu(xen_callfunc_irq, cpu).name);
 		per_cpu(xen_callfunc_irq, cpu).name = NULL;
 	}
-	if (per_cpu(xen_debug_irq, cpu).irq >= 0) {
-		unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu).irq, NULL);
-		per_cpu(xen_debug_irq, cpu).irq = -1;
-		kfree(per_cpu(xen_debug_irq, cpu).name);
-		per_cpu(xen_debug_irq, cpu).name = NULL;
+	if (per_cpu(xen_de_irq, cpu).irq >= 0) {
+		unbind_from_irqhandler(per_cpu(xen_de_irq, cpu).irq, NULL);
+		per_cpu(xen_de_irq, cpu).irq = -1;
+		kfree(per_cpu(xen_de_irq, cpu).name);
+		per_cpu(xen_de_irq, cpu).name = NULL;
 	}
 	if (per_cpu(xen_callfuncsingle_irq, cpu).irq >= 0) {
 		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu).irq,
@@ -62,7 +62,7 @@ void xen_smp_intr_free(unsigned int cpu)
 int xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
-	char *resched_name, *callfunc_name, *debug_name;
+	char *resched_name, *callfunc_name, *de_name;
 
 	resched_name = kasprintf(GFP_KERNEL, "resched%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR,
@@ -88,14 +88,14 @@ int xen_smp_intr_init(unsigned int cpu)
 	per_cpu(xen_callfunc_irq, cpu).irq = rc;
 	per_cpu(xen_callfunc_irq, cpu).name = callfunc_name;
 
-	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
-	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
+	de_name = kasprintf(GFP_KERNEL, "de%d", cpu);
+	rc = bind_virq_to_irqhandler(VIRQ_DE, cpu, xen_de_interrupt,
 				     IRQF_PERCPU | IRQF_NOBALANCING,
-				     debug_name, NULL);
+				     de_name, NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(xen_debug_irq, cpu).irq = rc;
-	per_cpu(xen_debug_irq, cpu).name = debug_name;
+	per_cpu(xen_de_irq, cpu).irq = rc;
+	per_cpu(xen_de_irq, cpu).name = de_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,

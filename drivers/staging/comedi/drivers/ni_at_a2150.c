@@ -20,7 +20,7 @@
  *   [2] - DMA (optional, required for timed conversions)
  *
  * Yet another driver for obsolete hardware brought to you by Frank Hess.
- * Testing and debugging help provided by Dave Andruczyk.
+ * Testing and deging help provided by Dave Andruczyk.
  *
  * If you want to ac couple the board's inputs, use AREF_OTHER.
  *

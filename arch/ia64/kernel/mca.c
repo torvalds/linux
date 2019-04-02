@@ -24,7 +24,7 @@
  * Copyright (C) Hidetoshi Seto <seto.hidetoshi@jp.fujitsu.com>
  *
  * 2000-03-29 Chuck Fleckenstein <cfleck@co.intel.com>
- *	      Fixed PAL/SAL update issues, began MCA bug fixes, logging issues,
+ *	      Fixed PAL/SAL update issues, began MCA  fixes, logging issues,
  *	      added min save state dump, added INIT handler.
  *
  * 2001-01-03 Fred Lewis <frederick.v.lewis@intel.com>
@@ -73,7 +73,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -85,7 +85,7 @@
 #include <linux/smp.h>
 #include <linux/workqueue.h>
 #include <linux/cpumask.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/cpu.h>
 #include <linux/gfp.h>
 
@@ -105,10 +105,10 @@
 #include "mca_drv.h"
 #include "entry.h"
 
-#if defined(IA64_MCA_DEBUG_INFO)
-# define IA64_MCA_DEBUG(fmt...)	printk(fmt)
+#if defined(IA64_MCA_DE_INFO)
+# define IA64_MCA_DE(fmt...)	printk(fmt)
 #else
-# define IA64_MCA_DEBUG(fmt...)
+# define IA64_MCA_DE(fmt...)
 #endif
 
 #define NOTIFY_INIT(event, regs, arg, spin)				\
@@ -163,7 +163,7 @@ static int cmc_polling_enabled = 1;
  * Clearing this variable prevents CPE polling from getting activated
  * in mca_late_init.  Use it if your system doesn't provide a CPEI,
  * but encounters problems retrieving CPE logs.  This should only be
- * necessary for debugging.
+ * necessary for deging.
  */
 static int cpe_poll_enabled = 1;
 
@@ -439,7 +439,7 @@ ia64_log_get(int sal_info_type, u8 **buffer, int irq_safe)
 		IA64_LOG_INDEX_INC(sal_info_type);
 		IA64_LOG_UNLOCK(sal_info_type);
 		if (irq_safe) {
-			IA64_MCA_DEBUG("%s: SAL error record type %d retrieved. Record length = %ld\n",
+			IA64_MCA_DE("%s: SAL error record type %d retrieved. Record length = %ld\n",
 				       __func__, sal_info_type, total_len);
 		}
 		*buffer = (u8 *) log_buffer;
@@ -466,7 +466,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 	sal_log_record_header_t *rh;
 	u64 size;
 	int irq_safe = sal_info_type != SAL_INFO_TYPE_MCA;
-#ifdef IA64_MCA_DEBUG_INFO
+#ifdef IA64_MCA_DE_INFO
 	static const char * const rec_name[] = { "MCA", "INIT", "CMC", "CPE" };
 #endif
 
@@ -477,7 +477,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 	salinfo_log_wakeup(sal_info_type, buffer, size, irq_safe);
 
 	if (irq_safe)
-		IA64_MCA_DEBUG("CPU %d: SAL log contains %s error record\n",
+		IA64_MCA_DE("CPU %d: SAL log contains %s error record\n",
 			smp_processor_id(),
 			sal_info_type < ARRAY_SIZE(rec_name) ? rec_name[sal_info_type] : "UNKNOWN");
 
@@ -543,7 +543,7 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg)
 	static int		index;
 	static DEFINE_SPINLOCK(cpe_history_lock);
 
-	IA64_MCA_DEBUG("%s: received interrupt vector = %#x on CPU %d\n",
+	IA64_MCA_DE("%s: received interrupt vector = %#x on CPU %d\n",
 		       __func__, cpe_irq, smp_processor_id());
 
 	/* SAL spec states this should run w/ interrupts enabled */
@@ -560,7 +560,7 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg)
 				count++;
 		}
 
-		IA64_MCA_DEBUG(KERN_INFO "CPE threshold %d/%d\n", count, CPE_HISTORY_LENGTH);
+		IA64_MCA_DE(KERN_INFO "CPE threshold %d/%d\n", count, CPE_HISTORY_LENGTH);
 		if (count >= CPE_HISTORY_LENGTH) {
 
 			cpe_poll_enabled = 1;
@@ -621,7 +621,7 @@ ia64_mca_register_cpev (int cpev)
 		return;
 	}
 
-	IA64_MCA_DEBUG("%s: corrected platform error "
+	IA64_MCA_DE("%s: corrected platform error "
 		       "vector %#x registered\n", __func__, cpev);
 }
 #endif /* CONFIG_ACPI */
@@ -649,10 +649,10 @@ ia64_mca_cmc_vector_setup (void)
 	cmcv.cmcv_vector	= IA64_CMC_VECTOR;
 	ia64_setreg(_IA64_REG_CR_CMCV, cmcv.cmcv_regval);
 
-	IA64_MCA_DEBUG("%s: CPU %d corrected machine check vector %#x registered.\n",
+	IA64_MCA_DE("%s: CPU %d corrected machine check vector %#x registered.\n",
 		       __func__, smp_processor_id(), IA64_CMC_VECTOR);
 
-	IA64_MCA_DEBUG("%s: CPU %d CMCV = %#016lx\n",
+	IA64_MCA_DE("%s: CPU %d CMCV = %#016lx\n",
 		       __func__, smp_processor_id(), ia64_getreg(_IA64_REG_CR_CMCV));
 }
 
@@ -678,7 +678,7 @@ ia64_mca_cmc_vector_disable (void *dummy)
 	cmcv.cmcv_mask = 1; /* Mask/disable interrupt */
 	ia64_setreg(_IA64_REG_CR_CMCV, cmcv.cmcv_regval);
 
-	IA64_MCA_DEBUG("%s: CPU %d corrected machine check vector %#x disabled.\n",
+	IA64_MCA_DE("%s: CPU %d corrected machine check vector %#x disabled.\n",
 		       __func__, smp_processor_id(), cmcv.cmcv_vector);
 }
 
@@ -704,7 +704,7 @@ ia64_mca_cmc_vector_enable (void *dummy)
 	cmcv.cmcv_mask = 0; /* Unmask/enable interrupt */
 	ia64_setreg(_IA64_REG_CR_CMCV, cmcv.cmcv_regval);
 
-	IA64_MCA_DEBUG("%s: CPU %d corrected machine check vector %#x enabled.\n",
+	IA64_MCA_DE("%s: CPU %d corrected machine check vector %#x enabled.\n",
 		       __func__, smp_processor_id(), cmcv.cmcv_vector);
 }
 
@@ -872,7 +872,7 @@ copy_reg(const u64 *fr, u64 fnat, unsigned long *tr, unsigned long *tnat)
 }
 
 /* Change the comm field on the MCA/INT task to include the pid that
- * was interrupted, it makes for easier debugging.  If that pid was 0
+ * was interrupted, it makes for easier deging.  If that pid was 0
  * (swapper or nested MCA/INIT) then use the start of the previous comm
  * field suffixed with its cpu.
  */
@@ -1404,7 +1404,7 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg)
 	static int		index;
 	static DEFINE_SPINLOCK(cmc_history_lock);
 
-	IA64_MCA_DEBUG("%s: received interrupt vector = %#x on CPU %d\n",
+	IA64_MCA_DE("%s: received interrupt vector = %#x on CPU %d\n",
 		       __func__, cmc_irq, smp_processor_id());
 
 	/* SAL spec states this should run w/ interrupts enabled */
@@ -1420,7 +1420,7 @@ ia64_mca_cmc_int_handler(int cmc_irq, void *arg)
 				count++;
 		}
 
-		IA64_MCA_DEBUG(KERN_INFO "CMC threshold %d/%d\n", count, CMC_HISTORY_LENGTH);
+		IA64_MCA_DE(KERN_INFO "CMC threshold %d/%d\n", count, CMC_HISTORY_LENGTH);
 		if (count >= CMC_HISTORY_LENGTH) {
 
 			cmc_polling_enabled = 1;
@@ -1943,7 +1943,7 @@ ia64_mca_init(void)
 		.priority = 0/* we need to notified last */
 	};
 
-	IA64_MCA_DEBUG("%s: begin\n", __func__);
+	IA64_MCA_DE("%s: begin\n", __func__);
 
 	/* Clear the Rendez checkin flag for all cpus */
 	for(i = 0 ; i < NR_CPUS; i++)
@@ -1987,7 +1987,7 @@ ia64_mca_init(void)
 		return;
 	}
 
-	IA64_MCA_DEBUG("%s: registered MCA rendezvous spinloop and wakeup mech.\n", __func__);
+	IA64_MCA_DE("%s: registered MCA rendezvous spinloop and wakeup mech.\n", __func__);
 
 	ia64_mc_info.imi_mca_handler        = ia64_tpa(mca_hldlr_ptr->fp);
 	/*
@@ -2008,7 +2008,7 @@ ia64_mca_init(void)
 		return;
 	}
 
-	IA64_MCA_DEBUG("%s: registered OS MCA handler with SAL at 0x%lx, gp = 0x%lx\n", __func__,
+	IA64_MCA_DE("%s: registered OS MCA handler with SAL at 0x%lx, gp = 0x%lx\n", __func__,
 		       ia64_mc_info.imi_mca_handler, ia64_tpa(mca_hldlr_ptr->gp));
 
 	/*
@@ -2020,7 +2020,7 @@ ia64_mca_init(void)
 	ia64_mc_info.imi_slave_init_handler		= ia64_tpa(init_hldlr_ptr_slave->fp);
 	ia64_mc_info.imi_slave_init_handler_size	= 0;
 
-	IA64_MCA_DEBUG("%s: OS INIT handler at %lx\n", __func__,
+	IA64_MCA_DE("%s: OS INIT handler at %lx\n", __func__,
 		       ia64_mc_info.imi_monarch_init_handler);
 
 	/* Register the os init handler with SAL */
@@ -2041,7 +2041,7 @@ ia64_mca_init(void)
 		return;
 	}
 
-	IA64_MCA_DEBUG("%s: registered OS INIT handler with SAL\n", __func__);
+	IA64_MCA_DE("%s: registered OS INIT handler with SAL\n", __func__);
 
 	/* Initialize the areas set aside by the OS to buffer the
 	 * platform/processor error states for MCA/INIT/CMC
@@ -2109,7 +2109,7 @@ ia64_mca_late_init(void)
 	cmc_polling_enabled = 0;
 	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "ia64/mca:online",
 			  ia64_mca_cpu_online, NULL);
-	IA64_MCA_DEBUG("%s: CMCI/P setup and enabled.\n", __func__);
+	IA64_MCA_DE("%s: CMCI/P setup and enabled.\n", __func__);
 
 #ifdef CONFIG_ACPI
 	/* Setup the CPEI/P vector and handler */
@@ -2128,7 +2128,7 @@ ia64_mca_late_init(void)
 				setup_irq(irq, &mca_cpe_irqaction);
 				ia64_cpe_irq = irq;
 				ia64_mca_register_cpev(cpe_vector);
-				IA64_MCA_DEBUG("%s: CPEI/P setup and enabled.\n",
+				IA64_MCA_DE("%s: CPEI/P setup and enabled.\n",
 					__func__);
 				return 0;
 			}
@@ -2139,7 +2139,7 @@ ia64_mca_late_init(void)
 		/* If platform doesn't support CPEI, get the timer going. */
 		if (cpe_poll_enabled) {
 			ia64_mca_cpe_poll(0UL);
-			IA64_MCA_DEBUG("%s: CPEP setup and enabled.\n", __func__);
+			IA64_MCA_DE("%s: CPEP setup and enabled.\n", __func__);
 		}
 	}
 #endif

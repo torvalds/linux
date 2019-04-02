@@ -123,7 +123,7 @@ unsigned long __init smsc_fdc37m81x_init(unsigned long port)
 	return g_smsc_fdc37m81x_base;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void smsc_fdc37m81x_config_dump_one(const char *key, u8 dev, u8 reg)
 {
 	pr_info("%s: dev=0x%02x reg=0x%02x val=0x%02x\n", key, dev, reg,

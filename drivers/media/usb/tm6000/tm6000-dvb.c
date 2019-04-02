@@ -33,10 +33,10 @@ MODULE_LICENSE("GPL");
 
 MODULE_SUPPORTED_DEVICE("{{Trident, tm5600},{{Trident, tm6000},{{Trident, tm6010}");
 
-static int debug;
+static int de;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug message");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de message");
 
 static inline void print_err_status(struct tm6000_core *dev,
 				    int packet, int status)

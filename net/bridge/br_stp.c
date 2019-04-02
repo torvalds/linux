@@ -620,10 +620,10 @@ void __br_set_topology_change(struct net_bridge *br, unsigned char val)
 
 		if (val) {
 			t = 2 * br->forward_delay;
-			br_debug(br, "decreasing ageing time to %lu\n", t);
+			br_de(br, "decreasing ageing time to %lu\n", t);
 		} else {
 			t = br->bridge_ageing_time;
-			br_debug(br, "restoring ageing time to %lu\n", t);
+			br_de(br, "restoring ageing time to %lu\n", t);
 		}
 
 		err = __set_ageing_time(br->dev, t);

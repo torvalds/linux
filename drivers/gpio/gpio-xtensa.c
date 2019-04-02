@@ -90,7 +90,7 @@ static int xtensa_impwire_get_value(struct gpio_chip *gc, unsigned offset)
 static void xtensa_impwire_set_value(struct gpio_chip *gc, unsigned offset,
 				    int value)
 {
-	BUG(); /* output only; should never be called */
+	(); /* output only; should never be called */
 }
 
 static int xtensa_expstate_get_direction(struct gpio_chip *gc, unsigned offset)

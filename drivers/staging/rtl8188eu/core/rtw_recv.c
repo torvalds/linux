@@ -1194,21 +1194,21 @@ static int validate_recv_frame(struct adapter *adapter,
 	/* Dump rx packets */
 	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
 	if (bDumpRxPkt == 1) {/* dump all rx packets */
-		if (_drv_err_ <= GlobalDebugLevel) {
+		if (_drv_err_ <= GlobalDeLevel) {
 			pr_info(DRIVER_PREFIX "#############################\n");
 			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
 					16, 1, ptr, 64, false);
 			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	} else if (bDumpRxPkt == 2) {
-		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_MGT_TYPE)) {
+		if ((_drv_err_ <= GlobalDeLevel) && (type == WIFI_MGT_TYPE)) {
 			pr_info(DRIVER_PREFIX "#############################\n");
 			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
 					16, 1, ptr, 64, false);
 			pr_info(DRIVER_PREFIX "#############################\n");
 		}
 	} else if (bDumpRxPkt == 3) {
-		if ((_drv_err_ <= GlobalDebugLevel) && (type == WIFI_DATA_TYPE)) {
+		if ((_drv_err_ <= GlobalDeLevel) && (type == WIFI_DATA_TYPE)) {
 			pr_info(DRIVER_PREFIX "#############################\n");
 			print_hex_dump(KERN_INFO, DRIVER_PREFIX, DUMP_PREFIX_NONE,
 					16, 1, ptr, 64, false);

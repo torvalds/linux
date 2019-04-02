@@ -226,7 +226,7 @@ struct scsi_qla_host *qlt_find_host_by_vp_idx(struct scsi_qla_host *vha,
 	if (vha->vp_idx == vp_idx)
 		return vha;
 
-	BUG_ON(ha->tgt.tgt_vp_map == NULL);
+	_ON(ha->tgt.tgt_vp_map == NULL);
 	if (likely(test_bit(vp_idx, ha->vp_idx_map)))
 		return ha->tgt.tgt_vp_map[vp_idx].vha;
 
@@ -837,7 +837,7 @@ void qlt_plogi_ack_unref(struct scsi_qla_host *vha,
 	uint16_t loop_id;
 	fc_port_t *fcport = pla->fcport;
 
-	BUG_ON(!pla->ref_count);
+	_ON(!pla->ref_count);
 	pla->ref_count--;
 
 	if (pla->ref_count)
@@ -2425,7 +2425,7 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 {
 	struct qla_tgt_cmd *cmd = prm->cmd;
 
-	BUG_ON(cmd->sg_cnt == 0);
+	_ON(cmd->sg_cnt == 0);
 
 	prm->sg = (struct scatterlist *)cmd->sg;
 	prm->seg_cnt = dma_map_sg(&cmd->qpair->pdev->dev, cmd->sg,
@@ -3088,7 +3088,7 @@ qlt_build_ctio_crc2_pkt(struct qla_qpair *qpair, struct qla_tgt_prm *prm)
 		transfer_length = data_bytes + dif_bytes;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -3870,7 +3870,7 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 	    __func__, &cmd->se_cmd,
 	    be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
 
-	BUG_ON(cmd->cmd_in_wq);
+	_ON(cmd->cmd_in_wq);
 
 	if (cmd->sg_mapped)
 		qlt_unmap_sg(cmd->vha, cmd);
@@ -3878,7 +3878,7 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 	if (!cmd->q_full)
 		qlt_decr_num_pend_cmds(cmd->vha);
 
-	BUG_ON(cmd->sg_mapped);
+	_ON(cmd->sg_mapped);
 	cmd->jiffies_at_free = get_jiffies_64();
 	if (unlikely(cmd->free_sg))
 		kfree(cmd->sg);
@@ -3986,7 +3986,7 @@ qlt_abort_cmd_on_host_reset(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 	if (cmd->sg_mapped)
 		qlt_unmap_sg(vha, cmd);
 
-	/* TODO: fix debug message type and ids. */
+	/* TODO: fix de message type and ids. */
 	if (cmd->state == QLA_TGT_STATE_PROCESSED) {
 		ql_dbg(ql_dbg_io, vha, 0xff00,
 		    "HOST-ABORT: state=PROCESSED.\n");
@@ -4323,7 +4323,7 @@ static void qlt_assign_qpair(struct scsi_qla_host *vha,
 			if (qpair->lun_cnt == 0) {
 				qpair->lun_cnt++;
 				h = qla_qpair_to_hint(tgt, qpair);
-				BUG_ON(!h);
+				_ON(!h);
 				rc = btree_insert64(&tgt->lun_qpair_map,
 					cmd->unpacked_lun, h, GFP_ATOMIC);
 				if (rc) {
@@ -4343,7 +4343,7 @@ static void qlt_assign_qpair(struct scsi_qla_host *vha,
 				if (qp->lun_cnt == 0) {
 					qp->lun_cnt++;
 					h = qla_qpair_to_hint(tgt, qp);
-					BUG_ON(!h);
+					_ON(!h);
 					rc = btree_insert64(&tgt->lun_qpair_map,
 					    cmd->unpacked_lun, h, GFP_ATOMIC);
 					if (rc) {
@@ -4362,10 +4362,10 @@ static void qlt_assign_qpair(struct scsi_qla_host *vha,
 					}
 				}
 			}
-			BUG_ON(!qpair);
+			_ON(!qpair);
 			qpair->lun_cnt++;
 			h = qla_qpair_to_hint(tgt, qpair);
-			BUG_ON(!h);
+			_ON(!h);
 			rc = btree_insert64(&tgt->lun_qpair_map,
 				cmd->unpacked_lun, h, GFP_ATOMIC);
 			if (rc) {
@@ -5188,7 +5188,7 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 			 * cmd went upper layer, look for qlt_xmit_tm_rsp()
 			 * for LOGO_ACK & sess delete
 			 */
-			BUG_ON(!sess);
+			_ON(!sess);
 			res = 0;
 		} else {
 			/* cmd did not go to upper layer. */
@@ -6429,7 +6429,7 @@ static void qlt_sess_work_fn(struct work_struct *work)
 			qlt_tmr_work(tgt, prm);
 			break;
 		default:
-			BUG_ON(1);
+			_ON(1);
 			break;
 		}
 
@@ -6459,7 +6459,7 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	ql_dbg(ql_dbg_tgt, base_vha, 0xe03b,
 	    "Registering target for host %ld(%p).\n", base_vha->host_no, ha);
 
-	BUG_ON(base_vha->vha_tgt.qla_tgt != NULL);
+	_ON(base_vha->vha_tgt.qla_tgt != NULL);
 
 	tgt = kzalloc(sizeof(struct qla_tgt), GFP_KERNEL);
 	if (!tgt) {
@@ -6574,20 +6574,20 @@ static void qlt_lport_dump(struct scsi_qla_host *vha, u64 wwpn,
 {
 	int i;
 
-	pr_debug("qla2xxx HW vha->node_name: ");
+	pr_de("qla2xxx HW vha->node_name: ");
 	for (i = 0; i < WWN_SIZE; i++)
-		pr_debug("%02x ", vha->node_name[i]);
-	pr_debug("\n");
-	pr_debug("qla2xxx HW vha->port_name: ");
+		pr_de("%02x ", vha->node_name[i]);
+	pr_de("\n");
+	pr_de("qla2xxx HW vha->port_name: ");
 	for (i = 0; i < WWN_SIZE; i++)
-		pr_debug("%02x ", vha->port_name[i]);
-	pr_debug("\n");
+		pr_de("%02x ", vha->port_name[i]);
+	pr_de("\n");
 
-	pr_debug("qla2xxx passed configfs WWPN: ");
+	pr_de("qla2xxx passed configfs WWPN: ");
 	put_unaligned_be64(wwpn, b);
 	for (i = 0; i < WWN_SIZE; i++)
-		pr_debug("%02x ", b[i]);
-	pr_debug("\n");
+		pr_de("%02x ", b[i]);
+	pr_de("\n");
 }
 
 /**
@@ -6628,13 +6628,13 @@ int qlt_lport_register(void *target_lport_ptr, u64 phys_wwpn,
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		if ((!npiv_wwpn || !npiv_wwnn) && host->active_mode & MODE_TARGET) {
-			pr_debug("MODE_TARGET already active on qla2xxx(%d)\n",
+			pr_de("MODE_TARGET already active on qla2xxx(%d)\n",
 			    host->host_no);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			continue;
 		}
 		if (tgt->tgt_stop) {
-			pr_debug("MODE_TARGET in shutdown on qla2xxx(%d)\n",
+			pr_de("MODE_TARGET in shutdown on qla2xxx(%d)\n",
 				 host->host_no);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			continue;

@@ -70,7 +70,7 @@ static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 	if (len && reslen && start <= end)
 		return true;
 
-	pr_debug("ACPI: invalid or unassigned resource %s [%016llx - %016llx] length [%016llx]\n",
+	pr_de("ACPI: invalid or unassigned resource %s [%016llx - %016llx] length [%016llx]\n",
 		io ? "io" : "mem", start, end, len);
 
 	return false;
@@ -226,7 +226,7 @@ static bool acpi_decode_space(struct resource_win *win,
 	 */
 	if ((addr->min_address_fixed != addr->max_address_fixed && len) ||
 	    (addr->min_address_fixed && addr->max_address_fixed && !len))
-		pr_debug("ACPI: Invalid address space min_addr_fix %d, max_addr_fix %d, len %llx\n",
+		pr_de("ACPI: Invalid address space min_addr_fix %d, max_addr_fix %d, len %llx\n",
 			 addr->min_address_fixed, addr->max_address_fixed, len);
 
 	/*
@@ -239,7 +239,7 @@ static bool acpi_decode_space(struct resource_win *win,
 	if (addr->producer_consumer == ACPI_PRODUCER)
 		offset = attr->translation_offset;
 	else if (attr->translation_offset)
-		pr_debug("ACPI: translation_offset(%lld) is invalid for non-bridge device.\n",
+		pr_de("ACPI: translation_offset(%lld) is invalid for non-bridge device.\n",
 			 attr->translation_offset);
 	start = attr->minimum + offset;
 	end = attr->maximum + offset;
@@ -408,7 +408,7 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
 
 	/*
 	 * In IO-APIC mode, use overridden attribute. Two reasons:
-	 * 1. BIOS bug in DSDT
+	 * 1. BIOS  in DSDT
 	 * 2. BIOS uses IO-APIC mode Interrupt Source Override
 	 *
 	 * We do this only if we are dealing with IRQ() or IRQNoFlags()

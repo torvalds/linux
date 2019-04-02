@@ -86,7 +86,7 @@ static unsigned long clk_pfdv2_recalc_rate(struct clk_hw *hw,
 		& CLK_PFDV2_FRAC_MASK;
 
 	if (!frac) {
-		pr_debug("clk_pfdv2: %s invalid pfd frac value 0\n",
+		pr_de("clk_pfdv2: %s invalid pfd frac value 0\n",
 			 clk_hw_get_name(hw));
 		return 0;
 	}

@@ -1196,7 +1196,7 @@ static bool _rtl8723be_check_pcie_dma_hang(struct rtl_priv *rtlpriv)
 {
 	u8 tmp;
 
-	/* write reg 0x350 Bit[26]=1. Enable debug port. */
+	/* write reg 0x350 Bit[26]=1. Enable de port. */
 	tmp = rtl_read_byte(rtlpriv, REG_DBI_CTRL + 3);
 	if (!(tmp & BIT(2))) {
 		rtl_write_byte(rtlpriv, REG_DBI_CTRL + 3, (tmp | BIT(2)));

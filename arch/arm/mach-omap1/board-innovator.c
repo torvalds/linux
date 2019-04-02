@@ -443,7 +443,7 @@ static void __init innovator_map_io(void)
 	udelay(10);	/* Delay needed for FPGA */
 
 	/* Dump the Innovator FPGA rev early - useful info for support. */
-	pr_debug("Innovator FPGA Rev %d.%d Board Rev %d\n",
+	pr_de("Innovator FPGA Rev %d.%d Board Rev %d\n",
 			__raw_readb(OMAP1510_FPGA_REV_HIGH),
 			__raw_readb(OMAP1510_FPGA_REV_LOW),
 			__raw_readb(OMAP1510_FPGA_BOARD_REV));

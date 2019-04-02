@@ -137,7 +137,7 @@ static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 
 	/* Fail only if calling the method fails and ATIF is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		DRM_DEBUG_DRIVER("failed to evaluate ATIF got %s\n",
+		DRM_DE_DRIVER("failed to evaluate ATIF got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
 		return NULL;
@@ -229,7 +229,7 @@ static int radeon_atif_verify_interface(acpi_handle handle,
 	memcpy(&output, info->buffer.pointer, size);
 
 	/* TODO: check version? */
-	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
+	DRM_DE_DRIVER("ATIF version %u\n", output.version);
 
 	radeon_atif_parse_notification(&atif->notifications, output.notification_mask);
 	radeon_atif_parse_functions(&atif->functions, output.function_bits);
@@ -275,7 +275,7 @@ static int radeon_atif_get_notification_params(acpi_handle handle,
 	size = min(sizeof(params), size);
 	memcpy(&params, info->buffer.pointer, size);
 
-	DRM_DEBUG_DRIVER("SYSTEM_PARAMS: mask = %#x, flags = %#x\n",
+	DRM_DE_DRIVER("SYSTEM_PARAMS: mask = %#x, flags = %#x\n",
 			params.flags, params.valid_mask);
 	params.flags = params.flags & params.valid_mask;
 
@@ -295,7 +295,7 @@ static int radeon_atif_get_notification_params(acpi_handle handle,
 	}
 
 out:
-	DRM_DEBUG_DRIVER("Notification %s, command code = %#x\n",
+	DRM_DE_DRIVER("Notification %s, command code = %#x\n",
 			(n->enabled ? "enabled" : "disabled"),
 			n->command_code);
 	kfree(info);
@@ -333,7 +333,7 @@ static int radeon_atif_get_sbios_requests(acpi_handle handle,
 
 	size = min(sizeof(*req), size);
 	memcpy(req, info->buffer.pointer, size);
-	DRM_DEBUG_DRIVER("SBIOS pending requests: %#x\n", req->pending);
+	DRM_DE_DRIVER("SBIOS pending requests: %#x\n", req->pending);
 
 	count = hweight32(req->pending);
 
@@ -360,7 +360,7 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 	acpi_handle handle;
 	int count;
 
-	DRM_DEBUG_DRIVER("event, device_class = %s, type = %#x\n",
+	DRM_DE_DRIVER("event, device_class = %s, type = %#x\n",
 			event->device_class, event->type);
 
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
@@ -378,13 +378,13 @@ static int radeon_atif_handler(struct radeon_device *rdev,
 	if (count <= 0)
 		return NOTIFY_DONE;
 
-	DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
+	DRM_DE_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
 	if (req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) {
 		struct radeon_encoder *enc = atif->encoder_for_bl;
 
 		if (enc) {
-			DRM_DEBUG_DRIVER("Changing brightness to %d\n",
+			DRM_DE_DRIVER("Changing brightness to %d\n",
 					req.backlight_level);
 
 			radeon_set_backlight_level(rdev, enc, req.backlight_level);
@@ -462,7 +462,7 @@ static union acpi_object *radeon_atcs_call(acpi_handle handle, int function,
 
 	/* Fail only if calling the method fails and ATIF is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		DRM_DEBUG_DRIVER("failed to evaluate ATCS got %s\n",
+		DRM_DE_DRIVER("failed to evaluate ATCS got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
 		return NULL;
@@ -525,7 +525,7 @@ static int radeon_atcs_verify_interface(acpi_handle handle,
 	memcpy(&output, info->buffer.pointer, size);
 
 	/* TODO: check version? */
-	DRM_DEBUG_DRIVER("ATCS version %u\n", output.version);
+	DRM_DE_DRIVER("ATCS version %u\n", output.version);
 
 	radeon_atcs_parse_functions(&atcs->functions, output.function_bits);
 
@@ -683,9 +683,9 @@ static int radeon_acpi_event(struct notifier_block *nb,
 
 	if (strcmp(entry->device_class, ACPI_AC_CLASS) == 0) {
 		if (power_supply_is_system_supplied() > 0)
-			DRM_DEBUG_DRIVER("pm: AC\n");
+			DRM_DE_DRIVER("pm: AC\n");
 		else
-			DRM_DEBUG_DRIVER("pm: DC\n");
+			DRM_DE_DRIVER("pm: DC\n");
 
 		radeon_pm_acpi_event_handler(rdev);
 	}
@@ -721,13 +721,13 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	/* Call the ATCS method */
 	ret = radeon_atcs_verify_interface(handle, atcs);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Call to ATCS verify_interface failed: %d\n", ret);
+		DRM_DE_DRIVER("Call to ATCS verify_interface failed: %d\n", ret);
 	}
 
 	/* Call the ATIF method */
 	ret = radeon_atif_verify_interface(handle, atif);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
+		DRM_DE_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
 		goto out;
 	}
 
@@ -773,7 +773,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		ret = radeon_atif_get_notification_params(handle,
 				&atif->notification_cfg);
 		if (ret) {
-			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
+			DRM_DE_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
 			/* Disable notification */
 			atif->notification_cfg.enabled = false;

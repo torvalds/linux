@@ -18,5 +18,5 @@ dlm-y :=			ast.o \
 				requestqueue.o \
 				user.o \
 				util.o 
-dlm-$(CONFIG_DLM_DEBUG) +=	debug_fs.o
+dlm-$(CONFIG_DLM_DE) +=	de_fs.o
 

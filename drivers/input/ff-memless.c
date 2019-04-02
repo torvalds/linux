@@ -21,7 +21,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-/* #define DEBUG */
+/* #define DE */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -130,7 +130,7 @@ static void ml_schedule_timer(struct ml_device *ml)
 	int events = 0;
 	int i;
 
-	pr_debug("calculating next timer\n");
+	pr_de("calculating next timer\n");
 
 	for (i = 0; i < FF_MEMLESS_EFFECTS; i++) {
 
@@ -150,10 +150,10 @@ static void ml_schedule_timer(struct ml_device *ml)
 	}
 
 	if (!events) {
-		pr_debug("no actions\n");
+		pr_de("no actions\n");
 		del_timer(&ml->timer);
 	} else {
-		pr_debug("timer set\n");
+		pr_de("timer set\n");
 		mod_timer(&ml->timer, earliest);
 	}
 }
@@ -174,7 +174,7 @@ static int apply_envelope(struct ml_effect_state *state, int value,
 	if (envelope->attack_length &&
 	    time_before(now,
 			state->play_at + msecs_to_jiffies(envelope->attack_length))) {
-		pr_debug("value = 0x%x, attack_level = 0x%x\n",
+		pr_de("value = 0x%x, attack_level = 0x%x\n",
 			 value, envelope->attack_level);
 		time_from_level = jiffies_to_msecs(now - state->play_at);
 		time_of_envelope = envelope->attack_length;
@@ -192,13 +192,13 @@ static int apply_envelope(struct ml_effect_state *state, int value,
 
 	difference = abs(value) - envelope_level;
 
-	pr_debug("difference = %d\n", difference);
-	pr_debug("time_from_level = 0x%x\n", time_from_level);
-	pr_debug("time_of_envelope = 0x%x\n", time_of_envelope);
+	pr_de("difference = %d\n", difference);
+	pr_de("time_from_level = 0x%x\n", time_from_level);
+	pr_de("time_of_envelope = 0x%x\n", time_of_envelope);
 
 	difference = difference * time_from_level / time_of_envelope;
 
-	pr_debug("difference = %d\n", difference);
+	pr_de("difference = %d\n", difference);
 
 	return value < 0 ?
 		-(difference + envelope_level) : (difference + envelope_level);
@@ -418,7 +418,7 @@ static void ml_effect_timer(struct timer_list *t)
 	struct input_dev *dev = ml->dev;
 	unsigned long flags;
 
-	pr_debug("timer: updating effects\n");
+	pr_de("timer: updating effects\n");
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	ml_play_effects(ml);
@@ -450,7 +450,7 @@ static int ml_ff_playback(struct input_dev *dev, int effect_id, int value)
 	struct ml_effect_state *state = &ml->states[effect_id];
 
 	if (value > 0) {
-		pr_debug("initiated play\n");
+		pr_de("initiated play\n");
 
 		__set_bit(FF_EFFECT_STARTED, &state->flags);
 		state->count = value;
@@ -461,7 +461,7 @@ static int ml_ff_playback(struct input_dev *dev, int effect_id, int value)
 		state->adj_at = state->play_at;
 
 	} else {
-		pr_debug("initiated stop\n");
+		pr_de("initiated stop\n");
 
 		if (test_bit(FF_EFFECT_PLAYING, &state->flags))
 			__set_bit(FF_EFFECT_ABORTING, &state->flags);

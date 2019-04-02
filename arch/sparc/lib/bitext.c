@@ -43,11 +43,11 @@ int bit_map_string_get(struct bit_map *t, int len, int align)
 	}
 	align1 = align - 1;
 	if ((align & align1) != 0)
-		BUG();
+		();
 	if (align < 0 || align >= t->size)
-		BUG();
+		();
 	if (len <= 0 || len > t->size)
-		BUG();
+		();
 	color &= align1;
 
 	spin_lock(&t->lock);
@@ -105,11 +105,11 @@ void bit_map_clear(struct bit_map *t, int offset, int len)
 	int i;
 
 	if (t->used < len)
-		BUG();		/* Much too late to do any good, but alas... */
+		();		/* Much too late to do any good, but alas... */
 	spin_lock(&t->lock);
 	for (i = 0; i < len; i++) {
 		if (test_bit(offset + i, t->map) == 0)
-			BUG();
+			();
 		__clear_bit(offset + i, t->map);
 	}
 	if (offset < t->first_free)

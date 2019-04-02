@@ -31,7 +31,7 @@
 #include <net/bluetooth/mgmt.h>
 
 #include "hci_request.h"
-#include "hci_debugfs.h"
+#include "hci_defs.h"
 #include "a2mp.h"
 #include "amp.h"
 #include "smp.h"
@@ -218,7 +218,7 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hdev->le_scan_type = LE_SCAN_PASSIVE;
 
-	hdev->ssp_debug_mode = 0;
+	hdev->ssp_de_mode = 0;
 
 	hci_bdaddr_list_clear(&hdev->le_white_list);
 	hci_bdaddr_list_clear(&hdev->le_resolv_list);
@@ -1696,7 +1696,7 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void hci_cc_write_ssp_debug_mode(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_cc_write_ssp_de_mode(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	u8 status = *((u8 *) skb->data);
 	u8 *mode;
@@ -1706,9 +1706,9 @@ static void hci_cc_write_ssp_debug_mode(struct hci_dev *hdev, struct sk_buff *sk
 	if (status)
 		return;
 
-	mode = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE);
+	mode = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_DE_MODE);
 	if (mode)
-		hdev->ssp_debug_mode = *mode;
+		hdev->ssp_de_mode = *mode;
 }
 
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
@@ -2462,7 +2462,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		} else
 			conn->state = BT_CONNECTED;
 
-		hci_debugfs_create_conn(conn);
+		hci_defs_create_conn(conn);
 		hci_conn_add_sysfs(conn);
 
 		if (test_bit(HCI_AUTH, &hdev->flags))
@@ -3358,8 +3358,8 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 		hci_cc_read_tx_power(hdev, skb);
 		break;
 
-	case HCI_OP_WRITE_SSP_DEBUG_MODE:
-		hci_cc_write_ssp_debug_mode(hdev, skb);
+	case HCI_OP_WRITE_SSP_DE_MODE:
+		hci_cc_write_ssp_de_mode(hdev, skb);
 		break;
 
 	case HCI_OP_LE_SET_EXT_SCAN_PARAMS:
@@ -3762,7 +3762,7 @@ static void conn_set_key(struct hci_conn *conn, u8 key_type, u8 pin_len)
 	switch (key_type) {
 	case HCI_LK_LOCAL_UNIT:
 	case HCI_LK_REMOTE_UNIT:
-	case HCI_LK_DEBUG_COMBINATION:
+	case HCI_LK_DE_COMBINATION:
 		return;
 	case HCI_LK_COMBINATION:
 		if (pin_len == 16)
@@ -3882,13 +3882,13 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	mgmt_new_link_key(hdev, key, persistent);
 
-	/* Keep debug keys around only if the HCI_KEEP_DEBUG_KEYS flag
+	/* Keep de keys around only if the HCI_KEEP_DE_KEYS flag
 	 * is set. If it's not set simply remove the key from the kernel
 	 * list (we've still notified user space about it but with
 	 * store_hint being 0).
 	 */
-	if (key->type == HCI_LK_DEBUG_COMBINATION &&
-	    !hci_dev_test_flag(hdev, HCI_KEEP_DEBUG_KEYS)) {
+	if (key->type == HCI_LK_DE_COMBINATION &&
+	    !hci_dev_test_flag(hdev, HCI_KEEP_DE_KEYS)) {
 		list_del_rcu(&key->list);
 		kfree_rcu(key, rcu);
 		goto unlock;
@@ -4123,7 +4123,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		conn->state  = BT_CONNECTED;
 		conn->type   = ev->link_type;
 
-		hci_debugfs_create_conn(conn);
+		hci_defs_create_conn(conn);
 		hci_conn_add_sysfs(conn);
 		break;
 
@@ -4722,7 +4722,7 @@ static void hci_phy_link_complete_evt(struct hci_dev *hdev,
 	hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
 	hci_conn_drop(hcon);
 
-	hci_debugfs_create_conn(hcon);
+	hci_defs_create_conn(hcon);
 	hci_conn_add_sysfs(hcon);
 
 	amp_physical_cfm(bredr_hcon, hcon);
@@ -4934,7 +4934,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	conn->le_conn_latency = latency;
 	conn->le_supv_timeout = supervision_timeout;
 
-	hci_debugfs_create_conn(conn);
+	hci_defs_create_conn(conn);
 	hci_conn_add_sysfs(conn);
 
 	/* The remote features procedure is defined for master

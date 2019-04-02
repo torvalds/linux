@@ -195,7 +195,7 @@ static void f2fs_write_end_io(struct bio *bio)
 				f2fs_stop_checkpoint(sbi, true);
 		}
 
-		f2fs_bug_on(sbi, page->mapping == NODE_MAPPING(sbi) &&
+		f2fs__on(sbi, page->mapping == NODE_MAPPING(sbi) &&
 					page->index != nid_of_node(page));
 
 		dec_page_count(sbi, type);
@@ -302,14 +302,14 @@ static inline void __submit_bio(struct f2fs_sb_info *sbi,
 			struct page *page =
 				mempool_alloc(sbi->write_io_dummy,
 					      GFP_NOIO | __GFP_NOFAIL);
-			f2fs_bug_on(sbi, !page);
+			f2fs__on(sbi, !page);
 
 			zero_user_segment(page, 0, PAGE_SIZE);
 			SetPagePrivate(page);
 			set_page_private(page, (unsigned long)DUMMY_WRITTEN_PAGE);
 			lock_page(page);
 			if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE)
-				f2fs_bug_on(sbi, 1);
+				f2fs__on(sbi, 1);
 		}
 		/*
 		 * In the NODE case, we lose next block address chain. So, we
@@ -485,7 +485,7 @@ void f2fs_submit_page_write(struct f2fs_io_info *fio)
 	struct f2fs_bio_info *io = sbi->write_io[btype] + fio->temp;
 	struct page *bio_page;
 
-	f2fs_bug_on(sbi, is_read_io(fio->op));
+	f2fs__on(sbi, is_read_io(fio->op));
 
 	down_write(&io->io_rwsem);
 next:
@@ -876,7 +876,7 @@ struct page *f2fs_get_new_data_page(struct inode *inode,
 		f2fs_put_page(page, 1);
 
 		/* if ipage exists, blkaddr should be NEW_ADDR */
-		f2fs_bug_on(F2FS_I_SB(inode), ipage);
+		f2fs__on(F2FS_I_SB(inode), ipage);
 		page = f2fs_get_lock_data_page(inode, index, true);
 		if (IS_ERR(page))
 			return page;
@@ -1643,7 +1643,7 @@ next_page:
 		if (pages)
 			put_page(page);
 	}
-	BUG_ON(pages && !list_empty(pages));
+	_ON(pages && !list_empty(pages));
 	if (bio)
 		__submit_bio(F2FS_I_SB(inode), bio, DATA);
 	return 0;
@@ -2788,7 +2788,7 @@ int f2fs_migrate_page(struct address_space *mapping,
 	struct f2fs_inode_info *fi = F2FS_I(mapping->host);
 	bool atomic_written = IS_ATOMIC_WRITTEN_PAGE(page);
 
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 
 	/* migrating an atomic written page is safe with the inmem_lock hold */
 	if (atomic_written) {

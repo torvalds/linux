@@ -1162,7 +1162,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (dev->bus && dev->bus->uevent) {
 		retval = dev->bus->uevent(dev, env);
 		if (retval)
-			pr_debug("device: '%s': %s: bus uevent() returned %d\n",
+			pr_de("device: '%s': %s: bus uevent() returned %d\n",
 				 dev_name(dev), __func__, retval);
 	}
 
@@ -1170,7 +1170,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (dev->class && dev->class->dev_uevent) {
 		retval = dev->class->dev_uevent(dev, env);
 		if (retval)
-			pr_debug("device: '%s': %s: class uevent() "
+			pr_de("device: '%s': %s: class uevent() "
 				 "returned %d\n", dev_name(dev),
 				 __func__, retval);
 	}
@@ -1179,7 +1179,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (dev->type && dev->type->uevent) {
 		retval = dev->type->uevent(dev, env);
 		if (retval)
-			pr_debug("device: '%s': %s: dev_type uevent() "
+			pr_de("device: '%s': %s: dev_type uevent() "
 				 "returned %d\n", dev_name(dev),
 				 __func__, retval);
 	}
@@ -1502,7 +1502,7 @@ static void devices_kset_move_before(struct device *deva, struct device *devb)
 {
 	if (!devices_kset)
 		return;
-	pr_debug("devices_kset: Moving %s before %s\n",
+	pr_de("devices_kset: Moving %s before %s\n",
 		 dev_name(deva), dev_name(devb));
 	spin_lock(&devices_kset->list_lock);
 	list_move_tail(&deva->kobj.entry, &devb->kobj.entry);
@@ -1518,7 +1518,7 @@ static void devices_kset_move_after(struct device *deva, struct device *devb)
 {
 	if (!devices_kset)
 		return;
-	pr_debug("devices_kset: Moving %s after %s\n",
+	pr_de("devices_kset: Moving %s after %s\n",
 		 dev_name(deva), dev_name(devb));
 	spin_lock(&devices_kset->list_lock);
 	list_move(&deva->kobj.entry, &devb->kobj.entry);
@@ -1533,7 +1533,7 @@ void devices_kset_move_last(struct device *dev)
 {
 	if (!devices_kset)
 		return;
-	pr_debug("devices_kset: Moving %s to end of list\n", dev_name(dev));
+	pr_de("devices_kset: Moving %s to end of list\n", dev_name(dev));
 	spin_lock(&devices_kset->list_lock);
 	list_move_tail(&dev->kobj.entry, &devices_kset->list);
 	spin_unlock(&devices_kset->list_lock);
@@ -2037,7 +2037,7 @@ int device_add(struct device *dev)
 		goto name_error;
 	}
 
-	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	pr_de("device: '%s': %s\n", dev_name(dev), __func__);
 
 	parent = get_device(dev->parent);
 	kobj = get_device_parent(dev, parent);
@@ -2297,7 +2297,7 @@ EXPORT_SYMBOL_GPL(device_del);
  */
 void device_unregister(struct device *dev)
 {
-	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	pr_de("device: '%s': %s\n", dev_name(dev), __func__);
 	device_del(dev);
 	put_device(dev);
 }
@@ -2674,7 +2674,7 @@ EXPORT_SYMBOL_GPL(root_device_unregister);
 
 static void device_create_release(struct device *dev)
 {
-	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	pr_de("device: '%s': %s\n", dev_name(dev), __func__);
 	kfree(dev);
 }
 
@@ -2979,7 +2979,7 @@ int device_move(struct device *dev, struct device *new_parent,
 		goto out;
 	}
 
-	pr_debug("device: '%s': %s: moving to '%s'\n", dev_name(dev),
+	pr_de("device: '%s': %s: moving to '%s'\n", dev_name(dev),
 		 __func__, new_parent ? dev_name(new_parent) : "<NULL>");
 	error = kobject_move(&dev->kobj, new_parent_kobj);
 	if (error) {
@@ -3086,16 +3086,16 @@ void device_shutdown(void)
 		pm_runtime_barrier(dev);
 
 		if (dev->class && dev->class->shutdown_pre) {
-			if (initcall_debug)
+			if (initcall_de)
 				dev_info(dev, "shutdown_pre\n");
 			dev->class->shutdown_pre(dev);
 		}
 		if (dev->bus && dev->bus->shutdown) {
-			if (initcall_debug)
+			if (initcall_de)
 				dev_info(dev, "shutdown\n");
 			dev->bus->shutdown(dev);
 		} else if (dev->driver && dev->driver->shutdown) {
-			if (initcall_debug)
+			if (initcall_de)
 				dev_info(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}

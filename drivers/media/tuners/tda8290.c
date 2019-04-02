@@ -29,9 +29,9 @@
 #include "tda827x.h"
 #include "tda18271.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 static int deemphasis_50;
 module_param(deemphasis_50, int, 0644);
@@ -684,8 +684,8 @@ static int tda8290_probe(struct tuner_i2c_props *i2c_props)
 	}
 
 	if (id == TDA8290_ID) {
-		if (debug)
-			printk(KERN_DEBUG "%s: tda8290 detected @ %d-%04x\n",
+		if (de)
+			printk(KERN_DE "%s: tda8290 detected @ %d-%04x\n",
 			       __func__, i2c_adapter_id(i2c_props->adap),
 			       i2c_props->addr);
 		return 0;
@@ -711,8 +711,8 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 	}
 
 	if ((id & 0xfe) == TDA8295_ID) {
-		if (debug)
-			printk(KERN_DEBUG "%s: %s detected @ %d-%04x\n",
+		if (de)
+			printk(KERN_DE "%s: %s detected @ %d-%04x\n",
 			       __func__, (id == TDA8295_ID) ?
 			       "tda8295c1" : "tda8295c2",
 			       i2c_adapter_id(i2c_props->adap),

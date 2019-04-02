@@ -87,10 +87,10 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 /* "Knobs" for adjusting internal parameters. */
-/* Put out somewhat more debugging messages. (0 - no msg, 1 minimal msgs). */
-#define DRIVER_DEBUG 1
+/* Put out somewhat more deging messages. (0 - no msg, 1 minimal msgs). */
+#define DRIVER_DE 1
 /* Some values here only for performance evaluation and path-coverage
-   debugging. */
+   deging. */
 static int rx_nocopy, rx_copy, queued_packet;
 
 /* Number of times to check to see if the Tx FIFO has space, used in some
@@ -105,10 +105,10 @@ static int rx_nocopy, rx_copy, queued_packet;
    */
 #define CORKSCREW_TOTAL_SIZE 0x20
 
-#ifdef DRIVER_DEBUG
-static int corkscrew_debug = DRIVER_DEBUG;
+#ifdef DRIVER_DE
+static int corkscrew_de = DRIVER_DE;
 #else
-static int corkscrew_debug = 1;
+static int corkscrew_de = 1;
 #endif
 
 #define CORKSCREW_ID 10
@@ -398,13 +398,13 @@ static const struct ethtool_ops netdev_ethtool_ops;
 static int options[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1, };
 
 #ifdef MODULE
-static int debug = -1;
+static int de = -1;
 
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param(rx_copybreak, int, 0);
 module_param(max_interrupt_work, int, 0);
-MODULE_PARM_DESC(debug, "3c515 debug level (0-6)");
+MODULE_PARM_DESC(de, "3c515 de level (0-6)");
 MODULE_PARM_DESC(options, "3c515: Bits 0-2: media type, bit 3: full duplex, bit 4: bus mastering");
 MODULE_PARM_DESC(rx_copybreak, "3c515 copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(max_interrupt_work, "3c515 maximum events handled per interrupt");
@@ -416,10 +416,10 @@ static LIST_HEAD(root_corkscrew_dev);
 int init_module(void)
 {
 	int found = 0;
-	if (debug >= 0)
-		corkscrew_debug = debug;
-	if (corkscrew_debug)
-		pr_debug("%s", version);
+	if (de >= 0)
+		corkscrew_de = de;
+	if (corkscrew_de)
+		pr_de("%s", version);
 	while (corkscrew_scan(-1))
 		found++;
 	return found ? 0 : -ENODEV;
@@ -434,9 +434,9 @@ struct net_device *tc515_probe(int unit)
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	if (corkscrew_debug > 0 && !printed) {
+	if (corkscrew_de > 0 && !printed) {
 		printed = 1;
-		pr_debug("%s", version);
+		pr_de("%s", version);
 	}
 
 	return dev;
@@ -529,8 +529,8 @@ static struct net_device *corkscrew_scan(int unit)
 				pnp_device_detach(idev);
 				continue;
 			}
-			if(corkscrew_debug)
-				pr_debug("ISAPNP reports %s at i/o 0x%x, irq %d\n",
+			if(corkscrew_de)
+				pr_de("ISAPNP reports %s at i/o 0x%x, irq %d\n",
 					(char*) corkscrew_isapnp_adapters[i].driver_data, ioaddr, irq);
 			pr_info("3c515 Resource configuration register %#4.4x, DCR %4.4x.\n",
 		     		inl(ioaddr + 0x2002), inw(ioaddr + 0x2000));
@@ -659,7 +659,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	}
 	pr_cont(", IRQ %d\n", dev->irq);
 	/* Tell them about an invalid IRQ. */
-	if (corkscrew_debug && (dev->irq <= 0 || dev->irq > 15))
+	if (corkscrew_de && (dev->irq <= 0 || dev->irq > 15))
 		pr_warn(" *** Warning: this IRQ is unlikely to work! ***\n");
 
 	{
@@ -670,7 +670,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 		EL3WINDOW(3);
 		vp->available_media = inw(ioaddr + Wn3_Options);
 		config = inl(ioaddr + Wn3_Config);
-		if (corkscrew_debug > 1)
+		if (corkscrew_de > 1)
 			pr_info("  Internal config register is %4.4x, transceivers %#x.\n",
 				config, inw(ioaddr + Wn3_Options));
 		pr_info("  %dK %s-wide RAM %s Rx:Tx split, %s%s interface.\n",
@@ -720,7 +720,7 @@ static int corkscrew_open(struct net_device *dev)
 	config = inl(ioaddr + Wn3_Config);
 
 	if (vp->media_override != 7) {
-		if (corkscrew_debug > 1)
+		if (corkscrew_de > 1)
 			pr_info("%s: Media override to transceiver %d (%s).\n",
 				dev->name, vp->media_override,
 				media_tbl[vp->media_override].name);
@@ -731,8 +731,8 @@ static int corkscrew_open(struct net_device *dev)
 		while (!(vp->available_media & media_tbl[dev->if_port].mask))
 			dev->if_port = media_tbl[dev->if_port].next;
 
-		if (corkscrew_debug > 1)
-			pr_debug("%s: Initial media type %s.\n",
+		if (corkscrew_de > 1)
+			pr_de("%s: Initial media type %s.\n",
 			       dev->name, media_tbl[dev->if_port].name);
 		armtimer = true;
 	} else
@@ -741,8 +741,8 @@ static int corkscrew_open(struct net_device *dev)
 	config = (config & ~Xcvr) | (dev->if_port << Xcvr_shift);
 	outl(config, ioaddr + Wn3_Config);
 
-	if (corkscrew_debug > 1) {
-		pr_debug("%s: corkscrew_open() InternalConfig %8.8x.\n",
+	if (corkscrew_de > 1) {
+		pr_de("%s: corkscrew_open() InternalConfig %8.8x.\n",
 		       dev->name, config);
 	}
 
@@ -777,9 +777,9 @@ static int corkscrew_open(struct net_device *dev)
 	if (armtimer)
 		mod_timer(&vp->timer, jiffies + media_tbl[dev->if_port].wait);
 
-	if (corkscrew_debug > 1) {
+	if (corkscrew_de > 1) {
 		EL3WINDOW(4);
-		pr_debug("%s: corkscrew_open() irq %d media status %4.4x.\n",
+		pr_de("%s: corkscrew_open() irq %d media status %4.4x.\n",
 		       dev->name, dev->irq, inw(ioaddr + Wn4_Media));
 	}
 
@@ -815,8 +815,8 @@ static int corkscrew_open(struct net_device *dev)
 
 	if (vp->full_bus_master_rx) {	/* Boomerang bus master. */
 		vp->cur_rx = vp->dirty_rx = 0;
-		if (corkscrew_debug > 2)
-			pr_debug("%s:  Filling in the Rx ring.\n", dev->name);
+		if (corkscrew_de > 2)
+			pr_de("%s:  Filling in the Rx ring.\n", dev->name);
 		for (i = 0; i < RX_RING_SIZE; i++) {
 			struct sk_buff *skb;
 			if (i < (RX_RING_SIZE - 1))
@@ -878,8 +878,8 @@ static void corkscrew_timer(struct timer_list *t)
 	unsigned long flags;
 	int ok = 0;
 
-	if (corkscrew_debug > 1)
-		pr_debug("%s: Media selection timer tick happened, %s.\n",
+	if (corkscrew_de > 1)
+		pr_de("%s: Media selection timer tick happened, %s.\n",
 		       dev->name, media_tbl[dev->if_port].name);
 
 	spin_lock_irqsave(&vp->lock, flags);
@@ -895,21 +895,21 @@ static void corkscrew_timer(struct timer_list *t)
 		case 5:	/* 10baseT, 100baseTX, 100baseFX  */
 			if (media_status & Media_LnkBeat) {
 				ok = 1;
-				if (corkscrew_debug > 1)
-					pr_debug("%s: Media %s has link beat, %x.\n",
+				if (corkscrew_de > 1)
+					pr_de("%s: Media %s has link beat, %x.\n",
 						dev->name,
 						media_tbl[dev->if_port].name,
 						media_status);
-			} else if (corkscrew_debug > 1)
-				pr_debug("%s: Media %s is has no link beat, %x.\n",
+			} else if (corkscrew_de > 1)
+				pr_de("%s: Media %s is has no link beat, %x.\n",
 					dev->name,
 					media_tbl[dev->if_port].name,
 					media_status);
 
 			break;
 		default:	/* Other media types handled by Tx timeouts. */
-			if (corkscrew_debug > 1)
-				pr_debug("%s: Media %s is has no indication, %x.\n",
+			if (corkscrew_de > 1)
+				pr_de("%s: Media %s is has no indication, %x.\n",
 					dev->name,
 					media_tbl[dev->if_port].name,
 					media_status);
@@ -926,13 +926,13 @@ static void corkscrew_timer(struct timer_list *t)
 
 			if (dev->if_port == 8) {	/* Go back to default. */
 				dev->if_port = vp->default_media;
-				if (corkscrew_debug > 1)
-					pr_debug("%s: Media selection failing, using default %s port.\n",
+				if (corkscrew_de > 1)
+					pr_de("%s: Media selection failing, using default %s port.\n",
 						dev->name,
 						media_tbl[dev->if_port].name);
 			} else {
-				if (corkscrew_debug > 1)
-					pr_debug("%s: Media selection failed, now trying %s port.\n",
+				if (corkscrew_de > 1)
+					pr_de("%s: Media selection failed, now trying %s port.\n",
 						dev->name,
 						media_tbl[dev->if_port].name);
 				vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
@@ -954,8 +954,8 @@ static void corkscrew_timer(struct timer_list *t)
 	}
 
 	spin_unlock_irqrestore(&vp->lock, flags);
-	if (corkscrew_debug > 1)
-		pr_debug("%s: Media selection timer finished, %s.\n",
+	if (corkscrew_de > 1)
+		pr_de("%s: Media selection timer finished, %s.\n",
 		       dev->name, media_tbl[dev->if_port].name);
 
 #endif				/* AUTOMEDIA */
@@ -975,13 +975,13 @@ static void corkscrew_timeout(struct net_device *dev)
 		pr_warn("%s: Transmitter encountered 16 collisions -- network cable problem?\n",
 			dev->name);
 #ifndef final_version
-	pr_debug("  Flags; bus-master %d, full %d; dirty %d current %d.\n",
+	pr_de("  Flags; bus-master %d, full %d; dirty %d current %d.\n",
 	       vp->full_bus_master_tx, vp->tx_full, vp->dirty_tx,
 	       vp->cur_tx);
-	pr_debug("  Down list %8.8x vs. %p.\n", inl(ioaddr + DownListPtr),
+	pr_de("  Down list %8.8x vs. %p.\n", inl(ioaddr + DownListPtr),
 	       &vp->tx_ring[0]);
 	for (i = 0; i < TX_RING_SIZE; i++) {
-		pr_debug("  %d: %p  length %8.8x status %8.8x\n", i,
+		pr_de("  %d: %p  length %8.8x status %8.8x\n", i,
 		       &vp->tx_ring[i],
 		       vp->tx_ring[i].length, vp->tx_ring[i].status);
 	}
@@ -1021,8 +1021,8 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 			prev_entry = &vp->tx_ring[(vp->cur_tx - 1) % TX_RING_SIZE];
 		else
 			prev_entry = NULL;
-		if (corkscrew_debug > 3)
-			pr_debug("%s: Trying to send a packet, Tx index %d.\n",
+		if (corkscrew_de > 3)
+			pr_de("%s: Trying to send a packet, Tx index %d.\n",
 				dev->name, vp->cur_tx);
 		/* vp->tx_full = 1; */
 		vp->tx_skbuff[entry] = skb;
@@ -1098,8 +1098,8 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 
 		while (--i > 0 && (tx_status = inb(ioaddr + TxStatus)) > 0) {
 			if (tx_status & 0x3C) {	/* A Tx-disabling error occurred.  */
-				if (corkscrew_debug > 2)
-					pr_debug("%s: Tx error, status %2.2x.\n",
+				if (corkscrew_de > 2)
+					pr_de("%s: Tx error, status %2.2x.\n",
 						dev->name, tx_status);
 				if (tx_status & 0x04)
 					dev->stats.tx_fifo_errors++;
@@ -1139,8 +1139,8 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 
 	status = inw(ioaddr + EL3_STATUS);
 
-	if (corkscrew_debug > 4)
-		pr_debug("%s: interrupt, status %4.4x, timer %d.\n",
+	if (corkscrew_de > 4)
+		pr_de("%s: interrupt, status %4.4x, timer %d.\n",
 			dev->name, status, latency);
 	if ((status & 0xE000) != 0xE000) {
 		static int donedidthis;
@@ -1156,15 +1156,15 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 	}
 
 	do {
-		if (corkscrew_debug > 5)
-			pr_debug("%s: In interrupt loop, status %4.4x.\n",
+		if (corkscrew_de > 5)
+			pr_de("%s: In interrupt loop, status %4.4x.\n",
 			       dev->name, status);
 		if (status & RxComplete)
 			corkscrew_rx(dev);
 
 		if (status & TxAvailable) {
-			if (corkscrew_debug > 5)
-				pr_debug("	TX room bit was handled.\n");
+			if (corkscrew_de > 5)
+				pr_de("	TX room bit was handled.\n");
 			/* There's room in the FIFO for a full-sized packet. */
 			outw(AckIntr | TxAvailable, ioaddr + EL3_CMD);
 			netif_wake_queue(dev);
@@ -1208,10 +1208,10 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 			}
 			if (status & StatsFull) {	/* Empty statistics. */
 				static int DoneDidThat;
-				if (corkscrew_debug > 4)
-					pr_debug("%s: Updating stats.\n", dev->name);
+				if (corkscrew_de > 4)
+					pr_de("%s: Updating stats.\n", dev->name);
 				update_stats(ioaddr, dev);
-				/* DEBUG HACK: Disable statistics as an interrupt source. */
+				/* DE HACK: Disable statistics as an interrupt source. */
 				/* This occurs when we have the wrong media type! */
 				if (DoneDidThat == 0 && inw(ioaddr + EL3_STATUS) & StatsFull) {
 					int win, reg;
@@ -1258,8 +1258,8 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&lp->lock);
 
-	if (corkscrew_debug > 4)
-		pr_debug("%s: exiting interrupt, status %4.4x.\n", dev->name, status);
+	if (corkscrew_de > 4)
+		pr_de("%s: exiting interrupt, status %4.4x.\n", dev->name, status);
 	return IRQ_HANDLED;
 }
 
@@ -1269,14 +1269,14 @@ static int corkscrew_rx(struct net_device *dev)
 	int i;
 	short rx_status;
 
-	if (corkscrew_debug > 5)
-		pr_debug("   In rx_packet(), status %4.4x, rx_status %4.4x.\n",
+	if (corkscrew_de > 5)
+		pr_de("   In rx_packet(), status %4.4x, rx_status %4.4x.\n",
 		     inw(ioaddr + EL3_STATUS), inw(ioaddr + RxStatus));
 	while ((rx_status = inw(ioaddr + RxStatus)) > 0) {
 		if (rx_status & 0x4000) {	/* Error, update stats. */
 			unsigned char rx_error = inb(ioaddr + RxErrors);
-			if (corkscrew_debug > 2)
-				pr_debug(" Rx error: status %2.2x.\n",
+			if (corkscrew_de > 2)
+				pr_de(" Rx error: status %2.2x.\n",
 				       rx_error);
 			dev->stats.rx_errors++;
 			if (rx_error & 0x01)
@@ -1295,8 +1295,8 @@ static int corkscrew_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			skb = netdev_alloc_skb(dev, pkt_len + 5 + 2);
-			if (corkscrew_debug > 4)
-				pr_debug("Receiving packet size %d status %4.4x.\n",
+			if (corkscrew_de > 4)
+				pr_de("Receiving packet size %d status %4.4x.\n",
 				     pkt_len, rx_status);
 			if (skb != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
@@ -1314,8 +1314,8 @@ static int corkscrew_rx(struct net_device *dev)
 					if (! (inw(ioaddr + EL3_STATUS) & CmdInProgress))
 						break;
 				continue;
-			} else if (corkscrew_debug)
-				pr_debug("%s: Couldn't allocate a sk_buff of size %d.\n", dev->name, pkt_len);
+			} else if (corkscrew_de)
+				pr_de("%s: Couldn't allocate a sk_buff of size %d.\n", dev->name, pkt_len);
 		}
 		outw(RxDiscard, ioaddr + EL3_CMD);
 		dev->stats.rx_dropped++;
@@ -1334,14 +1334,14 @@ static int boomerang_rx(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	int rx_status;
 
-	if (corkscrew_debug > 5)
-		pr_debug("   In boomerang_rx(), status %4.4x, rx_status %4.4x.\n",
+	if (corkscrew_de > 5)
+		pr_de("   In boomerang_rx(), status %4.4x, rx_status %4.4x.\n",
 			inw(ioaddr + EL3_STATUS), inw(ioaddr + RxStatus));
 	while ((rx_status = vp->rx_ring[entry].status) & RxDComplete) {
 		if (rx_status & RxDError) {	/* Error, update stats. */
 			unsigned char rx_error = rx_status >> 16;
-			if (corkscrew_debug > 2)
-				pr_debug(" Rx error: status %2.2x.\n",
+			if (corkscrew_de > 2)
+				pr_de(" Rx error: status %2.2x.\n",
 				       rx_error);
 			dev->stats.rx_errors++;
 			if (rx_error & 0x01)
@@ -1360,8 +1360,8 @@ static int boomerang_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			dev->stats.rx_bytes += pkt_len;
-			if (corkscrew_debug > 4)
-				pr_debug("Receiving packet size %d status %4.4x.\n",
+			if (corkscrew_de > 4)
+				pr_de("Receiving packet size %d status %4.4x.\n",
 				     pkt_len, rx_status);
 
 			/* Check if the packet is long enough to just accept without
@@ -1419,11 +1419,11 @@ static int corkscrew_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	if (corkscrew_debug > 1) {
-		pr_debug("%s: corkscrew_close() status %4.4x, Tx status %2.2x.\n",
+	if (corkscrew_de > 1) {
+		pr_de("%s: corkscrew_close() status %4.4x, Tx status %2.2x.\n",
 		     dev->name, inw(ioaddr + EL3_STATUS),
 		     inb(ioaddr + TxStatus));
-		pr_debug("%s: corkscrew close stats: rx_nocopy %d rx_copy %d tx_queued %d.\n",
+		pr_de("%s: corkscrew close stats: rx_nocopy %d rx_copy %d tx_queued %d.\n",
 			dev->name, rx_nocopy, rx_copy, queued_packet);
 	}
 
@@ -1524,8 +1524,8 @@ static void set_rx_mode(struct net_device *dev)
 	unsigned short new_mode;
 
 	if (dev->flags & IFF_PROMISC) {
-		if (corkscrew_debug > 3)
-			pr_debug("%s: Setting promiscuous mode.\n",
+		if (corkscrew_de > 3)
+			pr_de("%s: Setting promiscuous mode.\n",
 			       dev->name);
 		new_mode = SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm;
 	} else if (!netdev_mc_empty(dev) || dev->flags & IFF_ALLMULTI) {
@@ -1547,12 +1547,12 @@ static void netdev_get_drvinfo(struct net_device *dev,
 
 static u32 netdev_get_msglevel(struct net_device *dev)
 {
-	return corkscrew_debug;
+	return corkscrew_de;
 }
 
 static void netdev_set_msglevel(struct net_device *dev, u32 level)
 {
-	corkscrew_debug = level;
+	corkscrew_de = level;
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {

@@ -44,14 +44,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/bitmap.h>
 
-#include "debugfs.h"
+#include "defs.h"
 #include "fault.h"
 #include "trace.h"
 
@@ -118,9 +118,9 @@ static int _fault_stats_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(fault_stats);
-DEBUGFS_SEQ_FILE_OPEN(fault_stats);
-DEBUGFS_FILE_OPS(fault_stats);
+DEFS_SEQ_FILE_OPS(fault_stats);
+DEFS_SEQ_FILE_OPEN(fault_stats);
+DEFS_FILE_OPS(fault_stats);
 
 static int fault_opcodes_open(struct inode *inode, struct file *file)
 {
@@ -144,7 +144,7 @@ static ssize_t fault_opcodes_write(struct file *file, const char __user *buf,
 	if (copy_from_user(data, buf, copy))
 		return -EFAULT;
 
-	ret = debugfs_file_get(file->f_path.dentry);
+	ret = defs_file_get(file->f_path.dentry);
 	if (unlikely(ret))
 		return ret;
 	ptr = data;
@@ -189,7 +189,7 @@ static ssize_t fault_opcodes_write(struct file *file, const char __user *buf,
 	}
 	ret = len;
 
-	debugfs_file_put(file->f_path.dentry);
+	defs_file_put(file->f_path.dentry);
 	kfree(data);
 	return ret;
 }
@@ -207,7 +207,7 @@ static ssize_t fault_opcodes_read(struct file *file, char __user *buf,
 	data = kcalloc(datalen, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	ret = debugfs_file_get(file->f_path.dentry);
+	ret = defs_file_get(file->f_path.dentry);
 	if (unlikely(ret))
 		return ret;
 	bit = find_first_bit(fault->opcodes, bitsize);
@@ -223,7 +223,7 @@ static ssize_t fault_opcodes_read(struct file *file, char __user *buf,
 					 bit);
 		bit = find_next_bit(fault->opcodes, bitsize, zero);
 	}
-	debugfs_file_put(file->f_path.dentry);
+	defs_file_put(file->f_path.dentry);
 	data[size - 1] = '\n';
 	data[size] = '\0';
 	ret = simple_read_from_buffer(buf, len, pos, data, size);
@@ -239,15 +239,15 @@ static const struct file_operations __fault_opcodes_fops = {
 	.llseek = no_llseek
 };
 
-void hfi1_fault_exit_debugfs(struct hfi1_ibdev *ibd)
+void hfi1_fault_exit_defs(struct hfi1_ibdev *ibd)
 {
 	if (ibd->fault)
-		debugfs_remove_recursive(ibd->fault->dir);
+		defs_remove_recursive(ibd->fault->dir);
 	kfree(ibd->fault);
 	ibd->fault = NULL;
 }
 
-int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
+int hfi1_fault_init_defs(struct hfi1_ibdev *ibd)
 {
 	struct dentry *parent = ibd->hfi1_ibdev_dbg;
 	struct dentry *fault_dir;
@@ -271,7 +271,7 @@ int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 		    sizeof(ibd->fault->opcodes) * BITS_PER_BYTE);
 
 	fault_dir =
-		fault_create_debugfs_attr("fault", parent, &ibd->fault->attr);
+		fault_create_defs_attr("fault", parent, &ibd->fault->attr);
 	if (IS_ERR(fault_dir)) {
 		kfree(ibd->fault);
 		ibd->fault = NULL;
@@ -279,20 +279,20 @@ int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 	}
 	ibd->fault->dir = fault_dir;
 
-	debugfs_create_file("fault_stats", 0444, fault_dir, ibd,
+	defs_create_file("fault_stats", 0444, fault_dir, ibd,
 			    &_fault_stats_file_ops);
-	debugfs_create_bool("enable", 0600, fault_dir, &ibd->fault->enable);
-	debugfs_create_bool("suppress_err", 0600, fault_dir,
+	defs_create_bool("enable", 0600, fault_dir, &ibd->fault->enable);
+	defs_create_bool("suppress_err", 0600, fault_dir,
 			    &ibd->fault->suppress_err);
-	debugfs_create_bool("opcode_mode", 0600, fault_dir,
+	defs_create_bool("opcode_mode", 0600, fault_dir,
 			    &ibd->fault->opcode);
-	debugfs_create_file("opcodes", 0600, fault_dir, ibd->fault,
+	defs_create_file("opcodes", 0600, fault_dir, ibd->fault,
 			    &__fault_opcodes_fops);
-	debugfs_create_u64("skip_pkts", 0600, fault_dir,
+	defs_create_u64("skip_pkts", 0600, fault_dir,
 			   &ibd->fault->fault_skip);
-	debugfs_create_u64("skip_usec", 0600, fault_dir,
+	defs_create_u64("skip_usec", 0600, fault_dir,
 			   &ibd->fault->fault_skip_usec);
-	debugfs_create_u8("direction", 0600, fault_dir, &ibd->fault->direction);
+	defs_create_u8("direction", 0600, fault_dir, &ibd->fault->direction);
 
 	return 0;
 }

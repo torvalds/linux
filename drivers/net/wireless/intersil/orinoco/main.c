@@ -113,12 +113,12 @@ MODULE_DESCRIPTION("Driver for Lucent Orinoco, Prism II based "
 		   "and similar wireless cards");
 MODULE_LICENSE("Dual MPL/GPL");
 
-/* Level of debugging. Used in the macros in orinoco.h */
-#ifdef ORINOCO_DEBUG
-int orinoco_debug = ORINOCO_DEBUG;
-EXPORT_SYMBOL(orinoco_debug);
-module_param(orinoco_debug, int, 0644);
-MODULE_PARM_DESC(orinoco_debug, "Debug level");
+/* Level of deging. Used in the macros in orinoco.h */
+#ifdef ORINOCO_DE
+int orinoco_de = ORINOCO_DE;
+EXPORT_SYMBOL(orinoco_de);
+module_param(orinoco_de, int, 0644);
+MODULE_PARM_DESC(orinoco_de, "De level");
 #endif
 
 static bool suppress_linkstatus; /* = 0 */
@@ -300,7 +300,7 @@ void orinoco_set_multicast_list(struct net_device *dev)
 	unsigned long flags;
 
 	if (orinoco_lock(priv, &flags) != 0) {
-		printk(KERN_DEBUG "%s: orinoco_set_multicast_list() "
+		printk(KERN_DE "%s: orinoco_set_multicast_list() "
 		       "called when hw_unavailable\n", dev->name);
 		return;
 	}
@@ -440,7 +440,7 @@ static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (netif_queue_stopped(dev)) {
-		printk(KERN_DEBUG "%s: Tx while transmitter busy!\n",
+		printk(KERN_DE "%s: Tx while transmitter busy!\n",
 		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
@@ -618,7 +618,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 		return;
 	}
 
-	DEBUG(1, "%s: Tx error, err %d (FID=%04X)\n", dev->name,
+	DE(1, "%s: Tx error, err %d (FID=%04X)\n", dev->name,
 	      err, fid);
 
 	/* We produce a TXDROP event only for retry or lifetime
@@ -778,7 +778,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 
 	/* sanity check the length */
 	if (datalen > IEEE80211_MAX_DATA_LEN + 12) {
-		printk(KERN_DEBUG "%s: oversized monitor frame, "
+		printk(KERN_DE "%s: oversized monitor frame, "
 		       "data length = %d\n", dev->name, datalen);
 		stats->rx_length_errors++;
 		goto update_stats;
@@ -854,7 +854,7 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 	status = le16_to_cpu(desc->status);
 
 	if (status & HERMES_RXSTAT_BADCRC) {
-		DEBUG(1, "%s: Bad CRC on Rx. Frame dropped.\n",
+		DE(1, "%s: Bad CRC on Rx. Frame dropped.\n",
 		      dev->name);
 		stats->rx_crc_errors++;
 		goto update_stats;
@@ -867,7 +867,7 @@ void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 	}
 
 	if (status & HERMES_RXSTAT_UNDECRYPTABLE) {
-		DEBUG(1, "%s: Undecryptable frame on Rx. Frame dropped.\n",
+		DE(1, "%s: Undecryptable frame on Rx. Frame dropped.\n",
 		      dev->name);
 		wstats->discard.code++;
 		goto update_stats;
@@ -1132,7 +1132,7 @@ static void print_linkstatus(struct net_device *dev, u16 status)
 		s = "UNKNOWN";
 	}
 
-	printk(KERN_DEBUG "%s: New link status: %s (%04x)\n",
+	printk(KERN_DE "%s: New link status: %s (%04x)\n",
 	       dev->name, s, status);
 }
 
@@ -1194,7 +1194,7 @@ static void orinoco_join_ap(struct work_struct *work)
 	}
 
 	if (!found) {
-		DEBUG(1, "%s: Requested AP not found in scan results\n",
+		DE(1, "%s: Requested AP not found in scan results\n",
 		      dev->name);
 		goto out;
 	}
@@ -1535,15 +1535,15 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 			break;
 		}
 
-#ifdef ORINOCO_DEBUG
+#ifdef ORINOCO_DE
 		{
 			int	i;
-			printk(KERN_DEBUG "Scan result [%02X", buf[0]);
+			printk(KERN_DE "Scan result [%02X", buf[0]);
 			for (i = 1; i < (len * 2); i++)
 				printk(":%02X", buf[i]);
 			printk("]\n");
 		}
-#endif	/* ORINOCO_DEBUG */
+#endif	/* ORINOCO_DE */
 
 		qbuf_scan(priv, buf, len, type);
 	}
@@ -1553,7 +1553,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 		struct agere_ext_scan_info *bss;
 
 		if (!priv->scan_request) {
-			printk(KERN_DEBUG "%s: Got chaninfo without scan, "
+			printk(KERN_DE "%s: Got chaninfo without scan, "
 			       "len=%d\n", dev->name, len);
 			break;
 		}
@@ -1596,7 +1596,7 @@ void __orinoco_ev_info(struct net_device *dev, struct hermes *hw)
 			break;
 		/* fall through */
 	default:
-		printk(KERN_DEBUG "%s: Unknown information frame received: "
+		printk(KERN_DE "%s: Unknown information frame received: "
 		       "type 0x%04x, length %d\n", dev->name, type, len);
 		/* We don't actually do anything about it */
 		break;
@@ -1607,7 +1607,7 @@ EXPORT_SYMBOL(__orinoco_ev_info);
 static void __orinoco_ev_infdrop(struct net_device *dev, struct hermes *hw)
 {
 	if (net_ratelimit())
-		printk(KERN_DEBUG "%s: Information frame lost.\n", dev->name);
+		printk(KERN_DE "%s: Information frame lost.\n", dev->name);
 }
 
 /********************************************************************/
@@ -1860,14 +1860,14 @@ int orinoco_commit(struct orinoco_private *priv)
 
 static void __orinoco_ev_tick(struct net_device *dev, struct hermes *hw)
 {
-	printk(KERN_DEBUG "%s: TICK\n", dev->name);
+	printk(KERN_DE "%s: TICK\n", dev->name);
 }
 
 static void __orinoco_ev_wterr(struct net_device *dev, struct hermes *hw)
 {
 	/* This seems to happen a fair bit under load, but ignoring it
 	   seems to work fine...*/
-	printk(KERN_DEBUG "%s: MAC controller error (WTERR). Ignoring.\n",
+	printk(KERN_DE "%s: MAC controller error (WTERR). Ignoring.\n",
 	       dev->name);
 }
 
@@ -1917,7 +1917,7 @@ irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 
 		/* Check the card hasn't been removed */
 		if (!hermes_present(hw)) {
-			DEBUG(0, "orinoco_interrupt(): card removed\n");
+			DE(0, "orinoco_interrupt(): card removed\n");
 			break;
 		}
 
@@ -2403,7 +2403,7 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 
 static int __init init_orinoco(void)
 {
-	printk(KERN_DEBUG "%s\n", version);
+	printk(KERN_DE "%s\n", version);
 	return 0;
 }
 

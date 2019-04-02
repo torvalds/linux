@@ -48,7 +48,7 @@ MODULE_PARM_DESC(dvb_demux_feed_err_pkts,
 		 "when set to 0, drop packets with the TEI bit set (1 by default)");
 
 #define dprintk(fmt, arg...) \
-	printk(KERN_DEBUG pr_fmt("%s: " fmt),  __func__, ##arg)
+	printk(KERN_DE pr_fmt("%s: " fmt),  __func__, ##arg)
 
 #define dprintk_tscheck(x...) do {			\
 	if (dvb_demux_tscheck && printk_ratelimit())	\

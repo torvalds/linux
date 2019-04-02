@@ -551,10 +551,10 @@ out_unlock:
  * recursion constraints. That are, no more than EP_MAX_POLLWAKE_NESTS, to
  * avoid stack blasting.
  *
- * When CONFIG_DEBUG_LOCK_ALLOC is enabled, make sure lockdep can handle
+ * When CONFIG_DE_LOCK_ALLOC is enabled, make sure lockdep can handle
  * this special case of epoll.
  */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 
 static struct nested_calls poll_safewake_ncalls;
 
@@ -2051,7 +2051,7 @@ static int do_epoll_create(int flags)
 	struct file *file;
 
 	/* Check the EPOLL_* constant for consistency.  */
-	BUILD_BUG_ON(EPOLL_CLOEXEC != O_CLOEXEC);
+	BUILD__ON(EPOLL_CLOEXEC != O_CLOEXEC);
 
 	if (flags & ~EPOLL_CLOEXEC)
 		return -EINVAL;
@@ -2371,7 +2371,7 @@ static int __init eventpoll_init(void)
 	 */
 	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) /
 		EP_ITEM_COST;
-	BUG_ON(max_user_watches < 0);
+	_ON(max_user_watches < 0);
 
 	/*
 	 * Initialize the structure used to perform epoll file descriptor
@@ -2379,7 +2379,7 @@ static int __init eventpoll_init(void)
 	 */
 	ep_nested_calls_init(&poll_loop_ncalls);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	/* Initialize the structure used to perform safe poll wait head wake ups */
 	ep_nested_calls_init(&poll_safewake_ncalls);
 #endif
@@ -2388,7 +2388,7 @@ static int __init eventpoll_init(void)
 	 * We can have many thousands of epitems, so prevent this from
 	 * using an extra cache line on 64-bit (and smaller) CPUs
 	 */
-	BUILD_BUG_ON(sizeof(void *) <= 8 && sizeof(struct epitem) > 128);
+	BUILD__ON(sizeof(void *) <= 8 && sizeof(struct epitem) > 128);
 
 	/* Allocates slab cache used to allocate "struct epitem" items */
 	epi_cache = kmem_cache_create("eventpoll_epi", sizeof(struct epitem),

@@ -130,9 +130,9 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		goto err_cq_add;
 
 	cq->pid = current->pid;
-	err = mlx5_debug_cq_add(dev, cq);
+	err = mlx5_de_cq_add(dev, cq);
 	if (err)
-		mlx5_core_dbg(dev, "failed adding CP 0x%x to debug file system\n",
+		mlx5_core_dbg(dev, "failed adding CP 0x%x to de file system\n",
 			      cq->cqn);
 
 	cq->uar = dev->priv.uar;
@@ -175,7 +175,7 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 
 	synchronize_irq(cq->irqn);
 
-	mlx5_debug_cq_remove(dev, cq);
+	mlx5_de_cq_remove(dev, cq);
 	mlx5_cq_put(cq);
 	wait_for_completion(&cq->free);
 

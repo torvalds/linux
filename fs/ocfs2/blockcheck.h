@@ -29,13 +29,13 @@ struct ocfs2_blockcheck_stats {
 	u64 b_recover_count;	/* Number of blocks fixed by ecc */
 
 	/*
-	 * debugfs entries, used if this is passed to
-	 * ocfs2_blockcheck_stats_debugfs_install()
+	 * defs entries, used if this is passed to
+	 * ocfs2_blockcheck_stats_defs_install()
 	 */
-	struct dentry *b_debug_dir;	/* Parent of the debugfs  files */
-	struct dentry *b_debug_check;	/* Exposes b_check_count */
-	struct dentry *b_debug_failure;	/* Exposes b_failure_count */
-	struct dentry *b_debug_recover;	/* Exposes b_recover_count */
+	struct dentry *b_de_dir;	/* Parent of the defs  files */
+	struct dentry *b_de_check;	/* Exposes b_check_count */
+	struct dentry *b_de_failure;	/* Exposes b_failure_count */
+	struct dentry *b_de_recover;	/* Exposes b_recover_count */
 };
 
 
@@ -63,10 +63,10 @@ int ocfs2_block_check_validate_bhs(struct buffer_head **bhs, int nr,
 				   struct ocfs2_block_check *bc,
 				   struct ocfs2_blockcheck_stats *stats);
 
-/* Debug Initialization */
-int ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
+/* De Initialization */
+int ocfs2_blockcheck_stats_defs_install(struct ocfs2_blockcheck_stats *stats,
 					   struct dentry *parent);
-void ocfs2_blockcheck_stats_debugfs_remove(struct ocfs2_blockcheck_stats *stats);
+void ocfs2_blockcheck_stats_defs_remove(struct ocfs2_blockcheck_stats *stats);
 
 /*
  * Hamming code functions

@@ -881,7 +881,7 @@ extern void perf_event_delayed_put(struct task_struct *task);
 extern struct file *perf_event_get(unsigned int fd);
 extern const struct perf_event *perf_get_event(struct file *file);
 extern const struct perf_event_attr *perf_event_attrs(struct perf_event *event);
-extern void perf_event_print_debug(void);
+extern void perf_event_print_de(void);
 extern void perf_pmu_disable(struct pmu *pmu);
 extern void perf_pmu_enable(struct pmu *pmu);
 extern void perf_sched_cb_dec(struct pmu *pmu);
@@ -1339,7 +1339,7 @@ static inline int perf_event_read_local(struct perf_event *event, u64 *value,
 {
 	return -EINVAL;
 }
-static inline void perf_event_print_debug(void)				{ }
+static inline void perf_event_print_de(void)				{ }
 static inline int perf_event_task_disable(void)				{ return -EINVAL; }
 static inline int perf_event_task_enable(void)				{ return -EINVAL; }
 static inline int perf_event_refresh(struct perf_event *event, int refresh)
@@ -1383,9 +1383,9 @@ static inline int perf_event_release_kernel(struct perf_event *event)	{ return 0
 #endif
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_INTEL)
-extern void perf_restore_debug_store(void);
+extern void perf_restore_de_store(void);
 #else
-static inline void perf_restore_debug_store(void)			{ }
+static inline void perf_restore_de_store(void)			{ }
 #endif
 
 static __always_inline bool perf_raw_frag_last(const struct perf_raw_frag *frag)
@@ -1430,7 +1430,7 @@ _name##_show(struct device *dev,					\
 			       struct device_attribute *attr,		\
 			       char *page)				\
 {									\
-	BUILD_BUG_ON(sizeof(_format) >= PAGE_SIZE);			\
+	BUILD__ON(sizeof(_format) >= PAGE_SIZE);			\
 	return sprintf(page, _format "\n");				\
 }									\
 									\

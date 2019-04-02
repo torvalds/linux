@@ -471,7 +471,7 @@ static struct ldc_channel_config vcc_ldc_cfg = {
 	.event		= vcc_event,
 	.mtu		= VIO_VCC_MTU_SIZE,
 	.mode		= LDC_MODE_RAW,
-	.debug		= 0,
+	.de		= 0,
 };
 
 /* Ordered from largest major to lowest */
@@ -592,8 +592,8 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (rv)
 		goto free_port;
 
-	port->vio.debug = vcc_dbg_vio;
-	vcc_ldc_cfg.debug = vcc_dbg_ldc;
+	port->vio.de = vcc_dbg_vio;
+	vcc_ldc_cfg.de = vcc_dbg_ldc;
 
 	rv = vio_ldc_alloc(&port->vio, &vcc_ldc_cfg, port);
 	if (rv)

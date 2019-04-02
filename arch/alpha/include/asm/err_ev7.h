@@ -163,7 +163,7 @@ struct ev7_pal_environmental_subpacket {
  */
 static inline int ev7_lf_env_index(int type)
 {
-	BUG_ON((type < EL_TYPE__PAL__ENV__AMBIENT_TEMPERATURE) 
+	_ON((type < EL_TYPE__PAL__ENV__AMBIENT_TEMPERATURE) 
 	       || (type > EL_TYPE__PAL__ENV__HOT_PLUG));
 
 	return type - EL_TYPE__PAL__ENV__AMBIENT_TEMPERATURE;

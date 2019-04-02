@@ -34,9 +34,9 @@ MODULE_DEVICE_TABLE(pci, cobalt_pci_tbl);
 
 static atomic_t cobalt_instance = ATOMIC_INIT(0);
 
-int cobalt_debug;
-module_param_named(debug, cobalt_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level. Default: 0\n");
+int cobalt_de;
+module_param_named(de, cobalt_de, int, 0644);
+MODULE_PARM_DESC(de, "De level. Default: 0\n");
 
 int cobalt_ignore_err;
 module_param_named(ignore_err, cobalt_ignore_err, int, 0644);
@@ -464,7 +464,7 @@ static void cobalt_stream_struct_init(struct cobalt *cobalt)
 			s->video_channel = 5;
 			s->dma_fifo_mask = COBALT_SYSSTAT_AUD_OUT_LOST_DATA_MSK;
 		} else {
-			/* FIXME: Memory DMA for debug purpose */
+			/* FIXME: Memory DMA for de purpose */
 			s->dma_channel = i - COBALT_NUM_NODES;
 		}
 		cobalt_info("stream #%d -> dma channel #%d <- video channel %d\n",

@@ -203,10 +203,10 @@ void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, struct blk_mq_tags *tags,
 	if (!blk_mq_tag_is_reserved(tags, tag)) {
 		const int real_tag = tag - tags->nr_reserved_tags;
 
-		BUG_ON(real_tag >= tags->nr_tags);
+		_ON(real_tag >= tags->nr_tags);
 		sbitmap_queue_clear(&tags->bitmap_tags, real_tag, ctx->cpu);
 	} else {
-		BUG_ON(tag >= tags->nr_reserved_tags);
+		_ON(tag >= tags->nr_reserved_tags);
 		sbitmap_queue_clear(&tags->breserved_tags, tag, ctx->cpu);
 	}
 }

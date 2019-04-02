@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -82,15 +82,15 @@ void fhci_dfs_create(struct fhci_hcd *fhci)
 {
 	struct device *dev = fhci_to_hcd(fhci)->self.controller;
 
-	fhci->dfs_root = debugfs_create_dir(dev_name(dev), usb_debug_root);
+	fhci->dfs_root = defs_create_dir(dev_name(dev), usb_de_root);
 
-	debugfs_create_file("regs", S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
+	defs_create_file("regs", S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
 			    &fhci_dfs_regs_fops);
-	debugfs_create_file("irq_stat", S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
+	defs_create_file("irq_stat", S_IFREG | S_IRUGO, fhci->dfs_root, fhci,
 			    &fhci_dfs_irq_stat_fops);
 }
 
 void fhci_dfs_destroy(struct fhci_hcd *fhci)
 {
-	debugfs_remove_recursive(fhci->dfs_root);
+	defs_remove_recursive(fhci->dfs_root);
 }

@@ -1,5 +1,5 @@
 /*
- * mm/percpu-debug.c
+ * mm/percpu-de.c
  *
  * Copyright (C) 2017		Facebook Inc.
  * Copyright (C) 2017		Dennis Zhou <dennisz@fb.com>
@@ -8,7 +8,7 @@
  *
  * Prints statistics about the percpu allocator and backing chunks.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list.h>
 #include <linux/percpu.h>
 #include <linux/seq_file.h>
@@ -225,12 +225,12 @@ alloc_buffer:
 }
 DEFINE_SHOW_ATTRIBUTE(percpu_stats);
 
-static int __init init_percpu_stats_debugfs(void)
+static int __init init_percpu_stats_defs(void)
 {
-	debugfs_create_file("percpu_stats", 0444, NULL, NULL,
+	defs_create_file("percpu_stats", 0444, NULL, NULL,
 			&percpu_stats_fops);
 
 	return 0;
 }
 
-late_initcall(init_percpu_stats_debugfs);
+late_initcall(init_percpu_stats_defs);

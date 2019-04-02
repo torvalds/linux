@@ -114,8 +114,8 @@ int aa_profile_af_perm(struct aa_profile *profile, struct common_audit_data *sa,
 	unsigned int state;
 	__be16 buffer[2];
 
-	AA_BUG(family >= AF_MAX);
-	AA_BUG(type < 0 || type >= SOCK_MAX);
+	AA_(family >= AF_MAX);
+	AA_(type < 0 || type >= SOCK_MAX);
 
 	if (profile_unconfined(profile))
 		return 0;
@@ -149,8 +149,8 @@ static int aa_label_sk_perm(struct aa_label *label, const char *op, u32 request,
 {
 	int error = 0;
 
-	AA_BUG(!label);
-	AA_BUG(!sk);
+	AA_(!label);
+	AA_(!sk);
 
 	if (!unconfined(label)) {
 		struct aa_profile *profile;
@@ -168,8 +168,8 @@ int aa_sk_perm(const char *op, u32 request, struct sock *sk)
 	struct aa_label *label;
 	int error;
 
-	AA_BUG(!sk);
-	AA_BUG(in_interrupt());
+	AA_(!sk);
+	AA_(in_interrupt());
 
 	/* TODO: switch to begin_current_label ???? */
 	label = begin_current_label_crit_section();
@@ -183,9 +183,9 @@ int aa_sk_perm(const char *op, u32 request, struct sock *sk)
 int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
 		      struct socket *sock)
 {
-	AA_BUG(!label);
-	AA_BUG(!sock);
-	AA_BUG(!sock->sk);
+	AA_(!label);
+	AA_(!sock);
+	AA_(!sock->sk);
 
 	return aa_label_sk_perm(label, op, request, sock->sk);
 }

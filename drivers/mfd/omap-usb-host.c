@@ -79,7 +79,7 @@
 #define OMAP4_P2_MODE_TLL				(1 << 18)
 #define OMAP4_P2_MODE_HSIC				(3 << 18)
 
-#define	OMAP_UHH_DEBUG_CSR				(0x44)
+#define	OMAP_UHH_DE_CSR				(0x44)
 
 /* Values of UHH_REVISION - Note: these are not given in the TRM */
 #define OMAP_USBHS_REV1		0x00000010	/* OMAP3 */

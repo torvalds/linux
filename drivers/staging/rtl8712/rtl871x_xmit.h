@@ -35,7 +35,7 @@
 #define TX_GUARD_BAND		5
 #define MAX_NUMBLKS		(1)
 
-/* Fixed the Big Endian bug when using the software driver encryption.*/
+/* Fixed the Big Endian  when using the software driver encryption.*/
 #define WEP_IV(pattrib_iv, txpn, keyidx)\
 do { \
 	pattrib_iv[0] = txpn._byte_.TSC0;\
@@ -45,7 +45,7 @@ do { \
 	txpn.val = (txpn.val == 0xffffff) ? 0 : (txpn.val+1);\
 } while (0)
 
-/* Fixed the Big Endian bug when doing the Tx.
+/* Fixed the Big Endian  when doing the Tx.
  * The Linksys WRH54G will check this.
  */
 #define TKIP_IV(pattrib_iv, txpn, keyidx)\

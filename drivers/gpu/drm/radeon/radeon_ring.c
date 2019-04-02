@@ -42,7 +42,7 @@
  * wptr.  The GPU then starts fetching commands and executes
  * them until the pointers are equal again.
  */
-static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
+static int radeon_defs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
 /**
  * radeon_ring_supports_scratch_reg - check if the ring supports
@@ -414,8 +414,8 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 		ring->next_rptr_gpu_addr = rdev->wb.gpu_addr + index;
 		ring->next_rptr_cpu_addr = &rdev->wb.wb[index/4];
 	}
-	if (radeon_debugfs_ring_init(rdev, ring)) {
-		DRM_ERROR("Failed to register debugfs file for rings !\n");
+	if (radeon_defs_ring_init(rdev, ring)) {
+		DRM_ERROR("Failed to register defs file for rings !\n");
 	}
 	radeon_ring_lockup_update(rdev, ring);
 	return 0;
@@ -453,11 +453,11 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
+static int radeon_defs_ring_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -523,32 +523,32 @@ static int r600_uvd_index = R600_RING_TYPE_UVD_INDEX;
 static int si_vce1_index = TN_RING_TYPE_VCE1_INDEX;
 static int si_vce2_index = TN_RING_TYPE_VCE2_INDEX;
 
-static struct drm_info_list radeon_debugfs_ring_info_list[] = {
-	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_gfx_index},
-	{"radeon_ring_cp1", radeon_debugfs_ring_info, 0, &cayman_cp1_index},
-	{"radeon_ring_cp2", radeon_debugfs_ring_info, 0, &cayman_cp2_index},
-	{"radeon_ring_dma1", radeon_debugfs_ring_info, 0, &radeon_dma1_index},
-	{"radeon_ring_dma2", radeon_debugfs_ring_info, 0, &radeon_dma2_index},
-	{"radeon_ring_uvd", radeon_debugfs_ring_info, 0, &r600_uvd_index},
-	{"radeon_ring_vce1", radeon_debugfs_ring_info, 0, &si_vce1_index},
-	{"radeon_ring_vce2", radeon_debugfs_ring_info, 0, &si_vce2_index},
+static struct drm_info_list radeon_defs_ring_info_list[] = {
+	{"radeon_ring_gfx", radeon_defs_ring_info, 0, &radeon_gfx_index},
+	{"radeon_ring_cp1", radeon_defs_ring_info, 0, &cayman_cp1_index},
+	{"radeon_ring_cp2", radeon_defs_ring_info, 0, &cayman_cp2_index},
+	{"radeon_ring_dma1", radeon_defs_ring_info, 0, &radeon_dma1_index},
+	{"radeon_ring_dma2", radeon_defs_ring_info, 0, &radeon_dma2_index},
+	{"radeon_ring_uvd", radeon_defs_ring_info, 0, &r600_uvd_index},
+	{"radeon_ring_vce1", radeon_defs_ring_info, 0, &si_vce1_index},
+	{"radeon_ring_vce2", radeon_defs_ring_info, 0, &si_vce2_index},
 };
 
 #endif
 
-static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
+static int radeon_defs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	unsigned i;
-	for (i = 0; i < ARRAY_SIZE(radeon_debugfs_ring_info_list); ++i) {
-		struct drm_info_list *info = &radeon_debugfs_ring_info_list[i];
-		int ridx = *(int*)radeon_debugfs_ring_info_list[i].data;
+	for (i = 0; i < ARRAY_SIZE(radeon_defs_ring_info_list); ++i) {
+		struct drm_info_list *info = &radeon_defs_ring_info_list[i];
+		int ridx = *(int*)radeon_defs_ring_info_list[i].data;
 		unsigned r;
 
 		if (&rdev->ring[ridx] != ring)
 			continue;
 
-		r = radeon_debugfs_add_files(rdev, info, 1);
+		r = radeon_defs_add_files(rdev, info, 1);
 		if (r)
 			return r;
 	}

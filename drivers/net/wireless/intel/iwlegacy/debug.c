@@ -40,7 +40,7 @@ il_clear_traffic_stats(struct il_priv *il)
 
 /*
  * il_update_stats function record all the MGMT, CTRL and DATA pkt for
- * both TX and Rx . Use debugfs to display the rx/rx_stats
+ * both TX and Rx . Use defs to display the rx/rx_stats
  */
 void
 il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len)
@@ -127,46 +127,46 @@ il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len)
 EXPORT_SYMBOL(il_update_stats);
 
 /* create and remove of files */
-#define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	debugfs_create_file(#name, mode, parent, il,			\
+#define DEFS_ADD_FILE(name, parent, mode) do {			\
+	defs_create_file(#name, mode, parent, il,			\
 			    &il_dbgfs_##name##_ops);			\
 } while (0)
 
-#define DEBUGFS_ADD_BOOL(name, parent, ptr) do {			\
-	debugfs_create_bool(#name, 0600, parent, ptr);			\
+#define DEFS_ADD_BOOL(name, parent, ptr) do {			\
+	defs_create_bool(#name, 0600, parent, ptr);			\
 } while (0)
 
 /* file operation */
-#define DEBUGFS_READ_FUNC(name)                                         \
+#define DEFS_READ_FUNC(name)                                         \
 static ssize_t il_dbgfs_##name##_read(struct file *file,               \
 					char __user *user_buf,          \
 					size_t count, loff_t *ppos);
 
-#define DEBUGFS_WRITE_FUNC(name)                                        \
+#define DEFS_WRITE_FUNC(name)                                        \
 static ssize_t il_dbgfs_##name##_write(struct file *file,              \
 					const char __user *user_buf,    \
 					size_t count, loff_t *ppos);
 
 
-#define DEBUGFS_READ_FILE_OPS(name)				\
-	DEBUGFS_READ_FUNC(name);				\
+#define DEFS_READ_FILE_OPS(name)				\
+	DEFS_READ_FUNC(name);				\
 static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.read = il_dbgfs_##name##_read,				\
 	.open = simple_open,					\
 	.llseek = generic_file_llseek,				\
 };
 
-#define DEBUGFS_WRITE_FILE_OPS(name)				\
-	DEBUGFS_WRITE_FUNC(name);				\
+#define DEFS_WRITE_FILE_OPS(name)				\
+	DEFS_WRITE_FUNC(name);				\
 static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.write = il_dbgfs_##name##_write,			\
 	.open = simple_open,					\
 	.llseek = generic_file_llseek,				\
 };
 
-#define DEBUGFS_READ_WRITE_FILE_OPS(name)			\
-	DEBUGFS_READ_FUNC(name);				\
-	DEBUGFS_WRITE_FUNC(name);				\
+#define DEFS_READ_WRITE_FILE_OPS(name)			\
+	DEFS_READ_FUNC(name);				\
+	DEFS_WRITE_FUNC(name);				\
 static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.write = il_dbgfs_##name##_write,			\
 	.read = il_dbgfs_##name##_read,				\
@@ -684,7 +684,7 @@ il_dbgfs_interrupt_read(struct file *file, char __user *user_buf, size_t count,
 			      "\tLast Restarting Code:  0x%X\n",
 			      il->isr_stats.err_code);
 	}
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
 		      il->isr_stats.sch);
@@ -817,14 +817,14 @@ il_dbgfs_disable_ht40_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-DEBUGFS_READ_WRITE_FILE_OPS(sram);
-DEBUGFS_READ_FILE_OPS(nvm);
-DEBUGFS_READ_FILE_OPS(stations);
-DEBUGFS_READ_FILE_OPS(channels);
-DEBUGFS_READ_FILE_OPS(status);
-DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
-DEBUGFS_READ_FILE_OPS(qos);
-DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
+DEFS_READ_WRITE_FILE_OPS(sram);
+DEFS_READ_FILE_OPS(nvm);
+DEFS_READ_FILE_OPS(stations);
+DEFS_READ_FILE_OPS(channels);
+DEFS_READ_FILE_OPS(status);
+DEFS_READ_WRITE_FILE_OPS(interrupt);
+DEFS_READ_FILE_OPS(qos);
+DEFS_READ_WRITE_FILE_OPS(disable_ht40);
 
 static ssize_t
 il_dbgfs_tx_queue_read(struct file *file, char __user *user_buf, size_t count,
@@ -908,7 +908,7 @@ il_dbgfs_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 {
 	struct il_priv *il = file->private_data;
 
-	return il->debugfs_ops->rx_stats_read(file, user_buf, count, ppos);
+	return il->defs_ops->rx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -917,7 +917,7 @@ il_dbgfs_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 {
 	struct il_priv *il = file->private_data;
 
-	return il->debugfs_ops->tx_stats_read(file, user_buf, count, ppos);
+	return il->defs_ops->tx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -926,7 +926,7 @@ il_dbgfs_ucode_general_stats_read(struct file *file, char __user *user_buf,
 {
 	struct il_priv *il = file->private_data;
 
-	return il->debugfs_ops->general_stats_read(file, user_buf, count, ppos);
+	return il->defs_ops->general_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -1307,92 +1307,92 @@ il_dbgfs_wd_timeout_write(struct file *file, const char __user *user_buf,
 	return count;
 }
 
-DEBUGFS_READ_FILE_OPS(rx_stats);
-DEBUGFS_READ_FILE_OPS(tx_stats);
-DEBUGFS_READ_FILE_OPS(rx_queue);
-DEBUGFS_READ_FILE_OPS(tx_queue);
-DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
-DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
-DEBUGFS_READ_FILE_OPS(ucode_general_stats);
-DEBUGFS_READ_FILE_OPS(sensitivity);
-DEBUGFS_READ_FILE_OPS(chain_noise);
-DEBUGFS_READ_FILE_OPS(power_save_status);
-DEBUGFS_WRITE_FILE_OPS(clear_ucode_stats);
-DEBUGFS_WRITE_FILE_OPS(clear_traffic_stats);
-DEBUGFS_READ_FILE_OPS(fh_reg);
-DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
-DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
-DEBUGFS_READ_FILE_OPS(rxon_flags);
-DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
-DEBUGFS_WRITE_FILE_OPS(wd_timeout);
+DEFS_READ_FILE_OPS(rx_stats);
+DEFS_READ_FILE_OPS(tx_stats);
+DEFS_READ_FILE_OPS(rx_queue);
+DEFS_READ_FILE_OPS(tx_queue);
+DEFS_READ_FILE_OPS(ucode_rx_stats);
+DEFS_READ_FILE_OPS(ucode_tx_stats);
+DEFS_READ_FILE_OPS(ucode_general_stats);
+DEFS_READ_FILE_OPS(sensitivity);
+DEFS_READ_FILE_OPS(chain_noise);
+DEFS_READ_FILE_OPS(power_save_status);
+DEFS_WRITE_FILE_OPS(clear_ucode_stats);
+DEFS_WRITE_FILE_OPS(clear_traffic_stats);
+DEFS_READ_FILE_OPS(fh_reg);
+DEFS_READ_WRITE_FILE_OPS(missed_beacon);
+DEFS_READ_WRITE_FILE_OPS(force_reset);
+DEFS_READ_FILE_OPS(rxon_flags);
+DEFS_READ_FILE_OPS(rxon_filter_flags);
+DEFS_WRITE_FILE_OPS(wd_timeout);
 
 /*
- * Create the debugfs files and directories
+ * Create the defs files and directories
  *
  */
 void
 il_dbgfs_register(struct il_priv *il, const char *name)
 {
-	struct dentry *phyd = il->hw->wiphy->debugfsdir;
-	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_debug;
+	struct dentry *phyd = il->hw->wiphy->defsdir;
+	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_de;
 
-	dir_drv = debugfs_create_dir(name, phyd);
-	il->debugfs_dir = dir_drv;
+	dir_drv = defs_create_dir(name, phyd);
+	il->defs_dir = dir_drv;
 
-	dir_data = debugfs_create_dir("data", dir_drv);
-	dir_rf = debugfs_create_dir("rf", dir_drv);
-	dir_debug = debugfs_create_dir("debug", dir_drv);
+	dir_data = defs_create_dir("data", dir_drv);
+	dir_rf = defs_create_dir("rf", dir_drv);
+	dir_de = defs_create_dir("de", dir_drv);
 
-	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
-	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
-	DEBUGFS_ADD_FILE(stations, dir_data, 0400);
-	DEBUGFS_ADD_FILE(channels, dir_data, 0400);
-	DEBUGFS_ADD_FILE(status, dir_data, 0400);
-	DEBUGFS_ADD_FILE(interrupt, dir_data, 0600);
-	DEBUGFS_ADD_FILE(qos, dir_data, 0400);
-	DEBUGFS_ADD_FILE(disable_ht40, dir_data, 0600);
-	DEBUGFS_ADD_FILE(rx_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(tx_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(rx_queue, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(tx_queue, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(power_save_status, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(clear_ucode_stats, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(clear_traffic_stats, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(fh_reg, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(force_reset, dir_debug, 0600);
-	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, 0400);
+	DEFS_ADD_FILE(nvm, dir_data, 0400);
+	DEFS_ADD_FILE(sram, dir_data, 0600);
+	DEFS_ADD_FILE(stations, dir_data, 0400);
+	DEFS_ADD_FILE(channels, dir_data, 0400);
+	DEFS_ADD_FILE(status, dir_data, 0400);
+	DEFS_ADD_FILE(interrupt, dir_data, 0600);
+	DEFS_ADD_FILE(qos, dir_data, 0400);
+	DEFS_ADD_FILE(disable_ht40, dir_data, 0600);
+	DEFS_ADD_FILE(rx_stats, dir_de, 0400);
+	DEFS_ADD_FILE(tx_stats, dir_de, 0400);
+	DEFS_ADD_FILE(rx_queue, dir_de, 0400);
+	DEFS_ADD_FILE(tx_queue, dir_de, 0400);
+	DEFS_ADD_FILE(power_save_status, dir_de, 0400);
+	DEFS_ADD_FILE(clear_ucode_stats, dir_de, 0200);
+	DEFS_ADD_FILE(clear_traffic_stats, dir_de, 0200);
+	DEFS_ADD_FILE(fh_reg, dir_de, 0400);
+	DEFS_ADD_FILE(missed_beacon, dir_de, 0200);
+	DEFS_ADD_FILE(force_reset, dir_de, 0600);
+	DEFS_ADD_FILE(ucode_rx_stats, dir_de, 0400);
+	DEFS_ADD_FILE(ucode_tx_stats, dir_de, 0400);
+	DEFS_ADD_FILE(ucode_general_stats, dir_de, 0400);
 
 	if (il->cfg->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
+		DEFS_ADD_FILE(sensitivity, dir_de, 0400);
 	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, 0200);
+		DEFS_ADD_FILE(chain_noise, dir_de, 0400);
+	DEFS_ADD_FILE(rxon_flags, dir_de, 0200);
+	DEFS_ADD_FILE(rxon_filter_flags, dir_de, 0200);
+	DEFS_ADD_FILE(wd_timeout, dir_de, 0200);
 	if (il->cfg->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
+		DEFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &il->disable_sens_cal);
 	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
+		DEFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &il->disable_chain_noise_cal);
-	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
+	DEFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
 }
 EXPORT_SYMBOL(il_dbgfs_register);
 
 /**
- * Remove the debugfs files and directories
+ * Remove the defs files and directories
  *
  */
 void
 il_dbgfs_unregister(struct il_priv *il)
 {
-	if (!il->debugfs_dir)
+	if (!il->defs_dir)
 		return;
 
-	debugfs_remove_recursive(il->debugfs_dir);
-	il->debugfs_dir = NULL;
+	defs_remove_recursive(il->defs_dir);
+	il->defs_dir = NULL;
 }
 EXPORT_SYMBOL(il_dbgfs_unregister);

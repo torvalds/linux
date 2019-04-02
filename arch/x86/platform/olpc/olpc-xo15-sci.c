@@ -107,7 +107,7 @@ static void process_sci_queue(void)
 		if (r || !data)
 			break;
 
-		pr_debug(PFX "SCI 0x%x received\n", data);
+		pr_de(PFX "SCI 0x%x received\n", data);
 
 		switch (data) {
 		case EC_SCI_SRC_BATERR:

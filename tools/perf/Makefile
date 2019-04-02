@@ -39,16 +39,16 @@ ifneq ($(O),)
 endif
 
 #
-# Only accept the 'DEBUG' variable from the command line:
+# Only accept the 'DE' variable from the command line:
 #
-ifeq ("$(origin DEBUG)", "command line")
-  ifeq ($(DEBUG),)
-    override DEBUG = 0
+ifeq ("$(origin DE)", "command line")
+  ifeq ($(DE),)
+    override DE = 0
   else
-    SET_DEBUG = "DEBUG=$(DEBUG)"
+    SET_DE = "DE=$(DE)"
   endif
 else
-  override DEBUG = 0
+  override DE = 0
 endif
 
 define print_msg
@@ -56,7 +56,7 @@ define print_msg
 endef
 
 define make
-  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) O=$(FULL_O) $(SET_DEBUG) $@
+  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) O=$(FULL_O) $(SET_DE) $@
 endef
 
 #

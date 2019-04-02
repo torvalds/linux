@@ -601,7 +601,7 @@ static void fq_rehash(struct fq_sched_data *q,
 				parent = *np;
 
 				nf = rb_entry(parent, struct fq_flow, fq_node);
-				BUG_ON(nf->sk == of->sk);
+				_ON(nf->sk == of->sk);
 
 				if (nf->sk > of->sk)
 					np = &parent->rb_right;

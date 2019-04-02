@@ -427,8 +427,8 @@ static ssize_t pblk_sysfs_get_padding_dist(struct pblk *pblk, char *page)
 	return sz;
 }
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
-static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
+#ifdef CONFIG_NVM_PBLK_DE
+static ssize_t pblk_sysfs_stats_de(struct pblk *pblk, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
 		"%lu\t%lu\t%ld\t%llu\t%ld\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\t%lu\n",
@@ -611,8 +611,8 @@ static struct attribute sys_padding_dist = {
 	.mode = 0644,
 };
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
-static struct attribute sys_stats_debug_attr = {
+#ifdef CONFIG_NVM_PBLK_DE
+static struct attribute sys_stats_de_attr = {
 	.name = "stats",
 	.mode = 0444,
 };
@@ -632,8 +632,8 @@ static struct attribute *pblk_attrs[] = {
 	&sys_write_amp_mileage,
 	&sys_write_amp_trip,
 	&sys_padding_dist,
-#ifdef CONFIG_NVM_PBLK_DEBUG
-	&sys_stats_debug_attr,
+#ifdef CONFIG_NVM_PBLK_DE
+	&sys_stats_de_attr,
 #endif
 	NULL,
 };
@@ -667,9 +667,9 @@ static ssize_t pblk_sysfs_show(struct kobject *kobj, struct attribute *attr,
 		return pblk_sysfs_get_write_amp_trip(pblk, buf);
 	else if (strcmp(attr->name, "padding_dist") == 0)
 		return pblk_sysfs_get_padding_dist(pblk, buf);
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	else if (strcmp(attr->name, "stats") == 0)
-		return pblk_sysfs_stats_debug(pblk, buf);
+		return pblk_sysfs_stats_de(pblk, buf);
 #endif
 	return 0;
 }

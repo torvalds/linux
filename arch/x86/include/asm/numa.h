@@ -13,7 +13,7 @@
 
 /*
  * Too small node sizes may confuse the VM badly. Usually they
- * result from BIOS bugs. So dont recognize nodes as standalone
+ * result from BIOS s. So dont recognize nodes as standalone
  * NUMA entities that have less than this amount of RAM listed:
  */
 #define NODE_MIN_SIZE (4*1024*1024)
@@ -70,8 +70,8 @@ static inline void numa_add_cpu(int cpu)		{ }
 static inline void numa_remove_cpu(int cpu)		{ }
 #endif	/* CONFIG_NUMA */
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-void debug_cpumask_set_cpu(int cpu, int node, bool enable);
+#ifdef CONFIG_DE_PER_CPU_MAPS
+void de_cpumask_set_cpu(int cpu, int node, bool enable);
 #endif
 
 #ifdef CONFIG_NUMA_EMU

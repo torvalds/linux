@@ -481,7 +481,7 @@ static int hi6210_i2s_hw_params(struct snd_pcm_substream *substream,
 static int hi6210_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			  struct snd_soc_dai *cpu_dai)
 {
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:

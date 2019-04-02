@@ -14,7 +14,7 @@ struct mutex;
  *
  * The counter saturates at UINT_MAX and will not move once
  * there. This avoids wrapping the counter and causing 'spurious'
- * use-after-free bugs.
+ * use-after-free s.
  */
 typedef struct refcount_struct {
 	atomic_t refs;

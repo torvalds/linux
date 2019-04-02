@@ -1188,7 +1188,7 @@ static void tegra30_cpu_clock_resume(void)
 	else if (policy == CLK_RESET_CCLK_RUN_POLICY)
 		reg = (reg >> CLK_RESET_CCLK_RUN_POLICY_SHIFT) & 0xF;
 	else
-		BUG();
+		();
 
 	if (reg != CLK_RESET_CCLK_BURST_POLICY_PLLX) {
 		/* restore PLLX settings if CPU is on different PLL */
@@ -1326,13 +1326,13 @@ static void __init tegra30_clock_init(struct device_node *np)
 	node = of_find_matching_node(NULL, pmc_match);
 	if (!node) {
 		pr_err("Failed to find pmc node\n");
-		BUG();
+		();
 	}
 
 	pmc_base = of_iomap(node, 0);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
-		BUG();
+		();
 	}
 
 	clks = tegra_clk_init(clk_base, TEGRA30_CLK_CLK_MAX,

@@ -41,10 +41,10 @@
 #define is_shub()	0
 #endif
 
-#ifdef USE_DBUG_ON
-#define DBUG_ON(condition)	BUG_ON(condition)
+#ifdef USE_D_ON
+#define D_ON(condition)	_ON(condition)
 #else
-#define DBUG_ON(condition)
+#define D_ON(condition)
 #endif
 
 /*

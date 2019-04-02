@@ -390,7 +390,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
 
 #define MAX_SWAPFILES_CHECK()	\
-	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
+	BUILD__ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
 #define __swp_type(x)	(((x).val >> __SWP_TYPE_SHIFT) & __SWP_TYPE_MASK)
 #define __swp_offset(x)	((x).val >> __SWP_OFFSET_SHIFT)

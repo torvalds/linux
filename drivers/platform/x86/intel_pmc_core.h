@@ -197,7 +197,7 @@ struct pmc_bit_map {
  * @pfear_sts:		Maps name of IP block to PPFEAR* bit
  * @mphy_sts:		Maps name of MPHY lane to MPHY status lane status bit
  * @pll_sts:		Maps name of PLL to corresponding bit status
- * @slps0_dbg_maps:	Array of SLP_S0_DBG* registers containing debug info
+ * @slps0_dbg_maps:	Array of SLP_S0_DBG* registers containing de info
  * @ltr_show_sts:	Maps PCH IP Names to their MMIO register offsets
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
  * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
@@ -207,7 +207,7 @@ struct pmc_bit_map {
  *			PPFEAR
  * @pm_cfg_offset:	PWRMBASE offset to PM_CFG register
  * @pm_read_disable_bit: Bit index to read PMC_READ_DISABLE
- * @slps0_dbg_offset:	PWRMBASE offset to SLP_S0_DEBUG_REG*
+ * @slps0_dbg_offset:	PWRMBASE offset to SLP_S0_DE_REG*
  *
  * Each PCH has unique set of register offsets and bit indexes. This structure
  * captures them to have a common implementation.
@@ -237,7 +237,7 @@ struct pmc_reg_map {
  * @regbase:		pointer to io-remapped memory location
  * @map:		pointer to pmc_reg_map struct that contains platform
  *			specific attributes
- * @dbgfs_dir:		path to debugfs interface
+ * @dbgfs_dir:		path to defs interface
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
  *			used to read MPHY PG and PLL status are available
  * @mutex_lock:		mutex to complete one transcation
@@ -248,9 +248,9 @@ struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regbase;
 	const struct pmc_reg_map *map;
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
 };

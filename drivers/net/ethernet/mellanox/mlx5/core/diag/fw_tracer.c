@@ -565,13 +565,13 @@ static int mlx5_tracer_handle_string_trace(struct mlx5_fw_tracer *tracer,
 	} else {
 		cur_string = mlx5_tracer_message_get(tracer, tracer_event);
 		if (!cur_string) {
-			pr_debug("%s Got string event for unknown string tdsm: %d\n",
+			pr_de("%s Got string event for unknown string tdsm: %d\n",
 				 __func__, tracer_event->string_event.tmsn);
 			return -1;
 		}
 		cur_string->last_param_num += 1;
 		if (cur_string->last_param_num > TRACER_MAX_PARAMS) {
-			pr_debug("%s Number of params exceeds the max (%d)\n",
+			pr_de("%s Number of params exceeds the max (%d)\n",
 				 __func__, TRACER_MAX_PARAMS);
 			list_add_tail(&cur_string->list, &tracer->ready_strings_list);
 			return 0;
@@ -617,7 +617,7 @@ static int mlx5_tracer_handle_trace(struct mlx5_fw_tracer *tracer,
 		if (!tracer_event->timestamp_event.unreliable)
 			mlx5_tracer_handle_timestamp_trace(tracer, tracer_event);
 	} else {
-		pr_debug("%s Got unrecognised type %d for parsing, exiting..\n",
+		pr_de("%s Got unrecognised type %d for parsing, exiting..\n",
 			 __func__, tracer_event->type);
 	}
 	return 0;

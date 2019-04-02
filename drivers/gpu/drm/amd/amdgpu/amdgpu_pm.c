@@ -36,7 +36,7 @@
 #include "hwmgr.h"
 #define WIDTH_4K 3840
 
-static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
+static int amdgpu_defs_pm_init(struct amdgpu_device *adev);
 
 static const struct cg_flag_name clocks[] = {
 	{AMD_CG_SUPPORT_GFX_MGCG, "Graphics Medium Grain Clock Gating"},
@@ -655,7 +655,7 @@ static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	pr_debug("featuremask = 0x%llx\n", featuremask);
+	pr_de("featuremask = 0x%llx\n", featuremask);
 
 	if (adev->powerplay.pp_funcs->set_ppfeature_status) {
 		ret = amdgpu_dpm_set_ppfeature_status(adev, featuremask);
@@ -2437,9 +2437,9 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			return ret;
 		}
 	}
-	ret = amdgpu_debugfs_pm_init(adev);
+	ret = amdgpu_defs_pm_init(adev);
 	if (ret) {
-		DRM_ERROR("Failed to register debugfs file for dpm!\n");
+		DRM_ERROR("Failed to register defs file for dpm!\n");
 		return ret;
 	}
 
@@ -2542,11 +2542,11 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
+static int amdgpu_defs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
 	uint64_t value64;
@@ -2629,7 +2629,7 @@ static void amdgpu_parse_cg_state(struct seq_file *m, u32 flags)
 			   (flags & clocks[i].flag) ? "On" : "Off");
 }
 
-static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
+static int amdgpu_defs_pm_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -2649,29 +2649,29 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON)) {
 		seq_printf(m, "PX asic powered off\n");
-	} else if (adev->powerplay.pp_funcs->debugfs_print_current_performance_level) {
+	} else if (adev->powerplay.pp_funcs->defs_print_current_performance_level) {
 		mutex_lock(&adev->pm.mutex);
-		if (adev->powerplay.pp_funcs->debugfs_print_current_performance_level)
-			adev->powerplay.pp_funcs->debugfs_print_current_performance_level(adev, m);
+		if (adev->powerplay.pp_funcs->defs_print_current_performance_level)
+			adev->powerplay.pp_funcs->defs_print_current_performance_level(adev, m);
 		else
-			seq_printf(m, "Debugfs support not implemented for this asic\n");
+			seq_printf(m, "Defs support not implemented for this asic\n");
 		mutex_unlock(&adev->pm.mutex);
 	} else {
-		return amdgpu_debugfs_pm_info_pp(m, adev);
+		return amdgpu_defs_pm_info_pp(m, adev);
 	}
 
 	return 0;
 }
 
 static const struct drm_info_list amdgpu_pm_info_list[] = {
-	{"amdgpu_pm_info", amdgpu_debugfs_pm_info, 0, NULL},
+	{"amdgpu_pm_info", amdgpu_defs_pm_info, 0, NULL},
 };
 #endif
 
-static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
+static int amdgpu_defs_pm_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_pm_info_list, ARRAY_SIZE(amdgpu_pm_info_list));
+#if defined(CONFIG_DE_FS)
+	return amdgpu_defs_add_files(adev, amdgpu_pm_info_list, ARRAY_SIZE(amdgpu_pm_info_list));
 #else
 	return 0;
 #endif

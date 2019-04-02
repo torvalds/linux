@@ -47,11 +47,11 @@
 #define TS_MAX_BUFSIZE_K_DVBC	1316
 #define BUFFER_WARNING_WAIT	(30*HZ)
 
-int budget_debug;
+int budget_de;
 static int dma_buffer_size = TS_MIN_BUFSIZE_K;
-module_param_named(debug, budget_debug, int, 0644);
+module_param_named(de, budget_de, int, 0644);
 module_param_named(bufsize, dma_buffer_size, int, 0444);
-MODULE_PARM_DESC(debug, "Turn on/off budget debugging (default:off).");
+MODULE_PARM_DESC(de, "Turn on/off budget deging (default:off).");
 MODULE_PARM_DESC(bufsize, "DMA buffer size in KB, default: 188, min: 188, max: 1410 (Activy: 564)");
 
 /****************************************************************************
@@ -606,6 +606,6 @@ EXPORT_SYMBOL_GPL(ttpci_budget_init_hooks);
 EXPORT_SYMBOL_GPL(ttpci_budget_deinit);
 EXPORT_SYMBOL_GPL(ttpci_budget_irq10_handler);
 EXPORT_SYMBOL_GPL(ttpci_budget_set_video_port);
-EXPORT_SYMBOL_GPL(budget_debug);
+EXPORT_SYMBOL_GPL(budget_de);
 
 MODULE_LICENSE("GPL");

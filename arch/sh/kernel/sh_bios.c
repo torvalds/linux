@@ -64,7 +64,7 @@ void sh_bios_shutdown(unsigned int how)
 
 /*
  * Read the old value of the VBR register to initialise the vector
- * through which debug and BIOS traps are delegated by the Linux trap
+ * through which de and BIOS traps are delegated by the Linux trap
  * handler.
  */
 void sh_bios_vbr_init(void)

@@ -40,7 +40,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
@@ -406,7 +406,7 @@ struct pdc_state {
 	 */
 	struct scatterlist *src_sg[PDC_RING_ENTRIES];
 
-	struct dentry *debugfs_stats;  /* debug FS stats file for this PDC */
+	struct dentry *defs_stats;  /* de FS stats file for this PDC */
 
 	/* counters */
 	u32  pdc_requests;     /* number of request messages submitted */
@@ -431,10 +431,10 @@ struct pdc_globals {
 
 static struct pdc_globals pdcg;
 
-/* top level debug FS directory for PDC driver */
-static struct dentry *debugfs_dir;
+/* top level de FS directory for PDC driver */
+static struct dentry *defs_dir;
 
-static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
+static ssize_t pdc_defs_read(struct file *filp, char __user *ubuf,
 				size_t count, loff_t *offp)
 {
 	struct pdc_state *pdcs;
@@ -488,39 +488,39 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 	return ret;
 }
 
-static const struct file_operations pdc_debugfs_stats = {
+static const struct file_operations pdc_defs_stats = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = pdc_debugfs_read,
+	.read = pdc_defs_read,
 };
 
 /**
- * pdc_setup_debugfs() - Create the debug FS directories. If the top-level
+ * pdc_setup_defs() - Create the de FS directories. If the top-level
  * directory has not yet been created, create it now. Create a stats file in
  * this directory for a SPU.
  * @pdcs: PDC state structure
  */
-static void pdc_setup_debugfs(struct pdc_state *pdcs)
+static void pdc_setup_defs(struct pdc_state *pdcs)
 {
 	char spu_stats_name[16];
 
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return;
 
 	snprintf(spu_stats_name, 16, "pdc%d_stats", pdcs->pdc_idx);
-	if (!debugfs_dir)
-		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (!defs_dir)
+		defs_dir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	/* S_IRUSR == 0400 */
-	pdcs->debugfs_stats = debugfs_create_file(spu_stats_name, 0400,
-						  debugfs_dir, pdcs,
-						  &pdc_debugfs_stats);
+	pdcs->defs_stats = defs_create_file(spu_stats_name, 0400,
+						  defs_dir, pdcs,
+						  &pdc_defs_stats);
 }
 
-static void pdc_free_debugfs(void)
+static void pdc_free_defs(void)
 {
-	debugfs_remove_recursive(debugfs_dir);
-	debugfs_dir = NULL;
+	defs_remove_recursive(defs_dir);
+	defs_dir = NULL;
 }
 
 /**
@@ -1614,8 +1614,8 @@ static int pdc_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_buf_pool;
 
-	pdcs->debugfs_stats = NULL;
-	pdc_setup_debugfs(pdcs);
+	pdcs->defs_stats = NULL;
+	pdc_setup_defs(pdcs);
 
 	dev_dbg(dev, "pdc_probe() successful");
 	return PDC_SUCCESS;
@@ -1635,7 +1635,7 @@ static int pdc_remove(struct platform_device *pdev)
 {
 	struct pdc_state *pdcs = platform_get_drvdata(pdev);
 
-	pdc_free_debugfs();
+	pdc_free_defs();
 
 	tasklet_kill(&pdcs->rx_tasklet);
 

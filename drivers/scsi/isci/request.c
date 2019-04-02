@@ -1435,7 +1435,7 @@ sci_stp_request_pio_data_in_copy_data_buffer(struct isci_stp_request *stp_req,
 			sg = sg_next(sg);
 		}
 	} else {
-		BUG_ON(task->total_xfer_len < total_len);
+		_ON(task->total_xfer_len < total_len);
 		memcpy(task->scatter, src_addr, total_len);
 	}
 
@@ -2243,7 +2243,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 			/* If receiving any non-success TC status, no UF
 			 * received yet, then an UF for the status fis
 			 * is coming after (XXX: suspect this is
-			 * actually a protocol error or a bug like the
+			 * actually a protocol error or a  like the
 			 * DONE_UNEXP_FIS case)
 			 */
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
@@ -2379,7 +2379,7 @@ static void sci_request_handle_suspending_completions(
 		break;
 	}
 	if (is_tx || is_tx_rx) {
-		BUG_ON(is_tx && is_tx_rx);
+		_ON(is_tx && is_tx_rx);
 
 		sci_remote_node_context_suspend(
 			&ireq->target_device->rnc,

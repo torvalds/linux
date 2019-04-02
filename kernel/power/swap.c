@@ -884,7 +884,7 @@ static int enough_swap(unsigned int nr_pages)
 	unsigned int free_swap = count_swap_pages(root_swap, 1);
 	unsigned int required;
 
-	pr_debug("Free swap pages: %u\n", free_swap);
+	pr_de("Free swap pages: %u\n", free_swap);
 
 	required = PAGES_FOR_IO + nr_pages;
 	return free_swap > required;
@@ -1499,9 +1499,9 @@ int swsusp_read(unsigned int *flags_p)
 	swap_reader_finish(&handle);
 end:
 	if (!error)
-		pr_debug("Image successfully loaded\n");
+		pr_de("Image successfully loaded\n");
 	else
-		pr_debug("Error %d resuming\n", error);
+		pr_de("Error %d resuming\n", error);
 	return error;
 }
 
@@ -1538,13 +1538,13 @@ put:
 		if (error)
 			blkdev_put(hib_resume_bdev, FMODE_READ);
 		else
-			pr_debug("Image signature found, resuming\n");
+			pr_de("Image signature found, resuming\n");
 	} else {
 		error = PTR_ERR(hib_resume_bdev);
 	}
 
 	if (error)
-		pr_debug("Image not found (code %d)\n", error);
+		pr_de("Image not found (code %d)\n", error);
 
 	return error;
 }
@@ -1556,7 +1556,7 @@ put:
 void swsusp_close(fmode_t mode)
 {
 	if (IS_ERR(hib_resume_bdev)) {
-		pr_debug("Image device not initialised\n");
+		pr_de("Image device not initialised\n");
 		return;
 	}
 

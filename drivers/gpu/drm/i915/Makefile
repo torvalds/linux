@@ -53,7 +53,7 @@ i915-y := i915_drv.o \
 	  intel_workarounds.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o
-i915-$(CONFIG_DEBUG_FS) += i915_debugfs.o intel_pipe_crc.o
+i915-$(CONFIG_DE_FS) += i915_defs.o intel_pipe_crc.o
 i915-$(CONFIG_PERF_EVENTS) += i915_pmu.o
 
 # GEM code
@@ -164,7 +164,7 @@ i915-y += dvo_ch7017.o \
 	  vlv_dsi_pll.o \
 	  intel_vdsc.o
 
-# Post-mortem debug and GPU hang state capture
+# Post-mortem de and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_random.o \

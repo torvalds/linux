@@ -32,7 +32,7 @@
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
 
-#define DEBUG_SIG 0
+#define DE_SIG 0
 
 struct rt_sigframe {
 	struct siginfo info;
@@ -242,7 +242,7 @@ int do_signal(struct pt_regs *regs, int syscall)
 		retval = regs->gpr[11];
 
 		/*
-		 * Setup syscall restart here so that a debugger will
+		 * Setup syscall restart here so that a deger will
 		 * see the already changed PC.
 		 */
 		switch (retval) {
@@ -261,7 +261,7 @@ int do_signal(struct pt_regs *regs, int syscall)
 
 	/*
 	 * Get the signal to deliver.  During the call to get_signal the
-	 * debugger may change all our registers so we may need to revert
+	 * deger may change all our registers so we may need to revert
 	 * the decision to restart the syscall; specifically, if the PC is
 	 * changed, don't restart the syscall.
 	 */

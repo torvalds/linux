@@ -95,7 +95,7 @@ static unsigned short au1xac97c_ac97_read(struct snd_ac97 *ac97,
 		while ((RD(ctx, AC97_STATUS) & STAT_CP) && --tmo)
 			udelay(21);	/* wait an ac97 frame time */
 		if (!tmo) {
-			pr_debug("ac97rd timeout #1\n");
+			pr_de("ac97rd timeout #1\n");
 			goto next;
 		}
 
@@ -110,13 +110,13 @@ static unsigned short au1xac97c_ac97_read(struct snd_ac97 *ac97,
 		data = RD(ctx, AC97_CMDRESP);
 
 		if (!tmo)
-			pr_debug("ac97rd timeout #2\n");
+			pr_de("ac97rd timeout #2\n");
 
 next:
 		mutex_unlock(&ctx->lock);
 	} while (--retry && !tmo);
 
-	pr_debug("AC97RD %04x %04lx %d\n", r, data, retry);
+	pr_de("AC97RD %04x %04lx %d\n", r, data, retry);
 
 	return retry ? data & 0xffff : 0xffff;
 }
@@ -134,7 +134,7 @@ static void au1xac97c_ac97_write(struct snd_ac97 *ac97, unsigned short r,
 		for (tmo = 5; (RD(ctx, AC97_STATUS) & STAT_CP) && tmo; tmo--)
 			udelay(21);
 		if (!tmo) {
-			pr_debug("ac97wr timeout #1\n");
+			pr_de("ac97wr timeout #1\n");
 			goto next;
 		}
 
@@ -143,12 +143,12 @@ static void au1xac97c_ac97_write(struct snd_ac97 *ac97, unsigned short r,
 		for (tmo = 10; (RD(ctx, AC97_STATUS) & STAT_CP) && tmo; tmo--)
 			udelay(21);
 		if (!tmo)
-			pr_debug("ac97wr timeout #2\n");
+			pr_de("ac97wr timeout #2\n");
 next:
 		mutex_unlock(&ctx->lock);
 	} while (--retry && !tmo);
 
-	pr_debug("AC97WR %04x %04x %d\n", r, v, retry);
+	pr_de("AC97WR %04x %04x %d\n", r, v, retry);
 }
 
 static void au1xac97c_ac97_warm_reset(struct snd_ac97 *ac97)

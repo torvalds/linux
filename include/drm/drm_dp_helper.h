@@ -1348,7 +1348,7 @@ int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			      const u8 port_cap[4]);
 int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
-void drm_dp_downstream_debug(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+void drm_dp_downstream_de(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			     const u8 port_cap[4], struct drm_dp_aux *aux);
 
 void drm_dp_aux_init(struct drm_dp_aux *aux);
@@ -1382,7 +1382,7 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 /**
  * enum drm_dp_quirk - Display Port sink/branch device specific quirks
  *
- * Display Port sink and branch devices in the wild have a variety of bugs, try
+ * Display Port sink and branch devices in the wild have a variety of s, try
  * to collect them here. The quirks are shared, but it's up to the drivers to
  * implement workarounds for them.
  */

@@ -393,7 +393,7 @@ static const char *const tcp_state_name_table[IP_VS_TCP_S_LAST+1] = {
 	[IP_VS_TCP_S_LAST_ACK]		=	"LAST_ACK",
 	[IP_VS_TCP_S_LISTEN]		=	"LISTEN",
 	[IP_VS_TCP_S_SYNACK]		=	"SYNACK",
-	[IP_VS_TCP_S_LAST]		=	"BUG!",
+	[IP_VS_TCP_S_LAST]		=	"!",
 };
 
 static const bool tcp_state_active_table[IP_VS_TCP_S_LAST] = {
@@ -743,6 +743,6 @@ struct ip_vs_protocol ip_vs_protocol_tcp = {
 	.state_name =		tcp_state_name,
 	.state_transition =	tcp_state_transition,
 	.app_conn_bind =	tcp_app_conn_bind,
-	.debug_packet =		ip_vs_tcpudp_debug_packet,
+	.de_packet =		ip_vs_tcpudp_de_packet,
 	.timeout_change =	tcp_timeout_change,
 };

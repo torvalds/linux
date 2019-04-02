@@ -125,7 +125,7 @@ static void dump_port_status_diff(u32 prev_status, u32 new_status, bool usb3)
 	if (usb3)
 		desc = bit_desc_ss;
 
-	pr_debug("status prev -> new: %08x -> %08x\n", prev_status, new_status);
+	pr_de("status prev -> new: %08x -> %08x\n", prev_status, new_status);
 	while (bit) {
 		u32 prev = prev_status & bit;
 		u32 new = new_status & bit;
@@ -139,15 +139,15 @@ static void dump_port_status_diff(u32 prev_status, u32 new_status, bool usb3)
 			change = ' ';
 
 		if (prev || new) {
-			pr_debug(" %c%s\n", change, desc[i]);
+			pr_de(" %c%s\n", change, desc[i]);
 
 			if (bit == 1) /* USB_PORT_STAT_CONNECTION */
-				pr_debug(" %c%s\n", change, "USB_PORT_STAT_SPEED_5GBPS");
+				pr_de(" %c%s\n", change, "USB_PORT_STAT_SPEED_5GBPS");
 		}
 		bit <<= 1;
 		i++;
 	}
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 void rh_port_connect(struct vhci_device *vdev, enum usb_device_speed speed)
@@ -305,7 +305,7 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 		HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_COMMON_OCPM);
 
 	desc->bNbrPorts = VHCI_HC_PORTS;
-	BUILD_BUG_ON(VHCI_HC_PORTS > USB_MAXCHILDREN);
+	BUILD__ON(VHCI_HC_PORTS > USB_MAXCHILDREN);
 	width = desc->bNbrPorts / 8 + 1;
 	desc->bDescLength = USB_DT_HUB_NONVAR_SIZE + 2 * width;
 	memset(&desc->u.hs.DeviceRemovable[0], 0, width);
@@ -631,7 +631,7 @@ error:
 	}
 
 	if (usbip_dbg_flag_vhci_rh) {
-		pr_debug("port %d\n", rhport);
+		pr_de("port %d\n", rhport);
 		/* Only dump valid port status */
 		if (!invalid_rhport) {
 			dump_port_status_diff(prev_port_status[rhport],
@@ -1007,7 +1007,7 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 
 	/* need this? see stub_dev.c */
 	if (ud->tcp_socket) {
-		pr_debug("shutdown tcp_socket %d\n", ud->sockfd);
+		pr_de("shutdown tcp_socket %d\n", ud->sockfd);
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
 

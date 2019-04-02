@@ -227,7 +227,7 @@ EXPORT_SYMBOL_GPL(devm_mdiobus_free);
 static void mdiobus_release(struct device *d)
 {
 	struct mii_bus *bus = to_mii_bus(d);
-	BUG_ON(bus->state != MDIOBUS_RELEASED &&
+	_ON(bus->state != MDIOBUS_RELEASED &&
 	       /* for compatibility with error handling in drivers */
 	       bus->state != MDIOBUS_ALLOCATED);
 	kfree(bus);
@@ -361,7 +361,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	    NULL == bus->read || NULL == bus->write)
 		return -EINVAL;
 
-	BUG_ON(bus->state != MDIOBUS_ALLOCATED &&
+	_ON(bus->state != MDIOBUS_ALLOCATED &&
 	       bus->state != MDIOBUS_UNREGISTERED);
 
 	bus->owner = owner;
@@ -438,7 +438,7 @@ void mdiobus_unregister(struct mii_bus *bus)
 	struct mdio_device *mdiodev;
 	int i;
 
-	BUG_ON(bus->state != MDIOBUS_REGISTERED);
+	_ON(bus->state != MDIOBUS_REGISTERED);
 	bus->state = MDIOBUS_UNREGISTERED;
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
@@ -477,7 +477,7 @@ void mdiobus_free(struct mii_bus *bus)
 		return;
 	}
 
-	BUG_ON(bus->state != MDIOBUS_UNREGISTERED);
+	_ON(bus->state != MDIOBUS_UNREGISTERED);
 	bus->state = MDIOBUS_RELEASED;
 
 	put_device(&bus->dev);
@@ -587,7 +587,7 @@ int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum)
 {
 	int retval;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 	retval = __mdiobus_read(bus, addr, regnum);
@@ -611,7 +611,7 @@ int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 {
 	int retval;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	mutex_lock(&bus->mdio_lock);
 	retval = __mdiobus_read(bus, addr, regnum);
@@ -639,7 +639,7 @@ int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
 	int err;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 	err = __mdiobus_write(bus, addr, regnum, val);
@@ -664,7 +664,7 @@ int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
 	int err;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	mutex_lock(&bus->mdio_lock);
 	err = __mdiobus_write(bus, addr, regnum, val);

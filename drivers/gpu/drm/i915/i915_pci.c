@@ -821,7 +821,7 @@ static int __init i915_init(void)
 
 	if (!use_kms) {
 		/* Silently fail loading to not upset userspace. */
-		DRM_DEBUG_DRIVER("KMS disabled.\n");
+		DRM_DE_DRIVER("KMS disabled.\n");
 		return 0;
 	}
 

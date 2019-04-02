@@ -728,7 +728,7 @@ static int tpm_key_eds_op(struct kernel_pkey_params *params,
 		ret = tpm_key_sign(tk, params, in, out);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ret;
@@ -754,9 +754,9 @@ static int tpm_key_verify_signature(const struct key *key,
 
 	pr_devel("==>%s()\n", __func__);
 
-	BUG_ON(!tk);
-	BUG_ON(!sig);
-	BUG_ON(!sig->s);
+	_ON(!tk);
+	_ON(!sig);
+	_ON(!sig->s);
 
 	if (!sig->digest)
 		return -ENOPKG;

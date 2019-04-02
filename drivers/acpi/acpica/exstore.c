@@ -116,7 +116,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	 * 1) Store to Name (Change the object associated with a name)
 	 * 2) Store to an indexed area of a Buffer or Package
 	 * 3) Store to a Method Local or Arg
-	 * 4) Store to the debug object
+	 * 4) Store to the de object
 	 */
 	switch (ref_desc->reference.class) {
 	case ACPI_REFCLASS_REFOF:
@@ -149,17 +149,17 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 						  source_desc, walk_state);
 		break;
 
-	case ACPI_REFCLASS_DEBUG:
+	case ACPI_REFCLASS_DE:
 		/*
-		 * Storing to the Debug object causes the value stored to be
+		 * Storing to the De object causes the value stored to be
 		 * displayed and otherwise has no effect -- see ACPI Specification
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "**** Write to Debug Object: Object %p [%s] ****:\n\n",
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
+				  "**** Write to De Object: Object %p [%s] ****:\n\n",
 				  source_desc,
 				  acpi_ut_get_object_type_name(source_desc)));
 
-		ACPI_DEBUG_OBJECT(source_desc, 0, 0);
+		ACPI_DE_OBJECT(source_desc, 0, 0);
 		break;
 
 	default:
@@ -375,7 +375,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	target_type = acpi_ns_get_type(node);
 	target_desc = acpi_ns_get_attached_object(node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Storing %p [%s] to node %p [%s]\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Storing %p [%s] to node %p [%s]\n",
 			  source_desc,
 			  acpi_ut_get_object_type_name(source_desc), node,
 			  acpi_ut_get_type_name(target_type)));
@@ -501,7 +501,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			    acpi_ns_attach_object(node, new_desc,
 						  new_desc->common.type);
 
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "Store type [%s] into [%s] via Convert/Attach\n",
 					  acpi_ut_get_object_type_name
 					  (source_desc),
@@ -566,7 +566,7 @@ acpi_ex_store_direct_to_node(union acpi_operand_object *source_desc,
 
 	ACPI_FUNCTION_TRACE(ex_store_direct_to_node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Storing [%s] (%p) directly into node [%s] (%p)"
 			  " with no implicit conversion\n",
 			  acpi_ut_get_object_type_name(source_desc),

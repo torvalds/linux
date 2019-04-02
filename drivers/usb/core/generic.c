@@ -83,7 +83,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		 * that requires external power at a time when that power
 		 * isn't available.  It seems to be the lesser of two evils.
 		 *
-		 * Bugzilla #6448 reports a device that appears to crash
+		 * zilla #6448 reports a device that appears to crash
 		 * when it receives a GET_DEVICE_STATUS request!  We don't
 		 * have any other way to tell whether a device is self-powered,
 		 * but since we don't use that information anywhere but here,

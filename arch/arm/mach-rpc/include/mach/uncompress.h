@@ -65,7 +65,7 @@ static const unsigned long palette_4[16] = {
 extern __attribute__((pure)) struct param_struct *params(void);
 #define params (params())
 
-#ifndef STANDALONE_DEBUG 
+#ifndef STANDALONE_DE 
 unsigned long video_num_cols;
 unsigned long video_num_rows;
 unsigned long video_x;

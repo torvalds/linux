@@ -11,7 +11,7 @@
 
 #include "lkc.h"
 
-#define DEBUG_EXPR	0
+#define DE_EXPR	0
 
 static int expr_eq(struct expr *e1, struct expr *e2);
 static struct expr *expr_eliminate_yn(struct expr *e);
@@ -286,7 +286,7 @@ static int expr_eq(struct expr *e1, struct expr *e2)
 		/* panic */;
 	}
 
-	if (DEBUG_EXPR) {
+	if (DE_EXPR) {
 		expr_fprint(e1, stdout);
 		printf(" = ");
 		expr_fprint(e2, stdout);
@@ -476,7 +476,7 @@ static struct expr *expr_join_or(struct expr *e1, struct expr *e2)
 			return expr_alloc_symbol(&symbol_yes);
 	}
 
-	if (DEBUG_EXPR) {
+	if (DE_EXPR) {
 		printf("optimize (");
 		expr_fprint(e1, stdout);
 		printf(") || (");
@@ -570,7 +570,7 @@ static struct expr *expr_join_and(struct expr *e1, struct expr *e2)
 			return NULL;
 	}
 
-	if (DEBUG_EXPR) {
+	if (DE_EXPR) {
 		printf("optimize (");
 		expr_fprint(e1, stdout);
 		printf(") && (");

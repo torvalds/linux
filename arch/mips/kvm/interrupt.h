@@ -15,8 +15,8 @@
 
 #define MIPS_EXC_RESET              0
 #define MIPS_EXC_SRESET             1
-#define MIPS_EXC_DEBUG_ST           2
-#define MIPS_EXC_DEBUG              3
+#define MIPS_EXC_DE_ST           2
+#define MIPS_EXC_DE              3
 #define MIPS_EXC_DDB                4
 #define MIPS_EXC_NMI                5
 #define MIPS_EXC_MCHK               6

@@ -572,7 +572,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 		goto error;
 	}
 
-	pr_debug("MAC%u initialized\n", macid);
+	pr_de("MAC%u initialized\n", macid);
 
 	return 0;
 

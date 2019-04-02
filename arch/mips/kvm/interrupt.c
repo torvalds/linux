@@ -174,7 +174,7 @@ int kvm_mips_irq_deliver_cb(struct kvm_vcpu *vcpu, unsigned int priority,
 			else
 				kvm_clear_c0_guest_cause(cop0, CAUSEF_BD);
 
-			kvm_debug("Delivering INT @ pc %#lx\n", arch->pc);
+			kvm_de("Delivering INT @ pc %#lx\n", arch->pc);
 
 		} else
 			kvm_err("Trying to deliver interrupt when EXL is already set\n");

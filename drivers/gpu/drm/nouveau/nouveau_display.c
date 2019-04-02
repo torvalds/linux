@@ -244,7 +244,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	     (mode_cmd->pitches[1] && /* pitches for planes must match */
 	      mode_cmd->pitches[0] != mode_cmd->pitches[1]))) {
 		struct drm_format_name_buf format_name;
-		DRM_DEBUG_KMS("Unsuitable framebuffer: format: %s; pitches: 0x%x\n 0x%x\n",
+		DRM_DE_KMS("Unsuitable framebuffer: format: %s; pitches: 0x%x\n 0x%x\n",
 			      drm_get_format_name(mode_cmd->pixel_format,
 						  &format_name),
 			      mode_cmd->pitches[0],
@@ -389,7 +389,7 @@ nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 				 * of a connector hotplug on a runtime
 				 * suspended GPU, schedule hpd_work to check.
 				 */
-				NV_DEBUG(drm, "ACPI requested connector reprobe\n");
+				NV_DE(drm, "ACPI requested connector reprobe\n");
 				schedule_work(&drm->hpd_work);
 				pm_runtime_put_noidle(drm->dev->dev);
 			} else {

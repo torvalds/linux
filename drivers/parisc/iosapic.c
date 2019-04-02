@@ -141,17 +141,17 @@
 
 /* "local" compile flags */
 #undef PCI_BRIDGE_FUNCS
-#undef DEBUG_IOSAPIC
-#undef DEBUG_IOSAPIC_IRT
+#undef DE_IOSAPIC
+#undef DE_IOSAPIC_IRT
 
 
-#ifdef DEBUG_IOSAPIC
+#ifdef DE_IOSAPIC
 #define DBG(x...) printk(x)
-#else /* DEBUG_IOSAPIC */
+#else /* DE_IOSAPIC */
 #define DBG(x...)
-#endif /* DEBUG_IOSAPIC */
+#endif /* DE_IOSAPIC */
 
-#ifdef DEBUG_IOSAPIC_IRT
+#ifdef DE_IOSAPIC_IRT
 #define DBG_IRT(x...) printk(x)
 #else
 #define DBG_IRT(x...)
@@ -224,7 +224,7 @@ static struct irt_entry *iosapic_alloc_irt(int num_entries)
 
 	/* The IRT needs to be 8-byte aligned for the PDC call. 
 	 * Normally kmalloc would guarantee larger alignment, but
-	 * if CONFIG_DEBUG_SLAB is enabled, then we can get only
+	 * if CONFIG_DE_SLAB is enabled, then we can get only
 	 * 4-byte alignment on 32-bit kernels
 	 */
 	a = (unsigned long)kmalloc(sizeof(struct irt_entry) * num_entries + 8, GFP_KERNEL);
@@ -266,7 +266,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 	struct irt_entry *table;  /* start of interrupt routing tbl */
 	unsigned long num_entries = 0UL;
 
-	BUG_ON(!irt);
+	_ON(!irt);
 
 	if (is_pdc_pat()) {
 		/* Use pat pdc routine to get interrupt routing table size */
@@ -274,8 +274,8 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 		status = pdc_pat_get_irt_size(&num_entries, cell_num);
 		DBG("get_irt_size: %ld\n", status);
 
-		BUG_ON(status != PDC_OK);
-		BUG_ON(num_entries == 0);
+		_ON(status != PDC_OK);
+		_ON(num_entries == 0);
 
 		/*
 		** allocate memory for interrupt routing table
@@ -312,7 +312,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 			return 0;
 		}
 
-		BUG_ON(num_entries == 0);
+		_ON(num_entries == 0);
 
 		table = iosapic_alloc_irt(num_entries);
 		if (!table) {
@@ -323,13 +323,13 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 
 		/* HPA ignored by this call too. */
 		status = pdc_pci_irt(num_entries, 0, table);
-		BUG_ON(status != PDC_OK);
+		_ON(status != PDC_OK);
 	}
 
 	/* return interrupt table address */
 	*irt = table;
 
-#ifdef DEBUG_IOSAPIC_IRT
+#ifdef DE_IOSAPIC_IRT
 {
 	struct irt_entry *p = table;
 	int i;
@@ -350,7 +350,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 		);
 	}
 }
-#endif /* DEBUG_IOSAPIC_IRT */
+#endif /* DE_IOSAPIC_IRT */
 
 	return num_entries;
 }
@@ -400,7 +400,7 @@ irt_find_irqline(struct iosapic_info *isi, u8 slot, u8 intr_pin)
 		** Validate: entry_type, entry_length, interrupt_type
 		**
 		** Difference between validate vs compare is the former
-		** should print debug info and is not expected to "fail"
+		** should print de info and is not expected to "fail"
 		** on current platforms.
 		*/
 		if (i->entry_type != IRT_IOSAPIC_TYPE) {
@@ -623,7 +623,7 @@ static void iosapic_unmask_irq(struct irq_data *d)
 	iosapic_set_irt_data(vi, &d0, &d1);
 	iosapic_wr_irt_entry(vi, d0, d1);
 
-#ifdef DEBUG_IOSAPIC_IRT
+#ifdef DE_IOSAPIC_IRT
 {
 	u32 *t = (u32 *) ((ulong) vi->eoi_addr & ~0xffUL);
 	printk("iosapic_enable_irq(): regs %p", vi->eoi_addr);
@@ -650,7 +650,7 @@ printk("\n");
 	 * enables their IRQ. It can lead to "interesting" race conditions
 	 * in the driver initialization sequence.
 	 */
-	DBG(KERN_DEBUG "enable_irq(%d): eoi(%p, 0x%x)\n", d->irq,
+	DBG(KERN_DE "enable_irq(%d): eoi(%p, 0x%x)\n", d->irq,
 			vi->eoi_addr, vi->eoi_data);
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
 }
@@ -922,7 +922,7 @@ void *iosapic_register(unsigned long hpa)
 
 	isi = kzalloc(sizeof(struct iosapic_info), GFP_KERNEL);
 	if (!isi) {
-		BUG();
+		();
 		return NULL;
 	}
 
@@ -948,7 +948,7 @@ void *iosapic_register(unsigned long hpa)
 }
 
 
-#ifdef DEBUG_IOSAPIC
+#ifdef DE_IOSAPIC
 
 static void
 iosapic_prt_irt(void *irt, long num_entry)
@@ -956,10 +956,10 @@ iosapic_prt_irt(void *irt, long num_entry)
 	unsigned int i, *irp = (unsigned int *) irt;
 
 
-	printk(KERN_DEBUG MODULE_NAME ": Interrupt Routing Table (%lx entries)\n", num_entry);
+	printk(KERN_DE MODULE_NAME ": Interrupt Routing Table (%lx entries)\n", num_entry);
 
 	for (i=0; i<num_entry; i++, irp += 4) {
-		printk(KERN_DEBUG "%p : %2d %.8x %.8x %.8x %.8x\n",
+		printk(KERN_DE "%p : %2d %.8x %.8x %.8x %.8x\n",
 					irp, i, irp[0], irp[1], irp[2], irp[3]);
 	}
 }
@@ -968,23 +968,23 @@ iosapic_prt_irt(void *irt, long num_entry)
 static void
 iosapic_prt_vi(struct vector_info *vi)
 {
-	printk(KERN_DEBUG MODULE_NAME ": vector_info[%d] is at %p\n", vi->irqline, vi);
-	printk(KERN_DEBUG "\t\tstatus:	 %.4x\n", vi->status);
-	printk(KERN_DEBUG "\t\ttxn_irq:  %d\n",  vi->txn_irq);
-	printk(KERN_DEBUG "\t\ttxn_addr: %lx\n", vi->txn_addr);
-	printk(KERN_DEBUG "\t\ttxn_data: %lx\n", vi->txn_data);
-	printk(KERN_DEBUG "\t\teoi_addr: %p\n",  vi->eoi_addr);
-	printk(KERN_DEBUG "\t\teoi_data: %x\n",  vi->eoi_data);
+	printk(KERN_DE MODULE_NAME ": vector_info[%d] is at %p\n", vi->irqline, vi);
+	printk(KERN_DE "\t\tstatus:	 %.4x\n", vi->status);
+	printk(KERN_DE "\t\ttxn_irq:  %d\n",  vi->txn_irq);
+	printk(KERN_DE "\t\ttxn_addr: %lx\n", vi->txn_addr);
+	printk(KERN_DE "\t\ttxn_data: %lx\n", vi->txn_data);
+	printk(KERN_DE "\t\teoi_addr: %p\n",  vi->eoi_addr);
+	printk(KERN_DE "\t\teoi_data: %x\n",  vi->eoi_data);
 }
 
 
 static void
 iosapic_prt_isi(struct iosapic_info *isi)
 {
-	printk(KERN_DEBUG MODULE_NAME ": io_sapic_info at %p\n", isi);
-	printk(KERN_DEBUG "\t\tisi_hpa:       %lx\n", isi->isi_hpa);
-	printk(KERN_DEBUG "\t\tisi_status:    %x\n", isi->isi_status);
-	printk(KERN_DEBUG "\t\tisi_version:   %x\n", isi->isi_version);
-	printk(KERN_DEBUG "\t\tisi_vector:    %p\n", isi->isi_vector);
+	printk(KERN_DE MODULE_NAME ": io_sapic_info at %p\n", isi);
+	printk(KERN_DE "\t\tisi_hpa:       %lx\n", isi->isi_hpa);
+	printk(KERN_DE "\t\tisi_status:    %x\n", isi->isi_status);
+	printk(KERN_DE "\t\tisi_version:   %x\n", isi->isi_version);
+	printk(KERN_DE "\t\tisi_vector:    %p\n", isi->isi_vector);
 }
-#endif /* DEBUG_IOSAPIC */
+#endif /* DE_IOSAPIC */

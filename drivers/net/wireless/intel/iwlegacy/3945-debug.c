@@ -504,7 +504,7 @@ il3945_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-const struct il_debugfs_ops il3945_debugfs_ops = {
+const struct il_defs_ops il3945_defs_ops = {
 	.rx_stats_read = il3945_ucode_rx_stats_read,
 	.tx_stats_read = il3945_ucode_tx_stats_read,
 	.general_stats_read = il3945_ucode_general_stats_read,

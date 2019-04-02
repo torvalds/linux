@@ -36,11 +36,11 @@ config PPC_SPLPAR
 
 config DTL
 	bool "Dispatch Trace Log"
-	depends on PPC_SPLPAR && DEBUG_FS
+	depends on PPC_SPLPAR && DE_FS
 	help
 	  SPLPAR machines can log hypervisor preempt & dispatch events to a
 	  kernel buffer. Saying Y here will enable logging these events,
-	  which are accessible through a debugfs file.
+	  which are accessible through a defs file.
 
 	  Say N if you are unsure.
 
@@ -83,14 +83,14 @@ config LPARCFG
 	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
 
-config PPC_PSERIES_DEBUG
-	depends on PPC_PSERIES && PPC_EARLY_DEBUG
-	bool "Enable extra debug logging in platforms/pseries"
+config PPC_PSERIES_DE
+	depends on PPC_PSERIES && PPC_EARLY_DE
+	bool "Enable extra de logging in platforms/pseries"
         help
 	  Say Y here if you want the pseries core to produce a bunch of
-	  debug messages to the system log. Select this if you are having a
+	  de messages to the system log. Select this if you are having a
 	  problem with the pseries core and want to see more of what is
-	  going on. This does not enable debugging in lpar.c, which must
+	  going on. This does not enable deging in lpar.c, which must
 	  be manually done due to its verbosity.
 	default y
 

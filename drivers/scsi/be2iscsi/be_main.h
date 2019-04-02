@@ -968,7 +968,7 @@ struct be_ring {
 	u32 doorbell_offset;
 
 	void *va;		/* The virtual address of the ring.  This
-				 * should be last to allow 32 & 64 bit debugger
+				 * should be last to allow 32 & 64 bit deger
 				 * extensions to work.
 				 */
 };

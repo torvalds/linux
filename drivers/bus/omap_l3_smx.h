@@ -133,7 +133,7 @@ static const u64 shift = 1;
 
 #define OMAP34xx_IRQ_L3_APP		10
 #define L3_APPLICATION_ERROR		0x0
-#define L3_DEBUG_ERROR			0x1
+#define L3_DE_ERROR			0x1
 
 enum omap3_l3_initiator_id {
 	/* LCD has 1 ID */
@@ -198,7 +198,7 @@ struct omap3_l3 {
 	/* memory base*/
 	void __iomem *rt;
 
-	int debug_irq;
+	int de_irq;
 	int app_irq;
 
 	/* true when and inband functional error occurs */
@@ -305,7 +305,7 @@ static unsigned int omap3_l3_app_bases[] = {
 	0,
 };
 
-static unsigned int omap3_l3_debug_bases[] = {
+static unsigned int omap3_l3_de_bases[] = {
 	/* MPU DATA IA */
 	0x1400,
 	/* RESERVED */
@@ -323,7 +323,7 @@ static unsigned int omap3_l3_debug_bases[] = {
 
 static u32 *omap3_l3_bases[] = {
 	omap3_l3_app_bases,
-	omap3_l3_debug_bases,
+	omap3_l3_de_bases,
 };
 
 /*

@@ -524,7 +524,7 @@ void xen_pmu_init(int cpu)
 	unsigned long pfn;
 	struct xen_pmu_data *xenpmu_data;
 
-	BUILD_BUG_ON(sizeof(struct xen_pmu_data) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct xen_pmu_data) > PAGE_SIZE);
 
 	if (xen_hvm_domain())
 		return;

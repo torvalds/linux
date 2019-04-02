@@ -973,7 +973,7 @@ static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
 	enum vsp1_du_crc_source source;
 
 	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DE_DRIVER("unknown source %s\n", source_name);
 		return -EINVAL;
 	}
 

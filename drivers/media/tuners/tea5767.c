@@ -16,9 +16,9 @@
 #include "tuner-i2c.h"
 #include "tea5767.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 /*****************************************************************************/
 
@@ -269,7 +269,7 @@ static int set_radio_freq(struct dvb_frontend *fe,
 	if (5 != (rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
-	if (debug) {
+	if (de) {
 		if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
 			tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 		else

@@ -16,7 +16,7 @@
 
 /*
  * If possible, pack the following structures to byte alignment, since we
- * don't care about performance for debug output. Two cases where we cannot
+ * don't care about performance for de output. Two cases where we cannot
  * pack the structures:
  *
  * 1) Hardware does not support misaligned memory transfers
@@ -268,9 +268,9 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 			    union aml_resource *aml);
 
 /*
- * rsdump - Debugger support
+ * rsdump - Deger support
  */
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 void acpi_rs_dump_resource_list(struct acpi_resource *resource);
 
 void acpi_rs_dump_irq_list(u8 *route_table);
@@ -315,7 +315,7 @@ extern struct acpi_rsconvert_info acpi_rs_set_irq[];
 extern struct acpi_rsconvert_info acpi_rs_set_start_dpf[];
 extern struct acpi_rsconvert_info acpi_rs_set_vendor[];
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 /*
  * rsinfo
  */

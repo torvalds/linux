@@ -155,7 +155,7 @@
 					/* Hw manuals number them 1..7! */
 
 /*
- * As a permanent workaround for a bug in the PI side of the hub, we've
+ * As a permanent workaround for a  in the PI side of the hub, we've
  * redefined big window 7 as small window 0.
  */
 #define HUB_NUM_BIG_WINDOW	IIO_NUM_ITTES - 1

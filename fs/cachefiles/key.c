@@ -43,7 +43,7 @@ char *cachefiles_cook_key(const u8 *raw, int keylen, uint8_t type)
 
 	_enter(",%d", keylen);
 
-	BUG_ON(keylen < 2 || keylen > 514);
+	_ON(keylen < 2 || keylen > 514);
 
 	csum = raw[0] + raw[1];
 	print = 1;
@@ -76,7 +76,7 @@ char *cachefiles_cook_key(const u8 *raw, int keylen, uint8_t type)
 
 	max += 1;	/* 2nd NUL on end */
 
-	_debug("max: %d", max);
+	_de("max: %d", max);
 
 	key = kmalloc(max, cachefiles_gfp);
 	if (!key)
@@ -130,7 +130,7 @@ char *cachefiles_cook_key(const u8 *raw, int keylen, uint8_t type)
 			acc |= *raw++ << 8;
 			acc |= *raw++ << 16;
 
-			_debug("acc: %06x", acc);
+			_de("acc: %06x", acc);
 
 			key[len++] = cachefiles_charmap[acc & 63];
 			acc >>= 6;

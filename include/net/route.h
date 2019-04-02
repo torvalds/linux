@@ -234,7 +234,7 @@ static inline void ip_rt_put(struct rtable *rt)
 	/* dst_release() accepts a NULL parameter.
 	 * We rely on dst being first structure in struct rtable
 	 */
-	BUILD_BUG_ON(offsetof(struct rtable, dst) != 0);
+	BUILD__ON(offsetof(struct rtable, dst) != 0);
 	dst_release(&rt->dst);
 }
 

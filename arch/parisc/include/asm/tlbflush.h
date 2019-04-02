@@ -50,7 +50,7 @@ int __flush_tlb_range(unsigned long sid,
 
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
-	BUG_ON(mm == &init_mm); /* Should never happen */
+	_ON(mm == &init_mm); /* Should never happen */
 
 #if 1 || defined(CONFIG_SMP)
 	/* Except for very small threads, flushing the whole TLB is

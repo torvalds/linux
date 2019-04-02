@@ -21,8 +21,8 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#define INSANEDEBUG	0
-#define lbtf_deb_usb2(...) do { if (INSANEDEBUG) lbtf_deb_usbd(__VA_ARGS__); } while (0)
+#define INSANEDE	0
+#define lbtf_deb_usb2(...) do { if (INSANEDE) lbtf_deb_usbd(__VA_ARGS__); } while (0)
 
 #define MESSAGE_HEADER_LEN	4
 
@@ -59,7 +59,7 @@ static int if_usb_reset_device(struct lbtf_private *priv);
 static void if_usb_write_bulk_callback(struct urb *urb)
 {
 	if (urb->status != 0) {
-		/* print the failure status number for debug */
+		/* print the failure status number for de */
 		pr_info("URB in failure status: %d\n", urb->status);
 	} else {
 		lbtf_deb_usb2(&urb->dev->dev, "URB status is successful\n");

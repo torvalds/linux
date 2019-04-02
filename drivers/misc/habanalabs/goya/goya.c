@@ -1328,7 +1328,7 @@ static void _goya_tpc_mbist_workaround(struct hl_device *hdev, u8 tpc_id)
 	tpc_slm_offset = tpc_eml_address + 0x100000;
 
 	/*
-	 * Workaround for Bug H2 #2443 :
+	 * Workaround for  H2 #2443 :
 	 * "TPC SB is not initialized on chip reset"
 	 */
 
@@ -1667,7 +1667,7 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 
 	for (i = 0, offset = 0 ; i < 8 ; i++, offset += 0x40000) {
 		/*
-		 * Workaround for Bug H2 #2441 :
+		 * Workaround for  H2 #2441 :
 		 * "ST.NOP set trace event illegal opcode"
 		 */
 		WREG32(mmTPC0_CFG_TPC_INTR_MASK + offset, tpc_intr_mask);
@@ -1687,7 +1687,7 @@ static void goya_init_golden_registers(struct hl_device *hdev)
 			1 << PCI_NRTR_NON_LIN_SCRAMB_EN_SHIFT);
 
 	/*
-	 * Workaround for H2 #HW-23 bug
+	 * Workaround for H2 #HW-23 
 	 * Set DMA max outstanding read requests to 240 on DMA CH 1. Set it
 	 * to 16 on KMD DMA
 	 * We need to limit only these DMAs because the user can only read
@@ -2641,7 +2641,7 @@ static int goya_mmu_init(struct hl_device *hdev)
 				lower_32_bits(MMU_CACHE_MNG_ADDR >> 8));
 	WREG32(mmSTLB_CACHE_INV_BASE_49_40, MMU_CACHE_MNG_ADDR >> 40);
 
-	/* Remove follower feature due to performance bug */
+	/* Remove follower feature due to performance  */
 	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
 			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
 
@@ -3663,7 +3663,7 @@ static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
 
 	/*
-	 * Special handling for DMA with size 0. The H/W has a bug where
+	 * Special handling for DMA with size 0. The H/W has a  where
 	 * this can cause the QMAN DMA to get stuck, so block it here.
 	 */
 	if (user_dma_pkt->tsize == 0) {
@@ -4305,7 +4305,7 @@ static void goya_restore_phase_topology(struct hl_device *hdev)
 }
 
 /*
- * goya_debugfs_read32 - read a 32bit value from a given device address
+ * goya_defs_read32 - read a 32bit value from a given device address
  *
  * @hdev:	pointer to hl_device structure
  * @addr:	address in device
@@ -4318,7 +4318,7 @@ static void goya_restore_phase_topology(struct hl_device *hdev)
  * lead to undefined behavior and therefore, should be done with extreme care
  *
  */
-static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
+static int goya_defs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc = 0;
@@ -4355,7 +4355,7 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 }
 
 /*
- * goya_debugfs_write32 - write a 32bit value to a given device address
+ * goya_defs_write32 - write a 32bit value to a given device address
  *
  * @hdev:	pointer to hl_device structure
  * @addr:	address in device
@@ -4368,7 +4368,7 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
  * lead to undefined behavior and therefore, should be done with extreme care
  *
  */
-static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
+static int goya_defs_write32(struct hl_device *hdev, u64 addr, u32 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc = 0;
@@ -4800,7 +4800,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
 
-	hl_debugfs_add_job(hdev, job);
+	hl_defs_add_job(hdev, job);
 
 	parser.ctx_id = HL_KERNEL_ASID_ID;
 	parser.cs_sequence = 0;
@@ -4829,7 +4829,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
 
 free_job:
 	hl_userptr_delete_list(hdev, &job->userptr_list);
-	hl_debugfs_remove_job(hdev, job);
+	hl_defs_remove_job(hdev, job);
 	kfree(job);
 	cb->cs_cnt--;
 
@@ -5295,8 +5295,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.update_eq_ci = goya_update_eq_ci,
 	.context_switch = goya_context_switch,
 	.restore_phase_topology = goya_restore_phase_topology,
-	.debugfs_read32 = goya_debugfs_read32,
-	.debugfs_write32 = goya_debugfs_write32,
+	.defs_read32 = goya_defs_read32,
+	.defs_write32 = goya_defs_write32,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,

@@ -196,9 +196,9 @@ struct fm10k_q_vector {
 	cpumask_t affinity_mask;
 	char name[IFNAMSIZ + 9];
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dbg_q_vector;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 
 	/* for dynamic allocation of rings associated with this q_vector */
@@ -328,7 +328,7 @@ struct fm10k_intfc {
 	u64 rx_overrun_pf;
 	u64 rx_overrun_vf;
 
-	/* Debug Statistics */
+	/* De Statistics */
 	u64 hw_sm_mbx_full;
 	u64 hw_csum_tx_good;
 	u64 hw_csum_rx_good;
@@ -383,9 +383,9 @@ struct fm10k_intfc {
 	/* MAC/VLAN update queue lock */
 	spinlock_t macvlan_lock;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dbg_intfc;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 #ifdef CONFIG_DCB
 	u8 pfc_en;
@@ -547,8 +547,8 @@ int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
 int fm10k_ndo_get_vf_config(struct net_device *netdev,
 			    int vf_idx, struct ifla_vf_info *ivi);
 
-/* DebugFS */
-#ifdef CONFIG_DEBUG_FS
+/* DeFS */
+#ifdef CONFIG_DE_FS
 void fm10k_dbg_q_vector_init(struct fm10k_q_vector *q_vector);
 void fm10k_dbg_q_vector_exit(struct fm10k_q_vector *q_vector);
 void fm10k_dbg_intfc_init(struct fm10k_intfc *interface);
@@ -562,7 +562,7 @@ static inline void fm10k_dbg_intfc_init(struct fm10k_intfc *interface) {}
 static inline void fm10k_dbg_intfc_exit(struct fm10k_intfc *interface) {}
 static inline void fm10k_dbg_init(void) {}
 static inline void fm10k_dbg_exit(void) {}
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 /* DCB */
 #ifdef CONFIG_DCB

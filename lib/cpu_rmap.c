@@ -110,8 +110,8 @@ static bool cpu_rmap_copy_neigh(struct cpu_rmap *rmap, unsigned int cpu,
 	return false;
 }
 
-#ifdef DEBUG
-static void debug_print_rmap(const struct cpu_rmap *rmap, const char *prefix)
+#ifdef DE
+static void de_print_rmap(const struct cpu_rmap *rmap, const char *prefix)
 {
 	unsigned index;
 	unsigned int cpu;
@@ -126,7 +126,7 @@ static void debug_print_rmap(const struct cpu_rmap *rmap, const char *prefix)
 }
 #else
 static inline void
-debug_print_rmap(const struct cpu_rmap *rmap, const char *prefix)
+de_print_rmap(const struct cpu_rmap *rmap, const char *prefix)
 {
 }
 #endif
@@ -142,7 +142,7 @@ int cpu_rmap_add(struct cpu_rmap *rmap, void *obj)
 {
 	u16 index;
 
-	BUG_ON(rmap->used >= rmap->size);
+	_ON(rmap->used >= rmap->size);
 	index = rmap->used++;
 	rmap->obj[index] = obj;
 	return index;
@@ -174,7 +174,7 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 		}
 	}
 
-	debug_print_rmap(rmap, "after invalidating old distances");
+	de_print_rmap(rmap, "after invalidating old distances");
 
 	/* Set distance to 0 for all CPUs in the new affinity mask.
 	 * Mark all CPUs within their NUMA nodes for update.
@@ -186,7 +186,7 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 			   cpumask_of_node(cpu_to_node(cpu)));
 	}
 
-	debug_print_rmap(rmap, "after updating neighbours");
+	de_print_rmap(rmap, "after updating neighbours");
 
 	/* Update distances based on topology */
 	for_each_cpu(cpu, update_mask) {
@@ -204,7 +204,7 @@ int cpu_rmap_update(struct cpu_rmap *rmap, u16 index,
 		 */
 	}
 
-	debug_print_rmap(rmap, "after copying neighbours");
+	de_print_rmap(rmap, "after copying neighbours");
 
 	free_cpumask_var(update_mask);
 	return 0;

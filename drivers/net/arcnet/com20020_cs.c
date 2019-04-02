@@ -51,7 +51,7 @@
 
 static void regdump(struct net_device *dev)
 {
-#ifdef DEBUG
+#ifdef DE
 	int ioaddr = dev->base_addr;
 	int count;
 

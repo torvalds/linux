@@ -245,7 +245,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans,
 	inode->i_ctime = current_time(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 	ret = btrfs_update_inode(trans, root, inode);
-	BUG_ON(ret);
+	_ON(ret);
 out:
 	btrfs_end_transaction(trans);
 	return ret;

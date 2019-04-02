@@ -6,10 +6,10 @@
 
 #include <linux/kernel.h>
 
-/* lkdtm_bugs.c */
-void __init lkdtm_bugs_init(int *recur_param);
+/* lkdtm_s.c */
+void __init lkdtm_s_init(int *recur_param);
 void lkdtm_PANIC(void);
-void lkdtm_BUG(void);
+void lkdtm_(void);
 void lkdtm_WARNING(void);
 void lkdtm_EXCEPTION(void);
 void lkdtm_LOOP(void);

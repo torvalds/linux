@@ -15,7 +15,7 @@
 #ifndef __CODA_H__
 #define __CODA_H__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/idr.h>
 #include <linux/irqreturn.h>
 #include <linux/mutex.h>
@@ -67,7 +67,7 @@ struct coda_aux_buf {
 	void			*vaddr;
 	dma_addr_t		paddr;
 	u32			size;
-	struct debugfs_blob_wrapper blob;
+	struct defs_blob_wrapper blob;
 	struct dentry		*dentry;
 };
 
@@ -96,7 +96,7 @@ struct coda_dev {
 	struct workqueue_struct	*workqueue;
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct ida		ida;
-	struct dentry		*debugfs_root;
+	struct dentry		*defs_root;
 };
 
 struct coda_codec {
@@ -246,18 +246,18 @@ struct coda_ctx {
 	u32				frm_dis_flg;
 	u32				frame_mem_ctrl;
 	int				display_idx;
-	struct dentry			*debugfs_entry;
+	struct dentry			*defs_entry;
 	bool				use_bit;
 	bool				use_vdoa;
 	struct vdoa_ctx			*vdoa;
 };
 
-extern int coda_debug;
+extern int coda_de;
 
 #define coda_dbg(level, ctx, fmt, arg...)				\
 	do {								\
-		if (coda_debug >= (level))				\
-			v4l2_dbg((level), coda_debug, &(ctx)->dev->v4l2_dev, \
+		if (coda_de >= (level))				\
+			v4l2_dbg((level), coda_de, &(ctx)->dev->v4l2_dev, \
 			 "%u: " fmt, (ctx)->idx, ##arg);		\
 	} while (0)
 

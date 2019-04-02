@@ -63,16 +63,16 @@ struct lbs_private {
 	u8 mesh_channel;
 #endif
 
-	/* Debugfs */
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_debug;
-	struct dentry *debugfs_files[6];
+	/* Defs */
+	struct dentry *defs_dir;
+	struct dentry *defs_de;
+	struct dentry *defs_files[6];
 	struct dentry *events_dir;
-	struct dentry *debugfs_events_files[6];
+	struct dentry *defs_events_files[6];
 	struct dentry *regs_dir;
-	struct dentry *debugfs_regs_files[6];
+	struct dentry *defs_regs_files[6];
 
-	/* Hardware debugging */
+	/* Hardware deging */
 	u32 mac_offset;
 	u32 bbp_offset;
 	u32 rf_offset;

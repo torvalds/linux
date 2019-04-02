@@ -51,7 +51,7 @@ static int nds32_pm_valid(suspend_state_t state)
 
 static int nds32_pm_enter(suspend_state_t state)
 {
-	pr_debug("%s:state:%d\n", __func__, state);
+	pr_de("%s:state:%d\n", __func__, state);
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 		nds32_suspend_cpu();
@@ -71,7 +71,7 @@ static const struct platform_suspend_ops nds32_pm_ops = {
 
 static int __init nds32_pm_init(void)
 {
-	pr_debug("Enter %s\n", __func__);
+	pr_de("Enter %s\n", __func__);
 	suspend_set_ops(&nds32_pm_ops);
 	return 0;
 }

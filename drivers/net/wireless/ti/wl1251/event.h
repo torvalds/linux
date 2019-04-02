@@ -46,7 +46,7 @@ enum {
 	SYNCHRONIZATION_TIMEOUT_EVENT_ID         = BIT(7),
 	HEALTH_REPORT_EVENT_ID                   = BIT(8),
 	ACI_DETECTION_EVENT_ID                   = BIT(9),
-	DEBUG_REPORT_EVENT_ID                    = BIT(10),
+	DE_REPORT_EVENT_ID                    = BIT(10),
 	MAC_STATUS_EVENT_ID                      = BIT(11),
 	DISCONNECT_EVENT_COMPLETE_ID             = BIT(12),
 	JOIN_EVENT_COMPLETE_ID                   = BIT(13),
@@ -73,8 +73,8 @@ enum {
 	EVENT_MBOX_ALL_EVENT_ID                  = 0x7fffffff,
 };
 
-struct event_debug_report {
-	u8 debug_event_id;
+struct event_de_report {
+	u8 de_event_id;
 	u8 num_params;
 	u16 pad;
 	u32 report_1;
@@ -102,12 +102,12 @@ struct event_mailbox {
 	u8 bt_pta_sense_info;
 	u8 bt_pta_protective_info;
 	u32 reserved;
-	u32 debug_report[2];
+	u32 de_report[2];
 
 	/* Number of FCS errors since last event */
 	u32 fcs_err_counter;
 
-	struct event_debug_report report;
+	struct event_de_report report;
 	u8 average_snr_level;
 	u8 padding[19];
 } __packed;

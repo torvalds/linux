@@ -177,7 +177,7 @@ bool sci_unsolicited_frame_control_release_frame(struct sci_unsolicited_frame_co
 	 * The table has a NULL entry as it's last element.  This is
 	 * illegal.
 	 */
-	BUG_ON(frame_get >= SCU_MAX_UNSOLICITED_FRAMES);
+	_ON(frame_get >= SCU_MAX_UNSOLICITED_FRAMES);
 	if (frame_index >= SCU_MAX_UNSOLICITED_FRAMES)
 		return false;
 

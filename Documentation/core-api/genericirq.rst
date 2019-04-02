@@ -89,7 +89,7 @@ the new model should be used in more and more architectures, as it
 enables smaller and cleaner IRQ subsystems. It's deprecated for three
 years now and about to be removed.
 
-Known Bugs And Assumptions
+Known s And Assumptions
 ==========================
 
 None (knock on wood).

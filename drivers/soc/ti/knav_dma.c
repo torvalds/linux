@@ -24,7 +24,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/soc/ti/knav_dma.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #define REG_MASK		0xffffffff
@@ -316,7 +316,7 @@ static void knav_dma_hw_destroy(struct knav_dma_device *dma)
 	spin_unlock(&dma->lock);
 }
 
-static void dma_debug_show_channels(struct seq_file *s,
+static void dma_de_show_channels(struct seq_file *s,
 					struct knav_dma_chan *chan)
 {
 	int i;
@@ -344,18 +344,18 @@ static void dma_debug_show_channels(struct seq_file *s,
 	}
 }
 
-static void dma_debug_show_devices(struct seq_file *s,
+static void dma_de_show_devices(struct seq_file *s,
 					struct knav_dma_device *dma)
 {
 	struct knav_dma_chan *chan;
 
 	list_for_each_entry(chan, &dma->chan_list, list) {
 		if (atomic_read(&chan->ref_count))
-			dma_debug_show_channels(s, chan);
+			dma_de_show_channels(s, chan);
 	}
 }
 
-static int dma_debug_show(struct seq_file *s, void *v)
+static int dma_de_show(struct seq_file *s, void *v)
 {
 	struct knav_dma_device *dma;
 
@@ -363,20 +363,20 @@ static int dma_debug_show(struct seq_file *s, void *v)
 		if (atomic_read(&dma->ref_count)) {
 			seq_printf(s, "%s : max_tx_chan: (%d), max_rx_flows: (%d)\n",
 			dma->name, dma->max_tx_chan, dma->max_rx_flow);
-			dma_debug_show_devices(s, dma);
+			dma_de_show_devices(s, dma);
 		}
 	}
 
 	return 0;
 }
 
-static int knav_dma_debug_open(struct inode *inode, struct file *file)
+static int knav_dma_de_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dma_debug_show, NULL);
+	return single_open(file, dma_de_show, NULL);
 }
 
-static const struct file_operations knav_dma_debug_ops = {
-	.open		= knav_dma_debug_open,
+static const struct file_operations knav_dma_de_ops = {
+	.open		= knav_dma_de_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -777,8 +777,8 @@ static int knav_dma_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	debugfs_create_file("knav_dma", S_IFREG | S_IRUGO, NULL, NULL,
-			    &knav_dma_debug_ops);
+	defs_create_file("knav_dma", S_IFREG | S_IRUGO, NULL, NULL,
+			    &knav_dma_de_ops);
 
 	device_ready = true;
 	return ret;

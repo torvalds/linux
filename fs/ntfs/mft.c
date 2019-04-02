@@ -28,7 +28,7 @@
 #include "attrib.h"
 #include "aops.h"
 #include "bitmap.h"
-#include "debug.h"
+#include "de.h"
 #include "dir.h"
 #include "lcnalloc.h"
 #include "malloc.h"
@@ -56,7 +56,7 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 	unsigned long index, end_index;
 	unsigned ofs;
 
-	BUG_ON(ni->page);
+	_ON(ni->page);
 	/*
 	 * The index into the page cache and the offset within the page cache
 	 * page of the wanted mft record. FIXME: We need to check for
@@ -78,7 +78,7 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 			page = ERR_PTR(-ENOENT);
 			ntfs_error(vol->sb, "Attempt to read mft record 0x%lx, "
 					"which is beyond the end of the mft.  "
-					"This is probably a bug in the ntfs "
+					"This is probably a  in the ntfs "
 					"driver.", ni->mft_no);
 			goto err_out;
 		}
@@ -159,7 +159,7 @@ MFT_RECORD *map_mft_record(ntfs_inode *ni)
 {
 	MFT_RECORD *m;
 
-	ntfs_debug("Entering for mft_no 0x%lx.", ni->mft_no);
+	ntfs_de("Entering for mft_no 0x%lx.", ni->mft_no);
 
 	/* Make sure the ntfs inode doesn't go away. */
 	atomic_inc(&ni->count);
@@ -193,7 +193,7 @@ MFT_RECORD *map_mft_record(ntfs_inode *ni)
  */
 static inline void unmap_mft_record_page(ntfs_inode *ni)
 {
-	BUG_ON(!ni->page);
+	_ON(!ni->page);
 
 	// TODO: If dirty, blah...
 	ntfs_unmap_page(ni->page);
@@ -217,9 +217,9 @@ void unmap_mft_record(ntfs_inode *ni)
 {
 	struct page *page = ni->page;
 
-	BUG_ON(!page);
+	_ON(!page);
 
-	ntfs_debug("Entering for mft_no 0x%lx.", ni->mft_no);
+	ntfs_de("Entering for mft_no 0x%lx.", ni->mft_no);
 
 	unmap_mft_record_page(ni);
 	mutex_unlock(&ni->mrec_lock);
@@ -257,7 +257,7 @@ MFT_RECORD *map_extent_mft_record(ntfs_inode *base_ni, MFT_REF mref,
 	u16 seq_no = MSEQNO(mref);
 	bool destroy_ni = false;
 
-	ntfs_debug("Mapping extent mft record 0x%lx (base mft record 0x%lx).",
+	ntfs_de("Mapping extent mft record 0x%lx (base mft record 0x%lx).",
 			mft_no, base_ni->mft_no);
 	/* Make sure the base ntfs inode doesn't go away. */
 	atomic_inc(&base_ni->count);
@@ -288,7 +288,7 @@ MFT_RECORD *map_extent_mft_record(ntfs_inode *base_ni, MFT_REF mref,
 		if (likely(!IS_ERR(m))) {
 			/* Verify the sequence number. */
 			if (likely(le16_to_cpu(m->sequence_number) == seq_no)) {
-				ntfs_debug("Done 1.");
+				ntfs_de("Done 1.");
 				*ntfs_ino = ni;
 				return m;
 			}
@@ -344,7 +344,7 @@ map_err_out:
 			goto unm_err_out;
 		}
 		if (base_ni->nr_extents) {
-			BUG_ON(!base_ni->ext.extent_ntfs_inos);
+			_ON(!base_ni->ext.extent_ntfs_inos);
 			memcpy(tmp, base_ni->ext.extent_ntfs_inos, new_size -
 					4 * sizeof(ntfs_inode *));
 			kfree(base_ni->ext.extent_ntfs_inos);
@@ -354,7 +354,7 @@ map_err_out:
 	base_ni->ext.extent_ntfs_inos[base_ni->nr_extents++] = ni;
 	mutex_unlock(&base_ni->extent_lock);
 	atomic_dec(&base_ni->count);
-	ntfs_debug("Done 2.");
+	ntfs_de("Done 2.");
 	*ntfs_ino = ni;
 	return m;
 unm_err_out:
@@ -399,8 +399,8 @@ void __mark_mft_record_dirty(ntfs_inode *ni)
 {
 	ntfs_inode *base_ni;
 
-	ntfs_debug("Entering for inode 0x%lx.", ni->mft_no);
-	BUG_ON(NInoAttr(ni));
+	ntfs_de("Entering for inode 0x%lx.", ni->mft_no);
+	_ON(NInoAttr(ni));
 	mark_ntfs_record_dirty(ni->page, ni->page_ofs);
 	/* Determine the base vfs inode and mark it dirty, too. */
 	mutex_lock(&ni->extent_lock);
@@ -427,7 +427,7 @@ static const char *ntfs_please_email = "Please email "
  * bypassing the page cache and the $MFTMirr inode itself.
  *
  * This function is only for use at umount time when the mft mirror inode has
- * already been disposed off.  We BUG() if we are called while the mft mirror
+ * already been disposed off.  We () if we are called while the mft mirror
  * inode is still attached to the volume.
  *
  * On success return 0.  On error return -errno.
@@ -435,13 +435,13 @@ static const char *ntfs_please_email = "Please email "
  * NOTE:  This function is not implemented yet as I am not convinced it can
  * actually be triggered considering the sequence of commits we do in super.c::
  * ntfs_put_super().  But just in case we provide this place holder as the
- * alternative would be either to BUG() or to get a NULL pointer dereference
+ * alternative would be either to () or to get a NULL pointer dereference
  * and Oops.
  */
 static int ntfs_sync_mft_mirror_umount(ntfs_volume *vol,
 		const unsigned long mft_no, MFT_RECORD *m)
 {
-	BUG_ON(vol->mftmirr_ino);
+	_ON(vol->mftmirr_ino);
 	ntfs_error(vol->sb, "Umount time mft mirror syncing is not "
 			"implemented yet.  %s", ntfs_please_email);
 	return -EOPNOTSUPP;
@@ -479,8 +479,8 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 	int i_bhs, nr_bhs, err = 0;
 	unsigned char blocksize_bits = vol->sb->s_blocksize_bits;
 
-	ntfs_debug("Entering for inode 0x%lx.", mft_no);
-	BUG_ON(!max_bhs);
+	ntfs_de("Entering for inode 0x%lx.", mft_no);
+	_ON(!max_bhs);
 	if (WARN_ON(max_bhs > MAX_BHS))
 		return -EINVAL;
 	if (unlikely(!vol->mftmirr_ino)) {
@@ -499,7 +499,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 		goto err_out;
 	}
 	lock_page(page);
-	BUG_ON(!PageUptodate(page));
+	_ON(!PageUptodate(page));
 	ClearPageUptodate(page);
 	/* Offset of the mft mirror record inside the page. */
 	page_ofs = (mft_no << vol->mft_record_size_bits) & ~PAGE_MASK;
@@ -521,7 +521,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 		attach_page_buffers(page, head);
 	}
 	bh = head = page_buffers(page);
-	BUG_ON(!bh);
+	_ON(!bh);
 	rl = NULL;
 	nr_bhs = 0;
 	block_start = 0;
@@ -554,7 +554,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 				 * $MFTMirr always has the whole of its runlist
 				 * in memory.
 				 */
-				BUG_ON(!rl);
+				_ON(!rl);
 			}
 			/* Seek to element containing target vcn. */
 			while (rl->length && rl[1].vcn <= vcn)
@@ -578,11 +578,11 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 				err = -EIO;
 			}
 		}
-		BUG_ON(!buffer_uptodate(bh));
-		BUG_ON(!nr_bhs && (m_start != block_start));
-		BUG_ON(nr_bhs >= max_bhs);
+		_ON(!buffer_uptodate(bh));
+		_ON(!nr_bhs && (m_start != block_start));
+		_ON(nr_bhs >= max_bhs);
 		bhs[nr_bhs++] = bh;
-		BUG_ON((nr_bhs >= max_bhs) && (m_end != block_end));
+		_ON((nr_bhs >= max_bhs) && (m_end != block_end));
 	} while (block_start = block_end, (bh = bh->b_this_page) != head);
 	if (unlikely(rl))
 		up_read(&NTFS_I(vol->mftmirr_ino)->runlist.lock);
@@ -592,8 +592,8 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 			struct buffer_head *tbh = bhs[i_bhs];
 
 			if (!trylock_buffer(tbh))
-				BUG();
-			BUG_ON(!buffer_uptodate(tbh));
+				();
+			_ON(!buffer_uptodate(tbh));
 			clear_buffer_dirty(tbh);
 			get_bh(tbh);
 			tbh->b_end_io = end_buffer_write_sync;
@@ -626,7 +626,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 	unlock_page(page);
 	ntfs_unmap_page(page);
 	if (likely(!err)) {
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 	} else {
 		ntfs_error(vol->sb, "I/O error while writing mft mirror "
 				"record 0x%lx!", mft_no);
@@ -684,10 +684,10 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	unsigned int block_start, block_end, m_start, m_end;
 	int i_bhs, nr_bhs, err = 0;
 
-	ntfs_debug("Entering for inode 0x%lx.", ni->mft_no);
-	BUG_ON(NInoAttr(ni));
-	BUG_ON(!max_bhs);
-	BUG_ON(!PageLocked(page));
+	ntfs_de("Entering for inode 0x%lx.", ni->mft_no);
+	_ON(NInoAttr(ni));
+	_ON(!max_bhs);
+	_ON(!PageLocked(page));
 	if (WARN_ON(max_bhs > MAX_BHS)) {
 		err = -EINVAL;
 		goto err_out;
@@ -701,7 +701,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	if (!NInoTestClearDirty(ni))
 		goto done;
 	bh = head = page_buffers(page);
-	BUG_ON(!bh);
+	_ON(!bh);
 	rl = NULL;
 	nr_bhs = 0;
 	block_start = 0;
@@ -722,7 +722,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 		if (block_start == m_start) {
 			/* This block is the first one in the record. */
 			if (!buffer_dirty(bh)) {
-				BUG_ON(nr_bhs);
+				_ON(nr_bhs);
 				/* Clean records are not written out. */
 				break;
 			}
@@ -742,7 +742,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 			if (!rl) {
 				down_read(&NTFS_I(vol->mft_ino)->runlist.lock);
 				rl = NTFS_I(vol->mft_ino)->runlist.rl;
-				BUG_ON(!rl);
+				_ON(!rl);
 			}
 			/* Seek to element containing target vcn. */
 			while (rl->length && rl[1].vcn <= vcn)
@@ -765,11 +765,11 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 				err = -EIO;
 			}
 		}
-		BUG_ON(!buffer_uptodate(bh));
-		BUG_ON(!nr_bhs && (m_start != block_start));
-		BUG_ON(nr_bhs >= max_bhs);
+		_ON(!buffer_uptodate(bh));
+		_ON(!nr_bhs && (m_start != block_start));
+		_ON(nr_bhs >= max_bhs);
 		bhs[nr_bhs++] = bh;
-		BUG_ON((nr_bhs >= max_bhs) && (m_end != block_end));
+		_ON((nr_bhs >= max_bhs) && (m_end != block_end));
 	} while (block_start = block_end, (bh = bh->b_this_page) != head);
 	if (unlikely(rl))
 		up_read(&NTFS_I(vol->mft_ino)->runlist.lock);
@@ -789,8 +789,8 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 		struct buffer_head *tbh = bhs[i_bhs];
 
 		if (!trylock_buffer(tbh))
-			BUG();
-		BUG_ON(!buffer_uptodate(tbh));
+			();
+		_ON(!buffer_uptodate(tbh));
 		clear_buffer_dirty(tbh);
 		get_bh(tbh);
 		tbh->b_end_io = end_buffer_write_sync;
@@ -829,7 +829,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 		goto err_out;
 	}
 done:
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 cleanup_out:
 	/* Clean the buffers. */
@@ -941,17 +941,17 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	int i;
 	ntfs_attr na;
 
-	ntfs_debug("Entering for inode 0x%lx.", mft_no);
+	ntfs_de("Entering for inode 0x%lx.", mft_no);
 	/*
 	 * Normally we do not return a locked inode so set @locked_ni to NULL.
 	 */
-	BUG_ON(!locked_ni);
+	_ON(!locked_ni);
 	*locked_ni = NULL;
 	/*
 	 * Check if the inode corresponding to this mft record is in the VFS
 	 * inode cache and obtain a reference to it if it is.
 	 */
-	ntfs_debug("Looking for inode 0x%lx in icache.", mft_no);
+	ntfs_de("Looking for inode 0x%lx in icache.", mft_no);
 	na.mft_no = mft_no;
 	na.name = NULL;
 	na.name_len = 0;
@@ -963,7 +963,7 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	if (!mft_no) {
 		/* Balance the below iput(). */
 		vi = igrab(mft_vi);
-		BUG_ON(vi != mft_vi);
+		_ON(vi != mft_vi);
 	} else {
 		/*
 		 * Have to use ilookup5_nowait() since ilookup5() waits for the
@@ -975,29 +975,29 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 		vi = ilookup5_nowait(sb, mft_no, (test_t)ntfs_test_inode, &na);
 	}
 	if (vi) {
-		ntfs_debug("Base inode 0x%lx is in icache.", mft_no);
+		ntfs_de("Base inode 0x%lx is in icache.", mft_no);
 		/* The inode is in icache. */
 		ni = NTFS_I(vi);
 		/* Take a reference to the ntfs inode. */
 		atomic_inc(&ni->count);
 		/* If the inode is dirty, do not write this record. */
 		if (NInoDirty(ni)) {
-			ntfs_debug("Inode 0x%lx is dirty, do not write it.",
+			ntfs_de("Inode 0x%lx is dirty, do not write it.",
 					mft_no);
 			atomic_dec(&ni->count);
 			iput(vi);
 			return false;
 		}
-		ntfs_debug("Inode 0x%lx is not dirty.", mft_no);
+		ntfs_de("Inode 0x%lx is not dirty.", mft_no);
 		/* The inode is not dirty, try to take the mft record lock. */
 		if (unlikely(!mutex_trylock(&ni->mrec_lock))) {
-			ntfs_debug("Mft record 0x%lx is already locked, do "
+			ntfs_de("Mft record 0x%lx is already locked, do "
 					"not write it.", mft_no);
 			atomic_dec(&ni->count);
 			iput(vi);
 			return false;
 		}
-		ntfs_debug("Managed to lock mft record 0x%lx, write it.",
+		ntfs_de("Managed to lock mft record 0x%lx, write it.",
 				mft_no);
 		/*
 		 * The write has to occur while we hold the mft record lock so
@@ -1006,17 +1006,17 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 		*locked_ni = ni;
 		return true;
 	}
-	ntfs_debug("Inode 0x%lx is not in icache.", mft_no);
+	ntfs_de("Inode 0x%lx is not in icache.", mft_no);
 	/* The inode is not in icache. */
 	/* Write the record if it is not a mft record (type "FILE"). */
 	if (!ntfs_is_mft_record(m->magic)) {
-		ntfs_debug("Mft record 0x%lx is not a FILE record, write it.",
+		ntfs_de("Mft record 0x%lx is not a FILE record, write it.",
 				mft_no);
 		return true;
 	}
 	/* Write the mft record if it is a base inode. */
 	if (!m->base_mft_record) {
-		ntfs_debug("Mft record 0x%lx is a base record, write it.",
+		ntfs_de("Mft record 0x%lx is a base record, write it.",
 				mft_no);
 		return true;
 	}
@@ -1026,12 +1026,12 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	 * is.
 	 */
 	na.mft_no = MREF_LE(m->base_mft_record);
-	ntfs_debug("Mft record 0x%lx is an extent record.  Looking for base "
+	ntfs_de("Mft record 0x%lx is an extent record.  Looking for base "
 			"inode 0x%lx in icache.", mft_no, na.mft_no);
 	if (!na.mft_no) {
 		/* Balance the below iput(). */
 		vi = igrab(mft_vi);
-		BUG_ON(vi != mft_vi);
+		_ON(vi != mft_vi);
 	} else
 		vi = ilookup5_nowait(sb, na.mft_no, (test_t)ntfs_test_inode,
 				&na);
@@ -1040,11 +1040,11 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 		 * The base inode is not in icache, write this extent mft
 		 * record.
 		 */
-		ntfs_debug("Base inode 0x%lx is not in icache, write the "
+		ntfs_de("Base inode 0x%lx is not in icache, write the "
 				"extent record.", na.mft_no);
 		return true;
 	}
-	ntfs_debug("Base inode 0x%lx is in icache.", na.mft_no);
+	ntfs_de("Base inode 0x%lx is in icache.", na.mft_no);
 	/*
 	 * The base inode is in icache.  Check if it has the extent inode
 	 * corresponding to this extent mft record attached.
@@ -1058,7 +1058,7 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 		 */
 		mutex_unlock(&ni->extent_lock);
 		iput(vi);
-		ntfs_debug("Base inode 0x%lx has no attached extent inodes, "
+		ntfs_de("Base inode 0x%lx has no attached extent inodes, "
 				"write the extent record.", na.mft_no);
 		return true;
 	}
@@ -1081,12 +1081,12 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	if (!eni) {
 		mutex_unlock(&ni->extent_lock);
 		iput(vi);
-		ntfs_debug("Extent inode 0x%lx is not attached to its base "
+		ntfs_de("Extent inode 0x%lx is not attached to its base "
 				"inode 0x%lx, write the extent record.",
 				mft_no, na.mft_no);
 		return true;
 	}
-	ntfs_debug("Extent inode 0x%lx is attached to its base inode 0x%lx.",
+	ntfs_de("Extent inode 0x%lx is attached to its base inode 0x%lx.",
 			mft_no, na.mft_no);
 	/* Take a reference to the extent ntfs inode. */
 	atomic_inc(&eni->count);
@@ -1098,14 +1098,14 @@ bool ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	if (unlikely(!mutex_trylock(&eni->mrec_lock))) {
 		atomic_dec(&eni->count);
 		iput(vi);
-		ntfs_debug("Extent mft record 0x%lx is already locked, do "
+		ntfs_de("Extent mft record 0x%lx is already locked, do "
 				"not write it.", mft_no);
 		return false;
 	}
-	ntfs_debug("Managed to lock extent mft record 0x%lx, write it.",
+	ntfs_de("Managed to lock extent mft record 0x%lx, write it.",
 			mft_no);
 	if (NInoTestClearDirty(eni))
-		ntfs_debug("Extent inode 0x%lx is dirty, marking it clean.",
+		ntfs_de("Extent inode 0x%lx is dirty, marking it clean.",
 				mft_no);
 	/*
 	 * The write has to occur while we hold the mft record lock so return
@@ -1148,7 +1148,7 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
 	unsigned int page_ofs, size;
 	u8 pass, b;
 
-	ntfs_debug("Searching for free mft record in the currently "
+	ntfs_de("Searching for free mft record in the currently "
 			"initialized mft bitmap.");
 	mftbmp_mapping = vol->mftbmp_ino->i_mapping;
 	/*
@@ -1179,7 +1179,7 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
 			return -ENOSPC;
 	}
 	pass_start = data_pos;
-	ntfs_debug("Starting bitmap search: pass %u, pass_start 0x%llx, "
+	ntfs_de("Starting bitmap search: pass %u, pass_start 0x%llx, "
 			"pass_end 0x%llx, data_pos 0x%llx.", pass,
 			(long long)pass_start, (long long)pass_end,
 			(long long)data_pos);
@@ -1208,7 +1208,7 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
 			buf = (u8*)page_address(page) + page_ofs;
 			bit = data_pos & 7;
 			data_pos &= ~7ull;
-			ntfs_debug("Before inner for loop: size 0x%x, "
+			ntfs_de("Before inner for loop: size 0x%x, "
 					"data_pos 0x%llx, bit 0x%llx", size,
 					(long long)data_pos, (long long)bit);
 			for (; bit < size && data_pos + bit < pass_end;
@@ -1227,14 +1227,14 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
 					flush_dcache_page(page);
 					set_page_dirty(page);
 					ntfs_unmap_page(page);
-					ntfs_debug("Done.  (Found and "
+					ntfs_de("Done.  (Found and "
 							"allocated mft record "
 							"0x%llx.)",
 							(long long)ll);
 					return ll;
 				}
 			}
-			ntfs_debug("After inner for loop: size 0x%x, "
+			ntfs_de("After inner for loop: size 0x%x, "
 					"data_pos 0x%llx, bit 0x%llx", size,
 					(long long)data_pos, (long long)bit);
 			data_pos += size;
@@ -1254,7 +1254,7 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
 			 */
 			pass_end = pass_start;
 			data_pos = pass_start = 24;
-			ntfs_debug("pass %i, pass_start 0x%llx, pass_end "
+			ntfs_de("pass %i, pass_start 0x%llx, pass_end "
 					"0x%llx.", pass, (long long)pass_start,
 					(long long)pass_end);
 			if (data_pos >= pass_end)
@@ -1262,7 +1262,7 @@ static int ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(ntfs_volume *vol,
 		}
 	}
 	/* No free mft records in currently initialized mft bitmap. */
-	ntfs_debug("Done.  (No free mft records left in currently initialized "
+	ntfs_de("Done.  (No free mft records left in currently initialized "
 			"mft bitmap.)");
 	return -ENOSPC;
 }
@@ -1304,7 +1304,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		u8 mp_rebuilt:1;
 	} status = { 0, 0, 0 };
 
-	ntfs_debug("Extending mft bitmap allocation.");
+	ntfs_de("Extending mft bitmap allocation.");
 	mft_ni = NTFS_I(vol->mft_ino);
 	mftbmp_ni = NTFS_I(vol->mftbmp_ino);
 	/*
@@ -1328,7 +1328,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		return ret;
 	}
 	lcn = rl->lcn + rl->length;
-	ntfs_debug("Last lcn of mft bitmap attribute is 0x%llx.",
+	ntfs_de("Last lcn of mft bitmap attribute is 0x%llx.",
 			(long long)lcn);
 	/*
 	 * Attempt to get the cluster following the last allocated cluster by
@@ -1357,7 +1357,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		rl->length++;
 		rl[1].vcn++;
 		status.added_cluster = 1;
-		ntfs_debug("Appending one cluster to mft bitmap.");
+		ntfs_de("Appending one cluster to mft bitmap.");
 	} else {
 		up_write(&vol->lcnbmp_lock);
 		ntfs_unmap_page(page);
@@ -1385,7 +1385,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		}
 		mftbmp_ni->runlist.rl = rl;
 		status.added_run = 1;
-		ntfs_debug("Adding one run to mft bitmap.");
+		ntfs_de("Adding one run to mft bitmap.");
 		/* Find the last run in the new runlist. */
 		for (; rl[1].length; rl++)
 			;
@@ -1423,8 +1423,8 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		if (ll >= rl2->vcn)
 			break;
 	}
-	BUG_ON(ll < rl2->vcn);
-	BUG_ON(ll >= rl2->vcn + rl2->length);
+	_ON(ll < rl2->vcn);
+	_ON(ll >= rl2->vcn + rl2->length);
 	/* Get the size for the new mapping pairs array for this extent. */
 	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl2, ll, -1);
 	if (unlikely(mp_size <= 0)) {
@@ -1501,7 +1501,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(mft_ni);
 	up_write(&mftbmp_ni->runlist.lock);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 restore_undo_alloc:
 	ntfs_attr_reinit_search_ctx(ctx);
@@ -1594,7 +1594,7 @@ static int ntfs_mft_bitmap_extend_initialized_nolock(ntfs_volume *vol)
 	ATTR_RECORD *a;
 	int ret;
 
-	ntfs_debug("Extending mft bitmap initiailized (and data) size.");
+	ntfs_de("Extending mft bitmap initiailized (and data) size.");
 	mft_ni = NTFS_I(vol->mft_ino);
 	mftbmp_vi = vol->mftbmp_ino;
 	mftbmp_ni = NTFS_I(mftbmp_vi);
@@ -1645,7 +1645,7 @@ static int ntfs_mft_bitmap_extend_initialized_nolock(ntfs_volume *vol)
 	/* Initialize the mft bitmap attribute value with zeroes. */
 	ret = ntfs_attr_set(mftbmp_ni, old_initialized_size, 8, 0);
 	if (likely(!ret)) {
-		ntfs_debug("Done.  (Wrote eight initialized bytes to mft "
+		ntfs_de("Done.  (Wrote eight initialized bytes to mft "
 				"bitmap.");
 		return 0;
 	}
@@ -1688,15 +1688,15 @@ unm_err_out:
 	mark_mft_record_dirty(ctx->ntfs_ino);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(mft_ni);
-#ifdef DEBUG
+#ifdef DE
 	read_lock_irqsave(&mftbmp_ni->size_lock, flags);
-	ntfs_debug("Restored status of mftbmp: allocated_size 0x%llx, "
+	ntfs_de("Restored status of mftbmp: allocated_size 0x%llx, "
 			"data_size 0x%llx, initialized_size 0x%llx.",
 			(long long)mftbmp_ni->allocated_size,
 			(long long)i_size_read(mftbmp_vi),
 			(long long)mftbmp_ni->initialized_size);
 	read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
-#endif /* DEBUG */
+#endif /* DE */
 err_out:
 	return ret;
 }
@@ -1735,7 +1735,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	u32 old_alen = 0;
 	bool mp_rebuilt = false;
 
-	ntfs_debug("Extending mft data allocation.");
+	ntfs_de("Extending mft data allocation.");
 	mft_ni = NTFS_I(vol->mft_ino);
 	/*
 	 * Determine the preferred allocation location, i.e. the last lcn of
@@ -1759,7 +1759,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		return ret;
 	}
 	lcn = rl->lcn + rl->length;
-	ntfs_debug("Last lcn of mft data attribute is 0x%llx.", (long long)lcn);
+	ntfs_de("Last lcn of mft data attribute is 0x%llx.", (long long)lcn);
 	/* Minimum allocation is one mft record worth of clusters. */
 	min_nr = vol->mft_record_size >> vol->cluster_size_bits;
 	if (!min_nr)
@@ -1784,7 +1784,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 			return -ENOSPC;
 		}
 	}
-	ntfs_debug("Trying mft data allocation with %s cluster count %lli.",
+	ntfs_de("Trying mft data allocation with %s cluster count %lli.",
 			nr > min_nr ? "default" : "minimal", (long long)nr);
 	old_last_vcn = rl[1].vcn;
 	do {
@@ -1805,7 +1805,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		 * before failing.
 		 */
 		nr = min_nr;
-		ntfs_debug("Retrying mft data allocation with minimal cluster "
+		ntfs_de("Retrying mft data allocation with minimal cluster "
 				"count %lli.", (long long)nr);
 	} while (1);
 	rl = ntfs_runlists_merge(mft_ni->runlist.rl, rl2);
@@ -1822,7 +1822,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		return PTR_ERR(rl);
 	}
 	mft_ni->runlist.rl = rl;
-	ntfs_debug("Allocated %lli clusters.", (long long)nr);
+	ntfs_de("Allocated %lli clusters.", (long long)nr);
 	/* Find the last run in the new runlist. */
 	for (; rl[1].length; rl++)
 		;
@@ -1855,8 +1855,8 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 		if (ll >= rl2->vcn)
 			break;
 	}
-	BUG_ON(ll < rl2->vcn);
-	BUG_ON(ll >= rl2->vcn + rl2->length);
+	_ON(ll < rl2->vcn);
+	_ON(ll >= rl2->vcn + rl2->length);
 	/* Get the size for the new mapping pairs array for this extent. */
 	mp_size = ntfs_get_size_for_mapping_pairs(vol, rl2, ll, -1);
 	if (unlikely(mp_size <= 0)) {
@@ -1940,7 +1940,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(mft_ni);
 	up_write(&mft_ni->runlist.lock);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 restore_undo_alloc:
 	ntfs_attr_reinit_search_ctx(ctx);
@@ -2023,7 +2023,7 @@ static int ntfs_mft_record_layout(const ntfs_volume *vol, const s64 mft_no,
 {
 	ATTR_RECORD *a;
 
-	ntfs_debug("Entering for mft record 0x%llx.", (long long)mft_no);
+	ntfs_de("Entering for mft record 0x%llx.", (long long)mft_no);
 	if (mft_no >= (1ll << 32)) {
 		ntfs_error(vol->sb, "Mft record number 0x%llx exceeds "
 				"maximum of 2^32.", (long long)mft_no);
@@ -2082,7 +2082,7 @@ static int ntfs_mft_record_layout(const ntfs_volume *vol, const s64 mft_no,
 	a = (ATTR_RECORD*)((u8*)m + le16_to_cpu(m->attrs_offset));
 	a->type = AT_END;
 	a->length = 0;
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 }
 
@@ -2107,7 +2107,7 @@ static int ntfs_mft_record_format(const ntfs_volume *vol, const s64 mft_no)
 	unsigned int ofs;
 	int err;
 
-	ntfs_debug("Entering for mft record 0x%llx.", (long long)mft_no);
+	ntfs_de("Entering for mft record 0x%llx.", (long long)mft_no);
 	/*
 	 * The index into the page cache and the offset within the page cache
 	 * page of the wanted mft record.
@@ -2133,7 +2133,7 @@ static int ntfs_mft_record_format(const ntfs_volume *vol, const s64 mft_no)
 		return PTR_ERR(page);
 	}
 	lock_page(page);
-	BUG_ON(!PageUptodate(page));
+	_ON(!PageUptodate(page));
 	ClearPageUptodate(page);
 	m = (MFT_RECORD*)((u8*)page_address(page) + ofs);
 	err = ntfs_mft_record_layout(vol, mft_no, m);
@@ -2155,7 +2155,7 @@ static int ntfs_mft_record_format(const ntfs_volume *vol, const s64 mft_no)
 	 */
 	mark_ntfs_record_dirty(page, ofs);
 	ntfs_unmap_page(page);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 }
 
@@ -2267,27 +2267,27 @@ ntfs_inode *ntfs_mft_record_alloc(ntfs_volume *vol, const int mode,
 	bool record_formatted = false;
 
 	if (base_ni) {
-		ntfs_debug("Entering (allocating an extent mft record for "
+		ntfs_de("Entering (allocating an extent mft record for "
 				"base mft record 0x%llx).",
 				(long long)base_ni->mft_no);
 		/* @mode and @base_ni are mutually exclusive. */
-		BUG_ON(mode);
+		_ON(mode);
 	} else
-		ntfs_debug("Entering (allocating a base mft record).");
+		ntfs_de("Entering (allocating a base mft record).");
 	if (mode) {
 		/* @mode and @base_ni are mutually exclusive. */
-		BUG_ON(base_ni);
+		_ON(base_ni);
 		/* We only support creation of normal files and directories. */
 		if (!S_ISREG(mode) && !S_ISDIR(mode))
 			return ERR_PTR(-EOPNOTSUPP);
 	}
-	BUG_ON(!mrec);
+	_ON(!mrec);
 	mft_ni = NTFS_I(vol->mft_ino);
 	mftbmp_ni = NTFS_I(vol->mftbmp_ino);
 	down_write(&vol->mftbmp_lock);
 	bit = ntfs_mft_bitmap_find_and_alloc_free_rec_nolock(vol, base_ni);
 	if (bit >= 0) {
-		ntfs_debug("Found and allocated free record (#1), bit 0x%llx.",
+		ntfs_de("Found and allocated free record (#1), bit 0x%llx.",
 				(long long)bit);
 		goto have_alloc_rec;
 	}
@@ -2315,7 +2315,7 @@ ntfs_inode *ntfs_mft_record_alloc(ntfs_volume *vol, const int mode,
 			bit = 24;
 		if (unlikely(bit >= (1ll << 32)))
 			goto max_err_out;
-		ntfs_debug("Found free record (#2), bit 0x%llx.",
+		ntfs_de("Found free record (#2), bit 0x%llx.",
 				(long long)bit);
 		goto found_free_rec;
 	}
@@ -2329,7 +2329,7 @@ ntfs_inode *ntfs_mft_record_alloc(ntfs_volume *vol, const int mode,
 		goto max_err_out;
 	read_lock_irqsave(&mftbmp_ni->size_lock, flags);
 	old_data_size = mftbmp_ni->allocated_size;
-	ntfs_debug("Status of mftbmp before extension: allocated_size 0x%llx, "
+	ntfs_de("Status of mftbmp before extension: allocated_size 0x%llx, "
 			"data_size 0x%llx, initialized_size 0x%llx.",
 			(long long)old_data_size,
 			(long long)i_size_read(vol->mftbmp_ino),
@@ -2337,22 +2337,22 @@ ntfs_inode *ntfs_mft_record_alloc(ntfs_volume *vol, const int mode,
 	read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
 	if (old_data_initialized + 8 > old_data_size) {
 		/* Need to extend bitmap by one more cluster. */
-		ntfs_debug("mftbmp: initialized_size + 8 > allocated_size.");
+		ntfs_de("mftbmp: initialized_size + 8 > allocated_size.");
 		err = ntfs_mft_bitmap_extend_allocation_nolock(vol);
 		if (unlikely(err)) {
 			up_write(&vol->mftbmp_lock);
 			goto err_out;
 		}
-#ifdef DEBUG
+#ifdef DE
 		read_lock_irqsave(&mftbmp_ni->size_lock, flags);
-		ntfs_debug("Status of mftbmp after allocation extension: "
+		ntfs_de("Status of mftbmp after allocation extension: "
 				"allocated_size 0x%llx, data_size 0x%llx, "
 				"initialized_size 0x%llx.",
 				(long long)mftbmp_ni->allocated_size,
 				(long long)i_size_read(vol->mftbmp_ino),
 				(long long)mftbmp_ni->initialized_size);
 		read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
-#endif /* DEBUG */
+#endif /* DE */
 	}
 	/*
 	 * We now have sufficient allocated space, extend the initialized_size
@@ -2364,27 +2364,27 @@ ntfs_inode *ntfs_mft_record_alloc(ntfs_volume *vol, const int mode,
 		up_write(&vol->mftbmp_lock);
 		goto err_out;
 	}
-#ifdef DEBUG
+#ifdef DE
 	read_lock_irqsave(&mftbmp_ni->size_lock, flags);
-	ntfs_debug("Status of mftbmp after initialized extension: "
+	ntfs_de("Status of mftbmp after initialized extension: "
 			"allocated_size 0x%llx, data_size 0x%llx, "
 			"initialized_size 0x%llx.",
 			(long long)mftbmp_ni->allocated_size,
 			(long long)i_size_read(vol->mftbmp_ino),
 			(long long)mftbmp_ni->initialized_size);
 	read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
-#endif /* DEBUG */
-	ntfs_debug("Found free record (#3), bit 0x%llx.", (long long)bit);
+#endif /* DE */
+	ntfs_de("Found free record (#3), bit 0x%llx.", (long long)bit);
 found_free_rec:
 	/* @bit is the found free mft record, allocate it in the mft bitmap. */
-	ntfs_debug("At found_free_rec.");
+	ntfs_de("At found_free_rec.");
 	err = ntfs_bitmap_set_bit(vol->mftbmp_ino, bit);
 	if (unlikely(err)) {
 		ntfs_error(vol->sb, "Failed to allocate bit in mft bitmap.");
 		up_write(&vol->mftbmp_lock);
 		goto err_out;
 	}
-	ntfs_debug("Set bit 0x%llx in mft bitmap.", (long long)bit);
+	ntfs_de("Set bit 0x%llx in mft bitmap.", (long long)bit);
 have_alloc_rec:
 	/*
 	 * The mft bitmap is now uptodate.  Deal with mft data attribute now.
@@ -2399,10 +2399,10 @@ have_alloc_rec:
 	old_data_initialized = mft_ni->initialized_size;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 	if (ll <= old_data_initialized) {
-		ntfs_debug("Allocated mft record already initialized.");
+		ntfs_de("Allocated mft record already initialized.");
 		goto mft_rec_already_initialized;
 	}
-	ntfs_debug("Initializing allocated mft record.");
+	ntfs_de("Initializing allocated mft record.");
 	/*
 	 * The mft record is outside the initialized data.  Extend the mft data
 	 * attribute until it covers the allocated record.  The loop is only
@@ -2410,7 +2410,7 @@ have_alloc_rec:
 	 * first written to so it optimizes away nicely in the common case.
 	 */
 	read_lock_irqsave(&mft_ni->size_lock, flags);
-	ntfs_debug("Status of mft data before extension: "
+	ntfs_de("Status of mft data before extension: "
 			"allocated_size 0x%llx, data_size 0x%llx, "
 			"initialized_size 0x%llx.",
 			(long long)mft_ni->allocated_size,
@@ -2425,7 +2425,7 @@ have_alloc_rec:
 			goto undo_mftbmp_alloc_nolock;
 		}
 		read_lock_irqsave(&mft_ni->size_lock, flags);
-		ntfs_debug("Status of mft data after allocation extension: "
+		ntfs_de("Status of mft data after allocation extension: "
 				"allocated_size 0x%llx, data_size 0x%llx, "
 				"initialized_size 0x%llx.",
 				(long long)mft_ni->allocated_size,
@@ -2452,7 +2452,7 @@ have_alloc_rec:
 		if (new_initialized_size > i_size_read(vol->mft_ino))
 			i_size_write(vol->mft_ino, new_initialized_size);
 		write_unlock_irqrestore(&mft_ni->size_lock, flags);
-		ntfs_debug("Initializing mft record 0x%llx.",
+		ntfs_de("Initializing mft record 0x%llx.",
 				(long long)mft_no);
 		err = ntfs_mft_record_format(vol, mft_no);
 		if (unlikely(err)) {
@@ -2500,14 +2500,14 @@ have_alloc_rec:
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(mft_ni);
 	read_lock_irqsave(&mft_ni->size_lock, flags);
-	ntfs_debug("Status of mft data after mft record initialization: "
+	ntfs_de("Status of mft data after mft record initialization: "
 			"allocated_size 0x%llx, data_size 0x%llx, "
 			"initialized_size 0x%llx.",
 			(long long)mft_ni->allocated_size,
 			(long long)i_size_read(vol->mft_ino),
 			(long long)mft_ni->initialized_size);
-	BUG_ON(i_size_read(vol->mft_ino) > mft_ni->allocated_size);
-	BUG_ON(mft_ni->initialized_size > i_size_read(vol->mft_ino));
+	_ON(i_size_read(vol->mft_ino) > mft_ni->allocated_size);
+	_ON(mft_ni->initialized_size > i_size_read(vol->mft_ino));
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 mft_rec_already_initialized:
 	/*
@@ -2535,7 +2535,7 @@ mft_rec_already_initialized:
 		goto undo_mftbmp_alloc;
 	}
 	lock_page(page);
-	BUG_ON(!PageUptodate(page));
+	_ON(!PageUptodate(page));
 	ClearPageUptodate(page);
 	m = (MFT_RECORD*)((u8*)page_address(page) + ofs);
 	/* If we just formatted the mft record no need to do it again. */
@@ -2614,7 +2614,7 @@ mft_rec_already_initialized:
 			ntfs_unmap_page(page);
 			goto undo_mftbmp_alloc;
 		}
-		BUG_ON(m != m_tmp);
+		_ON(m != m_tmp);
 		/*
 		 * Make sure the allocated mft record is written out to disk.
 		 * No need to set the inode dirty because the caller is going
@@ -2736,7 +2736,7 @@ mft_rec_already_initialized:
 	 * Return the opened, allocated inode of the allocated mft record as
 	 * well as the mapped, pinned, and locked mft record.
 	 */
-	ntfs_debug("Returning opened, allocated %sinode 0x%llx.",
+	ntfs_de("Returning opened, allocated %sinode 0x%llx.",
 			base_ni ? "extent " : "", (long long)bit);
 	*mrec = m;
 	return ni;
@@ -2794,16 +2794,16 @@ int ntfs_extent_mft_record_free(ntfs_inode *ni, MFT_RECORD *m)
 	le16 old_seq_no;
 	u16 seq_no;
 	
-	BUG_ON(NInoAttr(ni));
-	BUG_ON(ni->nr_extents != -1);
+	_ON(NInoAttr(ni));
+	_ON(ni->nr_extents != -1);
 
 	mutex_lock(&ni->extent_lock);
 	base_ni = ni->ext.base_ntfs_ino;
 	mutex_unlock(&ni->extent_lock);
 
-	BUG_ON(base_ni->nr_extents <= 0);
+	_ON(base_ni->nr_extents <= 0);
 
-	ntfs_debug("Entering for extent inode 0x%lx, base inode 0x%lx.\n",
+	ntfs_de("Entering for extent inode 0x%lx, base inode 0x%lx.\n",
 			mft_no, base_ni->mft_no);
 
 	mutex_lock(&base_ni->extent_lock);
@@ -2836,7 +2836,7 @@ int ntfs_extent_mft_record_free(ntfs_inode *ni, MFT_RECORD *m)
 		ntfs_error(vol->sb, "Extent inode 0x%lx is not attached to "
 				"its base inode 0x%lx.", mft_no,
 				base_ni->mft_no);
-		BUG();
+		();
 	}
 
 	/*
@@ -2903,7 +2903,7 @@ rollback:
 			goto rollback_error;
 		}
 		if (base_ni->nr_extents) {
-			BUG_ON(!base_ni->ext.extent_ntfs_inos);
+			_ON(!base_ni->ext.extent_ntfs_inos);
 			memcpy(extent_nis, base_ni->ext.extent_ntfs_inos,
 					new_size - 4 * sizeof(ntfs_inode*));
 			kfree(base_ni->ext.extent_ntfs_inos);

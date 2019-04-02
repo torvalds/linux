@@ -8,7 +8,7 @@
  */
 #include <linux/vmalloc.h>
 #include <linux/kvm_host.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/list.h>
 #include <linux/bitmap.h>
 #include <linux/sched/signal.h>
@@ -1288,7 +1288,7 @@ int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	BUILD_BUG_ON(sizeof(struct vsie_page) != PAGE_SIZE);
+	BUILD__ON(sizeof(struct vsie_page) != PAGE_SIZE);
 	scb_addr = kvm_s390_get_base_disp_s(vcpu, NULL);
 
 	/* 512 byte alignment */

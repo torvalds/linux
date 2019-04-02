@@ -151,8 +151,8 @@ struct nested_vmx {
 	struct hrtimer preemption_timer;
 	bool preemption_timer_expired;
 
-	/* to migrate it to L2 if VM_ENTRY_LOAD_DEBUG_CONTROLS is off */
-	u64 vmcs01_debugctl;
+	/* to migrate it to L2 if VM_ENTRY_LOAD_DE_CONTROLS is off */
+	u64 vmcs01_dectl;
 	u64 vmcs01_guest_bndcfgs;
 
 	u16 vpid02;
@@ -255,7 +255,7 @@ struct vcpu_vmx {
 
 	u32 host_pkru;
 
-	unsigned long host_debugctlmsr;
+	unsigned long host_dectlmsr;
 
 	/*
 	 * Only bits masked by msr_ia32_feature_control_valid_bits can be set in

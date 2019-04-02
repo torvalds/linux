@@ -235,7 +235,7 @@ int hw_sm750_crtc_checkMode(struct lynxfb_crtc *crtc,
 		break;
 	case 32:
 		if (sm750_dev->revid == SM750LE_REVISION_ID) {
-			pr_debug("750le do not support 32bpp\n");
+			pr_de("750le do not support 32bpp\n");
 			return -EINVAL;
 		}
 		break;
@@ -304,7 +304,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	else
 		clock = SECONDARY_PLL;
 
-	pr_debug("Request pixel clock = %lu\n", modparm.pixel_clock);
+	pr_de("Request pixel clock = %lu\n", modparm.pixel_clock);
 	ret = ddk750_setModeTiming(&modparm, clock);
 	if (ret) {
 		pr_err("Set mode timing failed\n");
@@ -433,12 +433,12 @@ int hw_sm750_setBLANK(struct lynxfb_output *output, int blank)
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-		pr_debug("flag = FB_BLANK_UNBLANK\n");
+		pr_de("flag = FB_BLANK_UNBLANK\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		pps = PANEL_DISPLAY_CTRL_DATA;
 		break;
 	case FB_BLANK_NORMAL:
-		pr_debug("flag = FB_BLANK_NORMAL\n");
+		pr_de("flag = FB_BLANK_NORMAL\n");
 		dpms = SYSTEM_CTRL_DPMS_VPHP;
 		crtdb = CRT_DISPLAY_CTRL_BLANK;
 		break;

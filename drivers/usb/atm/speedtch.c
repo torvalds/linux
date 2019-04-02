@@ -491,7 +491,7 @@ static void speedtch_check_status(struct work_struct *work)
 	int down_speed, up_speed, ret;
 	unsigned char status;
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	atm_dbg(usbatm, "%s entered\n", __func__);
 #endif
 

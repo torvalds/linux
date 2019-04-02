@@ -119,7 +119,7 @@ static int	oopscount;
 
 const char *pstore_type_to_name(enum pstore_type_id type)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(pstore_type_names) != PSTORE_TYPE_MAX);
+	BUILD__ON(ARRAY_SIZE(pstore_type_names) != PSTORE_TYPE_MAX);
 
 	if (WARN_ON_ONCE(type >= PSTORE_TYPE_MAX))
 		return "unknown";

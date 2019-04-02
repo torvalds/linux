@@ -392,13 +392,13 @@ static __u8 __detect_linklayer(struct tc_ratespec *r, __u32 *rtab)
 
 	/* rtab is too inaccurate at rates > 100Mbit/s */
 	if ((r->rate > (100000000/8)) || (rtab[0] == 0)) {
-		pr_debug("TC linklayer: Giving up ATM detection\n");
+		pr_de("TC linklayer: Giving up ATM detection\n");
 		return TC_LINKLAYER_ETHERNET;
 	}
 
 	if ((cell_high > cell_low) && (cell_high < 256)
 	    && (rtab[cell_low] == rtab[cell_high])) {
-		pr_debug("TC linklayer: Detected ATM, low(%d)=high(%d)=%u\n",
+		pr_de("TC linklayer: Detected ATM, low(%d)=high(%d)=%u\n",
 			 cell_low, cell_high, rtab[cell_high]);
 		return TC_LINKLAYER_ATM;
 	}

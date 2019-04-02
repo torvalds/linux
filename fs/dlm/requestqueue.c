@@ -94,7 +94,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 		kfree(e);
 
 		if (dlm_locking_stopped(ls)) {
-			log_debug(ls, "process_requestqueue abort running");
+			log_de(ls, "process_requestqueue abort running");
 			mutex_unlock(&ls->ls_requestqueue_mutex);
 			error = -EINTR;
 			break;

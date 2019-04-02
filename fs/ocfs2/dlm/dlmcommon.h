@@ -157,8 +157,8 @@ struct dlm_ctxt
 	atomic_t res_tot_count;
 	atomic_t res_cur_count;
 
-	struct dlm_debug_ctxt *dlm_debug_ctxt;
-	struct dentry *dlm_debugfs_subroot;
+	struct dlm_de_ctxt *dlm_de_ctxt;
+	struct dentry *dlm_defs_subroot;
 
 	/* NOTE: Next three are protected by dlm_domain_lock */
 	struct kref dlm_refs;
@@ -416,7 +416,7 @@ dlm_list_idx_to_ptr(struct dlm_lock_resource *res, enum dlm_lockres_list idx)
 	else if (idx == DLM_BLOCKED_LIST)
 		ret = &res->blocked;
 	else
-		BUG();
+		();
 	return ret;
 }
 

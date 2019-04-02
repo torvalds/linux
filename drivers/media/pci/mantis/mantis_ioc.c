@@ -80,14 +80,14 @@ void mantis_gpio_set_bits(struct mantis_pci *mantis, u32 bitpos, u8 value)
 {
 	u32 cur;
 
-	dprintk(MANTIS_DEBUG, 1, "Set Bit <%d> to <%d>", bitpos, value);
+	dprintk(MANTIS_DE, 1, "Set Bit <%d> to <%d>", bitpos, value);
 	cur = mmread(MANTIS_GPIF_ADDR);
 	if (value)
 		mantis->gpio_status = cur | (1 << bitpos);
 	else
 		mantis->gpio_status = cur & (~(1 << bitpos));
 
-	dprintk(MANTIS_DEBUG, 1, "GPIO Value <%02x>", mantis->gpio_status);
+	dprintk(MANTIS_DE, 1, "GPIO Value <%02x>", mantis->gpio_status);
 	mmwrite(mantis->gpio_status, MANTIS_GPIF_ADDR);
 	mmwrite(0x00, MANTIS_GPIF_DOUT);
 }
@@ -100,7 +100,7 @@ int mantis_stream_control(struct mantis_pci *mantis, enum mantis_stream_control 
 	reg = mmread(MANTIS_CONTROL);
 	switch (stream_ctl) {
 	case STREAM_TO_HIF:
-		dprintk(MANTIS_DEBUG, 1, "Set stream to HIF");
+		dprintk(MANTIS_DE, 1, "Set stream to HIF");
 		reg &= 0xff - MANTIS_BYPASS;
 		mmwrite(reg, MANTIS_CONTROL);
 		reg |= MANTIS_BYPASS;
@@ -108,7 +108,7 @@ int mantis_stream_control(struct mantis_pci *mantis, enum mantis_stream_control 
 		break;
 
 	case STREAM_TO_CAM:
-		dprintk(MANTIS_DEBUG, 1, "Set stream to CAM");
+		dprintk(MANTIS_DE, 1, "Set stream to CAM");
 		reg |= MANTIS_BYPASS;
 		mmwrite(reg, MANTIS_CONTROL);
 		reg &= 0xff - MANTIS_BYPASS;

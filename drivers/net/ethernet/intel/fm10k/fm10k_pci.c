@@ -2160,7 +2160,7 @@ static int fm10k_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_sw_init;
 
-	/* enable debugfs support */
+	/* enable defs support */
 	fm10k_dbg_intfc_init(interface);
 
 	err = fm10k_init_queueing_scheme(interface);
@@ -2272,7 +2272,7 @@ static void fm10k_remove(struct pci_dev *pdev)
 	/* free interrupts */
 	fm10k_clear_queueing_scheme(interface);
 
-	/* remove any debugfs interfaces */
+	/* remove any defs interfaces */
 	fm10k_dbg_intfc_exit(interface);
 
 	if (interface->sw_addr)

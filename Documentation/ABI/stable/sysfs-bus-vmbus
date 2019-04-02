@@ -61,84 +61,84 @@ Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	VCPU (sub)channel is affinitized to
-Users:		tools/hv/lsvmbus and other debugging tools
+Users:		tools/hv/lsvmbus and other deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/cpu
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	VCPU (sub)channel is affinitized to
-Users:		tools/hv/lsvmbus and other debugging tools
+Users:		tools/hv/lsvmbus and other deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/in_mask
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Host to guest channel interrupt mask
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/latency
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Channel signaling latency
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/out_mask
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Guest to host channel interrupt mask
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/pending
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Channel interrupt pending state
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/read_avail
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Bytes available to read
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/write_avail
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Bytes available to write
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/events
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Number of times we have signaled the host
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/interrupts
 Date:		September. 2017
 KernelVersion:	4.14
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Number of times we have taken an interrupt (incoming)
-Users:		Debugging tools
+Users:		Deging tools
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/subchannel_id
 Date:		January. 2018
 KernelVersion:	4.16
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Subchannel ID associated with VMBUS channel
-Users:		Debugging tools and userspace drivers
+Users:		Deging tools and userspace drivers
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/monitor_id
 Date:		January. 2018
 KernelVersion:	4.16
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
 Description:	Monitor bit associated with channel
-Users:		Debugging tools and userspace drivers
+Users:		Deging tools and userspace drivers
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/ring
 Date:		January. 2018
@@ -154,7 +154,7 @@ Contact:        Michael Kelley <mikelley@microsoft.com>
 Description:    Number of guest to host interrupts caused by the inbound ring
 		buffer transitioning from full to not full while a packet is
 		waiting for buffer space to become available
-Users:          Debugging tools
+Users:          Deging tools
 
 What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/intr_out_empty
 Date:           February 2019
@@ -162,7 +162,7 @@ KernelVersion:  5.0
 Contact:        Michael Kelley <mikelley@microsoft.com>
 Description:    Number of guest to host interrupts caused by the outbound ring
 		buffer transitioning from empty to not empty
-Users:          Debugging tools
+Users:          Deging tools
 
 What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_first
 Date:           February 2019
@@ -170,7 +170,7 @@ KernelVersion:  5.0
 Contact:        Michael Kelley <mikelley@microsoft.com>
 Description:    Number of write operations that were the first to encounter an
 		outbound ring buffer full condition
-Users:          Debugging tools
+Users:          Deging tools
 
 What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_total
 Date:           February 2019
@@ -178,4 +178,4 @@ KernelVersion:  5.0
 Contact:        Michael Kelley <mikelley@microsoft.com>
 Description:    Total number of write operations that encountered an outbound
 		ring buffer full condition
-Users:          Debugging tools
+Users:          Deging tools

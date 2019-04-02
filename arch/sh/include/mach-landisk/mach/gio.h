@@ -29,7 +29,7 @@
 #define GIODRV_IOCSGIODATA4   _IOW(GIODRV_IOC_MAGIC,  5, unsigned long *)
 #define GIODRV_IOCGGIODATA4   _IOR(GIODRV_IOC_MAGIC,  6, unsigned long *)
 #define GIODRV_IOCSGIOSETADDR _IOW(GIODRV_IOC_MAGIC,  7, unsigned long *)
-#define GIODRV_IOCHARDRESET   _IO(GIODRV_IOC_MAGIC, 8) /* debugging tool */
+#define GIODRV_IOCHARDRESET   _IO(GIODRV_IOC_MAGIC, 8) /* deging tool */
 #define GIODRV_IOC_MAXNR 8
 
 #define GIO_READ 0x00000000

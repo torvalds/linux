@@ -130,7 +130,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 	} else {		/* Make BASE, EXP and MOD not overlap with RES.  */
 		if (rp == bp) {
 			/* RES and BASE are identical.  Allocate temp. space for BASE.  */
-			BUG_ON(bp_marker);
+			_ON(bp_marker);
 			bp = bp_marker = mpi_alloc_limb_space(bsize);
 			if (!bp)
 				goto enomem;
@@ -145,7 +145,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 		}
 		if (rp == mp) {
 			/* RES and MOD are identical.  Allocate temporary space for MOD. */
-			BUG_ON(mp_marker);
+			_ON(mp_marker);
 			mp = mp_marker = mpi_alloc_limb_space(msize);
 			if (!mp)
 				goto enomem;

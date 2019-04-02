@@ -855,7 +855,7 @@ isif_config_dfc(struct vpfe_isif_device *isif, struct vpfe_isif_dfc *vdfc)
 
 	val = isif_read(isif->isif_cfg.base_addr, DFCMEMCTL);
 	if (!count) {
-		pr_debug("defect table write timeout !!\n");
+		pr_de("defect table write timeout !!\n");
 		return;
 	}
 
@@ -888,7 +888,7 @@ isif_config_dfc(struct vpfe_isif_device *isif, struct vpfe_isif_dfc *vdfc)
 
 		val = isif_read(isif->isif_cfg.base_addr, DFCMEMCTL);
 		if (!count) {
-			pr_debug("defect table write timeout !!\n");
+			pr_de("defect table write timeout !!\n");
 			return;
 		}
 	}
@@ -915,7 +915,7 @@ isif_config_dfc(struct vpfe_isif_device *isif, struct vpfe_isif_dfc *vdfc)
 			count--;
 		val = isif_read(isif->isif_cfg.base_addr, DFCMEMCTL);
 		if (!count) {
-			pr_debug("defect table write timeout !!\n");
+			pr_de("defect table write timeout !!\n");
 			return;
 		}
 		isif_write(isif->isif_cfg.base_addr,
@@ -1090,7 +1090,7 @@ static int isif_config_raw(struct v4l2_subdev *sd, int mode)
 
 	pix_fmt = isif_get_pix_fmt(format->code);
 	if (pix_fmt < 0) {
-		pr_debug("Invalid pix_fmt(input mode)\n");
+		pr_de("Invalid pix_fmt(input mode)\n");
 		return -EINVAL;
 	}
 	/*
@@ -1234,7 +1234,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 	modeset = 0;
 	pix_fmt = isif_get_pix_fmt(format->code);
 	if (pix_fmt < 0) {
-		pr_debug("Invalid pix_fmt(input mode)\n");
+		pr_de("Invalid pix_fmt(input mode)\n");
 		return -EINVAL;
 	}
 	/* configure pixel format or input mode */
@@ -1249,7 +1249,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_8BIT) {
-			pr_debug("Invalid pix_fmt(input mode)\n");
+			pr_de("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
 		}
 		modeset |= ((VPFE_PINPOL_NEGATIVE & ISIF_VD_POL_MASK) <<
@@ -1260,7 +1260,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 
 	case MEDIA_BUS_FMT_YUYV10_2X10:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_8BIT) {
-			pr_debug("Invalid pix_fmt(input mode)\n");
+			pr_de("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
 		}
 		/* setup BT.656, embedded sync  */
@@ -1272,7 +1272,7 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 
 	case MEDIA_BUS_FMT_YUYV10_1X20:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_16BIT) {
-			pr_debug("Invalid pix_fmt(input mode)\n");
+			pr_de("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
 		}
 		isif_write(isif->isif_cfg.base_addr, 3, REC656IF);
@@ -1282,21 +1282,21 @@ static int isif_config_ycbcr(struct v4l2_subdev *sd, int mode)
 		ccdcfg |= ISIF_PACK_8BIT;
 		ccdcfg |= ISIF_YCINSWP_YCBCR;
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_8BIT) {
-			pr_debug("Invalid pix_fmt(input mode)\n");
+			pr_de("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
 		}
 		break;
 
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 		if (pix_fmt != ISIF_PIXFMT_YCBCR_16BIT) {
-			pr_debug("Invalid pix_fmt(input mode)\n");
+			pr_de("Invalid pix_fmt(input mode)\n");
 			return -EINVAL;
 		}
 		break;
 
 	default:
 		/* should never come here */
-		pr_debug("Invalid interface type\n");
+		pr_de("Invalid interface type\n");
 		return -EINVAL;
 	}
 	isif_write(isif->isif_cfg.base_addr, modeset, MODESET);

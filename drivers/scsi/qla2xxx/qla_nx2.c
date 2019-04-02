@@ -3284,11 +3284,11 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 	num_entry_hdr = tmplt_hdr->num_of_entries;
 
 	ql_dbg(ql_dbg_p3p, vha, 0xb11a,
-	    "Capture Mask obtained: 0x%x\n", tmplt_hdr->capture_debug_level);
+	    "Capture Mask obtained: 0x%x\n", tmplt_hdr->capture_de_level);
 
-	f_capture_mask = tmplt_hdr->capture_debug_level & 0xFF;
+	f_capture_mask = tmplt_hdr->capture_de_level & 0xFF;
 
-	/* Validate whether required debug level is set */
+	/* Validate whether required de level is set */
 	if ((f_capture_mask & 0x3) != 0x3) {
 		ql_log(ql_log_warn, vha, 0xb10f,
 		    "Minimum required capture mask[0x%x] level not set\n",
@@ -3339,7 +3339,7 @@ qla8044_collect_md_data(struct scsi_qla_host *vha)
 		    (ha->md_dump_size - data_collected));
 
 		/* Decode the entry type and take required action to capture
-		 * debug data
+		 * de data
 		 */
 		switch (entry_hdr->entry_type) {
 		case QLA82XX_RDEND:

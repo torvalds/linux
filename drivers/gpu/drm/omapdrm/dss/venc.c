@@ -327,7 +327,7 @@ struct venc_device {
 	struct regulator *vdda_dac_reg;
 	struct dss_device *dss;
 
-	struct dss_debugfs_entry *debugfs;
+	struct dss_defs_entry *defs;
 
 	struct clk	*tv_dac_clk;
 
@@ -426,7 +426,7 @@ static void venc_reset(struct venc_device *venc)
 
 #ifdef CONFIG_OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 	/* the magical sleep that makes things work */
-	/* XXX more info? What bug this circumvents? */
+	/* XXX more info? What  this circumvents? */
 	msleep(20);
 #endif
 }
@@ -747,7 +747,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 
 	venc_runtime_put(venc);
 
-	venc->debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
+	venc->defs = dss_defs_create_file(dss, "venc", venc_dump_regs,
 						venc);
 
 	return 0;
@@ -757,7 +757,7 @@ static void venc_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct venc_device *venc = dev_get_drvdata(dev);
 
-	dss_debugfs_remove_file(venc->debugfs);
+	dss_defs_remove_file(venc->defs);
 }
 
 static const struct component_ops venc_component_ops = {

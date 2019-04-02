@@ -175,12 +175,12 @@ static int __gdth_queuecommand(gdth_ha_str *ha, struct scsi_cmnd *scp,
 				struct gdth_cmndinfo *cmndinfo);
 static void gdth_scsi_done(struct scsi_cmnd *scp);
 
-#ifdef DEBUG_GDTH
-static u8   DebugState = DEBUG_GDTH;
-#define TRACE(a)    {if (DebugState==1) {printk a;}}
-#define TRACE2(a)   {if (DebugState==1 || DebugState==2) {printk a;}}
-#define TRACE3(a)   {if (DebugState!=0) {printk a;}}
-#else /* !DEBUG */
+#ifdef DE_GDTH
+static u8   DeState = DE_GDTH;
+#define TRACE(a)    {if (DeState==1) {printk a;}}
+#define TRACE2(a)   {if (DeState==1 || DeState==2) {printk a;}}
+#define TRACE3(a)   {if (DeState!=0) {printk a;}}
+#else /* !DE */
 #define TRACE(a)
 #define TRACE2(a)
 #define TRACE3(a)
@@ -312,7 +312,7 @@ static struct gdth_cmndinfo *gdth_get_cmndinfo(gdth_ha_str *ha)
 
 static void gdth_put_cmndinfo(struct gdth_cmndinfo *priv)
 {
-	BUG_ON(!priv);
+	_ON(!priv);
 	priv->index = 0;
 }
 
@@ -3406,7 +3406,7 @@ static int gdth_queuecommand_lck(struct scsi_cmnd *scp,
     TRACE(("gdth_queuecommand() cmd 0x%x\n", scp->cmnd[0]));
 
     cmndinfo = gdth_get_cmndinfo(ha);
-    BUG_ON(!cmndinfo);
+    _ON(!cmndinfo);
 
     scp->scsi_done = done;
     cmndinfo->timeout_count = 0;

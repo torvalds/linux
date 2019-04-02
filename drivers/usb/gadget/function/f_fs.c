@@ -11,8 +11,8 @@
  */
 
 
-/* #define DEBUG */
-/* #define VERBOSE_DEBUG */
+/* #define DE */
+/* #define VERBOSE_DE */
 
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
@@ -287,7 +287,7 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 	/*
 	 * UDC layer requires to provide a buffer even for ZLP, but should
 	 * not use it at all. Let's provide some poisoned pointer to catch
-	 * possible bug in the driver.
+	 * possible  in the driver.
 	 */
 	if (req->buf == NULL)
 		req->buf = (void *)0xDEADBABE;
@@ -311,12 +311,12 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 static int __ffs_ep0_stall(struct ffs_data *ffs)
 {
 	if (ffs->ev.can_stall) {
-		pr_vdebug("ep0 stall\n");
+		pr_vde("ep0 stall\n");
 		usb_ep_set_halt(ffs->gadget->ep0);
 		ffs->setup_state = FFS_NO_SETUP;
 		return -EL2HLT;
 	} else {
-		pr_debug("bogus ep0 stall!\n");
+		pr_de("bogus ep0 stall!\n");
 		return -ESRCH;
 	}
 }
@@ -1703,7 +1703,7 @@ static void ffs_data_put(struct ffs_data *ffs)
 	if (unlikely(refcount_dec_and_test(&ffs->ref))) {
 		pr_info("%s(): freeing\n", __func__);
 		ffs_data_clear(ffs);
-		BUG_ON(waitqueue_active(&ffs->ev.waitq) ||
+		_ON(waitqueue_active(&ffs->ev.waitq) ||
 		       waitqueue_active(&ffs->ep0req_completion.wait) ||
 		       waitqueue_active(&ffs->wait));
 		destroy_workqueue(ffs->io_completion_wq);
@@ -1774,7 +1774,7 @@ static void ffs_data_clear(struct ffs_data *ffs)
 
 	ffs_closed(ffs);
 
-	BUG_ON(ffs->gadget);
+	_ON(ffs->gadget);
 
 	if (ffs->epfiles)
 		ffs_epfiles_destroy(ffs->epfiles, ffs->eps_count);
@@ -1905,7 +1905,7 @@ static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count)
 	ENTER();
 
 	for (; count; --count, ++epfile) {
-		BUG_ON(mutex_is_locked(&epfile->mutex));
+		_ON(mutex_is_locked(&epfile->mutex));
 		if (epfile->dentry) {
 			d_delete(epfile->dentry);
 			dput(epfile->dentry);
@@ -2017,14 +2017,14 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 
 	/* At least two bytes are required: length and type */
 	if (len < 2) {
-		pr_vdebug("descriptor too short\n");
+		pr_vde("descriptor too short\n");
 		return -EINVAL;
 	}
 
 	/* If we have at least as many bytes as the descriptor takes? */
 	length = _ds->bLength;
 	if (len < length) {
-		pr_vdebug("descriptor longer then available data\n");
+		pr_vde("descriptor longer then available data\n");
 		return -EINVAL;
 	}
 
@@ -2032,14 +2032,14 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 #define __entity_check_STRING(val)     (val)
 #define __entity_check_ENDPOINT(val)   ((val) & USB_ENDPOINT_NUMBER_MASK)
 #define __entity(type, val) do {					\
-		pr_vdebug("entity " #type "(%02x)\n", (val));		\
+		pr_vde("entity " #type "(%02x)\n", (val));		\
 		if (unlikely(!__entity_check_ ##type(val))) {		\
-			pr_vdebug("invalid entity's value\n");		\
+			pr_vde("invalid entity's value\n");		\
 			return -EINVAL;					\
 		}							\
 		ret = entity(FFS_ ##type, &val, _ds, priv);		\
 		if (unlikely(ret < 0)) {				\
-			pr_debug("entity " #type "(%02x); ret = %d\n",	\
+			pr_de("entity " #type "(%02x); ret = %d\n",	\
 				 (val), ret);				\
 			return ret;					\
 		}							\
@@ -2052,13 +2052,13 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 	case USB_DT_STRING:
 	case USB_DT_DEVICE_QUALIFIER:
 		/* function can't have any of those */
-		pr_vdebug("descriptor reserved for gadget: %d\n",
+		pr_vde("descriptor reserved for gadget: %d\n",
 		      _ds->bDescriptorType);
 		return -EINVAL;
 
 	case USB_DT_INTERFACE: {
 		struct usb_interface_descriptor *ds = (void *)_ds;
-		pr_vdebug("interface descriptor\n");
+		pr_vde("interface descriptor\n");
 		if (length != sizeof *ds)
 			goto inv_length;
 
@@ -2071,7 +2071,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 
 	case USB_DT_ENDPOINT: {
 		struct usb_endpoint_descriptor *ds = (void *)_ds;
-		pr_vdebug("endpoint descriptor\n");
+		pr_vde("endpoint descriptor\n");
 		if (length != USB_DT_ENDPOINT_SIZE &&
 		    length != USB_DT_ENDPOINT_AUDIO_SIZE)
 			goto inv_length;
@@ -2081,17 +2081,17 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 
 	case USB_TYPE_CLASS | 0x01:
                 if (*current_class == USB_INTERFACE_CLASS_HID) {
-			pr_vdebug("hid descriptor\n");
+			pr_vde("hid descriptor\n");
 			if (length != sizeof(struct hid_descriptor))
 				goto inv_length;
 			break;
 		} else if (*current_class == USB_INTERFACE_CLASS_CCID) {
-			pr_vdebug("ccid descriptor\n");
+			pr_vde("ccid descriptor\n");
 			if (length != sizeof(struct ccid_descriptor))
 				goto inv_length;
 			break;
 		} else {
-			pr_vdebug("unknown descriptor: %d for class %d\n",
+			pr_vde("unknown descriptor: %d for class %d\n",
 			      _ds->bDescriptorType, *current_class);
 			return -EINVAL;
 		}
@@ -2103,7 +2103,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 
 	case USB_DT_INTERFACE_ASSOCIATION: {
 		struct usb_interface_assoc_descriptor *ds = (void *)_ds;
-		pr_vdebug("interface association descriptor\n");
+		pr_vde("interface association descriptor\n");
 		if (length != sizeof *ds)
 			goto inv_length;
 		if (ds->iFunction)
@@ -2112,27 +2112,27 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 		break;
 
 	case USB_DT_SS_ENDPOINT_COMP:
-		pr_vdebug("EP SS companion descriptor\n");
+		pr_vde("EP SS companion descriptor\n");
 		if (length != sizeof(struct usb_ss_ep_comp_descriptor))
 			goto inv_length;
 		break;
 
 	case USB_DT_OTHER_SPEED_CONFIG:
 	case USB_DT_INTERFACE_POWER:
-	case USB_DT_DEBUG:
+	case USB_DT_DE:
 	case USB_DT_SECURITY:
 	case USB_DT_CS_RADIO_CONTROL:
 		/* TODO */
-		pr_vdebug("unimplemented descriptor: %d\n", _ds->bDescriptorType);
+		pr_vde("unimplemented descriptor: %d\n", _ds->bDescriptorType);
 		return -EINVAL;
 
 	default:
 		/* We should never be here */
-		pr_vdebug("unknown descriptor: %d\n", _ds->bDescriptorType);
+		pr_vde("unknown descriptor: %d\n", _ds->bDescriptorType);
 		return -EINVAL;
 
 inv_length:
-		pr_vdebug("invalid length: %d (descriptor %d)\n",
+		pr_vde("invalid length: %d (descriptor %d)\n",
 			  _ds->bLength, _ds->bDescriptorType);
 		return -EINVAL;
 	}
@@ -2164,7 +2164,7 @@ static int __must_check ffs_do_descs(unsigned count, char *data, unsigned len,
 		/* Record "descriptor" entity */
 		ret = entity(FFS_DESCRIPTOR, (u8 *)num, (void *)data, priv);
 		if (unlikely(ret < 0)) {
-			pr_debug("entity DESCRIPTOR(%02lx); ret = %d\n",
+			pr_de("entity DESCRIPTOR(%02lx); ret = %d\n",
 				 num, ret);
 			return ret;
 		}
@@ -2175,7 +2175,7 @@ static int __must_check ffs_do_descs(unsigned count, char *data, unsigned len,
 		ret = ffs_do_single_desc(data, len, entity, priv,
 			&current_class);
 		if (unlikely(ret < 0)) {
-			pr_debug("%s returns %d\n", __func__, ret);
+			pr_de("%s returns %d\n", __func__, ret);
 			return ret;
 		}
 
@@ -2242,7 +2242,7 @@ static int __ffs_do_os_desc_header(enum ffs_os_desc_type *next_type,
 	u16 w_index = le16_to_cpu(desc->wIndex);
 
 	if (bcd_version != 1) {
-		pr_vdebug("unsupported os descriptors version: %d",
+		pr_vde("unsupported os descriptors version: %d",
 			  bcd_version);
 		return -EINVAL;
 	}
@@ -2254,7 +2254,7 @@ static int __ffs_do_os_desc_header(enum ffs_os_desc_type *next_type,
 		*next_type = FFS_OS_DESC_EXT_PROP;
 		break;
 	default:
-		pr_vdebug("unsupported os descriptor type: %d", w_index);
+		pr_vde("unsupported os descriptor type: %d", w_index);
 		return -EINVAL;
 	}
 
@@ -2281,7 +2281,7 @@ static int __must_check ffs_do_single_os_desc(char *data, unsigned len,
 	while (feature_count--) {
 		ret = entity(type, h, data, len, priv);
 		if (unlikely(ret < 0)) {
-			pr_debug("bad OS descriptor, type: %d\n", type);
+			pr_de("bad OS descriptor, type: %d\n", type);
 			return ret;
 		}
 		data += ret;
@@ -2321,7 +2321,7 @@ static int __must_check ffs_do_os_descs(unsigned count,
 
 		ret = __ffs_do_os_desc_header(&type, desc);
 		if (unlikely(ret < 0)) {
-			pr_debug("entity OS_DESCRIPTOR(%02lx); ret = %d\n",
+			pr_de("entity OS_DESCRIPTOR(%02lx); ret = %d\n",
 				 num, ret);
 			return ret;
 		}
@@ -2342,7 +2342,7 @@ static int __must_check ffs_do_os_descs(unsigned count,
 		ret = ffs_do_single_os_desc(data, len, type,
 					    feature_count, entity, priv, desc);
 		if (unlikely(ret < 0)) {
-			pr_debug("%s returns %d\n", __func__, ret);
+			pr_de("%s returns %d\n", __func__, ret);
 			return ret;
 		}
 
@@ -2379,7 +2379,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 			 * values.  We fix it here to avoid returning EINVAL
 			 * in response to values we used to accept.
 			 */
-			pr_debug("usb_ext_compat_desc::Reserved1 forced to 1\n");
+			pr_de("usb_ext_compat_desc::Reserved1 forced to 1\n");
 			d->Reserved1 = 1;
 		}
 		for (i = 0; i < ARRAY_SIZE(d->Reserved2); ++i)
@@ -2402,19 +2402,19 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 		type = le32_to_cpu(d->dwPropertyDataType);
 		if (type < USB_EXT_PROP_UNICODE ||
 		    type > USB_EXT_PROP_UNICODE_MULTI) {
-			pr_vdebug("unsupported os descriptor property type: %d",
+			pr_vde("unsupported os descriptor property type: %d",
 				  type);
 			return -EINVAL;
 		}
 		pnl = le16_to_cpu(d->wPropertyNameLength);
 		if (length < 14 + pnl) {
-			pr_vdebug("invalid os descriptor length: %d pnl:%d (descriptor %d)\n",
+			pr_vde("invalid os descriptor length: %d pnl:%d (descriptor %d)\n",
 				  length, pnl, type);
 			return -EINVAL;
 		}
 		pdl = le32_to_cpu(*(__le32 *)((u8 *)data + 10 + pnl));
 		if (length != 14 + pnl + pdl) {
-			pr_vdebug("invalid os descriptor length: %d pnl:%d pdl:%d (descriptor %d)\n",
+			pr_vde("invalid os descriptor length: %d pnl:%d pdl:%d (descriptor %d)\n",
 				  length, pnl, pdl, type);
 			return -EINVAL;
 		}
@@ -2425,7 +2425,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 	}
 		break;
 	default:
-		pr_vdebug("unknown descriptor: %d\n", type);
+		pr_vde("unknown descriptor: %d\n", type);
 		return -EINVAL;
 	}
 	return length;
@@ -2755,11 +2755,11 @@ static void __ffs_event_add(struct ffs_data *ffs,
 			if ((*ev == rem_type1 || *ev == rem_type2) == neg)
 				*out++ = *ev;
 			else
-				pr_vdebug("purging event %d\n", *ev);
+				pr_vde("purging event %d\n", *ev);
 		ffs->ev.count = out - ffs->ev.types;
 	}
 
-	pr_vdebug("adding event %d\n", type);
+	pr_vde("adding event %d\n", type);
 	ffs->ev.types[ffs->ev.count++] = type;
 	wake_up_locked(&ffs->ev.waitq);
 	if (ffs->ffs_eventfd)
@@ -2856,7 +2856,7 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 		 * endpoint descriptors as if they were full speed.
 		 */
 		wMaxPacketSize = ds->wMaxPacketSize;
-		pr_vdebug("autoconfig\n");
+		pr_vde("autoconfig\n");
 		ep = usb_ep_autoconfig(func->gadget, ds);
 		if (unlikely(!ep))
 			return -ENOTSUPP;
@@ -2937,7 +2937,7 @@ static int __ffs_func_bind_do_nums(enum ffs_entity_type type, u8 *valuep,
 		break;
 	}
 
-	pr_vdebug("%02x -> %02x\n", *valuep, newValue);
+	pr_vde("%02x -> %02x\n", *valuep, newValue);
 	*valuep = newValue;
 	return 0;
 }
@@ -3015,7 +3015,7 @@ static int __ffs_func_bind_do_os_desc(enum ffs_os_desc_type type,
 	}
 		break;
 	default:
-		pr_vdebug("unknown descriptor: %d\n", type);
+		pr_vde("unknown descriptor: %d\n", type);
 	}
 
 	return length;
@@ -3312,11 +3312,11 @@ static int ffs_func_setup(struct usb_function *f,
 
 	ENTER();
 
-	pr_vdebug("creq->bRequestType = %02x\n", creq->bRequestType);
-	pr_vdebug("creq->bRequest     = %02x\n", creq->bRequest);
-	pr_vdebug("creq->wValue       = %04x\n", le16_to_cpu(creq->wValue));
-	pr_vdebug("creq->wIndex       = %04x\n", le16_to_cpu(creq->wIndex));
-	pr_vdebug("creq->wLength      = %04x\n", le16_to_cpu(creq->wLength));
+	pr_vde("creq->bRequestType = %02x\n", creq->bRequestType);
+	pr_vde("creq->bRequest     = %02x\n", creq->bRequest);
+	pr_vde("creq->wValue       = %04x\n", le16_to_cpu(creq->wValue));
+	pr_vde("creq->wIndex       = %04x\n", le16_to_cpu(creq->wIndex));
+	pr_vde("creq->wLength      = %04x\n", le16_to_cpu(creq->wLength));
 
 	/*
 	 * Most requests directed to interface go through here
@@ -3829,7 +3829,7 @@ static char *ffs_prepare_buffer(const char __user *buf, size_t len)
 		return ERR_PTR(-EFAULT);
 	}
 
-	pr_vdebug("Buffer from user space:\n");
+	pr_vde("Buffer from user space:\n");
 	ffs_dump_mem("", data, len);
 
 	return data;

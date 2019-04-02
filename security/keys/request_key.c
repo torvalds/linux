@@ -172,7 +172,7 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 	/* do it */
 	ret = call_usermodehelper_keys(request_key, argv, envp, keyring,
 				       UMH_WAIT_PROC);
-	kdebug("usermode -> 0x%x", ret);
+	kde("usermode -> 0x%x", ret);
 	if (ret >= 0) {
 		/* ret is the exit/wait code */
 		if (test_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags) ||
@@ -307,7 +307,7 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:
 		default:
-			BUG();
+			();
 		}
 
 		/*
@@ -474,7 +474,7 @@ static struct key *construct_key_and_link(struct keyring_search_context *ctx,
 		ret = construct_key(key, callout_info, callout_len, aux,
 				    dest_keyring);
 		if (ret < 0) {
-			kdebug("cons failed");
+			kde("cons failed");
 			goto construction_failed;
 		}
 	} else if (ret == -EINPROGRESS) {

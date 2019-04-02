@@ -9,4 +9,4 @@ amd-xgbe-objs := xgbe-main.o xgbe-drv.o xgbe-dev.o \
 
 amd-xgbe-$(CONFIG_PCI) += xgbe-pci.o
 amd-xgbe-$(CONFIG_AMD_XGBE_DCB) += xgbe-dcb.o
-amd-xgbe-$(CONFIG_DEBUG_FS) += xgbe-debugfs.o
+amd-xgbe-$(CONFIG_DE_FS) += xgbe-defs.o

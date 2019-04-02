@@ -191,7 +191,7 @@ static struct list_head *rds_ib_recv_cache_get(struct rds_ib_refill_cache *cache
 static void rds_ib_frag_free(struct rds_ib_connection *ic,
 			     struct rds_page_frag *frag)
 {
-	rdsdebug("frag %p page %p\n", frag, sg_page(&frag->f_sg));
+	rdsde("frag %p page %p\n", frag, sg_page(&frag->f_sg));
 
 	rds_ib_recv_cache_put(&frag->f_cache_entry, &ic->i_cache_frags);
 	atomic_add(RDS_FRAG_SIZE / SZ_1K, &ic->i_cache_allocs);
@@ -213,9 +213,9 @@ void rds_ib_inc_free(struct rds_incoming *inc)
 		list_del_init(&frag->f_item);
 		rds_ib_frag_free(ic, frag);
 	}
-	BUG_ON(!list_empty(&ibinc->ii_frags));
+	_ON(!list_empty(&ibinc->ii_frags));
 
-	rdsdebug("freeing ibinc %p inc %p\n", ibinc, inc);
+	rdsde("freeing ibinc %p inc %p\n", ibinc, inc);
 	rds_ib_recv_cache_put(&ibinc->ii_cache_entry, &ic->i_cache_incs);
 }
 
@@ -407,7 +407,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 			break;
 		}
 
-		rdsdebug("recv %p ibinc %p page %p addr %lu\n", recv,
+		rdsde("recv %p ibinc %p page %p addr %lu\n", recv,
 			 recv->r_ibinc, sg_page(&recv->r_frag->f_sg),
 			 (long)sg_dma_address(&recv->r_frag->f_sg));
 
@@ -650,7 +650,7 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 
 	seq = rds_ib_get_ack(ic);
 
-	rdsdebug("send_ack: ic %p ack %llu\n", ic, (unsigned long long) seq);
+	rdsde("send_ack: ic %p ack %llu\n", ic, (unsigned long long) seq);
 	rds_message_populate_header(hdr, 0, 0, 0);
 	hdr->h_ack = cpu_to_be64(seq);
 	hdr->h_credit = adv_credits;
@@ -793,7 +793,7 @@ static void rds_ib_cong_recv(struct rds_connection *conn,
 		unsigned int k;
 
 		to_copy = min(RDS_FRAG_SIZE - frag_off, PAGE_SIZE - map_off);
-		BUG_ON(to_copy & 7); /* Must be 64bit aligned. */
+		_ON(to_copy & 7); /* Must be 64bit aligned. */
 
 		addr = kmap_atomic(sg_page(&frag->f_sg));
 
@@ -839,7 +839,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 
 	/* XXX shut down the connection if port 0,0 are seen? */
 
-	rdsdebug("ic %p ibinc %p recv %p byte len %u\n", ic, ibinc, recv,
+	rdsde("ic %p ibinc %p recv %p byte len %u\n", ic, ibinc, recv,
 		 data_len);
 
 	if (data_len < sizeof(struct rds_header)) {
@@ -912,7 +912,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		ibinc->ii_inc.i_rx_lat_trace[RDS_MSG_RX_START] =
 				local_clock();
 
-		rdsdebug("ic %p ibinc %p rem %u flag 0x%x\n", ic, ibinc,
+		rdsde("ic %p ibinc %p rem %u flag 0x%x\n", ic, ibinc,
 			 ic->i_recv_data_rem, hdr->h_flags);
 	} else {
 		hdr = &ibinc->ii_inc.i_hdr;
@@ -965,7 +965,7 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	struct rds_connection *conn = ic->conn;
 	struct rds_ib_recv_work *recv;
 
-	rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
+	rdsde("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
 		 (unsigned long long)wc->wr_id, wc->status,
 		 ib_wc_status_msg(wc->status), wc->byte_len,
 		 be32_to_cpu(wc->ex.imm_data));
@@ -1020,7 +1020,7 @@ int rds_ib_recv_path(struct rds_conn_path *cp)
 	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	rdsdebug("conn %p\n", conn);
+	rdsde("conn %p\n", conn);
 	if (rds_conn_up(conn)) {
 		rds_ib_attempt_ack(ic);
 		rds_ib_recv_refill(conn, 0, GFP_KERNEL);

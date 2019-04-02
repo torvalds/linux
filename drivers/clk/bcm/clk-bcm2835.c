@@ -27,7 +27,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -127,8 +127,8 @@
 # define CM_SRC_MASK			0xf
 # define CM_SRC_GND			0
 # define CM_SRC_OSC			1
-# define CM_SRC_TESTDEBUG0		2
-# define CM_SRC_TESTDEBUG1		3
+# define CM_SRC_TESTDE0		2
+# define CM_SRC_TESTDE1		3
 # define CM_SRC_PLLA_CORE		4
 # define CM_SRC_PLLA_PER		4
 # define CM_SRC_PLLC_CORE0		5
@@ -384,11 +384,11 @@ out:
 	return count * 1000;
 }
 
-static void bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
-				  struct debugfs_reg32 *regs, size_t nregs,
+static void bcm2835_defs_regset(struct bcm2835_cprman *cprman, u32 base,
+				  struct defs_reg32 *regs, size_t nregs,
 				  struct dentry *dentry)
 {
-	struct debugfs_regset32 *regset;
+	struct defs_regset32 *regset;
 
 	regset = devm_kzalloc(cprman->dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -398,7 +398,7 @@ static void bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
 	regset->nregs = nregs;
 	regset->base = cprman->regs + base;
 
-	debugfs_create_regset32("regdump", S_IRUGO, dentry, regset);
+	defs_create_regset32("regdump", S_IRUGO, dentry, regset);
 }
 
 struct bcm2835_pll_data {
@@ -716,13 +716,13 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static void bcm2835_pll_debug_init(struct clk_hw *hw,
+static void bcm2835_pll_de_init(struct clk_hw *hw,
 				  struct dentry *dentry)
 {
 	struct bcm2835_pll *pll = container_of(hw, struct bcm2835_pll, hw);
 	struct bcm2835_cprman *cprman = pll->cprman;
 	const struct bcm2835_pll_data *data = pll->data;
-	struct debugfs_reg32 *regs;
+	struct defs_reg32 *regs;
 
 	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
@@ -743,7 +743,7 @@ static void bcm2835_pll_debug_init(struct clk_hw *hw,
 	regs[6].name = "ana3";
 	regs[6].offset = data->ana_reg_base + 3 * 4;
 
-	bcm2835_debugfs_regset(cprman, 0, regs, 7, dentry);
+	bcm2835_defs_regset(cprman, 0, regs, 7, dentry);
 }
 
 static const struct clk_ops bcm2835_pll_clk_ops = {
@@ -753,7 +753,7 @@ static const struct clk_ops bcm2835_pll_clk_ops = {
 	.recalc_rate = bcm2835_pll_get_rate,
 	.set_rate = bcm2835_pll_set_rate,
 	.round_rate = bcm2835_pll_round_rate,
-	.debug_init = bcm2835_pll_debug_init,
+	.de_init = bcm2835_pll_de_init,
 };
 
 struct bcm2835_pll_divider {
@@ -847,13 +847,13 @@ static int bcm2835_pll_divider_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static void bcm2835_pll_divider_debug_init(struct clk_hw *hw,
+static void bcm2835_pll_divider_de_init(struct clk_hw *hw,
 					   struct dentry *dentry)
 {
 	struct bcm2835_pll_divider *divider = bcm2835_pll_divider_from_hw(hw);
 	struct bcm2835_cprman *cprman = divider->cprman;
 	const struct bcm2835_pll_divider_data *data = divider->data;
-	struct debugfs_reg32 *regs;
+	struct defs_reg32 *regs;
 
 	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
@@ -864,7 +864,7 @@ static void bcm2835_pll_divider_debug_init(struct clk_hw *hw,
 	regs[1].name = "a2w";
 	regs[1].offset = data->a2w_reg;
 
-	bcm2835_debugfs_regset(cprman, 0, regs, 2, dentry);
+	bcm2835_defs_regset(cprman, 0, regs, 2, dentry);
 }
 
 static const struct clk_ops bcm2835_pll_divider_clk_ops = {
@@ -874,7 +874,7 @@ static const struct clk_ops bcm2835_pll_divider_clk_ops = {
 	.recalc_rate = bcm2835_pll_divider_get_rate,
 	.set_rate = bcm2835_pll_divider_set_rate,
 	.round_rate = bcm2835_pll_divider_round_rate,
-	.debug_init = bcm2835_pll_divider_debug_init,
+	.de_init = bcm2835_pll_divider_de_init,
 };
 
 /*
@@ -1032,7 +1032,7 @@ static int bcm2835_clock_on(struct clk_hw *hw)
 		     CM_GATE);
 	spin_unlock(&cprman->regs_lock);
 
-	/* Debug code to measure the clock once it's turned on to see
+	/* De code to measure the clock once it's turned on to see
 	 * if it's ticking at the rate we expect.
 	 */
 	if (data->tcnt_mux && false) {
@@ -1229,7 +1229,7 @@ static u8 bcm2835_clock_get_parent(struct clk_hw *hw)
 	return (src & CM_SRC_MASK) >> CM_SRC_SHIFT;
 }
 
-static struct debugfs_reg32 bcm2835_debugfs_clock_reg32[] = {
+static struct defs_reg32 bcm2835_defs_clock_reg32[] = {
 	{
 		.name = "ctl",
 		.offset = 0,
@@ -1240,16 +1240,16 @@ static struct debugfs_reg32 bcm2835_debugfs_clock_reg32[] = {
 	},
 };
 
-static void bcm2835_clock_debug_init(struct clk_hw *hw,
+static void bcm2835_clock_de_init(struct clk_hw *hw,
 				    struct dentry *dentry)
 {
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct bcm2835_cprman *cprman = clock->cprman;
 	const struct bcm2835_clock_data *data = clock->data;
 
-	bcm2835_debugfs_regset(cprman, data->ctl_reg,
-		bcm2835_debugfs_clock_reg32,
-		ARRAY_SIZE(bcm2835_debugfs_clock_reg32),
+	bcm2835_defs_regset(cprman, data->ctl_reg,
+		bcm2835_defs_clock_reg32,
+		ARRAY_SIZE(bcm2835_defs_clock_reg32),
 		dentry);
 }
 
@@ -1262,7 +1262,7 @@ static const struct clk_ops bcm2835_clock_clk_ops = {
 	.determine_rate = bcm2835_clock_determine_rate,
 	.set_parent = bcm2835_clock_set_parent,
 	.get_parent = bcm2835_clock_get_parent,
-	.debug_init = bcm2835_clock_debug_init,
+	.de_init = bcm2835_clock_de_init,
 };
 
 static int bcm2835_vpu_clock_is_on(struct clk_hw *hw)
@@ -1281,7 +1281,7 @@ static const struct clk_ops bcm2835_vpu_clock_clk_ops = {
 	.determine_rate = bcm2835_clock_determine_rate,
 	.set_parent = bcm2835_clock_set_parent,
 	.get_parent = bcm2835_clock_get_parent,
-	.debug_init = bcm2835_clock_debug_init,
+	.de_init = bcm2835_clock_de_init,
 };
 
 static struct clk_hw *bcm2835_register_pll(struct bcm2835_cprman *cprman,
@@ -1475,8 +1475,8 @@ struct bcm2835_clk_desc {
 static const char *const bcm2835_clock_osc_parents[] = {
 	"gnd",
 	"xosc",
-	"testdebug0",
-	"testdebug1"
+	"testde0",
+	"testde1"
 };
 
 #define REGISTER_OSC_CLK(...)	REGISTER_CLK(				\
@@ -1488,8 +1488,8 @@ static const char *const bcm2835_clock_osc_parents[] = {
 static const char *const bcm2835_clock_per_parents[] = {
 	"gnd",
 	"xosc",
-	"testdebug0",
-	"testdebug1",
+	"testde0",
+	"testde1",
 	"plla_per",
 	"pllc_per",
 	"plld_per",
@@ -1530,8 +1530,8 @@ static const char *const bcm2835_pcm_per_parents[] = {
 static const char *const bcm2835_clock_vpu_parents[] = {
 	"gnd",
 	"xosc",
-	"testdebug0",
-	"testdebug1",
+	"testde0",
+	"testde1",
 	"plla_core",
 	"pllc_core0",
 	"plld_core",
@@ -1553,8 +1553,8 @@ static const char *const bcm2835_clock_vpu_parents[] = {
 static const char *const bcm2835_clock_dsi0_parents[] = {
 	"gnd",
 	"xosc",
-	"testdebug0",
-	"testdebug1",
+	"testde0",
+	"testde1",
 	"dsi0_ddr",
 	"dsi0_ddr_inv",
 	"dsi0_ddr2",
@@ -1566,8 +1566,8 @@ static const char *const bcm2835_clock_dsi0_parents[] = {
 static const char *const bcm2835_clock_dsi1_parents[] = {
 	"gnd",
 	"xosc",
-	"testdebug0",
-	"testdebug1",
+	"testde0",
+	"testde1",
 	"dsi1_ddr",
 	"dsi1_ddr_inv",
 	"dsi1_ddr2",
@@ -2091,7 +2091,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 
 	/*
 	 * CM_PERIICTL (and CM_PERIACTL, CM_SYSCTL and CM_VPUCTL if
-	 * you have the debug bit set in the power manager, which we
+	 * you have the de bit set in the power manager, which we
 	 * don't bother exposing) are individual gates off of the
 	 * non-stop vpu clock.
 	 */

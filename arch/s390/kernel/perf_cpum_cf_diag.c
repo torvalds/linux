@@ -22,12 +22,12 @@
 #include <asm/irq.h>
 #include <asm/cpu_mcf.h>
 #include <asm/timex.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 #define	CF_DIAG_CTRSET_DEF		0xfeef	/* Counter set header mark */
 
 static unsigned int cf_diag_cpu_speed;
-static debug_info_t *cf_diag_dbg;
+static de_info_t *cf_diag_dbg;
 
 struct cf_diag_csd {		/* Counter set data per CPU */
 	size_t used;			/* Bytes used in data/start */
@@ -132,7 +132,7 @@ static void cf_diag_enable(struct pmu *pmu)
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 	int err;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s pmu %p cpu %d flags %#x state %#llx\n",
 			    __func__, pmu, smp_processor_id(), cpuhw->flags,
 			    cpuhw->state);
@@ -159,7 +159,7 @@ static void cf_diag_disable(struct pmu *pmu)
 	u64 inactive;
 	int err;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s pmu %p cpu %d flags %#x state %#llx\n",
 			    __func__, pmu, smp_processor_id(), cpuhw->flags,
 			    cpuhw->state);
@@ -182,7 +182,7 @@ static atomic_t cf_diag_events = ATOMIC_INIT(0);
 /* Release the PMU if event is the last perf event */
 static void cf_diag_perf_event_destroy(struct perf_event *event)
 {
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s event %p cpu %d cf_diag_events %d\n",
 			    __func__, event, event->cpu,
 			    atomic_read(&cf_diag_events));
@@ -201,7 +201,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	enum cpumf_ctr_set i;
 	int err = 0;
 
-	debug_sprintf_event(cf_diag_dbg, 5, "%s event %p cpu %d\n", __func__,
+	de_sprintf_event(cf_diag_dbg, 5, "%s event %p cpu %d\n", __func__,
 			    event, event->cpu);
 
 	event->hw.config = attr->config;
@@ -232,7 +232,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	local64_set(&event->hw.period_left, event->hw.sample_period);
 	event->hw.last_period  = event->hw.sample_period;
 out:
-	debug_sprintf_event(cf_diag_dbg, 5, "%s err %d config_base %#lx\n",
+	de_sprintf_event(cf_diag_dbg, 5, "%s err %d config_base %#lx\n",
 			    __func__, err, event->hw.config_base);
 	return err;
 }
@@ -242,7 +242,7 @@ static int cf_diag_event_init(struct perf_event *event)
 	struct perf_event_attr *attr = &event->attr;
 	int err = -ENOENT;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s event %p cpu %d config %#llx "
 			    "sample_type %#llx cf_diag_events %d\n", __func__,
 			    event, event->cpu, attr->config, attr->sample_type,
@@ -277,13 +277,13 @@ static int cf_diag_event_init(struct perf_event *event)
 	if (unlikely(err))
 		event->destroy(event);
 out:
-	debug_sprintf_event(cf_diag_dbg, 5, "%s err %d\n", __func__, err);
+	de_sprintf_event(cf_diag_dbg, 5, "%s err %d\n", __func__, err);
 	return err;
 }
 
 static void cf_diag_read(struct perf_event *event)
 {
-	debug_sprintf_event(cf_diag_dbg, 5, "%s event %p\n", __func__, event);
+	de_sprintf_event(cf_diag_dbg, 5, "%s event %p\n", __func__, event);
 }
 
 /* Return the maximum possible counter set size (in number of 8 byte counters)
@@ -343,7 +343,7 @@ static size_t cf_diag_ctrset_maxsize(struct cpumf_ctr_info *info)
 			max_size += size * sizeof(u64) +
 				    sizeof(struct cf_ctrset_entry);
 	}
-	debug_sprintf_event(cf_diag_dbg, 5, "%s max_size %zu\n", __func__,
+	de_sprintf_event(cf_diag_dbg, 5, "%s max_size %zu\n", __func__,
 			    max_size);
 
 	return max_size;
@@ -383,7 +383,7 @@ static size_t cf_diag_getctrset(struct cf_ctrset_entry *ctrdata, int ctrset,
 			need = 0;
 	}
 
-	debug_sprintf_event(cf_diag_dbg, 6,
+	de_sprintf_event(cf_diag_dbg, 6,
 			    "%s ctrset %d ctrset_size %zu cfvn %d csvn %d"
 			    " need %zd rc:%d\n",
 			    __func__, ctrset, ctrset_size, cpuhw->info.cfvn,
@@ -410,7 +410,7 @@ static size_t cf_diag_getctr(void *data, size_t sz, unsigned long auth)
 
 		done = cf_diag_getctrset(ctrdata, i, sz - offset);
 		offset += done;
-		debug_sprintf_event(cf_diag_dbg, 6,
+		de_sprintf_event(cf_diag_dbg, 6,
 				    "%s ctrset %d offset %zu done %zu\n",
 				     __func__, i, offset, done);
 	}
@@ -458,7 +458,7 @@ static int cf_diag_diffctr(struct cf_diag_csd *csd, unsigned long auth)
 			offset += ctrstart->ctr * sizeof(u64) +
 				  sizeof(*ctrstart);
 		}
-		debug_sprintf_event(cf_diag_dbg, 6,
+		de_sprintf_event(cf_diag_dbg, 6,
 				    "%s set %d ctr %d offset %zu auth %lx\n",
 				    __func__, ctrstart->set, ctrstart->ctr,
 				    offset, auth);
@@ -502,7 +502,7 @@ static int cf_diag_push_sample(struct perf_event *event,
 	}
 
 	overflow = perf_event_overflow(event, &data, &regs);
-	debug_sprintf_event(cf_diag_dbg, 6,
+	de_sprintf_event(cf_diag_dbg, 6,
 			    "%s event %p cpu %d sample_type %#llx raw %d "
 			    "ov %d\n", __func__, event, event->cpu,
 			    event->attr.sample_type, raw.size, overflow);
@@ -519,7 +519,7 @@ static void cf_diag_start(struct perf_event *event, int flags)
 	struct cf_diag_csd *csd = this_cpu_ptr(&cf_diag_csd);
 	struct hw_perf_event *hwc = &event->hw;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s event %p cpu %d flags %#x hwc-state %#x\n",
 			    __func__, event, event->cpu, flags, hwc->state);
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
@@ -542,7 +542,7 @@ static void cf_diag_stop(struct perf_event *event, int flags)
 	struct cf_diag_csd *csd = this_cpu_ptr(&cf_diag_csd);
 	struct hw_perf_event *hwc = &event->hw;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s event %p cpu %d flags %#x hwc-state %#x\n",
 			    __func__, event, event->cpu, flags, hwc->state);
 
@@ -561,7 +561,7 @@ static int cf_diag_add(struct perf_event *event, int flags)
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 	int err = 0;
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s event %p cpu %d flags %#x cpuhw:%p\n",
 			    __func__, event, event->cpu, flags, cpuhw);
 
@@ -576,7 +576,7 @@ static int cf_diag_add(struct perf_event *event, int flags)
 	if (flags & PERF_EF_START)
 		cf_diag_start(event, PERF_EF_RELOAD);
 out:
-	debug_sprintf_event(cf_diag_dbg, 5, "%s err %d\n", __func__, err);
+	de_sprintf_event(cf_diag_dbg, 5, "%s err %d\n", __func__, err);
 	return err;
 }
 
@@ -584,7 +584,7 @@ static void cf_diag_del(struct perf_event *event, int flags)
 {
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 
-	debug_sprintf_event(cf_diag_dbg, 5,
+	de_sprintf_event(cf_diag_dbg, 5,
 			    "%s event %p cpu %d flags %#x\n",
 			   __func__, event, event->cpu, flags);
 
@@ -681,17 +681,17 @@ static int __init cf_diag_init(void)
 	}
 
 	/* Setup s390dbf facility */
-	cf_diag_dbg = debug_register(KMSG_COMPONENT, 2, 1, 128);
+	cf_diag_dbg = de_register(KMSG_COMPONENT, 2, 1, 128);
 	if (!cf_diag_dbg) {
 		pr_err("Registration of s390dbf(cpum_cf_diag) failed\n");
 		return -ENOMEM;
 	}
-	debug_register_view(cf_diag_dbg, &debug_sprintf_view);
+	de_register_view(cf_diag_dbg, &de_sprintf_view);
 
 	rc = perf_pmu_register(&cf_diag, "cpum_cf_diag", PERF_TYPE_RAW);
 	if (rc) {
-		debug_unregister_view(cf_diag_dbg, &debug_sprintf_view);
-		debug_unregister(cf_diag_dbg);
+		de_unregister_view(cf_diag_dbg, &de_sprintf_view);
+		de_unregister(cf_diag_dbg);
 		pr_err("Registration of PMU(cpum_cf_diag) failed with rc=%i\n",
 		       rc);
 	}

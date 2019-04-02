@@ -25,7 +25,7 @@ static struct kmem_cache *iocontext_cachep;
  */
 void get_io_context(struct io_context *ioc)
 {
-	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
+	_ON(atomic_long_read(&ioc->refcount) <= 0);
 	atomic_long_inc(&ioc->refcount);
 }
 
@@ -140,7 +140,7 @@ void put_io_context(struct io_context *ioc)
 	if (ioc == NULL)
 		return;
 
-	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
+	_ON(atomic_long_read(&ioc->refcount) <= 0);
 
 	/*
 	 * Releasing ioc requires reverse order double locking and we may

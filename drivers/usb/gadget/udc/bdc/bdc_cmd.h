@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * bdc_cmd.h - header for the BDC debug functions
+ * bdc_cmd.h - header for the BDC de functions
  *
  * Copyright (C) 2014 Broadcom Corporation
  *

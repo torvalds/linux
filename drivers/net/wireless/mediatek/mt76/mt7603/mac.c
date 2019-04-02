@@ -1197,19 +1197,19 @@ static void mt7603_pse_reset(struct mt7603_dev *dev)
 {
 	/* Clear previous reset result */
 	if (!dev->reset_cause[RESET_CAUSE_RESET_FAILED])
-		mt76_clear(dev, MT_MCU_DEBUG_RESET, MT_MCU_DEBUG_RESET_PSE_S);
+		mt76_clear(dev, MT_MCU_DE_RESET, MT_MCU_DE_RESET_PSE_S);
 
 	/* Reset PSE */
-	mt76_set(dev, MT_MCU_DEBUG_RESET, MT_MCU_DEBUG_RESET_PSE);
+	mt76_set(dev, MT_MCU_DE_RESET, MT_MCU_DE_RESET_PSE);
 
-	if (!mt76_poll_msec(dev, MT_MCU_DEBUG_RESET,
-			    MT_MCU_DEBUG_RESET_PSE_S,
-			    MT_MCU_DEBUG_RESET_PSE_S, 500)) {
+	if (!mt76_poll_msec(dev, MT_MCU_DE_RESET,
+			    MT_MCU_DE_RESET_PSE_S,
+			    MT_MCU_DE_RESET_PSE_S, 500)) {
 		dev->reset_cause[RESET_CAUSE_RESET_FAILED]++;
-		mt76_clear(dev, MT_MCU_DEBUG_RESET, MT_MCU_DEBUG_RESET_PSE);
+		mt76_clear(dev, MT_MCU_DE_RESET, MT_MCU_DE_RESET_PSE);
 	} else {
 		dev->reset_cause[RESET_CAUSE_RESET_FAILED] = 0;
-		mt76_clear(dev, MT_MCU_DEBUG_RESET, MT_MCU_DEBUG_RESET_QUEUES);
+		mt76_clear(dev, MT_MCU_DE_RESET, MT_MCU_DE_RESET_QUEUES);
 	}
 
 	if (dev->reset_cause[RESET_CAUSE_RESET_FAILED] >= 3)
@@ -1364,24 +1364,24 @@ skip_dma_reset:
 	mt76_txq_schedule_all(&dev->mt76);
 }
 
-static u32 mt7603_dma_debug(struct mt7603_dev *dev, u8 index)
+static u32 mt7603_dma_de(struct mt7603_dev *dev, u8 index)
 {
 	u32 val;
 
-	mt76_wr(dev, MT_WPDMA_DEBUG,
-		FIELD_PREP(MT_WPDMA_DEBUG_IDX, index) |
-		MT_WPDMA_DEBUG_SEL);
+	mt76_wr(dev, MT_WPDMA_DE,
+		FIELD_PREP(MT_WPDMA_DE_IDX, index) |
+		MT_WPDMA_DE_SEL);
 
-	val = mt76_rr(dev, MT_WPDMA_DEBUG);
-	return FIELD_GET(MT_WPDMA_DEBUG_VALUE, val);
+	val = mt76_rr(dev, MT_WPDMA_DE);
+	return FIELD_GET(MT_WPDMA_DE_VALUE, val);
 }
 
 static bool mt7603_rx_fifo_busy(struct mt7603_dev *dev)
 {
 	if (is_mt7628(dev))
-		return mt7603_dma_debug(dev, 9) & BIT(9);
+		return mt7603_dma_de(dev, 9) & BIT(9);
 
-	return mt7603_dma_debug(dev, 2) & BIT(8);
+	return mt7603_dma_de(dev, 2) & BIT(8);
 }
 
 static bool mt7603_rx_dma_busy(struct mt7603_dev *dev)
@@ -1399,7 +1399,7 @@ static bool mt7603_tx_dma_busy(struct mt7603_dev *dev)
 	if (!(mt76_rr(dev, MT_WPDMA_GLO_CFG) & MT_WPDMA_GLO_CFG_TX_DMA_BUSY))
 		return false;
 
-	val = mt7603_dma_debug(dev, 9);
+	val = mt7603_dma_de(dev, 9);
 	return (val & BIT(8)) && (val & 0xf) != 0xf;
 }
 
@@ -1431,7 +1431,7 @@ static bool mt7603_rx_pse_busy(struct mt7603_dev *dev)
 {
 	u32 addr, val;
 
-	if (mt76_rr(dev, MT_MCU_DEBUG_RESET) & MT_MCU_DEBUG_RESET_QUEUES)
+	if (mt76_rr(dev, MT_MCU_DE_RESET) & MT_MCU_DE_RESET_QUEUES)
 		return true;
 
 	if (mt7603_rx_fifo_busy(dev))

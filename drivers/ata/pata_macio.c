@@ -8,8 +8,8 @@
  *
  */
 
-#undef DEBUG
-#undef DEBUG_DMA
+#undef DE
+#undef DE_DMA
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -35,12 +35,12 @@
 #include <asm/pmac_feature.h>
 #include <asm/mediabay.h>
 
-#ifdef DEBUG_DMA
+#ifdef DE_DMA
 #define dev_dbgdma(dev, format, arg...)		\
-	dev_printk(KERN_DEBUG , dev , format , ## arg)
+	dev_printk(KERN_DE , dev , format , ## arg)
 #else
 #define dev_dbgdma(dev, format, arg...)		\
-	({ if (0) dev_printk(KERN_DEBUG, dev, format, ##arg); 0; })
+	({ if (0) dev_printk(KERN_DE, dev, format, ##arg); 0; })
 #endif
 
 #define DRV_NAME	"pata_macio"
@@ -410,7 +410,7 @@ static void pata_macio_set_timings(struct ata_port *ap,
 			 adev->pio_mode);
 		t = pata_macio_find_timing(priv, XFER_PIO_0);
 	}
-	BUG_ON(t == NULL);
+	_ON(t == NULL);
 
 	/* PIO timings only ever use the first treg */
 	priv->treg[adev->devno][0] |= t->reg1;
@@ -421,7 +421,7 @@ static void pata_macio_set_timings(struct ata_port *ap,
 		dev_dbg(priv->dev, "DMA timing not set yet, using MW_DMA_0\n");
 		t = pata_macio_find_timing(priv, XFER_MW_DMA_0);
 	}
-	BUG_ON(t == NULL);
+	_ON(t == NULL);
 
 	/* DMA timings can use both tregs */
 	priv->treg[adev->devno][0] |= t->reg1;
@@ -539,7 +539,7 @@ static void pata_macio_qc_prep(struct ata_queued_cmd *qc)
 
 		while (sg_len) {
 			/* table overflow should never happen */
-			BUG_ON (pi++ >= MAX_DCMDS);
+			_ON (pi++ >= MAX_DCMDS);
 
 			len = (sg_len < MAX_DBDMA_SEG) ? sg_len : MAX_DBDMA_SEG;
 			table->command = cpu_to_le16(write ? OUTPUT_MORE: INPUT_MORE);
@@ -555,7 +555,7 @@ static void pata_macio_qc_prep(struct ata_queued_cmd *qc)
 	}
 
 	/* Should never happen according to Tejun */
-	BUG_ON(!pi);
+	_ON(!pi);
 
 	/* Convert the last command to an input/output */
 	table--;
@@ -834,7 +834,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 		 * to somewhat know what we are doing here (which is basically
 		 * to do the same Apple does and pray they did not get it wrong :-)
 		 */
-		BUG_ON(!priv->pdev);
+		_ON(!priv->pdev);
 		pci_write_config_byte(priv->pdev, PCI_CACHE_LINE_SIZE, 0x08);
 		pci_read_config_word(priv->pdev, PCI_COMMAND, &cmd);
 		pci_write_config_word(priv->pdev, PCI_COMMAND,

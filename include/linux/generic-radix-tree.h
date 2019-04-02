@@ -37,7 +37,7 @@
  */
 
 #include <asm/page.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
 
@@ -99,9 +99,9 @@ void __genradix_free(struct __genradix *);
 static inline size_t __idx_to_offset(size_t idx, size_t obj_size)
 {
 	if (__builtin_constant_p(obj_size))
-		BUILD_BUG_ON(obj_size > PAGE_SIZE);
+		BUILD__ON(obj_size > PAGE_SIZE);
 	else
-		BUG_ON(obj_size > PAGE_SIZE);
+		_ON(obj_size > PAGE_SIZE);
 
 	if (!is_power_of_2(obj_size)) {
 		size_t objs_per_page = PAGE_SIZE / obj_size;

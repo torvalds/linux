@@ -307,7 +307,7 @@ xpc_handle_notify_IRQ_sn2(int irq, void *dev_id)
 	short partid = (short)(u64)dev_id;
 	struct xpc_partition *part = &xpc_partitions[partid];
 
-	DBUG_ON(partid < 0 || partid >= XP_MAX_NPARTITIONS_SN2);
+	D_ON(partid < 0 || partid >= XP_MAX_NPARTITIONS_SN2);
 
 	if (xpc_part_ref(part)) {
 		xpc_check_for_sent_chctl_flags_sn2(part);
@@ -711,21 +711,21 @@ xpc_hb_allowed_sn2(short partid, void *heartbeating_to_mask)
 static void
 xpc_allow_hb_sn2(short partid)
 {
-	DBUG_ON(xpc_vars_sn2 == NULL);
+	D_ON(xpc_vars_sn2 == NULL);
 	set_bit(partid, xpc_vars_sn2->heartbeating_to_mask);
 }
 
 static void
 xpc_disallow_hb_sn2(short partid)
 {
-	DBUG_ON(xpc_vars_sn2 == NULL);
+	D_ON(xpc_vars_sn2 == NULL);
 	clear_bit(partid, xpc_vars_sn2->heartbeating_to_mask);
 }
 
 static void
 xpc_disallow_all_hbs_sn2(void)
 {
-	DBUG_ON(xpc_vars_sn2 == NULL);
+	D_ON(xpc_vars_sn2 == NULL);
 	bitmap_zero(xpc_vars_sn2->heartbeating_to_mask, xp_max_npartitions);
 }
 
@@ -752,7 +752,7 @@ xpc_online_heartbeat_sn2(void)
 static void
 xpc_heartbeat_init_sn2(void)
 {
-	DBUG_ON(xpc_vars_sn2 == NULL);
+	D_ON(xpc_vars_sn2 == NULL);
 
 	bitmap_zero(xpc_vars_sn2->heartbeating_to_mask, XP_MAX_NPARTITIONS_SN2);
 	xpc_online_heartbeat_sn2();
@@ -1055,15 +1055,15 @@ xpc_identify_activate_IRQ_req_sn2(int nasid)
 		return;
 	}
 
-	DBUG_ON(part->remote_rp_version == 0);
-	DBUG_ON(part_sn2->remote_vars_version == 0);
+	D_ON(part->remote_rp_version == 0);
+	D_ON(part_sn2->remote_vars_version == 0);
 
 	if (remote_rp_ts_jiffies != part->remote_rp_ts_jiffies) {
 
 		/* the other side rebooted */
 
-		DBUG_ON(xpc_partition_engaged_sn2(partid));
-		DBUG_ON(xpc_partition_deactivation_requested_sn2(partid));
+		D_ON(xpc_partition_engaged_sn2(partid));
+		D_ON(xpc_partition_deactivation_requested_sn2(partid));
 
 		xpc_update_partition_info_sn2(part, remote_rp_version,
 					      &remote_rp_ts_jiffies,
@@ -1323,9 +1323,9 @@ xpc_pull_remote_cachelines_sn2(struct xpc_partition *part, void *dst,
 {
 	enum xp_retval ret;
 
-	DBUG_ON(src_pa != L1_CACHE_ALIGN(src_pa));
-	DBUG_ON((unsigned long)dst != L1_CACHE_ALIGN((unsigned long)dst));
-	DBUG_ON(cnt != L1_CACHE_ALIGN(cnt));
+	D_ON(src_pa != L1_CACHE_ALIGN(src_pa));
+	D_ON((unsigned long)dst != L1_CACHE_ALIGN((unsigned long)dst));
+	D_ON(cnt != L1_CACHE_ALIGN(cnt));
 
 	if (part->act_state == XPC_P_AS_DEACTIVATING)
 		return part->reason;
@@ -1357,9 +1357,9 @@ xpc_pull_remote_vars_part_sn2(struct xpc_partition *part)
 
 	/* pull the cacheline that contains the variables we're interested in */
 
-	DBUG_ON(part_sn2->remote_vars_part_pa !=
+	D_ON(part_sn2->remote_vars_part_pa !=
 		L1_CACHE_ALIGN(part_sn2->remote_vars_part_pa));
-	DBUG_ON(sizeof(struct xpc_vars_part_sn2) != L1_CACHE_BYTES / 2);
+	D_ON(sizeof(struct xpc_vars_part_sn2) != L1_CACHE_BYTES / 2);
 
 	remote_entry_pa = part_sn2->remote_vars_part_pa +
 	    sn_partition_id * sizeof(struct xpc_vars_part_sn2);
@@ -1607,7 +1607,7 @@ xpc_allocate_remote_msgqueue_sn2(struct xpc_channel *ch)
 	int nentries;
 	size_t nbytes;
 
-	DBUG_ON(ch->remote_nentries <= 0);
+	D_ON(ch->remote_nentries <= 0);
 
 	for (nentries = ch->remote_nentries; nentries > 0; nentries--) {
 
@@ -1646,7 +1646,7 @@ xpc_setup_msg_structures_sn2(struct xpc_channel *ch)
 	struct xpc_channel_sn2 *ch_sn2 = &ch->sn.sn2;
 	enum xp_retval ret;
 
-	DBUG_ON(ch->flags & XPC_C_SETUP);
+	D_ON(ch->flags & XPC_C_SETUP);
 
 	ret = xpc_allocate_local_msgqueue_sn2(ch);
 	if (ret == xpSuccess) {
@@ -1724,7 +1724,7 @@ xpc_notify_senders_sn2(struct xpc_channel *ch, enum xp_retval reason, s64 put)
 			continue;
 		}
 
-		DBUG_ON(notify_type != XPC_N_CALL);
+		D_ON(notify_type != XPC_N_CALL);
 
 		atomic_dec(&ch->n_to_notify);
 
@@ -1764,7 +1764,7 @@ xpc_clear_local_msgqueue_flags_sn2(struct xpc_channel *ch)
 		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->local_msgqueue +
 					     (get % ch->local_nentries) *
 					     ch->entry_size);
-		DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
+		D_ON(!(msg->flags & XPC_M_SN2_READY));
 		msg->flags = 0;
 	} while (++get < ch_sn2->remote_GP.get);
 }
@@ -1788,9 +1788,9 @@ xpc_clear_remote_msgqueue_flags_sn2(struct xpc_channel *ch)
 		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->remote_msgqueue +
 					     (put % remote_nentries) *
 					     ch->entry_size);
-		DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
-		DBUG_ON(!(msg->flags & XPC_M_SN2_DONE));
-		DBUG_ON(msg->number != put - remote_nentries);
+		D_ON(!(msg->flags & XPC_M_SN2_READY));
+		D_ON(!(msg->flags & XPC_M_SN2_DONE));
+		D_ON(msg->number != put - remote_nentries);
 		msg->flags = 0;
 	} while (++put < ch_sn2->remote_GP.put);
 }
@@ -1926,7 +1926,7 @@ xpc_pull_remote_msg_sn2(struct xpc_channel *ch, s64 get)
 
 		msg_index = ch_sn2->next_msg_to_pull % ch->remote_nentries;
 
-		DBUG_ON(ch_sn2->next_msg_to_pull >= ch_sn2->w_remote_GP.put);
+		D_ON(ch_sn2->next_msg_to_pull >= ch_sn2->w_remote_GP.put);
 		nmsgs = ch_sn2->w_remote_GP.put - ch_sn2->next_msg_to_pull;
 		if (msg_index + nmsgs > ch->remote_nentries) {
 			/* ignore the ones that wrap the msg queue for now */
@@ -2004,9 +2004,9 @@ xpc_get_deliverable_payload_sn2(struct xpc_channel *ch)
 			msg = xpc_pull_remote_msg_sn2(ch, get);
 
 			if (msg != NULL) {
-				DBUG_ON(msg->number != get);
-				DBUG_ON(msg->flags & XPC_M_SN2_DONE);
-				DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
+				D_ON(msg->number != get);
+				D_ON(msg->flags & XPC_M_SN2_DONE);
+				D_ON(!(msg->flags & XPC_M_SN2_READY));
 
 				payload = &msg->payload;
 			}
@@ -2056,7 +2056,7 @@ xpc_send_msgs_sn2(struct xpc_channel *ch, s64 initial_put)
 		if (cmpxchg_rel(&ch_sn2->local_GP->put, initial_put, put) !=
 		    initial_put) {
 			/* someone else beat us to it */
-			DBUG_ON(ch_sn2->local_GP->put < initial_put);
+			D_ON(ch_sn2->local_GP->put < initial_put);
 			break;
 		}
 
@@ -2144,7 +2144,7 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 				     (put % ch->local_nentries) *
 				     ch->entry_size);
 
-	DBUG_ON(msg->flags != 0);
+	D_ON(msg->flags != 0);
 	msg->number = put;
 
 	dev_dbg(xpc_chan, "w_local_GP.put changed to %lld; msg=0x%p, "
@@ -2172,7 +2172,7 @@ xpc_send_payload_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 	s64 msg_number;
 	s64 put;
 
-	DBUG_ON(notify_type == XPC_N_CALL && func == NULL);
+	D_ON(notify_type == XPC_N_CALL && func == NULL);
 
 	if (XPC_MSG_SIZE(payload_size) > ch->entry_size)
 		return xpPayloadTooBig;
@@ -2290,7 +2290,7 @@ xpc_acknowledge_msgs_sn2(struct xpc_channel *ch, s64 initial_get, u8 msg_flags)
 		if (cmpxchg_rel(&ch_sn2->local_GP->get, initial_get, get) !=
 		    initial_get) {
 			/* someone else beat us to it */
-			DBUG_ON(ch_sn2->local_GP->get <= initial_get);
+			D_ON(ch_sn2->local_GP->get <= initial_get);
 			break;
 		}
 
@@ -2326,10 +2326,10 @@ xpc_received_payload_sn2(struct xpc_channel *ch, void *payload)
 	dev_dbg(xpc_chan, "msg=0x%p, msg_number=%lld, partid=%d, channel=%d\n",
 		(void *)msg, msg_number, ch->partid, ch->number);
 
-	DBUG_ON((((u64)msg - (u64)ch->sn.sn2.remote_msgqueue) / ch->entry_size) !=
+	D_ON((((u64)msg - (u64)ch->sn.sn2.remote_msgqueue) / ch->entry_size) !=
 		msg_number % ch->remote_nentries);
-	DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
-	DBUG_ON(msg->flags & XPC_M_SN2_DONE);
+	D_ON(!(msg->flags & XPC_M_SN2_READY));
+	D_ON(msg->flags & XPC_M_SN2_DONE);
 
 	msg->flags |= XPC_M_SN2_DONE;
 

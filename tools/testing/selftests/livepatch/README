@@ -5,7 +5,7 @@ Livepatch Self Tests
 This is a small set of sanity tests for the kernel livepatching.
 
 The test suite loads and unloads several test kernel modules to verify
-livepatch behavior.  Debug information is logged to the kernel's message
+livepatch behavior.  De information is logged to the kernel's message
 buffer and parsed for expected messages.  (Note: the tests will clear
 the message buffer between individual tests.)
 
@@ -35,7 +35,7 @@ Adding tests
 ------------
 
 See the common functions.sh file for the existing collection of utility
-functions, most importantly set_dynamic_debug() and check_result().  The
+functions, most importantly set_dynamic_de() and check_result().  The
 latter function greps the kernel's ring buffer for "livepatch:" and
 "test_klp" strings, so tests be sure to include one of those strings for
 result comparison.  Other utility functions include general module

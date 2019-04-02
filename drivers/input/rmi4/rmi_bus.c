@@ -20,22 +20,22 @@
 #include "rmi_bus.h"
 #include "rmi_driver.h"
 
-static int debug_flags;
-module_param(debug_flags, int, 0644);
-MODULE_PARM_DESC(debug_flags, "control debugging information");
+static int de_flags;
+module_param(de_flags, int, 0644);
+MODULE_PARM_DESC(de_flags, "control deging information");
 
 void rmi_dbg(int flags, struct device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	if (flags & debug_flags) {
+	if (flags & de_flags) {
 		va_start(args, fmt);
 
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		dev_printk(KERN_DEBUG, dev, "%pV", &vaf);
+		dev_printk(KERN_DE, dev, "%pV", &vaf);
 
 		va_end(args);
 	}
@@ -100,7 +100,7 @@ int rmi_register_transport_device(struct rmi_transport_dev *xport)
 	if (error)
 		goto err_put_device;
 
-	rmi_dbg(RMI_DEBUG_CORE, xport->dev,
+	rmi_dbg(RMI_DE_CORE, xport->dev,
 		"%s: Registered %s as %s.\n", __func__,
 		dev_name(rmi_dev->xport->dev), dev_name(&rmi_dev->dev));
 
@@ -260,7 +260,7 @@ int rmi_register_function(struct rmi_function *fn)
 		goto err_put_device;
 	}
 
-	rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev, "Registered F%02X.\n",
+	rmi_dbg(RMI_DE_CORE, &rmi_dev->dev, "Registered F%02X.\n",
 			fn->fd.function_number);
 
 	return 0;
@@ -274,7 +274,7 @@ void rmi_unregister_function(struct rmi_function *fn)
 {
 	int i;
 
-	rmi_dbg(RMI_DEBUG_CORE, &fn->dev, "Unregistering F%02X.\n",
+	rmi_dbg(RMI_DE_CORE, &fn->dev, "Unregistering F%02X.\n",
 			fn->fd.function_number);
 
 	device_del(&fn->dev);

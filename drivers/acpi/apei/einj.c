@@ -2,7 +2,7 @@
  * APEI Error INJection support
  *
  * EINJ provides a hardware error injection mechanism, this is useful
- * for debugging and testing of other APEI and RAS features.
+ * for deging and testing of other APEI and RAS features.
  *
  * For more information about EINJ, please refer to ACPI Specification
  * version 4.0, section 17.5.
@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/nmi.h>
 #include <linux/delay.h>
@@ -79,7 +79,7 @@ struct vendor_error_type_extension {
 static u32 notrigger;
 
 static u32 vendor_flags;
-static struct debugfs_blob_wrapper vendor_blob;
+static struct defs_blob_wrapper vendor_blob;
 static char vendor_dev[64];
 
 /*
@@ -320,7 +320,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	}
 	rc = einj_check_trigger_header(trigger_tab);
 	if (rc) {
-		pr_warning(FW_BUG "Invalid trigger error action table.\n");
+		pr_warning(FW_ "Invalid trigger error action table.\n");
 		goto out_rel_header;
 	}
 
@@ -569,7 +569,7 @@ static u64 error_param1;
 static u64 error_param2;
 static u64 error_param3;
 static u64 error_param4;
-static struct dentry *einj_debug_dir;
+static struct dentry *einj_de_dir;
 
 static int available_error_type_show(struct seq_file *m, void *v)
 {
@@ -644,7 +644,7 @@ static int error_type_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(error_type_fops, error_type_get, error_type_set,
+DEFINE_DEFS_ATTRIBUTE(error_type_fops, error_type_get, error_type_set,
 			 "0x%llx\n");
 
 static int error_inject_set(void *data, u64 val)
@@ -656,7 +656,7 @@ static int error_inject_set(void *data, u64 val)
 		error_param3, error_param4);
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(error_inject_fops, NULL, error_inject_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(error_inject_fops, NULL, error_inject_set, "%llu\n");
 
 static int einj_check_table(struct acpi_table_einj *einj_tab)
 {
@@ -699,18 +699,18 @@ static int __init einj_init(void)
 
 	rc = einj_check_table(einj_tab);
 	if (rc) {
-		pr_warn(FW_BUG "Invalid EINJ table.\n");
+		pr_warn(FW_ "Invalid EINJ table.\n");
 		return -EINVAL;
 	}
 
 	rc = -ENOMEM;
-	einj_debug_dir = debugfs_create_dir("einj", apei_get_debugfs_dir());
+	einj_de_dir = defs_create_dir("einj", apei_get_defs_dir());
 
-	debugfs_create_file("available_error_type", S_IRUSR, einj_debug_dir,
+	defs_create_file("available_error_type", S_IRUSR, einj_de_dir,
 			    NULL, &available_error_type_fops);
-	debugfs_create_file_unsafe("error_type", 0600, einj_debug_dir,
+	defs_create_file_unsafe("error_type", 0600, einj_de_dir,
 				   NULL, &error_type_fops);
-	debugfs_create_file_unsafe("error_inject", 0200, einj_debug_dir,
+	defs_create_file_unsafe("error_inject", 0200, einj_de_dir,
 				   NULL, &error_inject_fops);
 
 	apei_resources_init(&einj_resources);
@@ -736,27 +736,27 @@ static int __init einj_init(void)
 	rc = -ENOMEM;
 	einj_param = einj_get_parameter_address();
 	if ((param_extension || acpi5) && einj_param) {
-		debugfs_create_x32("flags", S_IRUSR | S_IWUSR, einj_debug_dir,
+		defs_create_x32("flags", S_IRUSR | S_IWUSR, einj_de_dir,
 				   &error_flags);
-		debugfs_create_x64("param1", S_IRUSR | S_IWUSR, einj_debug_dir,
+		defs_create_x64("param1", S_IRUSR | S_IWUSR, einj_de_dir,
 				   &error_param1);
-		debugfs_create_x64("param2", S_IRUSR | S_IWUSR, einj_debug_dir,
+		defs_create_x64("param2", S_IRUSR | S_IWUSR, einj_de_dir,
 				   &error_param2);
-		debugfs_create_x64("param3", S_IRUSR | S_IWUSR, einj_debug_dir,
+		defs_create_x64("param3", S_IRUSR | S_IWUSR, einj_de_dir,
 				   &error_param3);
-		debugfs_create_x64("param4", S_IRUSR | S_IWUSR, einj_debug_dir,
+		defs_create_x64("param4", S_IRUSR | S_IWUSR, einj_de_dir,
 				   &error_param4);
-		debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
-				   einj_debug_dir, &notrigger);
+		defs_create_x32("notrigger", S_IRUSR | S_IWUSR,
+				   einj_de_dir, &notrigger);
 	}
 
 	if (vendor_dev[0]) {
 		vendor_blob.data = vendor_dev;
 		vendor_blob.size = strlen(vendor_dev);
-		debugfs_create_blob("vendor", S_IRUSR, einj_debug_dir,
+		defs_create_blob("vendor", S_IRUSR, einj_de_dir,
 				    &vendor_blob);
-		debugfs_create_x32("vendor_flags", S_IRUSR | S_IWUSR,
-				   einj_debug_dir, &vendor_flags);
+		defs_create_x32("vendor_flags", S_IRUSR | S_IWUSR,
+				   einj_de_dir, &vendor_flags);
 	}
 
 	pr_info("Error INJection is initialized.\n");
@@ -767,7 +767,7 @@ err_release:
 	apei_resources_release(&einj_resources);
 err_fini:
 	apei_resources_fini(&einj_resources);
-	debugfs_remove_recursive(einj_debug_dir);
+	defs_remove_recursive(einj_de_dir);
 
 	return rc;
 }
@@ -787,7 +787,7 @@ static void __exit einj_exit(void)
 	apei_exec_post_unmap_gars(&ctx);
 	apei_resources_release(&einj_resources);
 	apei_resources_fini(&einj_resources);
-	debugfs_remove_recursive(einj_debug_dir);
+	defs_remove_recursive(einj_de_dir);
 }
 
 module_init(einj_init);

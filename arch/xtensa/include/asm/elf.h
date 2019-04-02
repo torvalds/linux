@@ -149,7 +149,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  *
  * We might as well make sure everything else is cleared too (except
  * for the stack pointer in a1), just to make things more
- * deterministic.  Also, clearing a0 terminates debugger backtraces.
+ * deterministic.  Also, clearing a0 terminates deger backtraces.
  */
 
 #define ELF_PLAT_INIT(_r, load_addr) \

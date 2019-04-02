@@ -21,7 +21,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 enum mxc_gpio_hwtype {
 	IMX1_GPIO,	/* runs on i.mx1 */
@@ -192,10 +192,10 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 			val = port->gc.get(&port->gc, gpio_idx);
 			if (val) {
 				edge = GPIO_INT_LOW_LEV;
-				pr_debug("mxc: set GPIO %d to low trigger\n", gpio_idx);
+				pr_de("mxc: set GPIO %d to low trigger\n", gpio_idx);
 			} else {
 				edge = GPIO_INT_HIGH_LEV;
-				pr_debug("mxc: set GPIO %d to high trigger\n", gpio_idx);
+				pr_de("mxc: set GPIO %d to high trigger\n", gpio_idx);
 			}
 			port->both_edges |= 1 << gpio_idx;
 		}
@@ -245,10 +245,10 @@ static void mxc_flip_edge(struct mxc_gpio_port *port, u32 gpio)
 	val &= ~(0x3 << (bit << 1));
 	if (edge == GPIO_INT_HIGH_LEV) {
 		edge = GPIO_INT_LOW_LEV;
-		pr_debug("mxc: switch GPIO %d to low trigger\n", gpio);
+		pr_de("mxc: switch GPIO %d to low trigger\n", gpio);
 	} else if (edge == GPIO_INT_LOW_LEV) {
 		edge = GPIO_INT_HIGH_LEV;
-		pr_debug("mxc: switch GPIO %d to high trigger\n", gpio);
+		pr_de("mxc: switch GPIO %d to high trigger\n", gpio);
 	} else {
 		pr_err("mxc: invalid configuration for GPIO %d: %x\n",
 		       gpio, edge);
@@ -386,7 +386,7 @@ static void mxc_gpio_get_hw(struct platform_device *pdev)
 		 * that is all gpio ports must be the same type when
 		 * running on one soc.
 		 */
-		BUG_ON(mxc_gpio_hwtype != hwtype);
+		_ON(mxc_gpio_hwtype != hwtype);
 		return;
 	}
 

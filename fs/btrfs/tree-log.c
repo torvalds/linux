@@ -1828,7 +1828,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 	} else if (ret == -EEXIST) {
 		ret = 0;
 	} else {
-		BUG(); /* Logic Error */
+		(); /* Logic Error */
 	}
 	iput(inode);
 
@@ -3756,7 +3756,7 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		ret = btrfs_search_slot(trans, log, &key, path, -1, 1);
-		BUG_ON(ret == 0); /* Logic error */
+		_ON(ret == 0); /* Logic error */
 		if (ret < 0)
 			break;
 

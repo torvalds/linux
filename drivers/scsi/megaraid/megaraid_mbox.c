@@ -193,13 +193,13 @@ MODULE_PARM_DESC(fast_load,
 
 
 /*
- * mraid_debug level - threshold for amount of information to be displayed by
+ * mraid_de level - threshold for amount of information to be displayed by
  * the driver. This level can be changed through modules parameters, ioctl or
  * sysfs/proc interface. By default, print the announcement messages only.
  */
-int mraid_debug_level = CL_ANN;
-module_param_named(debug_level, mraid_debug_level, int, 0);
-MODULE_PARM_DESC(debug_level, "Debug level for driver (default=0)");
+int mraid_de_level = CL_ANN;
+module_param_named(de_level, mraid_de_level, int, 0);
+MODULE_PARM_DESC(de_level, "De level for driver (default=0)");
 
 /*
  * PCI table for all supported controllers.
@@ -1350,7 +1350,7 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 	ccb	= (mbox_ccb_t *)scb->ccb;
 
 	sgcnt = scsi_dma_map(scp);
-	BUG_ON(sgcnt < 0 || sgcnt > adapter->sglen);
+	_ON(sgcnt < 0 || sgcnt > adapter->sglen);
 
 	// no mapping required if no data to be transferred
 	if (!sgcnt)
@@ -2096,7 +2096,7 @@ megaraid_ack_sequence(adapter_t *adapter)
 				con_log(CL_ANN, (KERN_CRIT
 				"megaraid: command posting timed out\n"));
 
-				BUG();
+				();
 				continue;
 			}
 
@@ -2223,7 +2223,7 @@ megaraid_mbox_dpc(unsigned long devp)
 			con_log(CL_ANN, (KERN_CRIT
 			"megaraid critical err: invalid command %d:%d:%p\n",
 				scb->sno, scb->state, scp));
-			BUG();
+			();
 			continue;	// Must never happen!
 		}
 
@@ -2357,7 +2357,7 @@ megaraid_mbox_dpc(unsigned long devp)
 			}
 		}
 
-		// print a debug message for all failed commands
+		// print a de message for all failed commands
 		if (status) {
 			megaraid_mbox_display_scb(adapter, scb);
 		}
@@ -2489,7 +2489,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 				con_log(CL_ANN, (KERN_WARNING
 				"megaraid abort: %d[%d:%d], invalid state\n",
 				scb->sno, scb->dev_channel, scb->dev_target));
-				BUG();
+				();
 			}
 			else {
 				con_log(CL_ANN, (KERN_WARNING
@@ -3306,12 +3306,12 @@ blocked_mailbox:
 }
 
 /**
- * megaraid_mbox_display_scb - display SCB information, mostly debug purposes
+ * megaraid_mbox_display_scb - display SCB information, mostly de purposes
  * @adapter		: controller's soft state
  * @scb			: SCB to be displayed
- * @level		: debug level for console print
+ * @level		: de level for console print
  *
- * Diplay information about the given SCB iff the current debug level is
+ * Diplay information about the given SCB iff the current de level is
  * verbose.
  */
 static void
@@ -3579,7 +3579,7 @@ megaraid_mbox_mm_command(adapter_t *adapter, uioc_t *kioc)
 	if (list_empty(head)) {	// should never happen because of CMM
 
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid mbox: bug in cmm handler, lost resources\n"));
+			"megaraid mbox:  in cmm handler, lost resources\n"));
 
 		spin_unlock_irqrestore(USER_FREE_LIST_LOCK(adapter), flags);
 

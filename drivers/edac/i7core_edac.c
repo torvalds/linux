@@ -65,7 +65,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 #define EDAC_MOD_STR      "i7core_edac"
 
 /*
- * Debug macros
+ * De macros
  */
 #define i7core_printk(level, fmt, arg...)			\
 	edac_printk(level, "i7core", fmt, ##arg)

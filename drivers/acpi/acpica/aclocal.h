@@ -48,7 +48,7 @@ union acpi_parse_object;
 #define ACPI_MTX_TABLES                 2	/* Data for ACPI tables */
 #define ACPI_MTX_EVENTS                 3	/* Data for ACPI events */
 #define ACPI_MTX_CACHES                 4	/* Internal caches, general purposes */
-#define ACPI_MTX_MEMORY                 5	/* Debug memory tracking lists */
+#define ACPI_MTX_MEMORY                 5	/* De memory tracking lists */
 
 #define ACPI_MAX_MUTEX                  5
 #define ACPI_NUM_MUTEX                  (ACPI_MAX_MUTEX+1)
@@ -266,7 +266,7 @@ acpi_status (*acpi_internal_method) (struct acpi_walk_state * walk_state);
 #define ACPI_BTYPE_THERMAL              0x00001000
 #define ACPI_BTYPE_BUFFER_FIELD         0x00002000
 #define ACPI_BTYPE_DDB_HANDLE           0x00004000
-#define ACPI_BTYPE_DEBUG_OBJECT         0x00008000
+#define ACPI_BTYPE_DE_OBJECT         0x00008000
 #define ACPI_BTYPE_REFERENCE_OBJECT     0x00010000	/* From Index(), ref_of(), etc (type6_opcodes) */
 #define ACPI_BTYPE_RESOURCE             0x00020000
 #define ACPI_BTYPE_NAMED_REFERENCE      0x00040000	/* Generic unresolved Name or Namepath */
@@ -693,8 +693,8 @@ struct acpi_address_range {
  * AML opcode, name, and argument layout
  */
 struct acpi_opcode_info {
-#if defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUG_OUTPUT)
-	char *name;		/* Opcode name (disassembler/debug only) */
+#if defined(ACPI_DISASSEMBLER) || defined(ACPI_DE_OUTPUT)
+	char *name;		/* Opcode name (disassembler/de only) */
 #endif
 	u32 parse_args;		/* Grammar/Parse time arguments */
 	u32 runtime_args;	/* Interpret time arguments */
@@ -715,7 +715,7 @@ union acpi_parse_value {
 	union acpi_parse_object *arg;	/* arguments and contained ops */
 };
 
-#if defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUG_OUTPUT)
+#if defined(ACPI_DISASSEMBLER) || defined(ACPI_DE_OUTPUT)
 #define ACPI_DISASM_ONLY_MEMBERS(a)     a;
 #else
 #define ACPI_DISASM_ONLY_MEMBERS(a)
@@ -741,7 +741,7 @@ union acpi_parse_value {
 	u16                             disasm_flags;       /* Used during AML disassembly */\
 	u8                              disasm_opcode;      /* Subtype used for disassembly */\
 	char                            *operator_symbol;   /* Used for C-style operator name strings */\
-	char                            aml_op_name[16])    /* Op name (debug only) */\
+	char                            aml_op_name[16])    /* Op name (de only) */\
 	 ACPI_CONVERTER_ONLY_MEMBERS (\
 	char                            *inline_comment;    /* Inline comment */\
 	char                            *end_node_comment;  /* End of node comment */\
@@ -1162,7 +1162,7 @@ struct acpi_parse_object_list {
 
 /*****************************************************************************
  *
- * Debugger
+ * Deger
  *
  ****************************************************************************/
 
@@ -1191,7 +1191,7 @@ struct acpi_db_method_info {
 	 * thread and Index of current thread inside all them created.
 	 */
 	char init_args;
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 	acpi_object_type arg_types[ACPI_METHOD_NUM_ARGS];
 #endif
 	char *arguments[ACPI_METHOD_NUM_ARGS];
@@ -1216,30 +1216,30 @@ struct acpi_object_info {
 
 /*****************************************************************************
  *
- * Debug
+ * De
  *
  ****************************************************************************/
 
-/* Entry for a memory allocation (debug only) */
+/* Entry for a memory allocation (de only) */
 
 #define ACPI_MEM_MALLOC                 0
 #define ACPI_MEM_CALLOC                 1
 #define ACPI_MAX_MODULE_NAME            16
 
-#define ACPI_COMMON_DEBUG_MEM_HEADER \
-	struct acpi_debug_mem_block     *previous; \
-	struct acpi_debug_mem_block     *next; \
+#define ACPI_COMMON_DE_MEM_HEADER \
+	struct acpi_de_mem_block     *previous; \
+	struct acpi_de_mem_block     *next; \
 	u32                             size; \
 	u32                             component; \
 	u32                             line; \
 	char                            module[ACPI_MAX_MODULE_NAME]; \
 	u8                              alloc_type;
 
-struct acpi_debug_mem_header {
-ACPI_COMMON_DEBUG_MEM_HEADER};
+struct acpi_de_mem_header {
+ACPI_COMMON_DE_MEM_HEADER};
 
-struct acpi_debug_mem_block {
-	ACPI_COMMON_DEBUG_MEM_HEADER u64 user_space;
+struct acpi_de_mem_block {
+	ACPI_COMMON_DE_MEM_HEADER u64 user_space;
 };
 
 #define ACPI_MEM_LIST_GLOBAL            0

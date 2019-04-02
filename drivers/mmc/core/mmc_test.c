@@ -17,7 +17,7 @@
 #include <linux/swap.h>		/* For nr_free_buffer_pages() */
 #include <linux/list.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
@@ -123,10 +123,10 @@ struct mmc_test_general_result {
 };
 
 /**
- * struct mmc_test_dbgfs_file - debugfs related file.
+ * struct mmc_test_dbgfs_file - defs related file.
  * @link: double-linked list
  * @card: card under test
- * @file: file created under debugfs
+ * @file: file created under defs
  */
 struct mmc_test_dbgfs_file {
 	struct list_head link;
@@ -3156,7 +3156,7 @@ static void mmc_test_free_dbgfs_file(struct mmc_card *card)
 	list_for_each_entry_safe(df, dfs, &mmc_test_file_test, link) {
 		if (card && df->card != card)
 			continue;
-		debugfs_remove(df->file);
+		defs_remove(df->file);
 		list_del(&df->link);
 		kfree(df);
 	}
@@ -3170,20 +3170,20 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 	struct dentry *file = NULL;
 	struct mmc_test_dbgfs_file *df;
 
-	if (card->debugfs_root)
-		file = debugfs_create_file(name, mode, card->debugfs_root,
+	if (card->defs_root)
+		file = defs_create_file(name, mode, card->defs_root,
 			card, fops);
 
 	if (IS_ERR_OR_NULL(file)) {
 		dev_err(&card->dev,
-			"Can't create %s. Perhaps debugfs is disabled.\n",
+			"Can't create %s. Perhaps defs is disabled.\n",
 			name);
 		return -ENODEV;
 	}
 
 	df = kmalloc(sizeof(*df), GFP_KERNEL);
 	if (!df) {
-		debugfs_remove(file);
+		defs_remove(file);
 		return -ENOMEM;
 	}
 

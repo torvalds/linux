@@ -90,7 +90,7 @@
 /*
  * Janz ICAN3 CAN Inquiry Message Types
  *
- * NOTE: there appears to be a firmware bug here. You must send
+ * NOTE: there appears to be a firmware  here. You must send
  * NOTE: INQUIRY_STATUS and expect to receive an INQUIRY_EXTENDED
  * NOTE: response. The controller never responds to a message with
  * NOTE: the INQUIRY_EXTENDED subspec :(
@@ -294,7 +294,7 @@ struct ican3_fast_desc {
 /* write to the window basic address register */
 static inline void ican3_set_page(struct ican3_dev *mod, unsigned int page)
 {
-	BUG_ON(page >= DPM_NUM_PAGES);
+	_ON(page >= DPM_NUM_PAGES);
 	iowrite8(page, &mod->dpmctrl->window_address);
 }
 
@@ -983,7 +983,7 @@ static void can_frame_to_ican3(struct ican3_dev *mod,
 
 /*
  * Handle an ID + Version message response from the firmware. We never generate
- * this message in production code, but it is very useful when debugging to be
+ * this message in production code, but it is very useful when deging to be
  * able to display this message.
  */
 static void ican3_handle_idvers(struct ican3_dev *mod, struct ican3_msg *msg)
@@ -1291,9 +1291,9 @@ static unsigned int ican3_get_echo_skb(struct ican3_dev *mod)
 	struct can_frame *cf;
 	u8 dlc;
 
-	/* this should never trigger unless there is a driver bug */
+	/* this should never trigger unless there is a driver  */
 	if (!skb) {
-		netdev_err(mod->ndev, "BUG: echo skb not occupied\n");
+		netdev_err(mod->ndev, ": echo skb not occupied\n");
 		return 0;
 	}
 
@@ -1699,7 +1699,7 @@ static netdev_tx_t ican3_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* check that we can actually transmit */
 	if (!ican3_txok(mod)) {
-		netdev_err(mod->ndev, "BUG: no free descriptors\n");
+		netdev_err(mod->ndev, ": no free descriptors\n");
 		spin_unlock_irqrestore(&mod->lock, flags);
 		return NETDEV_TX_BUSY;
 	}

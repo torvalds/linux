@@ -1967,7 +1967,7 @@ static int vcn_v1_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("IH: VCN TRAP\n");
+	DRM_DE("IH: VCN TRAP\n");
 
 	switch (entry->src_id) {
 	case 124:

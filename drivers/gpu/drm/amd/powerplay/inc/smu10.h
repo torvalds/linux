@@ -26,7 +26,7 @@
 
 #pragma pack(push, 1)
 
-#define ENABLE_DEBUG_FEATURES
+#define ENABLE_DE_FEATURES
 
 /* Feature Control Defines */
 #define FEATURE_CCLK_CONTROLLER_BIT   0

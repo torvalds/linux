@@ -21,7 +21,7 @@
 #include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "scsiglue.h"
 
 #define DRV_NAME "ums-freecom"
@@ -30,7 +30,7 @@ MODULE_DESCRIPTION("Driver for Freecom USB/IDE adaptor");
 MODULE_AUTHOR("David Brown <usb-storage@davidb.org>");
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_USB_STORAGE_DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
 static void pdump(struct us_data *us, void *ibuffer, int length);
 #endif
 
@@ -156,7 +156,7 @@ freecom_readdata (struct scsi_cmnd *srb, struct us_data *us,
 	int result;
 
 	fxfr->Type = FCM_PACKET_INPUT | 0x00;
-	fxfr->Timeout = 0;    /* Short timeout for debugging. */
+	fxfr->Timeout = 0;    /* Short timeout for deging. */
 	fxfr->Count = cpu_to_le32 (count);
 	memset (fxfr->Pad, 0, sizeof (fxfr->Pad));
 
@@ -189,7 +189,7 @@ freecom_writedata (struct scsi_cmnd *srb, struct us_data *us,
 	int result;
 
 	fxfr->Type = FCM_PACKET_OUTPUT | 0x00;
-	fxfr->Timeout = 0;    /* Short timeout for debugging. */
+	fxfr->Timeout = 0;    /* Short timeout for deging. */
 	fxfr->Count = cpu_to_le32 (count);
 	memset (fxfr->Pad, 0, sizeof (fxfr->Pad));
 
@@ -241,7 +241,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	memcpy (fcb->Atapi, srb->cmnd, 12);
 	memset (fcb->Filler, 0, sizeof (fcb->Filler));
 
-	US_DEBUG(pdump(us, srb->cmnd, 12));
+	US_DE(pdump(us, srb->cmnd, 12));
 
 	/* Send it out. */
 	result = usb_stor_bulk_transfer_buf (us, opipe, fcb,
@@ -267,7 +267,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (result != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUG(pdump(us, (void *)fst, partial));
+	US_DE(pdump(us, (void *)fst, partial));
 
 	/*
 	 * The firmware will time-out commands after 20 seconds. Some commands
@@ -310,7 +310,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		if (result != USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;
 
-		US_DEBUG(pdump(us, (void *)fst, partial));
+		US_DE(pdump(us, (void *)fst, partial));
 	}
 
 	if (partial != 4)
@@ -373,7 +373,7 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		usb_stor_dbg(us, "Waiting for status\n");
 		result = usb_stor_bulk_transfer_buf (us, ipipe, fst,
 				FCM_PACKET_LENGTH, &partial);
-		US_DEBUG(pdump(us, (void *)fst, partial));
+		US_DE(pdump(us, (void *)fst, partial));
 
 		if (partial != 4 || result > USB_STOR_XFER_SHORT)
 			return USB_STOR_TRANSPORT_ERROR;
@@ -485,7 +485,7 @@ static int usb_stor_freecom_reset(struct us_data *us)
 	return FAILED;
 }
 
-#ifdef CONFIG_USB_STORAGE_DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
 static void pdump(struct us_data *us, void *ibuffer, int length)
 {
 	static char line[80];

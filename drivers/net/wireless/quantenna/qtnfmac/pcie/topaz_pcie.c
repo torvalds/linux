@@ -20,7 +20,7 @@
 #include "core.h"
 #include "bus.h"
 #include "shm_ipc.h"
-#include "debug.h"
+#include "de.h"
 
 #define TOPAZ_TX_BD_SIZE_DEFAULT	128
 
@@ -209,7 +209,7 @@ static int topaz_alloc_bd_table(struct qtnf_pcie_topaz_state *ts,
 	for (i = 0; i < priv->tx_bd_num; i++)
 		ts->tx_bd_vbase[i].info |= cpu_to_le32(QTN_BD_EMPTY);
 
-	pr_debug("TX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
+	pr_de("TX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
 
 	priv->tx_bd_r_index = 0;
 	priv->tx_bd_w_index = 0;
@@ -222,7 +222,7 @@ static int topaz_alloc_bd_table(struct qtnf_pcie_topaz_state *ts,
 	ts->rx_bd_vbase = vaddr;
 	qtnf_non_posted_write(paddr, &bda->bda_rc_rx_bd_base);
 
-	pr_debug("RX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
+	pr_de("RX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
 
 	/* extra shared params */
 
@@ -654,7 +654,7 @@ static int qtnf_topaz_rx_poll(struct napi_struct *napi, int budget)
 				skb->protocol = eth_type_trans(skb, ndev);
 				netif_receive_skb(skb);
 			} else {
-				pr_debug("drop untagged skb\n");
+				pr_de("drop untagged skb\n");
 				bus->mux_dev.stats.rx_dropped++;
 				dev_kfree_skb_any(skb);
 			}
@@ -902,7 +902,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 	void *data;
 	int ret = 0;
 
-	pr_debug("FW upload started: fw_addr = 0x%p, size=%d\n", fw, fw_size);
+	pr_de("FW upload started: fw_addr = 0x%p, size=%d\n", fw, fw_size);
 
 	blksize = ts->base.fw_blksize;
 
@@ -910,7 +910,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 		blksize = PAGE_SIZE;
 
 	while (blksize >= PAGE_SIZE) {
-		pr_debug("allocating %u bytes to upload FW\n", blksize);
+		pr_de("allocating %u bytes to upload FW\n", blksize);
 		data = dma_alloc_coherent(&pdev->dev, blksize,
 					  &paddr, GFP_KERNEL);
 		if (data)
@@ -942,7 +942,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 		qtnf_non_posted_write(paddr + offset, &bda->bda_img);
 		qtnf_non_posted_write(size, &bda->bda_img_size);
 
-		pr_debug("chunk[%u] VA[0x%p] PA[%pad] sz[%u]\n",
+		pr_de("chunk[%u] VA[0x%p] PA[%pad] sz[%u]\n",
 			 count, (void *)curr, &paddr, size);
 
 		qtnf_set_state(&ts->bda->bda_bootstate, QTN_BDA_FW_BLOCK_RDY);
@@ -979,7 +979,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_topaz_state *ts, const u8 *fw, u32 fw_size)
 		goto fw_load_map;
 	}
 
-	pr_debug("FW upload completed: totally sent %d blocks\n", count);
+	pr_de("FW upload completed: totally sent %d blocks\n", count);
 
 fw_load_map:
 	dma_free_coherent(&pdev->dev, blksize, data, paddr);
@@ -1083,8 +1083,8 @@ fw_load_exit:
 	qtnf_pcie_fw_boot_done(bus, ret ? false : true);
 
 	if (ret == 0) {
-		qtnf_debugfs_add_entry(bus, "pkt_stats", qtnf_dbg_pkt_stats);
-		qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
+		qtnf_defs_add_entry(bus, "pkt_stats", qtnf_dbg_pkt_stats);
+		qtnf_defs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
 	}
 }
 

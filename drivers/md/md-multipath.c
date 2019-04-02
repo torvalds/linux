@@ -222,19 +222,19 @@ static void print_multipath_conf (struct mpconf *conf)
 	int i;
 	struct multipath_info *tmp;
 
-	pr_debug("MULTIPATH conf printout:\n");
+	pr_de("MULTIPATH conf printout:\n");
 	if (!conf) {
-		pr_debug("(conf==NULL)\n");
+		pr_de("(conf==NULL)\n");
 		return;
 	}
-	pr_debug(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
+	pr_de(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
 		 conf->raid_disks);
 
 	for (i = 0; i < conf->raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
 		tmp = conf->multipaths + i;
 		if (tmp->rdev)
-			pr_debug(" disk%d, o:%d, dev:%s\n",
+			pr_de(" disk%d, o:%d, dev:%s\n",
 				 i,!test_bit(Faulty, &tmp->rdev->flags),
 				 bdevname(tmp->rdev->bdev,b));
 	}

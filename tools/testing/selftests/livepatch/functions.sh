@@ -21,10 +21,10 @@ function die() {
 	exit 1
 }
 
-# set_dynamic_debug() - setup kernel dynamic debug
+# set_dynamic_de() - setup kernel dynamic de
 #	TODO - push and pop this config?
-function set_dynamic_debug() {
-	cat << EOF > /sys/kernel/debug/dynamic_debug/control
+function set_dynamic_de() {
+	cat << EOF > /sys/kernel/de/dynamic_de/control
 file kernel/livepatch/* +p
 func klp_try_switch_task -p
 EOF

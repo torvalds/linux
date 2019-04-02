@@ -271,7 +271,7 @@ int agp_add_bridge(struct agp_bridge_data *bridge)
 	}
 
 	if (!bridge->dev) {
-		printk (KERN_DEBUG PFX "Erk, registering with no pci_dev!\n");
+		printk (KERN_DE PFX "Erk, registering with no pci_dev!\n");
 		error = -EINVAL;
 		goto err_put_bridge;
 	}

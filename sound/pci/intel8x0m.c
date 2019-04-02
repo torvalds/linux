@@ -306,7 +306,7 @@ static unsigned int get_ich_codec_bit(struct intel8x0m *chip, unsigned int codec
 	static unsigned int codec_bit[3] = {
 		ICH_PCR, ICH_SCR, ICH_TCR
 	};
-	if (snd_BUG_ON(codec >= 3))
+	if (snd__ON(codec >= 3))
 		return ICH_PCR;
 	return codec_bit[codec];
 }

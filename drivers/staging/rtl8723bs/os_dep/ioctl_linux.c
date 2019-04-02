@@ -8,7 +8,7 @@
 
 #include <linux/etherdevice.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtw_mp.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -534,7 +534,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_MP_STATE) == true) { /* sta mode */
 			psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
 			if (psta == NULL) {
-				/* DEBUG_ERR(("Set wpa_set_encryption: Obtain Sta_info fail\n")); */
+				/* DE_ERR(("Set wpa_set_encryption: Obtain Sta_info fail\n")); */
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
 				if (strcmp(param->u.crypt.alg, "none") != 0)
@@ -549,7 +549,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 					memcpy(psta->dot118021x_UncstKey.skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 
 					if (strcmp(param->u.crypt.alg, "TKIP") == 0) { /* set mic key */
-						/* DEBUG_ERR(("\nset key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
+						/* DE_ERR(("\nset key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
 						memcpy(psta->dot11tkiptxmickey.skey, &(param->u.crypt.key[16]), 8);
 						memcpy(psta->dot11tkiprxmickey.skey, &(param->u.crypt.key[24]), 8);
 
@@ -557,7 +557,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 						/* _set_timer(&padapter->securitypriv.tkip_timer, 50); */
 					}
 
-					/* DEBUG_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
+					/* DE_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
 					DBG_871X(" ~~~~set sta key:unicastkey\n");
 
 					rtw_setstakey_cmd(padapter, psta, true, true);
@@ -570,7 +570,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 							memcpy(padapter->securitypriv.dot118021XGrprxmickey[param->u.crypt.idx].skey,&(param->u.crypt.key[24]), 8);
 						}
 						padapter->securitypriv.binstallGrpkey = true;
-						/* DEBUG_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
+						/* DE_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
 						DBG_871X(" ~~~~set sta key:groupkey\n");
 
 						padapter->securitypriv.dot118021XGrpKeyid = param->u.crypt.idx;
@@ -593,7 +593,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 			pbcmc_sta =rtw_get_bcmc_stainfo(padapter);
 			if (pbcmc_sta == NULL) {
-				/* DEBUG_ERR(("Set OID_802_11_ADD_KEY: bcmc stainfo is null\n")); */
+				/* DE_ERR(("Set OID_802_11_ADD_KEY: bcmc stainfo is null\n")); */
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
 				if (strcmp(param->u.crypt.alg, "none") != 0)
@@ -3600,7 +3600,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 
-				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
+				/* DE_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 				memcpy(psecuritypriv->dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
@@ -3655,7 +3655,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 					psta->dot118021XPrivacy = _TKIP_;
 
-					/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
+					/* DE_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 					/* set mic key */
 					memcpy(psta->dot11tkiptxmickey.skey, &(param->u.crypt.key[16]), 8);
 					memcpy(psta->dot11tkiprxmickey.skey, &(param->u.crypt.key[24]), 8);
@@ -3689,7 +3689,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 
-					/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
+					/* DE_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 					/* set mic key */
 					memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 					memcpy(psecuritypriv->dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
@@ -4365,7 +4365,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 				char *extra)
 {
 
-#ifdef DEBUG_RTW_WX_SET_PRIV
+#ifdef DE_RTW_WX_SET_PRIV
 	char *ext_dbg;
 #endif
 
@@ -4394,7 +4394,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 	/* 	 ("rtw_wx_set_priv: %s req =%s\n", */
 	/* 	  dev->name, ext)); */
 
-	#ifdef DEBUG_RTW_WX_SET_PRIV
+	#ifdef DE_RTW_WX_SET_PRIV
 	if (!(ext_dbg = vmalloc(len))) {
 		vfree(ext, len);
 		return -ENOMEM;
@@ -4447,7 +4447,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 FREE_EXT:
 
 	vfree(ext);
-	#ifdef DEBUG_RTW_WX_SET_PRIV
+	#ifdef DE_RTW_WX_SET_PRIV
 	vfree(ext_dbg);
 	#endif
 

@@ -37,7 +37,7 @@
 #include <linux/bitmap.h>
 #include <linux/crc32.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
@@ -75,7 +75,7 @@
 #include "t4fw_version.h"
 #include "cxgb4_dcb.h"
 #include "srq.h"
-#include "cxgb4_debugfs.h"
+#include "cxgb4_defs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
 #include "smt.h"
@@ -179,7 +179,7 @@ module_param(select_queue, int, 0644);
 MODULE_PARM_DESC(select_queue,
 		 "Select between kernel provided method of selecting or driver method of selecting TX queue. Default is kernel method.");
 
-static struct dentry *cxgb4_debugfs_root;
+static struct dentry *cxgb4_defs_root;
 
 LIST_HEAD(adapter_list);
 DEFINE_MUTEX(uld_mutex);
@@ -1115,13 +1115,13 @@ static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 	return err;
 }
 
-static int setup_debugfs(struct adapter *adap)
+static int setup_defs(struct adapter *adap)
 {
-	if (IS_ERR_OR_NULL(adap->debugfs_root))
+	if (IS_ERR_OR_NULL(adap->defs_root))
 		return -1;
 
-#ifdef CONFIG_DEBUG_FS
-	t4_setup_debugfs(adap);
+#ifdef CONFIG_DE_FS
+	t4_setup_defs(adap);
 #endif
 	return 0;
 }
@@ -4196,7 +4196,7 @@ static int adap_init0(struct adapter *adap)
 	int reset = 1;
 
 	/* Grab Firmware Device Log parameters as early as possible so we have
-	 * access to it for debugging, etc.
+	 * access to it for deging, etc.
 	 */
 	ret = t4_init_devlog_params(adap);
 	if (ret < 0)
@@ -4483,7 +4483,7 @@ static int adap_init0(struct adapter *adap)
 		goto bye;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	adap->sge.blocked_fl = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz),
 				       sizeof(long), GFP_KERNEL);
 	if (!adap->sge.blocked_fl) {
@@ -4801,7 +4801,7 @@ bye:
 	kfree(adap->sge.ingr_map);
 	kfree(adap->sge.starving_fl);
 	kfree(adap->sge.txq_maperr);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	kfree(adap->sge.blocked_fl);
 #endif
 	if (ret != -ETIMEDOUT && ret != -EIO)
@@ -5328,7 +5328,7 @@ static void free_some_resources(struct adapter *adapter)
 	kfree(adapter->sge.ingr_map);
 	kfree(adapter->sge.starving_fl);
 	kfree(adapter->sge.txq_maperr);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	kfree(adapter->sge.blocked_fl);
 #endif
 	disable_msi(adapter);
@@ -5721,7 +5721,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	setup_memwin(adapter);
 	err = adap_init0(adapter);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	bitmap_zero(adapter->sge.blocked_fl, adapter->sge.egr_sz);
 #endif
 	setup_memwin_rdma(adapter);
@@ -5804,7 +5804,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else if (adapter->params.nports == 1) {
 		/* If we don't have a connection to the firmware -- possibly
 		 * because of an error -- grab the raw VPD parameters so we
-		 * can set the proper MAC Address on the debug network
+		 * can set the proper MAC Address on the de network
 		 * interface that we've created.
 		 */
 		u8 hw_addr[ETH_ALEN];
@@ -5964,10 +5964,10 @@ fw_attach_fail:
 		err = 0;
 	}
 
-	if (cxgb4_debugfs_root) {
-		adapter->debugfs_root = debugfs_create_dir(pci_name(pdev),
-							   cxgb4_debugfs_root);
-		setup_debugfs(adapter);
+	if (cxgb4_defs_root) {
+		adapter->defs_root = defs_create_dir(pci_name(pdev),
+							   cxgb4_defs_root);
+		setup_defs(adapter);
 	}
 
 	/* PCIe EEH recovery on powerpc platforms needs fundamental reset */
@@ -6048,7 +6048,7 @@ static void remove_one(struct pci_dev *pdev)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				unregister_netdev(adapter->port[i]);
 
-		debugfs_remove_recursive(adapter->debugfs_root);
+		defs_remove_recursive(adapter->defs_root);
 
 		if (!is_t4(adapter->params.chip))
 			cxgb4_ptp_stop(adapter);
@@ -6154,14 +6154,14 @@ static int __init cxgb4_init_module(void)
 {
 	int ret;
 
-	/* Debugfs support is optional, just warn if this fails */
-	cxgb4_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!cxgb4_debugfs_root)
-		pr_warn("could not create debugfs entry, continuing\n");
+	/* Defs support is optional, just warn if this fails */
+	cxgb4_defs_root = defs_create_dir(KBUILD_MODNAME, NULL);
+	if (!cxgb4_defs_root)
+		pr_warn("could not create defs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
 	if (ret < 0)
-		debugfs_remove(cxgb4_debugfs_root);
+		defs_remove(cxgb4_defs_root);
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (!inet6addr_registered) {
@@ -6182,7 +6182,7 @@ static void __exit cxgb4_cleanup_module(void)
 	}
 #endif
 	pci_unregister_driver(&cxgb4_driver);
-	debugfs_remove(cxgb4_debugfs_root);  /* NULL ok */
+	defs_remove(cxgb4_defs_root);  /* NULL ok */
 }
 
 module_init(cxgb4_init_module);

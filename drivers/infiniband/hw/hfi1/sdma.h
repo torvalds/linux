@@ -188,7 +188,7 @@ struct sdma_state {
 	enum sdma_states current_state;
 	unsigned             current_op;
 	unsigned             go_s99_running;
-	/* debugging/development */
+	/* deging/development */
 	enum sdma_states previous_state;
 	unsigned             previous_op;
 	enum sdma_events last_event;
@@ -346,7 +346,7 @@ struct sdma_engine {
 
 	/* read/write using tail_lock */
 	spinlock_t            tail_lock ____cacheline_aligned_in_smp;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 	/* private: */
 	u64                   tail_sn;
 #endif
@@ -364,7 +364,7 @@ struct sdma_engine {
 	/* read/write using head_lock */
 	/* private: */
 	seqlock_t            head_lock ____cacheline_aligned_in_smp;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 	/* private: */
 	u64                   head_sn;
 #endif

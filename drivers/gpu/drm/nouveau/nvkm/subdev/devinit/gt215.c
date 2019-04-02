@@ -115,7 +115,7 @@ gt215_devinit_mmio(struct nvkm_devinit *base, u32 addr)
 	 * the binary driver avoids touching these registers at all, however,
 	 * the video bios doesn't care and does what the scripts say.  it's
 	 * presumed that the io-port access to init registers isn't effected
-	 * by the screw-up bug mentioned above.
+	 * by the screw-up  mentioned above.
 	 *
 	 * really, a new opcode should've been invented to handle these
 	 * requirements, but whatever, it's too late for that now.

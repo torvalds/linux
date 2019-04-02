@@ -385,7 +385,7 @@ static int __init xen_tmem_init(void)
 	}
 #endif
 #ifdef CONFIG_CLEANCACHE
-	BUILD_BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
+	BUILD__ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
 	if (tmem_enabled && cleancache) {
 		int err;
 

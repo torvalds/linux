@@ -236,7 +236,7 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 
 	/* only the HDLCD_REG_FB_LINE_COUNT register has a limit */
 	if (src_h >= HDLCD_MAX_YRES) {
-		DRM_DEBUG_KMS("Invalid source width: %d\n", src_h);
+		DRM_DE_KMS("Invalid source width: %d\n", src_h);
 		return -EINVAL;
 	}
 

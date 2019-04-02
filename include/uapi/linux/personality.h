@@ -4,7 +4,7 @@
 
 
 /*
- * Flags for bug emulation.
+ * Flags for  emulation.
  *
  * These occupy the top three bytes.
  */

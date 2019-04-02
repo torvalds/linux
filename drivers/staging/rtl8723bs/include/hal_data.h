@@ -165,7 +165,7 @@ struct dm_priv {
 	s32	RegEB4;
 	s32	RegEBC;
 
-	u32 TXPowerTrackingCallbackCnt;	/* cosa add for debug */
+	u32 TXPowerTrackingCallbackCnt;	/* cosa add for de */
 
 	u32 prv_traffic_idx; /*  edca turbo */
 /*  duplicate code, will move to ODM ######### */
@@ -383,8 +383,8 @@ struct hal_com_data {
 
 	u8 u1ForcedIgiLb;			/*  forced IGI lower bound */
 
-	u8 bDumpRxPkt;/* for debug */
-	u8 bDumpTxPkt;/* for debug */
+	u8 bDumpRxPkt;/* for de */
+	u8 bDumpTxPkt;/* for de */
 	u8 FwRsvdPageStartOffset; /* 2010.06.23. Added by tynli. Reserve page start offset except beacon in TxQ. */
 
 	/*  2010/08/09 MH Add CU power down mode. */
@@ -399,7 +399,7 @@ struct hal_com_data {
 	/*  2010/12/10 MH Add for USB aggreation mode dynamic shceme. */
 	bool		UsbRxHighSpeedMode;
 
-	/*  2010/11/22 MH Add for slim combo debug mode selective. */
+	/*  2010/11/22 MH Add for slim combo de mode selective. */
 	/*  This is used for fix the drawback of CU TSMC-A/UMC-A cut. HW auto suspend ability. Close BT clock. */
 	bool		SlimComboDbg;
 

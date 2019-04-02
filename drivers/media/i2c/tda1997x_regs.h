@@ -241,7 +241,7 @@
 #define HDMI_FLAGS_AUD_FIFO_OF	BIT(1)	/* FIFO read/write pointers crossed */
 #define HDMI_FLAGS_AUD_FIFO_LOW	BIT(0)	/* FIFO read ptr within 2 of write */
 
-/* Page 0x12 - HDMI Extra control and debug */
+/* Page 0x12 - HDMI Extra control and de */
 #define REG_CLK_CFG		0x1200
 #define REG_CLK_OUT_CFG		0x1201
 #define REG_CFG1		0x1202
@@ -273,7 +273,7 @@
 #define CLK_CFG_SEL_ACLK	BIT(0)
 #define CLK_CFG_DIS		0
 
-/* Page 0x13 - HDMI Extra control and debug */
+/* Page 0x13 - HDMI Extra control and de */
 #define REG_DEEP_COLOR_CTRL	0x1300
 #define REG_CGU_DBG_SEL		0x1305
 #define REG_HDCP_DDC_ADDR	0x1310
@@ -345,7 +345,7 @@
 #define MAN_RST_TMDS_ENC	BIT(1)
 #define MAN_RST_TMDS_FLOW	BIT(0)
 
-/* Page 0x14 - Audio Extra control and debug */
+/* Page 0x14 - Audio Extra control and de */
 #define REG_FIFO_LATENCY_VAL	0x1403
 #define REG_AUDIO_CLOCK		0x1411
 #define REG_TEST_NCTS_CTRL	0x1415

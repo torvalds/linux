@@ -978,7 +978,7 @@ u32 rs780_dpm_get_mclk(struct radeon_device *rdev, bool low)
 	return pi->bootup_uma_clk;
 }
 
-void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void rs780_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m)
 {
 	struct radeon_ps *rps = rdev->pm.dpm.current_ps;

@@ -154,7 +154,7 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 	u32 flags = 0x80044000; /* enable & mem R/W */
 	unsigned int i;
 
-	pr_debug("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
+	pr_de("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
 		(u64)res->start, (u64)size);
 
 	if (res->flags & IORESOURCE_PREFETCH)
@@ -270,7 +270,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 		if (j >= 5) {
 			pr_err("Ran out of outbound PCI ATMUs for IO resource\n");
 		} else {
-			pr_debug("PCI IO resource start 0x%016llx, size 0x%016llx, "
+			pr_de("PCI IO resource start 0x%016llx, size 0x%016llx, "
 				 "phy base 0x%016llx.\n",
 				 (u64)hose->io_resource.start,
 				 (u64)resource_size(&hose->io_resource),
@@ -536,7 +536,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 		return -ENODEV;
 	}
 
-	pr_debug("Adding PCI host bridge %pOF\n", dev);
+	pr_de("Adding PCI host bridge %pOF\n", dev);
 
 	/* Fetch host bridge registers address */
 	if (of_address_to_resource(dev, 0, &rsrc)) {
@@ -560,7 +560,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	hose->first_busno = bus_range ? bus_range[0] : 0x0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
+	pr_de("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		 (u64)rsrc.start, (u64)resource_size(&rsrc));
 
 	pci = hose->private_data = ioremap(rsrc.start, resource_size(&rsrc));
@@ -625,7 +625,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 		(unsigned long long)rsrc.start, hose->first_busno,
 		hose->last_busno);
 
-	pr_debug(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
+	pr_de(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 		hose, hose->cfg_addr, hose->cfg_data);
 
 	/* Interpret the "ranges" property */
@@ -686,7 +686,7 @@ static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	/*
-	 * Workaround for the HW bug: for Type 0 configure transactions the
+	 * Workaround for the HW : for Type 0 configure transactions the
 	 * PCI-E controller does not check the device number bits and just
 	 * assumes that the device number bits are 0.
 	 */
@@ -813,7 +813,7 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 			dev);
 		return -ENODEV;
 	}
-	pr_debug("Adding PCI host bridge %pOF\n", dev);
+	pr_de("Adding PCI host bridge %pOF\n", dev);
 
 	/* Fetch host bridge registers address */
 	if (of_address_to_resource(dev, 0, &rsrc_reg)) {
@@ -874,7 +874,7 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	       (unsigned long long)rsrc_reg.start, hose->first_busno,
 	       hose->last_busno);
 
-	pr_debug(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
+	pr_de(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 	    hose, hose->cfg_addr, hose->cfg_data);
 
 	/* Interpret the "ranges" property */
@@ -1133,7 +1133,7 @@ void fsl_pci_assign_primary(void)
 	/*
 	 * If there's no PCI host bridge with ISA, arbitrarily
 	 * designate one as primary.  This can go away once
-	 * various bugs with primary-less systems are fixed.
+	 * various s with primary-less systems are fixed.
 	 */
 	for_each_matching_node(np, pci_ids) {
 		if (of_device_is_available(np)) {

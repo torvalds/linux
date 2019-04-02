@@ -28,7 +28,7 @@
 #include <linux/pci-ats.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-direct.h>
@@ -78,7 +78,7 @@
  * physically contiguous memory regions it is mapping into page sizes
  * that we support.
  *
- * 512GB Pages are not supported due to a hardware bug
+ * 512GB Pages are not supported due to a hardware 
  */
 #define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
 
@@ -202,7 +202,7 @@ static struct protection_domain *to_pdomain(struct iommu_domain *dom)
 
 static struct dma_ops_domain* to_dma_ops_domain(struct protection_domain *domain)
 {
-	BUG_ON(domain->flags != PD_DMA_OPS_MASK);
+	_ON(domain->flags != PD_DMA_OPS_MASK);
 	return container_of(domain, struct dma_ops_domain, domain);
 }
 
@@ -444,7 +444,7 @@ static int iommu_init_device(struct device *dev)
 
 	/*
 	 * By default we use passthrough mode for IOMMUv2 capable device.
-	 * But if amd_iommu=force_isolation is set (e.g. to debug DMA to
+	 * But if amd_iommu=force_isolation is set (e.g. to de DMA to
 	 * invalid address), we ignore the capability for the device so
 	 * it'll be forced to go into translation mode.
 	 */
@@ -694,7 +694,7 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 		raw = (u64 *)(iommu->ppr_log + head);
 
 		/*
-		 * Hardware bug: Interrupt may arrive before the entry is
+		 * Hardware : Interrupt may arrive before the entry is
 		 * written to memory. If this happens we need to wait for the
 		 * entry to arrive.
 		 */
@@ -709,7 +709,7 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 		entry[1] = raw[1];
 
 		/*
-		 * To detect the hardware bug we need to clear the entry
+		 * To detect the hardware  we need to clear the entry
 		 * back to zero.
 		 */
 		raw[0] = raw[1] = 0UL;
@@ -768,7 +768,7 @@ static void iommu_poll_ga_log(struct amd_iommu *iommu)
 			if (!iommu_ga_log_notifier)
 				break;
 
-			pr_debug("%s: devid=%#x, ga_tag=%#x\n",
+			pr_de("%s: devid=%#x, ga_tag=%#x\n",
 				 __func__, GA_DEVID(log_entry),
 				 GA_TAG(log_entry));
 
@@ -815,7 +815,7 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 #endif
 
 		/*
-		 * Hardware bug: ERBT1312
+		 * Hardware : ERBT1312
 		 * When re-enabling interrupt (by writing 1
 		 * to clear the bit), the hardware might also try to set
 		 * the interrupt bit in the event status register.
@@ -1402,7 +1402,7 @@ static struct page *free_sub_pt(unsigned long root, int mode,
 		freelist = free_pt_l6(root, freelist);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return freelist;
@@ -1413,7 +1413,7 @@ static void free_pagetable(struct protection_domain *domain)
 	unsigned long root = (unsigned long)domain->pt_root;
 	struct page *freelist = NULL;
 
-	BUG_ON(domain->mode < PAGE_MODE_NONE ||
+	_ON(domain->mode < PAGE_MODE_NONE ||
 	       domain->mode > PAGE_MODE_6_LEVEL);
 
 	free_sub_pt(root, domain->mode, freelist);
@@ -1457,7 +1457,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 	int level, end_lvl;
 	u64 *pte, *page;
 
-	BUG_ON(!is_power_of_2(page_size));
+	_ON(!is_power_of_2(page_size));
 
 	while (address > PM_LEVEL_SIZE(domain->mode))
 		increase_address_space(domain, gfp);
@@ -1603,8 +1603,8 @@ static int iommu_map_page(struct protection_domain *dom,
 	u64 __pte, *pte;
 	int i, count;
 
-	BUG_ON(!IS_ALIGNED(bus_addr, page_size));
-	BUG_ON(!IS_ALIGNED(phys_addr, page_size));
+	_ON(!IS_ALIGNED(bus_addr, page_size));
+	_ON(!IS_ALIGNED(phys_addr, page_size));
 
 	if (!(prot & IOMMU_PROT_MASK))
 		return -EINVAL;
@@ -1651,7 +1651,7 @@ static unsigned long iommu_unmap_page(struct protection_domain *dom,
 	unsigned long unmap_size;
 	u64 *pte;
 
-	BUG_ON(!is_power_of_2(page_size));
+	_ON(!is_power_of_2(page_size));
 
 	unmapped = 0;
 
@@ -1671,7 +1671,7 @@ static unsigned long iommu_unmap_page(struct protection_domain *dom,
 		unmapped += unmap_size;
 	}
 
-	BUG_ON(unmapped && !is_power_of_2(unmapped));
+	_ON(unmapped && !is_power_of_2(unmapped));
 
 	return unmapped;
 }
@@ -1754,7 +1754,7 @@ static u16 domain_id_alloc(void)
 
 	spin_lock(&pd_bitmap_lock);
 	id = find_first_zero_bit(amd_iommu_pd_alloc_bitmap, MAX_DOMAIN_ID);
-	BUG_ON(id == 0);
+	_ON(id == 0);
 	if (id > 0 && id < MAX_DOMAIN_ID)
 		__set_bit(id, amd_iommu_pd_alloc_bitmap);
 	else
@@ -1809,7 +1809,7 @@ static void free_gcr3_table(struct protection_domain *domain)
 	else if (domain->glx == 1)
 		free_gcr3_tbl_level1(domain->gcr3_tbl);
 	else
-		BUG_ON(domain->glx != 0);
+		_ON(domain->glx != 0);
 
 	free_page((unsigned long)domain->gcr3_tbl);
 }
@@ -2272,7 +2272,7 @@ static int amd_iommu_add_device(struct device *dev)
 
 	dev_data = get_dev_data(dev);
 
-	BUG_ON(!dev_data);
+	_ON(!dev_data);
 
 	if (iommu_pass_through || dev_data->iommu_v2)
 		iommu_request_dm_for_dev(dev);
@@ -2885,7 +2885,7 @@ static void cleanup_domain(struct protection_domain *domain)
 	while (!list_empty(&domain->dev_list)) {
 		entry = list_first_entry(&domain->dev_list,
 					 struct iommu_dev_data, list);
-		BUG_ON(!entry->domain);
+		_ON(!entry->domain);
 		__detach_device(entry);
 	}
 
@@ -2993,7 +2993,7 @@ static void amd_iommu_domain_free(struct iommu_domain *dom)
 	if (domain->dev_cnt > 0)
 		cleanup_domain(domain);
 
-	BUG_ON(domain->dev_cnt != 0);
+	_ON(domain->dev_cnt != 0);
 
 	if (!dom)
 		return;
@@ -4064,7 +4064,7 @@ static int get_devid(struct irq_alloc_info *info)
 		devid = get_device_id(&info->msi_dev->dev);
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 
@@ -4168,7 +4168,7 @@ static void irq_remapping_prepare_irte(struct amd_ir_data *data,
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 }
@@ -4387,7 +4387,7 @@ static int amd_ir_set_vcpu_affinity(struct irq_data *data, void *vcpu_info)
 	 * legacy mode. So, we force legacy mode instead.
 	 */
 	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir)) {
-		pr_debug("%s: Fall back to using intr legacy remap\n",
+		pr_de("%s: Fall back to using intr legacy remap\n",
 			 __func__);
 		pi_data->is_guest_mode = false;
 	}

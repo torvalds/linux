@@ -47,7 +47,7 @@ static struct vfp_double vfp_double_default_qnan = {
 
 static void vfp_double_dump(const char *str, struct vfp_double *d)
 {
-	pr_debug("VFP: %s: sign=%d exponent=%d significand=%016llx\n",
+	pr_de("VFP: %s: sign=%d exponent=%d significand=%016llx\n",
 		 str, d->sign != 0, d->exponent, d->significand);
 }
 
@@ -100,7 +100,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 		significand <<= shift;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	vd->exponent = exponent;
 	vd->significand = significand;
 	vfp_double_dump("pack: normalised", vd);
@@ -113,7 +113,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 	if (underflow) {
 		significand = vfp_shiftright64jamming(significand, -exponent);
 		exponent = 0;
-#ifdef DEBUG
+#ifdef DE
 		vd->exponent = exponent;
 		vd->significand = significand;
 		vfp_double_dump("pack: tiny number", vd);
@@ -137,7 +137,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 	} else if ((rmode == FPSCR_ROUND_PLUSINF) ^ (vd->sign != 0))
 		incr = (1ULL << (VFP_DOUBLE_LOW_BITS + 1)) - 1;
 
-	pr_debug("VFP: rounding increment = 0x%08llx\n", incr);
+	pr_de("VFP: rounding increment = 0x%08llx\n", incr);
 
 	/*
 	 * Is our rounding going to overflow?
@@ -146,7 +146,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 		exponent += 1;
 		significand = (significand >> 1) | (significand & 1);
 		incr >>= 1;
-#ifdef DEBUG
+#ifdef DE
 		vd->exponent = exponent;
 		vd->significand = significand;
 		vfp_double_dump("pack: overflow", vd);
@@ -192,7 +192,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 	vfp_double_dump("pack: final", vd);
 	{
 		s64 d = vfp_double_pack(vd);
-		pr_debug("VFP: %s: d(d%d)=%016llx exceptions=%08x\n", func,
+		pr_de("VFP: %s: d(d%d)=%016llx exceptions=%08x\n", func,
 			 dd, d, exceptions);
 		vfp_put_double(d, dd);
 	}
@@ -570,7 +570,7 @@ static u32 vfp_double_ftoui(int sd, int unused, int dm, u32 fpscr)
 		}
 	}
 
-	pr_debug("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
+	pr_de("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
 	vfp_put_float(d, sd);
 
@@ -645,7 +645,7 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 		}
 	}
 
-	pr_debug("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
+	pr_de("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
 	vfp_put_float((s32)d, sd);
 
@@ -802,7 +802,7 @@ vfp_double_multiply(struct vfp_double *vdd, struct vfp_double *vdn,
 		struct vfp_double *t = vdn;
 		vdn = vdm;
 		vdm = t;
-		pr_debug("VFP: swapping M <-> N\n");
+		pr_de("VFP: swapping M <-> N\n");
 	}
 
 	vdd->sign = vdn->sign ^ vdm->sign;
@@ -1164,7 +1164,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	else
 		veclen = fpscr & FPSCR_LENGTH_MASK;
 
-	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
+	pr_de("VFP: vecstride=%u veclen=%u\n", vecstride,
 		 (veclen >> FPSCR_LENGTH_BIT) + 1);
 
 	if (!fop->fn)
@@ -1176,16 +1176,16 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 
 		type = fop->flags & OP_SD ? 's' : 'd';
 		if (op == FOP_EXT)
-			pr_debug("VFP: itr%d (%c%u) = op[%u] (d%u)\n",
+			pr_de("VFP: itr%d (%c%u) = op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
 				 type, dest, dn, dm);
 		else
-			pr_debug("VFP: itr%d (%c%u) = (d%u) op[%u] (d%u)\n",
+			pr_de("VFP: itr%d (%c%u) = (d%u) op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
 				 type, dest, dn, FOP_TO_IDX(op), dm);
 
 		except = fop->fn(dest, dn, dm, fpscr);
-		pr_debug("VFP: itr%d: exceptions=%08x\n",
+		pr_de("VFP: itr%d: exceptions=%08x\n",
 			 vecitr >> FPSCR_LENGTH_BIT, except);
 
 		exceptions |= except;

@@ -44,7 +44,7 @@ show up in /proc/sys/kernel:
 - kexec_load_disabled
 - kptr_restrict
 - l2cr                        [ PPC only ]
-- modprobe                    ==> Documentation/debugging-modules.txt
+- modprobe                    ==> Documentation/deging-modules.txt
 - modules_disabled
 - msg_next_id		      [ sysv ipc ]
 - msgmax
@@ -311,12 +311,12 @@ hardlockup_all_cpu_backtrace:
 
 This value controls the hard lockup detector behavior when a hard
 lockup condition is detected as to whether or not to gather further
-debug information. If enabled, arch-specific all-CPU stack dumping
+de information. If enabled, arch-specific all-CPU stack dumping
 will be initiated.
 
 0: do nothing. This is the default behavior.
 
-1: on detection capture more debug information.
+1: on detection capture more de information.
 ==============================================================
 
 hardlockup_panic:
@@ -611,7 +611,7 @@ an IO error.
 
 panic_on_oops:
 
-Controls the kernel's behaviour when an oops or BUG is encountered.
+Controls the kernel's behaviour when an oops or  is encountered.
 
 0: try to continue operation
 
@@ -624,7 +624,7 @@ panic_on_stackoverflow:
 
 Controls the kernel's behavior when detecting the overflows of
 kernel, IRQ and exception stacks except a user stack.
-This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
+This file shows up if CONFIG_DE_STACKOVERFLOW is enabled.
 
 0: try to continue operation.
 
@@ -906,7 +906,7 @@ sched_schedstats:
 
 Enables/disables scheduler statistics. Enabling this feature
 incurs a small amount of overhead in the scheduler but is
-useful for debugging and performance tuning.
+useful for deging and performance tuning.
 
 ==============================================================
 
@@ -989,7 +989,7 @@ softlockup_all_cpu_backtrace:
 
 This value controls the soft lockup detector thread's behavior
 when a soft lockup condition is detected as to whether or not
-to gather further debug information. If enabled, each cpu will
+to gather further de information. If enabled, each cpu will
 be issued an NMI and instructed to capture stack trace.
 
 This feature is only applicable for architectures which support
@@ -997,7 +997,7 @@ NMI.
 
 0: do nothing. This is the default behavior.
 
-1: on detection capture more debug information.
+1: on detection capture more de information.
 
 ==============================================================
 
@@ -1022,7 +1022,7 @@ stack_erasing
 This parameter can be used to control kernel stack erasing at the end
 of syscalls for kernels built with CONFIG_GCC_PLUGIN_STACKLEAK.
 
-That erasing reduces the information which kernel stack leak bugs
+That erasing reduces the information which kernel stack leak s
 can reveal and blocks some uninitialized stack variable attacks.
 The tradeoff is the performance impact: on a single CPU system kernel
 compilation sees a 1% slowdown, other systems and workloads may vary.
@@ -1045,11 +1045,11 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
     16 (M): processor reported a Machine Check Exception (MCE)
     32 (B): bad page referenced or some unexpected page flags
     64 (U): taint requested by userspace application
-   128 (D): kernel died recently, i.e. there was an OOPS or BUG
+   128 (D): kernel died recently, i.e. there was an OOPS or 
    256 (A): an ACPI table was overridden by user
    512 (W): kernel issued warning
   1024 (C): staging driver was loaded
-  2048 (I): workaround for bug in platform firmware applied
+  2048 (I): workaround for  in platform firmware applied
   4096 (O): externally-built ("out-of-tree") module was loaded
   8192 (E): unsigned module was loaded
  16384 (L): soft lockup occurred
@@ -1086,7 +1086,7 @@ unknown_nmi_panic:
 
 The value in this file affects behavior of handling NMI. When the
 value is non-zero, unknown NMI is trapped and then panic occurs. At
-that time, kernel debugging information is displayed on console.
+that time, kernel deging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.

@@ -43,7 +43,7 @@
 
 #define MQ0_CF2H_RXOR_BS_MASK	0x1FF
 
-#undef ADMA_LL_DEBUG
+#undef ADMA_LL_DE
 
 /**
  * struct ppc440spe_adma_device - internal representation of an ADMA device

@@ -85,13 +85,13 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);
 	} else {
-		pr_debug("could not get root inode\n");
+		pr_de("could not get root inode\n");
 		return -ENOMEM;
 	}
 
 	root = d_make_root(inode);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n",__func__);
+		pr_de("%s: could not get root dentry!\n",__func__);
 		return -ENOMEM;
 	}
 	config_group_init(&configfs_root_group);

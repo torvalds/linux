@@ -73,7 +73,7 @@ enum cyttsp_cmd_bits {
 #define CY_WATCHDOG_TIMEOUT		1000
 
 #define CY_MAX_PRINT_SIZE		512
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 #define CY_MAX_PRBUF_SIZE		PIPE_BUF
 #define CY_PR_TRUNCATED			" truncated..."
 #endif
@@ -362,7 +362,7 @@ struct cyttsp4 {
 	struct cyttsp4_core_platform_data *cpdata;
 	const struct cyttsp4_bus_ops *bus_ops;
 	u8 *xfer_buf;
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	u8 pr_buf[CY_MAX_PRBUF_SIZE];
 #endif
 };

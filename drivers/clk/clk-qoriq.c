@@ -1113,7 +1113,7 @@ static void __init create_one_pll(struct clockgen *cg, int idx)
 
 	/* Check if this PLL is disabled */
 	if (mult & PLL_KILL) {
-		pr_debug("%s(): pll %p disabled\n", __func__, reg);
+		pr_de("%s(): pll %p disabled\n", __func__, reg);
 		return;
 	}
 
@@ -1174,7 +1174,7 @@ static void __init legacy_pll_init(struct device_node *np, int idx)
 	pll = &clockgen.pll[idx];
 	count = of_property_count_strings(np, "clock-output-names");
 
-	BUILD_BUG_ON(ARRAY_SIZE(pll->div) < 4);
+	BUILD__ON(ARRAY_SIZE(pll->div) < 4);
 	subclks = kcalloc(4, sizeof(struct clk *), GFP_KERNEL);
 	if (!subclks)
 		return;

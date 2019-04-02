@@ -199,7 +199,7 @@ void hfs_bnode_unlink(struct hfs_bnode *node)
 
 	// move down?
 	if (!node->prev && !node->next) {
-		printk(KERN_DEBUG "hfs_btree_del_level\n");
+		printk(KERN_DE "hfs_btree_del_level\n");
 	}
 	if (!node->parent) {
 		tree->root = 0;
@@ -303,7 +303,7 @@ void hfs_bnode_unhash(struct hfs_bnode *node)
 	for (p = &node->tree->node_hash[hfs_bnode_hash(node->this)];
 	     *p && *p != node; p = &(*p)->next_hash)
 		;
-	BUG_ON(!*p);
+	_ON(!*p);
 	*p = node->next_hash;
 	node->tree->node_hash_cnt--;
 }
@@ -460,7 +460,7 @@ void hfs_bnode_put(struct hfs_bnode *node)
 		hfs_dbg(BNODE_REFS, "put_node(%d:%d): %d\n",
 			node->tree->cnid, node->this,
 			atomic_read(&node->refcnt));
-		BUG_ON(!atomic_read(&node->refcnt));
+		_ON(!atomic_read(&node->refcnt));
 		if (!atomic_dec_and_lock(&node->refcnt, &tree->hash_lock))
 			return;
 		for (i = 0; i < tree->pages_per_bnode; i++) {

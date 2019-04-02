@@ -90,7 +90,7 @@ void afs_update_inode_from_status(struct afs_vnode *vnode,
 	if (!(flags & AFS_VNODE_NOT_YET_SET)) {
 		if (expected_version &&
 		    *expected_version != status->data_version) {
-			_debug("vnode modified %llx on {%llx:%llu} [exp %llx]",
+			_de("vnode modified %llx on {%llx:%llu} [exp %llx]",
 			       (unsigned long long) status->data_version,
 			       vnode->fid.vid, vnode->fid.vnode,
 			       (unsigned long long) *expected_version);
@@ -139,7 +139,7 @@ static int xdr_decode_AFSFetchStatus(struct afs_call *call,
 		if (xdr->if_version == htonl(0) &&
 		    abort_code != 0 &&
 		    inline_error) {
-			/* The OpenAFS fileserver has a bug in FS.InlineBulkStatus
+			/* The OpenAFS fileserver has a  in FS.InlineBulkStatus
 			 * whereby it doesn't set the interface version in the error
 			 * case.
 			 */
@@ -500,13 +500,13 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		/* extract the returned data length */
 	case 1:
-		_debug("extract data length");
+		_de("extract data length");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
 		req->actual_len = be64_to_cpu(call->tmp64);
-		_debug("DATA length: %llu", req->actual_len);
+		_de("DATA length: %llu", req->actual_len);
 		req->remain = min(req->len, req->actual_len);
 		if (req->remain == 0)
 			goto no_more_data;
@@ -527,7 +527,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		/* extract the returned data */
 	case 2:
-		_debug("extract data %zu/%llu",
+		_de("extract data %zu/%llu",
 		       iov_iter_count(&call->iter), req->remain);
 
 		ret = afs_extract_data(call, true);
@@ -553,7 +553,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		iov_iter_discard(&call->iter, READ, req->actual_len - req->len);
 		call->unmarshall = 3;
 	case 3:
-		_debug("extract discard %zu/%llu",
+		_de("extract discard %zu/%llu",
 		       iov_iter_count(&call->iter), req->actual_len - req->len);
 
 		ret = afs_extract_data(call, true);
@@ -1382,7 +1382,7 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 	if (pos + size > i_size)
 		i_size = size + pos;
 
-	_debug("size %llx, at %llx, i_size %llx",
+	_de("size %llx, at %llx, i_size %llx",
 	       (unsigned long long) size, (unsigned long long) pos,
 	       (unsigned long long) i_size);
 
@@ -1636,7 +1636,7 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 
 		/* extract the returned status record */
 	case 1:
-		_debug("extract status");
+		_de("extract status");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
@@ -1653,7 +1653,7 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 			return ret;
 
 		call->count = ntohl(call->tmp);
-		_debug("volname length: %u", call->count);
+		_de("volname length: %u", call->count);
 		if (call->count >= AFSNAMEMAX)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_volname_len);
@@ -1663,14 +1663,14 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 
 		/* extract the volume name */
 	case 3:
-		_debug("extract volname");
+		_de("extract volname");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
 		p = call->reply[2];
 		p[call->count] = 0;
-		_debug("volname '%s'", p);
+		_de("volname '%s'", p);
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
 
@@ -1681,7 +1681,7 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 			return ret;
 
 		call->count = ntohl(call->tmp);
-		_debug("offline msg length: %u", call->count);
+		_de("offline msg length: %u", call->count);
 		if (call->count >= AFSNAMEMAX)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_offline_msg_len);
@@ -1691,14 +1691,14 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 
 		/* extract the offline message */
 	case 5:
-		_debug("extract offline");
+		_de("extract offline");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
 		p = call->reply[2];
 		p[call->count] = 0;
-		_debug("offline '%s'", p);
+		_de("offline '%s'", p);
 
 		afs_extract_to_tmp(call);
 		call->unmarshall++;
@@ -1710,7 +1710,7 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 			return ret;
 
 		call->count = ntohl(call->tmp);
-		_debug("motd length: %u", call->count);
+		_de("motd length: %u", call->count);
 		if (call->count >= AFSNAMEMAX)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_motd_len);
@@ -1720,14 +1720,14 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 
 		/* extract the message of the day */
 	case 7:
-		_debug("extract motd");
+		_de("extract motd");
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
 
 		p = call->reply[2];
 		p[call->count] = 0;
-		_debug("motd '%s'", p);
+		_de("motd '%s'", p);
 
 		call->unmarshall++;
 
@@ -2207,13 +2207,13 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		/* Extract the file status count and array in two steps */
 	case 1:
-		_debug("extract status count");
+		_de("extract status count");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
 		tmp = ntohl(call->tmp);
-		_debug("status count: %u/%u", tmp, call->count2);
+		_de("status count: %u/%u", tmp, call->count2);
 		if (tmp != call->count2)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_ibulkst_count);
@@ -2224,7 +2224,7 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		afs_extract_to_buf(call, 21 * sizeof(__be32));
 
 	case 2:
-		_debug("extract status array %u", call->count);
+		_de("extract status array %u", call->count);
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
@@ -2247,13 +2247,13 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		/* Extract the callback count and array in two steps */
 	case 3:
-		_debug("extract CB count");
+		_de("extract CB count");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
 		tmp = ntohl(call->tmp);
-		_debug("CB count: %u", tmp);
+		_de("CB count: %u", tmp);
 		if (tmp != call->count2)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_ibulkst_cb_count);
@@ -2263,12 +2263,12 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		afs_extract_to_buf(call, 3 * sizeof(__be32));
 
 	case 4:
-		_debug("extract CB array");
+		_de("extract CB array");
 		ret = afs_extract_data(call, true);
 		if (ret < 0)
 			return ret;
 
-		_debug("unmarshall CB array");
+		_de("unmarshall CB array");
 		bp = call->buffer;
 		callbacks = call->reply[2];
 		callbacks[call->count].version	= ntohl(bp[0]);

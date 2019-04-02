@@ -10,7 +10,7 @@ Author:
 ======================
 
 Long gone are the days when a network card would just take and give packets
-verbatim.  Today's devices add multiple features and bugs (read: offloads)
+verbatim.  Today's devices add multiple features and s (read: offloads)
 that relieve an OS of various tasks like generating and checking checksums,
 splitting packets, classifying them.  Those capabilities and their state
 are commonly referred to as netdev features in Linux kernel world.

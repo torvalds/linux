@@ -711,7 +711,7 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	/*
 	 * By default, all DMA modes are disabled for the MPC5200.  Some
 	 * boards don't have the required signals routed to make DMA work.
-	 * Also, the MPC5200B has a silicon bug that causes data corruption
+	 * Also, the MPC5200B has a silicon  that causes data corruption
 	 * with UDMA if it is used at the same time as the LocalPlus bus.
 	 *
 	 * Instead of trying to guess what modes are usable, check the

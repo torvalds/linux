@@ -58,8 +58,8 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 
 	trace_ocfs2_write_block((unsigned long long)bh->b_blocknr, ci);
 
-	BUG_ON(bh->b_blocknr < OCFS2_SUPER_BLOCK_BLKNO);
-	BUG_ON(buffer_jbd(bh));
+	_ON(bh->b_blocknr < OCFS2_SUPER_BLOCK_BLKNO);
+	_ON(buffer_jbd(bh));
 
 	/* No need to check for a soft readonly file system here. non
 	 * journalled writes are only ever done on system files which
@@ -138,7 +138,7 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 		}
 
 		if (buffer_dirty(bh)) {
-			/* This should probably be a BUG, or
+			/* This should probably be a , or
 			 * at least return an error. */
 			mlog(ML_ERROR,
 			     "trying to sync read a dirty "
@@ -154,7 +154,7 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 			     "block %llu had the JBD bit set "
 			     "while I was in lock_buffer!",
 			     (unsigned long long)bh->b_blocknr);
-			BUG();
+			();
 #else
 			unlock_buffer(bh);
 			continue;
@@ -219,8 +219,8 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 
 	trace_ocfs2_read_blocks_begin(ci, (unsigned long long)block, nr, flags);
 
-	BUG_ON(!ci);
-	BUG_ON((flags & OCFS2_BH_READAHEAD) &&
+	_ON(!ci);
+	_ON((flags & OCFS2_BH_READAHEAD) &&
 	       (flags & OCFS2_BH_IGNORE_CACHE));
 
 	if (bhs == NULL) {
@@ -303,7 +303,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 
 		if (ignore_cache) {
 			if (buffer_dirty(bh)) {
-				/* This should probably be a BUG, or
+				/* This should probably be a , or
 				 * at least return an error. */
 				continue;
 			}
@@ -322,7 +322,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 				mlog(ML_ERROR, "block %llu had the JBD bit set "
 					       "while I was in lock_buffer!",
 				     (unsigned long long)bh->b_blocknr);
-				BUG();
+				();
 #else
 				unlock_buffer(bh);
 				continue;
@@ -394,7 +394,7 @@ read_failure:
 				/* We never set NeedsValidate if the
 				 * buffer was held by the journal, so
 				 * that better not have changed */
-				BUG_ON(buffer_jbd(bh));
+				_ON(buffer_jbd(bh));
 				clear_buffer_needs_validate(bh);
 				status = validate(sb, bh);
 				if (status)
@@ -433,7 +433,7 @@ static void ocfs2_check_super_or_backup(struct super_block *sb,
 			return;
 	}
 
-	BUG();
+	();
 }
 
 /*
@@ -447,7 +447,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 	int ret = 0;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 
-	BUG_ON(buffer_jbd(bh));
+	_ON(buffer_jbd(bh));
 	ocfs2_check_super_or_backup(osb->sb, bh->b_blocknr);
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb)) {

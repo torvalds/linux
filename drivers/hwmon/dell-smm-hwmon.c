@@ -149,7 +149,7 @@ static int i8k_smm_func(void *par)
 	struct smm_regs *regs = par;
 	int eax = regs->eax;
 
-#ifdef DEBUG
+#ifdef DE
 	int ebx = regs->ebx;
 	unsigned long duration;
 	ktime_t calltime, delta, rettime;
@@ -217,11 +217,11 @@ static int i8k_smm_func(void *par)
 	if (rc != 0 || (regs->eax & 0xffff) == 0xffff || regs->eax == eax)
 		rc = -EINVAL;
 
-#ifdef DEBUG
+#ifdef DE
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
 	duration = ktime_to_ns(delta) >> 10;
-	pr_debug("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lu usecs)\n", eax, ebx,
+	pr_de("smm(0x%.4x 0x%.4x) = 0x%.4x  (took %7lu usecs)\n", eax, ebx,
 		(rc ? 0xffff : regs->eax & 0xffff), duration);
 #endif
 
@@ -1084,9 +1084,9 @@ MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
 
 /*
  * On some machines once I8K_SMM_GET_FAN_TYPE is issued then CPU fan speed
- * randomly going up and down due to bug in Dell SMM or BIOS. Here is blacklist
+ * randomly going up and down due to  in Dell SMM or BIOS. Here is blacklist
  * of affected Dell machines for which we disallow I8K_SMM_GET_FAN_TYPE call.
- * See bug: https://bugzilla.kernel.org/show_bug.cgi?id=100121
+ * See : https://zilla.kernel.org/show_.cgi?id=100121
  */
 static const struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initconst = {
 	{
@@ -1117,7 +1117,7 @@ static const struct dmi_system_id i8k_blacklist_fan_type_dmi_table[] __initconst
  * On some machines all fan related SMM functions implemented by Dell BIOS
  * firmware freeze kernel for about 500ms. Until Dell fixes these problems fan
  * support for affected blacklisted Dell machines stay disabled.
- * See bug: https://bugzilla.kernel.org/show_bug.cgi?id=195751
+ * See : https://zilla.kernel.org/show_.cgi?id=195751
  */
 static struct dmi_system_id i8k_blacklist_fan_support_dmi_table[] __initdata = {
 	{

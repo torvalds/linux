@@ -311,7 +311,7 @@ static int rpmhpd_update_level_mapping(struct rpmhpd *rpmhpd)
 			rpmhpd->level_count = i;
 			break;
 		}
-		pr_debug("%s: ARC hlvl=%2d --> vlvl=%4u\n", rpmhpd->res_name, i,
+		pr_de("%s: ARC hlvl=%2d --> vlvl=%4u\n", rpmhpd->res_name, i,
 			 rpmhpd->level[i]);
 	}
 

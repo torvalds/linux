@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Makefile for debugging tools
+# Makefile for deging tools
 
 PREFIX ?= /usr
 BINDIR ?= bin

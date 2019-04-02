@@ -87,7 +87,7 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	 * check again. However, if we were tracing entry, then we always trace
 	 * exit regardless, as the old entry assembly did.
 	 */
-	if (!has_syscall_work(flags) && !IS_ENABLED(CONFIG_DEBUG_RSEQ)) {
+	if (!has_syscall_work(flags) && !IS_ENABLED(CONFIG_DE_RSEQ)) {
 		local_daif_mask();
 		flags = current_thread_info()->flags;
 		if (!has_syscall_work(flags)) {

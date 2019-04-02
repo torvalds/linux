@@ -96,7 +96,7 @@ static inline void gfs2_setbit(const struct gfs2_rbm *rbm, bool do_clone,
 	byte1 = bi->bi_bh->b_data + bi->bi_offset + (rbm->offset / GFS2_NBBY);
 	end = bi->bi_bh->b_data + bi->bi_offset + buflen;
 
-	BUG_ON(byte1 >= end);
+	_ON(byte1 >= end);
 
 	cur_state = (*byte1 >> bit) & GFS2_BIT_MASK;
 
@@ -382,13 +382,13 @@ static u32 gfs2_free_extlen(const struct gfs2_rbm *rrbm, u32 len)
 			start = bi->bi_clone;
 		start += bi->bi_offset;
 		end = start + bi->bi_bytes;
-		BUG_ON(rbm.offset & 3);
+		_ON(rbm.offset & 3);
 		start += (rbm.offset / GFS2_NBBY);
 		bytes = min_t(u32, len / GFS2_NBBY, (end - start));
 		ptr = memchr_inv(start, 0, bytes);
 		chunk_size = ((ptr == NULL) ? bytes : (ptr - start));
 		chunk_size *= GFS2_NBBY;
-		BUG_ON(len < chunk_size);
+		_ON(len < chunk_size);
 		len -= chunk_size;
 		block = gfs2_rbm_to_block(&rbm);
 		if (gfs2_rbm_from_block(&rbm, block + chunk_size)) {
@@ -647,7 +647,7 @@ static void __rs_deltree(struct gfs2_blkreserv *rs)
 		struct gfs2_bitmap *start, *last;
 
 		/* return reserved blocks to the rgrp */
-		BUG_ON(rs->rs_rbm.rgd->rd_reserved < rs->rs_free);
+		_ON(rs->rs_rbm.rgd->rd_reserved < rs->rs_free);
 		rs->rs_rbm.rgd->rd_reserved -= rs->rs_free;
 		/* The rgrp extent failure point is likely not to increase;
 		   it will only do so if the freed blocks are somehow
@@ -678,7 +678,7 @@ void gfs2_rs_deltree(struct gfs2_blkreserv *rs)
 	if (rgd) {
 		spin_lock(&rgd->rd_rsspin);
 		__rs_deltree(rs);
-		BUG_ON(rs->rs_free);
+		_ON(rs->rs_free);
 		spin_unlock(&rgd->rd_rsspin);
 	}
 }
@@ -1495,7 +1495,7 @@ static void rs_insert(struct gfs2_inode *ip)
 	struct gfs2_rgrpd *rgd = rs->rs_rbm.rgd;
 	u64 fsblock = gfs2_rbm_to_block(&rs->rs_rbm);
 
-	BUG_ON(gfs2_rs_active(rs));
+	_ON(gfs2_rs_active(rs));
 
 	spin_lock(&rgd->rd_rsspin);
 	newn = &rgd->rd_rstree.rb_node;

@@ -285,7 +285,7 @@ void smt_pmf_received_pack(struct s_smc *smc, SMbuf *mb, int local)
 
 	sm = smtod(mb,struct smt_header *) ;
 	DB_SMT("SMT: processing PMF frame at %p len %d", sm, mb->sm_len);
-#ifdef	DEBUG
+#ifdef	DE
 	dump_smt(smc,sm,"PMF Received") ;
 #endif
 	/*
@@ -300,7 +300,7 @@ void smt_pmf_received_pack(struct s_smc *smc, SMbuf *mb, int local)
 			sm->smt_class == SMT_PMF_SET,local) ;
 		if (reply) {
 			sm = smtod(reply,struct smt_header *) ;
-#ifdef	DEBUG
+#ifdef	DE
 			dump_smt(smc,sm,"PMF Reply") ;
 #endif
 			smt_send_frame(smc,reply,FC_SMT_INFO,local) ;
@@ -1555,7 +1555,7 @@ static int port_to_mib(struct s_smc *smc, int p)
 }
 
 
-#ifdef	DEBUG
+#ifdef	DE
 #ifndef	BOOT
 void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text)
 {
@@ -1570,10 +1570,10 @@ void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text)
 
 	SK_UNUSED(smc) ;
 
-#ifdef	DEBUG_BRD
-	if (smc->debug.d_smtf < 2)
+#ifdef	DE_BRD
+	if (smc->de.d_smtf < 2)
 #else
-	if (debug.d_smtf < 2)
+	if (de.d_smtf < 2)
 #endif
 		return ;
 #ifdef	LITTLE_ENDIAN
@@ -1657,7 +1657,7 @@ void dump_hex(char *p, int len)
 	}
 }
 #endif	/* no BOOT */
-#endif	/* DEBUG */
+#endif	/* DE */
 
 
 #endif	/* no SLIM_SMT */

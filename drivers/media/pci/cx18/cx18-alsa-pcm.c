@@ -34,12 +34,12 @@
 #include "cx18-alsa.h"
 #include "cx18-alsa-pcm.h"
 
-static unsigned int pcm_debug;
-module_param(pcm_debug, int, 0644);
-MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
+static unsigned int pcm_de;
+module_param(pcm_de, int, 0644);
+MODULE_PARM_DESC(pcm_de, "enable de messages for pcm");
 
 #define dprintk(fmt, arg...) do {					\
-	    if (pcm_debug)						\
+	    if (pcm_de)						\
 		printk(KERN_INFO "cx18-alsa-pcm %s: " fmt,		\
 				  __func__, ##arg);			\
 	} while (0)

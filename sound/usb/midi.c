@@ -240,7 +240,7 @@ static void snd_usbmidi_input_data(struct snd_usb_midi_in_endpoint *ep,
 #ifdef DUMP_PACKETS
 static void dump_urb(const char *type, const u8 *data, int length)
 {
-	snd_printk(KERN_DEBUG "%s packet: [", type);
+	snd_printk(KERN_DE "%s packet: [", type);
 	for (; length > 0; ++data, --length)
 		printk(KERN_CONT " %02x", *data);
 	printk(KERN_CONT " ]\n");
@@ -430,7 +430,7 @@ static void snd_usbmidi_midiman_input(struct snd_usb_midi_in_endpoint *ep,
 }
 
 /*
- * Buggy M-Audio device: running status on input results in a packet that has
+ * gy M-Audio device: running status on input results in a packet that has
  * the data bytes but not the status byte and that is marked with CIN 4.
  */
 static void snd_usbmidi_maudio_broken_running_status_input(
@@ -471,7 +471,7 @@ static void snd_usbmidi_maudio_broken_running_status_input(
 }
 
 /*
- * QinHeng CH345 is buggy: every second packet inside a SysEx has not CIN 4
+ * QinHeng CH345 is gy: every second packet inside a SysEx has not CIN 4
  * but the previously seen CIN, but still with three data bytes.
  */
 static void ch345_broken_sysex_input(struct snd_usb_midi_in_endpoint *ep,
@@ -1150,7 +1150,7 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 					break;
 				}
 	if (!port) {
-		snd_BUG();
+		snd_();
 		return -ENXIO;
 	}
 

@@ -366,7 +366,7 @@ int mt7603_mcu_set_eeprom(struct mt7603_dev *dev)
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(req_fields) * sizeof(*data) > size);
+	BUILD__ON(ARRAY_SIZE(req_fields) * sizeof(*data) > size);
 
 	skb = mt7603_mcu_msg_alloc(NULL, size + sizeof(req_hdr));
 	memcpy(skb_put(skb, sizeof(req_hdr)), &req_hdr, sizeof(req_hdr));

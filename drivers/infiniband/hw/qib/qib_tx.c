@@ -261,7 +261,7 @@ static void update_send_bufs(struct qib_devdata *dd)
 }
 
 /*
- * Debugging code and stats updates if no pio buffers available.
+ * Deging code and stats updates if no pio buffers available.
  */
 static noinline void no_send_bufs(struct qib_devdata *dd)
 {

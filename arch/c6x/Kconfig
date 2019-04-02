@@ -36,9 +36,9 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_BUG
+config GENERIC_
 	def_bool y
-	depends on BUG
+	depends on 
 
 config C6X_BIG_KERNEL
 	bool "Build a big kernel"

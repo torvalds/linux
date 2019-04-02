@@ -101,7 +101,7 @@ int cpm_get_irq(void)
 static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
-	pr_debug("cpm_pic_host_map(%d, 0x%lx)\n", virq, hw);
+	pr_de("cpm_pic_host_map(%d, 0x%lx)\n", virq, hw);
 
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_and_handler(virq, &cpm_pic, handle_fasteoi_irq);
@@ -135,7 +135,7 @@ unsigned int cpm_pic_init(void)
 	unsigned int sirq = 0, hwirq, eirq;
 	int ret;
 
-	pr_debug("cpm_pic_init\n");
+	pr_de("cpm_pic_init\n");
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1-pic");
 	if (np == NULL)
@@ -207,7 +207,7 @@ void __init cpm_reset(void)
 
 	cpmp = &mpc8xx_immr->im_cpm;
 
-#ifndef CONFIG_PPC_EARLY_DEBUG_CPM
+#ifndef CONFIG_PPC_EARLY_DE_CPM
 	/* Perform a reset.
 	*/
 	out_be16(&cpmp->cp_cpcr, CPM_CR_RST | CPM_CR_FLG);

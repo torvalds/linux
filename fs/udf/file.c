@@ -59,7 +59,7 @@ static void __udf_adinicb_readpage(struct page *page)
 
 static int udf_adinicb_readpage(struct file *file, struct page *page)
 {
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	__udf_adinicb_readpage(page);
 	unlock_page(page);
 
@@ -73,7 +73,7 @@ static int udf_adinicb_writepage(struct page *page,
 	char *kaddr;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	kaddr = kmap_atomic(page);
 	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr,
@@ -156,7 +156,7 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			err = udf_expand_file_adinicb(inode);
 			if (err) {
 				inode_unlock(inode);
-				udf_debug("udf_expand_adinicb: err=%d\n", err);
+				udf_de("udf_expand_adinicb: err=%d\n", err);
 				return err;
 			}
 		} else {
@@ -185,13 +185,13 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int result;
 
 	if (inode_permission(inode, MAY_READ) != 0) {
-		udf_debug("no permission to access inode %lu\n", inode->i_ino);
+		udf_de("no permission to access inode %lu\n", inode->i_ino);
 		return -EPERM;
 	}
 
 	if (!arg && ((cmd == UDF_GETVOLIDENT) || (cmd == UDF_GETEASIZE) ||
 		     (cmd == UDF_RELOCATE_BLOCKS) || (cmd == UDF_GETEABLOCK))) {
-		udf_debug("invalid argument to udf_ioctl\n");
+		udf_de("invalid argument to udf_ioctl\n");
 		return -EINVAL;
 	}
 

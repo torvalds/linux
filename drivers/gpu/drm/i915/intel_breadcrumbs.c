@@ -55,7 +55,7 @@ static void __intel_breadcrumbs_disarm_irq(struct intel_breadcrumbs *b)
 {
 	lockdep_assert_held(&b->irq_lock);
 
-	GEM_BUG_ON(!b->irq_enabled);
+	GEM__ON(!b->irq_enabled);
 	if (!--b->irq_enabled)
 		irq_disable(container_of(b,
 					 struct intel_engine_cs,
@@ -95,7 +95,7 @@ bool intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 		__intel_breadcrumbs_disarm_irq(b);
 
 	list_for_each_entry_safe(ce, cn, &b->signalers, signal_link) {
-		GEM_BUG_ON(list_empty(&ce->signals));
+		GEM__ON(list_empty(&ce->signals));
 
 		list_for_each_safe(pos, next, &ce->signals) {
 			struct i915_request *rq =
@@ -104,7 +104,7 @@ bool intel_engine_breadcrumbs_irq(struct intel_engine_cs *engine)
 			if (!__request_completed(rq))
 				break;
 
-			GEM_BUG_ON(!test_bit(I915_FENCE_FLAG_SIGNAL,
+			GEM__ON(!test_bit(I915_FENCE_FLAG_SIGNAL,
 					     &rq->fence.flags));
 
 			/*
@@ -176,7 +176,7 @@ void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine)
 	spin_lock_irq(&b->irq_lock);
 	if (!b->irq_enabled++)
 		irq_enable(engine);
-	GEM_BUG_ON(!b->irq_enabled); /* no overflow! */
+	GEM__ON(!b->irq_enabled); /* no overflow! */
 	spin_unlock_irq(&b->irq_lock);
 }
 
@@ -185,7 +185,7 @@ void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine)
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	spin_lock_irq(&b->irq_lock);
-	GEM_BUG_ON(!b->irq_enabled); /* no underflow! */
+	GEM__ON(!b->irq_enabled); /* no underflow! */
 	if (!--b->irq_enabled)
 		irq_disable(engine);
 	spin_unlock_irq(&b->irq_lock);
@@ -253,7 +253,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 {
 	struct intel_breadcrumbs *b = &rq->engine->breadcrumbs;
 
-	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
+	GEM__ON(test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
 
 	if (!test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags))
 		return true;

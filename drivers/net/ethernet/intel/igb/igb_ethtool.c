@@ -2383,7 +2383,7 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			sprintf(p, "rx_queue_%u_alloc_failed", i);
 			p += ETH_GSTRING_LEN;
 		}
-		/* BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
+		/* _ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(data, igb_priv_flags_strings,

@@ -101,7 +101,7 @@ extern void _wrmsr(u32 msr, u32 hi, u32 lo);
 #define GLIU_ARB		0x82
 #define GLIU_ASMI		0x83
 #define GLIU_AERR		0x84
-#define GLIU_DEBUG		0x85
+#define GLIU_DE		0x85
 #define GLIU_PHY_CAP		0x86
 #define GLIU_NOUT_RESP		0x87
 #define GLIU_NOUT_WDATA		0x88

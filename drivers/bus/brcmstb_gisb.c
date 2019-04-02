@@ -25,7 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/pm.h>
 #include <linux/kernel.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/notifier.h>
 
 #ifdef CONFIG_MIPS

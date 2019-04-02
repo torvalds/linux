@@ -96,11 +96,11 @@ enum brcmf_feat_quirk {
 void brcmf_feat_attach(struct brcmf_pub *drvr);
 
 /**
- * brcmf_feat_debugfs_create() - create debugfs entries.
+ * brcmf_feat_defs_create() - create defs entries.
  *
  * @drvr: driver instance.
  */
-void brcmf_feat_debugfs_create(struct brcmf_pub *drvr);
+void brcmf_feat_defs_create(struct brcmf_pub *drvr);
 
 /**
  * brcmf_feat_is_enabled() - query feature.

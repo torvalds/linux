@@ -337,7 +337,7 @@ static int pfkey_error(const struct sadb_msg *orig, int err, struct sock *sk)
 		err = EINTR;
 	if (err >= 512)
 		err = EINVAL;
-	BUG_ON(err <= 0 || err >= 256);
+	_ON(err <= 0 || err >= 256);
 
 	hdr = skb_put(skb, sizeof(struct sadb_msg));
 	pfkey_hdr_dup(hdr, orig);
@@ -864,7 +864,7 @@ static struct sk_buff *__pfkey_xfrm_state2msg(const struct xfrm_state *x,
 					a->desc.sadb_alg_id : 0;
 	}
 	sa->sadb_sa_encrypt = 0;
-	BUG_ON(x->ealg && x->calg);
+	_ON(x->ealg && x->calg);
 	if (x->ealg) {
 		struct xfrm_algo_desc *a = xfrm_ealg_get_byname(x->ealg->alg_name, 0);
 		sa->sadb_sa_encrypt = (a && a->pfkey_supported) ?
@@ -933,7 +933,7 @@ static struct sk_buff *__pfkey_xfrm_state2msg(const struct xfrm_state *x,
 				    (struct sockaddr *) (addr + 1),
 				    x->props.family);
 	if (!addr->sadb_address_prefixlen)
-		BUG();
+		();
 
 	/* dst address */
 	addr = skb_put(skb, sizeof(struct sadb_address) + sockaddr_size);
@@ -949,7 +949,7 @@ static struct sk_buff *__pfkey_xfrm_state2msg(const struct xfrm_state *x,
 				    (struct sockaddr *) (addr + 1),
 				    x->props.family);
 	if (!addr->sadb_address_prefixlen)
-		BUG();
+		();
 
 	if (!xfrm_addr_equal(&x->sel.saddr, &x->props.saddr,
 			     x->props.family)) {
@@ -2088,7 +2088,7 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, const struct xfrm_policy *
 				 xp->selector.sport,
 				 (struct sockaddr *) (addr + 1),
 				 xp->family))
-		BUG();
+		();
 
 	/* dst address */
 	addr = skb_put(skb, sizeof(struct sadb_address) + sockaddr_size);
@@ -3187,7 +3187,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 				    (struct sockaddr *) (addr + 1),
 				    x->props.family);
 	if (!addr->sadb_address_prefixlen)
-		BUG();
+		();
 
 	/* dst address */
 	addr = skb_put(skb, sizeof(struct sadb_address) + sockaddr_size);
@@ -3202,7 +3202,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 				    (struct sockaddr *) (addr + 1),
 				    x->props.family);
 	if (!addr->sadb_address_prefixlen)
-		BUG();
+		();
 
 	pol = skb_put(skb, sizeof(struct sadb_x_policy));
 	pol->sadb_x_policy_len = sizeof(struct sadb_x_policy)/sizeof(uint64_t);
@@ -3399,7 +3399,7 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 				    (struct sockaddr *) (addr + 1),
 				    x->props.family);
 	if (!addr->sadb_address_prefixlen)
-		BUG();
+		();
 
 	/* NAT_T_SPORT (old port) */
 	n_port = skb_put(skb, sizeof(*n_port));
@@ -3421,7 +3421,7 @@ static int pfkey_send_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, 
 				    (struct sockaddr *) (addr + 1),
 				    x->props.family);
 	if (!addr->sadb_address_prefixlen)
-		BUG();
+		();
 
 	/* NAT_T_DPORT (new port) */
 	n_port = skb_put(skb, sizeof(*n_port));

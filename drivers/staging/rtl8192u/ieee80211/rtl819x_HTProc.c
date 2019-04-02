@@ -128,29 +128,29 @@ void HTUpdateDefaultSetting(struct ieee80211_device *ieee)
  *  return:  none
  *  notice:  Driver should not print out this message by default.
  */
-void HTDebugHTCapability(u8 *CapIE, u8 *TitleString)
+void HTDeHTCapability(u8 *CapIE, u8 *TitleString)
 {
 	static u8	          EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};	// For 11n EWC definition, 2007.07.17, by Emily
 	struct ht_capability_ele *pCapELE;
 
 	if (!memcmp(CapIE, EWC11NHTCap, sizeof(EWC11NHTCap))) {
 		//EWC IE
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
 		pCapELE = (struct ht_capability_ele *)(&CapIE[4]);
 	} else {
 		pCapELE = (struct ht_capability_ele *)(&CapIE[0]);
 	}
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "<Log HT Capability>. Called by %s\n", TitleString);
+	IEEE80211_DE(IEEE80211_DL_HT, "<Log HT Capability>. Called by %s\n", TitleString);
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tSupported Channel Width = %s\n", (pCapELE->ChlWidth) ? "20MHz" : "20/40MHz");
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tSupport Short GI for 20M = %s\n", (pCapELE->ShortGI20Mhz) ? "YES" : "NO");
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tSupport Short GI for 40M = %s\n", (pCapELE->ShortGI40Mhz) ? "YES" : "NO");
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tSupport TX STBC = %s\n", (pCapELE->TxSTBC) ? "YES" : "NO");
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tMax AMSDU Size = %s\n", (pCapELE->MaxAMSDUSize) ? "3839" : "7935");
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tSupport CCK in 20/40 mode = %s\n", (pCapELE->DssCCk) ? "YES" : "NO");
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tMax AMPDU Factor = %d\n", pCapELE->MaxRxAMPDUFactor);
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tMPDU Density = %d\n", pCapELE->MPDUDensity);
-	IEEE80211_DEBUG(IEEE80211_DL_HT,  "\tMCS Rate Set = [%x][%x][%x][%x][%x]\n", pCapELE->MCS[0],\
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tSupported Channel Width = %s\n", (pCapELE->ChlWidth) ? "20MHz" : "20/40MHz");
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tSupport Short GI for 20M = %s\n", (pCapELE->ShortGI20Mhz) ? "YES" : "NO");
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tSupport Short GI for 40M = %s\n", (pCapELE->ShortGI40Mhz) ? "YES" : "NO");
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tSupport TX STBC = %s\n", (pCapELE->TxSTBC) ? "YES" : "NO");
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tMax AMSDU Size = %s\n", (pCapELE->MaxAMSDUSize) ? "3839" : "7935");
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tSupport CCK in 20/40 mode = %s\n", (pCapELE->DssCCk) ? "YES" : "NO");
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tMax AMPDU Factor = %d\n", pCapELE->MaxRxAMPDUFactor);
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tMPDU Density = %d\n", pCapELE->MPDUDensity);
+	IEEE80211_DE(IEEE80211_DL_HT,  "\tMCS Rate Set = [%x][%x][%x][%x][%x]\n", pCapELE->MCS[0],\
 				pCapELE->MCS[1], pCapELE->MCS[2], pCapELE->MCS[3], pCapELE->MCS[4]);
 }
 
@@ -163,56 +163,56 @@ void HTDebugHTCapability(u8 *CapIE, u8 *TitleString)
  *  return:  none
  *  notice:  Driver should not print out this message by default.
  */
-void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
+void HTDeHTInfo(u8 *InfoIE, u8 *TitleString)
 {
 	static u8	EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};	// For 11n EWC definition, 2007.07.17, by Emily
 	PHT_INFORMATION_ELE		pHTInfoEle;
 
 	if (!memcmp(InfoIE, EWC11NHTInfo, sizeof(EWC11NHTInfo))) {
 		// Not EWC IE
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
+		IEEE80211_DE(IEEE80211_DL_HT, "EWC IE in %s()\n", __func__);
 		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[4]);
 	} else {
 		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[0]);
 	}
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "<Log HT Information Element>. Called by %s\n", TitleString);
+	IEEE80211_DE(IEEE80211_DL_HT, "<Log HT Information Element>. Called by %s\n", TitleString);
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tPrimary channel = %d\n", pHTInfoEle->ControlChl);
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tSecondary channel =");
+	IEEE80211_DE(IEEE80211_DL_HT, "\tPrimary channel = %d\n", pHTInfoEle->ControlChl);
+	IEEE80211_DE(IEEE80211_DL_HT, "\tSecondary channel =");
 	switch (pHTInfoEle->ExtChlOffset) {
 	case 0:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "Not Present\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "Not Present\n");
 		break;
 	case 1:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "Upper channel\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "Upper channel\n");
 		break;
 	case 2:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "Reserved. Eooro!!!\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "Reserved. Eooro!!!\n");
 		break;
 	case 3:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "Lower Channel\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "Lower Channel\n");
 		break;
 	}
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tRecommended channel width = %s\n", (pHTInfoEle->RecommemdedTxWidth) ? "20Mhz" : "40Mhz");
+	IEEE80211_DE(IEEE80211_DL_HT, "\tRecommended channel width = %s\n", (pHTInfoEle->RecommemdedTxWidth) ? "20Mhz" : "40Mhz");
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tOperation mode for protection = ");
+	IEEE80211_DE(IEEE80211_DL_HT, "\tOperation mode for protection = ");
 	switch (pHTInfoEle->OptMode) {
 	case 0:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "No Protection\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "No Protection\n");
 		break;
 	case 1:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "HT non-member protection mode\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "HT non-member protection mode\n");
 		break;
 	case 2:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "Suggest to open protection\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "Suggest to open protection\n");
 		break;
 	case 3:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "HT mixed mode\n");
+		IEEE80211_DE(IEEE80211_DL_HT, "HT mixed mode\n");
 		break;
 	}
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tBasic MCS Rate Set = [%x][%x][%x][%x][%x]\n", pHTInfoEle->BasicMSC[0],\
+	IEEE80211_DE(IEEE80211_DL_HT, "\tBasic MCS Rate Set = [%x][%x][%x][%x][%x]\n", pHTInfoEle->BasicMSC[0],\
 				pHTInfoEle->BasicMSC[1], pHTInfoEle->BasicMSC[2], pHTInfoEle->BasicMSC[3], pHTInfoEle->BasicMSC[4]);
 }
 
@@ -331,7 +331,7 @@ static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
 	else
 		pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
 
-	IEEE80211_DEBUG(IEEE80211_DL_IOT, "Joseph debug!! IOTPEER: %x\n", pHTInfo->IOTPeer);
+	IEEE80211_DE(IEEE80211_DL_IOT, "Joseph de!! IOTPEER: %x\n", pHTInfo->IOTPeer);
 }
 
 /*
@@ -477,7 +477,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 	//u8 bIsDeclareMCS13;
 
 	if (!posHTCap || !pHT) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				"posHTCap or pHTInfo can't be null in %s\n",
 				__func__);
 		return;
@@ -518,7 +518,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 	 * MAC HT parameters info
 	 * TODO: Nedd to take care of this part
 	 */
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n", pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
+	IEEE80211_DE(IEEE80211_DL_HT, "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n", pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
 	if (IsEncrypt) {
 		pCapELE->MPDUDensity	= 7; // 8us
@@ -564,13 +564,13 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 	else
 		*len = 26 + 2;
 
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTCap, *len -2);
+//	IEEE80211_DE_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTCap, *len -2);
 
 	/*
 	 * Print each field in detail. Driver should not print out this message
 	 * by default
 	 */
-//	HTDebugHTCapability(posHTCap, (u8*)"HTConstructCapability()");
+//	HTDeHTCapability(posHTCap, (u8*)"HTConstructCapability()");
 }
 
 /*
@@ -590,7 +590,7 @@ void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *le
 	PHT_INFORMATION_ELE		pHTInfoEle = (PHT_INFORMATION_ELE)posHTInfo;
 
 	if (!posHTInfo || !pHTInfoEle) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				"posHTInfo or pHTInfoEle can't be null in %s\n",
 				__func__);
 		return;
@@ -621,8 +621,8 @@ void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *le
 		//STA should not generate High Throughput Information Element
 		*len = 0;
 	}
-	//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTInfo, *len - 2);
-	//HTDebugHTInfo(posHTInfo, "HTConstructInforElement");
+	//IEEE80211_DE_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTInfo, *len - 2);
+	//HTDeHTInfo(posHTInfo, "HTConstructInforElement");
 }
 
 /*
@@ -656,7 +656,7 @@ void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *le
 void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, u8 *len)
 {
 	if (!posRT2RTAgg) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				"posRT2RTAgg can't be null in %s\n",
 				__func__);
 		return;
@@ -705,7 +705,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
 static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 {
 	if (!pOperateMCS) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				"pOperateMCS can't be null in %s\n",
 				__func__);
 		return false;
@@ -768,7 +768,7 @@ u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSF
 	u8		availableMcsRate[16];
 
 	if (!pMCSRateSet || !pMCSFilter) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				"pMCSRateSet or pMCSFilter can't be null in %s\n",
 				__func__);
 		return false;
@@ -849,17 +849,17 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	static u8				EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};	// For 11n EWC definition, 2007.07.17, by Emily
 
 	if (!pHTInfo->bCurrentHTSupport) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,
+		IEEE80211_DE(IEEE80211_DL_ERR,
 				"<=== %s: HT_DISABLE\n",
 				__func__);
 		return;
 	}
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTCapBuf, sizeof(struct ht_capability_ele));
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTInfoBuf, sizeof(HT_INFORMATION_ELE));
+	IEEE80211_DE(IEEE80211_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
+//	IEEE80211_DE_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTCapBuf, sizeof(struct ht_capability_ele));
+//	IEEE80211_DE_DATA(IEEE80211_DL_DATA, pHTInfo->PeerHTInfoBuf, sizeof(HT_INFORMATION_ELE));
 
-//	HTDebugHTCapability(pHTInfo->PeerHTCapBuf,"HTOnAssocRsp_wq");
-//	HTDebugHTInfo(pHTInfo->PeerHTInfoBuf,"HTOnAssocRsp_wq");
+//	HTDeHTCapability(pHTInfo->PeerHTCapBuf,"HTOnAssocRsp_wq");
+//	HTDeHTInfo(pHTInfo->PeerHTInfoBuf,"HTOnAssocRsp_wq");
 	//
 	if (!memcmp(pHTInfo->PeerHTCapBuf, EWC11NHTCap, sizeof(EWC11NHTCap)))
 		pPeerHTCap = (struct ht_capability_ele *)(&pHTInfo->PeerHTCapBuf[4]);
@@ -874,8 +874,8 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	////////////////////////////////////////////////////////
 	// Configurations:
 	////////////////////////////////////////////////////////
-	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, pPeerHTCap, sizeof(struct ht_capability_ele));
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_HT, pPeerHTInfo, sizeof(HT_INFORMATION_ELE));
+	IEEE80211_DE_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, pPeerHTCap, sizeof(struct ht_capability_ele));
+//	IEEE80211_DE_DATA(IEEE80211_DL_DATA|IEEE80211_DL_HT, pPeerHTInfo, sizeof(HT_INFORMATION_ELE));
 	// Config Supported Channel Width setting
 	//
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth), (enum ht_extension_chan_offset)(pPeerHTInfo->ExtChlOffset));
@@ -985,7 +985,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 
 	/*
 	 * Handle Ralink AP bad MCS rate set condition. Joseph.
-	 * This fix the bug of Ralink AP. This may be removed in the future.
+	 * This fix the  of Ralink AP. This may be removed in the future.
 	 */
 	if (pPeerHTCap->MCS[0] == 0)
 		pPeerHTCap->MCS[0] = 0xff;
@@ -1000,7 +1000,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 		pMcsFilter = MCS_FILTER_1SS;
 	else
 		pMcsFilter = MCS_FILTER_ALL;
-	//WB add for MCS8 bug
+	//WB add for MCS8 
 //	pMcsFilter = MCS_FILTER_1SS;
 	ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee, ieee->dot11HTOperationalRateSet, pMcsFilter);
 	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
@@ -1028,7 +1028,7 @@ void HTInitializeHTInfo(struct ieee80211_device *ieee)
 	/*
 	 * These parameters will be reset when receiving deauthentication packet
 	 */
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "===========>%s()\n", __func__);
+	IEEE80211_DE(IEEE80211_DL_HT, "===========>%s()\n", __func__);
 	pHTInfo->bCurrentHTSupport = false;
 
 	// 40MHz channel support
@@ -1125,7 +1125,7 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee,	struct ieee802
 	//
 	//  Save Peer Setting before Association
 	//
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "==============>%s()\n", __func__);
+	IEEE80211_DE(IEEE80211_DL_HT, "==============>%s()\n", __func__);
 	/*unmark bEnableHT flag here is the same reason why unmarked in function ieee80211_softmac_new_net. WB 2008.09.10*/
 //	if( pHTInfo->bEnableHT &&  pNetwork->bssht.bdSupportHT)
 	if (pNetwork->bssht.bdSupportHT) {
@@ -1220,7 +1220,7 @@ u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 {
 	if (ieee->pHTInfo->bCurrentHTSupport) {
 		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
-			IEEE80211_DEBUG(IEEE80211_DL_HT, "HT CONTROL FILED EXIST!!\n");
+			IEEE80211_DE(IEEE80211_DL_HT, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}
 	}
@@ -1231,7 +1231,7 @@ static void HTSetConnectBwModeCallback(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
 
-	IEEE80211_DEBUG(IEEE80211_DL_HT, "======>%s()\n", __func__);
+	IEEE80211_DE(IEEE80211_DL_HT, "======>%s()\n", __func__);
 
 	if (pHTInfo->bCurBW40MHz) {
 		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)

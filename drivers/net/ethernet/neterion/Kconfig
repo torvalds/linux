@@ -46,13 +46,13 @@ config VXGE
 	  To compile this driver as a module, choose M here. The module
 	  will be called vxge.
 
-config VXGE_DEBUG_TRACE_ALL
-	bool "Enabling All Debug trace statements in driver"
+config VXGE_DE_TRACE_ALL
+	bool "Enabling All De trace statements in driver"
 	default n
 	depends on VXGE
 	---help---
-	  Say Y here if you want to enabling all the debug trace statements in
-	  the vxge driver. By default only few debug trace statements are
+	  Say Y here if you want to enabling all the de trace statements in
+	  the vxge driver. By default only few de trace statements are
 	  enabled.
 
 endif # NET_VENDOR_NETERION

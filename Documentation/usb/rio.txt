@@ -129,7 +129,7 @@ Load the appropriate modules (if compiled as modules):
 That's it.  The Rio500 Utils at: http://rio500.sourceforge.net should
 be able to access the rio500.
 
-BUGS
+S
 
 If you encounter any problems feel free to drop me an email.
 

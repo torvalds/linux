@@ -23,7 +23,7 @@
 #ifndef _GEN_PV_LOCK_SLOWPATH
 
 #include <linux/smp.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
@@ -326,7 +326,7 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	u32 old, tail;
 	int idx;
 
-	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
+	BUILD__ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
 
 	if (pv_enabled())
 		goto pv_queue;

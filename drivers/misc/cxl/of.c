@@ -126,7 +126,7 @@ static int read_vpd(struct cxl *adapter, struct cxl_afu *afu)
 		rc = cxl_guest_read_afu_vpd(afu, vpd, len);
 
 	if (rc > 0) {
-		cxl_dump_debug_buffer(vpd, rc);
+		cxl_dump_de_buffer(vpd, rc);
 		rc = 0;
 	}
 	return rc;

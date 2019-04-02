@@ -56,7 +56,7 @@ static void target_core_setup_##_name##_cit(struct target_backend *tb)	\
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = _attrs;						\
 	cit->ct_owner = tb->ops->owner;					\
-	pr_debug("Setup generic %s\n", __stringify(_name));		\
+	pr_de("Setup generic %s\n", __stringify(_name));		\
 }
 
 #define TB_CIT_SETUP_DRV(_name, _item_ops, _group_ops)			\
@@ -68,7 +68,7 @@ static void target_core_setup_##_name##_cit(struct target_backend *tb)	\
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = tb->ops->tb_##_name##_attrs;			\
 	cit->ct_owner = tb->ops->owner;					\
-	pr_debug("Setup generic %s\n", __stringify(_name));		\
+	pr_de("Setup generic %s\n", __stringify(_name));		\
 }
 
 extern struct t10_alua_lu_gp *default_lu_gp;
@@ -155,7 +155,7 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 
 	mutex_unlock(&g_tf_lock);
 
-	pr_debug("Target_Core_ConfigFS: db_root set to %s\n", db_root);
+	pr_de("Target_Core_ConfigFS: db_root set to %s\n", db_root);
 
 	return read_bytes;
 }
@@ -196,12 +196,12 @@ static struct config_group *target_core_register_fabric(
 	struct target_fabric_configfs *tf;
 	int ret;
 
-	pr_debug("Target_Core_ConfigFS: REGISTER -> group: %p name:"
+	pr_de("Target_Core_ConfigFS: REGISTER -> group: %p name:"
 			" %s\n", group, name);
 
 	tf = target_core_get_fabric(name);
 	if (!tf) {
-		pr_debug("target_core_register_fabric() trying autoload for %s\n",
+		pr_de("target_core_register_fabric() trying autoload for %s\n",
 			 name);
 
 		/*
@@ -224,7 +224,7 @@ static struct config_group *target_core_register_fabric(
 			 */
 			ret = request_module("iscsi_target_mod");
 			if (ret < 0) {
-				pr_debug("request_module() failed for"
+				pr_de("request_module() failed for"
 				         " iscsi_target_mod.ko: %d\n", ret);
 				return ERR_PTR(-EINVAL);
 			}
@@ -237,7 +237,7 @@ static struct config_group *target_core_register_fabric(
 			 */
 			ret = request_module("tcm_loop");
 			if (ret < 0) {
-				pr_debug("request_module() failed for"
+				pr_de("request_module() failed for"
 				         " tcm_loop.ko: %d\n", ret);
 				return ERR_PTR(-EINVAL);
 			}
@@ -247,17 +247,17 @@ static struct config_group *target_core_register_fabric(
 	}
 
 	if (!tf) {
-		pr_debug("target_core_get_fabric() failed for %s\n",
+		pr_de("target_core_get_fabric() failed for %s\n",
 		         name);
 		return ERR_PTR(-EINVAL);
 	}
-	pr_debug("Target_Core_ConfigFS: REGISTER -> Located fabric:"
+	pr_de("Target_Core_ConfigFS: REGISTER -> Located fabric:"
 			" %s\n", tf->tf_ops->fabric_name);
 	/*
 	 * On a successful target_core_get_fabric() look, the returned
 	 * struct target_fabric_configfs *tf will contain a usage reference.
 	 */
-	pr_debug("Target_Core_ConfigFS: REGISTER tfc_wwn_cit -> %p\n",
+	pr_de("Target_Core_ConfigFS: REGISTER tfc_wwn_cit -> %p\n",
 			&tf->tf_wwn_cit);
 
 	config_group_init_type_name(&tf->tf_group, name, &tf->tf_wwn_cit);
@@ -266,7 +266,7 @@ static struct config_group *target_core_register_fabric(
 			&tf->tf_discovery_cit);
 	configfs_add_default_group(&tf->tf_disc_group, &tf->tf_group);
 
-	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric: %s\n",
+	pr_de("Target_Core_ConfigFS: REGISTER -> Allocated Fabric: %s\n",
 		 config_item_name(&tf->tf_group.cg_item));
 	return &tf->tf_group;
 }
@@ -281,14 +281,14 @@ static void target_core_deregister_fabric(
 	struct target_fabric_configfs *tf = container_of(
 		to_config_group(item), struct target_fabric_configfs, tf_group);
 
-	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Looking up %s in"
+	pr_de("Target_Core_ConfigFS: DEREGISTER -> Looking up %s in"
 		" tf list\n", config_item_name(item));
 
-	pr_debug("Target_Core_ConfigFS: DEREGISTER -> located fabric:"
+	pr_de("Target_Core_ConfigFS: DEREGISTER -> located fabric:"
 			" %s\n", tf->tf_ops->fabric_name);
 	atomic_dec(&tf->tf_access_cnt);
 
-	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Releasing ci"
+	pr_de("Target_Core_ConfigFS: DEREGISTER -> Releasing ci"
 			" %s\n", config_item_name(item));
 
 	configfs_remove_default_groups(&tf->tf_group);
@@ -489,7 +489,7 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(t, &g_tf_list, tf_list) {
 		if (!strcmp(t->tf_ops->fabric_name, fo->fabric_name)) {
-			BUG_ON(atomic_read(&t->tf_access_cnt));
+			_ON(atomic_read(&t->tf_access_cnt));
 			list_del(&t->tf_list);
 			mutex_unlock(&g_tf_lock);
 			/*
@@ -648,7 +648,7 @@ static ssize_t emulate_model_alias_store(struct config_item *item,
 	if (ret < 0)
 		return ret;
 
-	BUILD_BUG_ON(sizeof(dev->t10_wwn.model) != INQUIRY_MODEL_LEN + 1);
+	BUILD__ON(sizeof(dev->t10_wwn.model) != INQUIRY_MODEL_LEN + 1);
 	if (flag) {
 		dev_set_t10_wwn_model_alias(dev);
 	} else {
@@ -676,7 +676,7 @@ static ssize_t emulate_write_cache_store(struct config_item *item,
 	}
 
 	da->emulate_write_cache = flag;
-	pr_debug("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
+	pr_de("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
 			da->da_dev, flag);
 	return count;
 }
@@ -704,7 +704,7 @@ static ssize_t emulate_ua_intlck_ctrl_store(struct config_item *item,
 		return -EINVAL;
 	}
 	da->emulate_ua_intlck_ctrl = val;
-	pr_debug("dev[%p]: SE Device UA_INTRLCK_CTRL flag: %d\n",
+	pr_de("dev[%p]: SE Device UA_INTRLCK_CTRL flag: %d\n",
 		da->da_dev, val);
 	return count;
 }
@@ -727,7 +727,7 @@ static ssize_t emulate_tas_store(struct config_item *item,
 		return -EINVAL;
 	}
 	da->emulate_tas = flag;
-	pr_debug("dev[%p]: SE Device TASK_ABORTED status bit: %s\n",
+	pr_de("dev[%p]: SE Device TASK_ABORTED status bit: %s\n",
 		da->da_dev, flag ? "Enabled" : "Disabled");
 
 	return count;
@@ -754,7 +754,7 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 	}
 
 	da->emulate_tpu = flag;
-	pr_debug("dev[%p]: SE Device Thin Provisioning UNMAP bit: %d\n",
+	pr_de("dev[%p]: SE Device Thin Provisioning UNMAP bit: %d\n",
 		da->da_dev, flag);
 	return count;
 }
@@ -780,7 +780,7 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 	}
 
 	da->emulate_tpws = flag;
-	pr_debug("dev[%p]: SE Device Thin Provisioning WRITE_SAME: %d\n",
+	pr_de("dev[%p]: SE Device Thin Provisioning WRITE_SAME: %d\n",
 				da->da_dev, flag);
 	return count;
 }
@@ -844,7 +844,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 	}
 
 	da->pi_prot_verify = (bool) da->pi_prot_type;
-	pr_debug("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
+	pr_de("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
 	return count;
 }
 
@@ -888,7 +888,7 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 	if (ret)
 		return ret;
 
-	pr_debug("dev[%p]: SE Device Protection Format complete\n", dev);
+	pr_de("dev[%p]: SE Device Protection Format complete\n", dev);
 	return count;
 }
 
@@ -939,7 +939,7 @@ static ssize_t force_pr_aptpl_store(struct config_item *item,
 	}
 
 	da->force_pr_aptpl = flag;
-	pr_debug("dev[%p]: SE Device force_pr_aptpl: %d\n", da->da_dev, flag);
+	pr_de("dev[%p]: SE Device force_pr_aptpl: %d\n", da->da_dev, flag);
 	return count;
 }
 
@@ -960,7 +960,7 @@ static ssize_t emulate_rest_reord_store(struct config_item *item,
 		return -ENOSYS;
 	}
 	da->emulate_rest_reord = flag;
-	pr_debug("dev[%p]: SE Device emulate_rest_reord: %d\n",
+	pr_de("dev[%p]: SE Device emulate_rest_reord: %d\n",
 		da->da_dev, flag);
 	return count;
 }
@@ -993,7 +993,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 		return -ENOSYS;
 	}
 	da->unmap_zeroes_data = flag;
-	pr_debug("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",
+	pr_de("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",
 		 da->da_dev, flag);
 	return count;
 }
@@ -1034,7 +1034,7 @@ static ssize_t queue_depth_store(struct config_item *item,
 		}
 	}
 	da->queue_depth = dev->queue_depth = val;
-	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n", dev, val);
+	pr_de("dev[%p]: SE Device TCQ Depth changed to: %u\n", dev, val);
 	return count;
 }
 
@@ -1063,7 +1063,7 @@ static ssize_t optimal_sectors_store(struct config_item *item,
 	}
 
 	da->optimal_sectors = val;
-	pr_debug("dev[%p]: SE Device optimal_sectors changed to %u\n",
+	pr_de("dev[%p]: SE Device optimal_sectors changed to %u\n",
 			da->da_dev, val);
 	return count;
 }
@@ -1097,7 +1097,7 @@ static ssize_t block_size_store(struct config_item *item,
 	if (da->max_bytes_per_io)
 		da->hw_max_sectors = da->max_bytes_per_io / val;
 
-	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
+	pr_de("dev[%p]: SE Device block_size changed to %u\n",
 			da->da_dev, val);
 	return count;
 }
@@ -1286,10 +1286,10 @@ static ssize_t target_wwn_vendor_id_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON(sizeof(dev->t10_wwn.vendor) != INQUIRY_VENDOR_LEN + 1);
+	BUILD__ON(sizeof(dev->t10_wwn.vendor) != INQUIRY_VENDOR_LEN + 1);
 	strlcpy(dev->t10_wwn.vendor, stripped, sizeof(dev->t10_wwn.vendor));
 
-	pr_debug("Target_Core_ConfigFS: Set emulated T10 Vendor Identification:"
+	pr_de("Target_Core_ConfigFS: Set emulated T10 Vendor Identification:"
 		 " %s\n", dev->t10_wwn.vendor);
 
 	return count;
@@ -1358,7 +1358,7 @@ static ssize_t target_wwn_vpd_unit_serial_store(struct config_item *item,
 			"%s", strstrip(buf));
 	dev->dev_flags |= DF_EMULATED_VPD_UNIT_SERIAL;
 
-	pr_debug("Target_Core_ConfigFS: Set emulated VPD Unit Serial:"
+	pr_de("Target_Core_ConfigFS: Set emulated VPD Unit Serial:"
 			" %s\n", dev->t10_wwn.unit_serial);
 
 	return count;
@@ -1739,7 +1739,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 		return count;
 
 	if (dev->export_count) {
-		pr_debug("Unable to process APTPL metadata while"
+		pr_de("Unable to process APTPL metadata while"
 			" active fabric exports exist\n");
 		return -EINVAL;
 	}
@@ -1990,7 +1990,7 @@ static ssize_t target_dev_alias_store(struct config_item *item,
 
 	dev->dev_flags |= DF_USING_ALIAS;
 
-	pr_debug("Target_Core_ConfigFS: %s/%s set alias: %s\n",
+	pr_de("Target_Core_ConfigFS: %s/%s set alias: %s\n",
 		config_item_name(&hba->hba_group.cg_item),
 		config_item_name(&dev->dev_group.cg_item),
 		dev->dev_alias);
@@ -2031,7 +2031,7 @@ static ssize_t target_dev_udev_path_store(struct config_item *item,
 
 	dev->dev_flags |= DF_USING_UDEV_PATH;
 
-	pr_debug("Target_Core_ConfigFS: %s/%s set udev_path: %s\n",
+	pr_de("Target_Core_ConfigFS: %s/%s set udev_path: %s\n",
 		config_item_name(&hba->hba_group.cg_item),
 		config_item_name(&dev->dev_group.cg_item),
 		dev->udev_path);
@@ -2133,7 +2133,7 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 		 * with NULL
 		 */
 		if (!lu_gp_new) {
-			pr_debug("Target_Core_ConfigFS: Releasing %s/%s"
+			pr_de("Target_Core_ConfigFS: Releasing %s/%s"
 				" from ALUA LU Group: core/alua/lu_gps/%s, ID:"
 				" %hu\n",
 				config_item_name(&hba->hba_group.cg_item),
@@ -2158,7 +2158,7 @@ static ssize_t target_dev_alua_lu_gp_store(struct config_item *item,
 	__core_alua_attach_lu_gp_mem(lu_gp_mem, lu_gp_new);
 	spin_unlock(&lu_gp_mem->lu_gp_mem_lock);
 
-	pr_debug("Target_Core_ConfigFS: %s %s/%s to ALUA LU Group:"
+	pr_de("Target_Core_ConfigFS: %s %s/%s to ALUA LU Group:"
 		" core/alua/lu_gps/%s, ID: %hu\n",
 		(move) ? "Moving" : "Adding",
 		config_item_name(&hba->hba_group.cg_item),
@@ -2411,7 +2411,7 @@ static ssize_t target_lu_gp_lu_gp_id_store(struct config_item *item,
 	if (ret < 0)
 		return -EINVAL;
 
-	pr_debug("Target_Core_ConfigFS: Set ALUA Logical Unit"
+	pr_de("Target_Core_ConfigFS: Set ALUA Logical Unit"
 		" Group: core/alua/lu_gps/%s to ID: %hu\n",
 		config_item_name(&alua_lu_gp_cg->cg_item),
 		lu_gp->lu_gp_id);
@@ -2502,7 +2502,7 @@ static struct config_group *target_core_alua_create_lu_gp(
 	config_group_init_type_name(alua_lu_gp_cg, name,
 			&target_core_alua_lu_gp_cit);
 
-	pr_debug("Target_Core_ConfigFS: Allocated ALUA Logical Unit"
+	pr_de("Target_Core_ConfigFS: Allocated ALUA Logical Unit"
 		" Group: core/alua/lu_gps/%s\n",
 		config_item_name(alua_lu_gp_ci));
 
@@ -2517,7 +2517,7 @@ static void target_core_alua_drop_lu_gp(
 	struct t10_alua_lu_gp *lu_gp = container_of(to_config_group(item),
 			struct t10_alua_lu_gp, lu_gp_group);
 
-	pr_debug("Target_Core_ConfigFS: Releasing ALUA Logical Unit"
+	pr_de("Target_Core_ConfigFS: Releasing ALUA Logical Unit"
 		" Group: core/alua/lu_gps/%s, ID: %hu\n",
 		config_item_name(item), lu_gp->lu_gp_id);
 	/*
@@ -2817,7 +2817,7 @@ static ssize_t target_tg_pt_gp_tg_pt_gp_id_store(struct config_item *item,
 	if (ret < 0)
 		return -EINVAL;
 
-	pr_debug("Target_Core_ConfigFS: Set ALUA Target Port Group: "
+	pr_de("Target_Core_ConfigFS: Set ALUA Target Port Group: "
 		"core/alua/tg_pt_gps/%s to ID: %hu\n",
 		config_item_name(&alua_tg_pt_gp_cg->cg_item),
 		tg_pt_gp->tg_pt_gp_id);
@@ -2941,7 +2941,7 @@ static struct config_group *target_core_alua_create_tg_pt_gp(
 	config_group_init_type_name(alua_tg_pt_gp_cg, name,
 			&target_core_alua_tg_pt_gp_cit);
 
-	pr_debug("Target_Core_ConfigFS: Allocated ALUA Target Port"
+	pr_de("Target_Core_ConfigFS: Allocated ALUA Target Port"
 		" Group: alua/tg_pt_gps/%s\n",
 		config_item_name(alua_tg_pt_gp_ci));
 
@@ -2955,7 +2955,7 @@ static void target_core_alua_drop_tg_pt_gp(
 	struct t10_alua_tg_pt_gp *tg_pt_gp = container_of(to_config_group(item),
 			struct t10_alua_tg_pt_gp, tg_pt_gp_group);
 
-	pr_debug("Target_Core_ConfigFS: Releasing ALUA Target Port"
+	pr_de("Target_Core_ConfigFS: Releasing ALUA Target Port"
 		" Group: alua/tg_pt_gps/%s, ID: %hu\n",
 		config_item_name(item), tg_pt_gp->tg_pt_gp_id);
 	/*
@@ -3328,7 +3328,7 @@ static void target_init_dbroot(void)
 	filp_close(fp, NULL);
 
 	strncpy(db_root, db_root_stage, DB_ROOT_LEN);
-	pr_debug("Target_Core_ConfigFS: db_root set to %s\n", db_root);
+	pr_de("Target_Core_ConfigFS: db_root set to %s\n", db_root);
 }
 
 static int __init target_core_init_configfs(void)
@@ -3337,7 +3337,7 @@ static int __init target_core_init_configfs(void)
 	struct t10_alua_lu_gp *lu_gp;
 	int ret;
 
-	pr_debug("TARGET_CORE[0]: Loading Generic Kernel Storage"
+	pr_de("TARGET_CORE[0]: Loading Generic Kernel Storage"
 		" Engine: %s on %s/%s on "UTS_RELEASE"\n",
 		TARGET_CORE_VERSION, utsname()->sysname, utsname()->machine);
 
@@ -3393,7 +3393,7 @@ static int __init target_core_init_configfs(void)
 			ret, subsys->su_group.cg_item.ci_namebuf);
 		goto out_global;
 	}
-	pr_debug("TARGET_CORE[0]: Initialized ConfigFS Fabric"
+	pr_de("TARGET_CORE[0]: Initialized ConfigFS Fabric"
 		" Infrastructure: "TARGET_CORE_VERSION" on %s/%s"
 		" on "UTS_RELEASE"\n", utsname()->sysname, utsname()->machine);
 	/*
@@ -3443,7 +3443,7 @@ static void __exit target_core_exit_configfs(void)
 	core_alua_free_lu_gp(default_lu_gp);
 	default_lu_gp = NULL;
 
-	pr_debug("TARGET_CORE[0]: Released ConfigFS Fabric"
+	pr_de("TARGET_CORE[0]: Released ConfigFS Fabric"
 			" Infrastructure\n");
 
 	core_dev_release_virtual_lun0();

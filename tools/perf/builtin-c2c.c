@@ -15,10 +15,10 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <sys/param.h>
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "builtin.h"
 #include <subcmd/parse-options.h>
 #include "mem-events.h"
@@ -260,7 +260,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	int ret;
 
 	if (machine__resolve(machine, &al, sample) < 0) {
-		pr_debug("problem processing %d event, skipping it.\n",
+		pr_de("problem processing %d event, skipping it.\n",
 			 event->header.type);
 		return -1;
 	}
@@ -2065,7 +2065,7 @@ static int setup_nodes(struct perf_session *session)
 		for (cpu = 0; cpu < map->nr; cpu++) {
 			set_bit(map->map[cpu], set);
 
-			if (WARN_ONCE(cpu2node[map->map[cpu]] != -1, "node/cpu topology bug"))
+			if (WARN_ONCE(cpu2node[map->map[cpu]] != -1, "node/cpu topology "))
 				return -EINVAL;
 
 			cpu2node[map->map[cpu]] = node;
@@ -2695,9 +2695,9 @@ static int setup_coalesce(const char *coalesce, bool no_source)
 		     "lcl_hitm,rmt_hitm") < 0)
 		return -ENOMEM;
 
-	pr_debug("coalesce sort   fields: %s\n", c2c.cl_sort);
-	pr_debug("coalesce resort fields: %s\n", c2c.cl_resort);
-	pr_debug("coalesce output fields: %s\n", c2c.cl_output);
+	pr_de("coalesce sort   fields: %s\n", c2c.cl_sort);
+	pr_de("coalesce resort fields: %s\n", c2c.cl_resort);
+	pr_de("coalesce output fields: %s\n", c2c.cl_output);
 	return 0;
 }
 
@@ -2763,19 +2763,19 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	err = setup_coalesce(coalesce, no_source);
 	if (err) {
-		pr_debug("Failed to initialize hists\n");
+		pr_de("Failed to initialize hists\n");
 		goto out;
 	}
 
 	err = c2c_hists__init(&c2c.hists, "dcacheline", 2);
 	if (err) {
-		pr_debug("Failed to initialize hists\n");
+		pr_de("Failed to initialize hists\n");
 		goto out;
 	}
 
 	session = perf_session__new(&data, 0, &c2c.tool);
 	if (session == NULL) {
-		pr_debug("No memory for session\n");
+		pr_de("No memory for session\n");
 		goto out;
 	}
 
@@ -2798,7 +2798,7 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	/* No pipe support at the moment. */
 	if (perf_data__is_pipe(session->data)) {
-		pr_debug("No pipe support at the moment.\n");
+		pr_de("No pipe support at the moment.\n");
 		goto out_mem2node;
 	}
 
@@ -2944,15 +2944,15 @@ static int perf_c2c__record(int argc, const char **argv)
 		rec_argv[i] = argv[j];
 
 	if (verbose > 0) {
-		pr_debug("calling: ");
+		pr_de("calling: ");
 
 		j = 0;
 
 		while (rec_argv[j]) {
-			pr_debug("%s ", rec_argv[j]);
+			pr_de("%s ", rec_argv[j]);
 			j++;
 		}
-		pr_debug("\n");
+		pr_de("\n");
 	}
 
 	ret = cmd_record(i, rec_argv);

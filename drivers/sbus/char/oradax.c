@@ -56,15 +56,15 @@ MODULE_DESCRIPTION("Driver for Oracle Data Analytics Accelerator");
 #define	dax_info(fmt, ...)     pr_info("%s: " fmt "\n", __func__, ##__VA_ARGS__)
 
 #define	dax_dbg(fmt, ...)	do {					\
-					if (dax_debug & DAX_DBG_FLG_BASIC)\
+					if (dax_de & DAX_DBG_FLG_BASIC)\
 						dax_info(fmt, ##__VA_ARGS__); \
 				} while (0)
 #define	dax_stat_dbg(fmt, ...)	do {					\
-					if (dax_debug & DAX_DBG_FLG_STAT) \
+					if (dax_de & DAX_DBG_FLG_STAT) \
 						dax_info(fmt, ##__VA_ARGS__); \
 				} while (0)
 #define	dax_info_dbg(fmt, ...)	do { \
-					if (dax_debug & DAX_DBG_FLG_INFO) \
+					if (dax_de & DAX_DBG_FLG_INFO) \
 						dax_info(fmt, ##__VA_ARGS__); \
 				} while (0)
 
@@ -242,9 +242,9 @@ static struct class *cl;
 static dev_t first;
 
 static int max_ccb_version;
-static int dax_debug;
-module_param(dax_debug, int, 0644);
-MODULE_PARM_DESC(dax_debug, "Debug flags");
+static int dax_de;
+module_param(dax_de, int, 0644);
+MODULE_PARM_DESC(dax_de, "De flags");
 
 static int __init dax_attach(void)
 {
@@ -913,7 +913,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	if (ctx->result.exec.status != DAX_SUBMIT_OK)
 		return 0;
 
-	if (dax_debug & DAX_DBG_FLG_BASIC)
+	if (dax_de & DAX_DBG_FLG_BASIC)
 		dax_prt_ccbs(ctx->ccb_buf, nccbs);
 
 	hv_rv = sun4v_ccb_submit(ctx->ccb_buf_ra, count,

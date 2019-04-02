@@ -7,7 +7,7 @@ some of the ones we want:
 
   This driver is what the vcdbg userspace program uses to set up its
   requests to the firmware, which are transmitted across VCHIQ.  vcdbg
-  is really useful for debugging firmware interactions.
+  is really useful for deging firmware interactions.
 
   - VCSM (https://github.com/raspberrypi/linux/tree/rpi-4.4.y/drivers/char/broadcom/vc_sm)
 
@@ -37,7 +37,7 @@ This should be fixed.
 
 Even the VPU firmware doesn't support a VCHI re-connect, the driver
 should properly handle a module unload. This also includes that all
-resouces must be freed (kthreads, debugfs entries, ...) and global
+resouces must be freed (kthreads, defs entries, ...) and global
 variables avoided.
 
 5) Cleanup logging mechanism

@@ -6,12 +6,12 @@
  *	Marcus Wolf <linux@wolf-entwicklungen.de>
  */
 
-/* enable prosa debug info */
-#undef DEBUG
+/* enable prosa de info */
+#undef DE
 /* enable print of values on reg access */
-#undef DEBUG_VALUES
+#undef DE_VALUES
 /* enable print of values on fifo access */
-#undef DEBUG_FIFO_ACCESS
+#undef DE_FIFO_ACCESS
 
 #include <linux/types.h>
 #include <linux/spi/spi.h>
@@ -30,7 +30,7 @@ static u8 rf69_read_reg(struct spi_device *spi, u8 addr)
 
 	retval = spi_w8r8(spi, addr);
 
-#ifdef DEBUG_VALUES
+#ifdef DE_VALUES
 	if (retval < 0)
 		/*
 		 * should never happen, since we already checked,
@@ -55,7 +55,7 @@ static int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
 
 	retval = spi_write(spi, &buffer, 2);
 
-#ifdef DEBUG_VALUES
+#ifdef DE_VALUES
 	if (retval < 0)
 		/*
 		 * should never happen, since we already checked,
@@ -806,7 +806,7 @@ int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 
 int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 {
-#ifdef DEBUG_FIFO_ACCESS
+#ifdef DE_FIFO_ACCESS
 	int i;
 #endif
 	struct spi_transfer transfer;
@@ -828,7 +828,7 @@ int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 
 	retval = spi_sync_transfer(spi, &transfer, 1);
 
-#ifdef DEBUG_FIFO_ACCESS
+#ifdef DE_FIFO_ACCESS
 	for (i = 0; i < size; i++)
 		dev_dbg(&spi->dev, "%d - 0x%x\n", i, local_buffer[i + 1]);
 #endif
@@ -840,7 +840,7 @@ int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 
 int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 {
-#ifdef DEBUG_FIFO_ACCESS
+#ifdef DE_FIFO_ACCESS
 	int i;
 #endif
 	u8 local_buffer[FIFO_SIZE + 1];
@@ -854,7 +854,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	local_buffer[0] = REG_FIFO | WRITE_BIT;
 	memcpy(&local_buffer[1], buffer, size);
 
-#ifdef DEBUG_FIFO_ACCESS
+#ifdef DE_FIFO_ACCESS
 	for (i = 0; i < size; i++)
 		dev_dbg(&spi->dev, "0x%x\n", buffer[i]);
 #endif

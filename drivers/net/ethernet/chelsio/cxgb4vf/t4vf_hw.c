@@ -526,7 +526,7 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 	if (ret != FW_SUCCESS)
 		return ret;
 
-	BUG_ON(pi->port_id != FW_VI_CMD_PORTID_G(vi_rpl.portid_pkd));
+	_ON(pi->port_id != FW_VI_CMD_PORTID_G(vi_rpl.portid_pkd));
 	pi->rss_size = FW_VI_CMD_RSSSIZE_G(be16_to_cpu(vi_rpl.rsssize_pkd));
 	t4_os_set_hw_addr(adapter, pidx, vi_rpl.mac);
 
@@ -2136,7 +2136,7 @@ int t4vf_prep_adapter(struct adapter *adapter)
 	if (err)
 		return err;
 
-	/* Default port and clock for debugging in case we can't reach
+	/* Default port and clock for deging in case we can't reach
 	 * firmware.
 	 */
 	adapter->params.nports = 1;

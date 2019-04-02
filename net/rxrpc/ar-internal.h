@@ -19,7 +19,7 @@
 
 #if 0
 #define CHECK_SLAB_OKAY(X)				     \
-	BUG_ON(atomic_read((X)) >> (sizeof(atomic_t) - 2) == \
+	_ON(atomic_read((X)) >> (sizeof(atomic_t) - 2) == \
 	       (POISON_FREE << 8 | POISON_FREE))
 #else
 #define CHECK_SLAB_OKAY(X) do {} while (0)
@@ -271,7 +271,7 @@ struct rxrpc_local {
 	spinlock_t		client_conns_lock; /* Lock for client_conns */
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
-	int			debug_id;	/* debug ID for printks */
+	int			de_id;	/* de ID for printks */
 	bool			dead;
 	bool			service_closed;	/* Service socket closed */
 	struct sockaddr_rxrpc	srx;		/* local address */
@@ -297,7 +297,7 @@ struct rxrpc_peer {
 	unsigned int		mtu;		/* network MTU for this peer */
 	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
-	int			debug_id;	/* debug ID for printks */
+	int			de_id;	/* de ID for printks */
 	struct sockaddr_rxrpc	srx;		/* remote address */
 
 	/* calculated RTT cache */
@@ -413,7 +413,7 @@ struct rxrpc_connection {
 	struct rxrpc_channel {
 		unsigned long		final_ack_at;	/* Time at which to issue final ACK */
 		struct rxrpc_call __rcu	*call;		/* Active call */
-		unsigned int		call_debug_id;	/* call->debug_id */
+		unsigned int		call_de_id;	/* call->de_id */
 		u32			call_id;	/* ID of current call */
 		u32			call_counter;	/* Call ID counter */
 		u32			last_call;	/* ID of last call */
@@ -444,7 +444,7 @@ struct rxrpc_connection {
 	enum rxrpc_conn_cache_state cache_state;
 	enum rxrpc_conn_proto_state state;	/* current state of connection */
 	u32			abort_code;	/* Abort code of connection abort */
-	int			debug_id;	/* debug ID for printks */
+	int			de_id;	/* de ID for printks */
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			security_nonce;	/* response re-use preventer */
@@ -589,7 +589,7 @@ struct rxrpc_call {
 	u8			security_ix;	/* Security type */
 	u32			call_id;	/* call ID on connection  */
 	u32			cid;		/* connection ID plus channel index */
-	int			debug_id;	/* debug ID for printks */
+	int			de_id;	/* de ID for printks */
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
 
@@ -852,7 +852,7 @@ static inline bool __rxrpc_abort_call(const char *why, struct rxrpc_call *call,
 				      rxrpc_seq_t seq,
 				      u32 abort_code, int error)
 {
-	trace_rxrpc_abort(call->debug_id, why, call->cid, call->call_id, seq,
+	trace_rxrpc_abort(call->de_id, why, call->cid, call->call_id, seq,
 			  abort_code, error);
 	return __rxrpc_set_call_completion(call, RXRPC_CALL_LOCALLY_ABORTED,
 					   abort_code, error);
@@ -1141,82 +1141,82 @@ static inline bool after_eq(u32 seq1, u32 seq2)
 }
 
 /*
- * debug tracing
+ * de tracing
  */
-extern unsigned int rxrpc_debug;
+extern unsigned int rxrpc_de;
 
 #define dbgprintk(FMT,...) \
 	printk("[%-6.6s] "FMT"\n", current->comm ,##__VA_ARGS__)
 
 #define kenter(FMT,...)	dbgprintk("==> %s("FMT")",__func__ ,##__VA_ARGS__)
 #define kleave(FMT,...)	dbgprintk("<== %s()"FMT"",__func__ ,##__VA_ARGS__)
-#define kdebug(FMT,...)	dbgprintk("    "FMT ,##__VA_ARGS__)
+#define kde(FMT,...)	dbgprintk("    "FMT ,##__VA_ARGS__)
 #define kproto(FMT,...)	dbgprintk("### "FMT ,##__VA_ARGS__)
 #define knet(FMT,...)	dbgprintk("@@@ "FMT ,##__VA_ARGS__)
 
 
-#if defined(__KDEBUG)
+#if defined(__KDE)
 #define _enter(FMT,...)	kenter(FMT,##__VA_ARGS__)
 #define _leave(FMT,...)	kleave(FMT,##__VA_ARGS__)
-#define _debug(FMT,...)	kdebug(FMT,##__VA_ARGS__)
+#define _de(FMT,...)	kde(FMT,##__VA_ARGS__)
 #define _proto(FMT,...)	kproto(FMT,##__VA_ARGS__)
 #define _net(FMT,...)	knet(FMT,##__VA_ARGS__)
 
-#elif defined(CONFIG_AF_RXRPC_DEBUG)
-#define RXRPC_DEBUG_KENTER	0x01
-#define RXRPC_DEBUG_KLEAVE	0x02
-#define RXRPC_DEBUG_KDEBUG	0x04
-#define RXRPC_DEBUG_KPROTO	0x08
-#define RXRPC_DEBUG_KNET	0x10
+#elif defined(CONFIG_AF_RXRPC_DE)
+#define RXRPC_DE_KENTER	0x01
+#define RXRPC_DE_KLEAVE	0x02
+#define RXRPC_DE_KDE	0x04
+#define RXRPC_DE_KPROTO	0x08
+#define RXRPC_DE_KNET	0x10
 
 #define _enter(FMT,...)					\
 do {							\
-	if (unlikely(rxrpc_debug & RXRPC_DEBUG_KENTER))	\
+	if (unlikely(rxrpc_de & RXRPC_DE_KENTER))	\
 		kenter(FMT,##__VA_ARGS__);		\
 } while (0)
 
 #define _leave(FMT,...)					\
 do {							\
-	if (unlikely(rxrpc_debug & RXRPC_DEBUG_KLEAVE))	\
+	if (unlikely(rxrpc_de & RXRPC_DE_KLEAVE))	\
 		kleave(FMT,##__VA_ARGS__);		\
 } while (0)
 
-#define _debug(FMT,...)					\
+#define _de(FMT,...)					\
 do {							\
-	if (unlikely(rxrpc_debug & RXRPC_DEBUG_KDEBUG))	\
-		kdebug(FMT,##__VA_ARGS__);		\
+	if (unlikely(rxrpc_de & RXRPC_DE_KDE))	\
+		kde(FMT,##__VA_ARGS__);		\
 } while (0)
 
 #define _proto(FMT,...)					\
 do {							\
-	if (unlikely(rxrpc_debug & RXRPC_DEBUG_KPROTO))	\
+	if (unlikely(rxrpc_de & RXRPC_DE_KPROTO))	\
 		kproto(FMT,##__VA_ARGS__);		\
 } while (0)
 
 #define _net(FMT,...)					\
 do {							\
-	if (unlikely(rxrpc_debug & RXRPC_DEBUG_KNET))	\
+	if (unlikely(rxrpc_de & RXRPC_DE_KNET))	\
 		knet(FMT,##__VA_ARGS__);		\
 } while (0)
 
 #else
 #define _enter(FMT,...)	no_printk("==> %s("FMT")",__func__ ,##__VA_ARGS__)
 #define _leave(FMT,...)	no_printk("<== %s()"FMT"",__func__ ,##__VA_ARGS__)
-#define _debug(FMT,...)	no_printk("    "FMT ,##__VA_ARGS__)
+#define _de(FMT,...)	no_printk("    "FMT ,##__VA_ARGS__)
 #define _proto(FMT,...)	no_printk("### "FMT ,##__VA_ARGS__)
 #define _net(FMT,...)	no_printk("@@@ "FMT ,##__VA_ARGS__)
 #endif
 
 /*
- * debug assertion checking
+ * de assertion checking
  */
-#if 1 // defined(__KDEBUGALL)
+#if 1 // defined(__KDEALL)
 
 #define ASSERT(X)						\
 do {								\
 	if (unlikely(!(X))) {					\
 		pr_err("Assertion failed\n");			\
-		BUG();						\
+		();						\
 	}							\
 } while (0)
 
@@ -1228,7 +1228,7 @@ do {									\
 		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n", \
 		       (unsigned long)_x, (unsigned long)_x, #OP,	\
 		       (unsigned long)_y, (unsigned long)_y);		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -1236,7 +1236,7 @@ do {									\
 do {								\
 	if (unlikely((C) && !(X))) {				\
 		pr_err("Assertion failed\n");			\
-		BUG();						\
+		();						\
 	}							\
 } while (0)
 
@@ -1248,7 +1248,7 @@ do {									\
 		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n", \
 		       (unsigned long)_x, (unsigned long)_x, #OP,	\
 		       (unsigned long)_y, (unsigned long)_y);		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -1270,4 +1270,4 @@ do {						\
 do {						\
 } while (0)
 
-#endif /* __KDEBUGALL */
+#endif /* __KDEALL */

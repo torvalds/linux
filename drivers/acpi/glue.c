@@ -20,15 +20,15 @@
 
 #include "internal.h"
 
-#define ACPI_GLUE_DEBUG	0
-#if ACPI_GLUE_DEBUG
+#define ACPI_GLUE_DE	0
+#if ACPI_GLUE_DE
 #define DBG(fmt, ...)						\
-	printk(KERN_DEBUG PREFIX fmt, ##__VA_ARGS__)
+	printk(KERN_DE PREFIX fmt, ##__VA_ARGS__)
 #else
 #define DBG(fmt, ...)						\
 do {								\
 	if (0)							\
-		printk(KERN_DEBUG PREFIX fmt, ##__VA_ARGS__);	\
+		printk(KERN_DE PREFIX fmt, ##__VA_ARGS__);	\
 } while (0)
 #endif
 static LIST_HEAD(bus_type_list);
@@ -329,7 +329,7 @@ static int acpi_device_notify(struct device *dev)
 		adev->handler->bind(dev);
 
  out:
-#if ACPI_GLUE_DEBUG
+#if ACPI_GLUE_DE
 	if (!ret) {
 		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 

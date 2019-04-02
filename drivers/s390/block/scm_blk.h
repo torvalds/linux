@@ -9,7 +9,7 @@
 #include <linux/genhd.h>
 #include <linux/list.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/eadm.h>
 
 #define SCM_NR_PARTS 8
@@ -48,15 +48,15 @@ struct aidaw *scm_aidaw_fetch(struct scm_request *scmrq, unsigned int bytes);
 int scm_drv_init(void);
 void scm_drv_cleanup(void);
 
-extern debug_info_t *scm_debug;
+extern de_info_t *scm_de;
 
 #define SCM_LOG(imp, txt) do {					\
-		debug_text_event(scm_debug, imp, txt);		\
+		de_text_event(scm_de, imp, txt);		\
 	} while (0)
 
 static inline void SCM_LOG_HEX(int level, void *data, int length)
 {
-	debug_event(scm_debug, level, data, length);
+	de_event(scm_de, level, data, length);
 }
 
 static inline void SCM_LOG_STATE(int level, struct scm_device *scmdev)

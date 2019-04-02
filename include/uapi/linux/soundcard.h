@@ -706,13 +706,13 @@ typedef struct copr_buffer {
 		unsigned char data[4000]; /* NOTE! 4000 is not 4k */
 	} copr_buffer;
 
-typedef struct copr_debug_buf {
+typedef struct copr_de_buf {
 		int command;	/* Used internally. Set to 0 */
 		int parm1;
 		int parm2;
 		int flags;	
 		int len;	/* Length of data in bytes */
-	} copr_debug_buf;
+	} copr_de_buf;
 
 typedef struct copr_msg {
 		int len;
@@ -721,12 +721,12 @@ typedef struct copr_msg {
 
 #define SNDCTL_COPR_RESET             _SIO  ('C',  0)
 #define SNDCTL_COPR_LOAD	      _SIOWR('C',  1, copr_buffer)
-#define SNDCTL_COPR_RDATA	      _SIOWR('C',  2, copr_debug_buf)
-#define SNDCTL_COPR_RCODE	      _SIOWR('C',  3, copr_debug_buf)
-#define SNDCTL_COPR_WDATA	      _SIOW ('C',  4, copr_debug_buf)
-#define SNDCTL_COPR_WCODE	      _SIOW ('C',  5, copr_debug_buf)
-#define SNDCTL_COPR_RUN		      _SIOWR('C',  6, copr_debug_buf)
-#define SNDCTL_COPR_HALT	      _SIOWR('C',  7, copr_debug_buf)
+#define SNDCTL_COPR_RDATA	      _SIOWR('C',  2, copr_de_buf)
+#define SNDCTL_COPR_RCODE	      _SIOWR('C',  3, copr_de_buf)
+#define SNDCTL_COPR_WDATA	      _SIOW ('C',  4, copr_de_buf)
+#define SNDCTL_COPR_WCODE	      _SIOW ('C',  5, copr_de_buf)
+#define SNDCTL_COPR_RUN		      _SIOWR('C',  6, copr_de_buf)
+#define SNDCTL_COPR_HALT	      _SIOWR('C',  7, copr_de_buf)
 #define SNDCTL_COPR_SENDMSG	      _SIOWR('C',  8, copr_msg)
 #define SNDCTL_COPR_RCVMSG	      _SIOR ('C',  9, copr_msg)
 

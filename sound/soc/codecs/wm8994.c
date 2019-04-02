@@ -1371,7 +1371,7 @@ SOC_DAPM_SINGLE("Output Switch", WM8994_SPEAKER_MIXER, 2, 1, 0),
 SOC_DAPM_SINGLE("DAC1 Switch", WM8994_SPEAKER_MIXER, 0, 1, 0),
 };
 
-/* Debugging; dump chip status after DAPM transitions */
+/* Deging; dump chip status after DAPM transitions */
 static int post_ev(struct snd_soc_dapm_widget *w,
 	    struct snd_kcontrol *kcontrol, int event)
 {
@@ -1768,7 +1768,7 @@ SND_SOC_DAPM_ADC("ADCR", NULL, SND_SOC_NOPM, 0, 0),
 SND_SOC_DAPM_MUX("AIF1 Loopback", SND_SOC_NOPM, 0, 0, &aif1_loopback),
 SND_SOC_DAPM_MUX("AIF2 Loopback", SND_SOC_NOPM, 0, 0, &aif2_loopback),
 
-SND_SOC_DAPM_POST("Debug log", post_ev),
+SND_SOC_DAPM_POST("De log", post_ev),
 };
 
 static const struct snd_soc_dapm_widget wm8994_specific_dapm_widgets[] = {
@@ -2053,7 +2053,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 	u64 Kpart;
 	unsigned int K, Ndiv, Nmod, gcd_fll;
 
-	pr_debug("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
+	pr_de("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
 
 	/* Scale the input frequency down to <= 13.5MHz */
 	fll->clk_ref_div = 0;
@@ -2064,7 +2064,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 		if (fll->clk_ref_div > 3)
 			return -EINVAL;
 	}
-	pr_debug("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
+	pr_de("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
 
 	/* Scale the output to give 90MHz<=Fvco<=100MHz */
 	fll->outdiv = 3;
@@ -2074,7 +2074,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 			return -EINVAL;
 	}
 	freq_out *= fll->outdiv + 1;
-	pr_debug("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
+	pr_de("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
 
 	if (freq_in > 1000000) {
 		fll->fll_fratio = 0;
@@ -2091,14 +2091,14 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 		fll->fll_fratio = 4;
 		freq_in *= 16;
 	}
-	pr_debug("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
+	pr_de("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
 
 	/* Now, calculate N.K */
 	Ndiv = freq_out / freq_in;
 
 	fll->n = Ndiv;
 	Nmod = freq_out % freq_in;
-	pr_debug("Nmod=%d\n", Nmod);
+	pr_de("Nmod=%d\n", Nmod);
 
 	switch (control->type) {
 	case WM8994:
@@ -2116,7 +2116,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 		fll->k = K / 10;
 		fll->lambda = 0;
 
-		pr_debug("N=%x K=%x\n", fll->n, fll->k);
+		pr_de("N=%x K=%x\n", fll->n, fll->k);
 		break;
 
 	default:
@@ -2186,7 +2186,7 @@ static int _wm8994_set_fll(struct snd_soc_component *component, int id, int src,
 
 	/* If we're stopping the FLL redo the old config - no
 	 * registers will actually be written but we avoid GCC flow
-	 * analysis bugs spewing warnings.
+	 * analysis s spewing warnings.
 	 */
 	if (freq_out)
 		ret = wm8994_get_fll_config(control, &fll, freq_in, freq_out);

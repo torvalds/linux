@@ -127,7 +127,7 @@ int ttm_read_trylock(struct ttm_lock *lock, bool interruptible)
 		wait_event(lock->queue, __ttm_read_trylock(lock, &locked));
 
 	if (unlikely(ret != 0)) {
-		BUG_ON(locked);
+		_ON(locked);
 		return ret;
 	}
 
@@ -204,7 +204,7 @@ static void ttm_vt_lock_remove(struct ttm_base_object **p_base)
 
 	*p_base = NULL;
 	ret = __ttm_vt_unlock(lock);
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 }
 
 static bool __ttm_vt_lock(struct ttm_lock *lock)

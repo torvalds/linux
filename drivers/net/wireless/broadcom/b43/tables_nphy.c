@@ -3288,7 +3288,7 @@ static inline void assert_ntab_array_sizes(void)
 {
 #undef check
 #define check(table, size)	\
-	BUILD_BUG_ON(ARRAY_SIZE(b43_ntab_##table) != B43_NTAB_##size##_SIZE)
+	BUILD__ON(ARRAY_SIZE(b43_ntab_##table) != B43_NTAB_##size##_SIZE)
 
 	check(adjustpower0, C0_ADJPLT);
 	check(adjustpower1, C1_ADJPLT);

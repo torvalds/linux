@@ -271,7 +271,7 @@ typedef le16 MFT_RECORD_FLAGS;
  * consistency checking should be performed.
  *
  * FIXME: Since inodes are 32-bit as of now, the driver needs to always check
- * for high_part being 0 and if not either BUG(), cause a panic() or handle
+ * for high_part being 0 and if not either (), cause a panic() or handle
  * the situation in some other way. This shouldn't be a problem as a volume has
  * to become HUGE in order to need more than 32-bits worth of mft records.
  * Assuming the standard mft record size of 1kb only the records (never mind

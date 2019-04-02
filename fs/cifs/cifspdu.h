@@ -940,7 +940,7 @@ typedef struct smb_com_open_rsp {
 } __attribute__((packed)) OPEN_RSP;
 
 typedef struct smb_com_open_rsp_ext {
-	struct smb_hdr hdr;     /* wct = 42 but meaningless due to MS bug? */
+	struct smb_hdr hdr;     /* wct = 42 but meaningless due to MS ? */
 	__u8 AndXCommand;
 	__u8 AndXReserved;
 	__le16 AndXOffset;

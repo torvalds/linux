@@ -128,7 +128,7 @@ enclosure_register(struct device *dev, const char *name, int components,
 		kzalloc(struct_size(edev, component, components), GFP_KERNEL);
 	int err, i;
 
-	BUG_ON(!cb);
+	_ON(!cb);
 
 	if (!edev)
 		return ERR_PTR(-ENOMEM);

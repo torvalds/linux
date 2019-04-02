@@ -68,9 +68,9 @@
 
 #define MXS_I2C_DATA(i2c)	((i2c->dev_type == MXS_I2C_V1) ? 0x60 : 0xa0)
 
-#define MXS_I2C_DEBUG0_CLR(i2c)	((i2c->dev_type == MXS_I2C_V1) ? 0x78 : 0xb8)
+#define MXS_I2C_DE0_CLR(i2c)	((i2c->dev_type == MXS_I2C_V1) ? 0x78 : 0xb8)
 
-#define MXS_I2C_DEBUG0_DMAREQ	0x80000000
+#define MXS_I2C_DE0_DMAREQ	0x80000000
 
 #define MXS_I2C_IRQ_MASK	(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ | \
 				 MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ | \
@@ -382,7 +382,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 	 * WARNING! The MX23 is broken in some way, even if it claims
 	 * to support PIO, when we try to transfer any amount of data
 	 * that is not aligned to 4 bytes, the DMA engine will have
-	 * bits in DEBUG1::DMA_BYTES_ENABLES still set even after the
+	 * bits in DE1::DMA_BYTES_ENABLES still set even after the
 	 * transfer. This in turn will mess up the next transfer as
 	 * the block it emit one byte write onto the bus terminated
 	 * with a NAK+STOP. A possible workaround is to reset the IP
@@ -404,7 +404,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		 * arrived at the FIFO and can thus be fetched from the DATA
 		 * register.
 		 */
-		BUG_ON(msg->len > 4);
+		_ON(msg->len > 4);
 
 		/* SELECT command. */
 		mxs_i2c_pio_trigger_write_cmd(i2c, MXS_CMD_I2C_SELECT,
@@ -506,8 +506,8 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 				start & MXS_I2C_CTRL0_POST_SEND_STOP ? "E" : "",
 				start & MXS_I2C_CTRL0_RETAIN_CLOCK ? "C" : "");
 
-			writel(MXS_I2C_DEBUG0_DMAREQ,
-			       i2c->regs + MXS_I2C_DEBUG0_CLR(i2c));
+			writel(MXS_I2C_DE0_DMAREQ,
+			       i2c->regs + MXS_I2C_DE0_CLR(i2c));
 
 			mxs_i2c_pio_trigger_write_cmd(i2c,
 				start | MXS_I2C_CTRL0_MASTER_MODE |
@@ -612,7 +612,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * block must be reset, otherwise the IP block will misbehave. This can
 	 * be observed on the bus by the block sending out one single byte onto
 	 * the bus. In case such an error happens, bit 27 will be set in the
-	 * DEBUG0 register. This bit is not documented in the i.MX23 datasheet
+	 * DE0 register. This bit is not documented in the i.MX23 datasheet
 	 * and is marked as "TBD" instead. To reset this bit to a correct state,
 	 * reset the whole block. Since the block reset does not take long, do
 	 * reset the block after every transfer to play safe.

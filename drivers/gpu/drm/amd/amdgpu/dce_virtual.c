@@ -660,7 +660,7 @@ static int dce_virtual_pageflip(struct amdgpu_device *adev,
 	spin_lock_irqsave(&adev->ddev->event_lock, flags);
 	works = amdgpu_crtc->pflip_works;
 	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
-		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
+		DRM_DE_DRIVER("amdgpu_crtc->pflip_status = %d != "
 			"AMDGPU_FLIP_SUBMITTED(%d)\n",
 			amdgpu_crtc->pflip_status,
 			AMDGPU_FLIP_SUBMITTED);
@@ -706,12 +706,12 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 							enum amdgpu_interrupt_state state)
 {
 	if (crtc >= adev->mode_info.num_crtc || !adev->mode_info.crtcs[crtc]) {
-		DRM_DEBUG("invalid crtc %d\n", crtc);
+		DRM_DE("invalid crtc %d\n", crtc);
 		return;
 	}
 
 	if (state && !adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
-		DRM_DEBUG("Enable software vsync timer\n");
+		DRM_DE("Enable software vsync timer\n");
 		hrtimer_init(&adev->mode_info.crtcs[crtc]->vblank_timer,
 			     CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		hrtimer_set_expires(&adev->mode_info.crtcs[crtc]->vblank_timer,
@@ -721,12 +721,12 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 		hrtimer_start(&adev->mode_info.crtcs[crtc]->vblank_timer,
 			      DCE_VIRTUAL_VBLANK_PERIOD, HRTIMER_MODE_REL);
 	} else if (!state && adev->mode_info.crtcs[crtc]->vsync_timer_enabled) {
-		DRM_DEBUG("Disable software vsync timer\n");
+		DRM_DE("Disable software vsync timer\n");
 		hrtimer_cancel(&adev->mode_info.crtcs[crtc]->vblank_timer);
 	}
 
 	adev->mode_info.crtcs[crtc]->vsync_timer_enabled = state;
-	DRM_DEBUG("[FM]set crtc %d vblank interrupt state %d\n", crtc, state);
+	DRM_DE("[FM]set crtc %d vblank interrupt state %d\n", crtc, state);
 }
 
 

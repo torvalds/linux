@@ -773,7 +773,7 @@ static inline int ip6_sk_dst_hoplimit(struct ipv6_pinfo *np, struct flowi6 *fl6,
 static inline void iph_to_flow_copy_v6addrs(struct flow_keys *flow,
 					    const struct ipv6hdr *iph)
 {
-	BUILD_BUG_ON(offsetof(typeof(flow->addrs), v6addrs.dst) !=
+	BUILD__ON(offsetof(typeof(flow->addrs), v6addrs.dst) !=
 		     offsetof(typeof(flow->addrs), v6addrs.src) +
 		     sizeof(flow->addrs.v6addrs.src));
 	memcpy(&flow->addrs.v6addrs, &iph->saddr, sizeof(flow->addrs.v6addrs));

@@ -586,7 +586,7 @@
 
 /*
  * PBF registers
- * Most are for debug. Driver doesn't touch PBF register.
+ * Most are for de. Driver doesn't touch PBF register.
  */
 #define PBF_CFG				0x0408
 #define PBF_MAX_PCNT			0x040c
@@ -627,7 +627,7 @@
 
 /*
  * PBF register
- * Debug. Driver doesn't touch PBF register.
+ * De. Driver doesn't touch PBF register.
  */
 #define PBF_DBG				0x043c
 
@@ -713,10 +713,10 @@
 #define GPIO_SWITCH_7			FIELD32(0x00000080)
 
 /*
- * FIXME: where the DEBUG_INDEX name come from?
+ * FIXME: where the DE_INDEX name come from?
  */
-#define MAC_DEBUG_INDEX			0x05e8
-#define MAC_DEBUG_INDEX_XTAL		FIELD32(0x80000000)
+#define MAC_DE_INDEX			0x05e8
+#define MAC_DE_INDEX_XTAL		FIELD32(0x80000000)
 
 /*
  * MAC Control/Status Registers(CSR).
@@ -1919,7 +1919,7 @@
 #define TX_STA_FIFO_PHYMODE		FIELD32(0xc0000000)
 
 /*
- * TX_AGG_CNT: Debug counter
+ * TX_AGG_CNT: De counter
  */
 #define TX_AGG_CNT			0x171c
 #define TX_AGG_CNT_NON_AGG_TX_COUNT	FIELD32(0x0000ffff)
@@ -2147,12 +2147,12 @@ struct mac_iveiv_entry {
 #define TXRX_CSR1			0x77d0
 
 /*
- * HW_DEBUG_SETTING_BASE:
+ * HW_DE_SETTING_BASE:
  * since NULL frame won't be that long (256 byte)
- * We steal 16 tail bytes to save debugging settings
+ * We steal 16 tail bytes to save deging settings
  */
-#define HW_DEBUG_SETTING_BASE		0x77f0
-#define HW_DEBUG_SETTING_BASE2		0x7770
+#define HW_DE_SETTING_BASE		0x77f0
+#define HW_DE_SETTING_BASE2		0x7770
 
 /*
  * HW_BEACON_BASE

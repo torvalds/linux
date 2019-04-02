@@ -66,9 +66,9 @@ Linux カーネルパッチ投稿者向けチェックリスト
     そして、'make htmldocs' もしくは 'make mandocs' を利用して追記した
     ドキュメントのチェックを行い、問題が見つかった場合には修正を行ってください。
 
-12: CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT, CONFIG_DEBUG_SLAB,
-    CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES, CONFIG_DEBUG_SPINLOCK,
-    CONFIG_DEBUG_ATOMIC_SLEEP これら全てを同時に有効にして動作確認を
+12: CONFIG_PREEMPT, CONFIG_DE_PREEMPT, CONFIG_DE_SLAB,
+    CONFIG_DE_PAGEALLOC, CONFIG_DE_MUTEXES, CONFIG_DE_SPINLOCK,
+    CONFIG_DE_ATOMIC_SLEEP これら全てを同時に有効にして動作確認を
     行ってください。
 
 13: CONFIG_SMP, CONFIG_PREEMPT を有効にした場合と無効にした場合の両方で

@@ -164,40 +164,40 @@ vchiq_static_assert((sizeof(BITSET_T) * 8) == 32);
 #endif
 
 enum {
-	DEBUG_ENTRIES,
-#if VCHIQ_ENABLE_DEBUG
-	DEBUG_SLOT_HANDLER_COUNT,
-	DEBUG_SLOT_HANDLER_LINE,
-	DEBUG_PARSE_LINE,
-	DEBUG_PARSE_HEADER,
-	DEBUG_PARSE_MSGID,
-	DEBUG_AWAIT_COMPLETION_LINE,
-	DEBUG_DEQUEUE_MESSAGE_LINE,
-	DEBUG_SERVICE_CALLBACK_LINE,
-	DEBUG_MSG_QUEUE_FULL_COUNT,
-	DEBUG_COMPLETION_QUEUE_FULL_COUNT,
+	DE_ENTRIES,
+#if VCHIQ_ENABLE_DE
+	DE_SLOT_HANDLER_COUNT,
+	DE_SLOT_HANDLER_LINE,
+	DE_PARSE_LINE,
+	DE_PARSE_HEADER,
+	DE_PARSE_MSGID,
+	DE_AWAIT_COMPLETION_LINE,
+	DE_DEQUEUE_MESSAGE_LINE,
+	DE_SERVICE_CALLBACK_LINE,
+	DE_MSG_QUEUE_FULL_COUNT,
+	DE_COMPLETION_QUEUE_FULL_COUNT,
 #endif
-	DEBUG_MAX
+	DE_MAX
 };
 
-#if VCHIQ_ENABLE_DEBUG
+#if VCHIQ_ENABLE_DE
 
-#define DEBUG_INITIALISE(local) int *debug_ptr = (local)->debug;
-#define DEBUG_TRACE(d) \
-	do { debug_ptr[DEBUG_ ## d] = __LINE__; dsb(sy); } while (0)
-#define DEBUG_VALUE(d, v) \
-	do { debug_ptr[DEBUG_ ## d] = (v); dsb(sy); } while (0)
-#define DEBUG_COUNT(d) \
-	do { debug_ptr[DEBUG_ ## d]++; dsb(sy); } while (0)
+#define DE_INITIALISE(local) int *de_ptr = (local)->de;
+#define DE_TRACE(d) \
+	do { de_ptr[DE_ ## d] = __LINE__; dsb(sy); } while (0)
+#define DE_VALUE(d, v) \
+	do { de_ptr[DE_ ## d] = (v); dsb(sy); } while (0)
+#define DE_COUNT(d) \
+	do { de_ptr[DE_ ## d]++; dsb(sy); } while (0)
 
-#else /* VCHIQ_ENABLE_DEBUG */
+#else /* VCHIQ_ENABLE_DE */
 
-#define DEBUG_INITIALISE(local)
-#define DEBUG_TRACE(d)
-#define DEBUG_VALUE(d, v)
-#define DEBUG_COUNT(d)
+#define DE_INITIALISE(local)
+#define DE_TRACE(d)
+#define DE_VALUE(d, v)
+#define DE_COUNT(d)
 
-#endif /* VCHIQ_ENABLE_DEBUG */
+#endif /* VCHIQ_ENABLE_DE */
 
 typedef enum {
 	VCHIQ_CONNSTATE_DISCONNECTED,
@@ -376,8 +376,8 @@ struct vchiq_shared_state {
 	/* A circular buffer of slot indexes. */
 	int slot_queue[VCHIQ_MAX_SLOTS_PER_SIDE];
 
-	/* Debugging state */
-	int debug[DEBUG_MAX];
+	/* Deging state */
+	int de[DE_MAX];
 };
 
 struct vchiq_slot_zero {

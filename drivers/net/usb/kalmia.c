@@ -47,7 +47,7 @@
  * https://github.com/mkotsbak/Samsung-GT-B3730-linux-driver
  */
 
-/* #define	DEBUG */
+/* #define	DE */
 /* #define	VERBOSE */
 
 #define KALMIA_HEADER_LENGTH 6

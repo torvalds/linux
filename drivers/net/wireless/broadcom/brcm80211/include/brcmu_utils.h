@@ -201,13 +201,13 @@ static inline u16 brcmu_maskget16(u16 var, u16 mask, u8 shift)
 
 /* externs */
 /* format/print */
-#ifdef DEBUG
+#ifdef DE
 void brcmu_prpkt(const char *msg, struct sk_buff *p0);
 #else
 #define brcmu_prpkt(a, b)
-#endif				/* DEBUG */
+#endif				/* DE */
 
-#ifdef DEBUG
+#ifdef DE
 __printf(3, 4)
 void brcmu_dbg_hex_dump(const void *data, size_t size, const char *fmt, ...);
 #else

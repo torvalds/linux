@@ -733,7 +733,7 @@ static u16 ice_clean_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	details = ICE_CTL_Q_DETAILS(*sq, ntc);
 
 	while (rd32(hw, cq->sq.head) != ntc) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "ntc %d head %d.\n", ntc, rd32(hw, cq->sq.head));
 		memset(desc, 0, sizeof(*desc));
 		memset(details, 0, sizeof(*details));
@@ -799,7 +799,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	cq->sq_last_status = ICE_AQ_RC_OK;
 
 	if (!cq->sq.count) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "Control Send queue not initialized.\n");
 		status = ICE_ERR_AQ_EMPTY;
 		goto sq_send_command_error;
@@ -812,7 +812,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	if (buf) {
 		if (buf_size > cq->sq_buf_size) {
-			ice_debug(hw, ICE_DBG_AQ_MSG,
+			ice_de(hw, ICE_DBG_AQ_MSG,
 				  "Invalid buffer size for Control Send queue: %d.\n",
 				  buf_size);
 			status = ICE_ERR_INVAL_SIZE;
@@ -826,7 +826,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	val = rd32(hw, cq->sq.head);
 	if (val >= cq->num_sq_entries) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "head overrun at %d in the Control Send Queue ring\n",
 			  val);
 		status = ICE_ERR_AQ_EMPTY;
@@ -845,7 +845,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	 * called in a separate thread in case of asynchronous completions.
 	 */
 	if (ice_clean_sq(hw, cq) == 0) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "Error: Control Send Queue is full.\n");
 		status = ICE_ERR_AQ_FULL;
 		goto sq_send_command_error;
@@ -873,11 +873,11 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			cpu_to_le32(lower_32_bits(dma_buf->pa));
 	}
 
-	/* Debug desc and buffer */
-	ice_debug(hw, ICE_DBG_AQ_MSG,
+	/* De desc and buffer */
+	ice_de(hw, ICE_DBG_AQ_MSG,
 		  "ATQ: Control Send queue desc and buffer:\n");
 
-	ice_debug_cq(hw, ICE_DBG_AQ_CMD, (void *)desc_on_ring, buf, buf_size);
+	ice_de_cq(hw, ICE_DBG_AQ_CMD, (void *)desc_on_ring, buf, buf_size);
 
 	(cq->sq.next_to_use)++;
 	if (cq->sq.next_to_use == cq->sq.count)
@@ -900,7 +900,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			u16 copy_size = le16_to_cpu(desc->datalen);
 
 			if (copy_size > buf_size) {
-				ice_debug(hw, ICE_DBG_AQ_MSG,
+				ice_de(hw, ICE_DBG_AQ_MSG,
 					  "Return len %d > than buf len %d\n",
 					  copy_size, buf_size);
 				status = ICE_ERR_AQ_ERROR;
@@ -910,7 +910,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		}
 		retval = le16_to_cpu(desc->retval);
 		if (retval) {
-			ice_debug(hw, ICE_DBG_AQ_MSG,
+			ice_de(hw, ICE_DBG_AQ_MSG,
 				  "Control Send Queue command completed with error 0x%x\n",
 				  retval);
 
@@ -923,10 +923,10 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		cq->sq_last_status = (enum ice_aq_err)retval;
 	}
 
-	ice_debug(hw, ICE_DBG_AQ_MSG,
+	ice_de(hw, ICE_DBG_AQ_MSG,
 		  "ATQ: desc and buffer writeback:\n");
 
-	ice_debug_cq(hw, ICE_DBG_AQ_CMD, (void *)desc, buf, buf_size);
+	ice_de_cq(hw, ICE_DBG_AQ_CMD, (void *)desc, buf, buf_size);
 
 	/* save writeback AQ if requested */
 	if (details->wb_desc)
@@ -935,7 +935,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	/* update the error if time out occurred */
 	if (!cmd_completed) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "Control Send Queue Writeback timeout.\n");
 		status = ICE_ERR_AQ_TIMEOUT;
 	}
@@ -991,7 +991,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	mutex_lock(&cq->rq_lock);
 
 	if (!cq->rq.count) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "Control Receive queue not initialized.\n");
 		ret_code = ICE_ERR_AQ_EMPTY;
 		goto clean_rq_elem_err;
@@ -1014,7 +1014,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	flags = le16_to_cpu(desc->flags);
 	if (flags & ICE_AQ_FLAG_ERR) {
 		ret_code = ICE_ERR_AQ_ERROR;
-		ice_debug(hw, ICE_DBG_AQ_MSG,
+		ice_de(hw, ICE_DBG_AQ_MSG,
 			  "Control Receive Queue Event received with error 0x%x\n",
 			  cq->rq_last_status);
 	}
@@ -1024,9 +1024,9 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	if (e->msg_buf && e->msg_len)
 		memcpy(e->msg_buf, cq->rq.r.rq_bi[desc_idx].va, e->msg_len);
 
-	ice_debug(hw, ICE_DBG_AQ_MSG, "ARQ: desc and buffer:\n");
+	ice_de(hw, ICE_DBG_AQ_MSG, "ARQ: desc and buffer:\n");
 
-	ice_debug_cq(hw, ICE_DBG_AQ_CMD, (void *)desc, e->msg_buf,
+	ice_de_cq(hw, ICE_DBG_AQ_CMD, (void *)desc, e->msg_buf,
 		     cq->rq_buf_size);
 
 	/* Restore the original datalen and buffer address in the desc,

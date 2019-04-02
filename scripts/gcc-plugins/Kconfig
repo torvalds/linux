@@ -178,7 +178,7 @@ config GCC_PLUGIN_STACKLEAK
 	help
 	  This option makes the kernel erase the kernel stack before
 	  returning from system calls. That reduces the information which
-	  kernel stack leak bugs can reveal and blocks some uninitialized
+	  kernel stack leak s can reveal and blocks some uninitialized
 	  stack variable attacks.
 
 	  The tradeoff is the performance impact: on a single CPU system kernel

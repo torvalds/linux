@@ -50,7 +50,7 @@
 #define DEV_NAME	"rio_mport"
 #define DRV_VERSION     "1.0.0"
 
-/* Debug output filtering masks */
+/* De output filtering masks */
 enum {
 	DBG_NONE	= 0,
 	DBG_INIT	= BIT(0), /* driver init */
@@ -66,15 +66,15 @@ enum {
 	DBG_ALL		= ~0,
 };
 
-#ifdef DEBUG
-#define rmcd_debug(level, fmt, arg...)		\
+#ifdef DE
+#define rmcd_de(level, fmt, arg...)		\
 	do {					\
 		if (DBG_##level & dbg_level)	\
-			pr_debug(DRV_PREFIX "%s: " fmt "\n", __func__, ##arg); \
+			pr_de(DRV_PREFIX "%s: " fmt "\n", __func__, ##arg); \
 	} while (0)
 #else
-#define rmcd_debug(level, fmt, arg...) \
-		no_printk(KERN_DEBUG pr_fmt(DRV_PREFIX fmt "\n"), ##arg)
+#define rmcd_de(level, fmt, arg...) \
+		no_printk(KERN_DE pr_fmt(DRV_PREFIX fmt "\n"), ##arg)
 #endif
 
 #define rmcd_warn(fmt, arg...) \
@@ -95,10 +95,10 @@ static int dma_timeout = 3000; /* DMA transfer timeout in msec */
 module_param(dma_timeout, int, S_IRUGO);
 MODULE_PARM_DESC(dma_timeout, "DMA Transfer Timeout in msec (default: 3000)");
 
-#ifdef DEBUG
+#ifdef DE
 static u32 dbg_level = DBG_NONE;
 module_param(dbg_level, uint, S_IWUSR | S_IWGRP | S_IRUGO);
-MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
+MODULE_PARM_DESC(dbg_level, "Deging output level (default 0 = none)");
 #endif
 
 /*
@@ -368,7 +368,7 @@ rio_mport_create_outbound_mapping(struct mport_dev *md, struct file *filp,
 	struct rio_mport_mapping *map;
 	int ret;
 
-	rmcd_debug(OBW, "did=%d ra=0x%llx sz=0x%x", rioid, raddr, size);
+	rmcd_de(OBW, "did=%d ra=0x%llx sz=0x%x", rioid, raddr, size);
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL)
@@ -437,7 +437,7 @@ static int rio_mport_obw_map(struct file *filp, void __user *arg)
 	if (unlikely(copy_from_user(&map, arg, sizeof(map))))
 		return -EFAULT;
 
-	rmcd_debug(OBW, "did=%d ra=0x%llx sz=0x%llx",
+	rmcd_de(OBW, "did=%d ra=0x%llx sz=0x%llx",
 		   map.rioid, map.rio_addr, map.length);
 
 	ret = rio_mport_get_outbound_mapping(data, filp, map.rioid,
@@ -473,13 +473,13 @@ static int rio_mport_obw_free(struct file *filp, void __user *arg)
 	if (copy_from_user(&handle, arg, sizeof(handle)))
 		return -EFAULT;
 
-	rmcd_debug(OBW, "h=0x%llx", handle);
+	rmcd_de(OBW, "h=0x%llx", handle);
 
 	mutex_lock(&md->buf_mutex);
 	list_for_each_entry_safe(map, _map, &md->mappings, node) {
 		if (map->dir == MAP_OUTBOUND && map->phys_addr == handle) {
 			if (map->filp == filp) {
-				rmcd_debug(OBW, "kref_put h=0x%llx", handle);
+				rmcd_de(OBW, "kref_put h=0x%llx", handle);
 				map->filp = NULL;
 				kref_put(&map->ref, mport_release_mapping);
 			}
@@ -508,7 +508,7 @@ static int maint_hdid_set(struct mport_cdev_priv *priv, void __user *arg)
 	md->properties.hdid = hdid;
 	rio_local_set_device_id(md->mport, hdid);
 
-	rmcd_debug(MPORT, "Set host device Id to %d", hdid);
+	rmcd_de(MPORT, "Set host device Id to %d", hdid);
 
 	return 0;
 }
@@ -528,7 +528,7 @@ static int maint_comptag_set(struct mport_cdev_priv *priv, void __user *arg)
 
 	rio_local_write_config_32(md->mport, RIO_COMPONENT_TAG_CSR, comptag);
 
-	rmcd_debug(MPORT, "Set host Component Tag to %d", comptag);
+	rmcd_de(MPORT, "Set host Component Tag to %d", comptag);
 
 	return 0;
 }
@@ -557,7 +557,7 @@ static void mport_release_def_dma(struct kref *dma_ref)
 	struct mport_dev *md =
 			container_of(dma_ref, struct mport_dev, dma_ref);
 
-	rmcd_debug(EXIT, "DMA_%d", md->dma_chan->chan_id);
+	rmcd_de(EXIT, "DMA_%d", md->dma_chan->chan_id);
 	rio_release_dma(md->dma_chan);
 	md->dma_chan = NULL;
 }
@@ -567,7 +567,7 @@ static void mport_release_dma(struct kref *dma_ref)
 	struct mport_cdev_priv *priv =
 			container_of(dma_ref, struct mport_cdev_priv, dma_ref);
 
-	rmcd_debug(EXIT, "DMA_%d", priv->dmach->chan_id);
+	rmcd_de(EXIT, "DMA_%d", priv->dmach->chan_id);
 	complete(&priv->comp);
 }
 
@@ -673,7 +673,7 @@ static int get_dma_channel(struct mport_cdev_priv *priv)
 			/* Register default DMA channel if we do not have one */
 			priv->md->dma_chan = priv->dmach;
 			kref_init(&priv->md->dma_ref);
-			rmcd_debug(DMA, "Register DMA_chan %d as default",
+			rmcd_de(DMA, "Register DMA_chan %d as default",
 				   priv->dmach->chan_id);
 		}
 
@@ -714,7 +714,7 @@ static int do_dma_request(struct mport_dma_req *req,
 	chan = priv->dmach;
 	dir = (req->dir == DMA_FROM_DEVICE) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
-	rmcd_debug(DMA, "%s(%d) uses %s for DMA_%s",
+	rmcd_de(DMA, "%s(%d) uses %s for DMA_%s",
 		   current->comm, task_pid_nr(current),
 		   dev_name(&chan->dev->device),
 		   (dir == DMA_DEV_TO_MEM)?"READ":"WRITE");
@@ -724,14 +724,14 @@ static int do_dma_request(struct mport_dma_req *req,
 			   DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
 
 	if (!tx) {
-		rmcd_debug(DMA, "prep error for %s A:0x%llx L:0x%llx",
+		rmcd_de(DMA, "prep error for %s A:0x%llx L:0x%llx",
 			(dir == DMA_DEV_TO_MEM)?"READ":"WRITE",
 			xfer->rio_addr, xfer->length);
 		ret = -EIO;
 		goto err_out;
 	} else if (IS_ERR(tx)) {
 		ret = PTR_ERR(tx);
-		rmcd_debug(DMA, "prep error %d for %s A:0x%llx L:0x%llx", ret,
+		rmcd_de(DMA, "prep error %d for %s A:0x%llx L:0x%llx", ret,
 			(dir == DMA_DEV_TO_MEM)?"READ":"WRITE",
 			xfer->rio_addr, xfer->length);
 		goto err_out;
@@ -746,7 +746,7 @@ static int do_dma_request(struct mport_dma_req *req,
 	cookie = dmaengine_submit(tx);
 	req->cookie = cookie;
 
-	rmcd_debug(DMA, "pid=%d DMA_%s tx_cookie = %d", task_pid_nr(current),
+	rmcd_de(DMA, "pid=%d DMA_%s tx_cookie = %d", task_pid_nr(current),
 		   (dir == DMA_DEV_TO_MEM)?"READ":"WRITE", cookie);
 
 	if (dma_submit_error(cookie)) {
@@ -943,7 +943,7 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 		if (sync == RIO_TRANSFER_ASYNC)
 			return ret; /* return ASYNC cookie */
 	} else {
-		rmcd_debug(DMA, "do_dma_request failed with err=%d", ret);
+		rmcd_de(DMA, "do_dma_request failed with err=%d", ret);
 	}
 
 err_pg:
@@ -1147,7 +1147,7 @@ static int rio_mport_free_dma(struct file *filp, void __user *arg)
 
 	if (copy_from_user(&handle, arg, sizeof(handle)))
 		return -EFAULT;
-	rmcd_debug(EXIT, "filp=%p", filp);
+	rmcd_de(EXIT, "filp=%p", filp);
 
 	mutex_lock(&md->buf_mutex);
 	list_for_each_entry_safe(map, _map, &md->mappings, node) {
@@ -1161,7 +1161,7 @@ static int rio_mport_free_dma(struct file *filp, void __user *arg)
 	mutex_unlock(&md->buf_mutex);
 
 	if (ret == -EFAULT) {
-		rmcd_debug(DMA, "ERR no matching mapping");
+		rmcd_de(DMA, "ERR no matching mapping");
 		return ret;
 	}
 
@@ -1291,7 +1291,7 @@ static int rio_mport_map_inbound(struct file *filp, void __user *arg)
 	if (unlikely(copy_from_user(&map, arg, sizeof(map))))
 		return -EFAULT;
 
-	rmcd_debug(IBW, "%s filp=%p", dev_name(&priv->md->dev), filp);
+	rmcd_de(IBW, "%s filp=%p", dev_name(&priv->md->dev), filp);
 
 	ret = rio_mport_get_inbound_mapping(md, filp, map.rio_addr,
 					    map.length, &mapping);
@@ -1327,7 +1327,7 @@ static int rio_mport_inbound_free(struct file *filp, void __user *arg)
 	u64 handle;
 	struct rio_mport_mapping *map, *_map;
 
-	rmcd_debug(IBW, "%s filp=%p", dev_name(&priv->md->dev), filp);
+	rmcd_de(IBW, "%s filp=%p", dev_name(&priv->md->dev), filp);
 
 	if (!md->mport->ops->unmap_inb)
 		return -EPROTONOSUPPORT;
@@ -1360,7 +1360,7 @@ static int maint_port_idx_get(struct mport_cdev_priv *priv, void __user *arg)
 	struct mport_dev *md = priv->md;
 	u32 port_idx = md->mport->index;
 
-	rmcd_debug(MPORT, "port_index=%d", port_idx);
+	rmcd_de(MPORT, "port_index=%d", port_idx);
 
 	if (copy_to_user(arg, &port_idx, sizeof(port_idx)))
 		return -EFAULT;
@@ -1658,7 +1658,7 @@ static void rio_release_net(struct device *dev)
 	struct rio_net *net;
 
 	net = to_rio_net(dev);
-	rmcd_debug(RDEV, "net_%d", net->id);
+	rmcd_de(RDEV, "net_%d", net->id);
 	kfree(net);
 }
 
@@ -1689,11 +1689,11 @@ static int rio_mport_add_riodev(struct mport_cdev_priv *priv,
 	if (copy_from_user(&dev_info, arg, sizeof(dev_info)))
 		return -EFAULT;
 
-	rmcd_debug(RDEV, "name:%s ct:0x%x did:0x%x hc:0x%x", dev_info.name,
+	rmcd_de(RDEV, "name:%s ct:0x%x did:0x%x hc:0x%x", dev_info.name,
 		   dev_info.comptag, dev_info.destid, dev_info.hopcount);
 
 	if (bus_find_device_by_name(&rio_bus_type, NULL, dev_info.name)) {
-		rmcd_debug(RDEV, "device %s already exists", dev_info.name);
+		rmcd_de(RDEV, "device %s already exists", dev_info.name);
 		return -EEXIST;
 	}
 
@@ -1723,7 +1723,7 @@ static int rio_mport_add_riodev(struct mport_cdev_priv *priv,
 		net = rio_alloc_net(mport);
 		if (!net) {
 			err = -ENOMEM;
-			rmcd_debug(RDEV, "failed to allocate net object");
+			rmcd_de(RDEV, "failed to allocate net object");
 			goto cleanup;
 		}
 
@@ -1734,7 +1734,7 @@ static int rio_mport_add_riodev(struct mport_cdev_priv *priv,
 		net->dev.release = rio_release_net;
 		err = rio_add_net(net);
 		if (err) {
-			rmcd_debug(RDEV, "failed to register net, err=%d", err);
+			rmcd_de(RDEV, "failed to register net, err=%d", err);
 			kfree(net);
 			goto cleanup;
 		}
@@ -1839,7 +1839,7 @@ static int rio_mport_del_riodev(struct mport_cdev_priv *priv, void __user *arg)
 	}
 
 	if (!rdev) {
-		rmcd_debug(RDEV,
+		rmcd_de(RDEV,
 			"device name:%s ct:0x%x did:0x%x hc:0x%x not found",
 			dev_info.name, dev_info.comptag, dev_info.destid,
 			dev_info.hopcount);
@@ -1880,7 +1880,7 @@ static int mport_cdev_open(struct inode *inode, struct file *filp)
 
 	chdev = container_of(inode->i_cdev, struct mport_dev, cdev);
 
-	rmcd_debug(INIT, "%s filp=%p", dev_name(&chdev->dev), filp);
+	rmcd_de(INIT, "%s filp=%p", dev_name(&chdev->dev), filp);
 
 	if (atomic_read(&chdev->active) == 0)
 		return -ENODEV;
@@ -1943,11 +1943,11 @@ static void mport_cdev_release_dma(struct file *filp)
 	long wret;
 	LIST_HEAD(list);
 
-	rmcd_debug(EXIT, "from filp=%p %s(%d)",
+	rmcd_de(EXIT, "from filp=%p %s(%d)",
 		   filp, current->comm, task_pid_nr(current));
 
 	if (!priv->dmach) {
-		rmcd_debug(EXIT, "No DMA channel for filp=%p", filp);
+		rmcd_de(EXIT, "No DMA channel for filp=%p", filp);
 		return;
 	}
 
@@ -1955,16 +1955,16 @@ static void mport_cdev_release_dma(struct file *filp)
 
 	spin_lock(&priv->req_lock);
 	if (!list_empty(&priv->async_list)) {
-		rmcd_debug(EXIT, "async list not empty filp=%p %s(%d)",
+		rmcd_de(EXIT, "async list not empty filp=%p %s(%d)",
 			   filp, current->comm, task_pid_nr(current));
 		list_splice_init(&priv->async_list, &list);
 	}
 	spin_unlock(&priv->req_lock);
 
 	if (!list_empty(&list)) {
-		rmcd_debug(EXIT, "temp list not empty");
+		rmcd_de(EXIT, "temp list not empty");
 		list_for_each_entry_safe(req, req_next, &list, node) {
-			rmcd_debug(EXIT, "free req->filp=%p cookie=%d compl=%s",
+			rmcd_de(EXIT, "free req->filp=%p cookie=%d compl=%s",
 				   req->filp, req->cookie,
 				   completion_done(&req->req_comp)?"yes":"no");
 			list_del(&req->node);
@@ -1981,11 +1981,11 @@ static void mport_cdev_release_dma(struct file *filp)
 	}
 
 	if (priv->dmach != priv->md->dma_chan) {
-		rmcd_debug(EXIT, "Release DMA channel for filp=%p %s(%d)",
+		rmcd_de(EXIT, "Release DMA channel for filp=%p %s(%d)",
 			   filp, current->comm, task_pid_nr(current));
 		rio_release_dma(priv->dmach);
 	} else {
-		rmcd_debug(EXIT, "Adjust default DMA channel refcount");
+		rmcd_de(EXIT, "Adjust default DMA channel refcount");
 		kref_put(&md->dma_ref, mport_release_def_dma);
 	}
 
@@ -2007,7 +2007,7 @@ static int mport_cdev_release(struct inode *inode, struct file *filp)
 	struct rio_mport_mapping *map, *_map;
 	unsigned long flags;
 
-	rmcd_debug(EXIT, "%s filp=%p", dev_name(&priv->md->dev), filp);
+	rmcd_de(EXIT, "%s filp=%p", dev_name(&priv->md->dev), filp);
 
 	chdev = priv->md;
 	mport_cdev_release_dma(filp);
@@ -2034,7 +2034,7 @@ static int mport_cdev_release(struct inode *inode, struct file *filp)
 	mutex_lock(&chdev->buf_mutex);
 	list_for_each_entry_safe(map, _map, &chdev->mappings, node) {
 		if (map->filp == filp) {
-			rmcd_debug(EXIT, "release mapping %p filp=%p",
+			rmcd_de(EXIT, "release mapping %p filp=%p",
 				   map->virt_addr, filp);
 			kref_put(&map->ref, mport_release_mapping);
 		}
@@ -2140,7 +2140,7 @@ static void mport_release_mapping(struct kref *ref)
 			container_of(ref, struct rio_mport_mapping, ref);
 	struct rio_mport *mport = map->md->mport;
 
-	rmcd_debug(MMAP, "type %d mapping @ %p (phys = %pad) for %s",
+	rmcd_de(MMAP, "type %d mapping @ %p (phys = %pad) for %s",
 		   map->dir, map->virt_addr,
 		   &map->phys_addr, mport->name);
 
@@ -2165,7 +2165,7 @@ static void mport_mm_open(struct vm_area_struct *vma)
 {
 	struct rio_mport_mapping *map = vma->vm_private_data;
 
-	rmcd_debug(MMAP, "%pad", &map->phys_addr);
+	rmcd_de(MMAP, "%pad", &map->phys_addr);
 	kref_get(&map->ref);
 }
 
@@ -2173,7 +2173,7 @@ static void mport_mm_close(struct vm_area_struct *vma)
 {
 	struct rio_mport_mapping *map = vma->vm_private_data;
 
-	rmcd_debug(MMAP, "%pad", &map->phys_addr);
+	rmcd_de(MMAP, "%pad", &map->phys_addr);
 	mutex_lock(&map->md->buf_mutex);
 	kref_put(&map->ref, mport_release_mapping);
 	mutex_unlock(&map->md->buf_mutex);
@@ -2194,7 +2194,7 @@ static int mport_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	int found = 0, ret;
 	struct rio_mport_mapping *map;
 
-	rmcd_debug(MMAP, "0x%x bytes at offset 0x%lx",
+	rmcd_de(MMAP, "0x%x bytes at offset 0x%lx",
 		   (unsigned int)size, vma->vm_pgoff);
 
 	md = priv->md;
@@ -2219,7 +2219,7 @@ static int mport_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_pgoff = offset >> PAGE_SHIFT;
-	rmcd_debug(MMAP, "MMAP adjusted offset = 0x%lx", vma->vm_pgoff);
+	rmcd_de(MMAP, "MMAP adjusted offset = 0x%lx", vma->vm_pgoff);
 
 	if (map->dir == MAP_INBOUND || map->dir == MAP_DMA)
 		ret = dma_mmap_coherent(md->mport->dev.parent, vma,
@@ -2342,7 +2342,7 @@ static void mport_device_release(struct device *dev)
 {
 	struct mport_dev *md;
 
-	rmcd_debug(EXIT, "%s", dev_name(dev));
+	rmcd_de(EXIT, "%s", dev_name(dev));
 	md = container_of(dev, struct mport_dev, dev);
 	kfree(md);
 }
@@ -2443,7 +2443,7 @@ static void mport_cdev_terminate_dma(struct mport_dev *md)
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 	struct mport_cdev_priv *client;
 
-	rmcd_debug(DMA, "%s", dev_name(&md->dev));
+	rmcd_de(DMA, "%s", dev_name(&md->dev));
 
 	mutex_lock(&md->file_mutex);
 	list_for_each_entry(client, &md->file_list, list) {
@@ -2490,7 +2490,7 @@ static void mport_cdev_remove(struct mport_dev *md)
 {
 	struct rio_mport_mapping *map, *_map;
 
-	rmcd_debug(EXIT, "Remove %s cdev", md->mport->name);
+	rmcd_de(EXIT, "Remove %s cdev", md->mport->name);
 	atomic_set(&md->active, 0);
 	mport_cdev_terminate_dma(md);
 	rio_del_mport_pw_handler(md->mport, md, rio_mport_pw_handler);
@@ -2558,7 +2558,7 @@ static void mport_remove_mport(struct device *dev,
 	int found = 0;
 
 	mport = to_rio_mport(dev);
-	rmcd_debug(EXIT, "Remove %s", mport->name);
+	rmcd_de(EXIT, "Remove %s", mport->name);
 
 	mutex_lock(&mport_devs_lock);
 	list_for_each_entry(chdev, &mport_devs, node) {
@@ -2604,7 +2604,7 @@ static int __init mport_init(void)
 	if (ret < 0)
 		goto err_chr;
 
-	rmcd_debug(INIT, "Registered class with major=%d", MAJOR(dev_number));
+	rmcd_de(INIT, "Registered class with major=%d", MAJOR(dev_number));
 
 	/* Register to rio_mport_interface */
 	ret = class_interface_register(&rio_mport_interface);

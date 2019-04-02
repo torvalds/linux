@@ -9,11 +9,11 @@ for this platform involves the following files:
 ./drivers/.../n_tracesink.c
 ./drivers/.../pti.c
 
-pti.c is the driver that enables various debugging features
+pti.c is the driver that enables various deging features
 popular on platforms from certain mobile manufacturers.
 n_tracerouter.c and n_tracesink.c allow extra system information to
 be collected and routed to the pti driver, such as trace
-debugging data from a modem.  Although n_tracerouter
+deging data from a modem.  Although n_tracerouter
 and n_tracesink are a part of the complete PTI solution,
 these two line disciplines can work separately from
 pti.c and route any data stream from one /dev/tty node
@@ -23,15 +23,15 @@ the user-space application shuts down (plus avoids
 kernel->user->kernel context switch overheads of routing
 data).
 
-An example debugging usage for this driver system:
+An example deging usage for this driver system:
    *Hook /dev/ttyPTI0 to syslogd.  Opening this port will also start
-    a console device to further capture debugging messages to PTI.
-   *Hook /dev/ttyPTI1 to modem debugging data to write to PTI HW.
+    a console device to further capture deging messages to PTI.
+   *Hook /dev/ttyPTI1 to modem deging data to write to PTI HW.
     This is where n_tracerouter and n_tracesink are used.
-   *Hook /dev/pti to a user-level debugging application for writing
+   *Hook /dev/pti to a user-level deging application for writing
     to PTI HW.
    *Use mipi_* Kernel Driver API in other device drivers for
-    debugging to PTI by first requesting a PTI write address via
+    deging to PTI by first requesting a PTI write address via
     mipi_request_masterchannel(1).
 
 Below is example pseudo-code on how a 'privileged' application

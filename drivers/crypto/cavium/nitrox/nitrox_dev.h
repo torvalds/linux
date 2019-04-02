@@ -211,7 +211,7 @@ enum vf_mode {
  * @num_vecs: number of MSI-X vectors
  * @stats: request statistics
  * @hw: hardware information
- * @debugfs_dir: debugfs directory
+ * @defs_dir: defs directory
  */
 struct nitrox_device {
 	struct list_head list;
@@ -239,8 +239,8 @@ struct nitrox_device {
 
 	struct nitrox_stats stats;
 	struct nitrox_hw hw;
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-	struct dentry *debugfs_dir;
+#if IS_ENABLED(CONFIG_DE_FS)
+	struct dentry *defs_dir;
 #endif
 };
 

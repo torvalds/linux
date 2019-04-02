@@ -11,12 +11,12 @@
 #include <asm/system_misc.h>
 #include <asm/proc-fns.h>
 
-#ifdef CONFIG_DEBUG_GEMINI
-/* This is needed for LL-debug/earlyprintk/debug-macro.S */
+#ifdef CONFIG_DE_GEMINI
+/* This is needed for LL-de/earlyprintk/de-macro.S */
 static struct map_desc gemini_io_desc[] __initdata = {
 	{
-		.virtual = CONFIG_DEBUG_UART_VIRT,
-		.pfn = __phys_to_pfn(CONFIG_DEBUG_UART_PHYS),
+		.virtual = CONFIG_DE_UART_VIRT,
+		.pfn = __phys_to_pfn(CONFIG_DE_UART_PHYS),
 		.length = SZ_4K,
 		.type = MT_DEVICE,
 	},

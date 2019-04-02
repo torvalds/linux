@@ -507,7 +507,7 @@ static void dr_cpu_init_response(struct ds_data *resp, u64 req_num,
 		ent[i].stat = default_stat;
 		i++;
 	}
-	BUG_ON(i != ncpus);
+	_ON(i != ncpus);
 }
 
 static void dr_cpu_mark(struct ds_data *resp, int cpu, int ncpus,

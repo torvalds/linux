@@ -807,11 +807,11 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 		break;
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
 		r.eeprom = &resp->params.eeprom;
-		pr_debug("info: EEPROM read len=%x\n",
+		pr_de("info: EEPROM read len=%x\n",
 				le16_to_cpu(r.eeprom->byte_count));
 		if (eeprom->byte_count < le16_to_cpu(r.eeprom->byte_count)) {
 			eeprom->byte_count = 0;
-			pr_debug("info: EEPROM read length is too big\n");
+			pr_de("info: EEPROM read length is too big\n");
 			return -1;
 		}
 		eeprom->offset = le16_to_cpu(r.eeprom->offset);

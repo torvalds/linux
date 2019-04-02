@@ -811,7 +811,7 @@ static inline uint32_t REG_DSI_28nm_PHY_LN_CFG_4(uint32_t i0) { return 0x0000001
 
 static inline uint32_t REG_DSI_28nm_PHY_LN_TEST_DATAPATH(uint32_t i0) { return 0x00000014 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_28nm_PHY_LN_DEBUG_SEL(uint32_t i0) { return 0x00000018 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_PHY_LN_DE_SEL(uint32_t i0) { return 0x00000018 + 0x40*i0; }
 
 static inline uint32_t REG_DSI_28nm_PHY_LN_TEST_STR_0(uint32_t i0) { return 0x0000001c + 0x40*i0; }
 
@@ -829,7 +829,7 @@ static inline uint32_t REG_DSI_28nm_PHY_LN_TEST_STR_1(uint32_t i0) { return 0x00
 
 #define REG_DSI_28nm_PHY_LNCK_TEST_DATAPATH			0x00000114
 
-#define REG_DSI_28nm_PHY_LNCK_DEBUG_SEL				0x00000118
+#define REG_DSI_28nm_PHY_LNCK_DE_SEL				0x00000118
 
 #define REG_DSI_28nm_PHY_LNCK_TEST_STR0				0x0000011c
 
@@ -1095,7 +1095,7 @@ static inline uint32_t DSI_28nm_PHY_PLL_SDM_CFG3_FREQ_SEED_15_8(uint32_t val)
 
 #define REG_DSI_28nm_PHY_PLL_EFUSE_CFG				0x0000009c
 
-#define REG_DSI_28nm_PHY_PLL_DEBUG_BUS_SEL			0x000000a0
+#define REG_DSI_28nm_PHY_PLL_DE_BUS_SEL			0x000000a0
 
 #define REG_DSI_28nm_PHY_PLL_CTRL_42				0x000000a4
 
@@ -1114,13 +1114,13 @@ static inline uint32_t DSI_28nm_PHY_PLL_SDM_CFG3_FREQ_SEED_15_8(uint32_t val)
 #define REG_DSI_28nm_PHY_PLL_STATUS				0x000000c0
 #define DSI_28nm_PHY_PLL_STATUS_PLL_RDY				0x00000001
 
-#define REG_DSI_28nm_PHY_PLL_DEBUG_BUS0				0x000000c4
+#define REG_DSI_28nm_PHY_PLL_DE_BUS0				0x000000c4
 
-#define REG_DSI_28nm_PHY_PLL_DEBUG_BUS1				0x000000c8
+#define REG_DSI_28nm_PHY_PLL_DE_BUS1				0x000000c8
 
-#define REG_DSI_28nm_PHY_PLL_DEBUG_BUS2				0x000000cc
+#define REG_DSI_28nm_PHY_PLL_DE_BUS2				0x000000cc
 
-#define REG_DSI_28nm_PHY_PLL_DEBUG_BUS3				0x000000d0
+#define REG_DSI_28nm_PHY_PLL_DE_BUS3				0x000000d0
 
 #define REG_DSI_28nm_PHY_PLL_CTRL_54				0x000000d4
 
@@ -1138,7 +1138,7 @@ static inline uint32_t REG_DSI_20nm_PHY_LN_CFG_4(uint32_t i0) { return 0x0000001
 
 static inline uint32_t REG_DSI_20nm_PHY_LN_TEST_DATAPATH(uint32_t i0) { return 0x00000014 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_20nm_PHY_LN_DEBUG_SEL(uint32_t i0) { return 0x00000018 + 0x40*i0; }
+static inline uint32_t REG_DSI_20nm_PHY_LN_DE_SEL(uint32_t i0) { return 0x00000018 + 0x40*i0; }
 
 static inline uint32_t REG_DSI_20nm_PHY_LN_TEST_STR_0(uint32_t i0) { return 0x0000001c + 0x40*i0; }
 
@@ -1156,7 +1156,7 @@ static inline uint32_t REG_DSI_20nm_PHY_LN_TEST_STR_1(uint32_t i0) { return 0x00
 
 #define REG_DSI_20nm_PHY_LNCK_TEST_DATAPATH			0x00000114
 
-#define REG_DSI_20nm_PHY_LNCK_DEBUG_SEL				0x00000118
+#define REG_DSI_20nm_PHY_LNCK_DE_SEL				0x00000118
 
 #define REG_DSI_20nm_PHY_LNCK_TEST_STR0				0x0000011c
 

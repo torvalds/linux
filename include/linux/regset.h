@@ -15,7 +15,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/uaccess.h>
 struct task_struct;
 struct user_regset;
@@ -261,7 +261,7 @@ static inline int user_regset_copyout(unsigned int *pos, unsigned int *count,
 {
 	if (*count == 0)
 		return 0;
-	BUG_ON(*pos < start_pos);
+	_ON(*pos < start_pos);
 	if (end_pos < 0 || *pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? *count
 				     : min(*count, end_pos - *pos));
@@ -286,7 +286,7 @@ static inline int user_regset_copyin(unsigned int *pos, unsigned int *count,
 {
 	if (*count == 0)
 		return 0;
-	BUG_ON(*pos < start_pos);
+	_ON(*pos < start_pos);
 	if (end_pos < 0 || *pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? *count
 				     : min(*count, end_pos - *pos));
@@ -316,7 +316,7 @@ static inline int user_regset_copyout_zero(unsigned int *pos,
 {
 	if (*count == 0)
 		return 0;
-	BUG_ON(*pos < start_pos);
+	_ON(*pos < start_pos);
 	if (end_pos < 0 || *pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? *count
 				     : min(*count, end_pos - *pos));
@@ -342,7 +342,7 @@ static inline int user_regset_copyin_ignore(unsigned int *pos,
 {
 	if (*count == 0)
 		return 0;
-	BUG_ON(*pos < start_pos);
+	_ON(*pos < start_pos);
 	if (end_pos < 0 || *pos < end_pos) {
 		unsigned int copy = (end_pos < 0 ? *count
 				     : min(*count, end_pos - *pos));

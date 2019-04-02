@@ -15,7 +15,7 @@ Description:
 
 		kexec needs the raw firmware-provided memory map to setup the
 		parameter segment of the kernel that should be booted with
-		kexec. Also, the raw memory map is useful for debugging. For
+		kexec. Also, the raw memory map is useful for deging. For
 		that reason, /sys/firmware/memmap is an interface that provides
 		the raw memory map to userspace.
 

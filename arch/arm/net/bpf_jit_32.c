@@ -242,7 +242,7 @@ static inline void emit(u32 inst, struct jit_ctx *ctx)
  * This is rather horrid, but necessary to convert an integer constant
  * to an immediate operand for the opcodes, and be able to detect at
  * build time whether the constant can't be converted (iow, usable in
- * BUILD_BUG_ON()).
+ * BUILD__ON()).
  */
 #define imm12val(v, s) (rol32(v, (s)) | (s) << 7)
 #define const_imm8m(x)					\
@@ -1145,7 +1145,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	/* if (index >= array->map.max_entries)
 	 *	goto out;
 	 */
-	BUILD_BUG_ON(offsetof(struct bpf_array, map.max_entries) >
+	BUILD__ON(offsetof(struct bpf_array, map.max_entries) >
 		     ARM_INST_LDST__IMM12);
 	off = offsetof(struct bpf_array, map.max_entries);
 	r_array = arm_bpf_get_reg32(r2[1], tmp2[0], ctx);
@@ -1177,7 +1177,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	 * if (prog == NULL)
 	 *	goto out;
 	 */
-	BUILD_BUG_ON(imm8m(offsetof(struct bpf_array, ptrs)) < 0);
+	BUILD__ON(imm8m(offsetof(struct bpf_array, ptrs)) < 0);
 	off = imm8m(offsetof(struct bpf_array, ptrs));
 	emit(ARM_ADD_I(tmp[1], r_array, off), ctx);
 	emit(ARM_LDR_R_SI(tmp[1], tmp[1], r_index, SRTYPE_ASL, 2), ctx);
@@ -1185,7 +1185,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	_emit(ARM_COND_EQ, ARM_B(jmp_offset), ctx);
 
 	/* goto *(prog->bpf_func + prologue_size); */
-	BUILD_BUG_ON(offsetof(struct bpf_prog, bpf_func) >
+	BUILD__ON(offsetof(struct bpf_prog, bpf_func) >
 		     ARM_INST_LDST__IMM12);
 	off = offsetof(struct bpf_prog, bpf_func);
 	emit(ARM_LDR_I(tmp[1], tmp[1], off), ctx);

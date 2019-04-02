@@ -493,7 +493,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXEC_FENCE	 44
 
 /* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to capture
- * user specified bufffers for post-mortem debugging of GPU hangs. See
+ * user specified bufffers for post-mortem deging of GPU hangs. See
  * EXEC_OBJECT_CAPTURE.
  */
 #define I915_PARAM_HAS_EXEC_CAPTURE	 45
@@ -923,7 +923,7 @@ struct drm_i915_gem_exec_object2 {
  */
 #define EXEC_OBJECT_ASYNC		(1<<6)
 /* Request that the contents of this execobject be copied into the error
- * state upon a GPU hang involving this batch for post-mortem debugging.
+ * state upon a GPU hang involving this batch for post-mortem deging.
  * These buffers are recorded in no particular order as "user" in
  * /sys/class/drm/cardN/error. Query I915_PARAM_HAS_EXEC_CAPTURE to see
  * if the kernel supports this flag.

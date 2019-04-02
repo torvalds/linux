@@ -30,11 +30,11 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = <&pinctrl_leds_debug>;
+		pinctrl-0 = <&pinctrl_leds_de>;
 		pinctrl-names = "default";
 
-		led-debug {
-			label = "zii:green:debug1";
+		led-de {
+			label = "zii:green:de1";
 			gpios = <&gpio2 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			max-brightness = <1>;
@@ -323,7 +323,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_de: pinctrl-leds-de {
 		fsl,pins = <
 			VF610_PAD_PTD3__GPIO_82			0x31c2
 		>;

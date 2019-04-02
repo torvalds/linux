@@ -32,13 +32,13 @@
 #include <linux/uaccess.h>
 
 #if 0
-#define CARM_DEBUG
-#define CARM_VERBOSE_DEBUG
+#define CARM_DE
+#define CARM_VERBOSE_DE
 #else
-#undef CARM_DEBUG
-#undef CARM_VERBOSE_DEBUG
+#undef CARM_DE
+#undef CARM_VERBOSE_DE
 #endif
-#undef CARM_NDEBUG
+#undef CARM_NDE
 
 #define DRV_NAME "sx8"
 #define DRV_VERSION "1.0"
@@ -78,19 +78,19 @@ MODULE_PARM_DESC(max_queue, "Maximum number of queued commands. (min==1, max==30
 #define TAG_VALID(tag)	((((tag) & 0xf) == 0xf) && (TAG_DECODE(tag) < 32))
 
 /* note: prints function name for you */
-#ifdef CARM_DEBUG
+#ifdef CARM_DE
 #define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
-#ifdef CARM_VERBOSE_DEBUG
+#ifdef CARM_VERBOSE_DE
 #define VPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define VPRINTK(fmt, args...)
-#endif	/* CARM_VERBOSE_DEBUG */
+#endif	/* CARM_VERBOSE_DE */
 #else
 #define DPRINTK(fmt, args...)
 #define VPRINTK(fmt, args...)
-#endif	/* CARM_DEBUG */
+#endif	/* CARM_DE */
 
-#ifdef CARM_NDEBUG
+#ifdef CARM_NDE
 #define assert(expr)
 #else
 #define assert(expr) \
@@ -223,7 +223,7 @@ enum host_states {
 	HST_GET_FW_VER,		/* get firmware version, adapter port cnt */
 };
 
-#ifdef CARM_DEBUG
+#ifdef CARM_DE
 static const char *state_name[] = {
 	"HST_INVALID",
 	"HST_ALLOC_BUF",
@@ -523,7 +523,7 @@ static int carm_array_info (struct carm_host *host, unsigned int array_idx)
 	crq->msg_subtype = CARM_ARRAY_INFO;
 	rc = carm_lookup_bucket(sizeof(struct carm_msg_ioctl) +
 				sizeof(struct carm_array_info));
-	BUG_ON(rc < 0);
+	_ON(rc < 0);
 	crq->msg_bucket = (u32) rc;
 
 	memset(ioc, 0, sizeof(*ioc));
@@ -574,7 +574,7 @@ static int carm_send_special (struct carm_host *host, carm_sspc_t func)
 	crq->msg_type = ioc->type;
 	crq->msg_subtype = ioc->subtype;
 	rc = carm_lookup_bucket(msg_size);
-	BUG_ON(rc < 0);
+	_ON(rc < 0);
 	crq->msg_bucket = (u32) rc;
 
 	DPRINTK("blk_execute_rq_nowait, tag == %u\n", rq->tag);
@@ -669,7 +669,7 @@ static inline void carm_push_q (struct carm_host *host, struct request_queue *q)
 
 	host->wait_q[idx] = q;
 	host->wait_q_prod++;
-	BUG_ON(host->wait_q_prod == host->wait_q_cons); /* overrun */
+	_ON(host->wait_q_prod == host->wait_q_cons); /* overrun */
 }
 
 static inline struct request_queue *carm_pop_q(struct carm_host *host)
@@ -773,7 +773,7 @@ static blk_status_t carm_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	rc = carm_lookup_bucket(msg_size);
-	BUG_ON(rc < 0);
+	_ON(rc < 0);
 	crq->msg_bucket = (u32) rc;
 send_msg:
 	/*
@@ -821,7 +821,7 @@ static void carm_handle_array_info(struct carm_host *host,
 
 	/* should never occur */
 	if ((cur_port < 0) || (cur_port >= CARM_MAX_PORTS)) {
-		printk(KERN_ERR PFX "BUG: cur_scan_dev==%d, array_id==%d\n",
+		printk(KERN_ERR PFX ": cur_scan_dev==%d, array_id==%d\n",
 		       cur_port, (int) desc->array_id);
 		goto out;
 	}
@@ -915,7 +915,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 	VPRINTK("ENTER, handle == 0x%x\n", handle);
 
 	if (unlikely(!TAG_VALID(handle))) {
-		printk(KERN_ERR DRV_NAME "(%s): BUG: invalid tag 0x%x\n",
+		printk(KERN_ERR DRV_NAME "(%s): : invalid tag 0x%x\n",
 		       pci_name(host->pdev), handle);
 		return;
 	}
@@ -997,7 +997,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 	return;
 
 err_out:
-	printk(KERN_WARNING DRV_NAME "(%s): BUG: unhandled message type %d/%d\n",
+	printk(KERN_WARNING DRV_NAME "(%s): : unhandled message type %d/%d\n",
 	       pci_name(host->pdev), crq->msg_type, crq->msg_subtype);
 	error = BLK_STS_IOERR;
 done:
@@ -1203,7 +1203,7 @@ static void carm_fsm_task (struct work_struct *work)
 
 	default:
 		/* should never occur */
-		printk(KERN_ERR PFX "BUG: unknown state %d\n", state);
+		printk(KERN_ERR PFX ": unknown state %d\n", state);
 		assert(0);
 		break;
 	}
@@ -1410,7 +1410,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct request_queue *q;
 	unsigned int i;
 
-	printk_once(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+	printk_once(KERN_DE DRV_NAME " version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -1561,7 +1561,7 @@ static void carm_remove_one (struct pci_dev *pdev)
 	unsigned int i;
 
 	if (!host) {
-		printk(KERN_ERR PFX "BUG: no host data for PCI(%s)\n",
+		printk(KERN_ERR PFX ": no host data for PCI(%s)\n",
 		       pci_name(pdev));
 		return;
 	}

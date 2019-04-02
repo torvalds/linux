@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "dpu_vbif.h"
 #include "dpu_hw_vbif.h"
@@ -53,7 +53,7 @@ static int _dpu_vbif_wait_for_xin_halt(struct dpu_hw_vbif *vbif, u32 xin_id)
 				vbif->idx - VBIF_0, xin_id);
 	} else {
 		rc = 0;
-		DPU_DEBUG("VBIF %d client %d is halted\n",
+		DPU_DE("VBIF %d client %d is halted\n",
 				vbif->idx - VBIF_0, xin_id);
 	}
 
@@ -94,7 +94,7 @@ static void _dpu_vbif_apply_dynamic_ot_limit(struct dpu_hw_vbif *vbif,
 		}
 	}
 
-	DPU_DEBUG("vbif:%d xin:%d w:%d h:%d fps:%d pps:%llu ot:%u\n",
+	DPU_DE("vbif:%d xin:%d w:%d h:%d fps:%d pps:%llu ot:%u\n",
 			vbif->idx - VBIF_0, params->xin_id,
 			params->width, params->height, params->frame_rate,
 			pps, *ot_lim);
@@ -140,7 +140,7 @@ static u32 _dpu_vbif_get_ot_limit(struct dpu_hw_vbif *vbif,
 	}
 
 exit:
-	DPU_DEBUG("vbif:%d xin:%d ot_lim:%d\n",
+	DPU_DE("vbif:%d xin:%d ot_lim:%d\n",
 			vbif->idx - VBIF_0, params->xin_id, ot_lim);
 	return ot_lim;
 }
@@ -174,7 +174,7 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 	}
 
 	if (!vbif || !mdp) {
-		DPU_DEBUG("invalid arguments vbif %d mdp %d\n",
+		DPU_DE("invalid arguments vbif %d mdp %d\n",
 				vbif != 0, mdp != 0);
 		return;
 	}
@@ -241,7 +241,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	}
 
 	if (!vbif->ops.set_qos_remap || !mdp->ops.setup_clk_force_ctrl) {
-		DPU_DEBUG("qos remap not supported\n");
+		DPU_DE("qos remap not supported\n");
 		return;
 	}
 
@@ -249,14 +249,14 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 			&vbif->cap->qos_nrt_tbl;
 
 	if (!qos_tbl->npriority_lvl || !qos_tbl->priority_lvl) {
-		DPU_DEBUG("qos tbl not defined\n");
+		DPU_DE("qos tbl not defined\n");
 		return;
 	}
 
 	forced_on = mdp->ops.setup_clk_force_ctrl(mdp, params->clk_ctrl, true);
 
 	for (i = 0; i < qos_tbl->npriority_lvl; i++) {
-		DPU_DEBUG("vbif:%d xin:%d lvl:%d/%d\n",
+		DPU_DE("vbif:%d xin:%d lvl:%d/%d\n",
 				params->vbif_idx, params->xin_id, i,
 				qos_tbl->priority_lvl[i]);
 		vbif->ops.set_qos_remap(vbif, params->xin_id, i,
@@ -282,7 +282,7 @@ void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms)
 		if (vbif && vbif->ops.clear_errors) {
 			vbif->ops.clear_errors(vbif, &pnd, &src);
 			if (pnd || src) {
-				DRM_DEBUG_KMS("VBIF %d: pnd 0x%X, src 0x%X\n",
+				DRM_DE_KMS("VBIF %d: pnd 0x%X, src 0x%X\n",
 					      vbif->idx - VBIF_0, pnd, src);
 			}
 		}
@@ -309,15 +309,15 @@ void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
+void dpu_defs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *defs_root)
 {
 	char vbif_name[32];
-	struct dentry *entry, *debugfs_vbif;
+	struct dentry *entry, *defs_vbif;
 	int i, j;
 
-	entry = debugfs_create_dir("vbif", debugfs_root);
+	entry = defs_create_dir("vbif", defs_root);
 	if (IS_ERR_OR_NULL(entry))
 		return;
 
@@ -326,20 +326,20 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 
 		snprintf(vbif_name, sizeof(vbif_name), "%d", vbif->id);
 
-		debugfs_vbif = debugfs_create_dir(vbif_name, entry);
-		if (IS_ERR_OR_NULL(debugfs_vbif))
+		defs_vbif = defs_create_dir(vbif_name, entry);
+		if (IS_ERR_OR_NULL(defs_vbif))
 			continue;
 
-		debugfs_create_u32("features", 0600, debugfs_vbif,
+		defs_create_u32("features", 0600, defs_vbif,
 			(u32 *)&vbif->features);
 
-		debugfs_create_u32("xin_halt_timeout", 0400, debugfs_vbif,
+		defs_create_u32("xin_halt_timeout", 0400, defs_vbif,
 			(u32 *)&vbif->xin_halt_timeout);
 
-		debugfs_create_u32("default_rd_ot_limit", 0400, debugfs_vbif,
+		defs_create_u32("default_rd_ot_limit", 0400, defs_vbif,
 			(u32 *)&vbif->default_ot_rd_limit);
 
-		debugfs_create_u32("default_wr_ot_limit", 0400, debugfs_vbif,
+		defs_create_u32("default_wr_ot_limit", 0400, defs_vbif,
 			(u32 *)&vbif->default_ot_wr_limit);
 
 		for (j = 0; j < vbif->dynamic_ot_rd_tbl.count; j++) {
@@ -348,11 +348,11 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 
 			snprintf(vbif_name, sizeof(vbif_name),
 					"dynamic_ot_rd_%d_pps", j);
-			debugfs_create_u64(vbif_name, 0400, debugfs_vbif,
+			defs_create_u64(vbif_name, 0400, defs_vbif,
 					(u64 *)&cfg->pps);
 			snprintf(vbif_name, sizeof(vbif_name),
 					"dynamic_ot_rd_%d_ot_limit", j);
-			debugfs_create_u32(vbif_name, 0400, debugfs_vbif,
+			defs_create_u32(vbif_name, 0400, defs_vbif,
 					(u32 *)&cfg->ot_limit);
 		}
 
@@ -362,11 +362,11 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 
 			snprintf(vbif_name, sizeof(vbif_name),
 					"dynamic_ot_wr_%d_pps", j);
-			debugfs_create_u64(vbif_name, 0400, debugfs_vbif,
+			defs_create_u64(vbif_name, 0400, defs_vbif,
 					(u64 *)&cfg->pps);
 			snprintf(vbif_name, sizeof(vbif_name),
 					"dynamic_ot_wr_%d_ot_limit", j);
-			debugfs_create_u32(vbif_name, 0400, debugfs_vbif,
+			defs_create_u32(vbif_name, 0400, defs_vbif,
 					(u32 *)&cfg->ot_limit);
 		}
 	}

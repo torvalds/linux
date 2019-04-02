@@ -505,7 +505,7 @@ static int ipvlan_process_outbound(struct sk_buff *skb)
 
 	/* In this mode we dont care about multicast and broadcast traffic */
 	if (is_multicast_ether_addr(ethh->h_dest)) {
-		pr_debug_ratelimited("Dropped {multi|broad}cast of type=[%x]\n",
+		pr_de_ratelimited("Dropped {multi|broad}cast of type=[%x]\n",
 				     ntohs(skb->protocol));
 		kfree_skb(skb);
 		goto out;

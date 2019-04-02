@@ -133,7 +133,7 @@ unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return reg_array + vcpu_reg_offsets[mode][reg_num];
@@ -157,7 +157,7 @@ unsigned long *__vcpu_spsr(struct kvm_vcpu *vcpu)
 	case FIQ_MODE:
 		return &vcpu->arch.ctxt.gp_regs.KVM_ARM_FIQ_spsr;
 	default:
-		BUG();
+		();
 	}
 }
 

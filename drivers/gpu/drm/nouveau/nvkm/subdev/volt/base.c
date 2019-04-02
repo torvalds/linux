@@ -73,7 +73,7 @@ nvkm_volt_set(struct nvkm_volt *volt, u32 uv)
 	}
 
 	ret = volt->func->vid_set(volt, volt->vid[best].vid);
-	nvkm_debug(subdev, "set req %duv to %duv: %d\n", uv,
+	nvkm_de(subdev, "set req %duv to %duv: %d\n", uv,
 		   volt->vid[best].uv, ret);
 	return ret;
 }
@@ -194,7 +194,7 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 
 	data = nvbios_volt_parse(bios, &ver, &hdr, &cnt, &len, &info);
 	if (data && info.vidmask && info.base && info.step && info.ranged) {
-		nvkm_debug(subdev, "found ranged based VIDs\n");
+		nvkm_de(subdev, "found ranged based VIDs\n");
 		volt->min_uv = info.min;
 		volt->max_uv = info.max;
 		for (i = 0; i < info.vidmask + 1; i++) {
@@ -208,7 +208,7 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 		}
 		volt->vid_mask = info.vidmask;
 	} else if (data && info.vidmask && !info.ranged) {
-		nvkm_debug(subdev, "found entry based VIDs\n");
+		nvkm_de(subdev, "found entry based VIDs\n");
 		volt->min_uv = 0xffffffff;
 		volt->max_uv = 0;
 		for (i = 0; i < cnt; i++) {
@@ -244,10 +244,10 @@ nvkm_volt_init(struct nvkm_subdev *subdev)
 	int ret = nvkm_volt_get(volt);
 	if (ret < 0) {
 		if (ret != -ENODEV)
-			nvkm_debug(subdev, "current voltage unknown\n");
+			nvkm_de(subdev, "current voltage unknown\n");
 		return 0;
 	}
-	nvkm_debug(subdev, "current voltage: %duv\n", ret);
+	nvkm_de(subdev, "current voltage: %duv\n", ret);
 	return 0;
 }
 
@@ -258,7 +258,7 @@ nvkm_volt_oneinit(struct nvkm_subdev *subdev)
 
 	volt->speedo = nvkm_volt_speedo_read(volt);
 	if (volt->speedo > 0)
-		nvkm_debug(&volt->subdev, "speedo %x\n", volt->speedo);
+		nvkm_de(&volt->subdev, "speedo %x\n", volt->speedo);
 
 	if (volt->func->oneinit)
 		return volt->func->oneinit(volt);
@@ -295,7 +295,7 @@ nvkm_volt_ctor(const struct nvkm_volt_func *func, struct nvkm_device *device,
 		struct nvbios_vmap vmap;
 
 		nvkm_volt_parse_bios(bios, volt);
-		nvkm_debug(&volt->subdev, "min: %iuv max: %iuv\n",
+		nvkm_de(&volt->subdev, "min: %iuv max: %iuv\n",
 			   volt->min_uv, volt->max_uv);
 
 		if (nvbios_vmap_parse(bios, &ver, &hdr, &cnt, &len, &vmap)) {
@@ -311,7 +311,7 @@ nvkm_volt_ctor(const struct nvkm_volt_func *func, struct nvkm_device *device,
 
 	if (volt->vid_nr) {
 		for (i = 0; i < volt->vid_nr; i++) {
-			nvkm_debug(&volt->subdev, "VID %02x: %duv\n",
+			nvkm_de(&volt->subdev, "VID %02x: %duv\n",
 				   volt->vid[i].vid, volt->vid[i].uv);
 		}
 	}

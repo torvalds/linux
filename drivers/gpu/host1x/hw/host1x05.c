@@ -25,7 +25,7 @@
 
 #include "cdma_hw.c"
 #include "channel_hw.c"
-#include "debug_hw.c"
+#include "de_hw.c"
 #include "intr_hw.c"
 #include "syncpt_hw.c"
 
@@ -38,7 +38,7 @@ int host1x05_init(struct host1x *host)
 	host->cdma_pb_op = &host1x_pushbuffer_ops;
 	host->syncpt_op = &host1x_syncpt_ops;
 	host->intr_op = &host1x_intr_ops;
-	host->debug_op = &host1x_debug_ops;
+	host->de_op = &host1x_de_ops;
 
 	return 0;
 }

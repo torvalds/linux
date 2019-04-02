@@ -517,7 +517,7 @@ __hfi1_trace_fn(PKT);
 __hfi1_trace_fn(PROC);
 __hfi1_trace_fn(SDMA);
 __hfi1_trace_fn(LINKVERB);
-__hfi1_trace_fn(DEBUG);
+__hfi1_trace_fn(DE);
 __hfi1_trace_fn(SNOOP);
 __hfi1_trace_fn(CNTR);
 __hfi1_trace_fn(PIO);

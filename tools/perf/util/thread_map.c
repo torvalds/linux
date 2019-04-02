@@ -12,10 +12,10 @@
 #include "strlist.h"
 #include <string.h>
 #include <api/fs/fs.h>
-#include "asm/bug.h"
+#include "asm/.h"
 #include "thread_map.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "event.h"
 
 /* Skip "." and ".." directories */

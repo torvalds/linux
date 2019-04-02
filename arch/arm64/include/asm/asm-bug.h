@@ -1,4 +1,4 @@
-#ifndef __ASM_ASM_BUG_H
+#ifndef __ASM_ASM__H
 /*
  * Copyright (C) 2017  ARM Limited
  *
@@ -14,13 +14,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#define __ASM_ASM_BUG_H
+#define __ASM_ASM__H
 
 #include <asm/brk-imm.h>
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-#define _BUGVERBOSE_LOCATION(file, line) __BUGVERBOSE_LOCATION(file, line)
-#define __BUGVERBOSE_LOCATION(file, line)			\
+#ifdef CONFIG_DE_VERBOSE
+#define _VERBOSE_LOCATION(file, line) __VERBOSE_LOCATION(file, line)
+#define __VERBOSE_LOCATION(file, line)			\
 		.pushsection .rodata.str,"aMS",@progbits,1;	\
 	14472:	.string file;					\
 		.popsection;					\
@@ -28,27 +28,27 @@
 		.long 14472b - 14470b;				\
 		.short line;
 #else
-#define _BUGVERBOSE_LOCATION(file, line)
+#define _VERBOSE_LOCATION(file, line)
 #endif
 
-#ifdef CONFIG_GENERIC_BUG
+#ifdef CONFIG_GENERIC_
 
-#define __BUG_ENTRY(flags) 				\
-		.pushsection __bug_table,"aw";		\
+#define ___ENTRY(flags) 				\
+		.pushsection ___table,"aw";		\
 		.align 2;				\
 	14470:	.long 14471f - 14470b;			\
-_BUGVERBOSE_LOCATION(__FILE__, __LINE__)		\
+_VERBOSE_LOCATION(__FILE__, __LINE__)		\
 		.short flags; 				\
 		.popsection;				\
 	14471:
 #else
-#define __BUG_ENTRY(flags)
+#define ___ENTRY(flags)
 #endif
 
-#define ASM_BUG_FLAGS(flags)				\
-	__BUG_ENTRY(flags)				\
-	brk	BUG_BRK_IMM
+#define ASM__FLAGS(flags)				\
+	___ENTRY(flags)				\
+	brk	_BRK_IMM
 
-#define ASM_BUG()	ASM_BUG_FLAGS(0)
+#define ASM_()	ASM__FLAGS(0)
 
-#endif /* __ASM_ASM_BUG_H */
+#endif /* __ASM_ASM__H */

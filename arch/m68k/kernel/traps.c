@@ -19,7 +19,7 @@
  */
 
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/signal.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -134,7 +134,7 @@ static inline void access_error060 (struct frame *fp)
 {
 	unsigned long fslw = fp->un.fmt4.pc; /* is really FSLW for access error */
 
-	pr_debug("fslw=%#lx, fa=%#lx\n", fslw, fp->un.fmt4.effaddr);
+	pr_de("fslw=%#lx, fa=%#lx\n", fslw, fp->un.fmt4.effaddr);
 
 	if (fslw & MMU060_BPE) {
 		/* branch prediction error -> clear branch cache */
@@ -161,7 +161,7 @@ static inline void access_error060 (struct frame *fp)
 		}
 		if (fslw & MMU060_W)
 			errorcode |= 2;
-		pr_debug("errorcode = %ld\n", errorcode);
+		pr_de("errorcode = %ld\n", errorcode);
 		do_page_fault(&fp->ptregs, addr, errorcode);
 	} else if (fslw & (MMU060_SEE)){
 		/* Software Emulation Error.
@@ -223,7 +223,7 @@ static inline int do_040writeback1(unsigned short wbs, unsigned long wba,
 	set_fs(old_fs);
 
 
-	pr_debug("do_040writeback1, res=%d\n", res);
+	pr_de("do_040writeback1, res=%d\n", res);
 
 	return res;
 }
@@ -298,10 +298,10 @@ static inline void access_error040(struct frame *fp)
 	unsigned short ssw = fp->un.fmt7.ssw;
 	unsigned long mmusr;
 
-	pr_debug("ssw=%#x, fa=%#lx\n", ssw, fp->un.fmt7.faddr);
-	pr_debug("wb1s=%#x, wb2s=%#x, wb3s=%#x\n", fp->un.fmt7.wb1s,
+	pr_de("ssw=%#x, fa=%#lx\n", ssw, fp->un.fmt7.faddr);
+	pr_de("wb1s=%#x, wb2s=%#x, wb3s=%#x\n", fp->un.fmt7.wb1s,
 		fp->un.fmt7.wb2s, fp->un.fmt7.wb3s);
-	pr_debug("wb2a=%lx, wb3a=%lx, wb2d=%lx, wb3d=%lx\n",
+	pr_de("wb2a=%lx, wb3a=%lx, wb2d=%lx, wb3d=%lx\n",
 		fp->un.fmt7.wb2a, fp->un.fmt7.wb3a,
 		fp->un.fmt7.wb2d, fp->un.fmt7.wb3d);
 
@@ -318,7 +318,7 @@ static inline void access_error040(struct frame *fp)
 
 		/* MMU error, get the MMUSR info for this access */
 		mmusr = probe040(!(ssw & RW_040), addr, ssw);
-		pr_debug("mmusr = %lx\n", mmusr);
+		pr_de("mmusr = %lx\n", mmusr);
 		errorcode = 1;
 		if (!(mmusr & MMU_R_040)) {
 			/* clear the invalid atc entry */
@@ -332,10 +332,10 @@ static inline void access_error040(struct frame *fp)
 			errorcode |= 2;
 
 		if (do_page_fault(&fp->ptregs, addr, errorcode)) {
-			pr_debug("do_page_fault() !=0\n");
+			pr_de("do_page_fault() !=0\n");
 			if (user_mode(&fp->ptregs)){
 				/* delay writebacks after signal delivery */
-				pr_debug(".. was usermode - return\n");
+				pr_de(".. was usermode - return\n");
 				return;
 			}
 			/* disable writeback into user space from kernel
@@ -343,7 +343,7 @@ static inline void access_error040(struct frame *fp)
                          * the writeback won't do good)
 			 */
 disable_wb:
-			pr_debug(".. disabling wb2\n");
+			pr_de(".. disabling wb2\n");
 			if (fp->un.fmt7.wb2a == fp->un.fmt7.faddr)
 				fp->un.fmt7.wb2s &= ~WBV_040;
 			if (fp->un.fmt7.wb3a == fp->un.fmt7.faddr)
@@ -381,13 +381,13 @@ static inline void bus_error030 (struct frame *fp)
 	extern unsigned long _sun3_map_test_start, _sun3_map_test_end;
 
 	if (ssw & (FC | FB))
-		pr_debug("Instruction fault at %#010lx\n",
+		pr_de("Instruction fault at %#010lx\n",
 			ssw & FC ?
 			fp->ptregs.format == 0xa ? fp->ptregs.pc + 2 : fp->un.fmtb.baddr - 2
 			:
 			fp->ptregs.format == 0xa ? fp->ptregs.pc + 4 : fp->un.fmtb.baddr);
 	if (ssw & DF)
-		pr_debug("Data %s fault at %#010lx in %s (pc=%#lx)\n",
+		pr_de("Data %s fault at %#010lx in %s (pc=%#lx)\n",
 			ssw & RW ? "read" : "write",
 			fp->un.fmtb.daddr,
 			space_names[ssw & DFC], fp->ptregs.pc);
@@ -457,9 +457,9 @@ static inline void bus_error030 (struct frame *fp)
 		else if (buserr_type & SUN3_BUSERR_INVALID)
 			errorcode = 0x00;
 		else {
-			pr_debug("*** unexpected busfault type=%#04x\n",
+			pr_de("*** unexpected busfault type=%#04x\n",
 				 buserr_type);
-			pr_debug("invalid %s access at %#lx from pc %#lx\n",
+			pr_de("invalid %s access at %#lx from pc %#lx\n",
 				 !(ssw & RW) ? "write" : "read", addr,
 				 fp->ptregs.pc);
 			die_if_kernel ("Oops", &fp->ptregs, buserr_type);
@@ -492,7 +492,7 @@ static inline void bus_error030 (struct frame *fp)
 		if (!mmu_emu_handle_fault(addr, 1, 0))
 			do_page_fault (&fp->ptregs, addr, 0);
        } else {
-		pr_debug("protection fault on insn access (segv).\n");
+		pr_de("protection fault on insn access (segv).\n");
 		force_sig (SIGSEGV, current);
        }
 }
@@ -504,21 +504,21 @@ static inline void bus_error030 (struct frame *fp)
 	unsigned short mmusr;
 	unsigned long addr, errorcode;
 	unsigned short ssw = fp->un.fmtb.ssw;
-#ifdef DEBUG
+#ifdef DE
 	unsigned long desc;
 #endif
 
-	pr_debug("pid = %x  ", current->pid);
-	pr_debug("SSW=%#06x  ", ssw);
+	pr_de("pid = %x  ", current->pid);
+	pr_de("SSW=%#06x  ", ssw);
 
 	if (ssw & (FC | FB))
-		pr_debug("Instruction fault at %#010lx\n",
+		pr_de("Instruction fault at %#010lx\n",
 			ssw & FC ?
 			fp->ptregs.format == 0xa ? fp->ptregs.pc + 2 : fp->un.fmtb.baddr - 2
 			:
 			fp->ptregs.format == 0xa ? fp->ptregs.pc + 4 : fp->un.fmtb.baddr);
 	if (ssw & DF)
-		pr_debug("Data %s fault at %#010lx in %s (pc=%#lx)\n",
+		pr_de("Data %s fault at %#010lx in %s (pc=%#lx)\n",
 			ssw & RW ? "read" : "write",
 			fp->un.fmtb.daddr,
 			space_names[ssw & DFC], fp->ptregs.pc);
@@ -530,14 +530,14 @@ static inline void bus_error030 (struct frame *fp)
 	if (ssw & DF) {
 		addr = fp->un.fmtb.daddr;
 
-#ifdef DEBUG
+#ifdef DE
 		asm volatile ("ptestr %3,%2@,#7,%0\n\t"
 			      "pmove %%psr,%1"
 			      : "=a&" (desc), "=m" (temp)
 			      : "a" (addr), "d" (ssw));
-		pr_debug("mmusr is %#x for addr %#lx in task %p\n",
+		pr_de("mmusr is %#x for addr %#lx in task %p\n",
 			 temp, addr, current);
-		pr_debug("descriptor address is 0x%p, contents %#lx\n",
+		pr_de("descriptor address is 0x%p, contents %#lx\n",
 			 __va(desc), *(unsigned long *)__va(desc));
 #else
 		asm volatile ("ptestr %2,%1@,#7\n\t"
@@ -591,12 +591,12 @@ static inline void bus_error030 (struct frame *fp)
 #if 0
 			asm volatile ("pmove %%tt0,%0"
 				      : "=m" (tlong));
-			pr_debug("tt0 is %#lx, ", tlong);
+			pr_de("tt0 is %#lx, ", tlong);
 			asm volatile ("pmove %%tt1,%0"
 				      : "=m" (tlong));
-			pr_debug("tt1 is %#lx\n", tlong);
+			pr_de("tt1 is %#lx\n", tlong);
 #endif
-			pr_debug("Unknown SIGSEGV - 1\n");
+			pr_de("Unknown SIGSEGV - 1\n");
 			die_if_kernel("Oops",&fp->ptregs,mmusr);
 			force_sig(SIGSEGV, current);
 			return;
@@ -638,14 +638,14 @@ static inline void bus_error030 (struct frame *fp)
 		   should still create the ATC entry.  */
 		goto create_atc_entry;
 
-#ifdef DEBUG
+#ifdef DE
 	asm volatile ("ptestr #1,%2@,#7,%0\n\t"
 		      "pmove %%psr,%1"
 		      : "=a&" (desc), "=m" (temp)
 		      : "a" (addr));
-	pr_debug("mmusr is %#x for addr %#lx in task %p\n",
+	pr_de("mmusr is %#x for addr %#lx in task %p\n",
 		temp, addr, current);
-	pr_debug("descriptor address is 0x%p, contents %#lx\n",
+	pr_de("descriptor address is 0x%p, contents %#lx\n",
 		__va(desc), *(unsigned long *)__va(desc));
 #else
 	asm volatile ("ptestr #1,%1@,#7\n\t"
@@ -658,7 +658,7 @@ static inline void bus_error030 (struct frame *fp)
 	else if (mmusr & (MMU_B|MMU_L|MMU_S)) {
 		pr_err("invalid insn access at %#lx from pc %#lx\n",
 			addr, fp->ptregs.pc);
-		pr_debug("Unknown SIGSEGV - 2\n");
+		pr_de("Unknown SIGSEGV - 2\n");
 		die_if_kernel("Oops",&fp->ptregs,mmusr);
 		force_sig(SIGSEGV, current);
 		return;
@@ -731,7 +731,7 @@ static inline void access_errorcf(unsigned int fs, struct frame *fp)
 	default:
 		/* 0000 Normal  */
 		/* 0001 Reserved */
-		/* 0010 Interrupt during debug service routine */
+		/* 0010 Interrupt during de service routine */
 		/* 0011 Reserved */
 		/* 0100 X Protection */
 		/* 0111 IFP in emulator mode */
@@ -760,7 +760,7 @@ asmlinkage void buserr_c(struct frame *fp)
 	if (user_mode(&fp->ptregs))
 		current->thread.esp0 = (unsigned long) fp;
 
-	pr_debug("*** Bus Error *** Format is %x\n", fp->ptregs.format);
+	pr_de("*** Bus Error *** Format is %x\n", fp->ptregs.format);
 
 #if defined(CONFIG_COLDFIRE) && defined(CONFIG_MMU)
 	if (CPU_IS_COLDFIRE) {
@@ -803,7 +803,7 @@ asmlinkage void buserr_c(struct frame *fp)
 #endif
 	default:
 	  die_if_kernel("bad frame format",&fp->ptregs,0);
-	  pr_debug("Unknown SIGSEGV - 4\n");
+	  pr_de("Unknown SIGSEGV - 4\n");
 	  force_sig(SIGSEGV, current);
 	}
 }

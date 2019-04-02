@@ -42,14 +42,14 @@
 	NETIF_MSG_TX_ERR | \
 	NETIF_MSG_HW)
 
-#ifdef TX_DEBUG
+#ifdef TX_DE
 #define tx_dbg(priv, fmt, args...)					\
-	printk(KERN_DEBUG "%s: " fmt, (priv)->dev->name, ##args)
+	printk(KERN_DE "%s: " fmt, (priv)->dev->name, ##args)
 #else
 #define tx_dbg(priv, fmt, args...)					\
 do {									\
 	if (0)								\
-		printk(KERN_DEBUG "%s: " fmt, (priv)->dev->name, ##args); \
+		printk(KERN_DE "%s: " fmt, (priv)->dev->name, ##args); \
 } while (0)
 #endif
 
@@ -535,7 +535,7 @@ enum jme_iomap_regs {
 	JME_GPREG0	= JME_MISC | 0x08, /* General purpose REG-0 */
 	JME_GPREG1	= JME_MISC | 0x0C, /* General purpose REG-1 */
 	JME_IEVE	= JME_MISC | 0x20, /* Interrupt Event Status */
-	JME_IREQ	= JME_MISC | 0x24, /* Intr Req Status(For Debug) */
+	JME_IREQ	= JME_MISC | 0x24, /* Intr Req Status(For De) */
 	JME_IENS	= JME_MISC | 0x28, /* Intr Enable - Setting Port */
 	JME_IENC	= JME_MISC | 0x2C, /* Interrupt Enable - Clear Port */
 	JME_PCCRX0	= JME_MISC | 0x30, /* PCC Control for RX Queue 0 */
@@ -1156,7 +1156,7 @@ enum jme_apmc_values {
 
 #define APMC_PHP_SHUTDOWN_DELAY	(10 * 1000 * 1000)
 
-#ifdef REG_DEBUG
+#ifdef REG_DE
 static char *MAC_REG_NAME[] = {
 	"JME_TXCS",      "JME_TXDBA_LO",  "JME_TXDBA_HI", "JME_TXQDC",
 	"JME_TXNDA",     "JME_TXMCS",     "JME_TXPFC",    "JME_TXTRHD",
@@ -1201,7 +1201,7 @@ static inline void reg_dbg(const struct jme_adapter *jme,
 	default:
 		regname = PE_REG_NAME[0];
 	}
-	printk(KERN_DEBUG "%s: %-20s %08x@%s\n", jme->dev->name,
+	printk(KERN_DE "%s: %-20s %08x@%s\n", jme->dev->name,
 			msg, val, regname);
 }
 #else
@@ -1257,7 +1257,7 @@ enum jme_phy_reg17_vals {
 /*
  * Workaround
  */
-static inline int is_buggy250(unsigned short device, u8 chiprev)
+static inline int is_gy250(unsigned short device, u8 chiprev)
 {
 	return device == PCI_DEVICE_ID_JMICRON_JMC250 && chiprev == 0x11;
 }

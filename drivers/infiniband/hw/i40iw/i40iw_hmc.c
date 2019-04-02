@@ -206,7 +206,7 @@ static enum i40iw_status_code i40iw_hmc_sd_grp(struct i40iw_sc_dev *dev,
 		if (sdinfo.cnt == I40IW_MAX_SD_ENTRIES) {
 			ret_code = dev->cqp->process_cqp_sds(dev, &sdinfo);
 			if (ret_code) {
-				i40iw_debug(dev, I40IW_DEBUG_HMC,
+				i40iw_de(dev, I40IW_DE_HMC,
 					    "i40iw_hmc_sd_grp: sd_programming failed err=%d\n",
 					    ret_code);
 				return ret_code;
@@ -308,7 +308,7 @@ enum i40iw_status_code i40iw_sc_create_hmc_obj(struct i40iw_sc_dev *dev,
 
 	if ((info->start_idx + info->count) >
 	    info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
+		i40iw_de(dev, I40IW_DE_HMC,
 			    "%s: error type %u, start = %u, req cnt %u, cnt = %u\n",
 			    __func__, info->rsrc_type, info->start_idx, info->count,
 			    info->hmc_info->hmc_obj[info->rsrc_type].cnt);
@@ -414,7 +414,7 @@ static enum i40iw_status_code i40iw_finish_del_sd_reg(struct i40iw_sc_dev *dev,
 					    info->del_sd_cnt, false);
 
 	if (ret_code)
-		i40iw_debug(dev, I40IW_DEBUG_HMC, "%s: error cqp sd sd_grp\n", __func__);
+		i40iw_de(dev, I40IW_DE_HMC, "%s: error cqp sd sd_grp\n", __func__);
 
 	for (i = 0; i < info->del_sd_cnt; i++) {
 		sd_idx = info->hmc_info->sd_indexes[i];
@@ -426,7 +426,7 @@ static enum i40iw_status_code i40iw_finish_del_sd_reg(struct i40iw_sc_dev *dev,
 			&sd_entry->u.bp.addr;
 
 		if (!mem || !mem->va)
-			i40iw_debug(dev, I40IW_DEBUG_HMC, "%s: error cqp sd mem\n", __func__);
+			i40iw_de(dev, I40IW_DE_HMC, "%s: error cqp sd mem\n", __func__);
 		else
 			i40iw_free_dma_mem(dev->hw, mem);
 	}
@@ -455,7 +455,7 @@ enum i40iw_status_code i40iw_sc_del_hmc_obj(struct i40iw_sc_dev *dev,
 	enum i40iw_status_code ret_code = 0;
 
 	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
+		i40iw_de(dev, I40IW_DE_HMC,
 			    "%s: error start_idx[%04d]  >= [type %04d].cnt[%04d]\n",
 			    __func__, info->start_idx, info->rsrc_type,
 			    info->hmc_info->hmc_obj[info->rsrc_type].cnt);
@@ -464,7 +464,7 @@ enum i40iw_status_code i40iw_sc_del_hmc_obj(struct i40iw_sc_dev *dev,
 
 	if ((info->start_idx + info->count) >
 	    info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
+		i40iw_de(dev, I40IW_DE_HMC,
 			    "%s: error start_idx[%04d] + count %04d  >= [type %04d].cnt[%04d]\n",
 			    __func__, info->start_idx, info->count,
 			    info->rsrc_type,
@@ -494,7 +494,7 @@ enum i40iw_status_code i40iw_sc_del_hmc_obj(struct i40iw_sc_dev *dev,
 			ret_code = i40iw_remove_pd_bp(dev->hw, info->hmc_info, j,
 						      info->is_pf);
 			if (ret_code) {
-				i40iw_debug(dev, I40IW_DEBUG_HMC, "%s: error\n", __func__);
+				i40iw_de(dev, I40IW_DE_HMC, "%s: error\n", __func__);
 				return ret_code;
 			}
 		}
@@ -504,7 +504,7 @@ enum i40iw_status_code i40iw_sc_del_hmc_obj(struct i40iw_sc_dev *dev,
 				  info->start_idx, info->count, &sd_idx, &sd_lmt);
 	if (sd_idx >= info->hmc_info->sd_table.sd_cnt ||
 	    sd_lmt > info->hmc_info->sd_table.sd_cnt) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC, "%s: error invalid sd_idx\n", __func__);
+		i40iw_de(dev, I40IW_DE_HMC, "%s: error invalid sd_idx\n", __func__);
 		return I40IW_ERR_INVALID_SD_INDEX;
 	}
 
@@ -799,7 +799,7 @@ enum i40iw_status_code i40iw_pf_init_vfhmc(struct i40iw_sc_dev *dev,
 	if ((vf_hmc_fn_id < I40IW_FIRST_VF_FPM_ID) ||
 	    (vf_hmc_fn_id >= I40IW_FIRST_VF_FPM_ID +
 	     I40IW_MAX_PE_ENABLED_VF_COUNT)) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC, "%s: invalid vf_hmc_fn_id  0x%x\n",
+		i40iw_de(dev, I40IW_DE_HMC, "%s: invalid vf_hmc_fn_id  0x%x\n",
 			    __func__, vf_hmc_fn_id);
 		return I40IW_ERR_INVALID_HMCFN_ID;
 	}

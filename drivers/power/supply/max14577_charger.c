@@ -431,7 +431,7 @@ static int max14577_charger_get_property(struct power_supply *psy,
 		ret = max14577_get_online(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
-		BUILD_BUG_ON(ARRAY_SIZE(model_names) != MAXIM_DEVICE_TYPE_NUM);
+		BUILD__ON(ARRAY_SIZE(model_names) != MAXIM_DEVICE_TYPE_NUM);
 		val->strval = model_names[chg->max14577->dev_type];
 		break;
 	case POWER_SUPPLY_PROP_MANUFACTURER:
@@ -595,7 +595,7 @@ static int max14577_charger_probe(struct platform_device *pdev)
 	}
 
 	/* Check for valid values for charger */
-	BUILD_BUG_ON(MAX14577_CHARGER_EOC_CURRENT_LIMIT_MIN +
+	BUILD__ON(MAX14577_CHARGER_EOC_CURRENT_LIMIT_MIN +
 			MAX14577_CHARGER_EOC_CURRENT_LIMIT_STEP * 0xf !=
 			MAX14577_CHARGER_EOC_CURRENT_LIMIT_MAX);
 	return 0;

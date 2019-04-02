@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * dbgp.c -- EHCI Debug Port device gadget
+ * dbgp.c -- EHCI De Port device gadget
  *
  * Copyright (C) 2010 Stephane Duverger
  *
@@ -19,7 +19,7 @@
 #define DRIVER_VENDOR_ID	0x0525 /* NetChip */
 #define DRIVER_PRODUCT_ID	0xc0de /* undefined */
 
-#define USB_DEBUG_MAX_PACKET_SIZE     8
+#define USB_DE_MAX_PACKET_SIZE     8
 #define DBGP_REQ_EP0_LEN              128
 #define DBGP_REQ_LEN                  512
 
@@ -43,9 +43,9 @@ static struct usb_device_descriptor device_desc = {
 	.bNumConfigurations = 1,
 };
 
-static struct usb_debug_descriptor dbg_desc = {
+static struct usb_de_descriptor dbg_desc = {
 	.bLength = sizeof dbg_desc,
-	.bDescriptorType = USB_DT_DEBUG,
+	.bDescriptorType = USB_DT_DE,
 };
 
 static struct usb_endpoint_descriptor i_desc = {
@@ -245,7 +245,7 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 	}
 
 	i_desc.wMaxPacketSize =
-		cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
+		cpu_to_le16(USB_DE_MAX_PACKET_SIZE);
 
 	dbgp.o_ep = usb_ep_autoconfig(gadget, &o_desc);
 	if (!dbgp.o_ep) {
@@ -254,10 +254,10 @@ static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 	}
 
 	o_desc.wMaxPacketSize =
-		cpu_to_le16(USB_DEBUG_MAX_PACKET_SIZE);
+		cpu_to_le16(USB_DE_MAX_PACKET_SIZE);
 
-	dbg_desc.bDebugInEndpoint = i_desc.bEndpointAddress;
-	dbg_desc.bDebugOutEndpoint = o_desc.bEndpointAddress;
+	dbg_desc.bDeInEndpoint = i_desc.bEndpointAddress;
+	dbg_desc.bDeOutEndpoint = o_desc.bEndpointAddress;
 
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	dbgp.serial->in = dbgp.i_ep;
@@ -353,8 +353,8 @@ static int dbgp_setup(struct usb_gadget *gadget,
 			data = &device_desc;
 			device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 			break;
-		case USB_DT_DEBUG:
-			dev_dbg(&dbgp.gadget->dev, "setup: desc debug\n");
+		case USB_DT_DE:
+			dev_dbg(&dbgp.gadget->dev, "setup: desc de\n");
 			len = sizeof dbg_desc;
 			data = &dbg_desc;
 			break;
@@ -363,8 +363,8 @@ static int dbgp_setup(struct usb_gadget *gadget,
 		}
 		err = 0;
 	} else if (request == USB_REQ_SET_FEATURE &&
-		   value == USB_DEVICE_DEBUG_MODE) {
-		dev_dbg(&dbgp.gadget->dev, "setup: feat debug\n");
+		   value == USB_DEVICE_DE_MODE) {
+		dev_dbg(&dbgp.gadget->dev, "setup: feat de\n");
 #ifdef CONFIG_USB_G_DBGP_PRINTK
 		err = dbgp_enable_ep();
 #else

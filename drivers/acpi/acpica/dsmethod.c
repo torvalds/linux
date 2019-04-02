@@ -14,7 +14,7 @@
 #include "acnamesp.h"
 #include "acparser.h"
 #include "amlcode.h"
-#include "acdebug.h"
+#include "acde.h"
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsmethod")
@@ -61,7 +61,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 
 	ACPI_FUNCTION_TRACE_PTR(ds_auto_serialize_method, node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "Method auto-serialization parse [%4.4s] %p\n",
 			  acpi_ut_get_node_name(node), node));
 
@@ -147,7 +147,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
 	walk_state->method_desc->method.info_flags |=
 	    (ACPI_METHOD_SERIALIZED | ACPI_METHOD_IGNORE_SYNC_LEVEL);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Method serialized [%4.4s] %p - [%s] (%4.4X)\n",
 			  walk_state->method_node->name.ascii,
 			  walk_state->method_node, walk_state->op_info->name,
@@ -168,7 +168,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  * RETURN:      Status
  *
  * DESCRIPTION: Called on method error. Invoke the global exception handler if
- *              present, dump the method data if the debugger is configured
+ *              present, dump the method data if the deger is configured
  *
  *              Note: Allows the exception handler to change the status code
  *
@@ -221,9 +221,9 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_dump_method_stack(status, walk_state, walk_state->op);
 
-		/* Display method locals/args if debugger is present */
+		/* Display method locals/args if deger is present */
 
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 		acpi_db_dump_method_info(status, walk_state);
 #endif
 	}
@@ -466,7 +466,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	ACPI_FUNCTION_TRACE_PTR(ds_call_control_method, this_walk_state);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "Calling method %p, currentstate=%p\n",
 			  this_walk_state->prev_op, this_walk_state));
 
@@ -548,7 +548,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	this_walk_state->num_operands = 0;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "**** Begin nested execution of [%4.4s] **** WalkState=%p\n",
 			  method_node->name.ascii, next_walk_state));
 
@@ -558,7 +558,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	/* Optional object evaluation log */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+	ACPI_DE_PRINT_RAW((ACPI_DB_EVALUATION,
 			      "%-26s:  %*s%s\n", "   Nested method call",
 			      next_walk_state->method_nesting_depth * 3, " ",
 			      &this_walk_state->method_pathname[1]));
@@ -608,12 +608,12 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ds_restart_control_method, walk_state);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "****Restart [%4.4s] Op %p ReturnValueFromCallee %p\n",
 			  acpi_ut_get_node_name(walk_state->method_node),
 			  walk_state->method_call_op, return_desc));
 
-	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+	ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 			  "    ReturnFromThisMethodUsed?=%X ResStack %p Walk %p\n",
 			  walk_state->return_used,
 			  walk_state->results, walk_state));
@@ -781,7 +781,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		 * Additional threads. Do not release the owner_id in this case,
 		 * we immediately reuse it for the next thread executing this method
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+		ACPI_DE_PRINT((ACPI_DB_DISPATCH,
 				  "*** Completed execution of one thread, %u threads remaining\n",
 				  method_desc->method.thread_count));
 	} else {

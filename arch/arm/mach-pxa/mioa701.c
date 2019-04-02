@@ -311,7 +311,7 @@ static int is_gsm_on(void)
 
 irqreturn_t gsm_on_irq(int irq, void *p)
 {
-	printk(KERN_DEBUG "Mioa701: GSM status changed to %s\n",
+	printk(KERN_DE "Mioa701: GSM status changed to %s\n",
 	       is_gsm_on() ? "on" : "off");
 	return IRQ_HANDLED;
 }

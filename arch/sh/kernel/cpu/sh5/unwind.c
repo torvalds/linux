@@ -177,9 +177,9 @@ static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
 
 	if (offset_r14 == 0 || fp_prev == 0) {
 		if (!offset_r14)
-			pr_debug("Unable to find r14 offset\n");
+			pr_de("Unable to find r14 offset\n");
 		if (!fp_prev)
-			pr_debug("Unable to find previous fp\n");
+			pr_de("Unable to find previous fp\n");
 
 		return -EINVAL;
 	}

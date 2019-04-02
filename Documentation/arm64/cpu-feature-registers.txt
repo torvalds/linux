@@ -88,7 +88,7 @@ operation if the source belongs to the supported system register space.
 The infrastructure emulates only the following system register space:
 	Op0=3, Op1=0, CRn=0, CRm=0,4,5,6,7
 
-(See Table C5-6 'System instruction encodings for non-Debug System
+(See Table C5-6 'System instruction encodings for non-De System
 register accesses' in ARMv8 ARM DDI 0487A.h, for the list of
 registers).
 

@@ -34,7 +34,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -89,7 +89,7 @@
 #define GP2AP020A00F_OP_ALS_AND_PS	0x00
 #define GP2AP020A00F_OP_ALS		0x10
 #define GP2AP020A00F_OP_PS		0x20
-#define GP2AP020A00F_OP_DEBUG		0x30
+#define GP2AP020A00F_OP_DE		0x30
 #define GP2AP020A00F_PROX_MASK		0x08 /* PS: detection/non-detection */
 #define GP2AP020A00F_PROX_NON_DETECT	0x00
 #define GP2AP020A00F_PROX_DETECT	0x08
@@ -250,7 +250,7 @@ struct gp2ap020a00f_data {
 	struct iio_trigger *trig;
 	struct regmap *regmap;
 	unsigned int thresh_val[4];
-	u8 debug_reg_addr;
+	u8 de_reg_addr;
 	struct irq_work work;
 	wait_queue_head_t data_ready_queue;
 };

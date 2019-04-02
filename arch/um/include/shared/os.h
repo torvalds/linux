@@ -179,7 +179,7 @@ extern int os_falloc_punch(int fd, unsigned long long offset, int count);
 
 /* start_up.c */
 extern void os_early_checks(void);
-extern void os_check_bugs(void);
+extern void os_check_s(void);
 extern void check_host_supports_tls(int *supports_tls, int *tls_min);
 
 /* mem.c */

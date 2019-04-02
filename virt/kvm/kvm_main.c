@@ -27,7 +27,7 @@
 #include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/reboot.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/highmem.h>
 #include <linux/file.h>
 #include <linux/syscore_ops.h>
@@ -110,10 +110,10 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 
 static __read_mostly struct preempt_ops kvm_preempt_ops;
 
-struct dentry *kvm_debugfs_dir;
-EXPORT_SYMBOL_GPL(kvm_debugfs_dir);
+struct dentry *kvm_defs_dir;
+EXPORT_SYMBOL_GPL(kvm_defs_dir);
 
-static int kvm_debugfs_num_entries;
+static int kvm_defs_num_entries;
 static const struct file_operations *stat_fops_per_vm[];
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
@@ -419,7 +419,7 @@ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	kvm->mmu_notifier_count--;
 	spin_unlock(&kvm->mmu_lock);
 
-	BUG_ON(kvm->mmu_notifier_count < 0);
+	_ON(kvm->mmu_notifier_count < 0);
 }
 
 static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
@@ -576,49 +576,49 @@ static void kvm_free_memslots(struct kvm *kvm, struct kvm_memslots *slots)
 	kvfree(slots);
 }
 
-static void kvm_destroy_vm_debugfs(struct kvm *kvm)
+static void kvm_destroy_vm_defs(struct kvm *kvm)
 {
 	int i;
 
-	if (!kvm->debugfs_dentry)
+	if (!kvm->defs_dentry)
 		return;
 
-	debugfs_remove_recursive(kvm->debugfs_dentry);
+	defs_remove_recursive(kvm->defs_dentry);
 
-	if (kvm->debugfs_stat_data) {
-		for (i = 0; i < kvm_debugfs_num_entries; i++)
-			kfree(kvm->debugfs_stat_data[i]);
-		kfree(kvm->debugfs_stat_data);
+	if (kvm->defs_stat_data) {
+		for (i = 0; i < kvm_defs_num_entries; i++)
+			kfree(kvm->defs_stat_data[i]);
+		kfree(kvm->defs_stat_data);
 	}
 }
 
-static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
+static int kvm_create_vm_defs(struct kvm *kvm, int fd)
 {
 	char dir_name[ITOA_MAX_LEN * 2];
 	struct kvm_stat_data *stat_data;
-	struct kvm_stats_debugfs_item *p;
+	struct kvm_stats_defs_item *p;
 
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return 0;
 
 	snprintf(dir_name, sizeof(dir_name), "%d-%d", task_pid_nr(current), fd);
-	kvm->debugfs_dentry = debugfs_create_dir(dir_name, kvm_debugfs_dir);
+	kvm->defs_dentry = defs_create_dir(dir_name, kvm_defs_dir);
 
-	kvm->debugfs_stat_data = kcalloc(kvm_debugfs_num_entries,
-					 sizeof(*kvm->debugfs_stat_data),
+	kvm->defs_stat_data = kcalloc(kvm_defs_num_entries,
+					 sizeof(*kvm->defs_stat_data),
 					 GFP_KERNEL_ACCOUNT);
-	if (!kvm->debugfs_stat_data)
+	if (!kvm->defs_stat_data)
 		return -ENOMEM;
 
-	for (p = debugfs_entries; p->name; p++) {
+	for (p = defs_entries; p->name; p++) {
 		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
 			return -ENOMEM;
 
 		stat_data->kvm = kvm;
 		stat_data->offset = p->offset;
-		kvm->debugfs_stat_data[p - debugfs_entries] = stat_data;
-		debugfs_create_file(p->name, 0644, kvm->debugfs_dentry,
+		kvm->defs_stat_data[p - defs_entries] = stat_data;
+		defs_create_file(p->name, 0644, kvm->defs_dentry,
 				    stat_data, stat_fops_per_vm[p->kind]);
 	}
 	return 0;
@@ -654,7 +654,7 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	INIT_HLIST_HEAD(&kvm->irq_ack_notifier_list);
 #endif
 
-	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
+	BUILD__ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
 
 	r = -ENOMEM;
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
@@ -727,7 +727,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	struct mm_struct *mm = kvm->mm;
 
 	kvm_uevent_notify_change(KVM_EVENT_DESTROY_VM, kvm);
-	kvm_destroy_vm_debugfs(kvm);
+	kvm_destroy_vm_defs(kvm);
 	kvm_arch_sync_events(kvm);
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
@@ -1587,7 +1587,7 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 	int npages, r;
 
 	/* we can do it either atomically or asynchronously, not both */
-	BUG_ON(atomic && async);
+	_ON(atomic && async);
 
 	if (hva_to_pfn_fast(addr, write_fault, writable, &pfn))
 		return pfn;
@@ -2055,7 +2055,7 @@ int kvm_write_guest_offset_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 	int r;
 	gpa_t gpa = ghc->gpa + offset;
 
-	BUG_ON(len + offset > ghc->len);
+	_ON(len + offset > ghc->len);
 
 	if (slots->generation != ghc->generation)
 		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
@@ -2088,7 +2088,7 @@ int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 	struct kvm_memslots *slots = kvm_memslots(kvm);
 	int r;
 
-	BUG_ON(len > ghc->len);
+	_ON(len > ghc->len);
 
 	if (slots->generation != ghc->generation)
 		__kvm_gfn_to_hva_cache_init(slots, ghc, ghc->gpa, ghc->len);
@@ -2496,7 +2496,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 
-	debugfs_remove_recursive(vcpu->debugfs_dentry);
+	defs_remove_recursive(vcpu->defs_dentry);
 	kvm_put_kvm(vcpu->kvm);
 	return 0;
 }
@@ -2520,26 +2520,26 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 	return anon_inode_getfd(name, &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
 }
 
-static int kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+static int kvm_create_vcpu_defs(struct kvm_vcpu *vcpu)
 {
 	char dir_name[ITOA_MAX_LEN * 2];
 	int ret;
 
-	if (!kvm_arch_has_vcpu_debugfs())
+	if (!kvm_arch_has_vcpu_defs())
 		return 0;
 
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return 0;
 
 	snprintf(dir_name, sizeof(dir_name), "vcpu%d", vcpu->vcpu_id);
-	vcpu->debugfs_dentry = debugfs_create_dir(dir_name,
-								vcpu->kvm->debugfs_dentry);
-	if (!vcpu->debugfs_dentry)
+	vcpu->defs_dentry = defs_create_dir(dir_name,
+								vcpu->kvm->defs_dentry);
+	if (!vcpu->defs_dentry)
 		return -ENOMEM;
 
-	ret = kvm_arch_create_vcpu_debugfs(vcpu);
+	ret = kvm_arch_create_vcpu_defs(vcpu);
 	if (ret < 0) {
-		debugfs_remove_recursive(vcpu->debugfs_dentry);
+		defs_remove_recursive(vcpu->defs_dentry);
 		return ret;
 	}
 
@@ -2578,7 +2578,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	if (r)
 		goto vcpu_destroy;
 
-	r = kvm_create_vcpu_debugfs(vcpu);
+	r = kvm_create_vcpu_defs(vcpu);
 	if (r)
 		goto vcpu_destroy;
 
@@ -2588,7 +2588,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 		goto unlock_vcpu_destroy;
 	}
 
-	BUG_ON(kvm->vcpus[atomic_read(&kvm->online_vcpus)]);
+	_ON(kvm->vcpus[atomic_read(&kvm->online_vcpus)]);
 
 	/* Now it's all set up, let userspace reach it */
 	kvm_get_kvm(kvm);
@@ -2613,7 +2613,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 
 unlock_vcpu_destroy:
 	mutex_unlock(&kvm->lock);
-	debugfs_remove_recursive(vcpu->debugfs_dentry);
+	defs_remove_recursive(vcpu->defs_dentry);
 vcpu_destroy:
 	kvm_arch_vcpu_destroy(vcpu);
 vcpu_decrement:
@@ -2776,13 +2776,13 @@ out_free1:
 		r = 0;
 		break;
 	}
-	case KVM_SET_GUEST_DEBUG: {
-		struct kvm_guest_debug dbg;
+	case KVM_SET_GUEST_DE: {
+		struct kvm_guest_de dbg;
 
 		r = -EFAULT;
 		if (copy_from_user(&dbg, argp, sizeof(dbg)))
 			goto out;
-		r = kvm_arch_vcpu_ioctl_set_guest_debug(vcpu, &dbg);
+		r = kvm_arch_vcpu_ioctl_set_guest_de(vcpu, &dbg);
 		break;
 	}
 	case KVM_SET_SIGNAL_MASK: {
@@ -3357,7 +3357,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	 * cases it will be called by the final fput(file) and will take
 	 * care of doing kvm_put_kvm(kvm).
 	 */
-	if (kvm_create_vm_debugfs(kvm, r) < 0) {
+	if (kvm_create_vm_defs(kvm, r) < 0) {
 		put_unused_fd(r);
 		fput(file);
 		return -ENOMEM;
@@ -3473,7 +3473,7 @@ static int kvm_dying_cpu(unsigned int cpu)
 
 static void hardware_disable_all_nolock(void)
 {
-	BUG_ON(!kvm_usage_count);
+	_ON(!kvm_usage_count);
 
 	kvm_usage_count--;
 	if (!kvm_usage_count)
@@ -3813,16 +3813,16 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(kvm_io_bus_get_dev);
 
-static int kvm_debugfs_open(struct inode *inode, struct file *file,
+static int kvm_defs_open(struct inode *inode, struct file *file,
 			   int (*get)(void *, u64 *), int (*set)(void *, u64),
 			   const char *fmt)
 {
 	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)
 					  inode->i_private;
 
-	/* The debugfs files are a reference to the kvm struct which
+	/* The defs files are a reference to the kvm struct which
 	 * is still valid when kvm_destroy_vm is called.
-	 * To avoid the race between open and the removal of the debugfs
+	 * To avoid the race between open and the removal of the defs
 	 * directory we test against the users count.
 	 */
 	if (!refcount_inc_not_zero(&stat_data->kvm->users_count))
@@ -3836,7 +3836,7 @@ static int kvm_debugfs_open(struct inode *inode, struct file *file,
 	return 0;
 }
 
-static int kvm_debugfs_release(struct inode *inode, struct file *file)
+static int kvm_defs_release(struct inode *inode, struct file *file)
 {
 	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)
 					  inode->i_private;
@@ -3871,14 +3871,14 @@ static int vm_stat_clear_per_vm(void *data, u64 val)
 static int vm_stat_get_per_vm_open(struct inode *inode, struct file *file)
 {
 	__simple_attr_check_format("%llu\n", 0ull);
-	return kvm_debugfs_open(inode, file, vm_stat_get_per_vm,
+	return kvm_defs_open(inode, file, vm_stat_get_per_vm,
 				vm_stat_clear_per_vm, "%llu\n");
 }
 
 static const struct file_operations vm_stat_get_per_vm_fops = {
 	.owner   = THIS_MODULE,
 	.open    = vm_stat_get_per_vm_open,
-	.release = kvm_debugfs_release,
+	.release = kvm_defs_release,
 	.read    = simple_attr_read,
 	.write   = simple_attr_write,
 	.llseek  = no_llseek,
@@ -3916,14 +3916,14 @@ static int vcpu_stat_clear_per_vm(void *data, u64 val)
 static int vcpu_stat_get_per_vm_open(struct inode *inode, struct file *file)
 {
 	__simple_attr_check_format("%llu\n", 0ull);
-	return kvm_debugfs_open(inode, file, vcpu_stat_get_per_vm,
+	return kvm_defs_open(inode, file, vcpu_stat_get_per_vm,
 				 vcpu_stat_clear_per_vm, "%llu\n");
 }
 
 static const struct file_operations vcpu_stat_get_per_vm_fops = {
 	.owner   = THIS_MODULE,
 	.open    = vcpu_stat_get_per_vm_open,
-	.release = kvm_debugfs_release,
+	.release = kvm_defs_release,
 	.read    = simple_attr_read,
 	.write   = simple_attr_write,
 	.llseek  = no_llseek,
@@ -4052,11 +4052,11 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	}
 	add_uevent_var(env, "PID=%d", kvm->userspace_pid);
 
-	if (!IS_ERR_OR_NULL(kvm->debugfs_dentry)) {
+	if (!IS_ERR_OR_NULL(kvm->defs_dentry)) {
 		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL_ACCOUNT);
 
 		if (p) {
-			tmp = dentry_path_raw(kvm->debugfs_dentry, p, PATH_MAX);
+			tmp = dentry_path_raw(kvm->defs_dentry, p, PATH_MAX);
 			if (!IS_ERR(tmp))
 				add_uevent_var(env, "STATS_PATH=%s", tmp);
 			kfree(p);
@@ -4068,15 +4068,15 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	kfree(env);
 }
 
-static void kvm_init_debug(void)
+static void kvm_init_de(void)
 {
-	struct kvm_stats_debugfs_item *p;
+	struct kvm_stats_defs_item *p;
 
-	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
+	kvm_defs_dir = defs_create_dir("kvm", NULL);
 
-	kvm_debugfs_num_entries = 0;
-	for (p = debugfs_entries; p->name; ++p, kvm_debugfs_num_entries++) {
-		debugfs_create_file(p->name, 0644, kvm_debugfs_dir,
+	kvm_defs_num_entries = 0;
+	for (p = defs_entries; p->name; ++p, kvm_defs_num_entries++) {
+		defs_create_file(p->name, 0644, kvm_defs_dir,
 				    (void *)(long)p->offset,
 				    stat_fops[p->kind]);
 	}
@@ -4207,7 +4207,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	kvm_preempt_ops.sched_in = kvm_sched_in;
 	kvm_preempt_ops.sched_out = kvm_sched_out;
 
-	kvm_init_debug();
+	kvm_init_de();
 
 	r = kvm_vfio_ops_init();
 	WARN_ON(r);
@@ -4237,7 +4237,7 @@ EXPORT_SYMBOL_GPL(kvm_init);
 
 void kvm_exit(void)
 {
-	debugfs_remove_recursive(kvm_debugfs_dir);
+	defs_remove_recursive(kvm_defs_dir);
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);
 	kvm_async_pf_deinit();

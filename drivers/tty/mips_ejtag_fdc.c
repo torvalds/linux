@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * TTY driver for MIPS EJTAG Fast Debug Channels.
+ * TTY driver for MIPS EJTAG Fast De Channels.
  *
  * Copyright (C) 2007-2015 Imagination Technologies Ltd
  */
@@ -406,7 +406,7 @@ static struct mips_ejtag_fdc_console mips_ejtag_fdc_con = {
  * @priv:	Pointer to driver private data.
  * @chan:	Channel number.
  *
- * Write a single block of data out to the debug adapter. If the circular buffer
+ * Write a single block of data out to the de adapter. If the circular buffer
  * is wrapped then only the first block is written.
  *
  * Returns:	The number of bytes that were written.

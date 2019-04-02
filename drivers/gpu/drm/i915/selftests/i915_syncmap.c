@@ -229,7 +229,7 @@ static int igt_syncmap_one(void *arg)
 		}
 		max++;
 	} while (!__igt_timeout(end_time, NULL));
-	pr_debug("%s: Completed %lu single insertions\n",
+	pr_de("%s: Completed %lu single insertions\n",
 		 __func__, max * (max - 1) / 2);
 out:
 	return dump_syncmap(sync, err);
@@ -595,7 +595,7 @@ static int igt_syncmap_random(void *arg)
 
 		phase++;
 	} while (!__igt_timeout(end_time, NULL));
-	pr_debug("Completed %lu passes, each of %lu contexts\n", phase, count);
+	pr_de("Completed %lu passes, each of %lu contexts\n", phase, count);
 out:
 	return dump_syncmap(sync, err);
 }

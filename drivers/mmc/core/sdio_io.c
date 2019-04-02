@@ -68,7 +68,7 @@ int sdio_enable_func(struct sdio_func *func)
 	if (!func)
 		return -EINVAL;
 
-	pr_debug("SDIO: Enabling device %s...\n", sdio_func_id(func));
+	pr_de("SDIO: Enabling device %s...\n", sdio_func_id(func));
 
 	ret = mmc_io_rw_direct(func->card, 0, 0, SDIO_CCCR_IOEx, 0, &reg);
 	if (ret)
@@ -93,12 +93,12 @@ int sdio_enable_func(struct sdio_func *func)
 			goto err;
 	}
 
-	pr_debug("SDIO: Enabled device %s\n", sdio_func_id(func));
+	pr_de("SDIO: Enabled device %s\n", sdio_func_id(func));
 
 	return 0;
 
 err:
-	pr_debug("SDIO: Failed to enable device %s\n", sdio_func_id(func));
+	pr_de("SDIO: Failed to enable device %s\n", sdio_func_id(func));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sdio_enable_func);
@@ -118,7 +118,7 @@ int sdio_disable_func(struct sdio_func *func)
 	if (!func)
 		return -EINVAL;
 
-	pr_debug("SDIO: Disabling device %s...\n", sdio_func_id(func));
+	pr_de("SDIO: Disabling device %s...\n", sdio_func_id(func));
 
 	ret = mmc_io_rw_direct(func->card, 0, 0, SDIO_CCCR_IOEx, 0, &reg);
 	if (ret)
@@ -130,12 +130,12 @@ int sdio_disable_func(struct sdio_func *func)
 	if (ret)
 		goto err;
 
-	pr_debug("SDIO: Disabled device %s\n", sdio_func_id(func));
+	pr_de("SDIO: Disabled device %s\n", sdio_func_id(func));
 
 	return 0;
 
 err:
-	pr_debug("SDIO: Failed to disable device %s\n", sdio_func_id(func));
+	pr_de("SDIO: Failed to disable device %s\n", sdio_func_id(func));
 	return -EIO;
 }
 EXPORT_SYMBOL_GPL(sdio_disable_func);
@@ -225,7 +225,7 @@ static inline unsigned int _sdio_align_size(unsigned int sz)
  *	@sz: original transfer size
  *
  *	Pads the original data size with a number of extra bytes in
- *	order to avoid controller bugs and/or performance hits
+ *	order to avoid controller s and/or performance hits
  *	(e.g. some controllers revert to PIO for certain sizes).
  *
  *	If possible, it will also adjust the size so that it can be

@@ -217,7 +217,7 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 
 	ent = id_map_find_by_sl_id(ibdev, slave_id, sl_cm_id);
 	if (ent) {
-		pr_debug("overriding existing sl_id_map entry (cm_id = %x)\n",
+		pr_de("overriding existing sl_id_map entry (cm_id = %x)\n",
 			 sl_cm_id);
 
 		rb_replace_node(&ent->node, &new->node, sl_id_map);
@@ -341,7 +341,7 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 	}
 
 	if (!id) {
-		pr_debug("id{slave: %d, sl_cm_id: 0x%x} is NULL!\n",
+		pr_de("id{slave: %d, sl_cm_id: 0x%x} is NULL!\n",
 			 slave_id, sl_cm_id);
 		return -EINVAL;
 	}
@@ -384,7 +384,7 @@ int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
 	id = id_map_get(ibdev, (int *)&pv_cm_id, -1, -1);
 
 	if (!id) {
-		pr_debug("Couldn't find an entry for pv_cm_id 0x%x\n", pv_cm_id);
+		pr_de("Couldn't find an entry for pv_cm_id 0x%x\n", pv_cm_id);
 		return -ENOENT;
 	}
 

@@ -924,7 +924,7 @@ qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *ha, srb_t *sp,
 		sgx.cur_sg    = tc->sg;
 		sg_prot	      = tc->prot_sg;
 	} else {
-		BUG();
+		();
 		return 1;
 	}
 
@@ -1025,7 +1025,7 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 	} else if (tc) {
 		sgl = tc->sg;
 	} else {
-		BUG();
+		();
 		return 1;
 	}
 
@@ -1122,7 +1122,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 		difctx = tc->ctx;
 		direction_to_device = tc->dma_data_direction == DMA_TO_DEVICE;
 	} else {
-		BUG();
+		();
 		return 1;
 	}
 
@@ -1261,7 +1261,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 			    DIF_BUNDLING_DMA_POOL_SIZE) ?
 			    DIF_BUNDLING_DMA_POOL_SIZE : difctx->dif_bundl_len;
 
-			BUG_ON(track_difbundl_buf == 0);
+			_ON(track_difbundl_buf == 0);
 
 			/* Allocate additional continuation packets? */
 			if (avail_dsds == 0) {
@@ -1531,7 +1531,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	    total_bytes = data_bytes + dif_bytes;
 	    break;
 	default:
-	    BUG();
+	    ();
 	}
 
 	if (!qla2x00_hba_err_chk_enabled(sp))

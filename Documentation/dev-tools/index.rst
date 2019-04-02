@@ -21,7 +21,7 @@ whole; patches welcome!
    kasan
    ubsan
    kmemleak
-   gdb-kernel-debugging
+   gdb-kernel-deging
    kgdb
    kselftest
 

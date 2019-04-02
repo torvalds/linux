@@ -694,7 +694,7 @@ static int trace_kprobe_create(int argc, const char *argv[])
 			       argc, is_return);
 	if (IS_ERR(tk)) {
 		ret = PTR_ERR(tk);
-		/* This must return -ENOMEM otherwise there is a bug */
+		/* This must return -ENOMEM otherwise there is a  */
 		WARN_ON_ONCE(ret != -ENOMEM);
 		goto out;
 	}

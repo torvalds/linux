@@ -151,7 +151,7 @@ void __of_detach_node_sysfs(struct device_node *np)
 {
 	struct property *pp;
 
-	BUG_ON(!of_node_is_initialized(np));
+	_ON(!of_node_is_initialized(np));
 	if (!of_kset)
 		return;
 

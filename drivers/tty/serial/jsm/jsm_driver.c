@@ -45,9 +45,9 @@ static const struct pci_error_handlers jsm_err_handler = {
 	.resume = jsm_io_resume,
 };
 
-int jsm_debug;
-module_param(jsm_debug, int, 0);
-MODULE_PARM_DESC(jsm_debug, "Driver debugging level");
+int jsm_de;
+module_param(jsm_de, int, 0);
+MODULE_PARM_DESC(jsm_de, "Driver deging level");
 
 static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {

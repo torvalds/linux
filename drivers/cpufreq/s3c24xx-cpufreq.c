@@ -50,7 +50,7 @@ static struct clk *clk_hclk;
 static struct clk *clk_pclk;
 static struct clk *clk_arm;
 
-#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_DEFS
 struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void)
 {
 	return &cpu_cur;
@@ -60,7 +60,7 @@ struct s3c_iotimings *s3c_cpufreq_getiotimings(void)
 {
 	return &s3c24xx_iotiming;
 }
-#endif /* CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS */
+#endif /* CONFIG_ARM_S3C24XX_CPUFREQ_DEFS */
 
 static void s3c_cpufreq_getcur(struct s3c_cpufreq_config *cfg)
 {
@@ -449,9 +449,9 @@ int s3c_cpufreq_register(struct s3c_cpufreq_info *info)
 
 	/* check our driver info has valid data */
 
-	BUG_ON(info->set_refresh == NULL);
-	BUG_ON(info->set_divs == NULL);
-	BUG_ON(info->calc_divs == NULL);
+	_ON(info->set_refresh == NULL);
+	_ON(info->set_divs == NULL);
+	_ON(info->calc_divs == NULL);
 
 	/* info->set_fvco is optional, depending on whether there
 	 * is a need to set the clock code. */

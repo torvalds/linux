@@ -28,7 +28,7 @@
 #include "core.h"
 #include "cfg80211.h"
 #include "target.h"
-#include "debug.h"
+#include "de.h"
 #include "hif-ops.h"
 #include "htc-ops.h"
 
@@ -539,9 +539,9 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
 	int i, status;
 
-	param = !!(ar->conf_flags & ATH6KL_CONF_UART_DEBUG);
+	param = !!(ar->conf_flags & ATH6KL_CONF_UART_DE);
 	if (ath6kl_bmi_write_hi32(ar, hi_serial_enable, param)) {
-		ath6kl_err("bmi_write_memory for uart debug failed\n");
+		ath6kl_err("bmi_write_memory for uart de failed\n");
 		return -EIO;
 	}
 
@@ -651,8 +651,8 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	if (status)
 		return status;
 
-	/* Only set the baud rate if we're actually doing debug */
-	if (ar->conf_flags & ATH6KL_CONF_UART_DEBUG) {
+	/* Only set the baud rate if we're actually doing de */
+	if (ar->conf_flags & ATH6KL_CONF_UART_DE) {
 		status = ath6kl_bmi_write_hi32(ar, hi_desired_baud_rate,
 					       ar->hw.uarttx_rate);
 		if (status)
@@ -1921,7 +1921,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	 * give disconnect notification to stack, which usually
 	 * happens in the disconnect_event. Simulate the disconnect
 	 * event by calling the function directly. Sometimes
-	 * disconnect_event will be received when the debug logs
+	 * disconnect_event will be received when the de logs
 	 * are collected.
 	 */
 	ath6kl_wmi_shutdown(ar->wmi);
@@ -1934,7 +1934,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 
 	/*
 	 * Try to reset the device if we can. The driver may have been
-	 * configure NOT to reset the target during a debug session.
+	 * configure NOT to reset the target during a de session.
 	 */
 	ath6kl_init_hw_reset(ar);
 

@@ -4,7 +4,7 @@
  * Authors: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm_runtime.h>
 
 #include "bdisp.h"
@@ -628,7 +628,7 @@ static int perf_show(struct seq_file *s, void *data)
 }
 
 #define bdisp_dbg_create_entry(name) \
-	debugfs_create_file(#name, S_IRUGO, bdisp->dbg.debugfs_entry, bdisp, \
+	defs_create_file(#name, S_IRUGO, bdisp->dbg.defs_entry, bdisp, \
 			    &name##_fops)
 
 DEFINE_SHOW_ATTRIBUTE(regs);
@@ -637,13 +637,13 @@ DEFINE_SHOW_ATTRIBUTE(last_nodes_raw);
 DEFINE_SHOW_ATTRIBUTE(last_request);
 DEFINE_SHOW_ATTRIBUTE(perf);
 
-int bdisp_debugfs_create(struct bdisp_dev *bdisp)
+int bdisp_defs_create(struct bdisp_dev *bdisp)
 {
 	char dirname[16];
 
 	snprintf(dirname, sizeof(dirname), "%s%d", BDISP_NAME, bdisp->id);
-	bdisp->dbg.debugfs_entry = debugfs_create_dir(dirname, NULL);
-	if (!bdisp->dbg.debugfs_entry)
+	bdisp->dbg.defs_entry = defs_create_dir(dirname, NULL);
+	if (!bdisp->dbg.defs_entry)
 		goto err;
 
 	if (!bdisp_dbg_create_entry(regs))
@@ -664,12 +664,12 @@ int bdisp_debugfs_create(struct bdisp_dev *bdisp)
 	return 0;
 
 err:
-	bdisp_debugfs_remove(bdisp);
+	bdisp_defs_remove(bdisp);
 	return -ENOMEM;
 }
 
-void bdisp_debugfs_remove(struct bdisp_dev *bdisp)
+void bdisp_defs_remove(struct bdisp_dev *bdisp)
 {
-	debugfs_remove_recursive(bdisp->dbg.debugfs_entry);
-	bdisp->dbg.debugfs_entry = NULL;
+	defs_remove_recursive(bdisp->dbg.defs_entry);
+	bdisp->dbg.defs_entry = NULL;
 }

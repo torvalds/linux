@@ -113,7 +113,7 @@ static inline void FNAME(protect_clean_gpte)(struct kvm_mmu *mmu, unsigned *acce
 	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
 		return;
 
-	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
+	BUILD__ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
 
 	mask = (unsigned)~ACC_WRITE_MASK;
 	/* Allow write access to dirty gptes */
@@ -190,8 +190,8 @@ static inline unsigned FNAME(gpte_access)(u64 gpte)
 		((gpte & VMX_EPT_EXECUTABLE_MASK) ? ACC_EXEC_MASK : 0) |
 		((gpte & VMX_EPT_READABLE_MASK) ? ACC_USER_MASK : 0);
 #else
-	BUILD_BUG_ON(ACC_EXEC_MASK != PT_PRESENT_MASK);
-	BUILD_BUG_ON(ACC_EXEC_MASK != 1);
+	BUILD__ON(ACC_EXEC_MASK != PT_PRESENT_MASK);
+	BUILD__ON(ACC_EXEC_MASK != 1);
 	access = gpte & (PT_WRITABLE_MASK | PT_USER_MASK | PT_PRESENT_MASK);
 	/* Combine NX with P (which is set here) to get ACC_EXEC_MASK.  */
 	access ^= (gpte >> PT64_NX_SHIFT);
@@ -339,7 +339,7 @@ retry_walk:
 		offset    = index * sizeof(pt_element_t);
 		pte_gpa   = gfn_to_gpa(table_gfn) + offset;
 
-		BUG_ON(walker->level < 1);
+		_ON(walker->level < 1);
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
@@ -973,7 +973,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	int set_spte_ret = 0;
 
 	/* direct kvm_mmu_page can not be unsync. */
-	BUG_ON(sp->role.direct);
+	_ON(sp->role.direct);
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 

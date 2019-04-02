@@ -25,7 +25,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/kasan.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm.h>
 #include <linux/gfp.h>
 #include <linux/jump_label.h>
@@ -38,13 +38,13 @@
 #include <asm/unwind.h>
 
 #if 0
-#define DEBUGP(fmt, ...)				\
-	printk(KERN_DEBUG fmt, ##__VA_ARGS__)
+#define DEP(fmt, ...)				\
+	printk(KERN_DE fmt, ##__VA_ARGS__)
 #else
-#define DEBUGP(fmt, ...)				\
+#define DEP(fmt, ...)				\
 do {							\
 	if (0)						\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);	\
+		printk(KERN_DE fmt, ##__VA_ARGS__);	\
 } while (0)
 #endif
 
@@ -109,7 +109,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 	Elf32_Sym *sym;
 	uint32_t *location;
 
-	DEBUGP("Applying relocate section %u to %u\n",
+	DEP("Applying relocate section %u to %u\n",
 	       relsec, sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -150,7 +150,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	void *loc;
 	u64 val;
 
-	DEBUGP("Applying relocate section %u to %u\n",
+	DEP("Applying relocate section %u to %u\n",
 	       relsec, sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -162,7 +162,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		sym = (Elf64_Sym *)sechdrs[symindex].sh_addr
 			+ ELF64_R_SYM(rel[i].r_info);
 
-		DEBUGP("type %d st_value %Lx r_addend %Lx loc %Lx\n",
+		DEP("type %d st_value %Lx r_addend %Lx loc %Lx\n",
 		       (int)ELF64_R_TYPE(rel[i].r_info),
 		       sym->st_value, rel[i].r_addend, (u64)loc);
 

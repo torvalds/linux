@@ -34,7 +34,7 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
 #include <linux/genwqe/genwqe_card.h>
@@ -46,7 +46,7 @@
 #define GENWQE_MAX_FUNCS		16 /* 1 PF and 15 VFs */
 #define GENWQE_CARD_NO_MAX		(16 * GENWQE_MAX_FUNCS)
 
-/* Compile parameters, some of them appear in debugfs for later adjustment */
+/* Compile parameters, some of them appear in defs for later adjustment */
 #define GENWQE_DDCB_MAX			32 /* DDCBs on the work-queue */
 #define GENWQE_POLLING_ENABLED		0  /* in case of irqs not working */
 #define GENWQE_DDCB_SOFTWARE_TIMEOUT	10 /* timeout per DDCB in seconds */
@@ -87,7 +87,7 @@ struct genwqe_reg {
 };
 
 /*
- * enum genwqe_dbg_type - Specify chip unit to dump/debug
+ * enum genwqe_dbg_type - Specify chip unit to dump/de
  */
 enum genwqe_dbg_type {
 	GENWQE_DBG_UNIT0 = 0,  /* captured before prev errs cleared */
@@ -100,7 +100,7 @@ enum genwqe_dbg_type {
 	GENWQE_DBG_UNIT7 = 7,
 	GENWQE_DBG_REGS  = 8,
 	GENWQE_DBG_DMA   = 9,
-	GENWQE_DBG_UNITS = 10, /* max number of possible debug units  */
+	GENWQE_DBG_UNITS = 10, /* max number of possible de units  */
 };
 
 /* Software error injection to simulate card failures */
@@ -301,8 +301,8 @@ struct genwqe_dev {
 	struct device *dev;		/* for device creation */
 	struct cdev cdev_genwqe;	/* char device for card */
 
-	struct dentry *debugfs_root;	/* debugfs card root directory */
-	struct dentry *debugfs_genwqe;	/* debugfs driver root directory */
+	struct dentry *defs_root;	/* defs card root directory */
+	struct dentry *defs_genwqe;	/* defs driver root directory */
 
 	/* pci resources */
 	struct pci_dev *pci_dev;	/* PCI device */
@@ -323,7 +323,7 @@ struct genwqe_dev {
 	spinlock_t file_lock;		/* lock for open files */
 	struct list_head file_list;	/* list of open files */
 
-	/* debugfs parameters */
+	/* defs parameters */
 	int ddcb_software_timeout;	/* wait until DDCB times out */
 	int skip_recovery;		/* circumvention if recovery fails */
 	int kill_timeout;		/* wait after sending SIGKILL */
@@ -396,7 +396,7 @@ struct ddcb_requ {
 
 	/* kernel/user shared content */
 	struct genwqe_ddcb_cmd cmd;	/* ddcb_no for this request */
-	struct genwqe_debug_data debug_data;
+	struct genwqe_de_data de_data;
 };
 
 /**
@@ -444,9 +444,9 @@ void genwqe_reset_interrupt_capability(struct genwqe_dev *cd);
 int  genwqe_device_create(struct genwqe_dev *cd);
 int  genwqe_device_remove(struct genwqe_dev *cd);
 
-/* debugfs */
-int  genwqe_init_debugfs(struct genwqe_dev *cd);
-void genqwe_exit_debugfs(struct genwqe_dev *cd);
+/* defs */
+int  genwqe_init_defs(struct genwqe_dev *cd);
+void genqwe_exit_defs(struct genwqe_dev *cd);
 
 int  genwqe_read_softreset(struct genwqe_dev *cd);
 
@@ -482,8 +482,8 @@ int  genwqe_read_ffdc_regs(struct genwqe_dev *cd, struct genwqe_reg *regs,
 int  genwqe_ffdc_dump_dma(struct genwqe_dev *cd,
 			  struct genwqe_reg *regs, unsigned int max_regs);
 
-int  genwqe_init_debug_data(struct genwqe_dev *cd,
-			    struct genwqe_debug_data *d);
+int  genwqe_init_de_data(struct genwqe_dev *cd,
+			    struct genwqe_de_data *d);
 
 void genwqe_init_crc32(void);
 int  genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len);

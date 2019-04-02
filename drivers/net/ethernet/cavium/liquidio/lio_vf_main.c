@@ -34,9 +34,9 @@ MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Virtual Function 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(LIQUIDIO_VERSION);
 
-static int debug = -1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
+static int de = -1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "NETIF_MSG de bits");
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
@@ -2074,7 +2074,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->linfo.macaddr_spoofchk =
 			resp->cfg_info.linfo.macaddr_spoofchk;
 
-		lio->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+		lio->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 		lio->dev_capability = NETIF_F_HIGHDMA
 				      | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM

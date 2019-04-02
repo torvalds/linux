@@ -165,13 +165,13 @@ types.
 Drivers should use set_memory_[uc|wc|wt] to set access type for RAM ranges.
 
 
-PAT debugging
+PAT deging
 -------------
 
-With CONFIG_DEBUG_FS enabled, PAT memtype list can be examined by
+With CONFIG_DE_FS enabled, PAT memtype list can be examined by
 
-# mount -t debugfs debugfs /sys/kernel/debug
-# cat /sys/kernel/debug/x86/pat_memtype_list
+# mount -t defs defs /sys/kernel/de
+# cat /sys/kernel/de/x86/pat_memtype_list
 PAT memtype list:
 uncached-minus @ 0x7fadf000-0x7fae0000
 uncached-minus @ 0x7fb19000-0x7fb1a000
@@ -192,8 +192,8 @@ uncached-minus @ 0x80000000-0x90000000
 This list shows physical address ranges and various PAT settings used to
 access those physical address ranges.
 
-Another, more verbose way of getting PAT related debug messages is with
-"debugpat" boot parameter. With this parameter, various debug messages are
+Another, more verbose way of getting PAT related de messages is with
+"depat" boot parameter. With this parameter, various de messages are
 printed to dmesg log.
 
 PAT Initialization

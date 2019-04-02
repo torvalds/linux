@@ -78,7 +78,7 @@ static int sis_driver_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct sis_file_private *file_priv;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
 		return -ENOMEM;

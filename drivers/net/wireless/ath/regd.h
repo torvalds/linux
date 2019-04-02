@@ -39,7 +39,7 @@ enum ctl_group {
 #define CTL_2GHT40              7
 #define CTL_5GHT40              8
 
-#define CTRY_DEBUG 0x1ff
+#define CTRY_DE 0x1ff
 #define CTRY_DEFAULT 0
 
 #define COUNTRY_ERD_FLAG        0x8000

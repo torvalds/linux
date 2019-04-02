@@ -20,25 +20,25 @@
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/irqflags.h>
 #include <linux/rtmutex.h>
 
 /*
  * Change this to 1 if you want to see the failure printouts:
  */
-static unsigned int debug_locks_verbose;
+static unsigned int de_locks_verbose;
 
 static DEFINE_WD_CLASS(ww_lockdep);
 
-static int __init setup_debug_locks_verbose(char *str)
+static int __init setup_de_locks_verbose(char *str)
 {
-	get_option(&str, &debug_locks_verbose);
+	get_option(&str, &de_locks_verbose);
 
 	return 1;
 }
 
-__setup("debug_locks_verbose=", setup_debug_locks_verbose);
+__setup("de_locks_verbose=", setup_de_locks_verbose);
 
 #define FAILURE		0
 #define SUCCESS		1
@@ -238,7 +238,7 @@ static void init_shared_classes(void)
 #define RSU(x)			up_read(&rwsem_##x)
 #define RWSI(x)			init_rwsem(&rwsem_##x)
 
-#ifndef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+#ifndef CONFIG_DE_WW_MUTEX_SLOWPATH
 #define WWAI(x)			ww_acquire_init(x, &ww_lockdep)
 #else
 #define WWAI(x)			do { ww_acquire_init(x, &ww_lockdep); (x)->deadlock_inject_countdown = ~0U; } while (0)
@@ -1062,7 +1062,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion_soft)
 #include "locking-selftest-softirq.h"
 // GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft)
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define I_SPINLOCK(x)	lockdep_reset_lock(&lock_##x.dep_map)
 # define I_RWLOCK(x)	lockdep_reset_lock(&rwlock_##x.dep_map)
 # define I_MUTEX(x)	lockdep_reset_lock(&mutex_##x.dep_map)
@@ -1145,13 +1145,13 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 	 * Filter out expected failures:
 	 */
 #ifndef CONFIG_PROVE_LOCKING
-	if (expected == FAILURE && debug_locks) {
+	if (expected == FAILURE && de_locks) {
 		expected_testcase_failures++;
 		pr_cont("failed|");
 	}
 	else
 #endif
-	if (debug_locks != expected) {
+	if (de_locks != expected) {
 		unexpected_testcase_failures++;
 		pr_cont("FAILED|");
 	} else {
@@ -1160,9 +1160,9 @@ static void dotest(void (*testcase_fn)(void), int expected, int lockclass_mask)
 	}
 	testcase_total++;
 
-	if (debug_locks_verbose)
-		pr_cont(" lockclass mask: %x, debug_locks: %d, expected: %d\n",
-			lockclass_mask, debug_locks, expected);
+	if (de_locks_verbose)
+		pr_cont(" lockclass mask: %x, de_locks: %d, expected: %d\n",
+			lockclass_mask, de_locks, expected);
 	/*
 	 * Some tests (e.g. double-unlock) might corrupt the preemption
 	 * count, so restore it:
@@ -1333,9 +1333,9 @@ static void ww_test_fail_acquire(void)
 
 	if (WWT(&o))
 		WWU(&o);
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	else
-		DEBUG_LOCKS_WARN_ON(1);
+		DE_LOCKS_WARN_ON(1);
 #endif
 }
 
@@ -1409,7 +1409,7 @@ static void ww_test_two_contexts(void)
 static void ww_test_diff_class(void)
 {
 	WWAI(&t);
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	t.ww_class = NULL;
 #endif
 	WWL(&o, &t);
@@ -1971,7 +1971,7 @@ void locking_selftest(void)
 	/*
 	 * Got a locking failure before the selftest ran?
 	 */
-	if (!debug_locks) {
+	if (!de_locks) {
 		printk("----------------------------------\n");
 		printk("| Locking API testsuite disabled |\n");
 		printk("----------------------------------\n");
@@ -1988,7 +1988,7 @@ void locking_selftest(void)
 	printk("  --------------------------------------------------------------------------\n");
 
 	init_shared_classes();
-	debug_locks_silent = !debug_locks_verbose;
+	de_locks_silent = !de_locks_verbose;
 	lockdep_set_selftest_task(current);
 
 	DO_TESTCASE_6R("A-A deadlock", AA);
@@ -2075,8 +2075,8 @@ void locking_selftest(void)
 
 	if (unexpected_testcase_failures) {
 		printk("-----------------------------------------------------------------\n");
-		debug_locks = 0;
-		printk("BUG: %3d unexpected failures (out of %3d) - debugging disabled! |\n",
+		de_locks = 0;
+		printk(": %3d unexpected failures (out of %3d) - deging disabled! |\n",
 			unexpected_testcase_failures, testcase_total);
 		printk("-----------------------------------------------------------------\n");
 	} else if (expected_testcase_failures && testcase_successes) {
@@ -2084,20 +2084,20 @@ void locking_selftest(void)
 		printk("%3d out of %3d testcases failed, as expected. |\n",
 			expected_testcase_failures, testcase_total);
 		printk("----------------------------------------------------\n");
-		debug_locks = 1;
+		de_locks = 1;
 	} else if (expected_testcase_failures && !testcase_successes) {
 		printk("--------------------------------------------------------\n");
 		printk("All %3d testcases failed, as expected. |\n",
 			expected_testcase_failures);
 		printk("----------------------------------------\n");
-		debug_locks = 1;
+		de_locks = 1;
 	} else {
 		printk("-------------------------------------------------------\n");
 		printk("Good, all %3d testcases passed! |\n",
 			testcase_successes);
 		printk("---------------------------------\n");
-		debug_locks = 1;
+		de_locks = 1;
 	}
 	lockdep_set_selftest_task(NULL);
-	debug_locks_silent = 0;
+	de_locks_silent = 0;
 }

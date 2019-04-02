@@ -7,7 +7,7 @@
 MOD_LIVEPATCH=test_klp_livepatch
 MOD_REPLACE=test_klp_atomic_replace
 
-set_dynamic_debug
+set_dynamic_de
 
 
 # TEST: basic function patching

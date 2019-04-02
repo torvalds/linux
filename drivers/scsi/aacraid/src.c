@@ -382,7 +382,7 @@ static void aac_src_notify_adapter(struct aac_dev *dev, u32 event)
 			INBOUNDDOORBELL_5 << SRC_ODR_SHIFT);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }

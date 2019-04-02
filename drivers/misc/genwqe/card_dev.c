@@ -207,7 +207,7 @@ static void genwqe_remove_mappings(struct genwqe_file *cfile)
 		list_del_init(&dma_map->card_list);
 
 		/*
-		 * This is really a bug, because those things should
+		 * This is really a , because those things should
 		 * have been already tidied up.
 		 *
 		 * GENWQE_MAPPING_RAW should have been removed via mmunmap().
@@ -242,7 +242,7 @@ static void genwqe_remove_pinnings(struct genwqe_file *cfile)
 		dma_map = list_entry(node, struct dma_mapping, pin_list);
 
 		/*
-		 * This is not a bug, because a killed processed might
+		 * This is not a , because a killed processed might
 		 * not call the unpin ioctl, which is supposed to free
 		 * the resources.
 		 *
@@ -1307,13 +1307,13 @@ int genwqe_device_create(struct genwqe_dev *cd)
 		goto err_cdev;
 	}
 
-	rc = genwqe_init_debugfs(cd);
+	rc = genwqe_init_defs(cd);
 	if (rc != 0)
-		goto err_debugfs;
+		goto err_defs;
 
 	return 0;
 
- err_debugfs:
+ err_defs:
 	device_destroy(cd->class_genwqe, cd->devnum_genwqe);
  err_cdev:
 	cdev_del(&cd->cdev_genwqe);
@@ -1400,7 +1400,7 @@ int genwqe_device_remove(struct genwqe_dev *cd)
 		panic("Fatal err: cannot free resources with pending references!");
 	}
 
-	genqwe_exit_debugfs(cd);
+	genqwe_exit_defs(cd);
 	device_destroy(cd->class_genwqe, cd->devnum_genwqe);
 	cdev_del(&cd->cdev_genwqe);
 	unregister_chrdev_region(cd->devnum_genwqe, GENWQE_MAX_MINOR);

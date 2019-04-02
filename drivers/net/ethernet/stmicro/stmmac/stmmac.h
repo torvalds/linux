@@ -187,7 +187,7 @@ struct stmmac_priv {
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_rings_status;
 	struct dentry *dbgfs_dma_cap;

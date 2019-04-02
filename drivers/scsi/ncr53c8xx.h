@@ -61,7 +61,7 @@
 **	following options.
 */
 #define SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
-#define SCSI_NCR_DEBUG_INFO_SUPPORT
+#define SCSI_NCR_DE_INFO_SUPPORT
 
 /*
 **	To disable integrity checking, do not define the 
@@ -527,7 +527,7 @@ struct ncr_driver_setup {
 	u8	verbose;
 	u8	default_tags;
 	u16	default_sync;
-	u16	debug;
+	u16	de;
 	u8	burst_max;
 	u8	led_pin;
 	u8	max_wide;

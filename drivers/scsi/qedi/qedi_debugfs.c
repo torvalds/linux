@@ -11,7 +11,7 @@
 #include "qedi_dbg.h"
 
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 
 int qedi_do_not_recover;
@@ -19,19 +19,19 @@ static struct dentry *qedi_dbg_root;
 
 void
 qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
-		   const struct qedi_debugfs_ops *dops,
+		   const struct qedi_defs_ops *dops,
 		   const struct file_operations *fops)
 {
 	char host_dirname[32];
 
 	sprintf(host_dirname, "host%u", qedi->host_no);
-	qedi->bdf_dentry = debugfs_create_dir(host_dirname, qedi_dbg_root);
+	qedi->bdf_dentry = defs_create_dir(host_dirname, qedi_dbg_root);
 
 	while (dops) {
 		if (!(dops->name))
 			break;
 
-		debugfs_create_file(dops->name, 0600, qedi->bdf_dentry, qedi,
+		defs_create_file(dops->name, 0600, qedi->bdf_dentry, qedi,
 				    fops);
 		dops++;
 		fops++;
@@ -41,20 +41,20 @@ qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
 void
 qedi_dbg_host_exit(struct qedi_dbg_ctx *qedi)
 {
-	debugfs_remove_recursive(qedi->bdf_dentry);
+	defs_remove_recursive(qedi->bdf_dentry);
 	qedi->bdf_dentry = NULL;
 }
 
 void
 qedi_dbg_init(char *drv_name)
 {
-	qedi_dbg_root = debugfs_create_dir(drv_name, NULL);
+	qedi_dbg_root = defs_create_dir(drv_name, NULL);
 }
 
 void
 qedi_dbg_exit(void)
 {
-	debugfs_remove_recursive(qedi_dbg_root);
+	defs_remove_recursive(qedi_dbg_root);
 	qedi_dbg_root = NULL;
 }
 
@@ -64,7 +64,7 @@ qedi_dbg_do_not_recover_enable(struct qedi_dbg_ctx *qedi_dbg)
 	if (!qedi_do_not_recover)
 		qedi_do_not_recover = 1;
 
-	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_not_recover=%d\n",
+	QEDI_INFO(qedi_dbg, QEDI_LOG_DEFS, "do_not_recover=%d\n",
 		  qedi_do_not_recover);
 	return 0;
 }
@@ -75,7 +75,7 @@ qedi_dbg_do_not_recover_disable(struct qedi_dbg_ctx *qedi_dbg)
 	if (qedi_do_not_recover)
 		qedi_do_not_recover = 0;
 
-	QEDI_INFO(qedi_dbg, QEDI_LOG_DEBUGFS, "do_not_recover=%d\n",
+	QEDI_INFO(qedi_dbg, QEDI_LOG_DEFS, "do_not_recover=%d\n",
 		  qedi_do_not_recover);
 	return 0;
 }
@@ -86,7 +86,7 @@ static struct qedi_list_of_funcs qedi_dbg_do_not_recover_ops[] = {
 	{ NULL, NULL }
 };
 
-const struct qedi_debugfs_ops qedi_debugfs_ops[] = {
+const struct qedi_defs_ops qedi_defs_ops[] = {
 	{ "gbl_ctx", NULL },
 	{ "do_not_recover", qedi_dbg_do_not_recover_ops},
 	{ "io_trace", NULL },

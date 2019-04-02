@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/err.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/atomic.h>
 #include <linux/errseq.h>
 
@@ -51,7 +51,7 @@
  *
  * Any error set will always overwrite an existing error.
  *
- * Return: The previous value, primarily for debugging purposes. The
+ * Return: The previous value, primarily for deging purposes. The
  * return value should not be used as a previously sampled value in later
  * calls as it will not have the SEEN flag set.
  */
@@ -60,7 +60,7 @@ errseq_t errseq_set(errseq_t *eseq, int err)
 	errseq_t cur, old;
 
 	/* MAX_ERRNO must be able to serve as a mask */
-	BUILD_BUG_ON_NOT_POWER_OF_2(MAX_ERRNO + 1);
+	BUILD__ON_NOT_POWER_OF_2(MAX_ERRNO + 1);
 
 	/*
 	 * Ensure the error code actually fits where we want it to go. If it

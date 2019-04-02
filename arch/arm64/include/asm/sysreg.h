@@ -658,7 +658,7 @@
 #define ID_AA64DFR0_BRPS_SHIFT		12
 #define ID_AA64DFR0_PMUVER_SHIFT	8
 #define ID_AA64DFR0_TRACEVER_SHIFT	4
-#define ID_AA64DFR0_DEBUGVER_SHIFT	0
+#define ID_AA64DFR0_DEVER_SHIFT	0
 
 #define ID_ISAR5_RDM_SHIFT		24
 #define ID_ISAR5_CRC32_SHIFT		16
@@ -743,7 +743,7 @@
 
 #else
 
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/types.h>
 
 asm(

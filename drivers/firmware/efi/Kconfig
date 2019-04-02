@@ -48,7 +48,7 @@ config EFI_RUNTIME_MAP
 	help
 	  Export efi runtime memory maps to /sys/firmware/efi/runtime-map.
 	  That memory map is used for example by kexec to set up efi virtual
-	  mapping the 2nd kernel, but can also be used for debugging purposes.
+	  mapping the 2nd kernel, but can also be used for deging purposes.
 
 	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
 
@@ -61,7 +61,7 @@ config EFI_FAKE_MEMMAP
 	  By specifying this parameter, you can add arbitrary attribute
 	  to specific memory range by updating original (firmware provided)
 	  EFI memmap.
-	  This is useful for debugging of EFI memmap related feature.
+	  This is useful for deging of EFI memmap related feature.
 	  e.g. Address Range Mirroring feature.
 
 config EFI_MAX_FAKE_MEM

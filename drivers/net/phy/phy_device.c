@@ -1376,7 +1376,7 @@ void phy_detach(struct phy_device *phydev)
 
 	/*
 	 * The phydev might go away on the put_device() below, so avoid
-	 * a use-after-free bug by reading the underlying bus first.
+	 * a use-after-free  by reading the underlying bus first.
 	 */
 	bus = phydev->mdio.bus;
 
@@ -2200,7 +2200,7 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 		return retval;
 	}
 
-	pr_debug("%s: Registered new driver\n", new_driver->name);
+	pr_de("%s: Registered new driver\n", new_driver->name);
 
 	return 0;
 }

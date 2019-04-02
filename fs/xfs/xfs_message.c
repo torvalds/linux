@@ -55,8 +55,8 @@ define_xfs_printk_level(xfs_err, KERN_ERR);
 define_xfs_printk_level(xfs_warn, KERN_WARNING);
 define_xfs_printk_level(xfs_notice, KERN_NOTICE);
 define_xfs_printk_level(xfs_info, KERN_INFO);
-#ifdef DEBUG
-define_xfs_printk_level(xfs_debug, KERN_DEBUG);
+#ifdef DE
+define_xfs_printk_level(xfs_de, KERN_DE);
 #endif
 
 void
@@ -70,7 +70,7 @@ xfs_alert_tag(
 	int			do_panic = 0;
 
 	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
-		xfs_alert(mp, "Transforming an alert into a BUG.");
+		xfs_alert(mp, "Transforming an alert into a .");
 		do_panic = 1;
 	}
 
@@ -82,7 +82,7 @@ xfs_alert_tag(
 	__xfs_printk(KERN_ALERT, mp, &vaf);
 	va_end(args);
 
-	BUG_ON(do_panic);
+	_ON(do_panic);
 }
 
 void
@@ -98,8 +98,8 @@ assfail(char *expr, char *file, int line)
 {
 	xfs_emerg(NULL, "Assertion failed: %s, file: %s, line: %d",
 		expr, file, line);
-	if (xfs_globals.bug_on_assert)
-		BUG();
+	if (xfs_globals._on_assert)
+		();
 	else
 		WARN_ON(1);
 }

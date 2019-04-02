@@ -413,7 +413,7 @@ static void nicvf_get_regs(struct net_device *dev,
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_DOOR, q);
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_STATUS, q);
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_STATUS2, q);
-		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_DEBUG, q);
+		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_DE, q);
 	}
 
 	/* All receive queue's registers */
@@ -433,7 +433,7 @@ static void nicvf_get_regs(struct net_device *dev,
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_TAIL, q);
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_DOOR, q);
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_STATUS, q);
-		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_DEBUG, q);
+		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_DE, q);
 		/* Padding, was NIC_QSET_SQ_0_7_CNM_CHG, which
 		 * produces bus errors when read
 		 */

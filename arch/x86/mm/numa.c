@@ -86,7 +86,7 @@ void numa_set_node(int cpu, int node)
 		return;
 	}
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
+#ifdef CONFIG_DE_PER_CPU_MAPS
 	if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
 		printk(KERN_ERR "numa_set_node: invalid cpu# (%d)\n", cpu);
 		dump_stack();
@@ -108,7 +108,7 @@ void numa_clear_node(int cpu)
  * Requires node_possible_map to be valid.
  *
  * Note: cpumask_of_node() is not valid until after this is done.
- * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
+ * (Use CONFIG_DE_PER_CPU_MAPS to check this.)
  */
 void __init setup_node_to_cpumask_map(void)
 {
@@ -123,7 +123,7 @@ void __init setup_node_to_cpumask_map(void)
 		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
 
 	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
+	pr_de("Node to cpumask map for %u nodes\n", nr_node_ids);
 }
 
 static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
@@ -374,7 +374,7 @@ static int __init numa_alloc_distance(void)
 		for (j = 0; j < cnt; j++)
 			numa_distance[i * cnt + j] = i == j ?
 				LOCAL_DISTANCE : REMOTE_DISTANCE;
-	printk(KERN_DEBUG "NUMA: Initialized distance table, cnt=%d\n", cnt);
+	printk(KERN_DE "NUMA: Initialized distance table, cnt=%d\n", cnt);
 
 	return 0;
 }
@@ -751,7 +751,7 @@ void __init init_cpu_to_node(void)
 	int cpu;
 	u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
 
-	BUG_ON(cpu_to_apicid == NULL);
+	_ON(cpu_to_apicid == NULL);
 
 	for_each_possible_cpu(cpu) {
 		int node = numa_cpu_node(cpu);
@@ -766,7 +766,7 @@ void __init init_cpu_to_node(void)
 	}
 }
 
-#ifndef CONFIG_DEBUG_PER_CPU_MAPS
+#ifndef CONFIG_DE_PER_CPU_MAPS
 
 # ifndef CONFIG_NUMA_EMU
 void numa_add_cpu(int cpu)
@@ -780,7 +780,7 @@ void numa_remove_cpu(int cpu)
 }
 # endif	/* !CONFIG_NUMA_EMU */
 
-#else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+#else	/* !CONFIG_DE_PER_CPU_MAPS */
 
 int __cpu_to_node(int cpu)
 {
@@ -812,7 +812,7 @@ int early_cpu_to_node(int cpu)
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
 
-void debug_cpumask_set_cpu(int cpu, int node, bool enable)
+void de_cpumask_set_cpu(int cpu, int node, bool enable)
 {
 	struct cpumask *mask;
 
@@ -832,7 +832,7 @@ void debug_cpumask_set_cpu(int cpu, int node, bool enable)
 	else
 		cpumask_clear_cpu(cpu, mask);
 
-	printk(KERN_DEBUG "%s cpu %d node %d: mask now %*pbl\n",
+	printk(KERN_DE "%s cpu %d node %d: mask now %*pbl\n",
 		enable ? "numa_add_cpu" : "numa_remove_cpu",
 		cpu, node, cpumask_pr_args(mask));
 	return;
@@ -841,7 +841,7 @@ void debug_cpumask_set_cpu(int cpu, int node, bool enable)
 # ifndef CONFIG_NUMA_EMU
 static void numa_set_cpumask(int cpu, bool enable)
 {
-	debug_cpumask_set_cpu(cpu, early_cpu_to_node(cpu), enable);
+	de_cpumask_set_cpu(cpu, early_cpu_to_node(cpu), enable);
 }
 
 void numa_add_cpu(int cpu)
@@ -878,7 +878,7 @@ const struct cpumask *cpumask_of_node(int node)
 }
 EXPORT_SYMBOL(cpumask_of_node);
 
-#endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+#endif	/* !CONFIG_DE_PER_CPU_MAPS */
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 int memory_add_physaddr_to_nid(u64 start)

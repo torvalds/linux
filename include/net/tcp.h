@@ -18,11 +18,11 @@
 #ifndef _TCP_H
 #define _TCP_H
 
-#define FASTRETRANS_DEBUG 1
+#define FASTRETRANS_DE 1
 
 #include <linux/list.h>
 #include <linux/tcp.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/slab.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>

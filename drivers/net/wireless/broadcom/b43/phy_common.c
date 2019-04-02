@@ -158,7 +158,7 @@ void b43_radio_lock(struct b43_wldev *dev)
 {
 	u32 macctl;
 
-#if B43_DEBUG
+#if B43_DE
 	B43_WARN_ON(dev->phy.radio_locked);
 	dev->phy.radio_locked = true;
 #endif
@@ -176,7 +176,7 @@ void b43_radio_unlock(struct b43_wldev *dev)
 {
 	u32 macctl;
 
-#if B43_DEBUG
+#if B43_DE
 	B43_WARN_ON(!dev->phy.radio_locked);
 	dev->phy.radio_locked = false;
 #endif
@@ -191,7 +191,7 @@ void b43_radio_unlock(struct b43_wldev *dev)
 
 void b43_phy_lock(struct b43_wldev *dev)
 {
-#if B43_DEBUG
+#if B43_DE
 	B43_WARN_ON(dev->phy.phy_locked);
 	dev->phy.phy_locked = true;
 #endif
@@ -203,7 +203,7 @@ void b43_phy_lock(struct b43_wldev *dev)
 
 void b43_phy_unlock(struct b43_wldev *dev)
 {
-#if B43_DEBUG
+#if B43_DE
 	B43_WARN_ON(!dev->phy.phy_locked);
 	dev->phy.phy_locked = false;
 #endif
@@ -215,7 +215,7 @@ void b43_phy_unlock(struct b43_wldev *dev)
 
 static inline void assert_mac_suspended(struct b43_wldev *dev)
 {
-	if (!B43_DEBUG)
+	if (!B43_DE)
 		return;
 	if ((b43_status(dev) >= B43_STAT_INITIALIZED) &&
 	    (dev->mac_suspended <= 0)) {

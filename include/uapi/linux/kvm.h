@@ -73,14 +73,14 @@ struct kvm_breakpoint {
 	__u64 address;
 };
 
-struct kvm_debug_guest {
+struct kvm_de_guest {
 	__u32 enabled;
 	__u32 pad;
 	struct kvm_breakpoint breakpoints[4];
 	__u32 singlestep;
 };
 
-#define __KVM_DEPRECATED_VCPU_W_0x87 _IOW(KVMIO, 0x87, struct kvm_debug_guest)
+#define __KVM_DEPRECATED_VCPU_W_0x87 _IOW(KVMIO, 0x87, struct kvm_de_guest)
 
 /* *** End of deprecated interfaces *** */
 
@@ -211,7 +211,7 @@ struct kvm_hyperv_exit {
 #define KVM_EXIT_EXCEPTION        1
 #define KVM_EXIT_IO               2
 #define KVM_EXIT_HYPERCALL        3
-#define KVM_EXIT_DEBUG            4
+#define KVM_EXIT_DE            4
 #define KVM_EXIT_HLT              5
 #define KVM_EXIT_MMIO             6
 #define KVM_EXIT_IRQ_WINDOW_OPEN  7
@@ -290,10 +290,10 @@ struct kvm_run {
 			__u32 count;
 			__u64 data_offset; /* relative to kvm_run start */
 		} io;
-		/* KVM_EXIT_DEBUG */
+		/* KVM_EXIT_DE */
 		struct {
-			struct kvm_debug_exit_arch arch;
-		} debug;
+			struct kvm_de_exit_arch arch;
+		} de;
 		/* KVM_EXIT_MMIO */
 		struct {
 			__u64 phys_addr;
@@ -656,15 +656,15 @@ struct kvm_s390_irq_state {
 	__u32 reserved[4];  /* will stay unused for compatibility reasons */
 };
 
-/* for KVM_SET_GUEST_DEBUG */
+/* for KVM_SET_GUEST_DE */
 
 #define KVM_GUESTDBG_ENABLE		0x00000001
 #define KVM_GUESTDBG_SINGLESTEP		0x00000002
 
-struct kvm_guest_debug {
+struct kvm_guest_de {
 	__u32 control;
 	__u32 pad;
-	struct kvm_guest_debug_arch arch;
+	struct kvm_guest_de_arch arch;
 };
 
 enum {
@@ -821,11 +821,11 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_COALESCED_MMIO 15
 #define KVM_CAP_SYNC_MMU 16  /* Changes to host mmap are reflected in guest */
 #define KVM_CAP_IOMMU 18
-/* Bug in KVM_SET_USER_MEMORY_REGION fixed: */
+/*  in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_DESTROY_MEMORY_REGION_WORKS 21
 #define KVM_CAP_USER_NMI 22
-#ifdef __KVM_HAVE_GUEST_DEBUG
-#define KVM_CAP_SET_GUEST_DEBUG 23
+#ifdef __KVM_HAVE_GUEST_DE
+#define KVM_CAP_SET_GUEST_DE 23
 #endif
 #ifdef __KVM_HAVE_PIT
 #define KVM_CAP_REINJECT_CONTROL 24
@@ -833,7 +833,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_IRQ_ROUTING 25
 #define KVM_CAP_IRQ_INJECT_STATUS 26
 #define KVM_CAP_ASSIGN_DEV_IRQ 29
-/* Another bug in KVM_SET_USER_MEMORY_REGION fixed: */
+/* Another  in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_JOIN_MEMORY_REGIONS_WORKS 30
 #ifdef __KVM_HAVE_MCE
 #define KVM_CAP_MCE 31
@@ -864,8 +864,8 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_PCI_SEGMENT 47
 #define KVM_CAP_PPC_PAIRED_SINGLES 48
 #define KVM_CAP_INTR_SHADOW 49
-#ifdef __KVM_HAVE_DEBUGREGS
-#define KVM_CAP_DEBUGREGS 50
+#ifdef __KVM_HAVE_DEREGS
+#define KVM_CAP_DEREGS 50
 #endif
 #define KVM_CAP_X86_ROBUST_SINGLESTEP 51
 #define KVM_CAP_PPC_OSI 52
@@ -939,8 +939,8 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_DISABLE_QUIRKS 116
 #define KVM_CAP_X86_SMM 117
 #define KVM_CAP_MULTI_ADDRESS_SPACE 118
-#define KVM_CAP_GUEST_DEBUG_HW_BPS 119
-#define KVM_CAP_GUEST_DEBUG_HW_WPS 120
+#define KVM_CAP_GUEST_DE_HW_BPS 119
+#define KVM_CAP_GUEST_DE_HW_WPS 120
 #define KVM_CAP_SPLIT_IRQCHIP 121
 #define KVM_CAP_IOEVENTFD_ANY_LENGTH 122
 #define KVM_CAP_HYPERV_SYNIC 123
@@ -1338,8 +1338,8 @@ struct kvm_s390_ucas_mapping {
 #define KVM_SET_SREGS             _IOW(KVMIO,  0x84, struct kvm_sregs)
 #define KVM_TRANSLATE             _IOWR(KVMIO, 0x85, struct kvm_translation)
 #define KVM_INTERRUPT             _IOW(KVMIO,  0x86, struct kvm_interrupt)
-/* KVM_DEBUG_GUEST is no longer supported, use KVM_SET_GUEST_DEBUG instead */
-#define KVM_DEBUG_GUEST           __KVM_DEPRECATED_VCPU_W_0x87
+/* KVM_DE_GUEST is no longer supported, use KVM_SET_GUEST_DE instead */
+#define KVM_DE_GUEST           __KVM_DEPRECATED_VCPU_W_0x87
 #define KVM_GET_MSRS              _IOWR(KVMIO, 0x88, struct kvm_msrs)
 #define KVM_SET_MSRS              _IOW(KVMIO,  0x89, struct kvm_msrs)
 #define KVM_SET_CPUID             _IOW(KVMIO,  0x8a, struct kvm_cpuid)
@@ -1368,8 +1368,8 @@ struct kvm_s390_ucas_mapping {
 #define KVM_SET_MP_STATE          _IOW(KVMIO,  0x99, struct kvm_mp_state)
 /* Available with KVM_CAP_USER_NMI */
 #define KVM_NMI                   _IO(KVMIO,   0x9a)
-/* Available with KVM_CAP_SET_GUEST_DEBUG */
-#define KVM_SET_GUEST_DEBUG       _IOW(KVMIO,  0x9b, struct kvm_guest_debug)
+/* Available with KVM_CAP_SET_GUEST_DE */
+#define KVM_SET_GUEST_DE       _IOW(KVMIO,  0x9b, struct kvm_guest_de)
 /* MCE for x86 */
 #define KVM_X86_SETUP_MCE         _IOW(KVMIO,  0x9c, __u64)
 #define KVM_X86_GET_MCE_CAP_SUPPORTED _IOR(KVMIO,  0x9d, __u64)
@@ -1377,9 +1377,9 @@ struct kvm_s390_ucas_mapping {
 /* Available with KVM_CAP_VCPU_EVENTS */
 #define KVM_GET_VCPU_EVENTS       _IOR(KVMIO,  0x9f, struct kvm_vcpu_events)
 #define KVM_SET_VCPU_EVENTS       _IOW(KVMIO,  0xa0, struct kvm_vcpu_events)
-/* Available with KVM_CAP_DEBUGREGS */
-#define KVM_GET_DEBUGREGS         _IOR(KVMIO,  0xa1, struct kvm_debugregs)
-#define KVM_SET_DEBUGREGS         _IOW(KVMIO,  0xa2, struct kvm_debugregs)
+/* Available with KVM_CAP_DEREGS */
+#define KVM_GET_DEREGS         _IOR(KVMIO,  0xa1, struct kvm_deregs)
+#define KVM_SET_DEREGS         _IOW(KVMIO,  0xa2, struct kvm_deregs)
 /*
  * vcpu version available with KVM_ENABLE_CAP
  * vm version available with KVM_CAP_ENABLE_CAP_VM
@@ -1462,7 +1462,7 @@ enum sev_cmd_id {
 	KVM_SEV_RECEIVE_UPDATE_DATA,
 	KVM_SEV_RECEIVE_UPDATE_VMSA,
 	KVM_SEV_RECEIVE_FINISH,
-	/* Guest status and debug commands */
+	/* Guest status and de commands */
 	KVM_SEV_GUEST_STATUS,
 	KVM_SEV_DBG_DECRYPT,
 	KVM_SEV_DBG_ENCRYPT,

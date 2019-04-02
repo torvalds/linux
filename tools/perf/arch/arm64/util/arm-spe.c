@@ -16,7 +16,7 @@
 #include "../../util/session.h"
 #include "../../util/util.h"
 #include "../../util/pmu.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/auxtrace.h"
 #include "../../util/arm-spe.h"
 
@@ -215,7 +215,7 @@ struct perf_event_attr
 	 */
 	if (perf_pmu__scan_file(arm_spe_pmu, "caps/min_interval", "%llu",
 				  &attr->sample_period) != 1) {
-		pr_debug("arm_spe driver doesn't advertise a min. interval. Using 4096\n");
+		pr_de("arm_spe driver doesn't advertise a min. interval. Using 4096\n");
 		attr->sample_period = 4096;
 	}
 

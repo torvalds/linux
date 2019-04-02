@@ -13,7 +13,7 @@
  * option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -114,7 +114,7 @@ lite5200_fix_port_config(void)
 	port_config &= ~0x03000000;	/* ATA CS is on csb_4/5		*/
 	port_config |=  0x01000000;
 
-	pr_debug("port_config: old:%x new:%x\n",
+	pr_de("port_config: old:%x new:%x\n",
 	         in_be32(&gpio->port_config), port_config);
 	out_be32(&gpio->port_config, port_config);
 

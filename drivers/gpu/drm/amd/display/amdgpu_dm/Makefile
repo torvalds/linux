@@ -31,8 +31,8 @@ ifneq ($(CONFIG_DRM_AMD_DC),)
 AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o amdgpu_dm_pp_smu.o
 endif
 
-ifneq ($(CONFIG_DEBUG_FS),)
-AMDGPUDM += amdgpu_dm_crc.o amdgpu_dm_debugfs.o
+ifneq ($(CONFIG_DE_FS),)
+AMDGPUDM += amdgpu_dm_crc.o amdgpu_dm_defs.o
 endif
 
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc

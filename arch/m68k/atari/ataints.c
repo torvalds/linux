@@ -14,7 +14,7 @@
  *  call trap() instead of inthandler(). This must be changed here, too.
  *
  * 1995-07-16 Lars Brinkhoff <f93labr@dd.chalmers.se>:
- *  Corrected a bug in atari_add_isr() which rejected all SCC
+ *  Corrected a  in atari_add_isr() which rejected all SCC
  *  interrupt sources if there were no TT MFP!
  *
  * 12/13/95: New interface functions atari_level_triggered_int() and

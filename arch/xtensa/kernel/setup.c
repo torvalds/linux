@@ -277,8 +277,8 @@ extern char _end[];
 extern char _stext[];
 extern char _WindowVectors_text_start;
 extern char _WindowVectors_text_end;
-extern char _DebugInterruptVector_text_start;
-extern char _DebugInterruptVector_text_end;
+extern char _DeInterruptVector_text_start;
+extern char _DeInterruptVector_text_end;
 extern char _KernelExceptionVector_text_start;
 extern char _KernelExceptionVector_text_end;
 extern char _UserExceptionVector_text_start;
@@ -346,8 +346,8 @@ void __init setup_arch(char **cmdline_p)
 	mem_reserve(__pa(&_WindowVectors_text_start),
 		    __pa(&_WindowVectors_text_end));
 
-	mem_reserve(__pa(&_DebugInterruptVector_text_start),
-		    __pa(&_DebugInterruptVector_text_end));
+	mem_reserve(__pa(&_DeInterruptVector_text_start),
+		    __pa(&_DeInterruptVector_text_end));
 
 	mem_reserve(__pa(&_KernelExceptionVector_text_start),
 		    __pa(&_KernelExceptionVector_text_end));
@@ -606,8 +606,8 @@ c_show(struct seq_file *f, void *slot)
 #if XCHAL_HAVE_NMI
 		     "nmi "
 #endif
-#if XCHAL_HAVE_DEBUG
-		     "debug "
+#if XCHAL_HAVE_DE
+		     "de "
 # if XCHAL_HAVE_OCD
 		     "ocd "
 # endif
@@ -669,12 +669,12 @@ c_show(struct seq_file *f, void *slot)
 		     "ext ints\t: %d\n"
 		     "int levels\t: %d\n"
 		     "timers\t\t: %d\n"
-		     "debug level\t: %d\n",
+		     "de level\t: %d\n",
 		     XCHAL_NUM_INTERRUPTS,
 		     XCHAL_NUM_EXTINTERRUPTS,
 		     XCHAL_NUM_INTLEVELS,
 		     XCHAL_NUM_TIMERS,
-		     XCHAL_DEBUGLEVEL);
+		     XCHAL_DELEVEL);
 
 	/* Cache */
 	seq_printf(f,"icache line size: %d\n"

@@ -131,7 +131,7 @@ void __local_bh_disable_ip(unsigned long ip, unsigned int cnt)
 	raw_local_irq_restore(flags);
 
 	if (preempt_count() == cnt) {
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 		current->preempt_disable_ip = get_lock_parent_ip();
 #endif
 		trace_preempt_off(CALLER_ADDR0, get_lock_parent_ip());
@@ -520,7 +520,7 @@ static void tasklet_action_common(struct softirq_action *a,
 			if (!atomic_read(&t->count)) {
 				if (!test_and_clear_bit(TASKLET_STATE_SCHED,
 							&t->state))
-					BUG();
+					();
 				t->func(t->data);
 				tasklet_unlock(t);
 				continue;
@@ -674,8 +674,8 @@ void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu)
 {
 	struct tasklet_struct **i;
 
-	BUG_ON(cpu_online(cpu));
-	BUG_ON(test_bit(TASKLET_STATE_RUN, &t->state));
+	_ON(cpu_online(cpu));
+	_ON(test_bit(TASKLET_STATE_RUN, &t->state));
 
 	if (!test_bit(TASKLET_STATE_SCHED, &t->state))
 		return;
@@ -690,7 +690,7 @@ void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu)
 			return;
 		}
 	}
-	BUG();
+	();
 }
 
 static int takeover_tasklets(unsigned int cpu)
@@ -733,7 +733,7 @@ static __init int spawn_ksoftirqd(void)
 {
 	cpuhp_setup_state_nocalls(CPUHP_SOFTIRQ_DEAD, "softirq:dead", NULL,
 				  takeover_tasklets);
-	BUG_ON(smpboot_register_percpu_thread(&softirq_threads));
+	_ON(smpboot_register_percpu_thread(&softirq_threads));
 
 	return 0;
 }

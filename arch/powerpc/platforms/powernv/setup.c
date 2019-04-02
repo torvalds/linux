@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/cpu.h>
 #include <linux/errno.h>
@@ -25,7 +25,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/interrupt.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/pci.h>
 #include <linux/cpufreq.h>
 
@@ -413,7 +413,7 @@ static int __init pnv_probe(void)
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
 
-	pr_debug("PowerNV detected !\n");
+	pr_de("PowerNV detected !\n");
 
 	pnv_init();
 

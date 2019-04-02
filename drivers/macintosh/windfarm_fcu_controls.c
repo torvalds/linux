@@ -5,7 +5,7 @@
  *
  * Released under the term of the GNU GPL v2.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -25,7 +25,7 @@
 
 #define VERSION "1.0"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(args...)	printk(args)
 #else
 #define DBG(args...)	do { } while(0)
@@ -511,7 +511,7 @@ static int wf_fcu_init_chip(struct wf_fcu_priv *pv)
 		return -EIO;
 	pv->rpm_shift = (buf == 1) ? 2 : 3;
 
-	pr_debug("wf_fcu: FCU Initialized, RPM fan shift is %d\n",
+	pr_de("wf_fcu: FCU Initialized, RPM fan shift is %d\n",
 		 pv->rpm_shift);
 
 	return 0;

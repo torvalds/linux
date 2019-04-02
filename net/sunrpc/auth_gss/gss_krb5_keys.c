@@ -61,7 +61,7 @@
 #include <linux/sunrpc/xdr.h>
 #include <linux/lcm.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -215,7 +215,7 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 	inblock.data = (char *) rawkey;
 	inblock.len = keybytes;
 
-	BUG_ON(gk5e->mk_key == NULL);
+	_ON(gk5e->mk_key == NULL);
 	ret = (*(gk5e->mk_key))(gk5e, &inblock, outkey);
 	if (ret) {
 		dprintk("%s: got %d from mk_key function for '%s'\n",

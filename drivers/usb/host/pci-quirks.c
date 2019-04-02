@@ -253,7 +253,7 @@ int usb_amd_find_chipset_info(void)
 	}
 
 	ret = info.probe_result = 1;
-	printk(KERN_DEBUG "QUIRK: Enable AMD PLL fix\n");
+	printk(KERN_DE "QUIRK: Enable AMD PLL fix\n");
 
 commit:
 
@@ -300,7 +300,7 @@ bool usb_amd_hang_symptom_quirk(void)
 
 	usb_amd_find_chipset_info();
 	rev = amd_chipset.sb_type.rev;
-	/* SB600 and old version of SB700 have hang symptom bug */
+	/* SB600 and old version of SB700 have hang symptom  */
 	return amd_chipset.sb_type.gen == AMD_CHIPSET_SB600 ||
 			(amd_chipset.sb_type.gen == AMD_CHIPSET_SB700 &&
 			 rev >= 0x3a && rev <= 0x3b);
@@ -775,7 +775,7 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 		}
 		if (wait_time <= 0)
 			dev_warn(&pdev->dev,
-				 "OHCI: BIOS handoff failed (BIOS bug?) %08x\n",
+				 "OHCI: BIOS handoff failed (BIOS ?) %08x\n",
 				 readl(base + OHCI_CONTROL));
 	}
 #endif
@@ -850,7 +850,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 	 * The Pegatron Lucid tablet sporadically waits for 98 seconds trying
 	 * the handoff on its unused controller.  Skip it.
 	 *
-	 * The HASEE E200 hangs when the semaphore is set (bugzilla #77021).
+	 * The HASEE E200 hangs when the semaphore is set (zilla #77021).
 	 */
 	if (pdev->vendor == 0x8086 && (pdev->device == 0x283a ||
 			pdev->device == 0x27cc)) {
@@ -894,12 +894,12 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 	}
 
 	if (cap & EHCI_USBLEGSUP_BIOS) {
-		/* well, possibly buggy BIOS... try to shut it down,
+		/* well, possibly gy BIOS... try to shut it down,
 		 * and hope nothing goes too wrong
 		 */
 		if (try_handoff)
 			dev_warn(&pdev->dev,
-				 "EHCI: BIOS handoff failed (BIOS bug?) %08x\n",
+				 "EHCI: BIOS handoff failed (BIOS ?) %08x\n",
 				 cap);
 		pci_write_config_byte(pdev, offset + 2, 0);
 	}
@@ -954,7 +954,7 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
 		offset = (cap >> 8) & 0xff;
 	}
 	if (!count)
-		dev_printk(KERN_DEBUG, &pdev->dev, "EHCI: capability loop?\n");
+		dev_printk(KERN_DE, &pdev->dev, "EHCI: capability loop?\n");
 
 	/*
 	 * halt EHCI & disable its interrupts in any case
@@ -1177,10 +1177,10 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 		timeout = handshake(base + ext_cap_offset, XHCI_HC_BIOS_OWNED,
 				0, 1000000, 10);
 
-		/* Assume a buggy BIOS and take HC ownership anyway */
+		/* Assume a gy BIOS and take HC ownership anyway */
 		if (timeout) {
 			dev_warn(&pdev->dev,
-				 "xHCI BIOS handoff failed (BIOS bug ?) %08x\n",
+				 "xHCI BIOS handoff failed (BIOS  ?) %08x\n",
 				 val);
 			writel(val & ~XHCI_HC_BIOS_OWNED, base + ext_cap_offset);
 		}
@@ -1205,11 +1205,11 @@ hc_init:
 	 */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
 			5000000, 10);
-	/* Assume a buggy HC and start HC initialization anyway */
+	/* Assume a gy HC and start HC initialization anyway */
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-			 "xHCI HW not ready after 5 sec (HC bug?) status = 0x%x\n",
+			 "xHCI HW not ready after 5 sec (HC ?) status = 0x%x\n",
 			 val);
 	}
 

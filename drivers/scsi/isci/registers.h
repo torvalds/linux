@@ -1144,7 +1144,7 @@ struct scu_transport_layer_registers {
 	/* 0x0020 RXTLSSCSR2 */
 	u32 rxtl_single_step_control_status_2;
 	/* 0x0024 AWTRDDCR */
-	u32 tlfe_awt_retry_delay_debug_control;
+	u32 tlfe_awt_retry_delay_de_control;
 	/* Remainder of TL memory space */
 	u32 reserved_0028_007F[0x16];
 

@@ -170,7 +170,7 @@ pxa_init_irq_common(struct device_node *node, int irq_nr,
 
 void __init pxa_init_irq(int irq_nr, int (*fn)(struct irq_data *, unsigned int))
 {
-	BUG_ON(irq_nr > MAX_INTERNAL_IRQS);
+	_ON(irq_nr > MAX_INTERNAL_IRQS);
 
 	pxa_irq_base = io_p2v(0x40d00000);
 	cpu_has_ipr = !cpu_is_pxa25x();

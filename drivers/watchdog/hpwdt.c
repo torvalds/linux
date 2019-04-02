@@ -75,7 +75,7 @@ static void hpwdt_stop(void)
 {
 	unsigned long data;
 
-	pr_debug("stop  watchdog\n");
+	pr_de("stop  watchdog\n");
 
 	data = ioread8(hpwdt_timer_con);
 	data &= 0xFE;

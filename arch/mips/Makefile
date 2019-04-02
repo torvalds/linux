@@ -88,7 +88,7 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 # the current pointer optimization.
 #
 # The DECStation requires an ECOFF kernel for remote booting, other MIPS
-# machines may also.  Since BFD is incredibly buggy with respect to
+# machines may also.  Since BFD is incredibly gy with respect to
 # crossformat linking we rely on the elf2ecoff tool for format conversion.
 #
 cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
@@ -120,8 +120,8 @@ cflags-y += -ffreestanding
 #
 # Certain gcc versions up to gcc 4.1.1 (probably 4.2-subversion as of
 # 2006-10-10 don't properly change the predefined symbols if -EB / -EL
-# are used, so we kludge that here.  A bug has been filed at
-# http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29413.
+# are used, so we kludge that here.  A  has been filed at
+# http://gcc.gnu.org/zilla/show_.cgi?id=29413.
 #
 # clang doesn't suffer from these issues and our checks against -dumpmachine
 # don't work so well when cross compiling, since without providing --target
@@ -304,7 +304,7 @@ ifdef CONFIG_64BIT
 bootvars-y	+= ADDR_BITS=64
 endif
 
-# This is required to get dwarf unwinding tables into .debug_frame
+# This is required to get dwarf unwinding tables into .de_frame
 # instead of .eh_frame so we don't discard them.
 KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 

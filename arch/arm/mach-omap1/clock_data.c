@@ -769,7 +769,7 @@ int __init omap1_clk_init(void)
 	int crystal_type = 0; /* Default 12 MHz */
 	u32 reg;
 
-#ifdef CONFIG_DEBUG_LL
+#ifdef CONFIG_DE_LL
 	/*
 	 * Resets some clocks that may be left on from bootloader,
 	 * but leaves serial clocks on.

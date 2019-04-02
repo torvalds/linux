@@ -11,8 +11,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  ******************************************************************************/
-#ifndef __RTL871X_DEBUG_H__
-#define __RTL871X_DEBUG_H__
+#ifndef __RTL871X_DE_H__
+#define __RTL871X_DE_H__
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -26,7 +26,7 @@
 #define _drv_notice_			6
 #define _drv_info_			7
 #define _drv_dump_			8
-#define	_drv_debug_			9
+#define	_drv_de_			9
 
 
 #define _module_rtl871x_xmit_c_		BIT(0)
@@ -151,5 +151,5 @@
 #undef ERR_8712
 #define ERR_8712 _dbgdump
 
-#endif	/*__RTL871X_DEBUG_H__*/
+#endif	/*__RTL871X_DE_H__*/
 

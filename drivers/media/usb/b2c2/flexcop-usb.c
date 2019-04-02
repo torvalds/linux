@@ -12,12 +12,12 @@
 #define DRIVER_NAME "Technisat/B2C2 FlexCop II/IIb/III Digital TV USB Driver"
 #define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@posteo.de>"
 
-/* debug */
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+/* de */
+#ifdef CONFIG_DVB_B2C2_FLEXCOP_DE
 #define dprintk(level,args...) \
-	do { if ((debug & level)) printk(args); } while (0)
+	do { if ((de & level)) printk(args); } while (0)
 
-#define debug_dump(b, l, method) do {\
+#define de_dump(b, l, method) do {\
 	int i; \
 	for (i = 0; i < l; i++) \
 		method("%02x ", b[i]); \
@@ -27,13 +27,13 @@
 #define DEBSTATUS ""
 #else
 #define dprintk(level, args...)
-#define debug_dump(b, l, method)
-#define DEBSTATUS " (debugging is not enabled)"
+#define de_dump(b, l, method)
+#define DEBSTATUS " (deging is not enabled)"
 #endif
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,ts=2,ctrl=4,i2c=8,v8mem=16 (or-able))." DEBSTATUS);
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,ts=2,ctrl=4,i2c=8,v8mem=16 (or-able))." DEBSTATUS);
 #undef DEBSTATUS
 
 #define deb_info(args...) dprintk(0x01, args)
@@ -166,7 +166,7 @@ static int flexcop_usb_v8_memory_req(struct flexcop_usb *fc_usb,
 
 	mutex_unlock(&fc_usb->data_mutex);
 
-	debug_dump(pbBuffer, ret, deb_v8);
+	de_dump(pbBuffer, ret, deb_v8);
 	return ret;
 }
 

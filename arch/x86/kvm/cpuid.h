@@ -61,8 +61,8 @@ static __always_inline struct cpuid_reg x86_feature_cpuid(unsigned x86_feature)
 {
 	unsigned x86_leaf = x86_feature / 32;
 
-	BUILD_BUG_ON(x86_leaf >= ARRAY_SIZE(reverse_cpuid));
-	BUILD_BUG_ON(reverse_cpuid[x86_leaf].function == 0);
+	BUILD__ON(x86_leaf >= ARRAY_SIZE(reverse_cpuid));
+	BUILD__ON(reverse_cpuid[x86_leaf].function == 0);
 
 	return reverse_cpuid[x86_leaf];
 }
@@ -86,7 +86,7 @@ static __always_inline int *guest_cpuid_get_register(struct kvm_vcpu *vcpu, unsi
 	case CPUID_EDX:
 		return &entry->edx;
 	default:
-		BUILD_BUG();
+		BUILD_();
 		return NULL;
 	}
 }

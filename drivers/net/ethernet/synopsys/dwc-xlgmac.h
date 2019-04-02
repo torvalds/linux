@@ -519,7 +519,7 @@ struct xlgmac_hw_features {
 	unsigned int dcb;		/* DCB Feature */
 	unsigned int sph;		/* Split Header Feature */
 	unsigned int tso;		/* TCP Segmentation Offload */
-	unsigned int dma_debug;		/* DMA Debug Registers */
+	unsigned int dma_de;		/* DMA De Registers */
 	unsigned int rss;		/* Receive Side Scaling */
 	unsigned int tc_cnt;		/* Number of Traffic Classes */
 	unsigned int hash_table_size;	/* Hash Table Size */
@@ -649,8 +649,8 @@ int xlgmac_drv_probe(struct device *dev,
 		     struct xlgmac_resources *res);
 int xlgmac_drv_remove(struct device *dev);
 
-/* For debug prints */
-#ifdef XLGMAC_DEBUG
+/* For de prints */
+#ifdef XLGMAC_DE
 #define XLGMAC_PR(fmt, args...) \
 	pr_alert("[%s,%d]:" fmt, __func__, __LINE__, ## args)
 #else

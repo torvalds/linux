@@ -588,7 +588,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 	pgprot_t prot;
 	int ret;
 
-	BUG_ON(!ttm);
+	_ON(!ttm);
 
 	ret = ttm_tt_populate(ttm, &ctx);
 	if (ret)
@@ -668,7 +668,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 	case ttm_bo_map_premapped:
 		break;
 	default:
-		BUG();
+		();
 	}
 	(void) ttm_mem_io_lock(man, false);
 	ttm_mem_io_free(map->bo->bdev, &map->bo->mem);

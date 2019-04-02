@@ -75,7 +75,7 @@ int uwb_rc_dev_addr_mgmt(struct uwb_rc *rc,
 		switch (bmOperationType >> 1) {
 		case 0:	size = 2; break;
 		case 1:	size = 6; break;
-		default: BUG();
+		default: ();
 		}
 		memcpy(cmd->baAddr, baAddr, size);
 	}
@@ -193,7 +193,7 @@ static int uwb_rc_addr_get(struct uwb_rc *rc,
 			       sizeof(mac_addr->data));
 			break;
 		default:		/* shut gcc up */
-			BUG();
+			();
 		}
 	return result;
 }

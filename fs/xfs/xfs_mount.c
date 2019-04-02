@@ -217,7 +217,7 @@ xfs_initialize_perag(
 
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
-			BUG();
+			();
 			spin_unlock(&mp->m_perag_lock);
 			radix_tree_preload_end();
 			error = -EEXIST;
@@ -1183,7 +1183,7 @@ xfs_unmountfs(
 	xfs_da_unmount(mp);
 	xfs_uuid_unmount(mp);
 
-#if defined(DEBUG)
+#if defined(DE)
 	xfs_errortag_clearall(mp);
 #endif
 	xfs_free_perag(mp);

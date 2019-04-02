@@ -166,7 +166,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			bool safe_to_lower)
 {
 	struct dc *dc = clk_mgr->ctx->dc;
-	struct dc_debug_options *debug = &dc->debug;
+	struct dc_de_options *de = &dc->de;
 	struct dc_clocks *new_clocks = &context->bw.dcn.clk;
 	struct pp_smu_display_requirement_rv *smu_req_cur =
 			&dc->res_pool->pp_smu_req;
@@ -208,8 +208,8 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	}
 
 	// F Clock
-	if (debug->force_fclk_khz != 0)
-		new_clocks->fclk_khz = debug->force_fclk_khz;
+	if (de->force_fclk_khz != 0)
+		new_clocks->fclk_khz = de->force_fclk_khz;
 
 	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, clk_mgr->clks.fclk_khz)) {
 		clk_mgr->clks.fclk_khz = new_clocks->fclk_khz;
@@ -287,13 +287,13 @@ static const struct clk_mgr_funcs dcn1_funcs = {
 };
 struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx)
 {
-	struct dc_debug_options *debug = &ctx->dc->debug;
+	struct dc_de_options *de = &ctx->dc->de;
 	struct dc_bios *bp = ctx->dc_bios;
 	struct dc_firmware_info fw_info = { { 0 } };
 	struct dce_clk_mgr *clk_mgr_dce = kzalloc(sizeof(*clk_mgr_dce), GFP_KERNEL);
 
 	if (clk_mgr_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -316,7 +316,7 @@ struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx)
 			clk_mgr_dce->dentist_vco_freq_khz = 3600000;
 	}
 
-	if (!debug->disable_dfs_bypass && bp->integrated_info)
+	if (!de->disable_dfs_bypass && bp->integrated_info)
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_mgr_dce->dfs_bypass_enabled = true;
 

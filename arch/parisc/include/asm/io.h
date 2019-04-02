@@ -11,12 +11,12 @@
 #define bus_to_virt phys_to_virt
 
 static inline unsigned long isa_bus_to_virt(unsigned long addr) {
-	BUG();
+	();
 	return 0;
 }
 
 static inline unsigned long isa_virt_to_bus(void *addr) {
-	BUG();
+	();
 	return 0;
 }
 
@@ -269,25 +269,25 @@ extern void outl(unsigned int b, int addr);
 #else
 static inline char inb(unsigned long addr)
 {
-	BUG();
+	();
 	return -1;
 }
 
 static inline short inw(unsigned long addr)
 {
-	BUG();
+	();
 	return -1;
 }
 
 static inline int inl(unsigned long addr)
 {
-	BUG();
+	();
 	return -1;
 }
 
-#define outb(x, y)	BUG()
-#define outw(x, y)	BUG()
-#define outl(x, y)	BUG()
+#define outb(x, y)	()
+#define outw(x, y)	()
+#define outl(x, y)	()
 #endif
 
 /*

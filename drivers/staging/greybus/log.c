@@ -56,7 +56,7 @@ static int gb_log_request_handler(struct gb_operation *op)
 
 	/*
 	 * Print with dev_dbg() so that it can be easily turned off using
-	 * dynamic debugging (and prevent any DoS)
+	 * dynamic deging (and prevent any DoS)
 	 */
 	dev_dbg(dev, "%s", receive->msg);
 

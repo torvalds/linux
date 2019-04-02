@@ -204,7 +204,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 
 	tmp_options = kstrdup(params, GFP_KERNEL);
 	if (!tmp_options) {
-		p9_debug(P9_DEBUG_ERROR,
+		p9_de(P9_DE_ERROR,
 			 "failed to allocate copy of option string\n");
 		return -ENOMEM;
 	}
@@ -219,7 +219,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 		if ((token != Opt_err) && (token != Opt_privport)) {
 			r = match_int(&args[0], &option);
 			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
+				p9_de(P9_DE_ERROR,
 					 "integer field, but no integer?\n");
 				continue;
 			}
@@ -257,17 +257,17 @@ p9_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct p9_trans_rdma *rdma = c->trans;
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
-		BUG_ON(rdma->state != P9_RDMA_INIT);
+		_ON(rdma->state != P9_RDMA_INIT);
 		rdma->state = P9_RDMA_ADDR_RESOLVED;
 		break;
 
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
-		BUG_ON(rdma->state != P9_RDMA_ADDR_RESOLVED);
+		_ON(rdma->state != P9_RDMA_ADDR_RESOLVED);
 		rdma->state = P9_RDMA_ROUTE_RESOLVED;
 		break;
 
 	case RDMA_CM_EVENT_ESTABLISHED:
-		BUG_ON(rdma->state != P9_RDMA_ROUTE_RESOLVED);
+		_ON(rdma->state != P9_RDMA_ROUTE_RESOLVED);
 		rdma->state = P9_RDMA_CONNECTED;
 		break;
 
@@ -295,7 +295,7 @@ p9_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		rdma_disconnect(rdma->cm_id);
 		break;
 	default:
-		BUG();
+		();
 	}
 	complete(&rdma->cm_done);
 	return 0;
@@ -345,7 +345,7 @@ recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	return;
 
  err_out:
-	p9_debug(P9_DEBUG_ERROR, "req %p err %d status %d\n",
+	p9_de(P9_DE_ERROR, "req %p err %d status %d\n",
 			req, err, wc->status);
 	rdma->state = P9_RDMA_FLUSHING;
 	client->status = Disconnected;
@@ -370,7 +370,7 @@ send_done(struct ib_cq *cq, struct ib_wc *wc)
 
 static void qp_event_handler(struct ib_event *event, void *context)
 {
-	p9_debug(P9_DEBUG_ERROR, "QP event %d context %p\n",
+	p9_de(P9_DE_ERROR, "QP event %d context %p\n",
 		 event->event, context);
 }
 
@@ -420,7 +420,7 @@ post_recv(struct p9_client *client, struct p9_rdma_context *c)
 	return ib_post_recv(rdma->qp, &wr, NULL);
 
  error:
-	p9_debug(P9_DEBUG_ERROR, "EIO\n");
+	p9_de(P9_DE_ERROR, "EIO\n");
 	return -EIO;
 }
 
@@ -476,7 +476,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 
 	err = post_recv(client, rpl_context);
 	if (err) {
-		p9_debug(P9_DEBUG_ERROR, "POST RECV failed: %d\n", err);
+		p9_de(P9_DE_ERROR, "POST RECV failed: %d\n", err);
 		goto recv_error;
 	}
 	/* remove posted receive buffer from request structure */
@@ -533,7 +533,7 @@ dont_need_post_recv:
  send_error:
 	req->status = REQ_STATUS_ERROR;
 	kfree(c);
-	p9_debug(P9_DEBUG_ERROR, "Error %d in rdma_request()\n", err);
+	p9_de(P9_DE_ERROR, "Error %d in rdma_request()\n", err);
 
 	/* Ach.
 	 *  We did recv_post(), but not send. We have one recv_post in excess.

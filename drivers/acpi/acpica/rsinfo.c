@@ -105,7 +105,7 @@ struct acpi_rsconvert_info *acpi_gbl_convert_resource_serial_bus_dispatch[] = {
 	acpi_rs_convert_uart_serial_bus,
 };
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DISASSEMBLER) || defined(ACPI_DEGER)
 
 /* Dispatch table for resource dump functions */
 

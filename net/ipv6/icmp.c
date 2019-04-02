@@ -776,7 +776,7 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 	if (!pskb_may_pull(skb, inner_offset+8))
 		goto out;
 
-	/* BUGGG_FUTURE: we should try to parse exthdrs in this packet.
+	/* GG_FUTURE: we should try to parse exthdrs in this packet.
 	   Without this we will not able f.e. to make source routed
 	   pmtu discovery.
 	   Corresponding argument (opt) to notifiers is already added.
@@ -859,7 +859,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
-		/* BUGGG_FUTURE: if packet contains rthdr, we cannot update
+		/* GG_FUTURE: if packet contains rthdr, we cannot update
 		   standard destination cache. Seems, only "advanced"
 		   destination cache will allow to solve this problem
 		   --ANK (980726)

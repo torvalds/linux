@@ -752,7 +752,7 @@ static int vop_driver_probe(struct vop_device *vpdev)
 		bootparam = vpdev->hw_ops->get_remote_dp(vpdev);
 		iowrite8(vi->h2c_config_db, &bootparam->h2c_config_db);
 	}
-	vop_init_debugfs(vi);
+	vop_init_defs(vi);
 	return 0;
 free:
 	kfree(vi);
@@ -775,7 +775,7 @@ static void vop_driver_remove(struct vop_device *vpdev)
 		flush_work(&vi->hotplug_work);
 		vop_scan_devices(vi, vpdev, REMOVE_DEVICES);
 	}
-	vop_exit_debugfs(vi);
+	vop_exit_defs(vi);
 	kfree(vi);
 }
 

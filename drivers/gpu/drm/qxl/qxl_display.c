@@ -77,11 +77,11 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 	if (crc != qdev->rom->client_monitors_config_crc)
 		return MONITORS_CONFIG_BAD_CRC;
 	if (!num_monitors) {
-		DRM_DEBUG_KMS("no client monitors configured\n");
+		DRM_DE_KMS("no client monitors configured\n");
 		return status;
 	}
 	if (num_monitors > qxl_num_crtc) {
-		DRM_DEBUG_KMS("client monitors list will be truncated: %d < %d\n",
+		DRM_DE_KMS("client monitors list will be truncated: %d < %d\n",
 			      qxl_num_crtc, num_monitors);
 		num_monitors = qxl_num_crtc;
 	} else {
@@ -130,7 +130,7 @@ static int qxl_display_copy_rom_client_monitors_config(struct qxl_device *qdev)
 			client_head->flags = 0;
 			status = MONITORS_CONFIG_MODIFIED;
 		}
-		DRM_DEBUG_KMS("read %dx%d+%d+%d\n", client_head->width, client_head->height,
+		DRM_DE_KMS("read %dx%d+%d+%d\n", client_head->width, client_head->height,
 			  client_head->x, client_head->y);
 	}
 
@@ -168,15 +168,15 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		udelay(5);
 	}
 	if (status == MONITORS_CONFIG_ERROR) {
-		DRM_DEBUG_KMS("ignoring client monitors config: error");
+		DRM_DE_KMS("ignoring client monitors config: error");
 		return;
 	}
 	if (status == MONITORS_CONFIG_BAD_CRC) {
-		DRM_DEBUG_KMS("ignoring client monitors config: bad crc");
+		DRM_DE_KMS("ignoring client monitors config: bad crc");
 		return;
 	}
 	if (status == MONITORS_CONFIG_UNCHANGED) {
-		DRM_DEBUG_KMS("ignoring client monitors config: unchanged");
+		DRM_DE_KMS("ignoring client monitors config: unchanged");
 		return;
 	}
 
@@ -254,7 +254,7 @@ static int qxl_add_monitors_config_modes(struct drm_connector *connector)
 		return 0;
 
 	head = &qdev->client_monitors_config->heads[h];
-	DRM_DEBUG_KMS("head %d is %dx%d\n", h, head->width, head->height);
+	DRM_DE_KMS("head %d is %dx%d\n", h, head->width, head->height);
 
 	return qxl_add_mode(connector, head->width, head->height, true);
 }
@@ -284,7 +284,7 @@ static void qxl_send_monitors_config(struct qxl_device *qdev)
 {
 	int i;
 
-	BUG_ON(!qdev->ram_header->monitors_config);
+	_ON(!qdev->ram_header->monitors_config);
 
 	if (qdev->monitors_config->count == 0)
 		return;
@@ -313,7 +313,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 	int oldcount, i = qcrtc->index;
 
 	if (!qdev->primary_bo) {
-		DRM_DEBUG_KMS("no primary surface, skip (%s)\n", reason);
+		DRM_DE_KMS("no primary surface, skip (%s)\n", reason);
 		return;
 	}
 
@@ -342,7 +342,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 		if (qdev->monitors_config->count == i + 1)
 			qdev->monitors_config->count = i;
 	} else {
-		DRM_DEBUG_KMS("inactive head 0, skip (%s)\n", reason);
+		DRM_DE_KMS("inactive head 0, skip (%s)\n", reason);
 		return;
 	}
 
@@ -353,11 +353,11 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 	    oldcount    == qdev->monitors_config->count)
 		return;
 
-	DRM_DEBUG_KMS("head %d, %dx%d, at +%d+%d, %s (%s)\n",
+	DRM_DE_KMS("head %d, %dx%d, at +%d+%d, %s (%s)\n",
 		      i, head.width, head.height, head.x, head.y,
 		      crtc->state->active ? "on" : "off", reason);
 	if (oldcount != qdev->monitors_config->count)
-		DRM_DEBUG_KMS("active heads %d -> %d (%d total)\n",
+		DRM_DE_KMS("active heads %d -> %d (%d total)\n",
 			      oldcount, qdev->monitors_config->count,
 			      qxl_num_crtc);
 
@@ -740,7 +740,7 @@ static void qxl_update_dumb_head(struct qxl_device *qdev,
 	    qdev->dumb_heads[index].height == height)
 		return;
 
-	DRM_DEBUG("#%d: %dx%d -> %dx%d\n", index,
+	DRM_DE("#%d: %dx%d -> %dx%d\n", index,
 		  qdev->dumb_heads[index].width,
 		  qdev->dumb_heads[index].height,
 		  width, height);
@@ -772,7 +772,7 @@ static void qxl_calc_dumb_shadow(struct qxl_device *qdev,
 	if (!qdev->dumb_shadow_bo ||
 	    qdev->dumb_shadow_bo->surf.width != surf->width ||
 	    qdev->dumb_shadow_bo->surf.height != surf->height)
-		DRM_DEBUG("%dx%d\n", surf->width, surf->height);
+		DRM_DE("%dx%d\n", surf->width, surf->height);
 }
 
 static int qxl_plane_prepare_fb(struct drm_plane *plane,
@@ -1020,7 +1020,7 @@ static struct drm_encoder *qxl_best_encoder(struct drm_connector *connector)
 	struct qxl_output *qxl_output =
 		drm_connector_to_qxl_output(connector);
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	return &qxl_output->enc;
 }
 
@@ -1051,7 +1051,7 @@ static enum drm_connector_status qxl_conn_detect(
 		connected = qdev->client_monitors_config->count > output->index &&
 		     qxl_head_enabled(&qdev->client_monitors_config->heads[output->index]);
 
-	DRM_DEBUG("#%d connected: %d\n", output->index, connected);
+	DRM_DE("#%d connected: %d\n", output->index, connected);
 
 	return connected ? connector_status_connected
 			 : connector_status_disconnected;

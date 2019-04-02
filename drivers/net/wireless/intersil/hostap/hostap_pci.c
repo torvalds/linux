@@ -50,9 +50,9 @@ static const struct pci_device_id prism2_pci_id_table[] = {
 };
 
 
-#ifdef PRISM2_IO_DEBUG
+#ifdef PRISM2_IO_DE
 
-static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
+static inline void hfa384x_outb_de(struct net_device *dev, int a, u8 v)
 {
 	struct hostap_interface *iface;
 	struct hostap_pci_priv *hw_priv;
@@ -64,12 +64,12 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTB, a, v);
 	writeb(v, hw_priv->mem_start + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
+static inline u8 hfa384x_inb_de(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
 	struct hostap_pci_priv *hw_priv;
@@ -83,12 +83,12 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = readb(hw_priv->mem_start + a);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INB, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INB, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
 }
 
-static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
+static inline void hfa384x_outw_de(struct net_device *dev, int a, u16 v)
 {
 	struct hostap_interface *iface;
 	struct hostap_pci_priv *hw_priv;
@@ -100,12 +100,12 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 	hw_priv = local->hw_priv;
 
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTW, a, v);
 	writew(v, hw_priv->mem_start + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
+static inline u16 hfa384x_inw_de(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
 	struct hostap_pci_priv *hw_priv;
@@ -119,19 +119,19 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 
 	spin_lock_irqsave(&local->lock, flags);
 	v = readw(hw_priv->mem_start + a);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INW, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INW, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
 }
 
-#define HFA384X_OUTB(v,a) hfa384x_outb_debug(dev, (a), (v))
-#define HFA384X_INB(a) hfa384x_inb_debug(dev, (a))
-#define HFA384X_OUTW(v,a) hfa384x_outw_debug(dev, (a), (v))
-#define HFA384X_INW(a) hfa384x_inw_debug(dev, (a))
-#define HFA384X_OUTW_DATA(v,a) hfa384x_outw_debug(dev, (a), le16_to_cpu((v)))
-#define HFA384X_INW_DATA(a) cpu_to_le16(hfa384x_inw_debug(dev, (a)))
+#define HFA384X_OUTB(v,a) hfa384x_outb_de(dev, (a), (v))
+#define HFA384X_INB(a) hfa384x_inb_de(dev, (a))
+#define HFA384X_OUTW(v,a) hfa384x_outw_de(dev, (a), (v))
+#define HFA384X_INW(a) hfa384x_inw_de(dev, (a))
+#define HFA384X_OUTW_DATA(v,a) hfa384x_outw_de(dev, (a), le16_to_cpu((v)))
+#define HFA384X_INW_DATA(a) cpu_to_le16(hfa384x_inw_de(dev, (a)))
 
-#else /* PRISM2_IO_DEBUG */
+#else /* PRISM2_IO_DE */
 
 static inline void hfa384x_outb(struct net_device *dev, int a, u8 v)
 {
@@ -176,7 +176,7 @@ static inline u16 hfa384x_inw(struct net_device *dev, int a)
 #define HFA384X_OUTW_DATA(v,a) hfa384x_outw(dev, (a), le16_to_cpu((v)))
 #define HFA384X_INW_DATA(a) cpu_to_le16(hfa384x_inw(dev, (a)))
 
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 
 static int hfa384x_from_bap(struct net_device *dev, u16 bap, void *buf,
@@ -225,7 +225,7 @@ static void prism2_pci_cor_sreset(local_info_t *local)
 	u16 reg;
 
 	reg = HFA384X_INB(HFA384X_PCICOR_OFF);
-	printk(KERN_DEBUG "%s: Original COR value: 0x%0x\n", dev->name, reg);
+	printk(KERN_DE "%s: Original COR value: 0x%0x\n", dev->name, reg);
 
 	/* linux-wlan-ng uses extremely long hold and settle times for
 	 * COR sreset. A comment in the driver code mentions that the long
@@ -259,7 +259,7 @@ static void prism2_pci_cor_sreset(local_info_t *local)
 #endif /* PRISM2_PCI_USE_LONG_DELAYS */
 
 	if (HFA384X_INW(HFA384X_CMD_OFF) & HFA384X_CMD_BUSY) {
-		printk(KERN_DEBUG "%s: COR sreset timeout\n", dev->name);
+		printk(KERN_DE "%s: COR sreset timeout\n", dev->name);
 	}
 }
 
@@ -343,7 +343,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 		irq_registered = 1;
 
 	if (!local->pri_only && prism2_hw_config(dev, 1)) {
-		printk(KERN_DEBUG "%s: hardware initialization failed\n",
+		printk(KERN_DE "%s: hardware initialization failed\n",
 		       dev_info);
 		goto fail;
 	}

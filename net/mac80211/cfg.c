@@ -32,7 +32,7 @@ static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 	if (params->vht_mumimo_groups) {
 		u64 membership;
 
-		BUILD_BUG_ON(sizeof(membership) != WLAN_MEMBERSHIP_LEN);
+		BUILD__ON(sizeof(membership) != WLAN_MEMBERSHIP_LEN);
 
 		memcpy(sdata->vif.bss_conf.mu_group.membership,
 		       params->vht_mumimo_groups, WLAN_MEMBERSHIP_LEN);
@@ -570,17 +570,17 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		BUILD_BUG_ON(offsetof(typeof(kseq), ccmp) !=
+		BUILD__ON(offsetof(typeof(kseq), ccmp) !=
 			     offsetof(typeof(kseq), aes_cmac));
 		/* fall through */
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		BUILD_BUG_ON(offsetof(typeof(kseq), ccmp) !=
+		BUILD__ON(offsetof(typeof(kseq), ccmp) !=
 			     offsetof(typeof(kseq), aes_gmac));
 		/* fall through */
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		BUILD_BUG_ON(offsetof(typeof(kseq), ccmp) !=
+		BUILD__ON(offsetof(typeof(kseq), ccmp) !=
 			     offsetof(typeof(kseq), gcmp));
 
 		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
@@ -2211,7 +2211,7 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 
 	sdata->tx_conf[params->ac] = p;
 	if (drv_conf_tx(local, sdata, params->ac, &p)) {
-		wiphy_debug(local->hw.wiphy,
+		wiphy_de(local->hw.wiphy,
 			    "failed to set TX queue parameters for AC %d\n",
 			    params->ac);
 		return -EINVAL;
@@ -3359,7 +3359,7 @@ u64 ieee80211_mgmt_tx_cookie(struct ieee80211_local *local)
 
 	local->roc_cookie_counter++;
 
-	/* wow, you wrapped 64 bits ... more likely a bug */
+	/* wow, you wrapped 64 bits ... more likely a  */
 	if (WARN_ON(local->roc_cookie_counter == 0))
 		local->roc_cookie_counter++;
 

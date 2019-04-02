@@ -5,8 +5,8 @@
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
-   Please send bug reports and support requests to <luc@saillard.org>.
+   driver and thus may have s that are not present in the original version.
+   Please send  reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
@@ -406,7 +406,7 @@ static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
 	f->fmt.pix.bytesperline = f->fmt.pix.width;
 	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
 	f->fmt.pix.colorspace	= V4L2_COLORSPACE_SRGB;
-	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
+	PWC_DE_IOCTL("pwc_vidioc_fill_fmt() width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
 			f->fmt.pix.width,
 			f->fmt.pix.height,
 			f->fmt.pix.bytesperline,
@@ -423,7 +423,7 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 	int size;
 
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		PWC_DEBUG_IOCTL("Bad video type must be V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
+		PWC_DE_IOCTL("Bad video type must be V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
 		return -EINVAL;
 	}
 
@@ -432,18 +432,18 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 			break;
 		case V4L2_PIX_FMT_PWC1:
 			if (DEVICE_USE_CODEC23(pdev->type)) {
-				PWC_DEBUG_IOCTL("codec1 is only supported for old pwc webcam\n");
+				PWC_DE_IOCTL("codec1 is only supported for old pwc webcam\n");
 				f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 			}
 			break;
 		case V4L2_PIX_FMT_PWC2:
 			if (DEVICE_USE_CODEC1(pdev->type)) {
-				PWC_DEBUG_IOCTL("codec23 is only supported for new pwc webcam\n");
+				PWC_DE_IOCTL("codec23 is only supported for new pwc webcam\n");
 				f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 			}
 			break;
 		default:
-			PWC_DEBUG_IOCTL("Unsupported pixel format\n");
+			PWC_DE_IOCTL("Unsupported pixel format\n");
 			f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 	}
 
@@ -472,7 +472,7 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	pixelformat = f->fmt.pix.pixelformat;
 
-	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d format=%c%c%c%c\n",
+	PWC_DE_IOCTL("Trying to set format to: width=%d height=%d fps=%d format=%c%c%c%c\n",
 			f->fmt.pix.width, f->fmt.pix.height, pdev->vframes,
 			(pixelformat)&255,
 			(pixelformat>>8)&255,
@@ -482,7 +482,7 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	ret = pwc_set_video_mode(pdev, f->fmt.pix.width, f->fmt.pix.height,
 				 pixelformat, 30, &compression, 0);
 
-	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
+	PWC_DE_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
 	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
 	return ret;
@@ -910,7 +910,7 @@ static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
+	PWC_DE_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
 			pdev->width, pdev->height);
 	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
 	return 0;

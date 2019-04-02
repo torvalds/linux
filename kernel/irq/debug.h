@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Debugging printout:
+ * Deging printout:
  */
 
 #define ___P(f) if (desc->status_use_accessors & f) printk("%14s set\n", #f)

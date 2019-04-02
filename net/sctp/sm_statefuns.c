@@ -25,7 +25,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -1246,7 +1246,7 @@ enum sctp_disposition sctp_sf_backbeat_8_3(struct net *net,
 	/* Check if the timestamp looks valid.  */
 	if (time_after(hbinfo->sent_at, jiffies) ||
 	    time_after(jiffies, hbinfo->sent_at + max_interval)) {
-		pr_debug("%s: HEARTBEAT ACK with invalid timestamp received "
+		pr_de("%s: HEARTBEAT ACK with invalid timestamp received "
 			 "for transport:%p\n", __func__, link);
 
 		return SCTP_DISPOSITION_DISCARD;
@@ -2702,7 +2702,7 @@ static enum sctp_disposition sctp_stop_t1_and_abort(
 					const struct sctp_association *asoc,
 					struct sctp_transport *transport)
 {
-	pr_debug("%s: ABORT received (INIT)\n", __func__);
+	pr_de("%s: ABORT received (INIT)\n", __func__);
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
@@ -2779,7 +2779,7 @@ enum sctp_disposition sctp_sf_do_9_2_shutdown(
 	ctsn = ntohl(sdh->cum_tsn_ack);
 
 	if (TSN_lt(ctsn, asoc->ctsn_ack_point)) {
-		pr_debug("%s: ctsn:%x, ctsn_ack_point:%x\n", __func__, ctsn,
+		pr_de("%s: ctsn:%x, ctsn_ack_point:%x\n", __func__, ctsn,
 			 asoc->ctsn_ack_point);
 
 		return SCTP_DISPOSITION_DISCARD;
@@ -2864,7 +2864,7 @@ enum sctp_disposition sctp_sf_do_9_2_shut_ctsn(
 	ctsn = ntohl(sdh->cum_tsn_ack);
 
 	if (TSN_lt(ctsn, asoc->ctsn_ack_point)) {
-		pr_debug("%s: ctsn:%x, ctsn_ack_point:%x\n", __func__, ctsn,
+		pr_de("%s: ctsn:%x, ctsn_ack_point:%x\n", __func__, ctsn,
 			 asoc->ctsn_ack_point);
 
 		return SCTP_DISPOSITION_DISCARD;
@@ -3111,7 +3111,7 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 					       (u8 *)chunk->subh.data_hdr,
 					       sctp_datahdr_len(&asoc->stream));
 	default:
-		BUG();
+		();
 	}
 
 	if (chunk->chunk_hdr->flags & SCTP_DATA_SACK_IMM)
@@ -3227,7 +3227,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 					       (u8 *)chunk->subh.data_hdr,
 					       sctp_datahdr_len(&asoc->stream));
 	default:
-		BUG();
+		();
 	}
 
 	/* Go a head and force a SACK, since we are shutting down. */
@@ -3319,7 +3319,7 @@ enum sctp_disposition sctp_sf_eat_sack_6_2(struct net *net,
 	 *     Point indicates an out-of-order SACK.
 	 */
 	if (TSN_lt(ctsn, asoc->ctsn_ack_point)) {
-		pr_debug("%s: ctsn:%x, ctsn_ack_point:%x\n", __func__, ctsn,
+		pr_de("%s: ctsn:%x, ctsn_ack_point:%x\n", __func__, ctsn,
 			 asoc->ctsn_ack_point);
 
 		return SCTP_DISPOSITION_DISCARD;
@@ -4058,7 +4058,7 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 	skb_pull(chunk->skb, len);
 
 	tsn = ntohl(fwdtsn_hdr->new_cum_tsn);
-	pr_debug("%s: TSN 0x%x\n", __func__, tsn);
+	pr_de("%s: TSN 0x%x\n", __func__, tsn);
 
 	/* The TSN is too high--silently discard the chunk and count on it
 	 * getting retransmitted later.
@@ -4125,7 +4125,7 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 	skb_pull(chunk->skb, len);
 
 	tsn = ntohl(fwdtsn_hdr->new_cum_tsn);
-	pr_debug("%s: TSN 0x%x\n", __func__, tsn);
+	pr_de("%s: TSN 0x%x\n", __func__, tsn);
 
 	/* The TSN is too high--silently discard the chunk and count on it
 	 * getting retransmitted later.
@@ -4361,7 +4361,7 @@ enum sctp_disposition sctp_sf_unk_chunk(struct net *net,
 	struct sctp_chunk *err_chunk;
 	struct sctp_chunkhdr *hdr;
 
-	pr_debug("%s: processing unknown chunk id:%d\n", __func__, type.chunk);
+	pr_de("%s: processing unknown chunk id:%d\n", __func__, type.chunk);
 
 	if (!sctp_vtag_verify(unk_chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
@@ -4447,7 +4447,7 @@ enum sctp_disposition sctp_sf_discard_chunk(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	pr_debug("%s: chunk:%d is discarded\n", __func__, type.chunk);
+	pr_de("%s: chunk:%d is discarded\n", __func__, type.chunk);
 
 	return SCTP_DISPOSITION_DISCARD;
 }
@@ -4786,7 +4786,7 @@ static enum sctp_disposition sctp_sf_violation_chunk(
  *  [This is asoc->peer.active_path.]
  * o outbound stream count - the number of outbound streams the ULP
  * would like to open towards this peer endpoint.
- * [BUG: This is not currently implemented.]
+ * [: This is not currently implemented.]
  * Optional attributes:
  *
  * None.
@@ -5388,7 +5388,7 @@ enum sctp_disposition sctp_sf_ignore_primitive(
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
-	pr_debug("%s: primitive type:%d is ignored\n", __func__,
+	pr_de("%s: primitive type:%d is ignored\n", __func__,
 		 type.primitive);
 
 	return SCTP_DISPOSITION_DISCARD;
@@ -5587,7 +5587,7 @@ enum sctp_disposition sctp_sf_ignore_other(struct net *net,
 					   void *arg,
 					   struct sctp_cmd_seq *commands)
 {
-	pr_debug("%s: the event other type:%d is ignored\n",
+	pr_de("%s: the event other type:%d is ignored\n",
 		 __func__, type.other);
 
 	return SCTP_DISPOSITION_DISCARD;
@@ -5739,7 +5739,7 @@ enum sctp_disposition sctp_sf_t1_init_timer_expire(
 	struct sctp_chunk *repl = NULL;
 	struct sctp_bind_addr *bp;
 
-	pr_debug("%s: timer T1 expired (INIT)\n", __func__);
+	pr_de("%s: timer T1 expired (INIT)\n", __func__);
 
 	SCTP_INC_STATS(net, SCTP_MIB_T1_INIT_EXPIREDS);
 
@@ -5759,7 +5759,7 @@ enum sctp_disposition sctp_sf_t1_init_timer_expire(
 
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 	} else {
-		pr_debug("%s: giving up on INIT, attempts:%d "
+		pr_de("%s: giving up on INIT, attempts:%d "
 			 "max_init_attempts:%d\n", __func__, attempts,
 			 asoc->max_init_attempts);
 
@@ -5803,7 +5803,7 @@ enum sctp_disposition sctp_sf_t1_cookie_timer_expire(
 	int attempts = asoc->init_err_counter + 1;
 	struct sctp_chunk *repl = NULL;
 
-	pr_debug("%s: timer T1 expired (COOKIE-ECHO)\n", __func__);
+	pr_de("%s: timer T1 expired (COOKIE-ECHO)\n", __func__);
 
 	SCTP_INC_STATS(net, SCTP_MIB_T1_COOKIE_EXPIREDS);
 
@@ -5853,7 +5853,7 @@ enum sctp_disposition sctp_sf_t2_timer_expire(
 {
 	struct sctp_chunk *reply = NULL;
 
-	pr_debug("%s: timer T2 expired\n", __func__);
+	pr_de("%s: timer T2 expired\n", __func__);
 
 	SCTP_INC_STATS(net, SCTP_MIB_T2_SHUTDOWN_EXPIREDS);
 
@@ -5880,7 +5880,7 @@ enum sctp_disposition sctp_sf_t2_timer_expire(
 		break;
 
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -5996,7 +5996,7 @@ enum sctp_disposition sctp_sf_t5_timer_expire(
 {
 	struct sctp_chunk *reply = NULL;
 
-	pr_debug("%s: timer T5 expired\n", __func__);
+	pr_de("%s: timer T5 expired\n", __func__);
 
 	SCTP_INC_STATS(net, SCTP_MIB_T5_SHUTDOWN_GUARD_EXPIREDS);
 
@@ -6077,20 +6077,20 @@ enum sctp_disposition sctp_sf_not_impl(struct net *net,
 }
 
 /*
- * This table entry represents a bug.
+ * This table entry represents a .
  *
  * Inputs
  * (endpoint, asoc, chunk)
  *
  * The return value is the disposition of the chunk.
  */
-enum sctp_disposition sctp_sf_bug(struct net *net,
+enum sctp_disposition sctp_sf_(struct net *net,
 				  const struct sctp_endpoint *ep,
 				  const struct sctp_association *asoc,
 				  const union sctp_subtype type,
 				  void *arg, struct sctp_cmd_seq *commands)
 {
-	return SCTP_DISPOSITION_BUG;
+	return SCTP_DISPOSITION_;
 }
 
 /*
@@ -6111,7 +6111,7 @@ enum sctp_disposition sctp_sf_timer_ignore(struct net *net,
 					   void *arg,
 					   struct sctp_cmd_seq *commands)
 {
-	pr_debug("%s: timer %d ignored\n", __func__, type.chunk);
+	pr_de("%s: timer %d ignored\n", __func__, type.chunk);
 
 	return SCTP_DISPOSITION_CONSUME;
 }
@@ -6321,7 +6321,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	skb_pull(chunk->skb, sctp_datahdr_len(&asoc->stream));
 
 	tsn = ntohl(data_hdr->tsn);
-	pr_debug("%s: TSN 0x%x\n", __func__, tsn);
+	pr_de("%s: TSN 0x%x\n", __func__, tsn);
 
 	/* ASSERT:  Now skb->data is really the user data.  */
 
@@ -6395,10 +6395,10 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		 */
 		if (sctp_tsnmap_has_gap(map) &&
 		    (sctp_tsnmap_get_ctsn(map) + 1) == tsn) {
-			pr_debug("%s: reneging for tsn:%u\n", __func__, tsn);
+			pr_de("%s: reneging for tsn:%u\n", __func__, tsn);
 			deliver = SCTP_CMD_RENEGE;
 		} else {
-			pr_debug("%s: discard tsn:%u len:%zu, rwnd:%d\n",
+			pr_de("%s: discard tsn:%u len:%zu, rwnd:%d\n",
 				 __func__, tsn, datalen, asoc->rwnd);
 
 			return SCTP_IERROR_IGNORE_TSN;
@@ -6415,7 +6415,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	if (*sk->sk_prot_creator->memory_pressure) {
 		if (sctp_tsnmap_has_gap(map) &&
 		    (sctp_tsnmap_get_ctsn(map) + 1) == tsn) {
-			pr_debug("%s: under pressure, reneging for tsn:%u\n",
+			pr_de("%s: under pressure, reneging for tsn:%u\n",
 				 __func__, tsn);
 			deliver = SCTP_CMD_RENEGE;
 		 }

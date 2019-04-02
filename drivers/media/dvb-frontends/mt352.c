@@ -45,10 +45,10 @@ struct mt352_state {
 	struct mt352_config config;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "mt352: " args); \
+		if (de) printk(KERN_DE "mt352: " args); \
 	} while (0)
 
 static int mt352_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
@@ -596,8 +596,8 @@ static const struct dvb_frontend_ops mt352_ops = {
 	.read_ucblocks = mt352_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Zarlink MT352 DVB-T Demodulator driver");
 MODULE_AUTHOR("Holger Waechtler, Daniel Mack, Antonio Mancuso");

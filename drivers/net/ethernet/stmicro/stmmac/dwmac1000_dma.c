@@ -147,7 +147,7 @@ static u32 dwmac1000_configure_fc(u32 csr6, int rxfifosz)
 	 */
 	if (rxfifosz < 4096) {
 		csr6 &= ~DMA_CONTROL_EFC;
-		pr_debug("GMAC: disabling flow control, rxfifo too small(%d)\n",
+		pr_de("GMAC: disabling flow control, rxfifo too small(%d)\n",
 			 rxfifosz);
 	} else {
 		csr6 |= DMA_CONTROL_EFC;
@@ -163,10 +163,10 @@ static void dwmac1000_dma_operation_mode_rx(void __iomem *ioaddr, int mode,
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
 	if (mode == SF_DMA_MODE) {
-		pr_debug("GMAC: enable RX store and forward mode\n");
+		pr_de("GMAC: enable RX store and forward mode\n");
 		csr6 |= DMA_CONTROL_RSF;
 	} else {
-		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", mode);
+		pr_de("GMAC: disable RX SF mode (threshold %d)\n", mode);
 		csr6 &= ~DMA_CONTROL_RSF;
 		csr6 &= DMA_CONTROL_TC_RX_MASK;
 		if (mode <= 32)
@@ -191,7 +191,7 @@ static void dwmac1000_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
 	if (mode == SF_DMA_MODE) {
-		pr_debug("GMAC: enable TX store and forward mode\n");
+		pr_de("GMAC: enable TX store and forward mode\n");
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
 		/* Operating on second frame increase the performance
@@ -199,7 +199,7 @@ static void dwmac1000_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
 		 */
 		csr6 |= DMA_CONTROL_OSF;
 	} else {
-		pr_debug("GMAC: disabling TX SF (threshold %d)\n", mode);
+		pr_de("GMAC: disabling TX SF (threshold %d)\n", mode);
 		csr6 &= ~DMA_CONTROL_TSF;
 		csr6 &= DMA_CONTROL_TC_TX_MASK;
 		/* Set the transmit threshold */

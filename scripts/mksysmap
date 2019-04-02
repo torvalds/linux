@@ -1,6 +1,6 @@
 #!/bin/sh -x
 # Based on the vmlinux file create the System.map file
-# System.map is used by module-init tools and some debugging
+# System.map is used by module-init tools and some deging
 # tools to retrieve the actual addresses of symbols in the kernel.
 #
 # Usage
@@ -20,7 +20,7 @@
 #   D = Initialised data
 #   G = Initialised data for small objects
 #   I = Indirect reference to another symbol
-#   N = Debugging symbol
+#   N = Deging symbol
 #   R = Read only
 #   S = Uninitialised data for small objects
 #   T = Text code symbol
@@ -32,7 +32,7 @@
 # For System.map filter away:
 #   a - local absolute symbols
 #   U - undefined global symbols
-#   N - debugging symbols
+#   N - deging symbols
 #   w - local weak symbols
 
 # readprofile starts reading symbols when _stext is found, and

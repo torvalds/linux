@@ -238,10 +238,10 @@ extern void __add_wrong_size(void)
 	bool __ret;							\
 	__typeof__(*(p1)) __old1 = (o1), __new1 = (n1);			\
 	__typeof__(*(p2)) __old2 = (o2), __new2 = (n2);			\
-	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
-	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
-	VM_BUG_ON((unsigned long)(p1) % (2 * sizeof(long)));		\
-	VM_BUG_ON((unsigned long)((p1) + 1) != (unsigned long)(p2));	\
+	BUILD__ON(sizeof(*(p1)) != sizeof(long));			\
+	BUILD__ON(sizeof(*(p2)) != sizeof(long));			\
+	VM__ON((unsigned long)(p1) % (2 * sizeof(long)));		\
+	VM__ON((unsigned long)((p1) + 1) != (unsigned long)(p2));	\
 	asm volatile(pfx "cmpxchg%c5b %1"				\
 		     CC_SET(e)						\
 		     : CC_OUT(e) (__ret),				\

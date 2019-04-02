@@ -52,7 +52,7 @@ void vnic_wq_copy_clean(struct vnic_wq_copy *wq,
 	void (*q_clean)(struct vnic_wq_copy *wq,
 	struct fcpio_host_req *wq_desc))
 {
-	BUG_ON(ioread32(&wq->ctrl->enable));
+	_ON(ioread32(&wq->ctrl->enable));
 
 	if (vnic_wq_copy_desc_in_use(wq))
 		vnic_wq_copy_service(wq, -1, q_clean);

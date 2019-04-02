@@ -726,7 +726,7 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 	/* If we see a Target Abort, this could be the result of an
 	 * IOMMU translation error of some sort.  It is extremely
 	 * useful to log this information as usually it indicates
-	 * a bug in the IOMMU support code or a PCI device driver.
+	 * a  in the IOMMU support code or a PCI device driver.
 	 */
 	if (error_bits & (SCHIZO_PCIAFSR_PTA | SCHIZO_PCIAFSR_STA)) {
 		schizo_check_iommu_error(pbm, PCI_ERR);
@@ -1295,7 +1295,7 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	upa_writeq(tmp, pbm->pbm_regs + SCHIZO_PCI_DIAG);
 
 	if (pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO) {
-		/* Clear prefetch lengths to workaround a bug in
+		/* Clear prefetch lengths to workaround a  in
 		 * Jalapeno...
 		 */
 		tmp = (TOMATILLO_IOC_PART_WPENAB |

@@ -35,8 +35,8 @@ asmlinkage void do_IRQ(int hwirq, struct pt_regs *regs)
 {
 	int irq = irq_find_mapping(NULL, hwirq);
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 1KB free? */
+#ifdef CONFIG_DE_STACKOVERFLOW
+	/* Deging check for stack overflow: is there less than 1KB free? */
 	{
 		unsigned long sp;
 

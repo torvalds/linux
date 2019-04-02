@@ -9,7 +9,7 @@
  * stupid library routines.. The optimized versions should generally be found
  * as inline code in <asm-xx/string.h>
  *
- * These are buggy as well..
+ * These are gy as well..
  *
  * * Fri Jun 25 1999, Ingo Oeser <ioe@informatik.tu-chemnitz.de>
  * -  Added strsep() which will replace strtok() soon (because strsep() is
@@ -25,7 +25,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 
@@ -299,8 +299,8 @@ size_t strlcat(char *dest, const char *src, size_t count)
 	size_t len = strlen(src);
 	size_t res = dsize + len;
 
-	/* This would be a bug */
-	BUG_ON(dsize >= count);
+	/* This would be a  */
+	_ON(dsize >= count);
 
 	dest += dsize;
 	count -= dsize;
@@ -1050,6 +1050,6 @@ EXPORT_SYMBOL(strreplace);
 void fortify_panic(const char *name)
 {
 	pr_emerg("detected buffer overflow in %s\n", name);
-	BUG();
+	();
 }
 EXPORT_SYMBOL(fortify_panic);

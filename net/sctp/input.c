@@ -26,7 +26,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -361,7 +361,7 @@ done:
 	else if (SCTP_EP_TYPE_SOCKET == rcvr->type)
 		sctp_endpoint_put(sctp_ep(rcvr));
 	else
-		BUG();
+		();
 
 	return 0;
 }
@@ -384,7 +384,7 @@ static int sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
 		else if (SCTP_EP_TYPE_SOCKET == rcvr->type)
 			sctp_endpoint_hold(sctp_ep(rcvr));
 		else
-			BUG();
+			();
 	}
 	return ret;
 
@@ -463,7 +463,7 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 	} else {
 		struct net *net = sock_net(sk);
 
-		pr_debug("%s: unrecognized next header type "
+		pr_de("%s: unrecognized next header type "
 			 "encountered!\n", __func__);
 
 		if (del_timer(&t->proto_unreach_timer))
@@ -1319,11 +1319,11 @@ static struct sctp_association *__sctp_rcv_lookup(struct net *net,
 		goto out;
 
 	if (paddr->sa.sa_family == AF_INET)
-		pr_debug("sctp: asoc not found for src:%pI4:%d dst:%pI4:%d\n",
+		pr_de("sctp: asoc not found for src:%pI4:%d dst:%pI4:%d\n",
 			 &laddr->v4.sin_addr, ntohs(laddr->v4.sin_port),
 			 &paddr->v4.sin_addr, ntohs(paddr->v4.sin_port));
 	else
-		pr_debug("sctp: asoc not found for src:%pI6:%d dst:%pI6:%d\n",
+		pr_de("sctp: asoc not found for src:%pI6:%d dst:%pI6:%d\n",
 			 &laddr->v6.sin6_addr, ntohs(laddr->v6.sin6_port),
 			 &paddr->v6.sin6_addr, ntohs(paddr->v6.sin6_port));
 

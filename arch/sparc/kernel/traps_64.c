@@ -10,14 +10,14 @@
 
 #include <linux/extable.h>
 #include <linux/sched/mm.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/ftrace.h>
 #include <linux/reboot.h>
 #include <linux/gfp.h>
@@ -124,13 +124,13 @@ void bad_trap_tl1(struct pt_regs *regs, long lvl)
 	die_if_kernel (buffer, regs);
 }
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-void do_BUG(const char *file, int line)
+#ifdef CONFIG_DE_VERBOSE
+void do_(const char *file, int line)
 {
 	bust_spinlocks(1);
-	printk("kernel BUG at %s:%d!\n", file, line);
+	printk("kernel  at %s:%d!\n", file, line);
 }
-EXPORT_SYMBOL(do_BUG);
+EXPORT_SYMBOL(do_);
 #endif
 
 static DEFINE_SPINLOCK(dimm_handler_lock);
@@ -303,7 +303,7 @@ void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, un
 		entry = search_exception_tables(regs->tpc);
 		if (entry) {
 			/* Ouch, somebody is trying VM hole tricks on us... */
-#ifdef DEBUG_EXCEPTIONS
+#ifdef DE_EXCEPTIONS
 			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
 			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
 			       regs->tpc, entry->fixup);
@@ -352,7 +352,7 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		entry = search_exception_tables(regs->tpc);
 		if (entry) {
 			/* Ouch, somebody is trying VM hole tricks on us... */
-#ifdef DEBUG_EXCEPTIONS
+#ifdef DE_EXCEPTIONS
 			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
 			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
 			       regs->tpc, entry->fixup);
@@ -419,7 +419,7 @@ static void spitfire_clean_and_reenable_l1_caches(void)
 	unsigned long va;
 
 	if (tlb_type != spitfire)
-		BUG();
+		();
 
 	/* Clean 'em. */
 	for (va =  0; va < (PAGE_SIZE << 1); va += 32) {
@@ -2057,7 +2057,7 @@ void do_mcd_err(struct pt_regs *regs, struct sun4v_error_entry ent)
 		entry = search_exception_tables(regs->tpc);
 		if (entry) {
 			/* Looks like a bad syscall parameter */
-#ifdef DEBUG_EXCEPTIONS
+#ifdef DE_EXCEPTIONS
 			pr_emerg("Exception: PC<%016lx> faddr<UNKNOWN>\n",
 				 regs->tpc);
 			pr_emerg("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
@@ -2681,7 +2681,7 @@ void sun4v_mem_corrupt_detect_precise(struct pt_regs *regs, unsigned long addr,
 		entry = search_exception_tables(regs->tpc);
 		if (entry) {
 			/* Looks like a bad syscall parameter */
-#ifdef DEBUG_EXCEPTIONS
+#ifdef DE_EXCEPTIONS
 			pr_emerg("Exception: PC<%016lx> faddr<UNKNOWN>\n",
 				 regs->tpc);
 			pr_emerg("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
@@ -2850,7 +2850,7 @@ extern void tsb_config_offsets_are_bolixed_dave(void);
 void __init trap_init(void)
 {
 	/* Compile time sanity check. */
-	BUILD_BUG_ON(TI_TASK != offsetof(struct thread_info, task) ||
+	BUILD__ON(TI_TASK != offsetof(struct thread_info, task) ||
 		     TI_FLAGS != offsetof(struct thread_info, flags) ||
 		     TI_CPU != offsetof(struct thread_info, cpu) ||
 		     TI_FPSAVED != offsetof(struct thread_info, fpsaved) ||
@@ -2877,7 +2877,7 @@ void __init trap_init(void)
 		     TI_FPREGS != offsetof(struct thread_info, fpregs) ||
 		     (TI_FPREGS & (64 - 1)));
 
-	BUILD_BUG_ON(TRAP_PER_CPU_THREAD != offsetof(struct trap_per_cpu,
+	BUILD__ON(TRAP_PER_CPU_THREAD != offsetof(struct trap_per_cpu,
 						     thread) ||
 		     (TRAP_PER_CPU_PGD_PADDR !=
 		      offsetof(struct trap_per_cpu, pgd_paddr)) ||
@@ -2916,7 +2916,7 @@ void __init trap_init(void)
 		     (TRAP_PER_CPU_PER_CPU_BASE !=
 		      offsetof(struct trap_per_cpu, __per_cpu_base)));
 
-	BUILD_BUG_ON((TSB_CONFIG_TSB !=
+	BUILD__ON((TSB_CONFIG_TSB !=
 		      offsetof(struct tsb_config, tsb)) ||
 		     (TSB_CONFIG_RSS_LIMIT !=
 		      offsetof(struct tsb_config, tsb_rss_limit)) ||

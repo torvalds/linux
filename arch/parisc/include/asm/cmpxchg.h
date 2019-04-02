@@ -47,7 +47,7 @@ __xchg(unsigned long x, __volatile__ void *ptr, int size)
 #define xchg(ptr, x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))))
 
-/* bug catcher for when unsupported size is used - won't link */
+/*  catcher for when unsupported size is used - won't link */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
 /* __cmpxchg_u32/u64 defined in arch/parisc/lib/bitops.c */
@@ -104,7 +104,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 #ifdef CONFIG_64BIT
 #define cmpxchg64_local(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_local((ptr), (o), (n));					\
 })
 #else

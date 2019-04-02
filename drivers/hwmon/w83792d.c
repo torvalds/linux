@@ -306,8 +306,8 @@ static int w83792d_detect(struct i2c_client *client,
 static int w83792d_remove(struct i2c_client *client);
 static struct w83792d_data *w83792d_update_device(struct device *dev);
 
-#ifdef DEBUG
-static void w83792d_print_debug(struct w83792d_data *data, struct device *dev);
+#ifdef DE
+static void w83792d_print_de(struct w83792d_data *data, struct device *dev);
 #endif
 
 static void w83792d_init_client(struct i2c_client *client);
@@ -1628,18 +1628,18 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 
 	mutex_unlock(&data->update_lock);
 
-#ifdef DEBUG
-	w83792d_print_debug(data, dev);
+#ifdef DE
+	w83792d_print_de(data, dev);
 #endif
 
 	return data;
 }
 
-#ifdef DEBUG
-static void w83792d_print_debug(struct w83792d_data *data, struct device *dev)
+#ifdef DE
+static void w83792d_print_de(struct w83792d_data *data, struct device *dev)
 {
 	int i = 0, j = 0;
-	dev_dbg(dev, "==========The following is the debug message...========\n");
+	dev_dbg(dev, "==========The following is the de message...========\n");
 	dev_dbg(dev, "9 set of Voltages: =====>\n");
 	for (i = 0; i < 9; i++) {
 		dev_dbg(dev, "vin[%d] is: 0x%x\n", i, data->in[i]);
@@ -1668,7 +1668,7 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev)
 	for (i = 0; i < 7; i++)
 		dev_dbg(dev, "fan_div[%d] is: 0x%x\n", i, data->fan_div[i]);
 
-	dev_dbg(dev, "==========End of the debug message...================\n");
+	dev_dbg(dev, "==========End of the de message...================\n");
 	dev_dbg(dev, "\n");
 }
 #endif

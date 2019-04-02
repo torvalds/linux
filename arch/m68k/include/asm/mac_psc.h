@@ -26,7 +26,7 @@
  * pointer.
  *
  * Much of this was extrapolated from what was known about the Ethernet
- * registers and subsequently confirmed using MacsBug (ie by pinging the
+ * registers and subsequently confirmed using Macs (ie by pinging the
  * machine with easy-to-find patterns and looking for them in the DMA
  * buffers, or by sending a file over the serial ports and finding the
  * file in the buffers.)

@@ -429,7 +429,7 @@ enum {
 	BFI_ADAPTER_SPEED_MK	= 0xff,		/*  adapter speed mask    */
 	BFI_ADAPTER_SPEED_SH	= 0,	        /*  adapter speed shift   */
 	BFI_ADAPTER_PROTO	= 0x100000,	/*  prototype adapaters   */
-	BFI_ADAPTER_TTV		= 0x200000,	/*  TTV debug capable     */
+	BFI_ADAPTER_TTV		= 0x200000,	/*  TTV de capable     */
 	BFI_ADAPTER_UNSUPP	= 0x400000,	/*  unknown adapter type  */
 };
 

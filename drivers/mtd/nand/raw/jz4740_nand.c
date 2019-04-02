@@ -106,10 +106,10 @@ static void jz_nand_cmd_ctrl(struct nand_chip *chip, int dat,
 	uint32_t reg;
 	void __iomem *bank_base = nand->bank_base[nand->selected_bank];
 
-	BUG_ON(nand->selected_bank < 0);
+	_ON(nand->selected_bank < 0);
 
 	if (ctrl & NAND_CTRL_CHANGE) {
-		BUG_ON((ctrl & NAND_ALE) && (ctrl & NAND_CLE));
+		_ON((ctrl & NAND_ALE) && (ctrl & NAND_CLE));
 		if (ctrl & NAND_ALE)
 			bank_base += JZ_NAND_MEM_ADDR_OFFSET;
 		else if (ctrl & NAND_CLE)

@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/gpio.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/sysfs.h>
@@ -99,7 +99,7 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 {
 	register int room = skb_tailroom(kim_gdata->rx_skb);
 
-	pr_debug("len %d room %d", len, room);
+	pr_de("len %d room %d", len, room);
 
 	if (!len) {
 		validate_firmware_response(kim_gdata);
@@ -141,7 +141,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 	int len = 0;
 	unsigned char *plen;
 
-	pr_debug("%s", __func__);
+	pr_de("%s", __func__);
 	/* Decode received bytes here */
 	ptr = data;
 	if (unlikely(ptr == NULL)) {
@@ -164,7 +164,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 			switch (kim_gdata->rx_state) {
 				/* Waiting for complete packet ? */
 			case ST_W4_DATA:
-				pr_debug("Complete pkt received");
+				pr_de("Complete pkt received");
 				validate_firmware_response(kim_gdata);
 				kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 				kim_gdata->rx_skb = NULL;
@@ -173,7 +173,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 			case ST_W4_HEADER:
 				plen =
 				(unsigned char *)&kim_gdata->rx_skb->data[1];
-				pr_debug("event hdr: plen 0x%02x\n", *plen);
+				pr_de("event hdr: plen 0x%02x\n", *plen);
 				kim_check_data_len(kim_gdata, *plen);
 				continue;
 			}	/* end of switch */
@@ -214,7 +214,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	static const char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
 	long timeout;
 
-	pr_debug("%s", __func__);
+	pr_de("%s", __func__);
 
 	reinit_completion(&kim_gdata->kim_rcvd);
 	if (4 != st_int_write(kim_gdata->core_data, read_ver_cmd, 4)) {
@@ -315,13 +315,13 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 	len -= sizeof(struct bts_header);
 
 	while (len > 0 && ptr) {
-		pr_debug(" action size %d, type %d ",
+		pr_de(" action size %d, type %d ",
 			   ((struct bts_action *)ptr)->size,
 			   ((struct bts_action *)ptr)->type);
 
 		switch (((struct bts_action *)ptr)->type) {
 		case ACTION_SEND_COMMAND:	/* action send */
-			pr_debug("S");
+			pr_de("S");
 			action_ptr = &(((struct bts_action *)ptr)->data[0]);
 			if (unlikely
 			    (((struct hci_command *)action_ptr)->opcode ==
@@ -389,7 +389,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 			}
 			break;
 		case ACTION_WAIT_EVENT:  /* wait */
-			pr_debug("W");
+			pr_de("W");
 			err = wait_for_completion_interruptible_timeout(
 					&kim_gdata->kim_rcvd,
 					msecs_to_jiffies(CMD_RESP_TIME));
@@ -562,7 +562,7 @@ long st_kim_stop(void *kim_data)
 
 /**********************************************************************/
 /* functions called from subsystems */
-/* called when debugfs entry is read from */
+/* called when defs entry is read from */
 
 static int version_show(struct seq_file *s, void *unused)
 {
@@ -587,14 +587,14 @@ static ssize_t show_install(struct device *dev,
 	return sprintf(buf, "%d\n", kim_data->ldisc_install);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static ssize_t store_dev_name(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct kim_data_s *kim_data = dev_get_drvdata(dev);
-	pr_debug("storing dev name >%s<", buf);
+	pr_de("storing dev name >%s<", buf);
 	strncpy(kim_data->dev_name, buf, count);
-	pr_debug("stored dev name >%s<", kim_data->dev_name);
+	pr_de("stored dev name >%s<", kim_data->dev_name);
 	return count;
 }
 
@@ -602,12 +602,12 @@ static ssize_t store_baud_rate(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct kim_data_s *kim_data = dev_get_drvdata(dev);
-	pr_debug("storing baud rate >%s<", buf);
+	pr_de("storing baud rate >%s<", buf);
 	sscanf(buf, "%ld", &kim_data->baud_rate);
-	pr_debug("stored baud rate >%ld<", kim_data->baud_rate);
+	pr_de("stored baud rate >%ld<", kim_data->baud_rate);
 	return count;
 }
-#endif	/* if DEBUG */
+#endif	/* if DE */
 
 static ssize_t show_dev_name(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -635,14 +635,14 @@ static struct kobj_attribute ldisc_install =
 __ATTR(install, 0444, (void *)show_install, NULL);
 
 static struct kobj_attribute uart_dev_name =
-#ifdef DEBUG	/* TODO: move this to debug-fs if possible */
+#ifdef DE	/* TODO: move this to de-fs if possible */
 __ATTR(dev_name, 0644, (void *)show_dev_name, (void *)store_dev_name);
 #else
 __ATTR(dev_name, 0444, (void *)show_dev_name, NULL);
 #endif
 
 static struct kobj_attribute uart_baud_rate =
-#ifdef DEBUG	/* TODO: move to debugfs */
+#ifdef DE	/* TODO: move to defs */
 __ATTR(baud_rate, 0644, (void *)show_baud_rate, (void *)store_baud_rate);
 #else
 __ATTR(baud_rate, 0444, (void *)show_baud_rate, NULL);
@@ -697,7 +697,7 @@ DEFINE_SHOW_ATTRIBUTE(list);
  * board-*.c file
  */
 
-static struct dentry *kim_debugfs_dir;
+static struct dentry *kim_defs_dir;
 static int kim_probe(struct platform_device *pdev)
 {
 	struct kim_data_s	*kim_gdata;
@@ -760,15 +760,15 @@ static int kim_probe(struct platform_device *pdev)
 	kim_gdata->baud_rate = pdata->baud_rate;
 	pr_info("sysfs entries created\n");
 
-	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
-	if (!kim_debugfs_dir) {
-		pr_err(" debugfs entries creation failed ");
+	kim_defs_dir = defs_create_dir("ti-st", NULL);
+	if (!kim_defs_dir) {
+		pr_err(" defs entries creation failed ");
 		return 0;
 	}
 
-	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
+	defs_create_file("version", S_IRUGO, kim_defs_dir,
 				kim_gdata, &version_fops);
-	debugfs_create_file("protocols", S_IRUGO, kim_debugfs_dir,
+	defs_create_file("protocols", S_IRUGO, kim_defs_dir,
 				kim_gdata, &list_fops);
 	return 0;
 
@@ -795,7 +795,7 @@ static int kim_remove(struct platform_device *pdev)
 	gpio_free(pdata->nshutdown_gpio);
 	pr_info("nshutdown GPIO Freed");
 
-	debugfs_remove_recursive(kim_debugfs_dir);
+	defs_remove_recursive(kim_defs_dir);
 	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
 	pr_info("sysfs entries removed");
 

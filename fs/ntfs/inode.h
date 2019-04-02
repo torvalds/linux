@@ -36,7 +36,7 @@
 #include "volume.h"
 #include "types.h"
 #include "runlist.h"
-#include "debug.h"
+#include "de.h"
 
 typedef struct _ntfs_inode ntfs_inode;
 
@@ -287,7 +287,7 @@ static inline void ntfs_init_big_inode(struct inode *vi)
 {
 	ntfs_inode *ni = NTFS_I(vi);
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	__ntfs_init_inode(vi->i_sb, ni);
 	ni->mft_no = vi->i_ino;
 }

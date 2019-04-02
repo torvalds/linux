@@ -31,7 +31,7 @@ static int rmi_f34_write_bootloader_id(struct f34_data *f34)
 		return ret;
 	}
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: writing bootloader id '%c%c'\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "%s: writing bootloader id '%c%c'\n",
 			__func__, bootloader_id[0], bootloader_id[1]);
 
 	ret = rmi_write_block(rmi_dev,
@@ -110,7 +110,7 @@ static irqreturn_t rmi_f34_attention(int irq, void *ctx)
 	if (f34->bl_version == 5) {
 		ret = rmi_read(f34->fn->rmi_dev, f34->v5.ctrl_address,
 			       &status);
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: status: %#02x, ret: %d\n",
+		rmi_dbg(RMI_DE_FN, &fn->dev, "%s: status: %#02x, ret: %d\n",
 			__func__, status, ret);
 
 		if (!ret && !(status & 0x7f))
@@ -120,7 +120,7 @@ static irqreturn_t rmi_f34_attention(int irq, void *ctx)
 				     f34->fn->fd.data_base_addr +
 						f34->v7.off.flash_status,
 				     &status, sizeof(status));
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: status: %#02x, ret: %d\n",
+		rmi_dbg(RMI_DE_FN, &fn->dev, "%s: status: %#02x, ret: %d\n",
 			__func__, status, ret);
 
 		if (!ret && !(status & 0x1f))
@@ -164,7 +164,7 @@ static int rmi_f34_write_blocks(struct f34_data *f34, const void *data,
 			return ret;
 		}
 
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev, "wrote block %d of %d\n",
+		rmi_dbg(RMI_DE_FN, &fn->dev, "wrote block %d of %d\n",
 			i + 1, block_count);
 
 		data += f34->v5.block_size;
@@ -251,16 +251,16 @@ static int rmi_f34_update_firmware(struct f34_data *f34,
 	u32 config_size = le32_to_cpu(syn_fw->config_size);
 	int ret;
 
-	BUILD_BUG_ON(offsetof(struct rmi_f34_firmware, data) !=
+	BUILD__ON(offsetof(struct rmi_f34_firmware, data) !=
 			F34_FW_IMAGE_OFFSET);
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 		"FW size:%zd, checksum:%08x, image_size:%d, config_size:%d\n",
 		fw->size,
 		le32_to_cpu(syn_fw->checksum),
 		image_size, config_size);
 
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
+	rmi_dbg(RMI_DE_FN, &f34->fn->dev,
 		"FW bootloader_id:%02x, product_id:%.*s, info: %02x%02x\n",
 		syn_fw->bootloader_version,
 		(int)sizeof(syn_fw->product_id), syn_fw->product_id,
@@ -432,7 +432,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	rmi_disable_irq(rmi_dev, false);
 
 	/* Re-probe */
-	rmi_dbg(RMI_DEBUG_FN, dev, "Re-probing device\n");
+	rmi_dbg(RMI_DE_FN, dev, "Re-probing device\n");
 	rmi_free_function_list(rmi_dev);
 
 	ret = rmi_scan_pdt(rmi_dev, NULL, rmi_initial_reset);
@@ -453,7 +453,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 		/* Driver already bound, so enable ATTN now. */
 		return rmi_enable_sensor(rmi_dev);
 
-	rmi_dbg(RMI_DEBUG_FN, dev, "%s complete\n", __func__);
+	rmi_dbg(RMI_DE_FN, dev, "%s complete\n", __func__);
 
 	return ret;
 }
@@ -562,13 +562,13 @@ static int rmi_f34_probe(struct rmi_function *fn)
 		f34->v5.block_size;
 	has_config_id = f34_queries[2] & (1 << 2);
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Bootloader ID: %s\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "Bootloader ID: %s\n",
 		f34->bootloader_id);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Block size: %d\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "Block size: %d\n",
 		f34->v5.block_size);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "FW blocks: %d\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "FW blocks: %d\n",
 		f34->v5.fw_blocks);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "CFG blocks: %d\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "CFG blocks: %d\n",
 		f34->v5.config_blocks);
 
 	if (has_config_id) {
@@ -584,7 +584,7 @@ static int rmi_f34_probe(struct rmi_function *fn)
 			 f34_queries[0], f34_queries[1],
 			 f34_queries[2], f34_queries[3]);
 
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Configuration ID: %s\n",
+		rmi_dbg(RMI_DE_FN, &fn->dev, "Configuration ID: %s\n",
 			 f34->configuration_id);
 	}
 

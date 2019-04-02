@@ -296,7 +296,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	/*
 	 * See if we can put this skb in the FPA pool. Any strange
 	 * behavior from the Linux networking stack will most likely
-	 * be caused by a bug in the following code. If some field is
+	 * be caused by a  in the following code. If some field is
 	 * in use by the network stack and gets carried over when a
 	 * buffer is reused, bad things may happen.  If in doubt and
 	 * you dont need the absolute best performance, disable the
@@ -463,7 +463,7 @@ skip_xmit:
 		__skb_queue_tail(&priv->tx_free_list[qos], skb);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	while (skb_to_free > 0) {

@@ -60,7 +60,7 @@ static void b43_lo_write(struct b43_wldev *dev, struct b43_loctl *control)
 	struct b43_phy *phy = &dev->phy;
 	u16 value;
 
-	if (B43_DEBUG) {
+	if (B43_DE) {
 		if (unlikely(abs(control->i) > 16 || abs(control->q) > 16)) {
 			b43dbg(dev->wl, "Invalid LO control pair "
 			       "(I: %d, Q: %d)\n", control->i, control->q);
@@ -772,7 +772,7 @@ struct b43_lo_calib *b43_calibrate_lo_setting(struct b43_wldev *dev,
 	lo_measure_restore(dev, &saved_regs);
 	b43_mac_enable(dev);
 
-	if (b43_debug(dev, B43_DBG_LO)) {
+	if (b43_de(dev, B43_DBG_LO)) {
 		b43dbg(dev->wl, "LO: Calibrated for BB(%u), RF(%u,%u) "
 		       "=> I=%d Q=%d\n",
 		       bbatt->att, rfatt->att, rfatt->with_padmix,
@@ -828,7 +828,7 @@ void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all)
 	u64 power_vector;
 	bool table_changed = false;
 
-	BUILD_BUG_ON(B43_DC_LT_SIZE != 32);
+	BUILD__ON(B43_DC_LT_SIZE != 32);
 	B43_WARN_ON(lo->rfatt_list.len * lo->bbatt_list.len > 64);
 
 	power_vector = lo->power_vector;
@@ -970,7 +970,7 @@ void b43_lo_g_maintenance_work(struct b43_wldev *dev)
 			B43_WARN_ON(current_item_expired);
 			current_item_expired = true;
 		}
-		if (b43_debug(dev, B43_DBG_LO)) {
+		if (b43_de(dev, B43_DBG_LO)) {
 			b43dbg(dev->wl, "LO: Item BB(%u), RF(%u,%u), "
 			       "I=%d, Q=%d expired\n",
 			       cal->bbatt.att, cal->rfatt.att,
@@ -982,7 +982,7 @@ void b43_lo_g_maintenance_work(struct b43_wldev *dev)
 	}
 	if (current_item_expired || unlikely(list_empty(&lo->calib_list))) {
 		/* Recalibrate currently used LO setting. */
-		if (b43_debug(dev, B43_DBG_LO))
+		if (b43_de(dev, B43_DBG_LO))
 			b43dbg(dev->wl, "LO: Recalibrating current LO setting\n");
 		cal = b43_calibrate_lo_setting(dev, &gphy->bbatt, &gphy->rfatt);
 		if (cal) {

@@ -67,7 +67,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	if (!n)
 		return;
 
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 #ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_31BIT))
 		mask = 0xffffffff;
@@ -84,7 +84,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 	while (n-- > 0)
 		if (i + n > 0)
 			regs->gprs[2 + i + n] = args[n];

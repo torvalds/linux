@@ -181,12 +181,12 @@ module_param(irq_adapt_high_thresh, uint, 0644);
 MODULE_PARM_DESC(irq_adapt_high_thresh,
 		 "Threshold score for increasing IRQ moderation");
 
-static unsigned debug = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
+static unsigned de = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 			 NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 			 NETIF_MSG_IFUP | NETIF_MSG_RX_ERR |
 			 NETIF_MSG_TX_ERR | NETIF_MSG_HW);
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
+module_param(de, uint, 0);
+MODULE_PARM_DESC(de, "Bitmapped deging message enable value");
 
 /**************************************************************************
  *
@@ -347,7 +347,7 @@ static int ef4_probe_eventq(struct ef4_channel *channel)
 	/* Build an event queue with room for one event per tx and rx buffer,
 	 * plus some extra for link state events and MCDI completions. */
 	entries = roundup_pow_of_two(efx->rxq_entries + efx->txq_entries + 128);
-	EF4_BUG_ON_PARANOID(entries > EF4_MAX_EVQ_SIZE);
+	EF4__ON_PARANOID(entries > EF4_MAX_EVQ_SIZE);
 	channel->eventq_mask = max(entries, EF4_MIN_EVQ_SIZE) - 1;
 
 	return ef4_nic_probe_eventq(channel);
@@ -615,8 +615,8 @@ static void ef4_start_datapath(struct ef4_nic *efx)
 		efx->rx_scatter = efx->type->always_rx_scatter;
 		efx->rx_buffer_order = 0;
 	} else if (efx->type->can_rx_scatter) {
-		BUILD_BUG_ON(EF4_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
-		BUILD_BUG_ON(sizeof(struct ef4_rx_page_state) +
+		BUILD__ON(EF4_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
+		BUILD__ON(sizeof(struct ef4_rx_page_state) +
 			     2 * ALIGN(NET_IP_ALIGN + EF4_RX_USR_BUF_SIZE,
 				       EF4_RX_BUF_ALIGNMENT) >
 			     PAGE_SIZE);
@@ -693,7 +693,7 @@ static void ef4_stop_datapath(struct ef4_nic *efx)
 	int rc;
 
 	EF4_ASSERT_RESET_SERIALISED(efx);
-	BUG_ON(efx->port_enabled);
+	_ON(efx->port_enabled);
 
 	/* Stop RX refill */
 	ef4_for_each_channel(channel, efx) {
@@ -909,7 +909,7 @@ void ef4_link_status_changed(struct ef4_nic *efx)
 {
 	struct ef4_link_state *link_state = &efx->link_state;
 
-	/* SFC Bug 5356: A net_dev notifier is registered, so we must ensure
+	/* SFC  5356: A net_dev notifier is registered, so we must ensure
 	 * that no events are triggered between unregister_netdev() and the
 	 * driver unloading. A more general condition is that NETDEV_CHANGE
 	 * can only be generated between NETDEV_UP and NETDEV_DOWN */
@@ -1088,7 +1088,7 @@ fail1:
 static void ef4_start_port(struct ef4_nic *efx)
 {
 	netif_dbg(efx, ifup, efx->net_dev, "start port\n");
-	BUG_ON(efx->port_enabled);
+	_ON(efx->port_enabled);
 
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = true;
@@ -1472,7 +1472,7 @@ static int ef4_soft_enable_interrupts(struct ef4_nic *efx)
 	struct ef4_channel *channel, *end_channel;
 	int rc;
 
-	BUG_ON(efx->state == STATE_DISABLED);
+	_ON(efx->state == STATE_DISABLED);
 
 	efx->irq_soft_enabled = true;
 	smp_wmb();
@@ -1528,7 +1528,7 @@ static int ef4_enable_interrupts(struct ef4_nic *efx)
 	struct ef4_channel *channel, *end_channel;
 	int rc;
 
-	BUG_ON(efx->state == STATE_DISABLED);
+	_ON(efx->state == STATE_DISABLED);
 
 	if (efx->eeh_disabled_legacy_irq) {
 		enable_irq(efx->legacy_irq);
@@ -1779,7 +1779,7 @@ static int ef4_probe_all(struct ef4_nic *efx)
 		goto fail2;
 	}
 
-	BUILD_BUG_ON(EF4_DEFAULT_DMAQ_SIZE < EF4_RXQ_MIN_ENT);
+	BUILD__ON(EF4_DEFAULT_DMAQ_SIZE < EF4_RXQ_MIN_ENT);
 	if (WARN_ON(EF4_DEFAULT_DMAQ_SIZE < EF4_TXQ_MIN_ENT(efx))) {
 		rc = -EINVAL;
 		goto fail3;
@@ -1820,7 +1820,7 @@ static int ef4_probe_all(struct ef4_nic *efx)
 static void ef4_start_all(struct ef4_nic *efx)
 {
 	EF4_ASSERT_RESET_SERIALISED(efx);
-	BUG_ON(efx->state == STATE_DISABLED);
+	_ON(efx->state == STATE_DISABLED);
 
 	/* Check that it is appropriate to restart the interface. All
 	 * of these flags are safe to read under just the rtnl lock */
@@ -1976,7 +1976,7 @@ static void ef4_monitor(struct work_struct *data)
 	netif_vdbg(efx, timer, efx->net_dev,
 		   "hardware monitor executing on CPU %d\n",
 		   raw_smp_processor_id());
-	BUG_ON(efx->type->monitor == NULL);
+	_ON(efx->type->monitor == NULL);
 
 	/* If the mac_lock is already held then it is likely a port
 	 * reconfiguration is already in place, which will likely do
@@ -2339,7 +2339,7 @@ static void ef4_unregister_netdev(struct ef4_nic *efx)
 	if (!efx->net_dev)
 		return;
 
-	BUG_ON(netdev_priv(efx->net_dev) != efx);
+	_ON(netdev_priv(efx->net_dev) != efx);
 
 	if (ef4_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
@@ -2651,7 +2651,7 @@ static int ef4_init_struct(struct ef4_nic *efx,
 	INIT_DELAYED_WORK(&efx->monitor_work, ef4_monitor);
 	INIT_DELAYED_WORK(&efx->selftest_work, ef4_selftest_async_work);
 	efx->pci_dev = pci_dev;
-	efx->msg_enable = debug;
+	efx->msg_enable = de;
 	efx->state = STATE_UNINIT;
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
@@ -2736,7 +2736,7 @@ static void ef4_pci_remove_main(struct ef4_nic *efx)
 	/* Flush reset_work. It can no longer be scheduled since we
 	 * are not READY.
 	 */
-	BUG_ON(efx->state == STATE_READY);
+	_ON(efx->state == STATE_READY);
 	cancel_work_sync(&efx->reset_work);
 
 	ef4_disable_interrupts(efx);

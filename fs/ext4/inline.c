@@ -173,7 +173,7 @@ static int ext4_read_inline_data(struct inode *inode, void *buffer,
 	if (!len)
 		return 0;
 
-	BUG_ON(len > EXT4_I(inode)->i_inline_size);
+	_ON(len > EXT4_I(inode)->i_inline_size);
 
 	cp_len = len < EXT4_MIN_INLINE_DATA_SIZE ?
 			len : EXT4_MIN_INLINE_DATA_SIZE;
@@ -218,8 +218,8 @@ static void ext4_write_inline_data(struct inode *inode, struct ext4_iloc *iloc,
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
 		return;
 
-	BUG_ON(!EXT4_I(inode)->i_inline_off);
-	BUG_ON(pos + len > EXT4_I(inode)->i_inline_size);
+	_ON(!EXT4_I(inode)->i_inline_off);
+	_ON(pos + len > EXT4_I(inode)->i_inline_size);
 
 	raw_inode = ext4_raw_inode(iloc);
 	buffer += pos;
@@ -284,7 +284,7 @@ static int ext4_create_inline_data(handle_t *handle,
 	if (error)
 		goto out;
 
-	BUG_ON(!is.s.not_found);
+	_ON(!is.s.not_found);
 
 	error = ext4_xattr_ibody_inline_set(handle, inode, &i, &is);
 	if (error) {
@@ -335,7 +335,7 @@ static int ext4_update_inline_data(handle_t *handle, struct inode *inode,
 	if (error)
 		goto out;
 
-	BUG_ON(is.s.not_found);
+	_ON(is.s.not_found);
 
 	len -= EXT4_MIN_INLINE_DATA_SIZE;
 	value = kzalloc(len, GFP_NOFS);
@@ -468,9 +468,9 @@ static int ext4_read_inline_page(struct inode *inode, struct page *page)
 	size_t len;
 	struct ext4_iloc iloc;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(!ext4_has_inline_data(inode));
-	BUG_ON(page->index);
+	_ON(!PageLocked(page));
+	_ON(!ext4_has_inline_data(inode));
+	_ON(page->index);
 
 	if (!EXT4_I(inode)->i_inline_off) {
 		ext4_warning(inode->i_sb, "inode %lu doesn't have inline data.",
@@ -748,7 +748,7 @@ int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
 	}
 
 	ext4_write_lock_xattr(inode, &no_expand);
-	BUG_ON(!ext4_has_inline_data(inode));
+	_ON(!ext4_has_inline_data(inode));
 
 	kaddr = kmap_atomic(page);
 	ext4_write_inline_data(inode, &iloc, kaddr, pos, len);
@@ -979,7 +979,7 @@ int ext4_da_write_inline_data_end(struct inode *inode, loff_t pos,
 	return copied;
 }
 
-#ifdef INLINE_DIR_DEBUG
+#ifdef INLINE_DIR_DE
 void ext4_show_inline_dir(struct inode *dir, struct buffer_head *bh,
 			  void *inline_start, int inline_size)
 {
@@ -997,7 +997,7 @@ void ext4_show_inline_dir(struct inode *dir, struct buffer_head *bh,
 			     de->name_len, le32_to_cpu(de->inode));
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 inline_start, inline_size, offset))
-			BUG();
+			();
 
 		offset += de_len;
 		de = (struct ext4_dir_entry_2 *) ((char *) de + de_len);
@@ -1058,7 +1058,7 @@ static void *ext4_get_inline_xattr_pos(struct inode *inode,
 	struct ext4_xattr_entry *entry;
 	struct ext4_xattr_ibody_header *header;
 
-	BUG_ON(!EXT4_I(inode)->i_inline_off);
+	_ON(!EXT4_I(inode)->i_inline_off);
 
 	header = IHDR(inode, ext4_raw_inode(iloc));
 	entry = (struct ext4_xattr_entry *)((void *)ext4_raw_inode(iloc) +
@@ -1735,7 +1735,7 @@ ext4_get_inline_entry(struct inode *inode,
 {
 	void *inline_pos;
 
-	BUG_ON(offset > ext4_get_inline_size(inode));
+	_ON(offset > ext4_get_inline_size(inode));
 
 	if (offset < EXT4_MIN_INLINE_DATA_SIZE) {
 		inline_pos = (void *)ext4_raw_inode(iloc)->i_block;
@@ -1943,7 +1943,7 @@ int ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 			if ((err = ext4_xattr_ibody_find(inode, &i, &is)) != 0)
 				goto out_error;
 
-			BUG_ON(is.s.not_found);
+			_ON(is.s.not_found);
 
 			value_len = le32_to_cpu(is.s.here->e_value_size);
 			value = kmalloc(value_len, GFP_NOFS);

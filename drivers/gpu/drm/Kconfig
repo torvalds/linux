@@ -35,8 +35,8 @@ config DRM_DP_AUX_CHARDEV
 	  read and write values to arbitrary DPCD registers on the DP aux
 	  channel.
 
-config DRM_DEBUG_MM
-	bool "Insert extra checks and debug info into the DRM range managers"
+config DRM_DE_MM
+	bool "Insert extra checks and de info into the DRM range managers"
 	default n
 	depends on DRM=y
 	depends on STACKTRACE_SUPPORT
@@ -49,10 +49,10 @@ config DRM_DEBUG_MM
 
 	  If in doubt, say "N".
 
-config DRM_DEBUG_SELFTEST
+config DRM_DE_SELFTEST
 	tristate "kselftests for DRM"
 	depends on DRM
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	select PRIME_NUMBERS
 	select DRM_LIB_RANDOM
 	select DRM_KMS_HELPER
@@ -124,7 +124,7 @@ config DRM_FBDEV_LEAK_PHYS_SMEM
 	  removed as soon as possible and be considered as a broken and
 	  legacy behaviour from a modern fbdev device driver.
 
-	  Please send any bug reports when using this to your proprietary
+	  Please send any  reports when using this to your proprietary
 	  software vendor that requires this.
 
 	  If in doubt, say "N" or spread the word to your closed source

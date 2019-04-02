@@ -46,10 +46,10 @@ struct s5h1411_state {
 	u8 inversion;
 };
 
-static int debug;
+static int de;
 
 #define dprintk(arg...) do {	\
-	if (debug)		\
+	if (de)		\
 		printk(arg);	\
 } while (0)
 
@@ -938,8 +938,8 @@ static const struct dvb_frontend_ops s5h1411_ops = {
 	.release              = s5h1411_release,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable verbose de messages");
 
 MODULE_DESCRIPTION("Samsung S5H1411 QAM-B/ATSC Demodulator driver");
 MODULE_AUTHOR("Steven Toth");

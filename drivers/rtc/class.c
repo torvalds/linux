@@ -64,7 +64,7 @@ static int rtc_suspend(struct device *dev)
 	/* snapshot the current RTC and system time at suspend*/
 	err = rtc_read_time(rtc, &tm);
 	if (err < 0) {
-		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
+		pr_de("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
 		return 0;
 	}
 
@@ -113,7 +113,7 @@ static int rtc_resume(struct device *dev)
 	ktime_get_real_ts64(&new_system);
 	err = rtc_read_time(rtc, &tm);
 	if (err < 0) {
-		pr_debug("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
+		pr_de("%s:  fail to read rtc time\n", dev_name(&rtc->dev));
 		return 0;
 	}
 
@@ -121,7 +121,7 @@ static int rtc_resume(struct device *dev)
 	new_rtc.tv_nsec = 0;
 
 	if (new_rtc.tv_sec < old_rtc.tv_sec) {
-		pr_debug("%s:  time travel!\n", dev_name(&rtc->dev));
+		pr_de("%s:  time travel!\n", dev_name(&rtc->dev));
 		return 0;
 	}
 

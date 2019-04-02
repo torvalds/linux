@@ -83,7 +83,7 @@ enum sev_cmd {
 	SEV_CMD_RECEIVE_UPDATE_VMSA	= 0x052,
 	SEV_CMD_RECEIVE_FINISH		= 0x053,
 
-	/* Guest debug commands */
+	/* Guest de commands */
 	SEV_CMD_DBG_DECRYPT		= 0x060,
 	SEV_CMD_DBG_ENCRYPT		= 0x061,
 
@@ -472,7 +472,7 @@ struct sev_data_receive_finish {
 /**
  * struct sev_data_dbg - DBG_ENCRYPT/DBG_DECRYPT command parameters
  *
- * @handle: handle of the VM to perform debug operation
+ * @handle: handle of the VM to perform de operation
  * @src_addr: source address of data to operate on
  * @dst_addr: destination address of data to operate on
  * @len: len of data to operate on

@@ -104,7 +104,7 @@ struct urfile {
 #define MAX_RECS_PER_IO		511
 #define WRITE_CCW_CMD		0x01
 
-#define TRACE(x...) debug_sprintf_event(vmur_dbf, 1, x)
+#define TRACE(x...) de_sprintf_event(vmur_dbf, 1, x)
 #define CCWDEV_CU_DI(cutype, di) \
 		CCW_DEVICE(cutype, 0x00), .driver_info = (di)
 

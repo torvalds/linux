@@ -70,7 +70,7 @@ int nspire_clcd_setup(struct clcd_fb *fb)
 	dma_addr_t dma;
 	int err;
 
-	BUG_ON(!fb->dev->dev.of_node);
+	_ON(!fb->dev->dev.of_node);
 
 	err = of_property_read_string(fb->dev->dev.of_node, "lcd-type", &type);
 	if (err) {

@@ -2593,7 +2593,7 @@ static void pch_udc_svc_enum_interrupt(struct pch_udc_dev *dev)
 		speed = USB_SPEED_LOW;
 		break;
 	default:
-		BUG();
+		();
 	}
 	dev->gadget.speed = speed;
 	pch_udc_activate_control_ep(dev);

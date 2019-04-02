@@ -9,7 +9,7 @@
 #include "txrx.h"
 #include "htt.h"
 #include "mac.h"
-#include "debug.h"
+#include "de.h"
 
 static void ath10k_report_offchan_tx(struct ath10k *ar, struct sk_buff *skb)
 {

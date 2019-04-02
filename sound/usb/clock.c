@@ -457,7 +457,7 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	 * support reading */
 	if (snd_usb_get_sample_rate_quirk(chip))
 		return 0;
-	/* the firmware is likely buggy, don't repeat to fail too many times */
+	/* the firmware is likely gy, don't repeat to fail too many times */
 	if (chip->sample_rate_read_error > 2)
 		return 0;
 

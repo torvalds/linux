@@ -21,7 +21,7 @@
 #include <asm/isc.h>
 
 #include "cio.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "ioasm.h"
 
 static DEFINE_SPINLOCK(airq_lists_lock);

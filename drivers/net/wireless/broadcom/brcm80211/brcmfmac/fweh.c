@@ -20,7 +20,7 @@
 
 #include "cfg80211.h"
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "tracepoint.h"
 #include "fweh.h"
 #include "fwil.h"
@@ -54,7 +54,7 @@ struct brcmf_fweh_event_name {
 	const char *name;
 };
 
-#ifdef DEBUG
+#ifdef DE
 #define BRCMF_ENUM_DEF(id, val) \
 	{ val, #id },
 
@@ -81,7 +81,7 @@ const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 #else
 const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 {
-	return "nodebug";
+	return "node";
 }
 #endif
 

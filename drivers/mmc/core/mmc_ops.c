@@ -862,7 +862,7 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 		break;
 	default:
 		/* In all other states, it's illegal to issue HPI */
-		pr_debug("%s: HPI cannot be sent. Card state=%d\n",
+		pr_de("%s: HPI cannot be sent. Card state=%d\n",
 			mmc_hostname(card->host), R1_CURRENT_STATE(status));
 		err = -EINVAL;
 		goto out;

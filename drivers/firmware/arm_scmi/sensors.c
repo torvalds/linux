@@ -146,7 +146,7 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 		desc_index += num_returned;
 		/*
 		 * check for both returned and remaining to avoid infinite
-		 * loop due to buggy firmware
+		 * loop due to gy firmware
 		 */
 	} while (num_returned && num_remaining);
 

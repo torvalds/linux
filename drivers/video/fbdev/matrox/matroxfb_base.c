@@ -21,7 +21,7 @@
  *
  *               "Bibek Sahu" <scorpio@dodds.net>
  *                     Access device through readb|w|l and write b|w|l
- *                     Extensive debugging stuff
+ *                     Extensive deging stuff
  *
  *               "Daniel Haun" <haund@usa.net>
  *                     Testing, hardware cursor fixes
@@ -34,7 +34,7 @@
  *
  *               "Kelly French" <targon@hazmat.com>
  *               "Fernando Herrera" <fherrera@eurielec.etsit.upm.es>
- *                     Betatesting, bug reporting
+ *                     Betatesting,  reporting
  *
  *               "Pablo Bianucci" <pbian@pccp.com.ar>
  *                     Fixes, ideas, betatesting
@@ -245,7 +245,7 @@ int matroxfb_enable_irq(struct matrox_fb_info *minfo, int reenable)
 
 		ien = mga_inl(M_IEN);
 		if ((ien & bm) != bm) {
-			printk(KERN_DEBUG "matroxfb: someone disabled IRQ [%08X]\n", ien);
+			printk(KERN_DE "matroxfb: someone disabled IRQ [%08X]\n", ien);
 			mga_outl(M_IEN, ien | bm);
 		}
 	}
@@ -575,7 +575,7 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 		var->yres_virtual = vramlen * 8 / (var->xres_virtual * bpp);
 		memlen = var->xres_virtual * bpp * var->yres_virtual / 8;
 	}
-	/* There is hardware bug that no line can cross 4MB boundary */
+	/* There is hardware  that no line can cross 4MB boundary */
 	/* give up for CFB24, it is impossible to easy workaround it */
 	/* for other try to do something */
 	if (!minfo->capable.cross4MB && (memlen > 0x400000)) {

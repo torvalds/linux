@@ -96,7 +96,7 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 	struct snd_opl3 *opl3 = hw->private_data;
 	void __user *argp = (void __user *)arg;
 
-	if (snd_BUG_ON(!opl3))
+	if (snd__ON(!opl3))
 		return -EINVAL;
 
 	switch (cmd) {
@@ -170,7 +170,7 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		return 0;
 #endif
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	default:
 		snd_printk(KERN_WARNING "unknown IOCTL: 0x%x\n", cmd);
 #endif

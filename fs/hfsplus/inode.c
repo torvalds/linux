@@ -83,7 +83,7 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 		tree = HFSPLUS_SB(sb)->attr_tree;
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 	if (!tree)

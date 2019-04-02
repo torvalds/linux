@@ -161,7 +161,7 @@ struct max3421_hcd {
 	u8 mode;
 	u8 iopins[2];
 	unsigned long todo;
-#ifdef DEBUG
+#ifdef DE
 	unsigned long err_stat[16];
 #endif
 };
@@ -567,7 +567,7 @@ max3421_transfer_out(struct usb_hcd *hcd, struct urb *urb, int fast_retransmit)
 
 	if (fast_retransmit) {
 		if (max3421_hcd->rev == 0x12) {
-			/* work around rev 0x12 bug: */
+			/* work around rev 0x12 : */
 			spi_wr8(hcd, MAX3421_REG_SNDBC, 0);
 			spi_wr8(hcd, MAX3421_REG_SNDFIFO, ((u8 *) src)[0]);
 			spi_wr8(hcd, MAX3421_REG_SNDBC, max3421_hcd->curr_len);
@@ -1054,7 +1054,7 @@ max3421_host_transfer_done(struct usb_hcd *hcd)
 	hrsl = spi_rd8(hcd, MAX3421_REG_HRSL);
 	result_code = hrsl & MAX3421_HRSL_RESULT_MASK;
 
-#ifdef DEBUG
+#ifdef DE
 	++max3421_hcd->err_stat[result_code];
 #endif
 
@@ -1177,7 +1177,7 @@ max3421_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef DEBUG
+#ifdef DE
 
 static void
 dump_eps(struct usb_hcd *hcd)
@@ -1217,7 +1217,7 @@ dump_eps(struct usb_hcd *hcd)
 	spin_unlock_irqrestore(&max3421_hcd->lock, flags);
 }
 
-#endif /* DEBUG */
+#endif /* DE */
 
 /* Return zero if no work was performed, 1 otherwise.  */
 static int
@@ -1284,7 +1284,7 @@ max3421_handle_irqs(struct usb_hcd *hcd)
 
 	spin_unlock_irqrestore(&max3421_hcd->lock, flags);
 
-#ifdef DEBUG
+#ifdef DE
 	{
 		static unsigned long last_time;
 		char sbuf[16 * 16], *dp, *end;

@@ -228,7 +228,7 @@ xfs_bmap_forkoff_reset(
 	}
 }
 
-#ifdef DEBUG
+#ifdef DE
 STATIC struct xfs_buf *
 xfs_bmap_get_bp(
 	struct xfs_btree_cur	*cur,
@@ -521,7 +521,7 @@ xfs_bmap_validate_ret(
 #else
 #define xfs_bmap_check_leaf_extents(cur, ip, whichfork)		do { } while (0)
 #define	xfs_bmap_validate_ret(bno,len,flags,mval,onmap,nmap)	do { } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
 /*
  * bmap free list manipulation functions
@@ -540,7 +540,7 @@ __xfs_bmap_add_free(
 	bool				skip_discard)
 {
 	struct xfs_extent_free_item	*new;		/* new element */
-#ifdef DEBUG
+#ifdef DE
 	struct xfs_mount		*mp = tp->t_mountp;
 	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
@@ -615,7 +615,7 @@ xfs_bmap_btree_to_extents(
 
 	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, ifp->if_broot_bytes);
 	cbno = be64_to_cpu(*pp);
-#ifdef DEBUG
+#ifdef DE
 	XFS_WANT_CORRUPTED_RETURN(cur->bc_mp,
 			xfs_btree_check_lptr(cur, cbno, 1));
 #endif
@@ -1503,10 +1503,10 @@ xfs_bmap_one_block(
 	xfs_bmbt_irec_t	s;		/* internal version of extent */
 	struct xfs_iext_cursor icur;
 
-#ifndef DEBUG
+#ifndef DE
 	if (whichfork == XFS_DATA_FORK)
 		return XFS_ISIZE(ip) == ip->i_mount->m_sb.sb_blocksize;
-#endif	/* !DEBUG */
+#endif	/* !DE */
 	if (XFS_IFORK_NEXTENTS(ip, whichfork) != 1)
 		return 0;
 	if (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_EXTENTS)
@@ -3031,7 +3031,7 @@ xfs_bmap_extsize_align(
 		       align_alen + extsz > MAXEXTLEN);
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	if (!eof && gotp->br_startoff != NULLFILEOFF)
 		ASSERT(align_off + align_alen <= gotp->br_startoff);
 	if (prevp->br_startoff != NULLFILEOFF)
@@ -4266,7 +4266,7 @@ xfs_bmapi_write(
 	xfs_fileoff_t		obno;		/* old block number (offset) */
 	int			whichfork;	/* data or attr fork */
 
-#ifdef DEBUG
+#ifdef DE
 	xfs_fileoff_t		orig_bno;	/* original block number value */
 	int			orig_flags;	/* original flags arg value */
 	xfs_filblks_t		orig_len;	/* original value of len arg */

@@ -67,7 +67,7 @@ smp_86xx_kick_cpu(int nr)
 	if (nr < 0 || nr >= NR_CPUS)
 		return -ENOENT;
 
-	pr_debug("smp_86xx_kick_cpu: kick CPU #%d\n", nr);
+	pr_de("smp_86xx_kick_cpu: kick CPU #%d\n", nr);
 
 	local_irq_save(flags);
 
@@ -90,7 +90,7 @@ smp_86xx_kick_cpu(int nr)
 
 	local_irq_restore(flags);
 
-	pr_debug("wait CPU #%d for %d msecs.\n", nr, n);
+	pr_de("wait CPU #%d for %d msecs.\n", nr, n);
 
 	return 0;
 }

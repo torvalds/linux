@@ -175,7 +175,7 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	 *      use agp op-combining
 	 *      use GET semantics to fetch memory
 	 *      participate in coherency domain
-	 * 	DISABLE GART PREFETCHING due to hw bug tracked in SGI PV930029
+	 * 	DISABLE GART PREFETCHING due to hw  tracked in SGI PV930029
 	 */
 
 	__sn_setq_relaxed(&ca_base->ca_control1,
@@ -286,8 +286,8 @@ tioca_dma_d64(unsigned long paddr)
 
 	bus_addr = PHYS_TO_TIODMA(paddr);
 
-	BUG_ON(!bus_addr);
-	BUG_ON(bus_addr >> 54);
+	_ON(!bus_addr);
+	_ON(bus_addr >> 54);
 
 	/* Set upper nibble to Cache Coherent Memory op */
 	bus_addr |= (1UL << 60);
@@ -484,7 +484,7 @@ tioca_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 	    if (map->cad_dma_addr == bus_addr)
 		break;
 
-	BUG_ON(map == NULL);
+	_ON(map == NULL);
 
 	entry = map->cad_gart_entry;
 
@@ -626,7 +626,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 
 	bus = pci_find_bus(tioca_common->ca_common.bs_persist_segment,
 		tioca_common->ca_common.bs_persist_busnum);
-	BUG_ON(!bus);
+	_ON(!bus);
 	tioca_kern->ca_devices = &bus->devices;
 
 	/* init GART */

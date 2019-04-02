@@ -87,7 +87,7 @@
 #define IPC_IA_START_STREAM 0x30 /* Short msg with str_id */
 
 #define IPC_IA_SET_GAIN_MRFLD 0x21
-/* Debug msgs */
+/* De msgs */
 #define IPC_IA_DBG_MEM_READ 0x40
 #define IPC_IA_DBG_MEM_WRITE 0x41
 #define IPC_IA_DBG_LOOP_BACK 0x42
@@ -122,7 +122,7 @@
 					stream can be used by playback and
 					capture modules */
 
-/* L2I Debug msgs */
+/* L2I De msgs */
 #define IPC_IA_PRINT_STRING 0xF0
 
 /* Buffer under-run */
@@ -251,7 +251,7 @@ struct ipc_header_fw_init {
 	struct sst_fw_build_info build_info;
 	u16 result;	/* Fw init result */
 	u8 module_id; /* Module ID in case of error */
-	u8 debug_info; /* Debug info from Module ID in case of fail */
+	u8 de_info; /* De info from Module ID in case of fail */
 } __packed;
 
 struct snd_sst_tstamp {

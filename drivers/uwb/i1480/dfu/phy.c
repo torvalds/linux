@@ -55,7 +55,7 @@ int i1480_mpi_write(struct i1480 *i1480, const void *data, size_t size)
 	struct i1480_cmd_mpi_write *cmd = i1480->cmd_buf;
 	struct i1480_evt_confirm *reply = i1480->evt_buf;
 
-	BUG_ON(size > 480);
+	_ON(size > 480);
 	result = -ENOMEM;
 	cmd->rccb.bCommandType = i1480_CET_VS1;
 	cmd->rccb.wCommand = cpu_to_le16(i1480_CMD_MPI_WRITE);
@@ -107,7 +107,7 @@ int i1480_mpi_read(struct i1480 *i1480, u8 *data, u16 srcaddr, size_t size)
 	memset(i1480->cmd_buf, 0x69, 512);
 	memset(i1480->evt_buf, 0x69, 512);
 
-	BUG_ON(size > (i1480->buf_size - sizeof(*reply)) / 3);
+	_ON(size > (i1480->buf_size - sizeof(*reply)) / 3);
 	result = -ENOMEM;
 	cmd->rccb.bCommandType = i1480_CET_VS1;
 	cmd->rccb.wCommand = cpu_to_le16(i1480_CMD_MPI_READ);

@@ -55,12 +55,12 @@
  * See the comedilib documentation for details.
  *
  * Information (number of channels, bits, etc.) for some devices may be
- * incorrect. Please check this and submit a bug if there are problems
+ * incorrect. Please check this and submit a  if there are problems
  * for your device.
  *
  * SCXI is probably broken for m-series boards.
  *
- * Bugs:
+ * s:
  * - When DMA is enabled, COMEDI_EV_CONVERT does not work correctly.
  */
 
@@ -247,7 +247,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0xffff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 100000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PXI6030E] = {
 		.name		= "pxi-6030e",
@@ -294,7 +294,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 512,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.caldac		= { ad8804_debug },	/* doc says mb88341 */
+		.caldac		= { ad8804_de },	/* doc says mb88341 */
 	},
 	[BOARD_PXI6040E] = {
 		.name		= "pxi-6040e",
@@ -358,7 +358,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PCI6023E] = {
 		.name		= "pci-6023e",
@@ -367,7 +367,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_fifo_depth	= 512,
 		.gainlkup	= ai_gain_4,
 		.ai_speed	= 5000,
-		.caldac		= { ad8804_debug },	/* manual is wrong */
+		.caldac		= { ad8804_de },	/* manual is wrong */
 	},
 	[BOARD_PCI6024E] = {
 		.name		= "pci-6024e",
@@ -380,7 +380,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 100000,
-		.caldac		= { ad8804_debug },	/* manual is wrong */
+		.caldac		= { ad8804_de },	/* manual is wrong */
 	},
 	[BOARD_PCI6025E] = {
 		.name		= "pci-6025e",
@@ -393,7 +393,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 100000,
-		.caldac		= { ad8804_debug },	/* manual is wrong */
+		.caldac		= { ad8804_de },	/* manual is wrong */
 		.has_8255	= 1,
 	},
 	[BOARD_PXI6025E] = {
@@ -407,7 +407,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 100000,
-		.caldac		= { ad8804_debug },	/* manual is wrong */
+		.caldac		= { ad8804_de },	/* manual is wrong */
 		.has_8255	= 1,
 	},
 	[BOARD_PCI6034E] = {
@@ -418,7 +418,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.alwaysdither	= 1,
 		.gainlkup	= ai_gain_4,
 		.ai_speed	= 5000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PCI6035E] = {
 		.name		= "pci-6035e",
@@ -432,7 +432,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 100000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PCI6052E] = {
 		.name		= "pci-6052e",
@@ -448,7 +448,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 3000,
 		/* manual is wrong */
-		.caldac		= { ad8804_debug, ad8804_debug, ad8522 },
+		.caldac		= { ad8804_de, ad8804_de, ad8522 },
 	},
 	[BOARD_PCI6110] = {
 		.name		= "pci-6110",
@@ -497,7 +497,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 250,
 		.reg_611x	= 1,
 		/* XXX */
-		.caldac		= { ad8804_debug, ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de, ad8804_de },
 	},
 #endif
 #if 0
@@ -515,7 +515,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 250,
 		.reg_611x	= 1,
 		/* XXX */
-		.caldac		= { ad8804_debug, ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de, ad8804_de },
 	},
 #endif
 	[BOARD_PCI6711] = {
@@ -527,7 +527,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6711,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PXI6711] = {
 		.name		= "pxi-6711",
@@ -537,7 +537,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6711,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PCI6713] = {
 		.name		= "pci-6713",
@@ -547,7 +547,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6713,
-		.caldac		= { ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de },
 	},
 	[BOARD_PXI6713] = {
 		.name		= "pxi-6713",
@@ -557,7 +557,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6713,
-		.caldac		= { ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de },
 	},
 	[BOARD_PCI6731] = {
 		.name		= "pci-6731",
@@ -567,7 +567,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6711,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 #if 0
 	[BOARD_PXI6731] = {	/* .device_id = ????, */
@@ -577,7 +577,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 8192,
 		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_6711,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 #endif
 	[BOARD_PCI6733] = {
@@ -588,7 +588,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6713,
-		.caldac		= { ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de },
 	},
 	[BOARD_PXI6733] = {
 		.name		= "pxi-6733",
@@ -598,7 +598,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000,
 		.reg_type	= ni_reg_6713,
-		.caldac		= { ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de },
 	},
 	[BOARD_PXI6071E] = {
 		.name		= "pxi-6071e",
@@ -613,7 +613,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PXI6070E] = {
 		.name		= "pxi-6070e",
@@ -628,7 +628,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PXI6052E] = {
 		.name		= "pxi-6052e",
@@ -672,7 +672,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0xffff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 100000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	},
 	[BOARD_PCI6220] = {
 		.name		= "pci-6220",
@@ -1126,7 +1126,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.gainlkup	= ai_gain_6143,
 		.ai_speed	= 4000,
 		.reg_type	= ni_reg_6143,
-		.caldac		= { ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de },
 	},
 	[BOARD_PXI6143] = {
 		.name		= "pxi-6143",
@@ -1136,7 +1136,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.gainlkup	= ai_gain_6143,
 		.ai_speed	= 4000,
 		.reg_type	= ni_reg_6143,
-		.caldac		= { ad8804_debug, ad8804_debug },
+		.caldac		= { ad8804_de, ad8804_de },
 	},
 };
 

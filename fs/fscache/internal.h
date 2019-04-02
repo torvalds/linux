@@ -95,7 +95,7 @@ extern const struct seq_operations fscache_histogram_ops;
  */
 extern unsigned fscache_defer_lookup;
 extern unsigned fscache_defer_create;
-extern unsigned fscache_debug;
+extern unsigned fscache_de;
 extern struct kobject *fscache_root;
 extern struct workqueue_struct *fscache_object_wq;
 extern struct workqueue_struct *fscache_op_wq;
@@ -310,10 +310,10 @@ int fscache_stats_show(struct seq_file *m, void *v);
 static inline void fscache_raise_event(struct fscache_object *object,
 				       unsigned event)
 {
-	BUG_ON(event >= NR_FSCACHE_OBJECT_EVENTS);
+	_ON(event >= NR_FSCACHE_OBJECT_EVENTS);
 #if 0
 	printk("*** fscache_raise_event(OBJ%d{%lx},%x)\n",
-	       object->debug_id, object->event_mask, (1 << event));
+	       object->de_id, object->event_mask, (1 << event));
 #endif
 	if (!test_and_set_bit(event, &object->events) &&
 	    test_bit(event, &object->event_mask))
@@ -372,84 +372,84 @@ void fscache_update_aux(struct fscache_cookie *cookie, const void *aux_data)
 
 /*****************************************************************************/
 /*
- * debug tracing
+ * de tracing
  */
 #define dbgprintk(FMT, ...) \
-	printk(KERN_DEBUG "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
+	printk(KERN_DE "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
 
 #define kenter(FMT, ...) dbgprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define kdebug(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
+#define kde(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
 
 #define kjournal(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 
-#ifdef __KDEBUG
+#ifdef __KDE
 #define _enter(FMT, ...) kenter(FMT, ##__VA_ARGS__)
 #define _leave(FMT, ...) kleave(FMT, ##__VA_ARGS__)
-#define _debug(FMT, ...) kdebug(FMT, ##__VA_ARGS__)
+#define _de(FMT, ...) kde(FMT, ##__VA_ARGS__)
 
-#elif defined(CONFIG_FSCACHE_DEBUG)
+#elif defined(CONFIG_FSCACHE_DE)
 #define _enter(FMT, ...)			\
 do {						\
-	if (__do_kdebug(ENTER))			\
+	if (__do_kde(ENTER))			\
 		kenter(FMT, ##__VA_ARGS__);	\
 } while (0)
 
 #define _leave(FMT, ...)			\
 do {						\
-	if (__do_kdebug(LEAVE))			\
+	if (__do_kde(LEAVE))			\
 		kleave(FMT, ##__VA_ARGS__);	\
 } while (0)
 
-#define _debug(FMT, ...)			\
+#define _de(FMT, ...)			\
 do {						\
-	if (__do_kdebug(DEBUG))			\
-		kdebug(FMT, ##__VA_ARGS__);	\
+	if (__do_kde(DE))			\
+		kde(FMT, ##__VA_ARGS__);	\
 } while (0)
 
 #else
 #define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define _de(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 /*
- * determine whether a particular optional debugging point should be logged
+ * determine whether a particular optional deging point should be logged
  * - we need to go through three steps to persuade cpp to correctly join the
- *   shorthand in FSCACHE_DEBUG_LEVEL with its prefix
+ *   shorthand in FSCACHE_DE_LEVEL with its prefix
  */
-#define ____do_kdebug(LEVEL, POINT) \
-	unlikely((fscache_debug & \
-		  (FSCACHE_POINT_##POINT << (FSCACHE_DEBUG_ ## LEVEL * 3))))
-#define ___do_kdebug(LEVEL, POINT) \
-	____do_kdebug(LEVEL, POINT)
-#define __do_kdebug(POINT) \
-	___do_kdebug(FSCACHE_DEBUG_LEVEL, POINT)
+#define ____do_kde(LEVEL, POINT) \
+	unlikely((fscache_de & \
+		  (FSCACHE_POINT_##POINT << (FSCACHE_DE_ ## LEVEL * 3))))
+#define ___do_kde(LEVEL, POINT) \
+	____do_kde(LEVEL, POINT)
+#define __do_kde(POINT) \
+	___do_kde(FSCACHE_DE_LEVEL, POINT)
 
-#define FSCACHE_DEBUG_CACHE	0
-#define FSCACHE_DEBUG_COOKIE	1
-#define FSCACHE_DEBUG_PAGE	2
-#define FSCACHE_DEBUG_OPERATION	3
+#define FSCACHE_DE_CACHE	0
+#define FSCACHE_DE_COOKIE	1
+#define FSCACHE_DE_PAGE	2
+#define FSCACHE_DE_OPERATION	3
 
 #define FSCACHE_POINT_ENTER	1
 #define FSCACHE_POINT_LEAVE	2
-#define FSCACHE_POINT_DEBUG	4
+#define FSCACHE_POINT_DE	4
 
-#ifndef FSCACHE_DEBUG_LEVEL
-#define FSCACHE_DEBUG_LEVEL CACHE
+#ifndef FSCACHE_DE_LEVEL
+#define FSCACHE_DE_LEVEL CACHE
 #endif
 
 /*
  * assertions
  */
-#if 1 /* defined(__KDEBUGALL) */
+#if 1 /* defined(__KDEALL) */
 
 #define ASSERT(X)							\
 do {									\
 	if (unlikely(!(X))) {						\
 		pr_err("\n");					\
 		pr_err("Assertion failed\n");	\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -460,7 +460,7 @@ do {									\
 		pr_err("Assertion failed\n");	\
 		pr_err("%lx " #OP " %lx is false\n",		\
 		       (unsigned long)(X), (unsigned long)(Y));		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -469,7 +469,7 @@ do {									\
 	if (unlikely((C) && !(X))) {					\
 		pr_err("\n");					\
 		pr_err("Assertion failed\n");	\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 
@@ -480,7 +480,7 @@ do {									\
 		pr_err("Assertion failed\n");	\
 		pr_err("%lx " #OP " %lx is false\n",		\
 		       (unsigned long)(X), (unsigned long)(Y));		\
-		BUG();							\
+		();							\
 	}								\
 } while (0)
 

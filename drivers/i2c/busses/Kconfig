@@ -600,7 +600,7 @@ config I2C_GPIO_FAULT_INJECTOR
 	help
 	  This adds some functionality to the i2c-gpio driver which can inject
 	  faults to an I2C bus, so another bus master can be stress-tested.
-	  This is for debugging. If unsure, say 'no'.
+	  This is for deging. If unsure, say 'no'.
 
 config I2C_HIGHLANDER
 	tristate "Highlander FPGA SMBus interface"

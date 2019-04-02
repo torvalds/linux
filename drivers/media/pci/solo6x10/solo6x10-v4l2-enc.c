@@ -339,7 +339,7 @@ static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
 		len = sg_dma_len(sg);
 
 		/* We assume this is smaller than the scatter size */
-		BUG_ON(skip >= len);
+		_ON(skip >= len);
 		if (skip) {
 			len -= skip;
 			dma += skip;

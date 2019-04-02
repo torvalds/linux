@@ -202,9 +202,9 @@ enum armcp_packet_id {
 	ARMCP_PACKET_PWM_SET,			/* sysfs */
 	ARMCP_PACKET_FREQUENCY_SET,		/* sysfs */
 	ARMCP_PACKET_FREQUENCY_GET,		/* sysfs */
-	ARMCP_PACKET_LED_SET,			/* debugfs */
-	ARMCP_PACKET_I2C_WR,			/* debugfs */
-	ARMCP_PACKET_I2C_RD,			/* debugfs */
+	ARMCP_PACKET_LED_SET,			/* defs */
+	ARMCP_PACKET_I2C_WR,			/* defs */
+	ARMCP_PACKET_I2C_RD,			/* defs */
 	ARMCP_PACKET_INFO_GET,			/* IOCTL */
 	ARMCP_PACKET_FLASH_PROGRAM_REMOVED,
 	ARMCP_PACKET_UNMASK_RAZWI_IRQ,		/* internal */

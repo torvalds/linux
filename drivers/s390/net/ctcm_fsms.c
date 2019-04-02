@@ -8,9 +8,9 @@
  *		Andy Richter (richtera@us.ibm.com)
  */
 
-#undef DEBUG
-#undef DEBUGDATA
-#undef DEBUGCCW
+#undef DE
+#undef DEDATA
+#undef DECCW
 
 #define KMSG_COMPONENT "ctcm"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
@@ -44,7 +44,7 @@
 
 #include "fsm.h"
 
-#include "ctcm_dbug.h"
+#include "ctcm_d.h"
 #include "ctcm_main.h"
 #include "ctcm_fsms.h"
 
@@ -215,7 +215,7 @@ void ctcm_purge_skb_queue(struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 
-	CTCM_DBF_TEXT(TRACE, CTC_DBF_DEBUG, __func__);
+	CTCM_DBF_TEXT(TRACE, CTC_DBF_DE, __func__);
 
 	while ((skb = skb_dequeue(q))) {
 		refcount_dec(&skb->users);
@@ -254,14 +254,14 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 	unsigned long duration;
 	unsigned long done_stamp = jiffies;
 
-	CTCM_PR_DEBUG("%s(%s): %s\n", __func__, ch->id, dev->name);
+	CTCM_PR_DE("%s(%s): %s\n", __func__, ch->id, dev->name);
 
 	duration = done_stamp - ch->prof.send_stamp;
 	if (duration > ch->prof.tx_time)
 		ch->prof.tx_time = duration;
 
 	if (ch->irb->scsw.cmd.count != 0)
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DE,
 			"%s(%s): TX not complete, remaining %d bytes",
 			     CTCM_FUNTAIL, dev->name, ch->irb->scsw.cmd.count);
 	fsm_deltimer(&ch->timer);
@@ -338,7 +338,7 @@ void ctcm_chx_txidle(fsm_instance *fi, int event, void *arg)
 	struct net_device *dev = ch->netdev;
 	struct ctcm_priv *priv = dev->ml_priv;
 
-	CTCM_PR_DEBUG("%s(%s): %s\n", __func__, ch->id, dev->name);
+	CTCM_PR_DE("%s(%s): %s\n", __func__, ch->id, dev->name);
 
 	fsm_deltimer(&ch->timer);
 	fsm_newstate(fi, CTC_STATE_TXIDLE);
@@ -383,7 +383,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 	}
 
 	/*
-	 * VM TCP seems to have a bug sending 2 trailing bytes of garbage.
+	 * VM TCP seems to have a  sending 2 trailing bytes of garbage.
 	 */
 	switch (ch->protocol) {
 	case CTCM_PROTO_S390:
@@ -398,7 +398,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 		CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
 			"%s(%s): got block length %d != rx length %d\n",
 				CTCM_FUNTAIL, dev->name, block_len, len);
-		if (do_debug)
+		if (do_de)
 			ctcmpc_dump_skb(skb, 0);
 
 		*((__u16 *)skb->data) = len;
@@ -442,7 +442,7 @@ static void chx_firstio(fsm_instance *fi, int event, void *arg)
 
 	ch->sense_rc = 0;	/* reset unit check report control */
 	if (fsmstate == CTC_STATE_TXIDLE)
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DE,
 			"%s(%s): remote side issued READ?, init.\n",
 				CTCM_FUNTAIL, ch->id);
 	fsm_deltimer(&ch->timer);
@@ -519,7 +519,7 @@ static void chx_rxidle(fsm_instance *fi, int event, void *arg)
 
 	fsm_deltimer(&ch->timer);
 	buflen = *((__u16 *)ch->trans_skb->data);
-	CTCM_PR_DEBUG("%s: %s: Initial RX count = %d\n",
+	CTCM_PR_DE("%s: %s: Initial RX count = %d\n",
 			__func__, dev->name, buflen);
 
 	if (buflen >= CTCM_INITIAL_BLOCKLEN) {
@@ -535,7 +535,7 @@ static void chx_rxidle(fsm_instance *fi, int event, void *arg)
 		} else
 			fsm_event(priv->fsm, DEV_EVENT_RXUP, dev);
 	} else {
-		CTCM_PR_DEBUG("%s: %s: Initial RX count %d not %d\n",
+		CTCM_PR_DE("%s: %s: Initial RX count %d not %d\n",
 				__func__, dev->name,
 					buflen, CTCM_INITIAL_BLOCKLEN);
 		chx_firstio(fi, event, arg);
@@ -559,7 +559,7 @@ static void ctcm_chx_setmode(fsm_instance *fi, int event, void *arg)
 	fsm_deltimer(&ch->timer);
 	if (IS_MPC(ch)) {
 		timeout = 1500;
-		CTCM_PR_DEBUG("enter %s: cp=%i ch=0x%p id=%s\n",
+		CTCM_PR_DE("enter %s: cp=%i ch=0x%p id=%s\n",
 				__func__, smp_processor_id(), ch, ch->id);
 	}
 	fsm_addtimer(&ch->timer, timeout, CTC_EVENT_TIMER, ch);
@@ -615,7 +615,7 @@ static void ctcm_chx_start(fsm_instance *fi, int event, void *arg)
 		ch->ccw[1].count = 0;
 	}
 	if (ctcm_checkalloc_buffer(ch)) {
-		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
+		CTCM_DBF_TEXT_(TRACE, CTC_DBF_DE,
 			"%s(%s): %s trans_skb alloc delayed "
 			"until first transfer",
 			CTCM_FUNTAIL, ch->id,
@@ -997,7 +997,7 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 	struct ctcm_priv *priv = dev->ml_priv;
 	struct sk_buff *skb;
 
-	CTCM_PR_DEBUG("Enter: %s: cp=%i ch=0x%p id=%s\n",
+	CTCM_PR_DE("Enter: %s: cp=%i ch=0x%p id=%s\n",
 			__func__, smp_processor_id(), ch, ch->id);
 
 	fsm_deltimer(&ch->timer);
@@ -1014,7 +1014,7 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 				goto done;
 	}
 
-	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
+	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DE,
 			"%s : %s: retry %d",
 				CTCM_FUNTAIL, ch->id, ch->retry);
 	skb = skb_peek(&ch->io_queue);
@@ -1037,7 +1037,7 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 			/* Such conditional locking is a known problem for
 			 * sparse because its undeterministic in static view.
 			 * Warnings should be ignored here. */
-		if (do_debug_ccw)
+		if (do_de_ccw)
 			ctcmpc_dumpit((char *)&ch->ccw[3],
 					sizeof(struct ccw1) * 3);
 
@@ -1230,7 +1230,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	struct pdu	*p_header;
 	unsigned long done_stamp = jiffies;
 
-	CTCM_PR_DEBUG("Enter %s: %s cp:%i\n",
+	CTCM_PR_DE("Enter %s: %s cp:%i\n",
 			__func__, dev->name, smp_processor_id());
 
 	duration = done_stamp - ch->prof.send_stamp;
@@ -1238,7 +1238,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		ch->prof.tx_time = duration;
 
 	if (ch->irb->scsw.cmd.count != 0)
-		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_DEBUG,
+		CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_DE,
 			"%s(%s): TX not complete, remaining %d bytes",
 			     CTCM_FUNTAIL, dev->name, ch->irb->scsw.cmd.count);
 	fsm_deltimer(&ch->timer);
@@ -1359,7 +1359,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	ch->ccw[1].count = ch->trans_skb->len;
 	fsm_addtimer(&ch->timer, CTCM_TIME_5_SEC, CTC_EVENT_TIMER, ch);
 	ch->prof.send_stamp = jiffies;
-	if (do_debug_ccw)
+	if (do_de_ccw)
 		ctcmpc_dumpit((char *)&ch->ccw[0], sizeof(struct ccw1) * 3);
 	rc = ccw_device_start(ch->cdev, &ch->ccw[0],
 					(unsigned long)ch, 0xff, 0);
@@ -1394,7 +1394,7 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 	unsigned long		saveflags = 0;	/* avoids compiler warning */
 	int len	= ch->max_bufsize - ch->irb->scsw.cmd.count;
 
-	CTCM_PR_DEBUG("%s: %s: cp:%i %s maxbuf : %04x, len: %04x\n",
+	CTCM_PR_DE("%s: %s: cp:%i %s maxbuf : %04x, len: %04x\n",
 			CTCM_FUNTAIL, dev->name, smp_processor_id(),
 				ch->id, ch->max_bufsize, len);
 	fsm_deltimer(&ch->timer);
@@ -1455,7 +1455,7 @@ again:
 		skb_reset_tail_pointer(ch->trans_skb);
 		ch->trans_skb->len = 0;
 		ch->ccw[1].count = ch->max_bufsize;
-			if (do_debug_ccw)
+			if (do_de_ccw)
 			ctcmpc_dumpit((char *)&ch->ccw[0],
 					sizeof(struct ccw1) * 3);
 		dolock = !in_irq();
@@ -1473,7 +1473,7 @@ again:
 		break;
 	}
 
-	CTCM_PR_DEBUG("Exit %s: %s, ch=0x%p, id=%s\n",
+	CTCM_PR_DE("Exit %s: %s, ch=0x%p, id=%s\n",
 			__func__, dev->name, ch, ch->id);
 
 }
@@ -1492,7 +1492,7 @@ static void ctcmpc_chx_firstio(fsm_instance *fi, int event, void *arg)
 	struct ctcm_priv	*priv = dev->ml_priv;
 	struct mpc_group	*gptr = priv->mpcg;
 
-	CTCM_PR_DEBUG("Enter %s: id=%s, ch=0x%p\n",
+	CTCM_PR_DE("Enter %s: id=%s, ch=0x%p\n",
 				__func__, ch->id, ch);
 
 	CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_INFO,
@@ -1525,7 +1525,7 @@ static void ctcmpc_chx_firstio(fsm_instance *fi, int event, void *arg)
 		     ? CTC_STATE_RXINIT : CTC_STATE_TXINIT);
 
 done:
-	CTCM_PR_DEBUG("Exit %s: id=%s, ch=0x%p\n",
+	CTCM_PR_DE("Exit %s: id=%s, ch=0x%p\n",
 				__func__, ch->id, ch);
 	return;
 }
@@ -1549,7 +1549,7 @@ void ctcmpc_chx_rxidle(fsm_instance *fi, int event, void *arg)
 	unsigned long saveflags = 0;	/* avoids compiler warning */
 
 	fsm_deltimer(&ch->timer);
-	CTCM_PR_DEBUG("%s: %s: %s: cp:%i, chstate:%i grpstate:%i\n",
+	CTCM_PR_DE("%s: %s: %s: cp:%i, chstate:%i grpstate:%i\n",
 			__func__, ch->id, dev->name, smp_processor_id(),
 				fsm_getstate(fi), fsm_getstate(grp->fsm));
 
@@ -1601,7 +1601,7 @@ static void ctcmpc_chx_attn(fsm_instance *fsm, int event, void *arg)
 	struct ctcm_priv  *priv   = dev->ml_priv;
 	struct mpc_group  *grp = priv->mpcg;
 
-	CTCM_PR_DEBUG("%s(%s): %s(ch=0x%p), cp=%i, ChStat:%s, GrpStat:%s\n",
+	CTCM_PR_DE("%s(%s): %s(ch=0x%p), cp=%i, ChStat:%s, GrpStat:%s\n",
 		__func__, dev->name, ch->id, ch, smp_processor_id(),
 			fsm_getstate_str(ch->fsm), fsm_getstate_str(grp->fsm));
 
@@ -1660,7 +1660,7 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 	struct ctcm_priv  *priv   = dev->ml_priv;
 	struct mpc_group  *grp    = priv->mpcg;
 
-	CTCM_PR_DEBUG("%s(%s): %s\n  ChState:%s GrpState:%s\n",
+	CTCM_PR_DE("%s(%s): %s\n  ChState:%s GrpState:%s\n",
 			__func__, dev->name, ch->id,
 			fsm_getstate_str(ch->fsm), fsm_getstate_str(grp->fsm));
 
@@ -1767,7 +1767,7 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 	int rc = 0;
 	unsigned long saveflags = 0;
 
-	CTCM_PR_DEBUG("ctcmpc enter: %s(): cp=%i ch=0x%p id=%s\n",
+	CTCM_PR_DE("ctcmpc enter: %s(): cp=%i ch=0x%p id=%s\n",
 			__func__, smp_processor_id(), ach, ach->id);
 
 	if (grp->in_sweep == 0)
@@ -2103,7 +2103,7 @@ static void dev_action_stop(fsm_instance *fi, int event, void *arg)
 		struct channel *ch = priv->channel[direction];
 		fsm_event(ch->fsm, CTC_EVENT_STOP, ch);
 		ch->th_seq_num = 0x00;
-		CTCM_PR_DEBUG("%s: CH_th_seq= %08x\n",
+		CTCM_PR_DE("%s: CH_th_seq= %08x\n",
 				__func__, ch->th_seq_num);
 	}
 	if (IS_MPC(priv))

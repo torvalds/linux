@@ -509,8 +509,8 @@ dsp_bf_decrypt(struct dsp *dsp, u8 *data, int len)
 
 		/* check if frame is valid */
 		if ((cs & 0x7) != (((cs2 >> 5) & 4) | ((cs1 >> 6) & 2) | (cs0 >> 7))) {
-			if (dsp_debug & DEBUG_DSP_BLOWFISH)
-				printk(KERN_DEBUG
+			if (dsp_de & DE_DSP_BLOWFISH)
+				printk(KERN_DE
 				       "DSP BLOWFISH: received corrupt frame, "
 				       "checksumme is not correct\n");
 			continue;

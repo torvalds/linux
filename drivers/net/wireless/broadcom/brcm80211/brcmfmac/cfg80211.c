@@ -27,7 +27,7 @@
 #include <defs.h>
 #include <brcmu_wifi.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "tracepoint.h"
 #include "fwil_types.h"
 #include "p2p.h"
@@ -1029,7 +1029,7 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		err = -ENOMEM;
 		goto exit;
 	}
-	BUG_ON(params_size + sizeof("escan") >= BRCMF_DCMD_MEDLEN);
+	_ON(params_size + sizeof("escan") >= BRCMF_DCMD_MEDLEN);
 	brcmf_escan_prep(cfg, &params->params_le, request);
 	params->version = cpu_to_le32(BRCMF_ESCAN_REQ_VERSION);
 	params->action = cpu_to_le16(WL_ESCAN_ACTION_START);
@@ -1464,7 +1464,7 @@ brcmf_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 	brcmf_dbg(TRACE, "Enter\n");
 	if (!check_vif_up(ifp->vif)) {
 		/* When driver is being unloaded, it can end up here. If an
-		 * error is returned then later on a debug trace in the wireless
+		 * error is returned then later on a de trace in the wireless
 		 * core module will be printed. To avoid this 0 is returned.
 		 */
 		return 0;

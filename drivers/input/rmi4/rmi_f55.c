@@ -100,9 +100,9 @@ static int rmi_f55_detect(struct rmi_function *fn)
 		}
 	}
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F55 num_rx_electrodes: %d (raw %d)\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F55 num_rx_electrodes: %d (raw %d)\n",
 		f55->cfg_num_rx_electrodes, f55->num_rx_electrodes);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F55 num_tx_electrodes: %d (raw %d)\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F55 num_tx_electrodes: %d (raw %d)\n",
 		f55->cfg_num_tx_electrodes, f55->num_tx_electrodes);
 
 	return 0;

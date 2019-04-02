@@ -21,7 +21,7 @@
 #define   USBCMD_GRESET		0x0004	/* Global reset */
 #define   USBCMD_EGSM		0x0008	/* Global Suspend Mode */
 #define   USBCMD_FGR		0x0010	/* Force Global Resume */
-#define   USBCMD_SWDBG		0x0020	/* SW Debug mode */
+#define   USBCMD_SWDBG		0x0020	/* SW De mode */
 #define   USBCMD_CF		0x0040	/* Config Flag (sw only) */
 #define   USBCMD_MAXP		0x0080	/* Max Packet (0 = 32, 1 = 64) */
 
@@ -32,7 +32,7 @@
 #define   USBSTS_RD		0x0004	/* Resume Detect */
 #define   USBSTS_HSE		0x0008	/* Host System Error: PCI problems */
 #define   USBSTS_HCPE		0x0010	/* Host Controller Process Error:
-					 * the schedule is buggy */
+					 * the schedule is gy */
 #define   USBSTS_HCH		0x0020	/* HC Halted */
 
 /* Interrupt enable register */
@@ -309,7 +309,7 @@ struct uhci_td {
  *
  * There is a special terminating QH used to keep full-speed bandwidth
  * reclamation active when no full-speed control or bulk QHs are linked
- * into the schedule.  It has an inactive TD (to work around a PIIX bug,
+ * into the schedule.  It has an inactive TD (to work around a PIIX ,
  * see the Intel errata) and it points back to itself.
  *
  * There's a special skeleton QH for Isochronous QHs which never appears
@@ -382,7 +382,7 @@ enum uhci_rh_state {
  */
 struct uhci_hcd {
 
-	/* debugfs */
+	/* defs */
 	struct dentry *dentry;
 
 	/* Grabbed from PCI */
@@ -394,7 +394,7 @@ struct uhci_hcd {
 	struct dma_pool *qh_pool;
 	struct dma_pool *td_pool;
 
-	struct uhci_td *term_td;	/* Terminating TD, see UHCI bug */
+	struct uhci_td *term_td;	/* Terminating TD, see UHCI  */
 	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QHs */
 	struct uhci_qh *next_qh;	/* Next QH to scan */
 

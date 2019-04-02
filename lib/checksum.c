@@ -14,7 +14,7 @@
  *		for more names.
  *
  * 03/02/96	Jes Sorensen, Andreas Schwab, Roman Hodek:
- *		Fixed some nasty bugs, causing some horrible crashes.
+ *		Fixed some nasty s, causing some horrible crashes.
  *		A: At some points, the sum (%0) was used as
  *		length-counter instead of the length counter
  *		(%1). Thanks to Roman Hodek for pointing this out.

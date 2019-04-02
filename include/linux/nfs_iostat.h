@@ -75,7 +75,7 @@ enum nfs_stat_bytecounters {
  * NFS event counters
  *
  * These counters provide a low-overhead way of monitoring client
- * activity without enabling NFS trace debugging.  The counters
+ * activity without enabling NFS trace deging.  The counters
  * show the rate at which VFS requests are made, and how often the
  * client invalidates its data and attribute caches.  This allows
  * system administrators to monitor such things as how close-to-open

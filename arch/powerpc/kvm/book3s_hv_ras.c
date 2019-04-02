@@ -248,7 +248,7 @@ long kvmppc_realmode_hmi_handler(void)
 
 	__this_cpu_inc(irq_stat.hmi_exceptions);
 
-	if (hmi_handle_debugtrig(NULL) >= 0)
+	if (hmi_handle_detrig(NULL) >= 0)
 		return 1;
 
 	/*

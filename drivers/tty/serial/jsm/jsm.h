@@ -20,7 +20,7 @@
 #include <linux/device.h>
 
 /*
- * Debugging levels can be set using debug insmod variable
+ * Deging levels can be set using de insmod variable
  * They can also be compiled out completely.
  */
 enum {
@@ -45,7 +45,7 @@ enum {
 
 #define jsm_dbg(nlevel, pdev, fmt, ...)				\
 do {								\
-	if (DBG_##nlevel & jsm_debug)				\
+	if (DBG_##nlevel & jsm_de)				\
 		dev_dbg(pdev->dev, fmt, ##__VA_ARGS__);		\
 } while (0)
 
@@ -422,7 +422,7 @@ struct neo_uart_struct {
 extern struct	uart_driver jsm_uart_driver;
 extern struct	board_ops jsm_neo_ops;
 extern struct	board_ops jsm_cls_ops;
-extern int	jsm_debug;
+extern int	jsm_de;
 
 /*************************************************************************
  *

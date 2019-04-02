@@ -30,7 +30,7 @@
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
-		ti,hwmods = "debugss";
+		ti,hwmods = "dess";
 	};
 
 	thermal-zones {

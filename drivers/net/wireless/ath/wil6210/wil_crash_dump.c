@@ -29,7 +29,7 @@ static int wil_fw_get_crash_dump_bounds(struct wil6210_priv *wil,
 		return -EINVAL;
 
 	/* calculate the total size of the unpacked crash dump */
-	BUILD_BUG_ON(ARRAY_SIZE(fw_mapping) == 0);
+	BUILD__ON(ARRAY_SIZE(fw_mapping) == 0);
 	map = &fw_mapping[0];
 	host_min = map->host;
 	host_max = map->host + (map->to - map->from);

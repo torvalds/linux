@@ -45,7 +45,7 @@
 #ifndef _AIC79XX_INLINE_H_
 #define _AIC79XX_INLINE_H_
 
-/******************************** Debugging ***********************************/
+/******************************** Deging ***********************************/
 static inline char *ahd_name(struct ahd_softc *ahd);
 
 static inline char *ahd_name(struct ahd_softc *ahd)

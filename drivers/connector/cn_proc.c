@@ -45,7 +45,7 @@
 /* See comment above; we test our assumption about sizeof struct cn_msg here. */
 static inline struct cn_msg *buffer_to_cn_msg(__u8 *buffer)
 {
-	BUILD_BUG_ON(sizeof(struct cn_msg) != 20);
+	BUILD__ON(sizeof(struct cn_msg) != 20);
 	return (struct cn_msg *)(buffer + 4);
 }
 

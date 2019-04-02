@@ -264,7 +264,7 @@ static inline u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 		io_cq->cur_rx_pkt_cdesc_count = 0;
 		io_cq->cur_rx_pkt_cdesc_start_idx = head_masked;
 
-		pr_debug("ena q_id: %d packets were completed. first desc idx %u descs# %d\n",
+		pr_de("ena q_id: %d packets were completed. first desc idx %u descs# %d\n",
 			 io_cq->qid, *first_cdesc_idx, count);
 	} else {
 		io_cq->cur_rx_pkt_cdesc_count += count;
@@ -362,7 +362,7 @@ static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT;
 
-	pr_debug("ena_rx_ctx->l3_proto %d ena_rx_ctx->l4_proto %d\nena_rx_ctx->l3_csum_err %d ena_rx_ctx->l4_csum_err %d\nhash frag %d frag: %d cdesc_status: %x\n",
+	pr_de("ena_rx_ctx->l3_proto %d ena_rx_ctx->l4_proto %d\nena_rx_ctx->l3_csum_err %d ena_rx_ctx->l4_csum_err %d\nhash frag %d frag: %d cdesc_status: %x\n",
 		 ena_rx_ctx->l3_proto, ena_rx_ctx->l4_proto,
 		 ena_rx_ctx->l3_csum_err, ena_rx_ctx->l4_csum_err,
 		 ena_rx_ctx->hash, ena_rx_ctx->frag, cdesc->status);
@@ -390,7 +390,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 	/* num_bufs +1 for potential meta desc */
 	if (unlikely(!ena_com_sq_have_enough_space(io_sq, num_bufs + 1))) {
-		pr_debug("Not enough space in the tx queue\n");
+		pr_de("Not enough space in the tx queue\n");
 		return -ENOMEM;
 	}
 
@@ -535,7 +535,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 		return 0;
 	}
 
-	pr_debug("fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
+	pr_de("fetch rx packet: queue %d completed desc: %d\n", io_cq->qid,
 		 nb_hw_desc);
 
 	if (unlikely(nb_hw_desc > ena_rx_ctx->max_bufs)) {
@@ -555,7 +555,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	/* Update SQ head ptr */
 	io_sq->next_to_comp += nb_hw_desc;
 
-	pr_debug("[%s][QID#%d] Updating SQ head to: %d\n", __func__, io_sq->qid,
+	pr_de("[%s][QID#%d] Updating SQ head to: %d\n", __func__, io_sq->qid,
 		 io_sq->next_to_comp);
 
 	/* Get rx flags from the last pkt */

@@ -27,4 +27,4 @@ obj-$(CONFIG_SOC_MT7621) += mt7621.o
 
 obj-$(CONFIG_EARLY_PRINTK) += early_printk.o
 
-obj-$(CONFIG_DEBUG_FS) += bootrom.o
+obj-$(CONFIG_DE_FS) += bootrom.o

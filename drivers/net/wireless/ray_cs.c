@@ -649,7 +649,7 @@ static void verify_dl_startup(struct timer_list *t)
 #if 0
 	{
 		int i;
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "verify_dl_startup parameters sent via ccs %d:\n",
 		       local->dl_param_ccs);
 		for (i = 0; i < sizeof(struct b5_startup_params); i++) {
@@ -880,7 +880,7 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	struct tx_msg __iomem *ptx;	/* Address of xmit buffer in PC space */
 	short int addr;		/* Address of xmit buffer in card space */
 
-	pr_debug("ray_hw_xmit(data=%p, len=%d, dev=%p)\n", data, len, dev);
+	pr_de("ray_hw_xmit(data=%p, len=%d, dev=%p)\n", data, len, dev);
 	if (len + TX_HEADER_LENGTH > TX_BUF_SIZE) {
 		printk(KERN_INFO "ray_hw_xmit packet too large: %d bytes\n",
 		       len);
@@ -888,10 +888,10 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	}
 	switch (ccsindex = get_free_tx_ccs(local)) {
 	case ECCSBUSY:
-		pr_debug("ray_hw_xmit tx_ccs table busy\n");
+		pr_de("ray_hw_xmit tx_ccs table busy\n");
 		/* fall through */
 	case ECCSFULL:
-		pr_debug("ray_hw_xmit No free tx ccs\n");
+		pr_de("ray_hw_xmit No free tx ccs\n");
 		/* fall through */
 	case ECARDGONE:
 		netif_stop_queue(dev);
@@ -929,12 +929,12 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	writeb(PSM_CAM, &pccs->var.tx_request.pow_sav_mode);
 	writeb(local->net_default_tx_rate, &pccs->var.tx_request.tx_rate);
 	writeb(0, &pccs->var.tx_request.antenna);
-	pr_debug("ray_hw_xmit default_tx_rate = 0x%x\n",
+	pr_de("ray_hw_xmit default_tx_rate = 0x%x\n",
 	      local->net_default_tx_rate);
 
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		pr_debug("ray_hw_xmit failed - ECF not ready for intr\n");
+		pr_de("ray_hw_xmit failed - ECF not ready for intr\n");
 /* TBD very inefficient to copy packet to buffer, and then not
    send it, but the alternative is to queue the messages and that
    won't be done for a while.  Maybe set tbusy until a CCS is free?
@@ -951,7 +951,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 {
 	__be16 proto = ((struct ethhdr *)data)->h_proto;
 	if (ntohs(proto) >= ETH_P_802_3_MIN) { /* DIX II ethernet frame */
-		pr_debug("ray_cs translate_frame DIX II\n");
+		pr_de("ray_cs translate_frame DIX II\n");
 		/* Copy LLC header to card buffer */
 		memcpy_toio(&ptx->var, eth2_llc, sizeof(eth2_llc));
 		memcpy_toio(((void __iomem *)&ptx->var) + sizeof(eth2_llc),
@@ -967,9 +967,9 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 			    len - ETH_HLEN);
 		return (int)sizeof(struct snaphdr_t) - ETH_HLEN;
 	} else { /* already  802 type, and proto is length */
-		pr_debug("ray_cs translate_frame 802\n");
+		pr_de("ray_cs translate_frame 802\n");
 		if (proto == htons(0xffff)) { /* evil netware IPX 802.3 without LLC */
-			pr_debug("ray_cs translate_frame evil IPX\n");
+			pr_de("ray_cs translate_frame evil IPX\n");
 			memcpy_toio(&ptx->var, data + ETH_HLEN, len - ETH_HLEN);
 			return 0 - ETH_HLEN;
 		}
@@ -1540,7 +1540,7 @@ static int ray_dev_close(struct net_device *dev)
 /*===========================================================================*/
 static void ray_reset(struct net_device *dev)
 {
-	pr_debug("ray_reset entered\n");
+	pr_de("ray_reset entered\n");
 }
 
 /*===========================================================================*/
@@ -1800,11 +1800,11 @@ static void set_multicast_list(struct net_device *dev)
 	ray_dev_t *local = netdev_priv(dev);
 	UCHAR promisc;
 
-	pr_debug("ray_cs set_multicast_list(%p)\n", dev);
+	pr_de("ray_cs set_multicast_list(%p)\n", dev);
 
 	if (dev->flags & IFF_PROMISC) {
 		if (local->sparm.b5.a_promiscuous_mode == 0) {
-			pr_debug("ray_cs set_multicast_list promisc on\n");
+			pr_de("ray_cs set_multicast_list promisc on\n");
 			local->sparm.b5.a_promiscuous_mode = 1;
 			promisc = 1;
 			ray_update_parm(dev, OBJID_promiscuous_mode,
@@ -1812,7 +1812,7 @@ static void set_multicast_list(struct net_device *dev)
 		}
 	} else {
 		if (local->sparm.b5.a_promiscuous_mode == 1) {
-			pr_debug("ray_cs set_multicast_list promisc off\n");
+			pr_de("ray_cs set_multicast_list promisc off\n");
 			local->sparm.b5.a_promiscuous_mode = 0;
 			promisc = 0;
 			ray_update_parm(dev, OBJID_promiscuous_mode,
@@ -1848,12 +1848,12 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 	if (dev == NULL)	/* Note that we want interrupts with dev->start == 0 */
 		return IRQ_NONE;
 
-	pr_debug("ray_cs: interrupt for *dev=%p\n", dev);
+	pr_de("ray_cs: interrupt for *dev=%p\n", dev);
 
 	local = netdev_priv(dev);
 	link = local->finder;
 	if (!pcmcia_dev_present(link)) {
-		pr_debug(
+		pr_de(
 			"ray_cs interrupt from device not present or suspended.\n");
 		return IRQ_NONE;
 	}
@@ -2050,7 +2050,7 @@ static void ray_rx(struct net_device *dev, ray_dev_t *local,
 	int rx_len;
 	unsigned int pkt_addr;
 	void __iomem *pmsg;
-	pr_debug("ray_rx process rx packet\n");
+	pr_de("ray_rx process rx packet\n");
 
 	/* Calculate address of packet within Rx buffer */
 	pkt_addr = ((readb(&prcs->var.rx_packet.rx_data_ptr[0]) << 8)
@@ -2063,28 +2063,28 @@ static void ray_rx(struct net_device *dev, ray_dev_t *local,
 	pmsg = local->rmem + pkt_addr;
 	switch (readb(pmsg)) {
 	case DATA_TYPE:
-		pr_debug("ray_rx data type\n");
+		pr_de("ray_rx data type\n");
 		rx_data(dev, prcs, pkt_addr, rx_len);
 		break;
 	case AUTHENTIC_TYPE:
-		pr_debug("ray_rx authentic type\n");
+		pr_de("ray_rx authentic type\n");
 		if (sniffer)
 			rx_data(dev, prcs, pkt_addr, rx_len);
 		else
 			rx_authenticate(local, prcs, pkt_addr, rx_len);
 		break;
 	case DEAUTHENTIC_TYPE:
-		pr_debug("ray_rx deauth type\n");
+		pr_de("ray_rx deauth type\n");
 		if (sniffer)
 			rx_data(dev, prcs, pkt_addr, rx_len);
 		else
 			rx_deauthenticate(local, prcs, pkt_addr, rx_len);
 		break;
 	case NULL_MSG_TYPE:
-		pr_debug("ray_cs rx NULL msg\n");
+		pr_de("ray_cs rx NULL msg\n");
 		break;
 	case BEACON_TYPE:
-		pr_debug("ray_rx beacon type\n");
+		pr_de("ray_rx beacon type\n");
 		if (sniffer)
 			rx_data(dev, prcs, pkt_addr, rx_len);
 
@@ -2097,7 +2097,7 @@ static void ray_rx(struct net_device *dev, ray_dev_t *local,
 		ray_get_stats(dev);
 		break;
 	default:
-		pr_debug("ray_cs unknown pkt type %2x\n",
+		pr_de("ray_cs unknown pkt type %2x\n",
 		      (unsigned int)readb(pmsg));
 		break;
 	}
@@ -2126,7 +2126,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			    rx_len >
 			    (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN +
 			     FCS_LEN)) {
-				pr_debug(
+				pr_de(
 				      "ray_cs invalid packet length %d received\n",
 				      rx_len);
 				return;
@@ -2137,17 +2137,17 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			    rx_len >
 			    (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN +
 			     FCS_LEN)) {
-				pr_debug(
+				pr_de(
 				      "ray_cs invalid packet length %d received\n",
 				      rx_len);
 				return;
 			}
 		}
 	}
-	pr_debug("ray_cs rx_data packet\n");
+	pr_de("ray_cs rx_data packet\n");
 	/* If fragmented packet, verify sizes of fragments add up */
 	if (readb(&prcs->var.rx_packet.next_frag_rcs_index) != 0xFF) {
-		pr_debug("ray_cs rx'ed fragment\n");
+		pr_de("ray_cs rx'ed fragment\n");
 		tmp = (readb(&prcs->var.rx_packet.totalpacketlength[0]) << 8)
 		    + readb(&prcs->var.rx_packet.totalpacketlength[1]);
 		total_len = tmp;
@@ -2165,7 +2165,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 		} while (1);
 
 		if (tmp < 0) {
-			pr_debug(
+			pr_de(
 			      "ray_cs rx_data fragment lengths don't add up\n");
 			local->stats.rx_dropped++;
 			release_frag_chain(local, prcs);
@@ -2177,7 +2177,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 
 	skb = dev_alloc_skb(total_len + 5);
 	if (skb == NULL) {
-		pr_debug("ray_cs rx_data could not allocate skb\n");
+		pr_de("ray_cs rx_data could not allocate skb\n");
 		local->stats.rx_dropped++;
 		if (readb(&prcs->var.rx_packet.next_frag_rcs_index) != 0xFF)
 			release_frag_chain(local, prcs);
@@ -2185,7 +2185,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 	}
 	skb_reserve(skb, 2);	/* Align IP on 16 byte (TBD check this) */
 
-	pr_debug("ray_cs rx_data total_len = %x, rx_len = %x\n", total_len,
+	pr_de("ray_cs rx_data total_len = %x, rx_len = %x\n", total_len,
 	      rx_len);
 
 /************************/
@@ -2218,7 +2218,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 	tmp = 17;
 	if (readb(&prcs->var.rx_packet.next_frag_rcs_index) != 0xFF) {
 		prcslink = prcs;
-		pr_debug("ray_cs rx_data in fragment loop\n");
+		pr_de("ray_cs rx_data in fragment loop\n");
 		do {
 			prcslink = rcs_base(local)
 			    +
@@ -2292,20 +2292,20 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 
 #if 0
 	if {
-		print_hex_dump(KERN_DEBUG, "skb->data before untranslate: ",
+		print_hex_dump(KERN_DE, "skb->data before untranslate: ",
 			       DUMP_PREFIX_NONE, 16, 1,
 			       skb->data, 64, true);
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "type = %08x, xsap = %02x%02x%02x, org = %02x02x02x\n",
 		       ntohs(type), psnap->dsap, psnap->ssap, psnap->ctrl,
 		       psnap->org[0], psnap->org[1], psnap->org[2]);
-		printk(KERN_DEBUG "untranslate skb->data = %p\n", skb->data);
+		printk(KERN_DE "untranslate skb->data = %p\n", skb->data);
 	}
 #endif
 
 	if (psnap->dsap != 0xaa || psnap->ssap != 0xaa || psnap->ctrl != 3) {
 		/* not a snap type so leave it alone */
-		pr_debug("ray_cs untranslate NOT SNAP %02x %02x %02x\n",
+		pr_de("ray_cs untranslate NOT SNAP %02x %02x %02x\n",
 		      psnap->dsap, psnap->ssap, psnap->ctrl);
 
 		delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
@@ -2314,7 +2314,7 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 	} else { /* Its a SNAP */
 		if (memcmp(psnap->org, org_bridge, 3) == 0) {
 		/* EtherII and nuke the LLC */
-			pr_debug("ray_cs untranslate Bridge encap\n");
+			pr_de("ray_cs untranslate Bridge encap\n");
 			delta = RX_MAC_HEADER_LENGTH
 			    + sizeof(struct snaphdr_t) - ETH_HLEN;
 			peth = (struct ethhdr *)(skb->data + delta);
@@ -2323,14 +2323,14 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 			switch (ntohs(type)) {
 			case ETH_P_IPX:
 			case ETH_P_AARP:
-				pr_debug("ray_cs untranslate RFC IPX/AARP\n");
+				pr_de("ray_cs untranslate RFC IPX/AARP\n");
 				delta = RX_MAC_HEADER_LENGTH - ETH_HLEN;
 				peth = (struct ethhdr *)(skb->data + delta);
 				peth->h_proto =
 				    htons(len - RX_MAC_HEADER_LENGTH);
 				break;
 			default:
-				pr_debug("ray_cs untranslate RFC default\n");
+				pr_de("ray_cs untranslate RFC default\n");
 				delta = RX_MAC_HEADER_LENGTH +
 				    sizeof(struct snaphdr_t) - ETH_HLEN;
 				peth = (struct ethhdr *)(skb->data + delta);
@@ -2346,14 +2346,14 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 	}
 /* TBD reserve  skb_reserve(skb, delta); */
 	skb_pull(skb, delta);
-	pr_debug("untranslate after skb_pull(%d), skb->data = %p\n", delta,
+	pr_de("untranslate after skb_pull(%d), skb->data = %p\n", delta,
 	      skb->data);
 	memcpy(peth->h_dest, destaddr, ADDRLEN);
 	memcpy(peth->h_source, srcaddr, ADDRLEN);
 #if 0
 	{
 		int i;
-		printk(KERN_DEBUG "skb->data after untranslate:");
+		printk(KERN_DE "skb->data after untranslate:");
 		for (i = 0; i < 64; i++)
 			printk("%02x ", skb->data[i]);
 		printk("\n");
@@ -2393,7 +2393,7 @@ static void release_frag_chain(ray_dev_t *local, struct rcs __iomem *prcs)
 	while (tmp--) {
 		writeb(CCS_BUFFER_FREE, &prcslink->buffer_status);
 		if (rcsindex >= (NUMBER_OF_CCS + NUMBER_OF_RCS)) {
-			pr_debug("ray_cs interrupt bad rcsindex = 0x%x\n",
+			pr_de("ray_cs interrupt bad rcsindex = 0x%x\n",
 			      rcsindex);
 			break;
 		}
@@ -2436,11 +2436,11 @@ static void rx_authenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 	copy_from_rx_buff(local, buff, pkt_addr, rx_len & 0xff);
 	/* if we are trying to get authenticated */
 	if (local->sparm.b4.a_network_type == ADHOC) {
-		pr_debug("ray_cs rx_auth var= %02x %02x %02x %02x %02x %02x\n",
+		pr_de("ray_cs rx_auth var= %02x %02x %02x %02x %02x %02x\n",
 		      msg->var[0], msg->var[1], msg->var[2], msg->var[3],
 		      msg->var[4], msg->var[5]);
 		if (msg->var[2] == 1) {
-			pr_debug("ray_cs Sending authentication response.\n");
+			pr_de("ray_cs Sending authentication response.\n");
 			if (!build_auth_frame
 			    (local, msg->mac.addr_2, OPEN_AUTH_RESPONSE)) {
 				local->authentication_state = NEED_TO_AUTH;
@@ -2454,13 +2454,13 @@ static void rx_authenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 			/* Verify authentication sequence #2 and success */
 			if (msg->var[2] == 2) {
 				if ((msg->var[3] | msg->var[4]) == 0) {
-					pr_debug("Authentication successful\n");
+					pr_de("Authentication successful\n");
 					local->card_status = CARD_AUTH_COMPLETE;
 					associate(local);
 					local->authentication_state =
 					    AUTHENTICATED;
 				} else {
-					pr_debug("Authentication refused\n");
+					pr_de("Authentication refused\n");
 					local->card_status = CARD_AUTH_REFUSED;
 					join_net(&local->timer);
 					local->authentication_state =
@@ -2517,7 +2517,7 @@ static void rx_deauthenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 /*  UCHAR buff[256];
     struct ray_rx_msg *msg = (struct ray_rx_msg *) buff;
 */
-	pr_debug("Deauthentication frame received\n");
+	pr_de("Deauthentication frame received\n");
 	local->authentication_state = UNAUTHENTICATED;
 	/* Need to reauthenticate or rejoin depending on reason code */
 /*  copy_from_rx_buff(local, buff, pkt_addr, rx_len & 0xff);
@@ -2672,7 +2672,7 @@ static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type)
 
 	/* If no tx buffers available, return */
 	if ((ccsindex = get_free_tx_ccs(local)) < 0) {
-		pr_debug("ray_cs send authenticate - No free tx ccs\n");
+		pr_de("ray_cs send authenticate - No free tx ccs\n");
 		return -1;
 	}
 
@@ -2704,7 +2704,7 @@ static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type)
 
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		pr_debug(
+		pr_de(
 		      "ray_cs send authentication request failed - ECF not ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 		return -1;
@@ -2791,9 +2791,9 @@ static int __init init_ray_cs(void)
 {
 	int rc;
 
-	pr_debug("%s\n", rcsid);
+	pr_de("%s\n", rcsid);
 	rc = pcmcia_register_driver(&ray_driver);
-	pr_debug("raylink init_module register_pcmcia_driver returns 0x%x\n",
+	pr_de("raylink init_module register_pcmcia_driver returns 0x%x\n",
 	      rc);
 
 #ifdef CONFIG_PROC_FS
@@ -2815,7 +2815,7 @@ static int __init init_ray_cs(void)
 
 static void __exit exit_ray_cs(void)
 {
-	pr_debug("ray_cs: cleanup_module\n");
+	pr_de("ray_cs: cleanup_module\n");
 
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("driver/ray_cs/ray_cs", NULL);

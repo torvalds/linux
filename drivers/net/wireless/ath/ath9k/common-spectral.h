@@ -169,8 +169,8 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
 }
 
 #ifdef CONFIG_ATH9K_COMMON_SPECTRAL
-void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy);
-void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv);
+void ath9k_cmn_spectral_init_de(struct ath_spec_scan_priv *spec_priv, struct dentry *defs_phy);
+void ath9k_cmn_spectral_deinit_de(struct ath_spec_scan_priv *spec_priv);
 
 void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 				 struct ath_spec_scan_priv *spec_priv);
@@ -180,12 +180,12 @@ int ath9k_cmn_spectral_scan_config(struct ath_common *common,
 int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf);
 #else
-static inline void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv,
-						 struct dentry *debugfs_phy)
+static inline void ath9k_cmn_spectral_init_de(struct ath_spec_scan_priv *spec_priv,
+						 struct dentry *defs_phy)
 {
 }
 
-static inline void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
+static inline void ath9k_cmn_spectral_deinit_de(struct ath_spec_scan_priv *spec_priv)
 {
 }
 

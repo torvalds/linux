@@ -1207,7 +1207,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		if (!priv->btxpower_tracking) {
 			rtl92e_writel(dev, rCCK0_TxFilter1, 0x1a1b0000);
 			rtl92e_writel(dev, rCCK0_TxFilter2, 0x090e1317);
-			rtl92e_writel(dev, rCCK0_DebugPort, 0x00000204);
+			rtl92e_writel(dev, rCCK0_DePort, 0x00000204);
 		} else {
 			_rtl92e_cck_tx_power_track_bw_switch(dev);
 		}
@@ -1222,7 +1222,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 		if (!priv->btxpower_tracking) {
 			rtl92e_writel(dev, rCCK0_TxFilter1, 0x35360000);
 			rtl92e_writel(dev, rCCK0_TxFilter2, 0x121c252e);
-			rtl92e_writel(dev, rCCK0_DebugPort, 0x00000409);
+			rtl92e_writel(dev, rCCK0_DePort, 0x00000409);
 		} else {
 			_rtl92e_cck_tx_power_track_bw_switch(dev);
 		}

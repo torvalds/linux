@@ -117,8 +117,8 @@ init_IRQ(void)
 #define MCHK_K_HERR            0x0084
 #define MCHK_K_ECC_C           0x0086
 #define MCHK_K_ECC_NC          0x0088
-#define MCHK_K_OS_BUGCHECK     0x008A
-#define MCHK_K_PAL_BUGCHECK    0x0090
+#define MCHK_K_OS_CHECK     0x008A
+#define MCHK_K_PAL_CHECK    0x0090
 
 #ifndef CONFIG_SMP
 struct mcheck_info __mcheck_info;
@@ -162,7 +162,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 	case 0x84: reason = "generic hard error"; break;
 	case 0x86: reason = "correctable ECC error"; break;
 	case 0x88: reason = "uncorrectable ECC error"; break;
-	case 0x8A: reason = "OS-specific PAL bugcheck"; break;
+	case 0x8A: reason = "OS-specific PAL check"; break;
 	case 0x90: reason = "callsys in kernel mode"; break;
 	case 0x96: reason = "i-cache read retryable error"; break;
 	case 0x98: reason = "processor detected hard error"; break;

@@ -157,7 +157,7 @@ AArch64 内核当前没有提供自解压代码，因此如果使用了压缩内
   x3 = 0 (保留，将来可能使用)
 
 - CPU 模式
-  所有形式的中断必须在 PSTATE.DAIF 中被屏蔽（Debug、SError、IRQ
+  所有形式的中断必须在 PSTATE.DAIF 中被屏蔽（De、SError、IRQ
   和 FIQ）。
   CPU 必须处于 EL2（推荐，可访问虚拟化扩展）或非安全 EL1 模式下。
 

@@ -22,7 +22,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-#include "debug.h"
+#include "de.h"
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
@@ -773,12 +773,12 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 	int				ret;
 
 	if (!ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
-		pr_debug("dwc3: invalid parameters\n");
+		pr_de("dwc3: invalid parameters\n");
 		return -EINVAL;
 	}
 
 	if (!desc->wMaxPacketSize) {
-		pr_debug("dwc3: missing wMaxPacketSize\n");
+		pr_de("dwc3: missing wMaxPacketSize\n");
 		return -EINVAL;
 	}
 
@@ -805,7 +805,7 @@ static int dwc3_gadget_ep_disable(struct usb_ep *ep)
 	int				ret;
 
 	if (!ep) {
-		pr_debug("dwc3: invalid parameters\n");
+		pr_de("dwc3: invalid parameters\n");
 		return -EINVAL;
 	}
 
@@ -1160,7 +1160,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 {
 	struct dwc3_request	*req, *n;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
+	BUILD__ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	/*
 	 * We can get in a situation where there's a request in the started list
@@ -2306,7 +2306,7 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 		 * For those two physical endpoints, we don't allocate a TRB
 		 * pool nor do we add them the endpoints list. Due to that, we
 		 * shouldn't do these two operations otherwise we would end up
-		 * with all sorts of bugs when removing dwc3.ko.
+		 * with all sorts of s when removing dwc3.ko.
 		 */
 		if (epnum != 0 && epnum != 1) {
 			dwc3_free_trb_pool(dep);
@@ -2732,7 +2732,7 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 	 * would cause a missing Disconnect Event if there's a
 	 * pending Setup Packet in the FIFO.
 	 *
-	 * There's no suggested workaround on the official Bug
+	 * There's no suggested workaround on the official 
 	 * report, which states that "unless the driver/application
 	 * is doing any special handling of a disconnect event,
 	 * there is no functional issue".

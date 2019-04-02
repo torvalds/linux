@@ -38,7 +38,7 @@
 #include <linux/if_vlan.h>
 #include <linux/jhash.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <net/neighbour.h>
 #include "cxgb4.h"

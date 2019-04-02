@@ -227,7 +227,7 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	pll_n += pll_n % 2;
 	priv->frequency_khz = pll_n * f_ref_khz / div_ref / div_out;
 
-	pr_debug("frequency=%u offset=%d f_vco_khz=%u pll_n=%u div_ref=%u div_out=%u\n",
+	pr_de("frequency=%u offset=%d f_vco_khz=%u pll_n=%u div_ref=%u div_out=%u\n",
 		 priv->frequency_khz, priv->frequency_khz - c->frequency,
 		 f_vco_khz, pll_n, div_ref, div_out);
 

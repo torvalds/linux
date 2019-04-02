@@ -200,7 +200,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	default:
 		pr_err("%s:%s[%d] trying to alloc unknown pci irq\n",
 		       __FILE__, __func__, __LINE__);
-		BUG();
+		();
 		break;
 	}
 

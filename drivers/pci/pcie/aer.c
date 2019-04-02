@@ -964,7 +964,7 @@ static bool find_source_device(struct pci_dev *parent,
 	pci_walk_bus(parent->subordinate, find_device_iter, e_info);
 
 	if (!e_info->error_dev_num) {
-		pci_printk(KERN_DEBUG, parent, "can't find device of ID%04x\n",
+		pci_printk(KERN_DE, parent, "can't find device of ID%04x\n",
 			   e_info->id);
 		return false;
 	}
@@ -1380,7 +1380,7 @@ static int aer_probe(struct pcie_device *dev)
 
 	rpc = devm_kzalloc(device, sizeof(struct aer_rpc), GFP_KERNEL);
 	if (!rpc) {
-		dev_printk(KERN_DEBUG, device, "alloc AER rpc failed\n");
+		dev_printk(KERN_DE, device, "alloc AER rpc failed\n");
 		return -ENOMEM;
 	}
 	rpc->rpd = dev->port;
@@ -1389,7 +1389,7 @@ static int aer_probe(struct pcie_device *dev)
 	status = devm_request_threaded_irq(device, dev->irq, aer_irq, aer_isr,
 					   IRQF_SHARED, "aerdrv", dev);
 	if (status) {
-		dev_printk(KERN_DEBUG, device, "request AER IRQ %d failed\n",
+		dev_printk(KERN_DE, device, "request AER IRQ %d failed\n",
 			   dev->irq);
 		return status;
 	}
@@ -1419,7 +1419,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, reg32);
 
 	rc = pci_bus_error_reset(dev);
-	pci_printk(KERN_DEBUG, dev, "Root Port link has been reset\n");
+	pci_printk(KERN_DE, dev, "Root Port link has been reset\n");
 
 	/* Clear Root Error Status */
 	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &reg32);

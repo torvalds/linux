@@ -316,7 +316,7 @@ struct atio7_fcp_cmnd {
 	/*
 	 * add_cdb is optional and can absent from struct atio7_fcp_cmnd. Size 4
 	 * only to make sizeof(struct atio7_fcp_cmnd) be as expected by
-	 * BUILD_BUG_ON in qlt_init().
+	 * BUILD__ON in qlt_init().
 	 */
 	uint8_t  add_cdb[4];
 	/* uint32_t data_length; */

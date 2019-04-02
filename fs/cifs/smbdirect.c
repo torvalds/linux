@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include "smbdirect.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
 
@@ -2055,7 +2055,7 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 	info->smbd_recv_pending++;
 
 	if (iov_iter_rw(&msg->msg_iter) == WRITE) {
-		/* It's a bug in upper layer to get there */
+		/* It's a  in upper layer to get there */
 		cifs_dbg(VFS, "CIFS: invalid msg iter dir %u\n",
 			 iov_iter_rw(&msg->msg_iter));
 		rc = -EINVAL;
@@ -2077,7 +2077,7 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 		break;
 
 	default:
-		/* It's a bug in upper layer to get there */
+		/* It's a  in upper layer to get there */
 		cifs_dbg(VFS, "CIFS: invalid msg type %d\n",
 			 iov_iter_type(&msg->msg_iter));
 		rc = -EINVAL;

@@ -382,7 +382,7 @@ EXPORT_SYMBOL_GPL(wusb_cluster_id_get);
 void wusb_cluster_id_put(u8 id)
 {
 	id = 0xff - id;
-	BUG_ON(id >= CLUSTER_IDS);
+	_ON(id >= CLUSTER_IDS);
 	spin_lock(&wusb_cluster_ids_lock);
 	WARN_ON(!test_bit(id, wusb_cluster_id_table));
 	clear_bit(id, wusb_cluster_id_table);
@@ -475,7 +475,7 @@ static void __exit wusbcore_exit(void)
 {
 	clear_bit(0, wusb_cluster_id_table);
 	if (!bitmap_empty(wusb_cluster_id_table, CLUSTER_IDS)) {
-		printk(KERN_ERR "BUG: WUSB Cluster IDs not released on exit: %*pb\n",
+		printk(KERN_ERR ": WUSB Cluster IDs not released on exit: %*pb\n",
 		       CLUSTER_IDS, wusb_cluster_id_table);
 		WARN_ON(1);
 	}

@@ -49,7 +49,7 @@
 
 #include <linux/cdev.h>
 #include <linux/clk-provider.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/ieee802154.h>
@@ -313,10 +313,10 @@ struct cas_control {
 
 /**
  * struct ca8210_test - ca8210 test interface structure
- * @ca8210_dfs_spi_int: pointer to the entry in the debug fs for this device
+ * @ca8210_dfs_spi_int: pointer to the entry in the de fs for this device
  * @up_fifo:            fifo for upstream messages
  *
- * This structure stores all the data pertaining to the debug interface
+ * This structure stores all the data pertaining to the de interface
  */
 struct ca8210_test {
 	struct dentry *ca8210_dfs_spi_int;
@@ -3011,7 +3011,7 @@ static int ca8210_test_interface_init(struct ca8210_priv *priv)
 		priv->spi->chip_select
 	);
 
-	test->ca8210_dfs_spi_int = debugfs_create_file(
+	test->ca8210_dfs_spi_int = defs_create_file(
 		node_name,
 		0600, /* S_IRUSR | S_IWUSR */
 		NULL,
@@ -3021,12 +3021,12 @@ static int ca8210_test_interface_init(struct ca8210_priv *priv)
 	if (IS_ERR(test->ca8210_dfs_spi_int)) {
 		dev_err(
 			&priv->spi->dev,
-			"Error %ld when creating debugfs node\n",
+			"Error %ld when creating defs node\n",
 			PTR_ERR(test->ca8210_dfs_spi_int)
 		);
 		return PTR_ERR(test->ca8210_dfs_spi_int);
 	}
-	debugfs_create_symlink("ca8210", NULL, node_name);
+	defs_create_symlink("ca8210", NULL, node_name);
 	init_waitqueue_head(&test->readq);
 	return kfifo_alloc(
 		&test->up_fifo,
@@ -3043,7 +3043,7 @@ static void ca8210_test_interface_clear(struct ca8210_priv *priv)
 {
 	struct ca8210_test *test = &priv->test;
 
-	debugfs_remove(test->ca8210_dfs_spi_int);
+	defs_remove(test->ca8210_dfs_spi_int);
 	kfifo_free(&test->up_fifo);
 	dev_info(&priv->spi->dev, "Test interface removed\n");
 }
@@ -3091,7 +3091,7 @@ static int ca8210_remove(struct spi_device *spi_device)
 				"Unregistered & freed ieee802154_hw.\n"
 			);
 		}
-		if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEBUGFS))
+		if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEFS))
 			ca8210_test_interface_clear(priv);
 	}
 
@@ -3136,7 +3136,7 @@ static int ca8210_probe(struct spi_device *spi_device)
 	init_completion(&priv->spi_transfer_complete);
 	init_completion(&priv->sync_exchange_complete);
 	spi_set_drvdata(priv->spi, priv);
-	if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEBUGFS)) {
+	if (IS_ENABLED(CONFIG_IEEE802154_CA8210_DEFS)) {
 		cascoda_api_upstream = ca8210_test_int_driver_write;
 		ca8210_test_interface_init(priv);
 	} else {

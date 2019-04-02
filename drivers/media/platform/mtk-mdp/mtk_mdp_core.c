@@ -31,7 +31,7 @@
 #include "mtk_mdp_m2m.h"
 #include "mtk_vpu.h"
 
-/* MDP debug log level (0-3). 3 shows all the logs. */
+/* MDP de log level (0-3). 3 shows all the logs. */
 int mtk_mdp_dbg_level;
 EXPORT_SYMBOL(mtk_mdp_dbg_level);
 

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-/* bug in tracepoint.h, it should include this */
+/*  in tracepoint.h, it should include this */
 #include <linux/module.h>
 
 /* sparse isn't too happy with all macros... */
 #ifndef __CHECKER__
 #include <net/cfg80211.h>
 #include "driver-ops.h"
-#include "debug.h"
+#include "de.h"
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "trace_msg.h"
@@ -38,7 +38,7 @@ void __sdata_dbg(bool print, const char *fmt, ...)
 	vaf.va = &args;
 
 	if (print)
-		pr_debug("%pV", &vaf);
+		pr_de("%pV", &vaf);
 	trace_mac80211_dbg(&vaf);
 	va_end(args);
 }

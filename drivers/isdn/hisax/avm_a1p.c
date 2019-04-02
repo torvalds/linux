@@ -148,8 +148,8 @@ avm_a1p_interrupt(int intno, void *dev_id)
 
 	spin_lock_irqsave(&cs->lock, flags);
 	while ((sval = (~bytein(cs->hw.avm.cfg_reg + ASL0_OFFSET) & ASL0_R_IRQPENDING))) {
-		if (cs->debug & L1_DEB_INTSTAT)
-			debugl1(cs, "avm IntStatus %x", sval);
+		if (cs->de & L1_DEB_INTSTAT)
+			del1(cs, "avm IntStatus %x", sval);
 		if (sval & ASL0_R_HSCX) {
 			val = ReadHSCX(cs, 1, HSCX_ISTA);
 			if (val)

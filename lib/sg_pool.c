@@ -40,7 +40,7 @@ static inline unsigned int sg_pool_index(unsigned short nents)
 {
 	unsigned int index;
 
-	BUG_ON(nents > SG_CHUNK_SIZE);
+	_ON(nents > SG_CHUNK_SIZE);
 
 	if (nents <= 8)
 		index = 0;
@@ -100,7 +100,7 @@ int sg_alloc_table_chained(struct sg_table *table, int nents,
 {
 	int ret;
 
-	BUG_ON(!nents);
+	_ON(!nents);
 
 	if (first_chunk) {
 		if (nents <= SG_CHUNK_SIZE) {

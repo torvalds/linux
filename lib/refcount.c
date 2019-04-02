@@ -41,7 +41,7 @@
 #include <linux/mutex.h>
 #include <linux/refcount.h>
 #include <linux/spinlock.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 /**
  * refcount_add_not_zero_checked - add a value to a refcount unless it is 0

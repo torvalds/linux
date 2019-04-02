@@ -332,7 +332,7 @@ static int via_cmdbuffer(struct drm_device *dev, void *data, struct drm_file *fi
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("buf %p size %lu\n", cmdbuf->buf, cmdbuf->size);
+	DRM_DE("buf %p size %lu\n", cmdbuf->buf, cmdbuf->size);
 
 	ret = via_dispatch_cmdbuffer(dev, cmdbuf);
 	return ret;
@@ -368,7 +368,7 @@ static int via_pci_cmdbuffer(struct drm_device *dev, void *data, struct drm_file
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("buf %p size %lu\n", cmdbuf->buf, cmdbuf->size);
+	DRM_DE("buf %p size %lu\n", cmdbuf->buf, cmdbuf->size);
 
 	ret = via_dispatch_pci_cmdbuffer(dev, cmdbuf);
 	return ret;
@@ -677,7 +677,7 @@ static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *
 	uint32_t tmp_size, count;
 	drm_via_private_t *dev_priv;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	dev_priv = (drm_via_private_t *) dev->dev_private;

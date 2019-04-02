@@ -82,7 +82,7 @@ S Y X	Description				Alternate description
 #define TIL_ADDR(x, orient, a)\
 	((u32) (x) | (orient) | ((a) << SHIFT_ACC_MODE))
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 int tiler_map_show(struct seq_file *s, void *arg);
 #endif
 

@@ -94,7 +94,7 @@ static int bsg_transport_complete_rq(struct request *rq, struct sg_io_v4 *hdr)
 
 	/*
 	 * The assignments below don't make much sense, but are kept for
-	 * bug by bug backwards compatibility:
+	 *  by  backwards compatibility:
 	 */
 	hdr->device_status = job->result & 0xff;
 	hdr->transport_status = host_byte(job->result);
@@ -216,7 +216,7 @@ static int bsg_map_buffer(struct bsg_buffer *buf, struct request *req)
 {
 	size_t sz = (sizeof(struct scatterlist) * req->nr_phys_segments);
 
-	BUG_ON(!req->nr_phys_segments);
+	_ON(!req->nr_phys_segments);
 
 	buf->sg_list = kzalloc(sz, GFP_KERNEL);
 	if (!buf->sg_list)

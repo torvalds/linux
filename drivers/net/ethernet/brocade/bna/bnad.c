@@ -45,9 +45,9 @@ static uint bnad_ioc_auto_recover = 1;
 module_param(bnad_ioc_auto_recover, uint, 0444);
 MODULE_PARM_DESC(bnad_ioc_auto_recover, "Enable / Disable auto recovery");
 
-static uint bna_debugfs_enable = 1;
-module_param(bna_debugfs_enable, uint, 0644);
-MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
+static uint bna_defs_enable = 1;
+module_param(bna_defs_enable, uint, 0644);
+MODULE_PARM_DESC(bna_defs_enable, "Enables defs feature, default=1,"
 		 " Range[false:0|true:1]");
 
 /*
@@ -182,7 +182,7 @@ bnad_txcmpl_process(struct bnad *bnad, struct bna_tcb *tcb)
 	q_depth = tcb->q_depth;
 
 	wis = BNA_Q_INDEX_CHANGE(cons, hw_cons, q_depth);
-	BUG_ON(!(wis <= BNA_QE_IN_USE_CNT(tcb, tcb->q_depth)));
+	_ON(!(wis <= BNA_QE_IN_USE_CNT(tcb, tcb->q_depth)));
 
 	while (wis) {
 		unmap = &unmap_q[cons];
@@ -291,7 +291,7 @@ bnad_rxq_alloc_init(struct bnad *bnad, struct bna_rcb *rcb)
 		}
 	}
 
-	BUG_ON((PAGE_SIZE << order) % unmap_q->map_size);
+	_ON((PAGE_SIZE << order) % unmap_q->map_size);
 
 	return 0;
 }
@@ -1075,9 +1075,9 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 			continue;
 		txq_id = tcb->id;
 
-		BUG_ON(test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags));
+		_ON(test_bit(BNAD_TXQ_TX_STARTED, &tcb->flags));
 		set_bit(BNAD_TXQ_TX_STARTED, &tcb->flags);
-		BUG_ON(*(tcb->hw_consumer_index) != 0);
+		_ON(*(tcb->hw_consumer_index) != 0);
 
 		if (netif_carrier_ok(bnad->netdev)) {
 			netif_wake_subqueue(bnad->netdev, txq_id);
@@ -1484,7 +1484,7 @@ bnad_txrx_irq_alloc(struct bnad *bnad, enum bnad_intr_source src,
 			break;
 
 		default:
-			BUG();
+			();
 		}
 
 		for (i = 0; i < intr_info->num; i++)
@@ -3656,9 +3656,9 @@ bnad_pci_probe(struct pci_dev *pdev,
 	/* Set link to down state */
 	netif_carrier_off(netdev);
 
-	/* Setup the debugfs node for this bfad */
-	if (bna_debugfs_enable)
-		bnad_debugfs_init(bnad);
+	/* Setup the defs node for this bfad */
+	if (bna_defs_enable)
+		bnad_defs_init(bnad);
 
 	/* Get resource requirement form bna */
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -3772,9 +3772,9 @@ disable_ioceth:
 res_free:
 	bnad_res_free(bnad, &bnad->res_info[0], BNA_RES_T_MAX);
 drv_uninit:
-	/* Remove the debugfs node for this bnad */
+	/* Remove the defs node for this bnad */
 	kfree(bnad->regdata);
-	bnad_debugfs_uninit(bnad);
+	bnad_defs_uninit(bnad);
 	bnad_uninit(bnad);
 pci_uninit:
 	bnad_pci_uninit(pdev);
@@ -3818,9 +3818,9 @@ bnad_pci_remove(struct pci_dev *pdev)
 	bnad_pci_uninit(pdev);
 	mutex_unlock(&bnad->conf_mutex);
 	bnad_lock_uninit(bnad);
-	/* Remove the debugfs node for this bnad */
+	/* Remove the defs node for this bnad */
 	kfree(bnad->regdata);
-	bnad_debugfs_uninit(bnad);
+	bnad_defs_uninit(bnad);
 	bnad_uninit(bnad);
 	free_netdev(netdev);
 }

@@ -132,7 +132,7 @@ const struct ide_proc_devset *ide_find_setting(const struct ide_proc_devset *st,
  *	Read a drive setting and return the value. The caller
  *	must hold the ide_setting_mtx when making this call.
  *
- *	BUGS: the data return and error are the same return value
+ *	S: the data return and error are the same return value
  *	so an error -EINVAL and true return of the same value cannot
  *	be told apart
  */
@@ -158,7 +158,7 @@ static int ide_read_setting(ide_drive_t *drive,
  *	Write a drive setting if it is possible. The caller
  *	must hold the ide_setting_mtx when making this call.
  *
- *	BUGS: the data return and error are the same return value
+ *	S: the data return and error are the same return value
  *	so an error -EINVAL and true return of the same value cannot
  *	be told apart
  *

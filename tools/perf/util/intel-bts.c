@@ -33,7 +33,7 @@
 #include "util.h"
 #include "thread.h"
 #include "thread-stack.h"
-#include "debug.h"
+#include "de.h"
 #include "tsc.h"
 #include "auxtrace.h"
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
@@ -784,7 +784,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 	}
 
 	if (!found) {
-		pr_debug("There are no selected events with Intel BTS data\n");
+		pr_de("There are no selected events with Intel BTS data\n");
 		return 0;
 	}
 
@@ -812,7 +812,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 		attr.config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS;
 		attr.sample_period = 1;
 		attr.sample_type |= PERF_SAMPLE_ADDR;
-		pr_debug("Synthesizing 'branches' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
+		pr_de("Synthesizing 'branches' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
 			 id, (u64)attr.sample_type);
 		err = intel_bts_synth_event(session, &attr, id);
 		if (err) {

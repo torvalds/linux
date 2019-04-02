@@ -21,10 +21,10 @@
 #define ACPI_BINARY_SEMAPHORE       0
 #define ACPI_OSL_MUTEX              1
 
-/* Types for DEBUGGER_THREADING */
+/* Types for DEGER_THREADING */
 
-#define DEBUGGER_SINGLE_THREADED    0
-#define DEBUGGER_MULTI_THREADED     1
+#define DEGER_SINGLE_THREADED    0
+#define DEGER_MULTI_THREADED     1
 
 /******************************************************************************
  *
@@ -51,7 +51,7 @@
 /* iASL configuration */
 
 #ifdef ACPI_ASL_COMPILER
-#define ACPI_DEBUG_OUTPUT
+#define ACPI_DE_OUTPUT
 #define ACPI_CONSTANT_EVAL_ONLY
 #define ACPI_LARGE_NAMESPACE_NODE
 #define ACPI_DATA_TABLE_DISASSEMBLY
@@ -59,12 +59,12 @@
 #define ACPI_DISASSEMBLER 1
 #endif
 
-/* acpi_exec configuration. Multithreaded with full AML debugger */
+/* acpi_exec configuration. Multithreaded with full AML deger */
 
 #ifdef ACPI_EXEC_APP
 #define ACPI_APPLICATION
-#define ACPI_FULL_DEBUG
-#define ACPI_MUTEX_DEBUG
+#define ACPI_FULL_DE
+#define ACPI_MUTEX_DE
 #define ACPI_DBG_TRACK_ALLOCATIONS
 #endif
 
@@ -74,10 +74,10 @@
 #define ACPI_NO_ERROR_MESSAGES
 #endif
 
-/* acpi_names configuration. Debug output enabled. */
+/* acpi_names configuration. De output enabled. */
 
 #ifdef ACPI_NAMES_APP
-#define ACPI_DEBUG_OUTPUT
+#define ACPI_DE_OUTPUT
 #endif
 
 /* acpi_exec/acpi_names/Example configuration. Native RSDP used. */
@@ -101,15 +101,15 @@
 #define ACPI_REDUCED_HARDWARE 1
 #endif
 
-/* Linkable ACPICA library. Two versions, one with full debug. */
+/* Linkable ACPICA library. Two versions, one with full de. */
 
 #ifdef ACPI_LIBRARY
 #define ACPI_USE_LOCAL_CACHE
-#define ACPI_DEBUGGER 1
+#define ACPI_DEGER 1
 #define ACPI_DISASSEMBLER 1
 
-#ifdef _DEBUG
-#define ACPI_DEBUG_OUTPUT
+#ifdef _DE
+#define ACPI_DE_OUTPUT
 #endif
 #endif
 
@@ -119,11 +119,11 @@
 #define ACPI_USE_LOCAL_CACHE
 #endif
 
-/* Common debug/disassembler support */
+/* Common de/disassembler support */
 
-#ifdef ACPI_FULL_DEBUG
-#define ACPI_DEBUG_OUTPUT
-#define ACPI_DEBUGGER 1
+#ifdef ACPI_FULL_DE
+#define ACPI_DE_OUTPUT
+#define ACPI_DEGER 1
 #define ACPI_DISASSEMBLER 1
 #endif
 
@@ -284,21 +284,21 @@
 #endif
 
 /*
- * Debugger threading model
+ * Deger threading model
  * Use single threaded if the entire subsystem is contained in an application
  * Use multiple threaded when the subsystem is running in the kernel.
  *
  * By default the model is single threaded if ACPI_APPLICATION is set,
  * multi-threaded if ACPI_APPLICATION is not set.
  */
-#ifndef DEBUGGER_THREADING
+#ifndef DEGER_THREADING
 #if !defined (ACPI_APPLICATION) || defined (ACPI_EXEC_APP)
-#define DEBUGGER_THREADING          DEBUGGER_MULTI_THREADED
+#define DEGER_THREADING          DEGER_MULTI_THREADED
 
 #else
-#define DEBUGGER_THREADING          DEBUGGER_SINGLE_THREADED
+#define DEGER_THREADING          DEGER_SINGLE_THREADED
 #endif
-#endif				/* !DEBUGGER_THREADING */
+#endif				/* !DEGER_THREADING */
 
 /******************************************************************************
  *

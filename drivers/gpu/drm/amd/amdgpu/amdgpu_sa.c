@@ -368,9 +368,9 @@ void amdgpu_sa_bo_free(struct amdgpu_device *adev, struct amdgpu_sa_bo **sa_bo,
 	*sa_bo = NULL;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
+void amdgpu_sa_bo_dump_de_info(struct amdgpu_sa_manager *sa_manager,
 				  struct seq_file *m)
 {
 	struct amdgpu_sa_bo *i;

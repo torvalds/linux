@@ -94,7 +94,7 @@ void __init atari_stram_init(void)
 void __init atari_stram_reserve_pages(void *start_mem)
 {
 	if (kernel_in_stram) {
-		pr_debug("atari_stram pool: kernel in ST-RAM, using alloc_bootmem!\n");
+		pr_de("atari_stram pool: kernel in ST-RAM, using alloc_bootmem!\n");
 		stram_pool.start = (resource_size_t)memblock_alloc_low(pool_size,
 								       PAGE_SIZE);
 		if (!stram_pool.start)
@@ -104,9 +104,9 @@ void __init atari_stram_reserve_pages(void *start_mem)
 		stram_pool.end = stram_pool.start + pool_size - 1;
 		request_resource(&iomem_resource, &stram_pool);
 		stram_virt_offset = 0;
-		pr_debug("atari_stram pool: size = %lu bytes, resource = %pR\n",
+		pr_de("atari_stram pool: size = %lu bytes, resource = %pR\n",
 			pool_size, &stram_pool);
-		pr_debug("atari_stram pool: stram_virt_offset = %lx\n",
+		pr_de("atari_stram pool: stram_virt_offset = %lx\n",
 			stram_virt_offset);
 	}
 }
@@ -122,15 +122,15 @@ int __init atari_stram_map_pages(void)
 		/*
 		 * Skip page 0, as the fhe first 2 KiB are supervisor-only!
 		 */
-		pr_debug("atari_stram pool: kernel not in ST-RAM, using ioremap!\n");
+		pr_de("atari_stram pool: kernel not in ST-RAM, using ioremap!\n");
 		stram_pool.start = PAGE_SIZE;
 		stram_pool.end = stram_pool.start + pool_size - 1;
 		request_resource(&iomem_resource, &stram_pool);
 		stram_virt_offset = (unsigned long) ioremap(stram_pool.start,
 				resource_size(&stram_pool)) - stram_pool.start;
-		pr_debug("atari_stram pool: size = %lu bytes, resource = %pR\n",
+		pr_de("atari_stram pool: size = %lu bytes, resource = %pR\n",
 			pool_size, &stram_pool);
-		pr_debug("atari_stram pool: stram_virt_offset = %lx\n",
+		pr_de("atari_stram pool: stram_virt_offset = %lx\n",
 			stram_virt_offset);
 	}
 	return 0;
@@ -157,7 +157,7 @@ void *atari_stram_alloc(unsigned long size, const char *owner)
 	struct resource *res;
 	int error;
 
-	pr_debug("atari_stram_alloc: allocate %lu bytes\n", size);
+	pr_de("atari_stram_alloc: allocate %lu bytes\n", size);
 
 	/* round up */
 	size = PAGE_ALIGN(size);
@@ -176,7 +176,7 @@ void *atari_stram_alloc(unsigned long size, const char *owner)
 		return NULL;
 	}
 
-	pr_debug("atari_stram_alloc: returning %pR\n", res);
+	pr_de("atari_stram_alloc: returning %pR\n", res);
 	return atari_stram_to_virt(res->start);
 }
 EXPORT_SYMBOL(atari_stram_alloc);
@@ -196,7 +196,7 @@ void atari_stram_free(void *addr)
 	}
 
 	size = resource_size(res);
-	pr_debug("atari_stram_free: free %lu bytes at %p\n", size, addr);
+	pr_de("atari_stram_free: free %lu bytes at %p\n", size, addr);
 	release_resource(res);
 	kfree(res);
 }

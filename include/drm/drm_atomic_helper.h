@@ -219,7 +219,7 @@ drm_atomic_plane_disabling(struct drm_plane_state *old_plane_state,
 {
 	/*
 	 * When disabling a plane, CRTC and FB should always be NULL together.
-	 * Anything else should be considered a bug in the atomic core, so we
+	 * Anything else should be considered a  in the atomic core, so we
 	 * gently warn about it.
 	 */
 	WARN_ON((new_plane_state->crtc == NULL && new_plane_state->fb != NULL) ||

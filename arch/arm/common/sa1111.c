@@ -850,7 +850,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	 */
 	id = readl_relaxed(sachip->base + SA1111_SKID);
 	if ((id & SKID_ID_MASK) != SKID_SA1111_ID) {
-		printk(KERN_DEBUG "SA1111 not detected: ID = %08lx\n", id);
+		printk(KERN_DE "SA1111 not detected: ID = %08lx\n", id);
 		ret = -ENODEV;
 		goto err_unmap;
 	}
@@ -1198,7 +1198,7 @@ static unsigned int __sa1111_pll_clock(struct sa1111 *sachip)
  *	sa1111_pll_clock - return the current PLL clock frequency.
  *	@sadev: SA1111 function block
  *
- *	BUG: we should look at SKCR.  We also blindly believe that
+ *	: we should look at SKCR.  We also blindly believe that
  *	the chip is being fed with the 3.6864MHz clock.
  *
  *	Returns the PLL clock in Hz.
@@ -1400,14 +1400,14 @@ EXPORT_SYMBOL(sa1111_driver_unregister);
 /*
  * According to the "Intel StrongARM SA-1111 Microprocessor Companion
  * Chip Specification Update" (June 2000), erratum #7, there is a
- * significant bug in the SA1111 SDRAM shared memory controller.  If
+ * significant  in the SA1111 SDRAM shared memory controller.  If
  * an access to a region of memory above 1MB relative to the bank base,
  * it is important that address bit 10 _NOT_ be asserted. Depending
  * on the configuration of the RAM, bit 10 may correspond to one
  * of several different (processor-relative) address bits.
  *
  * This routine only identifies whether or not a given DMA address
- * is susceptible to the bug.
+ * is susceptible to the .
  *
  * This should only get called for sa1111_device types due to the
  * way we configure our device dma_masks.

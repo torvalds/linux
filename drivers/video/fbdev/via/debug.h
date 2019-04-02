@@ -18,17 +18,17 @@
  * Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-#ifndef __DEBUG_H__
-#define __DEBUG_H__
+#ifndef __DE_H__
+#define __DE_H__
 
-#ifndef VIAFB_DEBUG
-#define VIAFB_DEBUG 0
+#ifndef VIAFB_DE
+#define VIAFB_DE 0
 #endif
 
-#if VIAFB_DEBUG
-#define DEBUG_MSG(f, a...)   printk(f, ## a)
+#if VIAFB_DE
+#define DE_MSG(f, a...)   printk(f, ## a)
 #else
-#define DEBUG_MSG(f, a...)
+#define DE_MSG(f, a...)
 #endif
 
 #define VIAFB_WARN 0
@@ -38,4 +38,4 @@
 #define WARN_MSG(f, a...)
 #endif
 
-#endif /* __DEBUG_H__ */
+#endif /* __DE_H__ */

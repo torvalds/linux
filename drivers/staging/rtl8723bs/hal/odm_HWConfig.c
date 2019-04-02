@@ -293,7 +293,7 @@ static void odm_Process_RSSIForDM(
 
 	}
 
-	/* Smart Antenna Debug Message------------------ */
+	/* Smart Antenna De Message------------------ */
 
 	UndecoratedSmoothedCCK = pEntry->rssi_stat.UndecoratedSmoothedCCK;
 	UndecoratedSmoothedOFDM = pEntry->rssi_stat.UndecoratedSmoothedOFDM;

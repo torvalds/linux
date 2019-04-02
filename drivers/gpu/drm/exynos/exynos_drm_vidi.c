@@ -123,7 +123,7 @@ static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 		return;
 
 	addr = exynos_drm_fb_dma_addr(state->fb, 0);
-	DRM_DEBUG_KMS("dma_addr = %pad\n", &addr);
+	DRM_DE_KMS("dma_addr = %pad\n", &addr);
 }
 
 static void vidi_enable(struct exynos_drm_crtc *crtc)
@@ -205,11 +205,11 @@ static ssize_t vidi_store_connection(struct device *dev,
 
 	/* if raw_edid isn't same as fake data then it can't be tested. */
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
-		DRM_DEBUG_KMS("edid data is not fake data.\n");
+		DRM_DE_KMS("edid data is not fake data.\n");
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("requested connection.\n");
+	DRM_DE_KMS("requested connection.\n");
 
 	drm_helper_hpd_irq_event(ctx->drm_dev);
 
@@ -226,17 +226,17 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	struct drm_exynos_vidi_connection *vidi = data;
 
 	if (!vidi) {
-		DRM_DEBUG_KMS("user data for vidi is null.\n");
+		DRM_DE_KMS("user data for vidi is null.\n");
 		return -EINVAL;
 	}
 
 	if (vidi->connection > 1) {
-		DRM_DEBUG_KMS("connection should be 0 or 1.\n");
+		DRM_DE_KMS("connection should be 0 or 1.\n");
 		return -EINVAL;
 	}
 
 	if (ctx->connected == vidi->connection) {
-		DRM_DEBUG_KMS("same connection request.\n");
+		DRM_DE_KMS("same connection request.\n");
 		return -EINVAL;
 	}
 
@@ -245,12 +245,12 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 
 		raw_edid = (struct edid *)(unsigned long)vidi->edid;
 		if (!drm_edid_is_valid(raw_edid)) {
-			DRM_DEBUG_KMS("edid data is invalid.\n");
+			DRM_DE_KMS("edid data is invalid.\n");
 			return -EINVAL;
 		}
 		ctx->raw_edid = drm_edid_duplicate(raw_edid);
 		if (!ctx->raw_edid) {
-			DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
+			DRM_DE_KMS("failed to allocate raw_edid.\n");
 			return -ENOMEM;
 		}
 	} else {
@@ -308,14 +308,14 @@ static int vidi_get_modes(struct drm_connector *connector)
 	 * to ctx->raw_edid through specific ioctl.
 	 */
 	if (!ctx->raw_edid) {
-		DRM_DEBUG_KMS("raw_edid is null.\n");
+		DRM_DE_KMS("raw_edid is null.\n");
 		return -EFAULT;
 	}
 
 	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
 	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
 	if (!edid) {
-		DRM_DEBUG_KMS("failed to allocate edid\n");
+		DRM_DE_KMS("failed to allocate edid\n");
 		return -ENOMEM;
 	}
 

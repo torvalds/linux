@@ -37,7 +37,7 @@ int ef4_mdio_reset_mmd(struct ef4_nic *port, int mmd,
 	u32 ctrl;
 
 	/* Catch callers passing values in the wrong units (or just silly) */
-	EF4_BUG_ON_PARANOID(spins * spintime >= 5000);
+	EF4__ON_PARANOID(spins * spintime >= 5000);
 
 	ef4_mdio_write(port, mmd, MDIO_CTRL1, MDIO_CTRL1_RESET);
 	/* Wait for the reset bit to clear. */
@@ -298,7 +298,7 @@ void ef4_mdio_an_reconfigure(struct ef4_nic *efx)
 
 u8 ef4_mdio_get_pause(struct ef4_nic *efx)
 {
-	BUILD_BUG_ON(EF4_FC_AUTO & (EF4_FC_RX | EF4_FC_TX));
+	BUILD__ON(EF4_FC_AUTO & (EF4_FC_RX | EF4_FC_TX));
 
 	if (!(efx->wanted_fc & EF4_FC_AUTO))
 		return efx->wanted_fc;

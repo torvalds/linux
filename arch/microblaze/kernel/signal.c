@@ -229,7 +229,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	/* Offset to handle microblaze rtid r14, 0 */
 	regs->pc = (unsigned long)ksig->ka.sa.sa_handler;
 
-#ifdef DEBUG_SIG
+#ifdef DE_SIG
 	pr_info("SIG deliver (%s:%d): sp=%p pc=%08lx\n",
 		current->comm, current->pid, frame, regs->pc);
 #endif
@@ -291,7 +291,7 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 {
 	struct ksignal ksig;
 
-#ifdef DEBUG_SIG
+#ifdef DE_SIG
 	pr_info("do signal: %p %d\n", regs, in_syscall);
 	pr_info("do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
 			regs->r12, current_thread_info()->flags);

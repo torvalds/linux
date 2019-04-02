@@ -85,23 +85,23 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 static inline void reset_unknown(struct kvm_vcpu *vcpu,
 				 const struct coproc_reg *r)
 {
-	BUG_ON(!r->reg);
-	BUG_ON(r->reg >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
+	_ON(!r->reg);
+	_ON(r->reg >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
 	vcpu_cp15(vcpu, r->reg) = 0xdecafbad;
 }
 
 static inline void reset_val(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 {
-	BUG_ON(!r->reg);
-	BUG_ON(r->reg >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
+	_ON(!r->reg);
+	_ON(r->reg >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
 	vcpu_cp15(vcpu, r->reg) = r->val;
 }
 
 static inline void reset_unknown64(struct kvm_vcpu *vcpu,
 				   const struct coproc_reg *r)
 {
-	BUG_ON(!r->reg);
-	BUG_ON(r->reg + 1 >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
+	_ON(!r->reg);
+	_ON(r->reg + 1 >= ARRAY_SIZE(vcpu->arch.ctxt.cp15));
 
 	vcpu_cp15(vcpu, r->reg) = 0xdecafbad;
 	vcpu_cp15(vcpu, r->reg+1) = 0xd0c0ffee;
@@ -110,7 +110,7 @@ static inline void reset_unknown64(struct kvm_vcpu *vcpu,
 static inline int cmp_reg(const struct coproc_reg *i1,
 			  const struct coproc_reg *i2)
 {
-	BUG_ON(i1 == i2);
+	_ON(i1 == i2);
 	if (!i1)
 		return 1;
 	else if (!i2)

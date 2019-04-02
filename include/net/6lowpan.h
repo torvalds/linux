@@ -53,7 +53,7 @@
 #ifndef __6LOWPAN_H__
 #define __6LOWPAN_H__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/ipv6.h>
 #include <net/net_namespace.h>
@@ -134,7 +134,7 @@ lowpan_iphc_ctx_is_compression(const struct lowpan_iphc_ctx *ctx)
 
 struct lowpan_dev {
 	enum lowpan_lltypes lltype;
-	struct dentry *iface_debugfs;
+	struct dentry *iface_defs;
 	struct lowpan_iphc_ctx_table ctx;
 
 	/* must be last */
@@ -178,7 +178,7 @@ struct lowpan_802154_cb {
 static inline
 struct lowpan_802154_cb *lowpan_802154_cb(const struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct lowpan_802154_cb) > sizeof(skb->cb));
 	return (struct lowpan_802154_cb *)skb->cb;
 }
 
@@ -213,15 +213,15 @@ static inline void lowpan_iphc_uncompress_eui48_lladdr(struct in6_addr *ipaddr,
 	memcpy(&ipaddr->s6_addr[13], lladdr + 3, 3);
 }
 
-#ifdef DEBUG
+#ifdef DE
 /* print data in line */
 static inline void raw_dump_inline(const char *caller, char *msg,
 				   const unsigned char *buf, int len)
 {
 	if (msg)
-		pr_debug("%s():%s: ", caller, msg);
+		pr_de("%s():%s: ", caller, msg);
 
-	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, buf, len, false);
+	print_hex_dump_de("", DUMP_PREFIX_NONE, 16, 1, buf, len, false);
 }
 
 /* print data in a table format:
@@ -234,9 +234,9 @@ static inline void raw_dump_table(const char *caller, char *msg,
 				  const unsigned char *buf, int len)
 {
 	if (msg)
-		pr_debug("%s():%s:\n", caller, msg);
+		pr_de("%s():%s:\n", caller, msg);
 
-	print_hex_dump_debug("\t", DUMP_PREFIX_OFFSET, 16, 1, buf, len, false);
+	print_hex_dump_de("\t", DUMP_PREFIX_OFFSET, 16, 1, buf, len, false);
 }
 #else
 static inline void raw_dump_table(const char *caller, char *msg,

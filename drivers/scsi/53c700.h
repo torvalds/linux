@@ -15,22 +15,22 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 
-/* Turn on for general debugging---too verbose for normal use */
-#undef	NCR_700_DEBUG
-/* Debug the tag queues, checking hash queue allocation and deallocation
+/* Turn on for general deging---too verbose for normal use */
+#undef	NCR_700_DE
+/* De the tag queues, checking hash queue allocation and deallocation
  * and search for duplicate tags */
-#undef NCR_700_TAG_DEBUG
+#undef NCR_700_TAG_DE
 
-#ifdef NCR_700_DEBUG
-#define DEBUG(x)	printk x
-#define DDEBUG(prefix, sdev, fmt, a...) \
+#ifdef NCR_700_DE
+#define DE(x)	printk x
+#define DDE(prefix, sdev, fmt, a...) \
 	sdev_printk(prefix, sdev, fmt, ##a)
-#define CDEBUG(prefix, scmd, fmt, a...) \
+#define CDE(prefix, scmd, fmt, a...) \
 	scmd_printk(prefix, scmd, fmt, ##a)
 #else
-#define DEBUG(x)	do {} while (0)
-#define DDEBUG(prefix, scmd, fmt, a...) do {} while (0)
-#define CDEBUG(prefix, scmd, fmt, a...) do {} while (0)
+#define DE(x)	do {} while (0)
+#define DDE(prefix, scmd, fmt, a...) do {} while (0)
+#define CDE(prefix, scmd, fmt, a...) do {} while (0)
 #endif
 
 /* The number of available command slots */
@@ -430,7 +430,7 @@ struct NCR_700_Host_Parameters {
 		__u32 val = bS_to_cpu((script)[A_##symbol##_used[i]]) + da; \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
 		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
-		DEBUG((" script, patching %s at %d to %pad\n", \
+		DE((" script, patching %s at %d to %pad\n", \
 		       #symbol, A_##symbol##_used[i], &da)); \
 	} \
 }
@@ -442,7 +442,7 @@ struct NCR_700_Host_Parameters {
 	for(i=0; i< (sizeof(A_##symbol##_used) / sizeof(__u32)); i++) { \
 		(script)[A_##symbol##_used[i]] = bS_to_host(da); \
 		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
-		DEBUG((" script, patching %s at %d to %pad\n", \
+		DE((" script, patching %s at %d to %pad\n", \
 		       #symbol, A_##symbol##_used[i], &da)); \
 	} \
 }
@@ -457,7 +457,7 @@ struct NCR_700_Host_Parameters {
 		val |= ((value) & 0xff) << 16; \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
 		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
-		DEBUG((" script, patching ID field %s at %d to 0x%x\n", \
+		DE((" script, patching ID field %s at %d to 0x%x\n", \
 		       #symbol, A_##symbol##_used[i], val)); \
 	} \
 }
@@ -471,7 +471,7 @@ struct NCR_700_Host_Parameters {
 		val |= ((value) & 0xffff); \
 		(script)[A_##symbol##_used[i]] = bS_to_host(val); \
 		dma_cache_sync((dev), &(script)[A_##symbol##_used[i]], 4, DMA_TO_DEVICE); \
-		DEBUG((" script, patching short field %s at %d to 0x%x\n", \
+		DE((" script, patching short field %s at %d to 0x%x\n", \
 		       #symbol, A_##symbol##_used[i], val)); \
 	} \
 }
@@ -495,7 +495,7 @@ NCR_700_readl(struct Scsi_Host *host, __u32 reg)
 		ioread32(hostdata->base + reg);
 #if 1
 	/* sanity check the register */
-	BUG_ON((reg & 0x3) != 0);
+	_ON((reg & 0x3) != 0);
 #endif
 
 	return value;
@@ -518,7 +518,7 @@ NCR_700_writel(__u32 value, struct Scsi_Host *host, __u32 reg)
 
 #if 1
 	/* sanity check the register */
-	BUG_ON((reg & 0x3) != 0);
+	_ON((reg & 0x3) != 0);
 #endif
 
 	bEBus ? iowrite32be(value, hostdata->base + reg): 

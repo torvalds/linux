@@ -3,7 +3,7 @@
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/usb/ch9.h>
@@ -342,25 +342,25 @@ DEFINE_SHOW_ATTRIBUTE(ci_registers);
  */
 void dbg_create_files(struct ci_hdrc *ci)
 {
-	ci->debugfs = debugfs_create_dir(dev_name(ci->dev), NULL);
+	ci->defs = defs_create_dir(dev_name(ci->dev), NULL);
 
-	debugfs_create_file("device", S_IRUGO, ci->debugfs, ci,
+	defs_create_file("device", S_IRUGO, ci->defs, ci,
 			    &ci_device_fops);
-	debugfs_create_file("port_test", S_IRUGO | S_IWUSR, ci->debugfs, ci,
+	defs_create_file("port_test", S_IRUGO | S_IWUSR, ci->defs, ci,
 			    &ci_port_test_fops);
-	debugfs_create_file("qheads", S_IRUGO, ci->debugfs, ci,
+	defs_create_file("qheads", S_IRUGO, ci->defs, ci,
 			    &ci_qheads_fops);
-	debugfs_create_file("requests", S_IRUGO, ci->debugfs, ci,
+	defs_create_file("requests", S_IRUGO, ci->defs, ci,
 			    &ci_requests_fops);
 
 	if (ci_otg_is_fsm_mode(ci)) {
-		debugfs_create_file("otg", S_IRUGO, ci->debugfs, ci,
+		defs_create_file("otg", S_IRUGO, ci->defs, ci,
 				    &ci_otg_fops);
 	}
 
-	debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
+	defs_create_file("role", S_IRUGO | S_IWUSR, ci->defs, ci,
 			    &ci_role_fops);
-	debugfs_create_file("registers", S_IRUGO, ci->debugfs, ci,
+	defs_create_file("registers", S_IRUGO, ci->defs, ci,
 			    &ci_registers_fops);
 }
 
@@ -370,5 +370,5 @@ void dbg_create_files(struct ci_hdrc *ci)
  */
 void dbg_remove_files(struct ci_hdrc *ci)
 {
-	debugfs_remove_recursive(ci->debugfs);
+	defs_remove_recursive(ci->defs);
 }

@@ -806,7 +806,7 @@ bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
  * @p:		structure holding the parser context.
  * @pkt:	structure holding the packet.
  *
- * Used mostly for debugging and error reporting.
+ * Used mostly for deging and error reporting.
  **/
 void radeon_cs_dump_packet(struct radeon_cs_parser *p,
 			   struct radeon_cs_packet *pkt)

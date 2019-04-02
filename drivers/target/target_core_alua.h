@@ -62,7 +62,7 @@
 #define ALUA_MAX_NONOP_DELAY_MSECS			10000 /* 10 seconds */
 /*
  * Used for implicit and explicit ALUA transitional delay, that is disabled
- * by default, and is intended to be used for debugging client side ALUA code.
+ * by default, and is intended to be used for deging client side ALUA code.
  */
 #define ALUA_DEFAULT_TRANS_DELAY_MSECS			0
 #define ALUA_MAX_TRANS_DELAY_MSECS			30000 /* 30 seconds */

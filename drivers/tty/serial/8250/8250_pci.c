@@ -6,7 +6,7 @@
  *
  *  Copyright (C) 2001 Russell King, All Rights Reserved.
  */
-#undef DEBUG
+#undef DE
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -1053,7 +1053,7 @@ static int pci_asix_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
 		  struct uart_8250_port *port, int idx)
 {
-	port->bugs |= UART_BUG_PARITY;
+	port->s |= UART__PARITY;
 	return pci_default_setup(priv, board, port, idx);
 }
 
@@ -1592,7 +1592,7 @@ static int kt_serial_setup(struct serial_private *priv,
 			   const struct pciserial_board *board,
 			   struct uart_8250_port *port, int idx)
 {
-	port->port.flags |= UPF_BUG_THRE;
+	port->port.flags |= UPF__THRE;
 	port->port.serial_in = kt_serial_in;
 	port->port.handle_break = kt_handle_break;
 	return skip_tx_en_setup(priv, board, port, idx);
@@ -2459,7 +2459,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup          = pci_wch_ch38x_setup,
 	},
 	/*
-	 * ASIX devices with FIFO bug
+	 * ASIX devices with FIFO 
 	 */
 	{
 		.vendor		= PCI_VENDOR_ID_ASIX,

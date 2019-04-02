@@ -27,7 +27,7 @@
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 #include "jfs_dinode.h"
 #include "jfs_extent.h"
 #include "jfs_metapage.h"
@@ -775,7 +775,7 @@ int __jfs_setxattr(tid_t tid, struct inode *inode, const char *name,
 		xattr_size += EA_SIZE(ea);
 	}
 
-	/* DEBUG - If we did this right, these number match */
+	/* DE - If we did this right, these number match */
 	if (xattr_size != new_size) {
 		printk(KERN_ERR
 		       "__jfs_setxattr: xattr_size = %d, new_size = %d\n",

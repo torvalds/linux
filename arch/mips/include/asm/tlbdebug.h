@@ -5,13 +5,13 @@
  *
  * Copyright (C) 2002 by Ralf Baechle
  */
-#ifndef __ASM_TLBDEBUG_H
-#define __ASM_TLBDEBUG_H
+#ifndef __ASM_TLBDE_H
+#define __ASM_TLBDE_H
 
 /*
- * TLB debugging functions:
+ * TLB deging functions:
  */
 extern void dump_tlb_regs(void);
 extern void dump_tlb_all(void);
 
-#endif /* __ASM_TLBDEBUG_H */
+#endif /* __ASM_TLBDE_H */

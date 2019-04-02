@@ -80,7 +80,7 @@ static void hil_mlcs_process(unsigned long unused);
 static DECLARE_TASKLET_DISABLED(hil_mlcs_tasklet, hil_mlcs_process, 0);
 
 
-/* #define HIL_MLC_DEBUG */
+/* #define HIL_MLC_DE */
 
 /********************** Device info/instance management **********************/
 
@@ -247,8 +247,8 @@ static int hilse_match(hil_mlc *mlc, int unused)
 		if (rc == -1)
 			goto err;
 
-#ifdef HIL_MLC_DEBUG
-		printk(KERN_DEBUG PREFIX "new in slot %i\n", rc);
+#ifdef HIL_MLC_DE
+		printk(KERN_DE PREFIX "new in slot %i\n", rc);
 #endif
 		hil_mlc_copy_di_scratch(mlc, rc);
 		mlc->di_map[mlc->ddi] = rc;
@@ -259,8 +259,8 @@ static int hilse_match(hil_mlc *mlc, int unused)
 	}
 
 	mlc->di_map[mlc->ddi] = rc;
-#ifdef HIL_MLC_DEBUG
-	printk(KERN_DEBUG PREFIX "same in slot %i\n", rc);
+#ifdef HIL_MLC_DE
+	printk(KERN_DE PREFIX "same in slot %i\n", rc);
 #endif
 	mlc->serio_map[rc].di_revmap = mlc->ddi;
 	hil_mlc_clean_serio_map(mlc);
@@ -323,7 +323,7 @@ static int hilse_dec_ddi(hil_mlc *mlc, int unused)
 
 static int hilse_inc_ddi(hil_mlc *mlc, int unused)
 {
-	BUG_ON(mlc->ddi >= 6);
+	_ON(mlc->ddi >= 6);
 	mlc->ddi++;
 
 	return 0;
@@ -599,19 +599,19 @@ static inline void hilse_setup_input(hil_mlc *mlc, const struct hilse_node *node
 		mlc->imatch = 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 	mlc->istarted = 1;
 	mlc->intimeout = usecs_to_jiffies(node->arg);
 	mlc->instart = jiffies;
 	mlc->icount = 15;
 	memset(mlc->ipacket, 0, 16 * sizeof(hil_packet));
-	BUG_ON(down_trylock(&mlc->isem));
+	_ON(down_trylock(&mlc->isem));
 }
 
-#ifdef HIL_MLC_DEBUG
+#ifdef HIL_MLC_DE
 static int doze;
-static int seidx; /* For debug */
+static int seidx; /* For de */
 #endif
 
 static int hilse_donode(hil_mlc *mlc)
@@ -621,10 +621,10 @@ static int hilse_donode(hil_mlc *mlc)
 	int sched_long = 0;
 	unsigned long flags;
 
-#ifdef HIL_MLC_DEBUG
+#ifdef HIL_MLC_DE
 	if (mlc->seidx && mlc->seidx != seidx &&
 	    mlc->seidx != 41 && mlc->seidx != 42 && mlc->seidx != 43) {
-		printk(KERN_DEBUG PREFIX "z%i \n {%i}", doze, mlc->seidx);
+		printk(KERN_DE PREFIX "z%i \n {%i}", doze, mlc->seidx);
 		doze = 0;
 	}
 
@@ -637,7 +637,7 @@ static int hilse_donode(hil_mlc *mlc)
 		hil_packet pack;
 
 	case HILSE_FUNC:
-		BUG_ON(node->object.func == NULL);
+		_ON(node->object.func == NULL);
 		rc = node->object.func(mlc, node->arg);
 		nextidx = (rc > 0) ? node->ugly :
 			((rc < 0) ? node->bad : node->good);
@@ -720,10 +720,10 @@ static int hilse_donode(hil_mlc *mlc)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
-#ifdef HIL_MLC_DEBUG
+#ifdef HIL_MLC_DE
 	if (nextidx == HILSEN_DOZE)
 		doze++;
 #endif
@@ -765,11 +765,11 @@ static void hil_mlcs_process(unsigned long unused)
 	list_for_each(tmp, &hil_mlcs) {
 		struct hil_mlc *mlc = list_entry(tmp, hil_mlc, list);
 		while (hilse_donode(mlc) == 0) {
-#ifdef HIL_MLC_DEBUG
+#ifdef HIL_MLC_DE
 			if (mlc->seidx != 41 &&
 			    mlc->seidx != 42 &&
 			    mlc->seidx != 43)
-				printk(KERN_DEBUG PREFIX " + ");
+				printk(KERN_DE PREFIX " + ");
 #endif
 		}
 	}
@@ -797,10 +797,10 @@ static int hil_mlc_serio_write(struct serio *serio, unsigned char c)
 	uint8_t *idx, *last;
 
 	map = serio->port_data;
-	BUG_ON(map == NULL);
+	_ON(map == NULL);
 
 	mlc = map->mlc;
-	BUG_ON(mlc == NULL);
+	_ON(mlc == NULL);
 
 	mlc->serio_opacket[map->didx] |=
 		((hil_packet)c) << (8 * (3 - mlc->serio_oidx[map->didx]));
@@ -833,7 +833,7 @@ static int hil_mlc_serio_write(struct serio *serio, unsigned char c)
 	return -EIO;
  emu:
 	drv = serio->drv;
-	BUG_ON(drv == NULL);
+	_ON(drv == NULL);
 
 	last = idx + 15;
 	while ((last != idx) && (*last == 0))
@@ -866,10 +866,10 @@ static int hil_mlc_serio_open(struct serio *serio)
 		return -EBUSY;
 
 	map = serio->port_data;
-	BUG_ON(map == NULL);
+	_ON(map == NULL);
 
 	mlc = map->mlc;
-	BUG_ON(mlc == NULL);
+	_ON(mlc == NULL);
 
 	return 0;
 }
@@ -880,10 +880,10 @@ static void hil_mlc_serio_close(struct serio *serio)
 	struct hil_mlc *mlc;
 
 	map = serio->port_data;
-	BUG_ON(map == NULL);
+	_ON(map == NULL);
 
 	mlc = map->mlc;
-	BUG_ON(mlc == NULL);
+	_ON(mlc == NULL);
 
 	serio_set_drvdata(serio, NULL);
 	serio->drv = NULL;
@@ -902,7 +902,7 @@ int hil_mlc_register(hil_mlc *mlc)
 	int i;
 	unsigned long flags;
 
-	BUG_ON(mlc == NULL);
+	_ON(mlc == NULL);
 
 	mlc->istarted = 0;
 	mlc->ostarted = 0;
@@ -963,7 +963,7 @@ int hil_mlc_unregister(hil_mlc *mlc)
 	unsigned long flags;
 	int i;
 
-	BUG_ON(mlc == NULL);
+	_ON(mlc == NULL);
 
 	write_lock_irqsave(&hil_mlcs_lock, flags);
 	list_for_each(tmp, &hil_mlcs)

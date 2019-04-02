@@ -59,7 +59,7 @@ static int afu_control(struct cxl_afu *afu, u64 command, u64 clear,
 
 	if (AFU_Cntl & CXL_AFU_Cntl_An_RA) {
 		/*
-		 * Workaround for a bug in the XSL used in the Mellanox CX4
+		 * Workaround for a  in the XSL used in the Mellanox CX4
 		 * that fails to clear the RA bit after an AFU reset,
 		 * preventing subsequent AFU resets from working.
 		 */
@@ -288,7 +288,7 @@ void cxl_release_spa(struct cxl_afu *afu)
 
 /*
  * Invalidation of all ERAT entries is no longer required by CAIA2. Use
- * only for debug.
+ * only for de.
  */
 int cxl_invalidate_all_psl9(struct cxl *adapter)
 {
@@ -809,7 +809,7 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	 *
 	 * Notably we used to have some issues with the disable sequence on PSL
 	 * cards, which is why we ended up using this heavy weight procedure in
-	 * the first place, however a bug was discovered that had rendered the
+	 * the first place, however a  was discovered that had rendered the
 	 * disable operation ineffective, so it is conceivable that was the
 	 * sole explanation for those difficulties. Careful regression testing
 	 * is recommended if anyone attempts to remove or reorder these
@@ -1041,7 +1041,7 @@ static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 	 *
 	 * Notably we used to have some issues with the disable sequence
 	 * (before the sequence was spelled out in the architecture) which is
-	 * why we were so heavy weight in the first place, however a bug was
+	 * why we were so heavy weight in the first place, however a  was
 	 * discovered that had rendered the disable operation ineffective, so
 	 * it is conceivable that was the sole explanation for those
 	 * difficulties. Point is, we should be careful and do some regression
@@ -1119,12 +1119,12 @@ void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx)
 
 void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx)
 {
-	u64 fir1, fir2, fir_slice, serr, afu_debug;
+	u64 fir1, fir2, fir_slice, serr, afu_de;
 
 	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL_FIR2);
 	fir_slice = cxl_p1n_read(ctx->afu, CXL_PSL_FIR_SLICE_An);
-	afu_debug = cxl_p1n_read(ctx->afu, CXL_AFU_DEBUG_An);
+	afu_de = cxl_p1n_read(ctx->afu, CXL_AFU_DE_An);
 
 	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
 	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
@@ -1133,7 +1133,7 @@ void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx)
 		cxl_afu_decode_psl_serr(ctx->afu, serr);
 	}
 	dev_crit(&ctx->afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
-	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DE_An: 0x%016llx\n", afu_de);
 }
 
 static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
@@ -1145,9 +1145,9 @@ static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
 	if (ctx->afu->adapter->native->sl_ops->psl_irq_dump_registers)
 		ctx->afu->adapter->native->sl_ops->psl_irq_dump_registers(ctx);
 
-	if (ctx->afu->adapter->native->sl_ops->debugfs_stop_trace) {
+	if (ctx->afu->adapter->native->sl_ops->defs_stop_trace) {
 		dev_crit(&ctx->afu->dev, "STOPPING CXL TRACE\n");
-		ctx->afu->adapter->native->sl_ops->debugfs_stop_trace(ctx->afu->adapter);
+		ctx->afu->adapter->native->sl_ops->defs_stop_trace(ctx->afu->adapter);
 	}
 
 	return cxl_ops->ack_irq(ctx, 0, errstat);
@@ -1254,7 +1254,7 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	u64 errstat, serr, afu_error, dsisr;
-	u64 fir_slice, afu_debug, irq_mask;
+	u64 fir_slice, afu_de, irq_mask;
 
 	/*
 	 * slice err interrupt is only used with full PSL (no XSL)
@@ -1267,9 +1267,9 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 
 	if (cxl_is_power8()) {
 		fir_slice = cxl_p1n_read(afu, CXL_PSL_FIR_SLICE_An);
-		afu_debug = cxl_p1n_read(afu, CXL_AFU_DEBUG_An);
+		afu_de = cxl_p1n_read(afu, CXL_AFU_DE_An);
 		dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
-		dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+		dev_crit(&afu->dev, "CXL_PSL_AFU_DE_An: 0x%016llx\n", afu_de);
 	}
 	dev_crit(&afu->dev, "CXL_PSL_ErrStat_An: 0x%016llx\n", errstat);
 	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
@@ -1313,9 +1313,9 @@ static irqreturn_t native_irq_err(int irq, void *data)
 	err_ivte = cxl_p1_read(adapter, CXL_PSL_ErrIVTE);
 	dev_crit(&adapter->dev, "PSL_ErrIVTE: 0x%016llx\n", err_ivte);
 
-	if (adapter->native->sl_ops->debugfs_stop_trace) {
+	if (adapter->native->sl_ops->defs_stop_trace) {
 		dev_crit(&adapter->dev, "STOPPING CXL TRACE\n");
-		adapter->native->sl_ops->debugfs_stop_trace(adapter);
+		adapter->native->sl_ops->defs_stop_trace(adapter);
 	}
 
 	if (adapter->native->sl_ops->err_irq_dump_registers)

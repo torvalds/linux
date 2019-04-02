@@ -47,7 +47,7 @@
  * Contact Information:
  * Jon Mason <jon.mason@intel.com>
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -93,7 +93,7 @@ static bool use_dma;
 module_param(use_dma, bool, 0644);
 MODULE_PARM_DESC(use_dma, "Use DMA engine to perform large data copy");
 
-static struct dentry *nt_debugfs_dir;
+static struct dentry *nt_defs_dir;
 
 /* Only two-ports NTB devices are supported */
 #define PIDX		NTB_DEF_PEER_IDX
@@ -170,8 +170,8 @@ struct ntb_transport_qp {
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
 
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_stats;
+	struct dentry *defs_dir;
+	struct dentry *defs_stats;
 
 	/* Stats */
 	u64 rx_bytes;
@@ -225,7 +225,7 @@ struct ntb_transport_ctx {
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
 
-	struct dentry *debugfs_node_dir;
+	struct dentry *defs_node_dir;
 };
 
 enum {
@@ -447,7 +447,7 @@ void ntb_transport_unregister_client(struct ntb_transport_client *drv)
 }
 EXPORT_SYMBOL_GPL(ntb_transport_unregister_client);
 
-static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
+static ssize_t defs_read(struct file *filp, char __user *ubuf, size_t count,
 			    loff_t *offp)
 {
 	struct ntb_transport_qp *qp;
@@ -540,10 +540,10 @@ static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 	return ret;
 }
 
-static const struct file_operations ntb_qp_debugfs_stats = {
+static const struct file_operations ntb_qp_defs_stats = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = debugfs_read,
+	.read = defs_read,
 };
 
 static void ntb_list_add(spinlock_t *lock, struct list_head *entry,
@@ -1070,19 +1070,19 @@ static int ntb_transport_init_queue(struct ntb_transport_ctx *nt,
 	qp->tx_max_frame = min(transport_mtu, tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
 
-	if (nt->debugfs_node_dir) {
-		char debugfs_name[4];
+	if (nt->defs_node_dir) {
+		char defs_name[4];
 
-		snprintf(debugfs_name, 4, "qp%d", qp_num);
-		qp->debugfs_dir = debugfs_create_dir(debugfs_name,
-						     nt->debugfs_node_dir);
+		snprintf(defs_name, 4, "qp%d", qp_num);
+		qp->defs_dir = defs_create_dir(defs_name,
+						     nt->defs_node_dir);
 
-		qp->debugfs_stats = debugfs_create_file("stats", S_IRUSR,
-							qp->debugfs_dir, qp,
-							&ntb_qp_debugfs_stats);
+		qp->defs_stats = defs_create_file("stats", S_IRUSR,
+							qp->defs_dir, qp,
+							&ntb_qp_defs_stats);
 	} else {
-		qp->debugfs_dir = NULL;
-		qp->debugfs_stats = NULL;
+		qp->defs_dir = NULL;
+		qp->defs_stats = NULL;
 	}
 
 	INIT_DELAYED_WORK(&qp->link_work, ntb_qp_link_work);
@@ -1196,10 +1196,10 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 		goto err1;
 	}
 
-	if (nt_debugfs_dir) {
-		nt->debugfs_node_dir =
-			debugfs_create_dir(pci_name(ndev->pdev),
-					   nt_debugfs_dir);
+	if (nt_defs_dir) {
+		nt->defs_node_dir =
+			defs_create_dir(pci_name(ndev->pdev),
+					   nt_defs_dir);
 	}
 
 	for (i = 0; i < qp_count; i++) {
@@ -1259,7 +1259,7 @@ static void ntb_transport_free(struct ntb_client *self, struct ntb_dev *ndev)
 		qp = &nt->qp_vec[i];
 		if (qp_bitmap_alloc & BIT_ULL(i))
 			ntb_transport_free_queue(qp);
-		debugfs_remove_recursive(qp->debugfs_dir);
+		defs_remove_recursive(qp->defs_dir);
 	}
 
 	ntb_link_disable(ndev);
@@ -2300,8 +2300,8 @@ static int __init ntb_transport_init(void)
 
 	pr_info("%s, version %s\n", NTB_TRANSPORT_DESC, NTB_TRANSPORT_VER);
 
-	if (debugfs_initialized())
-		nt_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized())
+		nt_defs_dir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	rc = bus_register(&ntb_transport_bus);
 	if (rc)
@@ -2316,7 +2316,7 @@ static int __init ntb_transport_init(void)
 err_client:
 	bus_unregister(&ntb_transport_bus);
 err_bus:
-	debugfs_remove_recursive(nt_debugfs_dir);
+	defs_remove_recursive(nt_defs_dir);
 	return rc;
 }
 module_init(ntb_transport_init);
@@ -2325,6 +2325,6 @@ static void __exit ntb_transport_exit(void)
 {
 	ntb_unregister_client(&ntb_transport_client);
 	bus_unregister(&ntb_transport_bus);
-	debugfs_remove_recursive(nt_debugfs_dir);
+	defs_remove_recursive(nt_defs_dir);
 }
 module_exit(ntb_transport_exit);

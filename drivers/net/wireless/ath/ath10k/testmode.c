@@ -8,7 +8,7 @@
 #include <net/netlink.h>
 #include <linux/firmware.h>
 
-#include "debug.h"
+#include "de.h"
 #include "wmi.h"
 #include "hif.h"
 #include "hw.h"

@@ -23,7 +23,7 @@ nfp-objs := \
 	    nfp_main.o \
 	    nfp_net_common.o \
 	    nfp_net_ctrl.o \
-	    nfp_net_debugdump.o \
+	    nfp_net_dedump.o \
 	    nfp_net_ethtool.o \
 	    nfp_net_main.o \
 	    nfp_net_repr.o \
@@ -62,4 +62,4 @@ nfp-objs += \
 	    abm/main.o
 endif
 
-nfp-$(CONFIG_NFP_DEBUG) += nfp_net_debugfs.o
+nfp-$(CONFIG_NFP_DE) += nfp_net_defs.o

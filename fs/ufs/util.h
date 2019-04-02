@@ -552,7 +552,7 @@ static inline void *ufs_get_direct_data_ptr(struct ufs_sb_private_info *uspi,
 					    struct ufs_inode_info *ufsi,
 					    unsigned blk)
 {
-	BUG_ON(blk > UFS_TIND_BLOCK);
+	_ON(blk > UFS_TIND_BLOCK);
 	return uspi->fs_magic == UFS2_MAGIC ?
 		(void *)&ufsi->i_u1.u2_i_data[blk] :
 		(void *)&ufsi->i_u1.i_data[blk];

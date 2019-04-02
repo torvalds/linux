@@ -94,7 +94,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		set_inode_flag(inode, FI_INLINE_DENTRY);
 
 	if (f2fs_sb_has_flexible_inline_xattr(sbi)) {
-		f2fs_bug_on(sbi, !f2fs_has_extra_attr(inode));
+		f2fs__on(sbi, !f2fs_has_extra_attr(inode));
 		if (f2fs_has_inline_xattr(inode))
 			xattr_size = F2FS_OPTION(sbi).inline_xattr_size;
 		/* Otherwise, will be 0 */

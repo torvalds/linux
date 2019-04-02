@@ -155,13 +155,13 @@ int register_parisc_driver(struct parisc_driver *driver)
 	/* FIXME: we need this because apparently the sti
 	 * driver can be registered twice */
 	if (driver->drv.name) {
-		pr_warn("BUG: skipping previously registered driver %s\n",
+		pr_warn(": skipping previously registered driver %s\n",
 			driver->name);
 		return 1;
 	}
 
 	if (!driver->probe) {
-		pr_warn("BUG: driver %s has no probe routine\n", driver->name);
+		pr_warn(": driver %s has no probe routine\n", driver->name);
 		return 1;
 	}
 

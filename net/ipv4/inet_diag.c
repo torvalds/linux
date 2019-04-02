@@ -176,7 +176,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	void *info = NULL;
 
 	handler = inet_diag_table[req->sdiag_protocol];
-	BUG_ON(!handler);
+	_ON(!handler);
 
 	nlh = nlmsg_put(skb, portid, seq, unlh->nlmsg_type, sizeof(*r),
 			nlmsg_flags);
@@ -184,7 +184,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
-	BUG_ON(!sk_fullsock(sk));
+	_ON(!sk_fullsock(sk));
 
 	inet_diag_msg_common_fill(r, sk);
 	r->idiag_state = sk->sk_state;
@@ -344,7 +344,7 @@ static int inet_twsk_diag_fill(struct sock *sk,
 		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
-	BUG_ON(tw->tw_state != TCP_TIME_WAIT);
+	_ON(tw->tw_state != TCP_TIME_WAIT);
 
 	tmo = tw->tw_timer.expires - jiffies;
 	if (tmo < 0)
@@ -385,7 +385,7 @@ static int inet_req_diag_fill(struct sock *sk, struct sk_buff *skb,
 	r->idiag_timer = 1;
 	r->idiag_retrans = reqsk->num_retrans;
 
-	BUILD_BUG_ON(offsetof(struct inet_request_sock, ir_cookie) !=
+	BUILD__ON(offsetof(struct inet_request_sock, ir_cookie) !=
 		     offsetof(struct sock, sk_cookie));
 
 	tmo = inet_reqsk(sk)->rsk_timer.expires - jiffies;
@@ -873,26 +873,26 @@ static int inet_csk_diag_dump(struct sock *sk,
 
 static void twsk_build_assert(void)
 {
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_family) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_family) !=
 		     offsetof(struct sock, sk_family));
 
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_num) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_num) !=
 		     offsetof(struct inet_sock, inet_num));
 
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_dport) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_dport) !=
 		     offsetof(struct inet_sock, inet_dport));
 
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_rcv_saddr) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_rcv_saddr) !=
 		     offsetof(struct inet_sock, inet_rcv_saddr));
 
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_daddr) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_daddr) !=
 		     offsetof(struct inet_sock, inet_daddr));
 
 #if IS_ENABLED(CONFIG_IPV6)
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_v6_rcv_saddr) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_v6_rcv_saddr) !=
 		     offsetof(struct sock, sk_v6_rcv_saddr));
 
-	BUILD_BUG_ON(offsetof(struct inet_timewait_sock, tw_v6_daddr) !=
+	BUILD__ON(offsetof(struct inet_timewait_sock, tw_v6_daddr) !=
 		     offsetof(struct sock, sk_v6_daddr));
 #endif
 }

@@ -271,7 +271,7 @@ static void xenon_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 * HS400/HS200/eMMC HS doesn't have Preset Value register.
 	 * However, sdhci_set_ios will read HS400/HS200 Preset register.
 	 * Disable Preset Value register for HS400/HS200.
-	 * eMMC HS with preset_enabled set will trigger a bug in
+	 * eMMC HS with preset_enabled set will trigger a  in
 	 * get_preset_value().
 	 */
 	if ((ios->timing == MMC_TIMING_MMC_HS400) ||

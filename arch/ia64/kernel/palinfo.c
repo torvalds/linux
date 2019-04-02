@@ -14,7 +14,7 @@
  * 05/26/2000	S.Eranian	initial release
  * 08/21/2000	S.Eranian	updated to July 2000 PAL specs
  * 02/05/2001   S.Eranian	fixed module support
- * 10/23/2001	S.Eranian	updated pal_perf_mon_info bug fixes
+ * 10/23/2001	S.Eranian	updated pal_perf_mon_info  fixes
  * 03/24/2004	Ashok Raj	updated to work with CPU Hotplug
  * 10/26/2006   Russ Anderson	updated processor features to rev 2.2 spec
  */
@@ -445,12 +445,12 @@ static int register_info(struct seq_file *m)
 			   phys_stacked, hints.ph_data,
 			   hints.ph_data < RSE_HINTS_COUNT ? rse_hints[hints.ph_data]: "(??)");
 
-	if (ia64_pal_debug_info(&iregs, &dregs))
+	if (ia64_pal_de_info(&iregs, &dregs))
 		return 0;
 
 	seq_printf(m,
-		   "Instruction debug register pairs : %ld\n"
-		   "Data debug register pairs        : %ld\n", iregs, dregs);
+		   "Instruction de register pairs : %ld\n"
+		   "Data de register pairs        : %ld\n", iregs, dregs);
 
 	return 0;
 }

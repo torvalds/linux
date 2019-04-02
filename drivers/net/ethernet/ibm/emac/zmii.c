@@ -65,7 +65,7 @@ static inline const char *zmii_mode_name(int mode)
 	case PHY_INTERFACE_MODE_SMII:
 		return "SMII";
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -196,7 +196,7 @@ void zmii_detach(struct platform_device *ofdev, int input)
 {
 	struct zmii_instance *dev = platform_get_drvdata(ofdev);
 
-	BUG_ON(!dev || dev->users == 0);
+	_ON(!dev || dev->users == 0);
 
 	mutex_lock(&dev->lock);
 

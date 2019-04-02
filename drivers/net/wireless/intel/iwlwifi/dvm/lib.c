@@ -154,7 +154,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk)
 	if (scd_q_msk)
 		queue_control = scd_q_msk;
 
-	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n", queue_control);
+	IWL_DE_INFO(priv, "queue control: 0x%x\n", queue_control);
 	flush_cmd_v3.queue_control = cpu_to_le32(queue_control);
 	flush_cmd_v2.queue_control = cpu_to_le16((u16)queue_control);
 
@@ -174,7 +174,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}
-	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
+	IWL_DE_INFO(priv, "wait transmit/flush all frames\n");
 	iwl_trans_wait_tx_queues_empty(priv->trans, 0xffffffff);
 done:
 	ieee80211_wake_queues(priv->hw);
@@ -228,7 +228,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	struct iwl_bt_cmd_v2 bt_cmd_v2;
 	int ret;
 
-	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
+	BUILD__ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(basic.bt3_lookup_table));
 
 	if (priv->lib->bt_params) {
@@ -292,7 +292,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 
 		if (priv->bt_ch_announce)
 			basic.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
-		IWL_DEBUG_COEX(priv, "BT coex flag: 0X%x\n", basic.flags);
+		IWL_DE_COEX(priv, "BT coex flag: 0X%x\n", basic.flags);
 	}
 	priv->bt_enable_flag = basic.flags;
 	if (priv->bt_full_concurrent)
@@ -302,7 +302,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		memcpy(basic.bt3_lookup_table, iwlagn_def_3w_lookup,
 			sizeof(iwlagn_def_3w_lookup));
 
-	IWL_DEBUG_COEX(priv, "BT coex %s in %s mode\n",
+	IWL_DE_COEX(priv, "BT coex %s in %s mode\n",
 		       basic.flags ? "active" : "disabled",
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
@@ -416,9 +416,9 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	/*
 	 * Note: bt_traffic_load can be overridden by scan complete and
 	 * coex profile notifications. Ignore that since only bad consequence
-	 * can be not matching debug print with actual state.
+	 * can be not matching de print with actual state.
 	 */
-	IWL_DEBUG_COEX(priv, "BT traffic load changes: %d\n",
+	IWL_DE_COEX(priv, "BT traffic load changes: %d\n",
 		       priv->bt_traffic_load);
 
 	switch (priv->bt_traffic_load) {
@@ -489,7 +489,7 @@ void iwlagn_bt_coex_rssi_monitor(struct iwl_priv *priv)
 static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
-	IWL_DEBUG_COEX(priv, "Message Type = 0x%X, SSN = 0x%X, "
+	IWL_DE_COEX(priv, "Message Type = 0x%X, SSN = 0x%X, "
 			"Update Req = 0x%X\n",
 		(BT_UART_MSG_FRAME1MSGTYPE_MSK & uart_msg->frame1) >>
 			BT_UART_MSG_FRAME1MSGTYPE_POS,
@@ -498,7 +498,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME1UPDATEREQ_MSK & uart_msg->frame1) >>
 			BT_UART_MSG_FRAME1UPDATEREQ_POS);
 
-	IWL_DEBUG_COEX(priv, "Open connections = 0x%X, Traffic load = 0x%X, "
+	IWL_DE_COEX(priv, "Open connections = 0x%X, Traffic load = 0x%X, "
 			"Chl_SeqN = 0x%X, In band = 0x%X\n",
 		(BT_UART_MSG_FRAME2OPENCONNECTIONS_MSK & uart_msg->frame2) >>
 			BT_UART_MSG_FRAME2OPENCONNECTIONS_POS,
@@ -509,7 +509,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME2INBAND_MSK & uart_msg->frame2) >>
 			BT_UART_MSG_FRAME2INBAND_POS);
 
-	IWL_DEBUG_COEX(priv, "SCO/eSCO = 0x%X, Sniff = 0x%X, A2DP = 0x%X, "
+	IWL_DE_COEX(priv, "SCO/eSCO = 0x%X, Sniff = 0x%X, A2DP = 0x%X, "
 			"ACL = 0x%X, Master = 0x%X, OBEX = 0x%X\n",
 		(BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3) >>
 			BT_UART_MSG_FRAME3SCOESCO_POS,
@@ -524,11 +524,11 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME3OBEX_MSK & uart_msg->frame3) >>
 			BT_UART_MSG_FRAME3OBEX_POS);
 
-	IWL_DEBUG_COEX(priv, "Idle duration = 0x%X\n",
+	IWL_DE_COEX(priv, "Idle duration = 0x%X\n",
 		(BT_UART_MSG_FRAME4IDLEDURATION_MSK & uart_msg->frame4) >>
 			BT_UART_MSG_FRAME4IDLEDURATION_POS);
 
-	IWL_DEBUG_COEX(priv, "Tx Activity = 0x%X, Rx Activity = 0x%X, "
+	IWL_DE_COEX(priv, "Tx Activity = 0x%X, Rx Activity = 0x%X, "
 			"eSCO Retransmissions = 0x%X\n",
 		(BT_UART_MSG_FRAME5TXACTIVITY_MSK & uart_msg->frame5) >>
 			BT_UART_MSG_FRAME5TXACTIVITY_POS,
@@ -537,13 +537,13 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME5ESCORETRANSMIT_MSK & uart_msg->frame5) >>
 			BT_UART_MSG_FRAME5ESCORETRANSMIT_POS);
 
-	IWL_DEBUG_COEX(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X\n",
+	IWL_DE_COEX(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X\n",
 		(BT_UART_MSG_FRAME6SNIFFINTERVAL_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6SNIFFINTERVAL_POS,
 		(BT_UART_MSG_FRAME6DISCOVERABLE_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6DISCOVERABLE_POS);
 
-	IWL_DEBUG_COEX(priv, "Sniff Activity = 0x%X, Page = "
+	IWL_DE_COEX(priv, "Sniff Activity = 0x%X, Page = "
 			"0x%X, Inquiry = 0x%X, Connectable = 0x%X\n",
 		(BT_UART_MSG_FRAME7SNIFFACTIVITY_MSK & uart_msg->frame7) >>
 			BT_UART_MSG_FRAME7SNIFFACTIVITY_POS,
@@ -600,14 +600,14 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 	int ave_rssi;
 
 	if (!ctx->vif || (ctx->vif->type != NL80211_IFTYPE_STATION)) {
-		IWL_DEBUG_INFO(priv, "BSS ctx not active or not in sta mode\n");
+		IWL_DE_INFO(priv, "BSS ctx not active or not in sta mode\n");
 		return false;
 	}
 
 	ave_rssi = ieee80211_ave_rssi(ctx->vif);
 	if (!ave_rssi) {
 		/* no rssi data, no changes to reduce tx power */
-		IWL_DEBUG_COEX(priv, "no rssi data available\n");
+		IWL_DE_COEX(priv, "no rssi data available\n");
 		return need_update;
 	}
 	if (!priv->reduced_txpower &&
@@ -649,10 +649,10 @@ static void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		return;
 	}
 
-	IWL_DEBUG_COEX(priv, "BT Coex notification:\n");
-	IWL_DEBUG_COEX(priv, "    status: %d\n", coex->bt_status);
-	IWL_DEBUG_COEX(priv, "    traffic load: %d\n", coex->bt_traffic_load);
-	IWL_DEBUG_COEX(priv, "    CI compliance: %d\n",
+	IWL_DE_COEX(priv, "BT Coex notification:\n");
+	IWL_DE_COEX(priv, "    status: %d\n", coex->bt_status);
+	IWL_DE_COEX(priv, "    traffic load: %d\n", coex->bt_traffic_load);
+	IWL_DE_COEX(priv, "    CI compliance: %d\n",
 			coex->bt_ci_compliance);
 	iwlagn_print_uartmsg(priv, uart_msg);
 
@@ -843,7 +843,7 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		ctx->staging.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
 
-	IWL_DEBUG_ASSOC(priv, "rx_chain=0x%X active=%d idle=%d\n",
+	IWL_DE_ASSOC(priv, "rx_chain=0x%X active=%d idle=%d\n",
 			ctx->staging.rx_chain,
 			active_rx_cnt, idle_rx_cnt);
 

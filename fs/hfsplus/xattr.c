@@ -163,7 +163,7 @@ check_attr_tree_state_again:
 	case HFSPLUS_FAILED_ATTR_TREE:
 		return -EOPNOTSUPP;
 	default:
-		BUG();
+		();
 	}
 
 	attr_file = hfsplus_iget(sb, HFSPLUS_ATTR_CNID);
@@ -172,7 +172,7 @@ check_attr_tree_state_again:
 		return PTR_ERR(attr_file);
 	}
 
-	BUG_ON(i_size_read(attr_file) != 0);
+	_ON(i_size_read(attr_file) != 0);
 
 	hip = HFSPLUS_I(attr_file);
 

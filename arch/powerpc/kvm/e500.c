@@ -165,9 +165,9 @@ static inline void kvmppc_e500_id_table_reset_one(
 {
 	struct vcpu_id_table *idt = vcpu_e500->idt;
 
-	BUG_ON(as >= 2);
-	BUG_ON(pid >= NUM_TIDS);
-	BUG_ON(pr >= 2);
+	_ON(as >= 2);
+	_ON(pid >= NUM_TIDS);
+	_ON(pr >= 2);
 
 	idt->id[as][pid][pr].val = 0;
 	idt->id[as][pid][pr].pentry = NULL;
@@ -192,9 +192,9 @@ unsigned int kvmppc_e500_get_sid(struct kvmppc_vcpu_e500 *vcpu_e500,
 	struct vcpu_id_table *idt = vcpu_e500->idt;
 	int sid;
 
-	BUG_ON(as >= 2);
-	BUG_ON(gid >= NUM_TIDS);
-	BUG_ON(pr >= 2);
+	_ON(as >= 2);
+	_ON(gid >= NUM_TIDS);
+	_ON(pr >= 2);
 
 	sid = local_sid_lookup(&idt->id[as][gid][pr]);
 

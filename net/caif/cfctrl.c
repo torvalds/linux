@@ -180,7 +180,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send enum request\n");
+		pr_de("not able to send enum request\n");
 		return;
 	}
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
@@ -211,7 +211,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send linkup request\n");
+		pr_de("not able to send linkup request\n");
 		return -ENODEV;
 	}
 
@@ -310,7 +310,7 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send link-down request\n");
+		pr_de("not able to send link-down request\n");
 		return -ENODEV;
 	}
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
@@ -557,7 +557,7 @@ static void cfctrl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 	case CAIF_CTRLCMD_FLOW_OFF_IND:
 		spin_lock_bh(&this->info_list_lock);
 		if (!list_empty(&this->list))
-			pr_debug("Received flow off in control layer\n");
+			pr_de("Received flow off in control layer\n");
 		spin_unlock_bh(&this->info_list_lock);
 		break;
 	case _CAIF_CTRLCMD_PHYIF_DOWN_IND: {

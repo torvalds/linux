@@ -36,7 +36,7 @@ config PRINT_QUOTA_WARNING
 	  Note that this behavior is currently deprecated and may go away in
 	  future. Please use notification via netlink socket instead.
 
-config QUOTA_DEBUG
+config QUOTA_DE
 	bool "Additional quota sanity checks"
 	depends on QUOTA
 	default n

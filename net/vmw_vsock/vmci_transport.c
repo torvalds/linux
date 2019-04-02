@@ -668,7 +668,7 @@ static bool vmci_transport_stream_allow(u32 cid, u32 port)
 	};
 	int i;
 
-	BUILD_BUG_ON(sizeof(cid) != sizeof(*non_socket_contexts));
+	BUILD__ON(sizeof(cid) != sizeof(*non_socket_contexts));
 
 	for (i = 0; i < ARRAY_SIZE(non_socket_contexts); i++) {
 		if (cid == non_socket_contexts[i])

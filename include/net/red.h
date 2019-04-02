@@ -3,7 +3,7 @@
 #define __NET_SCHED_RED_H
 
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 #include <net/dsfield.h>
@@ -390,7 +390,7 @@ static inline int red_action(const struct red_parms *p,
 			return RED_HARD_MARK;
 	}
 
-	BUG();
+	();
 	return RED_DONT_MARK;
 }
 

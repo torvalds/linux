@@ -1675,7 +1675,7 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 
 	prop = of_find_property(ep, "data-lanes", &len);
 	if (!prop) {
-		DRM_DEV_DEBUG(dev,
+		DRM_DEV_DE(dev,
 			"failed to find data lane mapping, using default\n");
 		return 0;
 	}
@@ -1744,7 +1744,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	 */
 	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
 	if (!endpoint) {
-		DRM_DEV_DEBUG(dev, "%s: no endpoint\n", __func__);
+		DRM_DEV_DE(dev, "%s: no endpoint\n", __func__);
 		return 0;
 	}
 
@@ -1759,7 +1759,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	/* Get panel node from the output port's endpoint data */
 	device_node = of_graph_get_remote_node(np, 1, 0);
 	if (!device_node) {
-		DRM_DEV_DEBUG(dev, "%s: no valid device\n", __func__);
+		DRM_DEV_DE(dev, "%s: no valid device\n", __func__);
 		ret = -ENODEV;
 		goto err;
 	}

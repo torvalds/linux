@@ -241,7 +241,7 @@
 				  */
 
 /* A-Idle to B-Disconnect */
-/* It is necessary for this timer to be more than 750 ms because of a bug in OPT
+/* It is necessary for this timer to be more than 750 ms because of a  in OPT
  * test 5.4 in which B OPT disconnects after 750 ms instead of 75ms as stated
  * in the test description
  */

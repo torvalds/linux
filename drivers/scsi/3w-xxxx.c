@@ -46,7 +46,7 @@
    along with this program; if not, write to the Free Software               
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
 
-   Bugs/Comments/Suggestions should be mailed to:                            
+   s/Comments/Suggestions should be mailed to:                            
 
    aradford@gmail.com
 
@@ -58,12 +58,12 @@
                  ioctls for 3DM.
    1.0.000 -     Added DPO & FUA bit support for WRITE_10 & WRITE_6 cdb
                  to disable drive write-cache before writes.
-   1.1.000 -     Fixed performance bug with DPO & FUA not existing for WRITE_6.
+   1.1.000 -     Fixed performance  with DPO & FUA not existing for WRITE_6.
    1.2.000 -     Added support for clean shutdown notification/feature table.
    1.02.00.001 - Added support for full command packet posts through ioctls
                  for 3DM.
-                 Bug fix so hot spare drives don't show up.
-   1.02.00.002 - Fix bug with tw_setfeature() call that caused oops on some
+                  fix so hot spare drives don't show up.
+   1.02.00.002 - Fix  with tw_setfeature() call that caused oops on some
                  systems.
    08/21/00    - release previously allocated resources on failure at
                  tw_allocate_memory (acme)
@@ -79,7 +79,7 @@
    1.02.00.005 - Allocate bounce buffers and custom queue depth for raid5 for
                  6000 and 5000 series controllers.
                  Reduce polling mdelays causing problems on some systems.
-                 Fix use_sg = 1 calculation bug.
+                 Fix use_sg = 1 calculation .
                  Check for scsi_register returning NULL.
                  Add aen count to /proc/scsi/3w-xxxx.
                  Remove aen code unit masking in tw_aen_complete().
@@ -95,7 +95,7 @@
                  Print some useful information on certain aen codes.
                  Add tw_decode_bits() for interpreting status register output.
                  Make scsi_set_pci_device() for kernels >= 2.4.4
-                 Fix bug where aen's could be lost before a reset.
+                 Fix  where aen's could be lost before a reset.
                  Re-add spinlocks in tw_scsi_detect().
                  Fix possible null pointer dereference in tw_aen_drain_queue()
                  during initialization.
@@ -105,17 +105,17 @@
                  Add entire aen code string list.
    1.02.00.010 - Cleanup queueing code, fix jbod thoughput.
                  Fix get_param for specific units.
-   1.02.00.011 - Fix bug in tw_aen_complete() where aen's could be lost.
+   1.02.00.011 - Fix  in tw_aen_complete() where aen's could be lost.
                  Fix tw_aen_drain_queue() to display useful info at init.
                  Set tw_host->max_id for 12 port cards.
                  Add ioctl support for raw command packet post from userspace
                  with sglist fragments (parameter and io).
    1.02.00.012 - Fix read capacity to under report by 1 sector to fix get
                  last sector ioctl.
-   1.02.00.013 - Fix bug where more AEN codes weren't coming out during
+   1.02.00.013 - Fix  where more AEN codes weren't coming out during
                  driver initialization.
                  Improved handling of PCI aborts.
-   1.02.00.014 - Fix bug in tw_findcards() where AEN code could be lost.
+   1.02.00.014 - Fix  in tw_findcards() where AEN code could be lost.
                  Increase timeout in tw_aen_drain_queue() to 30 seconds.
    1.02.00.015 - Re-write raw command post with data ioctl method.
                  Remove raid5 bounce buffers for raid5 for 6XXX for kernel 2.5
@@ -141,20 +141,20 @@
                  Fix tw_scsi_eh_abort() to not reset on every io abort.
                  Set can_queue in SHT to 255 to prevent hang from AEN.
    1.02.00.022 - Fix possible null pointer dereference in tw_scsi_release().
-   1.02.00.023 - Fix bug in tw_aen_drain_queue() where unit # was always zero.
+   1.02.00.023 - Fix  in tw_aen_drain_queue() where unit # was always zero.
    1.02.00.024 - Add severity levels to AEN strings.
    1.02.00.025 - Fix command interrupt spurious error messages.
-                 Fix bug in raw command post with data ioctl method.
-                 Fix bug where rollcall sometimes failed with cable errors.
+                 Fix  in raw command post with data ioctl method.
+                 Fix  where rollcall sometimes failed with cable errors.
                  Print unit # on all command timeouts.
-   1.02.00.026 - Fix possible infinite retry bug with power glitch induced
+   1.02.00.026 - Fix possible infinite retry  with power glitch induced
                  drive timeouts.
                  Cleanup some AEN severity levels.
    1.02.00.027 - Add drive not supported AEN code for SATA controllers.
                  Remove spurious unknown ioctl error message.
-   1.02.00.028 - Fix bug where multiple controllers with no units were the
+   1.02.00.028 - Fix  where multiple controllers with no units were the
                  same card number.
-                 Fix bug where cards were being shut down more than once.
+                 Fix  where cards were being shut down more than once.
    1.02.00.029 - Add missing pci_free_consistent() in tw_allocate_memory().
                  Replace pci_map_single() with pci_map_page() for highmem.
                  Check for tw_setfeature() failure.
@@ -163,7 +163,7 @@
                  Add support for mode sense opcode.
                  Add support for cache mode page.
                  Add support for synchronize cache opcode.
-   1.02.00.032 - Fix small multicard rollcall bug.
+   1.02.00.032 - Fix small multicard rollcall .
                  Make driver stay loaded with no units for hot add/swap.
                  Add support for "twe" character device for ioctls.
                  Clean up request_id queueing code.
@@ -180,7 +180,7 @@
                  for 'smartmontools' support.
    1.26.00.038 - Roll driver minor version to 26 to denote kernel 2.6.
                  Add support for cmds_per_lun module parameter.
-   1.26.00.039 - Fix bug in tw_chrdev_ioctl() polling code.
+   1.26.00.039 - Fix  in tw_chrdev_ioctl() polling code.
                  Fix data_buffer_length usage in tw_chrdev_ioctl().
                  Update contact information.
    1.26.02.000 - Convert driver to pci_driver format.

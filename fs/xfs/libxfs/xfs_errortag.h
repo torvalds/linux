@@ -41,7 +41,7 @@
 #define XFS_ERRTAG_BMAP_FINISH_ONE			26
 #define XFS_ERRTAG_AG_RESV_CRITICAL			27
 /*
- * DEBUG mode instrumentation to test and/or trigger delayed allocation
+ * DE mode instrumentation to test and/or trigger delayed allocation
  * block killing in the event of failed writes. When enabled, all
  * buffered writes are silenty dropped and handled as if they failed.
  * All delalloc blocks in the range of the write (including pre-existing

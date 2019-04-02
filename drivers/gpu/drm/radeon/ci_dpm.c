@@ -913,7 +913,7 @@ static int ci_thermal_enable_alert(struct radeon_device *rdev,
 		rdev->irq.dpm_thermal = false;
 		result = ci_send_msg_to_smc(rdev, PPSMC_MSG_Thermal_Cntl_Enable);
 		if (result != PPSMC_Result_OK) {
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
+			DRM_DE_KMS("Could not enable thermal interrupts.\n");
 			return -EINVAL;
 		}
 	} else {
@@ -922,7 +922,7 @@ static int ci_thermal_enable_alert(struct radeon_device *rdev,
 		rdev->irq.dpm_thermal = true;
 		result = ci_send_msg_to_smc(rdev, PPSMC_MSG_Thermal_Cntl_Disable);
 		if (result != PPSMC_Result_OK) {
-			DRM_DEBUG_KMS("Could not disable thermal interrupts.\n");
+			DRM_DE_KMS("Could not disable thermal interrupts.\n");
 			return -EINVAL;
 		}
 	}
@@ -4609,11 +4609,11 @@ static int ci_register_patching_mc_seq(struct radeon_device *rdev,
 			}
 		}
 
-		WREG32(MC_SEQ_IO_DEBUG_INDEX, 3);
-		tmp = RREG32(MC_SEQ_IO_DEBUG_DATA);
+		WREG32(MC_SEQ_IO_DE_INDEX, 3);
+		tmp = RREG32(MC_SEQ_IO_DE_DATA);
 		tmp = (tmp & 0xFFF8FFFF) | (1 << 16);
-		WREG32(MC_SEQ_IO_DEBUG_INDEX, 3);
-		WREG32(MC_SEQ_IO_DEBUG_DATA, tmp);
+		WREG32(MC_SEQ_IO_DE_INDEX, 3);
+		WREG32(MC_SEQ_IO_DE_DATA, tmp);
 	}
 
 	return 0;
@@ -5865,7 +5865,7 @@ int ci_dpm_init(struct radeon_device *rdev)
 			tmp |= DPM_ENABLED;
 			break;
 		default:
-			DRM_DEBUG("Invalid PCC GPIO: %u!\n", gpio.shift);
+			DRM_DE("Invalid PCC GPIO: %u!\n", gpio.shift);
 			break;
 		}
 		WREG32_SMC(CNB_PWRMGT_CNTL, tmp);
@@ -5937,7 +5937,7 @@ int ci_dpm_init(struct radeon_device *rdev)
 	return 0;
 }
 
-void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void ci_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);

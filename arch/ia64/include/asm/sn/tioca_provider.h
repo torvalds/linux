@@ -39,7 +39,7 @@ struct tioca_dmamap{
 };
 
 /*
- * Kernel only fields.  Prom may look at this stuff for debugging only.
+ * Kernel only fields.  Prom may look at this stuff for deging only.
  * Access this structure through the ca_kernel_private ptr.
  */
 
@@ -156,7 +156,7 @@ tioca_physpage_to_gart(u64 page_addr)
  * @tioca_kernel: CA context 
  *
  * Invalidate tlb entries for a given CA GART.  Main complexity is to account
- * for revA bug.
+ * for revA .
  */
 static inline void
 tioca_tlbflush(struct tioca_kernel *tioca_kernel)

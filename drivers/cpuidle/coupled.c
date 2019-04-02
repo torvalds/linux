@@ -32,7 +32,7 @@
  * On some ARM SMP SoCs (OMAP4460, Tegra 2, and probably more), the
  * cpus cannot be independently powered down, either due to
  * sequencing restrictions (on Tegra 2, cpu 0 must be the last to
- * power down), or due to HW bugs (on OMAP4460, a cpu powering up
+ * power down), or due to HW s (on OMAP4460, a cpu powering up
  * will corrupt the gic state unless the other cpu runs a work
  * around).  Each cpu has a power state that it can enter without
  * coordinating with the other cpu (usually Wait For Interrupt, or

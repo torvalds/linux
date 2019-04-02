@@ -653,7 +653,7 @@ static void userspace_mark_region(struct dm_dirty_log *log, region_t region)
 
 	/* Wait for an allocation, but _never_ fail */
 	fe = mempool_alloc(&lc->flush_entry_pool, GFP_NOIO);
-	BUG_ON(!fe);
+	_ON(!fe);
 
 	spin_lock_irqsave(&lc->flush_lock, flags);
 	fe->type = DM_ULOG_MARK_REGION;
@@ -812,7 +812,7 @@ static int userspace_status(struct dm_dirty_log *log, status_type_t status_type,
 	case STATUSTYPE_TABLE:
 		sz = 0;
 		table_args = strchr(lc->usr_argv_str, ' ');
-		BUG_ON(!table_args); /* There will always be a ' ' */
+		_ON(!table_args); /* There will always be a ' ' */
 		table_args++;
 
 		DMEMIT("%s %u %s ", log->type->name, lc->usr_argc, lc->uuid);

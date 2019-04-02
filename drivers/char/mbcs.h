@@ -49,7 +49,7 @@
 #define MBCS_ALG_STEP		0x0318	/* Algorithm Step */
 
 #define MBCS_GSCR_START		0x0000000
-#define MBCS_DEBUG_START	0x0100000
+#define MBCS_DE_START	0x0100000
 #define MBCS_RAM0_START		0x0200000
 #define MBCS_RAM1_START		0x0400000
 #define MBCS_RAM2_START		0x0600000
@@ -533,7 +533,7 @@ struct mbcs_soft {
 	uint64_t ram0_addr;	// pio addr
 	uint64_t ram1_addr;	// pio addr
 	uint64_t ram2_addr;	// pio addr
-	uint64_t debug_addr;	// pio addr
+	uint64_t de_addr;	// pio addr
 	atomic_t dmawrite_done;
 	atomic_t dmaread_done;
 	atomic_t algo_done;

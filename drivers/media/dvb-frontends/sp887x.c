@@ -30,10 +30,10 @@ struct sp887x_state {
 	u8 initialised:1;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "sp887x: " args); \
+		if (de) printk(KERN_DE "sp887x: " args); \
 	} while (0)
 
 static int i2c_writebytes (struct sp887x_state* state, u8 *buf, u8 len)
@@ -619,8 +619,8 @@ static const struct dvb_frontend_ops sp887x_ops = {
 	.read_ucblocks = sp887x_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Spase sp887x DVB-T demodulator driver");
 MODULE_LICENSE("GPL");

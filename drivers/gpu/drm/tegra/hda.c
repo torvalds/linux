@@ -3,7 +3,7 @@
  * Copyright (C) 2019 NVIDIA Corporation
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <sound/hda_verbs.h>
 

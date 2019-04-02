@@ -50,7 +50,7 @@ static struct tty_ldisc_ops null_ldisc = {
 
 static int __init n_null_init(void)
 {
-	BUG_ON(tty_register_ldisc(N_NULL, &null_ldisc));
+	_ON(tty_register_ldisc(N_NULL, &null_ldisc));
 	return 0;
 }
 

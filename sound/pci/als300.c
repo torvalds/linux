@@ -86,9 +86,9 @@
 #define PLAYBACK_BLOCK_COUNTER	0x9A
 #define RECORD_BLOCK_COUNTER	0x9B
 
-#define DEBUG_PLAY_REC	0
+#define DE_PLAY_REC	0
 
-#if DEBUG_PLAY_REC
+#if DE_PLAY_REC
 #define snd_als300_dbgplay(format, args...) printk(KERN_ERR format, ##args)
 #else
 #define snd_als300_dbgplay(format, args...)

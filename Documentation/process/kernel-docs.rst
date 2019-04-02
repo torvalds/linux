@@ -576,7 +576,7 @@ Miscellaneous
       :URL: http://lwn.net
       :Keywords: latest kernel news.
       :Description: The title says it all. There's a fixed kernel section
-        summarizing developers' work, bug fixes, new features and versions
+        summarizing developers' work,  fixes, new features and versions
         produced during the week. Published every Thursday.
 
     * Name: **The home page of Linux-MM**

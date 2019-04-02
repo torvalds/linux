@@ -28,10 +28,10 @@ MODULE_DESCRIPTION("uPD64083 driver");
 MODULE_AUTHOR("T. Adachi, Takeru KOMORIYA, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static bool debug;
-module_param(debug, bool, 0644);
+static bool de;
+module_param(de, bool, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 enum {
@@ -74,14 +74,14 @@ static void upd64083_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 
 	buf[0] = reg;
 	buf[1] = val;
-	v4l2_dbg(1, debug, sd, "write reg: %02x val: %02x\n", reg, val);
+	v4l2_dbg(1, de, sd, "write reg: %02x val: %02x\n", reg, val);
 	if (i2c_master_send(client, buf, 2) != 2)
 		v4l2_err(sd, "I/O error write 0x%02x/0x%02x\n", reg, val);
 }
 
 /* ------------------------------------------------------------------------ */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static u8 upd64083_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -113,7 +113,7 @@ static int upd64083_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int upd64083_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = upd64083_read(sd, reg->reg & 0xff);
@@ -144,7 +144,7 @@ static int upd64083_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops upd64083_core_ops = {
 	.log_status = upd64083_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = upd64083_g_register,
 	.s_register = upd64083_s_register,
 #endif

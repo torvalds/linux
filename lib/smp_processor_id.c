@@ -2,7 +2,7 @@
 /*
  * lib/smp_processor_id.c
  *
- * DEBUG_PREEMPT variant of smp_processor_id().
+ * DE_PREEMPT variant of smp_processor_id().
  */
 #include <linux/export.h>
 #include <linux/kprobes.h>
@@ -40,7 +40,7 @@ unsigned int check_preemption_disabled(const char *what1, const char *what2)
 	if (!printk_ratelimit())
 		goto out_enable;
 
-	printk(KERN_ERR "BUG: using %s%s() in preemptible [%08x] code: %s/%d\n",
+	printk(KERN_ERR ": using %s%s() in preemptible [%08x] code: %s/%d\n",
 		what1, what2, preempt_count() - 1, current->comm, current->pid);
 
 	printk("caller is %pS\n", __builtin_return_address(0));
@@ -52,12 +52,12 @@ out:
 	return this_cpu;
 }
 
-notrace unsigned int debug_smp_processor_id(void)
+notrace unsigned int de_smp_processor_id(void)
 {
 	return check_preemption_disabled("smp_processor_id", "");
 }
-EXPORT_SYMBOL(debug_smp_processor_id);
-NOKPROBE_SYMBOL(debug_smp_processor_id);
+EXPORT_SYMBOL(de_smp_processor_id);
+NOKPROBE_SYMBOL(de_smp_processor_id);
 
 notrace void __this_cpu_preempt_check(const char *op)
 {

@@ -1047,7 +1047,7 @@ static inline int alias_74k_erratum(struct cpuinfo_mips *c)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return present;
@@ -1169,7 +1169,7 @@ static void probe_pcache(void)
 		write_c0_config(config & ~VR41_CONF_P4K);
 		/* fall through */
 	case CPU_VR4131:
-		/* Workaround for cache instruction bug of VR4131 */
+		/* Workaround for cache instruction  of VR4131 */
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
 		    c->processor_id == 0x0c82U) {
 			config |= 0x00400000U;
@@ -1766,7 +1766,7 @@ static void coherency_setup(void)
 		cca = read_c0_config() & CONF_CM_CMASK;
 	_page_cachable_default = cca << _CACHE_SHIFT;
 
-	pr_debug("Using cache attribute %d\n", cca);
+	pr_de("Using cache attribute %d\n", cca);
 	change_c0_config(CONF_CM_CMASK, cca);
 
 	/*

@@ -793,7 +793,7 @@ void nvmet_execute_keep_alive(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 
-	pr_debug("ctrl %d update keep-alive timer for %d secs\n",
+	pr_de("ctrl %d update keep-alive timer for %d secs\n",
 		ctrl->cntlid, ctrl->kato);
 
 	mod_delayed_work(system_wq, &ctrl->ka_work, ctrl->kato * HZ);

@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mutex.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
@@ -63,7 +63,7 @@ static inline bool seq_has_overflowed(struct seq_file *m)
  */
 static inline size_t seq_get_buf(struct seq_file *m, char **bufp)
 {
-	BUG_ON(m->count > m->size);
+	_ON(m->count > m->size);
 	if (m->count < m->size)
 		*bufp = m->buf + m->count;
 	else
@@ -86,7 +86,7 @@ static inline void seq_commit(struct seq_file *m, int num)
 	if (num < 0) {
 		m->count = m->size;
 	} else {
-		BUG_ON(m->count + num > m->size);
+		_ON(m->count + num > m->size);
 		m->count += num;
 	}
 }

@@ -6,7 +6,7 @@
 #ifndef SBNI_H
 #define SBNI_H
 
-#ifdef SBNI_DEBUG
+#ifdef SBNI_DE
 #define DP( A ) A
 #else
 #define DP( A )

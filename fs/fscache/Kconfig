@@ -22,7 +22,7 @@ config FSCACHE_STATS
 	  execution as there are a quite a few stats gathered, and on a
 	  multi-CPU system these may be on cachelines that keep bouncing
 	  between CPUs.  On the other hand, the stats are very useful for
-	  debugging purposes.  Saying 'Y' here is recommended.
+	  deging purposes.  Saying 'Y' here is recommended.
 
 	  See Documentation/filesystems/caching/fscache.txt for more information.
 
@@ -39,23 +39,23 @@ config FSCACHE_HISTOGRAM
 	  execution as there are a number of points at which data is gathered,
 	  and on a multi-CPU system these may be on cachelines that keep
 	  bouncing between CPUs.  On the other hand, the histogram may be
-	  useful for debugging purposes.  Saying 'N' here is recommended.
+	  useful for deging purposes.  Saying 'N' here is recommended.
 
 	  See Documentation/filesystems/caching/fscache.txt for more information.
 
-config FSCACHE_DEBUG
-	bool "Debug FS-Cache"
+config FSCACHE_DE
+	bool "De FS-Cache"
 	depends on FSCACHE
 	help
-	  This permits debugging to be dynamically enabled in the local caching
-	  management module.  If this is set, the debugging output may be
-	  enabled by setting bits in /sys/modules/fscache/parameter/debug.
+	  This permits deging to be dynamically enabled in the local caching
+	  management module.  If this is set, the deging output may be
+	  enabled by setting bits in /sys/modules/fscache/parameter/de.
 
 	  See Documentation/filesystems/caching/fscache.txt for more information.
 
 config FSCACHE_OBJECT_LIST
-	bool "Maintain global object list for debugging purposes"
+	bool "Maintain global object list for deging purposes"
 	depends on FSCACHE && PROC_FS
 	help
 	  Maintain a global list of active fscache objects that can be
-	  retrieved through /proc/fs/fscache/objects for debugging purposes
+	  retrieved through /proc/fs/fscache/objects for deging purposes

@@ -93,8 +93,8 @@ defined in the MAINTAINERS file in the kernel source tree.  Any emails
 sent to those mailing lists are considered covered by the Code of
 Conduct.
 
-Developers who use the kernel.org bugzilla, and other subsystem bugzilla
-or bug tracking tools should follow the guidelines of the Code of
+Developers who use the kernel.org zilla, and other subsystem zilla
+or  tracking tools should follow the guidelines of the Code of
 Conduct.  The Linux kernel community does not have an "official" project
 email address, or "official" social media address.  Any activity
 performed using a kernel.org email account must follow the Code of
@@ -113,10 +113,10 @@ may be considered for extreme circumstances.
 Contributions submitted for the kernel should use appropriate language.
 Content that already exists predating the Code of Conduct will not be
 addressed now as a violation.  Inappropriate language can be seen as a
-bug, though; such bugs will be fixed more quickly if any interested
+, though; such s will be fixed more quickly if any interested
 parties submit patches to that effect.  Expressions that are currently
 part of the user/kernel API, or reflect terminology used in published
-standards or specifications, are not considered bugs.
+standards or specifications, are not considered s.
 
 Enforcement
 -----------

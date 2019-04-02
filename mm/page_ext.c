@@ -59,8 +59,8 @@
  */
 
 static struct page_ext_operations *page_ext_ops[] = {
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	&debug_guardpage_ops,
+#ifdef CONFIG_DE_PAGEALLOC
+	&de_guardpage_ops,
 #endif
 #ifdef CONFIG_PAGE_OWNER
 	&page_owner_ops,
@@ -272,7 +272,7 @@ static void free_page_ext(void *addr)
 
 		table_size = get_entry_size() * PAGES_PER_SECTION;
 
-		BUG_ON(PageReserved(page));
+		_ON(PageReserved(page));
 		kmemleak_free(addr);
 		free_pages_exact(addr, table_size);
 	}
@@ -308,7 +308,7 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 		 * online__pages(), and start_pfn should exist.
 		 */
 		nid = pfn_to_nid(start_pfn);
-		VM_BUG_ON(!node_state(nid, N_ONLINE));
+		VM__ON(!node_state(nid, N_ONLINE));
 	}
 
 	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {

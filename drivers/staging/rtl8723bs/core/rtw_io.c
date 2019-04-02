@@ -28,7 +28,7 @@ jackson@realtek.com.tw
 #define _RTW_IO_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 
 #define rtw_le16_to_cpu(val)		val
 #define rtw_le32_to_cpu(val)		val

@@ -29,9 +29,9 @@
 #include "fbtft.h"
 #include "internal.h"
 
-static unsigned long debug;
-module_param(debug, ulong, 0000);
-MODULE_PARM_DESC(debug, "override device debug level");
+static unsigned long de;
+module_param(de, ulong, 0000);
+MODULE_PARM_DESC(de, "override device de level");
 
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc)
 {
@@ -88,7 +88,7 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 				"Failed to request %s GPIO:%d\n", name, ret);
 			return ret;
 		}
-		fbtft_par_dbg(DEBUG_REQUEST_GPIOS, par, "%s: '%s' GPIO\n",
+		fbtft_par_dbg(DE_REQUEST_GPIOS, par, "%s: '%s' GPIO\n",
 			      __func__, name);
 	}
 
@@ -146,7 +146,7 @@ static int fbtft_backlight_update_status(struct backlight_device *bd)
 	struct fbtft_par *par = bl_get_data(bd);
 	bool polarity = par->polarity;
 
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par,
+	fbtft_par_dbg(DE_BACKLIGHT, par,
 		      "%s: polarity=%d, power=%d, fb_blank=%d\n",
 		      __func__, polarity, bd->props.power, bd->props.fb_blank);
 
@@ -185,7 +185,7 @@ void fbtft_register_backlight(struct fbtft_par *par)
 	struct backlight_properties bl_props = { 0, };
 
 	if (!par->gpio.led[0]) {
-		fbtft_par_dbg(DEBUG_BACKLIGHT, par,
+		fbtft_par_dbg(DE_BACKLIGHT, par,
 			      "%s(): led pin not set, exiting.\n", __func__);
 		return;
 	}
@@ -233,7 +233,7 @@ static void fbtft_reset(struct fbtft_par *par)
 {
 	if (!par->gpio.reset)
 		return;
-	fbtft_par_dbg(DEBUG_RESET, par, "%s()\n", __func__);
+	fbtft_par_dbg(DE_RESET, par, "%s()\n", __func__);
 	gpiod_set_value_cansleep(par->gpio.reset, 0);
 	usleep_range(20, 40);
 	gpiod_set_value_cansleep(par->gpio.reset, 1);
@@ -249,10 +249,10 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
 	bool timeit = false;
 	int ret = 0;
 
-	if (unlikely(par->debug & (DEBUG_TIME_FIRST_UPDATE |
-			DEBUG_TIME_EACH_UPDATE))) {
-		if ((par->debug & DEBUG_TIME_EACH_UPDATE) ||
-		    ((par->debug & DEBUG_TIME_FIRST_UPDATE) &&
+	if (unlikely(par->de & (DE_TIME_FIRST_UPDATE |
+			DE_TIME_EACH_UPDATE))) {
+		if ((par->de & DE_TIME_EACH_UPDATE) ||
+		    ((par->de & DE_TIME_FIRST_UPDATE) &&
 		    !par->first_update_done)) {
 			ts_start = ktime_get();
 			timeit = true;
@@ -277,7 +277,7 @@ static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
 		end_line = par->info->var.yres - 1;
 	}
 
-	fbtft_par_dbg(DEBUG_UPDATE_DISPLAY, par, "%s(start_line=%u, end_line=%u)\n",
+	fbtft_par_dbg(DE_UPDATE_DISPLAY, par, "%s(start_line=%u, end_line=%u)\n",
 		      __func__, start_line, end_line);
 
 	if (par->fbtftops.set_addr_win)
@@ -594,8 +594,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 		init_sequence = pdata->display.init_sequence;
 	if (pdata->gamma)
 		gamma = pdata->gamma;
-	if (pdata->display.debug)
-		display->debug = pdata->display.debug;
+	if (pdata->display.de)
+		display->de = pdata->display.de;
 	if (pdata->display.backlight)
 		display->backlight = pdata->display.backlight;
 	if (pdata->display.width)
@@ -607,8 +607,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	if (pdata->display.regwidth)
 		display->regwidth = pdata->display.regwidth;
 
-	display->debug |= debug;
-	fbtft_expand_debug_value(&display->debug);
+	display->de |= de;
+	fbtft_expand_de_value(&display->de);
 
 	switch (pdata->rotate) {
 	case 90:
@@ -702,7 +702,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	par = info->par;
 	par->info = info;
 	par->pdata = pdata;
-	par->debug = display->debug;
+	par->de = display->de;
 	par->buf = buf;
 	spin_lock_init(&par->dirty_lock);
 	par->bgr = pdata->bgr;
@@ -936,11 +936,11 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 				buf[i++] = val;
 				p = of_prop_next_u32(prop, p, &val);
 			}
-			/* make debug message */
-			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+			/* make de message */
+			fbtft_par_dbg(DE_INIT_DISPLAY, par,
 				      "init: write_register:\n");
 			for (j = 0; j < i; j++)
-				fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+				fbtft_par_dbg(DE_INIT_DISPLAY, par,
 					      "buf[%d] = %02X\n", j, buf[j]);
 
 			par->fbtftops.write_register(par, i,
@@ -961,7 +961,7 @@ static int fbtft_init_display_dt(struct fbtft_par *par)
 				buf[56], buf[57], buf[58], buf[59],
 				buf[60], buf[61], buf[62], buf[63]);
 		} else if (val & FBTFT_OF_INIT_DELAY) {
-			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+			fbtft_par_dbg(DE_INIT_DISPLAY, par,
 				      "init: msleep(%u)\n", val & 0xFFFF);
 			msleep(val & 0xFFFF);
 			p = of_prop_next_u32(prop, p, &val);
@@ -1033,7 +1033,7 @@ int fbtft_init_display(struct fbtft_par *par)
 		switch (par->init_sequence[i]) {
 		case -1:
 			i++;
-			/* make debug message */
+			/* make de message */
 			strcpy(msg, "");
 			j = i + 1;
 			while (par->init_sequence[j] >= 0) {
@@ -1041,7 +1041,7 @@ int fbtft_init_display(struct fbtft_par *par)
 				strcat(msg, str);
 				j++;
 			}
-			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+			fbtft_par_dbg(DE_INIT_DISPLAY, par,
 				      "init: write(0x%02X) %s\n",
 				      par->init_sequence[i], msg);
 
@@ -1076,7 +1076,7 @@ int fbtft_init_display(struct fbtft_par *par)
 			break;
 		case -2:
 			i++;
-			fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+			fbtft_par_dbg(DE_INIT_DISPLAY, par,
 				      "init: mdelay(%d)\n",
 				      par->init_sequence[i]);
 			mdelay(par->init_sequence[i++]);
@@ -1108,7 +1108,7 @@ static int fbtft_verify_gpios(struct fbtft_par *par)
 	struct fbtft_platform_data *pdata = par->pdata;
 	int i;
 
-	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
+	fbtft_par_dbg(DE_VERIFY_GPIOS, par, "%s()\n", __func__);
 
 	if (pdata->display.buswidth != 9 &&  par->startbyte == 0 &&
 	    !par->gpio.dc) {
@@ -1169,7 +1169,7 @@ static struct fbtft_platform_data *fbtft_probe_dt(struct device *dev)
 	pdata->display.buswidth = fbtft_of_value(node, "buswidth");
 	pdata->display.backlight = fbtft_of_value(node, "backlight");
 	pdata->display.bpp = fbtft_of_value(node, "bpp");
-	pdata->display.debug = fbtft_of_value(node, "debug");
+	pdata->display.de = fbtft_of_value(node, "de");
 	pdata->rotate = fbtft_of_value(node, "rotate");
 	pdata->bgr = of_property_read_bool(node, "bgr");
 	pdata->fps = fbtft_of_value(node, "fps");
@@ -1220,7 +1220,7 @@ int fbtft_probe_common(struct fbtft_display *display,
 	else
 		dev = &pdev->dev;
 
-	if (unlikely(display->debug & DEBUG_DRIVER_INIT_FUNCTIONS))
+	if (unlikely(display->de & DE_DRIVER_INIT_FUNCTIONS))
 		dev_info(dev, "%s()\n", __func__);
 
 	pdata = dev->platform_data;
@@ -1336,7 +1336,7 @@ int fbtft_remove_common(struct device *dev, struct fb_info *info)
 		return -EINVAL;
 	par = info->par;
 	if (par)
-		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par,
+		fbtft_par_dbg(DE_DRIVER_INIT_FUNCTIONS, par,
 			      "%s()\n", __func__);
 	fbtft_unregister_framebuffer(info);
 	fbtft_framebuffer_release(info);

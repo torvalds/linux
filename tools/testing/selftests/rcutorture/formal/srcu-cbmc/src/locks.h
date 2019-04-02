@@ -7,7 +7,7 @@
 #include <stdbool.h>
 
 #include "assume.h"
-#include "bug_on.h"
+#include "_on.h"
 #include "preempt.h"
 
 int nondet_int(void);
@@ -25,12 +25,12 @@ struct lock_impl {
 
 static inline void lock_impl_lock(struct lock_impl *lock)
 {
-	BUG_ON(pthread_mutex_lock(&lock->mutex));
+	_ON(pthread_mutex_lock(&lock->mutex));
 }
 
 static inline void lock_impl_unlock(struct lock_impl *lock)
 {
-	BUG_ON(pthread_mutex_unlock(&lock->mutex));
+	_ON(pthread_mutex_unlock(&lock->mutex));
 }
 
 static inline bool lock_impl_trylock(struct lock_impl *lock)
@@ -41,7 +41,7 @@ static inline bool lock_impl_trylock(struct lock_impl *lock)
 		return true;
 	else if (err == EBUSY)
 		return false;
-	BUG();
+	();
 }
 
 static inline void lock_impl_init(struct lock_impl *lock)
@@ -93,7 +93,7 @@ static inline void lock_impl_lock(struct lock_impl *lock)
 static inline void lock_impl_unlock(struct lock_impl *lock)
 {
 #ifdef RUN
-	BUG_ON(!__sync_bool_compare_and_swap(&lock->locked, true, false));
+	_ON(!__sync_bool_compare_and_swap(&lock->locked, true, false));
 #else
 	/* Minimal barrier to prevent accesses leaking out of lock. */
 	__CPROVER_fence("RWfence", "WWfence");
@@ -103,7 +103,7 @@ static inline void lock_impl_unlock(struct lock_impl *lock)
 	lock->locked = false;
 	__CPROVER_atomic_end();
 
-	BUG_ON(!old_locked);
+	_ON(!old_locked);
 #endif
 }
 
@@ -198,13 +198,13 @@ static inline void complete(struct completion *c)
 {
 	unsigned int prev_count = __sync_fetch_and_add(&c->count, 1);
 
-	BUG_ON(prev_count == UINT_MAX);
+	_ON(prev_count == UINT_MAX);
 }
 
 /* This function probably isn't very useful for CBMC. */
 static inline bool try_wait_for_completion(struct completion *c)
 {
-	BUG();
+	();
 }
 
 static inline bool completion_done(struct completion *c)
@@ -215,7 +215,7 @@ static inline bool completion_done(struct completion *c)
 /* TODO: Implement complete_all */
 static inline void complete_all(struct completion *c)
 {
-	BUG();
+	();
 }
 
 #endif

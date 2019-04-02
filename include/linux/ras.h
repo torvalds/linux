@@ -6,13 +6,13 @@
 #include <linux/uuid.h>
 #include <linux/cper.h>
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 int ras_userspace_consumers(void);
-void ras_debugfs_init(void);
+void ras_defs_init(void);
 int ras_add_daemon_trace(void);
 #else
 static inline int ras_userspace_consumers(void) { return 0; }
-static inline void ras_debugfs_init(void) { }
+static inline void ras_defs_init(void) { }
 static inline int ras_add_daemon_trace(void) { return 0; }
 #endif
 

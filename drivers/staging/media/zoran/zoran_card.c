@@ -115,9 +115,9 @@ module_param(pass_through, int, 0644);
 MODULE_PARM_DESC(pass_through,
 		 "Pass TV signal through to TV-out when idling");
 
-int zr36067_debug = 1;
-module_param_named(debug, zr36067_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-5)");
+int zr36067_de = 1;
+module_param_named(de, zr36067_de, int, 0644);
+MODULE_PARM_DESC(de, "De level (0-5)");
 
 #define ZORAN_VERSION "0.10.1"
 
@@ -246,7 +246,7 @@ zr36016_write (struct videocodec *codec,
 static void
 dc10_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
+	dprintk(3, KERN_DE "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	/* Pixel clock selection */
 	GPIO(zr, 4, 0);
@@ -258,13 +258,13 @@ dc10_init (struct zoran *zr)
 static void
 dc10plus_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
+	dprintk(3, KERN_DE "%s: %s\n", ZR_DEVNAME(zr), __func__);
 }
 
 static void
 buz_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
+	dprintk(3, KERN_DE "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	/* some stuff from Iomega */
 	pci_write_config_dword(zr->pci_dev, 0xfc, 0x90680f15);
@@ -275,7 +275,7 @@ buz_init (struct zoran *zr)
 static void
 lml33_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
+	dprintk(3, KERN_DE "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	GPIO(zr, 2, 1);		// Set Composite input/output
 }
@@ -730,12 +730,12 @@ zoran_check_jpg_settings (struct zoran              *zr,
 	int err = 0, err0 = 0;
 
 	dprintk(4,
-		KERN_DEBUG
+		KERN_DE
 		"%s: %s - dec: %d, Hdcm: %d, Vdcm: %d, Tdcm: %d\n",
 		ZR_DEVNAME(zr), __func__, settings->decimation, settings->HorDcm,
 		settings->VerDcm, settings->TmpDcm);
 	dprintk(4,
-		KERN_DEBUG
+		KERN_DE
 		"%s: %s - x: %d, y: %d, w: %d, y: %d\n",
 		ZR_DEVNAME(zr), __func__, settings->img_x, settings->img_y,
 		settings->img_width, settings->img_height);
@@ -768,7 +768,7 @@ zoran_check_jpg_settings (struct zoran              *zr,
 
 		if (zr->card.type == DC10_new) {
 			dprintk(1,
-				KERN_DEBUG
+				KERN_DE
 				"%s: %s - HDec by 4 is not supported on the DC10\n",
 				ZR_DEVNAME(zr), __func__);
 			err0++;
@@ -963,7 +963,7 @@ static void test_interrupts (struct zoran *zr)
 	if (timeout) {
 		dprintk(1, ": time spent: %d\n", 1 * HZ - timeout);
 	}
-	if (zr36067_debug > 1)
+	if (zr36067_de > 1)
 		print_interrupts(zr);
 	btwrite(icr, ZR36057_ICR);
 }
@@ -1059,7 +1059,7 @@ static int zr36057_init (struct zoran *zr)
 	video_set_drvdata(zr->video_dev, zr);
 
 	zoran_init_hardware(zr);
-	if (zr36067_debug > 2)
+	if (zr36067_de > 2)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
@@ -1262,7 +1262,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto zr_unreg;
 		}
 		dprintk(3,
-			KERN_DEBUG
+			KERN_DE
 			"%s: %s() - card %s detected\n",
 			ZR_DEVNAME(zr), __func__, zoran_cards[card_num].name);
 	} else {
@@ -1416,7 +1416,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
 		zr->jpg_buffers.need_contiguous = 1;
 		dprintk(1, KERN_INFO
-			"%s: ZR36057/Natoma bug, max. buffer size is 128K\n",
+			"%s: ZR36057/Natoma , max. buffer size is 128K\n",
 			ZR_DEVNAME(zr));
 	}
 

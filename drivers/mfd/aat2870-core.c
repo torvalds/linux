@@ -21,7 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/i2c.h>
@@ -225,7 +225,7 @@ static inline void aat2870_disable(struct aat2870_data *aat2870)
 	aat2870->is_enable = 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static ssize_t aat2870_dump_reg(struct aat2870_data *aat2870, char *buf)
 {
 	u8 addr, val;
@@ -331,28 +331,28 @@ static const struct file_operations aat2870_reg_fops = {
 	.write = aat2870_reg_write_file,
 };
 
-static void aat2870_init_debugfs(struct aat2870_data *aat2870)
+static void aat2870_init_defs(struct aat2870_data *aat2870)
 {
-	aat2870->dentry_root = debugfs_create_dir("aat2870", NULL);
+	aat2870->dentry_root = defs_create_dir("aat2870", NULL);
 	if (!aat2870->dentry_root) {
 		dev_warn(aat2870->dev,
-			 "Failed to create debugfs root directory\n");
+			 "Failed to create defs root directory\n");
 		return;
 	}
 
-	aat2870->dentry_reg = debugfs_create_file("regs", 0644,
+	aat2870->dentry_reg = defs_create_file("regs", 0644,
 						  aat2870->dentry_root,
 						  aat2870, &aat2870_reg_fops);
 	if (!aat2870->dentry_reg)
 		dev_warn(aat2870->dev,
-			 "Failed to create debugfs register file\n");
+			 "Failed to create defs register file\n");
 }
 
 #else
-static inline void aat2870_init_debugfs(struct aat2870_data *aat2870)
+static inline void aat2870_init_defs(struct aat2870_data *aat2870)
 {
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int aat2870_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
@@ -422,7 +422,7 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 		goto out_disable;
 	}
 
-	aat2870_init_debugfs(aat2870);
+	aat2870_init_defs(aat2870);
 
 	return 0;
 

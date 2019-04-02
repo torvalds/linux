@@ -162,7 +162,7 @@ void __init nmi_selftest(void)
 
 	if (unexpected_testcase_failures) {
 		printk("--------------------\n");
-		printk("BUG: %3d unexpected failures (out of %3d) - debugging disabled! |\n",
+		printk(": %3d unexpected failures (out of %3d) - deging disabled! |\n",
 			unexpected_testcase_failures, testcase_total);
 		printk("-----------------------------------------------------------------\n");
 	} else if (expected_testcase_failures && testcase_successes) {

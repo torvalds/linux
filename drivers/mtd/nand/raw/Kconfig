@@ -127,11 +127,11 @@ config MTD_NAND_S3C2410
 	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
-config MTD_NAND_S3C2410_DEBUG
-	bool "Samsung S3C NAND driver debug"
+config MTD_NAND_S3C2410_DE
+	bool "Samsung S3C NAND driver de"
 	depends on MTD_NAND_S3C2410
 	help
-	  Enable debugging of the S3C NAND driver
+	  Enable deging of the S3C NAND driver
 
 config MTD_NAND_NDFC
 	tristate "NDFC NanD Flash Controller"

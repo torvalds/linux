@@ -28,7 +28,7 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #ifdef CONFIG_PPC_BOOK3S
 #include <asm/kvm_book3s.h>
 #else
@@ -41,7 +41,7 @@
 #endif
 
 /*
- * KVMPPC_INST_SW_BREAKPOINT is debug Instruction
+ * KVMPPC_INST_SW_BREAKPOINT is de Instruction
  * for supporting software breakpoint.
  */
 #define KVMPPC_INST_SW_BREAKPOINT	0x00dddd00
@@ -258,8 +258,8 @@ extern int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server,
 extern int kvmppc_xics_int_on(struct kvm *kvm, u32 irq);
 extern int kvmppc_xics_int_off(struct kvm *kvm, u32 irq);
 
-void kvmppc_core_dequeue_debug(struct kvm_vcpu *vcpu);
-void kvmppc_core_queue_debug(struct kvm_vcpu *vcpu);
+void kvmppc_core_dequeue_de(struct kvm_vcpu *vcpu);
+void kvmppc_core_queue_de(struct kvm_vcpu *vcpu);
 
 union kvmppc_one_reg {
 	u32	wval;
@@ -379,7 +379,7 @@ static inline u32 kvmppc_get_field(u64 inst, int msb, int lsb)
 	u32 r;
 	u32 mask;
 
-	BUG_ON(msb > lsb);
+	_ON(msb > lsb);
 
 	mask = (1 << (lsb - msb + 1)) - 1;
 	r = (inst >> (63 - lsb)) & mask;
@@ -395,7 +395,7 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 	u32 r;
 	u32 mask;
 
-	BUG_ON(msb > lsb);
+	_ON(msb > lsb);
 
 	mask = ((1 << (lsb - msb + 1)) - 1) << (63 - lsb);
 	r = (inst & ~mask) | ((value << (63 - lsb)) & mask);
@@ -411,7 +411,7 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 	switch (one_reg_size(id)) {		\
 	case 4: __u.wval = (reg); break;	\
 	case 8: __u.dval = (reg); break;	\
-	default: BUG();				\
+	default: ();				\
 	}					\
 	__u;					\
 })
@@ -422,7 +422,7 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 	switch (one_reg_size(id)) {		\
 	case 4: __v = (val).wval; break;	\
 	case 8: __v = (val).dval; break;	\
-	default: BUG();				\
+	default: ();				\
 	}					\
 	__v;					\
 })

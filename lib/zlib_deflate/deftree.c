@@ -38,7 +38,7 @@
 #include <linux/bitrev.h>
 #include "defutil.h"
 
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
 #  include <ctype.h>
 #endif
 
@@ -152,11 +152,11 @@ static void bi_flush       (deflate_state *s);
 static void copy_block     (deflate_state *s, char *buf, unsigned len,
                            int header);
 
-#ifndef DEBUG_ZLIB
+#ifndef DE_ZLIB
 #  define send_code(s, c, tree) send_bits(s, tree[c].Code, tree[c].Len)
    /* Send a code of the given tree. c and tree must not have side effects */
 
-#else /* DEBUG_ZLIB */
+#else /* DE_ZLIB */
 #  define send_code(s, c, tree) \
      { if (z_verbose>2) fprintf(stderr,"\ncd %3d ",(c)); \
        send_bits(s, tree[c].Code, tree[c].Len); }
@@ -173,7 +173,7 @@ static void copy_block     (deflate_state *s, char *buf, unsigned len,
  * Send a value on a given number of bits.
  * IN assertion: length <= 16 and value fits in length bits.
  */
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
 static void send_bits      (deflate_state *s, int value, int length);
 
 static void send_bits(
@@ -200,7 +200,7 @@ static void send_bits(
         s->bi_valid += length;
     }
 }
-#else /* !DEBUG_ZLIB */
+#else /* !DE_ZLIB */
 
 #define send_bits(s, value, length) \
 { int len = length;\
@@ -215,7 +215,7 @@ static void send_bits(
     s->bi_valid += len;\
   }\
 }
-#endif /* DEBUG_ZLIB */
+#endif /* DE_ZLIB */
 
 /* ===========================================================================
  * Initialize the various 'constant' tables. In a multi-threaded environment,
@@ -312,7 +312,7 @@ void zlib_tr_init(
     s->bi_buf = 0;
     s->bi_valid = 0;
     s->last_eob_len = 8; /* enough lookahead for inflate */
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
     s->bits_sent = 0L;
 #endif
 
@@ -1099,11 +1099,11 @@ static void copy_block(
     if (header) {
         put_short(s, (ush)len);   
         put_short(s, (ush)~len);
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
         s->bits_sent += 2*16;
 #endif
     }
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
     s->bits_sent += (ulg)len<<3;
 #endif
     /* bundle up the put_byte(s, *buf++) calls */

@@ -53,14 +53,14 @@ enum
 	CTL_NET=3,		/* Networking */
 	CTL_PROC=4,		/* removal breaks strace(1) compilation */
 	CTL_FS=5,		/* Filesystems */
-	CTL_DEBUG=6,		/* Debugging */
+	CTL_DE=6,		/* Deging */
 	CTL_DEV=7,		/* Devices */
 	CTL_BUS=8,		/* Busses */
 	CTL_ABI=9,		/* Binary emulation */
 	CTL_CPU=10,		/* CPU stuff (speed scaling, etc) */
 	CTL_ARLAN=254,		/* arlan wireless driver */
-	CTL_S390DBF=5677,	/* s390 debug */
-	CTL_SUNRPC=7249,	/* sunrpc debug */
+	CTL_S390DBF=5677,	/* s390 de */
+	CTL_SUNRPC=7249,	/* sunrpc de */
 	CTL_PM=9899,		/* frv power management */
 	CTL_FRV=9898,		/* frv specific sysctls */
 };
@@ -126,7 +126,7 @@ enum
 	KERN_SHMPATH=48,	/* string: path to shm fs */
 	KERN_HOTPLUG=49,	/* string: path to uevent helper (deprecated) */
 	KERN_IEEE_EMULATION_WARNINGS=50, /* int: unimplemented ieee instructions */
-	KERN_S390_USER_DEBUG_LOGGING=51,  /* int: dumps of user faults */
+	KERN_S390_USER_DE_LOGGING=51,  /* int: dumps of user faults */
 	KERN_CORE_USES_PID=52,		/* int: use core or core.%pid */
 	KERN_TAINTED=53,	/* int: various kernel tainted flags */
 	KERN_CADPID=54,		/* int: PID of the process to notify on CAD */
@@ -358,7 +358,7 @@ enum
 	NET_IPV4_TCP_RETRIES1=47,
 	NET_IPV4_TCP_RETRIES2=48,
 	NET_IPV4_TCP_FIN_TIMEOUT=49,
-	NET_IPV4_IP_MASQ_DEBUG=50,
+	NET_IPV4_IP_MASQ_DE=50,
 	NET_TCP_SYNCOOKIES=51,
 	NET_TCP_STDURG=52,
 	NET_TCP_RFC1337=53,
@@ -726,7 +726,7 @@ enum {
 	NET_DECNET_MEM = 12,
 	NET_DECNET_RMEM = 13,
 	NET_DECNET_WMEM = 14,
-	NET_DECNET_DEBUG_LEVEL = 255
+	NET_DECNET_DE_LEVEL = 255
 };
 
 /* /proc/sys/net/decnet/conf/<dev> */
@@ -822,7 +822,7 @@ enum {
 	FS_DQ_WARNINGS = 9,
 };
 
-/* CTL_DEBUG names: */
+/* CTL_DE names: */
 
 /* CTL_DEV names: */
 enum {
@@ -840,7 +840,7 @@ enum {
 	DEV_CDROM_INFO=1,
 	DEV_CDROM_AUTOCLOSE=2,
 	DEV_CDROM_AUTOEJECT=3,
-	DEV_CDROM_DEBUG=4,
+	DEV_CDROM_DE=4,
 	DEV_CDROM_LOCK=5,
 	DEV_CDROM_CHECK_MEDIA=6
 };

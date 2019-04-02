@@ -114,7 +114,7 @@ struct task_group;
 					 (task->flags & PF_FROZEN) == 0 && \
 					 (task->state & TASK_NOLOAD) == 0)
 
-#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+#ifdef CONFIG_DE_ATOMIC_SLEEP
 
 /*
  * Special states are those that do not use the normal wait-loop pattern. See
@@ -902,7 +902,7 @@ struct task_struct {
 	struct rt_mutex_waiter		*pi_blocked_on;
 #endif
 
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	/* Mutex deadlock detection: */
 	struct mutex_waiter		*blocked_on;
 #endif
@@ -1004,7 +1004,7 @@ struct task_struct {
 	struct mutex			perf_event_mutex;
 	struct list_head		perf_event_list;
 #endif
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 	unsigned long			preempt_disable_ip;
 #endif
 #ifdef CONFIG_NUMA
@@ -1173,7 +1173,7 @@ struct task_struct {
 	unsigned int			sequential_io;
 	unsigned int			sequential_io_avg;
 #endif
-#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+#ifdef CONFIG_DE_ATOMIC_SLEEP
 	unsigned long			task_state_change;
 #endif
 	int				pagefault_disabled;
@@ -1333,7 +1333,7 @@ static inline unsigned int task_state_index(struct task_struct *tsk)
 	unsigned int tsk_state = READ_ONCE(tsk->state);
 	unsigned int state = (tsk_state | tsk->exit_state) & TASK_REPORT;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(TASK_REPORT_MAX);
+	BUILD__ON_NOT_POWER_OF_2(TASK_REPORT_MAX);
 
 	if (tsk_state == TASK_IDLE)
 		state = TASK_REPORT_IDLE;
@@ -1345,7 +1345,7 @@ static inline char task_index_to_char(unsigned int state)
 {
 	static const char state_char[] = "RSDTtXZPI";
 
-	BUILD_BUG_ON(1 + ilog2(TASK_REPORT_MAX) != sizeof(state_char) - 1);
+	BUILD__ON(1 + ilog2(TASK_REPORT_MAX) != sizeof(state_char) - 1);
 
 	return state_char[state];
 }
@@ -1626,7 +1626,7 @@ static inline void set_task_comm(struct task_struct *tsk, const char *from)
 
 extern char *__get_task_comm(char *to, size_t len, struct task_struct *tsk);
 #define get_task_comm(buf, tsk) ({			\
-	BUILD_BUG_ON(sizeof(buf) != TASK_COMM_LEN);	\
+	BUILD__ON(sizeof(buf) != TASK_COMM_LEN);	\
 	__get_task_comm(buf, sizeof(buf), tsk);		\
 })
 
@@ -1717,7 +1717,7 @@ extern int __cond_resched_lock(spinlock_t *lock);
 
 static inline void cond_resched_rcu(void)
 {
-#if defined(CONFIG_DEBUG_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
+#if defined(CONFIG_DE_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
 	rcu_read_unlock();
 	cond_resched();
 	rcu_read_lock();
@@ -1910,7 +1910,7 @@ static inline void exit_umh(struct task_struct *tsk)
 		__exit_umh(tsk);
 }
 
-#ifdef CONFIG_DEBUG_RSEQ
+#ifdef CONFIG_DE_RSEQ
 
 void rseq_syscall(struct pt_regs *regs);
 

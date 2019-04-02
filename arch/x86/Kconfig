@@ -50,7 +50,7 @@ config X86
 	select ARCH_CLOCKSOURCE_INIT
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
-	select ARCH_HAS_DEBUG_VIRTUAL
+	select ARCH_HAS_DE_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -137,8 +137,8 @@ config X86
 	select HAVE_CONTEXT_TRACKING		if X86_64
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DE_KMEMLEAK
+	select HAVE_DE_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
@@ -253,12 +253,12 @@ config GENERIC_ISA_DMA
 	def_bool y
 	depends on ISA_DMA_API
 
-config GENERIC_BUG
+config GENERIC_
 	def_bool y
-	depends on BUG
-	select GENERIC_BUG_RELATIVE_POINTERS if X86_64
+	depends on 
+	select GENERIC__RELATIVE_POINTERS if X86_64
 
-config GENERIC_BUG_RELATIVE_POINTERS
+config GENERIC__RELATIVE_POINTERS
 	bool
 
 config GENERIC_HWEIGHT
@@ -313,7 +313,7 @@ config AUDIT_ARCH
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
 	def_bool y
 
-config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+config ARCH_SUPPORTS_DE_PAGEALLOC
 	def_bool y
 
 config KASAN_SHADOW_OFFSET
@@ -654,14 +654,14 @@ config IOSF_MBI
 
 	  You should say Y if you are running a kernel on one of these SoC's.
 
-config IOSF_MBI_DEBUG
-	bool "Enable IOSF sideband access through debugfs"
-	depends on IOSF_MBI && DEBUG_FS
+config IOSF_MBI_DE
+	bool "Enable IOSF sideband access through defs"
+	depends on IOSF_MBI && DE_FS
 	---help---
 	  Select this option to expose the IOSF sideband access registers (MCR,
-	  MDR, MCRX) through debugfs to write and read register information from
+	  MDR, MCRX) through defs to write and read register information from
 	  different units on the SoC. This is most useful for obtaining device
-	  state information for debug and analysis. As this is a general access
+	  state information for de and analysis. As this is a general access
 	  mechanism, users of this option would have specific knowledge of the
 	  device they want to access.
 
@@ -763,11 +763,11 @@ config PARAVIRT
 config PARAVIRT_XXL
 	bool
 
-config PARAVIRT_DEBUG
-	bool "paravirt-ops debugging"
-	depends on PARAVIRT && DEBUG_KERNEL
+config PARAVIRT_DE
+	bool "paravirt-ops deging"
+	depends on PARAVIRT && DE_KERNEL
 	---help---
-	  Enable to debug paravirt_ops internals.  Specifically, BUG if
+	  Enable to de paravirt_ops internals.  Specifically,  if
 	  a paravirt_op is missing when it is called.
 
 config PARAVIRT_SPINLOCKS
@@ -785,11 +785,11 @@ config PARAVIRT_SPINLOCKS
 
 config QUEUED_LOCK_STAT
 	bool "Paravirt queued spinlock statistics"
-	depends on PARAVIRT_SPINLOCKS && DEBUG_FS
+	depends on PARAVIRT_SPINLOCKS && DE_FS
 	---help---
 	  Enable the collection of statistical data on the slowpath
 	  behavior of paravirtualized queued spinlocks and report
-	  them on debugfs.
+	  them on defs.
 
 source "arch/x86/xen/Kconfig"
 
@@ -811,12 +811,12 @@ config PVH
 	  This option enables the PVH entry point for guest virtual machines
 	  as specified in the x86/HVM direct boot ABI.
 
-config KVM_DEBUG_FS
-	bool "Enable debug information for KVM Guests in debugfs"
-	depends on KVM_GUEST && DEBUG_FS
+config KVM_DE_FS
+	bool "Enable de information for KVM Guests in defs"
+	depends on KVM_GUEST && DE_FS
 	---help---
 	  This option enables collection of various statistics for KVM guest.
-	  Statistics are displayed in debugfs filesystem. Enabling this option
+	  Statistics are displayed in defs filesystem. Enabling this option
 	  may incur significant overhead.
 
 config PARAVIRT_TIME_ACCOUNTING
@@ -927,7 +927,7 @@ config CALGARY_IOMMU
 	  (Double Address Cycle). Calgary also supports bus level
 	  isolation, where all DMAs pass through the IOMMU.  This
 	  prevents them from going anywhere except their intended
-	  destination. This catches hard-to-find kernel bugs and
+	  destination. This catches hard-to-find kernel s and
 	  mis-behaving drivers and devices that do not use the DMA-API
 	  properly to set up their DMA buffers.  The IOMMU can be
 	  turned off at boot time with the iommu=off parameter.
@@ -947,7 +947,7 @@ config CALGARY_IOMMU_ENABLED_BY_DEFAULT
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
-	depends on X86_64 && SMP && DEBUG_KERNEL
+	depends on X86_64 && SMP && DE_KERNEL
 	select CPUMASK_OFFSTACK
 	---help---
 	  Enable maximum number of CPUS and NUMA Nodes for this architecture.
@@ -1157,7 +1157,7 @@ config X86_MCE_THRESHOLD
 	def_bool y
 
 config X86_MCE_INJECT
-	depends on X86_MCE && X86_LOCAL_APIC && DEBUG_FS
+	depends on X86_MCE && X86_LOCAL_APIC && DE_FS
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.
@@ -1487,7 +1487,7 @@ config X86_5LEVEL
 
 config X86_DIRECT_GBPAGES
 	def_bool y
-	depends on X86_64 && !DEBUG_PAGEALLOC
+	depends on X86_64 && !DE_PAGEALLOC
 	---help---
 	  Certain kernel features effectively disable kernel
 	  linear 1 GB mappings (even if the CPU otherwise
@@ -1496,7 +1496,7 @@ config X86_DIRECT_GBPAGES
 
 config X86_CPA_STATISTICS
 	bool "Enable statistic for Change Page Attribute"
-	depends on DEBUG_FS
+	depends on DE_FS
 	---help---
 	  Expose statistics about the Change Page Attribute mechanims, which
 	  helps to determine the effectivness of preserving large and huge
@@ -1584,7 +1584,7 @@ config NUMA_EMU
 	---help---
 	  Enable NUMA emulation. A flat machine will be split
 	  into virtual nodes when booted with "numa=fake=N", where N is the
-	  number of nodes. This is only useful for debugging.
+	  number of nodes. This is only useful for deging.
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
@@ -1782,7 +1782,7 @@ config MTRR
 	  write-combining. All of these processors are supported by this code
 	  and it makes sense to say Y here if you have one of them.
 
-	  Saying Y here also fixes a problem with buggy SMP BIOSes which only
+	  Saying Y here also fixes a problem with gy SMP BIOSes which only
 	  set the MTRRs for the boot CPU and not for the secondary CPUs. This
 	  can lead to all sorts of problems, so it's good to say Y here.
 
@@ -1887,7 +1887,7 @@ config X86_INTEL_MPX
 	  MPX provides hardware features that can be used in
 	  conjunction with compiler-instrumented code to check
 	  memory references.  It is designed to detect buffer
-	  overflow or underflow bugs.
+	  overflow or underflow s.
 
 	  This option enables running applications which are
 	  instrumented or otherwise use MPX.  It does not use MPX
@@ -2248,16 +2248,16 @@ config BOOTPARAM_HOTPLUG_CPU0
 	  You still can enable the CPU0 hotplug feature at boot by kernel
 	  parameter cpu0_hotplug.
 
-config DEBUG_HOTPLUG_CPU0
+config DE_HOTPLUG_CPU0
 	def_bool n
-	prompt "Debug CPU0 hotplug"
+	prompt "De CPU0 hotplug"
 	depends on HOTPLUG_CPU
 	---help---
 	  Enabling this option offlines CPU0 (if CPU0 can be offlined) as
 	  soon as possible and boots up userspace with CPU0 offlined. User
 	  can online CPU0 back after boot time.
 
-	  To debug CPU0 hotplug, you need to enable CPU0 offline/online
+	  To de CPU0 hotplug, you need to enable CPU0 offline/online
 	  feature by either turning on CONFIG_BOOTPARAM_HOTPLUG_CPU0 during
 	  compilation or giving cpu0_hotplug kernel parameter at boot.
 
@@ -2268,25 +2268,25 @@ config COMPAT_VDSO
 	prompt "Disable the 32-bit vDSO (needed for glibc 2.3.3)"
 	depends on COMPAT_32
 	---help---
-	  Certain buggy versions of glibc will crash if they are
+	  Certain gy versions of glibc will crash if they are
 	  presented with a 32-bit vDSO that is not mapped at the address
 	  indicated in its segment table.
 
-	  The bug was introduced by f866314b89d56845f55e6f365e18b31ec978ec3a
+	  The  was introduced by f866314b89d56845f55e6f365e18b31ec978ec3a
 	  and fixed by 3b3ddb4f7db98ec9e912ccdf54d35df4aa30e04a and
 	  49ad572a70b8aeb91e57483a11dd1b77e31c4468.  Glibc 2.3.3 is
-	  the only released version with the bug, but OpenSUSE 9
-	  contains a buggy "glibc 2.3.2".
+	  the only released version with the , but OpenSUSE 9
+	  contains a gy "glibc 2.3.2".
 
-	  The symptom of the bug is that everything crashes on startup, saying:
+	  The symptom of the  is that everything crashes on startup, saying:
 	  dl_main: Assertion `(void *) ph->p_vaddr == _rtld_local._dl_sysinfo_dso' failed!
 
 	  Saying Y here changes the default value of the vdso32 boot
 	  option from 1 to 0, which turns off the 32-bit vDSO entirely.
-	  This works around the glibc bug but hurts performance.
+	  This works around the glibc  but hurts performance.
 
 	  If unsure, say N: if you are compiling your own kernel, you
-	  are unlikely to be using a buggy version of glibc.
+	  are unlikely to be using a gy version of glibc.
 
 choice
 	prompt "vsyscall table for legacy applications"
@@ -2501,7 +2501,7 @@ config APM_IGNORE_USER_SUSPEND
 	---help---
 	  This option will ignore USER SUSPEND requests. On machines with a
 	  compliant APM BIOS, you want to say N. However, on the NEC Versa M
-	  series notebooks, it is necessary to say Y because of a BIOS bug.
+	  series notebooks, it is necessary to say Y because of a BIOS .
 
 config APM_DO_ENABLE
 	bool "Enable PM at boot time"
@@ -2575,7 +2575,7 @@ choice
 	---help---
 	  On PCI systems, the BIOS can be used to detect the PCI devices and
 	  determine their configuration. However, some old PCI motherboards
-	  have BIOS bugs and may crash if this is done. Also, some embedded
+	  have BIOS s and may crash if this is done. Also, some embedded
 	  PCI-based systems don't have any BIOS at all. Linux can also try to
 	  detect the PCI hardware directly without using the BIOS.
 
@@ -2693,7 +2693,7 @@ config SCx200HR_TIMER
 	---help---
 	  This driver provides a clocksource built upon the on-chip
 	  27MHz high-resolution timer.  Its also a workaround for
-	  NSC Geode SC-1100's buggy TSC, which loses time when the
+	  NSC Geode SC-1100's gy TSC, which loses time when the
 	  processor goes idle (as is done by the scheduler).  The
 	  other workaround is idle=poll boot option.
 
@@ -2792,7 +2792,7 @@ config X86_SYSFB
 	help
 	  Firmwares often provide initial graphics framebuffers so the BIOS,
 	  bootloader or kernel can show basic video-output during boot for
-	  user-guidance and debugging. Historically, x86 used the VESA BIOS
+	  user-guidance and deging. Historically, x86 used the VESA BIOS
 	  Extensions and EFI-framebuffers for this, which are mostly limited
 	  to x86.
 	  This option, if enabled, marks VGA/VBE/EFI framebuffers as generic

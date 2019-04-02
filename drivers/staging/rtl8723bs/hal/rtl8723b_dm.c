@@ -10,7 +10,7 @@
 #define _RTL8723B_DM_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtl8723b_hal.h>
 
 /*  Global var */

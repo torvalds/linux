@@ -47,7 +47,7 @@
 #include <linux/sunrpc/rpc_rdma.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
-#define SVCRDMA_DEBUG
+#define SVCRDMA_DE
 
 /* Default and maximum inline threshold sizes */
 enum {

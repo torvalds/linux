@@ -61,8 +61,8 @@
 #define  PCIE_STAT_DEV                  0x1f0000
 #define  PCIE_STAT_LINK_DOWN		BIT(0)
 #define PCIE_RC_RTSTA		0x1a14
-#define PCIE_DEBUG_CTRL         0x1a60
-#define  PCIE_DEBUG_SOFT_RESET		BIT(20)
+#define PCIE_DE_CTRL         0x1a60
+#define  PCIE_DE_SOFT_RESET		BIT(20)
 
 struct mvebu_pcie_port;
 

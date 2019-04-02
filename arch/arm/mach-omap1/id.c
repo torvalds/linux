@@ -136,19 +136,19 @@ void __init omap_check_revision(void)
 	die_rev = omap_get_die_rev();
 	omap_id = omap_readl(OMAP32_ID_0);
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "OMAP_DIE_ID_0: 0x%08x\n", omap_readl(OMAP_DIE_ID_0));
-	printk(KERN_DEBUG "OMAP_DIE_ID_1: 0x%08x DIE_REV: %i\n",
+#ifdef DE
+	printk(KERN_DE "OMAP_DIE_ID_0: 0x%08x\n", omap_readl(OMAP_DIE_ID_0));
+	printk(KERN_DE "OMAP_DIE_ID_1: 0x%08x DIE_REV: %i\n",
 		omap_readl(OMAP_DIE_ID_1),
 	       (omap_readl(OMAP_DIE_ID_1) >> 17) & 0xf);
-	printk(KERN_DEBUG "OMAP_PRODUCTION_ID_0: 0x%08x\n",
+	printk(KERN_DE "OMAP_PRODUCTION_ID_0: 0x%08x\n",
 		omap_readl(OMAP_PRODUCTION_ID_0));
-	printk(KERN_DEBUG "OMAP_PRODUCTION_ID_1: 0x%08x JTAG_ID: 0x%04x\n",
+	printk(KERN_DE "OMAP_PRODUCTION_ID_1: 0x%08x JTAG_ID: 0x%04x\n",
 		omap_readl(OMAP_PRODUCTION_ID_1),
 		omap_readl(OMAP_PRODUCTION_ID_1) & 0xffff);
-	printk(KERN_DEBUG "OMAP32_ID_0: 0x%08x\n", omap_readl(OMAP32_ID_0));
-	printk(KERN_DEBUG "OMAP32_ID_1: 0x%08x\n", omap_readl(OMAP32_ID_1));
-	printk(KERN_DEBUG "JTAG_ID: 0x%04x DIE_REV: %i\n", jtag_id, die_rev);
+	printk(KERN_DE "OMAP32_ID_0: 0x%08x\n", omap_readl(OMAP32_ID_0));
+	printk(KERN_DE "OMAP32_ID_1: 0x%08x\n", omap_readl(OMAP32_ID_1));
+	printk(KERN_DE "JTAG_ID: 0x%04x DIE_REV: %i\n", jtag_id, die_rev);
 #endif
 
 	system_serial_high = omap_readl(OMAP_DIE_ID_0);

@@ -30,7 +30,7 @@
  *		  (ecd@skynet.be)
  *
  * 1.7:
- *	 6/26/96: Bug fix for multiple ledmas, miguel.
+ *	 6/26/96:  fix for multiple ledmas, miguel.
  *
  * 1.8:
  *		  Stole multicast code from depca.c, fixed lance_tx.
@@ -48,7 +48,7 @@
  *	11/17/96: Handle LE_C0_MERR in lance_interrupt(). (ecd@skynet.be)
  *
  *	12/22/96: Don't loop forever in lance_rx() on incomplete packets.
- *		  This was the sun4c killer. Shit, stupid bug.
+ *		  This was the sun4c killer. Shit, stupid .
  *		  (ecd@skynet.be)
  *
  * 1.10:
@@ -67,7 +67,7 @@
  *
  */
 
-#undef DEBUG_DRIVER
+#undef DE_DRIVER
 
 static char lancestr[] = "LANCE";
 
@@ -283,7 +283,7 @@ do {	void __iomem *__base = (__lp)->lregs; \
 	sbus_writew(LE_C0_STOP,	__base + RDP); \
 } while (0)
 
-int sparc_lance_debug = 2;
+int sparc_lance_de = 2;
 
 /* The Lance uses 24 bit addresses */
 /* On the Sun4c the DVMA will provide the remaining bytes for us */
@@ -934,7 +934,7 @@ static int lance_open(struct net_device *dev)
 	 * so that lance_init_ring() called at any error will not
 	 * forget multicast filters.
 	 *
-	 * BTW it is common bug in all lance drivers! --ANK
+	 * BTW it is common  in all lance drivers! --ANK
 	 */
 	if (lp->pio_buffer) {
 		struct lance_init_block __iomem *ib = lp->init_block_iomem;
@@ -1315,7 +1315,7 @@ static int sparc_lance_probe_one(struct platform_device *op,
 
 	lp = netdev_priv(dev);
 
-	if (sparc_lance_debug && version_printed++ == 0)
+	if (sparc_lance_de && version_printed++ == 0)
 		printk (KERN_INFO "%s", version);
 
 	spin_lock_init(&lp->lock);

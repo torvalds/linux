@@ -139,7 +139,7 @@ static int timer8_clock_event_next(unsigned long delta,
 {
 	struct timer8_priv *p = ced_to_priv(ced);
 
-	BUG_ON(!clockevent_state_oneshot(ced));
+	_ON(!clockevent_state_oneshot(ced));
 	timer8_set_next(p, delta - 1);
 
 	return 0;

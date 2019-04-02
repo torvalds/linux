@@ -60,8 +60,8 @@ void register_ipr_controller(struct ipr_desc *desc)
 		struct ipr_data *p = desc->ipr_data + i;
 		int res;
 
-		BUG_ON(p->ipr_idx >= desc->nr_offsets);
-		BUG_ON(!desc->ipr_offsets[p->ipr_idx]);
+		_ON(p->ipr_idx >= desc->nr_offsets);
+		_ON(!desc->ipr_offsets[p->ipr_idx]);
 
 		res = irq_alloc_desc_at(p->irq, numa_node_id());
 		if (unlikely(res != p->irq && res != -EEXIST)) {

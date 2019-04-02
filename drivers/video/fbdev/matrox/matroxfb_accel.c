@@ -19,7 +19,7 @@
  *
  *               "Bibek Sahu" <scorpio@dodds.net>
  *                     Access device through readb|w|l and write b|w|l
- *                     Extensive debugging stuff
+ *                     Extensive deging stuff
  *
  *               "Daniel Haun" <haund@usa.net>
  *                     Testing, hardware cursor fixes
@@ -32,7 +32,7 @@
  *
  *               "Kelly French" <targon@hazmat.com>
  *               "Fernando Herrera" <fherrera@eurielec.etsit.upm.es>
- *                     Betatesting, bug reporting
+ *                     Betatesting,  reporting
  *
  *               "Pablo Bianucci" <pbian@pccp.com.ar>
  *                     Fixes, ideas, betatesting

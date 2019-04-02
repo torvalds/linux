@@ -62,10 +62,10 @@
  *
  *****************************************************************************/
 #include "api/commands.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "dbg.h"
 
-#define FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)		\
+#define FWRT_DEFS_OPEN_WRAPPER(name, buflen, argtype)		\
 struct dbgfs_##name##_data {						\
 	argtype *arg;							\
 	bool read_done;							\
@@ -88,7 +88,7 @@ static int _iwl_dbgfs_##name##_open(struct inode *inode,		\
 	return 0;							\
 }
 
-#define FWRT_DEBUGFS_READ_WRAPPER(name)					\
+#define FWRT_DEFS_READ_WRAPPER(name)					\
 static ssize_t _iwl_dbgfs_##name##_read(struct file *file,		\
 					char __user *user_buf,		\
 					size_t count, loff_t *ppos)	\
@@ -115,9 +115,9 @@ static int _iwl_dbgfs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#define _FWRT_DEBUGFS_READ_FILE_OPS(name, buflen, argtype)		\
-FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)			\
-FWRT_DEBUGFS_READ_WRAPPER(name)						\
+#define _FWRT_DEFS_READ_FILE_OPS(name, buflen, argtype)		\
+FWRT_DEFS_OPEN_WRAPPER(name, buflen, argtype)			\
+FWRT_DEFS_READ_WRAPPER(name)						\
 static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.read = _iwl_dbgfs_##name##_read,				\
 	.open = _iwl_dbgfs_##name##_open,				\
@@ -125,7 +125,7 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.release = _iwl_dbgfs_release,					\
 }
 
-#define FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen, argtype)		\
+#define FWRT_DEFS_WRITE_WRAPPER(name, buflen, argtype)		\
 static ssize_t _iwl_dbgfs_##name##_write(struct file *file,		\
 					 const char __user *user_buf,	\
 					 size_t count, loff_t *ppos)	\
@@ -141,10 +141,10 @@ static ssize_t _iwl_dbgfs_##name##_write(struct file *file,		\
 	return iwl_dbgfs_##name##_write(arg, buf, buf_size);		\
 }
 
-#define _FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, buflen, argtype)	\
-FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)			\
-FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen, argtype)			\
-FWRT_DEBUGFS_READ_WRAPPER(name)						\
+#define _FWRT_DEFS_READ_WRITE_FILE_OPS(name, buflen, argtype)	\
+FWRT_DEFS_OPEN_WRAPPER(name, buflen, argtype)			\
+FWRT_DEFS_WRITE_WRAPPER(name, buflen, argtype)			\
+FWRT_DEFS_READ_WRAPPER(name)						\
 static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.write = _iwl_dbgfs_##name##_write,				\
 	.read = _iwl_dbgfs_##name##_read,				\
@@ -153,9 +153,9 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.release = _iwl_dbgfs_release,					\
 }
 
-#define _FWRT_DEBUGFS_WRITE_FILE_OPS(name, buflen, argtype)		\
-FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)			\
-FWRT_DEBUGFS_WRITE_WRAPPER(name, buflen, argtype)			\
+#define _FWRT_DEFS_WRITE_FILE_OPS(name, buflen, argtype)		\
+FWRT_DEFS_OPEN_WRAPPER(name, buflen, argtype)			\
+FWRT_DEFS_WRITE_WRAPPER(name, buflen, argtype)			\
 static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.write = _iwl_dbgfs_##name##_write,				\
 	.open = _iwl_dbgfs_##name##_open,				\
@@ -163,21 +163,21 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	.release = _iwl_dbgfs_release,					\
 }
 
-#define FWRT_DEBUGFS_READ_FILE_OPS(name, bufsz)				\
-	_FWRT_DEBUGFS_READ_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
+#define FWRT_DEFS_READ_FILE_OPS(name, bufsz)				\
+	_FWRT_DEFS_READ_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
 
-#define FWRT_DEBUGFS_WRITE_FILE_OPS(name, bufsz)			\
-	_FWRT_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
+#define FWRT_DEFS_WRITE_FILE_OPS(name, bufsz)			\
+	_FWRT_DEFS_WRITE_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
 
-#define FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz)			\
-	_FWRT_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
+#define FWRT_DEFS_READ_WRITE_FILE_OPS(name, bufsz)			\
+	_FWRT_DEFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_fw_runtime)
 
-#define FWRT_DEBUGFS_ADD_FILE_ALIAS(alias, name, parent, mode) do {	\
-	debugfs_create_file(alias, mode, parent, fwrt,			\
+#define FWRT_DEFS_ADD_FILE_ALIAS(alias, name, parent, mode) do {	\
+	defs_create_file(alias, mode, parent, fwrt,			\
 			    &iwl_dbgfs_##name##_ops);			\
 	} while (0)
-#define FWRT_DEBUGFS_ADD_FILE(name, parent, mode) \
-	FWRT_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
+#define FWRT_DEFS_ADD_FILE(name, parent, mode) \
+	FWRT_DEFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
 static int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt)
 {
@@ -255,7 +255,7 @@ static ssize_t iwl_dbgfs_timestamp_marker_read(struct iwl_fw_runtime *fwrt,
 	return scnprintf(buf, size, "%d\n", delay_secs);
 }
 
-FWRT_DEBUGFS_READ_WRITE_FILE_OPS(timestamp_marker, 16);
+FWRT_DEFS_READ_WRITE_FILE_OPS(timestamp_marker, 16);
 
 struct hcmd_write_data {
 	__be32 cmd_id;
@@ -318,12 +318,12 @@ out:
 	return ret ?: count;
 }
 
-FWRT_DEBUGFS_WRITE_FILE_OPS(send_hcmd, 512);
+FWRT_DEFS_WRITE_FILE_OPS(send_hcmd, 512);
 
 void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
-	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
-	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
+	FWRT_DEFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
+	FWRT_DEFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
 }

@@ -84,7 +84,7 @@ static int setup_cmdline(struct kimage *image, struct boot_params *params,
 
 	cmdline_ptr[cmdline_len - 1] = '\0';
 
-	pr_debug("Final command line is: %s\n", cmdline_ptr);
+	pr_de("Final command line is: %s\n", cmdline_ptr);
 	cmdline_ptr_phys = bootparams_load_addr + cmdline_offset;
 	cmdline_low_32 = cmdline_ptr_phys & 0xffffffffUL;
 	cmdline_ext_32 = cmdline_ptr_phys >> 32;
@@ -317,12 +317,12 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	 * above 4G. This should be handled by 32bit bzImage loader
 	 */
 	if (efi_enabled(EFI_RUNTIME_SERVICES) && !efi_enabled(EFI_64BIT)) {
-		pr_debug("EFI is 32 bit. Can't load kernel above 4G.\n");
+		pr_de("EFI is 32 bit. Can't load kernel above 4G.\n");
 		return ret;
 	}
 
 	/* I've got a bzImage */
-	pr_debug("It's a relocatable bzImage64\n");
+	pr_de("It's a relocatable bzImage64\n");
 	ret = 0;
 
 	return ret;
@@ -370,7 +370,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	 * command line. Make sure it does not overflow
 	 */
 	if (cmdline_len + MAX_ELFCOREHDR_STR_LEN > header->cmdline_size) {
-		pr_debug("Appending elfcorehdr=<addr> to command line exceeds maximum allowed length\n");
+		pr_de("Appending elfcorehdr=<addr> to command line exceeds maximum allowed length\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -391,7 +391,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 		return ERR_PTR(ret);
 	}
 
-	pr_debug("Loaded purgatory at 0x%lx\n", pbuf.mem);
+	pr_de("Loaded purgatory at 0x%lx\n", pbuf.mem);
 
 
 	/*
@@ -430,7 +430,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	if (ret)
 		goto out_free_params;
 	bootparam_load_addr = kbuf.mem;
-	pr_debug("Loaded boot_param, command line and misc at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
+	pr_de("Loaded boot_param, command line and misc at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
 		 bootparam_load_addr, kbuf.bufsz, kbuf.bufsz);
 
 	/* Load kernel */
@@ -445,7 +445,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 		goto out_free_params;
 	kernel_load_addr = kbuf.mem;
 
-	pr_debug("Loaded 64bit kernel at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
+	pr_de("Loaded 64bit kernel at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
 		 kernel_load_addr, kbuf.bufsz, kbuf.memsz);
 
 	/* Load initrd high */
@@ -460,7 +460,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 			goto out_free_params;
 		initrd_load_addr = kbuf.mem;
 
-		pr_debug("Loaded initrd at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
+		pr_de("Loaded initrd at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
 				initrd_load_addr, initrd_len, initrd_len);
 
 		setup_initrd(params, initrd_load_addr, initrd_len);

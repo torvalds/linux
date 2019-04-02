@@ -42,7 +42,7 @@
 #define IBMVFC_ABORT_WAIT_TIMEOUT	40
 #define IBMVFC_MAX_REQUESTS_DEFAULT	100
 
-#define IBMVFC_DEBUG			0
+#define IBMVFC_DE			0
 #define IBMVFC_MAX_TARGETS		1024
 #define IBMVFC_MAX_LUN			0xffffffff
 #define IBMVFC_MAX_SECTORS		0xffffu
@@ -741,7 +741,7 @@ struct ibmvfc_host {
 	wait_queue_head_t work_wait_q;
 };
 
-#define DBG_CMD(CMD) do { if (ibmvfc_debug) CMD; } while (0)
+#define DBG_CMD(CMD) do { if (ibmvfc_de) CMD; } while (0)
 
 #define tgt_dbg(t, fmt, ...)			\
 	DBG_CMD(dev_info((t)->vhost->dev, "%llX: " fmt, (t)->scsi_id, ##__VA_ARGS__))

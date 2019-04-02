@@ -594,7 +594,7 @@ _ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 out_unlock:
 	mutex_unlock(&table->lock);
 	if (ret)
-		pr_debug("%s: can't delete gid %pI6 error=%d\n",
+		pr_de("%s: can't delete gid %pI6 error=%d\n",
 			 __func__, gid->raw, ret);
 	return ret;
 }

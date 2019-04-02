@@ -48,7 +48,7 @@ static u8 phydm_psd_stop_trx(void *dm_void)
 
 	/*[Stop TRX]----------------------------------------------------------*/
 	if (!phydm_set_bb_dbg_port(dm, BB_DBGPORT_PRIORITY_3,
-				   0x0)) /*set debug port to 0x0*/
+				   0x0)) /*set de port to 0x0*/
 		return STOP_TRX_FAIL;
 
 	for (i = 0; i < 10000; i++) {
@@ -342,7 +342,7 @@ void phydm_psd_init(void *dm_void)
 	/*phydm_psd(dm, 0x3c, 0, 127);*/ /* target at -50dBm */
 }
 
-void phydm_psd_debug(void *dm_void, char input[][16], u32 *_used, char *output,
+void phydm_psd_de(void *dm_void, char input[][16], u32 *_used, char *output,
 		     u32 *_out_len, u32 input_num)
 {
 	struct phy_dm_struct *dm = (struct phy_dm_struct *)dm_void;
@@ -387,9 +387,9 @@ void phydm_psd_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 			output + used, out_len - used,
 			"IGI=((0x%x)), start_point=((%d)), stop_point=((%d))\n",
 			var1[1], var1[2], var1[3]);
-		dm->debug_components |= ODM_COMP_API;
+		dm->de_components |= ODM_COMP_API;
 		phydm_psd(dm, var1[1], (u16)var1[2], (u16)var1[3]);
-		dm->debug_components &= (~ODM_COMP_API);
+		dm->de_components &= (~ODM_COMP_API);
 	}
 }
 

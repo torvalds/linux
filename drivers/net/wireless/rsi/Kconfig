@@ -19,13 +19,13 @@ config RSI_91X
 	  This option enabes support for RSI 1x1 devices.
 	  Select M (recommended), if you have a RSI 1x1 wireless module.
 
-config RSI_DEBUGFS
-	bool "Redpine Signals Inc debug support"
+config RSI_DEFS
+	bool "Redpine Signals Inc de support"
 	depends on RSI_91X
 	default y
 	---help---
-	 Say Y, if you would like to enable debug support. This option
-	 creates debugfs entries
+	 Say Y, if you would like to enable de support. This option
+	 creates defs entries
 
 config RSI_SDIO
 	tristate "Redpine Signals SDIO bus support"

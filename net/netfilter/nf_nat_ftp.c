@@ -73,7 +73,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	char buffer[sizeof("|1||65535|") + INET6_ADDRSTRLEN];
 	unsigned int buflen;
 
-	pr_debug("type %i, off %u len %u\n", type, matchoff, matchlen);
+	pr_de("type %i, off %u len %u\n", type, matchoff, matchlen);
 
 	/* Connection will come from wherever this packet goes, hence !dir */
 	newaddr = ct->tuplehash[!dir].tuple.dst.u3;
@@ -108,7 +108,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	if (!buflen)
 		goto out;
 
-	pr_debug("calling nf_nat_mangle_tcp_packet\n");
+	pr_de("calling nf_nat_mangle_tcp_packet\n");
 
 	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff, matchoff,
 				      matchlen, buffer, buflen))
@@ -130,7 +130,7 @@ static void __exit nf_nat_ftp_fini(void)
 
 static int __init nf_nat_ftp_init(void)
 {
-	BUG_ON(nf_nat_ftp_hook != NULL);
+	_ON(nf_nat_ftp_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_ftp_hook, nf_nat_ftp);
 	return 0;
 }

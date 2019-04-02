@@ -1023,7 +1023,7 @@ int tda18271_lookup_rf_band(struct dvb_frontend *fe, u32 *freq, u8 *rf_band)
 	int i = 0;
 
 	while ((map[i].rfmax * 1000) < *freq) {
-		if (tda18271_debug & DBG_ADV)
+		if (tda18271_de & DBG_ADV)
 			tda_map("(%d) rfmax = %d < freq = %d, rf1_def = %d, rf2_def = %d, rf3_def = %d, rf1 = %d, rf2 = %d, rf3 = %d, rf_a1 = %d, rf_a2 = %d, rf_b1 = %d, rf_b2 = %d\n",
 				i, map[i].rfmax * 1000, *freq,
 				map[i].rf1_def, map[i].rf2_def, map[i].rf3_def,
@@ -1070,7 +1070,7 @@ int tda18271_lookup_pll_map(struct dvb_frontend *fe,
 	char *map_name;
 	int ret = 0;
 
-	BUG_ON(!priv->maps);
+	_ON(!priv->maps);
 
 	switch (map_type) {
 	case MAIN_PLL:
@@ -1121,7 +1121,7 @@ int tda18271_lookup_map(struct dvb_frontend *fe,
 	char *map_name;
 	int ret = 0;
 
-	BUG_ON(!priv->maps);
+	_ON(!priv->maps);
 
 	switch (map_type) {
 	case BP_FILTER:

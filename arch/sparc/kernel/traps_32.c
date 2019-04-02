@@ -11,12 +11,12 @@
  */
 
 #include <linux/sched/mm.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/mm_types.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/export.h>
 
 #include <asm/delay.h>
@@ -30,7 +30,7 @@
 #include "entry.h"
 #include "kernel.h"
 
-/* #define TRAP_DEBUG */
+/* #define TRAP_DE */
 
 static void instruction_dump(unsigned long *pc)
 {
@@ -111,7 +111,7 @@ void do_illegal_instruction(struct pt_regs *regs, unsigned long pc, unsigned lon
 {
 	if(psr & PSR_PS)
 		die_if_kernel("Kernel illegal instruction", regs);
-#ifdef TRAP_DEBUG
+#ifdef TRAP_DE
 	printk("Ill instr. at pc=%08lx instruction is %08lx\n",
 	       regs->pc, *(unsigned long *)regs->pc);
 #endif
@@ -225,13 +225,13 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 	}
 	fpsave(&fpt->thread.float_regs[0], &fpt->thread.fsr,
 	       &fpt->thread.fpqueue[0], &fpt->thread.fpqdepth);
-#ifdef DEBUG_FPU
+#ifdef DE_FPU
 	printk("Hmm, FP exception, fsr was %016lx\n", fpt->thread.fsr);
 #endif
 
 	switch ((fpt->thread.fsr & 0x1c000)) {
 	/* switch on the contents of the ftt [floating point trap type] field */
-#ifdef DEBUG_FPU
+#ifdef DE_FPU
 	case (1 << 14):
 		printk("IEEE_754_exception\n");
 		break;
@@ -240,9 +240,9 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 	case (3 << 14):  /* unimplemented_FPop (quad stuff, maybe sqrt) */
 		ret = do_mathemu(regs, fpt);
 		break;
-#ifdef DEBUG_FPU
+#ifdef DE_FPU
 	case (4 << 14):
-		printk("sequence_error (OS bug...)\n");
+		printk("sequence_error (OS ...)\n");
 		break;
 	case (5 << 14):
 		printk("hardware_error (uhoh!)\n");
@@ -250,7 +250,7 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 	case (6 << 14):
 		printk("invalid_fp_register (user error)\n");
 		break;
-#endif /* DEBUG_FPU */
+#endif /* DE_FPU */
 	}
 	/* If we successfully emulated the FPop, we pretend the trap never happened :-> */
 	if (ret) {
@@ -311,7 +311,7 @@ void handle_tag_overflow(struct pt_regs *regs, unsigned long pc, unsigned long n
 void handle_watchpoint(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 		       unsigned long psr)
 {
-#ifdef TRAP_DEBUG
+#ifdef TRAP_DE
 	printk("Watchpoint detected at PC %08lx NPC %08lx PSR %08lx\n",
 	       pc, npc, psr);
 #endif
@@ -323,7 +323,7 @@ void handle_watchpoint(struct pt_regs *regs, unsigned long pc, unsigned long npc
 void handle_reg_access(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 		       unsigned long psr)
 {
-#ifdef TRAP_DEBUG
+#ifdef TRAP_DE
 	printk("Register Access Exception at PC %08lx NPC %08lx PSR %08lx\n",
 	       pc, npc, psr);
 #endif
@@ -339,7 +339,7 @@ void handle_cp_disabled(struct pt_regs *regs, unsigned long pc, unsigned long np
 void handle_cp_exception(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 			 unsigned long psr)
 {
-#ifdef TRAP_DEBUG
+#ifdef TRAP_DE
 	printk("Co-Processor Exception at PC %08lx NPC %08lx PSR %08lx\n",
 	       pc, npc, psr);
 #endif
@@ -352,13 +352,13 @@ void handle_hw_divzero(struct pt_regs *regs, unsigned long pc, unsigned long npc
 	send_sig_fault(SIGFPE, FPE_INTDIV, (void __user *)pc, 0, current);
 }
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-void do_BUG(const char *file, int line)
+#ifdef CONFIG_DE_VERBOSE
+void do_(const char *file, int line)
 {
-        // bust_spinlocks(1);   XXX Not in our original BUG()
-        printk("kernel BUG at %s:%d!\n", file, line);
+        // bust_spinlocks(1);   XXX Not in our original ()
+        printk("kernel  at %s:%d!\n", file, line);
 }
-EXPORT_SYMBOL(do_BUG);
+EXPORT_SYMBOL(do_);
 #endif
 
 /* Since we have our mappings set up, on multiprocessors we can spin them

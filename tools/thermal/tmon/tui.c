@@ -168,12 +168,12 @@ void setup_windows(void)
 	 */
 	data_panel = new_panel(cooling_device_window);
 	if (!data_panel)
-		syslog(LOG_DEBUG, "No data panel\n");
+		syslog(LOG_DE, "No data panel\n");
 	else {
 		if (dialogue_window) {
 			dialogue_panel = new_panel(dialogue_window);
 			if (!dialogue_panel)
-				syslog(LOG_DEBUG, "No dialogue panel\n");
+				syslog(LOG_DE, "No dialogue panel\n");
 			else {
 				/* Set up the user pointer to the next panel*/
 				set_panel_userptr(data_panel, dialogue_panel);
@@ -199,7 +199,7 @@ void resize_handler(int sig)
 	setup_windows();
 	/* rate limit */
 	sleep(1);
-	syslog(LOG_DEBUG, "SIG %d, term resized to %d x %d\n",
+	syslog(LOG_DE, "SIG %d, term resized to %d x %d\n",
 		sig, maxy, maxx);
 	signal(SIGWINCH, resize_handler);
 }
@@ -251,7 +251,7 @@ void show_cooling_device(void)
 					    * many possible based on the
 					    * binding bitmask.
 					    */
-				syslog(LOG_DEBUG,
+				syslog(LOG_DE,
 					"bind tz%d cdev%d tp%lx %d cdev%lx\n",
 					i, j, trip_binding, y,
 					ptdata.tzi[i].cdev_binding);
@@ -648,7 +648,7 @@ void show_sensors_w(void)
 			mvwaddch(tz_sensor_window, 2,
 				inst * TZONE_RECORD_SIZE + TZ_LEFT_ALIGN +
 				tp_pos,	type);
-			syslog(LOG_DEBUG, "draw tz %d tp %d ch:%c\n",
+			syslog(LOG_DE, "draw tz %d tp %d ch:%c\n",
 				inst, j, type);
 		}
 	}

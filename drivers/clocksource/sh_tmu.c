@@ -381,7 +381,7 @@ static int sh_tmu_clock_event_next(unsigned long delta,
 {
 	struct sh_tmu_channel *ch = ced_to_sh_tmu(ced);
 
-	BUG_ON(!clockevent_state_oneshot(ced));
+	_ON(!clockevent_state_oneshot(ced));
 
 	/* program new delta value */
 	sh_tmu_set_next(ch, delta, 0);

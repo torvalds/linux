@@ -17,7 +17,7 @@
 #include <linux/list.h>
 
 #include <asm/css_chars.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/isc.h>
 #include <asm/cio.h>
 #include <asm/scsw.h>
@@ -36,15 +36,15 @@ MODULE_LICENSE("GPL");
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(eadm_list);
 
-static debug_info_t *eadm_debug;
+static de_info_t *eadm_de;
 
 #define EADM_LOG(imp, txt) do {					\
-		debug_text_event(eadm_debug, imp, txt);		\
+		de_text_event(eadm_de, imp, txt);		\
 	} while (0)
 
 static void EADM_LOG_HEX(int level, void *data, int length)
 {
-	debug_event(eadm_debug, level, data, length);
+	de_event(eadm_de, level, data, length);
 }
 
 static void orb_init(union orb *orb)
@@ -381,12 +381,12 @@ static int __init eadm_sch_init(void)
 	if (!css_general_characteristics.eadm)
 		return -ENXIO;
 
-	eadm_debug = debug_register("eadm_log", 16, 1, 16);
-	if (!eadm_debug)
+	eadm_de = de_register("eadm_log", 16, 1, 16);
+	if (!eadm_de)
 		return -ENOMEM;
 
-	debug_register_view(eadm_debug, &debug_hex_ascii_view);
-	debug_set_level(eadm_debug, 2);
+	de_register_view(eadm_de, &de_hex_ascii_view);
+	de_set_level(eadm_de, 2);
 
 	isc_register(EADM_SCH_ISC);
 	ret = css_driver_register(&eadm_subchannel_driver);
@@ -397,7 +397,7 @@ static int __init eadm_sch_init(void)
 
 cleanup:
 	isc_unregister(EADM_SCH_ISC);
-	debug_unregister(eadm_debug);
+	de_unregister(eadm_de);
 	return ret;
 }
 
@@ -405,7 +405,7 @@ static void __exit eadm_sch_exit(void)
 {
 	css_driver_unregister(&eadm_subchannel_driver);
 	isc_unregister(EADM_SCH_ISC);
-	debug_unregister(eadm_debug);
+	de_unregister(eadm_de);
 }
 module_init(eadm_sch_init);
 module_exit(eadm_sch_exit);

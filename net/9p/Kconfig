@@ -37,9 +37,9 @@ config NET_9P_RDMA
 	help
 	  This builds support for an RDMA transport.
 
-config NET_9P_DEBUG
-	bool "Debug information"
+config NET_9P_DE
+	bool "De information"
 	help
-	  Say Y if you want the 9P subsystem to log debug information.
+	  Say Y if you want the 9P subsystem to log de information.
 
 endif

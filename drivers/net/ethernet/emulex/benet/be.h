@@ -139,7 +139,7 @@ struct be_queue_info {
 
 static inline u32 MODULO(u32 val, u32 limit)
 {
-	BUG_ON(limit & (limit - 1));
+	_ON(limit & (limit - 1));
 	return val & (limit - 1);
 }
 
@@ -887,7 +887,7 @@ static inline void swap_dws(void *wrb, int len)
 {
 #ifdef __BIG_ENDIAN
 	u32 *dw = wrb;
-	BUG_ON(len % 4);
+	_ON(len % 4);
 	do {
 		*dw = cpu_to_le32(*dw);
 		dw++;

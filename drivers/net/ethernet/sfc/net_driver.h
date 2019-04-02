@@ -43,7 +43,7 @@
 
 #define EFX_DRIVER_VERSION	"4.1"
 
-#ifdef DEBUG
+#ifdef DE
 #define EFX_WARN_ON_ONCE_PARANOID(x) WARN_ON_ONCE(x)
 #define EFX_WARN_ON_PARANOID(x) WARN_ON(x)
 #else

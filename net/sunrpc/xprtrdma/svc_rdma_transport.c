@@ -54,7 +54,7 @@
 #include <rdma/rw.h>
 
 #include <linux/sunrpc/addr.h>
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svc_rdma.h>
@@ -391,7 +391,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	unsigned int ctxts, rq_depth;
 	struct ib_device *dev;
 	int ret = 0;
-	RPC_IFDEBUG(struct sockaddr *sap);
+	RPC_IFDE(struct sockaddr *sap);
 
 	listen_rdma = container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	clear_bit(XPT_CONN, &xprt->xpt_flags);
@@ -525,7 +525,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	if (ret)
 		goto errout;
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 	dprintk("svcrdma: new connection %p accepted:\n", newxprt);
 	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
 	dprintk("    local address   : %pIS:%u\n", sap, rpc_get_port(sap));

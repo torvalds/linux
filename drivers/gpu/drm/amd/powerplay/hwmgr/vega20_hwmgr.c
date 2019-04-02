@@ -41,7 +41,7 @@
 #include "vega20_pptable.h"
 #include "vega20_thermal.h"
 #include "vega20_ppsmc.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "amd_pcie_helpers.h"
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
@@ -133,7 +133,7 @@ static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.disable_3d_fs_detection = 0;
 	data->registry_data.fps_support = 1;
 	data->registry_data.disable_auto_wattman = 1;
-	data->registry_data.auto_wattman_debug = 0;
+	data->registry_data.auto_wattman_de = 0;
 	data->registry_data.auto_wattman_sample_period = 100;
 	data->registry_data.fclk_gfxclk_ratio = 0;
 	data->registry_data.auto_wattman_threshold = 50;
@@ -3069,8 +3069,8 @@ static int vega20_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 	features_to_enable =
 		~features_enabled & new_ppfeature_masks;
 
-	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
-	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+	pr_de("features_to_disable 0x%llx\n", features_to_disable);
+	pr_de("features_to_enable 0x%llx\n", features_to_enable);
 
 	if (features_to_disable) {
 		ret = vega20_enable_smc_features(hwmgr, false, features_to_disable);

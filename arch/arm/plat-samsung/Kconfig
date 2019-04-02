@@ -52,7 +52,7 @@ config S3C_GPIO_SPACE
 	int "Space between gpio banks"
 	default 0
 	help
-	  Add a number of spare GPIO entries between each bank for debugging
+	  Add a number of spare GPIO entries between each bank for deging
 	  purposes. This allows any problems where an counter overflows from
 	  one bank to another to be caught, at the expense of using a little
 	  more memory.
@@ -236,22 +236,22 @@ endif
 
 comment "Power management"
 
-config SAMSUNG_PM_DEBUG
-	bool "Samsung PM Suspend debug"
-	depends on PM && DEBUG_KERNEL
+config SAMSUNG_PM_DE
+	bool "Samsung PM Suspend de"
+	depends on PM && DE_KERNEL
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210
-	depends on DEBUG_EXYNOS_UART || DEBUG_S3C24XX_UART || DEBUG_S3C2410_UART
+	depends on DE_EXYNOS_UART || DE_S3C24XX_UART || DE_S3C2410_UART
 	help
-	  Say Y here if you want verbose debugging from the PM Suspend and
+	  Say Y here if you want verbose deging from the PM Suspend and
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
 	  for more information.
 
-config S3C_PM_DEBUG_LED_SMDK
-       bool "SMDK LED suspend/resume debugging"
+config S3C_PM_DE_LED_SMDK
+       bool "SMDK LED suspend/resume deging"
        depends on PM && (MACH_SMDK6410)
        help
          Say Y here to enable the use of the SMDK LEDs on the baseboard
-	 for debugging of the state of the suspend and resume process.
+	 for deging of the state of the suspend and resume process.
 
 	 Note, this currently only works for S3C64XX based SMDK boards.
 
@@ -296,13 +296,13 @@ config SAMSUNG_WDT_RESET
 	  Compile support for system restart by triggering watchdog reset.
 	  Used on SoCs that do not provide dedicated reset control.
 
-config DEBUG_S3C_UART
+config DE_S3C_UART
 	depends on PLAT_SAMSUNG
 	int
-	default "0" if DEBUG_S3C_UART0
-	default "1" if DEBUG_S3C_UART1
-	default "2" if DEBUG_S3C_UART2
-	default "3" if DEBUG_S3C_UART3
+	default "0" if DE_S3C_UART0
+	default "1" if DE_S3C_UART1
+	default "2" if DE_S3C_UART2
+	default "3" if DE_S3C_UART3
 
 endmenu
 endif

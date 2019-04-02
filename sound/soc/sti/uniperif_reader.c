@@ -170,7 +170,7 @@ static int uni_reader_prepare_tdm(struct snd_pcm_runtime *runtime,
 	/*
 	 * set the timeslots allocation for words in FIFO
 	 *
-	 * HW bug: (LSB word < MSB word) => this config is not possible
+	 * HW : (LSB word < MSB word) => this config is not possible
 	 *         So if we want (LSB word < MSB) word, then it shall be
 	 *         handled by user
 	 */

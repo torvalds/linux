@@ -75,11 +75,11 @@ int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
 				       const char *hotplug_profile_name);
 void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
 
-#ifdef CONFIG_DEBUG_FS
-extern struct dentry *acpi_debugfs_dir;
-void acpi_debugfs_init(void);
+#ifdef CONFIG_DE_FS
+extern struct dentry *acpi_defs_dir;
+void acpi_defs_init(void);
 #else
-static inline void acpi_debugfs_init(void) { return; }
+static inline void acpi_defs_init(void) { return; }
 #endif
 #ifdef CONFIG_PCI
 void acpi_lpss_init(void);

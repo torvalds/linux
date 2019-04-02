@@ -535,7 +535,7 @@ static struct notifier_block dev_map_notifier = {
 static int __init dev_map_init(void)
 {
 	/* Assure tracepoint shadow struct _bpf_dtab_netdev is in sync */
-	BUILD_BUG_ON(offsetof(struct bpf_dtab_netdev, dev) !=
+	BUILD__ON(offsetof(struct bpf_dtab_netdev, dev) !=
 		     offsetof(struct _bpf_dtab_netdev, dev));
 	register_netdevice_notifier(&dev_map_notifier);
 	return 0;

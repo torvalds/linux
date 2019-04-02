@@ -23,7 +23,7 @@
 #include <linux/ratelimit.h>
 
 /*
-#define VERBOSE_DEBUG
+#define VERBOSE_DE
 */
 
 #define usb_err(instance, format, arg...)	\
@@ -47,10 +47,10 @@
 #define atm_warn(instance, format, arg...)	\
 	atm_printk(KERN_WARNING, instance , format , ## arg)
 #define atm_dbg(instance, format, ...)					\
-	pr_debug("ATM dev %d: " format,					\
+	pr_de("ATM dev %d: " format,					\
 		 (instance)->atm_dev->number, ##__VA_ARGS__)
 #define atm_rldbg(instance, format, ...)				\
-	pr_debug_ratelimited("ATM dev %d: " format,			\
+	pr_de_ratelimited("ATM dev %d: " format,			\
 			     (instance)->atm_dev->number, ##__VA_ARGS__)
 
 /* flags, set by mini-driver in bind() */

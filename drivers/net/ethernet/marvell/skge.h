@@ -861,7 +861,7 @@ enum {
 
 /* Wake-up Frame Pattern Match Control Registers (YUKON only) */
 
-	WOL_REG_OFFS	= 0x20,/* HW-Bug: Address is + 0x20 against spec. */
+	WOL_REG_OFFS	= 0x20,/* HW-: Address is + 0x20 against spec. */
 
 	WOL_CTRL_STAT	= 0x0f20,/* 16 bit	WOL Control/Status Reg */
 	WOL_MATCH_CTL	= 0x0f22,/*  8 bit	WOL Match Control Reg */
@@ -2472,8 +2472,8 @@ struct skge_port {
 	void		     *mem;	/* PCI memory for rings */
 	dma_addr_t	     dma;
 	unsigned long	     mem_size;
-#ifdef CONFIG_SKGE_DEBUG
-	struct dentry	     *debugfs;
+#ifdef CONFIG_SKGE_DE
+	struct dentry	     *defs;
 #endif
 };
 

@@ -13,7 +13,7 @@
 #include <linux/types.h>
 
 /*
- * IOCTL for binary interface /sys/kernel/debug/diag_304
+ * IOCTL for binary interface /sys/kernel/de/diag_304
  */
 struct hypfs_diag304 {
 	__u32	args[2];
@@ -27,7 +27,7 @@ struct hypfs_diag304 {
 	_IOWR(HYPFS_IOCTL_MAGIC, 0x20, struct hypfs_diag304)
 
 /*
- * Structures for binary interface /sys/kernel/debug/diag_0c
+ * Structures for binary interface /sys/kernel/de/diag_0c
  */
 struct hypfs_diag0c_hdr {
 	__u64	len;		/* Length of diag0c buffer without header */

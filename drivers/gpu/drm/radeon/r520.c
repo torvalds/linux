@@ -297,7 +297,7 @@ int r520_init(struct radeon_device *rdev)
 	}
 	/* initialize memory controller */
 	r520_mc_init(rdev);
-	rv515_debugfs(rdev);
+	rv515_defs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

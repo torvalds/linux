@@ -34,7 +34,7 @@
 #include "cifs_unicode.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsproto.h"
 
 #ifndef false

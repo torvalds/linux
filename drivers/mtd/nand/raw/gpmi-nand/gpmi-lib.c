@@ -51,15 +51,15 @@ static int clear_poll_bit(void __iomem *addr, u32 mask)
  *  [2] reset the module.
  *
  * In most of the cases, it's ok.
- * But in MX23, there is a hardware bug in the BCH block (see erratum #2847).
+ * But in MX23, there is a hardware  in the BCH block (see erratum #2847).
  * If you try to soft reset the BCH block, it becomes unusable until
  * the next hard reset. This case occurs in the NAND boot mode. When the board
  * boots by NAND, the ROM of the chip will initialize the BCH blocks itself.
  * So If the driver tries to reset the BCH again, the BCH will not work anymore.
- * You will see a DMA timeout in this case. The bug has been fixed
+ * You will see a DMA timeout in this case. The  has been fixed
  * in the following chips, such as MX28.
  *
- * To avoid this bug, just add a new parameter `just_enable` for
+ * To avoid this , just add a new parameter `just_enable` for
  * the mxs_reset_block(), and rewrite it here.
  */
 static int gpmi_reset_block(void __iomem *reset_addr, bool just_enable)
@@ -188,7 +188,7 @@ err_out:
 	return ret;
 }
 
-/* This function is very useful. It is called only when the bug occur. */
+/* This function is very useful. It is called only when the  occur. */
 void gpmi_dump_info(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
@@ -197,7 +197,7 @@ void gpmi_dump_info(struct gpmi_nand_data *this)
 	int i;
 
 	dev_err(this->dev, "Show GPMI registers :\n");
-	for (i = 0; i <= HW_GPMI_DEBUG / 0x10 + 1; i++) {
+	for (i = 0; i <= HW_GPMI_DE / 0x10 + 1; i++) {
 		reg = readl(r->gpmi_regs + i * 0x10);
 		dev_err(this->dev, "offset 0x%.3x : 0x%.8x\n", i * 0x10, reg);
 	}
@@ -512,8 +512,8 @@ int gpmi_is_ready(struct gpmi_nand_data *this, unsigned chip)
 	uint32_t reg = 0;
 
 	if (GPMI_IS_MX23(this)) {
-		mask = MX23_BM_GPMI_DEBUG_READY0 << chip;
-		reg = readl(r->gpmi_regs + HW_GPMI_DEBUG);
+		mask = MX23_BM_GPMI_DE_READY0 << chip;
+		reg = readl(r->gpmi_regs + HW_GPMI_DE);
 	} else if (GPMI_IS_MX28(this) || GPMI_IS_MX6(this)) {
 		/*
 		 * In the imx6, all the ready/busy pins are bound

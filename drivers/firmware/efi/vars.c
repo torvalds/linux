@@ -383,9 +383,9 @@ static unsigned long var_name_strnsize(efi_char16_t *variable_name,
 
 /*
  * Print a warning when duplicate EFI variables are encountered and
- * disable the sysfs workqueue since the firmware is buggy.
+ * disable the sysfs workqueue since the firmware is gy.
  */
-static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
+static void dup_variable_(efi_char16_t *str16, efi_guid_t *vendor_guid,
 			     unsigned long len16)
 {
 	size_t i, len8 = len16 / sizeof(efi_char16_t);
@@ -393,7 +393,7 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
 
 	/*
 	 * Disable the workqueue since the algorithm it uses for
-	 * detecting new variables won't work with this buggy
+	 * detecting new variables won't work with this gy
 	 * implementation of GetNextVariableName().
 	 */
 	efivar_wq_enabled = false;
@@ -479,7 +479,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 			if (duplicates &&
 			    variable_is_present(variable_name, &vendor_guid,
 						head)) {
-				dup_variable_bug(variable_name, &vendor_guid,
+				dup_variable_(variable_name, &vendor_guid,
 						 variable_name_size);
 				status = EFI_NOT_FOUND;
 			} else {

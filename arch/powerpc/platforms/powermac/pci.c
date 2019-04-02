@@ -29,9 +29,9 @@
 
 #include "pmac.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)
@@ -1185,7 +1185,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS, 0x0240, fixup_k2_sata);
  *
  * We leave PIO alone, it seems to be fine
  *
- * Oh and there's another funny bug. The OF properties advertize the region
+ * Oh and there's another funny . The OF properties advertize the region
  * 0xf1000000..0xf1ffffff as being forwarded as memory space. But that's
  * actually not true, this region is the memory mapped config space. So we
  * also need to filter it out or we'll map things in the wrong place.

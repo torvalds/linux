@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "mt7601u.h"
 #include "eeprom.h"
@@ -22,7 +22,7 @@ mt76_reg_set(void *data, u64 val)
 {
 	struct mt7601u_dev *dev = data;
 
-	mt76_wr(dev, dev->debugfs_reg, val);
+	mt76_wr(dev, dev->defs_reg, val);
 	return 0;
 }
 
@@ -31,7 +31,7 @@ mt76_reg_get(void *data, u64 *val)
 {
 	struct mt7601u_dev *dev = data;
 
-	*val = mt76_rr(dev, dev->debugfs_reg);
+	*val = mt76_rr(dev, dev->defs_reg);
 	return 0;
 }
 
@@ -152,19 +152,19 @@ static const struct file_operations fops_eeprom_param = {
 	.release = single_release,
 };
 
-void mt7601u_init_debugfs(struct mt7601u_dev *dev)
+void mt7601u_init_defs(struct mt7601u_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("mt7601u", dev->hw->wiphy->debugfsdir);
+	dir = defs_create_dir("mt7601u", dev->hw->wiphy->defsdir);
 	if (!dir)
 		return;
 
-	debugfs_create_u8("temperature", 0400, dir, &dev->raw_temp);
-	debugfs_create_u32("temp_mode", 0400, dir, &dev->temp_mode);
+	defs_create_u8("temperature", 0400, dir, &dev->raw_temp);
+	defs_create_u32("temp_mode", 0400, dir, &dev->temp_mode);
 
-	debugfs_create_u32("regidx", 0600, dir, &dev->debugfs_reg);
-	debugfs_create_file("regval", 0600, dir, dev, &fops_regval);
-	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
-	debugfs_create_file("eeprom_param", 0400, dir, dev, &fops_eeprom_param);
+	defs_create_u32("regidx", 0600, dir, &dev->defs_reg);
+	defs_create_file("regval", 0600, dir, dev, &fops_regval);
+	defs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
+	defs_create_file("eeprom_param", 0400, dir, dev, &fops_eeprom_param);
 }

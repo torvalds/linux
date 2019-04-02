@@ -119,7 +119,7 @@ int tracing_root_ok(void)
 void tracing_on(void)
 {
 #if CONTROL_TRACING > 0
-#define TRACEDIR "/sys/kernel/debug/tracing"
+#define TRACEDIR "/sys/kernel/de/tracing"
 	char pidstr[32];
 
 	if (!tracing_root_ok())
@@ -145,7 +145,7 @@ void tracing_off(void)
 #if CONTROL_TRACING > 0
 	if (!tracing_root_ok())
 		return;
-	cat_into_file("0", "/sys/kernel/debug/tracing/tracing_on");
+	cat_into_file("0", "/sys/kernel/de/tracing/tracing_on");
 #endif
 }
 
@@ -299,7 +299,7 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	 * here.
 	 */
 	dprintf1("pkru_xstate_offset: %d\n", pkru_xstate_offset());
-	if (DEBUG_LEVEL > 4)
+	if (DE_LEVEL > 4)
 		dump_mem(pkru_ptr - 128, 256);
 	pkey_assert(*pkru_ptr);
 
@@ -542,7 +542,7 @@ int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 		dprintf2("SYS_mprotect_key sret: %d\n", sret);
 		dprintf2("SYS_mprotect_key prot: 0x%lx\n", orig_prot);
 		dprintf2("SYS_mprotect_key failed, errno: %d\n", errno);
-		if (DEBUG_LEVEL >= 2)
+		if (DE_LEVEL >= 2)
 			perror("SYS_mprotect_pkey");
 	}
 	return sret;
@@ -599,7 +599,7 @@ int sys_pkey_free(unsigned long pkey)
 }
 
 /*
- * I had a bug where pkey bits could be set by mprotect() but
+ * I had a  where pkey bits could be set by mprotect() but
  * not cleared.  This ensures we get lots of random bit sets
  * and clears on the vma and pte pkey bits.
  */
@@ -1055,7 +1055,7 @@ void test_kernel_write_of_write_disabled_region(int *ptr, u16 pkey)
 	pkey_write_deny(pkey);
 	ret = read(test_fd, ptr, 100);
 	dprintf1("read ret: %d\n", ret);
-	if (ret < 0 && (DEBUG_LEVEL > 0))
+	if (ret < 0 && (DE_LEVEL > 0))
 		perror("verbose read result (OK for this to be bad)");
 	pkey_assert(ret);
 }
@@ -1094,7 +1094,7 @@ void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
 	pkey_write_deny(pkey);
 	futex_ret = syscall(SYS_futex, ptr, FUTEX_WAIT, some_int-1, NULL,
 			&ignored, ignored);
-	if (DEBUG_LEVEL > 0)
+	if (DE_LEVEL > 0)
 		perror("futex");
 	dprintf1("futex() ret: %d\n", futex_ret);
 }
@@ -1391,7 +1391,7 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	/*
 	 * Put the memory back to non-PROT_EXEC.  Should clear the
 	 * exec-only pkey off the VMA and allow it to be readable
-	 * again.  Go to PROT_NONE first to check for a kernel bug
+	 * again.  Go to PROT_NONE first to check for a kernel 
 	 * that did not clear the pkey when doing PROT_NONE.
 	 */
 	ret = mprotect(p1, PAGE_SIZE, PROT_NONE);

@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/idle.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/init.h>
@@ -32,7 +32,7 @@
 #include <linux/uaccess.h>
 #include <asm/mwait.h>
 #include <asm/fpu/internal.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/nmi.h>
 #include <asm/tlbflush.h>
 #include <asm/mce.h>
@@ -507,13 +507,13 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 
 	if ((tifp & _TIF_BLOCKSTEP || tifn & _TIF_BLOCKSTEP) &&
 	    arch_has_block_step()) {
-		unsigned long debugctl, msk;
+		unsigned long dectl, msk;
 
-		rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-		debugctl &= ~DEBUGCTLMSR_BTF;
+		rdmsrl(MSR_IA32_DECTLMSR, dectl);
+		dectl &= ~DECTLMSR_BTF;
 		msk = tifn & _TIF_BLOCKSTEP;
-		debugctl |= (msk >> TIF_BLOCKSTEP) << DEBUGCTLMSR_BTF_SHIFT;
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+		dectl |= (msk >> TIF_BLOCKSTEP) << DECTLMSR_BTF_SHIFT;
+		wrmsrl(MSR_IA32_DECTLMSR, dectl);
 	}
 
 	if ((tifp ^ tifn) & _TIF_NOTSC)
@@ -544,7 +544,7 @@ static void (*x86_idle)(void);
 #ifndef CONFIG_SMP
 static inline void play_dead(void)
 {
-	BUG();
+	();
 }
 #endif
 
@@ -629,11 +629,11 @@ void stop_this_cpu(void *dummy)
 static void amd_e400_idle(void)
 {
 	/*
-	 * We cannot use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
+	 * We cannot use static_cpu_has_() here because X86__AMD_APIC_C1E
 	 * gets set after static_cpu_has() places have been converted via
 	 * alternatives.
 	 */
-	if (!boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+	if (!boot_cpu_has_(X86__AMD_APIC_C1E)) {
 		default_idle();
 		return;
 	}
@@ -666,7 +666,7 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 	if (c->x86_vendor != X86_VENDOR_INTEL)
 		return 0;
 
-	if (!cpu_has(c, X86_FEATURE_MWAIT) || static_cpu_has_bug(X86_BUG_MONITOR))
+	if (!cpu_has(c, X86_FEATURE_MWAIT) || static_cpu_has_(X86__MONITOR))
 		return 0;
 
 	return 1;
@@ -681,7 +681,7 @@ static __cpuidle void mwait_idle(void)
 {
 	if (!current_set_polling_and_test()) {
 		trace_cpu_idle_rcuidle(1, smp_processor_id());
-		if (this_cpu_has(X86_BUG_CLFLUSH_MONITOR)) {
+		if (this_cpu_has(X86__CLFLUSH_MONITOR)) {
 			mb(); /* quirk */
 			clflush((void *)&current_thread_info()->flags);
 			mb(); /* quirk */
@@ -708,7 +708,7 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 	if (x86_idle || boot_option_idle_override == IDLE_POLL)
 		return;
 
-	if (boot_cpu_has_bug(X86_BUG_AMD_E400)) {
+	if (boot_cpu_has_(X86__AMD_E400)) {
 		pr_info("using AMD E400 aware idle routine\n");
 		x86_idle = amd_e400_idle;
 	} else if (prefer_mwait_c1_over_halt(c)) {
@@ -720,7 +720,7 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 
 void amd_e400_c1e_apic_setup(void)
 {
-	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+	if (boot_cpu_has_(X86__AMD_APIC_C1E)) {
 		pr_info("Switch to broadcast mode on CPU%d\n", smp_processor_id());
 		local_irq_disable();
 		tick_broadcast_force();
@@ -732,7 +732,7 @@ void __init arch_post_acpi_subsys_init(void)
 {
 	u32 lo, hi;
 
-	if (!boot_cpu_has_bug(X86_BUG_AMD_E400))
+	if (!boot_cpu_has_(X86__AMD_E400))
 		return;
 
 	/*
@@ -744,7 +744,7 @@ void __init arch_post_acpi_subsys_init(void)
 	if (!(lo & K8_INTP_C1E_ACTIVE_MASK))
 		return;
 
-	boot_cpu_set_bug(X86_BUG_AMD_APIC_C1E);
+	boot_cpu_set_(X86__AMD_APIC_C1E);
 
 	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 		mark_tsc_unstable("TSC halt in AMD C1E");

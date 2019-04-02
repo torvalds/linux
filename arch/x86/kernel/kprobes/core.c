@@ -45,9 +45,9 @@
 #include <linux/slab.h>
 #include <linux/hardirq.h>
 #include <linux/preempt.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/extable.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/frame.h>
@@ -61,7 +61,7 @@
 #include <linux/uaccess.h>
 #include <asm/alternative.h>
 #include <asm/insn.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/set_memory.h>
 
 #include "common.h"
@@ -311,7 +311,7 @@ static int can_probe(unsigned long paddr)
 		insn_get_length(&insn);
 
 		/*
-		 * Another debugging subsystem might insert this breakpoint.
+		 * Another deging subsystem might insert this breakpoint.
 		 * In that case, we can't recover it.
 		 */
 		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
@@ -547,20 +547,20 @@ set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 static nokprobe_inline void clear_btf(void)
 {
 	if (test_thread_flag(TIF_BLOCKSTEP)) {
-		unsigned long debugctl = get_debugctlmsr();
+		unsigned long dectl = get_dectlmsr();
 
-		debugctl &= ~DEBUGCTLMSR_BTF;
-		update_debugctlmsr(debugctl);
+		dectl &= ~DECTLMSR_BTF;
+		update_dectlmsr(dectl);
 	}
 }
 
 static nokprobe_inline void restore_btf(void)
 {
 	if (test_thread_flag(TIF_BLOCKSTEP)) {
-		unsigned long debugctl = get_debugctlmsr();
+		unsigned long dectl = get_dectlmsr();
 
-		debugctl |= DEBUGCTLMSR_BTF;
-		update_debugctlmsr(debugctl);
+		dectl |= DECTLMSR_BTF;
+		update_dectlmsr(dectl);
 	}
 }
 
@@ -632,12 +632,12 @@ static int reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		/* A probe has been hit in the codepath leading up to, or just
 		 * after, single-stepping of a probed instruction. This entire
 		 * codepath should strictly reside in .kprobes.text section.
-		 * Raise a BUG or we'll continue in an endless reentering loop
+		 * Raise a  or we'll continue in an endless reentering loop
 		 * and eventually a stack overflow.
 		 */
 		pr_err("Unrecoverable kprobe detected.\n");
 		dump_kprobe(p);
-		BUG();
+		();
 	default:
 		/* impossible cases */
 		WARN_ON(1);
@@ -664,7 +664,7 @@ int kprobe_int3_handler(struct pt_regs *regs)
 	addr = (kprobe_opcode_t *)(regs->ip - sizeof(kprobe_opcode_t));
 	/*
 	 * We don't want to be preempted for the entire duration of kprobe
-	 * processing. Since int3 and debug trap disables irqs and we clear
+	 * processing. Since int3 and de trap disables irqs and we clear
 	 * IF while singlestepping, it must be no preemptible.
 	 */
 
@@ -696,7 +696,7 @@ int kprobe_int3_handler(struct pt_regs *regs)
 		/*
 		 * The breakpoint instruction was removed right
 		 * after we hit it.  Another cpu has removed
-		 * either a probepoint or a debugger breakpoint
+		 * either a probepoint or a deger breakpoint
 		 * at this address.  In either case, no further
 		 * handling of this interrupt is appropriate.
 		 * Back up over the (now missing) int3 and run
@@ -933,7 +933,7 @@ NOKPROBE_SYMBOL(resume_execution);
  * Interrupts are disabled on entry as trap1 is an interrupt gate and they
  * remain disabled throughout this function.
  */
-int kprobe_debug_handler(struct pt_regs *regs)
+int kprobe_de_handler(struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -959,14 +959,14 @@ out:
 	/*
 	 * if somebody else is singlestepping across a probe point, flags
 	 * will have TF set, in which case, continue the remaining processing
-	 * of do_debug, as if this is not a probe hit.
+	 * of do_de, as if this is not a probe hit.
 	 */
 	if (regs->flags & X86_EFLAGS_TF)
 		return 0;
 
 	return 1;
 }
-NOKPROBE_SYMBOL(kprobe_debug_handler);
+NOKPROBE_SYMBOL(kprobe_de_handler);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {

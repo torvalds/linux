@@ -246,7 +246,7 @@ void __init efi_esrt_init(void)
 	int rc;
 	phys_addr_t end;
 
-	pr_debug("esrt-init: loading.\n");
+	pr_de("esrt-init: loading.\n");
 	if (!esrt_table_exists())
 		return;
 
@@ -333,7 +333,7 @@ void __init efi_esrt_init(void)
 	if (md.type == EFI_BOOT_SERVICES_DATA)
 		efi_mem_reserve(esrt_data, esrt_data_size);
 
-	pr_debug("esrt-init: loaded.\n");
+	pr_de("esrt-init: loaded.\n");
 }
 
 static int __init register_entries(void)
@@ -377,7 +377,7 @@ static int __init esrt_sysfs_init(void)
 {
 	int error;
 
-	pr_debug("esrt-sysfs: loading.\n");
+	pr_de("esrt-sysfs: loading.\n");
 	if (!esrt_data || !esrt_data_size)
 		return -ENOSYS;
 
@@ -413,7 +413,7 @@ static int __init esrt_sysfs_init(void)
 	if (error)
 		goto err_cleanup_list;
 
-	pr_debug("esrt-sysfs: loaded.\n");
+	pr_de("esrt-sysfs: loaded.\n");
 
 	return 0;
 err_cleanup_list:

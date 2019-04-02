@@ -24,7 +24,7 @@
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -281,7 +281,7 @@ static int configfs_create_dir(struct config_item *item, struct dentry *dentry)
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 	struct dentry *p = dentry->d_parent;
 
-	BUG_ON(!item);
+	_ON(!item);
 
 	error = configfs_dirent_exists(p->d_fsdata, dentry->d_name.name);
 	if (unlikely(error))
@@ -384,7 +384,7 @@ static void remove_dir(struct dentry * d)
 	if (d_really_is_positive(d))
 		simple_rmdir(d_inode(parent),d);
 
-	pr_debug(" o %pd removing done (%d)\n", d, d_count(d));
+	pr_de(" o %pd removing done (%d)\n", d, d_count(d));
 
 	dput(parent);
 }
@@ -562,7 +562,7 @@ static void detach_attrs(struct config_item * item)
 	if (!dentry)
 		return;
 
-	pr_debug("configfs %s: dropping attrs for  dir\n",
+	pr_de("configfs %s: dropping attrs for  dir\n",
 		 dentry->d_name.name);
 
 	parent_sd = dentry->d_fsdata;
@@ -683,7 +683,7 @@ static int create_default_group(struct config_group *parent_group,
 			sd = child->d_fsdata;
 			sd->s_type |= CONFIGFS_USET_DEFAULT;
 		} else {
-			BUG_ON(d_inode(child));
+			_ON(d_inode(child));
 			d_drop(child);
 			dput(child);
 		}
@@ -788,7 +788,7 @@ static void link_group(struct config_group *parent_group, struct config_group *g
 	else if (configfs_is_root(&parent_group->cg_item))
 		subsys = to_configfs_subsystem(group);
 	else
-		BUG();
+		();
 	group->cg_subsys = subsys;
 
 	list_for_each_entry(new_group, &group->default_groups, group_entry)
@@ -904,7 +904,7 @@ static void client_disconnect_notify(struct config_item *parent_item,
 	const struct config_item_type *type;
 
 	type = parent_item->ci_type;
-	BUG_ON(!type);
+	_ON(!type);
 
 	if (type->ct_group_ops && type->ct_group_ops->disconnect_notify)
 		type->ct_group_ops->disconnect_notify(to_config_group(parent_item),
@@ -923,7 +923,7 @@ static void client_drop_item(struct config_item *parent_item,
 	const struct config_item_type *type;
 
 	type = parent_item->ci_type;
-	BUG_ON(!type);
+	_ON(!type);
 
 	/*
 	 * If ->drop_item() exists, it is responsible for the
@@ -936,7 +936,7 @@ static void client_drop_item(struct config_item *parent_item,
 		config_item_put(item);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void configfs_dump_one(struct configfs_dirent *sd, int level)
 {
 	pr_info("%*s\"%s\":\n", level, " ", configfs_get_name(sd));
@@ -1037,7 +1037,7 @@ static int configfs_depend_prep(struct dentry *origin,
 	struct configfs_dirent *child_sd, *sd;
 	int ret = 0;
 
-	BUG_ON(!origin || !origin->d_fsdata);
+	_ON(!origin || !origin->d_fsdata);
 	sd = origin->d_fsdata;
 
 	if (sd->s_element == target)  /* Boo-yah */
@@ -1166,7 +1166,7 @@ void configfs_undepend_item(struct config_item *target)
 	spin_lock(&configfs_dirent_lock);
 
 	sd = target->ci_dentry->d_fsdata;
-	BUG_ON(sd->s_dependent_count < 1);
+	_ON(sd->s_dependent_count < 1);
 
 	sd->s_dependent_count -= 1;
 
@@ -1284,7 +1284,7 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	type = parent_item->ci_type;
 	subsys = to_config_group(parent_item)->cg_subsys;
-	BUG_ON(!subsys);
+	_ON(!subsys);
 
 	if (!type || !type->ct_group_ops ||
 	    (!type->ct_group_ops->make_group &&
@@ -1442,7 +1442,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	/* Get a working ref until we have the child */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	subsys = to_config_group(parent_item)->cg_subsys;
-	BUG_ON(!subsys);
+	_ON(!subsys);
 
 	if (!parent_item->ci_type) {
 		config_item_put(parent_item);
@@ -1450,7 +1450,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	/* configfs_mkdir() shouldn't have allowed this */
-	BUG_ON(!subsys->su_group.cg_item.ci_type);
+	_ON(!subsys->su_group.cg_item.ci_type);
 	subsys_owner = subsys->su_group.cg_item.ci_type->ct_owner;
 
 	/*
@@ -1879,7 +1879,7 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 		err = configfs_attach_group(sd->s_element, &group->cg_item,
 					    dentry);
 		if (err) {
-			BUG_ON(d_inode(dentry));
+			_ON(d_inode(dentry));
 			d_drop(dentry);
 			dput(dentry);
 		} else {

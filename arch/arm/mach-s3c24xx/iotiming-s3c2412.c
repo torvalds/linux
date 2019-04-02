@@ -45,7 +45,7 @@ static void s3c2412_print_timing(const char *pfx, struct s3c_iotimings *iot)
 		if (!bt)
 			continue;
 
-		printk(KERN_DEBUG "%s: %d: idcy=%d.%d wstrd=%d.%d wstwr=%d,%d"
+		printk(KERN_DE "%s: %d: idcy=%d.%d wstrd=%d.%d wstwr=%d,%d"
 		       "wstoen=%d.%d wstwen=%d.%d wstbrd=%d.%d\n", pfx, bank,
 		       print_ns(bt->idcy),
 		       print_ns(bt->wstrd),
@@ -105,12 +105,12 @@ static int s3c2412_calc_bank(struct s3c_cpufreq_config *cfg,
 }
 
 /**
- * s3c2412_iotiming_debugfs - debugfs show io bank timing information
+ * s3c2412_iotiming_defs - defs show io bank timing information
  * @seq: The seq_file to write output to using seq_printf().
  * @cfg: The current configuration.
  * @iob: The IO bank information to decode.
 */
-void s3c2412_iotiming_debugfs(struct seq_file *seq,
+void s3c2412_iotiming_defs(struct seq_file *seq,
 			      struct s3c_cpufreq_config *cfg,
 			      union s3c_iobank *iob)
 {

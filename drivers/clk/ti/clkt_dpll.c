@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -92,18 +92,18 @@ static int _dpll_test_fint(struct clk_hw_omap *clk, unsigned int n)
 	}
 
 	if (fint < ti_clk_get_features()->fint_min) {
-		pr_debug("rejecting n=%d due to Fint failure, lowering max_divider\n",
+		pr_de("rejecting n=%d due to Fint failure, lowering max_divider\n",
 			 n);
 		dd->max_divider = n;
 		ret = DPLL_FINT_UNDERFLOW;
 	} else if (fint > ti_clk_get_features()->fint_max) {
-		pr_debug("rejecting n=%d due to Fint failure, boosting min_divider\n",
+		pr_de("rejecting n=%d due to Fint failure, boosting min_divider\n",
 			 n);
 		dd->min_divider = n;
 		ret = DPLL_FINT_INVALID;
 	} else if (fint > ti_clk_get_features()->fint_band1_max &&
 		   fint < ti_clk_get_features()->fint_band2_min) {
-		pr_debug("rejecting n=%d due to Fint failure\n", n);
+		pr_de("rejecting n=%d due to Fint failure\n", n);
 		ret = DPLL_FINT_INVALID;
 	}
 
@@ -306,7 +306,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 
 	ref_rate = clk_hw_get_rate(dd->clk_ref);
 	clk_name = clk_hw_get_name(hw);
-	pr_debug("clock: %s: starting DPLL round_rate, target rate %lu\n",
+	pr_de("clock: %s: starting DPLL round_rate, target rate %lu\n",
 		 clk_name, target_rate);
 
 	scaled_rt_rp = target_rate / (ref_rate / DPLL_SCALE_FACTOR);
@@ -352,7 +352,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 			min_delta_n = n;
 		}
 
-		pr_debug("clock: %s: m = %d: n = %d: new_rate = %lu\n",
+		pr_de("clock: %s: m = %d: n = %d: new_rate = %lu\n",
 			 clk_name, m, n, new_rate);
 
 		if (delta == 0)
@@ -360,7 +360,7 @@ long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 	}
 
 	if (prev_min_delta == LONG_MAX) {
-		pr_debug("clock: %s: cannot round to rate %lu\n",
+		pr_de("clock: %s: cannot round to rate %lu\n",
 			 clk_name, target_rate);
 		return ~0;
 	}

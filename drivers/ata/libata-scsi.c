@@ -1241,7 +1241,7 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
  *	@rq: request to be checked
  *
  *	ATAPI commands which transfer variable length data to host
- *	might overflow due to application error or hardware bug.  This
+ *	might overflow due to application error or hardware .  This
  *	function checks whether overflow should be drained and ignored
  *	for @request.
  *
@@ -4288,7 +4288,7 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 				     struct scsi_cmnd *cmd)
 {
-#ifdef ATA_VERBOSE_DEBUG
+#ifdef ATA_VERBOSE_DE
 	struct scsi_device *scsidev = cmd->device;
 
 	VPRINTK("CDB (%u:%d,%d,%lld) %9ph\n",
@@ -4799,7 +4799,7 @@ void ata_scsi_hotplug(struct work_struct *work)
 	 * removal while freezer is active.  This is a joke but does avoid
 	 * this particular deadlock scenario.
 	 *
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=62801
+	 * https://zilla.kernel.org/show_.cgi?id=62801
 	 * http://marc.info/?l=linux-kernel&m=138695698516487
 	 */
 #ifdef CONFIG_FREEZER

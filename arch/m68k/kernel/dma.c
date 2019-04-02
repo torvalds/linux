@@ -4,7 +4,7 @@
  * for more details.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/dma-noncoherent.h>
 #include <linux/device.h>
@@ -27,7 +27,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	void *addr;
 	int i, order;
 
-	pr_debug("dma_alloc_coherent: %d,%x\n", size, flag);
+	pr_de("dma_alloc_coherent: %d,%x\n", size, flag);
 
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
@@ -65,7 +65,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 void arch_dma_free(struct device *dev, size_t size, void *addr,
 		dma_addr_t handle, unsigned long attrs)
 {
-	pr_debug("dma_free_coherent: %p, %x\n", addr, handle);
+	pr_de("dma_free_coherent: %p, %x\n", addr, handle);
 	vfree(addr);
 }
 

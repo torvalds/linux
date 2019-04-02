@@ -232,8 +232,8 @@ struct csi_state {
 	int irq;
 	u32 flags;
 
-	struct dentry *debugfs_root;
-	bool debug;
+	struct dentry *defs_root;
+	bool de;
 
 	int num_clks;
 	struct clk_bulk_data *clks;
@@ -536,7 +536,7 @@ static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
 	spin_lock_irqsave(&state->slock, flags);
 
 	for (i--; i >= 0; i--) {
-		if (state->events[i].counter > 0 || state->debug)
+		if (state->events[i].counter > 0 || state->de)
 			dev_info(dev, "%s events: %d\n", state->events[i].name,
 				 state->events[i].counter);
 	}
@@ -583,7 +583,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *mipi_sd, int enable)
 		ret = v4l2_subdev_call(state->src_sd, core, s_power, 1);
 		mipi_csis_stop_stream(state);
 		state->flags &= ~ST_STREAMING;
-		if (state->debug)
+		if (state->de)
 			mipi_csis_log_counters(state, true);
 	}
 
@@ -750,7 +750,7 @@ static int mipi_csis_log_status(struct v4l2_subdev *mipi_sd)
 
 	mutex_lock(&state->lock);
 	mipi_csis_log_counters(state, true);
-	if (state->debug && (state->flags & ST_POWERED))
+	if (state->de && (state->flags & ST_POWERED))
 		mipi_csis_dump_regs(state);
 	mutex_unlock(&state->lock);
 
@@ -769,7 +769,7 @@ static irqreturn_t mipi_csis_irq_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&state->slock, flags);
 
 	/* Update the event/error counters */
-	if ((status & MIPI_CSIS_INTSRC_ERRORS) || state->debug) {
+	if ((status & MIPI_CSIS_INTSRC_ERRORS) || state->de) {
 		for (i = 0; i < MIPI_CSIS_NUM_EVENTS; i++) {
 			if (!(status & state->events[i].mask))
 				continue;
@@ -889,8 +889,8 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 
 static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 {
@@ -900,47 +900,47 @@ static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(mipi_csis_dump_regs);
 
-static int __init_or_module mipi_csis_debugfs_init(struct csi_state *state)
+static int __init_or_module mipi_csis_defs_init(struct csi_state *state)
 {
 	struct dentry *d;
 
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return -ENODEV;
 
-	state->debugfs_root = debugfs_create_dir(dev_name(state->dev), NULL);
-	if (!state->debugfs_root)
+	state->defs_root = defs_create_dir(dev_name(state->dev), NULL);
+	if (!state->defs_root)
 		return -ENOMEM;
 
-	d = debugfs_create_bool("debug_enable", 0600, state->debugfs_root,
-				&state->debug);
+	d = defs_create_bool("de_enable", 0600, state->defs_root,
+				&state->de);
 	if (!d)
-		goto remove_debugfs;
+		goto remove_defs;
 
-	d = debugfs_create_file("dump_regs", 0600, state->debugfs_root,
+	d = defs_create_file("dump_regs", 0600, state->defs_root,
 				state, &mipi_csis_dump_regs_fops);
 	if (!d)
-		goto remove_debugfs;
+		goto remove_defs;
 
 	return 0;
 
-remove_debugfs:
-	debugfs_remove_recursive(state->debugfs_root);
+remove_defs:
+	defs_remove_recursive(state->defs_root);
 
 	return -ENOMEM;
 }
 
-static void mipi_csis_debugfs_exit(struct csi_state *state)
+static void mipi_csis_defs_exit(struct csi_state *state)
 {
-	debugfs_remove_recursive(state->debugfs_root);
+	defs_remove_recursive(state->defs_root);
 }
 
 #else
-static int mipi_csis_debugfs_init(struct csi_state *state __maybe_unused)
+static int mipi_csis_defs_init(struct csi_state *state __maybe_unused)
 {
 	return 0;
 }
 
-static void mipi_csis_debugfs_exit(struct csi_state *state __maybe_unused)
+static void mipi_csis_defs_exit(struct csi_state *state __maybe_unused)
 {
 }
 #endif
@@ -1011,7 +1011,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 
 	memcpy(state->events, mipi_csis_events, sizeof(state->events));
 
-	mipi_csis_debugfs_init(state);
+	mipi_csis_defs_init(state);
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
 		ret = mipi_csis_pm_resume(dev, true);
@@ -1026,7 +1026,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_all:
-	mipi_csis_debugfs_exit(state);
+	mipi_csis_defs_exit(state);
 	media_entity_cleanup(&state->mipi_sd.entity);
 unregister_subdev:
 	v4l2_async_unregister_subdev(&state->mipi_sd);
@@ -1117,7 +1117,7 @@ static int mipi_csis_remove(struct platform_device *pdev)
 	struct v4l2_subdev *mipi_sd = platform_get_drvdata(pdev);
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 
-	mipi_csis_debugfs_exit(state);
+	mipi_csis_defs_exit(state);
 	v4l2_async_unregister_subdev(&state->mipi_sd);
 	v4l2_async_notifier_unregister(&state->subdev_notifier);
 

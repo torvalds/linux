@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbutils - AML debugger utilities
+ * Module Name: dbutils - AML deger utilities
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
-#include "acdebug.h"
+#include "acde.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbutils")
 
 /* Local prototypes */
@@ -64,8 +64,8 @@ acpi_db_match_argument(char *user_argument,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Set the current destination for debugger output. Also sets
- *              the debug output level accordingly.
+ * DESCRIPTION: Set the current destination for deger output. Also sets
+ *              the de output level accordingly.
  *
  ******************************************************************************/
 
@@ -76,9 +76,9 @@ void acpi_db_set_output_destination(u32 output_flags)
 
 	if ((output_flags & ACPI_DB_REDIRECTABLE_OUTPUT) &&
 	    acpi_gbl_db_output_to_file) {
-		acpi_dbg_level = acpi_gbl_db_debug_level;
+		acpi_dbg_level = acpi_gbl_db_de_level;
 	} else {
-		acpi_dbg_level = acpi_gbl_db_console_debug_level;
+		acpi_dbg_level = acpi_gbl_db_console_de_level;
 	}
 }
 
@@ -137,7 +137,7 @@ void acpi_db_dump_external_object(union acpi_object *obj_desc, u32 level)
 				acpi_os_printf("\n");
 			}
 
-			acpi_ut_debug_dump_buffer(ACPI_CAST_PTR
+			acpi_ut_de_dump_buffer(ACPI_CAST_PTR
 						  (u8,
 						   obj_desc->buffer.pointer),
 						  obj_desc->buffer.length,
@@ -415,7 +415,7 @@ void acpi_db_dump_buffer(u32 address)
 	acpi_os_printf("\nLocation %X:\n", address);
 
 	acpi_dbg_level |= ACPI_LV_TABLES;
-	acpi_ut_debug_dump_buffer(ACPI_TO_POINTER(address), 64, DB_BYTE_DISPLAY,
+	acpi_ut_de_dump_buffer(ACPI_TO_POINTER(address), 64, DB_BYTE_DISPLAY,
 				  ACPI_UINT32_MAX);
 }
 #endif

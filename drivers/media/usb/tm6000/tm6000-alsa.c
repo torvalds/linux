@@ -26,7 +26,7 @@
 #undef dprintk
 
 #define dprintk(level, fmt, arg...) do {				   \
-	if (debug >= level)						   \
+	if (de >= level)						   \
 		printk(KERN_INFO "%s/1: " fmt, chip->core->name , ## arg); \
 	} while (0)
 
@@ -53,9 +53,9 @@ MODULE_DESCRIPTION("ALSA driver module for tm5600/tm6000/tm6010 based TV cards")
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Trident,tm5600},{{Trident,tm6000},{{Trident,tm6010}");
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
 /****************************************************************************
 			Module specific functions

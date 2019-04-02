@@ -15,17 +15,17 @@
  */
 
 #include <linux/string.h>
-#include "pvrusb2-debugifc.h"
+#include "pvrusb2-deifc.h"
 #include "pvrusb2-hdw.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 
-struct debugifc_mask_item {
+struct deifc_mask_item {
 	const char *name;
 	unsigned long msk;
 };
 
 
-static unsigned int debugifc_count_whitespace(const char *buf,
+static unsigned int deifc_count_whitespace(const char *buf,
 					      unsigned int count)
 {
 	unsigned int scnt;
@@ -42,7 +42,7 @@ static unsigned int debugifc_count_whitespace(const char *buf,
 }
 
 
-static unsigned int debugifc_count_nonwhitespace(const char *buf,
+static unsigned int deifc_count_nonwhitespace(const char *buf,
 						 unsigned int count)
 {
 	unsigned int scnt;
@@ -58,7 +58,7 @@ static unsigned int debugifc_count_nonwhitespace(const char *buf,
 }
 
 
-static unsigned int debugifc_isolate_word(const char *buf,unsigned int count,
+static unsigned int deifc_isolate_word(const char *buf,unsigned int count,
 					  const char **wstrPtr,
 					  unsigned int *wlenPtr)
 {
@@ -69,11 +69,11 @@ static unsigned int debugifc_isolate_word(const char *buf,unsigned int count,
 
 	wptr = NULL;
 	wlen = 0;
-	scnt = debugifc_count_whitespace(buf,count);
+	scnt = deifc_count_whitespace(buf,count);
 	consume_cnt += scnt; count -= scnt; buf += scnt;
 	if (!count) goto done;
 
-	scnt = debugifc_count_nonwhitespace(buf,count);
+	scnt = deifc_count_nonwhitespace(buf,count);
 	if (!scnt) goto done;
 	wptr = buf;
 	wlen = scnt;
@@ -86,7 +86,7 @@ static unsigned int debugifc_isolate_word(const char *buf,unsigned int count,
 }
 
 
-static int debugifc_parse_unsigned_number(const char *buf,unsigned int count,
+static int deifc_parse_unsigned_number(const char *buf,unsigned int count,
 					  u32 *num_ptr)
 {
 	u32 result = 0;
@@ -112,7 +112,7 @@ static int debugifc_parse_unsigned_number(const char *buf,unsigned int count,
 }
 
 
-static int debugifc_match_keyword(const char *buf,unsigned int count,
+static int deifc_match_keyword(const char *buf,unsigned int count,
 				  const char *keyword)
 {
 	unsigned int kl;
@@ -123,7 +123,7 @@ static int debugifc_match_keyword(const char *buf,unsigned int count,
 }
 
 
-int pvr2_debugifc_print_info(struct pvr2_hdw *hdw,char *buf,unsigned int acnt)
+int pvr2_deifc_print_info(struct pvr2_hdw *hdw,char *buf,unsigned int acnt)
 {
 	int bcnt = 0;
 	int ccnt;
@@ -139,7 +139,7 @@ int pvr2_debugifc_print_info(struct pvr2_hdw *hdw,char *buf,unsigned int acnt)
 }
 
 
-int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
+int pvr2_deifc_print_status(struct pvr2_hdw *hdw,
 			       char *buf,unsigned int acnt)
 {
 	int bcnt = 0;
@@ -186,62 +186,62 @@ int pvr2_debugifc_print_status(struct pvr2_hdw *hdw,
 }
 
 
-static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
+static int pvr2_deifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
 				unsigned int count)
 {
 	const char *wptr;
 	unsigned int wlen;
 	unsigned int scnt;
 
-	scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+	scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 	if (!scnt) return 0;
 	count -= scnt; buf += scnt;
 	if (!wptr) return 0;
 
-	pvr2_trace(PVR2_TRACE_DEBUGIFC,"debugifc cmd: \"%.*s\"",wlen,wptr);
-	if (debugifc_match_keyword(wptr,wlen,"reset")) {
-		scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+	pvr2_trace(PVR2_TRACE_DEIFC,"deifc cmd: \"%.*s\"",wlen,wptr);
+	if (deifc_match_keyword(wptr,wlen,"reset")) {
+		scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 		if (!scnt) return -EINVAL;
 		count -= scnt; buf += scnt;
 		if (!wptr) return -EINVAL;
-		if (debugifc_match_keyword(wptr,wlen,"cpu")) {
+		if (deifc_match_keyword(wptr,wlen,"cpu")) {
 			pvr2_hdw_cpureset_assert(hdw,!0);
 			pvr2_hdw_cpureset_assert(hdw,0);
 			return 0;
-		} else if (debugifc_match_keyword(wptr,wlen,"bus")) {
+		} else if (deifc_match_keyword(wptr,wlen,"bus")) {
 			pvr2_hdw_device_reset(hdw);
-		} else if (debugifc_match_keyword(wptr,wlen,"soft")) {
+		} else if (deifc_match_keyword(wptr,wlen,"soft")) {
 			return pvr2_hdw_cmd_powerup(hdw);
-		} else if (debugifc_match_keyword(wptr,wlen,"deep")) {
+		} else if (deifc_match_keyword(wptr,wlen,"deep")) {
 			return pvr2_hdw_cmd_deep_reset(hdw);
-		} else if (debugifc_match_keyword(wptr,wlen,"firmware")) {
+		} else if (deifc_match_keyword(wptr,wlen,"firmware")) {
 			return pvr2_upload_firmware2(hdw);
-		} else if (debugifc_match_keyword(wptr,wlen,"decoder")) {
+		} else if (deifc_match_keyword(wptr,wlen,"decoder")) {
 			return pvr2_hdw_cmd_decoder_reset(hdw);
-		} else if (debugifc_match_keyword(wptr,wlen,"worker")) {
+		} else if (deifc_match_keyword(wptr,wlen,"worker")) {
 			return pvr2_hdw_untrip(hdw);
-		} else if (debugifc_match_keyword(wptr,wlen,"usbstats")) {
+		} else if (deifc_match_keyword(wptr,wlen,"usbstats")) {
 			pvr2_stream_get_stats(pvr2_hdw_get_video_stream(hdw),
 					      NULL, !0);
 			return 0;
 		}
 		return -EINVAL;
-	} else if (debugifc_match_keyword(wptr,wlen,"cpufw")) {
-		scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+	} else if (deifc_match_keyword(wptr,wlen,"cpufw")) {
+		scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 		if (!scnt) return -EINVAL;
 		count -= scnt; buf += scnt;
 		if (!wptr) return -EINVAL;
-		if (debugifc_match_keyword(wptr,wlen,"fetch")) {
-			scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+		if (deifc_match_keyword(wptr,wlen,"fetch")) {
+			scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 			if (scnt && wptr) {
 				count -= scnt; buf += scnt;
-				if (debugifc_match_keyword(wptr, wlen,
+				if (deifc_match_keyword(wptr, wlen,
 							   "prom")) {
 					pvr2_hdw_cpufw_set_enabled(hdw, 2, !0);
-				} else if (debugifc_match_keyword(wptr, wlen,
+				} else if (deifc_match_keyword(wptr, wlen,
 								  "ram8k")) {
 					pvr2_hdw_cpufw_set_enabled(hdw, 0, !0);
-				} else if (debugifc_match_keyword(wptr, wlen,
+				} else if (deifc_match_keyword(wptr, wlen,
 								  "ram16k")) {
 					pvr2_hdw_cpufw_set_enabled(hdw, 1, !0);
 				} else {
@@ -250,34 +250,34 @@ static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
 			}
 			pvr2_hdw_cpufw_set_enabled(hdw,0,!0);
 			return 0;
-		} else if (debugifc_match_keyword(wptr,wlen,"done")) {
+		} else if (deifc_match_keyword(wptr,wlen,"done")) {
 			pvr2_hdw_cpufw_set_enabled(hdw,0,0);
 			return 0;
 		} else {
 			return -EINVAL;
 		}
-	} else if (debugifc_match_keyword(wptr,wlen,"gpio")) {
+	} else if (deifc_match_keyword(wptr,wlen,"gpio")) {
 		int dir_fl = 0;
 		int ret;
 		u32 msk,val;
-		scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+		scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 		if (!scnt) return -EINVAL;
 		count -= scnt; buf += scnt;
 		if (!wptr) return -EINVAL;
-		if (debugifc_match_keyword(wptr,wlen,"dir")) {
+		if (deifc_match_keyword(wptr,wlen,"dir")) {
 			dir_fl = !0;
-		} else if (!debugifc_match_keyword(wptr,wlen,"out")) {
+		} else if (!deifc_match_keyword(wptr,wlen,"out")) {
 			return -EINVAL;
 		}
-		scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+		scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 		if (!scnt) return -EINVAL;
 		count -= scnt; buf += scnt;
 		if (!wptr) return -EINVAL;
-		ret = debugifc_parse_unsigned_number(wptr,wlen,&msk);
+		ret = deifc_parse_unsigned_number(wptr,wlen,&msk);
 		if (ret) return ret;
-		scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+		scnt = deifc_isolate_word(buf,count,&wptr,&wlen);
 		if (wptr) {
-			ret = debugifc_parse_unsigned_number(wptr,wlen,&val);
+			ret = deifc_parse_unsigned_number(wptr,wlen,&val);
 			if (ret) return ret;
 		} else {
 			val = msk;
@@ -290,13 +290,13 @@ static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
 		}
 		return ret;
 	}
-	pvr2_trace(PVR2_TRACE_DEBUGIFC,
-		   "debugifc failed to recognize cmd: \"%.*s\"",wlen,wptr);
+	pvr2_trace(PVR2_TRACE_DEIFC,
+		   "deifc failed to recognize cmd: \"%.*s\"",wlen,wptr);
 	return -EINVAL;
 }
 
 
-int pvr2_debugifc_docmd(struct pvr2_hdw *hdw,const char *buf,
+int pvr2_deifc_docmd(struct pvr2_hdw *hdw,const char *buf,
 			unsigned int count)
 {
 	unsigned int bcnt = 0;
@@ -307,7 +307,7 @@ int pvr2_debugifc_docmd(struct pvr2_hdw *hdw,const char *buf,
 			if (buf[bcnt] == '\n') break;
 		}
 
-		ret = pvr2_debugifc_do1cmd(hdw,buf,bcnt);
+		ret = pvr2_deifc_do1cmd(hdw,buf,bcnt);
 		if (ret < 0) return ret;
 		if (bcnt < count) bcnt++;
 		buf += bcnt;

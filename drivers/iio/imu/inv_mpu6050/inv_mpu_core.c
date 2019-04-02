@@ -1006,7 +1006,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	BUILD_BUG_ON(ARRAY_SIZE(hw_info) != INV_NUM_PARTS);
+	BUILD__ON(ARRAY_SIZE(hw_info) != INV_NUM_PARTS);
 	if (chip_type < 0 || chip_type >= INV_NUM_PARTS) {
 		dev_err(dev, "Bad invensense chip_type=%d name=%s\n",
 				chip_type, name);

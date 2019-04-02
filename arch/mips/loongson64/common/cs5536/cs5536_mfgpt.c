@@ -179,7 +179,7 @@ static u64 mfgpt_read(struct clocksource *cs)
 	 *  The timer counter underflows, but we haven't handled the resulting
 	 *  interrupt and incremented jiffies yet.
 	 *
-	 * Previous attempts to handle these cases intelligently were buggy, so
+	 * Previous attempts to handle these cases intelligently were gy, so
 	 * we just do the simple thing now.
 	 */
 	if (count < old_count && jifs == old_jifs)

@@ -135,14 +135,14 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	struct net_device *dev;
 	struct l2tp_eth *priv;
 
-	if (session->debug & L2TP_MSG_DATA) {
+	if (session->de & L2TP_MSG_DATA) {
 		unsigned int length;
 
 		length = min(32u, skb->len);
 		if (!pskb_may_pull(skb, length))
 			goto error;
 
-		pr_debug("%s: eth recv\n", session->name);
+		pr_de("%s: eth recv\n", session->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
 	}
 
@@ -303,7 +303,7 @@ static int l2tp_eth_create(struct net *net, struct l2tp_tunnel *tunnel,
 
 	session->recv_skb = l2tp_eth_dev_recv;
 	session->session_close = l2tp_eth_delete;
-	if (IS_ENABLED(CONFIG_L2TP_DEBUGFS))
+	if (IS_ENABLED(CONFIG_L2TP_DEFS))
 		session->show = l2tp_eth_show;
 
 	spriv = l2tp_session_priv(session);

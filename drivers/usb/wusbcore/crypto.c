@@ -40,10 +40,10 @@
 #include <linux/usb/wusb.h>
 #include <linux/scatterlist.h>
 
-static int debug_crypto_verify;
+static int de_crypto_verify;
 
-module_param(debug_crypto_verify, int, 0);
-MODULE_PARM_DESC(debug_crypto_verify, "verify the key generation algorithms");
+module_param(de_crypto_verify, int, 0);
+MODULE_PARM_DESC(de_crypto_verify, "verify the key generation algorithms");
 
 static void wusb_key_dump(const void *buf, size_t len)
 {
@@ -507,7 +507,7 @@ int wusb_crypto_init(void)
 {
 	int result;
 
-	if (debug_crypto_verify) {
+	if (de_crypto_verify) {
 		result = wusb_key_derive_verify();
 		if (result < 0)
 			return result;

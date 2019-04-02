@@ -63,7 +63,7 @@ static void jazz_esp_dma_invalidate(struct esp *esp)
 static void jazz_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				  u32 dma_count, int write, u8 cmd)
 {
-	BUG_ON(!(cmd & ESP_CMD_DMA));
+	_ON(!(cmd & ESP_CMD_DMA));
 
 	jazz_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	jazz_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);

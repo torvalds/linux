@@ -28,11 +28,11 @@
 #include "ccid2.h"
 
 
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-static bool ccid2_debug;
-#define ccid2_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid2_debug, format, ##a)
+#ifdef CONFIG_IP_DCCP_CCID2_DE
+static bool ccid2_de;
+#define ccid2_pr_de(format, a...)	DCCP_PR_DE(ccid2_de, format, ##a)
 #else
-#define ccid2_pr_debug(format, a...)
+#define ccid2_pr_de(format, a...)
 #endif
 
 static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hc)
@@ -149,7 +149,7 @@ static void ccid2_hc_tx_rto_expire(struct timer_list *t)
 		goto out;
 	}
 
-	ccid2_pr_debug("RTO_EXPIRE\n");
+	ccid2_pr_de("RTO_EXPIRE\n");
 
 	if (sk->sk_state == DCCP_CLOSED)
 		goto out;
@@ -288,11 +288,11 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 			return;
 		}
 		next = hc->tx_seqh->ccid2s_next;
-		BUG_ON(next == hc->tx_seqt);
+		_ON(next == hc->tx_seqt);
 	}
 	hc->tx_seqh = next;
 
-	ccid2_pr_debug("cwnd=%d pipe=%d\n", hc->tx_cwnd, hc->tx_pipe);
+	ccid2_pr_de("cwnd=%d pipe=%d\n", hc->tx_cwnd, hc->tx_pipe);
 
 	/*
 	 * FIXME: The code below is broken and the variables have been removed
@@ -345,18 +345,18 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 
 	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
+#ifdef CONFIG_IP_DCCP_CCID2_DE
 	do {
 		struct ccid2_seq *seqp = hc->tx_seqt;
 
 		while (seqp != hc->tx_seqh) {
-			ccid2_pr_debug("out seq=%llu acked=%d time=%u\n",
+			ccid2_pr_de("out seq=%llu acked=%d time=%u\n",
 				       (unsigned long long)seqp->ccid2s_seq,
 				       seqp->ccid2s_acked, seqp->ccid2s_sent);
 			seqp = seqp->ccid2s_next;
 		}
 	} while (0);
-	ccid2_pr_debug("=========\n");
+	ccid2_pr_de("=========\n");
 #endif
 }
 
@@ -490,7 +490,7 @@ static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 
 	if ((s32)(seqp->ccid2s_sent - hc->tx_last_cong) < 0) {
-		ccid2_pr_debug("Multiple losses in an RTT---treating as one\n");
+		ccid2_pr_de("Multiple losses in an RTT---treating as one\n");
 		return;
 	}
 
@@ -600,7 +600,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			u64 ackno_end_rl = SUB48(ackno,
 						 dccp_ackvec_runlen(avp->vec));
 
-			ccid2_pr_debug("ackvec %llu |%u,%u|\n",
+			ccid2_pr_de("ackvec %llu |%u,%u|\n",
 				       (unsigned long long)ackno,
 				       dccp_ackvec_state(avp->vec) >> 6,
 				       dccp_ackvec_runlen(avp->vec));
@@ -635,7 +635,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 							      &maxincr);
 
 					seqp->ccid2s_acked = 1;
-					ccid2_pr_debug("Got ack for %llu\n",
+					ccid2_pr_de("Got ack for %llu\n",
 						       (unsigned long long)seqp->ccid2s_seq);
 					hc->tx_pipe--;
 				}
@@ -686,7 +686,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* check for lost packets */
 		while (1) {
 			if (!seqp->ccid2s_acked) {
-				ccid2_pr_debug("Packet lost: %llu\n",
+				ccid2_pr_de("Packet lost: %llu\n",
 					       (unsigned long long)seqp->ccid2s_seq);
 				/* XXX need to traverse from tail -> head in
 				 * order to detect multiple congestion events in
@@ -795,7 +795,7 @@ struct ccid_operations ccid2_ops = {
 	.ccid_hc_rx_packet_recv	  = ccid2_hc_rx_packet_recv,
 };
 
-#ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-module_param(ccid2_debug, bool, 0644);
-MODULE_PARM_DESC(ccid2_debug, "Enable CCID-2 debug messages");
+#ifdef CONFIG_IP_DCCP_CCID2_DE
+module_param(ccid2_de, bool, 0644);
+MODULE_PARM_DESC(ccid2_de, "Enable CCID-2 de messages");
 #endif

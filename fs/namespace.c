@@ -755,7 +755,7 @@ static void put_mountpoint(struct mountpoint *mp)
 {
 	if (!--mp->m_count) {
 		struct dentry *dentry = mp->m_dentry;
-		BUG_ON(!hlist_empty(&mp->m_list));
+		_ON(!hlist_empty(&mp->m_list));
 		spin_lock(&dentry->d_lock);
 		dentry->d_flags &= ~DCACHE_MOUNTED;
 		spin_unlock(&dentry->d_lock);
@@ -900,7 +900,7 @@ static void commit_tree(struct mount *mnt)
 	LIST_HEAD(head);
 	struct mnt_namespace *n = parent->mnt_ns;
 
-	BUG_ON(parent == mnt);
+	_ON(parent == mnt);
 
 	list_add_tail(&head, &mnt->mnt_list);
 	list_for_each_entry(m, &head, mnt_list)
@@ -1323,7 +1323,7 @@ int may_umount_tree(struct vfsmount *m)
 	int actual_refs = 0;
 	int minimum_refs = 0;
 	struct mount *p;
-	BUG_ON(!m);
+	_ON(!m);
 
 	/* write lock needed for mnt_get_count */
 	lock_mount_hash();
@@ -2634,7 +2634,7 @@ int finish_automount(struct vfsmount *m, struct path *path)
 	/* The new mount record should have at least 2 refs to prevent it being
 	 * expired before we get a chance to add it
 	 */
-	BUG_ON(mnt_get_count(mnt) < 2);
+	_ON(mnt_get_count(mnt) < 2);
 
 	if (m->mnt_sb == path->mnt->mnt_sb &&
 	    m->mnt_root == path->dentry) {
@@ -3019,7 +3019,7 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	struct mount *new;
 	int copy_flags;
 
-	BUG_ON(!ns);
+	_ON(!ns);
 
 	if (likely(!(flags & CLONE_NEWNS))) {
 		get_mnt_ns(ns);

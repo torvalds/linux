@@ -152,7 +152,7 @@ The ID numbers can be divided to those regions::
 
 If you add 0x8000 to the mode ID, the program will try to recalculate
 vertical display timing according to mode parameters, which can be used to
-eliminate some annoying bugs of certain VGA BIOSes (usually those used for
+eliminate some annoying s of certain VGA BIOSes (usually those used for
 cards with S3 chipsets and old Cirrus Logic BIOSes) -- mainly extra lines at the
 end of the display.
 
@@ -177,8 +177,8 @@ the machine hangs instead of displaying the menu), try to switch off some of
 the configuration options listed under "Options". If it fails, you can still use
 your kernel with the video mode set directly via the kernel parameter.
 
-In either case, please send me a bug report containing what _exactly_
-happens and how do the configuration switches affect the behaviour of the bug.
+In either case, please send me a  report containing what _exactly_
+happens and how do the configuration switches affect the behaviour of the .
 
 If you start Linux from M$-DOS, you might also use some DOS tools for
 video mode setting. In this case, you must specify the 0x0f04 mode ("leave
@@ -187,7 +187,7 @@ mode, Linux will switch to 80x25 automatically.
 
 If you set some extended mode and there's one or more extra lines on the
 bottom of the display containing already scrolled-out text, your VGA BIOS
-contains the most common video BIOS bug called "incorrect vertical display
+contains the most common video BIOS  called "incorrect vertical display
 end setting". Adding 0x8000 to the mode ID might fix the problem. Unfortunately,
 this must be done manually -- no autodetection mechanisms are available.
 
@@ -202,13 +202,13 @@ History
 		everything is configurable, the VESA support should be much more
 		stable, explicit mode numbering allowed, "scan" implemented etc.
 2.1 (30-Jan-96) VESA modes moved to 0x200-0x3ff. Mode selection by resolution
-		supported. Few bugs fixed. VESA modes are listed prior to
+		supported. Few s fixed. VESA modes are listed prior to
 		modes supplied by SVGA autodetection as they are more reliable.
 		CLGD autodetect works better. Doesn't depend on 80x25 being
 		active when started. Scanning fixed. 80x43 (any VGA) added.
 		Code cleaned up.
 2.2 (01-Feb-96)	EGA 80x43 fixed. VESA extended to 0x200-0x4ff (non-standard 02XX
-		VESA modes work now). Display end bug workaround supported.
+		VESA modes work now). Display end  workaround supported.
 		Special modes renumbered to allow adding of the "recalculate"
 		flag, 0xffff and 0xfffe became aliases instead of real IDs.
 		Screen contents retained during mode changes.
@@ -218,7 +218,7 @@ History
 		these changes. Unfortunately, screen contents retaining works
 		only with some loaders now.
 		Added a Tseng 132x60 mode.
-2.5 (19-Mar-96)	Fixed a VESA mode scanning bug introduced in 2.4.
+2.5 (19-Mar-96)	Fixed a VESA mode scanning  introduced in 2.4.
 2.6 (25-Mar-96)	Some VESA BIOS errors not reported -- it fixes error reports on
 		several cards with broken VESA code (e.g., ATI VGA).
 2.7 (09-Apr-96)	- Accepted all VESA modes in range 0x100 to 0x7ff, because some
@@ -234,7 +234,7 @@ History
 		- Screen store/restore fixed.
 2.8 (14-Apr-96) - Previous release was not compilable without CONFIG_VIDEO_SVGA.
 		- Better recognition of text modes during mode scan.
-2.9 (12-May-96)	- Ignored VESA modes 0x80 - 0xff (more VESA BIOS bugs!)
+2.9 (12-May-96)	- Ignored VESA modes 0x80 - 0xff (more VESA BIOS s!)
 2.10(11-Nov-96) - The whole thing made optional.
 		- Added the CONFIG_VIDEO_400_HACK switch.
 		- Added the CONFIG_VIDEO_GFX_HACK switch.

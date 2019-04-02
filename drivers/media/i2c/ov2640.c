@@ -754,7 +754,7 @@ static int ov2640_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ov2640_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
@@ -1129,7 +1129,7 @@ static const struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register	= ov2640_g_register,
 	.s_register	= ov2640_s_register,
 #endif

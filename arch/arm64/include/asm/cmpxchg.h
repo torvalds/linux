@@ -18,7 +18,7 @@
 #ifndef __ASM_CMPXCHG_H
 #define __ASM_CMPXCHG_H
 
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/compiler.h>
 
 #include <asm/atomic.h>
@@ -88,7 +88,7 @@ static inline unsigned long __xchg##sfx(unsigned long x,		\
 	case 8:								\
 		return __xchg_case##sfx##_64(x, ptr);			\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 									\
 	unreachable();							\
@@ -131,7 +131,7 @@ static inline unsigned long __cmpxchg##sfx(volatile void *ptr,		\
 	case 8:								\
 		return __cmpxchg_case##sfx##_64(ptr, old, new);		\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 									\
 	unreachable();							\
@@ -173,8 +173,8 @@ __CMPXCHG_GEN(_mb)
 #define __cmpxchg_double_check(ptr1, ptr2)					\
 ({										\
 	if (sizeof(*(ptr1)) != 8)						\
-		BUILD_BUG();							\
-	VM_BUG_ON((unsigned long *)(ptr2) - (unsigned long *)(ptr1) != 1);	\
+		BUILD_();							\
+	VM__ON((unsigned long *)(ptr2) - (unsigned long *)(ptr1) != 1);	\
 })
 
 #define arch_cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2)				\
@@ -237,7 +237,7 @@ static inline void __cmpwait##sfx(volatile void *ptr,			\
 	case 8:								\
 		return __cmpwait_case##sfx##_64(ptr, val);		\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 									\
 	unreachable();							\

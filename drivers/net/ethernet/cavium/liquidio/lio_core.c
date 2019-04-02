@@ -301,12 +301,12 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		break;
 
 	case OCTNET_CMD_VERBOSE_ENABLE:
-		dev_info(&oct->pci_dev->dev, "%s Firmware debug enabled\n",
+		dev_info(&oct->pci_dev->dev, "%s Firmware de enabled\n",
 			 netdev->name);
 		break;
 
 	case OCTNET_CMD_VERBOSE_DISABLE:
-		dev_info(&oct->pci_dev->dev, "%s Firmware debug disabled\n",
+		dev_info(&oct->pci_dev->dev, "%s Firmware de disabled\n",
 			 netdev->name);
 		break;
 

@@ -197,7 +197,7 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 		goto err;
 	}
 
-	GEM_BUG_ON(offset + (count - 1) * PAGE_SIZE > vma->node.size);
+	GEM__ON(offset + (count - 1) * PAGE_SIZE > vma->node.size);
 	offset += vma->node.start;
 
 	for (n = 0; n < count; n++) {
@@ -267,8 +267,8 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	unsigned int flags;
 	int err;
 
-	GEM_BUG_ON(obj->base.size > vm->total);
-	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
+	GEM__ON(obj->base.size > vm->total);
+	GEM__ON(!intel_engine_can_store_dword(engine));
 
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma))
@@ -421,7 +421,7 @@ static int file_add_object(struct drm_file *file,
 {
 	int err;
 
-	GEM_BUG_ON(obj->base.handle_count);
+	GEM__ON(obj->base.handle_count);
 
 	/* tie the object to the drm_file for easy reaping */
 	err = idr_alloc(&file->object_idr, &obj->base, 1, 0, GFP_KERNEL);
@@ -471,7 +471,7 @@ static unsigned long max_dwords(struct drm_i915_gem_object *obj)
 {
 	unsigned long npages = fake_page_count(obj);
 
-	GEM_BUG_ON(!IS_ALIGNED(npages, DW_PER_PAGE));
+	GEM__ON(!IS_ALIGNED(npages, DW_PER_PAGE));
 	return npages / DW_PER_PAGE;
 }
 
@@ -638,7 +638,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int err;
 
-	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
+	GEM__ON(!intel_engine_can_store_dword(engine));
 
 	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
 	if (IS_ERR(vma))
@@ -1161,7 +1161,7 @@ static int check_scratch(struct i915_gem_context *ctx, u64 offset)
 	if (!node || node->start > offset)
 		return 0;
 
-	GEM_BUG_ON(offset >= node->start + node->size);
+	GEM__ON(offset >= node->start + node->size);
 
 	pr_err("Target offset 0x%08x_%08x overlaps with a node in the mm!\n",
 	       upper_32_bits(offset), lower_32_bits(offset));
@@ -1179,7 +1179,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	u32 *cmd;
 	int err;
 
-	GEM_BUG_ON(offset < I915_GTT_PAGE_SIZE);
+	GEM__ON(offset < I915_GTT_PAGE_SIZE);
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1267,7 +1267,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	u32 *cmd;
 	int err;
 
-	GEM_BUG_ON(offset < I915_GTT_PAGE_SIZE);
+	GEM__ON(offset < I915_GTT_PAGE_SIZE);
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1413,7 +1413,7 @@ static int igt_vm_isolation(void *arg)
 		goto out_unlock;
 
 	vm_total = ctx_a->ppgtt->vm.total;
-	GEM_BUG_ON(ctx_b->ppgtt->vm.total != vm_total);
+	GEM__ON(ctx_b->ppgtt->vm.total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
 	wakeref = intel_runtime_pm_get(i915);
@@ -1523,7 +1523,7 @@ static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 	if (err)
 		return err;
 
-	GEM_BUG_ON(i915->gt.active_requests);
+	GEM__ON(i915->gt.active_requests);
 	for_each_engine_masked(engine, i915, engines, tmp) {
 		if (engine->last_retired_context->gem_context != i915->kernel_context) {
 			pr_err("engine %s not idling in kernel context!\n",

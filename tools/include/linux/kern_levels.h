@@ -12,7 +12,7 @@
 #define KERN_WARNING	KERN_SOH ""	/* warning conditions */
 #define KERN_NOTICE	KERN_SOH ""	/* normal but significant condition */
 #define KERN_INFO	KERN_SOH ""	/* informational */
-#define KERN_DEBUG	KERN_SOH ""	/* debug-level messages */
+#define KERN_DE	KERN_SOH ""	/* de-level messages */
 
 #define KERN_DEFAULT	KERN_SOH ""	/* the default kernel loglevel */
 

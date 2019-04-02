@@ -132,20 +132,20 @@ static void __init xen_del_extra_mem(unsigned long start_pfn,
 
 		/* Start of region. */
 		if (start_r == start_pfn) {
-			BUG_ON(n_pfns > size_r);
+			_ON(n_pfns > size_r);
 			xen_extra_mem[i].start_pfn += n_pfns;
 			xen_extra_mem[i].n_pfns -= n_pfns;
 			break;
 		}
 		/* End of region. */
 		if (start_r + size_r == start_pfn + n_pfns) {
-			BUG_ON(n_pfns > size_r);
+			_ON(n_pfns > size_r);
 			xen_extra_mem[i].n_pfns -= n_pfns;
 			break;
 		}
 		/* Mid of region. */
 		if (start_pfn > start_r && start_pfn < start_r + size_r) {
-			BUG_ON(start_pfn + n_pfns > start_r + size_r);
+			_ON(start_pfn + n_pfns > start_r + size_r);
 			xen_extra_mem[i].n_pfns = start_pfn - start_r;
 			/* Calling memblock_reserve() again is okay. */
 			xen_add_extra_mem(start_pfn + n_pfns, start_r + size_r -
@@ -296,14 +296,14 @@ static void __init xen_update_mem_tables(unsigned long pfn, unsigned long mfn)
 	if (!set_phys_to_machine(pfn, mfn)) {
 		WARN(1, "Failed to set p2m mapping for pfn=%ld mfn=%ld\n",
 		     pfn, mfn);
-		BUG();
+		();
 	}
 
 	/* Update m2p */
 	if (HYPERVISOR_mmu_update(&update, 1, NULL, DOMID_SELF) < 0) {
 		WARN(1, "Failed to set m2p mapping for mfn=%ld pfn=%ld\n",
 		     mfn, pfn);
-		BUG();
+		();
 	}
 
 	/* Update kernel mapping, but not for highmem. */
@@ -314,7 +314,7 @@ static void __init xen_update_mem_tables(unsigned long pfn, unsigned long mfn)
 					 mfn_pte(mfn, PAGE_KERNEL), 0)) {
 		WARN(1, "Failed to update kernel mapping for mfn=%ld pfn=%ld\n",
 		      mfn, pfn);
-		BUG();
+		();
 	}
 }
 
@@ -511,7 +511,7 @@ void __init xen_remap_memory(void)
 		/* Map the remap information */
 		set_pte_mfn(buf, xen_remap_mfn, PAGE_KERNEL);
 
-		BUG_ON(xen_remap_mfn != xen_remap_buf.mfns[0]);
+		_ON(xen_remap_mfn != xen_remap_buf.mfns[0]);
 
 		pfn = xen_remap_buf.target_pfn;
 		for (i = 0; i < xen_remap_buf.size; i++) {
@@ -727,7 +727,7 @@ static void __init xen_reserve_xen_mfnlist(void)
 	 * is not supported, so just give up.
 	 */
 	xen_raw_console_write("Xen hypervisor allocated p2m list conflicts with E820 map\n");
-	BUG();
+	();
 #else
 	xen_relocate_p2m();
 	memblock_free(start, size);
@@ -766,7 +766,7 @@ char * __init xen_memory_setup(void)
 		XENMEM_memory_map;
 	rc = HYPERVISOR_memory_op(op, &memmap);
 	if (rc == -ENOSYS) {
-		BUG_ON(xen_initial_domain());
+		_ON(xen_initial_domain());
 		memmap.nr_entries = 1;
 		xen_e820_table.entries[0].addr = 0ULL;
 		xen_e820_table.entries[0].size = mem_end;
@@ -775,8 +775,8 @@ char * __init xen_memory_setup(void)
 		xen_e820_table.entries[0].type = E820_TYPE_RAM;
 		rc = 0;
 	}
-	BUG_ON(rc);
-	BUG_ON(memmap.nr_entries == 0);
+	_ON(rc);
+	_ON(memmap.nr_entries == 0);
 	xen_e820_table.nr_entries = memmap.nr_entries;
 
 	/*
@@ -877,7 +877,7 @@ char * __init xen_memory_setup(void)
 	if (xen_is_e820_reserved(__pa_symbol(_text),
 			__pa_symbol(__bss_stop) - __pa_symbol(_text))) {
 		xen_raw_console_write("Xen hypervisor allocated kernel memory conflicts with E820 map\n");
-		BUG();
+		();
 	}
 
 	/*
@@ -896,7 +896,7 @@ char * __init xen_memory_setup(void)
 		new_area = xen_find_free_area(boot_params.hdr.ramdisk_size);
 		if (!new_area) {
 			xen_raw_console_write("Can't find new memory area for initrd needed due to E820 map conflict\n");
-			BUG();
+			();
 		}
 
 		start = boot_params.hdr.ramdisk_image;
@@ -995,7 +995,7 @@ void __init xen_pvmmu_arch_setup(void)
 
 	if (register_callback(CALLBACKTYPE_event, xen_hypervisor_callback) ||
 	    register_callback(CALLBACKTYPE_failsafe, xen_failsafe_callback))
-		BUG();
+		();
 
 	xen_enable_sysenter();
 	xen_enable_syscall();

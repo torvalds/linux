@@ -77,7 +77,7 @@ decode_sattr(__be32 *p, struct iattr *iap)
 
 	iap->ia_valid = 0;
 
-	/* Sun client bug compatibility check: some sun clients seem to
+	/* Sun client  compatibility check: some sun clients seem to
 	 * put 0xffff in the mode field when they mean 0xffffffff.
 	 * Quoting the 4.4BSD nfs server code: Nah nah nah nah na nah.
 	 */

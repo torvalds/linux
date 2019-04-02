@@ -95,13 +95,13 @@ struct nfp_dump_error {
 	char spec[0];
 };
 
-/* to track state through debug size calculation TLV traversal */
+/* to track state through de size calculation TLV traversal */
 struct nfp_level_size {
 	__be32 requested_level;	/* input */
 	u32 total_size;		/* output */
 };
 
-/* to track state during debug dump creation TLV traversal */
+/* to track state during de dump creation TLV traversal */
 struct nfp_dump_state {
 	__be32 requested_level;	/* input param */
 	u32 dumped_size;	/* adds up to size of dumped data */
@@ -174,7 +174,7 @@ nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 	bytes_read = nfp_rtsym_read(cpp, specsym, 0, dumpspec->data, sym_size);
 	if (bytes_read != sym_size) {
 		vfree(dumpspec);
-		nfp_warn(cpp, "Debug dump specification read failed.\n");
+		nfp_warn(cpp, "De dump specification read failed.\n");
 		return NULL;
 	}
 

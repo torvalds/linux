@@ -146,7 +146,7 @@ long cxl_h_attach_process(u64 unit_address,
 
 	pr_devel("token: 0x%.8lx mmio_addr: 0x%lx mmio_size: 0x%lx\nProcess Element Structure:\n",
 		retbuf[0], retbuf[1], retbuf[2]);
-	cxl_dump_debug_buffer(element, sizeof(*element));
+	cxl_dump_de_buffer(element, sizeof(*element));
 
 	switch (rc) {
 	case H_SUCCESS:       /* The process info is attached to the coherent platform function */
@@ -403,7 +403,7 @@ long cxl_h_collect_int_info(u64 unit_address, u64 process_token,
 {
 	long rc;
 
-	BUG_ON(sizeof(*info) != sizeof(unsigned long[PLPAR_HCALL9_BUFSIZE]));
+	_ON(sizeof(*info) != sizeof(unsigned long[PLPAR_HCALL9_BUFSIZE]));
 
 	rc = plpar_hcall9(H_COLLECT_CA_INT_INFO, (unsigned long *) info,
 			unit_address, process_token);

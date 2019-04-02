@@ -295,9 +295,9 @@ int uwb_dev_add(struct uwb_dev *uwb_dev, struct device *parent_dev,
 	int result;
 	struct device *dev;
 
-	BUG_ON(uwb_dev == NULL);
-	BUG_ON(parent_dev == NULL);
-	BUG_ON(parent_rc == NULL);
+	_ON(uwb_dev == NULL);
+	_ON(parent_dev == NULL);
+	_ON(parent_rc == NULL);
 
 	mutex_lock(&uwb_dev->mutex);
 	dev = &uwb_dev->dev;

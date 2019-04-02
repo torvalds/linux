@@ -26,27 +26,27 @@ config NTFS_FS
 	  If you are not using Windows NT, 2000, XP or 2003 in addition to
 	  Linux on your computer it is safe to say N.
 
-config NTFS_DEBUG
-	bool "NTFS debugging support"
+config NTFS_DE
+	bool "NTFS deging support"
 	depends on NTFS_FS
 	help
 	  If you are experiencing any problems with the NTFS file system, say
 	  Y here.  This will result in additional consistency checks to be
-	  performed by the driver as well as additional debugging messages to
-	  be written to the system log.  Note that debugging messages are
-	  disabled by default.  To enable them, supply the option debug_msgs=1
+	  performed by the driver as well as additional deging messages to
+	  be written to the system log.  Note that deging messages are
+	  disabled by default.  To enable them, supply the option de_msgs=1
 	  at the kernel command line when booting the kernel or as an option
 	  to insmod when loading the ntfs module.  Once the driver is active,
-	  you can enable debugging messages by doing (as root):
-	  echo 1 > /proc/sys/fs/ntfs-debug
-	  Replacing the "1" with "0" would disable debug messages.
+	  you can enable deging messages by doing (as root):
+	  echo 1 > /proc/sys/fs/ntfs-de
+	  Replacing the "1" with "0" would disable de messages.
 
-	  If you leave debugging messages disabled, this results in little
-	  overhead, but enabling debug messages results in very significant
+	  If you leave deging messages disabled, this results in little
+	  overhead, but enabling de messages results in very significant
 	  slowdown of the system.
 
-	  When reporting bugs, please try to have available a full dump of
-	  debugging messages while the misbehaviour was occurring.
+	  When reporting s, please try to have available a full dump of
+	  deging messages while the misbehaviour was occurring.
 
 config NTFS_RW
 	bool "NTFS write support"

@@ -313,8 +313,8 @@ static void *vmw_local_fifo_reserve(struct vmw_private *dev_priv,
 	if (unlikely(bytes >= (max - min)))
 		goto out_err;
 
-	BUG_ON(fifo_state->reserved_size != 0);
-	BUG_ON(fifo_state->dynamic_buffer != NULL);
+	_ON(fifo_state->reserved_size != 0);
+	_ON(fifo_state->dynamic_buffer != NULL);
 
 	fifo_state->reserved_size = bytes;
 
@@ -459,8 +459,8 @@ static void vmw_local_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 		bytes += sizeof(struct vmw_temp_set_context);
 
 	fifo_state->dx = false;
-	BUG_ON((bytes & 3) != 0);
-	BUG_ON(bytes > fifo_state->reserved_size);
+	_ON((bytes & 3) != 0);
+	_ON(bytes > fifo_state->reserved_size);
 
 	fifo_state->reserved_size = 0;
 
@@ -663,7 +663,7 @@ static int vmw_fifo_emit_dummy_gb_query(struct vmw_private *dev_priv,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = cid;
 	cmd->body.type = SVGA3D_QUERYTYPE_OCCLUSION;
-	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+	_ON(bo->mem.mem_type != VMW_PL_MOB);
 	cmd->body.mobid = bo->mem.start;
 	cmd->body.offset = 0;
 

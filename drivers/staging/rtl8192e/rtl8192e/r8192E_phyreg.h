@@ -23,7 +23,7 @@
 #define rPMAC_TxLegacySIG	0x108
 #define rPMAC_TxHTSIG1		0x10c
 #define rPMAC_TxHTSIG2		0x110
-#define rPMAC_PHYDebug		0x114
+#define rPMAC_PHYDe		0x114
 #define rPMAC_TxPacketNum	0x118
 #define rPMAC_TxIdle		0x11c
 #define rPMAC_TxMACHeader0	0x120
@@ -97,7 +97,7 @@
 /* Page 9 - RF mode & OFDM TxSC */
 #define rFPGA1_RFMOD			0x900
 #define rFPGA1_TxBlock			0x904
-#define rFPGA1_DebugSelect		0x908
+#define rFPGA1_DeSelect		0x908
 #define rFPGA1_TxInfo			0x90c
 
 #define rCCK0_System			0xa00
@@ -112,7 +112,7 @@
 #define rCCK0_DSPParameter2		0xa1c /* SQ threshold */
 #define rCCK0_TxFilter1			0xa20
 #define rCCK0_TxFilter2			0xa24
-#define rCCK0_DebugPort			0xa28 /* Debug port and TX filter 3 */
+#define rCCK0_DePort			0xa28 /* De port and TX filter 3 */
 #define rCCK0_FalseAlarmReport		0xa2c
 #define rCCK0_TRSSIReport		0xa50
 #define rCCK0_RxReport			0xa54
@@ -237,7 +237,7 @@
 #define bGlobalResetB			0x200
 #define bOFDMTxStart			0x4
 #define bCCKTxStart			0x8
-#define bCRC32Debug			0x100
+#define bCRC32De			0x100
 #define bPMACLoopback			0x10
 #define bTxLSIG				0xffffff
 #define bOFDMTxRate			0xf
@@ -368,7 +368,7 @@
 #define bDA6PowerUp			0x2000
 #define bXtalPowerUp			0x4000
 #define b40MDClkPowerUP			0x8000
-#define bDA6DebugMode			0x20000
+#define bDA6DeMode			0x20000
 #define bDA6Swing			0x380000
 #define bADClkPhase			0x4000000
 #define b80MClkDelay			0x18000000
@@ -417,10 +417,10 @@
 #define bOFDMTxSC			0x30000000
 #define bCCKTxOn			0x1
 #define bOFDMTxOn			0x2
-/* Reset debug page and also HWord, LWord */
-#define bDebugPage			0xfff
-/* Reset debug page and LWord */
-#define bDebugItem			0xff
+/* Reset de page and also HWord, LWord */
+#define bDePage			0xfff
+/* Reset de page and LWord */
+#define bDeItem			0xff
 #define bAntL				0x10
 #define bAntNonHT			0x100
 #define bAntHT1				0x1000
@@ -486,8 +486,8 @@
 #define bCCKTxC5			0x3f000000
 #define bCCKTxC6			0x3f
 #define bCCKTxC7			0x3f00
-#define bCCKDebugPort			0xff0000
-#define bCCKDACDebug			0x0f000000
+#define bCCKDePort			0xff0000
+#define bCCKDACDe			0x0f000000
 #define bCCKFalseAlarmEnable		0x8000
 #define bCCKFalseAlarmRead		0x4000
 #define bCCKTRSSI			0x7f

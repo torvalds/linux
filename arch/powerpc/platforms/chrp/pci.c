@@ -175,7 +175,7 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 
 	/* Clear the magic go-slow bit */
 	reg = ioremap(r.start + 0xf6000, 0x40);
-	BUG_ON(!reg); 
+	_ON(!reg); 
 	val = in_be32(&reg[12]);
 	if (val & PRG_CL_RESET_VALID) {
 		out_be32(&reg[12], val & ~PRG_CL_RESET_VALID);

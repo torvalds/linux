@@ -42,7 +42,7 @@ static int zynq_reset_assert(struct reset_controller_dev *rcdev,
 	int bank = id / BITS_PER_LONG;
 	int offset = id % BITS_PER_LONG;
 
-	pr_debug("%s: %s reset bank %u offset %u\n", KBUILD_MODNAME, __func__,
+	pr_de("%s: %s reset bank %u offset %u\n", KBUILD_MODNAME, __func__,
 		 bank, offset);
 
 	return regmap_update_bits(priv->slcr,
@@ -59,7 +59,7 @@ static int zynq_reset_deassert(struct reset_controller_dev *rcdev,
 	int bank = id / BITS_PER_LONG;
 	int offset = id % BITS_PER_LONG;
 
-	pr_debug("%s: %s reset bank %u offset %u\n", KBUILD_MODNAME, __func__,
+	pr_de("%s: %s reset bank %u offset %u\n", KBUILD_MODNAME, __func__,
 		 bank, offset);
 
 	return regmap_update_bits(priv->slcr,
@@ -78,7 +78,7 @@ static int zynq_reset_status(struct reset_controller_dev *rcdev,
 	int ret;
 	u32 reg;
 
-	pr_debug("%s: %s reset bank %u offset %u\n", KBUILD_MODNAME, __func__,
+	pr_de("%s: %s reset bank %u offset %u\n", KBUILD_MODNAME, __func__,
 		 bank, offset);
 
 	ret = regmap_read(priv->slcr, priv->offset + (bank * 4), &reg);

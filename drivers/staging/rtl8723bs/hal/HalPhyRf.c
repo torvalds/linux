@@ -104,7 +104,7 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 		(u8 **)&deltaSwingTableIdx_TDOWN_B
 	);
 
-	/* cosa add for debug */
+	/* cosa add for de */
 	pDM_Odm->RFCalibrateInfo.TXPowerTrackingCallbackCnt++;
 	pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = true;
 

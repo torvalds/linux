@@ -61,7 +61,7 @@
  *   loop variables, etc)
  * - more instrumentation control via attribute parameters
  *
- * BUGS:
+ * S:
  * - none known
  *
  * Options:

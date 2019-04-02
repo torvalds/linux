@@ -18,7 +18,7 @@ endif
 # Drop some uninteresting sections in the kernel.
 # This is only relevant for ELF kernels but doesn't hurt a.out
 #
-drop-sections := .reginfo .mdebug .comment .note .pdr .options .MIPS.options
+drop-sections := .reginfo .mde .comment .note .pdr .options .MIPS.options
 strip-flags   := $(addprefix --remove-section=,$(drop-sections))
 
 hostprogs-y := elf2ecoff

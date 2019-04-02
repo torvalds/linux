@@ -10,8 +10,8 @@
 #include <asm/pmac_feature.h>
 #include <asm/pmac_pfunc.h>
 
-#undef DEBUG
-#ifdef DEBUG
+#undef DE
+#ifdef DE
 #define DBG(fmt...)	printk(fmt)
 #else
 #define DBG(fmt...)

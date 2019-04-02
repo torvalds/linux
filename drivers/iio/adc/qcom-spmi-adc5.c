@@ -234,7 +234,7 @@ static int adc5_read_voltage_data(struct adc5_chip *adc, u16 *data)
 		return -EINVAL;
 	}
 
-	pr_debug("voltage raw code:0x%x\n", *data);
+	pr_de("voltage raw code:0x%x\n", *data);
 
 	return 0;
 }
@@ -339,7 +339,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 		ret = wait_for_completion_timeout(&adc->complete,
 							ADC5_CONV_TIMEOUT);
 		if (!ret) {
-			pr_debug("Did not get completion timeout.\n");
+			pr_de("Did not get completion timeout.\n");
 			ret = adc5_poll_wait_eoc(adc);
 			if (ret < 0) {
 				pr_err("EOC bit not set\n");
@@ -575,7 +575,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 			return ret;
 		}
 
-		pr_debug("dig_ver:minor:%d, major:%d\n", dig_version[0],
+		pr_de("dig_ver:minor:%d, major:%d\n", dig_version[0],
 						dig_version[1]);
 		/* Digital controller >= 5.3 have hw_settle_2 option */
 		if (dig_version[0] >= ADC5_HW_SETTLE_DIFF_MINOR &&

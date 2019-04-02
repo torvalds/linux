@@ -16,13 +16,13 @@ static int irq_chk_intv = 100;
 module_param(irq_chk_intv, int, 0644);
 MODULE_PARM_DESC(irq_chk_intv, "set the interval for IRQ streaming watchdog.");
 
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+#ifdef CONFIG_DVB_B2C2_FLEXCOP_DE
 #define dprintk(level,args...) \
-	do { if ((debug & level)) printk(args); } while (0)
+	do { if ((de & level)) printk(args); } while (0)
 #define DEBSTATUS ""
 #else
 #define dprintk(level,args...)
-#define DEBSTATUS " (debugging is not enabled)"
+#define DEBSTATUS " (deging is not enabled)"
 #endif
 
 #define deb_info(args...) dprintk(0x01, args)
@@ -31,10 +31,10 @@ MODULE_PARM_DESC(irq_chk_intv, "set the interval for IRQ streaming watchdog.");
 #define deb_irq(args...) dprintk(0x08, args)
 #define deb_chk(args...) dprintk(0x10, args)
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,
-	"set debug level (1=info,2=regs,4=TS,8=irqdma,16=check (|-able))."
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de,
+	"set de level (1=info,2=regs,4=TS,8=irqdma,16=check (|-able))."
 	DEBSTATUS);
 
 #define DRIVER_VERSION "0.1"

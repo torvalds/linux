@@ -275,7 +275,7 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
@@ -296,7 +296,7 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 			chip_name = "raven";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -315,7 +315,7 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		adev->sdma.instance[i].feature_version = le32_to_cpu(hdr->ucode_feature_version);
 		if (adev->sdma.instance[i].feature_version >= 20)
 			adev->sdma.instance[i].burst_nop = true;
-		DRM_DEBUG("psp_load == '%s'\n",
+		DRM_DE("psp_load == '%s'\n",
 				adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
 
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
@@ -352,7 +352,7 @@ static uint64_t sdma_v4_0_ring_get_rptr(struct amdgpu_ring *ring)
 	/* XXX check if swapping is necessary on BE */
 	rptr = ((u64 *)&ring->adev->wb.wb[ring->rptr_offs]);
 
-	DRM_DEBUG("rptr before shift == 0x%016llx\n", *rptr);
+	DRM_DE("rptr before shift == 0x%016llx\n", *rptr);
 	return ((*rptr) >> 2);
 }
 
@@ -371,12 +371,12 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
 		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
-		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
+		DRM_DE("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
 		wptr = RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR_HI);
 		wptr = wptr << 32;
 		wptr |= RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR);
-		DRM_DEBUG("wptr before shift [%i] wptr == 0x%016llx\n",
+		DRM_DE("wptr before shift [%i] wptr == 0x%016llx\n",
 				ring->me, wptr);
 	}
 
@@ -394,11 +394,11 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	DRM_DEBUG("Setting write pointer\n");
+	DRM_DE("Setting write pointer\n");
 	if (ring->use_doorbell) {
 		u64 *wb = (u64 *)&adev->wb.wb[ring->wptr_offs];
 
-		DRM_DEBUG("Using doorbell -- "
+		DRM_DE("Using doorbell -- "
 				"wptr_offs == 0x%08x "
 				"lower_32_bits(ring->wptr) << 2 == 0x%08x "
 				"upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
@@ -407,11 +407,11 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 				upper_32_bits(ring->wptr << 2));
 		/* XXX check if swapping is necessary on BE */
 		WRITE_ONCE(*wb, (ring->wptr << 2));
-		DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
+		DRM_DE("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
 				ring->doorbell_index, ring->wptr << 2);
 		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
 	} else {
-		DRM_DEBUG("Not using doorbell -- "
+		DRM_DE("Not using doorbell -- "
 				"mmSDMA%i_GFX_RB_WPTR == 0x%08x "
 				"mmSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
 				ring->me,
@@ -584,7 +584,7 @@ static void sdma_v4_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 	/* write the fence */
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_FENCE));
 	/* zero in first two bits */
-	BUG_ON(addr & 0x3);
+	_ON(addr & 0x3);
 	amdgpu_ring_write(ring, lower_32_bits(addr));
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
@@ -594,7 +594,7 @@ static void sdma_v4_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 se
 		addr += 4;
 		amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_FENCE));
 		/* zero in first two bits */
-		BUG_ON(addr & 0x3);
+		_ON(addr & 0x3);
 		amdgpu_ring_write(ring, lower_32_bits(addr));
 		amdgpu_ring_write(ring, upper_32_bits(addr));
 		amdgpu_ring_write(ring, upper_32_bits(seq));
@@ -1683,7 +1683,7 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 {
 	uint32_t instance;
 
-	DRM_DEBUG("IH: SDMA trap\n");
+	DRM_DE("IH: SDMA trap\n");
 	switch (entry->client_id) {
 	case SOC15_IH_CLIENTID_SDMA0:
 		instance = 0;

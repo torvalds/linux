@@ -660,7 +660,7 @@ static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 
 	data->policy = cpufreq_cpu_get(0);
 	if (!data->policy) {
-		pr_debug("%s: CPUFreq policy not found\n", __func__);
+		pr_de("%s: CPUFreq policy not found\n", __func__);
 		return -EPROBE_DEFER;
 	}
 

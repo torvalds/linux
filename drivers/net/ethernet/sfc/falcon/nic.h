@@ -94,7 +94,7 @@ static inline bool __ef4_nic_tx_is_empty(struct ef4_tx_queue *tx_queue,
 /* Decide whether to push a TX descriptor to the NIC vs merely writing
  * the doorbell.  This can reduce latency when we are adding a single
  * descriptor to an empty queue, but is otherwise pointless.  Further,
- * Falcon and Siena have hardware bugs (SF bug 33851) that may be
+ * Falcon and Siena have hardware s (SF  33851) that may be
  * triggered if we don't check this.
  * We use the write_count used for the last doorbell push, to get the
  * NIC's view of the tx queue.

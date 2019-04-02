@@ -1,5 +1,5 @@
 /*
- * OMAP Power Management debug routines
+ * OMAP Power Management de routines
  *
  * Copyright (C) 2005 Texas Instruments, Inc.
  * Copyright (C) 2006-2008 Nokia Corporation
@@ -39,8 +39,8 @@
 
 u32 enable_off_mode;
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 static int pm_dbg_init_done;
@@ -192,9 +192,9 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 	if (strncmp(pwrdm->name, "dpll", 4) == 0)
 		return 0;
 
-	d = debugfs_create_dir(pwrdm->name, (struct dentry *)dir);
+	d = defs_create_dir(pwrdm->name, (struct dentry *)dir);
 	if (d)
-		(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
+		(void) defs_create_file("suspend", S_IRUGO|S_IWUSR, d,
 			(void *)pwrdm, &pwrdm_suspend_fops);
 
 	return 0;
@@ -232,16 +232,16 @@ static int __init pm_dbg_init(void)
 	if (pm_dbg_init_done)
 		return 0;
 
-	d = debugfs_create_dir("pm_debug", NULL);
+	d = defs_create_dir("pm_de", NULL);
 	if (!d)
 		return -EINVAL;
 
-	(void) debugfs_create_file("count", 0444, d, NULL, &pm_dbg_counters_fops);
-	(void) debugfs_create_file("time", 0444, d, NULL, &pm_dbg_timers_fops);
+	(void) defs_create_file("count", 0444, d, NULL, &pm_dbg_counters_fops);
+	(void) defs_create_file("time", 0444, d, NULL, &pm_dbg_timers_fops);
 
 	pwrdm_for_each(pwrdms_setup, (void *)d);
 
-	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUSR, d,
+	(void) defs_create_file("enable_off_mode", S_IRUGO | S_IWUSR, d,
 				   &enable_off_mode, &pm_dbg_option_fops);
 	pm_dbg_init_done = 1;
 

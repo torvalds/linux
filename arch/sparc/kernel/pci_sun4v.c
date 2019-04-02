@@ -152,7 +152,7 @@ static inline long iommu_batch_add(u64 phys_page, u64 mask)
 {
 	struct iommu_batch *p = this_cpu_ptr(&iommu_batch);
 
-	BUG_ON(p->npages >= PGLIST_NENTS);
+	_ON(p->npages >= PGLIST_NENTS);
 
 	p->pglist[p->npages++] = phys_page;
 	if (p->npages == PGLIST_NENTS)
@@ -166,7 +166,7 @@ static inline long iommu_batch_end(u64 mask)
 {
 	struct iommu_batch *p = this_cpu_ptr(&iommu_batch);
 
-	BUG_ON(p->npages >= PGLIST_NENTS);
+	_ON(p->npages >= PGLIST_NENTS);
 
 	return iommu_batch_flush(p, mask);
 }
@@ -479,7 +479,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	unsigned long base_shift;
 	long err;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
 	if (nelems == 0 || !iommu)
@@ -632,7 +632,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	unsigned long iotsb_num;
 	u32 devhandle;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
 	pbm = dev->archdata.host_controller;

@@ -4,8 +4,8 @@
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
-   Please send bug reports and support requests to <luc@saillard.org>.
+   driver and thus may have s that are not present in the original version.
+   Please send  reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 

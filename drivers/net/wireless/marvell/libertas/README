@@ -57,10 +57,10 @@ Offset          Values
 0x0000          38 33 30 58 00 00 34 f4 00 00 10 00 00 c4 17 00
 
 ========================
-DEBUGFS COMMANDS
+DEFS COMMANDS
 ========================
 
-those commands are used via debugfs interface
+those commands are used via defs interface
 
 ===========
 rdmac
@@ -71,7 +71,7 @@ rdrf
 	location that is to be read.  This parameter must be specified in
 	hexadecimal (its possible to precede preceding the number with a "0x").
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/registers/
+	Path: /sys/kernel/de/libertas_wireless/ethX/registers/
 
 	Usage:
 		echo "0xa123" > rdmac ; cat rdmac
@@ -94,7 +94,7 @@ wrrf
 sleepparams
 	This command is used to set the sleepclock configurations
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/
+	Path: /sys/kernel/de/libertas_wireless/ethX/
 
 	Usage:
 		cat sleepparams: reads the current sleepclock configuration
@@ -107,14 +107,14 @@ sleepparams
 			p3 is Clock stabilization time in usec (0-65535)
 			p4 is Control periodic calibration (0-2)
 			p5 is Control the use of external sleep clock (0-2)
-			p6 is reserved for debug (0-65535)
+			p6 is reserved for de (0-65535)
 
 subscribed_events
 
 	The subscribed_events directory contains the interface for the
 	subscribed events API.
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/subscribed_events/
+	Path: /sys/kernel/de/libertas_wireless/ethX/subscribed_events/
 
 	Each event is represented by a filename. Each filename consists of the
 	following three fields:
@@ -164,7 +164,7 @@ subscribed_events
 extscan
 	This command is used to do a specific scan.
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/
+	Path: /sys/kernel/de/libertas_wireless/ethX/
 
 	Usage: echo "SSID" > extscan
 
@@ -178,7 +178,7 @@ getscantable
 	Display the current contents of the driver scan table (ie. get the
 	scan results).
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/
+	Path: /sys/kernel/de/libertas_wireless/ethX/
 
 	Usage:
 		cat getscantable
@@ -187,7 +187,7 @@ setuserscan
 	Initiate a customized scan and retrieve the results
 
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/
+	Path: /sys/kernel/de/libertas_wireless/ethX/
 
     Usage:
        echo "[ARGS]" > setuserscan
@@ -230,7 +230,7 @@ hostsleep
 	Note: Host sleep parameters should be configured using
 	"ethtool -s ethX wol X" command before enabling host sleep.
 
-	Path: /sys/kernel/debug/libertas_wireless/ethX/
+	Path: /sys/kernel/de/libertas_wireless/ethX/
 
 	Usage:
 		cat hostsleep: reads the current hostsleep state

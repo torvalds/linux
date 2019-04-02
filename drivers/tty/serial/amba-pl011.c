@@ -977,7 +977,7 @@ static void pl011_dma_rx_irq(struct uart_amba_port *uap)
 	uap->dmarx.running = false;
 
 	pending = sgbuf->sg.length - state.residue;
-	BUG_ON(pending > PL011_DMA_BUFFER_SIZE);
+	_ON(pending > PL011_DMA_BUFFER_SIZE);
 	/* Then we terminate the transfer - we now know our residue */
 	dmaengine_terminate_all(rxchan);
 
@@ -1023,7 +1023,7 @@ static void pl011_dma_rx_callback(void *data)
 	 */
 	rxchan->device->device_tx_status(rxchan, dmarx->cookie, &state);
 	pending = sgbuf->sg.length - state.residue;
-	BUG_ON(pending > PL011_DMA_BUFFER_SIZE);
+	_ON(pending > PL011_DMA_BUFFER_SIZE);
 	/* Then we terminate the transfer - we now know our residue */
 	dmaengine_terminate_all(rxchan);
 
@@ -1627,7 +1627,7 @@ static int pl011_get_poll_char(struct uart_port *port)
 
 	/*
 	 * The caller might need IRQs lowered, e.g. if used with KDB NMI
-	 * debugger.
+	 * deger.
 	 */
 	pl011_quiesce_irqs(port);
 

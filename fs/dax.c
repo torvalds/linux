@@ -274,12 +274,12 @@ static void dax_unlock_entry(struct xa_state *xas, void *entry)
 {
 	void *old;
 
-	BUG_ON(dax_is_locked(entry));
+	_ON(dax_is_locked(entry));
 	xas_reset(xas);
 	xas_lock_irq(xas);
 	old = xas_store(xas, entry);
 	xas_unlock_irq(xas);
-	BUG_ON(!dax_is_locked(old));
+	_ON(!dax_is_locked(old));
 	dax_wake_entry(xas, entry, false);
 }
 
@@ -762,7 +762,7 @@ unsigned long pgoff_address(pgoff_t pgoff, struct vm_area_struct *vma)
 	unsigned long address;
 
 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+	VM__ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
 	return address;
 }
 

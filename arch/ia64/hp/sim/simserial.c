@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
@@ -36,7 +36,7 @@
 
 #include "hpsim_ssc.h"
 
-#undef SIMSERIAL_DEBUG	/* define this to get some debug information */
+#undef SIMSERIAL_DE	/* define this to get some de information */
 
 #define KEYBOARD_INTR	3	/* must match with simulator! */
 
@@ -145,7 +145,7 @@ static void transmit_chars(struct tty_struct *tty, struct serial_state *info,
 	}
 
 	if (info->xmit.head == info->xmit.tail || tty->stopped) {
-#ifdef SIMSERIAL_DEBUG
+#ifdef SIMSERIAL_DE
 		printk("transmit_chars: head=%d, tail=%d, stopped=%d\n",
 		       info->xmit.head, info->xmit.tail, tty->stopped);
 #endif

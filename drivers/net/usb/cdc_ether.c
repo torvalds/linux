@@ -17,7 +17,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
@@ -137,7 +137,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev_dbg(&intf->dev, "CDC descriptors on config\n");
 	}
 
-	/* Maybe CDC descriptors are after the endpoint?  This bug has
+	/* Maybe CDC descriptors are after the endpoint?  This  has
 	 * been seen on some 2Wire Inc RNDIS-ish products.
 	 */
 	if (len == 0) {
@@ -436,7 +436,7 @@ int usbnet_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	int				status;
 	struct cdc_state		*info = (void *) &dev->data;
 
-	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data)
+	BUILD__ON((sizeof(((struct usbnet *)0)->data)
 			< sizeof(struct cdc_state)));
 
 	status = usbnet_ether_cdc_bind(dev, intf);
@@ -466,7 +466,7 @@ static int usbnet_cdc_zte_bind(struct usbnet *dev, struct usb_interface *intf)
 
 /* Make sure packets have correct destination MAC address
  *
- * A firmware bug observed on some devices (ZTE MF823/831/910) is that the
+ * A firmware  observed on some devices (ZTE MF823/831/910) is that the
  * device sends packets with a static, bogus, random MAC address (event if
  * device MAC address has been updated). Always set MAC address to that of the
  * device.
@@ -867,7 +867,7 @@ static const struct usb_device_id	products[] = {
  * CDC ether.
  *
  * NOTE:  this match must come AFTER entries blacklisting devices
- * because of bugs/quirks in a given product (like Zaurus, above).
+ * because of s/quirks in a given product (like Zaurus, above).
  */
 {
 	/* ZTE (Vodafone) K3805-Z */

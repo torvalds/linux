@@ -378,7 +378,7 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 	src_nents = sg_nents_for_len(req->src, req->nbytes);
 	dst_nents = sg_nents(req->dst);
 
-	pr_debug("virtio_crypto: Number of sgs (src_nents: %d, dst_nents: %d)\n",
+	pr_de("virtio_crypto: Number of sgs (src_nents: %d, dst_nents: %d)\n",
 			src_nents, dst_nents);
 
 	/* Why 3?  outhdr + iv + inhdr */
@@ -421,7 +421,7 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 		goto free;
 	}
 
-	pr_debug("virtio_crypto: src_len: %u, dst_len: %llu\n",
+	pr_de("virtio_crypto: src_len: %u, dst_len: %llu\n",
 			req->nbytes, dst_len);
 
 	if (unlikely(req->nbytes + dst_len + ivsize +

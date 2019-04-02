@@ -461,7 +461,7 @@ static inline void ip_select_ident_segs(struct net *net, struct sk_buff *skb,
 	struct iphdr *iph = ip_hdr(skb);
 
 	if ((iph->frag_off & htons(IP_DF)) && !skb->ignore_df) {
-		/* This is only to work around buggy Windows95/2000
+		/* This is only to work around gy Windows95/2000
 		 * VJ compression implementations.  If the ID field
 		 * does not change, they drop every other packet in
 		 * a TCP stream using header compression.
@@ -496,7 +496,7 @@ static inline __wsum inet_compute_pseudo(struct sk_buff *skb, int proto)
 static inline void iph_to_flow_copy_v4addrs(struct flow_keys *flow,
 					    const struct iphdr *iph)
 {
-	BUILD_BUG_ON(offsetof(typeof(flow->addrs), v4addrs.dst) !=
+	BUILD__ON(offsetof(typeof(flow->addrs), v4addrs.dst) !=
 		     offsetof(typeof(flow->addrs), v4addrs.src) +
 			      sizeof(flow->addrs.v4addrs.src));
 	memcpy(&flow->addrs.v4addrs, &iph->saddr, sizeof(flow->addrs.v4addrs));

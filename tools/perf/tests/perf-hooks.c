@@ -3,13 +3,13 @@
 #include <stdlib.h>
 
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 #include "perf-hooks.h"
 
 static void sigsegv_handler(int sig __maybe_unused)
 {
-	pr_debug("SIGSEGV is observed as expected, try to recover.\n");
+	pr_de("SIGSEGV is observed as expected, try to recover.\n");
 	perf_hooks__recover();
 	signal(SIGSEGV, SIG_DFL);
 	raise(SIGSEGV);
@@ -38,11 +38,11 @@ int test__perf_hooks(struct test *test __maybe_unused, int subtest __maybe_unuse
 
 	/* hook is triggered? */
 	if (hook_flags != 1234) {
-		pr_debug("Setting failed: %d (%p)\n", hook_flags, &hook_flags);
+		pr_de("Setting failed: %d (%p)\n", hook_flags, &hook_flags);
 		return TEST_FAIL;
 	}
 
-	/* the buggy hook is removed? */
+	/* the gy hook is removed? */
 	if (perf_hooks__get_hook("test"))
 		return TEST_FAIL;
 	return TEST_OK;

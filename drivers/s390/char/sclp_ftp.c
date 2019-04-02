@@ -36,8 +36,8 @@ static void sclp_ftp_txcb(struct sclp_req *req, void *data)
 {
 	struct completion *completion = data;
 
-#ifdef DEBUG
-	pr_debug("SCLP (ET7) TX-IRQ, SCCB @ 0x%p: %*phN\n",
+#ifdef DE
+	pr_de("SCLP (ET7) TX-IRQ, SCCB @ 0x%p: %*phN\n",
 		 req->sccb, 24, req->sccb);
 #endif
 	complete(completion);
@@ -59,8 +59,8 @@ static void sclp_ftp_rxcb(struct evbuf_header *evbuf)
 	    evbuf->length < SCLP_DIAG_FTP_EVBUF_LEN)
 		return;
 
-#ifdef DEBUG
-	pr_debug("SCLP (ET7) RX-IRQ, Event @ 0x%p: %*phN\n",
+#ifdef DE
+	pr_de("SCLP (ET7) RX-IRQ, Event @ 0x%p: %*phN\n",
 		 evbuf, 24, evbuf);
 #endif
 
@@ -136,8 +136,8 @@ static int sclp_ftp_et7(const struct hmcdrv_ftp_cmdspec *ftp)
 	/* Wait for end of ftp sclp command. */
 	wait_for_completion(&completion);
 
-#ifdef DEBUG
-	pr_debug("status of SCLP (ET7) request is 0x%04x (0x%02x)\n",
+#ifdef DE
+	pr_de("status of SCLP (ET7) request is 0x%04x (0x%02x)\n",
 		 sccb->hdr.response_code, sccb->evbuf.hdr.flags);
 #endif
 
@@ -171,10 +171,10 @@ out_free:
 ssize_t sclp_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 {
 	ssize_t len;
-#ifdef DEBUG
+#ifdef DE
 	unsigned long start_jiffies;
 
-	pr_debug("starting SCLP (ET7), cmd %d for '%s' at %lld with %zd bytes\n",
+	pr_de("starting SCLP (ET7), cmd %d for '%s' at %lld with %zd bytes\n",
 		 ftp->id, ftp->fname, (long long) ftp->ofs, ftp->len);
 	start_jiffies = jiffies;
 #endif
@@ -192,10 +192,10 @@ ssize_t sclp_ftp_cmd(const struct hmcdrv_ftp_cmdspec *ftp, size_t *fsize)
 	 */
 	wait_for_completion(&sclp_ftp_rx_complete);
 
-#ifdef DEBUG
-	pr_debug("completed SCLP (ET7) request after %lu ms (all)\n",
+#ifdef DE
+	pr_de("completed SCLP (ET7) request after %lu ms (all)\n",
 		 (jiffies - start_jiffies) * 1000 / HZ);
-	pr_debug("return code of SCLP (ET7) FTP Service is 0x%02x, with %lld/%lld bytes\n",
+	pr_de("return code of SCLP (ET7) FTP Service is 0x%02x, with %lld/%lld bytes\n",
 		 sclp_ftp_ldflg, sclp_ftp_length, sclp_ftp_fsize);
 #endif
 
@@ -239,7 +239,7 @@ static struct sclp_register sclp_ftp_event = {
  */
 int sclp_ftp_startup(void)
 {
-#ifdef DEBUG
+#ifdef DE
 	unsigned long info;
 #endif
 	int rc;
@@ -248,7 +248,7 @@ int sclp_ftp_startup(void)
 	if (rc)
 		return rc;
 
-#ifdef DEBUG
+#ifdef DE
 	info = get_zeroed_page(GFP_KERNEL);
 
 	if (info != 0) {
@@ -257,13 +257,13 @@ int sclp_ftp_startup(void)
 		if (!stsi(info222, 2, 2, 2)) { /* get SYSIB 2.2.2 */
 			info222->name[sizeof(info222->name) - 1] = '\0';
 			EBCASC_500(info222->name, sizeof(info222->name) - 1);
-			pr_debug("SCLP (ET7) FTP Service working on LPAR %u (%s)\n",
+			pr_de("SCLP (ET7) FTP Service working on LPAR %u (%s)\n",
 				 info222->lpar_number, info222->name);
 		}
 
 		free_page(info);
 	}
-#endif	/* DEBUG */
+#endif	/* DE */
 	return 0;
 }
 

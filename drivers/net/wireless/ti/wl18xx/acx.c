@@ -20,7 +20,7 @@
  */
 
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/acx.h"
 
 #include "acx.h"
@@ -33,7 +33,7 @@ int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 	struct wl18xx_acx_host_config_bitmap *bitmap_conf;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx cfg bitmap %d blk %d spare %d field %d",
+	wl1271_de(DE_ACX, "acx cfg bitmap %d blk %d spare %d field %d",
 		     host_cfg_bitmap, sdio_blk_size, extra_mem_blks,
 		     len_field_size);
 
@@ -66,7 +66,7 @@ int wl18xx_acx_set_checksum_state(struct wl1271 *wl)
 	struct wl18xx_acx_checksum_state *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx checksum state");
+	wl1271_de(DE_ACX, "acx checksum state");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -92,7 +92,7 @@ int wl18xx_acx_clear_statistics(struct wl1271 *wl)
 	struct wl18xx_acx_clear_statistics *acx;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx clear statistics");
+	wl1271_de(DE_ACX, "acx clear statistics");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -116,7 +116,7 @@ int wl18xx_acx_peer_ht_operation_mode(struct wl1271 *wl, u8 hlid, bool wide)
 	struct wlcore_peer_ht_operation_mode *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx peer ht operation mode hlid %d bw %d",
+	wl1271_de(DE_ACX, "acx peer ht operation mode hlid %d bw %d",
 		     hlid, wide);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
@@ -156,7 +156,7 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 	int ret = 0;
 	u32 ht_capabilites = 0;
 
-	wl1271_debug(DEBUG_ACX,
+	wl1271_de(DE_ACX,
 		     "acx set cap ht_supp: %d ht_cap: %d rates: 0x%x",
 		     ht_cap->ht_supported, ht_cap->cap, rate_set);
 
@@ -259,7 +259,7 @@ int wl18xx_acx_ap_sleep(struct wl1271 *wl)
 	struct conf_ap_sleep_settings *conf = &priv->conf.ap_sleep;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx config ap sleep");
+	wl1271_de(DE_ACX, "acx config ap sleep");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -288,7 +288,7 @@ int wl18xx_acx_dynamic_fw_traces(struct wl1271 *wl)
 	struct acx_dynamic_fw_traces_cfg *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx dynamic fw traces config %d",
+	wl1271_de(DE_ACX, "acx dynamic fw traces config %d",
 		     wl->dynamic_fw_traces);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
@@ -315,7 +315,7 @@ int wl18xx_acx_time_sync_cfg(struct wl1271 *wl)
 	struct acx_time_sync_cfg *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx time sync cfg: mode %d, addr: %pM",
+	wl1271_de(DE_ACX, "acx time sync cfg: mode %d, addr: %pM",
 		     wl->conf.sg.params[WL18XX_CONF_SG_TIME_SYNC],
 		     wl->zone_master_mac_addr);
 

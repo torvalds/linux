@@ -34,7 +34,7 @@ PMU_FORMAT_ATTR(name, #attr_var ":" #bit_start "-" #bit_end);
 #define EVENT_DEFINE_RANGE(name, attr_var, bit_start, bit_end)	\
 static u64 event_get_##name##_max(void)					\
 {									\
-	BUILD_BUG_ON((bit_start > bit_end)				\
+	BUILD__ON((bit_start > bit_end)				\
 		    || (bit_end >= (sizeof(1ull) * 8)));		\
 	return (((1ull << (bit_end - bit_start)) - 1) << 1) + 1;	\
 }									\

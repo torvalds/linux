@@ -1715,7 +1715,7 @@ bna_ioceth_init(struct bna_ioceth *ioceth, struct bna *bna,
 	bfa_nw_ioc_mem_claim(&ioceth->ioc, kva, dma);
 
 	kva = res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.mdl[0].kva;
-	bfa_nw_ioc_debug_memclaim(&ioceth->ioc, kva);
+	bfa_nw_ioc_de_memclaim(&ioceth->ioc, kva);
 
 	/**
 	 * Attach common modules (Diag, SFP, CEE, Port) and claim respective

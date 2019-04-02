@@ -130,7 +130,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	int i, ret, total_len = len;
 
 	if (!IS_ALIGNED(pa, DDE_BUFFER_ALIGN)) {
-		pr_debug("%s buffer pa 0x%lx not 0x%x-byte aligned\n",
+		pr_de("%s buffer pa 0x%lx not 0x%x-byte aligned\n",
 			 in ? "input" : "output", pa, DDE_BUFFER_ALIGN);
 		return -EINVAL;
 	}
@@ -141,7 +141,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	 * are guaranteed a multiple of DDE_BUFFER_SIZE_MULT.
 	 */
 	if (len % DDE_BUFFER_LAST_MULT) {
-		pr_debug("%s buffer len 0x%x not a multiple of 0x%x\n",
+		pr_de("%s buffer len 0x%x not a multiple of 0x%x\n",
 			 in ? "input" : "output", len, DDE_BUFFER_LAST_MULT);
 		if (in)
 			return -EINVAL;
@@ -164,7 +164,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	}
 
 	if (len > 0) {
-		pr_debug("0x%x total %s bytes 0x%x too many for DDL.\n",
+		pr_de("0x%x total %s bytes 0x%x too many for DDL.\n",
 			 total_len, in ? "input" : "output", len);
 		if (in)
 			return -EMSGSIZE;
@@ -385,7 +385,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	}
 
 	/* successful completion */
-	pr_debug_ratelimited("Processed %u bytes in %lu us\n",
+	pr_de_ratelimited("Processed %u bytes in %lu us\n",
 			     be32_to_cpu(csb->count),
 			     (unsigned long)ktime_us_delta(now, start));
 
@@ -496,7 +496,7 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
 	/* do ICSWX */
 	ret = icswx(cpu_to_be32(ccw), crb);
 
-	pr_debug_ratelimited("icswx CR %x ccw %x crb->ccw %x\n", ret,
+	pr_de_ratelimited("icswx CR %x ccw %x crb->ccw %x\n", ret,
 			     (unsigned int)ccw,
 			     (unsigned int)be32_to_cpu(crb->ccw));
 
@@ -513,7 +513,7 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
 		ret = wait_for_csb(wmem, csb);
 		break;
 	case ICSWX_BUSY:
-		pr_debug_ratelimited("842 Coprocessor busy\n");
+		pr_de_ratelimited("842 Coprocessor busy\n");
 		ret = -EBUSY;
 		break;
 	case ICSWX_REJECTED:
@@ -1015,13 +1015,13 @@ static __init int nx842_powernv_init(void)
 	int ret;
 
 	/* verify workmem size/align restrictions */
-	BUILD_BUG_ON(WORKMEM_ALIGN % CRB_ALIGN);
-	BUILD_BUG_ON(CRB_ALIGN % DDE_ALIGN);
-	BUILD_BUG_ON(CRB_SIZE % DDE_ALIGN);
+	BUILD__ON(WORKMEM_ALIGN % CRB_ALIGN);
+	BUILD__ON(CRB_ALIGN % DDE_ALIGN);
+	BUILD__ON(CRB_SIZE % DDE_ALIGN);
 	/* verify buffer size/align restrictions */
-	BUILD_BUG_ON(PAGE_SIZE % DDE_BUFFER_ALIGN);
-	BUILD_BUG_ON(DDE_BUFFER_ALIGN % DDE_BUFFER_SIZE_MULT);
-	BUILD_BUG_ON(DDE_BUFFER_SIZE_MULT % DDE_BUFFER_LAST_MULT);
+	BUILD__ON(PAGE_SIZE % DDE_BUFFER_ALIGN);
+	BUILD__ON(DDE_BUFFER_ALIGN % DDE_BUFFER_SIZE_MULT);
+	BUILD__ON(DDE_BUFFER_SIZE_MULT % DDE_BUFFER_LAST_MULT);
 
 	for_each_compatible_node(dn, NULL, "ibm,power9-nx") {
 		ret = nx842_powernv_probe_vas(dn);

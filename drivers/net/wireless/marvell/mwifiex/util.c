@@ -25,9 +25,9 @@
 #include "wmm.h"
 #include "11n.h"
 
-static struct mwifiex_debug_data items[] = {
-	{"debug_mask", item_size(debug_mask),
-	 item_addr(debug_mask), 1},
+static struct mwifiex_de_data items[] = {
+	{"de_mask", item_size(de_mask),
+	 item_addr(de_mask), 1},
 	{"int_counter", item_size(int_counter),
 	 item_addr(int_counter), 1},
 	{"wmm_ac_vo", item_size(packets_out[WMM_AC_VO]),
@@ -169,18 +169,18 @@ int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 EXPORT_SYMBOL_GPL(mwifiex_init_shutdown_fw);
 
 /*
- * IOCTL request handler to set/get debug information.
+ * IOCTL request handler to set/get de information.
  *
  * This function collates/sets the information from/to different driver
  * structures.
  */
-int mwifiex_get_debug_info(struct mwifiex_private *priv,
-			   struct mwifiex_debug_info *info)
+int mwifiex_get_de_info(struct mwifiex_private *priv,
+			   struct mwifiex_de_info *info)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (info) {
-		info->debug_mask = adapter->debug_mask;
+		info->de_mask = adapter->de_mask;
 		memcpy(info->packets_out,
 		       priv->wmm.packets_out,
 		       sizeof(priv->wmm.packets_out));
@@ -248,11 +248,11 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 	return 0;
 }
 
-int mwifiex_debug_info_to_buffer(struct mwifiex_private *priv, char *buf,
-				 struct mwifiex_debug_info *info)
+int mwifiex_de_info_to_buffer(struct mwifiex_private *priv, char *buf,
+				 struct mwifiex_de_info *info)
 {
 	char *p = buf;
-	struct mwifiex_debug_data *d = &items[0];
+	struct mwifiex_de_data *d = &items[0];
 	size_t size, addr;
 	long val;
 	int i, j;

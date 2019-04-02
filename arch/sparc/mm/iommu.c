@@ -296,7 +296,7 @@ static void iommu_release_one(struct device *dev, u32 busa, int npages)
 	int ioptex;
 	int i;
 
-	BUG_ON(busa < iommu->start);
+	_ON(busa < iommu->start);
 	ioptex = (busa - iommu->start) >> PAGE_SHIFT;
 	for (i = 0; i < npages; i++) {
 		iopte_val(iommu->page_table[ioptex + i]) = 0;
@@ -352,9 +352,9 @@ static void *sbus_iommu_alloc(struct device *dev, size_t len,
 	if (!addr)
 		goto out_free_pages;
 
-	BUG_ON((va & ~PAGE_MASK) != 0);
-	BUG_ON((addr & ~PAGE_MASK) != 0);
-	BUG_ON((len & ~PAGE_MASK) != 0);
+	_ON((va & ~PAGE_MASK) != 0);
+	_ON((addr & ~PAGE_MASK) != 0);
+	_ON((len & ~PAGE_MASK) != 0);
 
 	/* page color = physical address */
 	ioptex = bit_map_string_get(&iommu->usemap, len >> PAGE_SHIFT,
@@ -426,8 +426,8 @@ static void sbus_iommu_free(struct device *dev, size_t len, void *cpu_addr,
 	if (!sparc_dma_free_resource(cpu_addr, len))
 		return;
 
-	BUG_ON((busa & ~PAGE_MASK) != 0);
-	BUG_ON((len & ~PAGE_MASK) != 0);
+	_ON((busa & ~PAGE_MASK) != 0);
+	_ON((len & ~PAGE_MASK) != 0);
 
 	iopte += ioptex;
 	end = busa + len;

@@ -19,7 +19,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <asm/registers.h>
 #include <linux/irq.h>
 #include <linux/hardirq.h>

@@ -22,8 +22,8 @@
  *    	    Find out how to get Chassis warnings out of PAT boxes?
  */
 
-#undef PDC_CHASSIS_DEBUG
-#ifdef PDC_CHASSIS_DEBUG
+#undef PDC_CHASSIS_DE
+#ifdef PDC_CHASSIS_DE
 #define DPRINTK(fmt, args...)	printk(fmt, ## args)
 #else
 #define DPRINTK(fmt, args...)
@@ -85,7 +85,7 @@ static void __init pdc_chassis_checkold(void)
 		default:
 			break;
 	}
-	DPRINTK(KERN_DEBUG "%s: pdc_chassis_checkold(); pdc_chassis_old = %d\n", __FILE__, pdc_chassis_old);
+	DPRINTK(KERN_DE "%s: pdc_chassis_checkold(); pdc_chassis_old = %d\n", __FILE__, pdc_chassis_old);
 }
 #endif
 
@@ -138,7 +138,7 @@ void __init parisc_pdc_chassis_init(void)
 {
 #ifdef CONFIG_PDC_CHASSIS
 	if (likely(pdc_chassis_enabled)) {
-		DPRINTK(KERN_DEBUG "%s: parisc_pdc_chassis_init()\n", __FILE__);
+		DPRINTK(KERN_DE "%s: parisc_pdc_chassis_init()\n", __FILE__);
 
 		/* Let see if we have something to handle... */
 		printk(KERN_INFO "Enabling %s chassis codes support v%s\n",
@@ -177,7 +177,7 @@ int pdc_chassis_send_status(int message)
 #ifdef CONFIG_PDC_CHASSIS
 	if (likely(pdc_chassis_enabled)) {
 
-		DPRINTK(KERN_DEBUG "%s: pdc_chassis_send_status(%d)\n", __FILE__, message);
+		DPRINTK(KERN_DE "%s: pdc_chassis_send_status(%d)\n", __FILE__, message);
 
 #ifdef CONFIG_64BIT
 		if (is_pdc_pat()) {

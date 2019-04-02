@@ -28,13 +28,13 @@ static unsigned long anslcd_long_delay = 3280;
 static volatile unsigned char __iomem *anslcd_ptr;
 static DEFINE_MUTEX(anslcd_mutex);
 
-#undef DEBUG
+#undef DE
 
 static void
 anslcd_write_byte_ctrl ( unsigned char c )
 {
-#ifdef DEBUG
-	printk(KERN_DEBUG "LCD: CTRL byte: %02x\n",c);
+#ifdef DE
+	printk(KERN_DE "LCD: CTRL byte: %02x\n",c);
 #endif
 	out_8(anslcd_ptr + ANSLCD_CTRL_IX, c);
 	switch(c) {
@@ -60,8 +60,8 @@ anslcd_write( struct file * file, const char __user * buf,
 	const char __user *p = buf;
 	int i;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "LCD: write\n");
+#ifdef DE
+	printk(KERN_DE "LCD: write\n");
 #endif
 
 	if (!access_ok(buf, count))
@@ -85,8 +85,8 @@ anslcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	char ch, __user *temp;
 	long ret = 0;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "LCD: ioctl(%d,%d)\n",cmd,arg);
+#ifdef DE
+	printk(KERN_DE "LCD: ioctl(%d,%d)\n",cmd,arg);
 #endif
 
 	mutex_lock(&anslcd_mutex);
@@ -175,8 +175,8 @@ anslcd_init(void)
 		return retval;
 	}
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "LCD: init\n");
+#ifdef DE
+	printk(KERN_DE "LCD: init\n");
 #endif
 
 	mutex_lock(&anslcd_mutex);

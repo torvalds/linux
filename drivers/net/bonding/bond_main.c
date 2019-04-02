@@ -245,7 +245,7 @@ void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 {
 	skb->dev = slave_dev;
 
-	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
+	BUILD__ON(sizeof(skb->queue_mapping) !=
 		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
 	skb_set_queue_mapping(skb, qdisc_skb_cb(skb)->slave_dev_queue_mapping);
 
@@ -3064,7 +3064,7 @@ static int bond_event_changename(struct bonding *bond)
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
 
-	bond_debug_reregister(bond);
+	bond_de_reregister(bond);
 
 	return NOTIFY_DONE;
 }
@@ -3967,7 +3967,7 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 		struct ad_info ad_info;
 
 		if (bond_3ad_get_active_agg_info(bond, &ad_info)) {
-			pr_debug("bond_3ad_get_active_agg_info failed\n");
+			pr_de("bond_3ad_get_active_agg_info failed\n");
 			kfree_rcu(new_arr, rcu);
 			/* No active aggragator means it's not safe to use
 			 * the previous array.
@@ -4345,7 +4345,7 @@ static void bond_uninit(struct net_device *bond_dev)
 
 	list_del(&bond->bond_list);
 
-	bond_debug_unregister(bond);
+	bond_de_unregister(bond);
 }
 
 /*------------------------- Module initialization ---------------------------*/
@@ -4615,7 +4615,7 @@ static int bond_check_params(struct bond_params *params)
 		/* miimon and arp_interval not set, we need one so things
 		 * work as expected, see bonding.txt for details
 		 */
-		pr_debug("Warning: either miimon or arp_interval and arp_ip_target module parameters must be specified, otherwise bonding will not detect link failures! see bonding.txt for details\n");
+		pr_de("Warning: either miimon or arp_interval and arp_ip_target module parameters must be specified, otherwise bonding will not detect link failures! see bonding.txt for details\n");
 	}
 
 	if (primary && !bond_mode_uses_primary(bond_mode)) {
@@ -4754,7 +4754,7 @@ static int bond_init(struct net_device *bond_dev)
 
 	bond_prepare_sysfs_group(bond);
 
-	bond_debug_register(bond);
+	bond_de_register(bond);
 
 	/* Ensure valid dev_addr */
 	if (is_zero_ether_addr(bond_dev->dev_addr) &&
@@ -4872,7 +4872,7 @@ static int __init bonding_init(void)
 	if (res)
 		goto err_link;
 
-	bond_create_debugfs();
+	bond_create_defs();
 
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(&init_net, NULL);
@@ -4884,7 +4884,7 @@ static int __init bonding_init(void)
 out:
 	return res;
 err:
-	bond_destroy_debugfs();
+	bond_destroy_defs();
 	bond_netlink_fini();
 err_link:
 	unregister_pernet_subsys(&bond_net_ops);
@@ -4896,7 +4896,7 @@ static void __exit bonding_exit(void)
 {
 	unregister_netdevice_notifier(&bond_netdev_notifier);
 
-	bond_destroy_debugfs();
+	bond_destroy_defs();
 
 	bond_netlink_fini();
 	unregister_pernet_subsys(&bond_net_ops);

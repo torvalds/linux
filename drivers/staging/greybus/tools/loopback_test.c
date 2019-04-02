@@ -71,13 +71,13 @@ struct loopback_results {
 struct loopback_device {
 	char name[MAX_SYSFS_PATH];
 	char sysfs_entry[MAX_SYSFS_PATH];
-	char debugfs_entry[MAX_SYSFS_PATH];
+	char defs_entry[MAX_SYSFS_PATH];
 	struct loopback_results results;
 };
 
 struct loopback_test {
 	int verbose;
-	int debug;
+	int de;
 	int raw_data_dump;
 	int porcelain;
 	int mask;
@@ -96,7 +96,7 @@ struct loopback_test {
 	int poll_count;
 	char test_name[MAX_STR_LEN];
 	char sysfs_prefix[MAX_SYSFS_PATH];
-	char debugfs_prefix[MAX_SYSFS_PATH];
+	char defs_prefix[MAX_SYSFS_PATH];
 	struct timespec poll_timeout;
 	struct loopback_device devices[MAX_NUM_DEVICES];
 	struct loopback_results aggregate_results;
@@ -186,19 +186,19 @@ void usage(void)
 	"             without logging any metrics data\n"
 	"  SYSPATH indicates the sysfs path for the loopback greybus entries e.g.\n"
 	"          /sys/bus/greybus/devices\n"
-	"  DBGPATH indicates the debugfs path for the loopback greybus entries e.g.\n"
-	"          /sys/kernel/debug/gb_loopback/\n"
+	"  DBGPATH indicates the defs path for the loopback greybus entries e.g.\n"
+	"          /sys/kernel/de/gb_loopback/\n"
 	" Mandatory arguments\n"
 	"   -t     must be one of the test names - sink, transfer or ping\n"
 	"   -i     iteration count - the number of iterations to run the test over\n"
 	" Optional arguments\n"
 	"   -S     sysfs location - location for greybus 'endo' entries default /sys/bus/greybus/devices/\n"
-	"   -D     debugfs location - location for loopback debugfs entries default /sys/kernel/debug/gb_loopback/\n"
+	"   -D     defs location - location for loopback defs entries default /sys/kernel/de/gb_loopback/\n"
 	"   -s     size of data packet to send during test - defaults to zero\n"
 	"   -m     mask - a bit mask of connections to include example: -m 8 = 4th connection -m 9 = 1st and 4th connection etc\n"
 	"                 default is zero which means broadcast to all connections\n"
 	"   -v     verbose output\n"
-	"   -d     debug output\n"
+	"   -d     de output\n"
 	"   -r     raw data output - when specified the full list of latency values are included in the output CSV\n"
 	"   -p     porcelain - when specified printout is in a user-friendly non-CSV format. This option suppresses writing to CSV file\n"
 	"   -a     aggregate - show aggregation of all enabled devices\n"
@@ -212,12 +212,12 @@ void usage(void)
 	"   -f     When starting new loopback test, stop currently running tests on all devices\n"
 	"Examples:\n"
 	"  Send 10000 transfers with a packet size of 128 bytes to all active connections\n"
-	"  loopback_test -t transfer -s 128 -i 10000 -S /sys/bus/greybus/devices/ -D /sys/kernel/debug/gb_loopback/\n"
+	"  loopback_test -t transfer -s 128 -i 10000 -S /sys/bus/greybus/devices/ -D /sys/kernel/de/gb_loopback/\n"
 	"  loopback_test -t transfer -s 128 -i 10000 -m 0\n"
 	"  Send 10000 transfers with a packet size of 128 bytes to connection 1 and 4\n"
 	"  loopback_test -t transfer -s 128 -i 10000 -m 9\n"
-	"  loopback_test -t ping -s 0 128 -i -S /sys/bus/greybus/devices/ -D /sys/kernel/debug/gb_loopback/\n"
-	"  loopback_test -t sink -s 2030 -i 32768 -S /sys/bus/greybus/devices/ -D /sys/kernel/debug/gb_loopback/\n");
+	"  loopback_test -t ping -s 0 128 -i -S /sys/bus/greybus/devices/ -D /sys/kernel/de/gb_loopback/\n"
+	"  loopback_test -t sink -s 2030 -i 32768 -S /sys/bus/greybus/devices/ -D /sys/kernel/de/gb_loopback/\n");
 	abort();
 }
 
@@ -626,11 +626,11 @@ int find_loopback_devices(struct loopback_test *t)
 		snprintf(d->sysfs_entry, MAX_SYSFS_PATH, "%s%s/",
 			 t->sysfs_prefix, d->name);
 
-		snprintf(d->debugfs_entry, MAX_SYSFS_PATH, "%sraw_latency_%s",
-			 t->debugfs_prefix, d->name);
+		snprintf(d->defs_entry, MAX_SYSFS_PATH, "%sraw_latency_%s",
+			 t->defs_prefix, d->name);
 
-		if (t->debug)
-			printf("add %s %s\n", d->sysfs_entry, d->debugfs_entry);
+		if (t->de)
+			printf("add %s %s\n", d->sysfs_entry, d->defs_entry);
 	}
 
 	ret = 0;
@@ -898,7 +898,7 @@ int main(int argc, char *argv[])
 {
 	int o, ret;
 	char *sysfs_prefix = "/sys/class/gb_loopback/";
-	char *debugfs_prefix = "/sys/kernel/debug/gb_loopback/";
+	char *defs_prefix = "/sys/kernel/de/gb_loopback/";
 
 	memset(&t, 0, sizeof(t));
 
@@ -918,7 +918,7 @@ int main(int argc, char *argv[])
 			snprintf(t.sysfs_prefix, MAX_SYSFS_PATH, "%s", optarg);
 			break;
 		case 'D':
-			snprintf(t.debugfs_prefix, MAX_SYSFS_PATH, "%s", optarg);
+			snprintf(t.defs_prefix, MAX_SYSFS_PATH, "%s", optarg);
 			break;
 		case 'm':
 			t.mask = atol(optarg);
@@ -927,7 +927,7 @@ int main(int argc, char *argv[])
 			t.verbose = 1;
 			break;
 		case 'd':
-			t.debug = 1;
+			t.de = 1;
 			break;
 		case 'r':
 			t.raw_data_dump = 1;
@@ -971,8 +971,8 @@ int main(int argc, char *argv[])
 	if (!strcmp(t.sysfs_prefix, ""))
 		snprintf(t.sysfs_prefix, MAX_SYSFS_PATH, "%s", sysfs_prefix);
 
-	if (!strcmp(t.debugfs_prefix, ""))
-		snprintf(t.debugfs_prefix, MAX_SYSFS_PATH, "%s", debugfs_prefix);
+	if (!strcmp(t.defs_prefix, ""))
+		snprintf(t.defs_prefix, MAX_SYSFS_PATH, "%s", defs_prefix);
 
 	ret = find_loopback_devices(&t);
 	if (ret)

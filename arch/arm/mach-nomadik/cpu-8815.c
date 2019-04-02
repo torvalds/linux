@@ -82,7 +82,7 @@
 #define NOMADIK_L2CC_BASE	0x10210000	/* L2 Cache controller */
 #define NOMADIK_UART1_VBASE	0xF01FB000
 
-/* This is needed for LL-debug/earlyprintk/debug-macro.S */
+/* This is needed for LL-de/earlyprintk/de-macro.S */
 static struct map_desc cpu8815_io_desc[] __initdata = {
 	{
 		.virtual =	NOMADIK_UART1_VBASE,

@@ -183,7 +183,7 @@ struct smbd_connection {
 	struct kmem_cache *response_cache;
 	mempool_t *response_mempool;
 
-	/* for debug purposes */
+	/* for de purposes */
 	unsigned int count_get_receive_buffer;
 	unsigned int count_put_receive_buffer;
 	unsigned int count_reassembly_queue;

@@ -143,7 +143,7 @@ struct lpfc_nvmet_rcv_ctx {
 	struct lpfc_nvmet_ctxbuf *ctxbuf;
 	struct lpfc_sli4_hdw_queue *hdwq;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint64_t ts_isr_cmd;
 	uint64_t ts_cmd_nvme;
 	uint64_t ts_nvme_data;

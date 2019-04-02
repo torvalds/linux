@@ -244,7 +244,7 @@ enum lv1_result {
 
 static inline const char* ps3_result(int result)
 {
-#if defined(DEBUG) || defined(PS3_VERBOSE_RESULT)
+#if defined(DE) || defined(PS3_VERBOSE_RESULT)
 	switch (result) {
 	case LV1_SUCCESS:
 		return "LV1_SUCCESS (0)";
@@ -303,7 +303,7 @@ static inline const char* ps3_result(int result)
 	case LV1_INTERNAL_ERROR:
 		return "LV1_INTERNAL_ERROR (-32768)";
 	default:
-		BUG();
+		();
 		return "** unknown result **";
 	};
 #else
@@ -413,8 +413,8 @@ static inline struct ps3_system_bus_device *ps3_dev_to_system_bus_dev(
 static inline struct ps3_system_bus_driver *
 	ps3_system_bus_dev_to_system_bus_drv(struct ps3_system_bus_device *_dev)
 {
-	BUG_ON(!_dev);
-	BUG_ON(!_dev->core.driver);
+	_ON(!_dev);
+	_ON(!_dev->core.driver);
 	return ps3_drv_to_system_bus_drv(_dev->core.driver);
 }
 

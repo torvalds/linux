@@ -296,9 +296,9 @@ static uint32_t aic79xx_seltime;
  */
 static uint32_t aic79xx_periodic_otag;
 
-/* Some storage boxes are using an LSI chip which has a bug making it
+/* Some storage boxes are using an LSI chip which has a  making it
  * impossible to use aic79xx Rev B chip in 320 speeds.  The following
- * storage boxes have been reported to be buggy:
+ * storage boxes have been reported to be gy:
  * EonStor 3U 16-Bay: U16U-G3A3
  * EonStor 2U 12-Bay: U12U-G3A3
  * SentinelRAID: 2500F R5 / R6
@@ -306,7 +306,7 @@ static uint32_t aic79xx_periodic_otag;
  * SentinelRAID: 2500F/1500F
  * SentinelRAID: 150F
  * 
- * To get around this LSI bug, you can set your board to 160 mode
+ * To get around this LSI , you can set your board to 160 mode
  * or you can enable the SLOWCRC bit.
  */
 uint32_t aic79xx_slowcrc;
@@ -325,7 +325,7 @@ MODULE_PARM_DESC(aic79xx,
 "period-delimited options string:\n"
 "	verbose			Enable verbose/diagnostic logging\n"
 "	allow_memio		Allow device registers to be memory mapped\n"
-"	debug			Bitmask of debug values to enable\n"
+"	de			Bitmask of de values to enable\n"
 "	no_reset		Suppress initial bus resets\n"
 "	extended		Enable extended geometry on all controllers\n"
 "	periodic_otag		Send an ordered tagged transaction\n"
@@ -619,7 +619,7 @@ ahd_linux_target_alloc(struct scsi_target *starget)
 
 	ahd_lock(ahd, &flags);
 
-	BUG_ON(*ahd_targp != NULL);
+	_ON(*ahd_targp != NULL);
 
 	*ahd_targp = starget;
 
@@ -884,8 +884,8 @@ ahd_linux_bus_reset(struct scsi_cmnd *cmd)
 	unsigned long flags;
 
 	ahd = *(struct ahd_softc **)cmd->device->host->hostdata;
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_RECOVERY) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_RECOVERY) != 0)
 		printk("%s: Bus reset called for cmd %p\n",
 		       ahd_name(ahd), cmd);
 #endif
@@ -1153,8 +1153,8 @@ aic79xx_setup(char *s)
 		{ "no_reset", &aic79xx_no_reset },
 		{ "verbose", &aic79xx_verbose },
 		{ "allow_memio", &aic79xx_allow_memio},
-#ifdef AHD_DEBUG
-		{ "debug", &ahd_debug },
+#ifdef AHD_DE
+		{ "de", &ahd_de },
 #endif
 		{ "periodic_otag", &aic79xx_periodic_otag },
 		{ "pci_parity", &aic79xx_pci_parity },
@@ -1694,7 +1694,7 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 		struct	ahd_tmode_tstate *tstate;
 		unsigned int target_ppr_options;
 
-		BUG_ON(target == CAM_TARGET_WILDCARD);
+		_ON(target == CAM_TARGET_WILDCARD);
 
 		tinfo = ahd_fetch_transinfo(ahd, channel, ahd->our_id,
 					    target, &tstate);
@@ -1805,8 +1805,8 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 		amount_xferred =
 		    ahd_get_transfer_length(scb) - ahd_get_residual(scb);
 		if ((scb->flags & SCB_TRANSMISSION_ERROR) != 0) {
-#ifdef AHD_DEBUG
-			if ((ahd_debug & AHD_SHOW_MISC) != 0) {
+#ifdef AHD_DE
+			if ((ahd_de & AHD_SHOW_MISC) != 0) {
 				ahd_print_path(ahd, scb);
 				printk("Set CAM_UNCOR_PARITY\n");
 			}
@@ -1942,8 +1942,8 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 			       + sense_offset, sense_size);
 			cmd->result |= (DRIVER_SENSE << 24);
 
-#ifdef AHD_DEBUG
-			if (ahd_debug & AHD_SHOW_SENSE) {
+#ifdef AHD_DE
+			if (ahd_de & AHD_SHOW_SENSE) {
 				int i;
 
 				printk("Copied %d bytes of sense data at %d:",
@@ -1975,8 +1975,8 @@ ahd_linux_handle_scsi_status(struct ahd_softc *ahd,
 			 * of commands currently outstanding.
 			 */
 			dev->openings = 0;
-#ifdef AHD_DEBUG
-			if ((ahd_debug & AHD_SHOW_QFULL) != 0) {
+#ifdef AHD_DE
+			if ((ahd_de & AHD_SHOW_QFULL) != 0) {
 				ahd_print_path(ahd, scb);
 				printk("Dropping tag count to %d\n",
 				       dev->active);
@@ -2412,8 +2412,8 @@ static void ahd_linux_set_period(struct scsi_target *starget, int period)
 	unsigned long flags;
 	unsigned long offset = tinfo->goal.offset;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: set period to %d\n", ahd_name(ahd), period);
 #endif
 	if (offset == 0)
@@ -2465,8 +2465,8 @@ static void ahd_linux_set_offset(struct scsi_target *starget, int offset)
 	unsigned int dt = ppr_options & MSG_EXT_PPR_DT_REQ;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: set offset to %d\n", ahd_name(ahd), offset);
 #endif
 
@@ -2501,8 +2501,8 @@ static void ahd_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s DT\n", ahd_name(ahd),
 		       dt ? "enabling" : "disabling");
 #endif
@@ -2543,8 +2543,8 @@ static void ahd_linux_set_qas(struct scsi_target *starget, int qas)
 	unsigned int dt;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s QAS\n", ahd_name(ahd),
 		       qas ? "enabling" : "disabling");
 #endif
@@ -2582,8 +2582,8 @@ static void ahd_linux_set_iu(struct scsi_target *starget, int iu)
 	unsigned int dt;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s IU\n", ahd_name(ahd),
 		       iu ? "enabling" : "disabling");
 #endif
@@ -2622,8 +2622,8 @@ static void ahd_linux_set_rd_strm(struct scsi_target *starget, int rdstrm)
 	unsigned int dt = ppr_options & MSG_EXT_PPR_DT_REQ;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s Read Streaming\n", ahd_name(ahd),
 		       rdstrm  ? "enabling" : "disabling");
 #endif
@@ -2658,8 +2658,8 @@ static void ahd_linux_set_wr_flow(struct scsi_target *starget, int wrflow)
 	unsigned int dt = ppr_options & MSG_EXT_PPR_DT_REQ;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s Write Flow Control\n", ahd_name(ahd),
 		       wrflow ? "enabling" : "disabling");
 #endif
@@ -2695,15 +2695,15 @@ static void ahd_linux_set_rti(struct scsi_target *starget, int rti)
 	unsigned long flags;
 
 	if ((ahd->features & AHD_RTI) == 0) {
-#ifdef AHD_DEBUG
-		if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+		if ((ahd_de & AHD_SHOW_DV) != 0)
 			printk("%s: RTI not available\n", ahd_name(ahd));
 #endif
 		return;
 	}
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s RTI\n", ahd_name(ahd),
 		       rti ? "enabling" : "disabling");
 #endif
@@ -2738,8 +2738,8 @@ static void ahd_linux_set_pcomp_en(struct scsi_target *starget, int pcomp)
 	unsigned int dt = ppr_options & MSG_EXT_PPR_DT_REQ;
 	unsigned long flags;
 
-#ifdef AHD_DEBUG
-	if ((ahd_debug & AHD_SHOW_DV) != 0)
+#ifdef AHD_DE
+	if ((ahd_de & AHD_SHOW_DV) != 0)
 		printk("%s: %s Precompensation\n", ahd_name(ahd),
 		       pcomp ? "Enable" : "Disable");
 #endif

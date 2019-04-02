@@ -256,7 +256,7 @@ static const struct snd_kcontrol_new aic26_snd_controls[] = {
 };
 
 /* ---------------------------------------------------------------------
- * SPI device portion of driver: sysfs files for debugging
+ * SPI device portion of driver: sysfs files for deging
  */
 
 static ssize_t aic26_keyclick_show(struct device *dev,
@@ -310,7 +310,7 @@ static int aic26_probe(struct snd_soc_component *component)
 	reg |= 0x0800; /* set master mode */
 	snd_soc_component_write(component, AIC26_REG_AUDIO_CTRL3, reg);
 
-	/* Register the sysfs files for debugging */
+	/* Register the sysfs files for deging */
 	/* Create SysFS files */
 	ret = device_create_file(component->dev, &dev_attr_keyclick);
 	if (ret)

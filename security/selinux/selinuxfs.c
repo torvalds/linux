@@ -236,7 +236,7 @@ static ssize_t sel_read_handle_status(struct file *filp, char __user *buf,
 {
 	struct page    *status = filp->private_data;
 
-	BUG_ON(!status);
+	_ON(!status);
 
 	return simple_read_from_buffer(buf, count, ppos,
 				       page_address(status),
@@ -249,7 +249,7 @@ static int sel_mmap_handle_status(struct file *filp,
 	struct page    *status = filp->private_data;
 	unsigned long	size = vma->vm_end - vma->vm_start;
 
-	BUG_ON(!status);
+	_ON(!status);
 
 	/* only allows one page from the head */
 	if (vma->vm_pgoff > 0 || size != PAGE_SIZE)
@@ -378,7 +378,7 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 	struct policy_load_memory *plm = NULL;
 	int rc;
 
-	BUG_ON(filp->private_data);
+	_ON(filp->private_data);
 
 	mutex_lock(&fsi->mutex);
 
@@ -428,7 +428,7 @@ static int sel_release_policy(struct inode *inode, struct file *filp)
 	struct selinux_fs_info *fsi = inode->i_sb->s_fs_info;
 	struct policy_load_memory *plm = filp->private_data;
 
-	BUG_ON(!plm);
+	_ON(!plm);
 
 	fsi->policy_opened = 0;
 

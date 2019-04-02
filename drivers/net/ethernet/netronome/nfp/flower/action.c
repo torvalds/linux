@@ -271,7 +271,7 @@ nfp_fl_set_ipv4_udp_tun(struct nfp_app *app,
 	/* Currently support one pre-tunnel so index is always 0. */
 	int pretun_idx = 0;
 
-	BUILD_BUG_ON(NFP_FL_TUNNEL_CSUM != TUNNEL_CSUM ||
+	BUILD__ON(NFP_FL_TUNNEL_CSUM != TUNNEL_CSUM ||
 		     NFP_FL_TUNNEL_KEY	!= TUNNEL_KEY ||
 		     NFP_FL_TUNNEL_GENEVE_OPT != TUNNEL_GENEVE_OPT);
 	if (ip_tun->options_len &&

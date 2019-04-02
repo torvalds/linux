@@ -7,7 +7,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/crypto.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/fault-inject.h>
@@ -431,7 +431,7 @@ artpec6_crypto_copy_bounce_buffers(struct artpec6_crypto_req_common *common)
 	struct artpec6_crypto_bounce_buffer *next;
 
 	list_for_each_entry_safe(b, next, &dma->bounce_buffers, list) {
-		pr_debug("bounce entry %p: %zu bytes @ %zu from %p\n",
+		pr_de("bounce entry %p: %zu bytes @ %zu from %p\n",
 			 b, b->length, b->offset, b->buf);
 		sg_pcopy_from_buffer(b->sg,
 				   1,
@@ -812,7 +812,7 @@ static int setup_bounce_buffer_in(struct artpec6_crypto_req_common *common,
 		return ret;
 	}
 
-	pr_debug("BOUNCE %zu offset %zu\n", size, walk->offset);
+	pr_de("BOUNCE %zu offset %zu\n", size, walk->offset);
 	list_add_tail(&bbuf->list, &common->dma->bounce_buffers);
 	return 0;
 }
@@ -840,17 +840,17 @@ artpec6_crypto_setup_sg_descrs_in(struct artpec6_crypto_req_common *common,
 				      ALIGN(addr, ARTPEC_CACHE_LINE_MAX) -
 				      addr);
 
-			pr_debug("CHUNK-b %pad:%zu\n", &addr, chunk);
+			pr_de("CHUNK-b %pad:%zu\n", &addr, chunk);
 			ret = setup_bounce_buffer_in(common, walk, chunk);
 		} else if (chunk < ARTPEC_CACHE_LINE_MAX) {
-			pr_debug("CHUNK-b %pad:%zu\n", &addr, chunk);
+			pr_de("CHUNK-b %pad:%zu\n", &addr, chunk);
 			ret = setup_bounce_buffer_in(common, walk, chunk);
 		} else {
 			dma_addr_t dma_addr;
 
 			chunk = chunk & ~(ARTPEC_CACHE_LINE_MAX-1);
 
-			pr_debug("CHUNK %pad:%zu\n", &addr, chunk);
+			pr_de("CHUNK %pad:%zu\n", &addr, chunk);
 
 			ret = artpec6_crypto_dma_map_page(common,
 							 sg_page(walk->sg),
@@ -893,7 +893,7 @@ artpec6_crypto_setup_sg_descrs_out(struct artpec6_crypto_req_common *common,
 		chunk = min(count, artpec6_crypto_walk_chunklen(walk));
 		addr = artpec6_crypto_walk_chunk_phys(walk);
 
-		pr_debug("OUT-CHUNK %pad:%zu\n", &addr, chunk);
+		pr_de("OUT-CHUNK %pad:%zu\n", &addr, chunk);
 
 		if (addr & 3) {
 			char buf[3];
@@ -1191,7 +1191,7 @@ artpec6_crypto_ctr_crypt(struct skcipher_request *req, bool encrypt)
 	if (counter + nblks < counter) {
 		int ret;
 
-		pr_debug("counter %x will overflow (nblks %u), falling back\n",
+		pr_de("counter %x will overflow (nblks %u), falling back\n",
 			 counter, counter + nblks);
 
 		ret = crypto_sync_skcipher_setkey(ctx->fallback, ctx->aes_key,
@@ -2091,7 +2091,7 @@ static void artpec6_crypto_task(unsigned long data)
 	INIT_LIST_HEAD(&complete_in_progress);
 
 	if (list_empty(&ac->pending)) {
-		pr_debug("Spurious IRQ\n");
+		pr_de("Spurious IRQ\n");
 		return;
 	}
 
@@ -2113,7 +2113,7 @@ static void artpec6_crypto_task(unsigned long data)
 		/* A non-zero final status descriptor indicates
 		 * this job has finished.
 		 */
-		pr_debug("Request %p status is %X\n", req, stat);
+		pr_de("Request %p status is %X\n", req, stat);
 		if (!stat)
 			break;
 
@@ -2123,7 +2123,7 @@ static void artpec6_crypto_task(unsigned long data)
 			continue;
 #endif
 
-		pr_debug("Completing request %p\n", req);
+		pr_de("Completing request %p\n", req);
 
 		list_move_tail(&req->list, &complete_done);
 
@@ -2204,10 +2204,10 @@ static void artpec6_crypto_complete_aead(struct crypto_async_request *req)
 		if (crypto_memneq(req_ctx->decryption_tag,
 				  input_tag,
 				  authsize)) {
-			pr_debug("***EBADMSG:\n");
-			print_hex_dump_debug("ref:", DUMP_PREFIX_ADDRESS, 32, 1,
+			pr_de("***EBADMSG:\n");
+			print_hex_dump_de("ref:", DUMP_PREFIX_ADDRESS, 32, 1,
 					     input_tag, authsize, true);
-			print_hex_dump_debug("out:", DUMP_PREFIX_ADDRESS, 32, 1,
+			print_hex_dump_de("out:", DUMP_PREFIX_ADDRESS, 32, 1,
 					     req_ctx->decryption_tag,
 					     authsize, true);
 
@@ -2447,9 +2447,9 @@ static int artpec6_crypto_hash_export(struct ahash_request *req, void *out)
 	struct artpec6_crypto *ac = dev_get_drvdata(artpec6_crypto_dev);
 	enum artpec6_crypto_variant variant = ac->variant;
 
-	BUILD_BUG_ON(sizeof(state->partial_buffer) !=
+	BUILD__ON(sizeof(state->partial_buffer) !=
 		     sizeof(ctx->partial_buffer));
-	BUILD_BUG_ON(sizeof(state->digeststate) != sizeof(ctx->digeststate));
+	BUILD__ON(sizeof(state->digeststate) != sizeof(ctx->digeststate));
 
 	state->digcnt = ctx->digcnt;
 	state->partial_bytes = ctx->partial_bytes;
@@ -2518,11 +2518,11 @@ static int init_crypto_hw(struct artpec6_crypto *ac)
 	in_descr_buf_size = 4;   /* 256 bytes for descriptors */
 	in_stat_buf_size = 4;   /* 256 bytes for stat descrs */
 
-	BUILD_BUG_ON_MSG((out_data_buf_size
+	BUILD__ON_MSG((out_data_buf_size
 				+ out_descr_buf_size) * 64 > 1984,
 			  "Invalid OUT configuration");
 
-	BUILD_BUG_ON_MSG((in_data_buf_size
+	BUILD__ON_MSG((in_data_buf_size
 				+ in_descr_buf_size
 				+ in_stat_buf_size) * 64 > 1024,
 			  "Invalid IN configuration");
@@ -2810,7 +2810,7 @@ static struct aead_alg aead_algos[] = {
 	}
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 struct dbgfs_u32 {
 	char *name;
@@ -2821,22 +2821,22 @@ struct dbgfs_u32 {
 
 static struct dentry *dbgfs_root;
 
-static void artpec6_crypto_init_debugfs(void)
+static void artpec6_crypto_init_defs(void)
 {
-	dbgfs_root = debugfs_create_dir("artpec6_crypto", NULL);
+	dbgfs_root = defs_create_dir("artpec6_crypto", NULL);
 
 #ifdef CONFIG_FAULT_INJECTION
-	fault_create_debugfs_attr("fail_status_read", dbgfs_root,
+	fault_create_defs_attr("fail_status_read", dbgfs_root,
 				  &artpec6_crypto_fail_status_read);
 
-	fault_create_debugfs_attr("fail_dma_array_full", dbgfs_root,
+	fault_create_defs_attr("fail_dma_array_full", dbgfs_root,
 				  &artpec6_crypto_fail_dma_array_full);
 #endif
 }
 
-static void artpec6_crypto_free_debugfs(void)
+static void artpec6_crypto_free_defs(void)
 {
-	debugfs_remove_recursive(dbgfs_root);
+	defs_remove_recursive(dbgfs_root);
 	dbgfs_root = NULL;
 }
 #endif
@@ -2900,8 +2900,8 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	if (!ac->dma_cache)
 		return -ENOMEM;
 
-#ifdef CONFIG_DEBUG_FS
-	artpec6_crypto_init_debugfs();
+#ifdef CONFIG_DE_FS
+	artpec6_crypto_init_defs();
 #endif
 
 	tasklet_init(&ac->task, artpec6_crypto_task,
@@ -2978,8 +2978,8 @@ static int artpec6_crypto_remove(struct platform_device *pdev)
 	artpec6_crypto_disable_hw(ac);
 
 	kmem_cache_destroy(ac->dma_cache);
-#ifdef CONFIG_DEBUG_FS
-	artpec6_crypto_free_debugfs();
+#ifdef CONFIG_DE_FS
+	artpec6_crypto_free_defs();
 #endif
 	return 0;
 }

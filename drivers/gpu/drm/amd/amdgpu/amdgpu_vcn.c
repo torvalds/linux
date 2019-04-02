@@ -222,7 +222,7 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 
 	/* pause/unpause if state is changed */
 	if (adev->vcn.pause_state.fw_based != new_state->fw_based) {
-		DRM_DEBUG("dpg pause state changed %d:%d -> %d:%d",
+		DRM_DE("dpg pause state changed %d:%d -> %d:%d",
 			adev->vcn.pause_state.fw_based, adev->vcn.pause_state.jpeg,
 			new_state->fw_based, new_state->jpeg);
 
@@ -277,7 +277,7 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 
 	/* pause/unpause if state is changed */
 	if (adev->vcn.pause_state.jpeg != new_state->jpeg) {
-		DRM_DEBUG("dpg pause state changed %d:%d -> %d:%d",
+		DRM_DE("dpg pause state changed %d:%d -> %d:%d",
 			adev->vcn.pause_state.fw_based, adev->vcn.pause_state.jpeg,
 			new_state->fw_based, new_state->jpeg);
 

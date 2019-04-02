@@ -263,7 +263,7 @@ accessed through memory-mapped registers and provides interrupt service to each
 CPU, used for IPIs and local timer interrupts.
 
 Although in theory the APIC is a safe and stable source for local interrupts,
-in practice, many bugs and glitches have occurred due to the special nature of
+in practice, many s and glitches have occurred due to the special nature of
 the APIC CPU-local memory-mapped hardware.  Beware that CPU errata may affect
 the use of the APIC and that workarounds may be required.  In addition, some of
 these workarounds pose unique constraints for virtualization - requiring either
@@ -409,7 +409,7 @@ Whether the TSC runs at a constant rate or scales with the P-state is model
 dependent and must be determined by inspecting CPUID, chipset or vendor
 specific MSR fields.
 
-In addition, some vendors have known bugs where the P-state is actually
+In addition, some vendors have known s where the P-state is actually
 compensated for properly during normal operation, but when the processor is
 inactive, the P-state may be raised temporarily to service cache misses from
 other processors.  In such cases, the TSC on halted CPUs could advance faster
@@ -494,7 +494,7 @@ where host load or guest lag is too much to compensate for, and thus another
 solution to the problem has risen: the guest may need to become aware of lost
 ticks and compensate for them internally.  Although promising in theory, the
 implementation of this policy in Linux has been extremely error prone, and a
-number of buggy variants of lost tick compensation are distributed across
+number of gy variants of lost tick compensation are distributed across
 commonly used Linux systems.
 
 Windows uses periodic RTC clocking as a means of keeping time internally, and

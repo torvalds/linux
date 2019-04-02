@@ -21,7 +21,7 @@
 #include <brcmu_wifi.h>
 #include "core.h"
 #include "bus.h"
-#include "debug.h"
+#include "de.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "feature.h"
@@ -52,7 +52,7 @@ static const struct brcmf_feat_fwcap brcmf_fwcap_map[] = {
 	{ BRCMF_FEAT_MONITOR_FMT_RADIOTAP, "rtap" },
 };
 
-#ifdef DEBUG
+#ifdef DE
 /*
  * expand quirk list to array of quirk strings.
  */
@@ -64,12 +64,12 @@ static const char * const brcmf_quirk_names[] = {
 #undef BRCMF_QUIRK_DEF
 
 /**
- * brcmf_feat_debugfs_read() - expose feature info to debugfs.
+ * brcmf_feat_defs_read() - expose feature info to defs.
  *
- * @seq: sequence for debugfs entry.
+ * @seq: sequence for defs entry.
  * @data: raw data pointer.
  */
-static int brcmf_feat_debugfs_read(struct seq_file *seq, void *data)
+static int brcmf_feat_defs_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
 	u32 feats = bus_if->drvr->feat_flags;
@@ -87,11 +87,11 @@ static int brcmf_feat_debugfs_read(struct seq_file *seq, void *data)
 	return 0;
 }
 #else
-static int brcmf_feat_debugfs_read(struct seq_file *seq, void *data)
+static int brcmf_feat_defs_read(struct seq_file *seq, void *data)
 {
 	return 0;
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 struct brcmf_feat_fwfeat {
 	const char * const fwid;
@@ -209,12 +209,12 @@ static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 }
 
 /**
- * brcmf_feat_fwcap_debugfs_read() - expose firmware capabilities to debugfs.
+ * brcmf_feat_fwcap_defs_read() - expose firmware capabilities to defs.
  *
- * @seq: sequence for debugfs entry.
+ * @seq: sequence for defs entry.
  * @data: raw data pointer.
  */
-static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
+static int brcmf_feat_fwcap_defs_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
 	struct brcmf_pub *drvr = bus_if->drvr;
@@ -317,10 +317,10 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	}
 }
 
-void brcmf_feat_debugfs_create(struct brcmf_pub *drvr)
+void brcmf_feat_defs_create(struct brcmf_pub *drvr)
 {
-	brcmf_debugfs_add_entry(drvr, "features", brcmf_feat_debugfs_read);
-	brcmf_debugfs_add_entry(drvr, "fwcap", brcmf_feat_fwcap_debugfs_read);
+	brcmf_defs_add_entry(drvr, "features", brcmf_feat_defs_read);
+	brcmf_defs_add_entry(drvr, "fwcap", brcmf_feat_fwcap_defs_read);
 }
 
 bool brcmf_feat_is_enabled(struct brcmf_if *ifp, enum brcmf_feat_id id)

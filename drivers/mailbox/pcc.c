@@ -123,7 +123,7 @@ static int read_register(void __iomem *vaddr, u64 *val, unsigned int bit_width)
 		*val = readq(vaddr);
 		break;
 	default:
-		pr_debug("Error: Cannot read register of %u bit width",
+		pr_de("Error: Cannot read register of %u bit width",
 			bit_width);
 		ret_val = -EFAULT;
 		break;
@@ -149,7 +149,7 @@ static int write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
 		writeq(val, vaddr);
 		break;
 	default:
-		pr_debug("Error: Cannot write register of %u bit width",
+		pr_de("Error: Cannot write register of %u bit width",
 			bit_width);
 		ret_val = -EFAULT;
 		break;
@@ -301,7 +301,7 @@ void pcc_mbox_free_channel(struct mbox_chan *chan)
 		return;
 
 	if (id >= pcc_mbox_ctrl.num_chans) {
-		pr_debug("pcc_mbox_free_channel: Invalid mbox_chan passed\n");
+		pr_de("pcc_mbox_free_channel: Invalid mbox_chan passed\n");
 		return;
 	}
 
@@ -326,7 +326,7 @@ EXPORT_SYMBOL_GPL(pcc_mbox_free_channel);
  *		OS has control over it. See above for flow of operations.
  * @chan: Pointer to Mailbox channel over which to send data.
  * @data: Client specific data written over channel. Used here
- *		only for debug after PCC transaction completes.
+ *		only for de after PCC transaction completes.
  *
  * Return: Err if something failed else 0 for success.
  */
@@ -341,7 +341,7 @@ static int pcc_send_data(struct mbox_chan *chan, void *data)
 	int ret = 0;
 
 	if (id >= pcc_mbox_ctrl.num_chans) {
-		pr_debug("pcc_send_data: Invalid mbox_chan passed\n");
+		pr_de("pcc_send_data: Invalid mbox_chan passed\n");
 		return -ENOENT;
 	}
 
@@ -597,7 +597,7 @@ static int __init pcc_init(void)
 	ret = acpi_pcc_probe();
 
 	if (ret) {
-		pr_debug("ACPI PCC probe failed.\n");
+		pr_de("ACPI PCC probe failed.\n");
 		return -ENODEV;
 	}
 
@@ -605,7 +605,7 @@ static int __init pcc_init(void)
 			pcc_mbox_probe, NULL, 0, NULL, 0);
 
 	if (IS_ERR(pcc_pdev)) {
-		pr_debug("Err creating PCC platform bundle\n");
+		pr_de("Err creating PCC platform bundle\n");
 		return PTR_ERR(pcc_pdev);
 	}
 

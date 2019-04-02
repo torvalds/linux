@@ -7,7 +7,7 @@
  * This is the entry point for the drivers that control the Wilco EC.
  * This driver is responsible for several tasks:
  * - Initialize the register interface that is used by wilco_ec_mailbox()
- * - Create a platform device which is picked up by the debugfs driver
+ * - Create a platform device which is picked up by the defs driver
  * - Create a platform device which is picked up by the RTC driver
  */
 
@@ -71,11 +71,11 @@ static int wilco_ec_probe(struct platform_device *pdev)
 			     ec->io_packet->start + EC_MAILBOX_DATA_SIZE);
 
 	/*
-	 * Register a child device that will be found by the debugfs driver.
+	 * Register a child device that will be found by the defs driver.
 	 * Ignore failure.
 	 */
-	ec->debugfs_pdev = platform_device_register_data(dev,
-							 "wilco-ec-debugfs",
+	ec->defs_pdev = platform_device_register_data(dev,
+							 "wilco-ec-defs",
 							 PLATFORM_DEVID_AUTO,
 							 NULL, 0);
 
@@ -86,14 +86,14 @@ static int wilco_ec_probe(struct platform_device *pdev)
 	if (IS_ERR(ec->rtc_pdev)) {
 		dev_err(dev, "Failed to create RTC platform device\n");
 		ret = PTR_ERR(ec->rtc_pdev);
-		goto unregister_debugfs;
+		goto unregister_defs;
 	}
 
 	return 0;
 
-unregister_debugfs:
-	if (ec->debugfs_pdev)
-		platform_device_unregister(ec->debugfs_pdev);
+unregister_defs:
+	if (ec->defs_pdev)
+		platform_device_unregister(ec->defs_pdev);
 	cros_ec_lpc_mec_destroy();
 	return ret;
 }
@@ -103,8 +103,8 @@ static int wilco_ec_remove(struct platform_device *pdev)
 	struct wilco_ec_device *ec = platform_get_drvdata(pdev);
 
 	platform_device_unregister(ec->rtc_pdev);
-	if (ec->debugfs_pdev)
-		platform_device_unregister(ec->debugfs_pdev);
+	if (ec->defs_pdev)
+		platform_device_unregister(ec->defs_pdev);
 
 	/* Teardown cros_ec interface */
 	cros_ec_lpc_mec_destroy();

@@ -186,7 +186,7 @@ static void insert_recv_cqe(struct t4_wq *wq, struct t4_cq *cq, u32 srqidx)
 {
 	struct t4_cqe cqe;
 
-	pr_debug("wq %p cq %p sw_cidx %u sw_pidx %u\n",
+	pr_de("wq %p cq %p sw_cidx %u sw_pidx %u\n",
 		 wq, cq, cq->sw_cidx, cq->sw_pidx);
 	memset(&cqe, 0, sizeof(cqe));
 	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
@@ -206,7 +206,7 @@ int c4iw_flush_rq(struct t4_wq *wq, struct t4_cq *cq, int count)
 	int flushed = 0;
 	int in_use = wq->rq.in_use - count;
 
-	pr_debug("wq %p cq %p rq.in_use %u skip count %u\n",
+	pr_de("wq %p cq %p rq.in_use %u skip count %u\n",
 		 wq, cq, wq->rq.in_use, count);
 	while (in_use--) {
 		insert_recv_cqe(wq, cq, 0);
@@ -220,7 +220,7 @@ static void insert_sq_cqe(struct t4_wq *wq, struct t4_cq *cq,
 {
 	struct t4_cqe cqe;
 
-	pr_debug("wq %p cq %p sw_cidx %u sw_pidx %u\n",
+	pr_de("wq %p cq %p sw_cidx %u sw_pidx %u\n",
 		 wq, cq, cq->sw_cidx, cq->sw_pidx);
 	memset(&cqe, 0, sizeof(cqe));
 	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
@@ -284,7 +284,7 @@ static void flush_completed_wrs(struct t4_wq *wq, struct t4_cq *cq)
 			/*
 			 * Insert this completed cqe into the swcq.
 			 */
-			pr_debug("moving cqe into swcq sq idx %u cq idx %u\n",
+			pr_de("moving cqe into swcq sq idx %u cq idx %u\n",
 				 cidx, cq->sw_pidx);
 			swsqe->cqe.header |= htonl(CQE_SWCQE_V(1));
 			cq->sw_queue[cq->sw_pidx] = swsqe->cqe;
@@ -340,7 +340,7 @@ void c4iw_flush_hw_cq(struct c4iw_cq *chp, struct c4iw_qp *flush_qhp)
 	struct t4_swsqe *swsqe;
 	int ret;
 
-	pr_debug("cqid 0x%x\n", chp->cq.cqid);
+	pr_de("cqid 0x%x\n", chp->cq.cqid);
 	ret = t4_next_hw_cqe(&chp->cq, &hw_cqe);
 
 	/*
@@ -447,7 +447,7 @@ void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count)
 	u32 ptr;
 
 	*count = 0;
-	pr_debug("count zero %d\n", *count);
+	pr_de("count zero %d\n", *count);
 	ptr = cq->sw_cidx;
 	while (ptr != cq->sw_pidx) {
 		cqe = &cq->sw_queue[ptr];
@@ -457,7 +457,7 @@ void c4iw_count_rcqes(struct t4_cq *cq, struct t4_wq *wq, int *count)
 		if (++ptr == cq->size)
 			ptr = 0;
 	}
-	pr_debug("cq %p count %d\n", cq, *count);
+	pr_de("cq %p count %d\n", cq, *count);
 }
 
 static void post_pending_srq_wrs(struct t4_srq *srq)
@@ -470,7 +470,7 @@ static void post_pending_srq_wrs(struct t4_srq *srq)
 		srq->sw_rq[srq->pidx].wr_id = pwr->wr_id;
 		srq->sw_rq[srq->pidx].valid = 1;
 
-		pr_debug("%s posting pending cidx %u pidx %u wq_pidx %u in_use %u rq_size %u wr_id %llx\n",
+		pr_de("%s posting pending cidx %u pidx %u wq_pidx %u in_use %u rq_size %u wr_id %llx\n",
 			 __func__,
 			 srq->cidx, srq->pidx, srq->wq_pidx,
 			 srq->in_use, srq->size,
@@ -498,13 +498,13 @@ static u64 reap_srq_cqe(struct t4_cqe *hw_cqe, struct t4_srq *srq)
 	wr_id = srq->sw_rq[rel_idx].wr_id;
 
 	if (rel_idx == srq->cidx) {
-		pr_debug("%s in order cqe rel_idx %u cidx %u pidx %u wq_pidx %u in_use %u rq_size %u wr_id %llx\n",
+		pr_de("%s in order cqe rel_idx %u cidx %u pidx %u wq_pidx %u in_use %u rq_size %u wr_id %llx\n",
 			 __func__, rel_idx, srq->cidx, srq->pidx,
 			 srq->wq_pidx, srq->in_use, srq->size,
 			 (unsigned long long)srq->sw_rq[rel_idx].wr_id);
 		t4_srq_consume(srq);
 		while (srq->ooo_count && !srq->sw_rq[srq->cidx].valid) {
-			pr_debug("%s eat ooo cidx %u pidx %u wq_pidx %u in_use %u rq_size %u ooo_count %u wr_id %llx\n",
+			pr_de("%s eat ooo cidx %u pidx %u wq_pidx %u in_use %u rq_size %u ooo_count %u wr_id %llx\n",
 				 __func__, srq->cidx, srq->pidx,
 				 srq->wq_pidx, srq->in_use,
 				 srq->size, srq->ooo_count,
@@ -515,7 +515,7 @@ static u64 reap_srq_cqe(struct t4_cqe *hw_cqe, struct t4_srq *srq)
 		if (srq->ooo_count == 0 && srq->pending_in_use)
 			post_pending_srq_wrs(srq);
 	} else {
-		pr_debug("%s ooo cqe rel_idx %u cidx %u pidx %u wq_pidx %u in_use %u rq_size %u ooo_count %u wr_id %llx\n",
+		pr_de("%s ooo cqe rel_idx %u cidx %u pidx %u wq_pidx %u in_use %u rq_size %u ooo_count %u wr_id %llx\n",
 			 __func__, rel_idx, srq->cidx,
 			 srq->pidx, srq->wq_pidx,
 			 srq->in_use, srq->size,
@@ -555,7 +555,7 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	if (ret)
 		return ret;
 
-	pr_debug("CQE OVF %u qpid 0x%0x genbit %u type %u status 0x%0x opcode 0x%0x len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
+	pr_de("CQE OVF %u qpid 0x%0x genbit %u type %u status 0x%0x opcode 0x%0x len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
 		 CQE_OVFBIT(hw_cqe), CQE_QPID(hw_cqe),
 		 CQE_GENBIT(hw_cqe), CQE_TYPE(hw_cqe), CQE_STATUS(hw_cqe),
 		 CQE_OPCODE(hw_cqe), CQE_LEN(hw_cqe), CQE_WRID_HI(hw_cqe),
@@ -681,7 +681,7 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	if (!SW_CQE(hw_cqe) && (CQE_WRID_SQ_IDX(hw_cqe) != wq->sq.cidx)) {
 		struct t4_swsqe *swsqe;
 
-		pr_debug("out of order completion going in sw_sq at idx %u\n",
+		pr_de("out of order completion going in sw_sq at idx %u\n",
 			 CQE_WRID_SQ_IDX(hw_cqe));
 		swsqe = &wq->sq.sw_sq[CQE_WRID_SQ_IDX(hw_cqe)];
 		swsqe->cqe = *hw_cqe;
@@ -714,14 +714,14 @@ proc_cqe:
 			wq->sq.in_use -= idx - wq->sq.cidx;
 
 		wq->sq.cidx = (uint16_t)idx;
-		pr_debug("completing sq idx %u\n", wq->sq.cidx);
+		pr_de("completing sq idx %u\n", wq->sq.cidx);
 		*cookie = wq->sq.sw_sq[wq->sq.cidx].wr_id;
 		if (c4iw_wr_log)
 			c4iw_log_wr_stats(wq, hw_cqe);
 		t4_sq_consume(wq);
 	} else {
 		if (!srq) {
-			pr_debug("completing rq idx %u\n", wq->rq.cidx);
+			pr_de("completing rq idx %u\n", wq->rq.cidx);
 			*cookie = wq->rq.sw_rq[wq->rq.cidx].wr_id;
 			if (c4iw_wr_log)
 				c4iw_log_wr_stats(wq, hw_cqe);
@@ -741,11 +741,11 @@ flush_wq:
 
 skip_cqe:
 	if (SW_CQE(hw_cqe)) {
-		pr_debug("cq %p cqid 0x%x skip sw cqe cidx %u\n",
+		pr_de("cq %p cqid 0x%x skip sw cqe cidx %u\n",
 			 cq, cq->cqid, cq->sw_cidx);
 		t4_swcq_consume(cq);
 	} else {
-		pr_debug("cq %p cqid 0x%x skip hw cqe cidx %u\n",
+		pr_de("cq %p cqid 0x%x skip hw cqe cidx %u\n",
 			 cq, cq->cqid, cq->cidx);
 		t4_hwcq_consume(cq);
 	}
@@ -779,7 +779,7 @@ static int __c4iw_poll_cq_one(struct c4iw_cq *chp, struct c4iw_qp *qhp,
 	    srq->wq.in_use < srq->srq_limit)
 		c4iw_dispatch_srq_limit_reached_event(srq);
 
-	pr_debug("qpid 0x%x type %d opcode %d status 0x%x len %u wrid hi 0x%x lo 0x%x cookie 0x%llx\n",
+	pr_de("qpid 0x%x type %d opcode %d status 0x%x len %u wrid hi 0x%x lo 0x%x cookie 0x%llx\n",
 		 CQE_QPID(&cqe),
 		 CQE_TYPE(&cqe), CQE_OPCODE(&cqe),
 		 CQE_STATUS(&cqe), CQE_LEN(&cqe),
@@ -973,7 +973,7 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
 
-	pr_debug("ib_cq %p\n", ib_cq);
+	pr_de("ib_cq %p\n", ib_cq);
 	chp = to_c4iw_cq(ib_cq);
 
 	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
@@ -1006,7 +1006,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
 
-	pr_debug("ib_dev %p entries %d\n", ibdev, entries);
+	pr_de("ib_dev %p entries %d\n", ibdev, entries);
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
 
@@ -1134,7 +1134,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		mm2->len = PAGE_SIZE;
 		insert_mmap(ucontext, mm2);
 	}
-	pr_debug("cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
+	pr_de("cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx\n",
 		 chp->cq.cqid, chp, chp->cq.size,
 		 chp->cq.memsize, (unsigned long long)chp->cq.dma_addr);
 	return &chp->ibcq;

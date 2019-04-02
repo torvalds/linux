@@ -10,7 +10,7 @@
  *
  * This drivers only supports the clock running in BCD and 24H mode.
  * If it will be ever adapted to binary and 12H mode, care must be taken
- * to not introduce bugs.
+ * to not introduce s.
  */
 
 #include <linux/module.h>

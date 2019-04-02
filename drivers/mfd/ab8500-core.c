@@ -637,10 +637,10 @@ static const struct mfd_cell ab8500_bm_devs[] = {
 };
 
 static const struct mfd_cell ab8500_devs[] = {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	{
-		.name = "ab8500-debug",
-		.of_compatible = "stericsson,ab8500-debug",
+		.name = "ab8500-de",
+		.of_compatible = "stericsson,ab8500-de",
 	},
 #endif
 	{
@@ -714,9 +714,9 @@ static const struct mfd_cell ab8500_devs[] = {
 };
 
 static const struct mfd_cell ab9540_devs[] = {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	{
-		.name = "ab8500-debug",
+		.name = "ab8500-de",
 	},
 #endif
 	{
@@ -769,9 +769,9 @@ static const struct mfd_cell ab9540_devs[] = {
 
 /* Device list for ab8505  */
 static const struct mfd_cell ab8505_devs[] = {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	{
-		.name = "ab8500-debug",
+		.name = "ab8500-de",
 	},
 #endif
 	{
@@ -816,9 +816,9 @@ static const struct mfd_cell ab8505_devs[] = {
 };
 
 static const struct mfd_cell ab8540_devs[] = {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	{
-		.name = "ab8500-debug",
+		.name = "ab8500-de",
 	},
 #endif
 	{

@@ -15,7 +15,7 @@
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
- * over and over (plus this helps to avoid typo bugs).
+ * over and over (plus this helps to avoid typo s).
  */
 
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
@@ -221,7 +221,7 @@ static int e1000_validate_option(unsigned int *value,
 	}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	e_dev_info("Invalid %s value specified (%i) %s\n",
@@ -499,7 +499,7 @@ void e1000_check_options(struct e1000_adapter *adapter)
 		e1000_check_copper_options(adapter);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -717,7 +717,7 @@ full_duplex_only:
 		adapter->hw.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	/* Speed, AutoNeg and MDI/MDI-X must all play nice */

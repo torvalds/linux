@@ -80,7 +80,7 @@ static void __exit nf_nat_amanda_fini(void)
 
 static int __init nf_nat_amanda_init(void)
 {
-	BUG_ON(nf_nat_amanda_hook != NULL);
+	_ON(nf_nat_amanda_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_amanda_hook, help);
 	return 0;
 }

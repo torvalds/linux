@@ -346,7 +346,7 @@ int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to)
  * restore the previous state of the local interrupts. It should be used
  * to undo, e.g., hwspin_trylock_irqsave().
  *
- * @hwlock must be already locked before calling this function: it is a bug
+ * @hwlock must be already locked before calling this function: it is a 
  * to call unlock on a @hwlock that is already unlocked.
  */
 static inline void hwspin_unlock_irqrestore(struct hwspinlock *hwlock,
@@ -363,7 +363,7 @@ static inline void hwspin_unlock_irqrestore(struct hwspinlock *hwlock,
  * enable local interrupts. Should be used to undo hwspin_lock_irq().
  *
  * @hwlock must be already locked (e.g. by hwspin_trylock_irq()) before
- * calling this function: it is a bug to call unlock on a @hwlock that is
+ * calling this function: it is a  to call unlock on a @hwlock that is
  * already unlocked.
  */
 static inline void hwspin_unlock_irq(struct hwspinlock *hwlock)
@@ -378,7 +378,7 @@ static inline void hwspin_unlock_irq(struct hwspinlock *hwlock)
  * This function will unlock a specific hwspinlock.
  *
  * @hwlock must be already locked (e.g. by hwspin_trylock()) before calling
- * this function: it is a bug to call unlock on a @hwlock that is already
+ * this function: it is a  to call unlock on a @hwlock that is already
  * unlocked.
  */
 static inline void hwspin_unlock_raw(struct hwspinlock *hwlock)
@@ -394,7 +394,7 @@ static inline void hwspin_unlock_raw(struct hwspinlock *hwlock)
  * back.
  *
  * @hwlock must be already locked (e.g. by hwspin_trylock()) before calling
- * this function: it is a bug to call unlock on a @hwlock that is already
+ * this function: it is a  to call unlock on a @hwlock that is already
  * unlocked.
  */
 static inline void hwspin_unlock(struct hwspinlock *hwlock)

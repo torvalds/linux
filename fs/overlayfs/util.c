@@ -694,7 +694,7 @@ static void ovl_cleanup_index(struct dentry *dentry)
 		pr_warn_ratelimited("overlayfs: cleanup linked index (%pd2, ino=%lu, nlink=%u)\n",
 				    upperdentry, inode->i_ino, inode->i_nlink);
 		/*
-		 * We either have a bug with persistent union nlink or a lower
+		 * We either have a  with persistent union nlink or a lower
 		 * hardlink was added while overlay is mounted. Adding a lower
 		 * hardlink and then unlinking all overlay hardlinks would drop
 		 * overlay nlink to zero before all upper inodes are unlinked.

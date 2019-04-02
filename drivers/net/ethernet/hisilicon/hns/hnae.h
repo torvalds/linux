@@ -42,7 +42,7 @@
 #define HNAE_DRIVER_STRING "Hisilicon Network Subsystem Driver"
 #define HNAE_DEFAULT_DEVICE_DESCR "Hisilicon Network Subsystem"
 
-#ifdef DEBUG
+#ifdef DE
 
 #ifndef assert
 #define assert(expr) \
@@ -377,7 +377,7 @@ enum hnae_loop {
 /*hnae port type*/
 enum hnae_port_type {
 	HNAE_PORT_SERVICE = 0,
-	HNAE_PORT_DEBUG
+	HNAE_PORT_DE
 };
 
 /* mac media type */

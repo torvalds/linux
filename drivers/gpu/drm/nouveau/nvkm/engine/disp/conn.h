@@ -29,6 +29,6 @@ void nvkm_conn_fini(struct nvkm_conn *);
 		 _conn->index, _conn->info.location, _conn->info.type, ##a);   \
 } while(0)
 #define CONN_ERR(c,f,a...) CONN_MSG((c), error, f, ##a)
-#define CONN_DBG(c,f,a...) CONN_MSG((c), debug, f, ##a)
+#define CONN_DBG(c,f,a...) CONN_MSG((c), de, f, ##a)
 #define CONN_TRACE(c,f,a...) CONN_MSG((c), trace, f, ##a)
 #endif

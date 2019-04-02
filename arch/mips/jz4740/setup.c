@@ -43,7 +43,7 @@ static void __init jz4740_detect_mem(void)
 	bank = 1 + ((ctrl >> 19) & 1);
 	cols = 8 + ((ctrl >> 26) & 7);
 	rows = 11 + ((ctrl >> 20) & 3);
-	printk(KERN_DEBUG
+	printk(KERN_DE
 		"SDRAM preconfigured: bus:%u bank:%u rows:%u cols:%u\n",
 		bus, bank, rows, cols);
 	iounmap(jz_emc_base);

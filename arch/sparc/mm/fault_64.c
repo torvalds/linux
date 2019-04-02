@@ -11,7 +11,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/ptrace.h>
 #include <linux/mman.h>
 #include <linux/signal.h>
@@ -21,7 +21,7 @@
 #include <linux/perf_event.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/percpu.h>
 #include <linux/context_tracking.h>
 #include <linux/uaccess.h>
@@ -293,7 +293,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 
 	if ((fault_code & FAULT_CODE_ITLB) &&
 	    (fault_code & FAULT_CODE_DTLB))
-		BUG();
+		();
 
 	if (test_thread_flag(TIF_32BIT)) {
 		if (!(regs->tstate & TSTATE_PRIV)) {
@@ -445,7 +445,7 @@ good_area:
 			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {

@@ -79,11 +79,11 @@ static struct pxa_udc *the_controller;
 static void handle_ep(struct pxa_ep *ep);
 
 /*
- * Debug filesystem
+ * De filesystem
  */
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
+#ifdef CONFIG_USB_GADGET_DE_FS
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 
@@ -203,29 +203,29 @@ static int eps_dbg_show(struct seq_file *s, void *p)
 }
 DEFINE_SHOW_ATTRIBUTE(eps_dbg);
 
-static void pxa_init_debugfs(struct pxa_udc *udc)
+static void pxa_init_defs(struct pxa_udc *udc)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(udc->gadget.name, NULL);
-	udc->debugfs_root = root;
+	root = defs_create_dir(udc->gadget.name, NULL);
+	udc->defs_root = root;
 
-	debugfs_create_file("udcstate", 0400, root, udc, &state_dbg_fops);
-	debugfs_create_file("queues", 0400, root, udc, &queues_dbg_fops);
-	debugfs_create_file("epstate", 0400, root, udc, &eps_dbg_fops);
+	defs_create_file("udcstate", 0400, root, udc, &state_dbg_fops);
+	defs_create_file("queues", 0400, root, udc, &queues_dbg_fops);
+	defs_create_file("epstate", 0400, root, udc, &eps_dbg_fops);
 }
 
-static void pxa_cleanup_debugfs(struct pxa_udc *udc)
+static void pxa_cleanup_defs(struct pxa_udc *udc)
 {
-	debugfs_remove_recursive(udc->debugfs_root);
+	defs_remove_recursive(udc->defs_root);
 }
 
 #else
-static inline void pxa_init_debugfs(struct pxa_udc *udc)
+static inline void pxa_init_defs(struct pxa_udc *udc)
 {
 }
 
-static inline void pxa_cleanup_debugfs(struct pxa_udc *udc)
+static inline void pxa_cleanup_defs(struct pxa_udc *udc)
 {
 }
 #endif
@@ -1961,7 +1961,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 	switch (udc->ep0state) {
 	case WAIT_FOR_SETUP:
 		/*
-		 * Hardware bug : beware, we cannot clear OPC, since we would
+		 * Hardware  : beware, we cannot clear OPC, since we would
 		 * miss a potential OPC irq for a setup packet.
 		 * So, we only do ... nothing, and hope for a next irq with
 		 * UDCCSR0_SA set.
@@ -1991,7 +1991,7 @@ static void handle_ep0(struct pxa_udc *udc, int fifo_irq, int opc_irq)
 		break;
 	case IN_STATUS_STAGE:
 		/*
-		 * Hardware bug : beware, we cannot clear OPC, since we would
+		 * Hardware  : beware, we cannot clear OPC, since we would
 		 * miss a potential PC irq for a setup packet.
 		 * So, we only put the ep0 into WAIT_FOR_SETUP state.
 		 */
@@ -2433,7 +2433,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 	if (retval)
 		goto err_add_gadget;
 
-	pxa_init_debugfs(udc);
+	pxa_init_defs(udc);
 	if (should_enable_udc(udc))
 		udc_enable(udc);
 	return 0;
@@ -2455,7 +2455,7 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 
 	usb_del_gadget_udc(&udc->gadget);
-	pxa_cleanup_debugfs(udc);
+	pxa_cleanup_defs(udc);
 
 	if (!IS_ERR_OR_NULL(udc->transceiver)) {
 		usb_unregister_notifier(udc->transceiver, &pxa27x_udc_phy);

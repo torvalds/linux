@@ -28,7 +28,7 @@ static inline int fixup_pcr(u32 *ip, Elf32_Addr dest, u32 maskbits, int shift)
 		opcode |= ((delta & mask) << shift);
 		*ip = opcode;
 
-		pr_debug("REL PCR_S%d[%p] dest[%p] opcode[%08x]\n",
+		pr_de("REL PCR_S%d[%p] dest[%p] opcode[%08x]\n",
 			 maskbits, ip, (void *)dest, opcode);
 
 		return 0;
@@ -55,7 +55,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	Elf32_Addr v;
 	Elf_Addr offset = 0;
 
-	pr_debug("Applying relocate section %u to %u with offset 0x%x\n",
+	pr_de("Applying relocate section %u to %u with offset 0x%x\n",
 		 relsec, sechdrs[relsec].sh_info, offset);
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
@@ -73,22 +73,22 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_C6000_ABS32:
-			pr_debug("RELA ABS32: [%p] = 0x%x\n", location, v);
+			pr_de("RELA ABS32: [%p] = 0x%x\n", location, v);
 			*location = v;
 			break;
 		case R_C6000_ABS16:
-			pr_debug("RELA ABS16: [%p] = 0x%x\n", location, v);
+			pr_de("RELA ABS16: [%p] = 0x%x\n", location, v);
 			*(u16 *)location = v;
 			break;
 		case R_C6000_ABS8:
-			pr_debug("RELA ABS8: [%p] = 0x%x\n", location, v);
+			pr_de("RELA ABS8: [%p] = 0x%x\n", location, v);
 			*(u8 *)location = v;
 			break;
 		case R_C6000_ABS_L16:
 			opcode = *location;
 			opcode &= ~0x7fff80;
 			opcode |= ((v & 0xffff) << 7);
-			pr_debug("RELA ABS_L16[%p] v[0x%x] opcode[0x%x]\n",
+			pr_de("RELA ABS_L16[%p] v[0x%x] opcode[0x%x]\n",
 				 location, v, opcode);
 			*location = opcode;
 			break;
@@ -96,7 +96,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			opcode = *location;
 			opcode &= ~0x7fff80;
 			opcode |= ((v >> 9) & 0x7fff80);
-			pr_debug("RELA ABS_H16[%p] v[0x%x] opcode[0x%x]\n",
+			pr_de("RELA ABS_H16[%p] v[0x%x] opcode[0x%x]\n",
 				 location, v, opcode);
 			*location = opcode;
 			break;

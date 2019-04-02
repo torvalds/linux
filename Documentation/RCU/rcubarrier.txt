@@ -205,7 +205,7 @@ The original code for rcu_barrier() was as follows:
 
  1 void rcu_barrier(void)
  2 {
- 3   BUG_ON(in_interrupt());
+ 3   _ON(in_interrupt());
  4   /* Take cpucontrol mutex to protect against CPU hotplug */
  5   mutex_lock(&rcu_barrier_mutex);
  6   init_completion(&rcu_barrier_completion);

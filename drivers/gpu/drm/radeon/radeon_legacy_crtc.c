@@ -72,7 +72,7 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 	crtc_more_cntl = 0;
 	if ((rdev->family == CHIP_RS100) ||
 	    (rdev->family == CHIP_RS200)) {
-		/* This is to workaround the asic bug for RMX, some versions
+		/* This is to workaround the asic  for RMX, some versions
 		   of BIOS dosen't have this register initialized correctly. */
 		crtc_more_cntl |= RADEON_CRTC_H_CUTOFF_ACTIVE_EN;
 	}
@@ -385,10 +385,10 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	uint32_t gen_cntl_reg, gen_cntl_val;
 	int r;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DE_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -584,7 +584,7 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 	uint32_t crtc_v_sync_strt_wid;
 	bool is_tv = false;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -809,7 +809,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		}
 	}
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if (!use_bios_divs) {
 		radeon_compute_pll_legacy(pll, mode->clock,
@@ -824,7 +824,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		if (!post_div->divider)
 			post_div = &post_divs[0];
 
-		DRM_DEBUG_KMS("dc=%u, fd=%d, rd=%d, pd=%d\n",
+		DRM_DE_KMS("dc=%u, fd=%d, rd=%d, pd=%d\n",
 			  (unsigned)freq,
 			  feedback_div,
 			  reference_div,
@@ -893,12 +893,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			       | RADEON_P2PLL_SLEEP
 			       | RADEON_P2PLL_ATOMIC_UPDATE_EN));
 
-		DRM_DEBUG_KMS("Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		DRM_DE_KMS("Wrote2: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 			  (unsigned)pll_ref_div,
 			  (unsigned)pll_fb_post_div,
 			  (unsigned)htotal_cntl,
 			  RREG32_PLL(RADEON_P2PLL_CNTL));
-		DRM_DEBUG_KMS("Wrote2: rd=%u, fd=%u, pd=%u\n",
+		DRM_DE_KMS("Wrote2: rd=%u, fd=%u, pd=%u\n",
 			  (unsigned)pll_ref_div & RADEON_P2PLL_REF_DIV_MASK,
 			  (unsigned)pll_fb_post_div & RADEON_P2PLL_FB0_DIV_MASK,
 			  (unsigned)((pll_fb_post_div &
@@ -999,12 +999,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			       | RADEON_PPLL_ATOMIC_UPDATE_EN
 			       | RADEON_PPLL_VGA_ATOMIC_UPDATE_EN));
 
-		DRM_DEBUG_KMS("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
+		DRM_DE_KMS("Wrote: 0x%08x 0x%08x 0x%08x (0x%08x)\n",
 			  pll_ref_div,
 			  pll_fb_post_div,
 			  (unsigned)htotal_cntl,
 			  RREG32_PLL(RADEON_PPLL_CNTL));
-		DRM_DEBUG_KMS("Wrote: rd=%d, fd=%d, pd=%d\n",
+		DRM_DE_KMS("Wrote: rd=%d, fd=%d, pd=%d\n",
 			  pll_ref_div & RADEON_PPLL_REF_DIV_MASK,
 			  pll_fb_post_div & RADEON_PPLL_FB3_DIV_MASK,
 			  (pll_fb_post_div & RADEON_PPLL_POST3_DIV_MASK) >> 16);
@@ -1062,7 +1062,7 @@ static void radeon_crtc_prepare(struct drm_crtc *crtc)
 
 	/*
 	* The hardware wedges sometimes if you reconfigure one CRTC
-	* whilst another is running (see fdo bug #24611).
+	* whilst another is running (see fdo  #24611).
 	*/
 	list_for_each_entry(crtci, &dev->mode_config.crtc_list, head)
 		radeon_crtc_dpms(crtci, DRM_MODE_DPMS_OFF);

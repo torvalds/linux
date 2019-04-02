@@ -1143,7 +1143,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_CAL_ERR)) {
-			pr_debug("%s : Cal error release\n", __func__);
+			pr_de("%s : Cal error release\n", __func__);
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_CAL_ERR_RLS, 0);

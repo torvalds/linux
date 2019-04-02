@@ -44,7 +44,7 @@ struct thread_info {
 	/* D$ line 2 */
 	unsigned long		fault_address;
 	struct pt_regs		*kregs;
-	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
+	int			preempt_count;	/* 0 => preemptable, <0 =>  */
 	__u8			new_child;
 	__u8			current_ds;
 	__u16			cpu;

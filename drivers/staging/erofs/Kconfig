@@ -17,11 +17,11 @@ config EROFS_FS
 
 	  If unsure, say N.
 
-config EROFS_FS_DEBUG
-	bool "EROFS debugging feature"
+config EROFS_FS_DE
+	bool "EROFS deging feature"
 	depends on EROFS_FS
 	help
-	  Print EROFS debugging messages and enable more BUG_ONs
+	  Print EROFS deging messages and enable more _ONs
 	  which check the filesystem consistency aggressively.
 
 	  For daily use, say N.

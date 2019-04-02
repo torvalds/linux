@@ -57,7 +57,7 @@ irqreturn_t qxl_irq_handler(int irq, void *arg)
 		 * to avoid endless loops).
 		 */
 		qdev->irq_received_error++;
-		DRM_WARN("driver is in bug mode\n");
+		DRM_WARN("driver is in  mode\n");
 	}
 	if (pending & QXL_INTERRUPT_CLIENT_MONITORS_CONFIG) {
 		schedule_work(&qdev->client_monitors_config_work);

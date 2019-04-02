@@ -35,7 +35,7 @@
 /* GPIO bank numbes */
 
 /* CONFIG_S3C_GPIO_SPACE allows the user to select extra
- * space for debugging purposes so that any accidental
+ * space for deging purposes so that any accidental
  * change from one gpio bank to another can be caught.
 */
 

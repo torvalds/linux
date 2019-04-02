@@ -8,7 +8,7 @@
 
 #include "target.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 
 #include <pwd.h>
 #include <string.h>
@@ -119,7 +119,7 @@ int target__strerror(struct target *target, int errnum,
 	int idx;
 	const char *msg;
 
-	BUG_ON(buflen == 0);
+	_ON(buflen == 0);
 
 	if (errnum >= 0) {
 		str_error_r(errnum, buf, buflen);

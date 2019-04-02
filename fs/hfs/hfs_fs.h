@@ -43,7 +43,7 @@
 #define hfs_dbg(flg, fmt, ...)					\
 do {								\
 	if (DBG_##flg & DBG_MASK)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
+		printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__);	\
 } while (0)
 
 #define hfs_dbg_cont(flg, fmt, ...)				\

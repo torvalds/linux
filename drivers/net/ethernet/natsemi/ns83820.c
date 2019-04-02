@@ -37,12 +37,12 @@
  *			      fiddling with TXCFG
  *	20010810	0.6 - use pci dma api for ringbuffers, work on ia64
  *	20010816	0.7 - misc cleanups
- *	20010826	0.8 - fix critical zero copy bugs
+ *	20010826	0.8 - fix critical zero copy s
  *			0.9 - internal experiment
  *	20010827	0.10 - fix ia64 unaligned access.
  *	20010906	0.11 - accept all packets with checksum errors as
  *			       otherwise fragments get lost
- *			     - fix >> 32 bugs
+ *			     - fix >> 32 s
  *			0.12 - add statistics counters
  *			     - add allmulti/promisc support
  *	20011009	0.13 - hotplug support, other smaller pci api cleanups
@@ -128,7 +128,7 @@ static int ihr = 2;
 static int reset_phy = 0;
 static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 
-/* Dprintk is used for more interesting debug events */
+/* Dprintk is used for more interesting de events */
 #undef Dprintk
 #define	Dprintk			dprintk
 
@@ -232,7 +232,7 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 #define CFG_DUPSTS	0x10000000
 #define CFG_TBI_EN	0x01000000
 #define CFG_MODE_1000	0x00400000
-/* Ramit : Dont' ever use AUTO_1000, it never works and is buggy.
+/* Ramit : Dont' ever use AUTO_1000, it never works and is gy.
  * Read the Phy response and then configure the MAC accordingly */
 #define CFG_AUTO_1000	0x00200000
 #define CFG_PINT_CTL	0x001c0000
@@ -478,7 +478,7 @@ static inline void kick_rx(struct net_device *ndev)
 			(4 * DESC_SIZE * dev->rx_info.next_rx),
 		       dev->base + RXDP);
 		if (dev->rx_info.next_rx == dev->rx_info.next_empty)
-			printk(KERN_DEBUG "%s: uh-oh: next_rx == next_empty???\n",
+			printk(KERN_DE "%s: uh-oh: next_rx == next_empty???\n",
 				ndev->name);
 		__kick_rx(dev);
 	}
@@ -495,7 +495,7 @@ static inline void kick_rx(struct net_device *ndev)
  * ownership bit.  While the hardware does support the use of a
  * ring for receive descriptors, we only make use of a chain in
  * an attempt to reduce bus traffic under heavy load scenarios.
- * This will also make bugs a bit more obvious.  The current code
+ * This will also make s a bit more obvious.  The current code
  * only makes use of a single rx chain; I hope to implement
  * priority based rx for version 1.0.  Goal: even under overload
  * conditions, still route realtime traffic with as low jitter as
@@ -535,7 +535,7 @@ static inline int ns83820_add_rx_skb(struct ns83820 *dev, struct sk_buff *skb)
 #endif
 
 	sg = dev->rx_info.descs + (next_empty * DESC_SIZE);
-	BUG_ON(NULL != dev->rx_info.skbs[next_empty]);
+	_ON(NULL != dev->rx_info.skbs[next_empty]);
 	dev->rx_info.skbs[next_empty] = skb;
 
 	dev->rx_info.next_empty = (next_empty + 1) % NR_RX_DESC;
@@ -821,7 +821,7 @@ static void ns83820_rx_kick(struct net_device *ndev)
 	else
 		kick_rx(ndev);
 	if (dev->rx_info.idle)
-		printk(KERN_DEBUG "%s: BAD\n", ndev->name);
+		printk(KERN_DE "%s: BAD\n", ndev->name);
 }
 
 /* rx_irq
@@ -1052,7 +1052,7 @@ static void ns83820_cleanup_tx(struct ns83820 *dev)
 /* transmit routine.  This code relies on the network layer serializing
  * its calls in, but will run happily in parallel with the interrupt
  * handler.  This code currently has provisions for fragmenting tx buffers
- * while trying to track down a bug in either the zero copy code or
+ * while trying to track down a  in either the zero copy code or
  * the tx fifo (hence the MAX_FRAG_LEN).
  */
 static netdev_tx_t ns83820_hard_start_xmit(struct sk_buff *skb,
@@ -1422,7 +1422,7 @@ static void ns83820_do_isr(struct net_device *ndev, u32 isr)
 	struct ns83820 *dev = PRIV(ndev);
 	unsigned long flags;
 
-#ifdef DEBUG
+#ifdef DE
 	if (isr & ~(ISR_PHY | ISR_RXDESC | ISR_RXEARLY | ISR_RXOK | ISR_RXERR | ISR_TXIDLE | ISR_TXOK | ISR_TXDESC))
 		Dprintk("odd isr? 0x%08x\n", isr);
 #endif
@@ -1469,7 +1469,7 @@ static void ns83820_do_isr(struct net_device *ndev, u32 isr)
 		txdp -= dev->tx_phy_descs;
 		dev->tx_idx = txdp / (DESC_SIZE * 4);
 		if (dev->tx_idx >= NR_TX_DESC) {
-			printk(KERN_ALERT "%s: BUG -- txdp out of range\n", ndev->name);
+			printk(KERN_ALERT "%s:  -- txdp out of range\n", ndev->name);
 			dev->tx_idx = 0;
 		}
 		/* The may have been a race between a pci originated read
@@ -1579,7 +1579,7 @@ static void ns83820_tx_timeout(struct net_device *ndev)
 		ndev->name,
 		tx_done_idx, dev->tx_free_idx, le32_to_cpu(desc[DESC_CMDSTS]));
 
-#if defined(DEBUG)
+#if defined(DE)
 	{
 		u32 isr;
 		isr = readl(dev->base + ISR);
@@ -1605,7 +1605,7 @@ static void ns83820_tx_watch(struct timer_list *t)
 	struct ns83820 *dev = from_timer(dev, t, tx_watchdog);
 	struct net_device *ndev = dev->ndev;
 
-#if defined(DEBUG)
+#if defined(DE)
 	printk("ns83820_tx_watch: %u %u %d\n",
 		dev->tx_done_idx, dev->tx_free_idx, atomic_read(&dev->nr_tx_skbs)
 		);
@@ -1613,7 +1613,7 @@ static void ns83820_tx_watch(struct timer_list *t)
 
 	if (time_after(jiffies, dev_trans_start(ndev) + 1*HZ) &&
 	    dev->tx_done_idx != dev->tx_free_idx) {
-		printk(KERN_DEBUG "%s: ns83820_tx_watch: %u %u %d\n",
+		printk(KERN_DE "%s: ns83820_tx_watch: %u %u %d\n",
 			ndev->name,
 			dev->tx_done_idx, dev->tx_free_idx,
 			atomic_read(&dev->nr_tx_skbs));

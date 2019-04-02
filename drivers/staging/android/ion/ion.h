@@ -71,7 +71,7 @@ struct ion_device {
 	struct mutex buffer_lock;
 	struct rw_semaphore lock;
 	struct plist_head heaps;
-	struct dentry *debug_root;
+	struct dentry *de_root;
 	int heap_cnt;
 };
 
@@ -128,7 +128,7 @@ struct ion_heap_ops {
  * @id:			id of heap, also indicates priority of this heap when
  *			allocating.  These are specified by platform data and
  *			MUST be unique
- * @name:		used for debugging
+ * @name:		used for deging
  * @shrinker:		a shrinker for the heap
  * @free_list:		free list head if deferred free is used
  * @free_list_size	size of the deferred free list in bytes

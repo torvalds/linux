@@ -21,13 +21,13 @@
 #include "cobalt-alsa.h"
 #include "cobalt-alsa-pcm.h"
 
-static unsigned int pcm_debug;
-module_param(pcm_debug, int, 0644);
-MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
+static unsigned int pcm_de;
+module_param(pcm_de, int, 0644);
+MODULE_PARM_DESC(pcm_de, "enable de messages for pcm");
 
 #define dprintk(fmt, arg...) \
 	do { \
-		if (pcm_debug) \
+		if (pcm_de) \
 			pr_info("cobalt-alsa-pcm %s: " fmt, __func__, ##arg); \
 	} while (0)
 
@@ -188,7 +188,7 @@ static int alsa_fnc(struct vb2_buffer *vb, void *priv)
 	unsigned char *p = vb2_plane_vaddr(vb, 0);
 	int i;
 
-	if (pcm_debug) {
+	if (pcm_de) {
 		pr_info("alsa: ");
 		for (i = 0; i < 8 * 4; i++) {
 			if (!(i & 3))

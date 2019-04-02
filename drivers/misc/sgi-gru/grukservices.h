@@ -99,8 +99,8 @@ extern int gru_send_message_gpa(struct gru_message_queue_desc *mqd,
 #define MQE_CONGESTION		1	/* temporary congestion, try again */
 #define MQE_QUEUE_FULL		2	/* queue is full */
 #define MQE_UNEXPECTED_CB_ERR	3	/* unexpected CB error */
-#define MQE_PAGE_OVERFLOW	10	/* BUG - queue overflowed a page */
-#define MQE_BUG_NO_RESOURCES	11	/* BUG - could not alloc GRU cb/dsr */
+#define MQE_PAGE_OVERFLOW	10	/*  - queue overflowed a page */
+#define MQE__NO_RESOURCES	11	/*  - could not alloc GRU cb/dsr */
 
 /*
  * Advance the receive pointer for the message queue to the next message.

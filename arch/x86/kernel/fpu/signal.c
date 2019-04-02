@@ -181,7 +181,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			copy_fxregs_to_kernel(fpu);
 	} else {
 		/*
-		 * It is a *bug* if kernel uses compacted-format for xsave
+		 * It is a ** if kernel uses compacted-format for xsave
 		 * area and we copy it out directly to a signal frame. It
 		 * should have been handled above by saving the registers
 		 * directly.

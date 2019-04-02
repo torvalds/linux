@@ -81,7 +81,7 @@ static void mv_desc_set_mode(struct mv_xor_desc_slot *desc)
 		hw_desc->desc_command |= XOR_DESC_OPERATION_MEMCPY;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 }
@@ -90,7 +90,7 @@ static void mv_desc_set_next_desc(struct mv_xor_desc_slot *desc,
 				  u32 next_desc_addr)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	BUG_ON(hw_desc->phy_next_desc);
+	_ON(hw_desc->phy_next_desc);
 	hw_desc->phy_next_desc = next_desc_addr;
 }
 
@@ -201,7 +201,7 @@ mv_desc_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 				struct mv_xor_chan *mv_chan,
 				dma_cookie_t cookie)
 {
-	BUG_ON(desc->async_tx.cookie < 0);
+	_ON(desc->async_tx.cookie < 0);
 
 	if (desc->async_tx.cookie > 0) {
 		cookie = desc->async_tx.cookie;
@@ -570,7 +570,7 @@ mv_xor_prep_dma_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 	if (unlikely(len < MV_XOR_MIN_BYTE_COUNT))
 		return NULL;
 
-	BUG_ON(len > MV_XOR_MAX_BYTE_COUNT);
+	_ON(len > MV_XOR_MAX_BYTE_COUNT);
 
 	dev_dbg(mv_chan_to_devp(mv_chan),
 		"%s src_cnt: %d len: %zu dest %pad flags: %ld\n",

@@ -32,11 +32,11 @@
 #define PRESENT         1	/* Card in slot */
 
 #define MY_NAME "rpaphp"
-extern bool rpaphp_debug;
+extern bool rpaphp_de;
 #define dbg(format, arg...)					\
 	do {							\
-		if (rpaphp_debug)				\
-			printk(KERN_DEBUG "%s: " format,	\
+		if (rpaphp_de)				\
+			printk(KERN_DE "%s: " format,	\
 				MY_NAME, ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)

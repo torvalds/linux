@@ -15,7 +15,7 @@ struct irq_bit_descr {
 };
 #define BIT_MASK_DESCR(m)	{ .mask = m, .name = #m }
 
-static void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
+static void irq_de_show_bits(struct seq_file *m, int ind, unsigned int state,
 				const struct irq_bit_descr *sd, int size)
 {
 	int i;
@@ -27,7 +27,7 @@ static void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
 }
 
 #ifdef CONFIG_SMP
-static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc)
+static void irq_de_show_masks(struct seq_file *m, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct cpumask *msk;
@@ -44,7 +44,7 @@ static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc)
 #endif
 }
 #else
-static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc) { }
+static void irq_de_show_masks(struct seq_file *m, struct irq_desc *desc) { }
 #endif
 
 static const struct irq_bit_descr irqchip_flags[] = {
@@ -60,7 +60,7 @@ static const struct irq_bit_descr irqchip_flags[] = {
 };
 
 static void
-irq_debug_show_chip(struct seq_file *m, struct irq_data *data, int ind)
+irq_de_show_chip(struct seq_file *m, struct irq_data *data, int ind)
 {
 	struct irq_chip *chip = data->chip;
 
@@ -70,24 +70,24 @@ irq_debug_show_chip(struct seq_file *m, struct irq_data *data, int ind)
 	}
 	seq_printf(m, "%*schip:    %s\n", ind, "", chip->name);
 	seq_printf(m, "%*sflags:   0x%lx\n", ind + 1, "", chip->flags);
-	irq_debug_show_bits(m, ind, chip->flags, irqchip_flags,
+	irq_de_show_bits(m, ind, chip->flags, irqchip_flags,
 			    ARRAY_SIZE(irqchip_flags));
 }
 
 static void
-irq_debug_show_data(struct seq_file *m, struct irq_data *data, int ind)
+irq_de_show_data(struct seq_file *m, struct irq_data *data, int ind)
 {
 	seq_printf(m, "%*sdomain:  %s\n", ind, "",
 		   data->domain ? data->domain->name : "");
 	seq_printf(m, "%*shwirq:   0x%lx\n", ind + 1, "", data->hwirq);
-	irq_debug_show_chip(m, data, ind + 1);
-	if (data->domain && data->domain->ops && data->domain->ops->debug_show)
-		data->domain->ops->debug_show(m, NULL, data, ind + 1);
+	irq_de_show_chip(m, data, ind + 1);
+	if (data->domain && data->domain->ops && data->domain->ops->de_show)
+		data->domain->ops->de_show(m, NULL, data, ind + 1);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (!data->parent_data)
 		return;
 	seq_printf(m, "%*sparent:\n", ind + 1, "");
-	irq_debug_show_data(m, data->parent_data, ind + 4);
+	irq_de_show_data(m, data->parent_data, ind + 4);
 #endif
 }
 
@@ -145,7 +145,7 @@ static const struct irq_bit_descr irqdesc_istates[] = {
 };
 
 
-static int irq_debug_show(struct seq_file *m, void *p)
+static int irq_de_show(struct seq_file *m, void *p)
 {
 	struct irq_desc *desc = m->private;
 	struct irq_data *data;
@@ -155,29 +155,29 @@ static int irq_debug_show(struct seq_file *m, void *p)
 	seq_printf(m, "handler:  %pf\n", desc->handle_irq);
 	seq_printf(m, "device:   %s\n", desc->dev_name);
 	seq_printf(m, "status:   0x%08x\n", desc->status_use_accessors);
-	irq_debug_show_bits(m, 0, desc->status_use_accessors, irqdesc_states,
+	irq_de_show_bits(m, 0, desc->status_use_accessors, irqdesc_states,
 			    ARRAY_SIZE(irqdesc_states));
 	seq_printf(m, "istate:   0x%08x\n", desc->istate);
-	irq_debug_show_bits(m, 0, desc->istate, irqdesc_istates,
+	irq_de_show_bits(m, 0, desc->istate, irqdesc_istates,
 			    ARRAY_SIZE(irqdesc_istates));
 	seq_printf(m, "ddepth:   %u\n", desc->depth);
 	seq_printf(m, "wdepth:   %u\n", desc->wake_depth);
 	seq_printf(m, "dstate:   0x%08x\n", irqd_get(data));
-	irq_debug_show_bits(m, 0, irqd_get(data), irqdata_states,
+	irq_de_show_bits(m, 0, irqd_get(data), irqdata_states,
 			    ARRAY_SIZE(irqdata_states));
 	seq_printf(m, "node:     %d\n", irq_data_get_node(data));
-	irq_debug_show_masks(m, desc);
-	irq_debug_show_data(m, data, 0);
+	irq_de_show_masks(m, desc);
+	irq_de_show_data(m, data, 0);
 	raw_spin_unlock_irq(&desc->lock);
 	return 0;
 }
 
-static int irq_debug_open(struct inode *inode, struct file *file)
+static int irq_de_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, irq_debug_show, inode->i_private);
+	return single_open(file, irq_de_show, inode->i_private);
 }
 
-static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
+static ssize_t irq_de_write(struct file *file, const char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct irq_desc *desc = file_inode(file)->i_private;
@@ -224,14 +224,14 @@ static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
 }
 
 static const struct file_operations dfs_irq_ops = {
-	.open		= irq_debug_open,
-	.write		= irq_debug_write,
+	.open		= irq_de_open,
+	.write		= irq_de_write,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-void irq_debugfs_copy_devname(int irq, struct device *dev)
+void irq_defs_copy_devname(int irq, struct device *dev)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	const char *name = dev_name(dev);
@@ -240,34 +240,34 @@ void irq_debugfs_copy_devname(int irq, struct device *dev)
 		desc->dev_name = kstrdup(name, GFP_KERNEL);
 }
 
-void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
+void irq_add_defs_entry(unsigned int irq, struct irq_desc *desc)
 {
 	char name [10];
 
-	if (!irq_dir || !desc || desc->debugfs_file)
+	if (!irq_dir || !desc || desc->defs_file)
 		return;
 
 	sprintf(name, "%d", irq);
-	desc->debugfs_file = debugfs_create_file(name, 0644, irq_dir, desc,
+	desc->defs_file = defs_create_file(name, 0644, irq_dir, desc,
 						 &dfs_irq_ops);
 }
 
-static int __init irq_debugfs_init(void)
+static int __init irq_defs_init(void)
 {
 	struct dentry *root_dir;
 	int irq;
 
-	root_dir = debugfs_create_dir("irq", NULL);
+	root_dir = defs_create_dir("irq", NULL);
 
-	irq_domain_debugfs_init(root_dir);
+	irq_domain_defs_init(root_dir);
 
-	irq_dir = debugfs_create_dir("irqs", root_dir);
+	irq_dir = defs_create_dir("irqs", root_dir);
 
 	irq_lock_sparse();
 	for_each_active_irq(irq)
-		irq_add_debugfs_entry(irq, irq_to_desc(irq));
+		irq_add_defs_entry(irq, irq_to_desc(irq));
 	irq_unlock_sparse();
 
 	return 0;
 }
-__initcall(irq_debugfs_init);
+__initcall(irq_defs_init);

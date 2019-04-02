@@ -83,15 +83,15 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 #define PCI_DPT_DEVICE_ID         (0xA501)	// DPT PCI I2O Device ID
 #define PCI_DPT_RAPTOR_DEVICE_ID  (0xA511)	
 
-/* Debugging macro from Linux Device Drivers - Rubini */
-#undef PDEBUG
-#ifdef DEBUG
-//TODO add debug level switch
-#  define PDEBUG(fmt, args...)  printk(KERN_DEBUG "dpti: " fmt, ##args)
-#  define PDEBUGV(fmt, args...) printk(KERN_DEBUG "dpti: " fmt, ##args)
+/* Deging macro from Linux Device Drivers - Rubini */
+#undef PDE
+#ifdef DE
+//TODO add de level switch
+#  define PDE(fmt, args...)  printk(KERN_DE "dpti: " fmt, ##args)
+#  define PDEV(fmt, args...) printk(KERN_DE "dpti: " fmt, ##args)
 #else
-# define PDEBUG(fmt, args...) /* not debugging: nothing */
-# define PDEBUGV(fmt, args...) /* not debugging: nothing */
+# define PDE(fmt, args...) /* not deging: nothing */
+# define PDEV(fmt, args...) /* not deging: nothing */
 #endif
 
 #define PERROR(fmt, args...) printk(KERN_ERR fmt, ##args)
@@ -244,13 +244,13 @@ typedef struct _adpt_hba {
 	struct adpt_channel channel[MAX_CHANNEL];
 	struct proc_dir_entry* proc_entry;	/* /proc dir */
 
-	void __iomem *FwDebugBuffer_P;	// Virtual Address Of FW Debug Buffer
-	u32   FwDebugBufferSize;	// FW Debug Buffer Size In Bytes
-	void __iomem *FwDebugStrLength_P;// Virtual Addr Of FW Debug String Len
-	void __iomem *FwDebugFlags_P;	// Virtual Address Of FW Debug Flags 
-	void __iomem *FwDebugBLEDflag_P;// Virtual Addr Of FW Debug BLED
-	void __iomem *FwDebugBLEDvalue_P;// Virtual Addr Of FW Debug BLED
-	u32 FwDebugFlags;
+	void __iomem *FwDeBuffer_P;	// Virtual Address Of FW De Buffer
+	u32   FwDeBufferSize;	// FW De Buffer Size In Bytes
+	void __iomem *FwDeStrLength_P;// Virtual Addr Of FW De String Len
+	void __iomem *FwDeFlags_P;	// Virtual Address Of FW De Flags 
+	void __iomem *FwDeBLEDflag_P;// Virtual Addr Of FW De BLED
+	void __iomem *FwDeBLEDvalue_P;// Virtual Addr Of FW De BLED
+	u32 FwDeFlags;
 	u32 *ioctl_reply_context[4];
 } adpt_hba;
 
@@ -271,7 +271,7 @@ static irqreturn_t adpt_isr(int irq, void *dev_id);
 static void adpt_i2o_report_hba_unit(adpt_hba* pHba, struct i2o_device *d);
 static int adpt_i2o_query_scalar(adpt_hba* pHba, int tid, 
 			int group, int field, void *buf, int buflen);
-#ifdef DEBUG
+#ifdef DE
 static const char *adpt_i2o_get_class_name(int class);
 #endif
 static int adpt_i2o_issue_params(int cmd, adpt_hba* pHba, int tid, 
@@ -316,9 +316,9 @@ static void adpt_delay(int millisec);
 
 #define PRINT_BUFFER_SIZE     512
 
-#define HBA_FLAGS_DBG_FLAGS_MASK         0xffff0000	// Mask for debug flags
-#define HBA_FLAGS_DBG_KERNEL_PRINT_B     0x00010000	// Kernel Debugger Print
-#define HBA_FLAGS_DBG_FW_PRINT_B         0x00020000	// Firmware Debugger Print
+#define HBA_FLAGS_DBG_FLAGS_MASK         0xffff0000	// Mask for de flags
+#define HBA_FLAGS_DBG_KERNEL_PRINT_B     0x00010000	// Kernel Deger Print
+#define HBA_FLAGS_DBG_FW_PRINT_B         0x00020000	// Firmware Deger Print
 #define HBA_FLAGS_DBG_FUNCTION_ENTRY_B   0x00040000	// Function Entry Point
 #define HBA_FLAGS_DBG_FUNCTION_EXIT_B    0x00080000	// Function Exit
 #define HBA_FLAGS_DBG_ERROR_B            0x00100000	// Error Conditions
@@ -326,10 +326,10 @@ static void adpt_delay(int millisec);
 #define HBA_FLAGS_DBG_OS_COMMANDS_B      0x00400000	// OS Command Info
 #define HBA_FLAGS_DBG_SCAN_B             0x00800000	// Device Scan
 
-#define FW_DEBUG_STR_LENGTH_OFFSET 0
-#define FW_DEBUG_FLAGS_OFFSET      4
-#define FW_DEBUG_BLED_OFFSET       8
+#define FW_DE_STR_LENGTH_OFFSET 0
+#define FW_DE_FLAGS_OFFSET      4
+#define FW_DE_BLED_OFFSET       8
 
-#define FW_DEBUG_FLAGS_NO_HEADERS_B    0x01
+#define FW_DE_FLAGS_NO_HEADERS_B    0x01
 #endif				/* !HOSTS_C */
 #endif				/* _DPT_H */

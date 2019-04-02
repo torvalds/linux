@@ -47,7 +47,7 @@ The following functions *should* work, but are not fully tested:
 
 Things that do not seem to work:
 
-- The level meters ("multi track") in 'alsamixer' do not seem to react to signals in (if this is a bug, it would probably be in the existing ICE1724 code).
+- The level meters ("multi track") in 'alsamixer' do not seem to react to signals in (if this is a , it would probably be in the existing ICE1724 code).
 
 - Ardour 2.1 seems to work only via JACK, not using ALSA directly or via OSS. This still needs to be tracked down.
 

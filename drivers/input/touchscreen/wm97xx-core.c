@@ -381,7 +381,7 @@ static int wm97xx_init_pen_irq(struct wm97xx *wm)
 
 	/* If an interrupt is supplied an IRQ enable operation must also be
 	 * provided. */
-	BUG_ON(!wm->mach_ops->irq_enable);
+	_ON(!wm->mach_ops->irq_enable);
 
 	if (request_irq(wm->pen_irq, wm97xx_pen_interrupt, IRQF_SHARED,
 			"wm97xx-pen", wm)) {
@@ -393,7 +393,7 @@ static int wm97xx_init_pen_irq(struct wm97xx *wm)
 
 	/* Configure GPIO as interrupt source on WM971x */
 	if (wm->id != WM9705_ID2) {
-		BUG_ON(!wm->mach_ops->irq_gpio);
+		_ON(!wm->mach_ops->irq_gpio);
 		reg = wm97xx_reg_read(wm, AC97_MISC_AFE);
 		wm97xx_reg_write(wm, AC97_MISC_AFE,
 				reg & ~(wm->mach_ops->irq_gpio));
@@ -479,7 +479,7 @@ static void wm97xx_ts_reader(struct work_struct *work)
 	int rc;
 	struct wm97xx *wm = container_of(work, struct wm97xx, ts_reader.work);
 
-	BUG_ON(!wm->codec);
+	_ON(!wm->codec);
 
 	do {
 		rc = wm97xx_read_samples(wm);
@@ -554,7 +554,7 @@ static void wm97xx_ts_input_close(struct input_dev *idev)
 	if (wm->pen_irq) {
 		/* Return the interrupt to GPIO usage (disabling it) */
 		if (wm->id != WM9705_ID2) {
-			BUG_ON(!wm->mach_ops->irq_gpio);
+			_ON(!wm->mach_ops->irq_gpio);
 			reg = wm97xx_reg_read(wm, AC97_MISC_AFE);
 			wm97xx_reg_write(wm, AC97_MISC_AFE,
 					 reg | wm->mach_ops->irq_gpio);

@@ -73,7 +73,7 @@ of the gadget.
 Please note, that while testing we encountered some issues[6] when
 RNDIS was not the first interface.  You do not need to worry abut it
 unless you are trying to develop your own gadget in which case watch
-out for this bug.
+out for this .
 
 **** CDC ACM
 

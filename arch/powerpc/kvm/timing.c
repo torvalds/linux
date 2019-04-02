@@ -21,7 +21,7 @@
 #include <linux/kvm_host.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 
@@ -133,7 +133,7 @@ static const char *kvm_exit_names[__NUMBER_OF_KVM_EXIT_TYPES] = {
 	[HALT_WAKEUP] =             "HALT",
 	[USR_PR_INST] =             "USR_PR_INST",
 	[FP_UNAVAIL] =              "FP_UNAVAIL",
-	[DEBUG_EXITS] =             "DEBUG",
+	[DE_EXITS] =             "DE",
 	[TIMEINGUEST] =             "TIMEINGUEST"
 };
 
@@ -215,30 +215,30 @@ static const struct file_operations kvmppc_exit_timing_fops = {
 	.release = single_release,
 };
 
-void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu, unsigned int id)
+void kvmppc_create_vcpu_defs(struct kvm_vcpu *vcpu, unsigned int id)
 {
 	static char dbg_fname[50];
-	struct dentry *debugfs_file;
+	struct dentry *defs_file;
 
 	snprintf(dbg_fname, sizeof(dbg_fname), "vm%u_vcpu%u_timing",
 		 current->pid, id);
-	debugfs_file = debugfs_create_file(dbg_fname, 0666,
-					kvm_debugfs_dir, vcpu,
+	defs_file = defs_create_file(dbg_fname, 0666,
+					kvm_defs_dir, vcpu,
 					&kvmppc_exit_timing_fops);
 
-	if (!debugfs_file) {
-		printk(KERN_ERR"%s: error creating debugfs file %s\n",
+	if (!defs_file) {
+		printk(KERN_ERR"%s: error creating defs file %s\n",
 			__func__, dbg_fname);
 		return;
 	}
 
-	vcpu->arch.debugfs_exit_timing = debugfs_file;
+	vcpu->arch.defs_exit_timing = defs_file;
 }
 
-void kvmppc_remove_vcpu_debugfs(struct kvm_vcpu *vcpu)
+void kvmppc_remove_vcpu_defs(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.debugfs_exit_timing) {
-		debugfs_remove(vcpu->arch.debugfs_exit_timing);
-		vcpu->arch.debugfs_exit_timing = NULL;
+	if (vcpu->arch.defs_exit_timing) {
+		defs_remove(vcpu->arch.defs_exit_timing);
+		vcpu->arch.defs_exit_timing = NULL;
 	}
 }

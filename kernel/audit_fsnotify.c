@@ -173,7 +173,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 
 	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
 
-	BUG_ON(group != audit_fsnotify_group);
+	_ON(group != audit_fsnotify_group);
 
 	switch (data_type) {
 	case (FSNOTIFY_EVENT_PATH):
@@ -183,7 +183,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 		inode = (const struct inode *)data;
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 

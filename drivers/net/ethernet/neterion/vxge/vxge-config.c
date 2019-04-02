@@ -258,13 +258,13 @@ enum vxge_hw_status vxge_hw_flash_fw(struct __vxge_hw_device *hldev)
 				      VXGE_HW_FW_UPGRADE_OFFSET_COMMIT,
 				      &data0, &data1, &steer_ctrl);
 	if (status != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR, "%s: FW upgrade failed", __func__);
+		vxge_de_init(VXGE_ERR, "%s: FW upgrade failed", __func__);
 		goto exit;
 	}
 
 	ret = VXGE_HW_RTS_ACCESS_STEER_CTRL_GET_ACTION(steer_ctrl) & 0x7F;
 	if (ret != 1) {
-		vxge_debug_init(VXGE_ERR, "%s: FW commit failed with error %d",
+		vxge_de_init(VXGE_ERR, "%s: FW commit failed with error %d",
 				__func__, ret);
 		status = VXGE_HW_FAIL;
 	}
@@ -290,7 +290,7 @@ vxge_update_fw_image(struct __vxge_hw_device *hldev, const u8 *fwdata, int size)
 				      VXGE_HW_FW_UPGRADE_OFFSET_START,
 				      &data0, &data1, &steer_ctrl);
 	if (status != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR, " %s: Upgrade start cmd failed",
+		vxge_de_init(VXGE_ERR, " %s: Upgrade start cmd failed",
 				__func__);
 		return status;
 	}
@@ -309,7 +309,7 @@ vxge_update_fw_image(struct __vxge_hw_device *hldev, const u8 *fwdata, int size)
 					      VXGE_HW_FW_UPGRADE_OFFSET_SEND,
 					      &data0, &data1, &steer_ctrl);
 		if (status != VXGE_HW_OK) {
-			vxge_debug_init(VXGE_ERR, "%s: Upgrade send failed",
+			vxge_de_init(VXGE_ERR, "%s: Upgrade send failed",
 					__func__);
 			goto out;
 		}
@@ -1328,7 +1328,7 @@ vxge_hw_device_initialize(
 
 	hldev->magic = VXGE_HW_DEVICE_MAGIC;
 
-	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_ALL);
+	vxge_hw_device_de_set(hldev, VXGE_ERR, VXGE_COMPONENT_ALL);
 
 	/* apply config */
 	memcpy(&hldev->config, device_config,
@@ -1517,33 +1517,33 @@ __vxge_hw_vpath_stats_get(struct __vxge_hw_virtualpath *vpath,
 	}
 	vp_reg = vpath->vp_reg;
 
-	val64 = readq(&vp_reg->vpath_debug_stats0);
+	val64 = readq(&vp_reg->vpath_de_stats0);
 	hw_stats->ini_num_mwr_sent =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS0_GET_INI_NUM_MWR_SENT(val64);
+		(u32)VXGE_HW_VPATH_DE_STATS0_GET_INI_NUM_MWR_SENT(val64);
 
-	val64 = readq(&vp_reg->vpath_debug_stats1);
+	val64 = readq(&vp_reg->vpath_de_stats1);
 	hw_stats->ini_num_mrd_sent =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS1_GET_INI_NUM_MRD_SENT(val64);
+		(u32)VXGE_HW_VPATH_DE_STATS1_GET_INI_NUM_MRD_SENT(val64);
 
-	val64 = readq(&vp_reg->vpath_debug_stats2);
+	val64 = readq(&vp_reg->vpath_de_stats2);
 	hw_stats->ini_num_cpl_rcvd =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS2_GET_INI_NUM_CPL_RCVD(val64);
+		(u32)VXGE_HW_VPATH_DE_STATS2_GET_INI_NUM_CPL_RCVD(val64);
 
-	val64 = readq(&vp_reg->vpath_debug_stats3);
+	val64 = readq(&vp_reg->vpath_de_stats3);
 	hw_stats->ini_num_mwr_byte_sent =
-		VXGE_HW_VPATH_DEBUG_STATS3_GET_INI_NUM_MWR_BYTE_SENT(val64);
+		VXGE_HW_VPATH_DE_STATS3_GET_INI_NUM_MWR_BYTE_SENT(val64);
 
-	val64 = readq(&vp_reg->vpath_debug_stats4);
+	val64 = readq(&vp_reg->vpath_de_stats4);
 	hw_stats->ini_num_cpl_byte_rcvd =
-		VXGE_HW_VPATH_DEBUG_STATS4_GET_INI_NUM_CPL_BYTE_RCVD(val64);
+		VXGE_HW_VPATH_DE_STATS4_GET_INI_NUM_CPL_BYTE_RCVD(val64);
 
-	val64 = readq(&vp_reg->vpath_debug_stats5);
+	val64 = readq(&vp_reg->vpath_de_stats5);
 	hw_stats->wrcrdtarb_xoff =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS5_GET_WRCRDTARB_XOFF(val64);
+		(u32)VXGE_HW_VPATH_DE_STATS5_GET_WRCRDTARB_XOFF(val64);
 
-	val64 = readq(&vp_reg->vpath_debug_stats6);
+	val64 = readq(&vp_reg->vpath_de_stats6);
 	hw_stats->rdcrdtarb_xoff =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS6_GET_RDCRDTARB_XOFF(val64);
+		(u32)VXGE_HW_VPATH_DE_STATS6_GET_RDCRDTARB_XOFF(val64);
 
 	val64 = readq(&vp_reg->vpath_genstats_count01);
 	hw_stats->vpath_genstats_count0 =
@@ -1839,26 +1839,26 @@ exit:
 }
 
 /*
- * vxge_hw_device_debug_set - Set the debug module, level and timestamp
- * This routine is used to dynamically change the debug output
+ * vxge_hw_device_de_set - Set the de module, level and timestamp
+ * This routine is used to dynamically change the de output
  */
-void vxge_hw_device_debug_set(struct __vxge_hw_device *hldev,
-			      enum vxge_debug_level level, u32 mask)
+void vxge_hw_device_de_set(struct __vxge_hw_device *hldev,
+			      enum vxge_de_level level, u32 mask)
 {
 	if (hldev == NULL)
 		return;
 
-#if defined(VXGE_DEBUG_TRACE_MASK) || \
-	defined(VXGE_DEBUG_ERR_MASK)
-	hldev->debug_module_mask = mask;
-	hldev->debug_level = level;
+#if defined(VXGE_DE_TRACE_MASK) || \
+	defined(VXGE_DE_ERR_MASK)
+	hldev->de_module_mask = mask;
+	hldev->de_level = level;
 #endif
 
-#if defined(VXGE_DEBUG_ERR_MASK)
+#if defined(VXGE_DE_ERR_MASK)
 	hldev->level_err = level & VXGE_ERR;
 #endif
 
-#if defined(VXGE_DEBUG_TRACE_MASK)
+#if defined(VXGE_DE_TRACE_MASK)
 	hldev->level_trace = level & VXGE_TRACE;
 #endif
 }
@@ -1869,7 +1869,7 @@ void vxge_hw_device_debug_set(struct __vxge_hw_device *hldev,
  */
 u32 vxge_hw_device_error_level_get(struct __vxge_hw_device *hldev)
 {
-#if defined(VXGE_DEBUG_ERR_MASK)
+#if defined(VXGE_DE_ERR_MASK)
 	if (hldev == NULL)
 		return VXGE_ERR;
 	else
@@ -1885,7 +1885,7 @@ u32 vxge_hw_device_error_level_get(struct __vxge_hw_device *hldev)
  */
 u32 vxge_hw_device_trace_level_get(struct __vxge_hw_device *hldev)
 {
-#if defined(VXGE_DEBUG_TRACE_MASK)
+#if defined(VXGE_DE_TRACE_MASK)
 	if (hldev == NULL)
 		return VXGE_TRACE;
 	else

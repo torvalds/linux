@@ -1429,7 +1429,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 		goto err_alloc_dev;
 
 	/*
-	 * Older version of 460EX/GT have a hardware bug.
+	 * Older version of 460EX/GT have a hardware .
 	 * Hence they do not support H/W based security intr coalescing
 	 */
 	pvr = mfspr(SPRN_PVR);

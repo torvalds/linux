@@ -1306,7 +1306,7 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			sprintf(p, "rx_pb_%u_pxoff", i);
 			p += ETH_GSTRING_LEN;
 		}
-		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
+		/* _ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(data, ixgbe_priv_flags_strings,

@@ -82,10 +82,10 @@ void pci_hp_remove_devices(struct pci_bus *bus)
 	list_for_each_entry(child_bus, &bus->children, node)
 		pci_hp_remove_devices(child_bus);
 
-	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
+	pr_de("PCI: Removing devices on bus %04x:%02x\n",
 		 pci_domain_nr(bus),  bus->number);
 	list_for_each_entry_safe_reverse(dev, tmp, &bus->devices, bus_list) {
-		pr_debug("   Removing %s...\n", pci_name(dev));
+		pr_de("   Removing %s...\n", pci_name(dev));
 		pci_stop_and_remove_bus_device(dev);
 	}
 }

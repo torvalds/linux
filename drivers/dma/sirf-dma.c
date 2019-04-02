@@ -605,10 +605,10 @@ static void sirfsoc_dma_free_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&schan->lock, flags);
 
 	/* Channel must be idle */
-	BUG_ON(!list_empty(&schan->prepared));
-	BUG_ON(!list_empty(&schan->queued));
-	BUG_ON(!list_empty(&schan->active));
-	BUG_ON(!list_empty(&schan->completed));
+	_ON(!list_empty(&schan->prepared));
+	_ON(!list_empty(&schan->queued));
+	_ON(!list_empty(&schan->active));
+	_ON(!list_empty(&schan->completed));
 
 	/* Move data */
 	list_splice_tail_init(&schan->free, &descs);

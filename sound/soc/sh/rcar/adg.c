@@ -544,7 +544,7 @@ rsnd_adg_get_clkout_end:
 	adg->rbgb = rbgb;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void rsnd_adg_clk_dbg_info(struct rsnd_priv *priv, struct rsnd_adg *adg)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);

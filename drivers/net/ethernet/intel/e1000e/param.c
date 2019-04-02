@@ -24,7 +24,7 @@ MODULE_PARM_DESC(copybreak,
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
- * over and over (plus this helps to avoid typo bugs).
+ * over and over (plus this helps to avoid typo s).
  */
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc)					\
@@ -205,7 +205,7 @@ static int e1000_validate_option(unsigned int *value,
 	}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	dev_info(&adapter->pdev->dev, "Invalid %s value specified (%i) %s\n",

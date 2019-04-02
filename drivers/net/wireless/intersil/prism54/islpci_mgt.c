@@ -36,8 +36,8 @@
 /******************************************************************************
         Global variable definition section
 ******************************************************************************/
-int pc_debug = VERBOSE;
-module_param(pc_debug, int, 0);
+int pc_de = VERBOSE;
+module_param(pc_de, int, 0);
 
 /******************************************************************************
     Driver general functions
@@ -46,7 +46,7 @@ module_param(pc_debug, int, 0);
 void
 display_buffer(char *buffer, int length)
 {
-	if ((pc_debug & SHOW_BUFFER_CONTENTS) == 0)
+	if ((pc_de & SHOW_BUFFER_CONTENTS) == 0)
 		return;
 
 	while (length > 0) {
@@ -112,7 +112,7 @@ islpci_mgmt_rx_fill(struct net_device *ndev)
 	u32 curr = le32_to_cpu(cb->driver_curr_frag[ISL38XX_CB_RX_MGMTQ]);
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_mgmt_rx_fill\n");
+	DE(SHOW_FUNCTION_CALLS, "islpci_mgmt_rx_fill\n");
 #endif
 
 	while (curr - priv->index_mgmt_rx < ISL38XX_CB_MGMT_QSIZE) {
@@ -176,11 +176,11 @@ islpci_mgt_transmit(struct net_device *ndev, int operation, unsigned long oid,
 	int frag_len = length + PIMFOR_HEADER_SIZE;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_mgt_transmit\n");
+	DE(SHOW_FUNCTION_CALLS, "islpci_mgt_transmit\n");
 #endif
 
 	if (frag_len > MGMT_FRAME_SIZE) {
-		printk(KERN_DEBUG "%s: mgmt frame too large %d\n",
+		printk(KERN_DE "%s: mgmt frame too large %d\n",
 		       ndev->name, frag_len);
 		goto error;
 	}
@@ -204,11 +204,11 @@ islpci_mgt_transmit(struct net_device *ndev, int operation, unsigned long oid,
 #if VERBOSE > SHOW_ERROR_MESSAGES
 	{
 		pimfor_header_t *h = buf.mem;
-		DEBUG(SHOW_PIMFOR_FRAMES,
+		DE(SHOW_PIMFOR_FRAMES,
 		      "PIMFOR: op %i, oid 0x%08lx, device %i, flags 0x%x length 0x%x\n",
 		      h->operation, oid, h->device_id, h->flags, length);
 
-		/* display the buffer contents for debugging */
+		/* display the buffer contents for deging */
 		display_buffer((char *) h, sizeof (pimfor_header_t));
 		display_buffer(p, length);
 	}
@@ -273,7 +273,7 @@ islpci_mgt_receive(struct net_device *ndev)
 	u32 curr_frag;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_mgt_receive\n");
+	DE(SHOW_FUNCTION_CALLS, "islpci_mgt_receive\n");
 #endif
 
 	/* Only once per interrupt, determine fragment range to
@@ -331,12 +331,12 @@ islpci_mgt_receive(struct net_device *ndev)
 		header->device_id = priv->ndev->ifindex;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-		DEBUG(SHOW_PIMFOR_FRAMES,
+		DE(SHOW_PIMFOR_FRAMES,
 		      "PIMFOR: op %i, oid 0x%08x, device %i, flags 0x%x length 0x%x\n",
 		      header->operation, header->oid, header->device_id,
 		      header->flags, header->length);
 
-		/* display the buffer contents for debugging */
+		/* display the buffer contents for deging */
 		display_buffer((char *) header, PIMFOR_HEADER_SIZE);
 		display_buffer((char *) header + PIMFOR_HEADER_SIZE,
 			       header->length);
@@ -344,7 +344,7 @@ islpci_mgt_receive(struct net_device *ndev)
 
 		/* nobody sends these */
 		if (header->flags & PIMFOR_FLAG_APPLIC_ORIGIN) {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "%s: errant PIMFOR application frame\n",
 			       ndev->name);
 			continue;
@@ -363,14 +363,14 @@ islpci_mgt_receive(struct net_device *ndev)
 		frame->data = frame->buf + PIMFOR_HEADER_SIZE;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-		DEBUG(SHOW_PIMFOR_FRAMES,
+		DE(SHOW_PIMFOR_FRAMES,
 		      "frame: header: %p, data: %p, size: %d\n",
 		      frame->header, frame->data, size);
 #endif
 
 		if (header->operation == PIMFOR_OP_TRAP) {
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "TRAP: oid 0x%x, device %i, flags 0x%x length %i\n",
 			       header->oid, header->device_id, header->flags,
 			       header->length);
@@ -391,7 +391,7 @@ islpci_mgt_receive(struct net_device *ndev)
 				kfree(frame);
 			}
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING, "Wake up Mgmt Queue\n");
+			DE(SHOW_TRACING, "Wake up Mgmt Queue\n");
 #endif
 			wake_up(&priv->mgmt_wqueue);
 		}
@@ -413,7 +413,7 @@ islpci_mgt_cleanup_transmit(struct net_device *ndev)
 	u32 curr_frag;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_mgt_cleanup_transmit\n");
+	DE(SHOW_FUNCTION_CALLS, "islpci_mgt_cleanup_transmit\n");
 #endif
 
 	/* Only once per cleanup, determine fragment range to
@@ -473,7 +473,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 				err = 0;
 				goto out;
 			} else {
-				printk(KERN_DEBUG
+				printk(KERN_DE
 				       "%s: expecting oid 0x%x, received 0x%x.\n",
 				       ndev->name, (unsigned int) oid,
 				       frame->header->oid);
@@ -482,7 +482,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 			}
 		}
 		if (timeleft == 0) {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"%s: timeout waiting for mgmt response %lu, "
 				"triggering device\n",
 				ndev->name, timeout_left);

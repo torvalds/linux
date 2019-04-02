@@ -18,7 +18,7 @@
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-/*#define DEBUG*/
+/*#define DE*/
 
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -31,8 +31,8 @@
 
 #include <video/omapvrfb.h>
 
-#ifdef DEBUG
-#define DBG(format, ...) pr_debug("VRFB: " format, ## __VA_ARGS__)
+#ifdef DE
+#define DBG(format, ...) pr_de("VRFB: " format, ## __VA_ARGS__)
 #else
 #define DBG(format, ...)
 #endif
@@ -204,7 +204,7 @@ void omap_vrfb_setup(struct vrfb *vrfb, unsigned long paddr,
 	else if (bytespp == 2)
 		pixel_size_exp = 1;
 	else {
-		BUG();
+		();
 		return;
 	}
 
@@ -270,7 +270,7 @@ void omap_vrfb_release_ctx(struct vrfb *vrfb)
 
 	mutex_lock(&ctx_lock);
 
-	BUG_ON(!(ctx_map & (1 << ctx)));
+	_ON(!(ctx_map & (1 << ctx)));
 
 	clear_bit(ctx, &ctx_map);
 

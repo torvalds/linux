@@ -30,8 +30,8 @@
 #include <asm/dvma.h>
 
 
-#undef DEBUG_MMU_EMU
-#define DEBUG_PROM_MAPS
+#undef DE_MMU_EMU
+#define DE_PROM_MAPS
 
 /*
 ** Defines
@@ -68,7 +68,7 @@ static unsigned char ctx_avail = CONTEXTS_NUM-1;
    hope it never wants mote than that. */
 unsigned long rom_pages[256];
 
-/* Print a PTE value in symbolic form. For debugging. */
+/* Print a PTE value in symbolic form. For deging. */
 void print_pte (pte_t pte)
 {
 #if 0
@@ -115,7 +115,7 @@ void print_pte (pte_t pte)
 #endif
 }
 
-/* Print the PTE value for a given virtual address. For debugging. */
+/* Print the PTE value for a given virtual address. For deging. */
 void print_pte_vaddr (unsigned long vaddr)
 {
 	pr_cont(" vaddr=%lx [%02lx]", vaddr, sun3_get_segmap (vaddr));
@@ -154,7 +154,7 @@ void __init mmu_emu_init(unsigned long bootmem_end)
 		i = sun3_get_segmap(seg);
 
 		if(!pmeg_alloc[i]) {
-#ifdef DEBUG_MMU_EMU
+#ifdef DE_MMU_EMU
 			pr_info("freed:");
 			print_pte_vaddr (seg);
 #endif
@@ -165,7 +165,7 @@ void __init mmu_emu_init(unsigned long bootmem_end)
 	j = 0;
 	for (num=0, seg=0x0F800000; seg<0x10000000; seg+=16*PAGE_SIZE) {
 		if (sun3_get_segmap (seg) != SUN3_INVALID_PMEG) {
-#ifdef DEBUG_PROM_MAPS
+#ifdef DE_PROM_MAPS
 			for(i = 0; i < 16; i++) {
 				pr_info("mapped:");
 				print_pte_vaddr (seg + (i*PAGE_SIZE));
@@ -294,7 +294,7 @@ inline void mmu_emu_map_pmeg (int context, int vaddr)
 		++curr_pmeg;
 
 
-#ifdef DEBUG_MMU_EMU
+#ifdef DE_MMU_EMU
 	pr_info("mmu_emu_map_pmeg: pmeg %x to context %d vaddr %x\n",
 		curr_pmeg, context, vaddr);
 #endif
@@ -371,7 +371,7 @@ int mmu_emu_handle_fault (unsigned long vaddr, int read_flag, int kernel_fault)
 			crp = current->mm->pgd;
 	}
 
-#ifdef DEBUG_MMU_EMU
+#ifdef DE_MMU_EMU
 	pr_info("mmu_emu_handle_fault: vaddr=%lx type=%s crp=%p\n",
 		vaddr, read_flag ? "read" : "write", crp);
 #endif
@@ -379,7 +379,7 @@ int mmu_emu_handle_fault (unsigned long vaddr, int read_flag, int kernel_fault)
 	segment = (vaddr >> SUN3_PMEG_SIZE_BITS) & 0x7FF;
 	offset  = (vaddr >> SUN3_PTE_SIZE_BITS) & 0xF;
 
-#ifdef DEBUG_MMU_EMU
+#ifdef DE_MMU_EMU
 	pr_info("mmu_emu_handle_fault: segment=%lx offset=%lx\n", segment,
 		offset);
 #endif
@@ -419,7 +419,7 @@ int mmu_emu_handle_fault (unsigned long vaddr, int read_flag, int kernel_fault)
 	} else
 		pte_val (*pte) |= SUN3_PAGE_ACCESSED;
 
-#ifdef DEBUG_MMU_EMU
+#ifdef DE_MMU_EMU
 	pr_info("seg:%ld crp:%p ->", get_fs().seg, crp);
 	print_pte_vaddr (vaddr);
 	pr_cont("\n");

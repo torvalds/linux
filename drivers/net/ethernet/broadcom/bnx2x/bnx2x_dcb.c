@@ -1240,7 +1240,7 @@ static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 	u32 pri_tested = 0;
 	u32 pri_mask_without_pri = 0;
 	u32 *ttp = bp->dcbx_port_params.app.traffic_type_priority;
-	/*debug*/
+	/*de*/
 	if (num_of_dif_pri == 1) {
 		bnx2x_dcbx_ets_disabled_entry_data(bp, cos_data, pri_join_mask);
 		return;

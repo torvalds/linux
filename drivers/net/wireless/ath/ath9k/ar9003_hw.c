@@ -1077,7 +1077,7 @@ static void ar9003_hw_init_hang_checks(struct ath_hw *ah)
  * Signature: dcu_chain_state is 0x6 and dcu_complete_state is 0x1.
  *
  * The state of each DCU chain (mapped to TX queues) is available from these
- * DMA debug registers:
+ * DMA de registers:
  *
  * Chain 0 state : Bits 4:0   of AR_DMADBG_4
  * Chain 1 state : Bits 9:5   of AR_DMADBG_4

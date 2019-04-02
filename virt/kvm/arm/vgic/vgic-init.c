@@ -317,7 +317,7 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
-	vgic_debug_init(kvm);
+	vgic_de_init(kvm);
 
 	dist->implementation_rev = 2;
 	dist->initialized = true;
@@ -363,7 +363,7 @@ static void __kvm_vgic_destroy(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	int i;
 
-	vgic_debug_destroy(kvm);
+	vgic_de_destroy(kvm);
 
 	kvm_vgic_dist_destroy(kvm);
 
@@ -471,7 +471,7 @@ static irqreturn_t vgic_maintenance_handler(int irq, void *data)
  */
 void kvm_vgic_init_cpu_hardware(void)
 {
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	/*
 	 * We want to make sure the list registers start out clear so that we

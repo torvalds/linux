@@ -145,7 +145,7 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned long flags;
 	unsigned int timeout;
 
-	BUG_ON(host->mrq != NULL);
+	_ON(host->mrq != NULL);
 	host->mrq = mrq;
 
 	dev_dbg(host->dev, "cmd %d (hw state 0x%04x)\n",

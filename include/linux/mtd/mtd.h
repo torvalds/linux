@@ -197,11 +197,11 @@ struct mtd_pairing_scheme {
 struct module;	/* only needed for owner field in mtd_info */
 
 /**
- * struct mtd_debug_info - debugging information for an MTD device.
+ * struct mtd_de_info - deging information for an MTD device.
  *
- * @dfs_dir: direntry object of the MTD device debugfs directory
+ * @dfs_dir: direntry object of the MTD device defs directory
  */
-struct mtd_debug_info {
+struct mtd_de_info {
 	struct dentry *dfs_dir;
 };
 
@@ -342,7 +342,7 @@ struct mtd_info {
 	struct module *owner;
 	struct device dev;
 	int usecount;
-	struct mtd_debug_info dbg;
+	struct mtd_de_info dbg;
 	struct nvmem_device *nvmem;
 };
 

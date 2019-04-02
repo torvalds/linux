@@ -683,7 +683,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	tipc_bearer_add_dest(n->net, bearer_id, n->addr);
 	tipc_bcast_inc_bearer_dst_cnt(n->net, bearer_id);
 
-	pr_debug("Established link <%s> on network plane %c\n",
+	pr_de("Established link <%s> on network plane %c\n",
 		 tipc_link_name(nl), tipc_link_plane(nl));
 	trace_tipc_node_link_up(n, true, " ");
 
@@ -704,7 +704,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 
 	/* Second link => redistribute slots */
 	if (tipc_link_prio(nl) > tipc_link_prio(ol)) {
-		pr_debug("Old link <%s> becomes standby\n", tipc_link_name(ol));
+		pr_de("Old link <%s> becomes standby\n", tipc_link_name(ol));
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
 		tipc_link_set_active(nl, true);
@@ -713,7 +713,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		tipc_link_set_active(nl, true);
 		*slot1 = bearer_id;
 	} else {
-		pr_debug("New link <%s> is standby\n", tipc_link_name(nl));
+		pr_de("New link <%s> is standby\n", tipc_link_name(nl));
 	}
 
 	/* Prepare synchronization with first link */
@@ -760,7 +760,7 @@ static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 
 	tipc_bearer_remove_dest(n->net, *bearer_id, n->addr);
 
-	pr_debug("Lost link <%s> on network plane %c\n",
+	pr_de("Lost link <%s> on network plane %c\n",
 		 tipc_link_name(l), tipc_link_plane(l));
 
 	/* Select new active link if any available */
@@ -1265,7 +1265,7 @@ static void node_lost_contact(struct tipc_node *n,
 	struct sk_buff *skb;
 	uint i;
 
-	pr_debug("Lost contact with %x\n", n->addr);
+	pr_de("Lost contact with %x\n", n->addr);
 	n->delete_at = jiffies + msecs_to_jiffies(NODE_CLEANUP_AFTER);
 	trace_tipc_node_lost_contact(n, true, " ");
 

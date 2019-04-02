@@ -11,7 +11,7 @@
  * (In all truth, Jed Schimmel wrote all this code.)
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -89,7 +89,7 @@ void fill_hpc_entries(struct ip22_hostdata *hd, struct scsi_cmnd *cmd, int din)
 	}
 
 	/*
-	 * To make sure, if we trip an HPC bug, that we transfer every single
+	 * To make sure, if we trip an HPC , that we transfer every single
 	 * byte, we tag on an extra zero length dma descriptor at the end of
 	 * the chain.
 	 */
@@ -106,7 +106,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 	struct hpc3_scsiregs *hregs =
 		(struct hpc3_scsiregs *) cmd->device->host->base;
 
-	pr_debug("dma_setup: datainp<%d> hcp<%p> ", datainp, hdata->cpu);
+	pr_de("dma_setup: datainp<%d> hcp<%p> ", datainp, hdata->cpu);
 
 	hdata->wh.dma_dir = datainp;
 
@@ -121,7 +121,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 
 	fill_hpc_entries(hdata, cmd, datainp);
 
-	pr_debug(" HPCGO\n");
+	pr_de(" HPCGO\n");
 
 	/* Start up the HPC. */
 	hregs->ndptr = hdata->dma;
@@ -147,7 +147,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 
 	hregs = (struct hpc3_scsiregs *) SCpnt->device->host->base;
 
-	pr_debug("dma_stop: status<%d> ", status);
+	pr_de("dma_stop: status<%d> ", status);
 
 	/* First stop the HPC and flush it's FIFO. */
 	if (hdata->wh.dma_dir) {
@@ -160,7 +160,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 			 SCpnt->SCp.this_residual,
 			 DMA_DIR(hdata->wh.dma_dir));
 
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 void sgiwd93_reset(unsigned long base)

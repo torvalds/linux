@@ -38,7 +38,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/usb/of.h>
 
 #include <asm/io.h>
@@ -242,7 +242,7 @@ struct usb_host_interface *usb_find_alt_setting(
 		if (intf_cache->altsetting[i].desc.bAlternateSetting == alt_num)
 			return &intf_cache->altsetting[i];
 
-	printk(KERN_DEBUG "Did not find alt setting %u for intf %u, "
+	printk(KERN_DE "Did not find alt setting %u for intf %u, "
 			"config %u\n", alt_num, iface_num,
 			config->desc.bConfigurationValue);
 	return NULL;
@@ -1185,19 +1185,19 @@ static struct notifier_block usb_bus_nb = {
 	.notifier_call = usb_bus_notify,
 };
 
-struct dentry *usb_debug_root;
-EXPORT_SYMBOL_GPL(usb_debug_root);
+struct dentry *usb_de_root;
+EXPORT_SYMBOL_GPL(usb_de_root);
 
-static void usb_debugfs_init(void)
+static void usb_defs_init(void)
 {
-	usb_debug_root = debugfs_create_dir("usb", NULL);
-	debugfs_create_file("devices", 0444, usb_debug_root, NULL,
+	usb_de_root = defs_create_dir("usb", NULL);
+	defs_create_file("devices", 0444, usb_de_root, NULL,
 			    &usbfs_devices_fops);
 }
 
-static void usb_debugfs_cleanup(void)
+static void usb_defs_cleanup(void)
 {
-	debugfs_remove_recursive(usb_debug_root);
+	defs_remove_recursive(usb_de_root);
 }
 
 /*
@@ -1212,7 +1212,7 @@ static int __init usb_init(void)
 	}
 	usb_init_pool_max();
 
-	usb_debugfs_init();
+	usb_defs_init();
 
 	usb_acpi_register();
 	retval = bus_register(&usb_bus_type);
@@ -1250,7 +1250,7 @@ bus_notifier_failed:
 	bus_unregister(&usb_bus_type);
 bus_register_failed:
 	usb_acpi_unregister();
-	usb_debugfs_cleanup();
+	usb_defs_cleanup();
 out:
 	return retval;
 }
@@ -1273,7 +1273,7 @@ static void __exit usb_exit(void)
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 	bus_unregister(&usb_bus_type);
 	usb_acpi_unregister();
-	usb_debugfs_cleanup();
+	usb_defs_cleanup();
 	idr_destroy(&usb_bus_idr);
 }
 

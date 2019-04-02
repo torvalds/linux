@@ -546,7 +546,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 
 	repaper_get_temperature(epd);
 
-	DRM_DEBUG("Flushing [FB:%d] st=%ums\n", fb->base.id,
+	DRM_DE("Flushing [FB:%d] st=%ums\n", fb->base.id,
 		  epd->factored_stage_time);
 
 	buf = kmalloc_array(fb->width, fb->height, GFP_KERNEL);
@@ -652,7 +652,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 	bool dc_ok = false;
 	int i, ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Power up sequence */
 	gpiod_set_value_cansleep(epd->reset, 0);
@@ -785,7 +785,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct spi_device *spi = epd->spi;
 	unsigned int line;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	epd->enabled = false;
 
@@ -1079,7 +1079,7 @@ static int repaper_probe(struct spi_device *spi)
 	drm_mode_config_reset(tdev->drm);
 	spi_set_drvdata(spi, tdev);
 
-	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
+	DRM_DE_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
 
 	return devm_tinydrm_register(tdev);
 }

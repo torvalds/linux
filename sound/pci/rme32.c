@@ -1630,7 +1630,7 @@ snd_rme32_info_inputtype_control(struct snd_kcontrol *kcontrol,
 		num_items = 4;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	return snd_ctl_enum_info(uinfo, 1, num_items, texts);
@@ -1654,7 +1654,7 @@ snd_rme32_get_inputtype_control(struct snd_kcontrol *kcontrol,
 		items = 4;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 	if (ucontrol->value.enumerated.item[0] >= items) {
@@ -1681,7 +1681,7 @@ snd_rme32_put_inputtype_control(struct snd_kcontrol *kcontrol,
 		items = 4;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 	val = ucontrol->value.enumerated.item[0] % items;

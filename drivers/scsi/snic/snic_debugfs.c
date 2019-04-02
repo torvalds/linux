@@ -17,41 +17,41 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "snic.h"
 
 /*
- * snic_debugfs_init - Initialize debugfs for snic debug logging
+ * snic_defs_init - Initialize defs for snic de logging
  *
  * Description:
- * When Debugfs is configured this routine sets up fnic debugfs
+ * When Defs is configured this routine sets up fnic defs
  * filesystem. If not already created. this routine will crate the
  * fnic directory and statistics directory for trace buffer and
  * stats logging
  */
-void snic_debugfs_init(void)
+void snic_defs_init(void)
 {
-	snic_glob->trc_root = debugfs_create_dir("snic", NULL);
+	snic_glob->trc_root = defs_create_dir("snic", NULL);
 
-	snic_glob->stats_root = debugfs_create_dir("statistics",
+	snic_glob->stats_root = defs_create_dir("statistics",
 						   snic_glob->trc_root);
 }
 
 /*
- * snic_debugfs_term - Tear down debugfs intrastructure
+ * snic_defs_term - Tear down defs intrastructure
  *
  * Description:
- * When Debufs is configured this routine removes debugfs file system
+ * When Debufs is configured this routine removes defs file system
  * elements that are specific to snic
  */
 void
-snic_debugfs_term(void)
+snic_defs_term(void)
 {
-	debugfs_remove(snic_glob->stats_root);
+	defs_remove(snic_glob->stats_root);
 	snic_glob->stats_root = NULL;
 
-	debugfs_remove(snic_glob->trc_root);
+	defs_remove(snic_glob->trc_root);
 	snic_glob->trc_root = NULL;
 }
 
@@ -61,14 +61,14 @@ snic_debugfs_term(void)
 static int
 snic_reset_stats_open(struct inode *inode, struct file *filp)
 {
-	SNIC_BUG_ON(!inode->i_private);
+	SNIC__ON(!inode->i_private);
 	filp->private_data = inode->i_private;
 
 	return 0;
 }
 
 /*
- * snic_reset_stats_read - Read a reset_stats debugfs file
+ * snic_reset_stats_read - Read a reset_stats defs file
  * @filp: The file pointer to read from.
  * @ubuf: The buffer tocopy the data to.
  * @cnt: The number of bytes to read.
@@ -98,7 +98,7 @@ snic_reset_stats_read(struct file *filp,
 }
 
 /*
- * snic_reset_stats_write - Write to reset_stats debugfs file
+ * snic_reset_stats_write - Write to reset_stats defs file
  * @filp: The file pointer to write from
  * @ubuf: The buffer to copy the data from.
  * @cnt: The number of bytes to write.
@@ -338,7 +338,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
  * snic_stats_open - Open the stats file for specific host
  *
  * Description:
- * This routine opens a debugfs file stats of specific host
+ * This routine opens a defs file stats of specific host
  */
 static int
 snic_stats_open(struct inode *inode, struct file *filp)
@@ -367,45 +367,45 @@ static const struct file_operations snic_reset_stats_fops = {
  * per snic
  *
  * Description:
- * When debugfs is cofigured this routine sets up the stats file per snic
+ * When defs is cofigured this routine sets up the stats file per snic
  * It will create file stats and reset_stats under statistics/host# directory
  * to log per snic stats
  */
-void snic_stats_debugfs_init(struct snic *snic)
+void snic_stats_defs_init(struct snic *snic)
 {
 	char name[16];
 
 	snprintf(name, sizeof(name), "host%d", snic->shost->host_no);
 
-	snic->stats_host = debugfs_create_dir(name, snic_glob->stats_root);
+	snic->stats_host = defs_create_dir(name, snic_glob->stats_root);
 
-	snic->stats_file = debugfs_create_file("stats", S_IFREG|S_IRUGO,
+	snic->stats_file = defs_create_file("stats", S_IFREG|S_IRUGO,
 					       snic->stats_host, snic,
 					       &snic_stats_fops);
 
-	snic->reset_stats_file = debugfs_create_file("reset_stats",
+	snic->reset_stats_file = defs_create_file("reset_stats",
 						     S_IFREG|S_IRUGO|S_IWUSR,
 						     snic->stats_host, snic,
 						     &snic_reset_stats_fops);
 }
 
 /*
- * snic_stats_debugfs_remove - Tear down debugfs infrastructure of stats
+ * snic_stats_defs_remove - Tear down defs infrastructure of stats
  *
  * Description:
- * When Debufs is configured this routine removes debugfs file system
+ * When Debufs is configured this routine removes defs file system
  * elements that are specific to to snic stats
  */
 void
-snic_stats_debugfs_remove(struct snic *snic)
+snic_stats_defs_remove(struct snic *snic)
 {
-	debugfs_remove(snic->stats_file);
+	defs_remove(snic->stats_file);
 	snic->stats_file = NULL;
 
-	debugfs_remove(snic->reset_stats_file);
+	defs_remove(snic->reset_stats_file);
 	snic->reset_stats_file = NULL;
 
-	debugfs_remove(snic->stats_host);
+	defs_remove(snic->stats_host);
 	snic->stats_host = NULL;
 }
 
@@ -461,31 +461,31 @@ static const struct file_operations snic_trc_fops = {
 };
 
 /*
- * snic_trc_debugfs_init : creates trace/tracing_enable files for trace
- * under debugfs
+ * snic_trc_defs_init : creates trace/tracing_enable files for trace
+ * under defs
  */
-void snic_trc_debugfs_init(void)
+void snic_trc_defs_init(void)
 {
-	snic_glob->trc.trc_enable = debugfs_create_bool("tracing_enable",
+	snic_glob->trc.trc_enable = defs_create_bool("tracing_enable",
 							S_IFREG | S_IRUGO | S_IWUSR,
 							snic_glob->trc_root,
 							&snic_glob->trc.enable);
 
-	snic_glob->trc.trc_file = debugfs_create_file("trace",
+	snic_glob->trc.trc_file = defs_create_file("trace",
 						      S_IFREG | S_IRUGO | S_IWUSR,
 						      snic_glob->trc_root, NULL,
 						      &snic_trc_fops);
 }
 
 /*
- * snic_trc_debugfs_term : cleans up the files created for trace under debugfs
+ * snic_trc_defs_term : cleans up the files created for trace under defs
  */
 void
-snic_trc_debugfs_term(void)
+snic_trc_defs_term(void)
 {
-	debugfs_remove(snic_glob->trc.trc_file);
+	defs_remove(snic_glob->trc.trc_file);
 	snic_glob->trc.trc_file = NULL;
 
-	debugfs_remove(snic_glob->trc.trc_enable);
+	defs_remove(snic_glob->trc.trc_enable);
 	snic_glob->trc.trc_enable = NULL;
 }

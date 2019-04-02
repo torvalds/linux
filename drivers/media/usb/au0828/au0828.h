@@ -305,7 +305,7 @@ struct au0828_dev {
 extern u32 au0828_read(struct au0828_dev *dev, u16 reg);
 extern u32 au0828_write(struct au0828_dev *dev, u16 reg, u32 val);
 extern void au0828_usb_release(struct au0828_dev *dev);
-extern int au0828_debug;
+extern int au0828_de;
 
 /* ----------------------------------------------------------- */
 /* au0828-cards.c */
@@ -361,8 +361,8 @@ void au0828_dvb_resume(struct au0828_dev *dev);
 extern const struct vb2_ops au0828_vbi_qops;
 
 #define dprintk(level, fmt, arg...)\
-	do { if (au0828_debug & level)\
-		printk(KERN_DEBUG pr_fmt(fmt), ## arg);\
+	do { if (au0828_de & level)\
+		printk(KERN_DE pr_fmt(fmt), ## arg);\
 	} while (0)
 
 /* au0828-input.c */

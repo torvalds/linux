@@ -68,8 +68,8 @@ u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value, u32 billionths)
 {
 	u64 combined;
 
-	BUG_ON(!div_value);
-	BUG_ON(billionths >= BILLION);
+	_ON(!div_value);
+	_ON(billionths >= BILLION);
 
 	combined = (u64)div_value * BILLION + billionths;
 	combined <<= div->u.s.frac_width;
@@ -107,8 +107,8 @@ u64 scaled_div_max(struct bcm_clk_div *div)
 static inline u32
 divider(struct bcm_clk_div *div, u64 scaled_div)
 {
-	BUG_ON(scaled_div < scaled_div_min(div));
-	BUG_ON(scaled_div > scaled_div_max(div));
+	_ON(scaled_div < scaled_div_min(div));
+	_ON(scaled_div > scaled_div_max(div));
 
 	return (u32)(scaled_div - ((u64)1 << div->u.s.frac_width));
 }
@@ -398,7 +398,7 @@ __gate_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate)
 	u32 mask;
 	bool enabled = false;
 
-	BUG_ON(!gate_exists(gate));
+	_ON(!gate_exists(gate));
 	if (!gate_is_sw_controllable(gate))
 		return true;		/* Nothing we can change */
 
@@ -595,7 +595,7 @@ static int __div_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	u32 reg_val;
 	int ret = 0;
 
-	BUG_ON(divider_is_fixed(div));
+	_ON(divider_is_fixed(div));
 
 	/*
 	 * If we're just initializing the divider, and no initial
@@ -659,7 +659,7 @@ static int divider_write(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	u64 previous;
 	int ret;
 
-	BUG_ON(divider_is_fixed(div));
+	_ON(divider_is_fixed(div));
 
 	previous = div->u.s.scaled_div;
 	if (previous == scaled_div)
@@ -701,7 +701,7 @@ static unsigned long clk_recalc_rate(struct ccu_data *ccu,
 		return parent_rate;
 
 	if (parent_rate > (unsigned long)LONG_MAX)
-		return 0;	/* actually this would be a caller bug */
+		return 0;	/* actually this would be a caller  */
 
 	/*
 	 * If there is a pre-divider, divide the scaled parent rate
@@ -755,9 +755,9 @@ static long round_rate(struct ccu_data *ccu, struct bcm_clk_div *div,
 	u64 best_scaled_div;
 	u64 result;
 
-	BUG_ON(!divider_exists(div));
-	BUG_ON(!rate);
-	BUG_ON(parent_rate > (u64)LONG_MAX);
+	_ON(!divider_exists(div));
+	_ON(!rate);
+	_ON(parent_rate > (u64)LONG_MAX);
 
 	/*
 	 * If there is a pre-divider, divide the scaled parent rate
@@ -821,7 +821,7 @@ static u8 parent_index(struct bcm_clk_sel *sel, u8 parent_sel)
 {
 	u8 i;
 
-	BUG_ON(sel->parent_count > (u32)U8_MAX);
+	_ON(sel->parent_count > (u32)U8_MAX);
 	for (i = 0; i < sel->parent_count; i++)
 		if (sel->parent_sel[i] == parent_sel)
 			return i;
@@ -878,7 +878,7 @@ __sel_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	bool enabled;
 	int ret = 0;
 
-	BUG_ON(!selector_exists(sel));
+	_ON(!selector_exists(sel));
 
 	/*
 	 * If we're just initializing the selector, and no initial
@@ -898,7 +898,7 @@ __sel_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 		return 0;
 	}
 
-	BUG_ON((u32)sel->clk_index >= sel->parent_count);
+	_ON((u32)sel->clk_index >= sel->parent_count);
 	parent_sel = sel->parent_sel[sel->clk_index];
 
 	/* Clock needs to be enabled before changing the parent */
@@ -1058,7 +1058,7 @@ static int kona_peri_clk_determine_rate(struct clk_hw *hw,
 		unsigned long delta;
 		unsigned long other_rate;
 
-		BUG_ON(!parent);
+		_ON(!parent);
 		if (parent == current_parent)
 			continue;
 
@@ -1087,7 +1087,7 @@ static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
 	struct bcm_clk_trig *trig;
 	int ret;
 
-	BUG_ON(index >= sel->parent_count);
+	_ON(index >= sel->parent_count);
 
 	/* If there's only one parent we don't require a selector */
 	if (!selector_exists(sel))
@@ -1197,7 +1197,7 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 	const char *name = bcm_clk->init_data.name;
 	struct bcm_clk_trig *trig;
 
-	BUG_ON(bcm_clk->type != bcm_clk_peri);
+	_ON(bcm_clk->type != bcm_clk_peri);
 
 	if (!policy_init(ccu, &peri->policy)) {
 		pr_err("%s: error initializing policy for %s\n",
@@ -1246,7 +1246,7 @@ static bool __kona_clk_init(struct kona_clk *bcm_clk)
 	case bcm_clk_peri:
 		return __peri_clk_init(bcm_clk);
 	default:
-		BUG();
+		();
 	}
 	return false;
 }

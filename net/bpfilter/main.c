@@ -10,7 +10,7 @@
 #include <asm/unistd.h>
 #include "msgfmt.h"
 
-int debug_fd;
+int de_fd;
 
 static int handle_get_cmd(struct mbox_request *cmd)
 {
@@ -37,7 +37,7 @@ static void loop(void)
 
 		n = read(0, &req, sizeof(req));
 		if (n != sizeof(req)) {
-			dprintf(debug_fd, "invalid request %d\n", n);
+			dprintf(de_fd, "invalid request %d\n", n);
 			return;
 		}
 
@@ -47,7 +47,7 @@ static void loop(void)
 
 		n = write(1, &reply, sizeof(reply));
 		if (n != sizeof(reply)) {
-			dprintf(debug_fd, "reply failed %d\n", n);
+			dprintf(de_fd, "reply failed %d\n", n);
 			return;
 		}
 	}
@@ -55,9 +55,9 @@ static void loop(void)
 
 int main(void)
 {
-	debug_fd = open("/dev/console", 00000002);
-	dprintf(debug_fd, "Started bpfilter\n");
+	de_fd = open("/dev/console", 00000002);
+	dprintf(de_fd, "Started bpfilter\n");
 	loop();
-	close(debug_fd);
+	close(de_fd);
 	return 0;
 }

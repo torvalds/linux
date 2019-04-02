@@ -1887,7 +1887,7 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 
 	spin_lock_irq(&dlfb->urbs.lock);
 
-	BUG_ON(list_empty(&dlfb->urbs.list)); /* reserved one with limit_sem */
+	_ON(list_empty(&dlfb->urbs.list)); /* reserved one with limit_sem */
 	entry = dlfb->urbs.list.next;
 	list_del_init(entry);
 	dlfb->urbs.available--;
@@ -1902,7 +1902,7 @@ static int dlfb_submit_urb(struct dlfb_data *dlfb, struct urb *urb, size_t len)
 {
 	int ret;
 
-	BUG_ON(len > dlfb->urbs.size);
+	_ON(len > dlfb->urbs.size);
 
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_KERNEL);

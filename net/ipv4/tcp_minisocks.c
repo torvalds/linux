@@ -177,7 +177,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		if (th->rst) {
 			/* This is TIME_WAIT assassination, in two flavors.
 			 * Oh well... nobody has a sufficient solution to this
-			 * protocol bug yet.
+			 * protocol  yet.
 			 */
 			if (twsk_net(tw)->ipv4.sysctl_tcp_rfc1337 == 0) {
 kill:
@@ -301,7 +301,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 				key = tp->af_specific->md5_lookup(sk, sk);
 				if (key) {
 					tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
-					BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+					_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
 				}
 			}
 		} while (0);

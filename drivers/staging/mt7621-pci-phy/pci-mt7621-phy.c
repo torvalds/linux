@@ -136,7 +136,7 @@ static void mt7621_set_phy_for_ssc(struct mt7621_pci_phy *phy,
 
 	reg = (reg >> 6) & 0x7;
 	/* Set PCIe Port PHY to disable SSC */
-	/* Debug Xtal Type */
+	/* De Xtal Type */
 	val = phy_read(instance, RG_PE1_FRC_H_XTAL_REG);
 	val &= ~(RG_PE1_FRC_H_XTAL_TYPE | RG_PE1_H_XTAL_TYPE);
 	val |= RG_PE1_FRC_H_XTAL_TYPE;

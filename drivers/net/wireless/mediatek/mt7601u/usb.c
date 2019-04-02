@@ -239,8 +239,8 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 	struct usb_host_interface *intf_desc = usb_intf->cur_altsetting;
 	unsigned i, ep_i = 0, ep_o = 0;
 
-	BUILD_BUG_ON(sizeof(dev->in_eps) < __MT_EP_IN_MAX);
-	BUILD_BUG_ON(sizeof(dev->out_eps) < __MT_EP_OUT_MAX);
+	BUILD__ON(sizeof(dev->in_eps) < __MT_EP_IN_MAX);
+	BUILD__ON(sizeof(dev->out_eps) < __MT_EP_OUT_MAX);
 
 	for (i = 0; i < intf_desc->desc.bNumEndpoints; i++) {
 		ep_desc = &intf_desc->endpoint[i].desc;

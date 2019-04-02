@@ -536,7 +536,7 @@ static void padata_flush_queues(struct parallel_data *pd)
 		flush_work(&squeue->work);
 	}
 
-	BUG_ON(atomic_read(&pd->refcnt) != 0);
+	_ON(atomic_read(&pd->refcnt) != 0);
 }
 
 static void __padata_start(struct padata_instance *pinst)

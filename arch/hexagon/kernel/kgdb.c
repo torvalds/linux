@@ -21,7 +21,7 @@
 #include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kgdb.h>
 
 /* All registers are 4 bytes, for now */
@@ -160,7 +160,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	case 'c':
 		return 0;
 	}
-	/* Stay in the debugger. */
+	/* Stay in the deger. */
 	return -1;
 }
 

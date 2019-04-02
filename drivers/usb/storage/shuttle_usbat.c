@@ -40,7 +40,7 @@
 #include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "scsiglue.h"
 
 #define DRV_NAME "ums-usbat"
@@ -533,7 +533,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 	unsigned char *data = us->iobuf;
 	unsigned char *status = us->iobuf;
 
-	BUG_ON(num_registers > US_IOBUF_SIZE/2);
+	_ON(num_registers > US_IOBUF_SIZE/2);
 
 	for (i=0; i<20; i++) {
 
@@ -682,7 +682,7 @@ static int usbat_multiple_write(struct us_data *us,
 	unsigned char *data = us->iobuf;
 	unsigned char *command = us->iobuf;
 
-	BUG_ON(num_registers > US_IOBUF_SIZE/2);
+	_ON(num_registers > US_IOBUF_SIZE/2);
 
 	/* Write to multiple registers, ATA access */
 	command[0] = 0x40;

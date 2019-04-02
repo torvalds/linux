@@ -91,7 +91,7 @@ void __init arm_dt_init_cpu_maps(void)
 		int prop_bytes;
 		u32 hwid;
 
-		pr_debug(" * %pOF...\n", cpu);
+		pr_de(" * %pOF...\n", cpu);
 		/*
 		 * A device tree containing CPU nodes with missing "reg"
 		 * properties is considered invalid to build the
@@ -99,7 +99,7 @@ void __init arm_dt_init_cpu_maps(void)
 		 */
 		cell = of_get_property(cpu, "reg", &prop_bytes);
 		if (!cell || prop_bytes < sizeof(*cell)) {
-			pr_debug(" * %pOF missing reg property\n", cpu);
+			pr_de(" * %pOF missing reg property\n", cpu);
 			of_node_put(cpu);
 			return;
 		}
@@ -182,7 +182,7 @@ void __init arm_dt_init_cpu_maps(void)
 	for (i = 0; i < cpuidx; i++) {
 		set_cpu_possible(i, true);
 		cpu_logical_map(i) = tmp_map[i];
-		pr_debug("cpu logical map 0x%x\n", cpu_logical_map(i));
+		pr_de("cpu logical map 0x%x\n", cpu_logical_map(i));
 	}
 }
 
@@ -249,7 +249,7 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 		dump_machine_table(); /* does not return */
 	}
 
-	/* We really don't want to do this, but sometimes firmware provides buggy data */
+	/* We really don't want to do this, but sometimes firmware provides gy data */
 	if (mdesc->dt_fixup)
 		mdesc->dt_fixup();
 

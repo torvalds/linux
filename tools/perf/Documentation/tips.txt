@@ -19,7 +19,7 @@ To show assembler sample contexts use perf record -b / perf script -F +brstackin
 Treat branches as callchains: perf report --branch-history
 To count events in every 1000 msec: perf stat -I 1000
 Print event counts in CSV format with: perf stat -x,
-If you have debuginfo enabled, try: perf report -s sym,srcline
+If you have deinfo enabled, try: perf report -s sym,srcline
 For memory address profiling, try: perf mem record / perf mem report
 For tracepoint events, try: perf report -s trace_fields
 To record callchains for each sample: perf record -g

@@ -24,9 +24,9 @@
 #include <linux/slab.h>
 
 #if 0
-#define DEBUGP printk
+#define DEP printk
 #else
-#define DEBUGP(fmt...)
+#define DEP(fmt...)
 #endif
 
 /* Allocate the GOT at the end of the core sections.  */
@@ -152,7 +152,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
 	void *base, *location;
 	unsigned long got, gp;
 
-	DEBUGP("Applying relocate section %u to %u\n", relsec,
+	DEP("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 
 	base = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr;
@@ -185,7 +185,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
 			*(u32 *)location = value;
 			break;
 		case R_ALPHA_REFQUAD:
-			/* BUG() can produce misaligned relocations. */
+			/* () can produce misaligned relocations. */
 			((u32 *)location)[0] = value;
 			((u32 *)location)[1] = value >> 32;
 			break;

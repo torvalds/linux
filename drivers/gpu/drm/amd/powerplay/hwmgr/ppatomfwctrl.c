@@ -24,7 +24,7 @@
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
 #include "atom.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 static const union atom_voltage_object_v4 *pp_atomfwctrl_lookup_voltage_type_v4(
 		const struct atom_voltage_objects_info_v4_1 *voltage_object_info_table,

@@ -497,7 +497,7 @@ struct ibmvnic_request_statistics {
 	u8 reserved[4];
 } __packed __aligned(8);
 
-struct ibmvnic_request_debug_stats {
+struct ibmvnic_request_de_stats {
 	u8 first;
 	u8 cmd;
 	u8 reserved[2];
@@ -694,8 +694,8 @@ union ibmvnic_crq {
 	struct ibmvnic_collect_fw_trace collect_fw_trace_rsp;
 	struct ibmvnic_request_statistics request_statistics;
 	struct ibmvnic_generic_crq request_statistics_rsp;
-	struct ibmvnic_request_debug_stats request_debug_stats;
-	struct ibmvnic_request_debug_stats request_debug_stats_rsp;
+	struct ibmvnic_request_de_stats request_de_stats;
+	struct ibmvnic_request_de_stats request_de_stats_rsp;
 	struct ibmvnic_error_indication error_indication;
 	struct ibmvnic_link_state_indication link_state_indication;
 	struct ibmvnic_change_mac_addr change_mac_addr;

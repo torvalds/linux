@@ -1629,7 +1629,7 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 
 /**
  * qeth_anset_makerc() - derive "traditional" error from hardware codes.
- * @card:		      qeth_card structure pointer, for debug messages.
+ * @card:		      qeth_card structure pointer, for de messages.
  *
  * Returns negative errno-compatible error indication or 0 on success.
  */

@@ -87,7 +87,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 	vif_id = cmd->vifid;
 	cmd->mhdr.len = cpu_to_le16(cmd_skb->len);
 
-	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id, cmd_id);
+	pr_de("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id, cmd_id);
 
 	if (bus->fw_state != QTNF_FW_STATE_ACTIVE &&
 	    cmd_id != QLINK_CMD_FW_INIT) {
@@ -1140,7 +1140,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 
 			comb = mac->macinfo.if_comb;
 
-			pr_debug("MAC%u: %zu iface combinations\n",
+			pr_de("MAC%u: %zu iface combinations\n",
 				 mac->macid, mac->macinfo.n_if_comb);
 
 			break;
@@ -1184,7 +1184,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 				limits[i].max = le16_to_cpu(lim->max_num);
 				limits[i].types =
 					qlink_iface_type_to_nl_mask(le16_to_cpu(lim->type));
-				pr_debug("MAC%u: comb[%zu]: MAX:%u TYPES:%.4X\n",
+				pr_de("MAC%u: comb[%zu]: MAX:%u TYPES:%.4X\n",
 					 mac->macid, n_comb,
 					 limits[i].max, limits[i].types);
 			}
@@ -1467,7 +1467,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 						NL80211_DFS_UNAVAILABLE;
 			}
 
-			pr_debug("chan=%d flags=%#x max_pow=%d max_reg_pow=%d\n",
+			pr_de("chan=%d flags=%#x max_pow=%d max_reg_pow=%d\n",
 				 chan->hw_value, chan->flags, chan->max_power,
 				 chan->max_reg_power);
 			break;
@@ -1622,7 +1622,7 @@ qtnf_cmd_resp_proc_chan_stat_info(struct qtnf_chan_stats *stats,
 			stats->cca_try = le32_to_cpu(qlink_stats->cca_try);
 			stats->chan_noise = qlink_stats->chan_noise;
 
-			pr_debug("chan(%u) try(%u) busy(%u) noise(%d)\n",
+			pr_de("chan(%u) try(%u) busy(%u) noise(%d)\n",
 				 stats->chan_num, stats->cca_try,
 				 stats->cca_busy, stats->chan_noise);
 			break;
@@ -2182,7 +2182,7 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 				continue;
 			}
 
-			pr_debug("MAC%u: scan chan=%d, freq=%d, flags=%#x\n",
+			pr_de("MAC%u: scan chan=%d, freq=%d, flags=%#x\n",
 				 mac->macid, sc->hw_value, sc->center_freq,
 				 sc->flags);
 
@@ -2193,7 +2193,7 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 	}
 
 	if (scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		pr_debug("MAC%u: scan with random addr=%pM, mask=%pM\n",
+		pr_de("MAC%u: scan with random addr=%pM, mask=%pM\n",
 			 mac->macid,
 			 scan_req->mac_addr, scan_req->mac_addr_mask);
 
@@ -2202,13 +2202,13 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 	}
 
 	if (scan_req->flags & NL80211_SCAN_FLAG_FLUSH) {
-		pr_debug("MAC%u: flush cache before scan\n", mac->macid);
+		pr_de("MAC%u: flush cache before scan\n", mac->macid);
 
 		qtnf_cmd_skb_put_tlv_tag(cmd_skb, QTN_TLV_ID_SCAN_FLUSH);
 	}
 
 	if (scan_req->duration) {
-		pr_debug("MAC%u: %s scan duration %u\n", mac->macid,
+		pr_de("MAC%u: %s scan duration %u\n", mac->macid,
 			 scan_req->duration_mandatory ? "mandatory" : "max",
 			 scan_req->duration);
 

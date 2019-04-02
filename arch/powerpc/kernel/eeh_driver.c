@@ -754,7 +754,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
  *
  * While PHB detects address or data parity errors on particular PCI
  * slot, the associated PE will be frozen. Besides, DMA's occurring
- * to wild addresses (which usually happen due to bugs in device
+ * to wild addresses (which usually happen due to s in device
  * drivers or in PCI adapter firmware) can cause EEH error. #SERR,
  * #PERR or other misc PCI-related errors also can trigger EEH errors.
  *

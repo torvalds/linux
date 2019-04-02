@@ -51,7 +51,7 @@ LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 enum libbpf_print_level {
         LIBBPF_WARN,
         LIBBPF_INFO,
-        LIBBPF_DEBUG,
+        LIBBPF_DE,
 };
 
 typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,

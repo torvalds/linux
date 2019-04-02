@@ -13,7 +13,7 @@
  *
  *		Alan Cox	:	Fixed oddments for NET3.014
  *		Alan Cox	:	Rejig for NET3.029 snap #3
- *		Alan Cox	:	Fixed NET3.029 bugs and sped up
+ *		Alan Cox	:	Fixed NET3.029 s and sped up
  *		Larry McVoy	:	Tiny tweak to double performance
  *		Alan Cox	:	Backed out LMV's tweak - the linux mm
  *					can't take it...
@@ -213,7 +213,7 @@ static __net_init int loopback_net_init(struct net *net)
 	if (err)
 		goto out_free_netdev;
 
-	BUG_ON(dev->ifindex != LOOPBACK_IFINDEX);
+	_ON(dev->ifindex != LOOPBACK_IFINDEX);
 	net->loopback_dev = dev;
 	return 0;
 

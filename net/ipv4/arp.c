@@ -377,7 +377,7 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	probes -= NEIGH_VAR(neigh->parms, UCAST_PROBES);
 	if (probes < 0) {
 		if (!(neigh->nud_state & NUD_VALID))
-			pr_debug("trying to ucast probe in NUD_INVALID\n");
+			pr_de("trying to ucast probe in NUD_INVALID\n");
 		neigh_ha_snapshot(dst_ha, neigh, dev);
 		dst_hw = dst_ha;
 	} else {

@@ -40,17 +40,17 @@
 {								\
 	int zzz;						\
 								\
-	pr_debug("%d:\n", __LINE__);				\
+	pr_de("%d:\n", __LINE__);				\
 	for (zzz = 0; zzz < len; zzz++) {			\
 		if (zzz % 16 == 0) {				\
 			if (zzz)				\
-				pr_debug("\n");			\
-			pr_debug("%4i: ", zzz);			\
+				pr_de("\n");			\
+			pr_de("%4i: ", zzz);			\
 		}						\
-		pr_debug("%02x ", (unsigned char) (buff)[zzz]);	\
+		pr_de("%02x ", (unsigned char) (buff)[zzz]);	\
 	}							\
 	if ((len + 1) % 16)					\
-		pr_debug("\n");					\
+		pr_de("\n");					\
 }
 
 extern struct list_head g_tiqn_list;
@@ -280,13 +280,13 @@ static inline int iscsit_check_received_cmdsn(struct iscsi_session *sess, u32 cm
 
 	} else if (cmdsn == sess->exp_cmd_sn) {
 		sess->exp_cmd_sn++;
-		pr_debug("Received CmdSN matches ExpCmdSN,"
+		pr_de("Received CmdSN matches ExpCmdSN,"
 		      " incremented ExpCmdSN to: 0x%08x\n",
 		      sess->exp_cmd_sn);
 		ret = CMDSN_NORMAL_OPERATION;
 
 	} else if (iscsi_sna_gt(cmdsn, sess->exp_cmd_sn)) {
-		pr_debug("Received CmdSN: 0x%08x is greater"
+		pr_de("Received CmdSN: 0x%08x is greater"
 		      " than ExpCmdSN: 0x%08x, not acknowledging.\n",
 		      cmdsn, sess->exp_cmd_sn);
 		ret = CMDSN_HIGHER_THAN_EXP;
@@ -729,7 +729,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	else
 		sess = cmd->sess;
 
-	BUG_ON(!sess || !sess->se_sess);
+	_ON(!sess || !sess->se_sess);
 
 	kfree(cmd->buf_ptr);
 	kfree(cmd->pdu_list);
@@ -970,7 +970,7 @@ void iscsit_start_nopin_response_timer(struct iscsi_conn *conn)
 	mod_timer(&conn->nopin_response_timer,
 		  jiffies + na->nopin_response_timeout * HZ);
 
-	pr_debug("Started NOPIN Response Timer on CID: %d to %u"
+	pr_de("Started NOPIN Response Timer on CID: %d to %u"
 		" seconds\n", conn->cid, na->nopin_response_timeout);
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
@@ -1031,7 +1031,7 @@ void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
 	conn->nopin_timer_flags |= ISCSI_TF_RUNNING;
 	mod_timer(&conn->nopin_timer, jiffies + na->nopin_timeout * HZ);
 
-	pr_debug("Started NOPIN Timer on CID: %d at %u second"
+	pr_de("Started NOPIN Timer on CID: %d at %u second"
 		" interval\n", conn->cid, na->nopin_timeout);
 }
 
@@ -1221,7 +1221,7 @@ void iscsit_print_session_params(struct iscsi_session *sess)
 {
 	struct iscsi_conn *conn;
 
-	pr_debug("-----------------------------[Session Params for"
+	pr_de("-----------------------------[Session Params for"
 		" SID: %u]-----------------------------\n", sess->sid);
 	spin_lock_bh(&sess->conn_lock);
 	list_for_each_entry(conn, &sess->sess_conn_list, conn_list)
@@ -1247,12 +1247,12 @@ static int iscsit_do_rx_data(
 	while (msg_data_left(&msg)) {
 		rx_loop = sock_recvmsg(conn->sock, &msg, MSG_WAITALL);
 		if (rx_loop <= 0) {
-			pr_debug("rx_loop: %d total_rx: %d\n",
+			pr_de("rx_loop: %d total_rx: %d\n",
 				rx_loop, total_rx);
 			return rx_loop;
 		}
 		total_rx += rx_loop;
-		pr_debug("rx_loop: %d, total_rx: %d, data: %d\n",
+		pr_de("rx_loop: %d, total_rx: %d, data: %d\n",
 				rx_loop, total_rx, data);
 	}
 
@@ -1303,12 +1303,12 @@ int tx_data(
 	while (msg_data_left(&msg)) {
 		int tx_loop = sock_sendmsg(conn->sock, &msg);
 		if (tx_loop <= 0) {
-			pr_debug("tx_loop: %d total_tx %d\n",
+			pr_de("tx_loop: %d total_tx %d\n",
 				tx_loop, total_tx);
 			return tx_loop;
 		}
 		total_tx += tx_loop;
-		pr_debug("tx_loop: %d, total_tx: %d, data: %d\n",
+		pr_de("tx_loop: %d, total_tx: %d, data: %d\n",
 					tx_loop, total_tx, data);
 	}
 

@@ -126,7 +126,7 @@ static int uda134x_mute(struct snd_soc_dai *dai, int mute)
 	unsigned int mask = 1<<2;
 	unsigned int val;
 
-	pr_debug("%s mute: %d\n", __func__, mute);
+	pr_de("%s mute: %d\n", __func__, mute);
 
 	if (mute)
 		val = mask;
@@ -146,7 +146,7 @@ static int uda134x_startup(struct snd_pcm_substream *substream,
 	if (uda134x->master_substream) {
 		master_runtime = uda134x->master_substream->runtime;
 
-		pr_debug("%s constraining to %d bits at %d\n", __func__,
+		pr_de("%s constraining to %d bits at %d\n", __func__,
 			 master_runtime->sample_bits,
 			 master_runtime->rate);
 
@@ -186,12 +186,12 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 	unsigned int hw_params = 0;
 
 	if (substream == uda134x->slave_substream) {
-		pr_debug("%s ignoring hw_params for slave substream\n",
+		pr_de("%s ignoring hw_params for slave substream\n",
 			 __func__);
 		return 0;
 	}
 
-	pr_debug("%s sysclk: %d, rate:%d\n", __func__,
+	pr_de("%s sysclk: %d, rate:%d\n", __func__,
 		 uda134x->sysclk, params_rate(params));
 
 	/* set SYSCLK / fs ratio */
@@ -209,7 +209,7 @@ static int uda134x_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	pr_debug("%s dai_fmt: %d, params_format:%d\n", __func__,
+	pr_de("%s dai_fmt: %d, params_format:%d\n", __func__,
 		 uda134x->dai_fmt, params_format(params));
 
 	/* set DAI format and word length */
@@ -251,7 +251,7 @@ static int uda134x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 
-	pr_debug("%s clk_id: %d, freq: %u, dir: %d\n", __func__,
+	pr_de("%s clk_id: %d, freq: %u, dir: %d\n", __func__,
 		 clk_id, freq, dir);
 
 	/* Anything between 256fs*8Khz and 512fs*48Khz should be acceptable
@@ -273,7 +273,7 @@ static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 
-	pr_debug("%s fmt: %08X\n", __func__, fmt);
+	pr_de("%s fmt: %08X\n", __func__, fmt);
 
 	/* codec supports only full slave mode */
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
@@ -299,7 +299,7 @@ static int uda134x_set_bias_level(struct snd_soc_component *component,
 {
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	struct uda134x_platform_data *pd = uda134x->pd;
-	pr_debug("%s bias level %d\n", __func__, level);
+	pr_de("%s bias level %d\n", __func__, level);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:

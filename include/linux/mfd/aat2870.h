@@ -22,7 +22,7 @@
 #ifndef __LINUX_MFD_AAT2870_H
 #define __LINUX_MFD_AAT2870_H
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/i2c.h>
 
 /* Register offsets */
@@ -147,7 +147,7 @@ struct aat2870_data {
 	int (*write)(struct aat2870_data *aat2870, u8 addr, u8 val);
 	int (*update)(struct aat2870_data *aat2870, u8 addr, u8 mask, u8 val);
 
-	/* for debugfs */
+	/* for defs */
 	struct dentry *dentry_root;
 	struct dentry *dentry_reg;
 };

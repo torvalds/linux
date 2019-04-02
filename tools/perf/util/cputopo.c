@@ -119,7 +119,7 @@ struct cpu_topology *cpu_topology__new(void)
 	/* build online CPU map */
 	map = cpu_map__new(NULL);
 	if (map == NULL) {
-		pr_debug("failed to get system cpumap\n");
+		pr_de("failed to get system cpumap\n");
 		return NULL;
 	}
 

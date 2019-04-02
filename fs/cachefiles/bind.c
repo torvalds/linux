@@ -112,7 +112,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	atomic_set(&fsdef->usage, 1);
 	fsdef->type = FSCACHE_COOKIE_TYPE_INDEX;
 
-	_debug("- fsdef %p", fsdef);
+	_de("- fsdef %p", fsdef);
 
 	/* look up the directory at the root of the cache */
 	ret = kern_path(cache->rootdirname, LOOKUP_DIRECTORY, &path);
@@ -160,10 +160,10 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	if (stats.f_bsize < PAGE_SIZE)
 		cache->bshift = PAGE_SHIFT - ilog2(stats.f_bsize);
 
-	_debug("blksize %u (shift %u)",
+	_de("blksize %u (shift %u)",
 	       cache->bsize, cache->bshift);
 
-	_debug("size %llu, avail %llu",
+	_de("size %llu, avail %llu",
 	       (unsigned long long) stats.f_blocks,
 	       (unsigned long long) stats.f_bavail);
 
@@ -173,7 +173,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	cache->fcull = stats.f_files * cache->fcull_percent;
 	cache->frun  = stats.f_files * cache->frun_percent;
 
-	_debug("limits {%llu,%llu,%llu} files",
+	_de("limits {%llu,%llu,%llu} files",
 	       (unsigned long long) cache->frun,
 	       (unsigned long long) cache->fcull,
 	       (unsigned long long) cache->fstop);
@@ -184,7 +184,7 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	cache->bcull = stats.f_blocks * cache->bcull_percent;
 	cache->brun  = stats.f_blocks * cache->brun_percent;
 
-	_debug("limits {%llu,%llu,%llu} blocks",
+	_de("limits {%llu,%llu,%llu} blocks",
 	       (unsigned long long) cache->brun,
 	       (unsigned long long) cache->bcull,
 	       (unsigned long long) cache->bstop);

@@ -73,10 +73,10 @@ int kvm_arch_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_EL1_32BIT:
 		r = cpu_has_32bit_el1();
 		break;
-	case KVM_CAP_GUEST_DEBUG_HW_BPS:
+	case KVM_CAP_GUEST_DE_HW_BPS:
 		r = get_num_brps();
 		break;
-	case KVM_CAP_GUEST_DEBUG_HW_WPS:
+	case KVM_CAP_GUEST_DE_HW_WPS:
 		r = get_num_wrps();
 		break;
 	case KVM_CAP_ARM_PMU_V3:
@@ -85,7 +85,7 @@ int kvm_arch_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_ARM_INJECT_SERROR_ESR:
 		r = cpus_have_const_cap(ARM64_HAS_RAS_EXTN);
 		break;
-	case KVM_CAP_SET_GUEST_DEBUG:
+	case KVM_CAP_SET_GUEST_DE:
 	case KVM_CAP_VCPU_ATTRIBUTES:
 		r = 1;
 		break;

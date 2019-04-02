@@ -32,11 +32,11 @@ config LIBERTAS_SPI
 	---help---
 	  A driver for Marvell Libertas 8686 SPI devices.
 
-config LIBERTAS_DEBUG
-	bool "Enable full debugging output in the Libertas module."
+config LIBERTAS_DE
+	bool "Enable full deging output in the Libertas module."
 	depends on LIBERTAS
 	---help---
-	  Debugging support.
+	  Deging support.
 
 config LIBERTAS_MESH
 	bool "Enable mesh support"

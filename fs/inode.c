@@ -185,7 +185,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	mapping->writeback_index = 0;
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
-	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
+	INIT_HLIST_HEAD(&inode->i_dentry);	/* gered by rcu freeing */
 #ifdef CONFIG_FS_POSIX_ACL
 	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
 #endif
@@ -233,7 +233,7 @@ EXPORT_SYMBOL(free_inode_nonrcu);
 
 void __destroy_inode(struct inode *inode)
 {
-	BUG_ON(inode_has_buffers(inode));
+	_ON(inode_has_buffers(inode));
 	inode_detach_wb(inode);
 	security_inode_free(inode);
 	fsnotify_inode_delete(inode);
@@ -261,7 +261,7 @@ static void i_callback(struct rcu_head *head)
 
 static void destroy_inode(struct inode *inode)
 {
-	BUG_ON(!list_empty(&inode->i_lru));
+	_ON(!list_empty(&inode->i_lru));
 	__destroy_inode(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
@@ -509,13 +509,13 @@ void clear_inode(struct inode *inode)
 	 * and we must not free the mapping under it.
 	 */
 	xa_lock_irq(&inode->i_data.i_pages);
-	BUG_ON(inode->i_data.nrpages);
-	BUG_ON(inode->i_data.nrexceptional);
+	_ON(inode->i_data.nrpages);
+	_ON(inode->i_data.nrexceptional);
 	xa_unlock_irq(&inode->i_data.i_pages);
-	BUG_ON(!list_empty(&inode->i_data.private_list));
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(inode->i_state & I_CLEAR);
-	BUG_ON(!list_empty(&inode->i_wb_list));
+	_ON(!list_empty(&inode->i_data.private_list));
+	_ON(!(inode->i_state & I_FREEING));
+	_ON(inode->i_state & I_CLEAR);
+	_ON(!list_empty(&inode->i_wb_list));
 	/* don't need i_lock here, no concurrent mods to i_state */
 	inode->i_state = I_FREEING | I_CLEAR;
 }
@@ -538,8 +538,8 @@ static void evict(struct inode *inode)
 {
 	const struct super_operations *op = inode->i_sb->s_op;
 
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(!list_empty(&inode->i_lru));
+	_ON(!(inode->i_state & I_FREEING));
+	_ON(!list_empty(&inode->i_lru));
 
 	if (!list_empty(&inode->i_io_list))
 		inode_io_list_del(inode);
@@ -569,7 +569,7 @@ static void evict(struct inode *inode)
 
 	spin_lock(&inode->i_lock);
 	wake_up_bit(&inode->i_state, __I_NEW);
-	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
+	_ON(inode->i_state != (I_FREEING | I_CLEAR));
 	spin_unlock(&inode->i_lock);
 
 	destroy_inode(inode);
@@ -936,7 +936,7 @@ struct inode *new_inode(struct super_block *sb)
 }
 EXPORT_SYMBOL(new_inode);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 void lockdep_annotate_inode_mutex_key(struct inode *inode)
 {
 	if (S_ISDIR(inode->i_mode)) {
@@ -1241,7 +1241,7 @@ static int test_inode_iunique(struct super_block *sb, unsigned long ino)
  *	permanent inode numbering system. An inode number is returned that
  *	is higher than the reserved limit but unique.
  *
- *	BUGS:
+ *	S:
  *	With a large number of inodes live on the file system this function
  *	currently becomes quite slow.
  */
@@ -1560,7 +1560,7 @@ void iput(struct inode *inode)
 {
 	if (!inode)
 		return;
-	BUG_ON(inode->i_state & I_CLEAR);
+	_ON(inode->i_state & I_CLEAR);
 retry:
 	if (atomic_dec_and_lock(&inode->i_count, &inode->i_lock)) {
 		if (inode->i_nlink && (inode->i_state & I_DIRTY_TIME)) {
@@ -1988,7 +1988,7 @@ void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 	else if (S_ISSOCK(mode))
 		;	/* leave it no_open_fops */
 	else
-		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o) for"
+		printk(KERN_DE "init_special_inode: bogus i_mode (%o) for"
 				  " inode %s:%lu\n", mode, inode->i_sb->s_id,
 				  inode->i_ino);
 }

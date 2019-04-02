@@ -2,7 +2,7 @@
 #include <errno.h>
 #include "util/kvm-stat.h"
 #include "util/parse-events.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/evsel.h"
 #include "util/evlist.h"
 
@@ -50,7 +50,7 @@ static const char *get_hcall_exit_reason(u64 exit_code)
 		tbl++;
 	}
 
-	pr_debug("Unknown hcall code: %lld\n",
+	pr_de("Unknown hcall code: %lld\n",
 	       (unsigned long long)exit_code);
 	return "UNKNOWN";
 }

@@ -69,7 +69,7 @@ struct cow_header_v2 {
  *		allows the data to be more aligned more strictly than on
  *		sector boundaries.  This is needed for ubd-mmap, which needs
  *		the data to be page aligned.
- *	Fixed (finally!) the rounding bug
+ *	Fixed (finally!) the rounding 
  */
 
 /*
@@ -369,7 +369,7 @@ int read_cow_header(int (*reader)(__u64, char *, int, void *), void *arg,
 		 * the program used to use the former (tested - I got mtime
 		 * mismatch "0 vs whatever").
 		 *
-		 * Ever heard about bug-to-bug-compatibility ? ;-) */
+		 * Ever heard about -to--compatibility ? ;-) */
 		*mtime_out = (time32_t) be32toh(header->v3_b.mtime);
 
 		*size_out = be64toh(header->v3_b.size);

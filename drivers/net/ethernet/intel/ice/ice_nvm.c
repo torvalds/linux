@@ -51,14 +51,14 @@ static enum ice_status
 ice_check_sr_access_params(struct ice_hw *hw, u32 offset, u16 words)
 {
 	if ((offset + words) > hw->nvm.sr_words) {
-		ice_debug(hw, ICE_DBG_NVM,
+		ice_de(hw, ICE_DBG_NVM,
 			  "NVM error: offset beyond SR lmt.\n");
 		return ICE_ERR_PARAM;
 	}
 
 	if (words > ICE_SR_SECTOR_SIZE_IN_WORDS) {
 		/* We can access only up to 4KB (one sector), in one AQ write */
-		ice_debug(hw, ICE_DBG_NVM,
+		ice_de(hw, ICE_DBG_NVM,
 			  "NVM error: tried to access %d words, limit is %d.\n",
 			  words, ICE_SR_SECTOR_SIZE_IN_WORDS);
 		return ICE_ERR_PARAM;
@@ -67,7 +67,7 @@ ice_check_sr_access_params(struct ice_hw *hw, u32 offset, u16 words)
 	if (((offset + (words - 1)) / ICE_SR_SECTOR_SIZE_IN_WORDS) !=
 	    (offset / ICE_SR_SECTOR_SIZE_IN_WORDS)) {
 		/* A single access cannot spread over two sectors */
-		ice_debug(hw, ICE_DBG_NVM,
+		ice_de(hw, ICE_DBG_NVM,
 			  "NVM error: cannot spread over two sectors.\n");
 		return ICE_ERR_PARAM;
 	}
@@ -264,26 +264,26 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 	} else { /* Blank programming mode */
 		nvm->blank_nvm_mode = true;
 		status = ICE_ERR_NVM_BLANK_MODE;
-		ice_debug(hw, ICE_DBG_NVM,
+		ice_de(hw, ICE_DBG_NVM,
 			  "NVM init error: unsupported blank mode.\n");
 		return status;
 	}
 
 	status = ice_read_sr_word(hw, ICE_SR_NVM_DEV_STARTER_VER, &hw->nvm.ver);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "Failed to read DEV starter version.\n");
 		return status;
 	}
 
 	status = ice_read_sr_word(hw, ICE_SR_NVM_EETRACK_LO, &eetrack_lo);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read EETRACK lo.\n");
+		ice_de(hw, ICE_DBG_INIT, "Failed to read EETRACK lo.\n");
 		return status;
 	}
 	status = ice_read_sr_word(hw, ICE_SR_NVM_EETRACK_HI, &eetrack_hi);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read EETRACK hi.\n");
+		ice_de(hw, ICE_DBG_INIT, "Failed to read EETRACK hi.\n");
 		return status;
 	}
 

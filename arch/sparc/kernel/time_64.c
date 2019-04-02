@@ -124,7 +124,7 @@ static int tick_add_compare(unsigned long adj)
 	orig_tick &= ~TICKCMP_IRQ_BIT;
 
 	/* Workaround for Spitfire Errata (#54 I think??), I discovered
-	 * this via Sun BugID 4008234, mentioned in Solaris-2.5.1 patch
+	 * this via Sun ID 4008234, mentioned in Solaris-2.5.1 patch
 	 * number 103640.
 	 *
 	 * On Blackbird writes to %tick_cmpr can fail, the
@@ -152,7 +152,7 @@ static unsigned long tick_add_tick(unsigned long adj)
 {
 	unsigned long new_tick;
 
-	/* Also need to handle Blackbird bug here too. */
+	/* Also need to handle Blackbird  here too. */
 	__asm__ __volatile__("rd	%%tick, %0\n\t"
 			     "add	%0, %1, %0\n\t"
 			     "wrpr	%0, 0, %%tick\n\t"

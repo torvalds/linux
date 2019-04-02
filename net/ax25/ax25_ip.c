@@ -160,7 +160,7 @@ netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 				skb_set_owner_w(ourskb, skb->sk);
 
 			kfree_skb(skb);
-			/* dl9sau: bugfix
+			/* dl9sau: fix
 			 * after kfree_skb(), dst and src which were pointer
 			 * to bp which is part of skb->data would not be valid
 			 * anymore hope that after skb_pull(ourskb, ..) our

@@ -255,9 +255,9 @@ static        void nsp32_prom_write_bit(nsp32_hw_data *, int);
 static        void nsp32_prom_set      (nsp32_hw_data *, int, int);
 static        int  nsp32_prom_get      (nsp32_hw_data *, int);
 
-/* debug/warning/info message */
+/* de/warning/info message */
 static void nsp32_message (const char *, int, char *, char *, ...);
-#ifdef NSP32_DEBUG
+#ifdef NSP32_DE
 static void nsp32_dmessage(const char *, int, int,    char *, ...);
 #endif
 
@@ -283,76 +283,76 @@ static struct scsi_host_template nsp32_template = {
 #include "nsp32_io.h"
 
 /***********************************************************************
- * debug, error print
+ * de, error print
  */
-#ifndef NSP32_DEBUG
-# define NSP32_DEBUG_MASK	      0x000000
+#ifndef NSP32_DE
+# define NSP32_DE_MASK	      0x000000
 # define nsp32_msg(type, args...)     nsp32_message ("", 0, (type), args)
 # define nsp32_dbg(mask, args...)     /* */
 #else
-# define NSP32_DEBUG_MASK	      0xffffff
+# define NSP32_DE_MASK	      0xffffff
 # define nsp32_msg(type, args...) \
 	nsp32_message (__func__, __LINE__, (type), args)
 # define nsp32_dbg(mask, args...) \
 	nsp32_dmessage(__func__, __LINE__, (mask), args)
 #endif
 
-#define NSP32_DEBUG_QUEUECOMMAND	BIT(0)
-#define NSP32_DEBUG_REGISTER		BIT(1)
-#define NSP32_DEBUG_AUTOSCSI		BIT(2)
-#define NSP32_DEBUG_INTR		BIT(3)
-#define NSP32_DEBUG_SGLIST		BIT(4)
-#define NSP32_DEBUG_BUSFREE		BIT(5)
-#define NSP32_DEBUG_CDB_CONTENTS	BIT(6)
-#define NSP32_DEBUG_RESELECTION		BIT(7)
-#define NSP32_DEBUG_MSGINOCCUR		BIT(8)
-#define NSP32_DEBUG_EEPROM		BIT(9)
-#define NSP32_DEBUG_MSGOUTOCCUR		BIT(10)
-#define NSP32_DEBUG_BUSRESET		BIT(11)
-#define NSP32_DEBUG_RESTART		BIT(12)
-#define NSP32_DEBUG_SYNC		BIT(13)
-#define NSP32_DEBUG_WAIT		BIT(14)
-#define NSP32_DEBUG_TARGETFLAG		BIT(15)
-#define NSP32_DEBUG_PROC		BIT(16)
-#define NSP32_DEBUG_INIT		BIT(17)
+#define NSP32_DE_QUEUECOMMAND	BIT(0)
+#define NSP32_DE_REGISTER		BIT(1)
+#define NSP32_DE_AUTOSCSI		BIT(2)
+#define NSP32_DE_INTR		BIT(3)
+#define NSP32_DE_SGLIST		BIT(4)
+#define NSP32_DE_BUSFREE		BIT(5)
+#define NSP32_DE_CDB_CONTENTS	BIT(6)
+#define NSP32_DE_RESELECTION		BIT(7)
+#define NSP32_DE_MSGINOCCUR		BIT(8)
+#define NSP32_DE_EEPROM		BIT(9)
+#define NSP32_DE_MSGOUTOCCUR		BIT(10)
+#define NSP32_DE_BUSRESET		BIT(11)
+#define NSP32_DE_RESTART		BIT(12)
+#define NSP32_DE_SYNC		BIT(13)
+#define NSP32_DE_WAIT		BIT(14)
+#define NSP32_DE_TARGETFLAG		BIT(15)
+#define NSP32_DE_PROC		BIT(16)
+#define NSP32_DE_INIT		BIT(17)
 #define NSP32_SPECIAL_PRINT_REGISTER	BIT(20)
 
-#define NSP32_DEBUG_BUF_LEN		100
+#define NSP32_DE_BUF_LEN		100
 
 static void nsp32_message(const char *func, int line, char *type, char *fmt, ...)
 {
 	va_list args;
-	char buf[NSP32_DEBUG_BUF_LEN];
+	char buf[NSP32_DE_BUF_LEN];
 
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-#ifndef NSP32_DEBUG
+#ifndef NSP32_DE
 	printk("%snsp32: %s\n", type, buf);
 #else
 	printk("%snsp32: %s (%d): %s\n", type, func, line, buf);
 #endif
 }
 
-#ifdef NSP32_DEBUG
+#ifdef NSP32_DE
 static void nsp32_dmessage(const char *func, int line, int mask, char *fmt, ...)
 {
 	va_list args;
-	char buf[NSP32_DEBUG_BUF_LEN];
+	char buf[NSP32_DE_BUF_LEN];
 
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-	if (mask & NSP32_DEBUG_MASK) {
-		printk("nsp32-debug: 0x%x %s (%d): %s\n", mask, func, line, buf);
+	if (mask & NSP32_DE_MASK) {
+		printk("nsp32-de: 0x%x %s (%d): %s\n", mask, func, line, buf);
 	}
 }
 #endif
 
-#ifdef NSP32_DEBUG
-# include "nsp32_debug.c"
+#ifdef NSP32_DE
+# include "nsp32_de.c"
 #else
 # define show_command(arg)   /* */
 # define show_busphase(arg)  /* */
@@ -435,10 +435,10 @@ static void nsp32_start_timer(struct scsi_cmnd *SCpnt, int time)
 {
 	unsigned int base = SCpnt->host->io_port;
 
-	nsp32_dbg(NSP32_DEBUG_INTR, "timer=%d", time);
+	nsp32_dbg(NSP32_DE_INTR, "timer=%d", time);
 
 	if (time & (~TIMER_CNT_MASK)) {
-		nsp32_dbg(NSP32_DEBUG_INTR, "timer set overflow");
+		nsp32_dbg(NSP32_DE_INTR, "timer set overflow");
 	}
 
 	nsp32_write2(base, TIMER_SET, time & TIMER_CNT_MASK);
@@ -461,7 +461,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 	unsigned int	msgout;
 	u16_le	        s;
 
-	nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "in");
+	nsp32_dbg(NSP32_DE_AUTOSCSI, "in");
 
 	/*
 	 * check bus free
@@ -503,7 +503,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 		msgout = 0;
 	}
 
-	// nsp_dbg(NSP32_DEBUG_AUTOSCSI, "sel time out=0x%x\n", nsp32_read2(base, SEL_TIME_OUT));
+	// nsp_dbg(NSP32_DE_AUTOSCSI, "sel time out=0x%x\n", nsp32_read2(base, SEL_TIME_OUT));
 	// nsp32_write2(base, SEL_TIME_OUT,   SEL_TIMEOUT_TIME);
 
 	/*
@@ -525,7 +525,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 	param->target_id  = BIT(host_id) | BIT(target);
 	param->sample_reg = data->cur_target->sample_reg;
 
-	// nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "sample rate=0x%x\n", data->cur_target->sample_reg);
+	// nsp32_dbg(NSP32_DE_AUTOSCSI, "sample rate=0x%x\n", data->cur_target->sample_reg);
 
 	/* command control */
 	param->command_control = cpu_to_le16(CLEAR_CDB_FIFO_POINTER |
@@ -593,7 +593,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	unsigned short	execph;
 	int		i;
 
-	nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "in");
+	nsp32_dbg(NSP32_DE_AUTOSCSI, "in");
 
 	/*
 	 * IRQ disable
@@ -627,7 +627,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	for (i = 0; i < SCpnt->cmd_len; i++) {
 		nsp32_write1(base, COMMAND_DATA, SCpnt->cmnd[i]);
         }
-	nsp32_dbg(NSP32_DEBUG_CDB_CONTENTS, "CDB[0]=[0x%x]", SCpnt->cmnd[0]);
+	nsp32_dbg(NSP32_DE_CDB_CONTENTS, "CDB[0]=[0x%x]", SCpnt->cmnd[0]);
 
 	/*
 	 * set SCSIOUT LATCH(initiator)/TARGET(target) (OR-ed) ID
@@ -694,11 +694,11 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	 */
 	nsp32_write1(base, ACK_WIDTH, data->cur_target->ackwidth);
 
-	nsp32_dbg(NSP32_DEBUG_AUTOSCSI,
+	nsp32_dbg(NSP32_DE_AUTOSCSI,
 		  "syncreg=0x%x, ackwidth=0x%x, sgtpaddr=0x%x, id=0x%x",
 		  nsp32_read1(base, SYNC_REG), nsp32_read1(base, ACK_WIDTH),
 		  nsp32_read4(base, SGT_ADR), nsp32_read1(base, SCSI_OUT_LATCH_TARGET_ID));
-	nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "msgout_len=%d, msgout=0x%x",
+	nsp32_dbg(NSP32_DE_AUTOSCSI, "msgout_len=%d, msgout=0x%x",
 		  data->msgout_len, msgout);
 
 	/*
@@ -767,7 +767,7 @@ static int nsp32_arbitration(struct scsi_cmnd *SCpnt, unsigned int base)
 	} while ((arbit & (ARBIT_WIN | ARBIT_FAIL)) == 0 &&
 		 (time <= ARBIT_TIMEOUT_TIME));
 
-	nsp32_dbg(NSP32_DEBUG_AUTOSCSI,
+	nsp32_dbg(NSP32_DE_AUTOSCSI,
 		  "arbit: 0x%x, delay time: %d", arbit, time);
 
 	if (arbit & ARBIT_WIN) {
@@ -783,7 +783,7 @@ static int nsp32_arbitration(struct scsi_cmnd *SCpnt, unsigned int base)
 		 * unknown error or ARBIT_GO timeout,
 		 * something lock up! guess no connection.
 		 */
-		nsp32_dbg(NSP32_DEBUG_AUTOSCSI, "arbit timeout");
+		nsp32_dbg(NSP32_DE_AUTOSCSI, "arbit timeout");
 		SCpnt->result = DID_NO_CONNECT << 16;
 		status = FALSE;
         }
@@ -811,7 +811,7 @@ static int nsp32_reselection(struct scsi_cmnd *SCpnt, unsigned char newlun)
 	unsigned int   base    = SCpnt->device->host->io_port;
 	unsigned char  tmpid, newid;
 
-	nsp32_dbg(NSP32_DEBUG_RESELECTION, "enter");
+	nsp32_dbg(NSP32_DE_RESELECTION, "enter");
 
 	/*
 	 * calculate reselected SCSI ID
@@ -867,7 +867,7 @@ static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 	u32_le l;
 
 	if (sgt == NULL) {
-		nsp32_dbg(NSP32_DEBUG_SGLIST, "SGT == null");
+		nsp32_dbg(NSP32_DE_SGLIST, "SGT == null");
 		return FALSE;
 	}
 
@@ -889,7 +889,7 @@ static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 					"can't transfer over 64KB at a time, size=0x%lx", le32_to_cpu(sgt[i].len));
 				return FALSE;
 			}
-			nsp32_dbg(NSP32_DEBUG_SGLIST,
+			nsp32_dbg(NSP32_DE_SGLIST,
 				  "num 0x%x : addr 0x%lx len 0x%lx",
 				  i,
 				  le32_to_cpu(sgt[i].addr),
@@ -911,7 +911,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 	nsp32_lunt   *cur_lunt;
 	int ret;
 
-	nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND,
+	nsp32_dbg(NSP32_DE_QUEUECOMMAND,
 		  "enter. target: 0x%x LUN: 0x%llx cmnd: 0x%x cmndlen: 0x%x "
 		  "use_sg: 0x%x reqbuf: 0x%lx reqlen: 0x%x",
 		  SCpnt->device->id, SCpnt->device->lun, SCpnt->cmnd[0], SCpnt->cmd_len,
@@ -927,7 +927,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 
 	/* check target ID is not same as this initiator ID */
 	if (scmd_id(SCpnt) == SCpnt->device->host->this_id) {
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "target==host???");
+		nsp32_dbg(NSP32_DE_QUEUECOMMAND, "target==host???");
 		SCpnt->result = DID_BAD_TARGET << 16;
 		done(SCpnt);
 		return 0;
@@ -935,7 +935,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 
 	/* check target LUN is allowable value */
 	if (SCpnt->device->lun >= MAX_LUN) {
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "no more lun");
+		nsp32_dbg(NSP32_DE_QUEUECOMMAND, "no more lun");
 		SCpnt->result = DID_BAD_TARGET << 16;
 		done(SCpnt);
 		return 0;
@@ -996,7 +996,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 			target->sync_flag |= SDTR_DONE;
 		}
 
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND,
+		nsp32_dbg(NSP32_DE_QUEUECOMMAND,
 			  "SDTR: entry: %d start_period: 0x%x offset: 0x%x\n",
 			  target->limit_entry, period, offset);
 	} else if (target->sync_flag & SDTR_INITIATOR) {
@@ -1009,7 +1009,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 		target->sync_flag &= ~SDTR_INITIATOR;
 		target->sync_flag |= SDTR_DONE;
 
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND,
+		nsp32_dbg(NSP32_DE_QUEUECOMMAND,
 			  "SDTR_INITIATOR: fall back to async");
 	} else if (target->sync_flag & SDTR_TARGET) {
 		/*
@@ -1021,11 +1021,11 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 		target->sync_flag &= ~SDTR_TARGET;
 		target->sync_flag |= SDTR_DONE;
 
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND,
+		nsp32_dbg(NSP32_DE_QUEUECOMMAND,
 			  "Unknown SDTR from target is reached, fall back to async.");
 	}
 
-	nsp32_dbg(NSP32_DEBUG_TARGETFLAG,
+	nsp32_dbg(NSP32_DE_TARGETFLAG,
 		  "target: %d sync_flag: 0x%x syncreg: 0x%x ackwidth: 0x%x",
 		  SCpnt->device->id, target->sync_flag, target->syncreg,
 		  target->ackwidth);
@@ -1038,7 +1038,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 	}
 
 	if (ret != TRUE) {
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "selection fail");
+		nsp32_dbg(NSP32_DE_QUEUECOMMAND, "selection fail");
 		nsp32_scsi_done(SCpnt);
 	}
 
@@ -1068,7 +1068,7 @@ static int nsp32hw_init(nsp32_hw_data *data)
 
 	do {
 		irq_stat = nsp32_read2(base, IRQ_STATUS);
-		nsp32_dbg(NSP32_DEBUG_INIT, "irq_stat 0x%x", irq_stat);
+		nsp32_dbg(NSP32_DE_INIT, "irq_stat 0x%x", irq_stat);
 	} while (irq_stat & IRQSTATUS_ANY_IRQ);
 
 	/*
@@ -1083,10 +1083,10 @@ static int nsp32hw_init(nsp32_hw_data *data)
 		nsp32_index_write1(base, FIFO_FULL_SHLD_COUNT,  0x10);
 		nsp32_index_write1(base, FIFO_EMPTY_SHLD_COUNT, 0x60);
 	} else {
-		nsp32_dbg(NSP32_DEBUG_INIT, "unknown transfer mode");
+		nsp32_dbg(NSP32_DE_INIT, "unknown transfer mode");
 	}
 
-	nsp32_dbg(NSP32_DEBUG_INIT, "full 0x%x emp 0x%x",
+	nsp32_dbg(NSP32_DE_INIT, "full 0x%x emp 0x%x",
 		  nsp32_index_read1(base, FIFO_FULL_SHLD_COUNT),
 		  nsp32_index_read1(base, FIFO_EMPTY_SHLD_COUNT));
 
@@ -1173,11 +1173,11 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 	 * IRQ check, then enable IRQ mask
 	 */
 	irq_stat = nsp32_read2(base, IRQ_STATUS);
-	nsp32_dbg(NSP32_DEBUG_INTR, 
+	nsp32_dbg(NSP32_DE_INTR, 
 		  "enter IRQ: %d, IRQstatus: 0x%x", irq, irq_stat);
 	/* is this interrupt comes from Ninja asic? */
 	if ((irq_stat & IRQSTATUS_ANY_IRQ) == 0) {
-		nsp32_dbg(NSP32_DEBUG_INTR, "shared interrupt: irq other 0x%x", irq_stat);
+		nsp32_dbg(NSP32_DE_INTR, "shared interrupt: irq other 0x%x", irq_stat);
 		goto out2;
 	}
 	handled = 1;
@@ -1199,7 +1199,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 	/* Timer IRQ */
 	if (irq_stat & IRQSTATUS_TIMER_IRQ) {
-		nsp32_dbg(NSP32_DEBUG_INTR, "timer stop");
+		nsp32_dbg(NSP32_DE_INTR, "timer stop");
 		nsp32_write2(base, TIMER_SET, TIMER_STOP);
 		goto out;
 	}
@@ -1234,7 +1234,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 		/* Selection Timeout, go busfree phase. */
 		if (auto_stat & SELECTION_TIMEOUT) {
-			nsp32_dbg(NSP32_DEBUG_INTR,
+			nsp32_dbg(NSP32_DE_INTR,
 				  "selection timeout occurred");
 
 			SCpnt->result = DID_TIME_OUT << 16;
@@ -1259,7 +1259,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 				data->msgout_len = 0;
 			};
 
-			nsp32_dbg(NSP32_DEBUG_INTR, "MsgOut phase processed");
+			nsp32_dbg(NSP32_DE_INTR, "MsgOut phase processed");
 		}
 
 		if ((auto_stat & DATA_IN_PHASE) &&
@@ -1271,17 +1271,17 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 		if (auto_stat & (DATA_IN_PHASE | DATA_OUT_PHASE)) {
 			/* DATA_IN_PHASE/DATA_OUT_PHASE was processed. */
-			nsp32_dbg(NSP32_DEBUG_INTR,
+			nsp32_dbg(NSP32_DE_INTR,
 				  "Data in/out phase processed");
 
 			/* read BMCNT, SGT pointer addr */
-			nsp32_dbg(NSP32_DEBUG_INTR, "BMCNT=0x%lx", 
+			nsp32_dbg(NSP32_DE_INTR, "BMCNT=0x%lx", 
 				    nsp32_read4(base, BM_CNT));
-			nsp32_dbg(NSP32_DEBUG_INTR, "addr=0x%lx", 
+			nsp32_dbg(NSP32_DE_INTR, "addr=0x%lx", 
 				    nsp32_read4(base, SGT_ADR));
-			nsp32_dbg(NSP32_DEBUG_INTR, "SACK=0x%lx", 
+			nsp32_dbg(NSP32_DE_INTR, "SACK=0x%lx", 
 				    nsp32_read4(base, SACK_CNT));
-			nsp32_dbg(NSP32_DEBUG_INTR, "SSACK=0x%lx", 
+			nsp32_dbg(NSP32_DE_INTR, "SSACK=0x%lx", 
 				    nsp32_read4(base, SAVED_SACK_CNT));
 
 			scsi_set_resid(SCpnt, 0); /* all data transferred! */
@@ -1340,7 +1340,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 		if (auto_stat & COMMAND_PHASE) {
 			/* nothing to do */
-			nsp32_dbg(NSP32_DEBUG_INTR, "Command phase processed");
+			nsp32_dbg(NSP32_DE_INTR, "Command phase processed");
 		}
 
 		if (auto_stat & AUTOSCSI_BUSY) {
@@ -1352,32 +1352,32 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 	/* FIFO_SHLD_IRQ */
 	if (irq_stat & IRQSTATUS_FIFO_SHLD_IRQ) {
-		nsp32_dbg(NSP32_DEBUG_INTR, "FIFO IRQ");
+		nsp32_dbg(NSP32_DE_INTR, "FIFO IRQ");
 
 		switch(busphase) {
 		case BUSPHASE_DATA_OUT:
-			nsp32_dbg(NSP32_DEBUG_INTR, "fifo/write");
+			nsp32_dbg(NSP32_DE_INTR, "fifo/write");
 
 			//nsp32_pio_write(SCpnt);
 
 			break;
 
 		case BUSPHASE_DATA_IN:
-			nsp32_dbg(NSP32_DEBUG_INTR, "fifo/read");
+			nsp32_dbg(NSP32_DE_INTR, "fifo/read");
 
 			//nsp32_pio_read(SCpnt);
 
 			break;
 
 		case BUSPHASE_STATUS:
-			nsp32_dbg(NSP32_DEBUG_INTR, "fifo/status");
+			nsp32_dbg(NSP32_DE_INTR, "fifo/status");
 
 			SCpnt->SCp.Status = nsp32_read1(base, SCSI_CSB_IN);
 
 			break;
 		default:
-			nsp32_dbg(NSP32_DEBUG_INTR, "fifo/other phase");
-			nsp32_dbg(NSP32_DEBUG_INTR, "irq_stat=0x%x trans_stat=0x%x", irq_stat, trans_stat);
+			nsp32_dbg(NSP32_DE_INTR, "fifo/other phase");
+			nsp32_dbg(NSP32_DE_INTR, "irq_stat=0x%x trans_stat=0x%x", irq_stat, trans_stat);
 			show_busphase(busphase);
 			break;
 		}
@@ -1387,11 +1387,11 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 	/* Phase Change IRQ */
 	if (irq_stat & IRQSTATUS_PHASE_CHANGE_IRQ) {
-		nsp32_dbg(NSP32_DEBUG_INTR, "phase change IRQ");
+		nsp32_dbg(NSP32_DE_INTR, "phase change IRQ");
 
 		switch(busphase) {
 		case BUSPHASE_MESSAGE_IN:
-			nsp32_dbg(NSP32_DEBUG_INTR, "phase chg/msg in");
+			nsp32_dbg(NSP32_DE_INTR, "phase chg/msg in");
 			nsp32_msgin_occur(SCpnt, irq_stat, 0);
 			break;
 		default:
@@ -1406,7 +1406,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 
 	/* PCI_IRQ */
 	if (irq_stat & IRQSTATUS_PCI_IRQ) {
-		nsp32_dbg(NSP32_DEBUG_INTR, "PCI IRQ occurred");
+		nsp32_dbg(NSP32_DE_INTR, "PCI IRQ occurred");
 		/* Do nothing */
 	}
 
@@ -1421,7 +1421,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 	}
 
 #if 0
-	nsp32_dbg(NSP32_DEBUG_INTR,
+	nsp32_dbg(NSP32_DE_INTR,
 		  "irq_stat=0x%x trans_stat=0x%x", irq_stat, trans_stat);
 	show_busphase(busphase);
 #endif
@@ -1433,7 +1433,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
  out2:
 	spin_unlock_irqrestore(host->host_lock, flags);
 
-	nsp32_dbg(NSP32_DEBUG_INTR, "exit");
+	nsp32_dbg(NSP32_DE_INTR, "exit");
 
 	return IRQ_RETVAL(handled);
 }
@@ -1560,7 +1560,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int base   = SCpnt->device->host->io_port;
 
-	nsp32_dbg(NSP32_DEBUG_BUSFREE, "enter execph=0x%x", execph);
+	nsp32_dbg(NSP32_DE_BUSFREE, "enter execph=0x%x", execph);
 	show_autophase(execph);
 
 	nsp32_write4(base, BM_CNT,           0);
@@ -1578,7 +1578,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 	 *   phase.
 	 */
 	if (execph & MSGIN_02_VALID) {
-		nsp32_dbg(NSP32_DEBUG_BUSFREE, "MsgIn02_Valid");
+		nsp32_dbg(NSP32_DE_BUSFREE, "MsgIn02_Valid");
 
 		/*
 		 * Check sack_cnt/saved_sack_cnt, then adjust sg table if
@@ -1673,11 +1673,11 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 	 */
 	if (execph & MSGIN_00_VALID) {
 		/* MsgIn 00: Command Complete */
-		nsp32_dbg(NSP32_DEBUG_BUSFREE, "command complete");
+		nsp32_dbg(NSP32_DE_BUSFREE, "command complete");
 
 		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
 		SCpnt->SCp.Message = 0;
-		nsp32_dbg(NSP32_DEBUG_BUSFREE, 
+		nsp32_dbg(NSP32_DE_BUSFREE, 
 			  "normal end stat=0x%x resid=0x%x\n",
 			  SCpnt->SCp.Status, scsi_get_resid(SCpnt));
 		SCpnt->result = (DID_OK             << 16) |
@@ -1691,7 +1691,7 @@ static int nsp32_busfree_occur(struct scsi_cmnd *SCpnt, unsigned short execph)
 		SCpnt->SCp.Status  = nsp32_read1(base, SCSI_CSB_IN);
 		SCpnt->SCp.Message = 4;
 		
-		nsp32_dbg(NSP32_DEBUG_BUSFREE, "disconnect");
+		nsp32_dbg(NSP32_DE_BUSFREE, "disconnect");
 		return TRUE;
 	} else {
 		/* Unexpected bus free */
@@ -1723,7 +1723,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 	unsigned int          restlen, sentlen;
 	u32_le                len, addr;
 
-	nsp32_dbg(NSP32_DEBUG_SGLIST, "old resid=0x%x", scsi_get_resid(SCpnt));
+	nsp32_dbg(NSP32_DE_SGLIST, "old resid=0x%x", scsi_get_resid(SCpnt));
 
 	/* adjust saved SACK count with 4 byte start address boundary */
 	s_sacklen -= le32_to_cpu(sgt[old_entry].addr) & 3;
@@ -1772,7 +1772,7 @@ static void nsp32_adjust_busfree(struct scsi_cmnd *SCpnt, unsigned int s_sacklen
 	}
 
 	scsi_set_resid(SCpnt, scsi_get_resid(SCpnt) - sentlen);
-	nsp32_dbg(NSP32_DEBUG_SGLIST, "new resid=0x%x", scsi_get_resid(SCpnt));
+	nsp32_dbg(NSP32_DE_SGLIST, "new resid=0x%x", scsi_get_resid(SCpnt));
 
 	/* update hostdata and lun */
 
@@ -1794,7 +1794,7 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 	long new_sgtp;
 	int i;
 	
-	nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR,
+	nsp32_dbg(NSP32_DE_MSGOUTOCCUR,
 		  "enter: msgout_len: 0x%x", data->msgout_len);
 
 	/*
@@ -1817,7 +1817,7 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 	 * send messages
 	 */
 	for (i = 0; i < data->msgout_len; i++) {
-		nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR,
+		nsp32_dbg(NSP32_DE_MSGOUTOCCUR,
 			  "%d : 0x%x", i, data->msgoutbuf[i]);
 
 		/*
@@ -1847,13 +1847,13 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 		nsp32_write1(base, SCSI_DATA_WITH_ACK, data->msgoutbuf[i]);
 		nsp32_wait_sack(data, NEGATE);
 
-		nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR, "bus: 0x%x\n",
+		nsp32_dbg(NSP32_DE_MSGOUTOCCUR, "bus: 0x%x\n",
 			  nsp32_read1(base, SCSI_BUS_MONITOR));
 	};
 
 	data->msgout_len = 0;
 
-	nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR, "exit");
+	nsp32_dbg(NSP32_DE_MSGOUTOCCUR, "exit");
 }
 
 /*
@@ -1868,7 +1868,7 @@ static void nsp32_restart_autoscsi(struct scsi_cmnd *SCpnt, unsigned short comma
 	unsigned int   base = data->BaseAddress;
 	unsigned short transfer = 0;
 
-	nsp32_dbg(NSP32_DEBUG_RESTART, "enter");
+	nsp32_dbg(NSP32_DE_RESTART, "enter");
 
 	if (data->cur_target == NULL || data->cur_lunt == NULL) {
 		nsp32_msg(KERN_ERR, "Target or Lun is invalid");
@@ -1921,7 +1921,7 @@ static void nsp32_restart_autoscsi(struct scsi_cmnd *SCpnt, unsigned short comma
 		    AUTOSCSI_RESTART       );
 	nsp32_write2(base, COMMAND_CONTROL, command);
 
-	nsp32_dbg(NSP32_DEBUG_RESTART, "exit");
+	nsp32_dbg(NSP32_DE_RESTART, "exit");
 }
 
 
@@ -1950,7 +1950,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	msg = nsp32_read1(base, SCSI_DATA_IN);
 	data->msginbuf[(unsigned char)data->msgin_len] = msg;
 	msgtype = data->msginbuf[0];
-	nsp32_dbg(NSP32_DEBUG_MSGINOCCUR,
+	nsp32_dbg(NSP32_DE_MSGINOCCUR,
 		  "enter: msglen: 0x%x msgin: 0x%x msgtype: 0x%x",
 		  data->msgin_len, msg, msgtype);
 
@@ -2207,7 +2207,7 @@ static void nsp32_msgin_occur(struct scsi_cmnd     *SCpnt,
 	 */
 	nsp32_sack_negate(data);
 
-	nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "exit");
+	nsp32_dbg(NSP32_DE_MSGINOCCUR, "exit");
 
 	return;
 
@@ -2235,7 +2235,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 	int               entry;
 	int               syncnum;
 
-	nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "enter");
+	nsp32_dbg(NSP32_DE_MSGINOCCUR, "enter");
 
 	synct   = data->synct;
 	syncnum = data->syncnum;
@@ -2252,7 +2252,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 		 * Initiator sent SDTR, the target responds and
 		 * send back negotiation SDTR.
 		 */
-		nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "target responds SDTR");
+		nsp32_dbg(NSP32_DE_MSGINOCCUR, "target responds SDTR");
 	
 		target->sync_flag &= ~SDTR_INITIATOR;
 		target->sync_flag |= SDTR_DONE;
@@ -2310,7 +2310,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 		nsp32_set_sync_entry(data, target, entry, get_offset);
 	} else {
 		/* Target send SDTR to initiator. */
-		nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "target send SDTR");
+		nsp32_dbg(NSP32_DE_MSGINOCCUR, "target send SDTR");
 	
 		target->sync_flag |= SDTR_INITIATOR;
 
@@ -2337,7 +2337,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 	}
 
 	target->period = get_period;
-	nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "exit");
+	nsp32_dbg(NSP32_DE_MSGINOCCUR, "exit");
 	return;
 
  reject:
@@ -2351,7 +2351,7 @@ static void nsp32_analyze_sdtr(struct scsi_cmnd *SCpnt)
 	nsp32_set_async(data, target);	/* set as ASYNC transfer mode */
 
 	target->period = 0;
-	nsp32_dbg(NSP32_DEBUG_MSGINOCCUR, "exit: set async");
+	nsp32_dbg(NSP32_DE_MSGINOCCUR, "exit: set async");
 	return;
 }
 
@@ -2403,7 +2403,7 @@ static void nsp32_set_async(nsp32_hw_data *data, nsp32_target *target)
 	target->ackwidth   = 0;
 	target->sample_reg = 0;
 
-	nsp32_dbg(NSP32_DEBUG_SYNC, "set async");
+	nsp32_dbg(NSP32_DE_SYNC, "set async");
 }
 
 
@@ -2448,7 +2448,7 @@ static void nsp32_set_sync_entry(nsp32_hw_data *data,
 	target->offset     = offset;
 	target->sample_reg = sample_rate | SAMPLING_ENABLE;
 
-	nsp32_dbg(NSP32_DEBUG_SYNC, "set sync");
+	nsp32_dbg(NSP32_DE_SYNC, "set sync");
 }
 
 
@@ -2475,7 +2475,7 @@ static void nsp32_wait_req(nsp32_hw_data *data, int state)
 	do {
 		bus = nsp32_read1(base, SCSI_BUS_MONITOR);
 		if ((bus & BUSMON_REQ) == req_bit) {
-			nsp32_dbg(NSP32_DEBUG_WAIT, 
+			nsp32_dbg(NSP32_DE_WAIT, 
 				  "wait_time: %d", wait_time);
 			return;
 		}
@@ -2504,7 +2504,7 @@ static void nsp32_wait_sack(nsp32_hw_data *data, int state)
 	do {
 		bus = nsp32_read1(base, SCSI_BUS_MONITOR);
 		if ((bus & BUSMON_ACK) == ack_bit) {
-			nsp32_dbg(NSP32_DEBUG_WAIT,
+			nsp32_dbg(NSP32_DE_WAIT,
 				  "wait_time: %d", wait_time);
 			return;
 		}
@@ -2560,7 +2560,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 	int               ret;
 	int               i, j;
 
-	nsp32_dbg(NSP32_DEBUG_REGISTER, "enter");
+	nsp32_dbg(NSP32_DE_REGISTER, "enter");
 
 	/*
 	 * register this HBA as SCSI device
@@ -2824,7 +2824,7 @@ static int nsp32_eh_abort(struct scsi_cmnd *SCpnt)
 	nsp32_msg(KERN_WARNING, "abort");
 
 	if (data->cur_lunt->SCpnt == NULL) {
-		nsp32_dbg(NSP32_DEBUG_BUSRESET, "abort failed");
+		nsp32_dbg(NSP32_DE_BUSRESET, "abort failed");
 		return FAILED;
 	}
 
@@ -2840,7 +2840,7 @@ static int nsp32_eh_abort(struct scsi_cmnd *SCpnt)
 	SCpnt->result = DID_ABORT << 16;
 	nsp32_scsi_done(SCpnt);
 
-	nsp32_dbg(NSP32_DEBUG_BUSRESET, "abort success");
+	nsp32_dbg(NSP32_DE_BUSRESET, "abort success");
 	return SUCCESS;
 }
 
@@ -2850,7 +2850,7 @@ static void nsp32_do_bus_reset(nsp32_hw_data *data)
 	unsigned short intrdat;
 	int i;
 
-	nsp32_dbg(NSP32_DEBUG_BUSRESET, "in");
+	nsp32_dbg(NSP32_DE_BUSRESET, "in");
 
 	/*
 	 * stop all transfer
@@ -2880,7 +2880,7 @@ static void nsp32_do_bus_reset(nsp32_hw_data *data)
 	nsp32_write1(base, SCSI_BUS_CONTROL, 0);
 	for(i = 0; i < 5; i++) {
 		intrdat = nsp32_read2(base, IRQ_STATUS); /* dummy read */
-		nsp32_dbg(NSP32_DEBUG_BUSRESET, "irq:1: 0x%x", intrdat);
+		nsp32_dbg(NSP32_DE_BUSRESET, "irq:1: 0x%x", intrdat);
         }
 
 	data->CurrentSC = NULL;
@@ -2893,7 +2893,7 @@ static int nsp32_eh_host_reset(struct scsi_cmnd *SCpnt)
 	nsp32_hw_data    *data = (nsp32_hw_data *)host->hostdata;
 
 	nsp32_msg(KERN_INFO, "Host Reset");	
-	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
+	nsp32_dbg(NSP32_DE_BUSRESET, "SCpnt=0x%x", SCpnt);
 
 	spin_lock_irq(SCpnt->device->host->host_lock);
 
@@ -2951,10 +2951,10 @@ static int nsp32_getprom_param(nsp32_hw_data *data)
 		ret = FALSE;
 	}
 
-	/* for debug : SPROM data full checking */
+	/* for de : SPROM data full checking */
 	for (i = 0; i <= 0x1f; i++) {
 		val = nsp32_prom_read(data, i);
-		nsp32_dbg(NSP32_DEBUG_EEPROM,
+		nsp32_dbg(NSP32_DE_EEPROM,
 			  "rom address 0x%x : 0x%x", i, val);
 	}
 
@@ -3337,7 +3337,7 @@ static int nsp32_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int ret;
 	nsp32_hw_data *data = &nsp32_data_base;
 
-	nsp32_dbg(NSP32_DEBUG_REGISTER, "enter");
+	nsp32_dbg(NSP32_DE_REGISTER, "enter");
 
         ret = pci_enable_device(pdev);
 	if (ret) {
@@ -3363,7 +3363,7 @@ static int nsp32_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		  pci_name(pdev),
 		  nsp32_model[id->driver_data]);
 
-	nsp32_dbg(NSP32_DEBUG_REGISTER, "exit %d", ret);
+	nsp32_dbg(NSP32_DE_REGISTER, "exit %d", ret);
 
 	return ret;
 }
@@ -3372,7 +3372,7 @@ static void nsp32_remove(struct pci_dev *pdev)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
 
-	nsp32_dbg(NSP32_DEBUG_REGISTER, "enter");
+	nsp32_dbg(NSP32_DE_REGISTER, "enter");
 
         scsi_remove_host(host);
 

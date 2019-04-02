@@ -7,7 +7,7 @@ Introduction
 
 A large number of system calls are exposed to every userland process
 with many of them going unused for the entire lifetime of the process.
-As system calls change and mature, bugs are found and eradicated.  A
+As system calls change and mature, s are found and eradicated.  A
 certain subset of userland applications benefit by having a reduced set
 of available system calls.  The resulting set reduces the total kernel
 surface exposed to the application.  System call filtering is meant for

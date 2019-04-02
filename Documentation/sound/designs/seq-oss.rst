@@ -143,8 +143,8 @@ maxqlen
   for OSS sequencer, so that it is independent from the queue length of ALSA
   sequencer. Default value is 1024.
 
-seq_oss_debug
-  specifies the debug level and accepts zero (= no debug message) or
+seq_oss_de
+  specifies the de level and accepts zero (= no de message) or
   positive integer. Default value is 0.
 
 Queue Mechanism

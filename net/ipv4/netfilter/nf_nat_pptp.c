@@ -60,7 +60,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 
 	/* And here goes the grand finale of corrosion... */
 	if (exp->dir == IP_CT_DIR_ORIGINAL) {
-		pr_debug("we are PNS->PAC\n");
+		pr_de("we are PNS->PAC\n");
 		/* therefore, build tuple for PAC->PNS */
 		t.src.l3num = AF_INET;
 		t.src.u3.ip = master->tuplehash[!exp->dir].tuple.src.u3.ip;
@@ -69,7 +69,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		t.dst.u.gre.key = ct_pptp_info->pns_call_id;
 		t.dst.protonum = IPPROTO_GRE;
 	} else {
-		pr_debug("we are PAC->PNS\n");
+		pr_de("we are PAC->PNS\n");
 		/* build tuple for PNS->PAC */
 		t.src.l3num = AF_INET;
 		t.src.u3.ip = master->tuplehash[!exp->dir].tuple.src.u3.ip;
@@ -79,19 +79,19 @@ static void pptp_nat_expected(struct nf_conn *ct,
 		t.dst.protonum = IPPROTO_GRE;
 	}
 
-	pr_debug("trying to unexpect other dir: ");
+	pr_de("trying to unexpect other dir: ");
 	nf_ct_dump_tuple_ip(&t);
 	other_exp = nf_ct_expect_find_get(net, nf_ct_zone(ct), &t);
 	if (other_exp) {
 		nf_ct_unexpect_related(other_exp);
 		nf_ct_expect_put(other_exp);
-		pr_debug("success\n");
+		pr_de("success\n");
 	} else {
-		pr_debug("not found!\n");
+		pr_de("not found!\n");
 	}
 
 	/* This must be a fresh one. */
-	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
+	_ON(ct->status & IPS_NAT_DONE_MASK);
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
@@ -164,7 +164,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		cid_off = offsetof(union pptp_ctrl_union, clrreq.callID);
 		break;
 	default:
-		pr_debug("unknown outbound packet 0x%04x:%s\n", msg,
+		pr_de("unknown outbound packet 0x%04x:%s\n", msg,
 			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
 					       pptp_msg_name[0]);
 		/* fall through */
@@ -182,7 +182,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 
 	/* only OUT_CALL_REQUEST, IN_CALL_REPLY, CALL_CLEAR_REQUEST pass
 	 * down to here */
-	pr_debug("altering call id from 0x%04x to 0x%04x\n",
+	pr_de("altering call id from 0x%04x to 0x%04x\n",
 		 ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
 
 	/* mangle packet */
@@ -267,7 +267,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 		pcid_off = offsetof(union pptp_ctrl_union, setlink.peersCallID);
 		break;
 	default:
-		pr_debug("unknown inbound packet %s\n",
+		pr_de("unknown inbound packet %s\n",
 			 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] :
 					       pptp_msg_name[0]);
 		/* fall through */
@@ -285,7 +285,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	 * WAN_ERROR_NOTIFY, CALL_DISCONNECT_NOTIFY pass down here */
 
 	/* mangle packet */
-	pr_debug("altering peer call id from 0x%04x to 0x%04x\n",
+	pr_de("altering peer call id from 0x%04x to 0x%04x\n",
 		 ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
 	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
@@ -299,16 +299,16 @@ pptp_inbound_pkt(struct sk_buff *skb,
 
 static int __init nf_nat_helper_pptp_init(void)
 {
-	BUG_ON(nf_nat_pptp_hook_outbound != NULL);
+	_ON(nf_nat_pptp_hook_outbound != NULL);
 	RCU_INIT_POINTER(nf_nat_pptp_hook_outbound, pptp_outbound_pkt);
 
-	BUG_ON(nf_nat_pptp_hook_inbound != NULL);
+	_ON(nf_nat_pptp_hook_inbound != NULL);
 	RCU_INIT_POINTER(nf_nat_pptp_hook_inbound, pptp_inbound_pkt);
 
-	BUG_ON(nf_nat_pptp_hook_exp_gre != NULL);
+	_ON(nf_nat_pptp_hook_exp_gre != NULL);
 	RCU_INIT_POINTER(nf_nat_pptp_hook_exp_gre, pptp_exp_gre);
 
-	BUG_ON(nf_nat_pptp_hook_expectfn != NULL);
+	_ON(nf_nat_pptp_hook_expectfn != NULL);
 	RCU_INIT_POINTER(nf_nat_pptp_hook_expectfn, pptp_nat_expected);
 	return 0;
 }

@@ -223,10 +223,10 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	unsigned int write = qc->tf.flags & ATA_TFLAG_WRITE;
 
 	/*
-	 * We are simplex; BUG if we try to fiddle with DMA
+	 * We are simplex;  if we try to fiddle with DMA
 	 * while it's active.
 	 */
-	BUG_ON(dma_channel_active(state->dma));
+	_ON(dma_channel_active(state->dma));
 
 	/*
 	 * Route the DMA signals to the correct interface
@@ -246,7 +246,7 @@ static void pata_icside_bmdma_start(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct pata_icside_state *state = ap->host->private_data;
 
-	BUG_ON(dma_channel_active(state->dma));
+	_ON(dma_channel_active(state->dma));
 	enable_dma(state->dma);
 }
 

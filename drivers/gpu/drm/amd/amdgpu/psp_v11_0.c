@@ -50,14 +50,14 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	const struct psp_firmware_header_v1_0 *asd_hdr;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
 		chip_name = "vega20";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sos.bin", chip_name);

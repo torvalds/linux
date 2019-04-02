@@ -29,19 +29,19 @@ config NOUVEAU_PLATFORM_DRIVER
 	  Support for Nouveau platform driver, used for SoC GPUs as found
 	  on NVIDIA Tegra K1.
 
-config NOUVEAU_DEBUG
-	int "Maximum debug level"
+config NOUVEAU_DE
+	int "Maximum de level"
 	depends on DRM_NOUVEAU
 	range 0 7
 	default 5
 	help
-	  Selects the maximum debug level to compile support for.
+	  Selects the maximum de level to compile support for.
 
 	  0 - fatal
 	  1 - error
 	  2 - warning
 	  3 - info
-	  4 - debug
+	  4 - de
 	  5 - trace (recommended)
 	  6 - paranoia
 	  7 - spam
@@ -49,20 +49,20 @@ config NOUVEAU_DEBUG
 	  The paranoia and spam levels will add a lot of extra checks which
 	  may potentially slow down driver operation.
 
-config NOUVEAU_DEBUG_DEFAULT
-	int "Default debug level"
+config NOUVEAU_DE_DEFAULT
+	int "Default de level"
 	depends on DRM_NOUVEAU
 	range 0 7
 	default 3
 	help
-	  Selects the default debug level
+	  Selects the default de level
 
-config NOUVEAU_DEBUG_MMU
-	bool "Enable additional MMU debugging"
+config NOUVEAU_DE_MMU
+	bool "Enable additional MMU deging"
 	depends on DRM_NOUVEAU
 	default n
 	help
-	  Say Y here if you want to enable verbose MMU debug output.
+	  Say Y here if you want to enable verbose MMU de output.
 
 config DRM_NOUVEAU_BACKLIGHT
 	bool "Support for backlight control"

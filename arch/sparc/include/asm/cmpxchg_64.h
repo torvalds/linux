@@ -200,7 +200,7 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 			(unsigned long)(n), sizeof(*(ptr))))
 #define cmpxchg64_local(ptr, o, n)					\
   ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_local((ptr), (o), (n));					\
   })
 #define cmpxchg64(ptr, o, n)	cmpxchg64_local((ptr), (o), (n))

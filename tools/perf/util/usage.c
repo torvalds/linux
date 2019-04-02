@@ -8,7 +8,7 @@
  * Copyright (C) Linus Torvalds, 2005
  */
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 
 static __noreturn void usage_builtin(const char *err)
 {

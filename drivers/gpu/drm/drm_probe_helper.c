@@ -378,7 +378,7 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *      enforced by the modeset/atomic helpers
  *
  * 5. Any mode whose status is not OK is pruned from the connector's modes list,
- *    accompanied by a debug message indicating the reason for the mode's
+ *    accompanied by a de message indicating the reason for the mode's
  *    rejection (see drm_mode_prune_invalid()).
  *
  * Returns:
@@ -401,7 +401,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			connector->name);
 
 retry:
@@ -445,7 +445,7 @@ retry:
 	 * check here, and if anything changed start the hotplug code.
 	 */
 	if (old_status != connector->status) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
+		DRM_DE_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      connector->name,
 			      drm_get_connector_status_name(old_status),
@@ -470,7 +470,7 @@ retry:
 	dev->mode_config.poll_running = drm_kms_helper_poll;
 
 	if (connector->status == connector_status_disconnected) {
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
+		DRM_DE_KMS("[CONNECTOR:%d:%s] disconnected\n",
 			connector->base.id, connector->name);
 		drm_connector_update_edid_property(connector, NULL);
 		verbose_prune = false;
@@ -527,11 +527,11 @@ prune:
 
 	drm_mode_sort(&connector->modes);
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
+	DRM_DE_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
 			connector->name);
 	list_for_each_entry(mode, &connector->modes, head) {
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-		drm_mode_debug_printmodeline(mode);
+		drm_mode_de_printmodeline(mode);
 	}
 
 	return count;
@@ -631,7 +631,7 @@ static void output_poll_execute(struct work_struct *work)
 			old = drm_get_connector_status_name(old_status);
 			new = drm_get_connector_status_name(connector->status);
 
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] "
+			DRM_DE_KMS("[CONNECTOR:%d:%s] "
 				      "status updated from %s to %s\n",
 				      connector->base.id,
 				      connector->name,
@@ -775,7 +775,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		old_status = connector->status;
 
 		connector->status = drm_helper_probe_detect(connector, NULL, false);
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
+		DRM_DE_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      connector->name,
 			      drm_get_connector_status_name(old_status),

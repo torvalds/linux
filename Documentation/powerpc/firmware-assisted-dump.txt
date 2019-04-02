@@ -188,11 +188,11 @@ NOTE: 1. 'fadump_reserve_mem=' parameter has been deprecated. Instead
          'fadump=nocma' kernel parameter can be used to fallback to
          old behaviour.
 
-Sysfs/debugfs files:
+Sysfs/defs files:
 ------------
 
 Firmware-assisted dump feature uses sysfs file system to hold
-the control files and debugfs file to display memory reserved region.
+the control files and defs file to display memory reserved region.
 
 Here is the list of files under kernel sysfs:
 
@@ -227,17 +227,17 @@ Here is the list of files under kernel sysfs:
 
     echo 1  > /sys/kernel/fadump_release_mem
 
-    After echo 1, the content of the /sys/kernel/debug/powerpc/fadump_region
+    After echo 1, the content of the /sys/kernel/de/powerpc/fadump_region
     file will change to reflect the new memory reservations.
 
     The existing userspace tools (kdump infrastructure) can be easily
     enhanced to use this interface to release the memory reserved for
     dump and continue without 2nd reboot.
 
-Here is the list of files under powerpc debugfs:
-(Assuming debugfs is mounted on /sys/kernel/debug directory.)
+Here is the list of files under powerpc defs:
+(Assuming defs is mounted on /sys/kernel/de directory.)
 
- /sys/kernel/debug/powerpc/fadump_region
+ /sys/kernel/de/powerpc/fadump_region
 
     This file shows the reserved memory regions if fadump is
     enabled otherwise this file is empty. The output format
@@ -247,21 +247,21 @@ Here is the list of files under powerpc debugfs:
     e.g.
     Contents when fadump is registered during first kernel
 
-    # cat /sys/kernel/debug/powerpc/fadump_region
+    # cat /sys/kernel/de/powerpc/fadump_region
     CPU : [0x0000006ffb0000-0x0000006fff001f] 0x40020 bytes, Dumped: 0x0
     HPTE: [0x0000006fff0020-0x0000006fff101f] 0x1000 bytes, Dumped: 0x0
     DUMP: [0x0000006fff1020-0x0000007fff101f] 0x10000000 bytes, Dumped: 0x0
 
     Contents when fadump is active during second kernel
 
-    # cat /sys/kernel/debug/powerpc/fadump_region
+    # cat /sys/kernel/de/powerpc/fadump_region
     CPU : [0x0000006ffb0000-0x0000006fff001f] 0x40020 bytes, Dumped: 0x40020
     HPTE: [0x0000006fff0020-0x0000006fff101f] 0x1000 bytes, Dumped: 0x1000
     DUMP: [0x0000006fff1020-0x0000007fff101f] 0x10000000 bytes, Dumped: 0x10000000
         : [0x00000010000000-0x0000006ffaffff] 0x5ffb0000 bytes, Dumped: 0x5ffb0000
 
-NOTE: Please refer to Documentation/filesystems/debugfs.txt on
-      how to mount the debugfs filesystem.
+NOTE: Please refer to Documentation/filesystems/defs.txt on
+      how to mount the defs filesystem.
 
 
 TODO:

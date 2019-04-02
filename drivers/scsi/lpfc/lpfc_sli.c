@@ -54,7 +54,7 @@
 #include "lpfc_crtn.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_compat.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 #include "lpfc_vport.h"
 #include "lpfc_version.h"
 
@@ -1575,7 +1575,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	lockdep_assert_held(&phba->hbalock);
 
-	BUG_ON(!piocb);
+	_ON(!piocb);
 
 	list_add_tail(&piocb->list, &pring->txcmplq);
 	piocb->iocb_flag |= LPFC_IO_ON_TXCMPLQ;
@@ -1584,7 +1584,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if ((unlikely(pring->ringno == LPFC_ELS_RING)) &&
 	   (piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
 	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN)) {
-		BUG_ON(!piocb->vport);
+		_ON(!piocb->vport);
 		if (!(piocb->vport->load_flag & FC_UNLOADING))
 			mod_timer(&piocb->vport->els_tmofunc,
 				  jiffies +
@@ -1775,7 +1775,7 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 
 	if (pring->ringno == LPFC_ELS_RING) {
-		lpfc_debugfs_slow_ring_trc(phba,
+		lpfc_defs_slow_ring_trc(phba,
 			"IOCB cmd ring:   wd4:x%08x wd6:x%08x wd7:x%08x",
 			*(((uint32_t *) &nextiocb->iocb) + 4),
 			*(((uint32_t *) &nextiocb->iocb) + 6),
@@ -2358,7 +2358,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_REG_LOGIN64:
 	case MBX_READ_TOPOLOGY:
 	case MBX_WRITE_WWN:
-	case MBX_SET_DEBUG:
+	case MBX_SET_DE:
 	case MBX_LOAD_EXP_ROM:
 	case MBX_ASYNCEVT_ENABLE:
 	case MBX_REG_VPI:
@@ -2622,7 +2622,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 
 		if (pmbox->mbxCommand != MBX_HEARTBEAT) {
 			if (pmb->vport) {
-				lpfc_debugfs_disc_trc(pmb->vport,
+				lpfc_defs_disc_trc(pmb->vport,
 					LPFC_DISC_TRC_MBOX_VPORT,
 					"MBOX cmpl vport: cmd:x%x mb:x%x x%x",
 					(uint32_t)pmbox->mbxCommand,
@@ -2630,7 +2630,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 					pmbox->un.varWords[1]);
 			}
 			else {
-				lpfc_debugfs_disc_trc(phba->pport,
+				lpfc_defs_disc_trc(phba->pport,
 					LPFC_DISC_TRC_MBOX,
 					"MBOX cmpl:       cmd:x%x mb:x%x x%x",
 					(uint32_t)pmbox->mbxCommand,
@@ -3760,7 +3760,7 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 			pring->sli.sli3.rspidx = 0;
 
 		if (pring->ringno == LPFC_ELS_RING) {
-			lpfc_debugfs_slow_ring_trc(phba,
+			lpfc_defs_slow_ring_trc(phba,
 			"IOCB rsp ring:   wd4:x%08x wd6:x%08x wd7:x%08x",
 				*(((uint32_t *) irsp) + 4),
 				*(((uint32_t *) irsp) + 6),
@@ -8127,14 +8127,14 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
 		if (pmbox->vport) {
-			lpfc_debugfs_disc_trc(pmbox->vport,
+			lpfc_defs_disc_trc(pmbox->vport,
 				LPFC_DISC_TRC_MBOX_VPORT,
 				"MBOX Bsy vport:  cmd:x%x mb:x%x x%x",
 				(uint32_t)mbx->mbxCommand,
 				mbx->un.varWords[0], mbx->un.varWords[1]);
 		}
 		else {
-			lpfc_debugfs_disc_trc(phba->pport,
+			lpfc_defs_disc_trc(phba->pport,
 				LPFC_DISC_TRC_MBOX,
 				"MBOX Bsy:        cmd:x%x mb:x%x x%x",
 				(uint32_t)mbx->mbxCommand,
@@ -8178,14 +8178,14 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 
 	if (mbx->mbxCommand != MBX_HEARTBEAT) {
 		if (pmbox->vport) {
-			lpfc_debugfs_disc_trc(pmbox->vport,
+			lpfc_defs_disc_trc(pmbox->vport,
 				LPFC_DISC_TRC_MBOX_VPORT,
 				"MBOX Send vport: cmd:x%x mb:x%x x%x",
 				(uint32_t)mbx->mbxCommand,
 				mbx->un.varWords[0], mbx->un.varWords[1]);
 		}
 		else {
-			lpfc_debugfs_disc_trc(phba->pport,
+			lpfc_defs_disc_trc(phba->pport,
 				LPFC_DISC_TRC_MBOX,
 				"MBOX Send:       cmd:x%x mb:x%x x%x",
 				(uint32_t)mbx->mbxCommand,
@@ -8853,13 +8853,13 @@ lpfc_sli4_post_async_mbox(struct lpfc_hba *phba)
 
 	if (mbx_cmnd != MBX_HEARTBEAT) {
 		if (mboxq->vport) {
-			lpfc_debugfs_disc_trc(mboxq->vport,
+			lpfc_defs_disc_trc(mboxq->vport,
 				LPFC_DISC_TRC_MBOX_VPORT,
 				"MBOX Send vport: cmd:x%x mb:x%x x%x",
 				mbx_cmnd, mqe->un.mb_words[0],
 				mqe->un.mb_words[1]);
 		} else {
-			lpfc_debugfs_disc_trc(phba->pport,
+			lpfc_defs_disc_trc(phba->pport,
 				LPFC_DISC_TRC_MBOX,
 				"MBOX Send: cmd:x%x mb:x%x x%x",
 				mbx_cmnd, mqe->un.mb_words[0],
@@ -12523,13 +12523,13 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 				if (lpfc_readl(phba->HCregaddr, &control))
 					goto unplug_error;
 
-				lpfc_debugfs_slow_ring_trc(phba,
+				lpfc_defs_slow_ring_trc(phba,
 				"ISR slow ring:   ctl:x%x stat:x%x isrcnt:x%x",
 				control, status,
 				(uint32_t)phba->sli.slistat.sli_intr);
 
 				if (control & (HC_R0INT_ENA << LPFC_ELS_RING)) {
-					lpfc_debugfs_slow_ring_trc(phba,
+					lpfc_defs_slow_ring_trc(phba,
 						"ISR Disable ring:"
 						"pwork:x%x hawork:x%x wait:x%x",
 						phba->work_ha, work_ha_copy,
@@ -12542,7 +12542,7 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 					readl(phba->HCregaddr); /* flush */
 				}
 				else {
-					lpfc_debugfs_slow_ring_trc(phba,
+					lpfc_defs_slow_ring_trc(phba,
 						"ISR slow ring:   pwork:"
 						"x%x hawork:x%x wait:x%x",
 						phba->work_ha, work_ha_copy,
@@ -12613,7 +12613,7 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 				if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
 					pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
 
-					lpfc_debugfs_disc_trc(vport,
+					lpfc_defs_disc_trc(vport,
 						LPFC_DISC_TRC_MBOX_VPORT,
 						"MBOX dflt rpi: : "
 						"status:x%x rpi:x%x",
@@ -13210,7 +13210,7 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 	}
 	if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
 		pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_MBOX_VPORT,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_MBOX_VPORT,
 				      "MBOX dflt rpi: status:x%x rpi:x%x",
 				      mcqe_status,
 				      pmbox->un.varWords[0], 0);
@@ -13678,7 +13678,7 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	/* Process all the entries to the CQ */
 	cqe = lpfc_sli4_cq_get(cq);
 	while (cqe) {
-#if defined(CONFIG_SCSI_LPFC_DEBUG_FS) && defined(BUILD_NVME)
+#if defined(CONFIG_SCSI_LPFC_DE_FS) && defined(BUILD_NVME)
 		if (phba->ktime_on)
 			cq->isr_timestamp = ktime_get_ns();
 		else
@@ -13866,7 +13866,7 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 				bf_get(lpfc_wcqe_c_request_tag, wcqe));
 		return;
 	}
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	cmdiocbq->isr_timestamp = cq->isr_timestamp;
 #endif
 	if (cmdiocbq->iocb_cmpl == NULL) {
@@ -19827,7 +19827,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
  * The purpose of this routine is to take a snapshot of pbl, pvt and busy count
  * 15 seconds after a test case is running.
  *
- * The user should call lpfc_debugfs_multixripools_write before running a test
+ * The user should call lpfc_defs_multixripools_write before running a test
  * case to clear stat_snapshot_taken. Then the user starts a test case. During
  * test case is running, stat_snapshot_taken is incremented by 1 every time when
  * this routine is called from heartbeat timer. When stat_snapshot_taken is

@@ -1250,7 +1250,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	/*
 	 * some Sandybridge chipsets have broken 32 mode up to now,
-	 * see https://bugzilla.kernel.org/show_bug.cgi?id=40592
+	 * see https://zilla.kernel.org/show_.cgi?id=40592
 	 */
 	[ich8_sata_snb] =
 	{
@@ -1291,7 +1291,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 	u32 tmp;
 	int rc = 0;
 
-	/* BUG: pci_enable_device has not yet been called.  This
+	/* : pci_enable_device has not yet been called.  This
 	 * works because this device is usually set up by BIOS.
 	 */
 
@@ -1435,7 +1435,7 @@ static bool piix_no_sidpr(struct ata_host *host)
 	 *
 	 * This problem is reported in bnc#441240.
 	 *
-	 * https://bugzilla.novell.com/show_bug.cgi?id=441420
+	 * https://zilla.novell.com/show_.cgi?id=441420
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x2920 &&
 	    pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG &&

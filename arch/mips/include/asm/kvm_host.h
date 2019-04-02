@@ -193,7 +193,7 @@ struct kvm_arch {
 
 struct mips_coproc {
 	unsigned long reg[N_MIPS_COPROC_REGS][N_MIPS_COPROC_SEL];
-#ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
+#ifdef CONFIG_KVM_MIPS_DE_COP0_COUNTERS
 	unsigned long stat[N_MIPS_COPROC_REGS][N_MIPS_COPROC_SEL];
 #endif
 };
@@ -228,7 +228,7 @@ struct mips_coproc {
 #define MIPS_CP0_TAG_LO		28
 #define MIPS_CP0_TAG_HI		29
 #define MIPS_CP0_ERROR_PC	30
-#define MIPS_CP0_DEBUG		23
+#define MIPS_CP0_DE		23
 #define MIPS_CP0_DEPC		24
 #define MIPS_CP0_PERFCNT	25
 #define MIPS_CP0_ERRCTL		26
@@ -818,7 +818,7 @@ struct kvm_mips_callbacks {
 extern struct kvm_mips_callbacks *kvm_mips_callbacks;
 int kvm_mips_emulation_init(struct kvm_mips_callbacks **install_callbacks);
 
-/* Debug: dump vcpu state */
+/* De: dump vcpu state */
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
 
 extern int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu);

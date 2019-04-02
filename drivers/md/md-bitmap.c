@@ -90,7 +90,7 @@ __acquires(bitmap->lock)
 	spin_lock_irq(&bitmap->lock);
 
 	if (mappage == NULL) {
-		pr_debug("md/bitmap: map page allocation failed, hijacking\n");
+		pr_de("md/bitmap: map page allocation failed, hijacking\n");
 		/* We don't support hijack for cluster raid */
 		if (no_hijack)
 			return -ENOMEM;
@@ -365,7 +365,7 @@ static int read_page(struct file *file, unsigned long index,
 	struct buffer_head *bh;
 	sector_t block;
 
-	pr_debug("read bitmap file (%dB @ %llu)\n", (int)PAGE_SIZE,
+	pr_de("read bitmap file (%dB @ %llu)\n", (int)PAGE_SIZE,
 		 (unsigned long long)index << PAGE_SHIFT);
 
 	bh = alloc_page_buffers(page, 1<<inode->i_blkbits, false);
@@ -486,24 +486,24 @@ void md_bitmap_print_sb(struct bitmap *bitmap)
 	if (!bitmap || !bitmap->storage.sb_page)
 		return;
 	sb = kmap_atomic(bitmap->storage.sb_page);
-	pr_debug("%s: bitmap file superblock:\n", bmname(bitmap));
-	pr_debug("         magic: %08x\n", le32_to_cpu(sb->magic));
-	pr_debug("       version: %d\n", le32_to_cpu(sb->version));
-	pr_debug("          uuid: %08x.%08x.%08x.%08x\n",
+	pr_de("%s: bitmap file superblock:\n", bmname(bitmap));
+	pr_de("         magic: %08x\n", le32_to_cpu(sb->magic));
+	pr_de("       version: %d\n", le32_to_cpu(sb->version));
+	pr_de("          uuid: %08x.%08x.%08x.%08x\n",
 		 le32_to_cpu(*(__u32 *)(sb->uuid+0)),
 		 le32_to_cpu(*(__u32 *)(sb->uuid+4)),
 		 le32_to_cpu(*(__u32 *)(sb->uuid+8)),
 		 le32_to_cpu(*(__u32 *)(sb->uuid+12)));
-	pr_debug("        events: %llu\n",
+	pr_de("        events: %llu\n",
 		 (unsigned long long) le64_to_cpu(sb->events));
-	pr_debug("events cleared: %llu\n",
+	pr_de("events cleared: %llu\n",
 		 (unsigned long long) le64_to_cpu(sb->events_cleared));
-	pr_debug("         state: %08x\n", le32_to_cpu(sb->state));
-	pr_debug("     chunksize: %d B\n", le32_to_cpu(sb->chunksize));
-	pr_debug("  daemon sleep: %ds\n", le32_to_cpu(sb->daemon_sleep));
-	pr_debug("     sync size: %llu KB\n",
+	pr_de("         state: %08x\n", le32_to_cpu(sb->state));
+	pr_de("     chunksize: %d B\n", le32_to_cpu(sb->chunksize));
+	pr_de("  daemon sleep: %ds\n", le32_to_cpu(sb->daemon_sleep));
+	pr_de("     sync size: %llu KB\n",
 		 (unsigned long long)le64_to_cpu(sb->sync_size)/2);
-	pr_debug("max write behind: %d\n", le32_to_cpu(sb->write_behind));
+	pr_de("max write behind: %d\n", le32_to_cpu(sb->write_behind));
 	kunmap_atomic(sb);
 }
 
@@ -534,7 +534,7 @@ static int md_bitmap_new_disk_sb(struct bitmap *bitmap)
 	sb->version = cpu_to_le32(BITMAP_MAJOR_HI);
 
 	chunksize = bitmap->mddev->bitmap_info.chunksize;
-	BUG_ON(!chunksize);
+	_ON(!chunksize);
 	if (!is_power_of_2(chunksize)) {
 		kunmap_atomic(sb);
 		pr_warn("bitmap chunksize not a power of 2\n");
@@ -544,7 +544,7 @@ static int md_bitmap_new_disk_sb(struct bitmap *bitmap)
 
 	daemon_sleep = bitmap->mddev->bitmap_info.daemon_sleep;
 	if (!daemon_sleep || (daemon_sleep > MAX_SCHEDULE_TIMEOUT)) {
-		pr_debug("Choosing daemon_sleep default (5 sec)\n");
+		pr_de("Choosing daemon_sleep default (5 sec)\n");
 		daemon_sleep = 5 * HZ;
 	}
 	sb->daemon_sleep = cpu_to_le32(daemon_sleep);
@@ -615,7 +615,7 @@ re_read:
 		/* to 4k blocks */
 		bm_blocks = DIV_ROUND_UP_SECTOR_T(bm_blocks, 4096);
 		offset = bitmap->mddev->bitmap_info.offset + (bitmap->cluster_slot * (bm_blocks << 3));
-		pr_debug("%s:%d bm slot: %d offset: %llu\n", __func__, __LINE__,
+		pr_de("%s:%d bm slot: %d offset: %llu\n", __func__, __LINE__,
 			bitmap->cluster_slot, offset);
 	}
 
@@ -947,7 +947,7 @@ static void md_bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 	else
 		set_bit_le(bit, kaddr);
 	kunmap_atomic(kaddr);
-	pr_debug("set file bit %lu page %lu\n", bit, page->index);
+	pr_de("set file bit %lu page %lu\n", bit, page->index);
 	/* record page number so it gets flushed to disk when unplug occurs */
 	set_page_attr(bitmap, page->index - node_offset, BITMAP_PAGE_DIRTY);
 }
@@ -1167,7 +1167,7 @@ static int md_bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 		offset = 0;
 	}
 
-	pr_debug("%s: bitmap initialized from disk: read %lu pages, set %lu of %lu bits\n",
+	pr_de("%s: bitmap initialized from disk: read %lu pages, set %lu of %lu bits\n",
 		 bmname(bitmap), store->file_pages,
 		 bit_cnt, chunks);
 
@@ -1404,7 +1404,7 @@ int md_bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long s
 		if (bw > bitmap->behind_writes_used)
 			bitmap->behind_writes_used = bw;
 
-		pr_debug("inc write-behind count %d/%lu\n",
+		pr_de("inc write-behind count %d/%lu\n",
 			 bw, bitmap->mddev->bitmap_info.max_write_behind);
 	}
 
@@ -1464,7 +1464,7 @@ void md_bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
 	if (behind) {
 		if (atomic_dec_and_test(&bitmap->behind_writes))
 			wake_up(&bitmap->behind_wait);
-		pr_debug("dec write-behind count %d/%lu\n",
+		pr_de("dec write-behind count %d/%lu\n",
 			 atomic_read(&bitmap->behind_writes),
 			 bitmap->mddev->bitmap_info.max_write_behind);
 	}
@@ -1773,7 +1773,7 @@ void md_bitmap_wait_behind_writes(struct mddev *mddev)
 
 	/* wait for behind writes to complete */
 	if (bitmap && atomic_read(&bitmap->behind_writes) > 0) {
-		pr_debug("md:%s: behind writes in progress - waiting to stop.\n",
+		pr_de("md:%s: behind writes in progress - waiting to stop.\n",
 			 mdname(mddev));
 		/* need to kick something here to make sure I/O goes? */
 		wait_event(bitmap->behind_wait,
@@ -1814,9 +1814,9 @@ struct bitmap *md_bitmap_create(struct mddev *mddev, int slot)
 	int err;
 	struct kernfs_node *bm = NULL;
 
-	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
+	BUILD__ON(sizeof(bitmap_super_t) != 256);
 
-	BUG_ON(file && mddev->bitmap_info.offset);
+	_ON(file && mddev->bitmap_info.offset);
 
 	if (test_bit(MD_HAS_JOURNAL, &mddev->flags)) {
 		pr_notice("md/raid:%s: array with journal cannot have bitmap\n",
@@ -1880,7 +1880,7 @@ struct bitmap *md_bitmap_create(struct mddev *mddev, int slot)
 	if (err)
 		goto error;
 
-	pr_debug("created bitmap (%lu pages) for device %s\n",
+	pr_de("created bitmap (%lu pages) for device %s\n",
 		 bitmap->counts.pages, bmname(bitmap));
 
 	err = test_bit(BITMAP_WRITE_ERROR, &bitmap->flags) ? -EIO : 0;

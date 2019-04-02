@@ -9,7 +9,7 @@
  * Copyright (C) 2003 Joshua Wise
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/device.h>
 #include <linux/gpio.h>
@@ -31,7 +31,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/io.h>
 #include <linux/prefetch.h>
 
@@ -208,13 +208,13 @@
  *
  * This UDC hardware wants to implement a bit too much USB protocol, so
  * it constrains the sorts of USB configuration change events that work.
- * The errata for these chips are misleading; some "fixed" bugs from
+ * The errata for these chips are misleading; some "fixed" s from
  * pxa250 a0/a1 b0/b1/b2 sure act like they're still there.
  *
  * Note that the UDC hardware supports DMA (except on IXP) but that's
  * not used here.  IN-DMA (to host) is simple enough, when the data is
  * suitably aligned (16 bytes) ... the network stack doesn't do that,
- * other software can.  OUT-DMA is buggy in most chip versions, as well
+ * other software can.  OUT-DMA is gy in most chip versions, as well
  * as poorly designed (data toggle not automatic).  So this driver won't
  * bother using DMA.  (Mostly-working IN-DMA support was available in
  * kernels before 2.6.23, but was never enabled or well tested.)
@@ -1231,9 +1231,9 @@ static const struct usb_gadget_ops pxa25x_udc_ops = {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FS
+#ifdef CONFIG_USB_GADGET_DE_FS
 
-static int udc_debug_show(struct seq_file *m, void *_d)
+static int udc_de_show(struct seq_file *m, void *_d)
 {
 	struct pxa25x_udc	*dev = m->private;
 	unsigned long		flags;
@@ -1334,21 +1334,21 @@ done:
 	local_irq_restore(flags);
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(udc_debug);
+DEFINE_SHOW_ATTRIBUTE(udc_de);
 
-#define create_debug_files(dev) \
+#define create_de_files(dev) \
 	do { \
-		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
-			S_IRUGO, NULL, dev, &udc_debug_fops); \
+		dev->defs_udc = defs_create_file(dev->gadget.name, \
+			S_IRUGO, NULL, dev, &udc_de_fops); \
 	} while (0)
-#define remove_debug_files(dev) debugfs_remove(dev->debugfs_udc)
+#define remove_de_files(dev) defs_remove(dev->defs_udc)
 
-#else	/* !CONFIG_USB_GADGET_DEBUG_FILES */
+#else	/* !CONFIG_USB_GADGET_DE_FILES */
 
-#define create_debug_files(dev) do {} while (0)
-#define remove_debug_files(dev) do {} while (0)
+#define create_de_files(dev) do {} while (0)
+#define remove_de_files(dev) do {} while (0)
 
-#endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
+#endif	/* CONFIG_USB_GADGET_DE_FILES */
 
 /*-------------------------------------------------------------------------*/
 
@@ -2376,7 +2376,7 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->clk))
 		return PTR_ERR(dev->clk);
 
-	pr_debug("%s: IRQ %d%s%s\n", driver_name, irq,
+	pr_de("%s: IRQ %d%s%s\n", driver_name, irq,
 		dev->has_cfr ? "" : " (!cfr)",
 		SIZE_STR "(pio)"
 		);
@@ -2439,13 +2439,13 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 		}
 	} else
 #endif
-	create_debug_files(dev);
+	create_de_files(dev);
 
 	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
 	if (!retval)
 		return retval;
 
-	remove_debug_files(dev);
+	remove_de_files(dev);
  err:
 	if (!IS_ERR_OR_NULL(dev->transceiver))
 		dev->transceiver = NULL;
@@ -2468,7 +2468,7 @@ static int pxa25x_udc_remove(struct platform_device *pdev)
 	dev->pullup = 0;
 	pullup(dev);
 
-	remove_debug_files(dev);
+	remove_de_files(dev);
 
 	if (!IS_ERR_OR_NULL(dev->transceiver))
 		dev->transceiver = NULL;

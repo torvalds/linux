@@ -23,7 +23,7 @@
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
 #include <linux/compiler.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
@@ -1896,7 +1896,7 @@ void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 	batadv_hash_destroy(bat_priv->nc.decoding_hash);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_nc_nodes_seq_print_text() - print the nc node information
  * @seq: seq file to print on
@@ -1961,29 +1961,29 @@ out:
 }
 
 /**
- * batadv_nc_init_debugfs() - create nc folder and related files in debugfs
+ * batadv_nc_init_defs() - create nc folder and related files in defs
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success or negative error number in case of failure
  */
-int batadv_nc_init_debugfs(struct batadv_priv *bat_priv)
+int batadv_nc_init_defs(struct batadv_priv *bat_priv)
 {
 	struct dentry *nc_dir, *file;
 
-	nc_dir = debugfs_create_dir("nc", bat_priv->debug_dir);
+	nc_dir = defs_create_dir("nc", bat_priv->de_dir);
 	if (!nc_dir)
 		goto out;
 
-	file = debugfs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
+	file = defs_create_u8("min_tq", 0644, nc_dir, &bat_priv->nc.min_tq);
 	if (!file)
 		goto out;
 
-	file = debugfs_create_u32("max_fwd_delay", 0644, nc_dir,
+	file = defs_create_u32("max_fwd_delay", 0644, nc_dir,
 				  &bat_priv->nc.max_fwd_delay);
 	if (!file)
 		goto out;
 
-	file = debugfs_create_u32("max_buffer_time", 0644, nc_dir,
+	file = defs_create_u32("max_buffer_time", 0644, nc_dir,
 				  &bat_priv->nc.max_buffer_time);
 	if (!file)
 		goto out;

@@ -445,11 +445,11 @@ void cx18_av_std_setup(struct cx18 *cx)
 		}
 	}
 
-	/* DEBUG: Displays configured PLL frequency */
+	/* DE: Displays configured PLL frequency */
 	pll_int = cx18_av_read(cx, 0x108);
 	pll_frac = cx18_av_read4(cx, 0x10c) & 0x1ffffff;
 	pll_post = cx18_av_read(cx, 0x109);
-	CX18_DEBUG_INFO_DEV(sd, "PLL regs = int: %u, frac: %u, post: %u\n",
+	CX18_DE_INFO_DEV(sd, "PLL regs = int: %u, frac: %u, post: %u\n",
 			    pll_int, pll_frac, pll_post);
 
 	if (pll_post) {
@@ -458,23 +458,23 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 		pll = (28636360L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
 		pll /= pll_post;
-		CX18_DEBUG_INFO_DEV(sd, "Video PLL = %d.%06d MHz\n",
+		CX18_DE_INFO_DEV(sd, "Video PLL = %d.%06d MHz\n",
 				    pll / 1000000, pll % 1000000);
-		CX18_DEBUG_INFO_DEV(sd, "Pixel rate = %d.%06d Mpixel/sec\n",
+		CX18_DE_INFO_DEV(sd, "Pixel rate = %d.%06d Mpixel/sec\n",
 				    pll / 8000000, (pll / 8) % 1000000);
 
-		CX18_DEBUG_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio = %d.%03d\n",
+		CX18_DE_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio = %d.%03d\n",
 				    src_decimation / 256,
 				    ((src_decimation % 256) * 1000) / 256);
 
 		tmp = 28636360 * (u64) sc;
 		do_div(tmp, src_decimation);
 		fsc = tmp >> 13;
-		CX18_DEBUG_INFO_DEV(sd,
+		CX18_DE_INFO_DEV(sd,
 				    "Chroma sub-carrier initial freq = %d.%06d MHz\n",
 				    fsc / 1000000, fsc % 1000000);
 
-		CX18_DEBUG_INFO_DEV(sd,
+		CX18_DE_INFO_DEV(sd,
 				    "hblank %i, hactive %i, vblank %i, vactive %i, vblank656 %i, src_dec %i, burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, sc 0x%06x\n",
 				    hblank, hactive, vblank, vactive, vblank656,
 				    src_decimation, burst, luma_lpf, uv_lpf,
@@ -591,7 +591,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	u32 afe_cfg;
 	int i;
 
-	CX18_DEBUG_INFO_DEV(sd, "decoder set video input %d, audio input %d\n",
+	CX18_DE_INFO_DEV(sd, "decoder set video input %d, audio input %d\n",
 			    vid_input, aud_input);
 
 	if (vid_input >= CX18_AV_COMPOSITE1 &&
@@ -884,7 +884,7 @@ static int cx18_av_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 			fmt = 0xc;
 	}
 
-	CX18_DEBUG_INFO_DEV(sd, "changing video std to fmt %i\n", fmt);
+	CX18_DE_INFO_DEV(sd, "changing video std to fmt %i\n", fmt);
 
 	/* Follow step 9 of section 3.16 in the cx18_av datasheet.
 	   Without this PAL may display a vertical ghosting effect.
@@ -999,7 +999,7 @@ static int cx18_av_set_fmt(struct v4l2_subdev *sd,
 	else
 		filter = 3;
 
-	CX18_DEBUG_INFO_DEV(sd,
+	CX18_DE_INFO_DEV(sd,
 			    "decoder set size %dx%d -> scale  %ux%u\n",
 			    fmt->width, fmt->height, HSC, VSC);
 
@@ -1019,7 +1019,7 @@ static int cx18_av_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	CX18_DEBUG_INFO_DEV(sd, "%s output\n", enable ? "enable" : "disable");
+	CX18_DE_INFO_DEV(sd, "%s output\n", enable ? "enable" : "disable");
 	if (enable) {
 		cx18_av_write(cx, 0x115, 0x8c);
 		cx18_av_write(cx, 0x116, 0x07);
@@ -1228,7 +1228,7 @@ static int cx18_av_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cx18_av_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
@@ -1261,7 +1261,7 @@ static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.log_status = cx18_av_log_status,
 	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = cx18_av_g_register,
 	.s_register = cx18_av_s_register,
 #endif

@@ -578,7 +578,7 @@ static void g4x_set_infoframes(struct intel_encoder *encoder,
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
 		if (port != (val & VIDEO_DIP_PORT_MASK)) {
-			DRM_DEBUG_KMS("video DIP still enabled on port %c\n",
+			DRM_DE_KMS("video DIP still enabled on port %c\n",
 				      (val & VIDEO_DIP_PORT_MASK) >> 29);
 			return;
 		}
@@ -591,7 +591,7 @@ static void g4x_set_infoframes(struct intel_encoder *encoder,
 
 	if (port != (val & VIDEO_DIP_PORT_MASK)) {
 		if (val & VIDEO_DIP_ENABLE) {
-			DRM_DEBUG_KMS("video DIP already enabled on port %c\n",
+			DRM_DE_KMS("video DIP already enabled on port %c\n",
 				      (val & VIDEO_DIP_PORT_MASK) >> 29);
 			return;
 		}
@@ -889,7 +889,7 @@ void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
 	if (hdmi->dp_dual_mode.type < DRM_DP_DUAL_MODE_TYPE2_DVI)
 		return;
 
-	DRM_DEBUG_KMS("%s DP dual mode adaptor TMDS output\n",
+	DRM_DE_KMS("%s DP dual mode adaptor TMDS output\n",
 		      enable ? "Enabling" : "Disabling");
 
 	drm_dp_dual_mode_set_tmds_output(hdmi->dp_dual_mode.type,
@@ -974,13 +974,13 @@ int intel_hdmi_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 	ret = intel_hdmi_hdcp_write(intel_dig_port, DRM_HDCP_DDC_AN, an,
 				    DRM_HDCP_AN_LEN);
 	if (ret) {
-		DRM_DEBUG_KMS("Write An over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Write An over DDC failed (%d)\n", ret);
 		return ret;
 	}
 
 	ret = intel_gmbus_output_aksv(adapter);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("Failed to output aksv (%d)\n", ret);
+		DRM_DE_KMS("Failed to output aksv (%d)\n", ret);
 		return ret;
 	}
 	return 0;
@@ -993,7 +993,7 @@ static int intel_hdmi_hdcp_read_bksv(struct intel_digital_port *intel_dig_port,
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_BKSV, bksv,
 				   DRM_HDCP_KSV_LEN);
 	if (ret)
-		DRM_DEBUG_KMS("Read Bksv over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Read Bksv over DDC failed (%d)\n", ret);
 	return ret;
 }
 
@@ -1005,7 +1005,7 @@ int intel_hdmi_hdcp_read_bstatus(struct intel_digital_port *intel_dig_port,
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_BSTATUS,
 				   bstatus, DRM_HDCP_BSTATUS_LEN);
 	if (ret)
-		DRM_DEBUG_KMS("Read bstatus over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Read bstatus over DDC failed (%d)\n", ret);
 	return ret;
 }
 
@@ -1018,7 +1018,7 @@ int intel_hdmi_hdcp_repeater_present(struct intel_digital_port *intel_dig_port,
 
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_BCAPS, &val, 1);
 	if (ret) {
-		DRM_DEBUG_KMS("Read bcaps over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Read bcaps over DDC failed (%d)\n", ret);
 		return ret;
 	}
 	*repeater_present = val & DRM_HDCP_DDC_BCAPS_REPEATER_PRESENT;
@@ -1033,7 +1033,7 @@ int intel_hdmi_hdcp_read_ri_prime(struct intel_digital_port *intel_dig_port,
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_RI_PRIME,
 				   ri_prime, DRM_HDCP_RI_LEN);
 	if (ret)
-		DRM_DEBUG_KMS("Read Ri' over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Read Ri' over DDC failed (%d)\n", ret);
 	return ret;
 }
 
@@ -1046,7 +1046,7 @@ int intel_hdmi_hdcp_read_ksv_ready(struct intel_digital_port *intel_dig_port,
 
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_BCAPS, &val, 1);
 	if (ret) {
-		DRM_DEBUG_KMS("Read bcaps over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Read bcaps over DDC failed (%d)\n", ret);
 		return ret;
 	}
 	*ksv_ready = val & DRM_HDCP_DDC_BCAPS_KSV_FIFO_READY;
@@ -1061,7 +1061,7 @@ int intel_hdmi_hdcp_read_ksv_fifo(struct intel_digital_port *intel_dig_port,
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_KSV_FIFO,
 				   ksv_fifo, num_downstream * DRM_HDCP_KSV_LEN);
 	if (ret) {
-		DRM_DEBUG_KMS("Read ksv fifo over DDC failed (%d)\n", ret);
+		DRM_DE_KMS("Read ksv fifo over DDC failed (%d)\n", ret);
 		return ret;
 	}
 	return 0;
@@ -1079,7 +1079,7 @@ int intel_hdmi_hdcp_read_v_prime_part(struct intel_digital_port *intel_dig_port,
 	ret = intel_hdmi_hdcp_read(intel_dig_port, DRM_HDCP_DDC_V_PRIME(i),
 				   part, DRM_HDCP_V_PRIME_PART_LEN);
 	if (ret)
-		DRM_DEBUG_KMS("Read V'[%d] over DDC failed (%d)\n", i, ret);
+		DRM_DE_KMS("Read V'[%d] over DDC failed (%d)\n", i, ret);
 	return ret;
 }
 
@@ -1260,7 +1260,7 @@ static void intel_enable_hdmi_audio(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 
 	WARN_ON(!pipe_config->has_hdmi_sink);
-	DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
+	DRM_DE_DRIVER("Enabling HDMI audio on pipe %c\n",
 			 pipe_name(crtc->pipe));
 	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
@@ -1694,7 +1694,7 @@ intel_hdmi_ycbcr420_config(struct drm_connector *connector,
 
 	/* YCBCR 420 output conversion needs a scaler */
 	if (skl_update_scaler_crtc(config)) {
-		DRM_DEBUG_KMS("Scaler allocation for output failed\n");
+		DRM_DE_KMS("Scaler allocation for output failed\n");
 		return false;
 	}
 
@@ -1775,7 +1775,7 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (hdmi_deep_color_possible(pipe_config, 12) &&
 	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc,
 				  true, force_dvi) == MODE_OK) {
-		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
+		DRM_DE_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
 
 		/* Need to adjust the port link by 1.5x for 12bpc. */
@@ -1783,26 +1783,26 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	} else if (hdmi_deep_color_possible(pipe_config, 10) &&
 		   hdmi_port_clock_valid(intel_hdmi, clock_10bpc,
 					 true, force_dvi) == MODE_OK) {
-		DRM_DEBUG_KMS("picking bpc to 10 for HDMI output\n");
+		DRM_DE_KMS("picking bpc to 10 for HDMI output\n");
 		desired_bpp = 10 * 3;
 
 		/* Need to adjust the port link by 1.25x for 10bpc. */
 		pipe_config->port_clock = clock_10bpc;
 	} else {
-		DRM_DEBUG_KMS("picking bpc to 8 for HDMI output\n");
+		DRM_DE_KMS("picking bpc to 8 for HDMI output\n");
 		desired_bpp = 8*3;
 
 		pipe_config->port_clock = clock_8bpc;
 	}
 
 	if (!pipe_config->bw_constrained) {
-		DRM_DEBUG_KMS("forcing pipe bpp to %i for HDMI\n", desired_bpp);
+		DRM_DE_KMS("forcing pipe bpp to %i for HDMI\n", desired_bpp);
 		pipe_config->pipe_bpp = desired_bpp;
 	}
 
 	if (hdmi_port_clock_valid(intel_hdmi, pipe_config->port_clock,
 				  false, force_dvi) != MODE_OK) {
-		DRM_DEBUG_KMS("unsupported HDMI clock, rejecting mode\n");
+		DRM_DE_KMS("unsupported HDMI clock, rejecting mode\n");
 		return -EINVAL;
 	}
 
@@ -1868,7 +1868,7 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 		 */
 		if (has_edid && !connector->override_edid &&
 		    intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
-			DRM_DEBUG_KMS("Assuming DP dual mode adaptor presence based on VBT\n");
+			DRM_DE_KMS("Assuming DP dual mode adaptor presence based on VBT\n");
 			type = DRM_DP_DUAL_MODE_TYPE1_DVI;
 		} else {
 			type = DRM_DP_DUAL_MODE_NONE;
@@ -1882,7 +1882,7 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 	hdmi->dp_dual_mode.max_tmds_clock =
 		drm_dp_dual_mode_max_tmds_clock(type, adapter);
 
-	DRM_DEBUG_KMS("DP dual mode adaptor (%s) detected (max TMDS clock: %d kHz)\n",
+	DRM_DE_KMS("DP dual mode adaptor (%s) detected (max TMDS clock: %d kHz)\n",
 		      drm_dp_get_dual_mode_type_name(type),
 		      hdmi->dp_dual_mode.max_tmds_clock);
 }
@@ -1904,7 +1904,7 @@ intel_hdmi_set_edid(struct drm_connector *connector)
 	edid = drm_get_edid(connector, i2c);
 
 	if (!edid && !intel_gmbus_is_forced_bit(i2c)) {
-		DRM_DEBUG_KMS("HDMI GMBUS EDID read failed, retry using GPIO bit-banging\n");
+		DRM_DE_KMS("HDMI GMBUS EDID read failed, retry using GPIO bit-banging\n");
 		intel_gmbus_force_bit(i2c, true);
 		edid = drm_get_edid(connector, i2c);
 		intel_gmbus_force_bit(i2c, false);
@@ -1936,7 +1936,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct intel_encoder *encoder = &hdmi_to_dig_port(intel_hdmi)->base;
 	intel_wakeref_t wakeref;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
@@ -1962,7 +1962,7 @@ out:
 static void
 intel_hdmi_force(struct drm_connector *connector)
 {
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
 	intel_hdmi_unset_edid(connector);
@@ -2103,7 +2103,7 @@ intel_hdmi_connector_register(struct drm_connector *connector)
 	if (ret)
 		return ret;
 
-	i915_debugfs_connector_add(connector);
+	i915_defs_connector_add(connector);
 
 	return ret;
 }
@@ -2187,7 +2187,7 @@ bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 	if (!sink_scrambling->supported)
 		return true;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] scrambling=%s, TMDS bit clock ratio=1/%d\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s] scrambling=%s, TMDS bit clock ratio=1/%d\n",
 		      connector->base.id, connector->name,
 		      yesno(scrambling), high_tmds_clock_ratio ? 40 : 10);
 
@@ -2326,7 +2326,7 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 	u8 ddc_pin;
 
 	if (info->alternate_ddc_pin) {
-		DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (VBT)\n",
+		DRM_DE_KMS("Using DDC pin 0x%x for port %c (VBT)\n",
 			      info->alternate_ddc_pin, port_name(port));
 		return info->alternate_ddc_pin;
 	}
@@ -2342,7 +2342,7 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 	else
 		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 
-	DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (platform default)\n",
+	DRM_DE_KMS("Using DDC pin 0x%x for port %c (platform default)\n",
 		      ddc_pin, port_name(port));
 
 	return ddc_pin;
@@ -2395,7 +2395,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
 
-	DRM_DEBUG_KMS("Adding HDMI connector on port %c\n",
+	DRM_DE_KMS("Adding HDMI connector on port %c\n",
 		      port_name(port));
 
 	if (WARN(intel_dig_port->max_lanes < 4,
@@ -2431,7 +2431,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		int ret = intel_hdcp_init(intel_connector,
 					  &intel_hdmi_hdcp_shim);
 		if (ret)
-			DRM_DEBUG_KMS("HDCP init failed, skipping.\n");
+			DRM_DE_KMS("HDCP init failed, skipping.\n");
 	}
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
@@ -2449,7 +2449,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_hdmi->cec_notifier = cec_notifier_get_conn(dev->dev,
 							 port_identifier(port));
 	if (!intel_hdmi->cec_notifier)
-		DRM_DEBUG_KMS("CEC notifier get failed\n");
+		DRM_DE_KMS("CEC notifier get failed\n");
 }
 
 void intel_hdmi_init(struct drm_i915_private *dev_priv,

@@ -147,7 +147,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 	/**
 	 * Use count cannot be non-zero and chip in uninitialized state.
 	 */
-	BUG_ON(!(ioc_fwstate != BFI_IOC_UNINIT));
+	_ON(!(ioc_fwstate != BFI_IOC_UNINIT));
 
 	/**
 	 * Check if another driver with a different firmware is active
@@ -184,7 +184,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 	 */
 	bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
-	BUG_ON(!(usecnt > 0));
+	_ON(!(usecnt > 0));
 
 	usecnt--;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
@@ -847,7 +847,7 @@ bfa_ioc_ct2_nfc_resume(void __iomem *rb)
 			return;
 		udelay(1000);
 	}
-	BUG_ON(1);
+	_ON(1);
 }
 
 static enum bfa_status
@@ -872,18 +872,18 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode asic_mode)
 			if (r32 & __RESET_AND_START_SCLK_LCLK_PLLS)
 				break;
 		}
-		BUG_ON(!(r32 & __RESET_AND_START_SCLK_LCLK_PLLS));
+		_ON(!(r32 & __RESET_AND_START_SCLK_LCLK_PLLS));
 
 		for (i = 0; i < BFA_IOC_PLL_POLL; i++) {
 			r32 = readl(rb + CT2_APP_PLL_LCLK_CTL_REG);
 			if (!(r32 & __RESET_AND_START_SCLK_LCLK_PLLS))
 				break;
 		}
-		BUG_ON(r32 & __RESET_AND_START_SCLK_LCLK_PLLS);
+		_ON(r32 & __RESET_AND_START_SCLK_LCLK_PLLS);
 		udelay(1000);
 
 		r32 = readl(rb + CT2_CSI_FW_CTL_REG);
-		BUG_ON(r32 & __RESET_AND_START_SCLK_LCLK_PLLS);
+		_ON(r32 & __RESET_AND_START_SCLK_LCLK_PLLS);
 	} else {
 		writel(__HALT_NFC_CONTROLLER, (rb + CT2_NFC_CSR_SET_REG));
 		for (i = 0; i < CT2_NFC_MAX_DELAY; i++) {

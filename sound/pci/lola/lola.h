@@ -337,7 +337,7 @@ struct lola {
 	struct lola_rb corb;
 	struct lola_rb rirb;
 	unsigned int res, res_ex;	/* last read values */
-	/* last command (for debugging) */
+	/* last command (for deging) */
 	unsigned int last_cmd_nid, last_verb, last_data, last_extdata;
 
 	/* CORB/RIRB buffers */
@@ -378,9 +378,9 @@ struct lola {
 	unsigned int cold_reset:1;
 	unsigned int polling_mode:1;
 
-	/* for debugging */
-	unsigned int debug_res;
-	unsigned int debug_res_ex;
+	/* for deging */
+	unsigned int de_res;
+	unsigned int de_res_ex;
 };
 
 #define BAR0	0
@@ -518,10 +518,10 @@ void lola_restore_mixer(struct lola *chip);
 int lola_set_src_config(struct lola *chip, unsigned int src_mask, bool update);
 
 /* proc */
-#ifdef CONFIG_SND_DEBUG
-void lola_proc_debug_new(struct lola *chip);
+#ifdef CONFIG_SND_DE
+void lola_proc_de_new(struct lola *chip);
 #else
-#define lola_proc_debug_new(chip)
+#define lola_proc_de_new(chip)
 #endif
 
 #endif /* _LOLA_H */

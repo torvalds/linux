@@ -23,7 +23,7 @@
 
 #include "acx.h"
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "sysfs.h"
 
 static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,

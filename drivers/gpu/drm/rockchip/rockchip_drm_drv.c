@@ -95,7 +95,7 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 	start = geometry->aperture_start;
 	end = geometry->aperture_end;
 
-	DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
+	DRM_DE("IOMMU context initialized (aperture: %#llx-%#llx)\n",
 		  start, end);
 	drm_mm_init(&private->mm, start, end - start + 1);
 	mutex_init(&private->mm_lock);
@@ -386,7 +386,7 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
 		if (!iommu || !of_device_is_available(iommu->parent)) {
-			DRM_DEV_DEBUG(dev,
+			DRM_DEV_DE(dev,
 				      "no iommu attached for %pOF, using non-iommu buffers\n",
 				      port->parent);
 			/*

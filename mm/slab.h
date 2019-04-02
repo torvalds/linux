@@ -129,15 +129,15 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
 /* Legal flag mask for kmem_cache_create(), for various configurations */
 #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
 			 SLAB_CACHE_DMA32 | SLAB_PANIC | \
-			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
+			 SLAB_TYPESAFE_BY_RCU | SLAB_DE_OBJECTS )
 
-#if defined(CONFIG_DEBUG_SLAB)
-#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-#elif defined(CONFIG_SLUB_DEBUG)
-#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
+#if defined(CONFIG_DE_SLAB)
+#define SLAB_DE_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
+#elif defined(CONFIG_SLUB_DE)
+#define SLAB_DE_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
 			  SLAB_TRACE | SLAB_CONSISTENCY_CHECKS)
 #else
-#define SLAB_DEBUG_FLAGS (0)
+#define SLAB_DE_FLAGS (0)
 #endif
 
 #if defined(CONFIG_SLAB)
@@ -152,7 +152,7 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
 #endif
 
 /* Common flags available with current configuration */
-#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
+#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DE_FLAGS | SLAB_CACHE_FLAGS)
 
 /* Common flags permitted for kmem_cache_create */
 #define SLAB_FLAGS_PERMITTED (SLAB_CORE_FLAGS | \
@@ -383,9 +383,9 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 	return s->object_size;
 
 #else /* CONFIG_SLUB */
-# ifdef CONFIG_SLUB_DEBUG
+# ifdef CONFIG_SLUB_DE
 	/*
-	 * Debugging requires use of the padding between object
+	 * Deging requires use of the padding between object
 	 * and whatever may come after it.
 	 */
 	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
@@ -469,7 +469,7 @@ struct kmem_cache_node {
 #ifdef CONFIG_SLUB
 	unsigned long nr_partial;
 	struct list_head partial;
-#ifdef CONFIG_SLUB_DEBUG
+#ifdef CONFIG_SLUB_DE
 	atomic_long_t nr_slabs;
 	atomic_long_t total_objects;
 	struct list_head full;
@@ -501,7 +501,7 @@ void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos);
 void memcg_slab_stop(struct seq_file *m, void *p);
 int memcg_slab_show(struct seq_file *m, void *p);
 
-#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DE)
 void dump_unreclaimable_slab(void);
 #else
 static inline void dump_unreclaimable_slab(void)

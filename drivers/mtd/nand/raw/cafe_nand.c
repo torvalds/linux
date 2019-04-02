@@ -8,10 +8,10 @@
  * Copyright © 2006 David Woodhouse <dwmw2@infradead.org>
  */
 
-#define DEBUG
+#define DE
 
 #include <linux/device.h>
-#undef DEBUG
+#undef DE
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
@@ -78,11 +78,11 @@ module_param(usedma, int, 0644);
 static int skipbbt = 0;
 module_param(skipbbt, int, 0644);
 
-static int debug = 0;
-module_param(debug, int, 0644);
+static int de = 0;
+module_param(de, int, 0644);
 
-static int regdebug = 0;
-module_param(regdebug, int, 0644);
+static int regde = 0;
+module_param(regde, int, 0644);
 
 static int checkecc = 1;
 module_param(checkecc, int, 0644);
@@ -94,7 +94,7 @@ module_param_array(timing, int, &numtimings, 0644);
 static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 /* Hrm. Why isn't this already conditional on something in the struct device? */
-#define cafe_dev_dbg(dev, args...) do { if (debug) dev_dbg(dev, ##args); } while(0)
+#define cafe_dev_dbg(dev, args...) do { if (de) dev_dbg(dev, ##args); } while(0)
 
 /* Make it easier to switch to PIO if we need to */
 #define cafe_readl(cafe, addr)			readl((cafe)->mmio + CAFE_##addr)
@@ -264,7 +264,7 @@ static void cafe_nand_cmdfunc(struct nand_chip *chip, unsigned command,
 	}
 	cafe->datalen = 0;
 
-	if (unlikely(regdebug)) {
+	if (unlikely(regde)) {
 		int i;
 		printk("About to write command %08x to register 0\n", ctl1);
 		for (i=4; i< 0x5c; i+=4)

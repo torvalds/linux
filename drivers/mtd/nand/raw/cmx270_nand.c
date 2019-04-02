@@ -162,7 +162,7 @@ static int __init cmx270_init(void)
 
 	cmx270_nand_io = ioremap(PXA_CS1_PHYS, 12);
 	if (!cmx270_nand_io) {
-		pr_debug("Unable to ioremap NAND device\n");
+		pr_de("Unable to ioremap NAND device\n");
 		ret = -EINVAL;
 		goto err_ioremap;
 	}

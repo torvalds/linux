@@ -28,7 +28,7 @@
  * to reduce code space and undefined function references.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/export.h>
 #include <linux/threads.h>
@@ -51,7 +51,7 @@
 #include <linux/radix-tree.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 
@@ -133,7 +133,7 @@ notrace unsigned int __check_irq_replay(void)
 {
 	/*
 	 * We use local_paca rather than get_paca() to avoid all
-	 * the debug_smp_processor_id() business in this low level
+	 * the de_smp_processor_id() business in this low level
 	 * function
 	 */
 	unsigned char happened = local_paca->irq_happened;
@@ -231,7 +231,7 @@ notrace unsigned int __check_irq_replay(void)
 #endif /* CONFIG_PPC_BOOK3E */
 
 	/* There should be nothing left ! */
-	BUG_ON(local_paca->irq_happened != 0);
+	_ON(local_paca->irq_happened != 0);
 
 	return 0;
 }
@@ -264,7 +264,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		/*
 		 * FIXME. Here we'd like to be able to do:
 		 *
-		 * #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		 * #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DE
 		 *   WARN_ON(!(mfmsr() & MSR_EE));
 		 * #endif
 		 *
@@ -281,14 +281,14 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 * per-cpu variables.
 	 */
 	if (!(irq_happened & PACA_IRQ_HARD_DIS)) {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DE
 		WARN_ON(!(mfmsr() & MSR_EE));
 #endif
 		__hard_irq_disable();
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DE
 	} else {
 		/*
-		 * We should already be hard disabled here. We had bugs
+		 * We should already be hard disabled here. We had s
 		 * where that wasn't the case so let's dbl check it and
 		 * warn if we are wrong. Only do that when IRQ tracing
 		 * is enabled as mfmsr() can be costly.
@@ -612,7 +612,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 
 static inline void check_stack_overflow(void)
 {
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DE_STACKOVERFLOW
 	long sp;
 
 	sp = current_stack_pointer() & (THREAD_SIZE-1);

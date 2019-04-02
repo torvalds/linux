@@ -362,7 +362,7 @@ extern void ioremap_fixed_init(void);
 static inline void __iomem *
 ioremap_fixed(phys_addr_t phys_addr, unsigned long size, pgprot_t prot)
 {
-	BUG();
+	();
 	return NULL;
 }
 

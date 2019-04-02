@@ -17,7 +17,7 @@
 
 #include "core.h"
 #include "hif.h"
-#include "debug.h"
+#include "de.h"
 #include "hif-ops.h"
 #include "trace.h"
 

@@ -225,13 +225,13 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 		str = "ch7019";
 		break;
 	default:
-		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
+		DRM_DE_KMS("ch701x not detected, got %d: from %s "
 			      "slave %d.\n",
 			      val, adapter->name, dvo->slave_addr);
 		goto fail;
 	}
 
-	DRM_DEBUG_KMS("%s detected on %s, addr %d\n",
+	DRM_DE_KMS("%s detected on %s, addr %d\n",
 		      str, adapter->name, dvo->slave_addr);
 	return true;
 
@@ -264,7 +264,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 	u8 horizontal_active_pixel_output, vertical_active_line_output;
 	u8 active_input_line_output;
 
-	DRM_DEBUG_KMS("Registers before mode setting\n");
+	DRM_DE_KMS("Registers before mode setting\n");
 	ch7017_dump_regs(dvo);
 
 	/* LVDS PLL settings from page 75 of 7017-7017ds.pdf*/
@@ -326,7 +326,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 	/* Turn the LVDS back on with new settings. */
 	ch7017_write(dvo, CH7017_LVDS_POWER_DOWN, lvds_power_down);
 
-	DRM_DEBUG_KMS("Registers after mode setting\n");
+	DRM_DE_KMS("Registers after mode setting\n");
 	ch7017_dump_regs(dvo);
 }
 
@@ -378,7 +378,7 @@ static void ch7017_dump_regs(struct intel_dvo_device *dvo)
 #define DUMP(reg)					\
 do {							\
 	ch7017_read(dvo, reg, &val);			\
-	DRM_DEBUG_KMS(#reg ": %02x\n", val);		\
+	DRM_DE_KMS(#reg ": %02x\n", val);		\
 } while (0)
 
 	DUMP(CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT);

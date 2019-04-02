@@ -14,7 +14,7 @@
 
 #include <linux/export.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm_types.h>
@@ -146,7 +146,7 @@ int copy_thread(unsigned long clone_flags,
 }
 
 /*
- *	Generic dumping code. Used for panic and debug.
+ *	Generic dumping code. Used for panic and de.
  */
 void dump(struct pt_regs *fp)
 {

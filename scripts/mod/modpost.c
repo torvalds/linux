@@ -826,11 +826,11 @@ static int match(const char *sym, const char * const pat[])
 static const char *const section_white_list[] =
 {
 	".comment*",
-	".debug*",
+	".de*",
 	".cranges",		/* sh64 */
-	".zdebug*",		/* Compressed debug sections. */
+	".zde*",		/* Compressed de sections. */
 	".GCC.command.line",	/* record-gcc-switches */
-	".mdebug*",        /* alpha, score, mips etc. */
+	".mde*",        /* alpha, score, mips etc. */
 	".pdr",            /* alpha, score, mips etc. */
 	".stab*",
 	".note*",

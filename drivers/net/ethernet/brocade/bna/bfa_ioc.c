@@ -72,7 +72,7 @@ static void bfa_ioc_recover(struct bfa_ioc *ioc);
 static void bfa_ioc_event_notify(struct bfa_ioc *, enum bfa_ioc_event);
 static void bfa_ioc_disable_comp(struct bfa_ioc *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc *ioc);
-static void bfa_nw_ioc_debug_save_ftrc(struct bfa_ioc *ioc);
+static void bfa_nw_ioc_de_save_ftrc(struct bfa_ioc *ioc);
 static void bfa_ioc_fail_notify(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_enabled(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_disabled(struct bfa_ioc *ioc);
@@ -935,7 +935,7 @@ bfa_iocpf_sm_disabled(struct bfa_iocpf *iocpf, enum iocpf_event event)
 static void
 bfa_iocpf_sm_initfail_sync_entry(struct bfa_iocpf *iocpf)
 {
-	bfa_nw_ioc_debug_save_ftrc(iocpf->ioc);
+	bfa_nw_ioc_de_save_ftrc(iocpf->ioc);
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
 
@@ -1252,7 +1252,7 @@ bfa_ioc_lmem_init(struct bfa_ioc *ioc)
 	 * If memory initialization is not successful, IOC timeout will catch
 	 * such failures.
 	 */
-	BUG_ON(!(pss_ctl & __PSS_LMEM_INIT_DONE));
+	_ON(!(pss_ctl & __PSS_LMEM_INIT_DONE));
 
 	pss_ctl &= ~(__PSS_LMEM_INIT_DONE | __PSS_LMEM_INIT_EN);
 	writel(pss_ctl, ioc->ioc_regs.pss_ctl_reg);
@@ -1904,7 +1904,7 @@ bfa_ioc_mbox_send(struct bfa_ioc *ioc, void *ioc_msg, int len)
 	u32 *msgp = (u32 *) ioc_msg;
 	u32 i;
 
-	BUG_ON(!(len <= BFI_IOC_MSGLEN_MAX));
+	_ON(!(len <= BFI_IOC_MSGLEN_MAX));
 
 	/*
 	 * first write msg to mailbox registers
@@ -2242,7 +2242,7 @@ bfa_nw_ioc_smem_read(struct bfa_ioc *ioc, void *tbuf, u32 soff, u32 sz)
 
 /* Retrieve saved firmware trace from a prior IOC failure. */
 int
-bfa_nw_ioc_debug_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen)
+bfa_nw_ioc_de_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen)
 {
 	u32 loff = BFI_IOC_TRC_OFF + BNA_DBG_FWTRC_LEN * ioc->port_id;
 	int tlen, status = 0;
@@ -2258,7 +2258,7 @@ bfa_nw_ioc_debug_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen)
 
 /* Save firmware trace if configured. */
 static void
-bfa_nw_ioc_debug_save_ftrc(struct bfa_ioc *ioc)
+bfa_nw_ioc_de_save_ftrc(struct bfa_ioc *ioc)
 {
 	int tlen;
 
@@ -2266,14 +2266,14 @@ bfa_nw_ioc_debug_save_ftrc(struct bfa_ioc *ioc)
 		ioc->dbg_fwsave_once = false;
 		if (ioc->dbg_fwsave_len) {
 			tlen = ioc->dbg_fwsave_len;
-			bfa_nw_ioc_debug_fwtrc(ioc, ioc->dbg_fwsave, &tlen);
+			bfa_nw_ioc_de_fwtrc(ioc, ioc->dbg_fwsave, &tlen);
 		}
 	}
 }
 
 /* Retrieve saved firmware trace from a prior IOC failure. */
 int
-bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen)
+bfa_nw_ioc_de_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen)
 {
 	int tlen;
 
@@ -2297,7 +2297,7 @@ bfa_ioc_fail_notify(struct bfa_ioc *ioc)
 	 */
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
-	bfa_nw_ioc_debug_save_ftrc(ioc);
+	bfa_nw_ioc_de_save_ftrc(ioc);
 }
 
 /* IOCPF to IOC interface */
@@ -2470,7 +2470,7 @@ bfa_ioc_isr(struct bfa_ioc *ioc, struct bfi_mbmsg *m)
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 }
 
@@ -2558,7 +2558,7 @@ bfa_nw_ioc_pci_init(struct bfa_ioc *ioc, struct bfa_pcidev *pcidev,
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	/**
@@ -2618,7 +2618,7 @@ bfa_nw_ioc_disable(struct bfa_ioc *ioc)
 
 /* Initialize memory for saving firmware trace. */
 void
-bfa_nw_ioc_debug_memclaim(struct bfa_ioc *ioc, void *dbg_fwsave)
+bfa_nw_ioc_de_memclaim(struct bfa_ioc *ioc, void *dbg_fwsave)
 {
 	ioc->dbg_fwsave = dbg_fwsave;
 	ioc->dbg_fwsave_len = ioc->iocpf.auto_recover ? BNA_DBG_FWTRC_LEN : 0;
@@ -2797,7 +2797,7 @@ bfa_ioc_get_type(struct bfa_ioc *ioc)
 	if (ioc->clscode == BFI_PCIFN_CLASS_ETH)
 		return BFA_IOC_TYPE_LL;
 
-	BUG_ON(!(ioc->clscode == BFI_PCIFN_CLASS_FC));
+	_ON(!(ioc->clscode == BFI_PCIFN_CLASS_FC));
 
 	return (ioc->attr->port_mode == BFI_PORT_MODE_FC)
 		? BFA_IOC_TYPE_FC : BFA_IOC_TYPE_FCoE;
@@ -2820,7 +2820,7 @@ bfa_ioc_get_adapter_fw_ver(struct bfa_ioc *ioc, char *fw_ver)
 static void
 bfa_ioc_get_pci_chip_rev(struct bfa_ioc *ioc, char *chip_rev)
 {
-	BUG_ON(!(chip_rev));
+	_ON(!(chip_rev));
 
 	memset(chip_rev, 0, BFA_IOC_CHIP_REV_LEN);
 
@@ -2850,7 +2850,7 @@ bfa_ioc_get_adapter_model(struct bfa_ioc *ioc, char *model)
 {
 	struct bfi_ioc_attr *ioc_attr;
 
-	BUG_ON(!(model));
+	_ON(!(model));
 	memset(model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
 
 	ioc_attr = ioc->attr;

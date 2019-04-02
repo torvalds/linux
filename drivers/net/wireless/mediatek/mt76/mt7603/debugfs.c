@@ -40,17 +40,17 @@ mt7603_radio_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-void mt7603_init_debugfs(struct mt7603_dev *dev)
+void mt7603_init_defs(struct mt7603_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = mt76_register_debugfs(&dev->mt76);
+	dir = mt76_register_defs(&dev->mt76);
 	if (!dir)
 		return;
 
-	debugfs_create_u32("reset_test", 0600, dir, &dev->reset_test);
-	debugfs_create_devm_seqfile(dev->mt76.dev, "reset", dir,
+	defs_create_u32("reset_test", 0600, dir, &dev->reset_test);
+	defs_create_devm_seqfile(dev->mt76.dev, "reset", dir,
 				    mt7603_reset_read);
-	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
+	defs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7603_radio_read);
 }

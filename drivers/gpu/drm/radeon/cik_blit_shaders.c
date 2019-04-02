@@ -25,7 +25,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 
 const u32 cik_default_state[] =

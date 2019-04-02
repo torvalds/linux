@@ -253,7 +253,7 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb,
 	struct mac_entry_idx *old_entry;
 
 	old_entry = &mac_cb->addr_entry_idx[vmid];
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+	if (!HNS_DSAF_IS_DE(dsaf_dev)) {
 		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
 		mac_entry.in_vlan_id = old_entry->vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -293,7 +293,7 @@ int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 	int ret;
 
-	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (HNS_DSAF_IS_DE(dsaf_dev))
 		return -ENOSPC;
 
 	memset(&mac_entry, 0, sizeof(mac_entry));
@@ -313,7 +313,7 @@ int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 	int ret;
 
-	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (HNS_DSAF_IS_DE(dsaf_dev))
 		return -ENOSPC;
 
 	memset(&mac_entry, 0, sizeof(mac_entry));
@@ -333,7 +333,7 @@ int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev) && addr) {
+	if (!HNS_DSAF_IS_DE(dsaf_dev) && addr) {
 		memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
 		mac_entry.in_vlan_id = 0;/*vlan_id;*/
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -391,11 +391,11 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
-	/* directy return ok in debug network mode */
-	if (mac_cb->mac_type == HNAE_PORT_DEBUG)
+	/* directy return ok in de network mode */
+	if (mac_cb->mac_type == HNAE_PORT_DE)
 		return 0;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+	if (!HNS_DSAF_IS_DE(dsaf_dev)) {
 		eth_broadcast_addr(mac_entry.addr);
 		mac_entry.in_vlan_id = vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -426,12 +426,12 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 	struct mac_entry_idx *uc_mac_entry;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
-	if (mac_cb->mac_type == HNAE_PORT_DEBUG)
+	if (mac_cb->mac_type == HNAE_PORT_DE)
 		return 0;
 
 	uc_mac_entry = &mac_cb->addr_entry_idx[vmid];
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))  {
+	if (!HNS_DSAF_IS_DE(dsaf_dev))  {
 		eth_broadcast_addr(mac_entry.addr);
 		mac_entry.in_vlan_id = uc_mac_entry->vlan_id;
 		mac_entry.in_port_num = mac_cb->mac_id;
@@ -477,7 +477,7 @@ void hns_mac_reset(struct hns_mac_cb *mac_cb)
 		drv->set_an_mode(drv, 1);
 
 	if (drv->mac_pausefrm_cfg) {
-		if (mac_cb->mac_type == HNAE_PORT_DEBUG)
+		if (mac_cb->mac_type == HNAE_PORT_DE)
 			drv->mac_pausefrm_cfg(drv, !is_ver1, !is_ver1);
 		else /* mac rx must disable, dsaf pfc close instead of it*/
 			drv->mac_pausefrm_cfg(drv, 0, 1);
@@ -611,7 +611,7 @@ int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en)
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 	bool is_ver1 = AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver);
 
-	if (mac_cb->mac_type == HNAE_PORT_DEBUG) {
+	if (mac_cb->mac_type == HNAE_PORT_DE) {
 		if (is_ver1 && (tx_en || rx_en)) {
 			dev_err(mac_cb->dev, "macv1 can't enable tx/rx_pause!\n");
 			return -EINVAL;
@@ -1005,10 +1005,10 @@ hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	mac_cb->txpkt_for_led = 0;
 	mac_cb->rxpkt_for_led = 0;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (!HNS_DSAF_IS_DE(dsaf_dev))
 		mac_cb->mac_type = HNAE_PORT_SERVICE;
 	else
-		mac_cb->mac_type = HNAE_PORT_DEBUG;
+		mac_cb->mac_type = HNAE_PORT_DE;
 
 	mac_cb->phy_if = dsaf_dev->misc_op->get_phy_if(mac_cb);
 
@@ -1033,7 +1033,7 @@ hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 
 static int hns_mac_get_max_port_num(struct dsaf_device *dsaf_dev)
 {
-	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (HNS_DSAF_IS_DE(dsaf_dev))
 		return 1;
 	else
 		return  DSAF_MAX_PORT_NUM;

@@ -22,7 +22,7 @@ struct addr_range {
 	unsigned long size;
 };
 
-#undef DEBUG
+#undef DE
 
 static struct addr_range prep_kernel(void)
 {

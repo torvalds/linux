@@ -11,11 +11,11 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include "vas.h"
 
-static struct dentry *vas_debugfs;
+static struct dentry *vas_defs;
 
 static char *cop_to_str(int cop)
 {
@@ -110,7 +110,7 @@ DEFINE_SHOW_ATTRIBUTE(hvwc);
 void vas_window_free_dbgdir(struct vas_window *window)
 {
 	if (window->dbgdir) {
-		debugfs_remove_recursive(window->dbgdir);
+		defs_remove_recursive(window->dbgdir);
 		kfree(window->dbgname);
 		window->dbgdir = NULL;
 		window->dbgname = NULL;
@@ -130,24 +130,24 @@ void vas_window_init_dbgdir(struct vas_window *window)
 
 	snprintf(window->dbgname, 16, "w%d", window->winid);
 
-	d = debugfs_create_dir(window->dbgname, window->vinst->dbgdir);
+	d = defs_create_dir(window->dbgname, window->vinst->dbgdir);
 	if (IS_ERR(d))
 		goto free_name;
 
 	window->dbgdir = d;
 
-	f = debugfs_create_file("info", 0444, d, window, &info_fops);
+	f = defs_create_file("info", 0444, d, window, &info_fops);
 	if (IS_ERR(f))
 		goto remove_dir;
 
-	f = debugfs_create_file("hvwc", 0444, d, window, &hvwc_fops);
+	f = defs_create_file("hvwc", 0444, d, window, &hvwc_fops);
 	if (IS_ERR(f))
 		goto remove_dir;
 
 	return;
 
 remove_dir:
-	debugfs_remove_recursive(window->dbgdir);
+	defs_remove_recursive(window->dbgdir);
 	window->dbgdir = NULL;
 
 free_name:
@@ -160,7 +160,7 @@ void vas_instance_init_dbgdir(struct vas_instance *vinst)
 	struct dentry *d;
 
 	vas_init_dbgdir();
-	if (!vas_debugfs)
+	if (!vas_defs)
 		return;
 
 	vinst->dbgname = kzalloc(16, GFP_KERNEL);
@@ -169,7 +169,7 @@ void vas_instance_init_dbgdir(struct vas_instance *vinst)
 
 	snprintf(vinst->dbgname, 16, "v%d", vinst->vas_id);
 
-	d = debugfs_create_dir(vinst->dbgname, vas_debugfs);
+	d = defs_create_dir(vinst->dbgname, vas_defs);
 	if (IS_ERR(d))
 		goto free_name;
 
@@ -183,7 +183,7 @@ free_name:
 }
 
 /*
- * Set up the "root" VAS debugfs dir. Return if we already set it up
+ * Set up the "root" VAS defs dir. Return if we already set it up
  * (or failed to) in an earlier instance of VAS.
  */
 void vas_init_dbgdir(void)
@@ -194,7 +194,7 @@ void vas_init_dbgdir(void)
 		return;
 
 	first_time = false;
-	vas_debugfs = debugfs_create_dir("vas", NULL);
-	if (IS_ERR(vas_debugfs))
-		vas_debugfs = NULL;
+	vas_defs = defs_create_dir("vas", NULL);
+	if (IS_ERR(vas_defs))
+		vas_defs = NULL;
 }

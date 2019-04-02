@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
+ccflags-$(CONFIG_COMEDI_DE)		:= -DDE
 
 comedi-y				:= comedi_fops.o range.o drivers.o \
 					   comedi_buf.o

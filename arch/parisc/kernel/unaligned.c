@@ -24,17 +24,17 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/signal.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
 
-/* #define DEBUG_UNALIGNED 1 */
+/* #define DE_UNALIGNED 1 */
 
-#ifdef DEBUG_UNALIGNED
-#define DPRINTF(fmt, args...) do { printk(KERN_DEBUG "%s:%d:%s ", __FILE__, __LINE__, __func__ ); printk(KERN_DEBUG fmt, ##args ); } while (0)
+#ifdef DE_UNALIGNED
+#define DPRINTF(fmt, args...) do { printk(KERN_DE "%s:%d:%s ", __FILE__, __LINE__, __func__ ); printk(KERN_DE fmt, ##args ); } while (0)
 #else
 #define DPRINTF(fmt, args...)
 #endif
@@ -468,7 +468,7 @@ void handle_unaligned(struct pt_regs *regs)
 			sprintf(buf, "%s(%d): unaligned access to 0x" RFMT " at ip=0x" RFMT "\n",
 				current->comm, task_pid_nr(current), regs->ior, regs->iaoq[0]);
 			printk(KERN_WARNING "%s", buf);
-#ifdef DEBUG_UNALIGNED
+#ifdef DE_UNALIGNED
 			show_regs(regs);
 #endif		
 		}

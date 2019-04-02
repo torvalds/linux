@@ -111,7 +111,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/delay.h>

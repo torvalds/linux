@@ -188,7 +188,7 @@ static unsigned int bcma_of_get_irq(struct device *parent,
 
 	ret = bcma_of_irq_parse(parent, core, &out_irq, num);
 	if (ret) {
-		bcma_debug(core->bus, "bcma_of_get_irq() failed with rc=%d\n",
+		bcma_de(core->bus, "bcma_of_get_irq() failed with rc=%d\n",
 			   ret);
 		return 0;
 	}
@@ -343,7 +343,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 #endif
 	err = bcma_gpio_init(&bus->drv_cc);
 	if (err == -ENOTSUPP)
-		bcma_debug(bus, "GPIO driver not activated\n");
+		bcma_de(bus, "GPIO driver not activated\n");
 	else if (err)
 		bcma_err(bus, "Error registering GPIO driver: %i\n", err);
 
@@ -642,7 +642,7 @@ static unsigned int bcma_bus_registered;
 /*
  * If built-in, bus has to be registered early, before any driver calls
  * bcma_driver_register.
- * Otherwise registering driver would trigger BUG in driver_register.
+ * Otherwise registering driver would trigger  in driver_register.
  */
 static int __init bcma_init_bus_register(void)
 {

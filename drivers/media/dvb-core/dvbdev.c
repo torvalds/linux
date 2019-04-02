@@ -37,14 +37,14 @@
 #include <media/tuner.h>
 
 static DEFINE_MUTEX(dvbdev_mutex);
-static int dvbdev_debug;
+static int dvbdev_de;
 
-module_param(dvbdev_debug, int, 0644);
-MODULE_PARM_DESC(dvbdev_debug, "Turn on/off device debugging (default:off).");
+module_param(dvbdev_de, int, 0644);
+MODULE_PARM_DESC(dvbdev_de, "Turn on/off device deging (default:off).");
 
 #define dprintk(fmt, arg...) do {					\
-	if (dvbdev_debug)						\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (dvbdev_de)						\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 

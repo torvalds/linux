@@ -239,7 +239,7 @@ struct ishtp_device {
 	__printf(2, 3) void (*print_log)(struct ishtp_device *dev,
 					 const char *format, ...);
 
-	/* Debug stats */
+	/* De stats */
 	unsigned int	ipc_rx_cnt;
 	unsigned long long	ipc_rx_bytes_cnt;
 	unsigned int	ipc_tx_cnt;

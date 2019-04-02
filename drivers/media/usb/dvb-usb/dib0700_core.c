@@ -8,10 +8,10 @@
  */
 #include "dib0700.h"
 
-/* debug */
-int dvb_usb_dib0700_debug;
-module_param_named(debug,dvb_usb_dib0700_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,2=fw,4=fwdata,8=data (or-able))." DVB_USB_DEBUG_STATUS);
+/* de */
+int dvb_usb_dib0700_de;
+module_param_named(de,dvb_usb_dib0700_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,2=fw,4=fwdata,8=data (or-able))." DVB_USB_DE_STATUS);
 
 static int nb_packet_buffer_size = 21;
 module_param(nb_packet_buffer_size, int, 0644);
@@ -58,7 +58,7 @@ static int dib0700_ctrl_wr(struct dvb_usb_device *d, u8 *tx, u8 txlen)
 	int status;
 
 	deb_data(">>> ");
-	debug_dump(tx, txlen, deb_data);
+	de_dump(tx, txlen, deb_data);
 
 	status = usb_control_msg(d->udev, usb_sndctrlpipe(d->udev,0),
 		tx[0], USB_TYPE_VENDOR | USB_DIR_OUT, 0, 0, tx, txlen,
@@ -86,7 +86,7 @@ int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen
 	}
 
 	deb_data(">>> ");
-	debug_dump(tx,txlen,deb_data);
+	de_dump(tx,txlen,deb_data);
 
 	value = ((txlen - 2) << 8) | tx[1];
 	index = 0;
@@ -103,7 +103,7 @@ int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen
 		deb_info("ep 0 read error (status = %d)\n",status);
 
 	deb_data("<<< ");
-	debug_dump(rx, rxlen, deb_data);
+	de_dump(rx, rxlen, deb_data);
 
 	return status; /* length in case of success */
 }
@@ -228,7 +228,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 			memcpy(msg[i].buf, st->buf, msg[i].len);
 
 			deb_data("<<< ");
-			debug_dump(msg[i].buf, msg[i].len, deb_data);
+			de_dump(msg[i].buf, msg[i].len, deb_data);
 
 		} else {
 			/* Write request */
@@ -257,7 +257,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 			memcpy(&st->buf[4], msg[i].buf, msg[i].len);
 
 			deb_data(">>> ");
-			debug_dump(st->buf, msg[i].len + 4, deb_data);
+			de_dump(st->buf, msg[i].len + 4, deb_data);
 
 			result = usb_control_msg(d->udev,
 						 usb_sndctrlpipe(d->udev, 0),

@@ -222,7 +222,7 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
 	char *vfrom, *vto;
 	size_t copy;
 
-	BUG_ON(pgto_base <= pgfrom_base);
+	_ON(pgto_base <= pgfrom_base);
 
 	pgto_base += len;
 	pgfrom_base += len;
@@ -454,7 +454,7 @@ xdr_shrink_pagelen(struct xdr_buf *buf, size_t len)
 
 	result = 0;
 	tail = buf->tail;
-	BUG_ON (len > pglen);
+	_ON (len > pglen);
 
 	tailbuf_len = buf->buflen - buf->head->iov_len - buf->page_len;
 
@@ -510,7 +510,7 @@ EXPORT_SYMBOL_GPL(xdr_stream_pos);
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer in which to encode data
  * @p: current pointer inside XDR buffer
- * @rqst: pointer to controlling rpc_rqst, for debugging
+ * @rqst: pointer to controlling rpc_rqst, for deging
  *
  * Note: at the moment the RPC client only passes the length of our
  *	 scratch buffer in the xdr_buf's header kvec. Previously this
@@ -526,17 +526,17 @@ void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 	int scratch_len = buf->buflen - buf->page_len - buf->tail[0].iov_len;
 
 	xdr_set_scratch_buffer(xdr, NULL, 0);
-	BUG_ON(scratch_len < 0);
+	_ON(scratch_len < 0);
 	xdr->buf = buf;
 	xdr->iov = iov;
 	xdr->p = (__be32 *)((char *)iov->iov_base + iov->iov_len);
 	xdr->end = (__be32 *)((char *)iov->iov_base + scratch_len);
-	BUG_ON(iov->iov_len > scratch_len);
+	_ON(iov->iov_len > scratch_len);
 
 	if (p != xdr->p && p != NULL) {
 		size_t len;
 
-		BUG_ON(p < xdr->p || p > xdr->end);
+		_ON(p < xdr->p || p > xdr->end);
 		len = (char *)p - (char *)xdr->p;
 		xdr->p = p;
 		buf->len += len;
@@ -770,7 +770,7 @@ void xdr_write_pages(struct xdr_stream *xdr, struct page **pages, unsigned int b
 	if (len & 3) {
 		unsigned int pad = 4 - (len & 3);
 
-		BUG_ON(xdr->p >= xdr->end);
+		_ON(xdr->p >= xdr->end);
 		iov->iov_base = (char *)xdr->p + (len & 3);
 		iov->iov_len  += pad;
 		len += pad;
@@ -852,7 +852,7 @@ static bool xdr_set_next_buffer(struct xdr_stream *xdr)
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer from which to decode data
  * @p: current pointer inside XDR buffer
- * @rqst: pointer to controlling rpc_rqst, for debugging
+ * @rqst: pointer to controlling rpc_rqst, for deging
  */
 void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 		     struct rpc_rqst *rqst)

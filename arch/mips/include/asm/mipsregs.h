@@ -86,7 +86,7 @@
 #define CP0_XCONTEXT $20
 #define CP0_FRAMEMASK $21
 #define CP0_DIAGNOSTIC $22
-#define CP0_DEBUG $23
+#define CP0_DE $23
 #define CP0_DEPC $24
 #define CP0_PERFORMANCE $25
 #define CP0_ECC $26
@@ -1783,8 +1783,8 @@ do {									\
 #define read_c0_diag5()		__read_32bit_c0_register($22, 5)
 #define write_c0_diag5(val)	__write_32bit_c0_register($22, 5, val)
 
-#define read_c0_debug()		__read_32bit_c0_register($23, 0)
-#define write_c0_debug(val)	__write_32bit_c0_register($23, 0, val)
+#define read_c0_de()		__read_32bit_c0_register($23, 0)
+#define write_c0_de(val)	__write_32bit_c0_register($23, 0, val)
 
 #define read_c0_depc()		__read_ulong_c0_register($24, 0)
 #define write_c0_depc(val)	__write_ulong_c0_register($24, 0, val)

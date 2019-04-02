@@ -122,7 +122,7 @@ u8 iscsit_tmr_task_reassign(
 	struct iscsi_tm *hdr = (struct iscsi_tm *) buf;
 	u64 ret, ref_lun;
 
-	pr_debug("Got TASK_REASSIGN TMR ITT: 0x%08x,"
+	pr_de("Got TASK_REASSIGN TMR ITT: 0x%08x,"
 		" RefTaskTag: 0x%08x, ExpDataSN: 0x%08x, CID: %hu\n",
 		hdr->itt, hdr->rtt, hdr->exp_datasn, conn->cid);
 
@@ -193,7 +193,7 @@ static void iscsit_task_reassign_remove_cmd(
 	ret = iscsit_remove_cmd_from_connection_recovery(cmd, sess);
 	spin_unlock(&cr->conn_recovery_cmd_lock);
 	if (!ret) {
-		pr_debug("iSCSI connection recovery successful for CID:"
+		pr_de("iSCSI connection recovery successful for CID:"
 			" %hu on SID: %u\n", cr->cid, sess->sid);
 		iscsit_remove_active_connection_recovery_entry(cr, sess);
 	}
@@ -258,7 +258,7 @@ static int iscsit_task_reassign_complete_write(
 	 */
 	if (cmd->cmd_flags & ICF_GOT_LAST_DATAOUT) {
 		if (!(cmd->se_cmd.transport_state & CMD_T_SENT)) {
-			pr_debug("WRITE ITT: 0x%08x: t_state: %d"
+			pr_de("WRITE ITT: 0x%08x: t_state: %d"
 				" never sent to transport\n",
 				cmd->init_task_tag, cmd->se_cmd.t_state);
 			target_execute_cmd(se_cmd);
@@ -323,7 +323,7 @@ static int iscsit_task_reassign_complete_read(
 	}
 
 	if (!(cmd->se_cmd.transport_state & CMD_T_SENT)) {
-		pr_debug("READ ITT: 0x%08x: t_state: %d never sent to"
+		pr_de("READ ITT: 0x%08x: t_state: %d never sent to"
 			" transport\n", cmd->init_task_tag,
 			cmd->se_cmd.t_state);
 		transport_handle_cdb_direct(se_cmd);
@@ -447,7 +447,7 @@ static int iscsit_task_reassign_complete(
 	if (ret != 0)
 		return ret;
 
-	pr_debug("Completed connection reallegiance for Opcode: 0x%02x,"
+	pr_de("Completed connection reallegiance for Opcode: 0x%02x,"
 		" ITT: 0x%08x to CID: %hu.\n", cmd->iscsi_opcode,
 			cmd->init_task_tag, conn->cid);
 

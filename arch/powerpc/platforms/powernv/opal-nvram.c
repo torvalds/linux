@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
+#define DE
 
 #include <linux/delay.h>
 #include <linux/kernel.h>

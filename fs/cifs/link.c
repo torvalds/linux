@@ -26,7 +26,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "smb2proto.h"
@@ -580,7 +580,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		}
 		/*
 		 * if not oplocked will force revalidate to get info on source
-		 * file from srv.  Note Samba server prior to 4.2 has bug -
+		 * file from srv.  Note Samba server prior to 4.2 has  -
 		 * not updating src file ctime on hardlinks but Windows servers
 		 * handle it properly
 		 */

@@ -14,7 +14,7 @@ struct pid;
 struct cred;
 
 #define __sockaddr_check_size(size)	\
-	BUILD_BUG_ON(((size) > sizeof(struct __kernel_sockaddr_storage)))
+	BUILD__ON(((size) > sizeof(struct __kernel_sockaddr_storage)))
 
 #ifdef CONFIG_PROC_FS
 struct seq_file;

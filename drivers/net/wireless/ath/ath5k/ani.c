@@ -18,7 +18,7 @@
 
 #include "ath5k.h"
 #include "reg.h"
-#include "debug.h"
+#include "de.h"
 #include "ani.h"
 
 /**
@@ -98,7 +98,7 @@ ath5k_ani_set_noise_immunity_level(struct ath5k_hw *ah, int level)
 				AR5K_PHY_SIG_FIRPWR, fr[level]);
 
 	ah->ani_state.noise_imm_level = level;
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "new level %d", level);
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "new level %d", level);
 }
 
 /**
@@ -123,7 +123,7 @@ ath5k_ani_set_spur_immunity_level(struct ath5k_hw *ah, int level)
 		AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1, val[level]);
 
 	ah->ani_state.spur_level = level;
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "new level %d", level);
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "new level %d", level);
 }
 
 /**
@@ -145,7 +145,7 @@ ath5k_ani_set_firstep_level(struct ath5k_hw *ah, int level)
 				AR5K_PHY_SIG_FIRSTEP, val[level]);
 
 	ah->ani_state.firstep_level = level;
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "new level %d", level);
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "new level %d", level);
 }
 
 /**
@@ -184,7 +184,7 @@ ath5k_ani_set_ofdm_weak_signal_detection(struct ath5k_hw *ah, bool on)
 				AR5K_PHY_WEAK_OFDM_LOW_THR_SELFCOR_EN);
 
 	ah->ani_state.ofdm_weak_sig = on;
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "turned %s",
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "turned %s",
 			  on ? "on" : "off");
 }
 
@@ -200,7 +200,7 @@ ath5k_ani_set_cck_weak_signal_detection(struct ath5k_hw *ah, bool on)
 	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_CCK_CROSSCORR,
 				AR5K_PHY_CCK_CROSSCORR_WEAK_SIG_THR, val[on]);
 	ah->ani_state.cck_weak_sig = on;
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "turned %s",
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "turned %s",
 			  on ? "on" : "off");
 }
 
@@ -225,7 +225,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 {
 	int rssi = ewma_beacon_rssi_read(&ah->ah_beacon_rssi_avg);
 
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "raise immunity (%s)",
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "raise immunity (%s)",
 		ofdm_trigger ? "ODFM" : "CCK");
 
 	/* first: raise noise immunity */
@@ -255,7 +255,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 	 * don't shut out a remote node by raising immunity too high. */
 
 	if (rssi > ATH5K_ANI_RSSI_THR_HIGH) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 				  "beacon RSSI high");
 		/* only OFDM: beacon RSSI is high, we can disable ODFM weak
 		 * signal detection */
@@ -272,7 +272,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 	} else if (rssi > ATH5K_ANI_RSSI_THR_LOW) {
 		/* beacon RSSI in mid range, we need OFDM weak signal detect,
 		 * but can raise firstep level */
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 				  "beacon RSSI mid");
 		if (ofdm_trigger && !as->ofdm_weak_sig)
 			ath5k_ani_set_ofdm_weak_signal_detection(ah, true);
@@ -282,7 +282,7 @@ ath5k_ani_raise_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as,
 	} else if (ah->ah_current_channel->band == NL80211_BAND_2GHZ) {
 		/* beacon RSSI is low. in B/G mode turn of OFDM weak signal
 		 * detect and zero firstep level to maximize CCK sensitivity */
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 				  "beacon RSSI low, 2GHz");
 		if (ofdm_trigger && as->ofdm_weak_sig)
 			ath5k_ani_set_ofdm_weak_signal_detection(ah, false);
@@ -311,7 +311,7 @@ ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 {
 	int rssi = ewma_beacon_rssi_read(&ah->ah_beacon_rssi_avg);
 
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "lower immunity");
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "lower immunity");
 
 	if (ah->opmode == NL80211_IFTYPE_AP) {
 		/* AP mode */
@@ -368,7 +368,7 @@ ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
  *
  * Return an approximation of the time spent "listening" in milliseconds (ms)
  * since the last call of this function.
- * Save a snapshot of the counter values for debugging/statistics.
+ * Save a snapshot of the counter values for deging/statistics.
  */
 static int
 ath5k_hw_ani_get_listen_time(struct ath5k_hw *ah, struct ath5k_ani_state *as)
@@ -449,7 +449,7 @@ ath5k_ani_save_and_clear_phy_errors(struct ath5k_hw *ah,
 static void
 ath5k_ani_period_restart(struct ath5k_ani_state *as)
 {
-	/* keep last values for debugging */
+	/* keep last values for deging */
 	as->last_ofdm_errors = as->ofdm_errors;
 	as->last_cck_errors = as->cck_errors;
 	as->last_listen = as->listen_time;
@@ -493,9 +493,9 @@ ath5k_ani_calibration(struct ath5k_hw *ah)
 	ofdm_low = as->listen_time * ATH5K_ANI_OFDM_TRIG_LOW / 1000;
 	cck_low = as->listen_time * ATH5K_ANI_CCK_TRIG_LOW / 1000;
 
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 		"listen %d (now %d)", as->listen_time, listen);
-	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 		"check high ofdm %d/%d cck %d/%d",
 		as->ofdm_errors, ofdm_high, as->cck_errors, cck_high);
 
@@ -508,7 +508,7 @@ ath5k_ani_calibration(struct ath5k_hw *ah)
 	} else if (as->listen_time > 5 * ATH5K_ANI_LISTEN_PERIOD) {
 		/* If more than 5 (TODO: why 5?) periods have passed and we got
 		 * relatively little errors we can try to lower immunity */
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 			"check low ofdm %d/%d cck %d/%d",
 			as->ofdm_errors, ofdm_low, as->cck_errors, cck_low);
 
@@ -664,9 +664,9 @@ ath5k_ani_init(struct ath5k_hw *ah, enum ath5k_ani_mode mode)
 
 	/* initial values for our ani parameters */
 	if (mode == ATH5K_ANI_MODE_OFF) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "ANI off\n");
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "ANI off\n");
 	} else if (mode == ATH5K_ANI_MODE_MANUAL_LOW) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 			"ANI manual low -> high sensitivity\n");
 		ath5k_ani_set_noise_immunity_level(ah, 0);
 		ath5k_ani_set_spur_immunity_level(ah, 0);
@@ -674,7 +674,7 @@ ath5k_ani_init(struct ath5k_hw *ah, enum ath5k_ani_mode mode)
 		ath5k_ani_set_ofdm_weak_signal_detection(ah, true);
 		ath5k_ani_set_cck_weak_signal_detection(ah, true);
 	} else if (mode == ATH5K_ANI_MODE_MANUAL_HIGH) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI,
 			"ANI manual high -> low sensitivity\n");
 		ath5k_ani_set_noise_immunity_level(ah,
 					ATH5K_ANI_MAX_NOISE_IMM_LVL);
@@ -684,7 +684,7 @@ ath5k_ani_init(struct ath5k_hw *ah, enum ath5k_ani_mode mode)
 		ath5k_ani_set_ofdm_weak_signal_detection(ah, false);
 		ath5k_ani_set_cck_weak_signal_detection(ah, false);
 	} else if (mode == ATH5K_ANI_MODE_AUTO) {
-		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_ANI, "ANI auto\n");
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DE_ANI, "ANI auto\n");
 		ath5k_ani_set_noise_immunity_level(ah, 0);
 		ath5k_ani_set_spur_immunity_level(ah, 0);
 		ath5k_ani_set_firstep_level(ah, 0);
@@ -715,16 +715,16 @@ ath5k_ani_init(struct ath5k_hw *ah, enum ath5k_ani_mode mode)
 
 
 /**************\
-* Debug output *
+* De output *
 \**************/
 
-#ifdef CONFIG_ATH5K_DEBUG
+#ifdef CONFIG_ATH5K_DE
 
 /**
  * ath5k_ani_print_counters() - Print ANI counters
  * @ah: The &struct ath5k_hw
  *
- * Used for debugging ANI
+ * Used for deging ANI
  */
 void
 ath5k_ani_print_counters(struct ath5k_hw *ah)

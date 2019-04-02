@@ -42,29 +42,29 @@
 			root cause of an AML interpreter issue when the issue
 			has something to do with the repair mechanism.
 
-	acpi.debug_layer=	[HW,ACPI,ACPI_DEBUG]
-	acpi.debug_level=	[HW,ACPI,ACPI_DEBUG]
+	acpi.de_layer=	[HW,ACPI,ACPI_DE]
+	acpi.de_level=	[HW,ACPI,ACPI_DE]
 			Format: <int>
-			CONFIG_ACPI_DEBUG must be enabled to produce any ACPI
-			debug output.  Bits in debug_layer correspond to a
+			CONFIG_ACPI_DE must be enabled to produce any ACPI
+			de output.  Bits in de_layer correspond to a
 			_COMPONENT in an ACPI source file, e.g.,
 			    #define _COMPONENT ACPI_PCI_COMPONENT
-			Bits in debug_level correspond to a level in
-			ACPI_DEBUG_PRINT statements, e.g.,
-			    ACPI_DEBUG_PRINT((ACPI_DB_INFO, ...
-			The debug_level mask defaults to "info".  See
-			Documentation/acpi/debug.txt for more information about
-			debug layers and levels.
+			Bits in de_level correspond to a level in
+			ACPI_DE_PRINT statements, e.g.,
+			    ACPI_DE_PRINT((ACPI_DB_INFO, ...
+			The de_level mask defaults to "info".  See
+			Documentation/acpi/de.txt for more information about
+			de layers and levels.
 
 			Enable processor driver info messages:
-			    acpi.debug_layer=0x20000000
+			    acpi.de_layer=0x20000000
 			Enable PCI/PCI interrupt routing info messages:
-			    acpi.debug_layer=0x400000
-			Enable AML "Debug" output, i.e., stores to the Debug
+			    acpi.de_layer=0x400000
+			Enable AML "De" output, i.e., stores to the De
 			object while interpreting AML:
-			    acpi.debug_layer=0xffffffff acpi.debug_level=0x2
+			    acpi.de_layer=0xffffffff acpi.de_level=0x2
 			Enable all messages related to ACPI hardware:
-			    acpi.debug_layer=0x2 acpi.debug_level=0xffffffff
+			    acpi.de_layer=0x2 acpi.de_level=0xffffffff
 
 			Some values produce so much output that the system is
 			unusable.  The "log_buf_len" parameter may be useful
@@ -194,7 +194,7 @@
 			still not able to affect the final state of a string if
 			there are quirks related to this string.  This command
 			is useful when one want to control the state of the
-			feature group strings to debug BIOS issues related to
+			feature group strings to de BIOS issues related to
 			the OSPM features.
 			Examples:
 			  1. 'acpi_osi="Module Device" acpi_osi=!*' can make
@@ -209,7 +209,7 @@
 			     they all will make '_OSI("Windows 2000")' TRUE.
 
 	acpi_pm_good	[X86]
-			Override the pmtimer bug detection: force the kernel
+			Override the pmtimer  detection: force the kernel
 			to assume that this machine's pmtimer latches its value
 			and always returns good values.
 
@@ -225,7 +225,7 @@
 				  old_ordering, nonvs, sci_force_enable, nobl }
 			See Documentation/power/video.txt for information on
 			s3_bios and s3_mode.
-			s3_beep is for debugging; it makes the PC's speaker beep
+			s3_beep is for deging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
 			s4_nohwsig prevents ACPI hardware signature from being
 			used during resume from hibernation.
@@ -278,7 +278,7 @@
 
 	alloc_snapshot	[FTRACE]
 			Allocate the ftrace snapshot buffer on boot up when the
-			main buffer is allocated. This is handy if debugging
+			main buffer is allocated. This is handy if deging
 			and you need to use tracing_snapshot() on boot up, and
 			do not want to use tracing_snapshot_alloc() as it needs
 			to be done where GFP_KERNEL allocations are allowed.
@@ -332,8 +332,8 @@
 
 	apic=		[APIC,X86] Advanced Programmable Interrupt Controller
 			Change the output verbosity while booting
-			Format: { quiet (default) | verbose | debug }
-			Change the amount of debugging information output
+			Format: { quiet (default) | verbose | de }
+			Change the amount of deging information output
 			when initialising the APIC and IO-APIC components.
 			For X86-32, this can also be used to specify an APIC
 			driver name.
@@ -357,9 +357,9 @@
 			number of local apics being dumped. Also it is possible
 			to set it to "all" by meaning -- no limit here.
 			Format: { 1 (default) | 2 | ... | all }.
-			The parameter valid if only apic=debug or
+			The parameter valid if only apic=de or
 			apic=verbose is specified.
-			Example: apic=debug show_lapic=all
+			Example: apic=de show_lapic=all
 
 	apm=		[APM] Advanced Power Management
 			See header of arch/x86/kernel/apm_32.c.
@@ -437,10 +437,10 @@
 			no delay (0).
 			Format: integer
 
-	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
+	bootmem_de	[KNL] Enable bootmem allocator de messages.
 
 	bert_disable	[ACPI]
-			Disable BERT OS support on buggy BIOSes.
+			Disable BERT OS support on gy BIOSes.
 
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
@@ -454,8 +454,8 @@
 
 	c101=		[NET] Moxa C101 synchronous serial card
 
-	cachesize=	[BUGS=X86-32] Override level 2 CPU cache size detection.
-			Sometimes CPU hardware bugs make them report the cache
+	cachesize=	[S=X86-32] Override level 2 CPU cache size detection.
+			Sometimes CPU hardware s make them report the cache
 			size incorrectly. The kernel will attempt work arounds
 			to fix known problems, but for some CPUs it is not
 			possible to determine what the correct size should be.
@@ -525,11 +525,11 @@
 			by the bootloader/firmware. Note that this does not
 			force such clocks to be always-on nor does it reserve
 			those clocks in any way. This parameter is useful for
-			debug and development, but should not be needed on a
+			de and development, but should not be needed on a
 			platform with proper driver support.  For more
 			information, see Documentation/driver-api/clk.rst.
 
-	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
+	clock=		[S=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
 			Forces specified clocksource (if available) to be used
 			when calculating gettimeofday(). If specified
@@ -560,7 +560,7 @@
 			Format: <bool>
 			Enable/disable the eventstream feature of the ARM
 			architected timer so that code using WFE-based polling
-			loops can be debugged more effectively on production
+			loops can be deged more effectively on production
 			systems.
 
 	clearcpuid=BITNUM [X86]
@@ -673,12 +673,12 @@
 			/proc/<pid>/coredump_filter.
 			See also Documentation/filesystems/proc.txt.
 
-	coresight_cpu_debug.enable
+	coresight_cpu_de.enable
 			[ARM,ARM64]
 			Format: <bool>
-			Enable/disable the CPU sampling based debugging.
-			0: default value, disable debugging
-			1: enable debugging at boot time
+			Enable/disable the CPU sampling based deging.
+			0: default value, disable deging
+			1: enable deging at boot time
 
 	cpuidle.off=1	[CPU_IDLE]
 			disable the cpuidle sub-system
@@ -697,7 +697,7 @@
 
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
-			<first_slot>,<last_slot>,<port>,<enum_bit>[,<debug>]
+			<first_slot>,<last_slot>,<port>,<enum_bit>[,<de>]
 
 	crashkernel=size[KMG][@offset[KMG]]
 			[KNL] Using kexec, Linux can switch to a 'crash kernel'
@@ -753,14 +753,14 @@
 			Format: <port#>,<type>
 			See also Documentation/input/devices/joystick-parport.rst
 
-	ddebug_query=	[KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
+	dde_query=	[KNL,DYNAMIC_DE] Enable de messages at early boot
 			time. See
-			Documentation/admin-guide/dynamic-debug-howto.rst for
+			Documentation/admin-guide/dynamic-de-howto.rst for
 			details.  Deprecated, see dyndbg.
 
-	debug		[KNL] Enable kernel debugging (events log level).
+	de		[KNL] Enable kernel deging (events log level).
 
-	debug_boot_weak_hash
+	de_boot_weak_hash
 			[KNL] Enable printing [hashed] pointers early in the
 			boot sequence.  If enabled, we use a weak hash instead
 			of siphash to hash pointers.  Use this option if you are
@@ -768,22 +768,22 @@
 			value (hashed pointer) instead. Cryptographically
 			insecure, please do not use on production kernels.
 
-	debug_locks_verbose=
+	de_locks_verbose=
 			[KNL] verbose self-tests
 			Format=<0|1>
-			Print debugging info while doing the locking API
+			Print deging info while doing the locking API
 			self-tests.
 			We default to 0 (no extra messages), setting it to
 			1 will print _a lot_ more information - normally
 			only useful to kernel developers.
 
-	debug_objects	[KNL] Enable object debugging
+	de_objects	[KNL] Enable object deging
 
-	no_debug_objects
-			[KNL] Disable object debugging
+	no_de_objects
+			[KNL] Disable object deging
 
-	debug_guardpage_minorder=
-			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
+	de_guardpage_minorder=
+			[KNL] When CONFIG_DE_PAGEALLOC is set, this
 			parameter allows control of the order of pages that will
 			be intentionally kept free (and hence protected) by the
 			buddy allocator. Bigger value increase the probability
@@ -791,26 +791,26 @@
 			amount of memory for normal system use. The maximum
 			possible value is MAX_ORDER/2.  Setting this parameter
 			to 1 or 2 should be enough to identify most random
-			memory corruption problems caused by bugs in kernel or
+			memory corruption problems caused by s in kernel or
 			driver code when a CPU writes to (or reads from) a
 			random memory location. Note that there exists a class
-			of memory corruptions problems caused by buggy H/W or
+			of memory corruptions problems caused by gy H/W or
 			F/W or by drivers badly programing DMA (basically when
 			memory is written at bus level and the CPU MMU is
 			bypassed) which are not detectable by
-			CONFIG_DEBUG_PAGEALLOC, hence this option will not help
+			CONFIG_DE_PAGEALLOC, hence this option will not help
 			tracking down these problems.
 
-	debug_pagealloc=
-			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
+	de_pagealloc=
+			[KNL] When CONFIG_DE_PAGEALLOC is set, this
 			parameter enables the feature at boot time. In
 			default, it is disabled. We can avoid allocating huge
-			chunk of memory for debug pagealloc if we don't enable
+			chunk of memory for de pagealloc if we don't enable
 			it at boot time and the system will work mostly same
-			with the kernel built without CONFIG_DEBUG_PAGEALLOC.
+			with the kernel built without CONFIG_DE_PAGEALLOC.
 			on: enable the feature
 
-	debugpat	[X86] Enable PAT debugging
+	depat	[X86] Enable PAT deging
 
 	decnet.addr=	[HW,NET]
 			Format: <area>[,<node>]
@@ -825,7 +825,7 @@
 			if not specified.
 
 	deferred_probe_timeout=
-			[KNL] Debugging option to set a timeout in seconds for
+			[KNL] Deging option to set a timeout in seconds for
 			deferred probe to give up waiting on dependencies to
 			probe. Only specific dependencies (subsystems or
 			drivers) that have opted in will be ignored. A timeout of 0
@@ -839,7 +839,7 @@
 	disable_1tb_segments [PPC]
 			Disables the use of 1TB hash page table segments. This
 			causes the kernel to fall back to 256MB segments which
-			can be useful when debugging issues that require an SLB
+			can be useful when deging issues that require an SLB
 			miss to occur.
 
 	disable=	[IPV6]
@@ -876,7 +876,7 @@
 
 	disable_ddw	[PPC/PSERIES]
 			Disable Dynamic DMA Window support. Use this if
-			to workaround buggy firmware.
+			to workaround gy firmware.
 
 	disable_ipv6=	[IPV6]
 			See Documentation/networking/ipv6.txt.
@@ -894,22 +894,22 @@
 
 	disable_timer_pin_1 [X86]
 			Disable PIN 1 of APIC timer
-			Can be useful to work around chipset bugs.
+			Can be useful to work around chipset s.
 
 	dis_ucode_ldr	[X86] Disable the microcode loader.
 
-	dma_debug=off	If the kernel is compiled with DMA_API_DEBUG support,
-			this option disables the debugging code at boot.
+	dma_de=off	If the kernel is compiled with DMA_API_DE support,
+			this option disables the deging code at boot.
 
-	dma_debug_entries=<number>
+	dma_de_entries=<number>
 			This option allows to tune the number of preallocated
-			entries for DMA-API debugging code. One entry is
+			entries for DMA-API deging code. One entry is
 			required per DMA-API allocation. Use this if the
-			DMA-API debugging code disables itself because the
+			DMA-API deging code disables itself because the
 			architectural default is too low.
 
-	dma_debug_driver=<driver_name>
-			With this option the DMA-API debugging driver
+	dma_de_driver=<driver_name>
+			With this option the DMA-API deging driver
 			filter feature can be enabled at boot time. Just
 			pass the driver to filter for as the parameter.
 			The filter can be disabled or changed to another
@@ -953,10 +953,10 @@
 			x86 Macs.  Useful for driver authors to determine
 			what data is available or for reverse-engineering.
 
-	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
+	dyndbg[="val"]		[KNL,DYNAMIC_DE]
 	module.dyndbg[="val"]
-			Enable debug messages at boot time.  See
-			Documentation/admin-guide/dynamic-debug-howto.rst
+			Enable de messages at boot time.  See
+			Documentation/admin-guide/dynamic-de-howto.rst
 			for details.
 
 	nompx		[X86] Disables Intel Memory Protection Extensions.
@@ -969,8 +969,8 @@
 	module.async_probe [KNL]
 			Enable asynchronous probe on this module.
 
-	early_ioremap_debug [KNL]
-			Enable debug messages in early_ioremap support. This
+	early_ioremap_de [KNL]
+			Enable de messages in early_ioremap support. This
 			is useful for tracking down temporary early mappings
 			which are not unmapped.
 
@@ -1096,7 +1096,7 @@
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
-			earlyprintk=dbgp[debugController#]
+			earlyprintk=dbgp[deController#]
 			earlyprintk=pciserial[,force],bus:device.function[,baudrate]
 			earlyprintk=xdbc[xhciController#]
 
@@ -1107,7 +1107,7 @@
 			Append ",keep" to not disable it when the real console
 			takes over.
 
-			Only one of vga, efi, serial, or usb debug port can
+			Only one of vga, efi, serial, or usb de port can
 			be used at a time.
 
 			Currently only ttyS0 and ttyS1 may be specified by
@@ -1141,7 +1141,7 @@
 			force: enforce the use of EDAC to report H/W event.
 			default: on.
 
-	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
+	ekgdboc=	[X86,KGDB] Allow early kernel console deging
 			ekgdboc=kbd
 
 			This is designed to be used in conjunction with
@@ -1151,7 +1151,7 @@
 			Format: {"off" | "on" | "skip[mbr]"}
 
 	efi=		[EFI]
-			Format: { "old_map", "nochunk", "noruntime", "debug" }
+			Format: { "old_map", "nochunk", "noruntime", "de" }
 			old_map [X86-64]: switch to the old ioremap-based EFI
 			runtime services mapping. 32-bit still uses this one by
 			default.
@@ -1159,7 +1159,7 @@
 			boot stub, as chunking can cause problems with some
 			firmware implementations.
 			noruntime : disable EFI runtime services support
-			debug: enable misc debug output
+			de: enable misc de output
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of
@@ -1177,8 +1177,8 @@
 			attribute is added to range 0x100000000-0x180000000 and
 			0x10a0000000-0x1120000000.
 
-			Using this parameter you can do debugging of EFI memmap
-			related feature. For example, you can do debugging of
+			Using this parameter you can do deging of EFI memmap
+			related feature. For example, you can do deging of
 			Address Range Mirroring feature even if your box
 			doesn't support it.
 
@@ -1215,7 +1215,7 @@
 
 	enable_timer_pin_1 [X86]
 			Enable PIN 1 of APIC timer
-			Can be useful to work around chipset bugs
+			Can be useful to work around chipset s
 			(in particular on some ATI chipsets).
 			The kernel tries to set a reasonable default.
 
@@ -1252,7 +1252,7 @@
 
 	force_pal_cache_flush
 			[IA-64] Avoid check_sal_cache_flush which may hang on
-			buggy SAL_CACHE_FLUSH implementations. Using this
+			gy SAL_CACHE_FLUSH implementations. Using this
 			parameter will force ia64_sal_cache_flush to call
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
@@ -1266,7 +1266,7 @@
 	ftrace=[tracer]
 			[FTRACE] will set and start the specified tracer
 			as early as possible in order to facilitate early
-			boot debugging.
+			boot deging.
 
 	ftrace_dump_on_oops[=orig_cpu]
 			[FTRACE] will dump the trace buffers on oops.
@@ -1279,13 +1279,13 @@
 			[FTRACE] Limit the functions traced by the function
 			tracer at boot up. function-list is a comma separated
 			list of functions. This list can be changed at run
-			time by the set_ftrace_filter file in the debugfs
+			time by the set_ftrace_filter file in the defs
 			tracing directory.
 
 	ftrace_notrace=[function-list]
 			[FTRACE] Do not trace the functions specified in
 			function-list. This list can be changed at run time
-			by the set_ftrace_notrace file in the debugfs
+			by the set_ftrace_notrace file in the defs
 			tracing directory.
 
 	ftrace_graph_filter=[function-list]
@@ -1293,13 +1293,13 @@
 			by the function graph tracer at boot up.
 			function-list is a comma separated list of functions
 			that can be changed at run time by the
-			set_graph_function file in the debugfs tracing directory.
+			set_graph_function file in the defs tracing directory.
 
 	ftrace_graph_notrace=[function-list]
 			[FTRACE] Do not trace from the functions specified in
 			function-list.  This list is a comma separated list of
 			functions that can be changed at run time by the
-			set_graph_notrace file in the debugfs tracing directory.
+			set_graph_notrace file in the defs tracing directory.
 
 	ftrace_graph_max_depth=<uint>
 			[FTRACE] Used with the function graph tracer. This is
@@ -1321,9 +1321,9 @@
 
 	gcov_persist=	[GCOV] When non-zero (default), profiling data for
 			kernel modules is saved and remains accessible via
-			debugfs, even when the module is unloaded/reloaded.
+			defs, even when the module is unloaded/reloaded.
 			When zero, profiling data is discarded and associated
-			debugfs files are removed at module unload time.
+			defs files are removed at module unload time.
 
 	goldfish	[X86] Enable the goldfish android emulator platform.
 			Don't use this when you are not running on the
@@ -1388,7 +1388,7 @@
 	hisax=		[HW,ISDN]
 			See Documentation/isdn/README.HiSax.
 
-	hlt		[BUGS=ARM,SH]
+	hlt		[S=ARM,SH]
 
 	hpet=		[X86-32,HPET] option to control HPET usage
 			Format: { enable (default) | disable | force |
@@ -1431,7 +1431,7 @@
 
 	keep_bootcon	[KNL]
 			Do not unregister boot console at start. This is only
-			useful for debugging when something happens in the window
+			useful for deging when something happens in the window
 			between unregistering the boot console and initializing
 			the real console.
 
@@ -1441,11 +1441,11 @@
 				Format:
 				<bus_id>,<clkrate>
 
-	i8042.debug	[HW] Toggle i8042 debug mode
+	i8042.de	[HW] Toggle i8042 de mode
 	i8042.unmask_kbd_data
 			[HW] Enable printing of interrupt data from the KBD port
 			     (disabled by default, and as a pre-condition
-			     requires that i8042.debug=1 be enabled)
+			     requires that i8042.de=1 be enabled)
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -1568,7 +1568,7 @@
 
 	ignore_loglevel	[KNL]
 			Ignore loglevel setting - this will print /all/
-			kernel messages to the console. Useful for debugging.
+			kernel messages to the console. Useful for deging.
 			We also add it as printk module parameter, so users
 			could change it dynamically, usually by
 			/sys/module/printk/parameters/ignore_loglevel.
@@ -1661,12 +1661,12 @@
 			Run specified binary instead of /sbin/init as init
 			process.
 
-	initcall_debug	[KNL] Trace initcalls as they are executed.  Useful
+	initcall_de	[KNL] Trace initcalls as they are executed.  Useful
 			for working out where the kernel is dying during
 			startup.
 
 	initcall_blacklist=  [KNL] Do not execute a comma-separated list of
-			initcall functions.  Useful for debugging built-in
+			initcall functions.  Useful for deging built-in
 			modules and initcalls.
 
 	initrd=		[BOOT] Specify the location of the initial ramdisk
@@ -1674,7 +1674,7 @@
 	init_pkru=	[x86] Specify the default memory protection keys rights
 			register contents for all processes.  0x55555554 by
 			default (disallow access to all but pkey 0).  Can
-			override in debugfs after boot.
+			override in defs after boot.
 
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
@@ -1968,16 +1968,16 @@
 			for Movable pages.  "nn[KMGTPE]", "nn%", and "mirror"
 			are exclusive, so you cannot specify multiple forms.
 
-	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
+	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb de port.
 			Format: <Controller#>[,poll interval]
-			The controller # is the number of the ehci usb debug
+			The controller # is the number of the ehci usb de
 			port as it is probed via PCI.  The poll interval is
 			optional and is the number seconds in between
-			each poll cycle to the debug port in case you need
+			each poll cycle to the de port in case you need
 			the functionality for interrupting the kernel with
 			gdb or control-c on the dbgp connection.  When
 			not using this parameter you use sysrq-g to break into
-			the kernel debugger.
+			the kernel deger.
 
 	kgdboc=		[KGDB,HW] kgdb over consoles.
 			Requires a tty driver that supports console polling,
@@ -1990,7 +1990,7 @@
 			 kms, kbd and serial format: kms,kbd,<ser_dev>[,baud]
 
 	kgdbwait	[KGDB] Stop kernel execution and enter the
-			kernel debugger at the earliest opportunity.
+			kernel deger at the earliest opportunity.
 
 	kmac=		[MIPS] korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
@@ -1999,7 +1999,7 @@
 	kmemleak=	[KNL] Boot-time kmemleak enable/disable
 			Valid arguments: on, off
 			Default: on
-			Built with CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y,
+			Built with CONFIG_DE_KMEMLEAK_DEFAULT_OFF=y,
 			the default is off.
 
 	kpti=		[ARM64] Control page table isolation of user
@@ -2222,7 +2222,7 @@
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 
-	memblock=debug	[KNL] Enable memblock debug messages.
+	memblock=de	[KNL] Enable memblock de messages.
 
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/blockdev/ramdisk.txt.
@@ -2294,7 +2294,7 @@
 			4 (KERN_WARNING)	warning conditions
 			5 (KERN_NOTICE)		normal but significant condition
 			6 (KERN_INFO)		informational
-			7 (KERN_DEBUG)		debug-level messages
+			7 (KERN_DE)		de-level messages
 
 	log_buf_len=n[KMG]	Sets the size of the printk ring buffer,
 			in bytes.  n must be a power of two and greater
@@ -2306,7 +2306,7 @@
 
 	logo.nologo	[FB] Disables display of the built-in Linux logo.
 			This may be used to provide more screen space for
-			kernel log messages and is useful when debugging
+			kernel log messages and is useful when deging
 			kernel boot problems.
 
 	lp=0		[LP]	Specify parallel ports to use, e.g,
@@ -2343,7 +2343,7 @@
 	ltpc=		[NET]
 			Format: <io>,<irq>,<dma>
 
-	lsm.debug	[SECURITY] Enable LSM initialization debugging output.
+	lsm.de	[SECURITY] Enable LSM initialization deging output.
 
 	lsm=lsm1,...,lsmN
 			[SECURITY] Choose order of LSM initialization. This
@@ -2395,7 +2395,7 @@
 			Without memmap= PCI devices could be placed at addresses
 			belonging to unused RAM.
 
-	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
+	mem=nopentium	[S=X86-32] Disable usage of 4MB pages for kernel
 			memory.
 
 	memchunk=nn[KMG]
@@ -2545,11 +2545,11 @@
 			http://repo.or.cz/w/linux-2.6/mini2440.git
 
 	mminit_loglevel=
-			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
+			[KNL] When CONFIG_DE_MEMORY_INIT is set, this
 			parameter allows control of the logging verbosity for
 			the additional memory initialisation checks. A value
 			of 0 disables mminit logging and a level of 4 will
-			log everything. Information is printed at KERN_DEBUG
+			log everything. Information is printed at KERN_DE
 			so loglevel=8 may also need to be specified.
 
 	module.sig_enforce
@@ -2559,7 +2559,7 @@
 			is always true, so this option does nothing.
 
 	module_blacklist=  [KNL] Do not load a comma-separated list of
-			modules.  Useful for debugging problem modules.
+			modules.  Useful for deging problem modules.
 
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
@@ -2659,7 +2659,7 @@
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
-	nfsrootdebug	[NFS] enable nfsroot debugging messages.
+	nfsrootde	[NFS] enable nfsroot deging messages.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfs.callback_nr_threads=
@@ -2759,11 +2759,11 @@
 			and gids from such clients.  This is intended to ease
 			migration from NFSv2/v3.
 
-	nmi_debug=	[KNL,SH] Specify one or more actions to take
+	nmi_de=	[KNL,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
-	nmi_watchdog=	[KNL,BUGS=X86] Debugging features for SMP kernels
+	nmi_watchdog=	[KNL,S=X86] Deging features for SMP kernels
 			Format: [panic,][nopanic,][num]
 			Valid num: 0 or 1
 			0 - turn hardlockup detector in nmi_watchdog off
@@ -2783,7 +2783,7 @@
 			netpoll should wait for a carrier. By default netpoll
 			waits 4 seconds.
 
-	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
+	no387		[S=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
 			is present.
 
@@ -2793,13 +2793,13 @@
 	no_console_suspend
 			[HW] Never suspend the console
 			Disable suspending of consoles during suspend and
-			hibernate operations.  Once disabled, debugging
+			hibernate operations.  Once disabled, deging
 			messages can reach various consoles while the rest
 			of the system is being put to sleep (ie, while
-			debugging driver suspend/resume hooks).  This may
+			deging driver suspend/resume hooks).  This may
 			not work reliably with all consoles, but is known
 			to work with serial and VGA consoles.
-			To facilitate more flexible debugging, we also add
+			To facilitate more flexible deging, we also add
 			console_suspend, a printk module parameter to control
 			it. Users could use console_suspend (usually
 			/sys/module/printk/parameters/console_suspend) to
@@ -2824,7 +2824,7 @@
 
 	nocache		[ARM]
 
-	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
+	noclflush	[S=X86] Don't use the CLFLUSH instruction
 
 	nodelayacct	[KNL] Disable per-task delay accounting
 
@@ -2856,7 +2856,7 @@
 
 	nofpu		[MIPS,SH] Disable hardware FPU at boot time.
 
-	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
+	nofxsr		[S=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
@@ -2881,7 +2881,7 @@
 	nospec_store_bypass_disable
 			[HW] Disable all mitigations for the Speculative Store Bypass vulnerability
 
-	noxsave		[BUGS=X86] Disables x86 extended register state save
+	noxsave		[S=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
 			enabling legacy floating-point and sse state.
 
@@ -2900,9 +2900,9 @@
 			parameter, xsave area per process might occupy more
 			memory on xsaves enabled systems.
 
-	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
+	nohlt		[S=ARM,SH] Tells the kernel that the sleep(SH) or
 			wfi(ARM) instruction doesn't work correctly and not to
-			use it. This is also useful when using JTAG debugger.
+			use it. This is also useful when using JTAG deger.
 
 	no_file_caps	Tells the kernel not to honor file capabilities.  The
 			only way then for a file to be executed with privilege
@@ -2933,7 +2933,7 @@
 
 	noiotrap	[SH] Disables trapped I/O port accesses.
 
-	noirqdebug	[X86-32] Disables the code which attempts to detect and
+	noirqde	[X86-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
 
 	no_timer_check	[X86,APIC] Disables the code which tests for
@@ -3012,7 +3012,7 @@
 
 	nosbagart	[IA-64]
 
-	nosep		[BUGS=X86-32] Disables x86 SYSENTER/SYSEXIT support.
+	nosep		[S=X86-32] Disables x86 SYSENTER/SYSEXIT support.
 
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
@@ -3074,8 +3074,8 @@
 			This can be set from sysctl after boot.
 			See Documentation/sysctl/vm.txt for details.
 
-	ohci1394_dma=early	[HW] enable debugging via the ohci1394 driver.
-			See Documentation/debugging-via-ohci1394.txt for more
+	ohci1394_dma=early	[HW] enable deging via the ohci1394 driver.
+			See Documentation/deging-via-ohci1394.txt for more
 			info.
 
 	olpc_ec_timeout= [OLPC] ms delay when issuing EC commands
@@ -3256,7 +3256,7 @@
 				a chipset where boot IRQs cannot be disabled.
 				The opposite of ioapicreroute.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
-				routing table. These calls are known to be buggy
+				routing table. These calls are known to be gy
 				on several machines and they hang the machine
 				when used, but on other computers it's the only
 				way to get the interrupt routing table. Try
@@ -3298,9 +3298,9 @@
 		use_crs		[X86] Use PCI host bridge window information
 				from ACPI.  On BIOSes from 2008 or later, this
 				is enabled by default.  If you need to use this,
-				please report a bug.
+				please report a .
 		nocrs		[X86] Ignore PCI host bridge windows from ACPI.
-				If you need to use this, please report a bug.
+				If you need to use this, please report a .
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround
@@ -3423,7 +3423,7 @@
 			[PM]
 			Keep all power-domains already enabled by bootloader on,
 			even if no driver has claimed them. This is useful
-			for debug and development, but should not be
+			for de and development, but should not be
 			needed on a platform with proper driver support.
 
 	pd.		[PARIDE]
@@ -3438,7 +3438,7 @@
 			Currently supported values are "embed" and "page".
 			Archs may support subset or none of the	selections.
 			See comments in mm/percpu.c for details on each
-			allocator.  This parameter is primarily	for debugging
+			allocator.  This parameter is primarily	for deging
 			and performance comparison.
 
 	pf.		[PARIDE]
@@ -3458,10 +3458,10 @@
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
 
-	pnp.debug=1	[PNP]
-			Enable PNP debug messages (depends on the
-			CONFIG_PNP_DEBUG_MESSAGES option).  Change at run-time
-			via /sys/module/pnp/parameters/debug.  We always show
+	pnp.de=1	[PNP]
+			Enable PNP de messages (depends on the
+			CONFIG_PNP_DE_MESSAGES option).  Change at run-time
+			via /sys/module/pnp/parameters/de.  We always show
 			current resource usage; turning this on also shows
 			possible settings and some assignment information.
 
@@ -3508,7 +3508,7 @@
 			Disable Hardware Transactional Memory
 
 	print-fatal-signals=
-			[KNL] debug: print fatal signals
+			[KNL] de: print fatal signals
 
 			If enabled, warn about various signal handling
 			related application anomalies: too many signals,
@@ -3871,8 +3871,8 @@
 			the number of CPUs.  For example, -2 selects N
 			(the number of CPUs), -3 selects N+1, and so on.
 
-	rcutorture.object_debug= [KNL]
-			Enable debug-object double-call_rcu() testing.
+	rcutorture.object_de= [KNL]
+			Enable de-object double-call_rcu() testing.
 
 	rcutorture.onoff_holdoff= [KNL]
 			Set time (s) after boot for CPU-hotplug testing.
@@ -3996,7 +3996,7 @@
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/cgroup-v1/cpusets.txt.
 
-	reserve=	[KNL,BUGS] Force kernel to ignore I/O ports or memory
+	reserve=	[KNL,S] Force kernel to ignore I/O ports or memory
 			Format: <base1>,<size1>[,<base2>,<size2>,...]
 			Reserve I/O ports or memory so the kernel won't use
 			them.  If <base> is less than 0x10000, the region
@@ -4067,12 +4067,12 @@
 
 	rodata=		[KNL]
 		on	Mark read-only kernel memory as read-only (default).
-		off	Leave read-only kernel memory writable for debugging.
+		off	Leave read-only kernel memory writable for deging.
 
 	rockchip.usb_uart
 			Enable the uart passthrough on the designated usb port
 			on Rockchip SoCs. When active, the signals of the
-			debug-uart get routed to the D+ and D- pins of the usb
+			de-uart get routed to the D+ and D- pins of the usb
 			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
@@ -4110,12 +4110,12 @@
 
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
-	sched_debug	[KNL] Enables verbose scheduler debug messages.
+	sched_de	[KNL] Enables verbose scheduler de messages.
 
 	schedstats=	[KNL,X86] Enable or disable scheduled statistics.
 			Allowed values are enable and disable. This feature
 			incurs a small amount of overhead in the scheduler
-			but is useful for debugging and performance tuning.
+			but is useful for deging and performance tuning.
 
 	skew_tick=	[KNL] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock
@@ -4146,7 +4146,7 @@
 			1 -- enable.
 			Default value is set via kernel config option.
 
-	serialnumber	[BUGS=X86-32]
+	serialnumber	[S=X86-32]
 
 	shapers=	[NET]
 			Maximal number of shapers.
@@ -4165,7 +4165,7 @@
 			frustrated by disabling merging. This will reduce
 			most of the exposure of a heap attack to a single
 			cache (risks via metadata attacks are mostly
-			unchanged). Debug options disable merging on their
+			unchanged). De options disable merging on their
 			own.
 			For more information see Documentation/vm/slub.rst.
 
@@ -4175,10 +4175,10 @@
 			fragmentation.  Defaults to 1 for systems with
 			more than 32MB of RAM, 0 otherwise.
 
-	slub_debug[=options[,slabs]]	[MM, SLUB]
-			Enabling slub_debug allows one to determine the
+	slub_de[=options[,slabs]]	[MM, SLUB]
+			Enabling slub_de allows one to determine the
 			culprit if slab objects become corrupted. Enabling
-			slub_debug can create guard zones around objects and
+			slub_de can create guard zones around objects and
 			may poison objects when not in use. Also tracks the
 			last alloc / free. For more information see
 			Documentation/vm/slub.rst.
@@ -4187,7 +4187,7 @@
 			Determines whether to enable sysfs directories for
 			memory cgroup sub-caches. 1 to enable, 0 to disable.
 			The default is determined by CONFIG_SLUB_MEMCG_SYSFS_ON.
-			Enabling this can lead to a very high number of	debug
+			Enabling this can lead to a very high number of	de
 			directories and files being created under
 			/sys/kernel/slub.
 
@@ -4434,7 +4434,7 @@
 			[FTRACE] Limit the functions that the stack tracer
 			will trace at boot up. function-list is a comma separated
 			list of functions. This list can be changed at run
-			time by the stack_trace_filter file in the debugfs
+			time by the stack_trace_filter file in the defs
 			tracing directory. Note, this enables stack tracing
 			and the stacktrace above is not needed.
 
@@ -4498,7 +4498,7 @@
 			[SUSPEND]
 			Sets the number of seconds to remain in a suspend test
 			mode before resuming the system (see
-			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
+			/sys/power/pm_test). Only available when CONFIG_PM_DE
 			is set. Default value is 5.
 
 	swapaccount=[0|1]
@@ -4511,7 +4511,7 @@
 			<int> -- Number of I/O TLB slabs
 			force -- force using of bounce buffers even if they
 			         wouldn't be automatically used by the kernel
-			noforce -- Never use bounce buffers (for debugging)
+			noforce -- Never use bounce buffers (for deging)
 
 	switches=	[HW,M68k]
 
@@ -4528,7 +4528,7 @@
 			[KNL]
 			Ignore sysrq setting - this boot parameter will
 			neutralize any effect of /proc/sys/kernel/sysrq.
-			Useful for debugging.
+			Useful for deging.
 
 	tcpmhash_entries= [KNL,NET]
 			Set the number of tcp_metrics_hash slots.
@@ -4630,7 +4630,7 @@
 
 	trace_event=[event-list]
 			[FTRACE] Set and start specified trace events in order
-			to facilitate early boot debugging. The event-list is a
+			to facilitate early boot deging. The event-list is a
 			comma separated list of trace events to enable. See
 			also Documentation/trace/events.rst
 
@@ -4640,7 +4640,7 @@
 			that can be enabled or disabled just as if you were
 			to echo the option name into
 
-			    /sys/kernel/debug/tracing/trace_options
+			    /sys/kernel/de/tracing/trace_options
 
 			For example, to enable stacktrace option (to dump the
 			stack trace of each event), add to the command line:
@@ -4672,7 +4672,7 @@
 			[FTRACE] enable this option to disable tracing when a
 			warning is hit. This turns off "tracing_on". Tracing can
 			be enabled again by echoing '1' into the "tracing_on"
-			file located in /sys/kernel/debug/tracing/
+			file located in /sys/kernel/de/tracing/
 
 			This option is useful, as it disables the trace before
 			the WARNING dump is called, which prevents the trace to
@@ -4710,7 +4710,7 @@
 			<port#>,<js1>,<js2>,<js3>,<js4>,<js5>,<js6>,<js7>
 			See also Documentation/input/devices/joystick-parport.rst
 
-	udbg-immortal	[PPC] When debugging early kernel crashes that
+	udbg-immortal	[PPC] When deging early kernel crashes that
 			happen after console_init() and before a proper
 			console driver takes over, this boot options might
 			help "seeing" what's going on.
@@ -4897,15 +4897,15 @@
 					even if the device claims no cache)
 			Example: quirks=0419:aaf5:rl,0421:0433:rc
 
-	user_debug=	[KNL,ARM]
+	user_de=	[KNL,ARM]
 			Format: <int>
-			See arch/arm/Kconfig.debug help text.
+			See arch/arm/Kconfig.de help text.
 				 1 - undefined instruction events
 				 2 - system calls
 				 4 - invalid data aborts
 				 8 - SIGSEGV faults
 				16 - SIGBUS faults
-			Example: user_debug=31
+			Example: user_de=31
 
 	userpte=
 			[X86] Flags controlling user PTE allocations.
@@ -4972,13 +4972,13 @@
 			This is actually a boot loader parameter; the value is
 			passed to the kernel using a special protocol.
 
-	vm_debug[=options]	[KNL] Available with CONFIG_DEBUG_VM=y.
+	vm_de[=options]	[KNL] Available with CONFIG_DE_VM=y.
 			May slow down system boot speed, especially when
 			enabled on systems with a large amount of memory.
 			All options are enabled by default, and this
 			interface is meant to allow for selectively
 			enabling or disabling specific virtual memory
-			debugging features.
+			deging features.
 
 			Available options are:
 			  P	Enable page structure init time poisoning
@@ -5089,7 +5089,7 @@
 	workqueue.watchdog_thresh=
 			If CONFIG_WQ_WATCHDOG is configured, workqueue can
 			warn stall conditions and dump internal state to
-			help debugging.  0 disables workqueue stall
+			help deging.  0 disables workqueue stall
 			detection; otherwise, it's the stall threshold
 			duration in seconds.  The default value is 30 and
 			it can be updated at runtime by writing to the
@@ -5119,12 +5119,12 @@
 			The default value of this parameter is determined by
 			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
 
-	workqueue.debug_force_rr_cpu
+	workqueue.de_force_rr_cpu
 			Workqueue used to implicitly guarantee that work
 			items queued without explicit CPU specified are put
 			on the local CPU.  This guarantee is no longer true
 			and while local CPU is still preferred work items
-			may be put on foreign CPUs.  This debug option
+			may be put on foreign CPUs.  This de option
 			forces round-robin CPU selection to flush out
 			usages which depend on the now broken guarantee.
 			When enabled, memory and cache locality will be

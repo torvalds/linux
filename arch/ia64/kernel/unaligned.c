@@ -30,9 +30,9 @@
 
 extern int die_if_kernel(char *str, struct pt_regs *regs, long err);
 
-#undef DEBUG_UNALIGNED_TRAP
+#undef DE_UNALIGNED_TRAP
 
-#ifdef DEBUG_UNALIGNED_TRAP
+#ifdef DE_UNALIGNED_TRAP
 # define DPRINT(a...)	do { printk("%s %u: ", __func__, __LINE__); printk (a); } while (0)
 # define DDUMP(str,vp,len)	dump(str, vp, len)
 

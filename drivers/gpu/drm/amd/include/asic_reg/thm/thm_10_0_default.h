@@ -66,7 +66,7 @@
 #define mmTHM_TMON0_INT_DATA_DEFAULT                                             0x00000000
 #define mmTHM_TMON0_CTRL_DEFAULT                                                 0x00000100
 #define mmTHM_TMON0_CTRL2_DEFAULT                                                0x0fffffff
-#define mmTHM_TMON0_DEBUG_DEFAULT                                                0x00000000
+#define mmTHM_TMON0_DE_DEFAULT                                                0x00000000
 #define mmTHM_DIE1_TEMP_DEFAULT                                                  0x00000000
 #define mmTHM_DIE2_TEMP_DEFAULT                                                  0x00000000
 #define mmTHM_DIE3_TEMP_DEFAULT                                                  0x00000000

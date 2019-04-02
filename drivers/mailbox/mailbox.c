@@ -339,7 +339,7 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 	int ret;
 
 	if (!dev || !dev->of_node) {
-		pr_debug("%s: No owner device node\n", __func__);
+		pr_de("%s: No owner device node\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
 

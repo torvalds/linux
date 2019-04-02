@@ -1742,11 +1742,11 @@ static bool __init blogic_rdconfig(struct blogic_adapter *adapter)
 		adapter->need_bouncebuf = true;
 	/*
 	   BusLogic BT-445S Host Adapters prior to board revision E have a
-	   hardware bug whereby when the BIOS is enabled, transfers to/from
+	   hardware  whereby when the BIOS is enabled, transfers to/from
 	   the same address range the BIOS occupies modulo 16MB are handled
 	   incorrectly.  Only properly functioning BT-445S Host Adapters
 	   have firmware version 3.37, so require that ISA Bounce Buffers
-	   be used for the buggy BT-445S models if there is more than 16MB
+	   be used for the gy BT-445S models if there is more than 16MB
 	   memory.
 	 */
 	if (adapter->bios_addr > 0 && strcmp(adapter->model, "BT-445S") == 0 &&
@@ -2721,7 +2721,7 @@ static void blogic_scan_inbox(struct blogic_adapter *adapter)
 				/*
 				   If a CCB ever appears in an Incoming Mailbox
 				   and is not marked as status Active or Reset,
-				   then there is most likely a bug in
+				   then there is most likely a  in
 				   the Host Adapter firmware.
 				 */
 				blogic_warn("Illegal CCB #%ld status %d in " "Incoming Mailbox\n", adapter, ccb->serial, ccb->status);
@@ -3076,7 +3076,7 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 	   Initialize the fields in the BusLogic Command Control Block (CCB).
 	 */
 	count = scsi_dma_map(command);
-	BUG_ON(count < 0);
+	_ON(count < 0);
 	if (count) {
 		struct scatterlist *sg;
 		int i;
@@ -3460,7 +3460,7 @@ static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
 
 
 /*
-  BugLogic_ProcDirectoryInfo implements /proc/scsi/BusLogic/<N>.
+  Logic_ProcDirectoryInfo implements /proc/scsi/BusLogic/<N>.
 */
 
 static int blogic_write_info(struct Scsi_Host *shost, char *procbuf,
@@ -3654,7 +3654,7 @@ static bool __init blogic_parse(char **str, char *keyword)
   for multiple host adapters may be specified either by separating the option
   strings by a semicolon, or by specifying multiple "BusLogic=" strings on the
   command line.  Individual option specifications for a single host adapter are
-  separated by commas.  The Probing and Debugging Options apply to all host
+  separated by commas.  The Probing and Deging Options apply to all host
   adapters whereas the remaining options apply individually only to the
   selected host adapter.
 
@@ -3792,7 +3792,7 @@ static int __init blogic_parseopts(char *options)
 			} else if (blogic_parse(&options,
 						"InhibitTargetInquiry"))
 				drvr_opts->stop_tgt_inquiry = true;
-			/* Debugging Options. */
+			/* Deging Options. */
 			else if (blogic_parse(&options, "TraceProbe"))
 				blogic_global_options.trace_probe = true;
 			else if (blogic_parse(&options, "TraceHardwareReset"))
@@ -3801,7 +3801,7 @@ static int __init blogic_parseopts(char *options)
 				blogic_global_options.trace_config = true;
 			else if (blogic_parse(&options, "TraceErrors"))
 				blogic_global_options.trace_err = true;
-			else if (blogic_parse(&options, "Debug")) {
+			else if (blogic_parse(&options, "De")) {
 				blogic_global_options.trace_probe = true;
 				blogic_global_options.trace_hw_reset = true;
 				blogic_global_options.trace_config = true;

@@ -49,8 +49,8 @@
 
 #define NDLC_DUMP_SKB(info, skb)                                 \
 do {                                                             \
-	pr_debug("%s:\n", info);                                 \
-	print_hex_dump(KERN_DEBUG, "ndlc: ", DUMP_PREFIX_OFFSET, \
+	pr_de("%s:\n", info);                                 \
+	print_hex_dump(KERN_DE, "ndlc: ", DUMP_PREFIX_OFFSET, \
 			16, 1, skb->data, skb->len, 0);          \
 } while (0)
 
@@ -103,7 +103,7 @@ static void llt_ndlc_send_queue(struct llt_ndlc *ndlc)
 	unsigned long time_sent;
 
 	if (ndlc->send_q.qlen)
-		pr_debug("sendQlen=%d unackQlen=%d\n",
+		pr_de("sendQlen=%d unackQlen=%d\n",
 			 ndlc->send_q.qlen, ndlc->ack_pending_q.qlen);
 
 	while (ndlc->send_q.qlen) {
@@ -162,7 +162,7 @@ static void llt_ndlc_rcv_queue(struct llt_ndlc *ndlc)
 	unsigned long time_sent;
 
 	if (ndlc->rcv_q.qlen)
-		pr_debug("rcvQlen=%d\n", ndlc->rcv_q.qlen);
+		pr_de("rcvQlen=%d\n", ndlc->rcv_q.qlen);
 
 	while ((skb = skb_dequeue(&ndlc->rcv_q)) != NULL) {
 		pcb = skb->data[0];
@@ -212,7 +212,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 	llt_ndlc_rcv_queue(ndlc);
 
 	if (ndlc->t1_active && timer_pending(&ndlc->t1_timer) == 0) {
-		pr_debug
+		pr_de
 		    ("Handle T1(recv SUPERVISOR) elapsed (T1 now inactive)\n");
 		ndlc->t1_active = false;
 
@@ -221,7 +221,7 @@ static void llt_ndlc_sm_work(struct work_struct *work)
 	}
 
 	if (ndlc->t2_active && timer_pending(&ndlc->t2_timer) == 0) {
-		pr_debug("Handle T2(recv DATA) elapsed (T2 now inactive)\n");
+		pr_de("Handle T2(recv DATA) elapsed (T2 now inactive)\n");
 		ndlc->t2_active = false;
 		ndlc->t1_active = false;
 		del_timer_sync(&ndlc->t1_timer);
@@ -250,7 +250,7 @@ static void ndlc_t1_timeout(struct timer_list *t)
 {
 	struct llt_ndlc *ndlc = from_timer(ndlc, t, t1_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	schedule_work(&ndlc->sm_work);
 }
@@ -259,7 +259,7 @@ static void ndlc_t2_timeout(struct timer_list *t)
 {
 	struct llt_ndlc *ndlc = from_timer(ndlc, t, t2_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	schedule_work(&ndlc->sm_work);
 }

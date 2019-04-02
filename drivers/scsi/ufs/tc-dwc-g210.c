@@ -275,8 +275,8 @@ int tc_dwc_g210_config_40_bit(struct ufs_hba *hba)
 	if (ret)
 		goto out;
 
-	/* To configure Debug OMC */
-	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(VS_DEBUGOMC), 0x01);
+	/* To configure De OMC */
+	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(VS_DEOMC), 0x01);
 
 out:
 	return ret;
@@ -307,8 +307,8 @@ int tc_dwc_g210_config_20_bit(struct ufs_hba *hba)
 	if (ret)
 		goto out;
 
-	/* To configure Debug OMC */
-	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(VS_DEBUGOMC), 0x01);
+	/* To configure De OMC */
+	ret = ufshcd_dme_set(hba, UIC_ARG_MIB(VS_DEOMC), 0x01);
 
 out:
 	return ret;

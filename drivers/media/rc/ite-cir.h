@@ -21,14 +21,14 @@
 #define ite_pr(level, text, ...) \
 	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
 #define ite_dbg(text, ...) do { \
-	if (debug) \
-		printk(KERN_DEBUG \
+	if (de) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
 } while (0)
 
 #define ite_dbg_verbose(text, ...) do {\
-	if (debug > 1) \
-		printk(KERN_DEBUG \
+	if (de > 1) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
 } while (0)
 

@@ -144,7 +144,7 @@ Mount Options
   nodcache
         Do not use the dcache as above.  This avoids a significant amount of
         complex code, sacrificing performance without affecting correctness,
-        and is useful for tracking down bugs.
+        and is useful for tracking down s.
 
   noasyncreaddir
 	Do not use the dcache as above for readdir.

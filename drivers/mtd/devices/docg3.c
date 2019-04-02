@@ -34,7 +34,7 @@
 #include <linux/bitrev.h>
 #include <linux/bch.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #define CREATE_TRACE_POINTS
@@ -664,7 +664,7 @@ static int doc_ecc_bch_fix_data(struct docg3 *docg3, void *buf, u8 *hwecc)
 	numerrs = decode_bch(docg3->cascade->bch, NULL,
 			     DOC_ECC_BCH_COVERED_BYTES,
 			     NULL, ecc, NULL, errorpos);
-	BUG_ON(numerrs == -EINVAL);
+	_ON(numerrs == -EINVAL);
 	if (numerrs < 0)
 		goto out;
 
@@ -1601,7 +1601,7 @@ static void doc_unregister_sysfs(struct platform_device *pdev,
 }
 
 /*
- * Debug sysfs entries
+ * De sysfs entries
  */
 static int flashcontrol_show(struct seq_file *s, void *p)
 {
@@ -1734,20 +1734,20 @@ static void __init doc_dbg_register(struct mtd_info *floor)
 	struct docg3 *docg3 = floor->priv;
 
 	if (IS_ERR_OR_NULL(root)) {
-		if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+		if (IS_ENABLED(CONFIG_DE_FS) &&
 		    !IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
 			dev_warn(floor->dev.parent,
-				 "CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose debugfs stuff\n");
+				 "CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose defs stuff\n");
 		return;
 	}
 
-	debugfs_create_file("docg3_flashcontrol", S_IRUSR, root, docg3,
+	defs_create_file("docg3_flashcontrol", S_IRUSR, root, docg3,
 			    &flashcontrol_fops);
-	debugfs_create_file("docg3_asic_mode", S_IRUSR, root, docg3,
+	defs_create_file("docg3_asic_mode", S_IRUSR, root, docg3,
 			    &asic_mode_fops);
-	debugfs_create_file("docg3_device_id", S_IRUSR, root, docg3,
+	defs_create_file("docg3_device_id", S_IRUSR, root, docg3,
 			    &device_id_fops);
-	debugfs_create_file("docg3_protection", S_IRUSR, root, docg3,
+	defs_create_file("docg3_protection", S_IRUSR, root, docg3,
 			    &protection_fops);
 }
 

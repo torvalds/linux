@@ -56,7 +56,7 @@ static void qh_destroy(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* clean qtds first, and know this is not linked */
 	if (!list_empty (&qh->qtd_list) || qh->qh_next.ptr) {
 		ehci_dbg (ehci, "unused qh not empty!\n");
-		BUG ();
+		 ();
 	}
 	if (qh->dummy)
 		ehci_qtd_free (ehci, qh->dummy);

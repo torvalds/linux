@@ -290,9 +290,9 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 	/* Enable HW arbitration for the given ring */
 	adf_update_ring_arb(ring);
 
-	if (adf_ring_debugfs_add(ring, ring_name)) {
+	if (adf_ring_defs_add(ring, ring_name)) {
 		dev_err(&GET_DEV(accel_dev),
-			"Couldn't add ring debugfs entry\n");
+			"Couldn't add ring defs entry\n");
 		ret = -EFAULT;
 		goto err;
 	}
@@ -321,7 +321,7 @@ void adf_remove_ring(struct adf_etr_ring_data *ring)
 			      ring->ring_number, 0);
 	WRITE_CSR_RING_BASE(bank->csr_addr, bank->bank_number,
 			    ring->ring_number, 0);
-	adf_ring_debugfs_rm(ring);
+	adf_ring_defs_rm(ring);
 	adf_unreserve_ring(bank, ring->ring_number);
 	/* Disable HW arbitration for the given ring */
 	adf_update_ring_arb(ring);
@@ -428,9 +428,9 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 			ring->inflights = tx_ring->inflights;
 		}
 	}
-	if (adf_bank_debugfs_add(bank)) {
+	if (adf_bank_defs_add(bank)) {
 		dev_err(&GET_DEV(accel_dev),
-			"Failed to add bank debugfs entry\n");
+			"Failed to add bank defs entry\n");
 		goto err;
 	}
 
@@ -483,9 +483,9 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	i = hw_data->get_etr_bar_id(hw_data);
 	csr_addr = accel_dev->accel_pci_dev.pci_bars[i].virt_addr;
 
-	/* accel_dev->debugfs_dir should always be non-NULL here */
-	etr_data->debug = debugfs_create_dir("transport",
-					     accel_dev->debugfs_dir);
+	/* accel_dev->defs_dir should always be non-NULL here */
+	etr_data->de = defs_create_dir("transport",
+					     accel_dev->defs_dir);
 
 	for (i = 0; i < num_banks; i++) {
 		ret = adf_init_bank(accel_dev, &etr_data->banks[i], i,
@@ -497,7 +497,7 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	return 0;
 
 err_bank_all:
-	debugfs_remove(etr_data->debug);
+	defs_remove(etr_data->de);
 	kfree(etr_data->banks);
 err_bank:
 	kfree(etr_data);
@@ -521,7 +521,7 @@ static void cleanup_bank(struct adf_etr_bank_data *bank)
 		if (hw_data->tx_rings_mask & (1 << i))
 			kfree(ring->inflights);
 	}
-	adf_bank_debugfs_rm(bank);
+	adf_bank_defs_rm(bank);
 	memset(bank, 0, sizeof(*bank));
 }
 
@@ -550,7 +550,7 @@ void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev)
 
 	if (etr_data) {
 		adf_cleanup_etr_handles(accel_dev);
-		debugfs_remove(etr_data->debug);
+		defs_remove(etr_data->de);
 		kfree(etr_data->banks);
 		kfree(etr_data);
 		accel_dev->transport = NULL;

@@ -238,7 +238,7 @@ struct amd_pm_funcs {
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
-	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
+	void (*defs_print_current_performance_level)(void *handle, struct seq_file *m);
 	int (*switch_power_profile)(void *handle, enum PP_SMC_POWER_PROFILE type, bool en);
 /* export to amdgpu */
 	struct amd_vce_state *(*get_vce_clock_state)(void *handle, u32 idx);

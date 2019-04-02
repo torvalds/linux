@@ -211,7 +211,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 		sk_stop_timer(sk, &icsk->icsk_delack_timer);
 #endif
 	} else {
-		pr_debug("inet_csk BUG: unknown timer value\n");
+		pr_de("inet_csk : unknown timer value\n");
 	}
 }
 
@@ -225,7 +225,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (when > max_when) {
-		pr_debug("reset_xmit_timer: sk=%p %d when=0x%lx, caller=%p\n",
+		pr_de("reset_xmit_timer: sk=%p %d when=0x%lx, caller=%p\n",
 			 sk, what, when, (void *)_THIS_IP_);
 		when = max_when;
 	}
@@ -241,7 +241,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 		icsk->icsk_ack.timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
 	} else {
-		pr_debug("inet_csk BUG: unknown timer value\n");
+		pr_de("inet_csk : unknown timer value\n");
 	}
 }
 

@@ -29,9 +29,9 @@ static bool r852_enable_dma = 1;
 module_param(r852_enable_dma, bool, S_IRUGO);
 MODULE_PARM_DESC(r852_enable_dma, "Enable usage of the DMA (default)");
 
-static int debug;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+static int de;
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 /* read register */
 static inline uint8_t r852_read_reg(struct r852_device *dev, int address)

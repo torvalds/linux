@@ -49,7 +49,7 @@ static u8 b43legacy_plcp_get_bitrate_idx_cck(struct b43legacy_plcp_hdr6 *plcp)
 	case 0x6E:
 		return 3;
 	}
-	B43legacy_BUG_ON(1);
+	B43legacy__ON(1);
 	return -1;
 }
 
@@ -77,7 +77,7 @@ static u8 b43legacy_plcp_get_bitrate_idx_ofdm(struct b43legacy_plcp_hdr6 *plcp,
 	case 0xC:
 		return base + 7;
 	}
-	B43legacy_BUG_ON(1);
+	B43legacy__ON(1);
 	return -1;
 }
 
@@ -93,7 +93,7 @@ u8 b43legacy_plcp_get_ratecode_cck(const u8 bitrate)
 	case B43legacy_CCK_RATE_11MB:
 		return 0x6E;
 	}
-	B43legacy_BUG_ON(1);
+	B43legacy__ON(1);
 	return 0;
 }
 
@@ -117,7 +117,7 @@ u8 b43legacy_plcp_get_ratecode_ofdm(const u8 bitrate)
 	case B43legacy_OFDM_RATE_54MB:
 		return 0xC;
 	}
-	B43legacy_BUG_ON(1);
+	B43legacy__ON(1);
 	return 0;
 }
 
@@ -180,7 +180,7 @@ static u8 b43legacy_calc_fallback_rate(u8 bitrate)
 	case B43legacy_OFDM_RATE_54MB:
 		return B43legacy_OFDM_RATE_48MB;
 	}
-	B43legacy_BUG_ON(1);
+	B43legacy__ON(1);
 	return 0;
 }
 
@@ -585,7 +585,7 @@ drop:
 void b43legacy_handle_txstatus(struct b43legacy_wldev *dev,
 			     const struct b43legacy_txstatus *status)
 {
-	b43legacy_debugfs_log_txstat(dev, status);
+	b43legacy_defs_log_txstat(dev, status);
 
 	if (status->intermediate)
 		return;

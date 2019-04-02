@@ -69,7 +69,7 @@ drivers/isdn/hisax/elsa.c
 drivers/isdn/hisax/diva.c
 drivers/isdn/hisax/hfc_pci.c
 
-Please send any changes, bugfixes and patches to me rather than implementing
+Please send any changes, fixes and patches to me rather than implementing
 them directly into the HiSax sources.
 
 This does not reduce your rights granted by the GNU General Public License.

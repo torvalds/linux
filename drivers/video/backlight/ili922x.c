@@ -294,7 +294,7 @@ static int ili922x_write(struct spi_device *spi, u8 reg, u16 value)
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 /**
  * ili922x_reg_dump - dump all registers
  */

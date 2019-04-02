@@ -74,7 +74,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	pay_load_len = (u16 *)(skb_data + 6);
 
-	/*Fix hardware bug => PLCP_Length error */
+	/*Fix hardware  => PLCP_Length error */
 	if (((bytes_received - (*pay_load_len)) > 27) ||
 	    ((bytes_received - (*pay_load_len)) < 24) ||
 	    (bytes_received < (*pay_load_len))) {

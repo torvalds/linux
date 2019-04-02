@@ -117,7 +117,7 @@ static int __init hsr_init(void)
 {
 	int res;
 
-	BUILD_BUG_ON(sizeof(struct hsr_tag) != HSR_HLEN);
+	BUILD__ON(sizeof(struct hsr_tag) != HSR_HLEN);
 
 	register_netdevice_notifier(&hsr_nb);
 	res = hsr_netlink_init();

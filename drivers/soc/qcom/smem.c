@@ -953,7 +953,7 @@ static int qcom_smem_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON(SMEM_HOST_APPS >= SMEM_HOST_COUNT);
+	BUILD__ON(SMEM_HOST_APPS >= SMEM_HOST_COUNT);
 	ret = qcom_smem_enumerate_partitions(smem, SMEM_HOST_APPS);
 	if (ret < 0 && ret != -ENOENT)
 		return ret;

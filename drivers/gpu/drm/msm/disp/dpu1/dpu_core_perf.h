@@ -62,20 +62,20 @@ struct dpu_core_perf_tune {
 /**
  * struct dpu_core_perf - definition of core performance context
  * @dev: Pointer to drm device
- * @debugfs_root: top level debug folder
+ * @defs_root: top level de folder
  * @catalog: Pointer to catalog configuration
  * @core_clk: Pointer to core clock structure
  * @core_clk_rate: current core clock rate
  * @max_core_clk_rate: maximum allowable core clock rate
- * @perf_tune: debug control for performance tuning
- * @enable_bw_release: debug control for bandwidth release
+ * @perf_tune: de control for performance tuning
+ * @enable_bw_release: de control for bandwidth release
  * @fix_core_clk_rate: fixed core clock request in Hz used in mode 2
  * @fix_core_ib_vote: fixed core ib vote in bps used in mode 2
  * @fix_core_ab_vote: fixed core ab vote in bps used in mode 2
  */
 struct dpu_core_perf {
 	struct drm_device *dev;
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	struct dpu_mdss_cfg *catalog;
 	struct dss_clk *core_clk;
 	u64 core_clk_rate;
@@ -133,10 +133,10 @@ int dpu_core_perf_init(struct dpu_core_perf *perf,
 struct dpu_kms;
 
 /**
- * dpu_core_perf_debugfs_init - initialize debugfs for core performance context
+ * dpu_core_perf_defs_init - initialize defs for core performance context
  * @dpu_kms: Pointer to the dpu_kms struct
- * @debugfs_parent: Pointer to parent debugfs
+ * @defs_parent: Pointer to parent defs
  */
-int dpu_core_perf_debugfs_init(struct dpu_kms *dpu_kms, struct dentry *parent);
+int dpu_core_perf_defs_init(struct dpu_kms *dpu_kms, struct dentry *parent);
 
 #endif /* _DPU_CORE_PERF_H_ */

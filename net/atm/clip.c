@@ -54,7 +54,7 @@ static int to_atmarpd(enum atmarp_ctrl_type type, int itf, __be32 ip)
 	struct atmarp_ctrl *ctrl;
 	struct sk_buff *skb;
 
-	pr_debug("(%d)\n", type);
+	pr_de("(%d)\n", type);
 	if (!atmarpd)
 		return -EUNATCH;
 	skb = alloc_skb(sizeof(struct atmarp_ctrl), GFP_ATOMIC);
@@ -74,7 +74,7 @@ static int to_atmarpd(enum atmarp_ctrl_type type, int itf, __be32 ip)
 
 static void link_vcc(struct clip_vcc *clip_vcc, struct atmarp_entry *entry)
 {
-	pr_debug("%p to entry %p (neigh %p)\n", clip_vcc, entry, entry->neigh);
+	pr_de("%p to entry %p (neigh %p)\n", clip_vcc, entry, entry->neigh);
 	clip_vcc->entry = entry;
 	clip_vcc->xoff = 0;	/* @@@ may overrun buffer by one packet */
 	clip_vcc->next = entry->vccs;
@@ -128,7 +128,7 @@ static int neigh_check_cb(struct neighbour *n)
 		unsigned long exp = cv->last_use + cv->idle_timeout;
 
 		if (cv->idle_timeout && time_after(jiffies, exp)) {
-			pr_debug("releasing vcc %p->%p of entry %p\n",
+			pr_de("releasing vcc %p->%p of entry %p\n",
 				 cv, cv->vcc, entry);
 			vcc_release_async(cv->vcc, -ETIMEDOUT);
 		}
@@ -140,7 +140,7 @@ static int neigh_check_cb(struct neighbour *n)
 	if (refcount_read(&n->refcnt) > 1) {
 		struct sk_buff *skb;
 
-		pr_debug("destruction postponed with ref %d\n",
+		pr_de("destruction postponed with ref %d\n",
 			 refcount_read(&n->refcnt));
 
 		while ((skb = skb_dequeue(&n->arp_queue)) != NULL)
@@ -149,7 +149,7 @@ static int neigh_check_cb(struct neighbour *n)
 		return 0;
 	}
 
-	pr_debug("expired neigh %p\n", n);
+	pr_de("expired neigh %p\n", n);
 	return 1;
 }
 
@@ -165,14 +165,14 @@ static int clip_arp_rcv(struct sk_buff *skb)
 {
 	struct atm_vcc *vcc;
 
-	pr_debug("\n");
+	pr_de("\n");
 	vcc = ATM_SKB(skb)->vcc;
 	if (!vcc || !atm_charge(vcc, skb->truesize)) {
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
-	pr_debug("pushing to %p\n", vcc);
-	pr_debug("using %p\n", CLIP_VCC(vcc)->old_push);
+	pr_de("pushing to %p\n", vcc);
+	pr_de("using %p\n", CLIP_VCC(vcc)->old_push);
 	CLIP_VCC(vcc)->old_push(vcc, skb);
 	return 0;
 }
@@ -190,7 +190,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	struct clip_vcc *clip_vcc = CLIP_VCC(vcc);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	if (!clip_devs) {
 		atm_return(vcc, skb->truesize);
@@ -199,7 +199,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	}
 
 	if (!skb) {
-		pr_debug("removing VCC %p\n", clip_vcc);
+		pr_de("removing VCC %p\n", clip_vcc);
 		if (clip_vcc->entry)
 			unlink_clip_vcc(clip_vcc);
 		clip_vcc->old_push(vcc, NULL);	/* pass on the bad news */
@@ -248,7 +248,7 @@ static void clip_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 	int old;
 	unsigned long flags;
 
-	pr_debug("(vcc %p)\n", vcc);
+	pr_de("(vcc %p)\n", vcc);
 	clip_vcc->old_pop(vcc, skb);
 	/* skb->dev == NULL in outbound ARP packets */
 	if (!dev)
@@ -266,7 +266,7 @@ static void clip_neigh_solicit(struct neighbour *neigh, struct sk_buff *skb)
 {
 	__be32 *ip = (__be32 *) neigh->primary_key;
 
-	pr_debug("(neigh %p, skb %p)\n", neigh, skb);
+	pr_de("(neigh %p, skb %p)\n", neigh, skb);
 	to_atmarpd(act_need, PRIV(neigh->dev)->number, *ip);
 }
 
@@ -337,7 +337,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	int old;
 	unsigned long flags;
 
-	pr_debug("(skb %p)\n", skb);
+	pr_de("(skb %p)\n", skb);
 	if (!dst) {
 		pr_err("skb_dst(skb) == NULL\n");
 		dev_kfree_skb(skb);
@@ -371,9 +371,9 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		}
 		goto out_release_neigh;
 	}
-	pr_debug("neigh %p, vccs %p\n", entry, entry->vccs);
+	pr_de("neigh %p, vccs %p\n", entry, entry->vccs);
 	ATM_SKB(skb)->vcc = vcc = entry->vccs->vcc;
-	pr_debug("using neighbour %p, vcc %p\n", n, vcc);
+	pr_de("using neighbour %p, vcc %p\n", n, vcc);
 	if (entry->vccs->encap) {
 		void *here;
 
@@ -383,7 +383,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	}
 	atm_account_tx(vcc, skb);
 	entry->vccs->last_use = jiffies;
-	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, vcc, vcc->dev);
+	pr_de("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, vcc, vcc->dev);
 	old = xchg(&entry->vccs->xoff, 1);	/* assume XOFF ... */
 	if (old) {
 		pr_warn("XOFF->XOFF transition\n");
@@ -420,7 +420,7 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	clip_vcc = kmalloc(sizeof(struct clip_vcc), GFP_KERNEL);
 	if (!clip_vcc)
 		return -ENOMEM;
-	pr_debug("%p vcc %p\n", clip_vcc, vcc);
+	pr_de("%p vcc %p\n", clip_vcc, vcc);
 	clip_vcc->vcc = vcc;
 	vcc->user_back = clip_vcc;
 	set_bit(ATM_VF_IS_CLIP, &vcc->flags);
@@ -458,7 +458,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 			pr_err("hiding hidden ATMARP entry\n");
 			return 0;
 		}
-		pr_debug("remove\n");
+		pr_de("remove\n");
 		unlink_clip_vcc(clip_vcc);
 		return 0;
 	}
@@ -472,9 +472,9 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	entry = neighbour_priv(neigh);
 	if (entry != clip_vcc->entry) {
 		if (!clip_vcc->entry)
-			pr_debug("add\n");
+			pr_de("add\n");
 		else {
-			pr_debug("update\n");
+			pr_de("update\n");
 			unlink_clip_vcc(clip_vcc);
 		}
 		link_vcc(clip_vcc, entry);
@@ -537,7 +537,7 @@ static int clip_create(int number)
 	}
 	clip_priv->next = clip_devs;
 	clip_devs = dev;
-	pr_debug("registered (net:%s)\n", dev->name);
+	pr_de("registered (net:%s)\n", dev->name);
 	return number;
 }
 
@@ -558,16 +558,16 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 
 	switch (event) {
 	case NETDEV_UP:
-		pr_debug("NETDEV_UP\n");
+		pr_de("NETDEV_UP\n");
 		to_atmarpd(act_up, PRIV(dev)->number, 0);
 		break;
 	case NETDEV_GOING_DOWN:
-		pr_debug("NETDEV_DOWN\n");
+		pr_de("NETDEV_DOWN\n");
 		to_atmarpd(act_down, PRIV(dev)->number, 0);
 		break;
 	case NETDEV_CHANGE:
 	case NETDEV_CHANGEMTU:
-		pr_debug("NETDEV_CHANGE*\n");
+		pr_de("NETDEV_CHANGE*\n");
 		to_atmarpd(act_change, PRIV(dev)->number, 0);
 		break;
 	}
@@ -605,14 +605,14 @@ static struct notifier_block clip_inet_notifier = {
 
 static void atmarpd_close(struct atm_vcc *vcc)
 {
-	pr_debug("\n");
+	pr_de("\n");
 
 	rtnl_lock();
 	atmarpd = NULL;
 	skb_queue_purge(&sk_atm(vcc)->sk_receive_queue);
 	rtnl_unlock();
 
-	pr_debug("(done)\n");
+	pr_de("(done)\n");
 	module_put(THIS_MODULE);
 }
 

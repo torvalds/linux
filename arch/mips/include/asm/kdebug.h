@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_MIPS_KDEBUG_H
-#define _ASM_MIPS_KDEBUG_H
+#ifndef _ASM_MIPS_KDE_H
+#define _ASM_MIPS_KDE_H
 
 #include <linux/notifier.h>
 
@@ -17,4 +17,4 @@ enum die_val {
 	DIE_UPROBE_XOL,
 };
 
-#endif /* _ASM_MIPS_KDEBUG_H */
+#endif /* _ASM_MIPS_KDE_H */

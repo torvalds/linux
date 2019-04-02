@@ -70,7 +70,7 @@ nvkm_xtensa_intr(struct nvkm_engine *engine)
 	nvkm_wr32(device, base + 0xc20, intr);
 	intr = nvkm_rd32(device, base + 0xc20);
 	if (unk104 == 0x10001 && unk10c == 0x200 && chan && !intr) {
-		nvkm_debug(subdev, "Enabling FIFO_CTRL\n");
+		nvkm_de(subdev, "Enabling FIFO_CTRL\n");
 		nvkm_mask(device, xtensa->addr + 0xd94, 0, xtensa->func->fifo_val);
 	}
 }

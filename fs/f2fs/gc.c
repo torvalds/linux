@@ -572,7 +572,7 @@ next_step:
  * Be careful, caller should give this node offset only indicating direct node
  * blocks. If any node offsets, which point the other types of node blocks such
  * as indirect or double indirect node blocks, are given, it must be a caller's
- * bug.
+ * .
  */
 block_t f2fs_start_bidx_of_node(unsigned int node_ofs, struct inode *inode)
 {

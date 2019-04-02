@@ -16,7 +16,7 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <soc/tegra/fuse.h>
 
@@ -115,11 +115,11 @@ void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 	int i, threshold, cpu_speedo_0_value, soc_speedo_0_value;
 	int cpu_iddq_value, gpu_iddq_value, soc_iddq_value;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cpu_process_speedos) !=
+	BUILD__ON(ARRAY_SIZE(cpu_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(gpu_process_speedos) !=
+	BUILD__ON(ARRAY_SIZE(gpu_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(soc_process_speedos) !=
+	BUILD__ON(ARRAY_SIZE(soc_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
 	cpu_speedo_0_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_0);
@@ -163,6 +163,6 @@ void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 			break;
 	sku_info->soc_process_id = i;
 
-	pr_debug("Tegra GPU Speedo ID=%d, Speedo Value=%d\n",
+	pr_de("Tegra GPU Speedo ID=%d, Speedo Value=%d\n",
 		 sku_info->gpu_speedo_id, sku_info->gpu_speedo_value);
 }

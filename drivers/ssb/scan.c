@@ -355,7 +355,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 		dev->bus = bus;
 		dev->ops = bus->ops;
 
-		pr_debug("Core %d found: %s (cc 0x%03X, rev 0x%02X, vendor 0x%04X)\n",
+		pr_de("Core %d found: %s (cc 0x%03X, rev 0x%02X, vendor 0x%04X)\n",
 			 i, ssb_core_name(dev->id.coreid),
 			 dev->id.coreid, dev->id.revision, dev->id.vendor);
 
@@ -364,7 +364,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 			nr_80211_cores++;
 			if (nr_80211_cores > 1) {
 				if (!we_support_multiple_80211_cores(bus)) {
-					pr_debug("Ignoring additional 802.11 core\n");
+					pr_de("Ignoring additional 802.11 core\n");
 					continue;
 				}
 			}

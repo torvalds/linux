@@ -361,7 +361,7 @@ static int xcan_set_bittiming(struct net_device *ndev)
 				XCAN_SR_CONFIG_MASK;
 	if (!is_config_mode) {
 		netdev_alert(ndev,
-		     "BUG! Cannot set bittiming - CAN is not in config mode\n");
+		     "! Cannot set bittiming - CAN is not in config mode\n");
 		return -EPERM;
 	}
 
@@ -642,7 +642,7 @@ static netdev_tx_t xcan_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		ret = xcan_start_xmit_fifo(skb, ndev);
 
 	if (ret < 0) {
-		netdev_err(ndev, "BUG!, TX full when queue awake!\n");
+		netdev_err(ndev, "!, TX full when queue awake!\n");
 		netif_stop_queue(ndev);
 		return NETDEV_TX_BUSY;
 	}

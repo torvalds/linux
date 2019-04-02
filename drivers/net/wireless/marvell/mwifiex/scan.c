@@ -136,7 +136,7 @@ mwifiex_search_oui_in_ie(struct ie_body *iebody, u8 *oui)
 						sizeof(iebody->ptk_body));
 	}
 
-	pr_debug("info: %s: OUI is not found in PTK\n", __func__);
+	pr_de("info: %s: OUI is not found in PTK\n", __func__);
 	return MWIFIEX_OUI_NOT_PRESENT;
 }
 

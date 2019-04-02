@@ -118,7 +118,7 @@ int ieee80211_register_crypto_ops(struct ieee80211_crypto_ops *ops)
 	list_add(&alg->list, &hcrypt->algs);
 	spin_unlock_irqrestore(&hcrypt->lock, flags);
 
-	pr_debug("ieee80211_crypt: registered algorithm '%s'\n",
+	pr_de("ieee80211_crypt: registered algorithm '%s'\n",
 	       ops->name);
 
 	return 0;
@@ -146,7 +146,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	spin_unlock_irqrestore(&hcrypt->lock, flags);
 
 	if (del_alg) {
-		pr_debug("ieee80211_crypt: unregistered algorithm '%s'\n",
+		pr_de("ieee80211_crypt: unregistered algorithm '%s'\n",
 				ops->name);
 		kfree(del_alg);
 	}
@@ -231,7 +231,7 @@ void __exit ieee80211_crypto_deinit(void)
 		struct ieee80211_crypto_alg *alg =
 			(struct ieee80211_crypto_alg *)ptr;
 		list_del(ptr);
-		pr_debug("ieee80211_crypt: unregistered algorithm '%s' (deinit)\n",
+		pr_de("ieee80211_crypt: unregistered algorithm '%s' (deinit)\n",
 				alg->ops->name);
 		kfree(alg);
 	}

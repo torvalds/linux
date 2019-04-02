@@ -316,7 +316,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 	if (!chan)
 		return;
 
-	BUG_ON(aniState == NULL);
+	_ON(aniState == NULL);
 	ah->stats.ast_ani_reset++;
 
 	ofdm_nil = max_t(int, ATH9K_ANI_OFDM_DEF_LEVEL,

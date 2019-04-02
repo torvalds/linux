@@ -85,7 +85,7 @@ struct z3fold_header {
  * freelists maintained in each pool. NCHUNKS_ORDER of 6 means that the
  * allocation granularity will be in chunks of size PAGE_SIZE/64. Some chunks
  * in the beginning of an allocated page are occupied by z3fold header, so
- * NCHUNKS will be calculated to 63 (or 62 in case CONFIG_DEBUG_SPINLOCK=y),
+ * NCHUNKS will be calculated to 63 (or 62 in case CONFIG_DE_SPINLOCK=y),
  * which shows the max number of free chunks in z3fold page, also there will
  * be 63, or 62, respectively, freelists per pool.
  */
@@ -1134,7 +1134,7 @@ MODULE_ALIAS("zpool-z3fold");
 static int __init init_z3fold(void)
 {
 	/* Make sure the z3fold header is not larger than the page size */
-	BUILD_BUG_ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE);
+	BUILD__ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE);
 	zpool_register_driver(&z3fold_zpool_driver);
 
 	return 0;

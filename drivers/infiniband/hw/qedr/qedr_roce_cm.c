@@ -76,7 +76,7 @@ static void qedr_ll2_complete_tx_packet(void *cxt, u8 connection_handle,
 	struct qedr_qp *qp = dev->gsi_qp;
 	unsigned long flags;
 
-	DP_DEBUG(dev, QEDR_MSG_GSI,
+	DP_DE(dev, QEDR_MSG_GSI,
 		 "LL2 TX CB: gsi_sqcq=%p, gsi_rqcq=%p, gsi_cons=%d, ibcq_comp=%s\n",
 		 dev->gsi_sqcq, dev->gsi_rqcq, qp->sq.gsi_cons,
 		 cq->ibcq.comp_handler ? "Yes" : "No");
@@ -357,7 +357,7 @@ struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
 	dev->gsi_rqcq->cq_type = QEDR_CQ_TYPE_GSI;
 	dev->gsi_rqcq->cq_type = QEDR_CQ_TYPE_GSI;
 
-	DP_DEBUG(dev, QEDR_MSG_GSI, "created GSI QP %p\n", qp);
+	DP_DE(dev, QEDR_MSG_GSI, "created GSI QP %p\n", qp);
 
 	return &qp->ibqp;
 
@@ -582,7 +582,7 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	if (!rc) {
 		qp->wqe_wr_id[qp->sq.prod].wr_id = wr->wr_id;
 		qedr_inc_sw_prod(&qp->sq);
-		DP_DEBUG(qp->dev, QEDR_MSG_GSI,
+		DP_DE(qp->dev, QEDR_MSG_GSI,
 			 "gsi post send: opcode=%d, in_irq=%ld, irqs_disabled=%d, wr_id=%llx\n",
 			 wr->opcode, in_irq(), irqs_disabled(), wr->wr_id);
 	} else {
@@ -719,7 +719,7 @@ int qedr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
-	DP_DEBUG(dev, QEDR_MSG_GSI,
+	DP_DE(dev, QEDR_MSG_GSI,
 		 "gsi poll_cq: requested entries=%d, actual=%d, qp->rq.cons=%d, qp->rq.gsi_cons=%x, qp->sq.cons=%d, qp->sq.gsi_cons=%d, qp_num=%d\n",
 		 num_entries, i, qp->rq.cons, qp->rq.gsi_cons, qp->sq.cons,
 		 qp->sq.gsi_cons, qp->ibqp.qp_num);

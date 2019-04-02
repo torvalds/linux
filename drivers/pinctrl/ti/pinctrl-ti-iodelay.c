@@ -629,7 +629,7 @@ static int ti_iodelay_pinconf_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /**
  * ti_iodelay_pin_to_offset() - get pin register offset based on the pin index
  * @iod: iodelay driver instance
@@ -716,7 +716,7 @@ static const struct pinctrl_ops ti_iodelay_pinctrl_ops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_dbg_show = ti_iodelay_pin_dbg_show,
 #endif
 	.dt_node_to_map = ti_iodelay_dt_node_to_map,
@@ -725,7 +725,7 @@ static const struct pinctrl_ops ti_iodelay_pinctrl_ops = {
 static const struct pinconf_ops ti_iodelay_pinctrl_pinconf_ops = {
 	.pin_config_group_get = ti_iodelay_pinconf_group_get,
 	.pin_config_group_set = ti_iodelay_pinconf_group_set,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_config_group_dbg_show = ti_iodelay_pinconf_group_dbg_show,
 #endif
 };

@@ -56,10 +56,10 @@ static void do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 	local_irq_restore(flags);
 }
 /*
- * Cx86_dir0_msb is a HACK needed by check_cx686_cpuid/slop in bugs.h in
+ * Cx86_dir0_msb is a HACK needed by check_cx686_cpuid/slop in s.h in
  * order to identify the Cyrix CPU model after we're out of setup.c
  *
- * Actually since bugs.h doesn't even reference this perhaps someone should
+ * Actually since s.h doesn't even reference this perhaps someone should
  * fix the documentation ???
  */
 static unsigned char Cx86_dir0_msb = 0;
@@ -251,8 +251,8 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 			p = Cx86_cb+1;
 		/* Emulate MTRRs using Cyrix's ARRs. */
 		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
-		/* 6x86's contain this bug */
-		set_cpu_bug(c, X86_BUG_COMA);
+		/* 6x86's contain this  */
+		set_cpu_(c, X86__COMA);
 		break;
 
 	case 4: /* MediaGX/GXm or Geode GXM/GXLV/GX1 */
@@ -266,15 +266,15 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		 * SB emulation. It throws away the fifo on disable_dma() which
 		 * is wrong and ruins the audio.
 		 *
-		 *  Bug2: VSA1 has a wrap bug so that using maximum sized DMA
+		 *  2: VSA1 has a wrap  so that using maximum sized DMA
 		 *  causes bad things. According to NatSemi VSA2 has another
-		 *  bug to do with 'hlt'. I've not seen any boards using VSA2
+		 *   to do with 'hlt'. I've not seen any boards using VSA2
 		 *  and X doesn't seem to support it either so who cares 8).
 		 *  VSA1 we work around however.
 		 */
 
-		pr_info("Working around Cyrix MediaGX virtual DMA bugs.\n");
-		isa_dma_bridge_buggy = 2;
+		pr_info("Working around Cyrix MediaGX virtual DMA s.\n");
+		isa_dma_bridge_gy = 2;
 
 		/* We do this before the PCI layer is running. However we
 		   are safe here as we know the bridge must be a Cyrix
@@ -321,8 +321,8 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 			/* Enable MMX extensions (App note 108) */
 			setCx86(CX86_CCR7, getCx86(CX86_CCR7)|1);
 		} else {
-			/* A 6x86MX - it has the bug. */
-			set_cpu_bug(c, X86_BUG_COMA);
+			/* A 6x86MX - it has the . */
+			set_cpu_(c, X86__COMA);
 		}
 		tmp = (!(dir0_lsn & 7) || dir0_lsn & 1) ? 2 : 0;
 		Cx86_cb[tmp] = cyrix_model_mult2[dir0_lsn & 7];

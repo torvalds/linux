@@ -106,7 +106,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 	rev = (version & 0xf0) << 4 | (version & 0x0f);
 	obj = acpi_evaluate_dsm(handle, &muid, rev, 0x00000010, &argv4);
 	if (!obj) {
-		nvkm_debug(subdev, "DSM MXMS failed\n");
+		nvkm_de(subdev, "DSM MXMS failed\n");
 		return false;
 	}
 
@@ -114,7 +114,7 @@ mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 		mxm->mxms = kmemdup(obj->buffer.pointer,
 					 obj->buffer.length, GFP_KERNEL);
 	} else if (obj->type == ACPI_TYPE_INTEGER) {
-		nvkm_debug(subdev, "DSM MXMS returned 0x%llx\n",
+		nvkm_de(subdev, "DSM MXMS returned 0x%llx\n",
 			   obj->integer.value);
 	}
 
@@ -139,18 +139,18 @@ wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 
 	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
 	if (ACPI_FAILURE(status)) {
-		nvkm_debug(subdev, "WMMX MXMI returned %d\n", status);
+		nvkm_de(subdev, "WMMX MXMI returned %d\n", status);
 		return 0x00;
 	}
 
 	obj = retn.pointer;
 	if (obj->type == ACPI_TYPE_INTEGER) {
 		version = obj->integer.value;
-		nvkm_debug(subdev, "WMMX MXMI version %d.%d\n",
+		nvkm_de(subdev, "WMMX MXMI version %d.%d\n",
 			   (version >> 4), version & 0x0f);
 	} else {
 		version = 0;
-		nvkm_debug(subdev, "WMMX MXMI returned non-integer\n");
+		nvkm_de(subdev, "WMMX MXMI returned non-integer\n");
 	}
 
 	kfree(obj);
@@ -168,7 +168,7 @@ mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 	acpi_status status;
 
 	if (!wmi_has_guid(WMI_WMMX_GUID)) {
-		nvkm_debug(subdev, "WMMX GUID not found\n");
+		nvkm_de(subdev, "WMMX GUID not found\n");
 		return false;
 	}
 
@@ -180,7 +180,7 @@ mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 
 	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
 	if (ACPI_FAILURE(status)) {
-		nvkm_debug(subdev, "WMMX MXMS returned %d\n", status);
+		nvkm_de(subdev, "WMMX MXMS returned %d\n", status);
 		return false;
 	}
 
@@ -214,7 +214,7 @@ mxm_shadow(struct nvkm_mxm *mxm, u8 version)
 {
 	struct mxm_shadow_h *shadow = _mxm_shadow;
 	do {
-		nvkm_debug(&mxm->subdev, "checking %s\n", shadow->name);
+		nvkm_de(&mxm->subdev, "checking %s\n", shadow->name);
 		if (shadow->exec(mxm, version)) {
 			if (mxms_valid(mxm))
 				return 0;
@@ -244,14 +244,14 @@ nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 
 	data = mxm_table(bios, &ver, &len);
 	if (!data || !(ver = nvbios_rd08(bios, data))) {
-		nvkm_debug(&mxm->subdev, "no VBIOS data, nothing to do\n");
+		nvkm_de(&mxm->subdev, "no VBIOS data, nothing to do\n");
 		return 0;
 	}
 
 	nvkm_info(&mxm->subdev, "BIOS version %d.%d\n", ver >> 4, ver & 0x0f);
-	nvkm_debug(&mxm->subdev, "module flags: %02x\n",
+	nvkm_de(&mxm->subdev, "module flags: %02x\n",
 		   nvbios_rd08(bios, data + 0x01));
-	nvkm_debug(&mxm->subdev, "config flags: %02x\n",
+	nvkm_de(&mxm->subdev, "config flags: %02x\n",
 		   nvbios_rd08(bios, data + 0x02));
 
 	if (mxm_shadow(mxm, ver)) {
@@ -268,7 +268,7 @@ nvkm_mxm_new_(struct nvkm_device *device, int index, struct nvkm_mxm **pmxm)
 #endif
 	}
 
-	nvkm_debug(&mxm->subdev, "MXMS Version %d.%d\n",
+	nvkm_de(&mxm->subdev, "MXMS Version %d.%d\n",
 		   mxms_version(mxm) >> 8, mxms_version(mxm) & 0xff);
 	mxms_foreach(mxm, 0, NULL, NULL);
 

@@ -109,7 +109,7 @@ static int mthca_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_m
 	struct page *page;
 
 	/*
-	 * Use __GFP_ZERO because buggy firmware assumes ICM pages are
+	 * Use __GFP_ZERO because gy firmware assumes ICM pages are
 	 * cleared, and subtle failures are seen if they aren't.
 	 */
 	page = alloc_pages(gfp_mask | __GFP_ZERO, order);
@@ -129,7 +129,7 @@ static int mthca_alloc_icm_coherent(struct device *dev, struct scatterlist *mem,
 		return -ENOMEM;
 
 	sg_set_buf(mem, buf, PAGE_SIZE << order);
-	BUG_ON(mem->offset);
+	_ON(mem->offset);
 	sg_dma_len(mem) = PAGE_SIZE << order;
 	return 0;
 }
@@ -143,7 +143,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 	int ret;
 
 	/* We use sg_set_buf for coherent allocs, which assumes low memory */
-	BUG_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
+	_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
 
 	icm = kmalloc(sizeof *icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 	if (!icm)

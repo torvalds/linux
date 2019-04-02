@@ -27,7 +27,7 @@ static int orangefs_create(struct inode *dir,
 	struct iattr iattr;
 	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %pd\n",
+	gossip_de(GOSSIP_NAME_DE, "%s: %pd\n",
 		     __func__,
 		     dentry);
 
@@ -45,7 +45,7 @@ static int orangefs_create(struct inode *dir,
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: %pd: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
 		     __func__,
 		     dentry,
@@ -68,7 +68,7 @@ static int orangefs_create(struct inode *dir,
 		goto out;
 	}
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: Assigned inode :%pU: for file :%pd:\n",
 		     __func__,
 		     get_khandle_from_ino(inode),
@@ -79,7 +79,7 @@ static int orangefs_create(struct inode *dir,
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: dentry instantiated for %pd\n",
 		     __func__,
 		     dentry);
@@ -92,7 +92,7 @@ static int orangefs_create(struct inode *dir,
 	ret = 0;
 out:
 	op_release(new_op);
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: %pd: returning %d\n",
 		     __func__,
 		     dentry,
@@ -120,7 +120,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 	 * -EEXIST on O_EXCL opens, which is broken if we skip this lookup
 	 * in the create path)
 	 */
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %pd\n",
+	gossip_de(GOSSIP_NAME_DE, "%s called on %pd\n",
 		     __func__, dentry);
 
 	if (dentry->d_name.len > (ORANGEFS_NAME_MAX - 1))
@@ -132,7 +132,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	new_op->upcall.req.lookup.sym_follow = ORANGEFS_LOOKUP_LINK_NO_FOLLOW;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s:%s:%d using parent %pU\n",
+	gossip_de(GOSSIP_NAME_DE, "%s:%s:%d using parent %pU\n",
 		     __FILE__,
 		     __func__,
 		     __LINE__,
@@ -142,7 +142,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 	strncpy(new_op->upcall.req.lookup.d_name, dentry->d_name.name,
 		ORANGEFS_NAME_MAX - 1);
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: doing lookup on %s under %pU,%d\n",
 		     __func__,
 		     new_op->upcall.req.lookup.d_name,
@@ -151,7 +151,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Lookup Got %pU, fsid %d (ret=%d)\n",
 		     &new_op->downcall.resp.lookup.refn.khandle,
 		     new_op->downcall.resp.lookup.refn.fs_id,
@@ -180,7 +180,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	struct iattr iattr;
 	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: called on %pd\n"
 		     "  (inode %pU): Parent is %pU | fs_id %d\n",
 		     __func__,
@@ -200,7 +200,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = service_operation(new_op, "orangefs_unlink",
 				get_interruptible_flag(inode));
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "%s: service_operation returned:%d:\n",
 		     __func__,
 		     ret);
@@ -231,7 +231,7 @@ static int orangefs_symlink(struct inode *dir,
 	int mode = 755;
 	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);
+	gossip_de(GOSSIP_NAME_DE, "%s: called\n", __func__);
 
 	if (!symname)
 		return -EINVAL;
@@ -256,13 +256,13 @@ static int orangefs_symlink(struct inode *dir,
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Symlink Got ORANGEFS handle %pU on fsid %d (ret=%d)\n",
 		     &new_op->downcall.resp.sym.refn.khandle,
 		     new_op->downcall.resp.sym.refn.fs_id, ret);
 
 	if (ret < 0) {
-		gossip_debug(GOSSIP_NAME_DEBUG,
+		gossip_de(GOSSIP_NAME_DE,
 			    "%s: failed with error code %d\n",
 			    __func__, ret);
 		goto out;
@@ -285,7 +285,7 @@ static int orangefs_symlink(struct inode *dir,
 	 */
 	inode->i_size = strlen(symname);
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Assigned symlink inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
@@ -294,7 +294,7 @@ static int orangefs_symlink(struct inode *dir,
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Inode (Symlink) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
 		     dentry);
@@ -333,13 +333,13 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Mkdir Got ORANGEFS handle %pU on fsid %d\n",
 		     &new_op->downcall.resp.mkdir.refn.khandle,
 		     new_op->downcall.resp.mkdir.refn.fs_id);
 
 	if (ret < 0) {
-		gossip_debug(GOSSIP_NAME_DEBUG,
+		gossip_de(GOSSIP_NAME_DE,
 			     "%s: failed with error code %d\n",
 			     __func__, ret);
 		goto out;
@@ -354,7 +354,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		goto out;
 	}
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Assigned dir inode new number of %pU\n",
 		     get_khandle_from_ino(inode));
 
@@ -363,7 +363,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "Inode (Directory) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
 		     dentry);
@@ -394,7 +394,7 @@ static int orangefs_rename(struct inode *old_dir,
 	if (flags)
 		return -EINVAL;
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "orangefs_rename: called (%pd2 => %pd2) ct=%d\n",
 		     old_dentry, new_dentry, d_count(new_dentry));
 
@@ -418,7 +418,7 @@ static int orangefs_rename(struct inode *old_dir,
 				"orangefs_rename",
 				get_interruptible_flag(old_dentry->d_inode));
 
-	gossip_debug(GOSSIP_NAME_DEBUG,
+	gossip_de(GOSSIP_NAME_DE,
 		     "orangefs_rename: got downcall status %d\n",
 		     ret);
 

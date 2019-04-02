@@ -17,9 +17,9 @@
  *****************************************************************************/
 
 /*
- * ACPI_DEBUG_OUTPUT    - This switch enables all the debug facilities of the
- *                        ACPI subsystem.  This includes the DEBUG_PRINT output
- *                        statements.  When disabled, all DEBUG_PRINT
+ * ACPI_DE_OUTPUT    - This switch enables all the de facilities of the
+ *                        ACPI subsystem.  This includes the DE_PRINT output
+ *                        statements.  When disabled, all DE_PRINT
  *                        statements are compiled out.
  *
  * ACPI_APPLICATION     - Use this switch if the subsystem is going to be run
@@ -213,14 +213,14 @@
 
 /******************************************************************************
  *
- * ACPI AML Debugger
+ * ACPI AML Deger
  *
  *****************************************************************************/
 
-#define ACPI_DEBUGGER_MAX_ARGS          ACPI_METHOD_NUM_ARGS + 4	/* Max command line arguments */
+#define ACPI_DEGER_MAX_ARGS          ACPI_METHOD_NUM_ARGS + 4	/* Max command line arguments */
 #define ACPI_DB_LINE_BUFFER_SIZE        512
 
-#define ACPI_DEBUGGER_COMMAND_PROMPT    '-'
-#define ACPI_DEBUGGER_EXECUTE_PROMPT    '%'
+#define ACPI_DEGER_COMMAND_PROMPT    '-'
+#define ACPI_DEGER_EXECUTE_PROMPT    '%'
 
 #endif				/* _ACCONFIG_H */

@@ -19,7 +19,7 @@
 #define HIF_OPS_H
 
 #include "hif.h"
-#include "debug.h"
+#include "de.h"
 
 static inline int hif_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 				      u32 len, u32 request)

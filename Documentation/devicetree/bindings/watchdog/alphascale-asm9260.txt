@@ -18,7 +18,7 @@ Optional properties:
 - alphascale,mode : three modes are supported
 	"hw" - hw reset (default).
 	"sw" - sw reset.
-	"debug" - no action is taken.
+	"de" - no action is taken.
 
 Example:
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for OMAP3 ISP driver
 
-ccflags-$(CONFIG_VIDEO_OMAP3_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_VIDEO_OMAP3_DE) += -DDE
 
 omap3-isp-objs += \
 	isp.o ispvideo.o \

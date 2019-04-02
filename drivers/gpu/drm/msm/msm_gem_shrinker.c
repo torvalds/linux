@@ -45,7 +45,7 @@ static bool msm_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 		return true;
 	}
 
-	BUG();
+	();
 }
 
 static unsigned long

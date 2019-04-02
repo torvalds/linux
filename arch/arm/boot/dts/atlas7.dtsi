@@ -277,10 +277,10 @@
 				};
 			};
 
-			ca_pcm_debug_pmx: ca_pcm_debug@0 {
-				ca_pcm_debug {
-					groups = "ca_pcm_debug_grp";
-					function = "ca_pcm_debug";
+			ca_pcm_de_pmx: ca_pcm_de@0 {
+				ca_pcm_de {
+					groups = "ca_pcm_de_grp";
+					function = "ca_pcm_de";
 				};
 			};
 
@@ -291,10 +291,10 @@
 				};
 			};
 
-			ca_sdio_debug_pmx: ca_sdio_debug@0 {
-				ca_sdio_debug {
-					groups = "ca_sdio_debug_grp";
-					function = "ca_sdio_debug";
+			ca_sdio_de_pmx: ca_sdio_de@0 {
+				ca_sdio_de {
+					groups = "ca_sdio_de_grp";
+					function = "ca_sdio_de";
 				};
 			};
 
@@ -312,10 +312,10 @@
 				};
 			};
 
-			ca_uart_debug_pmx: ca_uart_debug@0 {
-				ca_uart_debug {
-					groups = "ca_uart_debug_grp";
-					function = "ca_uart_debug";
+			ca_uart_de_pmx: ca_uart_de@0 {
+				ca_uart_de {
+					groups = "ca_uart_de_grp";
+					function = "ca_uart_de";
 				};
 			};
 

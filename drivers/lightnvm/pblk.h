@@ -214,7 +214,7 @@ struct pblk_rb {
 	spinlock_t w_lock;		/* Write lock */
 	spinlock_t s_lock;		/* Sync lock */
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	atomic_t inflight_flush_point;	/* Not served REQ_FLUSH | REQ_FUA */
 #endif
 };
@@ -664,8 +664,8 @@ struct pblk {
 	u64 nr_flush_rst;		/* Flushes reset value for pad dist.*/
 	atomic64_t nr_flush;		/* Number of flush/fua I/O */
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
-	/* Non-persistent debug counters, 4kb sector I/Os */
+#ifdef CONFIG_NVM_PBLK_DE
+	/* Non-persistent de counters, 4kb sector I/Os */
 	atomic_long_t inflight_writes;	/* Inflight writes (user and gc) */
 	atomic_long_t padded_writes;	/* Sectors padded due to flush/fua */
 	atomic_long_t padded_wb;	/* Sectors padded in write buffer */
@@ -737,8 +737,8 @@ struct pblk_line_ws {
 	pr_info("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
 #define pblk_warn(pblk, fmt, ...)			\
 	pr_warn("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
-#define pblk_debug(pblk, fmt, ...)			\
-	pr_debug("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
+#define pblk_de(pblk, fmt, ...)			\
+	pr_de("pblk %s: " fmt, pblk->disk->disk_name, ##__VA_ARGS__)
 
 /*
  * pblk ring buffer operations
@@ -1229,7 +1229,7 @@ static inline int pblk_io_aligned(struct pblk *pblk, int nr_secs)
 	return !(nr_secs % pblk->min_write_pgs);
 }
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 static inline void print_ppa(struct pblk *pblk, struct ppa_addr *p,
 			     char *msg, int error)
 {

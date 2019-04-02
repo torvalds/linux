@@ -32,7 +32,7 @@
 #include "amdgpu_amdkfd.h"
 
 /* Special VM and GART address alignment needed for VI pre-Fiji due to
- * a HW bug.
+ * a HW .
  */
 #define VI_BO_SIZE_ALIGN (0x8000)
 
@@ -106,7 +106,7 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 	spin_lock_init(&kfd_mem_limit.mem_limit_lock);
 	kfd_mem_limit.max_system_mem_limit = (mem >> 1) + (mem >> 2);
 	kfd_mem_limit.max_ttm_mem_limit = (mem >> 1) - (mem >> 3);
-	pr_debug("Kernel memory limit %lluM, TTM limit %lluM\n",
+	pr_de("Kernel memory limit %lluM, TTM limit %lluM\n",
 		(kfd_mem_limit.max_system_mem_limit >> 20),
 		(kfd_mem_limit.max_ttm_mem_limit >> 20));
 }
@@ -389,7 +389,7 @@ static int add_bo_to_vm(struct amdgpu_device *adev, struct kgd_mem *mem,
 	if (!bo_va_entry)
 		return -ENOMEM;
 
-	pr_debug("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
+	pr_de("\t add VA 0x%llx - 0x%llx to vm %p\n", va,
 			va + bo_size, vm);
 
 	/* Add BO to VM internal data structures*/
@@ -438,7 +438,7 @@ err_vmadd:
 static void remove_bo_from_vm(struct amdgpu_device *adev,
 		struct kfd_bo_va_list *entry, unsigned long size)
 {
-	pr_debug("\t remove VA 0x%llx - 0x%llx in entry %p\n",
+	pr_de("\t remove VA 0x%llx - 0x%llx in entry %p\n",
 			entry->va,
 			entry->va + size, entry);
 	amdgpu_vm_bo_rmv(adev, entry->bo_va);
@@ -1048,7 +1048,7 @@ void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm)
 	if (WARN_ON(!kgd || !vm))
 		return;
 
-	pr_debug("Destroying process vm %p\n", vm);
+	pr_de("Destroying process vm %p\n", vm);
 
 	/* Release the VM context */
 	amdgpu_vm_fini(adev, avm);
@@ -1063,7 +1063,7 @@ void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm)
 	if (WARN_ON(!kgd || !vm))
                 return;
 
-        pr_debug("Releasing process vm %p\n", vm);
+        pr_de("Releasing process vm %p\n", vm);
 
         /* The original pasid of amdgpu vm has already been
          * released during making a amdgpu vm to a compute vm
@@ -1145,14 +1145,14 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	mutex_init(&(*mem)->lock);
 	(*mem)->aql_queue = !!(flags & ALLOC_MEM_FLAGS_AQL_QUEUE_MEM);
 
-	/* Workaround for AQL queue wraparound bug. Map the same
+	/* Workaround for AQL queue wraparound . Map the same
 	 * memory twice. That means we only actually allocate half
 	 * the memory.
 	 */
 	if ((*mem)->aql_queue)
 		size = size >> 1;
 
-	/* Workaround for TLB bug on older VI chips */
+	/* Workaround for TLB  on older VI chips */
 	byte_align = (adev->family == AMDGPU_FAMILY_VI &&
 			adev->asic_type != CHIP_FIJI &&
 			adev->asic_type != CHIP_POLARIS10 &&
@@ -1175,11 +1175,11 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 
 	ret = amdgpu_amdkfd_reserve_mem_limit(adev, size, alloc_domain, !!sg);
 	if (ret) {
-		pr_debug("Insufficient system memory\n");
+		pr_de("Insufficient system memory\n");
 		goto err_reserve_limit;
 	}
 
-	pr_debug("\tcreate BO VA 0x%llx size 0x%llx domain %s\n",
+	pr_de("\tcreate BO VA 0x%llx size 0x%llx domain %s\n",
 			va, size, domain_string(alloc_domain));
 
 	memset(&bp, 0, sizeof(bp));
@@ -1191,7 +1191,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	bp.resv = NULL;
 	ret = amdgpu_bo_create(adev, &bp, &bo);
 	if (ret) {
-		pr_debug("Failed to create BO on domain %s. ret %d\n",
+		pr_de("Failed to create BO on domain %s. ret %d\n",
 				domain_string(alloc_domain), ret);
 		goto err_bo_create;
 	}
@@ -1255,7 +1255,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	mutex_lock(&mem->lock);
 
 	if (mem->mapped_to_gpu_memory > 0) {
-		pr_debug("BO VA 0x%llx size 0x%lx is still mapped.\n",
+		pr_de("BO VA 0x%llx size 0x%lx is still mapped.\n",
 				mem->va, bo_size);
 		mutex_unlock(&mem->lock);
 		return -EBUSY;
@@ -1277,7 +1277,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 
 	/* Free user pages if necessary */
 	if (mem->user_pages) {
-		pr_debug("%s: Freeing user_pages array\n", __func__);
+		pr_de("%s: Freeing user_pages array\n", __func__);
 		if (mem->user_pages[0])
 			release_pages(mem->user_pages,
 					mem->bo->tbo.ttm->num_pages);
@@ -1294,7 +1294,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 */
 	amdgpu_amdkfd_remove_eviction_fence(mem->bo,
 					process_info->eviction_fence);
-	pr_debug("Release VA 0x%llx - 0x%llx\n", mem->va,
+	pr_de("Release VA 0x%llx - 0x%llx\n", mem->va,
 		mem->va + bo_size * (1 + mem->aql_queue));
 
 	/* Remove from VM internal data structures */
@@ -1365,7 +1365,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	domain = mem->domain;
 	bo_size = bo->tbo.mem.size;
 
-	pr_debug("Map VA 0x%llx - 0x%llx to vm %p domain %s\n",
+	pr_de("Map VA 0x%llx - 0x%llx to vm %p domain %s\n",
 			mem->va,
 			mem->va + bo_size * (1 + mem->aql_queue),
 			vm, domain_string(domain));
@@ -1408,14 +1408,14 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 		 */
 		ret = amdgpu_amdkfd_bo_validate(bo, domain, true);
 		if (ret) {
-			pr_debug("Validate failed\n");
+			pr_de("Validate failed\n");
 			goto map_bo_to_gpuvm_failed;
 		}
 	}
 
 	list_for_each_entry(entry, &mem->bo_va_list, bo_list) {
 		if (entry->bo_va->base.vm == vm && !entry->is_mapped) {
-			pr_debug("\t map VA 0x%llx - 0x%llx in entry %p\n",
+			pr_de("\t map VA 0x%llx - 0x%llx in entry %p\n",
 					entry->va, entry->va + bo_size,
 					entry);
 
@@ -1434,7 +1434,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 
 			entry->is_mapped = true;
 			mem->mapped_to_gpu_memory++;
-			pr_debug("\t INC mapping count %d\n",
+			pr_de("\t INC mapping count %d\n",
 					mem->mapped_to_gpu_memory);
 		}
 	}
@@ -1487,14 +1487,14 @@ int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 	if (unlikely(ret))
 		goto unreserve_out;
 
-	pr_debug("Unmap VA 0x%llx - 0x%llx from vm %p\n",
+	pr_de("Unmap VA 0x%llx - 0x%llx from vm %p\n",
 		mem->va,
 		mem->va + bo_size * (1 + mem->aql_queue),
 		vm);
 
 	list_for_each_entry(entry, &mem->bo_va_list, bo_list) {
 		if (entry->bo_va->base.vm == vm && entry->is_mapped) {
-			pr_debug("\t unmap VA 0x%llx - 0x%llx from entry %p\n",
+			pr_de("\t unmap VA 0x%llx - 0x%llx from entry %p\n",
 					entry->va,
 					entry->va + bo_size,
 					entry);
@@ -1509,7 +1509,7 @@ int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 			}
 
 			mem->mapped_to_gpu_memory--;
-			pr_debug("\t DEC mapping count %d\n",
+			pr_de("\t DEC mapping count %d\n",
 					mem->mapped_to_gpu_memory);
 		}
 	}
@@ -2047,7 +2047,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 	ret = ttm_eu_reserve_buffers(&ctx.ticket, &ctx.list,
 				     false, &duplicate_save);
 	if (ret) {
-		pr_debug("Memory eviction: TTM Reserve Failed. Try again\n");
+		pr_de("Memory eviction: TTM Reserve Failed. Try again\n");
 		goto ttm_reserve_fail;
 	}
 
@@ -2060,7 +2060,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 
 	ret = process_sync_pds_resv(process_info, &sync_obj);
 	if (ret) {
-		pr_debug("Memory eviction: Failed to sync to PD BO moving fence. Try again\n");
+		pr_de("Memory eviction: Failed to sync to PD BO moving fence. Try again\n");
 		goto validate_map_fail;
 	}
 
@@ -2074,12 +2074,12 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 
 		ret = amdgpu_amdkfd_bo_validate(bo, domain, false);
 		if (ret) {
-			pr_debug("Memory eviction: Validate BOs failed. Try again\n");
+			pr_de("Memory eviction: Validate BOs failed. Try again\n");
 			goto validate_map_fail;
 		}
 		ret = amdgpu_sync_fence(NULL, &sync_obj, bo->tbo.moving, false);
 		if (ret) {
-			pr_debug("Memory eviction: Sync BO fence failed. Try again\n");
+			pr_de("Memory eviction: Sync BO fence failed. Try again\n");
 			goto validate_map_fail;
 		}
 		list_for_each_entry(bo_va_entry, &mem->bo_va_list,
@@ -2089,7 +2089,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 					      bo_va_entry,
 					      &sync_obj);
 			if (ret) {
-				pr_debug("Memory eviction: update PTE failed. Try again\n");
+				pr_de("Memory eviction: update PTE failed. Try again\n");
 				goto validate_map_fail;
 			}
 		}
@@ -2098,7 +2098,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 	/* Update page directories */
 	ret = process_update_pds(process_info, &sync_obj);
 	if (ret) {
-		pr_debug("Memory eviction: update PDs failed. Try again\n");
+		pr_de("Memory eviction: update PDs failed. Try again\n");
 		goto validate_map_fail;
 	}
 

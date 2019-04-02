@@ -57,7 +57,7 @@ find_tracefs_mnt_single(unsigned long magic, char *mnt, const char *mntpt)
 static bool get_tracefs_pipe(char *mnt)
 {
 	static const char * const known_mnts[] = {
-		"/sys/kernel/debug/tracing",
+		"/sys/kernel/de/tracing",
 		"/sys/kernel/tracing",
 		"/tracing",
 		"/trace",
@@ -95,9 +95,9 @@ static bool get_tracefs_pipe(char *mnt)
 		return false;
 
 	p_info("could not find tracefs, attempting to mount it now");
-	/* Most of the time, tracefs is automatically mounted by debugfs at
-	 * /sys/kernel/debug/tracing when we try to access it. If we could not
-	 * find it, it is likely that debugfs is not mounted. Let's give one
+	/* Most of the time, tracefs is automatically mounted by defs at
+	 * /sys/kernel/de/tracing when we try to access it. If we could not
+	 * find it, it is likely that defs is not mounted. Let's give one
 	 * attempt at mounting just tracefs at /sys/kernel/tracing.
 	 */
 	strcpy(mnt, known_mnts[1]);

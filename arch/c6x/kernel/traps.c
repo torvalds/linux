@@ -10,8 +10,8 @@
  */
 #include <linux/module.h>
 #include <linux/ptrace.h>
-#include <linux/sched/debug.h>
-#include <linux/bug.h>
+#include <linux/sched/de.h>
+#include <linux/.h>
 
 #include <asm/soc.h>
 #include <asm/special_insns.h>
@@ -352,7 +352,7 @@ static void show_trace(unsigned long *stack, unsigned long *endstack)
 	unsigned long addr;
 	int i;
 
-	pr_debug("Call trace:");
+	pr_de("Call trace:");
 	i = 0;
 	while (stack + 1 <= endstack) {
 		addr = *stack++;
@@ -367,13 +367,13 @@ static void show_trace(unsigned long *stack, unsigned long *endstack)
 		if (__kernel_text_address(addr)) {
 #ifndef CONFIG_KALLSYMS
 			if (i % 5 == 0)
-				pr_debug("\n	    ");
+				pr_de("\n	    ");
 #endif
-			pr_debug(" [<%08lx>] %pS\n", addr, (void *)addr);
+			pr_de(" [<%08lx>] %pS\n", addr, (void *)addr);
 			i++;
 		}
 	}
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 void show_stack(struct task_struct *task, unsigned long *stack)
@@ -392,7 +392,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	endstack = (unsigned long *)(((unsigned long)stack + THREAD_SIZE - 1)
 				     & -THREAD_SIZE);
 
-	pr_debug("Stack from %08lx:", (unsigned long)stack);
+	pr_de("Stack from %08lx:", (unsigned long)stack);
 	for (i = 0, p = stack; i < kstack_depth_to_print; i++) {
 		if (p + 1 > endstack)
 			break;
@@ -404,7 +404,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	show_trace(stack, endstack);
 }
 
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	return __kernel_text_address(addr);
 }

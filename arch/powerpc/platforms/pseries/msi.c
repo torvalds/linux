@@ -64,7 +64,7 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 	else if (rc > 0)
 		rc = -rc;
 
-	pr_debug("rtas_msi: ibm,change_msi(func=%d,num=%d), got %d rc = %d\n",
+	pr_de("rtas_msi: ibm,change_msi(func=%d,num=%d), got %d rc = %d\n",
 		 func, num_irqs, rtas_ret[0], rc);
 
 	return rc;
@@ -87,7 +87,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 		 * present
 		 */
 		if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0) {
-			pr_debug("rtas_msi: Setting MSIs to 0 failed!\n");
+			pr_de("rtas_msi: Setting MSIs to 0 failed!\n");
 		}
 	}
 }
@@ -107,7 +107,7 @@ static int rtas_query_irq_number(struct pci_dn *pdn, int offset)
 	} while (rtas_busy_delay(rc));
 
 	if (rc) {
-		pr_debug("rtas_msi: error (%d) querying source number\n", rc);
+		pr_de("rtas_msi: error (%d) querying source number\n", rc);
 		return rc;
 	}
 
@@ -139,13 +139,13 @@ static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 
 	p = of_get_property(dn, prop_name, NULL);
 	if (!p) {
-		pr_debug("rtas_msi: No %s on %pOF\n", prop_name, dn);
+		pr_de("rtas_msi: No %s on %pOF\n", prop_name, dn);
 		return -ENOENT;
 	}
 
 	req_msi = be32_to_cpup(p);
 	if (req_msi < nvec) {
-		pr_debug("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
+		pr_de("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
 
 		if (req_msi == 0) /* Be paranoid */
 			return -ENOSPC;
@@ -177,7 +177,7 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 	while (dn) {
 		p = of_get_property(dn, "ibm,pe-total-#msi", NULL);
 		if (p) {
-			pr_debug("rtas_msi: found prop on dn %pOF\n",
+			pr_de("rtas_msi: found prop on dn %pOF\n",
 				dn);
 			*total = be32_to_cpup(p);
 			return dn;
@@ -216,7 +216,7 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 
 	/* Hardcode of 8 for old firmwares */
 	*total = 8;
-	pr_debug("rtas_msi: using PE dn %pOF\n", dn);
+	pr_de("rtas_msi: using PE dn %pOF\n", dn);
 
 	return dn;
 }
@@ -236,7 +236,7 @@ static void *count_non_bridge_devices(struct device_node *dn, void *data)
 	const __be32 *p;
 	u32 class;
 
-	pr_debug("rtas_msi: counting %pOF\n", dn);
+	pr_de("rtas_msi: counting %pOF\n", dn);
 
 	p = of_get_property(dn, "class-code", NULL);
 	class = p ? be32_to_cpup(p) : 0;
@@ -282,7 +282,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 	struct msi_counts counts;
 	int total;
 
-	pr_debug("rtas_msi: calc quota for %s, request %d\n", pci_name(dev),
+	pr_de("rtas_msi: calc quota for %s, request %d\n", pci_name(dev),
 		  request);
 
 	pe_dn = find_pe_total_msi(dev, &total);
@@ -294,7 +294,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 		goto out;
 	}
 
-	pr_debug("rtas_msi: found PE %pOF\n", pe_dn);
+	pr_de("rtas_msi: found PE %pOF\n", pe_dn);
 
 	memset(&counts, 0, sizeof(struct msi_counts));
 
@@ -327,7 +327,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 	/* And finally clamp the request to the possibly adjusted quota */
 	request = min(counts.quota, request);
 
-	pr_debug("rtas_msi: request clamped to quota %d\n", request);
+	pr_de("rtas_msi: request clamped to quota %d\n", request);
 out:
 	of_node_put(pe_dn);
 
@@ -346,7 +346,7 @@ static int check_msix_entries(struct pci_dev *pdev)
 	expected = 0;
 	for_each_pci_msi_entry(entry, pdev) {
 		if (entry->msi_attrib.entry_nr != expected) {
-			pr_debug("rtas_msi: bad MSI-X entries.\n");
+			pr_de("rtas_msi: bad MSI-X entries.\n");
 			return -EINVAL;
 		}
 		expected++;
@@ -437,7 +437,7 @@ again:
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
 
 		if (rc < 0) {
-			pr_debug("rtas_msi: trying the old firmware call.\n");
+			pr_de("rtas_msi: trying the old firmware call.\n");
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_FN, nvec);
 		}
 
@@ -451,7 +451,7 @@ again:
 			nvec = nvec_in;
 			goto again;
 		}
-		pr_debug("rtas_msi: rtas_change_msi() failed\n");
+		pr_de("rtas_msi: rtas_change_msi() failed\n");
 		return rc;
 	}
 
@@ -459,14 +459,14 @@ again:
 	for_each_pci_msi_entry(entry, pdev) {
 		hwirq = rtas_query_irq_number(pdn, i++);
 		if (hwirq < 0) {
-			pr_debug("rtas_msi: error (%d) getting hwirq\n", rc);
+			pr_de("rtas_msi: error (%d) getting hwirq\n", rc);
 			return hwirq;
 		}
 
 		virq = irq_create_mapping(NULL, hwirq);
 
 		if (!virq) {
-			pr_debug("rtas_msi: Failed mapping hwirq %d\n", hwirq);
+			pr_de("rtas_msi: Failed mapping hwirq %d\n", hwirq);
 			return -ENOSPC;
 		}
 
@@ -508,11 +508,11 @@ static int rtas_msi_init(void)
 
 	if ((query_token == RTAS_UNKNOWN_SERVICE) ||
 			(change_token == RTAS_UNKNOWN_SERVICE)) {
-		pr_debug("rtas_msi: no RTAS tokens, no MSI support.\n");
+		pr_de("rtas_msi: no RTAS tokens, no MSI support.\n");
 		return -1;
 	}
 
-	pr_debug("rtas_msi: Registering RTAS MSI callbacks.\n");
+	pr_de("rtas_msi: Registering RTAS MSI callbacks.\n");
 
 	WARN_ON(pseries_pci_controller_ops.setup_msi_irqs);
 	pseries_pci_controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;

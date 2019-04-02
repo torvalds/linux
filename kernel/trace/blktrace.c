@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
@@ -309,10 +309,10 @@ record_it:
 
 static void blk_trace_free(struct blk_trace *bt)
 {
-	debugfs_remove(bt->msg_file);
-	debugfs_remove(bt->dropped_file);
+	defs_remove(bt->msg_file);
+	defs_remove(bt->dropped_file);
 	relay_close(bt->rchan);
-	debugfs_remove(bt->dir);
+	defs_remove(bt->dir);
 	free_percpu(bt->sequence);
 	free_percpu(bt->msg_data);
 	kfree(bt);
@@ -430,7 +430,7 @@ static int blk_subbuf_start_callback(struct rchan_buf *buf, void *subbuf,
 
 static int blk_remove_buf_file_callback(struct dentry *dentry)
 {
-	debugfs_remove(dentry);
+	defs_remove(dentry);
 
 	return 0;
 }
@@ -441,7 +441,7 @@ static struct dentry *blk_create_buf_file_callback(const char *filename,
 						   struct rchan_buf *buf,
 						   int *is_global)
 {
-	return debugfs_create_file(filename, mode, parent, buf,
+	return defs_create_file(filename, mode, parent, buf,
 					&relay_file_operations);
 }
 
@@ -482,7 +482,7 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
 
-	if (!blk_debugfs_root)
+	if (!blk_defs_root)
 		return -ENOENT;
 
 	strncpy(buts->name, name, BLKTRACE_BDEV_SIZE);
@@ -509,9 +509,9 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 
 	ret = -ENOENT;
 
-	dir = debugfs_lookup(buts->name, blk_debugfs_root);
+	dir = defs_lookup(buts->name, blk_defs_root);
 	if (!dir)
-		bt->dir = dir = debugfs_create_dir(buts->name, blk_debugfs_root);
+		bt->dir = dir = defs_create_dir(buts->name, blk_defs_root);
 	if (!dir)
 		goto err;
 
@@ -520,12 +520,12 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	INIT_LIST_HEAD(&bt->running_list);
 
 	ret = -EIO;
-	bt->dropped_file = debugfs_create_file("dropped", 0444, dir, bt,
+	bt->dropped_file = defs_create_file("dropped", 0444, dir, bt,
 					       &blk_dropped_fops);
 	if (!bt->dropped_file)
 		goto err;
 
-	bt->msg_file = debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
+	bt->msg_file = defs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
 	if (!bt->msg_file)
 		goto err;
 

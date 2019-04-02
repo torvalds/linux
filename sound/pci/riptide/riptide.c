@@ -844,7 +844,7 @@ static int sendcmd(struct cmdif *cif, u32 flags, u32 cmd, u32 parm,
 	struct riptideport *hwport;
 	struct cmdport *cmdport = NULL;
 
-	if (snd_BUG_ON(!cif))
+	if (snd__ON(!cif))
 		return -EINVAL;
 
 	hwport = cif->hwport;
@@ -1460,7 +1460,7 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 	int err = 0;
 	snd_pcm_format_t format;
 
-	if (snd_BUG_ON(!cif || !data))
+	if (snd__ON(!cif || !data))
 		return -EINVAL;
 
 	snd_printdd("prepare id %d ch: %d f:0x%x r:%d\n", data->id,
@@ -1746,7 +1746,7 @@ snd_riptide_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 	union cmdret rptr = CMDRET_ZERO;
 	int i = 0;
 
-	if (snd_BUG_ON(!cif))
+	if (snd__ON(!cif))
 		return;
 
 	snd_printdd("Write AC97 reg 0x%x 0x%x\n", reg, val);
@@ -1765,7 +1765,7 @@ static unsigned short snd_riptide_codec_read(struct snd_ac97 *ac97,
 	struct cmdif *cif = chip->cif;
 	union cmdret rptr = CMDRET_ZERO;
 
-	if (snd_BUG_ON(!cif))
+	if (snd__ON(!cif))
 		return 0;
 
 	if (SEND_RACR(cif, reg, &rptr) != 0)
@@ -1780,7 +1780,7 @@ static int snd_riptide_initialize(struct snd_riptide *chip)
 	unsigned int device_id;
 	int err;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return -EINVAL;
 
 	cif = chip->cif;

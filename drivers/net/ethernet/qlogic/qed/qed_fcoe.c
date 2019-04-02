@@ -175,7 +175,7 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 	tmp = cpu_to_le16(fcoe_pf_params->num_tasks);
 	p_data->func_params.num_tasks = tmp;
 	p_data->func_params.log_page_size = fcoe_pf_params->log_page_size;
-	p_data->func_params.debug_mode = fcoe_pf_params->debug_mode;
+	p_data->func_params.de_mode = fcoe_pf_params->de_mode;
 
 	DMA_REGPAIR_LE(p_data->q_params.glbl_q_params_addr,
 		       fcoe_pf_params->glbl_q_params_addr);

@@ -17,7 +17,7 @@
 
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/irq_work.h>
@@ -285,7 +285,7 @@ void printk_safe_flush_on_panic(void)
 		if (num_online_cpus() > 1)
 			return;
 
-		debug_locks_off();
+		de_locks_off();
 		raw_spin_lock_init(&logbuf_lock);
 	}
 

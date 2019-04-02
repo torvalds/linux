@@ -94,7 +94,7 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 
 	lock_page(page);
 	err = ufs_prepare_chunk(page, pos, len);
-	BUG_ON(err);
+	_ON(err);
 
 	de->d_ino = cpu_to_fs32(dir->i_sb, inode->i_ino);
 	ufs_set_de_type(dir->i_sb, de, inode->i_mode);
@@ -367,7 +367,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 		unlock_page(page);
 		ufs_put_page(page);
 	}
-	BUG();
+	();
 	return -EINVAL;
 
 got_it:
@@ -527,7 +527,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 	pos = page_offset(page) + from;
 	lock_page(page);
 	err = ufs_prepare_chunk(page, pos, to - from);
-	BUG_ON(err);
+	_ON(err);
 	if (pde)
 		pde->d_reclen = cpu_to_fs16(sb, to - from);
 	dir->d_ino = 0;

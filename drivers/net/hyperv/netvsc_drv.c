@@ -64,9 +64,9 @@ static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 				NETIF_MSG_IFDOWN | NETIF_MSG_RX_ERR |
 				NETIF_MSG_TX_ERR;
 
-static int debug = -1;
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static LIST_HEAD(netvsc_dev_list);
 
@@ -563,7 +563,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		goto no_memory;
 
 	/* Use the skb control buffer for building up the packet */
-	BUILD_BUG_ON(sizeof(struct hv_netvsc_packet) >
+	BUILD__ON(sizeof(struct hv_netvsc_packet) >
 			FIELD_SIZEOF(struct sk_buff, cb));
 	packet = (struct hv_netvsc_packet *)skb->cb;
 
@@ -2233,7 +2233,7 @@ static int netvsc_probe(struct hv_device *dev,
 
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = dev;
-	net_device_ctx->msg_enable = netif_msg_init(debug, default_msg);
+	net_device_ctx->msg_enable = netif_msg_init(de, default_msg);
 	if (netif_msg_probe(net_device_ctx))
 		netdev_dbg(net, "netvsc msg_enable: %d\n",
 			   net_device_ctx->msg_enable);

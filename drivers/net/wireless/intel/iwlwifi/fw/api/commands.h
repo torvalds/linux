@@ -83,7 +83,7 @@
  *	&enum iwl_prot_offload_subcmd_ids
  * @REGULATORY_AND_NVM_GROUP: regulatory/NVM group, uses command IDs from
  *	&enum iwl_regulatory_and_nvm_subcmd_ids
- * @DEBUG_GROUP: Debug group, uses command IDs from &enum iwl_debug_cmds
+ * @DE_GROUP: De group, uses command IDs from &enum iwl_de_cmds
  */
 enum iwl_mvm_command_groups {
 	LEGACY_GROUP = 0x0,
@@ -96,7 +96,7 @@ enum iwl_mvm_command_groups {
 	LOCATION_GROUP = 0x8,
 	PROT_OFFLOAD_GROUP = 0xb,
 	REGULATORY_AND_NVM_GROUP = 0xc,
-	DEBUG_GROUP = 0xf,
+	DE_GROUP = 0xf,
 };
 
 /**
@@ -132,7 +132,7 @@ enum iwl_legacy_cmds {
 	PHY_CONTEXT_CMD = 0x8,
 
 	/**
-	 * @DBG_CFG: Debug configuration command.
+	 * @DBG_CFG: De configuration command.
 	 */
 	DBG_CFG = 0x9,
 
@@ -548,9 +548,9 @@ enum iwl_legacy_cmds {
 	LDBG_CONFIG_CMD = 0xf6,
 
 	/**
-	 * @DEBUG_LOG_MSG: Debugging log data from firmware
+	 * @DE_LOG_MSG: Deging log data from firmware
 	 */
-	DEBUG_LOG_MSG = 0xf7,
+	DE_LOG_MSG = 0xf7,
 
 	/**
 	 * @BCAST_FILTER_CMD: &struct iwl_bcast_filter_cmd

@@ -281,7 +281,7 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 	       priv->lib->bt_params->advanced_bt_coexist;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 const char *iwl_get_tx_fail_reason(u32 status);
 const char *iwl_get_agg_tx_fail_reason(u16 status);
 #else
@@ -387,7 +387,7 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 
 int iwl_alive_start(struct iwl_priv *priv);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     enum iwl_rxon_context_id ctxid);
 #else
@@ -438,31 +438,31 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 	iwl_trans_set_pmi(priv->trans, state);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir);
 #else
 static inline void iwl_dbgfs_register(struct iwl_priv *priv,
 				      struct dentry *dbgfs_dir) { }
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_IWLWIFI_DEFS */
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
+#ifdef CONFIG_IWLWIFI_DE
+#define IWL_DE_QUIET_RFKILL(m, fmt, args...)	\
 do {									\
 	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
 		__iwl_err((m)->dev, true,				\
-			  !iwl_have_debug_level(IWL_DL_RADIO),		\
+			  !iwl_have_de_level(IWL_DL_RADIO),		\
 			  fmt, ##args);					\
 } while (0)
 #else
-#define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
+#define IWL_DE_QUIET_RFKILL(m, fmt, args...)	\
 do {									\
 	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
 		__iwl_err((m)->dev, true, true, fmt, ##args);	\
 } while (0)
-#endif				/* CONFIG_IWLWIFI_DEBUG */
+#endif				/* CONFIG_IWLWIFI_DE */
 
 #endif /* __iwl_agn_h__ */

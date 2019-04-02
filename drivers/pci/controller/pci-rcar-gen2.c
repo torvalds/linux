@@ -146,8 +146,8 @@ static int rcar_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-#ifdef CONFIG_PCI_DEBUG
-/* if debug enabled, then attach an error handler irq to the bridge */
+#ifdef CONFIG_PCI_DE
+/* if de enabled, then attach an error handler irq to the bridge */
 
 static irqreturn_t rcar_pci_err_irq(int irq, void *pw)
 {

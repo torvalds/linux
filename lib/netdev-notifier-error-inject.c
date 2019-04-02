@@ -36,7 +36,7 @@ static int netdev_err_inject_init(void)
 
 	err = register_netdevice_notifier(&netdev_notifier_err_inject.nb);
 	if (err)
-		debugfs_remove_recursive(dir);
+		defs_remove_recursive(dir);
 
 	return err;
 }
@@ -44,7 +44,7 @@ static int netdev_err_inject_init(void)
 static void netdev_err_inject_exit(void)
 {
 	unregister_netdevice_notifier(&netdev_notifier_err_inject.nb);
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 }
 
 module_init(netdev_err_inject_init);

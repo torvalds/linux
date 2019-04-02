@@ -122,24 +122,24 @@
  * More cleanups.  Removed query to card on get_stats.
  *
  * Revision 0.13  1996/02/21  16:27:40  root
- * Refix debug_print_skb.  Fix mac.raw gotcha that appeared in 1.3.65.
+ * Refix de_print_skb.  Fix mac.raw gotcha that appeared in 1.3.65.
  * Clean up receive code a little.
  *
  * Revision 0.12  1996/02/19  16:34:53  root
- * Fix debug_print_skb.  Kludge outgoing snet to 0 when using startup
- * range.  Change debug to mask: 1 for verbose, 2 for higher level stuff
+ * Fix de_print_skb.  Kludge outgoing snet to 0 when using startup
+ * range.  Change de to mask: 1 for verbose, 2 for higher level stuff
  * including packet printing, 4 for lower level (card i/o) stuff.
  *
  * Revision 0.11  1996/02/12  15:53:38  root
  * Added router sends (requires new aarp.c patch)
  *
  * Revision 0.10  1996/02/11  00:19:35  root
- * Change source LTALK_LOGGING debug switch to insmod ... debug=2.
+ * Change source LTALK_LOGGING de switch to insmod ... de=2.
  *
  * Revision 0.9  1996/02/10  23:59:35  root
  * Fixed those fixes for 1.2 -- DANGER!  The at.h that comes with netatalk
  * has a *different* definition of struct sockaddr_at than the Linux kernel
- * does.  This is an "insidious and invidious" bug...
+ * does.  This is an "insidious and invidious" ...
  * (Actually the preceding comment is false -- it's the atalk.h in the
  * ancient atalk-0.06 that's the problem)
  *
@@ -147,7 +147,7 @@
  * Merge 1.3 changes.  Tested OK under 1.3.60.
  *
  * Revision 0.7  1996/02/10 17:56:56  root
- * Added debug=1 parameter on insmod for debugging prints.  Tried
+ * Added de=1 parameter on insmod for deging prints.  Tried
  * to fix timer unload on rmmod, but I don't think that's the problem.
  *
  * Revision 0.6  1995/12/31  19:01:09  root
@@ -189,7 +189,7 @@
 */
 
 /*	To have some stuff logged, do 
-*	insmod ltpc.o debug=1
+*	insmod ltpc.o de=1
 *
 *	For a whole bunch of stuff, use higher numbers.
 *
@@ -197,10 +197,10 @@
 */
 
 /* insmod-tweakable variables */
-static int debug;
-#define DEBUG_VERBOSE 1
-#define DEBUG_UPPER 2
-#define DEBUG_LOWER 4
+static int de;
+#define DE_VERBOSE 1
+#define DE_UPPER 2
+#define DE_LOWER 4
 
 static int io;
 static int irq;
@@ -295,7 +295,7 @@ static void enQ(struct xmitQel *qel)
 	xmQtl = qel;
 	spin_unlock_irqrestore(&txqueue_lock, flags);
 
-	if (debug & DEBUG_LOWER)
+	if (de & DE_LOWER)
 		printk("enqueued a 0x%02x command\n",qel->cbuf[0]);
 }
 
@@ -313,9 +313,9 @@ static struct xmitQel *deQ(void)
 	}
 	spin_unlock_irqrestore(&txqueue_lock, flags);
 
-	if ((debug & DEBUG_LOWER) && qel) {
+	if ((de & DE_LOWER) && qel) {
 		int n;
-		printk(KERN_DEBUG "ltpc: dequeued command ");
+		printk(KERN_DE "ltpc: dequeued command ");
 		n = qel->cbuflen;
 		if (n>100) n=100;
 		for(i=0;i<n;i++) printk("%02x ",qel->cbuf[i]);
@@ -529,17 +529,17 @@ loop:
 	switch(state) {
 		case 0xfc:
 			/* incoming command */
-			if (debug & DEBUG_LOWER) printk("idle: fc\n");
+			if (de & DE_LOWER) printk("idle: fc\n");
 			handlefc(dev); 
 			break;
 		case 0xfd:
 			/* incoming data */
-			if(debug & DEBUG_LOWER) printk("idle: fd\n");
+			if(de & DE_LOWER) printk("idle: fd\n");
 			handlefd(dev); 
 			break;
 		case 0xf9:
 			/* result ready */
-			if (debug & DEBUG_LOWER) printk("idle: f9\n");
+			if (de & DE_LOWER) printk("idle: f9\n");
 			if(!mboxinuse[0]) {
 				mboxinuse[0] = 1;
 				qels[0].cbuf = rescbuf;
@@ -568,12 +568,12 @@ loop:
 			break;
 		case 0xfa:
 			/* waiting for command */
-			if(debug & DEBUG_LOWER) printk("idle: fa\n");
+			if(de & DE_LOWER) printk("idle: fa\n");
 			if (xmQhd) {
 				q=deQ();
 				memcpy(ltdmacbuf,q->cbuf,q->cbuflen);
 				ltdmacbuf[1] = q->mailbox;
-				if (debug>1) { 
+				if (de>1) { 
 					int n;
 					printk("ltpc: sent command     ");
 					n = q->cbuflen;
@@ -606,7 +606,7 @@ loop:
 			break;
 		case 0Xfb:
 			/* data transfer ready */
-			if(debug & DEBUG_LOWER) printk("idle: fb\n");
+			if(de & DE_LOWER) printk("idle: fb\n");
 			if(q->QWrite) {
 				memcpy(ltdmabuf,q->dbuf,q->dbuflen);
 				handlewrite(dev);
@@ -823,7 +823,7 @@ static int ltpc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct lt_init c;
 	int ltflags;
 
-	if(debug & DEBUG_VERBOSE) printk("ltpc_ioctl called\n");
+	if(de & DE_VERBOSE) printk("ltpc_ioctl called\n");
 
 	switch(cmd) {
 		case SIOCSIFADDR:
@@ -872,7 +872,7 @@ static void ltpc_poll(struct timer_list *unused)
 {
 	del_timer(&ltpc_timer);
 
-	if(debug & DEBUG_VERBOSE) {
+	if(de & DE_VERBOSE) {
 		if (!ltpc_poll_counter) {
 			ltpc_poll_counter = 50;
 			printk("ltpc poll is alive\n");
@@ -904,7 +904,7 @@ static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 	cbuf.length = skb->len;	/* this is host order */
 	skb_reset_transport_header(skb);
 
-	if(debug & DEBUG_UPPER) {
+	if(de & DE_UPPER) {
 		printk("command ");
 		for(i=0;i<6;i++)
 			printk("%02x ",((unsigned char *)&cbuf)[i]);
@@ -914,7 +914,7 @@ static netdev_tx_t ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 	hdr = skb_transport_header(skb);
 	do_write(dev, &cbuf, sizeof(cbuf), hdr, skb->len);
 
-	if(debug & DEBUG_UPPER) {
+	if(de & DE_UPPER) {
 		printk("sent %d ddp bytes\n",skb->len);
 		for (i = 0; i < skb->len; i++)
 			printk("%02x ", hdr[i]);
@@ -1079,7 +1079,7 @@ struct net_device * __init ltpc_probe(void)
 
 	ltdmacbuf = &ltdmabuf[800];
 
-	if(debug & DEBUG_VERBOSE) {
+	if(de & DE_VERBOSE) {
 		printk("ltdmabuf pointer %08lx\n",(unsigned long) ltdmabuf);
 	}
 
@@ -1145,7 +1145,7 @@ struct net_device * __init ltpc_probe(void)
 		schedule();
 	}
 
-	if(debug & DEBUG_VERBOSE) {
+	if(de & DE_VERBOSE) {
 		printk("setting up timer and irq\n");
 	}
 
@@ -1224,7 +1224,7 @@ static struct net_device *dev_ltpc;
 #ifdef MODULE
 
 MODULE_LICENSE("GPL");
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param_hw(io, int, ioport, 0);
 module_param_hw(irq, int, irq, 0);
 module_param_hw(dma, int, dma, 0);
@@ -1245,33 +1245,33 @@ module_init(ltpc_module_init);
 static void __exit ltpc_cleanup(void)
 {
 
-	if(debug & DEBUG_VERBOSE) printk("unregister_netdev\n");
+	if(de & DE_VERBOSE) printk("unregister_netdev\n");
 	unregister_netdev(dev_ltpc);
 
 	del_timer_sync(&ltpc_timer);
 
-	if(debug & DEBUG_VERBOSE) printk("freeing irq\n");
+	if(de & DE_VERBOSE) printk("freeing irq\n");
 
 	if (dev_ltpc->irq)
 		free_irq(dev_ltpc->irq, dev_ltpc);
 
-	if(debug & DEBUG_VERBOSE) printk("freeing dma\n");
+	if(de & DE_VERBOSE) printk("freeing dma\n");
 
 	if (dev_ltpc->dma)
 		free_dma(dev_ltpc->dma);
 
-	if(debug & DEBUG_VERBOSE) printk("freeing ioaddr\n");
+	if(de & DE_VERBOSE) printk("freeing ioaddr\n");
 
 	if (dev_ltpc->base_addr)
 		release_region(dev_ltpc->base_addr,8);
 
 	free_netdev(dev_ltpc);
 
-	if(debug & DEBUG_VERBOSE) printk("free_pages\n");
+	if(de & DE_VERBOSE) printk("free_pages\n");
 
 	free_pages( (unsigned long) ltdmabuf, get_order(1000));
 
-	if(debug & DEBUG_VERBOSE) printk("returning from cleanup_module\n");
+	if(de & DE_VERBOSE) printk("returning from cleanup_module\n");
 }
 
 module_exit(ltpc_cleanup);

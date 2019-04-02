@@ -11,7 +11,7 @@
  * more details.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
 
@@ -76,7 +76,7 @@ static void seqbuf_seek(struct seqbuf *seqbuf, ssize_t offset)
 	seqbuf->pos += offset;
 }
 
-/* map filename in Linux debugfs to corresponding entry in BPMP */
+/* map filename in Linux defs to corresponding entry in BPMP */
 static const char *get_filename(struct tegra_bpmp *bpmp,
 				const struct file *file, char *buf, int size)
 {
@@ -85,7 +85,7 @@ static const char *get_filename(struct tegra_bpmp *bpmp,
 	const char *filename;
 	size_t root_len;
 
-	root_path = dentry_path(bpmp->debugfs_mirror, root_path_buf,
+	root_path = dentry_path(bpmp->defs_mirror, root_path_buf,
 				sizeof(root_path_buf));
 	if (IS_ERR(root_path))
 		return NULL;
@@ -105,13 +105,13 @@ static const char *get_filename(struct tegra_bpmp *bpmp,
 	return filename;
 }
 
-static int mrq_debugfs_read(struct tegra_bpmp *bpmp,
+static int mrq_defs_read(struct tegra_bpmp *bpmp,
 			    dma_addr_t name, size_t sz_name,
 			    dma_addr_t data, size_t sz_data,
 			    size_t *nbytes)
 {
-	struct mrq_debugfs_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUGFS_READ),
+	struct mrq_defs_request req = {
+		.cmd = cpu_to_le32(CMD_DEFS_READ),
 		.fop = {
 			.fnameaddr = cpu_to_le32((uint32_t)name),
 			.fnamelen = cpu_to_le32((uint32_t)sz_name),
@@ -119,9 +119,9 @@ static int mrq_debugfs_read(struct tegra_bpmp *bpmp,
 			.datalen = cpu_to_le32((uint32_t)sz_data),
 		},
 	};
-	struct mrq_debugfs_response resp;
+	struct mrq_defs_response resp;
 	struct tegra_bpmp_message msg = {
-		.mrq = MRQ_DEBUGFS,
+		.mrq = MRQ_DEFS,
 		.tx = {
 			.data = &req,
 			.size = sizeof(req),
@@ -142,12 +142,12 @@ static int mrq_debugfs_read(struct tegra_bpmp *bpmp,
 	return 0;
 }
 
-static int mrq_debugfs_write(struct tegra_bpmp *bpmp,
+static int mrq_defs_write(struct tegra_bpmp *bpmp,
 			     dma_addr_t name, size_t sz_name,
 			     dma_addr_t data, size_t sz_data)
 {
-	const struct mrq_debugfs_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUGFS_WRITE),
+	const struct mrq_defs_request req = {
+		.cmd = cpu_to_le32(CMD_DEFS_WRITE),
 		.fop = {
 			.fnameaddr = cpu_to_le32((uint32_t)name),
 			.fnamelen = cpu_to_le32((uint32_t)sz_name),
@@ -156,7 +156,7 @@ static int mrq_debugfs_write(struct tegra_bpmp *bpmp,
 		},
 	};
 	struct tegra_bpmp_message msg = {
-		.mrq = MRQ_DEBUGFS,
+		.mrq = MRQ_DEFS,
 		.tx = {
 			.data = &req,
 			.size = sizeof(req),
@@ -166,19 +166,19 @@ static int mrq_debugfs_write(struct tegra_bpmp *bpmp,
 	return tegra_bpmp_transfer(bpmp, &msg);
 }
 
-static int mrq_debugfs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
+static int mrq_defs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
 			       size_t size, size_t *nbytes)
 {
-	const struct mrq_debugfs_request req = {
-		.cmd = cpu_to_le32(CMD_DEBUGFS_DUMPDIR),
+	const struct mrq_defs_request req = {
+		.cmd = cpu_to_le32(CMD_DEFS_DUMPDIR),
 		.dumpdir = {
 			.dataaddr = cpu_to_le32((uint32_t)addr),
 			.datalen = cpu_to_le32((uint32_t)size),
 		},
 	};
-	struct mrq_debugfs_response resp;
+	struct mrq_defs_response resp;
 	struct tegra_bpmp_message msg = {
-		.mrq = MRQ_DEBUGFS,
+		.mrq = MRQ_DEFS,
 		.tx = {
 			.data = &req,
 			.size = sizeof(req),
@@ -199,7 +199,7 @@ static int mrq_debugfs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
 	return 0;
 }
 
-static int debugfs_show(struct seq_file *m, void *p)
+static int defs_show(struct seq_file *m, void *p)
 {
 	struct file *file = m->private;
 	struct inode *inode = file_inode(file);
@@ -232,7 +232,7 @@ static int debugfs_show(struct seq_file *m, void *p)
 	len = strlen(filename);
 	strncpy(namevirt, filename, namesize);
 
-	ret = mrq_debugfs_read(bpmp, namephys, len, dataphys, datasize,
+	ret = mrq_defs_read(bpmp, namephys, len, dataphys, datasize,
 			       &nbytes);
 
 	if (!ret)
@@ -245,12 +245,12 @@ free_namebuf:
 	return ret;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
+static int defs_open(struct inode *inode, struct file *file)
 {
-	return single_open_size(file, debugfs_show, file, SZ_128K);
+	return single_open_size(file, defs_show, file, SZ_128K);
 }
 
-static ssize_t debugfs_store(struct file *file, const char __user *buf,
+static ssize_t defs_store(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	struct inode *inode = file_inode(file);
@@ -288,7 +288,7 @@ static ssize_t debugfs_store(struct file *file, const char __user *buf,
 		goto free_databuf;
 	}
 
-	ret = mrq_debugfs_write(bpmp, namephys, len, dataphys,
+	ret = mrq_defs_write(bpmp, namephys, len, dataphys,
 				count);
 
 free_databuf:
@@ -299,11 +299,11 @@ free_namebuf:
 	return ret ?: count;
 }
 
-static const struct file_operations debugfs_fops = {
-	.open		= debugfs_open,
+static const struct file_operations defs_fops = {
+	.open		= defs_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.write		= debugfs_store,
+	.write		= defs_store,
 	.release	= single_release,
 };
 
@@ -336,8 +336,8 @@ static int bpmp_populate_dir(struct tegra_bpmp *bpmp, struct seqbuf *seqbuf,
 		if (err < 0)
 			return err;
 
-		if (t & DEBUGFS_S_ISDIR) {
-			dentry = debugfs_create_dir(name, parent);
+		if (t & DEFS_S_ISDIR) {
+			dentry = defs_create_dir(name, parent);
 			if (!dentry)
 				return -ENOMEM;
 			err = bpmp_populate_dir(bpmp, seqbuf, dentry, depth+1);
@@ -346,11 +346,11 @@ static int bpmp_populate_dir(struct tegra_bpmp *bpmp, struct seqbuf *seqbuf,
 		} else {
 			umode_t mode;
 
-			mode = t & DEBUGFS_S_IRUSR ? S_IRUSR : 0;
-			mode |= t & DEBUGFS_S_IWUSR ? S_IWUSR : 0;
-			dentry = debugfs_create_file(name, mode,
+			mode = t & DEFS_S_IRUSR ? S_IRUSR : 0;
+			mode |= t & DEFS_S_IWUSR ? S_IWUSR : 0;
+			dentry = defs_create_file(name, mode,
 						     parent, bpmp,
-						     &debugfs_fops);
+						     &defs_fops);
 			if (!dentry)
 				return -ENOMEM;
 		}
@@ -359,27 +359,27 @@ static int bpmp_populate_dir(struct tegra_bpmp *bpmp, struct seqbuf *seqbuf,
 	return 0;
 }
 
-static int create_debugfs_mirror(struct tegra_bpmp *bpmp, void *buf,
+static int create_defs_mirror(struct tegra_bpmp *bpmp, void *buf,
 				 size_t bufsize, struct dentry *root)
 {
 	struct seqbuf seqbuf;
 	int err;
 
-	bpmp->debugfs_mirror = debugfs_create_dir("debug", root);
-	if (!bpmp->debugfs_mirror)
+	bpmp->defs_mirror = defs_create_dir("de", root);
+	if (!bpmp->defs_mirror)
 		return -ENOMEM;
 
 	seqbuf_init(&seqbuf, buf, bufsize);
-	err = bpmp_populate_dir(bpmp, &seqbuf, bpmp->debugfs_mirror, 0);
+	err = bpmp_populate_dir(bpmp, &seqbuf, bpmp->defs_mirror, 0);
 	if (err < 0) {
-		debugfs_remove_recursive(bpmp->debugfs_mirror);
-		bpmp->debugfs_mirror = NULL;
+		defs_remove_recursive(bpmp->defs_mirror);
+		bpmp->defs_mirror = NULL;
 	}
 
 	return err;
 }
 
-int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
+int tegra_bpmp_init_defs(struct tegra_bpmp *bpmp)
 {
 	dma_addr_t phys;
 	void *virt;
@@ -388,10 +388,10 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 	int ret;
 	struct dentry *root;
 
-	if (!tegra_bpmp_mrq_is_supported(bpmp, MRQ_DEBUGFS))
+	if (!tegra_bpmp_mrq_is_supported(bpmp, MRQ_DEFS))
 		return 0;
 
-	root = debugfs_create_dir("bpmp", NULL);
+	root = defs_create_dir("bpmp", NULL);
 	if (!root)
 		return -ENOMEM;
 
@@ -402,16 +402,16 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 		goto out;
 	}
 
-	ret = mrq_debugfs_dumpdir(bpmp, phys, sz, &nbytes);
+	ret = mrq_defs_dumpdir(bpmp, phys, sz, &nbytes);
 	if (ret < 0)
 		goto free;
 
-	ret = create_debugfs_mirror(bpmp, virt, nbytes, root);
+	ret = create_defs_mirror(bpmp, virt, nbytes, root);
 free:
 	dma_free_coherent(bpmp->dev, sz, virt, phys);
 out:
 	if (ret < 0)
-		debugfs_remove(root);
+		defs_remove(root);
 
 	return ret;
 }

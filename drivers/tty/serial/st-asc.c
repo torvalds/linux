@@ -672,7 +672,7 @@ asc_verify_port(struct uart_port *port, struct serial_struct *ser)
 #ifdef CONFIG_CONSOLE_POLL
 /*
  * Console polling routines for writing and reading from the uart while
- * in an interrupt or debug context (i.e. kgdb).
+ * in an interrupt or de context (i.e. kgdb).
  */
 
 static int asc_get_poll_char(struct uart_port *port)

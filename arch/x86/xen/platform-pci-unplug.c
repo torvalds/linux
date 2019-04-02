@@ -36,7 +36,7 @@ static int check_platform_magic(void)
 
 	protocol = inb(XEN_IOPORT_PROTOVER);
 
-	printk(KERN_DEBUG "Xen Platform PCI: I/O protocol version %d\n",
+	printk(KERN_DE "Xen Platform PCI: I/O protocol version %d\n",
 			protocol);
 
 	switch (protocol) {

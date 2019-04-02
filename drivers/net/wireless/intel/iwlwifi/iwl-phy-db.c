@@ -63,7 +63,7 @@
 
 #include "iwl-drv.h"
 #include "iwl-phy-db.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
 
@@ -254,7 +254,7 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 
 	entry->size = size;
 
-	IWL_DEBUG_INFO(phy_db->trans,
+	IWL_DE_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB]SET: Type %d , Size: %d\n",
 		       __func__, __LINE__, type, size);
 
@@ -345,7 +345,7 @@ int iwl_phy_db_get_section_data(struct iwl_phy_db *phy_db,
 	*data = entry->data;
 	*size = entry->size;
 
-	IWL_DEBUG_INFO(phy_db->trans,
+	IWL_DE_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB] GET: Type %d , Size: %d\n",
 		       __func__, __LINE__, type, *size);
 
@@ -360,7 +360,7 @@ static int iwl_send_phy_db_cmd(struct iwl_phy_db *phy_db, u16 type,
 		.id = PHY_DB_CMD,
 	};
 
-	IWL_DEBUG_INFO(phy_db->trans,
+	IWL_DE_INFO(phy_db->trans,
 		       "Sending PHY-DB hcmd of type %d, of length %d\n",
 		       type, length);
 
@@ -410,7 +410,7 @@ static int iwl_phy_db_send_all_channel_groups(
 			return err;
 		}
 
-		IWL_DEBUG_INFO(phy_db->trans,
+		IWL_DE_INFO(phy_db->trans,
 			       "Sent PHY_DB HCMD, type = %d num = %d\n",
 			       type, i);
 	}
@@ -424,7 +424,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 	u16 size = 0;
 	int err;
 
-	IWL_DEBUG_INFO(phy_db->trans,
+	IWL_DE_INFO(phy_db->trans,
 		       "Sending phy db data and configuration to runtime image\n");
 
 	/* Send PHY DB CFG section */
@@ -477,7 +477,7 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 		return err;
 	}
 
-	IWL_DEBUG_INFO(phy_db->trans,
+	IWL_DE_INFO(phy_db->trans,
 		       "Finished sending phy db non channel data\n");
 	return 0;
 }

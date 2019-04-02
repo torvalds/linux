@@ -5,13 +5,13 @@
 #define DRV_NAME "ide-gd"
 #define PFX DRV_NAME ": "
 
-/* define to see debug info */
-#define IDE_GD_DEBUG_LOG	0
+/* define to see de info */
+#define IDE_GD_DE_LOG	0
 
-#if IDE_GD_DEBUG_LOG
-#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, ## args)
+#if IDE_GD_DE_LOG
+#define ide_de_log(lvl, fmt, args...) __ide_de_log(lvl, fmt, ## args)
 #else
-#define ide_debug_log(lvl, fmt, args...) do {} while (0)
+#define ide_de_log(lvl, fmt, args...) do {} while (0)
 #endif
 
 struct ide_disk_obj {

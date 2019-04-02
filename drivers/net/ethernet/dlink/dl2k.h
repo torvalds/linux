@@ -64,7 +64,7 @@ enum dl2x_offsets {
 	RxDMAUrgentThresh = 0x25,
 	RxDMAPollPeriod = 0x26,
 	RxDMAIntCtrl = 0x28,
-	DebugCtrl = 0x2c,
+	DeCtrl = 0x2c,
 	ASICCtrl = 0x30,
 	FifoCtrl = 0x38,
 	RxEarlyThresh = 0x3a,

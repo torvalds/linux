@@ -608,7 +608,7 @@ intel_panel_actually_set_backlight(const struct drm_connector_state *conn_state,
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
 
-	DRM_DEBUG_DRIVER("set backlight PWM = %d\n", level);
+	DRM_DE_DRIVER("set backlight PWM = %d\n", level);
 
 	level = intel_panel_compute_brightness(connector, level);
 	panel->backlight.set(conn_state, level);
@@ -671,7 +671,7 @@ static void lpt_disable_backlight(const struct drm_connector_state *old_conn_sta
 	 */
 	tmp = I915_READ(BLC_PWM_CPU_CTL2);
 	if (tmp & BLM_PWM_ENABLE) {
-		DRM_DEBUG_KMS("cpu backlight was enabled, disabling\n");
+		DRM_DE_KMS("cpu backlight was enabled, disabling\n");
 		I915_WRITE(BLC_PWM_CPU_CTL2, tmp & ~BLM_PWM_ENABLE);
 	}
 
@@ -784,7 +784,7 @@ void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_st
 	 * another client is not activated.
 	 */
 	if (dev_priv->drm.switch_power_state == DRM_SWITCH_POWER_CHANGING) {
-		DRM_DEBUG_DRIVER("Skipping backlight disable on vga switch\n");
+		DRM_DE_DRIVER("Skipping backlight disable on vga switch\n");
 		return;
 	}
 
@@ -808,7 +808,7 @@ static void lpt_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
 	if (pch_ctl1 & BLM_PCH_PWM_ENABLE) {
-		DRM_DEBUG_KMS("pch backlight already enabled\n");
+		DRM_DE_KMS("pch backlight already enabled\n");
 		pch_ctl1 &= ~BLM_PCH_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
 	}
@@ -859,14 +859,14 @@ static void pch_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	cpu_ctl2 = I915_READ(BLC_PWM_CPU_CTL2);
 	if (cpu_ctl2 & BLM_PWM_ENABLE) {
-		DRM_DEBUG_KMS("cpu backlight already enabled\n");
+		DRM_DE_KMS("cpu backlight already enabled\n");
 		cpu_ctl2 &= ~BLM_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_CPU_CTL2, cpu_ctl2);
 	}
 
 	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
 	if (pch_ctl1 & BLM_PCH_PWM_ENABLE) {
-		DRM_DEBUG_KMS("pch backlight already enabled\n");
+		DRM_DE_KMS("pch backlight already enabled\n");
 		pch_ctl1 &= ~BLM_PCH_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
 	}
@@ -904,7 +904,7 @@ static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	ctl = I915_READ(BLC_PWM_CTL);
 	if (ctl & BACKLIGHT_DUTY_CYCLE_MASK_PNV) {
-		DRM_DEBUG_KMS("backlight already enabled\n");
+		DRM_DE_KMS("backlight already enabled\n");
 		I915_WRITE(BLC_PWM_CTL, 0);
 	}
 
@@ -944,7 +944,7 @@ static void i965_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	ctl2 = I915_READ(BLC_PWM_CTL2);
 	if (ctl2 & BLM_PWM_ENABLE) {
-		DRM_DEBUG_KMS("backlight already enabled\n");
+		DRM_DE_KMS("backlight already enabled\n");
 		ctl2 &= ~BLM_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_CTL2, ctl2);
 	}
@@ -979,7 +979,7 @@ static void vlv_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	ctl2 = I915_READ(VLV_BLC_PWM_CTL2(pipe));
 	if (ctl2 & BLM_PWM_ENABLE) {
-		DRM_DEBUG_KMS("backlight already enabled\n");
+		DRM_DE_KMS("backlight already enabled\n");
 		ctl2 &= ~BLM_PWM_ENABLE;
 		I915_WRITE(VLV_BLC_PWM_CTL2(pipe), ctl2);
 	}
@@ -1011,7 +1011,7 @@ static void bxt_enable_backlight(const struct intel_crtc_state *crtc_state,
 	if (panel->backlight.controller == 1) {
 		val = I915_READ(UTIL_PIN_CTL);
 		if (val & UTIL_PIN_ENABLE) {
-			DRM_DEBUG_KMS("util pin already enabled\n");
+			DRM_DE_KMS("util pin already enabled\n");
 			val &= ~UTIL_PIN_ENABLE;
 			I915_WRITE(UTIL_PIN_CTL, val);
 		}
@@ -1025,7 +1025,7 @@ static void bxt_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
 	if (pwm_ctl & BXT_BLC_PWM_ENABLE) {
-		DRM_DEBUG_KMS("backlight already enabled\n");
+		DRM_DE_KMS("backlight already enabled\n");
 		pwm_ctl &= ~BXT_BLC_PWM_ENABLE;
 		I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
 				pwm_ctl);
@@ -1056,7 +1056,7 @@ static void cnp_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
 	if (pwm_ctl & BXT_BLC_PWM_ENABLE) {
-		DRM_DEBUG_KMS("backlight already enabled\n");
+		DRM_DE_KMS("backlight already enabled\n");
 		pwm_ctl &= ~BXT_BLC_PWM_ENABLE;
 		I915_WRITE(BXT_BLC_PWM_CTL(panel->backlight.controller),
 			   pwm_ctl);
@@ -1121,7 +1121,7 @@ void intel_panel_enable_backlight(const struct intel_crtc_state *crtc_state,
 	if (!panel->backlight.present)
 		return;
 
-	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
+	DRM_DE_KMS("pipe %c\n", pipe_name(pipe));
 
 	mutex_lock(&dev_priv->backlight_lock);
 
@@ -1146,7 +1146,7 @@ static u32 intel_panel_get_backlight(struct intel_connector *connector)
 
 	mutex_unlock(&dev_priv->backlight_lock);
 
-	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
+	DRM_DE_DRIVER("get backlight PWM = %d\n", val);
 	return val;
 }
 
@@ -1182,7 +1182,7 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 	struct drm_device *dev = connector->base.dev;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	DRM_DEBUG_KMS("updating intel_backlight, brightness=%d/%d\n",
+	DRM_DE_KMS("updating intel_backlight, brightness=%d/%d\n",
 		      bd->props.brightness, bd->props.max_brightness);
 	intel_panel_set_backlight(connector->base.state, bd->props.brightness,
 				  bd->props.max_brightness);
@@ -1282,7 +1282,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 		return -ENODEV;
 	}
 
-	DRM_DEBUG_KMS("Connector %s backlight sysfs interface registered\n",
+	DRM_DE_KMS("Connector %s backlight sysfs interface registered\n",
 		      connector->base.name);
 
 	return 0;
@@ -1442,22 +1442,22 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 	u32 pwm;
 
 	if (!panel->backlight.hz_to_pwm) {
-		DRM_DEBUG_KMS("backlight frequency conversion not supported\n");
+		DRM_DE_KMS("backlight frequency conversion not supported\n");
 		return 0;
 	}
 
 	if (pwm_freq_hz) {
-		DRM_DEBUG_KMS("VBT defined backlight frequency %u Hz\n",
+		DRM_DE_KMS("VBT defined backlight frequency %u Hz\n",
 			      pwm_freq_hz);
 	} else {
 		pwm_freq_hz = 200;
-		DRM_DEBUG_KMS("default backlight frequency %u Hz\n",
+		DRM_DE_KMS("default backlight frequency %u Hz\n",
 			      pwm_freq_hz);
 	}
 
 	pwm = panel->backlight.hz_to_pwm(connector, pwm_freq_hz);
 	if (!pwm) {
-		DRM_DEBUG_KMS("backlight frequency conversion failed\n");
+		DRM_DE_KMS("backlight frequency conversion failed\n");
 		return 0;
 	}
 
@@ -1484,7 +1484,7 @@ static u32 get_backlight_min_vbt(struct intel_connector *connector)
 	 */
 	min = clamp_t(int, dev_priv->vbt.backlight.min_brightness, 0, 64);
 	if (min != dev_priv->vbt.backlight.min_brightness) {
-		DRM_DEBUG_KMS("clamping VBT min backlight %d/255 to %d/255\n",
+		DRM_DE_KMS("clamping VBT min backlight %d/255 to %d/255\n",
 			      dev_priv->vbt.backlight.min_brightness, min);
 	}
 
@@ -1535,7 +1535,7 @@ static int lpt_setup_backlight(struct intel_connector *connector, enum pipe unus
 				       panel->backlight.max);
 
 	if (cpu_mode) {
-		DRM_DEBUG_KMS("CPU backlight register was enabled, switching to PCH override\n");
+		DRM_DE_KMS("CPU backlight register was enabled, switching to PCH override\n");
 
 		/* Write converted CPU PWM value to PCH override register */
 		lpt_set_backlight(connector->base.state, panel->backlight.level);
@@ -1830,9 +1830,9 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 
 	if (!dev_priv->vbt.backlight.present) {
 		if (dev_priv->quirks & QUIRK_BACKLIGHT_PRESENT) {
-			DRM_DEBUG_KMS("no backlight present per VBT, but present per quirk\n");
+			DRM_DE_KMS("no backlight present per VBT, but present per quirk\n");
 		} else {
-			DRM_DEBUG_KMS("no backlight present per VBT\n");
+			DRM_DE_KMS("no backlight present per VBT\n");
 			return 0;
 		}
 	}
@@ -1847,14 +1847,14 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 	mutex_unlock(&dev_priv->backlight_lock);
 
 	if (ret) {
-		DRM_DEBUG_KMS("failed to setup backlight for connector %s\n",
+		DRM_DE_KMS("failed to setup backlight for connector %s\n",
 			      connector->name);
 		return ret;
 	}
 
 	panel->backlight.present = true;
 
-	DRM_DEBUG_KMS("Connector %s backlight initialized, %s, brightness %u/%u\n",
+	DRM_DE_KMS("Connector %s backlight initialized, %s, brightness %u/%u\n",
 		      connector->name,
 		      enableddisabled(panel->backlight.enabled),
 		      panel->backlight.level, panel->backlight.max);

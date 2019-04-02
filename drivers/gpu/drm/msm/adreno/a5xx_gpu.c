@@ -25,7 +25,7 @@
 #include "msm_mmu.h"
 #include "a5xx_gpu.h"
 
-extern bool hang_debug;
+extern bool hang_de;
 static void a5xx_dump(struct msm_gpu *gpu);
 
 #define GPU_PAS_ID 13
@@ -826,7 +826,7 @@ static void a5xx_recover(struct msm_gpu *gpu)
 			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(i)));
 	}
 
-	if (hang_debug)
+	if (hang_de)
 		a5xx_dump(gpu);
 
 	gpu_write(gpu, REG_A5XX_RBBM_SW_RESET_CMD, 1);
@@ -1374,7 +1374,7 @@ int a5xx_gpu_state_put(struct msm_gpu_state *state)
 }
 
 
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		struct drm_printer *p)
 {
@@ -1454,11 +1454,11 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = a5xx_active_ring,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = a5xx_show,
 #endif
-#if defined(CONFIG_DEBUG_FS)
-		.debugfs_init = a5xx_debugfs_init,
+#if defined(CONFIG_DE_FS)
+		.defs_init = a5xx_defs_init,
 #endif
 		.gpu_busy = a5xx_gpu_busy,
 		.gpu_state_get = a5xx_gpu_state_get,

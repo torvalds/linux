@@ -77,7 +77,7 @@ static struct class *typec_class;
 static const char * const typec_accessory_modes[] = {
 	[TYPEC_ACCESSORY_NONE]		= "none",
 	[TYPEC_ACCESSORY_AUDIO]		= "analog_audio",
-	[TYPEC_ACCESSORY_DEBUG]		= "debug",
+	[TYPEC_ACCESSORY_DE]		= "de",
 };
 
 static struct usb_pd_identity *get_pd_identity(struct device *dev)

@@ -44,7 +44,7 @@ config SND_HDA_HWDEP
 	help
 	  Say Y here to build a hwdep interface for HD-audio driver.
 	  This interface can be used for out-of-band communication
-	  with codecs for debugging purposes.
+	  with codecs for deging purposes.
 
 config SND_HDA_RECONFIG
 	bool "Allow dynamic codec reconfiguration"

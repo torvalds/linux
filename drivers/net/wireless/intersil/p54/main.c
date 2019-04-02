@@ -370,7 +370,7 @@ static u64 p54_prepare_multicast(struct ieee80211_hw *dev,
 	struct netdev_hw_addr *ha;
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(priv->mc_maclist) !=
+	BUILD__ON(ARRAY_SIZE(priv->mc_maclist) !=
 		ARRAY_SIZE(((struct p54_group_address_table *)NULL)->mac_list));
 	/*
 	 * The first entry is reserved for the global broadcast MAC.
@@ -657,7 +657,7 @@ static unsigned int p54_flush_count(struct p54_common *priv)
 {
 	unsigned int total = 0, i;
 
-	BUILD_BUG_ON(P54_QUEUE_NUM > ARRAY_SIZE(priv->tx_stats));
+	BUILD__ON(P54_QUEUE_NUM > ARRAY_SIZE(priv->tx_stats));
 
 	/*
 	 * Because the firmware has the sole control over any frames

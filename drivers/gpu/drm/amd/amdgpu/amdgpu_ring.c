@@ -28,7 +28,7 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -47,9 +47,9 @@
  * wptr.  The GPU then starts fetching commands and executes
  * them until the pointers are equal again.
  */
-static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+static int amdgpu_defs_ring_init(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring);
-static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring);
+static void amdgpu_defs_ring_fini(struct amdgpu_ring *ring);
 
 /**
  * amdgpu_ring_alloc - allocate space on the ring buffer
@@ -321,8 +321,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	for (i = 0; i < DRM_SCHED_PRIORITY_MAX; ++i)
 		atomic_set(&ring->num_jobs[i], 0);
 
-	if (amdgpu_debugfs_ring_init(adev, ring)) {
-		DRM_ERROR("Failed to register debugfs file for rings !\n");
+	if (amdgpu_defs_ring_init(adev, ring)) {
+		DRM_ERROR("Failed to register defs file for rings !\n");
 	}
 
 	return 0;
@@ -354,7 +354,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 			      &ring->gpu_addr,
 			      (void **)&ring->ring);
 
-	amdgpu_debugfs_ring_fini(ring);
+	amdgpu_defs_ring_fini(ring);
 
 	dma_fence_put(ring->vmid_wait);
 	ring->vmid_wait = NULL;
@@ -409,9 +409,9 @@ bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
 /* Layout of file is 12 bytes consisting of
  * - rptr
@@ -420,7 +420,7 @@ bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
  *
  * followed by n-words of ring data
  */
-static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
@@ -464,27 +464,27 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 	return result;
 }
 
-static const struct file_operations amdgpu_debugfs_ring_fops = {
+static const struct file_operations amdgpu_defs_ring_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_ring_read,
+	.read = amdgpu_defs_ring_read,
 	.llseek = default_llseek
 };
 
 #endif
 
-static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+static int amdgpu_defs_ring_init(struct amdgpu_device *adev,
 				    struct amdgpu_ring *ring)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *ent, *root = minor->defs_root;
 	char name[32];
 
 	sprintf(name, "amdgpu_ring_%s", ring->name);
 
-	ent = debugfs_create_file(name,
+	ent = defs_create_file(name,
 				  S_IFREG | S_IRUGO, root,
-				  ring, &amdgpu_debugfs_ring_fops);
+				  ring, &amdgpu_defs_ring_fops);
 	if (!ent)
 		return -ENOMEM;
 
@@ -494,10 +494,10 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void amdgpu_debugfs_ring_fini(struct amdgpu_ring *ring)
+static void amdgpu_defs_ring_fini(struct amdgpu_ring *ring)
 {
-#if defined(CONFIG_DEBUG_FS)
-	debugfs_remove(ring->ent);
+#if defined(CONFIG_DE_FS)
+	defs_remove(ring->ent);
 #endif
 }
 
@@ -520,7 +520,7 @@ int amdgpu_ring_test_helper(struct amdgpu_ring *ring)
 		DRM_DEV_ERROR(adev->dev, "ring %s test failed (%d)\n",
 			      ring->name, r);
 	else
-		DRM_DEV_DEBUG(adev->dev, "ring test on %s succeeded\n",
+		DRM_DEV_DE(adev->dev, "ring test on %s succeeded\n",
 			      ring->name);
 
 	ring->sched.ready = !r;

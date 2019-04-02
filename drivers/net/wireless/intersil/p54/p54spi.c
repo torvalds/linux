@@ -250,7 +250,7 @@ static int p54spi_upload_firmware(struct ieee80211_hw *dev)
 		offset += _fw_len;
 	}
 
-	BUG_ON(fw_len != 0);
+	_ON(fw_len != 0);
 
 	/* enable host interrupts */
 	p54spi_write32(priv, SPI_ADRS_HOST_INT_EN,
@@ -347,7 +347,7 @@ static int p54spi_rx(struct p54s_priv *priv)
 		return -EBUSY;
 
 	/* Read data size and first data word in one SPI transaction
-	 * This is workaround for firmware/DMA bug,
+	 * This is workaround for firmware/DMA ,
 	 * when first data word gets lost under high load.
 	 */
 	p54spi_spi_read(priv, SPI_ADRS_DMA_DATA, rx_head, sizeof(rx_head));
@@ -479,7 +479,7 @@ static void p54spi_op_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54s_tx_info *di = (struct p54s_tx_info *) mi->data;
 	unsigned long flags;
 
-	BUILD_BUG_ON(sizeof(*di) > sizeof((mi->data)));
+	BUILD__ON(sizeof(*di) > sizeof((mi->data)));
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	list_add_tail(&di->tx_list, &priv->tx_pending);

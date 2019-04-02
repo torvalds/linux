@@ -13,12 +13,12 @@ config DVB_USB
 
 	  Say Y if you own a USB DVB device.
 
-config DVB_USB_DEBUG
-	bool "Enable extended debug support for all DVB-USB devices"
+config DVB_USB_DE
+	bool "Enable extended de support for all DVB-USB devices"
 	depends on DVB_USB
 	help
-	  Say Y if you want to enable debugging. See modinfo dvb-usb (and the
-	  appropriate drivers) for debug levels.
+	  Say Y if you want to enable deging. See modinfo dvb-usb (and the
+	  appropriate drivers) for de levels.
 
 config DVB_USB_DIB3000MC
 	tristate

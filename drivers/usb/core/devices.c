@@ -27,7 +27,7 @@
  *   Converted the whole proc stuff to real
  *   read methods. Now not the whole device list needs to fit
  *   into one page, only the device list for one bus.
- *   Added a poll method to /sys/kernel/debug/usb/devices, to wake
+ *   Added a poll method to /sys/kernel/de/usb/devices, to wake
  *   up an eventual usbd
  * 2000-01-04: Thomas Sailer <sailer@ife.ee.ethz.ch>
  *   Turned into its own filesystem

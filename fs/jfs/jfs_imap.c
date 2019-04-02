@@ -55,7 +55,7 @@
 #include "jfs_imap.h"
 #include "jfs_metapage.h"
 #include "jfs_superblock.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  * imap locks

@@ -455,7 +455,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->chip.of_node = np;
 	stmpe_gpio->chip.base = -1;
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
+	if (IS_ENABLED(CONFIG_DE_FS))
                 stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
 
 	of_property_read_u32(np, "st,norequest-mask",

@@ -415,7 +415,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
 {
 	int len, err;
 
-	BUG_ON(wi->nr_vecs <= 0);
+	_ON(wi->nr_vecs <= 0);
  repeat:
 	if (!wi->bio) {
 		wi->bio = nilfs_alloc_seg_bio(wi->nilfs, wi->blocknr + wi->end,

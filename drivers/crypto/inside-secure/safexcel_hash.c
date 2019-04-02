@@ -430,7 +430,7 @@ static int safexcel_handle_result(struct safexcel_crypto_priv *priv, int ring,
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	int err;
 
-	BUG_ON(!(priv->flags & EIP197_TRC_CACHE) && req->needs_inv);
+	_ON(!(priv->flags & EIP197_TRC_CACHE) && req->needs_inv);
 
 	if (req->needs_inv) {
 		req->needs_inv = false;

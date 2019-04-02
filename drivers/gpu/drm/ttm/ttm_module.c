@@ -59,7 +59,7 @@ static struct device ttm_drm_class_device = {
 struct kobject *ttm_get_kobj(void)
 {
 	struct kobject *kobj = &ttm_drm_class_device.kobj;
-	BUG_ON(kobj == NULL);
+	_ON(kobj == NULL);
 	return kobj;
 }
 

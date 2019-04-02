@@ -355,7 +355,7 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 	if (rc == 0 && size == I2C_SMBUS_WORD_DATA && rw == I2C_SMBUS_READ)
 		data->word = le16_to_cpu(cur_word);
 
-#ifdef DEBUG
+#ifdef DE
 	dev_dbg(&adapter->dev, "transfer done, result: %d", rc);
 	if (buffer) {
 		int i;
@@ -394,7 +394,7 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 	outb(0x70, ACBCTL2);
 
 	if (inb(ACBCTL2) != 0x70) {
-		pr_debug("ACBCTL2 readback failed\n");
+		pr_de("ACBCTL2 readback failed\n");
 		return -ENXIO;
 	}
 
@@ -402,7 +402,7 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 
 	val = inb(ACBCTL1);
 	if (val) {
-		pr_debug("disabled, but ACBCTL1=0x%02x\n", val);
+		pr_de("disabled, but ACBCTL1=0x%02x\n", val);
 		return -ENXIO;
 	}
 
@@ -412,7 +412,7 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 
 	val = inb(ACBCTL1);
 	if ((val & ACBCTL1_NMINTE) != ACBCTL1_NMINTE) {
-		pr_debug("enabled, but NMINTE won't be set, ACBCTL1=0x%02x\n",
+		pr_de("enabled, but NMINTE won't be set, ACBCTL1=0x%02x\n",
 			 val);
 		return -ENXIO;
 	}
@@ -573,7 +573,7 @@ static __init void scx200_scan_isa(void)
 
 static int __init scx200_acb_init(void)
 {
-	pr_debug("NatSemi SCx200 ACCESS.bus Driver\n");
+	pr_de("NatSemi SCx200 ACCESS.bus Driver\n");
 
 	/* First scan for ISA-based devices */
 	scx200_scan_isa();	/* XXX: should we care about errors? */

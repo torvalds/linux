@@ -32,32 +32,32 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static const unsigned int bug_pins[] __initconst = {
+static const unsigned int _pins[] __initconst = {
 	MX31_PIN_PC_RST__CTS5,
 	MX31_PIN_PC_VS2__RTS5,
 	MX31_PIN_PC_BVD2__TXD5,
 	MX31_PIN_PC_BVD1__RXD5,
 };
 
-static void __init bug_board_init(void)
+static void __init _board_init(void)
 {
 	imx31_soc_init();
 
-	mxc_iomux_setup_multiple_pins(bug_pins,
-				      ARRAY_SIZE(bug_pins), "uart-4");
+	mxc_iomux_setup_multiple_pins(_pins,
+				      ARRAY_SIZE(_pins), "uart-4");
 	imx31_add_imx_uart4(&uart_pdata);
 }
 
-static void __init bug_timer_init(void)
+static void __init _timer_init(void)
 {
 	mx31_clocks_init(26000000);
 }
 
-MACHINE_START(BUG, "BugLabs BUGBase")
+MACHINE_START(, "Labs Base")
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
-	.init_time	= bug_timer_init,
-	.init_machine = bug_board_init,
+	.init_time	= _timer_init,
+	.init_machine = _board_init,
 	.restart	= mxc_restart,
 MACHINE_END

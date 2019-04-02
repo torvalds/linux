@@ -99,8 +99,8 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 		buf[i+3] = data[2];
 	}
 
-	printk(KERN_DEBUG "sat %d partition %x:", sat_id, id);
-	print_hex_dump(KERN_DEBUG, "  ", DUMP_PREFIX_OFFSET,
+	printk(KERN_DE "sat %d partition %x:", sat_id, id);
+	print_hex_dump(KERN_DE, "  ", DUMP_PREFIX_OFFSET,
 		       16, 1, buf, len, false);
 	if (size)
 		*size = len;
@@ -122,11 +122,11 @@ static int wf_sat_read_cache(struct wf_sat *sat)
 		return err;
 	sat->last_read = jiffies;
 
-#ifdef LOTSA_DEBUG
+#ifdef LOTSA_DE
 	{
 		int i;
-		printk(KERN_DEBUG "wf_sat_get: data is");
-		print_hex_dump(KERN_DEBUG, "  ", DUMP_PREFIX_OFFSET,
+		printk(KERN_DE "wf_sat_get: data is");
+		print_hex_dump(KERN_DE, "  ", DUMP_PREFIX_OFFSET,
 			       16, 1, sat->cache, 16, false);
 	}
 #endif

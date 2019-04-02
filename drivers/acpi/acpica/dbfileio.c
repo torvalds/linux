@@ -1,70 +1,70 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbfileio - Debugger file I/O commands. These can't usually
- *              be used when running the debugger in Ring 0 (Kernel mode)
+ * Module Name: dbfileio - Deger file I/O commands. These can't usually
+ *              be used when running the deger in Ring 0 (Kernel mode)
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "actables.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbfileio")
 
 #ifdef ACPI_APPLICATION
 #include "acapps.h"
-#ifdef ACPI_DEBUGGER
+#ifdef ACPI_DEGER
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_close_debug_file
+ * FUNCTION:    acpi_db_close_de_file
  *
  * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: If open, close the current debug output file
+ * DESCRIPTION: If open, close the current de output file
  *
  ******************************************************************************/
-void acpi_db_close_debug_file(void)
+void acpi_db_close_de_file(void)
 {
 
-	if (acpi_gbl_debug_file) {
-		fclose(acpi_gbl_debug_file);
-		acpi_gbl_debug_file = NULL;
+	if (acpi_gbl_de_file) {
+		fclose(acpi_gbl_de_file);
+		acpi_gbl_de_file = NULL;
 		acpi_gbl_db_output_to_file = FALSE;
-		acpi_os_printf("Debug output file %s closed\n",
-			       acpi_gbl_db_debug_filename);
+		acpi_os_printf("De output file %s closed\n",
+			       acpi_gbl_db_de_filename);
 	}
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_open_debug_file
+ * FUNCTION:    acpi_db_open_de_file
  *
  * PARAMETERS:  name                - Filename to open
  *
  * RETURN:      None
  *
- * DESCRIPTION: Open a file where debug output will be directed.
+ * DESCRIPTION: Open a file where de output will be directed.
  *
  ******************************************************************************/
 
-void acpi_db_open_debug_file(char *name)
+void acpi_db_open_de_file(char *name)
 {
 
-	acpi_db_close_debug_file();
-	acpi_gbl_debug_file = fopen(name, "w+");
-	if (!acpi_gbl_debug_file) {
-		acpi_os_printf("Could not open debug file %s\n", name);
+	acpi_db_close_de_file();
+	acpi_gbl_de_file = fopen(name, "w+");
+	if (!acpi_gbl_de_file) {
+		acpi_os_printf("Could not open de file %s\n", name);
 		return;
 	}
 
-	acpi_os_printf("Debug output file %s opened\n", name);
-	acpi_ut_safe_strncpy(acpi_gbl_db_debug_filename, name,
-			     sizeof(acpi_gbl_db_debug_filename));
+	acpi_os_printf("De output file %s opened\n", name);
+	acpi_ut_safe_strncpy(acpi_gbl_db_de_filename, name,
+			     sizeof(acpi_gbl_db_de_filename));
 	acpi_gbl_db_output_to_file = TRUE;
 }
 #endif

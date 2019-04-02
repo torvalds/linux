@@ -384,7 +384,7 @@ struct discard_op {
 
 static void begin_discard(struct discard_op *op, struct thin_c *tc, struct bio *parent)
 {
-	BUG_ON(!parent);
+	_ON(!parent);
 
 	op->tc = tc;
 	blk_start_plug(&op->plug);
@@ -536,13 +536,13 @@ static void pool_table_exit(void)
 
 static void __pool_table_insert(struct pool *pool)
 {
-	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
+	_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
 	list_add(&pool->list, &dm_thin_pool_table.pools);
 }
 
 static void __pool_table_remove(struct pool *pool)
 {
-	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
+	_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
 	list_del(&pool->list);
 }
 
@@ -550,7 +550,7 @@ static struct pool *__pool_table_lookup(struct mapped_device *md)
 {
 	struct pool *pool = NULL, *tmp;
 
-	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
+	_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
 
 	list_for_each_entry(tmp, &dm_thin_pool_table.pools, list) {
 		if (tmp->pool_md == md) {
@@ -566,7 +566,7 @@ static struct pool *__pool_table_lookup_metadata_dev(struct block_device *md_dev
 {
 	struct pool *pool = NULL, *tmp;
 
-	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
+	_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
 
 	list_for_each_entry(tmp, &dm_thin_pool_table.pools, list) {
 		if (tmp->md_dev == md_dev) {
@@ -1275,7 +1275,7 @@ static struct dm_thin_new_mapping *get_next_mapping(struct pool *pool)
 {
 	struct dm_thin_new_mapping *m = pool->next_mapping;
 
-	BUG_ON(!pool->next_mapping);
+	_ON(!pool->next_mapping);
 
 	memset(m, 0, sizeof(struct dm_thin_new_mapping));
 	INIT_LIST_HEAD(&m->list);
@@ -2231,8 +2231,8 @@ static int cmp_cells(const void *lhs, const void *rhs)
 	struct dm_bio_prison_cell *lhs_cell = *((struct dm_bio_prison_cell **) lhs);
 	struct dm_bio_prison_cell *rhs_cell = *((struct dm_bio_prison_cell **) rhs);
 
-	BUG_ON(!lhs_cell->holder);
-	BUG_ON(!rhs_cell->holder);
+	_ON(!lhs_cell->holder);
+	_ON(!rhs_cell->holder);
 
 	if (lhs_cell->holder->bi_iter.bi_sector < rhs_cell->holder->bi_iter.bi_sector)
 		return -1;
@@ -2283,7 +2283,7 @@ static void process_thin_deferred_cells(struct thin_c *tc)
 
 		for (i = 0; i < count; i++) {
 			cell = pool->cell_sort_array[i];
-			BUG_ON(!cell->holder);
+			_ON(!cell->holder);
 
 			/*
 			 * If we've got no free new_mapping structs, and processing
@@ -3070,14 +3070,14 @@ bad_pool:
 
 static void __pool_inc(struct pool *pool)
 {
-	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
+	_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
 	pool->ref_count++;
 }
 
 static void __pool_dec(struct pool *pool)
 {
-	BUG_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
-	BUG_ON(!pool->ref_count);
+	_ON(!mutex_is_locked(&dm_thin_pool_table.mutex));
+	_ON(!pool->ref_count);
 	if (!--pool->ref_count)
 		__pool_destroy(pool);
 }

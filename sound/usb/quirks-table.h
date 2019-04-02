@@ -3279,7 +3279,7 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 },
 
 /* disabled due to regression for other devices;
- * see https://bugzilla.kernel.org/show_bug.cgi?id=199905
+ * see https://zilla.kernel.org/show_.cgi?id=199905
  */
 #if 0
 {

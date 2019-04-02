@@ -63,7 +63,7 @@ struct au1xmmc_platform_data {
 #define SD_CONFIG2	(0x0010)
 #define SD_BLKSIZE	(0x0014)
 #define SD_STATUS	(0x0018)
-#define SD_DEBUG	(0x001C)
+#define SD_DE	(0x001C)
 #define SD_CMD		(0x0020)
 #define SD_CMDARG	(0x0024)
 #define SD_RESP3	(0x0028)

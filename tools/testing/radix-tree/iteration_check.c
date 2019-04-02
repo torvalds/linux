@@ -169,7 +169,7 @@ static void *tag_entries_fn(void *arg)
 	return NULL;
 }
 
-/* This is a unit test for a bug found by the syzkaller tester */
+/* This is a unit test for a  found by the syzkaller tester */
 void iteration_test(unsigned order, unsigned test_duration)
 {
 	int i;

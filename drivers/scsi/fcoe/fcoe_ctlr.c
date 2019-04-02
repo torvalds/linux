@@ -91,7 +91,7 @@ static const char *fcoe_ctlr_state(enum fip_state state)
 }
 
 /**
- * fcoe_ctlr_set_state() - Set and do debug printing for the new FIP state.
+ * fcoe_ctlr_set_state() - Set and do de printing for the new FIP state.
  * @fip: The FCoE controller
  * @state: The new state
  */
@@ -220,7 +220,7 @@ static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
 		 * This means that we should never get a FCF with a
 		 * non-NULL priv pointer.
 		 */
-		BUG_ON(fcf_dev->priv);
+		_ON(fcf_dev->priv);
 
 		fcf_dev->priv = new;
 		new->fcf_dev = fcf_dev;
@@ -1388,7 +1388,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 
 	/*
 	 * Actually need to subtract 'sizeof(*mp) - sizeof(*wp)' from 'rlen'
-	 * before determining max Vx_Port descriptor but a buggy FCF could have
+	 * before determining max Vx_Port descriptor but a gy FCF could have
 	 * omitted either or both MAC Address and Name Identifier descriptors
 	 */
 	num_vlink_desc = rlen / sizeof(*vp);

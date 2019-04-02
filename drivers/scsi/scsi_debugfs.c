@@ -2,7 +2,7 @@
 #include <linux/seq_file.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
-#include "scsi_debugfs.h"
+#include "scsi_defs.h"
 
 #define SCSI_CMD_FLAG_NAME(name)[const_ilog2(SCMD_##name)] = #name
 static const char *const scsi_cmd_flags[] = {

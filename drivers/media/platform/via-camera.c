@@ -126,7 +126,7 @@ static struct via_camera *via_cam_info;
 	v4l2_subdev_call(cam->sensor, optype, func, ##args)
 
 /*
- * Debugging and related.
+ * Deging and related.
  */
 #define cam_err(cam, fmt, arg...) \
 	dev_err(&(cam)->platdev->dev, fmt, ##arg);
@@ -1065,7 +1065,7 @@ static int viacam_streamon(struct file *filp, void *priv, enum v4l2_buf_type t)
 	}
 	/*
 	 * If the CPU goes into C3, the DMA transfer gets corrupted and
-	 * users start filing unsightly bug reports.  Put in a "latency"
+	 * users start filing unsightly  reports.  Put in a "latency"
 	 * requirement which will keep the CPU out of the deeper sleep
 	 * states.
 	 */

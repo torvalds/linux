@@ -24,7 +24,7 @@
 #include "jfs_superblock.h"
 #include "jfs_discard.h"
 #include "jfs_dmap.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 
 /*

@@ -123,7 +123,7 @@ static int stm32_dfsdm_set_osrs(struct stm32_dfsdm_filter *fl,
 	unsigned int m = 1;	/* multiplication factor */
 	unsigned int p = fl->ford;	/* filter order (ford) */
 
-	pr_debug("%s: Requested oversampling: %d\n",  __func__, oversamp);
+	pr_de("%s: Requested oversampling: %d\n",  __func__, oversamp);
 	/*
 	 * This function tries to compute filter oversampling and integrator
 	 * oversampling, base on oversampling ratio requested by user.
@@ -185,7 +185,7 @@ static int stm32_dfsdm_set_osrs(struct stm32_dfsdm_filter *fl,
 				fl->fosr = fosr;
 				fl->iosr = iosr;
 				fl->fast = fast;
-				pr_debug("%s: fosr = %d, iosr = %d\n",
+				pr_de("%s: fosr = %d, iosr = %d\n",
 					 __func__, fl->fosr, fl->iosr);
 			}
 

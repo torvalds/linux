@@ -218,7 +218,7 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 
 int truncate_inode_page(struct address_space *mapping, struct page *page)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 
 	if (page->mapping != mapping)
 		return -EIO;
@@ -634,7 +634,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
 	if (PageDirty(page))
 		goto failed;
 
-	BUG_ON(page_has_private(page));
+	_ON(page_has_private(page));
 	__delete_from_page_cache(page, NULL);
 	xa_unlock_irqrestore(&mapping->i_pages, flags);
 
@@ -725,7 +725,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 								1, false);
 				}
 			}
-			BUG_ON(page_mapped(page));
+			_ON(page_mapped(page));
 			ret2 = do_launder_page(mapping, page);
 			if (ret2 == 0) {
 				if (!invalidate_complete_page2(mapping, page))

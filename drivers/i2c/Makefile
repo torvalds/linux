@@ -17,4 +17,4 @@ obj-y				+= algos/ busses/ muxes/
 obj-$(CONFIG_I2C_STUB)		+= i2c-stub.o
 obj-$(CONFIG_I2C_SLAVE_EEPROM)	+= i2c-slave-eeprom.o
 
-ccflags-$(CONFIG_I2C_DEBUG_CORE) := -DDEBUG
+ccflags-$(CONFIG_I2C_DE_CORE) := -DDE

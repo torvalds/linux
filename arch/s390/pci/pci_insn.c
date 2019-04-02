@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <asm/facility.h>
 #include <asm/pci_insn.h>
-#include <asm/pci_debug.h>
+#include <asm/pci_de.h>
 #include <asm/processor.h>
 
 #define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */

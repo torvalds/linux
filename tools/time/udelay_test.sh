@@ -2,7 +2,7 @@
 
 # udelay() test script
 #
-# Test is executed by writing and reading to /sys/kernel/debug/udelay_test
+# Test is executed by writing and reading to /sys/kernel/de/udelay_test
 # and exercises a variety of delays to ensure that udelay() is delaying
 # at least as long as requested (as compared to ktime).
 #
@@ -18,7 +18,7 @@
 # GNU General Public License for more details.
 
 MODULE_NAME=udelay_test
-UDELAY_PATH=/sys/kernel/debug/udelay_test
+UDELAY_PATH=/sys/kernel/de/udelay_test
 
 setup()
 {

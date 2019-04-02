@@ -9,16 +9,16 @@
 #include "include/hw_ip/mmu/mmu_general.h"
 
 #include <linux/pci.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 
 #define MMU_ADDR_BUF_SIZE	40
 #define MMU_ASID_BUF_SIZE	10
 #define MMU_KBUF_SIZE		(MMU_ADDR_BUF_SIZE + MMU_ASID_BUF_SIZE)
 
-static struct dentry *hl_debug_root;
+static struct dentry *hl_de_root;
 
-static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
+static int hl_defs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, u32 *val)
 {
 	struct armcp_packet pkt;
@@ -44,7 +44,7 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	return rc;
 }
 
-static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
+static int hl_defs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, u32 val)
 {
 	struct armcp_packet pkt;
@@ -71,7 +71,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	return rc;
 }
 
-static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
+static void hl_defs_led_set(struct hl_device *hdev, u8 led, u8 state)
 {
 	struct armcp_packet pkt;
 	int rc;
@@ -95,14 +95,14 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 
 static int command_buffers_show(struct seq_file *s, void *data)
 {
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_cb *cb;
 	bool first = true;
 
 	spin_lock(&dev_entry->cb_spinlock);
 
-	list_for_each_entry(cb, &dev_entry->cb_list, debugfs_list) {
+	list_for_each_entry(cb, &dev_entry->cb_list, defs_list) {
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
@@ -126,14 +126,14 @@ static int command_buffers_show(struct seq_file *s, void *data)
 
 static int command_submission_show(struct seq_file *s, void *data)
 {
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_cs *cs;
 	bool first = true;
 
 	spin_lock(&dev_entry->cs_spinlock);
 
-	list_for_each_entry(cs, &dev_entry->cs_list, debugfs_list) {
+	list_for_each_entry(cs, &dev_entry->cs_list, defs_list) {
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
@@ -157,14 +157,14 @@ static int command_submission_show(struct seq_file *s, void *data)
 
 static int command_submission_jobs_show(struct seq_file *s, void *data)
 {
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_cs_job *job;
 	bool first = true;
 
 	spin_lock(&dev_entry->cs_job_spinlock);
 
-	list_for_each_entry(job, &dev_entry->cs_job_list, debugfs_list) {
+	list_for_each_entry(job, &dev_entry->cs_job_list, defs_list) {
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
@@ -192,7 +192,7 @@ static int command_submission_jobs_show(struct seq_file *s, void *data)
 
 static int userptr_show(struct seq_file *s, void *data)
 {
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_userptr *userptr;
 	char dma_dir[4][30] = {"DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
@@ -201,7 +201,7 @@ static int userptr_show(struct seq_file *s, void *data)
 
 	spin_lock(&dev_entry->userptr_spinlock);
 
-	list_for_each_entry(userptr, &dev_entry->userptr_list, debugfs_list) {
+	list_for_each_entry(userptr, &dev_entry->userptr_list, defs_list) {
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
@@ -223,7 +223,7 @@ static int userptr_show(struct seq_file *s, void *data)
 
 static int vm_show(struct seq_file *s, void *data)
 {
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_ctx *ctx;
 	struct hl_vm *vm;
@@ -240,7 +240,7 @@ static int vm_show(struct seq_file *s, void *data)
 
 	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
 
-	list_for_each_entry(ctx, &dev_entry->ctx_mem_hash_list, debugfs_list) {
+	list_for_each_entry(ctx, &dev_entry->ctx_mem_hash_list, defs_list) {
 		once = false;
 		seq_puts(s, "\n\n----------------------------------------------------");
 		seq_puts(s, "\n----------------------------------------------------\n\n");
@@ -352,7 +352,7 @@ static inline u64 get_next_hop_addr(u64 curr_pte)
 
 static int mmu_show(struct seq_file *s, void *data)
 {
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 	struct hl_ctx *ctx = hdev->user_ctx;
@@ -456,7 +456,7 @@ static ssize_t mmu_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
 	struct seq_file *s = file->private_data;
-	struct hl_debugfs_entry *entry = s->private;
+	struct hl_defs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
 	char kbuf[MMU_KBUF_SIZE], asid_kbuf[MMU_ASID_BUF_SIZE],
@@ -517,7 +517,7 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	rc = hdev->asic_funcs->debugfs_read32(hdev, entry->addr, &val);
+	rc = hdev->asic_funcs->defs_read32(hdev, entry->addr, &val);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to read from 0x%010llx\n",
 			entry->addr);
@@ -543,7 +543,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	rc = hdev->asic_funcs->debugfs_write32(hdev, entry->addr, value);
+	rc = hdev->asic_funcs->defs_write32(hdev, entry->addr, value);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to write 0x%08x to 0x%010llx\n",
 			value, entry->addr);
@@ -620,7 +620,7 @@ static ssize_t hl_i2c_data_read(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	rc = hl_debugfs_i2c_read(hdev, entry->i2c_bus, entry->i2c_addr,
+	rc = hl_defs_i2c_read(hdev, entry->i2c_bus, entry->i2c_addr,
 			entry->i2c_reg, &val);
 	if (rc) {
 		dev_err(hdev->dev,
@@ -648,7 +648,7 @@ static ssize_t hl_i2c_data_write(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	rc = hl_debugfs_i2c_write(hdev, entry->i2c_bus, entry->i2c_addr,
+	rc = hl_defs_i2c_write(hdev, entry->i2c_bus, entry->i2c_addr,
 			entry->i2c_reg, value);
 	if (rc) {
 		dev_err(hdev->dev,
@@ -674,7 +674,7 @@ static ssize_t hl_led0_write(struct file *f, const char __user *buf,
 
 	value = value ? 1 : 0;
 
-	hl_debugfs_led_set(hdev, 0, value);
+	hl_defs_led_set(hdev, 0, value);
 
 	return count;
 }
@@ -693,7 +693,7 @@ static ssize_t hl_led1_write(struct file *f, const char __user *buf,
 
 	value = value ? 1 : 0;
 
-	hl_debugfs_led_set(hdev, 1, value);
+	hl_defs_led_set(hdev, 1, value);
 
 	return count;
 }
@@ -712,7 +712,7 @@ static ssize_t hl_led2_write(struct file *f, const char __user *buf,
 
 	value = value ? 1 : 0;
 
-	hl_debugfs_led_set(hdev, 2, value);
+	hl_defs_led_set(hdev, 2, value);
 
 	return count;
 }
@@ -805,7 +805,7 @@ static const struct file_operations hl_device_fops = {
 	.write = hl_device_write
 };
 
-static const struct hl_info_list hl_debugfs_list[] = {
+static const struct hl_info_list hl_defs_list[] = {
 	{"command_buffers", command_buffers_show, NULL},
 	{"command_submission", command_submission_show, NULL},
 	{"command_submission_jobs", command_submission_jobs_show, NULL},
@@ -814,17 +814,17 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"mmu", mmu_show, mmu_write},
 };
 
-static int hl_debugfs_open(struct inode *inode, struct file *file)
+static int hl_defs_open(struct inode *inode, struct file *file)
 {
-	struct hl_debugfs_entry *node = inode->i_private;
+	struct hl_defs_entry *node = inode->i_private;
 
 	return single_open(file, node->info_ent->show, node);
 }
 
-static ssize_t hl_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t hl_defs_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
-	struct hl_debugfs_entry *node = file->f_inode->i_private;
+	struct hl_defs_entry *node = file->f_inode->i_private;
 
 	if (node->info_ent->write)
 		return node->info_ent->write(file, buf, count, f_pos);
@@ -833,26 +833,26 @@ static ssize_t hl_debugfs_write(struct file *file, const char __user *buf,
 
 }
 
-static const struct file_operations hl_debugfs_fops = {
+static const struct file_operations hl_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = hl_debugfs_open,
+	.open = hl_defs_open,
 	.read = seq_read,
-	.write = hl_debugfs_write,
+	.write = hl_defs_write,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-void hl_debugfs_add_device(struct hl_device *hdev)
+void hl_defs_add_device(struct hl_device *hdev)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
-	int count = ARRAY_SIZE(hl_debugfs_list);
-	struct hl_debugfs_entry *entry;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
+	int count = ARRAY_SIZE(hl_defs_list);
+	struct hl_defs_entry *entry;
 	struct dentry *ent;
 	int i;
 
 	dev_entry->hdev = hdev;
 	dev_entry->entry_arr = kmalloc_array(count,
-					sizeof(struct hl_debugfs_entry),
+					sizeof(struct hl_defs_entry),
 					GFP_KERNEL);
 	if (!dev_entry->entry_arr)
 		return;
@@ -870,66 +870,66 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	spin_lock_init(&dev_entry->userptr_spinlock);
 	spin_lock_init(&dev_entry->ctx_mem_hash_spinlock);
 
-	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
-						hl_debug_root);
+	dev_entry->root = defs_create_dir(dev_name(hdev->dev),
+						hl_de_root);
 
-	debugfs_create_x64("addr",
+	defs_create_x64("addr",
 				0644,
 				dev_entry->root,
 				&dev_entry->addr);
 
-	debugfs_create_file("data32",
+	defs_create_file("data32",
 				0644,
 				dev_entry->root,
 				dev_entry,
 				&hl_data32b_fops);
 
-	debugfs_create_file("set_power_state",
+	defs_create_file("set_power_state",
 				0200,
 				dev_entry->root,
 				dev_entry,
 				&hl_power_fops);
 
-	debugfs_create_u8("i2c_bus",
+	defs_create_u8("i2c_bus",
 				0644,
 				dev_entry->root,
 				&dev_entry->i2c_bus);
 
-	debugfs_create_u8("i2c_addr",
+	defs_create_u8("i2c_addr",
 				0644,
 				dev_entry->root,
 				&dev_entry->i2c_addr);
 
-	debugfs_create_u8("i2c_reg",
+	defs_create_u8("i2c_reg",
 				0644,
 				dev_entry->root,
 				&dev_entry->i2c_reg);
 
-	debugfs_create_file("i2c_data",
+	defs_create_file("i2c_data",
 				0644,
 				dev_entry->root,
 				dev_entry,
 				&hl_i2c_data_fops);
 
-	debugfs_create_file("led0",
+	defs_create_file("led0",
 				0200,
 				dev_entry->root,
 				dev_entry,
 				&hl_led0_fops);
 
-	debugfs_create_file("led1",
+	defs_create_file("led1",
 				0200,
 				dev_entry->root,
 				dev_entry,
 				&hl_led1_fops);
 
-	debugfs_create_file("led2",
+	defs_create_file("led2",
 				0200,
 				dev_entry->root,
 				dev_entry,
 				&hl_led2_fops);
 
-	debugfs_create_file("device",
+	defs_create_file("device",
 				0200,
 				dev_entry->root,
 				dev_entry,
@@ -937,142 +937,142 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 
-		ent = debugfs_create_file(hl_debugfs_list[i].name,
+		ent = defs_create_file(hl_defs_list[i].name,
 					0444,
 					dev_entry->root,
 					entry,
-					&hl_debugfs_fops);
+					&hl_defs_fops);
 		entry->dent = ent;
-		entry->info_ent = &hl_debugfs_list[i];
+		entry->info_ent = &hl_defs_list[i];
 		entry->dev_entry = dev_entry;
 	}
 }
 
-void hl_debugfs_remove_device(struct hl_device *hdev)
+void hl_defs_remove_device(struct hl_device *hdev)
 {
-	struct hl_dbg_device_entry *entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *entry = &hdev->hl_defs;
 
-	debugfs_remove_recursive(entry->root);
+	defs_remove_recursive(entry->root);
 
 	mutex_destroy(&entry->file_mutex);
 	kfree(entry->entry_arr);
 }
 
-void hl_debugfs_add_file(struct hl_fpriv *hpriv)
+void hl_defs_add_file(struct hl_fpriv *hpriv)
 {
-	struct hl_dbg_device_entry *dev_entry = &hpriv->hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hpriv->hdev->hl_defs;
 
 	mutex_lock(&dev_entry->file_mutex);
-	list_add(&hpriv->debugfs_list, &dev_entry->file_list);
+	list_add(&hpriv->defs_list, &dev_entry->file_list);
 	mutex_unlock(&dev_entry->file_mutex);
 }
 
-void hl_debugfs_remove_file(struct hl_fpriv *hpriv)
+void hl_defs_remove_file(struct hl_fpriv *hpriv)
 {
-	struct hl_dbg_device_entry *dev_entry = &hpriv->hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hpriv->hdev->hl_defs;
 
 	mutex_lock(&dev_entry->file_mutex);
-	list_del(&hpriv->debugfs_list);
+	list_del(&hpriv->defs_list);
 	mutex_unlock(&dev_entry->file_mutex);
 }
 
-void hl_debugfs_add_cb(struct hl_cb *cb)
+void hl_defs_add_cb(struct hl_cb *cb)
 {
-	struct hl_dbg_device_entry *dev_entry = &cb->hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &cb->hdev->hl_defs;
 
 	spin_lock(&dev_entry->cb_spinlock);
-	list_add(&cb->debugfs_list, &dev_entry->cb_list);
+	list_add(&cb->defs_list, &dev_entry->cb_list);
 	spin_unlock(&dev_entry->cb_spinlock);
 }
 
-void hl_debugfs_remove_cb(struct hl_cb *cb)
+void hl_defs_remove_cb(struct hl_cb *cb)
 {
-	struct hl_dbg_device_entry *dev_entry = &cb->hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &cb->hdev->hl_defs;
 
 	spin_lock(&dev_entry->cb_spinlock);
-	list_del(&cb->debugfs_list);
+	list_del(&cb->defs_list);
 	spin_unlock(&dev_entry->cb_spinlock);
 }
 
-void hl_debugfs_add_cs(struct hl_cs *cs)
+void hl_defs_add_cs(struct hl_cs *cs)
 {
-	struct hl_dbg_device_entry *dev_entry = &cs->ctx->hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &cs->ctx->hdev->hl_defs;
 
 	spin_lock(&dev_entry->cs_spinlock);
-	list_add(&cs->debugfs_list, &dev_entry->cs_list);
+	list_add(&cs->defs_list, &dev_entry->cs_list);
 	spin_unlock(&dev_entry->cs_spinlock);
 }
 
-void hl_debugfs_remove_cs(struct hl_cs *cs)
+void hl_defs_remove_cs(struct hl_cs *cs)
 {
-	struct hl_dbg_device_entry *dev_entry = &cs->ctx->hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &cs->ctx->hdev->hl_defs;
 
 	spin_lock(&dev_entry->cs_spinlock);
-	list_del(&cs->debugfs_list);
+	list_del(&cs->defs_list);
 	spin_unlock(&dev_entry->cs_spinlock);
 }
 
-void hl_debugfs_add_job(struct hl_device *hdev, struct hl_cs_job *job)
+void hl_defs_add_job(struct hl_device *hdev, struct hl_cs_job *job)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
 
 	spin_lock(&dev_entry->cs_job_spinlock);
-	list_add(&job->debugfs_list, &dev_entry->cs_job_list);
+	list_add(&job->defs_list, &dev_entry->cs_job_list);
 	spin_unlock(&dev_entry->cs_job_spinlock);
 }
 
-void hl_debugfs_remove_job(struct hl_device *hdev, struct hl_cs_job *job)
+void hl_defs_remove_job(struct hl_device *hdev, struct hl_cs_job *job)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
 
 	spin_lock(&dev_entry->cs_job_spinlock);
-	list_del(&job->debugfs_list);
+	list_del(&job->defs_list);
 	spin_unlock(&dev_entry->cs_job_spinlock);
 }
 
-void hl_debugfs_add_userptr(struct hl_device *hdev, struct hl_userptr *userptr)
+void hl_defs_add_userptr(struct hl_device *hdev, struct hl_userptr *userptr)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
 
 	spin_lock(&dev_entry->userptr_spinlock);
-	list_add(&userptr->debugfs_list, &dev_entry->userptr_list);
+	list_add(&userptr->defs_list, &dev_entry->userptr_list);
 	spin_unlock(&dev_entry->userptr_spinlock);
 }
 
-void hl_debugfs_remove_userptr(struct hl_device *hdev,
+void hl_defs_remove_userptr(struct hl_device *hdev,
 				struct hl_userptr *userptr)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
 
 	spin_lock(&dev_entry->userptr_spinlock);
-	list_del(&userptr->debugfs_list);
+	list_del(&userptr->defs_list);
 	spin_unlock(&dev_entry->userptr_spinlock);
 }
 
-void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
+void hl_defs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
 
 	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
-	list_add(&ctx->debugfs_list, &dev_entry->ctx_mem_hash_list);
+	list_add(&ctx->defs_list, &dev_entry->ctx_mem_hash_list);
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
 }
 
-void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
+void hl_defs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_defs;
 
 	spin_lock(&dev_entry->ctx_mem_hash_spinlock);
-	list_del(&ctx->debugfs_list);
+	list_del(&ctx->defs_list);
 	spin_unlock(&dev_entry->ctx_mem_hash_spinlock);
 }
 
-void __init hl_debugfs_init(void)
+void __init hl_defs_init(void)
 {
-	hl_debug_root = debugfs_create_dir("habanalabs", NULL);
+	hl_de_root = defs_create_dir("habanalabs", NULL);
 }
 
-void hl_debugfs_fini(void)
+void hl_defs_fini(void)
 {
-	debugfs_remove_recursive(hl_debug_root);
+	defs_remove_recursive(hl_de_root);
 }

@@ -41,7 +41,7 @@
 #include <linux/pci_hotplug.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/platform_data/x86/asus-wmi.h>
 #include <linux/platform_device.h>
@@ -117,7 +117,7 @@ struct fan_args {
 } __packed;
 
 /*
- * <platform>/    - debugfs root directory
+ * <platform>/    - defs root directory
  *   dev_id      - current dev_id
  *   ctrl_param  - current ctrl_param
  *   method_id   - current method_id
@@ -125,7 +125,7 @@ struct fan_args {
  *   dsts        - call DSTS(dev_id)  and print result
  *   call        - call method_id(dev_id, ctrl_param) and print result
  */
-struct asus_wmi_debug {
+struct asus_wmi_de {
 	struct dentry *root;
 	u32 method_id;
 	u32 dev_id;
@@ -177,7 +177,7 @@ struct asus_wmi {
 	struct workqueue_struct *hotplug_workqueue;
 	struct work_struct hotplug_work;
 
-	struct asus_wmi_debug debug;
+	struct asus_wmi_de de;
 
 	struct asus_wmi_driver *driver;
 };
@@ -1888,9 +1888,9 @@ static void asus_wmi_platform_exit(struct asus_wmi *asus)
 }
 
 /*
- * debugfs
+ * defs
  */
-struct asus_wmi_debugfs_node {
+struct asus_wmi_defs_node {
 	struct asus_wmi *asus;
 	char *name;
 	int (*show) (struct seq_file *m, void *data);
@@ -1902,12 +1902,12 @@ static int show_dsts(struct seq_file *m, void *data)
 	int err;
 	u32 retval = -1;
 
-	err = asus_wmi_get_devstate(asus, asus->debug.dev_id, &retval);
+	err = asus_wmi_get_devstate(asus, asus->de.dev_id, &retval);
 
 	if (err < 0)
 		return err;
 
-	seq_printf(m, "DSTS(%#x) = %#x\n", asus->debug.dev_id, retval);
+	seq_printf(m, "DSTS(%#x) = %#x\n", asus->de.dev_id, retval);
 
 	return 0;
 }
@@ -1918,14 +1918,14 @@ static int show_devs(struct seq_file *m, void *data)
 	int err;
 	u32 retval = -1;
 
-	err = asus_wmi_set_devstate(asus->debug.dev_id, asus->debug.ctrl_param,
+	err = asus_wmi_set_devstate(asus->de.dev_id, asus->de.ctrl_param,
 				    &retval);
 
 	if (err < 0)
 		return err;
 
-	seq_printf(m, "DEVS(%#x, %#x) = %#x\n", asus->debug.dev_id,
-		   asus->debug.ctrl_param, retval);
+	seq_printf(m, "DEVS(%#x, %#x) = %#x\n", asus->de.dev_id,
+		   asus->de.ctrl_param, retval);
 
 	return 0;
 }
@@ -1934,8 +1934,8 @@ static int show_call(struct seq_file *m, void *data)
 {
 	struct asus_wmi *asus = m->private;
 	struct bios_args args = {
-		.arg0 = asus->debug.dev_id,
-		.arg1 = asus->debug.ctrl_param,
+		.arg0 = asus->de.dev_id,
+		.arg1 = asus->de.ctrl_param,
 	};
 	struct acpi_buffer input = { (acpi_size) sizeof(args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -1943,7 +1943,7 @@ static int show_call(struct seq_file *m, void *data)
 	acpi_status status;
 
 	status = wmi_evaluate_method(ASUS_WMI_MGMT_GUID,
-				     0, asus->debug.method_id,
+				     0, asus->de.method_id,
 				     &input, &output);
 
 	if (ACPI_FAILURE(status))
@@ -1951,12 +1951,12 @@ static int show_call(struct seq_file *m, void *data)
 
 	obj = (union acpi_object *)output.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
-		seq_printf(m, "%#x(%#x, %#x) = %#x\n", asus->debug.method_id,
-			   asus->debug.dev_id, asus->debug.ctrl_param,
+		seq_printf(m, "%#x(%#x, %#x) = %#x\n", asus->de.method_id,
+			   asus->de.dev_id, asus->de.ctrl_param,
 			   (u32) obj->integer.value);
 	else
-		seq_printf(m, "%#x(%#x, %#x) = t:%d\n", asus->debug.method_id,
-			   asus->debug.dev_id, asus->debug.ctrl_param,
+		seq_printf(m, "%#x(%#x, %#x) = t:%d\n", asus->de.method_id,
+			   asus->de.dev_id, asus->de.ctrl_param,
 			   obj ? obj->type : -1);
 
 	kfree(obj);
@@ -1964,75 +1964,75 @@ static int show_call(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct asus_wmi_debugfs_node asus_wmi_debug_files[] = {
+static struct asus_wmi_defs_node asus_wmi_de_files[] = {
 	{NULL, "devs", show_devs},
 	{NULL, "dsts", show_dsts},
 	{NULL, "call", show_call},
 };
 
-static int asus_wmi_debugfs_open(struct inode *inode, struct file *file)
+static int asus_wmi_defs_open(struct inode *inode, struct file *file)
 {
-	struct asus_wmi_debugfs_node *node = inode->i_private;
+	struct asus_wmi_defs_node *node = inode->i_private;
 
 	return single_open(file, node->show, node->asus);
 }
 
-static const struct file_operations asus_wmi_debugfs_io_ops = {
+static const struct file_operations asus_wmi_defs_io_ops = {
 	.owner = THIS_MODULE,
-	.open = asus_wmi_debugfs_open,
+	.open = asus_wmi_defs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static void asus_wmi_debugfs_exit(struct asus_wmi *asus)
+static void asus_wmi_defs_exit(struct asus_wmi *asus)
 {
-	debugfs_remove_recursive(asus->debug.root);
+	defs_remove_recursive(asus->de.root);
 }
 
-static int asus_wmi_debugfs_init(struct asus_wmi *asus)
+static int asus_wmi_defs_init(struct asus_wmi *asus)
 {
 	struct dentry *dent;
 	int i;
 
-	asus->debug.root = debugfs_create_dir(asus->driver->name, NULL);
-	if (!asus->debug.root) {
-		pr_err("failed to create debugfs directory\n");
-		goto error_debugfs;
+	asus->de.root = defs_create_dir(asus->driver->name, NULL);
+	if (!asus->de.root) {
+		pr_err("failed to create defs directory\n");
+		goto error_defs;
 	}
 
-	dent = debugfs_create_x32("method_id", S_IRUGO | S_IWUSR,
-				  asus->debug.root, &asus->debug.method_id);
+	dent = defs_create_x32("method_id", S_IRUGO | S_IWUSR,
+				  asus->de.root, &asus->de.method_id);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_x32("dev_id", S_IRUGO | S_IWUSR,
-				  asus->debug.root, &asus->debug.dev_id);
+	dent = defs_create_x32("dev_id", S_IRUGO | S_IWUSR,
+				  asus->de.root, &asus->de.dev_id);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_x32("ctrl_param", S_IRUGO | S_IWUSR,
-				  asus->debug.root, &asus->debug.ctrl_param);
+	dent = defs_create_x32("ctrl_param", S_IRUGO | S_IWUSR,
+				  asus->de.root, &asus->de.ctrl_param);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	for (i = 0; i < ARRAY_SIZE(asus_wmi_debug_files); i++) {
-		struct asus_wmi_debugfs_node *node = &asus_wmi_debug_files[i];
+	for (i = 0; i < ARRAY_SIZE(asus_wmi_de_files); i++) {
+		struct asus_wmi_defs_node *node = &asus_wmi_de_files[i];
 
 		node->asus = asus;
-		dent = debugfs_create_file(node->name, S_IFREG | S_IRUGO,
-					   asus->debug.root, node,
-					   &asus_wmi_debugfs_io_ops);
+		dent = defs_create_file(node->name, S_IFREG | S_IRUGO,
+					   asus->de.root, node,
+					   &asus_wmi_defs_io_ops);
 		if (!dent) {
-			pr_err("failed to create debug file: %s\n", node->name);
-			goto error_debugfs;
+			pr_err("failed to create de file: %s\n", node->name);
+			goto error_defs;
 		}
 	}
 
 	return 0;
 
-error_debugfs:
-	asus_wmi_debugfs_exit(asus);
+error_defs:
+	asus_wmi_defs_exit(asus);
 	return -ENOMEM;
 }
 
@@ -2142,13 +2142,13 @@ static int asus_wmi_add(struct platform_device *pdev)
 		goto fail_wmi_handler;
 	}
 
-	err = asus_wmi_debugfs_init(asus);
+	err = asus_wmi_defs_init(asus);
 	if (err)
-		goto fail_debugfs;
+		goto fail_defs;
 
 	return 0;
 
-fail_debugfs:
+fail_defs:
 	wmi_remove_notify_handler(asus->driver->event_guid);
 fail_wmi_handler:
 	asus_wmi_backlight_exit(asus);
@@ -2176,7 +2176,7 @@ static int asus_wmi_remove(struct platform_device *device)
 	asus_wmi_input_exit(asus);
 	asus_wmi_led_exit(asus);
 	asus_wmi_rfkill_exit(asus);
-	asus_wmi_debugfs_exit(asus);
+	asus_wmi_defs_exit(asus);
 	asus_wmi_platform_exit(asus);
 	asus_hwmon_fan_set_auto(asus);
 
@@ -2195,7 +2195,7 @@ static int asus_hotk_thaw(struct device *device)
 		bool wlan;
 
 		/*
-		 * Work around bios bug - acpi _PTS turns off the wireless led
+		 * Work around bios  - acpi _PTS turns off the wireless led
 		 * during suspend.  Normally it restores it on resume, but
 		 * we should kick it ourselves in case hibernation is aborted.
 		 */

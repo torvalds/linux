@@ -345,9 +345,9 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, size_t privsize)
 	 * Make sure the structure sizes map with that the hardware
 	 * expects because bit-fields are being used.
 	 */
-	BUILD_BUG_ON(sizeof(struct tb_regs_switch_header) != 5 * 4);
-	BUILD_BUG_ON(sizeof(struct tb_regs_port_header) != 8 * 4);
-	BUILD_BUG_ON(sizeof(struct tb_regs_hop) != 2 * 4);
+	BUILD__ON(sizeof(struct tb_regs_switch_header) != 5 * 4);
+	BUILD__ON(sizeof(struct tb_regs_port_header) != 8 * 4);
+	BUILD__ON(sizeof(struct tb_regs_hop) != 2 * 4);
 
 	tb = kzalloc(sizeof(*tb) + privsize, GFP_KERNEL);
 	if (!tb)

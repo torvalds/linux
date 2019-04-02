@@ -26,6 +26,6 @@ obj-$(CONFIG_ARCH_PUV3)		+= puv3-core.o
 obj-$(CONFIG_PUV3_NB0916)	+= puv3-nb0916.o
 
 head-y				:= head.o
-obj-$(CONFIG_DEBUG_LL)		+= debug.o
+obj-$(CONFIG_DE_LL)		+= de.o
 
 extra-y				:= $(head-y) vmlinux.lds

@@ -13,7 +13,7 @@
  *
  * We're keep a section table for a few reasons:
  *
- * The Go runtime had a couple of bugs: it would read the section
+ * The Go runtime had a couple of s: it would read the section
  * table to try to figure out how many dynamic symbols there were (it
  * shouldn't have looked at the section table at all) and, if there
  * were no SHT_SYNDYM section table entry, it would use an
@@ -22,16 +22,16 @@
  * keep full performance for old Go programs).  This hack is only
  * needed on x86_64.
  *
- * The bug was introduced on 2012-08-31 by:
+ * The  was introduced on 2012-08-31 by:
  * https://code.google.com/p/go/source/detail?r=56ea40aac72b
  * and was fixed on 2014-06-13 by:
  * https://code.google.com/p/go/source/detail?r=fc1cd5e12595
  *
- * Binutils has issues debugging the vDSO: it reads the section table to
+ * Binutils has issues deging the vDSO: it reads the section table to
  * find SHT_NOTE; it won't look at PT_NOTE for the in-memory vDSO, which
  * would break build-id if we removed the section table.  Binutils
  * also requires that shstrndx != 0.  See:
- * https://sourceware.org/bugzilla/show_bug.cgi?id=17064
+ * https://sourceware.org/zilla/show_.cgi?id=17064
  *
  * elfutils might not look for PT_NOTE if there is a section table at
  * all.  I don't know whether this matters for any practical purpose.

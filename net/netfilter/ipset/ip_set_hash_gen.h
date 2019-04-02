@@ -271,7 +271,7 @@ htable_bits(u32 hashsize)
 	const u32 *__k = (const u32 *)data;			\
 	u32 __l = HKEY_DATALEN / sizeof(u32);			\
 								\
-	BUILD_BUG_ON(HKEY_DATALEN % sizeof(u32) != 0);		\
+	BUILD__ON(HKEY_DATALEN % sizeof(u32) != 0);		\
 								\
 	jhash2(__k, __l, initval) & jhash_mask(htable_bits);	\
 })
@@ -436,7 +436,7 @@ mtype_gc_init(struct ip_set *set, void (*gc)(struct timer_list *t))
 
 	timer_setup(&h->gc, gc, 0);
 	mod_timer(&h->gc, jiffies + IPSET_GC_PERIOD(set->timeout) * HZ);
-	pr_debug("gc initialized, run in every %u\n",
+	pr_de("gc initialized, run in every %u\n",
 		 IPSET_GC_PERIOD(set->timeout));
 }
 
@@ -484,7 +484,7 @@ mtype_expire(struct ip_set *set, struct htype *h)
 			data = ahash_data(n, j, dsize);
 			if (!ip_set_timeout_expired(ext_timeout(data, set)))
 				continue;
-			pr_debug("expired %u/%u\n", i, j);
+			pr_de("expired %u/%u\n", i, j);
 			clear_bit(j, n->used);
 			smp_mb__after_atomic();
 #ifdef IP_SET_HASH_WITH_NETS
@@ -532,7 +532,7 @@ mtype_gc(struct timer_list *t)
 	struct htype *h = from_timer(h, t, gc);
 	struct ip_set *set = h->set;
 
-	pr_debug("called\n");
+	pr_de("called\n");
 	spin_lock_bh(&set->lock);
 	mtype_expire(set, h);
 	spin_unlock_bh(&set->lock);
@@ -595,7 +595,7 @@ retry:
 	atomic_set(&orig->ref, 1);
 	atomic_inc(&orig->uref);
 	extsize = 0;
-	pr_debug("attempt to resize set %s from %u to %u, t %p\n",
+	pr_de("attempt to resize set %s from %u to %u, t %p\n",
 		 set->name, orig->htable_bits, htable_bits, orig);
 	for (i = 0; i < jhash_size(orig->htable_bits); i++) {
 		n = __ipset_dereference_protected(hbucket(orig, i), 1);
@@ -666,11 +666,11 @@ retry:
 	/* Give time to other readers of the set */
 	synchronize_rcu();
 
-	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
+	pr_de("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);
 	/* If there's nobody else dumping the table, destroy it */
 	if (atomic_dec_and_test(&orig->uref)) {
-		pr_debug("Table destroy by resize %p\n", orig);
+		pr_de("Table destroy by resize %p\n", orig);
 		mtype_ahash_destroy(set, orig, false);
 	}
 
@@ -944,7 +944,7 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 #endif
 	u32 key, multi = 0;
 
-	pr_debug("test by nets\n");
+	pr_de("test by nets\n");
 	for (; j < NLEN && h->nets[j].cidr[0] && !multi; j++) {
 #if IPSET_NET_COUNT == 2
 		mtype_data_reset_elem(d, &orig);
@@ -1103,7 +1103,7 @@ mtype_uref(struct ip_set *set, struct netlink_callback *cb, bool start)
 		t = (struct htable *)cb->args[IPSET_CB_PRIVATE];
 		if (atomic_dec_and_test(&t->uref) && atomic_read(&t->ref)) {
 			/* Resizing didn't destroy the hash table */
-			pr_debug("Table destroy by dump: %p\n", t);
+			pr_de("Table destroy by dump: %p\n", t);
 			mtype_ahash_destroy(set, t, false);
 		}
 		cb->args[IPSET_CB_PRIVATE] = 0;
@@ -1128,7 +1128,7 @@ mtype_list(const struct ip_set *set,
 	if (!atd)
 		return -EMSGSIZE;
 
-	pr_debug("list hash set %s\n", set->name);
+	pr_de("list hash set %s\n", set->name);
 	t = (const struct htable *)cb->args[IPSET_CB_PRIVATE];
 	/* Expire may replace a hbucket with another one */
 	rcu_read_lock();
@@ -1137,7 +1137,7 @@ mtype_list(const struct ip_set *set,
 		cond_resched_rcu();
 		incomplete = skb_tail_pointer(skb);
 		n = rcu_dereference(hbucket(t, cb->args[IPSET_CB_ARG0]));
-		pr_debug("cb->arg bucket: %lu, t %p n %p\n",
+		pr_de("cb->arg bucket: %lu, t %p n %p\n",
 			 cb->args[IPSET_CB_ARG0], t, n);
 		if (!n)
 			continue;
@@ -1148,7 +1148,7 @@ mtype_list(const struct ip_set *set,
 			if (SET_WITH_TIMEOUT(set) &&
 			    ip_set_timeout_expired(ext_timeout(e, set)))
 				continue;
-			pr_debug("list hash %lu hbucket %p i %u, data %p\n",
+			pr_de("list hash %lu hbucket %p i %u, data %p\n",
 				 cb->args[IPSET_CB_ARG0], n, i, e);
 			nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 			if (!nested) {
@@ -1231,7 +1231,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	struct htype *h;
 	struct htable *t;
 
-	pr_debug("Create set %s with family %s\n",
+	pr_de("Create set %s with family %s\n",
 		 set->name, set->family == NFPROTO_IPV4 ? "inet" : "inet6");
 
 #ifdef IP_SET_PROTO_UNDEF
@@ -1341,7 +1341,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 				IPSET_TOKEN(HTYPE, 6_gc));
 #endif
 	}
-	pr_debug("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",
+	pr_de("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",
 		 set->name, jhash_size(t->htable_bits),
 		 t->htable_bits, h->maxelem, set->data, t);
 

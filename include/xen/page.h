@@ -12,7 +12,7 @@
 
 /*
  * We assume that PAGE_SIZE is a multiple of XEN_PAGE_SIZE
- * XXX: Add a BUILD_BUG_ON?
+ * XXX: Add a BUILD__ON?
  */
 
 #define xen_pfn_to_page(xen_pfn)	\

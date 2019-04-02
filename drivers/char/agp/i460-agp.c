@@ -110,7 +110,7 @@ static int i460_fetch_size (void)
 	/* Determine the GART page size */
 	pci_read_config_byte(agp_bridge->dev, INTEL_I460_GXBCTL, &temp);
 	i460.io_page_shift = (temp & I460_4M_PS) ? 22 : 12;
-	pr_debug("i460_fetch_size: io_page_shift=%d\n", i460.io_page_shift);
+	pr_de("i460_fetch_size: io_page_shift=%d\n", i460.io_page_shift);
 
 	if (i460.io_page_shift != I460_IO_PAGE_SHIFT) {
 		printk(KERN_ERR PFX
@@ -297,7 +297,7 @@ static int i460_insert_memory_small_io_page (struct agp_memory *mem,
 	int i, j, k, num_entries;
 	void *temp;
 
-	pr_debug("i460_insert_memory_small_io_page(mem=%p, pg_start=%ld, type=%d, paddr0=0x%lx)\n",
+	pr_de("i460_insert_memory_small_io_page(mem=%p, pg_start=%ld, type=%d, paddr0=0x%lx)\n",
 		 mem, pg_start, type, page_to_phys(mem->pages[0]));
 
 	if (type >= AGP_USER_TYPES || mem->type >= AGP_USER_TYPES)
@@ -316,7 +316,7 @@ static int i460_insert_memory_small_io_page (struct agp_memory *mem,
 	j = io_pg_start;
 	while (j < (io_pg_start + I460_IOPAGES_PER_KPAGE * mem->page_count)) {
 		if (!PGE_EMPTY(agp_bridge, RD_GATT(j))) {
-			pr_debug("i460_insert_memory_small_io_page: GATT[%d]=0x%x is busy\n",
+			pr_de("i460_insert_memory_small_io_page: GATT[%d]=0x%x is busy\n",
 				 j, RD_GATT(j));
 			return -EBUSY;
 		}
@@ -338,7 +338,7 @@ static int i460_remove_memory_small_io_page(struct agp_memory *mem,
 {
 	int i;
 
-	pr_debug("i460_remove_memory_small_io_page(mem=%p, pg_start=%ld, type=%d)\n",
+	pr_de("i460_remove_memory_small_io_page(mem=%p, pg_start=%ld, type=%d)\n",
 		 mem, pg_start, type);
 
 	pg_start = I460_IOPAGES_PER_KPAGE * pg_start;

@@ -35,7 +35,7 @@ void __init p1010_rdb_pic_init(void)
 	  MPIC_SINGLE_DEST_CPU,
 	  0, 256, " OpenPIC  ");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	mpic_init(mpic);
 }

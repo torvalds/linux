@@ -91,7 +91,7 @@ static u32 cdv_get_max_backlight(struct drm_device *dev)
 	u32 max = REG_READ(BLC_PWM_CTL);
 
 	if (max == 0) {
-		DRM_DEBUG_KMS("LVDS Panel PWM value is 0!\n");
+		DRM_DE_KMS("LVDS Panel PWM value is 0!\n");
 		/* i915 does this, I believe which means that we should not
 		 * smash PWM control as firmware will take control of it. */
 		return 1;
@@ -372,7 +372,7 @@ static int cdv_restore_display_registers(struct drm_device *dev)
 	REG_WRITE(PSB_INT_ENABLE_R, regs->cdv.saveIER);
 	REG_WRITE(PSB_INT_MASK_R, regs->cdv.saveIMR);
 
-	/* Fix arbitration bug */
+	/* Fix arbitration  */
 	cdv_errata(dev);
 
 	drm_mode_config_reset(dev);

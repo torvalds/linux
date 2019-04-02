@@ -108,7 +108,7 @@ static void assert_out_naking(struct net2272_ep *ep, const char *where)
 {
 	u8 tmp;
 
-#ifndef DEBUG
+#ifndef DE
 	return;
 #endif
 
@@ -207,7 +207,7 @@ net2272_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	net2272_ep_write(ep, EP_STAT1, 1 << BUFFER_FLUSH);
 	tmp = usb_endpoint_type(desc);
 	if (usb_endpoint_xfer_bulk(desc)) {
-		/* catch some particularly blatant driver bugs */
+		/* catch some particularly blatant driver s */
 		if ((dev->gadget.speed == USB_SPEED_HIGH && max != 512) ||
 		    (dev->gadget.speed == USB_SPEED_FULL && max > 64)) {
 			spin_unlock_irqrestore(&dev->lock, flags);
@@ -2463,7 +2463,7 @@ net2272_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_RDK1: ret = net2272_rdk1_probe(pdev, dev); break;
 	case PCI_DEVICE_ID_RDK2: ret = net2272_rdk2_probe(pdev, dev); break;
-	default: BUG();
+	default: ();
 	}
 	if (ret)
 		goto err_pci;
@@ -2535,7 +2535,7 @@ net2272_pci_remove(struct pci_dev *pdev)
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_RDK1: net2272_rdk1_remove(pdev, dev); break;
 	case PCI_DEVICE_ID_RDK2: net2272_rdk2_remove(pdev, dev); break;
-	default: BUG();
+	default: ();
 	}
 
 	pci_disable_device(pdev);

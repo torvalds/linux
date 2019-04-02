@@ -202,7 +202,7 @@ static struct sk_buff *dcbnl_newmsg(int type, u8 cmd, u32 port, u32 seq,
 		return NULL;
 
 	nlh = nlmsg_put(skb, port, seq, type, sizeof(*dcb), flags);
-	BUG_ON(!nlh);
+	_ON(!nlh);
 
 	dcb = nlmsg_data(nlh);
 	dcb->dcb_family = AF_UNSPEC;

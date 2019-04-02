@@ -531,7 +531,7 @@ static void __init balloon3_init_irq(void)
 	irq_set_chained_handler(BALLOON3_AUX_NIRQ, balloon3_irq_handler);
 	irq_set_irq_type(BALLOON3_AUX_NIRQ, IRQ_TYPE_EDGE_FALLING);
 
-	pr_debug("%s: chained handler installed - irq %d automatically "
+	pr_de("%s: chained handler installed - irq %d automatically "
 		"enabled\n", __func__, BALLOON3_AUX_NIRQ);
 }
 

@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/module.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/hotplug.h>
@@ -30,7 +30,7 @@
 #include <linux/thread_info.h>
 
 #include <asm/cacheflush.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/mmu_context.h>
 #include <asm/mxregs.h>
 #include <asm/platform.h>
@@ -108,7 +108,7 @@ void __init smp_init_cpus(void)
 void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
-	BUG_ON(cpu != 0);
+	_ON(cpu != 0);
 	cpu_asid_cache(cpu) = ASID_USER_FIRST;
 }
 
@@ -126,15 +126,15 @@ void secondary_start_kernel(void)
 
 	init_mmu();
 
-#ifdef CONFIG_DEBUG_KERNEL
+#ifdef CONFIG_DE_KERNEL
 	if (boot_secondary_processors == 0) {
-		pr_debug("%s: boot_secondary_processors:%d; Hanging cpu:%d\n",
+		pr_de("%s: boot_secondary_processors:%d; Hanging cpu:%d\n",
 			__func__, boot_secondary_processors, cpu);
 		for (;;)
 			__asm__ __volatile__ ("waiti " __stringify(LOCKLEVEL));
 	}
 
-	pr_debug("%s: boot_secondary_processors:%d; Booting cpu:%d\n",
+	pr_de("%s: boot_secondary_processors:%d; Booting cpu:%d\n",
 		__func__, boot_secondary_processors, cpu);
 #endif
 	/* Init EXCSAVE1 */
@@ -174,7 +174,7 @@ static void mx_cpu_start(void *p)
 	unsigned long run_stall_mask = get_er(MPSCORE);
 
 	set_er(run_stall_mask & ~(1u << cpu), MPSCORE);
-	pr_debug("%s: cpu: %d, run_stall_mask: %lx ---> %lx\n",
+	pr_de("%s: cpu: %d, run_stall_mask: %lx ---> %lx\n",
 			__func__, cpu, run_stall_mask, get_er(MPSCORE));
 }
 
@@ -184,7 +184,7 @@ static void mx_cpu_stop(void *p)
 	unsigned long run_stall_mask = get_er(MPSCORE);
 
 	set_er(run_stall_mask | (1u << cpu), MPSCORE);
-	pr_debug("%s: cpu: %d, run_stall_mask: %lx ---> %lx\n",
+	pr_de("%s: cpu: %d, run_stall_mask: %lx ---> %lx\n",
 			__func__, cpu, run_stall_mask, get_er(MPSCORE));
 }
 
@@ -244,7 +244,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	start_info.stack = (unsigned long)task_pt_regs(idle);
 	wmb();
 
-	pr_debug("%s: Calling wakeup_secondary(cpu:%d, idle:%p, sp: %08lx)\n",
+	pr_de("%s: Calling wakeup_secondary(cpu:%d, idle:%p, sp: %08lx)\n",
 			__func__, cpu, idle, start_info.stack);
 
 	init_completion(&cpu_running);
@@ -456,7 +456,7 @@ void show_ipi_list(struct seq_file *p, int prec)
 
 int setup_profiling_timer(unsigned int multiplier)
 {
-	pr_debug("setup_profiling_timer %d\n", multiplier);
+	pr_de("setup_profiling_timer %d\n", multiplier);
 	return 0;
 }
 

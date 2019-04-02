@@ -5,7 +5,7 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
 #include <linux/err.h>
@@ -47,7 +47,7 @@ static void ion_buffer_add(struct ion_device *dev,
 			p = &(*p)->rb_right;
 		} else {
 			pr_err("%s: buffer already found.", __func__);
-			BUG();
+			();
 		}
 	}
 
@@ -396,7 +396,7 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	int fd;
 	struct dma_buf *dmabuf;
 
-	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
+	pr_de("%s: len %zu heap_id_mask %u flags %x\n", __func__,
 		 len, heap_id_mask, flags);
 	/*
 	 * traverse the list of heaps available in this system in priority
@@ -572,7 +572,7 @@ static const struct file_operations ion_fops = {
 #endif
 };
 
-static int debug_shrink_set(void *data, u64 val)
+static int de_shrink_set(void *data, u64 val)
 {
 	struct ion_heap *heap = data;
 	struct shrink_control sc;
@@ -590,7 +590,7 @@ static int debug_shrink_set(void *data, u64 val)
 	return 0;
 }
 
-static int debug_shrink_get(void *data, u64 *val)
+static int de_shrink_get(void *data, u64 *val)
 {
 	struct ion_heap *heap = data;
 	struct shrink_control sc;
@@ -604,15 +604,15 @@ static int debug_shrink_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
-			debug_shrink_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(de_shrink_fops, de_shrink_get,
+			de_shrink_set, "%llu\n");
 
 void ion_device_add_heap(struct ion_heap *heap)
 {
 	struct ion_device *dev = internal_dev;
 	int ret;
 	struct dentry *heap_root;
-	char debug_name[64];
+	char de_name[64];
 
 	if (!heap->ops->allocate || !heap->ops->free)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
@@ -636,27 +636,27 @@ void ion_device_add_heap(struct ion_heap *heap)
 	heap->num_of_alloc_bytes = 0;
 	heap->alloc_bytes_wm = 0;
 
-	heap_root = debugfs_create_dir(heap->name, dev->debug_root);
-	debugfs_create_u64("num_of_buffers",
+	heap_root = defs_create_dir(heap->name, dev->de_root);
+	defs_create_u64("num_of_buffers",
 			   0444, heap_root,
 			   &heap->num_of_buffers);
-	debugfs_create_u64("num_of_alloc_bytes",
+	defs_create_u64("num_of_alloc_bytes",
 			   0444,
 			   heap_root,
 			   &heap->num_of_alloc_bytes);
-	debugfs_create_u64("alloc_bytes_wm",
+	defs_create_u64("alloc_bytes_wm",
 			   0444,
 			   heap_root,
 			   &heap->alloc_bytes_wm);
 
 	if (heap->shrinker.count_objects &&
 	    heap->shrinker.scan_objects) {
-		snprintf(debug_name, 64, "%s_shrink", heap->name);
-		debugfs_create_file(debug_name,
+		snprintf(de_name, 64, "%s_shrink", heap->name);
+		defs_create_file(de_name,
 				    0644,
 				    heap_root,
 				    heap,
-				    &debug_shrink_fops);
+				    &de_shrink_fops);
 	}
 
 	down_write(&dev->lock);
@@ -693,7 +693,7 @@ static int ion_device_create(void)
 		return ret;
 	}
 
-	idev->debug_root = debugfs_create_dir("ion", NULL);
+	idev->de_root = defs_create_dir("ion", NULL);
 	idev->buffers = RB_ROOT;
 	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);

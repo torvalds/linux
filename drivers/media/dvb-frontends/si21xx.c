@@ -104,11 +104,11 @@
 #define STATUS_BER		0
 #define STATUS_UCBLOCKS		1
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "si21xx: " args); \
+		if (de) \
+			printk(KERN_DE "si21xx: " args); \
 	} while (0)
 
 enum {
@@ -945,8 +945,8 @@ error:
 }
 EXPORT_SYMBOL(si21xx_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("SL SI21XX DVB Demodulator driver");
 MODULE_AUTHOR("Igor M. Liplianin");

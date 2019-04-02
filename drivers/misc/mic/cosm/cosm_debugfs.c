@@ -19,12 +19,12 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/io.h>
 #include "cosm_main.h"
 
-/* Debugfs parent dir */
+/* Defs parent dir */
 static struct dentry *cosm_dbg;
 
 /**
@@ -96,7 +96,7 @@ static int force_reset_show(struct seq_file *s, void *pos)
 
 DEFINE_SHOW_ATTRIBUTE(force_reset);
 
-void cosm_create_debug_dir(struct cosm_device *cdev)
+void cosm_create_de_dir(struct cosm_device *cdev)
 {
 	char name[16];
 
@@ -104,32 +104,32 @@ void cosm_create_debug_dir(struct cosm_device *cdev)
 		return;
 
 	scnprintf(name, sizeof(name), "mic%d", cdev->index);
-	cdev->dbg_dir = debugfs_create_dir(name, cosm_dbg);
+	cdev->dbg_dir = defs_create_dir(name, cosm_dbg);
 	if (!cdev->dbg_dir)
 		return;
 
-	debugfs_create_file("log_buf", 0444, cdev->dbg_dir, cdev,
+	defs_create_file("log_buf", 0444, cdev->dbg_dir, cdev,
 			    &log_buf_fops);
-	debugfs_create_file("force_reset", 0444, cdev->dbg_dir, cdev,
+	defs_create_file("force_reset", 0444, cdev->dbg_dir, cdev,
 			    &force_reset_fops);
 }
 
-void cosm_delete_debug_dir(struct cosm_device *cdev)
+void cosm_delete_de_dir(struct cosm_device *cdev)
 {
 	if (!cdev->dbg_dir)
 		return;
 
-	debugfs_remove_recursive(cdev->dbg_dir);
+	defs_remove_recursive(cdev->dbg_dir);
 }
 
-void cosm_init_debugfs(void)
+void cosm_init_defs(void)
 {
-	cosm_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	cosm_dbg = defs_create_dir(KBUILD_MODNAME, NULL);
 	if (!cosm_dbg)
-		pr_err("can't create debugfs dir\n");
+		pr_err("can't create defs dir\n");
 }
 
-void cosm_exit_debugfs(void)
+void cosm_exit_defs(void)
 {
-	debugfs_remove(cosm_dbg);
+	defs_remove(cosm_dbg);
 }

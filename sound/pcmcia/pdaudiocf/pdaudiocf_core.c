@@ -83,20 +83,20 @@ static void pdacf_ak4117_write(void *private_data, unsigned char reg, unsigned c
 #if 0
 void pdacf_dump(struct snd_pdacf *chip)
 {
-	printk(KERN_DEBUG "PDAUDIOCF DUMP (0x%lx):\n", chip->port);
-	printk(KERN_DEBUG "WPD         : 0x%x\n",
+	printk(KERN_DE "PDAUDIOCF DUMP (0x%lx):\n", chip->port);
+	printk(KERN_DE "WPD         : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_WDP));
-	printk(KERN_DEBUG "RDP         : 0x%x\n",
+	printk(KERN_DE "RDP         : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_RDP));
-	printk(KERN_DEBUG "TCR         : 0x%x\n",
+	printk(KERN_DE "TCR         : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_TCR));
-	printk(KERN_DEBUG "SCR         : 0x%x\n",
+	printk(KERN_DE "SCR         : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_SCR));
-	printk(KERN_DEBUG "ISR         : 0x%x\n",
+	printk(KERN_DE "ISR         : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_ISR));
-	printk(KERN_DEBUG "IER         : 0x%x\n",
+	printk(KERN_DE "IER         : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_IER));
-	printk(KERN_DEBUG "AK_IFR      : 0x%x\n",
+	printk(KERN_DE "AK_IFR      : 0x%x\n",
 	       inw(chip->port + PDAUDIOCF_REG_AK_IFR));
 }
 #endif
@@ -210,7 +210,7 @@ int snd_pdacf_ak4117_create(struct snd_pdacf *chip)
 	val = pdacf_reg_read(chip, PDAUDIOCF_REG_TCR);
 #if 1 /* normal operation */
 	val &= ~(PDAUDIOCF_ELIMAKMBIT|PDAUDIOCF_TESTDATASEL);
-#else /* debug */
+#else /* de */
 	val |= PDAUDIOCF_ELIMAKMBIT;
 	val &= ~PDAUDIOCF_TESTDATASEL;
 #endif

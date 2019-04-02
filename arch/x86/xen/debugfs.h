@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _XEN_DEBUGFS_H
-#define _XEN_DEBUGFS_H
+#ifndef _XEN_DEFS_H
+#define _XEN_DEFS_H
 
-struct dentry * __init xen_init_debugfs(void);
+struct dentry * __init xen_init_defs(void);
 
-#endif /* _XEN_DEBUGFS_H */
+#endif /* _XEN_DEFS_H */

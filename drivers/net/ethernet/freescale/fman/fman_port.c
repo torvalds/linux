@@ -251,7 +251,7 @@ struct fman_port_rx_bmi_regs {
 	u32 fmbm_rfuc;		/* Rx FIFO Utilization Counter */
 	u32 fmbm_rpac;		/* Rx Pause Activation Counter */
 	u32 reserved02a0[0x18];	/* (0x2A0 0x2FF) */
-	u32 fmbm_rdcfg[0x3];	/* Rx Debug Configuration */
+	u32 fmbm_rdcfg[0x3];	/* Rx De Configuration */
 	u32 fmbm_rgpr;		/* Rx General Purpose Register */
 	u32 reserved0310[0x3a];
 };
@@ -293,7 +293,7 @@ struct fman_port_tx_bmi_regs {
 	u32 fmbm_tduc;		/* Tx DMA Utilization Counter */
 	u32 fmbm_tfuc;		/* Tx FIFO Utilization Counter */
 	u32 reserved029c[16];	/* (0x29C-0x2FF) */
-	u32 fmbm_tdcfg[0x3];	/* Tx Debug Configuration */
+	u32 fmbm_tdcfg[0x3];	/* Tx De Configuration */
 	u32 fmbm_tgpr;		/* Tx General Purpose Register */
 	u32 reserved0310[0x3a]; /* (0x310-0x3FF) */
 };
@@ -1904,7 +1904,7 @@ static int __init fman_port_load(void)
 {
 	int err;
 
-	pr_debug("FSL DPAA FMan driver\n");
+	pr_de("FSL DPAA FMan driver\n");
 
 	err = platform_driver_register(&fman_port_driver);
 	if (err < 0)

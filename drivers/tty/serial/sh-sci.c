@@ -19,7 +19,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#undef DEBUG
+#undef DE
 
 #include <linux/clk.h>
 #include <linux/console.h>
@@ -3244,7 +3244,7 @@ static int sci_probe_single(struct platform_device *dev,
 		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
-	BUILD_BUG_ON(SCI_NPORTS > sizeof(sci_ports_in_use) * 8);
+	BUILD__ON(SCI_NPORTS > sizeof(sci_ports_in_use) * 8);
 	if (sci_ports_in_use & BIT(index))
 		return -EBUSY;
 

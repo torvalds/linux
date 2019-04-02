@@ -84,7 +84,7 @@ static void sl82c105_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	pci_write_config_word(dev, reg,  drv_ctrl);
 	pci_read_config_word (dev, reg, &drv_ctrl);
 
-	printk(KERN_DEBUG "%s: selected %s (%dns) (%04X)\n", drive->name,
+	printk(KERN_DE "%s: selected %s (%dns) (%04X)\n", drive->name,
 			  ide_xfer_verbose(pio + XFER_PIO_0),
 			  ide_pio_cycle_time(drive, pio), drv_ctrl);
 }
@@ -126,7 +126,7 @@ static int sl82c105_test_irq(ide_hwif_t *hwif)
  * when the drive wants to report an error condition).
  *
  * 0x7e is a "chip testing" register.  Bit 2 resets the DMA controller
- * state machine.  We need to kick this to work around various bugs.
+ * state machine.  We need to kick this to work around various s.
  */
 static inline void sl82c105_reset_host(struct pci_dev *dev)
 {

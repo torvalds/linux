@@ -37,7 +37,7 @@ interface.
    be more appropriate.  However, access to these mechanisms requires that the
    relevant filesystem is mounted, which might not always be the case (e.g.
    in a namespaced/sandboxed/chrooted environment).  Avoid adding any API to
-   debugfs, as this is not considered a 'production' interface to userspace.
+   defs, as this is not considered a 'production' interface to userspace.
  - If the operation is specific to a particular file or file descriptor, then
    an additional :manpage:`fcntl(2)` command option may be more appropriate.  However,
    :manpage:`fcntl(2)` is a multiplexing system call that hides a lot of complexity, so

@@ -658,7 +658,7 @@ static int omap_mcbsp_init(struct platform_device *pdev)
 	 * OMAP1, 2 uses two interrupt lines: TX, RX
 	 * OMAP2430, OMAP3 SoC have combined IRQ line as well.
 	 * OMAP4 and newer SoC only have the combined IRQ line.
-	 * Use the combined IRQ if available since it gives better debugging
+	 * Use the combined IRQ if available since it gives better deging
 	 * possibilities.
 	 */
 	mcbsp->irq = platform_get_irq_byname(pdev, "common");

@@ -28,13 +28,13 @@
 
 #include "mt2063.h"
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Set Verbosity level");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Set Verbosity level");
 
 #define dprintk(level, fmt, arg...) do {				\
-if (debug >= level)							\
-	printk(KERN_DEBUG "mt2063 %s: " fmt, __func__, ## arg);	\
+if (de >= level)							\
+	printk(KERN_DE "mt2063 %s: " fmt, __func__, ## arg);	\
 } while (0)
 
 

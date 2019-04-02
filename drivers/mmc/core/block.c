@@ -37,7 +37,7 @@
 #include <linux/compat.h>
 #include <linux/pm_runtime.h>
 #include <linux/idr.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -130,7 +130,7 @@ struct mmc_blk_data {
 	struct device_attribute power_ro_lock;
 	int	area_type;
 
-	/* debugfs files (only in main mmc_blk_data) */
+	/* defs files (only in main mmc_blk_data) */
 	struct dentry *status_dentry;
 	struct dentry *ext_csd_dentry;
 };
@@ -451,7 +451,7 @@ static int ioctl_do_sanitize(struct mmc_card *card)
 			goto out;
 	}
 
-	pr_debug("%s: %s - SANITIZE IN PROGRESS...\n",
+	pr_de("%s: %s - SANITIZE IN PROGRESS...\n",
 		mmc_hostname(card->host), __func__);
 
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
@@ -462,7 +462,7 @@ static int ioctl_do_sanitize(struct mmc_card *card)
 		pr_err("%s: %s - EXT_CSD_SANITIZE_START failed. err=%d\n",
 		       mmc_hostname(card->host), __func__, err);
 
-	pr_debug("%s: %s - SANITIZE COMPLETED\n", mmc_hostname(card->host),
+	pr_de("%s: %s - SANITIZE COMPLETED\n", mmc_hostname(card->host),
 					     __func__);
 out:
 	return err;
@@ -1504,7 +1504,7 @@ void mmc_blk_cqe_recovery(struct mmc_queue *mq)
 	struct mmc_host *host = card->host;
 	int err;
 
-	pr_debug("%s: CQE recovery start\n", mmc_hostname(host));
+	pr_de("%s: CQE recovery start\n", mmc_hostname(host));
 
 	err = mmc_cqe_recovery(host);
 	if (err)
@@ -1512,7 +1512,7 @@ void mmc_blk_cqe_recovery(struct mmc_queue *mq)
 	else
 		mmc_blk_reset_success(mq->blkdata, MMC_BLK_CQE_RECOVERY);
 
-	pr_debug("%s: CQE recovery done\n", mmc_hostname(host));
+	pr_de("%s: CQE recovery done\n", mmc_hostname(host));
 }
 
 static void mmc_blk_cqe_req_done(struct mmc_request *mrq)
@@ -2737,7 +2737,7 @@ force_ro_fail:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int mmc_dbg_card_status_get(void *data, u64 *val)
 {
@@ -2762,7 +2762,7 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 
 	return ret;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
+DEFINE_DEFS_ATTRIBUTE(mmc_dbg_card_status_fops, mmc_dbg_card_status_get,
 			 NULL, "%08llx\n");
 
 /* That is two digits * 512 + 1 for newline */
@@ -2840,18 +2840,18 @@ static const struct file_operations mmc_dbg_ext_csd_fops = {
 	.llseek		= default_llseek,
 };
 
-static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
+static int mmc_blk_add_defs(struct mmc_card *card, struct mmc_blk_data *md)
 {
 	struct dentry *root;
 
-	if (!card->debugfs_root)
+	if (!card->defs_root)
 		return 0;
 
-	root = card->debugfs_root;
+	root = card->defs_root;
 
 	if (mmc_card_mmc(card) || mmc_card_sd(card)) {
 		md->status_dentry =
-			debugfs_create_file_unsafe("status", 0400, root,
+			defs_create_file_unsafe("status", 0400, root,
 						   card,
 						   &mmc_dbg_card_status_fops);
 		if (!md->status_dentry)
@@ -2860,7 +2860,7 @@ static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 
 	if (mmc_card_mmc(card)) {
 		md->ext_csd_dentry =
-			debugfs_create_file("ext_csd", S_IRUSR, root, card,
+			defs_create_file("ext_csd", S_IRUSR, root, card,
 					    &mmc_dbg_ext_csd_fops);
 		if (!md->ext_csd_dentry)
 			return -EIO;
@@ -2869,36 +2869,36 @@ static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 	return 0;
 }
 
-static void mmc_blk_remove_debugfs(struct mmc_card *card,
+static void mmc_blk_remove_defs(struct mmc_card *card,
 				   struct mmc_blk_data *md)
 {
-	if (!card->debugfs_root)
+	if (!card->defs_root)
 		return;
 
 	if (!IS_ERR_OR_NULL(md->status_dentry)) {
-		debugfs_remove(md->status_dentry);
+		defs_remove(md->status_dentry);
 		md->status_dentry = NULL;
 	}
 
 	if (!IS_ERR_OR_NULL(md->ext_csd_dentry)) {
-		debugfs_remove(md->ext_csd_dentry);
+		defs_remove(md->ext_csd_dentry);
 		md->ext_csd_dentry = NULL;
 	}
 }
 
 #else
 
-static int mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
+static int mmc_blk_add_defs(struct mmc_card *card, struct mmc_blk_data *md)
 {
 	return 0;
 }
 
-static void mmc_blk_remove_debugfs(struct mmc_card *card,
+static void mmc_blk_remove_defs(struct mmc_card *card,
 				   struct mmc_blk_data *md)
 {
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int mmc_blk_probe(struct mmc_card *card)
 {
@@ -2943,8 +2943,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 			goto out;
 	}
 
-	/* Add two debugfs entries */
-	mmc_blk_add_debugfs(card, md);
+	/* Add two defs entries */
+	mmc_blk_add_defs(card, md);
 
 	pm_runtime_set_autosuspend_delay(&card->dev, 3000);
 	pm_runtime_use_autosuspend(&card->dev);
@@ -2970,7 +2970,7 @@ static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
 
-	mmc_blk_remove_debugfs(card, md);
+	mmc_blk_remove_defs(card, md);
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
 	if (md->part_curr != md->part_type) {

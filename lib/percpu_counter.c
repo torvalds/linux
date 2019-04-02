@@ -8,54 +8,54 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
-#include <linux/debugobjects.h>
+#include <linux/deobjects.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 static LIST_HEAD(percpu_counters);
 static DEFINE_SPINLOCK(percpu_counters_lock);
 #endif
 
-#ifdef CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER
+#ifdef CONFIG_DE_OBJECTS_PERCPU_COUNTER
 
-static struct debug_obj_descr percpu_counter_debug_descr;
+static struct de_obj_descr percpu_counter_de_descr;
 
-static bool percpu_counter_fixup_free(void *addr, enum debug_obj_state state)
+static bool percpu_counter_fixup_free(void *addr, enum de_obj_state state)
 {
 	struct percpu_counter *fbc = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		percpu_counter_destroy(fbc);
-		debug_object_free(fbc, &percpu_counter_debug_descr);
+		de_object_free(fbc, &percpu_counter_de_descr);
 		return true;
 	default:
 		return false;
 	}
 }
 
-static struct debug_obj_descr percpu_counter_debug_descr = {
+static struct de_obj_descr percpu_counter_de_descr = {
 	.name		= "percpu_counter",
 	.fixup_free	= percpu_counter_fixup_free,
 };
 
-static inline void debug_percpu_counter_activate(struct percpu_counter *fbc)
+static inline void de_percpu_counter_activate(struct percpu_counter *fbc)
 {
-	debug_object_init(fbc, &percpu_counter_debug_descr);
-	debug_object_activate(fbc, &percpu_counter_debug_descr);
+	de_object_init(fbc, &percpu_counter_de_descr);
+	de_object_activate(fbc, &percpu_counter_de_descr);
 }
 
-static inline void debug_percpu_counter_deactivate(struct percpu_counter *fbc)
+static inline void de_percpu_counter_deactivate(struct percpu_counter *fbc)
 {
-	debug_object_deactivate(fbc, &percpu_counter_debug_descr);
-	debug_object_free(fbc, &percpu_counter_debug_descr);
+	de_object_deactivate(fbc, &percpu_counter_de_descr);
+	de_object_free(fbc, &percpu_counter_de_descr);
 }
 
-#else	/* CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER */
-static inline void debug_percpu_counter_activate(struct percpu_counter *fbc)
+#else	/* CONFIG_DE_OBJECTS_PERCPU_COUNTER */
+static inline void de_percpu_counter_activate(struct percpu_counter *fbc)
 { }
-static inline void debug_percpu_counter_deactivate(struct percpu_counter *fbc)
+static inline void de_percpu_counter_deactivate(struct percpu_counter *fbc)
 { }
-#endif	/* CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER */
+#endif	/* CONFIG_DE_OBJECTS_PERCPU_COUNTER */
 
 void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 {
@@ -131,7 +131,7 @@ int __percpu_counter_init(struct percpu_counter *fbc, s64 amount, gfp_t gfp,
 	if (!fbc->counters)
 		return -ENOMEM;
 
-	debug_percpu_counter_activate(fbc);
+	de_percpu_counter_activate(fbc);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	INIT_LIST_HEAD(&fbc->list);
@@ -150,7 +150,7 @@ void percpu_counter_destroy(struct percpu_counter *fbc)
 	if (!fbc->counters)
 		return;
 
-	debug_percpu_counter_deactivate(fbc);
+	de_percpu_counter_deactivate(fbc);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	spin_lock_irqsave(&percpu_counters_lock, flags);

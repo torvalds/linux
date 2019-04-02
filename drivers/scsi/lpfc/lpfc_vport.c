@@ -352,7 +352,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	vport->vpi = vpi;
-	lpfc_debugfs_initialize(vport);
+	lpfc_defs_initialize(vport);
 
 	if ((status = lpfc_vport_sparm(phba, vport))) {
 		if (status == -EINTR) {
@@ -663,7 +663,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	}
 	lpfc_free_sysfs_attr(vport);
 
-	lpfc_debugfs_terminate(vport);
+	lpfc_defs_terminate(vport);
 
 	/*
 	 * The call to fc_remove_host might release the NameServer ndlp. Since

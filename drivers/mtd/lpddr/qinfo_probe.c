@@ -70,7 +70,7 @@ static long lpddr_get_qinforec_pos(struct map_info *map, char *id_str)
 		}
 	}
 	printk(KERN_ERR"%s qinfo id string is wrong! \n", map->name);
-	BUG();
+	();
 	return -1;
 }
 

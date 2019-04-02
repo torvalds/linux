@@ -29,8 +29,8 @@
 #define DRIVER_DESC "USB-to-WWAN Driver for Sierra Wireless modems"
 static const char driver_name[] = "sierra_net";
 
-/* if defined debug messages enabled */
-/*#define	DEBUG*/
+/* if defined de messages enabled */
+/*#define	DE*/
 
 #include <linux/module.h>
 #include <linux/etherdevice.h>
@@ -877,7 +877,7 @@ static struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev,
 	u16 len;
 	bool need_tail;
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct usbnet, data)
+	BUILD__ON(FIELD_SIZEOF(struct usbnet, data)
 				< sizeof(struct cdc_state));
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);

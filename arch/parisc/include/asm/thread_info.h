@@ -13,7 +13,7 @@ struct thread_info {
 	unsigned long flags;		/* thread_info flags (see TIF_*) */
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	__u32 cpu;			/* current CPU */
-	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
+	int preempt_count;		/* 0=premptable, <0=; will also serve as bh-counter */
 };
 
 #define INIT_THREAD_INFO(tsk)			\

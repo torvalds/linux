@@ -178,7 +178,7 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 	int	old_cs;
 
 
-	BUG_ON(wait_uwire_csr_flag(CSRB, 0, 0));
+	_ON(wait_uwire_csr_flag(CSRB, 0, 0));
 
 	w = uwire_read_reg(UWIRE_CSR);
 	old_cs = (w >> 10) & 0x03;
@@ -235,7 +235,7 @@ static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 			val <<= 16 - bits;
 
 #ifdef	VERBOSE
-			pr_debug("%s: write-%d =%04x\n",
+			pr_de("%s: write-%d =%04x\n",
 					dev_name(&spi->dev), bits, val);
 #endif
 			if (wait_uwire_csr_flag(CSRB, 0, 0))
@@ -295,7 +295,7 @@ static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 				*buf++ = val >> 8;
 			status += bytes;
 #ifdef	VERBOSE
-			pr_debug("%s: read-%d =%04x\n",
+			pr_de("%s: read-%d =%04x\n",
 					dev_name(&spi->dev), bits, val);
 #endif
 
@@ -350,7 +350,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		hz = spi->max_speed_hz;
 
 	if (!hz) {
-		pr_debug("%s: zero speed?\n", dev_name(&spi->dev));
+		pr_de("%s: zero speed?\n", dev_name(&spi->dev));
 		status = -EINVAL;
 		goto done;
 	}
@@ -377,7 +377,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 			break;
 	}
 	if (div1_idx == 4) {
-		pr_debug("%s: lowest clock %ld, need %d\n",
+		pr_de("%s: lowest clock %ld, need %d\n",
 			dev_name(&spi->dev), rate / 10 / 8, hz);
 		status = -EDOM;
 		goto done;
@@ -412,7 +412,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		break;
 	}
 	omap_uwire_configure_mode(spi->chip_select, flags);
-	pr_debug("%s: uwire flags %02x, armxor %lu KHz, SCK %lu KHz\n",
+	pr_de("%s: uwire flags %02x, armxor %lu KHz, SCK %lu KHz\n",
 			__func__, flags,
 			clk_get_rate(uwire->ck) / 1000,
 			rate / 1000);

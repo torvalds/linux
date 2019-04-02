@@ -570,7 +570,7 @@ int xt_check_table_hooks(const struct xt_table_info *info, unsigned int valid_ho
 	unsigned int i, max_uflow, max_entry;
 	bool check_hooks = false;
 
-	BUILD_BUG_ON(ARRAY_SIZE(info->hook_entry) != ARRAY_SIZE(info->underflow));
+	BUILD__ON(ARRAY_SIZE(info->hook_entry) != ARRAY_SIZE(info->underflow));
 
 	max_entry = 0;
 	max_uflow = 0;
@@ -844,7 +844,7 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 	 * otherwise they are identical.  In case of padding differences
 	 * we need to add compat version of xt_check_entry_match.
 	 */
-	BUILD_BUG_ON(sizeof(struct compat_xt_entry_match) != sizeof(struct xt_entry_match));
+	BUILD__ON(sizeof(struct compat_xt_entry_match) != sizeof(struct xt_entry_match));
 
 	return xt_check_entry_match(elems, base + target_offset,
 				    __alignof__(struct compat_xt_entry_match));
@@ -1376,7 +1376,7 @@ xt_replace_table(struct xt_table *table,
 
 	/* Check inside lock: is the old number correct? */
 	if (num_counters != private->number) {
-		pr_debug("num_counters != table->private->number (%u/%u)\n",
+		pr_de("num_counters != table->private->number (%u/%u)\n",
 			 num_counters, private->number);
 		local_bh_enable();
 		*error = -EAGAIN;
@@ -1458,7 +1458,7 @@ struct xt_table *xt_register_table(struct net *net,
 		goto unlock;
 
 	private = table->private;
-	pr_debug("table->private->number = %u\n", private->number);
+	pr_de("table->private->number = %u\n", private->number);
 
 	/* save number of initial entries */
 	private->initial_entries = private->number;
@@ -1838,7 +1838,7 @@ EXPORT_SYMBOL_GPL(xt_proto_fini);
 bool xt_percpu_counter_alloc(struct xt_percpu_counter_alloc_state *state,
 			     struct xt_counters *counter)
 {
-	BUILD_BUG_ON(XT_PCPU_BLOCK_SIZE < (sizeof(*counter) * 2));
+	BUILD__ON(XT_PCPU_BLOCK_SIZE < (sizeof(*counter) * 2));
 
 	if (nr_cpu_ids <= 1)
 		return true;

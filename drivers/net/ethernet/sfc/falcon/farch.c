@@ -175,7 +175,7 @@ ef4_init_special_buffer(struct ef4_nic *efx, struct ef4_special_buffer *buffer)
 	dma_addr_t dma_addr;
 	int i;
 
-	EF4_BUG_ON_PARANOID(!buffer->buf.addr);
+	EF4__ON_PARANOID(!buffer->buf.addr);
 
 	/* Write buffer descriptors to NIC */
 	for (i = 0; i < buffer->entries; i++) {
@@ -232,7 +232,7 @@ static int ef4_alloc_special_buffer(struct ef4_nic *efx,
 	if (ef4_nic_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
 		return -ENOMEM;
 	buffer->entries = len / EF4_BUF_SIZE;
-	BUG_ON(buffer->buf.dma_addr & (EF4_BUF_SIZE - 1));
+	_ON(buffer->buf.dma_addr & (EF4_BUF_SIZE - 1));
 
 	/* Select new buffer ID */
 	buffer->index = efx->next_buffer_table;
@@ -290,8 +290,8 @@ static inline void ef4_farch_push_tx_desc(struct ef4_tx_queue *tx_queue,
 	unsigned write_ptr;
 	ef4_oword_t reg;
 
-	BUILD_BUG_ON(FRF_AZ_TX_DESC_LBN != 0);
-	BUILD_BUG_ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
+	BUILD__ON(FRF_AZ_TX_DESC_LBN != 0);
+	BUILD__ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
 
 	write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
 	EF4_POPULATE_OWORD_2(reg, FRF_AZ_TX_DESC_PUSH_CMD, true,
@@ -323,10 +323,10 @@ void ef4_farch_tx_write(struct ef4_tx_queue *tx_queue)
 		txd = ef4_tx_desc(tx_queue, write_ptr);
 		++tx_queue->write_count;
 
-		EF4_BUG_ON_PARANOID(buffer->flags & EF4_TX_BUF_OPTION);
+		EF4__ON_PARANOID(buffer->flags & EF4_TX_BUF_OPTION);
 
 		/* Create TX descriptor ring entry */
-		BUILD_BUG_ON(EF4_TX_BUF_CONT != 1);
+		BUILD__ON(EF4_TX_BUF_CONT != 1);
 		EF4_POPULATE_QWORD_4(*txd,
 				     FSF_AZ_TX_KER_CONT,
 				     buffer->flags & EF4_TX_BUF_CONT,
@@ -408,7 +408,7 @@ void ef4_farch_tx_init(struct ef4_tx_queue *tx_queue)
 
 	if (ef4_nic_rev(efx) < EF4_REV_FALCON_B0) {
 		/* Only 128 bits in this register */
-		BUILD_BUG_ON(EF4_MAX_TX_QUEUES > 128);
+		BUILD__ON(EF4_MAX_TX_QUEUES > 128);
 
 		ef4_reado(efx, &reg, FR_AA_TX_CHKSM_CFG);
 		if (tx_queue->queue & EF4_TXQ_TYPE_OFFLOAD)
@@ -800,7 +800,7 @@ void ef4_farch_generate_event(struct ef4_nic *efx, unsigned int evq,
 {
 	ef4_oword_t drv_ev_reg;
 
-	BUILD_BUG_ON(FRF_AZ_DRV_EV_DATA_LBN != 0 ||
+	BUILD__ON(FRF_AZ_DRV_EV_DATA_LBN != 0 ||
 		     FRF_AZ_DRV_EV_DATA_WIDTH != 64);
 	drv_ev_reg.u32[0] = event->u32[0];
 	drv_ev_reg.u32[1] = event->u32[1];
@@ -918,7 +918,7 @@ static u16 ef4_farch_handle_rx_not_ok(struct ef4_rx_queue *rx_queue,
 	 * error message.  FRM_TRUNC indicates RXDP dropped the packet due
 	 * to a FIFO overflow.
 	 */
-#ifdef DEBUG
+#ifdef DE
 	if (rx_ev_other_err && net_ratelimit()) {
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "
@@ -1550,7 +1550,7 @@ irqreturn_t ef4_farch_legacy_interrupt(int irq, void *dev_id)
 	} else {
 		ef4_qword_t *event;
 
-		/* Legacy ISR read can return zero once (SF bug 15783) */
+		/* Legacy ISR read can return zero once (SF  15783) */
 
 		/* We can't return IRQ_HANDLED more than once on seeing ISR=0
 		 * because this might be a shared interrupt. */
@@ -1621,9 +1621,9 @@ void ef4_farch_rx_push_indir_table(struct ef4_nic *efx)
 	size_t i = 0;
 	ef4_dword_t dword;
 
-	BUG_ON(ef4_nic_rev(efx) < EF4_REV_FALCON_B0);
+	_ON(ef4_nic_rev(efx) < EF4_REV_FALCON_B0);
 
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+	BUILD__ON(ARRAY_SIZE(efx->rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
 
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
@@ -1679,14 +1679,14 @@ void ef4_farch_init_common(struct ef4_nic *efx)
 	ef4_writeo(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
 
 	/* Set TX descriptor cache size. */
-	BUILD_BUG_ON(TX_DC_ENTRIES != (8 << TX_DC_ENTRIES_ORDER));
+	BUILD__ON(TX_DC_ENTRIES != (8 << TX_DC_ENTRIES_ORDER));
 	EF4_POPULATE_OWORD_1(temp, FRF_AZ_TX_DC_SIZE, TX_DC_ENTRIES_ORDER);
 	ef4_writeo(efx, &temp, FR_AZ_TX_DC_CFG);
 
 	/* Set RX descriptor cache size.  Set low watermark to size-8, as
 	 * this allows most efficient prefetching.
 	 */
-	BUILD_BUG_ON(RX_DC_ENTRIES != (8 << RX_DC_ENTRIES_ORDER));
+	BUILD__ON(RX_DC_ENTRIES != (8 << RX_DC_ENTRIES_ORDER));
 	EF4_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_SIZE, RX_DC_ENTRIES_ORDER);
 	ef4_writeo(efx, &temp, FR_AZ_RX_DC_CFG);
 	EF4_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_PF_LWM, RX_DC_ENTRIES - 8);
@@ -1853,19 +1853,19 @@ static u16 ef4_farch_filter_increment(u32 key)
 static enum ef4_farch_filter_table_id
 ef4_farch_filter_spec_table_id(const struct ef4_farch_filter_spec *spec)
 {
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
 		     (EF4_FARCH_FILTER_TCP_FULL >> 2));
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
 		     (EF4_FARCH_FILTER_TCP_WILD >> 2));
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
 		     (EF4_FARCH_FILTER_UDP_FULL >> 2));
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_RX_IP !=
 		     (EF4_FARCH_FILTER_UDP_WILD >> 2));
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_RX_MAC !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_RX_MAC !=
 		     (EF4_FARCH_FILTER_MAC_FULL >> 2));
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_RX_MAC !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_RX_MAC !=
 		     (EF4_FARCH_FILTER_MAC_WILD >> 2));
-	BUILD_BUG_ON(EF4_FARCH_FILTER_TABLE_TX_MAC !=
+	BUILD__ON(EF4_FARCH_FILTER_TABLE_TX_MAC !=
 		     EF4_FARCH_FILTER_TABLE_RX_MAC + 2);
 	return (spec->type >> 2) + ((spec->flags & EF4_FILTER_FLAG_TX) ? 2 : 0);
 }
@@ -1992,7 +1992,7 @@ ef4_farch_filter_from_gen_spec(struct ef4_farch_filter_spec *spec,
 		__be32 rhost, host1, host2;
 		__be16 rport, port1, port2;
 
-		EF4_BUG_ON_PARANOID(!(gen_spec->flags & EF4_FILTER_FLAG_RX));
+		EF4__ON_PARANOID(!(gen_spec->flags & EF4_FILTER_FLAG_RX));
 
 		if (gen_spec->ether_type != htons(ETH_P_IP))
 			return -EPROTONOSUPPORT;
@@ -2223,7 +2223,7 @@ static u32 ef4_farch_filter_build(ef4_oword_t *filter,
 	}
 
 	default:
-		BUG();
+		();
 	}
 
 	return spec->data[0] ^ spec->data[1] ^ spec->data[2] ^ data3;
@@ -2349,8 +2349,8 @@ s32 ef4_farch_filter_insert(struct ef4_nic *efx,
 
 	if (table->id == EF4_FARCH_FILTER_TABLE_RX_DEF) {
 		/* One filter spec per type */
-		BUILD_BUG_ON(EF4_FARCH_FILTER_INDEX_UC_DEF != 0);
-		BUILD_BUG_ON(EF4_FARCH_FILTER_INDEX_MC_DEF !=
+		BUILD__ON(EF4_FARCH_FILTER_INDEX_UC_DEF != 0);
+		BUILD__ON(EF4_FARCH_FILTER_INDEX_MC_DEF !=
 			     EF4_FARCH_FILTER_MC_DEF - EF4_FARCH_FILTER_UC_DEF);
 		rep_index = spec.type - EF4_FARCH_FILTER_UC_DEF;
 		ins_index = rep_index;
@@ -2483,7 +2483,7 @@ ef4_farch_filter_table_clear_entry(struct ef4_nic *efx,
 	static ef4_oword_t filter;
 
 	EF4_WARN_ON_PARANOID(!test_bit(filter_idx, table->used_bitmap));
-	BUG_ON(table->offset == 0); /* can't clear MAC default filters */
+	_ON(table->offset == 0); /* can't clear MAC default filters */
 
 	__clear_bit(filter_idx, table->used_bitmap);
 	--table->used;

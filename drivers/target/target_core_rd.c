@@ -55,7 +55,7 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	hba->hba_ptr = rd_host;
 
-	pr_debug("CORE_HBA[%d] - TCM Ramdisk HBA Driver %s on"
+	pr_de("CORE_HBA[%d] - TCM Ramdisk HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		RD_HBA_VERSION, TARGET_CORE_VERSION);
 
@@ -66,7 +66,7 @@ static void rd_detach_hba(struct se_hba *hba)
 {
 	struct rd_host *rd_host = hba->hba_ptr;
 
-	pr_debug("CORE_HBA[%d] - Detached Ramdisk HBA: %u from"
+	pr_de("CORE_HBA[%d] - Detached Ramdisk HBA: %u from"
 		" Generic Target Core\n", hba->hba_id, rd_host->rd_host_id);
 
 	kfree(rd_host);
@@ -108,7 +108,7 @@ static void rd_release_device_space(struct rd_dev *rd_dev)
 	page_count = rd_release_sgl_table(rd_dev, rd_dev->sg_table_array,
 					  rd_dev->sg_table_count);
 
-	pr_debug("CORE_RD[%u] - Released device space for Ramdisk"
+	pr_de("CORE_RD[%u] - Released device space for Ramdisk"
 		" Device ID: %u, pages %u in %u tables total bytes %lu\n",
 		rd_dev->rd_host->rd_host_id, rd_dev->rd_dev_id, page_count,
 		rd_dev->sg_table_count, (unsigned long)page_count * PAGE_SIZE);
@@ -216,7 +216,7 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 	if (rc)
 		return rc;
 
-	pr_debug("CORE_RD[%u] - Built Ramdisk Device ID: %u space of"
+	pr_de("CORE_RD[%u] - Built Ramdisk Device ID: %u space of"
 		 " %u pages in %u tables\n", rd_dev->rd_host->rd_host_id,
 		 rd_dev->rd_dev_id, rd_dev->rd_page_count,
 		 rd_dev->sg_table_count);
@@ -234,7 +234,7 @@ static void rd_release_prot_space(struct rd_dev *rd_dev)
 	page_count = rd_release_sgl_table(rd_dev, rd_dev->sg_prot_array,
 					  rd_dev->sg_prot_count);
 
-	pr_debug("CORE_RD[%u] - Released protection space for Ramdisk"
+	pr_de("CORE_RD[%u] - Released protection space for Ramdisk"
 		 " Device ID: %u, pages %u in %u tables total bytes %lu\n",
 		 rd_dev->rd_host->rd_host_id, rd_dev->rd_dev_id, page_count,
 		 rd_dev->sg_table_count, (unsigned long)page_count * PAGE_SIZE);
@@ -273,7 +273,7 @@ static int rd_build_prot_space(struct rd_dev *rd_dev, int prot_length, int block
 	if (rc)
 		return rc;
 
-	pr_debug("CORE_RD[%u] - Built Ramdisk Device ID: %u prot space of"
+	pr_de("CORE_RD[%u] - Built Ramdisk Device ID: %u prot space of"
 		 " %u pages in %u tables\n", rd_dev->rd_host->rd_host_id,
 		 rd_dev->rd_dev_id, total_sg_needed, rd_dev->sg_prot_count);
 
@@ -301,7 +301,7 @@ static int rd_configure_device(struct se_device *dev)
 	int ret;
 
 	if (!(rd_dev->rd_flags & RDF_HAS_PAGE_COUNT)) {
-		pr_debug("Missing rd_pages= parameter\n");
+		pr_de("Missing rd_pages= parameter\n");
 		return -EINVAL;
 	}
 
@@ -316,7 +316,7 @@ static int rd_configure_device(struct se_device *dev)
 
 	rd_dev->rd_dev_id = rd_host->rd_host_dev_id_count++;
 
-	pr_debug("CORE_RD[%u] - Added TCM MEMCPY Ramdisk Device ID: %u of"
+	pr_de("CORE_RD[%u] - Added TCM MEMCPY Ramdisk Device ID: %u of"
 		" %u pages in %u tables, %lu total bytes\n",
 		rd_host->rd_host_id, rd_dev->rd_dev_id, rd_dev->rd_page_count,
 		rd_dev->sg_table_count,
@@ -458,7 +458,7 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 	rd_sg = &table->sg_table[rd_page - table->page_start_offset];
 
-	pr_debug("RD[%u]: %s LBA: %llu, Size: %u Page: %u, Offset: %u\n",
+	pr_de("RD[%u]: %s LBA: %llu, Size: %u Page: %u, Offset: %u\n",
 			dev->rd_dev_id,
 			data_direction == DMA_FROM_DEVICE ? "Read" : "Write",
 			cmd->t_task_lba, rd_size, rd_page, rd_offset);
@@ -480,14 +480,14 @@ rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 
 		sg_miter_next(&m);
 		if (!(u32)m.length) {
-			pr_debug("RD[%u]: invalid sgl %p len %zu\n",
+			pr_de("RD[%u]: invalid sgl %p len %zu\n",
 				 dev->rd_dev_id, m.addr, m.length);
 			sg_miter_stop(&m);
 			return TCM_INCORRECT_AMOUNT_OF_DATA;
 		}
 		len = min((u32)m.length, src_len);
 		if (len > rd_size) {
-			pr_debug("RD[%u]: size underrun page %d offset %d "
+			pr_de("RD[%u]: size underrun page %d offset %d "
 				 "size %d\n", dev->rd_dev_id,
 				 rd_page, rd_offset, rd_size);
 			len = rd_size;
@@ -575,7 +575,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 		case Opt_rd_pages:
 			match_int(args, &arg);
 			rd_dev->rd_page_count = arg;
-			pr_debug("RAMDISK: Referencing Page"
+			pr_de("RAMDISK: Referencing Page"
 				" Count: %u\n", rd_dev->rd_page_count);
 			rd_dev->rd_flags |= RDF_HAS_PAGE_COUNT;
 			break;
@@ -584,7 +584,7 @@ static ssize_t rd_set_configfs_dev_params(struct se_device *dev,
 			if (arg != 1)
 				break;
 
-			pr_debug("RAMDISK: Setting NULLIO flag: %d\n", arg);
+			pr_de("RAMDISK: Setting NULLIO flag: %d\n", arg);
 			rd_dev->rd_flags |= RDF_NULLIO;
 			break;
 		default:

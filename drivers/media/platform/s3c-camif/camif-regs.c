@@ -195,7 +195,7 @@ void camif_hw_set_camera_bus(struct camif_dev *camif)
 		cfg |= CIGCTRL_FIELDMODE;
 	}
 
-	pr_debug("Setting CIGCTRL to: %#x\n", cfg);
+	pr_de("Setting CIGCTRL to: %#x\n", cfg);
 
 	camif_write(camif, S3C_CAMIF_REG_CIGCTRL, cfg);
 }
@@ -214,7 +214,7 @@ void camif_hw_set_output_addr(struct camif_vp *vp,
 								paddr->cr);
 	}
 
-	pr_debug("dst_buf[%d]: %pad, cb: %pad, cr: %pad\n",
+	pr_de("dst_buf[%d]: %pad, cb: %pad, cr: %pad\n",
 		 i, &paddr->y, &paddr->cb, &paddr->cr);
 }
 
@@ -286,7 +286,7 @@ void camif_hw_set_output_dma(struct camif_vp *vp)
 
 	camif_write(camif, S3C_CAMIF_REG_CICTRL(vp->id, vp->offset), cfg);
 
-	pr_debug("ymburst: %u, yrburst: %u\n", ymburst, yrburst);
+	pr_de("ymburst: %u, yrburst: %u\n", ymburst, yrburst);
 }
 
 void camif_hw_set_input_path(struct camif_vp *vp)
@@ -302,7 +302,7 @@ void camif_hw_set_target_format(struct camif_vp *vp)
 	struct camif_frame *frame = &vp->out_frame;
 	u32 cfg;
 
-	pr_debug("fw: %d, fh: %d color: %d\n", frame->f_width,
+	pr_de("fw: %d, fh: %d color: %d\n", frame->f_width,
 		 frame->f_height, vp->out_fmt->color);
 
 	cfg = camif_read(camif, S3C_CAMIF_REG_CITRGFMT(vp->id, vp->offset));
@@ -422,7 +422,7 @@ static void camif_s3c244x_hw_set_scaler(struct camif_vp *vp)
 
 	camif_write(camif, S3C_CAMIF_REG_CISCCTRL(vp->id, vp->offset), cfg);
 
-	pr_debug("main: h_ratio: %#x, v_ratio: %#x",
+	pr_de("main: h_ratio: %#x, v_ratio: %#x",
 		 scaler->main_h_ratio, scaler->main_v_ratio);
 }
 
@@ -471,7 +471,7 @@ static void camif_s3c64xx_hw_set_scaler(struct camif_vp *vp)
 
 	camif_write(camif, S3C_CAMIF_REG_CISCCTRL(vp->id, vp->offset), cfg);
 
-	pr_debug("main: h_ratio: %#x, v_ratio: %#x",
+	pr_de("main: h_ratio: %#x, v_ratio: %#x",
 		 scaler->main_h_ratio, scaler->main_v_ratio);
 }
 
@@ -530,7 +530,7 @@ void camif_hw_enable_capture(struct camif_vp *vp)
 
 	camif_write(camif, S3C_CAMIF_REG_CIIMGCPT(vp->offset), cfg);
 
-	pr_debug("CIIMGCPT: %#x, camif->stream_count: %d\n",
+	pr_de("CIIMGCPT: %#x, camif->stream_count: %d\n",
 		 cfg, camif->stream_count);
 }
 
@@ -548,7 +548,7 @@ void camif_hw_disable_capture(struct camif_vp *vp)
 	if (camif->stream_count == 0)
 		cfg &= ~CIIMGCPT_IMGCPTEN;
 
-	pr_debug("CIIMGCPT: %#x, camif->stream_count: %d\n",
+	pr_de("CIIMGCPT: %#x, camif->stream_count: %d\n",
 		 cfg, camif->stream_count);
 
 	camif_write(camif, S3C_CAMIF_REG_CIIMGCPT(vp->offset), cfg);

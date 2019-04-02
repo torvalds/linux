@@ -13,11 +13,11 @@
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-#undef RPCRDMA_BACKCHANNEL_DEBUG
+#undef RPCRDMA_BACKCHANNEL_DE
 
 static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 				 unsigned int count)
@@ -248,7 +248,7 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	p = xdr_inline_decode(&rep->rr_stream, 0);
 	size = xdr_stream_remaining(&rep->rr_stream);
 
-#ifdef RPCRDMA_BACKCHANNEL_DEBUG
+#ifdef RPCRDMA_BACKCHANNEL_DE
 	pr_info("RPC:       %s: callback XID %08x, length=%u\n",
 		__func__, be32_to_cpup(p), size);
 	pr_info("RPC:       %s: %*ph\n", __func__, size, p);

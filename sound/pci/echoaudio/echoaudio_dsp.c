@@ -490,7 +490,7 @@ static int load_firmware(struct echoaudio *chip)
 	const struct firmware *fw;
 	int box_type, err;
 
-	if (snd_BUG_ON(!chip->comm_page))
+	if (snd__ON(!chip->comm_page))
 		return -EPERM;
 
 	/* See if the ASIC is present and working - only if the DSP is already loaded */
@@ -527,7 +527,7 @@ static int load_firmware(struct echoaudio *chip)
 /* Set the nominal level for an input or output bus (true = -10dBV, false = +4dBu) */
 static int set_nominal_level(struct echoaudio *chip, u16 index, char consumer)
 {
-	if (snd_BUG_ON(index >= num_busses_out(chip) + num_busses_in(chip)))
+	if (snd__ON(index >= num_busses_out(chip) + num_busses_in(chip)))
 		return -EINVAL;
 
 	/* Wait for the handshake (OK even if ASIC is not loaded) */
@@ -551,7 +551,7 @@ static int set_nominal_level(struct echoaudio *chip, u16 index, char consumer)
 /* Set the gain for a single physical output channel (dB). */
 static int set_output_gain(struct echoaudio *chip, u16 channel, s8 gain)
 {
-	if (snd_BUG_ON(channel >= num_busses_out(chip)))
+	if (snd__ON(channel >= num_busses_out(chip)))
 		return -EINVAL;
 
 	if (wait_handshake(chip))
@@ -570,7 +570,7 @@ static int set_output_gain(struct echoaudio *chip, u16 channel, s8 gain)
 static int set_monitor_gain(struct echoaudio *chip, u16 output, u16 input,
 			    s8 gain)
 {
-	if (snd_BUG_ON(output >= num_busses_out(chip) ||
+	if (snd__ON(output >= num_busses_out(chip) ||
 		    input >= num_busses_in(chip)))
 		return -EINVAL;
 
@@ -1099,9 +1099,9 @@ static int free_pipes(struct echoaudio *chip, struct audiopipe *pipe)
 	u32 channel_mask;
 	int i;
 
-	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe->index)))
+	if (snd__ON(!is_pipe_allocated(chip, pipe->index)))
 		return -EINVAL;
-	if (snd_BUG_ON(pipe->state != PIPE_STATE_STOPPED))
+	if (snd__ON(pipe->state != PIPE_STATE_STOPPED))
 		return -EINVAL;
 
 	for (channel_mask = i = 0; i < pipe->interleave; i++)

@@ -142,7 +142,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 			WARN_ON(rc);
 		}
 		if (of_irq_to_resource_table(np, res, num_irq) != num_irq)
-			pr_debug("not all legacy IRQ resources mapped for %pOFn\n",
+			pr_de("not all legacy IRQ resources mapped for %pOFn\n",
 				 np);
 	}
 
@@ -231,7 +231,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	const void *prop;
 	int i, ret;
 
-	pr_debug("Creating amba device %pOF\n", node);
+	pr_de("Creating amba device %pOF\n", node);
 
 	if (!of_device_is_available(node) ||
 	    of_node_test_and_set_flag(node, OF_POPULATED))
@@ -317,7 +317,7 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 		if (!of_address_to_resource(np, 0, &res))
 			if (res.start != auxdata->phys_addr)
 				continue;
-		pr_debug("%pOF: devname=%s\n", np, auxdata->name);
+		pr_de("%pOF: devname=%s\n", np, auxdata->name);
 		return auxdata;
 	}
 
@@ -330,7 +330,7 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 		if (!of_device_is_compatible(np, auxdata->compatible))
 			continue;
 		if (!auxdata->phys_addr && !auxdata->name) {
-			pr_debug("%pOF: compatible match\n", np);
+			pr_de("%pOF: compatible match\n", np);
 			return auxdata;
 		}
 	}
@@ -363,19 +363,19 @@ static int of_platform_bus_create(struct device_node *bus,
 
 	/* Make sure it has a compatible property */
 	if (strict && (!of_get_property(bus, "compatible", NULL))) {
-		pr_debug("%s() - skipping %pOF, no compatible prop\n",
+		pr_de("%s() - skipping %pOF, no compatible prop\n",
 			 __func__, bus);
 		return 0;
 	}
 
 	/* Skip nodes for which we don't want to create devices */
 	if (unlikely(of_match_node(of_skipped_node_table, bus))) {
-		pr_debug("%s() - skipping %pOF node\n", __func__, bus);
+		pr_de("%s() - skipping %pOF node\n", __func__, bus);
 		return 0;
 	}
 
 	if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
-		pr_debug("%s() - skipping %pOF, already populated\n",
+		pr_de("%s() - skipping %pOF, already populated\n",
 			__func__, bus);
 		return 0;
 	}
@@ -400,7 +400,7 @@ static int of_platform_bus_create(struct device_node *bus,
 		return 0;
 
 	for_each_child_of_node(bus, child) {
-		pr_debug("   create child: %pOF\n", child);
+		pr_de("   create child: %pOF\n", child);
 		rc = of_platform_bus_create(child, matches, lookup, &dev->dev, strict);
 		if (rc) {
 			of_node_put(child);
@@ -431,8 +431,8 @@ int of_platform_bus_probe(struct device_node *root,
 	if (!root)
 		return -EINVAL;
 
-	pr_debug("%s()\n", __func__);
-	pr_debug(" starting at: %pOF\n", root);
+	pr_de("%s()\n", __func__);
+	pr_de(" starting at: %pOF\n", root);
 
 	/* Do a self check of bus type, if there's a match, create children */
 	if (of_match_node(matches, root)) {
@@ -483,8 +483,8 @@ int of_platform_populate(struct device_node *root,
 	if (!root)
 		return -EINVAL;
 
-	pr_debug("%s()\n", __func__);
-	pr_debug(" starting at: %pOF\n", root);
+	pr_de("%s()\n", __func__);
+	pr_de(" starting at: %pOF\n", root);
 
 	for_each_child_of_node(root, child) {
 		rc = of_platform_bus_create(child, matches, lookup, parent, true);

@@ -29,9 +29,9 @@
 #define DRV_VERSION	"1.0"
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0000);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0000);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 /* SRAM memory layout:
  *
@@ -69,7 +69,7 @@ struct encx24j600_priv {
 
 static void dump_packet(const char *msg, int len, const char *data)
 {
-	pr_debug(DRV_NAME ": %s - packet len:%d\n", msg, len);
+	pr_de(DRV_NAME ": %s - packet len:%d\n", msg, len);
 	print_hex_dump_bytes("pk data: ", DUMP_PREFIX_OFFSET, data, len);
 }
 
@@ -307,7 +307,7 @@ static void encx24j600_tx_complete(struct encx24j600_priv *priv, bool err)
 	struct net_device *dev = priv->ndev;
 
 	if (!priv->tx_skb) {
-		BUG();
+		();
 		return;
 	}
 
@@ -1023,7 +1023,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, priv);
 	SET_NETDEV_DEV(ndev, &spi->dev);
 
-	priv->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	priv->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 	priv->ndev = ndev;
 
 	/* Default configuration PHY configuration */

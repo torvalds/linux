@@ -1816,7 +1816,7 @@ struct imgu_abi_sp_pipeline {
 	} shading;
 } __packed;
 
-struct imgu_abi_sp_debug_command {
+struct imgu_abi_sp_de_command {
 	/*
 	 * The DMA software-mask,
 	 *      Bit 31...24: unused.
@@ -1839,7 +1839,7 @@ struct imgu_abi_sp_debug_command {
 struct imgu_abi_sp_group {
 	struct imgu_abi_sp_config config;
 	struct imgu_abi_sp_pipeline pipe[IMGU_ABI_MAX_SP_THREADS];
-	struct imgu_abi_sp_debug_command debug;
+	struct imgu_abi_sp_de_command de;
 } __packed;
 
 /***** parameter and state class binary configurations *****/

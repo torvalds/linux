@@ -73,7 +73,7 @@ int i2c_register_board_info(int busnum, struct i2c_board_info const *info, unsig
 
 		devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
 		if (!devinfo) {
-			pr_debug("i2c-core: can't register boardinfo!\n");
+			pr_de("i2c-core: can't register boardinfo!\n");
 			status = -ENOMEM;
 			break;
 		}

@@ -95,7 +95,7 @@ EXPORT_SYMBOL(pm_vt_switch_unregister);
  * There are three cases when a VT switch on suspend/resume are required:
  *   1) no driver has indicated a requirement one way or another, so preserve
  *      the old behavior
- *   2) console suspend is disabled, we want to see debug messages across
+ *   2) console suspend is disabled, we want to see de messages across
  *      suspend/resume
  *   3) any registered driver indicates it needs a VT switch
  *

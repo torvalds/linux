@@ -54,18 +54,18 @@ static const char *verstr = "20160209";
 #include <scsi/sg.h>
 
 
-/* The driver prints some debugging information on the console if DEBUG
+/* The driver prints some deging information on the console if DE
    is defined and non-zero. */
-#define DEBUG 1
-#define NO_DEBUG 0
+#define DE 1
+#define NO_DE 0
 
 #define ST_DEB_MSG  KERN_NOTICE
-#if DEBUG
-/* The message level for the debug messages is currently set to KERN_NOTICE
-   so that people can easily see the messages. Later when the debugging messages
-   in the drivers are more widely classified, this may be changed to KERN_DEBUG. */
+#if DE
+/* The message level for the de messages is currently set to KERN_NOTICE
+   so that people can easily see the messages. Later when the deging messages
+   in the drivers are more widely classified, this may be changed to KERN_DE. */
 #define DEB(a) a
-#define DEBC(a) if (debugging) { a ; }
+#define DEBC(a) if (deging) { a ; }
 #else
 #define DEB(a)
 #define DEBC(a)
@@ -81,7 +81,7 @@ static int max_sg_segs;
 static int try_direct_io = TRY_DIRECT_IO;
 static int try_rdio = 1;
 static int try_wdio = 1;
-static int debug_flag;
+static int de_flag;
 
 static struct class st_sysfs_class;
 static const struct attribute_group *st_dev_groups[];
@@ -103,8 +103,8 @@ module_param_named(max_sg_segs, max_sg_segs, int, 0);
 MODULE_PARM_DESC(max_sg_segs, "Maximum number of scatter/gather segments to use (256)");
 module_param_named(try_direct_io, try_direct_io, int, 0);
 MODULE_PARM_DESC(try_direct_io, "Try direct I/O between user buffer and tape drive (1)");
-module_param_named(debug_flag, debug_flag, int, 0);
-MODULE_PARM_DESC(debug_flag, "Enable DEBUG, same as setting debugging=1");
+module_param_named(de_flag, de_flag, int, 0);
+MODULE_PARM_DESC(de_flag, "Enable DE, same as setting deging=1");
 
 
 /* Extra parameters for testing */
@@ -132,7 +132,7 @@ static struct st_dev_parm {
 		"try_direct_io", &try_direct_io
 	},
 	{
-		"debug_flag", &debug_flag
+		"de_flag", &de_flag
 	}
 };
 #endif
@@ -157,7 +157,7 @@ static const char *st_formats[] = {
 #error "Buffer size should not exceed (2 << 24 - 1) bytes!"
 #endif
 
-static int debugging = DEBUG;
+static int deging = DE;
 
 #define MAX_RETRIES 0
 #define MAX_WRITE_RETRIES 0
@@ -314,9 +314,9 @@ static inline char *tape_name(struct scsi_tape *tape)
 
 #define st_printk(prefix, t, fmt, a...) \
 	sdev_prefix_printk(prefix, (t)->device, tape_name(t), fmt, ##a)
-#ifdef DEBUG
+#ifdef DE
 #define DEBC_printk(t, fmt, a...) \
-	if (debugging) { st_printk(ST_DEB_MSG, t, fmt, ##a ); }
+	if (deging) { st_printk(ST_DEB_MSG, t, fmt, ##a ); }
 #else
 #define DEBC_printk(t, fmt, a...)
 #endif
@@ -376,7 +376,7 @@ static int st_chk_result(struct scsi_tape *STp, struct st_request * SRpnt)
 		scode = 0;
 
 	DEB(
-	if (debugging) {
+	if (deging) {
 		st_printk(ST_DEB_MSG, STp,
 			    "Error: %x, cmd: %x %x %x %x %x %x\n", result,
 			    SRpnt->cmd[0], SRpnt->cmd[1], SRpnt->cmd[2],
@@ -385,7 +385,7 @@ static int st_chk_result(struct scsi_tape *STp, struct st_request * SRpnt)
 			__scsi_print_sense(STp->device, name,
 					   SRpnt->sense, SCSI_SENSE_BUFFERSIZE);
 	} ) /* end DEB */
-	if (!debugging) { /* Abnormal conditions for tape */
+	if (!deging) { /* Abnormal conditions for tape */
 		if (!cmdstatp->have_sense)
 			st_printk(KERN_WARNING, STp,
 			       "Error %x (driver bt 0x%x, host bt 0x%x).\n",
@@ -430,7 +430,7 @@ static int st_chk_result(struct scsi_tape *STp, struct st_request * SRpnt)
 		STp->recover_reg++;
 
 		DEB(
-		if (debugging) {
+		if (deging) {
 			if (SRpnt->cmd[0] == READ_6)
 				stp = "read";
 			else if (SRpnt->cmd[0] == WRITE_6)
@@ -713,7 +713,7 @@ static int write_behind_check(struct scsi_tape * STp)
 	}
 	STbuffer->writing = 0;
 
-	DEB(if (debugging && retval)
+	DEB(if (deging && retval)
 		    st_printk(ST_DEB_MSG, STp,
 				"Async write error %x, return value %d.\n",
 				STbuffer->cmdstat.midlevel_result, retval);) /* end DEB */
@@ -1121,7 +1121,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 			    ((STp->buffer)->b_data[2] << 8) | (STp->buffer)->b_data[3];
 			STp->min_block = ((STp->buffer)->b_data[4] << 8) |
 			    (STp->buffer)->b_data[5];
-			if ( DEB( debugging || ) !STp->inited)
+			if ( DEB( deging || ) !STp->inited)
 				st_printk(KERN_INFO, STp,
 					  "Block limits %d - %d bytes.\n",
 					  STp->min_block, STp->max_block);
@@ -1364,7 +1364,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 	}
 
 	DEBC( if (STp->nbr_requests)
-		st_printk(KERN_DEBUG, STp,
+		st_printk(KERN_DE, STp,
 			  "Number of r/w requests %d, dio used in %d, "
 			  "pages %d.\n", STp->nbr_requests, STp->nbr_dio,
 			  STp->nbr_pages));
@@ -1372,7 +1372,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 	if (STps->rw == ST_WRITING && !STp->pos_unknown) {
 		struct st_cmdstatus *cmdstatp = &STp->buffer->cmdstat;
 
-#if DEBUG
+#if DE
 		DEBC_printk(STp, "Async write waits %d, finished %d.\n",
 			    STp->nbr_waits, STp->nbr_finished);
 #endif
@@ -2128,7 +2128,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		STps->rw = ST_READING;
 	}
 	DEB(
-	if (debugging && STps->eof != ST_NOEOF)
+	if (deging && STps->eof != ST_NOEOF)
 		st_printk(ST_DEB_MSG, STp,
 			  "EOF/EOM flag up (%d). Bytes %d\n",
 			  STps->eof, STbp->buffer_bytes);
@@ -2180,7 +2180,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		/* Move the data from driver buffer to user buffer */
 		if (STbp->buffer_bytes > 0) {
 			DEB(
-			if (debugging && STps->eof != ST_NOEOF)
+			if (deging && STps->eof != ST_NOEOF)
 				st_printk(ST_DEB_MSG, STp,
 					  "EOF up (%d). Left %d, needed %d.\n",
 					  STps->eof, STbp->buffer_bytes,
@@ -2243,7 +2243,7 @@ DEB(
 /* Set the driver options */
 static void st_log_options(struct scsi_tape * STp, struct st_modedef * STm)
 {
-	if (debugging) {
+	if (deging) {
 		st_printk(KERN_INFO, STp,
 			  "Mode %d options: buffer writes: %d, "
 			  "async writes: %d, read ahead: %d\n",
@@ -2264,7 +2264,7 @@ static void st_log_options(struct scsi_tape * STp, struct st_modedef * STm)
 			  "nowait_filemark: %d\n",
 			  STm->sysv, STp->immediate, STp->sili,
 			  STp->immediate_filemark);
-		st_printk(KERN_INFO, STp, "    debugging: %d\n", debugging);
+		st_printk(KERN_INFO, STp, "    deging: %d\n", deging);
 	}
 }
 	)
@@ -2312,7 +2312,7 @@ static int st_set_options(struct scsi_tape *STp, long options)
 		STp->immediate_filemark = (options & MT_ST_NOWAIT_EOF) != 0;
 		STm->sysv = (options & MT_ST_SYSV) != 0;
 		STp->sili = (options & MT_ST_SILI) != 0;
-		DEB( debugging = (options & MT_ST_DEBUGGING) != 0;
+		DEB( deging = (options & MT_ST_DEGING) != 0;
 		     st_log_options(STp, STm); )
 	} else if (code == MT_ST_SETBOOLEANS || code == MT_ST_CLEARBOOLEANS) {
 		value = (code == MT_ST_SETBOOLEANS);
@@ -2348,8 +2348,8 @@ static int st_set_options(struct scsi_tape *STp, long options)
 		if ((options & MT_ST_SILI) != 0)
 			STp->sili = value;
 		DEB(
-		if ((options & MT_ST_DEBUGGING) != 0)
-			debugging = value;
+		if ((options & MT_ST_DEGING) != 0)
+			deging = value;
 			st_log_options(STp, STm); )
 	} else if (code == MT_ST_WRITE_THRESHOLD) {
 		/* Retained for compatibility */
@@ -2669,14 +2669,14 @@ static int do_load_unload(struct scsi_tape *STp, struct file *filp, int load_cod
 	return retval;
 }
 
-#if DEBUG
+#if DE
 #define ST_DEB_FORWARD  0
 #define ST_DEB_BACKWARD 1
 static void deb_space_print(struct scsi_tape *STp, int direction, char *units, unsigned char *cmd)
 {
 	s32 sc;
 
-	if (!debugging)
+	if (!deging)
 		return;
 
 	sc = cmd[2] & 0x80 ? 0xff000000 : 0;
@@ -3514,7 +3514,7 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 		return -ERESTARTSYS;
 
 	DEB(
-	if (debugging && !STp->in_use) {
+	if (deging && !STp->in_use) {
 		st_printk(ST_DEB_MSG, STp, "Incorrect device.\n");
 		retval = (-EIO);
 		goto out;
@@ -4485,10 +4485,10 @@ static int __init init_st(void)
 	printk(KERN_INFO "st: Version %s, fixed bufsize %d, s/g segs %d\n",
 		verstr, st_fixed_buffer_size, st_max_sg_segs);
 
-	debugging = (debug_flag > 0) ? debug_flag : NO_DEBUG;
-	if (debugging) {
-		printk(KERN_INFO "st: Debugging enabled debug_flag = %d\n",
-			debugging);
+	deging = (de_flag > 0) ? de_flag : NO_DE;
+	if (deging) {
+		printk(KERN_INFO "st: Deging enabled de_flag = %d\n",
+			deging);
 	}
 
 	err = class_register(&st_sysfs_class);
@@ -4558,31 +4558,31 @@ static ssize_t version_show(struct device_driver *ddd, char *buf)
 }
 static DRIVER_ATTR_RO(version);
 
-#if DEBUG
-static ssize_t debug_flag_store(struct device_driver *ddp,
+#if DE
+static ssize_t de_flag_store(struct device_driver *ddp,
 	const char *buf, size_t count)
 {
 /* We only care what the first byte of the data is the rest is unused.
- * if it's a '1' we turn on debug and if it's a '0' we disable it. All
+ * if it's a '1' we turn on de and if it's a '0' we disable it. All
  * other values have -EINVAL returned if they are passed in.
  */
 	if (count > 0) {
 		if (buf[0] == '0') {
-			debugging = NO_DEBUG;
+			deging = NO_DE;
 			return count;
 		} else if (buf[0] == '1') {
-			debugging = 1;
+			deging = 1;
 			return count;
 		}
 	}
 	return -EINVAL;
 }
 
-static ssize_t debug_flag_show(struct device_driver *ddp, char *buf)
+static ssize_t de_flag_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", debugging);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", deging);
 }
-static DRIVER_ATTR_RW(debug_flag);
+static DRIVER_ATTR_RW(de_flag);
 #endif
 
 static struct attribute *st_drv_attrs[] = {
@@ -4590,8 +4590,8 @@ static struct attribute *st_drv_attrs[] = {
 	&driver_attr_fixed_buffer_size.attr,
 	&driver_attr_max_sg_segs.attr,
 	&driver_attr_version.attr,
-#if DEBUG
-	&driver_attr_debug_flag.attr,
+#if DE
+	&driver_attr_de_flag.attr,
 #endif
 	NULL,
 };
@@ -4658,7 +4658,7 @@ options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	options = STm->do_buffer_writes ? MT_ST_BUFFER_WRITES : 0;
 	options |= STm->do_async_writes ? MT_ST_ASYNC_WRITES : 0;
 	options |= STm->do_read_ahead ? MT_ST_READ_AHEAD : 0;
-	DEB( options |= debugging ? MT_ST_DEBUGGING : 0 );
+	DEB( options |= deging ? MT_ST_DEGING : 0 );
 	options |= STp->two_fm ? MT_ST_TWO_FM : 0;
 	options |= STp->fast_mteom ? MT_ST_FAST_MTEOM : 0;
 	options |= STm->defaults_for_writes ? MT_ST_DEF_WRITES : 0;

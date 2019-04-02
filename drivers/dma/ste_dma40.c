@@ -1229,7 +1229,7 @@ static void __d40_config_set_event(struct d40_chan *d40c,
 		break;
 
 	case D40_ROUND_EVENTLINE:
-		BUG();
+		();
 		break;
 
 	}
@@ -1303,7 +1303,7 @@ __d40_execute_command_log(struct d40_chan *d40c, enum d40_command command)
 		break;
 
 	case D40_DMA_SUSPENDED:
-		BUG();
+		();
 		break;
 	}
 
@@ -2303,7 +2303,7 @@ static void __d40_set_prio_rt(struct d40_chan *d40c, int dev_type, bool src)
 
 	rtreg = realtime ? dmac->realtime_en : dmac->realtime_clear;
 	/*
-	 * Due to a hardware bug, in some cases a logical channel triggered by
+	 * Due to a hardware , in some cases a logical channel triggered by
 	 * a high priority destination event line can generate extra packet
 	 * transactions.
 	 *
@@ -2989,7 +2989,7 @@ static int dma40_runtime_suspend(struct device *dev)
 
 	d40_save_restore_registers(base, true);
 
-	/* Don't disable/enable clocks for v1 due to HW bugs */
+	/* Don't disable/enable clocks for v1 due to HW s */
 	if (base->rev != 1)
 		writel_relaxed(base->gcc_pwr_off_mask,
 			       base->virtbase + D40_DREG_GCC);

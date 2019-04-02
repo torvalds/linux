@@ -225,18 +225,18 @@
 #define PFMFS_MAGIC 0xa0b4d889
 
 /*
- * debugging
+ * deging
  */
-#define PFM_DEBUGGING 1
-#ifdef PFM_DEBUGGING
+#define PFM_DEGING 1
+#ifdef PFM_DEGING
 #define DPRINT(a) \
 	do { \
-		if (unlikely(pfm_sysctl.debug >0)) { printk("%s.%d: CPU%d [%d] ", __func__, __LINE__, smp_processor_id(), task_pid_nr(current)); printk a; } \
+		if (unlikely(pfm_sysctl.de >0)) { printk("%s.%d: CPU%d [%d] ", __func__, __LINE__, smp_processor_id(), task_pid_nr(current)); printk a; } \
 	} while (0)
 
 #define DPRINT_ovfl(a) \
 	do { \
-		if (unlikely(pfm_sysctl.debug > 0 && pfm_sysctl.debug_ovfl >0)) { printk("%s.%d: CPU%d [%d] ", __func__, __LINE__, smp_processor_id(), task_pid_nr(current)); printk a; } \
+		if (unlikely(pfm_sysctl.de > 0 && pfm_sysctl.de_ovfl >0)) { printk("%s.%d: CPU%d [%d] ", __func__, __LINE__, smp_processor_id(), task_pid_nr(current)); printk a; } \
 	} while (0)
 #endif
 
@@ -264,7 +264,7 @@ typedef struct {
 typedef struct {
 	unsigned int block:1;		/* when 1, task will blocked on user notifications */
 	unsigned int system:1;		/* do system wide monitoring */
-	unsigned int using_dbreg:1;	/* using range restrictions (debug registers) */
+	unsigned int using_dbreg:1;	/* using range restrictions (de registers) */
 	unsigned int is_sampling:1;	/* true if using a custom format */
 	unsigned int excl_idle:1;	/* exclude idle task in system wide session */
 	unsigned int going_zombie:1;	/* context is zombie (MASKED+blocking) */
@@ -377,8 +377,8 @@ typedef struct {
 
 	unsigned int		pfs_task_sessions;	   /* number of per task sessions */
 	unsigned int		pfs_sys_sessions;	   /* number of per system wide sessions */
-	unsigned int		pfs_sys_use_dbregs;	   /* incremented when a system wide session uses debug regs */
-	unsigned int		pfs_ptrace_use_dbregs;	   /* incremented when a process uses debug regs */
+	unsigned int		pfs_sys_use_dbregs;	   /* incremented when a system wide session uses de regs */
+	unsigned int		pfs_ptrace_use_dbregs;	   /* incremented when a process uses de regs */
 	struct task_struct	*pfs_sys_session[NR_CPUS]; /* point to task owning a system-wide session */
 } pfm_session_t;
 
@@ -432,7 +432,7 @@ typedef struct {
 	unsigned int  num_dbrs;		/* number of DBRS: computed at init time */
 	unsigned int  num_counters;	/* PMC/PMD counting pairs : computed at init time */
 	int           (*probe)(void);   /* customized probe routine */
-	unsigned int  use_rr_dbregs:1;	/* set if debug registers used for range restriction */
+	unsigned int  use_rr_dbregs:1;	/* set if de registers used for range restriction */
 } pmu_config_t;
 /*
  * PMU specific flags
@@ -440,7 +440,7 @@ typedef struct {
 #define PFM_PMU_IRQ_RESEND	1	/* PMU needs explicit IRQ resend */
 
 /*
- * debug register related type definitions
+ * de register related type definitions
  */
 typedef struct {
 	unsigned long ibr_mask:56;
@@ -525,15 +525,15 @@ EXPORT_SYMBOL(pfm_sysctl);
 
 static struct ctl_table pfm_ctl_table[] = {
 	{
-		.procname	= "debug",
-		.data		= &pfm_sysctl.debug,
+		.procname	= "de",
+		.data		= &pfm_sysctl.de,
 		.maxlen		= sizeof(int),
 		.mode		= 0666,
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "debug_ovfl",
-		.data		= &pfm_sysctl.debug_ovfl,
+		.procname	= "de_ovfl",
+		.data		= &pfm_sysctl.de_ovfl,
 		.maxlen		= sizeof(int),
 		.mode		= 0666,
 		.proc_handler	= proc_dointvec,
@@ -3369,10 +3369,10 @@ EXPORT_SYMBOL(pfm_mod_read_pmds);
 
 /*
  * Only call this function when a process it trying to
- * write the debug registers (reading is always allowed)
+ * write the de registers (reading is always allowed)
  */
 int
-pfm_use_debug_registers(struct task_struct *task)
+pfm_use_de_registers(struct task_struct *task)
 {
 	pfm_context_t *ctx = task->thread.pfm_context;
 	unsigned long flags;
@@ -3401,7 +3401,7 @@ pfm_use_debug_registers(struct task_struct *task)
 
 	/*
 	 * We cannot allow setting breakpoints when system wide monitoring
-	 * sessions are using the debug registers.
+	 * sessions are using the de registers.
 	 */
 	if (pfm_sessions.pfs_sys_use_dbregs> 0)
 		ret = -1;
@@ -3421,13 +3421,13 @@ pfm_use_debug_registers(struct task_struct *task)
 /*
  * This function is called for every task that exits with the
  * IA64_THREAD_DBG_VALID set. This indicates a task which was
- * able to use the debug registers for debugging purposes via
+ * able to use the de registers for deging purposes via
  * ptrace(). Therefore we know it was not using them for
  * performance monitoring, so we only decrement the number
- * of "ptraced" debug register users to keep the count up to date
+ * of "ptraced" de register users to keep the count up to date
  */
 int
-pfm_release_debug_registers(struct task_struct *task)
+pfm_release_de_registers(struct task_struct *task)
 {
 	unsigned long flags;
 	int ret;
@@ -3601,13 +3601,13 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 }
 
 static int
-pfm_debug(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
+pfm_de(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 {
 	unsigned int m = *(unsigned int *)arg;
 
-	pfm_sysctl.debug = m == 0 ? 0 : 1;
+	pfm_sysctl.de = m == 0 ? 0 : 1;
 
-	printk(KERN_INFO "perfmon debugging %s (timing reset)\n", pfm_sysctl.debug ? "on" : "off");
+	printk(KERN_INFO "perfmon deging %s (timing reset)\n", pfm_sysctl.de ? "on" : "off");
 
 	if (m == 0) {
 		memset(pfm_stats, 0, sizeof(pfm_stats));
@@ -3670,15 +3670,15 @@ pfm_write_ibr_dbr(int mode, pfm_context_t *ctx, void *arg, int count, struct pt_
 	first_time = ctx->ctx_fl_using_dbreg == 0;
 
 	/*
-	 * don't bother if we are loaded and task is being debugged
+	 * don't bother if we are loaded and task is being deged
 	 */
 	if (is_loaded && (thread->flags & IA64_THREAD_DBG_VALID) != 0) {
-		DPRINT(("debug registers already in use for [%d]\n", task_pid_nr(task)));
+		DPRINT(("de registers already in use for [%d]\n", task_pid_nr(task)));
 		return -EBUSY;
 	}
 
 	/*
-	 * check for debug registers in system wide mode
+	 * check for de registers in system wide mode
 	 *
 	 * If though a check is done in pfm_context_load(),
 	 * we must repeat it here, in case the registers are
@@ -3699,7 +3699,7 @@ pfm_write_ibr_dbr(int mode, pfm_context_t *ctx, void *arg, int count, struct pt_
 	if (ret != 0) return ret;
 
 	/*
-	 * mark ourself as user of the debug registers for
+	 * mark ourself as user of the de registers for
 	 * perfmon purposes.
 	 */
 	ctx->ctx_fl_using_dbreg = 1;
@@ -3757,13 +3757,13 @@ pfm_write_ibr_dbr(int mode, pfm_context_t *ctx, void *arg, int count, struct pt_
 		PFM_REG_RETFLAG_SET(req->dbreg_flags, 0);
 
 		/*
-		 * Debug registers, just like PMC, can only be modified
+		 * De registers, just like PMC, can only be modified
 		 * by a kernel call. Moreover, perfmon() access to those
 		 * registers are centralized in this routine. The hardware
 		 * does not modify the value of these registers, therefore,
 		 * if we save them as they are written, we can avoid having
 		 * to save them on context switch out. This is made possible
-		 * by the fact that when perfmon uses debug registers, ptrace()
+		 * by the fact that when perfmon uses de registers, ptrace()
 		 * won't be able to modify them concurrently.
 		 */
 		if (mode == PFM_CODE_RR) {
@@ -4154,12 +4154,12 @@ pfm_context_load(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 	ret = 0;
 	/*
 	 * cannot load a context which is using range restrictions,
-	 * into a task that is being debugged.
+	 * into a task that is being deged.
 	 */
 	if (ctx->ctx_fl_using_dbreg) {
 		if (thread->flags & IA64_THREAD_DBG_VALID) {
 			ret = -EBUSY;
-			DPRINT(("load_pid [%d] task is debugged, cannot load range restrictions\n", req->load_pid));
+			DPRINT(("load_pid [%d] task is deged, cannot load range restrictions\n", req->load_pid));
 			goto error;
 		}
 		LOCK_PFS(flags);
@@ -4535,10 +4535,10 @@ pfm_exit_thread(struct task_struct *task)
 	UNPROTECT_CTX(ctx, flags);
 
 	{ u64 psr = pfm_get_psr();
-	  BUG_ON(psr & (IA64_PSR_UP|IA64_PSR_PP));
-	  BUG_ON(GET_PMU_OWNER());
-	  BUG_ON(ia64_psr(regs)->up);
-	  BUG_ON(ia64_psr(regs)->pp);
+	  _ON(psr & (IA64_PSR_UP|IA64_PSR_PP));
+	  _ON(GET_PMU_OWNER());
+	  _ON(ia64_psr(regs)->up);
+	  _ON(ia64_psr(regs)->pp);
 	}
 
 	/*
@@ -4571,7 +4571,7 @@ static pfm_cmd_desc_t pfm_cmd_tab[]={
 /* 10 */PFM_CMD_S(pfm_restart, PFM_CMD_PCLRW),
 /* 11 */PFM_CMD_NONE,
 /* 12 */PFM_CMD(pfm_get_features, PFM_CMD_ARG_RW, 1, pfarg_features_t, NULL),
-/* 13 */PFM_CMD(pfm_debug, 0, 1, unsigned int, NULL),
+/* 13 */PFM_CMD(pfm_de, 0, 1, unsigned int, NULL),
 /* 14 */PFM_CMD_NONE,
 /* 15 */PFM_CMD(pfm_get_pmc_reset, PFM_CMD_ARG_RW, PFM_CMD_ARG_MANY, pfarg_reg_t, NULL),
 /* 16 */PFM_CMD(pfm_context_load, PFM_CMD_PCLRWS, 1, pfarg_load_t, NULL),
@@ -5500,7 +5500,7 @@ pfm_interrupt_handler(int irq, void *arg)
 }
 
 /*
- * /proc/perfmon interface, for debug only
+ * /proc/perfmon interface, for de only
  */
 
 #define PFM_PROC_SHOW_HEADER	((void *)(long)nr_cpu_ids+1)
@@ -5624,7 +5624,7 @@ pfm_proc_show(struct seq_file *m, void *v)
 		cpu, pfm_get_cpu_data(pmu_ctx, cpu),
 		cpu, pfm_get_cpu_data(pmu_activation_number, cpu));
 
-	if (num_online_cpus() == 1 && pfm_sysctl.debug > 0) {
+	if (num_online_cpus() == 1 && pfm_sysctl.de > 0) {
 
 		psr = pfm_get_psr();
 
@@ -5763,7 +5763,7 @@ pfm_save_regs(struct task_struct *task)
 
 		pfm_force_cleanup(ctx, regs);
 
-		BUG_ON(ctx->ctx_smpl_hdr);
+		_ON(ctx->ctx_smpl_hdr);
 
 		pfm_unprotect_ctx_ctxsw(ctx, flags);
 
@@ -5777,7 +5777,7 @@ pfm_save_regs(struct task_struct *task)
 	ia64_srlz_d();
 	psr = pfm_get_psr();
 
-	BUG_ON(psr & (IA64_PSR_I));
+	_ON(psr & (IA64_PSR_I));
 
 	/*
 	 * stop monitoring:
@@ -5841,7 +5841,7 @@ pfm_save_regs(struct task_struct *task)
 	 */
 	psr = pfm_get_psr();
 
-	BUG_ON(psr & (IA64_PSR_I));
+	_ON(psr & (IA64_PSR_I));
 
 	/*
 	 * stop monitoring:
@@ -5865,7 +5865,7 @@ pfm_lazy_save_regs (struct task_struct *task)
 	unsigned long flags;
 
 	{ u64 psr  = pfm_get_psr();
-	  BUG_ON(psr & IA64_PSR_UP);
+	  _ON(psr & IA64_PSR_UP);
 	}
 
 	ctx = PFM_GET_CTX(task);
@@ -5932,7 +5932,7 @@ pfm_load_regs (struct task_struct *task)
 	ctx = PFM_GET_CTX(task);
 	if (unlikely(ctx == NULL)) return;
 
-	BUG_ON(GET_PMU_OWNER());
+	_ON(GET_PMU_OWNER());
 
 	/*
 	 * possible on unload
@@ -5949,13 +5949,13 @@ pfm_load_regs (struct task_struct *task)
 
 	need_irq_resend = pmu_conf->flags & PFM_PMU_IRQ_RESEND;
 
-	BUG_ON(psr & (IA64_PSR_UP|IA64_PSR_PP));
-	BUG_ON(psr & IA64_PSR_I);
+	_ON(psr & (IA64_PSR_UP|IA64_PSR_PP));
+	_ON(psr & IA64_PSR_I);
 
 	if (unlikely(ctx->ctx_state == PFM_CTX_ZOMBIE)) {
 		struct pt_regs *regs = task_pt_regs(task);
 
-		BUG_ON(ctx->ctx_smpl_hdr);
+		_ON(ctx->ctx_smpl_hdr);
 
 		pfm_force_cleanup(ctx, regs);
 
@@ -5970,7 +5970,7 @@ pfm_load_regs (struct task_struct *task)
 	}
 
 	/*
-	 * we restore ALL the debug registers to avoid picking up
+	 * we restore ALL the de registers to avoid picking up
 	 * stale state.
 	 */
 	if (ctx->ctx_fl_using_dbreg) {
@@ -6096,11 +6096,11 @@ pfm_load_regs (struct task_struct *task)
 	ctx   = PFM_GET_CTX(task);
 	psr   = pfm_get_psr();
 
-	BUG_ON(psr & (IA64_PSR_UP|IA64_PSR_PP));
-	BUG_ON(psr & IA64_PSR_I);
+	_ON(psr & (IA64_PSR_UP|IA64_PSR_PP));
+	_ON(psr & IA64_PSR_I);
 
 	/*
-	 * we restore ALL the debug registers to avoid picking up
+	 * we restore ALL the de registers to avoid picking up
 	 * stale state.
 	 *
 	 * This must be done even when the task is still the owner
@@ -6516,16 +6516,16 @@ pfm_init(void)
 	pmu_conf->num_counters  = n_counters;
 
 	/*
-	 * sanity checks on the number of debug registers
+	 * sanity checks on the number of de registers
 	 */
 	if (pmu_conf->use_rr_dbregs) {
 		if (pmu_conf->num_ibrs > IA64_NUM_DBG_REGS) {
-			printk(KERN_INFO "perfmon: unsupported number of code debug registers (%u)\n", pmu_conf->num_ibrs);
+			printk(KERN_INFO "perfmon: unsupported number of code de registers (%u)\n", pmu_conf->num_ibrs);
 			pmu_conf = NULL;
 			return -1;
 		}
 		if (pmu_conf->num_dbrs > IA64_NUM_DBG_REGS) {
-			printk(KERN_INFO "perfmon: unsupported number of data debug registers (%u)\n", pmu_conf->num_ibrs);
+			printk(KERN_INFO "perfmon: unsupported number of data de registers (%u)\n", pmu_conf->num_ibrs);
 			pmu_conf = NULL;
 			return -1;
 		}
@@ -6546,7 +6546,7 @@ pfm_init(void)
 	}
 
 	/*
-	 * create /proc/perfmon (mostly for debugging purposes)
+	 * create /proc/perfmon (mostly for deging purposes)
 	 */
 	perfmon_dir = proc_create_seq("perfmon", S_IRUGO, NULL, &pfm_seq_ops);
 	if (perfmon_dir == NULL) {
@@ -6556,7 +6556,7 @@ pfm_init(void)
 	}
 
 	/*
-	 * create /proc/sys/kernel/perfmon (for debugging purposes)
+	 * create /proc/sys/kernel/perfmon (for deging purposes)
 	 */
 	pfm_sysctl_header = register_sysctl_table(pfm_sysctl_root);
 
@@ -6604,7 +6604,7 @@ pfm_init_percpu (void)
 }
 
 /*
- * used for debug purposes only
+ * used for de purposes only
  */
 void
 dump_pmu_state(const char *from)

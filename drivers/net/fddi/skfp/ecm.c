@@ -156,7 +156,7 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 			FDDI_REMOTE_DISCONNECT, smt_get_event_word(smc),
 			smt_get_error_word(smc) );
 
-	/*jd 05-Aug-1999 Bug #10419 "Port Disconnect fails at Dup MAc Cond."*/
+	/*jd 05-Aug-1999  #10419 "Port Disconnect fails at Dup MAc Cond."*/
 	if (cmd == EC_CONNECT) {
 		smc->e.DisconnectFlag = FALSE ;
 	}

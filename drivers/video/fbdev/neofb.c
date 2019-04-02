@@ -49,7 +49,7 @@
  * - 32bit depth support, maybe impossible
  * - disable pan-on-sync, need specs
  *
- * BUGS
+ * S
  * - white margin on bootup like with tdfxfb (colormap problem?)
  *
  */
@@ -237,8 +237,8 @@ static void neoCalcVCLK(const struct fb_info *info,
 
 	par->VCLK3Denominator = d_best;
 
-#ifdef NEOFB_DEBUG
-	printk(KERN_DEBUG "neoVCLK: f:%ld NumLow=%d NumHi=%d Den=%d Df=%ld\n",
+#ifdef NEOFB_DE
+	printk(KERN_DE "neoVCLK: f:%ld NumLow=%d NumHi=%d Den=%d Df=%ld\n",
 	       freq,
 	       par->VCLK3NumeratorLow,
 	       par->VCLK3NumeratorHigh,
@@ -1442,7 +1442,7 @@ neo2200_imageblit(struct fb_info *info, const struct fb_image *image)
 
 	if (image->depth == 1) {
 		if (info->var.bits_per_pixel == 24 && image->width < 16) {
-			/* FIXME. There is a bug with accelerated color-expanded
+			/* FIXME. There is a  with accelerated color-expanded
 			 * transfers in 24 bit mode if the image being transferred
 			 * is less than 16 bits wide. This is due to insufficient
 			 * padding when writing the image. We need to adjust
@@ -1851,12 +1851,12 @@ static int neo_init_hw(struct fb_info *info)
 	neoUnlock();
 
 #if 0
-	printk(KERN_DEBUG "--- Neo extended register dump ---\n");
+	printk(KERN_DE "--- Neo extended register dump ---\n");
 	for (int w = 0; w < 0x85; w++)
-		printk(KERN_DEBUG "CR %p: %p\n", (void *) w,
+		printk(KERN_DE "CR %p: %p\n", (void *) w,
 		       (void *) vga_rcrt(NULL, w));
 	for (int w = 0; w < 0xC7; w++)
-		printk(KERN_DEBUG "GR %p: %p\n", (void *) w,
+		printk(KERN_DE "GR %p: %p\n", (void *) w,
 		       (void *) vga_rgfx(NULL, w));
 #endif
 	switch (info->fix.accel) {

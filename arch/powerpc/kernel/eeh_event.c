@@ -147,10 +147,10 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 int eeh_send_failure_event(struct eeh_pe *pe)
 {
 	/*
-	 * If we've manually supressed recovery events via debugfs
+	 * If we've manually supressed recovery events via defs
 	 * then just drop it on the floor.
 	 */
-	if (eeh_debugfs_no_recover) {
+	if (eeh_defs_no_recover) {
 		pr_err("EEH: Event dropped due to no_recover setting\n");
 		return 0;
 	}

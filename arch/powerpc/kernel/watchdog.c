@@ -21,8 +21,8 @@
 #include <linux/hardirq.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
-#include <linux/kdebug.h>
-#include <linux/sched/debug.h>
+#include <linux/kde.h>
+#include <linux/sched/de.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
 
@@ -66,7 +66,7 @@
  *
  * Some platforms implement true NMI IPIs, which can be used by the SMP
  * watchdog to detect an unresponsive CPU and pull it out of its stuck
- * state with the NMI IPI, to get crash/debug data from it. This way the
+ * state with the NMI IPI, to get crash/de data from it. This way the
  * SMP watchdog can detect hardware interrupts off lockups.
  */
 

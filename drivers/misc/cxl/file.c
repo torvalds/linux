@@ -506,7 +506,7 @@ ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 		spin_unlock_irqrestore(&ctx->lock, flags);
 		return -EIO;
 	} else
-		WARN(1, "afu_read must be buggy\n");
+		WARN(1, "afu_read must be gy\n");
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
@@ -667,12 +667,12 @@ int __init cxl_file_init(void)
 	 * If these change we really need to update API.  Either change some
 	 * flags or update API version number CXL_API_VERSION.
 	 */
-	BUILD_BUG_ON(CXL_API_VERSION != 3);
-	BUILD_BUG_ON(sizeof(struct cxl_ioctl_start_work) != 64);
-	BUILD_BUG_ON(sizeof(struct cxl_event_header) != 8);
-	BUILD_BUG_ON(sizeof(struct cxl_event_afu_interrupt) != 8);
-	BUILD_BUG_ON(sizeof(struct cxl_event_data_storage) != 32);
-	BUILD_BUG_ON(sizeof(struct cxl_event_afu_error) != 16);
+	BUILD__ON(CXL_API_VERSION != 3);
+	BUILD__ON(sizeof(struct cxl_ioctl_start_work) != 64);
+	BUILD__ON(sizeof(struct cxl_event_header) != 8);
+	BUILD__ON(sizeof(struct cxl_event_afu_interrupt) != 8);
+	BUILD__ON(sizeof(struct cxl_event_data_storage) != 32);
+	BUILD__ON(sizeof(struct cxl_event_afu_error) != 16);
 
 	if ((rc = alloc_chrdev_region(&cxl_dev, 0, CXL_NUM_MINORS, "cxl"))) {
 		pr_err("Unable to allocate CXL major number: %i\n", rc);

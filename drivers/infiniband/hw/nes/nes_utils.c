@@ -98,22 +98,22 @@ int nes_read_eeprom_values(struct nes_device *nesdev, struct nes_adapter *nesada
 	if (nesadapter->firmware_eeprom_offset == 0) {
 		/* Read the EEPROM Parameters */
 		eeprom_data = nes_read16_eeprom(nesdev->regs, 0);
-		nes_debug(NES_DBG_HW, "EEPROM Offset 0  = 0x%04X\n", eeprom_data);
+		nes_de(NES_DBG_HW, "EEPROM Offset 0  = 0x%04X\n", eeprom_data);
 		eeprom_offset = 2 + (((eeprom_data & 0x007f) << 3) <<
 				((eeprom_data & 0x0080) >> 7));
-		nes_debug(NES_DBG_HW, "Firmware Offset = 0x%04X\n", eeprom_offset);
+		nes_de(NES_DBG_HW, "Firmware Offset = 0x%04X\n", eeprom_offset);
 		nesadapter->firmware_eeprom_offset = eeprom_offset;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 4);
 		if (eeprom_data != 0x5746) {
-			nes_debug(NES_DBG_HW, "Not a valid Firmware Image = 0x%04X\n", eeprom_data);
+			nes_de(NES_DBG_HW, "Not a valid Firmware Image = 0x%04X\n", eeprom_data);
 			return -1;
 		}
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		eeprom_offset += ((eeprom_data & 0x00ff) << 3) << ((eeprom_data & 0x0100) >> 8);
-		nes_debug(NES_DBG_HW, "Software Offset = 0x%04X\n", eeprom_offset);
+		nes_de(NES_DBG_HW, "Software Offset = 0x%04X\n", eeprom_offset);
 		nesadapter->software_eeprom_offset = eeprom_offset;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 4);
 		if (eeprom_data != 0x5753) {
@@ -121,78 +121,78 @@ int nes_read_eeprom_values(struct nes_device *nesdev, struct nes_adapter *nesada
 			return -1;
 		}
 		sw_section_ver = nes_read16_eeprom(nesdev->regs, nesadapter->software_eeprom_offset  + 6);
-		nes_debug(NES_DBG_HW, "Software section version number = 0x%04X\n",
+		nes_de(NES_DBG_HW, "Software section version number = 0x%04X\n",
 				sw_section_ver);
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		next_section_address = eeprom_offset + (((eeprom_data & 0x00ff) << 3) <<
 				((eeprom_data & 0x0100) >> 8));
 		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 4);
 		if (eeprom_data != 0x414d) {
-			nes_debug(NES_DBG_HW, "EEPROM Changed offset should be 0x414d but was 0x%04X\n",
+			nes_de(NES_DBG_HW, "EEPROM Changed offset should be 0x414d but was 0x%04X\n",
 					eeprom_data);
 			goto no_fw_rev;
 		}
 		eeprom_offset = next_section_address;
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		next_section_address = eeprom_offset + (((eeprom_data & 0x00ff) << 3) <<
 				((eeprom_data & 0x0100) >> 8));
 		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 4);
 		if (eeprom_data != 0x4f52) {
-			nes_debug(NES_DBG_HW, "EEPROM Changed offset should be 0x4f52 but was 0x%04X\n",
+			nes_de(NES_DBG_HW, "EEPROM Changed offset should be 0x4f52 but was 0x%04X\n",
 					eeprom_data);
 			goto no_fw_rev;
 		}
 		eeprom_offset = next_section_address;
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		next_section_address = eeprom_offset + ((eeprom_data & 0x00ff) << 3);
 		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 4);
 		if (eeprom_data != 0x5746) {
-			nes_debug(NES_DBG_HW, "EEPROM Changed offset should be 0x5746 but was 0x%04X\n",
+			nes_de(NES_DBG_HW, "EEPROM Changed offset should be 0x5746 but was 0x%04X\n",
 					eeprom_data);
 			goto no_fw_rev;
 		}
 		eeprom_offset = next_section_address;
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		next_section_address = eeprom_offset + ((eeprom_data & 0x00ff) << 3);
 		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 4);
 		if (eeprom_data != 0x5753) {
-			nes_debug(NES_DBG_HW, "EEPROM Changed offset should be 0x5753 but was 0x%04X\n",
+			nes_de(NES_DBG_HW, "EEPROM Changed offset should be 0x5753 but was 0x%04X\n",
 					eeprom_data);
 			goto no_fw_rev;
 		}
 		eeprom_offset = next_section_address;
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		next_section_address = eeprom_offset + ((eeprom_data & 0x00ff) << 3);
 		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 4);
 		if (eeprom_data != 0x414d) {
-			nes_debug(NES_DBG_HW, "EEPROM Changed offset should be 0x414d but was 0x%04X\n",
+			nes_de(NES_DBG_HW, "EEPROM Changed offset should be 0x414d but was 0x%04X\n",
 					eeprom_data);
 			goto no_fw_rev;
 		}
 		eeprom_offset = next_section_address;
 
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset + 2);
-		nes_debug(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
+		nes_de(NES_DBG_HW, "EEPROM Offset %u (next section)  = 0x%04X\n",
 				eeprom_offset + 2, eeprom_data);
 		next_section_address = eeprom_offset + ((eeprom_data & 0x00ff) << 3);
 		eeprom_data = nes_read16_eeprom(nesdev->regs, next_section_address + 4);
 		if (eeprom_data != 0x464e) {
-			nes_debug(NES_DBG_HW, "EEPROM Changed offset should be 0x464e but was 0x%04X\n",
+			nes_de(NES_DBG_HW, "EEPROM Changed offset should be 0x464e but was 0x%04X\n",
 					eeprom_data);
 			goto no_fw_rev;
 		}
@@ -202,7 +202,7 @@ int nes_read_eeprom_values(struct nes_device *nesdev, struct nes_adapter *nesada
 		minor_ver = (u8)(eeprom_data);
 
 		if (nes_drv_opt & NES_DRV_OPT_DISABLE_VIRT_WQ) {
-			nes_debug(NES_DBG_HW, "Virtual WQs have been disabled\n");
+			nes_de(NES_DBG_HW, "Virtual WQs have been disabled\n");
 		} else if (((major_ver == 2) && (minor_ver > 21)) || ((major_ver > 2) && (major_ver != 255))) {
 			nesadapter->virtwq = 1;
 		}
@@ -234,9 +234,9 @@ no_fw_rev:
 		eeprom_offset += 2;
 		mac_addr_low <<= 16;
 		mac_addr_low += (u32)nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "Base MAC Address = 0x%04X%08X\n",
+		nes_de(NES_DBG_HW, "Base MAC Address = 0x%04X%08X\n",
 				mac_addr_high, mac_addr_low);
-		nes_debug(NES_DBG_HW, "MAC Address count = %u\n", nesadapter->netdev_max);
+		nes_de(NES_DBG_HW, "MAC Address count = %u\n", nesadapter->netdev_max);
 
 		nesadapter->mac_addr_low = mac_addr_low;
 		nesadapter->mac_addr_high = mac_addr_high;
@@ -253,7 +253,7 @@ no_fw_rev:
 		nesadapter->phy_type[2] = (u8)(eeprom_data >> 8);
 		nesadapter->phy_type[3] = (u8)eeprom_data;
 		/* port_count is set by soft reset reg */
-		nes_debug(NES_DBG_HW, "port_count = %u, port 0 -> %u, port 1 -> %u,"
+		nes_de(NES_DBG_HW, "port_count = %u, port 0 -> %u, port 1 -> %u,"
 				" port 2 -> %u, port 3 -> %u\n",
 				nesadapter->port_count,
 				nesadapter->phy_type[0], nesadapter->phy_type[1],
@@ -266,7 +266,7 @@ no_fw_rev:
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		nesadapter->pd_config_base[0] = eeprom_data;
-		nes_debug(NES_DBG_HW, "PD0 config, size=0x%04x, base=0x%04x\n",
+		nes_de(NES_DBG_HW, "PD0 config, size=0x%04x, base=0x%04x\n",
 				nesadapter->pd_config_size[0], nesadapter->pd_config_base[0]);
 
 		eeprom_offset += 2;
@@ -275,7 +275,7 @@ no_fw_rev:
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		nesadapter->pd_config_base[1] = eeprom_data;
-		nes_debug(NES_DBG_HW, "PD1 config, size=0x%04x, base=0x%04x\n",
+		nes_de(NES_DBG_HW, "PD1 config, size=0x%04x, base=0x%04x\n",
 				nesadapter->pd_config_size[1], nesadapter->pd_config_base[1]);
 
 		eeprom_offset += 2;
@@ -284,7 +284,7 @@ no_fw_rev:
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		nesadapter->pd_config_base[2] = eeprom_data;
-		nes_debug(NES_DBG_HW, "PD2 config, size=0x%04x, base=0x%04x\n",
+		nes_de(NES_DBG_HW, "PD2 config, size=0x%04x, base=0x%04x\n",
 				nesadapter->pd_config_size[2], nesadapter->pd_config_base[2]);
 
 		eeprom_offset += 2;
@@ -293,7 +293,7 @@ no_fw_rev:
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		nesadapter->pd_config_base[3] = eeprom_data;
-		nes_debug(NES_DBG_HW, "PD3 config, size=0x%04x, base=0x%04x\n",
+		nes_de(NES_DBG_HW, "PD3 config, size=0x%04x, base=0x%04x\n",
 				nesadapter->pd_config_size[3], nesadapter->pd_config_base[3]);
 
 		/* Read Rx Pool Size */
@@ -302,28 +302,28 @@ no_fw_rev:
 		eeprom_offset += 2;
 		nesadapter->rx_pool_size = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "rx_pool_size = 0x%08X\n", nesadapter->rx_pool_size);
+		nes_de(NES_DBG_HW, "rx_pool_size = 0x%08X\n", nesadapter->rx_pool_size);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->tx_pool_size = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "tx_pool_size = 0x%08X\n", nesadapter->tx_pool_size);
+		nes_de(NES_DBG_HW, "tx_pool_size = 0x%08X\n", nesadapter->tx_pool_size);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->rx_threshold = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "rx_threshold = 0x%08X\n", nesadapter->rx_threshold);
+		nes_de(NES_DBG_HW, "rx_threshold = 0x%08X\n", nesadapter->rx_threshold);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->tcp_timer_core_clk_divisor = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "tcp_timer_core_clk_divisor = 0x%08X\n",
+		nes_de(NES_DBG_HW, "tcp_timer_core_clk_divisor = 0x%08X\n",
 				nesadapter->tcp_timer_core_clk_divisor);
 
 		eeprom_offset += 2;
@@ -331,42 +331,42 @@ no_fw_rev:
 		eeprom_offset += 2;
 		nesadapter->iwarp_config = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "iwarp_config = 0x%08X\n", nesadapter->iwarp_config);
+		nes_de(NES_DBG_HW, "iwarp_config = 0x%08X\n", nesadapter->iwarp_config);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->cm_config = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "cm_config = 0x%08X\n", nesadapter->cm_config);
+		nes_de(NES_DBG_HW, "cm_config = 0x%08X\n", nesadapter->cm_config);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->sws_timer_config = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "sws_timer_config = 0x%08X\n", nesadapter->sws_timer_config);
+		nes_de(NES_DBG_HW, "sws_timer_config = 0x%08X\n", nesadapter->sws_timer_config);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->tcp_config1 = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "tcp_config1 = 0x%08X\n", nesadapter->tcp_config1);
+		nes_de(NES_DBG_HW, "tcp_config1 = 0x%08X\n", nesadapter->tcp_config1);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->wqm_wat = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "wqm_wat = 0x%08X\n", nesadapter->wqm_wat);
+		nes_de(NES_DBG_HW, "wqm_wat = 0x%08X\n", nesadapter->wqm_wat);
 
 		eeprom_offset += 2;
 		eeprom_data = nes_read16_eeprom(nesdev->regs, eeprom_offset);
 		eeprom_offset += 2;
 		nesadapter->core_clock = (((u32)eeprom_data) << 16) +
 				nes_read16_eeprom(nesdev->regs, eeprom_offset);
-		nes_debug(NES_DBG_HW, "core_clock = 0x%08X\n", nesadapter->core_clock);
+		nes_de(NES_DBG_HW, "core_clock = 0x%08X\n", nesadapter->core_clock);
 
 		if ((sw_section_ver) && (nesadapter->hw_rev != NE020_REV)) {
 			eeprom_offset += 2;
@@ -383,7 +383,7 @@ no_fw_rev:
 			nesadapter->phy_index[2] = 6;
 			nesadapter->phy_index[3] = 7;
 		}
-		nes_debug(NES_DBG_HW, "Phy address map = 0 > %u,  1 > %u, 2 > %u, 3 > %u\n",
+		nes_de(NES_DBG_HW, "Phy address map = 0 > %u,  1 > %u, 2 > %u, 3 > %u\n",
 			   nesadapter->phy_index[0],nesadapter->phy_index[1],
 			   nesadapter->phy_index[2],nesadapter->phy_index[3]);
 	}
@@ -422,13 +422,13 @@ void nes_write_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u1
 		udelay(30);
 		u32temp = nes_read_indexed(nesdev, NES_IDX_MAC_INT_STATUS);
 		if (u32temp & 1) {
-			/* nes_debug(NES_DBG_PHY, "Phy interrupt status = 0x%X.\n", u32temp); */
+			/* nes_de(NES_DBG_PHY, "Phy interrupt status = 0x%X.\n", u32temp); */
 			nes_write_indexed(nesdev, NES_IDX_MAC_INT_STATUS, 1);
 			break;
 		}
 	}
 	if (!(u32temp & 1))
-		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
+		nes_de(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
 }
 
@@ -443,7 +443,7 @@ void nes_read_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16
 	u32 u32temp;
 	u32 counter;
 
-	/* nes_debug(NES_DBG_PHY, "phy addr = %d, mac_index = %d\n",
+	/* nes_de(NES_DBG_PHY, "phy addr = %d, mac_index = %d\n",
 			phy_addr, nesdev->mac_index); */
 
 	nes_write_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL,
@@ -452,13 +452,13 @@ void nes_read_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16
 		udelay(30);
 		u32temp = nes_read_indexed(nesdev, NES_IDX_MAC_INT_STATUS);
 		if (u32temp & 1) {
-			/* nes_debug(NES_DBG_PHY, "Phy interrupt status = 0x%X.\n", u32temp); */
+			/* nes_de(NES_DBG_PHY, "Phy interrupt status = 0x%X.\n", u32temp); */
 			nes_write_indexed(nesdev, NES_IDX_MAC_INT_STATUS, 1);
 			break;
 		}
 	}
 	if (!(u32temp & 1)) {
-		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
+		nes_de(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
 		*data = 0xffff;
 	} else {
@@ -491,7 +491,7 @@ void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_addr, u8 dev_addr,
 		}
 	}
 	if (!(u32temp & 1))
-		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
+		nes_de(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
 
 	/* set data */
@@ -506,7 +506,7 @@ void nes_write_10G_phy_reg(struct nes_device *nesdev, u16 phy_addr, u8 dev_addr,
 		}
 	}
 	if (!(u32temp & 1))
-		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
+		nes_de(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
 }
 
@@ -536,7 +536,7 @@ void nes_read_10G_phy_reg(struct nes_device *nesdev, u8 phy_addr, u8 dev_addr, u
 		}
 	}
 	if (!(u32temp & 1))
-		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
+		nes_de(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
 
 	/* issue read */
@@ -551,7 +551,7 @@ void nes_read_10G_phy_reg(struct nes_device *nesdev, u8 phy_addr, u8 dev_addr, u
 		}
 	}
 	if (!(u32temp & 1))
-		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
+		nes_de(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
 }
 
@@ -587,7 +587,7 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 		cqp_request->request_done = 0;
 		cqp_request->callback = 0;
 		init_waitqueue_head(&cqp_request->waitq);
-		nes_debug(NES_DBG_CQP, "Got cqp request %p from the available list \n",
+		nes_de(NES_DBG_CQP, "Got cqp request %p from the available list \n",
 				cqp_request);
 	} else
 		printk(KERN_ERR PFX "%s: Could not allocated a CQP request.\n",
@@ -601,7 +601,7 @@ void nes_free_cqp_request(struct nes_device *nesdev,
 {
 	unsigned long flags;
 
-	nes_debug(NES_DBG_CQP, "CQP request %p (opcode 0x%02X) freed.\n",
+	nes_de(NES_DBG_CQP, "CQP request %p (opcode 0x%02X) freed.\n",
 		  cqp_request,
 		  le32_to_cpu(cqp_request->cqp_wqe.wqe_words[NES_CQP_WQE_OPCODE_IDX]) & 0x3f);
 
@@ -650,7 +650,7 @@ void nes_post_cqp_request(struct nes_device *nesdev,
 		barrier();
 		u64temp = (unsigned long)cqp_request;
 		set_wqe_64bit_value(cqp_wqe->wqe_words, ctx_index, u64temp);
-		nes_debug(NES_DBG_CQP, "CQP request (opcode 0x%02X), line 1 = 0x%08X put on CQPs SQ,"
+		nes_de(NES_DBG_CQP, "CQP request (opcode 0x%02X), line 1 = 0x%08X put on CQPs SQ,"
 			" request = %p, cqp_head = %u, cqp_tail = %u, cqp_size = %u,"
 			" waiting = %d, refcount = %d.\n",
 			opcode & NES_CQP_OPCODE_MASK,
@@ -665,7 +665,7 @@ void nes_post_cqp_request(struct nes_device *nesdev,
 
 		barrier();
 	} else {
-		nes_debug(NES_DBG_CQP, "CQP request %p (opcode 0x%02X), line 1 = 0x%08X"
+		nes_de(NES_DBG_CQP, "CQP request %p (opcode 0x%02X), line 1 = 0x%08X"
 				" put on the pending queue.\n",
 				cqp_request,
 				le32_to_cpu(cqp_request->cqp_wqe.wqe_words[NES_CQP_WQE_OPCODE_IDX])&0x3f,
@@ -702,10 +702,10 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 		err = nes_alloc_resource(nesadapter, nesadapter->allocated_arps,
 				nesadapter->arp_table_size, (u32 *)&arp_index, &nesadapter->next_arp_index, NES_RESOURCE_ARP);
 		if (err) {
-			nes_debug(NES_DBG_NETDEV, "nes_alloc_resource returned error = %u\n", err);
+			nes_de(NES_DBG_NETDEV, "nes_alloc_resource returned error = %u\n", err);
 			return err;
 		}
-		nes_debug(NES_DBG_NETDEV, "ADD, arp_index=%d\n", arp_index);
+		nes_de(NES_DBG_NETDEV, "ADD, arp_index=%d\n", arp_index);
 
 		nesadapter->arp_table[arp_index].ip_addr = ip_addr;
 		memcpy(nesadapter->arp_table[arp_index].mac_addr, mac_addr, ETH_ALEN);
@@ -715,18 +715,18 @@ int nes_arp_table(struct nes_device *nesdev, u32 ip_addr, u8 *mac_addr, u32 acti
 	/* DELETE or RESOLVE */
 	if (arp_index == nesadapter->arp_table_size) {
 		tmp_addr = cpu_to_be32(ip_addr);
-		nes_debug(NES_DBG_NETDEV, "MAC for %pI4 not in ARP table - cannot %s\n",
+		nes_de(NES_DBG_NETDEV, "MAC for %pI4 not in ARP table - cannot %s\n",
 			  &tmp_addr, action == NES_ARP_RESOLVE ? "resolve" : "delete");
 		return -1;
 	}
 
 	if (action == NES_ARP_RESOLVE) {
-		nes_debug(NES_DBG_NETDEV, "RESOLVE, arp_index=%d\n", arp_index);
+		nes_de(NES_DBG_NETDEV, "RESOLVE, arp_index=%d\n", arp_index);
 		return arp_index;
 	}
 
 	if (action == NES_ARP_DELETE) {
-		nes_debug(NES_DBG_NETDEV, "DELETE, arp_index=%d\n", arp_index);
+		nes_de(NES_DBG_NETDEV, "DELETE, arp_index=%d\n", arp_index);
 		nesadapter->arp_table[arp_index].ip_addr = 0;
 		eth_zero_addr(nesadapter->arp_table[arp_index].mac_addr);
 		nes_free_resource(nesadapter, nesadapter->allocated_arps, arp_index);
@@ -760,7 +760,7 @@ void nes_mh_fix(struct timer_list *t)
 	u32 rx_control;
 	u32 rx_config;
 	u32 mac_exact_match;
-	u32 mpp_debug;
+	u32 mpp_de;
 	u32 i=0;
 	u32 chunks_tx_progress = 0;
 
@@ -822,13 +822,13 @@ void nes_mh_fix(struct timer_list *t)
 		rx_control = nes_read_indexed(nesdev, NES_IDX_MAC_RX_CONTROL);
 		rx_config = nes_read_indexed(nesdev, NES_IDX_MAC_RX_CONFIG);
 		mac_exact_match = nes_read_indexed(nesdev, NES_IDX_MAC_EXACT_MATCH_BOTTOM);
-		mpp_debug = nes_read_indexed(nesdev, NES_IDX_MPP_DEBUG);
+		mpp_de = nes_read_indexed(nesdev, NES_IDX_MPP_DE);
 
 		/* one last ditch effort to avoid a false positive */
 		mac_tx_pauses = nes_read_indexed(nesdev, NES_IDX_MAC_TX_PAUSE_FRAMES);
 		if (mac_tx_pauses) {
 			nesdev->last_mac_tx_pauses = nesdev->mac_pause_frames_sent;
-			nes_debug(NES_DBG_HW, "failsafe caught slow outbound pause\n");
+			nes_de(NES_DBG_HW, "failsafe caught slow outbound pause\n");
 			break;
 		}
 		mh_detected++;
@@ -867,7 +867,7 @@ void nes_mh_fix(struct timer_list *t)
 		nes_write_indexed(nesdev, NES_IDX_MAC_RX_CONTROL, rx_control);
 		nes_write_indexed(nesdev, NES_IDX_MAC_RX_CONFIG, rx_config);
 		nes_write_indexed(nesdev, NES_IDX_MAC_EXACT_MATCH_BOTTOM, mac_exact_match);
-		nes_write_indexed(nesdev, NES_IDX_MPP_DEBUG, mpp_debug);
+		nes_write_indexed(nesdev, NES_IDX_MPP_DE, mpp_de);
 
 	} while (0);
 
@@ -900,17 +900,17 @@ void nes_clc(struct timer_list *t)
 /**
  * nes_dump_mem
  */
-void nes_dump_mem(unsigned int dump_debug_level, void *addr, int length)
+void nes_dump_mem(unsigned int dump_de_level, void *addr, int length)
 {
-	if (!(nes_debug_level & dump_debug_level)) {
+	if (!(nes_de_level & dump_de_level)) {
 		return;
 	}
 
 	if (length > 0x100) {
-		nes_debug(dump_debug_level, "Length truncated from %x to %x\n", length, 0x100);
+		nes_de(dump_de_level, "Length truncated from %x to %x\n", length, 0x100);
 		length = 0x100;
 	}
-	nes_debug(dump_debug_level, "Address=0x%p, length=0x%x (%d)\n", addr, length, length);
+	nes_de(dump_de_level, "Address=0x%p, length=0x%x (%d)\n", addr, length, length);
 
 	print_hex_dump(KERN_ERR, PFX, DUMP_PREFIX_NONE, 16, 1, addr, length, true);
 }

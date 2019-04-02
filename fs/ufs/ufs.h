@@ -75,13 +75,13 @@ struct ufs_inode_info {
 #define ufs_test_opt(o,opt)	((o) & UFS_MOUNT_##opt)
 
 /*
- * Debug code
+ * De code
  */
-#ifdef CONFIG_UFS_DEBUG
+#ifdef CONFIG_UFS_DE
 #	define UFSD(f, a...)	{					\
-		pr_debug("UFSD (%s, %d): %s:",				\
+		pr_de("UFSD (%s, %d): %s:",				\
 			__FILE__, __LINE__, __func__);		\
-		pr_debug(f, ## a);					\
+		pr_de(f, ## a);					\
 	}
 #else
 #	define UFSD(f, a...)	/**/

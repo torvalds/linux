@@ -34,7 +34,7 @@
 
 #define DATIMER_VAL	10000
 
-static	u_int	*debug;
+static	u_int	*de;
 
 static struct Fsm deactfsm = {NULL, 0, 0, NULL, NULL};
 static struct Fsm teifsmu = {NULL, 0, 0, NULL, NULL};
@@ -76,13 +76,13 @@ static char *strDeactEvent[] =
 };
 
 static void
-da_debug(struct FsmInst *fi, char *fmt, ...)
+da_de(struct FsmInst *fi, char *fmt, ...)
 {
 	struct manager	*mgr = fi->userdata;
 	struct va_format vaf;
 	va_list va;
 
-	if (!(*debug & DEBUG_L2_TEIFSM))
+	if (!(*de & DE_L2_TEIFSM))
 		return;
 
 	va_start(va, fmt);
@@ -90,7 +90,7 @@ da_debug(struct FsmInst *fi, char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	printk(KERN_DEBUG "mgr(%d): %pV\n", mgr->ch.st->dev->id, &vaf);
+	printk(KERN_DE "mgr(%d): %pV\n", mgr->ch.st->dev->id, &vaf);
 
 	va_end(va);
 }
@@ -225,13 +225,13 @@ static char *strTeiEvent[] =
 };
 
 static void
-tei_debug(struct FsmInst *fi, char *fmt, ...)
+tei_de(struct FsmInst *fi, char *fmt, ...)
 {
 	struct teimgr	*tm = fi->userdata;
 	struct va_format vaf;
 	va_list va;
 
-	if (!(*debug & DEBUG_L2_TEIFSM))
+	if (!(*de & DE_L2_TEIFSM))
 		return;
 
 	va_start(va, fmt);
@@ -239,7 +239,7 @@ tei_debug(struct FsmInst *fi, char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	printk(KERN_DEBUG "sapi(%d) tei(%d): %pV\n",
+	printk(KERN_DE "sapi(%d) tei(%d): %pV\n",
 	       tm->l2->sapi, tm->l2->tei, &vaf);
 
 	va_end(va);
@@ -467,14 +467,14 @@ tei_id_request(struct FsmInst *fi, int event, void *arg)
 	struct teimgr *tm = fi->userdata;
 
 	if (tm->l2->tei != GROUP_TEI) {
-		tm->tei_m.printdebug(&tm->tei_m,
+		tm->tei_m.printde(&tm->tei_m,
 				     "assign request for already assigned tei %d",
 				     tm->l2->tei);
 		return;
 	}
 	tm->ri = random_ri();
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(&tm->tei_m,
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(&tm->tei_m,
 				     "assign request ri %d", tm->ri);
 	put_tei_msg(tm->mgr, ID_REQUEST, tm->ri, GROUP_TEI);
 	mISDN_FsmChangeState(fi, ST_TEI_IDREQ);
@@ -494,13 +494,13 @@ tei_id_assign(struct FsmInst *fi, int event, void *arg)
 	ri += *dp++;
 	dp++;
 	tei = *dp >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "identity assign ri %d tei %d",
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "identity assign ri %d tei %d",
 				     ri, tei);
 	l2 = findtei(tm->mgr, tei);
 	if (l2) {	/* same tei is in use */
 		if (ri != l2->tm->ri) {
-			tm->tei_m.printdebug(fi,
+			tm->tei_m.printde(fi,
 					     "possible duplicate assignment tei %d", tei);
 			tei_l2(l2, MDL_ERROR_RSP, 0);
 		}
@@ -523,13 +523,13 @@ tei_id_test_dup(struct FsmInst *fi, int event, void *arg)
 	ri += *dp++;
 	dp++;
 	tei = *dp >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "foreign identity assign ri %d tei %d",
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "foreign identity assign ri %d tei %d",
 				     ri, tei);
 	l2 = findtei(tm->mgr, tei);
 	if (l2) {	/* same tei is in use */
 		if (ri != l2->tm->ri) {	/* and it wasn't our request */
-			tm->tei_m.printdebug(fi,
+			tm->tei_m.printde(fi,
 					     "possible duplicate assignment tei %d", tei);
 			mISDN_FsmEvent(&l2->tm->tei_m, EV_VERIFY, NULL);
 		}
@@ -547,8 +547,8 @@ tei_id_denied(struct FsmInst *fi, int event, void *arg)
 	ri += *dp++;
 	dp++;
 	tei = *dp >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "identity denied ri %d tei %d",
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "identity denied ri %d tei %d",
 				     ri, tei);
 }
 
@@ -560,8 +560,8 @@ tei_id_chk_req(struct FsmInst *fi, int event, void *arg)
 	int tei;
 
 	tei = *(dp + 3) >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "identity check req tei %d", tei);
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "identity check req tei %d", tei);
 	if ((tm->l2->tei != GROUP_TEI) && ((tei == GROUP_TEI) ||
 					   (tei == tm->l2->tei))) {
 		mISDN_FsmDelTimer(&tm->timer, 4);
@@ -578,8 +578,8 @@ tei_id_remove(struct FsmInst *fi, int event, void *arg)
 	int tei;
 
 	tei = *(dp + 3) >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "identity remove tei %d", tei);
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "identity remove tei %d", tei);
 	if ((tm->l2->tei != GROUP_TEI) &&
 	    ((tei == GROUP_TEI) || (tei == tm->l2->tei))) {
 		mISDN_FsmDelTimer(&tm->timer, 5);
@@ -593,8 +593,8 @@ tei_id_verify(struct FsmInst *fi, int event, void *arg)
 {
 	struct teimgr *tm = fi->userdata;
 
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "id verify request for tei %d",
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "id verify request for tei %d",
 				     tm->l2->tei);
 	put_tei_msg(tm->mgr, ID_VERIFY, 0, tm->l2->tei);
 	mISDN_FsmChangeState(&tm->tei_m, ST_TEI_IDVERIFY);
@@ -609,13 +609,13 @@ tei_id_req_tout(struct FsmInst *fi, int event, void *arg)
 
 	if (--tm->nval) {
 		tm->ri = random_ri();
-		if (*debug & DEBUG_L2_TEI)
-			tm->tei_m.printdebug(fi, "assign req(%d) ri %d",
+		if (*de & DE_L2_TEI)
+			tm->tei_m.printde(fi, "assign req(%d) ri %d",
 					     4 - tm->nval, tm->ri);
 		put_tei_msg(tm->mgr, ID_REQUEST, tm->ri, GROUP_TEI);
 		mISDN_FsmAddTimer(&tm->timer, tm->tval, EV_TIMER, NULL, 3);
 	} else {
-		tm->tei_m.printdebug(fi, "assign req failed");
+		tm->tei_m.printde(fi, "assign req failed");
 		tei_l2(tm->l2, MDL_ERROR_RSP, 0);
 		mISDN_FsmChangeState(fi, ST_TEI_NOP);
 	}
@@ -627,14 +627,14 @@ tei_id_ver_tout(struct FsmInst *fi, int event, void *arg)
 	struct teimgr *tm = fi->userdata;
 
 	if (--tm->nval) {
-		if (*debug & DEBUG_L2_TEI)
-			tm->tei_m.printdebug(fi,
+		if (*de & DE_L2_TEI)
+			tm->tei_m.printde(fi,
 					     "id verify req(%d) for tei %d",
 					     3 - tm->nval, tm->l2->tei);
 		put_tei_msg(tm->mgr, ID_VERIFY, 0, tm->l2->tei);
 		mISDN_FsmAddTimer(&tm->timer, tm->tval, EV_TIMER, NULL, 4);
 	} else {
-		tm->tei_m.printdebug(fi, "verify req for tei %d failed",
+		tm->tei_m.printde(fi, "verify req for tei %d failed",
 				     tm->l2->tei);
 		tei_l2(tm->l2, MDL_REMOVE_REQ, 0);
 		mISDN_FsmChangeState(fi, ST_TEI_NOP);
@@ -672,14 +672,14 @@ tei_assign_req(struct FsmInst *fi, int event, void *arg)
 	u_char *dp = arg;
 
 	if (tm->l2->tei == GROUP_TEI) {
-		tm->tei_m.printdebug(&tm->tei_m,
+		tm->tei_m.printde(&tm->tei_m,
 				     "net tei assign request without tei");
 		return;
 	}
 	tm->ri = ((unsigned int) *dp++ << 8);
 	tm->ri += *dp++;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(&tm->tei_m,
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(&tm->tei_m,
 				     "net assign request ri %d teim %d", tm->ri, *dp);
 	put_tei_msg(tm->mgr, ID_ASSIGNED, tm->ri, tm->l2->tei);
 	mISDN_FsmChangeState(fi, ST_TEI_NOP);
@@ -690,8 +690,8 @@ tei_id_chk_req_net(struct FsmInst *fi, int event, void *arg)
 {
 	struct teimgr	*tm = fi->userdata;
 
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "id check request for tei %d",
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "id check request for tei %d",
 				     tm->l2->tei);
 	tm->rcnt = 0;
 	put_tei_msg(tm->mgr, ID_CHK_REQ, 0, tm->l2->tei);
@@ -708,8 +708,8 @@ tei_id_chk_resp(struct FsmInst *fi, int event, void *arg)
 	int tei;
 
 	tei = dp[3] >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "identity check resp tei %d", tei);
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "identity check resp tei %d", tei);
 	if (tei == tm->l2->tei)
 		tm->rcnt++;
 }
@@ -722,8 +722,8 @@ tei_id_verify_net(struct FsmInst *fi, int event, void *arg)
 	int tei;
 
 	tei = dp[3] >> 1;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(fi, "identity verify req tei %d/%d",
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(fi, "identity verify req tei %d/%d",
 				     tei, tm->l2->tei);
 	if (tei == tm->l2->tei)
 		tei_id_chk_req_net(fi, event, arg);
@@ -735,22 +735,22 @@ tei_id_ver_tout_net(struct FsmInst *fi, int event, void *arg)
 	struct teimgr *tm = fi->userdata;
 
 	if (tm->rcnt == 1) {
-		if (*debug & DEBUG_L2_TEI)
-			tm->tei_m.printdebug(fi,
+		if (*de & DE_L2_TEI)
+			tm->tei_m.printde(fi,
 					     "check req for tei %d successful\n", tm->l2->tei);
 		mISDN_FsmChangeState(fi, ST_TEI_NOP);
 	} else if (tm->rcnt > 1) {
 		/* duplicate assignment; remove */
 		tei_l2remove(tm->l2);
 	} else if (--tm->nval) {
-		if (*debug & DEBUG_L2_TEI)
-			tm->tei_m.printdebug(fi,
+		if (*de & DE_L2_TEI)
+			tm->tei_m.printde(fi,
 					     "id check req(%d) for tei %d",
 					     3 - tm->nval, tm->l2->tei);
 		put_tei_msg(tm->mgr, ID_CHK_REQ, 0, tm->l2->tei);
 		mISDN_FsmAddTimer(&tm->timer, tm->tval, EV_TIMER, NULL, 4);
 	} else {
-		tm->tei_m.printdebug(fi, "check req for tei %d failed",
+		tm->tei_m.printde(fi, "check req for tei %d failed",
 				     tm->l2->tei);
 		mISDN_FsmChangeState(fi, ST_TEI_NOP);
 		tei_l2remove(tm->l2);
@@ -771,8 +771,8 @@ tei_ph_data_ind(struct teimgr *tm, u_int mt, u_char *dp, int len)
 {
 	if (test_bit(FLG_FIXED_TEI, &tm->l2->flag))
 		return;
-	if (*debug & DEBUG_L2_TEI)
-		tm->tei_m.printdebug(&tm->tei_m, "tei handler mt %x", mt);
+	if (*de & DE_L2_TEI)
+		tm->tei_m.printde(&tm->tei_m, "tei handler mt %x", mt);
 	if (mt == ID_ASSIGNED)
 		mISDN_FsmEvent(&tm->tei_m, EV_ASSIGN, dp);
 	else if (mt == ID_DENIED)
@@ -820,9 +820,9 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 	}
 	l2->tm->mgr = mgr;
 	l2->tm->l2 = l2;
-	l2->tm->tei_m.debug = *debug & DEBUG_L2_TEIFSM;
+	l2->tm->tei_m.de = *de & DE_L2_TEIFSM;
 	l2->tm->tei_m.userdata = l2->tm;
-	l2->tm->tei_m.printdebug = tei_debug;
+	l2->tm->tei_m.printde = tei_de;
 	l2->tm->tei_m.fsm = &teifsmn;
 	l2->tm->tei_m.state = ST_TEI_NOP;
 	l2->tm->tval = 2000; /* T202  2 sec */
@@ -891,8 +891,8 @@ ph_data_ind(struct manager *mgr, struct sk_buff *skb)
 	u_char		mt;
 
 	if (skb->len < 8) {
-		if (*debug  & DEBUG_L2_TEI)
-			printk(KERN_DEBUG "%s: short mgr frame %d/8\n",
+		if (*de  & DE_L2_TEI)
+			printk(KERN_DE "%s: short mgr frame %d/8\n",
 			       __func__, skb->len);
 		goto done;
 	}
@@ -946,8 +946,8 @@ l2_tei(struct layer2 *l2, u_int cmd, u_long arg)
 
 	if (test_bit(FLG_FIXED_TEI, &l2->flag))
 		return 0;
-	if (*debug & DEBUG_L2_TEI)
-		printk(KERN_DEBUG "%s: cmd(%x)\n", __func__, cmd);
+	if (*de & DE_L2_TEI)
+		printk(KERN_DE "%s: cmd(%x)\n", __func__, cmd);
 	switch (cmd) {
 	case MDL_ASSIGN_IND:
 		mISDN_FsmEvent(&tm->tei_m, EV_IDREQ, NULL);
@@ -997,8 +997,8 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 	int			id;
 	struct channel_req	l1rq;
 
-	if (*debug & DEBUG_L2_TEI)
-		printk(KERN_DEBUG "%s: %s proto(%x) adr(%d %d %d %d)\n",
+	if (*de & DE_L2_TEI)
+		printk(KERN_DE "%s: %s proto(%x) adr(%d %d %d %d)\n",
 		       __func__, dev_name(&mgr->ch.st->dev->dev),
 		       crq->protocol, crq->adr.dev, crq->adr.channel,
 		       crq->adr.sapi, crq->adr.tei);
@@ -1063,9 +1063,9 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 	}
 	l2->tm->mgr = mgr;
 	l2->tm->l2 = l2;
-	l2->tm->tei_m.debug = *debug & DEBUG_L2_TEIFSM;
+	l2->tm->tei_m.de = *de & DE_L2_TEIFSM;
 	l2->tm->tei_m.userdata = l2->tm;
-	l2->tm->tei_m.printdebug = tei_debug;
+	l2->tm->tei_m.printde = tei_de;
 	if (crq->protocol == ISDN_P_LAPD_TE) {
 		l2->tm->tei_m.fsm = &teifsmu;
 		l2->tm->tei_m.state = ST_TEI_NOP;
@@ -1109,8 +1109,8 @@ mgr_send(struct mISDNchannel *ch, struct sk_buff *skb)
 	int			ret = -EINVAL;
 
 	mgr = container_of(ch, struct manager, ch);
-	if (*debug & DEBUG_L2_RECV)
-		printk(KERN_DEBUG "%s: prim(%x) id(%x)\n",
+	if (*de & DE_L2_RECV)
+		printk(KERN_DE "%s: prim(%x) id(%x)\n",
 		       __func__, hh->prim, hh->id);
 	switch (hh->prim) {
 	case PH_DATA_IND:
@@ -1209,8 +1209,8 @@ check_data(struct manager *mgr, struct sk_buff *skb)
 	int			ret, tei, sapi;
 	struct layer2		*l2;
 
-	if (*debug & DEBUG_L2_CTRL)
-		printk(KERN_DEBUG "%s: prim(%x) id(%x)\n",
+	if (*de & DE_L2_CTRL)
+		printk(KERN_DE "%s: prim(%x) id(%x)\n",
 		       __func__, hh->prim, hh->id);
 	if (test_bit(MGR_OPT_USER, &mgr->options))
 		return -ENOTCONN;
@@ -1229,13 +1229,13 @@ check_data(struct manager *mgr, struct sk_buff *skb)
 	if ((skb->data[2] & ~0x10) != SABME)
 		return -ENOTCONN;
 	/* We got a SABME for a fixed TEI */
-	if (*debug & DEBUG_L2_CTRL)
-		printk(KERN_DEBUG "%s: SABME sapi(%d) tei(%d)\n",
+	if (*de & DE_L2_CTRL)
+		printk(KERN_DE "%s: SABME sapi(%d) tei(%d)\n",
 		       __func__, sapi, tei);
 	l2 = create_new_tei(mgr, tei, sapi);
 	if (!l2) {
-		if (*debug & DEBUG_L2_CTRL)
-			printk(KERN_DEBUG "%s: failed to create new tei\n",
+		if (*de & DE_L2_CTRL)
+			printk(KERN_DE "%s: failed to create new tei\n",
 			       __func__);
 		return -ENOMEM;
 	}
@@ -1270,8 +1270,8 @@ mgr_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	int		ret = -EINVAL;
 
 	mgr = container_of(ch, struct manager, ch);
-	if (*debug & DEBUG_L2_CTRL)
-		printk(KERN_DEBUG "%s(%x, %p)\n", __func__, cmd, arg);
+	if (*de & DE_L2_CTRL)
+		printk(KERN_DE "%s(%x, %p)\n", __func__, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		ret = create_teimgr(mgr, arg);
@@ -1320,8 +1320,8 @@ mgr_bcast(struct mISDNchannel *ch, struct sk_buff *skb)
 				hhc->id = l2->ch.nr;
 				ret = ch->st->own.recv(&ch->st->own, cskb);
 				if (ret) {
-					if (*debug & DEBUG_SEND_ERR)
-						printk(KERN_DEBUG
+					if (*de & DE_SEND_ERR)
+						printk(KERN_DE
 						       "%s ch%d prim(%x) addr(%x)"
 						       " err %d\n",
 						       __func__, l2->ch.nr,
@@ -1374,9 +1374,9 @@ create_teimanager(struct mISDNdevice *dev)
 	mgr->bcast.st = dev->D.st;
 	set_channel_address(&mgr->bcast, 0, GROUP_TEI);
 	add_layer2(&mgr->bcast, dev->D.st);
-	mgr->deact.debug = *debug & DEBUG_MANAGER;
+	mgr->deact.de = *de & DE_MANAGER;
 	mgr->deact.userdata = mgr;
-	mgr->deact.printdebug = da_debug;
+	mgr->deact.printde = da_de;
 	mgr->deact.fsm = &deactfsm;
 	mgr->deact.state = ST_L1_DEACT;
 	mISDN_FsmInitTimer(&mgr->deact, &mgr->datimer);
@@ -1387,7 +1387,7 @@ create_teimanager(struct mISDNdevice *dev)
 int TEIInit(u_int *deb)
 {
 	int res;
-	debug = deb;
+	de = deb;
 	teifsmu.state_count = TEI_STATE_COUNT;
 	teifsmu.event_count = TEI_EVENT_COUNT;
 	teifsmu.strEvent = strTeiEvent;

@@ -72,7 +72,7 @@ struct c8sectpfei {
 	struct pinctrl *pinctrl;
 
 	struct dentry *root;
-	struct debugfs_regset32	*regset;
+	struct defs_regset32	*regset;
 	struct completion fw_ack;
 	atomic_t fw_loaded;
 

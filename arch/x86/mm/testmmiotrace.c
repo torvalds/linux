@@ -92,7 +92,7 @@ static void do_test(unsigned long size)
 
 /*
  * Tests how mmiotrace behaves in face of multiple ioremap / iounmaps in
- * a short time. We had a bug in deferred freeing procedure which tried
+ * a short time. We had a  in deferred freeing procedure which tried
  * to free this region multiple times (ioremap can reuse the same address
  * for many mappings).
  */
@@ -132,7 +132,7 @@ static int __init init(void)
 
 static void __exit cleanup(void)
 {
-	pr_debug("unloaded.\n");
+	pr_de("unloaded.\n");
 }
 
 module_init(init);

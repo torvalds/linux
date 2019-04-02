@@ -485,7 +485,7 @@ retry_rq:
 	if (left_ppas > 0)
 		goto next_rq;
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	WARN_ON(padded && !pblk_line_is_full(line));
 #endif
 
@@ -594,7 +594,7 @@ static int pblk_recov_check_line_version(struct pblk *pblk,
 		return 1;
 	}
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	if (header->version_minor > EMETA_VERSION_MINOR)
 		pblk_info(pblk, "newer line minor version found: %d\n",
 				header->version_minor);
@@ -730,7 +730,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		if (!guid_equal(&pblk->instance_uuid,
 				(guid_t *)&smeta_buf->header.uuid)) {
-			pblk_debug(pblk, "ignore line %u due to uuid mismatch\n",
+			pblk_de(pblk, "ignore line %u due to uuid mismatch\n",
 					i);
 			continue;
 		}
@@ -754,7 +754,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		pblk_recov_line_add_ordered(&recov_list, line);
 		found_lines++;
-		pblk_debug(pblk, "recovering data line %d, seq:%llu\n",
+		pblk_de(pblk, "recovering data line %d, seq:%llu\n",
 						line->id, smeta_buf->seq_nr);
 	}
 

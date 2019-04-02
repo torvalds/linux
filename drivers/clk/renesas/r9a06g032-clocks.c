@@ -440,7 +440,7 @@ r9a06g032_register_gate(struct r9a06g032_priv *clocks,
 	 */
 	if (r9a06g032_clk_gate_is_enabled(&g->hw)) {
 		init.flags |= CLK_IS_CRITICAL;
-		pr_debug("%s was enabled, making read-only\n", desc->name);
+		pr_de("%s was enabled, making read-only\n", desc->name);
 	}
 
 	clk = clk_register(NULL, &g->hw);
@@ -788,7 +788,7 @@ r9a06g032_register_dualgate(struct r9a06g032_priv *clocks,
 	 */
 	if (r9a06g032_clk_dualgate_is_enabled(&g->hw)) {
 		init.flags |= CLK_IS_CRITICAL;
-		pr_debug("%s was enabled, making read-only\n", desc->name);
+		pr_de("%s was enabled, making read-only\n", desc->name);
 	}
 
 	clk = clk_register(NULL, &g->hw);

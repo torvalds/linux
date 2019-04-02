@@ -1159,7 +1159,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	/* Hold IO request across abort processing */
 	kref_get(&io_req->refcount);
 
-	BUG_ON(tgt != io_req->tgt);
+	_ON(tgt != io_req->tgt);
 
 	/* Remove the io_req from the active_q. */
 	/*

@@ -598,7 +598,7 @@ static const struct of_device_id sdma_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sdma_dt_ids);
 
 #define SDMA_H_CONFIG_DSPDMA	BIT(12) /* indicates if the DSPDMA is used */
-#define SDMA_H_CONFIG_RTD_PINS	BIT(11) /* indicates if Real-Time Debug pins are enabled */
+#define SDMA_H_CONFIG_RTD_PINS	BIT(11) /* indicates if Real-Time De pins are enabled */
 #define SDMA_H_CONFIG_ACR	BIT(4)  /* indicates if AHB freq /core freq = 2 or 1 */
 #define SDMA_H_CONFIG_CSM	(3)       /* indicates which context switch mode is selected*/
 

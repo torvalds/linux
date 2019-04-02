@@ -27,25 +27,25 @@
 #define VENDOR_ID_FINTEK	0x1934
 
 
-/* debugging module parameter */
-static int debug;
+/* deging module parameter */
+static int de;
 
 #define fit_pr(level, text, ...) \
 	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
 
 #define fit_dbg(text, ...) \
-	if (debug) \
-		printk(KERN_DEBUG \
+	if (de) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 #define fit_dbg_verbose(text, ...) \
-	if (debug > 1) \
-		printk(KERN_DEBUG \
+	if (de > 1) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 #define fit_dbg_wake(text, ...) \
-	if (debug > 2) \
-		printk(KERN_DEBUG \
+	if (de > 2) \
+		printk(KERN_DE \
 			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__)
 
 

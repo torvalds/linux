@@ -235,7 +235,7 @@ do {									\
 			mga_do_dma_wrap_end(dev_priv);			\
 		} else if (dev_priv->prim.space <			\
 			   dev_priv->prim.high_mark) {			\
-			if (MGA_DMA_DEBUG)				\
+			if (MGA_DMA_DE)				\
 				DRM_INFO("wrap...\n");			\
 			return -EBUSY;					\
 		}							\
@@ -246,7 +246,7 @@ do {									\
 do {									\
 	if (test_bit(0, &dev_priv->prim.wrapped)) {			\
 		if (mga_do_wait_for_idle(dev_priv) < 0) {		\
-			if (MGA_DMA_DEBUG)				\
+			if (MGA_DMA_DE)				\
 				DRM_INFO("wrap...\n");			\
 			return -EBUSY;					\
 		}							\
@@ -365,7 +365,7 @@ do {									\
 #define MGA_DMA_IDLE_MASK		(MGA_SOFTRAPEN |		\
 					 MGA_ENDPRDMASTS)
 
-#define MGA_DMA_DEBUG			0
+#define MGA_DMA_DE			0
 
 /* A reduced set of the mga registers.
  */

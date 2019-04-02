@@ -120,45 +120,45 @@ void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			const struct drm_gem_object *obj);
 
-/* drm_debugfs.c drm_debugfs_crc.c */
-#if defined(CONFIG_DEBUG_FS)
-int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+/* drm_defs.c drm_defs_crc.c */
+#if defined(CONFIG_DE_FS)
+int drm_defs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);
-int drm_debugfs_cleanup(struct drm_minor *minor);
-int drm_debugfs_connector_add(struct drm_connector *connector);
-void drm_debugfs_connector_remove(struct drm_connector *connector);
-int drm_debugfs_crtc_add(struct drm_crtc *crtc);
-void drm_debugfs_crtc_remove(struct drm_crtc *crtc);
-int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
+int drm_defs_cleanup(struct drm_minor *minor);
+int drm_defs_connector_add(struct drm_connector *connector);
+void drm_defs_connector_remove(struct drm_connector *connector);
+int drm_defs_crtc_add(struct drm_crtc *crtc);
+void drm_defs_crtc_remove(struct drm_crtc *crtc);
+int drm_defs_crtc_crc_add(struct drm_crtc *crtc);
 #else
-static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+static inline int drm_defs_init(struct drm_minor *minor, int minor_id,
 				   struct dentry *root)
 {
 	return 0;
 }
 
-static inline int drm_debugfs_cleanup(struct drm_minor *minor)
+static inline int drm_defs_cleanup(struct drm_minor *minor)
 {
 	return 0;
 }
 
-static inline int drm_debugfs_connector_add(struct drm_connector *connector)
+static inline int drm_defs_connector_add(struct drm_connector *connector)
 {
 	return 0;
 }
-static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
+static inline void drm_defs_connector_remove(struct drm_connector *connector)
 {
 }
 
-static inline int drm_debugfs_crtc_add(struct drm_crtc *crtc)
+static inline int drm_defs_crtc_add(struct drm_crtc *crtc)
 {
 	return 0;
 }
-static inline void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
+static inline void drm_defs_crtc_remove(struct drm_crtc *crtc)
 {
 }
 
-static inline int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
+static inline int drm_defs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	return 0;
 }
@@ -190,4 +190,4 @@ int drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,
 /* drm_framebuffer.c */
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
-int drm_framebuffer_debugfs_init(struct drm_minor *minor);
+int drm_framebuffer_defs_init(struct drm_minor *minor);

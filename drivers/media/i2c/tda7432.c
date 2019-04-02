@@ -14,8 +14,8 @@
  * Which was based on tda8425.c by Greg Alexander (c) 1998
  *
  * OPTIONS:
- * debug    - set to 1 if you'd like to see debug messages
- *            set to 2 if you'd like to be inundated with debug messages
+ * de    - set to 1 if you'd like to see de messages
+ *            set to 2 if you'd like to be inundated with de messages
  *
  * loudness - set between 0 and 15 for varying degrees of loudness effect
  *
@@ -47,9 +47,9 @@ MODULE_LICENSE("GPL");
 
 static int maxvol;
 static int loudness; /* disable loudness by default */
-static int debug;	 /* insmod parameter */
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Set debugging level from 0 to 3. Default is off(0).");
+static int de;	 /* insmod parameter */
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Set deging level from 0 to 3. Default is off(0).");
 module_param(loudness, int, S_IRUGO);
 MODULE_PARM_DESC(loudness, "Turn loudness on(1) else off(0). Default is off(0).");
 module_param(maxvol, int, S_IRUGO | S_IWUSR);
@@ -221,8 +221,8 @@ static int tda7432_write(struct v4l2_subdev *sd, int subaddr, int val)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	unsigned char buffer[2];
 
-	v4l2_dbg(2, debug, sd, "In tda7432_write\n");
-	v4l2_dbg(1, debug, sd, "Writing %d 0x%x\n", subaddr, val);
+	v4l2_dbg(2, de, sd, "In tda7432_write\n");
+	v4l2_dbg(1, de, sd, "Writing %d 0x%x\n", subaddr, val);
 	buffer[0] = subaddr;
 	buffer[1] = val;
 	if (2 != i2c_master_send(client, buffer, 2)) {

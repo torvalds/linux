@@ -1,24 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * linux/include/linux/sunrpc/debug.h
+ * linux/include/linux/sunrpc/de.h
  *
- * Debugging support for sunrpc module
+ * Deging support for sunrpc module
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
-#ifndef _LINUX_SUNRPC_DEBUG_H_
-#define _LINUX_SUNRPC_DEBUG_H_
+#ifndef _LINUX_SUNRPC_DE_H_
+#define _LINUX_SUNRPC_DE_H_
 
-#include <uapi/linux/sunrpc/debug.h>
+#include <uapi/linux/sunrpc/de.h>
 
 /*
- * Debugging macros etc
+ * Deging macros etc
  */
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-extern unsigned int		rpc_debug;
-extern unsigned int		nfs_debug;
-extern unsigned int		nfsd_debug;
-extern unsigned int		nlm_debug;
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
+extern unsigned int		rpc_de;
+extern unsigned int		nfs_de;
+extern unsigned int		nfsd_de;
+extern unsigned int		nlm_de;
 #endif
 
 #define dprintk(fmt, ...)						\
@@ -30,25 +30,25 @@ extern unsigned int		nlm_debug;
 #define dprintk_rcu_cont(fmt, ...)					\
 	dfprintk_rcu_cont(FACILITY, fmt, ##__VA_ARGS__)
 
-#undef ifdebug
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define ifdebug(fac)		if (unlikely(rpc_debug & RPCDBG_##fac))
+#undef ifde
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
+# define ifde(fac)		if (unlikely(rpc_de & RPCDBG_##fac))
 
 # define dfprintk(fac, fmt, ...)					\
 do {									\
-	ifdebug(fac)							\
+	ifde(fac)							\
 		printk(KERN_DEFAULT fmt, ##__VA_ARGS__);		\
 } while (0)
 
 # define dfprintk_cont(fac, fmt, ...)					\
 do {									\
-	ifdebug(fac)							\
+	ifde(fac)							\
 		printk(KERN_CONT fmt, ##__VA_ARGS__);			\
 } while (0)
 
 # define dfprintk_rcu(fac, fmt, ...)					\
 do {									\
-	ifdebug(fac) {							\
+	ifde(fac) {							\
 		rcu_read_lock();					\
 		printk(KERN_DEFAULT fmt, ##__VA_ARGS__);		\
 		rcu_read_unlock();					\
@@ -57,74 +57,74 @@ do {									\
 
 # define dfprintk_rcu_cont(fac, fmt, ...)				\
 do {									\
-	ifdebug(fac) {							\
+	ifde(fac) {							\
 		rcu_read_lock();					\
 		printk(KERN_CONT fmt, ##__VA_ARGS__);			\
 		rcu_read_unlock();					\
 	}								\
 } while (0)
 
-# define RPC_IFDEBUG(x)		x
+# define RPC_IFDE(x)		x
 #else
-# define ifdebug(fac)		if (0)
+# define ifde(fac)		if (0)
 # define dfprintk(fac, fmt, ...)	do {} while (0)
 # define dfprintk_cont(fac, fmt, ...)	do {} while (0)
 # define dfprintk_rcu(fac, fmt, ...)	do {} while (0)
-# define RPC_IFDEBUG(x)
+# define RPC_IFDE(x)
 #endif
 
 /*
- * Sysctl interface for RPC debugging
+ * Sysctl interface for RPC deging
  */
 
 struct rpc_clnt;
 struct rpc_xprt;
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 void		rpc_register_sysctl(void);
 void		rpc_unregister_sysctl(void);
-void		sunrpc_debugfs_init(void);
-void		sunrpc_debugfs_exit(void);
-void		rpc_clnt_debugfs_register(struct rpc_clnt *);
-void		rpc_clnt_debugfs_unregister(struct rpc_clnt *);
-void		rpc_xprt_debugfs_register(struct rpc_xprt *);
-void		rpc_xprt_debugfs_unregister(struct rpc_xprt *);
+void		sunrpc_defs_init(void);
+void		sunrpc_defs_exit(void);
+void		rpc_clnt_defs_register(struct rpc_clnt *);
+void		rpc_clnt_defs_unregister(struct rpc_clnt *);
+void		rpc_xprt_defs_register(struct rpc_xprt *);
+void		rpc_xprt_defs_unregister(struct rpc_xprt *);
 #else
 static inline void
-sunrpc_debugfs_init(void)
+sunrpc_defs_init(void)
 {
 	return;
 }
 
 static inline void
-sunrpc_debugfs_exit(void)
+sunrpc_defs_exit(void)
 {
 	return;
 }
 
 static inline void
-rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
+rpc_clnt_defs_register(struct rpc_clnt *clnt)
 {
 	return;
 }
 
 static inline void
-rpc_clnt_debugfs_unregister(struct rpc_clnt *clnt)
+rpc_clnt_defs_unregister(struct rpc_clnt *clnt)
 {
 	return;
 }
 
 static inline void
-rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
+rpc_xprt_defs_register(struct rpc_xprt *xprt)
 {
 	return;
 }
 
 static inline void
-rpc_xprt_debugfs_unregister(struct rpc_xprt *xprt)
+rpc_xprt_defs_unregister(struct rpc_xprt *xprt)
 {
 	return;
 }
 #endif
 
-#endif /* _LINUX_SUNRPC_DEBUG_H_ */
+#endif /* _LINUX_SUNRPC_DE_H_ */

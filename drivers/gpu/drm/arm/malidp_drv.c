@@ -17,7 +17,7 @@
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
@@ -207,7 +207,7 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 
 		/* only set config_valid if the CRTC is enabled */
 		if (malidp_set_and_wait_config_valid(drm) < 0)
-			DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
+			DRM_DE_DRIVER("timed out waiting for updated configuration\n");
 	} else if (malidp->event) {
 		/* CRTC inactive means vblank IRQ is disabled, send event directly */
 		spin_lock_irq(&drm->event_lock);
@@ -267,41 +267,41 @@ malidp_verify_afbc_framebuffer_caps(struct drm_device *dev,
 	const struct drm_format_info *info;
 
 	if ((mode_cmd->modifier[0] >> 56) != DRM_FORMAT_MOD_VENDOR_ARM) {
-		DRM_DEBUG_KMS("Unknown modifier (not Arm)\n");
+		DRM_DE_KMS("Unknown modifier (not Arm)\n");
 		return false;
 	}
 
 	if (mode_cmd->modifier[0] &
 	    ~DRM_FORMAT_MOD_ARM_AFBC(AFBC_MOD_VALID_BITS)) {
-		DRM_DEBUG_KMS("Unsupported modifiers\n");
+		DRM_DE_KMS("Unsupported modifiers\n");
 		return false;
 	}
 
 	info = drm_get_format_info(dev, mode_cmd);
 	if (!info) {
-		DRM_DEBUG_KMS("Unable to get the format information\n");
+		DRM_DE_KMS("Unable to get the format information\n");
 		return false;
 	}
 
 	if (info->num_planes != 1) {
-		DRM_DEBUG_KMS("AFBC buffers expect one plane\n");
+		DRM_DE_KMS("AFBC buffers expect one plane\n");
 		return false;
 	}
 
 	if (mode_cmd->offsets[0] != 0) {
-		DRM_DEBUG_KMS("AFBC buffers' plane offset should be 0\n");
+		DRM_DE_KMS("AFBC buffers' plane offset should be 0\n");
 		return false;
 	}
 
 	switch (mode_cmd->modifier[0] & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) {
 	case AFBC_FORMAT_MOD_BLOCK_SIZE_16x16:
 		if ((mode_cmd->width % 16) || (mode_cmd->height % 16)) {
-			DRM_DEBUG_KMS("AFBC buffers must be aligned to 16 pixels\n");
+			DRM_DE_KMS("AFBC buffers must be aligned to 16 pixels\n");
 			return false;
 		}
 		break;
 	default:
-		DRM_DEBUG_KMS("Unsupported AFBC block size\n");
+		DRM_DE_KMS("Unsupported AFBC block size\n");
 		return false;
 	}
 
@@ -325,7 +325,7 @@ malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
 		afbc_superblock_width = 16;
 		break;
 	default:
-		DRM_DEBUG_KMS("AFBC superblock size is not supported\n");
+		DRM_DE_KMS("AFBC superblock size is not supported\n");
 		return false;
 	}
 
@@ -341,19 +341,19 @@ malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
 	afbc_size += n_superblocks * ALIGN(afbc_superblock_size, AFBC_SUPERBLK_ALIGNMENT);
 
 	if (mode_cmd->width * info->cpp[0] != mode_cmd->pitches[0]) {
-		DRM_DEBUG_KMS("Invalid value of pitch (=%u) should be same as width (=%u) * cpp (=%u)\n",
+		DRM_DE_KMS("Invalid value of pitch (=%u) should be same as width (=%u) * cpp (=%u)\n",
 			      mode_cmd->pitches[0], mode_cmd->width, info->cpp[0]);
 		return false;
 	}
 
 	objs = drm_gem_object_lookup(file, mode_cmd->handles[0]);
 	if (!objs) {
-		DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+		DRM_DE_KMS("Failed to lookup GEM object\n");
 		return false;
 	}
 
 	if (objs->size < afbc_size) {
-		DRM_DEBUG_KMS("buffer size (%zu) too small for AFBC buffer size = %u\n",
+		DRM_DE_KMS("buffer size (%zu) too small for AFBC buffer size = %u\n",
 			      objs->size, afbc_size);
 		drm_gem_object_put_unlocked(objs);
 		return false;
@@ -474,7 +474,7 @@ static int malidp_dumb_create(struct drm_file *file_priv,
 	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static void malidp_error_stats_init(struct malidp_error_stats *error_stats)
 {
@@ -524,12 +524,12 @@ static int malidp_show_stats(struct seq_file *m, void *arg)
 	return 0;
 }
 
-static int malidp_debugfs_open(struct inode *inode, struct file *file)
+static int malidp_defs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, malidp_show_stats, inode->i_private);
 }
 
-static ssize_t malidp_debugfs_write(struct file *file, const char __user *ubuf,
+static ssize_t malidp_defs_write(struct file *file, const char __user *ubuf,
 				    size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
@@ -544,16 +544,16 @@ static ssize_t malidp_debugfs_write(struct file *file, const char __user *ubuf,
 	return len;
 }
 
-static const struct file_operations malidp_debugfs_fops = {
+static const struct file_operations malidp_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = malidp_debugfs_open,
+	.open = malidp_defs_open,
 	.read = seq_read,
-	.write = malidp_debugfs_write,
+	.write = malidp_defs_write,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static int malidp_debugfs_init(struct drm_minor *minor)
+static int malidp_defs_init(struct drm_minor *minor)
 {
 	struct malidp_drm *malidp = minor->dev->dev_private;
 	struct dentry *dentry = NULL;
@@ -561,18 +561,18 @@ static int malidp_debugfs_init(struct drm_minor *minor)
 	malidp_error_stats_init(&malidp->de_errors);
 	malidp_error_stats_init(&malidp->se_errors);
 	spin_lock_init(&malidp->errors_lock);
-	dentry = debugfs_create_file("debug",
+	dentry = defs_create_file("de",
 				     S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
-				     &malidp_debugfs_fops);
+				     minor->defs_root, minor->dev,
+				     &malidp_defs_fops);
 	if (!dentry) {
-		DRM_ERROR("Cannot create debug file\n");
+		DRM_ERROR("Cannot create de file\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
 
-#endif //CONFIG_DEBUG_FS
+#endif //CONFIG_DE_FS
 
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
@@ -589,8 +589,8 @@ static struct drm_driver malidp_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init = malidp_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init = malidp_defs_init,
 #endif
 	.fops = &fops,
 	.name = "mali-dp",

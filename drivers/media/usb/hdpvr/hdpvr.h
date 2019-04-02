@@ -40,9 +40,9 @@
 #define HDPVR_FIRMWARE_VERSION_0X15	0x15
 #define HDPVR_FIRMWARE_VERSION_0X1E	0x1e
 
-/* #define HDPVR_DEBUG */
+/* #define HDPVR_DE */
 
-extern int hdpvr_debug;
+extern int hdpvr_de;
 
 #define MSG_INFO	1
 #define MSG_BUFFER	2

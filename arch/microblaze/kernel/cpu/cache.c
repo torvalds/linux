@@ -161,7 +161,7 @@ static void __flush_icache_range_msr_irq(unsigned long start, unsigned long end)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 
 	CACHE_LOOP_LIMITS(start, end,
@@ -188,7 +188,7 @@ static void __flush_icache_range_nomsr_irq(unsigned long start,
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 
 	CACHE_LOOP_LIMITS(start, end,
@@ -215,7 +215,7 @@ static void __flush_icache_range_noirq(unsigned long start,
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 
 	CACHE_LOOP_LIMITS(start, end,
@@ -235,7 +235,7 @@ static void __flush_icache_all_msr_irq(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	local_irq_save(flags);
 	__disable_icache_msr();
@@ -257,7 +257,7 @@ static void __flush_icache_all_nomsr_irq(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	local_irq_save(flags);
 	__disable_icache_nomsr();
@@ -278,7 +278,7 @@ static void __flush_icache_all_noirq(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 #ifdef ASM_LOOP
 	CACHE_ALL_LOOP(cpuinfo.icache_size, cpuinfo.icache_line_length, wic);
 #else
@@ -295,7 +295,7 @@ static void __invalidate_dcache_all_msr_irq(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	local_irq_save(flags);
 	__disable_dcache_msr();
@@ -317,7 +317,7 @@ static void __invalidate_dcache_all_nomsr_irq(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	local_irq_save(flags);
 	__disable_dcache_nomsr();
@@ -338,7 +338,7 @@ static void __invalidate_dcache_all_noirq_wt(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 #ifdef ASM_LOOP
 	CACHE_ALL_LOOP(cpuinfo.dcache_size, cpuinfo.dcache_line_length, wdc);
 #else
@@ -361,7 +361,7 @@ static void __invalidate_dcache_all_wb(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 #ifdef ASM_LOOP
 	CACHE_ALL_LOOP(cpuinfo.dcache_size, cpuinfo.dcache_line_length,
 					wdc);
@@ -379,7 +379,7 @@ static void __invalidate_dcache_range_wb(unsigned long start,
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 
 	CACHE_LOOP_LIMITS(start, end,
@@ -399,7 +399,7 @@ static void __invalidate_dcache_range_nomsr_wt(unsigned long start,
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 	CACHE_LOOP_LIMITS(start, end,
 			cpuinfo.dcache_line_length, cpuinfo.dcache_size);
@@ -420,7 +420,7 @@ static void __invalidate_dcache_range_msr_irq_wt(unsigned long start,
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 	CACHE_LOOP_LIMITS(start, end,
 			cpuinfo.dcache_line_length, cpuinfo.dcache_size);
@@ -447,7 +447,7 @@ static void __invalidate_dcache_range_nomsr_irq(unsigned long start,
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 
 	CACHE_LOOP_LIMITS(start, end,
@@ -473,7 +473,7 @@ static void __flush_dcache_all_wb(void)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 #ifdef ASM_LOOP
 	CACHE_ALL_LOOP(cpuinfo.dcache_size, cpuinfo.dcache_line_length,
 				wdc.flush);
@@ -490,7 +490,7 @@ static void __flush_dcache_range_wb(unsigned long start, unsigned long end)
 #ifndef ASM_LOOP
 	int i;
 #endif
-	pr_debug("%s: start 0x%x, end 0x%x\n", __func__,
+	pr_de("%s: start 0x%x, end 0x%x\n", __func__,
 				(unsigned int)start, (unsigned int) end);
 
 	CACHE_LOOP_LIMITS(start, end,
@@ -612,7 +612,7 @@ void microblaze_cache_init(void)
 			pr_info("wb_msr\n");
 			mbc = (struct scache *)&wb_msr;
 			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
-				/* MS: problem with signal handling - hw bug */
+				/* MS: problem with signal handling - hw  */
 				pr_info("WB won't work properly\n");
 			}
 		} else {
@@ -629,7 +629,7 @@ void microblaze_cache_init(void)
 			pr_info("wb_nomsr\n");
 			mbc = (struct scache *)&wb_nomsr;
 			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
-				/* MS: problem with signal handling - hw bug */
+				/* MS: problem with signal handling - hw  */
 				pr_info("WB won't work properly\n");
 			}
 		} else {

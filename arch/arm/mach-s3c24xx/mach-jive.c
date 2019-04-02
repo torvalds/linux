@@ -355,7 +355,7 @@ static struct s3c2410fb_mach_info jive_lcd_config = {
 
 static void jive_lcm_reset(unsigned int set)
 {
-	printk(KERN_DEBUG "%s(%d)\n", __func__, set);
+	printk(KERN_DE "%s(%d)\n", __func__, set);
 
 	gpio_set_value(S3C2410_GPG(13), set);
 }

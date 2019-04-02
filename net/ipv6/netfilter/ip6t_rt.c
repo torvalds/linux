@@ -29,10 +29,10 @@ static inline bool
 segsleft_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
 	bool r;
-	pr_debug("segsleft_match:%c 0x%x <= 0x%x <= 0x%x\n",
+	pr_de("segsleft_match:%c 0x%x <= 0x%x <= 0x%x\n",
 		 invert ? '!' : ' ', min, id, max);
 	r = (id >= min && id <= max) ^ invert;
-	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
+	pr_de(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
@@ -68,25 +68,25 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		return false;
 	}
 
-	pr_debug("IPv6 RT LEN %u %u ", hdrlen, rh->hdrlen);
-	pr_debug("TYPE %04X ", rh->type);
-	pr_debug("SGS_LEFT %u %02X\n", rh->segments_left, rh->segments_left);
+	pr_de("IPv6 RT LEN %u %u ", hdrlen, rh->hdrlen);
+	pr_de("TYPE %04X ", rh->type);
+	pr_de("SGS_LEFT %u %02X\n", rh->segments_left, rh->segments_left);
 
-	pr_debug("IPv6 RT segsleft %02X ",
+	pr_de("IPv6 RT segsleft %02X ",
 		 segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
 				rh->segments_left,
 				!!(rtinfo->invflags & IP6T_RT_INV_SGS)));
-	pr_debug("type %02X %02X %02X ",
+	pr_de("type %02X %02X %02X ",
 		 rtinfo->rt_type, rh->type,
 		 (!(rtinfo->flags & IP6T_RT_TYP) ||
 		  ((rtinfo->rt_type == rh->type) ^
 		   !!(rtinfo->invflags & IP6T_RT_INV_TYP))));
-	pr_debug("len %02X %04X %02X ",
+	pr_de("len %02X %04X %02X ",
 		 rtinfo->hdrlen, hdrlen,
 		 !(rtinfo->flags & IP6T_RT_LEN) ||
 		  ((rtinfo->hdrlen == hdrlen) ^
 		   !!(rtinfo->invflags & IP6T_RT_INV_LEN)));
-	pr_debug("res %02X %02X %02X ",
+	pr_de("res %02X %02X %02X ",
 		 rtinfo->flags & IP6T_RT_RES,
 		 ((const struct rt0_hdr *)rh)->reserved,
 		 !((rtinfo->flags & IP6T_RT_RES) &&
@@ -115,18 +115,18 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		ret = (*rp == 0);
 	}
 
-	pr_debug("#%d ", rtinfo->addrnr);
+	pr_de("#%d ", rtinfo->addrnr);
 	if (!(rtinfo->flags & IP6T_RT_FST)) {
 		return ret;
 	} else if (rtinfo->flags & IP6T_RT_FST_NSTRICT) {
-		pr_debug("Not strict ");
+		pr_de("Not strict ");
 		if (rtinfo->addrnr > (unsigned int)((hdrlen - 8) / 16)) {
-			pr_debug("There isn't enough space\n");
+			pr_de("There isn't enough space\n");
 			return false;
 		} else {
 			unsigned int i = 0;
 
-			pr_debug("#%d ", rtinfo->addrnr);
+			pr_de("#%d ", rtinfo->addrnr);
 			for (temp = 0;
 			     temp < (unsigned int)((hdrlen - 8) / 16);
 			     temp++) {
@@ -143,25 +143,25 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 				}
 
 				if (ipv6_addr_equal(ap, &rtinfo->addrs[i])) {
-					pr_debug("i=%d temp=%d;\n", i, temp);
+					pr_de("i=%d temp=%d;\n", i, temp);
 					i++;
 				}
 				if (i == rtinfo->addrnr)
 					break;
 			}
-			pr_debug("i=%d #%d\n", i, rtinfo->addrnr);
+			pr_de("i=%d #%d\n", i, rtinfo->addrnr);
 			if (i == rtinfo->addrnr)
 				return ret;
 			else
 				return false;
 		}
 	} else {
-		pr_debug("Strict ");
+		pr_de("Strict ");
 		if (rtinfo->addrnr > (unsigned int)((hdrlen - 8) / 16)) {
-			pr_debug("There isn't enough space\n");
+			pr_de("There isn't enough space\n");
 			return false;
 		} else {
-			pr_debug("#%d ", rtinfo->addrnr);
+			pr_de("#%d ", rtinfo->addrnr);
 			for (temp = 0; temp < rtinfo->addrnr; temp++) {
 				ap = skb_header_pointer(skb,
 							ptr
@@ -177,7 +177,7 @@ static bool rt_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 				if (!ipv6_addr_equal(ap, &rtinfo->addrs[temp]))
 					break;
 			}
-			pr_debug("temp=%d #%d\n", temp, rtinfo->addrnr);
+			pr_de("temp=%d #%d\n", temp, rtinfo->addrnr);
 			if (temp == rtinfo->addrnr &&
 			    temp == (unsigned int)((hdrlen - 8) / 16))
 				return ret;
@@ -194,14 +194,14 @@ static int rt_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_rt *rtinfo = par->matchinfo;
 
 	if (rtinfo->invflags & ~IP6T_RT_INV_MASK) {
-		pr_debug("unknown flags %X\n", rtinfo->invflags);
+		pr_de("unknown flags %X\n", rtinfo->invflags);
 		return -EINVAL;
 	}
 	if ((rtinfo->flags & (IP6T_RT_RES | IP6T_RT_FST_MASK)) &&
 	    (!(rtinfo->flags & IP6T_RT_TYP) ||
 	     (rtinfo->rt_type != 0) ||
 	     (rtinfo->invflags & IP6T_RT_INV_TYP))) {
-		pr_debug("`--rt-type 0' required before `--rt-0-*'");
+		pr_de("`--rt-type 0' required before `--rt-0-*'");
 		return -EINVAL;
 	}
 

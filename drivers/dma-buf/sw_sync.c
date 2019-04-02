@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/sync_file.h>
 
-#include "sync_debug.h"
+#include "sync_de.h"
 
 #define CREATE_TRACE_POINTS
 #include "sync_trace.h"
@@ -34,7 +34,7 @@
  *
  * To start the framework just open:
  *
- * <debugfs>/sync/sw_sync
+ * <defs>/sync/sw_sync
  *
  * That will create a sync timeline, all fences created under this timeline
  * file descriptor will belong to the this timeline.
@@ -100,7 +100,7 @@ static struct sync_timeline *sync_timeline_create(const char *name)
 	INIT_LIST_HEAD(&obj->pt_list);
 	spin_lock_init(&obj->lock);
 
-	sync_timeline_debug_add(obj);
+	sync_timeline_de_add(obj);
 
 	return obj;
 }
@@ -110,7 +110,7 @@ static void sync_timeline_free(struct kref *kref)
 	struct sync_timeline *obj =
 		container_of(kref, struct sync_timeline, kref);
 
-	sync_timeline_debug_remove(obj);
+	sync_timeline_de_remove(obj);
 
 	kfree(obj);
 }
@@ -301,7 +301,7 @@ unlock:
  */
 
 /* opening sw_sync create a new sync obj */
-static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
+static int sw_sync_defs_open(struct inode *inode, struct file *file)
 {
 	struct sync_timeline *obj;
 	char task_comm[TASK_COMM_LEN];
@@ -317,7 +317,7 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
+static int sw_sync_defs_release(struct inode *inode, struct file *file)
 {
 	struct sync_timeline *obj = file->private_data;
 	struct sync_pt *pt, *next;
@@ -415,9 +415,9 @@ static long sw_sync_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-const struct file_operations sw_sync_debugfs_fops = {
-	.open           = sw_sync_debugfs_open,
-	.release        = sw_sync_debugfs_release,
+const struct file_operations sw_sync_defs_fops = {
+	.open           = sw_sync_defs_open,
+	.release        = sw_sync_defs_release,
 	.unlocked_ioctl = sw_sync_ioctl,
 	.compat_ioctl	= sw_sync_ioctl,
 };

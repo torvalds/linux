@@ -3064,7 +3064,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt, int index,
 	if (ret < 0)
 		return ret;
 
-	skl_debug_init_module(skl->debugfs, w, mconfig);
+	skl_de_init_module(skl->defs, w, mconfig);
 
 bind_event:
 	if (tplg_w->event_type == 0) {

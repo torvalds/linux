@@ -15,7 +15,7 @@
  *  Credits:
  *	Based on the original timer wheel code
  *
- *	Help, testing, suggestions, bugfixes, improvements were
+ *	Help, testing, suggestions, fixes, improvements were
  *	provided by:
  *
  *	George Anzinger, Andrew Morton, Steven Rostedt, Roman Zippel
@@ -32,13 +32,13 @@
 #include <linux/tick.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
-#include <linux/debugobjects.h>
+#include <linux/deobjects.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/deadline.h>
 #include <linux/sched/nohz.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/timer.h>
 #include <linux/freezer.h>
 #include <linux/compat.h>
@@ -327,11 +327,11 @@ ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs)
 
 EXPORT_SYMBOL_GPL(ktime_add_safe);
 
-#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+#ifdef CONFIG_DE_OBJECTS_TIMERS
 
-static struct debug_obj_descr hrtimer_debug_descr;
+static struct de_obj_descr hrtimer_de_descr;
 
-static void *hrtimer_debug_hint(void *addr)
+static void *hrtimer_de_hint(void *addr)
 {
 	return ((struct hrtimer *) addr)->function;
 }
@@ -340,14 +340,14 @@ static void *hrtimer_debug_hint(void *addr)
  * fixup_init is called when:
  * - an active object is initialized
  */
-static bool hrtimer_fixup_init(void *addr, enum debug_obj_state state)
+static bool hrtimer_fixup_init(void *addr, enum de_obj_state state)
 {
 	struct hrtimer *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		hrtimer_cancel(timer);
-		debug_object_init(timer, &hrtimer_debug_descr);
+		de_object_init(timer, &hrtimer_de_descr);
 		return true;
 	default:
 		return false;
@@ -359,10 +359,10 @@ static bool hrtimer_fixup_init(void *addr, enum debug_obj_state state)
  * - an active object is activated
  * - an unknown non-static object is activated
  */
-static bool hrtimer_fixup_activate(void *addr, enum debug_obj_state state)
+static bool hrtimer_fixup_activate(void *addr, enum de_obj_state state)
 {
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		WARN_ON(1);
 		/* fall through */
 	default:
@@ -374,47 +374,47 @@ static bool hrtimer_fixup_activate(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static bool hrtimer_fixup_free(void *addr, enum debug_obj_state state)
+static bool hrtimer_fixup_free(void *addr, enum de_obj_state state)
 {
 	struct hrtimer *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_ACTIVE:
+	case ODE_STATE_ACTIVE:
 		hrtimer_cancel(timer);
-		debug_object_free(timer, &hrtimer_debug_descr);
+		de_object_free(timer, &hrtimer_de_descr);
 		return true;
 	default:
 		return false;
 	}
 }
 
-static struct debug_obj_descr hrtimer_debug_descr = {
+static struct de_obj_descr hrtimer_de_descr = {
 	.name		= "hrtimer",
-	.debug_hint	= hrtimer_debug_hint,
+	.de_hint	= hrtimer_de_hint,
 	.fixup_init	= hrtimer_fixup_init,
 	.fixup_activate	= hrtimer_fixup_activate,
 	.fixup_free	= hrtimer_fixup_free,
 };
 
-static inline void debug_hrtimer_init(struct hrtimer *timer)
+static inline void de_hrtimer_init(struct hrtimer *timer)
 {
-	debug_object_init(timer, &hrtimer_debug_descr);
+	de_object_init(timer, &hrtimer_de_descr);
 }
 
-static inline void debug_hrtimer_activate(struct hrtimer *timer,
+static inline void de_hrtimer_activate(struct hrtimer *timer,
 					  enum hrtimer_mode mode)
 {
-	debug_object_activate(timer, &hrtimer_debug_descr);
+	de_object_activate(timer, &hrtimer_de_descr);
 }
 
-static inline void debug_hrtimer_deactivate(struct hrtimer *timer)
+static inline void de_hrtimer_deactivate(struct hrtimer *timer)
 {
-	debug_object_deactivate(timer, &hrtimer_debug_descr);
+	de_object_deactivate(timer, &hrtimer_de_descr);
 }
 
-static inline void debug_hrtimer_free(struct hrtimer *timer)
+static inline void de_hrtimer_free(struct hrtimer *timer)
 {
-	debug_object_free(timer, &hrtimer_debug_descr);
+	de_object_free(timer, &hrtimer_de_descr);
 }
 
 static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
@@ -423,43 +423,43 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 void hrtimer_init_on_stack(struct hrtimer *timer, clockid_t clock_id,
 			   enum hrtimer_mode mode)
 {
-	debug_object_init_on_stack(timer, &hrtimer_debug_descr);
+	de_object_init_on_stack(timer, &hrtimer_de_descr);
 	__hrtimer_init(timer, clock_id, mode);
 }
 EXPORT_SYMBOL_GPL(hrtimer_init_on_stack);
 
 void destroy_hrtimer_on_stack(struct hrtimer *timer)
 {
-	debug_object_free(timer, &hrtimer_debug_descr);
+	de_object_free(timer, &hrtimer_de_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_hrtimer_on_stack);
 
 #else
 
-static inline void debug_hrtimer_init(struct hrtimer *timer) { }
-static inline void debug_hrtimer_activate(struct hrtimer *timer,
+static inline void de_hrtimer_init(struct hrtimer *timer) { }
+static inline void de_hrtimer_activate(struct hrtimer *timer,
 					  enum hrtimer_mode mode) { }
-static inline void debug_hrtimer_deactivate(struct hrtimer *timer) { }
+static inline void de_hrtimer_deactivate(struct hrtimer *timer) { }
 #endif
 
 static inline void
-debug_init(struct hrtimer *timer, clockid_t clockid,
+de_init(struct hrtimer *timer, clockid_t clockid,
 	   enum hrtimer_mode mode)
 {
-	debug_hrtimer_init(timer);
+	de_hrtimer_init(timer);
 	trace_hrtimer_init(timer, clockid, mode);
 }
 
-static inline void debug_activate(struct hrtimer *timer,
+static inline void de_activate(struct hrtimer *timer,
 				  enum hrtimer_mode mode)
 {
-	debug_hrtimer_activate(timer, mode);
+	de_hrtimer_activate(timer, mode);
 	trace_hrtimer_start(timer, mode);
 }
 
-static inline void debug_deactivate(struct hrtimer *timer)
+static inline void de_deactivate(struct hrtimer *timer)
 {
-	debug_hrtimer_deactivate(timer);
+	de_hrtimer_deactivate(timer);
 	trace_hrtimer_cancel(timer);
 }
 
@@ -942,7 +942,7 @@ static int enqueue_hrtimer(struct hrtimer *timer,
 			   struct hrtimer_clock_base *base,
 			   enum hrtimer_mode mode)
 {
-	debug_activate(timer, mode);
+	de_activate(timer, mode);
 
 	base->cpu_base->active_bases |= 1 << base->index;
 
@@ -1005,7 +1005,7 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base, bool rest
 		 * reprogramming happens in the interrupt handler. This is a
 		 * rare case and less expensive than a smp call.
 		 */
-		debug_deactivate(timer);
+		de_deactivate(timer);
 		reprogram = base->cpu_base == this_cpu_ptr(&hrtimer_bases);
 
 		if (!restart)
@@ -1087,7 +1087,7 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
  * @delta_ns:	"slack" range for the timer
  * @mode:	timer mode: absolute (HRTIMER_MODE_ABS) or
  *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED);
- *		softirq based mode is considered for debug purpose only!
+ *		softirq based mode is considered for de purpose only!
  */
 void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 			    u64 delta_ns, const enum hrtimer_mode mode)
@@ -1296,7 +1296,7 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 		  enum hrtimer_mode mode)
 {
-	debug_init(timer, clock_id, mode);
+	de_init(timer, clock_id, mode);
 	__hrtimer_init(timer, clock_id, mode);
 }
 EXPORT_SYMBOL_GPL(hrtimer_init);
@@ -1356,7 +1356,7 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 
 	lockdep_assert_held(&cpu_base->lock);
 
-	debug_deactivate(timer);
+	de_deactivate(timer);
 	base->running = timer;
 
 	/*
@@ -1483,7 +1483,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	unsigned long flags;
 	int retries = 0;
 
-	BUG_ON(!cpu_base->hres_active);
+	_ON(!cpu_base->hres_active);
 	cpu_base->nr_events++;
 	dev->next_event = KTIME_MAX;
 
@@ -1660,7 +1660,7 @@ int nanosleep_copyout(struct restart_block *restart, struct timespec64 *ts)
 			return -EFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 	return -ERESTART_RESTARTBLOCK;
 }
@@ -1822,8 +1822,8 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 
 	while ((node = timerqueue_getnext(&old_base->active))) {
 		timer = container_of(node, struct hrtimer, node);
-		BUG_ON(hrtimer_callback_running(timer));
-		debug_deactivate(timer);
+		_ON(hrtimer_callback_running(timer));
+		de_deactivate(timer);
 
 		/*
 		 * Mark it as ENQUEUED not INACTIVE otherwise the
@@ -1849,7 +1849,7 @@ int hrtimers_dead_cpu(unsigned int scpu)
 	struct hrtimer_cpu_base *old_base, *new_base;
 	int i;
 
-	BUG_ON(cpu_online(scpu));
+	_ON(cpu_online(scpu));
 	tick_cancel_sched_timer(scpu);
 
 	/*

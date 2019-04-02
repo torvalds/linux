@@ -99,7 +99,7 @@ struct clk_bulk_data {
  * @clk: clock whose rate we are interested in
  * @nb: notifier block with callback function pointer
  *
- * ProTip: debugging across notifier chains can be frustrating. Make sure that
+ * ProTip: deging across notifier chains can be frustrating. Make sure that
  * your notifier callback function prints a nice big warning in case of
  * failure.
  */

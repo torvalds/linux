@@ -104,8 +104,8 @@ static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
 
 static inline void proc_set_size(struct proc_dir_entry *de, loff_t size) {}
 static inline void proc_set_user(struct proc_dir_entry *de, kuid_t uid, kgid_t gid) {}
-static inline void *PDE_DATA(const struct inode *inode) {BUG(); return NULL;}
-static inline void *proc_get_parent_data(const struct inode *inode) { BUG(); return NULL; }
+static inline void *PDE_DATA(const struct inode *inode) {(); return NULL;}
+static inline void *proc_get_parent_data(const struct inode *inode) { (); return NULL; }
 
 static inline void proc_remove(struct proc_dir_entry *de) {}
 #define remove_proc_entry(name, parent) do {} while (0)

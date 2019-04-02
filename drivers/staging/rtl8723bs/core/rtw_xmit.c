@@ -7,7 +7,7 @@
 #define _RTW_XMIT_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
@@ -444,7 +444,7 @@ static void update_attrib_vcs_info(struct adapter *padapter, struct xmit_frame *
 		}
 	}
 
-	/* for debug : force driver control vrtl_carrier_sense. */
+	/* for de : force driver control vrtl_carrier_sense. */
 	if (padapter->driver_vcs_en == 1)
 		pattrib->vcs_mode = padapter->driver_vcs_type;
 }
@@ -1985,10 +1985,10 @@ s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitfram
 	list_add_tail(&pxmitframe->list, get_list_head(queue));
 	if (pxmitframe->ext_tag == 0) {
 		pxmitpriv->free_xmitframe_cnt++;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_debug_, ("rtw_free_xmitframe():free_xmitframe_cnt =%d\n", pxmitpriv->free_xmitframe_cnt));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_de_, ("rtw_free_xmitframe():free_xmitframe_cnt =%d\n", pxmitpriv->free_xmitframe_cnt));
 	} else if (pxmitframe->ext_tag == 1) {
 		pxmitpriv->free_xframe_ext_cnt++;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_debug_, ("rtw_free_xmitframe():free_xframe_ext_cnt =%d\n", pxmitpriv->free_xframe_ext_cnt));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_de_, ("rtw_free_xmitframe():free_xframe_ext_cnt =%d\n", pxmitpriv->free_xframe_ext_cnt));
 	} else {
 	}
 

@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
@@ -137,7 +137,7 @@ skip_voltdm:
 	pwrdm->state = pwrdm_read_pwrst(pwrdm);
 	pwrdm->state_counter[pwrdm->state] = 1;
 
-	pr_debug("powerdomain: registered %s\n", pwrdm->name);
+	pr_de("powerdomain: registered %s\n", pwrdm->name);
 
 	return 0;
 }
@@ -473,13 +473,13 @@ int pwrdm_add_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm)
 	if (!pwrdm || !clkdm)
 		return -EINVAL;
 
-	pr_debug("powerdomain: %s: associating clockdomain %s\n",
+	pr_de("powerdomain: %s: associating clockdomain %s\n",
 		 pwrdm->name, clkdm->name);
 
 	for (i = 0; i < PWRDM_MAX_CLKDMS; i++) {
 		if (!pwrdm->pwrdm_clkdms[i])
 			break;
-#ifdef DEBUG
+#ifdef DE
 		if (pwrdm->pwrdm_clkdms[i] == clkdm) {
 			ret = -EINVAL;
 			goto pac_exit;
@@ -488,7 +488,7 @@ int pwrdm_add_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm)
 	}
 
 	if (i == PWRDM_MAX_CLKDMS) {
-		pr_debug("powerdomain: %s: increase PWRDM_MAX_CLKDMS for clkdm %s\n",
+		pr_de("powerdomain: %s: increase PWRDM_MAX_CLKDMS for clkdm %s\n",
 			 pwrdm->name, clkdm->name);
 		WARN_ON(1);
 		ret = -ENOMEM;
@@ -539,7 +539,7 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 	if (!(pwrdm->pwrsts & (1 << pwrst)))
 		return -EINVAL;
 
-	pr_debug("powerdomain: %s: setting next powerstate to %0x\n",
+	pr_de("powerdomain: %s: setting next powerstate to %0x\n",
 		 pwrdm->name, pwrst);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst) {
@@ -641,7 +641,7 @@ int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 	if (!(pwrdm->pwrsts_logic_ret & (1 << pwrst)))
 		return -EINVAL;
 
-	pr_debug("powerdomain: %s: setting next logic powerstate to %0x\n",
+	pr_de("powerdomain: %s: setting next logic powerstate to %0x\n",
 		 pwrdm->name, pwrst);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_set_logic_retst)
@@ -678,7 +678,7 @@ int pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
 	if (!(pwrdm->pwrsts_mem_on[bank] & (1 << pwrst)))
 		return -EINVAL;
 
-	pr_debug("powerdomain: %s: setting next memory powerstate for bank %0x while pwrdm-ON to %0x\n",
+	pr_de("powerdomain: %s: setting next memory powerstate for bank %0x while pwrdm-ON to %0x\n",
 		 pwrdm->name, bank, pwrst);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_set_mem_onst)
@@ -716,7 +716,7 @@ int pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
 	if (!(pwrdm->pwrsts_mem_ret[bank] & (1 << pwrst)))
 		return -EINVAL;
 
-	pr_debug("powerdomain: %s: setting next memory powerstate for bank %0x while pwrdm-RET to %0x\n",
+	pr_de("powerdomain: %s: setting next memory powerstate for bank %0x while pwrdm-RET to %0x\n",
 		 pwrdm->name, bank, pwrst);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_set_mem_retst)
@@ -895,7 +895,7 @@ int pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
 	 * warn & fail if it is not ON.
 	 */
 
-	pr_debug("powerdomain: %s: clearing previous power state reg\n",
+	pr_de("powerdomain: %s: clearing previous power state reg\n",
 		 pwrdm->name);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_clear_all_prev_pwrst)
@@ -925,7 +925,7 @@ int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm)
 	if (!(pwrdm->flags & PWRDM_HAS_HDWR_SAR))
 		return ret;
 
-	pr_debug("powerdomain: %s: setting SAVEANDRESTORE bit\n", pwrdm->name);
+	pr_de("powerdomain: %s: setting SAVEANDRESTORE bit\n", pwrdm->name);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_enable_hdwr_sar)
 		ret = arch_pwrdm->pwrdm_enable_hdwr_sar(pwrdm);
@@ -954,7 +954,7 @@ int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
 	if (!(pwrdm->flags & PWRDM_HAS_HDWR_SAR))
 		return ret;
 
-	pr_debug("powerdomain: %s: clearing SAVEANDRESTORE bit\n", pwrdm->name);
+	pr_de("powerdomain: %s: clearing SAVEANDRESTORE bit\n", pwrdm->name);
 
 	if (arch_pwrdm && arch_pwrdm->pwrdm_disable_hdwr_sar)
 		ret = arch_pwrdm->pwrdm_disable_hdwr_sar(pwrdm);
@@ -1180,7 +1180,7 @@ int pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
 	 */
 	count &= INT_MAX;
 
-	pr_debug("powerdomain: %s: context loss count = %d\n",
+	pr_de("powerdomain: %s: context loss count = %d\n",
 		 pwrdm->name, count);
 
 	return count;
@@ -1203,7 +1203,7 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 	int i;
 
 	if (!pwrdm) {
-		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
+		pr_de("powerdomain: %s: invalid powerdomain pointer\n",
 			 __func__);
 		return 1;
 	}

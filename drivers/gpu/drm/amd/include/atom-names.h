@@ -27,7 +27,7 @@
 
 #include "atom.h"
 
-#ifdef ATOM_DEBUG
+#ifdef ATOM_DE
 
 #define ATOM_OP_NAMES_CNT 123
 static char *atom_op_names[ATOM_OP_NAMES_CNT] = {
@@ -52,7 +52,7 @@ static char *atom_op_names[ATOM_OP_NAMES_CNT] = {
 "RESTORE_REG", "SET_DATA_BLOCK", "XOR_REG", "XOR_PS", "XOR_WS", "XOR_FB",
 "XOR_PLL", "XOR_MC", "SHL_REG", "SHL_PS", "SHL_WS", "SHL_FB", "SHL_PLL",
 "SHL_MC", "SHR_REG", "SHR_PS", "SHR_WS", "SHR_FB", "SHR_PLL", "SHR_MC",
-"DEBUG", "CTB_DS",
+"DE", "CTB_DS",
 };
 
 #define ATOM_TABLE_NAMES_CNT 74

@@ -15,7 +15,7 @@
 
 
 
-/* GSPCA debug codes */
+/* GSPCA de codes */
 
 #define D_PROBE  1
 #define D_CONF   2
@@ -25,11 +25,11 @@
 #define D_USBI   6
 #define D_USBO   7
 
-extern int gspca_debug;
+extern int gspca_de;
 
 
 #define gspca_dbg(gspca_dev, level, fmt, ...)			\
-	v4l2_dbg(level, gspca_debug, &(gspca_dev)->v4l2_dev,	\
+	v4l2_dbg(level, gspca_de, &(gspca_dev)->v4l2_dev,	\
 		 fmt, ##__VA_ARGS__)
 
 #define gspca_err(gspca_dev, fmt, ...)				\
@@ -119,7 +119,7 @@ struct sd_desc {
 	cam_streamparm_op set_streamparm;
 	cam_format_op try_fmt;
 	cam_frmsize_op enum_framesizes;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	cam_set_reg_op set_register;
 	cam_get_reg_op get_register;
 	cam_chip_info_op get_chip_info;

@@ -1403,7 +1403,7 @@ static int c_show(struct seq_file *m, void *p)
 	if (p == SEQ_START_TOKEN)
 		return cd->cache_show(m, cd, NULL);
 
-	ifdebug(CACHE)
+	ifde(CACHE)
 		seq_printf(m, "# expiry=%ld refcnt=%d flags=%lx\n",
 			   convert_to_wallclock(cp->expiry_time),
 			   kref_read(&cp->ref), cp->flags);

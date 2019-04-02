@@ -182,7 +182,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 		break;
 	}
 
-	if (!(AE_IS_VER1(priv->enet_ver) && h->port_type == HNAE_PORT_DEBUG))
+	if (!(AE_IS_VER1(priv->enet_ver) && h->port_type == HNAE_PORT_DE))
 		supported |= SUPPORTED_Pause;
 
 	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,

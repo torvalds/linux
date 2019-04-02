@@ -21,7 +21,7 @@ Written by Gerard Roudier <groudier@free.fr>
       8.2  Set wide size
       8.3  Set maximum number of concurrent tagged commands
       8.4  Set order type for tagged command
-      8.5  Set debug mode
+      8.5  Set de mode
       8.6  Clear profile counters
       8.7  Set flag (no_disc)
       8.8  Set verbose level
@@ -40,7 +40,7 @@ Written by Gerard Roudier <groudier@free.fr>
              10.2.7  Default synchronous period factor
              10.2.8  Negotiate synchronous with all devices
              10.2.9  Verbosity level
-             10.2.10 Debug mode
+             10.2.10 De mode
              10.2.11 Burst max
              10.2.12 LED support
              10.2.13 Max wide
@@ -182,7 +182,7 @@ Module:                allow to load the driver
 Memory mapped I/O:     increases performance
 Profiling information: read operations from the proc SCSI file system
 Control commands:      write operations to the proc SCSI file system
-Debugging information: written to syslog (expert only)
+Deging information: written to syslog (expert only)
 Scatter / gather
 Shared interrupt
 Boot setup commands
@@ -485,22 +485,22 @@ Available commands:
                         ORDERED TAG for write operations
 
 
-8.5 Set debug mode
+8.5 Set de mode
 
-    setdebug <list of debug flags>
+    setde <list of de flags>
 
-    Available debug flags:
+    Available de flags:
         alloc:   print info about memory allocations (ccb, lcb)
         queue:   print info about insertions into the command start queue
         result:  print sense data on CHECK CONDITION status
         scatter: print info about the scatter process
         scripts: print info about the script binding process
-	tiny:    print minimal debugging information
+	tiny:    print minimal deging information
 	timing:  print timing information of the NCR chip
 	nego:    print information about SCSI negotiations
 	phase:   print information on script interruptions
 
-    Use "setdebug" with no argument to reset debug flags.
+    Use "setde" with no argument to reset de flags.
 
 
 8.6 Clear profile counters
@@ -630,18 +630,18 @@ an optional list of integers separated with comma followed by an optional
 list of comma-separated strings. Example of boot setup command under lilo 
 prompt:
 
-lilo: linux root=/dev/hda2 ncr53c8xx=tags:4,sync:10,debug:0x200
+lilo: linux root=/dev/hda2 ncr53c8xx=tags:4,sync:10,de:0x200
 
 - enable tagged commands, up to 4 tagged commands queued.
 - set synchronous negotiation speed to 10 Mega-transfers / second.
-- set DEBUG_NEGO flag.
+- set DE_NEGO flag.
 
 Since comma seems not to be allowed when defining a string variable using  
 'insmod', the driver also accepts <space> as option separator. 
 The following command will install driver module with the same options as 
 above.
 
-    insmod ncr53c8xx.o ncr53c8xx="tags:4 sync:10 debug:0x200"
+    insmod ncr53c8xx.o ncr53c8xx="tags:4 sync:10 de:0x200"
 
 For the moment, the integer list of arguments is discarded by the driver. 
 It will be used in the future in order to allow a per controller setup.
@@ -729,25 +729,25 @@ port address 0x1400.
         verb:1     normal
         verb:2     too much
 
-10.2.10 Debug mode
-        debug:0	 clear debug flags
-        debug:#x   set debug flags
+10.2.10 De mode
+        de:0	 clear de flags
+        de:#x   set de flags
   #x is an integer value combining the following power-of-2 values:
-  DEBUG_ALLOC       0x1
-  DEBUG_PHASE       0x2
-  DEBUG_POLL        0x4
-  DEBUG_QUEUE       0x8
-  DEBUG_RESULT     0x10
-  DEBUG_SCATTER    0x20
-  DEBUG_SCRIPT     0x40
-  DEBUG_TINY       0x80
-  DEBUG_TIMING    0x100
-  DEBUG_NEGO      0x200
-  DEBUG_TAGS      0x400
-  DEBUG_FREEZE    0x800
-  DEBUG_RESTART  0x1000
+  DE_ALLOC       0x1
+  DE_PHASE       0x2
+  DE_POLL        0x4
+  DE_QUEUE       0x8
+  DE_RESULT     0x10
+  DE_SCATTER    0x20
+  DE_SCRIPT     0x40
+  DE_TINY       0x80
+  DE_TIMING    0x100
+  DE_NEGO      0x200
+  DE_TAGS      0x400
+  DE_FREEZE    0x800
+  DE_RESTART  0x1000
 
-  You can play safely with DEBUG_NEGO. However, some of these flags may 
+  You can play safely with DE_NEGO. However, some of these flags may 
   generate bunches of syslog messages. 
 
 10.2.11 Burst max
@@ -867,7 +867,7 @@ Boot fail safe
   verbosity level		2			verb:2
   tagged command queuing	disabled		tags:0
   synchronous negotiation	disabled		sync:255
-  debug flags			none			debug:0
+  de flags			none			de:0
   burst length			from BIOS settings	burst:255
   LED support			disabled		led:0
   wide support			disabled		wide:0
@@ -883,7 +883,7 @@ If the driver has been configured with default options, the equivalent
 boot setup is:
 
    ncr53c8xx=mpar:y,spar:y,disc:y,specf:3,fsn:n,ultra:2,fsn:n,revprob:n,verb:1\
-             tags:0,sync:50,debug:0,burst:7,led:0,wide:1,settle:2,diff:0,irqm:0
+             tags:0,sync:50,de:0,burst:7,led:0,wide:1,settle:2,diff:0,irqm:0
 
 For an installation diskette or a safe but not fast system,
 boot setup can be:
@@ -896,7 +896,7 @@ boot setup can be:
 My personal system works flawlessly with the following equivalent setup:
 
    ncr53c8xx=mpar:y,spar:y,disc:y,specf:1,fsn:n,ultra:2,fsn:n,revprob:n,verb:1\
-             tags:32,sync:12,debug:0,burst:7,led:1,wide:1,settle:2,diff:0,irqm:0
+             tags:32,sync:12,de:0,burst:7,led:1,wide:1,settle:2,diff:0,irqm:0
 
 The driver prints its actual setup when verbosity level is 2. You can try 
 "ncr53c8xx=verb:2" to get the "static" setup of the driver, or add "verb:2" 
@@ -1204,26 +1204,26 @@ In some complex situations, 53C875 chips revision <= 3 may start a PCI
 Write and Invalidate Command at a not cache-line-aligned 4 DWORDS boundary.
 This is only possible when Cache Line Size is 8 DWORDS or greater.
 Pentium systems use a 8 DWORDS cache line size and so are concerned by 
-this chip bug, unlike i486 systems that use a 4 DWORDS cache line size.
+this chip , unlike i486 systems that use a 4 DWORDS cache line size.
 
 When this situation occurs, the chip may complete the Write and Invalidate 
 command after having only filled part of the last cache line involved in 
 the transfer, leaving to data corruption the remainder of this cache line.
 
-Not using Write And Invalidate obviously gets rid of this chip bug, and so 
+Not using Write And Invalidate obviously gets rid of this chip , and so 
 it is now the default setting of the driver.
 However, for people like me who want to enable this feature, I have added 
 part of a work-around suggested by SYMBIOS. This work-around resets the 
-addressing logic when the DATA IN phase is entered and so prevents the bug 
+addressing logic when the DATA IN phase is entered and so prevents the  
 from being triggered for the first SCSI MOVE of the phase. This work-around 
 should be enough according to the following:
 
 The only driver internal data structure that is greater than 8 DWORDS  and 
 that is moved by the SCRIPTS processor is the 'CCB header' that contains 
 the context of the SCSI transfer. This data structure is aligned on 8 DWORDS 
-boundary (Pentium Cache Line Size), and so is immune to this chip bug, at 
+boundary (Pentium Cache Line Size), and so is immune to this chip , at 
 least on Pentium systems.
-But the conditions of this bug can be met when a SCSI read command is 
+But the conditions of this  can be met when a SCSI read command is 
 performed using a buffer that is 4 DWORDS but not cache-line aligned.
 This cannot happen under Linux when scatter/gather lists are used since 
 they only refer to system buffers that are well aligned. So, a work around 
@@ -1234,7 +1234,7 @@ when the SCSI DATA IN phase is reentered after a phase mismatch.
 
 15.1 Problem tracking
 
-Most SCSI problems are due to a non conformant SCSI bus or to buggy
+Most SCSI problems are due to a non conformant SCSI bus or to gy
 devices.  If unfortunately you have SCSI problems, you can check the
 following things:
 
@@ -1254,13 +1254,13 @@ with this safe configuration but performances will not be optimal.
 
 If it still fails, then you can send your problem description to
 appropriate mailing lists or news-groups.  Send me a copy in order to
-be sure I will receive it.  Obviously, a bug in the driver code is
+be sure I will receive it.  Obviously, a  in the driver code is
 possible.
 
      My email address: Gerard Roudier <groudier@free.fr>
 
 Allowing disconnections is important if you use several devices on
-your SCSI bus but often causes problems with buggy devices.
+your SCSI bus but often causes problems with gy devices.
 Synchronous data transfers increases throughput of fast devices like
 hard disks.  Good SCSI hard disks with a large cache gain advantage of
 tagged commands queuing.

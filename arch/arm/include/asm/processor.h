@@ -24,7 +24,7 @@
 #define STACK_TOP_MAX	TASK_SIZE
 #endif
 
-struct debug_info {
+struct de_info {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	struct perf_event	*hbp[ARM_MAX_HBP_SLOTS];
 #endif
@@ -35,8 +35,8 @@ struct thread_struct {
 	unsigned long		address;
 	unsigned long		trap_no;
 	unsigned long		error_code;
-							/* debugging	  */
-	struct debug_info	debug;
+							/* deging	  */
+	struct de_info	de;
 };
 
 /*

@@ -232,7 +232,7 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 
 	default:
-		BUG();
+		();
 		break;
 	}
 

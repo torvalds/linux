@@ -23,7 +23,7 @@ unsigned long module_emit_got_entry(struct module *mod, unsigned long val)
 	got[i] = emit_got_entry(val);
 
 	got_sec->num_entries++;
-	BUG_ON(got_sec->num_entries > got_sec->max_entries);
+	_ON(got_sec->num_entries > got_sec->max_entries);
 
 	return (unsigned long)&got[i];
 }
@@ -49,7 +49,7 @@ unsigned long module_emit_plt_entry(struct module *mod, unsigned long val)
 
 	plt_sec->num_entries++;
 	got_plt_sec->num_entries++;
-	BUG_ON(plt_sec->num_entries > plt_sec->max_entries);
+	_ON(plt_sec->num_entries > plt_sec->max_entries);
 
 	return (unsigned long)&plt[i];
 }

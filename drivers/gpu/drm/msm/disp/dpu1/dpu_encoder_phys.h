@@ -88,7 +88,7 @@ struct dpu_encoder_virt_ops {
 /**
  * struct dpu_encoder_phys_ops - Interface the physical encoders provide to
  *	the containing virtual encoder.
- * @late_register:		DRM Call. Add Userspace interfaces, debugfs.
+ * @late_register:		DRM Call. Add Userspace interfaces, defs.
  * @prepare_commit:		MSM Atomic Call, start of atomic commit sequence
  * @is_master:			Whether this phys_enc is the current master
  *				encoder. Can be switched at enable time. Based
@@ -123,7 +123,7 @@ struct dpu_encoder_virt_ops {
 
 struct dpu_encoder_phys_ops {
 	int (*late_register)(struct dpu_encoder_phys *encoder,
-			struct dentry *debugfs_root);
+			struct dentry *defs_root);
 	void (*prepare_commit)(struct dpu_encoder_phys *encoder);
 	bool (*is_master)(struct dpu_encoder_phys *encoder);
 	bool (*mode_fixup)(struct dpu_encoder_phys *encoder,
@@ -368,7 +368,7 @@ void dpu_encoder_helper_split_config(
 
 /**
  * dpu_encoder_helper_report_irq_timeout - utility to report error that irq has
- *	timed out, including reporting frame error event to crtc and debug dump
+ *	timed out, including reporting frame error event to crtc and de dump
  * @phys_enc: Pointer to physical encoder structure
  * @intr_idx: Failing interrupt index
  */

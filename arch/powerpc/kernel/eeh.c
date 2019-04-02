@@ -36,7 +36,7 @@
 #include <linux/of.h>
 
 #include <linux/atomic.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>
@@ -63,12 +63,12 @@
  *  vibration, humidity, radioactivity or plain-old failed hardware.
  *
  *  Note, however, that one of the leading causes of EEH slot
- *  freeze events are buggy device drivers, buggy device microcode,
- *  or buggy device hardware.  This is because any attempt by the
+ *  freeze events are gy device drivers, gy device microcode,
+ *  or gy device hardware.  This is because any attempt by the
  *  device to bus-master data to a memory address that is not
  *  assigned to the device will trigger a slot freeze.   (The idea
  *  is to prevent devices-gone-wild from corrupting system memory).
- *  Buggy hardware/drivers will have a miserable time co-existing
+ *  gy hardware/drivers will have a miserable time co-existing
  *  with EEH.
  *
  *  Ideally, a PCI device driver, when suspecting that an isolation
@@ -114,9 +114,9 @@ u32 eeh_max_freezes = 5;
 /*
  * Controls whether a recovery event should be scheduled when an
  * isolated device is discovered. This is only really useful for
- * debugging problems with the EEH core.
+ * deging problems with the EEH core.
  */
-bool eeh_debugfs_no_recover;
+bool eeh_defs_no_recover;
 
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
@@ -464,7 +464,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!pe) {
 		eeh_stats.ignored_check++;
-		pr_debug("EEH: Ignored check for %s\n",
+		pr_de("EEH: Ignored check for %s\n",
 			eeh_pci_name(dev));
 		return 0;
 	}
@@ -573,7 +573,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	eeh_pe_mark_isolated(pe);
 	eeh_serialize_unlock(flags);
 
-	/* Most EEH events are due to device driver bugs.  Having
+	/* Most EEH events are due to device driver s.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
@@ -1197,12 +1197,12 @@ void eeh_add_device_late(struct pci_dev *dev)
 	if (!dev || !eeh_enabled())
 		return;
 
-	pr_debug("EEH: Adding device %s\n", pci_name(dev));
+	pr_de("EEH: Adding device %s\n", pci_name(dev));
 
 	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
 	edev = pdn_to_eeh_dev(pdn);
 	if (edev->pdev == dev) {
-		pr_debug("EEH: Already referenced !\n");
+		pr_de("EEH: Already referenced !\n");
 		return;
 	}
 
@@ -1303,10 +1303,10 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev = pci_dev_to_eeh_dev(dev);
 
 	/* Unregister the device with the EEH/PCI address search system */
-	pr_debug("EEH: Removing device %s\n", pci_name(dev));
+	pr_de("EEH: Removing device %s\n", pci_name(dev));
 
 	if (!edev || !edev->pdev || !edev->pe) {
-		pr_debug("EEH: Not referenced !\n");
+		pr_de("EEH: Not referenced !\n");
 		return;
 	}
 
@@ -1587,7 +1587,7 @@ int eeh_pe_set_option(struct eeh_pe *pe, int option)
 		ret = eeh_pci_enable(pe, option);
 		break;
 	default:
-		pr_debug("%s: Option %d out of range (%d, %d)\n",
+		pr_de("%s: Option %d out of range (%d, %d)\n",
 			__func__, option, EEH_OPT_DISABLE, EEH_OPT_THAW_DMA);
 		ret = -EINVAL;
 	}
@@ -1725,7 +1725,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option, bool include_passed)
 		ret = eeh_ops->reset(pe, option);
 		break;
 	default:
-		pr_debug("%s: Unsupported option %d\n",
+		pr_de("%s: Unsupported option %d\n",
 			__func__, option);
 		ret = -EINVAL;
 	}
@@ -1816,7 +1816,7 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int eeh_enable_dbgfs_set(void *data, u64 val)
 {
 	if (val)
@@ -1836,7 +1836,7 @@ static int eeh_enable_dbgfs_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
+DEFINE_DEFS_ATTRIBUTE(eeh_enable_dbgfs_ops, eeh_enable_dbgfs_get,
 			 eeh_enable_dbgfs_set, "0x%llx\n");
 
 static ssize_t eeh_force_recover_write(struct file *filp,
@@ -1900,19 +1900,19 @@ static int __init eeh_init_proc(void)
 {
 	if (machine_is(pseries) || machine_is(powernv)) {
 		proc_create_single("powerpc/eeh", 0, NULL, proc_eeh_show);
-#ifdef CONFIG_DEBUG_FS
-		debugfs_create_file_unsafe("eeh_enable", 0600,
-					   powerpc_debugfs_root, NULL,
+#ifdef CONFIG_DE_FS
+		defs_create_file_unsafe("eeh_enable", 0600,
+					   powerpc_defs_root, NULL,
 					   &eeh_enable_dbgfs_ops);
-		debugfs_create_u32("eeh_max_freezes", 0600,
-				powerpc_debugfs_root, &eeh_max_freezes);
-		debugfs_create_bool("eeh_disable_recovery", 0600,
-				powerpc_debugfs_root,
-				&eeh_debugfs_no_recover);
-		debugfs_create_file_unsafe("eeh_force_recover", 0600,
-				powerpc_debugfs_root, NULL,
+		defs_create_u32("eeh_max_freezes", 0600,
+				powerpc_defs_root, &eeh_max_freezes);
+		defs_create_bool("eeh_disable_recovery", 0600,
+				powerpc_defs_root,
+				&eeh_defs_no_recover);
+		defs_create_file_unsafe("eeh_force_recover", 0600,
+				powerpc_defs_root, NULL,
 				&eeh_force_recover_fops);
-		eeh_cache_debugfs_init();
+		eeh_cache_defs_init();
 #endif
 	}
 

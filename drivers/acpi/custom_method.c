@@ -1,12 +1,12 @@
 /*
- * custom_method.c - debugfs interface for customizing ACPI control method
+ * custom_method.c - defs interface for customizing ACPI control method
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/acpi.h>
 
 #include "internal.h"
@@ -17,7 +17,7 @@ MODULE_LICENSE("GPL");
 
 static struct dentry *cm_dentry;
 
-/* /sys/kernel/debug/acpi/custom_method */
+/* /sys/kernel/de/acpi/custom_method */
 
 static ssize_t cm_write(struct file *file, const char __user * user_buf,
 			size_t count, loff_t *ppos)
@@ -79,14 +79,14 @@ static const struct file_operations cm_fops = {
 
 static int __init acpi_custom_method_init(void)
 {
-	cm_dentry = debugfs_create_file("custom_method", S_IWUSR,
-					acpi_debugfs_dir, NULL, &cm_fops);
+	cm_dentry = defs_create_file("custom_method", S_IWUSR,
+					acpi_defs_dir, NULL, &cm_fops);
 	return 0;
 }
 
 static void __exit acpi_custom_method_exit(void)
 {
-	debugfs_remove(cm_dentry);
+	defs_remove(cm_dentry);
 }
 
 module_init(acpi_custom_method_init);

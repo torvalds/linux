@@ -21,7 +21,7 @@
 #include <brcmu_utils.h>
 #include <defs.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "btcoex.h"

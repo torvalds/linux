@@ -49,8 +49,8 @@
 
 #include "mpc83xx.h"
 
-#undef DEBUG
-#ifdef DEBUG
+#undef DE
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)

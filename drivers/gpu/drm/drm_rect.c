@@ -208,19 +208,19 @@ int drm_rect_calc_vscale(const struct drm_rect *src,
 EXPORT_SYMBOL(drm_rect_calc_vscale);
 
 /**
- * drm_rect_debug_print - print the rectangle information
+ * drm_rect_de_print - print the rectangle information
  * @prefix: prefix string
  * @r: rectangle to print
  * @fixed_point: rectangle is in 16.16 fixed point format
  */
-void drm_rect_debug_print(const char *prefix, const struct drm_rect *r, bool fixed_point)
+void drm_rect_de_print(const char *prefix, const struct drm_rect *r, bool fixed_point)
 {
 	if (fixed_point)
-		DRM_DEBUG_KMS("%s" DRM_RECT_FP_FMT "\n", prefix, DRM_RECT_FP_ARG(r));
+		DRM_DE_KMS("%s" DRM_RECT_FP_FMT "\n", prefix, DRM_RECT_FP_ARG(r));
 	else
-		DRM_DEBUG_KMS("%s" DRM_RECT_FMT "\n", prefix, DRM_RECT_ARG(r));
+		DRM_DE_KMS("%s" DRM_RECT_FMT "\n", prefix, DRM_RECT_ARG(r));
 }
-EXPORT_SYMBOL(drm_rect_debug_print);
+EXPORT_SYMBOL(drm_rect_de_print);
 
 /**
  * drm_rect_rotate - Rotate the rectangle

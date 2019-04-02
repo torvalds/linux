@@ -44,7 +44,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -56,7 +56,7 @@
 
 #include "hfi.h"
 #include "trace.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "device.h"
 #include "qp.h"
 #include "sdma.h"
@@ -71,11 +71,11 @@ ssize_t hfi1_seq_read(struct file *file, char __user *buf, size_t size,
 	struct dentry *d = file->f_path.dentry;
 	ssize_t r;
 
-	r = debugfs_file_get(d);
+	r = defs_file_get(d);
 	if (unlikely(r))
 		return r;
 	r = seq_read(file, buf, size, ppos);
-	debugfs_file_put(d);
+	defs_file_put(d);
 	return r;
 }
 
@@ -84,11 +84,11 @@ loff_t hfi1_seq_lseek(struct file *file, loff_t offset, int whence)
 	struct dentry *d = file->f_path.dentry;
 	loff_t r;
 
-	r = debugfs_file_get(d);
+	r = defs_file_get(d);
 	if (unlikely(r))
 		return r;
 	r = seq_lseek(file, offset, whence);
-	debugfs_file_put(d);
+	defs_file_put(d);
 	return r;
 }
 
@@ -149,9 +149,9 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	return opcode_stats_show(s, i, n_packets, n_bytes);
 }
 
-DEBUGFS_SEQ_FILE_OPS(opcode_stats);
-DEBUGFS_SEQ_FILE_OPEN(opcode_stats)
-DEBUGFS_FILE_OPS(opcode_stats);
+DEFS_SEQ_FILE_OPS(opcode_stats);
+DEFS_SEQ_FILE_OPEN(opcode_stats)
+DEFS_FILE_OPS(opcode_stats);
 
 static void *_tx_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -185,9 +185,9 @@ static int _tx_opcode_stats_seq_show(struct seq_file *s, void *v)
 	return opcode_stats_show(s, i, n_packets, n_bytes);
 }
 
-DEBUGFS_SEQ_FILE_OPS(tx_opcode_stats);
-DEBUGFS_SEQ_FILE_OPEN(tx_opcode_stats)
-DEBUGFS_FILE_OPS(tx_opcode_stats);
+DEFS_SEQ_FILE_OPS(tx_opcode_stats);
+DEFS_SEQ_FILE_OPEN(tx_opcode_stats)
+DEFS_FILE_OPS(tx_opcode_stats);
 
 static void *_ctx_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -253,9 +253,9 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(ctx_stats);
-DEBUGFS_SEQ_FILE_OPEN(ctx_stats)
-DEBUGFS_FILE_OPS(ctx_stats);
+DEFS_SEQ_FILE_OPS(ctx_stats);
+DEFS_SEQ_FILE_OPEN(ctx_stats)
+DEFS_FILE_OPS(ctx_stats);
 
 static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(RCU)
@@ -315,9 +315,9 @@ static int _qp_stats_seq_show(struct seq_file *s, void *iter_ptr)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(qp_stats);
-DEBUGFS_SEQ_FILE_OPEN(qp_stats)
-DEBUGFS_FILE_OPS(qp_stats);
+DEFS_SEQ_FILE_OPS(qp_stats);
+DEFS_SEQ_FILE_OPEN(qp_stats)
+DEFS_FILE_OPS(qp_stats);
 
 static void *_sdes_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -357,9 +357,9 @@ static int _sdes_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(sdes);
-DEBUGFS_SEQ_FILE_OPEN(sdes)
-DEBUGFS_FILE_OPS(sdes);
+DEFS_SEQ_FILE_OPS(sdes);
+DEFS_SEQ_FILE_OPEN(sdes)
+DEFS_FILE_OPS(sdes);
 
 static void *_rcds_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -403,9 +403,9 @@ static int _rcds_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(rcds);
-DEBUGFS_SEQ_FILE_OPEN(rcds)
-DEBUGFS_FILE_OPS(rcds);
+DEFS_SEQ_FILE_OPS(rcds);
+DEFS_SEQ_FILE_OPEN(rcds)
+DEFS_FILE_OPS(rcds);
 
 static void *_pios_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -451,9 +451,9 @@ static int _pios_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(pios);
-DEBUGFS_SEQ_FILE_OPEN(pios)
-DEBUGFS_FILE_OPS(pios);
+DEFS_SEQ_FILE_OPS(pios);
+DEFS_SEQ_FILE_OPEN(pios)
+DEFS_FILE_OPS(pios);
 
 /* read the per-device counters */
 static ssize_t dev_counters_read(struct file *file, char __user *buf,
@@ -511,7 +511,7 @@ static ssize_t portnames_read(struct file *file, char __user *buf,
 }
 
 /* read the per-port counters */
-static ssize_t portcntrs_debugfs_read(struct file *file, char __user *buf,
+static ssize_t portcntrs_defs_read(struct file *file, char __user *buf,
 				      size_t count, loff_t *ppos)
 {
 	u64 *counters;
@@ -674,7 +674,7 @@ done:
 	return rval;
 }
 
-static ssize_t debugfs_lcb_read(struct file *file, char __user *buf,
+static ssize_t defs_lcb_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	struct hfi1_pportdata *ppd = private2ppd(file);
@@ -708,7 +708,7 @@ static ssize_t debugfs_lcb_read(struct file *file, char __user *buf,
 	return total;
 }
 
-static ssize_t debugfs_lcb_write(struct file *file, const char __user *buf,
+static ssize_t defs_lcb_write(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	struct hfi1_pportdata *ppd = private2ppd(file);
@@ -744,7 +744,7 @@ static ssize_t debugfs_lcb_write(struct file *file, const char __user *buf,
 /*
  * read the per-port QSFP data for ppd
  */
-static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
+static ssize_t qsfp_defs_dump(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	struct hfi1_pportdata *ppd;
@@ -764,7 +764,7 @@ static ssize_t qsfp_debugfs_dump(struct file *file, char __user *buf,
 }
 
 /* Do an i2c write operation on the chain for the given HFI. */
-static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t __i2c_defs_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
@@ -804,21 +804,21 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 }
 
 /* Do an i2c write operation on chain for HFI 0. */
-static ssize_t i2c1_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t i2c1_defs_write(struct file *file, const char __user *buf,
 				  size_t count, loff_t *ppos)
 {
-	return __i2c_debugfs_write(file, buf, count, ppos, 0);
+	return __i2c_defs_write(file, buf, count, ppos, 0);
 }
 
 /* Do an i2c write operation on chain for HFI 1. */
-static ssize_t i2c2_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t i2c2_defs_write(struct file *file, const char __user *buf,
 				  size_t count, loff_t *ppos)
 {
-	return __i2c_debugfs_write(file, buf, count, ppos, 1);
+	return __i2c_defs_write(file, buf, count, ppos, 1);
 }
 
 /* Do an i2c read operation on the chain for the given HFI. */
-static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
+static ssize_t __i2c_defs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
@@ -864,21 +864,21 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 }
 
 /* Do an i2c read operation on chain for HFI 0. */
-static ssize_t i2c1_debugfs_read(struct file *file, char __user *buf,
+static ssize_t i2c1_defs_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
-	return __i2c_debugfs_read(file, buf, count, ppos, 0);
+	return __i2c_defs_read(file, buf, count, ppos, 0);
 }
 
 /* Do an i2c read operation on chain for HFI 1. */
-static ssize_t i2c2_debugfs_read(struct file *file, char __user *buf,
+static ssize_t i2c2_defs_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
-	return __i2c_debugfs_read(file, buf, count, ppos, 1);
+	return __i2c_defs_read(file, buf, count, ppos, 1);
 }
 
 /* Do a QSFP write operation on the i2c chain for the given HFI. */
-static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t __qsfp_defs_write(struct file *file, const char __user *buf,
 				    size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
@@ -911,21 +911,21 @@ static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
 }
 
 /* Do a QSFP write operation on i2c chain for HFI 0. */
-static ssize_t qsfp1_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t qsfp1_defs_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	return __qsfp_debugfs_write(file, buf, count, ppos, 0);
+	return __qsfp_defs_write(file, buf, count, ppos, 0);
 }
 
 /* Do a QSFP write operation on i2c chain for HFI 1. */
-static ssize_t qsfp2_debugfs_write(struct file *file, const char __user *buf,
+static ssize_t qsfp2_defs_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
-	return __qsfp_debugfs_write(file, buf, count, ppos, 1);
+	return __qsfp_defs_write(file, buf, count, ppos, 1);
 }
 
 /* Do a QSFP read operation on the i2c chain for the given HFI. */
-static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
+static ssize_t __qsfp_defs_read(struct file *file, char __user *buf,
 				   size_t count, loff_t *ppos, u32 target)
 {
 	struct hfi1_pportdata *ppd;
@@ -969,20 +969,20 @@ static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
 }
 
 /* Do a QSFP read operation on i2c chain for HFI 0. */
-static ssize_t qsfp1_debugfs_read(struct file *file, char __user *buf,
+static ssize_t qsfp1_defs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *ppos)
 {
-	return __qsfp_debugfs_read(file, buf, count, ppos, 0);
+	return __qsfp_defs_read(file, buf, count, ppos, 0);
 }
 
 /* Do a QSFP read operation on i2c chain for HFI 1. */
-static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
+static ssize_t qsfp2_defs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *ppos)
 {
-	return __qsfp_debugfs_read(file, buf, count, ppos, 1);
+	return __qsfp_defs_read(file, buf, count, ppos, 1);
 }
 
-static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
+static int __i2c_defs_open(struct inode *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	int ret;
@@ -999,17 +999,17 @@ static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	return ret;
 }
 
-static int i2c1_debugfs_open(struct inode *in, struct file *fp)
+static int i2c1_defs_open(struct inode *in, struct file *fp)
 {
-	return __i2c_debugfs_open(in, fp, 0);
+	return __i2c_defs_open(in, fp, 0);
 }
 
-static int i2c2_debugfs_open(struct inode *in, struct file *fp)
+static int i2c2_defs_open(struct inode *in, struct file *fp)
 {
-	return __i2c_debugfs_open(in, fp, 1);
+	return __i2c_defs_open(in, fp, 1);
 }
 
-static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
+static int __i2c_defs_release(struct inode *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -1021,17 +1021,17 @@ static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	return 0;
 }
 
-static int i2c1_debugfs_release(struct inode *in, struct file *fp)
+static int i2c1_defs_release(struct inode *in, struct file *fp)
 {
-	return __i2c_debugfs_release(in, fp, 0);
+	return __i2c_defs_release(in, fp, 0);
 }
 
-static int i2c2_debugfs_release(struct inode *in, struct file *fp)
+static int i2c2_defs_release(struct inode *in, struct file *fp)
 {
-	return __i2c_debugfs_release(in, fp, 1);
+	return __i2c_defs_release(in, fp, 1);
 }
 
-static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
+static int __qsfp_defs_open(struct inode *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	int ret;
@@ -1048,17 +1048,17 @@ static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	return ret;
 }
 
-static int qsfp1_debugfs_open(struct inode *in, struct file *fp)
+static int qsfp1_defs_open(struct inode *in, struct file *fp)
 {
-	return __qsfp_debugfs_open(in, fp, 0);
+	return __qsfp_defs_open(in, fp, 0);
 }
 
-static int qsfp2_debugfs_open(struct inode *in, struct file *fp)
+static int qsfp2_defs_open(struct inode *in, struct file *fp)
 {
-	return __qsfp_debugfs_open(in, fp, 1);
+	return __qsfp_defs_open(in, fp, 1);
 }
 
-static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
+static int __qsfp_defs_release(struct inode *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -1070,17 +1070,17 @@ static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	return 0;
 }
 
-static int qsfp1_debugfs_release(struct inode *in, struct file *fp)
+static int qsfp1_defs_release(struct inode *in, struct file *fp)
 {
-	return __qsfp_debugfs_release(in, fp, 0);
+	return __qsfp_defs_release(in, fp, 0);
 }
 
-static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
+static int qsfp2_defs_release(struct inode *in, struct file *fp)
 {
-	return __qsfp_debugfs_release(in, fp, 1);
+	return __qsfp_defs_release(in, fp, 1);
 }
 
-#define DEBUGFS_OPS(nm, readroutine, writeroutine)	\
+#define DEFS_OPS(nm, readroutine, writeroutine)	\
 { \
 	.name = nm, \
 	.ops = { \
@@ -1090,7 +1090,7 @@ static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
 	}, \
 }
 
-#define DEBUGFS_XOPS(nm, readf, writef, openf, releasef) \
+#define DEFS_XOPS(nm, readf, writef, openf, releasef) \
 { \
 	.name = nm, \
 	.ops = { \
@@ -1103,25 +1103,25 @@ static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
 }
 
 static const struct counter_info cntr_ops[] = {
-	DEBUGFS_OPS("counter_names", dev_names_read, NULL),
-	DEBUGFS_OPS("counters", dev_counters_read, NULL),
-	DEBUGFS_OPS("portcounter_names", portnames_read, NULL),
+	DEFS_OPS("counter_names", dev_names_read, NULL),
+	DEFS_OPS("counters", dev_counters_read, NULL),
+	DEFS_OPS("portcounter_names", portnames_read, NULL),
 };
 
 static const struct counter_info port_cntr_ops[] = {
-	DEBUGFS_OPS("port%dcounters", portcntrs_debugfs_read, NULL),
-	DEBUGFS_XOPS("i2c1", i2c1_debugfs_read, i2c1_debugfs_write,
-		     i2c1_debugfs_open, i2c1_debugfs_release),
-	DEBUGFS_XOPS("i2c2", i2c2_debugfs_read, i2c2_debugfs_write,
-		     i2c2_debugfs_open, i2c2_debugfs_release),
-	DEBUGFS_OPS("qsfp_dump%d", qsfp_debugfs_dump, NULL),
-	DEBUGFS_XOPS("qsfp1", qsfp1_debugfs_read, qsfp1_debugfs_write,
-		     qsfp1_debugfs_open, qsfp1_debugfs_release),
-	DEBUGFS_XOPS("qsfp2", qsfp2_debugfs_read, qsfp2_debugfs_write,
-		     qsfp2_debugfs_open, qsfp2_debugfs_release),
-	DEBUGFS_OPS("asic_flags", asic_flags_read, asic_flags_write),
-	DEBUGFS_OPS("dc8051_memory", dc8051_memory_read, NULL),
-	DEBUGFS_OPS("lcb", debugfs_lcb_read, debugfs_lcb_write),
+	DEFS_OPS("port%dcounters", portcntrs_defs_read, NULL),
+	DEFS_XOPS("i2c1", i2c1_defs_read, i2c1_defs_write,
+		     i2c1_defs_open, i2c1_defs_release),
+	DEFS_XOPS("i2c2", i2c2_defs_read, i2c2_defs_write,
+		     i2c2_defs_open, i2c2_defs_release),
+	DEFS_OPS("qsfp_dump%d", qsfp_defs_dump, NULL),
+	DEFS_XOPS("qsfp1", qsfp1_defs_read, qsfp1_defs_write,
+		     qsfp1_defs_open, qsfp1_defs_release),
+	DEFS_XOPS("qsfp2", qsfp2_defs_read, qsfp2_defs_write,
+		     qsfp2_defs_open, qsfp2_defs_release),
+	DEFS_OPS("asic_flags", asic_flags_read, asic_flags_write),
+	DEFS_OPS("dc8051_memory", dc8051_memory_read, NULL),
+	DEFS_OPS("lcb", defs_lcb_read, defs_lcb_write),
 };
 
 static void *_sdma_cpu_list_seq_start(struct seq_file *s, loff_t *pos)
@@ -1157,9 +1157,9 @@ static int _sdma_cpu_list_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(sdma_cpu_list);
-DEBUGFS_SEQ_FILE_OPEN(sdma_cpu_list)
-DEBUGFS_FILE_OPS(sdma_cpu_list);
+DEFS_SEQ_FILE_OPS(sdma_cpu_list);
+DEFS_SEQ_FILE_OPEN(sdma_cpu_list)
+DEFS_FILE_OPS(sdma_cpu_list);
 
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 {
@@ -1175,27 +1175,27 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 		return;
 	snprintf(name, sizeof(name), "%s_%d", class_name(), unit);
 	snprintf(link, sizeof(link), "%d", unit);
-	root = debugfs_create_dir(name, hfi1_dbg_root);
+	root = defs_create_dir(name, hfi1_dbg_root);
 	ibd->hfi1_ibdev_dbg = root;
 
 	ibd->hfi1_ibdev_link =
-		debugfs_create_symlink(link, hfi1_dbg_root, name);
+		defs_create_symlink(link, hfi1_dbg_root, name);
 
-	debugfs_create_file("opcode_stats", 0444, root, ibd,
+	defs_create_file("opcode_stats", 0444, root, ibd,
 			    &_opcode_stats_file_ops);
-	debugfs_create_file("tx_opcode_stats", 0444, root, ibd,
+	defs_create_file("tx_opcode_stats", 0444, root, ibd,
 			    &_tx_opcode_stats_file_ops);
-	debugfs_create_file("ctx_stats", 0444, root, ibd, &_ctx_stats_file_ops);
-	debugfs_create_file("qp_stats", 0444, root, ibd, &_qp_stats_file_ops);
-	debugfs_create_file("sdes", 0444, root, ibd, &_sdes_file_ops);
-	debugfs_create_file("rcds", 0444, root, ibd, &_rcds_file_ops);
-	debugfs_create_file("pios", 0444, root, ibd, &_pios_file_ops);
-	debugfs_create_file("sdma_cpu_list", 0444, root, ibd,
+	defs_create_file("ctx_stats", 0444, root, ibd, &_ctx_stats_file_ops);
+	defs_create_file("qp_stats", 0444, root, ibd, &_qp_stats_file_ops);
+	defs_create_file("sdes", 0444, root, ibd, &_sdes_file_ops);
+	defs_create_file("rcds", 0444, root, ibd, &_rcds_file_ops);
+	defs_create_file("pios", 0444, root, ibd, &_pios_file_ops);
+	defs_create_file("sdma_cpu_list", 0444, root, ibd,
 			    &_sdma_cpu_list_file_ops);
 
 	/* dev counter files */
 	for (i = 0; i < ARRAY_SIZE(cntr_ops); i++)
-		debugfs_create_file(cntr_ops[i].name, 0444, root, dd,
+		defs_create_file(cntr_ops[i].name, 0444, root, dd,
 				    &cntr_ops[i].ops);
 
 	/* per port files */
@@ -1205,23 +1205,23 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 				 sizeof(name),
 				 port_cntr_ops[i].name,
 				 j + 1);
-			debugfs_create_file(name,
+			defs_create_file(name,
 					    !port_cntr_ops[i].ops.write ?
 						    S_IRUGO :
 						    S_IRUGO | S_IWUSR,
 					    root, ppd, &port_cntr_ops[i].ops);
 		}
 
-	hfi1_fault_init_debugfs(ibd);
+	hfi1_fault_init_defs(ibd);
 }
 
 void hfi1_dbg_ibdev_exit(struct hfi1_ibdev *ibd)
 {
 	if (!hfi1_dbg_root)
 		goto out;
-	hfi1_fault_exit_debugfs(ibd);
-	debugfs_remove(ibd->hfi1_ibdev_link);
-	debugfs_remove_recursive(ibd->hfi1_ibdev_dbg);
+	hfi1_fault_exit_defs(ibd);
+	defs_remove(ibd->hfi1_ibdev_link);
+	defs_remove_recursive(ibd->hfi1_ibdev_dbg);
 out:
 	ibd->hfi1_ibdev_dbg = NULL;
 }
@@ -1277,9 +1277,9 @@ static int _driver_stats_names_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(driver_stats_names);
-DEBUGFS_SEQ_FILE_OPEN(driver_stats_names)
-DEBUGFS_FILE_OPS(driver_stats_names);
+DEFS_SEQ_FILE_OPS(driver_stats_names);
+DEFS_SEQ_FILE_OPEN(driver_stats_names)
+DEFS_FILE_OPS(driver_stats_names);
 
 static void *_driver_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -1332,21 +1332,21 @@ static int _driver_stats_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_SEQ_FILE_OPS(driver_stats);
-DEBUGFS_SEQ_FILE_OPEN(driver_stats)
-DEBUGFS_FILE_OPS(driver_stats);
+DEFS_SEQ_FILE_OPS(driver_stats);
+DEFS_SEQ_FILE_OPEN(driver_stats)
+DEFS_FILE_OPS(driver_stats);
 
 void hfi1_dbg_init(void)
 {
-	hfi1_dbg_root  = debugfs_create_dir(DRIVER_NAME, NULL);
-	debugfs_create_file("driver_stats_names", 0444, hfi1_dbg_root, NULL,
+	hfi1_dbg_root  = defs_create_dir(DRIVER_NAME, NULL);
+	defs_create_file("driver_stats_names", 0444, hfi1_dbg_root, NULL,
 			    &_driver_stats_names_file_ops);
-	debugfs_create_file("driver_stats", 0444, hfi1_dbg_root, NULL,
+	defs_create_file("driver_stats", 0444, hfi1_dbg_root, NULL,
 			    &_driver_stats_file_ops);
 }
 
 void hfi1_dbg_exit(void)
 {
-	debugfs_remove_recursive(hfi1_dbg_root);
+	defs_remove_recursive(hfi1_dbg_root);
 	hfi1_dbg_root = NULL;
 }

@@ -213,7 +213,7 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
 /* We always extract/encode the offset by shifting it all the way up, and then down again */
 #define SWP_OFFSET_SHIFT	(SWP_OFFSET_FIRST_BIT+SWP_TYPE_BITS)
 
-#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+#define MAX_SWAPFILES_CHECK() BUILD__ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
 
 /* Extract the high bits for type */
 #define __swp_type(x) ((x).val >> (64 - SWP_TYPE_BITS))

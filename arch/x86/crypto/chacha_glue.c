@@ -134,7 +134,7 @@ static int chacha_simd_stream_xor(struct skcipher_walk *walk,
 	int next_yield = 4096; /* bytes until next FPU yield */
 	int err = 0;
 
-	BUILD_BUG_ON(CHACHA_STATE_ALIGN != 16);
+	BUILD__ON(CHACHA_STATE_ALIGN != 16);
 	state = PTR_ALIGN(state_buf + 0, CHACHA_STATE_ALIGN);
 
 	crypto_chacha_init(state, ctx, iv);
@@ -200,7 +200,7 @@ static int xchacha_simd(struct skcipher_request *req)
 	if (err)
 		return err;
 
-	BUILD_BUG_ON(CHACHA_STATE_ALIGN != 16);
+	BUILD__ON(CHACHA_STATE_ALIGN != 16);
 	state = PTR_ALIGN(state_buf + 0, CHACHA_STATE_ALIGN);
 	crypto_chacha_init(state, ctx, req->iv);
 

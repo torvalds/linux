@@ -167,14 +167,14 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 	const struct rockchip_vpu_fmt *fmt;
 
 	if (fsize->index != 0) {
-		vpu_debug(0, "invalid frame size index (expected 0, got %d)\n",
+		vpu_de(0, "invalid frame size index (expected 0, got %d)\n",
 			  fsize->index);
 		return -EINVAL;
 	}
 
 	fmt = rockchip_vpu_find_format(ctx, fsize->pixel_format);
 	if (!fmt) {
-		vpu_debug(0, "unsupported bitstream format (%08x)\n",
+		vpu_de(0, "unsupported bitstream format (%08x)\n",
 			  fsize->pixel_format);
 		return -EINVAL;
 	}
@@ -242,7 +242,7 @@ static int vidioc_g_fmt_out_mplane(struct file *file, void *priv,
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 
-	vpu_debug(4, "f->type = %d\n", f->type);
+	vpu_de(4, "f->type = %d\n", f->type);
 
 	*pix_mp = ctx->src_fmt;
 
@@ -255,7 +255,7 @@ static int vidioc_g_fmt_cap_mplane(struct file *file, void *priv,
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 
-	vpu_debug(4, "f->type = %d\n", f->type);
+	vpu_de(4, "f->type = %d\n", f->type);
 
 	*pix_mp = ctx->dst_fmt;
 
@@ -269,7 +269,7 @@ vidioc_try_fmt_cap_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	const struct rockchip_vpu_fmt *fmt;
 
-	vpu_debug(4, "%c%c%c%c\n",
+	vpu_de(4, "%c%c%c%c\n",
 		  (pix_mp->pixelformat & 0x7f),
 		  (pix_mp->pixelformat >> 8) & 0x7f,
 		  (pix_mp->pixelformat >> 16) & 0x7f,
@@ -315,7 +315,7 @@ vidioc_try_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	unsigned int width, height;
 	int i;
 
-	vpu_debug(4, "%c%c%c%c\n",
+	vpu_de(4, "%c%c%c%c\n",
 		  (pix_mp->pixelformat & 0x7f),
 		  (pix_mp->pixelformat >> 8) & 0x7f,
 		  (pix_mp->pixelformat >> 16) & 0x7f,
@@ -424,8 +424,8 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	ctx->dst_fmt.width = pix_mp->width;
 	ctx->dst_fmt.height = pix_mp->height;
 
-	vpu_debug(0, "OUTPUT codec mode: %d\n", ctx->vpu_src_fmt->codec_mode);
-	vpu_debug(0, "fmt - w: %d, h: %d, mb - w: %d, h: %d\n",
+	vpu_de(0, "OUTPUT codec mode: %d\n", ctx->vpu_src_fmt->codec_mode);
+	vpu_de(0, "fmt - w: %d, h: %d, mb - w: %d, h: %d\n",
 		  pix_mp->width, pix_mp->height,
 		  JPEG_MB_WIDTH(pix_mp->width),
 		  JPEG_MB_HEIGHT(pix_mp->height));
@@ -466,8 +466,8 @@ vidioc_s_fmt_cap_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	ctx->vpu_dst_fmt = rockchip_vpu_find_format(ctx, pix_mp->pixelformat);
 	ctx->dst_fmt = *pix_mp;
 
-	vpu_debug(0, "CAPTURE codec mode: %d\n", ctx->vpu_dst_fmt->codec_mode);
-	vpu_debug(0, "fmt - w: %d, h: %d, mb - w: %d, h: %d\n",
+	vpu_de(0, "CAPTURE codec mode: %d\n", ctx->vpu_dst_fmt->codec_mode);
+	vpu_de(0, "fmt - w: %d, h: %d, mb - w: %d, h: %d\n",
 		  pix_mp->width, pix_mp->height,
 		  JPEG_MB_WIDTH(pix_mp->width),
 		  JPEG_MB_HEIGHT(pix_mp->height));
@@ -569,7 +569,7 @@ static int rockchip_vpu_buf_prepare(struct vb2_buffer *vb)
 		if (vbuf->field == V4L2_FIELD_ANY)
 			vbuf->field = V4L2_FIELD_NONE;
 		if (vbuf->field != V4L2_FIELD_NONE) {
-			vpu_debug(4, "field %d not supported\n",
+			vpu_de(4, "field %d not supported\n",
 				  vbuf->field);
 			return -EINVAL;
 		}
@@ -581,7 +581,7 @@ static int rockchip_vpu_buf_prepare(struct vb2_buffer *vb)
 
 	for (i = 0; i < pixfmt->num_planes; ++i) {
 		sz = pixfmt->plane_fmt[i].sizeimage;
-		vpu_debug(4, "plane %d size: %ld, sizeimage: %u\n",
+		vpu_de(4, "plane %d size: %ld, sizeimage: %u\n",
 			  i, vb2_plane_size(vb, i), sz);
 		if (vb2_plane_size(vb, i) < sz) {
 			vpu_err("plane %d is too small\n", i);
@@ -614,7 +614,7 @@ static int rockchip_vpu_start_streaming(struct vb2_queue *q, unsigned int count)
 	/* Set codec_ops for the chosen destination format */
 	codec_mode = ctx->vpu_dst_fmt->codec_mode;
 
-	vpu_debug(4, "Codec mode = %d\n", codec_mode);
+	vpu_de(4, "Codec mode = %d\n", codec_mode);
 	ctx->codec_ops = &ctx->dev->variant->codec_ops[codec_mode];
 
 	/* A bounce buffer is needed for the JPEG payload */

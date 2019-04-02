@@ -345,7 +345,7 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	spin_lock_irqsave(&hwif->lock, flags);
 
 	/* We must not reset with running handlers */
-	BUG_ON(hwif->handler != NULL);
+	_ON(hwif->handler != NULL);
 
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {

@@ -347,7 +347,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	/*
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=189431
+	 * https://zilla.kernel.org/show_.cgi?id=189431
 	 * Lenovo G50-45 is a platform later than 2012, but needs nvs memory
 	 * saving during S3.
 	 */
@@ -360,7 +360,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 		},
 	},
 	/*
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=196907
+	 * https://zilla.kernel.org/show_.cgi?id=196907
 	 * Some Dell XPS13 9360 cannot do suspend-to-idle using the Low Power
 	 * S0 Idle firmware interface.
 	 */
@@ -375,7 +375,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	/*
 	 * ThinkPad X1 Tablet(2016) cannot do suspend-to-idle using
 	 * the Low Power S0 Idle firmware interface (see
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=199057).
+	 * https://zilla.kernel.org/show_.cgi?id=199057).
 	 */
 	{
 	.callback = init_no_lps0,
@@ -606,7 +606,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	}
 	trace_suspend_resume(TPS("acpi_suspend"), acpi_state, false);
 
-	/* This violates the spec but is required for bug compatibility. */
+	/* This violates the spec but is required for  compatibility. */
 	acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 
 	/* Reprogram control registers */
@@ -761,7 +761,7 @@ static void lpi_device_get_constraints(void)
 					  1, ACPI_LPS0_GET_DEVICE_CONSTRAINTS,
 					  NULL, ACPI_TYPE_PACKAGE);
 
-	acpi_handle_debug(lps0_device_handle, "_DSM function 1 eval %s\n",
+	acpi_handle_de(lps0_device_handle, "_DSM function 1 eval %s\n",
 			  out_obj ? "successful" : "failed");
 
 	if (!out_obj)
@@ -773,7 +773,7 @@ static void lpi_device_get_constraints(void)
 	if (!lpi_constraints_table)
 		goto free_acpi_buffer;
 
-	acpi_handle_debug(lps0_device_handle, "LPI: constraints list begin:\n");
+	acpi_handle_de(lps0_device_handle, "LPI: constraints list begin:\n");
 
 	for (i = 0; i < out_obj->package.count; i++) {
 		struct lpi_constraints *constraint;
@@ -812,7 +812,7 @@ static void lpi_device_get_constraints(void)
 		if (ACPI_FAILURE(status))
 			continue;
 
-		acpi_handle_debug(lps0_device_handle,
+		acpi_handle_de(lps0_device_handle,
 				  "index:%d Name:%s\n", i, info.name);
 
 		constraint->min_dstate = -1;
@@ -837,7 +837,7 @@ static void lpi_device_get_constraints(void)
 				obj = &cnstr_pkg[1];
 				dev_info.min_dstate = obj->integer.value;
 
-				acpi_handle_debug(lps0_device_handle,
+				acpi_handle_de(lps0_device_handle,
 					"uid:%d min_dstate:%s\n",
 					dev_info.uid,
 					acpi_power_state_string(dev_info.min_dstate));
@@ -848,7 +848,7 @@ static void lpi_device_get_constraints(void)
 		}
 
 		if (constraint->min_dstate < 0) {
-			acpi_handle_debug(lps0_device_handle,
+			acpi_handle_de(lps0_device_handle,
 					  "Incomplete constraint defined\n");
 			continue;
 		}
@@ -856,7 +856,7 @@ static void lpi_device_get_constraints(void)
 		lpi_constraints_table_size++;
 	}
 
-	acpi_handle_debug(lps0_device_handle, "LPI: constraints list end\n");
+	acpi_handle_de(lps0_device_handle, "LPI: constraints list end\n");
 
 free_acpi_buffer:
 	ACPI_FREE(out_obj);
@@ -873,7 +873,7 @@ static void lpi_check_constraints(void)
 		if (!handle || acpi_bus_get_device(handle, &adev))
 			continue;
 
-		acpi_handle_debug(handle,
+		acpi_handle_de(handle,
 			"LPI: required min power state:%s current power state:%s\n",
 			acpi_power_state_string(lpi_constraints_table[i].min_dstate),
 			acpi_power_state_string(adev->power.state));
@@ -902,7 +902,7 @@ static void acpi_sleep_run_lps0_dsm(unsigned int func)
 	out_obj = acpi_evaluate_dsm(lps0_device_handle, &lps0_dsm_guid, 1, func, NULL);
 	ACPI_FREE(out_obj);
 
-	acpi_handle_debug(lps0_device_handle, "_DSM function %u evaluation %s\n",
+	acpi_handle_de(lps0_device_handle, "_DSM function %u evaluation %s\n",
 			  func, out_obj ? "successful" : "failed");
 }
 
@@ -938,12 +938,12 @@ static int lps0_device_attach(struct acpi_device *adev,
 		if (mem_sleep_default > PM_SUSPEND_MEM)
 			mem_sleep_current = PM_SUSPEND_TO_IDLE;
 
-		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
+		acpi_handle_de(adev->handle, "_DSM function mask: 0x%x\n",
 				  bitmask);
 
 		acpi_ec_mark_gpe_for_wake();
 	} else {
-		acpi_handle_debug(adev->handle,
+		acpi_handle_de(adev->handle,
 				  "_DSM function 0 evaluation failed\n");
 	}
 	ACPI_FREE(out_obj);
@@ -988,7 +988,7 @@ static void acpi_s2idle_wake(void)
 	if (!lps0_device_handle)
 		return;
 
-	if (pm_debug_messages_on)
+	if (pm_de_messages_on)
 		lpi_check_constraints();
 
 	/*
@@ -1266,7 +1266,7 @@ static void acpi_power_off_prepare(void)
 static void acpi_power_off(void)
 {
 	/* acpi_sleep_prepare(ACPI_STATE_S5) should have already been called */
-	printk(KERN_DEBUG "%s called\n", __func__);
+	printk(KERN_DE "%s called\n", __func__);
 	local_irq_disable();
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }

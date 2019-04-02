@@ -14,7 +14,7 @@ a callback mechanism. The 'probes' are strictly typed functions that are
 passed a unique set of parameters defined by each tracepoint.
 
 From this simple callback mechanism, 'probes' can be used to profile,
-debug, and understand kernel behavior. There are a number of tools that
+de, and understand kernel behavior. There are a number of tools that
 provide a framework for using 'probes'. These tools include Systemtap,
 ftrace, and LTTng.
 

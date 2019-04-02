@@ -6,7 +6,7 @@
 int
 stfiwx(u32 *frS, void *ea)
 {
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: %p %p\n", __func__, frS, ea);
 #endif
 

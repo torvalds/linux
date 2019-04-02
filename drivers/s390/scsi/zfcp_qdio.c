@@ -154,7 +154,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 
 	/* keep this requests number of SBALs up-to-date */
 	q_req->sbal_number++;
-	BUG_ON(q_req->sbal_number > ZFCP_QDIO_MAX_SBALS_PER_REQ);
+	_ON(q_req->sbal_number > ZFCP_QDIO_MAX_SBALS_PER_REQ);
 
 	/* start at first SBALE of new SBAL */
 	q_req->sbale_curr = 0;

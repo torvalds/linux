@@ -217,7 +217,7 @@ static struct irq_chip pcimt_irq_type = {
 };
 
 /*
- * hwint0 should deal with MP agent, ASIC PCI, EISA NMI and debug
+ * hwint0 should deal with MP agent, ASIC PCI, EISA NMI and de
  * button interrupts.  Later ...
  */
 static void pcimt_hwint0(void)

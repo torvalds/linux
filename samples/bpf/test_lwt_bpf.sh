@@ -19,7 +19,7 @@ IPVETH3="192.168.111.2"
 
 IP_LOCAL="192.168.99.1"
 
-TRACE_ROOT=/sys/kernel/debug/tracing
+TRACE_ROOT=/sys/kernel/de/tracing
 
 function lookup_mac()
 {

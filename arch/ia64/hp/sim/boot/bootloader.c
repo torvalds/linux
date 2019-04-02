@@ -36,7 +36,7 @@ struct disk_stat {
 
 extern void jmp_to_kernel (unsigned long bp, unsigned long e_entry);
 extern struct ia64_boot_param *sys_fw_init (const char *args, int arglen);
-extern void debug_break (void);
+extern void de_break (void);
 
 static void
 cons_write (const char *buf)
@@ -167,7 +167,7 @@ start_bootloader (void)
 
 	ssc(0, (long) kpath, 0, 0, SSC_LOAD_SYMBOLS);
 
-	debug_break();
+	de_break();
 	jmp_to_kernel((unsigned long) bp, e_entry);
 
 	cons_write("kernel returned!\n");

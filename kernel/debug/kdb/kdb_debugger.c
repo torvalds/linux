@@ -10,11 +10,11 @@
 
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/export.h>
 #include <linux/hardirq.h>
 #include "kdb_private.h"
-#include "../debug_core.h"
+#include "../de_core.h"
 
 /*
  * KDB interface to KGDB internals
@@ -38,7 +38,7 @@ int kdb_common_init_state(struct kgdb_state *ks)
 {
 	kdb_initial_cpu = atomic_read(&kgdb_active);
 	kdb_current_task = kgdb_info[ks->cpu].task;
-	kdb_current_regs = kgdb_info[ks->cpu].debuggerinfo;
+	kdb_current_regs = kgdb_info[ks->cpu].degerinfo;
 	return 0;
 }
 
@@ -92,7 +92,7 @@ int kdb_stub(struct kgdb_state *ks)
 				bp->bp_delay = 1;
 				bp->bp_delayed = 1;
 	/*
-	 * SSBPT is set when the kernel debugger must single step a
+	 * SSBPT is set when the kernel deger must single step a
 	 * task in order to re-establish an instruction breakpoint
 	 * which uses the instruction replacement mechanism.  It is
 	 * cleared by any action that removes the need to single-step

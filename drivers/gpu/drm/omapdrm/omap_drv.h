@@ -37,8 +37,8 @@
 #include "omap_irq.h"
 #include "omap_plane.h"
 
-#define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
-#define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */
+#define DBG(fmt, ...) DRM_DE(fmt"\n", ##__VA_ARGS__)
+#define VERB(fmt, ...) if (0) DRM_DE(fmt, ##__VA_ARGS__) /* verbose de */
 
 #define MODULE_NAME     "omapdrm"
 
@@ -94,6 +94,6 @@ struct omap_drm_private {
 };
 
 
-int omap_debugfs_init(struct drm_minor *minor);
+int omap_defs_init(struct drm_minor *minor);
 
 #endif /* __OMAPDRM_DRV_H__ */

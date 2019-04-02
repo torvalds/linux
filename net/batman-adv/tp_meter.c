@@ -20,7 +20,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/compiler.h>
@@ -848,7 +848,7 @@ static int batadv_tp_send(void *arg)
 	 * Now, try to send the packet as it is
 	 */
 	payload_len = BATADV_TP_PLEN;
-	BUILD_BUG_ON(sizeof(struct batadv_icmp_tp_packet) > BATADV_TP_PLEN);
+	BUILD__ON(sizeof(struct batadv_icmp_tp_packet) > BATADV_TP_PLEN);
 
 	batadv_tp_reset_sender_timer(tp_vars);
 

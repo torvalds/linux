@@ -103,7 +103,7 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	unsigned long address = __fix_to_virt(idx);
 
 	if (idx >= __end_of_fixed_addresses) {
-		BUG();
+		();
 		return;
 	}
 
@@ -115,7 +115,7 @@ void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
 	unsigned long address = __fix_to_virt(idx);
 
 	if (idx >= __end_of_fixed_addresses) {
-		BUG();
+		();
 		return;
 	}
 
@@ -132,7 +132,7 @@ static pmd_t * __init one_md_table_init(pud_t *pud)
 			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 			      __func__, PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, pmd);
-		BUG_ON(pmd != pmd_offset(pud, 0));
+		_ON(pmd != pmd_offset(pud, 0));
 	}
 
 	return pmd_offset(pud, 0);
@@ -148,7 +148,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 			panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 			      __func__, PAGE_SIZE, PAGE_SIZE);
 		pmd_populate_kernel(&init_mm, pmd, pte);
-		BUG_ON(pte != pte_offset_kernel(pmd, 0));
+		_ON(pte != pte_offset_kernel(pmd, 0));
 	}
 
 	return pte_offset_kernel(pmd, 0);
@@ -256,7 +256,7 @@ static void __init early_reserve_mem(void)
 	/*
 	 * Reserve the kernel text and Reserve the bootmem bitmap. We do
 	 * this in two steps (first step was init_bootmem()), because
-	 * this catches the (definitely buggy) case of us accidentally
+	 * this catches the (definitely gy) case of us accidentally
 	 * initializing the bootmem allocator with an invalid RAM area.
 	 */
 	memblock_reserve(start, (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) - start);

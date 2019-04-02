@@ -7,7 +7,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	Please submit bug reports to http://bugzilla.kernel.org/.
+	Please submit  reports to http://zilla.kernel.org/.
 */
 
 #include <linux/pci.h>
@@ -218,7 +218,7 @@ subsequent_board:
 
 	        /* there is no phy information, don't even try to build mtable */
 	        if (count == 0) {
-			if (tulip_debug > 0)
+			if (tulip_de > 0)
 				pr_warn("%s: no phy info, aborting mtable build\n",
 					dev->name);
 		        return;
@@ -298,7 +298,7 @@ subsequent_board:
 				leaf->leafdata = p + 2;
 				p += (p[0] & 0x3f) + 1;
 			}
-			if (tulip_debug > 1  &&  leaf->media == 11) {
+			if (tulip_de > 1  &&  leaf->media == 11) {
 				unsigned char *bp = leaf->leafdata;
 				pr_info("%s: MII interface PHY %d, setup/reset sequences %d/%d long, capabilities %02x %02x\n",
 					dev->name,

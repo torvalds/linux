@@ -138,7 +138,7 @@
 #define AML_TO_BCD_OP               (u16) 0x5b29
 #define AML_UNLOAD_OP               (u16) 0x5b2a
 #define AML_REVISION_OP             (u16) 0x5b30
-#define AML_DEBUG_OP                (u16) 0x5b31
+#define AML_DE_OP                (u16) 0x5b31
 #define AML_FATAL_OP                (u16) 0x5b32
 #define AML_TIMER_OP                (u16) 0x5b33	/* ACPI 3.0 */
 #define AML_REGION_OP               (u16) 0x5b80

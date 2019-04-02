@@ -223,7 +223,7 @@ struct stats_mem {
 	void *va;
 	dma_addr_t pa;
 	u32 size;
-	char *debugfs_mem;
+	char *defs_mem;
 };
 
 struct phy_info {
@@ -295,7 +295,7 @@ struct ocrdma_dev {
 	u32 flags;
 
 	ulong last_stats_time;
-	struct mutex stats_lock; /* provide synch for debugfs operations */
+	struct mutex stats_lock; /* provide synch for defs operations */
 	struct stats_mem stats_mem;
 	struct ocrdma_stats rsrc_stats;
 	struct ocrdma_stats rx_stats;

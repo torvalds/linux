@@ -179,7 +179,7 @@ static int monwrite_new_data(struct mon_private *monpriv)
 		break;
 	default:
 		/* monhdr->mon_function is checked in monwrite_new_hdr */
-		BUG();
+		();
 	}
 	return rc;
 }

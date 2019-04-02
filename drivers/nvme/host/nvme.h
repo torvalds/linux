@@ -313,7 +313,7 @@ struct nvme_ns_head {
 #endif
 };
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 struct nvme_fault_inject {
 	struct fault_attr attr;
 	struct dentry *parent;
@@ -349,7 +349,7 @@ struct nvme_ns {
 #define NVME_NS_ANA_PENDING	2
 	u16 noiob;
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 	struct nvme_fault_inject fault_inject;
 #endif
 
@@ -371,7 +371,7 @@ struct nvme_ctrl_ops {
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
 };
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 void nvme_fault_inject_init(struct nvme_ns *ns);
 void nvme_fault_inject_fini(struct nvme_ns *ns);
 void nvme_should_fail(struct request *req);

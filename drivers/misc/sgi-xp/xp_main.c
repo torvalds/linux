@@ -18,7 +18,7 @@
 #include <linux/device.h>
 #include "xp.h"
 
-/* define the XP debug device structures to be used with dev_dbg() et al */
+/* define the XP de device structures to be used with dev_dbg() et al */
 
 struct device_driver xp_dbg_name = {
 	.name = "xp"
@@ -135,10 +135,10 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 {
 	struct xpc_registration *registration;
 
-	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
-	DBUG_ON(payload_size == 0 || nentries == 0);
-	DBUG_ON(func == NULL);
-	DBUG_ON(assigned_limit == 0 || idle_limit > assigned_limit);
+	D_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
+	D_ON(payload_size == 0 || nentries == 0);
+	D_ON(func == NULL);
+	D_ON(assigned_limit == 0 || idle_limit > assigned_limit);
 
 	if (XPC_MSG_SIZE(payload_size) > XPC_MSG_MAX_SIZE)
 		return xpPayloadTooBig;
@@ -189,7 +189,7 @@ xpc_disconnect(int ch_number)
 {
 	struct xpc_registration *registration;
 
-	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
+	D_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
 
 	registration = &xpc_registrations[ch_number];
 

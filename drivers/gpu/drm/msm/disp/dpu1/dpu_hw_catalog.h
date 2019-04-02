@@ -14,7 +14,7 @@
 #define _DPU_HW_CATALOG_H
 
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
 #include <drm/drmP.h>
@@ -192,7 +192,7 @@ enum {
 
 /**
  * MACRO DPU_HW_BLK_INFO - information of HW blocks inside DPU
- * @name:              string name for debug purposes
+ * @name:              string name for de purposes
  * @id:                enum identifying this block
  * @base:              register base offset to mdss
  * @len:               length of hardware block
@@ -207,7 +207,7 @@ enum {
 
 /**
  * MACRO DPU_HW_SUBBLK_INFO - information of HW sub-block inside DPU
- * @name:              string name for debug purposes
+ * @name:              string name for de purposes
  * @id:                enum identifying this sub-block
  * @base:              offset of this sub-block relative to the block
  *                     offset

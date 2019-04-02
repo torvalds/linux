@@ -13,7 +13,7 @@
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/etherdevice.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -164,7 +164,7 @@ static int nsim_init(struct net_device *dev)
 	int err;
 
 	ns->netdev = dev;
-	ns->ddir = debugfs_create_dir(netdev_name(dev), nsim_ddir);
+	ns->ddir = defs_create_dir(netdev_name(dev), nsim_ddir);
 	if (IS_ERR_OR_NULL(ns->ddir))
 		return -ENOMEM;
 
@@ -172,12 +172,12 @@ static int nsim_init(struct net_device *dev)
 		ns->sdev = kzalloc(sizeof(*ns->sdev), GFP_KERNEL);
 		if (!ns->sdev) {
 			err = -ENOMEM;
-			goto err_debugfs_destroy;
+			goto err_defs_destroy;
 		}
 		ns->sdev->refcnt = 1;
 		ns->sdev->switch_id = nsim_dev_id;
 		sprintf(sdev_ddir_name, "%u", ns->sdev->switch_id);
-		ns->sdev->ddir = debugfs_create_dir(sdev_ddir_name,
+		ns->sdev->ddir = defs_create_dir(sdev_ddir_name,
 						    nsim_sdev_ddir);
 		if (IS_ERR_OR_NULL(ns->sdev->ddir)) {
 			err = PTR_ERR_OR_ZERO(ns->sdev->ddir) ?: -EINVAL;
@@ -189,7 +189,7 @@ static int nsim_init(struct net_device *dev)
 	}
 
 	sprintf(sdev_link_name, "../../" DRV_NAME "_sdev/%s", sdev_ddir_name);
-	debugfs_create_symlink("sdev", ns->ddir, sdev_link_name);
+	defs_create_symlink("sdev", ns->ddir, sdev_link_name);
 
 	err = nsim_bpf_init(ns);
 	if (err)
@@ -218,12 +218,12 @@ err_bpf_uninit:
 	nsim_bpf_uninit(ns);
 err_sdev_destroy:
 	if (!--ns->sdev->refcnt) {
-		debugfs_remove_recursive(ns->sdev->ddir);
+		defs_remove_recursive(ns->sdev->ddir);
 err_sdev_free:
 		kfree(ns->sdev);
 	}
-err_debugfs_destroy:
-	debugfs_remove_recursive(ns->ddir);
+err_defs_destroy:
+	defs_remove_recursive(ns->ddir);
 	return err;
 }
 
@@ -233,10 +233,10 @@ static void nsim_uninit(struct net_device *dev)
 
 	nsim_ipsec_teardown(ns);
 	nsim_devlink_teardown(ns);
-	debugfs_remove_recursive(ns->ddir);
+	defs_remove_recursive(ns->ddir);
 	nsim_bpf_uninit(ns);
 	if (!--ns->sdev->refcnt) {
-		debugfs_remove_recursive(ns->sdev->ddir);
+		defs_remove_recursive(ns->sdev->ddir);
 		kfree(ns->sdev);
 	}
 }
@@ -562,14 +562,14 @@ static int __init nsim_module_init(void)
 {
 	int err;
 
-	nsim_ddir = debugfs_create_dir(DRV_NAME, NULL);
+	nsim_ddir = defs_create_dir(DRV_NAME, NULL);
 	if (IS_ERR_OR_NULL(nsim_ddir))
 		return -ENOMEM;
 
-	nsim_sdev_ddir = debugfs_create_dir(DRV_NAME "_sdev", NULL);
+	nsim_sdev_ddir = defs_create_dir(DRV_NAME "_sdev", NULL);
 	if (IS_ERR_OR_NULL(nsim_sdev_ddir)) {
 		err = -ENOMEM;
-		goto err_debugfs_destroy;
+		goto err_defs_destroy;
 	}
 
 	err = bus_register(&nsim_bus);
@@ -591,9 +591,9 @@ err_dl_fini:
 err_unreg_bus:
 	bus_unregister(&nsim_bus);
 err_sdir_destroy:
-	debugfs_remove_recursive(nsim_sdev_ddir);
-err_debugfs_destroy:
-	debugfs_remove_recursive(nsim_ddir);
+	defs_remove_recursive(nsim_sdev_ddir);
+err_defs_destroy:
+	defs_remove_recursive(nsim_ddir);
 	return err;
 }
 
@@ -602,8 +602,8 @@ static void __exit nsim_module_exit(void)
 	rtnl_link_unregister(&nsim_link_ops);
 	nsim_devlink_exit();
 	bus_unregister(&nsim_bus);
-	debugfs_remove_recursive(nsim_sdev_ddir);
-	debugfs_remove_recursive(nsim_ddir);
+	defs_remove_recursive(nsim_sdev_ddir);
+	defs_remove_recursive(nsim_ddir);
 }
 
 module_init(nsim_module_init);

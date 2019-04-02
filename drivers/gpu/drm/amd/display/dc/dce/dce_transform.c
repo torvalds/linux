@@ -155,17 +155,17 @@ static void program_overscan(
 	int overscan_bottom = data->v_active
 			- data->recout.y - data->recout.height;
 
-	if (xfm_dce->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
+	if (xfm_dce->base.ctx->dc->de.visual_confirm != VISUAL_CONFIRM_DISABLE) {
 		overscan_bottom += 2;
 		overscan_right += 2;
 	}
 
 	if (overscan_right < 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		overscan_right = 0;
 	}
 	if (overscan_bottom < 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		overscan_bottom = 0;
 	}
 
@@ -312,8 +312,8 @@ static const uint16_t *get_filter_coeffs_16p(int taps, struct fixed31_32 ratio)
 	else if (taps == 1)
 		return NULL;
 	else {
-		/* should never happen, bug */
-		BREAK_TO_DEBUGGER();
+		/* should never happen,  */
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 }
@@ -438,7 +438,7 @@ static void set_clamp(
 		break;
 	default:
 		clamp_max = 0x3FC0;
-		BREAK_TO_DEBUGGER(); /* Invalid clamp bit depth */
+		BREAK_TO_DEGER(); /* Invalid clamp bit depth */
 	}
 	REG_SET_2(OUT_CLAMP_CONTROL_B_CB, 0,
 			OUT_CLAMP_MIN_B_CB, 0,
@@ -518,7 +518,7 @@ static void set_round(
 		break;
 	default:
 		depth_bits = 4;
-		BREAK_TO_DEBUGGER(); /* Invalid dcp_out_trunc_round_depth */
+		BREAK_TO_DEGER(); /* Invalid dcp_out_trunc_round_depth */
 	}
 
 	/*  set up round or truncate */
@@ -530,7 +530,7 @@ static void set_round(
 		mode_bit = 1;
 		break;
 	default:
-		BREAK_TO_DEBUGGER(); /* Invalid dcp_out_trunc_round_mode */
+		BREAK_TO_DEGER(); /* Invalid dcp_out_trunc_round_mode */
 	}
 
 	depth_bits |= mode_bit << 3;
@@ -580,7 +580,7 @@ static void set_dither(
 		break;
 	default:
 		/* Invalid dcp_spatial_dither_mode */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 
 	switch (dither_depth) {
@@ -592,7 +592,7 @@ static void set_dither(
 		break;
 	default:
 		/* Invalid dcp_spatial_dither_depth */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 
 	/*  write the register */
@@ -649,7 +649,7 @@ static void program_bit_depth_reduction(
 			 * to prevent use-before-initialize errors.
 			 */
 			trunc_round_depth = DCP_OUT_TRUNC_ROUND_DEPTH_12BIT;
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 		}
 	}
 
@@ -697,7 +697,7 @@ static int dce_transform_get_max_num_of_supported_lines(
 	default:
 		DC_LOG_WARNING("%s: Invalid LB pixel depth",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 
@@ -778,7 +778,7 @@ static void dce_transform_set_pixel_storage_depth(
 		color_depth = COLOR_DEPTH_101010;
 		pixel_depth = 0;
 		expan_mode  = 1;
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 

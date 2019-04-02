@@ -21,8 +21,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef PP_DEBUG_H
-#define PP_DEBUG_H
+#ifndef PP_DE_H
+#define PP_DE_H
 
 #ifdef pr_fmt
 #undef pr_fmt
@@ -51,12 +51,12 @@
 
 #define PP_DBG_LOG(fmt, ...) \
 	do { \
-		pr_debug(fmt, ##__VA_ARGS__); \
+		pr_de(fmt, ##__VA_ARGS__); \
 	} while (0)
 
 
 #define GET_FLEXIBLE_ARRAY_MEMBER_ADDR(type, member, ptr, n)	\
 	(type *)((char *)&(ptr)->member + (sizeof(type) * (n)))
 
-#endif /* PP_DEBUG_H */
+#endif /* PP_DE_H */
 

@@ -44,7 +44,7 @@ unsigned int snic_log_level = 0x0;
 module_param(snic_log_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(snic_log_level, "bitmask for snic logging levels");
 
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
+#ifdef CONFIG_SCSI_SNIC_DE_FS
 unsigned int snic_trace_max_pages = 16;
 module_param(snic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(snic_trace_max_pages,
@@ -313,7 +313,7 @@ snic_add_host(struct Scsi_Host *shost, struct pci_dev *pdev)
 		return ret;
 	}
 
-	SNIC_BUG_ON(shost->work_q != NULL);
+	SNIC__ON(shost->work_q != NULL);
 	snprintf(shost->work_q_name, sizeof(shost->work_q_name), "scsi_wq_%d",
 		 shost->host_no);
 	shost->work_q = create_singlethread_workqueue(shost->work_q_name);
@@ -395,9 +395,9 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       "snic%d = %p shost = %p device bus %x: slot %x: fn %x\n",
 		       shost->host_no, snic, shost, pdev->bus->number,
 		       PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
-	/* Per snic debugfs init */
-	snic_stats_debugfs_init(snic);
+#ifdef CONFIG_SCSI_SNIC_DE_FS
+	/* Per snic defs init */
+	snic_stats_defs_init(snic);
 #endif
 
 	/* Setup PCI Resources */
@@ -459,7 +459,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	snic->bar0.bus_addr = pci_resource_start(pdev, 0);
 	snic->bar0.len = pci_resource_len(pdev, 0);
-	SNIC_BUG_ON(snic->bar0.bus_addr == 0);
+	SNIC__ON(snic->bar0.bus_addr == 0);
 
 	/* Devcmd2 Resource Allocation and Initialization */
 	snic->vdev = svnic_dev_alloc_discover(NULL, snic, pdev, &snic->bar0, 1);
@@ -735,8 +735,8 @@ err_pci_disable:
 	pci_disable_device(pdev);
 
 err_free_snic:
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
-	snic_stats_debugfs_remove(snic);
+#ifdef CONFIG_SCSI_SNIC_DE_FS
+	snic_stats_defs_remove(snic);
 #endif
 	scsi_host_put(shost);
 	pci_set_drvdata(pdev, NULL);
@@ -798,8 +798,8 @@ snic_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&snic_glob->snic_list_lock, flags);
 
 	snic_tgt_del_all(snic);
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
-	snic_stats_debugfs_remove(snic);
+#ifdef CONFIG_SCSI_SNIC_DE_FS
+	snic_stats_defs_remove(snic);
 #endif
 	snic_del_host(snic->shost);
 
@@ -824,7 +824,7 @@ struct snic_global *snic_glob;
 /*
  * snic_global_data_init: Initialize SNIC Global Data
  * Notes: All the global lists, variables should be part of global data
- * this helps in debugging.
+ * this helps in deging.
  */
 static int
 snic_global_data_init(void)
@@ -842,10 +842,10 @@ snic_global_data_init(void)
 		goto gdi_end;
 	}
 
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
-	/* Debugfs related Initialization */
-	/* Create debugfs entries for snic */
-	snic_debugfs_init();
+#ifdef CONFIG_SCSI_SNIC_DE_FS
+	/* Defs related Initialization */
+	/* Create defs entries for snic */
+	snic_defs_init();
 
 	/* Trace related Initialization */
 	/* Allocate memory for trace buffer */
@@ -918,9 +918,9 @@ err_max_req_slab:
 	kmem_cache_destroy(snic_glob->req_cache[SNIC_REQ_CACHE_DFLT_SGL]);
 
 err_dflt_req_slab:
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
+#ifdef CONFIG_SCSI_SNIC_DE_FS
 	snic_trc_free();
-	snic_debugfs_term();
+	snic_defs_term();
 #endif
 	kfree(snic_glob);
 	snic_glob = NULL;
@@ -935,19 +935,19 @@ gdi_end:
 static void
 snic_global_data_cleanup(void)
 {
-	SNIC_BUG_ON(snic_glob == NULL);
+	SNIC__ON(snic_glob == NULL);
 
 	destroy_workqueue(snic_glob->event_q);
 	kmem_cache_destroy(snic_glob->req_cache[SNIC_REQ_TM_CACHE]);
 	kmem_cache_destroy(snic_glob->req_cache[SNIC_REQ_CACHE_MAX_SGL]);
 	kmem_cache_destroy(snic_glob->req_cache[SNIC_REQ_CACHE_DFLT_SGL]);
 
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
+#ifdef CONFIG_SCSI_SNIC_DE_FS
 	/* Freeing Trace Resources */
 	snic_trc_free();
 
-	/* Freeing Debugfs Resources */
-	snic_debugfs_term();
+	/* Freeing Defs Resources */
+	snic_defs_term();
 #endif
 	kfree(snic_glob);
 	snic_glob = NULL;

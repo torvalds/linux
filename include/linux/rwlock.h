@@ -14,7 +14,7 @@
  * Released under the General Public License (GPL).
  */
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
   extern void __rwlock_init(rwlock_t *lock, const char *name,
 			    struct lock_class_key *key);
 # define rwlock_init(lock)					\
@@ -28,7 +28,7 @@ do {								\
 	do { *(lock) = __RW_LOCK_UNLOCKED(lock); } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
  extern void do_raw_read_lock(rwlock_t *lock) __acquires(lock);
 #define do_raw_read_lock_flags(lock, flags) do_raw_read_lock(lock)
  extern int do_raw_read_trylock(rwlock_t *lock);
@@ -70,7 +70,7 @@ do {								\
 #define write_lock(lock)	_raw_write_lock(lock)
 #define read_lock(lock)		_raw_read_lock(lock)
 
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 
 #define read_lock_irqsave(lock, flags)			\
 	do {						\

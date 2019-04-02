@@ -57,7 +57,7 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 	}
 
 	mwifiex_dbg_dump(adapter, DAT_D, "rx pkt:", skb->data,
-			 min_t(size_t, skb->len, DEBUG_DUMP_DATA_MAX_LEN));
+			 min_t(size_t, skb->len, DE_DUMP_DATA_MAX_LEN));
 
 	memset(rx_info, 0, sizeof(*rx_info));
 	rx_info->bss_num = priv->bss_num;
@@ -125,7 +125,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		}
 	}
 	mwifiex_dbg_dump(adapter, DAT_D, "tx pkt:", skb->data,
-			 min_t(size_t, skb->len, DEBUG_DUMP_DATA_MAX_LEN));
+			 min_t(size_t, skb->len, DE_DUMP_DATA_MAX_LEN));
 
 	switch (ret) {
 	case -ENOSR:

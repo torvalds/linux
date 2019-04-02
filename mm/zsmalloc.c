@@ -48,7 +48,7 @@
 #include <linux/spinlock.h>
 #include <linux/shrinker.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/zsmalloc.h>
 #include <linux/zpool.h>
 #include <linux/mount.h>
@@ -484,7 +484,7 @@ static inline struct page *get_first_page(struct zspage *zspage)
 {
 	struct page *first_page = zspage->first_page;
 
-	VM_BUG_ON_PAGE(!is_first_page(first_page), first_page);
+	VM__ON_PAGE(!is_first_page(first_page), first_page);
 	return first_page;
 }
 
@@ -512,7 +512,7 @@ static void get_zspage_mapping(struct zspage *zspage,
 				unsigned int *class_idx,
 				enum fullness_group *fullness)
 {
-	BUG_ON(zspage->magic != ZSPAGE_MAGIC);
+	_ON(zspage->magic != ZSPAGE_MAGIC);
 
 	*fullness = zspage->fullness;
 	*class_idx = zspage->class;
@@ -569,19 +569,19 @@ static inline unsigned long zs_stat_get(struct size_class *class,
 
 static void __init zs_stat_init(void)
 {
-	if (!debugfs_initialized()) {
-		pr_warn("debugfs not available, stat dir not created\n");
+	if (!defs_initialized()) {
+		pr_warn("defs not available, stat dir not created\n");
 		return;
 	}
 
-	zs_stat_root = debugfs_create_dir("zsmalloc", NULL);
+	zs_stat_root = defs_create_dir("zsmalloc", NULL);
 	if (!zs_stat_root)
-		pr_warn("debugfs 'zsmalloc' stat dir creation failed\n");
+		pr_warn("defs 'zsmalloc' stat dir creation failed\n");
 }
 
 static void __exit zs_stat_exit(void)
 {
-	debugfs_remove_recursive(zs_stat_root);
+	defs_remove_recursive(zs_stat_root);
 }
 
 static unsigned long zs_can_compact(struct size_class *class);
@@ -654,27 +654,27 @@ static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
 		return;
 	}
 
-	entry = debugfs_create_dir(name, zs_stat_root);
+	entry = defs_create_dir(name, zs_stat_root);
 	if (!entry) {
-		pr_warn("debugfs dir <%s> creation failed\n", name);
+		pr_warn("defs dir <%s> creation failed\n", name);
 		return;
 	}
 	pool->stat_dentry = entry;
 
-	entry = debugfs_create_file("classes", S_IFREG | 0444,
+	entry = defs_create_file("classes", S_IFREG | 0444,
 				    pool->stat_dentry, pool,
 				    &zs_stats_size_fops);
 	if (!entry) {
-		pr_warn("%s: debugfs file entry <%s> creation failed\n",
+		pr_warn("%s: defs file entry <%s> creation failed\n",
 				name, "classes");
-		debugfs_remove_recursive(pool->stat_dentry);
+		defs_remove_recursive(pool->stat_dentry);
 		pool->stat_dentry = NULL;
 	}
 }
 
 static void zs_pool_stat_destroy(struct zs_pool *pool)
 {
-	debugfs_remove_recursive(pool->stat_dentry);
+	defs_remove_recursive(pool->stat_dentry);
 }
 
 #else /* CONFIG_ZSMALLOC_STAT */
@@ -760,8 +760,8 @@ static void remove_zspage(struct size_class *class,
 				struct zspage *zspage,
 				enum fullness_group fullness)
 {
-	VM_BUG_ON(list_empty(&class->fullness_list[fullness]));
-	VM_BUG_ON(is_zspage_isolated(zspage));
+	VM__ON(list_empty(&class->fullness_list[fullness]));
+	VM__ON(is_zspage_isolated(zspage));
 
 	list_del_init(&zspage->list);
 	zs_stat_dec(class, fullness, 1);
@@ -838,7 +838,7 @@ static struct zspage *get_zspage(struct page *page)
 {
 	struct zspage *zspage = (struct zspage *)page->private;
 
-	BUG_ON(zspage->magic != ZSPAGE_MAGIC);
+	_ON(zspage->magic != ZSPAGE_MAGIC);
 	return zspage;
 }
 
@@ -888,7 +888,7 @@ static unsigned long handle_to_obj(unsigned long handle)
 static unsigned long obj_to_head(struct page *page, void *obj)
 {
 	if (unlikely(PageHugeObject(page))) {
-		VM_BUG_ON_PAGE(!is_first_page(page), page);
+		VM__ON_PAGE(!is_first_page(page), page);
 		return page->index;
 	} else
 		return *(unsigned long *)obj;
@@ -956,12 +956,12 @@ static void __free_zspage(struct zs_pool *pool, struct size_class *class,
 
 	assert_spin_locked(&class->lock);
 
-	VM_BUG_ON(get_zspage_inuse(zspage));
-	VM_BUG_ON(fg != ZS_EMPTY);
+	VM__ON(get_zspage_inuse(zspage));
+	VM__ON(fg != ZS_EMPTY);
 
 	next = page = get_first_page(zspage);
 	do {
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
 		next = get_next_page(page);
 		reset_page(page);
 		unlock_page(page);
@@ -980,8 +980,8 @@ static void __free_zspage(struct zs_pool *pool, struct size_class *class,
 static void free_zspage(struct zs_pool *pool, struct size_class *class,
 				struct zspage *zspage)
 {
-	VM_BUG_ON(get_zspage_inuse(zspage));
-	VM_BUG_ON(list_empty(&zspage->list));
+	VM__ON(get_zspage_inuse(zspage));
+	VM__ON(list_empty(&zspage->list));
 
 	if (!trylock_zspage(zspage)) {
 		kick_deferred_free(pool);
@@ -1151,7 +1151,7 @@ static inline void __zs_cpu_down(struct mapping_area *area)
 static inline void *__zs_map_object(struct mapping_area *area,
 				struct page *pages[2], int off, int size)
 {
-	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, pages));
+	_ON(map_vm_area(area->vm, PAGE_KERNEL, pages));
 	area->vm_addr = area->vm->addr;
 	return area->vm_addr + off;
 }
@@ -1321,7 +1321,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	 * pools/users, we can't allow mapping in interrupt context
 	 * because it can corrupt another users mappings.
 	 */
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	/* From now on, migration cannot move the object */
 	pin_tag(handle);
@@ -1349,7 +1349,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	/* this object spans two pages */
 	pages[0] = page;
 	pages[1] = get_next_page(page);
-	BUG_ON(!pages[1]);
+	_ON(!pages[1]);
 
 	ret = __zs_map_object(area, pages, off, class->size);
 out:
@@ -1387,7 +1387,7 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 
 		pages[0] = page;
 		pages[1] = get_next_page(page);
-		BUG_ON(!pages[1]);
+		_ON(!pages[1]);
 
 		__zs_unmap_object(area, pages, off, class->size);
 	}
@@ -1770,7 +1770,7 @@ static struct zspage *isolate_zspage(struct size_class *class, bool source)
 		zspage = list_first_entry_or_null(&class->fullness_list[fg[i]],
 							struct zspage, list);
 		if (zspage) {
-			VM_BUG_ON(is_zspage_isolated(zspage));
+			VM__ON(is_zspage_isolated(zspage));
 			remove_zspage(class, zspage, fg[i]);
 			return zspage;
 		}
@@ -1791,7 +1791,7 @@ static enum fullness_group putback_zspage(struct size_class *class,
 {
 	enum fullness_group fullness;
 
-	VM_BUG_ON(is_zspage_isolated(zspage));
+	VM__ON(is_zspage_isolated(zspage));
 
 	fullness = get_fullness_group(class, zspage);
 	insert_zspage(class, zspage, fullness);
@@ -1918,8 +1918,8 @@ static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
 	 * Page is locked so zspage couldn't be destroyed. For detail, look at
 	 * lock_zspage in free_zspage.
 	 */
-	VM_BUG_ON_PAGE(!PageMovable(page), page);
-	VM_BUG_ON_PAGE(PageIsolated(page), page);
+	VM__ON_PAGE(!PageMovable(page), page);
+	VM__ON_PAGE(PageIsolated(page), page);
 
 	zspage = get_zspage(page);
 
@@ -1984,8 +1984,8 @@ static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
 	if (mode == MIGRATE_SYNC_NO_COPY)
 		return -EINVAL;
 
-	VM_BUG_ON_PAGE(!PageMovable(page), page);
-	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+	VM__ON_PAGE(!PageMovable(page), page);
+	VM__ON_PAGE(!PageIsolated(page), page);
 
 	zspage = get_zspage(page);
 
@@ -2030,7 +2030,7 @@ static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
 		if (head & OBJ_ALLOCATED_TAG) {
 			handle = head & ~OBJ_ALLOCATED_TAG;
 			if (!testpin_tag(handle))
-				BUG();
+				();
 
 			old_obj = handle_to_obj(handle);
 			obj_to_location(old_obj, &dummy, &obj_idx);
@@ -2065,7 +2065,7 @@ unpin_objects:
 		if (head & OBJ_ALLOCATED_TAG) {
 			handle = head & ~OBJ_ALLOCATED_TAG;
 			if (!testpin_tag(handle))
-				BUG();
+				();
 			unpin_tag(handle);
 		}
 	}
@@ -2085,8 +2085,8 @@ static void zs_page_putback(struct page *page)
 	struct address_space *mapping;
 	struct zspage *zspage;
 
-	VM_BUG_ON_PAGE(!PageMovable(page), page);
-	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+	VM__ON_PAGE(!PageMovable(page), page);
+	VM__ON_PAGE(!PageIsolated(page), page);
 
 	zspage = get_zspage(page);
 	get_zspage_mapping(zspage, &class_idx, &fg);
@@ -2164,7 +2164,7 @@ static void async_free_zspage(struct work_struct *work)
 		lock_zspage(zspage);
 
 		get_zspage_mapping(zspage, &class_idx, &fullness);
-		VM_BUG_ON(fullness != ZS_EMPTY);
+		VM__ON(fullness != ZS_EMPTY);
 		class = pool->size_class[class_idx];
 		spin_lock(&class->lock);
 		__free_zspage(pool, pool->size_class[class_idx], zspage);
@@ -2440,7 +2440,7 @@ struct zs_pool *zs_create_pool(const char *name)
 		prev_class = class;
 	}
 
-	/* debug only, don't abort if it fails */
+	/* de only, don't abort if it fails */
 	zs_pool_stat_create(pool, name);
 
 	if (zs_register_migration(pool))

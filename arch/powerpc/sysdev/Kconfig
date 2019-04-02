@@ -31,9 +31,9 @@ source "arch/powerpc/sysdev/xive/Kconfig"
 config PPC_SCOM
 	bool
 
-config SCOM_DEBUGFS
-	bool "Expose SCOM controllers via debugfs"
-	depends on PPC_SCOM && DEBUG_FS
+config SCOM_DEFS
+	bool "Expose SCOM controllers via defs"
+	depends on PPC_SCOM && DE_FS
 
 config GE_FPGA
 	bool

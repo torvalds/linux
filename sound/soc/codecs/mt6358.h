@@ -376,7 +376,7 @@
 #define PDN_RESERVED_MASK                                 0x1
 #define PDN_RESERVED_MASK_SFT                             (0x1 << 0)
 
-/* MT6358_AFE_MON_DEBUG0 */
+/* MT6358_AFE_MON_DE0 */
 #define AUDIO_SYS_TOP_MON_SWAP_SFT                        14
 #define AUDIO_SYS_TOP_MON_SWAP_MASK                       0x3
 #define AUDIO_SYS_TOP_MON_SWAP_MASK_SFT                   (0x3 << 14)
@@ -2162,7 +2162,7 @@
 #define MT6358_AFE_UL_SRC_CON0_L             0x228e
 #define MT6358_AFE_TOP_CON0                  0x2290
 #define MT6358_AUDIO_TOP_CON0                0x2292
-#define MT6358_AFE_MON_DEBUG0                0x2294
+#define MT6358_AFE_MON_DE0                0x2294
 #define MT6358_AFUNC_AUD_CON0                0x2296
 #define MT6358_AFUNC_AUD_CON1                0x2298
 #define MT6358_AFUNC_AUD_CON2                0x229a

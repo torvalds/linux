@@ -31,7 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/export.h>
 #include <linux/start_kernel.h>
 #include <uapi/linux/mount.h>
@@ -100,7 +100,7 @@ static void prom_sync_me(void)
 }
 
 static unsigned int boot_flags __initdata = 0;
-#define BOOTME_DEBUG  0x1
+#define BOOTME_DE  0x1
 
 /* Exported for mm/init.c:paging_init. */
 unsigned long cmdline_memory_size __initdata = 0;
@@ -129,7 +129,7 @@ static void __init process_switch(char c)
 {
 	switch (c) {
 	case 'd':
-		boot_flags |= BOOTME_DEBUG;
+		boot_flags |= BOOTME_DE;
 		break;
 	case 's':
 		break;
@@ -364,10 +364,10 @@ void __init setup_arch(char **cmdline_p)
 
 	prom_setsync(prom_sync_me);
 
-	if((boot_flags & BOOTME_DEBUG) && (linux_dbvec != NULL) &&
+	if((boot_flags & BOOTME_DE) && (linux_dbvec != NULL) &&
 	   ((*(short *)linux_dbvec) != -1)) {
 		printk("Booted under KADB. Syncing trap table.\n");
-		(*(linux_dbvec->teach_debugger))();
+		(*(linux_dbvec->teach_deger))();
 	}
 
 	init_task.thread.kregs = &fake_swapper_regs;

@@ -16,9 +16,9 @@
 
 #include "dvb-usb.h"
 
-extern int dvb_usb_dtt200u_debug;
-#define deb_info(args...) dprintk(dvb_usb_dtt200u_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_dtt200u_debug,0x02,args)
+extern int dvb_usb_dtt200u_de;
+#define deb_info(args...) dprintk(dvb_usb_dtt200u_de,0x01,args)
+#define deb_xfer(args...) dprintk(dvb_usb_dtt200u_de,0x02,args)
 
 /* guessed protocol description (reverse engineered):
  * read

@@ -1419,7 +1419,7 @@ static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 	devres_close_group(dev, &wacom->led.groups[group_id]);
 
 	/*
-	 * There is a bug (?) in devm_led_classdev_register() in which its
+	 * There is a  (?) in devm_led_classdev_register() in which its
 	 * increments the refcount of the parent. If the parent is an input
 	 * device, that means the ref count never reaches 0 when
 	 * devm_input_device_release() gets called.
@@ -2284,7 +2284,7 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	/*
 	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
-	 * into debug mode for the touch part.
+	 * into de mode for the touch part.
 	 * We ignore the other interfaces.
 	 */
 	if (features->type == BAMBOO_PAD) {

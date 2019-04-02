@@ -561,7 +561,7 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 	     ATI_REG_ISR_CODEC2_NOT_READY)
 #define CODEC_CHECK_BITS (ALL_CODEC_NOT_READY|ATI_REG_ISR_NEW_FRAME)
 
-static int ac97_probing_bugs(struct pci_dev *pci)
+static int ac97_probing_s(struct pci_dev *pci)
 {
 	const struct snd_pci_quirk *q;
 
@@ -581,7 +581,7 @@ static int snd_atiixp_codec_detect(struct atiixp *chip)
 
 	chip->codec_not_ready_bits = 0;
 	if (ac97_codec == -1)
-		ac97_codec = ac97_probing_bugs(chip->pci);
+		ac97_codec = ac97_probing_s(chip->pci);
 	if (ac97_codec >= 0) {
 		chip->codec_not_ready_bits |= 
 			CODEC_CHECK_BITS ^ (1 << (ac97_codec + 10));
@@ -724,7 +724,7 @@ static int snd_atiixp_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct atiixp_dma *dma = substream->runtime->private_data;
 	int err = 0;
 
-	if (snd_BUG_ON(!dma->ops->enable_transfer ||
+	if (snd__ON(!dma->ops->enable_transfer ||
 		       !dma->ops->flush_dma))
 		return -EINVAL;
 
@@ -1043,7 +1043,7 @@ static int snd_atiixp_pcm_open(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	if (snd_BUG_ON(!dma->ops || !dma->ops->enable_dma))
+	if (snd__ON(!dma->ops || !dma->ops->enable_dma))
 		return -EINVAL;
 
 	if (dma->opened)
@@ -1076,7 +1076,7 @@ static int snd_atiixp_pcm_close(struct snd_pcm_substream *substream,
 {
 	struct atiixp *chip = snd_pcm_substream_chip(substream);
 	/* disable DMA bits */
-	if (snd_BUG_ON(!dma->ops || !dma->ops->enable_dma))
+	if (snd__ON(!dma->ops || !dma->ops->enable_dma))
 		return -EINVAL;
 	spin_lock_irq(&chip->reg_lock);
 	dma->ops->enable_dma(chip, 0);

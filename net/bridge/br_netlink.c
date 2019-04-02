@@ -387,7 +387,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	else
 		br = netdev_priv(dev);
 
-	br_debug(br, "br_fill_info event %d port %s master %s\n",
+	br_de(br, "br_fill_info event %d port %s master %s\n",
 		     event, dev->name, br->dev->name);
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
@@ -489,7 +489,7 @@ void br_ifinfo_notify(int event, const struct net_bridge *br,
 	}
 
 	net = dev_net(dev);
-	br_debug(br, "port %u(%s) event %d\n", port_no, dev->name, event);
+	br_de(br, "port %u(%s) event %d\n", port_no, dev->name, event);
 
 	skb = nlmsg_new(br_nlmsg_size(dev, filter), GFP_ATOMIC);
 	if (skb == NULL)
@@ -497,7 +497,7 @@ void br_ifinfo_notify(int event, const struct net_bridge *br,
 
 	err = br_fill_ifinfo(skb, port, 0, 0, event, 0, filter, dev);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in br_nlmsg_size() */
+		/* -EMSGSIZE implies  in br_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

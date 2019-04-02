@@ -2264,7 +2264,7 @@ static int vgic_its_restore_cte(struct vgic_its *its, gpa_t gpa, int esz)
 	u64 val;
 	int ret;
 
-	BUG_ON(esz > sizeof(val));
+	_ON(esz > sizeof(val));
 	ret = kvm_read_guest_lock(kvm, gpa, &val, esz);
 	if (ret)
 		return ret;
@@ -2323,7 +2323,7 @@ static int vgic_its_save_collection_table(struct vgic_its *its)
 	 * with valid bit unset
 	 */
 	val = 0;
-	BUG_ON(cte_esz > sizeof(val));
+	_ON(cte_esz > sizeof(val));
 	ret = kvm_write_guest_lock(its->dev->kvm, gpa, &val, cte_esz);
 	return ret;
 }

@@ -12,175 +12,175 @@ typedef struct ahc_reg_parse_entry {
 	uint8_t	 mask;
 } ahc_reg_parse_entry_t;
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scsiseq_print;
 #else
 #define ahc_scsiseq_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCSISEQ", 0x00, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sxfrctl0_print;
 #else
 #define ahc_sxfrctl0_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SXFRCTL0", 0x01, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scsisigi_print;
 #else
 #define ahc_scsisigi_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCSISIGI", 0x03, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scsirate_print;
 #else
 #define ahc_scsirate_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCSIRATE", 0x04, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sstat0_print;
 #else
 #define ahc_sstat0_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SSTAT0", 0x0b, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sstat1_print;
 #else
 #define ahc_sstat1_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SSTAT1", 0x0c, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sstat2_print;
 #else
 #define ahc_sstat2_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SSTAT2", 0x0d, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sstat3_print;
 #else
 #define ahc_sstat3_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SSTAT3", 0x0e, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_simode0_print;
 #else
 #define ahc_simode0_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SIMODE0", 0x10, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_simode1_print;
 #else
 #define ahc_simode1_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SIMODE1", 0x11, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scsibusl_print;
 #else
 #define ahc_scsibusl_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCSIBUSL", 0x12, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sblkctl_print;
 #else
 #define ahc_sblkctl_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SBLKCTL", 0x1f, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_seq_flags_print;
 #else
 #define ahc_seq_flags_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SEQ_FLAGS", 0x3c, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_lastphase_print;
 #else
 #define ahc_lastphase_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "LASTPHASE", 0x3f, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_seqctl_print;
 #else
 #define ahc_seqctl_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SEQCTL", 0x60, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_sram_base_print;
 #else
 #define ahc_sram_base_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SRAM_BASE", 0x70, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_error_print;
 #else
 #define ahc_error_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "ERROR", 0x92, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_dfcntrl_print;
 #else
 #define ahc_dfcntrl_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "DFCNTRL", 0x93, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_dfstatus_print;
 #else
 #define ahc_dfstatus_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "DFSTATUS", 0x94, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scsiphase_print;
 #else
 #define ahc_scsiphase_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCSIPHASE", 0x9e, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scb_base_print;
 #else
 #define ahc_scb_base_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCB_BASE", 0xa0, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scb_control_print;
 #else
 #define ahc_scb_control_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCB_CONTROL", 0xb8, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scb_scsiid_print;
 #else
 #define ahc_scb_scsiid_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCB_SCSIID", 0xb9, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scb_lun_print;
 #else
 #define ahc_scb_lun_print(regvalue, cur_col, wrap) \
     ahc_print_register(NULL, 0, "SCB_LUN", 0xba, regvalue, cur_col, wrap)
 #endif
 
-#if AIC_DEBUG_REGISTERS
+#if AIC_DE_REGISTERS
 ahc_reg_print_t ahc_scb_tag_print;
 #else
 #define ahc_scb_tag_print(regvalue, cur_col, wrap) \

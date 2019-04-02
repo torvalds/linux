@@ -38,7 +38,7 @@
 #include "i915_pvinfo.h"
 #include "trace.h"
 
-#if defined(VERBOSE_DEBUG)
+#if defined(VERBOSE_DE)
 #define gvt_vdbg_mm(fmt, args...) gvt_dbg_mm(fmt, ##args)
 #else
 #define gvt_vdbg_mm(fmt, args...)
@@ -531,10 +531,10 @@ static void update_entry_type_for_real(struct intel_gvt_gtt_pte_ops *pte_ops,
 			entry->type = get_pse_type(entry->type);
 		break;
 	default:
-		GEM_BUG_ON(!gtt_type_is_entry(entry->type));
+		GEM__ON(!gtt_type_is_entry(entry->type));
 	}
 
-	GEM_BUG_ON(entry->type == GTT_TYPE_INVALID);
+	GEM__ON(entry->type == GTT_TYPE_INVALID);
 }
 
 /*
@@ -546,7 +546,7 @@ static void _ppgtt_get_root_entry(struct intel_vgpu_mm *mm,
 {
 	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
 
-	GEM_BUG_ON(mm->type != INTEL_GVT_MM_PPGTT);
+	GEM__ON(mm->type != INTEL_GVT_MM_PPGTT);
 
 	entry->type = mm->ppgtt_mm.root_entry_type;
 	pte_ops->get_entry(guest ? mm->ppgtt_mm.guest_pdps :
@@ -595,7 +595,7 @@ static void ggtt_get_guest_entry(struct intel_vgpu_mm *mm,
 {
 	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
 
-	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+	GEM__ON(mm->type != INTEL_GVT_MM_GGTT);
 
 	entry->type = GTT_TYPE_GGTT_PTE;
 	pte_ops->get_entry(mm->ggtt_mm.virtual_ggtt, entry, index,
@@ -607,7 +607,7 @@ static void ggtt_set_guest_entry(struct intel_vgpu_mm *mm,
 {
 	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
 
-	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+	GEM__ON(mm->type != INTEL_GVT_MM_GGTT);
 
 	pte_ops->set_entry(mm->ggtt_mm.virtual_ggtt, entry, index,
 			   false, 0, mm->vgpu);
@@ -618,7 +618,7 @@ static void ggtt_get_host_entry(struct intel_vgpu_mm *mm,
 {
 	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
 
-	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+	GEM__ON(mm->type != INTEL_GVT_MM_GGTT);
 
 	pte_ops->get_entry(NULL, entry, index, false, 0, mm->vgpu);
 }
@@ -628,7 +628,7 @@ static void ggtt_set_host_entry(struct intel_vgpu_mm *mm,
 {
 	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
 
-	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+	GEM__ON(mm->type != INTEL_GVT_MM_GGTT);
 
 	pte_ops->set_entry(NULL, entry, index, false, 0, mm->vgpu);
 }
@@ -932,7 +932,7 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 	struct intel_vgpu_ppgtt_spt *s;
 	intel_gvt_gtt_type_t cur_pt_type;
 
-	GEM_BUG_ON(!gtt_type_is_pt(get_next_pt_type(e->type)));
+	GEM__ON(!gtt_type_is_pt(get_next_pt_type(e->type)));
 
 	if (e->type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY
 		&& e->type != GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
@@ -1007,7 +1007,7 @@ static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt)
 				goto fail;
 			break;
 		default:
-			GEM_BUG_ON(1);
+			GEM__ON(1);
 		}
 	}
 
@@ -1047,7 +1047,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 	bool ips = false;
 	int ret;
 
-	GEM_BUG_ON(!gtt_type_is_pt(get_next_pt_type(we->type)));
+	GEM__ON(!gtt_type_is_pt(get_next_pt_type(we->type)));
 
 	if (we->type == GTT_TYPE_PPGTT_PDE_ENTRY)
 		ips = vgpu_ips_enabled(vgpu) && ops->test_ips(we);
@@ -1195,7 +1195,7 @@ static int split_64KB_gtt_entry(struct intel_vgpu *vgpu,
 
 	gvt_vdbg_mm("Split 64K gtt entry, index %lu\n", index);
 
-	GEM_BUG_ON(index % GTT_64K_PTE_STRIDE);
+	GEM__ON(index % GTT_64K_PTE_STRIDE);
 
 	start_gfn = ops->get_pfn(se);
 
@@ -1254,7 +1254,7 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 		gvt_vgpu_err("GVT doesn't support 1GB entry\n");
 		return -EINVAL;
 	default:
-		GEM_BUG_ON(1);
+		GEM__ON(1);
 	};
 
 	/* direct shadow */
@@ -1861,7 +1861,7 @@ struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 
 	mm->type = INTEL_GVT_MM_PPGTT;
 
-	GEM_BUG_ON(root_entry_type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY &&
+	GEM__ON(root_entry_type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY &&
 		   root_entry_type != GTT_TYPE_PPGTT_ROOT_L4_ENTRY);
 	mm->ppgtt_mm.root_entry_type = root_entry_type;
 
@@ -1925,7 +1925,7 @@ void _intel_vgpu_mm_release(struct kref *mm_ref)
 	struct intel_vgpu_mm *mm = container_of(mm_ref, typeof(*mm), ref);
 
 	if (GEM_WARN_ON(atomic_read(&mm->pincount)))
-		gvt_err("vgpu mm pin count bug detected\n");
+		gvt_err("vgpu mm pin count  detected\n");
 
 	if (mm->type == INTEL_GVT_MM_PPGTT) {
 		list_del(&mm->ppgtt_mm.list);
@@ -2046,7 +2046,7 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm, unsigned long gma)
 	int i, levels = 0;
 	int ret;
 
-	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT &&
+	GEM__ON(mm->type != INTEL_GVT_MM_GGTT &&
 		   mm->type != INTEL_GVT_MM_PPGTT);
 
 	if (mm->type == INTEL_GVT_MM_GGTT) {
@@ -2080,7 +2080,7 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm, unsigned long gma)
 			levels = 2;
 			break;
 		default:
-			GEM_BUG_ON(1);
+			GEM__ON(1);
 		}
 
 		/* walk the shadow page table and get gpa from guest entry */
@@ -2563,7 +2563,7 @@ struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
 				return mm;
 			break;
 		default:
-			GEM_BUG_ON(1);
+			GEM__ON(1);
 		}
 	}
 	return NULL;

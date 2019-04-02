@@ -314,9 +314,9 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	if (err)
 		goto err_cmd;
 
-	err = mlx5_debug_qp_add(dev, qp);
+	err = mlx5_de_qp_add(dev, qp);
 	if (err)
-		mlx5_core_dbg(dev, "failed adding QP 0x%x to debug file system\n",
+		mlx5_core_dbg(dev, "failed adding QP 0x%x to de file system\n",
 			      qp->qpn);
 
 	atomic_inc(&dev->num_qps);
@@ -362,7 +362,7 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 	u32 in[MLX5_ST_SZ_DW(destroy_qp_in)]   = {0};
 	int err;
 
-	mlx5_debug_qp_remove(dev, qp);
+	mlx5_de_qp_remove(dev, qp);
 
 	destroy_resource_common(dev, qp);
 
@@ -528,7 +528,7 @@ void mlx5_init_qp_table(struct mlx5_core_dev *dev)
 	memset(table, 0, sizeof(*table));
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
-	mlx5_qp_debugfs_init(dev);
+	mlx5_qp_defs_init(dev);
 
 	table->nb.notifier_call = rsc_event_notifier;
 	mlx5_notifier_register(dev, &table->nb);
@@ -539,7 +539,7 @@ void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev)
 	struct mlx5_qp_table *table = &dev->priv.qp_table;
 
 	mlx5_notifier_unregister(dev, &table->nb);
-	mlx5_qp_debugfs_cleanup(dev);
+	mlx5_qp_defs_cleanup(dev);
 }
 
 int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,

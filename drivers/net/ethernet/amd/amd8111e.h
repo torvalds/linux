@@ -789,7 +789,7 @@ struct amd8111e_priv{
 };
 
 /* kernel provided writeq does not write 64 bits into the amd8111e device register instead writes only higher 32bits data into lower 32bits of the register.
-BUG? */
+? */
 #define  amd8111e_writeq(_UlData,_memMap)   \
 		writel(*(u32*)(&_UlData), _memMap);	\
 		writel(*(u32*)((u8*)(&_UlData)+4), _memMap+4)

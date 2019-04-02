@@ -40,32 +40,32 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(EM28XX_VERSION);
 
-/* #define ENABLE_DEBUG_ISOC_FRAMES */
+/* #define ENABLE_DE_ISOC_FRAMES */
 
-static unsigned int core_debug;
-module_param(core_debug, int, 0644);
-MODULE_PARM_DESC(core_debug, "enable debug messages [core and isoc]");
+static unsigned int core_de;
+module_param(core_de, int, 0644);
+MODULE_PARM_DESC(core_de, "enable de messages [core and isoc]");
 
 #define em28xx_coredbg(fmt, arg...) do {				\
-	if (core_debug)							\
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (core_de)							\
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "core: %s: " fmt, __func__, ## arg);		\
 } while (0)
 
-static unsigned int reg_debug;
-module_param(reg_debug, int, 0644);
-MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
+static unsigned int reg_de;
+module_param(reg_de, int, 0644);
+MODULE_PARM_DESC(reg_de, "enable de messages [URB reg]");
 
 #define em28xx_regdbg(fmt, arg...) do {				\
-	if (reg_debug)							\
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (reg_de)							\
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "reg: %s: " fmt, __func__, ## arg);		\
 } while (0)
 
-/* FIXME: don't abuse core_debug */
+/* FIXME: don't abuse core_de */
 #define em28xx_isocdbg(fmt, arg...) do {				\
-	if (core_debug)							\
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (core_de)							\
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "core: %s: " fmt, __func__, ## arg);		\
 } while (0)
 

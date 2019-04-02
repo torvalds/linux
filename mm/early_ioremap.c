@@ -19,15 +19,15 @@
 #include <asm/early_ioremap.h>
 
 #ifdef CONFIG_MMU
-static int early_ioremap_debug __initdata;
+static int early_ioremap_de __initdata;
 
-static int __init early_ioremap_debug_setup(char *str)
+static int __init early_ioremap_de_setup(char *str)
 {
-	early_ioremap_debug = 1;
+	early_ioremap_de = 1;
 
 	return 0;
 }
-early_param("early_ioremap_debug", early_ioremap_debug_setup);
+early_param("early_ioremap_de", early_ioremap_de_setup);
 
 static int after_paging_init __initdata;
 
@@ -57,14 +57,14 @@ void __init early_ioremap_reset(void)
 static inline void __init __late_set_fixmap(enum fixed_addresses idx,
 					    phys_addr_t phys, pgprot_t prot)
 {
-	BUG();
+	();
 }
 #endif
 
 #ifndef __late_clear_fixmap
 static inline void __init __late_clear_fixmap(enum fixed_addresses idx)
 {
-	BUG();
+	();
 }
 #endif
 
@@ -94,8 +94,8 @@ static int __init check_early_ioremap_leak(void)
 			count++;
 
 	if (WARN(count, KERN_WARNING
-		 "Debug warning: early ioremap leak of %d areas detected.\n"
-		 "please boot with early_ioremap_debug and report the dmesg.\n",
+		 "De warning: early ioremap leak of %d areas detected.\n"
+		 "please boot with early_ioremap_de and report the dmesg.\n",
 		 count))
 		return 1;
 	return 0;
@@ -158,7 +158,7 @@ __early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 		--idx;
 		--nrpages;
 	}
-	WARN(early_ioremap_debug, "%s(%08llx, %08lx) [%d] => %08lx + %08lx\n",
+	WARN(early_ioremap_de, "%s(%08llx, %08lx) [%d] => %08lx + %08lx\n",
 	     __func__, (u64)phys_addr, size, slot, offset, slot_virt[slot]);
 
 	prev_map[slot] = (void __iomem *)(offset + slot_virt[slot]);
@@ -190,7 +190,7 @@ void __init early_iounmap(void __iomem *addr, unsigned long size)
 		 addr, size, slot, prev_size[slot]))
 		return;
 
-	WARN(early_ioremap_debug, "early_iounmap(%p, %08lx) [%d]\n",
+	WARN(early_ioremap_de, "early_iounmap(%p, %08lx) [%d]\n",
 	     addr, size, slot);
 
 	virt_addr = (unsigned long)addr;

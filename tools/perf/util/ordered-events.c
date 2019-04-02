@@ -6,11 +6,11 @@
 #include <linux/string.h>
 #include "ordered-events.h"
 #include "session.h"
-#include "asm/bug.h"
-#include "debug.h"
+#include "asm/.h"
+#include "de.h"
 
 #define pr_N(n, fmt, ...) \
-	eprintf(n, debug_ordered_events, fmt, ##__VA_ARGS__)
+	eprintf(n, de_ordered_events, fmt, ##__VA_ARGS__)
 
 #define pr(fmt, ...) pr_N(1, pr_fmt(fmt), ##__VA_ARGS__)
 

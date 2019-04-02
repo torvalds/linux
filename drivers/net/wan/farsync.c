@@ -504,27 +504,27 @@ struct fst_card_info {
 #define FST_WRL(C,E,L)  writel ((L), (C)->mem + WIN_OFFSET(E))
 
 /*
- *      Debug support
+ *      De support
  */
-#if FST_DEBUG
+#if FST_DE
 
-static int fst_debug_mask = { FST_DEBUG };
+static int fst_de_mask = { FST_DE };
 
-/* Most common debug activity is to print something if the corresponding bit
- * is set in the debug mask. Note: this uses a non-ANSI extension in GCC to
+/* Most common de activity is to print something if the corresponding bit
+ * is set in the de mask. Note: this uses a non-ANSI extension in GCC to
  * support variable numbers of macro parameters. The inverted if prevents us
  * eating someone else's else clause.
  */
 #define dbg(F, fmt, args...)					\
 do {								\
-	if (fst_debug_mask & (F))				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##args);		\
+	if (fst_de_mask & (F))				\
+		printk(KERN_DE pr_fmt(fmt), ##args);		\
 } while (0)
 #else
 #define dbg(F, fmt, args...)					\
 do {								\
 	if (0)							\
-		printk(KERN_DEBUG pr_fmt(fmt), ##args);		\
+		printk(KERN_DE pr_fmt(fmt), ##args);		\
 } while (0)
 #endif
 
@@ -1720,7 +1720,7 @@ set_conf_from_info(struct fst_card_info *card, struct fst_port_info *port,
 		else
 			FST_WRB(card, suConfig.enableIdleCode, 0);
 		FST_WRB(card, suConfig.idleCode, info->idleCode);
-#if FST_DEBUG
+#if FST_DE
 		if (info->valid & FSTVAL_TE1) {
 			printk("Setting TE1 data\n");
 			printk("Line Speed = %d\n", info->lineSpeed);
@@ -1743,9 +1743,9 @@ set_conf_from_info(struct fst_card_info *card, struct fst_port_info *port,
 		}
 #endif
 	}
-#if FST_DEBUG
-	if (info->valid & FSTVAL_DEBUG) {
-		fst_debug_mask = info->debug;
+#if FST_DE
+	if (info->valid & FSTVAL_DE) {
+		fst_de_mask = info->de;
 	}
 #endif
 
@@ -1767,16 +1767,16 @@ gather_conf_info(struct fst_card_info *card, struct fst_port_info *port,
 	info->state = card->state;
 	info->proto = FST_GEN_HDLC;
 	info->index = i;
-#if FST_DEBUG
-	info->debug = fst_debug_mask;
+#if FST_DE
+	info->de = fst_de_mask;
 #endif
 
 	/* Only mark information as valid if card is running.
 	 * Copy the data anyway in case it is useful for diagnostics
 	 */
 	info->valid = ((card->state == FST_RUNNING) ? FSTVAL_ALL : FSTVAL_CARD)
-#if FST_DEBUG
-	    | FSTVAL_DEBUG
+#if FST_DE
+	    | FSTVAL_DE
 #endif
 	    ;
 
@@ -2078,7 +2078,7 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		/*
 		 * Most of the settings have been moved to the generic ioctls
-		 * this just covers debug and board ident now
+		 * this just covers de and board ident now
 		 */
 
 		if (card->state != FST_RUNNING) {
@@ -2412,8 +2412,8 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	printk_once(KERN_INFO
 		    pr_fmt("FarSync WAN driver " FST_USER_VERSION
 			   " (c) 2001-2004 FarSite Communications Ltd.\n"));
-#if FST_DEBUG
-	dbg(DBG_ASS, "The value of debug mask is %x\n", fst_debug_mask);
+#if FST_DE
+	dbg(DBG_ASS, "The value of de mask is %x\n", fst_de_mask);
 #endif
 	/*
 	 * We are going to be clever and allow certain cards not to be

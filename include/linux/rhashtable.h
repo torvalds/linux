@@ -783,7 +783,7 @@ static inline int rhltable_insert(
  * a resize is in progress.
  *
  * This lookup function may only be used for fixed key hash table (key_len
- * parameter set). It will BUG() if used inappropriately.
+ * parameter set). It will () if used inappropriately.
  *
  * It is safe to call this function from atomic context.
  *
@@ -797,7 +797,7 @@ static inline int rhashtable_lookup_insert_fast(
 	const char *key = rht_obj(ht, obj);
 	void *ret;
 
-	BUG_ON(ht->p.obj_hashfn);
+	_ON(ht->p.obj_hashfn);
 
 	ret = __rhashtable_insert_fast(ht, key + ht->p.key_offset, obj, params,
 				       false);
@@ -823,7 +823,7 @@ static inline void *rhashtable_lookup_get_insert_fast(
 {
 	const char *key = rht_obj(ht, obj);
 
-	BUG_ON(ht->p.obj_hashfn);
+	_ON(ht->p.obj_hashfn);
 
 	return __rhashtable_insert_fast(ht, key + ht->p.key_offset, obj, params,
 					false);
@@ -856,7 +856,7 @@ static inline int rhashtable_lookup_insert_key(
 {
 	void *ret;
 
-	BUG_ON(!ht->p.obj_hashfn || !key);
+	_ON(!ht->p.obj_hashfn || !key);
 
 	ret = __rhashtable_insert_fast(ht, key, obj, params, false);
 	if (IS_ERR(ret))
@@ -880,7 +880,7 @@ static inline void *rhashtable_lookup_get_insert_key(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
 {
-	BUG_ON(!ht->p.obj_hashfn || !key);
+	_ON(!ht->p.obj_hashfn || !key);
 
 	return __rhashtable_insert_fast(ht, key, obj, params, false);
 }

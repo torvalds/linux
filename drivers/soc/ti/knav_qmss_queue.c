@@ -16,7 +16,7 @@
  * General Public License for more details.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
@@ -430,7 +430,7 @@ static int knav_queue_get_count(void *qhandle)
 		atomic_read(&inst->desc_count);
 }
 
-static void knav_queue_debug_show_instance(struct seq_file *s,
+static void knav_queue_de_show_instance(struct seq_file *s,
 					struct knav_queue_inst *inst)
 {
 	struct knav_device *kdev = inst->kdev;
@@ -467,7 +467,7 @@ static void knav_queue_debug_show_instance(struct seq_file *s,
 	}
 }
 
-static int knav_queue_debug_show(struct seq_file *s, void *v)
+static int knav_queue_de_show(struct seq_file *s, void *v)
 {
 	struct knav_queue_inst *inst;
 	int idx;
@@ -477,19 +477,19 @@ static int knav_queue_debug_show(struct seq_file *s, void *v)
 		   dev_name(kdev->dev), kdev->base_id,
 		   kdev->base_id + kdev->num_queues - 1);
 	for_each_instance(idx, inst, kdev)
-		knav_queue_debug_show_instance(s, inst);
+		knav_queue_de_show_instance(s, inst);
 	mutex_unlock(&knav_dev_lock);
 
 	return 0;
 }
 
-static int knav_queue_debug_open(struct inode *inode, struct file *file)
+static int knav_queue_de_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, knav_queue_debug_show, NULL);
+	return single_open(file, knav_queue_de_show, NULL);
 }
 
-static const struct file_operations knav_queue_debug_ops = {
-	.open		= knav_queue_debug_open,
+static const struct file_operations knav_queue_de_ops = {
+	.open		= knav_queue_de_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -1882,8 +1882,8 @@ static int knav_queue_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	debugfs_create_file("qmss", S_IFREG | S_IRUGO, NULL, NULL,
-			    &knav_queue_debug_ops);
+	defs_create_file("qmss", S_IFREG | S_IRUGO, NULL, NULL,
+			    &knav_queue_de_ops);
 	device_ready = true;
 	return 0;
 

@@ -225,7 +225,7 @@ il_get_cmd_string(u8 cmd)
 		IL_CMD(N_SPECTRUM_MEASUREMENT);
 		IL_CMD(C_POWER_TBL);
 		IL_CMD(N_PM_SLEEP);
-		IL_CMD(N_PM_DEBUG_STATS);
+		IL_CMD(N_PM_DE_STATS);
 		IL_CMD(C_SCAN);
 		IL_CMD(C_SCAN_ABORT);
 		IL_CMD(N_SCAN_START);
@@ -264,7 +264,7 @@ il_generic_cmd_callback(struct il_priv *il, struct il_device_cmd *cmd,
 		       il_get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 		return;
 	}
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	switch (cmd->hdr.cmd) {
 	case C_TX_LINK_QUALITY_CMD:
 	case C_SENSITIVITY:
@@ -283,10 +283,10 @@ il_send_cmd_async(struct il_priv *il, struct il_host_cmd *cmd)
 {
 	int ret;
 
-	BUG_ON(!(cmd->flags & CMD_ASYNC));
+	_ON(!(cmd->flags & CMD_ASYNC));
 
 	/* An asynchronous command can not expect an SKB to be set. */
-	BUG_ON(cmd->flags & CMD_WANT_SKB);
+	_ON(cmd->flags & CMD_WANT_SKB);
 
 	/* Assign a generic callback if one is not provided */
 	if (!cmd->callback)
@@ -312,10 +312,10 @@ il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 
 	lockdep_assert_held(&il->mutex);
 
-	BUG_ON(cmd->flags & CMD_ASYNC);
+	_ON(cmd->flags & CMD_ASYNC);
 
 	/* A synchronous command can not have a callback set. */
-	BUG_ON(cmd->callback);
+	_ON(cmd->callback);
 
 	D_INFO("Attempting to send sync command %s\n",
 	       il_get_cmd_string(cmd->id));
@@ -689,7 +689,7 @@ il_eeprom_verify_signature(struct il_priv *il)
 const u8 *
 il_eeprom_query_addr(const struct il_priv *il, size_t offset)
 {
-	BUG_ON(offset >= il->cfg->eeprom_size);
+	_ON(offset >= il->cfg->eeprom_size);
 	return &il->eeprom[offset];
 }
 EXPORT_SYMBOL(il_eeprom_query_addr);
@@ -708,7 +708,7 @@ EXPORT_SYMBOL(il_eeprom_query16);
  *
  * Load the EEPROM contents from adapter into il->eeprom
  *
- * NOTE:  This routine uses the non-debug IO access functions.
+ * NOTE:  This routine uses the non-de IO access functions.
  */
 int
 il_eeprom_init(struct il_priv *il)
@@ -848,7 +848,7 @@ il_init_band_reference(const struct il_priv *il, int eep_band,
 		*eeprom_ch_idx = il_eeprom_band_7;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1065,7 +1065,7 @@ il_get_channel_info(const struct il_priv *il, enum nl80211_band band,
 			return &il->channel_info[channel - 1];
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return NULL;
@@ -1110,7 +1110,7 @@ il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 
 	cmd->flags = IL_POWER_DRIVER_ALLOW_SLEEP_MSK;
 	cmd->keep_alive_seconds = 0;
-	cmd->debug_flags = 0;
+	cmd->de_flags = 0;
 	cmd->rx_data_timeout = cpu_to_le32(25 * 1024);
 	cmd->tx_data_timeout = cpu_to_le32(25 * 1024);
 	cmd->keep_alive_beacons = 0;
@@ -1239,7 +1239,7 @@ il_power_initialize(struct il_priv *il)
 	pcie_capability_read_word(il->pci_dev, PCI_EXP_LNKCTL, &lctl);
 	il->power_data.pci_pm = !(lctl & PCI_EXP_LNKCTL_ASPM_L0S);
 
-	il->power_data.debug_sleep_level_override = -1;
+	il->power_data.de_sleep_level_override = -1;
 
 	memset(&il->power_data.sleep_cmd, 0, sizeof(il->power_data.sleep_cmd));
 }
@@ -1403,7 +1403,7 @@ EXPORT_SYMBOL(il_scan_cancel_timeout);
 static void
 il_hdl_scan(struct il_priv *il, struct il_rx_buf *rxb)
 {
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scanreq_notification *notif =
 	    (struct il_scanreq_notification *)pkt->u.raw;
@@ -1430,7 +1430,7 @@ il_hdl_scan_start(struct il_priv *il, struct il_rx_buf *rxb)
 static void
 il_hdl_scan_results(struct il_priv *il, struct il_rx_buf *rxb)
 {
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scanresults_notification *notif =
 	    (struct il_scanresults_notification *)pkt->u.raw;
@@ -1448,7 +1448,7 @@ static void
 il_hdl_scan_complete(struct il_priv *il, struct il_rx_buf *rxb)
 {
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
 #endif
@@ -1821,7 +1821,7 @@ il_process_add_sta_resp(struct il_priv *il, struct il_addsta_cmd *addsta,
 	 * the original sent to the device. That is, the MAC address
 	 * written to the command buffer often is not the same MAC address
 	 * read from the command buffer when the command returns. This
-	 * issue has not yet been resolved and this debugging is left to
+	 * issue has not yet been resolved and this deging is left to
 	 * observe the problem.
 	 */
 	D_INFO("%s station according to cmd buffer %pM\n",
@@ -2199,7 +2199,7 @@ il_remove_station(struct il_priv *il, const u8 sta_id, const u8 * addr)
 
 	il->num_stations--;
 
-	BUG_ON(il->num_stations < 0);
+	_ON(il->num_stations < 0);
 
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 
@@ -2347,7 +2347,7 @@ il_dealloc_bcast_stations(struct il_priv *il)
 
 		il->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
 		il->num_stations--;
-		BUG_ON(il->num_stations < 0);
+		_ON(il->num_stations < 0);
 		kfree(il->stations[i].lq);
 		il->stations[i].lq = NULL;
 	}
@@ -2355,7 +2355,7 @@ il_dealloc_bcast_stations(struct il_priv *il)
 }
 EXPORT_SYMBOL_GPL(il_dealloc_bcast_stations);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 static void
 il_dump_lq_cmd(struct il_priv *il, struct il_link_quality_cmd *lq)
 {
@@ -2438,7 +2438,7 @@ il_send_lq_cmd(struct il_priv *il, struct il_link_quality_cmd *lq,
 	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 
 	il_dump_lq_cmd(il, lq);
-	BUG_ON(init && (cmd.flags & CMD_ASYNC));
+	_ON(init && (cmd.flags & CMD_ASYNC));
 
 	if (il_is_lq_table_valid(il, lq))
 		ret = il_send_cmd(il, &cmd);
@@ -2952,7 +2952,7 @@ il_queue_init(struct il_priv *il, struct il_queue *q, int slots, u32 id)
 	 * TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * il_queue_inc_wrap and il_queue_dec_wrap are broken.
 	 */
-	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
+	BUILD__ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 	/* FIXME: remove q->n_bd */
 	q->n_bd = TFD_QUEUE_SIZE_MAX;
 
@@ -2961,7 +2961,7 @@ il_queue_init(struct il_priv *il, struct il_queue *q, int slots, u32 id)
 
 	/* slots_must be power-of-two size, otherwise
 	 * il_get_cmd_idx is broken. */
-	BUG_ON(!is_power_of_2(slots));
+	_ON(!is_power_of_2(slots));
 
 	q->low_mark = q->n_win / 4;
 	if (q->low_mark < 4)
@@ -3153,9 +3153,9 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	 * we will need to increase the size of the TFD entries
 	 * Also, check to see if command buffer should not exceed the size
 	 * of device_cmd and max_cmd_size. */
-	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
+	_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->flags & CMD_SIZE_HUGE));
-	BUG_ON(fix_size > IL_MAX_CMD_SIZE);
+	_ON(fix_size > IL_MAX_CMD_SIZE);
 
 	if (il_is_rfkill(il) || il_is_ctkill(il)) {
 		IL_WARN("Not sending command - %s KILL\n",
@@ -3204,7 +3204,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	if (idx == TFD_CMD_SLOTS)
 		len = IL_MAX_CMD_SIZE;
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	switch (out_cmd->hdr.cmd) {
 	case C_TX_LINK_QUALITY_CMD:
 	case C_SENSITIVITY:
@@ -3307,7 +3307,7 @@ il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb)
 	unsigned long flags;
 
 	/* If a Tx command is being handled and it isn't in the actual
-	 * command queue then there a command routing bug has been introduced
+	 * command queue then there a command routing  has been introduced
 	 * in the queue management code. */
 	if (WARN
 	    (txq_id != il->cmd_queue,
@@ -3377,8 +3377,8 @@ static bool bt_coex_active = true;
 module_param(bt_coex_active, bool, 0444);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 
-u32 il_debug_level;
-EXPORT_SYMBOL(il_debug_level);
+u32 il_de_level;
+EXPORT_SYMBOL(il_de_level);
 
 const u8 il_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 EXPORT_SYMBOL(il_bcast_addr);
@@ -3601,7 +3601,7 @@ il_is_ht40_tx_allowed(struct il_priv *il, struct ieee80211_sta_ht_cap *ht_cap)
 	if (ht_cap && !ht_cap->ht_supported)
 		return false;
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 	if (il->disable_ht40)
 		return false;
 #endif
@@ -4144,7 +4144,7 @@ il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb)
 }
 EXPORT_SYMBOL(il_hdl_csa);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 void
 il_print_rx_config_cmd(struct il_priv *il)
 {
@@ -4181,8 +4181,8 @@ il_irq_handle_error(struct il_priv *il)
 	il->ops->dump_nic_error_log(il);
 	if (il->ops->dump_fh)
 		il->ops->dump_fh(il, NULL, false);
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & IL_DL_FW_ERRORS)
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & IL_DL_FW_ERRORS)
 		il_print_rx_config_cmd(il);
 #endif
 
@@ -4279,7 +4279,7 @@ il_apm_init(struct il_priv *il)
 
 	/*
 	 * Disable L0s without affecting L1;
-	 *  don't wait for ICH L0s (ICH bug W/A)
+	 *  don't wait for ICH L0s (ICH  W/A)
 	 */
 	il_set_bit(il, CSR_GIO_CHICKEN_BITS,
 		   CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
@@ -4296,7 +4296,7 @@ il_apm_init(struct il_priv *il)
 		   CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
 	/*
-	 * HW bug W/A for instability in PCIe bus L0->L0S->L1 transition.
+	 * HW  W/A for instability in PCIe bus L0->L0S->L1 transition.
 	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
 	 * If so (likely), disable L0S, so device moves directly L0->L1;
 	 *    costs negligible amount of power savings.
@@ -4465,7 +4465,7 @@ EXPORT_SYMBOL(il_send_stats_request);
 void
 il_hdl_pm_sleep(struct il_priv *il, struct il_rx_buf *rxb)
 {
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	D_RX("sleep mode: %d, src: %d\n",
@@ -4475,7 +4475,7 @@ il_hdl_pm_sleep(struct il_priv *il, struct il_rx_buf *rxb)
 EXPORT_SYMBOL(il_hdl_pm_sleep);
 
 void
-il_hdl_pm_debug_stats(struct il_priv *il, struct il_rx_buf *rxb)
+il_hdl_pm_de_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
@@ -4483,7 +4483,7 @@ il_hdl_pm_debug_stats(struct il_priv *il, struct il_rx_buf *rxb)
 		il_get_cmd_string(pkt->hdr.cmd));
 	il_print_hex_dump(il, IL_DL_RADIO, pkt->u.raw, len);
 }
-EXPORT_SYMBOL(il_hdl_pm_debug_stats);
+EXPORT_SYMBOL(il_hdl_pm_de_stats);
 
 void
 il_hdl_error(struct il_priv *il, struct il_rx_buf *rxb)
@@ -4698,7 +4698,7 @@ il_force_reset(struct il_priv *il, bool external)
 	force_reset->last_force_reset_jiffies = jiffies;
 
 	/*
-	 * if the request is from external(ex: debugfs),
+	 * if the request is from external(ex: defs),
 	 * then always perform the request in regardless the module
 	 * parameter setting
 	 * if the request is from internal (uCode error or driver
@@ -5519,7 +5519,7 @@ il_isr(int irq, void *data)
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
 	 * If we have something to service, the tasklet will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here. */
-	inta_mask = _il_rd(il, CSR_INT_MASK);	/* just for debug */
+	inta_mask = _il_rd(il, CSR_INT_MASK);	/* just for de */
 	_il_wr(il, CSR_INT_MASK, 0x00000000);
 
 	/* Discover which interrupts are active/pending */

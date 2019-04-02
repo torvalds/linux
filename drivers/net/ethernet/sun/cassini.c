@@ -115,7 +115,7 @@
 #undef  USE_PCI_INTD
 #undef  USE_QOS
 
-#undef  USE_VPD_DEBUG       /* debug vpd information if defined */
+#undef  USE_VPD_DE       /* de vpd information if defined */
 
 /* rx processing options */
 #define USE_PAGE_ORDER      /* specify to allocate large rx pages */
@@ -174,20 +174,20 @@
 static char version[] =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
-static int cassini_debug = -1;	/* -1 == use CAS_DEF_MSG_ENABLE as value */
+static int cassini_de = -1;	/* -1 == use CAS_DEF_MSG_ENABLE as value */
 static int link_mode;
 
 MODULE_AUTHOR("Adrian Sun (asun@darksunrising.com)");
 MODULE_DESCRIPTION("Sun Cassini(+) ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("sun/cassini.bin");
-module_param(cassini_debug, int, 0);
-MODULE_PARM_DESC(cassini_debug, "Cassini bitmapped debugging message enable value");
+module_param(cassini_de, int, 0);
+MODULE_PARM_DESC(cassini_de, "Cassini bitmapped deging message enable value");
 module_param(link_mode, int, 0);
 MODULE_PARM_DESC(link_mode, "default link mode");
 
 /*
- * Work around for a PCS bug in which the link goes down due to the chip
+ * Work around for a PCS  in which the link goes down due to the chip
  * being confused and never showing a link status of "up."
  */
 #define DEFAULT_LINKDOWN_TIMEOUT 5
@@ -1111,7 +1111,7 @@ static int cas_txmac_interrupt(struct net_device *dev,
 	if (!txmac_stat)
 		return 0;
 
-	netif_printk(cp, intr, KERN_DEBUG, cp->dev,
+	netif_printk(cp, intr, KERN_DE, cp->dev,
 		     "txmac interrupt, txmac_stat: 0x%x\n", txmac_stat);
 
 	/* Defer timer expiration is quite normal,
@@ -1544,11 +1544,11 @@ static int cas_mac_interrupt(struct net_device *dev, struct cas *cp,
 	if (!stat)
 		return 0;
 
-	netif_printk(cp, intr, KERN_DEBUG, cp->dev,
+	netif_printk(cp, intr, KERN_DE, cp->dev,
 		     "mac interrupt, stat: 0x%x\n", stat);
 
 	/* This interrupt is just for pause frame and pause
-	 * tracking.  It is useful for diagnostics and debug
+	 * tracking.  It is useful for diagnostics and de
 	 * but probably by default we will mask these events.
 	 */
 	if (stat & MAC_CTRL_PAUSE_STATE)
@@ -1760,7 +1760,7 @@ static int cas_abnormal_irq(struct net_device *dev, struct cas *cp,
 {
 	if (status & INTR_RX_TAG_ERROR) {
 		/* corrupt RX tag framing */
-		netif_printk(cp, rx_err, KERN_DEBUG, cp->dev,
+		netif_printk(cp, rx_err, KERN_DE, cp->dev,
 			     "corrupt rx tag framing\n");
 		spin_lock(&cp->stat_lock[0]);
 		cp->net_stats[0].rx_errors++;
@@ -1770,7 +1770,7 @@ static int cas_abnormal_irq(struct net_device *dev, struct cas *cp,
 
 	if (status & INTR_RX_LEN_MISMATCH) {
 		/* length mismatch. */
-		netif_printk(cp, rx_err, KERN_DEBUG, cp->dev,
+		netif_printk(cp, rx_err, KERN_DE, cp->dev,
 			     "length mismatch for rx frame\n");
 		spin_lock(&cp->stat_lock[0]);
 		cp->net_stats[0].rx_errors++;
@@ -1871,7 +1871,7 @@ static inline void cas_tx_ringN(struct cas *cp, int ring, int limit)
 		if (count < 0)
 			break;
 
-		netif_printk(cp, tx_done, KERN_DEBUG, cp->dev,
+		netif_printk(cp, tx_done, KERN_DE, cp->dev,
 			     "tx[%d] done, slot %d\n", ring, entry);
 
 		skbs[entry] = NULL;
@@ -1919,7 +1919,7 @@ static void cas_tx(struct net_device *dev, struct cas *cp,
 #ifdef USE_TX_COMPWB
 	u64 compwb = le64_to_cpu(cp->init_block->tx_compwb);
 #endif
-	netif_printk(cp, intr, KERN_DEBUG, cp->dev,
+	netif_printk(cp, intr, KERN_DE, cp->dev,
 		     "tx interrupt, status: 0x%x, %llx\n",
 		     status, (unsigned long long)compwb);
 	/* process all the rings */
@@ -2000,7 +2000,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 
 		hlen = min(cp->page_size - off, dlen);
 		if (hlen < 0) {
-			netif_printk(cp, rx_err, KERN_DEBUG, cp->dev,
+			netif_printk(cp, rx_err, KERN_DE, cp->dev,
 				     "rx page overflow: %d\n", hlen);
 			dev_kfree_skb_irq(skb);
 			return -1;
@@ -2078,7 +2078,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 		off = CAS_VAL(RX_COMP1_DATA_OFF, words[0]) + swivel;
 		hlen = min(cp->page_size - off, dlen);
 		if (hlen < 0) {
-			netif_printk(cp, rx_err, KERN_DEBUG, cp->dev,
+			netif_printk(cp, rx_err, KERN_DE, cp->dev,
 				     "rx page overflow: %d\n", hlen);
 			dev_kfree_skb_irq(skb);
 			return -1;
@@ -2211,7 +2211,7 @@ static int cas_post_rxds_ringN(struct cas *cp, int ring, int num)
 
 	entry = cp->rx_old[ring];
 
-	netif_printk(cp, intr, KERN_DEBUG, cp->dev,
+	netif_printk(cp, intr, KERN_DE, cp->dev,
 		     "rxd[%d] interrupt, done: %d\n", ring, entry);
 
 	cluster = -1;
@@ -2282,7 +2282,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 	int entry, drops;
 	int npackets = 0;
 
-	netif_printk(cp, intr, KERN_DEBUG, cp->dev,
+	netif_printk(cp, intr, KERN_DE, cp->dev,
 		     "rx[%d] interrupt, done: %d/%d\n",
 		     ring,
 		     readl(cp->regs + REG_RX_COMP_HEAD), cp->rx_new[ring]);
@@ -2400,7 +2400,7 @@ static void cas_post_rxcs_ringN(struct net_device *dev,
 
 	last = cp->rx_cur[ring];
 	entry = cp->rx_new[ring];
-	netif_printk(cp, intr, KERN_DEBUG, dev,
+	netif_printk(cp, intr, KERN_DE, dev,
 		     "rxc[%d] interrupt, done: %d/%d\n",
 		     ring, readl(cp->regs + REG_RX_COMP_HEAD), entry);
 
@@ -2767,7 +2767,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	    CAS_TABORT(cp)*(skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&cp->tx_lock[ring], flags);
-		netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
+		netdev_err(dev, "! Tx Ring full when queue awake!\n");
 		return 1;
 	}
 
@@ -2843,7 +2843,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 	if (TX_BUFFS_AVAIL(cp, ring) <= CAS_TABORT(cp)*(MAX_SKB_FRAGS + 1))
 		netif_stop_queue(dev);
 
-	netif_printk(cp, tx_queued, KERN_DEBUG, dev,
+	netif_printk(cp, tx_queued, KERN_DE, dev,
 		     "tx[%d] queued, slot %d, skblen %d, avail %d\n",
 		     ring, entry, skb->len, TX_BUFFS_AVAIL(cp, ring));
 	writel(entry, cp->regs + REG_TX_KICKN(ring));
@@ -3642,7 +3642,7 @@ static void cas_set_link_modes(struct cas *cp)
 	/* If gigabit and half-duplex, enable carrier extension
 	 * mode.  increase slot time to 512 bytes as well.
 	 * else, disable it and make sure slot time is 64 bytes.
-	 * also activate checksum bug workaround
+	 * also activate checksum  workaround
 	 */
 	if ((speed == 1000) && !full_duplex) {
 		writel(val | MAC_TX_CFG_CARRIER_EXTEND,
@@ -3662,7 +3662,7 @@ static void cas_set_link_modes(struct cas *cp)
 	} else {
 		writel(val, cp->regs + REG_MAC_TX_CFG);
 
-		/* checksum bug workaround. don't strip FCS when in
+		/* checksum  workaround. don't strip FCS when in
 		 * half-duplex mode
 		 */
 		val = readl(cp->regs + REG_MAC_RX_CFG);
@@ -4150,7 +4150,7 @@ static void cas_link_timer(struct timer_list *t)
 
 		if (((tlm == 0x5) || (tlm == 0x3)) &&
 		    (CAS_VAL(MAC_SM_ENCAP_SM, val) == 0)) {
-			netif_printk(cp, tx_err, KERN_DEBUG, cp->dev,
+			netif_printk(cp, tx_err, KERN_DE, cp->dev,
 				     "tx err: MAC_STATE[%08x]\n", val);
 			reset = 1;
 			goto done;
@@ -4160,7 +4160,7 @@ static void cas_link_timer(struct timer_list *t)
 		wptr = readl(cp->regs + REG_TX_FIFO_WRITE_PTR);
 		rptr = readl(cp->regs + REG_TX_FIFO_READ_PTR);
 		if ((val == 0) && (wptr != rptr)) {
-			netif_printk(cp, tx_err, KERN_DEBUG, cp->dev,
+			netif_printk(cp, tx_err, KERN_DE, cp->dev,
 				     "tx err: TX_FIFO[%08x:%08x:%08x]\n",
 				     val, wptr, rptr);
 			reset = 1;
@@ -4742,7 +4742,7 @@ static void cas_get_ethtool_stats(struct net_device *dev,
 	data[i++] = stats->tx_errors;
 	data[i++] = stats->tx_fifo_errors;
 	data[i++] = stats->tx_packets;
-	BUG_ON(i != CAS_NUM_STAT_KEYS);
+	_ON(i != CAS_NUM_STAT_KEYS);
 }
 
 static const struct ethtool_ops cas_ethtool_ops = {
@@ -5007,8 +5007,8 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	cp->orig_cacheline_size = cas_cacheline_size ? orig_cacheline_size: 0;
 #endif
 	cp->dev = dev;
-	cp->msg_enable = (cassini_debug < 0) ? CAS_DEF_MSG_ENABLE :
-	  cassini_debug;
+	cp->msg_enable = (cassini_de < 0) ? CAS_DEF_MSG_ENABLE :
+	  cassini_de;
 
 #if defined(CONFIG_SPARC)
 	cp->of_node = pci_device_to_OF_node(pdev);

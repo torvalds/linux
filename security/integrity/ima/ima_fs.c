@@ -297,7 +297,7 @@ static ssize_t ima_read_policy(char *path)
 
 	datap = data;
 	while (size > 0 && (p = strsep(&datap, "\n"))) {
-		pr_debug("rule: %s\n", p);
+		pr_de("rule: %s\n", p);
 		rc = ima_parse_add_rule(p);
 		if (rc < 0)
 			break;

@@ -135,7 +135,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 	} else {
 		/* only report permissions that were denied */
 		aad(&sa)->request = aad(&sa)->request & ~perms->allow;
-		AA_BUG(!aad(&sa)->request);
+		AA_(!aad(&sa)->request);
 
 		if (aad(&sa)->request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
@@ -569,7 +569,7 @@ static int __file_sock_perm(const char *op, struct aa_label *label,
 	struct socket *sock = (struct socket *) file->private_data;
 	int error;
 
-	AA_BUG(!sock);
+	AA_(!sock);
 
 	/* revalidation due to label out of date. No revocation at this time */
 	if (!denied && aa_label_is_subset(flabel, label))
@@ -605,14 +605,14 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 	u32 denied;
 	int error = 0;
 
-	AA_BUG(!label);
-	AA_BUG(!file);
+	AA_(!label);
+	AA_(!file);
 
 	fctx = file_ctx(file);
 
 	rcu_read_lock();
 	flabel  = rcu_dereference(fctx->label);
-	AA_BUG(!flabel);
+	AA_(!flabel);
 
 	/* revalidate access, if task is unconfined, or the cached cred
 	 * doesn't match or if the request is for more permissions than

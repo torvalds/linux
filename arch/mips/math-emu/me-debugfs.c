@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/cpumask.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/fpu_emulator.h>
 #include <asm/local.h>
 
@@ -30,11 +30,11 @@ static int fpuemu_stat_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(fops_fpuemu_stat, fpuemu_stat_get, NULL, "%llu\n");
 
 /*
- * Used to obtain names for a debugfs instruction counter, given field name
+ * Used to obtain names for a defs instruction counter, given field name
  * in fpuemustats structure. For example, for input "cmp_sueq_d", the output
  * would be "cmp.sueq.d". This is needed since dots are not allowed to be
  * used in structure field names, and are, on the other hand, desired to be
- * used in debugfs item names to be clearly associated to corresponding
+ * used in defs item names to be clearly associated to corresponding
  * MIPS FPU instructions.
  */
 static void adjust_instruction_counter_name(char *out_name, char *in_name)
@@ -185,15 +185,15 @@ static int fpuemustats_clear_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(fpuemustats_clear);
 
-static int __init debugfs_fpuemu(void)
+static int __init defs_fpuemu(void)
 {
-	struct dentry *fpuemu_debugfs_base_dir;
-	struct dentry *fpuemu_debugfs_inst_dir;
+	struct dentry *fpuemu_defs_base_dir;
+	struct dentry *fpuemu_defs_inst_dir;
 
-	fpuemu_debugfs_base_dir = debugfs_create_dir("fpuemustats",
-						     mips_debugfs_dir);
+	fpuemu_defs_base_dir = defs_create_dir("fpuemustats",
+						     mips_defs_dir);
 
-	debugfs_create_file("fpuemustats_clear", 0444, mips_debugfs_dir, NULL,
+	defs_create_file("fpuemustats_clear", 0444, mips_defs_dir, NULL,
 			    &fpuemustats_clear_fops);
 
 #define FPU_EMU_STAT_OFFSET(m)						\
@@ -201,7 +201,7 @@ static int __init debugfs_fpuemu(void)
 
 #define FPU_STAT_CREATE(m)						\
 do {									\
-	debugfs_create_file(#m, 0444, fpuemu_debugfs_base_dir,		\
+	defs_create_file(#m, 0444, fpuemu_defs_base_dir,		\
 				(void *)FPU_EMU_STAT_OFFSET(m),		\
 				&fops_fpuemu_stat);			\
 } while (0)
@@ -220,8 +220,8 @@ do {									\
 	FPU_STAT_CREATE(ieee754_invalidop);
 	FPU_STAT_CREATE(ds_emul);
 
-	fpuemu_debugfs_inst_dir = debugfs_create_dir("instructions",
-						     fpuemu_debugfs_base_dir);
+	fpuemu_defs_inst_dir = defs_create_dir("instructions",
+						     fpuemu_defs_base_dir);
 
 #define FPU_STAT_CREATE_EX(m)						\
 do {									\
@@ -229,7 +229,7 @@ do {									\
 									\
 	adjust_instruction_counter_name(name, #m);			\
 									\
-	debugfs_create_file(name, 0444, fpuemu_debugfs_inst_dir,	\
+	defs_create_file(name, 0444, fpuemu_defs_inst_dir,	\
 				(void *)FPU_EMU_STAT_OFFSET(m),		\
 				&fops_fpuemu_stat);			\
 } while (0)
@@ -351,4 +351,4 @@ do {									\
 
 	return 0;
 }
-arch_initcall(debugfs_fpuemu);
+arch_initcall(defs_fpuemu);

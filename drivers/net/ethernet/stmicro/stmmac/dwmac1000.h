@@ -29,7 +29,7 @@
 #define GMAC_MII_DATA		0x00000014	/* MII Data */
 #define GMAC_FLOW_CTRL		0x00000018	/* Flow Control */
 #define GMAC_VLAN_TAG		0x0000001c	/* VLAN Tag */
-#define GMAC_DEBUG		0x00000024	/* GMAC debug register */
+#define GMAC_DE		0x00000024	/* GMAC de register */
 #define GMAC_WAKEUP_FILTER	0x00000028	/* Wake-up Frame Filter */
 
 #define GMAC_INT_STATUS		0x00000038	/* interrupt status register */
@@ -161,46 +161,46 @@ enum inter_frame_gap {
 #define GMAC_FLOW_CTRL_TFE	0x00000002	/* Tx Flow Control Enable */
 #define GMAC_FLOW_CTRL_FCB_BPA	0x00000001	/* Flow Control Busy ... */
 
-/* DEBUG Register defines */
+/* DE Register defines */
 /* MTL TxStatus FIFO */
-#define GMAC_DEBUG_TXSTSFSTS	BIT(25)	/* MTL TxStatus FIFO Full Status */
-#define GMAC_DEBUG_TXFSTS	BIT(24) /* MTL Tx FIFO Not Empty Status */
-#define GMAC_DEBUG_TWCSTS	BIT(22) /* MTL Tx FIFO Write Controller */
+#define GMAC_DE_TXSTSFSTS	BIT(25)	/* MTL TxStatus FIFO Full Status */
+#define GMAC_DE_TXFSTS	BIT(24) /* MTL Tx FIFO Not Empty Status */
+#define GMAC_DE_TWCSTS	BIT(22) /* MTL Tx FIFO Write Controller */
 /* MTL Tx FIFO Read Controller Status */
-#define GMAC_DEBUG_TRCSTS_MASK	GENMASK(21, 20)
-#define GMAC_DEBUG_TRCSTS_SHIFT	20
-#define GMAC_DEBUG_TRCSTS_IDLE	0
-#define GMAC_DEBUG_TRCSTS_READ	1
-#define GMAC_DEBUG_TRCSTS_TXW	2
-#define GMAC_DEBUG_TRCSTS_WRITE	3
-#define GMAC_DEBUG_TXPAUSED	BIT(19) /* MAC Transmitter in PAUSE */
+#define GMAC_DE_TRCSTS_MASK	GENMASK(21, 20)
+#define GMAC_DE_TRCSTS_SHIFT	20
+#define GMAC_DE_TRCSTS_IDLE	0
+#define GMAC_DE_TRCSTS_READ	1
+#define GMAC_DE_TRCSTS_TXW	2
+#define GMAC_DE_TRCSTS_WRITE	3
+#define GMAC_DE_TXPAUSED	BIT(19) /* MAC Transmitter in PAUSE */
 /* MAC Transmit Frame Controller Status */
-#define GMAC_DEBUG_TFCSTS_MASK	GENMASK(18, 17)
-#define GMAC_DEBUG_TFCSTS_SHIFT	17
-#define GMAC_DEBUG_TFCSTS_IDLE	0
-#define GMAC_DEBUG_TFCSTS_WAIT	1
-#define GMAC_DEBUG_TFCSTS_GEN_PAUSE	2
-#define GMAC_DEBUG_TFCSTS_XFER	3
+#define GMAC_DE_TFCSTS_MASK	GENMASK(18, 17)
+#define GMAC_DE_TFCSTS_SHIFT	17
+#define GMAC_DE_TFCSTS_IDLE	0
+#define GMAC_DE_TFCSTS_WAIT	1
+#define GMAC_DE_TFCSTS_GEN_PAUSE	2
+#define GMAC_DE_TFCSTS_XFER	3
 /* MAC GMII or MII Transmit Protocol Engine Status */
-#define GMAC_DEBUG_TPESTS	BIT(16)
-#define GMAC_DEBUG_RXFSTS_MASK	GENMASK(9, 8) /* MTL Rx FIFO Fill-level */
-#define GMAC_DEBUG_RXFSTS_SHIFT	8
-#define GMAC_DEBUG_RXFSTS_EMPTY	0
-#define GMAC_DEBUG_RXFSTS_BT	1
-#define GMAC_DEBUG_RXFSTS_AT	2
-#define GMAC_DEBUG_RXFSTS_FULL	3
-#define GMAC_DEBUG_RRCSTS_MASK	GENMASK(6, 5) /* MTL Rx FIFO Read Controller */
-#define GMAC_DEBUG_RRCSTS_SHIFT	5
-#define GMAC_DEBUG_RRCSTS_IDLE	0
-#define GMAC_DEBUG_RRCSTS_RDATA	1
-#define GMAC_DEBUG_RRCSTS_RSTAT	2
-#define GMAC_DEBUG_RRCSTS_FLUSH	3
-#define GMAC_DEBUG_RWCSTS	BIT(4) /* MTL Rx FIFO Write Controller Active */
+#define GMAC_DE_TPESTS	BIT(16)
+#define GMAC_DE_RXFSTS_MASK	GENMASK(9, 8) /* MTL Rx FIFO Fill-level */
+#define GMAC_DE_RXFSTS_SHIFT	8
+#define GMAC_DE_RXFSTS_EMPTY	0
+#define GMAC_DE_RXFSTS_BT	1
+#define GMAC_DE_RXFSTS_AT	2
+#define GMAC_DE_RXFSTS_FULL	3
+#define GMAC_DE_RRCSTS_MASK	GENMASK(6, 5) /* MTL Rx FIFO Read Controller */
+#define GMAC_DE_RRCSTS_SHIFT	5
+#define GMAC_DE_RRCSTS_IDLE	0
+#define GMAC_DE_RRCSTS_RDATA	1
+#define GMAC_DE_RRCSTS_RSTAT	2
+#define GMAC_DE_RRCSTS_FLUSH	3
+#define GMAC_DE_RWCSTS	BIT(4) /* MTL Rx FIFO Write Controller Active */
 /* MAC Receive Frame Controller FIFO Status */
-#define GMAC_DEBUG_RFCFCSTS_MASK	GENMASK(2, 1)
-#define GMAC_DEBUG_RFCFCSTS_SHIFT	1
+#define GMAC_DE_RFCFCSTS_MASK	GENMASK(2, 1)
+#define GMAC_DE_RFCFCSTS_SHIFT	1
 /* MAC GMII or MII Receive Protocol Engine Status */
-#define GMAC_DEBUG_RPESTS	BIT(0)
+#define GMAC_DE_RPESTS	BIT(0)
 
 /*--- DMA BLOCK defines ---*/
 /* DMA Bus Mode register defines */

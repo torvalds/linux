@@ -30,13 +30,13 @@
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 #define itd_dbg(args...)  do { \
-	if (debug) { \
-		printk(KERN_DEBUG   "ITD1000: " args);\
+	if (de) { \
+		printk(KERN_DE   "ITD1000: " args);\
 	} \
 } while (0)
 
@@ -95,7 +95,7 @@ static int itd1000_read_reg(struct itd1000_state *state, u8 reg)
 
 static inline int itd1000_write_reg(struct itd1000_state *state, u8 r, u8 v)
 {
-	u8 tmp = v; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = v; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 	int ret = itd1000_write_regs(state, r, &tmp, 1);
 	state->shadow[r] = tmp;
 	return ret;

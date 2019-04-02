@@ -23,9 +23,9 @@ struct srcu_struct {
 	struct rcu_head *srcu_cb_head;	/* Pending callbacks: Head. */
 	struct rcu_head **srcu_cb_tail;	/* Pending callbacks: Tail. */
 	struct work_struct srcu_work;	/* For driving grace periods. */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map dep_map;
-#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #ifdef CONFIG_DE_LOCK_ALLOC */
 };
 
 void srcu_drive_gp(struct work_struct *wp);

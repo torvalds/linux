@@ -37,7 +37,7 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits)
 	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	BUG_ON((fh->resources & bits) != bits);
+	_ON((fh->resources & bits) != bits);
 
 	fh->resources &= ~bits;
 	vv->resources &= ~bits;
@@ -54,7 +54,7 @@ void saa7146_dma_free(struct saa7146_dev *dev,struct videobuf_queue *q,
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	DEB_EE("dev:%p, buf:%p\n", dev, buf);
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
@@ -73,7 +73,7 @@ int saa7146_buffer_queue(struct saa7146_dev *dev,
 	assert_spin_locked(&dev->slock);
 	DEB_EE("dev:%p, dmaq:%p, buf:%p\n", dev, q, buf);
 
-	BUG_ON(!q);
+	_ON(!q);
 
 	if (NULL == q->curr) {
 		q->curr = buf;
@@ -96,7 +96,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	DEB_EE("dev:%p, dmaq:%p, state:%d\n", dev, q, state);
 	DEB_EE("q->curr:%p\n", q->curr);
 
-	BUG_ON(!q->curr);
+	_ON(!q->curr);
 
 	/* finish current buffer */
 	if (NULL == q->curr) {
@@ -116,7 +116,7 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 {
 	struct saa7146_buf *buf,*next = NULL;
 
-	BUG_ON(!q);
+	_ON(!q);
 
 	DEB_INT("dev:%p, dmaq:%p, vbi:%d\n", dev, q, vbi);
 
@@ -310,7 +310,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 		break;
 		}
 	default:
-		BUG();
+		();
 	}
 
 	if (mutex_lock_interruptible(vdev->lock))
@@ -397,7 +397,7 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 		}
 		return -EINVAL;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -420,7 +420,7 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 		}
 		return -EINVAL;
 	default:
-		BUG();
+		();
 	}
 }
 

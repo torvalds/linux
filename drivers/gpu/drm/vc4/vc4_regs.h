@@ -728,9 +728,9 @@
 #define VC4_HDMI_PACKET_STRIDE			0x24
 
 #define VC4_HD_M_CTL				0x00c
-/* Debug: Current receive value on the CEC pad. */
+/* De: Current receive value on the CEC pad. */
 # define VC4_HD_CECRXD				BIT(9)
-/* Debug: Override CEC output to 0. */
+/* De: Override CEC output to 0. */
 # define VC4_HD_CECOVR				BIT(8)
 # define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
 # define VC4_HD_M_RAM_STANDBY			(3 << 4)

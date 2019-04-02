@@ -29,7 +29,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsfs.h"
 #include "cifs_ioctl.h"
 #include "smb2proto.h"

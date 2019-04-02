@@ -23,7 +23,7 @@
  * The slightly excessive casting in type_min is to make sure the
  * macros also produce sensible values for the exotic type _Bool. [The
  * overflow checkers only almost work for _Bool, but that's
- * a-feature-not-a-bug, since people shouldn't be doing arithmetic on
+ * a-feature-not-a-, since people shouldn't be doing arithmetic on
  * _Bools. Besides, the gcc builtins don't allow _Bool* as third
  * argument.]
  *

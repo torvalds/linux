@@ -341,7 +341,7 @@
 #define  REG_PLUS_PROBE_MUX_SELECT     0x1034 /* Cassini+: PROBE MUX SELECT */
 #define    PROBE_MUX_EN                0x80000000 /* allow probe signals to be
 						     driven on local bus P_A[15:0]
-						     for debugging */
+						     for deging */
 #define    PROBE_MUX_SUB_MUX_MASK      0x0000FF00 /* select sub module probe signals:
 						     0x03 = mac[1:0]
 						     0x0C = rx[1:0]
@@ -397,7 +397,7 @@
 #define   SATURN_PCFG_CLA             0x00000004 /* 1 = phy link100led */
 #define   SATURN_PCFG_LLA             0x00000008 /* 1 = phy link1000led */
 #define   SATURN_PCFG_RLA             0x00000010 /* 1 = phy duplexled */
-#define   SATURN_PCFG_PDS             0x00000020 /* phy debug mode.
+#define   SATURN_PCFG_PDS             0x00000020 /* phy de mode.
 						    0 = normal */
 #define   SATURN_PCFG_MTP             0x00000080 /* test point select */
 #define   SATURN_PCFG_GMO             0x00000100 /* GMII observe. 1 =
@@ -697,8 +697,8 @@
 /* current state of RX DMA state engines + other info
  * DEFAULT: 0x0
  */
-#define  REG_RX_DEBUG                      0x401C  /* RX debug */
-#define    RX_DEBUG_LOAD_STATE_MASK        0x0000000F /* load state machine w/ MAC:
+#define  REG_RX_DE                      0x401C  /* RX de */
+#define    RX_DE_LOAD_STATE_MASK        0x0000000F /* load state machine w/ MAC:
 							 0x0 = idle,   0x1 = load_bop
 							 0x2 = load 1, 0x3 = load 2
 							 0x4 = load 3, 0x5 = load 4
@@ -708,7 +708,7 @@
 							 0x9 = load st
 							 0xa = bubble mac
 							 0xb = error */
-#define    RX_DEBUG_LM_STATE_MASK          0x00000070 /* load state machine w/ HP and
+#define    RX_DE_LM_STATE_MASK          0x00000070 /* load state machine w/ HP and
 							 RX FIFO:
 							 0x0 = idle,   0x1 = hp xfr
 							 0x2 = wait hp ready
@@ -717,13 +717,13 @@
 							 0x5 = make status
 							 0x6 = csum ready
 							 0x7 = error */
-#define    RX_DEBUG_FC_STATE_MASK          0x000000180 /* flow control state machine
+#define    RX_DE_FC_STATE_MASK          0x000000180 /* flow control state machine
 							 w/ MAC:
 							 0x0 = idle
 							 0x1 = wait xoff ack
 							 0x2 = wait xon
 							 0x3 = wait xon ack */
-#define    RX_DEBUG_DATA_STATE_MASK        0x000001E00 /* unload data state machine
+#define    RX_DE_DATA_STATE_MASK        0x000001E00 /* unload data state machine
 							 states:
 							 0x0 = idle data
 							 0x1 = header begin
@@ -741,7 +741,7 @@
 							 0xd = xfer reas ld
 							 0xe = error
 							 0xf = bubble idle */
-#define    RX_DEBUG_DESC_STATE_MASK        0x0001E000 /* unload desc state machine
+#define    RX_DE_DESC_STATE_MASK        0x0001E000 /* unload desc state machine
 							 states:
 							 0x0 = idle desc
 							 0x1 = wait ack
@@ -753,9 +753,9 @@
 							 0x5 = wait ack batch
 							 0x6 = post batch
 							 0x7 = xfr done */
-#define    RX_DEBUG_INTR_READ_PTR_MASK     0x30000000 /* interrupt read ptr of the
+#define    RX_DE_INTR_READ_PTR_MASK     0x30000000 /* interrupt read ptr of the
 							 interrupt queue */
-#define    RX_DEBUG_INTR_WRITE_PTR_MASK    0xC0000000 /* interrupt write pointer
+#define    RX_DE_INTR_WRITE_PTR_MASK    0xC0000000 /* interrupt write pointer
 							 of the interrupt queue */
 
 /* flow control frames are emitted using two PAUSE thresholds:
@@ -2586,7 +2586,7 @@ static cas_hp_inst_t cas_prog_null[] = { {NULL} };
 #define TX_DESC_EOF                 0x0000000040000000ULL /* end of frame */
 #define TX_DESC_SOF                 0x0000000080000000ULL /* start of frame */
 #define TX_DESC_INTME               0x0000000100000000ULL /* interrupt me */
-#define TX_DESC_NO_CRC              0x0000000200000000ULL /* debugging only.
+#define TX_DESC_NO_CRC              0x0000000200000000ULL /* deging only.
 							     CRC will not be
 							     inserted into
 							     outgoing frame. */

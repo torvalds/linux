@@ -49,7 +49,7 @@
 #include "lpfc_crtn.h"
 #include "lpfc_version.h"
 #include "lpfc_vport.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 
 /* FDMI Port Speed definitions - FC-GS-7 */
 #define HBA_PORTSPEED_1GFC		0x00000001	/* 1G FC */
@@ -467,7 +467,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 		ndlp = lpfc_setup_disc_node(vport, Did);
 
 		if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
 				Did, ndlp->nlp_flag, vport->fc_flag);
 
@@ -485,7 +485,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 					 vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
 		} else {
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip1 GID_FTrsp: did:x%x flg:x%x cnt:%d",
 				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
 
@@ -498,7 +498,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 	} else {
 		if (!(vport->fc_flag & FC_RSCN_MODE) ||
 		    lpfc_rscn_payload_check(vport, Did)) {
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Query GID_FTrsp: did:x%x flg:x%x cnt:%d",
 				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
 
@@ -521,7 +521,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			else
 				lpfc_setup_disc_node(vport, Did);
 		} else {
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip2 GID_FTrsp: did:x%x flg:x%x cnt:%d",
 				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
 
@@ -669,7 +669,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
 	irsp = &rspiocb->iocb;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		 "GID_FT cmpl:     status:x%x/x%x rtry:%d",
 		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_ns_retry);
 
@@ -773,7 +773,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
-				lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT no entry  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
 				(uint32_t) CTrsp->ReasonCode,
@@ -788,7 +788,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
-				lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT rsp err1  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
 				(uint32_t) CTrsp->ReasonCode,
@@ -806,7 +806,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					(uint32_t) CTrsp->Explanation,
 					vport->fc_flag);
 
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"GID_FT rsp err2  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
 				(uint32_t) CTrsp->ReasonCode,
@@ -864,7 +864,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	outp = (struct lpfc_dmabuf *)cmdiocb->context2;
 	irsp = &rspiocb->iocb;
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			      "GID_PT cmpl:     status:x%x/x%x rtry:%d",
 			      irsp->ulpStatus, irsp->un.ulpWord[4],
 			      vport->fc_ns_retry);
@@ -965,7 +965,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					(uint32_t)CTrsp->Explanation,
 					vport->fc_flag);
 
-				lpfc_debugfs_disc_trc(
+				lpfc_defs_disc_trc(
 				vport, LPFC_DISC_TRC_CT,
 				"GID_PT no entry  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
@@ -981,7 +981,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					(uint32_t)CTrsp->Explanation,
 					vport->fc_flag);
 
-				lpfc_debugfs_disc_trc(
+				lpfc_defs_disc_trc(
 				vport, LPFC_DISC_TRC_CT,
 				"GID_PT rsp err1  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
@@ -998,7 +998,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 (uint32_t)CTrsp->Explanation,
 					 vport->fc_flag);
 
-			lpfc_debugfs_disc_trc(
+			lpfc_defs_disc_trc(
 				vport, LPFC_DISC_TRC_CT,
 				"GID_PT rsp err2  cmd:x%x rsn:x%x exp:x%x",
 				(uint32_t)CTrsp->CommandResponse.bits.CmdRsp,
@@ -1050,7 +1050,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	did = ((struct lpfc_sli_ct_request *) inp->virt)->un.gff.PortId;
 	did = be32_to_cpu(did);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"GFF_ID cmpl:     status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], did);
 
@@ -1179,7 +1179,7 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	did = ((struct lpfc_sli_ct_request *)inp->virt)->un.gft.PortId;
 	did = be32_to_cpu(did);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			      "GFT_ID cmpl: status:x%x/x%x did:x%x",
 			      irsp->ulpStatus, irsp->un.ulpWord[4], did);
 
@@ -1263,7 +1263,7 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 CTrsp->CommandResponse.bits.CmdRsp,
 			 cmdiocb->iocb.ulpContext, cmdiocb->iocb.ulpIoTag);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"CT cmd cmpl:     status:x%x/x%x cmd:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], cmdcode);
 
@@ -1768,7 +1768,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	 */
 	if (!lpfc_ct_cmd(vport, mp, bmp, ndlp, cmpl, rsp_size, retry)) {
 		/* On success, The cmpl function will free the buffers */
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 			"Issue CT cmd:    cmd:x%x did:x%x",
 			cmdcode, ndlp->nlp_DID, 0);
 		return 0;
@@ -1820,7 +1820,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	uint32_t latt, cmd, err;
 
 	latt = lpfc_els_chk_latt(vport);
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_CT,
 		"FDMI cmpl:       status:x%x/x%x latt:%d",
 		irsp->ulpStatus, irsp->un.ulpWord[4], latt);
 

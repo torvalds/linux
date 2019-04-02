@@ -612,8 +612,8 @@ setup_arch(char **cmdline_p)
 #endif
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK
-	       "DEBUG_SPINLOCK "
+#ifdef CONFIG_DE_SPINLOCK
+	       "DE_SPINLOCK "
 #endif
 #ifdef CONFIG_MAGIC_SYSRQ
 	       "MAGIC_SYSRQ "

@@ -42,8 +42,8 @@
 #define MCHK_K_ECC_NC		0x0088
 #define MCHK_K_UNKNOWN		0x008A
 #define MCHK_K_CACKSOFT		0x008C
-#define MCHK_K_BUGCHECK		0x008E
-#define MCHK_K_OS_BUGCHECK	0x0090
+#define MCHK_K_CHECK		0x008E
+#define MCHK_K_OS_CHECK	0x0090
 #define MCHK_K_DCPERR		0x0092
 #define MCHK_K_ICPERR		0x0094
 
@@ -415,8 +415,8 @@ lca_machine_check(unsigned long vector, unsigned long la_ptr)
 	case MCHK_K_ECC_C:	reason = "correctable ECC error"; break;
 	case MCHK_K_ECC_NC:	reason = "non-correctable ECC error"; break;
 	case MCHK_K_CACKSOFT:	reason = "MCHK_K_CACKSOFT"; break;
-	case MCHK_K_BUGCHECK:	reason = "illegal exception in PAL mode"; break;
-	case MCHK_K_OS_BUGCHECK: reason = "callsys in kernel mode"; break;
+	case MCHK_K_CHECK:	reason = "illegal exception in PAL mode"; break;
+	case MCHK_K_OS_CHECK: reason = "callsys in kernel mode"; break;
 	case MCHK_K_DCPERR:	reason = "d-cache parity error"; break;
 	case MCHK_K_ICPERR:	reason = "i-cache parity error"; break;
 	case MCHK_K_SIO_SERR:	reason = "SIO SERR occurred on PCI bus"; break;

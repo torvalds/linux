@@ -20,7 +20,7 @@
 
 FS(sysfs)
 FS(procfs)
-FS(debugfs)
+FS(defs)
 FS(tracefs)
 FS(hugetlbfs)
 FS(bpf_fs)

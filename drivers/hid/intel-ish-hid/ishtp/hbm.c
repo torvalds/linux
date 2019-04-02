@@ -588,7 +588,7 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 		} else {
 			dev_err(dev->devc,
 				"reset: wrong host start response\n");
-			/* BUG: why do we arrive here? */
+			/* : why do we arrive here? */
 			ish_hw_reset(dev);
 			return;
 		}

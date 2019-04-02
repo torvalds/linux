@@ -52,7 +52,7 @@
 #define PINMUX_820_SECONDARY_SEL	0x14
 #define PINMUX_820_TERTIARY_SEL		0x8c
 #define PINMUX_820_QUATERNARY_SEL	0x94
-#define PINMUX_820_DEBUG_SEL		0x9c
+#define PINMUX_820_DE_SEL		0x9c
 #define PINMUX_820_ALTERNATIVE_SEL	0xa4
 #define PINMUX_820_PULLUP_CTRL		0xac
 
@@ -676,7 +676,7 @@ static int oxnas_ox820_pinmux_enable(struct pinctrl_dev *pctldev,
 					  (functions->fct == 3 ?
 						mask : 0));
 			regmap_write_bits(pctl->regmap,
-					  offset + PINMUX_820_DEBUG_SEL,
+					  offset + PINMUX_820_DE_SEL,
 					  mask,
 					  (functions->fct == 4 ?
 						mask : 0));
@@ -749,7 +749,7 @@ static int oxnas_ox820_gpio_request_enable(struct pinctrl_dev *pctldev,
 			  bank_offset + PINMUX_820_QUATERNARY_SEL,
 			  mask, 0);
 	regmap_write_bits(pctl->regmap,
-			  bank_offset + PINMUX_820_DEBUG_SEL,
+			  bank_offset + PINMUX_820_DE_SEL,
 			  mask, 0);
 	regmap_write_bits(pctl->regmap,
 			  bank_offset + PINMUX_820_ALTERNATIVE_SEL,

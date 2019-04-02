@@ -450,7 +450,7 @@ static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
 		       unsigned int dst_off, unsigned int len,
 		       unsigned long data)
 {
-	pr_debug("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
+	pr_de("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
 		 current->comm, n, err, src_off, dst_off, len, data);
 }
 
@@ -821,7 +821,7 @@ static int dmatest_func(void *data)
 		}
 
 		start = ktime_get();
-		pr_debug("%s: verifying source buffer...\n", current->comm);
+		pr_de("%s: verifying source buffer...\n", current->comm);
 		error_count = dmatest_verify(src->aligned, 0, src->off,
 				0, PATTERN_SRC, true, is_memset);
 		error_count += dmatest_verify(src->aligned, src->off,
@@ -831,7 +831,7 @@ static int dmatest_func(void *data)
 				buf_size, src->off + len,
 				PATTERN_SRC, true, is_memset);
 
-		pr_debug("%s: verifying dest buffer...\n", current->comm);
+		pr_de("%s: verifying dest buffer...\n", current->comm);
 		error_count += dmatest_verify(dst->aligned, 0, dst->off,
 				0, PATTERN_DST, false, is_memset);
 
@@ -901,7 +901,7 @@ static void dmatest_cleanup_channel(struct dmatest_chan *dtc)
 
 	list_for_each_entry_safe(thread, _thread, &dtc->threads, node) {
 		ret = kthread_stop(thread->task);
-		pr_debug("thread %s exited with status %d\n",
+		pr_de("thread %s exited with status %d\n",
 			 thread->task->comm, ret);
 		list_del(&thread->node);
 		put_task_struct(thread->task);
@@ -1102,7 +1102,7 @@ static void stop_threaded_test(struct dmatest_info *info)
 		list_del(&dtc->node);
 		chan = dtc->chan;
 		dmatest_cleanup_channel(dtc);
-		pr_debug("dropped channel %s\n", dma_chan_name(chan));
+		pr_de("dropped channel %s\n", dma_chan_name(chan));
 		dma_release_channel(chan);
 	}
 

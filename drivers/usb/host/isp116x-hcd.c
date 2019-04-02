@@ -49,7 +49,7 @@
 #define USE_PLATFORM_DELAY
 //#define USE_NDELAY
 
-//#define DEBUG
+//#define DE
 //#define VERBOSE
 /* Transfer descriptors. See dump_ptd() for printout format  */
 //#define PTD_TRACE
@@ -58,7 +58,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/errno.h>
 #include <linux/list.h>
@@ -188,7 +188,7 @@ static void pack_fifo(struct isp116x *isp116x)
 			buflen -= ALIGN(ep->length, 4);
 		}
 	}
-	BUG_ON(buflen);
+	_ON(buflen);
 }
 
 /*
@@ -220,7 +220,7 @@ static void unpack_fifo(struct isp116x *isp116x)
 		dump_ptd(ptd);
 		dump_ptd_in_data(ptd, ep->data);
 	}
-	BUG_ON(buflen);
+	_ON(buflen);
 }
 
 /*---------------------------------------------------------------*/
@@ -238,7 +238,7 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 	for (ep = isp116x->atl_active; ep; ep = ep->active) {
 		u16 toggle = 0, dir = PTD_DIR_SETUP;
 
-		BUG_ON(list_empty(&ep->hep->urb_list));
+		_ON(list_empty(&ep->hep->urb_list));
 		urb = container_of(ep->hep->urb_list.next,
 				   struct urb, urb_list);
 		ptd = &ep->ptd;
@@ -269,7 +269,7 @@ static void preproc_atl_queue(struct isp116x *isp116x)
 		default:
 			ERR("%s %d: ep->nextpid %d\n", __func__, __LINE__,
 			    ep->nextpid);
-			BUG();
+			();
 		}
 
 		ptd->count = PTD_CC_MSK | PTD_ACTIVE_MSK | PTD_TOGGLE(toggle);
@@ -356,7 +356,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 	u8 cc;
 
 	for (ep = isp116x->atl_active; ep; ep = ep->active) {
-		BUG_ON(list_empty(&ep->hep->urb_list));
+		_ON(list_empty(&ep->hep->urb_list));
 		urb =
 		    container_of(ep->hep->urb_list.next, struct urb, urb_list);
 		udev = urb->dev;
@@ -464,7 +464,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			ep->nextpid = 0;
 			break;
 		default:
-			BUG();
+			();
 		}
 
  done:
@@ -545,7 +545,7 @@ static void start_atl_transfers(struct isp116x *isp116x)
 			} else
 				len = urb->transfer_buffer_length -
 				    urb->actual_length;
-			BUG_ON(len < 0);
+			_ON(len < 0);
 		}
 
 		load += len * byte_time;
@@ -1144,7 +1144,7 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 
 /*-----------------------------------------------------------------*/
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static void dump_irq(struct seq_file *s, char *label, u16 mask)
 {
@@ -1168,7 +1168,7 @@ static void dump_int(struct seq_file *s, char *label, u32 mask)
 		   mask & HCINT_SF ? " sof" : "", mask & HCINT_SO ? " so" : "");
 }
 
-static int isp116x_debug_show(struct seq_file *s, void *unused)
+static int isp116x_de_show(struct seq_file *s, void *unused)
 {
 	struct isp116x *isp116x = s->private;
 
@@ -1196,26 +1196,26 @@ static int isp116x_debug_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(isp116x_debug);
+DEFINE_SHOW_ATTRIBUTE(isp116x_de);
 
-static void create_debug_file(struct isp116x *isp116x)
+static void create_de_file(struct isp116x *isp116x)
 {
-	isp116x->dentry = debugfs_create_file(hcd_name,
+	isp116x->dentry = defs_create_file(hcd_name,
 					      S_IRUGO, NULL, isp116x,
-					      &isp116x_debug_fops);
+					      &isp116x_de_fops);
 }
 
-static void remove_debug_file(struct isp116x *isp116x)
+static void remove_de_file(struct isp116x *isp116x)
 {
-	debugfs_remove(isp116x->dentry);
+	defs_remove(isp116x->dentry);
 }
 
 #else
 
-static inline void create_debug_file(struct isp116x *isp116x) { }
-static inline void remove_debug_file(struct isp116x *isp116x) { }
+static inline void create_de_file(struct isp116x *isp116x) { }
+static inline void remove_de_file(struct isp116x *isp116x) { }
 
-#endif				/* CONFIG_DEBUG_FS */
+#endif				/* CONFIG_DE_FS */
 
 /*-----------------------------------------------------------------*/
 
@@ -1536,7 +1536,7 @@ static int isp116x_remove(struct platform_device *pdev)
 	if (!hcd)
 		return 0;
 	isp116x = hcd_to_isp116x(hcd);
-	remove_debug_file(isp116x);
+	remove_de_file(isp116x);
 	usb_remove_hcd(hcd);
 
 	iounmap(isp116x->data_reg);
@@ -1640,7 +1640,7 @@ static int isp116x_probe(struct platform_device *pdev)
 
 	device_wakeup_enable(hcd->self.controller);
 
-	create_debug_file(isp116x);
+	create_de_file(isp116x);
 
 	return 0;
 

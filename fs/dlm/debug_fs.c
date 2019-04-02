@@ -14,15 +14,15 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
 #include "dlm_internal.h"
 #include "lock.h"
 
-#define DLM_DEBUG_BUF_LEN 4096
-static char debug_buf[DLM_DEBUG_BUF_LEN];
-static struct mutex debug_buf_lock;
+#define DLM_DE_BUF_LEN 4096
+static char de_buf[DLM_DE_BUF_LEN];
+static struct mutex de_buf_lock;
 
 static struct dentry *dlm_root;
 
@@ -702,14 +702,14 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 {
 	struct dlm_ls *ls = file->private_data;
 	struct dlm_lkb *lkb;
-	size_t len = DLM_DEBUG_BUF_LEN, pos = 0, ret, rv;
+	size_t len = DLM_DE_BUF_LEN, pos = 0, ret, rv;
 
-	mutex_lock(&debug_buf_lock);
+	mutex_lock(&de_buf_lock);
 	mutex_lock(&ls->ls_waiters_mutex);
-	memset(debug_buf, 0, sizeof(debug_buf));
+	memset(de_buf, 0, sizeof(de_buf));
 
 	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
-		ret = snprintf(debug_buf + pos, len - pos, "%x %d %d %s\n",
+		ret = snprintf(de_buf + pos, len - pos, "%x %d %d %s\n",
 			       lkb->lkb_id, lkb->lkb_wait_type,
 			       lkb->lkb_nodeid, lkb->lkb_resource->res_name);
 		if (ret >= len - pos)
@@ -718,8 +718,8 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 	}
 	mutex_unlock(&ls->ls_waiters_mutex);
 
-	rv = simple_read_from_buffer(userbuf, count, ppos, debug_buf, pos);
-	mutex_unlock(&debug_buf_lock);
+	rv = simple_read_from_buffer(userbuf, count, ppos, de_buf, pos);
+	mutex_unlock(&de_buf_lock);
 	return rv;
 }
 
@@ -730,27 +730,27 @@ static const struct file_operations waiters_fops = {
 	.llseek  = default_llseek,
 };
 
-void dlm_delete_debug_file(struct dlm_ls *ls)
+void dlm_delete_de_file(struct dlm_ls *ls)
 {
-	debugfs_remove(ls->ls_debug_rsb_dentry);
-	debugfs_remove(ls->ls_debug_waiters_dentry);
-	debugfs_remove(ls->ls_debug_locks_dentry);
-	debugfs_remove(ls->ls_debug_all_dentry);
-	debugfs_remove(ls->ls_debug_toss_dentry);
+	defs_remove(ls->ls_de_rsb_dentry);
+	defs_remove(ls->ls_de_waiters_dentry);
+	defs_remove(ls->ls_de_locks_dentry);
+	defs_remove(ls->ls_de_all_dentry);
+	defs_remove(ls->ls_de_toss_dentry);
 }
 
-int dlm_create_debug_file(struct dlm_ls *ls)
+int dlm_create_de_file(struct dlm_ls *ls)
 {
 	char name[DLM_LOCKSPACE_LEN + 8];
 
 	/* format 1 */
 
-	ls->ls_debug_rsb_dentry = debugfs_create_file(ls->ls_name,
+	ls->ls_de_rsb_dentry = defs_create_file(ls->ls_name,
 						      S_IFREG | S_IRUGO,
 						      dlm_root,
 						      ls,
 						      &format1_fops);
-	if (!ls->ls_debug_rsb_dentry)
+	if (!ls->ls_de_rsb_dentry)
 		goto fail;
 
 	/* format 2 */
@@ -758,12 +758,12 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	memset(name, 0, sizeof(name));
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_locks", ls->ls_name);
 
-	ls->ls_debug_locks_dentry = debugfs_create_file(name,
+	ls->ls_de_locks_dentry = defs_create_file(name,
 							S_IFREG | S_IRUGO,
 							dlm_root,
 							ls,
 							&format2_fops);
-	if (!ls->ls_debug_locks_dentry)
+	if (!ls->ls_de_locks_dentry)
 		goto fail;
 
 	/* format 3 */
@@ -771,12 +771,12 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	memset(name, 0, sizeof(name));
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_all", ls->ls_name);
 
-	ls->ls_debug_all_dentry = debugfs_create_file(name,
+	ls->ls_de_all_dentry = defs_create_file(name,
 						      S_IFREG | S_IRUGO,
 						      dlm_root,
 						      ls,
 						      &format3_fops);
-	if (!ls->ls_debug_all_dentry)
+	if (!ls->ls_de_all_dentry)
 		goto fail;
 
 	/* format 4 */
@@ -784,41 +784,41 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	memset(name, 0, sizeof(name));
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_toss", ls->ls_name);
 
-	ls->ls_debug_toss_dentry = debugfs_create_file(name,
+	ls->ls_de_toss_dentry = defs_create_file(name,
 						       S_IFREG | S_IRUGO,
 						       dlm_root,
 						       ls,
 						       &format4_fops);
-	if (!ls->ls_debug_toss_dentry)
+	if (!ls->ls_de_toss_dentry)
 		goto fail;
 
 	memset(name, 0, sizeof(name));
 	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
 
-	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
+	ls->ls_de_waiters_dentry = defs_create_file(name,
 							  S_IFREG | S_IRUGO,
 							  dlm_root,
 							  ls,
 							  &waiters_fops);
-	if (!ls->ls_debug_waiters_dentry)
+	if (!ls->ls_de_waiters_dentry)
 		goto fail;
 
 	return 0;
 
  fail:
-	dlm_delete_debug_file(ls);
+	dlm_delete_de_file(ls);
 	return -ENOMEM;
 }
 
-int __init dlm_register_debugfs(void)
+int __init dlm_register_defs(void)
 {
-	mutex_init(&debug_buf_lock);
-	dlm_root = debugfs_create_dir("dlm", NULL);
+	mutex_init(&de_buf_lock);
+	dlm_root = defs_create_dir("dlm", NULL);
 	return dlm_root ? 0 : -ENOMEM;
 }
 
-void dlm_unregister_debugfs(void)
+void dlm_unregister_defs(void)
 {
-	debugfs_remove(dlm_root);
+	defs_remove(dlm_root);
 }
 

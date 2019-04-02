@@ -92,10 +92,10 @@
 
 /*
  * you can enable below define if you don't need
- * DAI status debug message when debugging
+ * DAI status de message when deging
  * see rsnd_dbg_dai_call()
  *
- * #define RSND_DEBUG_NO_DAI_CALL 1
+ * #define RSND_DE_NO_DAI_CALL 1
  */
 
 #include <linux/pm_runtime.h>

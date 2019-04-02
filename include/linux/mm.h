@@ -6,14 +6,14 @@
 
 #ifdef __KERNEL__
 
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/gfp.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/list.h>
 #include <linux/mmzone.h>
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/mm_types.h>
 #include <linux/range.h>
 #include <linux/pfn.h>
@@ -544,7 +544,7 @@ static inline int pgd_devmap(pgd_t pgd)
  */
 static inline int put_page_testzero(struct page *page)
 {
-	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+	VM__ON_PAGE(page_ref_count(page) == 0, page);
 	return page_ref_dec_and_test(page);
 }
 
@@ -637,7 +637,7 @@ static inline atomic_t *compound_mapcount_ptr(struct page *page)
 
 static inline int compound_mapcount(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
+	VM__ON_PAGE(!PageCompound(page), page);
 	page = compound_head(page);
 	return atomic_read(compound_mapcount_ptr(page)) + 1;
 }
@@ -656,7 +656,7 @@ int __page_mapcount(struct page *page);
 
 static inline int page_mapcount(struct page *page)
 {
-	VM_BUG_ON_PAGE(PageSlab(page), page);
+	VM__ON_PAGE(PageSlab(page), page);
 
 	if (unlikely(PageCompound(page)))
 		return __page_mapcount(page);
@@ -718,13 +718,13 @@ extern compound_page_dtor * const compound_page_dtors[];
 static inline void set_compound_page_dtor(struct page *page,
 		enum compound_dtor_id compound_dtor)
 {
-	VM_BUG_ON_PAGE(compound_dtor >= NR_COMPOUND_DTORS, page);
+	VM__ON_PAGE(compound_dtor >= NR_COMPOUND_DTORS, page);
 	page[1].compound_dtor = compound_dtor;
 }
 
 static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
 {
-	VM_BUG_ON_PAGE(page[1].compound_dtor >= NR_COMPOUND_DTORS, page);
+	VM__ON_PAGE(page[1].compound_dtor >= NR_COMPOUND_DTORS, page);
 	return compound_page_dtors[page[1].compound_dtor];
 }
 
@@ -973,7 +973,7 @@ static inline void get_page(struct page *page)
 	 * Getting a normal page or the head of a compound page
 	 * requires to already have an elevated page->_refcount.
 	 */
-	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
+	VM__ON_PAGE(page_ref_count(page) <= 0, page);
 	page_ref_inc(page);
 }
 
@@ -1450,7 +1450,7 @@ static inline vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
 		unsigned long address, unsigned int flags)
 {
 	/* should never happen if there's no MMU */
-	BUG();
+	();
 	return VM_FAULT_SIGBUS;
 }
 static inline int fixup_user_fault(struct task_struct *tsk,
@@ -1458,7 +1458,7 @@ static inline int fixup_user_fault(struct task_struct *tsk,
 		unsigned int fault_flags, bool *unlocked)
 {
 	/* should never happen if there's no MMU */
-	BUG();
+	();
 	return -EFAULT;
 }
 static inline void unmap_mapping_pages(struct address_space *mapping,
@@ -1907,7 +1907,7 @@ static inline bool ptlock_init(struct page *page)
 	 * It can happen if arch try to use slab for page table allocation:
 	 * slab code uses page->slab_cache, which share storage with page->ptl.
 	 */
-	VM_BUG_ON_PAGE(*(unsigned long *)&page->ptl, page);
+	VM__ON_PAGE(*(unsigned long *)&page->ptl, page);
 	if (!ptlock_alloc(page))
 		return false;
 	spin_lock_init(ptlock_ptr(page));
@@ -2000,7 +2000,7 @@ static inline bool pgtable_pmd_page_ctor(struct page *page)
 static inline void pgtable_pmd_page_dtor(struct page *page)
 {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	VM_BUG_ON_PAGE(page->pmd_huge_pte, page);
+	VM__ON_PAGE(page->pmd_huge_pte, page);
 #endif
 	ptlock_free(page);
 }
@@ -2241,7 +2241,7 @@ anon_vma_interval_tree_iter_first(struct rb_root_cached *root,
 				  unsigned long start, unsigned long last);
 struct anon_vma_chain *anon_vma_interval_tree_iter_next(
 	struct anon_vma_chain *node, unsigned long start, unsigned long last);
-#ifdef CONFIG_DEBUG_VM_RB
+#ifdef CONFIG_DE_VM_RB
 void anon_vma_interval_tree_verify(struct anon_vma_chain *node);
 #endif
 
@@ -2597,19 +2597,19 @@ static inline void kernel_poison_pages(struct page *page, int numpages,
 					int enable) { }
 #endif
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-extern bool _debug_pagealloc_enabled;
+#ifdef CONFIG_DE_PAGEALLOC
+extern bool _de_pagealloc_enabled;
 extern void __kernel_map_pages(struct page *page, int numpages, int enable);
 
-static inline bool debug_pagealloc_enabled(void)
+static inline bool de_pagealloc_enabled(void)
 {
-	return _debug_pagealloc_enabled;
+	return _de_pagealloc_enabled;
 }
 
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable)
 {
-	if (!debug_pagealloc_enabled())
+	if (!de_pagealloc_enabled())
 		return;
 
 	__kernel_map_pages(page, numpages, enable);
@@ -2617,17 +2617,17 @@ kernel_map_pages(struct page *page, int numpages, int enable)
 #ifdef CONFIG_HIBERNATION
 extern bool kernel_page_present(struct page *page);
 #endif	/* CONFIG_HIBERNATION */
-#else	/* CONFIG_DEBUG_PAGEALLOC */
+#else	/* CONFIG_DE_PAGEALLOC */
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable) {}
 #ifdef CONFIG_HIBERNATION
 static inline bool kernel_page_present(struct page *page) { return true; }
 #endif	/* CONFIG_HIBERNATION */
-static inline bool debug_pagealloc_enabled(void)
+static inline bool de_pagealloc_enabled(void)
 {
 	return false;
 }
-#endif	/* CONFIG_DEBUG_PAGEALLOC */
+#endif	/* CONFIG_DE_PAGEALLOC */
 
 #ifdef __HAVE_ARCH_GATE_AREA
 extern struct vm_area_struct *get_gate_vma(struct mm_struct *mm);
@@ -2757,40 +2757,40 @@ extern long copy_huge_page_from_user(struct page *dst_page,
 				bool allow_pagefault);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
-extern struct page_ext_operations debug_guardpage_ops;
+extern struct page_ext_operations de_guardpage_ops;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-extern unsigned int _debug_guardpage_minorder;
-extern bool _debug_guardpage_enabled;
+#ifdef CONFIG_DE_PAGEALLOC
+extern unsigned int _de_guardpage_minorder;
+extern bool _de_guardpage_enabled;
 
-static inline unsigned int debug_guardpage_minorder(void)
+static inline unsigned int de_guardpage_minorder(void)
 {
-	return _debug_guardpage_minorder;
+	return _de_guardpage_minorder;
 }
 
-static inline bool debug_guardpage_enabled(void)
+static inline bool de_guardpage_enabled(void)
 {
-	return _debug_guardpage_enabled;
+	return _de_guardpage_enabled;
 }
 
 static inline bool page_is_guard(struct page *page)
 {
 	struct page_ext *page_ext;
 
-	if (!debug_guardpage_enabled())
+	if (!de_guardpage_enabled())
 		return false;
 
 	page_ext = lookup_page_ext(page);
 	if (unlikely(!page_ext))
 		return false;
 
-	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+	return test_bit(PAGE_EXT_DE_GUARD, &page_ext->flags);
 }
 #else
-static inline unsigned int debug_guardpage_minorder(void) { return 0; }
-static inline bool debug_guardpage_enabled(void) { return false; }
+static inline unsigned int de_guardpage_minorder(void) { return 0; }
+static inline bool de_guardpage_enabled(void) { return false; }
 static inline bool page_is_guard(struct page *page) { return false; }
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */
 
 #if MAX_NUMNODES > 1
 void __init setup_nr_node_ids(void);

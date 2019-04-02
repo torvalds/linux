@@ -476,7 +476,7 @@ static inline int get_buf_size(struct adapter *adapter,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return buf_size;
@@ -599,7 +599,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 	int node;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	if (test_bit(q->cntxt_id - adap->sge.egr_start, adap->sge.blocked_fl))
 		goto out;
 #endif
@@ -771,7 +771,7 @@ static inline unsigned int sgl_len(unsigned int n)
  */
 static inline unsigned int flits_to_desc(unsigned int n)
 {
-	BUG_ON(n > SGE_MAX_WR_LEN / 8);
+	_ON(n > SGE_MAX_WR_LEN / 8);
 	return DIV_ROUND_UP(n, 8);
 }
 
@@ -2109,7 +2109,7 @@ static void restart_ctrlq(unsigned long data)
 
 	spin_lock(&q->sendq.lock);
 	reclaim_completed_tx_imm(&q->q);
-	BUG_ON(txq_avail(&q->q) < TXQ_STOP_THRES);  /* q should be empty */
+	_ON(txq_avail(&q->q) < TXQ_STOP_THRES);  /* q should be empty */
 
 	while ((skb = __skb_dequeue(&q->sendq)) != NULL) {
 		struct fw_wr_hdr *wr;
@@ -2290,7 +2290,7 @@ static void service_ofldq(struct sge_uld_txq *q)
 		flits = skb->priority;                /* previously saved */
 		ndesc = flits_to_desc(flits);
 		credits = txq_avail(&q->q) - ndesc;
-		BUG_ON(credits < 0);
+		_ON(credits < 0);
 		if (unlikely(credits < TXQ_STOP_THRES))
 			ofldtxq_stop(q, (struct fw_wr_hdr *)skb->data);
 

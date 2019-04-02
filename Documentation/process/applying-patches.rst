@@ -400,7 +400,7 @@ it on to Linus for inclusion in mainline.
 
 The linux-next tree is daily updated, and includes the -mm patches.
 Both are in constant flux and contains many experimental features, a
-lot of debugging patches not appropriate for mainline etc., and is the most
+lot of deging patches not appropriate for mainline etc., and is the most
 experimental of the branches described in this document.
 
 These patches are not appropriate for use on systems that are supposed to be
@@ -409,8 +409,8 @@ sure you have up-to-date backups -- that goes for any experimental kernel but
 even more so for -mm patches or using a Kernel from the linux-next tree).
 
 Testing of -mm patches and linux-next is greatly appreciated since the whole
-point of those are to weed out regressions, crashes, data corruption bugs,
-build breakage (and any other bug in general) before changes are merged into
+point of those are to weed out regressions, crashes, data corruption s,
+build breakage (and any other  in general) before changes are merged into
 the more stable mainline Linus tree.
 
 But testers of -mm and linux-next should be aware that breakages are

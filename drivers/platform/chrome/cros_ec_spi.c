@@ -75,10 +75,10 @@ struct cros_ec_spi {
 	unsigned int end_of_msg_delay;
 };
 
-static void debug_packet(struct device *dev, const char *name, u8 *ptr,
+static void de_packet(struct device *dev, const char *name, u8 *ptr,
 			 int len)
 {
-#ifdef DEBUG
+#ifdef DE
 	int i;
 
 	dev_dbg(dev, "%s: ", name);
@@ -130,7 +130,7 @@ static int receive_n_bytes(struct cros_ec_device *ec_dev, u8 *buf, int n)
 	struct spi_message msg;
 	int ret;
 
-	BUG_ON(buf - ec_dev->din + n > ec_dev->din_size);
+	_ON(buf - ec_dev->din + n > ec_dev->din_size);
 
 	memset(&trans, 0, sizeof(trans));
 	trans.cs_change = 1;
@@ -167,7 +167,7 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 	unsigned long deadline;
 	int todo;
 
-	BUG_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
+	_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
@@ -207,7 +207,7 @@ static int cros_ec_spi_receive_packet(struct cros_ec_device *ec_dev,
 	 * start of our buffer
 	 */
 	todo = end - ++ptr;
-	BUG_ON(todo < 0 || todo > ec_dev->din_size);
+	_ON(todo < 0 || todo > ec_dev->din_size);
 	todo = min(todo, need_len);
 	memmove(ec_dev->din, ptr, todo);
 	ptr = ec_dev->din + todo;
@@ -275,7 +275,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	unsigned long deadline;
 	int todo;
 
-	BUG_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
+	_ON(ec_dev->din_size < EC_MSG_PREAMBLE_COUNT);
 
 	/* Receive data until we see the header byte */
 	deadline = jiffies + msecs_to_jiffies(EC_MSG_DEADLINE_MS);
@@ -315,7 +315,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 	 * start of our buffer
 	 */
 	todo = end - ++ptr;
-	BUG_ON(todo < 0 || todo > ec_dev->din_size);
+	_ON(todo < 0 || todo > ec_dev->din_size);
 	todo = min(todo, need_len);
 	memmove(ec_dev->din, ptr, todo);
 	ptr = ec_dev->din + todo;
@@ -339,7 +339,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 		if (ret < 0)
 			return ret;
 
-		debug_packet(ec_dev->dev, "interim", ptr, todo);
+		de_packet(ec_dev->dev, "interim", ptr, todo);
 		ptr += todo;
 		need_len -= todo;
 	}
@@ -527,7 +527,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	spi_bus_lock(ec_spi->spi->master);
 
 	/* Transmit phase - send our message */
-	debug_packet(ec_dev->dev, "out", ec_dev->dout, len);
+	de_packet(ec_dev->dev, "out", ec_dev->dout, len);
 	memset(&trans, 0, sizeof(trans));
 	trans.tx_buf = ec_dev->dout;
 	trans.rx_buf = rx_buf;
@@ -592,7 +592,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	}
 	sum &= 0xff;
 
-	debug_packet(ec_dev->dev, "in", ptr, len + 3);
+	de_packet(ec_dev->dev, "in", ptr, len + 3);
 
 	if (sum != ptr[len + 2]) {
 		dev_err(ec_dev->dev,

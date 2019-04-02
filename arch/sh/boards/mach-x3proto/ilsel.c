@@ -68,7 +68,7 @@ static void __ilsel_enable(ilsel_source_t set, unsigned int bit)
 	addr = mk_ilsel_addr(bit);
 	shift = mk_ilsel_shift(bit);
 
-	pr_debug("%s: bit#%d: addr - 0x%08lx (shift %d, set %d)\n",
+	pr_de("%s: bit#%d: addr - 0x%08lx (shift %d, set %d)\n",
 		 __func__, bit, addr, shift, set);
 
 	tmp = __raw_readw(addr);

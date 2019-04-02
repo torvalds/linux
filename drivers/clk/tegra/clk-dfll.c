@@ -39,7 +39,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -197,7 +197,7 @@
 
 /*
  * REF_CLK_CYC_PER_DVCO_SAMPLE: the number of ref_clk cycles that the hardware
- *    integrates the DVCO counter over - used for debug rate monitoring and
+ *    integrates the DVCO counter over - used for de rate monitoring and
  *    droop control
  */
 #define REF_CLK_CYC_PER_DVCO_SAMPLE	4
@@ -287,7 +287,7 @@ struct tegra_dfll {
 
 	enum dfll_ctrl_mode		mode;
 	enum dfll_tune_range		tune_range;
-	struct dentry			*debugfs_dir;
+	struct dentry			*defs_dir;
 	struct clk_hw			dfll_clk_hw;
 	const char			*output_clock_name;
 	struct dfll_rate_req		last_req;
@@ -729,7 +729,7 @@ static void dfll_init_i2c_if(struct tegra_dfll *td)
 	dfll_i2c_writel(td, td->i2c_reg, DFLL_I2C_VDD_REG_ADDR);
 
 	val = DIV_ROUND_UP(td->i2c_clk_rate, td->i2c_fs_rate * 8);
-	BUG_ON(!val || (val > DFLL_I2C_CLK_DIVISOR_MASK));
+	_ON(!val || (val > DFLL_I2C_CLK_DIVISOR_MASK));
 	val = (val - 1) << DFLL_I2C_CLK_DIVISOR_FS_SHIFT;
 
 	/* default hs divisor just in case */
@@ -1047,7 +1047,7 @@ static int dfll_lock(struct tegra_dfll *td)
 		return 0;
 
 	default:
-		BUG_ON(td->mode > DFLL_CLOSED_LOOP);
+		_ON(td->mode > DFLL_CLOSED_LOOP);
 		dev_err(td->dev, "%s: Cannot lock DFLL in %s mode\n",
 			__func__, mode_name[td->mode]);
 		return -EPERM;
@@ -1077,7 +1077,7 @@ static int dfll_unlock(struct tegra_dfll *td)
 		return 0;
 
 	default:
-		BUG_ON(td->mode > DFLL_CLOSED_LOOP);
+		_ON(td->mode > DFLL_CLOSED_LOOP);
 		dev_err(td->dev, "%s: Cannot unlock DFLL in %s mode\n",
 			__func__, mode_name[td->mode]);
 		return -EPERM;
@@ -1225,10 +1225,10 @@ static void dfll_unregister_clk(struct tegra_dfll *td)
 }
 
 /*
- * Debugfs interface
+ * Defs interface
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
  * Monitor control
  */
@@ -1293,7 +1293,7 @@ static int attr_enable_set(void *data, u64 val)
 
 	return val ? dfll_enable(td) : dfll_disable(td);
 }
-DEFINE_DEBUGFS_ATTRIBUTE(enable_fops, attr_enable_get, attr_enable_set,
+DEFINE_DEFS_ATTRIBUTE(enable_fops, attr_enable_get, attr_enable_set,
 			 "%llu\n");
 
 static int attr_lock_get(void *data, u64 *val)
@@ -1310,7 +1310,7 @@ static int attr_lock_set(void *data, u64 val)
 
 	return val ? dfll_lock(td) :  dfll_unlock(td);
 }
-DEFINE_DEBUGFS_ATTRIBUTE(lock_fops, attr_lock_get, attr_lock_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(lock_fops, attr_lock_get, attr_lock_set, "%llu\n");
 
 static int attr_rate_get(void *data, u64 *val)
 {
@@ -1327,7 +1327,7 @@ static int attr_rate_set(void *data, u64 val)
 
 	return dfll_request_rate(td, val);
 }
-DEFINE_DEBUGFS_ATTRIBUTE(rate_fops, attr_rate_get, attr_rate_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(rate_fops, attr_rate_get, attr_rate_set, "%llu\n");
 
 static int attr_registers_show(struct seq_file *s, void *data)
 {
@@ -1368,26 +1368,26 @@ static int attr_registers_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(attr_registers);
 
-static void dfll_debug_init(struct tegra_dfll *td)
+static void dfll_de_init(struct tegra_dfll *td)
 {
 	struct dentry *root;
 
 	if (!td || (td->mode == DFLL_UNINITIALIZED))
 		return;
 
-	root = debugfs_create_dir("tegra_dfll_fcpu", NULL);
-	td->debugfs_dir = root;
+	root = defs_create_dir("tegra_dfll_fcpu", NULL);
+	td->defs_dir = root;
 
-	debugfs_create_file_unsafe("enable", 0644, root, td,
+	defs_create_file_unsafe("enable", 0644, root, td,
 				   &enable_fops);
-	debugfs_create_file_unsafe("lock", 0444, root, td, &lock_fops);
-	debugfs_create_file_unsafe("rate", 0444, root, td, &rate_fops);
-	debugfs_create_file("registers", 0444, root, td, &attr_registers_fops);
+	defs_create_file_unsafe("lock", 0444, root, td, &lock_fops);
+	defs_create_file_unsafe("rate", 0444, root, td, &rate_fops);
+	defs_create_file("registers", 0444, root, td, &attr_registers_fops);
 }
 
 #else
-static void inline dfll_debug_init(struct tegra_dfll *td) { }
-#endif /* CONFIG_DEBUG_FS */
+static void inline dfll_de_init(struct tegra_dfll *td) { }
+#endif /* CONFIG_DE_FS */
 
 /*
  * DFLL initialization
@@ -1406,7 +1406,7 @@ static void dfll_set_default_params(struct tegra_dfll *td)
 	u32 val;
 
 	val = DIV_ROUND_UP(td->ref_rate, td->sample_rate * 32);
-	BUG_ON(val > DFLL_CONFIG_DIV_MASK);
+	_ON(val > DFLL_CONFIG_DIV_MASK);
 	dfll_writel(td, val, DFLL_CONFIG);
 
 	val = (td->force_mode << DFLL_PARAMS_FORCE_MODE_SHIFT) |
@@ -2006,7 +2006,7 @@ int tegra_dfll_register(struct platform_device *pdev,
 		return ret;
 	}
 
-	dfll_debug_init(td);
+	dfll_de_init(td);
 
 	return 0;
 }
@@ -2031,7 +2031,7 @@ struct tegra_dfll_soc_data *tegra_dfll_unregister(struct platform_device *pdev)
 		return ERR_PTR(-EBUSY);
 	}
 
-	debugfs_remove_recursive(td->debugfs_dir);
+	defs_remove_recursive(td->defs_dir);
 
 	dfll_unregister_clk(td);
 	pm_runtime_disable(&pdev->dev);

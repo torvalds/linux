@@ -45,7 +45,7 @@ static int llc_ui_wait_for_disc(struct sock *sk, long timeout);
 static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
 
 #if 0
-#define dprintk(args...) printk(KERN_DEBUG args)
+#define dprintk(args...) printk(KERN_DE args)
 #else
 #define dprintk(args...)
 #endif
@@ -822,7 +822,7 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			sk_wait_data(sk, &timeo, NULL);
 
 		if ((flags & MSG_PEEK) && peek_seq != llc->copied_seq) {
-			net_dbg_ratelimited("LLC(%s:%d): Application bug, race in MSG_PEEK\n",
+			net_dbg_ratelimited("LLC(%s:%d): Application , race in MSG_PEEK\n",
 					    current->comm,
 					    task_pid_nr(current));
 			peek_seq = llc->copied_seq;

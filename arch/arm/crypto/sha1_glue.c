@@ -34,7 +34,7 @@ int sha1_update_arm(struct shash_desc *desc, const u8 *data,
 		    unsigned int len)
 {
 	/* make sure casting to sha1_block_fn() is safe */
-	BUILD_BUG_ON(offsetof(struct sha1_state, state) != 0);
+	BUILD__ON(offsetof(struct sha1_state, state) != 0);
 
 	return sha1_base_do_update(desc, data, len,
 				   (sha1_block_fn *)sha1_block_data_order);

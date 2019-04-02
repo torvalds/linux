@@ -53,7 +53,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 
 	evlist = perf_evlist__new_default();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new_default\n");
+		pr_de("perf_evlist__new_default\n");
 		return -1;
 	}
 
@@ -67,7 +67,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	threads = thread_map__new_by_tid(-1);
 	if (!cpus || !threads) {
 		err = -ENOMEM;
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_de("Not enough memory to create thread/cpu maps\n");
 		goto out_free_maps;
 	}
 
@@ -79,7 +79,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	err = perf_evlist__prepare_workload(evlist, &target, argv, false,
 					    workload_exec_failed_signal);
 	if (err < 0) {
-		pr_debug("Couldn't run the workload!\n");
+		pr_de("Couldn't run the workload!\n");
 		goto out_delete_evlist;
 	}
 
@@ -97,13 +97,13 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("Couldn't open the evlist: %s\n",
+		pr_de("Couldn't open the evlist: %s\n",
 			 str_error_r(-err, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	if (perf_evlist__mmap(evlist, 128) < 0) {
-		pr_debug("failed to mmap events: %d (%s)\n", errno,
+		pr_de("failed to mmap events: %d (%s)\n", errno,
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -130,7 +130,7 @@ out_init:
 	}
 
 	if (nr_exit != 1) {
-		pr_debug("received %d EXIT records\n", nr_exit);
+		pr_de("received %d EXIT records\n", nr_exit);
 		err = -1;
 	}
 

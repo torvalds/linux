@@ -168,7 +168,7 @@ gk104_pcie_init(struct nvkm_pci * pci)
 	}
 
 	if (lnkctl_speed != max_speed) {
-		nvkm_debug(subdev, "adjusting lnkctl to max speed\n");
+		nvkm_de(subdev, "adjusting lnkctl to max speed\n");
 		gk104_pcie_set_lnkctl_speed(pci, max_speed);
 		lnkctl_speed = gk104_pcie_lnkctl_speed(pci);
 		if (lnkctl_speed != max_speed)

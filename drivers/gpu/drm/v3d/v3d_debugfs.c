@@ -3,7 +3,7 @@
 
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
@@ -58,7 +58,7 @@ static const struct v3d_reg_def v3d_core_reg_defs[] = {
 	REGDEF(V3D_GMP_VIO_ADDR),
 };
 
-static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
+static int v3d_v3d_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -94,7 +94,7 @@ static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
+static int v3d_v3d_defs_ident(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -163,7 +163,7 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int v3d_debugfs_bo_stats(struct seq_file *m, void *unused)
+static int v3d_defs_bo_stats(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -213,17 +213,17 @@ static int v3d_measure_clock(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static const struct drm_info_list v3d_debugfs_list[] = {
-	{"v3d_ident", v3d_v3d_debugfs_ident, 0},
-	{"v3d_regs", v3d_v3d_debugfs_regs, 0},
+static const struct drm_info_list v3d_defs_list[] = {
+	{"v3d_ident", v3d_v3d_defs_ident, 0},
+	{"v3d_regs", v3d_v3d_defs_regs, 0},
 	{"measure_clock", v3d_measure_clock, 0},
-	{"bo_stats", v3d_debugfs_bo_stats, 0},
+	{"bo_stats", v3d_defs_bo_stats, 0},
 };
 
 int
-v3d_debugfs_init(struct drm_minor *minor)
+v3d_defs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(v3d_debugfs_list,
-					ARRAY_SIZE(v3d_debugfs_list),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(v3d_defs_list,
+					ARRAY_SIZE(v3d_defs_list),
+					minor->defs_root, minor);
 }

@@ -18,7 +18,7 @@
  *  Copyright (C) 2005 Thiemo Seufer
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/extable.h>
 #include <linux/moduleloader.h>
@@ -332,7 +332,7 @@ static int __apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 	int err = 0;
 	size_t reloc_sz;
 
-	pr_debug("Applying relocate section %u to %u\n", relsec,
+	pr_de("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 
 	r.rel = (void *)sechdrs[relsec].sh_addr;

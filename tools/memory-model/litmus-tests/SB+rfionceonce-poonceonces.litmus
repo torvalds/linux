@@ -28,5 +28,5 @@ P1(int *x, int *y)
 	r4 = READ_ONCE(*x);
 }
 
-locations [0:r1; 1:r3; x; y] (* Debug aid: Print things not in "exists". *)
+locations [0:r1; 1:r3; x; y] (* De aid: Print things not in "exists". *)
 exists (0:r2=0 /\ 1:r4=0)

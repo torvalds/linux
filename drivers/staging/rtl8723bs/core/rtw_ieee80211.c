@@ -7,7 +7,7 @@
 #define _IEEE80211_C
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/of.h>
 
 u8 RTW_WPA_OUI_TYPE[] = { 0x00, 0x50, 0xf2, 1 };
@@ -959,7 +959,7 @@ static int rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
  * @start: Pointer to the start of IEs
  * @len: Length of IE buffer in octets
  * @elems: Data structure for parsed elements
- * @show_errors: Whether to show parsing errors in debug log
+ * @show_errors: Whether to show parsing errors in de log
  * Returns: Parsing result
  */
 ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,

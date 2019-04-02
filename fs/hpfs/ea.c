@@ -262,8 +262,8 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 		fnode->ea_size_s = cpu_to_le16(le16_to_cpu(fnode->ea_size_s) + strlen(key) + size + 5);
 		goto ret;
 	}
-	/* Most the code here is 99.9993422% unused. I hope there are no bugs.
-	   But what .. HPFS.IFS has also bugs in ea management. */
+	/* Most the code here is 99.9993422% unused. I hope there are no s.
+	   But what .. HPFS.IFS has also s in ea management. */
 	if (le16_to_cpu(fnode->ea_size_s) && !le32_to_cpu(fnode->ea_size_l)) {
 		secno n;
 		struct buffer_head *bh;

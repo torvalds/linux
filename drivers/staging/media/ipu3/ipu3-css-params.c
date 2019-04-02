@@ -639,7 +639,7 @@ static int imgu_css_osys_calc_frame_and_stripe_params(
 							IMGU_OSYS_FIR_PHASES;
 				}
 				/*
-				 * FW workaround for a HW bug: if the first
+				 * FW workaround for a HW : if the first
 				 * chroma pixel is generated exactly at the end
 				 * of chunck scaler HW may not output the pixel
 				 * for downscale factors smaller than 1.5

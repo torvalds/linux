@@ -36,7 +36,7 @@ struct cht_int33fe_data {
 };
 
 /*
- * Grrr I severly dislike buggy BIOS-es. At least one BIOS enumerates
+ * Grrr I severly dislike gy BIOS-es. At least one BIOS enumerates
  * the max17047 both through the INT33FE ACPI device (it is right there
  * in the resources table) as well as through a separate MAX17047 device.
  *
@@ -151,7 +151,7 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	/* Work around BIOS bug, see comment on cht_int33fe_find_max17047 */
+	/* Work around BIOS , see comment on cht_int33fe_find_max17047 */
 	max17047 = cht_int33fe_find_max17047();
 	if (max17047) {
 		/* Pre-existing i2c-client for the max17047, add device-props */

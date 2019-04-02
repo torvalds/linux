@@ -11,22 +11,22 @@ config JFFS2_FS
 	  Further information on the design and implementation of JFFS2 is
 	  available at <http://sources.redhat.com/jffs2/>.
 
-config JFFS2_FS_DEBUG
-	int "JFFS2 debugging verbosity (0 = quiet, 2 = noisy)"
+config JFFS2_FS_DE
+	int "JFFS2 deging verbosity (0 = quiet, 2 = noisy)"
 	depends on JFFS2_FS
 	default "0"
 	help
-	  This controls the amount of debugging messages produced by the JFFS2
+	  This controls the amount of deging messages produced by the JFFS2
 	  code. Set it to zero for use in production systems. For evaluation,
-	  testing and debugging, it's advisable to set it to one. This will
-	  enable a few assertions and will print debugging messages at the
-	  KERN_DEBUG loglevel, where they won't normally be visible. Level 2
-	  is unlikely to be useful - it enables extra debugging in certain
-	  areas which at one point needed debugging, but when the bugs were
+	  testing and deging, it's advisable to set it to one. This will
+	  enable a few assertions and will print deging messages at the
+	  KERN_DE loglevel, where they won't normally be visible. Level 2
+	  is unlikely to be useful - it enables extra deging in certain
+	  areas which at one point needed deging, but when the s were
 	  located and fixed, the detailed messages were relegated to level 2.
 
-	  If reporting bugs, please try to have available a full dump of the
-	  messages at debug level 1 while the misbehaviour was occurring.
+	  If reporting s, please try to have available a full dump of the
+	  messages at de level 1 while the misbehaviour was occurring.
 
 config JFFS2_FS_WRITEBUFFER
 	bool "JFFS2 write-buffering support"

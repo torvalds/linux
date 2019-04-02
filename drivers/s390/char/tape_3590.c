@@ -27,9 +27,9 @@
 static struct workqueue_struct *tape_3590_wq;
 
 /*
- * Pointer to debug area.
+ * Pointer to de area.
  */
-debug_info_t *TAPE_DBF_AREA = NULL;
+de_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
 /*******************************************************************
@@ -160,7 +160,7 @@ static void int_to_ext_kekl_pair(struct tape3592_kekl_pair *in,
 		int_to_ext_kekl(&in->kekl[1], &out->kekl[1]);
 	} else {
 		printk("Invalid KEKL number: %d\n", in->count);
-		BUG();
+		();
 	}
 }
 
@@ -837,7 +837,7 @@ tape_3590_erp_basic(struct tape_device *device, struct tape_request *request,
 	case SENSE_BRA_DRE:
 		return tape_3590_erp_failed(device, request, irb, rc);
 	default:
-		BUG();
+		();
 		return TAPE_IO_STOP;
 	}
 }
@@ -1663,10 +1663,10 @@ tape_3590_init(void)
 {
 	int rc;
 
-	TAPE_DBF_AREA = debug_register("tape_3590", 2, 2, 4 * sizeof(long));
-	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
+	TAPE_DBF_AREA = de_register("tape_3590", 2, 2, 4 * sizeof(long));
+	de_register_view(TAPE_DBF_AREA, &de_sprintf_view);
 #ifdef DBF_LIKE_HELL
-	debug_set_level(TAPE_DBF_AREA, 6);
+	de_set_level(TAPE_DBF_AREA, 6);
 #endif
 
 	DBF_EVENT(3, "3590 init\n");
@@ -1690,7 +1690,7 @@ tape_3590_exit(void)
 {
 	ccw_driver_unregister(&tape_3590_driver);
 	destroy_workqueue(tape_3590_wq);
-	debug_unregister(TAPE_DBF_AREA);
+	de_unregister(TAPE_DBF_AREA);
 }
 
 MODULE_DEVICE_TABLE(ccw, tape_3590_ids);

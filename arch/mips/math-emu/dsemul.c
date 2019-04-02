@@ -116,7 +116,7 @@ retry:
 	}
 
 	/* Success! */
-	pr_debug("allocate emuframe %d to %d\n", idx, current->pid);
+	pr_de("allocate emuframe %d to %d\n", idx, current->pid);
 out_unlock:
 	spin_unlock(&mm_ctx->bd_emupage_lock);
 	return idx;
@@ -128,7 +128,7 @@ static void free_emuframe(int idx, struct mm_struct *mm)
 
 	spin_lock(&mm_ctx->bd_emupage_lock);
 
-	pr_debug("free emuframe %d from %d\n", idx, current->pid);
+	pr_de("free emuframe %d from %d\n", idx, current->pid);
 	bitmap_clear(mm_ctx->bd_emupage_allocmap, idx, 1);
 
 	/* If some thread is waiting for a frame, now's its chance */
@@ -243,7 +243,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 		}
 	}
 
-	pr_debug("dsemul 0x%08lx cont at 0x%08lx\n", regs->cp0_epc, cont_pc);
+	pr_de("dsemul 0x%08lx cont at 0x%08lx\n", regs->cp0_epc, cont_pc);
 
 	/* Allocate a frame if we don't already have one */
 	fr_idx = atomic_read(&current->thread.bd_emu_frame);
@@ -302,7 +302,7 @@ bool do_dsemulret(struct pt_regs *xcp)
 
 	/* Set EPC to return to post-branch instruction */
 	xcp->cp0_epc = current->thread.bd_emu_cont_pc;
-	pr_debug("dsemulret to 0x%08lx\n", xcp->cp0_epc);
+	pr_de("dsemulret to 0x%08lx\n", xcp->cp0_epc);
 	MIPS_FPU_EMU_INC_STATS(ds_emul);
 	return true;
 }

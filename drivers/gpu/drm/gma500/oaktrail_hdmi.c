@@ -167,7 +167,7 @@ static unsigned int htotal_calculate(struct drm_display_mode *mode)
 	 */
 	new_crtc_htotal = (mode->crtc_htotal - 1) * 200 * 1000 / mode->clock;
 
-	DRM_DEBUG_KMS("new crtc htotal 0x%4x\n", new_crtc_htotal);
+	DRM_DE_KMS("new crtc htotal 0x%4x\n", new_crtc_htotal);
 	return (mode->crtc_hdisplay - 1) | (new_crtc_htotal << 16);
 }
 
@@ -194,7 +194,7 @@ static void oaktrail_hdmi_find_dpll(struct drm_crtc *crtc, int target,
 	np = DIV_ROUND_UP((refclk * 1000), (target * 10 * nr_max));
 	nr = DIV_ROUND_UP((refclk * 1000), (target * 10 * np));
 	nf = DIV_ROUND_CLOSEST((target * 10 * np * nr), refclk);
-	DRM_DEBUG_KMS("np, nr, nf %d %d %d\n", np, nr, nf);
+	DRM_DE_KMS("np, nr, nf %d %d %d\n", np, nr, nf);
 
 	/*
 	 * 1024 x 768  np = 1; nr = 0x26; nf = 0x0fd8000;
@@ -217,7 +217,7 @@ static void scu_busy_loop(void __iomem *scu_base)
 		loop_count++;
 		/* break if scu doesn't reset busy bit after huge retry */
 		if (loop_count > 1000) {
-			DRM_DEBUG_KMS("SCU IPC timed out");
+			DRM_DE_KMS("SCU IPC timed out");
 			return;
 		}
 	}
@@ -381,7 +381,7 @@ void oaktrail_crtc_hdmi_dpms(struct drm_crtc *crtc, int mode)
 	struct drm_device *dev = crtc->dev;
 	u32 temp;
 
-	DRM_DEBUG_KMS("%s %d\n", __func__, mode);
+	DRM_DE_KMS("%s %d\n", __func__, mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_OFF:
@@ -533,7 +533,7 @@ oaktrail_hdmi_detect(struct drm_connector *connector, bool force)
 	u32 temp;
 
 	temp = HDMI_READ(HDMI_HSR);
-	DRM_DEBUG_KMS("HDMI_HSR %x\n", temp);
+	DRM_DE_KMS("HDMI_HSR %x\n", temp);
 
 	if ((temp & HDMI_DETECT_HDP) != 0)
 		status = connector_status_connected;

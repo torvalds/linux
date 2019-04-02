@@ -61,7 +61,7 @@ sn2_ptc_deadlock_recovery(nodemask_t, short, short, int,
 
 /*
  * Note: some is the following is captured here to make degugging easier
- * (the macros make more sense if you see the debug patch - not posted)
+ * (the macros make more sense if you see the de patch - not posted)
  */
 #define sn2_ptctest	0
 #define local_node_uses_ptc_ga(sh1)	((sh1) ? 1 : 0)

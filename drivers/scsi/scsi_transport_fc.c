@@ -2212,7 +2212,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_STARGET_ATTRIBUTE_RD(port_name);
 	SETUP_STARGET_ATTRIBUTE_RD(port_id);
 
-	BUG_ON(count > FC_STARGET_NUM_ATTRS);
+	_ON(count > FC_STARGET_NUM_ATTRS);
 
 	i->starget_attrs[count] = NULL;
 
@@ -2260,7 +2260,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	if (ft->vport_delete)
 		SETUP_PRIVATE_HOST_ATTRIBUTE_RW(vport_delete);
 
-	BUG_ON(count > FC_HOST_NUM_ATTRS);
+	_ON(count > FC_HOST_NUM_ATTRS);
 
 	i->host_attrs[count] = NULL;
 
@@ -2279,7 +2279,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(scsi_target_id);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RW(fast_io_fail_tmo);
 
-	BUG_ON(count > FC_RPORT_NUM_ATTRS);
+	_ON(count > FC_RPORT_NUM_ATTRS);
 
 	i->rport_attrs[count] = NULL;
 
@@ -2297,7 +2297,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_VPORT_ATTRIBUTE_WR(vport_delete);
 	SETUP_VPORT_ATTRIBUTE_WR(vport_disable);
 
-	BUG_ON(count > FC_VPORT_NUM_ATTRS);
+	_ON(count > FC_VPORT_NUM_ATTRS);
 
 	i->vport_attrs[count] = NULL;
 
@@ -3666,7 +3666,7 @@ static int fc_bsg_host_dispatch(struct Scsi_Host *shost, struct bsg_job *job)
 
 fail_host_msg:
 	/* return the errno failure code as the only status */
-	BUG_ON(job->reply_len < sizeof(uint32_t));
+	_ON(job->reply_len < sizeof(uint32_t));
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
 	job->reply_len = sizeof(uint32_t);
@@ -3735,7 +3735,7 @@ check_bidi:
 
 fail_rport_msg:
 	/* return the errno failure code as the only status */
-	BUG_ON(job->reply_len < sizeof(uint32_t));
+	_ON(job->reply_len < sizeof(uint32_t));
 	bsg_reply->reply_payload_rcv_len = 0;
 	bsg_reply->result = ret;
 	job->reply_len = sizeof(uint32_t);

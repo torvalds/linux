@@ -298,14 +298,14 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		    netmask <= mask_bits)
 			return -IPSET_ERR_BITMAP_RANGE;
 
-		pr_debug("mask_bits %u, netmask %u\n", mask_bits, netmask);
+		pr_de("mask_bits %u, netmask %u\n", mask_bits, netmask);
 		hosts = 2 << (32 - netmask - 1);
 		elements = 2 << (netmask - mask_bits - 1);
 	}
 	if (elements > IPSET_BITMAP_MAX_RANGE + 1)
 		return -IPSET_ERR_BITMAP_RANGE_SIZE;
 
-	pr_debug("hosts %u, elements %llu\n",
+	pr_de("hosts %u, elements %llu\n",
 		 hosts, (unsigned long long)elements);
 
 	set->dsize = ip_set_elem_len(set, tb, 0, 0);

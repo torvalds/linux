@@ -140,8 +140,8 @@ struct dw_spi {
 
 	/* Bus interface info */
 	void			*priv;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs;
 #endif
 };
 

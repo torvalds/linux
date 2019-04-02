@@ -141,7 +141,7 @@ static void dmabuf_exp_wait_obj_signal(struct gntdev_dmabuf_priv *priv,
 
 	list_for_each_entry(obj, &priv->exp_wait_list, next)
 		if (obj->gntdev_dmabuf == gntdev_dmabuf) {
-			pr_debug("Found gntdev_dmabuf in the wait list, wake\n");
+			pr_de("Found gntdev_dmabuf in the wait list, wake\n");
 			complete_all(&obj->completion);
 			break;
 		}
@@ -155,7 +155,7 @@ dmabuf_exp_wait_obj_get_dmabuf(struct gntdev_dmabuf_priv *priv, int fd)
 	mutex_lock(&priv->lock);
 	list_for_each_entry(gntdev_dmabuf, &priv->exp_list, next)
 		if (gntdev_dmabuf->fd == fd) {
-			pr_debug("Found gntdev_dmabuf in the wait list\n");
+			pr_de("Found gntdev_dmabuf in the wait list\n");
 			kref_get(&gntdev_dmabuf->u.exp.refcount);
 			ret = gntdev_dmabuf;
 			break;
@@ -171,7 +171,7 @@ static int dmabuf_exp_wait_released(struct gntdev_dmabuf_priv *priv, int fd,
 	struct gntdev_dmabuf_wait_obj *obj;
 	int ret;
 
-	pr_debug("Will wait for dma-buf with fd %d\n", fd);
+	pr_de("Will wait for dma-buf with fd %d\n", fd);
 	/*
 	 * Try to find the DMA buffer: if not found means that
 	 * either the buffer has already been released or file descriptor
@@ -268,7 +268,7 @@ dmabuf_exp_ops_map_dma_buf(struct dma_buf_attachment *attach,
 	struct gntdev_dmabuf *gntdev_dmabuf = attach->dmabuf->priv;
 	struct sg_table *sgt;
 
-	pr_debug("Mapping %d pages for dev %p\n", gntdev_dmabuf->nr_pages,
+	pr_de("Mapping %d pages for dev %p\n", gntdev_dmabuf->nr_pages,
 		 attach->dev);
 
 	if (dir == DMA_NONE || !gntdev_dmabuf_attach)
@@ -299,7 +299,7 @@ dmabuf_exp_ops_map_dma_buf(struct dma_buf_attachment *attach,
 		}
 	}
 	if (IS_ERR(sgt))
-		pr_debug("Failed to map sg table for dev %p\n", attach->dev);
+		pr_de("Failed to map sg table for dev %p\n", attach->dev);
 	return sgt;
 }
 
@@ -425,7 +425,7 @@ static int dmabuf_exp_from_pages(struct gntdev_dmabuf_export_args *args)
 	gntdev_dmabuf->fd = ret;
 	args->fd = ret;
 
-	pr_debug("Exporting DMA buffer with fd %d\n", ret);
+	pr_de("Exporting DMA buffer with fd %d\n", ret);
 
 	mutex_lock(&args->dmabuf_priv->lock);
 	list_add(&gntdev_dmabuf->next, &args->dmabuf_priv->exp_list);
@@ -451,7 +451,7 @@ dmabuf_exp_alloc_backing_storage(struct gntdev_priv *priv, int dmabuf_flags,
 
 	if ((dmabuf_flags & GNTDEV_DMA_FLAG_WC) &&
 	    (dmabuf_flags & GNTDEV_DMA_FLAG_COHERENT)) {
-		pr_debug("Wrong dma-buf flags: 0x%x\n", dmabuf_flags);
+		pr_de("Wrong dma-buf flags: 0x%x\n", dmabuf_flags);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -460,7 +460,7 @@ dmabuf_exp_alloc_backing_storage(struct gntdev_priv *priv, int dmabuf_flags,
 		return ERR_PTR(-ENOMEM);
 
 	if (unlikely(gntdev_account_mapped_pages(count))) {
-		pr_debug("can't map %d pages: over limit\n", count);
+		pr_de("can't map %d pages: over limit\n", count);
 		gntdev_put_map(NULL, map);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -527,7 +527,7 @@ dmabuf_imp_grant_foreign_access(struct page **pages, u32 *refs,
 
 	ret = gnttab_alloc_grant_references(count, &priv_gref_head);
 	if (ret < 0) {
-		pr_debug("Cannot allocate grant references, ret %d\n", ret);
+		pr_de("Cannot allocate grant references, ret %d\n", ret);
 		return ret;
 	}
 
@@ -537,7 +537,7 @@ dmabuf_imp_grant_foreign_access(struct page **pages, u32 *refs,
 		cur_ref = gnttab_claim_grant_reference(&priv_gref_head);
 		if (cur_ref < 0) {
 			ret = cur_ref;
-			pr_debug("Cannot claim grant reference, ret %d\n", ret);
+			pr_de("Cannot claim grant reference, ret %d\n", ret);
 			goto out;
 		}
 
@@ -644,7 +644,7 @@ dmabuf_imp_to_refs(struct gntdev_dmabuf_priv *priv, struct device *dev,
 	/* Check number of pages that imported buffer has. */
 	if (attach->dmabuf->size != gntdev_dmabuf->nr_pages << PAGE_SHIFT) {
 		ret = ERR_PTR(-EINVAL);
-		pr_debug("DMA buffer has %zu pages, user-space expects %d\n",
+		pr_de("DMA buffer has %zu pages, user-space expects %d\n",
 			 attach->dmabuf->size, gntdev_dmabuf->nr_pages);
 		goto fail_unmap;
 	}
@@ -674,7 +674,7 @@ dmabuf_imp_to_refs(struct gntdev_dmabuf_priv *priv, struct device *dev,
 	if (IS_ERR(ret))
 		goto fail_end_access;
 
-	pr_debug("Imported DMA buffer with fd %d\n", fd);
+	pr_de("Imported DMA buffer with fd %d\n", fd);
 
 	mutex_lock(&priv->lock);
 	list_add(&gntdev_dmabuf->next, &priv->imp_list);
@@ -707,7 +707,7 @@ dmabuf_imp_find_unlink(struct gntdev_dmabuf_priv *priv, int fd)
 	mutex_lock(&priv->lock);
 	list_for_each_entry_safe(gntdev_dmabuf, q, &priv->imp_list, next) {
 		if (gntdev_dmabuf->fd == fd) {
-			pr_debug("Found gntdev_dmabuf in the import list\n");
+			pr_de("Found gntdev_dmabuf in the import list\n");
 			ret = gntdev_dmabuf;
 			list_del(&gntdev_dmabuf->next);
 			break;
@@ -727,7 +727,7 @@ static int dmabuf_imp_release(struct gntdev_dmabuf_priv *priv, u32 fd)
 	if (IS_ERR(gntdev_dmabuf))
 		return PTR_ERR(gntdev_dmabuf);
 
-	pr_debug("Releasing DMA buffer with fd %d\n", fd);
+	pr_de("Releasing DMA buffer with fd %d\n", fd);
 
 	dmabuf_imp_end_foreign_access(gntdev_dmabuf->u.imp.refs,
 				      gntdev_dmabuf->nr_pages);
@@ -763,7 +763,7 @@ long gntdev_ioctl_dmabuf_exp_from_refs(struct gntdev_priv *priv, int use_ptemod,
 	long ret;
 
 	if (use_ptemod) {
-		pr_debug("Cannot provide dma-buf: use_ptemode %d\n",
+		pr_de("Cannot provide dma-buf: use_ptemode %d\n",
 			 use_ptemod);
 		return -EINVAL;
 	}

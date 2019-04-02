@@ -65,7 +65,7 @@ struct cxd2820r_priv {
 
 /* cxd2820r_core.c */
 
-extern int cxd2820r_debug;
+extern int cxd2820r_de;
 
 int cxd2820r_gpio(struct dvb_frontend *fe, u8 *gpio);
 

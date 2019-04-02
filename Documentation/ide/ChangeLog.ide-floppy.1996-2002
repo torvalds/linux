@@ -4,18 +4,18 @@
  *
  * Ver 0.1   Oct 17 96   Initial test version, mostly based on ide-tape.c.
  * Ver 0.2   Oct 31 96   Minor changes.
- * Ver 0.3   Dec  2 96   Fixed error recovery bug.
+ * Ver 0.3   Dec  2 96   Fixed error recovery .
  * Ver 0.4   Jan 26 97   Add support for the HDIO_GETGEO ioctl.
  * Ver 0.5   Feb 21 97   Add partitions support.
  *                       Use the minimum of the LBA and CHS capacities.
  *                       Avoid hwgroup->rq == NULL on the last irq.
- *                       Fix potential null dereferencing with DEBUG_LOG.
+ *                       Fix potential null dereferencing with DE_LOG.
  * Ver 0.8   Dec  7 97   Increase irq timeout from 10 to 50 seconds.
  *                       Add media write-protect detection.
  *                       Issue START command only if TEST UNIT READY fails.
  *                       Add work-around for IOMEGA ZIP revision 21.D.
  *                       Remove idefloppy_get_capabilities().
- * Ver 0.9   Jul  4 99   Fix a bug which might have caused the number of
+ * Ver 0.9   Jul  4 99   Fix a  which might have caused the number of
  *                        bytes requested on each interrupt to be zero.
  *                        Thanks to <shanos@es.co.nz> for pointing this out.
  * Ver 0.9.sv Jan 6 01   Sam Varshavchik <mrsam@courier-mta.com>
@@ -45,7 +45,7 @@
  *     		   <paul@paulbristow.net>
  * Ver 0.92  Oct 22 00   Paul Bristow became official maintainer for this
  *           		   driver.  Included Powerbook internal zip kludge.
- * Ver 0.93  Oct 24 00   Fixed bugs for Clik! drive
+ * Ver 0.93  Oct 24 00   Fixed s for Clik! drive
  *                        no disk on insert and disk change now works
  * Ver 0.94  Oct 27 00   Tidied up to remove strstr(Clik) everywhere
  * Ver 0.95  Nov  7 00   Brought across to kernel 2.4

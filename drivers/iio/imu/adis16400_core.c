@@ -25,7 +25,7 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/bitops.h>
 
 #include <linux/iio/iio.h>
@@ -34,7 +34,7 @@
 
 #include "adis16400.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static ssize_t adis16400_show_serial_number(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
@@ -105,19 +105,19 @@ static int adis16400_show_flash_count(void *arg, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(adis16400_flash_count_fops,
 	adis16400_show_flash_count, NULL, "%lld\n");
 
-static int adis16400_debugfs_init(struct iio_dev *indio_dev)
+static int adis16400_defs_init(struct iio_dev *indio_dev)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
 
 	if (st->variant->flags & ADIS16400_HAS_SERIAL_NUMBER)
-		debugfs_create_file("serial_number", 0400,
-			indio_dev->debugfs_dentry, st,
+		defs_create_file("serial_number", 0400,
+			indio_dev->defs_dentry, st,
 			&adis16400_serial_number_fops);
 	if (st->variant->flags & ADIS16400_HAS_PROD_ID)
-		debugfs_create_file("product_id", 0400,
-			indio_dev->debugfs_dentry, st,
+		defs_create_file("product_id", 0400,
+			indio_dev->defs_dentry, st,
 			&adis16400_product_id_fops);
-	debugfs_create_file("flash_count", 0400, indio_dev->debugfs_dentry,
+	defs_create_file("flash_count", 0400, indio_dev->defs_dentry,
 		st, &adis16400_flash_count_fops);
 
 	return 0;
@@ -125,7 +125,7 @@ static int adis16400_debugfs_init(struct iio_dev *indio_dev)
 
 #else
 
-static int adis16400_debugfs_init(struct iio_dev *indio_dev)
+static int adis16400_defs_init(struct iio_dev *indio_dev)
 {
 	return 0;
 }
@@ -836,7 +836,7 @@ static const struct iio_info adis16400_info = {
 	.read_raw = &adis16400_read_raw,
 	.write_raw = &adis16400_write_raw,
 	.update_scan_mode = adis16400_update_scan_mode,
-	.debugfs_reg_access = adis_debugfs_reg_access,
+	.defs_reg_access = adis_defs_reg_access,
 };
 
 static const char * const adis16400_status_error_msgs[] = {
@@ -945,7 +945,7 @@ static int adis16400_probe(struct spi_device *spi)
 	if (ret)
 		goto error_cleanup_buffer;
 
-	adis16400_debugfs_init(indio_dev);
+	adis16400_defs_init(indio_dev);
 	return 0;
 
 error_cleanup_buffer:

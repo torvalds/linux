@@ -760,10 +760,10 @@ enum {
 };
 
 struct mlx5_ib_dbg_delay_drop {
-	struct dentry		*dir_debugfs;
-	struct dentry		*rqs_cnt_debugfs;
-	struct dentry		*events_cnt_debugfs;
-	struct dentry		*timeout_debugfs;
+	struct dentry		*dir_defs;
+	struct dentry		*rqs_cnt_defs;
+	struct dentry		*events_cnt_defs;
+	struct dentry		*timeout_defs;
 };
 
 struct mlx5_ib_delay_drop {
@@ -789,7 +789,7 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_DEVICE_NOTIFIER,
 	MLX5_IB_STAGE_ODP,
 	MLX5_IB_STAGE_COUNTERS,
-	MLX5_IB_STAGE_CONG_DEBUGFS,
+	MLX5_IB_STAGE_CONG_DEFS,
 	MLX5_IB_STAGE_UAR,
 	MLX5_IB_STAGE_BFREG,
 	MLX5_IB_STAGE_PRE_IB_REG_UMR,
@@ -1265,8 +1265,8 @@ int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev,
 			       const struct ib_gid_attr *attr);
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
-void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num);
+void mlx5_ib_cleanup_cong_defs(struct mlx5_ib_dev *dev, u8 port_num);
+void mlx5_ib_init_cong_defs(struct mlx5_ib_dev *dev, u8 port_num);
 
 /* GSI QP helper functions */
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,

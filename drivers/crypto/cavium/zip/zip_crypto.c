@@ -178,7 +178,7 @@ int zip_decompress(const u8 *src, unsigned int slen,
 	zip_ops = &zip_ctx->zip_decomp;
 	memcpy(zip_ops->input, src, slen);
 
-	/* Work around for a bug in zlib which needs an extra bytes sometimes */
+	/* Work around for a  in zlib which needs an extra bytes sometimes */
 	if (zip_ops->ccode != 3) /* Not LZS Encoding */
 		zip_ops->input[slen++] = 0;
 

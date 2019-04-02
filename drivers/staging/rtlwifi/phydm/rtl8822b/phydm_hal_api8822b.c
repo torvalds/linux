@@ -597,7 +597,7 @@ bool phydm_write_txagc_1byte_8822b(struct phy_dm_struct *dm, u32 power_index,
 	u8 rate_offset = (hw_rate & 0x3);
 	u32 txagc_content = 0x0;
 
-	/* For debug command only!!!! */
+	/* For de command only!!!! */
 
 	/* Error handling */
 	if ((path > ODM_RF_PATH_B) || (hw_rate > 0x53)) {
@@ -912,7 +912,7 @@ bool config_phydm_write_txagc_8822b(struct phy_dm_struct *dm, u32 power_index,
 
 	if (dm->is_disable_phy_api) {
 		ODM_RT_TRACE(dm, ODM_PHY_CONFIG,
-			     "%s(): disable PHY API for debug!!\n", __func__);
+			     "%s(): disable PHY API for de!!\n", __func__);
 		return true;
 	}
 
@@ -981,7 +981,7 @@ bool config_phydm_switch_band_8822b(struct phy_dm_struct *dm, u8 central_ch)
 
 	if (dm->is_disable_phy_api) {
 		ODM_RT_TRACE(dm, ODM_PHY_CONFIG,
-			     "%s(): disable PHY API for debug!!\n", __func__);
+			     "%s(): disable PHY API for de!!\n", __func__);
 		return true;
 	}
 
@@ -1093,7 +1093,7 @@ bool config_phydm_switch_channel_8822b(struct phy_dm_struct *dm, u8 central_ch)
 
 	if (dm->is_disable_phy_api) {
 		ODM_RT_TRACE(dm, ODM_PHY_CONFIG,
-			     "%s(): disable PHY API for debug!!\n", __func__);
+			     "%s(): disable PHY API for de!!\n", __func__);
 		return true;
 	}
 
@@ -1303,7 +1303,7 @@ bool config_phydm_switch_bandwidth_8822b(struct phy_dm_struct *dm,
 
 	if (dm->is_disable_phy_api) {
 		ODM_RT_TRACE(dm, ODM_PHY_CONFIG,
-			     "%s(): disable PHY API for debug!!\n", __func__);
+			     "%s(): disable PHY API for de!!\n", __func__);
 		return true;
 	}
 
@@ -1533,7 +1533,7 @@ bool config_phydm_trx_mode_8822b(struct phy_dm_struct *dm,
 
 	if (dm->is_disable_phy_api) {
 		ODM_RT_TRACE(dm, ODM_PHY_CONFIG,
-			     "%s(): disable PHY API for debug!!\n", __func__);
+			     "%s(): disable PHY API for de!!\n", __func__);
 		return true;
 	}
 

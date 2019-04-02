@@ -185,7 +185,7 @@ unmapped_gva:
 
 static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t page, int level)
 {
-#ifdef DEBUG_VM
+#ifdef DE_VM
 	static const char * const type[] = { "", "pud", "pmd", "pte" };
 	uint64_t pte, *ptep;
 

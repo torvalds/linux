@@ -34,7 +34,7 @@
  *  Modifications by Daniel M. Eischen (deischen@iworks.InterWorks.org):
  *
  *  Substantially modified to include support for wide and twin bus
- *  adapters, DMAing of SCBs, tagged queueing, IRQ sharing, bug fixes,
+ *  adapters, DMAing of SCBs, tagged queueing, IRQ sharing,  fixes,
  *  SCB paging, and other rework of the code.
  *
  * --------------------------------------------------------------------------
@@ -78,9 +78,9 @@
  *
  *  Thanks also go to (in alphabetical order) the following:
  *
- *    Rory Bolt     - Sequencer bug fixes
+ *    Rory Bolt     - Sequencer  fixes
  *    Jay Estabrook - Initial DEC Alpha support
- *    Doug Ledford  - Much needed abort/reset bug fixes
+ *    Doug Ledford  - Much needed abort/reset  fixes
  *    Kai Makisara  - DMAing of SCBs
  *
  *  A Boot time option was also added for not resetting the scsi bus.
@@ -335,7 +335,7 @@ MODULE_PARM_DESC(aic7xxx,
 "period-delimited options string:\n"
 "	verbose			Enable verbose/diagnostic logging\n"
 "	allow_memio		Allow device registers to be memory mapped\n"
-"	debug			Bitmask of debug values to enable\n"
+"	de			Bitmask of de values to enable\n"
 "	no_probe		Toggle EISA/VLB controller probing\n"
 "	probe_eisa_vl		Toggle EISA/VLB controller probing\n"
 "	no_reset		Suppress initial bus resets\n"
@@ -579,7 +579,7 @@ ahc_linux_target_alloc(struct scsi_target *starget)
 
 	ahc_lock(ahc, &flags);
 
-	BUG_ON(*ahc_targp != NULL);
+	_ON(*ahc_targp != NULL);
 
 	*ahc_targp = starget;
 
@@ -1032,8 +1032,8 @@ aic7xxx_setup(char *s)
 		{ "no_reset", &aic7xxx_no_reset },
 		{ "verbose", &aic7xxx_verbose },
 		{ "allow_memio", &aic7xxx_allow_memio},
-#ifdef AHC_DEBUG
-		{ "debug", &ahc_debug },
+#ifdef AHC_DE
+		{ "de", &ahc_de },
 #endif
 		{ "periodic_otag", &aic7xxx_periodic_otag },
 		{ "pci_parity", &aic7xxx_pci_parity },
@@ -1616,7 +1616,7 @@ ahc_send_async(struct ahc_softc *ahc, char channel,
 		int	target_offset;
 		unsigned int target_ppr_options;
 
-		BUG_ON(target == CAM_TARGET_WILDCARD);
+		_ON(target == CAM_TARGET_WILDCARD);
 
 		tinfo = ahc_fetch_transinfo(ahc, channel,
 						channel == 'A' ? ahc->our_id
@@ -1702,7 +1702,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		target_offset = SCB_GET_TARGET_OFFSET(ahc, scb);
 		untagged_q = &(ahc->untagged_queues[target_offset]);
 		TAILQ_REMOVE(untagged_q, scb, links.tqe);
-		BUG_ON(!TAILQ_EMPTY(untagged_q));
+		_ON(!TAILQ_EMPTY(untagged_q));
 	} else if ((scb->flags & SCB_ACTIVE) == 0) {
 		/*
 		 * Transactions aborted from the untagged queue may
@@ -1736,8 +1736,8 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		amount_xferred =
 		    ahc_get_transfer_length(scb) - ahc_get_residual(scb);
 		if ((scb->flags & SCB_TRANSMISSION_ERROR) != 0) {
-#ifdef AHC_DEBUG
-			if ((ahc_debug & AHC_SHOW_MISC) != 0) {
+#ifdef AHC_DE
+			if ((ahc_de & AHC_SHOW_MISC) != 0) {
 				ahc_print_path(ahc, scb);
 				printk("Set CAM_UNCOR_PARITY\n");
 			}
@@ -1856,8 +1856,8 @@ ahc_linux_handle_scsi_status(struct ahc_softc *ahc,
 				memset(&cmd->sense_buffer[sense_size], 0,
 				       SCSI_SENSE_BUFFERSIZE - sense_size);
 			cmd->result |= (DRIVER_SENSE << 24);
-#ifdef AHC_DEBUG
-			if (ahc_debug & AHC_SHOW_SENSE) {
+#ifdef AHC_DE
+			if (ahc_de & AHC_SHOW_SENSE) {
 				int i;
 
 				printk("Copied %d bytes of sense data:",

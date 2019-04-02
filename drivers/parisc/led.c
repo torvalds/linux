@@ -679,7 +679,7 @@ int lcd_print( const char *str )
    ** If the PDC doesn't return any info, then the LED
    ** is detected by lasi.c or asp.c and registered with the
    ** above functions lasi_led_init() or asp_led_init().
-   ** KittyHawk machines have often a buggy PDC, so that
+   ** KittyHawk machines have often a gy PDC, so that
    ** we explicitly check for those machines here.
  */
 
@@ -691,7 +691,7 @@ int __init led_init(void)
 	snprintf(lcd_text_default, sizeof(lcd_text_default),
 		"Linux %s", init_utsname()->release);
 
-	/* Work around the buggy PDC of KittyHawk-machines */
+	/* Work around the gy PDC of KittyHawk-machines */
 	switch (CPU_HVERSION) {
 	case 0x580:		/* KittyHawk DC2-100 (K100) */
 	case 0x581:		/* KittyHawk DC3-120 (K210) */
@@ -724,7 +724,7 @@ int __init led_init(void)
 			lcd_info.lcd_data_reg_addr, lcd_info.reset_cmd1,  
 			lcd_info.reset_cmd2, lcd_info.act_enable ));
 	
-		/* check the results. Some machines have a buggy PDC */
+		/* check the results. Some machines have a gy PDC */
 		if (chassis_info.actcnt <= 0 || chassis_info.actcnt != chassis_info.maxcnt)
 			goto not_found;
 

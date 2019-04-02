@@ -349,7 +349,7 @@ static int __init init_default_values(void)
 	cr2 = 0x04;
 
 	for_each_possible_cpu (cpu) {
-		pr_debug("processing cpu %d\n", cpu);
+		pr_de("processing cpu %d\n", cpu);
 		dev = get_cpu_device(cpu);
 
 		if (!dev) {

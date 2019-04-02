@@ -18,18 +18,18 @@
 
 #ifndef BUILD_VDSO
 	/*
-	 * Emit CFI data in .debug_frame sections and not in .eh_frame
+	 * Emit CFI data in .de_frame sections and not in .eh_frame
 	 * sections.  The .eh_frame CFI is used for runtime unwind
 	 * information that is not being used.  Hence, vmlinux.lds.S
 	 * can discard the .eh_frame sections.
 	 */
-	.cfi_sections .debug_frame
+	.cfi_sections .de_frame
 #else
 	/*
-	 * For vDSO, emit CFI data in both, .eh_frame and .debug_frame
+	 * For vDSO, emit CFI data in both, .eh_frame and .de_frame
 	 * sections.
 	 */
-	.cfi_sections .eh_frame, .debug_frame
+	.cfi_sections .eh_frame, .de_frame
 #endif
 
 #endif	/* __ASSEMBLY__ */

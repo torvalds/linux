@@ -235,7 +235,7 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	 * We are using 'bool' internally, but let's make sure we explicit
 	 * about the size.
 	 */
-	BUILD_BUG_ON(sizeof(bool) != sizeof(u8));
+	BUILD__ON(sizeof(bool) != sizeof(u8));
 	if (!access_ok((void __user *)uva, sizeof(u8)))
 		return VMCI_ERROR_GENERIC;
 
@@ -1018,5 +1018,5 @@ void __exit vmci_host_exit(void)
 	vmci_ctx_destroy(host_context);
 	vmci_qp_broker_exit();
 
-	pr_debug("VMCI host driver module unloaded\n");
+	pr_de("VMCI host driver module unloaded\n");
 }

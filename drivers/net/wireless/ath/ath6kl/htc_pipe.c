@@ -15,7 +15,7 @@
  */
 
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "hif-ops.h"
 
 #define HTC_PACKET_CONTAINER_ALLOCATION 32

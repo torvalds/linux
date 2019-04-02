@@ -169,7 +169,7 @@
 #define ATH9K_ANTENNA0_CHAINMASK    0x1
 #define ATH9K_ANTENNA1_CHAINMASK    0x2
 
-#define ATH9K_NUM_DMA_DEBUG_REGS    8
+#define ATH9K_NUM_DMA_DE_REGS    8
 #define ATH9K_NUM_QUEUES            10
 
 #define MAX_RATE_POWER              63

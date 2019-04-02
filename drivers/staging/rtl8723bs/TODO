@@ -7,7 +7,7 @@ TODO:
 - find codes that can use %pM and %Nph formatting
 - checkpatch.pl fixes - most of the remaining ones are lines too long. Many
   of them will require refactoring
-- merge Realtek's bugfixes and new features into the driver
+- merge Realtek's fixes and new features into the driver
 - switch to use LIB80211
 - switch to use MAC80211
 

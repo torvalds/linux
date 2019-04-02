@@ -87,13 +87,13 @@ mfio33		i2c2
 mfio34		i2c3
 mfio35		i2c3
 mfio36		i2s_out, audio_clk_in
-mfio37		i2s_out, debug_raw_cca_ind
-mfio38		i2s_out, debug_ed_sec20_cca_ind
-mfio39		i2s_out, debug_ed_sec40_cca_ind
-mfio40		i2s_out, debug_agc_done_0
-mfio41		i2s_out, debug_agc_done_1
-mfio42		i2s_out, debug_ed_cca_ind
-mfio43		i2s_out, debug_s2l_done
+mfio37		i2s_out, de_raw_cca_ind
+mfio38		i2s_out, de_ed_sec20_cca_ind
+mfio39		i2s_out, de_ed_sec40_cca_ind
+mfio40		i2s_out, de_agc_done_0
+mfio41		i2s_out, de_agc_done_1
+mfio42		i2s_out, de_ed_cca_ind
+mfio43		i2s_out, de_s2l_done
 mfio44		i2s_out
 mfio45		i2s_dac_clk, audio_sync
 mfio46		audio_trigger
@@ -123,22 +123,22 @@ mfio69		eth, mips_trace_data
 mfio70		eth, mips_trace_data
 mfio71		eth
 mfio72		ir
-mfio73		pwmpdm, mips_trace_clk, sram_debug
-mfio74		pwmpdm, mips_trace_dint, sram_debug
-mfio75		pwmpdm, mips_trace_trigout, rom_debug
-mfio76		pwmpdm, mips_trace_trigin, rom_debug
-mfio77		mdc_debug, mips_trace_dm, rpu_debug
-mfio78		mdc_debug, mips_trace_probe_n, rpu_debug
-mfio79		ddr_debug, mips_trace_data, mips_debug
-mfio80		ddr_debug, mips_trace_data, mips_debug
-mfio81		dreq0, mips_trace_data, eth_debug
-mfio82		dreq1, mips_trace_data, eth_debug
-mfio83		mips_pll_lock, mips_trace_data, usb_debug
-mfio84		audio_pll_lock, mips_trace_data, usb_debug
-mfio85		rpu_v_pll_lock, mips_trace_data, sdhost_debug
-mfio86		rpu_l_pll_lock, mips_trace_data, sdhost_debug
-mfio87		sys_pll_lock, dreq2, socif_debug
-mfio88		wifi_pll_lock, dreq3, socif_debug
+mfio73		pwmpdm, mips_trace_clk, sram_de
+mfio74		pwmpdm, mips_trace_dint, sram_de
+mfio75		pwmpdm, mips_trace_trigout, rom_de
+mfio76		pwmpdm, mips_trace_trigin, rom_de
+mfio77		mdc_de, mips_trace_dm, rpu_de
+mfio78		mdc_de, mips_trace_probe_n, rpu_de
+mfio79		ddr_de, mips_trace_data, mips_de
+mfio80		ddr_de, mips_trace_data, mips_de
+mfio81		dreq0, mips_trace_data, eth_de
+mfio82		dreq1, mips_trace_data, eth_de
+mfio83		mips_pll_lock, mips_trace_data, usb_de
+mfio84		audio_pll_lock, mips_trace_data, usb_de
+mfio85		rpu_v_pll_lock, mips_trace_data, sdhost_de
+mfio86		rpu_l_pll_lock, mips_trace_data, sdhost_de
+mfio87		sys_pll_lock, dreq2, socif_de
+mfio88		wifi_pll_lock, dreq3, socif_de
 mfio89		bt_pll_lock, dreq4, dreq5
 tck
 trstn

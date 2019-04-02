@@ -226,7 +226,7 @@ EXPORT_SYMBOL_GPL(efi_query_variable_store);
  * ExitBootServices() has been called. Ignoring this recommendation a
  * significant bunch of EFI implementations continue calling into boot
  * services code (SetVirtualAddressMap). In order to work around such
- * buggy implementations we reserve boot services region during EFI
+ * gy implementations we reserve boot services region during EFI
  * init and make sure it stays executable. Then, after
  * SetVirtualAddressMap(), it is discarded.
  *
@@ -371,7 +371,7 @@ void __init efi_reserve_boot_services(void)
 
 /*
  * Apart from having VA mappings for EFI boot services code/data regions,
- * (duplicate) 1:1 mappings were also created as a quirk for buggy firmware. So,
+ * (duplicate) 1:1 mappings were also created as a quirk for gy firmware. So,
  * unmap both 1:1 and VA mappings.
  */
 static void __init efi_unmap_pages(efi_memory_desc_t *md)
@@ -429,7 +429,7 @@ void __init efi_free_boot_services(void)
 
 		/*
 		 * Before calling set_virtual_address_map(), EFI boot services
-		 * code/data regions were mapped as a quirk for buggy firmware.
+		 * code/data regions were mapped as a quirk for gy firmware.
 		 * Unmap them from efi_pgd before freeing them up.
 		 */
 		efi_unmap_pages(md);
@@ -622,7 +622,7 @@ static int qrk_capsule_setup_info(struct capsule_info *cap_info, void **pkbuff,
 			sizeof(efi_capsule_header_t))
 		return 0;
 
-	pr_debug("Quark security header detected\n");
+	pr_de("Quark security header detected\n");
 
 	if (csh->rsvd_next_header != 0) {
 		pr_err("multiple Quark security headers not supported\n");
@@ -729,13 +729,13 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 
 	/*
 	 * Print stack trace as it might be useful to know which EFI Runtime
-	 * Service is buggy.
+	 * Service is gy.
 	 */
-	WARN(1, FW_BUG "Page fault caused by firmware at PA: 0x%lx\n",
+	WARN(1, FW_ "Page fault caused by firmware at PA: 0x%lx\n",
 	     phys_addr);
 
 	/*
-	 * Buggy efi_reset_system() is handled differently from other EFI
+	 * gy efi_reset_system() is handled differently from other EFI
 	 * Runtime Services as it doesn't use efi_rts_wq. Although,
 	 * native_machine_emergency_restart() says that machine_real_restart()
 	 * could fail, it's better not to compilcate this fault handler
@@ -743,7 +743,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 	 * on a need by basis.
 	 */
 	if (efi_rts_work.efi_rts_id == EFI_RESET_SYSTEM) {
-		pr_info("efi_reset_system() buggy! Reboot through BIOS\n");
+		pr_info("efi_reset_system() gy! Reboot through BIOS\n");
 		machine_real_restart(MRR_BIOS);
 		return;
 	}

@@ -44,7 +44,7 @@ struct compressor {
 
 	/* Initialize a compressor */
 	int	(*comp_init) (void *state, unsigned char *options,
-			      int opt_len, int unit, int opthdr, int debug);
+			      int opt_len, int unit, int opthdr, int de);
 
 	/* Reset a compressor */
 	void	(*comp_reset) (void *state);
@@ -65,7 +65,7 @@ struct compressor {
 	/* Initialize a decompressor */
 	int	(*decomp_init) (void *state, unsigned char *options,
 				int opt_len, int unit, int opthdr, int mru,
-				int debug);
+				int de);
 
 	/* Reset a decompressor */
 	void	(*decomp_reset) (void *state);

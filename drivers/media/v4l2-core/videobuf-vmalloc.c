@@ -34,19 +34,19 @@
 	if (unlikely((is) != (should))) {				\
 		printk(KERN_ERR "magic mismatch: %x (expected %x)\n",	\
 				is, should);				\
-		BUG();							\
+		();							\
 	}
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux vmalloc buffers");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)					\
-	if (debug >= level)						\
-		printk(KERN_DEBUG "vbuf-vmalloc: " fmt , ## arg)
+	if (de >= level)						\
+		printk(KERN_DE "vbuf-vmalloc: " fmt , ## arg)
 
 
 /***************************************************************************/
@@ -161,7 +161,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 	struct videobuf_vmalloc_memory *mem = vb->priv;
 	int pages;
 
-	BUG_ON(!mem);
+	_ON(!mem);
 
 	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
@@ -230,7 +230,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	buf->baddr = vma->vm_start;
 
 	mem = buf->priv;
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
 	pages = PAGE_ALIGN(vma->vm_end - vma->vm_start);
@@ -295,7 +295,7 @@ EXPORT_SYMBOL_GPL(videobuf_queue_vmalloc_init);
 void *videobuf_to_vmalloc(struct videobuf_buffer *buf)
 {
 	struct videobuf_vmalloc_memory *mem = buf->priv;
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
 	return mem->vaddr;

@@ -5,7 +5,7 @@
  * Copyright (C) 2012  Renesas Solutions Corp.
  * Copyright (C) 2012  Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

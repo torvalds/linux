@@ -154,10 +154,10 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 
 	if ((p->desc->qman_version & QMAN_REV_MASK) < QMAN_REV_4100) {
 		p->dqrr.dqrr_size = 4;
-		p->dqrr.reset_bug = 1;
+		p->dqrr.reset_ = 1;
 	} else {
 		p->dqrr.dqrr_size = 8;
-		p->dqrr.reset_bug = 0;
+		p->dqrr.reset_ = 0;
 	}
 
 	p->addr_cena = d->cena_bar;
@@ -620,9 +620,9 @@ const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 	struct dpaa2_dq *p;
 
 	/* Before using valid-bit to detect if something is there, we have to
-	 * handle the case of the DQRR reset bug...
+	 * handle the case of the DQRR reset ...
 	 */
-	if (unlikely(s->dqrr.reset_bug)) {
+	if (unlikely(s->dqrr.reset_)) {
 		/*
 		 * We pick up new entries by cache-inhibited producer index,
 		 * which means that a non-coherent mapping would require us to
@@ -647,9 +647,9 @@ const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 		 * can burst and wrap-around between our snapshots of it).
 		 */
 		if (s->dqrr.next_idx == (s->dqrr.dqrr_size - 1)) {
-			pr_debug("next_idx=%d, pi=%d, clear reset bug\n",
+			pr_de("next_idx=%d, pi=%d, clear reset \n",
 				 s->dqrr.next_idx, pi);
-			s->dqrr.reset_bug = 0;
+			s->dqrr.reset_ = 0;
 		}
 		prefetch(qbman_get_cmd(s,
 				       QBMAN_CENA_SWP_DQRR(s->dqrr.next_idx)));
@@ -660,7 +660,7 @@ const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 
 	/*
 	 * If the valid-bit isn't of the expected polarity, nothing there. Note,
-	 * in the DQRR reset bug workaround, we shouldn't need to skip these
+	 * in the DQRR reset  workaround, we shouldn't need to skip these
 	 * check, because we've already determined that a new entry is available
 	 * and we've invalidated the cacheline before reading it, so the
 	 * valid-bit behaviour is repaired and should tell us what we already

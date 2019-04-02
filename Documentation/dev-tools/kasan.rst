@@ -5,7 +5,7 @@ Overview
 --------
 
 KernelAddressSANitizer (KASAN) is a dynamic memory error detector designed to
-find out-of-bound and use-after-free bugs. KASAN has two modes: generic KASAN
+find out-of-bound and use-after-free s. KASAN has two modes: generic KASAN
 (similar to userspace ASan) and software tag-based KASAN (similar to userspace
 HWASan).
 
@@ -39,7 +39,7 @@ Outline and inline are compiler instrumentation types. The former produces
 smaller binary while the latter is 1.1 - 2 times faster.
 
 Both KASAN modes work with both SLUB and SLAB memory allocators.
-For better bug detection and nicer reporting, enable CONFIG_STACKTRACE.
+For better  detection and nicer reporting, enable CONFIG_STACKTRACE.
 
 To disable instrumentation for specific files or directories, add a line
 similar to the following to the respective kernel Makefile:
@@ -58,7 +58,7 @@ Error reports
 A typical out-of-bounds access generic KASAN report looks like this::
 
     ==================================================================
-    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
+    : KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
     Write of size 1 at addr ffff8801f44ec37b by task insmod/2760
 
     CPU: 1 PID: 2760 Comm: insmod Not tainted 4.19.0-rc3+ #698
@@ -108,18 +108,18 @@ A typical out-of-bounds access generic KASAN report looks like this::
      call_usermodehelper_exec_async+0x4c3/0x640
      ret_from_fork+0x35/0x40
 
-    The buggy address belongs to the object at ffff8801f44ec300
+    The gy address belongs to the object at ffff8801f44ec300
      which belongs to the cache kmalloc-128 of size 128
-    The buggy address is located 123 bytes inside of
+    The gy address is located 123 bytes inside of
      128-byte region [ffff8801f44ec300, ffff8801f44ec380)
-    The buggy address belongs to the page:
+    The gy address belongs to the page:
     page:ffffea0007d13b00 count:1 mapcount:0 mapping:ffff8801f7001640 index:0x0
     flags: 0x200000000000100(slab)
     raw: 0200000000000100 ffffea0007d11dc0 0000001a0000001a ffff8801f7001640
     raw: 0000000000000000 0000000080150015 00000001ffffffff 0000000000000000
     page dumped because: kasan: bad access detected
 
-    Memory state around the buggy address:
+    Memory state around the gy address:
      ffff8801f44ec200: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
      ffff8801f44ec280: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
     >ffff8801f44ec300: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03
@@ -128,11 +128,11 @@ A typical out-of-bounds access generic KASAN report looks like this::
      ffff8801f44ec400: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
     ==================================================================
 
-The header of the report provides a short summary of what kind of bug happened
+The header of the report provides a short summary of what kind of  happened
 and what kind of access caused it. It's followed by a stack trace of the bad
 access, a stack trace of where the accessed memory was allocated (in case bad
 access happens on a slab object), and a stack trace of where the object was
-freed (in case of a use-after-free bug report). Next comes a description of
+freed (in case of a use-after-free  report). Next comes a description of
 the accessed slab object and information about the accessed memory page.
 
 In the last section the report shows memory state around the accessed address.
@@ -203,14 +203,14 @@ allocated memory with this tag, and embeds this tag into the returned pointer.
 Software tag-based KASAN uses compile-time instrumentation to insert checks
 before each memory access. These checks make sure that tag of the memory that
 is being accessed is equal to tag of the pointer that is used to access this
-memory. In case of a tag mismatch tag-based KASAN prints a bug report.
+memory. In case of a tag mismatch tag-based KASAN prints a  report.
 
 Software tag-based KASAN also has two instrumentation modes (outline, that
 emits callbacks to check memory accesses; and inline, that performs the shadow
-memory checks inline). With outline instrumentation mode, a bug report is
+memory checks inline). With outline instrumentation mode, a  report is
 simply printed from the function that performs the access check. With inline
 instrumentation a brk instruction is emitted by the compiler, and a dedicated
-brk handler is used to print bug reports.
+brk handler is used to print  reports.
 
 A potential expansion of this mode is a hardware tag-based mode, which would
 use hardware memory tagging support instead of compiler instrumentation and

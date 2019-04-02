@@ -177,7 +177,7 @@ __ioat_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,
 	u32 offset = 0;
 	u8 op = result ? IOAT_OP_XOR_VAL : IOAT_OP_XOR;
 
-	BUG_ON(src_cnt < 2);
+	_ON(src_cnt < 2);
 
 	num_descs = ioat_xferlen_to_descs(ioat_chan, len);
 	/* we need 2x the number of descriptors to cover greater than 5
@@ -371,7 +371,7 @@ __ioat_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 	/* the engine requires at least two sources (we provide
 	 * at least 1 implied source in the DMA_PREP_CONTINUE case)
 	 */
-	BUG_ON(src_cnt + dmaf_continue(flags) < 2);
+	_ON(src_cnt + dmaf_continue(flags) < 2);
 
 	num_descs = ioat_xferlen_to_descs(ioat_chan, len);
 	/* we need 2x the number of descriptors to cover greater than 3
@@ -495,7 +495,7 @@ __ioat_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 
 	/*
 	 * 16 source pq is only available on cb3.3 and has no completion
-	 * write hw bug.
+	 * write hw .
 	 */
 	if (num_descs && ioat_check_space_lock(ioat_chan, num_descs) == 0)
 		idx = ioat_chan->head;
@@ -605,7 +605,7 @@ ioat_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 		dma_addr_t single_source[2];
 		unsigned char single_source_coef[2];
 
-		BUG_ON(flags & DMA_PREP_PQ_DISABLE_Q);
+		_ON(flags & DMA_PREP_PQ_DISABLE_Q);
 		single_source[0] = src[0];
 		single_source[1] = src[0];
 		single_source_coef[0] = scf[0];

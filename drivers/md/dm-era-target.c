@@ -120,7 +120,7 @@ static int writeset_marked_on_disk(struct dm_disk_bitset *info,
 		return r;
 	}
 
-	BUG_ON(m->root != old);
+	_ON(m->root != old);
 
 	return r;
 }
@@ -1029,7 +1029,7 @@ static int metadata_take_snap(struct era_metadata *md)
 		dm_sm_dec_block(md->sm, SUPERBLOCK_LOCATION);
 		return r;
 	}
-	BUG_ON(!inc);
+	_ON(!inc);
 
 	r = dm_sm_inc_block(md->sm, md->writeset_tree_root);
 	if (r) {

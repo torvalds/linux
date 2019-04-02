@@ -129,7 +129,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	u16 len;
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	flags = *data++;
 	type = *data++;
@@ -151,7 +151,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 
 	dsi_device = intel_dsi->dsi_hosts[port]->device;
 	if (!dsi_device) {
-		DRM_DEBUG_KMS("no dsi device for port %c\n", port_name(port));
+		DRM_DE_KMS("no dsi device for port %c\n", port_name(port));
 		goto out;
 	}
 
@@ -175,7 +175,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
-		DRM_DEBUG_DRIVER("Generic Read not yet implemented or used\n");
+		DRM_DE_DRIVER("Generic Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
 		mipi_dsi_generic_write(dsi_device, data, len);
@@ -187,7 +187,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		mipi_dsi_dcs_write_buffer(dsi_device, data, 2);
 		break;
 	case MIPI_DSI_DCS_READ:
-		DRM_DEBUG_DRIVER("DCS Read not yet implemented or used\n");
+		DRM_DE_DRIVER("DCS Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
 		mipi_dsi_dcs_write_buffer(dsi_device, data, len);
@@ -207,7 +207,7 @@ static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	u32 delay = *((const u32 *) data);
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	usleep_range(delay, delay + 10);
 	data += 4;
@@ -224,7 +224,7 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 	u8 port;
 
 	if (gpio_index >= ARRAY_SIZE(vlv_gpio_table)) {
-		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
+		DRM_DE_KMS("unknown gpio index %u\n", gpio_index);
 		return;
 	}
 
@@ -237,10 +237,10 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 		if (gpio_source == 0) {
 			port = IOSF_PORT_GPIO_NC;
 		} else if (gpio_source == 1) {
-			DRM_DEBUG_KMS("SC gpio not supported\n");
+			DRM_DE_KMS("SC gpio not supported\n");
 			return;
 		} else {
-			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			DRM_DE_KMS("unknown gpio source %u\n", gpio_source);
 			return;
 		}
 	}
@@ -284,12 +284,12 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 	} else {
 		/* XXX: The spec is unclear about CHV GPIO on seq v2 */
 		if (gpio_source != 0) {
-			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			DRM_DE_KMS("unknown gpio source %u\n", gpio_source);
 			return;
 		}
 
 		if (gpio_index >= CHV_GPIO_IDX_START_E) {
-			DRM_DEBUG_KMS("invalid gpio index %u for GPIO N\n",
+			DRM_DE_KMS("invalid gpio index %u for GPIO N\n",
 				      gpio_index);
 			return;
 		}
@@ -339,7 +339,7 @@ static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
 static void icl_exec_gpio(struct drm_i915_private *dev_priv,
 			  u8 gpio_source, u8 gpio_index, bool value)
 {
-	DRM_DEBUG_KMS("Skipping ICL GPIO element execution\n");
+	DRM_DE_KMS("Skipping ICL GPIO element execution\n");
 }
 
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
@@ -349,7 +349,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	u8 gpio_source, gpio_index = 0, gpio_number;
 	bool value;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		gpio_index = *data++;
@@ -379,14 +379,14 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 
 static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	DRM_DEBUG_KMS("Skipping I2C element execution\n");
+	DRM_DE_KMS("Skipping I2C element execution\n");
 
 	return data + *(data + 6) + 7;
 }
 
 static const u8 *mipi_exec_spi(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	DRM_DEBUG_KMS("Skipping SPI element execution\n");
+	DRM_DE_KMS("Skipping SPI element execution\n");
 
 	return data + *(data + 5) + 6;
 }
@@ -471,7 +471,7 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 
 	WARN_ON(*data != seq_id);
 
-	DRM_DEBUG_KMS("Starting MIPI sequence %d - %s\n",
+	DRM_DE_KMS("Starting MIPI sequence %d - %s\n",
 		      seq_id, sequence_name(seq_id));
 
 	/* Skip Sequence Byte. */
@@ -509,7 +509,7 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 			}
 		} else if (operation_size) {
 			/* We have size, skip. */
-			DRM_DEBUG_KMS("Unsupported MIPI operation byte %u\n",
+			DRM_DE_KMS("Unsupported MIPI operation byte %u\n",
 				      operation_byte);
 			data += operation_size;
 		} else {
@@ -584,7 +584,7 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	 */
 	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * 4, tlpx_ns);
 	if (prepare_cnt > ICL_PREPARE_CNT_MAX) {
-		DRM_DEBUG_KMS("prepare_cnt out of range (%d)\n", prepare_cnt);
+		DRM_DE_KMS("prepare_cnt out of range (%d)\n", prepare_cnt);
 		prepare_cnt = ICL_PREPARE_CNT_MAX;
 	}
 
@@ -592,28 +592,28 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	clk_zero_cnt = DIV_ROUND_UP(mipi_config->tclk_prepare_clkzero -
 				    ths_prepare_ns, tlpx_ns);
 	if (clk_zero_cnt > ICL_CLK_ZERO_CNT_MAX) {
-		DRM_DEBUG_KMS("clk_zero_cnt out of range (%d)\n", clk_zero_cnt);
+		DRM_DE_KMS("clk_zero_cnt out of range (%d)\n", clk_zero_cnt);
 		clk_zero_cnt = ICL_CLK_ZERO_CNT_MAX;
 	}
 
 	/* trail cnt in escape clocks*/
 	trail_cnt = DIV_ROUND_UP(tclk_trail_ns, tlpx_ns);
 	if (trail_cnt > ICL_TRAIL_CNT_MAX) {
-		DRM_DEBUG_KMS("trail_cnt out of range (%d)\n", trail_cnt);
+		DRM_DE_KMS("trail_cnt out of range (%d)\n", trail_cnt);
 		trail_cnt = ICL_TRAIL_CNT_MAX;
 	}
 
 	/* tclk pre count in escape clocks */
 	tclk_pre_cnt = DIV_ROUND_UP(mipi_config->tclk_pre, tlpx_ns);
 	if (tclk_pre_cnt > ICL_TCLK_PRE_CNT_MAX) {
-		DRM_DEBUG_KMS("tclk_pre_cnt out of range (%d)\n", tclk_pre_cnt);
+		DRM_DE_KMS("tclk_pre_cnt out of range (%d)\n", tclk_pre_cnt);
 		tclk_pre_cnt = ICL_TCLK_PRE_CNT_MAX;
 	}
 
 	/* tclk post count in escape clocks */
 	tclk_post_cnt = DIV_ROUND_UP(mipi_config->tclk_post, tlpx_ns);
 	if (tclk_post_cnt > ICL_TCLK_POST_CNT_MAX) {
-		DRM_DEBUG_KMS("tclk_post_cnt out of range (%d)\n", tclk_post_cnt);
+		DRM_DE_KMS("tclk_post_cnt out of range (%d)\n", tclk_post_cnt);
 		tclk_post_cnt = ICL_TCLK_POST_CNT_MAX;
 	}
 
@@ -621,14 +621,14 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	hs_zero_cnt = DIV_ROUND_UP(mipi_config->ths_prepare_hszero -
 				   ths_prepare_ns, tlpx_ns);
 	if (hs_zero_cnt > ICL_HS_ZERO_CNT_MAX) {
-		DRM_DEBUG_KMS("hs_zero_cnt out of range (%d)\n", hs_zero_cnt);
+		DRM_DE_KMS("hs_zero_cnt out of range (%d)\n", hs_zero_cnt);
 		hs_zero_cnt = ICL_HS_ZERO_CNT_MAX;
 	}
 
 	/* hs exit zero cnt in escape clocks */
 	exit_zero_cnt = DIV_ROUND_UP(mipi_config->ths_exit, tlpx_ns);
 	if (exit_zero_cnt > ICL_EXIT_ZERO_CNT_MAX) {
-		DRM_DEBUG_KMS("exit_zero_cnt out of range (%d)\n", exit_zero_cnt);
+		DRM_DE_KMS("exit_zero_cnt out of range (%d)\n", exit_zero_cnt);
 		exit_zero_cnt = ICL_EXIT_ZERO_CNT_MAX;
 	}
 
@@ -714,7 +714,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * mul);
 
 	if (prepare_cnt > PREPARE_CNT_MAX) {
-		DRM_DEBUG_KMS("prepare count too high %u\n", prepare_cnt);
+		DRM_DE_KMS("prepare count too high %u\n", prepare_cnt);
 		prepare_cnt = PREPARE_CNT_MAX;
 	}
 
@@ -734,7 +734,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 		exit_zero_cnt += 1;
 
 	if (exit_zero_cnt > EXIT_ZERO_CNT_MAX) {
-		DRM_DEBUG_KMS("exit zero count too high %u\n", exit_zero_cnt);
+		DRM_DE_KMS("exit zero count too high %u\n", exit_zero_cnt);
 		exit_zero_cnt = EXIT_ZERO_CNT_MAX;
 	}
 
@@ -744,7 +744,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 				* ui_den, ui_num * mul);
 
 	if (clk_zero_cnt > CLK_ZERO_CNT_MAX) {
-		DRM_DEBUG_KMS("clock zero count too high %u\n", clk_zero_cnt);
+		DRM_DE_KMS("clock zero count too high %u\n", clk_zero_cnt);
 		clk_zero_cnt = CLK_ZERO_CNT_MAX;
 	}
 
@@ -753,7 +753,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 	trail_cnt = DIV_ROUND_UP(tclk_trail_ns * ui_den, ui_num * mul);
 
 	if (trail_cnt > TRAIL_CNT_MAX) {
-		DRM_DEBUG_KMS("trail count too high %u\n", trail_cnt);
+		DRM_DE_KMS("trail count too high %u\n", trail_cnt);
 		trail_cnt = TRAIL_CNT_MAX;
 	}
 
@@ -824,7 +824,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	u16 burst_mode_ratio;
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
@@ -895,39 +895,39 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	else
 		vlv_dphy_param_init(intel_dsi);
 
-	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
-	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
-	DRM_DEBUG_KMS("Lane count %d\n", intel_dsi->lane_count);
-	DRM_DEBUG_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
-	DRM_DEBUG_KMS("Video mode format %s\n",
+	DRM_DE_KMS("Pclk %d\n", intel_dsi->pclk);
+	DRM_DE_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
+	DRM_DE_KMS("Lane count %d\n", intel_dsi->lane_count);
+	DRM_DE_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
+	DRM_DE_KMS("Video mode format %s\n",
 		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
 		      "non-burst with sync pulse" :
 		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
 		      "non-burst with sync events" :
 		      intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
 		      "burst" : "<unknown>");
-	DRM_DEBUG_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
-	DRM_DEBUG_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
-	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
-	DRM_DEBUG_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
-	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
+	DRM_DE_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
+	DRM_DE_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
+	DRM_DE_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
+	DRM_DE_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
+	DRM_DE_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
-		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
+		DRM_DE_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
 	else if (intel_dsi->dual_link == DSI_DUAL_LINK_PIXEL_ALT)
-		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
+		DRM_DE_KMS("Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
 	else
-		DRM_DEBUG_KMS("Dual link: NONE\n");
-	DRM_DEBUG_KMS("Pixel Format %d\n", intel_dsi->pixel_format);
-	DRM_DEBUG_KMS("TLPX %d\n", intel_dsi->escape_clk_div);
-	DRM_DEBUG_KMS("LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);
-	DRM_DEBUG_KMS("Turnaround Timeout 0x%x\n", intel_dsi->turn_arnd_val);
-	DRM_DEBUG_KMS("Init Count 0x%x\n", intel_dsi->init_count);
-	DRM_DEBUG_KMS("HS to LP Count 0x%x\n", intel_dsi->hs_to_lp_count);
-	DRM_DEBUG_KMS("LP Byte Clock %d\n", intel_dsi->lp_byte_clk);
-	DRM_DEBUG_KMS("DBI BW Timer 0x%x\n", intel_dsi->bw_timer);
-	DRM_DEBUG_KMS("LP to HS Clock Count 0x%x\n", intel_dsi->clk_lp_to_hs_count);
-	DRM_DEBUG_KMS("HS to LP Clock Count 0x%x\n", intel_dsi->clk_hs_to_lp_count);
-	DRM_DEBUG_KMS("BTA %s\n",
+		DRM_DE_KMS("Dual link: NONE\n");
+	DRM_DE_KMS("Pixel Format %d\n", intel_dsi->pixel_format);
+	DRM_DE_KMS("TLPX %d\n", intel_dsi->escape_clk_div);
+	DRM_DE_KMS("LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);
+	DRM_DE_KMS("Turnaround Timeout 0x%x\n", intel_dsi->turn_arnd_val);
+	DRM_DE_KMS("Init Count 0x%x\n", intel_dsi->init_count);
+	DRM_DE_KMS("HS to LP Count 0x%x\n", intel_dsi->hs_to_lp_count);
+	DRM_DE_KMS("LP Byte Clock %d\n", intel_dsi->lp_byte_clk);
+	DRM_DE_KMS("DBI BW Timer 0x%x\n", intel_dsi->bw_timer);
+	DRM_DE_KMS("LP to HS Clock Count 0x%x\n", intel_dsi->clk_lp_to_hs_count);
+	DRM_DE_KMS("HS to LP Clock Count 0x%x\n", intel_dsi->clk_hs_to_lp_count);
+	DRM_DE_KMS("BTA %s\n",
 			enableddisabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 
 	/* delays in VBT are in unit of 100us, so need to convert

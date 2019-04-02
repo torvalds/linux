@@ -33,7 +33,7 @@ userland tools.
 
 Another issue seems to only happen on SMP systems.  It seems
 that text in the output buffer gets garbled because a lock is not set.
-This bug happens regularly, but no one has been able to find a situation
+This  happens regularly, but no one has been able to find a situation
 which produces it consistently.
 
 Patches, suggestions, corrections, etc, are definitely welcome.

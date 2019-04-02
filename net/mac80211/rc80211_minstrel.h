@@ -108,10 +108,10 @@ struct minstrel_priv {
 
 	u8 cck_rates[4];
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	/*
 	 * enable fixed rate processing per RC
-	 *   - write static index to debugfs:ieee80211/phyX/rc/fixed_rate_idx
+	 *   - write static index to defs:ieee80211/phyX/rc/fixed_rate_idx
 	 *   - write -1 to enable RC processing again
 	 *   - setting will be applied on next update
 	 */
@@ -119,19 +119,19 @@ struct minstrel_priv {
 #endif
 };
 
-struct minstrel_debugfs_info {
+struct minstrel_defs_info {
 	size_t len;
 	char buf[];
 };
 
 extern const struct rate_control_ops mac80211_minstrel;
-void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
+void minstrel_add_sta_defs(void *priv, void *priv_sta, struct dentry *dir);
 
 /* Recalculate success probabilities and counters for a given rate using EWMA */
 void minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs);
 int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_ewma);
 
-/* debugfs */
+/* defs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
 int minstrel_stats_csv_open(struct inode *inode, struct file *file);
 

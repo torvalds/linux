@@ -40,7 +40,7 @@
 #include "rx.h"
 #include "ps.h"
 #include "init.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "boot.h"
 
 void wl1251_enable_interrupts(struct wl1251 *wl)
@@ -183,11 +183,11 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 
 	switch (wl->chip_id) {
 	case CHIP_ID_1251_PG12:
-		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG12)",
+		wl1251_de(DE_BOOT, "chip id 0x%x (1251 PG12)",
 			     wl->chip_id);
 		break;
 	case CHIP_ID_1251_PG11:
-		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG11)",
+		wl1251_de(DE_BOOT, "chip id 0x%x (1251 PG11)",
 			     wl->chip_id);
 		break;
 	case CHIP_ID_1251_PG10:
@@ -217,7 +217,7 @@ static void wl1251_irq_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
-	wl1251_debug(DEBUG_IRQ, "IRQ work");
+	wl1251_de(DE_IRQ, "IRQ work");
 
 	if (wl->state == WL1251_STATE_OFF)
 		goto out;
@@ -229,28 +229,28 @@ static void wl1251_irq_work(struct work_struct *work)
 	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1251_ACX_INTR_ALL);
 
 	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
-	wl1251_debug(DEBUG_IRQ, "intr: 0x%x", intr);
+	wl1251_de(DE_IRQ, "intr: 0x%x", intr);
 
 	do {
 		if (wl->data_path) {
 			wl->rx_counter = wl1251_mem_read32(
 				wl, wl->data_path->rx_control_addr);
 
-			/* We handle a frmware bug here */
+			/* We handle a frmware  here */
 			switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
 			case 0:
-				wl1251_debug(DEBUG_IRQ,
+				wl1251_de(DE_IRQ,
 					     "RX: FW and host in sync");
 				intr &= ~WL1251_ACX_INTR_RX0_DATA;
 				intr &= ~WL1251_ACX_INTR_RX1_DATA;
 				break;
 			case 1:
-				wl1251_debug(DEBUG_IRQ, "RX: FW +1");
+				wl1251_de(DE_IRQ, "RX: FW +1");
 				intr |= WL1251_ACX_INTR_RX0_DATA;
 				intr &= ~WL1251_ACX_INTR_RX1_DATA;
 				break;
 			case 2:
-				wl1251_debug(DEBUG_IRQ, "RX: FW +2");
+				wl1251_de(DE_IRQ, "RX: FW +2");
 				intr |= WL1251_ACX_INTR_RX0_DATA;
 				intr |= WL1251_ACX_INTR_RX1_DATA;
 				break;
@@ -263,44 +263,44 @@ static void wl1251_irq_work(struct work_struct *work)
 
 			wl->rx_handled = wl->rx_counter;
 
-			wl1251_debug(DEBUG_IRQ, "RX counter: %d",
+			wl1251_de(DE_IRQ, "RX counter: %d",
 				     wl->rx_counter);
 		}
 
 		intr &= wl->intr_mask;
 
 		if (intr == 0) {
-			wl1251_debug(DEBUG_IRQ, "INTR is 0");
+			wl1251_de(DE_IRQ, "INTR is 0");
 			goto out_sleep;
 		}
 
 		if (intr & WL1251_ACX_INTR_RX0_DATA) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
+			wl1251_de(DE_IRQ, "WL1251_ACX_INTR_RX0_DATA");
 			wl1251_rx(wl);
 		}
 
 		if (intr & WL1251_ACX_INTR_RX1_DATA) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
+			wl1251_de(DE_IRQ, "WL1251_ACX_INTR_RX1_DATA");
 			wl1251_rx(wl);
 		}
 
 		if (intr & WL1251_ACX_INTR_TX_RESULT) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
+			wl1251_de(DE_IRQ, "WL1251_ACX_INTR_TX_RESULT");
 			wl1251_tx_complete(wl);
 		}
 
 		if (intr & WL1251_ACX_INTR_EVENT_A) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT_A");
+			wl1251_de(DE_IRQ, "WL1251_ACX_INTR_EVENT_A");
 			wl1251_event_handle(wl, 0);
 		}
 
 		if (intr & WL1251_ACX_INTR_EVENT_B) {
-			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT_B");
+			wl1251_de(DE_IRQ, "WL1251_ACX_INTR_EVENT_B");
 			wl1251_event_handle(wl, 1);
 		}
 
 		if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
-			wl1251_debug(DEBUG_IRQ,
+			wl1251_de(DE_IRQ,
 				     "WL1251_ACX_INTR_INIT_COMPLETE");
 
 		if (--ctr == 0)
@@ -370,7 +370,7 @@ static void wl1251_op_tx(struct ieee80211_hw *hw,
 	 * the queue here, otherwise the queue will get too long.
 	 */
 	if (skb_queue_len(&wl->tx_queue) >= WL1251_TX_QUEUE_HIGH_WATERMARK) {
-		wl1251_debug(DEBUG_TX, "op_tx: tx_queue full, stop queues");
+		wl1251_de(DE_TX, "op_tx: tx_queue full, stop queues");
 
 		spin_lock_irqsave(&wl->wl_lock, flags);
 		ieee80211_stop_queues(wl->hw);
@@ -385,7 +385,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	struct wiphy *wiphy = hw->wiphy;
 	int ret = 0;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 start");
+	wl1251_de(DE_MAC80211, "mac80211 start");
 
 	mutex_lock(&wl->mutex);
 
@@ -435,7 +435,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 
 	wl1251_info("down");
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 stop");
+	wl1251_de(DE_MAC80211, "mac80211 stop");
 
 	mutex_lock(&wl->mutex);
 
@@ -486,7 +486,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->monitor_present = false;
 	wl->joined = false;
 
-	wl1251_debugfs_reset(wl);
+	wl1251_defs_reset(wl);
 
 	mutex_unlock(&wl->mutex);
 }
@@ -501,7 +501,7 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 			     IEEE80211_VIF_SUPPORTS_UAPSD |
 			     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
+	wl1251_de(DE_MAC80211, "mac80211 add interface type %d mac %pM",
 		     vif->type, vif->addr);
 
 	mutex_lock(&wl->mutex);
@@ -543,7 +543,7 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl1251 *wl = hw->priv;
 
 	mutex_lock(&wl->mutex);
-	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
+	wl1251_de(DE_MAC80211, "mac80211 remove interface");
 	wl->vif = NULL;
 	eth_zero_addr(wl->bssid);
 	mutex_unlock(&wl->mutex);
@@ -612,7 +612,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	channel = ieee80211_frequency_to_channel(
 			conf->chandef.chan->center_freq);
 
-	wl1251_debug(DEBUG_MAC80211,
+	wl1251_de(DE_MAC80211,
 		     "mac80211 config ch %d monitor %s psm %s power %d",
 		     channel,
 		     conf->flags & IEEE80211_CONF_MONITOR ? "on" : "off",
@@ -663,7 +663,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (wl1251_can_do_pm(conf, wl) && !wl->psm_requested) {
-		wl1251_debug(DEBUG_PSM, "psm enabled");
+		wl1251_de(DE_PSM, "psm enabled");
 
 		wl->psm_requested = true;
 
@@ -679,7 +679,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (ret < 0)
 			goto out_sleep;
 	} else if (!wl1251_can_do_pm(conf, wl) && wl->psm_requested) {
-		wl1251_debug(DEBUG_PSM, "psm disabled");
+		wl1251_de(DE_PSM, "psm disabled");
 
 		wl->psm_requested = false;
 
@@ -776,7 +776,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	struct wl1251 *wl = hw->priv;
 	int ret;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 configure filter");
+	wl1251_de(DE_MAC80211, "mac80211 configure filter");
 
 	*total &= WL1251_SUPPORTED_FILTERS;
 	changed &= WL1251_SUPPORTED_FILTERS;
@@ -890,7 +890,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	static const u8 bcast_addr[ETH_ALEN] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 set key");
+	wl1251_de(DE_MAC80211, "mac80211 set key");
 
 	wl_cmd = kzalloc(sizeof(*wl_cmd), GFP_KERNEL);
 	if (!wl_cmd) {
@@ -900,11 +900,11 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	addr = sta ? sta->addr : bcast_addr;
 
-	wl1251_debug(DEBUG_CRYPT, "CMD: 0x%x", cmd);
-	wl1251_dump(DEBUG_CRYPT, "ADDR: ", addr, ETH_ALEN);
-	wl1251_debug(DEBUG_CRYPT, "Key: algo:0x%x, id:%d, len:%d flags 0x%x",
+	wl1251_de(DE_CRYPT, "CMD: 0x%x", cmd);
+	wl1251_dump(DE_CRYPT, "ADDR: ", addr, ETH_ALEN);
+	wl1251_de(DE_CRYPT, "Key: algo:0x%x, id:%d, len:%d flags 0x%x",
 		     key->cipher, key->keyidx, key->keylen, key->flags);
-	wl1251_dump(DEBUG_CRYPT, "KEY: ", key->key, key->keylen);
+	wl1251_dump(DE_CRYPT, "KEY: ", key->key, key->keylen);
 
 	if (is_zero_ether_addr(addr)) {
 		/* We dont support TX only encryption */
@@ -963,7 +963,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	wl_cmd->id = key->keyidx;
 	wl_cmd->ssid_profile = 0;
 
-	wl1251_dump(DEBUG_CRYPT, "TARGET KEY: ", wl_cmd, sizeof(*wl_cmd));
+	wl1251_dump(DE_CRYPT, "TARGET KEY: ", wl_cmd, sizeof(*wl_cmd));
 
 	ret = wl1251_cmd_send(wl, CMD_SET_KEYS, wl_cmd, sizeof(*wl_cmd));
 	if (ret < 0) {
@@ -994,7 +994,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 	u8 *ssid = NULL;
 	int ret;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan");
+	wl1251_de(DE_MAC80211, "mac80211 hw scan");
 
 	if (req->n_ssids) {
 		ssid = req->ssids[0].ssid;
@@ -1004,7 +1004,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	if (wl->scanning) {
-		wl1251_debug(DEBUG_SCAN, "scan already in progress");
+		wl1251_de(DE_SCAN, "scan already in progress");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1047,7 +1047,7 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 	ret = wl1251_cmd_scan(wl, ssid, ssid_len, req->channels,
 			      req->n_channels, WL1251_SCAN_NUM_PROBES);
 	if (ret < 0) {
-		wl1251_debug(DEBUG_SCAN, "scan failed %d", ret);
+		wl1251_de(DE_SCAN, "scan failed %d", ret);
 		wl->scanning = false;
 		goto out_idle;
 	}
@@ -1098,7 +1098,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	bool enable;
 	int ret;
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 bss info changed");
+	wl1251_de(DE_MAC80211, "mac80211 bss info changed");
 
 	mutex_lock(&wl->mutex);
 
@@ -1305,7 +1305,7 @@ static int wl1251_op_conf_tx(struct ieee80211_hw *hw,
 
 	mutex_lock(&wl->mutex);
 
-	wl1251_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
+	wl1251_de(DE_MAC80211, "mac80211 conf tx %d", queue);
 
 	ret = wl1251_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -1570,7 +1570,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	if (ret)
 		goto out;
 
-	wl1251_debugfs_init(wl);
+	wl1251_defs_init(wl);
 	wl1251_notice("initialized");
 
 	ret = 0;
@@ -1656,7 +1656,7 @@ int wl1251_free_hw(struct wl1251 *wl)
 {
 	ieee80211_unregister_hw(wl->hw);
 
-	wl1251_debugfs_exit(wl);
+	wl1251_defs_exit(wl);
 
 	kfree(wl->target_mem_map);
 	kfree(wl->data_path);

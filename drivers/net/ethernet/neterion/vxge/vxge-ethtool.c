@@ -144,7 +144,7 @@ static void vxge_ethtool_gregs(struct net_device *dev,
 					vdev->vpaths[index].device_id,
 					offset, &reg);
 			if (status != VXGE_HW_OK) {
-				vxge_debug_init(VXGE_ERR,
+				vxge_de_init(VXGE_ERR,
 					"%s:%d Getting reg dump Failed",
 						__func__, __LINE__);
 				return;
@@ -246,7 +246,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 
 	xmac_stats = kzalloc(sizeof(struct vxge_hw_xmac_stats), GFP_KERNEL);
 	if (xmac_stats == NULL) {
-		vxge_debug_init(VXGE_ERR,
+		vxge_de_init(VXGE_ERR,
 			"%s : %d Memory Allocation failed for xmac_stats",
 				 __func__, __LINE__);
 		return;
@@ -256,7 +256,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 				GFP_KERNEL);
 	if (sw_stats == NULL) {
 		kfree(xmac_stats);
-		vxge_debug_init(VXGE_ERR,
+		vxge_de_init(VXGE_ERR,
 			"%s : %d Memory Allocation failed for sw_stats",
 			__func__, __LINE__);
 		return;
@@ -267,7 +267,7 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	if (hw_stats == NULL) {
 		kfree(xmac_stats);
 		kfree(sw_stats);
-		vxge_debug_init(VXGE_ERR,
+		vxge_de_init(VXGE_ERR,
 			"%s : %d Memory Allocation failed for hw_stats",
 			__func__, __LINE__);
 		return;
@@ -277,21 +277,21 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	status = vxge_hw_device_xmac_stats_get(hldev, xmac_stats);
 	if (status != VXGE_HW_OK) {
 		if (status != VXGE_HW_ERR_PRIVILEGED_OPERATION) {
-			vxge_debug_init(VXGE_ERR,
+			vxge_de_init(VXGE_ERR,
 				"%s : %d Failure in getting xmac stats",
 				__func__, __LINE__);
 		}
 	}
 	swstatus = vxge_hw_driver_stats_get(hldev, sw_stats);
 	if (swstatus != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR,
+		vxge_de_init(VXGE_ERR,
 			"%s : %d Failure in getting sw stats",
 			__func__, __LINE__);
 	}
 
 	status = vxge_hw_device_stats_get(hldev, hw_stats);
 	if (status != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR,
+		vxge_de_init(VXGE_ERR,
 			"%s : %d hw_stats_get error", __func__, __LINE__);
 	}
 

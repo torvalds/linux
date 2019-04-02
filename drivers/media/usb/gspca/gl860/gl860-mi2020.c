@@ -1,6 +1,6 @@
 /* Subdriver for the GL860 chip with the MI2020 sensor
  * Author Olivier LORIN, from logs by Iceman/Soro2005 + Fret_saw/Hulkie/Tricid
- * with the help of Kytrix/BUGabundo/Blazercist.
+ * with the help of Kytrix/abundo/Blazercist.
  * Driver achieved thanks to a webcam gift by Kytrix.
  *
  * This program is free software; you can redistribute it and/or modify

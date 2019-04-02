@@ -64,10 +64,10 @@ void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
 	int count = 0;
 
 	hashed_key = hash_long(key, ht->order);
-	DRM_DEBUG("Key is 0x%08lx, Hashed key is 0x%08x\n", key, hashed_key);
+	DRM_DE("Key is 0x%08lx, Hashed key is 0x%08x\n", key, hashed_key);
 	h_list = &ht->table[hashed_key];
 	hlist_for_each_entry(entry, h_list, head)
-		DRM_DEBUG("count %d, key: 0x%08lx\n", count++, entry->key);
+		DRM_DE("count %d, key: 0x%08lx\n", count++, entry->key);
 }
 
 static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,

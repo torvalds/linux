@@ -195,7 +195,7 @@ static int ccleirq=60;    /* ISA dev IRQs*/
 /*static unsigned short saved_mask;*/
 //static int do_tint=0;
 
-#define DEBUG_Q40INT
+#define DE_Q40INT
 /*#define IP_USE_DISABLE *//* would be nice, but crashes ???? */
 
 static int mext_disabled=0;  /* ext irq disabled by master chip? */

@@ -34,7 +34,7 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *sem)
 
 	rcu_sync_dtor(&sem->rss);
 	free_percpu(sem->read_count);
-	sem->read_count = NULL; /* catch use after free bugs */
+	sem->read_count = NULL; /* catch use after free s */
 }
 EXPORT_SYMBOL_GPL(percpu_free_rwsem);
 

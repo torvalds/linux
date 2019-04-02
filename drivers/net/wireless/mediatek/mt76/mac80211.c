@@ -505,8 +505,8 @@ struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 	status->signal = mstat.signal;
 	status->chains = mstat.chains;
 
-	BUILD_BUG_ON(sizeof(mstat) > sizeof(skb->cb));
-	BUILD_BUG_ON(sizeof(status->chain_signal) != sizeof(mstat.chain_signal));
+	BUILD__ON(sizeof(mstat) > sizeof(skb->cb));
+	BUILD__ON(sizeof(status->chain_signal) != sizeof(mstat.chain_signal));
 	memcpy(status->chain_signal, mstat.chain_signal, sizeof(mstat.chain_signal));
 
 	return wcid_to_sta(mstat.wcid);
@@ -538,7 +538,7 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 			return 0;
 	}
 
-	BUILD_BUG_ON(sizeof(status->iv) != sizeof(wcid->rx_key_pn[0]));
+	BUILD__ON(sizeof(status->iv) != sizeof(wcid->rx_key_pn[0]));
 	ret = memcmp(status->iv, wcid->rx_key_pn[status->tid],
 		     sizeof(status->iv));
 	if (ret <= 0)

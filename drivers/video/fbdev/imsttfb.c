@@ -662,7 +662,7 @@ set_imstt_regvals (struct fb_info *info, u_int bpp)
 		set_imstt_regvals_tvp(par, bpp);
 
   /*
-   * From what I (jsk) can gather poking around with MacsBug,
+   * From what I (jsk) can gather poking around with Macs,
    * bits 8 and 9 in the SCR register control endianness
    * correction (byte swapping).  These bits must be set according
    * to the color depth as follows:

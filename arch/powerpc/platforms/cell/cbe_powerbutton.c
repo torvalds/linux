@@ -31,7 +31,7 @@ static struct platform_device *button_pdev;
 
 static void cbe_powerbutton_handle_pmi(pmi_message_t pmi_msg)
 {
-	BUG_ON(pmi_msg.type != PMI_TYPE_POWER_BUTTON);
+	_ON(pmi_msg.type != PMI_TYPE_POWER_BUTTON);
 
 	input_report_key(button_dev, KEY_POWER, 1);
 	input_sync(button_dev);

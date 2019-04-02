@@ -117,8 +117,8 @@ static void sci_remote_node_table_clear_group_index(
 	u32 bit_index;
 	u32 *group_table;
 
-	BUG_ON(group_table_index >= SCU_STP_REMOTE_NODE_COUNT);
-	BUG_ON(group_index >= (u32)(remote_node_table->group_array_size * 32));
+	_ON(group_table_index >= SCU_STP_REMOTE_NODE_COUNT);
+	_ON(group_index >= (u32)(remote_node_table->group_array_size * 32));
 
 	dword_index = group_index / 32;
 	bit_index   = group_index % 32;
@@ -147,8 +147,8 @@ static void sci_remote_node_table_set_group_index(
 	u32 bit_index;
 	u32 *group_table;
 
-	BUG_ON(group_table_index >= SCU_STP_REMOTE_NODE_COUNT);
-	BUG_ON(group_index >= (u32)(remote_node_table->group_array_size * 32));
+	_ON(group_table_index >= SCU_STP_REMOTE_NODE_COUNT);
+	_ON(group_index >= (u32)(remote_node_table->group_array_size * 32));
 
 	dword_index = group_index / 32;
 	bit_index   = group_index % 32;
@@ -176,7 +176,7 @@ static void sci_remote_node_table_set_node_index(
 	u32 slot_normalized;
 	u32 slot_position;
 
-	BUG_ON(
+	_ON(
 		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
 		<= (remote_node_index / SCU_STP_REMOTE_NODE_COUNT)
 		);
@@ -209,7 +209,7 @@ static void sci_remote_node_table_clear_node_index(
 	u32 slot_position;
 	u32 slot_normalized;
 
-	BUG_ON(
+	_ON(
 		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
 		<= (remote_node_index / SCU_STP_REMOTE_NODE_COUNT)
 		);
@@ -239,7 +239,7 @@ static void sci_remote_node_table_clear_group(
 	u32 dword_remainder;
 	u32 dword_value;
 
-	BUG_ON(
+	_ON(
 		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
 		<= (group_index / SCU_STP_REMOTE_NODE_COUNT)
 		);
@@ -266,7 +266,7 @@ static void sci_remote_node_table_set_group(
 	u32 dword_remainder;
 	u32 dword_value;
 
-	BUG_ON(
+	_ON(
 		(remote_node_table->available_nodes_array_size * SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD)
 		<= (group_index / SCU_STP_REMOTE_NODE_COUNT)
 		);
@@ -525,7 +525,7 @@ static void sci_remote_node_table_release_single_remote_node(
 	/*
 	 * Assert that we are not trying to add an entry to a slot that is already
 	 * full. */
-	BUG_ON(group_value == SCIC_SDS_REMOTE_NODE_TABLE_FULL_SLOT_VALUE);
+	_ON(group_value == SCIC_SDS_REMOTE_NODE_TABLE_FULL_SLOT_VALUE);
 
 	if (group_value == 0x00) {
 		/*

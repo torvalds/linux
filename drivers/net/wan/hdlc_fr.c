@@ -47,11 +47,11 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 
-#undef DEBUG_PKT
-#undef DEBUG_ECN
-#undef DEBUG_LINK
-#undef DEBUG_PROTO
-#undef DEBUG_PVC
+#undef DE_PKT
+#undef DE_ECN
+#undef DE_LINK
+#undef DE_PROTO
+#undef DE_PVC
 
 #define FR_UI			0x03
 #define FR_PAD			0x00
@@ -205,8 +205,8 @@ static struct pvc_device *add_pvc(struct net_device *dev, u16 dlci)
 	}
 
 	pvc = kzalloc(sizeof(*pvc), GFP_ATOMIC);
-#ifdef DEBUG_PVC
-	printk(KERN_DEBUG "add_pvc: allocated pvc %p, frad %p\n", pvc, dev);
+#ifdef DE_PVC
+	printk(KERN_DE "add_pvc: allocated pvc %p, frad %p\n", pvc, dev);
 #endif
 	if (!pvc)
 		return NULL;
@@ -252,8 +252,8 @@ static inline void delete_unused_pvcs(hdlc_device *hdlc)
 	while (*pvc_p) {
 		if (!pvc_is_used(*pvc_p)) {
 			struct pvc_device *pvc = *pvc_p;
-#ifdef DEBUG_PVC
-			printk(KERN_DEBUG "freeing unused pvc: %p\n", pvc);
+#ifdef DE_PVC
+			printk(KERN_DE "freeing unused pvc: %p\n", pvc);
 #endif
 			*pvc_p = pvc->next;
 			kfree(pvc);
@@ -894,7 +894,7 @@ static int fr_rx(struct sk_buff *skb)
 
 	pvc = find_pvc(hdlc, dlci);
 	if (!pvc) {
-#ifdef DEBUG_PKT
+#ifdef DE_PKT
 		netdev_info(frad, "No PVC for received frame's DLCI %d\n",
 			    dlci);
 #endif
@@ -903,16 +903,16 @@ static int fr_rx(struct sk_buff *skb)
 	}
 
 	if (pvc->state.fecn != fh->fecn) {
-#ifdef DEBUG_ECN
-		printk(KERN_DEBUG "%s: DLCI %d FECN O%s\n", frad->name,
+#ifdef DE_ECN
+		printk(KERN_DE "%s: DLCI %d FECN O%s\n", frad->name,
 		       dlci, fh->fecn ? "N" : "FF");
 #endif
 		pvc->state.fecn ^= 1;
 	}
 
 	if (pvc->state.becn != fh->becn) {
-#ifdef DEBUG_ECN
-		printk(KERN_DEBUG "%s: DLCI %d BECN O%s\n", frad->name,
+#ifdef DE_ECN
+		printk(KERN_DE "%s: DLCI %d BECN O%s\n", frad->name,
 		       dlci, fh->becn ? "N" : "FF");
 #endif
 		pvc->state.becn ^= 1;
@@ -991,8 +991,8 @@ static int fr_rx(struct sk_buff *skb)
 static void fr_start(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-#ifdef DEBUG_LINK
-	printk(KERN_DEBUG "fr_start\n");
+#ifdef DE_LINK
+	printk(KERN_DE "fr_start\n");
 #endif
 	if (state(hdlc)->settings.lmi != LMI_NONE) {
 		state(hdlc)->reliable = 0;
@@ -1016,8 +1016,8 @@ static void fr_start(struct net_device *dev)
 static void fr_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-#ifdef DEBUG_LINK
-	printk(KERN_DEBUG "fr_stop\n");
+#ifdef DE_LINK
+	printk(KERN_DE "fr_stop\n");
 #endif
 	if (state(hdlc)->settings.lmi != LMI_NONE)
 		del_timer_sync(&state(hdlc)->timer);

@@ -170,7 +170,7 @@ static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream)
 
 static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
 {
-	if (snd_BUG_ON(!stream))
+	if (snd__ON(!stream))
 		return;
 
 	if (stream->direction == SND_COMPRESS_PLAYBACK)

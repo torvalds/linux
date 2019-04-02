@@ -1,5 +1,5 @@
 /*
- * Common debugging macros for use with the hisax driver
+ * Common deging macros for use with the hisax driver
  *
  * Author       Frode Isaksen
  * Copyright    2001 by Frode Isaksen      <fisaksen@bewan.com>
@@ -11,30 +11,30 @@
  * How to use:
  *
  * Before including this file, you need to
- *   #define __debug_variable my_debug
- * where my_debug is a variable in your code which
- * determines the debug bitmask.
+ *   #define __de_variable my_de
+ * where my_de is a variable in your code which
+ * determines the de bitmask.
  *
- * If CONFIG_HISAX_DEBUG is not set, all macros evaluate to nothing
+ * If CONFIG_HISAX_DE is not set, all macros evaluate to nothing
  *
  */
 
-#ifndef __HISAX_DEBUG_H__
-#define __HISAX_DEBUG_H__
+#ifndef __HISAX_DE_H__
+#define __HISAX_DE_H__
 
 
-#ifdef CONFIG_HISAX_DEBUG
+#ifdef CONFIG_HISAX_DE
 
 #define DBG(level, format, arg...) do {					\
-		if (level & __debug_variable)				\
-			printk(KERN_DEBUG "%s: " format "\n" , __func__ , ## arg); \
+		if (level & __de_variable)				\
+			printk(KERN_DE "%s: " format "\n" , __func__ , ## arg); \
 	} while (0)
 
 #define DBG_PACKET(level, data, count)					\
-	if (level & __debug_variable) dump_packet(__func__, data, count)
+	if (level & __de_variable) dump_packet(__func__, data, count)
 
 #define DBG_SKB(level, skb)						\
-	if ((level & __debug_variable) && skb) dump_packet(__func__, skb->data, skb->len)
+	if ((level & __de_variable) && skb) dump_packet(__func__, skb->data, skb->len)
 
 
 static void __attribute__((unused))
@@ -45,7 +45,7 @@ dump_packet(const char *name, const u_char *data, int pkt_len)
 	if (pkt_len) {
 		int i, len1, len2;
 
-		printk(KERN_DEBUG "%s: length=%d,data=", name, pkt_len);
+		printk(KERN_DE "%s: length=%d,data=", name, pkt_len);
 
 		if (pkt_len > DUMP_HDR_SIZE + DUMP_TLR_SIZE) {
 			len1 = DUMP_HDR_SIZE;

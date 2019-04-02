@@ -679,7 +679,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 #ifdef CONFIG_CONSOLE_POLL
 /*
  * Console polling routines for writing and reading from the uart while
- * in an interrupt or debug context.
+ * in an interrupt or de context.
  */
 
 static int serial_pxa_get_poll_char(struct uart_port *port)

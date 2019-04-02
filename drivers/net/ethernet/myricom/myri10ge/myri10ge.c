@@ -238,7 +238,7 @@ struct myri10ge_priv {
 	int fw_ver_major;
 	int fw_ver_minor;
 	int fw_ver_tiny;
-	int adopted_rx_filter_bug;
+	int adopted_rx_filter_;
 	u8 mac_addr[ETH_ALEN];		/* eeprom mac address */
 	unsigned long serial_number;
 	int vendor_specific_offset;
@@ -324,9 +324,9 @@ MODULE_PARM_DESC(myri10ge_max_irq_loops,
 
 #define MYRI10GE_MSG_DEFAULT NETIF_MSG_LINK
 
-static int myri10ge_debug = -1;	/* defaults above */
-module_param(myri10ge_debug, int, 0);
-MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
+static int myri10ge_de = -1;	/* defaults above */
+module_param(myri10ge_de, int, 0);
+MODULE_PARM_DESC(myri10ge_de, "De level (0=none,...,16=all)");
 
 static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, 0644);
@@ -621,7 +621,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 		status = -ENOMEM;
 		goto abort_with_fw;
 	}
-	/* corruption checking is good for parity recovery and buggy chipset */
+	/* corruption checking is good for parity recovery and gy chipset */
 	memcpy_fromio(fw_readback, mgp->sram + MYRI10GE_FW_OFFSET, fw->size);
 	reread_crc = crc32(~0, fw_readback, fw->size);
 	vfree(fw_readback);
@@ -667,14 +667,14 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 	status = myri10ge_validate_firmware(mgp, hdr);
 	kfree(hdr);
 
-	/* check to see if adopted firmware has bug where adopting
+	/* check to see if adopted firmware has  where adopting
 	 * it will cause broadcasts to be filtered unless the NIC
 	 * is kept in ALLMULTI mode */
 	if (mgp->fw_ver_major == 1 && mgp->fw_ver_minor == 4 &&
 	    mgp->fw_ver_tiny >= 4 && mgp->fw_ver_tiny <= 11) {
-		mgp->adopted_rx_filter_bug = 1;
+		mgp->adopted_rx_filter_ = 1;
 		dev_warn(dev, "Adopting fw %d.%d.%d: "
-			 "working around rx filter bug\n",
+			 "working around rx filter \n",
 			 mgp->fw_ver_major, mgp->fw_ver_minor,
 			 mgp->fw_ver_tiny);
 	}
@@ -2972,7 +2972,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 		goto abort;
 	}
 
-	if ((dev->flags & IFF_ALLMULTI) || mgp->adopted_rx_filter_bug) {
+	if ((dev->flags & IFF_ALLMULTI) || mgp->adopted_rx_filter_) {
 		/* request to disable multicast filtering, so quit here */
 		return;
 	}
@@ -3111,7 +3111,7 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 		dev_err(dev, "failed reading ext-conf-space of %s\n",
 			pci_name(bridge));
 		dev_err(dev, "\t pci=nommconf in use? "
-			"or buggy/incomplete/absent ACPI MCFG attr?\n");
+			"or gy/incomplete/absent ACPI MCFG attr?\n");
 		return;
 	}
 	if (!(err_cap & PCI_ERR_CAP_ECRC_GENC))
@@ -3787,7 +3787,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mgp->pdev = pdev;
 	mgp->pause = myri10ge_flow_control;
 	mgp->intr_coal_delay = myri10ge_intr_coal_delay;
-	mgp->msg_enable = netif_msg_init(myri10ge_debug, MYRI10GE_MSG_DEFAULT);
+	mgp->msg_enable = netif_msg_init(myri10ge_de, MYRI10GE_MSG_DEFAULT);
 	mgp->board_number = board_number;
 	init_waitqueue_head(&mgp->down_wq);
 

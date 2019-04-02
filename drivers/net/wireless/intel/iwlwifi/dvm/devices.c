@@ -322,7 +322,7 @@ static const struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 
 	.auto_corr_max_ofdm = 120,
 	.auto_corr_max_ofdm_mrc = 210,
-	/* max = min for performance bug in 5150 DSP */
+	/* max = min for performance  in 5150 DSP */
 	.auto_corr_max_ofdm_x1 = 105,
 	.auto_corr_max_ofdm_mrc_x1 = 220,
 
@@ -418,7 +418,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 
 	cmd.band = priv->band == NL80211_BAND_2GHZ;
 	ch = ch_switch->chandef.chan->hw_value;
-	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
+	IWL_DE_11H(priv, "channel switch from %d to %d\n",
 		      ctx->active.channel, ch);
 	cmd.channel = cpu_to_le16(ch);
 	cmd.rxon_flags = ctx->staging.flags;
@@ -450,7 +450,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 						      ucode_switch_time,
 						      beacon_interval);
 	}
-	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+	IWL_DE_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
 	cmd.expect_beacon =
 		ch_switch->chandef.chan->flags & IEEE80211_CHAN_RADAR;
@@ -586,7 +586,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 
 	cmd->band = priv->band == NL80211_BAND_2GHZ;
 	ch = ch_switch->chandef.chan->hw_value;
-	IWL_DEBUG_11H(priv, "channel switch from %u to %u\n",
+	IWL_DE_11H(priv, "channel switch from %u to %u\n",
 		      ctx->active.channel, ch);
 	cmd->channel = cpu_to_le16(ch);
 	cmd->rxon_flags = ctx->staging.flags;
@@ -618,7 +618,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 						       ucode_switch_time,
 						       beacon_interval);
 	}
-	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
+	IWL_DE_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd->switch_time);
 	cmd->expect_beacon =
 		ch_switch->chandef.chan->flags & IEEE80211_CHAN_RADAR;

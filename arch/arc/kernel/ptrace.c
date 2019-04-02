@@ -93,10 +93,10 @@ static int genregs_get(struct task_struct *target,
 	if (!ret) {
 		if (in_brkpt_trap(ptregs)) {
 			stop_pc_val = target->thread.fault_address;
-			pr_debug("\t\tstop_pc (brk-pt)\n");
+			pr_de("\t\tstop_pc (brk-pt)\n");
 		} else {
 			stop_pc_val = ptregs->ret;
-			pr_debug("\t\tstop_pc (others)\n");
+			pr_de("\t\tstop_pc (others)\n");
 		}
 
 		REG_O_ONE(stop_pc, &stop_pc_val);
@@ -276,7 +276,7 @@ long arch_ptrace(struct task_struct *child, long request,
 {
 	int ret = -EIO;
 
-	pr_debug("REQ=%ld: ADDR =0x%lx, DATA=0x%lx)\n", request, addr, data);
+	pr_de("REQ=%ld: ADDR =0x%lx, DATA=0x%lx)\n", request, addr, data);
 
 	switch (request) {
 	case PTRACE_GET_THREAD_AREA:

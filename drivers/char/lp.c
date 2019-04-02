@@ -17,9 +17,9 @@
  * Fixed kernel_(to/from)_user memory copy to check for errors
  * 				by Riccardo Facchetti <fizban@tin.it>
  * 22-JAN-1998  Added support for devfs  Richard Gooch <rgooch@atnf.csiro.au>
- * Redesigned interrupt handling for handle printers with buggy handshake
+ * Redesigned interrupt handling for handle printers with gy handshake
  *				by Andrea Arcangeli, 11 May 1998
- * Full efficient handling of printer with buggy irq handshake (now I have
+ * Full efficient handling of printer with gy irq handshake (now I have
  * understood the meaning of the strange handshake). This is done sending new
  * characters if the interrupt is just happened, even if the printer say to
  * be still BUSY. This is needed at least with Epson Stylus Color. To enable
@@ -78,7 +78,7 @@
  */
 
 /*
- * The new interrupt handling code take care of the buggy handshake
+ * The new interrupt handling code take care of the gy handshake
  * of some HP and Epson printer:
  * ___
  * ACK    _______________    ___________
@@ -99,7 +99,7 @@
  *
  *					15 Oct 1998, Andrea Arcangeli
  *
- * The so called `buggy' handshake is really the well documented
+ * The so called `gy' handshake is really the well documented
  * compatibility mode IEEE1284 handshake. They changed the well known
  * Centronics handshake acking in the middle of busy expecting to not
  * break drivers or legacy application, while they broken linux lp
@@ -150,7 +150,7 @@ static struct class *lp_class;
 static struct parport *console_registered;
 #endif /* CONFIG_LP_CONSOLE */
 
-#undef LP_DEBUG
+#undef LP_DE
 
 /* Bits used to manage claiming the parport device */
 #define LP_PREEMPT_REQUEST 1
@@ -582,8 +582,8 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 	int status;
 	int retval = 0;
 
-#ifdef LP_DEBUG
-	printk(KERN_DEBUG "lp%d ioctl, cmd: 0x%x, arg: 0x%lx\n", minor, cmd, arg);
+#ifdef LP_DE
+	printk(KERN_DE "lp%d ioctl, cmd: 0x%x, arg: 0x%lx\n", minor, cmd, arg);
 #endif
 	if (minor >= LP_NO)
 		return -ENODEV;

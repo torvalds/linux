@@ -360,7 +360,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 			  unsigned gpio)
 {

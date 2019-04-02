@@ -490,7 +490,7 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 	 * The rtc-s5m driver requests S2MPS14_IRQ_RTCA0 also for S2MPS11
 	 * so the interrupt number must be consistent.
 	 */
-	BUILD_BUG_ON(((enum s2mps14_irq)S2MPS11_IRQ_RTCA0) != S2MPS14_IRQ_RTCA0);
+	BUILD__ON(((enum s2mps14_irq)S2MPS11_IRQ_RTCA0) != S2MPS14_IRQ_RTCA0);
 
 	return 0;
 }

@@ -49,11 +49,11 @@
 #define DMESG(x, a...)
 #define DMESGW(x, a...)
 #define DMESGE(x, a...)
-extern u32 rt_global_debug_component;
+extern u32 rt_global_de_component;
 #define RT_TRACE(component, x, args...) \
 	do {							\
-		if (rt_global_debug_component & (component))	\
-			pr_debug("RTL8192U: " x "\n", ##args);	\
+		if (rt_global_de_component & (component))	\
+			pr_de("RTL8192U: " x "\n", ##args);	\
 	} while (0)
 
 #define COMP_TRACE              BIT(0)  /* Function call tracing. */
@@ -75,45 +75,45 @@ extern u32 rt_global_debug_component;
 #define COMP_RM                 BIT(13) /* Radio Measurement */
 #define COMP_DIG                BIT(14)
 #define COMP_PHY                BIT(15)
-#define COMP_CH                 BIT(16) /* Channel setting debug */
+#define COMP_CH                 BIT(16) /* Channel setting de */
 #define COMP_TXAGC              BIT(17) /* Tx power */
 #define COMP_HIPWR              BIT(18) /* High Power Mechanism */
 #define COMP_HALDM              BIT(19) /* HW Dynamic Mechanism */
 #define COMP_SEC                BIT(20) /* Event handling */
 #define COMP_LED                BIT(21)
 #define COMP_RF                 BIT(22)
-#define COMP_RXDESC             BIT(23) /* Rx desc information for SD3 debug */
+#define COMP_RXDESC             BIT(23) /* Rx desc information for SD3 de */
 
 /* 11n or 8190 specific code */
 
 #define COMP_FIRMWARE           BIT(24) /* Firmware downloading */
 #define COMP_HT                 BIT(25) /* 802.11n HT related information */
-#define COMP_AMSDU              BIT(26) /* A-MSDU Debugging */
+#define COMP_AMSDU              BIT(26) /* A-MSDU Deging */
 #define COMP_SCAN               BIT(27)
 #define COMP_DOWN               BIT(29) /* rm driver module */
 #define COMP_RESET              BIT(30) /* Silent reset */
 #define COMP_ERR                BIT(31) /* Error out, always on */
 
-#define RTL819x_DEBUG
-#ifdef RTL819x_DEBUG
+#define RTL819x_DE
+#ifdef RTL819x_DE
 #define RTL8192U_ASSERT(expr) \
 	do {								\
 		if (!(expr)) {						\
-			pr_debug("Assertion failed! %s, %s, %s, line = %d\n", \
+			pr_de("Assertion failed! %s, %s, %s, line = %d\n", \
 				 #expr, __FILE__, __func__, __LINE__);	\
 		}							\
 	} while (0)
 /*
- * Debug out data buf.
+ * De out data buf.
  * If you want to print DATA buffer related BA,
- * please set ieee80211_debug_level to DATA|BA
+ * please set ieee80211_de_level to DATA|BA
  */
-#define RT_DEBUG_DATA(level, data, datalen) \
+#define RT_DE_DATA(level, data, datalen) \
 	do {								\
-		if ((rt_global_debug_component & (level)) == (level)) {	\
+		if ((rt_global_de_component & (level)) == (level)) {	\
 			int i;						\
 			u8 *pdata = (u8 *)data;				\
-			pr_debug("RTL8192U: %s()\n", __func__);		\
+			pr_de("RTL8192U: %s()\n", __func__);		\
 			for (i = 0; i < (int)(datalen); i++) {		\
 				printk("%2x ", pdata[i]);               \
 				if ((i+1)%16 == 0)			\
@@ -124,8 +124,8 @@ extern u32 rt_global_debug_component;
 	} while (0)
 #else
 #define RTL8192U_ASSERT(expr) do {} while (0)
-#define RT_DEBUG_DATA(level, data, datalen) do {} while (0)
-#endif /* RTL8169_DEBUG */
+#define RT_DE_DATA(level, data, datalen) do {} while (0)
+#endif /* RTL8169_DE */
 
 /* Queue Select Value in TxDesc */
 #define QSLT_BK                                 0x1
@@ -461,7 +461,7 @@ typedef struct buffer {
 
 } buffer;
 
-typedef struct rtl_reg_debug {
+typedef struct rtl_reg_de {
 	unsigned int  cmd;
 	struct {
 		unsigned char type;
@@ -470,7 +470,7 @@ typedef struct rtl_reg_debug {
 		unsigned char length;
 	} head;
 	unsigned char buf[0xff];
-} rtl_reg_debug;
+} rtl_reg_de;
 
 typedef struct _rt_9x_tx_rate_history {
 	u32             cck[4];

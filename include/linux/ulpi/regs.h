@@ -23,7 +23,7 @@
 #define ULPI_USB_INT_EN_FALL			0x10
 #define ULPI_USB_INT_STS			0x13
 #define ULPI_USB_INT_LATCH			0x14
-#define ULPI_DEBUG				0x15
+#define ULPI_DE				0x15
 #define ULPI_SCRATCH				0x16
 /* Optional Carkit Registers */
 #define ULPI_CARKIT_CTRL			0x19
@@ -95,9 +95,9 @@
 #define ULPI_INT_SESS_END			BIT(3)
 #define ULPI_INT_IDGRD				BIT(4)
 
-/* Debug */
-#define ULPI_DEBUG_LINESTATE0			BIT(0)
-#define ULPI_DEBUG_LINESTATE1			BIT(1)
+/* De */
+#define ULPI_DE_LINESTATE0			BIT(0)
+#define ULPI_DE_LINESTATE1			BIT(1)
 
 /* Carkit Control */
 #define ULPI_CARKIT_CTRL_CARKITPWR		BIT(0)

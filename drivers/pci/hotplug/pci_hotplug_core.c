@@ -34,13 +34,13 @@
 
 #define MY_NAME	"pci_hotplug"
 
-#define dbg(fmt, arg...) do { if (debug) printk(KERN_DEBUG "%s: %s: " fmt, MY_NAME, __func__, ## arg); } while (0)
+#define dbg(fmt, arg...) do { if (de) printk(KERN_DE "%s: %s: " fmt, MY_NAME, __func__, ## arg); } while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
 
 /* local variables */
-static bool debug;
+static bool de;
 
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
@@ -562,7 +562,7 @@ static int __init pci_hotplug_init(void)
 {
 	int result;
 
-	result = cpci_hotplug_init(debug);
+	result = cpci_hotplug_init(de);
 	if (result) {
 		err("cpci_hotplug_init with error %d\n", result);
 		return result;
@@ -576,5 +576,5 @@ device_initcall(pci_hotplug_init);
  * not really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "Deging mode enabled or not");

@@ -83,7 +83,7 @@ CHECKFLAGS += -D__mc68000__
 
 
 ifdef CONFIG_KGDB
-# If configured for kgdb support, include debugging infos and keep the
+# If configured for kgdb support, include deging infos and keep the
 # frame pointer
 KBUILD_CFLAGS := $(subst -fomit-frame-pointer,,$(KBUILD_CFLAGS)) -g
 endif

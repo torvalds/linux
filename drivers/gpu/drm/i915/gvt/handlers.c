@@ -458,7 +458,7 @@ static int pipeconf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 /* ascendingly sorted */
 static i915_reg_t force_nonpriv_white_list[] = {
-	GEN9_CS_DEBUG_MODE1, //_MMIO(0x20ec)
+	GEN9_CS_DE_MODE1, //_MMIO(0x20ec)
 	GEN9_CTX_PREEMPT_REG,//_MMIO(0x2248)
 	GEN8_CS_CHICKEN1,//_MMIO(0x2580)
 	_MMIO(0x2690),

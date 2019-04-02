@@ -93,7 +93,7 @@ static void rtas_stop_self(void)
 
 	local_irq_disable();
 
-	BUG_ON(rtas_stop_self_token == RTAS_UNKNOWN_SERVICE);
+	_ON(rtas_stop_self_token == RTAS_UNKNOWN_SERVICE);
 
 	printk("cpu %u (hwid %u) Ready to die...\n",
 	       smp_processor_id(), hard_smp_processor_id());
@@ -163,7 +163,7 @@ static void pseries_mach_cpu_die(void)
 	rtas_stop_self();
 
 	/* Should never get here... */
-	BUG();
+	();
 	for(;;);
 }
 
@@ -264,7 +264,7 @@ static int pseries_add_processor(struct device_node *np)
 
 	cpu_maps_update_begin();
 
-	BUG_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
+	_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
 
 	/* Get a bitmap of unoccupied slots. */
 	cpumask_xor(candidate_mask, cpu_possible_mask, cpu_present_mask);
@@ -293,7 +293,7 @@ static int pseries_add_processor(struct device_node *np)
 	}
 
 	for_each_cpu(cpu, tmp) {
-		BUG_ON(cpu_present(cpu));
+		_ON(cpu_present(cpu));
 		set_cpu_present(cpu, true);
 		set_hard_smp_processor_id(cpu, be32_to_cpu(*intserv++));
 	}
@@ -329,7 +329,7 @@ static void pseries_remove_processor(struct device_node *np)
 		for_each_present_cpu(cpu) {
 			if (get_hard_smp_processor_id(cpu) != thread)
 				continue;
-			BUG_ON(cpu_online(cpu));
+			_ON(cpu_online(cpu));
 			set_cpu_present(cpu, false);
 			set_hard_smp_processor_id(cpu, -1);
 			update_numa_cpu_lookup_table(cpu, -1);
@@ -362,7 +362,7 @@ static int dlpar_online_cpu(struct device_node *dn)
 		for_each_present_cpu(cpu) {
 			if (get_hard_smp_processor_id(cpu) != thread)
 				continue;
-			BUG_ON(get_cpu_current_state(cpu)
+			_ON(get_cpu_current_state(cpu)
 					!= CPU_STATE_OFFLINE);
 			cpu_maps_update_done();
 			timed_topology_update(1);
@@ -437,7 +437,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	struct device_node *dn, *parent;
 	int rc, saved_rc;
 
-	pr_debug("Attempting to add CPU, drc index: %x\n", drc_index);
+	pr_de("Attempting to add CPU, drc index: %x\n", drc_index);
 
 	parent = of_find_node_by_path("/cpus");
 	if (!parent) {
@@ -504,7 +504,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		return saved_rc;
 	}
 
-	pr_debug("Successfully added CPU %pOFn, drc index: %x\n", dn,
+	pr_de("Successfully added CPU %pOFn, drc index: %x\n", dn,
 		 drc_index);
 	return rc;
 }
@@ -551,7 +551,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			 * Upgrade it's state to CPU_STATE_OFFLINE.
 			 */
 			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-			BUG_ON(plpar_hcall_norets(H_PROD, thread)
+			_ON(plpar_hcall_norets(H_PROD, thread)
 								!= H_SUCCESS);
 			__cpu_die(cpu);
 			break;
@@ -570,7 +570,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
 
-	pr_debug("Attempting to remove CPU %pOFn, drc index: %x\n",
+	pr_de("Attempting to remove CPU %pOFn, drc index: %x\n",
 		 dn, drc_index);
 
 	rc = dlpar_offline_cpu(dn);
@@ -600,7 +600,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 		return saved_rc;
 	}
 
-	pr_debug("Successfully removed CPU, drc index: %x\n", drc_index);
+	pr_de("Successfully removed CPU, drc index: %x\n", drc_index);
 	return 0;
 }
 
@@ -686,7 +686,7 @@ static int dlpar_cpu_remove_by_count(u32 cpus_to_remove)
 	int cpus_removed = 0;
 	int i, rc;
 
-	pr_debug("Attempting to hot-remove %d CPUs\n", cpus_to_remove);
+	pr_de("Attempting to hot-remove %d CPUs\n", cpus_to_remove);
 
 	cpu_drcs = kcalloc(cpus_to_remove, sizeof(*cpu_drcs), GFP_KERNEL);
 	if (!cpu_drcs)
@@ -765,7 +765,7 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	int cpus_found;
 	int i, rc;
 
-	pr_debug("Attempting to hot-add %d CPUs\n", cpus_to_add);
+	pr_de("Attempting to hot-add %d CPUs\n", cpus_to_add);
 
 	cpu_drcs = kcalloc(cpus_to_add, sizeof(*cpu_drcs), GFP_KERNEL);
 	if (!cpu_drcs)

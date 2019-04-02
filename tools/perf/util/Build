@@ -40,7 +40,7 @@ perf-y += metricgroup.o
 perf-y += header.o
 perf-y += callchain.o
 perf-y += values.o
-perf-y += debug.o
+perf-y += de.o
 perf-y += machine.o
 perf-y += map.o
 perf-y += pstack.o
@@ -151,7 +151,7 @@ perf-y += demangle-rust.o
 ifdef CONFIG_JITDUMP
 perf-$(CONFIG_LIBELF) += jitdump.o
 perf-$(CONFIG_LIBELF) += genelf.o
-perf-$(CONFIG_DWARF) += genelf_debug.o
+perf-$(CONFIG_DWARF) += genelf_de.o
 endif
 
 perf-y += perf-hooks.o
@@ -164,19 +164,19 @@ CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_llvm-utils.o += -DPERF_INCLUDE_DIR="BUILD_STR($(perf_include_dir_SQ))"
 
 # avoid compiler warnings in 32-bit mode
-CFLAGS_genelf_debug.o  += -Wno-packed
+CFLAGS_genelf_de.o  += -Wno-packed
 
 $(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) util/parse-events.l
+	$(Q)$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DE_FLEX) util/parse-events.l
 
 $(OUTPUT)util/parse-events-bison.c: util/parse-events.y
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,bison)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $@ -p parse_events_
+	$(Q)$(call echo-cmd,bison)$(BISON) -v util/parse-events.y -d $(PARSER_DE_BISON) -o $@ -p parse_events_
 
 $(OUTPUT)util/expr-bison.c: util/expr.y
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,bison)$(BISON) -v util/expr.y -d $(PARSER_DEBUG_BISON) -o $@ -p expr__
+	$(Q)$(call echo-cmd,bison)$(BISON) -v util/expr.y -d $(PARSER_DE_BISON) -o $@ -p expr__
 
 $(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
 	$(call rule_mkdir)

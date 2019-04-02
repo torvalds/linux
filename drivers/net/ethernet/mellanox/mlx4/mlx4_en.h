@@ -825,7 +825,7 @@ void en_print(const char *level, const struct mlx4_en_priv *priv,
 #define en_dbg(mlevel, priv, format, ...)				\
 do {									\
 	if (NETIF_MSG_##mlevel & (priv)->msg_enable)			\
-		en_print(KERN_DEBUG, priv, format, ##__VA_ARGS__);	\
+		en_print(KERN_DE, priv, format, ##__VA_ARGS__);	\
 } while (0)
 #define en_warn(priv, format, ...)					\
 	en_print(KERN_WARNING, priv, format, ##__VA_ARGS__)

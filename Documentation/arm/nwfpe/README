@@ -34,13 +34,13 @@ The file README.FPE contains a description of what has been implemented
 so far in the emulator.  The file TODO contains a information on what 
 remains to be done, and other ideas for the emulator.
 
-Bug reports, comments, suggestions should be directed to me at
+ reports, comments, suggestions should be directed to me at
 <scottb@netwinder.org>.  General reports of "this program doesn't
 work correctly when your emulator is installed" are useful for
-determining that bugs still exist; but are virtually useless when
+determining that s still exist; but are virtually useless when
 attempting to isolate the problem.  Please report them, but don't
-expect quick action.  Bugs still exist.  The problem remains in isolating
-which instruction contains the bug.  Small programs illustrating a specific
+expect quick action.  s still exist.  The problem remains in isolating
+which instruction contains the .  Small programs illustrating a specific
 problem are a godsend.
 
 Legal Notices

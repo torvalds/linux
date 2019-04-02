@@ -40,7 +40,7 @@
 #define AR5416_EEPROM_MAGIC 0xa55a
 #endif
 
-#define CTRY_DEBUG   0x1ff
+#define CTRY_DE   0x1ff
 #define	CTRY_DEFAULT 0
 
 #define AR_EEPROM_EEPCAP_COMPRESS_DIS   0x0001

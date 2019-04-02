@@ -589,25 +589,25 @@ static unsigned long tegra20_clk_measure_input_freq(void)
 
 	switch (auto_clk_control) {
 	case OSC_CTRL_OSC_FREQ_12MHZ:
-		BUG_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
+		_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
 		input_freq = 12000000;
 		break;
 	case OSC_CTRL_OSC_FREQ_13MHZ:
-		BUG_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
+		_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
 		input_freq = 13000000;
 		break;
 	case OSC_CTRL_OSC_FREQ_19_2MHZ:
-		BUG_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
+		_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
 		input_freq = 19200000;
 		break;
 	case OSC_CTRL_OSC_FREQ_26MHZ:
-		BUG_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
+		_ON(pll_ref_div != OSC_CTRL_PLL_REF_DIV_1);
 		input_freq = 26000000;
 		break;
 	default:
 		pr_err("Unexpected clock autodetect value %d",
 		       auto_clk_control);
-		BUG();
+		();
 		return 0;
 	}
 
@@ -628,7 +628,7 @@ static unsigned int tegra20_get_pll_ref_div(void)
 		return 4;
 	default:
 		pr_err("Invalid pll ref divider %d\n", pll_ref_div);
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -824,7 +824,7 @@ static void __init tegra20_emc_clk_init(void)
 
 	/*
 	 * Note that 'emc_mux' source and 'emc' rate shouldn't be changed at
-	 * the same time due to a HW bug, this won't happen because we're
+	 * the same time due to a HW , this won't happen because we're
 	 * defining 'emc_mux' and 'emc' as distinct clocks.
 	 */
 	clk = tegra_clk_register_divider("emc", "emc_mux",
@@ -1008,7 +1008,7 @@ static void tegra20_cpu_clock_resume(void)
 	else if (policy == CCLK_RUN_POLICY)
 		reg = (reg >> CCLK_RUN_POLICY_SHIFT) & 0xF;
 	else
-		BUG();
+		();
 
 	if (reg != CCLK_BURST_POLICY_PLLX) {
 		/* restore PLLX settings if CPU is on different PLL */
@@ -1152,19 +1152,19 @@ static void __init tegra20_clock_init(struct device_node *np)
 	clk_base = of_iomap(np, 0);
 	if (!clk_base) {
 		pr_err("Can't map CAR registers\n");
-		BUG();
+		();
 	}
 
 	node = of_find_matching_node(NULL, pmc_match);
 	if (!node) {
 		pr_err("Failed to find pmc node\n");
-		BUG();
+		();
 	}
 
 	pmc_base = of_iomap(node, 0);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
-		BUG();
+		();
 	}
 
 	clks = tegra_clk_init(clk_base, TEGRA20_CLK_CLK_MAX,

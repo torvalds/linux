@@ -90,7 +90,7 @@ static int armada_drm_bind(struct device *dev)
 	 * The drm_device structure must be at the start of
 	 * armada_private for drm_dev_put() to work correctly.
 	 */
-	BUILD_BUG_ON(offsetof(struct armada_private, drm) != 0);
+	BUILD__ON(offsetof(struct armada_private, drm) != 0);
 
 	ret = drm_dev_init(&priv->drm, &armada_drm_driver, dev);
 	if (ret) {
@@ -143,8 +143,8 @@ static int armada_drm_bind(struct device *dev)
 	if (ret)
 		goto err_poll;
 
-#ifdef CONFIG_DEBUG_FS
-	armada_drm_debugfs_init(priv->drm.primary);
+#ifdef CONFIG_DE_FS
+	armada_drm_defs_init(priv->drm.primary);
 #endif
 
 	return 0;

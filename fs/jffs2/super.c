@@ -142,13 +142,13 @@ static struct dentry *jffs2_get_parent(struct dentry *child)
 	struct jffs2_inode_info *f;
 	uint32_t pino;
 
-	BUG_ON(!d_is_dir(child));
+	_ON(!d_is_dir(child));
 
 	f = JFFS2_INODE_INFO(d_inode(child));
 
 	pino = f->inocache->pino_nlink;
 
-	JFFS2_DEBUG("Parent of directory ino #%u is #%u\n",
+	JFFS2_DE("Parent of directory ino #%u is #%u\n",
 		    f->inocache->ino, pino);
 
 	return d_obtain_alias(jffs2_iget(child->d_sb, pino));
@@ -369,10 +369,10 @@ static int __init init_jffs2_fs(void)
 	   which means just 'no padding', without the alignment
 	   thing. But GCC doesn't have that -- we have to just
 	   hope the structs are the right sizes, instead. */
-	BUILD_BUG_ON(sizeof(struct jffs2_unknown_node) != 12);
-	BUILD_BUG_ON(sizeof(struct jffs2_raw_dirent) != 40);
-	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
-	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
+	BUILD__ON(sizeof(struct jffs2_unknown_node) != 12);
+	BUILD__ON(sizeof(struct jffs2_raw_dirent) != 40);
+	BUILD__ON(sizeof(struct jffs2_raw_inode) != 68);
+	BUILD__ON(sizeof(struct jffs2_raw_summary) != 32);
 
 	pr_info("version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER

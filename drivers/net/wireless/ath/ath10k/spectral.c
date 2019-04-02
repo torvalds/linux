@@ -5,7 +5,7 @@
 
 #include <linux/relay.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "wmi-ops.h"
 
 static void send_fft_sample(struct ath10k *ar,
@@ -319,7 +319,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 		if (ar->spectral.mode == SPECTRAL_MANUAL ||
 		    ar->spectral.mode == SPECTRAL_BACKGROUND) {
 			/* reset the configuration to adopt possibly changed
-			 * debugfs parameters
+			 * defs parameters
 			 */
 			res = ath10k_spectral_scan_config(ar,
 							  ar->spectral.mode);
@@ -481,7 +481,7 @@ static struct dentry *create_buf_file_handler(const char *filename,
 {
 	struct dentry *buf_file;
 
-	buf_file = debugfs_create_file(filename, mode, parent, buf,
+	buf_file = defs_create_file(filename, mode, parent, buf,
 				       &relay_file_operations);
 	if (IS_ERR(buf_file))
 		return NULL;
@@ -492,7 +492,7 @@ static struct dentry *create_buf_file_handler(const char *filename,
 
 static int remove_buf_file_handler(struct dentry *dentry)
 {
-	debugfs_remove(dentry);
+	defs_remove(dentry);
 
 	return 0;
 }
@@ -532,20 +532,20 @@ int ath10k_spectral_create(struct ath10k *ar)
 	 * Scan with bigger than 128 bins needs to be run on single band each.
 	 */
 	ar->spectral.rfs_chan_spec_scan = relay_open("spectral_scan",
-						     ar->debug.debugfs_phy,
+						     ar->de.defs_phy,
 						     1140, 2500,
 						     &rfs_spec_scan_cb, NULL);
-	debugfs_create_file("spectral_scan_ctl",
+	defs_create_file("spectral_scan_ctl",
 			    0600,
-			    ar->debug.debugfs_phy, ar,
+			    ar->de.defs_phy, ar,
 			    &fops_spec_scan_ctl);
-	debugfs_create_file("spectral_count",
+	defs_create_file("spectral_count",
 			    0600,
-			    ar->debug.debugfs_phy, ar,
+			    ar->de.defs_phy, ar,
 			    &fops_spectral_count);
-	debugfs_create_file("spectral_bins",
+	defs_create_file("spectral_bins",
 			    0600,
-			    ar->debug.debugfs_phy, ar,
+			    ar->de.defs_phy, ar,
 			    &fops_spectral_bins);
 
 	return 0;

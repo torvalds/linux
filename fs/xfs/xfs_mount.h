@@ -196,7 +196,7 @@ typedef struct xfs_mount {
 
 	bool			m_always_cow;
 	bool			m_fail_unmount;
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 * Frequency with which errors are injected.  Replaces xfs_etest; the
 	 * value stored in here is the inverse of the frequency with which the

@@ -14,7 +14,7 @@
 #include <linux/kallsyms.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <asm/hw_breakpoint.h>
@@ -70,7 +70,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 /*
  * Uninstall the breakpoint contained in the given counter.
  *
- * First we search the debug address register it uses and then we disable
+ * First we search the de address register it uses and then we disable
  * it.
  *
  * Atomic: we hold the counter->ctx->lock and we only handle variables
@@ -363,7 +363,7 @@ BUILD_TRAP_HANDLER(breakpoint)
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle de exception notifications.
  */
 int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 				    unsigned long val, void *data)
@@ -375,7 +375,7 @@ int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 
 	/*
 	 * If the breakpoint hasn't been triggered by the UBC, it's
-	 * probably from a debugger, so don't do anything more here.
+	 * probably from a deger, so don't do anything more here.
 	 *
 	 * This also permits the UBC interface clock to remain off for
 	 * non-UBC breakpoints, as we don't need to check the triggered

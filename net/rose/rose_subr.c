@@ -419,7 +419,7 @@ int rose_parse_facilities(unsigned char *p, unsigned packet_len,
 			break;
 
 		default:
-			printk(KERN_DEBUG "ROSE: rose_parse_facilities - unknown facilities family %02X\n", *p);
+			printk(KERN_DE "ROSE: rose_parse_facilities - unknown facilities family %02X\n", *p);
 			len = 1;
 			break;
 		}

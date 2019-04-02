@@ -203,7 +203,7 @@
 #define PCS1G_STICKY_LINK_DOWN_STICKY                     BIT(4)
 #define PCS1G_STICKY_OUT_OF_SYNC_STICKY                   BIT(0)
 
-#define PCS1G_DEBUG_STATUS                                0x7c
+#define PCS1G_DE_STATUS                                0x7c
 
 #define PCS1G_LPI_CFG                                     0x80
 

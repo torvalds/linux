@@ -48,11 +48,11 @@ static void mangle_contents(struct sk_buff *skb,
 
 	/* update skb info */
 	if (rep_len > match_len) {
-		pr_debug("nf_nat_mangle_packet: Extending packet by "
+		pr_de("nf_nat_mangle_packet: Extending packet by "
 			 "%u from %u bytes\n", rep_len - match_len, skb->len);
 		skb_put(skb, rep_len - match_len);
 	} else {
-		pr_debug("nf_nat_mangle_packet: Shrinking packet from "
+		pr_de("nf_nat_mangle_packet: Shrinking packet from "
 			 "%u from %u bytes\n", match_len - rep_len, skb->len);
 		__skb_trim(skb, skb->len + rep_len - match_len);
 	}
@@ -185,7 +185,7 @@ void nf_nat_follow_master(struct nf_conn *ct,
 	struct nf_nat_range2 range;
 
 	/* This must be a fresh one. */
-	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
+	_ON(ct->status & IPS_NAT_DONE_MASK);
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;

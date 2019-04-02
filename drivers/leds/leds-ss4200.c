@@ -447,7 +447,7 @@ static void set_power_light_amber_noblink(void)
 	/*
 	 * LED_OFF implies disabling future blinking
 	 */
-	pr_debug("setting blue off and amber on\n");
+	pr_de("setting blue off and amber on\n");
 
 	nasgpio_led_set_brightness(&blue->led_cdev, LED_OFF);
 	nasgpio_led_set_brightness(&amber->led_cdev, LED_FULL);

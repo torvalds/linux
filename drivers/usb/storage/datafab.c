@@ -12,7 +12,7 @@
  *   Many thanks to Robert Baruch for the SanDisk SmartMedia reader driver
  *   which I used as a template for this driver.
  *
- *   Some bugfixes and scatter-gather code by Gregory P. Smith 
+ *   Some fixes and scatter-gather code by Gregory P. Smith 
  *   (greg-usb@electricrain.com)
  *
  *   Fix for media change by Joerg Schneider (js@joergschneider.com)
@@ -46,7 +46,7 @@
 #include "usb.h"
 #include "transport.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "scsiglue.h"
 
 #define DRV_NAME "ums-datafab"

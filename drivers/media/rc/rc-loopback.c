@@ -4,7 +4,7 @@
  * Copyright (c) 2010 David Härdeman <david@hardeman.nu>
  *
  * This driver receives TX data and passes it back as RX data,
- * which is useful for (scripted) debugging of rc-core without
+ * which is useful for (scripted) deging of rc-core without
  * having to use actual hardware.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,11 +26,11 @@
 #include <media/rc-core.h>
 
 #define DRIVER_NAME	"rc-loopback"
-#define dprintk(x...)	if (debug) printk(KERN_INFO DRIVER_NAME ": " x)
+#define dprintk(x...)	if (de) printk(KERN_INFO DRIVER_NAME ": " x)
 #define RXMASK_REGULAR	0x1
 #define RXMASK_LEARNING	0x2
 
-static bool debug;
+static bool de;
 
 struct loopback_dev {
 	struct rc_dev *dev;
@@ -272,9 +272,9 @@ static void __exit loop_exit(void)
 module_init(loop_init);
 module_exit(loop_exit);
 
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debug messages");
+module_param(de, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Enable de messages");
 
-MODULE_DESCRIPTION("Loopback device for rc-core debugging");
+MODULE_DESCRIPTION("Loopback device for rc-core deging");
 MODULE_AUTHOR("David Härdeman <david@hardeman.nu>");
 MODULE_LICENSE("GPL");

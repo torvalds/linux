@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/random.h>
 #include <linux/slab.h>
@@ -359,7 +359,7 @@ nomem:
 	goto out_err;
 bad:
 	pr_err("corrupt mdsmap\n");
-	print_hex_dump(KERN_DEBUG, "mdsmap: ",
+	print_hex_dump(KERN_DE, "mdsmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
 out_err:

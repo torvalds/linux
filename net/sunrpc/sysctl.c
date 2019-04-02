@@ -23,21 +23,21 @@
 #include "netns.h"
 
 /*
- * Declare the debug flags here
+ * Declare the de flags here
  */
-unsigned int	rpc_debug;
-EXPORT_SYMBOL_GPL(rpc_debug);
+unsigned int	rpc_de;
+EXPORT_SYMBOL_GPL(rpc_de);
 
-unsigned int	nfs_debug;
-EXPORT_SYMBOL_GPL(nfs_debug);
+unsigned int	nfs_de;
+EXPORT_SYMBOL_GPL(nfs_de);
 
-unsigned int	nfsd_debug;
-EXPORT_SYMBOL_GPL(nfsd_debug);
+unsigned int	nfsd_de;
+EXPORT_SYMBOL_GPL(nfsd_de);
 
-unsigned int	nlm_debug;
-EXPORT_SYMBOL_GPL(nlm_debug);
+unsigned int	nlm_de;
+EXPORT_SYMBOL_GPL(nlm_de);
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 
 static struct ctl_table_header *sunrpc_table_header;
 static struct ctl_table sunrpc_table[];
@@ -73,7 +73,7 @@ static int proc_do_xprt(struct ctl_table *table, int write,
 }
 
 static int
-proc_dodebug(struct ctl_table *table, int write,
+proc_dode(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char		tmpbuf[20], c, *s = NULL;
@@ -113,8 +113,8 @@ proc_dodebug(struct ctl_table *table, int write,
 		} else
 			left = 0;
 		*(unsigned int *) table->data = value;
-		/* Display the RPC tasks on writing to rpc_debug */
-		if (strcmp(table->procname, "rpc_debug") == 0)
+		/* Display the RPC tasks on writing to rpc_de */
+		if (strcmp(table->procname, "rpc_de") == 0)
 			rpc_show_tasks(&init_net);
 	} else {
 		len = sprintf(tmpbuf, "0x%04x", *(unsigned int *) table->data);
@@ -136,34 +136,34 @@ done:
 }
 
 
-static struct ctl_table debug_table[] = {
+static struct ctl_table de_table[] = {
 	{
-		.procname	= "rpc_debug",
-		.data		= &rpc_debug,
+		.procname	= "rpc_de",
+		.data		= &rpc_de,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dodebug
+		.proc_handler	= proc_dode
 	},
 	{
-		.procname	= "nfs_debug",
-		.data		= &nfs_debug,
+		.procname	= "nfs_de",
+		.data		= &nfs_de,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dodebug
+		.proc_handler	= proc_dode
 	},
 	{
-		.procname	= "nfsd_debug",
-		.data		= &nfsd_debug,
+		.procname	= "nfsd_de",
+		.data		= &nfsd_de,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dodebug
+		.proc_handler	= proc_dode
 	},
 	{
-		.procname	= "nlm_debug",
-		.data		= &nlm_debug,
+		.procname	= "nlm_de",
+		.data		= &nlm_de,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dodebug
+		.proc_handler	= proc_dode
 	},
 	{
 		.procname	= "transports",
@@ -178,7 +178,7 @@ static struct ctl_table sunrpc_table[] = {
 	{
 		.procname	= "sunrpc",
 		.mode		= 0555,
-		.child		= debug_table
+		.child		= de_table
 	},
 	{ }
 };

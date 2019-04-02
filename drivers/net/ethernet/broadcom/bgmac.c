@@ -618,8 +618,8 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 	int size; /* ring size: different for Tx and Rx */
 	int i;
 
-	BUILD_BUG_ON(BGMAC_MAX_TX_RINGS > ARRAY_SIZE(ring_base));
-	BUILD_BUG_ON(BGMAC_MAX_RX_RINGS > ARRAY_SIZE(ring_base));
+	BUILD__ON(BGMAC_MAX_TX_RINGS > ARRAY_SIZE(ring_base));
+	BUILD__ON(BGMAC_MAX_RX_RINGS > ARRAY_SIZE(ring_base));
 
 	if (!(bgmac->feature_flags & BGMAC_FEAT_IDM_MASK)) {
 		if (!(bgmac_idm_read(bgmac, BCMA_IOST) & BCMA_IOST_DMA64)) {

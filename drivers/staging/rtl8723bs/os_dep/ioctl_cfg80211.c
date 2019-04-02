@@ -8,7 +8,7 @@
 
 #include <linux/etherdevice.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/jiffies.h>
 
 #include <rtw_wifi_regd.h>
@@ -710,7 +710,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 
 				memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 
-				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
+				/* DE_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 				memcpy(psecuritypriv->dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
@@ -778,7 +778,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 
 					psta->dot118021XPrivacy = _TKIP_;
 
-					/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
+					/* DE_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 					/* set mic key */
 					memcpy(psta->dot11tkiptxmickey.skey, &(param->u.crypt.key[16]), 8);
 					memcpy(psta->dot11tkiprxmickey.skey, &(param->u.crypt.key[24]), 8);
@@ -825,7 +825,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 
 					memcpy(psecuritypriv->dot118021XGrpKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 
-					/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
+					/* DE_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 					/* set mic key */
 					memcpy(psecuritypriv->dot118021XGrptxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[16]), 8);
 					memcpy(psecuritypriv->dot118021XGrprxmickey[param->u.crypt.idx].skey, &(param->u.crypt.key[24]), 8);
@@ -961,7 +961,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 		{
 			psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
 			if (psta == NULL) {
-				/* DEBUG_ERR(("Set wpa_set_encryption: Obtain Sta_info fail\n")); */
+				/* DE_ERR(("Set wpa_set_encryption: Obtain Sta_info fail\n")); */
 				DBG_8192C("%s, : Obtain Sta_info fail\n", __func__);
 			}
 			else
@@ -986,7 +986,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 
 					if (strcmp(param->u.crypt.alg, "TKIP") == 0)/* set mic key */
 					{
-						/* DEBUG_ERR(("\nset key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
+						/* DE_ERR(("\nset key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
 						memcpy(psta->dot11tkiptxmickey.skey, &(param->u.crypt.key[16]), 8);
 						memcpy(psta->dot11tkiprxmickey.skey, &(param->u.crypt.key[24]), 8);
 
@@ -994,7 +994,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 						/* _set_timer(&padapter->securitypriv.tkip_timer, 50); */
 					}
 
-					/* DEBUG_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
+					/* DE_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
 					DBG_871X(" ~~~~set sta key:unicastkey\n");
 
 					rtw_setstakey_cmd(padapter, psta, true, true);
@@ -1007,7 +1007,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 						memcpy(padapter->securitypriv.dot118021XGrptxmickey[param->u.crypt.idx].skey,&(param->u.crypt.key[16]), 8);
 						memcpy(padapter->securitypriv.dot118021XGrprxmickey[param->u.crypt.idx].skey,&(param->u.crypt.key[24]), 8);
 	                                        padapter->securitypriv.binstallGrpkey = true;
-						/* DEBUG_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
+						/* DE_ERR((" param->u.crypt.key_len =%d\n", param->u.crypt.key_len)); */
 						DBG_871X(" ~~~~set sta key:groupkey\n");
 
 						padapter->securitypriv.dot118021XGrpKeyid = param->u.crypt.idx;
@@ -1032,7 +1032,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 			pbcmc_sta =rtw_get_bcmc_stainfo(padapter);
 			if (pbcmc_sta == NULL)
 			{
-				/* DEBUG_ERR(("Set OID_802_11_ADD_KEY: bcmc stainfo is null\n")); */
+				/* DE_ERR(("Set OID_802_11_ADD_KEY: bcmc stainfo is null\n")); */
 			}
 			else
 			{
@@ -1249,7 +1249,7 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 		goto exit;
 	}
 
-#ifdef DEBUG_CFG80211
+#ifdef DE_CFG80211
 	DBG_871X(FUNC_NDEV_FMT" mac ="MAC_FMT"\n", FUNC_NDEV_ARG(ndev), MAC_ARG(mac));
 #endif
 
@@ -1384,7 +1384,7 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted)
 
 	spin_lock_bh(&pwdev_priv->scan_req_lock);
 	if (pwdev_priv->scan_request != NULL) {
-		#ifdef DEBUG_CFG80211
+		#ifdef DE_CFG80211
 		DBG_871X("%s with scan req\n", __func__);
 		#endif
 
@@ -1400,7 +1400,7 @@ void rtw_cfg80211_indicate_scan_done(struct adapter *adapter, bool aborted)
 
 		pwdev_priv->scan_request = NULL;
 	} else {
-		#ifdef DEBUG_CFG80211
+		#ifdef DE_CFG80211
 		DBG_871X("%s without scan req\n", __func__);
 		#endif
 	}
@@ -1434,7 +1434,7 @@ void rtw_cfg80211_surveydone_event_callback(struct adapter *padapter)
 	struct __queue *queue	= &(pmlmepriv->scanned_queue);
 	struct	wlan_network	*pnetwork = NULL;
 
-#ifdef DEBUG_CFG80211
+#ifdef DE_CFG80211
 	DBG_8192C("%s\n", __func__);
 #endif
 
@@ -1474,7 +1474,7 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct adapter *padapter, char *b
 	u8 *wps_ie;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 
-#ifdef DEBUG_CFG80211
+#ifdef DE_CFG80211
 	DBG_8192C("%s, ielen =%d\n", __func__, len);
 #endif
 
@@ -1482,7 +1482,7 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct adapter *padapter, char *b
 	{
 		if ((wps_ie = rtw_get_wps_ie(buf, len, NULL, &wps_ielen)))
 		{
-			#ifdef DEBUG_CFG80211
+			#ifdef DE_CFG80211
 			DBG_8192C("probe_req_wps_ielen =%d\n", wps_ielen);
 			#endif
 
@@ -1536,7 +1536,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	pwdev_priv = adapter_wdev_data(padapter);
 	pmlmepriv = &padapter->mlmepriv;
 
-/* ifdef DEBUG_CFG80211 */
+/* ifdef DE_CFG80211 */
 	DBG_871X(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(padapter));
 /* endif */
 
@@ -1546,7 +1546,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
 	{
-#ifdef DEBUG_CFG80211
+#ifdef DE_CFG80211
 		DBG_871X("%s under WIFI_AP_STATE\n", __func__);
 #endif
 
@@ -1609,7 +1609,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	memset(ssid, 0, sizeof(struct ndis_802_11_ssid)*RTW_SSID_SCAN_AMOUNT);
 	/* parsing request ssids, n_ssids */
 	for (i = 0; i < request->n_ssids && i < RTW_SSID_SCAN_AMOUNT; i++) {
-		#ifdef DEBUG_CFG80211
+		#ifdef DE_CFG80211
 		DBG_8192C("ssid =%s, len =%d\n", ssids[i].ssid, ssids[i].ssid_len);
 		#endif
 		memcpy(ssid[i].Ssid, ssids[i].ssid, ssids[i].ssid_len);
@@ -1619,7 +1619,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	/* parsing channels, n_channels */
 	memset(ch, 0, sizeof(struct rtw_ieee80211_channel)*RTW_CHANNEL_SCAN_AMOUNT);
 	for (i = 0;i<request->n_channels && i<RTW_CHANNEL_SCAN_AMOUNT;i++) {
-		#ifdef DEBUG_CFG80211
+		#ifdef DE_CFG80211
 		DBG_871X(FUNC_ADPT_FMT CHAN_FMT"\n", FUNC_ADPT_ARG(padapter), CHAN_ARG(request->channels[i]));
 		#endif
 		ch[i].hw_value = request->channels[i]->hw_value;
@@ -3094,7 +3094,7 @@ static int _cfg80211_rtw_mgmt_tx(struct adapter *padapter, u8 tx_ch, const u8 *b
 		ack = false;
 		ret = _FAIL;
 
-		#ifdef DEBUG_CFG80211
+		#ifdef DE_CFG80211
 		DBG_8192C("%s, ack == _FAIL\n", __func__);
 		#endif
 	}
@@ -3103,7 +3103,7 @@ static int _cfg80211_rtw_mgmt_tx(struct adapter *padapter, u8 tx_ch, const u8 *b
 
 		msleep(50);
 
-		#ifdef DEBUG_CFG80211
+		#ifdef DE_CFG80211
 		DBG_8192C("%s, ack =%d, ok!\n", __func__, ack);
 		#endif
 		ret = _SUCCESS;
@@ -3111,7 +3111,7 @@ static int _cfg80211_rtw_mgmt_tx(struct adapter *padapter, u8 tx_ch, const u8 *b
 
 exit:
 
-	#ifdef DEBUG_CFG80211
+	#ifdef DE_CFG80211
 	DBG_8192C("%s, ret =%d\n", __func__, ret);
 	#endif
 
@@ -3150,12 +3150,12 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy,
 	/* cookie generation */
 	*cookie = (unsigned long) buf;
 
-#ifdef DEBUG_CFG80211
+#ifdef DE_CFG80211
 	DBG_871X(FUNC_ADPT_FMT" len =%zu, ch =%d"
 		"\n", FUNC_ADPT_ARG(padapter),
 		len, tx_ch
 	);
-#endif /* DEBUG_CFG80211 */
+#endif /* DE_CFG80211 */
 
 	/* indicate ack before issue frame to avoid racing with rsp frame */
 	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack, GFP_KERNEL);
@@ -3223,7 +3223,7 @@ static void cfg80211_rtw_mgmt_frame_register(struct wiphy *wiphy,
 
 	adapter = (struct adapter *)rtw_netdev_priv(ndev);
 
-#ifdef DEBUG_CFG80211
+#ifdef DE_CFG80211
 	DBG_871X(FUNC_ADPT_FMT" frame_type:%x, reg:%d\n", FUNC_ADPT_ARG(adapter),
 		frame_type, reg);
 #endif

@@ -697,7 +697,7 @@ kci_test_ipsec_offload()
 	srcip=192.168.123.3
 	dstip=192.168.123.4
 	dev=simx1
-	sysfsd=/sys/kernel/debug/netdevsim/$dev
+	sysfsd=/sys/kernel/de/netdevsim/$dev
 	sysfsf=$sysfsd/ipsec
 
 	# setup netdevsim since dummydev doesn't have offload support

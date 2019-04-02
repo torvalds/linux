@@ -17,7 +17,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "delta.h"
-#include "delta-debug.h"
+#include "delta-de.h"
 #include "delta-ipc.h"
 
 #define DELTA_NAME	"st-delta"
@@ -1708,7 +1708,7 @@ static int delta_release(struct file *file)
 
 	/*
 	 * trace a summary of instance
-	 * before closing (debug purpose)
+	 * before closing (de purpose)
 	 */
 	delta_trace_summary(ctx);
 

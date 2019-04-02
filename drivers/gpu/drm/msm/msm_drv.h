@@ -178,8 +178,8 @@ struct msm_drm_private {
 
 	struct drm_fb_helper *fbdev;
 
-	struct msm_rd_state *rd;       /* debugfs to dump all submits */
-	struct msm_rd_state *hangrd;   /* debugfs to dump hanging submits */
+	struct msm_rd_state *rd;       /* defs to dump all submits */
+	struct msm_rd_state *hangrd;   /* defs to dump hanging submits */
 	struct msm_perf_state *perf;
 
 	/* list of GEM objects: */
@@ -383,25 +383,25 @@ void __exit msm_mdp_unregister(void);
 void __init msm_dpu_register(void);
 void __exit msm_dpu_unregister(void);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);
 void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
-int msm_debugfs_late_init(struct drm_device *dev);
-int msm_rd_debugfs_init(struct drm_minor *minor);
-void msm_rd_debugfs_cleanup(struct msm_drm_private *priv);
+int msm_defs_late_init(struct drm_device *dev);
+int msm_rd_defs_init(struct drm_minor *minor);
+void msm_rd_defs_cleanup(struct msm_drm_private *priv);
 __printf(3, 4)
 void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 		const char *fmt, ...);
-int msm_perf_debugfs_init(struct drm_minor *minor);
-void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
+int msm_perf_defs_init(struct drm_minor *minor);
+void msm_perf_defs_cleanup(struct msm_drm_private *priv);
 #else
-static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
+static inline int msm_defs_late_init(struct drm_device *dev) { return 0; }
 __printf(3, 4)
 static inline void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 		const char *fmt, ...) {}
-static inline void msm_rd_debugfs_cleanup(struct msm_drm_private *priv) {}
-static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
+static inline void msm_rd_defs_cleanup(struct msm_drm_private *priv) {}
+static inline void msm_perf_defs_cleanup(struct msm_drm_private *priv) {}
 #endif
 
 struct clk *msm_clk_get(struct platform_device *pdev, const char *name);
@@ -426,8 +426,8 @@ void msm_submitqueue_close(struct msm_file_private *ctx);
 void msm_submitqueue_destroy(struct kref *kref);
 
 
-#define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
-#define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
+#define DBG(fmt, ...) DRM_DE_DRIVER(fmt"\n", ##__VA_ARGS__)
+#define VERB(fmt, ...) if (0) DRM_DE_DRIVER(fmt"\n", ##__VA_ARGS__)
 
 static inline int align_pitch(int width, int bpp)
 {
@@ -437,9 +437,9 @@ static inline int align_pitch(int width, int bpp)
 }
 
 /* for the generated headers: */
-#define INVALID_IDX(idx) ({BUG(); 0;})
-#define fui(x)                ({BUG(); 0;})
-#define util_float_to_half(x) ({BUG(); 0;})
+#define INVALID_IDX(idx) ({(); 0;})
+#define fui(x)                ({(); 0;})
+#define util_float_to_half(x) ({(); 0;})
 
 
 #define FIELD(val, name) (((val) & name ## __MASK) >> name ## __SHIFT)

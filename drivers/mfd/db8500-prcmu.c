@@ -734,9 +734,9 @@ int prcmu_config_clkout(u8 clkout, u8 source, u8 div)
 	u32 mask;
 	u32 div_mask;
 
-	BUG_ON(clkout > 1);
-	BUG_ON(div > 63);
-	BUG_ON((clkout == 0) && (source > PRCMU_CLKSRC_CLK009));
+	_ON(clkout > 1);
+	_ON(div > 63);
+	_ON((clkout == 0) && (source > PRCMU_CLKSRC_CLK009));
 
 	if (!div && !requests[clkout])
 		return -EINVAL;
@@ -784,7 +784,7 @@ int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll)
 {
 	unsigned long flags;
 
-	BUG_ON((state < PRCMU_AP_SLEEP) || (PRCMU_AP_DEEP_IDLE < state));
+	_ON((state < PRCMU_AP_SLEEP) || (PRCMU_AP_DEEP_IDLE < state));
 
 	spin_lock_irqsave(&mb0_transfer.lock, flags);
 
@@ -848,7 +848,7 @@ void db8500_prcmu_enable_wakeups(u32 wakeups)
 	u32 bits;
 	int i;
 
-	BUG_ON(wakeups != (wakeups & VALID_WAKEUPS));
+	_ON(wakeups != (wakeups & VALID_WAKEUPS));
 
 	for (i = 0, bits = 0; i < NUM_PRCMU_WAKEUP_INDICES; i++) {
 		if (wakeups & BIT(i))
@@ -1165,7 +1165,7 @@ int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
 	int i;
 
 	/* check argument */
-	BUG_ON(epod_id >= NUM_EPOD_ID);
+	_ON(epod_id >= NUM_EPOD_ID);
 
 	/* set flag if retention is possible */
 	switch (epod_id) {
@@ -1178,8 +1178,8 @@ int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
 	}
 
 	/* check argument */
-	BUG_ON(epod_state > EPOD_STATE_ON);
-	BUG_ON(epod_state == EPOD_STATE_RAMRET && !ram_retention);
+	_ON(epod_state > EPOD_STATE_ON);
+	_ON(epod_state == EPOD_STATE_RAMRET && !ram_retention);
 
 	/* get lock */
 	mutex_lock(&mb2_transfer.lock);
@@ -1230,7 +1230,7 @@ void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	u32 idle_cfg;
 	unsigned long flags;
 
-	BUG_ON((sleep == NULL) || (idle == NULL));
+	_ON((sleep == NULL) || (idle == NULL));
 
 	sleep_cfg = (sleep->sva_auto_pm_enable & 0xF);
 	sleep_cfg = ((sleep_cfg << 4) | (sleep->sia_auto_pm_enable & 0xF));
@@ -1866,7 +1866,7 @@ static int set_armss_rate(unsigned long rate)
 		return -EINVAL;
 
 	/* Set the new arm opp. */
-	pr_debug("SET ARM OPP 0x%02x\n", opps[i]);
+	pr_de("SET ARM OPP 0x%02x\n", opps[i]);
 	return db8500_prcmu_set_arm_opp(opps[i]);
 }
 
@@ -2086,7 +2086,7 @@ static int prcmu_a9wdog(u8 cmd, u8 d0, u8 d1, u8 d2, u8 d3)
 
 int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 {
-	BUG_ON(num == 0 || num > 0xf);
+	_ON(num == 0 || num > 0xf);
 	return prcmu_a9wdog(MB4H_A9WDOG_CONF, num, 0, 0,
 			    sleep_auto_off ? A9WDOG_AUTO_OFF_EN :
 			    A9WDOG_AUTO_OFF_DIS);

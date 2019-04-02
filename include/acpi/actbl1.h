@@ -30,8 +30,8 @@
 #define ACPI_SIG_BOOT           "BOOT"	/* Simple Boot Flag Table */
 #define ACPI_SIG_CPEP           "CPEP"	/* Corrected Platform Error Polling table */
 #define ACPI_SIG_CSRT           "CSRT"	/* Core System Resource Table */
-#define ACPI_SIG_DBG2           "DBG2"	/* Debug Port table type 2 */
-#define ACPI_SIG_DBGP           "DBGP"	/* Debug Port table */
+#define ACPI_SIG_DBG2           "DBG2"	/* De Port table type 2 */
+#define ACPI_SIG_DBGP           "DBGP"	/* De Port table */
 #define ACPI_SIG_DMAR           "DMAR"	/* DMA Remapping table */
 #define ACPI_SIG_DRTM           "DRTM"	/* Dynamic Root of Trust for Measurement table */
 #define ACPI_SIG_ECDT           "ECDT"	/* Embedded Controller Boot Resources Table */
@@ -396,10 +396,10 @@ struct acpi_csrt_descriptor {
 
 /*******************************************************************************
  *
- * DBG2 - Debug Port Table 2
+ * DBG2 - De Port Table 2
  *        Version 0 (Both main table and subtables)
  *
- * Conforms to "Microsoft Debug Port Table 2 (DBG2)", December 10, 2015
+ * Conforms to "Microsoft De Port Table 2 (DBG2)", December 10, 2015
  *
  ******************************************************************************/
 
@@ -414,7 +414,7 @@ struct acpi_dbg2_header {
 	u32 info_count;
 };
 
-/* Debug Device Information Subtable */
+/* De Device Information Subtable */
 
 struct acpi_dbg2_device {
 	u8 revision;
@@ -462,10 +462,10 @@ struct acpi_dbg2_device {
 
 /*******************************************************************************
  *
- * DBGP - Debug Port table
+ * DBGP - De Port table
  *        Version 1
  *
- * Conforms to the "Debug Port Specification", Version 1.00, 2/9/2000
+ * Conforms to the "De Port Specification", Version 1.00, 2/9/2000
  *
  ******************************************************************************/
 
@@ -473,7 +473,7 @@ struct acpi_table_dbgp {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u8 type;		/* 0=full 16550, 1=subset of 16550 */
 	u8 reserved[3];
-	struct acpi_generic_address debug_port;
+	struct acpi_generic_address de_port;
 };
 
 /*******************************************************************************

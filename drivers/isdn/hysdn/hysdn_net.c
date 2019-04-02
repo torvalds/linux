@@ -280,7 +280,7 @@ hysdn_net_create(hysdn_card *card)
 	dev->ml_priv = card;	/* remember pointer to own data structure */
 	card->netif = dev;	/* setup the local pointer */
 
-	if (card->debug_flags & LOG_NET_INIT)
+	if (card->de_flags & LOG_NET_INIT)
 		hysdn_addlog(card, "network device created");
 	return (0);		/* and return success */
 }				/* hysdn_net_create */
@@ -304,7 +304,7 @@ hysdn_net_release(hysdn_card *card)
 
 	unregister_netdev(dev);	/* release the device */
 	free_netdev(dev);	/* release the memory allocated */
-	if (card->debug_flags & LOG_NET_INIT)
+	if (card->de_flags & LOG_NET_INIT)
 		hysdn_addlog(card, "network device deleted");
 
 	return (0);		/* always successful */

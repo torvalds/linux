@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
+#define DE
 
 #include <linux/kernel.h>
 #include <linux/reboot.h>
@@ -399,7 +399,7 @@ static int alloc_image_buf(char *buffer, size_t count)
 
 	memcpy(&image_header, (void *)buffer, sizeof(image_header));
 	image_data.size = be32_to_cpu(image_header.size);
-	pr_debug("FLASH: Candidate image size = %u\n", image_data.size);
+	pr_de("FLASH: Candidate image size = %u\n", image_data.size);
 
 	if (image_data.size > MAX_IMAGE_SIZE) {
 		pr_warn("FLASH: Too large image\n");
@@ -474,7 +474,7 @@ static ssize_t image_data_write(struct file *filp, struct kobject *kobj,
 
 	/* Set image status */
 	if ((pos + count) == image_data.size) {
-		pr_debug("FLASH: Candidate image loaded....\n");
+		pr_de("FLASH: Candidate image loaded....\n");
 		image_data.status = IMAGE_READY;
 	}
 

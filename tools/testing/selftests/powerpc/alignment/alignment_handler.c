@@ -54,7 +54,7 @@
 #include "utils.h"
 
 int bufsize;
-int debug;
+int de;
 int testing;
 volatile int gotsig;
 
@@ -146,7 +146,7 @@ int test_memcpy(void *dst, void *src, int size, int offset,
 
 	testing = 0;
 	if (gotsig) {
-		if (debug)
+		if (de)
 			printf("  Got signal %i\n", gotsig);
 		return 1;
 	}
@@ -178,7 +178,7 @@ int test_memcmp(void *s1, void *s2, int n, int offset, char *test_name)
 	s2c += offset;
 
 	if (memcmp(s1c, s2c, n)) {
-		if (debug) {
+		if (de) {
 			printf("\n  Compare failed. Offset:%i length:%i\n",
 			       offset, n);
 			dumpdata(s1c, s2c, n, test_name);
@@ -246,14 +246,14 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 
 		r |= test_memcpy(ci1,  ci0,  width, offset, test_func);
 		r |= test_memcpy(mem1, mem0, width, offset, test_func);
-		if (r && !debug) {
+		if (r && !de) {
 			printf("FAILED: Got signal");
 			rc = 1;
 			break;
 		}
 
 		r |= test_memcmp(mem1, ci1, width, offset, test_name);
-		if (r && !debug) {
+		if (r && !de) {
 			printf("FAILED: Wrong Data");
 			rc = 1;
 			break;
@@ -514,7 +514,7 @@ int test_alignment_handler_fp_206(void)
 void usage(char *prog)
 {
 	printf("Usage: %s [options]\n", prog);
-	printf("  -d	Enable debug error output\n");
+	printf("  -d	Enable de error output\n");
 	printf("\n");
 	printf("This test requires a POWER8 or POWER9 CPU and a usable ");
 	printf("framebuffer at /dev/fb0.\n");
@@ -530,7 +530,7 @@ int main(int argc, char *argv[])
 	while ((option = getopt(argc, argv, "d")) != -1) {
 		switch (option) {
 		case 'd':
-			debug++;
+			de++;
 			break;
 		default:
 			usage(argv[0]);

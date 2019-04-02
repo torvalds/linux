@@ -38,12 +38,12 @@ static DECLARE_RWSEM(key_types_sem);
 /* We serialise key instantiation and link */
 DEFINE_MUTEX(key_construction_mutex);
 
-#ifdef KEY_DEBUGGING
+#ifdef KEY_DEGING
 void __key_check(const struct key *key)
 {
 	printk("__key_check: key %p {%08x} should be {%08x}\n",
-	       key, key->magic, KEY_DEBUG_MAGIC);
-	BUG();
+	       key, key->magic, KEY_DE_MAGIC);
+	();
 }
 #endif
 
@@ -306,8 +306,8 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	if (flags & KEY_ALLOC_UID_KEYRING)
 		key->flags |= 1 << KEY_FLAG_UID_KEYRING;
 
-#ifdef KEY_DEBUGGING
-	key->magic = KEY_DEBUG_MAGIC;
+#ifdef KEY_DEGING
+	key->magic = KEY_DE_MAGIC;
 #endif
 
 	/* let the security module know about the key */

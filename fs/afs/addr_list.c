@@ -119,7 +119,7 @@ struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
 		p++;
 	} while (p < end);
 
-	_debug("%u/%u addresses", nr, AFS_MAX_ADDRESSES);
+	_de("%u/%u addresses", nr, AFS_MAX_ADDRESSES);
 
 	vllist = afs_alloc_vlserver_list(1);
 	if (!vllist)

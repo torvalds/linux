@@ -61,7 +61,7 @@
 #include <linux/bitops.h>
 
 /*
- * struct iwl_fw_ini_header: Common Header for all debug group TLV's structures
+ * struct iwl_fw_ini_header: Common Header for all de group TLV's structures
  * @tlv_version: version info
  * @apply_point: &enum iwl_fw_ini_apply_point
  * @data: TLV data followed
@@ -70,11 +70,11 @@ struct iwl_fw_ini_header {
 	__le32 tlv_version;
 	__le32 apply_point;
 	u8 data[];
-} __packed; /* FW_DEBUG_TLV_HEADER_S */
+} __packed; /* FW_DE_TLV_HEADER_S */
 
 /**
  * struct iwl_fw_ini_allocation_tlv - (IWL_FW_INI_TLV_TYPE_BUFFER_ALLOCATION)
- * buffer allocation TLV - for debug
+ * buffer allocation TLV - for de
  *
  * @iwl_fw_ini_header: header
  * @allocation_id: &enum iwl_fw_ini_allocation_id - to bind allocation and hcmd
@@ -92,13 +92,13 @@ struct iwl_fw_ini_allocation_tlv {
 	__le32 size;
 	__le32 max_fragments;
 	__le32 min_frag_size;
-} __packed; /* FW_DEBUG_TLV_BUFFER_ALLOCATION_TLV_S_VER_1 */
+} __packed; /* FW_DE_TLV_BUFFER_ALLOCATION_TLV_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_hcmd (IWL_FW_INI_TLV_TYPE_HCMD)
  * Generic Host command pass through TLV
  *
- * @id: the debug configuration command type for instance: 0xf6 / 0xf5 / DHC
+ * @id: the de configuration command type for instance: 0xf6 / 0xf5 / DHC
  * @group: the desired cmd group
  * @padding: all zeros for dword alignment
  * @data: all of the relevant command (0xf6/0xf5) to be sent
@@ -108,7 +108,7 @@ struct iwl_fw_ini_hcmd {
 	u8 group;
 	__le16 padding;
 	u8 data[0];
-} __packed; /* FW_DEBUG_TLV_HCMD_DATA_S */
+} __packed; /* FW_DE_TLV_HCMD_DATA_S */
 
 /**
  * struct iwl_fw_ini_hcmd_tlv
@@ -118,18 +118,18 @@ struct iwl_fw_ini_hcmd {
 struct iwl_fw_ini_hcmd_tlv {
 	struct iwl_fw_ini_header header;
 	struct iwl_fw_ini_hcmd hcmd;
-} __packed; /* FW_DEBUG_TLV_HCMD_S_VER_1 */
+} __packed; /* FW_DE_TLV_HCMD_S_VER_1 */
 
 /*
- * struct iwl_fw_ini_debug_flow_tlv (IWL_FW_INI_TLV_TYPE_DEBUG_FLOW)
+ * struct iwl_fw_ini_de_flow_tlv (IWL_FW_INI_TLV_TYPE_DE_FLOW)
  *
  * @header: header
- * @debug_flow_cfg: &enum iwl_fw_ini_debug_flow
+ * @de_flow_cfg: &enum iwl_fw_ini_de_flow
  */
-struct iwl_fw_ini_debug_flow_tlv {
+struct iwl_fw_ini_de_flow_tlv {
 	struct iwl_fw_ini_header header;
-	__le32 debug_flow_cfg;
-} __packed; /* FW_DEBUG_TLV_FLOW_TLV_S_VER_1 */
+	__le32 de_flow_cfg;
+} __packed; /* FW_DE_TLV_FLOW_TLV_S_VER_1 */
 
 #define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
@@ -142,7 +142,7 @@ struct iwl_fw_ini_debug_flow_tlv {
 struct iwl_fw_ini_region_cfg_internal {
 	__le32 num_of_ranges;
 	__le32 range_data_size;
-} __packed; /* FW_DEBUG_TLV_REGION_NIC_INTERNAL_RANGES_S */
+} __packed; /* FW_DE_TLV_REGION_NIC_INTERNAL_RANGES_S */
 
 /**
  * struct iwl_fw_ini_region_cfg_fifos - meta data of fifos region
@@ -159,7 +159,7 @@ struct iwl_fw_ini_region_cfg_fifos {
 	__le32 fid2;
 	__le32 num_of_registers;
 	__le32 header_only;
-} __packed; /* FW_DEBUG_TLV_REGION_FIFOS_S */
+} __packed; /* FW_DE_TLV_REGION_FIFOS_S */
 
 /**
  * struct iwl_fw_ini_region_cfg
@@ -186,7 +186,7 @@ struct iwl_fw_ini_region_cfg {
 	};
 	__le32 offset;
 	__le32 start_addr[];
-} __packed; /* FW_DEBUG_TLV_REGION_CONFIG_S */
+} __packed; /* FW_DE_TLV_REGION_CONFIG_S */
 
 /**
  * struct iwl_fw_ini_region_tlv - (IWL_FW_INI_TLV_TYPE_REGION_CFG)
@@ -199,7 +199,7 @@ struct iwl_fw_ini_region_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 num_regions;
 	struct iwl_fw_ini_region_cfg region_config[];
-} __packed; /* FW_DEBUG_TLV_REGIONS_S_VER_1 */
+} __packed; /* FW_DE_TLV_REGIONS_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_trigger - (IWL_FW_INI_TLV_TYPE_DUMP_CFG)
@@ -216,7 +216,7 @@ struct iwl_fw_ini_region_tlv {
  * @occurrences: max amount of times to be fired
  * @ignore_consec: ignore consecutive triggers, in usec
  * @force_restart: force FW restart
- * @multi_dut: initiate debug dump data on several DUTs
+ * @multi_dut: initiate de dump data on several DUTs
  * @trigger_data: generic data to be utilized per trigger
  * @num_regions: number of dump regions defined for this trigger
  * @data: region IDs
@@ -232,7 +232,7 @@ struct iwl_fw_ini_trigger {
 	__le32 trigger_data;
 	__le32 num_regions;
 	__le32 data[];
-} __packed; /* FW_TLV_DEBUG_TRIGGER_CONFIG_S */
+} __packed; /* FW_TLV_DE_TRIGGER_CONFIG_S */
 
 /**
  * struct iwl_fw_ini_trigger_tlv - (IWL_FW_INI_TLV_TYPE_TRIGGERS_CFG)
@@ -246,14 +246,14 @@ struct iwl_fw_ini_trigger_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 num_triggers;
 	struct iwl_fw_ini_trigger trigger_config[];
-} __packed; /* FW_TLV_DEBUG_TRIGGERS_S_VER_1 */
+} __packed; /* FW_TLV_DE_TRIGGERS_S_VER_1 */
 
 /**
  * enum iwl_fw_ini_trigger_id
  * @IWL_FW_TRIGGER_ID_FW_ASSERT: FW assert
  * @IWL_FW_TRIGGER_ID_FW_HW_ERROR: HW assert
  * @IWL_FW_TRIGGER_ID_FW_TFD_Q_HANG: TFD queue hang
- * @IWL_FW_TRIGGER_ID_FW_DEBUG_HOST_TRIGGER: FW debug notification
+ * @IWL_FW_TRIGGER_ID_FW_DE_HOST_TRIGGER: FW de notification
  * @IWL_FW_TRIGGER_ID_FW_GENERIC_NOTIFOCATION: FW generic notification
  * @IWL_FW_TRIGGER_ID_USER_TRIGGER: User trigger
  * @IWL_FW_TRIGGER_ID_HOST_PEER_CLIENT_INACTIVITY: peer inactivity
@@ -298,7 +298,7 @@ enum iwl_fw_ini_trigger_id {
 	IWL_FW_TRIGGER_ID_FW_TFD_Q_HANG				= 3,
 
 	/* FW triggers */
-	IWL_FW_TRIGGER_ID_FW_DEBUG_HOST_TRIGGER			= 4,
+	IWL_FW_TRIGGER_ID_FW_DE_HOST_TRIGGER			= 4,
 	IWL_FW_TRIGGER_ID_FW_GENERIC_NOTIFOCATION		= 5,
 
 	/* User trigger */
@@ -336,7 +336,7 @@ enum iwl_fw_ini_trigger_id {
 	IWL_FW_TRIGGER_ID_HOST_CHANNEL_SWITCH_COMPLETE		= 35,
 
 	IWL_FW_TRIGGER_ID_NUM,
-}; /* FW_DEBUG_TLV_TRIGGER_ID_E_VER_1 */
+}; /* FW_DE_TLV_TRIGGER_ID_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_apply_point
@@ -356,7 +356,7 @@ enum iwl_fw_ini_apply_point {
 	IWL_FW_INI_APPLY_MISSED_BEACONS,
 	IWL_FW_INI_APPLY_SCAN_COMPLETE,
 	IWL_FW_INI_APPLY_NUM,
-}; /* FW_DEBUG_TLV_APPLY_POINT_E_VER_1 */
+}; /* FW_DE_TLV_APPLY_POINT_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_allocation_id
@@ -376,7 +376,7 @@ enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_ID_SDFX,
 	IWL_FW_INI_ALLOCATION_ID_FW_DUMP,
 	IWL_FW_INI_ALLOCATION_ID_USER_DEFINED,
-}; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
+}; /* FW_DE_TLV_ALLOCATION_ID_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_buffer_location
@@ -388,19 +388,19 @@ enum iwl_fw_ini_buffer_location {
 	IWL_FW_INI_LOCATION_INVALID,
 	IWL_FW_INI_LOCATION_SRAM_PATH,
 	IWL_FW_INI_LOCATION_DRAM_PATH,
-}; /* FW_DEBUG_TLV_BUFFER_LOCATION_E_VER_1 */
+}; /* FW_DE_TLV_BUFFER_LOCATION_E_VER_1 */
 
 /**
- * enum iwl_fw_ini_debug_flow
- * @IWL_FW_INI_DEBUG_INVALID: invalid
- * @IWL_FW_INI_DEBUG_DBTR_FLOW: undefined
- * @IWL_FW_INI_DEBUG_TB2DTF_FLOW: undefined
+ * enum iwl_fw_ini_de_flow
+ * @IWL_FW_INI_DE_INVALID: invalid
+ * @IWL_FW_INI_DE_DBTR_FLOW: undefined
+ * @IWL_FW_INI_DE_TB2DTF_FLOW: undefined
  */
-enum iwl_fw_ini_debug_flow {
-	IWL_FW_INI_DEBUG_INVALID,
-	IWL_FW_INI_DEBUG_DBTR_FLOW,
-	IWL_FW_INI_DEBUG_TB2DTF_FLOW,
-}; /* FW_DEBUG_TLV_FLOW_E_VER_1 */
+enum iwl_fw_ini_de_flow {
+	IWL_FW_INI_DE_INVALID,
+	IWL_FW_INI_DE_DBTR_FLOW,
+	IWL_FW_INI_DE_TB2DTF_FLOW,
+}; /* FW_DE_TLV_FLOW_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_region_type
@@ -432,6 +432,6 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_PAGING,
 	IWL_FW_INI_REGION_CSR,
 	IWL_FW_INI_REGION_NUM
-}; /* FW_DEBUG_TLV_REGION_TYPE_E_VER_1 */
+}; /* FW_DE_TLV_REGION_TYPE_E_VER_1 */
 
 #endif

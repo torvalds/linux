@@ -228,7 +228,7 @@ static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
 
 static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
 
 	memset(skb->cb, 0, sizeof(struct ieee802154_mac_cb));
 	return mac_cb(skb);

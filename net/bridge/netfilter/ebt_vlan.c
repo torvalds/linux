@@ -93,7 +93,7 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {
-		pr_debug("passed entry proto %2.4X is not 802.1Q (8100)\n",
+		pr_de("passed entry proto %2.4X is not 802.1Q (8100)\n",
 			 ntohs(e->ethproto));
 		return -EINVAL;
 	}
@@ -102,14 +102,14 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 	 * True if even one bit is out of mask
 	 */
 	if (info->bitmask & ~EBT_VLAN_MASK) {
-		pr_debug("bitmask %2X is out of mask (%2X)\n",
+		pr_de("bitmask %2X is out of mask (%2X)\n",
 			 info->bitmask, EBT_VLAN_MASK);
 		return -EINVAL;
 	}
 
 	/* Check for inversion flags range */
 	if (info->invflags & ~EBT_VLAN_MASK) {
-		pr_debug("inversion flags %2X is out of mask (%2X)\n",
+		pr_de("inversion flags %2X is out of mask (%2X)\n",
 			 info->invflags, EBT_VLAN_MASK);
 		return -EINVAL;
 	}
@@ -124,7 +124,7 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 	if (GET_BITMASK(EBT_VLAN_ID)) {
 		if (!!info->id) { /* if id!=0 => check vid range */
 			if (info->id > VLAN_N_VID) {
-				pr_debug("id %d is out of range (1-4096)\n",
+				pr_de("id %d is out of range (1-4096)\n",
 					 info->id);
 				return -EINVAL;
 			}
@@ -140,7 +140,7 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 
 	if (GET_BITMASK(EBT_VLAN_PRIO)) {
 		if ((unsigned char) info->prio > 7) {
-			pr_debug("prio %d is out of range (0-7)\n",
+			pr_de("prio %d is out of range (0-7)\n",
 				 info->prio);
 			return -EINVAL;
 		}
@@ -151,7 +151,7 @@ static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 	 */
 	if (GET_BITMASK(EBT_VLAN_ENCAP)) {
 		if ((unsigned short) ntohs(info->encap) < ETH_ZLEN) {
-			pr_debug("encap frame length %d is less than "
+			pr_de("encap frame length %d is less than "
 				 "minimal\n", ntohs(info->encap));
 			return -EINVAL;
 		}
@@ -172,7 +172,7 @@ static struct xt_match ebt_vlan_mt_reg __read_mostly = {
 
 static int __init ebt_vlan_init(void)
 {
-	pr_debug("ebtables 802.1Q extension module v" MODULE_VERS "\n");
+	pr_de("ebtables 802.1Q extension module v" MODULE_VERS "\n");
 	return xt_register_match(&ebt_vlan_mt_reg);
 }
 

@@ -1428,8 +1428,8 @@ static const struct block_device_operations null_fops = {
 
 static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
 {
-	BUG_ON(!nullb);
-	BUG_ON(!nq);
+	_ON(!nullb);
+	_ON(!nq);
 
 	init_waitqueue_head(&nq->wait);
 	nq->queue_depth = nullb->queue_depth;

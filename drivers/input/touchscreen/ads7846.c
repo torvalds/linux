@@ -738,7 +738,7 @@ static void ads7846_read_state(struct ads7846 *ts)
 				break;
 
 			default:
-				BUG();
+				();
 			}
 		} else {
 			msg_idx++;

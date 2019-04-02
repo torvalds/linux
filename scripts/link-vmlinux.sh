@@ -158,7 +158,7 @@ trap on_signals HUP INT QUIT TERM
 
 #
 #
-# Use "make V=1" to debug this script
+# Use "make V=1" to de this script
 case "${KBUILD_VERBOSE}" in
 *1*)
 	set -x
@@ -213,8 +213,8 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	#     introduces new names, which further expands kallsyms. Do another
 	#     pass if that is the case. In theory it's possible this results
 	#     in even more stubs, but unlikely.
-	#     KALLSYMS_EXTRA_PASS=1 may also used to debug or work around
-	#     other bugs.
+	#     KALLSYMS_EXTRA_PASS=1 may also used to de or work around
+	#     other s.
 	# 4)  The correct ${kallsymso} is linked into the final vmlinux.
 	#
 	# a)  Verify that the System.map from vmlinux matches the map from

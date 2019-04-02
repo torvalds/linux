@@ -717,7 +717,7 @@ static void nvt_dump_rx_buf(struct nvt_dev *nvt)
 {
 	int i;
 
-	printk(KERN_DEBUG "%s (len %d): ", __func__, nvt->pkts);
+	printk(KERN_DE "%s (len %d): ", __func__, nvt->pkts);
 	for (i = 0; (i < nvt->pkts) && (i < RX_BUF_LEN); i++)
 		printk(KERN_CONT "0x%02x ", nvt->buf[i]);
 	printk(KERN_CONT "\n");
@@ -743,7 +743,7 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 
 	nvt_dbg_verbose("%s firing", __func__);
 
-	if (debug)
+	if (de)
 		nvt_dump_rx_buf(nvt);
 
 	nvt_dbg_verbose("Processing buffer of len %d", nvt->pkts);
@@ -1064,7 +1064,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	device_init_wakeup(&pdev->dev, true);
 
 	dev_notice(&pdev->dev, "driver has been successfully loaded\n");
-	if (debug) {
+	if (de) {
 		cir_dump_regs(nvt);
 		cir_wake_dump_regs(nvt);
 	}
@@ -1142,8 +1142,8 @@ static struct pnp_driver nvt_driver = {
 	.shutdown	= nvt_shutdown,
 };
 
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging output");
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Enable deging output");
 
 MODULE_DEVICE_TABLE(pnp, nvt_ids);
 MODULE_DESCRIPTION("Nuvoton W83667HG-A & W83677HG-I CIR driver");

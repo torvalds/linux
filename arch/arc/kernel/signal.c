@@ -30,13 +30,13 @@
  * rajeshwarr: Feb 2009
  *  - Support for Realtime Signals
  *
- * vineetg: Aug 11th 2008: Bug #94183
+ * vineetg: Aug 11th 2008:  #94183
  *  -ViXS were still seeing crashes when using insmod to load drivers.
  *   It turned out that the code to change Execute permssions for TLB entries
  *   of user was not guarded for interrupts (mod_tlb_permission)
  *   This was causing TLB entries to be overwritten on unrelated indexes
  *
- * Vineetg: July 15th 2008: Bug #94183
+ * Vineetg: July 15th 2008:  #94183
  *  -Exception happens in Delay slot of a JMP, and before user space resumes,
  *   Signal is delivered (Ctrl + C) = >SIGINT.
  *   setup_frame( ) sets up PC,SP,BLINK to enable user space signal handler
@@ -291,7 +291,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	regs->sp = (unsigned long)sf;
 
 	/*
-	 * Bug 94183, Clear the DE bit, so that when signal handler
+	 *  94183, Clear the DE bit, so that when signal handler
 	 * starts to run, it doesn't use BTA
 	 */
 	regs->status32 &= ~STATUS_DE_MASK;

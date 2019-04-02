@@ -221,7 +221,7 @@ static int klp_resolve_symbols(Elf_Shdr *relasec, struct module *pmod)
 	 * we use the smallest/strictest upper bound possible (56, based on
 	 * the current definition of MODULE_NAME_LEN) to prevent overflows.
 	 */
-	BUILD_BUG_ON(MODULE_NAME_LEN < 56 || KSYM_NAME_LEN != 128);
+	BUILD__ON(MODULE_NAME_LEN < 56 || KSYM_NAME_LEN != 128);
 
 	relas = (Elf_Rela *) relasec->sh_addr;
 	/* For each rela in this klp relocation section */

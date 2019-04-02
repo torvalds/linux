@@ -37,7 +37,7 @@ testing the effectiveness and learn about the thermal distance between the two
 4. Data logging in /var/tmp/tmon.log
 - contains thermal configuration data, i.e. cooling device, thermal
  zones, and trip points. Can be used for data  collection in remote
- debugging.
+ deging.
 - log real-time thermal data into space separated format that can be
  directly consumed by plotting tools such as Rscript.
 
@@ -48,7 +48,7 @@ of a thermal zone
 .PP
 The \fB-d --daemon\fP option runs \fBtmon \fP as daemon without user interface
 .PP
-The \fB-g --debug\fP option allow debug messages to be stored in syslog
+The \fB-g --de\fP option allow de messages to be stored in syslog
 .PP
 The \fB-h --help\fP option shows help message
 .PP
@@ -102,7 +102,7 @@ $ sudo ./tmon -c Processor -z 0
 3. Use intel_powerclamp(idle injection) cooling device to control thermal zone 1
 $ sudo ./tmon -c intel_powerclamp -z 1
 
-4. Turn on debug and collect data log at /var/tmp/tmon.log
+4. Turn on de and collect data log at /var/tmp/tmon.log
 $ sudo ./tmon -g -l
 
 For example, the log below shows PID controller was adjusting current states

@@ -71,7 +71,7 @@ repeat:
 			goto repeat;
 		}
 
-		DBG_BUGON(index != grp->index);
+		DBG_ON(index != grp->index);
 	}
 	rcu_read_unlock();
 	return grp;
@@ -86,7 +86,7 @@ int erofs_register_workgroup(struct super_block *sb,
 
 	/* grp shouldn't be broken or used before */
 	if (unlikely(atomic_read(&grp->refcount) != 1)) {
-		DBG_BUGON(1);
+		DBG_ON(1);
 		return -EINVAL;
 	}
 
@@ -171,9 +171,9 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	/*
 	 * it is impossible to fail after the workgroup is freezed,
 	 * however in order to avoid some race conditions, add a
-	 * DBG_BUGON to observe this in advance.
+	 * DBG_ON to observe this in advance.
 	 */
-	DBG_BUGON(xa_untag_pointer(radix_tree_delete(&sbi->workstn_tree,
+	DBG_ON(xa_untag_pointer(radix_tree_delete(&sbi->workstn_tree,
 						     grp->index)) != grp);
 
 	/*
@@ -192,13 +192,13 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 {
 	int cnt = atomic_read(&grp->refcount);
 
-	DBG_BUGON(cnt <= 0);
-	DBG_BUGON(cleanup && cnt != 1);
+	DBG_ON(cnt <= 0);
+	DBG_ON(cleanup && cnt != 1);
 
 	if (cnt > 1)
 		return false;
 
-	DBG_BUGON(xa_untag_pointer(radix_tree_delete(&sbi->workstn_tree,
+	DBG_ON(xa_untag_pointer(radix_tree_delete(&sbi->workstn_tree,
 						     grp->index)) != grp);
 
 	/* (rarely) could be grabbed again when freeing */

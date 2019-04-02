@@ -442,7 +442,7 @@ int main(int argc, char **argv)
 			   sizeof(so_timestamping_flags)) < 0)
 		bail("setsockopt SO_TIMESTAMPING");
 
-	/* request IP_PKTINFO for debugging purposes */
+	/* request IP_PKTINFO for deging purposes */
 	if (setsockopt(sock, SOL_IP, IP_PKTINFO,
 		       &enabled, sizeof(enabled)) < 0)
 		printf("%s: %s\n", "setsockopt IP_PKTINFO", strerror(errno));

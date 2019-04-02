@@ -636,7 +636,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 	struct inode *local_alloc_inode;
 	unsigned int free_bits;
 
-	BUG_ON(!ac);
+	_ON(!ac);
 
 	local_alloc_inode =
 		ocfs2_get_system_file_inode(osb,
@@ -665,7 +665,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 
 	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
 
-#ifdef CONFIG_OCFS2_DEBUG_FS
+#ifdef CONFIG_OCFS2_DE_FS
 	if (le32_to_cpu(alloc->id1.bitmap1.i_used) !=
 	    ocfs2_local_alloc_count_bits(alloc)) {
 		status = ocfs2_error(osb->sb, "local alloc inode %llu says it has %u used bits, but a count shows %u\n",
@@ -739,7 +739,7 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	struct ocfs2_dinode *alloc;
 	struct ocfs2_local_alloc *la;
 
-	BUG_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
+	_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
 
 	local_alloc_inode = ac->ac_inode;
 	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
@@ -748,7 +748,7 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	start = ocfs2_local_alloc_find_clear_bits(osb, alloc, &bits_wanted,
 						  ac->ac_resv);
 	if (start == -1) {
-		/* TODO: Shouldn't we just BUG here? */
+		/* TODO: Shouldn't we just  here? */
 		status = -ENOSPC;
 		mlog_errno(status);
 		goto bail;
@@ -795,7 +795,7 @@ int ocfs2_free_local_alloc_bits(struct ocfs2_super *osb,
 	struct ocfs2_dinode *alloc;
 	struct ocfs2_local_alloc *la;
 
-	BUG_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
+	_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
 
 	local_alloc_inode = ac->ac_inode;
 	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
@@ -869,7 +869,7 @@ static int ocfs2_local_alloc_find_clear_bits(struct ocfs2_super *osb,
 	 * Code error. While reservations are enabled, local
 	 * allocation should _always_ go through them.
 	 */
-	BUG_ON(osb->osb_resv_level != 0);
+	_ON(osb->osb_resv_level != 0);
 
 	/*
 	 * Reservations are disabled. Handle this the old way.
@@ -936,7 +936,7 @@ static void ocfs2_clear_local_alloc(struct ocfs2_dinode *alloc)
 }
 
 #if 0
-/* turn this on and uncomment below to aid debugging window shifts. */
+/* turn this on and uncomment below to aid deging window shifts. */
 static void ocfs2_verify_zero_bits(unsigned long *bitmap,
 				   unsigned int start,
 				   unsigned int count)
@@ -948,7 +948,7 @@ static void ocfs2_verify_zero_bits(unsigned long *bitmap,
 			       "%u\n", start, count);
 			printk("ocfs2_verify_zero_bits: bit %u is set!",
 			       start + tmp);
-			BUG();
+			();
 		}
 	}
 }

@@ -310,7 +310,7 @@ static void hns_rcb_set_port_timeout(
 	if (AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver)) {
 		dsaf_write_dev(rcb_common, RCB_CFG_OVERTIME_REG,
 			       timeout * HNS_RCB_CLK_FREQ_MHZ);
-	} else if (!HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev)) {
+	} else if (!HNS_DSAF_IS_DE(rcb_common->dsaf_dev)) {
 		if (timeout > HNS_RCB_DEF_GAP_TIME_USECS)
 			dsaf_write_dev(rcb_common,
 				       RCB_PORT_INT_GAPTIME_REG + port_idx * 4,
@@ -332,10 +332,10 @@ static void hns_rcb_set_port_timeout(
 
 static int hns_rcb_common_get_port_num(struct rcb_common_cb *rcb_common)
 {
-	if (!HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev))
+	if (!HNS_DSAF_IS_DE(rcb_common->dsaf_dev))
 		return HNS_RCB_SERVICE_NW_ENGINE_NUM;
 	else
-		return HNS_RCB_DEBUG_NW_ENGINE_NUM;
+		return HNS_RCB_DE_NW_ENGINE_NUM;
 }
 
 /*clr rcb comm exception irq**/
@@ -392,7 +392,7 @@ int hns_rcb_common_init_hw(struct rcb_common_cb *rcb_common)
 		hns_rcb_set_rx_coalesced_frames(
 			rcb_common, i, HNS_RCB_DEF_RX_COALESCED_FRAMES);
 		if (!AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver) &&
-		    !HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev))
+		    !HNS_DSAF_IS_DE(rcb_common->dsaf_dev))
 			hns_rcb_set_tx_coalesced_frames(
 				rcb_common, i, HNS_RCB_DEF_TX_COALESCED_FRAMES);
 		hns_rcb_set_port_timeout(
@@ -503,10 +503,10 @@ static int hns_rcb_get_base_irq_idx(struct rcb_common_cb *rcb_common)
 {
 	bool is_ver1 = AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver);
 
-	if (!HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev))
+	if (!HNS_DSAF_IS_DE(rcb_common->dsaf_dev))
 		return SERVICE_RING_IRQ_IDX(is_ver1);
 	else
-		return  HNS_DEBUG_RING_IRQ_IDX;
+		return  HNS_DE_RING_IRQ_IDX;
 }
 
 #define RCB_COMM_BASE_TO_RING_BASE(base, ringid)\
@@ -617,7 +617,7 @@ int hns_rcb_set_coalesce_usecs(
 		return 0;
 
 	if (AE_IS_VER1(rcb_common->dsaf_dev->dsaf_ver)) {
-		if (!HNS_DSAF_IS_DEBUG(rcb_common->dsaf_dev)) {
+		if (!HNS_DSAF_IS_DE(rcb_common->dsaf_dev)) {
 			dev_err(rcb_common->dsaf_dev->dev,
 				"error: not support coalesce_usecs setting!\n");
 			return -EINVAL;
@@ -1001,7 +1001,7 @@ void hns_rcb_get_common_regs(struct rcb_common_cb *rcb_com, void *data)
 {
 	u32 *regs = data;
 	bool is_ver1 = AE_IS_VER1(rcb_com->dsaf_dev->dsaf_ver);
-	bool is_dbg = HNS_DSAF_IS_DEBUG(rcb_com->dsaf_dev);
+	bool is_dbg = HNS_DSAF_IS_DE(rcb_com->dsaf_dev);
 	u32 reg_tmp;
 	u32 reg_num_tmp;
 	u32 i = 0;

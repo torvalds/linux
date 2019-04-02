@@ -7,7 +7,7 @@
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/of_device.h>
@@ -261,7 +261,7 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 }
 
 /*
- * We provide an interface via debugfs to switch between host and device modes
+ * We provide an interface via defs to switch between host and device modes
  * depending on user input.
  * This is useful in special cases, such as uses TYPE-A receptacle but also
  * wants to support dual-role mode.
@@ -373,20 +373,20 @@ static const struct file_operations ssusb_vbus_fops = {
 	.release = single_release,
 };
 
-static void ssusb_debugfs_init(struct ssusb_mtk *ssusb)
+static void ssusb_defs_init(struct ssusb_mtk *ssusb)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(dev_name(ssusb->dev), usb_debug_root);
+	root = defs_create_dir(dev_name(ssusb->dev), usb_de_root);
 	ssusb->dbgfs_root = root;
 
-	debugfs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
-	debugfs_create_file("vbus", 0644, root, ssusb, &ssusb_vbus_fops);
+	defs_create_file("mode", 0644, root, ssusb, &ssusb_mode_fops);
+	defs_create_file("vbus", 0644, root, ssusb, &ssusb_vbus_fops);
 }
 
-static void ssusb_debugfs_exit(struct ssusb_mtk *ssusb)
+static void ssusb_defs_exit(struct ssusb_mtk *ssusb)
 {
-	debugfs_remove_recursive(ssusb->dbgfs_root);
+	defs_remove_recursive(ssusb->dbgfs_root);
 }
 
 void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
@@ -420,7 +420,7 @@ int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
 	INIT_WORK(&otg_sx->vbus_work, ssusb_vbus_work);
 
 	if (otg_sx->manual_drd_enabled)
-		ssusb_debugfs_init(ssusb);
+		ssusb_defs_init(ssusb);
 	else
 		ssusb_extcon_register(otg_sx);
 
@@ -432,7 +432,7 @@ void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
 	if (otg_sx->manual_drd_enabled)
-		ssusb_debugfs_exit(ssusb);
+		ssusb_defs_exit(ssusb);
 
 	cancel_work_sync(&otg_sx->id_work);
 	cancel_work_sync(&otg_sx->vbus_work);

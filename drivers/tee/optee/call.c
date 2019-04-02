@@ -483,7 +483,7 @@ void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
 	 * code heavily relies on this assumption, so it is better be
 	 * safe than sorry.
 	 */
-	BUILD_BUG_ON(PAGE_SIZE < OPTEE_MSG_NONCONTIG_PAGE_SIZE);
+	BUILD__ON(PAGE_SIZE < OPTEE_MSG_NONCONTIG_PAGE_SIZE);
 
 	pages_data = (void *)dst;
 	/*

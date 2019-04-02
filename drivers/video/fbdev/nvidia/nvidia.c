@@ -30,7 +30,7 @@
 #include "nv_proto.h"
 #include "nv_dma.h"
 
-#ifdef CONFIG_FB_NVIDIA_DEBUG
+#ifdef CONFIG_FB_NVIDIA_DE
 #define NVTRACE          printk
 #else
 #define NVTRACE          if (0) printk
@@ -39,12 +39,12 @@
 #define NVTRACE_ENTER(...)  NVTRACE("%s START\n", __func__)
 #define NVTRACE_LEAVE(...)  NVTRACE("%s END\n", __func__)
 
-#ifdef CONFIG_FB_NVIDIA_DEBUG
+#ifdef CONFIG_FB_NVIDIA_DE
 #define assert(expr) \
 	if (!(expr)) { \
 	printk( "Assertion failed! %s,%s,%s,line=%d\n",\
 	#expr,__FILE__,__func__,__LINE__); \
-	BUG(); \
+	(); \
 	}
 #else
 #define assert(expr)
@@ -683,7 +683,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 	nvidia_screen_off(par, 0);
 
 #ifdef CONFIG_BOOTX_TEXT
-	/* Update debug text engine */
+	/* Update de text engine */
 	btext_update_display(info->fix.smem_start,
 			     info->var.xres, info->var.yres,
 			     info->var.bits_per_pixel, info->fix.line_length);

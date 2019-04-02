@@ -4,7 +4,7 @@
  * Description:	AD7877 based touchscreen, sensor (ADCs), DAC and GPIO driver
  * Based on:	ads7846.c
  *
- * Bugs:        Enter bugs at http://blackfin.uclinux.org/
+ * s:        Enter s at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

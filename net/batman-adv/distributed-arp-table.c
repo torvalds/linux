@@ -418,15 +418,15 @@ out:
 		batadv_dat_entry_put(dat_entry);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 
 /**
- * batadv_dbg_arp() - print a debug message containing all the ARP packet
+ * batadv_dbg_arp() - print a de message containing all the ARP packet
  *  details
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: ARP packet
  * @hdr_size: size of the possible header before the ARP packet
- * @msg: message to print together with the debugging information
+ * @msg: message to print together with the deging information
  */
 static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   int hdr_size, char *msg)
@@ -500,7 +500,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 {
 }
 
-#endif /* CONFIG_BATMAN_ADV_DEBUG */
+#endif /* CONFIG_BATMAN_ADV_DE */
 
 /**
  * batadv_is_orig_node_eligible() - check whether a node can be a DHT candidate
@@ -850,7 +850,7 @@ void batadv_dat_free(struct batadv_priv *bat_priv)
 	batadv_dat_hash_free(bat_priv);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_dat_cache_seq_print_text() - print the local DAT hash table
  * @seq: seq file to print on

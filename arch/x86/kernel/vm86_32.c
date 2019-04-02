@@ -412,7 +412,7 @@ static inline void clear_AC(struct kernel_vm86_regs *regs)
  * After the command sequence CLI PUSHF STI POPF you should
  * end up with interrupts disabled, but you ended up with
  * interrupts enabled.
- *  ( I was testing my own changes, but the only bug I
+ *  ( I was testing my own changes, but the only  I
  *    could find was in a function I had not changed. )
  * [KD]
  */

@@ -779,7 +779,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 			set_hp_led_gpio(codec);
 			return 1;
 		}
-		/* BIOS bug: unfilled OEM string */
+		/* BIOS : unfilled OEM string */
 		if (strstr(dev->name, "HP_Mute_LED_P_G")) {
 			set_hp_led_gpio(codec);
 			if (default_polarity >= 0)
@@ -975,7 +975,7 @@ static int stac_create_spdif_mux_ctls(struct hda_codec *codec)
 	if (!labels)
 		labels = stac_spdif_labels;
 	for (i = 0; i < num_cons; i++) {
-		if (snd_BUG_ON(!labels[i]))
+		if (snd__ON(!labels[i]))
 			return -EINVAL;
 		snd_hda_add_imux_item(codec, &spec->spdif_mux, labels[i], i, NULL);
 	}

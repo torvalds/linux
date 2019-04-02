@@ -138,7 +138,7 @@ details on the various powergates.
  3d0		3D Graphics 0			Tegra30
  3d1		3D Graphics 1			Tegra30
  aud		Audio				Tegra210
- dfd		Debug				Tegra210
+ dfd		De				Tegra210
  dis		Display A			Tegra114/124/210
  disb		Display B			Tegra114/124/210
  heg		2D Graphics			Tegra30/114/124/210
@@ -225,7 +225,7 @@ usb2		usb_bias
 The following pads are present on Tegra210:
 audio		audio-hv	cam		csia
 csib		csic		csid		csie
-csif		dbg		debug-nonao	dmic
+csif		dbg		de-nonao	dmic
 dp		dsi		dsib		dsic
 dsid		emmc		emmc2		gpio
 hdmi		hsic		lvds		mipi-bias

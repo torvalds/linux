@@ -684,7 +684,7 @@ struct iwl_mvm_ba_notif {
  * struct iwl_mvm_compressed_ba_tfd - progress of a TFD queue
  * @q_num: TFD queue number
  * @tfd_index: Index of first un-acked frame in the  TFD queue
- * @scd_queue: For debug only - the physical queue the TFD queue is bound to
+ * @scd_queue: For de only - the physical queue the TFD queue is bound to
  * @tid: TID of the queue (0-7)
  * @reserved: reserved for alignment
  */
@@ -748,7 +748,7 @@ enum iwl_mvm_ba_resp_flags {
  * @ra_tid_cnt: number of RATID-Q elements
  * @tfd: array of TFD queue status updates. See &iwl_mvm_compressed_ba_tfd
  *	for details. Length in @tfd_cnt.
- * @ra_tid: array of RA-TID queue status updates. For debug purposes only. See
+ * @ra_tid: array of RA-TID queue status updates. For de purposes only. See
  *	&iwl_mvm_compressed_ba_ratid for more details. Length in @ra_tid_cnt.
  */
 struct iwl_mvm_compressed_ba_notif {

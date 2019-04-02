@@ -933,7 +933,7 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 		switch (inst.c0r_format.rs) {
 		case dmfc_op:
 		case mfc_op:
-#ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
+#ifdef CONFIG_KVM_MIPS_DE_COP0_COUNTERS
 			cop0->stat[rd][sel]++;
 #endif
 			if (rd == MIPS_CP0_COUNT &&
@@ -954,7 +954,7 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 				   cpu_guest_has_maar &&
 				   !cpu_guest_has_dyn_maar) {
 				/* MAARI must be in range */
-				BUG_ON(kvm_read_sw_gc0_maari(cop0) >=
+				_ON(kvm_read_sw_gc0_maari(cop0) >=
 						ARRAY_SIZE(vcpu->arch.maar));
 				val = vcpu->arch.maar[
 					kvm_read_sw_gc0_maari(cop0)];
@@ -993,7 +993,7 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 
 		case dmtc_op:
 		case mtc_op:
-#ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
+#ifdef CONFIG_KVM_MIPS_DE_COP0_COUNTERS
 			cop0->stat[rd][sel]++;
 #endif
 			val = vcpu->arch.gprs[rt];
@@ -1027,7 +1027,7 @@ static enum emulation_result kvm_vz_gpsi_cop0(union mips_instruction inst,
 							val);
 
 				/* MAARI must be in range */
-				BUG_ON(kvm_read_sw_gc0_maari(cop0) >=
+				_ON(kvm_read_sw_gc0_maari(cop0) >=
 						ARRAY_SIZE(vcpu->arch.maar));
 				vcpu->arch.maar[kvm_read_sw_gc0_maari(cop0)] =
 									val;
@@ -1091,7 +1091,7 @@ static enum emulation_result kvm_vz_gpsi_cache(union mips_instruction inst,
 
 	va = arch->gprs[base] + offset;
 
-	kvm_debug("CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
+	kvm_de("CACHE (cache: %#x, op: %#x, base[%d]: %#lx, offset: %#x\n",
 		  cache, op, base, arch->gprs[base], offset);
 
 	/* Secondary or tirtiary cache ops ignored */
@@ -1498,7 +1498,7 @@ static int kvm_trap_vz_handle_cop_unusable(struct kvm_vcpu *vcpu)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	return ret;
 }

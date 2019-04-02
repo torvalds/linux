@@ -233,7 +233,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 	p = t / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 	for (i = 0; i < pages; i++, p++) {
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 		adev->gart.pages[p] = NULL;
 #endif
 		page_base = adev->dummy_page_addr;
@@ -306,7 +306,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, struct page **pagelist, dma_addr_t *dma_addr,
 		     uint64_t flags)
 {
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 	unsigned i,t,p;
 #endif
 	int r;
@@ -316,7 +316,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 	p = t / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 	for (i = 0; i < pages; i++, p++)
@@ -366,7 +366,7 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
 		 adev->gart.num_cpu_pages, adev->gart.num_gpu_pages);
 
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 	/* Allocate pages table */
 	adev->gart.pages = vzalloc(array_size(sizeof(void *),
 					      adev->gart.num_cpu_pages));
@@ -386,7 +386,7 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
  */
 void amdgpu_gart_fini(struct amdgpu_device *adev)
 {
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 	vfree(adev->gart.pages);
 	adev->gart.pages = NULL;
 #endif

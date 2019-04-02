@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL PAGE
+#define FSCACHE_DE_LEVEL PAGE
 #include <linux/module.h>
 #include <linux/fscache-cache.h>
 #include <linux/buffer_head.h>
@@ -136,7 +136,7 @@ page_busy:
 
 	fscache_stat(&fscache_n_store_vmscan_wait);
 	if (!release_page_wait_timeout(cookie, page))
-		_debug("fscache writeout timeout page: %p{%lx}",
+		_de("fscache writeout timeout page: %p{%lx}",
 			page, page->index);
 
 	gfp &= ~__GFP_DIRECT_RECLAIM;
@@ -193,7 +193,7 @@ static void fscache_attr_changed_op(struct fscache_operation *op)
 	struct fscache_object *object = op->object;
 	int ret;
 
-	_enter("{OBJ%x OP%x}", object->debug_id, op->debug_id);
+	_enter("{OBJ%x OP%x}", object->de_id, op->de_id);
 
 	fscache_stat(&fscache_n_attr_changed_calls);
 
@@ -288,7 +288,7 @@ static void fscache_release_retrieval_op(struct fscache_operation *_op)
 	struct fscache_retrieval *op =
 		container_of(_op, struct fscache_retrieval, op);
 
-	_enter("{OP%x}", op->op.debug_id);
+	_enter("{OP%x}", op->op.de_id);
 
 	ASSERTIFCMP(op->op.state != FSCACHE_OP_ST_INITIALISED,
 		    atomic_read(&op->n_pages), ==, 0);
@@ -384,7 +384,7 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 	if (!test_bit(FSCACHE_OP_WAITING, &op->flags))
 		goto check_if_dead;
 
-	_debug(">>> WT");
+	_de(">>> WT");
 	if (stat_op_waits)
 		fscache_stat(stat_op_waits);
 	if (wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
@@ -399,7 +399,7 @@ int fscache_wait_for_operation_activation(struct fscache_object *object,
 		wait_on_bit(&op->flags, FSCACHE_OP_WAITING,
 			    TASK_UNINTERRUPTIBLE);
 	}
-	_debug("<<< GO");
+	_de("<<< GO");
 
 check_if_dead:
 	if (op->state == FSCACHE_OP_ST_CANCELLED) {
@@ -783,7 +783,7 @@ EXPORT_SYMBOL(__fscache_readpages_cancel);
  */
 static void fscache_release_write_op(struct fscache_operation *_op)
 {
-	_enter("{OP%x}", _op->debug_id);
+	_enter("{OP%x}", _op->de_id);
 }
 
 /*
@@ -800,7 +800,7 @@ static void fscache_write_op(struct fscache_operation *_op)
 	void *results[1];
 	int ret;
 
-	_enter("{OP%x,%d}", op->op.debug_id, atomic_read(&op->op.usage));
+	_enter("{OP%x,%d}", op->op.de_id, atomic_read(&op->op.usage));
 
 again:
 	spin_lock(&object->lock);
@@ -845,7 +845,7 @@ again:
 	if (n != 1)
 		goto superseded;
 	page = results[0];
-	_debug("gang %d [%lx]", n, page->index);
+	_de("gang %d [%lx]", n, page->index);
 
 	radix_tree_tag_set(&cookie->stores, page->index,
 			   FSCACHE_COOKIE_STORING_TAG);
@@ -884,7 +884,7 @@ discard_page:
 superseded:
 	/* this writer is going away and there aren't any more things to
 	 * write */
-	_debug("cease");
+	_de("cease");
 	spin_unlock(&cookie->stores_lock);
 	clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
 	spin_unlock(&object->lock);
@@ -1021,13 +1021,13 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 
 	spin_lock(&cookie->stores_lock);
 
-	_debug("store limit %llx", (unsigned long long) object->store_limit);
+	_de("store limit %llx", (unsigned long long) object->store_limit);
 
 	ret = radix_tree_insert(&cookie->stores, page->index, page);
 	if (ret < 0) {
 		if (ret == -EEXIST)
 			goto already_queued;
-		_debug("insert failed %d", ret);
+		_de("insert failed %d", ret);
 		goto nobufs_unlock_obj;
 	}
 
@@ -1045,7 +1045,7 @@ int __fscache_write_page(struct fscache_cookie *cookie,
 	spin_unlock(&cookie->stores_lock);
 	spin_unlock(&object->lock);
 
-	op->op.debug_id	= atomic_inc_return(&fscache_op_debug_id);
+	op->op.de_id	= atomic_inc_return(&fscache_op_de_id);
 	op->store_limit = object->store_limit;
 
 	__fscache_use_cookie(cookie);
@@ -1176,7 +1176,7 @@ void fscache_mark_page_cached(struct fscache_retrieval *op, struct page *page)
 
 	trace_fscache_page(cookie, page, fscache_page_cached);
 
-	_debug("- mark %p{%lx}", page, page->index);
+	_de("- mark %p{%lx}", page, page->index);
 	if (TestSetPageFsCache(page)) {
 		static bool once_only;
 		if (!once_only) {

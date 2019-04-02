@@ -346,7 +346,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 
 	/*
 	 * Generate a wonky pseudo-random bit pattern for the sake of not using
-	 * something repetitive that could miss some hypothetical off-by-n bug.
+	 * something repetitive that could miss some hypothetical off-by-n .
 	 */
 	x = 0;
 	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);

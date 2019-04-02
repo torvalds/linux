@@ -54,7 +54,7 @@ struct rsnd_dma_ctrl {
 #define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
 #define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
 
-/* for DEBUG */
+/* for DE */
 static struct rsnd_mod_ops mem_ops = {
 	.name = "mem",
 };
@@ -844,6 +844,6 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 
 	priv->dma = dmac;
 
-	/* dummy mem mod for debug */
+	/* dummy mem mod for de */
 	return rsnd_mod_init(NULL, &mem, &mem_ops, NULL, 0, 0);
 }

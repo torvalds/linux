@@ -18,8 +18,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
-#undef DEBUG_LOW
+#undef DE
+#undef DE_LOW
 
 #define pr_fmt(fmt) "hash-mmu: " fmt
 #include <linux/spinlock.h>
@@ -38,7 +38,7 @@
 #include <linux/libfdt.h>
 #include <linux/pkeys.h>
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -65,13 +65,13 @@
 #include <asm/pte-walk.h>
 #include <asm/asm-prototypes.h>
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
 #endif
 
-#ifdef DEBUG_LOW
+#ifdef DE_LOW
 #define DBG_LOW(fmt...) udbg_printf(fmt)
 #else
 #define DBG_LOW(fmt...)
@@ -89,7 +89,7 @@
  *   htab_initialize is called with the MMU off (of course), but
  *   the kernel has been copied down to zero so it can directly
  *   reference global data.  At this point it is very difficult
- *   to print debug info.
+ *   to print de info.
  *
  */
 
@@ -120,11 +120,11 @@ EXPORT_SYMBOL_GPL(mmu_slb_size);
 #ifdef CONFIG_PPC_64K_PAGES
 int mmu_ci_restrictions;
 #endif
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 static u8 *linear_map_hash_slots;
 static unsigned long linear_map_hash_count;
 static DEFINE_SPINLOCK(linear_map_hash_lock);
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */
 struct mmu_hash_ops mmu_hash_ops;
 EXPORT_SYMBOL(mmu_hash_ops);
 
@@ -291,7 +291,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		hash = hpt_hash(vpn, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		BUG_ON(!mmu_hash_ops.hpte_insert);
+		_ON(!mmu_hash_ops.hpte_insert);
 		ret = mmu_hash_ops.hpte_insert(hpteg, vpn, paddr, tprot,
 					       HPTE_V_BOLTED, psize, psize,
 					       ssize);
@@ -299,11 +299,11 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		if (ret < 0)
 			break;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-		if (debug_pagealloc_enabled() &&
+#ifdef CONFIG_DE_PAGEALLOC
+		if (de_pagealloc_enabled() &&
 			(paddr >> PAGE_SHIFT) < linear_map_hash_count)
 			linear_map_hash_slots[paddr >> PAGE_SHIFT] = ret | 0x80;
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */
 	}
 	return ret < 0 ? ret : 0;
 }
@@ -633,7 +633,7 @@ static void __init htab_init_page_sizes(void)
 {
 	init_hpte_page_sizes();
 
-	if (!debug_pagealloc_enabled()) {
+	if (!de_pagealloc_enabled()) {
 		/*
 		 * Pick a size for the linear mapping. Currently, we only
 		 * support 16M, 1M and 4K which is the default
@@ -685,7 +685,7 @@ static void __init htab_init_page_sizes(void)
 		mmu_vmemmap_psize = MMU_PAGE_4K;
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	printk(KERN_DEBUG "Page orders: linear mapping = %d, "
+	printk(KERN_DE "Page orders: linear mapping = %d, "
 	       "virtual = %d, io = %d"
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	       ", vmemmap = %d"
@@ -793,7 +793,7 @@ int hash__create_section_mapping(unsigned long start, unsigned long end, int nid
 	if (rc < 0) {
 		int rc2 = htab_remove_mapping(start, end, mmu_linear_psize,
 					      mmu_kernel_ssize);
-		BUG_ON(rc2 && (rc2 != -ENOENT));
+		_ON(rc2 && (rc2 != -ENOENT));
 	}
 	return rc;
 }
@@ -909,8 +909,8 @@ static void __init htab_initialize(void)
 
 	prot = pgprot_val(PAGE_KERNEL);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	if (debug_pagealloc_enabled()) {
+#ifdef CONFIG_DE_PAGEALLOC
+	if (de_pagealloc_enabled()) {
 		linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
 		linear_map_hash_slots = memblock_alloc_try_nid(
 				linear_map_hash_count, 1, MEMBLOCK_LOW_LIMIT,
@@ -919,7 +919,7 @@ static void __init htab_initialize(void)
 			panic("%s: Failed to allocate %lu bytes max_addr=%pa\n",
 			      __func__, linear_map_hash_count, &ppc64_rma_size);
 	}
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */
 
 	/* create bolted the linear mapping in the hash table */
 	for_each_memblock(memory, reg) {
@@ -929,7 +929,7 @@ static void __init htab_initialize(void)
 		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
 		    base, size, prot);
 
-		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
+		_ON(htab_bolt_mapping(base, base + size, __pa(base),
 				prot, mmu_linear_psize, mmu_kernel_ssize));
 	}
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
@@ -948,7 +948,7 @@ static void __init htab_initialize(void)
 		if (base + size >= tce_alloc_start)
 			tce_alloc_start = base + size + 1;
 
-		BUG_ON(htab_bolt_mapping(tce_alloc_start, tce_alloc_end,
+		_ON(htab_bolt_mapping(tce_alloc_start, tce_alloc_end,
 					 __pa(tce_alloc_start), prot,
 					 mmu_linear_psize, mmu_kernel_ssize));
 	}
@@ -980,9 +980,9 @@ void __init hash__early_init_mmu(void)
 	 * the secondary bucket. For that code to work H_PAGE_F_SECOND and
 	 * H_PAGE_F_GIX must occupy four contiguous bits in the PTE, and
 	 * H_PAGE_F_SECOND must be placed above H_PAGE_F_GIX. Assert that here
-	 * with a BUILD_BUG_ON().
+	 * with a BUILD__ON().
 	 */
-	BUILD_BUG_ON(H_PAGE_F_SECOND != (1ul  << (H_PAGE_F_GIX_SHIFT + 3)));
+	BUILD__ON(H_PAGE_F_SECOND != (1ul  << (H_PAGE_F_GIX_SHIFT + 3)));
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	htab_init_page_sizes();
@@ -1186,7 +1186,7 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
 }
 #endif
 
-void hash_failure_debug(unsigned long ea, unsigned long access,
+void hash_failure_de(unsigned long ea, unsigned long access,
 			unsigned long vsid, unsigned long trap,
 			int ssize, int psize, int lpsize, unsigned long pte)
 {
@@ -1399,7 +1399,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	 * never happen so it is really useful to know if/when they do
 	 */
 	if (rc == -1)
-		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
+		hash_failure_de(ea, access, vsid, trap, ssize, psize,
 				   psize, pte_val(*ptep));
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
@@ -1499,7 +1499,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	int rc, ssize, update_flags = 0;
 	unsigned long access = _PAGE_PRESENT | _PAGE_READ | (is_exec ? _PAGE_EXEC : 0);
 
-	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
+	_ON(REGION_ID(ea) != USER_REGION_ID);
 
 	if (!should_hash_preload(mm, ea))
 		return;
@@ -1561,7 +1561,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	 * never happen so it is really useful to know if/when they do
 	 */
 	if (rc == -1)
-		hash_failure_debug(ea, access, vsid, trap, ssize,
+		hash_failure_de(ea, access, vsid, trap, ssize,
 				   mm->context.user_psize,
 				   mm->context.user_psize,
 				   pte_val(*ptep));
@@ -1785,7 +1785,7 @@ repeat:
 	return slot;
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 {
 	unsigned long hash;
@@ -1804,9 +1804,9 @@ static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 				    HPTE_V_BOLTED,
 				    mmu_linear_psize, mmu_kernel_ssize);
 
-	BUG_ON (ret < 0);
+	_ON (ret < 0);
 	spin_lock(&linear_map_hash_lock);
-	BUG_ON(linear_map_hash_slots[lmi] & 0x80);
+	_ON(linear_map_hash_slots[lmi] & 0x80);
 	linear_map_hash_slots[lmi] = ret | 0x80;
 	spin_unlock(&linear_map_hash_lock);
 }
@@ -1819,7 +1819,7 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 
 	hash = hpt_hash(vpn, PAGE_SHIFT, mmu_kernel_ssize);
 	spin_lock(&linear_map_hash_lock);
-	BUG_ON(!(linear_map_hash_slots[lmi] & 0x80));
+	_ON(!(linear_map_hash_slots[lmi] & 0x80));
 	hidx = linear_map_hash_slots[lmi] & 0x7f;
 	linear_map_hash_slots[lmi] = 0;
 	spin_unlock(&linear_map_hash_lock);
@@ -1850,7 +1850,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	}
 	local_irq_restore(flags);
 }
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */
 
 void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
@@ -1858,7 +1858,7 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
 	 */
-	BUG_ON(first_memblock_base != 0);
+	_ON(first_memblock_base != 0);
 
 	/*
 	 * On virtualized systems the first entry is our RMA region aka VRMA,
@@ -1866,7 +1866,7 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 * on real mode access.
 	 *
 	 * For guests on platforms before POWER9, we clamp the it limit to 1G
-	 * to avoid some funky things such as RTAS bugs etc...
+	 * to avoid some funky things such as RTAS s etc...
 	 */
 	if (!early_cpu_has_feature(CPU_FTR_HVMODE)) {
 		ppc64_rma_size = first_memblock_size;
@@ -1880,7 +1880,7 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int hpt_order_get(void *data, u64 *val)
 {
@@ -1896,16 +1896,16 @@ static int hpt_order_set(void *data, u64 val)
 	return mmu_hash_ops.resize_hpt(val);
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
 
-static int __init hash64_debugfs(void)
+static int __init hash64_defs(void)
 {
-	if (!debugfs_create_file_unsafe("hpt_order", 0600, powerpc_debugfs_root,
+	if (!defs_create_file_unsafe("hpt_order", 0600, powerpc_defs_root,
 					NULL, &fops_hpt_order)) {
-		pr_err("lpar: unable to create hpt_order debugsfs file\n");
+		pr_err("lpar: unable to create hpt_order desfs file\n");
 	}
 
 	return 0;
 }
-machine_device_initcall(pseries, hash64_debugfs);
-#endif /* CONFIG_DEBUG_FS */
+machine_device_initcall(pseries, hash64_defs);
+#endif /* CONFIG_DE_FS */

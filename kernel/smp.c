@@ -320,7 +320,7 @@ EXPORT_SYMBOL(smp_call_function_single);
  * (ie: embedded in an object) and is responsible for synchronizing it
  * such that the IPIs performed on the @csd are strictly serialized.
  *
- * NOTE: Be careful, there is unfortunately no current debugging facility to
+ * NOTE: Be careful, there is unfortunately no current deging facility to
  * validate the correctness of this serialization.
  */
 int smp_call_function_single_async(int cpu, call_single_data_t *csd)

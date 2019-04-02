@@ -108,7 +108,7 @@ acpi_tb_find_table(char *signature,
 				   ACPI_OEM_TABLE_ID_SIZE))) {
 			*table_index = i;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+			ACPI_DE_PRINT((ACPI_DB_TABLES,
 					  "Found table [%4.4s]\n",
 					  header.signature));
 			goto unlock_and_exit;

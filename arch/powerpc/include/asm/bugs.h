@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_BUGS_H
-#define _ASM_POWERPC_BUGS_H
+#ifndef _ASM_POWERPC_S_H
+#define _ASM_POWERPC_S_H
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -10,9 +10,9 @@
 
 /*
  * This file is included by 'init/main.c' to check for
- * architecture-dependent bugs.
+ * architecture-dependent s.
  */
 
-static inline void check_bugs(void) { }
+static inline void check_s(void) { }
 
-#endif	/* _ASM_POWERPC_BUGS_H */
+#endif	/* _ASM_POWERPC_S_H */

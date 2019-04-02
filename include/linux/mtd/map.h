@@ -25,7 +25,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/string.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 
@@ -142,7 +142,7 @@
 #endif
 static inline int map_bankwidth(void *map)
 {
-	BUG();
+	();
 	return 0;
 }
 #define map_bankwidth_is_large(map) (0)
@@ -349,7 +349,7 @@ static inline map_word map_word_load(struct map_info *map, const void *ptr)
 	else if (map_bankwidth_is_large(map))
 		memcpy(r.x, ptr, map->bankwidth);
 	else
-		BUG();
+		();
 
 	return r;
 }
@@ -417,7 +417,7 @@ static inline map_word inline_map_read(struct map_info *map, unsigned long ofs)
 	else if (map_bankwidth_is_large(map))
 		memcpy_fromio(r.x, map->virt + ofs, map->bankwidth);
 	else
-		BUG();
+		();
 
 	return r;
 }
@@ -437,7 +437,7 @@ static inline void inline_map_write(struct map_info *map, const map_word datum, 
 	else if (map_bankwidth_is_large(map))
 		memcpy_toio(map->virt+ofs, datum.x, map->bankwidth);
 	else
-		BUG();
+		();
 	mb();
 }
 
@@ -470,7 +470,7 @@ extern void simple_map_init(struct map_info *);
 #define map_copy_to(map, to, from, len) inline_map_copy_to(map, to, from, len)
 
 
-#define simple_map_init(map) BUG_ON(!map_bankwidth_supported((map)->bankwidth))
+#define simple_map_init(map) _ON(!map_bankwidth_supported((map)->bankwidth))
 #define map_is_linear(map) ({ (void)(map); 1; })
 
 #endif /* !CONFIG_MTD_COMPLEX_MAPPINGS */

@@ -14,11 +14,11 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
-#include "ctcm_dbug.h"
+#include <linux/defs.h>
+#include "ctcm_d.h"
 
 /*
- * Debug Facility Stuff
+ * De Facility Stuff
  */
 
 struct ctcm_dbf_info ctcm_dbf[CTCM_DBF_INFOS] = {
@@ -34,7 +34,7 @@ void ctcm_unregister_dbf_views(void)
 {
 	int x;
 	for (x = 0; x < CTCM_DBF_INFOS; x++) {
-		debug_unregister(ctcm_dbf[x].id);
+		de_unregister(ctcm_dbf[x].id);
 		ctcm_dbf[x].id = NULL;
 	}
 }
@@ -44,7 +44,7 @@ int ctcm_register_dbf_views(void)
 	int x;
 	for (x = 0; x < CTCM_DBF_INFOS; x++) {
 		/* register the areas */
-		ctcm_dbf[x].id = debug_register(ctcm_dbf[x].name,
+		ctcm_dbf[x].id = de_register(ctcm_dbf[x].name,
 						ctcm_dbf[x].pages,
 						ctcm_dbf[x].areas,
 						ctcm_dbf[x].len);
@@ -54,9 +54,9 @@ int ctcm_register_dbf_views(void)
 		}
 
 		/* register a view */
-		debug_register_view(ctcm_dbf[x].id, &debug_hex_ascii_view);
+		de_register_view(ctcm_dbf[x].id, &de_hex_ascii_view);
 		/* set a passing level */
-		debug_set_level(ctcm_dbf[x].id, ctcm_dbf[x].level);
+		de_set_level(ctcm_dbf[x].id, ctcm_dbf[x].level);
 	}
 
 	return 0;
@@ -67,12 +67,12 @@ void ctcm_dbf_longtext(enum ctcm_dbf_names dbf_nix, int level, char *fmt, ...)
 	char dbf_txt_buf[64];
 	va_list args;
 
-	if (!debug_level_enabled(ctcm_dbf[dbf_nix].id, level))
+	if (!de_level_enabled(ctcm_dbf[dbf_nix].id, level))
 		return;
 	va_start(args, fmt);
 	vsnprintf(dbf_txt_buf, sizeof(dbf_txt_buf), fmt, args);
 	va_end(args);
 
-	debug_text_event(ctcm_dbf[dbf_nix].id, level, dbf_txt_buf);
+	de_text_event(ctcm_dbf[dbf_nix].id, level, dbf_txt_buf);
 }
 

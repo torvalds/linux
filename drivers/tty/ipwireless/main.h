@@ -35,7 +35,7 @@
 #define IPWIRELESS_TX_QUEUE_SIZE  262144
 #define IPWIRELESS_RX_QUEUE_SIZE  262144
 
-#define IPWIRELESS_STATE_DEBUG
+#define IPWIRELESS_STATE_DE
 
 struct ipw_hardware;
 struct ipw_network;
@@ -62,7 +62,7 @@ struct ipw_dev {
 };
 
 /* Module parametres */
-extern int ipwireless_debug;
+extern int ipwireless_de;
 extern int ipwireless_loopback;
 extern int ipwireless_out_queue;
 

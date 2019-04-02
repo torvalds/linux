@@ -7,10 +7,10 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acnamesp.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbstats")
 
 /* Local prototypes */
@@ -117,7 +117,7 @@ static void acpi_db_list_info(struct acpi_memory_list *list)
  *
  * DESCRIPTION: Add this object to the global counts, by object type.
  *              Limited recursion handles subobjects and packages, and this
- *              is probably acceptable within the AML debugger only.
+ *              is probably acceptable within the AML deger only.
  *
  ******************************************************************************/
 
@@ -483,7 +483,7 @@ acpi_status acpi_db_display_statistics(char *type_arg)
 		break;
 
 	case CMD_STAT_STACK:
-#if defined(ACPI_DEBUG_OUTPUT)
+#if defined(ACPI_DE_OUTPUT)
 
 		temp =
 		    (u32)ACPI_PTR_DIFF(acpi_gbl_entry_stack_pointer,

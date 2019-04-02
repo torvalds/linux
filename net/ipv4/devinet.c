@@ -236,8 +236,8 @@ void in_dev_finish_destroy(struct in_device *idev)
 	WARN_ON(idev->ifa_list);
 	WARN_ON(idev->mc_list);
 	kfree(rcu_dereference_protected(idev->mc_hash, 1));
-#ifdef NET_REFCNT_DEBUG
-	pr_debug("%s: %p=%s\n", __func__, idev, dev ? dev->name : "NIL");
+#ifdef NET_REFCNT_DE
+	pr_de("%s: %p=%s\n", __func__, idev, dev ? dev->name : "NIL");
 #endif
 	dev_put(dev);
 	if (!idev->dead)
@@ -1494,7 +1494,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		pr_debug("%s: bug\n", __func__);
+		pr_de("%s: \n", __func__);
 		RCU_INIT_POINTER(dev->ip_ptr, NULL);
 		break;
 	case NETDEV_UP:
@@ -1850,7 +1850,7 @@ static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 
 	err = inet_fill_ifaddr(skb, ifa, &fillargs);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet_nlmsg_size() */
+		/* -EMSGSIZE implies  in inet_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -1935,7 +1935,7 @@ static int inet_set_link_af(struct net_device *dev, const struct nlattr *nla)
 		return -EAFNOSUPPORT;
 
 	if (nla_parse_nested(tb, IFLA_INET_MAX, nla, NULL, NULL) < 0)
-		BUG();
+		();
 
 	if (tb[IFLA_INET_CONF]) {
 		nla_for_each_nested(a, tb[IFLA_INET_CONF], rem)
@@ -2043,7 +2043,7 @@ void inet_netconf_notify_devconf(struct net *net, int event, int type,
 	err = inet_netconf_fill_devconf(skb, ifindex, devconf, 0, 0,
 					event, 0, type);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet_netconf_msgsize_devconf() */
+		/* -EMSGSIZE implies  in inet_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -2150,7 +2150,7 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 					nlh->nlmsg_seq, RTM_NEWNETCONF, 0,
 					NETCONFA_ALL);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in inet_netconf_msgsize_devconf() */
+		/* -EMSGSIZE implies  in inet_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

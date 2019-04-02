@@ -112,7 +112,7 @@
 #define DMA_ERRATA_i541			BIT(0x3)
 #define DMA_ERRATA_i88			BIT(0x4)
 #define DMA_ERRATA_3_3			BIT(0x5)
-#define DMA_ROMCODE_BUG			BIT(0x6)
+#define DMA_ROMCODE_			BIT(0x6)
 
 /* Attributes for OMAP DMA Contrller */
 #define DMA_LINKED_LCH			BIT(0x0)

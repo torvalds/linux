@@ -49,8 +49,8 @@ config MIPS
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DE_KMEMLEAK
+	select HAVE_DE_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EXIT_THREAD
@@ -2800,7 +2800,7 @@ config NR_CPUS
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  The maximum supported value is 32 for 32-bit
 	  kernel and 64 for 64-bit kernels; the minimum value which makes
-	  sense is 1 for Qemu (useful only for kernel debugging purposes)
+	  sense is 1 for Qemu (useful only for kernel deging purposes)
 	  and 2 for all others.
 
 	  This is purely to save memory - each supported CPU adds

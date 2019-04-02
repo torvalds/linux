@@ -56,17 +56,17 @@ struct device_private iproc_priv;
 
 /* ==================== Parameters ===================== */
 
-int flow_debug_logging;
-module_param(flow_debug_logging, int, 0644);
-MODULE_PARM_DESC(flow_debug_logging, "Enable Flow Debug Logging");
+int flow_de_logging;
+module_param(flow_de_logging, int, 0644);
+MODULE_PARM_DESC(flow_de_logging, "Enable Flow De Logging");
 
-int packet_debug_logging;
-module_param(packet_debug_logging, int, 0644);
-MODULE_PARM_DESC(packet_debug_logging, "Enable Packet Debug Logging");
+int packet_de_logging;
+module_param(packet_de_logging, int, 0644);
+MODULE_PARM_DESC(packet_de_logging, "Enable Packet De Logging");
 
-int debug_logging_sleep;
-module_param(debug_logging_sleep, int, 0644);
-MODULE_PARM_DESC(debug_logging_sleep, "Packet Debug Logging Sleep");
+int de_logging_sleep;
+module_param(de_logging_sleep, int, 0644);
+MODULE_PARM_DESC(de_logging_sleep, "Packet De Logging Sleep");
 
 /*
  * The value of these module parameters is used to set the priority for each
@@ -513,7 +513,7 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 static void handle_ablkcipher_resp(struct iproc_reqctx_s *rctx)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
-#ifdef DEBUG
+#ifdef DE
 	struct crypto_async_request *areq = rctx->parent;
 	struct ablkcipher_request *req = ablkcipher_request_cast(areq);
 #endif
@@ -1041,7 +1041,7 @@ static int ahash_req_done(struct iproc_reqctx_s *rctx)
 static void handle_ahash_resp(struct iproc_reqctx_s *rctx)
 {
 	struct iproc_ctx_s *ctx = rctx->ctx;
-#ifdef DEBUG
+#ifdef DE
 	struct crypto_async_request *areq = rctx->parent;
 	struct ahash_request *req = ahash_request_cast(areq);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
@@ -4597,7 +4597,7 @@ static int spu_register_ablkcipher(struct iproc_alg_s *driver_alg)
 	/* Mark alg as having been registered, if successful */
 	if (err == 0)
 		driver_alg->registered = true;
-	pr_debug("  registered ablkcipher %s\n", crypto->cra_driver_name);
+	pr_de("  registered ablkcipher %s\n", crypto->cra_driver_name);
 	return err;
 }
 
@@ -4653,7 +4653,7 @@ static int spu_register_ahash(struct iproc_alg_s *driver_alg)
 	/* Mark alg as having been registered, if successful */
 	if (err == 0)
 		driver_alg->registered = true;
-	pr_debug("  registered ahash %s\n",
+	pr_de("  registered ahash %s\n",
 		 hash->halg.base.cra_driver_name);
 	return err;
 }
@@ -4680,7 +4680,7 @@ static int spu_register_aead(struct iproc_alg_s *driver_alg)
 	/* Mark alg as having been registered, if successful */
 	if (err == 0)
 		driver_alg->registered = true;
-	pr_debug("  registered aead %s\n", aead->base.cra_driver_name);
+	pr_de("  registered aead %s\n", aead->base.cra_driver_name);
 	return err;
 }
 
@@ -4847,7 +4847,7 @@ int bcm_spu_probe(struct platform_device *pdev)
 
 	spu_counters_init();
 
-	spu_setup_debugfs();
+	spu_setup_defs();
 
 	err = spu_algs_register(dev);
 	if (err < 0)
@@ -4856,7 +4856,7 @@ int bcm_spu_probe(struct platform_device *pdev)
 	return 0;
 
 fail_reg:
-	spu_free_debugfs();
+	spu_free_defs();
 failure:
 	spu_mb_release(pdev);
 	dev_err(dev, "%s failed with error %d.\n", __func__, err);
@@ -4900,7 +4900,7 @@ int bcm_spu_remove(struct platform_device *pdev)
 			break;
 		}
 	}
-	spu_free_debugfs();
+	spu_free_defs();
 	spu_mb_release(pdev);
 	return 0;
 }

@@ -839,7 +839,7 @@ static void kfd_topology_update_device_list(struct list_head *temp_list,
 	}
 }
 
-static void kfd_debug_print_topology(void)
+static void kfd_de_print_topology(void)
 {
 	struct kfd_topology_device *dev;
 
@@ -1030,7 +1030,7 @@ int kfd_topology_init(void)
 	if (!ret) {
 		sys_props.generation_count++;
 		kfd_update_system_properties();
-		kfd_debug_print_topology();
+		kfd_de_print_topology();
 		pr_info("Finished initializing topology\n");
 	} else
 		pr_err("Failed to update topology in sysfs ret=%d\n", ret);
@@ -1202,7 +1202,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	gpu_id = kfd_generate_gpu_id(gpu);
 
-	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
+	pr_de("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
 
 	proximity_domain = atomic_inc_return(&topology_crat_proximity_domain);
 
@@ -1297,7 +1297,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		pr_debug("Adding doorbell packet type capability\n");
+		pr_de("Adding doorbell packet type capability\n");
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
@@ -1328,7 +1328,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	}
 
-	kfd_debug_print_topology();
+	kfd_de_print_topology();
 
 	if (!res)
 		kfd_notify_gpu_change(gpu_id, 1);
@@ -1425,9 +1425,9 @@ int kfd_numa_node_to_apic_id(int numa_node_id)
 	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data)
+int kfd_defs_hqds_by_device(struct seq_file *m, void *data)
 {
 	struct kfd_topology_device *dev;
 	unsigned int i = 0;
@@ -1442,7 +1442,7 @@ int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data)
 		}
 
 		seq_printf(m, "Node %u, gpu_id %x:\n", i++, dev->gpu->id);
-		r = dqm_debugfs_hqds(m, dev->gpu->dqm);
+		r = dqm_defs_hqds(m, dev->gpu->dqm);
 		if (r)
 			break;
 	}
@@ -1452,7 +1452,7 @@ int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data)
 	return r;
 }
 
-int kfd_debugfs_rls_by_device(struct seq_file *m, void *data)
+int kfd_defs_rls_by_device(struct seq_file *m, void *data)
 {
 	struct kfd_topology_device *dev;
 	unsigned int i = 0;
@@ -1467,7 +1467,7 @@ int kfd_debugfs_rls_by_device(struct seq_file *m, void *data)
 		}
 
 		seq_printf(m, "Node %u, gpu_id %x:\n", i++, dev->gpu->id);
-		r = pm_debugfs_runlist(m, &dev->gpu->dqm->packets);
+		r = pm_defs_runlist(m, &dev->gpu->dqm->packets);
 		if (r)
 			break;
 	}

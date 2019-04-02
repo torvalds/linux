@@ -1920,7 +1920,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 	 * device initialization doesn't happen, initialize it when
 	 * a SBTVD parameters are adjusted.
 	 *
-	 * Unfortunately, due to a hard to track bug at tda829x/tda18271,
+	 * Unfortunately, due to a hard to track  at tda829x/tda18271,
 	 * the agc callback logic is not called during DVB attach time,
 	 * causing mb86a20s to not be initialized with Kworld SBTVD.
 	 * So, this hack is needed, in order to make Kworld SBTVD to work.

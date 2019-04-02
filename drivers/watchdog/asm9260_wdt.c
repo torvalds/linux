@@ -49,7 +49,7 @@
 enum asm9260_wdt_mode {
 	HW_RESET,
 	SW_RESET,
-	DEBUG,
+	DE,
 };
 
 struct asm9260_wdt_priv {
@@ -160,7 +160,7 @@ static irqreturn_t asm9260_wdt_irq(int irq, void *devid)
 	if (!(stat & BM_MOD_WDINT))
 		return IRQ_NONE;
 
-	if (priv->mode == DEBUG) {
+	if (priv->mode == DE) {
 		dev_info(priv->dev, "Watchdog Timeout. Do nothing.\n");
 	} else {
 		dev_info(priv->dev, "Watchdog Timeout. Doing SW Reset.\n");
@@ -265,8 +265,8 @@ static void asm9260_wdt_get_dt_mode(struct asm9260_wdt_priv *priv)
 		priv->mode = HW_RESET;
 	else if (!strcmp(tmp, "sw"))
 		priv->mode = SW_RESET;
-	else if (!strcmp(tmp, "debug"))
-		priv->mode = DEBUG;
+	else if (!strcmp(tmp, "de"))
+		priv->mode = DE;
 	else
 		dev_warn(priv->dev, "unknown reset-type: %s. Using default \"hw\" mode.",
 			 tmp);
@@ -278,7 +278,7 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *wdd;
 	struct resource *res;
 	int ret;
-	static const char * const mode_name[] = { "hw", "sw", "debug", };
+	static const char * const mode_name[] = { "hw", "sw", "de", };
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct asm9260_wdt_priv),
 			    GFP_KERNEL);

@@ -153,7 +153,7 @@ irqreturn_t esas2r_msi_interrupt(int irq, void *dev_id)
 	}
 
 	/*
-	 * Work around a chip bug and force a new MSI to be sent if one is
+	 * Work around a chip  and force a new MSI to be sent if one is
 	 * still pending.
 	 */
 	esas2r_disable_chip_interrupts(a);
@@ -233,7 +233,7 @@ static void esas2r_get_outbound_responses(struct esas2r_adapter *a)
 	/* Make sure the firmware is healthy */
 	if (unlikely(rspput_ptr >= a->list_size)) {
 		spin_unlock_irqrestore(&a->queue_lock, flags);
-		esas2r_bugon();
+		esas2r_on();
 		esas2r_local_reset_adapter(a);
 		esas2r_trace_exit();
 		return;
@@ -254,7 +254,7 @@ static void esas2r_get_outbound_responses(struct esas2r_adapter *a)
 		if (unlikely(LOWORD(handle) == 0
 			     || LOWORD(handle) > num_requests +
 			     num_ae_requests + 1)) {
-			esas2r_bugon();
+			esas2r_on();
 			continue;
 		}
 
@@ -262,7 +262,7 @@ static void esas2r_get_outbound_responses(struct esas2r_adapter *a)
 		rq = a->req_table[LOWORD(handle)];
 
 		if (unlikely(rq == NULL || rq->vrq->scsi.handle != handle)) {
-			esas2r_bugon();
+			esas2r_on();
 			continue;
 		}
 
@@ -453,7 +453,7 @@ static void esas2r_process_bus_reset(struct esas2r_adapter *a)
 
 	esas2r_trace_enter();
 
-	esas2r_hdebug("reset detected");
+	esas2r_hde("reset detected");
 
 	spin_lock_irqsave(&a->queue_lock, flags);
 
@@ -498,7 +498,7 @@ static void esas2r_chip_rst_needed_during_tasklet(struct esas2r_adapter *a)
 	 */
 	if (!esas2r_is_adapter_present(a) || (a->chip_uptime >=
 					      ESAS2R_CHP_UPTIME_MAX)) {
-		esas2r_hdebug("*** adapter disabled ***");
+		esas2r_hde("*** adapter disabled ***");
 
 		/*
 		 * Ok, some kind of hard failure.  Make sure we
@@ -536,7 +536,7 @@ static void esas2r_chip_rst_needed_during_tasklet(struct esas2r_adapter *a)
 			 * deferred power up attempt.
 			 */
 		} else {
-			esas2r_hdebug("*** resetting chip ***");
+			esas2r_hde("*** resetting chip ***");
 			esas2r_reset_chip(a);
 		}
 
@@ -626,7 +626,7 @@ void esas2r_do_tasklet_tasks(struct esas2r_adapter *a)
 	}
 
 	if (test_bit(AF_BUSRST_NEEDED, &a->flags)) {
-		esas2r_hdebug("hard resetting bus");
+		esas2r_hde("hard resetting bus");
 
 		clear_bit(AF_BUSRST_NEEDED, &a->flags);
 
@@ -679,7 +679,7 @@ static void esas2r_doorbell_interrupt(struct esas2r_adapter *a, u32 doorbell)
 		clear_bit(AF_HEARTBEAT, &a->flags);
 
 	if (doorbell & DRBL_PANIC_REASON_MASK) {
-		esas2r_hdebug("*** Firmware Panic ***");
+		esas2r_hde("*** Firmware Panic ***");
 		esas2r_log(ESAS2R_LOG_CRIT, "The firmware has panicked");
 	}
 
@@ -764,8 +764,8 @@ void esas2r_ae_complete(struct esas2r_adapter *a, struct esas2r_request *rq)
 			   "The AE request response length (%p) is too long: %d",
 			   rq, length);
 
-		esas2r_hdebug("aereq->length (0x%x) too long", length);
-		esas2r_bugon();
+		esas2r_hde("aereq->length (0x%x) too long", length);
+		esas2r_on();
 
 		last = ae;
 	}
@@ -785,8 +785,8 @@ void esas2r_ae_complete(struct esas2r_adapter *a, struct esas2r_request *rq)
 				   "the async event length is invalid (%p): %d",
 				   ae, length);
 
-			esas2r_hdebug("ae->hdr.length (0x%x) invalid", length);
-			esas2r_bugon();
+			esas2r_hde("ae->hdr.length (0x%x) invalid", length);
+			esas2r_on();
 
 			break;
 		}
@@ -863,9 +863,9 @@ void esas2r_send_reset_ae(struct esas2r_adapter *a, bool pwr_mgt)
 	ae.bylength = (u8)sizeof(struct atto_vda_ae_hdr);
 
 	if (pwr_mgt)
-		esas2r_hdebug("*** sending power management AE ***");
+		esas2r_hde("*** sending power management AE ***");
 	else
-		esas2r_hdebug("*** sending reset AE ***");
+		esas2r_hde("*** sending reset AE ***");
 
 	esas2r_queue_fw_event(a, fw_event_vda_ae, &ae,
 			      sizeof(union atto_vda_ae));

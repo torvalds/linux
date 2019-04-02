@@ -63,11 +63,11 @@ struct bcm3510_state {
 	struct bcm3510_hab_cmd_status2 status2;
 };
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,2=i2c (|-able)).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,2=i2c (|-able)).");
 
-#define dprintk(level,x...) if (level & debug) printk(x)
+#define dprintk(level,x...) if (level & de) printk(x)
 #define dbufout(b,l,m) {\
 	    int i; \
 	    for (i = 0; i < l; i++) \

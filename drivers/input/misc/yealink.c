@@ -33,7 +33,7 @@
  *
  * Thanks to:
  *   - Olivier Vandorpe, for providing the usbb2k-api.
- *   - Martin Diehl, for spotting my memory allocation bug.
+ *   - Martin Diehl, for spotting my memory allocation .
  *
  * History:
  *   20050527 henk	First version, functional keyboard. Keyboard events

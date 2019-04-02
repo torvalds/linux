@@ -32,7 +32,7 @@ You can try the experience changing the vendor/product ID values (look
 at the source code).
 
 You can get these values by looking at /var/log/messages when you plug
-your camera, or by typing : cat /sys/kernel/debug/usb/devices.
+your camera, or by typing : cat /sys/kernel/de/usb/devices.
 
 If you manage to use your cam with this code, you can send me a mail
 (royale@zerezo.com) with the name of your cam and a patch if needed.
@@ -52,9 +52,9 @@ Location: Device Drivers -> Multimedia devices -> Video For Linux -> Video Captu
 Usage
 -----
 
-modprobe zr364xx debug=X mode=Y
+modprobe zr364xx de=X mode=Y
 
-- debug      : set to 1 to enable verbose debug messages
+- de      : set to 1 to enable verbose de messages
 - mode       : 0 = 320x240, 1 = 160x120, 2 = 640x480
 
 You can then use the camera with V4L2 compatible applications, for

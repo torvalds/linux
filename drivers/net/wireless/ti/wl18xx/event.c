@@ -24,7 +24,7 @@
 #include "scan.h"
 #include "conf.h"
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/vendor_cmd.h"
 
 int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
@@ -75,7 +75,7 @@ static int wlcore_smart_config_sync_event(struct wl1271 *wl, u8 sync_channel,
 
 	freq = ieee80211_channel_to_frequency(sync_channel, band);
 
-	wl1271_debug(DEBUG_EVENT,
+	wl1271_de(DE_EVENT,
 		     "SMART_CONFIG_SYNC_EVENT_ID, freq: %d (chan: %d band %d)",
 		     freq, sync_channel, sync_band);
 	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, NULL, 20,
@@ -96,8 +96,8 @@ static int wlcore_smart_config_decode_event(struct wl1271 *wl,
 {
 	struct sk_buff *skb;
 
-	wl1271_debug(DEBUG_EVENT, "SMART_CONFIG_DECODE_EVENT_ID");
-	wl1271_dump_ascii(DEBUG_EVENT, "SSID:", ssid, ssid_len);
+	wl1271_de(DE_EVENT, "SMART_CONFIG_DECODE_EVENT_ID");
+	wl1271_dump_ascii(DE_EVENT, "SSID:", ssid, ssid_len);
 
 	skb = cfg80211_vendor_event_alloc(wl->hw->wiphy, NULL,
 					  ssid_len + pwd_len + 20,
@@ -133,10 +133,10 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 	u32 vector;
 
 	vector = le32_to_cpu(mbox->events_vector);
-	wl1271_debug(DEBUG_EVENT, "MBOX vector: 0x%x", vector);
+	wl1271_de(DE_EVENT, "MBOX vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT, "scan results: %d",
+		wl1271_de(DE_EVENT, "scan results: %d",
 			     mbox->number_of_scan_results);
 
 		if (wl->scan_wlvif)
@@ -155,12 +155,12 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 			    mbox->radar_channel,
 			    wl18xx_radar_type_decode(mbox->radar_type));
 
-		if (!wl->radar_debug_mode)
+		if (!wl->radar_de_mode)
 			ieee80211_radar_detected(wl->hw);
 	}
 
 	if (vector & PERIODIC_SCAN_REPORT_EVENT_ID) {
-		wl1271_debug(DEBUG_EVENT,
+		wl1271_de(DE_EVENT,
 			     "PERIODIC_SCAN_REPORT_EVENT (results %d)",
 			     mbox->number_of_sched_scan_results);
 

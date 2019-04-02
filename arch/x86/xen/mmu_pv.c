@@ -42,8 +42,8 @@
  */
 #include <linux/sched/mm.h>
 #include <linux/highmem.h>
-#include <linux/debugfs.h>
-#include <linux/bug.h>
+#include <linux/defs.h>
+#include <linux/.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
 #include <linux/init.h>
@@ -84,7 +84,7 @@
 
 #include "multicalls.h"
 #include "mmu.h"
-#include "debugfs.h"
+#include "defs.h"
 
 #ifdef CONFIG_X86_32
 /*
@@ -146,7 +146,7 @@ void make_lowmem_page_readonly(void *vaddr)
 	ptev = pte_wrprotect(*pte);
 
 	if (HYPERVISOR_update_va_mapping(address, ptev, 0))
-		BUG();
+		();
 }
 
 void make_lowmem_page_readwrite(void *vaddr)
@@ -162,7 +162,7 @@ void make_lowmem_page_readwrite(void *vaddr)
 	ptev = pte_mkwrite(*pte);
 
 	if (HYPERVISOR_update_va_mapping(address, ptev, 0))
-		BUG();
+		();
 }
 
 
@@ -652,7 +652,7 @@ static int __xen_pgd_walk(struct mm_struct *mm, pgd_t *pgd,
 
 	/* The limit is the last byte to be touched */
 	limit--;
-	BUG_ON(limit >= FIXADDR_TOP);
+	_ON(limit >= FIXADDR_TOP);
 
 #ifdef CONFIG_X86_64
 	/*
@@ -965,7 +965,7 @@ void xen_mm_unpin_all(void)
 
 	list_for_each_entry(page, &pgd_list, lru) {
 		if (PageSavePinned(page)) {
-			BUG_ON(!PagePinned(page));
+			_ON(!PagePinned(page));
 			__xen_pgd_unpin(&init_mm, (pgd_t *)page_address(page));
 			ClearPageSavePinned(page);
 		}
@@ -1086,7 +1086,7 @@ static void __init pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
 	op.cmd = cmd;
 	op.arg1.mfn = pfn_to_mfn(pfn);
 	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
-		BUG();
+		();
 }
 
 #ifdef CONFIG_X86_64
@@ -1430,7 +1430,7 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 }
 static void xen_write_cr3(unsigned long cr3)
 {
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	xen_mc_batch();  /* disables interrupts */
 
@@ -1476,7 +1476,7 @@ static void xen_write_cr3(unsigned long cr3)
  */
 static void __init xen_write_cr3_init(unsigned long cr3)
 {
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	xen_mc_batch();  /* disables interrupts */
 
@@ -1495,14 +1495,14 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 	pgd_t *pgd = mm->pgd;
 	int ret = 0;
 
-	BUG_ON(PagePinned(virt_to_page(pgd)));
+	_ON(PagePinned(virt_to_page(pgd)));
 
 #ifdef CONFIG_X86_64
 	{
 		struct page *page = virt_to_page(pgd);
 		pgd_t *user_pgd;
 
-		BUG_ON(page->private != 0);
+		_ON(page->private != 0);
 
 		ret = -ENOMEM;
 
@@ -1517,7 +1517,7 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 			ret = 0;
 		}
 
-		BUG_ON(PagePinned(virt_to_page(xen_get_user_pgd(pgd))));
+		_ON(PagePinned(virt_to_page(xen_get_user_pgd(pgd))));
 	}
 #endif
 	return ret;
@@ -1586,7 +1586,7 @@ static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
 static void __init xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
-	BUG_ON(mem_map);	/* should only be used early */
+	_ON(mem_map);	/* should only be used early */
 #endif
 	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
 	pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
@@ -1596,7 +1596,7 @@ static void __init xen_alloc_pte_init(struct mm_struct *mm, unsigned long pfn)
 static void __init xen_alloc_pmd_init(struct mm_struct *mm, unsigned long pfn)
 {
 #ifdef CONFIG_FLATMEM
-	BUG_ON(mem_map);	/* should only be used early */
+	_ON(mem_map);	/* should only be used early */
 #endif
 	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
 }
@@ -1775,7 +1775,7 @@ static void __init set_page_prot_flags(void *addr, pgprot_t prot,
 	pte_t pte = pfn_pte(pfn, prot);
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)addr, pte, flags))
-		BUG();
+		();
 }
 static void __init set_page_prot(void *addr, pgprot_t prot)
 {
@@ -2084,7 +2084,7 @@ void __init xen_relocate_p2m(void)
 	new_area = xen_find_free_area(PFN_PHYS(n_frames));
 	if (!new_area) {
 		xen_raw_console_write("Can't find new memory area for p2m needed due to E820 map conflict\n");
-		BUG();
+		();
 	}
 
 	/*
@@ -2150,7 +2150,7 @@ void __init xen_relocate_p2m(void)
 
 	/* Release the old p2m list and set new list info. */
 	p2m_pfn = PFN_DOWN(xen_early_virt_to_phys(xen_start_info->mfn_list));
-	BUG_ON(!p2m_pfn);
+	_ON(!p2m_pfn);
 	p2m_pfn_end = p2m_pfn + PFN_DOWN(size);
 
 	if (xen_start_info->mfn_list < __START_KERNEL_map) {
@@ -2188,8 +2188,8 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 {
 	unsigned long pfn = PFN_DOWN(__pa(swapper_pg_dir));
 
-	BUG_ON(read_cr3_pa() != __pa(initial_page_table));
-	BUG_ON(cr3 != __pa(swapper_pg_dir));
+	_ON(read_cr3_pa() != __pa(initial_page_table));
+	_ON(cr3 != __pa(swapper_pg_dir));
 
 	/*
 	 * We are switching to swapper_pg_dir for the first time (from
@@ -2296,7 +2296,7 @@ void __init xen_pt_check_e820(void)
 {
 	if (xen_is_e820_reserved(xen_pt_base, xen_pt_size)) {
 		xen_raw_console_write("Xen hypervisor allocated page table memory conflicts with E820 map\n");
-		BUG();
+		();
 	}
 }
 
@@ -2584,13 +2584,13 @@ static int xen_exchange_memory(unsigned long extents_in, unsigned int order_in,
 		}
 	};
 
-	BUG_ON(extents_in << order_in != extents_out << order_out);
+	_ON(extents_in << order_in != extents_out << order_out);
 
 	rc = HYPERVISOR_memory_op(XENMEM_exchange, &exchange);
 	success = (exchange.nr_exchanged == extents_in);
 
-	BUG_ON(!success && ((exchange.nr_exchanged != 0) || (rc == 0)));
-	BUG_ON(success && (rc != 0));
+	_ON(!success && ((exchange.nr_exchanged != 0) || (rc == 0)));
+	_ON(success && (rc != 0));
 
 	return success;
 }
@@ -2737,7 +2737,7 @@ int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 	unsigned long range;
 	int mapped = 0;
 
-	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
+	_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
 
 	rmd.pfn = pfn;
 	rmd.prot = prot;

@@ -70,7 +70,7 @@ void __init cpm2_reset(void)
 	 */
 	cpmp = &cpm2_immr->im_cpm;
 
-#ifndef CONFIG_PPC_EARLY_DEBUG_CPM
+#ifndef CONFIG_PPC_EARLY_DE_CPM
 	/* Reset the CPM.
 	 */
 	cpm_command(CPM_CR_RST, 0);

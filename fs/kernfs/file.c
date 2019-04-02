@@ -1007,7 +1007,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	kn->ns = ns;
 	kn->priv = priv;
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	if (key) {
 		lockdep_init_map(&kn->dep_map, "kn->count", key, 0);
 		kn->flags |= KERNFS_LOCKDEP;

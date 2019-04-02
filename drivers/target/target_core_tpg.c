@@ -149,7 +149,7 @@ void core_tpg_add_node_to_devs(
 				lun_access_ro = false;
 		}
 
-		pr_debug("TARGET_CORE[%s]->TPG[%u]_LUN[%llu] - Adding %s"
+		pr_de("TARGET_CORE[%s]->TPG[%u]_LUN[%llu] - Adding %s"
 			" access for LUN in Demo Mode\n",
 			tpg->se_tpg_tfo->fabric_name,
 			tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
@@ -225,7 +225,7 @@ static void target_add_node_acl(struct se_node_acl *acl)
 	list_add_tail(&acl->acl_list, &tpg->acl_node_list);
 	mutex_unlock(&tpg->acl_node_mutex);
 
-	pr_debug("%s_TPG[%hu] - Added %s ACL with TCQ Depth: %d for %s"
+	pr_de("%s_TPG[%hu] - Added %s ACL with TCQ Depth: %d for %s"
 		" Initiator Node: %s\n",
 		tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
@@ -312,7 +312,7 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 	if (acl) {
 		if (acl->dynamic_node_acl) {
 			acl->dynamic_node_acl = 0;
-			pr_debug("%s_TPG[%u] - Replacing dynamic ACL"
+			pr_de("%s_TPG[%u] - Replacing dynamic ACL"
 				" for %s\n", tpg->se_tpg_tfo->fabric_name,
 				tpg->se_tpg_tfo->tpg_get_tag(tpg), initiatorname);
 			mutex_unlock(&tpg->acl_node_mutex);
@@ -379,7 +379,7 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 	core_tpg_wait_for_nacl_pr_ref(acl);
 	core_free_device_list_for_node(acl, tpg);
 
-	pr_debug("%s_TPG[%hu] - Deleted ACL with TCQ Depth: %d for %s"
+	pr_de("%s_TPG[%hu] - Deleted ACL with TCQ Depth: %d for %s"
 		" Initiator Node: %s\n", tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
 		tpg->se_tpg_tfo->fabric_name, acl->initiatorname);
@@ -416,7 +416,7 @@ int core_tpg_set_initiator_node_queue_depth(
 	 */
 	target_shutdown_sessions(acl);
 
-	pr_debug("Successfully changed queue depth to: %d for Initiator"
+	pr_de("Successfully changed queue depth to: %d for Initiator"
 		" Node: %s on %s Target Portal Group: %u\n", acl->queue_depth,
 		acl->initiatorname, tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg));
@@ -511,7 +511,7 @@ int core_tpg_register(
 	list_add_tail(&se_tpg->se_tpg_node, &tpg_list);
 	spin_unlock_bh(&tpg_lock);
 
-	pr_debug("TARGET_CORE[%s]: Allocated portal_group for endpoint: %s, "
+	pr_de("TARGET_CORE[%s]: Allocated portal_group for endpoint: %s, "
 		 "Proto: %d, Portal Tag: %u\n", se_tpg->se_tpg_tfo->fabric_name,
 		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg) ?
 		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg) : NULL,
@@ -527,7 +527,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	struct se_node_acl *nacl, *nacl_tmp;
 	LIST_HEAD(node_list);
 
-	pr_debug("TARGET_CORE[%s]: Deallocating portal_group for endpoint: %s, "
+	pr_de("TARGET_CORE[%s]: Deallocating portal_group for endpoint: %s, "
 		 "Proto: %d, Portal Tag: %u\n", tfo->fabric_name,
 		tfo->tpg_get_wwn(se_tpg) ? tfo->tpg_get_wwn(se_tpg) : NULL,
 		se_tpg->proto_id, tfo->tpg_get_tag(se_tpg));

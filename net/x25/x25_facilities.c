@@ -111,7 +111,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 			case X25_MARKER:
 				break;
 			default:
-				pr_debug("unknown facility "
+				pr_de("unknown facility "
 				       "%02X, value %02X\n",
 				       p[0], p[1]);
 				break;
@@ -134,7 +134,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 				*vc_fac_mask |= X25_MASK_WINDOW_SIZE;
 				break;
 			default:
-				pr_debug("unknown facility "
+				pr_de("unknown facility "
 				       "%02X, values %02X, %02X\n",
 				       p[0], p[1], p[2]);
 				break;
@@ -145,7 +145,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 		case X25_FAC_CLASS_C:
 			if (len < 4)
 				return -1;
-			pr_debug("unknown facility %02X, "
+			pr_de("unknown facility %02X, "
 			       "values %02X, %02X, %02X\n",
 			       p[0], p[1], p[2], p[3]);
 			p   += 4;
@@ -174,7 +174,7 @@ int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
 				*vc_fac_mask |= X25_MASK_CALLED_AE;
 				break;
 			default:
-				pr_debug("unknown facility %02X,"
+				pr_de("unknown facility %02X,"
 					"length %d\n", p[0], p[1]);
 				break;
 			}
@@ -287,7 +287,7 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 	 *	They want reverse charging, we won't accept it.
 	 */
 	if ((theirs.reverse & 0x01 ) && (ours->reverse & 0x01)) {
-		SOCK_DEBUG(sk, "X.25: rejecting reverse charging request\n");
+		SOCK_DE(sk, "X.25: rejecting reverse charging request\n");
 		return -1;
 	}
 
@@ -299,11 +299,11 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 		int ours_in  = ours->throughput & 0x0f;
 		int ours_out = ours->throughput & 0xf0;
 		if (!ours_in || theirs_in < ours_in) {
-			SOCK_DEBUG(sk, "X.25: inbound throughput negotiated\n");
+			SOCK_DE(sk, "X.25: inbound throughput negotiated\n");
 			new->throughput = (new->throughput & 0xf0) | theirs_in;
 		}
 		if (!ours_out || theirs_out < ours_out) {
-			SOCK_DEBUG(sk,
+			SOCK_DE(sk,
 				"X.25: outbound throughput negotiated\n");
 			new->throughput = (new->throughput & 0x0f) | theirs_out;
 		}
@@ -311,22 +311,22 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 
 	if (theirs.pacsize_in && theirs.pacsize_out) {
 		if (theirs.pacsize_in < ours->pacsize_in) {
-			SOCK_DEBUG(sk, "X.25: packet size inwards negotiated down\n");
+			SOCK_DE(sk, "X.25: packet size inwards negotiated down\n");
 			new->pacsize_in = theirs.pacsize_in;
 		}
 		if (theirs.pacsize_out < ours->pacsize_out) {
-			SOCK_DEBUG(sk, "X.25: packet size outwards negotiated down\n");
+			SOCK_DE(sk, "X.25: packet size outwards negotiated down\n");
 			new->pacsize_out = theirs.pacsize_out;
 		}
 	}
 
 	if (theirs.winsize_in && theirs.winsize_out) {
 		if (theirs.winsize_in < ours->winsize_in) {
-			SOCK_DEBUG(sk, "X.25: window size inwards negotiated down\n");
+			SOCK_DE(sk, "X.25: window size inwards negotiated down\n");
 			new->winsize_in = theirs.winsize_in;
 		}
 		if (theirs.winsize_out < ours->winsize_out) {
-			SOCK_DEBUG(sk, "X.25: window size outwards negotiated down\n");
+			SOCK_DE(sk, "X.25: window size outwards negotiated down\n");
 			new->winsize_out = theirs.winsize_out;
 		}
 	}
@@ -344,12 +344,12 @@ void x25_limit_facilities(struct x25_facilities *facilities,
 
 	if (!nb->extended) {
 		if (facilities->winsize_in  > 7) {
-			pr_debug("incoming winsize limited to 7\n");
+			pr_de("incoming winsize limited to 7\n");
 			facilities->winsize_in = 7;
 		}
 		if (facilities->winsize_out > 7) {
 			facilities->winsize_out = 7;
-			pr_debug("outgoing winsize limited to 7\n");
+			pr_de("outgoing winsize limited to 7\n");
 		}
 	}
 }

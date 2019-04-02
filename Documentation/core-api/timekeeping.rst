@@ -133,7 +133,7 @@ Some additional variants exist for more specialized cases:
 	These variants are safe to call from any context, including from
 	a non-maskable interrupt (NMI) during a timekeeper update, and
 	while we are entering suspend with the clocksource powered down.
-	This is useful in some tracing or debugging code as well as
+	This is useful in some tracing or deging code as well as
 	machine check reporting, but most drivers should never call them,
 	since the time is allowed to jump under certain conditions.
 

@@ -59,7 +59,7 @@
 /*
 * apply_front_porch_workaround
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a  that has existed since R5xx and has not been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void dce110_timing_generator_apply_front_porch_workaround(
@@ -297,7 +297,7 @@ bool dce110_timing_generator_program_timing_generator(
 
 	memset(&bp_params, 0, sizeof(struct bp_hw_crtc_timing_parameters));
 
-	/* Due to an asic bug we need to apply the Front Porch workaround prior
+	/* Due to an asic  we need to apply the Front Porch workaround prior
 	 * to programming the timing.
 	 */
 

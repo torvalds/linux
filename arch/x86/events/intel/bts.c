@@ -12,14 +12,14 @@
  * more details.
  */
 
-#undef DEBUG
+#undef DE
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/coredump.h>
 
@@ -30,7 +30,7 @@
 
 struct bts_ctx {
 	struct perf_output_handle	handle;
-	struct debug_store		ds_back;
+	struct de_store		ds_back;
 	int				state;
 };
 
@@ -146,7 +146,7 @@ static void
 bts_config_buffer(struct bts_buffer *buf)
 {
 	int cpu = raw_smp_processor_id();
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct de_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 	struct bts_phys *phys = &buf->buf[buf->cur_buf];
 	unsigned long index, thresh = 0, end = phys->size;
 	struct page *page = phys->page;
@@ -185,7 +185,7 @@ static void bts_buffer_pad_out(struct bts_phys *phys, unsigned long head)
 static void bts_update(struct bts_ctx *bts)
 {
 	int cpu = raw_smp_processor_id();
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	struct de_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 	struct bts_buffer *buf = perf_get_aux(&bts->handle);
 	unsigned long index = ds->bts_index - ds->bts_buffer_base, old, head;
 
@@ -445,7 +445,7 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 
 int intel_bts_interrupt(void)
 {
-	struct debug_store *ds = this_cpu_ptr(&cpu_hw_events)->ds;
+	struct de_store *ds = this_cpu_ptr(&cpu_hw_events)->ds;
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
 	struct perf_event *event = bts->handle.event;
 	struct bts_buffer *buf;

@@ -2,7 +2,7 @@
 #ifndef __ASM_SH_UNCACHED_H
 #define __ASM_SH_UNCACHED_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 
 #ifdef CONFIG_UNCACHED_MAPPING
 extern unsigned long cached_to_uncached;
@@ -51,7 +51,7 @@ do {							\
 #else
 #define virt_addr_uncached(kaddr)	(0)
 #define uncached_init()			do { } while (0)
-#define uncached_resize(size)		BUG()
+#define uncached_resize(size)		()
 #define jump_to_uncached()		do { } while (0)
 #define back_to_cached()		do { } while (0)
 #endif

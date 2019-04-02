@@ -373,7 +373,7 @@ static void moxart_prepare_data(struct moxart_host *host)
 
 	host->data_len = data->blocks * data->blksz;
 	blksz_bits = ffs(data->blksz) - 1;
-	BUG_ON(1 << blksz_bits != data->blksz);
+	_ON(1 << blksz_bits != data->blksz);
 
 	moxart_init_sg(host, data);
 

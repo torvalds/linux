@@ -2608,7 +2608,7 @@ static struct rdma_hw_stats *i40iw_alloc_hw_stats(struct ib_device *ibdev,
 		I40IW_HW_STAT_INDEX_MAX_64;
 	unsigned long lifespan = RDMA_HW_STATS_DEFAULT_LIFESPAN;
 
-	BUILD_BUG_ON(ARRAY_SIZE(i40iw_hw_stat_names) !=
+	BUILD__ON(ARRAY_SIZE(i40iw_hw_stat_names) !=
 		     (I40IW_HW_STAT_INDEX_MAX_32 +
 		      I40IW_HW_STAT_INDEX_MAX_64));
 

@@ -351,7 +351,7 @@ struct drm_vc4_set_tiling {
 };
 
 /**
- * struct drm_vc4_label_bo - Attach a name to a BO for debug purposes.
+ * struct drm_vc4_label_bo - Attach a name to a BO for de purposes.
  */
 struct drm_vc4_label_bo {
 	__u32 handle;

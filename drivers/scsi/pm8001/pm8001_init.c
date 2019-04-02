@@ -179,7 +179,7 @@ static void pm8001_tasklet(unsigned long opaque)
 	irq_vector = (struct isr_param *)opaque;
 	pm8001_ha = irq_vector->drv_inst;
 	if (unlikely(!pm8001_ha))
-		BUG_ON(1);
+		_ON(1);
 	PM8001_CHIP_DISP->isr(pm8001_ha, irq_vector->irq_id);
 }
 #endif

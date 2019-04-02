@@ -100,7 +100,7 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 	}
 #endif
 
-	pr_debug("Set actual frequency %lukHz\n",
+	pr_de("Set actual frequency %lukHz\n",
 		 clk_get_rate(policy->clk) / 1000);
 
 	return 0;
@@ -132,7 +132,7 @@ static void s3c64xx_cpufreq_config_regulator(void)
 		}
 
 		if (!found) {
-			pr_debug("%dkHz unsupported by regulator\n",
+			pr_de("%dkHz unsupported by regulator\n",
 				 freq->frequency);
 			freq->frequency = CPUFREQ_ENTRY_INVALID;
 		}
@@ -184,7 +184,7 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		r = clk_round_rate(policy->clk, freq->frequency * 1000);
 		r /= 1000;
 		if (r != freq->frequency) {
-			pr_debug("%dkHz unsupported by clock\n",
+			pr_de("%dkHz unsupported by clock\n",
 				 freq->frequency);
 			freq->frequency = CPUFREQ_ENTRY_INVALID;
 		}

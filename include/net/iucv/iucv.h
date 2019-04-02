@@ -30,7 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 /*
  * IUCV option flags usable by device drivers:

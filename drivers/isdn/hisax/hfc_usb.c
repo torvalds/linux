@@ -47,14 +47,14 @@
 static const char *hfcusb_revision =
 	"$Revision: 2.3.2.24 $ $Date: 2007/10/14 08:40:29 $ ";
 
-/* Hisax debug support
- *  debug flags defined in hfc_usb.h as HFCUSB_DBG_[*]
+/* Hisax de support
+ *  de flags defined in hfc_usb.h as HFCUSB_DBG_[*]
  */
-#define __debug_variable hfc_debug
-#include "hisax_debug.h"
-static u_int debug;
-module_param(debug, uint, 0);
-static int hfc_debug;
+#define __de_variable hfc_de
+#include "hisax_de.h"
+static u_int de;
+module_param(de, uint, 0);
+static int hfc_de;
 
 
 /* private vendor specific data */
@@ -1203,8 +1203,8 @@ hfc_usb_init(hfcusb_data *hfc)
 		return i;
 	}
 
-#ifdef CONFIG_HISAX_DEBUG
-	hfc_debug = debug;
+#ifdef CONFIG_HISAX_DE
+	hfc_de = de;
 #endif
 
 	for (i = 0; i < 4; i++)
@@ -1583,15 +1583,15 @@ static int __init
 hfc_usb_mod_init(void)
 {
 	char revstr[30], datestr[30], dummy[30];
-#ifndef CONFIG_HISAX_DEBUG
-	hfc_debug = debug;
+#ifndef CONFIG_HISAX_DE
+	hfc_de = de;
 #endif
 	sscanf(hfcusb_revision,
 	       "%s %s $ %s %s %s $ ", dummy, revstr,
 	       dummy, datestr, dummy);
 	printk(KERN_INFO
-	       "HFC-S USB: driver module revision %s date %s loaded, (debug=%i)\n",
-	       revstr, datestr, debug);
+	       "HFC-S USB: driver module revision %s date %s loaded, (de=%i)\n",
+	       revstr, datestr, de);
 	if (usb_register(&hfc_drv)) {
 		printk(KERN_INFO
 		       "HFC-S USB: Unable to register HFC-S USB module at usb stack\n");

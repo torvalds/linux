@@ -130,13 +130,13 @@ function diagnose()
     done
 }
 
-function check_debug_info() {
-    objdump -hj .debug_info ${obj} 2> /dev/null > /dev/null ||
-	echo -e "${obj} does not contain debug information, the addr2line output will be limited.\n" \
-	     "Recompile ${obj} with CONFIG_DEBUG_INFO to get a more useful output."
+function check_de_info() {
+    objdump -hj .de_info ${obj} 2> /dev/null > /dev/null ||
+	echo -e "${obj} does not contain de information, the addr2line output will be limited.\n" \
+	     "Recompile ${obj} with CONFIG_DE_INFO to get a more useful output."
 }
 
-check_debug_info
+check_de_info
 
 diagnose
 

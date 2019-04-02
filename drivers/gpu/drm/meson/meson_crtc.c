@@ -88,7 +88,7 @@ static void meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct meson_drm *priv = meson_crtc->priv;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (!crtc_state) {
 		DRM_ERROR("Invalid crtc_state\n");
@@ -117,7 +117,7 @@ static void meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct meson_drm *priv = meson_crtc->priv;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	drm_crtc_vblank_off(crtc);
 

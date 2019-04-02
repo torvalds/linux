@@ -156,8 +156,8 @@ static bool dpp_get_optimal_number_of_taps(
 		return false;
 
 	if (scl_data->viewport.width > scl_data->h_active &&
-		dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
-		scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
+		dpp->ctx->dc->de.max_downscale_src_width != 0 &&
+		scl_data->viewport.width > dpp->ctx->dc->de.max_downscale_src_width)
 		return false;
 
 	/* TODO: add lb check */
@@ -193,7 +193,7 @@ static bool dpp_get_optimal_number_of_taps(
 	else
 		scl_data->taps.h_taps_c = in_taps->h_taps_c;
 
-	if (!dpp->ctx->dc->debug.always_scale) {
+	if (!dpp->ctx->dc->de.always_scale) {
 		if (IDENTITY_RATIO(scl_data->ratios.horz))
 			scl_data->taps.h_taps = 1;
 		if (IDENTITY_RATIO(scl_data->ratios.vert))

@@ -12,9 +12,9 @@
 #include <linux/kernel.h>
 
 #if 0
-#define DEBUGP(fmt, ...) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define DEP(fmt, ...) printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #else
-#define DEBUGP(fmt, ...) no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
+#define DEP(fmt, ...) no_printk(KERN_DE pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 #ifdef CONFIG_MODULES
@@ -30,7 +30,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 	Elf32_Sym *sym;
 	uint32_t *location;
 
-	DEBUGP("Applying relocate section %u to %u\n", relsec,
+	DEP("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -70,7 +70,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	Elf32_Sym *sym;
 	uint32_t *location;
 
-	DEBUGP("Applying relocate_add section %u to %u\n", relsec,
+	DEP("Applying relocate_add section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */

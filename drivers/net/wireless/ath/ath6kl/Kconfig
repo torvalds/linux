@@ -31,15 +31,15 @@ config ATH6KL_USB
 	  USB. If you choose to build it as a module, it will be
 	  called ath6kl_usb.
 
-config ATH6KL_DEBUG
-	bool "Atheros ath6kl debugging"
+config ATH6KL_DE
+	bool "Atheros ath6kl deging"
 	depends on ATH6KL
 	---help---
-	  Enables ath6kl debug support, including debug messages
-	  enabled with debug_mask module parameter and debugfs
+	  Enables ath6kl de support, including de messages
+	  enabled with de_mask module parameter and defs
 	  interface.
 
-	  If unsure, say Y to make it easier to debug problems.
+	  If unsure, say Y to make it easier to de problems.
 
 config ATH6KL_TRACING
 	bool "Atheros ath6kl tracing support"
@@ -47,11 +47,11 @@ config ATH6KL_TRACING
 	depends on EVENT_TRACING
 	---help---
 	  Select this to ath6kl use tracing infrastructure which, for
-	  example, can be enabled with help of trace-cmd. All debug
+	  example, can be enabled with help of trace-cmd. All de
 	  messages and commands are delivered to using individually
 	  enablable trace points.
 
-	  If unsure, say Y to make it easier to debug problems.
+	  If unsure, say Y to make it easier to de problems.
 
 config ATH6KL_REGDOMAIN
 	bool "Atheros ath6kl regdomain support"

@@ -380,7 +380,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 				SCAN_ADDR_TYPE_SLAVE, i);
 			if (IS_ERR_VALUE_U32(tmp)) {
 				/* no more entries for port _i_ */
-				/* pr_debug("erom: slave port %d "
+				/* pr_de("erom: slave port %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
 			} else if (k < ARRAY_SIZE(core->addr_s)) {
@@ -397,7 +397,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 				SCAN_ADDR_TYPE_MWRAP, i);
 			if (IS_ERR_VALUE_U32(tmp)) {
 				/* no more entries for port _i_ */
-				/* pr_debug("erom: master wrapper %d "
+				/* pr_de("erom: master wrapper %d "
 				 * "has %d descriptors\n", i, j); */
 				break;
 			} else {
@@ -415,7 +415,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 				SCAN_ADDR_TYPE_SWRAP, i + hack);
 			if (IS_ERR_VALUE_U32(tmp)) {
 				/* no more entries for port _i_ */
-				/* pr_debug("erom: master wrapper %d "
+				/* pr_de("erom: master wrapper %d "
 				 * has %d descriptors\n", i, j); */
 				break;
 			} else {

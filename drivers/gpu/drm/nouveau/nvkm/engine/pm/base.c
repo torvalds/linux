@@ -156,7 +156,7 @@ nvkm_perfsrc_enable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 
 			/* enable the source */
 			nvkm_mask(device, src->addr, mask, value);
-			nvkm_debug(subdev,
+			nvkm_de(subdev,
 				   "enabled source %08x %08x %08x\n",
 				   src->addr, mask, value);
 		}
@@ -194,7 +194,7 @@ nvkm_perfsrc_disable(struct nvkm_pm *pm, struct nvkm_perfctr *ctr)
 
 			/* disable the source */
 			nvkm_mask(device, src->addr, mask, 0);
-			nvkm_debug(subdev, "disabled source %08x %08x\n",
+			nvkm_de(subdev, "disabled source %08x %08x\n",
 				   src->addr, mask);
 		}
 	}

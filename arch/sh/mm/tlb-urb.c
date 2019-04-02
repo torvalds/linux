@@ -31,7 +31,7 @@ void tlb_wire_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 	/*
 	 * Make sure we're not trying to wire the last TLB entry slot.
 	 */
-	BUG_ON(!--urb);
+	_ON(!--urb);
 
 	urb = urb % MMUCR_URB_NENTRIES;
 
@@ -81,7 +81,7 @@ void tlb_unwire_entry(void)
 	 * Make sure we're not trying to unwire a TLB entry when none
 	 * have been wired.
 	 */
-	BUG_ON(urb++ == MMUCR_URB_NENTRIES);
+	_ON(urb++ == MMUCR_URB_NENTRIES);
 
 	urb = urb % MMUCR_URB_NENTRIES;
 

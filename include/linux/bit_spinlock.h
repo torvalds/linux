@@ -5,7 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/preempt.h>
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 /*
  *  bit-based spin_lock()
@@ -23,7 +23,7 @@ static inline void bit_spin_lock(int bitnum, unsigned long *addr)
 	 * attempt to acquire the lock bit.
 	 */
 	preempt_disable();
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 	while (unlikely(test_and_set_bit_lock(bitnum, addr))) {
 		preempt_enable();
 		do {
@@ -41,7 +41,7 @@ static inline void bit_spin_lock(int bitnum, unsigned long *addr)
 static inline int bit_spin_trylock(int bitnum, unsigned long *addr)
 {
 	preempt_disable();
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 	if (unlikely(test_and_set_bit_lock(bitnum, addr))) {
 		preempt_enable();
 		return 0;
@@ -56,10 +56,10 @@ static inline int bit_spin_trylock(int bitnum, unsigned long *addr)
  */
 static inline void bit_spin_unlock(int bitnum, unsigned long *addr)
 {
-#ifdef CONFIG_DEBUG_SPINLOCK
-	BUG_ON(!test_bit(bitnum, addr));
+#ifdef CONFIG_DE_SPINLOCK
+	_ON(!test_bit(bitnum, addr));
 #endif
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 	clear_bit_unlock(bitnum, addr);
 #endif
 	preempt_enable();
@@ -73,10 +73,10 @@ static inline void bit_spin_unlock(int bitnum, unsigned long *addr)
  */
 static inline void __bit_spin_unlock(int bitnum, unsigned long *addr)
 {
-#ifdef CONFIG_DEBUG_SPINLOCK
-	BUG_ON(!test_bit(bitnum, addr));
+#ifdef CONFIG_DE_SPINLOCK
+	_ON(!test_bit(bitnum, addr));
 #endif
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 	__clear_bit_unlock(bitnum, addr);
 #endif
 	preempt_enable();
@@ -88,7 +88,7 @@ static inline void __bit_spin_unlock(int bitnum, unsigned long *addr)
  */
 static inline int bit_spin_is_locked(int bitnum, unsigned long *addr)
 {
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 	return test_bit(bitnum, addr);
 #elif defined CONFIG_PREEMPT_COUNT
 	return preempt_count();

@@ -66,7 +66,7 @@
    on the real-world samples.  I have no idea why, perhaps a scaling
    problem.  The block based code is also available in SVN
    http://svn.rowetel.com/software/oslec/tags/before_16bit.  If this
-   code can be debugged, it will lead to further reduction in MIPS, as
+   code can be deged, it will lead to further reduction in MIPS, as
    the block update code maps nicely onto DSP instruction sets (it's a
    dot product) compared to the current sample-by-sample update.
 
@@ -484,7 +484,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 				 * quite right to me - I suspect there are some
 				 * overflow issues in the filtering as it's too
 				 * "crackly".
-				 * TODO: debug this, maybe just play noise at
+				 * TODO: de this, maybe just play noise at
 				 * high level or look at spectrum.
 				 */
 

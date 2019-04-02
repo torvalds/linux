@@ -32,7 +32,7 @@ static const unsigned int ipipeif_fmts[] = {
  * ipipeif_print_status - Print current IPIPEIF Module register values.
  * @ipipeif: Pointer to ISS ISP IPIPEIF device.
  *
- * Also prints other debug information stored in the IPIPEIF module.
+ * Also prints other de information stored in the IPIPEIF module.
  */
 #define IPIPEIF_PRINT_REGISTER(iss, name)\
 	dev_dbg(iss->dev, "###IPIPEIF " #name "=0x%08x\n", \

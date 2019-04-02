@@ -27,8 +27,8 @@
  * available for our use.
  */
 
-#undef DEBUG
-#undef DEBUG_LOW
+#undef DE
+#undef DE_LOW
 
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -53,17 +53,17 @@
 #include <asm/pmac_pfunc.h>
 #include <asm/pmac_low_i2c.h>
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(x...) do {\
-		printk(KERN_DEBUG "low_i2c:" x);	\
+		printk(KERN_DE "low_i2c:" x);	\
 	} while(0)
 #else
 #define DBG(x...)
 #endif
 
-#ifdef DEBUG_LOW
+#ifdef DE_LOW
 #define DBG_LOW(x...) do {\
-		printk(KERN_DEBUG "low_i2c:" x);	\
+		printk(KERN_DE "low_i2c:" x);	\
 	} while(0)
 #else
 #define DBG_LOW(x...)
@@ -181,7 +181,7 @@ enum {
 };
 
 #define WRONG_STATE(name) do {\
-		printk(KERN_DEBUG "KW: wrong state. Got %s, state: %s " \
+		printk(KERN_DE "KW: wrong state. Got %s, state: %s " \
 		       "(isr: %02x)\n",	\
 		       name, __kw_state_names[host->state], isr); \
 	} while(0)
@@ -1148,7 +1148,7 @@ int pmac_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 
 	rc = bus->xfer(bus, addrdir, subsize, subaddr, data, len);
 
-#ifdef DEBUG
+#ifdef DE
 	if (rc)
 		DBG("xfer error %d\n", rc);
 #endif

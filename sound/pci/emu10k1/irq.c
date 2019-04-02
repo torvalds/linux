@@ -3,7 +3,7 @@
  *                   Creative Labs, Inc.
  *  Routines for IRQ control of EMU10K1 chips
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:

@@ -722,7 +722,7 @@ static int snd_miro_mixer(struct snd_card *card,
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!miro || !card))
+	if (snd__ON(!miro || !card))
 		return -EINVAL;
 
 	switch (miro->hardware) {
@@ -733,7 +733,7 @@ static int snd_miro_mixer(struct snd_card *card,
 		strcpy(card->mixername, "ACI & OPTi929");
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 

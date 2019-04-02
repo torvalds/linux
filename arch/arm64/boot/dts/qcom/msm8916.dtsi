@@ -1320,32 +1320,32 @@
 			};
 		};
 
-		debug@850000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+		de@850000 {
+			compatible = "arm,coresight-cpu-de","arm,primecell";
 			reg = <0x850000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU0>;
 		};
 
-		debug@852000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+		de@852000 {
+			compatible = "arm,coresight-cpu-de","arm,primecell";
 			reg = <0x852000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU1>;
 		};
 
-		debug@854000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+		de@854000 {
+			compatible = "arm,coresight-cpu-de","arm,primecell";
 			reg = <0x854000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";
 			cpu = <&CPU2>;
 		};
 
-		debug@856000 {
-			compatible = "arm,coresight-cpu-debug","arm,primecell";
+		de@856000 {
+			compatible = "arm,coresight-cpu-de","arm,primecell";
 			reg = <0x856000 0x1000>;
 			clocks = <&rpmcc RPM_QDSS_CLK>;
 			clock-names = "apb_pclk";

@@ -21,7 +21,7 @@
 #include <linux/coda_psdev.h>
 #include "coda_linux.h"
 
-/* initialize the debugging variables */
+/* initialize the deging variables */
 int coda_fake_statfs;
 
 /* print a fid */

@@ -24,7 +24,7 @@
 #include <linux/hw_breakpoint.h>
 
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "perf.h"
 #include "cloexec.h"
 
@@ -128,7 +128,7 @@ static int __event(bool is_x, void *addr, int sig)
 	fd = sys_perf_event_open(&pe, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 	if (fd < 0) {
-		pr_debug("failed opening event %llx\n", pe.config);
+		pr_de("failed opening event %llx\n", pe.config);
 		return TEST_FAIL;
 	}
 
@@ -158,7 +158,7 @@ static long long bp_count(int fd)
 
 	ret = read(fd, &count, sizeof(long long));
 	if (ret != sizeof(long long)) {
-		pr_debug("failed to read: %d\n", ret);
+		pr_de("failed to read: %d\n", ret);
 		return TEST_FAIL;
 	}
 
@@ -176,13 +176,13 @@ int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused
 	sa.sa_flags = SA_SIGINFO;
 
 	if (sigaction(SIGIO, &sa, NULL) < 0) {
-		pr_debug("failed setting up signal handler\n");
+		pr_de("failed setting up signal handler\n");
 		return TEST_FAIL;
 	}
 
 	sa.sa_sigaction = (void *) sig_handler_2;
 	if (sigaction(SIGUSR1, &sa, NULL) < 0) {
-		pr_debug("failed setting up signal handler 2\n");
+		pr_de("failed setting up signal handler 2\n");
 		return TEST_FAIL;
 	}
 
@@ -228,7 +228,7 @@ int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused
 	 *   sys_rt_sigreturn  - return from sig_handler
 	 *
 	 * The test case check following error conditions:
-	 * - we get stuck in signal handler because of debug
+	 * - we get stuck in signal handler because of de
 	 *   exception being triggered receursively due to
 	 *   the wrong RF EFLAG management
 	 *
@@ -263,27 +263,27 @@ int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused
 	close(fd2);
 	close(fd3);
 
-	pr_debug("count1 %lld, count2 %lld, count3 %lld, overflow %d, overflows_2 %d\n",
+	pr_de("count1 %lld, count2 %lld, count3 %lld, overflow %d, overflows_2 %d\n",
 		 count1, count2, count3, overflows, overflows_2);
 
 	if (count1 != 1) {
 		if (count1 == 11)
-			pr_debug("failed: RF EFLAG recursion issue detected\n");
+			pr_de("failed: RF EFLAG recursion issue detected\n");
 		else
-			pr_debug("failed: wrong count for bp1%lld\n", count1);
+			pr_de("failed: wrong count for bp1%lld\n", count1);
 	}
 
 	if (overflows != 3)
-		pr_debug("failed: wrong overflow hit\n");
+		pr_de("failed: wrong overflow hit\n");
 
 	if (overflows_2 != 3)
-		pr_debug("failed: wrong overflow_2 hit\n");
+		pr_de("failed: wrong overflow_2 hit\n");
 
 	if (count2 != 3)
-		pr_debug("failed: wrong count for bp2\n");
+		pr_de("failed: wrong count for bp2\n");
 
 	if (count3 != 2)
-		pr_debug("failed: wrong count for bp3\n");
+		pr_de("failed: wrong count for bp3\n");
 
 	return count1 == 1 && overflows == 3 && count2 == 3 && overflows_2 == 3 && count3 == 2 ?
 		TEST_OK : TEST_FAIL;

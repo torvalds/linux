@@ -53,22 +53,22 @@ static inline void rate_control_free_sta(struct sta_info *sta)
 	ref->ops->free_sta(ref->priv, ista, priv_sta);
 }
 
-static inline void rate_control_add_sta_debugfs(struct sta_info *sta)
+static inline void rate_control_add_sta_defs(struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (ref && sta->debugfs_dir && ref->ops->add_sta_debugfs)
-		ref->ops->add_sta_debugfs(ref->priv, sta->rate_ctrl_priv,
-					  sta->debugfs_dir);
+	if (ref && sta->defs_dir && ref->ops->add_sta_defs)
+		ref->ops->add_sta_defs(ref->priv, sta->rate_ctrl_priv,
+					  sta->defs_dir);
 #endif
 }
 
-static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
+static inline void rate_control_remove_sta_defs(struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (ref && ref->ops->remove_sta_debugfs)
-		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
+	if (ref && ref->ops->remove_sta_defs)
+		ref->ops->remove_sta_defs(ref->priv, sta->rate_ctrl_priv);
 #endif
 }
 

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <asm/mmu_context.h>
 #include <asm/thread_info.h>
 

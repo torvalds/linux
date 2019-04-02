@@ -129,7 +129,7 @@ struct stream_encoder *virtual_stream_encoder_create(
 	if (virtual_stream_encoder_construct(enc, ctx, bp))
 		return enc;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	kfree(enc);
 	return NULL;
 }

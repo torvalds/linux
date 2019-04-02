@@ -249,7 +249,7 @@ int ve_spc_cpu_in_wfi(u32 cpu, u32 cluster)
 
 	ret = readl_relaxed(info->baseaddr + STANDBYWFI_STAT);
 
-	pr_debug("%s: PCFGREG[0x%X] = 0x%08X, mask = 0x%X\n",
+	pr_de("%s: PCFGREG[0x%X] = 0x%08X, mask = 0x%X\n",
 		 __func__, STANDBYWFI_STAT, ret, mask);
 
 	return ret & mask;

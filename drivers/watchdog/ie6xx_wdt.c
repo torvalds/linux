@@ -29,7 +29,7 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/spinlock.h>
 
@@ -82,8 +82,8 @@ MODULE_PARM_DESC(resetmode,
 static struct {
 	unsigned short sch_wdtba;
 	struct spinlock unlock_sequence;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs;
 #endif
 } ie6xx_wdt_data;
 
@@ -191,7 +191,7 @@ static struct watchdog_device ie6xx_wdt_dev = {
 	.max_timeout =	MAX_TIME,
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int ie6xx_wdt_show(struct seq_file *s, void *unused)
 {
@@ -214,24 +214,24 @@ static int ie6xx_wdt_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(ie6xx_wdt);
 
-static void ie6xx_wdt_debugfs_init(void)
+static void ie6xx_wdt_defs_init(void)
 {
-	/* /sys/kernel/debug/ie6xx_wdt */
-	ie6xx_wdt_data.debugfs = debugfs_create_file("ie6xx_wdt",
+	/* /sys/kernel/de/ie6xx_wdt */
+	ie6xx_wdt_data.defs = defs_create_file("ie6xx_wdt",
 		S_IFREG | S_IRUGO, NULL, NULL, &ie6xx_wdt_fops);
 }
 
-static void ie6xx_wdt_debugfs_exit(void)
+static void ie6xx_wdt_defs_exit(void)
 {
-	debugfs_remove(ie6xx_wdt_data.debugfs);
+	defs_remove(ie6xx_wdt_data.defs);
 }
 
 #else
-static void ie6xx_wdt_debugfs_init(void)
+static void ie6xx_wdt_defs_init(void)
 {
 }
 
-static void ie6xx_wdt_debugfs_exit(void)
+static void ie6xx_wdt_defs_exit(void)
 {
 }
 #endif
@@ -266,7 +266,7 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev,
 			"Watchdog Timer is Locked (Reg=0x%x)\n", wdtlr);
 
-	ie6xx_wdt_debugfs_init();
+	ie6xx_wdt_defs_init();
 
 	ret = watchdog_register_device(&ie6xx_wdt_dev);
 	if (ret) {
@@ -279,7 +279,7 @@ static int ie6xx_wdt_probe(struct platform_device *pdev)
 	return 0;
 
 misc_register_error:
-	ie6xx_wdt_debugfs_exit();
+	ie6xx_wdt_defs_exit();
 	release_region(res->start, resource_size(res));
 	ie6xx_wdt_data.sch_wdtba = 0;
 	return ret;
@@ -292,7 +292,7 @@ static int ie6xx_wdt_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	ie6xx_wdt_stop(NULL);
 	watchdog_unregister_device(&ie6xx_wdt_dev);
-	ie6xx_wdt_debugfs_exit();
+	ie6xx_wdt_defs_exit();
 	release_region(res->start, resource_size(res));
 	ie6xx_wdt_data.sch_wdtba = 0;
 

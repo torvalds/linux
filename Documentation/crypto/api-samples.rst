@@ -186,23 +186,23 @@ Code Example For Random Number Generator Usage
         int ret;
 
         if (!buf || !len) {
-            pr_debug("No output buffer provided\n");
+            pr_de("No output buffer provided\n");
             return -EINVAL;
         }
 
         rng = crypto_alloc_rng(drbg, 0, 0);
         if (IS_ERR(rng)) {
-            pr_debug("could not allocate RNG handle for %s\n", drbg);
+            pr_de("could not allocate RNG handle for %s\n", drbg);
             return PTR_ERR(rng);
         }
 
         ret = crypto_rng_get_bytes(rng, buf, len);
         if (ret < 0)
-            pr_debug("generation of random numbers failed\n");
+            pr_de("generation of random numbers failed\n");
         else if (ret == 0)
-            pr_debug("RNG returned no data");
+            pr_de("RNG returned no data");
         else
-            pr_debug("RNG returned %d bytes of data\n", ret);
+            pr_de("RNG returned %d bytes of data\n", ret);
 
     out:
         crypto_free_rng(rng);

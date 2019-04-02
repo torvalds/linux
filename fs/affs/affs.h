@@ -228,7 +228,7 @@ affs_set_blocksize(struct super_block *sb, int size)
 static inline struct buffer_head *
 affs_bread(struct super_block *sb, int block)
 {
-	pr_debug("%s: %d\n", __func__, block);
+	pr_de("%s: %d\n", __func__, block);
 	if (affs_validblock(sb, block))
 		return sb_bread(sb, block);
 	return NULL;
@@ -236,7 +236,7 @@ affs_bread(struct super_block *sb, int block)
 static inline struct buffer_head *
 affs_getblk(struct super_block *sb, int block)
 {
-	pr_debug("%s: %d\n", __func__, block);
+	pr_de("%s: %d\n", __func__, block);
 	if (affs_validblock(sb, block))
 		return sb_getblk(sb, block);
 	return NULL;
@@ -245,7 +245,7 @@ static inline struct buffer_head *
 affs_getzeroblk(struct super_block *sb, int block)
 {
 	struct buffer_head *bh;
-	pr_debug("%s: %d\n", __func__, block);
+	pr_de("%s: %d\n", __func__, block);
 	if (affs_validblock(sb, block)) {
 		bh = sb_getblk(sb, block);
 		lock_buffer(bh);
@@ -260,7 +260,7 @@ static inline struct buffer_head *
 affs_getemptyblk(struct super_block *sb, int block)
 {
 	struct buffer_head *bh;
-	pr_debug("%s: %d\n", __func__, block);
+	pr_de("%s: %d\n", __func__, block);
 	if (affs_validblock(sb, block)) {
 		bh = sb_getblk(sb, block);
 		wait_on_buffer(bh);
@@ -273,7 +273,7 @@ static inline void
 affs_brelse(struct buffer_head *bh)
 {
 	if (bh)
-		pr_debug("%s: %lld\n", __func__, (long long) bh->b_blocknr);
+		pr_de("%s: %lld\n", __func__, (long long) bh->b_blocknr);
 	brelse(bh);
 }
 

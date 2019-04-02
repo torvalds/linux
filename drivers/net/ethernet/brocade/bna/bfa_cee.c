@@ -168,7 +168,7 @@ bfa_nw_cee_get_attr(struct bfa_cee *cee, struct bfa_cee_attr *attr,
 {
 	struct bfi_cee_get_req *cmd;
 
-	BUG_ON(!((cee != NULL) && (cee->ioc != NULL)));
+	_ON(!((cee != NULL) && (cee->ioc != NULL)));
 	if (!bfa_nw_ioc_is_operational(cee->ioc))
 		return BFA_STATUS_IOC_FAILURE;
 
@@ -211,7 +211,7 @@ bfa_cee_isr(void *cbarg, struct bfi_mbmsg *m)
 		bfa_cee_reset_stats_isr(cee, get_rsp->cmd_status);
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 }
 
@@ -277,7 +277,7 @@ void
 bfa_nw_cee_attach(struct bfa_cee *cee, struct bfa_ioc *ioc,
 		void *dev)
 {
-	BUG_ON(!(cee != NULL));
+	_ON(!(cee != NULL));
 	cee->dev = dev;
 	cee->ioc = ioc;
 

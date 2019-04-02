@@ -286,7 +286,7 @@ static void hpet_legacy_clockevent_register(void)
 	clockevents_config_and_register(&hpet_clockevent, hpet_freq,
 					HPET_MIN_PROG_DELTA, 0x7FFFFFFF);
 	global_clock_event = &hpet_clockevent;
-	printk(KERN_DEBUG "hpet clockevent registered\n");
+	printk(KERN_DE "hpet clockevent registered\n");
 }
 
 static int hpet_set_periodic(struct clock_event_device *evt, int timer)
@@ -540,7 +540,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 	irq_set_affinity(dev->irq, cpumask_of(dev->cpu));
 	enable_irq(dev->irq);
 
-	printk(KERN_DEBUG "hpet: %s irq %d for MSI\n",
+	printk(KERN_DE "hpet: %s irq %d for MSI\n",
 			 dev->name, dev->irq);
 
 	return 0;
@@ -789,7 +789,7 @@ static u64 read_hpet(struct clocksource *cs)
 	unsigned long flags;
 	union hpet_lock old, new;
 
-	BUILD_BUG_ON(sizeof(union hpet_lock) != 8);
+	BUILD__ON(sizeof(union hpet_lock) != 8);
 
 	/*
 	 * Read HPET directly if in NMI.

@@ -263,7 +263,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 			fnic->intr_count = vecs;
 			fnic->err_intr_offset = FNIC_MSIX_ERR_NOTIFY;
 
-			FNIC_ISR_DBG(KERN_DEBUG, fnic->lport->host,
+			FNIC_ISR_DBG(KERN_DE, fnic->lport->host,
 				     "Using MSI-X Interrupts\n");
 			vnic_dev_set_intr_mode(fnic->vdev,
 					       VNIC_DEV_INTR_MODE_MSIX);
@@ -289,7 +289,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 		fnic->intr_count = 1;
 		fnic->err_intr_offset = 0;
 
-		FNIC_ISR_DBG(KERN_DEBUG, fnic->lport->host,
+		FNIC_ISR_DBG(KERN_DE, fnic->lport->host,
 			     "Using MSI Interrupts\n");
 		vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_MSI);
 
@@ -315,7 +315,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 		fnic->cq_count = 3;
 		fnic->intr_count = 3;
 
-		FNIC_ISR_DBG(KERN_DEBUG, fnic->lport->host,
+		FNIC_ISR_DBG(KERN_DE, fnic->lport->host,
 			     "Using Legacy Interrupts\n");
 		vnic_dev_set_intr_mode(fnic->vdev, VNIC_DEV_INTR_MODE_INTX);
 

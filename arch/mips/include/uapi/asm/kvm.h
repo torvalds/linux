@@ -202,12 +202,12 @@ struct kvm_fpu {
  * KVM MIPS specific structures and definitions
  *
  */
-struct kvm_debug_exit_arch {
+struct kvm_de_exit_arch {
 	__u64 epc;
 };
 
-/* for KVM_SET_GUEST_DEBUG */
-struct kvm_guest_debug_arch {
+/* for KVM_SET_GUEST_DE */
+struct kvm_guest_de_arch {
 };
 
 /* definition of registers in kvm_run */

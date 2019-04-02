@@ -11,7 +11,7 @@ struct hdlcd_drm_private {
 	struct clk			*clk;
 	struct drm_crtc			crtc;
 	struct drm_plane		*plane;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	atomic_t buffer_underrun_count;
 	atomic_t bus_error_count;
 	atomic_t vsync_count;

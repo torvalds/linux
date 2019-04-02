@@ -274,7 +274,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 		return;
 	}
 
-	/* Default to debug UART mode */
+	/* Default to de UART mode */
 	error = cpcap_usb_set_uart_mode(ddata);
 	if (error)
 		goto out_err;

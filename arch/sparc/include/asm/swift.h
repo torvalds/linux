@@ -12,7 +12,7 @@
 #define SWIFT_ST       0x00800000   /* SW tablewalk enable */
 #define SWIFT_WP       0x00400000   /* Watchpoint enable   */
 
-/* Branch folding (buggy, disable on production systems!)  */
+/* Branch folding (gy, disable on production systems!)  */
 #define SWIFT_BF       0x00200000
 #define SWIFT_PMC      0x00180000   /* Page mode control   */
 #define SWIFT_PE       0x00040000   /* Parity enable       */

@@ -307,7 +307,7 @@ static void lis3lv02d_enum_resources(struct acpi_device *device)
 	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
 					lis3lv02d_get_resource, &lis3_dev.irq);
 	if (ACPI_FAILURE(status))
-		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
+		printk(KERN_DE DRIVER_NAME ": Error getting resources\n");
 }
 
 static bool hp_accel_i8042_filter(unsigned char data, unsigned char str,

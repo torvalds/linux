@@ -10,7 +10,7 @@
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
+ *	Send any  fixes/changes to:  Eng.Linux at digi dot com.
  *	Thank you.
  *
  */
@@ -467,7 +467,7 @@ static void cls_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 	if ((ch->ch_flags & CH_STOP) || (ch->ch_flags & CH_BREAK_SENDING))
 		return;
 
-	/* We have to do it this way, because of the EXAR TXFIFO count bug. */
+	/* We have to do it this way, because of the EXAR TXFIFO count . */
 	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
 		return;
 
@@ -643,7 +643,7 @@ static void cls_flush_uart_read(struct jsm_channel *ch)
 	 * incorrectly flushes write data as well as just basically trashing the
 	 * FIFO.
 	 *
-	 * Presumably, this is a bug in this UART.
+	 * Presumably, this is a  in this UART.
 	 */
 
 	udelay(10);

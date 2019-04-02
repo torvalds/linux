@@ -427,9 +427,9 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 	}
 }
 
-/* #define  i82975x_DEBUG_IOMEM */
+/* #define  i82975x_DE_IOMEM */
 
-#ifdef i82975x_DEBUG_IOMEM
+#ifdef i82975x_DE_IOMEM
 static void i82975x_print_dram_timings(void __iomem *mch_window)
 {
 	/*
@@ -472,7 +472,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 drc[2];
 	struct i82975x_error_info discard;
 	int	chans;
-#ifdef i82975x_DEBUG_IOMEM
+#ifdef i82975x_DE_IOMEM
 	u8 c0drb[4];
 	u8 c1drb[4];
 #endif
@@ -491,7 +491,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail0;
 	}
 
-#ifdef i82975x_DEBUG_IOMEM
+#ifdef i82975x_DE_IOMEM
 	i82975x_printk(KERN_INFO, "MCHBAR real = %0x, remapped = %p\n",
 					mchbar, mch_window);
 
@@ -515,7 +515,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	drc[0] = readl(mch_window + I82975X_DRC_CH0M0);
 	drc[1] = readl(mch_window + I82975X_DRC_CH1M0);
-#ifdef i82975x_DEBUG_IOMEM
+#ifdef i82975x_DE_IOMEM
 	i82975x_printk(KERN_INFO, "DRC_CH0 = %0x, %s\n", drc[0],
 			((drc[0] >> 21) & 3) == 1 ?
 				"ECC enabled" : "ECC disabled");

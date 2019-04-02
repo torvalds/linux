@@ -303,8 +303,8 @@ static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 	int ret = 1;	/* 0 - busy */
 	struct address_space *const mapping = page->mapping;
 
-	DBG_BUGON(!PageLocked(page));
-	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
+	DBG_ON(!PageLocked(page));
+	DBG_ON(mapping->a_ops != &managed_cache_aops);
 
 	if (PagePrivate(page))
 		ret = erofs_try_to_free_cached_page(mapping, page);
@@ -317,10 +317,10 @@ static void managed_cache_invalidatepage(struct page *page,
 {
 	const unsigned int stop = length + offset;
 
-	DBG_BUGON(!PageLocked(page));
+	DBG_ON(!PageLocked(page));
 
-	/* Check for potential overflow in debug mode */
-	DBG_BUGON(stop > PAGE_SIZE || stop < length);
+	/* Check for potential overflow in de mode */
+	DBG_ON(stop > PAGE_SIZE || stop < length);
 
 	if (offset == 0 && stop == PAGE_SIZE)
 		while (!managed_cache_releasepage(page, GFP_NOFS))
@@ -646,7 +646,7 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned int org_inject_rate = erofs_get_fault_rate(sbi);
 	int err;
 
-	DBG_BUGON(!sb_rdonly(sb));
+	DBG_ON(!sb_rdonly(sb));
 	err = parse_options(sb, data);
 	if (err)
 		goto out;

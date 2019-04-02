@@ -78,7 +78,7 @@ int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seqno, u8 nonce_sum)
 	 */
 	list_add(&avr->avr_node, &av->av_records);
 
-	dccp_pr_debug("Added Vector, ack_seqno=%llu, ack_ackno=%llu (rl=%u)\n",
+	dccp_pr_de("Added Vector, ack_seqno=%llu, ack_ackno=%llu (rl=%u)\n",
 		      (unsigned long long)avr->avr_ack_seqno,
 		      (unsigned long long)avr->avr_ack_ackno,
 		      avr->avr_ack_runlen);
@@ -136,7 +136,7 @@ static void dccp_ackvec_update_old(struct dccp_ackvec *av, s64 distance,
 {
 	u16 ptr = av->av_buf_head;
 
-	BUG_ON(distance > 0);
+	_ON(distance > 0);
 	if (unlikely(dccp_ackvec_is_empty(av)))
 		return;
 
@@ -162,7 +162,7 @@ static void dccp_ackvec_update_old(struct dccp_ackvec *av, s64 distance,
 			if (av->av_buf[ptr] == DCCPAV_NOT_RECEIVED)
 				av->av_buf[ptr] = state;
 			else
-				dccp_pr_debug("Not changing %llu state to %u\n",
+				dccp_pr_de("Not changing %llu state to %u\n",
 					      (unsigned long long)seqno, state);
 			break;
 		}

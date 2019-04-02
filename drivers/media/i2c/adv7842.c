@@ -33,13 +33,13 @@
 #include <media/v4l2-dv-timings.h>
 #include <media/i2c/adv7842.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de level (0-2)");
 
 MODULE_DESCRIPTION("Analog Devices ADV7842 video decoder driver");
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
-MODULE_AUTHOR("Martin Bugge <marbugge@cisco.com>");
+MODULE_AUTHOR("Martin ge <marge@cisco.com>");
 MODULE_LICENSE("GPL");
 
 /* ADV7842 system clock frequency */
@@ -577,7 +577,7 @@ static void main_reset(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	adv_smbus_write_byte_no_check(client, 0xff, 0x80);
 
@@ -711,7 +711,7 @@ static void adv7842_delayed_work_enable_hotplug(struct work_struct *work)
 	int present = state->hdmi_edid.present;
 	u8 mask = 0;
 
-	v4l2_dbg(2, debug, sd, "%s: enable hotplug on ports: 0x%x\n",
+	v4l2_dbg(2, de, sd, "%s: enable hotplug on ports: 0x%x\n",
 			__func__, present);
 
 	if (present & (0x04 << ADV7842_EDID_PORT_A))
@@ -729,7 +729,7 @@ static int edid_write_vga_segment(struct v4l2_subdev *sd)
 	int err = 0;
 	int i;
 
-	v4l2_dbg(2, debug, sd, "%s: write EDID on VGA port\n", __func__);
+	v4l2_dbg(2, de, sd, "%s: write EDID on VGA port\n", __func__);
 
 	/* HPA disable on port A and B */
 	io_write_and_or(sd, 0x20, 0xcf, 0x00);
@@ -777,7 +777,7 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 	int err = 0;
 	int i;
 
-	v4l2_dbg(2, debug, sd, "%s: write EDID on port %c\n",
+	v4l2_dbg(2, de, sd, "%s: write EDID on port %c\n",
 			__func__, (port == ADV7842_EDID_PORT_A) ? 'A' : 'B');
 
 	/* HPA disable on port A and B */
@@ -847,7 +847,7 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 
 /* ----------------------------------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static void adv7842_inv_register(struct v4l2_subdev *sd)
 {
 	v4l2_info(sd, "0x000-0x0ff: IO Map\n");
@@ -969,7 +969,7 @@ static int adv7842_s_detect_tx_5v_ctrl(struct v4l2_subdev *sd)
 	struct adv7842_state *state = to_state(sd);
 	u16 cable_det = adv7842_read_cable_det(sd);
 
-	v4l2_dbg(1, debug, sd, "%s: 0x%x\n", __func__, cable_det);
+	v4l2_dbg(1, de, sd, "%s: 0x%x\n", __func__, cable_det);
 
 	return v4l2_ctrl_s_ctrl(state->detect_tx_5v_ctrl, cable_det);
 }
@@ -1001,7 +1001,7 @@ static int configure_predefined_video_timings(struct v4l2_subdev *sd,
 	struct adv7842_state *state = to_state(sd);
 	int err;
 
-	v4l2_dbg(1, debug, sd, "%s\n", __func__);
+	v4l2_dbg(1, de, sd, "%s\n", __func__);
 
 	/* reset to default values */
 	io_write(sd, 0x16, 0x43);
@@ -1037,7 +1037,7 @@ static int configure_predefined_video_timings(struct v4l2_subdev *sd,
 					0x06, adv7842_prim_mode_hdmi_gr, timings);
 		break;
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown mode %d\n",
 				__func__, state->mode);
 		err = -1;
 		break;
@@ -1065,7 +1065,7 @@ static void configure_custom_video_timings(struct v4l2_subdev *sd,
 		width & 0xff
 	};
 
-	v4l2_dbg(2, debug, sd, "%s\n", __func__);
+	v4l2_dbg(2, de, sd, "%s\n", __func__);
 
 	switch (state->mode) {
 	case ADV7842_MODE_COMP:
@@ -1103,7 +1103,7 @@ static void configure_custom_video_timings(struct v4l2_subdev *sd,
 		io_write(sd, 0x01, 0x06); /* prim mode */
 		break;
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown mode %d\n",
 				__func__, state->mode);
 		break;
 	}
@@ -1125,7 +1125,7 @@ static void adv7842_set_offset(struct v4l2_subdev *sd, bool auto_offset, u16 off
 		offset_c = 0x3ff;
 	}
 
-	v4l2_dbg(2, debug, sd, "%s: %s offset: a = 0x%x, b = 0x%x, c = 0x%x\n",
+	v4l2_dbg(2, de, sd, "%s: %s offset: a = 0x%x, b = 0x%x, c = 0x%x\n",
 		 __func__, auto_offset ? "Auto" : "Manual",
 		 offset_a, offset_b, offset_c);
 
@@ -1154,7 +1154,7 @@ static void adv7842_set_gain(struct v4l2_subdev *sd, bool auto_gain, u16 gain_a,
 		gain_c = 0x100;
 	}
 
-	v4l2_dbg(2, debug, sd, "%s: %s gain: a = 0x%x, b = 0x%x, c = 0x%x\n",
+	v4l2_dbg(2, de, sd, "%s: %s gain: a = 0x%x, b = 0x%x, c = 0x%x\n",
 		 __func__, auto_gain ? "Auto" : "Manual",
 		 gain_a, gain_b, gain_c);
 
@@ -1178,7 +1178,7 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 	if (hdmi_signal && (io_read(sd, 0x60) & 1))
 		y = infoframe_read(sd, 0x01) >> 5;
 
-	v4l2_dbg(2, debug, sd, "%s: RGB quantization range: %d, RGB out: %d, HDMI: %d\n",
+	v4l2_dbg(2, de, sd, "%s: RGB quantization range: %d, RGB out: %d, HDMI: %d\n",
 			__func__, state->rgb_quantization_range,
 			rgb_output, hdmi_signal);
 
@@ -1325,8 +1325,8 @@ static int adv7842_s_ctrl(struct v4l2_ctrl *ctrl)
 		U += 128;
 		V += 128;
 
-		v4l2_dbg(1, debug, sd, "R %x, G %x, B %x\n", R, G, B);
-		v4l2_dbg(1, debug, sd, "Y %x, U %x, V %x\n", Y, U, V);
+		v4l2_dbg(1, de, sd, "R %x, G %x, B %x\n", R, G, B);
+		v4l2_dbg(1, de, sd, "Y %x, U %x, V %x\n", Y, U, V);
 
 		/* CP */
 		cp_write(sd, 0xc1, R);
@@ -1387,7 +1387,7 @@ static int adv7842_g_input_status(struct v4l2_subdev *sd, u32 *status)
 		if (!(sdp_read(sd, 0x5A) & 0x01))
 			*status |= V4L2_IN_ST_NO_SIGNAL;
 
-		v4l2_dbg(1, debug, sd, "%s: SDP status = 0x%x\n",
+		v4l2_dbg(1, de, sd, "%s: SDP status = 0x%x\n",
 				__func__, *status);
 		return 0;
 	}
@@ -1400,7 +1400,7 @@ static int adv7842_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	if (is_digital_input(sd) && ((io_read(sd, 0x74) & 0x03) != 0x03))
 		*status |= V4L2_IN_ST_NO_SIGNAL;
 
-	v4l2_dbg(1, debug, sd, "%s: CP status = 0x%x\n",
+	v4l2_dbg(1, de, sd, "%s: CP status = 0x%x\n",
 			__func__, *status);
 
 	return 0;
@@ -1453,7 +1453,7 @@ static int stdi2dv_timings(struct v4l2_subdev *sd,
 			false, state->aspect_ratio, timings))
 		return 0;
 
-	v4l2_dbg(2, debug, sd,
+	v4l2_dbg(2, de, sd,
 		"%s: No format candidate found for lcvs = %d, lcf=%d, bl = %d, %chsync, %cvsync\n",
 		__func__, stdi->lcvs, stdi->lcf, stdi->bl,
 		stdi->hs_pol, stdi->vs_pol);
@@ -1466,7 +1466,7 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 
 	adv7842_g_input_status(sd, &status);
 	if (status & V4L2_IN_ST_NO_SIGNAL) {
-		v4l2_dbg(2, debug, sd, "%s: no signal\n", __func__);
+		v4l2_dbg(2, de, sd, "%s: no signal\n", __func__);
 		return -ENOLINK;
 	}
 
@@ -1486,11 +1486,11 @@ static int read_stdi(struct v4l2_subdev *sd, struct stdi_readback *stdi)
 	stdi->interlaced = (cp_read(sd, 0xb1) & 0x40) ? true : false;
 
 	if (stdi->lcf < 239 || stdi->bl < 8 || stdi->bl == 0x3fff) {
-		v4l2_dbg(2, debug, sd, "%s: invalid signal\n", __func__);
+		v4l2_dbg(2, de, sd, "%s: invalid signal\n", __func__);
 		return -ENOLINK;
 	}
 
-	v4l2_dbg(2, debug, sd,
+	v4l2_dbg(2, de, sd,
 		"%s: lcf (frame height - 1) = %d, bl = %d, lcvs (vsync) = %d, %chsync, %cvsync, %s\n",
 		 __func__, stdi->lcf, stdi->bl, stdi->lcvs,
 		 stdi->hs_pol, stdi->vs_pol,
@@ -1537,7 +1537,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 	struct v4l2_bt_timings *bt = &timings->bt;
 	struct stdi_readback stdi = { 0 };
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
@@ -1548,7 +1548,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 	/* read STDI */
 	if (read_stdi(sd, &stdi)) {
 		state->restart_stdi_once = true;
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: no valid signal\n", __func__);
 		return -ENOLINK;
 	}
 	bt->interlaced = stdi.interlaced ?
@@ -1615,11 +1615,11 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 		if (!stdi2dv_timings(sd, &stdi, timings))
 			goto found;
 		stdi.lcvs += 1;
-		v4l2_dbg(1, debug, sd, "%s: lcvs + 1 = %d\n", __func__, stdi.lcvs);
+		v4l2_dbg(1, de, sd, "%s: lcvs + 1 = %d\n", __func__, stdi.lcvs);
 		if (!stdi2dv_timings(sd, &stdi, timings))
 			goto found;
 		stdi.lcvs -= 2;
-		v4l2_dbg(1, debug, sd, "%s: lcvs - 1 = %d\n", __func__, stdi.lcvs);
+		v4l2_dbg(1, de, sd, "%s: lcvs - 1 = %d\n", __func__, stdi.lcvs);
 		if (stdi2dv_timings(sd, &stdi, timings)) {
 			/*
 			 * The STDI block may measure wrong values, especially
@@ -1631,7 +1631,7 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 			 * restart.
 			 */
 			if (state->restart_stdi_once) {
-				v4l2_dbg(1, debug, sd, "%s: restart STDI\n", __func__);
+				v4l2_dbg(1, de, sd, "%s: restart STDI\n", __func__);
 				/* TODO restart STDI for Sync Channel 2 */
 				/* enter one-shot mode */
 				cp_write_and_or(sd, 0x86, 0xf9, 0x00);
@@ -1642,14 +1642,14 @@ static int adv7842_query_dv_timings(struct v4l2_subdev *sd,
 				state->restart_stdi_once = false;
 				return -ENOLINK;
 			}
-			v4l2_dbg(1, debug, sd, "%s: format not supported\n", __func__);
+			v4l2_dbg(1, de, sd, "%s: format not supported\n", __func__);
 			return -ERANGE;
 		}
 		state->restart_stdi_once = true;
 	}
 found:
 
-	if (debug > 1)
+	if (de > 1)
 		v4l2_print_dv_timings(sd->name, "adv7842_query_dv_timings:",
 				timings, true);
 	return 0;
@@ -1662,13 +1662,13 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	struct v4l2_bt_timings *bt;
 	int err;
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (state->mode == ADV7842_MODE_SDP)
 		return -ENODATA;
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
-		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: no change\n", __func__);
 		return 0;
 	}
 
@@ -1695,7 +1695,7 @@ static int adv7842_s_dv_timings(struct v4l2_subdev *sd,
 	set_rgb_quantization_range(sd);
 
 
-	if (debug > 1)
+	if (de > 1)
 		v4l2_print_dv_timings(sd->name, "adv7842_s_dv_timings: ",
 				      timings, true);
 	return 0;
@@ -1729,7 +1729,7 @@ static void enable_input(struct v4l2_subdev *sd)
 		hdmi_write_and_or(sd, 0x1a, 0xef, 0x00); /* Unmute audio */
 		break;
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown mode %d\n",
 			 __func__, state->mode);
 		break;
 	}
@@ -1941,7 +1941,7 @@ static void select_input(struct v4l2_subdev *sd,
 		break;
 
 	default:
-		v4l2_dbg(2, debug, sd, "%s: Unknown mode %d\n",
+		v4l2_dbg(2, de, sd, "%s: Unknown mode %d\n",
 			 __func__, state->mode);
 		break;
 	}
@@ -1952,7 +1952,7 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 {
 	struct adv7842_state *state = to_state(sd);
 
-	v4l2_dbg(2, debug, sd, "%s: input %d\n", __func__, input);
+	v4l2_dbg(2, de, sd, "%s: input %d\n", __func__, input);
 
 	switch (input) {
 	case ADV7842_SELECT_HDMI_PORT_A:
@@ -2172,12 +2172,12 @@ static void adv7842_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 	struct adv7842_state *state = to_state(sd);
 
 	if ((cec_read(sd, 0x11) & 0x01) == 0) {
-		v4l2_dbg(1, debug, sd, "%s: tx raw: tx disabled\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: tx raw: tx disabled\n", __func__);
 		return;
 	}
 
 	if (tx_raw_status & 0x02) {
-		v4l2_dbg(1, debug, sd, "%s: tx raw: arbitration lost\n",
+		v4l2_dbg(1, de, sd, "%s: tx raw: arbitration lost\n",
 			 __func__);
 		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_ARB_LOST,
 				  1, 0, 0, 0);
@@ -2188,7 +2188,7 @@ static void adv7842_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 		u8 nack_cnt;
 		u8 low_drive_cnt;
 
-		v4l2_dbg(1, debug, sd, "%s: tx raw: retry failed\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: tx raw: retry failed\n", __func__);
 		/*
 		 * We set this status bit since this hardware performs
 		 * retransmissions.
@@ -2205,7 +2205,7 @@ static void adv7842_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
 		return;
 	}
 	if (tx_raw_status & 0x01) {
-		v4l2_dbg(1, debug, sd, "%s: tx raw: ready ok\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: tx raw: ready ok\n", __func__);
 		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_OK, 0, 0, 0, 0);
 		return;
 	}
@@ -2220,7 +2220,7 @@ static void adv7842_cec_isr(struct v4l2_subdev *sd, bool *handled)
 	if (!cec_irq)
 		return;
 
-	v4l2_dbg(1, debug, sd, "%s: cec: irq 0x%x\n", __func__, cec_irq);
+	v4l2_dbg(1, de, sd, "%s: cec: irq 0x%x\n", __func__, cec_irq);
 	adv7842_cec_tx_raw_status(sd, cec_irq);
 	if (cec_irq & 0x08) {
 		struct adv7842_state *state = to_state(sd);
@@ -2399,7 +2399,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 	adv7842_irq_enable(sd, true);
 
-	v4l2_dbg(1, debug, sd, "%s: irq %x, %x, %x, %x, %x, %x\n", __func__,
+	v4l2_dbg(1, de, sd, "%s: irq %x, %x, %x, %x, %x, %x\n", __func__,
 		 irq_status[0], irq_status[1], irq_status[2],
 		 irq_status[3], irq_status[4], irq_status[5]);
 
@@ -2420,7 +2420,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 	/* format change */
 	if (fmt_change_cp || fmt_change_digital || fmt_change_sdp) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			 "%s: fmt_change_cp = 0x%x, fmt_change_digital = 0x%x, fmt_change_sdp = 0x%x\n",
 			 __func__, fmt_change_cp, fmt_change_digital,
 			 fmt_change_sdp);
@@ -2431,7 +2431,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 	/* HDMI/DVI mode */
 	if (irq_status[5] & 0x08) {
-		v4l2_dbg(1, debug, sd, "%s: irq %s mode\n", __func__,
+		v4l2_dbg(1, de, sd, "%s: irq %s mode\n", __func__,
 			 (io_read(sd, 0x65) & 0x08) ? "HDMI" : "DVI");
 		set_rgb_quantization_range(sd);
 		if (handled)
@@ -2445,7 +2445,7 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 	/* tx 5v detect */
 	if (irq_status[2] & 0x3) {
-		v4l2_dbg(1, debug, sd, "%s: irq tx_5v\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: irq tx_5v\n", __func__);
 		adv7842_s_detect_tx_5v_ctrl(sd);
 		if (handled)
 			*handled = true;
@@ -2602,7 +2602,7 @@ static void adv7842_log_infoframes(struct v4l2_subdev *sd)
 }
 
 #if 0
-/* Let's keep it here for now, as it could be useful for debug */
+/* Let's keep it here for now, as it could be useful for de */
 static const char * const prim_mode_txt[] = {
 	"SDP",
 	"Component",
@@ -2844,14 +2844,14 @@ static int adv7842_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct adv7842_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (state->mode != ADV7842_MODE_SDP)
 		return -ENODATA;
 
 	if (!(sdp_read(sd, 0x5A) & 0x01)) {
 		*std = 0;
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
+		v4l2_dbg(1, de, sd, "%s: no valid signal\n", __func__);
 		return 0;
 	}
 
@@ -2940,7 +2940,7 @@ static int adv7842_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	struct adv7842_state *state = to_state(sd);
 	struct adv7842_platform_data *pdata = &state->pdata;
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (state->mode != ADV7842_MODE_SDP)
 		return -ENODATA;
@@ -2963,7 +2963,7 @@ static int adv7842_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
 {
 	struct adv7842_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (state->mode != ADV7842_MODE_SDP)
 		return -ENODATA;
@@ -3146,7 +3146,7 @@ static int adv7842_ddr_ram_test(struct v4l2_subdev *sd)
 		msleep(20);
 	}
 
-	v4l2_dbg(1, debug, sd,
+	v4l2_dbg(1, de, sd,
 		"Ram Test: completed %d of %d: pass %d, fail %d\n",
 		complete, i, pass, fail);
 
@@ -3277,7 +3277,7 @@ static const struct v4l2_subdev_core_ops adv7842_core_ops = {
 	.interrupt_service_routine = adv7842_isr,
 	.subscribe_event = adv7842_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = adv7842_g_register,
 	.s_register = adv7842_s_register,
 #endif
@@ -3457,7 +3457,7 @@ static int adv7842_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_dbg(1, debug, client, "detecting adv7842 client on address 0x%x\n",
+	v4l_dbg(1, de, client, "detecting adv7842 client on address 0x%x\n",
 		client->addr << 1);
 
 	if (!pdata) {

@@ -69,10 +69,10 @@ sottomissione delle patch, in particolare
     correggerli.
 
 12) La patch è stata verificata con le seguenti opzioni abilitate
-    contemporaneamente: ``CONFIG_PREEMPT``, ``CONFIG_DEBUG_PREEMPT``,
-    ``CONFIG_DEBUG_SLAB``, ``CONFIG_DEBUG_PAGEALLOC``, ``CONFIG_DEBUG_MUTEXES``,
-    ``CONFIG_DEBUG_SPINLOCK``, ``CONFIG_DEBUG_ATOMIC_SLEEP``,
-    ``CONFIG_PROVE_RCU`` e ``CONFIG_DEBUG_OBJECTS_RCU_HEAD``.
+    contemporaneamente: ``CONFIG_PREEMPT``, ``CONFIG_DE_PREEMPT``,
+    ``CONFIG_DE_SLAB``, ``CONFIG_DE_PAGEALLOC``, ``CONFIG_DE_MUTEXES``,
+    ``CONFIG_DE_SPINLOCK``, ``CONFIG_DE_ATOMIC_SLEEP``,
+    ``CONFIG_PROVE_RCU`` e ``CONFIG_DE_OBJECTS_RCU_HEAD``.
 
 13) La patch è stata compilata e verificata in esecuzione con, e senza,
     le opzioni ``CONFIG_SMP`` e ``CONFIG_PREEMPT``.

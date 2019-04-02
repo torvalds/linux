@@ -50,11 +50,11 @@ MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
 MODULE_DESCRIPTION("Pulse Eight HDMI CEC driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
+static int de;
 static int persistent_config;
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 module_param(persistent_config, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-1)");
+MODULE_PARM_DESC(de, "de level (0-1)");
 MODULE_PARM_DESC(persistent_config, "read config from persistent memory (0-1)");
 
 enum pulse8_msgcodes {
@@ -178,7 +178,7 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 	} else if (data == MSGEND) {
 		struct cec_msg *msg = &pulse8->rx_msg;
 
-		if (debug)
+		if (de)
 			dev_info(pulse8->dev, "received: %*ph\n",
 				 pulse8->idx, pulse8->buf);
 		pulse8->data[0] = pulse8->buf[0];

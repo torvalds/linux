@@ -10,7 +10,7 @@
  *
  * Named by Larry McVoy, original implementation from Linus, extended by
  * Jens to support splicing to files, network, direct splicing, etc and
- * fixing lots of bugs.
+ * fixing lots of s.
  *
  * Copyright (C) 2005-2006 Jens Axboe <axboe@kernel.dk>
  * Copyright (C) 2005-2006 Linus Torvalds <torvalds@osdl.org>

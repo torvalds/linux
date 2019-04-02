@@ -223,7 +223,7 @@ typedef struct deflate_state {
     uInt matches;       /* number of string matches in current block */
     int last_eob_len;   /* bit length of EOB code for last block */
 
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
     ulg bits_sent;      /* bit length of the compressed data */
 #endif
 
@@ -320,7 +320,7 @@ static inline void bi_windup(deflate_state *s)
     }
     s->bi_buf = 0;
     s->bi_valid = 0;
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
     s->bits_sent = (s->bits_sent+7) & ~7;
 #endif
 }

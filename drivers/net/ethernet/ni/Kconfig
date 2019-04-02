@@ -22,7 +22,7 @@ config NI_XGE_MANAGEMENT_ENET
 	select PHYLIB
 	select OF_MDIO if OF
 	help
-	  Simple LAN device for debug or management purposes. Can
+	  Simple LAN device for de or management purposes. Can
 	  support either 10G or 1G PHYs via SFP+ ports.
 
 endif

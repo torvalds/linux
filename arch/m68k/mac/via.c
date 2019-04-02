@@ -106,7 +106,7 @@ static int gIER,gIFR,gBufA,gBufB;
 
 static u8 nubus_disabled;
 
-void via_debug_dump(void);
+void via_de_dump(void);
 static void via_nubus_init(void);
 
 /*
@@ -120,7 +120,7 @@ static void via_nubus_init(void);
 void __init via_init(void)
 {
 	via1 = (void *)VIA1_BASE;
-	pr_debug("VIA1 detected at %p\n", via1);
+	pr_de("VIA1 detected at %p\n", via1);
 
 	if (oss_present) {
 		via2 = NULL;
@@ -132,7 +132,7 @@ void __init via_init(void)
 
 		case MAC_VIA_IICI:
 			via2 = (void *)RBV_BASE;
-			pr_debug("VIA2 (RBV) detected at %p\n", via2);
+			pr_de("VIA2 (RBV) detected at %p\n", via2);
 			rbv_present = 1;
 			if (macintosh_config->ident == MAC_MODEL_LCIII) {
 				rbv_clear = 0x00;
@@ -153,7 +153,7 @@ void __init via_init(void)
 		case MAC_VIA_QUADRA:
 		case MAC_VIA_II:
 			via2 = (void *) VIA2_BASE;
-			pr_debug("VIA2 detected at %p\n", via2);
+			pr_de("VIA2 detected at %p\n", via2);
 			rbv_present = 0;
 			rbv_clear = 0x00;
 			gIER = vIER;
@@ -167,8 +167,8 @@ void __init via_init(void)
 		}
 	}
 
-#ifdef DEBUG_VIA
-	via_debug_dump();
+#ifdef DE_VIA
+	via_de_dump();
 #endif
 
 	/*
@@ -261,7 +261,7 @@ void __init via_init(void)
 	 * schematic diagram shows an active high NCR5380 IRQ line.
 	 */
 
-	pr_debug("VIA2 vPCR is 0x%02X\n", via2[vPCR]);
+	pr_de("VIA2 vPCR is 0x%02X\n", via2[vPCR]);
 	if (macintosh_config->via_type == MAC_VIA_II) {
 		/* CA2 (SCSI DRQ), CB2 (SCSI IRQ): indep. input, pos. edge */
 		via2[vPCR] = 0x66;
@@ -288,27 +288,27 @@ void __init via_init_clock(irq_handler_t func)
 }
 
 /*
- * Debugging dump, used in various places to see what's going on.
+ * Deging dump, used in various places to see what's going on.
  */
 
-void via_debug_dump(void)
+void via_de_dump(void)
 {
-	printk(KERN_DEBUG "VIA1: DDRA = 0x%02X DDRB = 0x%02X ACR = 0x%02X\n",
+	printk(KERN_DE "VIA1: DDRA = 0x%02X DDRB = 0x%02X ACR = 0x%02X\n",
 		(uint) via1[vDirA], (uint) via1[vDirB], (uint) via1[vACR]);
-	printk(KERN_DEBUG "         PCR = 0x%02X  IFR = 0x%02X IER = 0x%02X\n",
+	printk(KERN_DE "         PCR = 0x%02X  IFR = 0x%02X IER = 0x%02X\n",
 		(uint) via1[vPCR], (uint) via1[vIFR], (uint) via1[vIER]);
 	if (!via2)
 		return;
 	if (rbv_present) {
-		printk(KERN_DEBUG "VIA2:  IFR = 0x%02X  IER = 0x%02X\n",
+		printk(KERN_DE "VIA2:  IFR = 0x%02X  IER = 0x%02X\n",
 			(uint) via2[rIFR], (uint) via2[rIER]);
-		printk(KERN_DEBUG "      SIFR = 0x%02X SIER = 0x%02X\n",
+		printk(KERN_DE "      SIFR = 0x%02X SIER = 0x%02X\n",
 			(uint) via2[rSIFR], (uint) via2[rSIER]);
 	} else {
-		printk(KERN_DEBUG "VIA2: DDRA = 0x%02X DDRB = 0x%02X ACR = 0x%02X\n",
+		printk(KERN_DE "VIA2: DDRA = 0x%02X DDRB = 0x%02X ACR = 0x%02X\n",
 			(uint) via2[vDirA], (uint) via2[vDirB],
 			(uint) via2[vACR]);
-		printk(KERN_DEBUG "         PCR = 0x%02X  IFR = 0x%02X IER = 0x%02X\n",
+		printk(KERN_DE "         PCR = 0x%02X  IFR = 0x%02X IER = 0x%02X\n",
 			(uint) via2[vPCR],
 			(uint) via2[vIFR], (uint) via2[vIER]);
 	}
@@ -390,7 +390,7 @@ static void __init via_nubus_init(void)
 	switch (macintosh_config->via_type) {
 	case MAC_VIA_II:
 	case MAC_VIA_QUADRA:
-		pr_debug("VIA2 vDirA is 0x%02X\n", via2[vDirA]);
+		pr_de("VIA2 vDirA is 0x%02X\n", via2[vDirA]);
 		break;
 	case MAC_VIA_IICI:
 		/* RBV. Disable all the slot interrupts. SIER works like IER. */

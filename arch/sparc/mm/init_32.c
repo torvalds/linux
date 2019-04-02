@@ -31,7 +31,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/vaddrs.h>
-#include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
+#include <asm/pgalloc.h>	/*  in asm-generic/tlb.h: check_pgt_cache */
 #include <asm/setup.h>
 #include <asm/tlb.h>
 #include <asm/prom.h>
@@ -235,7 +235,7 @@ static void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long tmp;
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	printk("mapping high region %08lx - %08lx\n", start_pfn, end_pfn);
 #endif
 
@@ -248,7 +248,7 @@ void __init mem_init(void)
 	int i;
 
 	if (PKMAP_BASE+LAST_PKMAP*PAGE_SIZE >= FIXADDR_START) {
-		prom_printf("BUG: fixmap and pkmap areas overlap\n");
+		prom_printf(": fixmap and pkmap areas overlap\n");
 		prom_printf("pkbase: 0x%lx pkend: 0x%lx fixstart 0x%lx\n",
 		       PKMAP_BASE,
 		       (unsigned long)PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,

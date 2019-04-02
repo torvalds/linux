@@ -424,7 +424,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	    operand_desc->integer.value;
 	acpi_ut_remove_reference(operand_desc);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
 			  obj_desc,
 			  ACPI_FORMAT_UINT64(obj_desc->region.address),
 			  obj_desc->region.length));
@@ -530,7 +530,7 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	obj_desc->region.address = ACPI_PTR_TO_PHYSADDR(table);
 	obj_desc->region.length = table->length;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
 			  obj_desc,
 			  ACPI_FORMAT_UINT64(obj_desc->region.address),
 			  obj_desc->region.length));

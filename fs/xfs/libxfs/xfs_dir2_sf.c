@@ -31,11 +31,11 @@ static void xfs_dir2_sf_addname_hard(xfs_da_args_t *args, int objchange,
 static int xfs_dir2_sf_addname_pick(xfs_da_args_t *args, int objchange,
 				    xfs_dir2_sf_entry_t **sfepp,
 				    xfs_dir2_data_aoff_t *offsetp);
-#ifdef DEBUG
+#ifdef DE
 static void xfs_dir2_sf_check(xfs_da_args_t *args);
 #else
 #define	xfs_dir2_sf_check(args)
-#endif /* DEBUG */
+#endif /* DE */
 
 static void xfs_dir2_sf_toino4(xfs_da_args_t *args);
 static void xfs_dir2_sf_toino8(xfs_da_args_t *args);
@@ -573,7 +573,7 @@ xfs_dir2_sf_addname_pick(
 	return 1;
 }
 
-#ifdef DEBUG
+#ifdef DE
 /*
  * Check consistency of shortform directory, assert if bad.
  */
@@ -613,7 +613,7 @@ xfs_dir2_sf_check(
 	       (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t) +
 	       (uint)sizeof(xfs_dir2_block_tail_t) <= args->geo->blksize);
 }
-#endif	/* DEBUG */
+#endif	/* DE */
 
 /* Verify the consistency of an inline directory. */
 xfs_failaddr_t

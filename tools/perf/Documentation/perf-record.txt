@@ -443,7 +443,7 @@ Options passed to clang when compiling BPF scriptlets.
 (enabled when BPF support is on)
 
 --vmlinux=PATH::
-Specify vmlinux path which has debuginfo.
+Specify vmlinux path which has deinfo.
 (enabled when BPF prologue is on)
 
 --buildid-all::

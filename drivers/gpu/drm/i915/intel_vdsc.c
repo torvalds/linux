@@ -366,7 +366,7 @@ static int intel_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 		 vdsc_cfg->bits_per_pixel + 8) / 16 + num_extra_mux_bits;
 
 	if (vdsc_cfg->final_offset >= vdsc_cfg->rc_model_size) {
-		DRM_DEBUG_KMS("FinalOfs < RcModelSze for this InitialXmitDelay\n");
+		DRM_DE_KMS("FinalOfs < RcModelSze for this InitialXmitDelay\n");
 		return -ERANGE;
 	}
 
@@ -385,7 +385,7 @@ static int intel_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 
 	/* 2^16 - 1 */
 	if (vdsc_cfg->nfl_bpg_offset > 65535) {
-		DRM_DEBUG_KMS("NflBpgOffset is too large for this slice height\n");
+		DRM_DE_KMS("NflBpgOffset is too large for this slice height\n");
 		return -ERANGE;
 	}
 
@@ -419,7 +419,7 @@ static int intel_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	}
 
 	if (vdsc_cfg->scale_increment_interval > 65535) {
-		DRM_DEBUG_KMS("ScaleIncrementInterval is large for slice height\n");
+		DRM_DE_KMS("ScaleIncrementInterval is large for slice height\n");
 		return -ERANGE;
 	}
 
@@ -480,7 +480,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 
 	line_buf_depth = drm_dp_dsc_sink_line_buf_depth(intel_dp->dsc_dpcd);
 	if (!line_buf_depth) {
-		DRM_DEBUG_KMS("DSC Sink Line Buffer Depth invalid\n");
+		DRM_DE_KMS("DSC Sink Line Buffer Depth invalid\n");
 		return -EINVAL;
 	}
 	if (vdsc_cfg->dsc_version_minor == 2)

@@ -159,7 +159,7 @@ static int cw1200_sdio_irq_subscribe(struct hwbus_priv *self)
 {
 	int ret = 0;
 
-	pr_debug("SW IRQ subscribe\n");
+	pr_de("SW IRQ subscribe\n");
 	sdio_claim_host(self->func);
 	if (self->pdata->irq)
 		ret = cw1200_request_irq(self);
@@ -174,7 +174,7 @@ static int cw1200_sdio_irq_unsubscribe(struct hwbus_priv *self)
 {
 	int ret = 0;
 
-	pr_debug("SW IRQ unsubscribe\n");
+	pr_de("SW IRQ unsubscribe\n");
 
 	if (self->pdata->irq) {
 		disable_irq_wake(self->pdata->irq);

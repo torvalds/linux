@@ -80,7 +80,7 @@ void cpu_init(void)
 		update_cpu_mhz(NULL);
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
+	_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 }
 

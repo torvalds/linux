@@ -400,7 +400,7 @@ static void mpsc_sdma_burstsize(struct mpsc_port_info *pi, u32 burst_size)
 {
 	u32	v;
 
-	pr_debug("mpsc_sdma_burstsize[%d]: burst_size: %d\n",
+	pr_de("mpsc_sdma_burstsize[%d]: burst_size: %d\n",
 			pi->port.line, burst_size);
 
 	burst_size >>= 3; /* Divide by 8 b/c reg values are 8-byte chunks */
@@ -420,7 +420,7 @@ static void mpsc_sdma_burstsize(struct mpsc_port_info *pi, u32 burst_size)
 
 static void mpsc_sdma_init(struct mpsc_port_info *pi, u32 burst_size)
 {
-	pr_debug("mpsc_sdma_init[%d]: burst_size: %d\n", pi->port.line,
+	pr_de("mpsc_sdma_init[%d]: burst_size: %d\n", pi->port.line,
 		burst_size);
 
 	writel((readl(pi->sdma_base + SDMA_SDC) & 0x3ff) | 0x03f,
@@ -432,7 +432,7 @@ static u32 mpsc_sdma_intr_mask(struct mpsc_port_info *pi, u32 mask)
 {
 	u32	old, v;
 
-	pr_debug("mpsc_sdma_intr_mask[%d]: mask: 0x%x\n", pi->port.line, mask);
+	pr_de("mpsc_sdma_intr_mask[%d]: mask: 0x%x\n", pi->port.line, mask);
 
 	old = v = (pi->mirror_regs) ? pi->shared_regs->SDMA_INTR_MASK_m :
 		readl(pi->shared_regs->sdma_intr_base + SDMA_INTR_MASK);
@@ -455,7 +455,7 @@ static void mpsc_sdma_intr_unmask(struct mpsc_port_info *pi, u32 mask)
 {
 	u32	v;
 
-	pr_debug("mpsc_sdma_intr_unmask[%d]: mask: 0x%x\n", pi->port.line,mask);
+	pr_de("mpsc_sdma_intr_unmask[%d]: mask: 0x%x\n", pi->port.line,mask);
 
 	v = (pi->mirror_regs) ? pi->shared_regs->SDMA_INTR_MASK_m
 		: readl(pi->shared_regs->sdma_intr_base + SDMA_INTR_MASK);
@@ -472,7 +472,7 @@ static void mpsc_sdma_intr_unmask(struct mpsc_port_info *pi, u32 mask)
 
 static void mpsc_sdma_intr_ack(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_sdma_intr_ack[%d]: Acknowledging IRQ\n", pi->port.line);
+	pr_de("mpsc_sdma_intr_ack[%d]: Acknowledging IRQ\n", pi->port.line);
 
 	if (pi->mirror_regs)
 		pi->shared_regs->SDMA_INTR_CAUSE_m = 0;
@@ -483,7 +483,7 @@ static void mpsc_sdma_intr_ack(struct mpsc_port_info *pi)
 static void mpsc_sdma_set_rx_ring(struct mpsc_port_info *pi,
 		struct mpsc_rx_desc *rxre_p)
 {
-	pr_debug("mpsc_sdma_set_rx_ring[%d]: rxre_p: 0x%x\n",
+	pr_de("mpsc_sdma_set_rx_ring[%d]: rxre_p: 0x%x\n",
 		pi->port.line, (u32)rxre_p);
 
 	writel((u32)rxre_p, pi->sdma_base + SDMA_SCRDP);
@@ -543,7 +543,7 @@ static void mpsc_sdma_start_tx(struct mpsc_port_info *pi)
 
 static void mpsc_sdma_stop(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_sdma_stop[%d]: Stopping SDMA\n", pi->port.line);
+	pr_de("mpsc_sdma_stop[%d]: Stopping SDMA\n", pi->port.line);
 
 	/* Abort any SDMA transfers */
 	mpsc_sdma_cmd(pi, 0);
@@ -570,7 +570,7 @@ static void mpsc_hw_init(struct mpsc_port_info *pi)
 {
 	u32	v;
 
-	pr_debug("mpsc_hw_init[%d]: Initializing hardware\n", pi->port.line);
+	pr_de("mpsc_hw_init[%d]: Initializing hardware\n", pi->port.line);
 
 	/* Set up clock routing */
 	if (pi->mirror_regs) {
@@ -627,7 +627,7 @@ static void mpsc_hw_init(struct mpsc_port_info *pi)
 
 static void mpsc_enter_hunt(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_enter_hunt[%d]: Hunting...\n", pi->port.line);
+	pr_de("mpsc_enter_hunt[%d]: Hunting...\n", pi->port.line);
 
 	if (pi->mirror_regs) {
 		writel(pi->MPSC_CHR_2_m | MPSC_CHR_2_EH,
@@ -647,7 +647,7 @@ static void mpsc_freeze(struct mpsc_port_info *pi)
 {
 	u32	v;
 
-	pr_debug("mpsc_freeze[%d]: Freezing\n", pi->port.line);
+	pr_de("mpsc_freeze[%d]: Freezing\n", pi->port.line);
 
 	v = (pi->mirror_regs) ? pi->MPSC_MPCR_m :
 		readl(pi->mpsc_base + MPSC_MPCR);
@@ -670,14 +670,14 @@ static void mpsc_unfreeze(struct mpsc_port_info *pi)
 		pi->MPSC_MPCR_m = v;
 	writel(v, pi->mpsc_base + MPSC_MPCR);
 
-	pr_debug("mpsc_unfreeze[%d]: Unfrozen\n", pi->port.line);
+	pr_de("mpsc_unfreeze[%d]: Unfrozen\n", pi->port.line);
 }
 
 static void mpsc_set_char_length(struct mpsc_port_info *pi, u32 len)
 {
 	u32	v;
 
-	pr_debug("mpsc_set_char_length[%d]: char len: %d\n", pi->port.line,len);
+	pr_de("mpsc_set_char_length[%d]: char len: %d\n", pi->port.line,len);
 
 	v = (pi->mirror_regs) ? pi->MPSC_MPCR_m :
 		readl(pi->mpsc_base + MPSC_MPCR);
@@ -692,7 +692,7 @@ static void mpsc_set_stop_bit_length(struct mpsc_port_info *pi, u32 len)
 {
 	u32	v;
 
-	pr_debug("mpsc_set_stop_bit_length[%d]: stop bits: %d\n",
+	pr_de("mpsc_set_stop_bit_length[%d]: stop bits: %d\n",
 		pi->port.line, len);
 
 	v = (pi->mirror_regs) ? pi->MPSC_MPCR_m :
@@ -709,7 +709,7 @@ static void mpsc_set_parity(struct mpsc_port_info *pi, u32 p)
 {
 	u32	v;
 
-	pr_debug("mpsc_set_parity[%d]: parity bits: 0x%x\n", pi->port.line, p);
+	pr_de("mpsc_set_parity[%d]: parity bits: 0x%x\n", pi->port.line, p);
 
 	v = (pi->mirror_regs) ? pi->MPSC_CHR_2_m :
 		readl(pi->mpsc_base + MPSC_CHR_2);
@@ -732,7 +732,7 @@ static void mpsc_set_parity(struct mpsc_port_info *pi, u32 p)
 
 static void mpsc_init_hw(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_init_hw[%d]: Initializing\n", pi->port.line);
+	pr_de("mpsc_init_hw[%d]: Initializing\n", pi->port.line);
 
 	mpsc_brg_init(pi, pi->brg_clk_src);
 	mpsc_brg_enable(pi);
@@ -745,7 +745,7 @@ static int mpsc_alloc_ring_mem(struct mpsc_port_info *pi)
 {
 	int rc = 0;
 
-	pr_debug("mpsc_alloc_ring_mem[%d]: Allocating ring mem\n",
+	pr_de("mpsc_alloc_ring_mem[%d]: Allocating ring mem\n",
 		pi->port.line);
 
 	if (!pi->dma_region) {
@@ -767,7 +767,7 @@ static int mpsc_alloc_ring_mem(struct mpsc_port_info *pi)
 
 static void mpsc_free_ring_mem(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_free_ring_mem[%d]: Freeing ring mem\n", pi->port.line);
+	pr_de("mpsc_free_ring_mem[%d]: Freeing ring mem\n", pi->port.line);
 
 	if (pi->dma_region) {
 		dma_free_attrs(pi->port.dev, MPSC_DMA_ALLOC_SIZE,
@@ -786,9 +786,9 @@ static void mpsc_init_rings(struct mpsc_port_info *pi)
 	u8 *bp, *bp_p;
 	int i;
 
-	pr_debug("mpsc_init_rings[%d]: Initializing rings\n", pi->port.line);
+	pr_de("mpsc_init_rings[%d]: Initializing rings\n", pi->port.line);
 
-	BUG_ON(pi->dma_region == NULL);
+	_ON(pi->dma_region == NULL);
 
 	memset(pi->dma_region, 0, MPSC_DMA_ALLOC_SIZE);
 
@@ -883,9 +883,9 @@ static void mpsc_init_rings(struct mpsc_port_info *pi)
 
 static void mpsc_uninit_rings(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_uninit_rings[%d]: Uninitializing rings\n",pi->port.line);
+	pr_de("mpsc_uninit_rings[%d]: Uninitializing rings\n",pi->port.line);
 
-	BUG_ON(pi->dma_region == NULL);
+	_ON(pi->dma_region == NULL);
 
 	pi->rxr = 0;
 	pi->rxr_p = 0;
@@ -905,7 +905,7 @@ static int mpsc_make_ready(struct mpsc_port_info *pi)
 {
 	int rc;
 
-	pr_debug("mpsc_make_ready[%d]: Making cltr ready\n", pi->port.line);
+	pr_de("mpsc_make_ready[%d]: Making cltr ready\n", pi->port.line);
 
 	if (!pi->ready) {
 		mpsc_init_hw(pi);
@@ -940,7 +940,7 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi, unsigned long *flags)
 	u8	*bp;
 	char	flag = TTY_NORMAL;
 
-	pr_debug("mpsc_rx_intr[%d]: Handling Rx intr\n", pi->port.line);
+	pr_de("mpsc_rx_intr[%d]: Handling Rx intr\n", pi->port.line);
 
 	rxre = (struct mpsc_rx_desc *)(pi->rxr + (pi->rxr_posn*MPSC_RXRE_SIZE));
 
@@ -1220,7 +1220,7 @@ static irqreturn_t mpsc_sdma_intr(int irq, void *dev_id)
 	ulong iflags;
 	int rc = IRQ_NONE;
 
-	pr_debug("mpsc_sdma_intr[%d]: SDMA Interrupt Received\n",pi->port.line);
+	pr_de("mpsc_sdma_intr[%d]: SDMA Interrupt Received\n",pi->port.line);
 
 	spin_lock_irqsave(&pi->port.lock, iflags);
 	mpsc_sdma_intr_ack(pi);
@@ -1230,7 +1230,7 @@ static irqreturn_t mpsc_sdma_intr(int irq, void *dev_id)
 		rc = IRQ_HANDLED;
 	spin_unlock_irqrestore(&pi->port.lock, iflags);
 
-	pr_debug("mpsc_sdma_intr[%d]: SDMA Interrupt Handled\n", pi->port.line);
+	pr_de("mpsc_sdma_intr[%d]: SDMA Interrupt Handled\n", pi->port.line);
 	return rc;
 }
 
@@ -1283,7 +1283,7 @@ static void mpsc_stop_tx(struct uart_port *port)
 	struct mpsc_port_info *pi =
 		container_of(port, struct mpsc_port_info, port);
 
-	pr_debug("mpsc_stop_tx[%d]\n", port->line);
+	pr_de("mpsc_stop_tx[%d]\n", port->line);
 
 	mpsc_freeze(pi);
 }
@@ -1302,12 +1302,12 @@ static void mpsc_start_tx(struct uart_port *port)
 
 	spin_unlock_irqrestore(&pi->tx_lock, iflags);
 
-	pr_debug("mpsc_start_tx[%d]\n", port->line);
+	pr_de("mpsc_start_tx[%d]\n", port->line);
 }
 
 static void mpsc_start_rx(struct mpsc_port_info *pi)
 {
-	pr_debug("mpsc_start_rx[%d]: Starting...\n", pi->port.line);
+	pr_de("mpsc_start_rx[%d]: Starting...\n", pi->port.line);
 
 	if (pi->rcv_data) {
 		mpsc_enter_hunt(pi);
@@ -1320,7 +1320,7 @@ static void mpsc_stop_rx(struct uart_port *port)
 	struct mpsc_port_info *pi =
 		container_of(port, struct mpsc_port_info, port);
 
-	pr_debug("mpsc_stop_rx[%d]: Stopping...\n", port->line);
+	pr_de("mpsc_stop_rx[%d]: Stopping...\n", port->line);
 
 	if (pi->mirror_regs) {
 		writel(pi->MPSC_CHR_2_m | MPSC_CHR_2_RA,
@@ -1361,7 +1361,7 @@ static int mpsc_startup(struct uart_port *port)
 	u32 flag = 0;
 	int rc;
 
-	pr_debug("mpsc_startup[%d]: Starting up MPSC, irq: %d\n",
+	pr_de("mpsc_startup[%d]: Starting up MPSC, irq: %d\n",
 		port->line, pi->port.irq);
 
 	if ((rc = mpsc_make_ready(pi)) == 0) {
@@ -1390,7 +1390,7 @@ static void mpsc_shutdown(struct uart_port *port)
 	struct mpsc_port_info *pi =
 		container_of(port, struct mpsc_port_info, port);
 
-	pr_debug("mpsc_shutdown[%d]: Shutting down MPSC\n", port->line);
+	pr_de("mpsc_shutdown[%d]: Shutting down MPSC\n", port->line);
 
 	mpsc_sdma_stop(pi);
 	free_irq(pi->port.irq, pi);
@@ -1489,7 +1489,7 @@ static void mpsc_set_termios(struct uart_port *port, struct ktermios *termios,
 
 static const char *mpsc_type(struct uart_port *port)
 {
-	pr_debug("mpsc_type[%d]: port type: %s\n", port->line,MPSC_DRIVER_NAME);
+	pr_de("mpsc_type[%d]: port type: %s\n", port->line,MPSC_DRIVER_NAME);
 	return MPSC_DRIVER_NAME;
 }
 
@@ -1521,7 +1521,7 @@ static int mpsc_verify_port(struct uart_port *port, struct serial_struct *ser)
 		container_of(port, struct mpsc_port_info, port);
 	int rc = 0;
 
-	pr_debug("mpsc_verify_port[%d]: Verifying port data\n", pi->port.line);
+	pr_de("mpsc_verify_port[%d]: Verifying port data\n", pi->port.line);
 
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_MPSC)
 		rc = -EINVAL;
@@ -1542,7 +1542,7 @@ static int mpsc_verify_port(struct uart_port *port, struct serial_struct *ser)
 }
 #ifdef CONFIG_CONSOLE_POLL
 /* Serial polling routines for writing and reading from the uart while
- * in an interrupt or debug context.
+ * in an interrupt or de context.
  */
 
 static char poll_buf[2048];
@@ -1562,7 +1562,7 @@ static int mpsc_get_poll_char(struct uart_port *port)
 	if (!serial_polled)
 		serial_polled = 1;
 
-	pr_debug("mpsc_rx_intr[%d]: Handling Rx intr\n", pi->port.line);
+	pr_de("mpsc_rx_intr[%d]: Handling Rx intr\n", pi->port.line);
 
 	if (poll_cnt) {
 		poll_cnt--;
@@ -1767,7 +1767,7 @@ static int __init mpsc_console_setup(struct console *co, char *options)
 	struct mpsc_port_info *pi;
 	int baud, bits, parity, flow;
 
-	pr_debug("mpsc_console_setup[%d]: options: %s\n", co->index, options);
+	pr_de("mpsc_console_setup[%d]: options: %s\n", co->index, options);
 
 	if (co->index >= MPSC_NUM_CTLRS)
 		co->index = 0;
@@ -1802,7 +1802,7 @@ static struct console mpsc_console = {
 
 static int __init mpsc_late_console_init(void)
 {
-	pr_debug("mpsc_late_console_init: Enter\n");
+	pr_de("mpsc_late_console_init: Enter\n");
 
 	if (!(mpsc_console.flags & CON_ENABLED))
 		register_console(&mpsc_console);

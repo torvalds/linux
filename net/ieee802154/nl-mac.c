@@ -60,7 +60,7 @@ static int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
 {
 	struct sk_buff *msg;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	msg = ieee802154_nl_create(0, IEEE802154_START_CONF);
 	if (!msg)
@@ -87,7 +87,7 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 	struct ieee802154_mlme_ops *ops;
 	__le16 short_addr, pan_id;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	hdr = genlmsg_put(msg, 0, seq, &nl802154_family, flags,
 			  IEEE802154_LIST_IFACE);
@@ -96,7 +96,7 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 
 	ops = ieee802154_mlme_ops(dev);
 	phy = dev->ieee802154_ptr->wpan_phy;
-	BUG_ON(!phy);
+	_ON(!phy);
 	get_device(&phy->dev);
 
 	rtnl_lock();
@@ -418,7 +418,7 @@ int ieee802154_list_iface(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev = NULL;
 	int rc = -ENOBUFS;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
@@ -450,7 +450,7 @@ int ieee802154_dump_iface(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx;
 	int s_idx = cb->args[0];
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	idx = 0;
 	for_each_netdev(net, dev) {
@@ -477,7 +477,7 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 	struct wpan_phy *phy;
 	int rc = -EINVAL;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
@@ -656,7 +656,7 @@ int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info)
 	void *hdr;
 	struct ieee802154_llsec_params params;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
@@ -708,7 +708,7 @@ int ieee802154_llsec_setparams(struct sk_buff *skb, struct genl_info *info)
 	struct ieee802154_llsec_params params;
 	int changed = 0;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)

@@ -72,7 +72,7 @@ static struct {
 static void cpu5wdt_trigger(struct timer_list *unused)
 {
 	if (verbose > 2)
-		pr_debug("trigger at %i ticks\n", ticks);
+		pr_de("trigger at %i ticks\n", ticks);
 
 	if (cpu5wdt_device.running)
 		ticks--;
@@ -97,7 +97,7 @@ static void cpu5wdt_reset(void)
 	ticks = cpu5wdt_device.default_ticks;
 
 	if (verbose)
-		pr_debug("reset (%i ticks)\n", (int) ticks);
+		pr_de("reset (%i ticks)\n", (int) ticks);
 
 }
 
@@ -220,7 +220,7 @@ static int cpu5wdt_init(void)
 	int err;
 
 	if (verbose)
-		pr_debug("port=0x%x, verbose=%i\n", port, verbose);
+		pr_de("port=0x%x, verbose=%i\n", port, verbose);
 
 	init_completion(&cpu5wdt_device.stop);
 	cpu5wdt_device.queue = 0;

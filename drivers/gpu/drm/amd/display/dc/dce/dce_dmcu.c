@@ -744,7 +744,7 @@ struct dmcu *dce_dmcu_create(
 	struct dce_dmcu *dmcu_dce = kzalloc(sizeof(*dmcu_dce), GFP_KERNEL);
 
 	if (dmcu_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -766,7 +766,7 @@ struct dmcu *dcn10_dmcu_create(
 	struct dce_dmcu *dmcu_dce = kzalloc(sizeof(*dmcu_dce), GFP_KERNEL);
 
 	if (dmcu_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 

@@ -36,7 +36,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 {
 	struct inode *inode = AFS_VNODE_TO_I(vnode);
 
-	_debug("FS: ft=%d lk=%d sz=%llu ver=%Lu mod=%hu",
+	_de("FS: ft=%d lk=%d sz=%llu ver=%Lu mod=%hu",
 	       vnode->status.type,
 	       vnode->status.nlink,
 	       (unsigned long long) vnode->status.size,
@@ -196,14 +196,14 @@ struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	_debug("GOT INODE %p { ino=%lu, vl=%llx, vn=%llx, u=%x }",
+	_de("GOT INODE %p { ino=%lu, vl=%llx, vn=%llx, u=%x }",
 	       inode, inode->i_ino, data.fid.vid, data.fid.vnode,
 	       data.fid.unique);
 
 	vnode = AFS_FS_I(inode);
 
 	/* there shouldn't be an existing inode */
-	BUG_ON(!(inode->i_state & I_NEW));
+	_ON(!(inode->i_state & I_NEW));
 
 	inode->i_size		= 0;
 	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
@@ -292,7 +292,7 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	_debug("GOT INODE %p { vl=%llx vn=%llx, u=%x }",
+	_de("GOT INODE %p { vl=%llx vn=%llx, u=%x }",
 	       inode, fid->vid, fid->vnode, fid->unique);
 
 	vnode = AFS_FS_I(inode);
@@ -433,7 +433,7 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	 * changed then the security may be different and we may no longer have
 	 * access */
 	if (!test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
-		_debug("not promised");
+		_de("not promised");
 		ret = afs_fetch_status(vnode, key, false);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
@@ -442,11 +442,11 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 			}
 			goto error_unlock;
 		}
-		_debug("new promise [fl=%lx]", vnode->flags);
+		_de("new promise [fl=%lx]", vnode->flags);
 	}
 
 	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
-		_debug("file already deleted");
+		_de("file already deleted");
 		ret = -ESTALE;
 		goto error_unlock;
 	}
@@ -514,7 +514,7 @@ void afs_evict_inode(struct inode *inode)
 	       vnode->fid.vnode,
 	       vnode->fid.unique);
 
-	_debug("CLEAR INODE %p", inode);
+	_de("CLEAR INODE %p", inode);
 
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
 

@@ -25,7 +25,7 @@
 #include <linux/serial_core.h>
 #include <linux/tty.h>
 #include <linux/pps_kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #define PPS_TTY_MAGIC		0x0001
 

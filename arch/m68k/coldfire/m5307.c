@@ -17,7 +17,7 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfwdebug.h>
+#include <asm/mcfwde.h>
 #include <asm/mcfclk.h>
 
 /***************************************************************************/
@@ -85,7 +85,7 @@ void __init config_BSP(char *commandp, int size)
 	 * the BDM device.  This is good for EMC reasons. This option is not
 	 * incompatible with the memory protection option.
 	 */
-	wdebug(MCFDEBUG_CSR, MCFDEBUG_CSR_PSTCLK);
+	wde(MCFDE_CSR, MCFDE_CSR_PSTCLK);
 #endif
 	m5307_i2c_init();
 }

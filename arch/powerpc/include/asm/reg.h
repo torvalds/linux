@@ -50,7 +50,7 @@
 #define MSR_FE0_LG	11		/* Floating Exception mode 0 */
 #define MSR_SE_LG	10		/* Single Step */
 #define MSR_BE_LG	9		/* Branch Trace */
-#define MSR_DE_LG	9 		/* Debug Exception Enable */
+#define MSR_DE_LG	9 		/* De Exception Enable */
 #define MSR_FE1_LG	8		/* Floating Exception mode 1 */
 #define MSR_IP_LG	6		/* Exception prefix 0x000/0xFFF */
 #define MSR_IR_LG	5 		/* Instruction Relocate */
@@ -100,7 +100,7 @@
 #define MSR_FE0		__MASK(MSR_FE0_LG)	/* Floating Exception mode 0 */
 #define MSR_SE		__MASK(MSR_SE_LG)	/* Single Step */
 #define MSR_BE		__MASK(MSR_BE_LG)	/* Branch Trace */
-#define MSR_DE		__MASK(MSR_DE_LG)	/* Debug Exception Enable */
+#define MSR_DE		__MASK(MSR_DE_LG)	/* De Exception Enable */
 #define MSR_FE1		__MASK(MSR_FE1_LG)	/* Floating Exception mode 1 */
 #define MSR_IP		__MASK(MSR_IP_LG)	/* Exception prefix 0x000/0xFFF */
 #define MSR_IR		__MASK(MSR_IR_LG)	/* Instruction Relocate */
@@ -468,7 +468,7 @@
 #endif
 #define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
 #define	SPRN_HMER	0x150	/* Hypervisor maintenance exception reg */
-#define   HMER_DEBUG_TRIG	(1ul << (63 - 17)) /* Debug trigger */
+#define   HMER_DE_TRIG	(1ul << (63 - 17)) /* De trigger */
 #define	SPRN_HMEER	0x151	/* Hyp maintenance exception enable reg */
 #define SPRN_PCR	0x152	/* Processor compatibility register */
 #define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
@@ -507,7 +507,7 @@
 #define SPRN_TSCR	0x399	/* Thread Switch Control Register */
 
 #define SPRN_DEC	0x016		/* Decrement Register */
-#define SPRN_DER	0x095		/* Debug Enable Register */
+#define SPRN_DER	0x095		/* De Enable Register */
 #define DER_RSTE	0x40000000	/* Reset Interrupt */
 #define DER_CHSTPE	0x20000000	/* Check Stop */
 #define DER_MCIE	0x10000000	/* Machine Check Interrupt */
@@ -559,7 +559,7 @@
 #define HID0_ICFI	(1<<11)		/* Instr. Cache Flash Invalidate */
 #define HID0_DCI	(1<<10)		/* Data Cache Invalidate */
 #define HID0_SPD	(1<<9)		/* Speculative disable */
-#define HID0_DAPUEN	(1<<8)		/* Debug APU enable */
+#define HID0_DAPUEN	(1<<8)		/* De APU enable */
 #define HID0_SGE	(1<<7)		/* Store Gathering Enable */
 #define HID0_SIED	(1<<7)		/* Serial Instr. Execution [Disable] */
 #define HID0_DCFA	(1<<6)		/* Data Cache Flush Assist */
@@ -1059,7 +1059,7 @@
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
  *	- SPRG7 CPU and NUMA node for VDSO getcpu (user visible)
  *	- SPRG8 machine check exception scratch
- *	- SPRG9 debug exception scratch
+ *	- SPRG9 de exception scratch
  *
  * All 32-bit:
  *	- SPRG3 current thread_struct physical addr pointer
@@ -1088,7 +1088,7 @@
  *	- SPRG5 scratch for exception vectors
  *	- SPRG6 scratch for machine check handler
  *	- SPRG7 scratch for exception vectors
- *	- SPRG9 scratch for debug vectors (e500 only)
+ *	- SPRG9 scratch for de vectors (e500 only)
  *
  *      Additionally, BookE separates "read" and "write"
  *      of those registers. That allows to use the userspace
@@ -1392,7 +1392,7 @@ static inline void msr_check_and_clear(unsigned long bits)
 				"	.8byte 0\n"			\
 				".previous"				\
 			: "=r" (rval) \
-			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL) : "cr0"); \
+			: "i" (CPU_FTR_CELL_TB_), "i" (SPRN_TBRL) : "cr0"); \
 			rval;})
 #else
 #define mftb()		({unsigned long rval;	\

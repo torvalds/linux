@@ -50,12 +50,12 @@ MODULE_PARM_DESC(max_nonsrq_conn_qp,
 		 "Max number of connected-mode QPs per interface "
 		 "(applied only if shared receive queue is not available)");
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG_DATA
-static int data_debug_level;
+#ifdef CONFIG_INFINIBAND_IPOIB_DE_DATA
+static int data_de_level;
 
-module_param_named(cm_data_debug_level, data_debug_level, int, 0644);
-MODULE_PARM_DESC(cm_data_debug_level,
-		 "Enable data path debug tracing for connected mode if > 0");
+module_param_named(cm_data_de_level, data_de_level, int, 0644);
+MODULE_PARM_DESC(cm_data_de_level,
+		 "Enable data path de tracing for connected mode if > 0");
 #endif
 
 #define IPOIB_CM_IETF_ID 0x1000000000000000ULL

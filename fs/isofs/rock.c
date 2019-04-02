@@ -374,7 +374,7 @@ repeat:
 			if (rr->u.ER.len_id + offsetof(struct rock_ridge, u.ER.data) > rr->len)
 				goto out;
 			ISOFS_SB(inode->i_sb)->s_rock = 1;
-			printk(KERN_DEBUG "ISO 9660 Extensions: ");
+			printk(KERN_DE "ISO 9660 Extensions: ");
 			{
 				int p;
 				for (p = 0; p < rr->u.ER.len_id; p++)

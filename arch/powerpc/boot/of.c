@@ -37,7 +37,7 @@ static void *of_try_claim(unsigned long size)
 		claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
 
 	for(; claim_base < RAM_END; claim_base += ONE_MB) {
-#ifdef DEBUG
+#ifdef DE
 		printf("    trying: 0x%08lx\n\r", claim_base);
 #endif
 		addr = (unsigned long) of_claim(claim_base, size, 0);

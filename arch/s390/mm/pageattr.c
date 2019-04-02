@@ -317,7 +317,7 @@ int __set_memory(unsigned long addr, int numpages, unsigned long flags)
 	return change_page_attr(addr, addr + numpages * PAGE_SIZE, flags);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 
 static void ipte_range(pte_t *pte, unsigned long address, int nr)
 {
@@ -383,4 +383,4 @@ bool kernel_page_present(struct page *page)
 }
 #endif /* CONFIG_HIBERNATION */
 
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+#endif /* CONFIG_DE_PAGEALLOC */

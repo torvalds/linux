@@ -2,8 +2,8 @@
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
-   Please send bug reports and support requests to <luc@saillard.org>.
+   driver and thus may have s that are not present in the original version.
+   Please send  reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
@@ -55,48 +55,48 @@
 
 
 /* Trace certain actions in the driver */
-#define PWC_DEBUG_LEVEL_MODULE	(1<<0)
-#define PWC_DEBUG_LEVEL_PROBE	(1<<1)
-#define PWC_DEBUG_LEVEL_OPEN	(1<<2)
-#define PWC_DEBUG_LEVEL_READ	(1<<3)
-#define PWC_DEBUG_LEVEL_MEMORY	(1<<4)
-#define PWC_DEBUG_LEVEL_FLOW	(1<<5)
-#define PWC_DEBUG_LEVEL_SIZE	(1<<6)
-#define PWC_DEBUG_LEVEL_IOCTL	(1<<7)
-#define PWC_DEBUG_LEVEL_TRACE	(1<<8)
+#define PWC_DE_LEVEL_MODULE	(1<<0)
+#define PWC_DE_LEVEL_PROBE	(1<<1)
+#define PWC_DE_LEVEL_OPEN	(1<<2)
+#define PWC_DE_LEVEL_READ	(1<<3)
+#define PWC_DE_LEVEL_MEMORY	(1<<4)
+#define PWC_DE_LEVEL_FLOW	(1<<5)
+#define PWC_DE_LEVEL_SIZE	(1<<6)
+#define PWC_DE_LEVEL_IOCTL	(1<<7)
+#define PWC_DE_LEVEL_TRACE	(1<<8)
 
-#define PWC_DEBUG_MODULE(fmt, args...) PWC_DEBUG(MODULE, fmt, ##args)
-#define PWC_DEBUG_PROBE(fmt, args...) PWC_DEBUG(PROBE, fmt, ##args)
-#define PWC_DEBUG_OPEN(fmt, args...) PWC_DEBUG(OPEN, fmt, ##args)
-#define PWC_DEBUG_READ(fmt, args...) PWC_DEBUG(READ, fmt, ##args)
-#define PWC_DEBUG_MEMORY(fmt, args...) PWC_DEBUG(MEMORY, fmt, ##args)
-#define PWC_DEBUG_FLOW(fmt, args...) PWC_DEBUG(FLOW, fmt, ##args)
-#define PWC_DEBUG_SIZE(fmt, args...) PWC_DEBUG(SIZE, fmt, ##args)
-#define PWC_DEBUG_IOCTL(fmt, args...) PWC_DEBUG(IOCTL, fmt, ##args)
-#define PWC_DEBUG_TRACE(fmt, args...) PWC_DEBUG(TRACE, fmt, ##args)
+#define PWC_DE_MODULE(fmt, args...) PWC_DE(MODULE, fmt, ##args)
+#define PWC_DE_PROBE(fmt, args...) PWC_DE(PROBE, fmt, ##args)
+#define PWC_DE_OPEN(fmt, args...) PWC_DE(OPEN, fmt, ##args)
+#define PWC_DE_READ(fmt, args...) PWC_DE(READ, fmt, ##args)
+#define PWC_DE_MEMORY(fmt, args...) PWC_DE(MEMORY, fmt, ##args)
+#define PWC_DE_FLOW(fmt, args...) PWC_DE(FLOW, fmt, ##args)
+#define PWC_DE_SIZE(fmt, args...) PWC_DE(SIZE, fmt, ##args)
+#define PWC_DE_IOCTL(fmt, args...) PWC_DE(IOCTL, fmt, ##args)
+#define PWC_DE_TRACE(fmt, args...) PWC_DE(TRACE, fmt, ##args)
 
 
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DE
 
-#define PWC_DEBUG_LEVEL	(PWC_DEBUG_LEVEL_MODULE)
+#define PWC_DE_LEVEL	(PWC_DE_LEVEL_MODULE)
 
-#define PWC_DEBUG(level, fmt, args...) do {\
-	if ((PWC_DEBUG_LEVEL_ ##level) & pwc_trace) \
-		printk(KERN_DEBUG PFX fmt, ##args); \
+#define PWC_DE(level, fmt, args...) do {\
+	if ((PWC_DE_LEVEL_ ##level) & pwc_trace) \
+		printk(KERN_DE PFX fmt, ##args); \
 	} while (0)
 
 #define PWC_ERROR(fmt, args...) printk(KERN_ERR PFX fmt, ##args)
 #define PWC_WARNING(fmt, args...) printk(KERN_WARNING PFX fmt, ##args)
 #define PWC_INFO(fmt, args...) printk(KERN_INFO PFX fmt, ##args)
-#define PWC_TRACE(fmt, args...) PWC_DEBUG(TRACE, fmt, ##args)
+#define PWC_TRACE(fmt, args...) PWC_DE(TRACE, fmt, ##args)
 
-#else /* if ! CONFIG_USB_PWC_DEBUG */
+#else /* if ! CONFIG_USB_PWC_DE */
 
 #define PWC_ERROR(fmt, args...) printk(KERN_ERR PFX fmt, ##args)
 #define PWC_WARNING(fmt, args...) printk(KERN_WARNING PFX fmt, ##args)
 #define PWC_INFO(fmt, args...) printk(KERN_INFO PFX fmt, ##args)
 #define PWC_TRACE(fmt, args...) do { } while(0)
-#define PWC_DEBUG(level, fmt, args...) do { } while(0)
+#define PWC_DE(level, fmt, args...) do { } while(0)
 
 #define pwc_trace 0
 
@@ -352,7 +352,7 @@ struct pwc_device
 };
 
 /* Global variables */
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DE
 extern int pwc_trace;
 #endif
 

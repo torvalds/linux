@@ -24,7 +24,7 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/ftrace.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/uaccess.h>
 #include <asm/module.h>
 #include <asm/firmware.h>
@@ -257,8 +257,8 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 	/* Every relocated section... */
 	for (i = 1; i < hdr->e_shnum; i++) {
 		if (sechdrs[i].sh_type == SHT_RELA) {
-			pr_debug("Found relocations in section %u\n", i);
-			pr_debug("Ptr: %p.  Number: %Lu\n",
+			pr_de("Found relocations in section %u\n", i);
+			pr_de("Ptr: %p.  Number: %Lu\n",
 			       (void *)sechdrs[i].sh_addr,
 			       sechdrs[i].sh_size / sizeof(Elf64_Rela));
 
@@ -286,7 +286,7 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 #endif
 #endif
 
-	pr_debug("Looks like a total of %lu stubs, max\n", relocs);
+	pr_de("Looks like a total of %lu stubs, max\n", relocs);
 	return relocs * sizeof(struct ppc64_stub_entry);
 }
 
@@ -424,7 +424,7 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 		       me->name, (void *)reladdr, (void *)my_r2);
 		return 0;
 	}
-	pr_debug("Stub %p get data from reladdr %li\n", entry, reladdr);
+	pr_de("Stub %p get data from reladdr %li\n", entry, reladdr);
 
 	entry->jump[0] |= PPC_HA(reladdr);
 	entry->jump[1] |= PPC_LO(reladdr);
@@ -543,7 +543,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	unsigned long *location;
 	unsigned long value;
 
-	pr_debug("Applying ADD relocate section %u to %u\n", relsec,
+	pr_de("Applying ADD relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 
 	/* First time we're called, we can fix up .TOC. */
@@ -564,7 +564,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		sym = (Elf64_Sym *)sechdrs[symindex].sh_addr
 			+ ELF64_R_SYM(rela[i].r_info);
 
-		pr_debug("RELOC at %p: %li-type as %s (0x%lx) + %li\n",
+		pr_de("RELOC at %p: %li-type as %s (0x%lx) + %li\n",
 		       location, (long)ELF64_R_TYPE(rela[i].r_info),
 		       strtab + sym->st_name, (unsigned long)sym->st_value,
 		       (long)rela[i].r_addend);

@@ -1159,7 +1159,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DE_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -1411,7 +1411,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		 ~EVERGREEN_LUT_10BIT_BYPASS_EN);
 
 	if (bypass_lut)
-		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+		DRM_DE_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
 
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
@@ -1480,7 +1480,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_DE_KMS("No FB bound\n");
 		return 0;
 	}
 
@@ -1627,7 +1627,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		 (bypass_lut ? AVIVO_LUT_10BIT_BYPASS_EN : 0), ~AVIVO_LUT_10BIT_BYPASS_EN);
 
 	if (bypass_lut)
-		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+		DRM_DE_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
 
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
@@ -2009,7 +2009,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		return ATOM_PPLL_INVALID;
 	} else {
 		/* on pre-R5xx asics, the crtc to pll mapping is hardcoded */
-		/* some atombios (observed in some DCE2/DCE3) code have a bug,
+		/* some atombios (observed in some DCE2/DCE3) code have a ,
 		 * the matching btw pll and crtc is done through
 		 * PCLK_CRTC[1|2]_CNTL (0x480/0x484) but atombios code use the
 		 * pll (1 or 2) to select which register to write. ie if using

@@ -152,7 +152,7 @@ lockd(void *vrqstp)
 	 */
 	while (!kthread_should_stop()) {
 		long timeout = MAX_SCHEDULE_TIMEOUT;
-		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+		RPC_IFDE(char buf[RPC_MAX_ADDRBUFLEN]);
 
 		/* update sv_maxconn if it has changed */
 		rqstp->rq_server->sv_maxconn = nlm_max_connections;
@@ -286,7 +286,7 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	} else {
 		pr_err("%s: no users! task=%p, net=%x\n",
 			__func__, nlmsvc_task, net->ns.inum);
-		BUG();
+		();
 	}
 }
 
@@ -512,12 +512,12 @@ lockd_down(struct net *net)
 	} else {
 		printk(KERN_ERR "lockd_down: no users! task=%p\n",
 			nlmsvc_task);
-		BUG();
+		();
 	}
 
 	if (!nlmsvc_task) {
 		printk(KERN_ERR "lockd_down: no lockd running.\n");
-		BUG();
+		();
 	}
 	kthread_stop(nlmsvc_task);
 	dprintk("lockd_down: service stopped\n");

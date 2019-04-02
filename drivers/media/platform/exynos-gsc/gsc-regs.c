@@ -90,7 +90,7 @@ void gsc_hw_set_output_buf_masking(struct gsc_dev *dev, u32 shift,
 void gsc_hw_set_input_addr(struct gsc_dev *dev, struct gsc_addr *addr,
 				int index)
 {
-	pr_debug("src_buf[%d]: %pad, cb: %pad, cr: %pad", index,
+	pr_de("src_buf[%d]: %pad, cb: %pad, cr: %pad", index,
 			&addr->y, &addr->cb, &addr->cr);
 	writel(addr->y, dev->regs + GSC_IN_BASE_ADDR_Y(index));
 	writel(addr->cb, dev->regs + GSC_IN_BASE_ADDR_CB(index));
@@ -101,7 +101,7 @@ void gsc_hw_set_input_addr(struct gsc_dev *dev, struct gsc_addr *addr,
 void gsc_hw_set_output_addr(struct gsc_dev *dev,
 			     struct gsc_addr *addr, int index)
 {
-	pr_debug("dst_buf[%d]: %pad, cb: %pad, cr: %pad",
+	pr_de("dst_buf[%d]: %pad, cb: %pad, cr: %pad",
 			index, &addr->y, &addr->cb, &addr->cr);
 	writel(addr->y, dev->regs + GSC_OUT_BASE_ADDR_Y(index));
 	writel(addr->cb, dev->regs + GSC_OUT_BASE_ADDR_CB(index));
@@ -408,7 +408,7 @@ void gsc_hw_set_global_alpha(struct gsc_ctx *ctx)
 	u32 cfg;
 
 	if (!is_rgb(frame->fmt->color)) {
-		pr_debug("Not a RGB format");
+		pr_de("Not a RGB format");
 		return;
 	}
 

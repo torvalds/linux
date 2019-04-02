@@ -701,7 +701,7 @@
 
 #define AUX_PWR_DETECTED	0x01
 
-#define PHY_DEBUG_MODE		0x01
+#define PHY_DE_MODE		0x01
 
 #define SPI_COMMAND_BIT_8	0xE0
 #define SPI_ADDRESS_BIT_24	0x17

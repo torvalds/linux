@@ -55,7 +55,7 @@ struct skl_dsp_resource {
 	u32 mem;
 };
 
-struct skl_debug;
+struct skl_de;
 
 struct skl_astate_param {
 	u32 kcps;
@@ -98,7 +98,7 @@ struct skl {
 
 	struct work_struct probe_work;
 
-	struct skl_debug *debugfs;
+	struct skl_de *defs;
 	u8 nr_modules;
 	struct skl_module **modules;
 	bool use_tplg_pcm;
@@ -162,17 +162,17 @@ int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
 
 struct skl_module_cfg;
 
-#ifdef CONFIG_DEBUG_FS
-struct skl_debug *skl_debugfs_init(struct skl *skl);
-void skl_debug_init_module(struct skl_debug *d,
+#ifdef CONFIG_DE_FS
+struct skl_de *skl_defs_init(struct skl *skl);
+void skl_de_init_module(struct skl_de *d,
 			struct snd_soc_dapm_widget *w,
 			struct skl_module_cfg *mconfig);
 #else
-static inline struct skl_debug *skl_debugfs_init(struct skl *skl)
+static inline struct skl_de *skl_defs_init(struct skl *skl)
 {
 	return NULL;
 }
-static inline void skl_debug_init_module(struct skl_debug *d,
+static inline void skl_de_init_module(struct skl_de *d,
 					 struct snd_soc_dapm_widget *w,
 					 struct skl_module_cfg *mconfig)
 {}

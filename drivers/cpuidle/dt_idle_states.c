@@ -49,7 +49,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 		err = of_property_read_u32(state_node, "entry-latency-us",
 					   &entry_latency);
 		if (err) {
-			pr_debug(" * %pOF missing entry-latency-us property\n",
+			pr_de(" * %pOF missing entry-latency-us property\n",
 				 state_node);
 			return -EINVAL;
 		}
@@ -57,7 +57,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 		err = of_property_read_u32(state_node, "exit-latency-us",
 					   &exit_latency);
 		if (err) {
-			pr_debug(" * %pOF missing exit-latency-us property\n",
+			pr_de(" * %pOF missing exit-latency-us property\n",
 				 state_node);
 			return -EINVAL;
 		}
@@ -71,7 +71,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	err = of_property_read_u32(state_node, "min-residency-us",
 				   &idle_state->target_residency);
 	if (err) {
-		pr_debug(" * %pOF missing min-residency-us property\n",
+		pr_de(" * %pOF missing min-residency-us property\n",
 			     state_node);
 		return -EINVAL;
 	}

@@ -35,9 +35,9 @@ MODULE_PARM_DESC(video_nr, "video device number (-1=Auto)");
 /* holds the number of currently registered devices */
 static atomic_t dev_nr = ATOMIC_INIT(-1);
 
-int hdpvr_debug;
-module_param(hdpvr_debug, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(hdpvr_debug, "enable debugging output");
+int hdpvr_de;
+module_param(hdpvr_de, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(hdpvr_de, "enable deging output");
 
 static uint default_video_input = HDPVR_VIDEO_INPUTS;
 module_param(default_video_input, uint, S_IRUGO|S_IWUSR);
@@ -131,9 +131,9 @@ static int device_authorization(struct hdpvr_device *dev)
 			 "unexpected answer of status request, len %d\n", ret);
 		goto unlock;
 	}
-#ifdef HDPVR_DEBUG
+#ifdef HDPVR_DE
 	else {
-		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+		v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 			 "Status request returned, len %d: %46ph\n",
 			 ret, dev->usbc_buf);
 	}
@@ -171,13 +171,13 @@ static int device_authorization(struct hdpvr_device *dev)
 	}
 
 	response = dev->usbc_buf+38;
-#ifdef HDPVR_DEBUG
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, "challenge: %8ph\n",
+#ifdef HDPVR_DE
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev, "challenge: %8ph\n",
 		 response);
 #endif
 	challenge(response);
-#ifdef HDPVR_DEBUG
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %8ph\n",
+#ifdef HDPVR_DE
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev, " response: %8ph\n",
 		 response);
 #endif
 
@@ -188,7 +188,7 @@ static int device_authorization(struct hdpvr_device *dev)
 			      0x0000, 0x0000,
 			      response, 8,
 			      10000);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "magic request returned %d\n", ret);
 
 	retval = ret != 8;
@@ -218,7 +218,7 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 			      CTRL_LOW_PASS_FILTER_VALUE, CTRL_DEFAULT_INDEX,
 			      buf, 4,
 			      1000);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "control request returned %d\n", ret);
 	mutex_unlock(&dev->usbc_mutex);
 
@@ -229,7 +229,7 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 			      usb_sndctrlpipe(dev->udev, 0),
 			      0xd4, 0x38, 0, 0, buf, 1,
 			      1000);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "control request returned %d\n", ret);
 
 	/* boost analog audio */
@@ -238,7 +238,7 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 			      usb_sndctrlpipe(dev->udev, 0),
 			      0xd5, 0x38, 0, 0, buf, 1,
 			      1000);
-	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
+	v4l2_dbg(MSG_INFO, hdpvr_de, &dev->v4l2_dev,
 		 "control request returned %d\n", ret);
 	mutex_unlock(&dev->usbc_mutex);
 
@@ -329,7 +329,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 		if (!dev->bulk_in_endpointAddr &&
 		    usb_endpoint_is_bulk_in(endpoint)) {
-			/* USB interface description is buggy, reported max
+			/* USB interface description is gy, reported max
 			 * packet size is 512 bytes, windows driver uses 8192 */
 			buffer_size = 8192;
 			dev->bulk_in_size = buffer_size;

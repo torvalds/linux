@@ -291,8 +291,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			wedged |= intel_engine_flag(engine);
 	}
 
-	if (GEM_SHOW_DEBUG() && (hung | stuck)) {
-		struct drm_printer p = drm_debug_printer("hangcheck");
+	if (GEM_SHOW_DE() && (hung | stuck)) {
+		struct drm_printer p = drm_de_printer("hangcheck");
 
 		for_each_engine(engine, dev_priv, id) {
 			if (intel_engine_is_idle(engine))

@@ -25,7 +25,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -64,7 +64,7 @@ extern void do_nmi(struct pt_regs *);
 extern void do_unaligned_user (struct pt_regs*);
 extern void do_multihit (struct pt_regs*, unsigned long);
 extern void do_page_fault (struct pt_regs*, unsigned long);
-extern void do_debug (struct pt_regs*);
+extern void do_de (struct pt_regs*);
 extern void system_call (struct pt_regs*);
 
 /*
@@ -147,7 +147,7 @@ COPROCESSOR(7),
 #if XTENSA_FAKE_NMI
 { EXCCAUSE_MAPPED_NMI,			0,		do_nmi },
 #endif
-{ EXCCAUSE_MAPPED_DEBUG,		0,		do_debug },
+{ EXCCAUSE_MAPPED_DE,		0,		do_de },
 { -1, -1, 0 }
 
 };
@@ -158,7 +158,7 @@ COPROCESSOR(7),
  */
 
 DEFINE_PER_CPU(struct exc_table, exc_table);
-DEFINE_PER_CPU(struct debug_table, debug_table);
+DEFINE_PER_CPU(struct de_table, de_table);
 
 void die(const char*, struct pt_regs*, long);
 
@@ -209,14 +209,14 @@ extern void do_IRQ(int, struct pt_regs *);
 #if !(PROFILING_INTLEVEL == XCHAL_EXCM_LEVEL && \
       IS_POW2(XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL)))
 #warning "Fake NMI is requested for PMM, but there are other IRQs at or above its level."
-#warning "Fake NMI will be used, but there will be a bugcheck if one of those IRQs fire."
+#warning "Fake NMI will be used, but there will be a check if one of those IRQs fire."
 
 static inline void check_valid_nmi(void)
 {
 	unsigned intread = xtensa_get_sr(interrupt);
 	unsigned intenable = xtensa_get_sr(intenable);
 
-	BUG_ON(intread & intenable &
+	_ON(intread & intenable &
 	       ~(XTENSA_INTLEVEL_ANDBELOW_MASK(PROFILING_INTLEVEL) ^
 		 XTENSA_INTLEVEL_MASK(PROFILING_INTLEVEL) ^
 		 BIT(XCHAL_PROFILING_INTERRUPT)));
@@ -334,14 +334,14 @@ do_unaligned_user (struct pt_regs *regs)
 }
 #endif
 
-/* Handle debug events.
+/* Handle de events.
  * When CONFIG_HAVE_HW_BREAKPOINT is on this handler is called with
  * preemption disabled to avoid rescheduling and keep mapping of hardware
- * breakpoint structures to debug registers intact, so that
- * DEBUGCAUSE.DBNUM could be used in case of data breakpoint hit.
+ * breakpoint structures to de registers intact, so that
+ * DECAUSE.DBNUM could be used in case of data breakpoint hit.
  */
 void
-do_debug(struct pt_regs *regs)
+do_de(struct pt_regs *regs)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	int ret = check_hw_breakpoint(regs);
@@ -383,13 +383,13 @@ static void trap_init_excsave(void)
 	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (excsave1));
 }
 
-static void trap_init_debug(void)
+static void trap_init_de(void)
 {
-	unsigned long debugsave = (unsigned long)this_cpu_ptr(&debug_table);
+	unsigned long desave = (unsigned long)this_cpu_ptr(&de_table);
 
-	this_cpu_ptr(&debug_table)->debug_exception = debug_exception;
-	__asm__ __volatile__("wsr %0, excsave" __stringify(XCHAL_DEBUGLEVEL)
-			     :: "a"(debugsave));
+	this_cpu_ptr(&de_table)->de_exception = de_exception;
+	__asm__ __volatile__("wsr %0, excsave" __stringify(XCHAL_DELEVEL)
+			     :: "a"(desave));
 }
 
 /*
@@ -434,14 +434,14 @@ void __init trap_init(void)
 
 	/* Initialize EXCSAVE_1 to hold the address of the exception table. */
 	trap_init_excsave();
-	trap_init_debug();
+	trap_init_de();
 }
 
 #ifdef CONFIG_SMP
 void secondary_trap_init(void)
 {
 	trap_init_excsave();
-	trap_init_debug();
+	trap_init_de();
 }
 #endif
 

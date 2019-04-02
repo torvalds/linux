@@ -256,7 +256,7 @@ static int clk_pxa27x_cpll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	int i;
 
-	pr_debug("%s(rate=%lu parent_rate=%lu)\n", __func__, rate, parent_rate);
+	pr_de("%s(rate=%lu parent_rate=%lu)\n", __func__, rate, parent_rate);
 	for (i = 0; i < ARRAY_SIZE(pxa27x_freqs); i++)
 		if (pxa27x_freqs[i].cpll == rate)
 			break;

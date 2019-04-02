@@ -171,7 +171,7 @@ enum iwl_power_flags {
  *			Minimum allowed:- 3 * DTIM. Keep alive period must be
  *			set regardless of power scheme or current power state.
  *			FW use this value also when PM is disabled.
- * @debug_flags:	debug flags
+ * @de_flags:	de flags
  * @rx_data_timeout:    Minimum time (usec) from last Rx packet for AM to
  *			PSM transition - legacy PM
  * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
@@ -187,7 +187,7 @@ struct iwl_powertable_cmd {
 	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
 	__le16 flags;
 	u8 keep_alive_seconds;
-	u8 debug_flags;
+	u8 de_flags;
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
@@ -471,7 +471,7 @@ struct iwl_geo_tx_power_profiles_resp {
  *      beacon filtering; beacons will not be forced to be sent to driver
  *      regardless of whether its temerature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
- * @bf_debug_flag: beacon filtering debug configuration
+ * @bf_de_flag: beacon filtering de configuration
  * @bf_escape_timer: Send beacons to to driver if no beacons were passed
  *      for a specific period of time. Units: Beacons.
  * @ba_escape_timer: Fully receive and parse beacon if no beacons were passed
@@ -493,7 +493,7 @@ struct iwl_beacon_filter_cmd {
 	__le32 bf_temp_fast_filter;
 	__le32 bf_temp_slow_filter;
 	__le32 bf_enable_beacon_filter;
-	__le32 bf_debug_flag;
+	__le32 bf_de_flag;
 	__le32 bf_escape_timer;
 	__le32 ba_escape_timer;
 	__le32 ba_enable_beacon_abort;
@@ -534,8 +534,8 @@ struct iwl_beacon_filter_cmd {
 
 #define IWL_BF_ENABLE_BEACON_FILTER_DEFAULT 1
 
-#define IWL_BF_DEBUG_FLAG_DEFAULT 0
-#define IWL_BF_DEBUG_FLAG_D0I3 0
+#define IWL_BF_DE_FLAG_DEFAULT 0
+#define IWL_BF_DE_FLAG_D0I3 0
 
 #define IWL_BF_ESCAPE_TIMER_DEFAULT 0
 #define IWL_BF_ESCAPE_TIMER_D0I3 0
@@ -558,7 +558,7 @@ struct iwl_beacon_filter_cmd {
 	.bf_temp_threshold = cpu_to_le32(IWL_BF_TEMP_THRESHOLD ## mode),      \
 	.bf_temp_fast_filter = cpu_to_le32(IWL_BF_TEMP_FAST_FILTER ## mode),  \
 	.bf_temp_slow_filter = cpu_to_le32(IWL_BF_TEMP_SLOW_FILTER ## mode),  \
-	.bf_debug_flag = cpu_to_le32(IWL_BF_DEBUG_FLAG ## mode),	      \
+	.bf_de_flag = cpu_to_le32(IWL_BF_DE_FLAG ## mode),	      \
 	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER ## mode),	      \
 	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER ## mode)
 

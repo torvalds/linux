@@ -34,7 +34,7 @@
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_platform.h>
@@ -47,7 +47,7 @@
 /* For automatically allocated device IDs */
 static DEFINE_IDA(platform_omap_ssi_ida);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int ssi_regs_show(struct seq_file *m, void *p __maybe_unused)
 {
 	struct hsi_controller *ssi = m->private;
@@ -120,38 +120,38 @@ static int ssi_gdd_regs_show(struct seq_file *m, void *p __maybe_unused)
 DEFINE_SHOW_ATTRIBUTE(ssi_regs);
 DEFINE_SHOW_ATTRIBUTE(ssi_gdd_regs);
 
-static int ssi_debug_add_ctrl(struct hsi_controller *ssi)
+static int ssi_de_add_ctrl(struct hsi_controller *ssi)
 {
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 	struct dentry *dir;
 
 	/* SSI controller */
-	omap_ssi->dir = debugfs_create_dir(dev_name(&ssi->device), NULL);
+	omap_ssi->dir = defs_create_dir(dev_name(&ssi->device), NULL);
 	if (!omap_ssi->dir)
 		return -ENOMEM;
 
-	debugfs_create_file("regs", S_IRUGO, omap_ssi->dir, ssi,
+	defs_create_file("regs", S_IRUGO, omap_ssi->dir, ssi,
 								&ssi_regs_fops);
 	/* SSI GDD (DMA) */
-	dir = debugfs_create_dir("gdd", omap_ssi->dir);
+	dir = defs_create_dir("gdd", omap_ssi->dir);
 	if (!dir)
 		goto rback;
-	debugfs_create_file("regs", S_IRUGO, dir, ssi, &ssi_gdd_regs_fops);
+	defs_create_file("regs", S_IRUGO, dir, ssi, &ssi_gdd_regs_fops);
 
 	return 0;
 rback:
-	debugfs_remove_recursive(omap_ssi->dir);
+	defs_remove_recursive(omap_ssi->dir);
 
 	return -ENOMEM;
 }
 
-static void ssi_debug_remove_ctrl(struct hsi_controller *ssi)
+static void ssi_de_remove_ctrl(struct hsi_controller *ssi)
 {
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 
-	debugfs_remove_recursive(omap_ssi->dir);
+	defs_remove_recursive(omap_ssi->dir);
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 /*
  * FIXME: Horrible HACK needed until we remove the useless wakeline test
@@ -525,8 +525,8 @@ static int ssi_probe(struct platform_device *pd)
 	err = ssi_hw_init(ssi);
 	if (err < 0)
 		goto out2;
-#ifdef CONFIG_DEBUG_FS
-	err = ssi_debug_add_ctrl(ssi);
+#ifdef CONFIG_DE_FS
+	err = ssi_de_add_ctrl(ssi);
 	if (err < 0)
 		goto out2;
 #endif
@@ -564,8 +564,8 @@ static int ssi_remove(struct platform_device *pd)
 	/* cleanup of of_platform_populate() call */
 	device_for_each_child(&pd->dev, NULL, ssi_remove_ports);
 
-#ifdef CONFIG_DEBUG_FS
-	ssi_debug_remove_ctrl(ssi);
+#ifdef CONFIG_DE_FS
+	ssi_de_remove_ctrl(ssi);
 #endif
 	ssi_remove_controller(ssi);
 	platform_set_drvdata(pd, NULL);

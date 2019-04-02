@@ -109,14 +109,14 @@ matter in practice all, since they don't cause security issues. But
 it is good to know this if testing the code e.g. with the test files
 from XZ Utils.
 
-Reporting bugs
+Reporting s
 ==============
 
-Before reporting a bug, please check that it's not fixed already
+Before reporting a , please check that it's not fixed already
 at upstream. See <http://tukaani.org/xz/embedded.html> to get the
 latest code.
 
-Report bugs to <lasse.collin@tukaani.org> or visit #tukaani on
+Report s to <lasse.collin@tukaani.org> or visit #tukaani on
 Freenode and talk to Larhzu. I don't actively read LKML or other
 kernel-related mailing lists, so if there's something I should know,
 you should email to me personally or use IRC.

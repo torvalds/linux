@@ -38,14 +38,14 @@ static void longrun_get_policy(struct cpufreq_policy *policy)
 	u32 msr_lo, msr_hi;
 
 	rdmsr(MSR_TMTA_LONGRUN_FLAGS, msr_lo, msr_hi);
-	pr_debug("longrun flags are %x - %x\n", msr_lo, msr_hi);
+	pr_de("longrun flags are %x - %x\n", msr_lo, msr_hi);
 	if (msr_lo & 0x01)
 		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 	else
 		policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
 	rdmsr(MSR_TMTA_LONGRUN_CTRL, msr_lo, msr_hi);
-	pr_debug("longrun ctrl is %x - %x\n", msr_lo, msr_hi);
+	pr_de("longrun ctrl is %x - %x\n", msr_lo, msr_hi);
 	msr_lo &= 0x0000007F;
 	msr_hi &= 0x0000007F;
 
@@ -146,7 +146,7 @@ static unsigned int longrun_get(unsigned int cpu)
 		return 0;
 
 	cpuid(0x80860007, &eax, &ebx, &ecx, &edx);
-	pr_debug("cpuid eax is %u\n", eax);
+	pr_de("cpuid eax is %u\n", eax);
 
 	return eax * 1000;
 }
@@ -192,7 +192,7 @@ static int longrun_determine_freqs(unsigned int *low_freq,
 		rdmsr(MSR_TMTA_LRTI_VOLT_MHZ, msr_lo, msr_hi);
 		*high_freq = msr_lo * 1000; /* to kHz */
 
-		pr_debug("longrun table interface told %u - %u kHz\n",
+		pr_de("longrun table interface told %u - %u kHz\n",
 				*low_freq, *high_freq);
 
 		if (*low_freq > *high_freq)
@@ -203,7 +203,7 @@ static int longrun_determine_freqs(unsigned int *low_freq,
 	/* set the upper border to the value determined during TSC init */
 	*high_freq = (cpu_khz / 1000);
 	*high_freq = *high_freq * 1000;
-	pr_debug("high frequency is %u kHz\n", *high_freq);
+	pr_de("high frequency is %u kHz\n", *high_freq);
 
 	/* get current borders */
 	rdmsr(MSR_TMTA_LONGRUN_CTRL, msr_lo, msr_hi);
@@ -229,7 +229,7 @@ static int longrun_determine_freqs(unsigned int *low_freq,
 		/* restore values */
 		wrmsr(MSR_TMTA_LONGRUN_CTRL, save_lo, save_hi);
 	}
-	pr_debug("percentage is %u %%, freq is %u MHz\n", ecx, eax);
+	pr_de("percentage is %u %%, freq is %u MHz\n", ecx, eax);
 
 	/* performance_pctg = (current_freq - low_freq)/(high_freq - low_freq)
 	 * eqals
@@ -245,7 +245,7 @@ static int longrun_determine_freqs(unsigned int *low_freq,
 	edx = ((eax - ebx) * 100) / (100 - ecx);
 	*low_freq = edx * 1000; /* back to kHz */
 
-	pr_debug("low frequency is %u kHz\n", *low_freq);
+	pr_de("low frequency is %u kHz\n", *low_freq);
 
 	if (*low_freq > *high_freq)
 		*low_freq = *high_freq;

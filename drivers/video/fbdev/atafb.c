@@ -15,7 +15,7 @@
  *                based on the original TT driver.
  *   - 07 May 95: Martin: Added colormap operations for the external driver
  *   - 21 May 95: Martin: Added support for overscan
- *		  Andreas: some bug fixes for this
+ *		  Andreas: some  fixes for this
  *   -    Jul 95: Guenther Kelleter <guenther@pool.informatik.rwth-aachen.de>:
  *                Programmable Falcon video modes
  *                (thanks to Christian Cartus for documentation
@@ -1042,7 +1042,7 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 	else if (yres_virtual < yres)
 		yres_virtual = yres;
 
-	/* backward bug-compatibility */
+	/* backward -compatibility */
 	if (var->pixclock > 1)
 		var->pixclock -= 1;
 

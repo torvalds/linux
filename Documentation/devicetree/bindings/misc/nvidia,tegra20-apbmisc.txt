@@ -6,7 +6,7 @@ Required properties:
   "nvidia,<chip>-apbmisc", plus one of the above, where <chip> is tegra114,
   tegra124, tegra132.
 - reg: Should contain 2 entries: the first entry gives the physical address
-       and length of the registers which contain revision and debug features.
+       and length of the registers which contain revision and de features.
        The second entry gives the physical address and length of the
        registers indicating the strapping options.
 

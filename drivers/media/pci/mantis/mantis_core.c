@@ -144,12 +144,12 @@ int mantis_core_init(struct mantis_pci *mantis)
 	}
 	err = mantis_dvb_init(mantis);
 	if (err < 0) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis DVB init failed");
+		dprintk(verbose, MANTIS_DE, 1, "Mantis DVB init failed");
 		return err;
 	}
 	err = mantis_uart_init(mantis);
 	if (err < 0) {
-		dprintk(verbose, MANTIS_DEBUG, 1, "Mantis UART init failed");
+		dprintk(verbose, MANTIS_DE, 1, "Mantis UART init failed");
 		return err;
 	}
 
@@ -196,7 +196,7 @@ void mantis_set_direction(struct mantis_pci *mantis, int direction)
 	u32 reg;
 
 	reg = mmread(0x28);
-	dprintk(verbose, MANTIS_DEBUG, 1, "TS direction setup");
+	dprintk(verbose, MANTIS_DE, 1, "TS direction setup");
 	if (direction == 0x01) {
 		/* to CI */
 		reg |= 0x04;

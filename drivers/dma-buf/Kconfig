@@ -21,14 +21,14 @@ config SW_SYNC
 	bool "Sync File Validation Framework"
 	default n
 	depends on SYNC_FILE
-	depends on DEBUG_FS
+	depends on DE_FS
 	---help---
 	  A sync object driver that uses a 32bit counter to coordinate
 	  synchronization.  Useful when there is no hardware primitive backing
 	  the synchronization.
 
 	  WARNING: improper use of this can result in deadlocking kernel
-	  drivers from userspace. Intended for test and debug only.
+	  drivers from userspace. Intended for test and de only.
 
 config UDMABUF
 	bool "userspace dmabuf misc driver"

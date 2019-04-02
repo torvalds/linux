@@ -32,7 +32,7 @@
  *	occurs, the driver will usually tell the hardware watchdog
  *	that everything is in order, and that the watchdog should wait
  *	for yet another little while to reset the system.
- *	If userspace fails (RAM error, kernel bug, whatever), the
+ *	If userspace fails (RAM error, kernel , whatever), the
  *	notifications cease to occur, and the hardware watchdog will
  *	reset the system (causing a reboot) after the timeout occurs.
  *

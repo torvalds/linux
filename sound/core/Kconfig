@@ -151,28 +151,28 @@ config SND_VERBOSE_PRINTK
 	  will help to identify source file and position containing
 	  printed messages.
 
-	  You don't need this unless you're debugging ALSA.
+	  You don't need this unless you're deging ALSA.
 
-config SND_DEBUG
-	bool "Debug"
+config SND_DE
+	bool "De"
 	help
-	  Say Y here to enable ALSA debug code.
+	  Say Y here to enable ALSA de code.
 
-config SND_DEBUG_VERBOSE
-	bool "More verbose debug"
-	depends on SND_DEBUG
+config SND_DE_VERBOSE
+	bool "More verbose de"
+	depends on SND_DE
 	help
-	  Say Y here to enable extra-verbose debugging messages.
+	  Say Y here to enable extra-verbose deging messages.
 	  
-	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
+	  Let me repeat: it enables EXTRA-VERBOSE DEGING messages.
 	  So, say Y only if you are ready to be annoyed.
 
-config SND_PCM_XRUN_DEBUG
-	bool "Enable PCM ring buffer overrun/underrun debugging"
+config SND_PCM_XRUN_DE
+	bool "Enable PCM ring buffer overrun/underrun deging"
 	default n
-	depends on SND_DEBUG && SND_VERBOSE_PROCFS
+	depends on SND_DE && SND_VERBOSE_PROCFS
 	help
-	  Say Y to enable the PCM ring buffer overrun/underrun debugging.
+	  Say Y to enable the PCM ring buffer overrun/underrun deging.
 	  It is usually not required, but if you have trouble with
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.

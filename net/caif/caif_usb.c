@@ -109,7 +109,7 @@ static struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
 	ether_addr_copy(&this->tx_eth_hdr[ETH_ALEN], ethaddr);
 	this->tx_eth_hdr[12] = cpu_to_be16(ETH_P_802_EX1) & 0xff;
 	this->tx_eth_hdr[13] = (cpu_to_be16(ETH_P_802_EX1) >> 8) & 0xff;
-	pr_debug("caif ethernet TX-header dst:%pM src:%pM type:%02x%02x\n",
+	pr_de("caif ethernet TX-header dst:%pM src:%pM type:%02x%02x\n",
 			this->tx_eth_hdr, this->tx_eth_hdr + ETH_ALEN,
 			this->tx_eth_hdr[12], this->tx_eth_hdr[13]);
 
@@ -137,7 +137,7 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 	usbnet = netdev_priv(dev);
 	usbdev = usbnet->udev;
 
-	pr_debug("USB CDC NCM device VID:0x%4x PID:0x%4x\n",
+	pr_de("USB CDC NCM device VID:0x%4x PID:0x%4x\n",
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct));
 

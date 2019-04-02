@@ -25,16 +25,16 @@
 #include <asm/macints.h>
 #include <asm/mac_psc.h>
 
-#define DEBUG_PSC
+#define DE_PSC
 
 volatile __u8 *psc;
 EXPORT_SYMBOL_GPL(psc);
 
 /*
- * Debugging dump, used in various places to see what's going on.
+ * Deging dump, used in various places to see what's going on.
  */
 
-static void psc_debug_dump(void)
+static void psc_de_dump(void)
 {
 	int	i;
 
@@ -42,7 +42,7 @@ static void psc_debug_dump(void)
 		return;
 
 	for (i = 0x30 ; i < 0x70 ; i += 0x10) {
-		printk(KERN_DEBUG "PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
+		printk(KERN_DE "PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
 			i >> 4,
 			(int) psc_read_byte(pIFRbase + i),
 			(int) psc_read_byte(pIERbase + i));
@@ -90,12 +90,12 @@ void __init psc_init(void)
 
 	psc = (void *) PSC_BASE;
 
-	pr_debug("PSC detected at %p\n", psc);
+	pr_de("PSC detected at %p\n", psc);
 
 	psc_dma_die_die_die();
 
-#ifdef DEBUG_PSC
-	psc_debug_dump();
+#ifdef DE_PSC
+	psc_de_dump();
 #endif
 	/*
 	 * Mask and clear all possible interrupts

@@ -7,17 +7,17 @@
  * the Free Software Foundation.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include "bnxt_hsi.h"
 #include <linux/net_dim.h>
 #include "bnxt.h"
-#include "bnxt_debugfs.h"
+#include "bnxt_defs.h"
 
-static struct dentry *bnxt_debug_mnt;
+static struct dentry *bnxt_de_mnt;
 
-static ssize_t debugfs_dim_read(struct file *filep,
+static ssize_t defs_dim_read(struct file *filep,
 				char __user *buffer,
 				size_t count, loff_t *ppos)
 {
@@ -55,70 +55,70 @@ static ssize_t debugfs_dim_read(struct file *filep,
 	return len;
 }
 
-static const struct file_operations debugfs_dim_fops = {
+static const struct file_operations defs_dim_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = debugfs_dim_read,
+	.read = defs_dim_read,
 };
 
-static struct dentry *debugfs_dim_ring_init(struct net_dim *dim, int ring_idx,
+static struct dentry *defs_dim_ring_init(struct net_dim *dim, int ring_idx,
 					    struct dentry *dd)
 {
 	static char qname[16];
 
 	snprintf(qname, 10, "%d", ring_idx);
-	return debugfs_create_file(qname, 0600, dd,
-				   dim, &debugfs_dim_fops);
+	return defs_create_file(qname, 0600, dd,
+				   dim, &defs_dim_fops);
 }
 
-void bnxt_debug_dev_init(struct bnxt *bp)
+void bnxt_de_dev_init(struct bnxt *bp)
 {
 	const char *pname = pci_name(bp->pdev);
 	struct dentry *pdevf;
 	int i;
 
-	bp->debugfs_pdev = debugfs_create_dir(pname, bnxt_debug_mnt);
-	if (bp->debugfs_pdev) {
-		pdevf = debugfs_create_dir("dim", bp->debugfs_pdev);
+	bp->defs_pdev = defs_create_dir(pname, bnxt_de_mnt);
+	if (bp->defs_pdev) {
+		pdevf = defs_create_dir("dim", bp->defs_pdev);
 		if (!pdevf) {
-			pr_err("failed to create debugfs entry %s/dim\n",
+			pr_err("failed to create defs entry %s/dim\n",
 			       pname);
 			return;
 		}
-		bp->debugfs_dim = pdevf;
+		bp->defs_dim = pdevf;
 		/* create files for each rx ring */
 		for (i = 0; i < bp->cp_nr_rings; i++) {
 			struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
 
 			if (cpr && bp->bnapi[i]->rx_ring) {
-				pdevf = debugfs_dim_ring_init(&cpr->dim, i,
-							      bp->debugfs_dim);
+				pdevf = defs_dim_ring_init(&cpr->dim, i,
+							      bp->defs_dim);
 				if (!pdevf)
-					pr_err("failed to create debugfs entry %s/dim/%d\n",
+					pr_err("failed to create defs entry %s/dim/%d\n",
 					       pname, i);
 			}
 		}
 	} else {
-		pr_err("failed to create debugfs entry %s\n", pname);
+		pr_err("failed to create defs entry %s\n", pname);
 	}
 }
 
-void bnxt_debug_dev_exit(struct bnxt *bp)
+void bnxt_de_dev_exit(struct bnxt *bp)
 {
 	if (bp) {
-		debugfs_remove_recursive(bp->debugfs_pdev);
-		bp->debugfs_pdev = NULL;
+		defs_remove_recursive(bp->defs_pdev);
+		bp->defs_pdev = NULL;
 	}
 }
 
-void bnxt_debug_init(void)
+void bnxt_de_init(void)
 {
-	bnxt_debug_mnt = debugfs_create_dir("bnxt_en", NULL);
-	if (!bnxt_debug_mnt)
-		pr_err("failed to init bnxt_en debugfs\n");
+	bnxt_de_mnt = defs_create_dir("bnxt_en", NULL);
+	if (!bnxt_de_mnt)
+		pr_err("failed to init bnxt_en defs\n");
 }
 
-void bnxt_debug_exit(void)
+void bnxt_de_exit(void)
 {
-	debugfs_remove_recursive(bnxt_debug_mnt);
+	defs_remove_recursive(bnxt_de_mnt);
 }

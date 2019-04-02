@@ -150,7 +150,7 @@ enum cmd_mode {
 
 #define ROUNDUP64(a) (((a) + 63) & ~63)
 
-#ifdef DEBUG_USB
+#ifdef DE_USB
 static void dbprint_urb(struct urb *urb);
 #endif
 
@@ -288,26 +288,26 @@ static inline struct hfa384x_usbctlx *get_active_ctlx(struct hfa384x *hw)
 	return list_entry(hw->ctlxq.active.next, struct hfa384x_usbctlx, list);
 }
 
-#ifdef DEBUG_USB
+#ifdef DE_USB
 void dbprint_urb(struct urb *urb)
 {
-	pr_debug("urb->pipe=0x%08x\n", urb->pipe);
-	pr_debug("urb->status=0x%08x\n", urb->status);
-	pr_debug("urb->transfer_flags=0x%08x\n", urb->transfer_flags);
-	pr_debug("urb->transfer_buffer=0x%08x\n",
+	pr_de("urb->pipe=0x%08x\n", urb->pipe);
+	pr_de("urb->status=0x%08x\n", urb->status);
+	pr_de("urb->transfer_flags=0x%08x\n", urb->transfer_flags);
+	pr_de("urb->transfer_buffer=0x%08x\n",
 		 (unsigned int)urb->transfer_buffer);
-	pr_debug("urb->transfer_buffer_length=0x%08x\n",
+	pr_de("urb->transfer_buffer_length=0x%08x\n",
 		 urb->transfer_buffer_length);
-	pr_debug("urb->actual_length=0x%08x\n", urb->actual_length);
-	pr_debug("urb->bandwidth=0x%08x\n", urb->bandwidth);
-	pr_debug("urb->setup_packet(ctl)=0x%08x\n",
+	pr_de("urb->actual_length=0x%08x\n", urb->actual_length);
+	pr_de("urb->bandwidth=0x%08x\n", urb->bandwidth);
+	pr_de("urb->setup_packet(ctl)=0x%08x\n",
 		 (unsigned int)urb->setup_packet);
-	pr_debug("urb->start_frame(iso/irq)=0x%08x\n", urb->start_frame);
-	pr_debug("urb->interval(irq)=0x%08x\n", urb->interval);
-	pr_debug("urb->error_count(iso)=0x%08x\n", urb->error_count);
-	pr_debug("urb->timeout=0x%08x\n", urb->timeout);
-	pr_debug("urb->context=0x%08x\n", (unsigned int)urb->context);
-	pr_debug("urb->complete=0x%08x\n", (unsigned int)urb->complete);
+	pr_de("urb->start_frame(iso/irq)=0x%08x\n", urb->start_frame);
+	pr_de("urb->interval(irq)=0x%08x\n", urb->interval);
+	pr_de("urb->error_count(iso)=0x%08x\n", urb->error_count);
+	pr_de("urb->timeout=0x%08x\n", urb->timeout);
+	pr_de("urb->context=0x%08x\n", (unsigned int)urb->context);
+	pr_de("urb->complete=0x%08x\n", (unsigned int)urb->complete);
 }
 #endif
 
@@ -636,7 +636,7 @@ usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
 	result->resp1 = le16_to_cpu(cmdresp->resp1);
 	result->resp2 = le16_to_cpu(cmdresp->resp2);
 
-	pr_debug("cmdresult:status=0x%04x resp0=0x%04x resp1=0x%04x resp2=0x%04x\n",
+	pr_de("cmdresult:status=0x%04x resp0=0x%04x resp1=0x%04x resp2=0x%04x\n",
 		 result->status, result->resp0, result->resp1, result->resp2);
 
 	return result->status & HFA384x_STATUS_RESULT;
@@ -762,7 +762,7 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 	struct usbctlx_rmem_completor *complete =
 		(struct usbctlx_rmem_completor *)head;
 
-	pr_debug("rmemresp:len=%d\n", complete->rmemresp->frmlen);
+	pr_de("rmemresp:len=%d\n", complete->rmemresp->frmlen);
 	memcpy(complete->data, complete->rmemresp->data, complete->len);
 	return 0;
 }
@@ -946,7 +946,7 @@ int hfa384x_cmd_initialize(struct hfa384x *hw)
 
 	result = hfa384x_docmd_wait(hw, &cmd);
 
-	pr_debug("cmdresp.init: status=0x%04x, resp0=0x%04x, resp1=0x%04x, resp2=0x%04x\n",
+	pr_de("cmdresp.init: status=0x%04x, resp0=0x%04x, resp1=0x%04x, resp2=0x%04x\n",
 		 cmd.result.status,
 		 cmd.result.resp0, cmd.result.resp1, cmd.result.resp2);
 	if (result == 0) {
@@ -1038,7 +1038,7 @@ int hfa384x_cmd_enable(struct hfa384x *hw, u16 macport)
  *  MPDUs are passed to the host with MAC Port = 7, with a
  *  receive status of good, FCS error, or undecryptable. Passing
  *  certain MPDUs is a violation of the 802.11 standard, but useful
- *  for a debugging tool."  Normal communication is not possible
+ *  for a deging tool."  Normal communication is not possible
  *  while monitor mode is enabled.
  *
  * Arguments:
@@ -1114,7 +1114,7 @@ int hfa384x_cmd_download(struct hfa384x *hw, u16 mode, u16 lowaddr,
 {
 	struct hfa384x_metacmd cmd;
 
-	pr_debug("mode=%d, lowaddr=0x%04x, highaddr=0x%04x, codelen=%d\n",
+	pr_de("mode=%d, lowaddr=0x%04x, highaddr=0x%04x, codelen=%d\n",
 		 mode, lowaddr, highaddr, codelen);
 
 	cmd.cmd = (HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_DOWNLD) |
@@ -1330,7 +1330,7 @@ hfa384x_docmd(struct hfa384x *hw,
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.cmdreq);
 
-	pr_debug("cmdreq: cmd=0x%04x parm0=0x%04x parm1=0x%04x parm2=0x%04x\n",
+	pr_de("cmdreq: cmd=0x%04x parm0=0x%04x parm1=0x%04x parm2=0x%04x\n",
 		 cmd->cmd, cmd->parm0, cmd->parm1, cmd->parm2);
 
 	ctlx->reapable = mode;
@@ -1591,12 +1591,12 @@ hfa384x_dormem(struct hfa384x *hw,
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.rmemreq);
 
-	pr_debug("type=0x%04x frmlen=%d offset=0x%04x page=0x%04x\n",
+	pr_de("type=0x%04x frmlen=%d offset=0x%04x page=0x%04x\n",
 		 ctlx->outbuf.rmemreq.type,
 		 ctlx->outbuf.rmemreq.frmlen,
 		 ctlx->outbuf.rmemreq.offset, ctlx->outbuf.rmemreq.page);
 
-	pr_debug("pktsize=%zd\n", ROUNDUP64(sizeof(ctlx->outbuf.rmemreq)));
+	pr_de("pktsize=%zd\n", ROUNDUP64(sizeof(ctlx->outbuf.rmemreq)));
 
 	ctlx->reapable = mode;
 	ctlx->cmdcb = cmdcb;
@@ -1667,7 +1667,7 @@ hfa384x_dowmem(struct hfa384x *hw,
 	int result;
 	struct hfa384x_usbctlx *ctlx;
 
-	pr_debug("page=0x%04x offset=0x%04x len=%d\n", page, offset, len);
+	pr_de("page=0x%04x offset=0x%04x len=%d\n", page, offset, len);
 
 	ctlx = usbctlx_alloc();
 	if (!ctlx) {
@@ -1821,7 +1821,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 	/* Check that a port isn't active */
 	for (i = 0; i < HFA384x_PORTID_MAX; i++) {
 		if (hw->port_enabled[i]) {
-			pr_debug("called when port enabled.\n");
+			pr_de("called when port enabled.\n");
 			return -EINVAL;
 		}
 	}
@@ -1846,7 +1846,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 
 	le16_to_cpus(&hw->dltimeout);
 
-	pr_debug("flashdl_enable\n");
+	pr_de("flashdl_enable\n");
 
 	hw->dlstate = HFA384x_DLSTATE_FLASHENABLED;
 
@@ -1879,7 +1879,7 @@ int hfa384x_drvr_flashdl_disable(struct hfa384x *hw)
 	if (hw->dlstate != HFA384x_DLSTATE_FLASHENABLED)
 		return -EINVAL;
 
-	pr_debug("flashdl_enable\n");
+	pr_de("flashdl_enable\n");
 
 	/* There isn't much we can do at this point, so I don't */
 	/*  bother  w/ the return value */
@@ -1937,7 +1937,7 @@ int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr,
 	int i;
 	int j;
 
-	pr_debug("daddr=0x%08x len=%d\n", daddr, len);
+	pr_de("daddr=0x%08x len=%d\n", daddr, len);
 
 	/* Check that we're in the flash download state */
 	if (hw->dlstate != HFA384x_DLSTATE_FLASHENABLED)
@@ -1950,7 +1950,7 @@ int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr,
 	/* NOTE: dlbuffer RID stores the address in AUX format */
 	dlbufaddr =
 	    HFA384x_ADDR_AUX_MKFLAT(hw->bufinfo.page, hw->bufinfo.offset);
-	pr_debug("dlbuf.page=0x%04x dlbuf.offset=0x%04x dlbufaddr=0x%08x\n",
+	pr_de("dlbuf.page=0x%04x dlbuf.offset=0x%04x dlbufaddr=0x%08x\n",
 		 hw->bufinfo.page, hw->bufinfo.offset, dlbufaddr);
 	/* Calculations to determine how many fills of the dlbuffer to do
 	 * and how many USB wmemreq's to do for each fill.  At this point
@@ -2123,7 +2123,7 @@ int hfa384x_drvr_ramdl_disable(struct hfa384x *hw)
 	if (hw->dlstate != HFA384x_DLSTATE_RAMENABLED)
 		return -EINVAL;
 
-	pr_debug("ramdl_disable()\n");
+	pr_de("ramdl_disable()\n");
 
 	/* There isn't much we can do at this point, so I don't */
 	/*  bother  w/ the return value */
@@ -2181,7 +2181,7 @@ int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 		return -EINVAL;
 	}
 
-	pr_debug("ramdl_enable, exeaddr=0x%08x\n", exeaddr);
+	pr_de("ramdl_enable, exeaddr=0x%08x\n", exeaddr);
 
 	/* Call the download(1,addr) function */
 	lowaddr = HFA384x_ADDR_CMD_MKOFF(exeaddr);
@@ -2194,7 +2194,7 @@ int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 		/* Set the download state */
 		hw->dlstate = HFA384x_DLSTATE_RAMENABLED;
 	} else {
-		pr_debug("cmd_download(0x%04x, 0x%04x) failed, result=%d.\n",
+		pr_de("cmd_download(0x%04x, 0x%04x) failed, result=%d.\n",
 			 lowaddr, hiaddr, result);
 	}
 
@@ -2393,7 +2393,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 	result = pdaok ? 0 : -ENODATA;
 
 	if (result)
-		pr_debug("Failure: pda is not okay\n");
+		pr_de("Failure: pda is not okay\n");
 
 	return result;
 }
@@ -2511,9 +2511,9 @@ int hfa384x_drvr_start(struct hfa384x *hw)
 			usb_kill_urb(&hw->rx_urb);
 			goto done;
 		} else {
-			pr_debug("First cmd_initialize() failed (result %d),\n",
+			pr_de("First cmd_initialize() failed (result %d),\n",
 				 result1);
-			pr_debug("but second attempt succeeded. All should be ok\n");
+			pr_de("but second attempt succeeded. All should be ok\n");
 		}
 	} else if (result2 != 0) {
 		netdev_warn(hw->wlandev->netdev, "First cmd_initialize() succeeded, but second attempt failed (result=%d)\n",
@@ -3101,18 +3101,18 @@ static void hfa384x_usbin_callback(struct urb *urb)
 
 	case -ENODEV:
 	case -ESHUTDOWN:
-		pr_debug("status=%d, device removed.\n", urb->status);
+		pr_de("status=%d, device removed.\n", urb->status);
 		action = ABORT;
 		break;
 
 	case -ENOENT:
 	case -ECONNRESET:
-		pr_debug("status=%d, urb explicitly unlinked.\n", urb->status);
+		pr_de("status=%d, urb explicitly unlinked.\n", urb->status);
 		action = ABORT;
 		break;
 
 	default:
-		pr_debug("urb status=%d, transfer flags=0x%x\n",
+		pr_de("urb status=%d, transfer flags=0x%x\n",
 			 urb->status, urb->transfer_flags);
 		wlandev->netdev->stats.rx_errors++;
 		action = RESUBMIT;
@@ -3173,17 +3173,17 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		break;
 
 	case HFA384x_USB_BUFAVAIL:
-		pr_debug("Received BUFAVAIL packet, frmlen=%d\n",
+		pr_de("Received BUFAVAIL packet, frmlen=%d\n",
 			 usbin->bufavail.frmlen);
 		break;
 
 	case HFA384x_USB_ERROR:
-		pr_debug("Received USB_ERROR packet, errortype=%d\n",
+		pr_de("Received USB_ERROR packet, errortype=%d\n",
 			 usbin->usberror.errortype);
 		break;
 
 	default:
-		pr_debug("Unrecognized USBIN packet, type=%x, status=%d\n",
+		pr_de("Unrecognized USBIN packet, type=%x, status=%d\n",
 			 usbin->type, urb_status);
 		break;
 	}			/* switch */
@@ -3281,7 +3281,7 @@ retry:
 			 * our request has been acknowledged. Odd,
 			 * but our OUT URB is still alive...
 			 */
-			pr_debug("Causality violation: please reboot Universe\n");
+			pr_de("Causality violation: please reboot Universe\n");
 			ctlx->state = CTLX_RESP_COMPLETE;
 			break;
 
@@ -3433,7 +3433,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 			hfa384x_int_rxmonitor(wlandev, &usbin->rxfrm);
 			dev_kfree_skb(skb);
 		} else {
-			pr_debug("Received monitor frame: FCSerr set\n");
+			pr_de("Received monitor frame: FCSerr set\n");
 		}
 		break;
 
@@ -3491,7 +3491,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	if (skblen >
 	    (sizeof(struct p80211_caphdr) +
 	     WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)) {
-		pr_debug("overlen frm: len=%zd\n",
+		pr_de("overlen frm: len=%zd\n",
 			 skblen - sizeof(struct p80211_caphdr));
 	}
 
@@ -3595,7 +3595,7 @@ static void hfa384x_usbout_callback(struct urb *urb)
 {
 	struct wlandevice *wlandev = urb->context;
 
-#ifdef DEBUG_USB
+#ifdef DE_USB
 	dbprint_urb(urb);
 #endif
 
@@ -3672,8 +3672,8 @@ static void hfa384x_ctlxout_callback(struct urb *urb)
 	struct hfa384x_usbctlx *ctlx;
 	unsigned long flags;
 
-	pr_debug("urb->status=%d\n", urb->status);
-#ifdef DEBUG_USB
+	pr_de("urb->status=%d\n", urb->status);
+#ifdef DE_USB
 	dbprint_urb(urb);
 #endif
 	if ((urb->status == -ESHUTDOWN) ||
@@ -3905,7 +3905,7 @@ static void hfa384x_usb_throttlefn(struct timer_list *t)
 	 * We need to check BOTH the RX and the TX throttle controls,
 	 * so we use the bitwise OR instead of the logical OR.
 	 */
-	pr_debug("flags=0x%lx\n", hw->usb_flags);
+	pr_de("flags=0x%lx\n", hw->usb_flags);
 	if (!hw->wlandev->hwremoved &&
 	    ((test_and_clear_bit(THROTTLE_RX, &hw->usb_flags) &&
 	      !test_and_set_bit(WORK_RX_RESUME, &hw->usb_flags)) |
@@ -4011,14 +4011,14 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 	default:
 		if (pdrcode < 0x1000) {
 			/* code is OK, but we don't know exactly what it is */
-			pr_debug("Encountered unknown PDR#=0x%04x, assuming it's ok.\n",
+			pr_de("Encountered unknown PDR#=0x%04x, assuming it's ok.\n",
 				 pdrcode);
 			return 1;
 		}
 		break;
 	}
 	/* bad code */
-	pr_debug("Encountered unknown PDR#=0x%04x, (>=0x1000), assuming it's bad.\n",
+	pr_de("Encountered unknown PDR#=0x%04x, (>=0x1000), assuming it's bad.\n",
 		 pdrcode);
 	return 0;
 }

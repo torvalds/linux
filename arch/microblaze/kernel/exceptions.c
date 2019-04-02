@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kallsyms.h>
 
 #include <asm/exceptions.h>
@@ -50,7 +50,7 @@ void die(const char *str, struct pt_regs *fp, long err)
 	do_exit(err);
 }
 
-/* for user application debugging */
+/* for user application deging */
 asmlinkage void sw_exception(struct pt_regs *regs)
 {
 	_exception(SIGTRAP, regs, TRAP_BRKPT, regs->r16);
@@ -82,7 +82,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 	switch (type & 0x1F) {
 	case MICROBLAZE_ILL_OPCODE_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug("Illegal opcode exception in user mode\n");
+			pr_de("Illegal opcode exception in user mode\n");
 			_exception(SIGILL, regs, ILL_ILLOPC, addr);
 			return;
 		}
@@ -91,7 +91,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		break;
 	case MICROBLAZE_IBUS_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug("Instruction bus error exception in user mode\n");
+			pr_de("Instruction bus error exception in user mode\n");
 			_exception(SIGBUS, regs, BUS_ADRERR, addr);
 			return;
 		}
@@ -100,7 +100,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		break;
 	case MICROBLAZE_DBUS_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug("Data bus error exception in user mode\n");
+			pr_de("Data bus error exception in user mode\n");
 			_exception(SIGBUS, regs, BUS_ADRERR, addr);
 			return;
 		}
@@ -109,7 +109,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		break;
 	case MICROBLAZE_DIV_ZERO_EXCEPTION:
 		if (user_mode(regs)) {
-			pr_debug("Divide by zero exception in user mode\n");
+			pr_de("Divide by zero exception in user mode\n");
 			_exception(SIGFPE, regs, FPE_INTDIV, addr);
 			return;
 		}
@@ -117,7 +117,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 		die("Divide by zero exception", regs, SIGBUS);
 		break;
 	case MICROBLAZE_FPU_EXCEPTION:
-		pr_debug("FPU exception\n");
+		pr_de("FPU exception\n");
 		/* IEEE FP exception */
 		/* I removed fsr variable and use code var for storing fsr */
 		if (fsr & FSR_IO)
@@ -135,7 +135,7 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 
 #ifdef CONFIG_MMU
 	case MICROBLAZE_PRIVILEGED_EXCEPTION:
-		pr_debug("Privileged exception\n");
+		pr_de("Privileged exception\n");
 		_exception(SIGILL, regs, ILL_PRVOPC, addr);
 		break;
 #endif

@@ -30,8 +30,8 @@
 #include "m5mols.h"
 #include "m5mols_reg.h"
 
-int m5mols_debug;
-module_param(m5mols_debug, int, 0644);
+int m5mols_de;
+module_param(m5mols_de, int, 0644);
 
 #define MODULE_NAME		"M5MOLS"
 #define M5MOLS_I2C_CHECK_RETRY	500
@@ -90,7 +90,7 @@ static const struct m5mols_resolution m5mols_reg_res[] = {
 	{ 0x21, M5MOLS_RESTYPE_MONITOR, 1280, 720 },	/* HD */
 	{ 0x25, M5MOLS_RESTYPE_MONITOR, 1920, 1080 },	/* 1080p */
 	{ 0x29, M5MOLS_RESTYPE_MONITOR, 3264, 2448 },	/* 2.63fps 8M */
-	{ 0x39, M5MOLS_RESTYPE_MONITOR, 800, 602 },	/* AHS_MON debug */
+	{ 0x39, M5MOLS_RESTYPE_MONITOR, 800, 602 },	/* AHS_MON de */
 
 	{ 0x02, M5MOLS_RESTYPE_CAPTURE, 320, 240 },	/* QVGA */
 	{ 0x04, M5MOLS_RESTYPE_CAPTURE, 400, 240 },	/* WQVGA */
@@ -832,7 +832,7 @@ static int m5mols_fw_start(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	v4l2_dbg(1, m5mols_debug, sd, "Success ARM Booting\n");
+	v4l2_dbg(1, m5mols_de, sd, "Success ARM Booting\n");
 
 	ret = m5mols_write(sd, PARM_INTERFACE, REG_INTERFACE_MIPI);
 	if (!ret)

@@ -127,7 +127,7 @@ static __inline__ void enable_dma(unsigned int dmanr)
 {
   volatile unsigned short *dmawp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("enable_dma(dmanr=%d)\n", dmanr);
 #endif
 
@@ -140,7 +140,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
   volatile unsigned short *dmawp;
   volatile unsigned char  *dmapb;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("disable_dma(dmanr=%d)\n", dmanr);
 #endif
 
@@ -173,7 +173,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
   volatile unsigned char  *dmabp;
   volatile unsigned short *dmawp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_mode(dmanr=%d,mode=%d)\n", dmanr, mode);
 #endif
 
@@ -202,7 +202,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
      ((mode & DMA_MODE_LONG_BIT) ? MCFDMA_DCR_DSIZE_LONG :
                                    MCFDMA_DCR_DSIZE_BYTE));
 
-#ifdef DEBUG_DMA
+#ifdef DE_DMA
   printk("%s(%d): dmanr=%d DSR[%x]=%x DCR[%x]=%x\n", __FILE__, __LINE__,
          dmanr, (int) &dmabp[MCFDMA_DSR], dmabp[MCFDMA_DSR],
 	 (int) &dmawp[MCFDMA_DCR], dmawp[MCFDMA_DCR]);
@@ -215,7 +215,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
   volatile unsigned short *dmawp;
   volatile unsigned int   *dmalp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_addr(dmanr=%d,a=%x)\n", dmanr, a);
 #endif
 
@@ -235,7 +235,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
     dmalp[MCFDMA_SAR] = dma_device_address[dmanr];
   }
 
-#ifdef DEBUG_DMA
+#ifdef DE_DMA
   printk("%s(%d): dmanr=%d DCR[%x]=%x SAR[%x]=%08x DAR[%x]=%08x\n",
 	__FILE__, __LINE__, dmanr, (int) &dmawp[MCFDMA_DCR], dmawp[MCFDMA_DCR],
 	(int) &dmalp[MCFDMA_SAR], dmalp[MCFDMA_SAR],
@@ -249,7 +249,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
  */
 static __inline__ void set_dma_device_addr(unsigned int dmanr, unsigned int a)
 {
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_device_addr(dmanr=%d,a=%x)\n", dmanr, a);
 #endif
 
@@ -263,7 +263,7 @@ static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 {
   volatile unsigned short *dmawp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_count(dmanr=%d,count=%d)\n", dmanr, count);
 #endif
 
@@ -282,7 +282,7 @@ static __inline__ int get_dma_residue(unsigned int dmanr)
   volatile unsigned short *dmawp;
   unsigned short count;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("get_dma_residue(dmanr=%d)\n", dmanr);
 #endif
 
@@ -320,7 +320,7 @@ static __inline__ void enable_dma(unsigned int dmanr)
 {
   volatile unsigned int  *dmalp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("enable_dma(dmanr=%d)\n", dmanr);
 #endif
 
@@ -332,7 +332,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 {
   volatile unsigned int   *dmalp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("disable_dma(dmanr=%d)\n", dmanr);
 #endif
 
@@ -364,7 +364,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
   volatile unsigned int   *dmalp;
   volatile unsigned short *dmawp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_mode(dmanr=%d,mode=%d)\n", dmanr, mode);
 #endif
   dmalp = (unsigned int *) dma_base_addr[dmanr];
@@ -388,7 +388,7 @@ static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
 
   dmawp[MCFDMA_DIR] |= MCFDMA_DIR_ASCEN;   /* Enable completion interrupts */
 
-#ifdef DEBUG_DMA
+#ifdef DE_DMA
   printk("%s(%d): dmanr=%d DMR[%x]=%x DIR[%x]=%x\n", __FILE__, __LINE__,
 	 dmanr, (int) &dmalp[MCFDMA_DMR], dmalp[MCFDMA_DMR],
 	 (int) &dmawp[MCFDMA_DIR], dmawp[MCFDMA_DIR]);
@@ -400,7 +400,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
 {
   volatile unsigned int   *dmalp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_addr(dmanr=%d,a=%x)\n", dmanr, a);
 #endif
 
@@ -419,7 +419,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
     dmalp[MCFDMA_DSAR] = dma_device_address[dmanr];
   }
 
-#ifdef DEBUG_DMA
+#ifdef DE_DMA
   printk("%s(%d): dmanr=%d DMR[%x]=%x SAR[%x]=%08x DAR[%x]=%08x\n",
 	__FILE__, __LINE__, dmanr, (int) &dmalp[MCFDMA_DMR], dmalp[MCFDMA_DMR],
 	(int) &dmalp[MCFDMA_DSAR], dmalp[MCFDMA_DSAR],
@@ -433,7 +433,7 @@ static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int a)
  */
 static __inline__ void set_dma_device_addr(unsigned int dmanr, unsigned int a)
 {
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_device_addr(dmanr=%d,a=%x)\n", dmanr, a);
 #endif
 
@@ -449,7 +449,7 @@ static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
 {
   volatile unsigned int *dmalp;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("set_dma_count(dmanr=%d,count=%d)\n", dmanr, count);
 #endif
 
@@ -468,7 +468,7 @@ static __inline__ int get_dma_residue(unsigned int dmanr)
   volatile unsigned int *dmalp;
   unsigned int count;
 
-#ifdef DMA_DEBUG
+#ifdef DMA_DE
   printk("get_dma_residue(dmanr=%d)\n", dmanr);
 #endif
 
@@ -490,9 +490,9 @@ extern int request_dma(unsigned int dmanr, const char * device_id);	/* reserve a
 extern void free_dma(unsigned int dmanr);	/* release it again */
 
 #ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 #else
-#define isa_dma_bridge_buggy    (0)
+#define isa_dma_bridge_gy    (0)
 #endif
 
 #endif /* _M68K_DMA_H */

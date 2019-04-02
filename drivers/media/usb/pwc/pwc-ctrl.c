@@ -6,12 +6,12 @@
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
-   Please send bug reports and support requests to <luc@saillard.org>.
+   driver and thus may have s that are not present in the original version.
+   Please send  reports and support requests to <luc@saillard.org>.
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
-   Please send bug reports and support requests to <luc@saillard.org>.
+   driver and thus may have s that are not present in the original version.
+   Please send  reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
@@ -302,7 +302,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 	if (pChoose == NULL || pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
-	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */
+	/* Firmware : video endpoint is 5, but commands are sent to endpoint 4 */
 	if (send_to_cam)
 		ret = send_video_command(pdev, 4, pChoose->mode, 12);
 	if (ret < 0)
@@ -332,7 +332,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 {
 	int ret, size;
 
-	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n",
+	PWC_DE_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n",
 		       width, height, frames, pixfmt);
 	size = pwc_get_size(pdev, width, height);
 	PWC_TRACE("decode_size = %d.\n", size);
@@ -352,7 +352,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 		return ret;
 	}
 	pdev->frame_total_size = pdev->frame_size + pdev->frame_header_size + pdev->frame_trailer_size;
-	PWC_DEBUG_SIZE("Set resolution to %dx%d\n", pdev->width, pdev->height);
+	PWC_DE_SIZE("Set resolution to %dx%d\n", pdev->width, pdev->height);
 	return 0;
 }
 
@@ -531,7 +531,7 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 	return r;
 }
 
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DE
 int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 {
 	int ret = -1, request;

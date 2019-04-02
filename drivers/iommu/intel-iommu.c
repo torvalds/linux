@@ -23,7 +23,7 @@
 
 #include <linux/init.h>
 #include <linux/bitmap.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
@@ -606,7 +606,7 @@ struct intel_iommu *domain_get_iommu(struct dmar_domain *domain)
 	int iommu_id;
 
 	/* si_domain and vm domain should not get here. */
-	BUG_ON(domain_type_is_vm_or_si(domain));
+	_ON(domain_type_is_vm_or_si(domain));
 	for_each_domain_iommu(iommu_id, domain)
 		break;
 
@@ -869,7 +869,7 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 	int level = agaw_to_level(domain->agaw);
 	int offset;
 
-	BUG_ON(!domain->pgd);
+	_ON(!domain->pgd);
 
 	if (!domain_pfn_supported(domain, pfn))
 		/* Address beyond IOMMU's addressing capabilities. */
@@ -957,9 +957,9 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 	unsigned int large_page;
 	struct dma_pte *first_pte, *pte;
 
-	BUG_ON(!domain_pfn_supported(domain, start_pfn));
-	BUG_ON(!domain_pfn_supported(domain, last_pfn));
-	BUG_ON(start_pfn > last_pfn);
+	_ON(!domain_pfn_supported(domain, start_pfn));
+	_ON(!domain_pfn_supported(domain, last_pfn));
+	_ON(start_pfn > last_pfn);
 
 	/* we don't need lock here; nobody else touches the iova range */
 	do {
@@ -1029,9 +1029,9 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				   unsigned long last_pfn,
 				   int retain_level)
 {
-	BUG_ON(!domain_pfn_supported(domain, start_pfn));
-	BUG_ON(!domain_pfn_supported(domain, last_pfn));
-	BUG_ON(start_pfn > last_pfn);
+	_ON(!domain_pfn_supported(domain, start_pfn));
+	_ON(!domain_pfn_supported(domain, last_pfn));
+	_ON(start_pfn > last_pfn);
 
 	dma_pte_clear_range(domain, start_pfn, last_pfn);
 
@@ -1134,9 +1134,9 @@ static struct page *domain_unmap(struct dmar_domain *domain,
 {
 	struct page *freelist;
 
-	BUG_ON(!domain_pfn_supported(domain, start_pfn));
-	BUG_ON(!domain_pfn_supported(domain, last_pfn));
-	BUG_ON(start_pfn > last_pfn);
+	_ON(!domain_pfn_supported(domain, start_pfn));
+	_ON(!domain_pfn_supported(domain, last_pfn));
+	_ON(start_pfn > last_pfn);
 
 	/* we don't need lock here; nobody else touches the iova range */
 	freelist = dma_pte_clear_level(domain, agaw_to_level(domain->agaw),
@@ -1253,7 +1253,7 @@ static void __iommu_flush_context(struct intel_iommu *iommu,
 			| DMA_CCMD_SID(source_id) | DMA_CCMD_FM(function_mask);
 		break;
 	default:
-		BUG();
+		();
 	}
 	val |= DMA_CCMD_ICC;
 
@@ -1289,7 +1289,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 		val_iva = size_order | addr;
 		break;
 	default:
-		BUG();
+		();
 	}
 	/* Note: set drain read/write */
 #if 0
@@ -1319,7 +1319,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	if (DMA_TLB_IAIG(val) == 0)
 		pr_err("Flush IOTLB failed\n");
 	if (DMA_TLB_IAIG(val) != DMA_TLB_IIRG(type))
-		pr_debug("TLB flush request %Lx, actual %Lx\n",
+		pr_de("TLB flush request %Lx, actual %Lx\n",
 			(unsigned long long)DMA_TLB_IIRG(type),
 			(unsigned long long)DMA_TLB_IAIG(val));
 }
@@ -1477,7 +1477,7 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu,
 	uint64_t addr = (uint64_t)pfn << VTD_PAGE_SHIFT;
 	u16 did = domain->iommu_did[iommu->seq_id];
 
-	BUG_ON(pages == 0);
+	_ON(pages == 0);
 
 	if (ih)
 		ih = 1 << 6;
@@ -1592,7 +1592,7 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	size_t size;
 
 	ndomains = cap_ndoms(iommu->cap);
-	pr_debug("%s: Number of Domains supported <%d>\n",
+	pr_de("%s: Number of Domains supported <%d>\n",
 		 iommu->name, ndomains);
 	nlongs = BITS_TO_LONGS(ndomains);
 
@@ -1874,7 +1874,7 @@ static int domain_init(struct dmar_domain *domain, struct intel_iommu *iommu,
 	sagaw = cap_sagaw(iommu->cap);
 	if (!test_bit(agaw, &sagaw)) {
 		/* hardware doesn't support it, choose a bigger one */
-		pr_debug("Hardware doesn't support agaw %d\n", agaw);
+		pr_de("Hardware doesn't support agaw %d\n", agaw);
 		agaw = find_next_bit(&sagaw, 5, agaw);
 		if (agaw >= 5)
 			return -ENODEV;
@@ -1992,10 +1992,10 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	if (hw_pass_through && domain_type_is_si(domain))
 		translation = CONTEXT_TT_PASS_THROUGH;
 
-	pr_debug("Set context mapping for %02x:%02x.%d\n",
+	pr_de("Set context mapping for %02x:%02x.%d\n",
 		bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-	BUG_ON(!domain->pgd);
+	_ON(!domain->pgd);
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	spin_lock(&iommu->lock);
@@ -2235,7 +2235,7 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	unsigned int largepage_lvl = 0;
 	unsigned long lvl_pages = 0;
 
-	BUG_ON(!domain_pfn_supported(domain, iov_pfn + nr_pages - 1));
+	_ON(!domain_pfn_supported(domain, iov_pfn + nr_pages - 1));
 
 	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
 		return -EINVAL;
@@ -2299,15 +2299,15 @@ static int __domain_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 				iov_pfn, tmp, (unsigned long long)pteval);
 			if (dumps) {
 				dumps--;
-				debug_dma_dump_mappings(NULL);
+				de_dma_dump_mappings(NULL);
 			}
 			WARN_ON(1);
 		}
 
 		lvl_pages = lvl_to_nr_pages(largepage_lvl);
 
-		BUG_ON(nr_pages < lvl_pages);
-		BUG_ON(sg_res < lvl_pages);
+		_ON(nr_pages < lvl_pages);
+		_ON(sg_res < lvl_pages);
 
 		nr_pages -= lvl_pages;
 		iov_pfn += lvl_pages;
@@ -2704,7 +2704,7 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 		return -ENOMEM;
 	}
 
-	pr_debug("Mapping reserved region %llx-%llx\n", start, end);
+	pr_de("Mapping reserved region %llx-%llx\n", start, end);
 	/*
 	 * RMRR range might have overlap with physical memory range,
 	 * clear it first
@@ -2822,7 +2822,7 @@ static int __init si_domain_init(int hw)
 		return -EFAULT;
 	}
 
-	pr_debug("Identity mapping domain allocated\n");
+	pr_de("Identity mapping domain allocated\n");
 
 	if (hw)
 		return 0;
@@ -3658,7 +3658,7 @@ static dma_addr_t __intel_map_single(struct device *dev, phys_addr_t paddr,
 	struct intel_iommu *iommu;
 	unsigned long paddr_pfn = paddr >> PAGE_SHIFT;
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 
 	if (iommu_no_mapping(dev))
 		return paddr;
@@ -3735,7 +3735,7 @@ static void intel_unmap(struct device *dev, dma_addr_t dev_addr, size_t size)
 		return;
 
 	domain = find_domain(dev);
-	BUG_ON(!domain);
+	_ON(!domain);
 
 	iommu = domain_get_iommu(domain);
 
@@ -3857,7 +3857,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 	struct scatterlist *sg;
 
 	for_each_sg(sglist, sg, nelems, i) {
-		BUG_ON(!sg_page(sg));
+		_ON(!sg_page(sg));
 		sg->dma_address = sg_phys(sg);
 		sg->dma_length = sg->length;
 	}
@@ -3877,7 +3877,7 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
 	unsigned long start_vpfn;
 	struct intel_iommu *iommu;
 
-	BUG_ON(dir == DMA_NONE);
+	_ON(dir == DMA_NONE);
 	if (iommu_no_mapping(dev))
 		return intel_nontranslate_map_sg(dev, sglist, nelems, dir);
 
@@ -4624,7 +4624,7 @@ static int intel_iommu_memory_notifier(struct notifier_block *nb,
 
 			iova = find_iova(&si_domain->iovad, start_vpfn);
 			if (iova == NULL) {
-				pr_debug("Failed get IOVA for PFN %lx\n",
+				pr_de("Failed get IOVA for PFN %lx\n",
 					 start_vpfn);
 				break;
 			}
@@ -4930,7 +4930,7 @@ int __init intel_iommu_init(void)
 	cpuhp_setup_state(CPUHP_IOMMU_INTEL_DEAD, "iommu/intel:dead", NULL,
 			  intel_iommu_cpu_dead);
 	intel_iommu_enabled = 1;
-	intel_iommu_debugfs_init();
+	intel_iommu_defs_init();
 
 	return 0;
 
@@ -5184,7 +5184,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 
 	/* Cope with horrid API which requires us to unmap more than the
 	   size argument if it happens to be a large-page mapping. */
-	BUG_ON(!pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, &level));
+	_ON(!pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT, &level));
 
 	if (size < VTD_PAGE_SIZE << level_to_offset_bits(level))
 		size = VTD_PAGE_SIZE << level_to_offset_bits(level);

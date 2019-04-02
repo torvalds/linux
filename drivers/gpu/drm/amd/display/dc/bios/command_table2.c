@@ -179,7 +179,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 	uint8_t crev;
 
 	if (BIOS_CMD_TABLE_REVISION(dig1transmittercontrol, frev, crev) == false)
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	switch (crev) {
 	case 6:
 		bp->cmd_tbl.transmitter_control = transmitter_control_v1_6;

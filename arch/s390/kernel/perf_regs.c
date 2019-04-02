@@ -3,7 +3,7 @@
 #include <linux/perf_regs.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/ptrace.h>
 #include <asm/fpu/api.h>
 #include <asm/fpu/types.h>

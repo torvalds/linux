@@ -121,7 +121,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 
 	spuctx_switch_state(ctx, SPU_UTIL_IOWAIT);
 
-	pr_debug("ctx %p: ea %016llx, dsisr %016llx state %d\n", ctx, ea,
+	pr_de("ctx %p: ea %016llx, dsisr %016llx state %d\n", ctx, ea,
 		dsisr, ctx->state);
 
 	ctx->stats.hash_flt++;

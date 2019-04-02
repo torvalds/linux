@@ -9,7 +9,7 @@
 #include "ice_switch.h"
 #include <linux/avf/virtchnl.h>
 
-void ice_debug_cq(struct ice_hw *hw, u32 mask, void *desc, void *buf,
+void ice_de_cq(struct ice_hw *hw, u32 mask, void *desc, void *buf,
 		  u16 buf_len);
 enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);

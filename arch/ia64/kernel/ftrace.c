@@ -98,7 +98,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are paranoid about modifying text, as if a  was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.

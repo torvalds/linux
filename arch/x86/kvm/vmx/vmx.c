@@ -34,7 +34,7 @@
 #include <asm/apic.h>
 #include <asm/asm.h>
 #include <asm/cpu.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/desc.h>
 #include <asm/fpu/internal.h>
 #include <asm/io.h>
@@ -302,7 +302,7 @@ static int vmentry_l1d_flush_set(const char *s, const struct kernel_param *kp)
 	if (l1tf < 0)
 		return l1tf;
 
-	if (!boot_cpu_has(X86_BUG_L1TF))
+	if (!boot_cpu_has(X86__L1TF))
 		return 0;
 
 	/*
@@ -712,7 +712,7 @@ void update_exception_bitmap(struct kvm_vcpu *vcpu)
 	 */
 	if (enable_vmware_backdoor)
 		eb |= (1u << GP_VECTOR);
-	if ((vcpu->guest_debug &
+	if ((vcpu->guest_de &
 	     (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)) ==
 	    (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP))
 		eb |= 1u << BP_VECTOR;
@@ -1278,7 +1278,7 @@ void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 * the IO bitmap and have have code to handle the IO bitmap
 		 * being lost after a VM exit.
 		 */
-		BUILD_BUG_ON(IO_BITMAP_OFFSET - 1 != 0x67);
+		BUILD__ON(IO_BITMAP_OFFSET - 1 != 0x67);
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
@@ -1293,7 +1293,7 @@ void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	vmx_vcpu_pi_load(vcpu, cpu);
 	vmx->host_pkru = read_pkru();
-	vmx->host_debugctlmsr = get_debugctlmsr();
+	vmx->host_dectlmsr = get_dectlmsr();
 }
 
 static void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
@@ -2283,7 +2283,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 				"1-setting enable VPID VM-execution control\n");
 	}
 
-	min = VM_EXIT_SAVE_DEBUG_CONTROLS | VM_EXIT_ACK_INTR_ON_EXIT;
+	min = VM_EXIT_SAVE_DE_CONTROLS | VM_EXIT_ACK_INTR_ON_EXIT;
 #ifdef CONFIG_X86_64
 	min |= VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #endif
@@ -2311,7 +2311,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY))
 		_pin_based_exec_control &= ~PIN_BASED_POSTED_INTR;
 
-	min = VM_ENTRY_LOAD_DEBUG_CONTROLS;
+	min = VM_ENTRY_LOAD_DE_CONTROLS;
 	opt = VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL |
 	      VM_ENTRY_LOAD_IA32_PAT |
 	      VM_ENTRY_LOAD_IA32_EFER |
@@ -2670,7 +2670,7 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 
 	guest_tr_ar = vmcs_read32(GUEST_TR_AR_BYTES);
 	if ((guest_tr_ar & VMX_AR_TYPE_MASK) != VMX_AR_TYPE_BUSY_64_TSS) {
-		pr_debug_ratelimited("%s: tss fixup for long mode. \n",
+		pr_de_ratelimited("%s: tss fixup for long mode. \n",
 				     __func__);
 		vmcs_write32(GUEST_TR_AR_BYTES,
 			     (guest_tr_ar & ~VMX_AR_TYPE_MASK)
@@ -2974,7 +2974,7 @@ void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 	/*
 	 * Some userspaces do not preserve unusable property. Since usable
 	 * segment has to be present according to VMX spec we can use present
-	 * property to amend userspace bug by making unusable segment always
+	 * property to amend userspace  by making unusable segment always
 	 * nonpresent. vmx_segment_access_rights() already marks nonpresent
 	 * segment as unusable.
 	 */
@@ -3833,7 +3833,7 @@ u32 vmx_exec_control(struct vcpu_vmx *vmx)
 {
 	u32 exec_control = vmcs_config.cpu_based_exec_ctrl;
 
-	if (vmx->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT)
+	if (vmx->vcpu.arch.switch_db_regs & KVM_DEREG_WONT_EXIT)
 		exec_control &= ~CPU_BASED_MOV_DR_EXITING;
 
 	if (!cpu_need_tpr_shadow(&vmx->vcpu)) {
@@ -4154,7 +4154,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		vmcs_write32(GUEST_SYSENTER_CS, 0);
 		vmcs_writel(GUEST_SYSENTER_ESP, 0);
 		vmcs_writel(GUEST_SYSENTER_EIP, 0);
-		vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+		vmcs_write64(GUEST_IA32_DECTL, 0);
 	}
 
 	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
@@ -4364,15 +4364,15 @@ static bool rmode_exception(struct kvm_vcpu *vcpu, int vec)
 	case BP_VECTOR:
 		/*
 		 * Update instruction length as we may reinject the exception
-		 * from user space while in guest debugging mode.
+		 * from user space while in guest deging mode.
 		 */
 		to_vmx(vcpu)->vcpu.arch.event_exit_inst_len =
 			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
+		if (vcpu->guest_de & KVM_GUESTDBG_USE_SW_BP)
 			return false;
 		/* fall through */
 	case DB_VECTOR:
-		if (vcpu->guest_debug &
+		if (vcpu->guest_de &
 			(KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
 			return false;
 		/* fall through */
@@ -4410,8 +4410,8 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 
 	/*
 	 * Forward all other exceptions that are valid in real mode.
-	 * FIXME: Breaks guest debugging in real mode, needs to be fixed with
-	 *        the required debugging infrastructure rework.
+	 * FIXME: Breaks guest deging in real mode, needs to be fixed with
+	 *        the required deging infrastructure rework.
 	 */
 	kvm_queue_exception(vcpu, vec);
 	return 1;
@@ -4512,7 +4512,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 		return 1;
 	case DB_VECTOR:
 		dr6 = vmcs_readl(EXIT_QUALIFICATION);
-		if (!(vcpu->guest_debug &
+		if (!(vcpu->guest_de &
 		      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))) {
 			vcpu->arch.dr6 &= ~15;
 			vcpu->arch.dr6 |= dr6 | DR6_RTM;
@@ -4522,21 +4522,21 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 			kvm_queue_exception(vcpu, DB_VECTOR);
 			return 1;
 		}
-		kvm_run->debug.arch.dr6 = dr6 | DR6_FIXED_1;
-		kvm_run->debug.arch.dr7 = vmcs_readl(GUEST_DR7);
+		kvm_run->de.arch.dr6 = dr6 | DR6_FIXED_1;
+		kvm_run->de.arch.dr7 = vmcs_readl(GUEST_DR7);
 		/* fall through */
 	case BP_VECTOR:
 		/*
 		 * Update instruction length as we may reinject #BP from
-		 * user space while in guest debugging mode. Reading it for
+		 * user space while in guest deging mode. Reading it for
 		 * #DB as well causes no harm, it is not used in that case.
 		 */
 		vmx->vcpu.arch.event_exit_inst_len =
 			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
-		kvm_run->exit_reason = KVM_EXIT_DEBUG;
+		kvm_run->exit_reason = KVM_EXIT_DE;
 		rip = kvm_rip_read(vcpu);
-		kvm_run->debug.arch.pc = vmcs_readl(GUEST_CS_BASE) + rip;
-		kvm_run->debug.arch.exception = ex_no;
+		kvm_run->de.arch.pc = vmcs_readl(GUEST_CS_BASE) + rip;
+		kvm_run->de.arch.exception = ex_no;
 		break;
 	default:
 		kvm_run->exit_reason = KVM_EXIT_EXCEPTION;
@@ -4687,7 +4687,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 				/*
 				 * TODO: we might be squashing a
 				 * KVM_GUESTDBG_SINGLESTEP-triggered
-				 * KVM_EXIT_DEBUG here.
+				 * KVM_EXIT_DE here.
 				 */
 				vcpu->run->exit_reason = KVM_EXIT_SET_TPR;
 				return 0;
@@ -4735,7 +4735,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	int dr, dr7, reg;
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
-	dr = exit_qualification & DEBUG_REG_ACCESS_NUM;
+	dr = exit_qualification & DE_REG_ACCESS_NUM;
 
 	/* First, if DR does not exist, trigger UD */
 	if (!kvm_require_dr(vcpu, dr))
@@ -4747,16 +4747,16 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	dr7 = vmcs_readl(GUEST_DR7);
 	if (dr7 & DR7_GD) {
 		/*
-		 * As the vm-exit takes precedence over the debug trap, we
+		 * As the vm-exit takes precedence over the de trap, we
 		 * need to emulate the latter, either for the host or the
-		 * guest debugging itself.
+		 * guest deging itself.
 		 */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP) {
-			vcpu->run->debug.arch.dr6 = vcpu->arch.dr6;
-			vcpu->run->debug.arch.dr7 = dr7;
-			vcpu->run->debug.arch.pc = kvm_get_linear_rip(vcpu);
-			vcpu->run->debug.arch.exception = DB_VECTOR;
-			vcpu->run->exit_reason = KVM_EXIT_DEBUG;
+		if (vcpu->guest_de & KVM_GUESTDBG_USE_HW_BP) {
+			vcpu->run->de.arch.dr6 = vcpu->arch.dr6;
+			vcpu->run->de.arch.dr7 = dr7;
+			vcpu->run->de.arch.pc = kvm_get_linear_rip(vcpu);
+			vcpu->run->de.arch.exception = DB_VECTOR;
+			vcpu->run->exit_reason = KVM_EXIT_DE;
 			return 0;
 		} else {
 			vcpu->arch.dr6 &= ~15;
@@ -4766,20 +4766,20 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	if (vcpu->guest_debug == 0) {
+	if (vcpu->guest_de == 0) {
 		vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
 				CPU_BASED_MOV_DR_EXITING);
 
 		/*
-		 * No more DR vmexits; force a reload of the debug registers
+		 * No more DR vmexits; force a reload of the de registers
 		 * and reenter on this instruction.  The next vmexit will
-		 * retrieve the full state of the debug registers.
+		 * retrieve the full state of the de registers.
 		 */
-		vcpu->arch.switch_db_regs |= KVM_DEBUGREG_WONT_EXIT;
+		vcpu->arch.switch_db_regs |= KVM_DEREG_WONT_EXIT;
 		return 1;
 	}
 
-	reg = DEBUG_REG_ACCESS_REG(exit_qualification);
+	reg = DE_REG_ACCESS_REG(exit_qualification);
 	if (exit_qualification & TYPE_MOV_FROM_DR) {
 		unsigned long val;
 
@@ -4802,16 +4802,16 @@ static void vmx_set_dr6(struct kvm_vcpu *vcpu, unsigned long val)
 {
 }
 
-static void vmx_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
+static void vmx_sync_dirty_de_regs(struct kvm_vcpu *vcpu)
 {
-	get_debugreg(vcpu->arch.db[0], 0);
-	get_debugreg(vcpu->arch.db[1], 1);
-	get_debugreg(vcpu->arch.db[2], 2);
-	get_debugreg(vcpu->arch.db[3], 3);
-	get_debugreg(vcpu->arch.dr6, 6);
+	get_dereg(vcpu->arch.db[0], 0);
+	get_dereg(vcpu->arch.db[1], 1);
+	get_dereg(vcpu->arch.db[2], 2);
+	get_dereg(vcpu->arch.db[3], 3);
+	get_dereg(vcpu->arch.dr6, 6);
 	vcpu->arch.dr7 = vmcs_readl(GUEST_DR7);
 
-	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
+	vcpu->arch.switch_db_regs &= ~KVM_DEREG_WONT_EXIT;
 	vmcs_set_bits(CPU_BASED_VM_EXEC_CONTROL, CPU_BASED_MOV_DR_EXITING);
 }
 
@@ -5043,7 +5043,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * TODO: What about debug traps on tss switch?
+	 * TODO: What about de traps on tss switch?
 	 *       Are we supposed to inject them and update dr6?
 	 */
 
@@ -5404,7 +5404,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		return kvm_skip_emulated_instruction(vcpu);
 
 	default:
-		BUG(); /* We have already checked above that type <= 3 */
+		(); /* We have already checked above that type <= 3 */
 	}
 }
 
@@ -5653,8 +5653,8 @@ static void dump_vmcs(void)
 	    (vmentry_ctl & (VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_LOAD_IA32_EFER)))
 		pr_err("EFER =     0x%016llx  PAT = 0x%016llx\n",
 		       efer, vmcs_read64(GUEST_IA32_PAT));
-	pr_err("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
-	       vmcs_read64(GUEST_IA32_DEBUGCTL),
+	pr_err("DeCtl = 0x%016llx  DeExceptions = 0x%016lx\n",
+	       vmcs_read64(GUEST_IA32_DECTL),
 	       vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS));
 	if (cpu_has_load_perf_global_ctrl() &&
 	    vmentry_ctl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
@@ -6404,10 +6404,10 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/* When single-stepping over STI and MOV SS, we must clear the
 	 * corresponding interruptibility bits in the guest state. Otherwise
-	 * vmentry fails as it then expects bit 14 (BS) in pending debug
-	 * exceptions being set, but that's not correct for the guest debugging
+	 * vmentry fails as it then expects bit 14 (BS) in pending de
+	 * exceptions being set, but that's not correct for the guest deging
 	 * case. */
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+	if (vcpu->guest_de & KVM_GUESTDBG_SINGLESTEP)
 		vmx_set_interrupt_shadow(vcpu, 0);
 
 	if (static_cpu_has(X86_FEATURE_PKU) &&
@@ -6468,9 +6468,9 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		current_evmcs->hv_clean_fields |=
 			HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
 
-	/* MSR_IA32_DEBUGCTLMSR is zeroed on vmexit. Restore it if needed */
-	if (vmx->host_debugctlmsr)
-		update_debugctlmsr(vmx->host_debugctlmsr);
+	/* MSR_IA32_DECTLMSR is zeroed on vmexit. Restore it if needed */
+	if (vmx->host_dectlmsr)
+		update_dectlmsr(vmx->host_dectlmsr);
 
 #ifndef CONFIG_X86_64
 	/*
@@ -6589,7 +6589,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	}
 
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL_ACCOUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
+	BUILD__ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
 		     > PAGE_SIZE);
 
 	if (!vmx->guest_msrs)
@@ -6667,8 +6667,8 @@ free_partial_vcpu:
 	return ERR_PTR(err);
 }
 
-#define L1TF_MSG_SMT "L1TF CPU bug present and SMT on, data leak possible. See CVE-2018-3646 and https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html for details.\n"
-#define L1TF_MSG_L1D "L1TF CPU bug present and virtualization mitigation disabled, data leak possible. See CVE-2018-3646 and https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html for details.\n"
+#define L1TF_MSG_SMT "L1TF CPU  present and SMT on, data leak possible. See CVE-2018-3646 and https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html for details.\n"
+#define L1TF_MSG_L1D "L1TF CPU  present and virtualization mitigation disabled, data leak possible. See CVE-2018-3646 and https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html for details.\n"
 
 static int vmx_vm_init(struct kvm *kvm)
 {
@@ -6677,7 +6677,7 @@ static int vmx_vm_init(struct kvm *kvm)
 	if (!ple_gap)
 		kvm->arch.pause_in_guest = true;
 
-	if (boot_cpu_has(X86_BUG_L1TF) && enable_ept) {
+	if (boot_cpu_has(X86__L1TF) && enable_ept) {
 		switch (l1tf_mitigation) {
 		case L1TF_MITIGATION_OFF:
 		case L1TF_MITIGATION_FLUSH_NOWARN:
@@ -7602,7 +7602,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.get_dr6 = vmx_get_dr6,
 	.set_dr6 = vmx_set_dr6,
 	.set_dr7 = vmx_set_dr7,
-	.sync_dirty_debug_regs = vmx_sync_dirty_debug_regs,
+	.sync_dirty_de_regs = vmx_sync_dirty_de_regs,
 	.cache_reg = vmx_cache_reg,
 	.get_rflags = vmx_get_rflags,
 	.set_rflags = vmx_set_rflags,
@@ -7796,7 +7796,7 @@ static int __init vmx_init(void)
 	 * contain 'auto' which will be turned into the default 'cond'
 	 * mitigation mode.
 	 */
-	if (boot_cpu_has(X86_BUG_L1TF)) {
+	if (boot_cpu_has(X86__L1TF)) {
 		r = vmx_setup_l1d_flush(vmentry_l1d_flush_param);
 		if (r) {
 			vmx_exit();

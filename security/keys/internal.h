@@ -23,20 +23,20 @@
 
 struct iovec;
 
-#ifdef __KDEBUG
+#ifdef __KDE
 #define kenter(FMT, ...) \
-	printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+	printk(KERN_DE "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) \
-	printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
-#define kdebug(FMT, ...) \
-	printk(KERN_DEBUG "   "FMT"\n", ##__VA_ARGS__)
+	printk(KERN_DE "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+#define kde(FMT, ...) \
+	printk(KERN_DE "   "FMT"\n", ##__VA_ARGS__)
 #else
 #define kenter(FMT, ...) \
-	no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+	no_printk(KERN_DE "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) \
-	no_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
-#define kdebug(FMT, ...) \
-	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
+	no_printk(KERN_DE "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+#define kde(FMT, ...) \
+	no_printk(KERN_DE FMT"\n", ##__VA_ARGS__)
 #endif
 
 extern struct key_type key_type_dead;
@@ -325,14 +325,14 @@ static inline long keyctl_pkey_e_d_s(int op,
 #endif
 
 /*
- * Debugging key validation
+ * Deging key validation
  */
-#ifdef KEY_DEBUGGING
+#ifdef KEY_DEGING
 extern void __key_check(const struct key *);
 
 static inline void key_check(const struct key *key)
 {
-	if (key && (IS_ERR(key) || key->magic != KEY_DEBUG_MAGIC))
+	if (key && (IS_ERR(key) || key->magic != KEY_DE_MAGIC))
 		__key_check(key);
 }
 

@@ -60,23 +60,23 @@ config ACPI_SYSTEM_POWER_STATES_SUPPORT
 config ACPI_CCA_REQUIRED
 	bool
 
-config ACPI_DEBUGGER
-	bool "AML debugger interface"
-	select ACPI_DEBUG
+config ACPI_DEGER
+	bool "AML deger interface"
+	select ACPI_DE
 	help
-	  Enable in-kernel debugging of AML facilities: statistics,
+	  Enable in-kernel deging of AML facilities: statistics,
 	  internal object dump, single step control method execution.
 	  This is still under development, currently enabling this only
-	  results in the compilation of the ACPICA debugger files.
+	  results in the compilation of the ACPICA deger files.
 
-if ACPI_DEBUGGER
+if ACPI_DEGER
 
-config ACPI_DEBUGGER_USER
-	tristate "Userspace debugger accessiblity"
-	depends on DEBUG_FS
+config ACPI_DEGER_USER
+	tristate "Userspace deger accessiblity"
+	depends on DE_FS
 	help
-	  Export /sys/kernel/debug/acpi/acpidbg for userspace utilities
-	  to access the debugger functionalities.
+	  Export /sys/kernel/de/acpi/acpidbg for userspace utilities
+	  to access the deger functionalities.
 
 endif
 
@@ -136,10 +136,10 @@ config ACPI_REV_OVERRIDE_POSSIBLE
 	  makes it possible to force the kernel to return "5" as the supported
 	  ACPI revision via the "acpi_rev_override" command line switch.
 
-config ACPI_EC_DEBUGFS
-	tristate "EC read/write access through /sys/kernel/debug/ec"
+config ACPI_EC_DEFS
+	tristate "EC read/write access through /sys/kernel/de/ec"
 	help
-	  Say N to disable Embedded Controller /sys/kernel/debug interface
+	  Say N to disable Embedded Controller /sys/kernel/de interface
 
 	  Be aware that using this interface can confuse your Embedded
 	  Controller in a way that a normal reboot is not enough. You then
@@ -150,8 +150,8 @@ config ACPI_EC_DEBUGFS
 	  The kernel accesses the EC through ACPI parsed code provided by BIOS
 	  tables. This option allows to access the EC directly without ACPI
 	  code being involved.
-	  Thus this option is a debug option that helps to write ACPI drivers
-	  and can be used to identify ACPI code or EC firmware bugs.
+	  Thus this option is a de option that helps to write ACPI drivers
+	  and can be used to identify ACPI code or EC firmware s.
 
 config ACPI_AC
 	tristate "AC Adapter"
@@ -367,16 +367,16 @@ config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
 
 	  See Documentation/acpi/initrd_table_override.txt for details
 
-config ACPI_DEBUG
-	bool "Debug Statements"
+config ACPI_DE
+	bool "De Statements"
 	help
-	  The ACPI subsystem can produce debug output.  Saying Y enables this
+	  The ACPI subsystem can produce de output.  Saying Y enables this
 	  output and increases the kernel size by around 50K.
 
-	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
-	  parameters documented in Documentation/acpi/debug.txt and
+	  Use the acpi.de_layer and acpi.de_level kernel command-line
+	  parameters documented in Documentation/acpi/de.txt and
 	  Documentation/admin-guide/kernel-parameters.rst to control the type and
-	  amount of debug output.
+	  amount of de output.
 
 config ACPI_PCI_SLOT
 	bool "PCI slot detection driver"
@@ -441,9 +441,9 @@ config ACPI_HED
 
 config ACPI_CUSTOM_METHOD
 	tristate "Allow ACPI methods to be inserted/replaced at run time"
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
-	  This debug facility allows ACPI AML methods to be inserted and/or
+	  This de facility allows ACPI AML methods to be inserted and/or
 	  replaced without rebooting the system. For details refer to:
 	  Documentation/acpi/method-customizing.txt.
 

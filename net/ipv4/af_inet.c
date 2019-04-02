@@ -24,7 +24,7 @@
  *					when accept() ed
  *		Alan Cox	:	Semantics of SO_LINGER aren't state
  *					moved to close when you look carefully.
- *					With this fixed and the accept bug fixed
+ *					With this fixed and the accept  fixed
  *					some RPC stuff seems happier.
  *		Niibe Yutaka	:	4.4BSD style write async I/O
  *		Alan Cox,
@@ -158,7 +158,7 @@ void inet_sock_destruct(struct sock *sk)
 	kfree(rcu_dereference_protected(inet->inet_opt, 1));
 	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
 	dst_release(sk->sk_rx_dst);
-	sk_refcnt_debug_dec(sk);
+	sk_refcnt_de_dec(sk);
 }
 EXPORT_SYMBOL(inet_sock_destruct);
 
@@ -358,7 +358,7 @@ lookup_protocol:
 	inet->mc_list	= NULL;
 	inet->rcv_tos	= 0;
 
-	sk_refcnt_debug_inc(sk);
+	sk_refcnt_de_inc(sk);
 
 	if (inet->inet_num) {
 		/* It assumes that any protocol which allows

@@ -346,7 +346,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 	if (s->buffers == 0)
 		return 0;
 
-	CX18_DEBUG_INFO("Allocate %s stream: %d x %d buffers (%d.%02d kB total)\n",
+	CX18_DE_INFO("Allocate %s stream: %d x %d buffers (%d.%02d kB total)\n",
 		s->name, s->buffers, s->buf_size,
 		s->buffers * s->buf_size / 1024,
 		(s->buffers * s->buf_size * 100 / 1024) % 100);
@@ -414,7 +414,7 @@ void cx18_stream_free(struct cx18_stream *s)
 	struct cx18_buffer *buf;
 	struct cx18 *cx = s->cx;
 
-	CX18_DEBUG_INFO("Deallocating buffers for %s stream\n", s->name);
+	CX18_DE_INFO("Deallocating buffers for %s stream\n", s->name);
 
 	/* move all buffers to buf_pool and all MDLs to q_idle */
 	cx18_unload_queues(s);

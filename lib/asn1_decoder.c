@@ -202,7 +202,7 @@ int asn1_ber_decoder(const struct asn1_decoder *decoder,
 		return -EMSGSIZE;
 
 next_op:
-	pr_debug("next_op: pc=\e[32m%zu\e[m/%zu dp=\e[33m%zu\e[m/%zu C=%d J=%d\n",
+	pr_de("next_op: pc=\e[32m%zu\e[m/%zu dp=\e[33m%zu\e[m/%zu C=%d J=%d\n",
 		 pc, machlen, dp, datalen, csp, jsp);
 	if (unlikely(pc >= machlen))
 		goto machine_overrun_error;
@@ -235,7 +235,7 @@ next_op:
 			goto long_tag_not_supported;
 
 		if (op & ASN1_OP_MATCH__ANY) {
-			pr_debug("- any %02x\n", tag);
+			pr_de("- any %02x\n", tag);
 		} else {
 			/* Extract the tag from the machine
 			 * - Either CONS or PRIM are permitted in the data if
@@ -248,7 +248,7 @@ next_op:
 			/* Determine whether the tag matched */
 			tmp = optag ^ tag;
 			tmp &= ~(optag & ASN1_CONS_BIT);
-			pr_debug("- match? %02x %02x %02x\n", tag, optag, tmp);
+			pr_de("- match? %02x %02x %02x\n", tag, optag, tmp);
 			if (tmp != 0) {
 				/* All odd-numbered tags are MATCH_OR_SKIP. */
 				if (op & ASN1_OP_MATCH__SKIP) {
@@ -306,7 +306,7 @@ next_op:
 			csp++;
 		}
 
-		pr_debug("- TAG: %02x %zu%s\n",
+		pr_de("- TAG: %02x %zu%s\n",
 			 tag, len, flags & FLAG_CONS ? " CONS" : "");
 		tdp = dp;
 	}
@@ -337,7 +337,7 @@ next_op:
 				if (ret < 0)
 					goto error;
 			}
-			pr_debug("- LEAF: %zu\n", len);
+			pr_de("- LEAF: %zu\n", len);
 		}
 
 		if (op & ASN1_OP_MATCH__ACT) {
@@ -360,7 +360,7 @@ next_op:
 	case ASN1_OP_MATCH_JUMP:
 	case ASN1_OP_MATCH_JUMP_OR_SKIP:
 	case ASN1_OP_COND_MATCH_JUMP_OR_SKIP:
-		pr_debug("- MATCH_JUMP\n");
+		pr_de("- MATCH_JUMP\n");
 		if (unlikely(jsp == NR_JUMP_STACK))
 			goto jump_stack_overflow;
 		jump_stack[jsp++] = pc + asn1_op_lengths[op];
@@ -398,7 +398,7 @@ next_op:
 		hdr = cons_hdrlen_stack[csp];
 		len = datalen;
 		datalen = cons_datalen_stack[csp];
-		pr_debug("- end cons t=%zu dp=%zu l=%zu/%zu\n",
+		pr_de("- end cons t=%zu dp=%zu l=%zu/%zu\n",
 			 tdp, dp, len, datalen);
 		if (datalen == 0) {
 			/* Indefinite length - check for the EOC. */
@@ -410,7 +410,7 @@ next_op:
 					dp--;
 					csp++;
 					pc = machine[pc + 1];
-					pr_debug("- continue\n");
+					pr_de("- continue\n");
 					goto next_op;
 				}
 				goto missing_eoc;
@@ -423,13 +423,13 @@ next_op:
 				datalen = len;
 				csp++;
 				pc = machine[pc + 1];
-				pr_debug("- continue\n");
+				pr_de("- continue\n");
 				goto next_op;
 			}
 			if (dp != len)
 				goto cons_length_error;
 			len -= tdp;
-			pr_debug("- cons len l=%zu d=%zu\n", len, dp - tdp);
+			pr_de("- cons len l=%zu d=%zu\n", len, dp - tdp);
 		}
 
 		if (op & ASN1_OP_END__ACT) {
@@ -512,7 +512,7 @@ tag_mismatch:
 long_tag_not_supported:
 	errmsg = "Long tag not supported";
 error:
-	pr_debug("\nASN1: %s [m=%zu d=%zu ot=%02x t=%02x l=%zu]\n",
+	pr_de("\nASN1: %s [m=%zu d=%zu ot=%02x t=%02x l=%zu]\n",
 		 errmsg, pc, dp, optag, tag, len);
 	return -EBADMSG;
 }

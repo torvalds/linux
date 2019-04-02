@@ -304,7 +304,7 @@ static void __init imx6q_init_late(void)
 
 static void __init imx6q_map_io(void)
 {
-	debug_ll_io_init();
+	de_ll_io_init();
 	imx_scu_map_io();
 }
 

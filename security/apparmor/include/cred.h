@@ -27,7 +27,7 @@ static inline struct aa_label *cred_label(const struct cred *cred)
 {
 	struct aa_label **blob = cred->security + apparmor_blob_sizes.lbs_cred;
 
-	AA_BUG(!blob);
+	AA_(!blob);
 	return *blob;
 }
 
@@ -36,7 +36,7 @@ static inline void set_cred_label(const struct cred *cred,
 {
 	struct aa_label **blob = cred->security + apparmor_blob_sizes.lbs_cred;
 
-	AA_BUG(!blob);
+	AA_(!blob);
 	*blob = label;
 }
 
@@ -52,7 +52,7 @@ static inline struct aa_label *aa_cred_raw_label(const struct cred *cred)
 {
 	struct aa_label *label = cred_label(cred);
 
-	AA_BUG(!label);
+	AA_(!label);
 	return label;
 }
 

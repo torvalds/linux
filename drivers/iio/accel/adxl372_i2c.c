@@ -32,7 +32,7 @@ static int adxl372_i2c_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	/* Starting with the 3rd revision an I2C chip bug was fixed */
+	/* Starting with the 3rd revision an I2C chip  was fixed */
 	if (regval < 3)
 		dev_warn(&client->dev,
 		"I2C might not work properly with other devices on the bus");

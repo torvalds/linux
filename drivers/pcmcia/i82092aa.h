@@ -4,7 +4,7 @@
 
 #include <linux/interrupt.h>
 
-/* Debuging defines */
+/* Deing defines */
 #ifdef NOTRACE
 #define enter(x)   printk("Enter: %s, %s line %i\n",x,__FILE__,__LINE__)
 #define leave(x)   printk("Leave: %s, %s line %i\n",x,__FILE__,__LINE__)

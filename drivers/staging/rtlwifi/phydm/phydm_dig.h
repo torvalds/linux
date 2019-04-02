@@ -28,7 +28,7 @@ enum dig_goupcheck_level {
 };
 
 struct dig_thres {
-	bool is_stop_dig; /* for debug */
+	bool is_stop_dig; /* for de */
 	bool is_ignore_dig;
 	bool is_psd_in_progress;
 

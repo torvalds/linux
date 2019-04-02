@@ -18,18 +18,18 @@
 #include <asm/io.h>
 #include <asm/superio.h>
 
-#define DEBUG_RESOURCES 0
-#define DEBUG_CONFIG 0
+#define DE_RESOURCES 0
+#define DE_CONFIG 0
 
-#if DEBUG_CONFIG
-# define DBGC(x...)	printk(KERN_DEBUG x)
+#if DE_CONFIG
+# define DBGC(x...)	printk(KERN_DE x)
 #else
 # define DBGC(x...)
 #endif
 
 
-#if DEBUG_RESOURCES
-#define DBG_RES(x...)	printk(KERN_DEBUG x)
+#if DE_RESOURCES
+#define DBG_RES(x...)	printk(KERN_DE x)
 #else
 #define DBG_RES(x...)
 #endif

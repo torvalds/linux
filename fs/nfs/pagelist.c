@@ -356,7 +356,7 @@ void nfs_unlock_request(struct nfs_page *req)
 {
 	if (!NFS_WBACK_BUSY(req)) {
 		printk(KERN_ERR "NFS: Invalid unlock attempted\n");
-		BUG();
+		();
 	}
 	smp_mb__before_atomic();
 	clear_bit(PG_BUSY, &req->wb_flags);
@@ -418,7 +418,7 @@ void nfs_free_request(struct nfs_page *req)
 {
 	WARN_ON_ONCE(req->wb_this_page != req);
 
-	/* extra debug: make sure no sync bits are still set */
+	/* extra de: make sure no sync bits are still set */
 	WARN_ON_ONCE(test_bit(PG_TEARDOWN, &req->wb_flags));
 	WARN_ON_ONCE(test_bit(PG_UNLOCKPAGE, &req->wb_flags));
 	WARN_ON_ONCE(test_bit(PG_UPTODATE, &req->wb_flags));
@@ -1039,7 +1039,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			continue;
 		}
 
-		/* check for buggy pg_test call(s) */
+		/* check for gy pg_test call(s) */
 		WARN_ON_ONCE(subreq->wb_bytes + subreq->wb_pgbase > PAGE_SIZE);
 		WARN_ON_ONCE(subreq->wb_bytes > bytes_left);
 		WARN_ON_ONCE(subreq->wb_bytes == 0);

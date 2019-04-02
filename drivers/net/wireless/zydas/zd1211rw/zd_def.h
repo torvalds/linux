@@ -29,29 +29,29 @@ typedef u16 __nocast zd_addr_t;
 #define dev_printk_f(level, dev, fmt, args...) \
 	dev_printk(level, dev, "%s() " fmt, __func__, ##args)
 
-#ifdef DEBUG
+#ifdef DE
 #  define dev_dbg_f(dev, fmt, args...) \
-	  dev_printk_f(KERN_DEBUG, dev, fmt, ## args)
+	  dev_printk_f(KERN_DE, dev, fmt, ## args)
 #  define dev_dbg_f_limit(dev, fmt, args...) do { \
 	if (net_ratelimit()) \
-		dev_printk_f(KERN_DEBUG, dev, fmt, ## args); \
+		dev_printk_f(KERN_DE, dev, fmt, ## args); \
 } while (0)
 #  define dev_dbg_f_cond(dev, cond, fmt, args...) ({ \
 	bool __cond = !!(cond); \
 	if (unlikely(__cond)) \
-		dev_printk_f(KERN_DEBUG, dev, fmt, ## args); \
+		dev_printk_f(KERN_DE, dev, fmt, ## args); \
 })
 #else
 #  define dev_dbg_f(dev, fmt, args...) do { (void)(dev); } while (0)
 #  define dev_dbg_f_limit(dev, fmt, args...) do { (void)(dev); } while (0)
 #  define dev_dbg_f_cond(dev, cond, fmt, args...) do { (void)(dev); } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
-#ifdef DEBUG
+#ifdef DE
 #  define ZD_ASSERT(x) \
 do { \
 	if (unlikely(!(x))) { \
-		pr_debug("%s:%d ASSERT %s VIOLATED!\n", \
+		pr_de("%s:%d ASSERT %s VIOLATED!\n", \
 			__FILE__, __LINE__, __stringify(x)); \
 		dump_stack(); \
 	} \
@@ -60,7 +60,7 @@ do { \
 #  define ZD_ASSERT(x) do { } while (0)
 #endif
 
-#ifdef DEBUG
+#ifdef DE
 #  define ZD_MEMCLEAR(pointer, size) memset((pointer), 0xff, (size))
 #else
 #  define ZD_MEMCLEAR(pointer, size) do { } while (0)

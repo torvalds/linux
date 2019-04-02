@@ -21,7 +21,7 @@
 #include "session.h"
 #include "util.h"
 #include "thread.h"
-#include "debug.h"
+#include "de.h"
 #include "auxtrace.h"
 #include "arm-spe.h"
 #include "arm-spe-pkt-decoder.h"

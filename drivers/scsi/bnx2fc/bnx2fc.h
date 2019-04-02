@@ -590,6 +590,6 @@ int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 				enum fc_rctl r_ctl);
 
 
-#include "bnx2fc_debug.h"
+#include "bnx2fc_de.h"
 
 #endif

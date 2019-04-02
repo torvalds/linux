@@ -16,14 +16,14 @@
 #include <linux/cpu.h>
 #include <linux/initrd.h>
 #include <linux/console.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/of_fdt.h>
 
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/page.h>
 #include <linux/io.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/param.h>
 #include <linux/pci.h>
 #include <linux/cache.h>
@@ -144,7 +144,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	pr_info("Found romfs @ 0x%08x (0x%08x)\n",
 			romfs_base, romfs_size);
 	pr_info("#### klimit %p ####\n", old_klimit);
-	BUG_ON(romfs_size < 0); /* What else can we do? */
+	_ON(romfs_size < 0); /* What else can we do? */
 
 	pr_info("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
 			romfs_size, romfs_base, (unsigned)&__bss_stop);
@@ -186,22 +186,22 @@ void __init time_init(void)
 	timer_probe();
 }
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *of_debugfs_root;
+#ifdef CONFIG_DE_FS
+struct dentry *of_defs_root;
 
-static int microblaze_debugfs_init(void)
+static int microblaze_defs_init(void)
 {
-	of_debugfs_root = debugfs_create_dir("microblaze", NULL);
+	of_defs_root = defs_create_dir("microblaze", NULL);
 	return 0;
 }
-arch_initcall(microblaze_debugfs_init);
+arch_initcall(microblaze_defs_init);
 
 # ifdef CONFIG_MMU
-static int __init debugfs_tlb(void)
+static int __init defs_tlb(void)
 {
-	debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
+	defs_create_u32("tlb_skip", S_IRUGO, of_defs_root, &tlb_skip);
 	return 0;
 }
-device_initcall(debugfs_tlb);
+device_initcall(defs_tlb);
 # endif
 #endif

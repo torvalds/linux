@@ -2968,7 +2968,7 @@ static void wacom_bamboo_pad_pen_event(struct wacom_wac *wacom,
 	unsigned char prefix;
 
 	/*
-	 * We need to reroute the event from the debug interface to the
+	 * We need to reroute the event from the de interface to the
 	 * pen interface.
 	 * We need to add the report ID to the actual pen report, so we
 	 * temporary overwrite the first byte to prevent having to kzalloc/kfree

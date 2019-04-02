@@ -31,7 +31,7 @@ else
 obj-y		+= entry-armv.o
 endif
 
-obj-$(CONFIG_MMU)		+= bugs.o
+obj-$(CONFIG_MMU)		+= s.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 obj-$(CONFIG_ISA_DMA_API)	+= dma.o
 obj-$(CONFIG_FIQ)		+= fiq.o fiqasm.o
@@ -86,7 +86,7 @@ endif
 obj-$(CONFIG_PARAVIRT)	+= paravirt.o
 
 head-y			:= head$(MMUEXT).o
-obj-$(CONFIG_DEBUG_LL)	+= debug.o
+obj-$(CONFIG_DE_LL)	+= de.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
 # This is executed very early using a temporary stack when no memory allocator

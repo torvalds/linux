@@ -37,7 +37,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 	uint32_t crc, ofs, len;
 	size_t retlen;
 
-	BUG_ON(tn->csize == 0);
+	_ON(tn->csize == 0);
 
 	/* Calculate how many bytes were already checked */
 	ofs = ref_offset(ref) + sizeof(struct jffs2_raw_inode);
@@ -151,7 +151,7 @@ static int check_tn_node(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info *t
 {
 	int ret;
 
-	BUG_ON(ref_obsolete(tn->fn->raw));
+	_ON(ref_obsolete(tn->fn->raw));
 
 	/* We only check the data CRC of unchecked nodes */
 	if (ref_flags(tn->fn->raw) != REF_UNCHECKED)
@@ -405,7 +405,7 @@ static void eat_last(struct rb_root *root, struct rb_node *node)
 	struct rb_node **link;
 
 	/* LAST! */
-	BUG_ON(node->rb_right);
+	_ON(node->rb_right);
 
 	if (!parent)
 		link = &root->rb_node;
@@ -591,7 +591,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 	uint32_t crc;
 
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
-	BUG_ON(ref_obsolete(ref));
+	_ON(ref_obsolete(ref));
 
 	crc = crc32(0, rd, sizeof(*rd) - 8);
 	if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
@@ -704,7 +704,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	uint32_t crc;
 
 	/* Obsoleted. This cannot happen, surely? dwmw2 20020308 */
-	BUG_ON(ref_obsolete(ref));
+	_ON(ref_obsolete(ref));
 
 	crc = crc32(0, rd, sizeof(*rd) - 8);
 	if (unlikely(crc != je32_to_cpu(rd->node_crc))) {
@@ -830,7 +830,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 	if (tn->version > rii->highest_version)
 		rii->highest_version = tn->version;
 
-	/* There was a bug where we wrote hole nodes out with
+	/* There was a  where we wrote hole nodes out with
 	   csize/dsize swapped. Deal with it */
 	if (rd->compr == JFFS2_COMPR_ZERO && !je32_to_cpu(rd->dsize) && csize)
 		tn->fn->size = csize;
@@ -890,13 +890,13 @@ static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_re
 		JFFS2_ERROR("unknown INCOMPAT nodetype %#04X at %#08x\n",
 			    je16_to_cpu(un->nodetype), ref_offset(ref));
 		/* EEP */
-		BUG();
+		();
 		break;
 
 	case JFFS2_FEATURE_ROCOMPAT:
 		JFFS2_ERROR("unknown ROCOMPAT nodetype %#04X at %#08x\n",
 			    je16_to_cpu(un->nodetype), ref_offset(ref));
-		BUG_ON(!(c->flags & JFFS2_SB_FLAG_RO));
+		_ON(!(c->flags & JFFS2_SB_FLAG_RO));
 		break;
 
 	case JFFS2_FEATURE_RWCOMPAT_COPY:
@@ -1346,7 +1346,7 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			break;
 
 		default:
-			BUG();
+			();
 		}
 	}
 	spin_unlock(&c->inocache_lock);

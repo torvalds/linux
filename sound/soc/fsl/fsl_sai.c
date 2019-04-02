@@ -566,7 +566,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * For sai master mode, after several open/close sai,
 			 * there will be no frame clock, and can't recover
 			 * anymore. Add software reset to fix this issue.
-			 * This is a hardware bug, and will be fix in the
+			 * This is a hardware , and will be fix in the
 			 * next sai version.
 			 */
 			if (!sai->is_slave_mode) {

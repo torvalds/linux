@@ -105,7 +105,7 @@ int nf_conntrack_icmpv6_packet(struct nf_conn *ct,
 
 		if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
 			/* Can't create a new ICMPv6 `conn' with this. */
-			pr_debug("icmpv6: can't create new conn with type %u\n",
+			pr_de("icmpv6: can't create new conn with type %u\n",
 				 type + 128);
 			nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
 			return -NF_ACCEPT;
@@ -141,14 +141,14 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 				+ sizeof(struct ipv6hdr)
 				+ sizeof(struct icmp6hdr),
 			       PF_INET6, net, &origtuple)) {
-		pr_debug("icmpv6_error: Can't get tuple\n");
+		pr_de("icmpv6_error: Can't get tuple\n");
 		return -NF_ACCEPT;
 	}
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
 	if (!nf_ct_invert_tuple(&intuple, &origtuple)) {
-		pr_debug("icmpv6_error: Can't invert tuple\n");
+		pr_de("icmpv6_error: Can't invert tuple\n");
 		return -NF_ACCEPT;
 	}
 
@@ -157,7 +157,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	h = nf_conntrack_find_get(net, nf_ct_zone_tmpl(tmpl, skb, &tmp),
 				  &intuple);
 	if (!h) {
-		pr_debug("icmpv6_error: no match\n");
+		pr_de("icmpv6_error: no match\n");
 		return -NF_ACCEPT;
 	} else {
 		if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY)

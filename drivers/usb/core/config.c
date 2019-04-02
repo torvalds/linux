@@ -331,7 +331,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 		endpoint->desc.bInterval = n;
 	}
 
-	/* Some buggy low-speed devices have Bulk endpoints, which is
+	/* Some gy low-speed devices have Bulk endpoints, which is
 	 * explicitly forbidden by the USB spec.  In an attempt to make
 	 * them usable, we will try treating them as Interrupt endpoints.
 	 */
@@ -383,9 +383,9 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 	}
 
 	/*
-	 * Some buggy high speed devices have bulk endpoints using
+	 * Some gy high speed devices have bulk endpoints using
 	 * maxpacket sizes other than 512.  High speed HCDs may not
-	 * be able to handle that particular bug, so let's warn...
+	 * be able to handle that particular , so let's warn...
 	 */
 	if (to_usb_device(ddev)->speed == USB_SPEED_HIGH
 			&& usb_endpoint_xfer_bulk(d)) {

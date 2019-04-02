@@ -620,14 +620,14 @@ struct hid_device {							/* device report descriptor */
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
 
-	/* debugging support via debugfs */
-	unsigned short debug;
-	struct dentry *debug_dir;
-	struct dentry *debug_rdesc;
-	struct dentry *debug_events;
-	struct list_head debug_list;
-	spinlock_t  debug_list_lock;
-	wait_queue_head_t debug_wait;
+	/* deging support via defs */
+	unsigned short de;
+	struct dentry *de_dir;
+	struct dentry *de_rdesc;
+	struct dentry *de_events;
+	struct list_head de_list;
+	spinlock_t  de_list_lock;
+	wait_queue_head_t de_wait;
 };
 
 #define to_hid_device(pdev) \
@@ -852,7 +852,7 @@ static inline bool hid_is_using_ll_driver(struct hid_device *hdev,
 
 /* HID core API */
 
-extern int hid_debug;
+extern int hid_de;
 
 extern bool hid_ignore(struct hid_device *);
 extern int hid_add_device(struct hid_device *);
@@ -1166,8 +1166,8 @@ int hid_pidff_init(struct hid_device *hid);
 
 #define dbg_hid(format, arg...)						\
 do {									\
-	if (hid_debug)							\
-		printk(KERN_DEBUG "%s: " format, __FILE__, ##arg);	\
+	if (hid_de)							\
+		printk(KERN_DE "%s: " format, __FILE__, ##arg);	\
 } while (0)
 
 #define hid_printk(level, hid, fmt, arg...)		\

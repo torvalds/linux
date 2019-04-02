@@ -26,7 +26,7 @@
 #include <acpi/actbl.h>		/* ACPI table definitions */
 #include <acpi/acrestyp.h>		/* Resource Descriptor structs */
 #include <acpi/platform/acenvex.h>	/* Extra environment-specific items */
-#include <acpi/acoutput.h>		/* Error output and Debug macros */
+#include <acpi/acoutput.h>		/* Error output and De macros */
 #include <acpi/acpiosxf.h>		/* OSL interfaces (ACPICA-to-OS) */
 #include <acpi/acpixf.h>		/* ACPI core subsystem external interfaces */
 

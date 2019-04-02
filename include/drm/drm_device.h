@@ -322,7 +322,7 @@ struct drm_device {
 	/* Memory management - user token hash table for maps */
 	struct drm_open_hash map_hash;
 
-	/* Context handle management - list of vmas (for debugging) */
+	/* Context handle management - list of vmas (for deging) */
 	struct list_head vmalist;
 
 	/* Optional pointer for DMA support */

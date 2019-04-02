@@ -59,9 +59,9 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, nicvf_id_table);
 
-static int debug = 0x00;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug message level bitmap");
+static int de = 0x00;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De message level bitmap");
 
 static int cpi_alg = CPI_ALG_NONE;
 module_param(cpi_alg, int, 0444);
@@ -2250,7 +2250,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_unregister_interrupts;
 	}
 
-	nic->msg_enable = debug;
+	nic->msg_enable = de;
 
 	nicvf_set_ethtool_ops(netdev);
 

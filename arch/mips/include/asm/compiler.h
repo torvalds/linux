@@ -13,7 +13,7 @@
  * compiler that a particular code path will never be hit. This allows it to be
  * optimised out of the generated binary.
  *
- * Unfortunately at least GCC 4.6.3 through 7.3.0 inclusive suffer from a bug
+ * Unfortunately at least GCC 4.6.3 through 7.3.0 inclusive suffer from a 
  * that can lead to instructions from beyond an unreachable statement being
  * incorrectly reordered into earlier delay slots if the unreachable statement
  * is the only content of a case in a switch statement. This can lead to
@@ -25,12 +25,12 @@
  * It is unclear whether GCC 8 onwards suffer from the same issue - nothing
  * relevant is mentioned in GCC 8 release notes and nothing obviously relevant
  * stands out in GCC commit logs, but these newer GCC versions generate very
- * different code for the testcase which doesn't exhibit the bug.
+ * different code for the testcase which doesn't exhibit the .
  *
  * GCC also handles stack allocation suboptimally when calling noreturn
  * functions or calling __builtin_unreachable():
  *
- *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82365
+ *   https://gcc.gnu.org/zilla/show_.cgi?id=82365
  *
  * We work around both of these issues by placing a volatile asm statement,
  * which GCC is prevented from reordering past, prior to __builtin_unreachable

@@ -36,7 +36,7 @@ static u16 ec_wakeup_mask;
 /* what the timeout *should* be (in ms) */
 #define EC_BASE_TIMEOUT 20
 
-/* the timeout that bugs in the EC might force us to actually use */
+/* the timeout that s in the EC might force us to actually use */
 static int ec_timeout = EC_BASE_TIMEOUT;
 
 static int __init olpc_ec_timeout_set(char *str)
@@ -46,7 +46,7 @@ static int __init olpc_ec_timeout_set(char *str)
 		printk(KERN_ERR "olpc-ec:  invalid argument to "
 				"'olpc_ec_timeout=', ignoring!\n");
 	}
-	printk(KERN_DEBUG "olpc-ec:  using %d ms delay for EC commands.\n",
+	printk(KERN_DE "olpc-ec:  using %d ms delay for EC commands.\n",
 			ec_timeout);
 	return 1;
 }

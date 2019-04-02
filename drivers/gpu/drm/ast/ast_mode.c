@@ -620,7 +620,7 @@ static void ast_crtc_disable(struct drm_crtc *crtc)
 {
 	int ret;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		struct ast_framebuffer *ast_fb = to_ast_framebuffer(crtc->primary->fb);
@@ -943,7 +943,7 @@ static int ast_cursor_init(struct drm_device *dev)
 
 	ast->cursor_cache = obj;
 	ast->cursor_cache_gpu_addr = gpu_addr;
-	DRM_DEBUG_KMS("pinned cursor cache at %llx\n", ast->cursor_cache_gpu_addr);
+	DRM_DE_KMS("pinned cursor cache at %llx\n", ast->cursor_cache_gpu_addr);
 	return 0;
 fail:
 	return ret;

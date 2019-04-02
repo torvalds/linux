@@ -146,7 +146,7 @@ struct sdhci_msm_offset {
 	u32 core_pwrctl_mask;
 	u32 core_pwrctl_clear;
 	u32 core_pwrctl_ctl;
-	u32 core_sdcc_debug_reg;
+	u32 core_sdcc_de_reg;
 	u32 core_dll_config;
 	u32 core_dll_status;
 	u32 core_vendor_spec;
@@ -175,7 +175,7 @@ static const struct sdhci_msm_offset sdhci_msm_v5_offset = {
 	.core_pwrctl_mask = 0x244,
 	.core_pwrctl_clear = 0x248,
 	.core_pwrctl_ctl = 0x24c,
-	.core_sdcc_debug_reg = 0x358,
+	.core_sdcc_de_reg = 0x358,
 	.core_dll_config = 0x200,
 	.core_dll_status = 0x208,
 	.core_vendor_spec = 0x20c,
@@ -205,7 +205,7 @@ static const struct sdhci_msm_offset sdhci_msm_mci_offset = {
 	.core_pwrctl_mask = 0xe0,
 	.core_pwrctl_clear = 0xe4,
 	.core_pwrctl_ctl = 0xe8,
-	.core_sdcc_debug_reg = 0x124,
+	.core_sdcc_de_reg = 0x124,
 	.core_dll_config = 0x100,
 	.core_dll_status = 0x108,
 	.core_vendor_spec = 0x10c,
@@ -342,7 +342,7 @@ static void msm_set_clock_rate_for_bus_mode(struct sdhci_host *host,
 		return;
 	}
 	msm_host->clk_rate = clock;
-	pr_debug("%s: Setting clock at rate %lu at timing %d\n",
+	pr_de("%s: Setting clock at rate %lu at timing %d\n",
 		 mmc_hostname(host->mmc), clk_get_rate(core_clk),
 		 curr_ios.timing);
 }
@@ -833,7 +833,7 @@ static int sdhci_msm_cdclp533_calibration(struct sdhci_host *host)
 	const struct sdhci_msm_offset *msm_offset =
 					msm_host->offset;
 
-	pr_debug("%s: %s: Enter\n", mmc_hostname(host->mmc), __func__);
+	pr_de("%s: %s: Enter\n", mmc_hostname(host->mmc), __func__);
 
 	/*
 	 * Retuning in HS400 (DDR mode) will fail, just reset the
@@ -922,7 +922,7 @@ static int sdhci_msm_cdclp533_calibration(struct sdhci_host *host)
 	config |= CORE_START_CDC_TRAFFIC;
 	writel_relaxed(config, host->ioaddr + msm_offset->core_ddr_200_cfg);
 out:
-	pr_debug("%s: %s: Exit, ret %d\n", mmc_hostname(host->mmc),
+	pr_de("%s: %s: Exit, ret %d\n", mmc_hostname(host->mmc),
 		 __func__, ret);
 	return ret;
 }
@@ -935,7 +935,7 @@ static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 	const struct sdhci_msm_offset *msm_offset =
 					sdhci_priv_msm_offset(host);
 
-	pr_debug("%s: %s: Enter\n", mmc_hostname(host->mmc), __func__);
+	pr_de("%s: %s: Enter\n", mmc_hostname(host->mmc), __func__);
 
 	/*
 	 * Currently the core_ddr_config register defaults to desired
@@ -981,7 +981,7 @@ static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 	 */
 	wmb();
 out:
-	pr_debug("%s: %s: Exit, ret %d\n", mmc_hostname(host->mmc),
+	pr_de("%s: %s: Exit, ret %d\n", mmc_hostname(host->mmc),
 		 __func__, ret);
 	return ret;
 }
@@ -996,7 +996,7 @@ static int sdhci_msm_hs400_dll_calibration(struct sdhci_host *host)
 	const struct sdhci_msm_offset *msm_offset =
 					msm_host->offset;
 
-	pr_debug("%s: %s: Enter\n", mmc_hostname(host->mmc), __func__);
+	pr_de("%s: %s: Enter\n", mmc_hostname(host->mmc), __func__);
 
 	/*
 	 * Retuning in HS400 (DDR mode) will fail, just reset the
@@ -1024,7 +1024,7 @@ static int sdhci_msm_hs400_dll_calibration(struct sdhci_host *host)
 	else
 		ret = sdhci_msm_cm_dll_sdc4_calibration(host);
 out:
-	pr_debug("%s: %s: Exit, ret %d\n", mmc_hostname(host->mmc),
+	pr_de("%s: %s: Exit, ret %d\n", mmc_hostname(host->mmc),
 		 __func__, ret);
 	return ret;
 }
@@ -1306,7 +1306,7 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 	const struct sdhci_msm_offset *msm_offset =
 					msm_host->offset;
 
-	pr_debug("%s: %s: request %d curr_pwr_state %x curr_io_level %x\n",
+	pr_de("%s: %s: request %d curr_pwr_state %x curr_io_level %x\n",
 			mmc_hostname(host->mmc), __func__, req_type,
 			msm_host->curr_pwr_state, msm_host->curr_io_level);
 
@@ -1337,7 +1337,7 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 	 * issued even before controller power up.
 	 */
 	if ((req_type & REQ_IO_HIGH) && !host->pwr) {
-		pr_debug("%s: do not wait for power IRQ that never comes, req_type: %d\n",
+		pr_de("%s: do not wait for power IRQ that never comes, req_type: %d\n",
 				mmc_hostname(host->mmc), req_type);
 		return;
 	}
@@ -1358,7 +1358,7 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 				 "%s: pwr_irq for req: (%d) timed out\n",
 				 mmc_hostname(host->mmc), req_type);
 	}
-	pr_debug("%s: %s: request %d done\n", mmc_hostname(host->mmc),
+	pr_de("%s: %s: request %d done\n", mmc_hostname(host->mmc),
 			__func__, req_type);
 }
 
@@ -1482,7 +1482,7 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 	if (io_level)
 		msm_host->curr_io_level = io_level;
 
-	pr_debug("%s: %s: Handled IRQ(%d), irq_status=0x%x, ack=0x%x\n",
+	pr_de("%s: %s: Handled IRQ(%d), irq_status=0x%x, ack=0x%x\n",
 		mmc_hostname(msm_host->mmc), __func__, irq, irq_status,
 		irq_ack);
 }
@@ -1681,7 +1681,7 @@ static void sdhci_msm_set_regulator_caps(struct sdhci_msm_host *msm_host)
 				host->ioaddr + msm_offset->core_vendor_spec);
 	}
 	msm_host->caps_0 |= caps;
-	pr_debug("%s: supported caps: 0x%08x\n", mmc_hostname(mmc), caps);
+	pr_de("%s: supported caps: 0x%08x\n", mmc_hostname(mmc), caps);
 }
 
 static const struct sdhci_msm_variant_ops mci_var_ops = {

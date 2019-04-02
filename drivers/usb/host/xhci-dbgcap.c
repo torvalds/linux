@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * xhci-dbgcap.c - xHCI debug capability support
+ * xhci-dbgcap.c - xHCI de capability support
  *
  * Copyright (C) 2017 Intel Corporation
  *
@@ -693,7 +693,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 			return EVT_DISC;
 		}
 
-		/* Handle debug port reset event: */
+		/* Handle de port reset event: */
 		if (portsc & DBC_PORTSC_RESET_CHANGE) {
 			xhci_info(xhci, "DbC port reset\n");
 			writel(portsc, &dbc->regs->portsc);
@@ -840,7 +840,7 @@ static int xhci_do_dbc_init(struct xhci_hcd *xhci)
 	int			dbc_cap_offs;
 
 	base = &xhci->cap_regs->hc_capbase;
-	dbc_cap_offs = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_DEBUG);
+	dbc_cap_offs = xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_DE);
 	if (!dbc_cap_offs)
 		return -ENODEV;
 

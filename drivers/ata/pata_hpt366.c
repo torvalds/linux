@@ -128,7 +128,7 @@ static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
 			return clocks->timing;
 		clocks++;
 	}
-	BUG();
+	();
 	return 0xffffffffU;	/* silence compiler warning */
 }
 

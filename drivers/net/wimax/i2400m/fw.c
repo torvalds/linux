@@ -162,7 +162,7 @@
 
 
 #define D_SUBMODULE fw
-#include "debug-levels.h"
+#include "de-levels.h"
 
 
 static const __le32 i2400m_ACK_BARKER[4] = {
@@ -406,7 +406,7 @@ int i2400m_is_boot_barker(struct i2400m *i2400m,
 
 	for (i = 0; i < i2400m_barker_db_used; i++) {
 		barker = &i2400m_barker_db[i];
-		BUILD_BUG_ON(sizeof(barker->data) != 16);
+		BUILD__ON(sizeof(barker->data) != 16);
 		if (memcmp(buf, barker->data, sizeof(barker->data)))
 			continue;
 
@@ -461,7 +461,7 @@ ssize_t __i2400m_bm_ack_verify(struct i2400m *i2400m, int opcode,
 		  i2400m, opcode, ack, ack_size);
 	if (ack_size < sizeof(*ack)) {
 		result = -EIO;
-		dev_err(dev, "boot-mode cmd %d: HW BUG? notification didn't "
+		dev_err(dev, "boot-mode cmd %d: HW ? notification didn't "
 			"return enough data (%zu bytes vs %zu expected)\n",
 			opcode, ack_size, sizeof(*ack));
 		goto error_ack_short;
@@ -494,12 +494,12 @@ ssize_t __i2400m_bm_ack_verify(struct i2400m *i2400m, int opcode,
 		 i2400m_brh_get_direct_access(ack));
 	result = -EIO;
 	if (i2400m_brh_get_signature(ack) != 0xcbbc) {
-		dev_err(dev, "boot-mode cmd %d: HW BUG? wrong signature "
+		dev_err(dev, "boot-mode cmd %d: HW ? wrong signature "
 			"0x%04x\n", opcode, i2400m_brh_get_signature(ack));
 		goto error_ack_signature;
 	}
 	if (opcode != -1 && opcode != i2400m_brh_get_opcode(ack)) {
-		dev_err(dev, "boot-mode cmd %d: HW BUG? "
+		dev_err(dev, "boot-mode cmd %d: HW ? "
 			"received response for opcode %u, expected %u\n",
 			opcode, i2400m_brh_get_opcode(ack), opcode);
 		goto error_ack_opcode;
@@ -510,7 +510,7 @@ ssize_t __i2400m_bm_ack_verify(struct i2400m *i2400m, int opcode,
 		goto error_ack_failed;
 	}
 	if (ack_size < ack->data_size + sizeof(*ack)) {
-		dev_err(dev, "boot-mode cmd %d: SW BUG "
+		dev_err(dev, "boot-mode cmd %d: SW  "
 			"driver provided only %zu bytes for %zu bytes "
 			"of data\n", opcode, ack_size,
 			(size_t) le32_to_cpu(ack->data_size) + sizeof(*ack));
@@ -591,8 +591,8 @@ ssize_t i2400m_bm_cmd(struct i2400m *i2400m,
 
 	d_fnstart(6, dev, "(i2400m %p cmd %p size %zu ack %p size %zu)\n",
 		  i2400m, cmd, cmd_size, ack, ack_size);
-	BUG_ON(ack_size < sizeof(*ack));
-	BUG_ON(i2400m->boot_mode == 0);
+	_ON(ack_size < sizeof(*ack));
+	_ON(i2400m->boot_mode == 0);
 
 	if (cmd != NULL) {		/* send the command */
 		result = i2400m->bus_bm_cmd_send(i2400m, cmd, cmd_size, flags);
@@ -890,8 +890,8 @@ int i2400m_bootrom_init(struct i2400m *i2400m, enum i2400m_bri flags)
 	int ack_timeout_cnt = 1;
 	unsigned i;
 
-	BUILD_BUG_ON(sizeof(*cmd) != sizeof(i2400m_barker_db[0].data));
-	BUILD_BUG_ON(sizeof(ack) != sizeof(i2400m_ACK_BARKER));
+	BUILD__ON(sizeof(*cmd) != sizeof(i2400m_barker_db[0].data));
+	BUILD__ON(sizeof(ack) != sizeof(i2400m_ACK_BARKER));
 
 	d_fnstart(4, dev, "(i2400m %p flags 0x%08x)\n", i2400m, flags);
 	result = -ENOMEM;

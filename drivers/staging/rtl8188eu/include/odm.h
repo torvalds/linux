@@ -269,7 +269,7 @@ struct odm_phy_status_info {
 };
 
 struct odm_phy_dbg_info {
-	/* ODM Write,debug info */
+	/* ODM Write,de info */
 	s8	RxSNRdB[MAX_PATH_NUM_92CS];
 	u64	NumQryPhyStatus;
 	u64	NumQryPhyStatusCCK;
@@ -607,7 +607,7 @@ struct odm_rf_cal {
 
 	bool	bReloadtxpowerindex;
 	u8	bRfPiEnable;
-	u32	TXPowerTrackingCallbackCnt; /* cosa add for debug */
+	u32	TXPowerTrackingCallbackCnt; /* cosa add for de */
 
 	u8	bCCKinCH14;
 	u8	CCK_index;
@@ -694,8 +694,8 @@ struct odm_dm_struct {
 	bool	odm_ready;
 
 	struct rtl8192cd_priv *fake_priv;
-	u64	DebugComponents;
-	u32	DebugLevel;
+	u64	DeComponents;
+	u32	DeLevel;
 
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 	bool	bCckHighPower;

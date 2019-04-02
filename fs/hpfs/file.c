@@ -95,7 +95,7 @@ static int hpfs_get_block(struct inode *inode, sector_t iblock, struct buffer_he
 	}
 	if (!create) goto ret_0;
 	if (iblock<<9 != hpfs_i(inode)->mmu_private) {
-		BUG();
+		();
 		r = -EIO;
 		goto ret_r;
 	}

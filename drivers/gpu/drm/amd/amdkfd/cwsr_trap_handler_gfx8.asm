@@ -43,7 +43,7 @@
 ** #9. Update: 1. Fix scc restore failed issue, restore wave_status at last
 **             2. optimize s_buffer save by burst 16sgprs...
 ** #10. Update 1. Optimize restore sgpr by busrt 16 sgprs.
-** #11. Update 1. Add 2 more timestamp for debug version
+** #11. Update 1. Add 2 more timestamp for de version
 ** #12. Update 1. Add VGPR SR using DWx4, some case improve and some case drop performance
 ** #13. Integ  1. Always use MUBUF for PV trap shader...
 ** #14. Update 1. s_buffer_store soft clause...
@@ -60,8 +60,8 @@ var G8SR_WDMEM_SGPR_OFFSET  = 128  // in bytes
 
 // Keep definition same as the app shader, These 2 time stamps are part of the app shader... Should before any Save and after restore.
 
-var G8SR_DEBUG_TIMESTAMP = 0
-var G8SR_DEBUG_TS_SAVE_D_OFFSET = 40*4  // ts_save_d timestamp offset relative to SGPR_SR_memory_offset
+var G8SR_DE_TIMESTAMP = 0
+var G8SR_DE_TS_SAVE_D_OFFSET = 40*4  // ts_save_d timestamp offset relative to SGPR_SR_memory_offset
 var s_g8sr_ts_save_s    = s[34:35]   // save start
 var s_g8sr_ts_sq_save_msg  = s[36:37]   // The save shader send SAVEWAVE msg to spi
 var s_g8sr_ts_spi_wrexec   = s[38:39]   // the SPI write the sr address to SQ
@@ -277,7 +277,7 @@ end
 
 L_SAVE:
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
         s_memrealtime   s_g8sr_ts_save_s
         s_waitcnt lgkmcnt(0)         //FIXME, will cause xnack??
 end
@@ -316,7 +316,7 @@ L_NO_PC_REWIND:
     s_mov_b32       s_save_exec_hi, exec_hi
     s_mov_b64       exec,   0x0                                                             //clear EXEC to get ready to receive
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
         s_memrealtime  s_g8sr_ts_sq_save_msg
         s_waitcnt lgkmcnt(0)
 end
@@ -340,7 +340,7 @@ end
         s_cbranch_execz L_SLEEP
     end
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
         s_memrealtime  s_g8sr_ts_spi_wrexec
         s_waitcnt lgkmcnt(0)
 end
@@ -746,11 +746,11 @@ L_SAVE_VGPR_END:
     end
 
 // Save Done timestamp
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
         s_memrealtime   s_g8sr_ts_save_d
         // SGPR SR memory offset : size(VGPR)
         get_vgpr_size_bytes(s_save_mem_offset)
-        s_add_u32 s_save_mem_offset, s_save_mem_offset, G8SR_DEBUG_TS_SAVE_D_OFFSET
+        s_add_u32 s_save_mem_offset, s_save_mem_offset, G8SR_DE_TS_SAVE_D_OFFSET
         s_waitcnt lgkmcnt(0)         //FIXME, will cause xnack??
         // Need reset rsrc2??
         s_mov_b32 m0, s_save_mem_offset
@@ -780,7 +780,7 @@ L_RESTORE:
     else
     end
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
         s_memrealtime   s_g8sr_ts_restore_s
         s_waitcnt lgkmcnt(0)         //FIXME, will cause xnack??
         // tma_lo/hi are sgpr 110, 111, which will not used for 112 SGPR allocated case...
@@ -986,7 +986,7 @@ end
   L_RESTORE_HWREG:
 
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
       s_mov_b32 s_g8sr_ts_restore_s[0], s_restore_pc_lo
       s_mov_b32 s_g8sr_ts_restore_s[1], s_restore_pc_hi
 end
@@ -1061,7 +1061,7 @@ end
 
     s_barrier                                                   //barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME not performance-optimal at this time
 
-if G8SR_DEBUG_TIMESTAMP
+if G8SR_DE_TIMESTAMP
     s_memrealtime s_g8sr_ts_restore_d
     s_waitcnt lgkmcnt(0)
 end

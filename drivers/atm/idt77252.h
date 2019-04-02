@@ -45,7 +45,7 @@
 
 /*****************************************************************************/
 /*                                                                           */
-/*   DEBUGGING definitions                                                   */
+/*   DEGING definitions                                                   */
 /*                                                                           */
 /*****************************************************************************/
 
@@ -61,19 +61,19 @@
 #define DBG_RX_DATA     0x00000002
 #define DBG_TX_DATA     0x00000001
 
-#ifdef CONFIG_ATM_IDT77252_DEBUG
+#ifdef CONFIG_ATM_IDT77252_DE
 
-#define CPRINTK(args...)   do { if (debug & DBG_CLOSE_CONN) printk(args); } while(0)
-#define OPRINTK(args...)   do { if (debug & DBG_OPEN_CONN)  printk(args); } while(0)
-#define IPRINTK(args...)   do { if (debug & DBG_INIT)       printk(args); } while(0)
-#define INTPRINTK(args...) do { if (debug & DBG_INTERRUPT)  printk(args); } while(0)
-#define DIPRINTK(args...)  do { if (debug & DBG_DEINIT)     printk(args); } while(0)
-#define TXPRINTK(args...)  do { if (debug & DBG_TX_DATA)    printk(args); } while(0)
-#define RXPRINTK(args...)  do { if (debug & DBG_RX_DATA)    printk(args); } while(0)
-#define XPRINTK(args...)   do { if (debug & DBG_XGENERAL)   printk(args); } while(0)
-#define DPRINTK(args...)   do { if (debug & DBG_GENERAL)    printk(args); } while(0)
-#define NPRINTK(args...)   do { if (debug & DBG_TINY)	    printk(args); } while(0)
-#define RPRINTK(args...)   do { if (debug & DBG_RAW_CELL)   printk(args); } while(0)
+#define CPRINTK(args...)   do { if (de & DBG_CLOSE_CONN) printk(args); } while(0)
+#define OPRINTK(args...)   do { if (de & DBG_OPEN_CONN)  printk(args); } while(0)
+#define IPRINTK(args...)   do { if (de & DBG_INIT)       printk(args); } while(0)
+#define INTPRINTK(args...) do { if (de & DBG_INTERRUPT)  printk(args); } while(0)
+#define DIPRINTK(args...)  do { if (de & DBG_DEINIT)     printk(args); } while(0)
+#define TXPRINTK(args...)  do { if (de & DBG_TX_DATA)    printk(args); } while(0)
+#define RXPRINTK(args...)  do { if (de & DBG_RX_DATA)    printk(args); } while(0)
+#define XPRINTK(args...)   do { if (de & DBG_XGENERAL)   printk(args); } while(0)
+#define DPRINTK(args...)   do { if (de & DBG_GENERAL)    printk(args); } while(0)
+#define NPRINTK(args...)   do { if (de & DBG_TINY)	    printk(args); } while(0)
+#define RPRINTK(args...)   do { if (de & DBG_RAW_CELL)   printk(args); } while(0)
 
 #else
 

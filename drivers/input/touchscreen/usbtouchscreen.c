@@ -45,7 +45,7 @@
  *
  *****************************************************************************/
 
-//#define DEBUG
+//#define DE
 
 #include <linux/kernel.h>
 #include <linux/slab.h>

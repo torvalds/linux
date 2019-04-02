@@ -57,9 +57,9 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
-/* debug macro */
+/* de macro */
 #if 0
-#define dbg(x) do { printk("DEBUG-CMDLINE-PART: "); printk x; } while(0)
+#define dbg(x) do { printk("DE-CMDLINE-PART: "); printk x; } while(0)
 #else
 #define dbg(x)
 #endif

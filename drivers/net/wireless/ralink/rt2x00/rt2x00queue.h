@@ -125,7 +125,7 @@ struct skb_frame_desc {
  */
 static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct skb_frame_desc) >
+	BUILD__ON(sizeof(struct skb_frame_desc) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct skb_frame_desc *)&IEEE80211_SKB_CB(skb)->driver_data;
 }

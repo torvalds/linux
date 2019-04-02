@@ -43,9 +43,9 @@ void *find_first_bad_addr(void *addr, size_t size)
 	return p;
 }
 
-static const char *get_shadow_bug_type(struct kasan_access_info *info)
+static const char *get_shadow__type(struct kasan_access_info *info)
 {
-	const char *bug_type = "unknown-crash";
+	const char *_type = "unknown-crash";
 	u8 *shadow_addr;
 
 	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
@@ -63,53 +63,53 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
 		 * In theory it's still possible to see these shadow values
 		 * due to a data race in the kernel code.
 		 */
-		bug_type = "out-of-bounds";
+		_type = "out-of-bounds";
 		break;
 	case KASAN_PAGE_REDZONE:
 	case KASAN_KMALLOC_REDZONE:
-		bug_type = "slab-out-of-bounds";
+		_type = "slab-out-of-bounds";
 		break;
 	case KASAN_GLOBAL_REDZONE:
-		bug_type = "global-out-of-bounds";
+		_type = "global-out-of-bounds";
 		break;
 	case KASAN_STACK_LEFT:
 	case KASAN_STACK_MID:
 	case KASAN_STACK_RIGHT:
 	case KASAN_STACK_PARTIAL:
-		bug_type = "stack-out-of-bounds";
+		_type = "stack-out-of-bounds";
 		break;
 	case KASAN_FREE_PAGE:
 	case KASAN_KMALLOC_FREE:
-		bug_type = "use-after-free";
+		_type = "use-after-free";
 		break;
 	case KASAN_ALLOCA_LEFT:
 	case KASAN_ALLOCA_RIGHT:
-		bug_type = "alloca-out-of-bounds";
+		_type = "alloca-out-of-bounds";
 		break;
 	}
 
-	return bug_type;
+	return _type;
 }
 
-static const char *get_wild_bug_type(struct kasan_access_info *info)
+static const char *get_wild__type(struct kasan_access_info *info)
 {
-	const char *bug_type = "unknown-crash";
+	const char *_type = "unknown-crash";
 
 	if ((unsigned long)info->access_addr < PAGE_SIZE)
-		bug_type = "null-ptr-deref";
+		_type = "null-ptr-deref";
 	else if ((unsigned long)info->access_addr < TASK_SIZE)
-		bug_type = "user-memory-access";
+		_type = "user-memory-access";
 	else
-		bug_type = "wild-memory-access";
+		_type = "wild-memory-access";
 
-	return bug_type;
+	return _type;
 }
 
-const char *get_bug_type(struct kasan_access_info *info)
+const char *get__type(struct kasan_access_info *info)
 {
 	if (addr_has_shadow(info->access_addr))
-		return get_shadow_bug_type(info);
-	return get_wild_bug_type(info);
+		return get_shadow__type(info);
+	return get_wild__type(info);
 }
 
 #define DEFINE_ASAN_REPORT_LOAD(size)                     \

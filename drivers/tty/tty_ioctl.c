@@ -25,15 +25,15 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#undef TTY_DEBUG_WAIT_UNTIL_SENT
+#undef TTY_DE_WAIT_UNTIL_SENT
 
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-# define tty_debug_wait_until_sent(tty, f, args...)    tty_debug(tty, f, ##args)
+#ifdef TTY_DE_WAIT_UNTIL_SENT
+# define tty_de_wait_until_sent(tty, f, args...)    tty_de(tty, f, ##args)
 #else
-# define tty_debug_wait_until_sent(tty, f, args...)    do {} while (0)
+# define tty_de_wait_until_sent(tty, f, args...)    do {} while (0)
 #endif
 
-#undef	DEBUG
+#undef	DE
 
 /*
  * Internal flag options for termios setting behavior
@@ -217,7 +217,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-	tty_debug_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
+	tty_de_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
 
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
@@ -713,7 +713,7 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 	int ret = 0;
 	struct ktermios kterm;
 
-	BUG_ON(file == NULL);
+	_ON(file == NULL);
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)

@@ -43,7 +43,7 @@ my $list_types = 0;
 my $fix = 0;
 my $fix_inplace = 0;
 my $root;
-my %debug;
+my %de;
 my %camelcase = ();
 my %use_type = ();
 my @use = ();
@@ -100,7 +100,7 @@ Options:
   --no-summary               suppress the per-file summary
   --mailback                 only produce a report in case of warnings/errors
   --summary-file             include the filename in summary
-  --debug KEY=[0|1]          turn on/off debugging of KEY, where KEY is one of
+  --de KEY=[0|1]          turn on/off deging of KEY, where KEY is one of
                              'values', 'possible', 'type', and 'attr' (default
                              is all off)
   --test-only=WORD           report only warnings/errors containing WORD
@@ -220,7 +220,7 @@ GetOptions(
 	'fix!'		=> \$fix,
 	'fix-inplace!'	=> \$fix_inplace,
 	'ignore-perl-version!' => \$ignore_perl_version,
-	'debug=s'	=> \%debug,
+	'de=s'	=> \%de,
 	'test-only=s'	=> \$tst_only,
 	'codespell!'	=> \$codespell,
 	'codespellfile=s'	=> \$codespellfile,
@@ -301,9 +301,9 @@ my $dbg_values = 0;
 my $dbg_possible = 0;
 my $dbg_type = 0;
 my $dbg_attr = 0;
-for my $key (keys %debug) {
+for my $key (keys %de) {
 	## no critic
-	eval "\${dbg_$key} = '$debug{$key}';";
+	eval "\${dbg_$key} = '$de{$key}';";
 	die "$@" if ($@);
 }
 
@@ -458,7 +458,7 @@ our $zero_initializer = qr{(?:(?:0[xX])?0+$Int_type?|NULL|false)\b};
 
 our $logFunctions = qr{(?x:
 	printk(?:_ratelimited|_once|_deferred_once|_deferred|)|
-	(?:[a-z0-9]+_){1,2}(?:printk|emerg|alert|crit|err|warning|warn|notice|info|debug|dbg|vdbg|devel|cont|WARN)(?:_ratelimited|_once|)|
+	(?:[a-z0-9]+_){1,2}(?:printk|emerg|alert|crit|err|warning|warn|notice|info|de|dbg|vdbg|devel|cont|WARN)(?:_ratelimited|_once|)|
 	TP_printk|
 	WARN(?:_RATELIMIT|_ONCE|)|
 	panic|
@@ -567,7 +567,7 @@ our @mode_permission_funcs = (
 	["module_param", 3],
 	["module_param_(?:array|named|string)", 4],
 	["module_param_array_named", 5],
-	["debugfs_create_(?:file|u8|u16|u32|u64|x8|x16|x32|x64|size_t|atomic_t|bool|blob|regset32|u32_array)", 2],
+	["defs_create_(?:file|u8|u16|u32|u64|x8|x16|x32|x64|size_t|atomic_t|bool|blob|regset32|u32_array)", 2],
 	["proc_create(?:_data|)", 2],
 	["(?:CLASS|DEVICE|SENSOR|SENSOR_DEVICE|IIO_DEVICE)_ATTR", 2],
 	["IIO_DEV_ATTR_[A-Z_]+", 1],
@@ -2704,7 +2704,7 @@ sub process {
 
 # Check if the commit log is in a possible stack dump
 		if ($in_commit_log && !$commit_log_possible_stack_dump &&
-		    ($line =~ /^\s*(?:WARNING:|BUG:)/ ||
+		    ($line =~ /^\s*(?:WARNING:|:)/ ||
 		     $line =~ /^\s*\[\s*\d+\.\d{6,6}\s*\]/ ||
 					# timestamp
 		     $line =~ /^\s*\[\<[0-9a-fA-F]{8,}\>\]/)) {
@@ -2735,7 +2735,7 @@ sub process {
 
 # Check for git id commit length and improperly formed commit descriptions
 		if ($in_commit_log && !$commit_log_possible_stack_dump &&
-		    $line !~ /^\s*(?:Link|Patchwork|http|https|BugLink):/i &&
+		    $line !~ /^\s*(?:Link|Patchwork|http|https|Link):/i &&
 		    $line !~ /^This reverts commit [0-9a-f]{7,40}/ &&
 		    ($line =~ /\bcommit\s+[0-9a-f]{5,}\b/i ||
 		     ($line =~ /(?:\s|^)[0-9a-f]{12,40}(?:[\s"'\(\[]|$)/i &&
@@ -4044,12 +4044,12 @@ sub process {
 			}
 		}
 
-# avoid BUG() or BUG_ON()
-		if ($line =~ /\b(?:BUG|BUG_ON)\b/) {
+# avoid () or _ON()
+		if ($line =~ /\b(?:|_ON)\b/) {
 			my $msg_level = \&WARN;
 			$msg_level = \&CHK if ($file);
-			&{$msg_level}("AVOID_BUG",
-				      "Avoid crashing the kernel - try using WARN_ON & recovery code rather than BUG() or BUG_ON()\n" . $herecurr);
+			&{$msg_level}("AVOID_",
+				      "Avoid crashing the kernel - try using WARN_ON & recovery code rather than () or _ON()\n" . $herecurr);
 		}
 
 # avoid LINUX_VERSION_CODE
@@ -4075,7 +4075,7 @@ sub process {
 			my $level = lc($orig);
 			$level = "warn" if ($level eq "warning");
 			my $level2 = $level;
-			$level2 = "dbg" if ($level eq "debug");
+			$level2 = "dbg" if ($level eq "de");
 			WARN("PREFER_PR_LEVEL",
 			     "Prefer [subsystem eg: netdev]_$level2([subsystem]dev, ... then dev_$level2(dev, ... then pr_$level(...  to printk(KERN_$orig ...\n" . $herecurr);
 		}
@@ -4093,7 +4093,7 @@ sub process {
 			my $orig = $1;
 			my $level = lc($orig);
 			$level = "warn" if ($level eq "warning");
-			$level = "dbg" if ($level eq "debug");
+			$level = "dbg" if ($level eq "de");
 			WARN("PREFER_DEV_LEVEL",
 			     "Prefer dev_$level(... to dev_printk(KERN_$orig, ...\n" . $herecurr);
 		}
@@ -5532,7 +5532,7 @@ sub process {
 		if ($prevline =~ /\bif\s*\(\s*($Lval)\s*\)/) {
 			my $tested = quotemeta($1);
 			my $expr = '\s*\(\s*' . $tested . '\s*\)\s*;';
-			if ($line =~ /\b(kfree|usb_free_urb|debugfs_remove(?:_recursive)?|(?:kmem_cache|mempool|dma_pool)_destroy)$expr/) {
+			if ($line =~ /\b(kfree|usb_free_urb|defs_remove(?:_recursive)?|(?:kmem_cache|mempool|dma_pool)_destroy)$expr/) {
 				my $func = $1;
 				if (WARN('NEEDLESS_IF',
 					 "$func(NULL) is safe and this check is probably not required\n" . $hereprev) &&
@@ -6227,7 +6227,7 @@ sub process {
 # check for pointless casting of alloc functions
 		if ($line =~ /\*\s*\)\s*$allocFunctions\b/) {
 			WARN("UNNECESSARY_CASTS",
-			     "unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
+			     "unnecessary cast may hide s, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
 		}
 
 # alloc style
@@ -6272,7 +6272,7 @@ sub process {
 		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*krealloc\s*\(\s*($Lval)\s*,/ &&
 		    $1 eq $3) {
 			WARN("KREALLOC_ARG_REUSE",
-			     "Reusing the krealloc arg is almost always a bug\n" . $herecurr);
+			     "Reusing the krealloc arg is almost always a \n" . $herecurr);
 		}
 
 # check for alloc argument mismatch
@@ -6490,7 +6490,7 @@ sub process {
 			}
 		}
 
-		if ($line =~ /debugfs_create_\w+.*\b$mode_perms_world_writable\b/ ||
+		if ($line =~ /defs_create_\w+.*\b$mode_perms_world_writable\b/ ||
 		    $line =~ /DEVICE_ATTR.*\b$mode_perms_world_writable\b/) {
 			WARN("EXPORTED_WORLD_WRITABLE",
 			     "Exporting world writable files is usually an error. Consider more restrictive permissions.\n" . $herecurr);

@@ -6,7 +6,7 @@
  * Copyright (C) 2012  Phil Edworthy
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>

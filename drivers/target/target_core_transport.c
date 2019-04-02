@@ -188,7 +188,7 @@ u32 scsi_get_new_index(scsi_index_t type)
 {
 	u32 new_index;
 
-	BUG_ON((type < 0) || (type >= SCSI_INDEX_TYPE_MAX));
+	_ON((type < 0) || (type >= SCSI_INDEX_TYPE_MAX));
 
 	spin_lock(&scsi_mib_index_lock);
 	new_index = ++scsi_mib_index[type];
@@ -407,7 +407,7 @@ void __transport_register_session(
 	}
 	list_add_tail(&se_sess->sess_list, &se_tpg->tpg_sess_list);
 
-	pr_debug("TARGET_CORE[%s]: Registered fabric_sess_ptr: %p\n",
+	pr_de("TARGET_CORE[%s]: Registered fabric_sess_ptr: %p\n",
 		se_tpg->se_tpg_tfo->fabric_name, se_sess->fabric_sess_ptr);
 }
 EXPORT_SYMBOL(__transport_register_session);
@@ -613,7 +613,7 @@ void transport_deregister_session(struct se_session *se_sess)
 	se_sess->fabric_sess_ptr = NULL;
 	spin_unlock_irqrestore(&se_tpg->session_lock, flags);
 
-	pr_debug("TARGET_CORE[%s]: Deregistered fabric_sess\n",
+	pr_de("TARGET_CORE[%s]: Deregistered fabric_sess\n",
 		se_tpg->se_tpg_tfo->fabric_name);
 	/*
 	 * If last kref is dropping now for an explicit NodeACL, awake sleeping
@@ -670,7 +670,7 @@ static int transport_cmd_check_stop_to_fabric(struct se_cmd *cmd)
 	 * this command for frontend exceptions.
 	 */
 	if (cmd->transport_state & CMD_T_STOP) {
-		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
+		pr_de("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
 			__func__, __LINE__, cmd->tag);
 
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -717,7 +717,7 @@ static unsigned char *transport_get_sense_buffer(struct se_cmd *cmd)
 
 	cmd->scsi_sense_length = TRANSPORT_SENSE_BUFFER;
 
-	pr_debug("HBA_[%u]_PLUG[%s]: Requesting sense for SAM STATUS: 0x%02x\n",
+	pr_de("HBA_[%u]_PLUG[%s]: Requesting sense for SAM STATUS: 0x%02x\n",
 		dev->se_hba->hba_id, dev->transport->name, cmd->scsi_status);
 	return cmd->sense_buffer;
 }
@@ -746,12 +746,12 @@ static void target_handle_abort(struct se_cmd *cmd)
 	bool ack_kref = cmd->se_cmd_flags & SCF_ACK_KREF;
 	int ret;
 
-	pr_debug("tag %#llx: send_abort_response = %d\n", cmd->tag, tas);
+	pr_de("tag %#llx: send_abort_response = %d\n", cmd->tag, tas);
 
 	if (tas) {
 		if (!(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
 			cmd->scsi_status = SAM_STAT_TASK_ABORTED;
-			pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x, ITT: 0x%08llx\n",
+			pr_de("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x, ITT: 0x%08llx\n",
 				 cmd->t_task_cdb[0], cmd->tag);
 			trace_target_cmd_complete(cmd);
 			ret = cmd->se_tfo->queue_status(cmd);
@@ -901,7 +901,7 @@ void target_qf_do_work(struct work_struct *work)
 		list_del(&cmd->se_qf_node);
 		atomic_dec_mb(&dev->dev_qf_count);
 
-		pr_debug("Processing %s cmd: %p QUEUE_FULL in work queue"
+		pr_de("Processing %s cmd: %p QUEUE_FULL in work queue"
 			" context: %s\n", cmd->se_tfo->fabric_name, cmd,
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_OK) ? "COMPLETE_OK" :
 			(cmd->t_state == TRANSPORT_COMPLETE_QF_WP) ? "WRITE_PENDING"
@@ -1001,7 +1001,7 @@ void transport_dump_vpd_proto_id(
 	if (p_buf)
 		strncpy(p_buf, buf, p_buf_len);
 	else
-		pr_debug("%s", buf);
+		pr_de("%s", buf);
 }
 
 void
@@ -1051,7 +1051,7 @@ int transport_dump_vpd_assoc(
 	if (p_buf)
 		strncpy(p_buf, buf, p_buf_len);
 	else
-		pr_debug("%s", buf);
+		pr_de("%s", buf);
 
 	return ret;
 }
@@ -1111,7 +1111,7 @@ int transport_dump_vpd_ident_type(
 			return -EINVAL;
 		strncpy(p_buf, buf, p_buf_len);
 	} else {
-		pr_debug("%s", buf);
+		pr_de("%s", buf);
 	}
 
 	return ret;
@@ -1165,7 +1165,7 @@ int transport_dump_vpd_ident(
 	if (p_buf)
 		strncpy(p_buf, buf, p_buf_len);
 	else
-		pr_debug("%s", buf);
+		pr_de("%s", buf);
 
 	return ret;
 }
@@ -1368,7 +1368,7 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 		return 0;
 
 	if (cmd->sam_task_attr == TCM_ACA_TAG) {
-		pr_debug("SAM Task Attribute ACA"
+		pr_de("SAM Task Attribute ACA"
 			" emulation is not supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
@@ -1546,9 +1546,9 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	int ret;
 
 	se_tpg = se_sess->se_tpg;
-	BUG_ON(!se_tpg);
-	BUG_ON(se_cmd->se_tfo || se_cmd->se_sess);
-	BUG_ON(in_interrupt());
+	_ON(!se_tpg);
+	_ON(se_cmd->se_tfo || se_cmd->se_sess);
+	_ON(in_interrupt());
 	/*
 	 * Initialize se_cmd for target operation.  From this point
 	 * exceptions are handled by sending exception status via
@@ -1610,7 +1610,7 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	 * core perform an internal SGL allocation..
 	 */
 	if (sgl_count != 0) {
-		BUG_ON(!sgl);
+		_ON(!sgl);
 
 		/*
 		 * A work-around for tcm_loop as some userspace code via
@@ -1745,7 +1745,7 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 	int ret;
 
 	se_tpg = se_sess->se_tpg;
-	BUG_ON(!se_tpg);
+	_ON(!se_tpg);
 
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
 			      0, DMA_NONE, TCM_SIMPLE_TAG, sense);
@@ -1802,7 +1802,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 {
 	int ret = 0, post_ret;
 
-	pr_debug("-----[ Storage Engine Exception; sense_reason %d\n",
+	pr_de("-----[ Storage Engine Exception; sense_reason %d\n",
 		 sense_reason);
 	target_show_cmd("-----[ ", cmd);
 
@@ -1987,13 +1987,13 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	 */
 	switch (cmd->sam_task_attr) {
 	case TCM_HEAD_TAG:
-		pr_debug("Added HEAD_OF_QUEUE for CDB: 0x%02x\n",
+		pr_de("Added HEAD_OF_QUEUE for CDB: 0x%02x\n",
 			 cmd->t_task_cdb[0]);
 		return false;
 	case TCM_ORDERED_TAG:
 		atomic_inc_mb(&dev->dev_ordered_sync);
 
-		pr_debug("Added ORDERED for CDB: 0x%02x to ordered list\n",
+		pr_de("Added ORDERED for CDB: 0x%02x to ordered list\n",
 			 cmd->t_task_cdb[0]);
 
 		/*
@@ -2018,7 +2018,7 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
 	list_add_tail(&cmd->se_delayed_node, &dev->delayed_cmd_list);
 	spin_unlock(&dev->delayed_cmd_lock);
 
-	pr_debug("Added CDB: 0x%02x Task Attr: 0x%02x to delayed CMD listn",
+	pr_de("Added CDB: 0x%02x Task Attr: 0x%02x to delayed CMD listn",
 		cmd->t_task_cdb[0], cmd->sam_task_attr);
 	return true;
 }
@@ -2101,13 +2101,13 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 		dev->dev_cur_ordered_id++;
 	} else if (cmd->sam_task_attr == TCM_HEAD_TAG) {
 		dev->dev_cur_ordered_id++;
-		pr_debug("Incremented dev_cur_ordered_id: %u for HEAD_OF_QUEUE\n",
+		pr_de("Incremented dev_cur_ordered_id: %u for HEAD_OF_QUEUE\n",
 			 dev->dev_cur_ordered_id);
 	} else if (cmd->sam_task_attr == TCM_ORDERED_TAG) {
 		atomic_dec_mb(&dev->dev_ordered_sync);
 
 		dev->dev_cur_ordered_id++;
-		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED\n",
+		pr_de("Incremented dev_cur_ordered_id: %u for ORDERED\n",
 			 dev->dev_cur_ordered_id);
 	}
 	cmd->se_cmd_flags &= ~SCF_TASK_ATTR_SET;
@@ -2373,7 +2373,7 @@ queue_status:
 	return;
 
 queue_full:
-	pr_debug("Handling complete_ok QUEUE_FULL: se_cmd: %p,"
+	pr_de("Handling complete_ok QUEUE_FULL: se_cmd: %p,"
 		" data_direction: %d\n", cmd, cmd->data_direction);
 
 	transport_handle_queue_full(cmd, cmd->se_dev, ret, false);
@@ -2448,7 +2448,7 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 	if (!cmd->t_data_nents)
 		return NULL;
 
-	BUG_ON(!sg);
+	_ON(!sg);
 	if (cmd->t_data_nents == 1)
 		return kmap(sg_page(sg)) + sg->offset;
 
@@ -2579,7 +2579,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	 */
 	if (cmd->transport_state & CMD_T_STOP &&
 	    !cmd->se_tfo->write_pending_must_be_called) {
-		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
+		pr_de("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
 			 __func__, __LINE__, cmd->tag);
 
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -2597,7 +2597,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	return 0;
 
 queue_full:
-	pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
+	pr_de("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
 	transport_handle_queue_full(cmd, cmd->se_dev, ret, true);
 	return 0;
 }
@@ -2614,7 +2614,7 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	if (stop) {
-		pr_debug("%s:%d CMD_T_STOP|CMD_T_ABORTED for ITT: 0x%08llx\n",
+		pr_de("%s:%d CMD_T_STOP|CMD_T_ABORTED for ITT: 0x%08llx\n",
 			__func__, __LINE__, cmd->tag);
 		complete_all(&cmd->t_transport_stop_comp);
 		return;
@@ -2622,7 +2622,7 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 
 	ret = cmd->se_tfo->write_pending(cmd);
 	if (ret) {
-		pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n",
+		pr_de("Handling write_pending QUEUE__FULL: se_cmd: %p\n",
 			 cmd);
 		transport_handle_queue_full(cmd, cmd->se_dev, ret, true);
 	}
@@ -2700,7 +2700,7 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		cmd->free_compl = &compl;
 	ret = target_put_sess_cmd(cmd);
 	if (aborted) {
-		pr_debug("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
+		pr_de("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
 		wait_for_completion(&compl);
 		ret = 1;
 	}
@@ -2883,14 +2883,14 @@ void target_show_cmd(const char *pfx, struct se_cmd *cmd)
 	struct se_tmr_req *tmf = cmd->se_tmr_req;
 
 	if (!(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
-		pr_debug("%scmd %#02x:%#02x with tag %#llx dir %s i_state %d t_state %s len %d refcnt %d transport_state %s\n",
+		pr_de("%scmd %#02x:%#02x with tag %#llx dir %s i_state %d t_state %s len %d refcnt %d transport_state %s\n",
 			 pfx, cdb[0], cdb[1], cmd->tag,
 			 data_dir_name(cmd->data_direction),
 			 cmd->se_tfo->get_cmd_state(cmd),
 			 cmd_state_name(cmd->t_state), cmd->data_length,
 			 kref_read(&cmd->cmd_kref), ts_str);
 	} else {
-		pr_debug("%stmf %s with tag %#llx ref_task_tag %#llx i_state %d t_state %s refcnt %d transport_state %s\n",
+		pr_de("%stmf %s with tag %#llx ref_task_tag %#llx i_state %d t_state %s refcnt %d transport_state %s\n",
 			 pfx, target_tmf_name(tmf->function), cmd->tag,
 			 tmf->ref_task_tag, cmd->se_tfo->get_cmd_state(cmd),
 			 cmd_state_name(cmd->t_state),
@@ -2994,7 +2994,7 @@ __transport_wait_for_tasks(struct se_cmd *cmd, bool fabric_stop,
 	spin_lock_irqsave(&cmd->t_state_lock, *flags);
 	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
 
-	pr_debug("wait_for_tasks: Stopped wait_for_completion(&cmd->"
+	pr_de("wait_for_tasks: Stopped wait_for_completion(&cmd->"
 		 "t_transport_stop_comp) for ITT: 0x%08llx\n", cmd->tag);
 
 	return true;

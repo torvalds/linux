@@ -459,17 +459,17 @@ void st5481_start(struct st5481_adapter *adapter);
 void st5481_stop(struct st5481_adapter *adapter);
 
 // ----------------------------------------------------------------------
-// debugging macros
+// deging macros
 
-#define __debug_variable st5481_debug
-#include "hisax_debug.h"
+#define __de_variable st5481_de
+#include "hisax_de.h"
 
-extern int st5481_debug;
+extern int st5481_de;
 
-#ifdef CONFIG_HISAX_DEBUG
+#ifdef CONFIG_HISAX_DE
 
 #define DBG_ISO_PACKET(level, urb)					\
-	if (level & __debug_variable) dump_iso_packet(__func__, urb)
+	if (level & __de_variable) dump_iso_packet(__func__, urb)
 
 static void __attribute__((unused))
 dump_iso_packet(const char *name, struct urb *urb)
@@ -478,7 +478,7 @@ dump_iso_packet(const char *name, struct urb *urb)
 	int len, ofs;
 	u_char *data;
 
-	printk(KERN_DEBUG "%s: packets=%d,errors=%d\n",
+	printk(KERN_DE "%s: packets=%d,errors=%d\n",
 	       name, urb->number_of_packets, urb->error_count);
 	for (i = 0; i  < urb->number_of_packets; ++i) {
 		if (urb->pipe & USB_DIR_IN) {
@@ -487,7 +487,7 @@ dump_iso_packet(const char *name, struct urb *urb)
 			len = urb->iso_frame_desc[i].length;
 		}
 		ofs = urb->iso_frame_desc[i].offset;
-		printk(KERN_DEBUG "len=%.2d,ofs=%.3d ", len, ofs);
+		printk(KERN_DE "len=%.2d,ofs=%.3d ", len, ofs);
 		if (len) {
 			data = urb->transfer_buffer + ofs;
 			for (j = 0; j < len; j++) {

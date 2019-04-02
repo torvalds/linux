@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 /**
  * DOC: overview
@@ -83,9 +83,9 @@ static DEFINE_MUTEX(component_mutex);
 static LIST_HEAD(component_list);
 static LIST_HEAD(masters);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-static struct dentry *component_debugfs_dir;
+static struct dentry *component_defs_dir;
 
 static int component_devices_show(struct seq_file *s, void *data)
 {
@@ -115,34 +115,34 @@ static int component_devices_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(component_devices);
 
-static int __init component_debug_init(void)
+static int __init component_de_init(void)
 {
-	component_debugfs_dir = debugfs_create_dir("device_component", NULL);
+	component_defs_dir = defs_create_dir("device_component", NULL);
 
 	return 0;
 }
 
-core_initcall(component_debug_init);
+core_initcall(component_de_init);
 
-static void component_master_debugfs_add(struct master *m)
+static void component_master_defs_add(struct master *m)
 {
-	m->dentry = debugfs_create_file(dev_name(m->dev), 0444,
-					component_debugfs_dir,
+	m->dentry = defs_create_file(dev_name(m->dev), 0444,
+					component_defs_dir,
 					m, &component_devices_fops);
 }
 
-static void component_master_debugfs_del(struct master *m)
+static void component_master_defs_del(struct master *m)
 {
-	debugfs_remove(m->dentry);
+	defs_remove(m->dentry);
 	m->dentry = NULL;
 }
 
 #else
 
-static void component_master_debugfs_add(struct master *m)
+static void component_master_defs_add(struct master *m)
 { }
 
-static void component_master_debugfs_del(struct master *m)
+static void component_master_defs_del(struct master *m)
 { }
 
 #endif
@@ -438,7 +438,7 @@ static void free_master(struct master *master)
 	struct component_match *match = master->match;
 	int i;
 
-	component_master_debugfs_del(master);
+	component_master_defs_del(master);
 	list_del(&master->node);
 
 	if (match) {
@@ -484,7 +484,7 @@ int component_master_add_with_match(struct device *dev,
 	master->ops = ops;
 	master->match = match;
 
-	component_master_debugfs_add(master);
+	component_master_defs_add(master);
 	/* Add to the list of available masters. */
 	mutex_lock(&component_mutex);
 	list_add(&master->node, &masters);

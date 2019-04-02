@@ -9,7 +9,7 @@
  *                    Author: Michal Nazarewicz (mina86@mina86.com)
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -49,10 +49,10 @@
  * "so smart it's stupid" hardware which takes over configuration changes
  * from the software, and adds restrictions like "no altsettings".
  *
- * Unfortunately MSFT's RNDIS drivers are buggy.  They hang or oops, and
+ * Unfortunately MSFT's RNDIS drivers are gy.  They hang or oops, and
  * have all sorts of contrary-to-specification oddities that can prevent
- * them from working sanely.  Since bugfixes (or accurate specs, letting
- * Linux work around those bugs) are unlikely to ever come from MSFT, you
+ * them from working sanely.  Since fixes (or accurate specs, letting
+ * Linux work around those s) are unlikely to ever come from MSFT, you
  * may want to avoid using RNDIS on purely operational grounds.
  *
  * Omissions from the RNDIS 1.0 specification include:

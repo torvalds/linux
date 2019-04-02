@@ -34,7 +34,7 @@ struct binder_transaction;
  * @free:               %true if buffer is free
  * @allow_user_free:    %true if user is allowed to free buffer
  * @async_transaction:  %true if buffer is in use for an async txn
- * @debug_id:           unique ID for debugging
+ * @de_id:           unique ID for deging
  * @transaction:        pointer to associated struct binder_transaction
  * @target_node:        struct binder_node associated with this buffer
  * @data_size:          size of @transaction data
@@ -51,7 +51,7 @@ struct binder_buffer {
 	unsigned free:1;
 	unsigned allow_user_free:1;
 	unsigned async_transaction:1;
-	unsigned debug_id:29;
+	unsigned de_id:29;
 
 	struct binder_transaction *transaction;
 

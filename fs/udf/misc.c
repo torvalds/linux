@@ -219,7 +219,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	*ident = le16_to_cpu(tag_p->tagIdent);
 
 	if (location != le32_to_cpu(tag_p->tagLocation)) {
-		udf_debug("location mismatch block %u, tag %u != %u\n",
+		udf_de("location mismatch block %u, tag %u != %u\n",
 			  block, le32_to_cpu(tag_p->tagLocation), location);
 		goto error_out;
 	}
@@ -247,7 +247,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 					le16_to_cpu(tag_p->descCRCLength)))
 		return bh;
 
-	udf_debug("Crc failure block %u: crc = %u, crclen = %u\n", block,
+	udf_de("Crc failure block %u: crc = %u, crclen = %u\n", block,
 		  le16_to_cpu(tag_p->descCRC),
 		  le16_to_cpu(tag_p->descCRCLength));
 error_out:

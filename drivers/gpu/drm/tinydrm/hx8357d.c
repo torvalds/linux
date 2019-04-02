@@ -51,7 +51,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 	u8 addr_mode;
 	int ret;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	ret = mipi_dbi_poweron_conditional_reset(mipi);
 	if (ret < 0)
@@ -190,7 +190,7 @@ static struct drm_driver hx8357d_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 	.fops			= &hx8357d_fops,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
-	.debugfs_init		= mipi_dbi_debugfs_init,
+	.defs_init		= mipi_dbi_defs_init,
 	.name			= "hx8357d",
 	.desc			= "HX8357D",
 	.date			= "20181023",

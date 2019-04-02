@@ -156,7 +156,7 @@ These are currently used in three places in the kernel:
 
  (3) By the i915 driver to mark pinned address space until it's unpinned. The
      amount of unevictable memory marked by i915 driver is roughly the bounded
-     object size in debugfs/dri/0/i915_gem_objects.
+     object size in defs/dri/0/i915_gem_objects.
 
 
 Detecting Unevictable Pages

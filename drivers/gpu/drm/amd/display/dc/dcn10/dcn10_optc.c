@@ -43,7 +43,7 @@
 /**
 * apply_front_porch_workaround  TODO FPGA still need?
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a  that has existed since R5xx and has not been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void optc1_apply_front_porch_workaround(
@@ -65,7 +65,7 @@ void optc1_program_global_sync(
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
 	if (optc->dlg_otg_param.vstartup_start == 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 

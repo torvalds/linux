@@ -15,7 +15,7 @@
 #ifdef __ARM_NEON__
 
 /*
- * If you are affected by the BUILD_BUG below, it probably means that you are
+ * If you are affected by the BUILD_ below, it probably means that you are
  * using NEON code /and/ calling the kernel_neon_begin() function from the same
  * compilation unit. To prevent issues that may arise from GCC reordering or
  * generating(1) NEON instructions outside of these begin/end functions, the
@@ -28,7 +28,7 @@
  */
 
 #define kernel_neon_begin() \
-	BUILD_BUG_ON_MSG(1, "kernel_neon_begin() called from NEON code")
+	BUILD__ON_MSG(1, "kernel_neon_begin() called from NEON code")
 
 #else
 void kernel_neon_begin(void);

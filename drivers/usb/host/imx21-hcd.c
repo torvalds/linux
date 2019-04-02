@@ -5,7 +5,7 @@
  * Copyright (C) 2006 Loping Dog Embedded Systems
  * Copyright (C) 2009 Martin Fuzzey
  * Originally written by Jay Monkman <jtm@lopingdog.com>
- * Ported to 2.6.30, debugged and enhanced by Martin Fuzzey
+ * Ported to 2.6.30, deged and enhanced by Martin Fuzzey
  */
 
 
@@ -49,15 +49,15 @@
 
 #include "imx21-hcd.h"
 
-#ifdef CONFIG_DYNAMIC_DEBUG
-#define DEBUG
+#ifdef CONFIG_DYNAMIC_DE
+#define DE
 #endif
 
-#ifdef DEBUG
-#define DEBUG_LOG_FRAME(imx21, etd, event) \
+#ifdef DE
+#define DE_LOG_FRAME(imx21, etd, event) \
 	(etd)->event##_frame = readl((imx21)->regs + USBH_FRMNUB)
 #else
-#define DEBUG_LOG_FRAME(imx21, etd, event) do { } while (0)
+#define DE_LOG_FRAME(imx21, etd, event) do { } while (0)
 #endif
 
 static const char hcd_name[] = "imx21-hcd";
@@ -154,7 +154,7 @@ static int alloc_etd(struct imx21 *imx21)
 		if (etd->alloc == 0) {
 			memset(etd, 0, sizeof(imx21->etd[0]));
 			etd->alloc = 1;
-			debug_etd_allocated(imx21);
+			de_etd_allocated(imx21);
 			return i;
 		}
 	}
@@ -173,7 +173,7 @@ static void disactivate_etd(struct imx21 *imx21, int num)
 
 	etd->active_count = 0;
 
-	DEBUG_LOG_FRAME(imx21, etd, disactivated);
+	DE_LOG_FRAME(imx21, etd, disactivated);
 }
 
 static void reset_etd(struct imx21 *imx21, int num)
@@ -205,7 +205,7 @@ static void free_etd(struct imx21 *imx21, int num)
 		return;
 	}
 
-	debug_etd_freed(imx21);
+	de_etd_freed(imx21);
 	reset_etd(imx21, num);
 	memset(&imx21->etd[num], 0, sizeof(imx21->etd[0]));
 }
@@ -317,9 +317,9 @@ static void activate_etd(struct imx21 *imx21, int etd_num, u8 dir)
 		}
 	}
 
-	DEBUG_LOG_FRAME(imx21, etd, activated);
+	DE_LOG_FRAME(imx21, etd, activated);
 
-#ifdef DEBUG
+#ifdef DE
 	if (!etd->active_count) {
 		int i;
 		etd->activated_frame = readl(imx21->regs + USBH_FRMNUB);
@@ -381,7 +381,7 @@ static int alloc_dmem(struct imx21 *imx21, unsigned int size,
 	area->offset = offset;
 	area->size = size;
 	list_add_tail(&area->list, &tmp->list);
-	debug_dmem_allocated(imx21, size);
+	de_dmem_allocated(imx21, size);
 	return offset;
 
 fail:
@@ -421,7 +421,7 @@ static void free_dmem(struct imx21 *imx21, struct etd_priv *etd)
 	offset = etd->dmem_offset;
 	list_for_each_entry(area, &imx21->dmem_list, list) {
 		if (area->offset == offset) {
-			debug_dmem_freed(imx21, area->size);
+			de_dmem_freed(imx21, area->size);
 			list_del(&area->list);
 			kfree(area);
 			found = 1;
@@ -512,7 +512,7 @@ __acquires(imx21->lock)
 	struct ep_priv *ep_priv = urb->ep->hcpriv;
 	struct urb_priv *urb_priv = urb->hcpriv;
 
-	debug_urb_completed(imx21, urb, status);
+	de_urb_completed(imx21, urb, status);
 	dev_vdbg(imx21->dev, "urb %p done %d\n", urb, status);
 
 	kfree(urb_priv->isoc_td);
@@ -599,7 +599,7 @@ too_late:
 		etd->dma_handle = td->dma_handle;
 		etd->cpu_buffer = td->cpu_buffer;
 
-		debug_isoc_submitted(imx21, cur_frame, td);
+		de_isoc_submitted(imx21, cur_frame, td);
 
 		dir = usb_pipeout(td->urb->pipe) ? TD_DIR_OUT : TD_DIR_IN;
 		setup_etd_dword0(imx21, etd_num, td->urb, dir, etd->dmem_size);
@@ -644,7 +644,7 @@ static void isoc_etd_done(struct usb_hcd *hcd, int etd_num)
 	if (cc == TD_NOTACCESSED)
 		bytes_xfrd = 0;
 
-	debug_isoc_completed(imx21,
+	de_isoc_completed(imx21,
 		imx21_hc_get_frame(hcd), td, cc, bytes_xfrd);
 	if (cc) {
 		urb_priv->isoc_status = -EXDEV;
@@ -844,7 +844,7 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 	dev_vdbg(imx21->dev, "setup %d packets for iso frame %d->%d\n",
 		urb->number_of_packets, urb->start_frame, td->frame);
 
-	debug_urb_submitted(imx21, urb);
+	de_urb_submitted(imx21, urb);
 	schedule_isoc_etds(hcd, ep);
 
 	spin_unlock_irqrestore(&imx21->lock, flags);
@@ -1009,7 +1009,7 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 		etd_writel(imx21, etd_num, 1, (u32)maxpacket << 16);
 
 		dev_dbg(imx21->dev, "Queuing etd %d for DMEM\n", etd_num);
-		debug_urb_queued_for_dmem(imx21, urb);
+		de_urb_queued_for_dmem(imx21, urb);
 		list_add_tail(&etd->queue, &imx21->queue_for_dmem);
 		return;
 	}
@@ -1206,20 +1206,20 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 		break;
 	}
 
-	debug_urb_submitted(imx21, urb);
+	de_urb_submitted(imx21, urb);
 	if (ep_priv->etd[0] < 0) {
 		if (ep_priv->waiting_etd) {
 			dev_dbg(imx21->dev,
 				"no ETD available already queued %p\n",
 				ep_priv);
-			debug_urb_queued_for_etd(imx21, urb);
+			de_urb_queued_for_etd(imx21, urb);
 			goto out;
 		}
 		ep_priv->etd[0] = alloc_etd(imx21);
 		if (ep_priv->etd[0] < 0) {
 			dev_dbg(imx21->dev,
 				"no ETD available queueing %p\n", ep_priv);
-			debug_urb_queued_for_etd(imx21, urb);
+			de_urb_queued_for_etd(imx21, urb);
 			list_add_tail(&ep_priv->queue, &imx21->queue_for_etd);
 			ep_priv->waiting_etd = 1;
 			goto out;
@@ -1229,7 +1229,7 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 	/* Schedule if no URB already active for this endpoint */
 	etd = &imx21->etd[ep_priv->etd[0]];
 	if (etd->urb == NULL) {
-		DEBUG_LOG_FRAME(imx21, etd, last_req);
+		DE_LOG_FRAME(imx21, etd, last_req);
 		schedule_nonisoc_etd(imx21, urb);
 	}
 
@@ -1265,7 +1265,7 @@ static int imx21_hc_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	ep = urb_priv->ep;
 	ep_priv = ep->hcpriv;
 
-	debug_urb_unlinked(imx21, urb);
+	de_urb_unlinked(imx21, urb);
 
 	if (usb_pipeisoc(urb->pipe)) {
 		dequeue_isoc_urb(imx21, urb, ep_priv);
@@ -1313,7 +1313,7 @@ static void process_etds(struct usb_hcd *hcd, struct imx21 *imx21, int sof)
 
 
 		if (done) {
-			DEBUG_LOG_FRAME(imx21, etd, last_int);
+			DE_LOG_FRAME(imx21, etd, last_int);
 		} else {
 /*
  * Kludge warning!
@@ -1354,7 +1354,7 @@ static void process_etds(struct usb_hcd *hcd, struct imx21 *imx21, int sof)
 				(dword0 >> DW0_ENDPNT) & 0x0F,
 				cc);
 
-#ifdef DEBUG
+#ifdef DE
 			dev_dbg(imx21->dev,
 				"frame: act=%d disact=%d"
 				" int=%d req=%d cur=%d\n",
@@ -1363,7 +1363,7 @@ static void process_etds(struct usb_hcd *hcd, struct imx21 *imx21, int sof)
 				etd->last_int_frame,
 				etd->last_req_frame,
 				readl(imx21->regs + USBH_FRMNUB));
-			imx21->debug_unblocks++;
+			imx21->de_unblocks++;
 #endif
 			etd->active_count = 0;
 /* End of kludge */
@@ -1807,7 +1807,7 @@ static int imx21_remove(struct platform_device *pdev)
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	remove_debug_files(imx21);
+	remove_de_files(imx21);
 	usb_remove_hcd(hcd);
 
 	if (res != NULL) {
@@ -1860,7 +1860,7 @@ static int imx21_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&imx21->dmem_list);
 	INIT_LIST_HEAD(&imx21->queue_for_etd);
 	INIT_LIST_HEAD(&imx21->queue_for_dmem);
-	create_debug_files(imx21);
+	create_de_files(imx21);
 
 	res = request_mem_region(res->start, resource_size(res), hcd_name);
 	if (!res) {
@@ -1912,7 +1912,7 @@ failed_clock_get:
 failed_ioremap:
 	release_mem_region(res->start, resource_size(res));
 failed_request_mem:
-	remove_debug_files(imx21);
+	remove_de_files(imx21);
 	usb_put_hcd(hcd);
 	return ret;
 }

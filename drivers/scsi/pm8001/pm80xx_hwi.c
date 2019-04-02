@@ -214,7 +214,7 @@ moreData:
 	}
 	if (pm8001_ha->forensic_fatal_step == 1) {
 		pm8001_ha->fatal_forensic_shift_offset = 0;
-		/* Read 64K of the debug data. */
+		/* Read 64K of the de data. */
 		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
 			pm8001_ha->fatal_forensic_shift_offset);
 		pm8001_mw32(fatal_table_address,
@@ -236,7 +236,7 @@ moreData:
 			return -EIO;
 		}
 
-		/* Read the next 64K of the debug data. */
+		/* Read the next 64K of the de data. */
 		pm8001_ha->forensic_fatal_step = 0;
 		if (pm8001_mr32(fatal_table_address,
 			MPI_FATAL_EDUMP_TABLE_STATUS) !=

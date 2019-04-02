@@ -1894,7 +1894,7 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.get_antenna	    = ath9k_htc_get_antenna,
 	.channel_switch_beacon	= ath9k_htc_channel_switch_beacon,
 
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_ATH9K_HTC_DEFS
 	.get_et_sset_count  = ath9k_htc_get_et_sset_count,
 	.get_et_stats       = ath9k_htc_get_et_stats,
 	.get_et_strings     = ath9k_htc_get_et_strings,

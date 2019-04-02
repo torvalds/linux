@@ -45,7 +45,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	target = max_t(u8, target, fan->bios.min_duty);
 	target = min_t(u8, target, fan->bios.max_duty);
 	if (fan->percent != target) {
-		nvkm_debug(subdev, "FAN target: %d\n", target);
+		nvkm_de(subdev, "FAN target: %d\n", target);
 		fan->percent = target;
 	}
 
@@ -70,7 +70,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		duty = target;
 	}
 
-	nvkm_debug(subdev, "FAN update: %d\n", duty);
+	nvkm_de(subdev, "FAN update: %d\n", duty);
 	ret = fan->set(therm, duty);
 	if (ret) {
 		spin_unlock_irqrestore(&fan->lock, flags);
@@ -234,7 +234,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 	if (ret == 0) {
 		/* FIXME: is this really the place to perform such checks ? */
 		if (func.line != 16 && func.log[0] & DCB_GPIO_LOG_DIR_IN) {
-			nvkm_debug(subdev, "GPIO_FAN is in input mode\n");
+			nvkm_de(subdev, "GPIO_FAN is in input mode\n");
 			ret = -EINVAL;
 		} else {
 			ret = nvkm_fanpwm_create(therm, &func);
@@ -250,7 +250,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 			return ret;
 	}
 
-	nvkm_debug(subdev, "FAN control: %s\n", therm->fan->type);
+	nvkm_de(subdev, "FAN control: %s\n", therm->fan->type);
 
 	/* read the current speed, it is useful when resuming */
 	therm->fan->percent = nvkm_therm_fan_get(therm);
@@ -270,7 +270,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 	nvkm_therm_fan_set_defaults(therm);
 	nvbios_perf_fan_parse(bios, &therm->fan->perf);
 	if (!nvbios_fan_parse(bios, &therm->fan->bios)) {
-		nvkm_debug(subdev, "parsing the fan table failed\n");
+		nvkm_de(subdev, "parsing the fan table failed\n");
 		if (nvbios_therm_fan_parse(bios, &therm->fan->bios))
 			nvkm_error(subdev, "parsing both fan tables failed\n");
 	}

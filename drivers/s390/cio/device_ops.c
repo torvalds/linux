@@ -20,7 +20,7 @@
 #include <asm/fcx.h>
 
 #include "cio.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "css.h"
 #include "chsc.h"
 #include "device.h"

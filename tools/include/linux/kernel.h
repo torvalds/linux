@@ -35,8 +35,8 @@
 	(type *)((char *)__mptr - offsetof(type, member)); })
 #endif
 
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
-#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
+#define BUILD__ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+#define BUILD__ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
 
 #ifndef max
 #define max(x, y) ({				\
@@ -63,14 +63,14 @@
 )
 #endif
 
-#ifndef BUG_ON
-#ifdef NDEBUG
-#define BUG_ON(cond) do { if (cond) {} } while (0)
+#ifndef _ON
+#ifdef NDE
+#define _ON(cond) do { if (cond) {} } while (0)
 #else
-#define BUG_ON(cond) assert(!(cond))
+#define _ON(cond) assert(!(cond))
 #endif
 #endif
-#define BUG()	BUG_ON(1)
+#define ()	_ON(1)
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define cpu_to_le16 bswap_16

@@ -60,7 +60,7 @@ error:
  */
 void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 {
-	BUG_ON(!current->mm);
+	_ON(!current->mm);
 
 	vcpu->arch.flags &= ~(KVM_ARM64_FP_ENABLED |
 			      KVM_ARM64_HOST_SVE_IN_USE |

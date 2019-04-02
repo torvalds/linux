@@ -51,7 +51,7 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
 	if (ret) {
-		pr_debug("%s: error %d reading SDIO_CCCR_INTx\n",
+		pr_de("%s: error %d reading SDIO_CCCR_INTx\n",
 		       mmc_card_id(card), ret);
 		return ret;
 	}
@@ -138,7 +138,7 @@ static int sdio_irq_thread(void *_host)
 	period = (host->caps & MMC_CAP_SDIO_IRQ) ?
 		MAX_SCHEDULE_TIMEOUT : idle_period;
 
-	pr_debug("%s: IRQ thread started (poll period = %lu jiffies)\n",
+	pr_de("%s: IRQ thread started (poll period = %lu jiffies)\n",
 		 mmc_hostname(host), period);
 
 	do {
@@ -200,7 +200,7 @@ static int sdio_irq_thread(void *_host)
 	if (host->caps & MMC_CAP_SDIO_IRQ)
 		host->ops->enable_sdio_irq(host, 0);
 
-	pr_debug("%s: IRQ thread exiting with code %d\n",
+	pr_de("%s: IRQ thread exiting with code %d\n",
 		 mmc_hostname(host), ret);
 
 	return ret;
@@ -288,10 +288,10 @@ int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler)
 	if (!func)
 		return -EINVAL;
 
-	pr_debug("SDIO: Enabling IRQ for %s...\n", sdio_func_id(func));
+	pr_de("SDIO: Enabling IRQ for %s...\n", sdio_func_id(func));
 
 	if (func->irq_handler) {
-		pr_debug("SDIO: IRQ for %s already in use.\n", sdio_func_id(func));
+		pr_de("SDIO: IRQ for %s already in use.\n", sdio_func_id(func));
 		return -EBUSY;
 	}
 
@@ -331,7 +331,7 @@ int sdio_release_irq(struct sdio_func *func)
 	if (!func)
 		return -EINVAL;
 
-	pr_debug("SDIO: Disabling IRQ for %s...\n", sdio_func_id(func));
+	pr_de("SDIO: Disabling IRQ for %s...\n", sdio_func_id(func));
 
 	if (func->irq_handler) {
 		func->irq_handler = NULL;

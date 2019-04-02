@@ -49,7 +49,7 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 		pr_warning("tx4938ide: SHWT violation (%d)\n", shwt);
 		shwt = 7;
 	}
-	pr_debug("tx4938ide: ebus %d, bus cycle %dns, WT %d, SHWT %d\n",
+	pr_de("tx4938ide: ebus %d, bus cycle %dns, WT %d, SHWT %d\n",
 		 ebus_ch, cycle, wt, shwt);
 
 	__raw_writeq((cr & ~0x3f007ull) | (wt << 12) | shwt,

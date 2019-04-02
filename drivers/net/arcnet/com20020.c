@@ -285,16 +285,16 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	u_int ioaddr = dev->base_addr;
 	u_char inbyte;
 
-	arc_printk(D_DEBUG, dev, "%s: %d: %s: dev: %p, lp: %p, dev->name: %s\n",
+	arc_printk(D_DE, dev, "%s: %d: %s: dev: %p, lp: %p, dev->name: %s\n",
 		   __FILE__, __LINE__, __func__, dev, lp, dev->name);
 	arc_printk(D_INIT, dev, "Resetting %s (status=%02Xh)\n",
 		   dev->name, arcnet_inb(ioaddr, COM20020_REG_R_STATUS));
 
-	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DE, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	lp->config |= (lp->timeout << 3) | (lp->backplane << 2);
 	/* power-up defaults */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
-	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DE, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	if (really_reset) {
 		/* reset the card */
@@ -305,17 +305,17 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 				/* COM20020 seems to be slower sometimes */
 	}
 	/* clear flags & end reset */
-	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DE, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
 		    ioaddr, COM20020_REG_W_COMMAND);
 
 	/* verify that the ARCnet signature byte is present */
-	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DE, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	com20020_copy_from_card(dev, 0, 0, &inbyte, 1);
-	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DE, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	if (inbyte != TESTvalue) {
-		arc_printk(D_DEBUG, dev, "%s: %d: %s\n",
+		arc_printk(D_DE, dev, "%s: %d: %s\n",
 			   __FILE__, __LINE__, __func__);
 		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
 		return 1;
@@ -323,7 +323,7 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	/* enable extended (512-byte) packets */
 	arcnet_outb(CONFIGcmd | EXTconf, ioaddr, COM20020_REG_W_COMMAND);
 
-	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DE, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	/* done!  return success. */
 	return 0;
@@ -405,7 +405,7 @@ MODULE_LICENSE("GPL");
 
 static int __init com20020_module_init(void)
 {
-	if (BUGLVL(D_NORMAL))
+	if (LVL(D_NORMAL))
 		pr_info("%s\n", "COM20020 chipset support (by David Woodhouse et al.)");
 	return 0;
 }

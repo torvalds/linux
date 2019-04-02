@@ -90,7 +90,7 @@ config PUV3_FPGA_DLX200
 	bool "FPGA board"
 
 config PUV3_DB0913
-	bool "DEBUG board (0913)"
+	bool "DE board (0913)"
 
 config PUV3_NB0916
 	bool "NetBook board (0916)"

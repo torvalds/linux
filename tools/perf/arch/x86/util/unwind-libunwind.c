@@ -5,7 +5,7 @@
 #include <libunwind.h>
 #include "perf_regs.h"
 #include "../../util/unwind.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #endif
 
 #ifdef HAVE_ARCH_X86_64_SUPPORT

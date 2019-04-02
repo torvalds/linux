@@ -9,7 +9,7 @@
  *
  * Copyright (c) 2010-2012 Mauro Carvalho Chehab
  *	Driver modified by in order to work with upstream drxk driver, and
- *	tons of bugs got fixed, and converted to use dvb-usb-v2.
+ *	tons of s got fixed, and converted to use dvb-usb-v2.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,9 +29,9 @@
 
 #define AZ6007_FIRMWARE "dvb-usb-terratec-h7-az6007.fw"
 
-static int az6007_xfer_debug;
-module_param_named(xfer_debug, az6007_xfer_debug, int, 0644);
-MODULE_PARM_DESC(xfer_debug, "Enable xfer debug");
+static int az6007_xfer_de;
+module_param_named(xfer_de, az6007_xfer_de, int, 0644);
+MODULE_PARM_DESC(xfer_de, "Enable xfer de");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -87,7 +87,7 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct dvb_usb_adapter *adap = fe->sec_priv;
 	int status = 0;
 
-	pr_debug("%s: %s\n", __func__, enable ? "enable" : "disable");
+	pr_de("%s: %s\n", __func__, enable ? "enable" : "disable");
 
 	if (!adap || !st)
 		return -EINVAL;
@@ -120,8 +120,8 @@ static int __az6007_read(struct usb_device *udev, u8 req, u16 value,
 		return -EIO;
 	}
 
-	if (az6007_xfer_debug) {
-		printk(KERN_DEBUG "az6007: IN  req: %02x, value: %04x, index: %04x\n",
+	if (az6007_xfer_de) {
+		printk(KERN_DE "az6007: IN  req: %02x, value: %04x, index: %04x\n",
 		       req, value, index);
 		print_hex_dump_bytes("az6007: payload: ",
 				     DUMP_PREFIX_NONE, b, blen);
@@ -151,8 +151,8 @@ static int __az6007_write(struct usb_device *udev, u8 req, u16 value,
 {
 	int ret;
 
-	if (az6007_xfer_debug) {
-		printk(KERN_DEBUG "az6007: OUT req: %02x, value: %04x, index: %04x\n",
+	if (az6007_xfer_de) {
+		printk(KERN_DE "az6007: OUT req: %02x, value: %04x, index: %04x\n",
 		       req, value, index);
 		print_hex_dump_bytes("az6007: payload: ",
 				     DUMP_PREFIX_NONE, b, blen);
@@ -197,7 +197,7 @@ static int az6007_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 
-	pr_debug("%s: %s\n", __func__, onoff ? "enable" : "disable");
+	pr_de("%s: %s\n", __func__, onoff ? "enable" : "disable");
 
 	return az6007_write(d, 0xbc, onoff, 0, NULL, 0);
 }
@@ -239,7 +239,7 @@ static int az6007_rc_query(struct dvb_usb_device *d)
 
 static int az6007_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
-	pr_debug("Getting az6007 Remote Control properties\n");
+	pr_de("Getting az6007 Remote Control properties\n");
 
 	rc->allowed_protos = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
 						RC_PROTO_BIT_NEC32;
@@ -307,7 +307,7 @@ static int az6007_ci_write_attribute_mem(struct dvb_ca_en50221 *ca,
 	u16 index;
 	int blen;
 
-	pr_debug("%s(), slot %d\n", __func__, slot);
+	pr_de("%s(), slot %d\n", __func__, slot);
 	if (slot != 0)
 		return -EINVAL;
 
@@ -362,7 +362,7 @@ static int az6007_ci_read_cam_control(struct dvb_ca_en50221 *ca,
 			pr_warn("Read CI IO error\n");
 
 		ret = b[1];
-		pr_debug("read cam data = %x from 0x%x\n", b[1], value);
+		pr_de("read cam data = %x from 0x%x\n", b[1], value);
 	}
 
 	mutex_unlock(&state->ca_mutex);
@@ -475,7 +475,7 @@ static int az6007_ci_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 		msleep(100);
 
 		if (CI_CamReady(ca, slot)) {
-			pr_debug("CAM Ready\n");
+			pr_de("CAM Ready\n");
 			break;
 		}
 	}
@@ -502,7 +502,7 @@ static int az6007_ci_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 	u16 index;
 	int blen;
 
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 	mutex_lock(&state->ca_mutex);
 	req = 0xC7;
 	value = 1;
@@ -563,7 +563,7 @@ static void az6007_ci_uninit(struct dvb_usb_device *d)
 {
 	struct az6007_device_state *state;
 
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	if (NULL == d)
 		return;
@@ -587,7 +587,7 @@ static int az6007_ci_init(struct dvb_usb_adapter *adap)
 	struct az6007_device_state *state = adap_to_priv(adap);
 	int ret;
 
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	mutex_init(&state->ca_mutex);
 	state->ca.owner			= THIS_MODULE;
@@ -611,7 +611,7 @@ static int az6007_ci_init(struct dvb_usb_adapter *adap)
 		return ret;
 	}
 
-	pr_debug("CI initialized.\n");
+	pr_de("CI initialized.\n");
 
 	return 0;
 }
@@ -626,7 +626,7 @@ static int az6007_read_mac_addr(struct dvb_usb_adapter *adap, u8 mac[6])
 	memcpy(mac, st->data, 6);
 
 	if (ret > 0)
-		pr_debug("%s: mac is %pM\n", __func__, mac);
+		pr_de("%s: mac is %pM\n", __func__, mac);
 
 	return ret;
 }
@@ -636,7 +636,7 @@ static int az6007_frontend_attach(struct dvb_usb_adapter *adap)
 	struct az6007_device_state *st = adap_to_priv(adap);
 	struct dvb_usb_device *d = adap_to_d(adap);
 
-	pr_debug("attaching demod drxk\n");
+	pr_de("attaching demod drxk\n");
 
 	adap->fe[0] = dvb_attach(drxk_attach, &terratec_h7_drxk,
 				 &d->i2c_adap);
@@ -657,7 +657,7 @@ static int az6007_cablestar_hdci_frontend_attach(struct dvb_usb_adapter *adap)
 	struct az6007_device_state *st = adap_to_priv(adap);
 	struct dvb_usb_device *d = adap_to_d(adap);
 
-	pr_debug("attaching demod drxk\n");
+	pr_de("attaching demod drxk\n");
 
 	adap->fe[0] = dvb_attach(drxk_attach, &cablestar_hdci_drxk,
 				 &d->i2c_adap);
@@ -677,7 +677,7 @@ static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap_to_d(adap);
 
-	pr_debug("attaching tuner mt2063\n");
+	pr_de("attaching tuner mt2063\n");
 
 	/* Attach mt2063 to DVB-C frontend */
 	if (adap->fe[0]->ops.i2c_gate_ctrl)
@@ -698,7 +698,7 @@ static int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 	struct az6007_device_state *state = d_to_priv(d);
 	int ret;
 
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	if (!state->warm) {
 		mutex_init(&state->mutex);
@@ -774,8 +774,8 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			 * the first xfer has just 1 byte length.
 			 * Need to join both into one operation
 			 */
-			if (az6007_xfer_debug)
-				printk(KERN_DEBUG "az6007: I2C W/R addr=0x%x len=%d/%d\n",
+			if (az6007_xfer_de)
+				printk(KERN_DE "az6007: I2C W/R addr=0x%x len=%d/%d\n",
 				       addr, msgs[i].len, msgs[i + 1].len);
 			req = AZ6007_I2C_RD;
 			index = msgs[i].buf[0];
@@ -792,8 +792,8 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			i++;
 		} else if (!(msgs[i].flags & I2C_M_RD)) {
 			/* write bytes */
-			if (az6007_xfer_debug)
-				printk(KERN_DEBUG "az6007: I2C W addr=0x%x len=%d\n",
+			if (az6007_xfer_de)
+				printk(KERN_DE "az6007: I2C W addr=0x%x len=%d\n",
 				       addr, msgs[i].len);
 			req = AZ6007_I2C_WR;
 			index = msgs[i].buf[0];
@@ -806,8 +806,8 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 					      st->data, length);
 		} else {
 			/* read bytes */
-			if (az6007_xfer_debug)
-				printk(KERN_DEBUG "az6007: I2C R addr=0x%x len=%d\n",
+			if (az6007_xfer_de)
+				printk(KERN_DE "az6007: I2C R addr=0x%x len=%d\n",
 				       addr, msgs[i].len);
 			req = AZ6007_I2C_RD;
 			index = msgs[i].buf[0];
@@ -847,7 +847,7 @@ static int az6007_identify_state(struct dvb_usb_device *d, const char **name)
 	int ret;
 	u8 *mac;
 
-	pr_debug("Identifying az6007 state\n");
+	pr_de("Identifying az6007 state\n");
 
 	mac = kmalloc(6, GFP_ATOMIC);
 	if (!mac)
@@ -868,7 +868,7 @@ static int az6007_identify_state(struct dvb_usb_device *d, const char **name)
 		__az6007_write(d->udev, 0x00, 0, 0, NULL, 0);
 	}
 
-	pr_debug("Device is on %s state\n",
+	pr_de("Device is on %s state\n",
 		 ret == WARM ? "warm" : "cold");
 	return ret;
 }
@@ -883,7 +883,7 @@ static void az6007_usb_disconnect(struct usb_interface *intf)
 static int az6007_download_firmware(struct dvb_usb_device *d,
 	const struct firmware *fw)
 {
-	pr_debug("Loading az6007 firmware\n");
+	pr_de("Loading az6007 firmware\n");
 
 	return cypress_load_firmware(d->udev, fw, CYPRESS_FX2);
 }

@@ -196,7 +196,7 @@ detects everything automatically and when a HID device is inserted, it
 detects it appropriately.
 
 However, because the devices vary wildly, you might happen to have a
-device that doesn't work well. In that case #define DEBUG at the beginning
+device that doesn't work well. In that case #define DE at the beginning
 of hid-core.c and send me the syslog traces.
 
 usbmouse

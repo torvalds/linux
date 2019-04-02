@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include <linux/ktime.h>
 #include <linux/stddef.h>
-#include <linux/debugobjects.h>
+#include <linux/deobjects.h>
 #include <linux/stringify.h>
 
 struct timer_list {
@@ -74,13 +74,13 @@ struct timer_list {
 		__TIMER_INITIALIZER(_function, 0)
 
 /*
- * LOCKDEP and DEBUG timer interfaces.
+ * LOCKDEP and DE timer interfaces.
  */
 void init_timer_key(struct timer_list *timer,
 		    void (*func)(struct timer_list *), unsigned int flags,
 		    const char *name, struct lock_class_key *key);
 
-#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+#ifdef CONFIG_DE_OBJECTS_TIMERS
 extern void init_timer_on_stack_key(struct timer_list *timer,
 				    void (*func)(struct timer_list *),
 				    unsigned int flags, const char *name,
@@ -132,7 +132,7 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
 #define timer_setup_on_stack(timer, callback, flags)		\
 	__init_timer_on_stack((timer), (callback), (flags))
 
-#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+#ifdef CONFIG_DE_OBJECTS_TIMERS
 extern void destroy_timer_on_stack(struct timer_list *timer);
 #else
 static inline void destroy_timer_on_stack(struct timer_list *timer) { }

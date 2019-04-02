@@ -4,7 +4,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "machine.h"
 #include "event.h"
 #include "../util/unwind.h"
@@ -75,18 +75,18 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 		  MAX_STACK - *cnt - 1 : *cnt;
 
 	if (*cnt >= MAX_STACK) {
-		pr_debug("failed: crossed the max stack value %d\n", MAX_STACK);
+		pr_de("failed: crossed the max stack value %d\n", MAX_STACK);
 		return -1;
 	}
 
 	if (!symbol) {
-		pr_debug("failed: got unresolved address 0x%" PRIx64 "\n",
+		pr_de("failed: got unresolved address 0x%" PRIx64 "\n",
 			 entry->ip);
 		return -1;
 	}
 
 	(*cnt)++;
-	pr_debug("got: %s 0x%" PRIx64 ", expecting %s\n",
+	pr_de("got: %s 0x%" PRIx64 ", expecting %s\n",
 		 symbol, entry->ip, funcs[idx]);
 	return strcmp((const char *) symbol, funcs[idx]);
 }
@@ -100,16 +100,16 @@ noinline int test_dwarf_unwind__thread(struct thread *thread)
 	memset(&sample, 0, sizeof(sample));
 
 	if (test__arch_unwind_sample(&sample, thread)) {
-		pr_debug("failed to get unwind sample\n");
+		pr_de("failed to get unwind sample\n");
 		goto out;
 	}
 
 	err = unwind__get_entries(unwind_entry, &cnt, thread,
 				  &sample, MAX_STACK);
 	if (err)
-		pr_debug("unwind failed\n");
+		pr_de("unwind failed\n");
 	else if (cnt != MAX_STACK) {
-		pr_debug("got wrong number of stack entries %lu != %d\n",
+		pr_de("got wrong number of stack entries %lu != %d\n",
 			 cnt, MAX_STACK);
 		err = -1;
 	}

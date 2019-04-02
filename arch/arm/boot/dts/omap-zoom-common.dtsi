@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Common features on the Zoom debug board
+ * Common features on the Zoom de board
  */
 
 #include "omap-gpmc-smsc911x.dtsi"

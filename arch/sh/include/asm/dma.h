@@ -139,9 +139,9 @@ extern int dma_create_sysfs_files(struct dma_channel *, struct dma_info *);
 extern void dma_remove_sysfs_files(struct dma_channel *, struct dma_info *);
 
 #ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 #else
-#define isa_dma_bridge_buggy	(0)
+#define isa_dma_bridge_gy	(0)
 #endif
 
 #endif /* __KERNEL__ */

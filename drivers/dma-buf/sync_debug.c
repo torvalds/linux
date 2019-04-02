@@ -1,5 +1,5 @@
 /*
- * Sync File validation framework and debug information
+ * Sync File validation framework and de information
  *
  * Copyright (C) 2012 Google, Inc.
  *
@@ -14,8 +14,8 @@
  *
  */
 
-#include <linux/debugfs.h>
-#include "sync_debug.h"
+#include <linux/defs.h>
+#include "sync_de.h"
 
 static struct dentry *dbgfs;
 
@@ -24,7 +24,7 @@ static DEFINE_SPINLOCK(sync_timeline_list_lock);
 static LIST_HEAD(sync_file_list_head);
 static DEFINE_SPINLOCK(sync_file_list_lock);
 
-void sync_timeline_debug_add(struct sync_timeline *obj)
+void sync_timeline_de_add(struct sync_timeline *obj)
 {
 	unsigned long flags;
 
@@ -33,7 +33,7 @@ void sync_timeline_debug_add(struct sync_timeline *obj)
 	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
 }
 
-void sync_timeline_debug_remove(struct sync_timeline *obj)
+void sync_timeline_de_remove(struct sync_timeline *obj)
 {
 	unsigned long flags;
 
@@ -42,7 +42,7 @@ void sync_timeline_debug_remove(struct sync_timeline *obj)
 	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
 }
 
-void sync_file_debug_add(struct sync_file *sync_file)
+void sync_file_de_add(struct sync_file *sync_file)
 {
 	unsigned long flags;
 
@@ -51,7 +51,7 @@ void sync_file_debug_add(struct sync_file *sync_file)
 	spin_unlock_irqrestore(&sync_file_list_lock, flags);
 }
 
-void sync_file_debug_remove(struct sync_file *sync_file)
+void sync_file_de_remove(struct sync_file *sync_file)
 {
 	unsigned long flags;
 
@@ -147,7 +147,7 @@ static void sync_print_sync_file(struct seq_file *s,
 	}
 }
 
-static int sync_info_debugfs_show(struct seq_file *s, void *unused)
+static int sync_info_defs_show(struct seq_file *s, void *unused)
 {
 	struct list_head *pos;
 
@@ -178,25 +178,25 @@ static int sync_info_debugfs_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(sync_info_debugfs);
+DEFINE_SHOW_ATTRIBUTE(sync_info_defs);
 
-static __init int sync_debugfs_init(void)
+static __init int sync_defs_init(void)
 {
-	dbgfs = debugfs_create_dir("sync", NULL);
+	dbgfs = defs_create_dir("sync", NULL);
 
 	/*
-	 * The debugfs files won't ever get removed and thus, there is
+	 * The defs files won't ever get removed and thus, there is
 	 * no need to protect it against removal races. The use of
-	 * debugfs_create_file_unsafe() is actually safe here.
+	 * defs_create_file_unsafe() is actually safe here.
 	 */
-	debugfs_create_file_unsafe("info", 0444, dbgfs, NULL,
-				   &sync_info_debugfs_fops);
-	debugfs_create_file_unsafe("sw_sync", 0644, dbgfs, NULL,
-				   &sw_sync_debugfs_fops);
+	defs_create_file_unsafe("info", 0444, dbgfs, NULL,
+				   &sync_info_defs_fops);
+	defs_create_file_unsafe("sw_sync", 0644, dbgfs, NULL,
+				   &sw_sync_defs_fops);
 
 	return 0;
 }
-late_initcall(sync_debugfs_init);
+late_initcall(sync_defs_init);
 
 #define DUMP_CHUNK 256
 static char sync_dump_buf[64 * 1024];
@@ -208,7 +208,7 @@ void sync_dump(void)
 	};
 	int i;
 
-	sync_info_debugfs_show(&s, NULL);
+	sync_info_defs_show(&s, NULL);
 
 	for (i = 0; i < s.count; i += DUMP_CHUNK) {
 		if ((s.count - i) > DUMP_CHUNK) {

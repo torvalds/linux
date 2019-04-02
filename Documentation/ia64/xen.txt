@@ -169,7 +169,7 @@ Boot DomainU with pv_ops
 
  2. After boot xen and dom0, start xend
    # /etc/init.d/xend start
-   ( In the debugging case, # XEND_DEBUG=1 xend trace_start )
+   ( In the deging case, # XEND_DE=1 xend trace_start )
 
  3. start domU
    # xm create -c rhel5

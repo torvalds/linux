@@ -1,23 +1,23 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
- * Name: acdebug.h - ACPI/AML debugger
+ * Name: acde.h - ACPI/AML deger
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
-#ifndef __ACDEBUG_H__
-#define __ACDEBUG_H__
+#ifndef __ACDE_H__
+#define __ACDE_H__
 
-/* The debugger is used in conjunction with the disassembler most of time */
+/* The deger is used in conjunction with the disassembler most of time */
 
 #ifdef ACPI_DISASSEMBLER
 #include "acdisasm.h"
 #endif
 
-#define ACPI_DEBUG_BUFFER_SIZE      0x4000	/* 16K buffer for return objects */
-#define ACPI_DEBUG_LENGTH_FORMAT    " (%.4X bits, %.3X bytes)"
+#define ACPI_DE_BUFFER_SIZE      0x4000	/* 16K buffer for return objects */
+#define ACPI_DE_LENGTH_FORMAT    " (%.4X bits, %.3X bytes)"
 
 struct acpi_db_command_info {
 	const char *name;	/* Command Name */
@@ -45,7 +45,7 @@ struct acpi_db_execute_walk {
 #define EX_SINGLE_STEP                  2
 
 /*
- * dbxface - external debugger interfaces
+ * dbxface - external deger interfaces
  */
 ACPI_DBR_DEPENDENT_RETURN_OK(acpi_status
 			     acpi_db_single_step(struct acpi_walk_state
@@ -58,7 +58,7 @@ ACPI_DBR_DEPENDENT_RETURN_OK(acpi_status
 							   *walk_state))
 
 /*
- * dbcmds - debug commands and output routines
+ * dbcmds - de commands and output routines
  */
 struct acpi_namespace_node *acpi_db_convert_to_node(char *in_string);
 
@@ -149,7 +149,7 @@ void acpi_db_find_references(char *object_arg);
 void acpi_db_get_bus_info(void);
 
 /*
- * dbdisply - debug display commands
+ * dbdisply - de display commands
  */
 void acpi_db_display_method_info(union acpi_parse_object *op);
 
@@ -184,7 +184,7 @@ ACPI_DBR_DEPENDENT_RETURN_VOID(void
 							       *walk_state))
 
 /*
- * dbexec - debugger control method execution
+ * dbexec - deger control method execution
  */
 void
 acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags);
@@ -204,22 +204,22 @@ u32 acpi_db_get_cache_info(struct acpi_memory_list *cache);
 #endif
 
 /*
- * dbfileio - Debugger file I/O commands
+ * dbfileio - Deger file I/O commands
  */
 acpi_object_type
 acpi_db_match_argument(char *user_argument,
 		       struct acpi_db_argument_info *arguments);
 
-void acpi_db_close_debug_file(void);
+void acpi_db_close_de_file(void);
 
-void acpi_db_open_debug_file(char *name);
+void acpi_db_open_de_file(char *name);
 
 acpi_status acpi_db_load_acpi_table(char *filename);
 
 acpi_status acpi_db_load_tables(struct acpi_new_table_desc *list_head);
 
 /*
- * dbhistry - debugger HISTORY command
+ * dbhistry - deger HISTORY command
  */
 void acpi_db_add_to_history(char *command_line);
 
@@ -230,7 +230,7 @@ char *acpi_db_get_from_history(char *command_num_arg);
 char *acpi_db_get_history_by_index(u32 commandd_num);
 
 /*
- * dbinput - user front-end to the AML debugger
+ * dbinput - user front-end to the AML deger
  */
 acpi_status
 acpi_db_command_dispatch(char *input_buffer,
@@ -269,7 +269,7 @@ void acpi_db_generate_statistics(union acpi_parse_object *root, u8 is_method);
 acpi_status acpi_db_display_statistics(char *type_arg);
 
 /*
- * dbutils - AML debugger utilities
+ * dbutils - AML deger utilities
  */
 void acpi_db_set_output_destination(u32 where);
 
@@ -281,4 +281,4 @@ struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name);
 
 void acpi_db_uint32_to_hex_string(u32 value, char *buffer);
 
-#endif				/* __ACDEBUG_H__ */
+#endif				/* __ACDE_H__ */

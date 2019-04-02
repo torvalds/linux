@@ -54,7 +54,7 @@ Missing Features
 	* acceleration support (8514-like 2D, busmaster transfers)
 
 
-Known bugs
+Known s
 ==========
 
 	* cursor disable in text mode doesn't work

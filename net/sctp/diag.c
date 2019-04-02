@@ -21,7 +21,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email addresched(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -157,7 +157,7 @@ static int inet_sctp_diag_fill(struct sock *sk, struct sctp_association *asoc,
 		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
-	BUG_ON(!sk_fullsock(sk));
+	_ON(!sk_fullsock(sk));
 
 	if (asoc) {
 		inet_diag_msg_sctpasoc_fill(r, sk, asoc);

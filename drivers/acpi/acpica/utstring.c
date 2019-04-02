@@ -18,7 +18,7 @@ ACPI_MODULE_NAME("utstring")
  *
  * PARAMETERS:  string          - Null terminated ASCII string
  *              max_length      - Maximum output length. Used to constrain the
- *                                length of strings during debug output only.
+ *                                length of strings during de output only.
  *
  * RETURN:      None
  *
@@ -165,14 +165,14 @@ void acpi_ut_repair_name(char *name)
 
 	if (found_bad_char) {
 
-		/* Report warning only if in strict mode or debug mode */
+		/* Report warning only if in strict mode or de mode */
 
 		if (!acpi_gbl_enable_interpreter_slack) {
 			ACPI_WARNING((AE_INFO,
 				      "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
 				      original_name, name));
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
 					  original_name, name));
 		}

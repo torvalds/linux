@@ -21,7 +21,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -410,14 +410,14 @@ static bool batadv_mcast_has_bridge(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_mcast_querier_log() - debug output regarding the querier status on
+ * batadv_mcast_querier_log() - de output regarding the querier status on
  *  link
  * @bat_priv: the bat priv with all the soft interface information
  * @str_proto: a string for the querier protocol (e.g. "IGMP" or "MLD")
  * @old_state: the previous querier state on our link
  * @new_state: the new querier state on our link
  *
- * Outputs debug messages to the logging facility with log level 'mcast'
+ * Outputs de messages to the logging facility with log level 'mcast'
  * regarding changes to the querier status on the link which are relevant
  * to our multicast optimizations.
  *
@@ -462,7 +462,7 @@ batadv_mcast_querier_log(struct batadv_priv *bat_priv, char *str_proto,
 }
 
 /**
- * batadv_mcast_bridge_log() - debug output for topology changes in bridged
+ * batadv_mcast_bridge_log() - de output for topology changes in bridged
  *  setups
  * @bat_priv: the bat priv with all the soft interface information
  * @bridged: a flag about whether the soft interface is currently bridged or not
@@ -471,7 +471,7 @@ batadv_mcast_querier_log(struct batadv_priv *bat_priv, char *str_proto,
  *
  * If no bridges are ever used on this node, then this function does nothing.
  *
- * Otherwise this function outputs debug information to the 'mcast' log level
+ * Otherwise this function outputs de information to the 'mcast' log level
  * which might be relevant to our multicast optimizations.
  *
  * More precisely, it outputs information when a bridge interface is added or
@@ -502,7 +502,7 @@ batadv_mcast_bridge_log(struct batadv_priv *bat_priv, bool bridged,
 }
 
 /**
- * batadv_mcast_flags_logs() - output debug information about mcast flag changes
+ * batadv_mcast_flags_logs() - output de information about mcast flag changes
  * @bat_priv: the bat priv with all the soft interface information
  * @flags: flags indicating the new multicast state
  *
@@ -1224,15 +1224,15 @@ void batadv_mcast_init(struct batadv_priv *bat_priv)
 	batadv_mcast_start_timer(bat_priv);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
- * batadv_mcast_flags_print_header() - print own mcast flags to debugfs table
+ * batadv_mcast_flags_print_header() - print own mcast flags to defs table
  * @bat_priv: the bat priv with all the soft interface information
- * @seq: debugfs table seq_file struct
+ * @seq: defs table seq_file struct
  *
  * Prints our own multicast flags including a more specific reason why
  * they are set, that is prints the bridge and querier state too, to
- * the debugfs table specified via @seq.
+ * the defs table specified via @seq.
  */
 static void batadv_mcast_flags_print_header(struct batadv_priv *bat_priv,
 					    struct seq_file *seq)

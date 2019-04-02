@@ -84,16 +84,16 @@
      10.8 stop
      10.9 go
 
-  11. Kernel debugging
+  11. Kernel deging
 
      11.1 Starting the kernel under gdb
      11.2 Examining sleeping processes
      11.3 Running ddd on UML
-     11.4 Debugging modules
+     11.4 Deging modules
      11.5 Attaching gdb to the kernel
-     11.6 Using alternate debuggers
+     11.6 Using alternate degers
 
-  12. Kernel debugging examples
+  12. Kernel deging examples
 
      12.1 The case of the hung fsck
      12.2 Episode 2: The case of the hung fsck
@@ -126,8 +126,8 @@
   15. Thanks
 
      15.1 Code and Documentation
-     15.2 Flushing out bugs
-     15.3 Buglets and clean-ups
+     15.2 Flushing out s
+     15.3 lets and clean-ups
      15.4 Case Studies
      15.5 Other contributions
 
@@ -188,7 +188,7 @@
 
   2. You can run a usermode kernel as a non-root user.
 
-  3. You can debug the User Mode Linux like any normal process.
+  3. You can de the User Mode Linux like any normal process.
 
   4. You can run gprof (profiling) and gcov (coverage testing).
 
@@ -319,7 +319,7 @@
 
 
   where 'x' is the version in your pool. Note that you will not get the
-  bug fixes and enhancements that have gone into subsequent releases.
+   fixes and enhancements that have gone into subsequent releases.
 
 
   2.2.  Compiling and installing kernel modules
@@ -848,7 +848,7 @@
 
 
   As of 2.4.5, UML networking has been completely redone to make it much
-  easier to set up, fix bugs, and add new features.
+  easier to set up, fix s, and add new features.
 
 
   There is a new helper, uml_net, which does the host setup that
@@ -2335,7 +2335,7 @@
   There are a couple actual uses for this.  It's a simple no-op which
   can be used to check that a UML is running.  It's also a way of
   sending an interrupt to the UML.  This is sometimes useful on SMP
-  hosts, where there's a bug which causes signals to UML to be lost,
+  hosts, where there's a  which causes signals to UML to be lost,
   often causing it to appear to hang.  Sending such a UML the mconsole
   version command is a good way to 'wake it up' before networking has
   been enabled, as it does not do anything to the function of the UML.
@@ -2443,7 +2443,7 @@
 
   Note that a UML running with more than one CPU will have problems
   after you send the 'stop' command, as only one CPU will be held in a
-  mconsole loop and all others will continue as normal.  This is a bug,
+  mconsole loop and all others will continue as normal.  This is a ,
   and will be fixed.
 
 
@@ -2462,23 +2462,23 @@
 
 
 
-  11.  Kernel debugging
+  11.  Kernel deging
 
 
-  Note: The interface that makes debugging, as described here, possible
+  Note: The interface that makes deging, as described here, possible
   is present in 2.4.0-test6 kernels and later.
 
 
   Since the user-mode kernel runs as a normal Linux process, it is
-  possible to debug it with gdb almost like any other process.  It is
+  possible to de it with gdb almost like any other process.  It is
   slightly different because the kernel's threads are already being
   ptraced for system call interception, so gdb can't ptrace them.
   However, a mechanism has been added to work around that problem.
 
 
-  In order to debug the kernel, you need build it from source.  See
+  In order to de the kernel, you need build it from source.  See
   ``Compiling the kernel and modules''  for information on doing that.
-  Make sure that you enable CONFIG_DEBUGSYM and CONFIG_PT_PROXY during
+  Make sure that you enable CONFIG_DESYM and CONFIG_PT_PROXY during
   the config.  These will compile the kernel with -g, and enable the
   ptrace proxy so that gdb works with UML, respectively.
 
@@ -2488,19 +2488,19 @@
   11.1.  Starting the kernel under gdb
 
   You can have the kernel running under the control of gdb from the
-  beginning by putting 'debug' on the command line.  You will get an
+  beginning by putting 'de' on the command line.  You will get an
   xterm with gdb running inside it.  The kernel will send some commands
   to gdb which will leave it stopped at the beginning of start_kernel.
   At this point, you can get things going with 'next', 'step', or
   'cont'.
 
 
-  There is a transcript of a debugging session  here <debug-
+  There is a transcript of a deging session  here <de-
   session.html> , with breakpoints being set in the scheduler and in an
   interrupt handler.
   11.2.  Examining sleeping processes
 
-  Not every bug is evident in the currently running process.  Sometimes,
+  Not every  is evident in the currently running process.  Sometimes,
   processes hang in the kernel when they shouldn't because they've
   deadlocked on a semaphore or something similar.  In this case, when
   you ^C gdb and get a backtrace, you will see the idle thread, which
@@ -2587,7 +2587,7 @@
      gdb to tell you, but for some reason that confuses things and
      causes a hang.
 
-  o  run UML with 'debug=parent gdb-pid=<pid>' added to the command line
+  o  run UML with 'de=parent gdb-pid=<pid>' added to the command line
      - it will just sit there after you hit return
 
   o  type 'att 1' to the ddd gdb and you will see something like
@@ -2607,10 +2607,10 @@
 
 
 
-  11.4.  Debugging modules
+  11.4.  Deging modules
 
-  gdb has support for debugging code which is dynamically loaded into
-  the process.  This support is what is needed to debug kernel modules
+  gdb has support for deging code which is dynamically loaded into
+  the process.  This support is what is needed to de kernel modules
   under UML.
 
 
@@ -2640,14 +2640,14 @@
 
 
   You change that to list the names and paths of the modules that you
-  are going to debug.  Then you run it from the toplevel directory of
+  are going to de.  Then you run it from the toplevel directory of
   your UML pool and it basically tells you what to do:
 
 
 
 
                    ******** GDB pid is 21903 ********
-       Start UML as: ./linux <kernel switches> debug gdb-pid=21903
+       Start UML as: ./linux <kernel switches> de gdb-pid=21903
 
 
 
@@ -2677,7 +2677,7 @@
 
 
 
-  At this point, you debug normally.  When you insmod something, the
+  At this point, you de normally.  When you insmod something, the
   expect magic will kick in and you'll see something like:
 
 
@@ -2743,7 +2743,7 @@
   described below in case you're interested in what's going on.
 
 
-  Boot the kernel under the debugger and load the module with insmod or
+  Boot the kernel under the deger and load the module with insmod or
   modprobe.  With gdb, do:
 
 
@@ -2755,7 +2755,7 @@
   This is a list of modules that have been loaded into the kernel, with
   the most recently loaded module first.  Normally, the module you want
   is at module_list.  If it's not, walk down the next links, looking at
-  the name fields until find the module you want to debug.  Take the
+  the name fields until find the module you want to de.  Take the
   address of that structure, and add module.size_of_struct (which in
   2.4.10 kernels is 96 (0x60)) to it.  Gdb can make this hard addition
   for you :-):
@@ -2857,20 +2857,20 @@
 
 
 
-  11.6.  Using alternate debuggers
+  11.6.  Using alternate degers
 
-  UML has support for attaching to an already running debugger rather
+  UML has support for attaching to an already running deger rather
   than starting gdb itself.  This is present in CVS as of 17 Apr 2001.
   I sent it to Alan for inclusion in the ac tree, and it will be in my
   2.4.4 release.
 
 
   This is useful when gdb is a subprocess of some UI, such as emacs or
-  ddd.  It can also be used to run debuggers other than gdb on UML.
-  Below is an example of using strace as an alternate debugger.
+  ddd.  It can also be used to run degers other than gdb on UML.
+  Below is an example of using strace as an alternate deger.
 
 
-  To do this, you need to get the pid of the debugger and pass it in
+  To do this, you need to get the pid of the deger and pass it in
   with the
 
 
@@ -2878,12 +2878,12 @@
   you'll find yourself attached to UML.
 
 
-  If you are using something other than gdb as your debugger, then
+  If you are using something other than gdb as your deger, then
   you'll need to get it to do the equivalent of 'att 1' if it doesn't do
   it automatically.
 
 
-  An example of an alternate debugger is strace.  You can strace the
+  An example of an alternate deger is strace.  You can strace the
   actual kernel as follows:
 
   o  Run the following in a shell
@@ -2894,7 +2894,7 @@
 
 
 
-  o  Run UML with 'debug' and 'gdb-pid=<pid>' with the pid printed out
+  o  Run UML with 'de' and 'gdb-pid=<pid>' with the pid printed out
      by the previous command
 
   o  Hit return in the shell, and UML will start running, and strace
@@ -2917,7 +2917,7 @@
 
 
 
-  12.  Kernel debugging examples
+  12.  Kernel deging examples
 
   12.1.  The case of the hung fsck
 
@@ -3096,7 +3096,7 @@
 
   Program received signal SIGSEGV, Segmentation fault.
   <function called from gdb>
-  The program being debugged stopped while in a function called from GDB.
+  The program being deged stopped while in a function called from GDB.
   When the function (detach) is done executing, GDB will silently
   stop (instead of continuing to evaluate the expression containing
   the function call).
@@ -3781,7 +3781,7 @@
 
   The fix was to initialize the boot memory manager before allocating
   those two stack pages, and then allocate them through the boot memory
-  manager.  After doing this, and fixing a couple of subsequent buglets,
+  manager.  After doing this, and fixing a couple of subsequent lets,
   the stack corruption problem disappeared.
 
 
@@ -3835,7 +3835,7 @@
 
 
 
-  are diagnostic of this problem.  This is a reiserfs bug which causes a
+  are diagnostic of this problem.  This is a reiserfs  which causes a
   thread to occasionally read stale data from a mmapped page shared with
   another thread.  The fix is to upgrade the filesystem or to have /tmp
   be an ext2 filesystem.
@@ -3867,14 +3867,14 @@
   this
 
 
-       kernel BUG at page_alloc.c:100!
+       kernel  at page_alloc.c:100!
 
 
 
 
-  you have a buggy gcc.  You can work around the problem by removing
+  you have a gy gcc.  You can work around the problem by removing
   UM_FASTCALL from CFLAGS in arch/um/Makefile-i386.  This will open up
-  another bug, but that one is fairly hard to reproduce.
+  another , but that one is fairly hard to reproduce.
 
 
 
@@ -3890,7 +3890,7 @@
 
 
 
-  This is a syslogd bug.  There's a race between a parent process
+  This is a syslogd .  There's a race between a parent process
   installing a signal handler and its child sending the signal.  See
   this uml-devel post <http://www.geocrawler.com/lists/3/Source-
   Forge/709/0/6612801>  for the details.
@@ -4042,7 +4042,7 @@
   13.15.  Any other panic, hang, or strange behavior
 
   If you're seeing truly strange behavior, such as hangs or panics that
-  happen in random places, or you try running the debugger to see what's
+  happen in random places, or you try running the deger to see what's
   happening and it acts strangely, then it could be a problem in the
   host kernel.  If you're not running a stock Linus or -ac kernel, then
   try that.  An early version of the preemption patch and a 2.4.10 SuSE
@@ -4072,16 +4072,16 @@
   report the results to the list.
 
 
-  For any diagnosis, you're going to need to build a debugging kernel.
-  The binaries from this site aren't debuggable.  If you haven't done
+  For any diagnosis, you're going to need to build a deging kernel.
+  The binaries from this site aren't degable.  If you haven't done
   this before, read about ``Compiling the kernel and modules''  and
-  ``Kernel debugging''  UML first.
+  ``Kernel deging''  UML first.
 
 
   14.1.  Case 1 : Normal kernel panics
 
-  The most common case is for a normal thread to panic.  To debug this,
-  you will need to run it under the debugger (add 'debug' to the command
+  The most common case is for a normal thread to panic.  To de this,
+  you will need to run it under the deger (add 'de' to the command
   line).  An xterm will start up with gdb running inside it.  Continue
   it when it stops in start_kernel and make it crash.  Now ^C gdb and
 
@@ -4131,7 +4131,7 @@
   14.2.  Case 2 : Tracing thread panics
 
   The less common and more painful case is when the tracing thread
-  panics.  In this case, the kernel debugger will be useless because it
+  panics.  In this case, the kernel deger will be useless because it
   needs a healthy tracing thread in order to work.  The first thing to
   do is get a backtrace from the tracing thread.  This is done by
   figuring out what its pid is, firing up gdb, and attaching it to that
@@ -4158,7 +4158,7 @@
 
 
   If the tracing thread flaked out all by itself, then send that
-  backtrace in and wait for our crack debugging team to fix the problem.
+  backtrace in and wait for our crack deging team to fix the problem.
 
 
   14.3.  Case 3 : Tracing thread panics caused by other threads
@@ -4174,7 +4174,7 @@
 
   In this case, you'll need to get a backtrace from the process men-
   tioned in the panic, which is complicated by the fact that the kernel
-  debugger is defunct and without some fancy footwork, another gdb can't
+  deger is defunct and without some fancy footwork, another gdb can't
   attach to it.  So, this is how the fancy footwork goes:
 
   In a shell:
@@ -4231,7 +4231,7 @@
 
   Hangs seem to be fairly rare, but they sometimes happen.  When a hang
   happens, we need a backtrace from the offending process.  Run the
-  kernel debugger as described in case 1 and get a backtrace.  If the
+  kernel deger as described in case 1 and get a backtrace.  If the
   current process is not the idle thread, then send in the backtrace.
   You can tell that it's the idle thread if the stack looks like this:
 
@@ -4298,7 +4298,7 @@
 
   o  HOWTO updates
 
-  o  lots of bug reports
+  o  lots of  reports
 
   o  lots of testing
 
@@ -4315,7 +4315,7 @@
 
   Lars Brinkhoff <http://lars.nocrew.org/>  - Contributed the ptrace
   proxy from his own  project <http://a386.nocrew.org/> to allow easier
-  kernel debugging
+  kernel deging
 
 
   Andrea Arcangeli <andrea at suse.de>  - Redid some of the early boot
@@ -4384,12 +4384,12 @@
   o  Nifty little UML management daemon  UMLd
      <http://uml.openconsultancy.com/umld/>
 
-  o  Lots of testing and bug reports
+  o  Lots of testing and  reports
 
 
 
 
-  15.2.  Flushing out bugs
+  15.2.  Flushing out s
 
 
 
@@ -4468,7 +4468,7 @@
 
 
 
-  15.3.  Buglets and clean-ups
+  15.3.  lets and clean-ups
 
 
 
@@ -4569,7 +4569,7 @@
 
   Rodrigo de Castro looked at my broken pte code and told me what was
   wrong with it, letting me fix a long-standing (several weeks) and
-  serious set of bugs.
+  serious set of s.
 
   Chris Reahard built a specialized root filesystem for running a DNS
   server jailed inside UML.  It's available from the download

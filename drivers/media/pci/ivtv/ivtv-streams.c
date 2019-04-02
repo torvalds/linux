@@ -442,7 +442,7 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 		data[6] = itv->vbi.enc_size / lines;
 	}
 
-	IVTV_DEBUG_INFO(
+	IVTV_DE_INFO(
 		"Setup VBI API header 0x%08x pkts %d buffs %d ln %d sz %d\n",
 			data[0], data[1], data[2], data[5], data[6]);
 
@@ -454,7 +454,7 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	if (!itv->vbi.fpi)
 		itv->vbi.fpi = 1;
 
-	IVTV_DEBUG_INFO("Setup VBI start 0x%08x frames %d fpi %d\n",
+	IVTV_DE_INFO("Setup VBI start 0x%08x frames %d fpi %d\n",
 		itv->vbi.enc_start, data[1], itv->vbi.fpi);
 
 	/* select VBI lines.
@@ -491,7 +491,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
-	IVTV_DEBUG_INFO("Start encoder stream %s\n", s->name);
+	IVTV_DE_INFO("Start encoder stream %s\n", s->name);
 
 	switch (s->type) {
 	case IVTV_ENC_STREAM_TYPE_MPG:
@@ -589,7 +589,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		itv->pgm_info_write_idx = 0;
 		itv->pgm_info_read_idx = 0;
 
-		IVTV_DEBUG_INFO("PGM Index at 0x%08x with %d elements\n",
+		IVTV_DE_INFO("PGM Index at 0x%08x with %d elements\n",
 				itv->pgm_info_offset, itv->pgm_info_num);
 
 		/* Setup API for Stream */
@@ -629,7 +629,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	/* begin_capture */
 	if (ivtv_vapi(itv, CX2341X_ENC_START_CAPTURE, 2, captype, subtype))
 	{
-		IVTV_DEBUG_WARN( "Error starting capture!\n");
+		IVTV_DE_WARN( "Error starting capture!\n");
 		return -EINVAL;
 	}
 
@@ -660,7 +660,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	if (s->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
-	IVTV_DEBUG_INFO("Setting some initial decoder settings\n");
+	IVTV_DE_INFO("Setting some initial decoder settings\n");
 
 	width = itv->cxhdl.width;
 	height = itv->cxhdl.height;
@@ -678,7 +678,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	ivtv_vapi_result(itv, data, CX2341X_DEC_EXTRACT_VBI, 1, 1);
 	itv->vbi.dec_start = data[0];
 
-	IVTV_DEBUG_INFO("Decoder VBI RE-Insert start 0x%08x size 0x%08x\n",
+	IVTV_DE_INFO("Decoder VBI RE-Insert start 0x%08x size 0x%08x\n",
 		itv->vbi.dec_start, data[1]);
 
 	/* set decoder source settings */
@@ -695,7 +695,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 			width = 720;
 			height = itv->is_out_50hz ? 576 : 480;
 		}
-		IVTV_DEBUG_INFO("Setup DEC YUV Stream data[0] = %d\n", datatype);
+		IVTV_DE_INFO("Setup DEC YUV Stream data[0] = %d\n", datatype);
 		break;
 	case IVTV_DEC_STREAM_TYPE_MPG:
 	default:
@@ -704,7 +704,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
 			width, height, itv->cxhdl.audio_properties)) {
-		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
+		IVTV_DE_WARN("Couldn't initialize decoder source\n");
 	}
 
 	/* Decoder sometimes dies here, so wait a moment */
@@ -725,7 +725,7 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 	if (test_and_set_bit(IVTV_F_S_STREAMING, &s->s_flags))
 		return 0;	/* already started */
 
-	IVTV_DEBUG_INFO("Starting decode stream %s (gop_offset %d)\n", s->name, gop_offset);
+	IVTV_DE_INFO("Starting decode stream %s (gop_offset %d)\n", s->name, gop_offset);
 
 	rc = ivtv_setup_v4l2_decode_stream(s);
 	if (rc < 0) {
@@ -760,7 +760,7 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	/* Clear the following Interrupt mask bits for decoding */
 	ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_DECODE);
-	IVTV_DEBUG_IRQ("IRQ Mask is now: 0x%08x\n", itv->irqmask);
+	IVTV_DE_IRQ("IRQ Mask is now: 0x%08x\n", itv->irqmask);
 
 	/* you're live! sit back and await interrupts :) */
 	atomic_inc(&itv->decoding);
@@ -795,7 +795,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	/* This function assumes that you are allowed to stop the capture
 	   and that we are actually capturing */
 
-	IVTV_DEBUG_INFO("Stop Capture\n");
+	IVTV_DE_INFO("Stop Capture\n");
 
 	if (s->type == IVTV_DEC_STREAM_TYPE_VOUT)
 		return 0;
@@ -856,10 +856,10 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			duration = ((1000 + HZ / 2) / HZ) * (jiffies - then);
 
 			if (!test_bit(IVTV_F_I_EOS, &itv->i_flags)) {
-				IVTV_DEBUG_WARN("%s: EOS interrupt not received! stopping anyway.\n", s->name);
-				IVTV_DEBUG_WARN("%s: waited %lu ms.\n", s->name, duration);
+				IVTV_DE_WARN("%s: EOS interrupt not received! stopping anyway.\n", s->name);
+				IVTV_DE_WARN("%s: waited %lu ms.\n", s->name, duration);
 			} else {
-				IVTV_DEBUG_INFO("%s: EOS took %lu ms to occur.\n", s->name, duration);
+				IVTV_DE_INFO("%s: EOS took %lu ms to occur.\n", s->name, duration);
 			}
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&itv->eos_waitq, &wait);
@@ -922,7 +922,7 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 	if (!test_bit(IVTV_F_S_STREAMING, &s->s_flags))
 		return 0;
 
-	IVTV_DEBUG_INFO("Stop Decode at %llu, flags: %x\n", (unsigned long long)pts, flags);
+	IVTV_DE_INFO("Stop Decode at %llu, flags: %x\n", (unsigned long long)pts, flags);
 
 	/* Stop Decoder */
 	if (!(flags & V4L2_DEC_CMD_STOP_IMMEDIATELY) || pts) {
@@ -981,7 +981,7 @@ int ivtv_passthrough_mode(struct ivtv *itv, int enable)
 	if (yuv_stream->vdev.v4l2_dev == NULL || dec_stream->vdev.v4l2_dev == NULL)
 		return -EINVAL;
 
-	IVTV_DEBUG_INFO("ivtv ioctl: Select passthrough mode\n");
+	IVTV_DE_INFO("ivtv ioctl: Select passthrough mode\n");
 
 	/* Prevent others from starting/stopping streams while we
 	   initiate/terminate passthrough mode */

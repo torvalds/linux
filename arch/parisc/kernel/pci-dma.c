@@ -46,7 +46,7 @@ static char    *pcxl_res_map;
 static int     pcxl_res_hint;
 static int     pcxl_res_size;
 
-#ifdef DEBUG_PCXL_RESOURCE
+#ifdef DE_PCXL_RESOURCE
 #define DBG_RES(x...)	printk(x)
 #else
 #define DBG_RES(x...)
@@ -291,7 +291,7 @@ resource_found:
 
 #define PCXL_FREE_MAPPINGS(idx, m, size) \
 		u##size *res_ptr = (u##size *)&(pcxl_res_map[(idx) + (((size >> 3) - 1) & (~((size >> 3) - 1)))]); \
-		/* BUG_ON((*res_ptr & m) != m); */ \
+		/* _ON((*res_ptr & m) != m); */ \
 		*res_ptr &= ~m;
 
 /*

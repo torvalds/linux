@@ -30,7 +30,7 @@
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 
-/* PSW bits we allow the debugger to modify */
+/* PSW bits we allow the deger to modify */
 #define USER_PSW_BITS	(PSW_N | PSW_B | PSW_V | PSW_CB)
 
 #define CREATE_TRACE_POINTS
@@ -681,8 +681,8 @@ static const struct user_regset_view user_parisc_compat_view = {
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
-	BUILD_BUG_ON(sizeof(struct user_regs_struct)/sizeof(long) != ELF_NGREG);
-	BUILD_BUG_ON(sizeof(struct user_fp_struct)/sizeof(__u64) != ELF_NFPREG);
+	BUILD__ON(sizeof(struct user_regs_struct)/sizeof(long) != ELF_NGREG);
+	BUILD__ON(sizeof(struct user_fp_struct)/sizeof(__u64) != ELF_NFPREG);
 #ifdef CONFIG_64BIT
 	if (is_compat_task())
 		return &user_parisc_compat_view;

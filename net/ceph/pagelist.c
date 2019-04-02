@@ -127,7 +127,7 @@ int ceph_pagelist_free_reserve(struct ceph_pagelist *pl)
 		__free_page(page);
 		--pl->num_pages_free;
 	}
-	BUG_ON(pl->num_pages_free);
+	_ON(pl->num_pages_free);
 	return 0;
 }
 EXPORT_SYMBOL(ceph_pagelist_free_reserve);

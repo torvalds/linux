@@ -627,7 +627,7 @@ void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes)
 static void dwc2_dump_channel_info(struct dwc2_hsotg *hsotg,
 				   struct dwc2_host_chan *chan)
 {
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	int num_channels = hsotg->params.host_channels;
 	struct dwc2_qh *qh;
 	u32 hcchar;
@@ -679,7 +679,7 @@ static void dwc2_dump_channel_info(struct dwc2_hsotg *hsotg,
 
 		dev_dbg(hsotg->dev, "    %2d: %p\n", i, chan);
 	}
-#endif /* VERBOSE_DEBUG */
+#endif /* VERBOSE_DE */
 }
 
 static int _dwc2_hcd_start(struct usb_hcd *hcd);
@@ -2900,7 +2900,7 @@ enum dwc2_transaction_type dwc2_hcd_select_transactions(
 	struct dwc2_qh *qh;
 	int num_channels;
 
-#ifdef DWC2_DEBUG_SOF
+#ifdef DWC2_DE_SOF
 	dev_vdbg(hsotg->dev, "  Select Transactions\n");
 #endif
 
@@ -3316,7 +3316,7 @@ next:
 void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 				 enum dwc2_transaction_type tr_type)
 {
-#ifdef DWC2_DEBUG_SOF
+#ifdef DWC2_DE_SOF
 	dev_vdbg(hsotg->dev, "Queue Transactions\n");
 #endif
 	/* Process host channels associated with periodic transfers */
@@ -3935,7 +3935,7 @@ int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 {
 	u32 hfnum = dwc2_readl(hsotg, HFNUM);
 
-#ifdef DWC2_DEBUG_SOF
+#ifdef DWC2_DE_SOF
 	dev_vdbg(hsotg->dev, "DWC OTG HCD GET FRAME NUMBER %d\n",
 		 (hfnum & HFNUM_FRNUM_MASK) >> HFNUM_FRNUM_SHIFT);
 #endif
@@ -4011,7 +4011,7 @@ static void dwc2_hcd_urb_set_pipeinfo(struct dwc2_hsotg *hsotg,
  */
 void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg)
 {
-#ifdef DEBUG
+#ifdef DE
 	struct dwc2_host_chan *chan;
 	struct dwc2_hcd_urb *urb;
 	struct dwc2_qtd *qtd;
@@ -4614,7 +4614,7 @@ static int _dwc2_hcd_get_frame_number(struct usb_hcd *hcd)
 static void dwc2_dump_urb_info(struct usb_hcd *hcd, struct urb *urb,
 			       char *fn_name)
 {
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
 	char *pipetype = NULL;
 	char *speed = NULL;

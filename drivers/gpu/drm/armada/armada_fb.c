@@ -91,7 +91,7 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	struct armada_framebuffer *dfb;
 	int ret;
 
-	DRM_DEBUG_DRIVER("w%u h%u pf%08x f%u p%u,%u,%u\n",
+	DRM_DE_DRIVER("w%u h%u pf%08x f%u p%u,%u,%u\n",
 		mode->width, mode->height, mode->pixel_format,
 		mode->flags, mode->pitches[0], mode->pitches[1],
 		mode->pitches[2]);

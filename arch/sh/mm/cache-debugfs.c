@@ -1,5 +1,5 @@
 /*
- * debugfs ops for the L1 cache
+ * defs ops for the L1 cache
  *
  *  Copyright (C) 2006  Paul Mundt
  *
@@ -9,7 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
@@ -94,39 +94,39 @@ static int cache_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int cache_debugfs_open(struct inode *inode, struct file *file)
+static int cache_defs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, cache_seq_show, inode->i_private);
 }
 
-static const struct file_operations cache_debugfs_fops = {
+static const struct file_operations cache_defs_fops = {
 	.owner		= THIS_MODULE,
-	.open		= cache_debugfs_open,
+	.open		= cache_defs_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static int __init cache_debugfs_init(void)
+static int __init cache_defs_init(void)
 {
 	struct dentry *dcache_dentry, *icache_dentry;
 
-	dcache_dentry = debugfs_create_file("dcache", S_IRUSR, arch_debugfs_dir,
+	dcache_dentry = defs_create_file("dcache", S_IRUSR, arch_defs_dir,
 					    (unsigned int *)CACHE_TYPE_DCACHE,
-					    &cache_debugfs_fops);
+					    &cache_defs_fops);
 	if (!dcache_dentry)
 		return -ENOMEM;
 
-	icache_dentry = debugfs_create_file("icache", S_IRUSR, arch_debugfs_dir,
+	icache_dentry = defs_create_file("icache", S_IRUSR, arch_defs_dir,
 					    (unsigned int *)CACHE_TYPE_ICACHE,
-					    &cache_debugfs_fops);
+					    &cache_defs_fops);
 	if (!icache_dentry) {
-		debugfs_remove(dcache_dentry);
+		defs_remove(dcache_dentry);
 		return -ENOMEM;
 	}
 
 	return 0;
 }
-module_init(cache_debugfs_init);
+module_init(cache_defs_init);
 
 MODULE_LICENSE("GPL v2");

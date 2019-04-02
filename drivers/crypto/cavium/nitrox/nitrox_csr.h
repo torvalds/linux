@@ -1009,7 +1009,7 @@ union lbc_int_ena_w1s {
  *   System reset is required.
  * @over_fetch_err: indicates a fatal hardware error
  *   System reset is required
- * @cache_line_to_err: is a debug feature.
+ * @cache_line_to_err: is a de feature.
  *   This timeout interrupt bit tells the software that
  *   a cacheline in LBC has non-zero usage and the context
  *   has not been used for greater than the

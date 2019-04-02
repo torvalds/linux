@@ -231,7 +231,7 @@ static void bk3_mmc_spi_setpower(struct device *dev, unsigned int vdd)
 		return;
 	}
 
-	pr_debug("%s: SD card pwr %s VDD:0x%x\n", __func__,
+	pr_de("%s: SD card pwr %s VDD:0x%x\n", __func__,
 		 !!vdd ? "ON" : "OFF", vdd);
 
 	if (!!vdd)

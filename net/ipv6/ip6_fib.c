@@ -1082,17 +1082,17 @@ next_iter:
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
 		}
 		/* For each sibling in the list, increment the counter of
-		 * siblings. BUG() if counters does not match, list of siblings
+		 * siblings. () if counters does not match, list of siblings
 		 * is broken!
 		 */
 		fib6_nsiblings = 0;
 		list_for_each_entry_safe(sibling, temp_sibling,
 					 &rt->fib6_siblings, fib6_siblings) {
 			sibling->fib6_nsiblings++;
-			BUG_ON(sibling->fib6_nsiblings != rt->fib6_nsiblings);
+			_ON(sibling->fib6_nsiblings != rt->fib6_nsiblings);
 			fib6_nsiblings++;
 		}
-		BUG_ON(fib6_nsiblings != rt->fib6_nsiblings);
+		_ON(fib6_nsiblings != rt->fib6_nsiblings);
 		rt6_multipath_rebalance(temp_sibling);
 	}
 
@@ -1359,7 +1359,7 @@ out:
 			if (!pn_leaf && !(pn->fn_flags & RTN_RTINFO)) {
 				pn_leaf = fib6_find_prefix(info->nl_net, table,
 							   pn);
-#if RT6_DEBUG >= 2
+#if RT6_DE >= 2
 				if (!pn_leaf) {
 					WARN_ON(!pn_leaf);
 					pn_leaf =
@@ -1683,7 +1683,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 #endif
 		    ) {
 			new_fn_leaf = fib6_find_prefix(net, table, fn);
-#if RT6_DEBUG >= 2
+#if RT6_DE >= 2
 			if (!new_fn_leaf) {
 				WARN_ON(!new_fn_leaf);
 				new_fn_leaf = net->ipv6.fib6_null_entry;
@@ -1706,7 +1706,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 				rcu_assign_pointer(pn->right, child);
 			else if (pn_l == fn)
 				rcu_assign_pointer(pn->left, child);
-#if RT6_DEBUG >= 2
+#if RT6_DE >= 2
 			else
 				WARN_ON(1);
 #endif
@@ -1958,7 +1958,7 @@ skip:
 				w->leaf = rcu_dereference_protected(w->node->leaf, 1);
 				continue;
 			}
-#if RT6_DEBUG >= 2
+#if RT6_DE >= 2
 			WARN_ON(1);
 #endif
 		}
@@ -2005,8 +2005,8 @@ static int fib6_clean_node(struct fib6_walker *w)
 			w->leaf = rt;
 			res = fib6_del(rt, &info);
 			if (res) {
-#if RT6_DEBUG >= 2
-				pr_debug("%s: del failed: rt=%p@%p err=%d\n",
+#if RT6_DE >= 2
+				pr_de("%s: del failed: rt=%p@%p err=%d\n",
 					 __func__, rt,
 					 rcu_access_pointer(rt->fib6_node),
 					 res);

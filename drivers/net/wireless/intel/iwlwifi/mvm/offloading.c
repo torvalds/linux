@@ -176,7 +176,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
 		bool found = false;
 
-		BUILD_BUG_ON(sizeof(cmd.v2.target_ipv6_addr[0]) !=
+		BUILD__ON(sizeof(cmd.v2.target_ipv6_addr[0]) !=
 			     sizeof(mvmvif->target_ipv6_addrs[0]));
 
 		for (i = 0; i < min(mvmvif->num_target_ipv6_addrs,
@@ -197,7 +197,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		}
 	} else {
 		bool found = false;
-		BUILD_BUG_ON(sizeof(cmd.v1.target_ipv6_addr[0]) !=
+		BUILD__ON(sizeof(cmd.v1.target_ipv6_addr[0]) !=
 			     sizeof(mvmvif->target_ipv6_addrs[0]));
 
 		for (i = 0; i < min(mvmvif->num_target_ipv6_addrs,

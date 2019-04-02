@@ -123,7 +123,7 @@ void xlr_percpu_fmn_init(void)
 	uint32_t flags;
 	int id;
 
-	BUG_ON(nlm_thread_id() != 0);
+	_ON(nlm_thread_id() != 0);
 	id = nlm_core_id();
 
 	bucket_sizes = xlr_board_fmn_config.bucket_size;
@@ -186,7 +186,7 @@ int nlm_register_fmn_handler(int start_stnid, int end_stnid,
 		smp_wmb();
 		msg_handlers[sstnid].action = action;
 	}
-	pr_debug("Registered FMN msg handler for stnid %d-%d\n",
+	pr_de("Registered FMN msg handler for stnid %d-%d\n",
 			start_stnid, end_stnid);
 	return 0;
 }

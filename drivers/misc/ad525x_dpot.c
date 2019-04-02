@@ -255,7 +255,7 @@ static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 				return dpot_write_r8d8(dpot, val >> 8,
 					val & 0xFF);
 			} else
-				BUG();
+				();
 		} else {
 			if (dpot->uid == DPOT_UID(AD5291_ID) ||
 				dpot->uid == DPOT_UID(AD5292_ID) ||
@@ -313,7 +313,7 @@ static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 				DPOT_AD5270_1_2_4_STORE_XTPM << 2, 0);
 		}
 	} else
-		BUG();
+		();
 
 	if (dpot->feat & F_SPI_16BIT)
 		return dpot_write_r8d8(dpot, val, value);

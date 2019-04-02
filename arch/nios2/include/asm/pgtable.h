@@ -16,7 +16,7 @@
 #define _ASM_NIOS2_PGTABLE_H
 
 #include <linux/io.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

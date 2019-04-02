@@ -42,7 +42,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 	if ((width <= 0) ||
 	    (x + width > fb->base.width) ||
 	    (y + height > fb->base.height)) {
-		DRM_DEBUG("values out of range %dx%d+%d+%d, fb %dx%d\n",
+		DRM_DE("values out of range %dx%d+%d+%d, fb %dx%d\n",
 			  width, height, x, y,
 			  fb->base.width, fb->base.height);
 		return -EINVAL;

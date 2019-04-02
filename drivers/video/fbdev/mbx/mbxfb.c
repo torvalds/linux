@@ -73,8 +73,8 @@ struct mbxfb_info {
 	int (*platform_remove) (struct fb_info * fb);
 
 	u32 pseudo_palette[MAX_PALETTES];
-#ifdef CONFIG_FB_MBX_DEBUG
-	struct dentry *debugfs_dir;
+#ifdef CONFIG_FB_MBX_DE
+	struct dentry *defs_dir;
 #endif
 
 };
@@ -141,7 +141,7 @@ static unsigned int mbxfb_get_pixclock(unsigned int pixclock_ps,
 
 	/* RAPH: When N==1, the resulting pixel clock appears to
 	 * get divided by 2. Preventing N=1 by starting the following
-	 * loop at 2 prevents this. Is this a bug with my chip
+	 * loop at 2 prevents this. Is this a  with my chip
 	 * revision or something I dont understand? */
 	for (m = 1; m < 64; m++) {
 		for (n = 2; n < 8; n++) {
@@ -873,12 +873,12 @@ static int mbxfb_resume(struct platform_device *dev)
 #define mbxfb_resume	NULL
 #endif
 
-/* debugfs entries */
-#ifndef CONFIG_FB_MBX_DEBUG
-#define mbxfb_debugfs_init(x)	do {} while(0)
-#define mbxfb_debugfs_remove(x)	do {} while(0)
+/* defs entries */
+#ifndef CONFIG_FB_MBX_DE
+#define mbxfb_defs_init(x)	do {} while(0)
+#define mbxfb_defs_remove(x)	do {} while(0)
 #else
-#include "mbxdebugfs.c"
+#include "mbxdefs.c"
 #endif
 
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
@@ -985,7 +985,7 @@ static int mbxfb_probe(struct platform_device *dev)
 
 	enable_controller(fbi);
 
-	mbxfb_debugfs_init(fbi);
+	mbxfb_defs_init(fbi);
 
 	ret = register_framebuffer(fbi);
 	if (ret < 0) {
@@ -1014,7 +1014,7 @@ static int mbxfb_remove(struct platform_device *dev)
 
 	write_reg_dly(SYSRST_RST, SYSRST);
 
-	mbxfb_debugfs_remove(fbi);
+	mbxfb_defs_remove(fbi);
 
 	if (fbi) {
 		struct mbxfb_info *mfbi = fbi->par;

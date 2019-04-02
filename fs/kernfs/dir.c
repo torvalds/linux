@@ -33,7 +33,7 @@ static bool kernfs_active(struct kernfs_node *kn)
 
 static bool kernfs_lockdep(struct kernfs_node *kn)
 {
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	return kn->flags & KERNFS_LOCKDEP;
 #else
 	return false;
@@ -1288,7 +1288,7 @@ static void __kernfs_remove(struct kernfs_node *kn)
 	if (!kn || (kn->parent && RB_EMPTY_NODE(&kn->rb)))
 		return;
 
-	pr_debug("kernfs %s: removing\n", kn->name);
+	pr_de("kernfs %s: removing\n", kn->name);
 
 	/* prevent any new usage under @kn by deactivating all nodes */
 	pos = NULL;

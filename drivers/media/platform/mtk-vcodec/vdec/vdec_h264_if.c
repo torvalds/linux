@@ -161,7 +161,7 @@ static void free_predication_buf(struct vdec_h264_inst *inst)
 {
 	struct mtk_vcodec_mem *mem = NULL;
 
-	mtk_vcodec_debug_enter(inst);
+	mtk_vcodec_de_enter(inst);
 
 	inst->vsi->pred_buf_dma = 0;
 	mem = &inst->pred_buf;
@@ -237,7 +237,7 @@ static void put_fb_to_free(struct vdec_h264_inst *inst, struct vdec_fb *fb)
 			return;
 		}
 
-		mtk_vcodec_debug(inst, "[FB] put fb into free_list @(%p, %llx)",
+		mtk_vcodec_de(inst, "[FB] put fb into free_list @(%p, %llx)",
 				 fb->base_y.va, (u64)fb->base_y.dma_addr);
 
 		list->fb_list[list->write_idx].vdec_fb_va = (u64)(uintptr_t)fb;
@@ -251,9 +251,9 @@ static void get_pic_info(struct vdec_h264_inst *inst,
 			 struct vdec_pic_info *pic)
 {
 	*pic = inst->vsi->pic;
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
+	mtk_vcodec_de(inst, "pic(%d, %d), buf(%d, %d)",
 			 pic->pic_w, pic->pic_h, pic->buf_w, pic->buf_h);
-	mtk_vcodec_debug(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
+	mtk_vcodec_de(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
 			 pic->y_len_sz, pic->c_bs_sz, pic->c_len_sz);
 }
 
@@ -264,14 +264,14 @@ static void get_crop_info(struct vdec_h264_inst *inst, struct v4l2_rect *cr)
 	cr->width = inst->vsi->crop.width;
 	cr->height = inst->vsi->crop.height;
 
-	mtk_vcodec_debug(inst, "l=%d, t=%d, w=%d, h=%d",
+	mtk_vcodec_de(inst, "l=%d, t=%d, w=%d, h=%d",
 			 cr->left, cr->top, cr->width, cr->height);
 }
 
 static void get_dpb_size(struct vdec_h264_inst *inst, unsigned int *dpb_sz)
 {
 	*dpb_sz = inst->vsi->dec.dpb_sz;
-	mtk_vcodec_debug(inst, "sz=%d", *dpb_sz);
+	mtk_vcodec_de(inst, "sz=%d", *dpb_sz);
 }
 
 static int vdec_h264_init(struct mtk_vcodec_ctx *ctx, unsigned long *h_vdec)
@@ -301,7 +301,7 @@ static int vdec_h264_init(struct mtk_vcodec_ctx *ctx, unsigned long *h_vdec)
 	if (err)
 		goto error_deinit;
 
-	mtk_vcodec_debug(inst, "H264 Instance >> %p", inst);
+	mtk_vcodec_de(inst, "H264 Instance >> %p", inst);
 
 	*h_vdec = (unsigned long)inst;
 	return 0;
@@ -318,7 +318,7 @@ static void vdec_h264_deinit(unsigned long h_vdec)
 {
 	struct vdec_h264_inst *inst = (struct vdec_h264_inst *)h_vdec;
 
-	mtk_vcodec_debug_enter(inst);
+	mtk_vcodec_de_enter(inst);
 
 	vpu_dec_deinit(&inst->vpu);
 	free_predication_buf(inst);
@@ -355,7 +355,7 @@ static int vdec_h264_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	uint64_t y_fb_dma = fb ? (u64)fb->base_y.dma_addr : 0;
 	uint64_t c_fb_dma = fb ? (u64)fb->base_c.dma_addr : 0;
 
-	mtk_vcodec_debug(inst, "+ [%d] FB y_dma=%llx c_dma=%llx va=%p",
+	mtk_vcodec_de(inst, "+ [%d] FB y_dma=%llx c_dma=%llx va=%p",
 			 ++inst->num_nalu, y_fb_dma, c_fb_dma, fb);
 
 	/* bs NULL means flush decoder */
@@ -370,7 +370,7 @@ static int vdec_h264_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 
 	nal_start = buf[nal_start_idx];
 	nal_type = NAL_TYPE(buf[nal_start_idx]);
-	mtk_vcodec_debug(inst, "\n + NALU[%d] type %d +\n", inst->num_nalu,
+	mtk_vcodec_de(inst, "\n + NALU[%d] type %d +\n", inst->num_nalu,
 			 nal_type);
 
 	if (nal_type == NAL_H264_PPS) {
@@ -397,7 +397,7 @@ static int vdec_h264_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	if (*res_chg) {
 		struct vdec_pic_info pic;
 
-		mtk_vcodec_debug(inst, "- resolution changed -");
+		mtk_vcodec_de(inst, "- resolution changed -");
 		get_pic_info(inst, &pic);
 
 		if (inst->vsi->dec.realloc_mv_buf) {
@@ -418,7 +418,7 @@ static int vdec_h264_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 		vpu_dec_end(vpu);
 	}
 
-	mtk_vcodec_debug(inst, "\n - NALU[%d] type=%d -\n", inst->num_nalu,
+	mtk_vcodec_de(inst, "\n - NALU[%d] type=%d -\n", inst->num_nalu,
 			 nal_type);
 	return 0;
 
@@ -438,7 +438,7 @@ static void vdec_h264_get_fb(struct vdec_h264_inst *inst,
 		return;
 
 	if (list->count == 0) {
-		mtk_vcodec_debug(inst, "[FB] there is no %s fb",
+		mtk_vcodec_de(inst, "[FB] there is no %s fb",
 				 disp_list ? "disp" : "free");
 		*out_fb = NULL;
 		return;
@@ -449,7 +449,7 @@ static void vdec_h264_get_fb(struct vdec_h264_inst *inst,
 	fb->status |= (disp_list ? FB_ST_DISPLAY : FB_ST_FREE);
 
 	*out_fb = fb;
-	mtk_vcodec_debug(inst, "[FB] get %s fb st=%d poc=%d %llx",
+	mtk_vcodec_de(inst, "[FB] get %s fb st=%d poc=%d %llx",
 			 disp_list ? "disp" : "free",
 			 fb->status, list->fb_list[list->read_idx].poc,
 			 list->fb_list[list->read_idx].vdec_fb_va);

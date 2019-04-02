@@ -16,7 +16,7 @@
 #include "dpu_hw_mdss.h"
 #include "dpu_hw_util.h"
 
-/* using a file static variables for debugfs access */
+/* using a file static variables for defs access */
 static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_NONE;
 
 /* DPU_SCALER_QSEED3 */
@@ -74,7 +74,7 @@ void dpu_reg_write(struct dpu_hw_blk_reg_map *c,
 {
 	/* don't need to mutex protect this */
 	if (c->log_mask & dpu_hw_util_log_mask)
-		DPU_DEBUG_DRIVER("[%s:0x%X] <= 0x%X\n",
+		DPU_DE_DRIVER("[%s:0x%X] <= 0x%X\n",
 				name, c->blk_off + reg_off, val);
 	writel_relaxed(val, c->base_off + c->blk_off + reg_off);
 }

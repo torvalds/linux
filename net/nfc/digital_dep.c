@@ -1154,7 +1154,7 @@ static void digital_tg_recv_dep_req(struct nfc_digital_dev *ddev, void *arg,
 
 	switch (DIGITAL_NFC_DEP_PFB_TYPE(pfb)) {
 	case DIGITAL_NFC_DEP_PFB_I_PDU:
-		pr_debug("DIGITAL_NFC_DEP_PFB_I_PDU\n");
+		pr_de("DIGITAL_NFC_DEP_PFB_I_PDU\n");
 
 		if (ddev->atn_count) {
 			/* The target has received (and replied to) at least one

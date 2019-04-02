@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "debug.h"
+#include "de.h"
 #include "init.h"
 #include "wl12xx_80211.h"
 #include "acx.h"
@@ -440,7 +440,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct conf_tx_rate_class rc;
 	u32 supported_rates;
 
-	wl1271_debug(DEBUG_AP, "AP basic rate set: 0x%x",
+	wl1271_de(DE_AP, "AP basic rate set: 0x%x",
 		     wlvif->basic_rate_set);
 
 	if (wlvif->basic_rate_set == 0)
@@ -558,10 +558,10 @@ static int wl12xx_init_ap_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (ret < 0)
 		return ret;
 
-	if (wl->radar_debug_mode)
+	if (wl->radar_de_mode)
 		wlcore_cmd_generic_cfg(wl, wlvif,
-				       WLCORE_CFG_FEATURE_RADAR_DEBUG,
-				       wl->radar_debug_mode, 0);
+				       WLCORE_CFG_FEATURE_RADAR_DE,
+				       wl->radar_de_mode, 0);
 
 	return 0;
 }
@@ -589,7 +589,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 	/* first STA, no APs */
 	} else if (wl->sta_count == 0 && wl->ap_count == 0 && !is_ap) {
 		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
-		/* Configure for power according to debugfs */
+		/* Configure for power according to defs */
 		if (sta_auth != WL1271_PSM_ILLEGAL)
 			ret = wl1271_acx_sleep_auth(wl, sta_auth);
 		/* Configure for ELP power saving */
@@ -622,7 +622,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 	wl12xx_init_phy_vif_config(wl, wlvif);
 
 	/* Default TID/AC configuration */
-	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
+	_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
 		conf_ac = &wl->conf.tx.ac_conf[i];
 		ret = wl1271_acx_ac_cfg(wl, wlvif, conf_ac->ac,

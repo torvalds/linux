@@ -1,7 +1,7 @@
 /*
  *  tracefs.h - a pseudo file system for activating tracing
  *
- * Based on debugfs by: 2004 Greg Kroah-Hartman <greg@kroah.com>
+ * Based on defs by: 2004 Greg Kroah-Hartman <greg@kroah.com>
  *
  *  Copyright (C) 2014 Red Hat Inc, author: Steven Rostedt <srostedt@redhat.com>
  *

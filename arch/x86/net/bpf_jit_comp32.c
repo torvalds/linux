@@ -1459,7 +1459,7 @@ static void emit_prologue(u8 **pprog, u32 stack_depth)
 	EMIT3(0x89, add_2reg(0x40, IA32_EBP, IA32_EBX), STACK_VAR(tcc[0]));
 	EMIT3(0x89, add_2reg(0x40, IA32_EBP, IA32_EBX), STACK_VAR(tcc[1]));
 
-	BUILD_BUG_ON(cnt != PROLOGUE_SIZE);
+	BUILD__ON(cnt != PROLOGUE_SIZE);
 	*pprog = prog;
 }
 
@@ -2288,7 +2288,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			} else if (is_simm32(jmp_offset)) {
 				EMIT2_off32(0x0F, jmp_cond + 0x10, jmp_offset);
 			} else {
-				pr_err("cond_jmp gen bug %llx\n", jmp_offset);
+				pr_err("cond_jmp gen  %llx\n", jmp_offset);
 				return -EFAULT;
 			}
 
@@ -2315,7 +2315,7 @@ emit_jmp:
 			} else if (is_simm32(jmp_offset)) {
 				EMIT1_off32(0xE9, jmp_offset);
 			} else {
-				pr_err("jmp gen bug %llx\n", jmp_offset);
+				pr_err("jmp gen  %llx\n", jmp_offset);
 				return -EFAULT;
 			}
 			break;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "util/cache.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "ui/browser.h"
 #include "ui/keysyms.h"
 #include "ui/ui.h"
@@ -120,7 +120,7 @@ int tui__header_window(struct perf_env *env)
 		argv[i] = pos;
 	}
 
-	BUG_ON(i != argc + 1);
+	_ON(i != argc + 1);
 
 	ui__list_menu(argc, argv);
 

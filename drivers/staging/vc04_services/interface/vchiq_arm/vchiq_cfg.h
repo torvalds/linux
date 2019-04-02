@@ -58,8 +58,8 @@
 #define VCHIQ_NUM_CURRENT_BULKS        32
 #define VCHIQ_NUM_SERVICE_BULKS        4
 
-#ifndef VCHIQ_ENABLE_DEBUG
-#define VCHIQ_ENABLE_DEBUG             1
+#ifndef VCHIQ_ENABLE_DE
+#define VCHIQ_ENABLE_DE             1
 #endif
 
 #ifndef VCHIQ_ENABLE_STATS

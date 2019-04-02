@@ -40,7 +40,7 @@
 
 #include "fsl_rio.h"
 
-#undef DEBUG_PW	/* Port-Write debugging */
+#undef DE_PW	/* Port-Write deging */
 
 #define RIO_PORT1_EDCSR		0x0640
 #define RIO_PORT2_EDCSR		0x0680
@@ -108,7 +108,7 @@ int fsl_rio_mcheck_exception(struct pt_regs *regs)
 		/* Check if we are prepared to handle this fault */
 		entry = search_exception_tables(regs->nip);
 		if (entry) {
-			pr_debug("RIO: %s - MC Exception handled\n",
+			pr_de("RIO: %s - MC Exception handled\n",
 				 __func__);
 			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
 				 0);
@@ -138,7 +138,7 @@ static int fsl_local_config_read(struct rio_mport *mport,
 				int index, u32 offset, int len, u32 *data)
 {
 	struct rio_priv *priv = mport->priv;
-	pr_debug("fsl_local_config_read: index %d offset %8.8x\n", index,
+	pr_de("fsl_local_config_read: index %d offset %8.8x\n", index,
 		 offset);
 	*data = in_be32(priv->regs_win + offset);
 
@@ -160,7 +160,7 @@ static int fsl_local_config_write(struct rio_mport *mport,
 				int index, u32 offset, int len, u32 data)
 {
 	struct rio_priv *priv = mport->priv;
-	pr_debug
+	pr_de
 		("fsl_local_config_write: index %d offset %8.8x data %8.8x\n",
 		index, offset, data);
 	out_be32(priv->regs_win + offset, data);
@@ -190,7 +190,7 @@ fsl_rio_config_read(struct rio_mport *mport, int index, u16 destid,
 	u8 *data;
 	u32 rval, err = 0;
 
-	pr_debug
+	pr_de
 		("fsl_rio_config_read:"
 		" index %d destid %d hopcount %d offset %8.8x len %d\n",
 		index, destid, hopcount, offset, len);
@@ -223,7 +223,7 @@ fsl_rio_config_read(struct rio_mport *mport, int index, u16 destid,
 	}
 
 	if (err) {
-		pr_debug("RIO: cfg_read error %d for %x:%x:%x\n",
+		pr_de("RIO: cfg_read error %d for %x:%x:%x\n",
 			 err, destid, hopcount, offset);
 	}
 
@@ -255,7 +255,7 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	u8 *data;
 	int ret = 0;
 
-	pr_debug
+	pr_de
 		("fsl_rio_config_write:"
 		" index %d destid %d hopcount %d offset %8.8x len %d val %8.8x\n",
 		index, destid, hopcount, offset, len, val);

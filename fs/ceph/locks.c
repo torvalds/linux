@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/file.h>
 #include <linux/namei.h>
@@ -145,14 +145,14 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
 	struct inode *inode = req->r_inode;
 	int err, lock_type;
 
-	BUG_ON(req->r_op != CEPH_MDS_OP_SETFILELOCK);
+	_ON(req->r_op != CEPH_MDS_OP_SETFILELOCK);
 	if (req->r_args.filelock_change.rule == CEPH_LOCK_FCNTL)
 		lock_type = CEPH_LOCK_FCNTL_INTR;
 	else if (req->r_args.filelock_change.rule == CEPH_LOCK_FLOCK)
 		lock_type = CEPH_LOCK_FLOCK_INTR;
 	else
-		BUG_ON(1);
-	BUG_ON(req->r_args.filelock_change.type == CEPH_LOCK_UNLOCK);
+		_ON(1);
+	_ON(req->r_args.filelock_change.type == CEPH_LOCK_UNLOCK);
 
 	err = wait_for_completion_interruptible(&req->r_completion);
 	if (!err)

@@ -170,7 +170,7 @@ static int mwifiex_cmd_host_cmd(struct mwifiex_private *priv,
  *
  * The function performs sanity tests, sets the command sequence
  * number and size, converts the header fields to CPU format before
- * sending. Afterwards, it logs the command ID and action for debugging
+ * sending. Afterwards, it logs the command ID and action for deging
  * and sets up the command timeout timer.
  */
 static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
@@ -282,7 +282,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		return -1;
 	}
 
-	/* Save the last command id and action to debug log */
+	/* Save the last command id and action to de log */
 	adapter->dbg.last_cmd_index =
 			(adapter->dbg.last_cmd_index + 1) % DBG_CMD_NUM;
 	adapter->dbg.last_cmd_id[adapter->dbg.last_cmd_index] = cmd_code;
@@ -501,7 +501,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 
 	eventcause = adapter->event_cause;
 
-	/* Save the last event to debug log */
+	/* Save the last event to de log */
 	adapter->dbg.last_event_index =
 			(adapter->dbg.last_event_index + 1) % DBG_CMD_NUM;
 	adapter->dbg.last_event[adapter->dbg.last_event_index] =
@@ -857,7 +857,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	cmdresp_no = le16_to_cpu(resp->command);
 	cmdresp_result = le16_to_cpu(resp->result);
 
-	/* Save the last command response to debug log */
+	/* Save the last command response to de log */
 	adapter->dbg.last_cmd_resp_index =
 			(adapter->dbg.last_cmd_resp_index + 1) % DBG_CMD_NUM;
 	adapter->dbg.last_cmd_resp_id[adapter->dbg.last_cmd_resp_index] =

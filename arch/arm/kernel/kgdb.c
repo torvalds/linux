@@ -11,7 +11,7 @@
  *           Deepak Saxena <dsaxena@plexity.net>
  */
 #include <linux/irq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kgdb.h>
 #include <linux/uaccess.h>
 
@@ -234,7 +234,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	int err;
 
 	/* patch_text() only supports int-sized breakpoints */
-	BUILD_BUG_ON(sizeof(int) != BREAK_INSTR_SIZE);
+	BUILD__ON(sizeof(int) != BREAK_INSTR_SIZE);
 
 	err = probe_kernel_read(bpt->saved_instr, (char *)bpt->bpt_addr,
 				BREAK_INSTR_SIZE);

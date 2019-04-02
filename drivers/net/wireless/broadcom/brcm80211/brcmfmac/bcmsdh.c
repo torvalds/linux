@@ -43,7 +43,7 @@
 #include <soc.h>
 #include "chip.h"
 #include "bus.h"
-#include "debug.h"
+#include "de.h"
 #include "sdio.h"
 #include "core.h"
 #include "common.h"

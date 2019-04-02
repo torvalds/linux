@@ -138,8 +138,8 @@ struct venus_hfi_device {
 	u8 dbg_buf[IFACEQ_VAR_HUGE_PKT_SIZE];
 };
 
-static bool venus_pkt_debug;
-static int venus_fw_debug = HFI_DEBUG_MSG_ERROR | HFI_DEBUG_MSG_FATAL;
+static bool venus_pkt_de;
+static int venus_fw_de = HFI_DE_MSG_ERROR | HFI_DE_MSG_FATAL;
 static bool venus_sys_idle_indicator;
 static bool venus_fw_low_power_mode = true;
 static int venus_hw_rsp_timeout = 1000;
@@ -162,10 +162,10 @@ static void venus_dump_packet(struct venus_hfi_device *hdev, const void *packet)
 {
 	size_t pkt_size = *(u32 *)packet;
 
-	if (!venus_pkt_debug)
+	if (!venus_pkt_de)
 		return;
 
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 1, packet,
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 16, 1, packet,
 		       pkt_size, true);
 }
 
@@ -264,9 +264,9 @@ static int venus_read_queue(struct venus_hfi_device *hdev,
 	rmb();
 
 	/*
-	 * Do not set receive request for debug queue, if set, Venus generates
-	 * interrupt for debug messages even when there is no response message
-	 * available. In general debug queue will not become full as it is being
+	 * Do not set receive request for de queue, if set, Venus generates
+	 * interrupt for de messages even when there is no response message
+	 * available. In general de queue will not become full as it is being
 	 * emptied out for every interrupt from Venus. Venus will anyway
 	 * generates interrupt if it is full.
 	 */
@@ -756,8 +756,8 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	tbl_hdr->num_active_q = IFACEQ_NUM;
 
 	/*
-	 * Set receive request to zero on debug queue as there is no
-	 * need of interrupt from video hardware for debug messages
+	 * Set receive request to zero on de queue as there is no
+	 * need of interrupt from video hardware for de messages
 	 */
 	queue = &hdev->queues[IFACEQ_DBG_IDX];
 	queue->qhdr->rx_req = 0;
@@ -777,7 +777,7 @@ static int venus_interface_queues_init(struct venus_hfi_device *hdev)
 	return 0;
 }
 
-static int venus_sys_set_debug(struct venus_hfi_device *hdev, u32 debug)
+static int venus_sys_set_de(struct venus_hfi_device *hdev, u32 de)
 {
 	struct hfi_sys_set_property_pkt *pkt;
 	u8 packet[IFACEQ_VAR_SMALL_PKT_SIZE];
@@ -785,7 +785,7 @@ static int venus_sys_set_debug(struct venus_hfi_device *hdev, u32 debug)
 
 	pkt = (struct hfi_sys_set_property_pkt *)packet;
 
-	pkt_sys_debug_config(pkt, HFI_DEBUG_MODE_QUEUE, debug);
+	pkt_sys_de_config(pkt, HFI_DE_MODE_QUEUE, de);
 
 	ret = venus_iface_cmdq_write(hdev, pkt);
 	if (ret)
@@ -870,9 +870,9 @@ static int venus_sys_set_default_properties(struct venus_hfi_device *hdev)
 	struct device *dev = hdev->core->dev;
 	int ret;
 
-	ret = venus_sys_set_debug(hdev, venus_fw_debug);
+	ret = venus_sys_set_de(hdev, venus_fw_de);
 	if (ret)
-		dev_warn(dev, "setting fw debug msg ON failed (%d)\n", ret);
+		dev_warn(dev, "setting fw de msg ON failed (%d)\n", ret);
 
 	/*
 	 * Idle indicator is disabled by default on some 4xx firmware versions,
@@ -904,7 +904,7 @@ static int venus_session_cmd(struct venus_inst *inst, u32 pkt_type)
 	return venus_iface_cmdq_write(hdev, &pkt);
 }
 
-static void venus_flush_debug_queue(struct venus_hfi_device *hdev)
+static void venus_flush_de_queue(struct venus_hfi_device *hdev)
 {
 	struct device *dev = hdev->core->dev;
 	void *packet = hdev->dbg_buf;
@@ -913,7 +913,7 @@ static void venus_flush_debug_queue(struct venus_hfi_device *hdev)
 		struct hfi_msg_sys_coverage_pkt *pkt = packet;
 
 		if (pkt->hdr.pkt_type != HFI_MSG_SYS_COV) {
-			struct hfi_msg_sys_debug_pkt *pkt = packet;
+			struct hfi_msg_sys_de_pkt *pkt = packet;
 
 			dev_dbg(dev, "%s", pkt->msg_data);
 		}
@@ -940,7 +940,7 @@ static int venus_prepare_power_collapse(struct venus_hfi_device *hdev,
 
 	ret = wait_for_completion_timeout(&hdev->pwr_collapse_prep, timeout);
 	if (!ret) {
-		venus_flush_debug_queue(hdev);
+		venus_flush_de_queue(hdev);
 		return -ETIMEDOUT;
 	}
 
@@ -1046,7 +1046,7 @@ static irqreturn_t venus_isr_thread(struct venus_core *core)
 		}
 	}
 
-	venus_flush_debug_queue(hdev);
+	venus_flush_de_queue(hdev);
 
 	return IRQ_HANDLED;
 }
@@ -1153,7 +1153,7 @@ static int venus_session_init(struct venus_inst *inst, u32 session_type,
 	return 0;
 
 err:
-	venus_flush_debug_queue(hdev);
+	venus_flush_de_queue(hdev);
 	return ret;
 }
 
@@ -1174,7 +1174,7 @@ static int venus_session_abort(struct venus_inst *inst)
 {
 	struct venus_hfi_device *hdev = to_hfi_priv(inst->core);
 
-	venus_flush_debug_queue(hdev);
+	venus_flush_de_queue(hdev);
 
 	return venus_session_cmd(inst, HFI_CMD_SYS_SESSION_ABORT);
 }

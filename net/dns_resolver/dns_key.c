@@ -38,9 +38,9 @@ MODULE_DESCRIPTION("DNS Resolver");
 MODULE_AUTHOR("Wang Lei");
 MODULE_LICENSE("GPL");
 
-unsigned int dns_resolver_debug;
-module_param_named(debug, dns_resolver_debug, uint, 0644);
-MODULE_PARM_DESC(debug, "DNS Resolver debugging mask");
+unsigned int dns_resolver_de;
+module_param_named(de, dns_resolver_de, uint, 0644);
+MODULE_PARM_DESC(de, "DNS Resolver deging mask");
 
 const struct cred *dns_resolver_cache;
 
@@ -137,14 +137,14 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 	opt = memchr(data, '#', datalen);
 	if (!opt) {
 		/* no options: the entire data is the result */
-		kdebug("no options");
+		kde("no options");
 		result_len = datalen;
 	} else {
 		const char *next_opt;
 
 		result_len = opt - data;
 		opt++;
-		kdebug("options: '%s'", opt);
+		kde("options: '%s'", opt);
 		do {
 			int opt_len, opt_nlen;
 			const char *eq;
@@ -169,14 +169,14 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 				optval[0] = '\0';
 			}
 
-			kdebug("option '%*.*s' val '%s'",
+			kde("option '%*.*s' val '%s'",
 			       opt_nlen, opt_nlen, opt, optval);
 
 			/* see if it's an error number representing a DNS error
 			 * that's to be recorded as the result in this key */
 			if (opt_nlen == sizeof(DNS_ERRORNO_OPTION) - 1 &&
 			    memcmp(opt, DNS_ERRORNO_OPTION, opt_nlen) == 0) {
-				kdebug("dns error number option");
+				kde("dns error number option");
 
 				ret = kstrtoul(optval, 10, &derrno);
 				if (ret < 0)
@@ -185,7 +185,7 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 				if (derrno < 1 || derrno > 511)
 					goto bad_option_value;
 
-				kdebug("dns error no. = %lu", derrno);
+				kde("dns error no. = %lu", derrno);
 				prep->payload.data[dns_key_error] = ERR_PTR(-derrno);
 				continue;
 			}
@@ -205,7 +205,7 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 	}
 
 store_result:
-	kdebug("store result");
+	kde("store result");
 	prep->quotalen = result_len;
 
 	upayload = kmalloc(sizeof(*upayload) + result_len + 1, GFP_KERNEL);
@@ -361,7 +361,7 @@ static int __init init_dns_resolver(void)
 	cred->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;
 	dns_resolver_cache = cred;
 
-	kdebug("DNS resolver keyring: %d\n", key_serial(keyring));
+	kde("DNS resolver keyring: %d\n", key_serial(keyring));
 	return 0;
 
 failed_put_key:

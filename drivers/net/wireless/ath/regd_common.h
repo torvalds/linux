@@ -157,13 +157,13 @@ enum EnumRd {
 	MKK9_MKKA2 = 0xFF,
 
 	WORLD = 0x0199,
-	DEBUG_REG_DMN = 0x01ff,
+	DE_REG_DMN = 0x01ff,
 };
 
 /* Regpair to CTL band mapping */
 static struct reg_dmn_pair_mapping regDomainPairs[] = {
 	/* regpair, 5 GHz CTL, 2 GHz CTL */
-	{NO_ENUMRD, DEBUG_REG_DMN, DEBUG_REG_DMN},
+	{NO_ENUMRD, DE_REG_DMN, DE_REG_DMN},
 	{NULL1_WORLD, NO_CTL, CTL_ETSI},
 	{NULL1_ETSIB, NO_CTL, CTL_ETSI},
 	{NULL1_ETSIC, NO_CTL, CTL_ETSI},
@@ -297,7 +297,7 @@ static struct reg_dmn_pair_mapping regDomainPairs[] = {
 };
 
 static struct country_code_to_enum_rd allCountries[] = {
-	{CTRY_DEBUG, NO_ENUMRD, "DB"},
+	{CTRY_DE, NO_ENUMRD, "DB"},
 	{CTRY_DEFAULT, FCC1_FCCA, "CO"},
 	{CTRY_ALBANIA, ETSI1_WORLD, "AL"},
 	{CTRY_ALGERIA, APL13_WORLD, "DZ"},

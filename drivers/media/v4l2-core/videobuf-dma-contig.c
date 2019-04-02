@@ -34,7 +34,7 @@ struct videobuf_dma_contig_memory {
 #define MAGIC_CHECK(is, should)						    \
 	if (unlikely((is) != (should)))	{				    \
 		pr_err("magic mismatch: %x expected %x\n", (is), (should)); \
-		BUG();							    \
+		();							    \
 	}
 
 static int __videobuf_dc_alloc(struct device *dev,
@@ -227,7 +227,7 @@ static void *__videobuf_to_vaddr(struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_contig_memory *mem = buf->priv;
 
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
 
 	return mem->vaddr;
@@ -239,7 +239,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 {
 	struct videobuf_dma_contig_memory *mem = vb->priv;
 
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
 
 	switch (vb->memory) {
@@ -295,7 +295,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	buf->baddr = vma->vm_start;
 
 	mem = buf->priv;
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
 
 	if (__videobuf_dc_alloc(q->dev, mem, PAGE_ALIGN(buf->bsize),
@@ -367,7 +367,7 @@ dma_addr_t videobuf_to_dma_contig(struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_contig_memory *mem = buf->priv;
 
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
 
 	return mem->dma_handle;

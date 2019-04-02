@@ -71,7 +71,7 @@ static int update_qpd_v9(struct device_queue_manager *dqm,
 
 	qpd->sh_mem_bases = compute_sh_mem_bases_64bit(pdd);
 
-	pr_debug("sh_mem_bases 0x%X\n", qpd->sh_mem_bases);
+	pr_de("sh_mem_bases 0x%X\n", qpd->sh_mem_bases);
 
 	return 0;
 }

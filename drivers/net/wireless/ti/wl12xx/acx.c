@@ -21,7 +21,7 @@
  */
 
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/acx.h"
 
 #include "acx.h"

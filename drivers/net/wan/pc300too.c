@@ -39,8 +39,8 @@
 
 #include "hd64572.h"
 
-#undef DEBUG_PKT
-#define DEBUG_RINGS
+#undef DE_PKT
+#define DE_RINGS
 
 #define PC300_PLX_SIZE		0x80    /* PLX control window size (128 B) */
 #define PC300_SCA_SIZE		0x400   /* SCA window size (1 KB) */
@@ -101,7 +101,7 @@ typedef struct card_s {
 	u8 __iomem *rambase;	/* buffer memory base (virtual) */
 	u8 __iomem *scabase;	/* SCA memory base (virtual) */
 	plx9050 __iomem *plxbase; /* PLX registers memory base (virtual) */
-	u32 init_ctrl_value;	/* Saved value - 9050 bug workaround */
+	u32 init_ctrl_value;	/* Saved value - 9050  workaround */
 	u16 rx_ring_buffers;	/* number of buffers in a ring */
 	u16 tx_ring_buffers;
 	u16 buff_offset;	/* offset of first buffer of first channel */
@@ -199,7 +199,7 @@ static int pc300_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int new_type;
 	port_t *port = dev_to_port(dev);
 
-#ifdef DEBUG_RINGS
+#ifdef DE_RINGS
 	if (cmd == SIOCDEVPRIVATE) {
 		sca_dump_rings(dev);
 		return 0;
@@ -349,7 +349,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	/* PLX PCI 9050 workaround for local configuration register read bug */
+	/* PLX PCI 9050 workaround for local configuration register read  */
 	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, scaphys);
 	card->init_ctrl_value = readl(&((plx9050 __iomem *)card->scabase)->init_ctrl);
 	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, plxphys);

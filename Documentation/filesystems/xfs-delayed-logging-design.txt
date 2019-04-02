@@ -147,7 +147,7 @@ The fundamental requirements for delayed logging in XFS are simple:
 	1. Reduce the amount of metadata written to the log by at least
 	   an order of magnitude.
 	2. Supply sufficient statistics to validate Requirement #1.
-	3. Supply sufficient new tracing infrastructure to be able to debug
+	3. Supply sufficient new tracing infrastructure to be able to de
 	   problems with the new code.
 	4. No on-disk format change (metadata or log format).
 	5. Enable and disable with a mount option.
@@ -271,7 +271,7 @@ called the Committed Item List (CIL).  The list tracks log items that have been
 committed and have formatted memory buffers attached to them. It tracks objects
 in transaction commit order, so when an object is relogged it is removed from
 it's place in the list and re-inserted at the tail. This is entirely arbitrary
-and done to make it easy for debugging - the last items in the list are the
+and done to make it easy for deging - the last items in the list are the
 ones that are most recently modified. Ordering of the CIL is not necessary for
 transactional integrity (as discussed in the next section) so the ordering is
 done for convenience/sanity of the developers.

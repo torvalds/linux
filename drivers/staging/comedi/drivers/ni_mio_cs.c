@@ -69,7 +69,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1176,
-		.caldac		= { ad8804_debug },	/* verified */
+		.caldac		= { ad8804_de },	/* verified */
 	 }, {
 		/* specs incorrect! */
 		.name		= "DAQCard-6024E",
@@ -83,7 +83,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	}, {
 		/* specs incorrect! */
 		.name		= "DAQCard-6036E",
@@ -98,7 +98,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0xffff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	 },
 #if 0
 	{

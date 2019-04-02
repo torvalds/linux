@@ -58,11 +58,11 @@ static inline long h_copy_rdma(s64 length, u64 sliobn, u64 slioba,
 
 	/* Ensure all writes to source memory are visible before hcall */
 	dma_wmb();
-	pr_debug("ibmvmc: h_copy_rdma(0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
+	pr_de("ibmvmc: h_copy_rdma(0x%llx, 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
 		 length, sliobn, slioba, dliobn, dlioba);
 	rc = plpar_hcall_norets(H_COPY_RDMA, length, sliobn, slioba,
 				dliobn, dlioba);
-	pr_debug("ibmvmc: h_copy_rdma rc = 0x%lx\n", rc);
+	pr_de("ibmvmc: h_copy_rdma rc = 0x%lx\n", rc);
 
 	return rc;
 }
@@ -102,7 +102,7 @@ static inline long h_request_vmc(u32 *vmc_index)
 
 		/* Call to request the VMC device from phyp */
 		rc = plpar_hcall(H_REQUEST_VMC, retbuf);
-		pr_debug("ibmvmc: %s rc = 0x%lx\n", __func__, rc);
+		pr_de("ibmvmc: %s rc = 0x%lx\n", __func__, rc);
 		*vmc_index = retbuf[0];
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 
@@ -826,7 +826,7 @@ static int ibmvmc_open(struct inode *inode, struct file *file)
 {
 	struct ibmvmc_file_session *session;
 
-	pr_debug("%s: inode = 0x%lx, file = 0x%lx, state = 0x%x\n", __func__,
+	pr_de("%s: inode = 0x%lx, file = 0x%lx, state = 0x%x\n", __func__,
 		 (unsigned long)inode, (unsigned long)file,
 		 ibmvmc.state);
 
@@ -857,7 +857,7 @@ static int ibmvmc_close(struct inode *inode, struct file *file)
 	int rc = 0;
 	unsigned long flags;
 
-	pr_debug("%s: file = 0x%lx, state = 0x%x\n", __func__,
+	pr_de("%s: file = 0x%lx, state = 0x%x\n", __func__,
 		 (unsigned long)file, ibmvmc.state);
 
 	session = file->private_data;
@@ -912,7 +912,7 @@ static ssize_t ibmvmc_read(struct file *file, char *buf, size_t nbytes,
 	unsigned long flags;
 	DEFINE_WAIT(wait);
 
-	pr_debug("ibmvmc: read: file = 0x%lx, buf = 0x%lx, nbytes = 0x%lx\n",
+	pr_de("ibmvmc: read: file = 0x%lx, buf = 0x%lx, nbytes = 0x%lx\n",
 		 (unsigned long)file, (unsigned long)buf,
 		 (unsigned long)nbytes);
 
@@ -1308,7 +1308,7 @@ static long ibmvmc_ioctl_requestvmc(struct ibmvmc_file_session *session,
 
 	/* Call to request the VMC device from phyp*/
 	rc = h_request_vmc(&vmc_drc_index);
-	pr_debug("ibmvmc: requestvmc: H_REQUEST_VMC rc = 0x%lx\n", rc);
+	pr_de("ibmvmc: requestvmc: H_REQUEST_VMC rc = 0x%lx\n", rc);
 
 	if (rc == H_SUCCESS) {
 		rc = 0;
@@ -1360,7 +1360,7 @@ static long ibmvmc_ioctl(struct file *file,
 {
 	struct ibmvmc_file_session *session = file->private_data;
 
-	pr_debug("ibmvmc: ioctl file=0x%lx, cmd=0x%x, arg=0x%lx, ses=0x%lx\n",
+	pr_de("ibmvmc: ioctl file=0x%lx, cmd=0x%x, arg=0x%lx, ses=0x%lx\n",
 		 (unsigned long)file, cmd, arg,
 		 (unsigned long)session);
 

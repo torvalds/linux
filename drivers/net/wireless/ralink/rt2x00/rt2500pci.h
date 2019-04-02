@@ -656,7 +656,7 @@
 /*
  * MACCSR1: MAC configuration register 1.
  * KICK_RX: Kick one-shot rx in one-shot rx mode.
- * ONESHOT_RXMODE: Enable one-shot rx mode for debugging.
+ * ONESHOT_RXMODE: Enable one-shot rx mode for deging.
  * BBPRX_RESET_MODE: Ralink bbp rx reset mode.
  * AUTO_TXBBP: Auto tx logic access bbp control register.
  * AUTO_RXBBP: Auto rx logic access bbp control register.
@@ -931,9 +931,9 @@
 #define BBPPCSR				0x0168
 
 /*
- * MAC special debug mode selection registers.
- * DBGSEL0: MAC special debug mode selection register 0.
- * DBGSEL1: MAC special debug mode selection register 1.
+ * MAC special de mode selection registers.
+ * DBGSEL0: MAC special de mode selection register 0.
+ * DBGSEL1: MAC special de mode selection register 1.
  */
 #define DBGSEL0				0x016c
 #define DBGSEL1				0x0170

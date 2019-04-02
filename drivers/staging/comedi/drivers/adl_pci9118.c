@@ -831,7 +831,7 @@ static int pci9118_ai_setup_dma(struct comedi_device *dev,
 			dmalen0 = scan_bytes;
 			if (dmalen0 < 4) {
 				dev_info(dev->class_dev,
-					 "ERR: DMA0 buf len bug? (%d<4)\n",
+					 "ERR: DMA0 buf len ? (%d<4)\n",
 					 dmalen0);
 				dmalen0 = 4;
 			}
@@ -849,7 +849,7 @@ static int pci9118_ai_setup_dma(struct comedi_device *dev,
 			dmalen1 = scan_bytes;
 			if (dmalen1 < 4) {
 				dev_info(dev->class_dev,
-					 "ERR: DMA1 buf len bug? (%d<4)\n",
+					 "ERR: DMA1 buf len ? (%d<4)\n",
 					 dmalen1);
 				dmalen1 = 4;
 			}
@@ -1098,7 +1098,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ai_do == 0) {
 		dev_err(dev->class_dev,
-			"Unable to determine acquisition mode! BUG in (*do_cmdtest)?\n");
+			"Unable to determine acquisition mode!  in (*do_cmdtest)?\n");
 		return -EINVAL;
 	}
 

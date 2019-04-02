@@ -60,11 +60,11 @@ int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 			   the file descriptor to this stream for external
 			   reading of the stream. */
 			s->fh = &id->fh;
-			IVTV_DEBUG_INFO("Start Read VBI\n");
+			IVTV_DE_INFO("Start Read VBI\n");
 			return 0;
 		}
 		/* someone else is using this stream already */
-		IVTV_DEBUG_INFO("Stream %d is busy\n", type);
+		IVTV_DE_INFO("Stream %d is busy\n", type);
 		return -EBUSY;
 	}
 	s->fh = &id->fh;
@@ -112,7 +112,7 @@ void ivtv_release_stream(struct ivtv_stream *s)
 		return;
 	}
 	if (!test_and_clear_bit(IVTV_F_S_CLAIMED, &s->s_flags)) {
-		IVTV_DEBUG_WARN("Release stream %s not in use!\n", s->name);
+		IVTV_DE_WARN("Release stream %s not in use!\n", s->name);
 		return;
 	}
 
@@ -164,10 +164,10 @@ static void ivtv_dualwatch(struct ivtv *itv)
 	if (new_stereo_mode == itv->dualwatch_stereo_mode)
 		return;
 
-	IVTV_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x.\n",
+	IVTV_DE_INFO("dualwatch: change stereo flag from 0x%x to 0x%x.\n",
 			   itv->dualwatch_stereo_mode, new_stereo_mode);
 	if (v4l2_ctrl_s_ctrl(itv->cxhdl.audio_mode, new_stereo_mode))
-		IVTV_DEBUG_INFO("dualwatch: changing stereo flag failed\n");
+		IVTV_DE_INFO("dualwatch: changing stereo flag failed\n");
 }
 
 static void ivtv_update_pgm_info(struct ivtv *itv)
@@ -177,7 +177,7 @@ static void ivtv_update_pgm_info(struct ivtv *itv)
 	int i = 0;
 
 	if (wr_idx >= itv->pgm_info_num) {
-		IVTV_DEBUG_WARN("Invalid PGM index %d (>= %d)\n", wr_idx, itv->pgm_info_num);
+		IVTV_DE_WARN("Invalid PGM index %d (>= %d)\n", wr_idx, itv->pgm_info_num);
 		return;
 	}
 	cnt = (wr_idx + itv->pgm_info_num - itv->pgm_info_write_idx) % itv->pgm_info_num;
@@ -259,7 +259,7 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 
 		/* return if end of stream */
 		if (s->type != IVTV_DEC_STREAM_TYPE_VBI && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-			IVTV_DEBUG_INFO("EOS %s\n", s->name);
+			IVTV_DE_INFO("EOS %s\n", s->name);
 			return NULL;
 		}
 
@@ -279,7 +279,7 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 		mutex_lock(&itv->serialize_lock);
 		if (signal_pending(current)) {
 			/* return if a signal was received */
-			IVTV_DEBUG_INFO("User stopped %s\n", s->name);
+			IVTV_DE_INFO("User stopped %s\n", s->name);
 			*err = -EINTR;
 			return NULL;
 		}
@@ -343,7 +343,7 @@ static size_t ivtv_copy_buf_to_user(struct ivtv_stream *s, struct ivtv_buffer *b
 		}
 	}
 	if (copy_to_user(ubuf, (u8 *)buf->buf + buf->readpos, len)) {
-		IVTV_DEBUG_WARN("copy %zd bytes to user failed for %s\n", len, s->name);
+		IVTV_DE_WARN("copy %zd bytes to user failed for %s\n", len, s->name);
 		return -EFAULT;
 	}
 	/*IVTV_INFO("copied %lld %d %d %d %d %d vbi %d\n", itv->mpg_data_received, len, ucount,
@@ -363,7 +363,7 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 
 	if (atomic_read(&itv->capturing) == 0 && s->fh == NULL) {
 		/* shouldn't happen */
-		IVTV_DEBUG_WARN("Stream %s not initialized before read\n", s->name);
+		IVTV_DE_WARN("Stream %s not initialized before read\n", s->name);
 		return -EIO;
 	}
 
@@ -418,7 +418,7 @@ static ssize_t ivtv_read_pos(struct ivtv_stream *s, char __user *ubuf, size_t co
 	ssize_t rc = count ? ivtv_read(s, ubuf, count, non_block) : 0;
 	struct ivtv *itv = s->itv;
 
-	IVTV_DEBUG_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
+	IVTV_DE_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
 	if (rc > 0)
 		pos += rc;
 	return rc;
@@ -464,7 +464,7 @@ int ivtv_start_capture(struct ivtv_open_id *id)
 		   automatically when the MPG stream is claimed.
 		   We only need to start the VBI capturing. */
 		if (ivtv_start_v4l2_encode_stream(s_vbi)) {
-			IVTV_DEBUG_WARN("VBI capture start failed\n");
+			IVTV_DE_WARN("VBI capture start failed\n");
 
 			/* Failure, clean up and return an error */
 			clear_bit(IVTV_F_S_STREAMING, &s_vbi->s_flags);
@@ -473,7 +473,7 @@ int ivtv_start_capture(struct ivtv_open_id *id)
 			ivtv_release_stream(s);
 			return -EIO;
 		}
-		IVTV_DEBUG_INFO("VBI insertion started\n");
+		IVTV_DE_INFO("VBI insertion started\n");
 	}
 
 	/* Tell the card to start capturing */
@@ -487,7 +487,7 @@ int ivtv_start_capture(struct ivtv_open_id *id)
 	}
 
 	/* failure, clean up */
-	IVTV_DEBUG_WARN("Failed to start capturing for stream %s\n", s->name);
+	IVTV_DE_WARN("Failed to start capturing for stream %s\n", s->name);
 
 	/* Note: the IVTV_ENC_STREAM_TYPE_VBI is released
 	   automatically when the MPG stream is released.
@@ -509,7 +509,7 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 	struct ivtv_stream *s = &itv->streams[id->type];
 	ssize_t rc;
 
-	IVTV_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
+	IVTV_DE_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
 	if (mutex_lock_interruptible(&itv->serialize_lock))
 		return -ERESTARTSYS;
@@ -529,7 +529,7 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 	if (atomic_read(&itv->decoding) == 0) {
 		if (ivtv_claim_stream(id, s->type)) {
 			/* someone else is using this stream already */
-			IVTV_DEBUG_WARN("start decode, stream already claimed\n");
+			IVTV_DE_WARN("start decode, stream already claimed\n");
 			return -EBUSY;
 		}
 		rc = ivtv_start_v4l2_decode_stream(s, 0);
@@ -558,7 +558,7 @@ static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t
 	int rc;
 	DEFINE_WAIT(wait);
 
-	IVTV_DEBUG_HI_FILE("write %zd bytes to %s\n", count, s->name);
+	IVTV_DE_HI_FILE("write %zd bytes to %s\n", count, s->name);
 
 	if (s->type != IVTV_DEC_STREAM_TYPE_MPG &&
 	    s->type != IVTV_DEC_STREAM_TYPE_YUV &&
@@ -591,7 +591,7 @@ static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t
 	/* Start decoder (returns 0 if already started) */
 	rc = ivtv_start_decoding(id, itv->speed);
 	if (rc) {
-		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
+		IVTV_DE_WARN("Failed start decode stream %s\n", s->name);
 
 		/* failure, clean up */
 		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
@@ -614,7 +614,7 @@ retry:
 			count -= itv->dma_data_req_size;
 		}
 		if (count == 0) {
-			IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
+			IVTV_DE_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
 			return bytes_written;
 		}
 	}
@@ -638,7 +638,7 @@ retry:
 		finish_wait(&s->waitq, &wait);
 		mutex_lock(&itv->serialize_lock);
 		if (signal_pending(current)) {
-			IVTV_DEBUG_INFO("User stopped %s\n", s->name);
+			IVTV_DE_INFO("User stopped %s\n", s->name);
 			return -EINTR;
 		}
 	}
@@ -700,7 +700,7 @@ retry:
 			finish_wait(&itv->dma_waitq, &wait);
 			mutex_lock(&itv->serialize_lock);
 			if (got_sig) {
-				IVTV_DEBUG_INFO("User interrupted %s\n", s->name);
+				IVTV_DE_INFO("User interrupted %s\n", s->name);
 				return -EINTR;
 			}
 
@@ -713,7 +713,7 @@ retry:
 	   to transfer the rest. */
 	if (count && !(filp->f_flags & O_NONBLOCK))
 		goto retry;
-	IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
+	IVTV_DE_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
 	return bytes_written;
 }
 
@@ -738,7 +738,7 @@ __poll_t ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 	__poll_t res = 0;
 
 	/* add stream's waitq to the poll list */
-	IVTV_DEBUG_HI_FILE("Decoder poll\n");
+	IVTV_DE_HI_FILE("Decoder poll\n");
 
 	/* If there are subscribed events, then only use the new event
 	   API instead of the old video.h based API. */
@@ -783,15 +783,15 @@ __poll_t ivtv_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		rc = ivtv_start_capture(id);
 		mutex_unlock(&itv->serialize_lock);
 		if (rc) {
-			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
+			IVTV_DE_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
 			return EPOLLERR;
 		}
-		IVTV_DEBUG_FILE("Encoder poll started capture\n");
+		IVTV_DE_FILE("Encoder poll started capture\n");
 	}
 
 	/* add stream's waitq to the poll list */
-	IVTV_DEBUG_HI_FILE("Encoder poll\n");
+	IVTV_DE_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 	if (v4l2_event_pending(&id->fh))
 		res |= EPOLLPRI;
@@ -810,7 +810,7 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_FILE("close() of %s\n", s->name);
+	IVTV_DE_FILE("close() of %s\n", s->name);
 
 	/* 'Unclaim' this stream */
 
@@ -818,13 +818,13 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 	if (test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
 		struct ivtv_stream *s_vbi = &itv->streams[IVTV_ENC_STREAM_TYPE_VBI];
 
-		IVTV_DEBUG_INFO("close stopping capture\n");
+		IVTV_DE_INFO("close stopping capture\n");
 		/* Special case: a running VBI capture for VBI insertion
 		   in the mpeg stream. Need to stop that too. */
 		if (id->type == IVTV_ENC_STREAM_TYPE_MPG &&
 		    test_bit(IVTV_F_S_STREAMING, &s_vbi->s_flags) &&
 		    !test_bit(IVTV_F_S_APPL_IO, &s_vbi->s_flags)) {
-			IVTV_DEBUG_INFO("close stopping embedded VBI capture\n");
+			IVTV_DE_INFO("close stopping embedded VBI capture\n");
 			ivtv_stop_v4l2_encode_stream(s_vbi, 0);
 		}
 		if ((id->type == IVTV_DEC_STREAM_TYPE_VBI ||
@@ -849,7 +849,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_FILE("close() of %s\n", s->name);
+	IVTV_DE_FILE("close() of %s\n", s->name);
 
 	if (id->type == IVTV_DEC_STREAM_TYPE_YUV &&
 		test_bit(IVTV_F_I_DECODING_YUV, &itv->i_flags)) {
@@ -859,7 +859,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 
 	/* Stop decoding */
 	if (test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-		IVTV_DEBUG_INFO("close stopping decode\n");
+		IVTV_DE_INFO("close stopping decode\n");
 
 		ivtv_stop_v4l2_decode_stream(s, flags, pts);
 		itv->output_mode = OUT_NONE;
@@ -882,7 +882,7 @@ int ivtv_v4l2_close(struct file *filp)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_FILE("close %s\n", s->name);
+	IVTV_DE_FILE("close %s\n", s->name);
 
 	mutex_lock(&itv->serialize_lock);
 
@@ -948,7 +948,7 @@ static int ivtv_open(struct file *filp)
 	struct ivtv_open_id *item;
 	int res = 0;
 
-	IVTV_DEBUG_FILE("open %s\n", s->name);
+	IVTV_DE_FILE("open %s\n", s->name);
 
 	if (ivtv_init_on_first_open(itv)) {
 		IVTV_ERR("Failed to initialize on device %s\n",
@@ -956,9 +956,9 @@ static int ivtv_open(struct file *filp)
 		return -ENXIO;
 	}
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
-	if (ivtv_fw_debug) {
+#ifdef CONFIG_VIDEO_ADV_DE
+	/* Unless ivtv_fw_de is set, error out if firmware dead. */
+	if (ivtv_fw_de) {
 		IVTV_WARN("Opening %s with dead firmware lockout disabled\n",
 			  video_device_node_name(vdev));
 		IVTV_WARN("Selected firmware errors will be ignored\n");
@@ -992,7 +992,7 @@ static int ivtv_open(struct file *filp)
 	/* Allocate memory */
 	item = kzalloc(sizeof(struct ivtv_open_id), GFP_KERNEL);
 	if (NULL == item) {
-		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
+		IVTV_DE_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
 	v4l2_fh_init(&item->fh, &s->vdev);
@@ -1059,7 +1059,7 @@ void ivtv_mute(struct ivtv *itv)
 {
 	if (atomic_read(&itv->capturing))
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 1);
-	IVTV_DEBUG_INFO("Mute\n");
+	IVTV_DE_INFO("Mute\n");
 }
 
 void ivtv_unmute(struct ivtv *itv)
@@ -1069,5 +1069,5 @@ void ivtv_unmute(struct ivtv *itv)
 		ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12);
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 0);
 	}
-	IVTV_DEBUG_INFO("Unmute\n");
+	IVTV_DE_INFO("Unmute\n");
 }

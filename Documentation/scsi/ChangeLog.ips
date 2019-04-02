@@ -113,9 +113,9 @@ IBM ServeRAID driver Change Log
                 - Send all of the commands on the queue at once rather than
                   one at a time since the card will support it.
 
-        0.99.02 - Added some additional debug statements to print out
+        0.99.02 - Added some additional de statements to print out
                   errors if an error occurs while trying to read/write
-                  to a logical drive (IPS_DEBUG).
+                  to a logical drive (IPS_DE).
 
                 - Fixed read/write errors when the adapter is using an
                   8K stripe size.

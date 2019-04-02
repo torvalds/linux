@@ -104,7 +104,7 @@ static void pcsp_pointer_update(struct snd_pcsp *chip)
 	chip->playback_ptr += PCSP_INDEX_INC() * chip->fmt_size;
 	periods_elapsed = chip->playback_ptr - chip->period_ptr;
 	if (periods_elapsed < 0) {
-#if PCSP_DEBUG
+#if PCSP_DE
 		printk(KERN_INFO "PCSP: buffer_bytes mod period_bytes != 0 ? "
 			"(%zi %zi %zi)\n",
 			chip->playback_ptr, period_bytes, buffer_bytes);
@@ -113,7 +113,7 @@ static void pcsp_pointer_update(struct snd_pcsp *chip)
 	}
 	periods_elapsed /= period_bytes;
 	/* wrap the pointer _before_ calling snd_pcm_period_elapsed(),
-	 * or ALSA will BUG on us. */
+	 * or ALSA will  on us. */
 	chip->playback_ptr %= buffer_bytes;
 
 	if (periods_elapsed) {
@@ -152,7 +152,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 
 static int pcsp_start_playing(struct snd_pcsp *chip)
 {
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: start_playing called\n");
 #endif
 	if (atomic_read(&chip->timer_active)) {
@@ -173,7 +173,7 @@ static int pcsp_start_playing(struct snd_pcsp *chip)
 
 static void pcsp_stop_playing(struct snd_pcsp *chip)
 {
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: stop_playing called\n");
 #endif
 	if (!atomic_read(&chip->timer_active))
@@ -202,7 +202,7 @@ void pcsp_sync_stop(struct snd_pcsp *chip)
 static int snd_pcsp_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: close called\n");
 #endif
 	pcsp_sync_stop(chip);
@@ -226,7 +226,7 @@ static int snd_pcsp_playback_hw_params(struct snd_pcm_substream *substream,
 static int snd_pcsp_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: hw_free called\n");
 #endif
 	pcsp_sync_stop(chip);
@@ -242,7 +242,7 @@ static int snd_pcsp_playback_prepare(struct snd_pcm_substream *substream)
 	chip->fmt_size =
 		snd_pcm_format_physical_width(substream->runtime->format) >> 3;
 	chip->is_signed = snd_pcm_format_signed(substream->runtime->format);
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: prepare called, "
 			"size=%zi psize=%zi f=%zi f1=%i fsize=%i\n",
 			snd_pcm_lib_buffer_bytes(substream),
@@ -258,7 +258,7 @@ static int snd_pcsp_playback_prepare(struct snd_pcm_substream *substream)
 static int snd_pcsp_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: trigger called\n");
 #endif
 	switch (cmd) {
@@ -312,7 +312,7 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcsp *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-#if PCSP_DEBUG
+#if PCSP_DE
 	printk(KERN_INFO "PCSP: open called\n");
 #endif
 	if (atomic_read(&chip->timer_active)) {

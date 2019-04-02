@@ -309,7 +309,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	Elf_Addr v;
 	int res;
 
-	pr_debug("Applying relocate section %u to %u\n", relsec,
+	pr_de("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {

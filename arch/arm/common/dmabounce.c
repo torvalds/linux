@@ -278,8 +278,8 @@ static inline void unmap_single(struct device *dev, struct safe_buffer *buf,
 				size_t size, enum dma_data_direction dir,
 				unsigned long attrs)
 {
-	BUG_ON(buf->size != size);
-	BUG_ON(buf->direction != dir);
+	_ON(buf->size != size);
+	_ON(buf->direction != dir);
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
 		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
@@ -380,7 +380,7 @@ static int __dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 
 	off = addr - buf->safe_dma_addr;
 
-	BUG_ON(buf->direction != dir);
+	_ON(buf->direction != dir);
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x off=%#lx) mapped to %p (dma=%#x)\n",
 		__func__, buf->ptr, virt_to_dma(dev, buf->ptr), off,
@@ -420,7 +420,7 @@ static int __dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
 
 	off = addr - buf->safe_dma_addr;
 
-	BUG_ON(buf->direction != dir);
+	_ON(buf->direction != dir);
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x off=%#lx) mapped to %p (dma=%#x)\n",
 		__func__, buf->ptr, virt_to_dma(dev, buf->ptr), off,
@@ -560,7 +560,7 @@ void dmabounce_unregister_dev(struct device *dev)
 	if (!list_empty(&device_info->safe_buffers)) {
 		dev_err(dev,
 			"Removing from dmabounce with pending buffers!\n");
-		BUG();
+		();
 	}
 
 	if (device_info->small.pool)

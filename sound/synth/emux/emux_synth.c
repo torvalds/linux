@@ -67,11 +67,11 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	if (snd_BUG_ON(!port || !chan))
+	if (snd__ON(!port || !chan))
 		return;
 
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.get_voice || !emu->ops.trigger))
+	if (snd__ON(!emu || !emu->ops.get_voice || !emu->ops.trigger))
 		return;
 
 	key = note; /* remember the original note */
@@ -165,11 +165,11 @@ snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	if (snd_BUG_ON(!port || !chan))
+	if (snd__ON(!port || !chan))
 		return;
 
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.release))
+	if (snd__ON(!emu || !emu->ops.release))
 		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
@@ -242,11 +242,11 @@ snd_emux_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	if (snd_BUG_ON(!port || !chan))
+	if (snd__ON(!port || !chan))
 		return;
 
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.update))
+	if (snd__ON(!emu || !emu->ops.update))
 		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
@@ -277,7 +277,7 @@ snd_emux_update_channel(struct snd_emux_port *port, struct snd_midi_channel *cha
 		return;
 
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.update))
+	if (snd__ON(!emu || !emu->ops.update))
 		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
@@ -304,7 +304,7 @@ snd_emux_update_port(struct snd_emux_port *port, int update)
 		return;
 
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.update))
+	if (snd__ON(!emu || !emu->ops.update))
 		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
@@ -327,7 +327,7 @@ snd_emux_control(void *p, int type, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	if (snd_BUG_ON(!port || !chan))
+	if (snd__ON(!port || !chan))
 		return;
 
 	switch (type) {
@@ -402,11 +402,11 @@ snd_emux_terminate_note(void *p, int note, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	if (snd_BUG_ON(!port || !chan))
+	if (snd__ON(!port || !chan))
 		return;
 
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.terminate))
+	if (snd__ON(!emu || !emu->ops.terminate))
 		return;
 
 	terminate_note1(emu, note, chan, 1);
@@ -454,10 +454,10 @@ snd_emux_sounds_off_all(struct snd_emux_port *port)
 	struct snd_emux_voice *vp;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!port))
+	if (snd__ON(!port))
 		return;
 	emu = port->emu;
-	if (snd_BUG_ON(!emu || !emu->ops.terminate))
+	if (snd__ON(!emu || !emu->ops.terminate))
 		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);

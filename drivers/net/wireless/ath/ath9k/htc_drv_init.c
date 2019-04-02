@@ -22,9 +22,9 @@ MODULE_AUTHOR("Atheros Communications");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Atheros driver 802.11n HTC based wireless devices");
 
-static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
-module_param_named(debug, ath9k_debug, uint, 0);
-MODULE_PARM_DESC(debug, "Debugging mask");
+static unsigned int ath9k_de = ATH_DBG_DEFAULT;
+module_param_named(de, ath9k_de, uint, 0);
+MODULE_PARM_DESC(de, "Deging mask");
 
 int htc_modparam_nohwcrypt;
 module_param_named(nohwcrypt, htc_modparam_nohwcrypt, int, 0444);
@@ -110,7 +110,7 @@ static void ath9k_deinit_device(struct ath9k_htc_priv *priv)
 
 	wiphy_rfkill_stop_polling(hw->wiphy);
 	ath9k_deinit_leds(priv);
-	ath9k_htc_deinit_debug(priv);
+	ath9k_htc_deinit_de(priv);
 	ieee80211_unregister_hw(hw);
 	ath9k_rx_cleanup(priv);
 	ath9k_tx_cleanup(priv);
@@ -639,7 +639,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->ah = ah;
 	common->hw = priv->hw;
 	common->priv = priv;
-	common->debug_mask = ath9k_debug;
+	common->de_mask = ath9k_de;
 	common->btcoex_enabled = ath9k_htc_btcoex_enable == 1;
 	set_bit(ATH_OP_INVALID, &common->op_flags);
 
@@ -888,9 +888,9 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 			goto err_world;
 	}
 
-	error = ath9k_htc_init_debug(priv->ah);
+	error = ath9k_htc_init_de(priv->ah);
 	if (error) {
-		ath_err(common, "Unable to create debugfs files\n");
+		ath_err(common, "Unable to create defs files\n");
 		goto err_world;
 	}
 

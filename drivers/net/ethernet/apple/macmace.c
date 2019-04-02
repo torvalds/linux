@@ -16,7 +16,7 @@
  *	Copyright (C) 2007 Finn Thain
  *
  *	Converted to DMA API, converted to unified driver model,
- *	sync'd some routines with mace.c and fixed various bugs.
+ *	sync'd some routines with mace.c and fixed various s.
  */
 
 
@@ -547,10 +547,10 @@ static void mace_handle_misc_intrs(struct net_device *dev, int intr)
 		++dev->stats.tx_heartbeat_errors;
 	if (intr & BABBLE)
 		if (mace_babbles++ < 4)
-			printk(KERN_DEBUG "macmace: babbling transmitter\n");
+			printk(KERN_DE "macmace: babbling transmitter\n");
 	if (intr & JABBER)
 		if (mace_jabbers++ < 4)
-			printk(KERN_DEBUG "macmace: jabbering transceiver\n");
+			printk(KERN_DE "macmace: jabbering transceiver\n");
 }
 
 static irqreturn_t mace_interrupt(int irq, void *dev_id)
@@ -579,7 +579,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 		}
 		/* dma should have finished */
 		if (!mp->tx_count) {
-			printk(KERN_DEBUG "macmace: tx ring ran out? (fs=%x)\n", fs);
+			printk(KERN_DE "macmace: tx ring ran out? (fs=%x)\n", fs);
 		}
 		/* Update stats */
 		if (fs & (UFLO|LCOL|LCAR|RTRY)) {

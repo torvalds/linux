@@ -128,7 +128,7 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 
 	if (!(pp->flags & PP_CLAIMED)) {
 		/* Don't have the port claimed */
-		pr_debug(CHRDEV "%x: claim the port first\n", minor);
+		pr_de(CHRDEV "%x: claim the port first\n", minor);
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 
 	if (!(pp->flags & PP_CLAIMED)) {
 		/* Don't have the port claimed */
-		pr_debug(CHRDEV "%x: claim the port first\n", minor);
+		pr_de(CHRDEV "%x: claim the port first\n", minor);
 		return -EINVAL;
 	}
 
@@ -511,7 +511,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* Everything else requires the port to be claimed, so check
 	 * that now. */
 	if ((pp->flags & PP_CLAIMED) == 0) {
-		pr_debug(CHRDEV "%x: claim the port first\n", minor);
+		pr_de(CHRDEV "%x: claim the port first\n", minor);
 		return -EINVAL;
 	}
 
@@ -751,7 +751,7 @@ static int pp_release(struct inode *inode, struct file *file)
 		info->phase = pp->saved_state.phase;
 		parport_release(pp->pdev);
 		if (compat_negot != 1) {
-			pr_debug(CHRDEV "%x: released pardevice "
+			pr_de(CHRDEV "%x: released pardevice "
 				"because user-space forgot\n", minor);
 		}
 	}
@@ -760,7 +760,7 @@ static int pp_release(struct inode *inode, struct file *file)
 		parport_unregister_device(pp->pdev);
 		ida_simple_remove(&ida_index, pp->index);
 		pp->pdev = NULL;
-		pr_debug(CHRDEV "%x: unregistered pardevice\n", minor);
+		pr_de(CHRDEV "%x: unregistered pardevice\n", minor);
 	}
 
 	kfree(pp);

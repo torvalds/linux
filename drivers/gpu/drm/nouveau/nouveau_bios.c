@@ -39,7 +39,7 @@
 
 #define EDID1_LEN 128
 
-#define BIOSLOG(sip, fmt, arg...) NV_DEBUG(sip->dev, fmt, ##arg)
+#define BIOSLOG(sip, fmt, arg...) NV_DE(sip->dev, fmt, ##arg)
 #define LOG_OLD_VALUE(x)
 
 struct init_exec {
@@ -352,7 +352,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 
 	if (bios->fp.fptablepointer == 0x0) {
 		/* Most laptop cards lack an fp table. They use DDC. */
-		NV_DEBUG(drm, "Pointer to flat panel table invalid\n");
+		NV_DE(drm, "Pointer to flat panel table invalid\n");
 		bios->digital_min_front_porch = 0x4b;
 		return 0;
 	}
@@ -714,7 +714,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	load_table_ptr = ROM16(bios->data[bitentry->offset]);
 
 	if (load_table_ptr == 0x0) {
-		NV_DEBUG(drm, "Pointer to BIT loadval table invalid\n");
+		NV_DE(drm, "Pointer to BIT loadval table invalid\n");
 		return -EINVAL;
 	}
 
@@ -1426,7 +1426,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		if (dcb->version < 0x22) {
 			mask = ~0xd;
 			/*
-			 * The laptop in bug 14567 lies and claims to not use
+			 * The laptop in  14567 lies and claims to not use
 			 * straps when it does, so assume all DCB 2.0 laptops
 			 * use straps, until a broken EDID using one is produced
 			 */
@@ -1660,7 +1660,7 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	 *
 	 * Ignore the connector on the second SOR link to prevent
 	 * nasty problems until this is sorted (assuming it's not a
-	 * VBIOS bug).
+	 * VBIOS ).
 	 */
 	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
 		if (*conn == 0x02026312 && *conf == 0x00000020)
@@ -1804,7 +1804,7 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 			return 1; /* stop parsing */
 
 		/* Ignore the I2C index for on-chip TV-out, as there
-		 * are cards with bogus values (nv31m in bug 23212),
+		 * are cards with bogus values (nv31m in  23212),
 		 * and it's otherwise useless.
 		 */
 		if (entry->type == DCB_OUTPUT_TV &&
@@ -1950,8 +1950,8 @@ static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bio
 	for (i = 0; i < bytes_to_write; i += 4)
 		nvif_wr32(device, 0x00001400 + i, ROM32(bios->data[hwsq_entry_offset + i + 4]));
 
-	/* twiddle NV_PBUS_DEBUG_4 */
-	nvif_wr32(device, NV_PBUS_DEBUG_4, nvif_rd32(device, NV_PBUS_DEBUG_4) | 0x18);
+	/* twiddle NV_PBUS_DE_4 */
+	nvif_wr32(device, NV_PBUS_DE_4, nvif_rd32(device, NV_PBUS_DE_4) | 0x18);
 
 	return 0;
 }

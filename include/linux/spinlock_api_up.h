@@ -8,7 +8,7 @@
 /*
  * include/linux/spinlock_api_up.h
  *
- * spinlock API implementation on UP-nondebug (inlined implementation)
+ * spinlock API implementation on UP-nonde (inlined implementation)
  *
  * portions Copyright 2005, Red Hat, Inc., Ingo Molnar
  * Released under the General Public License (GPL).
@@ -19,7 +19,7 @@
 #define assert_raw_spin_locked(lock)	do { (void)(lock); } while (0)
 
 /*
- * In the UP-nondebug case there's no real locking going on, so the
+ * In the UP-nonde case there's no real locking going on, so the
  * only thing we have to do is to keep the preempt counts and irq
  * flags straight, to suppress compiler warnings of unused lock
  * variables, and to add the proper checker annotations:

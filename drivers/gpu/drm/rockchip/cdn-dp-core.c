@@ -269,7 +269,7 @@ static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 	mutex_lock(&dp->lock);
 	edid = dp->edid;
 	if (edid) {
-		DRM_DEV_DEBUG_KMS(dp->dev, "got edid: width[%d] x height[%d]\n",
+		DRM_DEV_DE_KMS(dp->dev, "got edid: width[%d] x height[%d]\n",
 				  edid->width_cm, edid->height_cm);
 
 		dp->sink_has_audio = drm_detect_monitor_audio(edid);
@@ -323,7 +323,7 @@ static int cdn_dp_connector_mode_valid(struct drm_connector *connector,
 	actual = actual * 8 / 10;
 
 	if (requested > actual) {
-		DRM_DEV_DEBUG_KMS(dp->dev,
+		DRM_DEV_DE_KMS(dp->dev,
 				  "requested=%d, actual=%d, clock=%d\n",
 				  requested, actual, mode->clock);
 		return MODE_CLOCK_HIGH;
@@ -603,7 +603,7 @@ static void cdn_dp_encoder_enable(struct drm_encoder *encoder)
 		return;
 	}
 
-	DRM_DEV_DEBUG_KMS(dp->dev, "vop %s output to cdn-dp\n",
+	DRM_DEV_DE_KMS(dp->dev, "vop %s output to cdn-dp\n",
 			  (ret) ? "LIT" : "BIG");
 	if (ret)
 		val = DP_SEL_VOP_LIT | (DP_SEL_VOP_LIT << 16);
@@ -1037,7 +1037,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
+	DRM_DE_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	ret = drm_encoder_init(drm_dev, encoder, &cdn_dp_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);

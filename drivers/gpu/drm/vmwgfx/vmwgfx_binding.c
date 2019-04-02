@@ -1063,7 +1063,7 @@ static int vmw_binding_emit_dirty(struct vmw_ctx_binding_state *cbs)
 			ret = vmw_emit_set_vb(cbs);
 			break;
 		default:
-			BUG();
+			();
 		}
 		if (ret)
 			return ret;
@@ -1275,24 +1275,24 @@ void vmw_binding_state_reset(struct vmw_ctx_binding_state *cbs)
  */
 static void vmw_binding_build_asserts(void)
 {
-	BUILD_BUG_ON(SVGA3D_NUM_SHADERTYPE_DX10 != 3);
-	BUILD_BUG_ON(SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS > SVGA3D_RT_MAX);
-	BUILD_BUG_ON(sizeof(uint32) != sizeof(u32));
+	BUILD__ON(SVGA3D_NUM_SHADERTYPE_DX10 != 3);
+	BUILD__ON(SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS > SVGA3D_RT_MAX);
+	BUILD__ON(sizeof(uint32) != sizeof(u32));
 
 	/*
 	 * struct vmw_ctx_binding_state::bind_cmd_buffer is used for various
 	 * view id arrays.
 	 */
-	BUILD_BUG_ON(VMW_MAX_VIEW_BINDINGS < SVGA3D_RT_MAX);
-	BUILD_BUG_ON(VMW_MAX_VIEW_BINDINGS < SVGA3D_DX_MAX_SRVIEWS);
-	BUILD_BUG_ON(VMW_MAX_VIEW_BINDINGS < SVGA3D_DX_MAX_CONSTBUFFERS);
+	BUILD__ON(VMW_MAX_VIEW_BINDINGS < SVGA3D_RT_MAX);
+	BUILD__ON(VMW_MAX_VIEW_BINDINGS < SVGA3D_DX_MAX_SRVIEWS);
+	BUILD__ON(VMW_MAX_VIEW_BINDINGS < SVGA3D_DX_MAX_CONSTBUFFERS);
 
 	/*
 	 * struct vmw_ctx_binding_state::bind_cmd_buffer is used for
 	 * u32 view ids, SVGA3dSoTargets and SVGA3dVertexBuffers
 	 */
-	BUILD_BUG_ON(SVGA3D_DX_MAX_SOTARGETS*sizeof(SVGA3dSoTarget) >
+	BUILD__ON(SVGA3D_DX_MAX_SOTARGETS*sizeof(SVGA3dSoTarget) >
 		     VMW_MAX_VIEW_BINDINGS*sizeof(u32));
-	BUILD_BUG_ON(SVGA3D_DX_MAX_VERTEXBUFFERS*sizeof(SVGA3dVertexBuffer) >
+	BUILD__ON(SVGA3D_DX_MAX_VERTEXBUFFERS*sizeof(SVGA3dVertexBuffer) >
 		     VMW_MAX_VIEW_BINDINGS*sizeof(u32));
 }

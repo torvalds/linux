@@ -32,9 +32,9 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 
-static unsigned int debug;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "activate debug info");
+static unsigned int de;
+module_param(de, uint, 0644);
+MODULE_PARM_DESC(de, "activate de info");
 
 /* Minimum and maximum frame width/height */
 #define FDP1_MIN_W		80U
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(debug, "activate debug info");
 #define FDP1_NUMBER_JOBS 8
 
 #define dprintk(fdp1, fmt, arg...) \
-	v4l2_dbg(1, debug, &fdp1->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(1, de, &fdp1->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 /*
  * FDP1 registers and bits
@@ -775,7 +775,7 @@ static u32 fdp1_read(struct fdp1_dev *fdp1, unsigned int reg)
 {
 	u32 value = ioread32(fdp1->regs + reg);
 
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk(fdp1, "Read 0x%08x from 0x%04x\n", value, reg);
 
 	return value;
@@ -783,7 +783,7 @@ static u32 fdp1_read(struct fdp1_dev *fdp1, unsigned int reg)
 
 static void fdp1_write(struct fdp1_dev *fdp1, u32 val, unsigned int reg)
 {
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk(fdp1, "Write 0x%08x to 0x%04x\n", val, reg);
 
 	iowrite32(val, fdp1->regs + reg);
@@ -2215,7 +2215,7 @@ static irqreturn_t fdp1_irq_handler(int irq, void *dev_id)
 	/* Clear interrupts */
 	fdp1_write(fdp1, ~(int_status) & FD1_CTL_IRQ_MASK, FD1_CTL_IRQSTA);
 
-	if (debug >= 2) {
+	if (de >= 2) {
 		dprintk(fdp1, "IRQ: 0x%x %s%s%s\n", int_status,
 			int_status & FD1_CTL_IRQ_VERE ? "[Error]" : "[!E]",
 			int_status & FD1_CTL_IRQ_VINTE ? "[VSync]" : "[!V]",

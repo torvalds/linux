@@ -33,8 +33,8 @@ int atl1c_check_eeprom_exist(struct atl1c_hw *hw)
 {
 	u32 data;
 
-	AT_READ_REG(hw, REG_TWSI_DEBUG, &data);
-	if (data & TWSI_DEBUG_DEV_EXIST)
+	AT_READ_REG(hw, REG_TWSI_DE, &data);
+	if (data & TWSI_DE_DEV_EXIST)
 		return 1;
 
 	AT_READ_REG(hw, REG_MASTER_CTRL, &data);
@@ -580,7 +580,7 @@ int atl1c_phy_reset(struct atl1c_hw *hw)
 			L2CB_CLDCTRL3);
 	}
 
-	/* other debug port to set */
+	/* other de port to set */
 	atl1c_write_phy_dbg(hw, MIIDBG_ANACTRL, ANACTRL_DEF);
 	atl1c_write_phy_dbg(hw, MIIDBG_SRDSYSMOD, SRDSYSMOD_DEF);
 	atl1c_write_phy_dbg(hw, MIIDBG_TST10BTCFG, TST10BTCFG_DEF);

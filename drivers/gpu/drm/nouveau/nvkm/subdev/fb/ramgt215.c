@@ -245,10 +245,10 @@ gt215_link_train(struct gt215_ram *ram)
 
 	ram_train_result(ram->base.fb, result, 64);
 	for (i = 0; i < 64; i++)
-		nvkm_debug(subdev, "Train: %08x", result[i]);
+		nvkm_de(subdev, "Train: %08x", result[i]);
 	gt215_link_train_calc(result, train);
 
-	nvkm_debug(subdev, "Train: %08x %08x %08x", train->r_100720,
+	nvkm_de(subdev, "Train: %08x %08x %08x", train->r_100720,
 		   train->r_1111e0, train->r_111400);
 
 	kfree(result);
@@ -411,11 +411,11 @@ gt215_ram_timing_calc(struct gt215_ram *ram, u32 *timing)
 		break;
 	}
 
-	nvkm_debug(subdev, "Entry: 220: %08x %08x %08x %08x\n",
+	nvkm_de(subdev, "Entry: 220: %08x %08x %08x %08x\n",
 		   timing[0], timing[1], timing[2], timing[3]);
-	nvkm_debug(subdev, "  230: %08x %08x %08x %08x\n",
+	nvkm_de(subdev, "  230: %08x %08x %08x %08x\n",
 		   timing[4], timing[5], timing[6], timing[7]);
-	nvkm_debug(subdev, "  240: %08x\n", timing[8]);
+	nvkm_de(subdev, "  240: %08x\n", timing[8]);
 	return 0;
 }
 #undef T

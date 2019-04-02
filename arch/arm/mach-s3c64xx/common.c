@@ -97,7 +97,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 
 /* minimal IO mapping */
 
-/* see notes on uart map in arch/arm/mach-s3c64xx/include/mach/debug-macro.S */
+/* see notes on uart map in arch/arm/mach-s3c64xx/include/mach/de-macro.S */
 #define UART_OFFS (S3C_PA_UART & 0xfffff)
 
 static struct map_desc s3c_iodesc[] __initdata = {
@@ -236,7 +236,7 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 	s3c64xx_clk_init(NULL, xtal_f, xusbxti_f, soc_is_s3c6400(), S3C_VA_SYS);
 	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
 
-	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);
+	printk(KERN_DE "%s: initialising interrupts\n", __func__);
 
 	/* initialise the pair of VICs */
 	vic_init(VA_VIC0, IRQ_VIC0_BASE, vic0_valid, IRQ_VIC0_RESUME);

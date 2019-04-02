@@ -28,8 +28,8 @@ The driver allows configuration of the touch screen via a set of sysfs files:
     allows setting the report rate in the range from 3 to 14.
 
 
-For debugging purposes the driver provides a few files in the debug
-filesystem (if available in the kernel). In /sys/kernel/debug/edt_ft5x06
+For deging purposes the driver provides a few files in the de
+filesystem (if available in the kernel). In /sys/kernel/de/edt_ft5x06
 you'll find the following files:
 
 num_x, num_y:

@@ -18,7 +18,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/mm.h>

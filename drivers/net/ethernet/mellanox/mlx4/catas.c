@@ -192,7 +192,7 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 		 * recoverable and the PCI error flow will handle it.
 		 */
 		if (!pci_channel_offline(dev->persist->pdev))
-			BUG_ON(1);
+			_ON(1);
 	}
 	dev->persist->state |= MLX4_DEVICE_STATE_INTERNAL_ERROR;
 	mutex_unlock(&persist->device_state_mutex);

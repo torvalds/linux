@@ -272,7 +272,7 @@ out:
 	return;
 }
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_USBGECKO
+#ifdef CONFIG_PPC_EARLY_DE_USBGECKO
 
 static phys_addr_t __init ug_early_grab_io_addr(void)
 {
@@ -281,16 +281,16 @@ static phys_addr_t __init ug_early_grab_io_addr(void)
 #elif defined(CONFIG_WII)
 	return 0x0d000000;
 #else
-#error Invalid platform for USB Gecko based early debugging.
+#error Invalid platform for USB Gecko based early deging.
 #endif
 }
 
 /*
- * USB Gecko early debug support initialization for udbg.
+ * USB Gecko early de support initialization for udbg.
  */
 void __init udbg_init_usbgecko(void)
 {
-	void __iomem *early_debug_area;
+	void __iomem *early_de_area;
 	void __iomem *exi_io_base;
 
 	/*
@@ -301,8 +301,8 @@ void __init udbg_init_usbgecko(void)
 	 * This must match the virtual address configured in
 	 * head_32.S:setup_usbgecko_bat().
 	 */
-	early_debug_area = (void __iomem *)__fix_to_virt(FIX_EARLY_DEBUG_BASE);
-	exi_io_base = early_debug_area + 0x00006800;
+	early_de_area = (void __iomem *)__fix_to_virt(FIX_EARLY_DE_BASE);
+	exi_io_base = early_de_area + 0x00006800;
 
 	/* try to detect a USB Gecko */
 	if (!ug_udbg_probe(exi_io_base))
@@ -320,9 +320,9 @@ void __init udbg_init_usbgecko(void)
 	 * It is safe to continue using the same virtual address as it is
 	 * a reserved fixmap area.
 	 */
-	setbat(1, (unsigned long)early_debug_area,
+	setbat(1, (unsigned long)early_de_area,
 	       ug_early_grab_io_addr(), 128*1024, PAGE_KERNEL_NCG);
 }
 
-#endif /* CONFIG_PPC_EARLY_DEBUG_USBGECKO */
+#endif /* CONFIG_PPC_EARLY_DE_USBGECKO */
 

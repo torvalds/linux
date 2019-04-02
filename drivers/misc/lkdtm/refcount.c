@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This is for all the tests related to refcount bugs (e.g. overflow,
+ * This is for all the tests related to refcount s (e.g. overflow,
  * underflow, reaching zero untested, etc).
  */
 #include "lkdtm.h"
@@ -379,7 +379,7 @@ void lkdtm_ATOMIC_TIMING(void)
  * This can be compared to ATOMIC_TIMING when implementing fast refcount
  * protections. Looking at the number of CPU cycles tells the real story
  * about performance. For example:
- *    cd /sys/kernel/debug/provoke-crash
+ *    cd /sys/kernel/de/provoke-crash
  *    perf stat -B -- cat <(echo REFCOUNT_TIMING) > DIRECT
  */
 void lkdtm_REFCOUNT_TIMING(void)

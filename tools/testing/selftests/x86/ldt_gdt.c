@@ -484,12 +484,12 @@ static void fix_sa_restorer(int sig)
 
 	if (syscall(SYS_rt_sigaction, sig, NULL, &ksa, 8) == 0) {
 		/*
-		 * glibc has a nasty bug: it sometimes writes garbage to
+		 * glibc has a nasty : it sometimes writes garbage to
 		 * sa_restorer.  This interacts quite badly with anything
 		 * that fiddles with SS because it can trigger legacy
 		 * stack switching.  Patch it up.  See:
 		 *
-		 * https://sourceware.org/bugzilla/show_bug.cgi?id=21269
+		 * https://sourceware.org/zilla/show_.cgi?id=21269
 		 */
 		if (!(ksa.sa_flags & SA_RESTORER) && ksa.sa_restorer) {
 			ksa.sa_restorer = NULL;

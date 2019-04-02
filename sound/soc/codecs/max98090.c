@@ -2512,7 +2512,7 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	kernel_ulong_t driver_data = 0;
 	int ret;
 
-	pr_debug("max98090_i2c_probe\n");
+	pr_de("max98090_i2c_probe\n");
 
 	max98090 = devm_kzalloc(&i2c->dev, sizeof(struct max98090_priv),
 		GFP_KERNEL);

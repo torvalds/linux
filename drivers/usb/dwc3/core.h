@@ -18,7 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
@@ -175,13 +175,13 @@
 #define DWC3_GSBUSCFG0_INCRBRSTENA	(1 << 0) /* undefined length enable */
 #define DWC3_GSBUSCFG0_INCRBRST_MASK	0xff
 
-/* Global Debug LSP MUX Select */
+/* Global De LSP MUX Select */
 #define DWC3_GDBGLSPMUX_ENDBC		BIT(15)	/* Host only */
 #define DWC3_GDBGLSPMUX_HOSTSELECT(n)	((n) & 0x3fff)
 #define DWC3_GDBGLSPMUX_DEVSELECT(n)	(((n) & 0xf) << 4)
 #define DWC3_GDBGLSPMUX_EPSELECT(n)	((n) & 0xf)
 
-/* Global Debug Queue/FIFO Space Available Register */
+/* Global De Queue/FIFO Space Available Register */
 #define DWC3_GDBGFIFOSPACE_NUM(n)	((n) & 0x1f)
 #define DWC3_GDBGFIFOSPACE_TYPE(n)	(((n) << 5) & 0x1e0)
 #define DWC3_GDBGFIFOSPACE_SPACE_AVAILABLE(n) (((n) >> 16) & 0xffff)
@@ -971,9 +971,9 @@ struct dwc3_scratchpad_array {
  * @link_state: link state
  * @speed: device speed (super, high, full, low)
  * @hwparams: copy of hwparams registers
- * @root: debugfs root folder pointer
- * @regset: debugfs pointer to regdump file
- * @dbg_lsp_select: current debug lsp mux register selection
+ * @root: defs root folder pointer
+ * @regset: defs pointer to regdump file
+ * @dbg_lsp_select: current de lsp mux register selection
  * @test_mode: true when we're entering a USB test mode
  * @test_mode_nr: test feature selector
  * @lpm_nyet_threshold: LPM NYET response threshold
@@ -1163,7 +1163,7 @@ struct dwc3 {
 
 	struct dwc3_hwparams	hwparams;
 	struct dentry		*root;
-	struct debugfs_regset32	*regset;
+	struct defs_regset32	*regset;
 
 	u32			dbg_lsp_select;
 

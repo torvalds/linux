@@ -124,7 +124,7 @@ bool viafb_lvds_identify_vt1636(u8 i2c_adapter)
 {
 	u8 Buffer[2];
 
-	DEBUG_MSG(KERN_INFO "viafb_lvds_identify_vt1636.\n");
+	DE_MSG(KERN_INFO "viafb_lvds_identify_vt1636.\n");
 
 	/* Sense VT1636 LVDS Transmiter */
 	viaparinfo->chip_info->lvds_chip_info.lvds_chip_slave_addr =
@@ -194,7 +194,7 @@ void viafb_vt1636_patch_skew_on_vt3324(
 		*pdpa;
 	int index;
 
-	DEBUG_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3324.\n");
+	DE_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3324.\n");
 
 	/* Graphics DPA settings: */
 	index = get_clk_range_index(plvds_setting_info->vclk);
@@ -218,7 +218,7 @@ void viafb_vt1636_patch_skew_on_vt3327(
 	struct VT1636_DPA_SETTING dpa = {0x00, 0x00};
 	int index;
 
-	DEBUG_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3327.\n");
+	DE_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3327.\n");
 
 	/* Graphics DPA settings: */
 	index = get_clk_range_index(plvds_setting_info->vclk);
@@ -235,7 +235,7 @@ void viafb_vt1636_patch_skew_on_vt3364(
 {
 	int index;
 
-	DEBUG_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3364.\n");
+	DE_MSG(KERN_INFO "viafb_vt1636_patch_skew_on_vt3364.\n");
 
 	/* Graphics DPA settings: */
 	index = get_clk_range_index(plvds_setting_info->vclk);

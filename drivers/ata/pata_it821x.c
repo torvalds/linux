@@ -431,7 +431,7 @@ static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 		case ATA_CMD_SET_FEATURES:
 			return ata_bmdma_qc_issue(qc);
 	}
-	printk(KERN_DEBUG "it821x: can't process command 0x%02X\n", qc->tf.command);
+	printk(KERN_DE "it821x: can't process command 0x%02X\n", qc->tf.command);
 	return AC_ERR_DEV;
 }
 

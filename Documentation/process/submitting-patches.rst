@@ -102,14 +102,14 @@ is another popular alternative.
 2) Describe your changes
 ------------------------
 
-Describe your problem.  Whether your patch is a one-line bug fix or
+Describe your problem.  Whether your patch is a one-line  fix or
 5000 lines of a new feature, there must be an underlying problem that
 motivated you to do this work.  Convince the reviewer that there is a
 problem worth fixing and that it makes sense for them to read past the
 first paragraph.
 
 Describe user-visible impact.  Straight up crashes and lockups are
-pretty convincing, but not all bugs are that blatant.  Even if the
+pretty convincing, but not all s are that blatant.  Even if the
 problem was spotted during code review, describe the impact you think
 it can have on users.  Keep in mind that the majority of Linux
 installations run kernels from secondary stable trees or
@@ -153,7 +153,7 @@ instead of "[This patch] makes xyzzy do frotz" or "[I] changed xyzzy
 to do frotz", as if you are giving orders to the codebase to change
 its behaviour.
 
-If the patch fixes a logged bug entry, refer to that bug entry by
+If the patch fixes a logged  entry, refer to that  entry by
 number and URL.  If the patch follows from a mailing list discussion,
 give a URL to the mailing list archive; use the https://lkml.kernel.org/
 redirector with a ``Message-Id``, to ensure that the links cannot become
@@ -161,7 +161,7 @@ stale.
 
 However, try to make your explanation understandable without external
 resources.  In addition to giving a URL to a mailing list archive or
-bug, summarize the relevant points of the discussion that led to the
+, summarize the relevant points of the discussion that led to the
 patch as submitted.
 
 If you want to refer to a specific commit, don't just refer to the
@@ -180,7 +180,7 @@ collisions with shorter IDs a real possibility.  Bear in mind that, even if
 there is no collision with your six-character ID now, that condition may
 change five years from now.
 
-If your patch fixes a bug in a specific commit, e.g. you found an issue using
+If your patch fixes a  in a specific commit, e.g. you found an issue using
 ``git bisect``, please use the 'Fixes:' tag with the first 12 characters of
 the SHA-1 ID, and the one line summary.  Do not split the tag across multiple
 lines, tags are exempt from the "wrap at 75 columns" rule in order to simplify
@@ -203,7 +203,7 @@ outputting the above style in the ``git log`` or ``git show`` commands::
 
 Separate each **logical change** into a separate patch.
 
-For example, if your changes include both bug fixes and performance
+For example, if your changes include both  fixes and performance
 enhancements for a single driver, separate those changes into two
 or more patches.  If your changes include an API update, and a new
 driver which uses that new API, separate those into two patches.
@@ -224,7 +224,7 @@ When dividing your change into a series of patches, take special care to
 ensure that the kernel builds and runs properly after each patch in the
 series.  Developers using ``git bisect`` to track down a problem can end up
 splitting your patch series at any point; they will not thank you if you
-introduce bugs in the middle.
+introduce s in the middle.
 
 If you cannot condense your patch set into a smaller set of patches,
 then only post say 15 or so at a time and wait for review and integration.
@@ -291,12 +291,12 @@ He gets a lot of e-mail, and, at this point, very few patches go through
 Linus directly, so typically you should do your best to -avoid-
 sending him e-mail.
 
-If you have a patch that fixes an exploitable security bug, send that patch
-to security@kernel.org.  For severe bugs, a short embargo may be considered
+If you have a patch that fixes an exploitable security , send that patch
+to security@kernel.org.  For severe s, a short embargo may be considered
 to allow distributors to get the patch out to users; in such cases,
 obviously, the patch should not be sent to any public lists.
 
-Patches that fix a severe bug in a released kernel should be directed
+Patches that fix a severe  in a released kernel should be directed
 toward the stable maintainers by putting a line like this::
 
   Cc: stable@vger.kernel.org
@@ -471,7 +471,7 @@ exactly the same in your tree and the submitters'. If you stick strictly to
 rule (c), you should ask the submitter to rediff, but this is a totally
 counter-productive waste of time and energy. Rule (b) allows you to adjust
 the code, but then it is very impolite to change one submitter's code and
-make him endorse your bugs. To solve this problem, it is recommended that
+make him endorse your s. To solve this problem, it is recommended that
 you add a line between the last Signed-off-by header and yours, indicating
 the nature of your changes. While there is nothing mandatory about this, it
 seems like prepending the description with your mail and/or name, all
@@ -508,7 +508,7 @@ And here's what might appear in an older kernel once a patch is backported::
         [backport of 2.6 commit b7acbdfbd1f277c1eb23f344f899cfa4cd0bf36a]
 
 Whatever the format, this information provides a valuable help to people
-tracking your trees, and to people trying to troubleshoot bugs in your
+tracking your trees, and to people trying to troubleshoot s in your
 tree.
 
 
@@ -554,9 +554,9 @@ line in the patch as well.
 13) Using Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: and Fixes:
 --------------------------------------------------------------------------
 
-The Reported-by tag gives credit to people who find bugs and report them and it
+The Reported-by tag gives credit to people who find s and report them and it
 hopefully inspires them to help us again in the future.  Please note that if
-the bug was reported in private, then ask for permission first before using the
+the  was reported in private, then ask for permission first before using the
 Reported-by tag.
 
 A Tested-by: tag indicates that the patch has been successfully tested (in
@@ -607,10 +607,10 @@ idea reporters, they will, hopefully, be inspired to help us again in the
 future.
 
 A Fixes: tag indicates that the patch fixes an issue in a previous commit. It
-is used to make it easy to determine where a bug originated, which can help
-review a bug fix. This tag also assists the stable kernel team in determining
+is used to make it easy to determine where a  originated, which can help
+review a  fix. This tag also assists the stable kernel team in determining
 which stable kernel versions should receive your fix. This is the preferred
-method for indicating a bug fixed by the patch. See :ref:`describe_changes`
+method for indicating a  fixed by the patch. See :ref:`describe_changes`
 for more details.
 
 .. _the_canonical_patch_format:
@@ -743,8 +743,8 @@ references.
 
 It can be helpful to manually add In-Reply-To: headers to a patch
 (e.g., when using ``git send-email``) to associate the patch with
-previous relevant discussion, e.g. to link a bug fix to the email with
-the bug report.  However, for a multi-patch series, it is generally
+previous relevant discussion, e.g. to link a  fix to the email with
+the  report.  However, for a multi-patch series, it is generally
 best to avoid using In-Reply-To: to link to older versions of the
 series.  This way multiple versions of the patch don't become an
 unmanageable forest of references in email clients.  If a link is

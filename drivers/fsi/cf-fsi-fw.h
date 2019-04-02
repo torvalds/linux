@@ -118,7 +118,7 @@
 #define	INT_CNT			0x30 /* 32-bit interrupt count */
 #define	BAD_INT_VEC		0x34 /* 32-bit bad interrupt vector # */
 #define	CF_STARTED		0x38 /* byte, set to -1 when copro started */
-#define	CLK_CNT			0x3c /* 32-bit, clock count (debug only) */
+#define	CLK_CNT			0x3c /* 32-bit, clock count (de only) */
 
 /*
  *  SRAM layout: GPIO arbitration part
@@ -137,7 +137,7 @@
 /* Internal */
 
 /*
- * SRAM layout: Trace buffer (debug builds only)
+ * SRAM layout: Trace buffer (de builds only)
  */
 #define	TRACEBUF		0x100
 #define	  TR_CLKOBIT0		0xc0

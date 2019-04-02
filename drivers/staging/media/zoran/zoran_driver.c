@@ -371,7 +371,7 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 	}
 
 	dprintk(4,
-		KERN_DEBUG "%s: %s - %d KB allocated\n",
+		KERN_DE "%s: %s - %d KB allocated\n",
 		ZR_DEVNAME(zr), __func__,
 		(fh->buffers.num_buffers * fh->buffers.buffer_size) >> 10);
 
@@ -389,7 +389,7 @@ static void jpg_fbuffer_free(struct zoran_fh *fh)
 	__le32 frag_tab;
 	struct zoran_buffer *buffer;
 
-	dprintk(4, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
+	dprintk(4, KERN_DE "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	for (i = 0, buffer = &fh->buffers.buffer[0];
 	     i < fh->buffers.num_buffers; i++, buffer++) {
@@ -1009,7 +1009,7 @@ zoran_close(struct file  *file)
 		/* disable interrupts */
 		btand(~ZR36057_ICR_IntPinEn, ZR36057_ICR);
 
-		if (zr36067_debug > 1)
+		if (zr36067_de > 1)
 			print_interrupts(zr);
 
 		/* Overlay off */
@@ -1054,7 +1054,7 @@ static int setup_fbuffer(struct zoran_fh *fh,
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
-	/* Don't allow frame buffer overlay if PCI or AGP is buggy, or on
+	/* Don't allow frame buffer overlay if PCI or AGP is gy, or on
 	   ALi Magik (that needs very low latency while the card needs a
 	   higher value always) */
 
@@ -1337,7 +1337,7 @@ static int zoran_v4l2_buffer_status(struct zoran_fh *fh,
 
 		spin_lock_irqsave(&zr->spinlock, flags);
 		dprintk(3,
-			KERN_DEBUG
+			KERN_DE
 			"%s: %s() - raw active=%c, buffer %d: state=%c, map=%c\n",
 			ZR_DEVNAME(zr), __func__,
 			"FAL"[fh->buffers.active], num,
@@ -2527,7 +2527,7 @@ zoran_poll (struct file *file,
 
 		spin_lock_irqsave(&zr->spinlock, flags);
 		dprintk(3,
-			KERN_DEBUG
+			KERN_DE
 			"%s: %s() raw - active=%c, sync_tail=%lu/%c, pend_tail=%lu, pend_head=%lu\n",
 			ZR_DEVNAME(zr), __func__,
 			"FAL"[fh->buffers.active], zr->v4l_sync_tail,
@@ -2549,7 +2549,7 @@ zoran_poll (struct file *file,
 
 		spin_lock_irqsave(&zr->spinlock, flags);
 		dprintk(3,
-			KERN_DEBUG
+			KERN_DE
 			"%s: %s() jpg - active=%c, que_tail=%lu/%c, que_head=%lu, dma=%lu/%lu\n",
 			ZR_DEVNAME(zr), __func__,
 			"FAL"[fh->buffers.active], zr->jpg_que_tail,

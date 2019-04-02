@@ -75,8 +75,8 @@ struct mtk_jpeg_src_buf {
 	struct mtk_jpeg_dec_param dec_param;
 };
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 static inline struct mtk_jpeg_ctx *mtk_jpeg_fh_to_ctx(struct v4l2_fh *fh)
 {
@@ -256,10 +256,10 @@ static int mtk_jpeg_try_fmt_mplane(struct v4l2_format *f,
 		pfmt->sizeimage = stride * h;
 	}
 end:
-	v4l2_dbg(2, debug, &jpeg->v4l2_dev, "wxh:%ux%u\n",
+	v4l2_dbg(2, de, &jpeg->v4l2_dev, "wxh:%ux%u\n",
 		 pix_mp->width, pix_mp->height);
 	for (i = 0; i < pix_mp->num_planes; i++) {
-		v4l2_dbg(2, debug, &jpeg->v4l2_dev,
+		v4l2_dbg(2, de, &jpeg->v4l2_dev,
 			 "plane[%d] bpl=%u, size=%u\n",
 			 i,
 			 pix_mp->plane_fmt[i].bytesperline,
@@ -295,7 +295,7 @@ static int mtk_jpeg_g_fmt_vid_mplane(struct file *file, void *priv,
 	pix_mp->xfer_func = ctx->xfer_func;
 	pix_mp->quantization = ctx->quantization;
 
-	v4l2_dbg(1, debug, &jpeg->v4l2_dev, "(%d) g_fmt:%c%c%c%c wxh:%ux%u\n",
+	v4l2_dbg(1, de, &jpeg->v4l2_dev, "(%d) g_fmt:%c%c%c%c wxh:%ux%u\n",
 		 f->type,
 		 (pix_mp->pixelformat & 0xff),
 		 (pix_mp->pixelformat >>  8 & 0xff),
@@ -310,7 +310,7 @@ static int mtk_jpeg_g_fmt_vid_mplane(struct file *file, void *priv,
 		pfmt->sizeimage = q_data->sizeimage[i];
 		memset(pfmt->reserved, 0, sizeof(pfmt->reserved));
 
-		v4l2_dbg(1, debug, &jpeg->v4l2_dev,
+		v4l2_dbg(1, de, &jpeg->v4l2_dev,
 			 "plane[%d] bpl=%u, size=%u\n",
 			 i,
 			 pfmt->bytesperline,
@@ -330,7 +330,7 @@ static int mtk_jpeg_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if (!fmt)
 		fmt = ctx->cap_q.fmt;
 
-	v4l2_dbg(2, debug, &ctx->jpeg->v4l2_dev, "(%d) try_fmt:%c%c%c%c\n",
+	v4l2_dbg(2, de, &ctx->jpeg->v4l2_dev, "(%d) try_fmt:%c%c%c%c\n",
 		 f->type,
 		 (fmt->fourcc & 0xff),
 		 (fmt->fourcc >>  8 & 0xff),
@@ -351,7 +351,7 @@ static int mtk_jpeg_try_fmt_vid_out_mplane(struct file *file, void *priv,
 	if (!fmt)
 		fmt = ctx->out_q.fmt;
 
-	v4l2_dbg(2, debug, &ctx->jpeg->v4l2_dev, "(%d) try_fmt:%c%c%c%c\n",
+	v4l2_dbg(2, de, &ctx->jpeg->v4l2_dev, "(%d) try_fmt:%c%c%c%c\n",
 		 f->type,
 		 (fmt->fourcc & 0xff),
 		 (fmt->fourcc >>  8 & 0xff),
@@ -393,7 +393,7 @@ static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
 	ctx->xfer_func = pix_mp->xfer_func;
 	ctx->quantization = pix_mp->quantization;
 
-	v4l2_dbg(1, debug, &jpeg->v4l2_dev, "(%d) s_fmt:%c%c%c%c wxh:%ux%u\n",
+	v4l2_dbg(1, de, &jpeg->v4l2_dev, "(%d) s_fmt:%c%c%c%c wxh:%ux%u\n",
 		 f->type,
 		 (q_data->fmt->fourcc & 0xff),
 		 (q_data->fmt->fourcc >>  8 & 0xff),
@@ -405,7 +405,7 @@ static int mtk_jpeg_s_fmt_mplane(struct mtk_jpeg_ctx *ctx,
 		q_data->bytesperline[i] = pix_mp->plane_fmt[i].bytesperline;
 		q_data->sizeimage[i] = pix_mp->plane_fmt[i].sizeimage;
 
-		v4l2_dbg(1, debug, &jpeg->v4l2_dev,
+		v4l2_dbg(1, de, &jpeg->v4l2_dev,
 			 "plane[%d] bpl=%u, size=%u\n",
 			 i, q_data->bytesperline[i], q_data->sizeimage[i]);
 	}
@@ -572,7 +572,7 @@ static int mtk_jpeg_queue_setup(struct vb2_queue *q,
 	struct mtk_jpeg_dev *jpeg = ctx->jpeg;
 	int i;
 
-	v4l2_dbg(1, debug, &jpeg->v4l2_dev, "(%d) buf_req count=%u\n",
+	v4l2_dbg(1, de, &jpeg->v4l2_dev, "(%d) buf_req count=%u\n",
 		 q->type, *num_buffers);
 
 	q_data = mtk_jpeg_get_q_data(ctx, q->type);
@@ -582,7 +582,7 @@ static int mtk_jpeg_queue_setup(struct vb2_queue *q,
 	*num_planes = q_data->fmt->colplanes;
 	for (i = 0; i < q_data->fmt->colplanes; i++) {
 		sizes[i] = q_data->sizeimage[i];
-		v4l2_dbg(1, debug, &jpeg->v4l2_dev, "sizeimage[%d]=%u\n",
+		v4l2_dbg(1, de, &jpeg->v4l2_dev, "sizeimage[%d]=%u\n",
 			 i, sizes[i]);
 	}
 
@@ -613,14 +613,14 @@ static bool mtk_jpeg_check_resolution_change(struct mtk_jpeg_ctx *ctx,
 
 	q_data = &ctx->out_q;
 	if (q_data->w != param->pic_w || q_data->h != param->pic_h) {
-		v4l2_dbg(1, debug, &jpeg->v4l2_dev, "Picture size change\n");
+		v4l2_dbg(1, de, &jpeg->v4l2_dev, "Picture size change\n");
 		return true;
 	}
 
 	q_data = &ctx->cap_q;
 	if (q_data->fmt != mtk_jpeg_find_format(ctx, param->dst_fourcc,
 						MTK_JPEG_FMT_TYPE_CAPTURE)) {
-		v4l2_dbg(1, debug, &jpeg->v4l2_dev, "format change\n");
+		v4l2_dbg(1, de, &jpeg->v4l2_dev, "format change\n");
 		return true;
 	}
 	return false;
@@ -649,7 +649,7 @@ static void mtk_jpeg_set_queue_data(struct mtk_jpeg_ctx *ctx,
 		q_data->sizeimage[i] = param->comp_size[i];
 	}
 
-	v4l2_dbg(1, debug, &jpeg->v4l2_dev,
+	v4l2_dbg(1, de, &jpeg->v4l2_dev,
 		 "set_parse cap:%c%c%c%c pic(%u, %u), buf(%u, %u)\n",
 		 (param->dst_fourcc & 0xff),
 		 (param->dst_fourcc >>  8 & 0xff),
@@ -667,7 +667,7 @@ static void mtk_jpeg_buf_queue(struct vb2_buffer *vb)
 	struct mtk_jpeg_src_buf *jpeg_src_buf;
 	bool header_valid;
 
-	v4l2_dbg(2, debug, &jpeg->v4l2_dev, "(%d) buf_q id=%d, vb=%p\n",
+	v4l2_dbg(2, de, &jpeg->v4l2_dev, "(%d) buf_q id=%d, vb=%p\n",
 		 vb->vb2_queue->type, vb->index, vb);
 
 	if (vb->vb2_queue->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
@@ -678,7 +678,7 @@ static void mtk_jpeg_buf_queue(struct vb2_buffer *vb)
 	memset(param, 0, sizeof(*param));
 
 	if (jpeg_src_buf->flags & MTK_JPEG_BUF_FLAGS_LAST_FRAME) {
-		v4l2_dbg(1, debug, &jpeg->v4l2_dev, "Got eos\n");
+		v4l2_dbg(1, de, &jpeg->v4l2_dev, "Got eos\n");
 		goto end;
 	}
 	header_valid = mtk_jpeg_parse(param, (u8 *)vb2_plane_vaddr(vb, 0),

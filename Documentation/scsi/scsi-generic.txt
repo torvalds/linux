@@ -47,7 +47,7 @@ and in the LDP archives.
 A changelog with brief notes can be found in the
 /usr/src/linux/include/scsi/sg.h file. Note that the glibc maintainers copy 
 and edit this file (removing its changelog for example) before placing it 
-in /usr/include/scsi/sg.h . Driver debugging information and other notes 
+in /usr/include/scsi/sg.h . Driver deging information and other notes 
 can be found at the top of the /usr/src/linux/drivers/scsi/sg.c file.
 
 A more general description of the Linux SCSI subsystem of which sg is a 

@@ -567,7 +567,7 @@ static void rmi_f54_work(struct work_struct *work)
 		goto error;
 	}
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Get report command completed, reading data\n");
+	rmi_dbg(RMI_DE_FN, &fn->dev, "Get report command completed, reading data\n");
 
 	report_size = 0;
 	for (; report->size; report++) {
@@ -641,15 +641,15 @@ static int rmi_f54_detect(struct rmi_function *fn)
 	f54->clock_rate = buf[3] | (buf[4] << 8);
 	f54->family = buf[5];
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F54 num_rx_electrodes: %d\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F54 num_rx_electrodes: %d\n",
 		f54->num_rx_electrodes);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F54 num_tx_electrodes: %d\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F54 num_tx_electrodes: %d\n",
 		f54->num_tx_electrodes);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F54 capabilities: 0x%x\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F54 capabilities: 0x%x\n",
 		f54->capabilities);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F54 clock rate: 0x%x\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F54 clock rate: 0x%x\n",
 		f54->clock_rate);
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "F54 family: 0x%x\n",
+	rmi_dbg(RMI_DE_FN, &fn->dev, "F54 family: 0x%x\n",
 		f54->family);
 
 	f54->is_busy = false;

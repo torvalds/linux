@@ -354,7 +354,7 @@ void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
 	}
 	mem_info->vram_width = adev->gmc.vram_width;
 
-	pr_debug("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
+	pr_de("Address base: %pap limit %pap public 0x%llx private 0x%llx\n",
 			&adev->gmc.aper_base, &aper_limit,
 			mem_info->local_mem_size_public,
 			mem_info->local_mem_size_private);

@@ -30,7 +30,7 @@
  * NOTE: in order for embedded literals and data to get referenced correctly,
  * the alignment of functions must be preserved when copying.  To ensure this,
  * the source and destination addresses for fncpy() must be aligned to a
- * multiple of 8 bytes: you will be get a BUG() if this condition is not met.
+ * multiple of 8 bytes: you will be get a () if this condition is not met.
  * You will typically need a ".align 3" directive in the assembler where the
  * function to be copied is defined, and ensure that your allocator for the
  * destination buffer returns 8-byte-aligned pointers.
@@ -59,7 +59,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/cacheflush.h>
 
 /*
@@ -78,7 +78,7 @@
 	 * Ensure alignment of source and destination addresses,	\
 	 * disregarding the function's Thumb bit:			\
 	 */								\
-	BUG_ON((uintptr_t)(dest_buf) & (FNCPY_ALIGN - 1) ||		\
+	_ON((uintptr_t)(dest_buf) & (FNCPY_ALIGN - 1) ||		\
 		(__funcp_address & ~(uintptr_t)1 & (FNCPY_ALIGN - 1)));	\
 									\
 	memcpy(dest_buf, (void const *)(__funcp_address & ~1), size);	\

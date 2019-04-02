@@ -9,7 +9,7 @@
 #ifndef FIMC_CORE_H_
 #define FIMC_CORE_H_
 
-/*#define DEBUG*/
+/*#define DE*/
 
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -30,7 +30,7 @@
 #include <media/drv-intf/exynos-fimc.h>
 
 #define dbg(fmt, args...) \
-	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
+	pr_de("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
 
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)

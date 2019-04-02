@@ -1045,7 +1045,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_trans;
 	}
 
-	/* register transport layer debugfs here */
+	/* register transport layer defs here */
 	ret = iwl_trans_pcie_dbgfs_register(iwl_trans);
 	if (ret)
 		goto out_free_drv;
@@ -1167,7 +1167,7 @@ int iwl_pci_fw_enter_d0i3(struct iwl_trans *trans)
 	/* config the fw */
 	ret = iwl_op_mode_enter_d0i3(trans->op_mode);
 	if (ret == 1) {
-		IWL_DEBUG_RPM(trans, "aborting d0i3 entrance\n");
+		IWL_DE_RPM(trans, "aborting d0i3 entrance\n");
 		clear_bit(STATUS_TRANS_GOING_IDLE, &trans->status);
 		return -EBUSY;
 	}
@@ -1231,7 +1231,7 @@ static int iwl_pci_runtime_suspend(struct device *device)
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	int ret;
 
-	IWL_DEBUG_RPM(trans, "entering runtime suspend\n");
+	IWL_DE_RPM(trans, "entering runtime suspend\n");
 
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		ret = iwl_pci_fw_enter_d0i3(trans);
@@ -1252,7 +1252,7 @@ static int iwl_pci_runtime_resume(struct device *device)
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	enum iwl_d3_status d3_status;
 
-	IWL_DEBUG_RPM(trans, "exiting runtime suspend (resume)\n");
+	IWL_DE_RPM(trans, "exiting runtime suspend (resume)\n");
 
 	iwl_trans_d3_resume(trans, &d3_status, false, false);
 
@@ -1267,7 +1267,7 @@ static int iwl_pci_system_prepare(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 
-	IWL_DEBUG_RPM(trans, "preparing for system suspend\n");
+	IWL_DE_RPM(trans, "preparing for system suspend\n");
 
 	/* This is called before entering system suspend and before
 	 * the runtime resume is called.  Set the suspending flag to
@@ -1290,7 +1290,7 @@ static void iwl_pci_system_complete(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 
-	IWL_DEBUG_RPM(trans, "completing system suspend\n");
+	IWL_DE_RPM(trans, "completing system suspend\n");
 
 	/* This is called as a counterpart to the prepare op.  It is
 	 * called either when suspending fails or when suspend

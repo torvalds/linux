@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
@@ -510,7 +510,7 @@ static int sh_dmae_nmi_handler(struct notifier_block *self,
 static struct notifier_block sh_dmae_nmi_notifier __read_mostly = {
 	.notifier_call	= sh_dmae_nmi_handler,
 
-	/* Run before NMI debug handler and KGDB */
+	/* Run before NMI de handler and KGDB */
 	.priority	= 1,
 };
 
@@ -567,7 +567,7 @@ static void sh_dmae_chan_remove(struct sh_dmae_device *shdev)
 	int i;
 
 	shdma_for_each_chan(schan, &shdev->shdma_dev, i) {
-		BUG_ON(!schan);
+		_ON(!schan);
 
 		shdma_chan_remove(schan);
 	}
@@ -639,7 +639,7 @@ static dma_addr_t sh_dmae_slave_addr(struct shdma_chan *schan)
 					struct sh_dmae_chan, shdma_chan);
 
 	/*
-	 * Implicit BUG_ON(!sh_chan->config)
+	 * Implicit _ON(!sh_chan->config)
 	 * This is an exclusive slave DMA operation, may only be called after a
 	 * successful slave configuration.
 	 */

@@ -49,7 +49,7 @@ static inline struct spufs_calls *spufs_calls_get(void)
 
 static inline void spufs_calls_put(struct spufs_calls *calls)
 {
-	BUG_ON(calls != spufs_calls);
+	_ON(calls != spufs_calls);
 
 	/* we don't need to rcu this, as we hold a reference to the module */
 	module_put(spufs_calls->owner);
@@ -171,7 +171,7 @@ EXPORT_SYMBOL_GPL(register_spu_syscalls);
 
 void unregister_spu_syscalls(struct spufs_calls *calls)
 {
-	BUG_ON(spufs_calls->owner != calls->owner);
+	_ON(spufs_calls->owner != calls->owner);
 	RCU_INIT_POINTER(spufs_calls, NULL);
 	synchronize_rcu();
 }

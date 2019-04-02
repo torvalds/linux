@@ -19,7 +19,7 @@
 #include <linux/random.h>
 #include <linux/memblock.h>
 #include <asm/alternative.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/insn.h>
 #include <asm/kvm_mmu.h>
 
@@ -119,7 +119,7 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 {
 	int i;
 
-	BUG_ON(nr_inst != 5);
+	_ON(nr_inst != 5);
 
 	if (!has_vhe() && !va_mask)
 		compute_layout();
@@ -145,7 +145,7 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 		rn = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RN, oinsn);
 
 		insn = compute_instruction(i, rd, rn);
-		BUG_ON(insn == AARCH64_BREAK_FAULT);
+		_ON(insn == AARCH64_BREAK_FAULT);
 
 		updptr[i] = cpu_to_le32(insn);
 	}
@@ -160,7 +160,7 @@ void kvm_patch_vector_branch(struct alt_instr *alt,
 	u64 addr;
 	u32 insn;
 
-	BUG_ON(nr_inst != 5);
+	_ON(nr_inst != 5);
 
 	if (has_vhe() || !cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS)) {
 		WARN_ON_ONCE(cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS));

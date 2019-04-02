@@ -71,12 +71,12 @@
  *	20000514 Rewrote mts_scsi_queuecommand to use URBs (john)
  *	20000514 Version 0.0.8j
  *      20000514 Fix reporting of non-existent devices to SCSI layer (john)
- *	20000514 Added MTS_DEBUG_INT (john)
+ *	20000514 Added MTS_DE_INT (john)
  *	20000514 Changed "usb-microtek" to "microtek" for consistency (john)
- *	20000514 Stupid bug fixes (john)
+ *	20000514 Stupid  fixes (john)
  *	20000514 Version 0.0.9j
  *	20000515 Put transfer context and URB in mts_desc (john)
- *	20000515 Added prelim turn off debugging support (john)
+ *	20000515 Added prelim turn off deging support (john)
  *	20000515 Version 0.0.10j
  *      20000515 Fixed up URB allocation (clear URB on alloc) (john)
  *      20000515 Version 0.0.11j
@@ -85,7 +85,7 @@
  *	20000516 Implemented (badly) scsi_abort (john)
  *	20000516 Version 0.0.12j
  *      20000517 Hopefully removed mts_remove_nolock quasideadlock (john)
- *      20000517 Added mts_debug_dump to print ll USB info (john)
+ *      20000517 Added mts_de_dump to print ll USB info (john)
  *	20000518 Tweaks and documentation updates (john)
  *	20000518 Version 0.0.13j
  *	20000518 Cleaned up abort handling (john)
@@ -103,7 +103,7 @@
  *	20000822 Fixed minor race in mts_transfer_cleanup()
  *	20000822 Fixed deadlock on submission error in queuecommand
  *	20000822 Version 0.2.3
- *	20000913 Reduced module size if debugging is off
+ *	20000913 Reduced module size if deging is off
  *	20000913 Version 0.2.4
  *      20010210 New abort logic
  *      20010210 Version 0.3.0
@@ -141,9 +141,9 @@
 #define DRIVER_AUTHOR "John Fremlin <vii@penguinpowered.com>, Oliver Neukum <Oliver.Neukum@lrz.uni-muenchen.de>"
 #define DRIVER_DESC "Microtek Scanmaker X6 USB scanner driver"
 
-/* Should we do debugging? */
+/* Should we do deging? */
 
-//#define MTS_DO_DEBUG
+//#define MTS_DO_DE
 
 /* USB layer driver interface */
 
@@ -175,26 +175,26 @@ static struct usb_driver mts_usb_driver = {
 #define MTS_MESSAGE(x...) \
 	printk( KERN_INFO MTS_NAME x )
 
-#if defined MTS_DO_DEBUG
+#if defined MTS_DO_DE
 
-#define MTS_DEBUG(x...) \
-	printk( KERN_DEBUG MTS_NAME x )
+#define MTS_DE(x...) \
+	printk( KERN_DE MTS_NAME x )
 
-#define MTS_DEBUG_GOT_HERE() \
-	MTS_DEBUG("got to %s:%d (%s)\n", __FILE__, (int)__LINE__, __func__ )
-#define MTS_DEBUG_INT() \
-	do { MTS_DEBUG_GOT_HERE(); \
-	     MTS_DEBUG("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
-	     MTS_DEBUG("status = 0x%x data-length = 0x%x sent = 0x%x\n",transfer->status,(int)context->data_length, (int)transfer->actual_length ); \
-             mts_debug_dump(context->instance);\
+#define MTS_DE_GOT_HERE() \
+	MTS_DE("got to %s:%d (%s)\n", __FILE__, (int)__LINE__, __func__ )
+#define MTS_DE_INT() \
+	do { MTS_DE_GOT_HERE(); \
+	     MTS_DE("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
+	     MTS_DE("status = 0x%x data-length = 0x%x sent = 0x%x\n",transfer->status,(int)context->data_length, (int)transfer->actual_length ); \
+             mts_de_dump(context->instance);\
 	   } while(0)
 #else
 
 #define MTS_NUL_STATEMENT do { } while(0)
 
-#define MTS_DEBUG(x...)	MTS_NUL_STATEMENT
-#define MTS_DEBUG_GOT_HERE() MTS_NUL_STATEMENT
-#define MTS_DEBUG_INT() MTS_NUL_STATEMENT
+#define MTS_DE(x...)	MTS_NUL_STATEMENT
+#define MTS_DE_GOT_HERE() MTS_NUL_STATEMENT
+#define MTS_DE_INT() MTS_NUL_STATEMENT
 
 #endif
 
@@ -202,16 +202,16 @@ static struct usb_driver mts_usb_driver = {
 
 #define MTS_INT_INIT()\
 	struct mts_transfer_context* context = (struct mts_transfer_context*)transfer->context; \
-	MTS_DEBUG_INT();\
+	MTS_DE_INT();\
 
-#ifdef MTS_DO_DEBUG
+#ifdef MTS_DO_DE
 
-static inline void mts_debug_dump(struct mts_desc* desc) {
-	MTS_DEBUG("desc at 0x%x: toggle = %02x%02x\n",
+static inline void mts_de_dump(struct mts_desc* desc) {
+	MTS_DE("desc at 0x%x: toggle = %02x%02x\n",
 		  (int)desc,
 		  (int)desc->usb_dev->toggle[1],(int)desc->usb_dev->toggle[0]
 		);
-	MTS_DEBUG("ep_out=%x ep_response=%x ep_image=%x\n",
+	MTS_DE("ep_out=%x ep_response=%x ep_image=%x\n",
 		  usb_sndbulkpipe(desc->usb_dev,desc->ep_out),
 		  usb_rcvbulkpipe(desc->usb_dev,desc->ep_response),
 		  usb_rcvbulkpipe(desc->usb_dev,desc->ep_image)
@@ -289,14 +289,14 @@ static inline void mts_show_command(struct scsi_cmnd *srb)
 	case SEND_VOLUME_TAG: what = "SEND_VOLUME_TAG"; break;
 	case WRITE_LONG_2: what = "WRITE_LONG_2"; break;
 	default:
-		MTS_DEBUG("can't decode command\n");
+		MTS_DE("can't decode command\n");
 		goto out;
 		break;
 	}
-	MTS_DEBUG( "Command %s (%d bytes)\n", what, srb->cmd_len);
+	MTS_DE( "Command %s (%d bytes)\n", what, srb->cmd_len);
 
  out:
-	MTS_DEBUG( "  %10ph\n", srb->cmnd);
+	MTS_DE( "  %10ph\n", srb->cmnd);
 }
 
 #else
@@ -305,15 +305,15 @@ static inline void mts_show_command(struct scsi_cmnd * dummy)
 {
 }
 
-static inline void mts_debug_dump(struct mts_desc* dummy)
+static inline void mts_de_dump(struct mts_desc* dummy)
 {
 }
 
 #endif
 
 static inline void mts_urb_abort(struct mts_desc* desc) {
-	MTS_DEBUG_GOT_HERE();
-	mts_debug_dump(desc);
+	MTS_DE_GOT_HERE();
+	mts_de_dump(desc);
 
 	usb_kill_urb( desc->urb );
 }
@@ -334,7 +334,7 @@ static int mts_scsi_abort(struct scsi_cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 
-	MTS_DEBUG_GOT_HERE();
+	MTS_DE_GOT_HERE();
 
 	mts_urb_abort(desc);
 
@@ -346,8 +346,8 @@ static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int result;
 
-	MTS_DEBUG_GOT_HERE();
-	mts_debug_dump(desc);
+	MTS_DE_GOT_HERE();
+	mts_de_dump(desc);
 
 	result = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
 	if (result == 0) {
@@ -454,11 +454,11 @@ static void mts_command_done( struct urb *transfer )
 	if ( unlikely(status) ) {
 	        if (status == -ENOENT) {
 		        /* We are being killed */
-			MTS_DEBUG_GOT_HERE();
+			MTS_DE_GOT_HERE();
 			context->srb->result = DID_ABORT<<16;
                 } else {
 		        /* A genuine error has occurred */
-			MTS_DEBUG_GOT_HERE();
+			MTS_DE_GOT_HERE();
 
 		        context->srb->result = DID_ERROR<<16;
                 }
@@ -492,7 +492,7 @@ static void mts_do_sg (struct urb* transfer)
 	int status = transfer->status;
 	MTS_INT_INIT();
 
-	MTS_DEBUG("Processing fragment %d of %d\n", context->fragment,
+	MTS_DE("Processing fragment %d of %d\n", context->fragment,
 	                                          scsi_sg_count(context->srb));
 
 	if (unlikely(status)) {
@@ -528,7 +528,7 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 	int pipe;
 	struct scatterlist * sg;
 	
-	MTS_DEBUG_GOT_HERE();
+	MTS_DE_GOT_HERE();
 
 	desc->context.instance = desc;
 	desc->context.srb = srb;
@@ -551,14 +551,14 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 
 	if ( !memcmp( srb->cmnd, mts_read_image_sig, mts_read_image_sig_len )
 ) { 		pipe = usb_rcvbulkpipe(desc->usb_dev,desc->ep_image);
-		MTS_DEBUG( "transferring from desc->ep_image == %d\n",
+		MTS_DE( "transferring from desc->ep_image == %d\n",
 			   (int)desc->ep_image );
 	} else if ( MTS_DIRECTION_IS_IN(srb->cmnd[0]) ) {
 			pipe = usb_rcvbulkpipe(desc->usb_dev,desc->ep_response);
-			MTS_DEBUG( "transferring from desc->ep_response == %d\n",
+			MTS_DE( "transferring from desc->ep_response == %d\n",
 				   (int)desc->ep_response);
 	} else {
-		MTS_DEBUG("transferring to desc->ep_out == %d\n",
+		MTS_DE("transferring to desc->ep_out == %d\n",
 			  (int)desc->ep_out);
 		pipe = usb_sndbulkpipe(desc->usb_dev,desc->ep_out);
 	}
@@ -573,15 +573,15 @@ mts_scsi_queuecommand_lck(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback
 	int err = 0;
 	int res;
 
-	MTS_DEBUG_GOT_HERE();
+	MTS_DE_GOT_HERE();
 	mts_show_command(srb);
-	mts_debug_dump(desc);
+	mts_de_dump(desc);
 
 	if ( srb->device->lun || srb->device->id || srb->device->channel ) {
 
-		MTS_DEBUG("Command to LUN=%d ID=%d CHANNEL=%d from SCSI layer\n",(int)srb->device->lun,(int)srb->device->id, (int)srb->device->channel );
+		MTS_DE("Command to LUN=%d ID=%d CHANNEL=%d from SCSI layer\n",(int)srb->device->lun,(int)srb->device->id, (int)srb->device->channel );
 
-		MTS_DEBUG("this device doesn't exist\n");
+		MTS_DE("this device doesn't exist\n");
 
 		srb->result = DID_BAD_TARGET << 16;
 
@@ -674,14 +674,14 @@ static int mts_usb_probe(struct usb_interface *intf,
 	/* the current altsetting on the interface we're probing */
 	struct usb_host_interface *altsetting;
 
-	MTS_DEBUG_GOT_HERE();
-	MTS_DEBUG( "usb-device descriptor at %x\n", (int)dev );
+	MTS_DE_GOT_HERE();
+	MTS_DE( "usb-device descriptor at %x\n", (int)dev );
 
-	MTS_DEBUG( "product id = 0x%x, vendor id = 0x%x\n",
+	MTS_DE( "product id = 0x%x, vendor id = 0x%x\n",
 		   le16_to_cpu(dev->descriptor.idProduct),
 		   le16_to_cpu(dev->descriptor.idVendor) );
 
-	MTS_DEBUG_GOT_HERE();
+	MTS_DE_GOT_HERE();
 
 	/* the current altsetting on the interface we're probing */
 	altsetting = intf->cur_altsetting;

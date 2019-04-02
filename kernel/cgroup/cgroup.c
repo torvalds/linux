@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(css_set_lock);
 
 DEFINE_SPINLOCK(trace_cgroup_path_lock);
 char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
-bool cgroup_debug __read_mostly;
+bool cgroup_de __read_mostly;
 
 /*
  * Protects cgroup_idr and css_idr so that IDs can be released without
@@ -292,7 +292,7 @@ bool cgroup_ssid_enabled(int ssid)
  *
  * - blkcg: blk-throttle becomes properly hierarchical.
  *
- * - debug: disallowed on the default hierarchy.
+ * - de: disallowed on the default hierarchy.
  */
 bool cgroup_on_dfl(const struct cgroup *cgrp)
 {
@@ -981,10 +981,10 @@ static bool compare_css_sets(struct css_set *cset,
 		l2 = l2->next;
 		/* See if we reached the end - both lists are equal length. */
 		if (l1 == &cset->cgrp_links) {
-			BUG_ON(l2 != &old_cset->cgrp_links);
+			_ON(l2 != &old_cset->cgrp_links);
 			break;
 		} else {
-			BUG_ON(l2 == &old_cset->cgrp_links);
+			_ON(l2 == &old_cset->cgrp_links);
 		}
 		/* Locate the cgroups associated with these links. */
 		link1 = list_entry(l1, struct cgrp_cset_link, cgrp_link);
@@ -992,7 +992,7 @@ static bool compare_css_sets(struct css_set *cset,
 		cgrp1 = link1->cgrp;
 		cgrp2 = link2->cgrp;
 		/* Hierarchies should be linked in the same order. */
-		BUG_ON(cgrp1->root != cgrp2->root);
+		_ON(cgrp1->root != cgrp2->root);
 
 		/*
 		 * If this hierarchy is the hierarchy of the cgroup
@@ -1109,7 +1109,7 @@ static void link_css_set(struct list_head *tmp_links, struct css_set *cset,
 {
 	struct cgrp_cset_link *link;
 
-	BUG_ON(list_empty(tmp_links));
+	_ON(list_empty(tmp_links));
 
 	if (cgroup_on_dfl(cgrp))
 		cset->dfl_cgrp = cgrp;
@@ -1196,7 +1196,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 		link_css_set(&tmp_links, cset, c);
 	}
 
-	BUG_ON(!list_empty(&tmp_links));
+	_ON(!list_empty(&tmp_links));
 
 	css_set_count++;
 
@@ -1284,8 +1284,8 @@ static void cgroup_destroy_root(struct cgroup_root *root)
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
-	BUG_ON(atomic_read(&root->nr_cgrps));
-	BUG_ON(!list_empty(&cgrp->self.children));
+	_ON(atomic_read(&root->nr_cgrps));
+	_ON(!list_empty(&cgrp->self.children));
 
 	/* Rebind all subsystems back to the default hierarchy */
 	WARN_ON(rebind_subsystems(&cgrp_dfl_root, root->subsys_mask));
@@ -1348,7 +1348,7 @@ current_cgns_cgroup_from_root(struct cgroup_root *root)
 	}
 	rcu_read_unlock();
 
-	BUG_ON(!res);
+	_ON(!res);
 	return res;
 }
 
@@ -1378,7 +1378,7 @@ static struct cgroup *cset_cgroup_from_root(struct css_set *cset,
 		}
 	}
 
-	BUG_ON(!res);
+	_ON(!res);
 	return res;
 }
 
@@ -1432,7 +1432,7 @@ static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
 
 	if (cft->ss && !(cft->flags & CFTYPE_NO_PREFIX) &&
 	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX)) {
-		const char *dbg = (cft->flags & CFTYPE_DEBUG) ? ".__DEBUG__." : "";
+		const char *dbg = (cft->flags & CFTYPE_DE) ? ".__DE__." : "";
 
 		snprintf(buf, CGROUP_FILE_NAME_MAX, "%s%s.%s",
 			 dbg, cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
@@ -2017,8 +2017,8 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 	}
 	spin_unlock_irq(&css_set_lock);
 
-	BUG_ON(!list_empty(&root_cgrp->self.children));
-	BUG_ON(atomic_read(&root->nr_cgrps) != 1);
+	_ON(!list_empty(&root_cgrp->self.children));
+	_ON(atomic_read(&root->nr_cgrps) != 1);
 
 	kernfs_activate(root_cgrp->kn);
 	ret = 0;
@@ -3669,7 +3669,7 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
 	struct lock_class_key *key = NULL;
 	int ret;
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	key = &cft->lockdep_key;
 #endif
 	kn = __kernfs_create_file(cgrp->kn, cgroup_file_name(cgrp, cft, name),
@@ -3729,7 +3729,7 @@ restart:
 			continue;
 		if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgroup_parent(cgrp))
 			continue;
-		if ((cft->flags & CFTYPE_DEBUG) && !cgroup_debug)
+		if ((cft->flags & CFTYPE_DE) && !cgroup_de)
 			continue;
 		if (is_add) {
 			ret = cgroup_add_file(css, cgrp, cft);
@@ -4842,7 +4842,7 @@ static void init_and_link_css(struct cgroup_subsys_state *css,
 	if (cgroup_on_dfl(cgrp) && ss->css_rstat_flush)
 		list_add_rcu(&css->rstat_css_node, &cgrp->rstat_css_list);
 
-	BUG_ON(cgroup_css(cgrp, ss));
+	_ON(cgroup_css(cgrp, ss));
 }
 
 /* invoke ->css_online() on a new CSS and mark it online if successful */
@@ -5332,7 +5332,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 {
 	struct cgroup_subsys_state *css;
 
-	pr_debug("Initializing cgroup subsys %s\n", ss->name);
+	pr_de("Initializing cgroup subsys %s\n", ss->name);
 
 	mutex_lock(&cgroup_mutex);
 
@@ -5343,7 +5343,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	ss->root = &cgrp_dfl_root;
 	css = ss->css_alloc(cgroup_css(&cgrp_dfl_root.cgrp, ss));
 	/* We don't handle early failures gracefully */
-	BUG_ON(IS_ERR(css));
+	_ON(IS_ERR(css));
 	init_and_link_css(css, ss, &cgrp_dfl_root.cgrp);
 
 	/*
@@ -5357,7 +5357,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 		css->id = 1;
 	} else {
 		css->id = cgroup_idr_alloc(&ss->css_idr, css, 1, 2, GFP_KERNEL);
-		BUG_ON(css->id < 0);
+		_ON(css->id < 0);
 	}
 
 	/* Update the init_css_set to contain a subsys
@@ -5374,9 +5374,9 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 	/* At system boot, before all subsystems have been
 	 * registered, no tasks have been forked, so we don't
 	 * need to invoke fork callbacks here. */
-	BUG_ON(!list_empty(&init_task.tasks));
+	_ON(!list_empty(&init_task.tasks));
 
-	BUG_ON(online_css(css));
+	_ON(online_css(css));
 
 	mutex_unlock(&cgroup_mutex);
 }
@@ -5431,10 +5431,10 @@ int __init cgroup_init(void)
 	struct cgroup_subsys *ss;
 	int ssid;
 
-	BUILD_BUG_ON(CGROUP_SUBSYS_COUNT > 16);
-	BUG_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
-	BUG_ON(cgroup_init_cftypes(NULL, cgroup_base_files));
-	BUG_ON(cgroup_init_cftypes(NULL, cgroup1_base_files));
+	BUILD__ON(CGROUP_SUBSYS_COUNT > 16);
+	_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
+	_ON(cgroup_init_cftypes(NULL, cgroup_base_files));
+	_ON(cgroup_init_cftypes(NULL, cgroup1_base_files));
 
 	cgroup_rstat_boot();
 
@@ -5455,7 +5455,7 @@ int __init cgroup_init(void)
 	hash_add(css_set_table, &init_css_set.hlist,
 		 css_set_hash(init_css_set.subsys));
 
-	BUG_ON(cgroup_setup_root(&cgrp_dfl_root, 0));
+	_ON(cgroup_setup_root(&cgrp_dfl_root, 0));
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -5466,7 +5466,7 @@ int __init cgroup_init(void)
 
 			css->id = cgroup_idr_alloc(&ss->css_idr, css, 1, 2,
 						   GFP_KERNEL);
-			BUG_ON(css->id < 0);
+			_ON(css->id < 0);
 		} else {
 			cgroup_init_subsys(ss, false);
 		}
@@ -5542,7 +5542,7 @@ static int __init cgroup_wq_init(void)
 	 * is called before init_workqueues(): so leave this until after.
 	 */
 	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
-	BUG_ON(!cgroup_destroy_wq);
+	_ON(!cgroup_destroy_wq);
 	return 0;
 }
 core_initcall(cgroup_wq_init);
@@ -5842,15 +5842,15 @@ static int __init cgroup_disable(char *str)
 }
 __setup("cgroup_disable=", cgroup_disable);
 
-void __init __weak enable_debug_cgroup(void) { }
+void __init __weak enable_de_cgroup(void) { }
 
-static int __init enable_cgroup_debug(char *str)
+static int __init enable_cgroup_de(char *str)
 {
-	cgroup_debug = true;
-	enable_debug_cgroup();
+	cgroup_de = true;
+	enable_de_cgroup();
 	return 1;
 }
-__setup("cgroup_debug", enable_cgroup_debug);
+__setup("cgroup_de", enable_cgroup_de);
 
 /**
  * css_tryget_online_from_dir - get corresponding css from a cgroup dentry

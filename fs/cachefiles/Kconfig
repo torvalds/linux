@@ -10,14 +10,14 @@ config CACHEFILES
 	  See Documentation/filesystems/caching/cachefiles.txt for more
 	  information.
 
-config CACHEFILES_DEBUG
-	bool "Debug CacheFiles"
+config CACHEFILES_DE
+	bool "De CacheFiles"
 	depends on CACHEFILES
 	help
-	  This permits debugging to be dynamically enabled in the filesystem
-	  caching on files module.  If this is set, the debugging output may be
-	  enabled by setting bits in /sys/modules/cachefiles/parameter/debug or
-	  by including a debugging specifier in /etc/cachefilesd.conf.
+	  This permits deging to be dynamically enabled in the filesystem
+	  caching on files module.  If this is set, the deging output may be
+	  enabled by setting bits in /sys/modules/cachefiles/parameter/de or
+	  by including a deging specifier in /etc/cachefilesd.conf.
 
 config CACHEFILES_HISTOGRAM
 	bool "Gather latency information on CacheFiles"
@@ -33,7 +33,7 @@ config CACHEFILES_HISTOGRAM
 	  execution as there are a number of points at which data is gathered,
 	  and on a multi-CPU system these may be on cachelines that keep
 	  bouncing between CPUs.  On the other hand, the histogram may be
-	  useful for debugging purposes.  Saying 'N' here is recommended.
+	  useful for deging purposes.  Saying 'N' here is recommended.
 
 	  See Documentation/filesystems/caching/cachefiles.txt for more
 	  information.

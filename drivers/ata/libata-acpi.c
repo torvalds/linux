@@ -671,7 +671,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 
 		switch (err_mask) {
 		case 0:
-			level = KERN_DEBUG;
+			level = KERN_DE;
 			snprintf(msg, sizeof(msg), "succeeded");
 			rc = 1;
 			break;

@@ -65,7 +65,7 @@
 #define __iwl_op_mode_h__
 
 #include <linux/netdevice.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 struct iwl_op_mode;
 struct iwl_trans;

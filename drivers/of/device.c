@@ -55,7 +55,7 @@ EXPORT_SYMBOL(of_dev_put);
 
 int of_device_add(struct platform_device *ofdev)
 {
-	BUG_ON(ofdev->dev.of_node == NULL);
+	_ON(ofdev->dev.of_node == NULL);
 
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */

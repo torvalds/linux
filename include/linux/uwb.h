@@ -366,7 +366,7 @@ void uwb_rsv_get_usable_mas(struct uwb_rsv *orig_rsv, struct uwb_mas_bm *mas);
  *               amount used is given by sizeof(*ies) plus ies->wIELength
  *               (which is a little endian quantity all the time).
  * @ies_mutex:   protect the IE cache
- * @dbg:         information for the debug interface
+ * @dbg:         information for the de interface
  */
 struct uwb_rc {
 	struct uwb_dev uwb_dev;
@@ -434,8 +434,8 @@ struct uwb_rc {
  * @channel: channel being used by the PAL; 0 if the PAL isn't using
  *           the radio; -1 if the PAL wishes to use the radio but
  *           cannot.
- * @debugfs_dir: a debugfs directory which the PAL can use for its own
- *           debugfs files.
+ * @defs_dir: a defs directory which the PAL can use for its own
+ *           defs files.
  *
  * A Protocol Adaptation Layer (PAL) is a user of the WiMedia UWB
  * radio platform (e.g., WUSB, WLP or Bluetooth UWB AMP).
@@ -460,7 +460,7 @@ struct uwb_pal {
 	void (*new_rsv)(struct uwb_pal *pal, struct uwb_rsv *rsv);
 
 	int channel;
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 };
 
 void uwb_pal_init(struct uwb_pal *pal);
@@ -669,7 +669,7 @@ int uwb_notifs_deregister(struct uwb_rc *, struct uwb_notifs_handler *);
  *
  * @type:   Type and length of the offset field. Most common is LE 16
  *          bits (that's why that is zero); others are there mostly to
- *          cover for bugs and weirdos.
+ *          cover for s and weirdos.
  */
 struct uwb_est_entry {
 	size_t size;

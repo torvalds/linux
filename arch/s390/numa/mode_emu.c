@@ -414,11 +414,11 @@ static void print_node_to_core_map(void)
 {
 	int nid, cid;
 
-	if (!numa_debug_enabled)
+	if (!numa_de_enabled)
 		return;
-	printk(KERN_DEBUG "NUMA node to core mapping\n");
+	printk(KERN_DE "NUMA node to core mapping\n");
 	for (nid = 0; nid < emu_nodes; nid++) {
-		printk(KERN_DEBUG "  node %3d: ", nid);
+		printk(KERN_DE "  node %3d: ", nid);
 		for (cid = 0; cid < ARRAY_SIZE(emu_cores->to_node_id); cid++) {
 			if (emu_cores->to_node_id[cid] == nid)
 				printk(KERN_CONT "%d ", cid);

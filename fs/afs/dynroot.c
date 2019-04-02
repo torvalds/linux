@@ -235,14 +235,14 @@ void afs_dynroot_rmdir(struct afs_net *net, struct afs_cell *cell)
 	/* Don't want to trigger a lookup call, which will re-add the cell */
 	subdir = try_lookup_one_len(cell->name, root, cell->name_len);
 	if (IS_ERR_OR_NULL(subdir)) {
-		_debug("lookup %ld", PTR_ERR(subdir));
+		_de("lookup %ld", PTR_ERR(subdir));
 		goto no_dentry;
 	}
 
-	_debug("rmdir %pd %u", subdir, d_count(subdir));
+	_de("rmdir %pd %u", subdir, d_count(subdir));
 
 	if (subdir->d_fsdata) {
-		_debug("unpin %u", d_count(subdir));
+		_de("unpin %u", d_count(subdir));
 		subdir->d_fsdata = NULL;
 		dput(subdir);
 	}

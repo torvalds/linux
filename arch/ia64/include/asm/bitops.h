@@ -41,12 +41,12 @@ set_bit (int nr, volatile void *addr)
 {
 	__u32 bit, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	bit = 1 << (nr & 31);
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old | bit;
 	} while (cmpxchg_acq(m, old, new) != old);
@@ -82,12 +82,12 @@ clear_bit (int nr, volatile void *addr)
 {
 	__u32 mask, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	mask = ~(1 << (nr & 31));
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old & mask;
 	} while (cmpxchg_acq(m, old, new) != old);
@@ -106,12 +106,12 @@ clear_bit_unlock (int nr, volatile void *addr)
 {
 	__u32 mask, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	mask = ~(1 << (nr & 31));
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old & mask;
 	} while (cmpxchg_rel(m, old, new) != old);
@@ -163,12 +163,12 @@ change_bit (int nr, volatile void *addr)
 {
 	__u32 bit, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	bit = (1 << (nr & 31));
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old ^ bit;
 	} while (cmpxchg_acq(m, old, new) != old);
@@ -202,12 +202,12 @@ test_and_set_bit (int nr, volatile void *addr)
 {
 	__u32 bit, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	bit = 1 << (nr & 31);
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old | bit;
 	} while (cmpxchg_acq(m, old, new) != old);
@@ -256,12 +256,12 @@ test_and_clear_bit (int nr, volatile void *addr)
 {
 	__u32 mask, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	mask = ~(1 << (nr & 31));
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old & mask;
 	} while (cmpxchg_acq(m, old, new) != old);
@@ -301,12 +301,12 @@ test_and_change_bit (int nr, volatile void *addr)
 {
 	__u32 bit, old, new;
 	volatile __u32 *m;
-	CMPXCHG_BUGCHECK_DECL
+	CMPXCHG_CHECK_DECL
 
 	m = (volatile __u32 *) addr + (nr >> 5);
 	bit = (1 << (nr & 31));
 	do {
-		CMPXCHG_BUGCHECK(m);
+		CMPXCHG_CHECK(m);
 		old = *m;
 		new = old ^ bit;
 	} while (cmpxchg_acq(m, old, new) != old);

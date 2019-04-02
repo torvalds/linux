@@ -544,7 +544,7 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		return PTR_ERR(ptp_qoriq->clock);
 
 	ptp_qoriq->phc_index = ptp_clock_index(ptp_qoriq->clock);
-	ptp_qoriq_create_debugfs(ptp_qoriq);
+	ptp_qoriq_create_defs(ptp_qoriq);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ptp_qoriq_init);
@@ -556,7 +556,7 @@ void ptp_qoriq_free(struct ptp_qoriq *ptp_qoriq)
 	ptp_qoriq->write(&regs->ctrl_regs->tmr_temask, 0);
 	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl,   0);
 
-	ptp_qoriq_remove_debugfs(ptp_qoriq);
+	ptp_qoriq_remove_defs(ptp_qoriq);
 	ptp_clock_unregister(ptp_qoriq->clock);
 	iounmap(ptp_qoriq->base);
 	free_irq(ptp_qoriq->irq, ptp_qoriq);

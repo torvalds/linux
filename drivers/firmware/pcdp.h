@@ -14,7 +14,7 @@
  */
 
 #define PCDP_CONSOLE			0
-#define PCDP_DEBUG			1
+#define PCDP_DE			1
 #define PCDP_CONSOLE_OUTPUT		2
 #define PCDP_CONSOLE_INPUT		3
 
@@ -24,7 +24,7 @@
 
 /* pcdp_uart.type and pcdp_device.type */
 #define PCDP_CONSOLE_UART		(PCDP_UART | PCDP_CONSOLE)
-#define PCDP_DEBUG_UART			(PCDP_UART | PCDP_DEBUG)
+#define PCDP_DE_UART			(PCDP_UART | PCDP_DE)
 #define PCDP_CONSOLE_VGA		(PCDP_VGA  | PCDP_CONSOLE_OUTPUT)
 #define PCDP_CONSOLE_USB		(PCDP_USB  | PCDP_CONSOLE_INPUT)
 

@@ -46,8 +46,8 @@
 #define oxu_info(oxu, fmt, args...) \
 		dev_info(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
 
-#ifdef CONFIG_DYNAMIC_DEBUG
-#define DEBUG
+#ifdef CONFIG_DYNAMIC_DE
+#define DE
 #endif
 
 static inline struct usb_hcd *oxu_to_hcd(struct oxu_hcd *oxu)
@@ -61,19 +61,19 @@ static inline struct oxu_hcd *hcd_to_oxu(struct usb_hcd *hcd)
 }
 
 /*
- * Debug stuff
+ * De stuff
  */
 
 #undef OXU_URB_TRACE
-#undef OXU_VERBOSE_DEBUG
+#undef OXU_VERBOSE_DE
 
-#ifdef OXU_VERBOSE_DEBUG
+#ifdef OXU_VERBOSE_DE
 #define oxu_vdbg			oxu_dbg
 #else
 #define oxu_vdbg(oxu, fmt, args...)	/* Nop */
 #endif
 
-#ifdef DEBUG
+#ifdef DE
 
 static int __attribute__((__unused__))
 dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
@@ -186,7 +186,7 @@ static inline int __attribute__((__unused__))
 dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 { return 0; }
 
-#endif /* DEBUG */
+#endif /* DE */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(oxu, label, status) { \
@@ -302,7 +302,7 @@ static inline void timer_action(struct oxu_hcd *oxu,
  * hardware flakeout), or the register reads as all-ones (hardware removed).
  *
  * That last failure should_only happen in cases like physical cardbus eject
- * before driver shutdown. But it also seems to be caused by bugs in cardbus
+ * before driver shutdown. But it also seems to be caused by s in cardbus
  * bridge shutdown:  shutting down the bridge before the devices using it.
  */
 static int handshake(struct oxu_hcd *oxu, void __iomem *ptr,
@@ -380,8 +380,8 @@ static void ehci_quiesce(struct oxu_hcd *oxu)
 {
 	u32	temp;
 
-#ifdef DEBUG
-	BUG_ON(!HC_IS_RUNNING(oxu_to_hcd(oxu)->state));
+#ifdef DE
+	_ON(!HC_IS_RUNNING(oxu_to_hcd(oxu)->state));
 #endif
 
 	/* wait for any schedule enables/disables to take effect */
@@ -609,7 +609,7 @@ static void qh_destroy(struct kref *kref)
 	/* clean qtds first, and know this is not linked */
 	if (!list_empty(&qh->qtd_list) || qh->qh_next.ptr) {
 		oxu_dbg(oxu, "unused qh not empty!\n");
-		BUG();
+		();
 	}
 	if (qh->dummy)
 		oxu_qtd_free(oxu, qh->dummy);
@@ -807,7 +807,7 @@ static inline void qh_update(struct oxu_hcd *oxu,
 				struct ehci_qh *qh, struct ehci_qtd *qtd)
 {
 	/* writes to an active overlay are unsafe */
-	BUG_ON(qh->qh_state != QH_STATE_IDLE);
+	_ON(qh->qh_state != QH_STATE_IDLE);
 
 	qh->hw_qtd_next = QTD_NEXT(qtd->qtd_dma);
 	qh->hw_alt_next = EHCI_LIST_END;
@@ -1688,9 +1688,9 @@ static void start_unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 	int cmd = readl(&oxu->regs->command);
 	struct ehci_qh *prev;
 
-#ifdef DEBUG
+#ifdef DE
 	assert_spin_locked(&oxu->lock);
-	BUG_ON(oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
+	_ON(oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
 				&& qh->qh_state != QH_STATE_UNLINK_WAIT));
 #endif
 
@@ -1847,7 +1847,7 @@ static unsigned short periodic_usecs(struct oxu_hcd *oxu,
 			break;
 		}
 	}
-#ifdef DEBUG
+#ifdef DE
 	if (usecs > 100)
 		oxu_err(oxu, "uframe %d sched overrun: %d usecs\n",
 						frame * 8 + uframe, usecs);
@@ -2204,7 +2204,7 @@ static int intr_submit(struct oxu_hcd *oxu, struct urb *urb,
 
 	/* then queue the urb's tds to the qh */
 	qh = qh_append_tds(oxu, urb, qtd_list, epnum, &urb->ep->hcpriv);
-	BUG_ON(qh == NULL);
+	_ON(qh == NULL);
 
 	/* ... update usbfs periodic stats */
 	oxu_to_hcd(oxu)->self.bandwidth_int_reqs++;
@@ -2373,7 +2373,7 @@ static void ehci_work(struct oxu_hcd *oxu)
 		scan_periodic(oxu);
 	oxu->scanning = 0;
 
-	/* the IO watchdog guards against hardware or driver bugs that
+	/* the IO watchdog guards against hardware or driver s that
 	 * misplace IRQs, and should let us run completely without IRQs.
 	 * such lossage has been observed on both VT6202 and VT8235.
 	 */
@@ -2439,7 +2439,7 @@ static irqreturn_t oxu210_hcd_irq(struct usb_hcd *hcd)
 	readl(&oxu->regs->command);	/* unblock posted write */
 	bh = 0;
 
-#ifdef OXU_VERBOSE_DEBUG
+#ifdef OXU_VERBOSE_DE
 	/* unrequested/ignored: Frame List Rollover */
 	dbg_status(oxu, "irq", status);
 #endif
@@ -3323,7 +3323,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		if (temp & PORT_POWER)
 			status |= USB_PORT_STAT_POWER;
 
-#ifndef	OXU_VERBOSE_DEBUG
+#ifndef	OXU_VERBOSE_DE
 	if (status & ~0xffff)	/* only if wPortChange is interesting */
 #endif
 		dbg_port(oxu, "GetStatus", wIndex + 1, temp);
@@ -3521,7 +3521,7 @@ static int oxu_bus_resume(struct usb_hcd *hcd)
 	writel(oxu->command, &oxu->regs->command);
 
 	/* Some controller/firmware combinations need a delay during which
-	 * they set up the port statuses.  See Bugzilla #8190. */
+	 * they set up the port statuses.  See zilla #8190. */
 	mdelay(8);
 
 	/* manually resume the ports we suspended during bus_suspend() */

@@ -350,7 +350,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	if (!input)
 		return -ENOMEM;
 
-	/* get the debug device */
+	/* get the de device */
 	kp->dbg_dev		= &pdev->dev;
 	kp->input		= input;
 

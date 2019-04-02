@@ -178,7 +178,7 @@ static void i2c_parport_attach(struct parport *port)
 			break;
 	}
 	if (i == MAX_DEVICE) {
-		pr_debug("Not using parport%d.\n", port->number);
+		pr_de("Not using parport%d.\n", port->number);
 		return;
 	}
 
@@ -190,7 +190,7 @@ static void i2c_parport_attach(struct parport *port)
 	i2c_parport_cb.irq_func = i2c_parport_irq;
 	i2c_parport_cb.private = adapter;
 
-	pr_debug("attaching to %s\n", port->name);
+	pr_de("attaching to %s\n", port->name);
 	parport_disable_irq(port);
 	adapter->pdev = parport_register_dev_model(port, "i2c-parport",
 						   &i2c_parport_cb, i);

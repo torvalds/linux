@@ -710,7 +710,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
 	}
 
 	if (compound) {
-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+		VM__ON_PAGE(!PageTransHuge(page), page);
 		__mod_memcg_state(memcg, MEMCG_RSS_HUGE, nr_pages);
 	}
 
@@ -732,7 +732,7 @@ unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 	unsigned long nr = 0;
 	enum lru_list lru;
 
-	VM_BUG_ON((unsigned)nid >= nr_node_ids);
+	VM__ON((unsigned)nid >= nr_node_ids);
 
 	for_each_lru(lru) {
 		if (!(BIT(lru) & lru_mask))
@@ -1077,7 +1077,7 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
 	struct mem_cgroup *iter;
 	int ret = 0;
 
-	BUG_ON(memcg == root_mem_cgroup);
+	_ON(memcg == root_mem_cgroup);
 
 	for_each_mem_cgroup_tree(iter, memcg) {
 		struct css_task_iter it;
@@ -1167,7 +1167,7 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 	if (WARN_ONCE(size < 0,
 		"%s(%p, %d, %d): lru_size %ld\n",
 		__func__, lruvec, lru, nr_pages, size)) {
-		VM_BUG_ON(1);
+		VM__ON(1);
 		*lru_size = 0;
 	}
 
@@ -2384,7 +2384,7 @@ static void unlock_page_lru(struct page *page, int isolated)
 		struct lruvec *lruvec;
 
 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
-		VM_BUG_ON_PAGE(PageLRU(page), page);
+		VM__ON_PAGE(PageLRU(page), page);
 		SetPageLRU(page);
 		add_page_to_lru_list(page, lruvec, page_lru(page));
 	}
@@ -2396,7 +2396,7 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
 {
 	int isolated;
 
-	VM_BUG_ON_PAGE(page->mem_cgroup, page);
+	VM__ON_PAGE(page->mem_cgroup, page);
 
 	/*
 	 * In some cases, SwapCache and FUSE(splice_buf->radixtree), the page
@@ -2540,7 +2540,7 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
 	struct kmem_cache *memcg_cachep;
 	int kmemcg_id;
 
-	VM_BUG_ON(!is_root_cache(cachep));
+	VM__ON(!is_root_cache(cachep));
 
 	if (memcg_kmem_bypass())
 		return cachep;
@@ -2651,7 +2651,7 @@ void __memcg_kmem_uncharge(struct page *page, int order)
 	if (!memcg)
 		return;
 
-	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
+	VM__ON_PAGE(mem_cgroup_is_root(memcg), page);
 
 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
 		page_counter_uncharge(&memcg->kmem, nr_pages);
@@ -3045,7 +3045,7 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
 		counter = &memcg->tcpmem;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (MEMFILE_ATTR(cft->private)) {
@@ -3064,7 +3064,7 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
 	case RES_SOFT_LIMIT:
 		return (u64)memcg->soft_limit * PAGE_SIZE;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -3076,8 +3076,8 @@ static int memcg_online_kmem(struct mem_cgroup *memcg)
 	if (cgroup_memory_nokmem)
 		return 0;
 
-	BUG_ON(memcg->kmemcg_id >= 0);
-	BUG_ON(memcg->kmem_state);
+	_ON(memcg->kmemcg_id >= 0);
+	_ON(memcg->kmem_state);
 
 	memcg_id = memcg_alloc_cache_id();
 	if (memcg_id < 0)
@@ -3116,7 +3116,7 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
 	memcg_deactivate_kmem_caches(memcg);
 
 	kmemcg_id = memcg->kmemcg_id;
-	BUG_ON(kmemcg_id < 0);
+	_ON(kmemcg_id < 0);
 
 	parent = parent_mem_cgroup(memcg);
 	if (!parent)
@@ -3133,7 +3133,7 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
 	rcu_read_lock(); /* can be called from css_free w/o cgroup_mutex */
 	css_for_each_descendant_pre(css, &memcg->css) {
 		child = mem_cgroup_from_css(css);
-		BUG_ON(child->kmemcg_id != kmemcg_id);
+		_ON(child->kmemcg_id != kmemcg_id);
 		child->kmemcg_id = parent->kmemcg_id;
 		if (!memcg->use_hierarchy)
 			break;
@@ -3281,7 +3281,7 @@ static ssize_t mem_cgroup_reset(struct kernfs_open_file *of, char *buf,
 		counter = &memcg->tcpmem;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
@@ -3292,7 +3292,7 @@ static ssize_t mem_cgroup_reset(struct kernfs_open_file *of, char *buf,
 		counter->failcnt = 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return nbytes;
@@ -3404,8 +3404,8 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 	unsigned int i;
 	struct accumulated_stats acc;
 
-	BUILD_BUG_ON(ARRAY_SIZE(memcg1_stat_names) != ARRAY_SIZE(memcg1_stats));
-	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
+	BUILD__ON(ARRAY_SIZE(memcg1_stat_names) != ARRAY_SIZE(memcg1_stats));
+	BUILD__ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_stats); i++) {
 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
@@ -3457,7 +3457,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		seq_printf(m, "total_%s %llu\n", mem_cgroup_lru_names[i],
 			   (u64)acc.lru_pages[i] * PAGE_SIZE);
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	{
 		pg_data_t *pgdat;
 		struct mem_cgroup_per_node *mz;
@@ -3627,7 +3627,7 @@ static int __mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
 		thresholds = &memcg->memsw_thresholds;
 		usage = mem_cgroup_usage(memcg, true);
 	} else
-		BUG();
+		();
 
 	/* Check if a threshold crossed before adding a new one */
 	if (thresholds->primary)
@@ -3715,7 +3715,7 @@ static void __mem_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
 		thresholds = &memcg->memsw_thresholds;
 		usage = mem_cgroup_usage(memcg, true);
 	} else
-		BUG();
+		();
 
 	if (!thresholds->primary)
 		goto unlock;
@@ -4260,7 +4260,7 @@ static struct cftype mem_cgroup_legacy_files[] = {
 		.write = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read_u64,
 	},
-#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DE)
 	{
 		.name = "kmem.slabinfo",
 		.seq_start = memcg_slab_start,
@@ -4372,7 +4372,7 @@ static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
 	int tmp = node;
 	/*
 	 * This routine is called against possible nodes.
-	 * But it's BUG to call kmalloc() against offline node.
+	 * But it's  to call kmalloc() against offline node.
 	 *
 	 * TODO: this routine can waste much memory for nodes which will
 	 *       never be onlined. It's better to use memory hotplug callback
@@ -4797,9 +4797,9 @@ static int mem_cgroup_move_account(struct page *page,
 	int ret;
 	bool anon;
 
-	VM_BUG_ON(from == to);
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON(compound && !PageTransHuge(page));
+	VM__ON(from == to);
+	VM__ON_PAGE(PageLRU(page), page);
+	VM__ON(compound && !PageTransHuge(page));
 
 	/*
 	 * Prevent mem_cgroup_migrate() from looking at
@@ -4950,12 +4950,12 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
 	enum mc_target_type ret = MC_TARGET_NONE;
 
 	if (unlikely(is_swap_pmd(pmd))) {
-		VM_BUG_ON(thp_migration_supported() &&
+		VM__ON(thp_migration_supported() &&
 				  !is_pmd_migration_entry(pmd));
 		return ret;
 	}
 	page = pmd_page(pmd);
-	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
+	VM__ON_PAGE(!page || !PageHead(page), page);
 	if (!(mc.flags & MOVE_ANON))
 		return ret;
 	if (page->mem_cgroup == mc.from) {
@@ -5031,7 +5031,7 @@ static int mem_cgroup_precharge_mc(struct mm_struct *mm)
 {
 	unsigned long precharge = mem_cgroup_count_precharge(mm);
 
-	VM_BUG_ON(mc.moving_task);
+	VM__ON(mc.moving_task);
 	mc.moving_task = current;
 	return mem_cgroup_do_precharge(precharge);
 }
@@ -5139,18 +5139,18 @@ static int mem_cgroup_can_attach(struct cgroup_taskset *tset)
 
 	from = mem_cgroup_from_task(p);
 
-	VM_BUG_ON(from == memcg);
+	VM__ON(from == memcg);
 
 	mm = get_task_mm(p);
 	if (!mm)
 		return 0;
 	/* We move charges only when we move a owner of the mm */
 	if (mm->owner == p) {
-		VM_BUG_ON(mc.from);
-		VM_BUG_ON(mc.to);
-		VM_BUG_ON(mc.precharge);
-		VM_BUG_ON(mc.moved_charge);
-		VM_BUG_ON(mc.moved_swap);
+		VM__ON(mc.from);
+		VM__ON(mc.to);
+		VM__ON(mc.precharge);
+		VM__ON(mc.moved_charge);
+		VM__ON(mc.moved_swap);
 
 		spin_lock(&mc.lock);
 		mc.mm = mm;
@@ -5896,7 +5896,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 		 * the page lock, which serializes swap cache removal, which
 		 * in turn serializes uncharging.
 		 */
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
 		if (compound_head(page)->mem_cgroup)
 			goto out;
 
@@ -5958,8 +5958,8 @@ void mem_cgroup_commit_charge(struct page *page, struct mem_cgroup *memcg,
 {
 	unsigned int nr_pages = compound ? hpage_nr_pages(page) : 1;
 
-	VM_BUG_ON_PAGE(!page->mapping, page);
-	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
+	VM__ON_PAGE(!page->mapping, page);
+	VM__ON_PAGE(PageLRU(page) && !lrucare, page);
 
 	if (mem_cgroup_disabled())
 		return;
@@ -6061,8 +6061,8 @@ static void uncharge_batch(const struct uncharge_gather *ug)
 
 static void uncharge_page(struct page *page, struct uncharge_gather *ug)
 {
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(page_count(page) && !is_zone_device_page(page) &&
+	VM__ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(page_count(page) && !is_zone_device_page(page) &&
 			!PageHWPoison(page) , page);
 
 	if (!page->mem_cgroup)
@@ -6187,10 +6187,10 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 	bool compound;
 	unsigned long flags;
 
-	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-	VM_BUG_ON_PAGE(PageAnon(oldpage) != PageAnon(newpage), newpage);
-	VM_BUG_ON_PAGE(PageTransHuge(oldpage) != PageTransHuge(newpage),
+	VM__ON_PAGE(!PageLocked(oldpage), oldpage);
+	VM__ON_PAGE(!PageLocked(newpage), newpage);
+	VM__ON_PAGE(PageAnon(oldpage) != PageAnon(newpage), newpage);
+	VM__ON_PAGE(PageTransHuge(oldpage) != PageTransHuge(newpage),
 		       newpage);
 
 	if (mem_cgroup_disabled())
@@ -6354,7 +6354,7 @@ static int __init mem_cgroup_init(void)
 	 * destroyed simultaneously.
 	 */
 	memcg_kmem_cache_wq = alloc_workqueue("memcg_kmem_cache", 0, 1);
-	BUG_ON(!memcg_kmem_cache_wq);
+	_ON(!memcg_kmem_cache_wq);
 #endif
 
 	cpuhp_setup_state_nocalls(CPUHP_MM_MEMCQ_DEAD, "mm/memctrl:dead", NULL,
@@ -6389,7 +6389,7 @@ static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
 		 * always be >= 1.
 		 */
 		if (WARN_ON_ONCE(memcg == root_mem_cgroup)) {
-			VM_BUG_ON(1);
+			VM__ON(1);
 			break;
 		}
 		memcg = parent_mem_cgroup(memcg);
@@ -6412,8 +6412,8 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	unsigned int nr_entries;
 	unsigned short oldid;
 
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(page_count(page), page);
+	VM__ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(page_count(page), page);
 
 	if (!do_memsw_account())
 		return;
@@ -6436,7 +6436,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 		mem_cgroup_id_get_many(swap_memcg, nr_entries - 1);
 	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg),
 				   nr_entries);
-	VM_BUG_ON_PAGE(oldid, page);
+	VM__ON_PAGE(oldid, page);
 	mod_memcg_state(swap_memcg, MEMCG_SWAP, nr_entries);
 
 	page->mem_cgroup = NULL;
@@ -6456,7 +6456,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	 * important here to have the interrupts disabled because it is the
 	 * only synchronisation we have for updating the per-CPU variables.
 	 */
-	VM_BUG_ON(!irqs_disabled());
+	VM__ON(!irqs_disabled());
 	mem_cgroup_charge_statistics(memcg, page, PageTransHuge(page),
 				     -nr_entries);
 	memcg_check_events(memcg, page);
@@ -6509,7 +6509,7 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
 	if (nr_pages > 1)
 		mem_cgroup_id_get_many(memcg, nr_pages - 1);
 	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg), nr_pages);
-	VM_BUG_ON_PAGE(oldid, page);
+	VM__ON_PAGE(oldid, page);
 	mod_memcg_state(memcg, MEMCG_SWAP, nr_pages);
 
 	return 0;
@@ -6561,7 +6561,7 @@ bool mem_cgroup_swap_full(struct page *page)
 {
 	struct mem_cgroup *memcg;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	if (vm_swap_full())
 		return true;

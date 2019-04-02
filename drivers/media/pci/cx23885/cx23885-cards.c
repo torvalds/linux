@@ -78,7 +78,7 @@ struct cx23885_board cx23885_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0xff00,
 		}, {
-			.type   = CX23885_VMUX_DEBUG,
+			.type   = CX23885_VMUX_DE,
 			.vmux   = 0,
 			.gpio0  = 0xff01,
 		}, {

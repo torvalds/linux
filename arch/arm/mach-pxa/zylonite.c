@@ -39,8 +39,8 @@
 #include "generic.h"
 
 int gpio_eth_irq;
-int gpio_debug_led1;
-int gpio_debug_led2;
+int gpio_de_led1;
+int gpio_de_led2;
 
 int wm9713_irq;
 
@@ -76,7 +76,7 @@ static struct platform_device smc91x_device = {
 };
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
-static struct gpio_led zylonite_debug_leds[] = {
+static struct gpio_led zylonite_de_leds[] = {
 	[0] = {
 		.name			= "zylonite:yellow:1",
 		.default_trigger	= "heartbeat",
@@ -87,23 +87,23 @@ static struct gpio_led zylonite_debug_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data zylonite_debug_leds_info = {
-	.leds		= zylonite_debug_leds,
-	.num_leds	= ARRAY_SIZE(zylonite_debug_leds),
+static struct gpio_led_platform_data zylonite_de_leds_info = {
+	.leds		= zylonite_de_leds,
+	.num_leds	= ARRAY_SIZE(zylonite_de_leds),
 };
 
 static struct platform_device zylonite_device_leds = {
 	.name		= "leds-gpio",
 	.id		= -1,
 	.dev		= {
-		.platform_data = &zylonite_debug_leds_info,
+		.platform_data = &zylonite_de_leds_info,
 	}
 };
 
 static void __init zylonite_init_leds(void)
 {
-	zylonite_debug_leds[0].gpio = gpio_debug_led1;
-	zylonite_debug_leds[1].gpio = gpio_debug_led2;
+	zylonite_de_leds[0].gpio = gpio_de_led1;
+	zylonite_de_leds[1].gpio = gpio_de_led2;
 
 	platform_device_register(&zylonite_device_leds);
 }

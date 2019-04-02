@@ -5,12 +5,12 @@ the master of an I2C bus in a multimaster situation.
 
 In many cases using GPIOs to arbitrate is not needed and a design can use
 the standard I2C multi-master rules.  Using GPIOs is generally useful in
-the case where there is a device on the bus that has errata and/or bugs
+the case where there is a device on the bus that has errata and/or s
 that makes standard multimaster mode not feasible.
 
 Note that this scheme works well enough but has some downsides:
 * It is nonstandard (not using standard I2C multimaster)
-* Having two masters on a bus in general makes it relatively hard to debug
+* Having two masters on a bus in general makes it relatively hard to de
   problems (hard to tell if i2c issues were caused by one master, another, or
   some device on the bus).
 

@@ -64,7 +64,7 @@ void gigaset_free_dev_sysfs(struct cardstate *cs)
 	if (!cs->tty_dev)
 		return;
 
-	gig_dbg(DEBUG_INIT, "removing sysfs entries");
+	gig_dbg(DE_INIT, "removing sysfs entries");
 	device_remove_file(cs->tty_dev, &dev_attr_cidmode);
 }
 
@@ -74,7 +74,7 @@ void gigaset_init_dev_sysfs(struct cardstate *cs)
 	if (!cs->tty_dev)
 		return;
 
-	gig_dbg(DEBUG_INIT, "setting up sysfs");
+	gig_dbg(DE_INIT, "setting up sysfs");
 	if (device_create_file(cs->tty_dev, &dev_attr_cidmode))
 		pr_err("could not create sysfs attribute\n");
 }

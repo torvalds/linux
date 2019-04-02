@@ -91,8 +91,8 @@ displays the statistics gathered since it was forked.
 The system configuration dump (if --quiet is not used) is followed by statistics.  The first row of the statistics labels the content of each column (below).  The second row of statistics is the system summary line.  The system summary line has a '-' in the columns for the Package, Core, and CPU.  The contents of the system summary line depends on the type of column.  Columns that count items (eg. IRQ) show the sum across all CPUs in the system.  Columns that show a percentage show the average across all CPUs in the system.  Columns that dump raw MSR values simply show 0 in the summary.  After the system summary row, each row describes a specific Package/Core/CPU.  Note that if the --cpu parameter is used to limit which specific CPUs are displayed, turbostat will still collect statistics for all CPUs in the system and will still show the system summary for all CPUs in the system.
 .SH COLUMN DESCRIPTIONS
 .nf
-\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --debug.  On the summary row, usec refers to the total elapsed time to collect the counters on all cpus.
-\fBTime_Of_Day_Seconds\fP For each CPU, the gettimeofday(2) value (seconds.subsec since Epoch) when the counters ending the measurement interval were collected.  This column is disabled by default, and can be enabled with "--enable Time_Of_Day_Seconds" or "--debug".  On the summary row, Time_Of_Day_Seconds refers to the timestamp following collection of counters on the last CPU.
+\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --de.  On the summary row, usec refers to the total elapsed time to collect the counters on all cpus.
+\fBTime_Of_Day_Seconds\fP For each CPU, the gettimeofday(2) value (seconds.subsec since Epoch) when the counters ending the measurement interval were collected.  This column is disabled by default, and can be enabled with "--enable Time_Of_Day_Seconds" or "--de".  On the summary row, Time_Of_Day_Seconds refers to the timestamp following collection of counters on the last CPU.
 \fBCore\fP processor core number.  Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology (HT).
 \fBCPU\fP Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
 \fBPackage\fP processor package number -- not present on systems with a single processor package.
@@ -119,7 +119,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .fi
 .SH TOO MUCH INFORMATION EXAMPLE
 By default, turbostat dumps all possible information -- a system configuration header, followed by columns for all counters.
-This is ideal for remote debugging, use the "--out" option to save everything to a text file, and get that file to the expert helping you debug.
+This is ideal for remote deging, use the "--out" option to save everything to a text file, and get that file to the expert helping you de.
 .PP
 When you are not interested in all that information, and there are several ways to see only what you want.  First the "--quiet" option will skip the configuration information, and turbostat will show only the counter columns.  Second, you can reduce the columns with the "--hide" and "--show" options.  If you use the "--show" option, then turbostat will show only the columns you list.  If you use the "--hide" option, turbostat will show all columns, except the ones you list.
 .PP
@@ -144,7 +144,7 @@ If turbostat is invoked with a command, it will fork that command
 and output the statistics gathered after the command exits.
 In this case, turbostat output goes to stderr, by default.
 Output can instead be saved to a file using the --out option.
-In this example, the "sleep 10" command is forked, and turbostat waits for it to complete before saving all statistics into "ts.out".  Note that "sleep 10" is not part of turbostat, but is simply an example of a command that turbostat can fork.  The "ts.out" file is what you want to edit in a very wide window, paste into a spreadsheet, or attach to a bugzilla entry.
+In this example, the "sleep 10" command is forked, and turbostat waits for it to complete before saving all statistics into "ts.out".  Note that "sleep 10" is not part of turbostat, but is simply an example of a command that turbostat can fork.  The "ts.out" file is what you want to edit in a very wide window, paste into a spreadsheet, or attach to a zilla entry.
 
 .nf
 [root@hsw]# ./turbostat -o ts.out sleep 10

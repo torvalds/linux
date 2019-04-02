@@ -19,7 +19,7 @@
  * 99/10/01	davidm	Make sure we pass zero for reserved parameters.
  * 00/03/07	davidm	Updated pal_cache_flush() to be in sync with PAL v2.6.
  * 00/03/23     cfleck  Modified processor min-state save area to match updated PAL & SAL info
- * 00/05/24     eranian Updated to latest PAL spec, fix structures bugs, added
+ * 00/05/24     eranian Updated to latest PAL spec, fix structures s, added
  * 00/05/25	eranian Support for stack calls, and static physical calls
  * 00/06/18	eranian Support for stacked physical calls
  * 06/10/26	rja	Support for Intel Itanium Architecture Software Developer's
@@ -41,7 +41,7 @@
 #define PAL_VM_SUMMARY		8	/* return summary on supported vm features */
 #define PAL_BUS_GET_FEATURES	9	/* return processor bus interface features settings */
 #define PAL_BUS_SET_FEATURES	10	/* set processor bus features */
-#define PAL_DEBUG_INFO		11	/* get number of debug registers */
+#define PAL_DE_INFO		11	/* get number of de registers */
 #define PAL_FIXED_ADDR		12	/* get fixed component of processors's directed address */
 #define PAL_FREQ_BASE		13	/* base frequency of the platform */
 #define PAL_FREQ_RATIOS		14	/* ratio of processor, bus and ITC frequency */
@@ -444,7 +444,7 @@ typedef struct pal_process_state_info_s {
 			ex		: 1,	/* MC is expected */
 			cr		: 1,	/* Control regs valid*/
 			pc		: 1,	/* Perf cntrs valid */
-			dr		: 1,	/* Debug regs valid */
+			dr		: 1,	/* De regs valid */
 			tr		: 1,	/* Translation regs
 						 * valid
 						 */
@@ -690,7 +690,7 @@ typedef union pal_mc_error_info_u {
 #define pmci_proc_app_regs_valid		pme_processor.ar
 #define pmci_proc_region_regs_valid		pme_processor.rr
 #define pmci_proc_translation_regs_valid	pme_processor.tr
-#define pmci_proc_debug_regs_valid		pme_processor.dr
+#define pmci_proc_de_regs_valid		pme_processor.dr
 #define pmci_proc_perf_counters_valid		pme_processor.pc
 #define pmci_proc_control_regs_valid		pme_processor.cr
 #define pmci_proc_machine_check_expected	pme_processor.ex
@@ -1038,12 +1038,12 @@ ia64_pal_copy_pal (u64 target_addr, u64 alloc_size, u64 processor, u64 *pal_proc
 	return iprv.status;
 }
 
-/* Return the number of instruction and data debug register pairs */
-static inline long ia64_pal_debug_info(unsigned long *inst_regs,
+/* Return the number of instruction and data de register pairs */
+static inline long ia64_pal_de_info(unsigned long *inst_regs,
 						unsigned long *data_regs)
 {
 	struct ia64_pal_retval iprv;
-	PAL_CALL(iprv, PAL_DEBUG_INFO, 0, 0, 0);
+	PAL_CALL(iprv, PAL_DE_INFO, 0, 0, 0);
 	if (inst_regs)
 		*inst_regs = iprv.v0;
 	if (data_regs)

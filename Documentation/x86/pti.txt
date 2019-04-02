@@ -129,7 +129,7 @@ Testing
 To test stability of PTI, the following test procedure is recommended,
 ideally doing all of these in parallel:
 
-1. Set CONFIG_DEBUG_ENTRY=y
+1. Set CONFIG_DE_ENTRY=y
 2. Run several copies of all of the tools/testing/selftests/x86/ tests
    (excluding MPX and protection_keys) in a loop on multiple CPUs for
    several minutes.  These tests frequently uncover corner cases in the
@@ -138,7 +138,7 @@ ideally doing all of these in parallel:
 3. Run the 'perf' tool in a mode (top or record) that generates many
    frequent performance monitoring non-maskable interrupts (see "NMI"
    in /proc/interrupts).  This exercises the NMI entry/exit code which
-   is known to trigger bugs in code paths that did not expect to be
+   is known to trigger s in code paths that did not expect to be
    interrupted, including nested NMIs.  Using "-c" boosts the rate of
    NMIs, and using two -c with separate counters encourages nested NMIs
    and less deterministic behavior.
@@ -149,27 +149,27 @@ ideally doing all of these in parallel:
 5. Run 32-bit binaries on systems supporting the SYSCALL instruction.
    This has been a lightly-tested code path and needs extra scrutiny.
 
-Debugging
+Deging
 =========
 
-Bugs in PTI cause a few different signatures of crashes
+s in PTI cause a few different signatures of crashes
 that are worth noting here.
 
- * Failures of the selftests/x86 code.  Usually a bug in one of the
+ * Failures of the selftests/x86 code.  Usually a  in one of the
    more obscure corners of entry_64.S
- * Crashes in early boot, especially around CPU bringup.  Bugs
+ * Crashes in early boot, especially around CPU bringup.  s
    in the trampoline code or mappings cause these.
- * Crashes at the first interrupt.  Caused by bugs in entry_64.S,
+ * Crashes at the first interrupt.  Caused by s in entry_64.S,
    like screwing up a page table switch.  Also caused by
    incorrectly mapping the IRQ handler entry code.
  * Crashes at the first NMI.  The NMI code is separate from main
-   interrupt handlers and can have bugs that do not affect
+   interrupt handlers and can have s that do not affect
    normal interrupts.  Also caused by incorrectly mapping NMI
    code.  NMIs that interrupt the entry code must be very
    careful and can be the cause of crashes that show up when
    running perf.
  * Kernel crashes at the first exit to userspace.  entry_64.S
-   bugs, or failing to map some of the exit code.
+   s, or failing to map some of the exit code.
  * Crashes at first interrupt that interrupts userspace. The paths
    in entry_64.S that return to userspace are sometimes separate
    from the ones that return to the kernel.

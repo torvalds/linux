@@ -16,7 +16,7 @@
 #include "annotate.h"
 #include "build-id.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "machine.h"
 #include "map.h"
 #include "symbol.h"
@@ -58,18 +58,18 @@ static enum dso_binary_type binary_type_symtab[] = {
 	DSO_BINARY_TYPE__KALLSYMS,
 	DSO_BINARY_TYPE__GUEST_KALLSYMS,
 	DSO_BINARY_TYPE__JAVA_JIT,
-	DSO_BINARY_TYPE__DEBUGLINK,
+	DSO_BINARY_TYPE__DELINK,
 	DSO_BINARY_TYPE__BUILD_ID_CACHE,
-	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO,
-	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
-	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
-	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
+	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEINFO,
+	DSO_BINARY_TYPE__FEDORA_DEINFO,
+	DSO_BINARY_TYPE__UBUNTU_DEINFO,
+	DSO_BINARY_TYPE__BUILDID_DEINFO,
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
 	DSO_BINARY_TYPE__GUEST_KMODULE_COMP,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP,
-	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
+	DSO_BINARY_TYPE__OPENEMBEDDED_DEINFO,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
@@ -275,7 +275,7 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 	sym->binding = binding;
 	sym->namelen = namelen - 1;
 
-	pr_debug4("%s: %s %#" PRIx64 "-%#" PRIx64 "\n",
+	pr_de4("%s: %s %#" PRIx64 "-%#" PRIx64 "\n",
 		  __func__, name, start, sym->end);
 	memcpy(sym->name, name, namelen);
 
@@ -789,7 +789,7 @@ static int map_groups__split_kallsyms(struct map_groups *kmaps, struct dso *dso,
 
 				curr_map = map_groups__find_by_name(kmaps, module);
 				if (curr_map == NULL) {
-					pr_debug("%s/proc/{kallsyms,modules} "
+					pr_de("%s/proc/{kallsyms,modules} "
 					         "inconsistency while looking "
 						 "for \"%s\" module!\n",
 						 machine->root_dir, module);
@@ -1200,7 +1200,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 	fd = open(kcore_filename, O_RDONLY);
 	if (fd < 0) {
-		pr_debug("Failed to open %s. Note /proc/kcore requires CAP_SYS_RAWIO capability to access.\n",
+		pr_de("Failed to open %s. Note /proc/kcore requires CAP_SYS_RAWIO capability to access.\n",
 			 kcore_filename);
 		return -EINVAL;
 	}
@@ -1289,9 +1289,9 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	close(fd);
 
 	if (map->prot & PROT_EXEC)
-		pr_debug("Using %s for kernel object code\n", kcore_filename);
+		pr_de("Using %s for kernel object code\n", kcore_filename);
 	else
-		pr_debug("Using %s for kernel data\n", kcore_filename);
+		pr_de("Using %s for kernel data\n", kcore_filename);
 
 	return 0;
 
@@ -1423,12 +1423,12 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 {
 	switch (type) {
 	case DSO_BINARY_TYPE__JAVA_JIT:
-	case DSO_BINARY_TYPE__DEBUGLINK:
+	case DSO_BINARY_TYPE__DELINK:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
-	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
-	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
-	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
-	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	case DSO_BINARY_TYPE__FEDORA_DEINFO:
+	case DSO_BINARY_TYPE__UBUNTU_DEINFO:
+	case DSO_BINARY_TYPE__BUILDID_DEINFO:
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEINFO:
 		return !kmod && dso->kernel == DSO_TYPE_USER;
 
 	case DSO_BINARY_TYPE__KALLSYMS:
@@ -1452,7 +1452,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 		return kmod && dso->symtab_type == type;
 
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEINFO:
 		return true;
 
 	case DSO_BINARY_TYPE__BPF_PROG_INFO:
@@ -1574,7 +1574,7 @@ int dso__load(struct dso *dso, struct map *map)
 
 	/*
 	 * Read the build id if possible. This is required for
-	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work
+	 * DSO_BINARY_TYPE__BUILDID_DEINFO to work
 	 */
 	if (!dso->has_build_id &&
 	    is_regular_file(dso->long_name)) {
@@ -1584,7 +1584,7 @@ int dso__load(struct dso *dso, struct map *map)
 	}
 
 	/*
-	 * Iterate over candidate debug images.
+	 * Iterate over candidate de images.
 	 * Keep track of "interesting" ones (those which have a symtab, dynsym,
 	 * and/or opd section) for processing.
 	 */
@@ -1598,7 +1598,7 @@ int dso__load(struct dso *dso, struct map *map)
 		enum dso_binary_type symtab_type = binary_type_symtab[i];
 
 		nsexit = (symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE ||
-		    symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO);
+		    symtab_type == DSO_BINARY_TYPE__BUILD_ID_CACHE_DEINFO);
 
 		if (!dso__is_compatible_symtab_type(dso, kmod, symtab_type))
 			continue;
@@ -1742,7 +1742,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
 		dso__set_long_name(dso, vmlinux, vmlinux_allocated);
 		dso__set_loaded(dso);
-		pr_debug("Using %s for symbols\n", symfs_vmlinux);
+		pr_de("Using %s for symbols\n", symfs_vmlinux);
 	}
 
 	return err;
@@ -1753,7 +1753,7 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map)
 	int i, err = 0;
 	char *filename = NULL;
 
-	pr_debug("Looking at the vmlinux_path (%d entries long)\n",
+	pr_de("Looking at the vmlinux_path (%d entries long)\n",
 		 vmlinux_path__nr_entries + 1);
 
 	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
@@ -1927,7 +1927,7 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map)
 do_kallsyms:
 	err = dso__load_kallsyms(dso, kallsyms_filename, map);
 	if (err > 0)
-		pr_debug("Using %s for symbols\n", kallsyms_filename);
+		pr_de("Using %s for symbols\n", kallsyms_filename);
 	free(kallsyms_allocated_filename);
 
 	if (err > 0 && !dso__is_kcore(dso)) {
@@ -1948,7 +1948,7 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map)
 	char path[PATH_MAX];
 
 	if (!map->groups) {
-		pr_debug("Guest kernel map hasn't the point to groups\n");
+		pr_de("Guest kernel map hasn't the point to groups\n");
 		return -1;
 	}
 	machine = map->groups->machine;
@@ -1976,7 +1976,7 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map)
 
 	err = dso__load_kallsyms(dso, kallsyms_filename, map);
 	if (err > 0)
-		pr_debug("Using %s for symbols\n", kallsyms_filename);
+		pr_de("Using %s for symbols\n", kallsyms_filename);
 	if (err > 0 && !dso__is_kcore(dso)) {
 		dso->binary_type = DSO_BINARY_TYPE__GUEST_KALLSYMS;
 		dso__set_long_name(dso, machine->mmap_name, false);
@@ -2003,10 +2003,10 @@ static const char * const vmlinux_paths[] = {
 
 static const char * const vmlinux_paths_upd[] = {
 	"/boot/vmlinux-%s",
-	"/usr/lib/debug/boot/vmlinux-%s",
+	"/usr/lib/de/boot/vmlinux-%s",
 	"/lib/modules/%s/build/vmlinux",
-	"/usr/lib/debug/lib/modules/%s/vmlinux",
-	"/usr/lib/debug/boot/vmlinux-%s.debug"
+	"/usr/lib/de/lib/modules/%s/vmlinux",
+	"/usr/lib/de/boot/vmlinux-%s.de"
 };
 
 static int vmlinux_path__add(const char *new_entry)
@@ -2229,9 +2229,9 @@ int symbol__config_symfs(const struct option *opt __maybe_unused,
 		return -ENOMEM;
 
 	/* skip the locally configured cache if a symfs is given, and
-	 * config buildid dir to symfs/.debug
+	 * config buildid dir to symfs/.de
 	 */
-	ret = asprintf(&bf, "%s/%s", dir, ".debug");
+	ret = asprintf(&bf, "%s/%s", dir, ".de");
 	if (ret < 0)
 		return -ENOMEM;
 

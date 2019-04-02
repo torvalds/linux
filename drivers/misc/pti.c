@@ -16,7 +16,7 @@
  *
  * The PTI (Parallel Trace Interface) driver directs trace data routed from
  * various parts in the system out through the Intel Penwell PTI port and
- * out of the mobile device for analysis with a debugging tool
+ * out of the mobile device for analysis with a deging tool
  * (Lauterbach, Fido). This is part of a solution for the MIPI P1149.7,
  * compact JTAG, standard.
  */
@@ -93,14 +93,14 @@ static unsigned int pti_control_channel;
  *  @mc: The 'aperture'. It's part of a write address that holds
  *       a master and channel ID.
  *  @buf: Data being written to the HW that will ultimately be seen
- *        in a debugging tool (Fido, Lauterbach).
+ *        in a deging tool (Fido, Lauterbach).
  *  @len: Size of buffer.
  *
  *  Since each aperture is specified by a unique
  *  master/channel ID, no two processes will be writing
  *  to the same aperture at the same time so no lock is required. The
  *  PTI-Output agent will send these out in the order that they arrived, and
- *  thus, it will intermix these messages. The debug tool can then later
+ *  thus, it will intermix these messages. The de tool can then later
  *  regroup the appropriate message segments together reconstituting each
  *  message.
  */
@@ -204,7 +204,7 @@ static void pti_control_frame_built_and_sent(struct pti_masterchannel *mc,
  *  @mc:  The 'aperture'. It's part of a write address that holds
  *        a master and channel ID.
  *  @buf: Data being written to the HW that will ultimately be seen
- *        in a debugging tool (Fido, Lauterbach).
+ *        in a deging tool (Fido, Lauterbach).
  *  @len: Size of buffer.
  *
  *  All threads sending data (either console, user space application, ...)
@@ -371,11 +371,11 @@ EXPORT_SYMBOL_GPL(pti_release_masterchannel);
 
 /**
  * pti_writedata()- Kernel API function used to write trace
- *                  debugging data to PTI HW.
+ *                  deging data to PTI HW.
  *
  * @mc:    Master, channel aperture ID address to write to.
  *         Null value will return with no write occurring.
- * @buf:   Trace debuging data to write to the PTI HW.
+ * @buf:   Trace deing data to write to the PTI HW.
  *         Null value will return with no write occurring.
  * @count: Size of buf. Value of 0 or a negative number will
  *         return with no write occuring.
@@ -449,7 +449,7 @@ static void pti_tty_driver_close(struct tty_struct *tty, struct file *filp)
 /**
  * pti_tty_install()- Used to set up specific master-channels
  *		      to tty ports for organizational purposes when
- *		      tracing viewed from debuging tools.
+ *		      tracing viewed from deing tools.
  *
  * @driver: tty driver information.
  * @tty: tty struct containing pti information.
@@ -501,7 +501,7 @@ static void pti_tty_cleanup(struct tty_struct *tty)
 }
 
 /**
- * pti_tty_driver_write()-  Write trace debugging data through the char
+ * pti_tty_driver_write()-  Write trace deging data through the char
  * interface to the PTI HW.  Part of the misc device implementation.
  *
  * @filp: Contains private data which is used to obtain
@@ -559,7 +559,7 @@ static int pti_char_open(struct inode *inode, struct file *filp)
 	 * We really do want to fail immediately if
 	 * pti_request_masterchannel() fails,
 	 * before assigning the value to filp->private_data.
-	 * Slightly easier to debug if this driver needs debugging.
+	 * Slightly easier to de if this driver needs deging.
 	 */
 	mc = pti_request_masterchannel(0, NULL);
 	if (mc == NULL)
@@ -587,7 +587,7 @@ static int pti_char_release(struct inode *inode, struct file *filp)
 }
 
 /**
- * pti_char_write()-  Write trace debugging data through the char
+ * pti_char_write()-  Write trace deging data through the char
  * interface to the PTI HW.  Part of the misc device implementation.
  *
  * @filp:  Contains private data which is used to obtain
@@ -601,10 +601,10 @@ static int pti_char_release(struct inode *inode, struct file *filp)
  *	otherwise, error value
  *
  * Notes: From side discussions with Alan Cox and experimenting
- * with PTI debug HW like Nokia's Fido box and Lauterbach
+ * with PTI de HW like Nokia's Fido box and Lauterbach
  * devices, 8192 byte write buffer used by USER_COPY_SIZE was
  * deemed an appropriate size for this type of usage with
- * debugging HW.
+ * deging HW.
  */
 static ssize_t pti_char_write(struct file *filp, const char __user *data,
 			      size_t len, loff_t *ppose)
@@ -721,7 +721,7 @@ static int pti_console_setup(struct console *c, char *opts)
 
 /*
  * pti_console struct, used to capture OS printk()'s and shift
- * out to the PTI device for debugging.  This cannot be
+ * out to the PTI device for deging.  This cannot be
  * enabled upon boot because of the possibility of eating
  * any serial console printk's (race condition discovered).
  * The console should be enabled upon when the tty port is

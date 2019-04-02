@@ -1442,7 +1442,7 @@ void rtl92cu_set_beacon_related_registers(struct ieee80211_hw *hw)
 		 "SetBeaconRelatedRegisters8192CUsb(): Set TCR(%x)\n",
 		 value32);
 	/* TODO: Modify later (Find the right parameters)
-	 * NOTE: Fix test chip's bug (about contention windows's randomness) */
+	 * NOTE: Fix test chip's  (about contention windows's randomness) */
 	if ((mac->opmode == NL80211_IFTYPE_ADHOC) ||
 	    (mac->opmode == NL80211_IFTYPE_MESH_POINT) ||
 	    (mac->opmode == NL80211_IFTYPE_AP)) {

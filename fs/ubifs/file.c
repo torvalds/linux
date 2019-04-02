@@ -918,7 +918,7 @@ static int do_writepage(struct page *page, int len)
 	struct inode *inode = page->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
-#ifdef UBIFS_DEBUG
+#ifdef UBIFS_DE
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	spin_lock(&ui->ui_lock);
 	ubifs_assert(c, page->index <= ui->synced_i_size >> PAGE_SHIFT);

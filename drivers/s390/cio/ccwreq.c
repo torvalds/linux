@@ -17,7 +17,7 @@
 #include "io_sch.h"
 #include "cio.h"
 #include "device.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 
 /**
  * lpm_adjust - adjust path mask

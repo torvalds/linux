@@ -562,7 +562,7 @@ static void torture_shutdown_cleanup(void)
 
 /*
  * Variables for stuttering, which means to periodically pause and
- * restart testing in order to catch bugs that appear when load is
+ * restart testing in order to catch s that appear when load is
  * suddenly applied to or removed from the system.
  */
 static struct task_struct *stutter_task;

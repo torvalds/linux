@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -545,8 +545,8 @@ static const char *wm_adsp_mem_region_name(unsigned int type)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void wm_adsp_debugfs_save_wmfwname(struct wm_adsp *dsp, const char *s)
+#ifdef CONFIG_DE_FS
+static void wm_adsp_defs_save_wmfwname(struct wm_adsp *dsp, const char *s)
 {
 	char *tmp = kasprintf(GFP_KERNEL, "%s\n", s);
 
@@ -554,7 +554,7 @@ static void wm_adsp_debugfs_save_wmfwname(struct wm_adsp *dsp, const char *s)
 	dsp->wmfw_file_name = tmp;
 }
 
-static void wm_adsp_debugfs_save_binname(struct wm_adsp *dsp, const char *s)
+static void wm_adsp_defs_save_binname(struct wm_adsp *dsp, const char *s)
 {
 	char *tmp = kasprintf(GFP_KERNEL, "%s\n", s);
 
@@ -562,7 +562,7 @@ static void wm_adsp_debugfs_save_binname(struct wm_adsp *dsp, const char *s)
 	dsp->bin_file_name = tmp;
 }
 
-static void wm_adsp_debugfs_clear(struct wm_adsp *dsp)
+static void wm_adsp_defs_clear(struct wm_adsp *dsp)
 {
 	kfree(dsp->wmfw_file_name);
 	kfree(dsp->bin_file_name);
@@ -570,7 +570,7 @@ static void wm_adsp_debugfs_clear(struct wm_adsp *dsp)
 	dsp->bin_file_name = NULL;
 }
 
-static ssize_t wm_adsp_debugfs_wmfw_read(struct file *file,
+static ssize_t wm_adsp_defs_wmfw_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
@@ -590,7 +590,7 @@ static ssize_t wm_adsp_debugfs_wmfw_read(struct file *file,
 	return ret;
 }
 
-static ssize_t wm_adsp_debugfs_bin_read(struct file *file,
+static ssize_t wm_adsp_defs_bin_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
@@ -613,92 +613,92 @@ static ssize_t wm_adsp_debugfs_bin_read(struct file *file,
 static const struct {
 	const char *name;
 	const struct file_operations fops;
-} wm_adsp_debugfs_fops[] = {
+} wm_adsp_defs_fops[] = {
 	{
 		.name = "wmfw_file_name",
 		.fops = {
 			.open = simple_open,
-			.read = wm_adsp_debugfs_wmfw_read,
+			.read = wm_adsp_defs_wmfw_read,
 		},
 	},
 	{
 		.name = "bin_file_name",
 		.fops = {
 			.open = simple_open,
-			.read = wm_adsp_debugfs_bin_read,
+			.read = wm_adsp_defs_bin_read,
 		},
 	},
 };
 
-static void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
+static void wm_adsp2_init_defs(struct wm_adsp *dsp,
 				  struct snd_soc_component *component)
 {
 	struct dentry *root = NULL;
 	int i;
 
-	if (!component->debugfs_root) {
-		adsp_err(dsp, "No codec debugfs root\n");
+	if (!component->defs_root) {
+		adsp_err(dsp, "No codec defs root\n");
 		goto err;
 	}
 
-	root = debugfs_create_dir(dsp->name, component->debugfs_root);
+	root = defs_create_dir(dsp->name, component->defs_root);
 
 	if (!root)
 		goto err;
 
-	if (!debugfs_create_bool("booted", 0444, root, &dsp->booted))
+	if (!defs_create_bool("booted", 0444, root, &dsp->booted))
 		goto err;
 
-	if (!debugfs_create_bool("running", 0444, root, &dsp->running))
+	if (!defs_create_bool("running", 0444, root, &dsp->running))
 		goto err;
 
-	if (!debugfs_create_x32("fw_id", 0444, root, &dsp->fw_id))
+	if (!defs_create_x32("fw_id", 0444, root, &dsp->fw_id))
 		goto err;
 
-	if (!debugfs_create_x32("fw_version", 0444, root, &dsp->fw_id_version))
+	if (!defs_create_x32("fw_version", 0444, root, &dsp->fw_id_version))
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(wm_adsp_debugfs_fops); ++i) {
-		if (!debugfs_create_file(wm_adsp_debugfs_fops[i].name,
+	for (i = 0; i < ARRAY_SIZE(wm_adsp_defs_fops); ++i) {
+		if (!defs_create_file(wm_adsp_defs_fops[i].name,
 					 0444, root, dsp,
-					 &wm_adsp_debugfs_fops[i].fops))
+					 &wm_adsp_defs_fops[i].fops))
 			goto err;
 	}
 
-	dsp->debugfs_root = root;
+	dsp->defs_root = root;
 	return;
 
 err:
-	debugfs_remove_recursive(root);
-	adsp_err(dsp, "Failed to create debugfs\n");
+	defs_remove_recursive(root);
+	adsp_err(dsp, "Failed to create defs\n");
 }
 
-static void wm_adsp2_cleanup_debugfs(struct wm_adsp *dsp)
+static void wm_adsp2_cleanup_defs(struct wm_adsp *dsp)
 {
-	wm_adsp_debugfs_clear(dsp);
-	debugfs_remove_recursive(dsp->debugfs_root);
+	wm_adsp_defs_clear(dsp);
+	defs_remove_recursive(dsp->defs_root);
 }
 #else
-static inline void wm_adsp2_init_debugfs(struct wm_adsp *dsp,
+static inline void wm_adsp2_init_defs(struct wm_adsp *dsp,
 					 struct snd_soc_component *component)
 {
 }
 
-static inline void wm_adsp2_cleanup_debugfs(struct wm_adsp *dsp)
+static inline void wm_adsp2_cleanup_defs(struct wm_adsp *dsp)
 {
 }
 
-static inline void wm_adsp_debugfs_save_wmfwname(struct wm_adsp *dsp,
+static inline void wm_adsp_defs_save_wmfwname(struct wm_adsp *dsp,
 						 const char *s)
 {
 }
 
-static inline void wm_adsp_debugfs_save_binname(struct wm_adsp *dsp,
+static inline void wm_adsp_defs_save_binname(struct wm_adsp *dsp,
 						const char *s)
 {
 }
 
-static inline void wm_adsp_debugfs_clear(struct wm_adsp *dsp)
+static inline void wm_adsp_defs_clear(struct wm_adsp *dsp)
 {
 }
 #endif
@@ -1862,7 +1862,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 		adsp_warn(dsp, "%s.%d: %zu bytes at end of file\n",
 			  file, regions, pos - firmware->size);
 
-	wm_adsp_debugfs_save_wmfwname(dsp, file);
+	wm_adsp_defs_save_wmfwname(dsp, file);
 
 out_fw:
 	regmap_async_complete(regmap);
@@ -2409,7 +2409,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		adsp_warn(dsp, "%s.%d: %zu bytes at end of file\n",
 			  file, blocks, pos - firmware->size);
 
-	wm_adsp_debugfs_save_binname(dsp, file);
+	wm_adsp_defs_save_binname(dsp, file);
 
 out_fw:
 	regmap_async_complete(regmap);
@@ -2778,7 +2778,7 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		mutex_lock(&dsp->pwr_lock);
 
-		wm_adsp_debugfs_clear(dsp);
+		wm_adsp_defs_clear(dsp);
 
 		dsp->fw_id = 0;
 		dsp->fw_id_version = 0;
@@ -2930,7 +2930,7 @@ int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *comp
 	snprintf(preload, ARRAY_SIZE(preload), "%s Preload", dsp->name);
 	snd_soc_component_disable_pin(component, preload);
 
-	wm_adsp2_init_debugfs(dsp, component);
+	wm_adsp2_init_defs(dsp, component);
 
 	dsp->component = component;
 
@@ -2940,7 +2940,7 @@ EXPORT_SYMBOL_GPL(wm_adsp2_component_probe);
 
 int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component)
 {
-	wm_adsp2_cleanup_debugfs(dsp);
+	wm_adsp2_cleanup_defs(dsp);
 
 	return 0;
 }

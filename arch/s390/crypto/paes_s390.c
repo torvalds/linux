@@ -15,7 +15,7 @@
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>

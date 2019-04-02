@@ -26,7 +26,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned short rsv_window_size;
 	int ret;
 
-	ext2_debug ("cmd = %u, arg = %lu\n", cmd, arg);
+	ext2_de ("cmd = %u, arg = %lu\n", cmd, arg);
 
 	switch (cmd) {
 	case EXT2_IOC_GETFLAGS:

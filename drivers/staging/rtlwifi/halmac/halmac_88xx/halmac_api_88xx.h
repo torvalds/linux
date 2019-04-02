@@ -162,7 +162,7 @@ halmac_leave_ps_88xx(struct halmac_adapter *halmac_adapter);
 enum halmac_ret_status
 halmac_h2c_lb_88xx(struct halmac_adapter *halmac_adapter);
 
-enum halmac_ret_status halmac_debug_88xx(struct halmac_adapter *halmac_adapter);
+enum halmac_ret_status halmac_de_88xx(struct halmac_adapter *halmac_adapter);
 
 enum halmac_ret_status
 halmac_cfg_parameter_88xx(struct halmac_adapter *halmac_adapter,

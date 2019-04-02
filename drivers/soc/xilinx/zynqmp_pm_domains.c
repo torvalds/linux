@@ -87,7 +87,7 @@ static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
 		return ret;
 	}
 
-	pr_debug("%s() Powered on %s domain\n", __func__, domain->name);
+	pr_de("%s() Powered on %s domain\n", __func__, domain->name);
 	return 0;
 }
 
@@ -116,7 +116,7 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 
 	/* If domain is already released there is nothing to be done */
 	if (!(pd->flags & ZYNQMP_PM_DOMAIN_REQUESTED)) {
-		pr_debug("%s() %s domain is already released\n",
+		pr_de("%s() %s domain is already released\n",
 			 __func__, domain->name);
 		return 0;
 	}
@@ -144,7 +144,7 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 		return ret;
 	}
 
-	pr_debug("%s() Powered off %s domain\n", __func__, domain->name);
+	pr_de("%s() Powered off %s domain\n", __func__, domain->name);
 	return 0;
 }
 
@@ -182,7 +182,7 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 
 	pd->flags |= ZYNQMP_PM_DOMAIN_REQUESTED;
 
-	pr_debug("%s() %s attached to %s domain\n", __func__,
+	pr_de("%s() %s attached to %s domain\n", __func__,
 		 dev_name(dev), domain->name);
 	return 0;
 }
@@ -218,7 +218,7 @@ static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 
 	pd->flags &= ~ZYNQMP_PM_DOMAIN_REQUESTED;
 
-	pr_debug("%s() %s detached from %s domain\n", __func__,
+	pr_de("%s() %s detached from %s domain\n", __func__,
 		 dev_name(dev), domain->name);
 }
 

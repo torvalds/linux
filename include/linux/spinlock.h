@@ -18,7 +18,7 @@
  *  asm/spinlock.h:       contains the arch_spin_*()/etc. lowlevel
  *                        implementations, mostly inline assembly code
  *
- *   (also included on UP-debug builds:)
+ *   (also included on UP-de builds:)
  *
  *  linux/spinlock_api_smp.h:
  *                        contains the prototypes for the _spin_*() APIs.
@@ -29,17 +29,17 @@
  *
  *  linux/spinlock_type_up.h:
  *                        contains the generic, simplified UP spinlock type.
- *                        (which is an empty structure on non-debug builds)
+ *                        (which is an empty structure on non-de builds)
  *
  *  linux/spinlock_types.h:
  *                        defines the generic type and initializers
  *
  *  linux/spinlock_up.h:
  *                        contains the arch_spin_*()/etc. version of UP
- *                        builds. (which are NOPs on non-debug, non-preempt
+ *                        builds. (which are NOPs on non-de, non-preempt
  *                        builds)
  *
- *   (included on UP-non-debug builds:)
+ *   (included on UP-non-de builds:)
  *
  *  linux/spinlock_api_up.h:
  *                        builds the _spin_*() APIs.
@@ -82,7 +82,7 @@
 #include <linux/spinlock_types.h>
 
 /*
- * Pull the arch_spin*() functions/declarations (UP-nondebug doesn't need them):
+ * Pull the arch_spin*() functions/declarations (UP-nonde doesn't need them):
  */
 #ifdef CONFIG_SMP
 # include <asm/spinlock.h>
@@ -90,7 +90,7 @@
 # include <linux/spinlock_up.h>
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
   extern void __raw_spin_lock_init(raw_spinlock_t *lock, const char *name,
 				   struct lock_class_key *key);
 # define raw_spin_lock_init(lock)				\
@@ -168,7 +168,7 @@ do {								\
 #define smp_mb__after_spinlock()	do { } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
  extern void do_raw_spin_lock(raw_spinlock_t *lock) __acquires(lock);
 #define do_raw_spin_lock_flags(lock, flags) do_raw_spin_lock(lock)
  extern int do_raw_spin_trylock(raw_spinlock_t *lock);
@@ -213,7 +213,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 
 #define raw_spin_lock(lock)	_raw_spin_lock(lock)
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define raw_spin_lock_nested(lock, subclass) \
 	_raw_spin_lock_nested(lock, subclass)
 
@@ -226,14 +226,14 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 /*
  * Always evaluate the 'subclass' argument to avoid that the compiler
  * warns about set-but-not-used variables when building with
- * CONFIG_DEBUG_LOCK_ALLOC=n and with W=1.
+ * CONFIG_DE_LOCK_ALLOC=n and with W=1.
  */
 # define raw_spin_lock_nested(lock, subclass)		\
 	_raw_spin_lock(((void)(subclass), (lock)))
 # define raw_spin_lock_nest_lock(lock, nest_lock)	_raw_spin_lock(lock)
 #endif
 
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 
 #define raw_spin_lock_irqsave(lock, flags)			\
 	do {						\
@@ -241,7 +241,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 		flags = _raw_spin_lock_irqsave(lock);	\
 	} while (0)
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 #define raw_spin_lock_irqsave_nested(lock, flags, subclass)		\
 	do {								\
 		typecheck(unsigned long, flags);			\
@@ -303,7 +303,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 /*
  * Pull the _spin_*()/_read_*()/_write_*() functions/declarations:
  */
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DE_SPINLOCK)
 # include <linux/spinlock_api_smp.h>
 #else
 # include <linux/spinlock_api_up.h>
@@ -404,7 +404,7 @@ static __always_inline int spin_trylock_irq(spinlock_t *lock)
  * @lock: Pointer to the spinlock.
  *
  * This function is NOT required to provide any memory ordering
- * guarantees; it could be used for debugging purposes or, when
+ * guarantees; it could be used for deging purposes or, when
  * additional synchronization is needed, accompanied with other
  * constructs (memory barriers) enforcing the synchronization.
  *
@@ -413,7 +413,7 @@ static __always_inline int spin_trylock_irq(spinlock_t *lock)
  * Note that the function only tells you that the spinlock is
  * seen to be locked, not that it is locked on your CPU.
  *
- * Further, on CONFIG_SMP=n builds with CONFIG_DEBUG_SPINLOCK=n,
+ * Further, on CONFIG_SMP=n builds with CONFIG_DE_SPINLOCK=n,
  * the return value is always 0 (see include/linux/spinlock_up.h).
  * Therefore you should not rely heavily on the return value.
  */

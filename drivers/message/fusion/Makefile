@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-# Fusion MPT drivers; recognized debug defines...
+# Fusion MPT drivers; recognized de defines...
 
 # enable verbose logging
 # CONFIG_FUSION_LOGGING needs to be enabled in Kconfig
-#ccflags-y := -DMPT_DEBUG_VERBOSE
+#ccflags-y := -DMPT_DE_VERBOSE
 
 
 #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-} LSI_LOGIC

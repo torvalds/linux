@@ -36,7 +36,7 @@ static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr, int
  * Cribbed from <asm-parisc/atomic.h>
  */
 
-/* bug catcher for when unsupported size is used - won't link */
+/*  catcher for when unsupported size is used - won't link */
 void __cmpxchg_called_with_bad_pointer(void);
 /* we only need to support cmpxchg of a u32 on sparc */
 unsigned long __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);

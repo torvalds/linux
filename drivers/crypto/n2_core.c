@@ -474,7 +474,7 @@ static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	bs = crypto_shash_blocksize(child_shash);
 	ds = crypto_shash_digestsize(child_shash);
-	BUG_ON(ds > N2_HASH_KEY_MAX);
+	_ON(ds > N2_HASH_KEY_MAX);
 	if (keylen > bs) {
 		err = crypto_shash_digest(shash, key, keylen,
 					  ctx->hash_key);

@@ -34,16 +34,16 @@
 
 #undef SERIAL_PARANOIA_CHECK
 
-/* Set of debugging defines */
+/* Set of deging defines */
 
-#undef SERIAL_DEBUG_INTR
-#undef SERIAL_DEBUG_OPEN
-#undef SERIAL_DEBUG_FLOW
-#undef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
+#undef SERIAL_DE_INTR
+#undef SERIAL_DE_OPEN
+#undef SERIAL_DE_FLOW
+#undef SERIAL_DE_RS_WAIT_UNTIL_SENT
 
 /* Sanity checks */
 
-#if defined(MODULE) && defined(SERIAL_DEBUG_MCOUNT)
+#if defined(MODULE) && defined(SERIAL_DE_MCOUNT)
 #define DBG_CNT(s) printk("(%s): [%x] refc=%d, serc=%d, ttyc=%d -> %s\n", \
  tty->name, (info->tport.flags), serial_driver->refcount,info->count,tty->count,s)
 #else
@@ -271,7 +271,7 @@ static void receive_chars(struct serial_state *info)
 	ch = serdatr & 0xff;
 	icount->rx++;
 
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	printk("DR%02x:%02x...", ch, status);
 #endif
 	flag = TTY_NORMAL;
@@ -308,7 +308,7 @@ static void receive_chars(struct serial_state *info)
 	  status &= info->read_status_mask;
 
 	  if (status & (UART_LSR_BI)) {
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	    printk("handling break....");
 #endif
 	    flag = TTY_BREAK;
@@ -365,7 +365,7 @@ static void transmit_chars(struct serial_state *info)
 		     SERIAL_XMIT_SIZE) < WAKEUP_CHARS)
 		tty_wakeup(info->tport.tty);
 
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	printk("THRE...");
 #endif
 	if (info->xmit.head == info->xmit.tail) {
@@ -400,14 +400,14 @@ static void check_modem_status(struct serial_state *info)
 	}
 
 	if (tty_port_check_carrier(port) && (dstatus & SER_DCD)) {
-#if (defined(SERIAL_DEBUG_OPEN) || defined(SERIAL_DEBUG_INTR))
+#if (defined(SERIAL_DE_OPEN) || defined(SERIAL_DE_INTR))
 		printk("ttyS%d CD now %s...", info->line,
 		       (!(status & SER_DCD)) ? "on" : "off");
 #endif
 		if (!(status & SER_DCD))
 			wake_up_interruptible(&port->open_wait);
 		else {
-#ifdef SERIAL_DEBUG_OPEN
+#ifdef SERIAL_DE_OPEN
 			printk("doing serial hangup...");
 #endif
 			if (port->tty)
@@ -417,7 +417,7 @@ static void check_modem_status(struct serial_state *info)
 	if (tty_port_cts_enabled(port)) {
 		if (port->tty->hw_stopped) {
 			if (!(status & SER_CTS)) {
-#if (defined(SERIAL_DEBUG_INTR) || defined(SERIAL_DEBUG_FLOW))
+#if (defined(SERIAL_DE_INTR) || defined(SERIAL_DE_FLOW))
 				printk("CTS tx start...");
 #endif
 				port->tty->hw_stopped = 0;
@@ -432,7 +432,7 @@ static void check_modem_status(struct serial_state *info)
 			}
 		} else {
 			if ((status & SER_CTS)) {
-#if (defined(SERIAL_DEBUG_INTR) || defined(SERIAL_DEBUG_FLOW))
+#if (defined(SERIAL_DE_INTR) || defined(SERIAL_DE_FLOW))
 				printk("CTS tx stop...");
 #endif
 				port->tty->hw_stopped = 1;
@@ -464,7 +464,7 @@ static irqreturn_t ser_rx_int(int irq, void *dev_id)
 {
 	struct serial_state *info = dev_id;
 
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	printk("ser_rx_int...");
 #endif
 
@@ -472,7 +472,7 @@ static irqreturn_t ser_rx_int(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	receive_chars(info);
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	printk("end.\n");
 #endif
 	return IRQ_HANDLED;
@@ -483,7 +483,7 @@ static irqreturn_t ser_tx_int(int irq, void *dev_id)
 	struct serial_state *info = dev_id;
 
 	if (custom.serdatr & SDR_TBE) {
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	  printk("ser_tx_int...");
 #endif
 
@@ -491,7 +491,7 @@ static irqreturn_t ser_tx_int(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	  transmit_chars(info);
-#ifdef SERIAL_DEBUG_INTR
+#ifdef SERIAL_DE_INTR
 	  printk("end.\n");
 #endif
 	}
@@ -536,7 +536,7 @@ static int startup(struct tty_struct *tty, struct serial_state *info)
 	else
 		info->xmit.buf = (unsigned char *) page;
 
-#ifdef SERIAL_DEBUG_OPEN
+#ifdef SERIAL_DE_OPEN
 	printk("starting up ttys%d ...", info->line);
 #endif
 
@@ -598,7 +598,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 
 	state = info;
 
-#ifdef SERIAL_DEBUG_OPEN
+#ifdef SERIAL_DE_OPEN
 	printk("Shutting down serial port %d ....\n", info->line);
 #endif
 
@@ -948,7 +948,7 @@ static void rs_throttle(struct tty_struct * tty)
 {
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
-#ifdef SERIAL_DEBUG_THROTTLE
+#ifdef SERIAL_DE_THROTTLE
 	printk("throttle %s ....\n", tty_name(tty));
 #endif
 
@@ -970,7 +970,7 @@ static void rs_unthrottle(struct tty_struct * tty)
 {
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
-#ifdef SERIAL_DEBUG_THROTTLE
+#ifdef SERIAL_DE_THROTTLE
 	printk("unthrottle %s ....\n", tty_name(tty));
 #endif
 
@@ -1407,17 +1407,17 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * ever clear.  This assumes the UART isn't doing flow
 	 * control, which is currently the case.  Hence, if it ever
 	 * takes longer than info->timeout, this is probably due to a
-	 * UART bug of some kind.  So, we clamp the timeout parameter at
+	 * UART  of some kind.  So, we clamp the timeout parameter at
 	 * 2*info->timeout.
 	 */
 	if (!timeout || timeout > 2*info->timeout)
 		timeout = 2*info->timeout;
-#ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
+#ifdef SERIAL_DE_RS_WAIT_UNTIL_SENT
 	printk("In rs_wait_until_sent(%d) check=%lu...", timeout, char_time);
 	printk("jiff=%lu...", jiffies);
 #endif
 	while(!((lsr = custom.serdatr) & SDR_TSRE)) {
-#ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
+#ifdef SERIAL_DE_RS_WAIT_UNTIL_SENT
 		printk("serdatr = %d (jiff=%lu)...", lsr, jiffies);
 #endif
 		msleep_interruptible(jiffies_to_msecs(char_time));
@@ -1428,7 +1428,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 	__set_current_state(TASK_RUNNING);
 
-#ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
+#ifdef SERIAL_DE_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif
 }

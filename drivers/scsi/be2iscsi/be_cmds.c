@@ -946,7 +946,7 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 		break;
 	default:
 		mutex_unlock(&ctrl->mbox_lock);
-		BUG();
+		();
 	}
 	be_cmd_hdr_prepare(&req->hdr, subsys, opcode, sizeof(*req));
 	if (queue_type != QTYPE_SGL)

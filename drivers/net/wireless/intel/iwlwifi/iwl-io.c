@@ -66,7 +66,7 @@
 #include "iwl-drv.h"
 #include "iwl-io.h"
 #include "iwl-csr.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 
@@ -365,7 +365,7 @@ static int iwl_dump_rfh(struct iwl_trans *trans, char **buf)
 		{ RFH_Q0_URBD_STTS_WPTR_LSB, true },
 	};
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (buf) {
 		int pos = 0;
 		/*
@@ -461,7 +461,7 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 	if (trans->cfg->mq_rx_supported)
 		return iwl_dump_rfh(trans, buf);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (buf) {
 		int pos = 0;
 		size_t bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
@@ -521,7 +521,7 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 			   BIT(trans->cfg->csr->flag_mac_clock_ready),
 			   25000);
 	if (err < 0)
-		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
+		IWL_DE_INFO(trans, "Failed to wake NIC\n");
 
 	if (trans->cfg->bisr_workaround) {
 		/* ensure BISR shift has finished */

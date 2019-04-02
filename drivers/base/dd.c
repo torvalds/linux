@@ -16,7 +16,7 @@
  * Copyright (c) 2007-2009 Novell Inc.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -240,7 +240,7 @@ __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
  * @dev: device to check
  *
  * Returns -ENODEV if init is done and all built-in drivers have had a chance
- * to probe (i.e. initcalls are done), -ETIMEDOUT if deferred probe debug
+ * to probe (i.e. initcalls are done), -ETIMEDOUT if deferred probe de
  * timeout has expired, or -EPROBE_DEFER if none of those conditions are met.
  *
  * Drivers or subsystems can opt-in to calling this function instead of directly
@@ -281,7 +281,7 @@ static DECLARE_DELAYED_WORK(deferred_probe_timeout_work, deferred_probe_timeout_
  */
 static int deferred_probe_initcall(void)
 {
-	deferred_devices = debugfs_create_file("devices_deferred", 0444, NULL,
+	deferred_devices = defs_create_file("devices_deferred", 0444, NULL,
 					       NULL, &deferred_devs_fops);
 
 	driver_deferred_probe_enable = true;
@@ -307,7 +307,7 @@ late_initcall(deferred_probe_initcall);
 
 static void __exit deferred_probe_exit(void)
 {
-	debugfs_remove_recursive(deferred_devices);
+	defs_remove_recursive(deferred_devices);
 }
 __exitcall(deferred_probe_exit);
 
@@ -333,7 +333,7 @@ static void driver_bound(struct device *dev)
 		return;
 	}
 
-	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev->driver->name,
+	pr_de("driver: '%s': %s: bound to device '%s'\n", dev->driver->name,
 		 __func__, dev_name(dev));
 
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
@@ -454,7 +454,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
 	int local_trigger_count = atomic_read(&deferred_trigger_count);
-	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE) &&
+	bool test_remove = IS_ENABLED(CONFIG_DE_TEST_DRIVER_REMOVE) &&
 			   !drv->suppress_bind_attrs;
 
 	if (defer_all_probes) {
@@ -475,7 +475,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		return ret;
 
 	atomic_inc(&probe_count);
-	pr_debug("bus: '%s': %s: probing driver %s with device %s\n",
+	pr_de("bus: '%s': %s: probing driver %s with device %s\n",
 		 drv->bus->name, __func__, drv->name, dev_name(dev));
 	WARN_ON(!list_empty(&dev->devres_head));
 
@@ -541,7 +541,7 @@ re_probe:
 
 	driver_bound(dev);
 	ret = 1;
-	pr_debug("bus: '%s': %s: bound device %s to driver %s\n",
+	pr_de("bus: '%s': %s: bound device %s to driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 	goto done;
 
@@ -570,7 +570,7 @@ pinctrl_bind_failed:
 		break;
 	case -ENODEV:
 	case -ENXIO:
-		pr_debug("%s: probe of %s rejects match %d\n",
+		pr_de("%s: probe of %s rejects match %d\n",
 			 drv->name, dev_name(dev), ret);
 		break;
 	default:
@@ -591,9 +591,9 @@ done:
 }
 
 /*
- * For initcall_debug, show the driver probe time.
+ * For initcall_de, show the driver probe time.
  */
-static int really_probe_debug(struct device *dev, struct device_driver *drv)
+static int really_probe_de(struct device *dev, struct device_driver *drv)
 {
 	ktime_t calltime, delta, rettime;
 	int ret;
@@ -602,7 +602,7 @@ static int really_probe_debug(struct device *dev, struct device_driver *drv)
 	ret = really_probe(dev, drv);
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
-	printk(KERN_DEBUG "probe of %s returned %d after %lld usecs\n",
+	printk(KERN_DE "probe of %s returned %d after %lld usecs\n",
 	       dev_name(dev), ret, (s64) ktime_to_us(delta));
 	return ret;
 }
@@ -615,7 +615,7 @@ static int really_probe_debug(struct device *dev, struct device_driver *drv)
  */
 int driver_probe_done(void)
 {
-	pr_debug("%s: probe_count = %d\n", __func__,
+	pr_de("%s: probe_count = %d\n", __func__,
 		 atomic_read(&probe_count));
 	if (atomic_read(&probe_count))
 		return -EBUSY;
@@ -657,7 +657,7 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	if (!device_is_registered(dev))
 		return -ENODEV;
 
-	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
+	pr_de("bus: '%s': %s: matched device %s with driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
 	pm_runtime_get_suppliers(dev);
@@ -665,8 +665,8 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 		pm_runtime_get_sync(dev->parent);
 
 	pm_runtime_barrier(dev);
-	if (initcall_debug)
-		ret = really_probe_debug(dev, drv);
+	if (initcall_de)
+		ret = really_probe_de(dev, drv);
 	else
 		ret = really_probe(dev, drv);
 	pm_request_idle(dev);

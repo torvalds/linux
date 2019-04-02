@@ -769,7 +769,7 @@ struct mvpp2 {
 	char queue_name[30];
 	struct workqueue_struct *stats_queue;
 
-	/* Debugfs root entry */
+	/* Defs root entry */
 	struct dentry *dbgfs_dir;
 };
 

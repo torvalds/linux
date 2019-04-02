@@ -28,7 +28,7 @@ static const unsigned int resizer_fmts[] = {
  * resizer_print_status - Print current RESIZER Module register values.
  * @resizer: Pointer to ISS ISP RESIZER device.
  *
- * Also prints other debug information stored in the RESIZER module.
+ * Also prints other de information stored in the RESIZER module.
  */
 #define RSZ_PRINT_REGISTER(iss, name)\
 	dev_dbg(iss->dev, "###RSZ " #name "=0x%08x\n", \

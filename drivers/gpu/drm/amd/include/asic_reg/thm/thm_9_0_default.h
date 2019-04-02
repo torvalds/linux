@@ -68,7 +68,7 @@
 #define mmTHM_TMON0_RDIR14_DATA_DEFAULT                                          0x00000000
 #define mmTHM_TMON0_RDIR15_DATA_DEFAULT                                          0x00000000
 #define mmTHM_TMON0_INT_DATA_DEFAULT                                             0x00000000
-#define mmTHM_TMON0_DEBUG_DEFAULT                                                0x00000000
+#define mmTHM_TMON0_DE_DEFAULT                                                0x00000000
 #define mmTHM_TMON1_RDIL0_DATA_DEFAULT                                           0x00000000
 #define mmTHM_TMON1_RDIL1_DATA_DEFAULT                                           0x00000000
 #define mmTHM_TMON1_RDIL2_DATA_DEFAULT                                           0x00000000
@@ -102,7 +102,7 @@
 #define mmTHM_TMON1_RDIR14_DATA_DEFAULT                                          0x00000000
 #define mmTHM_TMON1_RDIR15_DATA_DEFAULT                                          0x00000000
 #define mmTHM_TMON1_INT_DATA_DEFAULT                                             0x00000000
-#define mmTHM_TMON1_DEBUG_DEFAULT                                                0x00000000
+#define mmTHM_TMON1_DE_DEFAULT                                                0x00000000
 #define mmTHM_DIE1_TEMP_DEFAULT                                                  0x00000000
 #define mmTHM_DIE2_TEMP_DEFAULT                                                  0x00000000
 #define mmTHM_DIE3_TEMP_DEFAULT                                                  0x00000000

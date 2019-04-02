@@ -20,7 +20,7 @@
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
@@ -1297,7 +1297,7 @@ static inline struct crypto_blkcipher *__crypto_blkcipher_cast(
 static inline struct crypto_blkcipher *crypto_blkcipher_cast(
 	struct crypto_tfm *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_BLKCIPHER);
+	_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_BLKCIPHER);
 	return __crypto_blkcipher_cast(tfm);
 }
 
@@ -1617,7 +1617,7 @@ static inline struct crypto_cipher *__crypto_cipher_cast(struct crypto_tfm *tfm)
 
 static inline struct crypto_cipher *crypto_cipher_cast(struct crypto_tfm *tfm)
 {
-	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
+	_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_CIPHER);
 	return __crypto_cipher_cast(tfm);
 }
 
@@ -1782,7 +1782,7 @@ static inline struct crypto_comp *__crypto_comp_cast(struct crypto_tfm *tfm)
 
 static inline struct crypto_comp *crypto_comp_cast(struct crypto_tfm *tfm)
 {
-	BUG_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_COMPRESS) &
+	_ON((crypto_tfm_alg_type(tfm) ^ CRYPTO_ALG_TYPE_COMPRESS) &
 	       CRYPTO_ALG_TYPE_MASK);
 	return __crypto_comp_cast(tfm);
 }

@@ -10,7 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -338,7 +338,7 @@ static int sunxi_sram_probe(struct platform_device *pdev)
 
 	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 
-	d = debugfs_create_file("sram", S_IRUGO, NULL, NULL,
+	d = defs_create_file("sram", S_IRUGO, NULL, NULL,
 				&sunxi_sram_fops);
 	if (!d)
 		return -ENOMEM;

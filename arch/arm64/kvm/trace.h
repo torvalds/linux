@@ -46,36 +46,36 @@ TRACE_EVENT(kvm_hvc_arm64,
 		  __entry->vcpu_pc, __entry->r0, __entry->imm)
 );
 
-TRACE_EVENT(kvm_arm_setup_debug,
-	TP_PROTO(struct kvm_vcpu *vcpu, __u32 guest_debug),
-	TP_ARGS(vcpu, guest_debug),
+TRACE_EVENT(kvm_arm_setup_de,
+	TP_PROTO(struct kvm_vcpu *vcpu, __u32 guest_de),
+	TP_ARGS(vcpu, guest_de),
 
 	TP_STRUCT__entry(
 		__field(struct kvm_vcpu *, vcpu)
-		__field(__u32, guest_debug)
+		__field(__u32, guest_de)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu = vcpu;
-		__entry->guest_debug = guest_debug;
+		__entry->guest_de = guest_de;
 	),
 
-	TP_printk("vcpu: %p, flags: 0x%08x", __entry->vcpu, __entry->guest_debug)
+	TP_printk("vcpu: %p, flags: 0x%08x", __entry->vcpu, __entry->guest_de)
 );
 
-TRACE_EVENT(kvm_arm_clear_debug,
-	TP_PROTO(__u32 guest_debug),
-	TP_ARGS(guest_debug),
+TRACE_EVENT(kvm_arm_clear_de,
+	TP_PROTO(__u32 guest_de),
+	TP_ARGS(guest_de),
 
 	TP_STRUCT__entry(
-		__field(__u32, guest_debug)
+		__field(__u32, guest_de)
 	),
 
 	TP_fast_assign(
-		__entry->guest_debug = guest_debug;
+		__entry->guest_de = guest_de;
 	),
 
-	TP_printk("flags: 0x%08x", __entry->guest_debug)
+	TP_printk("flags: 0x%08x", __entry->guest_de)
 );
 
 TRACE_EVENT(kvm_arm_set_dreg32,
@@ -187,21 +187,21 @@ TRACE_EVENT(kvm_sys_access,
 		  __entry->is_write ? "write" : "read")
 );
 
-TRACE_EVENT(kvm_set_guest_debug,
-	TP_PROTO(struct kvm_vcpu *vcpu, __u32 guest_debug),
-	TP_ARGS(vcpu, guest_debug),
+TRACE_EVENT(kvm_set_guest_de,
+	TP_PROTO(struct kvm_vcpu *vcpu, __u32 guest_de),
+	TP_ARGS(vcpu, guest_de),
 
 	TP_STRUCT__entry(
 		__field(struct kvm_vcpu *, vcpu)
-		__field(__u32, guest_debug)
+		__field(__u32, guest_de)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu = vcpu;
-		__entry->guest_debug = guest_debug;
+		__entry->guest_de = guest_de;
 	),
 
-	TP_printk("vcpu: %p, flags: 0x%08x", __entry->vcpu, __entry->guest_debug)
+	TP_printk("vcpu: %p, flags: 0x%08x", __entry->vcpu, __entry->guest_de)
 );
 
 

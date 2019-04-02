@@ -40,7 +40,7 @@ static irqreturn_t wl1251_irq(int irq, void *cookie)
 {
 	struct wl1251 *wl;
 
-	wl1251_debug(DEBUG_IRQ, "IRQ");
+	wl1251_de(DE_IRQ, "IRQ");
 
 	wl = cookie;
 
@@ -77,7 +77,7 @@ static void wl1251_spi_reset(struct wl1251 *wl)
 
 	spi_sync(wl_to_spi(wl), &m);
 
-	wl1251_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
+	wl1251_dump(DE_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
 
 	kfree(cmd);
 }
@@ -129,7 +129,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 
 	spi_sync(wl_to_spi(wl), &m);
 
-	wl1251_dump(DEBUG_SPI, "spi init -> ", cmd, WSPI_INIT_CMD_LEN);
+	wl1251_dump(DE_SPI, "spi init -> ", cmd, WSPI_INIT_CMD_LEN);
 
 	kfree(cmd);
 }
@@ -176,8 +176,8 @@ static void wl1251_spi_read(struct wl1251 *wl, int addr, void *buf,
 
 	/* FIXME: check busy words */
 
-	wl1251_dump(DEBUG_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
-	wl1251_dump(DEBUG_SPI, "spi_read buf <- ", buf, len);
+	wl1251_dump(DE_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
+	wl1251_dump(DE_SPI, "spi_read buf <- ", buf, len);
 }
 
 static void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf,
@@ -207,8 +207,8 @@ static void wl1251_spi_write(struct wl1251 *wl, int addr, void *buf,
 
 	spi_sync(wl_to_spi(wl), &m);
 
-	wl1251_dump(DEBUG_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
-	wl1251_dump(DEBUG_SPI, "spi_write buf -> ", buf, len);
+	wl1251_dump(DE_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
+	wl1251_dump(DE_SPI, "spi_write buf -> ", buf, len);
 }
 
 static void wl1251_spi_enable_irq(struct wl1251 *wl)

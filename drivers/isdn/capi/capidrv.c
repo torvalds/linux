@@ -36,12 +36,12 @@
 #include <linux/isdn/capicmd.h>
 #include "capidrv.h"
 
-static int debugmode = 0;
+static int demode = 0;
 
 MODULE_DESCRIPTION("CAPI4Linux: Interface to ISDN4Linux");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
-module_param(debugmode, uint, S_IRUGO | S_IWUSR);
+module_param(demode, uint, S_IRUGO | S_IWUSR);
 
 /* -------- type definitions ----------------------------------------- */
 
@@ -548,8 +548,8 @@ static void listen_change_state(capidrv_contr *card, int event)
 	struct listenstatechange *p = listentable;
 	while (p->event) {
 		if (card->state == p->actstate && p->event == event) {
-			if (debugmode)
-				printk(KERN_DEBUG "capidrv-%d: listen_change_state %d -> %d\n",
+			if (demode)
+				printk(KERN_DE "capidrv-%d: listen_change_state %d -> %d\n",
 				       card->contrnr, card->state, p->nextstate);
 			card->state = p->nextstate;
 			return;
@@ -643,8 +643,8 @@ static void plci_change_state(capidrv_contr *card, capidrv_plci *plci, int event
 	struct plcistatechange *p = plcitable;
 	while (p->event) {
 		if (plci->state == p->actstate && p->event == event) {
-			if (debugmode)
-				printk(KERN_DEBUG "capidrv-%d: plci_change_state:0x%x %d -> %d\n",
+			if (demode)
+				printk(KERN_DE "capidrv-%d: plci_change_state:0x%x %d -> %d\n",
 				       card->contrnr, plci->plci, plci->state, p->nextstate);
 			plci->state = p->nextstate;
 			if (p->changefunc)
@@ -732,8 +732,8 @@ static void ncci_change_state(capidrv_contr *card, capidrv_ncci *ncci, int event
 	struct nccistatechange *p = nccitable;
 	while (p->event) {
 		if (ncci->state == p->actstate && p->event == event) {
-			if (debugmode)
-				printk(KERN_DEBUG "capidrv-%d: ncci_change_state:0x%x %d -> %d\n",
+			if (demode)
+				printk(KERN_DE "capidrv-%d: ncci_change_state:0x%x %d -> %d\n",
 				       card->contrnr, ncci->ncci, ncci->state, p->nextstate);
 			if (p->nextstate == ST_NCCI_PREVIOUS) {
 				ncci->state = ncci->oldstate;
@@ -976,8 +976,8 @@ static void handle_controller(_cmsg *cmsg)
 	switch (CAPICMD(cmsg->Command, cmsg->Subcommand)) {
 
 	case CAPI_LISTEN_CONF:	/* Controller */
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: listenconf Info=0x%4x (%s) cipmask=0x%x\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: listenconf Info=0x%4x (%s) cipmask=0x%x\n",
 			       card->contrnr, cmsg->Info, capi_info2str(cmsg->Info), card->cipmask);
 		if (cmsg->Info) {
 			listen_change_state(card, EV_LISTEN_CONF_ERROR);
@@ -1588,15 +1588,15 @@ static void capidrv_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 		kfree_skb(skb);
 		return;
 	}
-	if (debugmode > 3) {
+	if (demode > 3) {
 		_cdebbuf *cdb = capi_cmsg2str(&s_cmsg);
 
 		if (cdb) {
-			printk(KERN_DEBUG "%s: applid=%d %s\n", __func__,
+			printk(KERN_DE "%s: applid=%d %s\n", __func__,
 			       ap->applid, cdb->buf);
 			cdebbuf_free(cdb);
 		} else
-			printk(KERN_DEBUG "%s: applid=%d %s not traced\n",
+			printk(KERN_DE "%s: applid=%d %s not traced\n",
 			       __func__, ap->applid,
 			       capi_cmd2str(s_cmsg.Command, s_cmsg.Subcommand));
 	}
@@ -1635,7 +1635,7 @@ static void handle_dtrace_data(capidrv_contr *card,
 	isdn_ctrl cmd;
 
 	if (!len) {
-		printk(KERN_DEBUG "capidrv-%d: avmb1_q931_data: len == %d\n",
+		printk(KERN_DE "capidrv-%d: avmb1_q931_data: len == %d\n",
 		       card->contrnr, len);
 		return;
 	}
@@ -1673,12 +1673,12 @@ static int capidrv_ioctl(isdn_ctrl *c, capidrv_contr *card)
 {
 	switch (c->arg) {
 	case 1:
-		debugmode = (int)(*((unsigned int *)c->parm.num));
-		printk(KERN_DEBUG "capidrv-%d: debugmode=%d\n",
-		       card->contrnr, debugmode);
+		demode = (int)(*((unsigned int *)c->parm.num));
+		printk(KERN_DE "capidrv-%d: demode=%d\n",
+		       card->contrnr, demode);
 		return 0;
 	default:
-		printk(KERN_DEBUG "capidrv-%d: capidrv_ioctl(%ld) called ??\n",
+		printk(KERN_DE "capidrv-%d: capidrv_ioctl(%ld) called ??\n",
 		       card->contrnr, c->arg);
 		return -EINVAL;
 	}
@@ -1800,8 +1800,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 		u8 calling[ISDN_MSNLEN + 3];
 		u8 called[ISDN_MSNLEN + 2];
 
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: ISDN_CMD_DIAL(ch=%ld,\"%s,%d,%d,%s\")\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: ISDN_CMD_DIAL(ch=%ld,\"%s,%d,%d,%s\")\n",
 			       card->contrnr,
 			       c->arg,
 			       c->parm.setup.phone,
@@ -1835,8 +1835,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 		if (isleasedline) {
 			calling[0] = 0;
 			called[0] = 0;
-			if (debugmode)
-				printk(KERN_DEBUG "capidrv-%d: connecting leased line\n", card->contrnr);
+			if (demode)
+				printk(KERN_DE "capidrv-%d: connecting leased line\n", card->contrnr);
 		} else {
 			calling[0] = strlen(bchan->mynum) + 2;
 			calling[1] = 0;
@@ -1888,8 +1888,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 	case ISDN_CMD_ACCEPTD:
 
 		bchan = &card->bchans[c->arg % card->nbchan];
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: ISDN_CMD_ACCEPTD(ch=%ld) l2=%d l3=%d\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: ISDN_CMD_ACCEPTD(ch=%ld) l2=%d l3=%d\n",
 			       card->contrnr,
 			       c->arg, bchan->l2, bchan->l3);
 
@@ -1922,22 +1922,22 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 		return 0;
 
 	case ISDN_CMD_ACCEPTB:
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: ISDN_CMD_ACCEPTB(ch=%ld)\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: ISDN_CMD_ACCEPTB(ch=%ld)\n",
 			       card->contrnr,
 			       c->arg);
 		return -ENOSYS;
 
 	case ISDN_CMD_HANGUP:
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: ISDN_CMD_HANGUP(ch=%ld)\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: ISDN_CMD_HANGUP(ch=%ld)\n",
 			       card->contrnr,
 			       c->arg);
 		bchan = &card->bchans[c->arg % card->nbchan];
 
 		if (bchan->disconnecting) {
-			if (debugmode)
-				printk(KERN_DEBUG "capidrv-%d: chan %ld already disconnecting ...\n",
+			if (demode)
+				printk(KERN_DE "capidrv-%d: chan %ld already disconnecting ...\n",
 				       card->contrnr,
 				       c->arg);
 			return 0;
@@ -1991,8 +1991,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 /* ready */
 
 	case ISDN_CMD_SETL2:
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: set L2 on chan %ld to %ld\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: set L2 on chan %ld to %ld\n",
 			       card->contrnr,
 			       (c->arg & 0xff), (c->arg >> 8));
 		bchan = &card->bchans[(c->arg & 0xff) % card->nbchan];
@@ -2000,8 +2000,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 		return 0;
 
 	case ISDN_CMD_SETL3:
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: set L3 on chan %ld to %ld\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: set L3 on chan %ld to %ld\n",
 			       card->contrnr,
 			       (c->arg & 0xff), (c->arg >> 8));
 		bchan = &card->bchans[(c->arg & 0xff) % card->nbchan];
@@ -2009,8 +2009,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 		return 0;
 
 	case ISDN_CMD_SETEAZ:
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: set EAZ \"%s\" on chan %ld\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: set EAZ \"%s\" on chan %ld\n",
 			       card->contrnr,
 			       c->parm.num, c->arg);
 		bchan = &card->bchans[c->arg % card->nbchan];
@@ -2018,8 +2018,8 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 		return 0;
 
 	case ISDN_CMD_CLREAZ:
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: clearing EAZ on chan %ld\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: clearing EAZ on chan %ld\n",
 			       card->contrnr, c->arg);
 		bchan = &card->bchans[c->arg % card->nbchan];
 		bchan->msn[0] = 0;
@@ -2064,8 +2064,8 @@ static int if_sendbuf(int id, int channel, int doack, struct sk_buff *skb)
 		       id);
 		return 0;
 	}
-	if (debugmode > 4)
-		printk(KERN_DEBUG "capidrv-%d: sendbuf len=%d skb=%p doack=%d\n",
+	if (demode > 4)
+		printk(KERN_DE "capidrv-%d: sendbuf len=%d skb=%p doack=%d\n",
 		       card->contrnr, len, skb, doack);
 	bchan = &card->bchans[channel % card->nbchan];
 	nccip = bchan->nccip;
@@ -2117,7 +2117,7 @@ static int if_sendbuf(int id, int channel, int doack, struct sk_buff *skb)
 			(void)capidrv_del_ack(nccip, datahandle);
 			return 0;
 		}
-		printk(KERN_DEBUG "capidrv-%d: only %d bytes headroom, need %d\n",
+		printk(KERN_DE "capidrv-%d: only %d bytes headroom, need %d\n",
 		       card->contrnr, skb_headroom(skb), msglen);
 		memcpy(skb_push(nskb, msglen), sendcmsg.buf, msglen);
 		errcode = capi20_put_message(&global.ap, nskb);
@@ -2126,8 +2126,8 @@ static int if_sendbuf(int id, int channel, int doack, struct sk_buff *skb)
 			nccip->datahandle++;
 			return len;
 		}
-		if (debugmode > 3)
-			printk(KERN_DEBUG "capidrv-%d: sendbuf putmsg ret(%x) - %s\n",
+		if (demode > 3)
+			printk(KERN_DE "capidrv-%d: sendbuf putmsg ret(%x) - %s\n",
 			       card->contrnr, errcode, capi_info2str(errcode));
 		(void)capidrv_del_ack(nccip, datahandle);
 		dev_kfree_skb(nskb);
@@ -2139,8 +2139,8 @@ static int if_sendbuf(int id, int channel, int doack, struct sk_buff *skb)
 			nccip->datahandle++;
 			return len;
 		}
-		if (debugmode > 3)
-			printk(KERN_DEBUG "capidrv-%d: sendbuf putmsg ret(%x) - %s\n",
+		if (demode > 3)
+			printk(KERN_DE "capidrv-%d: sendbuf putmsg ret(%x) - %s\n",
 			       card->contrnr, errcode, capi_info2str(errcode));
 		skb_pull(skb, msglen);
 		(void)capidrv_del_ack(nccip, datahandle);
@@ -2368,8 +2368,8 @@ static int capidrv_delcontr(u16 contr)
 
 	del_timer(&card->listentimer);
 
-	if (debugmode)
-		printk(KERN_DEBUG "capidrv-%d: id=%d unloading\n",
+	if (demode)
+		printk(KERN_DE "capidrv-%d: id=%d unloading\n",
 		       card->contrnr, card->myid);
 
 	cmd.command = ISDN_STAT_STOP;
@@ -2382,8 +2382,8 @@ static int capidrv_delcontr(u16 contr)
 		cmd.driver = card->myid;
 		cmd.arg = card->nbchan - 1;
 		cmd.parm.num[0] = 0;
-		if (debugmode)
-			printk(KERN_DEBUG "capidrv-%d: id=%d disable chan=%ld\n",
+		if (demode)
+			printk(KERN_DE "capidrv-%d: id=%d disable chan=%ld\n",
 			       card->contrnr, card->myid, cmd.arg);
 		card->interface.statcallb(&cmd);
 
@@ -2392,22 +2392,22 @@ static int capidrv_delcontr(u16 contr)
 		if (card->bchans[card->nbchan - 1].plcip)
 			free_plci(card, card->bchans[card->nbchan - 1].plcip);
 		if (card->plci_list)
-			printk(KERN_ERR "capidrv: bug in free_plci()\n");
+			printk(KERN_ERR "capidrv:  in free_plci()\n");
 		card->nbchan--;
 	}
 	kfree(card->bchans);
 	card->bchans = NULL;
 
-	if (debugmode)
-		printk(KERN_DEBUG "capidrv-%d: id=%d isdn unload\n",
+	if (demode)
+		printk(KERN_DE "capidrv-%d: id=%d isdn unload\n",
 		       card->contrnr, card->myid);
 
 	cmd.command = ISDN_STAT_UNLOAD;
 	cmd.driver = card->myid;
 	card->interface.statcallb(&cmd);
 
-	if (debugmode)
-		printk(KERN_DEBUG "capidrv-%d: id=%d remove contr from list\n",
+	if (demode)
+		printk(KERN_DE "capidrv-%d: id=%d remove contr from list\n",
 		       card->contrnr, card->myid);
 
 	spin_lock_irqsave(&global_lock, flags);

@@ -227,7 +227,7 @@ static void ocfs2_cleanup_add_entry_failure(struct ocfs2_super *osb,
 
 	ocfs2_simple_drop_lockres(osb, &dl->dl_lockres);
 	ocfs2_lock_res_free(&dl->dl_lockres);
-	BUG_ON(dl->dl_count != 1);
+	_ON(dl->dl_count != 1);
 	spin_lock(&dentry_attach_lock);
 	dentry->d_fsdata = NULL;
 	spin_unlock(&dentry_attach_lock);
@@ -906,7 +906,7 @@ static int ocfs2_unlink(struct inode *dir,
 		return status;
 	}
 
-	BUG_ON(d_inode(dentry->d_parent) != dir);
+	_ON(d_inode(dentry->d_parent) != dir);
 
 	if (inode == osb->root_inode)
 		return -EPERM;
@@ -1257,7 +1257,7 @@ static int ocfs2_rename(struct inode *old_dir,
 
 	if (new_inode) {
 		if (!igrab(new_inode))
-			BUG();
+			();
 	}
 
 	/* Assume a directory hierarchy thusly:
@@ -1472,7 +1472,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			should_add_orphan = true;
 		}
 	} else {
-		BUG_ON(d_inode(new_dentry->d_parent) != new_dir);
+		_ON(d_inode(new_dentry->d_parent) != new_dir);
 
 		status = ocfs2_check_dir_for_entry(new_dir,
 						   new_dentry->d_name.name,
@@ -2724,7 +2724,7 @@ int ocfs2_del_inode_from_orphan(struct ocfs2_super *osb,
 		goto bail_unlock_orphan;
 	}
 
-	BUG_ON(!(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL)));
+	_ON(!(di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL)));
 
 	status = ocfs2_orphan_del(osb, handle, orphan_dir_inode,
 				inode, orphan_dir_bh, true);

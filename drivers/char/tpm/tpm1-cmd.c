@@ -648,7 +648,7 @@ int tpm1_do_selftest(struct tpm_chip *chip)
 		/* Attempt to read a PCR value */
 		rc = tpm1_pcr_read(chip, 0, dummy);
 
-		/* Some buggy TPMs will not respond to tpm_tis_ready() for
+		/* Some gy TPMs will not respond to tpm_tis_ready() for
 		 * around 300ms while the self test is ongoing, keep trying
 		 * until the self test duration expires.
 		 */
@@ -720,7 +720,7 @@ out:
 /**
  * tpm1_pm_suspend() - pm suspend handler
  * @chip: TPM chip to use.
- * @tpm_suspend_pcr: flush pcr for buggy TPM chips.
+ * @tpm_suspend_pcr: flush pcr for gy TPM chips.
  *
  * The functions saves the TPM state to be restored on resume.
  *
@@ -736,7 +736,7 @@ int tpm1_pm_suspend(struct tpm_chip *chip, u32 tpm_suspend_pcr)
 	int rc;
 
 
-	/* for buggy tpm, flush pcrs with extend to selected dummy */
+	/* for gy tpm, flush pcrs with extend to selected dummy */
 	if (tpm_suspend_pcr)
 		rc = tpm1_pcr_extend(chip, tpm_suspend_pcr, dummy_hash,
 				     "extending dummy pcr before suspend");

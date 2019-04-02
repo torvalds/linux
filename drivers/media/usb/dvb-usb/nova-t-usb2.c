@@ -11,14 +11,14 @@
  */
 #include "dibusb.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=rc,2=eeprom (|-able))." DVB_USB_DEBUG_STATUS);
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=rc,2=eeprom (|-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define deb_rc(args...) dprintk(debug,0x01,args)
-#define deb_ee(args...) dprintk(debug,0x02,args)
+#define deb_rc(args...) dprintk(de,0x01,args)
+#define deb_ee(args...) dprintk(de,0x02,args)
 
 /* Hauppauge NOVA-T USB2 keys */
 static struct rc_map_table rc_map_haupp_table[] = {
@@ -69,7 +69,7 @@ static struct rc_map_table rc_map_haupp_table[] = {
 	{ 0x1e3d, KEY_POWER },
 };
 
-/* Firmware bug? sometimes, when a new key is pressed, the previous pressed key
+/* Firmware ? sometimes, when a new key is pressed, the previous pressed key
  * is delivered. No workaround yet, maybe a new firmware.
  */
 static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)

@@ -24,7 +24,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/io_apic.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/kexec-bzimage64.h>
 #include <asm/setup.h>
 #include <asm/set_memory.h>
@@ -415,7 +415,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 
 	rel = (void *)pi->ehdr + relsec->sh_offset;
 
-	pr_debug("Applying relocate section %s to %u\n",
+	pr_de("Applying relocate section %s to %u\n",
 		 shstrtab + relsec->sh_name, relsec->sh_info);
 
 	for (i = 0; i < relsec->sh_size / sizeof(*rel); i++) {
@@ -451,7 +451,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		else
 			name = shstrtab + sechdrs[sym->st_shndx].sh_name;
 
-		pr_debug("Symbol: %s info: %02x shndx: %02x value=%llx size: %llx\n",
+		pr_de("Symbol: %s info: %02x shndx: %02x value=%llx size: %llx\n",
 			 name, sym->st_info, sym->st_shndx, sym->st_value,
 			 sym->st_size);
 

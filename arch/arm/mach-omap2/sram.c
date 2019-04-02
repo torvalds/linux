@@ -145,7 +145,7 @@ static void (*_omap2_sram_ddr_init)(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 		   u32 base_cs, u32 force_unlock)
 {
-	BUG_ON(!_omap2_sram_ddr_init);
+	_ON(!_omap2_sram_ddr_init);
 	_omap2_sram_ddr_init(slow_dll_ctrl, fast_dll_ctrl,
 			     base_cs, force_unlock);
 }
@@ -155,7 +155,7 @@ static void (*_omap2_sram_reprogram_sdrc)(u32 perf_level, u32 dll_val,
 
 void omap2_sram_reprogram_sdrc(u32 perf_level, u32 dll_val, u32 mem_type)
 {
-	BUG_ON(!_omap2_sram_reprogram_sdrc);
+	_ON(!_omap2_sram_reprogram_sdrc);
 	_omap2_sram_reprogram_sdrc(perf_level, dll_val, mem_type);
 }
 
@@ -163,7 +163,7 @@ static u32 (*_omap2_set_prcm)(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass);
 
 u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass)
 {
-	BUG_ON(!_omap2_set_prcm);
+	_ON(!_omap2_set_prcm);
 	return _omap2_set_prcm(dpll_ctrl_val, sdrc_rfr_val, bypass);
 }
 

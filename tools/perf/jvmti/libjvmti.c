@@ -252,7 +252,7 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	jvmtiError ret;
 	int nr_lines = 0; /* in line_tab[] */
 	size_t len;
-	int output_debug_info = 0;
+	int output_de_info = 0;
 
 	ret = (*jvmti)->GetMethodDeclaringClass(jvmti, method,
 						&decl_class);
@@ -276,7 +276,7 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 				if (ret != JVMTI_ERROR_NONE) {
 					warnx("jvmti: fill_source_filenames failed");
 				} else {
-					output_debug_info = 1;
+					output_de_info = 1;
 				}
 			}
 		}
@@ -307,9 +307,9 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	/*
 	 * write source line info record if we have it
 	 */
-	if (output_debug_info)
-		if (jvmti_write_debug_info(jvmti_agent, addr, nr_lines, line_tab, (const char * const *) line_file_names))
-			warnx("jvmti: write_debug_info() failed");
+	if (output_de_info)
+		if (jvmti_write_de_info(jvmti_agent, addr, nr_lines, line_tab, (const char * const *) line_file_names))
+			warnx("jvmti: write_de_info() failed");
 
 	len = strlen(func_name) + strlen(class_sign) + strlen(func_sign) + 2;
 	{

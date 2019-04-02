@@ -175,9 +175,9 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 	int err = 0;
 
 	card = sdev->card;
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENODEV;
-	if (snd_BUG_ON(!card->private_data))
+	if (snd__ON(!card->private_data))
 		return -ENODEV;
 
 	acard = card->private_data;

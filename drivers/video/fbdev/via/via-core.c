@@ -376,7 +376,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 		if (!pdev)
 			continue;
 
-		DEBUG_MSG(KERN_INFO "Device ID = %x\n", pdev->device);
+		DE_MSG(KERN_INFO "Device ID = %x\n", pdev->device);
 
 		switch (pdev->device) {
 		case CLE266_FUNCTION3:
@@ -411,7 +411,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 	}
 
 	FBSize = FBSize & 0x00007000;
-	DEBUG_MSG(KERN_INFO "FB Size = %x\n", FBSize);
+	DE_MSG(KERN_INFO "FB Size = %x\n", FBSize);
 
 	if (chip_type < UNICHROME_CX700) {
 		switch (FBSize) {
@@ -630,7 +630,7 @@ static int via_suspend(struct pci_dev *pdev, pm_message_t state)
 		return 0;
 	/*
 	 * "I've occasionally hit a few drivers that caused suspend
-	 * failures, and each and every time it was a driver bug, and
+	 * failures, and each and every time it was a driver , and
 	 * the right thing to do was to just ignore the error and suspend
 	 * anyway - returning an error code and trying to undo the suspend
 	 * is not what anybody ever really wants, even if our model

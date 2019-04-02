@@ -126,7 +126,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 	if (unlikely(!queue)) {
 		rt2x00_err(rt2x00dev,
 			   "Attempt to send packet over invalid queue %d\n"
-			   "Please file bug report to %s\n", qid, DRV_PROJECT);
+			   "Please file  report to %s\n", qid, DRV_PROJECT);
 		goto exit_free_skb;
 	}
 
@@ -649,7 +649,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	/*
 	 * Check for access point which do not support 802.11e . We have to
 	 * generate data frames sequence number in S/W for such AP, because
-	 * of H/W bug.
+	 * of H/W .
 	 */
 	if (changes & BSS_CHANGED_QOS && !bss_conf->qos)
 		set_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags);

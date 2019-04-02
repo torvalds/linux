@@ -68,7 +68,7 @@
 
 /*
  * Default values for the low-power entry to be used if not provided by user.
- * OMAP4/5 has a hw bug(i735) due to which this value can not be less than 512
+ * OMAP4/5 has a hw (i735) due to which this value can not be less than 512
  * Timeout values are in DDR clock 'cycles' and frequency threshold in Hz
  */
 #define EMIF_LP_MODE_TIMEOUT_PERFORMANCE		2048

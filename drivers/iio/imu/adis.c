@@ -206,9 +206,9 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(adis_read_reg);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-int adis_debugfs_reg_access(struct iio_dev *indio_dev,
+int adis_defs_reg_access(struct iio_dev *indio_dev,
 	unsigned int reg, unsigned int writeval, unsigned int *readval)
 {
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
@@ -225,7 +225,7 @@ int adis_debugfs_reg_access(struct iio_dev *indio_dev,
 		return adis_write_reg_16(adis, reg, writeval);
 	}
 }
-EXPORT_SYMBOL(adis_debugfs_reg_access);
+EXPORT_SYMBOL(adis_defs_reg_access);
 
 #endif
 

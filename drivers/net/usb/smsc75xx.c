@@ -92,7 +92,7 @@ static int __must_check __smsc75xx_read_reg(struct usbnet *dev, u32 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, void *, u16);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!in_pm)
 		fn = usbnet_read_cmd;
@@ -121,7 +121,7 @@ static int __must_check __smsc75xx_write_reg(struct usbnet *dev, u32 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, const void *, u16);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!in_pm)
 		fn = usbnet_write_cmd;
@@ -358,8 +358,8 @@ static int smsc75xx_read_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	u32 val;
 	int i, ret;
 
-	BUG_ON(!dev);
-	BUG_ON(!data);
+	_ON(!dev);
+	_ON(!data);
 
 	ret = smsc75xx_eeprom_confirm_not_busy(dev);
 	if (ret)
@@ -396,8 +396,8 @@ static int smsc75xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	u32 val;
 	int i, ret;
 
-	BUG_ON(!dev);
-	BUG_ON(!data);
+	_ON(!dev);
+	_ON(!data);
 
 	ret = smsc75xx_eeprom_confirm_not_busy(dev);
 	if (ret)

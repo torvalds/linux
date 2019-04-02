@@ -55,7 +55,7 @@ int __node_distance(int a, int b)
 }
 EXPORT_SYMBOL(__node_distance);
 
-int numa_debug_enabled;
+int numa_de_enabled;
 
 /*
  * numa_setup_memory() - Assign bootmem to nodes
@@ -149,12 +149,12 @@ static int __init numa_init_late(void)
 }
 arch_initcall(numa_init_late);
 
-static int __init parse_debug(char *parm)
+static int __init parse_de(char *parm)
 {
-	numa_debug_enabled = 1;
+	numa_de_enabled = 1;
 	return 0;
 }
-early_param("numa_debug", parse_debug);
+early_param("numa_de", parse_de);
 
 static int __init parse_numa(char *parm)
 {

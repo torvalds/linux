@@ -7,8 +7,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifdef CONFIG_EXYNOS_IOMMU_DEBUG
-#define DEBUG
+#ifdef CONFIG_EXYNOS_IOMMU_DE
+#define DE
 #endif
 
 #include <linux/clk.h>
@@ -353,10 +353,10 @@ static void __sysmmu_set_ptbase(struct sysmmu_drvdata *data, phys_addr_t pgd)
 
 static void __sysmmu_enable_clocks(struct sysmmu_drvdata *data)
 {
-	BUG_ON(clk_prepare_enable(data->clk_master));
-	BUG_ON(clk_prepare_enable(data->clk));
-	BUG_ON(clk_prepare_enable(data->pclk));
-	BUG_ON(clk_prepare_enable(data->aclk));
+	_ON(clk_prepare_enable(data->clk_master));
+	_ON(clk_prepare_enable(data->clk));
+	_ON(clk_prepare_enable(data->pclk));
+	_ON(clk_prepare_enable(data->aclk));
 }
 
 static void __sysmmu_disable_clocks(struct sysmmu_drvdata *data)
@@ -437,9 +437,9 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 		if (finfo->bit == itype)
 			break;
 	/* unknown/unsupported fault */
-	BUG_ON(i == n);
+	_ON(i == n);
 
-	/* print debug message */
+	/* print de message */
 	fault_addr = readl(data->sfrbase + finfo->addr_reg);
 	show_fault_information(data, finfo, fault_addr);
 
@@ -447,7 +447,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 		ret = report_iommu_fault(&data->domain->domain,
 					data->master, fault_addr, finfo->type);
 	/* fault is not recovered by fault handler */
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 
 	writel(1 << itype, data->sfrbase + reg_clear);
 
@@ -742,7 +742,7 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 	int i;
 
 	/* Check if correct PTE offsets are initialized */
-	BUG_ON(PG_ENT_SHIFT < 0 || !dma_dev);
+	_ON(PG_ENT_SHIFT < 0 || !dma_dev);
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
@@ -770,7 +770,7 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 	handle = dma_map_single(dma_dev, domain->pgtable, LV1TABLE_SIZE,
 				DMA_TO_DEVICE);
 	/* For mapping page table entries we rely on dma == phys */
-	BUG_ON(handle != virt_to_phys(domain->pgtable));
+	_ON(handle != virt_to_phys(domain->pgtable));
 	if (dma_mapping_error(dma_dev, handle))
 		goto err_lv2ent;
 
@@ -934,7 +934,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 		bool need_flush_flpd_cache = lv1ent_zero(sent);
 
 		pent = kmem_cache_zalloc(lv2table_kmem_cache, GFP_ATOMIC);
-		BUG_ON((uintptr_t)pent & (LV2TABLE_SIZE - 1));
+		_ON((uintptr_t)pent & (LV2TABLE_SIZE - 1));
 		if (!pent)
 			return ERR_PTR(-ENOMEM);
 
@@ -1055,7 +1055,7 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
  *
  * System MMU v3.x has advanced logic to improve address translation
  * performance with caching more page table entries by a page table walk.
- * However, the logic has a bug that while caching faulty page table entries,
+ * However, the logic has a  that while caching faulty page table entries,
  * System MMU reports page fault if the cached fault entry is hit even though
  * the fault entry is updated to a valid entry after the entry is cached.
  * To prevent caching faulty page table entries which may be updated to valid
@@ -1063,7 +1063,7 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
  * for the problem. The following describes the workaround.
  *
  * Any two consecutive I/O virtual address regions must have a hole of 128KiB
- * at maximum to prevent misbehavior of System MMU 3.x (workaround for h/w bug).
+ * at maximum to prevent misbehavior of System MMU 3.x (workaround for h/w ).
  *
  * Precisely, any start address of I/O virtual region must be aligned with
  * the following sizes for System MMU v3.1 and v3.2.
@@ -1086,7 +1086,7 @@ static int exynos_iommu_map(struct iommu_domain *iommu_domain,
 	unsigned long flags;
 	int ret = -ENOMEM;
 
-	BUG_ON(domain->pgtable == NULL);
+	_ON(domain->pgtable == NULL);
 	prot &= SYSMMU_SUPPORTED_PROT_BITS;
 
 	spin_lock_irqsave(&domain->pgtablelock, flags);
@@ -1141,7 +1141,7 @@ static size_t exynos_iommu_unmap(struct iommu_domain *iommu_domain,
 	size_t err_pgsize;
 	unsigned long flags;
 
-	BUG_ON(domain->pgtable == NULL);
+	_ON(domain->pgtable == NULL);
 
 	spin_lock_irqsave(&domain->pgtablelock, flags);
 
@@ -1153,7 +1153,7 @@ static size_t exynos_iommu_unmap(struct iommu_domain *iommu_domain,
 			goto err;
 		}
 
-		/* workaround for h/w bug in System MMU v3.3 */
+		/* workaround for h/w  in System MMU v3.3 */
 		update_pte(ent, ZERO_LV2LINK);
 		size = SECT_SIZE;
 		goto done;

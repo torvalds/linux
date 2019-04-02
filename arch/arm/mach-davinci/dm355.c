@@ -62,7 +62,7 @@ static struct resource dm355_spi0_resources[] = {
 static struct davinci_spi_platform_data dm355_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
-	.cshold_bug	= true,
+	.cshold_	= true,
 	.dma_event_q	= EVENTQ_1,
 	.prescaler_limit = 1,
 };

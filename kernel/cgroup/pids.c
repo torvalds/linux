@@ -93,13 +93,13 @@ static void pids_css_free(struct cgroup_subsys_state *css)
  * @num: the number of pids to cancel
  *
  * This function will WARN if the pid count goes under 0, because such a case is
- * a bug in the pids controller proper.
+ * a  in the pids controller proper.
  */
 static void pids_cancel(struct pids_cgroup *pids, int num)
 {
 	/*
 	 * A negative count (or overflow for that matter) is invalid,
-	 * and indicates a bug in the `pids` controller proper.
+	 * and indicates a  in the `pids` controller proper.
 	 */
 	WARN_ON_ONCE(atomic64_add_negative(-num, &pids->counter));
 }

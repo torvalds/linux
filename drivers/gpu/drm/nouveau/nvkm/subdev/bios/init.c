@@ -44,7 +44,7 @@
 		    '0' + (init->nested - 1) : ' ', ##args);                   \
 } while(0)
 #define cont(fmt, args...) do {                                                \
-	if (init->subdev->debug >= NV_DBG_TRACE)                               \
+	if (init->subdev->de >= NV_DBG_TRACE)                               \
 		printk(fmt, ##args);                                           \
 } while(0)
 #define trace(fmt, args...) bioslog(TRACE, fmt, ##args)
@@ -2305,7 +2305,7 @@ nvbios_post(struct nvkm_subdev *subdev, bool execute)
 	u16 data;
 
 	if (execute)
-		nvkm_debug(subdev, "running init tables\n");
+		nvkm_de(subdev, "running init tables\n");
 	while (!ret && (data = (init_script(bios, ++i)))) {
 		ret = nvbios_init(subdev, data,
 			init.execute = execute ? 1 : 0;

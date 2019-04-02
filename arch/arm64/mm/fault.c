@@ -28,19 +28,19 @@
 #include <linux/uaccess.h>
 #include <linux/page-flags.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 #include <linux/preempt.h>
 #include <linux/hugetlb.h>
 
 #include <asm/acpi.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/cmpxchg.h>
 #include <asm/cpufeature.h>
 #include <asm/exception.h>
 #include <asm/daifflags.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/esr.h>
 #include <asm/kasan.h>
 #include <asm/sysreg.h>
@@ -58,16 +58,16 @@ struct fault_info {
 };
 
 static const struct fault_info fault_info[];
-static struct fault_info debug_fault_info[];
+static struct fault_info de_fault_info[];
 
 static inline const struct fault_info *esr_to_fault_info(unsigned int esr)
 {
 	return fault_info + (esr & ESR_ELx_FSC);
 }
 
-static inline const struct fault_info *esr_to_debug_fault_info(unsigned int esr)
+static inline const struct fault_info *esr_to_de_fault_info(unsigned int esr)
 {
-	return debug_fault_info + DBG_ESR_EVT(esr);
+	return de_fault_info + DBG_ESR_EVT(esr);
 }
 
 #ifdef CONFIG_KPROBES
@@ -488,7 +488,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	/*
 	 * As per x86, we may deadlock here. However, since the kernel only
 	 * validly references user space from well defined areas of the code,
-	 * we can bug out early if this is from code which shouldn't.
+	 * we can  out early if this is from code which shouldn't.
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->pc))
@@ -501,7 +501,7 @@ retry:
 		 * case, we'll have missed the might_sleep() from down_read().
 		 */
 		might_sleep();
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		if (!user_mode(regs) && !search_exception_tables(regs->pc))
 			goto no_context;
 #endif
@@ -785,9 +785,9 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 /*
  * __refdata because early_brk64 is __init, but the reference to it is
  * clobbered at arch_initcall time.
- * See traps.c and debug-monitors.c:debug_traps_init().
+ * See traps.c and de-monitors.c:de_traps_init().
  */
-static struct fault_info __refdata debug_fault_info[] = {
+static struct fault_info __refdata de_fault_info[] = {
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware breakpoint"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware single-step"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware watchpoint"	},
@@ -798,23 +798,23 @@ static struct fault_info __refdata debug_fault_info[] = {
 	{ do_bad,	SIGKILL,	SI_KERNEL,	"unknown 7"		},
 };
 
-void __init hook_debug_fault_code(int nr,
+void __init hook_de_fault_code(int nr,
 				  int (*fn)(unsigned long, unsigned int, struct pt_regs *),
 				  int sig, int code, const char *name)
 {
-	BUG_ON(nr < 0 || nr >= ARRAY_SIZE(debug_fault_info));
+	_ON(nr < 0 || nr >= ARRAY_SIZE(de_fault_info));
 
-	debug_fault_info[nr].fn		= fn;
-	debug_fault_info[nr].sig	= sig;
-	debug_fault_info[nr].code	= code;
-	debug_fault_info[nr].name	= name;
+	de_fault_info[nr].fn		= fn;
+	de_fault_info[nr].sig	= sig;
+	de_fault_info[nr].code	= code;
+	de_fault_info[nr].name	= name;
 }
 
-asmlinkage int __exception do_debug_exception(unsigned long addr_if_watchpoint,
+asmlinkage int __exception do_de_exception(unsigned long addr_if_watchpoint,
 					      unsigned int esr,
 					      struct pt_regs *regs)
 {
-	const struct fault_info *inf = esr_to_debug_fault_info(esr);
+	const struct fault_info *inf = esr_to_de_fault_info(esr);
 	unsigned long pc = instruction_pointer(regs);
 	int rv;
 
@@ -841,4 +841,4 @@ asmlinkage int __exception do_debug_exception(unsigned long addr_if_watchpoint,
 
 	return rv;
 }
-NOKPROBE_SYMBOL(do_debug_exception);
+NOKPROBE_SYMBOL(do_de_exception);

@@ -254,7 +254,7 @@ static inline struct xen_page_foreign *xen_page_foreign(struct page *page)
 #if BITS_PER_LONG < 64
 	return (struct xen_page_foreign *)page->private;
 #else
-	BUILD_BUG_ON(sizeof(struct xen_page_foreign) > BITS_PER_LONG);
+	BUILD__ON(sizeof(struct xen_page_foreign) > BITS_PER_LONG);
 	return (struct xen_page_foreign *)&page->private;
 #endif
 }

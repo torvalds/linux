@@ -78,7 +78,7 @@ static int write_modem(struct cardstate *cs)
 	set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	if (tty->ops->write)
 		sent = tty->ops->write(tty, skb->data, skb->len);
-	gig_dbg(DEBUG_OUTPUT, "write_modem: sent %d", sent);
+	gig_dbg(DE_OUTPUT, "write_modem: sent %d", sent);
 	if (sent < 0) {
 		/* error */
 		flush_send_queue(cs);
@@ -89,7 +89,7 @@ static int write_modem(struct cardstate *cs)
 		/* skb sent completely */
 		gigaset_skb_sent(bcs, skb);
 
-		gig_dbg(DEBUG_INTR, "kfree skb (Adr: %lx)!",
+		gig_dbg(DE_INTR, "kfree skb (Adr: %lx)!",
 			(unsigned long) skb);
 		dev_kfree_skb_any(skb);
 		bcs->tx_skb = NULL;
@@ -119,13 +119,13 @@ static int send_cb(struct cardstate *cs)
 		sent = tty->ops->write(tty, cb->buf + cb->offset, cb->len);
 		if (sent < 0) {
 			/* error */
-			gig_dbg(DEBUG_OUTPUT, "send_cb: write error %d", sent);
+			gig_dbg(DE_OUTPUT, "send_cb: write error %d", sent);
 			flush_send_queue(cs);
 			return sent;
 		}
 		cb->offset += sent;
 		cb->len -= sent;
-		gig_dbg(DEBUG_OUTPUT, "send_cb: sent %d, left %u, queued %u",
+		gig_dbg(DE_OUTPUT, "send_cb: sent %d, left %u, queued %u",
 			sent, cb->len, cs->cmdbytes);
 	}
 
@@ -164,18 +164,18 @@ static void gigaset_modem_fill(unsigned long data)
 	int sent = 0;
 
 	if (!cs) {
-		gig_dbg(DEBUG_OUTPUT, "%s: no cardstate", __func__);
+		gig_dbg(DE_OUTPUT, "%s: no cardstate", __func__);
 		return;
 	}
 	bcs = cs->bcs;
 	if (!bcs) {
-		gig_dbg(DEBUG_OUTPUT, "%s: no cardstate", __func__);
+		gig_dbg(DE_OUTPUT, "%s: no cardstate", __func__);
 		return;
 	}
 	if (!bcs->tx_skb) {
 		/* no skb is being sent; send command if any */
 		sent = send_cb(cs);
-		gig_dbg(DEBUG_OUTPUT, "%s: send_cb -> %d", __func__, sent);
+		gig_dbg(DE_OUTPUT, "%s: send_cb -> %d", __func__, sent);
 		if (sent)
 			/* something sent or error */
 			return;
@@ -187,14 +187,14 @@ static void gigaset_modem_fill(unsigned long data)
 			return;
 		bcs->tx_skb = nextskb;
 
-		gig_dbg(DEBUG_INTR, "Dequeued skb (Adr: %lx)",
+		gig_dbg(DE_INTR, "Dequeued skb (Adr: %lx)",
 			(unsigned long) bcs->tx_skb);
 	}
 
 	/* send skb */
-	gig_dbg(DEBUG_OUTPUT, "%s: tx_skb", __func__);
+	gig_dbg(DE_OUTPUT, "%s: tx_skb", __func__);
 	if (write_modem(cs) < 0)
-		gig_dbg(DEBUG_OUTPUT, "%s: write_modem failed", __func__);
+		gig_dbg(DE_OUTPUT, "%s: write_modem failed", __func__);
 }
 
 /*
@@ -244,7 +244,7 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	unsigned long flags;
 
 	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
-			   DEBUG_TRANSCMD : DEBUG_LOCKCMD,
+			   DE_TRANSCMD : DE_LOCKCMD,
 			   "CMD Transmit", cb->len, cb->buf);
 
 	spin_lock_irqsave(&cs->cmdlock, flags);
@@ -430,7 +430,7 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 	clear = old_state & ~new_state;
 	if (!set && !clear)
 		return 0;
-	gig_dbg(DEBUG_IF, "tiocmset set %x clear %x", set, clear);
+	gig_dbg(DE_IF, "tiocmset set %x clear %x", set, clear);
 	return tty->ops->tiocmset(tty, set, clear);
 }
 
@@ -473,7 +473,7 @@ static struct cardstate *cs_get(struct tty_struct *tty)
 	struct cardstate *cs = tty->disc_data;
 
 	if (!cs || !cs->hw.ser) {
-		gig_dbg(DEBUG_ANY, "%s: no cardstate", __func__);
+		gig_dbg(DE_ANY, "%s: no cardstate", __func__);
 		return NULL;
 	}
 	atomic_inc(&cs->hw.ser->refcnt);
@@ -496,7 +496,7 @@ gigaset_tty_open(struct tty_struct *tty)
 	struct cardstate *cs;
 	int rc;
 
-	gig_dbg(DEBUG_INIT, "Starting HLL for Gigaset M101");
+	gig_dbg(DE_INIT, "Starting HLL for Gigaset M101");
 
 	pr_info(DRIVER_DESC "\n");
 
@@ -539,11 +539,11 @@ gigaset_tty_open(struct tty_struct *tty)
 		goto error;
 	}
 
-	gig_dbg(DEBUG_INIT, "Startup of HLL done");
+	gig_dbg(DE_INIT, "Startup of HLL done");
 	return 0;
 
 error:
-	gig_dbg(DEBUG_INIT, "Startup of HLL failed");
+	gig_dbg(DE_INIT, "Startup of HLL failed");
 	tty->disc_data = NULL;
 	gigaset_freecs(cs);
 	return rc;
@@ -558,10 +558,10 @@ gigaset_tty_close(struct tty_struct *tty)
 {
 	struct cardstate *cs = tty->disc_data;
 
-	gig_dbg(DEBUG_INIT, "Stopping HLL for Gigaset M101");
+	gig_dbg(DE_INIT, "Stopping HLL for Gigaset M101");
 
 	if (!cs) {
-		gig_dbg(DEBUG_INIT, "%s: no cardstate", __func__);
+		gig_dbg(DE_INIT, "%s: no cardstate", __func__);
 		return;
 	}
 
@@ -583,7 +583,7 @@ gigaset_tty_close(struct tty_struct *tty)
 	cs->dev = NULL;
 	gigaset_freecs(cs);
 
-	gig_dbg(DEBUG_INIT, "Shutdown of HLL done");
+	gig_dbg(DE_INIT, "Shutdown of HLL done");
 }
 
 /*
@@ -675,7 +675,7 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 
 	tail = inbuf->tail;
 	head = inbuf->head;
-	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u, receive %u bytes",
+	gig_dbg(DE_INTR, "buffer state: %u -> %u, receive %u bytes",
 		head, tail, count);
 
 	if (head <= tail) {
@@ -700,11 +700,11 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 		tail += count;
 	}
 
-	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
+	gig_dbg(DE_INTR, "setting tail to %u", tail);
 	inbuf->tail = tail;
 
 	/* Everything was received .. Push data into handler */
-	gig_dbg(DEBUG_INTR, "%s-->BH", __func__);
+	gig_dbg(DE_INTR, "%s-->BH", __func__);
 	gigaset_schedule_event(cs);
 	cs_put(cs);
 }
@@ -744,7 +744,7 @@ static int __init ser_gigaset_init(void)
 {
 	int rc;
 
-	gig_dbg(DEBUG_INIT, "%s", __func__);
+	gig_dbg(DE_INIT, "%s", __func__);
 	rc = platform_driver_register(&device_driver);
 	if (rc != 0) {
 		pr_err("error %d registering platform driver\n", rc);
@@ -781,7 +781,7 @@ static void __exit ser_gigaset_exit(void)
 {
 	int rc;
 
-	gig_dbg(DEBUG_INIT, "%s", __func__);
+	gig_dbg(DE_INIT, "%s", __func__);
 
 	if (driver) {
 		gigaset_freedriver(driver);

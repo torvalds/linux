@@ -24,7 +24,7 @@
 				/* and pci_do_scan_bus */
 #include "rpaphp.h"
 
-bool rpaphp_debug;
+bool rpaphp_de;
 LIST_HEAD(rpaphp_slot_head);
 EXPORT_SYMBOL_GPL(rpaphp_slot_head);
 
@@ -38,7 +38,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-module_param_named(debug, rpaphp_debug, bool, 0644);
+module_param_named(de, rpaphp_de, bool, 0644);
 
 /**
  * set_attention_status - set attention LED

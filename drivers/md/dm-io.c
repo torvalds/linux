@@ -92,7 +92,7 @@ static void store_io_and_region_in_bio(struct bio *bio, struct io *io,
 {
 	if (unlikely(!IS_ALIGNED((unsigned long)io, DM_IO_MAX_REGIONS))) {
 		DMCRIT("Unaligned struct io pointer %p", io);
-		BUG();
+		();
 	}
 
 	bio->bi_private = (void *)((unsigned long)io | region);
@@ -394,7 +394,7 @@ static void dispatch_io(int op, int op_flags, unsigned int num_regions,
 	int i;
 	struct dpages old_pages = *dp;
 
-	BUG_ON(num_regions > DM_IO_MAX_REGIONS);
+	_ON(num_regions > DM_IO_MAX_REGIONS);
 
 	if (sync)
 		op_flags |= REQ_SYNC;

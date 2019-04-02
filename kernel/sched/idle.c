@@ -418,13 +418,13 @@ static void set_curr_task_idle(struct rq *rq)
 
 static void switched_to_idle(struct rq *rq, struct task_struct *p)
 {
-	BUG();
+	();
 }
 
 static void
 prio_changed_idle(struct rq *rq, struct task_struct *p, int oldprio)
 {
-	BUG();
+	();
 }
 
 static unsigned int get_rr_interval_idle(struct rq *rq, struct task_struct *task)
@@ -443,7 +443,7 @@ const struct sched_class idle_sched_class = {
 	/* .next is NULL */
 	/* no enqueue/yield_task for idle tasks */
 
-	/* dequeue is not valid, we print a debug message there: */
+	/* dequeue is not valid, we print a de message there: */
 	.dequeue_task		= dequeue_task_idle,
 
 	.check_preempt_curr	= check_preempt_curr_idle,

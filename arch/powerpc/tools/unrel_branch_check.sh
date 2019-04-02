@@ -8,7 +8,7 @@
 # This script checks the relocations of a vmlinux for "suspicious"
 # branches from unrelocated code (head_64.S code).
 
-# Turn this on if you want more debug output:
+# Turn this on if you want more de output:
 # set -x
 
 # Have Kbuild supply the path to objdump so we handle cross compilation.

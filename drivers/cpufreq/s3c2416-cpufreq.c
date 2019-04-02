@@ -126,11 +126,11 @@ static int s3c2416_cpufreq_enter_dvs(struct s3c2416_data *s3c_freq, int idx)
 	int ret;
 
 	if (s3c_freq->is_dvs) {
-		pr_debug("cpufreq: already in dvs mode, nothing to do\n");
+		pr_de("cpufreq: already in dvs mode, nothing to do\n");
 		return 0;
 	}
 
-	pr_debug("cpufreq: switching armclk to hclk (%lukHz)\n",
+	pr_de("cpufreq: switching armclk to hclk (%lukHz)\n",
 		 clk_get_rate(s3c_freq->hclk) / 1000);
 	ret = clk_set_parent(s3c_freq->armclk, s3c_freq->hclk);
 	if (ret < 0) {
@@ -143,7 +143,7 @@ static int s3c2416_cpufreq_enter_dvs(struct s3c2416_data *s3c_freq, int idx)
 	if (s3c_freq->vddarm) {
 		dvfs = &s3c2416_dvfs_table[idx];
 
-		pr_debug("cpufreq: setting regulator to %d-%d\n",
+		pr_de("cpufreq: setting regulator to %d-%d\n",
 			 dvfs->vddarm_min, dvfs->vddarm_max);
 		ret = regulator_set_voltage(s3c_freq->vddarm,
 					    dvfs->vddarm_min,
@@ -168,7 +168,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 	int ret;
 
 	if (!s3c_freq->is_dvs) {
-		pr_debug("cpufreq: not in dvs mode, so can't leave\n");
+		pr_de("cpufreq: not in dvs mode, so can't leave\n");
 		return 0;
 	}
 
@@ -176,7 +176,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 	if (s3c_freq->vddarm) {
 		dvfs = &s3c2416_dvfs_table[idx];
 
-		pr_debug("cpufreq: setting regulator to %d-%d\n",
+		pr_de("cpufreq: setting regulator to %d-%d\n",
 			 dvfs->vddarm_min, dvfs->vddarm_max);
 		ret = regulator_set_voltage(s3c_freq->vddarm,
 					    dvfs->vddarm_min,
@@ -190,7 +190,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 
 	/* force armdiv to hclk frequency for transition from dvs*/
 	if (clk_get_rate(s3c_freq->armdiv) > clk_get_rate(s3c_freq->hclk)) {
-		pr_debug("cpufreq: force armdiv to hclk frequency (%lukHz)\n",
+		pr_de("cpufreq: force armdiv to hclk frequency (%lukHz)\n",
 			 clk_get_rate(s3c_freq->hclk) / 1000);
 		ret = s3c2416_cpufreq_set_armdiv(s3c_freq,
 					clk_get_rate(s3c_freq->hclk) / 1000);
@@ -201,7 +201,7 @@ static int s3c2416_cpufreq_leave_dvs(struct s3c2416_data *s3c_freq, int idx)
 		}
 	}
 
-	pr_debug("cpufreq: switching armclk parent to armdiv (%lukHz)\n",
+	pr_de("cpufreq: switching armclk parent to armdiv (%lukHz)\n",
 			clk_get_rate(s3c_freq->armdiv) / 1000);
 
 	ret = clk_set_parent(s3c_freq->armclk, s3c_freq->armdiv);
@@ -232,7 +232,7 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	/* switching to dvs when it's not allowed */
 	if (to_dvs && s3c_freq->disable_dvs) {
-		pr_debug("cpufreq: entering dvs mode not allowed\n");
+		pr_de("cpufreq: entering dvs mode not allowed\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -246,13 +246,13 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 				: s3c_freq->freq_table[index].frequency;
 
 	if (to_dvs) {
-		pr_debug("cpufreq: enter dvs\n");
+		pr_de("cpufreq: enter dvs\n");
 		ret = s3c2416_cpufreq_enter_dvs(s3c_freq, idx);
 	} else if (s3c_freq->is_dvs) {
-		pr_debug("cpufreq: leave dvs\n");
+		pr_de("cpufreq: leave dvs\n");
 		ret = s3c2416_cpufreq_leave_dvs(s3c_freq, idx);
 	} else {
-		pr_debug("cpufreq: change armdiv to %dkHz\n", new_freq);
+		pr_de("cpufreq: change armdiv to %dkHz\n", new_freq);
 		ret = s3c2416_cpufreq_set_armdiv(s3c_freq, new_freq);
 	}
 
@@ -290,7 +290,7 @@ static void s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
 		}
 
 		if (!found) {
-			pr_debug("cpufreq: %dkHz unsupported by regulator\n",
+			pr_de("cpufreq: %dkHz unsupported by regulator\n",
 				 pos->frequency);
 			pos->frequency = CPUFREQ_ENTRY_INVALID;
 		}
@@ -320,7 +320,7 @@ static int s3c2416_cpufreq_reboot_notifier_evt(struct notifier_block *this,
 	 * Therefore we always leave the DVS mode on reboot.
 	 */
 	if (s3c_freq->is_dvs) {
-		pr_debug("cpufreq: leave dvs on reboot\n");
+		pr_de("cpufreq: leave dvs on reboot\n");
 		ret = cpufreq_driver_target(cpufreq_cpu_get(0), FREQ_SLEEP, 0);
 		if (ret < 0)
 			return NOTIFY_BAD;
@@ -428,7 +428,7 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 		/* special handling for dvs mode */
 		if (pos->driver_data == 0) {
 			if (!s3c_freq->hclk) {
-				pr_debug("cpufreq: %dkHz unsupported as it would need unavailable dvs mode\n",
+				pr_de("cpufreq: %dkHz unsupported as it would need unavailable dvs mode\n",
 					 pos->frequency);
 				pos->frequency = CPUFREQ_ENTRY_INVALID;
 			} else {
@@ -441,7 +441,7 @@ static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 				      pos->frequency * 1000);
 		rate /= 1000;
 		if (rate != pos->frequency) {
-			pr_debug("cpufreq: %dkHz unsupported by clock (clk_round_rate return %lu)\n",
+			pr_de("cpufreq: %dkHz unsupported by clock (clk_round_rate return %lu)\n",
 				pos->frequency, rate);
 			pos->frequency = CPUFREQ_ENTRY_INVALID;
 		}

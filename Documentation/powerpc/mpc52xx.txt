@@ -16,7 +16,7 @@ To compile/use :
      => tftpboot 400000 pRamdisk
      => bootm 200000 400000
 
-  - DBug:
+  - D:
      # <edit Makefile to set ARCH=ppc & CROSS_COMPILE=... ( also EXTRAVERSION
         if you wish to ).
      # make lite5200_defconfig
@@ -24,8 +24,8 @@ To compile/use :
      # make zImage.initrd
      # make
 
-     then in DBug:
-     DBug> dn -i zImage.initrd.lite5200
+     then in D:
+     D> dn -i zImage.initrd.lite5200
 
 
 Some remarks :

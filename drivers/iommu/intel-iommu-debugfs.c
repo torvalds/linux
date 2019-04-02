@@ -7,7 +7,7 @@
  *	    Jacob Pan <jacob.jun.pan@linux.intel.com>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dmar.h>
 #include <linux/intel-iommu.h>
 #include <linux/pci.h>
@@ -298,17 +298,17 @@ static int ir_translation_struct_show(struct seq_file *m, void *unused)
 DEFINE_SHOW_ATTRIBUTE(ir_translation_struct);
 #endif
 
-void __init intel_iommu_debugfs_init(void)
+void __init intel_iommu_defs_init(void)
 {
-	struct dentry *intel_iommu_debug = debugfs_create_dir("intel",
-						iommu_debugfs_dir);
+	struct dentry *intel_iommu_de = defs_create_dir("intel",
+						iommu_defs_dir);
 
-	debugfs_create_file("iommu_regset", 0444, intel_iommu_debug, NULL,
+	defs_create_file("iommu_regset", 0444, intel_iommu_de, NULL,
 			    &iommu_regset_fops);
-	debugfs_create_file("dmar_translation_struct", 0444, intel_iommu_debug,
+	defs_create_file("dmar_translation_struct", 0444, intel_iommu_de,
 			    NULL, &dmar_translation_struct_fops);
 #ifdef CONFIG_IRQ_REMAP
-	debugfs_create_file("ir_translation_struct", 0444, intel_iommu_debug,
+	defs_create_file("ir_translation_struct", 0444, intel_iommu_de,
 			    NULL, &ir_translation_struct_fops);
 #endif
 }

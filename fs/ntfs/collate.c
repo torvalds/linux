@@ -20,7 +20,7 @@
  */
 
 #include "collate.h"
-#include "debug.h"
+#include "de.h"
 #include "ntfs.h"
 
 static int ntfs_collate_binary(ntfs_volume *vol,
@@ -29,7 +29,7 @@ static int ntfs_collate_binary(ntfs_volume *vol,
 {
 	int rc;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	rc = memcmp(data1, data2, min(data1_len, data2_len));
 	if (!rc && (data1_len != data2_len)) {
 		if (data1_len < data2_len)
@@ -37,7 +37,7 @@ static int ntfs_collate_binary(ntfs_volume *vol,
 		else
 			rc = 1;
 	}
-	ntfs_debug("Done, returning %i", rc);
+	ntfs_de("Done, returning %i", rc);
 	return rc;
 }
 
@@ -48,10 +48,10 @@ static int ntfs_collate_ntofs_ulong(ntfs_volume *vol,
 	int rc;
 	u32 d1, d2;
 
-	ntfs_debug("Entering.");
-	// FIXME:  We don't really want to bug here.
-	BUG_ON(data1_len != data2_len);
-	BUG_ON(data1_len != 4);
+	ntfs_de("Entering.");
+	// FIXME:  We don't really want to  here.
+	_ON(data1_len != data2_len);
+	_ON(data1_len != 4);
 	d1 = le32_to_cpup(data1);
 	d2 = le32_to_cpup(data2);
 	if (d1 < d2)
@@ -62,7 +62,7 @@ static int ntfs_collate_ntofs_ulong(ntfs_volume *vol,
 		else
 			rc = 1;
 	}
-	ntfs_debug("Done, returning %i", rc);
+	ntfs_de("Done, returning %i", rc);
 	return rc;
 }
 
@@ -103,22 +103,22 @@ int ntfs_collate(ntfs_volume *vol, COLLATION_RULE cr,
 		const void *data2, const int data2_len) {
 	int i;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	/*
 	 * FIXME:  At the moment we only support COLLATION_BINARY and
-	 * COLLATION_NTOFS_ULONG, so we BUG() for everything else for now.
+	 * COLLATION_NTOFS_ULONG, so we () for everything else for now.
 	 */
-	BUG_ON(cr != COLLATION_BINARY && cr != COLLATION_NTOFS_ULONG);
+	_ON(cr != COLLATION_BINARY && cr != COLLATION_NTOFS_ULONG);
 	i = le32_to_cpu(cr);
-	BUG_ON(i < 0);
+	_ON(i < 0);
 	if (i <= 0x02)
 		return ntfs_do_collate0x0[i](vol, data1, data1_len,
 				data2, data2_len);
-	BUG_ON(i < 0x10);
+	_ON(i < 0x10);
 	i -= 0x10;
 	if (likely(i <= 3))
 		return ntfs_do_collate0x1[i](vol, data1, data1_len,
 				data2, data2_len);
-	BUG();
+	();
 	return 0;
 }

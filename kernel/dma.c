@@ -4,7 +4,7 @@
  *
  * Written by Hennus Bergman, 1992.
  *
- * 1994/12/26: Changes by Alex Nash to fix a minor bug in /proc/dma.
+ * 1994/12/26: Changes by Alex Nash to fix a minor  in /proc/dma.
  *   In the previous version the reported device could end up being wrong,
  *   if a device requested a DMA channel that was already in use.
  *   [It also happened to remove the sizeof(char *) == sizeof(int)

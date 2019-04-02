@@ -496,7 +496,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				   nvkm_rd32(device, 0x406810));
 		}
 
-		/* No sane way found yet -- just reset the bugger. */
+		/* No sane way found yet -- just reset the ger. */
 		nvkm_wr32(device, 0x400040, 2);
 		nvkm_wr32(device, 0x400040, 0);
 		nvkm_wr32(device, 0x406800, 0xc0000000);
@@ -539,7 +539,7 @@ nv50_gr_trap_handler(struct nv50_gr *gr, u32 display,
 				   nvkm_rd32(device, 0x401810));
 		}
 
-		/* No sane way found yet -- just reset the bugger. */
+		/* No sane way found yet -- just reset the ger. */
 		nvkm_wr32(device, 0x400040, 0x80);
 		nvkm_wr32(device, 0x400040, 0);
 		nvkm_wr32(device, 0x401800, 0xc0000000);
@@ -682,7 +682,7 @@ nv50_gr_init(struct nvkm_gr *base)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int ret, units, i;
 
-	/* NV_PGRAPH_DEBUG_3_HW_CTX_SWITCH_ENABLED */
+	/* NV_PGRAPH_DE_3_HW_CTX_SWITCH_ENABLED */
 	nvkm_wr32(device, 0x40008c, 0x00000004);
 
 	/* reset/enable traps and interrupts */

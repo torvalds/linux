@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
 
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/cacheops.h>
 #include <asm/cpu-type.h>
 #include <asm/inst.h>
@@ -104,7 +104,7 @@ static int cache_line_size;
 static inline void
 pg_addiu(u32 **buf, unsigned int reg1, unsigned int reg2, unsigned int off)
 {
-	if (cpu_has_64bit_gp_regs && DADDI_WAR && r4k_daddiu_bug()) {
+	if (cpu_has_64bit_gp_regs && DADDI_WAR && r4k_daddiu_()) {
 		if (off > 0x7fff) {
 			uasm_i_lui(buf, T9, uasm_rel_hi(off));
 			uasm_i_addiu(buf, T9, T9, uasm_rel_lo(off));
@@ -294,8 +294,8 @@ void build_clear_page(void)
 	 *   - The prefetch bias is a multiple of 2 words.
 	 *   - The prefetch bias is less than one page.
 	 */
-	BUG_ON(pref_bias_clear_store % (2 * clear_word_size));
-	BUG_ON(PAGE_SIZE < pref_bias_clear_store);
+	_ON(pref_bias_clear_store % (2 * clear_word_size));
+	_ON(PAGE_SIZE < pref_bias_clear_store);
 
 	off = PAGE_SIZE - pref_bias_clear_store;
 	if (off > 0xffff || !pref_bias_clear_store)
@@ -350,18 +350,18 @@ void build_clear_page(void)
 	uasm_i_jr(&buf, RA);
 	uasm_i_nop(&buf);
 
-	BUG_ON(buf > &__clear_page_end);
+	_ON(buf > &__clear_page_end);
 
 	uasm_resolve_relocs(relocs, labels);
 
-	pr_debug("Synthesized clear page handler (%u instructions).\n",
+	pr_de("Synthesized clear page handler (%u instructions).\n",
 		 (u32)(buf - &__clear_page_start));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_de("\t.set push\n");
+	pr_de("\t.set noreorder\n");
 	for (i = 0; i < (buf - &__clear_page_start); i++)
-		pr_debug("\t.word 0x%08x\n", (&__clear_page_start)[i]);
-	pr_debug("\t.set pop\n");
+		pr_de("\t.word 0x%08x\n", (&__clear_page_start)[i]);
+	pr_de("\t.set pop\n");
 }
 
 static void build_copy_load(u32 **buf, int reg, int off)
@@ -443,10 +443,10 @@ void build_copy_page(void)
 	 *   - The store prefetch bias isn't greater than the load
 	 *     prefetch bias.
 	 */
-	BUG_ON(pref_bias_copy_load % (8 * copy_word_size));
-	BUG_ON(pref_bias_copy_store % (8 * copy_word_size));
-	BUG_ON(PAGE_SIZE < pref_bias_copy_load);
-	BUG_ON(pref_bias_copy_store > pref_bias_copy_load);
+	_ON(pref_bias_copy_load % (8 * copy_word_size));
+	_ON(pref_bias_copy_store % (8 * copy_word_size));
+	_ON(PAGE_SIZE < pref_bias_copy_load);
+	_ON(pref_bias_copy_store > pref_bias_copy_load);
 
 	off = PAGE_SIZE - pref_bias_copy_load;
 	if (off > 0xffff || !pref_bias_copy_load)
@@ -594,18 +594,18 @@ void build_copy_page(void)
 	uasm_i_jr(&buf, RA);
 	uasm_i_nop(&buf);
 
-	BUG_ON(buf > &__copy_page_end);
+	_ON(buf > &__copy_page_end);
 
 	uasm_resolve_relocs(relocs, labels);
 
-	pr_debug("Synthesized copy page handler (%u instructions).\n",
+	pr_de("Synthesized copy page handler (%u instructions).\n",
 		 (u32)(buf - &__copy_page_start));
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_de("\t.set push\n");
+	pr_de("\t.set noreorder\n");
 	for (i = 0; i < (buf - &__copy_page_start); i++)
-		pr_debug("\t.word 0x%08x\n", (&__copy_page_start)[i]);
-	pr_debug("\t.set pop\n");
+		pr_de("\t.word 0x%08x\n", (&__copy_page_start)[i]);
+	pr_de("\t.set pop\n");
 }
 
 #ifdef CONFIG_SIBYTE_DMA_PAGEOPS
@@ -641,7 +641,7 @@ void clear_page(void *page)
 	 * Don't really want to do it this way, but there's no
 	 * reliable way to delay completion detection.
 	 */
-	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))
+	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DE)))
 		 & M_DM_DSCR_BASE_INTERRUPT))
 		;
 	__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));
@@ -668,7 +668,7 @@ void copy_page(void *to, void *from)
 	 * Don't really want to do it this way, but there's no
 	 * reliable way to delay completion detection.
 	 */
-	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DEBUG)))
+	while (!(__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE_DE)))
 		 & M_DM_DSCR_BASE_INTERRUPT))
 		;
 	__raw_readq(IOADDR(A_DM_REGISTER(cpu, R_DM_DSCR_BASE)));

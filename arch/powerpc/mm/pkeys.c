@@ -67,14 +67,14 @@ static int pkey_initialize(void)
 	 * generic defines for PKEY_DISABLE_ACCESS and PKEY_DISABLE_WRITE.
 	 * Ensure that the bits a distinct.
 	 */
-	BUILD_BUG_ON(PKEY_DISABLE_EXECUTE &
+	BUILD__ON(PKEY_DISABLE_EXECUTE &
 		     (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
 
 	/*
 	 * pkey_to_vmflag_bits() assumes that the pkey bits are contiguous
 	 * in the vmaflag. Make sure that is really the case.
 	 */
-	BUILD_BUG_ON(__builtin_clzl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) +
+	BUILD__ON(__builtin_clzl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) +
 		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
 				!= (sizeof(u64) * BITS_PER_BYTE));
 

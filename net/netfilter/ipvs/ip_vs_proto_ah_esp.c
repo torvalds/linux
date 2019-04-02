@@ -133,7 +133,7 @@ struct ip_vs_protocol ip_vs_protocol_ah = {
 	.register_app =		NULL,
 	.unregister_app =	NULL,
 	.app_conn_bind =	NULL,
-	.debug_packet =		ip_vs_tcpudp_debug_packet,
+	.de_packet =		ip_vs_tcpudp_de_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
 };
 #endif
@@ -155,7 +155,7 @@ struct ip_vs_protocol ip_vs_protocol_esp = {
 	.register_app =		NULL,
 	.unregister_app =	NULL,
 	.app_conn_bind =	NULL,
-	.debug_packet =		ip_vs_tcpudp_debug_packet,
+	.de_packet =		ip_vs_tcpudp_de_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
 };
 #endif

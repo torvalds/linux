@@ -56,7 +56,7 @@ by piece basis, or just some 'thematic frobbing'.
 
 The subdirs are about:
 abi/		execution domains & personalities
-debug/		<empty>
+de/		<empty>
 dev/		device specific information (eg dev/cdrom/info)
 fs/		specific filesystems
 		filehandle, inode, dentry and quota tuning

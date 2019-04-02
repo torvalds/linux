@@ -1729,7 +1729,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 	u64 Kpart;
 	unsigned int K, Ndiv, Nmod;
 
-	pr_debug("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
+	pr_de("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
 
 	/* Scale the input frequency down to <= 13.5MHz */
 	fll->clk_ref_div = 0;
@@ -1740,7 +1740,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 		if (fll->clk_ref_div > 3)
 			return -EINVAL;
 	}
-	pr_debug("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
+	pr_de("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
 
 	/* Scale the output to give 90MHz<=Fvco<=100MHz */
 	fll->outdiv = 3;
@@ -1750,7 +1750,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 			return -EINVAL;
 	}
 	freq_out *= fll->outdiv + 1;
-	pr_debug("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
+	pr_de("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
 
 	if (freq_in > 1000000) {
 		fll->fll_fratio = 0;
@@ -1767,14 +1767,14 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 		fll->fll_fratio = 4;
 		freq_in *= 16;
 	}
-	pr_debug("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
+	pr_de("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
 
 	/* Now, calculate N.K */
 	Ndiv = freq_out / freq_in;
 
 	fll->n = Ndiv;
 	Nmod = freq_out % freq_in;
-	pr_debug("Nmod=%d\n", Nmod);
+	pr_de("Nmod=%d\n", Nmod);
 
 	/* Calculate fractional part - scale up so we can round. */
 	Kpart = FIXED_FLL_SIZE * (long long)Nmod;
@@ -1789,7 +1789,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 	/* Move down to proper range now rounding is done */
 	fll->k = K / 10;
 
-	pr_debug("N=%x K=%x\n", fll->n, fll->k);
+	pr_de("N=%x K=%x\n", fll->n, fll->k);
 
 	return 0;
 }
@@ -1848,7 +1848,7 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 
 	/* If we're stopping the FLL redo the old config - no
 	 * registers will actually be written but we avoid GCC flow
-	 * analysis bugs spewing warnings.
+	 * analysis s spewing warnings.
 	 */
 	if (freq_out)
 		ret = wm8995_get_fll_config(&fll, freq_in, freq_out);

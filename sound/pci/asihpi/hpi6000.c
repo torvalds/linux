@@ -32,7 +32,7 @@
 
 #include "hpi_internal.h"
 #include "hpimsginit.h"
-#include "hpidebug.h"
+#include "hpide.h"
 #include "hpi6000.h"
 #include "hpidspcd.h"
 #include "hpicmn.h"
@@ -338,7 +338,7 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 		if (!pao) {
 			hpi_init_response(phr, phm->object, phm->function,
 				HPI_ERROR_BAD_ADAPTER_NUMBER);
-			HPI_DEBUG_LOG(DEBUG, "invalid adapter index: %d \n",
+			HPI_DE_LOG(DE, "invalid adapter index: %d \n",
 				phm->adapter_index);
 			return;
 		}
@@ -347,7 +347,7 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 		if (pao->dsp_crashed >= 10) {
 			hpi_init_response(phr, phm->object, phm->function,
 				HPI_ERROR_DSP_HARDWARE);
-			HPI_DEBUG_LOG(DEBUG, "adapter %d dsp crashed\n",
+			HPI_DE_LOG(DE, "adapter %d dsp crashed\n",
 				phm->adapter_index);
 			return;
 		}
@@ -413,13 +413,13 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	u16 err = 0;
 	u32 dsp_index = 0;
 
-	HPI_DEBUG_LOG(VERBOSE, "subsys_create_adapter\n");
+	HPI_DE_LOG(VERBOSE, "subsys_create_adapter\n");
 
 	memset(&ao, 0, sizeof(ao));
 
 	ao.priv = kzalloc(sizeof(struct hpi_hw_obj), GFP_KERNEL);
 	if (!ao.priv) {
-		HPI_DEBUG_LOG(ERROR, "can't get mem for adapter object\n");
+		HPI_DE_LOG(ERROR, "can't get mem for adapter object\n");
 		phr->error = HPI_ERROR_MEMORY_ALLOC;
 		return;
 	}
@@ -444,7 +444,7 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	pao = hpi_find_adapter(ao.index);
 	if (!pao) {
 		/* We just added this adapter, why can't we find it!? */
-		HPI_DEBUG_LOG(ERROR, "lost adapter after boot\n");
+		HPI_DE_LOG(ERROR, "lost adapter after boot\n");
 		phr->error = HPI_ERROR_BAD_ADAPTER;
 		return;
 	}
@@ -482,7 +482,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 	/* BAR1 - 32K = HPI registers on DSP */
 	phw->dw2040_HPICSR = pao->pci.ap_mem_base[0];
 	phw->dw2040_HPIDSP = pao->pci.ap_mem_base[1];
-	HPI_DEBUG_LOG(VERBOSE, "csr %p, dsp %p\n", phw->dw2040_HPICSR,
+	HPI_DE_LOG(VERBOSE, "csr %p, dsp %p\n", phw->dw2040_HPICSR,
 		phw->dw2040_HPIDSP);
 
 	/* set addresses for the possible DSP HPI interfaces */
@@ -501,7 +501,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 			phw->dw2040_HPIDSP + (DATA_AUTOINC +
 			DSP_SPACING * dsp_index);
 
-		HPI_DEBUG_LOG(VERBOSE, "ctl %p, adr %p, dat %p, dat++ %p\n",
+		HPI_DE_LOG(VERBOSE, "ctl %p, adr %p, dat %p, dat++ %p\n",
 			phw->ado[dsp_index].prHPI_control,
 			phw->ado[dsp_index].prHPI_address,
 			phw->ado[dsp_index].prHPI_data,
@@ -522,7 +522,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 	if (boot_error)
 		return boot_error;
 
-	HPI_DEBUG_LOG(INFO, "bootload DSP OK\n");
+	HPI_DE_LOG(INFO, "bootload DSP OK\n");
 
 	phw->message_buffer_address_on_dsp = 0L;
 	phw->response_buffer_address_on_dsp = 0L;
@@ -535,7 +535,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 		struct hpi_response hr1;	/* response from DSP 1 */
 		u16 error = 0;
 
-		HPI_DEBUG_LOG(VERBOSE, "send ADAPTER_GET_INFO\n");
+		HPI_DE_LOG(VERBOSE, "send ADAPTER_GET_INFO\n");
 		memset(&hm, 0, sizeof(hm));
 		hm.type = HPI_TYPE_REQUEST;
 		hm.size = sizeof(struct hpi_message);
@@ -549,7 +549,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 
 		error = hpi6000_message_response_sequence(pao, 0, &hm, &hr0);
 		if (hr0.error) {
-			HPI_DEBUG_LOG(DEBUG, "message error %d\n", hr0.error);
+			HPI_DE_LOG(DE, "message error %d\n", hr0.error);
 			return hr0.error;
 		}
 		if (phw->num_dsp == 2) {
@@ -583,7 +583,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 			pao->has_control_cache = 1;
 	}
 
-	HPI_DEBUG_LOG(DEBUG, "get adapter info ASI%04X index %d\n", pao->type,
+	HPI_DE_LOG(DE, "get adapter info ASI%04X index %d\n", pao->type,
 		pao->index);
 
 	if (phw->p_cache)
@@ -684,7 +684,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	delay = ioread32(phw->dw2040_HPICSR + HPI_RESET);
 
 	if (delay != dw2040_reset) {
-		HPI_DEBUG_LOG(ERROR, "INIT_PCI2040 %x %x\n", dw2040_reset,
+		HPI_DE_LOG(ERROR, "INIT_PCI2040 %x %x\n", dw2040_reset,
 			delay);
 		return HPI6000_ERROR_INIT_PCI2040;
 	}
@@ -731,7 +731,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			iowrite32(test_data, pdo->prHPI_address);
 			data = ioread32(pdo->prHPI_address);
 			if (data != test_data) {
-				HPI_DEBUG_LOG(ERROR, "INIT_DSPHPI %x %x %x\n",
+				HPI_DE_LOG(ERROR, "INIT_DSPHPI %x %x %x\n",
 					test_data, data, dsp_index);
 				return HPI6000_ERROR_INIT_DSPHPI;
 			}
@@ -780,7 +780,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		/* test r/w to internal DSP memory
 		 * C6711 has L2 cache mapped to 0x0 when reset
 		 *
-		 *  revB - because of bug 3.0.1 last HPI read
+		 *  revB - because of  3.0.1 last HPI read
 		 * (before HPI address issued) must be non-autoinc
 		 */
 		/* test each bit in the 32bit word */
@@ -791,7 +791,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				hpi_write_word(pdo, test_addr + i, test_data);
 				data = hpi_read_word(pdo, test_addr + i);
 				if (data != test_data) {
-					HPI_DEBUG_LOG(ERROR,
+					HPI_DE_LOG(ERROR,
 						"DSP mem %x %x %x %x\n",
 						test_addr + i, test_data,
 						data, dsp_index);
@@ -909,7 +909,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				hpi_write_word(pdo, test_addr, test_data);
 				data = hpi_read_word(pdo, test_addr);
 				if (data != test_data) {
-					HPI_DEBUG_LOG(ERROR,
+					HPI_DE_LOG(ERROR,
 						"DSP dram %x %x %x %x\n",
 						test_addr, test_data, data,
 						dsp_index);
@@ -932,7 +932,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			for (i = 0; i < DRAM_SIZE_WORDS; i = i + DRAM_INC) {
 				data = hpi_read_word(pdo, test_addr + i);
 				if (data != test_data) {
-					HPI_DEBUG_LOG(ERROR,
+					HPI_DE_LOG(ERROR,
 						"DSP dram %x %x %x %x\n",
 						test_addr + i, test_data,
 						data, dsp_index);
@@ -1003,7 +1003,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				data = hpi_read_word(pdo, address);
 				if (data != *pcode) {
 					error = HPI6000_ERROR_INIT_VERIFY;
-					HPI_DEBUG_LOG(ERROR,
+					HPI_DE_LOG(ERROR,
 						"DSP verify %x %x %x %x\n",
 						address, *pcode, data,
 						dsp_index);
@@ -1059,7 +1059,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 
 			if (read)
 				break;
-			/* The following is a workaround for bug #94:
+			/* The following is a workaround for  #94:
 			 * Bluescreen on install and subsequent boots on a
 			 * DELL PowerEdge 600SC PC with 1.8GHz P4 and
 			 * ServerWorks chipset. Without this delay the system
@@ -1114,12 +1114,12 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				break;
 			}
 			test_data = 0xAAAAAA00L & mask;
-			/* write to 24 bit Debug register (D31-D8) */
+			/* write to 24 bit De register (D31-D8) */
 			hpi_write_word(pdo, PLD_BASE_ADDRESS + 4L, test_data);
 			read = hpi_read_word(pdo,
 				PLD_BASE_ADDRESS + 4L) & mask;
 			if (read != test_data) {
-				HPI_DEBUG_LOG(ERROR, "PLD %x %x\n", test_data,
+				HPI_DE_LOG(ERROR, "PLD %x %x\n", test_data,
 					read);
 				return HPI6000_ERROR_INIT_PLDTEST1;
 			}
@@ -1128,7 +1128,7 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			read = hpi_read_word(pdo,
 				PLD_BASE_ADDRESS + 4L) & mask;
 			if (read != test_data) {
-				HPI_DEBUG_LOG(ERROR, "PLD %x %x\n", test_data,
+				HPI_DE_LOG(ERROR, "PLD %x %x\n", test_data,
 					read);
 				return HPI6000_ERROR_INIT_PLDTEST2;
 			}

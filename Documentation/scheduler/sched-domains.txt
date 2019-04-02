@@ -71,7 +71,7 @@ builder by #define'ing ARCH_HASH_SCHED_DOMAIN, and exporting your
 arch_init_sched_domains function. This function will attach domains to all
 CPUs using cpu_attach_domain.
 
-The sched-domains debugging infrastructure can be enabled by enabling
-CONFIG_SCHED_DEBUG. This enables an error checking parse of the sched domains
+The sched-domains deging infrastructure can be enabled by enabling
+CONFIG_SCHED_DE. This enables an error checking parse of the sched domains
 which should catch most possible errors (described above). It also prints out
 the domain structure in a visual format.

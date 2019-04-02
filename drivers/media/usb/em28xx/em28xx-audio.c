@@ -43,16 +43,16 @@
 #include <sound/ac97_codec.h>
 #include <media/v4l2-common.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "activates debug info");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "activates de info");
 
 #define EM28XX_MAX_AUDIO_BUFS		5
 #define EM28XX_MIN_AUDIO_PACKETS	64
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)						\
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (de)						\
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "video: %s: " fmt, __func__, ## arg);	\
 } while (0)
 
@@ -254,7 +254,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	int nonblock, ret = 0;
 
 	if (!dev) {
-		pr_err("em28xx-audio: BUG: em28xx can't find device struct. Can't proceed with open\n");
+		pr_err("em28xx-audio: : em28xx can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 

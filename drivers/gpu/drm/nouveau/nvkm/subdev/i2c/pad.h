@@ -63,6 +63,6 @@ int anx9805_pad_new(struct nvkm_i2c_bus *, int, u8, struct nvkm_i2c_pad **);
 	nvkm_##l(&_pad->i2c->subdev, "pad %04x: "f"\n", _pad->id, ##a);        \
 } while(0)
 #define PAD_ERR(p,f,a...) PAD_MSG((p), error, f, ##a)
-#define PAD_DBG(p,f,a...) PAD_MSG((p), debug, f, ##a)
+#define PAD_DBG(p,f,a...) PAD_MSG((p), de, f, ##a)
 #define PAD_TRACE(p,f,a...) PAD_MSG((p), trace, f, ##a)
 #endif

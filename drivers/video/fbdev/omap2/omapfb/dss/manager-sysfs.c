@@ -174,7 +174,7 @@ static ssize_t manager_trans_key_type_show(struct omap_overlay_manager *mgr,
 	mgr->get_manager_info(mgr, &info);
 
 	key_type = info.trans_key_type;
-	BUG_ON(key_type >= ARRAY_SIZE(trans_key_type_str));
+	_ON(key_type >= ARRAY_SIZE(trans_key_type_str));
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", trans_key_type_str[key_type]);
 }

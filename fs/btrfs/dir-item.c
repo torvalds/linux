@@ -43,7 +43,7 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
 	leaf = path->nodes[0];
 	item = btrfs_item_nr(path->slots[0]);
 	ptr = btrfs_item_ptr(leaf, path->slots[0], char);
-	BUG_ON(data_size > btrfs_item_size(leaf, item));
+	_ON(data_size > btrfs_item_size(leaf, item));
 	ptr += btrfs_item_size(leaf, item) - data_size;
 	return (struct btrfs_dir_item *)ptr;
 }

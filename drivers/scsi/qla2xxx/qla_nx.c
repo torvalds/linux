@@ -479,7 +479,7 @@ qla82xx_wr_32(struct qla_hw_data *ha, ulong off_in, u32 data)
 
 	rv = qla82xx_pci_get_crb_addr_2M(ha, off_in, &off);
 
-	BUG_ON(rv == -1);
+	_ON(rv == -1);
 
 	if (rv == 1) {
 #ifndef __CHECKER__
@@ -510,7 +510,7 @@ qla82xx_rd_32(struct qla_hw_data *ha, ulong off_in)
 
 	rv = qla82xx_pci_get_crb_addr_2M(ha, off_in, &off);
 
-	BUG_ON(rv == -1);
+	_ON(rv == -1);
 
 	if (rv == 1) {
 #ifndef __CHECKER__
@@ -646,7 +646,7 @@ qla82xx_pci_set_window(struct qla_hw_data *ha, unsigned long long addr)
 	} else {
 		/*
 		 * peg gdb frequently accesses memory that doesn't exist,
-		 * this limits the chit chat so debugging isn't slowed down.
+		 * this limits the chit chat so deging isn't slowed down.
 		 */
 		if ((qla82xx_pci_set_window_warning_count++ < 8) ||
 		    (qla82xx_pci_set_window_warning_count%64 == 0)) {
@@ -671,7 +671,7 @@ static int qla82xx_pci_is_same_window(struct qla_hw_data *ha,
 	/* DDR network side */
 	if (addr_in_range(addr, QLA82XX_ADDR_DDR_NET,
 		QLA82XX_ADDR_DDR_NET_MAX))
-		BUG();
+		();
 	else if (addr_in_range(addr, QLA82XX_ADDR_OCM0,
 		QLA82XX_ADDR_OCM0_MAX))
 		return 1;
@@ -4191,11 +4191,11 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	    "No of entry headers in Template: 0x%x\n", no_entry_hdr);
 
 	ql_dbg(ql_dbg_p3p, vha, 0xb03b,
-	    "Capture Mask obtained: 0x%x\n", tmplt_hdr->capture_debug_level);
+	    "Capture Mask obtained: 0x%x\n", tmplt_hdr->capture_de_level);
 
-	f_capture_mask = tmplt_hdr->capture_debug_level & 0xFF;
+	f_capture_mask = tmplt_hdr->capture_de_level & 0xFF;
 
-	/* Validate whether required debug level is set */
+	/* Validate whether required de level is set */
 	if ((f_capture_mask & 0x3) != 0x3) {
 		ql_log(ql_log_warn, vha, 0xb03c,
 		    "Minimum required capture mask[0x%x] level not set\n",
@@ -4259,7 +4259,7 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 		    data_collected, (ha->md_dump_size - data_collected));
 
 		/* Decode the entry type and take
-		 * required action to capture debug data */
+		 * required action to capture de data */
 		switch (entry_hdr->entry_type) {
 		case QLA82XX_RDEND:
 			qla82xx_mark_entry_skipped(vha, entry_hdr, i);
@@ -4361,7 +4361,7 @@ qla82xx_md_alloc(scsi_qla_host_t *vha)
 	tmplt_hdr = (struct qla82xx_md_template_hdr *)ha->md_tmplt_hdr;
 
 	if (ql2xmdcapmask < 0x3 || ql2xmdcapmask > 0x7F) {
-		ql2xmdcapmask = tmplt_hdr->capture_debug_level & 0xFF;
+		ql2xmdcapmask = tmplt_hdr->capture_de_level & 0xFF;
 		ql_log(ql_log_info, vha, 0xb045,
 		    "Forcing driver capture mask to firmware default capture mask: 0x%x.\n",
 		    ql2xmdcapmask);

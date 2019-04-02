@@ -84,12 +84,12 @@ static bool lspcon_detect_vendor(struct intel_lspcon *lspcon)
 	switch (vendor_oui) {
 	case LSPCON_VENDOR_MCA_OUI:
 		lspcon->vendor = LSPCON_VENDOR_MCA;
-		DRM_DEBUG_KMS("Vendor: Mega Chips\n");
+		DRM_DE_KMS("Vendor: Mega Chips\n");
 		break;
 
 	case LSPCON_VENDOR_PARADE_OUI:
 		lspcon->vendor = LSPCON_VENDOR_PARADE;
-		DRM_DEBUG_KMS("Vendor: Parade Tech\n");
+		DRM_DE_KMS("Vendor: Parade Tech\n");
 		break;
 
 	default:
@@ -106,7 +106,7 @@ static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
 	struct i2c_adapter *adapter = &lspcon_to_intel_dp(lspcon)->aux.ddc;
 
 	if (drm_lspcon_get_mode(adapter, &current_mode)) {
-		DRM_DEBUG_KMS("Error reading LSPCON mode\n");
+		DRM_DE_KMS("Error reading LSPCON mode\n");
 		return DRM_LSPCON_MODE_INVALID;
 	}
 	return current_mode;
@@ -121,7 +121,7 @@ static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
 	if (current_mode == mode)
 		goto out;
 
-	DRM_DEBUG_KMS("Waiting for LSPCON mode %s to settle\n",
+	DRM_DE_KMS("Waiting for LSPCON mode %s to settle\n",
 		      lspcon_mode_name(mode));
 
 	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode, 400);
@@ -129,7 +129,7 @@ static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
 		DRM_ERROR("LSPCON mode hasn't settled\n");
 
 out:
-	DRM_DEBUG_KMS("Current LSPCON mode %s\n",
+	DRM_DE_KMS("Current LSPCON mode %s\n",
 		      lspcon_mode_name(current_mode));
 
 	return current_mode;
@@ -149,7 +149,7 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 	}
 
 	if (current_mode == mode) {
-		DRM_DEBUG_KMS("Current mode = desired LSPCON mode\n");
+		DRM_DE_KMS("Current mode = desired LSPCON mode\n");
 		return 0;
 	}
 
@@ -160,7 +160,7 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 	}
 
 	lspcon->mode = mode;
-	DRM_DEBUG_KMS("LSPCON mode changed done\n");
+	DRM_DE_KMS("LSPCON mode changed done\n");
 	return 0;
 }
 
@@ -170,11 +170,11 @@ static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
 
 	if (drm_dp_dpcd_readb(&lspcon_to_intel_dp(lspcon)->aux, DP_DPCD_REV,
 			      &rev) != 1) {
-		DRM_DEBUG_KMS("Native AUX CH down\n");
+		DRM_DE_KMS("Native AUX CH down\n");
 		return false;
 	}
 
-	DRM_DEBUG_KMS("Native AUX CH up, DPCD version: %d.%d\n",
+	DRM_DE_KMS("Native AUX CH up, DPCD version: %d.%d\n",
 		      rev >> 4, rev & 0xf);
 
 	return true;
@@ -216,13 +216,13 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	}
 
 	if (adaptor_type != DRM_DP_DUAL_MODE_LSPCON) {
-		DRM_DEBUG_KMS("No LSPCON detected, found %s\n",
+		DRM_DE_KMS("No LSPCON detected, found %s\n",
 			       drm_dp_get_dual_mode_type_name(adaptor_type));
 		return false;
 	}
 
 	/* Yay ... got a LSPCON device */
-	DRM_DEBUG_KMS("LSPCON detected\n");
+	DRM_DE_KMS("LSPCON detected\n");
 	lspcon->mode = lspcon_wait_mode(lspcon, expected_mode);
 
 	/*
@@ -247,7 +247,7 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 
 	while (1) {
 		if (intel_digital_port_connected(&dig_port->base)) {
-			DRM_DEBUG_KMS("LSPCON recovering in PCON mode after %u ms\n",
+			DRM_DE_KMS("LSPCON recovering in PCON mode after %u ms\n",
 				      jiffies_to_msecs(jiffies - start));
 			return;
 		}
@@ -258,7 +258,7 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 		usleep_range(10000, 15000);
 	}
 
-	DRM_DEBUG_KMS("LSPCON DP descriptor mismatch after resume\n");
+	DRM_DE_KMS("LSPCON DP descriptor mismatch after resume\n");
 }
 
 static bool lspcon_parade_fw_ready(struct drm_dp_aux *aux)
@@ -298,7 +298,7 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 
 	while (block_count < 4) {
 		if (!lspcon_parade_fw_ready(aux)) {
-			DRM_DEBUG_KMS("LSPCON FW not ready, block %d\n",
+			DRM_DE_KMS("LSPCON FW not ready, block %d\n",
 				      block_count);
 			return false;
 		}
@@ -330,7 +330,7 @@ static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
 		block_count++;
 	}
 
-	DRM_DEBUG_KMS("Wrote AVI IF blocks successfully\n");
+	DRM_DE_KMS("Wrote AVI IF blocks successfully\n");
 	return true;
 }
 
@@ -359,7 +359,7 @@ static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
 	memcpy(&avi_if[1], frame, len);
 
 	if (!_lspcon_parade_write_infoframe_blocks(aux, avi_if)) {
-		DRM_DEBUG_KMS("Failed to write infoframe blocks\n");
+		DRM_DE_KMS("Failed to write infoframe blocks\n");
 		return false;
 	}
 
@@ -419,7 +419,7 @@ static bool _lspcon_write_avi_infoframe_mca(struct drm_dp_aux *aux,
 	}
 
 	if (val == LSPCON_MCA_AVI_IF_HANDLED)
-		DRM_DEBUG_KMS("AVI IF handled by FW\n");
+		DRM_DE_KMS("AVI IF handled by FW\n");
 
 	return true;
 }
@@ -449,7 +449,7 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("AVI infoframes updated successfully\n");
+	DRM_DE_DRIVER("AVI infoframes updated successfully\n");
 }
 
 void lspcon_set_infoframes(struct intel_encoder *encoder,
@@ -527,7 +527,7 @@ void lspcon_resume(struct intel_lspcon *lspcon)
 	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON))
 		DRM_ERROR("LSPCON resume failed\n");
 	else
-		DRM_DEBUG_KMS("LSPCON resume success\n");
+		DRM_DE_KMS("LSPCON resume success\n");
 }
 
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon)
@@ -568,6 +568,6 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 
 	connector->ycbcr_420_allowed = true;
 	lspcon->active = true;
-	DRM_DEBUG_KMS("Success: LSPCON init\n");
+	DRM_DE_KMS("Success: LSPCON init\n");
 	return true;
 }

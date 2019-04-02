@@ -22,7 +22,7 @@ Like volatile, the kernel primitives which make concurrent access to data
 safe (spinlocks, mutexes, memory barriers, etc.) are designed to prevent
 unwanted optimization.  If they are being used properly, there will be no
 need to use volatile as well.  If volatile is still necessary, there is
-almost certainly a bug in the code somewhere.  In properly-written kernel
+almost certainly a  in the code somewhere.  In properly-written kernel
 code, volatile can only serve to slow things down.
 
 Consider a typical block of kernel code::
@@ -96,7 +96,7 @@ kernel:
     type of situation.
 
 For most code, none of the above justifications for volatile apply.  As a
-result, the use of volatile is likely to be seen as a bug and will bring
+result, the use of volatile is likely to be seen as a  and will bring
 additional scrutiny to the code.  Developers who are tempted to use
 volatile should take a step back and think about what they are truly trying
 to accomplish.

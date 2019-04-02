@@ -162,13 +162,13 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
 	/*
 	 * Look for the process that matches the pasid. If there is no such
 	 * process, we either released it in amdkfd's own notifier, or there
-	 * is a bug. Unfortunately, there is no way to tell...
+	 * is a . Unfortunately, there is no way to tell...
 	 */
 	p = kfd_lookup_process_by_pasid(pasid);
 	if (!p)
 		return;
 
-	pr_debug("Unbinding process %d from IOMMU\n", pasid);
+	pr_de("Unbinding process %d from IOMMU\n", pasid);
 
 	mutex_lock(kfd_get_dbgmgr_mutex());
 

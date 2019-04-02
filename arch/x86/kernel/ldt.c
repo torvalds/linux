@@ -74,7 +74,7 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 	if (!new_ldt)
 		return NULL;
 
-	BUILD_BUG_ON(LDT_ENTRY_SIZE != sizeof(struct desc_struct));
+	BUILD__ON(LDT_ENTRY_SIZE != sizeof(struct desc_struct));
 	alloc_size = num_entries * LDT_ENTRY_SIZE;
 
 	/*

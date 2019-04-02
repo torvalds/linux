@@ -15,7 +15,7 @@
 #define _ZCRYPT_API_H_
 
 #include <linux/atomic.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/zcrypt.h>
 #include "ap_bus.h"
 

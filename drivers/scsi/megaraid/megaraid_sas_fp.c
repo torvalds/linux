@@ -397,9 +397,9 @@ u32 MR_GetSpanBlock(u32 ld, u64 row, u64 *span_blk,
 				le64_to_cpu(quad->logEnd) && (mega_mod64(row - le64_to_cpu(quad->logStart),
 				le32_to_cpu(quad->diff))) == 0) {
 				if (span_blk != NULL) {
-					u64  blk, debugBlk;
+					u64  blk, deBlk;
 					blk =  mega_div64_32((row-le64_to_cpu(quad->logStart)), le32_to_cpu(quad->diff));
-					debugBlk = blk;
+					deBlk = blk;
 
 					blk = (blk + le64_to_cpu(quad->offsetInSpan)) << raid->stripeShift;
 					*span_blk = blk;

@@ -549,12 +549,12 @@ do {									\
 #define DMINFO(fmt, ...) pr_info(DM_FMT(fmt), ##__VA_ARGS__)
 #define DMINFO_LIMIT(fmt, ...) DM_RATELIMIT(pr_info, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_DM_DEBUG
-#define DMDEBUG(fmt, ...) printk(KERN_DEBUG DM_FMT(fmt), ##__VA_ARGS__)
-#define DMDEBUG_LIMIT(fmt, ...) DM_RATELIMIT(pr_debug, fmt, ##__VA_ARGS__)
+#ifdef CONFIG_DM_DE
+#define DMDE(fmt, ...) printk(KERN_DE DM_FMT(fmt), ##__VA_ARGS__)
+#define DMDE_LIMIT(fmt, ...) DM_RATELIMIT(pr_de, fmt, ##__VA_ARGS__)
 #else
-#define DMDEBUG(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
-#define DMDEBUG_LIMIT(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define DMDE(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define DMDE_LIMIT(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \

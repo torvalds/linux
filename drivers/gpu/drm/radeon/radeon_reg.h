@@ -354,8 +354,8 @@
 #       define RADEON_DISP_DYN_STOP_LAT_MASK (1 << 12)
 #       define RADEON_MC_BUSY               (1 << 16)
 #       define RADEON_DLL_READY             (1 << 19)
-#       define RADEON_CG_NO1_DEBUG_0        (1 << 24)
-#       define RADEON_CG_NO1_DEBUG_MASK     (0x1f << 24)
+#       define RADEON_CG_NO1_DE_0        (1 << 24)
+#       define RADEON_CG_NO1_DE_MASK     (0x1f << 24)
 #       define RADEON_DYN_STOP_MODE_MASK    (7 << 21)
 #       define RADEON_TVPLL_PWRMGT_OFF      (1 << 30)
 #       define RADEON_TVCLK_TURNOFF         (1 << 31)
@@ -673,7 +673,7 @@
 #       define R420_TV_DAC_GDACPD           (1 <<  26)
 #       define R420_TV_DAC_BDACPD           (1 <<  27)
 #       define R420_TV_DAC_TVENABLE         (1 <<  28)
-#define RADEON_DISP_HW_DEBUG                0x0d14
+#define RADEON_DISP_HW_DE                0x0d14
 #       define RADEON_CRT2_DISP1_SEL        (1 <<  5)
 #define RADEON_DISP_OUTPUT_CNTL             0x0d64
 #       define RADEON_DISP_DAC_SOURCE_MASK  0x03
@@ -1425,7 +1425,7 @@
 #define RADEON_CAP0_VBI_H_WINDOW          0x0948
 #define RADEON_CAP0_PORT_MODE_CNTL        0x094C
 #define RADEON_CAP0_TRIG_CNTL             0x0950
-#define RADEON_CAP0_DEBUG                 0x0954
+#define RADEON_CAP0_DE                 0x0954
 #define RADEON_CAP0_CONFIG                0x0958
 #       define RADEON_CAP0_CONFIG_CONTINUOS          0x00000001
 #       define RADEON_CAP0_CONFIG_START_FIELD_EVEN   0x00000002
@@ -1490,7 +1490,7 @@
 #define RADEON_CAP1_VBI_H_WINDOW                  0x09B8
 #define RADEON_CAP1_PORT_MODE_CNTL        0x09BC
 #define RADEON_CAP1_TRIG_CNTL             0x09C0
-#define RADEON_CAP1_DEBUG                         0x09C4
+#define RADEON_CAP1_DE                         0x09C4
 #define RADEON_CAP1_CONFIG                0x09C8
 #define RADEON_CAP1_ANC_ODD_OFFSET        0x09CC
 #define RADEON_CAP1_ANC_EVEN_OFFSET       0x09D0
@@ -1766,11 +1766,11 @@
 #define RADEON_SURFACE7_UPPER_BOUND         0x0b78
 #define RADEON_SW_SEMAPHORE                 0x013c
 
-#define RADEON_TEST_DEBUG_CNTL              0x0120
-#define RADEON_TEST_DEBUG_CNTL__TEST_DEBUG_OUT_EN 0x00000001
+#define RADEON_TEST_DE_CNTL              0x0120
+#define RADEON_TEST_DE_CNTL__TEST_DE_OUT_EN 0x00000001
 
-#define RADEON_TEST_DEBUG_MUX               0x0124
-#define RADEON_TEST_DEBUG_OUT               0x012c
+#define RADEON_TEST_DE_MUX               0x0124
+#define RADEON_TEST_DE_OUT               0x012c
 #define RADEON_TMDS_PLL_CNTL                0x02a8
 #define RADEON_TMDS_TRANSMITTER_CNTL        0x02a4
 #       define RADEON_TMDS_TRANSMITTER_PLLEN  1

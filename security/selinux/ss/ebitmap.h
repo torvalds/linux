@@ -91,7 +91,7 @@ static inline int ebitmap_node_get_bit(struct ebitmap_node *n,
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
 	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
 
-	BUG_ON(index >= EBITMAP_UNIT_NUMS);
+	_ON(index >= EBITMAP_UNIT_NUMS);
 	if ((n->maps[index] & (EBITMAP_BIT << ofs)))
 		return 1;
 	return 0;
@@ -103,7 +103,7 @@ static inline void ebitmap_node_set_bit(struct ebitmap_node *n,
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
 	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
 
-	BUG_ON(index >= EBITMAP_UNIT_NUMS);
+	_ON(index >= EBITMAP_UNIT_NUMS);
 	n->maps[index] |= (EBITMAP_BIT << ofs);
 }
 
@@ -113,7 +113,7 @@ static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
 	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
 
-	BUG_ON(index >= EBITMAP_UNIT_NUMS);
+	_ON(index >= EBITMAP_UNIT_NUMS);
 	n->maps[index] &= ~(EBITMAP_BIT << ofs);
 }
 

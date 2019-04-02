@@ -77,11 +77,11 @@
 
 static unsigned int ci_dbg;
 module_param(ci_dbg, int, 0644);
-MODULE_PARM_DESC(ci_dbg, "Enable CI debugging");
+MODULE_PARM_DESC(ci_dbg, "Enable CI deging");
 
 static unsigned int pid_dbg;
 module_param(pid_dbg, int, 0644);
-MODULE_PARM_DESC(pid_dbg, "Enable PID filtering debugging");
+MODULE_PARM_DESC(pid_dbg, "Enable PID filtering deging");
 
 MODULE_DESCRIPTION("altera FPGA CI module");
 MODULE_AUTHOR("Igor M. Liplianin  <liplianin@netup.ru>");
@@ -90,14 +90,14 @@ MODULE_LICENSE("GPL");
 #define ci_dbg_print(fmt, args...) \
 	do { \
 		if (ci_dbg) \
-			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			printk(KERN_DE pr_fmt("%s: " fmt), \
 			       __func__, ##args); \
 	} while (0)
 
 #define pid_dbg_print(fmt, args...) \
 	do { \
 		if (pid_dbg) \
-			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			printk(KERN_DE pr_fmt("%s: " fmt), \
 			       __func__, ##args); \
 	} while (0)
 

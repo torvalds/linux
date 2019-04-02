@@ -344,7 +344,7 @@ xfs_ilock_demote(
 	trace_xfs_ilock_demote(ip, lock_flags, _RET_IP_);
 }
 
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 int
 xfs_isilocked(
 	xfs_inode_t		*ip,
@@ -364,7 +364,7 @@ xfs_isilocked(
 
 	if (lock_flags & (XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED)) {
 		if (!(lock_flags & XFS_IOLOCK_SHARED))
-			return !debug_locks ||
+			return !de_locks ||
 				lockdep_is_held_type(&VFS_I(ip)->i_rwsem, 0);
 		return rwsem_is_locked(&VFS_I(ip)->i_rwsem);
 	}
@@ -376,11 +376,11 @@ xfs_isilocked(
 
 /*
  * xfs_lockdep_subclass_ok() is only used in an ASSERT, so is only called when
- * DEBUG or XFS_WARN is set. And MAX_LOCKDEP_SUBCLASSES is then only defined
+ * DE or XFS_WARN is set. And MAX_LOCKDEP_SUBCLASSES is then only defined
  * when CONFIG_LOCKDEP is set. Hence the complex define below to avoid build
  * errors and warnings.
  */
-#if (defined(DEBUG) || defined(XFS_WARN)) && defined(CONFIG_LOCKDEP)
+#if (defined(DE) || defined(XFS_WARN)) && defined(CONFIG_LOCKDEP)
 static bool
 xfs_lockdep_subclass_ok(
 	int subclass)

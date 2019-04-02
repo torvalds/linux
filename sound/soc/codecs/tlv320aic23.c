@@ -295,7 +295,7 @@ static int find_rate(int mclk, u32 need_adc, u32 need_dac)
 	return (best_j << 2) | best_i | (best_div << TLV320AIC23_CLKIN_SHIFT);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void get_current_sample_rates(struct snd_soc_component *component, int mclk,
 		u32 *sample_rate_adc, u32 *sample_rate_dac)
 {
@@ -324,11 +324,11 @@ static int set_sample_rate_control(struct snd_soc_component *component, int mclk
 		return -EINVAL;
 	}
 	snd_soc_component_write(component, TLV320AIC23_SRATE, data);
-#ifdef DEBUG
+#ifdef DE
 	{
 		u32 adc, dac;
 		get_current_sample_rates(component, mclk, &adc, &dac);
-		printk(KERN_DEBUG "actual samplerate = %u,%u reg=%x\n",
+		printk(KERN_DE "actual samplerate = %u,%u reg=%x\n",
 			adc, dac, data);
 	}
 #endif

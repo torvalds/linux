@@ -343,7 +343,7 @@ nv04_gr_ctx_regs[] = {
 	0x00400504,
 	NV04_PGRAPH_VALID1,
 	NV04_PGRAPH_VALID2,
-	NV04_PGRAPH_DEBUG_3
+	NV04_PGRAPH_DE_3
 };
 
 #define nv04_gr(p) container_of((p), struct nv04_gr, base)
@@ -1195,7 +1195,7 @@ nv04_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	chan->chid = fifoch->chid;
 	*pobject = &chan->object;
 
-	*ctx_reg(chan, NV04_PGRAPH_DEBUG_3) = 0xfad4ff31;
+	*ctx_reg(chan, NV04_PGRAPH_DE_3) = 0xfad4ff31;
 
 	spin_lock_irqsave(&gr->lock, flags);
 	gr->chan[chan->chid] = chan;
@@ -1336,19 +1336,19 @@ nv04_gr_init(struct nvkm_gr *base)
 
 	nvkm_wr32(device, NV04_PGRAPH_VALID1, 0);
 	nvkm_wr32(device, NV04_PGRAPH_VALID2, 0);
-	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x000001FF);
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x001FFFFF);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_0, 0x1231c000);
+	/*nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x000001FF);
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x001FFFFF);*/
+	nvkm_wr32(device, NV04_PGRAPH_DE_0, 0x1231c000);
 	/*1231C000 blob, 001 haiku*/
-	/*V_WRITE(NV04_PGRAPH_DEBUG_1, 0xf2d91100);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_1, 0x72111100);
+	/*V_WRITE(NV04_PGRAPH_DE_1, 0xf2d91100);*/
+	nvkm_wr32(device, NV04_PGRAPH_DE_1, 0x72111100);
 	/*0x72111100 blob , 01 haiku*/
-	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x11d5f870);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_2, 0x11d5f071);
+	/*nvkm_wr32(device, NV04_PGRAPH_DE_2, 0x11d5f870);*/
+	nvkm_wr32(device, NV04_PGRAPH_DE_2, 0x11d5f071);
 	/*haiku same*/
 
-	/*nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xfad4ff31);*/
-	nvkm_wr32(device, NV04_PGRAPH_DEBUG_3, 0xf0d4ff31);
+	/*nvkm_wr32(device, NV04_PGRAPH_DE_3, 0xfad4ff31);*/
+	nvkm_wr32(device, NV04_PGRAPH_DE_3, 0xf0d4ff31);
 	/*haiku and blob 10d4*/
 
 	nvkm_wr32(device, NV04_PGRAPH_STATE        , 0xFFFFFFFF);

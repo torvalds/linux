@@ -38,7 +38,7 @@ snic_wq_cmpl_frame_send(struct vnic_wq *wq,
 {
 	struct snic *snic = svnic_dev_priv(wq->vdev);
 
-	SNIC_BUG_ON(buf->os_buf == NULL);
+	SNIC__ON(buf->os_buf == NULL);
 
 	if (snic_log_level & SNIC_DESC_LOGGING)
 		SNIC_HOST_INFO(snic->shost,
@@ -63,7 +63,7 @@ snic_wq_cmpl_handler_cont(struct vnic_dev *vdev,
 	struct snic *snic = svnic_dev_priv(vdev);
 	unsigned long flags;
 
-	SNIC_BUG_ON(q_num != 0);
+	SNIC__ON(q_num != 0);
 
 	spin_lock_irqsave(&snic->wq_lock[q_num], flags);
 	svnic_wq_service(&snic->wq[q_num],
@@ -112,7 +112,7 @@ snic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf)
 		goto end;
 	}
 
-	SNIC_BUG_ON(rqi->list.next == NULL); /* if not added to spl_cmd_list */
+	SNIC__ON(rqi->list.next == NULL); /* if not added to spl_cmd_list */
 	list_del_init(&rqi->list);
 	spin_unlock_irqrestore(&snic->spl_cmd_lock, flags);
 
@@ -133,7 +133,7 @@ static int
 snic_select_wq(struct snic *snic)
 {
 	/* No multi queue support for now */
-	BUILD_BUG_ON(SNIC_WQ_MAX > 1);
+	BUILD__ON(SNIC_WQ_MAX > 1);
 
 	return 0;
 }
@@ -149,7 +149,7 @@ snic_wqdesc_avail(struct snic *snic, int q_num, int req_type)
 		 * Per WQ active requests need to be maintained.
 		 */
 		SNIC_HOST_INFO(snic->shost, "desc_avail: Multi Queue case.\n");
-		SNIC_BUG_ON(q_num > 0);
+		SNIC__ON(q_num > 0);
 
 		return -1;
 	}
@@ -265,7 +265,7 @@ snic_req_init(struct snic *snic, int sg_cnt)
 	if (sg_cnt > atomic64_read(&snic->s_stats.io.max_sgl))
 		atomic64_set(&snic->s_stats.io.max_sgl, sg_cnt);
 
-	SNIC_BUG_ON(sg_cnt > SNIC_MAX_SG_DESC_CNT);
+	SNIC__ON(sg_cnt > SNIC_MAX_SG_DESC_CNT);
 	atomic64_inc(&snic->s_stats.io.sgl_cnt[sg_cnt - 1]);
 
 end:
@@ -287,7 +287,7 @@ snic_abort_req_init(struct snic *snic, struct snic_req_info *rqi)
 {
 	struct snic_host_req *req = NULL;
 
-	SNIC_BUG_ON(!rqi);
+	SNIC__ON(!rqi);
 
 	/* If abort to be issued second time, then reuse */
 	if (rqi->abort_req)
@@ -318,7 +318,7 @@ snic_dr_req_init(struct snic *snic, struct snic_req_info *rqi)
 {
 	struct snic_host_req *req = NULL;
 
-	SNIC_BUG_ON(!rqi);
+	SNIC__ON(!rqi);
 
 	req = mempool_alloc(snic->req_pool[SNIC_REQ_TM_CACHE], GFP_ATOMIC);
 	if (!req) {
@@ -328,7 +328,7 @@ snic_dr_req_init(struct snic *snic, struct snic_req_info *rqi)
 		return NULL;
 	}
 
-	SNIC_BUG_ON(rqi->dr_req != NULL);
+	SNIC__ON(rqi->dr_req != NULL);
 	rqi->dr_req = req;
 	memset(req, 0, sizeof(struct snic_host_req));
 	/* pre initialization of init_ctx to support req_to_rqi */
@@ -341,9 +341,9 @@ snic_dr_req_init(struct snic *snic, struct snic_req_info *rqi)
 void
 snic_req_free(struct snic *snic, struct snic_req_info *rqi)
 {
-	SNIC_BUG_ON(rqi->req == rqi->abort_req);
-	SNIC_BUG_ON(rqi->req == rqi->dr_req);
-	SNIC_BUG_ON(rqi->sge_va != 0);
+	SNIC__ON(rqi->req == rqi->abort_req);
+	SNIC__ON(rqi->req == rqi->dr_req);
+	SNIC__ON(rqi->sge_va != 0);
 
 	SNIC_SCSI_DBG(snic->shost,
 		      "Req_free:rqi %p:ioreq %p:abt %p:dr %p\n",
@@ -384,7 +384,7 @@ snic_pci_unmap_rsp_buf(struct snic *snic, struct snic_req_info *rqi)
 	struct snic_sg_desc *sgd;
 
 	sgd = req_to_sgl(rqi_to_req(rqi));
-	SNIC_BUG_ON(sgd[0].addr == 0);
+	SNIC__ON(sgd[0].addr == 0);
 	dma_unmap_single(&snic->pdev->dev,
 			 le64_to_cpu(sgd[0].addr),
 			 le32_to_cpu(sgd[0].len),
@@ -467,7 +467,7 @@ snic_dump_desc(const char *fn, char *os_buf, int len)
 	else
 		rqi = (struct snic_req_info *) req->hdr.init_ctx;
 
-	SNIC_BUG_ON(rqi == NULL || rqi->req == NULL);
+	SNIC__ON(rqi == NULL || rqi->req == NULL);
 	switch (req->hdr.type) {
 	case SNIC_REQ_REPORT_TGTS:
 		cmd_str = "report-tgt : ";
@@ -537,7 +537,7 @@ snic_dump_desc(const char *fn, char *os_buf, int len)
 
 	default:
 		cmd_str = "unknown : ";
-		SNIC_BUG_ON(1);
+		SNIC__ON(1);
 		break;
 	}
 

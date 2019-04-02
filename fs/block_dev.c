@@ -1569,7 +1569,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			ret = -ENOMEM;
 			if (!whole)
 				goto out_clear;
-			BUG_ON(for_part);
+			_ON(for_part);
 			ret = __blkdev_get(whole, mode, 1);
 			if (ret)
 				goto out_clear;
@@ -1674,7 +1674,7 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		spin_lock(&bdev_lock);
 
 		if (!res) {
-			BUG_ON(!bd_may_claim(bdev, whole, holder));
+			_ON(!bd_may_claim(bdev, whole, holder));
 			/*
 			 * Note that for a whole device bd_holders
 			 * will be incremented twice, and bd_holder
@@ -1688,7 +1688,7 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		}
 
 		/* tell others that we're done */
-		BUG_ON(whole->bd_claiming != holder);
+		_ON(whole->bd_claiming != holder);
 		whole->bd_claiming = NULL;
 		wake_up_bit(&whole->bd_claiming, 0);
 

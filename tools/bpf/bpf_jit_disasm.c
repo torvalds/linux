@@ -2,7 +2,7 @@
  * Minimal BPF JIT image disassembler
  *
  * Disassembles BPF JIT compiler emitted opcodes back to asm insn's for
- * debugging or verification purposes.
+ * deging or verification purposes.
  *
  * To get the disassembly of the JIT code, do the following:
  *

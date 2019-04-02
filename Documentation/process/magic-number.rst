@@ -25,7 +25,7 @@ the structure, like so::
 	};
 
 Please follow this discipline when you are adding future enhancements
-to the kernel!  It has saved me countless hours of debugging,
+to the kernel!  It has saved me countless hours of deging,
 especially in the screwy cases where an array has been overrun and
 structures following the array have been overwritten.  Using this
 discipline, these cases get detected quickly and safely.

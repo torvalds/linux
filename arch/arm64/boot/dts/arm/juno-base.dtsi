@@ -255,8 +255,8 @@
 		};
 	};
 
-	cpu_debug0: cpu-debug@22010000 {
-		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+	cpu_de0: cpu-de@22010000 {
+		compatible = "arm,coresight-cpu-de", "arm,primecell";
 		reg = <0x0 0x22010000 0x0 0x1000>;
 
 		clocks = <&soc_smc50mhz>;
@@ -315,8 +315,8 @@
 		};
 	};
 
-	cpu_debug1: cpu-debug@22110000 {
-		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+	cpu_de1: cpu-de@22110000 {
+		compatible = "arm,coresight-cpu-de", "arm,primecell";
 		reg = <0x0 0x22110000 0x0 0x1000>;
 
 		clocks = <&soc_smc50mhz>;
@@ -340,8 +340,8 @@
 		};
 	};
 
-	cpu_debug2: cpu-debug@23010000 {
-		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+	cpu_de2: cpu-de@23010000 {
+		compatible = "arm,coresight-cpu-de", "arm,primecell";
 		reg = <0x0 0x23010000 0x0 0x1000>;
 
 		clocks = <&soc_smc50mhz>;
@@ -412,8 +412,8 @@
 		};
 	};
 
-	cpu_debug3: cpu-debug@23110000 {
-		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+	cpu_de3: cpu-de@23110000 {
+		compatible = "arm,coresight-cpu-de", "arm,primecell";
 		reg = <0x0 0x23110000 0x0 0x1000>;
 
 		clocks = <&soc_smc50mhz>;
@@ -437,8 +437,8 @@
 		};
 	};
 
-	cpu_debug4: cpu-debug@23210000 {
-		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+	cpu_de4: cpu-de@23210000 {
+		compatible = "arm,coresight-cpu-de", "arm,primecell";
 		reg = <0x0 0x23210000 0x0 0x1000>;
 
 		clocks = <&soc_smc50mhz>;
@@ -462,8 +462,8 @@
 		};
 	};
 
-	cpu_debug5: cpu-debug@23310000 {
-		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+	cpu_de5: cpu-de@23310000 {
+		compatible = "arm,coresight-cpu-de", "arm,primecell";
 		reg = <0x0 0x23310000 0x0 0x1000>;
 
 		clocks = <&soc_smc50mhz>;

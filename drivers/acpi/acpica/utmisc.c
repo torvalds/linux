@@ -311,7 +311,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_display_init_pathname
@@ -323,7 +323,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
  *
  * RETURN:      acpi_status
  *
- * DESCRIPTION: Display full pathname of an object, DEBUG ONLY
+ * DESCRIPTION: Display full pathname of an object, DE ONLY
  *
  ******************************************************************************/
 
@@ -337,7 +337,7 @@ acpi_ut_display_init_pathname(u8 type,
 
 	ACPI_FUNCTION_ENTRY();
 
-	/* Only print the path if the appropriate debug level is enabled */
+	/* Only print the path if the appropriate de level is enabled */
 
 	if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
 		return;

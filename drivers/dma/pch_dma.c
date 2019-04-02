@@ -328,7 +328,7 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 {
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
-			"BUG: Attempt to start non-idle channel\n");
+			": Attempt to start non-idle channel\n");
 		return;
 	}
 
@@ -371,7 +371,7 @@ static void pdc_complete_all(struct pch_dma_chan *pd_chan)
 	struct pch_dma_desc *desc, *_d;
 	LIST_HEAD(list);
 
-	BUG_ON(!pdc_is_idle(pd_chan));
+	_ON(!pdc_is_idle(pd_chan));
 
 	if (!list_empty(&pd_chan->queue))
 		pdc_dostart(pd_chan, pdc_first_queued(pd_chan));
@@ -539,9 +539,9 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 	struct pch_dma_desc *desc, *_d;
 	LIST_HEAD(tmp_list);
 
-	BUG_ON(!pdc_is_idle(pd_chan));
-	BUG_ON(!list_empty(&pd_chan->active_list));
-	BUG_ON(!list_empty(&pd_chan->queue));
+	_ON(!pdc_is_idle(pd_chan));
+	_ON(!list_empty(&pd_chan->active_list));
+	_ON(!list_empty(&pd_chan->queue));
 
 	spin_lock_irq(&pd_chan->lock);
 	list_splice_init(&pd_chan->free_list, &tmp_list);
@@ -685,7 +685,7 @@ static void pdc_tasklet(unsigned long data)
 
 	if (!pdc_is_idle(pd_chan)) {
 		dev_err(chan2dev(&pd_chan->chan),
-			"BUG: handle non-idle channel in tasklet\n");
+			": handle non-idle channel in tasklet\n");
 		return;
 	}
 

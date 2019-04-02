@@ -42,7 +42,7 @@
 /* along with this program; if not, write to the Free Software               */
 /* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 /*                                                                           */
-/* Bugs/Comments/Suggestions about this driver should be mailed to:          */
+/* s/Comments/Suggestions about this driver should be mailed to:          */
 /*      ipslinux@adaptec.com        	                                     */
 /*                                                                           */
 /* For system support issues, contact your local IBM Customer support.       */
@@ -145,14 +145,14 @@
 /*
  * Conditional Compilation directives for this driver:
  *
- * IPS_DEBUG            - Turn on debugging info
+ * IPS_DE            - Turn on deging info
  *
  * Parameters:
  *
- * debug:<number>       - Set debug level to <number>
- *                        NOTE: only works when IPS_DEBUG compile directive is used.
- *       1              - Normal debug messages
- *       2              - Verbose debug messages
+ * de:<number>       - Set de level to <number>
+ *                        NOTE: only works when IPS_DE compile directive is used.
+ *       1              - Normal de messages
+ *       2              - Verbose de messages
  *       11             - Method trace (non interrupt)
  *       12             - Method trace (includes interrupt)
  *
@@ -211,14 +211,14 @@ module_param(ips, charp, 0);
                          DMA_BIDIRECTIONAL : \
                          scb->scsi_cmd->sc_data_direction)
 
-#ifdef IPS_DEBUG
-#define METHOD_TRACE(s, i)    if (ips_debug >= (i+10)) printk(KERN_NOTICE s "\n");
-#define DEBUG(i, s)           if (ips_debug >= i) printk(KERN_NOTICE s "\n");
-#define DEBUG_VAR(i, s, v...) if (ips_debug >= i) printk(KERN_NOTICE s "\n", v);
+#ifdef IPS_DE
+#define METHOD_TRACE(s, i)    if (ips_de >= (i+10)) printk(KERN_NOTICE s "\n");
+#define DE(i, s)           if (ips_de >= i) printk(KERN_NOTICE s "\n");
+#define DE_VAR(i, s, v...) if (ips_de >= i) printk(KERN_NOTICE s "\n", v);
 #else
 #define METHOD_TRACE(s, i)
-#define DEBUG(i, s)
-#define DEBUG_VAR(i, s, v...)
+#define DE(i, s)
+#define DE_VAR(i, s, v...)
 #endif
 
 /*
@@ -654,7 +654,7 @@ ips_release(struct Scsi_Host *sh)
 	if (i == IPS_MAX_ADAPTERS) {
 		printk(KERN_WARNING
 		       "(%s) release, invalid Scsi_Host pointer.\n", ips_name);
-		BUG();
+		();
 		return (FALSE);
 	}
 
@@ -844,7 +844,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 #else
 
 	if (!SC) {
-		DEBUG(1, "Reset called with NULL scsi command");
+		DE(1, "Reset called with NULL scsi command");
 
 		return (FAILED);
 	}
@@ -852,7 +852,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 	ha = (ips_ha_t *) SC->device->host->hostdata;
 
 	if (!ha) {
-		DEBUG(1, "Reset called with NULL ha struct");
+		DE(1, "Reset called with NULL ha struct");
 
 		return (FAILED);
 	}
@@ -931,7 +931,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 			   "Controller reset failed - controller now offline.\n");
 
 		/* Now fail all of the active commands */
-		DEBUG_VAR(1, "(%s%d) Failing active commands",
+		DE_VAR(1, "(%s%d) Failing active commands",
 			  ips_name, ha->host_num);
 
 		while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
@@ -941,7 +941,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 		}
 
 		/* Now fail all of the pending commands */
-		DEBUG_VAR(1, "(%s%d) Failing pending commands",
+		DE_VAR(1, "(%s%d) Failing pending commands",
 			  ips_name, ha->host_num);
 
 		while ((scsi_cmd = ips_removeq_wait_head(&ha->scb_waitlist))) {
@@ -960,7 +960,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 			   "Controller reset failed - controller now offline.\n");
 
 		/* Now fail all of the active commands */
-		DEBUG_VAR(1, "(%s%d) Failing active commands",
+		DE_VAR(1, "(%s%d) Failing active commands",
 			  ips_name, ha->host_num);
 
 		while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
@@ -970,7 +970,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 		}
 
 		/* Now fail all of the pending commands */
-		DEBUG_VAR(1, "(%s%d) Failing pending commands",
+		DE_VAR(1, "(%s%d) Failing pending commands",
 			  ips_name, ha->host_num);
 
 		while ((scsi_cmd = ips_removeq_wait_head(&ha->scb_waitlist))) {
@@ -990,7 +990,7 @@ static int __ips_eh_reset(struct scsi_cmnd *SC)
 	}
 
 	/* Now fail all of the active commands */
-	DEBUG_VAR(1, "(%s%d) Failing active commands", ips_name, ha->host_num);
+	DE_VAR(1, "(%s%d) Failing active commands", ips_name, ha->host_num);
 
 	while ((scb = ips_removeq_scb_head(&ha->scb_activelist))) {
 		scb->scsi_cmd->result = DID_RESET << 16;
@@ -1066,7 +1066,7 @@ static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *)
 
 	SC->scsi_done = done;
 
-	DEBUG_VAR(2, "(%s%d): ips_queue: cmd 0x%X (%d %d %d)",
+	DE_VAR(2, "(%s%d): ips_queue: cmd 0x%X (%d %d %d)",
 		  ips_name,
 		  ha->host_num,
 		  SC->cmnd[0],
@@ -1168,7 +1168,7 @@ static int ips_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 
 	cylinders = (unsigned long) capacity / (heads * sectors);
 
-	DEBUG_VAR(2, "Geometry: heads: %d, sectors: %d, cylinders: %d",
+	DE_VAR(2, "Geometry: heads: %d, sectors: %d, cylinders: %d",
 		  heads, sectors, cylinders);
 
 	geom[0] = heads;
@@ -1568,7 +1568,7 @@ ips_make_passthru(ips_ha_t *ha, struct scsi_cmnd *SC, ips_scb_t *scb, int intr)
 
 	if (length < sizeof (ips_passthru_t)) {
 		/* wrong size */
-		DEBUG_VAR(1, "(%s%d) Passthru structure wrong size",
+		DE_VAR(1, "(%s%d) Passthru structure wrong size",
 			  ips_name, ha->host_num);
 		return (IPS_FAILURE);
 	}
@@ -1614,7 +1614,7 @@ ips_make_passthru(ips_ha_t *ha, struct scsi_cmnd *SC, ips_scb_t *scb, int intr)
 		if (SC->cmnd[0] == IPS_IOCTL_COMMAND) {
 			if (length < (sizeof (ips_passthru_t) + pt->CmdBSize)) {
 				/* wrong size */
-				DEBUG_VAR(1,
+				DE_VAR(1,
 					  "(%s%d) Passthru structure wrong size",
 					  ips_name, ha->host_num);
 
@@ -1728,7 +1728,7 @@ ips_flash_bios(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 		    (!ha->func.verifybios))
 			goto error;
 		if ((*ha->func.erasebios) (ha)) {
-			DEBUG_VAR(1,
+			DE_VAR(1,
 				  "(%s%d) flash bios failed - unable to erase flash",
 				  ips_name, ha->host_num);
 			goto error;
@@ -1738,7 +1738,7 @@ ips_flash_bios(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 						 IPS_BIOS_HEADER,
 						 ha->flash_datasize -
 						 IPS_BIOS_HEADER, 0)) {
-			DEBUG_VAR(1,
+			DE_VAR(1,
 				  "(%s%d) flash bios failed - unable to flash",
 				  ips_name, ha->host_num);
 			goto error;
@@ -1748,7 +1748,7 @@ ips_flash_bios(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 						IPS_BIOS_HEADER,
 						ha->flash_datasize -
 						IPS_BIOS_HEADER, 0)) {
-			DEBUG_VAR(1,
+			DE_VAR(1,
 				  "(%s%d) flash bios failed - unable to verify flash",
 				  ips_name, ha->host_num);
 			goto error;
@@ -1760,7 +1760,7 @@ ips_flash_bios(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 		if (!ha->func.erasebios)
 			goto error;
 		if ((*ha->func.erasebios) (ha)) {
-			DEBUG_VAR(1,
+			DE_VAR(1,
 				  "(%s%d) flash bios failed - unable to erase flash",
 				  ips_name, ha->host_num);
 			goto error;
@@ -1989,7 +1989,7 @@ ips_cleanup_passthru(ips_ha_t * ha, ips_scb_t * scb)
 	METHOD_TRACE("ips_cleanup_passthru", 1);
 
 	if ((!scb) || (!scb->scsi_cmd) || (!scsi_sglist(scb->scsi_cmd))) {
-		DEBUG_VAR(1, "(%s%d) couldn't cleanup after passthru",
+		DE_VAR(1, "(%s%d) couldn't cleanup after passthru",
 			  ips_name, ha->host_num);
 
 		return;
@@ -2658,7 +2658,7 @@ ips_next(ips_ha_t * ha, int intr)
 		memcpy(scb->cdb, SC->cmnd, SC->cmd_len);
 
                 scb->sg_count = scsi_dma_map(SC);
-                BUG_ON(scb->sg_count < 0);
+                _ON(scb->sg_count < 0);
 		if (scb->sg_count) {
 			struct scatterlist *sg;
 			int i;
@@ -3252,7 +3252,7 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 	METHOD_TRACE("ips_map_status", 1);
 
 	if (scb->bus) {
-		DEBUG_VAR(2,
+		DE_VAR(2,
 			  "(%s%d) Physical device error (%d %d %d): %x %x, Sense Key: %x, ASC: %x, ASCQ: %x",
 			  ips_name, ha->host_num,
 			  scb->scsi_cmd->device->channel,
@@ -3854,7 +3854,7 @@ ips_chkstatus(ips_ha_t * ha, IPS_STATUS * pstatus)
 		/* internal commands are handled in do_ipsintr */
 		return;
 
-	DEBUG_VAR(2, "(%s%d) ips_chkstatus: cmd 0x%X id %d (%d %d %d)",
+	DE_VAR(2, "(%s%d) ips_chkstatus: cmd 0x%X id %d (%d %d %d)",
 		  ips_name,
 		  ha->host_num,
 		  scb->cdb[0],
@@ -3873,7 +3873,7 @@ ips_chkstatus(ips_ha_t * ha, IPS_STATUS * pstatus)
 		if (scb->bus == 0) {
 			if ((basic_status & IPS_GSC_STATUS_MASK) ==
 			    IPS_CMD_RECOVERED_ERROR) {
-				DEBUG_VAR(1,
+				DE_VAR(1,
 					  "(%s%d) Recovered Logical Drive Error OpCode: %x, BSB: %x, ESB: %x",
 					  ips_name, ha->host_num,
 					  scb->cmd.basic_io.op_code,
@@ -3964,7 +3964,7 @@ ips_chkstatus(ips_ha_t * ha, IPS_STATUS * pstatus)
 		}		/* else */
 	} else {		/* recovered error / success */
 		if (scb->bus == 0) {
-			DEBUG_VAR(1,
+			DE_VAR(1,
 				  "(%s%d) Unrecovered Logical Drive Error OpCode: %x, BSB: %x, ESB: %x",
 				  ips_name, ha->host_num,
 				  scb->cmd.basic_io.op_code, basic_status,
@@ -5004,7 +5004,7 @@ ips_reset_copperhead(ips_ha_t * ha)
 
 	METHOD_TRACE("ips_reset_copperhead", 1);
 
-	DEBUG_VAR(1, "(%s%d) ips_reset_copperhead: io addr: %x, irq: %d",
+	DE_VAR(1, "(%s%d) ips_reset_copperhead: io addr: %x, irq: %d",
 		  ips_name, ha->host_num, ha->io_addr, ha->pcidev->irq);
 
 	reset_counter = 0;
@@ -5049,7 +5049,7 @@ ips_reset_copperhead_memio(ips_ha_t * ha)
 
 	METHOD_TRACE("ips_reset_copperhead_memio", 1);
 
-	DEBUG_VAR(1, "(%s%d) ips_reset_copperhead_memio: mem addr: %x, irq: %d",
+	DE_VAR(1, "(%s%d) ips_reset_copperhead_memio: mem addr: %x, irq: %d",
 		  ips_name, ha->host_num, ha->mem_addr, ha->pcidev->irq);
 
 	reset_counter = 0;
@@ -5095,7 +5095,7 @@ ips_reset_morpheus(ips_ha_t * ha)
 
 	METHOD_TRACE("ips_reset_morpheus", 1);
 
-	DEBUG_VAR(1, "(%s%d) ips_reset_morpheus: mem addr: %x, irq: %d",
+	DE_VAR(1, "(%s%d) ips_reset_morpheus: mem addr: %x, irq: %d",
 		  ips_name, ha->host_num, ha->mem_addr, ha->pcidev->irq);
 
 	reset_counter = 0;
@@ -5277,14 +5277,14 @@ ips_issue_copperhead(ips_ha_t * ha, ips_scb_t * scb)
 	METHOD_TRACE("ips_issue_copperhead", 1);
 
 	if (scb->scsi_cmd) {
-		DEBUG_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
+		DE_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
 			  ips_name,
 			  ha->host_num,
 			  scb->cdb[0],
 			  scb->cmd.basic_io.command_id,
 			  scb->bus, scb->target_id, scb->lun);
 	} else {
-		DEBUG_VAR(2, KERN_NOTICE "(%s%d) ips_issue: logical cmd id %d",
+		DE_VAR(2, KERN_NOTICE "(%s%d) ips_issue: logical cmd id %d",
 			  ips_name, ha->host_num, scb->cmd.basic_io.command_id);
 	}
 
@@ -5331,14 +5331,14 @@ ips_issue_copperhead_memio(ips_ha_t * ha, ips_scb_t * scb)
 	METHOD_TRACE("ips_issue_copperhead_memio", 1);
 
 	if (scb->scsi_cmd) {
-		DEBUG_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
+		DE_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
 			  ips_name,
 			  ha->host_num,
 			  scb->cdb[0],
 			  scb->cmd.basic_io.command_id,
 			  scb->bus, scb->target_id, scb->lun);
 	} else {
-		DEBUG_VAR(2, "(%s%d) ips_issue: logical cmd id %d",
+		DE_VAR(2, "(%s%d) ips_issue: logical cmd id %d",
 			  ips_name, ha->host_num, scb->cmd.basic_io.command_id);
 	}
 
@@ -5382,14 +5382,14 @@ ips_issue_i2o(ips_ha_t * ha, ips_scb_t * scb)
 	METHOD_TRACE("ips_issue_i2o", 1);
 
 	if (scb->scsi_cmd) {
-		DEBUG_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
+		DE_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
 			  ips_name,
 			  ha->host_num,
 			  scb->cdb[0],
 			  scb->cmd.basic_io.command_id,
 			  scb->bus, scb->target_id, scb->lun);
 	} else {
-		DEBUG_VAR(2, "(%s%d) ips_issue: logical cmd id %d",
+		DE_VAR(2, "(%s%d) ips_issue: logical cmd id %d",
 			  ips_name, ha->host_num, scb->cmd.basic_io.command_id);
 	}
 
@@ -5414,14 +5414,14 @@ ips_issue_i2o_memio(ips_ha_t * ha, ips_scb_t * scb)
 	METHOD_TRACE("ips_issue_i2o_memio", 1);
 
 	if (scb->scsi_cmd) {
-		DEBUG_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
+		DE_VAR(2, "(%s%d) ips_issue: cmd 0x%X id %d (%d %d %d)",
 			  ips_name,
 			  ha->host_num,
 			  scb->cdb[0],
 			  scb->cmd.basic_io.command_id,
 			  scb->bus, scb->target_id, scb->lun);
 	} else {
-		DEBUG_VAR(2, "(%s%d) ips_issue: logical cmd id %d",
+		DE_VAR(2, "(%s%d) ips_issue: logical cmd id %d",
 			  ips_name, ha->host_num, scb->cmd.basic_io.command_id);
 	}
 
@@ -5602,13 +5602,13 @@ ips_write_driver_status(ips_ha_t * ha, int intr)
 	/* check to make sure the page has a valid */
 	/* signature */
 	if (le32_to_cpu(ha->nvram->signature) != IPS_NVRAM_P5_SIG) {
-		DEBUG_VAR(1,
+		DE_VAR(1,
 			  "(%s%d) NVRAM page 5 has an invalid signature: %X.",
 			  ips_name, ha->host_num, ha->nvram->signature);
 		ha->nvram->signature = IPS_NVRAM_P5_SIG;
 	}
 
-	DEBUG_VAR(2,
+	DE_VAR(2,
 		  "(%s%d) Ad Type: %d, Ad Slot: %d, BIOS: %c%c%c%c %c%c%c%c.",
 		  ips_name, ha->host_num, le16_to_cpu(ha->nvram->adapter_type),
 		  ha->nvram->adapter_slot, ha->nvram->bios_high[0],
@@ -5951,7 +5951,7 @@ ips_ffdc_time(ips_ha_t * ha)
 
 	METHOD_TRACE("ips_ffdc_time", 1);
 
-	DEBUG_VAR(1, "(%s%d) Sending time update.", ips_name, ha->host_num);
+	DE_VAR(1, "(%s%d) Sending time update.", ips_name, ha->host_num);
 
 	scb = &ha->scbs[ha->max_cmds - 1];
 

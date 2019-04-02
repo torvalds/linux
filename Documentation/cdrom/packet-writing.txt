@@ -112,16 +112,16 @@ For a description of the sysfs interface look into the file:
   Documentation/ABI/testing/sysfs-class-pktcdvd
 
 
-Using the pktcdvd debugfs interface
+Using the pktcdvd defs interface
 -----------------------------------
 
 To read pktcdvd device infos in human readable form, do:
 
-	# cat /sys/kernel/debug/pktcdvd/pktcdvd[0-7]/info
+	# cat /sys/kernel/de/pktcdvd/pktcdvd[0-7]/info
 
-For a description of the debugfs interface look into the file:
+For a description of the defs interface look into the file:
 
-  Documentation/ABI/testing/debugfs-pktcdvd
+  Documentation/ABI/testing/defs-pktcdvd
 
 
 

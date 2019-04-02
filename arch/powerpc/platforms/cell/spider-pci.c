@@ -18,7 +18,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
@@ -87,7 +87,7 @@ static int __init spiderpci_pci_setup_chip(struct pci_controller *phb,
 
 #ifdef SPIDER_PCI_DISABLE_PREFETCH
 	u32 val = in_be32(regs + SPIDER_PCI_VCI_CNTL_STAT);
-	pr_debug("SPIDER_IOWA:PVCI_Control_Status was 0x%08x\n", val);
+	pr_de("SPIDER_IOWA:PVCI_Control_Status was 0x%08x\n", val);
 	out_be32(regs + SPIDER_PCI_VCI_CNTL_STAT, val | 0x8);
 #endif /* SPIDER_PCI_DISABLE_PREFETCH */
 
@@ -130,7 +130,7 @@ int __init spiderpci_iowa_init(struct iowa_bus *bus, void *data)
 	struct resource r;
 	unsigned long offset = (unsigned long)data;
 
-	pr_debug("SPIDERPCI-IOWA:Bus initialize for spider(%pOF)\n",
+	pr_de("SPIDERPCI-IOWA:Bus initialize for spider(%pOF)\n",
 		 np);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);

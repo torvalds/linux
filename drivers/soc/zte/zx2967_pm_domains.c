@@ -59,7 +59,7 @@ static int zx2967_power_on(struct generic_pm_domain *domain)
 	writel_relaxed(val, pcubase + PCU_DM_CLKEN(zpd));
 	udelay(5);
 
-	pr_debug("poweron %s\n", domain->name);
+	pr_de("poweron %s\n", domain->name);
 
 	return 0;
 }
@@ -103,7 +103,7 @@ static int zx2967_power_off(struct generic_pm_domain *domain)
 		return -EIO;
 	}
 
-	pr_debug("poweroff %s\n", domain->name);
+	pr_de("poweroff %s\n", domain->name);
 
 	return 0;
 }

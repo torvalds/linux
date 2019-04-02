@@ -1,5 +1,5 @@
-#ifndef __HID_DEBUG_H
-#define __HID_DEBUG_H
+#ifndef __HID_DE_H
+#define __HID_DE_H
 
 /*
  *  Copyright (c) 2007-2009	Jiri Kosina
@@ -22,26 +22,26 @@
  *
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #include <linux/kfifo.h>
 
-#define HID_DEBUG_BUFSIZE 512
-#define HID_DEBUG_FIFOSIZE 512
+#define HID_DE_BUFSIZE 512
+#define HID_DE_FIFOSIZE 512
 
 void hid_dump_input(struct hid_device *, struct hid_usage *, __s32);
 void hid_dump_report(struct hid_device *, int , u8 *, int);
 void hid_dump_device(struct hid_device *, struct seq_file *);
 void hid_dump_field(struct hid_field *, int, struct seq_file *);
 char *hid_resolv_usage(unsigned, struct seq_file *);
-void hid_debug_register(struct hid_device *, const char *);
-void hid_debug_unregister(struct hid_device *);
-void hid_debug_init(void);
-void hid_debug_exit(void);
-void hid_debug_event(struct hid_device *, char *);
+void hid_de_register(struct hid_device *, const char *);
+void hid_de_unregister(struct hid_device *);
+void hid_de_init(void);
+void hid_de_exit(void);
+void hid_de_event(struct hid_device *, char *);
 
-struct hid_debug_list {
-	DECLARE_KFIFO_PTR(hid_debug_fifo, char);
+struct hid_de_list {
+	DECLARE_KFIFO_PTR(hid_de_fifo, char);
 	struct fasync_struct *fasync;
 	struct hid_device *hdev;
 	struct list_head node;
@@ -55,11 +55,11 @@ struct hid_debug_list {
 #define hid_dump_device(a,b)		do { } while (0)
 #define hid_dump_field(a,b,c)		do { } while (0)
 #define hid_resolv_usage(a,b)		do { } while (0)
-#define hid_debug_register(a, b)	do { } while (0)
-#define hid_debug_unregister(a)		do { } while (0)
-#define hid_debug_init()		do { } while (0)
-#define hid_debug_exit()		do { } while (0)
-#define hid_debug_event(a,b)		do { } while (0)
+#define hid_de_register(a, b)	do { } while (0)
+#define hid_de_unregister(a)		do { } while (0)
+#define hid_de_init()		do { } while (0)
+#define hid_de_exit()		do { } while (0)
+#define hid_de_event(a,b)		do { } while (0)
 
 #endif
 

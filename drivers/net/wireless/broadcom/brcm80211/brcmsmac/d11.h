@@ -139,8 +139,8 @@ struct d11regs {
 	u32 PAD;		/* 0x14C */
 
 	u32 chnstatus;	/* 0x150 */
-	u32 psmdebug;	/* 0x154 */
-	u32 phydebug;	/* 0x158 */
+	u32 psmde;	/* 0x154 */
+	u32 phyde;	/* 0x158 */
 	u32 machwcap;	/* 0x15C */
 
 	/* Extended Internal Objects */
@@ -571,7 +571,7 @@ struct d11regs {
 /* entries are present in pmq */
 #define	PMQH_NOT_EMPTY		0x00000008
 
-/*== phydebug ==*/
+/*== phyde ==*/
 /* phy is asserting carrier sense */
 #define	PDBG_CRS		(1 << 0)
 /* phy is taking xmit byte from mac this cycle */
@@ -1553,7 +1553,7 @@ struct d11rxhdr {
 #define	M_PSM_SOFT_REGS	0x0
 #define	M_BOM_REV_MAJOR	(M_PSM_SOFT_REGS + 0x0)
 #define	M_BOM_REV_MINOR	(M_PSM_SOFT_REGS + 0x2)
-#define	M_UCODE_DBGST	(M_PSM_SOFT_REGS + 0x40) /* ucode debug status code */
+#define	M_UCODE_DBGST	(M_PSM_SOFT_REGS + 0x40) /* ucode de status code */
 #define	M_UCODE_MACSTAT	(M_PSM_SOFT_REGS + 0xE0) /* macstat counters */
 
 #define M_AGING_THRSH	(0x3e * 2) /* max time waiting for medium before tx */
@@ -1571,7 +1571,7 @@ struct d11rxhdr {
 /* PKTENG Rx Stats Block */
 #define M_RXSTATS_BLK_PTR	(M_PSM_SOFT_REGS + (0x65 * 2))
 
-/* ucode debug status codes */
+/* ucode de status codes */
 /* not valid really */
 #define	DBGST_INACTIVE		0
 /* after zeroing SHM, before suspending at init */
@@ -1811,7 +1811,7 @@ struct macstat {
 #define	BPHY_HDR_TYPE		0x40
 #define	BPHY_SFD_TO		0x41
 #define	BPHY_SFD_CTL		0x42
-#define	BPHY_DEBUG		0x43
+#define	BPHY_DE		0x43
 #define	BPHY_RX_DELAY_COMP	0x44
 #define	BPHY_CRS_DROP_TO	0x45
 #define	BPHY_SHORT_SFD_NZEROS	0x46

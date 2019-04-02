@@ -1035,15 +1035,15 @@ static void arm_ccn_pmu_node_event_config(struct perf_event *event)
 			hw->config_base);
 
 	/* These *_event_sel regs should be identical, but let's make sure... */
-	BUILD_BUG_ON(CCN_HNF_PMU_EVENT_SEL != CCN_SBAS_PMU_EVENT_SEL);
-	BUILD_BUG_ON(CCN_SBAS_PMU_EVENT_SEL != CCN_RNI_PMU_EVENT_SEL);
-	BUILD_BUG_ON(CCN_HNF_PMU_EVENT_SEL__ID__SHIFT(1) !=
+	BUILD__ON(CCN_HNF_PMU_EVENT_SEL != CCN_SBAS_PMU_EVENT_SEL);
+	BUILD__ON(CCN_SBAS_PMU_EVENT_SEL != CCN_RNI_PMU_EVENT_SEL);
+	BUILD__ON(CCN_HNF_PMU_EVENT_SEL__ID__SHIFT(1) !=
 			CCN_SBAS_PMU_EVENT_SEL__ID__SHIFT(1));
-	BUILD_BUG_ON(CCN_SBAS_PMU_EVENT_SEL__ID__SHIFT(1) !=
+	BUILD__ON(CCN_SBAS_PMU_EVENT_SEL__ID__SHIFT(1) !=
 			CCN_RNI_PMU_EVENT_SEL__ID__SHIFT(1));
-	BUILD_BUG_ON(CCN_HNF_PMU_EVENT_SEL__ID__MASK !=
+	BUILD__ON(CCN_HNF_PMU_EVENT_SEL__ID__MASK !=
 			CCN_SBAS_PMU_EVENT_SEL__ID__MASK);
-	BUILD_BUG_ON(CCN_SBAS_PMU_EVENT_SEL__ID__MASK !=
+	BUILD__ON(CCN_SBAS_PMU_EVENT_SEL__ID__MASK !=
 			CCN_RNI_PMU_EVENT_SEL__ID__MASK);
 	if (WARN_ON(type != CCN_TYPE_HNF && type != CCN_TYPE_SBAS &&
 			!arm_ccn_pmu_type_eq(type, CCN_TYPE_RNI_3P)))
@@ -1176,7 +1176,7 @@ static irqreturn_t arm_ccn_pmu_overflow_handler(struct arm_ccn_dt *dt)
 
 	writel(pmovsr, dt->base + CCN_DT_PMOVSR_CLR);
 
-	BUILD_BUG_ON(CCN_IDX_PMU_CYCLE_COUNTER != CCN_NUM_PMU_EVENT_COUNTERS);
+	BUILD__ON(CCN_IDX_PMU_CYCLE_COUNTER != CCN_NUM_PMU_EVENT_COUNTERS);
 
 	for (idx = 0; idx < CCN_NUM_PMU_EVENT_COUNTERS + 1; idx++) {
 		struct perf_event *event = dt->pmu_counters[idx].event;

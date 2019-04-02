@@ -100,8 +100,8 @@ Changing this takes effect whenever an application requests memory.
 
 block_dump
 
-block_dump enables block I/O debugging when set to a nonzero value. More
-information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
+block_dump enables block I/O deging when set to a nonzero value. More
+information on block I/O deging is in Documentation/laptops/laptop-mode.txt.
 
 ==============================================================
 
@@ -229,7 +229,7 @@ reclaimed by the kernel when memory is needed elsewhere on the system.
 Use of this file can cause performance problems.  Since it discards cached
 objects, it may cost a significant amount of I/O and CPU to recreate the
 dropped objects, especially if they were under heavy use.  Because of this,
-use outside of a testing or debugging environment is not recommended.
+use outside of a testing or deging environment is not recommended.
 
 You may see informational messages in your kernel log when this file is
 used:
@@ -245,7 +245,7 @@ extfrag_threshold
 
 This parameter affects whether the kernel will compact memory or direct
 reclaim to satisfy a high-order allocation. The extfrag/extfrag_index file in
-debugfs shows what the fragmentation index for each order is in each zone in
+defs shows what the fragmentation index for each order is in each zone in
 the system. Values tending towards 0 imply allocations would fail due to lack
 of memory, values towards 1000 imply failures are due to fragmentation and -1
 implies that the allocation will succeed as long as watermarks are met.
@@ -390,7 +390,7 @@ malloc, directly by mmap, mprotect, and madvise, and also when loading
 shared libraries.
 
 While most applications need less than a thousand maps, certain
-programs, particularly malloc debuggers, may consume lots of them,
+programs, particularly malloc degers, may consume lots of them,
 e.g., up to one or two maps per allocation.
 
 The default value is 65536.
@@ -489,13 +489,13 @@ The default is 1 percent.
 mmap_min_addr
 
 This file indicates the amount of address space  which a user process will
-be restricted from mmapping.  Since kernel null dereference bugs could
+be restricted from mmapping.  Since kernel null dereference s could
 accidentally operate based on the information in the first couple of pages
 of memory userspace processes should not be allowed to write to them.  By
 default this value is set to 0 and no protections will be enforced by the
 security module.  Setting this value to something like 64k will allow the
 vast majority of applications to work correctly and provide defense in depth
-against future potential kernel bugs.
+against future potential kernel s.
 
 ==============================================================
 

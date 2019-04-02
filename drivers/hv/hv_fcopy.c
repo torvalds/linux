@@ -95,7 +95,7 @@ static void fcopy_timeout_func(struct work_struct *dummy)
 
 static void fcopy_register_done(void)
 {
-	pr_debug("FCP: userspace daemon registered\n");
+	pr_de("FCP: userspace daemon registered\n");
 	hv_poll_channel(fcopy_transaction.recv_channel, fcopy_poll_wrapper);
 }
 
@@ -124,7 +124,7 @@ static int fcopy_handle_handshake(u32 version)
 		 */
 		return -EINVAL;
 	}
-	pr_debug("FCP: userspace daemon ver. %d connected\n", version);
+	pr_de("FCP: userspace daemon ver. %d connected\n", version);
 	return 0;
 }
 
@@ -183,7 +183,7 @@ static void fcopy_send_data(struct work_struct *dummy)
 	fcopy_transaction.state = HVUTIL_USERSPACE_REQ;
 	rc = hvutil_transport_send(hvt, out_src, out_len, NULL);
 	if (rc) {
-		pr_debug("FCP: failed to communicate to the daemon: %d\n", rc);
+		pr_de("FCP: failed to communicate to the daemon: %d\n", rc);
 		if (cancel_delayed_work_sync(&fcopy_timeout_work)) {
 			fcopy_respond_to_host(HV_E_FAIL);
 			fcopy_transaction.state = HVUTIL_READY;

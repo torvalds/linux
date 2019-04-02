@@ -85,9 +85,9 @@ class id_parser(object):
         self.lasttok = None
         self.lastid = None
         self.lexer = lex.lex(module = self, reflags = re.UNICODE)
-        # Initialize the parser. No debug file and no parser rules stored on disk
+        # Initialize the parser. No de file and no parser rules stored on disk
         # The rules are small enough to be generated on the fly
-        self.parser = yacc.yacc(module = self, write_tables = False, debug = False)
+        self.parser = yacc.yacc(module = self, write_tables = False, de = False)
         self.lines_checked = 0
         self.checked = 0
         self.spdx_valid = 0

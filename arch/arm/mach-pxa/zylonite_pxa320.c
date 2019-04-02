@@ -128,7 +128,7 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO2_2_USBH_PEN,
 	GPIO3_2_USBH_PWR,
 
-	/* Debug LEDs */
+	/* De LEDs */
 	GPIO1_2_GPIO | MFP_LPM_DRIVE_HIGH,
 	GPIO4_2_GPIO | MFP_LPM_DRIVE_HIGH,
 };
@@ -206,8 +206,8 @@ void __init zylonite_pxa320_init(void)
 
 		/* GPIO pin assignment */
 		gpio_eth_irq	= mfp_to_gpio(MFP_PIN_GPIO9);
-		gpio_debug_led1	= mfp_to_gpio(MFP_PIN_GPIO1_2);
-		gpio_debug_led2	= mfp_to_gpio(MFP_PIN_GPIO4_2);
+		gpio_de_led1	= mfp_to_gpio(MFP_PIN_GPIO1_2);
+		gpio_de_led2	= mfp_to_gpio(MFP_PIN_GPIO4_2);
 
 		/* WM9713 IRQ */
 		wm9713_irq = mfp_to_gpio(MFP_PIN_GPIO15);

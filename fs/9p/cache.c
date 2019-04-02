@@ -76,13 +76,13 @@ void v9fs_cache_session_get_cookie(struct v9fs_session_info *v9ses)
 						strlen(v9ses->cachetag),
 						NULL, 0,
 						v9ses, 0, true);
-	p9_debug(P9_DEBUG_FSC, "session %p get cookie %p\n",
+	p9_de(P9_DE_FSC, "session %p get cookie %p\n",
 		 v9ses, v9ses->fscache);
 }
 
 void v9fs_cache_session_put_cookie(struct v9fs_session_info *v9ses)
 {
-	p9_debug(P9_DEBUG_FSC, "session %p put cookie %p\n",
+	p9_de(P9_DE_FSC, "session %p put cookie %p\n",
 		 v9ses, v9ses->fscache);
 	fscache_relinquish_cookie(v9ses->fscache, NULL, false);
 	v9ses->fscache = NULL;
@@ -135,7 +135,7 @@ void v9fs_cache_inode_get_cookie(struct inode *inode)
 						  i_size_read(&v9inode->vfs_inode),
 						  true);
 
-	p9_debug(P9_DEBUG_FSC, "inode %p get cookie %p\n",
+	p9_de(P9_DE_FSC, "inode %p get cookie %p\n",
 		 inode, v9inode->fscache);
 }
 
@@ -145,7 +145,7 @@ void v9fs_cache_inode_put_cookie(struct inode *inode)
 
 	if (!v9inode->fscache)
 		return;
-	p9_debug(P9_DEBUG_FSC, "inode %p put cookie %p\n",
+	p9_de(P9_DE_FSC, "inode %p put cookie %p\n",
 		 inode, v9inode->fscache);
 
 	fscache_relinquish_cookie(v9inode->fscache, &v9inode->qid.version,
@@ -159,7 +159,7 @@ void v9fs_cache_inode_flush_cookie(struct inode *inode)
 
 	if (!v9inode->fscache)
 		return;
-	p9_debug(P9_DEBUG_FSC, "inode %p flush cookie %p\n",
+	p9_de(P9_DE_FSC, "inode %p flush cookie %p\n",
 		 inode, v9inode->fscache);
 
 	fscache_relinquish_cookie(v9inode->fscache, NULL, true);
@@ -207,7 +207,7 @@ void v9fs_cache_inode_reset_cookie(struct inode *inode)
 						  v9inode,
 						  i_size_read(&v9inode->vfs_inode),
 						  true);
-	p9_debug(P9_DEBUG_FSC, "inode %p revalidating cookie old %p new %p\n",
+	p9_de(P9_DE_FSC, "inode %p revalidating cookie old %p new %p\n",
 		 inode, old, v9inode->fscache);
 
 	mutex_unlock(&v9inode->fscache_lock);
@@ -218,7 +218,7 @@ int __v9fs_fscache_release_page(struct page *page, gfp_t gfp)
 	struct inode *inode = page->mapping->host;
 	struct v9fs_inode *v9inode = V9FS_I(inode);
 
-	BUG_ON(!v9inode->fscache);
+	_ON(!v9inode->fscache);
 
 	return fscache_maybe_release_page(v9inode->fscache, page, gfp);
 }
@@ -228,11 +228,11 @@ void __v9fs_fscache_invalidate_page(struct page *page)
 	struct inode *inode = page->mapping->host;
 	struct v9fs_inode *v9inode = V9FS_I(inode);
 
-	BUG_ON(!v9inode->fscache);
+	_ON(!v9inode->fscache);
 
 	if (PageFsCache(page)) {
 		fscache_wait_on_page_write(v9inode->fscache, page);
-		BUG_ON(!PageLocked(page));
+		_ON(!PageLocked(page));
 		fscache_uncache_page(v9inode->fscache, page);
 	}
 }
@@ -258,7 +258,7 @@ int __v9fs_readpage_from_fscache(struct inode *inode, struct page *page)
 	int ret;
 	const struct v9fs_inode *v9inode = V9FS_I(inode);
 
-	p9_debug(P9_DEBUG_FSC, "inode %p page %p\n", inode, page);
+	p9_de(P9_DE_FSC, "inode %p page %p\n", inode, page);
 	if (!v9inode->fscache)
 		return -ENOBUFS;
 
@@ -270,13 +270,13 @@ int __v9fs_readpage_from_fscache(struct inode *inode, struct page *page)
 	switch (ret) {
 	case -ENOBUFS:
 	case -ENODATA:
-		p9_debug(P9_DEBUG_FSC, "page/inode not in cache %d\n", ret);
+		p9_de(P9_DE_FSC, "page/inode not in cache %d\n", ret);
 		return 1;
 	case 0:
-		p9_debug(P9_DEBUG_FSC, "BIO submitted\n");
+		p9_de(P9_DE_FSC, "BIO submitted\n");
 		return ret;
 	default:
-		p9_debug(P9_DEBUG_FSC, "ret %d\n", ret);
+		p9_de(P9_DE_FSC, "ret %d\n", ret);
 		return ret;
 	}
 }
@@ -296,7 +296,7 @@ int __v9fs_readpages_from_fscache(struct inode *inode,
 	int ret;
 	const struct v9fs_inode *v9inode = V9FS_I(inode);
 
-	p9_debug(P9_DEBUG_FSC, "inode %p pages %u\n", inode, *nr_pages);
+	p9_de(P9_DE_FSC, "inode %p pages %u\n", inode, *nr_pages);
 	if (!v9inode->fscache)
 		return -ENOBUFS;
 
@@ -308,15 +308,15 @@ int __v9fs_readpages_from_fscache(struct inode *inode,
 	switch (ret) {
 	case -ENOBUFS:
 	case -ENODATA:
-		p9_debug(P9_DEBUG_FSC, "pages/inodes not in cache %d\n", ret);
+		p9_de(P9_DE_FSC, "pages/inodes not in cache %d\n", ret);
 		return 1;
 	case 0:
-		BUG_ON(!list_empty(pages));
-		BUG_ON(*nr_pages != 0);
-		p9_debug(P9_DEBUG_FSC, "BIO submitted\n");
+		_ON(!list_empty(pages));
+		_ON(*nr_pages != 0);
+		p9_de(P9_DE_FSC, "BIO submitted\n");
 		return ret;
 	default:
-		p9_debug(P9_DEBUG_FSC, "ret %d\n", ret);
+		p9_de(P9_DE_FSC, "ret %d\n", ret);
 		return ret;
 	}
 }
@@ -331,10 +331,10 @@ void __v9fs_readpage_to_fscache(struct inode *inode, struct page *page)
 	int ret;
 	const struct v9fs_inode *v9inode = V9FS_I(inode);
 
-	p9_debug(P9_DEBUG_FSC, "inode %p page %p\n", inode, page);
+	p9_de(P9_DE_FSC, "inode %p page %p\n", inode, page);
 	ret = fscache_write_page(v9inode->fscache, page,
 				 i_size_read(&v9inode->vfs_inode), GFP_KERNEL);
-	p9_debug(P9_DEBUG_FSC, "ret =  %d\n", ret);
+	p9_de(P9_DE_FSC, "ret =  %d\n", ret);
 	if (ret != 0)
 		v9fs_uncache_page(inode, page);
 }
@@ -345,7 +345,7 @@ void __v9fs_readpage_to_fscache(struct inode *inode, struct page *page)
 void __v9fs_fscache_wait_on_page_write(struct inode *inode, struct page *page)
 {
 	const struct v9fs_inode *v9inode = V9FS_I(inode);
-	p9_debug(P9_DEBUG_FSC, "inode %p page %p\n", inode, page);
+	p9_de(P9_DE_FSC, "inode %p page %p\n", inode, page);
 	if (PageFsCache(page))
 		fscache_wait_on_page_write(v9inode->fscache, page);
 }

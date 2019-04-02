@@ -159,7 +159,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
 
 		if (after48(DCCP_SKB_CB(skb)->dccpd_seq, dreq->dreq_gsr)) {
-			dccp_pr_debug("Retransmitted REQUEST\n");
+			dccp_pr_de("Retransmitted REQUEST\n");
 			dreq->dreq_gsr = DCCP_SKB_CB(skb)->dccpd_seq;
 			/*
 			 * Send another RESPONSE packet
@@ -181,7 +181,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* Invalid ACK */
 	if (!between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 				dreq->dreq_iss, dreq->dreq_gss)) {
-		dccp_pr_debug("Invalid ACK number: ack_seq=%llu, "
+		dccp_pr_de("Invalid ACK number: ack_seq=%llu, "
 			      "dreq_iss=%llu, dreq_gss=%llu\n",
 			      (unsigned long long)
 			      DCCP_SKB_CB(skb)->dccpd_ack_seq,
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(dccp_child_process);
 void dccp_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 			 struct request_sock *rsk)
 {
-	DCCP_BUG("DCCP-ACK packets are never sent in LISTEN/RESPOND state");
+	DCCP_("DCCP-ACK packets are never sent in LISTEN/RESPOND state");
 }
 
 EXPORT_SYMBOL_GPL(dccp_reqsk_send_ack);

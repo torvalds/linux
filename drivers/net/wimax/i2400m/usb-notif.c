@@ -61,7 +61,7 @@
 
 
 #define D_SUBMODULE notif
-#include "usb-debug-levels.h"
+#include "usb-de-levels.h"
 
 
 static const
@@ -90,7 +90,7 @@ int i2400mu_notification_grok(struct i2400mu *i2400mu, const void *buf,
 		  i2400mu, buf, buf_len);
 	ret = -EIO;
 	if (buf_len < sizeof(i2400m_ZERO_BARKER))
-		/* Not a bug, just ignore */
+		/* Not a , just ignore */
 		goto error_bad_size;
 	ret = 0;
 	if (!memcmp(i2400m_ZERO_BARKER, buf, sizeof(i2400m_ZERO_BARKER))) {

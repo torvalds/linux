@@ -113,7 +113,7 @@ static inline bool range_check(struct vringh *vrh, u64 addr, size_t *len,
 		if (!getrange(vrh, addr, range))
 			return false;
 	}
-	BUG_ON(addr < range->start || addr > range->end_incl);
+	_ON(addr < range->start || addr > range->end_incl);
 
 	/* To end of memory? */
 	if (unlikely(addr + *len == 0)) {
@@ -279,7 +279,7 @@ __vringh_iov(struct vringh *vrh, u16 i,
 		wiov->i = wiov->used = 0;
 	else
 		/* You must want something! */
-		BUG();
+		();
 
 	for (;;) {
 		void *addr;
@@ -665,23 +665,23 @@ int vringh_getdesc_user(struct vringh *vrh,
 		return 0;
 
 	/* We need the layouts to be the identical for this to work */
-	BUILD_BUG_ON(sizeof(struct vringh_kiov) != sizeof(struct vringh_iov));
-	BUILD_BUG_ON(offsetof(struct vringh_kiov, iov) !=
+	BUILD__ON(sizeof(struct vringh_kiov) != sizeof(struct vringh_iov));
+	BUILD__ON(offsetof(struct vringh_kiov, iov) !=
 		     offsetof(struct vringh_iov, iov));
-	BUILD_BUG_ON(offsetof(struct vringh_kiov, i) !=
+	BUILD__ON(offsetof(struct vringh_kiov, i) !=
 		     offsetof(struct vringh_iov, i));
-	BUILD_BUG_ON(offsetof(struct vringh_kiov, used) !=
+	BUILD__ON(offsetof(struct vringh_kiov, used) !=
 		     offsetof(struct vringh_iov, used));
-	BUILD_BUG_ON(offsetof(struct vringh_kiov, max_num) !=
+	BUILD__ON(offsetof(struct vringh_kiov, max_num) !=
 		     offsetof(struct vringh_iov, max_num));
-	BUILD_BUG_ON(sizeof(struct iovec) != sizeof(struct kvec));
-	BUILD_BUG_ON(offsetof(struct iovec, iov_base) !=
+	BUILD__ON(sizeof(struct iovec) != sizeof(struct kvec));
+	BUILD__ON(offsetof(struct iovec, iov_base) !=
 		     offsetof(struct kvec, iov_base));
-	BUILD_BUG_ON(offsetof(struct iovec, iov_len) !=
+	BUILD__ON(offsetof(struct iovec, iov_len) !=
 		     offsetof(struct kvec, iov_len));
-	BUILD_BUG_ON(sizeof(((struct iovec *)NULL)->iov_base)
+	BUILD__ON(sizeof(((struct iovec *)NULL)->iov_base)
 		     != sizeof(((struct kvec *)NULL)->iov_base));
-	BUILD_BUG_ON(sizeof(((struct iovec *)NULL)->iov_len)
+	BUILD__ON(sizeof(((struct iovec *)NULL)->iov_len)
 		     != sizeof(((struct kvec *)NULL)->iov_len));
 
 	*head = err;

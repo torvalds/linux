@@ -51,10 +51,10 @@
 #define DMA_RX_SIZE 512
 #define STMMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
 
-#undef FRAME_FILTER_DEBUG
-/* #define FRAME_FILTER_DEBUG */
+#undef FRAME_FILTER_DE
+/* #define FRAME_FILTER_DE */
 
-/* Extra statistic and debug information exposed by ethtool */
+/* Extra statistic and de information exposed by ethtool */
 struct stmmac_extra_stats {
 	/* Transmit errors */
 	unsigned long tx_underflow ____cacheline_aligned;
@@ -150,7 +150,7 @@ struct stmmac_extra_stats {
 	unsigned long pcs_link;
 	unsigned long pcs_duplex;
 	unsigned long pcs_speed;
-	/* debug register */
+	/* de register */
 	unsigned long mtl_tx_status_fifo_full;
 	unsigned long mtl_tx_fifo_not_empty;
 	unsigned long mmtl_fifo_ctrl;

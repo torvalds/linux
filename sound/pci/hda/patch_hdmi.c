@@ -375,7 +375,7 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 	eld = &per_pin->sink_eld;
 	if (eld->eld_size > ARRAY_SIZE(ucontrol->value.bytes.data) ||
 	    eld->eld_size > ELD_MAX_SIZE) {
-		snd_BUG();
+		snd_();
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -565,9 +565,9 @@ static void hdmi_stop_infoframe_trans(struct hda_codec *codec,
 						AC_DIPXMIT_DISABLE);
 }
 
-static void hdmi_debug_dip_size(struct hda_codec *codec, hda_nid_t pin_nid)
+static void hdmi_de_dip_size(struct hda_codec *codec, hda_nid_t pin_nid)
 {
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	int i;
 	int size;
 
@@ -631,7 +631,7 @@ static void hdmi_fill_audio_infoframe(struct hda_codec *codec,
 {
 	int i;
 
-	hdmi_debug_dip_size(codec, pin_nid);
+	hdmi_de_dip_size(codec, pin_nid);
 	hdmi_clear_dip_buffers(codec, pin_nid); /* be paranoid */
 
 	hdmi_set_dip_index(codec, pin_nid, 0x0, 0x0);
@@ -1212,7 +1212,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	mutex_lock(&spec->pcm_lock);
 	pin_idx = hinfo_to_pin_index(codec, hinfo);
 	if (!spec->dyn_pcm_assign) {
-		if (snd_BUG_ON(pin_idx < 0)) {
+		if (snd__ON(pin_idx < 0)) {
 			err = -EINVAL;
 			goto unlock;
 		}
@@ -1884,7 +1884,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 		goto unlock;
 	}
 
-	if (snd_BUG_ON(pin_idx < 0)) {
+	if (snd__ON(pin_idx < 0)) {
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -1959,14 +1959,14 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 
 	if (hinfo->nid) {
 		pcm_idx = hinfo_to_pcm_index(codec, hinfo);
-		if (snd_BUG_ON(pcm_idx < 0))
+		if (snd__ON(pcm_idx < 0))
 			return -EINVAL;
 		cvt_idx = cvt_nid_to_cvt_index(codec, hinfo->nid);
-		if (snd_BUG_ON(cvt_idx < 0))
+		if (snd__ON(cvt_idx < 0))
 			return -EINVAL;
 		per_cvt = get_cvt(spec, cvt_idx);
 
-		snd_BUG_ON(!per_cvt->assigned);
+		snd__ON(!per_cvt->assigned);
 		per_cvt->assigned = 0;
 		hinfo->nid = 0;
 
@@ -1977,7 +1977,7 @@ static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 		if (spec->dyn_pcm_assign && pin_idx < 0)
 			goto unlock;
 
-		if (snd_BUG_ON(pin_idx < 0)) {
+		if (snd__ON(pin_idx < 0)) {
 			err = -EINVAL;
 			goto unlock;
 		}

@@ -15,7 +15,7 @@
 #include "bus.h"
 #include "shm_ipc.h"
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 #include "qtn_hw_ids.h"
 
@@ -145,10 +145,10 @@ void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success)
 	}
 
 	if (boot_success) {
-		qtnf_debugfs_init(bus, DRV_NAME);
-		qtnf_debugfs_add_entry(bus, "mps", qtnf_dbg_mps_show);
-		qtnf_debugfs_add_entry(bus, "msi_enabled", qtnf_dbg_msi_show);
-		qtnf_debugfs_add_entry(bus, "shm_stats", qtnf_dbg_shm_stats);
+		qtnf_defs_init(bus, DRV_NAME);
+		qtnf_defs_add_entry(bus, "mps", qtnf_dbg_mps_show);
+		qtnf_defs_add_entry(bus, "msi_enabled", qtnf_dbg_msi_show);
+		qtnf_defs_add_entry(bus, "shm_stats", qtnf_dbg_shm_stats);
 	} else {
 		bus->fw_state = QTNF_FW_STATE_DETACHED;
 	}
@@ -188,7 +188,7 @@ static void qtnf_tune_pcie_mps(struct pci_dev *pdev)
 		return;
 	}
 
-	pr_debug("set mps to %d (was %d, max %d)\n", mps, mps_o, mps_m);
+	pr_de("set mps to %d (was %d, max %d)\n", mps, mps_o, mps_m);
 }
 
 static void qtnf_pcie_init_irq(struct qtnf_pcie_bus_priv *priv, bool use_msi)
@@ -201,7 +201,7 @@ static void qtnf_pcie_init_irq(struct qtnf_pcie_bus_priv *priv, bool use_msi)
 	/* check if MSI capability is available */
 	if (use_msi) {
 		if (!pci_enable_msi(pdev)) {
-			pr_debug("enabled MSI interrupt\n");
+			pr_de("enabled MSI interrupt\n");
 			priv->msi_enabled = 1;
 		} else {
 			pr_warn("failed to enable MSI interrupts");
@@ -231,7 +231,7 @@ static void __iomem *qtnf_map_bar(struct pci_dev *pdev, u8 index)
 	if (!vaddr)
 		return IOMEM_ERR_PTR(-ENOMEM);
 
-	pr_debug("BAR%u vaddr=0x%p busaddr=%pad len=%u\n",
+	pr_de("BAR%u vaddr=0x%p busaddr=%pad len=%u\n",
 		 index, vaddr, &busaddr, (int)len);
 
 	return vaddr;
@@ -429,7 +429,7 @@ static void qtnf_pcie_remove(struct pci_dev *dev)
 	tasklet_kill(&priv->reclaim_tq);
 
 	qtnf_pcie_free_shm_ipc(priv);
-	qtnf_debugfs_remove(bus);
+	qtnf_defs_remove(bus);
 	priv->remove_cb(bus);
 	pci_set_drvdata(priv->pdev, NULL);
 }

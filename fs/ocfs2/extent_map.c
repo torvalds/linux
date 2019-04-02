@@ -125,7 +125,7 @@ void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
 		if (emi->ei_cpos >= cpos) {
 			/* Full truncate of this record. */
 			list_move(&emi->ei_list, &tmp_list);
-			BUG_ON(em->em_num_items == 0);
+			_ON(em->em_num_items == 0);
 			em->em_num_items--;
 			continue;
 		}
@@ -273,7 +273,7 @@ search:
 		em->em_num_items++;
 		new_emi = NULL;
 	} else {
-		BUG_ON(list_empty(&em->em_list) || em->em_num_items == 0);
+		_ON(list_empty(&em->em_list) || em->em_num_items == 0);
 		emi = list_entry(em->em_list.prev,
 				 struct ocfs2_extent_map_item, ei_list);
 		list_move(&emi->ei_list, &em->em_list);
@@ -473,7 +473,7 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 
 	rec = &el->l_recs[i];
 
-	BUG_ON(v_cluster < le32_to_cpu(rec->e_cpos));
+	_ON(v_cluster < le32_to_cpu(rec->e_cpos));
 
 	if (!rec->e_blkno) {
 		ocfs2_error(inode->i_sb,
@@ -581,7 +581,7 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 		goto out;
 	} else {
 		rec = &el->l_recs[i];
-		BUG_ON(v_cluster < le32_to_cpu(rec->e_cpos));
+		_ON(v_cluster < le32_to_cpu(rec->e_cpos));
 
 		if (!rec->e_blkno) {
 			ocfs2_error(inode->i_sb,
@@ -888,7 +888,7 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_extent_rec rec;
 
-	BUG_ON(whence != SEEK_DATA && whence != SEEK_HOLE);
+	_ON(whence != SEEK_DATA && whence != SEEK_HOLE);
 
 	ret = ocfs2_inode_lock(inode, &di_bh, 0);
 	if (ret) {
@@ -986,7 +986,7 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 
 	if (((v_block + nr - 1) << inode->i_sb->s_blocksize_bits) >=
 	    i_size_read(inode)) {
-		BUG_ON(!(flags & OCFS2_BH_READAHEAD));
+		_ON(!(flags & OCFS2_BH_READAHEAD));
 		goto out;
 	}
 
@@ -1022,7 +1022,7 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 		for (i = 0; i < count; i++) {
 			if (!bhs[done + i])
 				continue;
-			BUG_ON(bhs[done + i]->b_blocknr != (p_block + i));
+			_ON(bhs[done + i]->b_blocknr != (p_block + i));
 		}
 
 		rc = ocfs2_read_blocks(INODE_CACHE(inode), p_block, count,

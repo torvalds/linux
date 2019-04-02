@@ -35,11 +35,11 @@
  * Use the following helper macro to get a register offset value.
  */
 #define SSB_EXTIF_GPIO_OUT(index)	({		\
-	BUILD_BUG_ON(index >= SSB_EXTIF_NR_GPIOOUT);	\
+	BUILD__ON(index >= SSB_EXTIF_NR_GPIOOUT);	\
 	SSB_EXTIF_GPIO_OUT_BASE + ((index) * 8);	\
 					})
 #define SSB_EXTIF_GPIO_OUTEN(index)	({		\
-	BUILD_BUG_ON(index >= SSB_EXTIF_NR_GPIOOUT);	\
+	BUILD__ON(index >= SSB_EXTIF_NR_GPIOOUT);	\
 	SSB_EXTIF_GPIO_OUTEN_BASE + ((index) * 8);	\
 					})
 

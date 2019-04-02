@@ -47,7 +47,7 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -349,7 +349,7 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 	cksumout->len = kctx->gk5e->cksumlength;
@@ -437,7 +437,7 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 out:
@@ -474,8 +474,8 @@ encryptor(struct scatterlist *sg, void *data)
 	int page_pos;
 
 	/* Worst case is 4 fragments: head, end of page 1, start
-	 * of page 2, tail.  Anything more is a bug. */
-	BUG_ON(desc->fragno > 3);
+	 * of page 2, tail.  Anything more is a . */
+	_ON(desc->fragno > 3);
 
 	page_pos = desc->pos - outbuf->head[0].iov_len;
 	if (page_pos >= 0 && page_pos < outbuf->page_len) {
@@ -534,7 +534,7 @@ gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
 	struct encryptor_desc desc;
 	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 
-	BUG_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
+	_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
 
 	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -573,8 +573,8 @@ decryptor(struct scatterlist *sg, void *data)
 	int fraglen, ret;
 
 	/* Worst case is 4 fragments: head, end of page 1, start
-	 * of page 2, tail.  Anything more is a bug. */
-	BUG_ON(desc->fragno > 3);
+	 * of page 2, tail.  Anything more is a . */
+	_ON(desc->fragno > 3);
 	sg_set_page(&desc->frags[desc->fragno], sg_page(sg), sg->length,
 		    sg->offset);
 	desc->fragno++;
@@ -618,7 +618,7 @@ gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
 	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 
 	/* XXXJBF: */
-	BUG_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
+	_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
 
 	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -660,8 +660,8 @@ xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen)
 	if (shiftlen == 0)
 		return 0;
 
-	BUILD_BUG_ON(GSS_KRB5_MAX_SLACK_NEEDED > RPC_MAX_AUTH_SIZE);
-	BUG_ON(shiftlen > RPC_MAX_AUTH_SIZE);
+	BUILD__ON(GSS_KRB5_MAX_SLACK_NEEDED > RPC_MAX_AUTH_SIZE);
+	_ON(shiftlen > RPC_MAX_AUTH_SIZE);
 
 	p = buf->head[0].iov_base + base;
 

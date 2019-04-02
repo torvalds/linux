@@ -115,9 +115,9 @@ huge_gem_object(struct drm_i915_private *i915,
 	struct drm_i915_gem_object *obj;
 	unsigned int cache_level;
 
-	GEM_BUG_ON(!phys_size || phys_size > dma_size);
-	GEM_BUG_ON(!IS_ALIGNED(phys_size, PAGE_SIZE));
-	GEM_BUG_ON(!IS_ALIGNED(dma_size, I915_GTT_PAGE_SIZE));
+	GEM__ON(!phys_size || phys_size > dma_size);
+	GEM__ON(!IS_ALIGNED(phys_size, PAGE_SIZE));
+	GEM__ON(!IS_ALIGNED(dma_size, I915_GTT_PAGE_SIZE));
 
 	if (overflows_type(dma_size, obj->base.size))
 		return ERR_PTR(-E2BIG);

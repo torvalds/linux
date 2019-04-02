@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/core.h>
@@ -447,9 +447,9 @@ static irqreturn_t ab3100_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
- * Some debugfs entries only exposed if we're using debug
+ * Some defs entries only exposed if we're using de
  */
 static int ab3100_registers_print(struct seq_file *s, void *p)
 {
@@ -534,7 +534,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
-			 "debug read AB3100 reg[0x%02x]: 0x%02x\n",
+			 "de read AB3100 reg[0x%02x]: 0x%02x\n",
 			 user_reg, regvalue);
 	} else {
 		int valp;
@@ -562,7 +562,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
-			 "debug write reg[0x%02x]\n"
+			 "de write reg[0x%02x]\n"
 			 "  with 0x%02x, after readback: 0x%02x\n",
 			 user_reg, user_value, regvalue);
 	}
@@ -582,15 +582,15 @@ static struct dentry *ab3100_get_reg_file;
 static struct ab3100_get_set_reg_priv ab3100_set_priv;
 static struct dentry *ab3100_set_reg_file;
 
-static void ab3100_setup_debugfs(struct ab3100 *ab3100)
+static void ab3100_setup_defs(struct ab3100 *ab3100)
 {
 	int err;
 
-	ab3100_dir = debugfs_create_dir("ab3100", NULL);
+	ab3100_dir = defs_create_dir("ab3100", NULL);
 	if (!ab3100_dir)
-		goto exit_no_debugfs;
+		goto exit_no_defs;
 
-	ab3100_reg_file = debugfs_create_file("registers",
+	ab3100_reg_file = defs_create_file("registers",
 				S_IRUGO, ab3100_dir, ab3100,
 				&ab3100_registers_fops);
 	if (!ab3100_reg_file) {
@@ -600,7 +600,7 @@ static void ab3100_setup_debugfs(struct ab3100 *ab3100)
 
 	ab3100_get_priv.ab3100 = ab3100;
 	ab3100_get_priv.mode = false;
-	ab3100_get_reg_file = debugfs_create_file("get_reg",
+	ab3100_get_reg_file = defs_create_file("get_reg",
 				S_IWUSR, ab3100_dir, &ab3100_get_priv,
 				&ab3100_get_set_reg_fops);
 	if (!ab3100_get_reg_file) {
@@ -610,7 +610,7 @@ static void ab3100_setup_debugfs(struct ab3100 *ab3100)
 
 	ab3100_set_priv.ab3100 = ab3100;
 	ab3100_set_priv.mode = true;
-	ab3100_set_reg_file = debugfs_create_file("set_reg",
+	ab3100_set_reg_file = defs_create_file("set_reg",
 				S_IWUSR, ab3100_dir, &ab3100_set_priv,
 				&ab3100_get_set_reg_fops);
 	if (!ab3100_set_reg_file) {
@@ -620,16 +620,16 @@ static void ab3100_setup_debugfs(struct ab3100 *ab3100)
 	return;
 
  exit_destroy_get_reg:
-	debugfs_remove(ab3100_get_reg_file);
+	defs_remove(ab3100_get_reg_file);
  exit_destroy_reg:
-	debugfs_remove(ab3100_reg_file);
+	defs_remove(ab3100_reg_file);
  exit_destroy_dir:
-	debugfs_remove(ab3100_dir);
- exit_no_debugfs:
+	defs_remove(ab3100_dir);
+ exit_no_defs:
 	return;
 }
 #else
-static inline void ab3100_setup_debugfs(struct ab3100 *ab3100)
+static inline void ab3100_setup_defs(struct ab3100 *ab3100)
 {
 }
 #endif
@@ -926,7 +926,7 @@ static int ab3100_probe(struct i2c_client *client,
 	err = mfd_add_devices(&client->dev, 0, ab3100_devs,
 			      ARRAY_SIZE(ab3100_devs), NULL, 0, NULL);
 
-	ab3100_setup_debugfs(ab3100);
+	ab3100_setup_defs(ab3100);
 
 	return 0;
 

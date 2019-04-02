@@ -5,7 +5,7 @@ README file for the osst driver
 This file describes the osst driver as of version 0.8.x/0.9.x, the released
 version of the osst driver.
 It is intended to help advanced users to understand the role of osst and to
-get them started using (and maybe debugging) it.
+get them started using (and maybe deging) it.
 It won't address issues like "How do I compile a kernel?" or "How do I load
 a module?", as these are too basic.
 Once the OnStream got merged into the official kernel, the distro makers

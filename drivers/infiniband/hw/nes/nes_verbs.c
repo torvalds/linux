@@ -102,7 +102,7 @@ static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd, enum ib_mw_type type,
 	stag |= driver_key;
 	stag += (u32)stag_key;
 
-	nes_debug(NES_DBG_MR, "Registering STag 0x%08X, index = 0x%08X\n",
+	nes_de(NES_DBG_MR, "Registering STag 0x%08X, index = 0x%08X\n",
 			stag, stag_index);
 
 	/* Register the region with the adapter */
@@ -131,7 +131,7 @@ static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd, enum ib_mw_type type,
 	/* Wait for CQP */
 	ret = wait_event_timeout(cqp_request->waitq, (cqp_request->request_done != 0),
 			NES_EVENT_TIMEOUT);
-	nes_debug(NES_DBG_MR, "Register STag 0x%08X completed, wait_event_timeout ret = %u,"
+	nes_de(NES_DBG_MR, "Register STag 0x%08X completed, wait_event_timeout ret = %u,"
 			" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
 			stag, ret, cqp_request->major_code, cqp_request->minor_code);
 	if ((!ret) || (cqp_request->major_code)) {
@@ -173,7 +173,7 @@ static int nes_dealloc_mw(struct ib_mw *ibmw)
 	/* Deallocate the window with the adapter */
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_MR, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_MR, "Failed to get a cqp_request.\n");
 		return -ENOMEM;
 	}
 	cqp_request->waiting = 1;
@@ -186,11 +186,11 @@ static int nes_dealloc_mw(struct ib_mw *ibmw)
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
-	nes_debug(NES_DBG_MR, "Waiting for deallocate STag 0x%08X to complete.\n",
+	nes_de(NES_DBG_MR, "Waiting for deallocate STag 0x%08X to complete.\n",
 			ibmw->rkey);
 	ret = wait_event_timeout(cqp_request->waitq, (0 != cqp_request->request_done),
 			NES_EVENT_TIMEOUT);
-	nes_debug(NES_DBG_MR, "Deallocate STag completed, wait_event_timeout ret = %u,"
+	nes_de(NES_DBG_MR, "Deallocate STag completed, wait_event_timeout ret = %u,"
 			" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
 			ret, cqp_request->major_code, cqp_request->minor_code);
 	if (!ret)
@@ -226,10 +226,10 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_MR, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_MR, "Failed to get a cqp_request.\n");
 		return -ENOMEM;
 	}
-	nes_debug(NES_DBG_MR, "alloc_fast_reg_mr: page_count = %d, "
+	nes_de(NES_DBG_MR, "alloc_fast_reg_mr: page_count = %d, "
 			      "region_length = %llu\n",
 			      page_count, region_length);
 	cqp_request->waiting = 1;
@@ -242,7 +242,7 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	} else {
 		/* No 4kpbl's available: */
 		spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
-		nes_debug(NES_DBG_MR, "Out of Pbls\n");
+		nes_de(NES_DBG_MR, "Out of Pbls\n");
 		nes_free_cqp_request(nesdev, cqp_request);
 		return -ENOMEM;
 	}
@@ -283,7 +283,7 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 				 (0 != cqp_request->request_done),
 				 NES_EVENT_TIMEOUT);
 
-	nes_debug(NES_DBG_MR, "Allocate STag 0x%08X completed, "
+	nes_de(NES_DBG_MR, "Allocate STag 0x%08X completed, "
 		  "wait_event_timeout ret = %u, CQP Major:Minor codes = "
 		  "0x%04X:0x%04X.\n", stag, ret, cqp_request->major_code,
 		  cqp_request->minor_code);
@@ -359,7 +359,7 @@ static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
 	stag |= driver_key;
 	stag += (u32)stag_key;
 
-	nes_debug(NES_DBG_MR, "Allocating STag 0x%08X index = 0x%08X\n",
+	nes_de(NES_DBG_MR, "Allocating STag 0x%08X index = 0x%08X\n",
 		  stag, stag_index);
 
 	ret = alloc_fast_reg_mr(nesdev, nespd, stag, max_num_sg);
@@ -602,19 +602,19 @@ static int nes_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		index /= ((sizeof(struct nes_hw_qp_wqe) * nesdev->nesadapter->max_qp_wr * 2) +
 				PAGE_SIZE-1) & (~(PAGE_SIZE-1));
 		if (!test_bit(index, nes_ucontext->allocated_wqs)) {
-			nes_debug(NES_DBG_MMAP, "wq %lu not allocated\n", index);
+			nes_de(NES_DBG_MMAP, "wq %lu not allocated\n", index);
 			return -EFAULT;
 		}
 		nesqp = nes_ucontext->mmap_nesqp[index];
 		if (nesqp == NULL) {
-			nes_debug(NES_DBG_MMAP, "wq %lu has a NULL QP base.\n", index);
+			nes_de(NES_DBG_MMAP, "wq %lu has a NULL QP base.\n", index);
 			return -EFAULT;
 		}
 		if (remap_pfn_range(vma, vma->vm_start,
 				virt_to_phys(nesqp->hwqp.sq_vbase) >> PAGE_SHIFT,
 				vma->vm_end - vma->vm_start,
 				vma->vm_page_prot)) {
-			nes_debug(NES_DBG_MMAP, "remap_pfn_range failed.\n");
+			nes_de(NES_DBG_MMAP, "remap_pfn_range failed.\n");
 			return -EAGAIN;
 		}
 		vma->vm_private_data = nesqp;
@@ -654,7 +654,7 @@ static int nes_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 	u32 pd_num = 0;
 	int err;
 
-	nes_debug(NES_DBG_PD, "nesvnic=%p, netdev=%p %s, ibdev=%p, context=%p, netdev refcnt=%u\n",
+	nes_de(NES_DBG_PD, "nesvnic=%p, netdev=%p %s, ibdev=%p, context=%p, netdev refcnt=%u\n",
 			nesvnic, nesdev->netdev[0], nesdev->netdev[0]->name, ibdev, context,
 			netdev_refcnt_read(nesvnic->netdev));
 
@@ -663,7 +663,7 @@ static int nes_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 	if (err)
 		return err;
 
-	nes_debug(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
+	nes_de(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
 			nespd, dev_name(&nesvnic->nesibdev->ibdev.dev));
 
 	nespd->pd_id = (pd_num << (PAGE_SHIFT-12)) + nesadapter->base_pd;
@@ -672,10 +672,10 @@ static int nes_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 		nesucontext = to_nesucontext(context);
 		nespd->mmap_db_index = find_next_zero_bit(nesucontext->allocated_doorbells,
 				NES_MAX_USER_DB_REGIONS, nesucontext->first_free_db);
-		nes_debug(NES_DBG_PD, "find_first_zero_biton doorbells returned %u, mapping pd_id %u.\n",
+		nes_de(NES_DBG_PD, "find_first_zero_biton doorbells returned %u, mapping pd_id %u.\n",
 				nespd->mmap_db_index, nespd->pd_id);
 		if (nespd->mmap_db_index >= NES_MAX_USER_DB_REGIONS) {
-			nes_debug(NES_DBG_PD, "mmap_db_index > MAX\n");
+			nes_de(NES_DBG_PD, "mmap_db_index > MAX\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
 			return -ENOMEM;
 		}
@@ -692,7 +692,7 @@ static int nes_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
 		nesucontext->first_free_db = nespd->mmap_db_index + 1;
 	}
 
-	nes_debug(NES_DBG_PD, "PD%u structure located @%p.\n", nespd->pd_id, nespd);
+	nes_de(NES_DBG_PD, "PD%u structure located @%p.\n", nespd->pd_id, nespd);
 	return 0;
 }
 
@@ -710,7 +710,7 @@ static void nes_dealloc_pd(struct ib_pd *ibpd)
 
 	if ((ibpd->uobject) && (ibpd->uobject->context)) {
 		nesucontext = to_nesucontext(ibpd->uobject->context);
-		nes_debug(NES_DBG_PD, "Clearing bit %u from allocated doorbells\n",
+		nes_de(NES_DBG_PD, "Clearing bit %u from allocated doorbells\n",
 				nespd->mmap_db_index);
 		clear_bit(nespd->mmap_db_index, nesucontext->allocated_doorbells);
 		nesucontext->mmap_db_index[nespd->mmap_db_index] = 0;
@@ -719,7 +719,7 @@ static void nes_dealloc_pd(struct ib_pd *ibpd)
 		}
 	}
 
-	nes_debug(NES_DBG_PD, "Deallocating PD%u structure located @%p.\n",
+	nes_de(NES_DBG_PD, "Deallocating PD%u structure located @%p.\n",
 			nespd->pd_id, nespd);
 	nes_free_resource(nesadapter, nesadapter->allocated_pds,
 			(nespd->pd_id-nesadapter->base_pd)>>(PAGE_SHIFT-12));
@@ -765,7 +765,7 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	u8 sq_pbl_entries;
 
 	pbl_entries = nespbl->pbl_size >> 3;
-	nes_debug(NES_DBG_QP, "Userspace PBL, pbl_size=%u, pbl_entries = %d pbl_vbase=%p, pbl_pbase=%lx\n",
+	nes_de(NES_DBG_QP, "Userspace PBL, pbl_size=%u, pbl_entries = %d pbl_vbase=%p, pbl_pbase=%lx\n",
 			nespbl->pbl_size, pbl_entries,
 			(void *)nespbl->pbl_vbase,
 			(unsigned long) nespbl->pbl_pbase);
@@ -776,7 +776,7 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	sq_pbl_entries = (sq_size * sizeof(struct nes_hw_qp_wqe)) >> 12;
 	nesqp->hwqp.sq_pbase = (le32_to_cpu(((__le32 *)pbl)[0])) | ((u64)((le32_to_cpu(((__le32 *)pbl)[1]))) << 32);
 	if (!nespbl->page) {
-		nes_debug(NES_DBG_QP, "QP nespbl->page is NULL \n");
+		nes_de(NES_DBG_QP, "QP nespbl->page is NULL \n");
 		kfree(nespbl);
 		return -ENOMEM;
 	}
@@ -784,7 +784,7 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	nesqp->hwqp.sq_vbase = kmap(nespbl->page);
 	nesqp->page = nespbl->page;
 	if (!nesqp->hwqp.sq_vbase) {
-		nes_debug(NES_DBG_QP, "QP sq_vbase kmap failed\n");
+		nes_de(NES_DBG_QP, "QP sq_vbase kmap failed\n");
 		kfree(nespbl);
 		return -ENOMEM;
 	}
@@ -796,7 +796,7 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	/* nesqp->hwqp.rq_vbase = bus_to_virt(*pbl); */
 	/*nesqp->hwqp.rq_vbase = phys_to_virt(*pbl); */
 
-	nes_debug(NES_DBG_QP, "QP sq_vbase= %p sq_pbase=%lx rq_vbase=%p rq_pbase=%lx\n",
+	nes_de(NES_DBG_QP, "QP sq_vbase= %p sq_pbase=%lx rq_vbase=%p rq_pbase=%lx\n",
 		  nesqp->hwqp.sq_vbase, (unsigned long) nesqp->hwqp.sq_pbase,
 		  nesqp->hwqp.rq_vbase, (unsigned long) nesqp->hwqp.rq_pbase);
 	spin_lock_irqsave(&nesadapter->pbl_lock, flags);
@@ -890,7 +890,7 @@ static int nes_setup_mmap_qp(struct nes_qp *nesqp, struct nes_vnic *nesvnic,
 			&nesqp->hwqp.sq_pbase);
 	if (!mem)
 		return -ENOMEM;
-	nes_debug(NES_DBG_QP, "PCI consistent memory for "
+	nes_de(NES_DBG_QP, "PCI consistent memory for "
 			"host descriptor rings located @ %p (pa = 0x%08lX.) size = %u.\n",
 			mem, (unsigned long)nesqp->hwqp.sq_pbase, nesqp->qp_mem_size);
 
@@ -997,14 +997,14 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			rq_encoded_size = nes_get_encoded_size(&rq_size);
 
 			if ((!sq_encoded_size) || (!rq_encoded_size)) {
-				nes_debug(NES_DBG_QP, "ERROR bad rq (%u) or sq (%u) size\n",
+				nes_de(NES_DBG_QP, "ERROR bad rq (%u) or sq (%u) size\n",
 						rq_size, sq_size);
 				return ERR_PTR(-EINVAL);
 			}
 
 			init_attr->cap.max_send_wr = sq_size -2;
 			init_attr->cap.max_recv_wr = rq_size -1;
-			nes_debug(NES_DBG_QP, "RQ size=%u, SQ Size=%u\n", rq_size, sq_size);
+			nes_de(NES_DBG_QP, "RQ size=%u, SQ Size=%u\n", rq_size, sq_size);
 
 			ret = nes_alloc_resource(nesadapter, nesadapter->allocated_qps,
 					nesadapter->max_qp, &qp_num, &nesadapter->next_qp, NES_RESOURCE_QP);
@@ -1023,7 +1023,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			u64temp = ((u64)NES_SW_CONTEXT_ALIGN) - 1;
 			u64nesqp &= ~u64temp;
 			nesqp = (struct nes_qp *)(unsigned long)u64nesqp;
-			/* nes_debug(NES_DBG_QP, "nesqp=%p, allocated buffer=%p.  Rounded to closest %u\n",
+			/* nes_de(NES_DBG_QP, "nesqp=%p, allocated buffer=%p.  Rounded to closest %u\n",
 					nesqp, mem, NES_SW_CONTEXT_ALIGN); */
 			nesqp->allocated_buffer = mem;
 
@@ -1031,7 +1031,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				if (ib_copy_from_udata(&req, udata, sizeof(struct nes_create_qp_req))) {
 					nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 					kfree(nesqp->allocated_buffer);
-					nes_debug(NES_DBG_QP, "ib_copy_from_udata() Failed \n");
+					nes_de(NES_DBG_QP, "ib_copy_from_udata() Failed \n");
 					return ERR_PTR(-EFAULT);
 				}
 				if (req.user_wqe_buffers) {
@@ -1047,13 +1047,13 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 							if (nespbl->user_base == (unsigned long )req.user_wqe_buffers) {
 								list_del(&nespbl->list);
 								err = 0;
-								nes_debug(NES_DBG_QP, "Found PBL for virtual QP. nespbl=%p. user_base=0x%lx\n",
+								nes_de(NES_DBG_QP, "Found PBL for virtual QP. nespbl=%p. user_base=0x%lx\n",
 									  nespbl, nespbl->user_base);
 								break;
 							}
 						}
 						if (err) {
-							nes_debug(NES_DBG_QP, "Didn't Find PBL for virtual QP. address = %llx.\n",
+							nes_de(NES_DBG_QP, "Didn't Find PBL for virtual QP. address = %llx.\n",
 								  (long long unsigned int)req.user_wqe_buffers);
 							nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 							kfree(nesqp->allocated_buffer);
@@ -1064,10 +1064,10 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 					nesqp->mmap_sq_db_index =
 						find_next_zero_bit(nes_ucontext->allocated_wqs,
 								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
-					/* nes_debug(NES_DBG_QP, "find_first_zero_biton wqs returned %u\n",
+					/* nes_de(NES_DBG_QP, "find_first_zero_biton wqs returned %u\n",
 							nespd->mmap_db_index); */
 					if (nesqp->mmap_sq_db_index >= NES_MAX_USER_WQ_REGIONS) {
-						nes_debug(NES_DBG_QP,
+						nes_de(NES_DBG_QP,
 							  "db index > max user regions, failing create QP\n");
 						nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 						if (virt_wqs) {
@@ -1090,7 +1090,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			err = (!virt_wqs) ? nes_setup_mmap_qp(nesqp, nesvnic, sq_size, rq_size) :
 					nes_setup_virt_qp(nesqp, nespbl, nesvnic, sq_size, rq_size);
 			if (err) {
-				nes_debug(NES_DBG_QP,
+				nes_de(NES_DBG_QP,
 					  "error geting qp mem code = %d\n", err);
 				nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 				kfree(nesqp->allocated_buffer);
@@ -1102,7 +1102,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			nesqp->hwqp.sq_head = 1;
 			nesqp->hwqp.rq_size = rq_size;
 			nesqp->hwqp.rq_encoded_size = rq_encoded_size;
-			/* nes_debug(NES_DBG_QP, "nesqp->nesqp_context_pbase = %p\n",
+			/* nes_de(NES_DBG_QP, "nesqp->nesqp_context_pbase = %p\n",
 					(void *)nesqp->nesqp_context_pbase);
 			*/
 			nesqp->hwqp.qp_id = qp_num;
@@ -1144,7 +1144,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				nesqp->nesqp_context->rq_addr_high = cpu_to_le32((u32)(u64temp >> 32));
 			}
 
-			/* nes_debug(NES_DBG_QP, "next_qp_nic_index=%u, using nic_index=%d\n",
+			/* nes_de(NES_DBG_QP, "next_qp_nic_index=%u, using nic_index=%d\n",
 					nesvnic->next_qp_nic_index,
 					nesvnic->qp_nic_index[nesvnic->next_qp_nic_index]); */
 			spin_lock_irqsave(&nesdev->cqp.lock, flags);
@@ -1169,7 +1169,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 					((((u32)nesadapter->max_irrq_wr) <<
 					NES_QPCONTEXT_ORDIRD_IRDSIZE_SHIFT) & NES_QPCONTEXT_ORDIRD_IRDSIZE_MASK));
 			if (disable_mpa_crc) {
-				nes_debug(NES_DBG_QP, "Disabling MPA crc checking due to module option.\n");
+				nes_de(NES_DBG_QP, "Disabling MPA crc checking due to module option.\n");
 				nesqp->nesqp_context->ird_ord_sizes |= cpu_to_le32(NES_QPCONTEXT_ORDIRD_RNMC);
 			}
 
@@ -1177,7 +1177,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			/* Create the QP */
 			cqp_request = nes_get_cqp_request(nesdev);
 			if (cqp_request == NULL) {
-				nes_debug(NES_DBG_QP, "Failed to get a cqp_request\n");
+				nes_de(NES_DBG_QP, "Failed to get a cqp_request\n");
 				nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 				nes_free_qp_mem(nesdev, nesqp,virt_wqs);
 				kfree(nesqp->allocated_buffer);
@@ -1205,11 +1205,11 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			nes_post_cqp_request(nesdev, cqp_request);
 
 			/* Wait for CQP */
-			nes_debug(NES_DBG_QP, "Waiting for create iWARP QP%u to complete.\n",
+			nes_de(NES_DBG_QP, "Waiting for create iWARP QP%u to complete.\n",
 					nesqp->hwqp.qp_id);
 			ret = wait_event_timeout(cqp_request->waitq,
 					(cqp_request->request_done != 0), NES_EVENT_TIMEOUT);
-			nes_debug(NES_DBG_QP, "Create iwarp QP%u completed, wait_event_timeout ret=%u,"
+			nes_de(NES_DBG_QP, "Create iwarp QP%u completed, wait_event_timeout ret=%u,"
 					" nesdev->cqp_head = %u, nesdev->cqp.sq_tail = %u,"
 					" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
 					nesqp->hwqp.qp_id, ret, nesdev->cqp.sq_head, nesdev->cqp.sq_tail,
@@ -1243,13 +1243,13 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 			}
 
-			nes_debug(NES_DBG_QP, "QP%u structure located @%p.Size = %u.\n",
+			nes_de(NES_DBG_QP, "QP%u structure located @%p.Size = %u.\n",
 					nesqp->hwqp.qp_id, nesqp, (u32)sizeof(*nesqp));
 			spin_lock_init(&nesqp->lock);
 			nes_add_ref(&nesqp->ibqp);
 			break;
 		default:
-			nes_debug(NES_DBG_QP, "Invalid QP type: %d\n", init_attr->qp_type);
+			nes_de(NES_DBG_QP, "Invalid QP type: %d\n", init_attr->qp_type);
 			return ERR_PTR(-EINVAL);
 	}
 	init_completion(&nesqp->sq_drained);
@@ -1260,7 +1260,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
-	nes_debug(NES_DBG_QP, "netdev refcnt=%u\n",
+	nes_de(NES_DBG_QP, "netdev refcnt=%u\n",
 			netdev_refcnt_read(nesvnic->netdev));
 
 	return &nesqp->ibqp;
@@ -1332,14 +1332,14 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 		cm_event.private_data = NULL;
 		cm_event.private_data_len = 0;
 
-		nes_debug(NES_DBG_QP, "Generating a CM Timeout Event for "
+		nes_de(NES_DBG_QP, "Generating a CM Timeout Event for "
 				"QP%u. cm_id = %p, refcount = %u. \n",
 				nesqp->hwqp.qp_id, cm_id, atomic_read(&nesqp->refcount));
 
 		cm_id->rem_ref(cm_id);
 		ret = cm_id->event_handler(cm_id, &cm_event);
 		if (ret)
-			nes_debug(NES_DBG_QP, "OFA CM event_handler returned, ret=%d\n", ret);
+			nes_de(NES_DBG_QP, "OFA CM event_handler returned, ret=%d\n", ret);
 	}
 
 	if (nesqp->user_mode) {
@@ -1438,14 +1438,14 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 			nescq->mcrqf = nes_ucontext->mcrqf;
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 		}
-		nes_debug(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
+		nes_de(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
 				(unsigned long)req.user_cq_buffer, entries);
 		err = 1;
 		list_for_each_entry(nespbl, &nes_ucontext->cq_reg_mem_list, list) {
 			if (nespbl->user_base == (unsigned long )req.user_cq_buffer) {
 				list_del(&nespbl->list);
 				err = 0;
-				nes_debug(NES_DBG_CQ, "Found PBL for virtual CQ. nespbl=%p.\n",
+				nes_de(NES_DBG_CQ, "Found PBL for virtual CQ. nespbl=%p.\n",
 						nespbl);
 				break;
 			}
@@ -1460,7 +1460,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 		nescq->cq_mem_size = 0;
 	} else {
 		nescq->cq_mem_size = nescq->hw_cq.cq_size * sizeof(struct nes_hw_cqe);
-		nes_debug(NES_DBG_CQ, "Attempting to allocate pci memory (%u entries, %u bytes) for CQ%u.\n",
+		nes_de(NES_DBG_CQ, "Attempting to allocate pci memory (%u entries, %u bytes) for CQ%u.\n",
 				entries, nescq->cq_mem_size, nescq->hw_cq.cq_number);
 
 		/* allocate the physical buffer space */
@@ -1475,7 +1475,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 
 		nescq->hw_cq.cq_vbase = mem;
 		nescq->hw_cq.cq_head = 0;
-		nes_debug(NES_DBG_CQ, "CQ%u virtual address @ %p, phys = 0x%08X\n",
+		nes_de(NES_DBG_CQ, "CQ%u virtual address @ %p, phys = 0x%08X\n",
 				nescq->hw_cq.cq_number, nescq->hw_cq.cq_vbase,
 				(u32)nescq->hw_cq.cq_pbase);
 	}
@@ -1486,7 +1486,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 	/* send CreateCQ request to CQP */
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_CQ, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_CQ, "Failed to get a cqp_request.\n");
 		if (!context)
 			pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 					nescq->hw_cq.cq_pbase);
@@ -1512,7 +1512,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 	if (pbl_entries != 1) {
 		if (pbl_entries > 32) {
 			/* use 4k pbl */
-			nes_debug(NES_DBG_CQ, "pbl_entries=%u, use a 4k PBL\n", pbl_entries);
+			nes_de(NES_DBG_CQ, "pbl_entries=%u, use a 4k PBL\n", pbl_entries);
 			if (nesadapter->free_4kpbl == 0) {
 				spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 				nes_free_cqp_request(nesdev, cqp_request);
@@ -1534,7 +1534,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 			}
 		} else {
 			/* use 256 byte pbl */
-			nes_debug(NES_DBG_CQ, "pbl_entries=%u, use a 256 byte PBL\n", pbl_entries);
+			nes_de(NES_DBG_CQ, "pbl_entries=%u, use a 256 byte PBL\n", pbl_entries);
 			if (nesadapter->free_256pbl == 0) {
 				spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 				nes_free_cqp_request(nesdev, cqp_request);
@@ -1587,11 +1587,11 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
-	nes_debug(NES_DBG_CQ, "Waiting for create iWARP CQ%u to complete.\n",
+	nes_de(NES_DBG_CQ, "Waiting for create iWARP CQ%u to complete.\n",
 			nescq->hw_cq.cq_number);
 	ret = wait_event_timeout(cqp_request->waitq, (0 != cqp_request->request_done),
 			NES_EVENT_TIMEOUT * 2);
-	nes_debug(NES_DBG_CQ, "Create iWARP CQ%u completed, wait_event_timeout ret = %d.\n",
+	nes_de(NES_DBG_CQ, "Create iWARP CQ%u completed, wait_event_timeout ret = %d.\n",
 			nescq->hw_cq.cq_number, ret);
 	if ((!ret) || (cqp_request->major_code)) {
 		nes_put_cqp_request(nesdev, cqp_request);
@@ -1651,12 +1651,12 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 	nesdev = nesvnic->nesdev;
 	nesadapter = nesdev->nesadapter;
 
-	nes_debug(NES_DBG_CQ, "Destroy CQ%u\n", nescq->hw_cq.cq_number);
+	nes_de(NES_DBG_CQ, "Destroy CQ%u\n", nescq->hw_cq.cq_number);
 
 	/* Send DestroyCQ request to CQP */
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_CQ, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_CQ, "Failed to get a cqp_request.\n");
 		return -ENOMEM;
 	}
 	cqp_request->waiting = 1;
@@ -1691,20 +1691,20 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
-	nes_debug(NES_DBG_CQ, "Waiting for destroy iWARP CQ%u to complete.\n",
+	nes_de(NES_DBG_CQ, "Waiting for destroy iWARP CQ%u to complete.\n",
 			nescq->hw_cq.cq_number);
 	ret = wait_event_timeout(cqp_request->waitq, (0 != cqp_request->request_done),
 			NES_EVENT_TIMEOUT);
-	nes_debug(NES_DBG_CQ, "Destroy iWARP CQ%u completed, wait_event_timeout ret = %u,"
+	nes_de(NES_DBG_CQ, "Destroy iWARP CQ%u completed, wait_event_timeout ret = %u,"
 			" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
 			nescq->hw_cq.cq_number, ret, cqp_request->major_code,
 			cqp_request->minor_code);
 	if (!ret) {
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u destroy timeout expired\n",
+		nes_de(NES_DBG_CQ, "iWARP CQ%u destroy timeout expired\n",
 					nescq->hw_cq.cq_number);
 		ret = -ETIME;
 	} else if (cqp_request->major_code) {
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u destroy failed\n",
+		nes_de(NES_DBG_CQ, "iWARP CQ%u destroy failed\n",
 					nescq->hw_cq.cq_number);
 		ret = -EIO;
 	} else {
@@ -1794,7 +1794,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	/* Register the region with the adapter */
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_MR, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_MR, "Failed to get a cqp_request.\n");
 		return -ENOMEM;
 	}
 	cqp_request->waiting = 1;
@@ -1833,7 +1833,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 			nesadapter->free_4kpbl -= pbl_count + use_two_level;
 		} else {
 			spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
-			nes_debug(NES_DBG_MR, "Out of Pbls\n");
+			nes_de(NES_DBG_MR, "Out of Pbls\n");
 			nes_free_cqp_request(nesdev, cqp_request);
 			return -ENOMEM;
 		}
@@ -1905,7 +1905,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	/* Wait for CQP */
 	ret = wait_event_timeout(cqp_request->waitq, (0 != cqp_request->request_done),
 			NES_EVENT_TIMEOUT);
-	nes_debug(NES_DBG_MR, "Register STag 0x%08X completed, wait_event_timeout ret = %u,"
+	nes_de(NES_DBG_MR, "Register STag 0x%08X completed, wait_event_timeout ret = %u,"
 			" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
 			stag, ret, cqp_request->major_code, cqp_request->minor_code);
 	major_code = cqp_request->major_code;
@@ -1991,7 +1991,7 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
 	/* Allocate a 4K buffer for the PBL */
 	vpbl.pbl_vbase = pci_alloc_consistent(nesdev->pcidev, 4096,
 			&vpbl.pbl_pbase);
-	nes_debug(NES_DBG_MR, "Allocating leaf PBL, va = %p, pa = 0x%016lX\n",
+	nes_de(NES_DBG_MR, "Allocating leaf PBL, va = %p, pa = 0x%016lX\n",
 			vpbl.pbl_vbase, (unsigned long)vpbl.pbl_pbase);
 	if (!vpbl.pbl_vbase) {
 		nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
@@ -2005,7 +2005,7 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
 
 	if (mask & ~PAGE_MASK) {
 		nes_free_resource(nesadapter, nesadapter->allocated_mrs, stag_index);
-		nes_debug(NES_DBG_MR, "Invalid buffer addr or size\n");
+		nes_de(NES_DBG_MR, "Invalid buffer addr or size\n");
 		ibmr = ERR_PTR(-EINVAL);
 		kfree(nesmr);
 		goto reg_phys_err;
@@ -2019,7 +2019,7 @@ struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd, u64 addr, u64 size,
 	stag |= driver_key;
 	stag += (u32)stag_key;
 
-	nes_debug(NES_DBG_MR, "Registering STag 0x%08X, VA = 0x%016lX,"
+	nes_de(NES_DBG_MR, "Registering STag 0x%08X, VA = 0x%016lX,"
 			" length = 0x%016lX, index = 0x%08X\n",
 			stag, (unsigned long)*iova_start, (unsigned long)region_length, stag_index);
 
@@ -2059,7 +2059,7 @@ static struct ib_mr *nes_get_dma_mr(struct ib_pd *pd, int acc)
 {
 	u64 kva = 0;
 
-	nes_debug(NES_DBG_MR, "\n");
+	nes_de(NES_DBG_MR, "\n");
 
 	return nes_reg_phys_mr(pd, 0, 0xffffffffffULL, acc, &kva);
 }
@@ -2109,7 +2109,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return (struct ib_mr *)region;
 	}
 
-	nes_debug(NES_DBG_MR, "User base = 0x%lX, Virt base = 0x%lX, length = %u,"
+	nes_de(NES_DBG_MR, "User base = 0x%lX, Virt base = 0x%lX, length = %u,"
 			" offset = %u, page size = %lu.\n",
 			(unsigned long int)start, (unsigned long int)virt, (u32)length,
 			ib_umem_offset(region), BIT(region->page_shift));
@@ -2120,7 +2120,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		ib_umem_release(region);
 		return ERR_PTR(-EFAULT);
 	}
-	nes_debug(NES_DBG_MR, "Memory Registration type = %08X.\n", req.reg_type);
+	nes_de(NES_DBG_MR, "Memory Registration type = %08X.\n", req.reg_type);
 
 	switch (req.reg_type) {
 		case IWNES_MEMREG_TYPE_MEM:
@@ -2172,7 +2172,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 					if (root_pbl_index == 1) {
 						root_vpbl.pbl_vbase = pci_alloc_consistent(nesdev->pcidev,
 								8192, &root_vpbl.pbl_pbase);
-						nes_debug(NES_DBG_MR, "Allocating root PBL, va = %p, pa = 0x%08X\n",
+						nes_de(NES_DBG_MR, "Allocating root PBL, va = %p, pa = 0x%08X\n",
 							  root_vpbl.pbl_vbase, (unsigned int)root_vpbl.pbl_pbase);
 						if (!root_vpbl.pbl_vbase) {
 							ib_umem_release(region);
@@ -2207,7 +2207,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 					}
 					vpbl.pbl_vbase = pci_alloc_consistent(nesdev->pcidev, 4096,
 							&vpbl.pbl_pbase);
-					nes_debug(NES_DBG_MR, "Allocating leaf PBL, va = %p, pa = 0x%08X\n",
+					nes_de(NES_DBG_MR, "Allocating leaf PBL, va = %p, pa = 0x%08X\n",
 						  vpbl.pbl_vbase, (unsigned int)vpbl.pbl_pbase);
 					if (!vpbl.pbl_vbase) {
 						ib_umem_release(region);
@@ -2246,7 +2246,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			}
 
 enough_pages:
-			nes_debug(NES_DBG_MR, "calculating stag, stag_index=0x%08x, driver_key=0x%08x,"
+			nes_de(NES_DBG_MR, "calculating stag, stag_index=0x%08x, driver_key=0x%08x,"
 					" stag_key=0x%08x\n",
 					stag_index, driver_key, stag_key);
 			stag = stag_index << 8;
@@ -2265,7 +2265,7 @@ enough_pages:
 				pbl_count = root_pbl_index;
 				first_dma_addr = 0;
 			}
-			nes_debug(NES_DBG_MR, "Registering STag 0x%08X, VA = 0x%08X, length = 0x%08X,"
+			nes_de(NES_DBG_MR, "Registering STag 0x%08X, VA = 0x%08X, length = 0x%08X,"
 					" index = 0x%08X, region->length=0x%08llx, pbl_count = %u\n",
 					stag, (unsigned int)iova_start,
 					(unsigned int)region_length, stag_index,
@@ -2274,7 +2274,7 @@ enough_pages:
 					 first_dma_addr, pbl_count, (u16)cur_pbl_index, acc,
 					 &iova_start, &nesmr->pbls_used, &nesmr->pbl_4k);
 
-			nes_debug(NES_DBG_MR, "ret=%d\n", ret);
+			nes_de(NES_DBG_MR, "ret=%d\n", ret);
 
 			if (ret == 0) {
 				nesmr->ibmr.rkey = stag;
@@ -2303,13 +2303,13 @@ reg_user_mr_err:
 						root_vpbl.pbl_pbase);
 			}
 
-			nes_debug(NES_DBG_MR, "Leaving, ibmr=%p", ibmr);
+			nes_de(NES_DBG_MR, "Leaving, ibmr=%p", ibmr);
 
 			return ibmr;
 		case IWNES_MEMREG_TYPE_QP:
 		case IWNES_MEMREG_TYPE_CQ:
 			if (!region->length) {
-				nes_debug(NES_DBG_MR, "Unable to register zero length region for CQ\n");
+				nes_de(NES_DBG_MR, "Unable to register zero length region for CQ\n");
 				ib_umem_release(region);
 				return ERR_PTR(-EINVAL);
 			}
@@ -2329,12 +2329,12 @@ reg_user_mr_err:
 			pbl_depth += (region->length & (4096-1)) ? 1 : 0;
 			nespbl->pbl_size = pbl_depth*sizeof(u64);
 			if (req.reg_type == IWNES_MEMREG_TYPE_QP) {
-				nes_debug(NES_DBG_MR, "Attempting to allocate QP PBL memory");
+				nes_de(NES_DBG_MR, "Attempting to allocate QP PBL memory");
 			} else {
-				nes_debug(NES_DBG_MR, "Attempting to allocate CP PBL memory");
+				nes_de(NES_DBG_MR, "Attempting to allocate CP PBL memory");
 			}
 
-			nes_debug(NES_DBG_MR, " %u bytes, %u entries.\n",
+			nes_de(NES_DBG_MR, " %u bytes, %u entries.\n",
 					nespbl->pbl_size, pbl_depth);
 			pbl = pci_alloc_consistent(nesdev->pcidev, nespbl->pbl_size,
 					&nespbl->pbl_pbase);
@@ -2342,13 +2342,13 @@ reg_user_mr_err:
 				ib_umem_release(region);
 				kfree(nesmr);
 				kfree(nespbl);
-				nes_debug(NES_DBG_MR, "Unable to allocate PBL memory\n");
+				nes_de(NES_DBG_MR, "Unable to allocate PBL memory\n");
 				return ERR_PTR(-ENOMEM);
 			}
 
 			nespbl->pbl_vbase = (u64 *)pbl;
 			nespbl->user_base = start;
-			nes_debug(NES_DBG_MR, "Allocated PBL memory, %u bytes, pbl_pbase=%lx,"
+			nes_de(NES_DBG_MR, "Allocated PBL memory, %u bytes, pbl_pbase=%lx,"
 					" pbl_vbase=%p user_base=0x%lx\n",
 				  nespbl->pbl_size, (unsigned long) nespbl->pbl_pbase,
 				  (void *) nespbl->pbl_vbase, nespbl->user_base);
@@ -2357,7 +2357,7 @@ reg_user_mr_err:
 			for_each_sg_dma_page(region->sg_head.sgl, &dma_iter, region->nmap, 0) {
 				((__le32 *)pbl)[0] = cpu_to_le32((u32)(sg_page_iter_dma_address(&dma_iter)));
 				((__le32 *)pbl)[1] = cpu_to_le32(((u64)(sg_page_iter_dma_address(&dma_iter)))>>32);
-				nes_debug(NES_DBG_MR, "pbl=%p, *pbl=0x%016llx, 0x%08x%08x\n", pbl,
+				nes_de(NES_DBG_MR, "pbl=%p, *pbl=0x%016llx, 0x%08x%08x\n", pbl,
 					  (unsigned long long)*pbl,
 					  le32_to_cpu(((__le32 *)pbl)[1]), le32_to_cpu(((__le32 *)pbl)[0]));
 				pbl++;
@@ -2414,7 +2414,7 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_MR, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_MR, "Failed to get a cqp_request.\n");
 		return -ENOMEM;
 	}
 	cqp_request->waiting = 1;
@@ -2430,10 +2430,10 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 	nes_post_cqp_request(nesdev, cqp_request);
 
 	/* Wait for CQP */
-	nes_debug(NES_DBG_MR, "Waiting for deallocate STag 0x%08X completed\n", ib_mr->rkey);
+	nes_de(NES_DBG_MR, "Waiting for deallocate STag 0x%08X completed\n", ib_mr->rkey);
 	ret = wait_event_timeout(cqp_request->waitq, (cqp_request->request_done != 0),
 			NES_EVENT_TIMEOUT);
-	nes_debug(NES_DBG_MR, "Deallocate STag 0x%08X completed, wait_event_timeout ret = %u,"
+	nes_de(NES_DBG_MR, "Deallocate STag 0x%08X completed, wait_event_timeout ret = %u,"
 			" CQP Major:Minor codes = 0x%04X:0x%04X\n",
 			ib_mr->rkey, ret, cqp_request->major_code, cqp_request->minor_code);
 
@@ -2443,12 +2443,12 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 	nes_put_cqp_request(nesdev, cqp_request);
 
 	if (!ret) {
-		nes_debug(NES_DBG_MR, "Timeout waiting to destroy STag,"
+		nes_de(NES_DBG_MR, "Timeout waiting to destroy STag,"
 				" ib_mr=%p, rkey = 0x%08X\n",
 				ib_mr, ib_mr->rkey);
 		return -ETIME;
 	} else if (major_code) {
-		nes_debug(NES_DBG_MR, "Error (0x%04X:0x%04X) while attempting"
+		nes_de(NES_DBG_MR, "Error (0x%04X:0x%04X) while attempting"
 				" to destroy STag, ib_mr=%p, rkey = 0x%08X\n",
 				major_code, minor_code, ib_mr, ib_mr->rkey);
 		return -EIO;
@@ -2492,7 +2492,7 @@ static ssize_t hw_rev_show(struct device *dev,
 		rdma_device_to_drv_device(dev, struct nes_ib_device, ibdev);
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
-	nes_debug(NES_DBG_INIT, "\n");
+	nes_de(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%x\n", nesvnic->nesdev->nesadapter->hw_rev);
 }
 static DEVICE_ATTR_RO(hw_rev);
@@ -2503,7 +2503,7 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	nes_debug(NES_DBG_INIT, "\n");
+	nes_de(NES_DBG_INIT, "\n");
 	return sprintf(buf, "NES020\n");
 }
 static DEVICE_ATTR_RO(hca_type);
@@ -2514,7 +2514,7 @@ static DEVICE_ATTR_RO(hca_type);
 static ssize_t board_id_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	nes_debug(NES_DBG_INIT, "\n");
+	nes_de(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%.*s\n", 32, "NES020 Board ID");
 }
 static DEVICE_ATTR_RO(board_id);
@@ -2538,7 +2538,7 @@ static int nes_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
 
-	nes_debug(NES_DBG_QP, "\n");
+	nes_de(NES_DBG_QP, "\n");
 
 	attr->qp_access_flags = 0;
 	attr->cap.max_send_wr = nesqp->hwqp.sq_size;
@@ -2573,12 +2573,12 @@ int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
 	int ret;
 	u16 major_code;
 
-	nes_debug(NES_DBG_MOD_QP, "QP%u, refcount=%d\n",
+	nes_de(NES_DBG_MOD_QP, "QP%u, refcount=%d\n",
 			nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount));
 
 	cqp_request = nes_get_cqp_request(nesdev);
 	if (cqp_request == NULL) {
-		nes_debug(NES_DBG_MOD_QP, "Failed to get a cqp_request.\n");
+		nes_de(NES_DBG_MOD_QP, "Failed to get a cqp_request.\n");
 		return -ENOMEM;
 	}
 	if (wait_completion) {
@@ -2590,7 +2590,7 @@ int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
 
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_OPCODE_IDX,
 			NES_CQP_MODIFY_QP | NES_CQP_QP_TYPE_IWARP | next_iwarp_state);
-	nes_debug(NES_DBG_MOD_QP, "using next_iwarp_state=%08x, wqe_words=%08x\n",
+	nes_de(NES_DBG_MOD_QP, "using next_iwarp_state=%08x, wqe_words=%08x\n",
 			next_iwarp_state, le32_to_cpu(cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX]));
 	nes_fill_init_cqp_wqe(cqp_wqe, nesdev);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_ID_IDX, nesqp->hwqp.qp_id);
@@ -2608,16 +2608,16 @@ int nes_hw_modify_qp(struct nes_device *nesdev, struct nes_qp *nesqp,
 
 	/* Wait for CQP */
 	if (wait_completion) {
-		/* nes_debug(NES_DBG_MOD_QP, "Waiting for modify iWARP QP%u to complete.\n",
+		/* nes_de(NES_DBG_MOD_QP, "Waiting for modify iWARP QP%u to complete.\n",
 				nesqp->hwqp.qp_id); */
 		ret = wait_event_timeout(cqp_request->waitq, (cqp_request->request_done != 0),
 				NES_EVENT_TIMEOUT);
-		nes_debug(NES_DBG_MOD_QP, "Modify iwarp QP%u completed, wait_event_timeout ret=%u, "
+		nes_de(NES_DBG_MOD_QP, "Modify iwarp QP%u completed, wait_event_timeout ret=%u, "
 				"CQP Major:Minor codes = 0x%04X:0x%04X.\n",
 				nesqp->hwqp.qp_id, ret, cqp_request->major_code, cqp_request->minor_code);
 		major_code = cqp_request->major_code;
 		if (major_code) {
-			nes_debug(NES_DBG_MOD_QP, "Modify iwarp QP%u failed"
+			nes_de(NES_DBG_MOD_QP, "Modify iwarp QP%u failed"
 					"CQP Major:Minor codes = 0x%04X:0x%04X, intended next state = 0x%08X.\n",
 					nesqp->hwqp.qp_id, cqp_request->major_code,
 					cqp_request->minor_code, next_iwarp_state);
@@ -2656,14 +2656,14 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	u8 issue_modify_qp = 0;
 	u8 dont_wait = 0;
 
-	nes_debug(NES_DBG_MOD_QP, "QP%u: QP State=%u, cur QP State=%u,"
+	nes_de(NES_DBG_MOD_QP, "QP%u: QP State=%u, cur QP State=%u,"
 			" iwarp_state=0x%X, refcount=%d\n",
 			nesqp->hwqp.qp_id, attr->qp_state, nesqp->ibqp_state,
 			nesqp->iwarp_state, atomic_read(&nesqp->refcount));
 
 	spin_lock_irqsave(&nesqp->lock, qplockflags);
 
-	nes_debug(NES_DBG_MOD_QP, "QP%u: hw_iwarp_state=0x%X, hw_tcp_state=0x%X,"
+	nes_de(NES_DBG_MOD_QP, "QP%u: hw_iwarp_state=0x%X, hw_tcp_state=0x%X,"
 			" QP Access Flags=0x%X, attr_mask = 0x%0x\n",
 			nesqp->hwqp.qp_id, nesqp->hw_iwarp_state,
 			nesqp->hw_tcp_state, attr->qp_access_flags, attr_mask);
@@ -2671,7 +2671,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_STATE) {
 		switch (attr->qp_state) {
 			case IB_QPS_INIT:
-				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = init\n",
+				nes_de(NES_DBG_MOD_QP, "QP%u: new state = init\n",
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state > (u32)NES_CQP_QP_IWARP_STATE_IDLE) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
@@ -2681,7 +2681,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				issue_modify_qp = 1;
 				break;
 			case IB_QPS_RTR:
-				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = rtr\n",
+				nes_de(NES_DBG_MOD_QP, "QP%u: new state = rtr\n",
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state>(u32)NES_CQP_QP_IWARP_STATE_IDLE) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
@@ -2691,14 +2691,14 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				issue_modify_qp = 1;
 				break;
 			case IB_QPS_RTS:
-				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = rts\n",
+				nes_de(NES_DBG_MOD_QP, "QP%u: new state = rts\n",
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state>(u32)NES_CQP_QP_IWARP_STATE_RTS) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 					return -EINVAL;
 				}
 				if (nesqp->cm_id == NULL) {
-					nes_debug(NES_DBG_MOD_QP, "QP%u: Failing attempt to move QP to RTS without a CM_ID. \n",
+					nes_de(NES_DBG_MOD_QP, "QP%u: Failing attempt to move QP to RTS without a CM_ID. \n",
 							nesqp->hwqp.qp_id );
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 					return -EINVAL;
@@ -2714,21 +2714,21 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				break;
 			case IB_QPS_SQD:
 				issue_modify_qp = 1;
-				nes_debug(NES_DBG_MOD_QP, "QP%u: new state=closing. SQ head=%u, SQ tail=%u\n",
+				nes_de(NES_DBG_MOD_QP, "QP%u: new state=closing. SQ head=%u, SQ tail=%u\n",
 						nesqp->hwqp.qp_id, nesqp->hwqp.sq_head, nesqp->hwqp.sq_tail);
 				if (nesqp->iwarp_state == (u32)NES_CQP_QP_IWARP_STATE_CLOSING) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 					return 0;
 				} else {
 					if (nesqp->iwarp_state > (u32)NES_CQP_QP_IWARP_STATE_CLOSING) {
-						nes_debug(NES_DBG_MOD_QP, "QP%u: State change to closing"
+						nes_de(NES_DBG_MOD_QP, "QP%u: State change to closing"
 								" ignored due to current iWARP state\n",
 								nesqp->hwqp.qp_id);
 						spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 						return -EINVAL;
 					}
 					if (nesqp->hw_iwarp_state != NES_AEQE_IWARP_STATE_RTS) {
-						nes_debug(NES_DBG_MOD_QP, "QP%u: State change to closing"
+						nes_de(NES_DBG_MOD_QP, "QP%u: State change to closing"
 								" already done based on hw state.\n",
 								nesqp->hwqp.qp_id);
 						issue_modify_qp = 0;
@@ -2751,7 +2751,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				}
 				break;
 			case IB_QPS_SQE:
-				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = terminate\n",
+				nes_de(NES_DBG_MOD_QP, "QP%u: new state = terminate\n",
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state>=(u32)NES_CQP_QP_IWARP_STATE_TERMINATE) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
@@ -2768,7 +2768,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 					return -EINVAL;
 				}
-				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = error\n",
+				nes_de(NES_DBG_MOD_QP, "QP%u: new state = error\n",
 						nesqp->hwqp.qp_id);
 				if (nesqp->term_flags)
 					del_timer(&nesqp->terminate_timer);
@@ -2776,7 +2776,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR;
 				/* next_iwarp_state = (NES_CQP_QP_IWARP_STATE_TERMINATE | 0x02000000); */
 				if (nesqp->hte_added) {
-					nes_debug(NES_DBG_MOD_QP, "set CQP_QP_DEL_HTE\n");
+					nes_de(NES_DBG_MOD_QP, "set CQP_QP_DEL_HTE\n");
 					next_iwarp_state |= NES_CQP_QP_DEL_HTE;
 					nesqp->hte_added = 0;
 				}
@@ -2785,7 +2785,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						(nesqp->hw_tcp_state != NES_AEQE_TCP_STATE_TIME_WAIT)) {
 					next_iwarp_state |= NES_CQP_QP_RESET;
 				} else {
-					nes_debug(NES_DBG_MOD_QP, "QP%u NOT setting NES_CQP_QP_RESET since TCP state = %u\n",
+					nes_de(NES_DBG_MOD_QP, "QP%u NOT setting NES_CQP_QP_RESET since TCP state = %u\n",
 							nesqp->hwqp.qp_id, nesqp->hw_tcp_state);
 					dont_wait = 1;
 				}
@@ -2800,7 +2800,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 		nesqp->ibqp_state = attr->qp_state;
 		nesqp->iwarp_state = next_iwarp_state & NES_CQP_QP_IWARP_STATE_MASK;
-		nes_debug(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
+		nes_de(NES_DBG_MOD_QP, "Change nesqp->iwarp_state=%08x\n",
 				nesqp->iwarp_state);
 	}
 
@@ -2833,30 +2833,30 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	original_last_aeq = nesqp->last_aeq;
 	spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 
-	nes_debug(NES_DBG_MOD_QP, "issue_modify_qp=%u\n", issue_modify_qp);
+	nes_de(NES_DBG_MOD_QP, "issue_modify_qp=%u\n", issue_modify_qp);
 
 	ret = 0;
 
 
 	if (issue_modify_qp) {
-		nes_debug(NES_DBG_MOD_QP, "call nes_hw_modify_qp\n");
+		nes_de(NES_DBG_MOD_QP, "call nes_hw_modify_qp\n");
 		ret = nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 1);
 		if (ret)
-			nes_debug(NES_DBG_MOD_QP, "nes_hw_modify_qp (next_iwarp_state = 0x%08X)"
+			nes_de(NES_DBG_MOD_QP, "nes_hw_modify_qp (next_iwarp_state = 0x%08X)"
 					" failed for QP%u.\n",
 					next_iwarp_state, nesqp->hwqp.qp_id);
 
 	}
 
 	if ((issue_modify_qp) && (nesqp->ibqp_state > IB_QPS_RTS)) {
-		nes_debug(NES_DBG_MOD_QP, "QP%u Issued ModifyQP refcount (%d),"
+		nes_de(NES_DBG_MOD_QP, "QP%u Issued ModifyQP refcount (%d),"
 				" original_last_aeq = 0x%04X. last_aeq = 0x%04X.\n",
 				nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 				original_last_aeq, nesqp->last_aeq);
 		if (!ret || original_last_aeq != NES_AEQE_AEID_RDMAP_ROE_BAD_LLP_CLOSE) {
 			if (dont_wait) {
 				if (nesqp->cm_id && nesqp->hw_tcp_state != 0) {
-					nes_debug(NES_DBG_MOD_QP, "QP%u Queuing fake disconnect for QP refcount (%d),"
+					nes_de(NES_DBG_MOD_QP, "QP%u Queuing fake disconnect for QP refcount (%d),"
 							" original_last_aeq = 0x%04X. last_aeq = 0x%04X.\n",
 							nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 							original_last_aeq, nesqp->last_aeq);
@@ -2867,7 +2867,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 					nes_cm_disconn(nesqp);
 				} else {
-					nes_debug(NES_DBG_MOD_QP, "QP%u No fake disconnect, QP refcount=%d\n",
+					nes_de(NES_DBG_MOD_QP, "QP%u No fake disconnect, QP refcount=%d\n",
 							nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount));
 				}
 			} else {
@@ -2876,7 +2876,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					/* These two are for the timer thread */
 					if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
 						nesqp->cm_id->add_ref(nesqp->cm_id);
-						nes_debug(NES_DBG_MOD_QP, "QP%u Not decrementing QP refcount (%d),"
+						nes_de(NES_DBG_MOD_QP, "QP%u Not decrementing QP refcount (%d),"
 								" need ae to finish up, original_last_aeq = 0x%04X."
 								" last_aeq = 0x%04X, scheduling timer.\n",
 								nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
@@ -2886,7 +2886,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
 				} else {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_debug(NES_DBG_MOD_QP, "QP%u Not decrementing QP refcount (%d),"
+					nes_de(NES_DBG_MOD_QP, "QP%u Not decrementing QP refcount (%d),"
 							" need ae to finish up, original_last_aeq = 0x%04X."
 							" last_aeq = 0x%04X.\n",
 							nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
@@ -2894,13 +2894,13 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				}
 			}
 		} else {
-			nes_debug(NES_DBG_MOD_QP, "QP%u Decrementing QP refcount (%d), No ae to finish up,"
+			nes_de(NES_DBG_MOD_QP, "QP%u Decrementing QP refcount (%d), No ae to finish up,"
 					" original_last_aeq = 0x%04X. last_aeq = 0x%04X.\n",
 					nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 					original_last_aeq, nesqp->last_aeq);
 		}
 	} else {
-		nes_debug(NES_DBG_MOD_QP, "QP%u Decrementing QP refcount (%d), No ae to finish up,"
+		nes_de(NES_DBG_MOD_QP, "QP%u Decrementing QP refcount (%d), No ae to finish up,"
 				" original_last_aeq = 0x%04X. last_aeq = 0x%04X.\n",
 				nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 				original_last_aeq, nesqp->last_aeq);
@@ -2908,7 +2908,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	err = 0;
 
-	nes_debug(NES_DBG_MOD_QP, "QP%u Leaving, refcount=%d\n",
+	nes_de(NES_DBG_MOD_QP, "QP%u Leaving, refcount=%d\n",
 			nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount));
 
 	return err;
@@ -2933,7 +2933,7 @@ fill_wqe_sg_send(struct nes_hw_qp_wqe *wqe, const struct ib_send_wr *ib_wr,
 
 		total_payload_length += ib_wr->sg_list[sge_index].length;
 	}
-	nes_debug(NES_DBG_IW_TX, "UC UC UC, sending total_payload_length=%u \n",
+	nes_de(NES_DBG_IW_TX, "UC UC UC, sending total_payload_length=%u \n",
 			total_payload_length);
 	set_wqe_32bit_value(wqe->wqe_words, NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX,
 				total_payload_length);
@@ -2981,7 +2981,7 @@ static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
 		}
 
 		wqe = &nesqp->hwqp.sq_vbase[head];
-		/* nes_debug(NES_DBG_IW_TX, "processing sq wqe for QP%u at %p, head = %u.\n",
+		/* nes_de(NES_DBG_IW_TX, "processing sq wqe for QP%u at %p, head = %u.\n",
 				nesqp->hwqp.qp_id, wqe, head); */
 		nes_fill_init_qp_wqe(wqe, nesqp, head);
 		u64temp = (u64)(ib_wr->wr_id);
@@ -3029,7 +3029,7 @@ static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
 		case IB_WR_RDMA_WRITE:
 			wqe_misc = NES_IWARP_SQ_OP_RDMAW;
 			if (ib_wr->num_sge > nesdev->nesadapter->max_sge) {
-				nes_debug(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=%u\n",
+				nes_de(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=%u\n",
 					  ib_wr->num_sge, nesdev->nesadapter->max_sge);
 				err = -EINVAL;
 				break;
@@ -3062,7 +3062,7 @@ static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
 		case IB_WR_RDMA_READ_WITH_INV:
 			/* iWARP only supports 1 sge for RDMA reads */
 			if (ib_wr->num_sge > 1) {
-				nes_debug(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=1\n",
+				nes_de(NES_DBG_IW_TX, "Exceeded max sge, ib_wr=%u, max=1\n",
 					  ib_wr->num_sge);
 				err = -EINVAL;
 				break;
@@ -3099,7 +3099,7 @@ static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
 			int flags = reg_wr(ib_wr)->access;
 
 			if (mr->npages > (NES_4K_PBL_CHUNK_SIZE / sizeof(u64))) {
-				nes_debug(NES_DBG_IW_TX, "SQ_FMR: bad page_list_len\n");
+				nes_de(NES_DBG_IW_TX, "SQ_FMR: bad page_list_len\n");
 				err = -EINVAL;
 				break;
 			}
@@ -3121,7 +3121,7 @@ static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
 			} else if (page_shift == 21) {
 				wqe_misc |= NES_IWARP_SQ_FMR_WQE_PAGE_SIZE_2M;
 			} else {
-				nes_debug(NES_DBG_IW_TX, "Invalid page shift,"
+				nes_de(NES_DBG_IW_TX, "Invalid page shift,"
 					  " ib_wr=%u, max=1\n", ib_wr->num_sge);
 				err = -EINVAL;
 				break;
@@ -3150,7 +3150,7 @@ static int nes_post_send(struct ib_qp *ibqp, const struct ib_send_wr *ib_wr,
 					    NES_IWARP_SQ_FMR_WQE_PBL_LENGTH_IDX,
 					    mr->npages * 8);
 
-			nes_debug(NES_DBG_IW_TX, "SQ_REG_MR: iova_start: %llx, "
+			nes_de(NES_DBG_IW_TX, "SQ_REG_MR: iova_start: %llx, "
 				  "length: %lld, rkey: %0x, pgl_paddr: %llx, "
 				  "page_list_len: %u, wqe_misc: %x\n",
 				  (unsigned long long) mr->ibmr.iova,
@@ -3247,10 +3247,10 @@ static int nes_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *ib_wr,
 			break;
 		}
 
-		nes_debug(NES_DBG_IW_RX, "ibwr sge count = %u.\n", ib_wr->num_sge);
+		nes_de(NES_DBG_IW_RX, "ibwr sge count = %u.\n", ib_wr->num_sge);
 		wqe = &nesqp->hwqp.rq_vbase[head];
 
-		/* nes_debug(NES_DBG_IW_RX, "QP%u:processing rq wqe at %p, head = %u.\n",
+		/* nes_de(NES_DBG_IW_RX, "QP%u:processing rq wqe at %p, head = %u.\n",
 				nesqp->hwqp.qp_id, wqe, head); */
 		nes_fill_init_qp_wqe(wqe, nesqp, head);
 		u64temp = (u64)(ib_wr->wr_id);
@@ -3339,7 +3339,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	u32 move_cq_head = 1;
 	u32 err_code;
 
-	nes_debug(NES_DBG_CQ, "\n");
+	nes_de(NES_DBG_CQ, "\n");
 
 	spin_lock_irqsave(&nescq->lock, flags);
 
@@ -3403,11 +3403,11 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 				switch (le32_to_cpu(nesqp->hwqp.sq_vbase[wqe_index].
 						wqe_words[NES_IWARP_SQ_WQE_MISC_IDX]) & 0x3f) {
 					case NES_IWARP_SQ_OP_RDMAW:
-						nes_debug(NES_DBG_CQ, "Operation = RDMA WRITE.\n");
+						nes_de(NES_DBG_CQ, "Operation = RDMA WRITE.\n");
 						entry->opcode = IB_WC_RDMA_WRITE;
 						break;
 					case NES_IWARP_SQ_OP_RDMAR:
-						nes_debug(NES_DBG_CQ, "Operation = RDMA READ.\n");
+						nes_de(NES_DBG_CQ, "Operation = RDMA READ.\n");
 						entry->opcode = IB_WC_RDMA_READ;
 						entry->byte_len = le32_to_cpu(nesqp->hwqp.sq_vbase[wqe_index].
 								wqe_words[NES_IWARP_SQ_WQE_RDMA_LENGTH_IDX]);
@@ -3416,7 +3416,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 					case NES_IWARP_SQ_OP_SENDSEINV:
 					case NES_IWARP_SQ_OP_SEND:
 					case NES_IWARP_SQ_OP_SENDSE:
-						nes_debug(NES_DBG_CQ, "Operation = Send.\n");
+						nes_de(NES_DBG_CQ, "Operation = Send.\n");
 						entry->opcode = IB_WC_SEND;
 						break;
 					case NES_IWARP_SQ_OP_LOCINV:
@@ -3466,7 +3466,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 
 			if ((nescq->polled_completions > (cq_size / 2)) ||
 					(nescq->polled_completions == 255)) {
-				nes_debug(NES_DBG_CQ, "CQ%u Issuing CQE Allocate since more than half of cqes"
+				nes_de(NES_DBG_CQ, "CQ%u Issuing CQE Allocate since more than half of cqes"
 					" are pending %u of %u.\n",
 					nescq->hw_cq.cq_number, nescq->polled_completions, cq_size);
 				nes_write32(nesdev->regs+NES_CQE_ALLOC,
@@ -3490,7 +3490,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	}
 
 	nescq->hw_cq.cq_head = head;
-	nes_debug(NES_DBG_CQ, "Reporting %u completions for CQ%u.\n",
+	nes_de(NES_DBG_CQ, "Reporting %u completions for CQ%u.\n",
 			cqe_count, nescq->hw_cq.cq_number);
 
 	spin_unlock_irqrestore(&nescq->lock, flags);
@@ -3509,7 +3509,7 @@ static int nes_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_
 	struct nes_cq *nescq = to_nescq(ibcq);
 	u32 cq_arm;
 
-	nes_debug(NES_DBG_CQ, "Requesting notification for CQ%u.\n",
+	nes_de(NES_DBG_CQ, "Requesting notification for CQ%u.\n",
 			nescq->hw_cq.cq_number);
 
 	cq_arm = nescq->hw_cq.cq_number;
@@ -3550,7 +3550,7 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 			container_of(dev, struct nes_ib_device, ibdev);
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
-	nes_debug(NES_DBG_INIT, "\n");
+	nes_de(NES_DBG_INIT, "\n");
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%u.%u",
 		 (nesvnic->nesdev->nesadapter->firmware_version >> 16),
 		 (nesvnic->nesdev->nesadapter->firmware_version & 0x000000ff));

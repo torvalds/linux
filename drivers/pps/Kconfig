@@ -21,10 +21,10 @@ menuconfig PPS
 
 if PPS
 
-config PPS_DEBUG
-	bool "PPS debugging messages"
+config PPS_DE
+	bool "PPS deging messages"
 	help
-	  Say Y here if you want the PPS support to produce a bunch of debug
+	  Say Y here if you want the PPS support to produce a bunch of de
 	  messages to the system log.  Select this if you are having a
 	  problem with PPS support and want to see more of what is going on.
 

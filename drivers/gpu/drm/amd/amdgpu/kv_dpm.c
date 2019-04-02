@@ -2862,7 +2862,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 }
 
 static void
-kv_dpm_debugfs_print_current_performance_level(void *handle,
+kv_dpm_defs_print_current_performance_level(void *handle,
 					       struct seq_file *m)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -3195,12 +3195,12 @@ static int kv_dpm_process_interrupt(struct amdgpu_device *adev,
 
 	switch (entry->src_id) {
 	case 230: /* thermal low to high */
-		DRM_DEBUG("IH: thermal low to high\n");
+		DRM_DE("IH: thermal low to high\n");
 		adev->pm.dpm.thermal.high_to_low = false;
 		queue_thermal = true;
 		break;
 	case 231: /* thermal high to low */
-		DRM_DEBUG("IH: thermal high to low\n");
+		DRM_DE("IH: thermal high to low\n");
 		adev->pm.dpm.thermal.high_to_low = true;
 		queue_thermal = true;
 		break;
@@ -3362,7 +3362,7 @@ static const struct amd_pm_funcs kv_dpm_funcs = {
 	.get_sclk = &kv_dpm_get_sclk,
 	.get_mclk = &kv_dpm_get_mclk,
 	.print_power_state = &kv_dpm_print_power_state,
-	.debugfs_print_current_performance_level = &kv_dpm_debugfs_print_current_performance_level,
+	.defs_print_current_performance_level = &kv_dpm_defs_print_current_performance_level,
 	.force_performance_level = &kv_dpm_force_performance_level,
 	.set_powergating_by_smu = kv_set_powergating_by_smu,
 	.enable_bapm = &kv_dpm_enable_bapm,

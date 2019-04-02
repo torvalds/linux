@@ -567,7 +567,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		 */
 		root->secondary.end = 0xFF;
 		dev_warn(&device->dev,
-			 FW_BUG "no secondary bus range in _CRS\n");
+			 FW_ "no secondary bus range in _CRS\n");
 		status = acpi_evaluate_integer(handle, METHOD_NAME__BBN,
 					       NULL, &bus);
 		if (ACPI_SUCCESS(status))
@@ -692,7 +692,7 @@ static void acpi_pci_root_validate_resources(struct device *dev,
 	struct resource *res1, *res2, *root = NULL;
 	struct resource_entry *tmp, *entry, *entry2;
 
-	BUG_ON((type & (IORESOURCE_MEM | IORESOURCE_IO)) == 0);
+	_ON((type & (IORESOURCE_MEM | IORESOURCE_IO)) == 0);
 	root = (type & IORESOURCE_MEM) ? &iomem_resource : &ioport_resource;
 
 	list_splice_init(resources, &list);
@@ -932,7 +932,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	pci_set_host_bridge_release(host_bridge, acpi_pci_root_release_info,
 				    info);
 	if (node != NUMA_NO_NODE)
-		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
+		dev_printk(KERN_DE, &bus->dev, "on NUMA node %d\n", node);
 	return bus;
 
 out_release_info:

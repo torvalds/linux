@@ -88,15 +88,15 @@ pvrusb2-context.[ch] - This module implements the context for an
     the tuner's frequency through sysfs while simultaneously streaming
     video through V4L out to an instance of mplayer).
 
-pvrusb2-debug.h - This header defines a printk() wrapper and a mask
-    of debugging bit definitions for the various kinds of debug
+pvrusb2-de.h - This header defines a printk() wrapper and a mask
+    of deging bit definitions for the various kinds of de
     messages that can be enabled within the driver.
 
-pvrusb2-debugifc.[ch] - This module implements a crude command line
-    oriented debug interface into the driver.  Aside from being part
+pvrusb2-deifc.[ch] - This module implements a crude command line
+    oriented de interface into the driver.  Aside from being part
     of the process for implementing manual firmware extraction (see
     the pvrusb2 web site mentioned earlier), probably I'm the only one
-    who has ever used this.  It is mainly a debugging aid.
+    who has ever used this.  It is mainly a deging aid.
 
 pvrusb2-eeprom.[ch] - This is glue logic that resides between this
     driver the tveeprom.ko module, which is itself implemented

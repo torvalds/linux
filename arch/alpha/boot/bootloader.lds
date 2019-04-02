@@ -19,7 +19,7 @@ SECTIONS
   _end = . ;
   PROVIDE (end = .);
 
-  .mdebug 0 : { *(.mdebug) }
+  .mde 0 : { *(.mde) }
   .note 0 : { *(.note) }
   .comment 0 : { *(.comment) }
 }

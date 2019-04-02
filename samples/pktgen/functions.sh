@@ -69,7 +69,7 @@ function proc_cmd() {
 	fi
     fi
 
-    if [[ "$DEBUG" == "yes" ]]; then
+    if [[ "$DE" == "yes" ]]; then
 	echo "cmd: $@ > $proc_ctrl"
     fi
     # Quoting of "$@" is important for space expansion
@@ -90,7 +90,7 @@ function proc_cmd() {
 function pgset() {
     local result
 
-    if [[ "$DEBUG" == "yes" ]]; then
+    if [[ "$DE" == "yes" ]]; then
 	echo "cmd: $1 > $PGDEV"
     fi
     echo $1 > $PGDEV

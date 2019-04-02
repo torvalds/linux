@@ -91,7 +91,7 @@ static void iommu_pseries_free_group(struct iommu_table_group *table_group,
 #ifdef CONFIG_IOMMU_API
 	if (table_group->group) {
 		iommu_group_put(table_group->group);
-		BUG_ON(table_group->group);
+		_ON(table_group->group);
 	}
 #endif
 	iommu_tce_table_put(tbl);
@@ -565,7 +565,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 	dn = pci_bus_to_OF_node(bus);
 
-	pr_debug("pci_dma_bus_setup_pSeries: setting up bus %pOF\n", dn);
+	pr_de("pci_dma_bus_setup_pSeries: setting up bus %pOF\n", dn);
 
 	if (bus->self) {
 		/* This is not a root bus, any setup will be done for the
@@ -589,7 +589,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 	for (children = 0, tmp = dn->child; tmp; tmp = tmp->sibling)
 		children++;
 
-	pr_debug("Children: %d\n", children);
+	pr_de("Children: %d\n", children);
 
 	/* Calculate amount of DMA window per slot. Each window must be
 	 * a power of two (due to pci_alloc_consistent requirements).
@@ -603,7 +603,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 		while (pci->phb->dma_window_size * children > 0x80000000ul)
 			pci->phb->dma_window_size >>= 1;
-		pr_debug("No ISA/IDE, window size is 0x%llx\n",
+		pr_de("No ISA/IDE, window size is 0x%llx\n",
 			 pci->phb->dma_window_size);
 		pci->phb->dma_window_base_cur = 0;
 
@@ -630,7 +630,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 	while (pci->phb->dma_window_size * children > 0x70000000ul)
 		pci->phb->dma_window_size >>= 1;
 
-	pr_debug("ISA/IDE, window size is 0x%llx\n", pci->phb->dma_window_size);
+	pr_de("ISA/IDE, window size is 0x%llx\n", pci->phb->dma_window_size);
 }
 
 #ifdef CONFIG_IOMMU_API
@@ -678,7 +678,7 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 
 	dn = pci_bus_to_OF_node(bus);
 
-	pr_debug("pci_dma_bus_setup_pSeriesLP: setting up bus %pOF\n",
+	pr_de("pci_dma_bus_setup_pSeriesLP: setting up bus %pOF\n",
 		 dn);
 
 	/* Find nearest ibm,dma-window, walking up the device tree */
@@ -689,13 +689,13 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	}
 
 	if (dma_window == NULL) {
-		pr_debug("  no ibm,dma-window property !\n");
+		pr_de("  no ibm,dma-window property !\n");
 		return;
 	}
 
 	ppci = PCI_DN(pdn);
 
-	pr_debug("  parent is %pOF, iommu_table: 0x%p\n",
+	pr_de("  parent is %pOF, iommu_table: 0x%p\n",
 		 pdn, ppci->table_group);
 
 	if (!ppci->table_group) {
@@ -707,7 +707,7 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 		iommu_init_table(tbl, ppci->phb->node);
 		iommu_register_group(ppci->table_group,
 				pci_domain_nr(bus), 0);
-		pr_debug("  created table: %p\n", ppci->table_group);
+		pr_de("  created table: %p\n", ppci->table_group);
 	}
 }
 
@@ -717,7 +717,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 	struct device_node *dn;
 	struct iommu_table *tbl;
 
-	pr_debug("pci_dma_dev_setup_pSeries: %s\n", pci_name(dev));
+	pr_de("pci_dma_dev_setup_pSeries: %s\n", pci_name(dev));
 
 	dn = dev->dev.of_node;
 
@@ -728,7 +728,7 @@ static void pci_dma_dev_setup_pSeries(struct pci_dev *dev)
 	if (!dev->bus->self) {
 		struct pci_controller *phb = PCI_DN(dn)->phb;
 
-		pr_debug(" --> first child, no bridge. Allocating iommu table.\n");
+		pr_de(" --> first child, no bridge. Allocating iommu table.\n");
 		PCI_DN(dn)->table_group = iommu_pseries_alloc_group(phb->node);
 		tbl = PCI_DN(dn)->table_group->tables[0];
 		iommu_table_setparms(phb, dn, tbl);
@@ -793,7 +793,7 @@ static void remove_ddw(struct device_node *np, bool remove_prop)
 		pr_warn("%pOF failed to clear tces in window.\n",
 			np);
 	else
-		pr_debug("%pOF successfully cleared tces in window.\n",
+		pr_de("%pOF successfully cleared tces in window.\n",
 			 np);
 
 	ret = rtas_call(ddw_avail[2], 1, 1, NULL, liobn);
@@ -802,7 +802,7 @@ static void remove_ddw(struct device_node *np, bool remove_prop)
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np, ret, ddw_avail[2], liobn);
 	else
-		pr_debug("%pOF: successfully removed direct window: rtas returned "
+		pr_de("%pOF: successfully removed direct window: rtas returned "
 			"%d to ibm,remove-pe-dma-window(%x) %llx\n",
 			np, ret, ddw_avail[2], liobn);
 
@@ -1153,7 +1153,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	const __be32 *dma_window = NULL;
 	struct pci_dn *pci;
 
-	pr_debug("pci_dma_dev_setup_pSeriesLP: %s\n", pci_name(dev));
+	pr_de("pci_dma_dev_setup_pSeriesLP: %s\n", pci_name(dev));
 
 	/* dev setup for LPAR is a little tricky, since the device tree might
 	 * contain the dma-window properties per-device and not necessarily
@@ -1162,7 +1162,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	 * already allocated.
 	 */
 	dn = pci_device_to_OF_node(dev);
-	pr_debug("  node is %pOF\n", dn);
+	pr_de("  node is %pOF\n", dn);
 
 	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->table_group;
 	     pdn = pdn->parent) {
@@ -1177,7 +1177,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 				 pci_name(dev), dn);
 		return;
 	}
-	pr_debug("  parent is %pOF\n", pdn);
+	pr_de("  parent is %pOF\n", pdn);
 
 	pci = PCI_DN(pdn);
 	if (!pci->table_group) {
@@ -1189,9 +1189,9 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 		iommu_init_table(tbl, pci->phb->node);
 		iommu_register_group(pci->table_group,
 				pci_domain_nr(pci->phb->bus), 0);
-		pr_debug("  created table: %p\n", pci->table_group);
+		pr_de("  created table: %p\n", pci->table_group);
 	} else {
-		pr_debug("  found DMA window, table: %p\n", pci->table_group);
+		pr_de("  found DMA window, table: %p\n", pci->table_group);
 	}
 
 	set_iommu_table_base(&dev->dev, pci->table_group->tables[0]);

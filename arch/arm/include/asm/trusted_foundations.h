@@ -27,7 +27,7 @@
 #define __ASM_ARM_TRUSTED_FOUNDATIONS_H
 
 #include <linux/printk.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/of.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>

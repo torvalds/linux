@@ -36,12 +36,12 @@
 #include <media/dvb_net.h>
 #include "ttusbdecfe.h"
 
-static int debug;
+static int de;
 static int output_pva;
 static int enable_rc;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 module_param(output_pva, int, 0444);
 MODULE_PARM_DESC(output_pva, "Output PVA from dvr device (default:off)");
 module_param(enable_rc, int, 0644);
@@ -49,7 +49,7 @@ MODULE_PARM_DESC(enable_rc, "Turn on/off IR remote control(default: off)");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define dprintk	if (debug) printk
+#define dprintk	if (de) printk
 
 #define DRIVER_NAME		"TechnoTrend/Hauppauge DEC USB"
 
@@ -347,8 +347,8 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 	if (params)
 		memcpy(&b[4], params, param_length);
 
-	if (debug) {
-		printk(KERN_DEBUG "%s: command: %*ph\n",
+	if (de) {
+		printk(KERN_DE "%s: command: %*ph\n",
 		       __func__, param_length, b);
 	}
 
@@ -373,8 +373,8 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 		kfree(b);
 		return result;
 	} else {
-		if (debug) {
-			printk(KERN_DEBUG "%s: result: %*ph\n",
+		if (de) {
+			printk(KERN_DE "%s: result: %*ph\n",
 			       __func__, actual_len, b);
 		}
 

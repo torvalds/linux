@@ -35,27 +35,27 @@
 #define DRMID(x) ((x) ? (x)->base.id : -1)
 
 /**
- * DPU_DEBUG - macro for kms/plane/crtc/encoder/connector logs
+ * DPU_DE - macro for kms/plane/crtc/encoder/connector logs
  * @fmt: Pointer to format string
  */
-#define DPU_DEBUG(fmt, ...)                                                \
+#define DPU_DE(fmt, ...)                                                \
 	do {                                                               \
-		if (unlikely(drm_debug & DRM_UT_KMS))                      \
-			DRM_DEBUG(fmt, ##__VA_ARGS__); \
+		if (unlikely(drm_de & DRM_UT_KMS))                      \
+			DRM_DE(fmt, ##__VA_ARGS__); \
 		else                                                       \
-			pr_debug(fmt, ##__VA_ARGS__);                      \
+			pr_de(fmt, ##__VA_ARGS__);                      \
 	} while (0)
 
 /**
- * DPU_DEBUG_DRIVER - macro for hardware driver logging
+ * DPU_DE_DRIVER - macro for hardware driver logging
  * @fmt: Pointer to format string
  */
-#define DPU_DEBUG_DRIVER(fmt, ...)                                         \
+#define DPU_DE_DRIVER(fmt, ...)                                         \
 	do {                                                               \
-		if (unlikely(drm_debug & DRM_UT_DRIVER))                   \
+		if (unlikely(drm_de & DRM_UT_DRIVER))                   \
 			DRM_ERROR(fmt, ##__VA_ARGS__); \
 		else                                                       \
-			pr_debug(fmt, ##__VA_ARGS__);                      \
+			pr_de(fmt, ##__VA_ARGS__);                      \
 	} while (0)
 
 #define DPU_ERROR(fmt, ...) pr_err("[dpu error]" fmt, ##__VA_ARGS__)
@@ -94,7 +94,7 @@ struct dpu_irq_callback {
  * @irq_cb_tbl:   array of IRQ callbacks setting
  * @enable_counts array of IRQ enable counts
  * @cb_lock:      callback lock
- * @debugfs_file: debugfs file for irq statistics
+ * @defs_file: defs file for irq statistics
  */
 struct dpu_irq {
 	u32 total_irqs;
@@ -148,77 +148,77 @@ struct vsync_info {
 		((struct msm_drm_private *)((D)->dev_private))->kms : NULL)
 
 /**
- * Debugfs functions - extra helper functions for debugfs support
+ * Defs functions - extra helper functions for defs support
  *
- * Main debugfs documentation is located at,
+ * Main defs documentation is located at,
  *
- * Documentation/filesystems/debugfs.txt
+ * Documentation/filesystems/defs.txt
  *
- * @dpu_debugfs_setup_regset32: Initialize data for dpu_debugfs_create_regset32
- * @dpu_debugfs_create_regset32: Create 32-bit register dump file
- * @dpu_debugfs_get_root: Get root dentry for DPU_KMS's debugfs node
+ * @dpu_defs_setup_regset32: Initialize data for dpu_defs_create_regset32
+ * @dpu_defs_create_regset32: Create 32-bit register dump file
+ * @dpu_defs_get_root: Get root dentry for DPU_KMS's defs node
  */
 
 /**
- * Companion structure for dpu_debugfs_create_regset32. Do not initialize the
- * members of this structure explicitly; use dpu_debugfs_setup_regset32 instead.
+ * Companion structure for dpu_defs_create_regset32. Do not initialize the
+ * members of this structure explicitly; use dpu_defs_setup_regset32 instead.
  */
-struct dpu_debugfs_regset32 {
+struct dpu_defs_regset32 {
 	uint32_t offset;
 	uint32_t blk_len;
 	struct dpu_kms *dpu_kms;
 };
 
 /**
- * dpu_debugfs_setup_regset32 - Initialize register block definition for debugfs
- * This function is meant to initialize dpu_debugfs_regset32 structures for use
- * with dpu_debugfs_create_regset32.
+ * dpu_defs_setup_regset32 - Initialize register block definition for defs
+ * This function is meant to initialize dpu_defs_regset32 structures for use
+ * with dpu_defs_create_regset32.
  * @regset: opaque register definition structure
  * @offset: sub-block offset
  * @length: sub-block length, in bytes
  * @dpu_kms: pointer to dpu kms structure
  */
-void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
+void dpu_defs_setup_regset32(struct dpu_defs_regset32 *regset,
 		uint32_t offset, uint32_t length, struct dpu_kms *dpu_kms);
 
 /**
- * dpu_debugfs_create_regset32 - Create register read back file for debugfs
+ * dpu_defs_create_regset32 - Create register read back file for defs
  *
- * This function is almost identical to the standard debugfs_create_regset32()
+ * This function is almost identical to the standard defs_create_regset32()
  * function, with the main difference being that a list of register
  * names/offsets do not need to be provided. The 'read' function simply outputs
  * sequential register values over a specified range.
  *
- * Similar to the related debugfs_create_regset32 API, the structure pointed to
+ * Similar to the related defs_create_regset32 API, the structure pointed to
  * by regset needs to persist for the lifetime of the created file. The calling
  * code is responsible for initialization/management of this structure.
  *
  * The structure pointed to by regset is meant to be opaque. Please use
- * dpu_debugfs_setup_regset32 to initialize it.
+ * dpu_defs_setup_regset32 to initialize it.
  *
- * @name:   File name within debugfs
- * @mode:   File mode within debugfs
- * @parent: Parent directory entry within debugfs, can be NULL
+ * @name:   File name within defs
+ * @mode:   File mode within defs
+ * @parent: Parent directory entry within defs, can be NULL
  * @regset: Pointer to persistent register block definition
  *
- * Return: dentry pointer for newly created file, use either debugfs_remove()
- *         or debugfs_remove_recursive() (on a parent directory) to remove the
+ * Return: dentry pointer for newly created file, use either defs_remove()
+ *         or defs_remove_recursive() (on a parent directory) to remove the
  *         file
  */
-void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
-		void *parent, struct dpu_debugfs_regset32 *regset);
+void *dpu_defs_create_regset32(const char *name, umode_t mode,
+		void *parent, struct dpu_defs_regset32 *regset);
 
 /**
- * dpu_debugfs_get_root - Return root directory entry for KMS's debugfs
+ * dpu_defs_get_root - Return root directory entry for KMS's defs
  *
  * The return value should be passed as the 'parent' argument to subsequent
- * debugfs create calls.
+ * defs create calls.
  *
  * @dpu_kms: Pointer to DPU's KMS structure
  *
- * Return: dentry pointer for DPU's debugfs location
+ * Return: dentry pointer for DPU's defs location
  */
-void *dpu_debugfs_get_root(struct dpu_kms *dpu_kms);
+void *dpu_defs_get_root(struct dpu_kms *dpu_kms);
 
 /**
  * DPU info management functions

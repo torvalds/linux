@@ -11,7 +11,7 @@
 #endif
 
 /* Optimization barrier */
-/* The "volatile" is due to gcc bugs */
+/* The "volatile" is due to gcc s */
 #define barrier() __asm__ __volatile__("": : :"memory")
 
 #ifndef __always_inline

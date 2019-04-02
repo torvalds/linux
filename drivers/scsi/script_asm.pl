@@ -49,8 +49,8 @@
 
 
 # XXX - set these with command line options
-$debug = 0;		# Print general debugging messages
-$debug_external = 0;	# Print external/forward reference messages
+$de = 0;		# Print general deging messages
+$de_external = 0;	# Print external/forward reference messages
 $list_in_array = 1;	# Emit original SCRIPTS assembler in comments in
 			# script.h
 #$prefix;		# (set by perl -s)
@@ -162,10 +162,10 @@ $constant = "$hexnum|$decnum";
 $value = "$identifier|$identifier\\s*[+\-]\\s*$decnum|".
     "$identifier\\s*[+-]\s*$hexnum|$constant";
 
-print STDERR "value regex = $value\n" if ($debug);
+print STDERR "value regex = $value\n" if ($de);
 
 $phase = join ('|', keys %scsi_phases);
-print STDERR "phase regex = $phase\n" if ($debug);
+print STDERR "phase regex = $phase\n" if ($de);
 $register = join ('|', keys %registers);
 
 # yucky - since %operators includes meta-characters which must
@@ -217,7 +217,7 @@ $outputu = 'scriptu.h';
 
 sub patch {
     local ($address, $offset, $length, $value) = @_;
-    if ($debug) {
+    if ($de) {
 	print STDERR "Patching $address at offset $offset, length $length to $value\n";
 	printf STDERR "Old code : %08x\n", $code[$address];
      }
@@ -228,7 +228,7 @@ sub patch {
 	(($code[$address] & $mask) + ($value << ($offset * 8)) & 
 	$mask);
     
-    printf STDERR "New code : %08x\n", $code[$address] if ($debug);
+    printf STDERR "New code : %08x\n", $code[$address] if ($de);
 }
 
 # &parse_value($value, $word, $offset, $length) where $value is 
@@ -250,23 +250,23 @@ sub parse_value {
 	$relative = 'REL';
 	$symbol = $1;
 	$value = $2;
-print STDERR "Relative reference $symbol\n" if ($debug);
+print STDERR "Relative reference $symbol\n" if ($de);
     } elsif ($value =~ /^($identifier)\s*(.*)/) {
 	$relative = 'ABS';
 	$symbol = $1;
 	$value = $2;
-print STDERR "Absolute reference $symbol\n" if ($debug);
+print STDERR "Absolute reference $symbol\n" if ($de);
     } 
 
     if ($symbol ne '') {
-print STDERR "Referencing symbol $1, length = $length in $_\n" if ($debug);
+print STDERR "Referencing symbol $1, length = $length in $_\n" if ($de);
      	$tmp = ($address + $word) * 4 + $offset;
 	if ($symbol_references{$symbol} ne undef) {
 	    $symbol_references{$symbol} = 
 		"$symbol_references{$symbol} $relative,$tmp,$length";
 	} else {
 	    if (!defined($symbol_values{$symbol})) {
-print STDERR "forward $1\n" if ($debug_external);
+print STDERR "forward $1\n" if ($de_external);
 		$forward{$symbol} = "line $lineno : $_";
 	    } 
 	    $symbol_references{$symbol} = "$relative,$tmp,$length";
@@ -289,10 +289,10 @@ sub parse_conditional {
 	    $allow_atn = 0;
 	    $code[$address] |= 0x00_01_00_00;
 	    $allow_atn = 0;
-	    print STDERR "$0 : parsed WHEN\n" if ($debug);
+	    print STDERR "$0 : parsed WHEN\n" if ($de);
 	} else {
 	    $allow_atn = 1;
-	    print STDERR "$0 : parsed IF\n" if ($debug);
+	    print STDERR "$0 : parsed IF\n" if ($de);
 	}
     } else {
 	    die "$0 : syntax error in line $lineno : $_
@@ -304,7 +304,7 @@ sub parse_conditional {
 	$not = 'NOT ';
 	$other = 'OR';
 	$conditional = $1;
-	print STDERR "$0 : parsed NOT\n" if ($debug);
+	print STDERR "$0 : parsed NOT\n" if ($de);
     } else {
 	$code[$address] |= 0x00_08_00_00;
 	$not = '';
@@ -318,19 +318,19 @@ sub parse_conditional {
 " if (!$allow_atn);
 	$code[$address] |= 0x00_02_00_00;
 	$conditional = $1;
-	print STDERR "$0 : parsed ATN\n" if ($debug);
+	print STDERR "$0 : parsed ATN\n" if ($de);
     } elsif ($conditional =~ /^($phase)\s*(.*)/i) {
 	$phase_index = "\U$1\E";
 	$p = $scsi_phases{$phase_index};
 	$code[$address] |= $p | 0x00_02_00_00;
 	$conditional = $2;
-	print STDERR "$0 : parsed phase $phase_index\n" if ($debug);
+	print STDERR "$0 : parsed phase $phase_index\n" if ($de);
     } else {
 	$other = '';
 	$need_data = 1;
     }
 
-print STDERR "Parsing conjunction, expecting $other\n" if ($debug);
+print STDERR "Parsing conjunction, expecting $other\n" if ($de);
     if ($conditional =~ /^(AND|OR)\s*(.*)/i) {
 	$conjunction = $1;
 	$conditional = $2;
@@ -345,16 +345,16 @@ print STDERR "Parsing conjunction, expecting $other\n" if ($debug);
 		NOT <phase>|ATN OR data
 		<phase>|ATN AND data
 " if ($conjunction !~ /\s*$other\s*/i);
-	print STDERR "$0 : parsed $1\n" if ($debug);
+	print STDERR "$0 : parsed $1\n" if ($de);
     }
 
     if ($need_data) {
-print STDERR "looking for data in $conditional\n" if ($debug);
+print STDERR "looking for data in $conditional\n" if ($de);
 	if ($conditional=~ /^($value)\s*(.*)/i) {
 	    $code[$address] |= 0x00_04_00_00;
 	    $conditional = $2;
 	    &parse_value($1, 0, 0, 1);
-	    print STDERR "$0 : parsed data\n" if ($debug);
+	    print STDERR "$0 : parsed data\n" if ($de);
 	} else {
 	die "$0 : syntax error in line $lineno : $_
 	expected <data>.
@@ -366,7 +366,7 @@ print STDERR "looking for data in $conditional\n" if ($debug);
 	$conditional = $1;
 	if ($conditional =~ /^AND\s\s*MASK\s\s*($value)\s*(.*)/i) {
 	    &parse_value ($1, 0, 1, 1);
-	    print STDERR "$0 parsed AND MASK $1\n" if ($debug);
+	    print STDERR "$0 parsed AND MASK $1\n" if ($de);
 	    die "$0 : syntax error in line $lineno : $_
 	expected end of line, not \"$2\"
 " if ($2 ne '');
@@ -446,7 +446,7 @@ while (<STDIN>) {
 			die "$0 : redefinition of symbol $1 in line $lineno : $_\n";
 		}
 		$symbol_values{$external} = $external;
-print STDERR "defined external $1 to $external\n" if ($debug_external);
+print STDERR "defined external $1 to $external\n" if ($de_external);
 	    } else {
 		die 
 "$0 : syntax error in line $lineno : $_
@@ -471,7 +471,7 @@ print STDERR "defined external $1 to $external\n" if ($debug_external);
 	    $transfer_addr = $1;
 	    $with_when = $2;
 	    $scsi_phase = $3;
-print STDERR "Parsing MOVE FROM $transfer_addr, $with_when $3\n" if ($debug);
+print STDERR "Parsing MOVE FROM $transfer_addr, $with_when $3\n" if ($de);
 	    $code[$address] = 0x18_00_00_00 | (($with_when =~ /WITH/i) ? 
 		0x00_00_00_00 : 0x08_00_00_00) | $scsi_phases{$scsi_phase};
 	    &parse_value ($transfer_addr, 1, 0, 4);
@@ -495,13 +495,13 @@ print STDERR "Parsing MOVE FROM $transfer_addr, $with_when $3\n" if ($debug);
 		$count = $1;
 		$source = $2;
 		$dest =  $3;
-print STDERR "Parsing MOVE MEMORY $count, $source, $dest\n" if ($debug);
+print STDERR "Parsing MOVE MEMORY $count, $source, $dest\n" if ($de);
 		&parse_value ($count, 0, 0, 3);
 		&parse_value ($source, 1, 0, 4);
 		&parse_value ($dest, 2, 0, 4);
 printf STDERR "Move memory instruction = %08x,%08x,%08x\n", 
 		$code[$address], $code[$address+1], $code[$address +2] if
-		($debug);
+		($de);
 		$address += 3;
 	
 	    } else {
@@ -511,7 +511,7 @@ printf STDERR "Move memory instruction = %08x,%08x,%08x\n",
 "
 	    }
 	} elsif ($1 =~ /^(.*)\s+(TO|SHL|SHR)\s+(.*)/i) {
-print STDERR "Parsing register to register move\n" if ($debug);
+print STDERR "Parsing register to register move\n" if ($de);
 	    $src = $1;
 	    $op = "\U$2\E";
 	    $rest = $3;
@@ -521,11 +521,11 @@ print STDERR "Parsing register to register move\n" if ($debug);
 	    $force = ($op !~ /TO/i); 
 
 
-print STDERR "Forcing register source \n" if ($force && $debug);
+print STDERR "Forcing register source \n" if ($force && $de);
 
 	    if (!$force && $src =~ 
 		/^($register)\s+(-|$operator)\s+($value)\s*$/i) {
-print STDERR "register operand  data8 source\n" if ($debug);
+print STDERR "register operand  data8 source\n" if ($de);
 		$src_reg = "\U$1\E";
 		$op = "\U$2\E";
 		if ($op ne '-') {
@@ -534,7 +534,7 @@ print STDERR "register operand  data8 source\n" if ($debug);
 		    die "- is not implemented yet.\n"
 		}
 	    } elsif ($src =~ /^($register)\s*$/i) {
-print STDERR "register source\n" if ($debug);
+print STDERR "register source\n" if ($de);
 		$src_reg = "\U$1\E";
 		# Encode register to register move as a register | 0 
 		# move to register.
@@ -543,7 +543,7 @@ print STDERR "register source\n" if ($debug);
 		}
 		$data8 = 0;
 	    } elsif (!$force && $src =~ /^($value)\s*$/i) {
-print STDERR "data8 source\n" if ($debug);
+print STDERR "data8 source\n" if ($de);
 		$src_reg = undef;
 		$op = 'NONE';
 		$data8 = $1;
@@ -592,7 +592,7 @@ print STDERR "data8 source\n" if ($debug);
 	    }
 
 	    print STDERR "source = $src_reg, data = $data8 , destination = $dst_reg\n"
-		if ($debug);
+		if ($de);
 	    # Note that Move data8 to reg is encoded as a read-modify-write
 	    # instruction.
 	    if (($src_reg eq undef) || ($src_reg eq $dst_reg)) {
@@ -661,7 +661,7 @@ print STDERR "data8 source\n" if ($debug);
 	}
     } elsif (/^\s*WAIT\s+(.*)/i) {
 	    $rest = $1;
-print STDERR "Parsing WAIT $rest\n" if ($debug);
+print STDERR "Parsing WAIT $rest\n" if ($de);
 	if ($rest =~ /^DISCONNECT\s*$/i) {
 	    $code[$address] = 0x48_00_00_00;
 	    $code[$address + 1] = 0x00_00_00_00;
@@ -715,13 +715,13 @@ print STDERR "Parsing WAIT $rest\n" if ($debug);
 	} else {
 	    $code[$address] = 0x98_00_00_00;
 	}
-print STDERR "parsing JUMP, rest = $rest\n" if ($debug);
+print STDERR "parsing JUMP, rest = $rest\n" if ($de);
 
 # Relative jump. 
 	if ($rest =~ /^(REL\s*\(\s*$identifier\s*\))\s*(.*)/i) { 
 	    $addr = $1;
 	    $rest = $2;
-print STDERR "parsing JUMP REL, addr = $addr, rest = $rest\n" if ($debug);
+print STDERR "parsing JUMP REL, addr = $addr, rest = $rest\n" if ($de);
 	    $code[$address]  |= 0x00_80_00_00;
 	    &parse_value($addr, 1, 0, 4);
 # Absolute jump, requires no more gunk
@@ -751,7 +751,7 @@ print STDERR "parsing JUMP REL, addr = $addr, rest = $rest\n" if ($debug);
     } elsif (/^\s*(RETURN|INTFLY)\s*(.*)/i) {
 	$instruction = $1;
 	$conditional = $2; 
-print STDERR "Parsing $instruction\n" if ($debug);
+print STDERR "Parsing $instruction\n" if ($de);
 	$code[$address] = ($instruction =~ /RETURN/i) ? 0x90_00_00_00 :
 	    0x98_10_00_00;
 	if ($conditional =~ /^,\s*(.*)/) {
@@ -822,7 +822,7 @@ foreach $i (@absolute) {
 }
 
 foreach $external (@external) {
-print STDERR "checking external $external \n" if ($debug_external);
+print STDERR "checking external $external \n" if ($de_external);
     if ($symbol_references{$external} ne undef) {
 	for $reference (split(/\s+/,$symbol_references{$external})) {
 	    $reference =~ /(REL|ABS),(.*),(.*)/;
@@ -848,7 +848,7 @@ print STDERR "checking external $external \n" if ($debug_external);
 		$code[$address / 4] = "$symbol + $add";
 	    }
 		
-print STDERR "referenced external $external at $1\n" if ($debug_external);
+print STDERR "referenced external $external at $1\n" if ($de_external);
 	}
     }
 }
@@ -904,7 +904,7 @@ for ($i = 0; $i < $#code; ) {
 	printf OUTPUT "/*\n$list[$i]\nat 0x%08x : */", $i;
     }
     printf OUTPUT "\t0x%08x,", $code[$i];
-    printf STDERR "Address $i = %x\n", $code[$i] if ($debug);
+    printf STDERR "Address $i = %x\n", $code[$i] if ($de);
     if ($code[$i + 1] =~ /\s*($identifier)(.*)$/) {
 	push (@external_patches, $i+1, $1);
 	printf OUTPUT "0%s,", $2
@@ -937,7 +937,7 @@ foreach $i (@absolute) {
     printf OUTPUTU "#undef A_$i\n";
 
     printf OUTPUT "static u32 A_".$i."_used\[\] __attribute((unused)) = {\n";
-printf STDERR "$i is used $symbol_references{$i}\n" if ($debug);
+printf STDERR "$i is used $symbol_references{$i}\n" if ($de);
     foreach $j (split (/\s+/,$symbol_references{$i})) {
 	$j =~ /(ABS|REL),(.*),(.*)/;
 	if ($1 eq 'ABS') {

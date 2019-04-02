@@ -71,9 +71,9 @@ static inline void *kmap(struct page *page)
 	/* Check if this memory layout is broken because PKMAP overlaps
 	 * page table.
 	 */
-	BUILD_BUG_ON(PKMAP_BASE <
+	BUILD__ON(PKMAP_BASE <
 		     TLBTEMP_BASE_1 + TLBTEMP_SIZE);
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return page_address(page);
 	return kmap_high(page);
@@ -81,7 +81,7 @@ static inline void *kmap(struct page *page)
 
 static inline void kunmap(struct page *page)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return;
 	kunmap_high(page);

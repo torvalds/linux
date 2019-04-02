@@ -3,7 +3,7 @@
 #include "machine.h"
 #include "thread.h"
 #include "map.h"
-#include "debug.h"
+#include "de.h"
 
 int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_unused)
 {

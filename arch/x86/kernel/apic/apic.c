@@ -180,7 +180,7 @@ int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
 /*
- * Debug level, exported for io_apic.c
+ * De level, exported for io_apic.c
  */
 unsigned int apic_verbosity;
 
@@ -324,7 +324,7 @@ int lapic_get_maxlvt(void)
  * call this function only once, with the real, calibrated value.
  *
  * We do reads before writes even if unnecessary, to get around the
- * P5 APIC double write bug.
+ * P5 APIC double write .
  */
 static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 {
@@ -352,7 +352,7 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 		 */
 		asm volatile("mfence" : : : "memory");
 
-		printk_once(KERN_DEBUG "TSC deadline timer enabled\n");
+		printk_once(KERN_DE "TSC deadline timer enabled\n");
 		return;
 	}
 
@@ -383,9 +383,9 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
  * setting the entry to APIC_EILVT_MASKED.
  *
  * If the BIOS is right, there should be no conflicts. Otherwise a
- * "[Firmware Bug]: ..." error message is generated. However, if
+ * "[Firmware ]: ..." error message is generated. However, if
  * software does not properly determines the offsets, it is not
- * necessarily a BIOS bug.
+ * necessarily a BIOS .
  */
 
 static atomic_t eilvt_offsets[APIC_EILVT_NR_MAX];
@@ -437,7 +437,7 @@ int setup_APIC_eilvt(u8 offset, u8 vector, u8 msg_type, u8 mask)
 	reserved = reserve_eilvt_offset(offset, new);
 
 	if (reserved != new) {
-		pr_err(FW_BUG "cpu %d, try to use APIC%lX (LVT offset %d) for "
+		pr_err(FW_ "cpu %d, try to use APIC%lX (LVT offset %d) for "
 		       "vector 0x%x, but the register is already in use for "
 		       "vector 0x%x on another cpu\n",
 		       smp_processor_id(), reg, offset, new, reserved);
@@ -445,7 +445,7 @@ int setup_APIC_eilvt(u8 offset, u8 vector, u8 msg_type, u8 mask)
 	}
 
 	if (!eilvt_entry_is_changeable(old, new)) {
-		pr_err(FW_BUG "cpu %d, try to use APIC%lX (LVT offset %d) for "
+		pr_err(FW_ "cpu %d, try to use APIC%lX (LVT offset %d) for "
 		       "vector 0x%x, but the register is already in use for "
 		       "vector 0x%x on this cpu\n",
 		       smp_processor_id(), reg, offset, new, old);
@@ -634,7 +634,7 @@ static void apic_check_deadline_errata(void)
 		return;
 
 	setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
-	pr_err(FW_BUG "TSC_DEADLINE disabled due to Errata; "
+	pr_err(FW_ "TSC_DEADLINE disabled due to Errata; "
 	       "please update microcode to version: 0x%x (or later)\n", rev);
 }
 
@@ -1227,7 +1227,7 @@ void __init sync_Arb_IDs(void)
 	 */
 	apic_wait_icr_idle();
 
-	apic_printk(APIC_DEBUG, "Synchronizing Arb IDs.\n");
+	apic_printk(APIC_DE, "Synchronizing Arb IDs.\n");
 	apic_write(APIC_ICR, APIC_DEST_ALLINC |
 			APIC_INT_LEVELTRIG | APIC_DM_INIT);
 }
@@ -1263,7 +1263,7 @@ static int __init apic_intr_mode_select(void)
 	if (!boot_cpu_has(X86_FEATURE_APIC) &&
 		APIC_INTEGRATED(boot_cpu_apic_version)) {
 		disable_apic = 1;
-		pr_err(FW_BUG "Local APIC %d not detected, force emulation\n",
+		pr_err(FW_ "Local APIC %d not detected, force emulation\n",
 				       boot_cpu_physical_apicid);
 		return APIC_PIC;
 	}
@@ -1502,7 +1502,7 @@ static void setup_local_APIC(void)
 	 * Double-check whether this APIC is really registered.
 	 * This is meaningless in clustered apic mode, so we skip it.
 	 */
-	BUG_ON(!apic->apic_id_registered());
+	_ON(!apic->apic_id_registered());
 
 	/*
 	 * Intel recommends to set DFR, LDR and TPR before enabling
@@ -1554,7 +1554,7 @@ static void setup_local_APIC(void)
 	 * from the device. If focus CPU is disabled then the hang goes
 	 * away, oh well :-(
 	 *
-	 * [ This bug can be reproduced easily with a level-triggered
+	 * [ This  can be reproduced easily with a level-triggered
 	 *   PCI Ne2000 networking cards and PII/PIII processors, dual
 	 *   BX chipset. ]
 	 */
@@ -2080,18 +2080,18 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	atomic_inc(&irq_err_count);
 
-	apic_printk(APIC_DEBUG, KERN_DEBUG "APIC error on CPU%d: %02x",
+	apic_printk(APIC_DE, KERN_DE "APIC error on CPU%d: %02x",
 		    smp_processor_id(), v);
 
 	v &= 0xff;
 	while (v) {
 		if (v & 0x1)
-			apic_printk(APIC_DEBUG, KERN_CONT " : %s", error_interrupt_reason[i]);
+			apic_printk(APIC_DE, KERN_CONT " : %s", error_interrupt_reason[i]);
 		i++;
 		v >>= 1;
 	}
 
-	apic_printk(APIC_DEBUG, KERN_CONT "\n");
+	apic_printk(APIC_DE, KERN_CONT "\n");
 
 	trace_error_apic_exit(ERROR_APIC_VECTOR);
 	exiting_irq();
@@ -2337,13 +2337,13 @@ int generic_processor_info(int apicid, int version)
 	 * Validate version
 	 */
 	if (version == 0x0) {
-		pr_warning("BIOS bug: APIC version is 0 for CPU %d/0x%x, fixing up to 0x10\n",
+		pr_warning("BIOS : APIC version is 0 for CPU %d/0x%x, fixing up to 0x10\n",
 			   cpu, apicid);
 		version = 0x10;
 	}
 
 	if (version != boot_cpu_apic_version) {
-		pr_warning("BIOS bug: APIC version mismatch, boot CPU: %x, CPU %d: version %x\n",
+		pr_warning("BIOS : APIC version mismatch, boot CPU: %x, CPU %d: version %x\n",
 			boot_cpu_apic_version, cpu, version);
 	}
 
@@ -2709,14 +2709,14 @@ static int __init apic_set_verbosity(char *arg)
 		return -EINVAL;
 	}
 
-	if (strcmp("debug", arg) == 0)
-		apic_verbosity = APIC_DEBUG;
+	if (strcmp("de", arg) == 0)
+		apic_verbosity = APIC_DE;
 	else if (strcmp("verbose", arg) == 0)
 		apic_verbosity = APIC_VERBOSE;
 #ifdef CONFIG_X86_64
 	else {
 		pr_warning("APIC Verbosity level %s not recognised"
-			" use apic=verbose or apic=debug\n", arg);
+			" use apic=verbose or apic=de\n", arg);
 		return -EINVAL;
 	}
 #endif

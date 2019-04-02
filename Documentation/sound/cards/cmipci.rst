@@ -264,9 +264,9 @@ If the auto-detection fails, try to pass the exact I/O address.
 The modem is enabled dynamically via a card control switch "Modem".
 
 
-Debugging Information
+Deging Information
 ---------------------
 
 The registers are shown in /proc/asound/cardX/cmipci.  If you have any
 problem (especially unexpected behavior of mixer), please attach the
-output of this proc file together with the bug report.
+output of this proc file together with the  report.

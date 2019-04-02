@@ -182,8 +182,8 @@ struct qib_ibdev {
 	u32 n_piowait;
 	u32 n_txwait;
 
-#ifdef CONFIG_DEBUG_FS
-	/* per HCA debugfs */
+#ifdef CONFIG_DE_FS
+	/* per HCA defs */
 	struct dentry *qib_ibdev_dbg;
 #endif
 };
@@ -277,7 +277,7 @@ void qib_notify_qp_reset(struct rvt_qp *qp);
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 		  enum ib_qp_type type, u8 port);
 void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter);
 

@@ -41,7 +41,7 @@
  *    far_copies (stored in second byte of layout)
  *    far_offset (stored in bit 16 of layout )
  *    use_far_sets (stored in bit 17 of layout )
- *    use_far_sets_bugfixed (stored in bit 18 of layout )
+ *    use_far_sets_fixed (stored in bit 18 of layout )
  *
  * The data to be stored is divided into chunks using chunksize.  Each device
  * is divided into far_copies sections.   In each section, chunks are laid out
@@ -375,7 +375,7 @@ static int find_bio_disk(struct r10conf *conf, struct r10bio *r10_bio,
 		}
 	}
 
-	BUG_ON(slot == conf->copies);
+	_ON(slot == conf->copies);
 	update_head_pos(slot, r10_bio);
 
 	if (slotp)
@@ -965,7 +965,7 @@ static void flush_pending_writes(struct r10conf *conf)
 
 static void raise_barrier(struct r10conf *conf, int force)
 {
-	BUG_ON(force && !conf->barrier);
+	_ON(force && !conf->barrier);
 	spin_lock_irq(&conf->resync_lock);
 
 	/* Wait until no block IO is waiting (unless 'force') */
@@ -1691,12 +1691,12 @@ static void print_conf(struct r10conf *conf)
 	int i;
 	struct md_rdev *rdev;
 
-	pr_debug("RAID10 conf printout:\n");
+	pr_de("RAID10 conf printout:\n");
 	if (!conf) {
-		pr_debug("(!conf)\n");
+		pr_de("(!conf)\n");
 		return;
 	}
-	pr_debug(" --- wd:%d rd:%d\n", conf->geo.raid_disks - conf->mddev->degraded,
+	pr_de(" --- wd:%d rd:%d\n", conf->geo.raid_disks - conf->mddev->degraded,
 		 conf->geo.raid_disks);
 
 	/* This is only called with ->reconfix_mutex held, so
@@ -1705,7 +1705,7 @@ static void print_conf(struct r10conf *conf)
 		char b[BDEVNAME_SIZE];
 		rdev = conf->mirrors[i].rdev;
 		if (rdev)
-			pr_debug(" disk %d, wo:%d, o:%d, dev:%s\n",
+			pr_de(" disk %d, wo:%d, o:%d, dev:%s\n",
 				 i, !test_bit(In_sync, &rdev->flags),
 				 !test_bit(Faulty, &rdev->flags),
 				 bdevname(rdev->bdev,b));
@@ -2804,7 +2804,7 @@ static int init_resync(struct r10conf *conf)
 	int ret, buffs, i;
 
 	buffs = RESYNC_WINDOW / RESYNC_BLOCK_SIZE;
-	BUG_ON(mempool_initialized(&conf->r10buf_pool));
+	_ON(mempool_initialized(&conf->r10buf_pool));
 	conf->have_replacement = 0;
 	for (i = 0; i < conf->geo.raid_disks; i++)
 		if (conf->mirrors[i].replacement)
@@ -3196,7 +3196,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				for (k=0; k<conf->copies; k++)
 					if (r10_bio->devs[k].devnum == i)
 						break;
-				BUG_ON(k == conf->copies);
+				_ON(k == conf->copies);
 				to_addr = r10_bio->devs[k].addr;
 				r10_bio->devs[0].devnum = d;
 				r10_bio->devs[0].addr = from_addr;
@@ -3628,7 +3628,7 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 	case 0:	/* original layout.  simple but not always optimal */
 		geo->far_set_size = disks;
 		break;
-	case 1: /* "improved" layout which was buggy.  Hopefully no-one is
+	case 1: /* "improved" layout which was gy.  Hopefully no-one is
 		 * actually using this, but leave code here just in case.*/
 		geo->far_set_size = disks/fc;
 		WARN(geo->far_set_size < fc,
@@ -4562,7 +4562,7 @@ read_more:
 	set_bit(R10BIO_IsReshape, &r10_bio->state);
 	r10_bio->sectors = last - sector_nr + 1;
 	rdev = read_balance(conf, r10_bio, &max_sectors);
-	BUG_ON(!test_bit(R10BIO_Previous, &r10_bio->state));
+	_ON(!test_bit(R10BIO_Previous, &r10_bio->state));
 
 	if (!rdev) {
 		/* Cannot read from here, so need to record bad blocks

@@ -195,12 +195,12 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 	}
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
-		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
+		DRM_DE_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
 			      adjusted_mode->crtc_clock);
 		i = 1;
 	}
 
-	DRM_DEBUG_KMS("Configuring HDMI audio for pixel clock %d (0x%08x)\n",
+	DRM_DE_KMS("Configuring HDMI audio for pixel clock %d (0x%08x)\n",
 		      hdmi_audio_clock[i].clock,
 		      hdmi_audio_clock[i].config);
 
@@ -257,7 +257,7 @@ static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 eldv, tmp;
 
-	DRM_DEBUG_KMS("Disable audio codec\n");
+	DRM_DE_KMS("Disable audio codec\n");
 
 	tmp = I915_READ(G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
@@ -282,7 +282,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	u32 tmp;
 	int len, i;
 
-	DRM_DEBUG_KMS("Enable audio codec, %u bytes ELD\n", drm_eld_size(eld));
+	DRM_DE_KMS("Enable audio codec, %u bytes ELD\n", drm_eld_size(eld));
 
 	tmp = I915_READ(G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
@@ -302,7 +302,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 
 	len = min(drm_eld_size(eld) / 4, len);
-	DRM_DEBUG_DRIVER("ELD size %d\n", len);
+	DRM_DE_DRIVER("ELD size %d\n", len);
 	for (i = 0; i < len; i++)
 		I915_WRITE(G4X_HDMIW_HDMIEDID, *((const u32 *)eld + i));
 
@@ -327,9 +327,9 @@ hsw_dp_audio_config_update(struct intel_encoder *encoder,
 	rate = acomp ? acomp->aud_sample_rate[port] : 0;
 	nm = audio_config_dp_get_n_m(crtc_state, rate);
 	if (nm)
-		DRM_DEBUG_KMS("using Maud %u, Naud %u\n", nm->m, nm->n);
+		DRM_DE_KMS("using Maud %u, Naud %u\n", nm->m, nm->n);
 	else
-		DRM_DEBUG_KMS("using automatic Maud, Naud\n");
+		DRM_DE_KMS("using automatic Maud, Naud\n");
 
 	tmp = I915_READ(HSW_AUD_CFG(pipe));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
@@ -381,13 +381,13 @@ hsw_hdmi_audio_config_update(struct intel_encoder *encoder,
 
 	n = audio_config_hdmi_get_n(crtc_state, rate);
 	if (n != 0) {
-		DRM_DEBUG_KMS("using N %d\n", n);
+		DRM_DE_KMS("using N %d\n", n);
 
 		tmp &= ~AUD_CONFIG_N_MASK;
 		tmp |= AUD_CONFIG_N(n);
 		tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	} else {
-		DRM_DEBUG_KMS("using automatic N\n");
+		DRM_DE_KMS("using automatic N\n");
 	}
 
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
@@ -421,7 +421,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 	u32 tmp;
 
-	DRM_DEBUG_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
+	DRM_DE_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
 
 	mutex_lock(&dev_priv->av_mutex);
 
@@ -456,7 +456,7 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	u32 tmp;
 	int len, i;
 
-	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
+	DRM_DE_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
 		      pipe_name(pipe), drm_eld_size(eld));
 
 	mutex_lock(&dev_priv->av_mutex);
@@ -506,7 +506,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	u32 tmp, eldv;
 	i915_reg_t aud_config, aud_cntrl_st2;
 
-	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
+	DRM_DE_KMS("Disable audio codec on port %c, pipe %c\n",
 		      port_name(port), pipe_name(pipe));
 
 	if (WARN_ON(port == PORT_A))
@@ -555,7 +555,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	int len, i;
 	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
-	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
+	DRM_DE_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
 		      port_name(port), pipe_name(pipe), drm_eld_size(eld));
 
 	if (WARN_ON(port == PORT_A))
@@ -645,7 +645,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	if (!connector->eld[0])
 		return;
 
-	DRM_DEBUG_DRIVER("ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
+	DRM_DE_DRIVER("ELD on [CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 			 connector->base.id,
 			 connector->name,
 			 connector->encoder->base.id,
@@ -861,7 +861,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	/* 1. get the pipe */
 	encoder = get_saved_enc(dev_priv, port, pipe);
 	if (!encoder || !encoder->base.crtc) {
-		DRM_DEBUG_KMS("Not valid for port %c\n", port_name(port));
+		DRM_DE_KMS("Not valid for port %c\n", port_name(port));
 		err = -ENODEV;
 		goto unlock;
 	}
@@ -892,7 +892,7 @@ static int i915_audio_component_get_eld(struct device *kdev, int port,
 
 	intel_encoder = get_saved_enc(dev_priv, port, pipe);
 	if (!intel_encoder) {
-		DRM_DEBUG_KMS("Not valid for port %c\n", port_name(port));
+		DRM_DE_KMS("Not valid for port %c\n", port_name(port));
 		mutex_unlock(&dev_priv->av_mutex);
 		return ret;
 	}
@@ -935,7 +935,7 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->base.ops = &i915_audio_component_ops;
 	acomp->base.dev = i915_kdev;
-	BUILD_BUG_ON(MAX_PORTS != I915_MAX_PORTS);
+	BUILD__ON(MAX_PORTS != I915_MAX_PORTS);
 	for (i = 0; i < ARRAY_SIZE(acomp->aud_sample_rate); i++)
 		acomp->aud_sample_rate[i] = 0;
 	dev_priv->audio_component = acomp;

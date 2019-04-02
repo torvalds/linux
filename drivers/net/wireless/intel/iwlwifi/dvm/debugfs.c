@@ -25,31 +25,31 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
 
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-trans.h"
 #include "iwl-io.h"
 #include "dev.h"
 #include "agn.h"
 
 /* create and remove of files */
-#define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	debugfs_create_file(#name, mode, parent, priv,			\
+#define DEFS_ADD_FILE(name, parent, mode) do {			\
+	defs_create_file(#name, mode, parent, priv,			\
 			    &iwl_dbgfs_##name##_ops);			\
 } while (0)
 
 /* file operation */
-#define DEBUGFS_READ_FILE_OPS(name)                                     \
+#define DEFS_READ_FILE_OPS(name)                                     \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.read = iwl_dbgfs_##name##_read,				\
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
-#define DEBUGFS_WRITE_FILE_OPS(name)                                    \
+#define DEFS_WRITE_FILE_OPS(name)                                    \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.open = simple_open,						\
@@ -57,7 +57,7 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 };
 
 
-#define DEBUGFS_READ_WRITE_FILE_OPS(name)                               \
+#define DEFS_READ_WRITE_FILE_OPS(name)                               \
 static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.write = iwl_dbgfs_##name##_write,                              \
 	.read = iwl_dbgfs_##name##_read,                                \
@@ -587,7 +587,7 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 	if (!iwl_is_ready_rf(priv))
 		return -EAGAIN;
 
-	priv->power_data.debug_sleep_level_override = value;
+	priv->power_data.de_sleep_level_override = value;
 
 	mutex_lock(&priv->mutex);
 	iwl_power_update_mode(priv, true);
@@ -606,7 +606,7 @@ static ssize_t iwl_dbgfs_sleep_level_override_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 
 	/* see the write function */
-	value = priv->power_data.debug_sleep_level_override;
+	value = priv->power_data.de_sleep_level_override;
 	if (value >= 0)
 		value += 1;
 
@@ -638,19 +638,19 @@ static ssize_t iwl_dbgfs_current_sleep_command_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-DEBUGFS_READ_WRITE_FILE_OPS(sram);
-DEBUGFS_READ_FILE_OPS(wowlan_sram);
-DEBUGFS_READ_FILE_OPS(nvm);
-DEBUGFS_READ_FILE_OPS(stations);
-DEBUGFS_READ_FILE_OPS(channels);
-DEBUGFS_READ_FILE_OPS(status);
-DEBUGFS_READ_WRITE_FILE_OPS(rx_handlers);
-DEBUGFS_READ_FILE_OPS(qos);
-DEBUGFS_READ_FILE_OPS(thermal_throttling);
-DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
-DEBUGFS_READ_FILE_OPS(temperature);
-DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
-DEBUGFS_READ_FILE_OPS(current_sleep_command);
+DEFS_READ_WRITE_FILE_OPS(sram);
+DEFS_READ_FILE_OPS(wowlan_sram);
+DEFS_READ_FILE_OPS(nvm);
+DEFS_READ_FILE_OPS(stations);
+DEFS_READ_FILE_OPS(channels);
+DEFS_READ_FILE_OPS(status);
+DEFS_READ_WRITE_FILE_OPS(rx_handlers);
+DEFS_READ_FILE_OPS(qos);
+DEFS_READ_FILE_OPS(thermal_throttling);
+DEFS_READ_WRITE_FILE_OPS(disable_ht40);
+DEFS_READ_FILE_OPS(temperature);
+DEFS_READ_WRITE_FILE_OPS(sleep_level_override);
+DEFS_READ_FILE_OPS(current_sleep_command);
 
 #define fmt_value	"  %-30s %10u\n"
 #define fmt_hex		"  %-30s       0x%02X\n"
@@ -2162,7 +2162,7 @@ static int iwl_cmd_echo_test(struct iwl_priv *priv)
 	if (ret)
 		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
 	else
-		IWL_DEBUG_INFO(priv, "echo testing pass\n");
+		IWL_DE_INFO(priv, "echo testing pass\n");
 	return ret;
 }
 
@@ -2183,7 +2183,7 @@ static ssize_t iwl_dbgfs_echo_test_write(struct file *file,
 	return count;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
@@ -2296,87 +2296,87 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	return count;
 }
 
-DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
-DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
-DEBUGFS_READ_FILE_OPS(ucode_general_stats);
-DEBUGFS_READ_FILE_OPS(sensitivity);
-DEBUGFS_READ_FILE_OPS(chain_noise);
-DEBUGFS_READ_FILE_OPS(power_save_status);
-DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
-DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
-DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
-DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
-DEBUGFS_READ_WRITE_FILE_OPS(rf_reset);
-DEBUGFS_READ_FILE_OPS(rxon_flags);
-DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
-DEBUGFS_WRITE_FILE_OPS(txfifo_flush);
-DEBUGFS_READ_FILE_OPS(ucode_bt_stats);
-DEBUGFS_READ_FILE_OPS(bt_traffic);
-DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
-DEBUGFS_READ_FILE_OPS(reply_tx_error);
-DEBUGFS_WRITE_FILE_OPS(echo_test);
-DEBUGFS_WRITE_FILE_OPS(fw_restart);
-#ifdef CONFIG_IWLWIFI_DEBUG
-DEBUGFS_READ_WRITE_FILE_OPS(log_event);
+DEFS_READ_FILE_OPS(ucode_rx_stats);
+DEFS_READ_FILE_OPS(ucode_tx_stats);
+DEFS_READ_FILE_OPS(ucode_general_stats);
+DEFS_READ_FILE_OPS(sensitivity);
+DEFS_READ_FILE_OPS(chain_noise);
+DEFS_READ_FILE_OPS(power_save_status);
+DEFS_WRITE_FILE_OPS(clear_ucode_statistics);
+DEFS_READ_WRITE_FILE_OPS(ucode_tracing);
+DEFS_READ_WRITE_FILE_OPS(missed_beacon);
+DEFS_READ_WRITE_FILE_OPS(plcp_delta);
+DEFS_READ_WRITE_FILE_OPS(rf_reset);
+DEFS_READ_FILE_OPS(rxon_flags);
+DEFS_READ_FILE_OPS(rxon_filter_flags);
+DEFS_WRITE_FILE_OPS(txfifo_flush);
+DEFS_READ_FILE_OPS(ucode_bt_stats);
+DEFS_READ_FILE_OPS(bt_traffic);
+DEFS_READ_WRITE_FILE_OPS(protection_mode);
+DEFS_READ_FILE_OPS(reply_tx_error);
+DEFS_WRITE_FILE_OPS(echo_test);
+DEFS_WRITE_FILE_OPS(fw_restart);
+#ifdef CONFIG_IWLWIFI_DE
+DEFS_READ_WRITE_FILE_OPS(log_event);
 #endif
-DEBUGFS_READ_WRITE_FILE_OPS(calib_disabled);
+DEFS_READ_WRITE_FILE_OPS(calib_disabled);
 
 /*
- * Create the debugfs files and directories
+ * Create the defs files and directories
  *
  */
 void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 {
-	struct dentry *dir_data, *dir_rf, *dir_debug;
+	struct dentry *dir_data, *dir_rf, *dir_de;
 
-	priv->debugfs_dir = dbgfs_dir;
+	priv->defs_dir = dbgfs_dir;
 
-	dir_data = debugfs_create_dir("data", dbgfs_dir);
-	dir_rf = debugfs_create_dir("rf", dbgfs_dir);
-	dir_debug = debugfs_create_dir("debug", dbgfs_dir);
+	dir_data = defs_create_dir("data", dbgfs_dir);
+	dir_rf = defs_create_dir("rf", dbgfs_dir);
+	dir_de = defs_create_dir("de", dbgfs_dir);
 
-	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
-	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
-	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, 0400);
-	DEBUGFS_ADD_FILE(stations, dir_data, 0400);
-	DEBUGFS_ADD_FILE(channels, dir_data, 0400);
-	DEBUGFS_ADD_FILE(status, dir_data, 0400);
-	DEBUGFS_ADD_FILE(rx_handlers, dir_data, 0600);
-	DEBUGFS_ADD_FILE(qos, dir_data, 0400);
-	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, 0600);
-	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, 0400);
-	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, 0400);
-	DEBUGFS_ADD_FILE(disable_ht40, dir_data, 0600);
-	DEBUGFS_ADD_FILE(temperature, dir_data, 0400);
+	DEFS_ADD_FILE(nvm, dir_data, 0400);
+	DEFS_ADD_FILE(sram, dir_data, 0600);
+	DEFS_ADD_FILE(wowlan_sram, dir_data, 0400);
+	DEFS_ADD_FILE(stations, dir_data, 0400);
+	DEFS_ADD_FILE(channels, dir_data, 0400);
+	DEFS_ADD_FILE(status, dir_data, 0400);
+	DEFS_ADD_FILE(rx_handlers, dir_data, 0600);
+	DEFS_ADD_FILE(qos, dir_data, 0400);
+	DEFS_ADD_FILE(sleep_level_override, dir_data, 0600);
+	DEFS_ADD_FILE(current_sleep_command, dir_data, 0400);
+	DEFS_ADD_FILE(thermal_throttling, dir_data, 0400);
+	DEFS_ADD_FILE(disable_ht40, dir_data, 0600);
+	DEFS_ADD_FILE(temperature, dir_data, 0400);
 
-	DEBUGFS_ADD_FILE(power_save_status, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, 0600);
-	DEBUGFS_ADD_FILE(rf_reset, dir_debug, 0600);
-	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(protection_mode, dir_debug, 0600);
-	DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, 0600);
-	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, 0400);
-	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(echo_test, dir_debug, 0200);
-	DEBUGFS_ADD_FILE(fw_restart, dir_debug, 0200);
-#ifdef CONFIG_IWLWIFI_DEBUG
-	DEBUGFS_ADD_FILE(log_event, dir_debug, 0600);
+	DEFS_ADD_FILE(power_save_status, dir_de, 0400);
+	DEFS_ADD_FILE(clear_ucode_statistics, dir_de, 0200);
+	DEFS_ADD_FILE(missed_beacon, dir_de, 0200);
+	DEFS_ADD_FILE(plcp_delta, dir_de, 0600);
+	DEFS_ADD_FILE(rf_reset, dir_de, 0600);
+	DEFS_ADD_FILE(ucode_rx_stats, dir_de, 0400);
+	DEFS_ADD_FILE(ucode_tx_stats, dir_de, 0400);
+	DEFS_ADD_FILE(ucode_general_stats, dir_de, 0400);
+	DEFS_ADD_FILE(txfifo_flush, dir_de, 0200);
+	DEFS_ADD_FILE(protection_mode, dir_de, 0600);
+	DEFS_ADD_FILE(sensitivity, dir_de, 0400);
+	DEFS_ADD_FILE(chain_noise, dir_de, 0400);
+	DEFS_ADD_FILE(ucode_tracing, dir_de, 0600);
+	DEFS_ADD_FILE(ucode_bt_stats, dir_de, 0400);
+	DEFS_ADD_FILE(reply_tx_error, dir_de, 0400);
+	DEFS_ADD_FILE(rxon_flags, dir_de, 0200);
+	DEFS_ADD_FILE(rxon_filter_flags, dir_de, 0200);
+	DEFS_ADD_FILE(echo_test, dir_de, 0200);
+	DEFS_ADD_FILE(fw_restart, dir_de, 0200);
+#ifdef CONFIG_IWLWIFI_DE
+	DEFS_ADD_FILE(log_event, dir_de, 0600);
 #endif
 
 	if (iwl_advanced_bt_coexist(priv))
-		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, 0400);
+		DEFS_ADD_FILE(bt_traffic, dir_de, 0400);
 
 	/* Calibrations disabled/enabled status*/
-	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, 0600);
+	DEFS_ADD_FILE(calib_disabled, dir_rf, 0600);
 
 	/*
 	 * Create a symlink with mac80211. This is not very robust, as it does
@@ -2389,10 +2389,10 @@ void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 		struct dentry *mac80211_dir, *dev_dir;
 
 		dev_dir = dbgfs_dir->d_parent;
-		mac80211_dir = priv->hw->wiphy->debugfsdir;
+		mac80211_dir = priv->hw->wiphy->defsdir;
 
 		snprintf(buf, 100, "../../%pd2", dev_dir);
 
-		debugfs_create_symlink("iwlwifi", mac80211_dir, buf);
+		defs_create_symlink("iwlwifi", mac80211_dir, buf);
 	}
 }

@@ -192,7 +192,7 @@ static int mtk_crtc_ddp_clk_enable(struct mtk_drm_crtc *mtk_crtc)
 	int ret;
 	int i;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
+	DRM_DE_DRIVER("%s\n", __func__);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
 		ret = clk_enable(mtk_crtc->ddp_comp[i]->clk);
 		if (ret) {
@@ -212,7 +212,7 @@ static void mtk_crtc_ddp_clk_disable(struct mtk_drm_crtc *mtk_crtc)
 {
 	int i;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
+	DRM_DE_DRIVER("%s\n", __func__);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
 		clk_disable(mtk_crtc->ddp_comp[i]->clk);
 }
@@ -227,7 +227,7 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 	int ret;
 	int i;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
+	DRM_DE_DRIVER("%s\n", __func__);
 	if (WARN_ON(!crtc->state))
 		return -EINVAL;
 
@@ -268,7 +268,7 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 		goto err_mutex_unprepare;
 	}
 
-	DRM_DEBUG_DRIVER("mediatek_ddp_ddp_path_setup\n");
+	DRM_DE_DRIVER("mediatek_ddp_ddp_path_setup\n");
 	for (i = 0; i < mtk_crtc->ddp_comp_nr - 1; i++) {
 		mtk_ddp_add_comp_to_path(mtk_crtc->config_regs,
 					 mtk_crtc->ddp_comp[i]->id,
@@ -310,7 +310,7 @@ static void mtk_crtc_ddp_hw_fini(struct mtk_drm_crtc *mtk_crtc)
 	struct drm_device *drm = mtk_crtc->base.dev;
 	int i;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
+	DRM_DE_DRIVER("%s\n", __func__);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
 		mtk_ddp_comp_stop(mtk_crtc->ddp_comp[i]);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
@@ -374,7 +374,7 @@ static void mtk_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[0];
 	int ret;
 
-	DRM_DEBUG_DRIVER("%s %d\n", __func__, crtc->base.id);
+	DRM_DE_DRIVER("%s %d\n", __func__, crtc->base.id);
 
 	ret = mtk_smi_larb_get(comp->larb_dev);
 	if (ret) {
@@ -399,7 +399,7 @@ static void mtk_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct mtk_ddp_comp *comp = mtk_crtc->ddp_comp[0];
 	int i;
 
-	DRM_DEBUG_DRIVER("%s %d\n", __func__, crtc->base.id);
+	DRM_DE_DRIVER("%s %d\n", __func__, crtc->base.id);
 	if (!mtk_crtc->enabled)
 		return;
 

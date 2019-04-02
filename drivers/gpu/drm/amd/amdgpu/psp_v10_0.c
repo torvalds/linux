@@ -46,7 +46,7 @@ static int psp_v10_0_init_microcode(struct psp_context *psp)
 	int err = 0;
 	const struct psp_firmware_header_v1_0 *hdr;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
@@ -57,7 +57,7 @@ static int psp_v10_0_init_microcode(struct psp_context *psp)
 		else
 			chip_name = "raven";
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_asd.bin", chip_name);

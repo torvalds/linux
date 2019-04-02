@@ -8,9 +8,9 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
-#include "acdebug.h"
+#include "acde.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbobject")
 
 /* Local prototypes */
@@ -342,7 +342,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 				acpi_db_decode_node(obj_desc->reference.node);
 				break;
 
-			case ACPI_REFCLASS_DEBUG:
+			case ACPI_REFCLASS_DE:
 			case ACPI_REFCLASS_TABLE:
 
 				acpi_os_printf("\n");

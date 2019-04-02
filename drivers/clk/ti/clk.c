@@ -236,7 +236,7 @@ int __init ti_clk_retry_init(struct device_node *node, void *user,
 {
 	struct clk_init_item *retry;
 
-	pr_debug("%pOFn: adding to retry list...\n", node);
+	pr_de("%pOFn: adding to retry list...\n", node);
 	retry = kzalloc(sizeof(*retry), GFP_KERNEL);
 	if (!retry)
 		return -ENOMEM;
@@ -381,7 +381,7 @@ void ti_dt_clk_init_retry_clks(void)
 
 	while (!list_empty(&retry_list) && retries) {
 		list_for_each_entry_safe(retry, tmp, &retry_list, link) {
-			pr_debug("retry-init: %pOFn\n", retry->node);
+			pr_de("retry-init: %pOFn\n", retry->node);
 			retry->func(retry->user, retry->node);
 			list_del(&retry->link);
 			kfree(retry);

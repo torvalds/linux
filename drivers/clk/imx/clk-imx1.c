@@ -48,7 +48,7 @@ static void __iomem *ccm __initdata;
 static void __init mx1_clocks_init_dt(struct device_node *np)
 {
 	ccm = of_iomap(np, 0);
-	BUG_ON(!ccm);
+	_ON(!ccm);
 
 	clk[IMX1_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clk[IMX1_CLK_CLK32] = imx_obtain_fixed_clock("clk32", 32768);

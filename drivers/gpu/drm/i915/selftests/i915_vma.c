@@ -283,9 +283,9 @@ static int igt_vma_pin1(void *arg)
 
 		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
 
-#if !IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#if !IS_ENABLED(CONFIG_DRM_I915_DE_GEM)
 		/* Misusing BIAS is a programming error (it is not controllable
-		 * from userspace) so when debugging is enabled, it explodes.
+		 * from userspace) so when deging is enabled, it explodes.
 		 * However, the tests are still quite interesting for checking
 		 * variable start, end and size.
 		 */
@@ -308,7 +308,7 @@ static int igt_vma_pin1(void *arg)
 	 * focusing on error handling of boundary conditions.
 	 */
 
-	GEM_BUG_ON(!drm_mm_clean(&ggtt->vm.mm));
+	GEM__ON(!drm_mm_clean(&ggtt->vm.mm));
 
 	obj = i915_gem_object_create_internal(ggtt->vm.i915, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -444,7 +444,7 @@ static int igt_vma_rotate(void *arg)
 
 			max_offset = max(a->stride * a->height,
 					 b->stride * b->height);
-			GEM_BUG_ON(max_offset > max_pages);
+			GEM__ON(max_offset > max_pages);
 			max_offset = max_pages - max_offset;
 
 			view.type = I915_GGTT_VIEW_ROTATED;

@@ -42,7 +42,7 @@
 
 #define DRIVER_NAME "rtl8xxxu"
 
-int rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE;
+int rtl8xxxu_de = RTL8XXXU_DE_EFUSE;
 static bool rtl8xxxu_ht40_2g;
 static bool rtl8xxxu_dma_aggregation;
 static int rtl8xxxu_dma_agg_timeout = -1;
@@ -61,8 +61,8 @@ MODULE_FIRMWARE("rtlwifi/rtl8192eu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_bt.bin");
 
-module_param_named(debug, rtl8xxxu_debug, int, 0600);
-MODULE_PARM_DESC(debug, "Set debug mask");
+module_param_named(de, rtl8xxxu_de, int, 0600);
+MODULE_PARM_DESC(de, "Set de mask");
 module_param_named(ht40_2g, rtl8xxxu_ht40_2g, bool, 0600);
 MODULE_PARM_DESC(ht40_2g, "Enable HT40 support on the 2.4GHz band");
 module_param_named(dma_aggregation, rtl8xxxu_dma_aggregation, bool, 0600);
@@ -668,7 +668,7 @@ u8 rtl8xxxu_read8(struct rtl8xxxu_priv *priv, u16 addr)
 	data = priv->usb_buf.val8;
 	mutex_unlock(&priv->usb_buf_mutex);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_READ)
+	if (rtl8xxxu_de & RTL8XXXU_DE_REG_READ)
 		dev_info(&udev->dev, "%s(%04x)   = 0x%02x, len %i\n",
 			 __func__, addr, data, len);
 	return data;
@@ -688,7 +688,7 @@ u16 rtl8xxxu_read16(struct rtl8xxxu_priv *priv, u16 addr)
 	data = le16_to_cpu(priv->usb_buf.val16);
 	mutex_unlock(&priv->usb_buf_mutex);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_READ)
+	if (rtl8xxxu_de & RTL8XXXU_DE_REG_READ)
 		dev_info(&udev->dev, "%s(%04x)  = 0x%04x, len %i\n",
 			 __func__, addr, data, len);
 	return data;
@@ -708,7 +708,7 @@ u32 rtl8xxxu_read32(struct rtl8xxxu_priv *priv, u16 addr)
 	data = le32_to_cpu(priv->usb_buf.val32);
 	mutex_unlock(&priv->usb_buf_mutex);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_READ)
+	if (rtl8xxxu_de & RTL8XXXU_DE_REG_READ)
 		dev_info(&udev->dev, "%s(%04x)  = 0x%08x, len %i\n",
 			 __func__, addr, data, len);
 	return data;
@@ -728,7 +728,7 @@ int rtl8xxxu_write8(struct rtl8xxxu_priv *priv, u16 addr, u8 val)
 
 	mutex_unlock(&priv->usb_buf_mutex);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_WRITE)
+	if (rtl8xxxu_de & RTL8XXXU_DE_REG_WRITE)
 		dev_info(&udev->dev, "%s(%04x) = 0x%02x\n",
 			 __func__, addr, val);
 	return ret;
@@ -747,7 +747,7 @@ int rtl8xxxu_write16(struct rtl8xxxu_priv *priv, u16 addr, u16 val)
 			      RTW_USB_CONTROL_MSG_TIMEOUT);
 	mutex_unlock(&priv->usb_buf_mutex);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_WRITE)
+	if (rtl8xxxu_de & RTL8XXXU_DE_REG_WRITE)
 		dev_info(&udev->dev, "%s(%04x) = 0x%04x\n",
 			 __func__, addr, val);
 	return ret;
@@ -766,7 +766,7 @@ int rtl8xxxu_write32(struct rtl8xxxu_priv *priv, u16 addr, u32 val)
 			      RTW_USB_CONTROL_MSG_TIMEOUT);
 	mutex_unlock(&priv->usb_buf_mutex);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_REG_WRITE)
+	if (rtl8xxxu_de & RTL8XXXU_DE_REG_WRITE)
 		dev_info(&udev->dev, "%s(%04x) = 0x%08x\n",
 			 __func__, addr, val);
 	return ret;
@@ -846,7 +846,7 @@ u32 rtl8xxxu_read_rfreg(struct rtl8xxxu_priv *priv,
 
 	retval &= 0xfffff;
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_RFREG_READ)
+	if (rtl8xxxu_de & RTL8XXXU_DE_RFREG_READ)
 		dev_info(&priv->udev->dev, "%s(%02x) = 0x%06x\n",
 			 __func__, reg, retval);
 	return retval;
@@ -863,7 +863,7 @@ int rtl8xxxu_write_rfreg(struct rtl8xxxu_priv *priv,
 	int ret, retval;
 	u32 dataaddr, val32;
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_RFREG_WRITE)
+	if (rtl8xxxu_de & RTL8XXXU_DE_RFREG_WRITE)
 		dev_info(&priv->udev->dev, "%s(%02x) = 0x%06x\n",
 			 __func__, reg, data);
 
@@ -929,12 +929,12 @@ rtl8xxxu_gen1_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c, int len)
 	 */
 	if (len > sizeof(u32)) {
 		rtl8xxxu_write16(priv, mbox_ext_reg, le16_to_cpu(h2c->raw.ext));
-		if (rtl8xxxu_debug & RTL8XXXU_DEBUG_H2C)
+		if (rtl8xxxu_de & RTL8XXXU_DE_H2C)
 			dev_info(dev, "H2C_EXT %04x\n",
 				 le16_to_cpu(h2c->raw.ext));
 	}
 	rtl8xxxu_write32(priv, mbox_reg, le32_to_cpu(h2c->raw.data));
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_H2C)
+	if (rtl8xxxu_de & RTL8XXXU_DE_H2C)
 		dev_info(dev, "H2C %08x\n", le32_to_cpu(h2c->raw.data));
 
 	priv->next_mbox = (mbox_nr + 1) % H2C_MAX_MBOX;
@@ -980,12 +980,12 @@ rtl8xxxu_gen2_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c, int len)
 	if (len > sizeof(u32)) {
 		rtl8xxxu_write32(priv, mbox_ext_reg,
 				 le32_to_cpu(h2c->raw_wide.ext));
-		if (rtl8xxxu_debug & RTL8XXXU_DEBUG_H2C)
+		if (rtl8xxxu_de & RTL8XXXU_DE_H2C)
 			dev_info(dev, "H2C_EXT %08x\n",
 				 le32_to_cpu(h2c->raw_wide.ext));
 	}
 	rtl8xxxu_write32(priv, mbox_reg, le32_to_cpu(h2c->raw.data));
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_H2C)
+	if (rtl8xxxu_de & RTL8XXXU_DE_H2C)
 		dev_info(dev, "H2C %08x\n", le32_to_cpu(h2c->raw.data));
 
 	priv->next_mbox = (mbox_nr + 1) % H2C_MAX_MBOX;
@@ -1437,7 +1437,7 @@ rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 			ofdm[1] -=  priv->ht40_2s_tx_power_index_diff[group].b;
 	}
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_CHANNEL)
+	if (rtl8xxxu_de & RTL8XXXU_DE_CHANNEL)
 		dev_info(&priv->udev->dev,
 			 "%s: Setting TX power CCK A: %02x, "
 			 "CCK B: %02x, OFDM A: %02x, OFDM B: %02x\n",
@@ -4215,7 +4215,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	if (priv->rtl_chip == RTL8723A) {
 		/*
-		 * 2011/03/09 MH debug only, UMC-B cut pass 2500 S5 test,
+		 * 2011/03/09 MH de only, UMC-B cut pass 2500 S5 test,
 		 * but we need to find root cause.
 		 * This is 8723au only.
 		 */
@@ -4251,11 +4251,11 @@ static void rtl8xxxu_cam_write(struct rtl8xxxu_priv *priv,
 			       struct ieee80211_key_conf *key, const u8 *mac)
 {
 	u32 cmd, val32, addr, ctrl;
-	int j, i, tmp_debug;
+	int j, i, tmp_de;
 
-	tmp_debug = rtl8xxxu_debug;
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_KEY)
-		rtl8xxxu_debug |= RTL8XXXU_DEBUG_REG_WRITE;
+	tmp_de = rtl8xxxu_de;
+	if (rtl8xxxu_de & RTL8XXXU_DE_KEY)
+		rtl8xxxu_de |= RTL8XXXU_DE_REG_WRITE;
 
 	/*
 	 * This is a bit of a hack - the lower bits of the cipher
@@ -4286,7 +4286,7 @@ static void rtl8xxxu_cam_write(struct rtl8xxxu_priv *priv,
 		udelay(100);
 	}
 
-	rtl8xxxu_debug = tmp_debug;
+	rtl8xxxu_de = tmp_de;
 }
 
 static void rtl8xxxu_sw_scan_start(struct ieee80211_hw *hw,
@@ -4733,7 +4733,7 @@ static void rtl8xxxu_dump_action(struct device *dev,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)hdr;
 	u16 cap, timeout;
 
-	if (!(rtl8xxxu_debug & RTL8XXXU_DEBUG_ACTION))
+	if (!(rtl8xxxu_de & RTL8XXXU_DE_ACTION))
 		return;
 
 	switch (mgmt->u.action.u.addba_resp.action_code) {
@@ -4789,7 +4789,7 @@ rtl8xxxu_fill_txdesc_v1(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 	else
 		rate = tx_rate->hw_value;
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_TX)
+	if (rtl8xxxu_de & RTL8XXXU_DE_TX)
 		dev_info(dev, "%s: TX rate: %d, pkt size %d\n",
 			 __func__, rate, cpu_to_le16(tx_desc->pkt_size));
 
@@ -4862,7 +4862,7 @@ rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 	else
 		rate = tx_rate->hw_value;
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_TX)
+	if (rtl8xxxu_de & RTL8XXXU_DE_TX)
 		dev_info(dev, "%s: TX rate: %d, pkt size %d\n",
 			 __func__, rate, cpu_to_le16(tx_desc40->pkt_size));
 
@@ -5420,7 +5420,7 @@ static void rtl8xxxu_int_complete(struct urb *urb)
 	struct device *dev = &priv->udev->dev;
 	int ret;
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_INTERRUPT)
+	if (rtl8xxxu_de & RTL8XXXU_DE_INTERRUPT)
 		dev_dbg(dev, "%s: status %i\n", __func__, urb->status);
 	if (urb->status == 0) {
 		usb_anchor_urb(urb, &priv->int_anchor);
@@ -5504,7 +5504,7 @@ static int rtl8xxxu_config(struct ieee80211_hw *hw, u32 changed)
 	int ret = 0, channel;
 	bool ht40;
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_CHANNEL)
+	if (rtl8xxxu_de & RTL8XXXU_DE_CHANNEL)
 		dev_info(dev,
 			 "%s: channel: %i (changed %08x chandef.width %02x)\n",
 			 __func__, hw->conf.chandef.chan->hw_value,
@@ -5928,13 +5928,13 @@ static int rtl8xxxu_parse_usb(struct rtl8xxxu_priv *priv,
 		dir = endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
 		num = usb_endpoint_num(endpoint);
 		xtype = usb_endpoint_type(endpoint);
-		if (rtl8xxxu_debug & RTL8XXXU_DEBUG_USB)
+		if (rtl8xxxu_de & RTL8XXXU_DE_USB)
 			dev_dbg(dev,
 				"%s: endpoint: dir %02x, # %02x, type %02x\n",
 				__func__, dir, num, xtype);
 		if (usb_endpoint_dir_in(endpoint) &&
 		    usb_endpoint_xfer_bulk(endpoint)) {
-			if (rtl8xxxu_debug & RTL8XXXU_DEBUG_USB)
+			if (rtl8xxxu_de & RTL8XXXU_DE_USB)
 				dev_dbg(dev, "%s: in endpoint num %i\n",
 					__func__, num);
 
@@ -5950,7 +5950,7 @@ static int rtl8xxxu_parse_usb(struct rtl8xxxu_priv *priv,
 
 		if (usb_endpoint_dir_in(endpoint) &&
 		    usb_endpoint_xfer_int(endpoint)) {
-			if (rtl8xxxu_debug & RTL8XXXU_DEBUG_USB)
+			if (rtl8xxxu_de & RTL8XXXU_DE_USB)
 				dev_dbg(dev, "%s: interrupt endpoint num %i\n",
 					__func__, num);
 
@@ -5966,7 +5966,7 @@ static int rtl8xxxu_parse_usb(struct rtl8xxxu_priv *priv,
 
 		if (usb_endpoint_dir_out(endpoint) &&
 		    usb_endpoint_xfer_bulk(endpoint)) {
-			if (rtl8xxxu_debug & RTL8XXXU_DEBUG_USB)
+			if (rtl8xxxu_de & RTL8XXXU_DE_USB)
 				dev_dbg(dev, "%s: out endpoint num %i\n",
 					__func__, num);
 			if (j >= RTL8XXXU_OUT_ENDPOINTS) {
@@ -6032,7 +6032,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	}
 
 	if (untested) {
-		rtl8xxxu_debug |= RTL8XXXU_DEBUG_EFUSE;
+		rtl8xxxu_de |= RTL8XXXU_DE_EFUSE;
 		dev_info(&udev->dev,
 			 "This Realtek USB WiFi dongle (0x%04x:0x%04x) is untested!\n",
 			 id->idVendor, id->idProduct);

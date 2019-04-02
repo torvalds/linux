@@ -19,7 +19,7 @@
 #include "color.h"
 #include "cs-etm.h"
 #include "cs-etm-decoder/cs-etm-decoder.h"
-#include "debug.h"
+#include "de.h"
 #include "evlist.h"
 #include "intlist.h"
 #include "machine.h"
@@ -905,7 +905,7 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 	}
 
 	if (!found) {
-		pr_debug("No selected events with CoreSight Trace data\n");
+		pr_de("No selected events with CoreSight Trace data\n");
 		return 0;
 	}
 
@@ -1275,7 +1275,7 @@ static bool cs_etm__is_async_exception(struct cs_etm_queue *etmq, u64 magic)
 	struct cs_etm_packet *packet = etmq->packet;
 
 	if (magic == __perf_cs_etmv3_magic)
-		if (packet->exception_number == CS_ETMV3_EXC_DEBUG_HALT ||
+		if (packet->exception_number == CS_ETMV3_EXC_DE_HALT ||
 		    packet->exception_number == CS_ETMV3_EXC_ASYNC_DATA_ABORT ||
 		    packet->exception_number == CS_ETMV3_EXC_PE_RESET ||
 		    packet->exception_number == CS_ETMV3_EXC_IRQ ||
@@ -1284,10 +1284,10 @@ static bool cs_etm__is_async_exception(struct cs_etm_queue *etmq, u64 magic)
 
 	if (magic == __perf_cs_etmv4_magic)
 		if (packet->exception_number == CS_ETMV4_EXC_RESET ||
-		    packet->exception_number == CS_ETMV4_EXC_DEBUG_HALT ||
+		    packet->exception_number == CS_ETMV4_EXC_DE_HALT ||
 		    packet->exception_number == CS_ETMV4_EXC_SYSTEM_ERROR ||
-		    packet->exception_number == CS_ETMV4_EXC_INST_DEBUG ||
-		    packet->exception_number == CS_ETMV4_EXC_DATA_DEBUG ||
+		    packet->exception_number == CS_ETMV4_EXC_INST_DE ||
+		    packet->exception_number == CS_ETMV4_EXC_DATA_DE ||
 		    packet->exception_number == CS_ETMV4_EXC_IRQ ||
 		    packet->exception_number == CS_ETMV4_EXC_FIQ)
 			return true;
@@ -1452,7 +1452,7 @@ static int cs_etm__set_sample_flags(struct cs_etm_queue *etmq)
 					PERF_IP_FLAG_SYSCALLRET;
 		/*
 		 * The exceptions are triggered by external signals from bus,
-		 * interrupt controller, debug module, PE reset or halt.
+		 * interrupt controller, de module, PE reset or halt.
 		 */
 		else if (cs_etm__is_async_exception(etmq, magic))
 			packet->flags = PERF_IP_FLAG_BRANCH |

@@ -285,7 +285,7 @@ void usb_serial_console_init(int minor)
 		 * register_console). console_write() is called immediately
 		 * from register_console iff CON_PRINTBUFFER is set in flags.
 		 */
-		pr_debug("registering the USB serial console.\n");
+		pr_de("registering the USB serial console.\n");
 		register_console(&usbcons);
 	}
 }

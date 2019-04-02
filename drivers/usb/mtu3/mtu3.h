@@ -203,7 +203,7 @@ struct mtu3_gpd_ring {
 * @id_work : work of iddig detection notifier
 * @id_event : event of iddig detecion notifier
 * @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
-* @manual_drd_enabled: it's true when supports dual-role device by debugfs
+* @manual_drd_enabled: it's true when supports dual-role device by defs
 *		to switch host/device modes depending on user input.
 */
 struct otg_switch_mtk {
@@ -233,7 +233,7 @@ struct otg_switch_mtk {
  * @u3_ports: number of usb3.0 host ports
  * @u3p_dis_msk: mask of disabling usb3 ports, for example, bit0==1 to
  *		disable u3port0, bit1==1 to disable u3port1,... etc
- * @dbgfs_root: only used when supports manual dual-role switch via debugfs
+ * @dbgfs_root: only used when supports manual dual-role switch via defs
  * @uwk_en: it's true when supports remote wakeup in host mode
  * @uwk: syscon including usb wakeup glue layer between SSUSB IP and SPM
  * @uwk_reg_base: the base address of the wakeup glue layer in @uwk

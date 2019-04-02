@@ -32,13 +32,13 @@
 #include "dib0090.h"
 #include "dibx000_common.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "turn on deging (default: 0)");
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 
@@ -1014,7 +1014,7 @@ static void dib0090_gain_apply(struct dib0090_state *state, s16 gain_delta, s16 
 	gain_reg[3] |= state->bb_1_def;
 	gain_reg[3] |= ((bb % 10) * 100) / 125;
 
-#ifdef DEBUG_AGC
+#ifdef DE_AGC
 	dprintk("GA CALC: DB: %3d(rf) + %3d(bb) = %3d gain_reg[0]=%04x gain_reg[1]=%04x gain_reg[2]=%04x gain_reg[0]=%04x\n", rf, bb, rf + bb,
 		gain_reg[0], gain_reg[1], gain_reg[2], gain_reg[3]);
 #endif
@@ -1306,7 +1306,7 @@ int dib0090_gain_control(struct dvb_frontend *fe)
 				apply_gain_immediatly = 0;
 			}
 		}
-#ifdef DEBUG_AGC
+#ifdef DE_AGC
 		dprintk
 			("tune state %d, ADC = %3ddB (ADC err %3d) WBD %3ddB (WBD err %3d, WBD val SADC: %4d), RFGainLimit (TOP): %3d, signal: %3ddBm",
 			 (u32) *tune_state, (u32) adc, (u32) adc_error, (u32) wbd, (u32) wbd_error, (u32) wbd_val,
@@ -2146,7 +2146,7 @@ static int dib0090_captrim_search(struct dib0090_state *state, enum frontend_tun
 			adc = dib0090_get_slow_adc_val(state);
 			dprintk("CAPTRIM=%d; ADC = %d (ADC) & %dmV\n", (u32) state->captrim, (u32) adc, (u32) (adc) * (u32) 1800 / (u32) 1024);
 
-			if (state->rest == 0 || state->identity.in_soc) {	/* Just for 8090P SOCS where auto captrim HW bug : TO CHECK IN ACI for SOCS !!! if 400 for 8090p SOC => tune issue !!! */
+			if (state->rest == 0 || state->identity.in_soc) {	/* Just for 8090P SOCS where auto captrim HW  : TO CHECK IN ACI for SOCS !!! if 400 for 8090p SOC => tune issue !!! */
 				adc_target = 200;
 			} else
 				adc_target = 400;

@@ -36,7 +36,7 @@
 #define print_warn(f, arg...) printk(KERN_WARNING DRIVER_NAME ": " f "\n", ## arg)
 #define print_info(f, arg...) printk(KERN_INFO DRIVER_NAME ": " f "\n", ## arg)
 
-#if DEBUG
+#if DE
 #define print_dbg(f, arg...) printk(__FILE__ ": " f "\n", ## arg)
 #else
 #define print_dbg(f, arg...) do {} while (0)

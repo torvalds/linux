@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 		insn_get_length(&insn);
 		if (insn.length != nb) {
 			warnings++;
-			pr_warn("Found an x86 instruction decoder bug, "
+			pr_warn("Found an x86 instruction decoder , "
 				"please report this.\n", sym);
 			pr_warn("%s", line);
 			pr_warn("objdump says %d bytes, but insn_get_length() "

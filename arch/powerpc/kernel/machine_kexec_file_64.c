@@ -149,7 +149,7 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 	ret = delete_fdt_mem_rsv(fdt, __pa(initial_boot_params),
 				 fdt_totalsize(initial_boot_params));
 	if (ret == 0)
-		pr_debug("Removed old device tree reservation.\n");
+		pr_de("Removed old device tree reservation.\n");
 	else if (ret != -ENOENT)
 		return ret;
 
@@ -190,7 +190,7 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 			ret = delete_fdt_mem_rsv(fdt, tmp_start,
 						 round_up(tmp_size, PAGE_SIZE));
 		if (ret == 0)
-			pr_debug("Removed old initrd reservation.\n");
+			pr_de("Removed old initrd reservation.\n");
 		else if (ret != -ENOENT)
 			return ret;
 

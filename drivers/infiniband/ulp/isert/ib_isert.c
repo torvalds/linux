@@ -38,9 +38,9 @@
 #define ISER_MAX_CQ_LEN		(ISER_MAX_RX_CQ_LEN + ISER_MAX_TX_CQ_LEN + \
 				 ISERT_MAX_CONN)
 
-static int isert_debug_level;
-module_param_named(debug_level, isert_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:0)");
+static int isert_de_level;
+module_param_named(de_level, isert_de_level, int, 0644);
+MODULE_PARM_DESC(de_level, "Enable de tracing if > 0 (default:0)");
 
 static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(device_list);
@@ -572,7 +572,7 @@ isert_connect_release(struct isert_conn *isert_conn)
 
 	isert_dbg("conn %p\n", isert_conn);
 
-	BUG_ON(!device);
+	_ON(!device);
 
 	isert_free_rx_descriptors(isert_conn);
 	if (isert_conn->cm_id &&

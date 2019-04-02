@@ -78,7 +78,7 @@ If the driver can detect hardware initiated brightness changes and thus
 wants to have a brightness_hw_changed attribute then the LED_BRIGHT_HW_CHANGED
 flag must be set in flags before registering. Calling
 led_classdev_notify_brightness_hw_changed on a classdev not registered with
-the LED_BRIGHT_HW_CHANGED flag is a bug and will trigger a WARN_ON.
+the LED_BRIGHT_HW_CHANGED flag is a  and will trigger a WARN_ON.
 
 Hardware accelerated blink of LEDs
 ==================================

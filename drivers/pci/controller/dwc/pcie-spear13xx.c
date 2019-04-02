@@ -42,8 +42,8 @@ struct pcie_app_reg {
 	u32	mst_bmisc;		/* cr9 */
 	u32	phy_ctrl;		/* cr10 */
 	u32	phy_status;		/* cr11 */
-	u32	cxpl_debug_info_0;	/* cr12 */
-	u32	cxpl_debug_info_1;	/* cr13 */
+	u32	cxpl_de_info_0;	/* cr12 */
+	u32	cxpl_de_info_1;	/* cr13 */
 	u32	ven_msg_ctrl_0;		/* cr14 */
 	u32	ven_msg_ctrl_1;		/* cr15 */
 	u32	ven_msg_data_0;		/* cr16 */
@@ -97,7 +97,7 @@ static int spear13xx_pcie_establish_link(struct spear13xx_pcie *spear13xx_pcie)
 	dw_pcie_write(pci->dbi_base + PCI_DEVICE_ID, 2, 0xCD80);
 
 	/*
-	 * if is_gen1 is set then handle it, so that some buggy card
+	 * if is_gen1 is set then handle it, so that some gy card
 	 * also works
 	 */
 	if (spear13xx_pcie->is_gen1) {
@@ -140,7 +140,7 @@ static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
 	status = readl(&app_reg->int_sts);
 
 	if (status & MSI_CTRL_INT) {
-		BUG_ON(!IS_ENABLED(CONFIG_PCI_MSI));
+		_ON(!IS_ENABLED(CONFIG_PCI_MSI));
 		dw_handle_msi_irq(pp);
 	}
 

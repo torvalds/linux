@@ -309,7 +309,7 @@ static int client_reserve_pages(struct dm_kcopyd_client *kc, unsigned nr_pages)
 
 static void client_free_pages(struct dm_kcopyd_client *kc)
 {
-	BUG_ON(kc->nr_free_pages != kc->nr_reserved_pages);
+	_ON(kc->nr_free_pages != kc->nr_reserved_pages);
 	drop_pages(kc->pages);
 	kc->pages = NULL;
 	kc->nr_free_pages = kc->nr_reserved_pages = 0;
@@ -947,10 +947,10 @@ void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc)
 	/* Wait for completion of all jobs submitted by this client. */
 	wait_event(kc->destroyq, !atomic_read(&kc->nr_jobs));
 
-	BUG_ON(!list_empty(&kc->callback_jobs));
-	BUG_ON(!list_empty(&kc->complete_jobs));
-	BUG_ON(!list_empty(&kc->io_jobs));
-	BUG_ON(!list_empty(&kc->pages_jobs));
+	_ON(!list_empty(&kc->callback_jobs));
+	_ON(!list_empty(&kc->complete_jobs));
+	_ON(!list_empty(&kc->io_jobs));
+	_ON(!list_empty(&kc->pages_jobs));
 	destroy_workqueue(kc->kcopyd_wq);
 	dm_io_client_destroy(kc->io_client);
 	client_free_pages(kc);

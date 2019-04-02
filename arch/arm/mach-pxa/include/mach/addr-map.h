@@ -40,7 +40,7 @@
 #define DMEMC_SIZE		0x00100000
 
 /*
- * Reserved space for low level debug virtual addresses within
+ * Reserved space for low level de virtual addresses within
  * 0xf6200000..0xf6201000
  */
 

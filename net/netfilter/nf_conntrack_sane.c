@@ -96,7 +96,7 @@ static int help(struct sk_buff *skb,
 
 	spin_lock_bh(&nf_sane_lock);
 	sb_ptr = skb_header_pointer(skb, dataoff, datalen, sane_buffer);
-	BUG_ON(sb_ptr == NULL);
+	_ON(sb_ptr == NULL);
 
 	if (dir == IP_CT_DIR_ORIGINAL) {
 		if (datalen != sizeof(struct sane_request))
@@ -122,14 +122,14 @@ static int help(struct sk_buff *skb,
 	ct_sane_info->state = SANE_STATE_NORMAL;
 
 	if (datalen < sizeof(struct sane_reply_net_start)) {
-		pr_debug("NET_START reply too short\n");
+		pr_de("NET_START reply too short\n");
 		goto out;
 	}
 
 	reply = sb_ptr;
 	if (reply->status != htonl(SANE_STATUS_SUCCESS)) {
 		/* saned refused the command */
-		pr_debug("unsuccessful SANE_STATUS = %u\n",
+		pr_de("unsuccessful SANE_STATUS = %u\n",
 			 ntohl(reply->status));
 		goto out;
 	}
@@ -150,7 +150,7 @@ static int help(struct sk_buff *skb,
 			  &tuple->src.u3, &tuple->dst.u3,
 			  IPPROTO_TCP, NULL, &reply->port);
 
-	pr_debug("expect: ");
+	pr_de("expect: ");
 	nf_ct_dump_tuple(&exp->tuple);
 
 	/* Can't expect this?  Best to drop packet now. */
@@ -183,7 +183,7 @@ static int __init nf_conntrack_sane_init(void)
 {
 	int i, ret = 0;
 
-	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_sane_master));
+	NF_CT_HELPER_BUILD__ON(sizeof(struct nf_ct_sane_master));
 
 	sane_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!sane_buffer)

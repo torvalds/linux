@@ -17,7 +17,7 @@
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/perf_event.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 #include <asm/io_trapped.h>
 #include <asm/mmu_context.h>
@@ -152,7 +152,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 		 * be another reason for the fault. Return NULL here to
 		 * signal that we have not taken care of the fault.
 		 */
-		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+		_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 		return NULL;
 	}
 
@@ -203,7 +203,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long address)
 	if (!oops_may_print())
 		return;
 
-	printk(KERN_ALERT "BUG: unable to handle kernel ");
+	printk(KERN_ALERT ": unable to handle kernel ");
 	if (address < PAGE_SIZE)
 		printk(KERN_CONT "NULL pointer dereference");
 	else
@@ -351,7 +351,7 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		else if (fault & VM_FAULT_SIGSEGV)
 			bad_area(regs, error_code, address);
 		else
-			BUG();
+			();
 	}
 
 	return 1;

@@ -111,8 +111,8 @@ avm_a1_interrupt(int intno, void *dev_id)
 		if (!(sval & AVM_A1_STAT_TIMER)) {
 			byteout(cs->hw.avm.cfg_reg, 0x1E);
 			sval = bytein(cs->hw.avm.cfg_reg);
-		} else if (cs->debug & L1_DEB_INTSTAT)
-			debugl1(cs, "avm IntStatus %x", sval);
+		} else if (cs->de & L1_DEB_INTSTAT)
+			del1(cs, "avm IntStatus %x", sval);
 		if (!(sval & AVM_A1_STAT_HSCX)) {
 			val = readreg(cs->hw.avm.hscx[1], HSCX_ISTA);
 			if (val)

@@ -1152,13 +1152,13 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 			confreg[0] = superio_inb(sioaddr, 0xF0);
 			confreg[1] = superio_inb(sioaddr, 0xF1);
 
-			pr_debug("Fan %d: mon=%d ctrl=%d inv=%d\n", 1,
+			pr_de("Fan %d: mon=%d ctrl=%d inv=%d\n", 1,
 				 (confreg[0] >> 2) & 1, (confreg[0] >> 3) & 1,
 				 (confreg[0] >> 4) & 1);
-			pr_debug("Fan %d: mon=%d ctrl=%d inv=%d\n", 2,
+			pr_de("Fan %d: mon=%d ctrl=%d inv=%d\n", 2,
 				 (confreg[0] >> 5) & 1, (confreg[0] >> 6) & 1,
 				 (confreg[0] >> 7) & 1);
-			pr_debug("Fan %d: mon=%d ctrl=%d inv=%d\n", 3,
+			pr_de("Fan %d: mon=%d ctrl=%d inv=%d\n", 3,
 				 confreg[1] & 1, (confreg[1] >> 1) & 1,
 				 (confreg[1] >> 2) & 1);
 		} else if (i == 1) { /* Voltages */

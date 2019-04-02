@@ -273,7 +273,7 @@ int libipw_wx_get_scan(struct libipw_device *ieee,
 	char *stop = ev + wrqu->data.length;
 	int i = 0;
 
-	LIBIPW_DEBUG_WX("Getting scan\n");
+	LIBIPW_DE_WX("Getting scan\n");
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -289,7 +289,7 @@ int libipw_wx_get_scan(struct libipw_device *ieee,
 			ev = libipw_translate_scan(ieee, ev, stop, network,
 						      info);
 		else {
-			LIBIPW_DEBUG_SCAN("Not showing network '%*pE (%pM)' due to age (%ums).\n",
+			LIBIPW_DE_SCAN("Not showing network '%*pE (%pM)' due to age (%ums).\n",
 					  network->ssid_len, network->ssid,
 					  network->bssid,
 					  elapsed_jiffies_msecs(
@@ -302,7 +302,7 @@ int libipw_wx_get_scan(struct libipw_device *ieee,
 	wrqu->data.length = ev - extra;
 	wrqu->data.flags = 0;
 
-	LIBIPW_DEBUG_WX("exit: %d networks returned.\n", i);
+	LIBIPW_DE_WX("exit: %d networks returned.\n", i);
 
 	return err;
 }
@@ -320,7 +320,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 	struct lib80211_crypt_data **crypt;
 	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
 
-	LIBIPW_DEBUG_WX("SET_ENCODE\n");
+	LIBIPW_DE_WX("SET_ENCODE\n");
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
@@ -333,18 +333,18 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		key = ieee->crypt_info.tx_keyidx;
 	}
 
-	LIBIPW_DEBUG_WX("Key: %d [%s]\n", key, key_provided ?
+	LIBIPW_DE_WX("Key: %d [%s]\n", key, key_provided ?
 			   "provided" : "default");
 
 	crypt = &ieee->crypt_info.crypt[key];
 
 	if (erq->flags & IW_ENCODE_DISABLED) {
 		if (key_provided && *crypt) {
-			LIBIPW_DEBUG_WX("Disabling encryption on key %d.\n",
+			LIBIPW_DE_WX("Disabling encryption on key %d.\n",
 					   key);
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 		} else
-			LIBIPW_DEBUG_WX("Disabling encryption.\n");
+			LIBIPW_DE_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
@@ -413,7 +413,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		if (len > erq->length)
 			memset(sec.keys[key] + erq->length, 0,
 			       len - erq->length);
-		LIBIPW_DEBUG_WX("Setting key %d to '%*pE' (%d:%d bytes)\n",
+		LIBIPW_DE_WX("Setting key %d to '%*pE' (%d:%d bytes)\n",
 				   key, len, sec.keys[key],
 				   erq->length, len);
 		sec.key_sizes[key] = len;
@@ -432,7 +432,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 						     NULL, (*crypt)->priv);
 			if (len == 0) {
 				/* Set a default key of all 0 */
-				LIBIPW_DEBUG_WX("Setting key %d to all "
+				LIBIPW_DE_WX("Setting key %d to all "
 						   "zero.\n", key);
 				memset(sec.keys[key], 0, 13);
 				(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
@@ -443,7 +443,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		}
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			LIBIPW_DEBUG_WX("Setting key %d to default Tx "
+			LIBIPW_DE_WX("Setting key %d to default Tx "
 					   "key.\n", key);
 			ieee->crypt_info.tx_keyidx = key;
 			sec.active_key = key;
@@ -455,7 +455,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		sec.auth_mode = ieee->open_wep ? WLAN_AUTH_OPEN :
 		    WLAN_AUTH_SHARED_KEY;
 		sec.flags |= SEC_AUTH_MODE;
-		LIBIPW_DEBUG_WX("Auth: %s\n",
+		LIBIPW_DE_WX("Auth: %s\n",
 				   sec.auth_mode == WLAN_AUTH_OPEN ?
 				   "OPEN" : "SHARED KEY");
 	}
@@ -481,7 +481,7 @@ int libipw_wx_get_encode(struct libipw_device *ieee,
 	int len, key;
 	struct libipw_security *sec = &ieee->sec;
 
-	LIBIPW_DEBUG_WX("GET_ENCODE\n");
+	LIBIPW_DE_WX("GET_ENCODE\n");
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
@@ -592,7 +592,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		module = "lib80211_crypt_ccmp";
 		break;
 	default:
-		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DE_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -604,7 +604,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DE_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -634,7 +634,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
-		LIBIPW_DEBUG_WX("%s: key setting failed\n", dev->name);
+		LIBIPW_DE_WX("%s: key setting failed\n", dev->name);
 		ret = -EINVAL;
 		goto done;
 	}

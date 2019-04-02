@@ -157,7 +157,7 @@
 #define TXC_MTDIABLO_CTRL_PMA_LOOP_LBN	10
 
 struct txc43128_data {
-	unsigned long bug10934_timer;
+	unsigned long 10934_timer;
 	enum ef4_phy_mode phy_mode;
 	enum ef4_loopback_mode loopback_mode;
 };
@@ -165,7 +165,7 @@ struct txc43128_data {
 /* The PHY sometimes needs a reset to bring the link back up.  So long as
  * it reports link down, we reset it every 5 seconds.
  */
-#define BUG10934_RESET_INTERVAL (5 * HZ)
+#define 10934_RESET_INTERVAL (5 * HZ)
 
 /* Perform a reset that doesn't clear configuration changes */
 static void txc_reset_logic(struct ef4_nic *efx);
@@ -500,11 +500,11 @@ static bool txc43128_phy_poll(struct ef4_nic *efx)
 	efx->link_state.fc = efx->wanted_fc;
 
 	if (efx->link_state.up || (efx->loopback_mode != LOOPBACK_NONE)) {
-		data->bug10934_timer = jiffies;
+		data->10934_timer = jiffies;
 	} else {
-		if (time_after_eq(jiffies, (data->bug10934_timer +
-					    BUG10934_RESET_INTERVAL))) {
-			data->bug10934_timer = jiffies;
+		if (time_after_eq(jiffies, (data->10934_timer +
+					    10934_RESET_INTERVAL))) {
+			data->10934_timer = jiffies;
 			txc_reset_logic(efx);
 		}
 	}

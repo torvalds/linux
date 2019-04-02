@@ -13,9 +13,9 @@
 #include <linux/sched.h>
 #include "bfs.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define dprintf(x...)	printf(x)
 #else
 #define dprintf(x...)

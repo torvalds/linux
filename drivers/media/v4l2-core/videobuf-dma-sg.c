@@ -41,19 +41,19 @@
 	if (unlikely((is) != (should))) {				\
 		printk(KERN_ERR "magic mismatch: %x (expected %x)\n",	\
 				is, should);				\
-		BUG();							\
+		();							\
 	}
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux dma sg buffers");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)					\
-	if (debug >= level)						\
-		printk(KERN_DEBUG "vbuf-sg: " fmt , ## arg)
+	if (de >= level)						\
+		printk(KERN_DE "vbuf-sg: " fmt , ## arg)
 
 /* --------------------------------------------------------------------- */
 
@@ -77,7 +77,7 @@ static struct scatterlist *videobuf_vmalloc_to_sg(unsigned char *virt,
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
-		BUG_ON(PageHighMem(pg));
+		_ON(PageHighMem(pg));
 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
 	}
 	return sglist;
@@ -137,7 +137,7 @@ highmem:
 struct videobuf_dmabuf *videobuf_to_dma(struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_sg_memory *mem = buf->priv;
-	BUG_ON(!mem);
+	_ON(!mem);
 
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
@@ -167,7 +167,7 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 		rw = WRITE;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	first = (data          & PAGE_MASK) >> PAGE_SHIFT;
@@ -288,7 +288,7 @@ static int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 static int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 {
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
-	BUG_ON(0 == dma->nr_pages);
+	_ON(0 == dma->nr_pages);
 
 	if (dma->pages) {
 		dma->sglist = videobuf_pages_to_sg(dma->pages, dma->nr_pages,
@@ -349,7 +349,7 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 {
 	int i;
 	MAGIC_CHECK(dma->magic, MAGIC_DMABUF);
-	BUG_ON(dma->sglen);
+	_ON(dma->sglen);
 
 	if (dma->pages) {
 		for (i = 0; i < dma->nr_pages; i++)
@@ -492,7 +492,7 @@ static struct videobuf_buffer *__videobuf_alloc_vb(size_t size)
 static void *__videobuf_to_vaddr(struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_sg_memory *mem = buf->priv;
-	BUG_ON(!mem);
+	_ON(!mem);
 
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
@@ -506,7 +506,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 	int err, pages;
 	dma_addr_t bus;
 	struct videobuf_dma_sg_memory *mem = vb->priv;
-	BUG_ON(!mem);
+	_ON(!mem);
 
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
@@ -563,7 +563,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 			return err;
 		break;
 	default:
-		BUG();
+		();
 	}
 	err = videobuf_dma_map(q->dev, &mem->dma);
 	if (0 != err)
@@ -576,7 +576,7 @@ static int __videobuf_sync(struct videobuf_queue *q,
 			   struct videobuf_buffer *buf)
 {
 	struct videobuf_dma_sg_memory *mem = buf->priv;
-	BUG_ON(!mem || !mem->dma.sglen);
+	_ON(!mem || !mem->dma.sglen);
 
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 	MAGIC_CHECK(mem->dma.magic, MAGIC_DMABUF);
@@ -598,7 +598,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	retval = -EINVAL;
 
-	BUG_ON(!mem);
+	_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
 	/* look for first buffer to map */
@@ -611,7 +611,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	/* paranoia, should never happen since buf is always valid. */
 	if (!size) {
-		dprintk(1, "mmap app bug: offset invalid [offset=0x%lx]\n",
+		dprintk(1, "mmap app : offset invalid [offset=0x%lx]\n",
 				(vma->vm_pgoff << PAGE_SHIFT));
 		goto done;
 	}

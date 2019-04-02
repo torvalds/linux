@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: utdebug - Debug print/trace routines
+ * Module Name: utde - De print/trace routines
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -14,9 +14,9 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_UTILITIES
-ACPI_MODULE_NAME("utdebug")
+ACPI_MODULE_NAME("utde")
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 static acpi_thread_id acpi_gbl_previous_thread_id = (acpi_thread_id) 0xFFFFFFFF;
 static const char *acpi_gbl_function_entry_prefix = "----Entry";
 static const char *acpi_gbl_function_exit_prefix = "----Exit-";
@@ -75,7 +75,7 @@ void acpi_ut_track_stack_ptr(void)
  *
  * DESCRIPTION: Remove the "Acpi" prefix from the function name, if present.
  *              This allows compiler macros such as __func__ to be used
- *              with no change to the debug output.
+ *              with no change to the de output.
  *
  ******************************************************************************/
 
@@ -103,9 +103,9 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_debug_print
+ * FUNCTION:    acpi_de_print
  *
- * PARAMETERS:  requested_debug_level - Requested debug print level
+ * PARAMETERS:  requested_de_level - Requested de print level
  *              line_number         - Caller's line number (for error output)
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
@@ -121,7 +121,7 @@ static const char *acpi_ut_trim_function_name(const char *function_name)
  ******************************************************************************/
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_debug_print(u32 requested_debug_level,
+acpi_de_print(u32 requested_de_level,
 		 u32 line_number,
 		 const char *function_name,
 		 const char *module_name,
@@ -133,9 +133,9 @@ acpi_debug_print(u32 requested_debug_level,
 	int fill_count;
 #endif
 
-	/* Check if debug output enabled */
+	/* Check if de output enabled */
 
-	if (!ACPI_IS_DEBUG_ENABLED(requested_debug_level, component_id)) {
+	if (!ACPI_IS_DE_ENABLED(requested_de_level, component_id)) {
 		return;
 	}
 
@@ -192,13 +192,13 @@ acpi_debug_print(u32 requested_debug_level,
 	va_end(args);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_debug_print)
+ACPI_EXPORT_SYMBOL(acpi_de_print)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_debug_print_raw
+ * FUNCTION:    acpi_de_print_raw
  *
- * PARAMETERS:  requested_debug_level - Requested debug print level
+ * PARAMETERS:  requested_de_level - Requested de print level
  *              line_number         - Caller's line number
  *              function_name       - Caller's procedure name
  *              module_name         - Caller's module name
@@ -209,11 +209,11 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print)
  * RETURN:      None
  *
  * DESCRIPTION: Print message with no headers. Has same interface as
- *              debug_print so that the same macros can be used.
+ *              de_print so that the same macros can be used.
  *
  ******************************************************************************/
 void ACPI_INTERNAL_VAR_XFACE
-acpi_debug_print_raw(u32 requested_debug_level,
+acpi_de_print_raw(u32 requested_de_level,
 		     u32 line_number,
 		     const char *function_name,
 		     const char *module_name,
@@ -221,9 +221,9 @@ acpi_debug_print_raw(u32 requested_debug_level,
 {
 	va_list args;
 
-	/* Check if debug output enabled */
+	/* Check if de output enabled */
 
-	if (!ACPI_IS_DEBUG_ENABLED(requested_debug_level, component_id)) {
+	if (!ACPI_IS_DE_ENABLED(requested_de_level, component_id)) {
 		return;
 	}
 
@@ -232,7 +232,7 @@ acpi_debug_print_raw(u32 requested_debug_level,
 	va_end(args);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_debug_print_raw)
+ACPI_EXPORT_SYMBOL(acpi_de_print_raw)
 
 /*******************************************************************************
  *
@@ -246,7 +246,7 @@ ACPI_EXPORT_SYMBOL(acpi_debug_print_raw)
  * RETURN:      None
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level
+ *              set in de_level
  *
  ******************************************************************************/
 void
@@ -260,8 +260,8 @@ acpi_ut_trace(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s\n",
 				 acpi_gbl_function_entry_prefix);
@@ -283,7 +283,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_trace)
  * RETURN:      None
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level
+ *              set in de_level
  *
  ******************************************************************************/
 void
@@ -298,8 +298,8 @@ acpi_ut_trace_ptr(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s %p\n",
 				 acpi_gbl_function_entry_prefix, pointer);
@@ -319,7 +319,7 @@ acpi_ut_trace_ptr(u32 line_number,
  * RETURN:      None
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level
+ *              set in de_level
  *
  ******************************************************************************/
 
@@ -334,8 +334,8 @@ acpi_ut_trace_str(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s %s\n",
 				 acpi_gbl_function_entry_prefix, string);
@@ -355,7 +355,7 @@ acpi_ut_trace_str(u32 line_number,
  * RETURN:      None
  *
  * DESCRIPTION: Function entry trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level
+ *              set in de_level
  *
  ******************************************************************************/
 
@@ -370,8 +370,8 @@ acpi_ut_trace_u32(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s %08X\n",
 				 acpi_gbl_function_entry_prefix, integer);
@@ -390,7 +390,7 @@ acpi_ut_trace_u32(u32 line_number,
  * RETURN:      None
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level
+ *              set in de_level
  *
  ******************************************************************************/
 
@@ -402,8 +402,8 @@ acpi_ut_exit(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s\n",
 				 acpi_gbl_function_exit_prefix);
@@ -429,7 +429,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_exit)
  * RETURN:      None
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level. Prints exit status also.
+ *              set in de_level. Prints exit status also.
  *
  ******************************************************************************/
 void
@@ -441,15 +441,15 @@ acpi_ut_status_exit(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
 		if (ACPI_SUCCESS(status)) {
-			acpi_debug_print(ACPI_LV_FUNCTIONS,
+			acpi_de_print(ACPI_LV_FUNCTIONS,
 					 line_number, function_name,
 					 module_name, component_id, "%s %s\n",
 					 acpi_gbl_function_exit_prefix,
 					 acpi_format_exception(status));
 		} else {
-			acpi_debug_print(ACPI_LV_FUNCTIONS,
+			acpi_de_print(ACPI_LV_FUNCTIONS,
 					 line_number, function_name,
 					 module_name, component_id,
 					 "%s ****Exception****: %s\n",
@@ -478,7 +478,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
  * RETURN:      None
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level. Prints exit value also.
+ *              set in de_level. Prints exit value also.
  *
  ******************************************************************************/
 void
@@ -489,8 +489,8 @@ acpi_ut_value_exit(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s %8.8X%8.8X\n",
 				 acpi_gbl_function_exit_prefix,
@@ -517,7 +517,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
  * RETURN:      None
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level. Prints exit value also.
+ *              set in de_level. Prints exit value also.
  *
  ******************************************************************************/
 void
@@ -528,8 +528,8 @@ acpi_ut_ptr_exit(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s %p\n",
 				 acpi_gbl_function_exit_prefix, ptr);
@@ -553,7 +553,7 @@ acpi_ut_ptr_exit(u32 line_number,
  * RETURN:      None
  *
  * DESCRIPTION: Function exit trace. Prints only if TRACE_FUNCTIONS bit is
- *              set in debug_level. Prints exit value also.
+ *              set in de_level. Prints exit value also.
  *
  ******************************************************************************/
 
@@ -565,8 +565,8 @@ acpi_ut_str_exit(u32 line_number,
 
 	/* Check if enabled up-front for performance */
 
-	if (ACPI_IS_DEBUG_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
-		acpi_debug_print(ACPI_LV_FUNCTIONS,
+	if (ACPI_IS_DE_ENABLED(ACPI_LV_FUNCTIONS, component_id)) {
+		acpi_de_print(ACPI_LV_FUNCTIONS,
 				 line_number, function_name, module_name,
 				 component_id, "%s %s\n",
 				 acpi_gbl_function_exit_prefix, string);

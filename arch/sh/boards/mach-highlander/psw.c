@@ -2,7 +2,7 @@
 /*
  * arch/sh/boards/renesas/r7780rp/psw.c
  *
- * push switch support for RDBRP-1/RDBREVRP-1 debug boards.
+ * push switch support for RDBRP-1/RDBREVRP-1 de boards.
  *
  * Copyright (C) 2006  Paul Mundt
  */

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config RAS_CEC
 	bool "Correctable Errors Collector"
-	depends on X86_MCE && MEMORY_FAILURE && DEBUG_FS
+	depends on X86_MCE && MEMORY_FAILURE && DE_FS
 	---help---
 	  This is a small cache which collects correctable memory errors per 4K
 	  page PFN and counts their repeated occurrence. Once the counter for a

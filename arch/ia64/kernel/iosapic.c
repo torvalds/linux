@@ -27,8 +27,8 @@
  *				vectors in iosapic_set_affinity(),
  *				initializations for /proc/irq/#/smp_affinity
  * 02/04/02	P. Diefenbaugh	Cleaned up ACPI PCI IRQ routing.
- * 02/04/18	J.I. Lee	bug fix in iosapic_init_pci_irq
- * 02/04/30	J.I. Lee	bug fix in find_iosapic to fix ACPI PCI IRQ to
+ * 02/04/18	J.I. Lee	 fix in iosapic_init_pci_irq
+ * 02/04/30	J.I. Lee	 fix in find_iosapic to fix ACPI PCI IRQ to
  *				IOSAPIC mapping error
  * 02/07/29	T. Kochi	Allocate interrupt vectors dynamically
  * 02/08/04	T. Kochi	Cleaned up terminology (irq, global system
@@ -100,9 +100,9 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 
-#undef DEBUG_INTERRUPT_ROUTING
+#undef DE_INTERRUPT_ROUTING
 
-#ifdef DEBUG_INTERRUPT_ROUTING
+#ifdef DE_INTERRUPT_ROUTING
 #define DBG(fmt...)	printk(fmt)
 #else
 #define DBG(fmt...)
@@ -224,7 +224,7 @@ set_rte (unsigned int gsi, unsigned int irq, unsigned int dest, int mask)
 	struct iosapic_rte_info *rte;
 	ia64_vector vector = irq_to_vector(irq);
 
-	DBG(KERN_DEBUG"IOSAPIC: routing vector %d to 0x%x\n", vector, dest);
+	DBG(KERN_DE"IOSAPIC: routing vector %d to 0x%x\n", vector, dest);
 
 	rte = find_rte(irq, gsi);
 	if (!rte)
@@ -888,7 +888,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 		break;
 	      case ACPI_INTERRUPT_CPEI:
 		irq = vector = IA64_CPE_VECTOR;
-		BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
+		_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
 		delivery = IOSAPIC_FIXED;
 		mask = 1;
 		break;
@@ -923,7 +923,7 @@ void iosapic_override_isa_irq(unsigned int isa_irq, unsigned int gsi,
 	unsigned char dmode;
 
 	irq = vector = isa_irq_to_vector(isa_irq);
-	BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
+	_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
 	dmode = choose_dmode();
 	register_intr(gsi, irq, dmode, polarity, trigger);
 

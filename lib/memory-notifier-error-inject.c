@@ -29,7 +29,7 @@ static int err_inject_init(void)
 
 	err = register_memory_notifier(&memory_notifier_err_inject.nb);
 	if (err)
-		debugfs_remove_recursive(dir);
+		defs_remove_recursive(dir);
 
 	return err;
 }
@@ -37,7 +37,7 @@ static int err_inject_init(void)
 static void err_inject_exit(void)
 {
 	unregister_memory_notifier(&memory_notifier_err_inject.nb);
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 }
 
 module_init(err_inject_init);

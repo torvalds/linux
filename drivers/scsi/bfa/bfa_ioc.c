@@ -1140,7 +1140,7 @@ bfa_iocpf_sm_disabled(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 static void
 bfa_iocpf_sm_initfail_sync_entry(struct bfa_iocpf_s *iocpf)
 {
-	bfa_ioc_debug_save_ftrc(iocpf->ioc);
+	bfa_ioc_de_save_ftrc(iocpf->ioc);
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
 
@@ -2168,7 +2168,7 @@ bfa_ioc_fail_notify(struct bfa_ioc_s *ioc)
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
 
-	bfa_ioc_debug_save_ftrc(ioc);
+	bfa_ioc_de_save_ftrc(ioc);
 
 	BFA_LOG(KERN_CRIT, bfad, bfa_log_level,
 		"Heart Beat of IOC has failed\n");
@@ -2527,7 +2527,7 @@ bfa_ioc_suspend(struct bfa_ioc_s *ioc)
  * trace memory before call bfa_ioc_enable().
  */
 void
-bfa_ioc_debug_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave)
+bfa_ioc_de_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave)
 {
 	ioc->dbg_fwsave	    = dbg_fwsave;
 	ioc->dbg_fwsave_len = BFA_DBG_FWTRC_LEN;
@@ -2953,7 +2953,7 @@ bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
  * Retrieve saved firmware trace from a prior IOC failure.
  */
 bfa_status_t
-bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
+bfa_ioc_de_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
 {
 	int	tlen;
 
@@ -2974,7 +2974,7 @@ bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
  * Retrieve saved firmware trace from a prior IOC failure.
  */
 bfa_status_t
-bfa_ioc_debug_fwtrc(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
+bfa_ioc_de_fwtrc(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
 {
 	u32 loff = BFA_DBG_FWTRC_OFF(bfa_ioc_portid(ioc));
 	int tlen;
@@ -3029,7 +3029,7 @@ bfa_ioc_fwsync(struct bfa_ioc_s *ioc)
  * Dump firmware smem
  */
 bfa_status_t
-bfa_ioc_debug_fwcore(struct bfa_ioc_s *ioc, void *buf,
+bfa_ioc_de_fwcore(struct bfa_ioc_s *ioc, void *buf,
 				u32 *offset, int *buflen)
 {
 	u32 loff;
@@ -3121,7 +3121,7 @@ bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc)
  * Save firmware trace if configured.
  */
 void
-bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc)
+bfa_ioc_de_save_ftrc(struct bfa_ioc_s *ioc)
 {
 	int		tlen;
 
@@ -3129,7 +3129,7 @@ bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc)
 		ioc->dbg_fwsave_once = BFA_FALSE;
 		if (ioc->dbg_fwsave_len) {
 			tlen = ioc->dbg_fwsave_len;
-			bfa_ioc_debug_fwtrc(ioc, ioc->dbg_fwsave, &tlen);
+			bfa_ioc_de_fwtrc(ioc, ioc->dbg_fwsave, &tlen);
 		}
 	}
 }

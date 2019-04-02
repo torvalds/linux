@@ -217,7 +217,7 @@ scdrv_read(struct file *file, char __user *buf, size_t count, loff_t *f_pos)
 		 * it out to user space
 		 */
 		if (count < len) {
-			pr_debug("%s: only accepting %d of %d bytes\n",
+			pr_de("%s: only accepting %d of %d bytes\n",
 				 __func__, (int) count, len);
 		}
 		len = min((int) count, len);
@@ -315,7 +315,7 @@ scdrv_write(struct file *file, const char __user *buf,
 	 * "chunk" as requested)
 	 */
 	if ((status >= 0) && (status < count)) {
-		pr_debug("Didn't accept the full chunk; %d of %d\n",
+		pr_de("Didn't accept the full chunk; %d of %d\n",
 			 status, (int) count);
 	}
 	return status;

@@ -318,7 +318,7 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 	struct orangefs_bufmap *bufmap;
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_BUFMAP_DEBUG,
+	gossip_de(GOSSIP_BUFMAP_DE,
 		     "orangefs_bufmap_initialize: called (ptr ("
 		     "%p) sz (%d) cnt(%d).\n",
 		     user_desc->ptr,
@@ -389,7 +389,7 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 		bufmap->readdir_index_array);
 	spin_unlock(&orangefs_bufmap_lock);
 
-	gossip_debug(GOSSIP_BUFMAP_DEBUG,
+	gossip_de(GOSSIP_BUFMAP_DE,
 		     "orangefs_bufmap_initialize: exiting normally\n");
 	return 0;
 
@@ -414,10 +414,10 @@ void orangefs_bufmap_finalize(void)
 	struct orangefs_bufmap *bufmap = __orangefs_bufmap;
 	if (!bufmap)
 		return;
-	gossip_debug(GOSSIP_BUFMAP_DEBUG, "orangefs_bufmap_finalize: called\n");
+	gossip_de(GOSSIP_BUFMAP_DE, "orangefs_bufmap_finalize: called\n");
 	mark_killed(&rw_map);
 	mark_killed(&readdir_map);
-	gossip_debug(GOSSIP_BUFMAP_DEBUG,
+	gossip_de(GOSSIP_BUFMAP_DE,
 		     "orangefs_bufmap_finalize: exiting normally\n");
 }
 
@@ -492,7 +492,7 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 	struct orangefs_bufmap_desc *to;
 	int i;
 
-	gossip_debug(GOSSIP_BUFMAP_DEBUG,
+	gossip_de(GOSSIP_BUFMAP_DE,
 		     "%s: buffer_index:%d: size:%zu:\n",
 		     __func__, buffer_index, size);
 
@@ -521,7 +521,7 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 	int i;
 
 	from = &__orangefs_bufmap->desc_array[buffer_index];
-	gossip_debug(GOSSIP_BUFMAP_DEBUG,
+	gossip_de(GOSSIP_BUFMAP_DE,
 		     "%s: buffer_index:%d: size:%zu:\n",
 		     __func__, buffer_index, size);
 

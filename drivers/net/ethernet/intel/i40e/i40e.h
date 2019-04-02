@@ -81,9 +81,9 @@
 #define I40E_OEM_VER_PATCH_MASK		0xff
 #define I40E_OEM_VER_BUILD_SHIFT	8
 #define I40E_OEM_VER_SHIFT		24
-#define I40E_PHY_DEBUG_ALL \
-	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW | \
-	I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
+#define I40E_PHY_DE_ALL \
+	(I40E_AQ_PHY_DE_DISABLE_LINK_FW | \
+	I40E_AQ_PHY_DE_DISABLE_ALL_LINK_FW)
 
 #define I40E_OEM_EETRACK_ID		0xffffffff
 #define I40E_OEM_GEN_SHIFT		24
@@ -560,9 +560,9 @@ struct i40e_pf {
 	u16 main_vsi_seid;
 	u16 mac_seid;
 	struct kobject *switch_kobj;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *i40e_dbg_pf;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 	bool cur_promisc;
 
 	u16 instance; /* A unique number per i40e_pf instance in the system */
@@ -1008,7 +1008,7 @@ int i40e_vsi_add_pvid(struct i40e_vsi *vsi, u16 vid);
 void i40e_vsi_remove_pvid(struct i40e_vsi *vsi);
 void i40e_vsi_reset_stats(struct i40e_vsi *vsi);
 void i40e_pf_reset_stats(struct i40e_pf *pf);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void i40e_dbg_pf_init(struct i40e_pf *pf);
 void i40e_dbg_pf_exit(struct i40e_pf *pf);
 void i40e_dbg_init(void);
@@ -1018,7 +1018,7 @@ static inline void i40e_dbg_pf_init(struct i40e_pf *pf) {}
 static inline void i40e_dbg_pf_exit(struct i40e_pf *pf) {}
 static inline void i40e_dbg_init(void) {}
 static inline void i40e_dbg_exit(void) {}
-#endif /* CONFIG_DEBUG_FS*/
+#endif /* CONFIG_DE_FS*/
 /* needed by client drivers */
 int i40e_lan_add_device(struct i40e_pf *pf);
 int i40e_lan_del_device(struct i40e_pf *pf);

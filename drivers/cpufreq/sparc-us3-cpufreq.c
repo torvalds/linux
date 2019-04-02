@@ -76,7 +76,7 @@ static unsigned long get_current_freq(unsigned int cpu, unsigned long safari_cfg
 		ret = clock_tick / 32;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ret;
@@ -112,7 +112,7 @@ static int us3_freq_target(struct cpufreq_policy *policy, unsigned int index)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	return smp_call_function_single(cpu, update_safari_cfg, &new_bits, 1);

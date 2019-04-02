@@ -123,7 +123,7 @@ static int major;
 
 
 /*
- * Debug variable to print some diagnostic messages
+ * De variable to print some diagnostic messages
  */
 static int trace_level;
 
@@ -1185,7 +1185,7 @@ issue_scb_block(adapter_t *adapter, u_char *raw_mbox)
 
 	/* Wait until mailbox is free */
 	if(mega_busywait_mbox (adapter))
-		goto bug_blocked_mailbox;
+		goto _blocked_mailbox;
 
 	/* Copy mailbox data into host structure */
 	memcpy((char *) mbox, raw_mbox, sizeof(struct mbox_out));
@@ -1243,7 +1243,7 @@ issue_scb_block(adapter_t *adapter, u_char *raw_mbox)
 
 	return mbox->m_in.status;
 
-bug_blocked_mailbox:
+_blocked_mailbox:
 	dev_warn(&adapter->dev->dev, "Blocked mailbox......!!\n");
 	udelay (1000);
 	return -1;
@@ -1738,7 +1738,7 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 
 	scb->dma_type = MEGA_SGLIST;
 
-	BUG_ON(sgcnt > adapter->sglen || sgcnt < 0);
+	_ON(sgcnt > adapter->sglen || sgcnt < 0);
 
 	*len = 0;
 
@@ -2152,7 +2152,7 @@ proc_show_stat(struct seq_file *m, void *v)
  * @v - File iterator
  *
  * Display mailbox information for the last command issued. This information
- * is good for debugging.
+ * is good for deging.
  */
 static int
 proc_show_mbox(struct seq_file *m, void *v)
@@ -4124,7 +4124,7 @@ mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
 	mc->status = rval = adapter->int_status;
 
 	/*
-	 * Print a debug message for all failed commands. Applications can use
+	 * Print a de message for all failed commands. Applications can use
 	 * this information.
 	 */
 	if (rval && trace_level) {
@@ -4313,7 +4313,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_free_mbox;
 
 	/*
-	 * Have checks for some buggy f/w
+	 * Have checks for some gy f/w
 	 */
 	if ((subsysid == 0x1111) && (subsysvid == 0x1111)) {
 		/*

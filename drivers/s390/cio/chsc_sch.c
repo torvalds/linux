@@ -21,29 +21,29 @@
 #include <asm/isc.h>
 
 #include "cio.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "css.h"
 #include "chsc_sch.h"
 #include "ioasm.h"
 
-static debug_info_t *chsc_debug_msg_id;
-static debug_info_t *chsc_debug_log_id;
+static de_info_t *chsc_de_msg_id;
+static de_info_t *chsc_de_log_id;
 
 static struct chsc_request *on_close_request;
 static struct chsc_async_area *on_close_chsc_area;
 static DEFINE_MUTEX(on_close_mutex);
 
 #define CHSC_MSG(imp, args...) do {					\
-		debug_sprintf_event(chsc_debug_msg_id, imp , ##args);	\
+		de_sprintf_event(chsc_de_msg_id, imp , ##args);	\
 	} while (0)
 
 #define CHSC_LOG(imp, txt) do {					\
-		debug_text_event(chsc_debug_log_id, imp , txt);	\
+		de_text_event(chsc_de_log_id, imp , txt);	\
 	} while (0)
 
 static void CHSC_LOG_HEX(int level, void *data, int length)
 {
-	debug_event(chsc_debug_log_id, level, data, length);
+	de_event(chsc_de_log_id, level, data, length);
 }
 
 MODULE_AUTHOR("IBM Corporation");
@@ -169,26 +169,26 @@ static struct css_driver chsc_subchannel_driver = {
 
 static int __init chsc_init_dbfs(void)
 {
-	chsc_debug_msg_id = debug_register("chsc_msg", 8, 1, 4 * sizeof(long));
-	if (!chsc_debug_msg_id)
+	chsc_de_msg_id = de_register("chsc_msg", 8, 1, 4 * sizeof(long));
+	if (!chsc_de_msg_id)
 		goto out;
-	debug_register_view(chsc_debug_msg_id, &debug_sprintf_view);
-	debug_set_level(chsc_debug_msg_id, 2);
-	chsc_debug_log_id = debug_register("chsc_log", 16, 1, 16);
-	if (!chsc_debug_log_id)
+	de_register_view(chsc_de_msg_id, &de_sprintf_view);
+	de_set_level(chsc_de_msg_id, 2);
+	chsc_de_log_id = de_register("chsc_log", 16, 1, 16);
+	if (!chsc_de_log_id)
 		goto out;
-	debug_register_view(chsc_debug_log_id, &debug_hex_ascii_view);
-	debug_set_level(chsc_debug_log_id, 2);
+	de_register_view(chsc_de_log_id, &de_hex_ascii_view);
+	de_set_level(chsc_de_log_id, 2);
 	return 0;
 out:
-	debug_unregister(chsc_debug_msg_id);
+	de_unregister(chsc_de_msg_id);
 	return -ENOMEM;
 }
 
 static void chsc_remove_dbfs(void)
 {
-	debug_unregister(chsc_debug_log_id);
-	debug_unregister(chsc_debug_msg_id);
+	de_unregister(chsc_de_log_id);
+	de_unregister(chsc_de_msg_id);
 }
 
 static int __init chsc_init_sch_driver(void)

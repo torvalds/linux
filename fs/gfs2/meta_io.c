@@ -39,8 +39,8 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 	int nr_underway = 0;
 	int write_flags = REQ_META | REQ_PRIO | wbc_to_write_flags(wbc);
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(!page_has_buffers(page));
+	_ON(!PageLocked(page));
+	_ON(!page_has_buffers(page));
 
 	head = page_buffers(page);
 	bh = head;
@@ -72,7 +72,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 	 * The page and its buffers are protected by PageWriteback(), so we can
 	 * drop the bh refcounts early.
 	 */
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 
 	do {
@@ -226,7 +226,7 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
 		while (num > 0) {
 			bh = *bhs;
 			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {
-				BUG_ON(bio->bi_iter.bi_size == 0);
+				_ON(bio->bi_iter.bi_size == 0);
 				break;
 			}
 			bhs++;
@@ -442,7 +442,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	u32 max_ra = gfs2_tune_get(sdp, gt_max_readahead) >>
 			  sdp->sd_sb.sb_bsize_shift;
 
-	BUG_ON(!extlen);
+	_ON(!extlen);
 
 	if (max_ra < 1)
 		max_ra = 1;

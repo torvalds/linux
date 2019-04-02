@@ -136,7 +136,7 @@ static u32 page_to_balloon_pfn(struct page *page)
 {
 	unsigned long pfn = page_to_pfn(page);
 
-	BUILD_BUG_ON(PAGE_SHIFT < VIRTIO_BALLOON_PFN_SHIFT);
+	BUILD__ON(PAGE_SHIFT < VIRTIO_BALLOON_PFN_SHIFT);
 	/* Convert pfn from Linux page size to balloon page size. */
 	return pfn * VIRTIO_BALLOON_PAGES_PER_PAGE;
 }
@@ -281,7 +281,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
 static inline void update_stat(struct virtio_balloon *vb, int idx,
 			       u16 tag, u64 val)
 {
-	BUG_ON(idx >= VIRTIO_BALLOON_S_NR);
+	_ON(idx >= VIRTIO_BALLOON_S_NR);
 	vb->stats[idx].tag = cpu_to_virtio16(vb->vdev, tag);
 	vb->stats[idx].val = cpu_to_virtio64(vb->vdev, val);
 }

@@ -259,7 +259,7 @@ static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 	unsigned long stamp;
 	int r;
 
-	if (saa_debug >= 4)
+	if (saa_de >= 4)
 		saa7164_bus_dump(dev);
 
 	dprintk(DBGLVL_CMD, "%s(seqno=%d)\n", __func__, seqno);

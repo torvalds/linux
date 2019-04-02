@@ -221,7 +221,7 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 	job = to_amdgpu_job(sched_job);
 	finished = &job->base.s_fence->finished;
 
-	BUG_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
+	_ON(amdgpu_sync_peek_fence(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
 

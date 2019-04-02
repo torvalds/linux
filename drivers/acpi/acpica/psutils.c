@@ -154,7 +154,7 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 
 	ASL_CV_CLEAR_OP_COMMENTS(op);
 	if (op->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "Free retval op: %p\n", op));
 	}
 

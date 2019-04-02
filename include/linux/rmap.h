@@ -80,7 +80,7 @@ struct anon_vma_chain {
 	struct list_head same_vma;   /* locked by mmap_sem & page_table_lock */
 	struct rb_node rb;			/* locked by anon_vma->rwsem */
 	unsigned long rb_subtree_last;
-#ifdef CONFIG_DEBUG_VM_RB
+#ifdef CONFIG_DE_VM_RB
 	unsigned long cached_vma_start, cached_vma_last;
 #endif
 };
@@ -156,7 +156,7 @@ static inline int anon_vma_prepare(struct vm_area_struct *vma)
 static inline void anon_vma_merge(struct vm_area_struct *vma,
 				  struct vm_area_struct *next)
 {
-	VM_BUG_ON_VMA(vma->anon_vma != next->anon_vma, vma);
+	VM__ON_VMA(vma->anon_vma != next->anon_vma, vma);
 	unlink_anon_vmas(next);
 }
 

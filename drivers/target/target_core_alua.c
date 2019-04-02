@@ -316,7 +316,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 
 	if (!(l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA)) {
 		spin_unlock(&l_lun->lun_tg_pt_gp_lock);
-		pr_debug("Unable to process SET_TARGET_PORT_GROUPS"
+		pr_de("Unable to process SET_TARGET_PORT_GROUPS"
 				" while TPGS_EXPLICIT_ALUA is disabled\n");
 		rc = TCM_UNSUPPORTED_SCSI_OPCODE;
 		goto out;
@@ -448,7 +448,7 @@ static inline void set_ascq(struct se_cmd *cmd, u8 alua_ascq)
 	 * The ALUA additional sense code qualifier (ASCQ) is determined
 	 * by the ALUA primary or secondary access state..
 	 */
-	pr_debug("[%s]: ALUA TG Port not available, "
+	pr_de("[%s]: ALUA TG Port not available, "
 		"SenseKey: NOT_READY, ASC/ASCQ: "
 		"0x04/0x%02x\n",
 		cmd->se_tfo->fabric_name, alua_ascq);
@@ -698,7 +698,7 @@ target_alua_state_check(struct se_cmd *cmd)
 	 * access state: OFFLINE
 	 */
 	if (atomic_read(&lun->lun_tg_pt_secondary_offline)) {
-		pr_debug("ALUA: Got secondary offline status for local"
+		pr_de("ALUA: Got secondary offline status for local"
 				" target port\n");
 		set_ascq(cmd, ASCQ_04H_ALUA_OFFLINE);
 		return TCM_CHECK_CONDITION_NOT_READY;
@@ -1076,7 +1076,7 @@ static int core_alua_do_transition_tg_pt(
 		core_alua_update_tpg_primary_metadata(tg_pt_gp);
 	}
 
-	pr_debug("Successful %s ALUA transition TG PT Group: %s ID: %hu"
+	pr_de("Successful %s ALUA transition TG PT Group: %s ID: %hu"
 		" from primary access state %s to %s\n", (explicit) ? "explicit" :
 		"implicit", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
 		tg_pt_gp->tg_pt_gp_id,
@@ -1193,7 +1193,7 @@ int core_alua_do_port_transition(
 	spin_unlock(&lu_gp->lu_gp_lock);
 
 	if (!rc) {
-		pr_debug("Successfully processed LU Group: %s all ALUA TG PT"
+		pr_de("Successfully processed LU Group: %s all ALUA TG PT"
 			 " Group IDs: %hu %s transition to primary state: %s\n",
 			 config_item_name(&lu_gp->lu_gp_group.cg_item),
 			 l_tg_pt_gp->tg_pt_gp_id,
@@ -1282,7 +1282,7 @@ static int core_alua_set_tg_pt_secondary_state(
 			ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG :
 			ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA;
 
-	pr_debug("Successful %s ALUA transition TG PT Group: %s ID: %hu"
+	pr_de("Successful %s ALUA transition TG PT Group: %s ID: %hu"
 		" to secondary access state: %s\n", (explicit) ? "explicit" :
 		"implicit", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
 		tg_pt_gp->tg_pt_gp_id, (offline) ? "OFFLINE" : "ONLINE");
@@ -1965,7 +1965,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 		 * with the default_tg_pt_gp.
 		 */
 		if (!tg_pt_gp_new) {
-			pr_debug("Target_Core_ConfigFS: Moving"
+			pr_de("Target_Core_ConfigFS: Moving"
 				" %s/tpgt_%hu/%s from ALUA Target Port Group:"
 				" alua/%s, ID: %hu back to"
 				" default_tg_pt_gp\n",
@@ -1989,7 +1989,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 
 	__target_attach_tg_pt_gp(lun, tg_pt_gp_new);
 	spin_unlock(&lun->lun_tg_pt_gp_lock);
-	pr_debug("Target_Core_ConfigFS: %s %s/tpgt_%hu/%s to ALUA"
+	pr_de("Target_Core_ConfigFS: %s %s/tpgt_%hu/%s to ALUA"
 		" Target Port Group: alua/%s, ID: %hu\n", (move) ?
 		"Moving" : "Adding", tpg->se_tpg_tfo->tpg_get_wwn(tpg),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
@@ -2292,7 +2292,7 @@ int core_setup_alua(struct se_device *dev)
 				default_lu_gp);
 		spin_unlock(&lu_gp_mem->lu_gp_mem_lock);
 
-		pr_debug("%s: Adding to default ALUA LU Group:"
+		pr_de("%s: Adding to default ALUA LU Group:"
 			" core/alua/lu_gps/default_lu_gp\n",
 			dev->transport->name);
 	}

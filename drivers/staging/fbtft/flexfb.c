@@ -519,7 +519,7 @@ static void set_addr_win_3(struct fbtft_par *par,
 
 static int flexfb_verify_gpios_dc(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
+	fbtft_par_dbg(DE_VERIFY_GPIOS, par, "%s()\n", __func__);
 
 	if (!par->gpio.dc) {
 		dev_err(par->info->device,
@@ -535,7 +535,7 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 	int i;
 	int num_db = buswidth;
 
-	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
+	fbtft_par_dbg(DE_VERIFY_GPIOS, par, "%s()\n", __func__);
 
 	if (!par->gpio.dc) {
 		dev_err(par->info->device, "Missing info about 'dc' gpio. Aborting.\n");
@@ -766,7 +766,7 @@ static int flexfb_remove_common(struct device *dev, struct fb_info *info)
 		return -EINVAL;
 	par = info->par;
 	if (par)
-		fbtft_par_dbg(DEBUG_DRIVER_INIT_FUNCTIONS, par, "%s()\n",
+		fbtft_par_dbg(DE_DRIVER_INIT_FUNCTIONS, par, "%s()\n",
 			      __func__);
 	fbtft_unregister_framebuffer(info);
 	fbtft_framebuffer_release(info);

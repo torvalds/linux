@@ -33,7 +33,7 @@
 #define AVMFRITZ_REV	"2.3"
 
 static int AVM_cnt;
-static int debug;
+static int de;
 
 enum {
 	AVM_FRITZ_PCI,
@@ -148,15 +148,15 @@ static LIST_HEAD(Cards);
 static DEFINE_RWLOCK(card_lock); /* protect Cards */
 
 static void
-_set_debug(struct fritzcard *card)
+_set_de(struct fritzcard *card)
 {
-	card->isac.dch.debug = debug;
-	card->bch[0].debug = debug;
-	card->bch[1].debug = debug;
+	card->isac.dch.de = de;
+	card->bch[0].de = de;
+	card->bch[1].de = de;
 }
 
 static int
-set_debug(const char *val, const struct kernel_param *kp)
+set_de(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct fritzcard *card;
@@ -165,7 +165,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 	if (!ret) {
 		read_lock(&card_lock);
 		list_for_each_entry(card, &Cards, list)
-			_set_debug(card);
+			_set_de(card);
 		read_unlock(&card_lock);
 	}
 	return ret;
@@ -174,8 +174,8 @@ set_debug(const char *val, const struct kernel_param *kp)
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(AVMFRITZ_REV);
-module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "avmfritz debug mask");
+module_param_call(de, set_de, param_get_uint, &de, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "avmfritz de mask");
 
 /* Interface functions */
 
@@ -290,7 +290,7 @@ write_ctrl(struct bchannel *bch, int which) {
 	struct hdlc_hw *hdlc;
 
 	hdlc = &fc->hdlc[(bch->nr - 1) & 1];
-	pr_debug("%s: hdlc %c wr%x ctrl %x\n", fc->name, '@' + bch->nr,
+	pr_de("%s: hdlc %c wr%x ctrl %x\n", fc->name, '@' + bch->nr,
 		 which, hdlc->ctrl.ctrl);
 	switch (fc->type) {
 	case AVM_FRITZ_PCIV2:
@@ -353,7 +353,7 @@ modehdlc(struct bchannel *bch, int protocol)
 	u8 mode;
 
 	hdlc = &fc->hdlc[(bch->nr - 1) & 1];
-	pr_debug("%s: hdlc %c protocol %x-->%x ch %d\n", fc->name,
+	pr_de("%s: hdlc %c protocol %x-->%x ch %d\n", fc->name,
 		 '@' + bch->nr, bch->state, protocol, bch->nr);
 	hdlc->ctrl.ctrl = 0;
 	mode = (fc->type == AVM_FRITZ_PCIV2) ? HDLC_FIFO_SIZE_128 : 0;
@@ -408,7 +408,7 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 	int cnt;
 	struct fritzcard *fc = bch->hw;
 
-	pr_debug("%s: %s %d\n", fc->name, __func__, count);
+	pr_de("%s: %s %d\n", fc->name, __func__, count);
 	if (test_bit(FLG_RX_OFF, &bch->Flags)) {
 		p = NULL;
 		bch->dropcnt += count;
@@ -438,7 +438,7 @@ hdlc_empty_fifo(struct bchannel *bch, int count)
 		}
 		cnt += 4;
 	}
-	if (p && (debug & DEBUG_HW_BFIFO)) {
+	if (p && (de & DE_HW_BFIFO)) {
 		snprintf(fc->log, LOG_SIZE, "B%1d-recv %s %d ",
 			 bch->nr, fc->name, count);
 		print_hex_dump_bytes(fc->log, DUMP_PREFIX_OFFSET, p, count);
@@ -480,11 +480,11 @@ hdlc_fill_fifo(struct bchannel *bch)
 	}
 	ptr = (u32 *)p;
 	if (!fillempty) {
-		pr_debug("%s.B%d: %d/%d/%d", fc->name, bch->nr, count,
+		pr_de("%s.B%d: %d/%d/%d", fc->name, bch->nr, count,
 			 bch->tx_idx, bch->tx_skb->len);
 		bch->tx_idx += count;
 	} else {
-		pr_debug("%s.B%d: fillempty %d\n", fc->name, bch->nr, count);
+		pr_de("%s.B%d: fillempty %d\n", fc->name, bch->nr, count);
 	}
 	hdlc->ctrl.sr.xml = ((count == fs) ? 0 : count);
 	if (fc->type == AVM_FRITZ_PCIV2) {
@@ -509,7 +509,7 @@ hdlc_fill_fifo(struct bchannel *bch)
 			cnt += 4;
 		}
 	}
-	if ((debug & DEBUG_HW_BFIFO) && !fillempty) {
+	if ((de & DE_HW_BFIFO) && !fillempty) {
 		snprintf(fc->log, LOG_SIZE, "B%1d-send %s %d ",
 			 bch->nr, fc->name, count);
 		print_hex_dump_bytes(fc->log, DUMP_PREFIX_OFFSET, p, count);
@@ -542,7 +542,7 @@ HDLC_irq(struct bchannel *bch, u32 stat)
 	struct hdlc_hw	*hdlc;
 
 	hdlc = &fc->hdlc[(bch->nr - 1) & 1];
-	pr_debug("%s: ch%d stat %#x\n", fc->name, bch->nr, stat);
+	pr_de("%s: ch%d stat %#x\n", fc->name, bch->nr, stat);
 	if (fc->type == AVM_FRITZ_PCIV2) {
 		rmlMask = HDLC_STAT_RML_MASK_V2;
 		fs = HDLC_FIFO_SIZE_V2;
@@ -618,7 +618,7 @@ HDLC_irq_main(struct fritzcard *fc)
 		if (bch)
 			HDLC_irq(bch, stat);
 		else
-			pr_debug("%s: spurious ch1 IRQ\n", fc->name);
+			pr_de("%s: spurious ch1 IRQ\n", fc->name);
 	}
 	stat = read_status(fc, 2);
 	if (stat & HDLC_INT_MASK) {
@@ -626,7 +626,7 @@ HDLC_irq_main(struct fritzcard *fc)
 		if (bch)
 			HDLC_irq(bch, stat);
 		else
-			pr_debug("%s: spurious ch2 IRQ\n", fc->name);
+			pr_de("%s: spurious ch2 IRQ\n", fc->name);
 	}
 }
 
@@ -639,7 +639,7 @@ avm_fritz_interrupt(int intno, void *dev_id)
 
 	spin_lock(&fc->lock);
 	sval = inb(fc->addr + 2);
-	pr_debug("%s: irq stat0 %x\n", fc->name, sval);
+	pr_de("%s: irq stat0 %x\n", fc->name, sval);
 	if ((sval & AVM_STATUS0_IRQ_MASK) == AVM_STATUS0_IRQ_MASK) {
 		/* shared  IRQ from other HW */
 		spin_unlock(&fc->lock);
@@ -666,7 +666,7 @@ avm_fritzv2_interrupt(int intno, void *dev_id)
 
 	spin_lock(&fc->lock);
 	sval = inb(fc->addr + 2);
-	pr_debug("%s: irq stat0 %x\n", fc->name, sval);
+	pr_de("%s: irq stat0 %x\n", fc->name, sval);
 	if (!(sval & AVM_STATUS0_IRQ_MASK)) {
 		/* shared  IRQ from other HW */
 		spin_unlock(&fc->lock);
@@ -681,7 +681,7 @@ avm_fritzv2_interrupt(int intno, void *dev_id)
 		mISDNisac_irq(&fc->isac, val);
 	}
 	if (sval & AVM_STATUS0_IRQ_TIMER) {
-		pr_debug("%s: timer irq\n", fc->name);
+		pr_de("%s: timer irq\n", fc->name);
 		outb(fc->ctrlreg | AVM_STATUS0_RES_TIMER, fc->addr + 2);
 		udelay(1);
 		outb(fc->ctrlreg, fc->addr + 2);
@@ -748,9 +748,9 @@ clear_pending_hdlc_ints(struct fritzcard *fc)
 	u32 val;
 
 	val = read_status(fc, 1);
-	pr_debug("%s: HDLC 1 STA %x\n", fc->name, val);
+	pr_de("%s: HDLC 1 STA %x\n", fc->name, val);
 	val = read_status(fc, 2);
-	pr_debug("%s: HDLC 2 STA %x\n", fc->name, val);
+	pr_de("%s: HDLC 2 STA %x\n", fc->name, val);
 }
 
 static void
@@ -764,7 +764,7 @@ reset_avm(struct fritzcard *fc)
 		fc->ctrlreg = AVM_STATUS0_RESET;
 		break;
 	}
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s: reset\n", fc->name);
 	disable_hwirq(fc);
 	mdelay(5);
@@ -780,7 +780,7 @@ reset_avm(struct fritzcard *fc)
 		break;
 	}
 	mdelay(1);
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s: S0/S1 %x/%x\n", fc->name,
 			  inb(fc->addr + 2), inb(fc->addr + 3));
 }
@@ -826,7 +826,7 @@ init_card(struct fritzcard *fc)
 		spin_unlock_irqrestore(&fc->lock, flags);
 		/* Timeout 10ms */
 		msleep_interruptible(10);
-		if (debug & DEBUG_HW)
+		if (de & DE_HW)
 			pr_notice("%s: IRQ %d count %d\n", fc->name,
 				  fc->irq, fc->irqcnt);
 		if (!fc->irqcnt) {
@@ -854,7 +854,7 @@ avm_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	int ret = -EINVAL;
 	u_long flags;
 
-	pr_debug("%s: %s cmd:%x %p\n", fc->name, __func__, cmd, arg);
+	pr_de("%s: %s cmd:%x %p\n", fc->name, __func__, cmd, arg);
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
@@ -934,7 +934,7 @@ avm_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	struct channel_req	*rq;
 	int			err = 0;
 
-	pr_debug("%s: %s cmd:%x %p\n", fc->name, __func__, cmd, arg);
+	pr_de("%s: %s cmd:%x %p\n", fc->name, __func__, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		rq = arg;
@@ -948,7 +948,7 @@ avm_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 			pr_info("%s: cannot get module\n", fc->name);
 		break;
 	case CLOSE_CHANNEL:
-		pr_debug("%s: dev(%d) close from %p\n", fc->name, dch->dev.id,
+		pr_de("%s: dev(%d) close from %p\n", fc->name, dch->dev.id,
 			 __builtin_return_address(0));
 		module_put(THIS_MODULE);
 		break;
@@ -956,7 +956,7 @@ avm_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(fc, arg);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n",
+		pr_de("%s: %s unknown command %x\n",
 			 fc->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -978,7 +978,7 @@ setup_fritz(struct fritzcard *fc)
 		val = inl(fc->addr);
 		outl(AVM_HDLC_1, fc->addr + CHIP_INDEX);
 		ver = inl(fc->addr + CHIP_WINDOW + HDLC_STATUS) >> 24;
-		if (debug & DEBUG_HW) {
+		if (de & DE_HW) {
 			pr_notice("%s: PCI stat %#x\n", fc->name, val);
 			pr_notice("%s: PCI Class %X Rev %d\n", fc->name,
 				  val & 0xff, (val >> 8) & 0xff);
@@ -990,7 +990,7 @@ setup_fritz(struct fritzcard *fc)
 	case AVM_FRITZ_PCIV2:
 		val = inl(fc->addr);
 		ver = inl(fc->addr + AVM_HDLC_STATUS_1) >> 24;
-		if (debug & DEBUG_HW) {
+		if (de & DE_HW) {
 			pr_notice("%s: PCI V2 stat %#x\n", fc->name, val);
 			pr_notice("%s: PCI V2 Class %X Rev %d\n", fc->name,
 				  val & 0xff, (val >> 8) & 0xff);
@@ -1047,7 +1047,7 @@ setup_instance(struct fritzcard *card)
 	list_add_tail(&card->list, &Cards);
 	write_unlock_irqrestore(&card_lock, flags);
 
-	_set_debug(card);
+	_set_de(card);
 	card->isac.name = card->name;
 	spin_lock_init(&card->lock);
 	card->isac.hwlock = &card->lock;
@@ -1080,7 +1080,7 @@ setup_instance(struct fritzcard *card)
 	err = init_card(card);
 	if (!err)  {
 		AVM_cnt++;
-		pr_notice("AVM %d cards installed DEBUG\n", AVM_cnt);
+		pr_notice("AVM %d cards installed DE\n", AVM_cnt);
 		return 0;
 	}
 	mISDN_unregister_device(&card->isac.dch.dev);
@@ -1139,7 +1139,7 @@ fritz_remove_pci(struct pci_dev *pdev)
 	if (card)
 		release_card(card);
 	else
-		if (debug)
+		if (de)
 			pr_info("%s: drvdata already removed\n", __func__);
 }
 

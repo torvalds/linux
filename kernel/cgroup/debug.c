@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Debug controller
+ * De controller
  *
- * WARNING: This controller is for cgroup core debugging only.
+ * WARNING: This controller is for cgroup core deging only.
  * Its interfaces are unstable and subject to changes at any time.
  */
 #include <linux/ctype.h>
@@ -12,7 +12,7 @@
 #include "cgroup-internal.h"
 
 static struct cgroup_subsys_state *
-debug_css_alloc(struct cgroup_subsys_state *parent_css)
+de_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct cgroup_subsys_state *css = kzalloc(sizeof(*css), GFP_KERNEL);
 
@@ -22,16 +22,16 @@ debug_css_alloc(struct cgroup_subsys_state *parent_css)
 	return css;
 }
 
-static void debug_css_free(struct cgroup_subsys_state *css)
+static void de_css_free(struct cgroup_subsys_state *css)
 {
 	kfree(css);
 }
 
 /*
- * debug_taskcount_read - return the number of tasks in a cgroup.
+ * de_taskcount_read - return the number of tasks in a cgroup.
  * @cgrp: the cgroup in question
  */
-static u64 debug_taskcount_read(struct cgroup_subsys_state *css,
+static u64 de_taskcount_read(struct cgroup_subsys_state *css,
 				struct cftype *cft)
 {
 	return cgroup_task_count(css->cgroup);
@@ -274,10 +274,10 @@ static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
 		!css_has_online_children(&css->cgroup->self));
 }
 
-static struct cftype debug_legacy_files[] =  {
+static struct cftype de_legacy_files[] =  {
 	{
 		.name = "taskcount",
-		.read_u64 = debug_taskcount_read,
+		.read_u64 = de_taskcount_read,
 	},
 
 	{
@@ -321,10 +321,10 @@ static struct cftype debug_legacy_files[] =  {
 	{ }	/* terminate */
 };
 
-static struct cftype debug_files[] =  {
+static struct cftype de_files[] =  {
 	{
 		.name = "taskcount",
-		.read_u64 = debug_taskcount_read,
+		.read_u64 = de_taskcount_read,
 	},
 
 	{
@@ -363,19 +363,19 @@ static struct cftype debug_files[] =  {
 	{ }	/* terminate */
 };
 
-struct cgroup_subsys debug_cgrp_subsys = {
-	.css_alloc	= debug_css_alloc,
-	.css_free	= debug_css_free,
-	.legacy_cftypes	= debug_legacy_files,
+struct cgroup_subsys de_cgrp_subsys = {
+	.css_alloc	= de_css_alloc,
+	.css_free	= de_css_free,
+	.legacy_cftypes	= de_legacy_files,
 };
 
 /*
- * On v2, debug is an implicit controller enabled by "cgroup_debug" boot
+ * On v2, de is an implicit controller enabled by "cgroup_de" boot
  * parameter.
  */
-void __init enable_debug_cgroup(void)
+void __init enable_de_cgroup(void)
 {
-	debug_cgrp_subsys.dfl_cftypes = debug_files;
-	debug_cgrp_subsys.implicit_on_dfl = true;
-	debug_cgrp_subsys.threaded = true;
+	de_cgrp_subsys.dfl_cftypes = de_files;
+	de_cgrp_subsys.implicit_on_dfl = true;
+	de_cgrp_subsys.threaded = true;
 }

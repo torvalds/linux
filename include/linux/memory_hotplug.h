@@ -5,7 +5,7 @@
 #include <linux/mmzone.h>
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 struct page;
 struct zone;
@@ -35,7 +35,7 @@ struct vmem_altmap;
 
 /*
  * Types for free bootmem stored in page->lru.next. These have to be in
- * some random range in unsigned long space for debugging purposes.
+ * some random range in unsigned long space for deging purposes.
  */
 enum {
 	MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE = 12,
@@ -190,7 +190,7 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 /* never called */
 static inline pg_data_t *generic_alloc_nodedata(int nid)
 {
-	BUG();
+	();
 	return NULL;
 }
 static inline void generic_free_nodedata(pg_data_t *pgdat)

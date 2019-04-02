@@ -321,7 +321,7 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 		else
 			method = "default";
 
-		pr_debug("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
+		pr_de("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
 			dev_name(&left->dev), dev_name(&right->dev), method,
 			dev_name(&left->dev),
 			lpeer ? dev_name(&lpeer->dev) : "none",

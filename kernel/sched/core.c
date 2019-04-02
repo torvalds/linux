@@ -24,17 +24,17 @@
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
-#if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
+#if defined(CONFIG_SCHED_DE) && defined(CONFIG_JUMP_LABEL)
 /*
- * Debugging: various feature bits
+ * Deging: various feature bits
  *
- * If SCHED_DEBUG is disabled, each compilation unit has its own copy of
+ * If SCHED_DE is disabled, each compilation unit has its own copy of
  * sysctl_sched_features, defined in sched.h, to allow constants propagation
  * at compile time and compiler optimization based on features default.
  */
 #define SCHED_FEAT(name, enabled)	\
 	(1UL << __SCHED_FEAT_##name) * enabled |
-const_debug unsigned int sysctl_sched_features =
+const_de unsigned int sysctl_sched_features =
 #include "features.h"
 	0;
 #undef SCHED_FEAT
@@ -44,7 +44,7 @@ const_debug unsigned int sysctl_sched_features =
  * Number of tasks to iterate in a single balance run.
  * Limited because this is done with IRQs disabled.
  */
-const_debug unsigned int sysctl_sched_nr_migrate = 32;
+const_de unsigned int sysctl_sched_nr_migrate = 32;
 
 /*
  * period over which we measure -rt task CPU usage in us.
@@ -193,7 +193,7 @@ void update_rq_clock(struct rq *rq)
 	if (rq->clock_update_flags & RQCF_ACT_SKIP)
 		return;
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	if (sched_feat(WARN_DOUBLE_CLOCK))
 		SCHED_WARN_ON(rq->clock_update_flags & RQCF_UPDATED);
 	rq->clock_update_flags |= RQCF_UPDATED;
@@ -471,7 +471,7 @@ void wake_up_q(struct wake_q_head *head)
 		struct task_struct *task;
 
 		task = container_of(node, struct task_struct, wake_q);
-		BUG_ON(!task);
+		_ON(!task);
 		/* Task can safely be re-inserted now: */
 		node = node->next;
 		task->wake_q.next = NULL;
@@ -966,7 +966,7 @@ static struct rq *move_queued_task(struct rq *rq, struct rq_flags *rf,
 	rq = cpu_rq(new_cpu);
 
 	rq_lock(rq, rf);
-	BUG_ON(task_cpu(p) != new_cpu);
+	_ON(task_cpu(p) != new_cpu);
 	enqueue_task(rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	check_preempt_curr(rq, p, 0);
@@ -1174,7 +1174,7 @@ EXPORT_SYMBOL_GPL(set_cpus_allowed_ptr);
 
 void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 {
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	/*
 	 * We should never call set_task_cpu() on a blocked task,
 	 * ttwu() will sort out the placement.
@@ -1202,7 +1202,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 	 * Furthermore, all task_rq users should acquire both locks, see
 	 * task_rq_lock().
 	 */
-	WARN_ON_ONCE(debug_locks && !(lockdep_is_held(&p->pi_lock) ||
+	WARN_ON_ONCE(de_locks && !(lockdep_is_held(&p->pi_lock) ||
 				      lockdep_is_held(&task_rq(p)->lock)));
 #endif
 	/*
@@ -1546,7 +1546,7 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 			break;
 
 		case fail:
-			BUG();
+			();
 			break;
 		}
 	}
@@ -2610,7 +2610,7 @@ prepare_lock_switch(struct rq *rq, struct task_struct *next, struct rq_flags *rf
 	 */
 	rq_unpin_lock(rq, rf);
 	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 	/* this is a valid case when another task releases the spinlock */
 	rq->lock.owner = next;
 #endif
@@ -3195,7 +3195,7 @@ static void sched_tick_stop(int cpu)
 int __init sched_tick_offload_init(void)
 {
 	tick_work_cpu = alloc_percpu(struct tick_work);
-	BUG_ON(!tick_work_cpu);
+	_ON(!tick_work_cpu);
 
 	return 0;
 }
@@ -3205,7 +3205,7 @@ static inline void sched_tick_start(int cpu) { }
 static inline void sched_tick_stop(int cpu) { }
 #endif
 
-#if defined(CONFIG_PREEMPT) && (defined(CONFIG_DEBUG_PREEMPT) || \
+#if defined(CONFIG_PREEMPT) && (defined(CONFIG_DE_PREEMPT) || \
 				defined(CONFIG_TRACE_PREEMPT_TOGGLE))
 /*
  * If the value passed in is equal to the current preempt count
@@ -3215,7 +3215,7 @@ static inline void preempt_latency_start(int val)
 {
 	if (preempt_count() == val) {
 		unsigned long ip = get_lock_parent_ip();
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 		current->preempt_disable_ip = ip;
 #endif
 		trace_preempt_off(CALLER_ADDR0, ip);
@@ -3224,19 +3224,19 @@ static inline void preempt_latency_start(int val)
 
 void preempt_count_add(int val)
 {
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 	/*
 	 * Underflow?
 	 */
-	if (DEBUG_LOCKS_WARN_ON((preempt_count() < 0)))
+	if (DE_LOCKS_WARN_ON((preempt_count() < 0)))
 		return;
 #endif
 	__preempt_count_add(val);
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 	/*
 	 * Spinlock count overflowing soon?
 	 */
-	DEBUG_LOCKS_WARN_ON((preempt_count() & PREEMPT_MASK) >=
+	DE_LOCKS_WARN_ON((preempt_count() & PREEMPT_MASK) >=
 				PREEMPT_MASK - 10);
 #endif
 	preempt_latency_start(val);
@@ -3256,16 +3256,16 @@ static inline void preempt_latency_stop(int val)
 
 void preempt_count_sub(int val)
 {
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 	/*
 	 * Underflow?
 	 */
-	if (DEBUG_LOCKS_WARN_ON(val > preempt_count()))
+	if (DE_LOCKS_WARN_ON(val > preempt_count()))
 		return;
 	/*
 	 * Is the spinlock portion underflowing?
 	 */
-	if (DEBUG_LOCKS_WARN_ON((val < PREEMPT_MASK) &&
+	if (DE_LOCKS_WARN_ON((val < PREEMPT_MASK) &&
 			!(preempt_count() & PREEMPT_MASK)))
 		return;
 #endif
@@ -3283,7 +3283,7 @@ static inline void preempt_latency_stop(int val) { }
 
 static inline unsigned long get_preempt_disable_ip(struct task_struct *p)
 {
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 	return p->preempt_disable_ip;
 #else
 	return 0;
@@ -3291,9 +3291,9 @@ static inline unsigned long get_preempt_disable_ip(struct task_struct *p)
 }
 
 /*
- * Print scheduling while atomic bug:
+ * Print scheduling while atomic :
  */
-static noinline void __schedule_bug(struct task_struct *prev)
+static noinline void __schedule_(struct task_struct *prev)
 {
 	/* Save this before calling printk(), since that will clobber it */
 	unsigned long preempt_disable_ip = get_preempt_disable_ip(current);
@@ -3301,14 +3301,14 @@ static noinline void __schedule_bug(struct task_struct *prev)
 	if (oops_in_progress)
 		return;
 
-	printk(KERN_ERR "BUG: scheduling while atomic: %s/%d/0x%08x\n",
+	printk(KERN_ERR ": scheduling while atomic: %s/%d/0x%08x\n",
 		prev->comm, prev->pid, preempt_count());
 
-	debug_show_held_locks(prev);
+	de_show_held_locks(prev);
 	print_modules();
 	if (irqs_disabled())
 		print_irqtrace_events(prev);
-	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT)
+	if (IS_ENABLED(CONFIG_DE_PREEMPT)
 	    && in_atomic_preempt_off()) {
 		pr_err("Preemption disabled at:");
 		print_ip_sym(preempt_disable_ip);
@@ -3322,9 +3322,9 @@ static noinline void __schedule_bug(struct task_struct *prev)
 }
 
 /*
- * Various schedule()-time debugging checks and statistics:
+ * Various schedule()-time deging checks and statistics:
  */
-static inline void schedule_debug(struct task_struct *prev)
+static inline void schedule_de(struct task_struct *prev)
 {
 #ifdef CONFIG_SCHED_STACK_END_CHECK
 	if (task_stack_end_corrupted(prev))
@@ -3332,7 +3332,7 @@ static inline void schedule_debug(struct task_struct *prev)
 #endif
 
 	if (unlikely(in_atomic_preempt_off())) {
-		__schedule_bug(prev);
+		__schedule_(prev);
 		preempt_count_set(PREEMPT_DISABLED);
 	}
 	rcu_sleep_check();
@@ -3383,7 +3383,7 @@ again:
 	}
 
 	/* The idle class should always have a runnable task: */
-	BUG();
+	();
 }
 
 /*
@@ -3437,7 +3437,7 @@ static void __sched notrace __schedule(bool preempt)
 	rq = cpu_rq(cpu);
 	prev = rq->curr;
 
-	schedule_debug(prev);
+	schedule_de(prev);
 
 	if (sched_feat(HRTICK))
 		hrtick_clear(rq);
@@ -3533,9 +3533,9 @@ void __noreturn do_task_dead(void)
 	current->flags |= PF_NOFREEZE;
 
 	__schedule(false);
-	BUG();
+	();
 
-	/* Avoid "noreturn function does return" - but don't continue if BUG() is a NOP: */
+	/* Avoid "noreturn function does return" - but don't continue if () is a NOP: */
 	for (;;)
 		cpu_relax();
 }
@@ -3599,7 +3599,7 @@ asmlinkage __visible void __sched schedule_user(void)
 	 * we haven't yet exited the RCU idle mode. Do it here manually until
 	 * we find a better solution.
 	 *
-	 * NB: There are buggy callers of this function.  Ideally we
+	 * NB: There are gy callers of this function.  Ideally we
 	 * should warn if prev_state != CONTEXT_USER, but that will trigger
 	 * too frequently to make sense yet.
 	 */
@@ -3735,7 +3735,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 	enum ctx_state prev_state;
 
 	/* Catch callers which need to be fixed */
-	BUG_ON(preempt_count() || !irqs_disabled());
+	_ON(preempt_count() || !irqs_disabled());
 
 	prev_state = exception_enter();
 
@@ -4172,7 +4172,7 @@ static int __sched_setscheduler(struct task_struct *p,
 	struct rq *rq;
 
 	/* The pi code expects interrupts enabled */
-	BUG_ON(pi && in_interrupt());
+	_ON(pi && in_interrupt());
 recheck:
 	/* Double check policy once rq lock held: */
 	if (policy < 0) {
@@ -5322,7 +5322,7 @@ void sched_show_task(struct task_struct *p)
 
 	if (p->state == TASK_RUNNING)
 		printk(KERN_CONT "  running task    ");
-#ifdef CONFIG_DEBUG_STACK_USAGE
+#ifdef CONFIG_DE_STACK_USAGE
 	free = stack_not_used(p);
 #endif
 	ppid = 0;
@@ -5388,16 +5388,16 @@ void show_state_filter(unsigned long state_filter)
 			sched_show_task(p);
 	}
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	if (!state_filter)
-		sysrq_sched_debug_show();
+		sysrq_sched_de_show();
 #endif
 	rcu_read_unlock();
 	/*
 	 * Only show locks if all tasks are dumped:
 	 */
 	if (!state_filter)
-		debug_show_all_locks();
+		de_show_all_locks();
 }
 
 /**
@@ -5569,7 +5569,7 @@ void idle_task_exit(void)
 {
 	struct mm_struct *mm = current->active_mm;
 
-	BUG_ON(cpu_online(smp_processor_id()));
+	_ON(cpu_online(smp_processor_id()));
 
 	if (mm != &init_mm) {
 		switch_mm(mm, &init_mm, current);
@@ -5656,7 +5656,7 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 		 * pick_next_task() assumes pinned rq->lock:
 		 */
 		next = pick_next_task(rq, &fake_task, rf);
-		BUG_ON(!next);
+		_ON(!next);
 		put_prev_task(rq, next);
 
 		/*
@@ -5806,7 +5806,7 @@ int sched_cpu_activate(unsigned int cpu)
 	 */
 	rq_lock_irqsave(rq, &rf);
 	if (rq->rd) {
-		BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
+		_ON(!cpumask_test_cpu(cpu, rq->rd->span));
 		set_rq_online(rq);
 	}
 	rq_unlock_irqrestore(rq, &rf);
@@ -5877,11 +5877,11 @@ int sched_cpu_dying(unsigned int cpu)
 
 	rq_lock_irqsave(rq, &rf);
 	if (rq->rd) {
-		BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
+		_ON(!cpumask_test_cpu(cpu, rq->rd->span));
 		set_rq_offline(rq);
 	}
 	migrate_tasks(rq, &rf);
-	BUG_ON(rq->nr_running != 1);
+	_ON(rq->nr_running != 1);
 	rq_unlock_irqrestore(rq, &rf);
 
 	calc_load_migrate(rq);
@@ -5907,7 +5907,7 @@ void __init sched_init_smp(void)
 
 	/* Move init over to a non-isolated CPU */
 	if (set_cpus_allowed_ptr(current, housekeeping_cpumask(HK_FLAG_DOMAIN)) < 0)
-		BUG();
+		();
 	sched_init_granularity();
 
 	init_sched_rt_class();
@@ -6118,7 +6118,7 @@ void __init sched_init(void)
 	scheduler_running = 1;
 }
 
-#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+#ifdef CONFIG_DE_ATOMIC_SLEEP
 static inline int preempt_count_equals(int preempt_offset)
 {
 	int nested = preempt_count() + rcu_preempt_depth();
@@ -6168,7 +6168,7 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
 	preempt_disable_ip = get_preempt_disable_ip(current);
 
 	printk(KERN_ERR
-		"BUG: sleeping function called from invalid context at %s:%d\n",
+		": sleeping function called from invalid context at %s:%d\n",
 			file, line);
 	printk(KERN_ERR
 		"in_atomic(): %d, irqs_disabled(): %d, pid: %d, name: %s\n",
@@ -6178,10 +6178,10 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
 	if (task_stack_end_corrupted(current))
 		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
 
-	debug_show_held_locks(current);
+	de_show_held_locks(current);
 	if (irqs_disabled())
 		print_irqtrace_events(current);
-	if (IS_ENABLED(CONFIG_DEBUG_PREEMPT)
+	if (IS_ENABLED(CONFIG_DE_PREEMPT)
 	    && !preempt_count_equals(preempt_offset)) {
 		pr_err("Preemption disabled at:");
 		print_ip_sym(preempt_disable_ip);
@@ -6209,12 +6209,12 @@ void __cant_sleep(const char *file, int line, int preempt_offset)
 		return;
 	prev_jiffy = jiffies;
 
-	printk(KERN_ERR "BUG: assuming atomic context at %s:%d\n", file, line);
+	printk(KERN_ERR ": assuming atomic context at %s:%d\n", file, line);
 	printk(KERN_ERR "in_atomic(): %d, irqs_disabled(): %d, pid: %d, name: %s\n",
 			in_atomic(), irqs_disabled(),
 			current->pid, current->comm);
 
-	debug_show_held_locks(current);
+	de_show_held_locks(current);
 	dump_stack();
 	add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
 }
@@ -6266,7 +6266,7 @@ void normalize_rt_tasks(void)
  * They can only be called when the whole system has been
  * stopped - every CPU needs to be quiescent, and no scheduling
  * activity can take place. Using them for anything else would
- * be a serious bug, and as a result, they aren't even visible
+ * be a serious , and as a result, they aren't even visible
  * under any other configuration.
  */
 

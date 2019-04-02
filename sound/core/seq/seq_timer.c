@@ -76,7 +76,7 @@ void snd_seq_timer_delete(struct snd_seq_timer **tmr)
 	*tmr = NULL;
 
 	if (t == NULL) {
-		pr_debug("ALSA: seq: snd_seq_timer_delete() called with NULL timer\n");
+		pr_de("ALSA: seq: snd_seq_timer_delete() called with NULL timer\n");
 		return;
 	}
 	t->running = 0;
@@ -178,7 +178,7 @@ int snd_seq_timer_set_tempo(struct snd_seq_timer * tmr, int tempo)
 {
 	unsigned long flags;
 
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 	if (tempo <= 0)
 		return -EINVAL;
@@ -197,7 +197,7 @@ int snd_seq_timer_set_tempo_ppq(struct snd_seq_timer *tmr, int tempo, int ppq)
 	int changed;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 	if (tempo <= 0 || ppq <= 0)
 		return -EINVAL;
@@ -206,7 +206,7 @@ int snd_seq_timer_set_tempo_ppq(struct snd_seq_timer *tmr, int tempo, int ppq)
 		/* refuse to change ppq on running timers */
 		/* because it will upset the song position (ticks) */
 		spin_unlock_irqrestore(&tmr->lock, flags);
-		pr_debug("ALSA: seq: cannot change ppq of a running timer\n");
+		pr_de("ALSA: seq: cannot change ppq of a running timer\n");
 		return -EBUSY;
 	}
 	changed = (tempo != tmr->tempo) || (ppq != tmr->ppq);
@@ -224,7 +224,7 @@ int snd_seq_timer_set_position_tick(struct snd_seq_timer *tmr,
 {
 	unsigned long flags;
 
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 
 	spin_lock_irqsave(&tmr->lock, flags);
@@ -240,7 +240,7 @@ int snd_seq_timer_set_position_time(struct snd_seq_timer *tmr,
 {
 	unsigned long flags;
 
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 
 	snd_seq_sanity_real_time(&position);
@@ -256,12 +256,12 @@ int snd_seq_timer_set_skew(struct snd_seq_timer *tmr, unsigned int skew,
 {
 	unsigned long flags;
 
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 
 	/* FIXME */
 	if (base != SKEW_BASE) {
-		pr_debug("ALSA: seq: invalid skew base 0x%x\n", base);
+		pr_de("ALSA: seq: invalid skew base 0x%x\n", base);
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&tmr->lock, flags);
@@ -278,7 +278,7 @@ int snd_seq_timer_open(struct snd_seq_queue *q)
 	int err;
 
 	tmr = q->timer;
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 	if (tmr->timeri)
 		return -EBUSY;
@@ -319,7 +319,7 @@ int snd_seq_timer_close(struct snd_seq_queue *q)
 	struct snd_timer_instance *t;
 	
 	tmr = q->timer;
-	if (snd_BUG_ON(!tmr))
+	if (snd__ON(!tmr))
 		return -EINVAL;
 	spin_lock_irq(&tmr->lock);
 	t = tmr->timeri;

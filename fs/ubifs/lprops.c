@@ -851,7 +851,7 @@ const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c)
 }
 
 /*
- * Everything below is related to debugging.
+ * Everything below is related to deging.
  */
 
 /**

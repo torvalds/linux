@@ -3,7 +3,7 @@
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi.o
 iwlwifi-objs		+= iwl-io.o
 iwlwifi-objs		+= iwl-drv.o
-iwlwifi-objs		+= iwl-debug.o
+iwlwifi-objs		+= iwl-de.o
 iwlwifi-objs		+= iwl-eeprom-read.o iwl-eeprom-parse.o
 iwlwifi-objs		+= iwl-phy-db.o iwl-nvm-parse.o
 iwlwifi-objs		+= pcie/drv.o pcie/rx.o pcie/tx.o pcie/trans.o
@@ -16,7 +16,7 @@ iwlwifi-objs		+= iwl-trans.o
 iwlwifi-objs		+= fw/notif-wait.o
 iwlwifi-$(CONFIG_IWLMVM) += fw/paging.o fw/smem.o fw/init.o fw/dbg.o
 iwlwifi-$(CONFIG_ACPI) += fw/acpi.o
-iwlwifi-$(CONFIG_IWLWIFI_DEBUGFS) += fw/debugfs.o
+iwlwifi-$(CONFIG_IWLWIFI_DEFS) += fw/defs.o
 
 iwlwifi-objs += $(iwlwifi-m)
 

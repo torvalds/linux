@@ -18,14 +18,14 @@ Kernel Probes (Kprobes)
   8. Kprobes Example
   9. Kretprobes Example
   10. Deprecated Features
-  Appendix A: The kprobes debugfs interface
+  Appendix A: The kprobes defs interface
   Appendix B: The kprobes sysctl interface
 
 Concepts: Kprobes and Return Probes
 =========================================
 
 Kprobes enables you to dynamically break into any kernel routine and
-collect debugging and performance information non-disruptively. You
+collect deging and performance information non-disruptively. You
 can trap at almost any kernel code address [1]_, specifying a handler
 routine to be invoked when the breakpoint is hit.
 
@@ -171,7 +171,7 @@ How Does Jump Optimization Work?
 
 If your kernel is built with CONFIG_OPTPROBES=y (currently this flag
 is automatically set 'y' on x86/x86-64, non-preemptive kernel) and
-the "debug.kprobes_optimization" kernel parameter is set to 1 (see
+the "de.kprobes_optimization" kernel parameter is set to 1 (see
 sysctl(8)), Kprobes tries to reduce probe-hit overhead by using a jump
 instruction instead of a breakpoint instruction at each probepoint.
 
@@ -286,7 +286,7 @@ using one of the following techniques:
 
 or
 
-- Execute 'sysctl -w debug.kprobes_optimization=n'
+- Execute 'sysctl -w de.kprobes_optimization=n'
 
 .. _kprobes_blacklist:
 
@@ -338,7 +338,7 @@ are set to "y", since kallsyms_lookup_name() is used by the in-kernel
 kprobe address resolution code.
 
 If you need to insert a probe in the middle of a function, you may find
-it useful to "Compile the kernel with debug info" (CONFIG_DEBUG_INFO),
+it useful to "Compile the kernel with de info" (CONFIG_DE_INFO),
 so you can use "objdump -d -l vmlinux" to see the source-to-object
 code mapping.
 
@@ -570,7 +570,7 @@ A probe handler can modify the environment of the probed function
 -- e.g., by modifying kernel data structures, or by modifying the
 contents of the pt_regs struct (which are restored to the registers
 upon return from the breakpoint).  So Kprobes can be used, for example,
-to install a bug fix or to inject faults for testing.  Kprobes, of
+to install a  fix or to inject faults for testing.  Kprobes, of
 course, has no way to distinguish the deliberately injected faults
 from the accidental ones.  Don't drink and probe.
 
@@ -602,7 +602,7 @@ for instrumentation and error reporting.)
 If the number of times a function is called does not match the number
 of times it returns, registering a return probe on that function may
 produce undesirable results. In such a case, a line:
-kretprobe BUG!: Processing kretprobe d000000000041aa8 @ c00000000004f48c
+kretprobe !: Processing kretprobe d000000000041aa8 @ c00000000004f48c
 gets printed. With this information, one will be able to correlate the
 exact instance of the kretprobe that caused the problem. We have the
 do_exit() case covered. do_execve() and do_fork() are not an issue.
@@ -737,7 +737,7 @@ migrate your tool to one of the following options:
 
 - Use ftrace dynamic events (kprobe event) with perf-probe.
 
-  If you build your kernel with debug info (CONFIG_DEBUG_INFO=y), you can
+  If you build your kernel with de info (CONFIG_DE_INFO=y), you can
   find which register/stack is assigned to which local variable or arguments
   by using perf-probe and set up new event to trace it.
 
@@ -748,14 +748,14 @@ migrate your tool to one of the following options:
   - tools/perf/Documentation/perf-probe.txt
 
 
-The kprobes debugfs interface
+The kprobes defs interface
 =============================
 
 
 With recent kernels (> 2.6.20) the list of registered kprobes is visible
-under the /sys/kernel/debug/kprobes/ directory (assuming debugfs is mounted at //sys/kernel/debug).
+under the /sys/kernel/de/kprobes/ directory (assuming defs is mounted at //sys/kernel/de).
 
-/sys/kernel/debug/kprobes/list: Lists all registered probes on the system::
+/sys/kernel/de/kprobes/list: Lists all registered probes on the system::
 
 	c015d71a  k  vfs_read+0x0
 	c03dedc5  r  tcp_v4_rcv+0x0
@@ -772,7 +772,7 @@ such probes are marked with [DISABLED]. If the probe is optimized, it is
 marked with [OPTIMIZED]. If the probe is ftrace-based, it is marked with
 [FTRACE].
 
-/sys/kernel/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
+/sys/kernel/de/kprobes/enabled: Turn kprobes ON/OFF forcibly.
 
 Provides a knob to globally and forcibly turn registered kprobes ON or OFF.
 By default, all kprobes are enabled. By echoing "0" to this file, all
@@ -785,13 +785,13 @@ change each probe's disabling state. This means that disabled kprobes (marked
 The kprobes sysctl interface
 ============================
 
-/proc/sys/debug/kprobes-optimization: Turn kprobes optimization ON/OFF.
+/proc/sys/de/kprobes-optimization: Turn kprobes optimization ON/OFF.
 
 When CONFIG_OPTPROBES=y, this sysctl interface appears and it provides
 a knob to globally and forcibly turn jump optimization (see section
 :ref:`kprobes_jump_optimization`) ON or OFF. By default, jump optimization
 is allowed (ON). If you echo "0" to this file or set
-"debug.kprobes_optimization" to 0 via sysctl, all optimized probes will be
+"de.kprobes_optimization" to 0 via sysctl, all optimized probes will be
 unoptimized, and any new probes registered after that will not be optimized.
 
 Note that this knob *changes* the optimized state. This means that optimized

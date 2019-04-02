@@ -77,7 +77,7 @@ static int __init hvc_rtas_init(void)
 	if (rtascons_get_char_token == RTAS_UNKNOWN_SERVICE)
 		return -EIO;
 
-	BUG_ON(hvc_rtas_dev);
+	_ON(hvc_rtas_dev);
 
 	/* Allocate an hvc_struct for the console device we instantiated
 	 * earlier.  Save off hp so that we can return it on exit */

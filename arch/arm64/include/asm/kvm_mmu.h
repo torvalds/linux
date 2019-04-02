@@ -406,7 +406,7 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	 * guaranteed to be free, otherwise we wouldn't use an
 	 * extended idmap.
 	 */
-	VM_BUG_ON(pgd_val(merged_hyp_pgd[0]));
+	VM__ON(pgd_val(merged_hyp_pgd[0]));
 	pgd_addr = __phys_to_pgd_val(__pa(hyp_pgd));
 	merged_hyp_pgd[0] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 
@@ -417,7 +417,7 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	 * overlap anyway, so this is fine.
 	 */
 	idmap_idx = hyp_idmap_start >> VA_BITS;
-	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
+	VM__ON(pgd_val(merged_hyp_pgd[idmap_idx]));
 	pgd_addr = __phys_to_pgd_val(__pa(boot_hyp_pgd));
 	merged_hyp_pgd[idmap_idx] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 }
@@ -534,7 +534,7 @@ static inline int kvm_map_vectors(void)
 		 * we can reuse.
 		 */
 		__kvm_harden_el2_vector_slot = atomic_inc_return(&arm64_el2_vector_last_slot);
-		BUG_ON(__kvm_harden_el2_vector_slot >= BP_HARDEN_EL2_SLOTS);
+		_ON(__kvm_harden_el2_vector_slot >= BP_HARDEN_EL2_SLOTS);
 		return create_hyp_exec_mappings(vect_pa, size,
 						&__kvm_bp_vect_base);
 	}

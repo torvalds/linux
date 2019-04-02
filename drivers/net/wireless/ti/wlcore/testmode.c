@@ -27,7 +27,7 @@
 #include <net/genetlink.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "acx.h"
 #include "io.h"
 
@@ -76,7 +76,7 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 	void *buf;
 	u8 answer = 0;
 
-	wl1271_debug(DEBUG_TESTMODE, "testmode cmd test");
+	wl1271_de(DE_TESTMODE, "testmode cmd test");
 
 	if (!tb[WL1271_TM_ATTR_DATA])
 		return -EINVAL;
@@ -158,7 +158,7 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 	struct sk_buff *skb;
 	u8 ie_id;
 
-	wl1271_debug(DEBUG_TESTMODE, "testmode cmd interrogate");
+	wl1271_de(DE_TESTMODE, "testmode cmd interrogate");
 
 	if (!tb[WL1271_TM_ATTR_IE_ID])
 		return -EINVAL;
@@ -224,7 +224,7 @@ static int wl1271_tm_cmd_configure(struct wl1271 *wl, struct nlattr *tb[])
 	void *buf;
 	u8 ie_id;
 
-	wl1271_debug(DEBUG_TESTMODE, "testmode cmd configure");
+	wl1271_de(DE_TESTMODE, "testmode cmd configure");
 
 	if (!tb[WL1271_TM_ATTR_DATA])
 		return -EINVAL;
@@ -292,7 +292,7 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 	u32 val;
 	int ret;
 
-	wl1271_debug(DEBUG_TESTMODE, "testmode cmd set plt mode");
+	wl1271_de(DE_TESTMODE, "testmode cmd set plt mode");
 
 	if (!tb[WL1271_TM_ATTR_PLT_MODE])
 		return -EINVAL;

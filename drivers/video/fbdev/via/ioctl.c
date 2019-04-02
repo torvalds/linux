@@ -81,14 +81,14 @@ int viafb_ioctl_get_viafb_info(u_long arg)
 int viafb_ioctl_hotplug(int hres, int vres, int bpp)
 {
 	int DVIsense, status = 0;
-	DEBUG_MSG(KERN_INFO "viafb_ioctl_hotplug!!\n");
+	DE_MSG(KERN_INFO "viafb_ioctl_hotplug!!\n");
 
 	if (viaparinfo->chip_info->tmds_chip_info.tmds_chip_name !=
 		NON_TMDS_TRANSMITTER) {
 		DVIsense = viafb_dvi_sense();
 
 		if (DVIsense) {
-			DEBUG_MSG(KERN_INFO "DVI Attached...\n");
+			DE_MSG(KERN_INFO "DVI Attached...\n");
 			if (viafb_DeviceStatus != DVI_Device) {
 				viafb_DVI_ON = 1;
 				viafb_CRT_ON = 0;
@@ -99,7 +99,7 @@ int viafb_ioctl_hotplug(int hres, int vres, int bpp)
 			}
 			status = 1;
 		} else
-			DEBUG_MSG(KERN_INFO "DVI De-attached...\n");
+			DE_MSG(KERN_INFO "DVI De-attached...\n");
 	}
 
 	if ((viafb_DeviceStatus != CRT_Device) && (status == 0)) {

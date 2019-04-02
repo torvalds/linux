@@ -511,7 +511,7 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
 	/* Reset response buffer and release
 	 * the reservation.
 	 * But first, check that enough space was reserved
-	 * for the reply, otherwise we have a bug!
+	 * for the reply, otherwise we have a !
 	 */
 	if ((rqstp->rq_res.len) >  rqstp->rq_reserved)
 		printk(KERN_ERR "RPC request reserved %d but used %d\n",
@@ -1018,7 +1018,7 @@ static void svc_delete_xprt(struct svc_xprt *xprt)
 
 	/* Only do this once */
 	if (test_and_set_bit(XPT_DEAD, &xprt->xpt_flags))
-		BUG();
+		();
 
 	dprintk("svc: svc_delete_xprt(%p)\n", xprt);
 	xprt->xpt_ops->xpo_detach(xprt);

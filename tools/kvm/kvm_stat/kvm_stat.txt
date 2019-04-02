@@ -16,7 +16,7 @@ kvm_stat prints counts of KVM kernel module trace events.  These events signify
 state transitions such as guest mode entry and exit.
 
 This tool is useful for observing guest behavior from the host perspective.
-Often conclusions about performance or buggy behavior can be drawn from the
+Often conclusions about performance or gy behavior can be drawn from the
 output.
 While running in regular mode, use any of the keys listed in section
 'Interactive Commands' below.
@@ -29,7 +29,7 @@ meaning of events.
 INTERACTIVE COMMANDS
 --------------------
 [horizontal]
-*b*::	toggle events by guests (debugfs only, honors filters)
+*b*::	toggle events by guests (defs only, honors filters)
 
 *c*::	clear filter
 
@@ -71,12 +71,12 @@ OPTIONS
 	retrieve statistics from tracepoints
 
 -d::
---debugfs::
-	retrieve statistics from debugfs
+--defs::
+	retrieve statistics from defs
 
 -i::
---debugfs-include-past::
-	include all available data on past events for debugfs
+--defs-include-past::
+	include all available data on past events for defs
 
 -p<pid>::
 --pid=<pid>::

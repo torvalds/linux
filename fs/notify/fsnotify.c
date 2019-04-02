@@ -232,7 +232,7 @@ static int send_to_group(struct inode *to_tell,
 		}
 	}
 
-	pr_debug("%s: group=%p to_tell=%p mask=%x marks_mask=%x marks_ignored_mask=%x"
+	pr_de("%s: group=%p to_tell=%p mask=%x marks_mask=%x marks_ignored_mask=%x"
 		 " data=%p data_is=%d cookie=%d\n",
 		 __func__, group, to_tell, mask, marks_mask, marks_ignored_mask,
 		 data, data_is, cookie);
@@ -400,7 +400,7 @@ static __init int fsnotify_init(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_FSNOTIFY_BITS) != 25);
+	BUILD__ON(HWEIGHT32(ALL_FSNOTIFY_BITS) != 25);
 
 	ret = init_srcu_struct(&fsnotify_mark_srcu);
 	if (ret)

@@ -1,9 +1,9 @@
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
- * dlmdebug.c
+ * dlmde.c
  *
- * debug functionality for the dlm
+ * de functionality for the dlm
  *
  * Copyright (C) 2004, 2008 Oracle.  All rights reserved.
  *
@@ -29,7 +29,7 @@
 #include <linux/highmem.h>
 #include <linux/sysctl.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 
 #include "cluster/heartbeat.h"
@@ -39,7 +39,7 @@
 #include "dlmapi.h"
 #include "dlmcommon.h"
 #include "dlmdomain.h"
-#include "dlmdebug.h"
+#include "dlmde.h"
 
 #define MLOG_MASK_PREFIX ML_DLM
 #include "cluster/masklog.h"
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(dlm_errname);
 
 /* NOTE: This function converts a lockname into a string. It uses knowledge
  * of the format of the lockname that should be outside the purview of the dlm.
- * We are adding only to make dlm debugging slightly easier.
+ * We are adding only to make dlm deging slightly easier.
  *
  * For more on lockname formats, please refer to dlmglue.c and ocfs2_lockid.h.
  */
@@ -336,24 +336,24 @@ void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-static struct dentry *dlm_debugfs_root;
+static struct dentry *dlm_defs_root;
 
-#define DLM_DEBUGFS_DIR				"o2dlm"
-#define DLM_DEBUGFS_DLM_STATE			"dlm_state"
-#define DLM_DEBUGFS_LOCKING_STATE		"locking_state"
-#define DLM_DEBUGFS_MLE_STATE			"mle_state"
-#define DLM_DEBUGFS_PURGE_LIST			"purge_list"
+#define DLM_DEFS_DIR				"o2dlm"
+#define DLM_DEFS_DLM_STATE			"dlm_state"
+#define DLM_DEFS_LOCKING_STATE		"locking_state"
+#define DLM_DEFS_MLE_STATE			"mle_state"
+#define DLM_DEFS_PURGE_LIST			"purge_list"
 
 /* begin - utils funcs */
-static int debug_release(struct inode *inode, struct file *file)
+static int de_release(struct inode *inode, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;
 }
 
-static ssize_t debug_read(struct file *file, char __user *buf,
+static ssize_t de_read(struct file *file, char __user *buf,
 			  size_t nbytes, loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, nbytes, ppos, file->private_data,
@@ -362,7 +362,7 @@ static ssize_t debug_read(struct file *file, char __user *buf,
 /* end - util funcs */
 
 /* begin - purge list funcs */
-static int debug_purgelist_print(struct dlm_ctxt *dlm, char *buf, int len)
+static int de_purgelist_print(struct dlm_ctxt *dlm, char *buf, int len)
 {
 	struct dlm_lock_resource *res;
 	int out = 0;
@@ -391,7 +391,7 @@ static int debug_purgelist_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_purgelist_open(struct inode *inode, struct file *file)
+static int de_purgelist_open(struct inode *inode, struct file *file)
 {
 	struct dlm_ctxt *dlm = inode->i_private;
 	char *buf = NULL;
@@ -400,7 +400,7 @@ static int debug_purgelist_open(struct inode *inode, struct file *file)
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_purgelist_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(inode, de_purgelist_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
@@ -409,16 +409,16 @@ bail:
 	return -ENOMEM;
 }
 
-static const struct file_operations debug_purgelist_fops = {
-	.open =		debug_purgelist_open,
-	.release =	debug_release,
-	.read =		debug_read,
+static const struct file_operations de_purgelist_fops = {
+	.open =		de_purgelist_open,
+	.release =	de_release,
+	.read =		de_read,
 	.llseek =	generic_file_llseek,
 };
 /* end - purge list funcs */
 
-/* begin - debug mle funcs */
-static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
+/* begin - de mle funcs */
+static int de_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 {
 	struct dlm_master_list_entry *mle;
 	struct hlist_head *bucket;
@@ -448,7 +448,7 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_mle_open(struct inode *inode, struct file *file)
+static int de_mle_open(struct inode *inode, struct file *file)
 {
 	struct dlm_ctxt *dlm = inode->i_private;
 	char *buf = NULL;
@@ -457,7 +457,7 @@ static int debug_mle_open(struct inode *inode, struct file *file)
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_mle_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(inode, de_mle_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
@@ -466,25 +466,25 @@ bail:
 	return -ENOMEM;
 }
 
-static const struct file_operations debug_mle_fops = {
-	.open =		debug_mle_open,
-	.release =	debug_release,
-	.read =		debug_read,
+static const struct file_operations de_mle_fops = {
+	.open =		de_mle_open,
+	.release =	de_release,
+	.read =		de_read,
 	.llseek =	generic_file_llseek,
 };
 
-/* end - debug mle funcs */
+/* end - de mle funcs */
 
-/* begin - debug lockres funcs */
+/* begin - de lockres funcs */
 static int dump_lock(struct dlm_lock *lock, int list_type, char *buf, int len)
 {
 	int out;
 
-#define DEBUG_LOCK_VERSION	1
+#define DE_LOCK_VERSION	1
 	spin_lock(&lock->spinlock);
 	out = snprintf(buf, len, "LOCK:%d,%d,%d,%d,%d,%d:%lld,%d,%d,%d,%d,%d,"
 		       "%d,%d,%d,%d\n",
-		       DEBUG_LOCK_VERSION,
+		       DE_LOCK_VERSION,
 		       list_type, lock->ml.type, lock->ml.convert_type,
 		       lock->ml.node,
 		       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
@@ -511,10 +511,10 @@ static int dump_lockres(struct dlm_lock_resource *res, char *buf, int len)
 				  buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
-#define DEBUG_LRES_VERSION	1
+#define DE_LRES_VERSION	1
 	out += snprintf(buf + out, len - out,
 			"LRES:%d,%d,%d,%ld,%d,%d,%d,%d,%d,%d,%d\n",
-			DEBUG_LRES_VERSION,
+			DE_LRES_VERSION,
 			res->owner, res->state, res->last_used,
 			!list_empty(&res->purge),
 			!list_empty(&res->dirty),
@@ -555,7 +555,7 @@ static int dump_lockres(struct dlm_lock_resource *res, char *buf, int len)
 
 static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 {
-	struct debug_lockres *dl = m->private;
+	struct de_lockres *dl = m->private;
 	struct dlm_ctxt *dlm = dl->dl_ctxt;
 	struct dlm_lock_resource *oldres = dl->dl_res;
 	struct dlm_lock_resource *res = NULL;
@@ -610,31 +610,31 @@ static void *lockres_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static int lockres_seq_show(struct seq_file *s, void *v)
 {
-	struct debug_lockres *dl = (struct debug_lockres *)v;
+	struct de_lockres *dl = (struct de_lockres *)v;
 
 	seq_printf(s, "%s", dl->dl_buf);
 
 	return 0;
 }
 
-static const struct seq_operations debug_lockres_ops = {
+static const struct seq_operations de_lockres_ops = {
 	.start =	lockres_seq_start,
 	.stop =		lockres_seq_stop,
 	.next =		lockres_seq_next,
 	.show =		lockres_seq_show,
 };
 
-static int debug_lockres_open(struct inode *inode, struct file *file)
+static int de_lockres_open(struct inode *inode, struct file *file)
 {
 	struct dlm_ctxt *dlm = inode->i_private;
-	struct debug_lockres *dl;
+	struct de_lockres *dl;
 	void *buf;
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
 		goto bail;
 
-	dl = __seq_open_private(file, &debug_lockres_ops, sizeof(*dl));
+	dl = __seq_open_private(file, &de_lockres_ops, sizeof(*dl));
 	if (!dl)
 		goto bailfree;
 
@@ -653,10 +653,10 @@ bail:
 	return -ENOMEM;
 }
 
-static int debug_lockres_release(struct inode *inode, struct file *file)
+static int de_lockres_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
-	struct debug_lockres *dl = (struct debug_lockres *)seq->private;
+	struct de_lockres *dl = (struct de_lockres *)seq->private;
 
 	if (dl->dl_res)
 		dlm_lockres_put(dl->dl_res);
@@ -665,16 +665,16 @@ static int debug_lockres_release(struct inode *inode, struct file *file)
 	return seq_release_private(inode, file);
 }
 
-static const struct file_operations debug_lockres_fops = {
-	.open =		debug_lockres_open,
-	.release =	debug_lockres_release,
+static const struct file_operations de_lockres_fops = {
+	.open =		de_lockres_open,
+	.release =	de_lockres_release,
 	.read =		seq_read,
 	.llseek =	seq_lseek,
 };
-/* end - debug lockres funcs */
+/* end - de lockres funcs */
 
-/* begin - debug state funcs */
-static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
+/* begin - de state funcs */
+static int de_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 {
 	int out = 0;
 	struct dlm_reco_node_data *node;
@@ -839,7 +839,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_state_open(struct inode *inode, struct file *file)
+static int de_state_open(struct inode *inode, struct file *file)
 {
 	struct dlm_ctxt *dlm = inode->i_private;
 	char *buf = NULL;
@@ -848,7 +848,7 @@ static int debug_state_open(struct inode *inode, struct file *file)
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_state_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(inode, de_state_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
@@ -857,57 +857,57 @@ bail:
 	return -ENOMEM;
 }
 
-static const struct file_operations debug_state_fops = {
-	.open =		debug_state_open,
-	.release =	debug_release,
-	.read =		debug_read,
+static const struct file_operations de_state_fops = {
+	.open =		de_state_open,
+	.release =	de_release,
+	.read =		de_read,
 	.llseek =	generic_file_llseek,
 };
-/* end  - debug state funcs */
+/* end  - de state funcs */
 
 /* files in subroot */
-int dlm_debug_init(struct dlm_ctxt *dlm)
+int dlm_de_init(struct dlm_ctxt *dlm)
 {
-	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
+	struct dlm_de_ctxt *dc = dlm->dlm_de_ctxt;
 
 	/* for dumping dlm_ctxt */
-	dc->debug_state_dentry = debugfs_create_file(DLM_DEBUGFS_DLM_STATE,
+	dc->de_state_dentry = defs_create_file(DLM_DEFS_DLM_STATE,
 						     S_IFREG|S_IRUSR,
-						     dlm->dlm_debugfs_subroot,
-						     dlm, &debug_state_fops);
-	if (!dc->debug_state_dentry) {
+						     dlm->dlm_defs_subroot,
+						     dlm, &de_state_fops);
+	if (!dc->de_state_dentry) {
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
 
 	/* for dumping lockres */
-	dc->debug_lockres_dentry =
-			debugfs_create_file(DLM_DEBUGFS_LOCKING_STATE,
+	dc->de_lockres_dentry =
+			defs_create_file(DLM_DEFS_LOCKING_STATE,
 					    S_IFREG|S_IRUSR,
-					    dlm->dlm_debugfs_subroot,
-					    dlm, &debug_lockres_fops);
-	if (!dc->debug_lockres_dentry) {
+					    dlm->dlm_defs_subroot,
+					    dlm, &de_lockres_fops);
+	if (!dc->de_lockres_dentry) {
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
 
 	/* for dumping mles */
-	dc->debug_mle_dentry = debugfs_create_file(DLM_DEBUGFS_MLE_STATE,
+	dc->de_mle_dentry = defs_create_file(DLM_DEFS_MLE_STATE,
 						   S_IFREG|S_IRUSR,
-						   dlm->dlm_debugfs_subroot,
-						   dlm, &debug_mle_fops);
-	if (!dc->debug_mle_dentry) {
+						   dlm->dlm_defs_subroot,
+						   dlm, &de_mle_fops);
+	if (!dc->de_mle_dentry) {
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
 
 	/* for dumping lockres on the purge list */
-	dc->debug_purgelist_dentry =
-			debugfs_create_file(DLM_DEBUGFS_PURGE_LIST,
+	dc->de_purgelist_dentry =
+			defs_create_file(DLM_DEFS_PURGE_LIST,
 					    S_IFREG|S_IRUSR,
-					    dlm->dlm_debugfs_subroot,
-					    dlm, &debug_purgelist_fops);
-	if (!dc->debug_purgelist_dentry) {
+					    dlm->dlm_defs_subroot,
+					    dlm, &de_purgelist_fops);
+	if (!dc->de_purgelist_dentry) {
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
@@ -918,61 +918,61 @@ bail:
 	return -ENOMEM;
 }
 
-void dlm_debug_shutdown(struct dlm_ctxt *dlm)
+void dlm_de_shutdown(struct dlm_ctxt *dlm)
 {
-	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
+	struct dlm_de_ctxt *dc = dlm->dlm_de_ctxt;
 
 	if (dc) {
-		debugfs_remove(dc->debug_purgelist_dentry);
-		debugfs_remove(dc->debug_mle_dentry);
-		debugfs_remove(dc->debug_lockres_dentry);
-		debugfs_remove(dc->debug_state_dentry);
+		defs_remove(dc->de_purgelist_dentry);
+		defs_remove(dc->de_mle_dentry);
+		defs_remove(dc->de_lockres_dentry);
+		defs_remove(dc->de_state_dentry);
 		kfree(dc);
 		dc = NULL;
 	}
 }
 
 /* subroot - domain dir */
-int dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
+int dlm_create_defs_subroot(struct dlm_ctxt *dlm)
 {
-	dlm->dlm_debugfs_subroot = debugfs_create_dir(dlm->name,
-						      dlm_debugfs_root);
-	if (!dlm->dlm_debugfs_subroot) {
+	dlm->dlm_defs_subroot = defs_create_dir(dlm->name,
+						      dlm_defs_root);
+	if (!dlm->dlm_defs_subroot) {
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
 
-	dlm->dlm_debug_ctxt = kzalloc(sizeof(struct dlm_debug_ctxt),
+	dlm->dlm_de_ctxt = kzalloc(sizeof(struct dlm_de_ctxt),
 				      GFP_KERNEL);
-	if (!dlm->dlm_debug_ctxt) {
+	if (!dlm->dlm_de_ctxt) {
 		mlog_errno(-ENOMEM);
 		goto bail;
 	}
 
 	return 0;
 bail:
-	dlm_destroy_debugfs_subroot(dlm);
+	dlm_destroy_defs_subroot(dlm);
 	return -ENOMEM;
 }
 
-void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
+void dlm_destroy_defs_subroot(struct dlm_ctxt *dlm)
 {
-	debugfs_remove(dlm->dlm_debugfs_subroot);
+	defs_remove(dlm->dlm_defs_subroot);
 }
 
-/* debugfs root */
-int dlm_create_debugfs_root(void)
+/* defs root */
+int dlm_create_defs_root(void)
 {
-	dlm_debugfs_root = debugfs_create_dir(DLM_DEBUGFS_DIR, NULL);
-	if (!dlm_debugfs_root) {
+	dlm_defs_root = defs_create_dir(DLM_DEFS_DIR, NULL);
+	if (!dlm_defs_root) {
 		mlog_errno(-ENOMEM);
 		return -ENOMEM;
 	}
 	return 0;
 }
 
-void dlm_destroy_debugfs_root(void)
+void dlm_destroy_defs_root(void)
 {
-	debugfs_remove(dlm_debugfs_root);
+	defs_remove(dlm_defs_root);
 }
-#endif	/* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DE_FS */

@@ -12,7 +12,7 @@ mei-objs += main.o
 mei-objs += dma-ring.o
 mei-objs += bus.o
 mei-objs += bus-fixup.o
-mei-$(CONFIG_DEBUG_FS) += debugfs.o
+mei-$(CONFIG_DE_FS) += defs.o
 
 obj-$(CONFIG_INTEL_MEI_ME) += mei-me.o
 mei-me-objs := pci-me.o

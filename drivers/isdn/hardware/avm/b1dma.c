@@ -32,7 +32,7 @@
 
 static char *revision = "$Revision: 1.1.2.3 $";
 
-#undef AVM_B1DMA_DEBUG
+#undef AVM_B1DMA_DE
 
 /* ------------------------------------------------------------- */
 
@@ -394,17 +394,17 @@ static void b1dma_dispatch_tx(avmcard *card)
 			_put_slice(&p, skb->data, len);
 		}
 		txlen = (u8 *)p - (u8 *)dma->sendbuf.dmabuf;
-#ifdef AVM_B1DMA_DEBUG
-		printk(KERN_DEBUG "tx: put msg len=%d\n", txlen);
+#ifdef AVM_B1DMA_DE
+		printk(KERN_DE "tx: put msg len=%d\n", txlen);
 #endif
 	} else {
 		txlen = skb->len - 2;
-#ifdef AVM_B1DMA_POLLDEBUG
+#ifdef AVM_B1DMA_POLLDE
 		if (skb->data[2] == SEND_POLLACK)
 			printk(KERN_INFO "%s: send ack\n", card->name);
 #endif
-#ifdef AVM_B1DMA_DEBUG
-		printk(KERN_DEBUG "tx: put 0x%x len=%d\n",
+#ifdef AVM_B1DMA_DE
+		printk(KERN_DE "tx: put 0x%x len=%d\n",
 		       skb->data[2], txlen);
 #endif
 		skb_copy_from_linear_data_offset(skb, 2, dma->sendbuf.dmabuf,
@@ -454,8 +454,8 @@ static void b1dma_handle_rx(avmcard *card)
 	u32 ApplId, MsgLen, DataB3Len, NCCI, WindowSize;
 	u8 b1cmd =  _get_byte(&p);
 
-#ifdef AVM_B1DMA_DEBUG
-	printk(KERN_DEBUG "rx: 0x%x %lu\n", b1cmd, (unsigned long)dma->recvlen);
+#ifdef AVM_B1DMA_DE
+	printk(KERN_DE "rx: 0x%x %lu\n", b1cmd, (unsigned long)dma->recvlen);
 #endif
 
 	switch (b1cmd) {
@@ -523,7 +523,7 @@ static void b1dma_handle_rx(avmcard *card)
 		break;
 
 	case RECEIVE_START:
-#ifdef AVM_B1DMA_POLLDEBUG
+#ifdef AVM_B1DMA_POLLDE
 		printk(KERN_INFO "%s: receive poll\n", card->name);
 #endif
 		if (!suppress_pollack)
@@ -560,7 +560,7 @@ static void b1dma_handle_rx(avmcard *card)
 		       card->name, ApplId, card->msgbuf);
 		break;
 
-	case RECEIVE_DEBUGMSG:
+	case RECEIVE_DEMSG:
 		MsgLen = _get_slice(&p, card->msgbuf);
 		card->msgbuf[MsgLen] = 0;
 		while (MsgLen > 0
@@ -569,7 +569,7 @@ static void b1dma_handle_rx(avmcard *card)
 			card->msgbuf[MsgLen - 1] = 0;
 			MsgLen--;
 		}
-		printk(KERN_INFO "%s: DEBUG: %s\n", card->name, card->msgbuf);
+		printk(KERN_INFO "%s: DE: %s\n", card->name, card->msgbuf);
 		break;
 
 	default:
@@ -609,7 +609,7 @@ static void b1dma_handle_interrupt(avmcard *card)
 				rxlen = (dma->recvlen + 3) & ~3;
 				b1dma_writel(card, dma->recvbuf.dmaaddr + 4, AMCC_RXPTR);
 				b1dma_writel(card, rxlen, AMCC_RXLEN);
-#ifdef AVM_B1DMA_DEBUG
+#ifdef AVM_B1DMA_DE
 			} else {
 				printk(KERN_ERR "%s: rx not complete (%d).\n",
 				       card->name, rxlen);

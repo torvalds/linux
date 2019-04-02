@@ -33,7 +33,7 @@
 /* Register address initialization macro for all ASICs (including those with reduced functionality) */
 #define HUBP_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
-	SRI(HUBPREQ_DEBUG_DB, HUBP, id),\
+	SRI(HUBPREQ_DE_DB, HUBP, id),\
 	SRI(DCSURF_ADDR_CONFIG, HUBP, id),\
 	SRI(DCSURF_TILING_CONFIG, HUBP, id),\
 	SRI(DCSURF_SURFACE_PITCH, HUBPREQ, id),\
@@ -137,7 +137,7 @@
 
 #define HUBP_COMMON_REG_VARIABLE_LIST \
 	uint32_t DCHUBP_CNTL; \
-	uint32_t HUBPREQ_DEBUG_DB; \
+	uint32_t HUBPREQ_DE_DB; \
 	uint32_t DCSURF_ADDR_CONFIG; \
 	uint32_t DCSURF_TILING_CONFIG; \
 	uint32_t DCSURF_SURFACE_PITCH; \

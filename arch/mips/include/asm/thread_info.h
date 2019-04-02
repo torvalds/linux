@@ -27,7 +27,7 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	unsigned long		tp_value;	/* thread pointer */
 	__u32			cpu;		/* current CPU */
-	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
+	int			preempt_count;	/* 0 => preemptable, <0 =>  */
 	mm_segment_t		addr_limit;	/*
 						 * thread address space limit:
 						 * 0x7fffffff for user-thead

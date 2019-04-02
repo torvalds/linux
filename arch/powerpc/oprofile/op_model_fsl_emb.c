@@ -321,7 +321,7 @@ static int fsl_emb_start(struct op_counter_config *ctr)
 
 	oprofile_running = 1;
 
-	pr_debug("start on cpu %d, pmgc0 %x\n", smp_processor_id(),
+	pr_de("start on cpu %d, pmgc0 %x\n", smp_processor_id(),
 			mfpmr(PMRN_PMGC0));
 
 	return 0;
@@ -334,7 +334,7 @@ static void fsl_emb_stop(void)
 
 	oprofile_running = 0;
 
-	pr_debug("stop on cpu %d, pmgc0 %x\n", smp_processor_id(),
+	pr_de("stop on cpu %d, pmgc0 %x\n", smp_processor_id(),
 			mfpmr(PMRN_PMGC0));
 
 	mb();

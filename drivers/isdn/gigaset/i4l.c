@@ -66,7 +66,7 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 	}
 	len = skb->len;
 
-	gig_dbg(DEBUG_LLDATA,
+	gig_dbg(DE_LLDATA,
 		"Receiving data from LL (id: %d, ch: %d, ack: %d, sz: %d)",
 		driverID, channel, ack, len);
 
@@ -97,7 +97,7 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 	} else {
 		ack_header[0] = ack_header[1] = 0;
 	}
-	gig_dbg(DEBUG_MCMD, "skb: len=%u, ack=%d: %02x %02x",
+	gig_dbg(DE_MCMD, "skb: len=%u, ack=%d: %02x %02x",
 		len, ack, ack_header[0], ack_header[1]);
 
 	/* pass to device-specific module */
@@ -127,7 +127,7 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb)
 
 	len = ack_header[0] + ((unsigned) ack_header[1] << 8);
 	if (len) {
-		gig_dbg(DEBUG_MCMD, "ACKing to LL (id: %d, ch: %d, sz: %u)",
+		gig_dbg(DE_MCMD, "ACKing to LL (id: %d, ch: %d, sz: %u)",
 			bcs->cs->myid, bcs->channel, len);
 
 		response.driver = bcs->cs->myid;
@@ -179,7 +179,7 @@ void gigaset_isdn_rcv_err(struct bc_state *bcs)
 	bcs->corrupted++;
 
 	/* error -> LL */
-	gig_dbg(DEBUG_CMD, "sending L1ERR");
+	gig_dbg(DE_CMD, "sending L1ERR");
 	response.driver = bcs->cs->myid;
 	response.command = ISDN_STAT_L1ERR;
 	response.arg = bcs->channel;
@@ -202,7 +202,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	int i;
 	size_t l;
 
-	gig_dbg(DEBUG_CMD, "driver: %d, command: %d, arg: 0x%lx",
+	gig_dbg(DE_CMD, "driver: %d, command: %d, arg: 0x%lx",
 		cntrl->driver, cntrl->command, cntrl->arg);
 
 	cs = gigaset_get_cs_by_id(cntrl->driver);
@@ -218,7 +218,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		return -EINVAL;
 
 	case ISDN_CMD_DIAL:
-		gig_dbg(DEBUG_CMD,
+		gig_dbg(DE_CMD,
 			"ISDN_CMD_DIAL (phone: %s, msn: %s, si1: %d, si2: %d)",
 			cntrl->parm.setup.phone, cntrl->parm.setup.eazmsn,
 			cntrl->parm.setup.si1, cntrl->parm.setup.si2);
@@ -318,7 +318,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		gigaset_schedule_event(cs);
 		break;
 	case ISDN_CMD_ACCEPTD:
-		gig_dbg(DEBUG_CMD, "ISDN_CMD_ACCEPTD");
+		gig_dbg(DE_CMD, "ISDN_CMD_ACCEPTD");
 		if (ch >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_ACCEPTD: invalid channel (%d)\n", ch);
@@ -341,7 +341,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 
 		break;
 	case ISDN_CMD_HANGUP:
-		gig_dbg(DEBUG_CMD, "ISDN_CMD_HANGUP");
+		gig_dbg(DE_CMD, "ISDN_CMD_HANGUP");
 		if (ch >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_HANGUP: invalid channel (%d)\n", ch);
@@ -375,11 +375,11 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		}
 		switch (cntrl->arg >> 8) {
 		case ISDN_PROTO_L2_HDLC:
-			gig_dbg(DEBUG_CMD, "ISDN_CMD_SETL2: setting L2_HDLC");
+			gig_dbg(DE_CMD, "ISDN_CMD_SETL2: setting L2_HDLC");
 			bcs->proto2 = L2_HDLC;
 			break;
 		case ISDN_PROTO_L2_TRANS:
-			gig_dbg(DEBUG_CMD, "ISDN_CMD_SETL2: setting L2_VOICE");
+			gig_dbg(DE_CMD, "ISDN_CMD_SETL2: setting L2_VOICE");
 			bcs->proto2 = L2_VOICE;
 			break;
 		default:
@@ -390,7 +390,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		}
 		break;
 	case ISDN_CMD_SETL3: /* Set L3 to given protocol */
-		gig_dbg(DEBUG_CMD, "ISDN_CMD_SETL3");
+		gig_dbg(DE_CMD, "ISDN_CMD_SETL3");
 		if (ch >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_SETL3: invalid channel (%d)\n", ch);
@@ -407,7 +407,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		break;
 
 	default:
-		gig_dbg(DEBUG_CMD, "unknown command %d from LL",
+		gig_dbg(DE_CMD, "unknown command %d from LL",
 			cntrl->command);
 		return -EINVAL;
 	}
@@ -501,13 +501,13 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		response.command = ISDN_STAT_ICALLW;
 		response.arg = 0;
 	} else {
-		gig_dbg(DEBUG_CMD, "Sending ICALL");
+		gig_dbg(DE_CMD, "Sending ICALL");
 		response.command = ISDN_STAT_ICALL;
 		response.arg = bcs->channel;
 	}
 	response.driver = cs->myid;
 	retval = iif->statcallb(&response);
-	gig_dbg(DEBUG_CMD, "Response: %d", retval);
+	gig_dbg(DE_CMD, "Response: %d", retval);
 	switch (retval) {
 	case 0:	/* no takers */
 		return ICALL_IGNORE;
@@ -544,7 +544,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
  */
 void gigaset_isdn_connD(struct bc_state *bcs)
 {
-	gig_dbg(DEBUG_CMD, "sending DCONN");
+	gig_dbg(DE_CMD, "sending DCONN");
 	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DCONN);
 }
 
@@ -557,7 +557,7 @@ void gigaset_isdn_connD(struct bc_state *bcs)
  */
 void gigaset_isdn_hupD(struct bc_state *bcs)
 {
-	gig_dbg(DEBUG_CMD, "sending DHUP");
+	gig_dbg(DE_CMD, "sending DHUP");
 	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_DHUP);
 }
 
@@ -570,7 +570,7 @@ void gigaset_isdn_hupD(struct bc_state *bcs)
  */
 void gigaset_isdn_connB(struct bc_state *bcs)
 {
-	gig_dbg(DEBUG_CMD, "sending BCONN");
+	gig_dbg(DE_CMD, "sending BCONN");
 	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BCONN);
 }
 
@@ -583,7 +583,7 @@ void gigaset_isdn_connB(struct bc_state *bcs)
  */
 void gigaset_isdn_hupB(struct bc_state *bcs)
 {
-	gig_dbg(DEBUG_CMD, "sending BHUP");
+	gig_dbg(DE_CMD, "sending BHUP");
 	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BHUP);
 }
 
@@ -596,7 +596,7 @@ void gigaset_isdn_hupB(struct bc_state *bcs)
  */
 void gigaset_isdn_start(struct cardstate *cs)
 {
-	gig_dbg(DEBUG_CMD, "sending RUN");
+	gig_dbg(DE_CMD, "sending RUN");
 	gigaset_i4l_cmd(cs, ISDN_STAT_RUN);
 }
 
@@ -609,7 +609,7 @@ void gigaset_isdn_start(struct cardstate *cs)
  */
 void gigaset_isdn_stop(struct cardstate *cs)
 {
-	gig_dbg(DEBUG_CMD, "sending STOP");
+	gig_dbg(DE_CMD, "sending STOP");
 	gigaset_i4l_cmd(cs, ISDN_STAT_STOP);
 }
 
@@ -671,7 +671,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
  */
 void gigaset_isdn_unregdev(struct cardstate *cs)
 {
-	gig_dbg(DEBUG_CMD, "sending UNLOAD");
+	gig_dbg(DE_CMD, "sending UNLOAD");
 	gigaset_i4l_cmd(cs, ISDN_STAT_UNLOAD);
 	kfree(cs->iif);
 	cs->iif = NULL;

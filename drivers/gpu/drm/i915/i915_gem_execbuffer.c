@@ -68,10 +68,10 @@ enum {
 	 I915_EXEC_RESOURCE_STREAMER)
 
 /* Catch emission of unexpected errors for CI! */
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_GEM)
 #undef EINVAL
 #define EINVAL ({ \
-	DRM_DEBUG_DRIVER("EINVAL at %s:%d\n", __func__, __LINE__); \
+	DRM_DE_DRIVER("EINVAL at %s:%d\n", __func__, __LINE__); \
 	22; \
 })
 #endif
@@ -425,7 +425,7 @@ eb_pin_vma(struct i915_execbuffer *eb,
 
 static inline void __eb_unreserve_vma(struct i915_vma *vma, unsigned int flags)
 {
-	GEM_BUG_ON(!(flags & __EXEC_OBJECT_HAS_PIN));
+	GEM__ON(!(flags & __EXEC_OBJECT_HAS_PIN));
 
 	if (unlikely(flags & __EXEC_OBJECT_HAS_FENCE))
 		__i915_vma_unpin_fence(vma);
@@ -471,7 +471,7 @@ eb_validate_vma(struct i915_execbuffer *eb,
 	}
 
 	if (unlikely(vma->exec_flags)) {
-		DRM_DEBUG("Object [handle %d, index %d] appears more than once in object list\n",
+		DRM_DE("Object [handle %d, index %d] appears more than once in object list\n",
 			  entry->handle, (int)(entry - eb->exec));
 		return -EINVAL;
 	}
@@ -506,7 +506,7 @@ eb_add_vma(struct i915_execbuffer *eb,
 	struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 	int err;
 
-	GEM_BUG_ON(i915_vma_is_closed(vma));
+	GEM__ON(i915_vma_is_closed(vma));
 
 	if (!(eb->args->flags & __EXEC_VALIDATED)) {
 		err = eb_validate_vma(eb, entry, vma);
@@ -640,7 +640,7 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 	}
 
 	*vma->exec_flags = exec_flags | __EXEC_OBJECT_HAS_PIN;
-	GEM_BUG_ON(eb_vma_misplaced(entry, vma, exec_flags));
+	GEM__ON(eb_vma_misplaced(entry, vma, exec_flags));
 
 	return 0;
 }
@@ -879,9 +879,9 @@ add_vma:
 		if (unlikely(err))
 			goto err_vma;
 
-		GEM_BUG_ON(vma != eb->vma[i]);
-		GEM_BUG_ON(vma->exec_flags != &eb->flags[i]);
-		GEM_BUG_ON(drm_mm_node_allocated(&vma->node) &&
+		GEM__ON(vma != eb->vma[i]);
+		GEM__ON(vma->exec_flags != &eb->flags[i]);
+		GEM__ON(drm_mm_node_allocated(&vma->node) &&
 			   eb_vma_misplaced(&eb->exec[i], vma, eb->flags[i]));
 	}
 
@@ -927,7 +927,7 @@ static void eb_release_vmas(const struct i915_execbuffer *eb)
 		if (!vma)
 			break;
 
-		GEM_BUG_ON(vma->exec_flags != &eb->flags[i]);
+		GEM__ON(vma->exec_flags != &eb->flags[i]);
 		vma->exec_flags = NULL;
 		eb->vma[i] = NULL;
 
@@ -949,7 +949,7 @@ static void eb_reset_vmas(const struct i915_execbuffer *eb)
 
 static void eb_destroy(const struct i915_execbuffer *eb)
 {
-	GEM_BUG_ON(eb->reloc_cache.rq);
+	GEM__ON(eb->reloc_cache.rq);
 
 	if (eb->lut_size > 0)
 		kfree(eb->buckets);
@@ -999,7 +999,7 @@ static inline struct i915_ggtt *cache_to_ggtt(struct reloc_cache *cache)
 
 static void reloc_gpu_flush(struct reloc_cache *cache)
 {
-	GEM_BUG_ON(cache->rq_size >= cache->rq->batch->obj->base.size / sizeof(u32));
+	GEM__ON(cache->rq_size >= cache->rq->batch->obj->base.size / sizeof(u32));
 	cache->rq_cmd[cache->rq_size] = MI_BATCH_BUFFER_END;
 	i915_gem_object_unpin_map(cache->rq->batch->obj);
 	i915_gem_chipset_flush(cache->rq->i915);
@@ -1060,8 +1060,8 @@ static void *reloc_kmap(struct drm_i915_gem_object *obj,
 		if (err)
 			return ERR_PTR(err);
 
-		BUILD_BUG_ON(KMAP & CLFLUSH_FLAGS);
-		BUILD_BUG_ON((KMAP | CLFLUSH_FLAGS) & PAGE_MASK);
+		BUILD__ON(KMAP & CLFLUSH_FLAGS);
+		BUILD__ON((KMAP | CLFLUSH_FLAGS) & PAGE_MASK);
 
 		cache->vaddr = flushes | KMAP;
 		cache->node.mm = (void *)obj;
@@ -1200,7 +1200,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		obj->write_domain = 0;
 	}
 
-	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
+	GEM__ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1244,7 +1244,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_request;
 
-	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
+	GEM__ON(!reservation_object_test_signaled_rcu(batch->resv, true));
 	err = i915_vma_move_to_active(batch, rq, 0);
 	if (err)
 		goto skip_request;
@@ -1410,7 +1410,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
-		DRM_DEBUG("reloc with multiple write domains: "
+		DRM_DE("reloc with multiple write domains: "
 			  "target %d offset %d "
 			  "read %08x write %08x",
 			  reloc->target_handle,
@@ -1421,7 +1421,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	}
 	if (unlikely((reloc->write_domain | reloc->read_domains)
 		     & ~I915_GEM_GPU_DOMAINS)) {
-		DRM_DEBUG("reloc with read/write non-GPU domains: "
+		DRM_DE("reloc with read/write non-GPU domains: "
 			  "target %d offset %d "
 			  "read %08x write %08x",
 			  reloc->target_handle,
@@ -1461,7 +1461,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	/* Check that the relocation address is valid... */
 	if (unlikely(reloc->offset >
 		     vma->size - (eb->reloc_cache.use_64bit_reloc ? 8 : 4))) {
-		DRM_DEBUG("Relocation beyond object bounds: "
+		DRM_DE("Relocation beyond object bounds: "
 			  "target %d offset %d size %d.\n",
 			  reloc->target_handle,
 			  (int)reloc->offset,
@@ -1469,7 +1469,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 		return -EINVAL;
 	}
 	if (unlikely(reloc->offset & 3)) {
-		DRM_DEBUG("Relocation not 4-byte aligned: "
+		DRM_DE("Relocation not 4-byte aligned: "
 			  "target %d offset %d.\n",
 			  reloc->target_handle,
 			  (int)reloc->offset);
@@ -1786,7 +1786,7 @@ repeat:
 	if (err)
 		goto err;
 
-	GEM_BUG_ON(!eb->batch);
+	GEM__ON(!eb->batch);
 
 	list_for_each_entry(vma, &eb->relocs, reloc_link) {
 		if (!have_copy) {
@@ -1940,7 +1940,7 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 	}
 
 	if (exec->DR4 == 0xffffffff) {
-		DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
+		DRM_DE("UXA submitting garbage DR4, fixing up\n");
 		exec->DR4 = 0;
 	}
 	if (exec->DR1 || exec->DR4)
@@ -1958,7 +1958,7 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	int i;
 
 	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS) {
-		DRM_DEBUG("sol reset is gen7/rcs only\n");
+		DRM_DE("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
 
@@ -2098,13 +2098,13 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 	struct intel_engine_cs *engine;
 
 	if (user_ring_id > I915_USER_RINGS) {
-		DRM_DEBUG("execbuf with unknown ring: %u\n", user_ring_id);
+		DRM_DE("execbuf with unknown ring: %u\n", user_ring_id);
 		return NULL;
 	}
 
 	if ((user_ring_id != I915_EXEC_BSD) &&
 	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
-		DRM_DEBUG("execbuf with non bsd ring but with invalid "
+		DRM_DE("execbuf with non bsd ring but with invalid "
 			  "bsd dispatch flags: %d\n", (int)(args->flags));
 		return NULL;
 	}
@@ -2119,7 +2119,7 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 			bsd_idx >>= I915_EXEC_BSD_SHIFT;
 			bsd_idx--;
 		} else {
-			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
+			DRM_DE("execbuf with unknown bsd ring: %u\n",
 				  bsd_idx);
 			return NULL;
 		}
@@ -2130,7 +2130,7 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 	}
 
 	if (!engine) {
-		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
+		DRM_DE("execbuf with invalid ring: %u\n", user_ring_id);
 		return NULL;
 	}
 
@@ -2159,7 +2159,7 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		return NULL;
 
 	/* Check multiplication overflow for access_ok() and kvmalloc_array() */
-	BUILD_BUG_ON(sizeof(size_t) > sizeof(unsigned long));
+	BUILD__ON(sizeof(size_t) > sizeof(unsigned long));
 	if (nfences > min_t(unsigned long,
 			    ULONG_MAX / sizeof(*user),
 			    SIZE_MAX / sizeof(*fences)))
@@ -2190,12 +2190,12 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 
 		syncobj = drm_syncobj_find(file, fence.handle);
 		if (!syncobj) {
-			DRM_DEBUG("Invalid syncobj handle provided\n");
+			DRM_DE("Invalid syncobj handle provided\n");
 			err = -ENOENT;
 			goto err;
 		}
 
-		BUILD_BUG_ON(~(ARCH_KMALLOC_MINALIGN - 1) &
+		BUILD__ON(~(ARCH_KMALLOC_MINALIGN - 1) &
 			     ~__I915_EXEC_FENCE_UNKNOWN_FLAGS);
 
 		fences[n] = ptr_pack_bits(syncobj, fence.flags, 2);
@@ -2280,8 +2280,8 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	int out_fence_fd = -1;
 	int err;
 
-	BUILD_BUG_ON(__EXEC_INTERNAL_FLAGS & ~__I915_EXEC_ILLEGAL_FLAGS);
-	BUILD_BUG_ON(__EXEC_OBJECT_INTERNAL_FLAGS &
+	BUILD__ON(__EXEC_INTERNAL_FLAGS & ~__I915_EXEC_ILLEGAL_FLAGS);
+	BUILD__ON(__EXEC_OBJECT_INTERNAL_FLAGS &
 		     ~__EXEC_OBJECT_UNKNOWN_FLAGS);
 
 	eb.i915 = to_i915(dev);
@@ -2334,7 +2334,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (err)
 		goto err_out_fence;
 
-	GEM_BUG_ON(!eb.lut_size);
+	GEM__ON(!eb.lut_size);
 
 	err = eb_select_context(&eb);
 	if (unlikely(err))
@@ -2371,13 +2371,13 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 
 	if (unlikely(*eb.batch->exec_flags & EXEC_OBJECT_WRITE)) {
-		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");
+		DRM_DE("Attempting to use self-modifying batch buffer\n");
 		err = -EINVAL;
 		goto err_vma;
 	}
 	if (eb.batch_start_offset > eb.batch->size ||
 	    eb.batch_len > eb.batch->size - eb.batch_start_offset) {
-		DRM_DEBUG("Attempting to use out-of-bounds batch\n");
+		DRM_DE("Attempting to use out-of-bounds batch\n");
 		err = -EINVAL;
 		goto err_vma;
 	}
@@ -2437,7 +2437,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 
 	/* All GPU relocation batches must be submitted prior to the user rq */
-	GEM_BUG_ON(eb.reloc_cache.rq);
+	GEM__ON(eb.reloc_cache.rq);
 
 	/* Allocate a request for this batch buffer nice and early. */
 	eb.request = i915_request_alloc(eb.engine, eb.ctx);
@@ -2553,7 +2553,7 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (!check_buffer_count(count)) {
-		DRM_DEBUG("execbuf2 with %zd buffers\n", count);
+		DRM_DE("execbuf2 with %zd buffers\n", count);
 		return -EINVAL;
 	}
 
@@ -2577,7 +2577,7 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec_list == NULL || exec2_list == NULL) {
-		DRM_DEBUG("Failed to allocate exec list for %d buffers\n",
+		DRM_DE("Failed to allocate exec list for %d buffers\n",
 			  args->buffer_count);
 		kvfree(exec_list);
 		kvfree(exec2_list);
@@ -2587,7 +2587,7 @@ i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
 			     u64_to_user_ptr(args->buffers_ptr),
 			     sizeof(*exec_list) * count);
 	if (err) {
-		DRM_DEBUG("copy %d exec entries failed %d\n",
+		DRM_DE("copy %d exec entries failed %d\n",
 			  args->buffer_count, err);
 		kvfree(exec_list);
 		kvfree(exec2_list);
@@ -2642,7 +2642,7 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 	int err;
 
 	if (!check_buffer_count(count)) {
-		DRM_DEBUG("execbuf2 with %zd buffers\n", count);
+		DRM_DE("execbuf2 with %zd buffers\n", count);
 		return -EINVAL;
 	}
 
@@ -2653,14 +2653,14 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec2_list == NULL) {
-		DRM_DEBUG("Failed to allocate exec list for %zd buffers\n",
+		DRM_DE("Failed to allocate exec list for %zd buffers\n",
 			  count);
 		return -ENOMEM;
 	}
 	if (copy_from_user(exec2_list,
 			   u64_to_user_ptr(args->buffers_ptr),
 			   sizeof(*exec2_list) * count)) {
-		DRM_DEBUG("copy %zd exec entries failed\n", count);
+		DRM_DE("copy %zd exec entries failed\n", count);
 		kvfree(exec2_list);
 		return -EFAULT;
 	}

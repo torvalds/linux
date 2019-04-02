@@ -44,8 +44,8 @@ static void __init init_vdso_image(struct mips_vdso_image *image)
 	unsigned long num_pages, i;
 	unsigned long data_pfn;
 
-	BUG_ON(!PAGE_ALIGNED(image->data));
-	BUG_ON(!PAGE_ALIGNED(image->size));
+	_ON(!PAGE_ALIGNED(image->data));
+	_ON(!PAGE_ALIGNED(image->size));
 
 	num_pages = image->size / PAGE_SIZE;
 

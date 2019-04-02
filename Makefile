@@ -34,7 +34,7 @@ _all:
 ifneq ($(sub_make_done),1)
 
 # Do not use make's built-in rules and variables
-# (this increases performance and avoids hard-to-debug behaviour)
+# (this increases performance and avoids hard-to-de behaviour)
 MAKEFLAGS += -rR
 
 # Avoid funny character set dependencies
@@ -748,27 +748,27 @@ KBUILD_CFLAGS	+= -fomit-frame-pointer
 endif
 endif
 
-DEBUG_CFLAGS	:= $(call cc-option, -fno-var-tracking-assignments)
+DE_CFLAGS	:= $(call cc-option, -fno-var-tracking-assignments)
 
-ifdef CONFIG_DEBUG_INFO
-ifdef CONFIG_DEBUG_INFO_SPLIT
-DEBUG_CFLAGS	+= -gsplit-dwarf
+ifdef CONFIG_DE_INFO
+ifdef CONFIG_DE_INFO_SPLIT
+DE_CFLAGS	+= -gsplit-dwarf
 else
-DEBUG_CFLAGS	+= -g
+DE_CFLAGS	+= -g
 endif
 KBUILD_AFLAGS	+= -Wa,-gdwarf-2
 endif
-ifdef CONFIG_DEBUG_INFO_DWARF4
-DEBUG_CFLAGS	+= -gdwarf-4
+ifdef CONFIG_DE_INFO_DWARF4
+DE_CFLAGS	+= -gdwarf-4
 endif
 
-ifdef CONFIG_DEBUG_INFO_REDUCED
-DEBUG_CFLAGS	+= $(call cc-option, -femit-struct-debug-baseonly) \
+ifdef CONFIG_DE_INFO_REDUCED
+DE_CFLAGS	+= $(call cc-option, -femit-struct-de-baseonly) \
 		   $(call cc-option,-fno-var-tracking)
 endif
 
-KBUILD_CFLAGS += $(DEBUG_CFLAGS)
-export DEBUG_CFLAGS
+KBUILD_CFLAGS += $(DE_CFLAGS)
+export DE_CFLAGS
 
 ifdef CONFIG_FUNCTION_TRACER
 ifdef CONFIG_FTRACE_MCOUNT_RECORD
@@ -802,7 +802,7 @@ endif
 endif
 
 # We trigger additional mismatches with less inlining
-ifdef CONFIG_DEBUG_SECTION_MISMATCH
+ifdef CONFIG_DE_SECTION_MISMATCH
 KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
 endif
 
@@ -915,12 +915,12 @@ export MODLIB
 #
 # INSTALL_MOD_STRIP, if defined, will cause modules to be
 # stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
-# the default option --strip-debug will be used.  Otherwise,
+# the default option --strip-de will be used.  Otherwise,
 # INSTALL_MOD_STRIP value will be used as the options to the strip command.
 
 ifdef INSTALL_MOD_STRIP
 ifeq ($(INSTALL_MOD_STRIP),1)
-mod_strip_cmd = $(STRIP) --strip-debug
+mod_strip_cmd = $(STRIP) --strip-de
 else
 mod_strip_cmd = $(STRIP) $(INSTALL_MOD_STRIP)
 endif # INSTALL_MOD_STRIP=1

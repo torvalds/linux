@@ -37,7 +37,7 @@ enum black_color_format {
 	BLACK_COLOR_FORMAT_YUV_TV,
 	BLACK_COLOR_FORMAT_YUV_CV,
 	BLACK_COLOR_FORMAT_YUV_SUPER_AA,
-	BLACK_COLOR_FORMAT_DEBUG,
+	BLACK_COLOR_FORMAT_DE,
 };
 
 enum dc_color_space_type {
@@ -60,7 +60,7 @@ static const struct tg_color black_color_format[] = {
 	{0x1f4, 0x40, 0x1f4},
 	/* BlackColorFormat_YUV_SuperAA */
 	{0x1a2, 0x20, 0x1a2},
-	/* visual confirm debug */
+	/* visual confirm de */
 	{0xff, 0xff, 0},
 };
 

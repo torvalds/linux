@@ -63,10 +63,10 @@
 */
 #define MODULE_NAME "ccio"
 
-#undef DEBUG_CCIO_RES
-#undef DEBUG_CCIO_RUN
-#undef DEBUG_CCIO_INIT
-#undef DEBUG_CCIO_RUN_SG
+#undef DE_CCIO_RES
+#undef DE_CCIO_RUN
+#undef DE_CCIO_INIT
+#undef DE_CCIO_RUN_SG
 
 #ifdef CONFIG_PROC_FS
 /* depends on proc fs support. But costs CPU performance. */
@@ -75,25 +75,25 @@
 
 #include <asm/runway.h>		/* for proc_runway_root */
 
-#ifdef DEBUG_CCIO_INIT
+#ifdef DE_CCIO_INIT
 #define DBG_INIT(x...)  printk(x)
 #else
 #define DBG_INIT(x...)
 #endif
 
-#ifdef DEBUG_CCIO_RUN
+#ifdef DE_CCIO_RUN
 #define DBG_RUN(x...)   printk(x)
 #else
 #define DBG_RUN(x...)
 #endif
 
-#ifdef DEBUG_CCIO_RES
+#ifdef DE_CCIO_RES
 #define DBG_RES(x...)   printk(x)
 #else
 #define DBG_RES(x...)
 #endif
 
-#ifdef DEBUG_CCIO_RUN_SG
+#ifdef DE_CCIO_RUN_SG
 #define DBG_RUN_SG(x...) printk(x)
 #else
 #define DBG_RUN_SG(x...)
@@ -248,7 +248,7 @@ struct ioc {
 	unsigned long usg_calls;
 	unsigned long usg_pages;
 #endif
-	unsigned short cujo20_bug;
+	unsigned short cujo20_;
 
 	/* STUFF We don't need in performance path */
 	u32 chainid_shift; 		/* specify bit location of chain_id */
@@ -319,7 +319,7 @@ static int ioc_count;
 ** Find available bit in this ioa's resource map.
 ** Use a "circular" search:
 **   o Most IOVA's are "temporary" - avg search time should be small.
-** o keep a history of what happened for debugging
+** o keep a history of what happened for deging
 ** o KISS.
 **
 ** Perf optimizations:
@@ -348,8 +348,8 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 	unsigned long cr_start = mfctl(16);
 #endif
 	
-	BUG_ON(pages_needed == 0);
-	BUG_ON((pages_needed * IOVP_SIZE) > DMA_CHUNK_SIZE);
+	_ON(pages_needed == 0);
+	_ON((pages_needed * IOVP_SIZE) > DMA_CHUNK_SIZE);
      
 	DBG_RES("%s() size: %d pages_needed %d\n", 
 		__func__, size, pages_needed);
@@ -418,7 +418,7 @@ resource_found:
 
 #define CCIO_FREE_MAPPINGS(ioc, res_idx, mask, size) \
         u##size *res_ptr = (u##size *)&((ioc)->res_map[res_idx]); \
-        BUG_ON((*res_ptr & mask) != mask); \
+        _ON((*res_ptr & mask) != mask); \
         *res_ptr &= ~(mask);
 
 /**
@@ -436,9 +436,9 @@ ccio_free_range(struct ioc *ioc, dma_addr_t iova, unsigned long pages_mapped)
 	unsigned long iovp = CCIO_IOVP(iova);
 	unsigned int res_idx = PDIR_INDEX(iovp) >> 3;
 
-	BUG_ON(pages_mapped == 0);
-	BUG_ON((pages_mapped * IOVP_SIZE) > DMA_CHUNK_SIZE);
-	BUG_ON(pages_mapped > BITS_PER_LONG);
+	_ON(pages_mapped == 0);
+	_ON((pages_mapped * IOVP_SIZE) > DMA_CHUNK_SIZE);
+	_ON(pages_mapped > BITS_PER_LONG);
 
 	DBG_RES("%s():  res_idx: %d pages_mapped %d\n", 
 		__func__, res_idx, pages_mapped);
@@ -563,7 +563,7 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	register unsigned long ci; /* coherent index */
 
 	/* We currently only support kernel addresses */
-	BUG_ON(sid != KERNEL_SPACE);
+	_ON(sid != KERNEL_SPACE);
 
 	mtsp(sid,1);
 
@@ -675,7 +675,7 @@ ccio_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 		unsigned int idx = PDIR_INDEX(iovp);
 		char *pdir_ptr = (char *) &(ioc->pdir_base[idx]);
 
-		BUG_ON(idx >= (ioc->pdir_size / sizeof(u64)));
+		_ON(idx >= (ioc->pdir_size / sizeof(u64)));
 		pdir_ptr[7] = 0;	/* clear only VALID bit */ 
 		/*
 		** FIXME: PCX_W platforms don't need FDC/SYNC. (eg C360)
@@ -708,7 +708,7 @@ ccio_dma_supported(struct device *dev, u64 mask)
 {
 	if(dev == NULL) {
 		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al not supported\n");
-		BUG();
+		();
 		return 0;
 	}
 
@@ -737,12 +737,12 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 	u64 *pdir_start;
 	unsigned long hint = hint_lookup[(int)direction];
 
-	BUG_ON(!dev);
+	_ON(!dev);
 	ioc = GET_IOC(dev);
 	if (!ioc)
 		return DMA_MAPPING_ERROR;
 
-	BUG_ON(size <= 0);
+	_ON(size <= 0);
 
 	/* save offset bits */
 	offset = ((unsigned long) addr) & ~IOVP_MASK;
@@ -812,7 +812,7 @@ ccio_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 	unsigned long flags; 
 	dma_addr_t offset = iova & ~IOVP_MASK;
 	
-	BUG_ON(!dev);
+	_ON(!dev);
 	ioc = GET_IOC(dev);
 	if (!ioc) {
 		WARN_ON(!ioc);
@@ -920,7 +920,7 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	unsigned long prev_len = 0, current_len = 0;
 	int i;
 	
-	BUG_ON(!dev);
+	_ON(!dev);
 	ioc = GET_IOC(dev);
 	if (!ioc)
 		return 0;
@@ -967,14 +967,14 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 	spin_unlock_irqrestore(&ioc->res_lock, flags);
 
-	BUG_ON(coalesced != filled);
+	_ON(coalesced != filled);
 
 	DBG_RUN_SG("%s() DONE %d mappings\n", __func__, filled);
 
 	for (i = 0; i < filled; i++)
 		current_len += sg_dma_len(sglist + i);
 
-	BUG_ON(current_len != prev_len);
+	_ON(current_len != prev_len);
 
 	return filled;
 }
@@ -994,7 +994,7 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 {
 	struct ioc *ioc;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 	ioc = GET_IOC(dev);
 	if (!ioc) {
 		WARN_ON(!ioc);
@@ -1045,8 +1045,8 @@ static int ccio_proc_info(struct seq_file *m, void *p)
 
 		seq_printf(m, "%s\n", ioc->name);
 		
-		seq_printf(m, "Cujo 2.0 bug    : %s\n",
-			   (ioc->cujo20_bug ? "yes" : "no"));
+		seq_printf(m, "Cujo 2.0     : %s\n",
+			   (ioc->cujo20_ ? "yes" : "no"));
 		
 		seq_printf(m, "IO PDIR size    : %d bytes (%d entries)\n",
 			   total_pages * 8, total_pages);
@@ -1155,7 +1155,7 @@ void * ccio_get_iommu(const struct parisc_device *dev)
 
 #define CUJO_20_STEP       0x10000000	/* inc upper nibble */
 
-/* Cujo 2.0 has a bug which will silently corrupt data being transferred
+/* Cujo 2.0 has a  which will silently corrupt data being transferred
  * to/from certain pages.  To avoid this happening, we mark these pages
  * as `used', and ensure that nothing will try to allocate from them.
  */
@@ -1166,7 +1166,7 @@ void __init ccio_cujo20_fixup(struct parisc_device *cujo, u32 iovp)
 	struct ioc *ioc = ccio_get_iommu(dev);
 	u8 *res_ptr;
 
-	ioc->cujo20_bug = 1;
+	ioc->cujo20_ = 1;
 	res_ptr = ioc->res_map;
 	idx = PDIR_INDEX(iovp) >> 3;
 
@@ -1277,10 +1277,10 @@ ccio_ioc_init(struct ioc *ioc)
 
 	ioc->pdir_size = (iova_space_size / IOVP_SIZE) * sizeof(u64);
 
-	BUG_ON(ioc->pdir_size > 8 * 1024 * 1024);   /* max pdir size <= 8MB */
+	_ON(ioc->pdir_size > 8 * 1024 * 1024);   /* max pdir size <= 8MB */
 
 	/* Verify it's a power of two */
-	BUG_ON((1 << get_order(ioc->pdir_size)) != (ioc->pdir_size >> PAGE_SHIFT));
+	_ON((1 << get_order(ioc->pdir_size)) != (ioc->pdir_size >> PAGE_SHIFT));
 
 	DBG_INIT("%s() hpa 0x%p mem %luMB IOV %dMB (%d bits)\n",
 			__func__, ioc->ioc_regs,
@@ -1295,7 +1295,7 @@ ccio_ioc_init(struct ioc *ioc)
 	}
 	memset(ioc->pdir_base, 0, ioc->pdir_size);
 
-	BUG_ON((((unsigned long)ioc->pdir_base) & PAGE_MASK) != (unsigned long)ioc->pdir_base);
+	_ON((((unsigned long)ioc->pdir_base) & PAGE_MASK) != (unsigned long)ioc->pdir_base);
 	DBG_INIT(" base %p\n", ioc->pdir_base);
 
 	/* resource map size dictated by pdir_size */
@@ -1548,8 +1548,8 @@ static int __init ccio_probe(struct parisc_device *dev)
 	hppa_dma_ops = &ccio_ops;
 
 	hba = kzalloc(sizeof(*hba), GFP_KERNEL);
-	/* if this fails, no I/O cards will work, so may as well bug */
-	BUG_ON(hba == NULL);
+	/* if this fails, no I/O cards will work, so may as well  */
+	_ON(hba == NULL);
 
 	hba->iommu = ioc;
 	dev->dev.platform_data = hba;

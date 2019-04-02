@@ -177,7 +177,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	my_addr = &saddr;
 	peer_addr = &daddr;
 #endif
-	rdsdebug("accepted family %d tcp %pI6c:%u -> %pI6c:%u\n",
+	rdsde("accepted family %d tcp %pI6c:%u -> %pI6c:%u\n",
 		 sock->sk->sk_family,
 		 my_addr, ntohs(inet->inet_sport),
 		 peer_addr, ntohs(inet->inet_dport));
@@ -256,7 +256,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
 
-	rdsdebug("listen data ready sk %p\n", sk);
+	rdsde("listen data ready sk %p\n", sk);
 
 	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
@@ -297,7 +297,7 @@ struct socket *rds_tcp_listen_init(struct net *net, bool isv6)
 	ret = sock_create_kern(net, isv6 ? PF_INET6 : PF_INET, SOCK_STREAM,
 			       IPPROTO_TCP, &sock);
 	if (ret < 0) {
-		rdsdebug("could not create %s listener socket: %d\n",
+		rdsde("could not create %s listener socket: %d\n",
 			 isv6 ? "IPv6" : "IPv4", ret);
 		goto out;
 	}
@@ -328,7 +328,7 @@ struct socket *rds_tcp_listen_init(struct net *net, bool isv6)
 
 	ret = sock->ops->bind(sock, (struct sockaddr *)&ss, addr_len);
 	if (ret < 0) {
-		rdsdebug("could not bind %s listener socket: %d\n",
+		rdsde("could not bind %s listener socket: %d\n",
 			 isv6 ? "IPv6" : "IPv4", ret);
 		goto out;
 	}

@@ -74,7 +74,7 @@ static void rds_ib_set_flow_control(struct rds_connection *conn, u32 credits)
  * smallest infinite number :-) above.
  * If flow control is off, we want to change this back to 0
  * so that we learn quickly when our credit accounting is
- * buggy.
+ * gy.
  *
  * Caller passes in a qp_attr pointer - don't waste stack spacv
  * by allocation this twice.
@@ -261,7 +261,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 
 static void rds_ib_cq_event_handler(struct ib_event *event, void *data)
 {
-	rdsdebug("event %u (%s) data %p\n",
+	rdsde("event %u (%s) data %p\n",
 		 event->event, ib_event_msg(event->event), data);
 }
 
@@ -278,7 +278,7 @@ static void rds_ib_cq_comp_handler_recv(struct ib_cq *cq, void *context)
 	struct rds_connection *conn = context;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	rdsdebug("conn %p cq %p\n", conn, cq);
+	rdsde("conn %p cq %p\n", conn, cq);
 
 	rds_ib_stats_inc(s_ib_evt_handler_call);
 
@@ -294,7 +294,7 @@ static void poll_scq(struct rds_ib_connection *ic, struct ib_cq *cq,
 	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
 		for (i = 0; i < nr; i++) {
 			wc = wcs + i;
-			rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
+			rdsde("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
 				 (unsigned long long)wc->wr_id, wc->status,
 				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
 
@@ -339,7 +339,7 @@ static void poll_rcq(struct rds_ib_connection *ic, struct ib_cq *cq,
 	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
 		for (i = 0; i < nr; i++) {
 			wc = wcs + i;
-			rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
+			rdsde("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
 				 (unsigned long long)wc->wr_id, wc->status,
 				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
 
@@ -385,7 +385,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	struct rds_connection *conn = data;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	rdsdebug("conn %p ic %p event %u (%s)\n", conn, ic, event->event,
+	rdsde("conn %p ic %p event %u (%s)\n", conn, ic, event->event,
 		 ib_event_msg(event->event));
 
 	switch (event->event) {
@@ -393,7 +393,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		rdsdebug("Fatal QP Event %u (%s) - connection %pI6c->%pI6c, reconnecting\n",
+		rdsde("Fatal QP Event %u (%s) - connection %pI6c->%pI6c, reconnecting\n",
 			 event->event, ib_event_msg(event->event),
 			 &conn->c_laddr, &conn->c_faddr);
 		rds_conn_drop(conn);
@@ -406,7 +406,7 @@ static void rds_ib_cq_comp_handler_send(struct ib_cq *cq, void *context)
 	struct rds_connection *conn = context;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	rdsdebug("conn %p cq %p\n", conn, cq);
+	rdsde("conn %p cq %p\n", conn, cq);
 
 	rds_ib_stats_inc(s_ib_evt_handler_call);
 
@@ -486,7 +486,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		ret = PTR_ERR(ic->i_send_cq);
 		ic->i_send_cq = NULL;
 		ibdev_put_vector(rds_ibdev, ic->i_scq_vector);
-		rdsdebug("ib_create_cq send failed: %d\n", ret);
+		rdsde("ib_create_cq send failed: %d\n", ret);
 		goto rds_ibdev_out;
 	}
 
@@ -500,19 +500,19 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		ret = PTR_ERR(ic->i_recv_cq);
 		ic->i_recv_cq = NULL;
 		ibdev_put_vector(rds_ibdev, ic->i_rcq_vector);
-		rdsdebug("ib_create_cq recv failed: %d\n", ret);
+		rdsde("ib_create_cq recv failed: %d\n", ret);
 		goto send_cq_out;
 	}
 
 	ret = ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
 	if (ret) {
-		rdsdebug("ib_req_notify_cq send failed: %d\n", ret);
+		rdsde("ib_req_notify_cq send failed: %d\n", ret);
 		goto recv_cq_out;
 	}
 
 	ret = ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
 	if (ret) {
-		rdsdebug("ib_req_notify_cq recv failed: %d\n", ret);
+		rdsde("ib_req_notify_cq recv failed: %d\n", ret);
 		goto recv_cq_out;
 	}
 
@@ -538,7 +538,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	 */
 	ret = rdma_create_qp(ic->i_cm_id, ic->i_pd, &attr);
 	if (ret) {
-		rdsdebug("rdma_create_qp failed: %d\n", ret);
+		rdsde("rdma_create_qp failed: %d\n", ret);
 		goto recv_cq_out;
 	}
 
@@ -548,7 +548,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 					   &ic->i_send_hdrs_dma, GFP_KERNEL);
 	if (!ic->i_send_hdrs) {
 		ret = -ENOMEM;
-		rdsdebug("ib_dma_alloc_coherent send failed\n");
+		rdsde("ib_dma_alloc_coherent send failed\n");
 		goto qp_out;
 	}
 
@@ -558,7 +558,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 					   &ic->i_recv_hdrs_dma, GFP_KERNEL);
 	if (!ic->i_recv_hdrs) {
 		ret = -ENOMEM;
-		rdsdebug("ib_dma_alloc_coherent recv failed\n");
+		rdsde("ib_dma_alloc_coherent recv failed\n");
 		goto send_hdrs_dma_out;
 	}
 
@@ -566,7 +566,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 				       &ic->i_ack_dma, GFP_KERNEL);
 	if (!ic->i_ack) {
 		ret = -ENOMEM;
-		rdsdebug("ib_dma_alloc_coherent ack failed\n");
+		rdsde("ib_dma_alloc_coherent ack failed\n");
 		goto recv_hdrs_dma_out;
 	}
 
@@ -575,7 +575,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 				   ibdev_to_node(dev));
 	if (!ic->i_sends) {
 		ret = -ENOMEM;
-		rdsdebug("send allocation failed\n");
+		rdsde("send allocation failed\n");
 		goto ack_dma_out;
 	}
 
@@ -584,13 +584,13 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 				   ibdev_to_node(dev));
 	if (!ic->i_recvs) {
 		ret = -ENOMEM;
-		rdsdebug("recv allocation failed\n");
+		rdsde("recv allocation failed\n");
 		goto sends_out;
 	}
 
 	rds_ib_recv_init_ack(ic);
 
-	rdsdebug("conn %p pd %p cq %p %p\n", conn, ic->i_pd,
+	rdsde("conn %p pd %p cq %p %p\n", conn, ic->i_pd,
 		 ic->i_send_cq, ic->i_recv_cq);
 
 	goto out;
@@ -779,7 +779,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		daddr6 = &d_mapped_addr;
 	}
 
-	rdsdebug("saddr %pI6c daddr %pI6c RDSv%u.%u lguid 0x%llx fguid 0x%llx, tos:%d\n",
+	rdsde("saddr %pI6c daddr %pI6c RDSv%u.%u lguid 0x%llx fguid 0x%llx, tos:%d\n",
 		 saddr6, daddr6, RDS_PROTOCOL_MAJOR(version),
 		 RDS_PROTOCOL_MINOR(version),
 		 (unsigned long long)be64_to_cpu(lguid),
@@ -790,7 +790,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 			       &rds_ib_transport, dp_cmn->ricpc_dp_toss,
 			       GFP_KERNEL, ifindex);
 	if (IS_ERR(conn)) {
-		rdsdebug("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
+		rdsde("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
 		conn = NULL;
 		goto out;
 	}
@@ -805,7 +805,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	mutex_lock(&conn->c_cm_lock);
 	if (!rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING)) {
 		if (rds_conn_state(conn) == RDS_CONN_UP) {
-			rdsdebug("incoming connect while connecting\n");
+			rdsde("incoming connect while connecting\n");
 			rds_conn_drop(conn);
 			rds_ib_stats_inc(s_ib_listen_closed_stale);
 		} else
@@ -827,8 +827,8 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		rds_send_drop_acked(conn, be64_to_cpu(dp_cmn->ricpc_ack_seq),
 				    NULL);
 
-	BUG_ON(cm_id->context);
-	BUG_ON(ic->i_cm_id);
+	_ON(cm_id->context);
+	_ON(ic->i_cm_id);
 
 	ic->i_cm_id = cm_id;
 	cm_id->context = conn;
@@ -921,11 +921,11 @@ int rds_ib_conn_path_connect(struct rds_conn_path *cp)
 	if (IS_ERR(ic->i_cm_id)) {
 		ret = PTR_ERR(ic->i_cm_id);
 		ic->i_cm_id = NULL;
-		rdsdebug("rdma_create_id() failed: %d\n", ret);
+		rdsde("rdma_create_id() failed: %d\n", ret);
 		goto out;
 	}
 
-	rdsdebug("created cm id %p for conn %p\n", ic->i_cm_id, conn);
+	rdsde("created cm id %p for conn %p\n", ic->i_cm_id, conn);
 
 	if (ipv6_addr_v4mapped(&conn->c_faddr)) {
 		struct sockaddr_in *sin;
@@ -959,7 +959,7 @@ int rds_ib_conn_path_connect(struct rds_conn_path *cp)
 				(struct sockaddr *)&dest,
 				RDS_RDMA_RESOLVE_TIMEOUT_MS);
 	if (ret) {
-		rdsdebug("addr resolve failed for cm id %p: %d\n", ic->i_cm_id,
+		rdsde("addr resolve failed for cm id %p: %d\n", ic->i_cm_id,
 			 ret);
 		rdma_destroy_id(ic->i_cm_id);
 		ic->i_cm_id = NULL;
@@ -980,20 +980,20 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	int err = 0;
 
-	rdsdebug("cm %p pd %p cq %p %p qp %p\n", ic->i_cm_id,
+	rdsde("cm %p pd %p cq %p %p qp %p\n", ic->i_cm_id,
 		 ic->i_pd, ic->i_send_cq, ic->i_recv_cq,
 		 ic->i_cm_id ? ic->i_cm_id->qp : NULL);
 
 	if (ic->i_cm_id) {
 		struct ib_device *dev = ic->i_cm_id->device;
 
-		rdsdebug("disconnecting cm %p\n", ic->i_cm_id);
+		rdsde("disconnecting cm %p\n", ic->i_cm_id);
 		err = rdma_disconnect(ic->i_cm_id);
 		if (err) {
 			/* Actually this may happen quite frequently, when
 			 * an outgoing connect raced with an incoming connect.
 			 */
-			rdsdebug("failed to disconnect, cm: %p err %d\n",
+			rdsde("failed to disconnect, cm: %p err %d\n",
 				ic->i_cm_id, err);
 		}
 
@@ -1071,7 +1071,7 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		ic->i_recv_hdrs = NULL;
 		ic->i_ack = NULL;
 	}
-	BUG_ON(ic->rds_ibdev);
+	_ON(ic->rds_ibdev);
 
 	/* Clear pending transmit */
 	if (ic->i_data_op) {
@@ -1153,7 +1153,7 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	spin_unlock_irqrestore(&ib_nodev_conns_lock, flags);
 
 
-	rdsdebug("conn %p conn ic %p\n", conn, conn->c_transport_data);
+	rdsde("conn %p conn ic %p\n", conn, conn->c_transport_data);
 	return 0;
 }
 
@@ -1165,7 +1165,7 @@ void rds_ib_conn_free(void *arg)
 	struct rds_ib_connection *ic = arg;
 	spinlock_t	*lock_ptr;
 
-	rdsdebug("ic %p\n", ic);
+	rdsde("ic %p\n", ic);
 
 	/*
 	 * Conn is either on a dev's list or on the nodev list.

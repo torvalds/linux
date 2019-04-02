@@ -532,8 +532,8 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_RQPN_NPQ, value8);
 	rtl_write_dword(rtlpriv, REG_RQPN, value32);
 
-	/* 12.  TXRKTBUG_PG_BNDY 0x114[31:0] = 0x27FF00F6 */
-	/* TXRKTBUG_PG_BNDY */
+	/* 12.  TXRKT_PG_BNDY 0x114[31:0] = 0x27FF00F6 */
+	/* TXRKT_PG_BNDY */
 	rtl_write_dword(rtlpriv, REG_TRXFF_BNDY,
 			(rtl_read_word(rtlpriv, REG_TRXFF_BNDY + 2) << 16 |
 			txpktbuf_bndy));

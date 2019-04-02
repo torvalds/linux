@@ -42,7 +42,7 @@
 static inline void *__ntfs_malloc(unsigned long size, gfp_t gfp_mask)
 {
 	if (likely(size <= PAGE_SIZE)) {
-		BUG_ON(!size);
+		_ON(!size);
 		/* kmalloc() has per-CPU caches so is faster for now. */
 		return kmalloc(PAGE_SIZE, gfp_mask & ~__GFP_HIGHMEM);
 		/* return (void *)__get_free_page(gfp_mask); */

@@ -104,7 +104,7 @@ void dal_hw_factory_destroy(
 	struct hw_factory **factory)
 {
 	if (!factory || !*factory) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 

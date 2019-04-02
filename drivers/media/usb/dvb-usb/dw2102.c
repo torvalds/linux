@@ -76,11 +76,11 @@ struct dw2102_state {
 			      enum fe_status *status);
 };
 
-/* debug */
-static int dvb_usb_dw2102_debug;
-module_param_named(debug, dvb_usb_dw2102_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info 2=xfer 4=rc(or-able))."
-						DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_dw2102_de;
+module_param_named(de, dvb_usb_dw2102_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info 2=xfer 4=rc(or-able))."
+						DVB_USB_DE_STATUS);
 
 /* demod probe */
 static int demod_probe = 1;
@@ -547,7 +547,7 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	for (i = 0; i < num; i++) {
 		deb_xfer("%02x:%02x: %s ", i, msg[i].addr,
 				msg[i].flags == 0 ? ">>>" : "<<<");
-		debug_dump(msg[i].buf, msg[i].len, deb_xfer);
+		de_dump(msg[i].buf, msg[i].len, deb_xfer);
 	}
 	ret = num;
 
@@ -840,7 +840,7 @@ static int dw210x_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		}
 		if ((i % 16) == 15) {
 			deb_xfer("%02x: ", i - 15);
-			debug_dump(eepromline, 16, deb_xfer);
+			de_dump(eepromline, 16, deb_xfer);
 		}
 	}
 
@@ -880,7 +880,7 @@ static int s6x0_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 
 		if ((i % 16) == 15) {
 			deb_xfer("%02x: ", i - 15);
-			debug_dump(eepromline, 16, deb_xfer);
+			de_dump(eepromline, 16, deb_xfer);
 		}
 	}
 

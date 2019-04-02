@@ -374,7 +374,7 @@ bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0,
 bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 			       struct mlx5_core_dev *dev1);
 
-#define MLX5_DEBUG_ESWITCH_MASK BIT(3)
+#define MLX5_DE_ESWITCH_MASK BIT(3)
 
 #define esw_info(dev, format, ...)				\
 	pr_info("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
@@ -382,8 +382,8 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 #define esw_warn(dev, format, ...)				\
 	pr_warn("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
 
-#define esw_debug(dev, format, ...)				\
-	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
+#define esw_de(dev, format, ...)				\
+	mlx5_core_dbg_mask(dev, MLX5_DE_ESWITCH_MASK, format, ##__VA_ARGS__)
 
 /* The returned number is valid only when the dev is eswitch manager. */
 static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)

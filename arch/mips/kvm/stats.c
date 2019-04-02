@@ -35,7 +35,7 @@ char *kvm_cop0_str[N_MIPS_COPROC_REGS] = {
 	"X Context",
 	"Reserved",
 	"Impl Dep",
-	"Debug",
+	"De",
 	"DEPC",
 	"PerfCnt",
 	"ErrCtl",
@@ -48,7 +48,7 @@ char *kvm_cop0_str[N_MIPS_COPROC_REGS] = {
 
 void kvm_mips_dump_stats(struct kvm_vcpu *vcpu)
 {
-#ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
+#ifdef CONFIG_KVM_MIPS_DE_COP0_COUNTERS
 	int i, j;
 
 	kvm_info("\nKVM VCPU[%d] COP0 Access Profile:\n", vcpu->vcpu_id);

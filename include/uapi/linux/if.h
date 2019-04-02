@@ -57,7 +57,7 @@
  *
  * @IFF_UP: interface is up. Can be toggled through sysfs.
  * @IFF_BROADCAST: broadcast address valid. Volatile.
- * @IFF_DEBUG: turn on debugging. Can be toggled through sysfs.
+ * @IFF_DE: turn on deging. Can be toggled through sysfs.
  * @IFF_LOOPBACK: is a loopback net. Volatile.
  * @IFF_POINTOPOINT: interface is has p-p link. Volatile.
  * @IFF_NOTRAILERS: avoid use of trailers. Can be toggled through sysfs.
@@ -83,7 +83,7 @@ enum net_device_flags {
 #if __UAPI_DEF_IF_NET_DEVICE_FLAGS
 	IFF_UP				= 1<<0,  /* sysfs */
 	IFF_BROADCAST			= 1<<1,  /* volatile */
-	IFF_DEBUG			= 1<<2,  /* sysfs */
+	IFF_DE			= 1<<2,  /* sysfs */
 	IFF_LOOPBACK			= 1<<3,  /* volatile */
 	IFF_POINTOPOINT			= 1<<4,  /* volatile */
 	IFF_NOTRAILERS			= 1<<5,  /* sysfs */
@@ -110,7 +110,7 @@ enum net_device_flags {
 #if __UAPI_DEF_IF_NET_DEVICE_FLAGS
 #define IFF_UP				IFF_UP
 #define IFF_BROADCAST			IFF_BROADCAST
-#define IFF_DEBUG			IFF_DEBUG
+#define IFF_DE			IFF_DE
 #define IFF_LOOPBACK			IFF_LOOPBACK
 #define IFF_POINTOPOINT			IFF_POINTOPOINT
 #define IFF_NOTRAILERS			IFF_NOTRAILERS
@@ -185,7 +185,7 @@ enum {
  *	for driver options and along come the PCMCIA people 8)
  *
  *	Ah well. The get() side of this is good for WDSETUP, and it'll
- *	be handy for debugging things. The set side is fine for now and
+ *	be handy for deging things. The set side is fine for now and
  *	being very small might be worth keeping for clean configuration.
  */
 

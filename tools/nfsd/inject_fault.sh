@@ -5,18 +5,18 @@
 #
 # Script for easier NFSD fault injection
 
-# Check that debugfs has been mounted
-DEBUGFS=`cat /proc/mounts | grep debugfs`
-if [ "$DEBUGFS" == "" ]; then
-	echo "debugfs does not appear to be mounted!"
-	echo "Please mount debugfs and try again"
+# Check that defs has been mounted
+DEFS=`cat /proc/mounts | grep defs`
+if [ "$DEFS" == "" ]; then
+	echo "defs does not appear to be mounted!"
+	echo "Please mount defs and try again"
 	exit 1
 fi
 
 # Check that the fault injection directory exists
-DEBUGDIR=`echo $DEBUGFS | awk '{print $2}'`/nfsd
-if [ ! -d "$DEBUGDIR" ]; then
-	echo "$DEBUGDIR does not exist"
+DEDIR=`echo $DEFS | awk '{print $2}'`/nfsd
+if [ ! -d "$DEDIR" ]; then
+	echo "$DEDIR does not exist"
 	echo "Check that your .config selects CONFIG_NFSD_FAULT_INJECTION"
 	exit 1
 fi
@@ -26,13 +26,13 @@ function help()
 	echo "Usage $0 injection_type [count]"
 	echo ""
 	echo "Injection types are:"
-	ls $DEBUGDIR
+	ls $DEDIR
 	exit 1
 }
 
 if [ $# == 0 ]; then
 	help
-elif [ ! -f $DEBUGDIR/$1 ]; then
+elif [ ! -f $DEDIR/$1 ]; then
 	help
 elif [ $# != 2 ]; then
 	COUNT=0
@@ -43,7 +43,7 @@ fi
 BEFORE=`mktemp`
 AFTER=`mktemp`
 dmesg > $BEFORE
-echo $COUNT > $DEBUGDIR/$1
+echo $COUNT > $DEDIR/$1
 dmesg > $AFTER
 # Capture lines that only exist in the $AFTER file
 diff $BEFORE $AFTER | grep ">"

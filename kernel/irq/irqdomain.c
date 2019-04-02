@@ -3,7 +3,7 @@
 #define pr_fmt(fmt)  "irq: " fmt
 
 #include <linux/acpi.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -34,12 +34,12 @@ struct irqchip_fwid {
 	void *data;
 };
 
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-static void debugfs_add_domain_dir(struct irq_domain *d);
-static void debugfs_remove_domain_dir(struct irq_domain *d);
+#ifdef CONFIG_GENERIC_IRQ_DEFS
+static void defs_add_domain_dir(struct irq_domain *d);
+static void defs_remove_domain_dir(struct irq_domain *d);
 #else
-static inline void debugfs_add_domain_dir(struct irq_domain *d) { }
-static inline void debugfs_remove_domain_dir(struct irq_domain *d) { }
+static inline void defs_add_domain_dir(struct irq_domain *d) { }
+static inline void defs_remove_domain_dir(struct irq_domain *d) { }
 #endif
 
 const struct fwnode_operations irqchip_fwnode_ops;
@@ -179,7 +179,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 		char *name;
 
 		/*
-		 * DT paths contain '/', which debugfs is legitimately
+		 * DT paths contain '/', which defs is legitimately
 		 * unhappy about. Replace them with ':', which does
 		 * the trick and is not as offensive as '\'...
 		 */
@@ -221,11 +221,11 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	irq_domain_check_hierarchy(domain);
 
 	mutex_lock(&irq_domain_mutex);
-	debugfs_add_domain_dir(domain);
+	defs_add_domain_dir(domain);
 	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
 
-	pr_debug("Added domain %s\n", domain->name);
+	pr_de("Added domain %s\n", domain->name);
 	return domain;
 }
 EXPORT_SYMBOL_GPL(__irq_domain_add);
@@ -241,7 +241,7 @@ EXPORT_SYMBOL_GPL(__irq_domain_add);
 void irq_domain_remove(struct irq_domain *domain)
 {
 	mutex_lock(&irq_domain_mutex);
-	debugfs_remove_domain_dir(domain);
+	defs_remove_domain_dir(domain);
 
 	WARN_ON(!radix_tree_empty(&domain->revmap_tree));
 
@@ -255,7 +255,7 @@ void irq_domain_remove(struct irq_domain *domain)
 
 	mutex_unlock(&irq_domain_mutex);
 
-	pr_debug("Removed domain %s\n", domain->name);
+	pr_de("Removed domain %s\n", domain->name);
 
 	of_node_put(irq_domain_get_of_node(domain));
 	if (domain->flags & IRQ_DOMAIN_NAME_ALLOCATED)
@@ -282,7 +282,7 @@ void irq_domain_update_bus_token(struct irq_domain *domain,
 		return;
 	}
 
-	debugfs_remove_domain_dir(domain);
+	defs_remove_domain_dir(domain);
 
 	if (domain->flags & IRQ_DOMAIN_NAME_ALLOCATED)
 		kfree(domain->name);
@@ -290,7 +290,7 @@ void irq_domain_update_bus_token(struct irq_domain *domain,
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 
 	domain->name = name;
-	debugfs_add_domain_dir(domain);
+	defs_add_domain_dir(domain);
 
 	mutex_unlock(&irq_domain_mutex);
 }
@@ -452,7 +452,7 @@ EXPORT_SYMBOL_GPL(irq_domain_check_msi_remap);
  */
 void irq_set_default_host(struct irq_domain *domain)
 {
-	pr_debug("Default domain set to @0x%p\n", domain);
+	pr_de("Default domain set to @0x%p\n", domain);
 
 	irq_default_domain = domain;
 }
@@ -585,7 +585,7 @@ void irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 	int i;
 
 	of_node = irq_domain_get_of_node(domain);
-	pr_debug("%s(%s, irqbase=%i, hwbase=%i, count=%i)\n", __func__,
+	pr_de("%s(%s, irqbase=%i, hwbase=%i, count=%i)\n", __func__,
 		of_node_full_name(of_node), irq_base, (int)hwirq_base, count);
 
 	for (i = 0; i < count; i++) {
@@ -615,7 +615,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 	of_node = irq_domain_get_of_node(domain);
 	virq = irq_alloc_desc_from(1, of_node_to_nid(of_node));
 	if (!virq) {
-		pr_debug("create_direct virq allocation failed\n");
+		pr_de("create_direct virq allocation failed\n");
 		return 0;
 	}
 	if (virq >= domain->revmap_direct_max_irq) {
@@ -624,7 +624,7 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 		irq_free_desc(virq);
 		return 0;
 	}
-	pr_debug("create_direct obtained virq %d\n", virq);
+	pr_de("create_direct obtained virq %d\n", virq);
 
 	if (irq_domain_associate(domain, virq, virq)) {
 		irq_free_desc(virq);
@@ -651,7 +651,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	struct device_node *of_node;
 	int virq;
 
-	pr_debug("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
+	pr_de("irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
 
 	/* Look for default domain if nececssary */
 	if (domain == NULL)
@@ -660,21 +660,21 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		WARN(1, "%s(, %lx) called with NULL domain\n", __func__, hwirq);
 		return 0;
 	}
-	pr_debug("-> using domain @%p\n", domain);
+	pr_de("-> using domain @%p\n", domain);
 
 	of_node = irq_domain_get_of_node(domain);
 
 	/* Check if mapping already exists */
 	virq = irq_find_mapping(domain, hwirq);
 	if (virq) {
-		pr_debug("-> existing mapping on virq %d\n", virq);
+		pr_de("-> existing mapping on virq %d\n", virq);
 		return virq;
 	}
 
 	/* Allocate a virtual interrupt number */
 	virq = irq_domain_alloc_descs(-1, 1, hwirq, of_node_to_nid(of_node), NULL);
 	if (virq <= 0) {
-		pr_debug("-> virq allocation failed\n");
+		pr_de("-> virq allocation failed\n");
 		return 0;
 	}
 
@@ -683,7 +683,7 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		return 0;
 	}
 
-	pr_debug("irq %lu on domain %s mapped to virtual irq %u\n",
+	pr_de("irq %lu on domain %s mapped to virtual irq %u\n",
 		hwirq, of_node_full_name(of_node), virq);
 
 	return virq;
@@ -1329,7 +1329,7 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 	}
 
 	if (!domain->ops->alloc) {
-		pr_debug("domain->ops->alloc() is NULL\n");
+		pr_de("domain->ops->alloc() is NULL\n");
 		return -ENOSYS;
 	}
 
@@ -1339,14 +1339,14 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 		virq = irq_domain_alloc_descs(irq_base, nr_irqs, 0, node,
 					      affinity);
 		if (virq < 0) {
-			pr_debug("cannot allocate IRQ(base %d, count %d)\n",
+			pr_de("cannot allocate IRQ(base %d, count %d)\n",
 				 irq_base, nr_irqs);
 			return virq;
 		}
 	}
 
 	if (irq_domain_alloc_irq_data(domain, virq, nr_irqs)) {
-		pr_debug("cannot allocate memory for IRQ%d\n", virq);
+		pr_de("cannot allocate memory for IRQ%d\n", virq);
 		ret = -ENOMEM;
 		goto out_free_desc;
 	}
@@ -1731,28 +1731,28 @@ static void irq_domain_check_hierarchy(struct irq_domain *domain)
 }
 #endif	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+#ifdef CONFIG_GENERIC_IRQ_DEFS
 static struct dentry *domain_dir;
 
 static void
-irq_domain_debug_show_one(struct seq_file *m, struct irq_domain *d, int ind)
+irq_domain_de_show_one(struct seq_file *m, struct irq_domain *d, int ind)
 {
 	seq_printf(m, "%*sname:   %s\n", ind, "", d->name);
 	seq_printf(m, "%*ssize:   %u\n", ind + 1, "",
 		   d->revmap_size + d->revmap_direct_max_irq);
 	seq_printf(m, "%*smapped: %u\n", ind + 1, "", d->mapcount);
 	seq_printf(m, "%*sflags:  0x%08x\n", ind +1 , "", d->flags);
-	if (d->ops && d->ops->debug_show)
-		d->ops->debug_show(m, d, NULL, ind + 1);
+	if (d->ops && d->ops->de_show)
+		d->ops->de_show(m, d, NULL, ind + 1);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (!d->parent)
 		return;
 	seq_printf(m, "%*sparent: %s\n", ind + 1, "", d->parent->name);
-	irq_domain_debug_show_one(m, d->parent, ind + 4);
+	irq_domain_de_show_one(m, d->parent, ind + 4);
 #endif
 }
 
-static int irq_domain_debug_show(struct seq_file *m, void *p)
+static int irq_domain_de_show(struct seq_file *m, void *p)
 {
 	struct irq_domain *d = m->private;
 
@@ -1762,36 +1762,36 @@ static int irq_domain_debug_show(struct seq_file *m, void *p)
 			return 0;
 		d = irq_default_domain;
 	}
-	irq_domain_debug_show_one(m, d, 0);
+	irq_domain_de_show_one(m, d, 0);
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(irq_domain_debug);
+DEFINE_SHOW_ATTRIBUTE(irq_domain_de);
 
-static void debugfs_add_domain_dir(struct irq_domain *d)
+static void defs_add_domain_dir(struct irq_domain *d)
 {
-	if (!d->name || !domain_dir || d->debugfs_file)
+	if (!d->name || !domain_dir || d->defs_file)
 		return;
-	d->debugfs_file = debugfs_create_file(d->name, 0444, domain_dir, d,
-					      &irq_domain_debug_fops);
+	d->defs_file = defs_create_file(d->name, 0444, domain_dir, d,
+					      &irq_domain_de_fops);
 }
 
-static void debugfs_remove_domain_dir(struct irq_domain *d)
+static void defs_remove_domain_dir(struct irq_domain *d)
 {
-	debugfs_remove(d->debugfs_file);
-	d->debugfs_file = NULL;
+	defs_remove(d->defs_file);
+	d->defs_file = NULL;
 }
 
-void __init irq_domain_debugfs_init(struct dentry *root)
+void __init irq_domain_defs_init(struct dentry *root)
 {
 	struct irq_domain *d;
 
-	domain_dir = debugfs_create_dir("domains", root);
+	domain_dir = defs_create_dir("domains", root);
 
-	debugfs_create_file("default", 0444, domain_dir, NULL,
-			    &irq_domain_debug_fops);
+	defs_create_file("default", 0444, domain_dir, NULL,
+			    &irq_domain_de_fops);
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(d, &irq_domain_list, link)
-		debugfs_add_domain_dir(d);
+		defs_add_domain_dir(d);
 	mutex_unlock(&irq_domain_mutex);
 }
 #endif

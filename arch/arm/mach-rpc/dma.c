@@ -266,7 +266,7 @@ static void floppy_enable_dma(unsigned int chan, dma_t *dma)
 	struct pt_regs regs;
 
 	if (fdma->dma.sg)
-		BUG();
+		();
 
 	if (fdma->dma.dma_mode == DMA_MODE_READ) {
 		extern unsigned char floppy_fiqin_start, floppy_fiqin_end;

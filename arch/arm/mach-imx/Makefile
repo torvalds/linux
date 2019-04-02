@@ -20,7 +20,7 @@ obj-$(CONFIG_ARCH_MXC_IOMUX_V3) += iomux-v3.o
 obj-$(CONFIG_MXC_TZIC) += tzic.o
 obj-$(CONFIG_MXC_AVIC) += avic.o
 
-obj-$(CONFIG_MXC_DEBUG_BOARD) += 3ds_debugboard.o
+obj-$(CONFIG_MXC_DE_BOARD) += 3ds_deboard.o
 
 ifeq ($(CONFIG_CPU_IDLE),y)
 obj-$(CONFIG_SOC_IMX5) += cpuidle-imx5.o
@@ -59,7 +59,7 @@ obj-$(CONFIG_MACH_MX31MOBOARD) += mach-mx31moboard.o mx31moboard-devboard.o \
 obj-$(CONFIG_MACH_QONG) += mach-qong.o
 obj-$(CONFIG_MACH_ARMADILLO5X0) += mach-armadillo5x0.o
 obj-$(CONFIG_MACH_KZM_ARM11_01) += mach-kzm_arm11_01.o
-obj-$(CONFIG_MACH_BUG) += mach-bug.o
+obj-$(CONFIG_MACH_) += mach-.o
 obj-$(CONFIG_MACH_IMX31_DT) += imx31-dt.o
 
 # i.MX35 based machines

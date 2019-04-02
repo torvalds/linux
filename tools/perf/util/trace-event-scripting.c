@@ -25,7 +25,7 @@
 #include <errno.h>
 
 #include "../perf.h"
-#include "debug.h"
+#include "de.h"
 #include "util.h"
 #include "trace-event.h"
 

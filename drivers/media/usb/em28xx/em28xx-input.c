@@ -31,15 +31,15 @@
 #define EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL		500 /* [ms] */
 #define EM28XX_BUTTONS_VOLATILE_QUERY_INTERVAL		100 /* [ms] */
 
-static unsigned int ir_debug;
-module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
+static unsigned int ir_de;
+module_param(ir_de, int, 0644);
+MODULE_PARM_DESC(ir_de, "enable de messages [IR]");
 
 #define MODULE_NAME "em28xx"
 
 #define dprintk(fmt, arg...) do {					\
-	if (ir_debug)							\
-		dev_printk(KERN_DEBUG, &ir->dev->intf->dev,		\
+	if (ir_de)							\
+		dev_printk(KERN_DE, &ir->dev->intf->dev,		\
 			   "input: %s: " fmt, __func__, ## arg);	\
 } while (0)
 
@@ -582,7 +582,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 							       led->gpio_mask);
 				break;
 			default:
-				WARN_ONCE(1, "BUG: unhandled button role.");
+				WARN_ONCE(1, ": unhandled button role.");
 			}
 			/* Next button */
 			j++;
@@ -655,7 +655,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		/* Check if max. number of polling addresses is exceeded */
 		if (addr_new && dev->num_button_polling_addresses
 					   >= EM28XX_NUM_BUTTON_ADDRESSES_MAX) {
-			WARN_ONCE(1, "BUG: maximum number of button polling addresses exceeded.");
+			WARN_ONCE(1, ": maximum number of button polling addresses exceeded.");
 			goto next_button;
 		}
 		/* Button role specific checks and actions */
@@ -667,7 +667,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
 				dev_err(&dev->intf->dev,
-					"BUG: illumination button defined, but no illumination LED.\n");
+					": illumination button defined, but no illumination LED.\n");
 				goto next_button;
 			}
 		}

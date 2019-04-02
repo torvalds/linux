@@ -4,7 +4,7 @@
  * Null algorithms, aka Much Ado About Nothing.
  *
  * These are needed for IPsec, and may be useful in general for
- * testing & debugging.
+ * testing & deging.
  *
  * The null cipher is compliant with RFC2410.
  *

@@ -16,7 +16,7 @@
 #include <linux/serial_reg.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "dma_fifo.h"
 
@@ -325,7 +325,7 @@ struct fw_serial {
 	struct fw_card	  *card;
 	struct kref	  kref;
 
-	struct dentry	  *debugfs;
+	struct dentry	  *defs;
 	struct fwtty_peer *self;
 
 	struct list_head  list;

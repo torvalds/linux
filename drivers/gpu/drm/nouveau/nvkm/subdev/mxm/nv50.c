@@ -103,7 +103,7 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 	 * if one isn't found, disable it.
 	 */
 	if (mxms_foreach(mxm, 0x01, mxm_match_dcb, &ctx)) {
-		nvkm_debug(&mxm->subdev, "disable %d: %08x %08x\n",
+		nvkm_de(&mxm->subdev, "disable %d: %08x %08x\n",
 			   idx, ctx.outp[0], ctx.outp[1]);
 		ctx.outp[0] |= 0x0000000f;
 		return 0;

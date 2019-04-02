@@ -62,9 +62,9 @@ MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#if !defined(CONFIG_DYNAMIC_DEBUG)
-#define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt)
-#define DYNAMIC_DEBUG_BRANCH(descriptor) false
+#if !defined(CONFIG_DYNAMIC_DE)
+#define DEFINE_DYNAMIC_DE_METADATA(name, fmt)
+#define DYNAMIC_DE_BRANCH(descriptor) false
 #endif
 
 static unsigned int srp_sg_tablesize;
@@ -93,7 +93,7 @@ MODULE_PARM_DESC(allow_ext_sg,
 
 module_param(topspin_workarounds, int, 0444);
 MODULE_PARM_DESC(topspin_workarounds,
-		 "Enable workarounds for Topspin/Cisco SRP target bugs if != 0");
+		 "Enable workarounds for Topspin/Cisco SRP target s if != 0");
 
 module_param(prefer_fr, bool, 0444);
 MODULE_PARM_DESC(prefer_fr,
@@ -271,7 +271,7 @@ static void srp_free_iu(struct srp_host *host, struct srp_iu *iu)
 
 static void srp_qp_event(struct ib_event *event, void *context)
 {
-	pr_debug("QP event %s (%d)\n",
+	pr_de("QP event %s (%d)\n",
 		 ib_event_msg(event->event), event->event);
 }
 
@@ -938,7 +938,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 	 * the second 8 bytes to the local node GUID.
 	 */
 	if (srp_target_is_topspin(target)) {
-		shost_printk(KERN_DEBUG, target->scsi_host,
+		shost_printk(KERN_DE, target->scsi_host,
 			     PFX "Topspin/Cisco initiator port ID workaround "
 			     "activated for target GUID %016llx\n",
 			     be64_to_cpu(target->ioc_guid));
@@ -993,7 +993,7 @@ static void srp_disconnect_target(struct srp_target_port *target)
 						      NULL, 0);
 		}
 		if (ret < 0) {
-			shost_printk(KERN_DEBUG, target->scsi_host,
+			shost_printk(KERN_DE, target->scsi_host,
 				     PFX "Sending CM DREQ failed\n");
 		}
 	}
@@ -1558,7 +1558,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 			 dev->mr_page_size);
 	if (unlikely(n < 0)) {
 		srp_fr_pool_put(ch->fr_pool, &desc, 1);
-		pr_debug("%s: ib_map_mr_sg(%d, %d) returned %d.\n",
+		pr_de("%s: ib_map_mr_sg(%d, %d) returned %d.\n",
 			 dev_name(&req->scmnd->device->sdev_gendev), sg_nents,
 			 sg_offset_p ? *sg_offset_p : -1, n);
 		return n;
@@ -1901,9 +1901,9 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		goto unmap;
 
 	{
-		DEFINE_DYNAMIC_DEBUG_METADATA(ddm,
+		DEFINE_DYNAMIC_DE_METADATA(ddm,
 			"Memory mapping consistency check");
-		if (DYNAMIC_DEBUG_BRANCH(ddm))
+		if (DYNAMIC_DE_BRANCH(ddm))
 			srp_check_mapping(&state, ch, req, scat, count);
 	}
 
@@ -2043,7 +2043,7 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 /*
  * Note: if this function is called from inside ib_drain_sq() then it will
  * be called without ch->lock being held. If ib_drain_sq() dequeues a WQE
- * with status IB_WC_SUCCESS then that's a bug.
+ * with status IB_WC_SUCCESS then that's a .
  */
 static void srp_send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -2558,7 +2558,7 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 			     be32_to_cpu(lrsp->max_it_iu_len));
 
 		if (ch->use_imm_data)
-			shost_printk(KERN_DEBUG, target->scsi_host,
+			shost_printk(KERN_DE, target->scsi_host,
 				     PFX "using immediate data\n");
 
 		/*
@@ -2661,7 +2661,7 @@ static void srp_ib_cm_rej_handler(struct ib_cm_id *cm_id,
 			 */
 			memcpy(dgid->raw, event->param.rej_rcvd.ari, 16);
 
-			shost_printk(KERN_DEBUG, shost,
+			shost_printk(KERN_DE, shost,
 				     PFX "Topspin/Cisco redirect to target port GID %016llx%016llx\n",
 				     be64_to_cpu(dgid->global.subnet_prefix),
 				     be64_to_cpu(dgid->global.interface_id));
@@ -2723,7 +2723,7 @@ static int srp_ib_cm_handler(struct ib_cm_id *cm_id,
 
 	switch (event->event) {
 	case IB_CM_REQ_ERROR:
-		shost_printk(KERN_DEBUG, target->scsi_host,
+		shost_printk(KERN_DE, target->scsi_host,
 			     PFX "Sending CM REQ failed\n");
 		comp = 1;
 		ch->status = -ECONNRESET;
@@ -2735,7 +2735,7 @@ static int srp_ib_cm_handler(struct ib_cm_id *cm_id,
 		break;
 
 	case IB_CM_REJ_RECEIVED:
-		shost_printk(KERN_DEBUG, target->scsi_host, PFX "REJ received\n");
+		shost_printk(KERN_DE, target->scsi_host, PFX "REJ received\n");
 		comp = 1;
 
 		srp_ib_cm_rej_handler(cm_id, event, ch);
@@ -2856,7 +2856,7 @@ static int srp_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_CONNECT_ERROR:
-		shost_printk(KERN_DEBUG, target->scsi_host,
+		shost_printk(KERN_DE, target->scsi_host,
 			     PFX "Sending CM REQ failed\n");
 		comp = 1;
 		ch->status = -ECONNRESET;
@@ -2868,7 +2868,7 @@ static int srp_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_REJECTED:
-		shost_printk(KERN_DEBUG, target->scsi_host, PFX "REJ received\n");
+		shost_printk(KERN_DE, target->scsi_host, PFX "REJ received\n");
 		comp = 1;
 
 		srp_rdma_cm_rej_handler(ch, event);
@@ -3352,7 +3352,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 		goto out;
 	}
 
-	pr_debug("%s: SCSI scan succeeded - detected %d LUNs\n",
+	pr_de("%s: SCSI scan succeeded - detected %d LUNs\n",
 		 dev_name(&target->scsi_host->shost_gendev),
 		 srp_sdev_count(target->scsi_host));
 
@@ -3509,7 +3509,7 @@ static int srp_parse_in(struct net *net, struct sockaddr_storage *sa,
 		}
 	}
 	kfree(addr);
-	pr_debug("%s -> %pISpfsc\n", addr_port_str, sa);
+	pr_de("%s -> %pISpfsc\n", addr_port_str, sa);
 	return ret;
 }
 
@@ -3895,7 +3895,7 @@ static ssize_t srp_create_target(struct device *dev,
 				 srp_dev->max_pages_per_mr - 1) /
 				srp_dev->max_pages_per_mr;
 		}
-		pr_debug("max_sectors = %u; max_pages_per_mr = %u; mr_page_size = %u; max_sectors_per_mr = %u; mr_per_cmd = %u\n",
+		pr_de("max_sectors = %u; max_pages_per_mr = %u; mr_page_size = %u; max_sectors_per_mr = %u; mr_per_cmd = %u\n",
 			 target->scsi_host->max_sectors, srp_dev->max_pages_per_mr, srp_dev->mr_page_size,
 			 max_sectors_per_mr, mr_per_cmd);
 	}
@@ -3999,13 +3999,13 @@ connected:
 
 	if (target->state != SRP_TARGET_REMOVED) {
 		if (target->using_rdma_cm) {
-			shost_printk(KERN_DEBUG, target->scsi_host, PFX
+			shost_printk(KERN_DE, target->scsi_host, PFX
 				     "new target: id_ext %016llx ioc_guid %016llx sgid %pI6 dest %pIS\n",
 				     be64_to_cpu(target->id_ext),
 				     be64_to_cpu(target->ioc_guid),
 				     target->sgid.raw, &target->rdma_cm.dst);
 		} else {
-			shost_printk(KERN_DEBUG, target->scsi_host, PFX
+			shost_printk(KERN_DE, target->scsi_host, PFX
 				     "new target: id_ext %016llx ioc_guid %016llx pkey %04x service_id %016llx sgid %pI6 dgid %pI6\n",
 				     be64_to_cpu(target->id_ext),
 				     be64_to_cpu(target->ioc_guid),
@@ -4136,7 +4136,7 @@ static void srp_add_one(struct ib_device *device)
 	srp_dev->mr_page_mask	= ~((u64) srp_dev->mr_page_size - 1);
 	max_pages_per_mr	= attr->max_mr_size;
 	do_div(max_pages_per_mr, srp_dev->mr_page_size);
-	pr_debug("%s: %llu / %u = %llu <> %u\n", __func__,
+	pr_de("%s: %llu / %u = %llu <> %u\n", __func__,
 		 attr->max_mr_size, srp_dev->mr_page_size,
 		 max_pages_per_mr, SRP_MAX_PAGES_PER_MR);
 	srp_dev->max_pages_per_mr = min_t(u64, SRP_MAX_PAGES_PER_MR,
@@ -4168,7 +4168,7 @@ static void srp_add_one(struct ib_device *device)
 	}
 	srp_dev->mr_max_size	= srp_dev->mr_page_size *
 				   srp_dev->max_pages_per_mr;
-	pr_debug("%s: mr_page_shift = %d, device->max_mr_size = %#llx, device->max_fast_reg_page_list_len = %u, max_pages_per_mr = %d, mr_max_size = %#x\n",
+	pr_de("%s: mr_page_shift = %d, device->max_mr_size = %#llx, device->max_fast_reg_page_list_len = %u, max_pages_per_mr = %d, mr_max_size = %#x\n",
 		 dev_name(&device->dev), mr_page_shift, attr->max_mr_size,
 		 attr->max_fast_reg_page_list_len,
 		 srp_dev->max_pages_per_mr, srp_dev->mr_max_size);
@@ -4253,10 +4253,10 @@ static int __init srp_init_module(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(sizeof(struct srp_imm_buf) != 4);
-	BUILD_BUG_ON(sizeof(struct srp_login_req) != 64);
-	BUILD_BUG_ON(sizeof(struct srp_login_req_rdma) != 56);
-	BUILD_BUG_ON(sizeof(struct srp_cmd) != 48);
+	BUILD__ON(sizeof(struct srp_imm_buf) != 4);
+	BUILD__ON(sizeof(struct srp_login_req) != 64);
+	BUILD__ON(sizeof(struct srp_login_req_rdma) != 56);
+	BUILD__ON(sizeof(struct srp_cmd) != 48);
 
 	if (srp_sg_tablesize) {
 		pr_warn("srp_sg_tablesize is deprecated, please use cmd_sg_entries\n");

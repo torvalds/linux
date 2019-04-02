@@ -29,7 +29,7 @@ void __init kasan_early_init(void)
 				PAGE_KERNEL));
 
 	for (vaddr = 0; vaddr < KASAN_SHADOW_SIZE; vaddr += PMD_SIZE, ++pmd) {
-		BUG_ON(!pmd_none(*pmd));
+		_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd((unsigned long)kasan_early_shadow_pte));
 	}
 	early_trap_init();
@@ -49,7 +49,7 @@ static void __init populate(void *start, void *end)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 		      __func__, n_pages * sizeof(pte_t), PAGE_SIZE);
 
-	pr_debug("%s: %p - %p\n", __func__, start, end);
+	pr_de("%s: %p - %p\n", __func__, start, end);
 
 	for (i = j = 0; i < n_pmds; ++i) {
 		int k;
@@ -76,9 +76,9 @@ void __init kasan_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON(KASAN_SHADOW_OFFSET != KASAN_SHADOW_START -
+	BUILD__ON(KASAN_SHADOW_OFFSET != KASAN_SHADOW_START -
 		     (KASAN_START_VADDR >> KASAN_SHADOW_SCALE_SHIFT));
-	BUILD_BUG_ON(VMALLOC_START < KASAN_START_VADDR);
+	BUILD__ON(VMALLOC_START < KASAN_START_VADDR);
 
 	/*
 	 * Replace shadow map pages that cover addresses from VMALLOC area

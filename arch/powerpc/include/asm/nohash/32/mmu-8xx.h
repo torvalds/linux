@@ -227,7 +227,7 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 {
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
-	BUG();
+	();
 }
 
 /* patch sites */

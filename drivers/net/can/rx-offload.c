@@ -24,7 +24,7 @@ struct can_rx_offload_cb {
 
 static inline struct can_rx_offload_cb *can_rx_offload_get_cb(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct can_rx_offload_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct can_rx_offload_cb) > sizeof(skb->cb));
 
 	return (struct can_rx_offload_cb *)skb->cb;
 }

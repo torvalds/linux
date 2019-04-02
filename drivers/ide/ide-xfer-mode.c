@@ -189,7 +189,7 @@ void ide_set_pio(ide_drive_t *drive, u8 req_pio)
 	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return;
 
-	BUG_ON(hwif->pio_mask == 0x00);
+	_ON(hwif->pio_mask == 0x00);
 
 	host_pio = fls(hwif->pio_mask) - 1;
 
@@ -200,7 +200,7 @@ void ide_set_pio(ide_drive_t *drive, u8 req_pio)
 	 * - report device max PIO mode
 	 * - check req_pio != 255 against device max PIO mode
 	 */
-	printk(KERN_DEBUG "%s: host max PIO%d wanted PIO%d%s selected PIO%d\n",
+	printk(KERN_DE "%s: host max PIO%d wanted PIO%d%s selected PIO%d\n",
 			  drive->name, host_pio, req_pio,
 			  req_pio == 255 ? "(auto-tune)" : "", pio);
 
@@ -257,7 +257,7 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 	rate = ide_rate_filter(drive, rate);
 
-	BUG_ON(rate < XFER_PIO_0);
+	_ON(rate < XFER_PIO_0);
 
 	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_6)
 		return ide_set_pio_mode(drive, rate);

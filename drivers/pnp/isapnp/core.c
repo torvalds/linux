@@ -18,7 +18,7 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  Changelog:
- *  2000-01-01	Added quirks handling for buggy hardware
+ *  2000-01-01	Added quirks handling for gy hardware
  *		Peter Denison <peterd@pnd-pc.demon.co.uk>
  *  2000-06-14	Added isapnp_probe_devs() and isapnp_activate_dev()
  *		Christoph Hellwig <hch@infradead.org>

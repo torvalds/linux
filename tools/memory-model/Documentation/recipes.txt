@@ -33,7 +33,7 @@ usual) some things to be careful of:
 	as long as the results of a single-threaded execution appear
 	just as if the compiler had followed all the relevant rules.
 	To see this, compile with a high level of optimization and run
-	the debugger on the resulting binary.
+	the deger on the resulting binary.
 
 3.	If there is only one variable but multiple CPUs, that variable
 	must be properly aligned and all accesses to that variable must

@@ -575,7 +575,7 @@ static int zx_hdmi_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	hdmi_writeb_mask(hdmi, TPI_DDC_MASTER_EN, HW_DDC_MASTER, HW_DDC_MASTER);
 
 	for (i = 0; i < num; i++) {
-		DRM_DEV_DEBUG(hdmi->dev,
+		DRM_DEV_DE(hdmi->dev,
 			      "xfer: num: %d/%d, len: %d, flags: %#x\n",
 			      i + 1, num, msgs[i].len, msgs[i].flags);
 

@@ -436,7 +436,7 @@ static u8 it821x_cable_detect(ide_hwif_t *hwif)
  *
  *	This callback is run after the drive has been probed but
  *	before anything gets attached. It allows drivers to do any
- *	final tuning that is needed, or fixups to work around bugs.
+ *	final tuning that is needed, or fixups to work around s.
  */
 
 static void it821x_quirkproc(ide_drive_t *drive)
@@ -463,7 +463,7 @@ static void it821x_quirkproc(ide_drive_t *drive)
 		/* Check for RAID v native */
 		if (strstr((char *)&id[ATA_ID_PROD],
 			   "Integrated Technology Express")) {
-			/* In raid mode the ident block is slightly buggy
+			/* In raid mode the ident block is slightly gy
 			   We need to set the bits so that the IDE layer knows
 			   LBA28. LBA48 and DMA ar valid */
 			id[ATA_ID_CAPABILITY]    |= (3 << 8); /* LBA28, DMA */

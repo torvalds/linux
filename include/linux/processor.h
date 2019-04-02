@@ -14,7 +14,7 @@
  * tens of instructions/cycles as a guide. It should and avoid calling
  * cpu_relax, or any "spin" or sleep type of primitive including nested uses
  * of these primitives. It should not lock or take any other resource.
- * Violations of these guidelies will not cause a bug, but may cause sub
+ * Violations of these guidelies will not cause a , but may cause sub
  * optimal performance.
  *
  * These loops are optimized to be used where wait times are expected to be

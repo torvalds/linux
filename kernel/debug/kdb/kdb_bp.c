@@ -1,5 +1,5 @@
 /*
- * Kernel Debugger Architecture Independent Breakpoint Handler
+ * Kernel Deger Architecture Independent Breakpoint Handler
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -107,7 +107,7 @@ static int _kdb_bp_remove(kdb_bp_t *bp)
 
 static void kdb_handle_bp(struct pt_regs *regs, kdb_bp_t *bp)
 {
-	if (KDB_DEBUG(BP))
+	if (KDB_DE(BP))
 		kdb_printf("regs->ip = 0x%lx\n", instruction_pointer(regs));
 
 	/*
@@ -129,7 +129,7 @@ static int _kdb_bp_install(struct pt_regs *regs, kdb_bp_t *bp)
 	 * Install the breakpoint, if it is not already installed.
 	 */
 
-	if (KDB_DEBUG(BP))
+	if (KDB_DE(BP))
 		kdb_printf("%s: bp_installed %d\n",
 			   __func__, bp->bp_installed);
 	if (!KDB_STATE(SSBPT))
@@ -137,7 +137,7 @@ static int _kdb_bp_install(struct pt_regs *regs, kdb_bp_t *bp)
 	if (bp->bp_installed)
 		return 1;
 	if (bp->bp_delay || (bp->bp_delayed && KDB_STATE(DOING_SS))) {
-		if (KDB_DEBUG(BP))
+		if (KDB_DE(BP))
 			kdb_printf("%s: delayed bp\n", __func__);
 		kdb_handle_bp(regs, bp);
 		return 0;
@@ -167,7 +167,7 @@ static int _kdb_bp_install(struct pt_regs *regs, kdb_bp_t *bp)
  * kdb_bp_install
  *
  *	Install kdb_breakpoints prior to returning from the
- *	kernel debugger.  This allows the kdb_breakpoints to be set
+ *	kernel deger.  This allows the kdb_breakpoints to be set
  *	upon functions that are used internally by kdb, such as
  *	printk().  This function is only called once per kdb session.
  */
@@ -178,7 +178,7 @@ void kdb_bp_install(struct pt_regs *regs)
 	for (i = 0; i < KDB_MAXBPT; i++) {
 		kdb_bp_t *bp = &kdb_breakpoints[i];
 
-		if (KDB_DEBUG(BP)) {
+		if (KDB_DE(BP)) {
 			kdb_printf("%s: bp %d bp_enabled %d\n",
 				   __func__, i, bp->bp_enabled);
 		}
@@ -190,7 +190,7 @@ void kdb_bp_install(struct pt_regs *regs)
 /*
  * kdb_bp_remove
  *
- *	Remove kdb_breakpoints upon entry to the kernel debugger.
+ *	Remove kdb_breakpoints upon entry to the kernel deger.
  *
  * Parameters:
  *	None.
@@ -209,7 +209,7 @@ void kdb_bp_remove(void)
 	for (i = KDB_MAXBPT - 1; i >= 0; i--) {
 		kdb_bp_t *bp = &kdb_breakpoints[i];
 
-		if (KDB_DEBUG(BP)) {
+		if (KDB_DE(BP)) {
 			kdb_printf("%s: bp %d bp_enabled %d\n",
 				   __func__, i, bp->bp_enabled);
 		}
@@ -499,7 +499,7 @@ static int kdb_bc(int argc, const char **argv)
  *	None.
  * Remarks:
  *
- *	Set the arch specific option to trigger a debug trap after the next
+ *	Set the arch specific option to trigger a de trap after the next
  *	instruction.
  */
 

@@ -279,7 +279,7 @@ static irqreturn_t hil_dev_interrupt(struct serio *serio,
 	int idx;
 
 	dev = serio_get_drvdata(serio);
-	BUG_ON(dev == NULL);
+	_ON(dev == NULL);
 
 	if (dev->idx4 >= HIL_PACKET_MAX_LENGTH * sizeof(hil_packet)) {
 		hil_dev_process_err(dev);
@@ -315,7 +315,7 @@ static void hil_dev_disconnect(struct serio *serio)
 {
 	struct hil_dev *dev = serio_get_drvdata(serio);
 
-	BUG_ON(dev == NULL);
+	_ON(dev == NULL);
 
 	serio_close(serio);
 	input_unregister_device(dev->dev);
@@ -399,7 +399,7 @@ static void hil_dev_pointer_setup(struct hil_dev *ptr)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	ptr->nbtn = HIL_IDD_NUM_BUTTONS(idd);

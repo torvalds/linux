@@ -8,7 +8,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "thread_map.h"
 #include "target.h"
 
@@ -22,17 +22,17 @@ static int attach__enable_on_exec(struct perf_evlist *evlist)
 	char sbuf[STRERR_BUFSIZE];
 	int err;
 
-	pr_debug("attaching to spawned child, enable on exec\n");
+	pr_de("attaching to spawned child, enable on exec\n");
 
 	err = perf_evlist__create_maps(evlist, &target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_de("Not enough memory to create thread/cpu maps\n");
 		return err;
 	}
 
 	err = perf_evlist__prepare_workload(evlist, &target, argv, false, NULL);
 	if (err < 0) {
-		pr_debug("Couldn't run the workload!\n");
+		pr_de("Couldn't run the workload!\n");
 		return err;
 	}
 
@@ -40,7 +40,7 @@ static int attach__enable_on_exec(struct perf_evlist *evlist)
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("perf_evlist__open: %s\n",
+		pr_de("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		return err;
 	}
@@ -60,11 +60,11 @@ static int attach__current_disabled(struct perf_evlist *evlist)
 	struct thread_map *threads;
 	int err;
 
-	pr_debug("attaching to current thread as disabled\n");
+	pr_de("attaching to current thread as disabled\n");
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
-		pr_debug("thread_map__new\n");
+		pr_de("thread_map__new\n");
 		return -1;
 	}
 
@@ -72,7 +72,7 @@ static int attach__current_disabled(struct perf_evlist *evlist)
 
 	err = perf_evsel__open_per_thread(evsel, threads);
 	if (err) {
-		pr_debug("Failed to open event cpu-clock:u\n");
+		pr_de("Failed to open event cpu-clock:u\n");
 		return err;
 	}
 
@@ -86,11 +86,11 @@ static int attach__current_enabled(struct perf_evlist *evlist)
 	struct thread_map *threads;
 	int err;
 
-	pr_debug("attaching to current thread as enabled\n");
+	pr_de("attaching to current thread as enabled\n");
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
-		pr_debug("failed to call thread_map__new\n");
+		pr_de("failed to call thread_map__new\n");
 		return -1;
 	}
 
@@ -113,11 +113,11 @@ static int attach__cpu_disabled(struct perf_evlist *evlist)
 	struct cpu_map *cpus;
 	int err;
 
-	pr_debug("attaching to CPU 0 as enabled\n");
+	pr_de("attaching to CPU 0 as enabled\n");
 
 	cpus = cpu_map__new("0");
 	if (cpus == NULL) {
-		pr_debug("failed to call cpu_map__new\n");
+		pr_de("failed to call cpu_map__new\n");
 		return -1;
 	}
 
@@ -128,7 +128,7 @@ static int attach__cpu_disabled(struct perf_evlist *evlist)
 		if (err == -EACCES)
 			return TEST_SKIP;
 
-		pr_debug("Failed to open event cpu-clock:u\n");
+		pr_de("Failed to open event cpu-clock:u\n");
 		return err;
 	}
 
@@ -142,11 +142,11 @@ static int attach__cpu_enabled(struct perf_evlist *evlist)
 	struct cpu_map *cpus;
 	int err;
 
-	pr_debug("attaching to CPU 0 as enabled\n");
+	pr_de("attaching to CPU 0 as enabled\n");
 
 	cpus = cpu_map__new("0");
 	if (cpus == NULL) {
-		pr_debug("failed to call cpu_map__new\n");
+		pr_de("failed to call cpu_map__new\n");
 		return -1;
 	}
 
@@ -168,13 +168,13 @@ static int test_times(int (attach)(struct perf_evlist *),
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("failed to create event list\n");
+		pr_de("failed to create event list\n");
 		goto out_err;
 	}
 
 	err = parse_events(evlist, "cpu-clock:u", NULL);
 	if (err) {
-		pr_debug("failed to parse event cpu-clock:u\n");
+		pr_de("failed to parse event cpu-clock:u\n");
 		goto out_err;
 	}
 
@@ -185,7 +185,7 @@ static int test_times(int (attach)(struct perf_evlist *),
 
 	err = attach(evlist);
 	if (err == TEST_SKIP) {
-		pr_debug("  SKIP  : not enough rights\n");
+		pr_de("  SKIP  : not enough rights\n");
 		return err;
 	}
 
@@ -199,7 +199,7 @@ static int test_times(int (attach)(struct perf_evlist *),
 
 	err = !(count.ena == count.run);
 
-	pr_debug("  %s: ena %" PRIu64", run %" PRIu64"\n",
+	pr_de("  %s: ena %" PRIu64", run %" PRIu64"\n",
 		 !err ? "OK    " : "FAILED",
 		 count.ena, count.run);
 

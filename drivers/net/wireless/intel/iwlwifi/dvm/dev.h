@@ -37,7 +37,7 @@
 #include "fw/img.h"
 #include "iwl-eeprom-parse.h"
 #include "iwl-csr.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-agn-hw.h"
 #include "iwl-op-mode.h"
 #include "fw/notif-wait.h"
@@ -645,7 +645,7 @@ enum {
 struct iwl_priv {
 
 	struct iwl_trans *trans;
-	struct device *dev;		/* for debug prints only */
+	struct device *dev;		/* for de prints only */
 	const struct iwl_cfg *cfg;
 	const struct iwl_fw *fw;
 	const struct iwl_dvm_cfg *lib;
@@ -780,13 +780,13 @@ struct iwl_priv {
 		struct statistics_rx_ht_phy rx_ofdm_ht;
 		struct statistics_rx_phy rx_cck;
 		struct statistics_tx tx;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 		struct statistics_bt_activity bt_activity;
 		__le32 num_bt_kills, accum_num_bt_kills;
 #endif
 		spinlock_t lock;
 	} statistics;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	struct {
 		struct statistics_general_common common;
 		struct statistics_rx_non_phy rx_non_phy;
@@ -863,16 +863,16 @@ struct iwl_priv {
 	s8 tx_power_user_lmt;
 	s8 tx_power_next;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* debugfs */
-	struct dentry *debugfs_dir;
+#ifdef CONFIG_IWLWIFI_DEFS
+	/* defs */
+	struct dentry *defs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_ht40;
 	void *wowlan_sram;
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_IWLWIFI_DEFS */
 
 	struct iwl_nvm_data *nvm_data;
-	/* eeprom blob for debugfs */
+	/* eeprom blob for defs */
 	u8 *eeprom_blob;
 	size_t eeprom_blob_size;
 

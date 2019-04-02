@@ -45,7 +45,7 @@
  *
  * - Light Secure (LS). In this mode, the microprocessor has more privileges
  *   than NS but fewer than HS. Some of the microprocessor state is visible to
- *   host software to ease debugging. The only way to enable this mode is by HS
+ *   host software to ease deging. The only way to enable this mode is by HS
  *   microcode enabling LS mode. Some privileges available to HS mode are not
  *   available here. LS mode is introduced in GM20x.
  *
@@ -146,7 +146,7 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 			                nvkm_secboot_falcon_name[sb->acr->boot_falcon]);
 		return -EINVAL;
 	}
-	nvkm_debug(subdev, "using %s falcon for ACR\n", sb->boot_falcon->name);
+	nvkm_de(subdev, "using %s falcon for ACR\n", sb->boot_falcon->name);
 
 	/* Call chip-specific init function */
 	if (sb->func->oneinit)
@@ -203,10 +203,10 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func, struct nvkm_acr *acr,
 	sb->acr = acr;
 	acr->subdev = &sb->subdev;
 
-	nvkm_debug(&sb->subdev, "securely managed falcons:\n");
+	nvkm_de(&sb->subdev, "securely managed falcons:\n");
 	for_each_set_bit(fid, &sb->acr->managed_falcons,
 			 NVKM_SECBOOT_FALCON_END)
-		nvkm_debug(&sb->subdev, "- %s\n",
+		nvkm_de(&sb->subdev, "- %s\n",
 			   nvkm_secboot_falcon_name[fid]);
 
 	return 0;

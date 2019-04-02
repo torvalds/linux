@@ -197,7 +197,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 		if (!(param2 & MAGIC_PAGE_FLAG_NOT_MAPPED_NX)) {
 			/*
 			 * Older versions of the Linux magic page code had
-			 * a bug where they would map their trampoline code
+			 * a  where they would map their trampoline code
 			 * NX. If that's the case, remove !PR NX capability.
 			 */
 			vcpu->arch.disable_kernel_nx = true;
@@ -463,12 +463,12 @@ err_out:
 	return -EINVAL;
 }
 
-bool kvm_arch_has_vcpu_debugfs(void)
+bool kvm_arch_has_vcpu_defs(void)
 {
 	return false;
 }
 
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+int kvm_arch_create_vcpu_defs(struct kvm_vcpu *vcpu)
 {
 	return 0;
 }
@@ -727,7 +727,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu = kvmppc_core_vcpu_create(kvm, id);
 	if (!IS_ERR(vcpu)) {
 		vcpu->arch.wqp = &vcpu->wq;
-		kvmppc_create_vcpu_debugfs(vcpu, id);
+		kvmppc_create_vcpu_defs(vcpu, id);
 	}
 	return vcpu;
 }
@@ -741,7 +741,7 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 	/* Make sure we're not using the vcpu anymore */
 	hrtimer_cancel(&vcpu->arch.dec_timer);
 
-	kvmppc_remove_vcpu_debugfs(vcpu);
+	kvmppc_remove_vcpu_defs(vcpu);
 
 	switch (vcpu->arch.irq_type) {
 	case KVMPPC_IRQ_MPIC:
@@ -1217,7 +1217,7 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		break;
 #endif
 	default:
-		BUG();
+		();
 	}
 }
 

@@ -101,7 +101,7 @@ struct clkops {
  * struct clk - OMAP struct clk
  * @node: list_head connecting this clock into the full clock list
  * @ops: struct clkops * for this clock
- * @name: the name of the clock in the hardware (used in hwmod data and debug)
+ * @name: the name of the clock in the hardware (used in hwmod data and de)
  * @parent: pointer to this clock's parent struct clk
  * @children: list_head connecting to the child clks' @sibling list_heads
  * @sibling: list_head connecting this clk to its parent clk's @children
@@ -157,7 +157,7 @@ struct clk {
 	u8			flags;
 	u8			rate_offset;
 	u8			src_offset;
-#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_PM_DE) && defined(CONFIG_DE_FS)
 	struct dentry		*dent;	/* For visible tree hierarchy */
 #endif
 };

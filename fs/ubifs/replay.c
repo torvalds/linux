@@ -1208,7 +1208,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 {
 	int err, lnum, free;
 
-	BUILD_BUG_ON(UBIFS_TRUN_KEY > 5);
+	BUILD__ON(UBIFS_TRUN_KEY > 5);
 
 	/* Update the status of the index head in lprops to 'taken' */
 	free = take_ihead(c);

@@ -64,40 +64,40 @@ struct ath_rx_stats {
 	u32 rx_spectral_sample_err;
 };
 
-#ifdef CONFIG_ATH9K_COMMON_DEBUG
-void ath9k_cmn_debug_modal_eeprom(struct dentry *debugfs_phy,
+#ifdef CONFIG_ATH9K_COMMON_DE
+void ath9k_cmn_de_modal_eeprom(struct dentry *defs_phy,
 				  struct ath_hw *ah);
-void ath9k_cmn_debug_base_eeprom(struct dentry *debugfs_phy,
+void ath9k_cmn_de_base_eeprom(struct dentry *defs_phy,
 				 struct ath_hw *ah);
-void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
+void ath9k_cmn_de_stat_rx(struct ath_rx_stats *rxstats,
 			     struct ath_rx_status *rs);
-void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
+void ath9k_cmn_de_recv(struct dentry *defs_phy,
 			  struct ath_rx_stats *rxstats);
-void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
+void ath9k_cmn_de_phy_err(struct dentry *defs_phy,
 			     struct ath_rx_stats *rxstats);
 #else
-static inline void ath9k_cmn_debug_modal_eeprom(struct dentry *debugfs_phy,
+static inline void ath9k_cmn_de_modal_eeprom(struct dentry *defs_phy,
 						struct ath_hw *ah)
 {
 }
 
-static inline void ath9k_cmn_debug_base_eeprom(struct dentry *debugfs_phy,
+static inline void ath9k_cmn_de_base_eeprom(struct dentry *defs_phy,
 					       struct ath_hw *ah)
 {
 }
 
-static inline void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
+static inline void ath9k_cmn_de_stat_rx(struct ath_rx_stats *rxstats,
 					   struct ath_rx_status *rs)
 {
 }
 
-static inline void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
+static inline void ath9k_cmn_de_recv(struct dentry *defs_phy,
 					struct ath_rx_stats *rxstats)
 {
 }
 
-static inline void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
+static inline void ath9k_cmn_de_phy_err(struct dentry *defs_phy,
 					   struct ath_rx_stats *rxstats)
 {
 }
-#endif /* CONFIG_ATH9K_COMMON_DEBUG */
+#endif /* CONFIG_ATH9K_COMMON_DE */

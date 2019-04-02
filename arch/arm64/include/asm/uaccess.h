@@ -290,7 +290,7 @@ do {									\
 			       (err), ARM64_HAS_UAO);			\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	uaccess_disable_not_uao();					\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
@@ -354,7 +354,7 @@ do {									\
 			       (err), ARM64_HAS_UAO);			\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	uaccess_disable_not_uao();					\
 } while (0)

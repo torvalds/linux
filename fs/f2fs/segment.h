@@ -487,7 +487,7 @@ static inline void get_sit_bitmap(struct f2fs_sb_info *sbi,
 #ifdef CONFIG_F2FS_CHECK_FS
 	if (memcmp(sit_i->sit_bitmap, sit_i->sit_bitmap_mir,
 						sit_i->bitmap_size))
-		f2fs_bug_on(sbi, 1);
+		f2fs__on(sbi, 1);
 #endif
 	memcpy(dst_addr, sit_i->sit_bitmap, sit_i->bitmap_size);
 }
@@ -653,7 +653,7 @@ static inline unsigned short curseg_blkoff(struct f2fs_sb_info *sbi, int type)
 
 static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 {
-	f2fs_bug_on(sbi, segno > TOTAL_SEGS(sbi) - 1);
+	f2fs__on(sbi, segno > TOTAL_SEGS(sbi) - 1);
 }
 
 static inline void verify_block_addr(struct f2fs_io_info *fio, block_t blk_addr)
@@ -724,7 +724,7 @@ static inline pgoff_t current_sit_addr(struct f2fs_sb_info *sbi,
 #ifdef CONFIG_F2FS_CHECK_FS
 	if (f2fs_test_bit(offset, sit_i->sit_bitmap) !=
 			f2fs_test_bit(offset, sit_i->sit_bitmap_mir))
-		f2fs_bug_on(sbi, 1);
+		f2fs__on(sbi, 1);
 #endif
 
 	/* calculate sit block address */

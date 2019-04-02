@@ -83,9 +83,9 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static struct workqueue_struct *ixgbevf_wq;
 
@@ -99,7 +99,7 @@ static void ixgbevf_service_event_schedule(struct ixgbevf_adapter *adapter)
 
 static void ixgbevf_service_event_complete(struct ixgbevf_adapter *adapter)
 {
-	BUG_ON(!test_bit(__IXGBEVF_SERVICE_SCHED, &adapter->state));
+	_ON(!test_bit(__IXGBEVF_SERVICE_SCHED, &adapter->state));
 
 	/* flush memory to make sure state is correct before next watchdog */
 	smp_mb__before_atomic();
@@ -4574,7 +4574,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->pdev = pdev;
 	hw = &adapter->hw;
 	hw->back = adapter;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	/* call save state here in standalone driver because it relies on
 	 * adapter struct to exist, and needs to call netdev_priv
@@ -4917,10 +4917,10 @@ static void __exit ixgbevf_exit_module(void)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DE
 /**
  * ixgbevf_get_hw_dev_name - return device name string
- * used by hardware layer to print debugging information
+ * used by hardware layer to print deging information
  * @hw: pointer to private hardware struct
  **/
 char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw)

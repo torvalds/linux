@@ -30,7 +30,7 @@
 #include "smu9_driver_if.h"
 #include "smu9_smumgr.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 
 static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,

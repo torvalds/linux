@@ -2268,7 +2268,7 @@ void bnx2x_vf_mbx(struct bnx2x *bp)
 void bnx2x_vf_bulletin_finalize(struct pf_vf_bulletin_content *bulletin,
 				bool support_long)
 {
-	/* Older VFs contain a bug where they can't check CRC for bulletin
+	/* Older VFs contain a  where they can't check CRC for bulletin
 	 * boards of length greater than legacy size.
 	 */
 	bulletin->length = support_long ? BULLETIN_CONTENT_SIZE :

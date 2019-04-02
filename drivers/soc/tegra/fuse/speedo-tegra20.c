@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 
@@ -68,8 +68,8 @@ void __init tegra20_init_speedo_data(struct tegra_sku_info *sku_info)
 	u32 val;
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cpu_process_speedos) != SPEEDO_ID_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(soc_process_speedos) != SPEEDO_ID_COUNT);
+	BUILD__ON(ARRAY_SIZE(cpu_process_speedos) != SPEEDO_ID_COUNT);
+	BUILD__ON(ARRAY_SIZE(soc_process_speedos) != SPEEDO_ID_COUNT);
 
 	if (SPEEDO_ID_SELECT_0(sku_info->revision))
 		sku_info->soc_speedo_id = SPEEDO_ID_0;
@@ -85,7 +85,7 @@ void __init tegra20_init_speedo_data(struct tegra_sku_info *sku_info)
 		val = (val << 1) | (reg & 0x1);
 	}
 	val = val * SPEEDO_MULT;
-	pr_debug("Tegra CPU speedo value %u\n", val);
+	pr_de("Tegra CPU speedo value %u\n", val);
 
 	for (i = 0; i < (PROCESS_CORNERS_NUM - 1); i++) {
 		if (val <= cpu_process_speedos[sku_info->soc_speedo_id][i])
@@ -100,7 +100,7 @@ void __init tegra20_init_speedo_data(struct tegra_sku_info *sku_info)
 		val = (val << 1) | (reg & 0x1);
 	}
 	val = val * SPEEDO_MULT;
-	pr_debug("Core speedo value %u\n", val);
+	pr_de("Core speedo value %u\n", val);
 
 	for (i = 0; i < (PROCESS_CORNERS_NUM - 1); i++) {
 		if (val <= soc_process_speedos[sku_info->soc_speedo_id][i])

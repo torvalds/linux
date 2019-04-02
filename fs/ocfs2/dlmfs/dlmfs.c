@@ -137,7 +137,7 @@ static int dlmfs_file_open(struct inode *inode,
 	struct dlmfs_inode_private *ip;
 
 	if (S_ISDIR(inode->i_mode))
-		BUG();
+		();
 
 	mlog(0, "open called on inode %lu, flags 0x%x\n", inode->i_ino,
 		file->f_flags);
@@ -184,7 +184,7 @@ static int dlmfs_file_release(struct inode *inode,
 	struct dlmfs_filp_private *fp = file->private_data;
 
 	if (S_ISDIR(inode->i_mode))
-		BUG();
+		();
 
 	mlog(0, "close called on inode %lu\n", inode->i_ino);
 
@@ -269,7 +269,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 
 	got = user_dlm_read_lvb(inode, lvb_buf, readlen);
 	if (got) {
-		BUG_ON(got != readlen);
+		_ON(got != readlen);
 		bytes_left = __copy_to_user(buf, lvb_buf, readlen);
 		readlen -= bytes_left;
 	} else
@@ -429,7 +429,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 	default:
 		/* for now we don't support anything other than
 		 * directories and regular files. */
-		BUG();
+		();
 		break;
 	case S_IFREG:
 		inode->i_op = &dlmfs_file_inode_operations;
@@ -444,7 +444,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 		 * we call the unregister code for releasing parent
 		 * directories. */
 		ip->ip_parent = igrab(parent);
-		BUG_ON(!ip->ip_parent);
+		_ON(!ip->ip_parent);
 		break;
 	case S_IFDIR:
 		inode->i_op = &dlmfs_dir_inode_operations;

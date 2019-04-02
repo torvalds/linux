@@ -96,7 +96,7 @@ function test_ipip {
 	DEV=ipip_bpf
 	config_device
 #	tcpdump -nei br0 &
-	cat /sys/kernel/debug/tracing/trace_pipe &
+	cat /sys/kernel/de/tracing/trace_pipe &
 
 	add_ipip_tunnel
 	attach_bpf $DEV ipip_set_tunnel ipip_get_tunnel
@@ -118,7 +118,7 @@ function test_ipip6 {
 	DEV=ipip_bpf
 	config_device
 #	tcpdump -nei br0 &
-	cat /sys/kernel/debug/tracing/trace_pipe &
+	cat /sys/kernel/de/tracing/trace_pipe &
 
 	add_ipip6_tunnel
 	attach_bpf $DEV ipip6_set_tunnel ipip6_get_tunnel
@@ -140,7 +140,7 @@ function test_ip6ip6 {
 	DEV=ipip_bpf
 	config_device
 #	tcpdump -nei br0 &
-	cat /sys/kernel/debug/tracing/trace_pipe &
+	cat /sys/kernel/de/tracing/trace_pipe &
 
 	add_ip6ip6_tunnel
 	attach_bpf $DEV ip6ip6_set_tunnel ip6ip6_get_tunnel

@@ -38,7 +38,7 @@ static DEFINE_MUTEX(param_lock);
 
 static inline void check_kparam_locked(struct module *mod)
 {
-	BUG_ON(!mutex_is_locked(KPARAM_MUTEX(mod)));
+	_ON(!mutex_is_locked(KPARAM_MUTEX(mod)));
 }
 #else
 static inline void check_kparam_locked(struct module *mod)
@@ -141,7 +141,7 @@ static int parse_one(char *param,
 			if (!val &&
 			    !(params[i].ops->flags & KERNEL_PARAM_OPS_FL_NOARG))
 				return -EINVAL;
-			pr_debug("handling %s with %p\n", param,
+			pr_de("handling %s with %p\n", param,
 				params[i].ops->set);
 			kernel_param_lock(params[i].mod);
 			param_check_unsafe(&params[i]);
@@ -152,11 +152,11 @@ static int parse_one(char *param,
 	}
 
 	if (handle_unknown) {
-		pr_debug("doing %s: %s='%s'\n", doing, param, val);
+		pr_de("doing %s: %s='%s'\n", doing, param, val);
 		return handle_unknown(param, val, doing, arg);
 	}
 
-	pr_debug("Unknown argument '%s'\n", param);
+	pr_de("Unknown argument '%s'\n", param);
 	return -ENOENT;
 }
 
@@ -177,7 +177,7 @@ char *parse_args(const char *doing,
 	args = skip_spaces(args);
 
 	if (*args)
-		pr_debug("doing %s, parsing ARGS: '%s'\n", doing, args);
+		pr_de("doing %s, parsing ARGS: '%s'\n", doing, args);
 
 	while (*args) {
 		int ret;
@@ -613,7 +613,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	unsigned int i;
 
 	/* We don't bother calling this with invisible parameters. */
-	BUG_ON(!kp->perm);
+	_ON(!kp->perm);
 
 	if (!mk->mp) {
 		/* First allocation. */
@@ -751,7 +751,7 @@ static struct module_kobject * __init locate_module_kobject(const char *name)
 		mk = to_module_kobject(kobj);
 	} else {
 		mk = kzalloc(sizeof(struct module_kobject), GFP_KERNEL);
-		BUG_ON(!mk);
+		_ON(!mk);
 
 		mk->mod = THIS_MODULE;
 		mk->kobj.kset = module_kset;
@@ -792,9 +792,9 @@ static void __init kernel_add_sysfs_param(const char *name,
 
 	/* These should not fail at boot. */
 	err = add_sysfs_param(mk, kparam, kparam->name + name_skip);
-	BUG_ON(err);
+	_ON(err);
 	err = sysfs_create_group(&mk->kobj, &mk->mp->grp);
-	BUG_ON(err);
+	_ON(err);
 	kobject_uevent(&mk->kobj, KOBJ_ADD);
 	kobject_put(&mk->kobj);
 }

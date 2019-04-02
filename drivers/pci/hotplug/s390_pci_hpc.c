@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <asm/pci_debug.h>
+#include <asm/pci_de.h>
 #include <asm/sclp.h>
 
 #define SLOT_NAME_SIZE	10

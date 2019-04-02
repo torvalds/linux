@@ -229,9 +229,9 @@ void *workingset_eviction(struct page *page)
 	struct lruvec *lruvec;
 
 	/* Page is fully exclusive and pins page->mem_cgroup */
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-	VM_BUG_ON_PAGE(page_count(page), page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(PageLRU(page), page);
+	VM__ON_PAGE(page_count(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	lruvec = mem_cgroup_lruvec(pgdat, memcg);
 	eviction = atomic_long_inc_return(&lruvec->inactive_age);
@@ -539,7 +539,7 @@ static int __init workingset_init(void)
 	unsigned int max_order;
 	int ret;
 
-	BUILD_BUG_ON(BITS_PER_LONG < EVICTION_SHIFT);
+	BUILD__ON(BITS_PER_LONG < EVICTION_SHIFT);
 	/*
 	 * Calculate the eviction bucket size to cover the longest
 	 * actionable refault distance, which is currently half of

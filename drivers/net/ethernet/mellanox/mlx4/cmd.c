@@ -347,7 +347,7 @@ static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 vhcr_cmd,
 	down(&cmd->event_sem);
 
 	spin_lock(&cmd->context_lock);
-	BUG_ON(cmd->free_head < 0);
+	_ON(cmd->free_head < 0);
 	context = &cmd->context[cmd->free_head];
 	context->token += cmd->token_mask + 1;
 	cmd->free_head = context->next;
@@ -693,7 +693,7 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	down(&cmd->event_sem);
 
 	spin_lock(&cmd->context_lock);
-	BUG_ON(cmd->free_head < 0);
+	_ON(cmd->free_head < 0);
 	context = &cmd->context[cmd->free_head];
 	context->token += cmd->token_mask + 1;
 	cmd->free_head = context->next;
@@ -743,7 +743,7 @@ static int mlx4_cmd_wait(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 		/* Since we do not want to have this error message always
 		 * displayed at driver start when there are ConnectX2 HCAs
 		 * on the host, we deprecate the error message for this
-		 * specific command/input_mod/opcode_mod/fw-status to be debug.
+		 * specific command/input_mod/opcode_mod/fw-status to be de.
 		 */
 		if (op == MLX4_CMD_SET_PORT &&
 		    (in_modifier == 1 || in_modifier == 2) &&

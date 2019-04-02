@@ -31,7 +31,7 @@
  * the atm_* in net/atm. This naming convention differs from what's used in the
  * rest of net/sched.
  *
- * Known bugs:
+ * Known s:
  *  - sometimes messes up the IP stack
  *  - any manipulations besides the few operations described in the README, are
  *    untested and likely to crash the system
@@ -88,7 +88,7 @@ static int atm_tc_graft(struct Qdisc *sch, unsigned long arg,
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)arg;
 
-	pr_debug("atm_tc_graft(sch %p,[qdisc %p],flow %p,new %p,old %p)\n",
+	pr_de("atm_tc_graft(sch %p,[qdisc %p],flow %p,new %p,old %p)\n",
 		sch, p, flow, new, old);
 	if (list_empty(&flow->list))
 		return -EINVAL;
@@ -105,7 +105,7 @@ static struct Qdisc *atm_tc_leaf(struct Qdisc *sch, unsigned long cl)
 {
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
 
-	pr_debug("atm_tc_leaf(sch %p,flow %p)\n", sch, flow);
+	pr_de("atm_tc_leaf(sch %p,flow %p)\n", sch, flow);
 	return flow ? flow->q : NULL;
 }
 
@@ -114,9 +114,9 @@ static unsigned long atm_tc_find(struct Qdisc *sch, u32 classid)
 	struct atm_qdisc_data *p __maybe_unused = qdisc_priv(sch);
 	struct atm_flow_data *flow;
 
-	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n", __func__, sch, p, classid);
+	pr_de("%s(sch %p,[qdisc %p],classid %x)\n", __func__, sch, p, classid);
 	flow = lookup_flow(sch, classid);
-	pr_debug("%s: flow %p\n", __func__, flow);
+	pr_de("%s: flow %p\n", __func__, flow);
 	return (unsigned long)flow;
 }
 
@@ -126,11 +126,11 @@ static unsigned long atm_tc_bind_filter(struct Qdisc *sch,
 	struct atm_qdisc_data *p __maybe_unused = qdisc_priv(sch);
 	struct atm_flow_data *flow;
 
-	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n", __func__, sch, p, classid);
+	pr_de("%s(sch %p,[qdisc %p],classid %x)\n", __func__, sch, p, classid);
 	flow = lookup_flow(sch, classid);
 	if (flow)
 		flow->ref++;
-	pr_debug("%s: flow %p\n", __func__, flow);
+	pr_de("%s: flow %p\n", __func__, flow);
 	return (unsigned long)flow;
 }
 
@@ -144,16 +144,16 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
 
-	pr_debug("atm_tc_put(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
+	pr_de("atm_tc_put(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
 	if (--flow->ref)
 		return;
-	pr_debug("atm_tc_put: destroying\n");
+	pr_de("atm_tc_put: destroying\n");
 	list_del_init(&flow->list);
-	pr_debug("atm_tc_put: qdisc %p\n", flow->q);
+	pr_de("atm_tc_put: qdisc %p\n", flow->q);
 	qdisc_put(flow->q);
 	tcf_block_put(flow->block);
 	if (flow->sock) {
-		pr_debug("atm_tc_put: f_count %ld\n",
+		pr_de("atm_tc_put: f_count %ld\n",
 			file_count(flow->sock->file));
 		flow->vcc->pop = flow->old_pop;
 		sockfd_put(flow->sock);
@@ -172,7 +172,7 @@ static void sch_atm_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	struct atm_qdisc_data *p = VCC2FLOW(vcc)->parent;
 
-	pr_debug("sch_atm_pop(vcc %p,skb %p,[qdisc %p])\n", vcc, skb, p);
+	pr_de("sch_atm_pop(vcc %p,skb %p,[qdisc %p])\n", vcc, skb, p);
 	VCC2FLOW(vcc)->old_pop(vcc, skb);
 	tasklet_schedule(&p->task);
 }
@@ -204,7 +204,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	int fd, error, hdr_len;
 	void *hdr;
 
-	pr_debug("atm_tc_change(sch %p,[qdisc %p],classid %x,parent %x,"
+	pr_de("atm_tc_change(sch %p,[qdisc %p],classid %x,parent %x,"
 		"flow %p,opt %p)\n", sch, p, classid, parent, flow, opt);
 	/*
 	 * The concept of parents doesn't apply for this qdisc.
@@ -230,7 +230,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (!tb[TCA_ATM_FD])
 		return -EINVAL;
 	fd = nla_get_u32(tb[TCA_ATM_FD]);
-	pr_debug("atm_tc_change: fd %d\n", fd);
+	pr_de("atm_tc_change: fd %d\n", fd);
 	if (tb[TCA_ATM_HDR]) {
 		hdr_len = nla_len(tb[TCA_ATM_HDR]);
 		hdr = nla_data(tb[TCA_ATM_HDR]);
@@ -246,12 +246,12 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		if (!excess)
 			return -ENOENT;
 	}
-	pr_debug("atm_tc_change: type %d, payload %d, hdr_len %d\n",
+	pr_de("atm_tc_change: type %d, payload %d, hdr_len %d\n",
 		 opt->nla_type, nla_len(opt), hdr_len);
 	sock = sockfd_lookup(fd, &error);
 	if (!sock)
 		return error;	/* f_count++ */
-	pr_debug("atm_tc_change: f_count %ld\n", file_count(sock->file));
+	pr_de("atm_tc_change: f_count %ld\n", file_count(sock->file));
 	if (sock->ops->family != PF_ATMSVC && sock->ops->family != PF_ATMPVC) {
 		error = -EPROTOTYPE;
 		goto err_out;
@@ -260,7 +260,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	   on vcc->send */
 	if (classid) {
 		if (TC_H_MAJ(classid ^ sch->handle)) {
-			pr_debug("atm_tc_change: classid mismatch\n");
+			pr_de("atm_tc_change: classid mismatch\n");
 			error = -EINVAL;
 			goto err_out;
 		}
@@ -275,9 +275,9 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 				break;
 		}
 	}
-	pr_debug("atm_tc_change: new id %x\n", classid);
+	pr_de("atm_tc_change: new id %x\n", classid);
 	flow = kzalloc(sizeof(struct atm_flow_data) + hdr_len, GFP_KERNEL);
-	pr_debug("atm_tc_change: flow %p\n", flow);
+	pr_de("atm_tc_change: flow %p\n", flow);
 	if (!flow) {
 		error = -ENOBUFS;
 		goto err_out;
@@ -294,11 +294,11 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 				    extack);
 	if (!flow->q)
 		flow->q = &noop_qdisc;
-	pr_debug("atm_tc_change: qdisc %p\n", flow->q);
+	pr_de("atm_tc_change: qdisc %p\n", flow->q);
 	flow->sock = sock;
 	flow->vcc = ATM_SD(sock);	/* speedup */
 	flow->vcc->user_back = flow;
-	pr_debug("atm_tc_change: vcc %p\n", flow->vcc);
+	pr_de("atm_tc_change: vcc %p\n", flow->vcc);
 	flow->old_pop = flow->vcc->pop;
 	flow->parent = p;
 	flow->vcc->pop = sch_atm_pop;
@@ -323,7 +323,7 @@ static int atm_tc_delete(struct Qdisc *sch, unsigned long arg)
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)arg;
 
-	pr_debug("atm_tc_delete(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
+	pr_de("atm_tc_delete(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
 	if (list_empty(&flow->list))
 		return -EINVAL;
 	if (rcu_access_pointer(flow->filter_list) || flow == &p->link)
@@ -347,7 +347,7 @@ static void atm_tc_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow;
 
-	pr_debug("atm_tc_walk(sch %p,[qdisc %p],walker %p)\n", sch, p, walker);
+	pr_de("atm_tc_walk(sch %p,[qdisc %p],walker %p)\n", sch, p, walker);
 	if (walker->stop)
 		return;
 	list_for_each_entry(flow, &p->flows, list) {
@@ -366,7 +366,7 @@ static struct tcf_block *atm_tc_tcf_block(struct Qdisc *sch, unsigned long cl,
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
 
-	pr_debug("atm_tc_find_tcf(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
+	pr_de("atm_tc_find_tcf(sch %p,[qdisc %p],flow %p)\n", sch, p, flow);
 	return flow ? flow->block : p->link.block;
 }
 
@@ -381,7 +381,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	int result;
 	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 
-	pr_debug("atm_tc_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
+	pr_de("atm_tc_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
 	result = TC_ACT_OK;	/* be nice to gcc */
 	flow = NULL;
 	if (TC_H_MAJ(skb->priority) != sch->handle ||
@@ -471,7 +471,7 @@ static void sch_atm_dequeue(unsigned long data)
 	struct atm_flow_data *flow;
 	struct sk_buff *skb;
 
-	pr_debug("sch_atm_dequeue(sch %p,[qdisc %p])\n", sch, p);
+	pr_de("sch_atm_dequeue(sch %p,[qdisc %p])\n", sch, p);
 	list_for_each_entry(flow, &p->flows, list) {
 		if (flow == &p->link)
 			continue;
@@ -489,7 +489,7 @@ static void sch_atm_dequeue(unsigned long data)
 
 			qdisc_bstats_update(sch, skb);
 			bstats_update(&flow->bstats, skb);
-			pr_debug("atm_tc_dequeue: sending on class %p\n", flow);
+			pr_de("atm_tc_dequeue: sending on class %p\n", flow);
 			/* remove any LL header somebody else has attached */
 			skb_pull(skb, skb_network_offset(skb));
 			if (skb_headroom(skb) < flow->hdr_len) {
@@ -501,7 +501,7 @@ static void sch_atm_dequeue(unsigned long data)
 					continue;
 				skb = new;
 			}
-			pr_debug("sch_atm_dequeue: ip %p, data %p\n",
+			pr_de("sch_atm_dequeue: ip %p, data %p\n",
 				 skb_network_header(skb), skb->data);
 			ATM_SKB(skb)->vcc = flow->vcc;
 			memcpy(skb_push(skb, flow->hdr_len), flow->hdr,
@@ -519,7 +519,7 @@ static struct sk_buff *atm_tc_dequeue(struct Qdisc *sch)
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct sk_buff *skb;
 
-	pr_debug("atm_tc_dequeue(sch %p,[qdisc %p])\n", sch, p);
+	pr_de("atm_tc_dequeue(sch %p,[qdisc %p])\n", sch, p);
 	tasklet_schedule(&p->task);
 	skb = qdisc_dequeue_peeked(p->link.q);
 	if (skb)
@@ -531,7 +531,7 @@ static struct sk_buff *atm_tc_peek(struct Qdisc *sch)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 
-	pr_debug("atm_tc_peek(sch %p,[qdisc %p])\n", sch, p);
+	pr_de("atm_tc_peek(sch %p,[qdisc %p])\n", sch, p);
 
 	return p->link.q->ops->peek(p->link.q);
 }
@@ -542,7 +542,7 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	int err;
 
-	pr_debug("atm_tc_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
+	pr_de("atm_tc_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 	INIT_LIST_HEAD(&p->flows);
 	INIT_LIST_HEAD(&p->link.list);
 	list_add(&p->link.list, &p->flows);
@@ -550,7 +550,7 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
 				      &pfifo_qdisc_ops, sch->handle, extack);
 	if (!p->link.q)
 		p->link.q = &noop_qdisc;
-	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);
+	pr_de("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);
 
 	err = tcf_block_get(&p->link.block, &p->link.filter_list, sch,
 			    extack);
@@ -570,7 +570,7 @@ static void atm_tc_reset(struct Qdisc *sch)
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow;
 
-	pr_debug("atm_tc_reset(sch %p,[qdisc %p])\n", sch, p);
+	pr_de("atm_tc_reset(sch %p,[qdisc %p])\n", sch, p);
 	list_for_each_entry(flow, &p->flows, list)
 		qdisc_reset(flow->q);
 	sch->q.qlen = 0;
@@ -581,7 +581,7 @@ static void atm_tc_destroy(struct Qdisc *sch)
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow, *tmp;
 
-	pr_debug("atm_tc_destroy(sch %p,[qdisc %p])\n", sch, p);
+	pr_de("atm_tc_destroy(sch %p,[qdisc %p])\n", sch, p);
 	list_for_each_entry(flow, &p->flows, list) {
 		tcf_block_put(flow->block);
 		flow->block = NULL;
@@ -602,7 +602,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
 	struct nlattr *nest;
 
-	pr_debug("atm_tc_dump_class(sch %p,[qdisc %p],flow %p,skb %p,tcm %p)\n",
+	pr_de("atm_tc_dump_class(sch %p,[qdisc %p],flow %p,skb %p,tcm %p)\n",
 		sch, p, flow, skb, tcm);
 	if (list_empty(&flow->list))
 		return -EINVAL;

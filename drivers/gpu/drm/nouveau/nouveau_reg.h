@@ -16,17 +16,17 @@
 #	define NV04_PFB_BOOT_0_RAM_TYPE_SDRAM_64MBITX16		0x00000028
 #	define NV04_PFB_BOOT_0_UMA_ENABLE			0x00000100
 #	define NV04_PFB_BOOT_0_UMA_SIZE				0x0000f000
-#define NV04_PFB_DEBUG_0					0x00100080
-#	define NV04_PFB_DEBUG_0_PAGE_MODE			0x00000001
-#	define NV04_PFB_DEBUG_0_REFRESH_OFF			0x00000010
-#	define NV04_PFB_DEBUG_0_REFRESH_COUNTX64		0x00003f00
-#	define NV04_PFB_DEBUG_0_REFRESH_SLOW_CLK		0x00004000
-#	define NV04_PFB_DEBUG_0_SAFE_MODE			0x00008000
-#	define NV04_PFB_DEBUG_0_ALOM_ENABLE			0x00010000
-#	define NV04_PFB_DEBUG_0_CASOE				0x00100000
-#	define NV04_PFB_DEBUG_0_CKE_INVERT			0x10000000
-#	define NV04_PFB_DEBUG_0_REFINC				0x20000000
-#	define NV04_PFB_DEBUG_0_SAVE_POWER_OFF			0x40000000
+#define NV04_PFB_DE_0					0x00100080
+#	define NV04_PFB_DE_0_PAGE_MODE			0x00000001
+#	define NV04_PFB_DE_0_REFRESH_OFF			0x00000010
+#	define NV04_PFB_DE_0_REFRESH_COUNTX64		0x00003f00
+#	define NV04_PFB_DE_0_REFRESH_SLOW_CLK		0x00004000
+#	define NV04_PFB_DE_0_SAFE_MODE			0x00008000
+#	define NV04_PFB_DE_0_ALOM_ENABLE			0x00010000
+#	define NV04_PFB_DE_0_CASOE				0x00100000
+#	define NV04_PFB_DE_0_CKE_INVERT			0x10000000
+#	define NV04_PFB_DE_0_REFINC				0x20000000
+#	define NV04_PFB_DE_0_SAVE_POWER_OFF			0x40000000
 #define NV04_PFB_CFG0						0x00100200
 #	define NV04_PFB_CFG0_SCRAMBLE				0x20000000
 #define NV04_PFB_CFG1						0x00100204
@@ -171,11 +171,11 @@
 #define NV04_PTIMER_TIME_1                                 0x00009410
 #define NV04_PTIMER_ALARM_0                                0x00009420
 
-#define NV04_PGRAPH_DEBUG_0                                0x00400080
-#define NV04_PGRAPH_DEBUG_1                                0x00400084
-#define NV04_PGRAPH_DEBUG_2                                0x00400088
-#define NV04_PGRAPH_DEBUG_3                                0x0040008c
-#define NV10_PGRAPH_DEBUG_4                                0x00400090
+#define NV04_PGRAPH_DE_0                                0x00400080
+#define NV04_PGRAPH_DE_1                                0x00400084
+#define NV04_PGRAPH_DE_2                                0x00400088
+#define NV04_PGRAPH_DE_3                                0x0040008c
+#define NV10_PGRAPH_DE_4                                0x00400090
 #define NV03_PGRAPH_INTR                                   0x00400100
 #define NV03_PGRAPH_NSTATUS                                0x00400104
 #    define NV04_PGRAPH_NSTATUS_STATE_IN_USE                  (1<<11)
@@ -299,7 +299,7 @@
 #define NV04_PGRAPH_BETA_PREMULT                           0x0040060C
 #define NV04_PGRAPH_LIMIT_VIOL_PIX                         0x00400610
 #define NV04_PGRAPH_FORMATS                                0x00400618
-#define NV10_PGRAPH_DEBUG_2                                0x00400620
+#define NV10_PGRAPH_DE_2                                0x00400620
 #define NV04_PGRAPH_BOFFSET0                               0x00400640
 #define NV04_PGRAPH_BOFFSET1                               0x00400644
 #define NV04_PGRAPH_BOFFSET2                               0x00400648

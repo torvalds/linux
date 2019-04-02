@@ -28,7 +28,7 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "omap_ssi_regs.h"
 #include "omap_ssi.h"
@@ -49,12 +49,12 @@ static inline unsigned int ssi_wakein(struct hsi_port *port)
 	return gpiod_get_value(omap_port->wake_gpio);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void ssi_debug_remove_port(struct hsi_port *port)
+#ifdef CONFIG_DE_FS
+static void ssi_de_remove_port(struct hsi_port *port)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
 
-	debugfs_remove_recursive(omap_port->dir);
+	defs_remove_recursive(omap_port->dir);
 }
 
 static int ssi_port_regs_show(struct seq_file *m, void *p __maybe_unused)
@@ -162,22 +162,22 @@ static int ssi_div_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
 
-static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
+static int ssi_de_add_port(struct omap_ssi_port *omap_port,
 				     struct dentry *dir)
 {
 	struct hsi_port *port = to_hsi_port(omap_port->dev);
 
-	dir = debugfs_create_dir(dev_name(omap_port->dev), dir);
+	dir = defs_create_dir(dev_name(omap_port->dev), dir);
 	if (!dir)
 		return -ENOMEM;
 	omap_port->dir = dir;
-	debugfs_create_file("regs", S_IRUGO, dir, port, &ssi_port_regs_fops);
-	dir = debugfs_create_dir("sst", dir);
+	defs_create_file("regs", S_IRUGO, dir, port, &ssi_port_regs_fops);
+	dir = defs_create_dir("sst", dir);
 	if (!dir)
 		return -ENOMEM;
-	debugfs_create_file_unsafe("divisor", 0644, dir, port,
+	defs_create_file_unsafe("divisor", 0644, dir, port,
 				   &ssi_sst_div_fops);
 
 	return 0;
@@ -394,7 +394,7 @@ static int ssi_async(struct hsi_msg *msg)
 	struct list_head *queue;
 	int err = 0;
 
-	BUG_ON(!msg);
+	_ON(!msg);
 
 	if (msg->sgt.nents > 1)
 		return -ENOSYS; /* TODO: Add sg support */
@@ -403,10 +403,10 @@ static int ssi_async(struct hsi_msg *msg)
 		return ssi_async_break(msg);
 
 	if (msg->ttype) {
-		BUG_ON(msg->channel >= omap_port->sst.channels);
+		_ON(msg->channel >= omap_port->sst.channels);
 		queue = &omap_port->txqueue[msg->channel];
 	} else {
-		BUG_ON(msg->channel >= omap_port->ssr.channels);
+		_ON(msg->channel >= omap_port->ssr.channels);
 		queue = &omap_port->rxqueue[msg->channel];
 	}
 	msg->status = HSI_STATUS_QUEUED;
@@ -454,7 +454,7 @@ static void ssi_flush_queue(struct list_head *queue, struct hsi_client *cl)
 		if ((cl) && (cl != msg->cl))
 			continue;
 		list_del(node);
-		pr_debug("flush queue: ch %d, msg %p len %d type %d ctxt %p\n",
+		pr_de("flush queue: ch %d, msg %p len %d type %d ctxt %p\n",
 			msg->channel, msg, msg->sgt.sgl->length,
 					msg->ttype, msg->context);
 		if (msg->destructor)
@@ -636,7 +636,7 @@ static int ssi_stop_tx(struct hsi_client *cl)
 	dev_dbg(&port->device, "Wake out low %d\n", omap_port->wk_refcount);
 
 	spin_lock_bh(&omap_port->wk_lock);
-	BUG_ON(!omap_port->wk_refcount);
+	_ON(!omap_port->wk_refcount);
 	if (--omap_port->wk_refcount) {
 		spin_unlock_bh(&omap_port->wk_lock);
 		return 0;
@@ -1231,8 +1231,8 @@ static int ssi_port_probe(struct platform_device *pd)
 	pm_runtime_set_autosuspend_delay(omap_port->pdev, 250);
 	pm_runtime_enable(omap_port->pdev);
 
-#ifdef CONFIG_DEBUG_FS
-	err = ssi_debug_add_port(omap_port, omap_ssi->dir);
+#ifdef CONFIG_DE_FS
+	err = ssi_de_add_port(omap_port, omap_ssi->dir);
 	if (err < 0) {
 		pm_runtime_disable(omap_port->pdev);
 		goto error;
@@ -1256,8 +1256,8 @@ static int ssi_port_remove(struct platform_device *pd)
 	struct hsi_controller *ssi = to_hsi_controller(port->device.parent);
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 
-#ifdef CONFIG_DEBUG_FS
-	ssi_debug_remove_port(port);
+#ifdef CONFIG_DE_FS
+	ssi_de_remove_port(port);
 #endif
 
 	cancel_delayed_work_sync(&omap_port->errqueue_work);

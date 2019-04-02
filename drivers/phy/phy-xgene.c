@@ -616,7 +616,7 @@ static void cmu_wr(struct xgene_phy_ctx *ctx, enum cmu_type_t cmu_type,
 		SATA_ENET_SDS_IND_WDATA_REG, reg, data);
 	sds_rd(sds_base, SATA_ENET_SDS_IND_CMD_REG,
 		SATA_ENET_SDS_IND_RDATA_REG, reg, &val);
-	pr_debug("CMU WR addr 0x%X value 0x%08X <-> 0x%08X\n", reg, data, val);
+	pr_de("CMU WR addr 0x%X value 0x%08X <-> 0x%08X\n", reg, data, val);
 }
 
 static void cmu_rd(struct xgene_phy_ctx *ctx, enum cmu_type_t cmu_type,
@@ -630,7 +630,7 @@ static void cmu_rd(struct xgene_phy_ctx *ctx, enum cmu_type_t cmu_type,
 		reg += SERDES_PLL_INDIRECT_OFFSET;
 	sds_rd(sds_base, SATA_ENET_SDS_IND_CMD_REG,
 		SATA_ENET_SDS_IND_RDATA_REG, reg, data);
-	pr_debug("CMU RD addr 0x%X value 0x%08X\n", reg, *data);
+	pr_de("CMU RD addr 0x%X value 0x%08X\n", reg, *data);
 }
 
 static void cmu_toggle1to0(struct xgene_phy_ctx *ctx, enum cmu_type_t cmu_type,
@@ -677,7 +677,7 @@ static void serdes_wr(struct xgene_phy_ctx *ctx, int lane, u32 reg, u32 data)
 	       SATA_ENET_SDS_IND_WDATA_REG, reg, data);
 	sds_rd(sds_base, SATA_ENET_SDS_IND_CMD_REG,
 	       SATA_ENET_SDS_IND_RDATA_REG, reg, &val);
-	pr_debug("SERDES WR addr 0x%X value 0x%08X <-> 0x%08X\n", reg, data,
+	pr_de("SERDES WR addr 0x%X value 0x%08X <-> 0x%08X\n", reg, data,
 		 val);
 }
 
@@ -689,7 +689,7 @@ static void serdes_rd(struct xgene_phy_ctx *ctx, int lane, u32 reg, u32 *data)
 	reg += lane * SERDES_LANE_STRIDE;
 	sds_rd(sds_base, SATA_ENET_SDS_IND_CMD_REG,
 	       SATA_ENET_SDS_IND_RDATA_REG, reg, data);
-	pr_debug("SERDES RD addr 0x%X value 0x%08X\n", reg, *data);
+	pr_de("SERDES RD addr 0x%X value 0x%08X\n", reg, *data);
 }
 
 static void serdes_clrbits(struct xgene_phy_ctx *ctx, int lane, u32 reg,

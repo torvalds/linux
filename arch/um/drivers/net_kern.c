@@ -591,7 +591,7 @@ void register_transport(struct transport *new)
 	int match;
 
 	spin_lock(&transports_lock);
-	BUG_ON(!list_empty(&new->list));
+	_ON(!list_empty(&new->list));
 	list_add(&new->list, &transports);
 	spin_unlock(&transports_lock);
 

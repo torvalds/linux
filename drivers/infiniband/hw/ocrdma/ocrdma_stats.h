@@ -43,7 +43,7 @@
 #ifndef __OCRDMA_STATS_H__
 #define __OCRDMA_STATS_H__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "ocrdma.h"
 #include "ocrdma_hw.h"
 
@@ -63,8 +63,8 @@ enum OCRDMA_STATS_TYPE {
 	OCRDMA_RESET_STATS
 };
 
-void ocrdma_rem_debugfs(void);
-void ocrdma_init_debugfs(void);
+void ocrdma_rem_defs(void);
+void ocrdma_init_defs(void);
 bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev);
 void ocrdma_release_stats_resources(struct ocrdma_dev *dev);
 void ocrdma_rem_port_stats(struct ocrdma_dev *dev);

@@ -38,24 +38,24 @@ static int __init setup_failslab(char *str)
 }
 __setup("failslab=", setup_failslab);
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
-static int __init failslab_debugfs_init(void)
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
+static int __init failslab_defs_init(void)
 {
 	struct dentry *dir;
 	umode_t mode = S_IFREG | 0600;
 
-	dir = fault_create_debugfs_attr("failslab", NULL, &failslab.attr);
+	dir = fault_create_defs_attr("failslab", NULL, &failslab.attr);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	debugfs_create_bool("ignore-gfp-wait", mode, dir,
+	defs_create_bool("ignore-gfp-wait", mode, dir,
 			    &failslab.ignore_gfp_reclaim);
-	debugfs_create_bool("cache-filter", mode, dir,
+	defs_create_bool("cache-filter", mode, dir,
 			    &failslab.cache_filter);
 
 	return 0;
 }
 
-late_initcall(failslab_debugfs_init);
+late_initcall(failslab_defs_init);
 
-#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+#endif /* CONFIG_FAULT_INJECTION_DE_FS */

@@ -172,7 +172,7 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
-	 * The v1 controller has a bug in its Configuration Request
+	 * The v1 controller has a  in its Configuration Request
 	 * Retry Status (CRS) logic: when CRS is enabled and we read the
 	 * Vendor and Device ID of a non-existent device, the controller
 	 * fabricates return data of 0xFFFF0001 ("device exists but is not

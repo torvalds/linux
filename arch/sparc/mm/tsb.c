@@ -209,12 +209,12 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 		break;
 #endif
 	default:
-		BUG();
+		();
 	}
 
 	tte = pgprot_val(PAGE_KERNEL_LOCKED);
 	tsb_paddr = __pa(mm->context.tsb_block[tsb_idx].tsb);
-	BUG_ON(tsb_paddr & (tsb_bytes - 1UL));
+	_ON(tsb_paddr & (tsb_bytes - 1UL));
 
 	/* Use the smallest page size that can map the whole TSB
 	 * in one TLB entry.
@@ -301,7 +301,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 			break;
 #endif
 		default:
-			BUG();
+			();
 		}
 		hp->assoc = 1;
 		hp->num_ttes = tsb_bytes / 16;
@@ -316,7 +316,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 			break;
 #endif
 		default:
-			BUG();
+			();
 		}
 		hp->tsb_base = tsb_paddr;
 		hp->resv = 0;

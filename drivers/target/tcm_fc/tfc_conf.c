@@ -44,9 +44,9 @@
 static LIST_HEAD(ft_wwn_list);
 DEFINE_MUTEX(ft_lport_lock);
 
-unsigned int ft_debug_logging;
-module_param_named(debug_logging, ft_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+unsigned int ft_de_logging;
+module_param_named(de_logging, ft_de_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(de_logging, "a bit mask of logging levels");
 
 /*
  * Parse WWN.
@@ -89,7 +89,7 @@ static ssize_t ft_parse_wwn(const char *name, u64 *wwn, int strict)
 	}
 	err = 4;
 fail:
-	pr_debug("err %u len %zu pos %u byte %u\n",
+	pr_de("err %u len %zu pos %u byte %u\n",
 		    err, cp - name, pos, byte);
 	return -1;
 }
@@ -231,7 +231,7 @@ static struct se_portal_group *ft_add_tpg(struct se_wwn *wwn, const char *name)
 	unsigned long index;
 	int ret;
 
-	pr_debug("tcm_fc: add tpg %s\n", name);
+	pr_de("tcm_fc: add tpg %s\n", name);
 
 	/*
 	 * Name must be "tpgt_" followed by the index.
@@ -284,12 +284,12 @@ static void ft_del_tpg(struct se_portal_group *se_tpg)
 	struct ft_tpg *tpg = container_of(se_tpg, struct ft_tpg, se_tpg);
 	struct ft_lport_wwn *ft_wwn = tpg->lport_wwn;
 
-	pr_debug("del tpg %s\n",
+	pr_de("del tpg %s\n",
 		    config_item_name(&tpg->se_tpg.tpg_group.cg_item));
 
 	destroy_workqueue(tpg->workqueue);
 
-	/* Wait for sessions to be freed thru RCU, for BUG_ON below */
+	/* Wait for sessions to be freed thru RCU, for _ON below */
 	synchronize_rcu();
 
 	mutex_lock(&ft_lport_lock);
@@ -338,7 +338,7 @@ static struct se_wwn *ft_add_wwn(
 	struct ft_lport_wwn *old_ft_wwn;
 	u64 wwpn;
 
-	pr_debug("add wwn %s\n", name);
+	pr_de("add wwn %s\n", name);
 	if (ft_parse_wwn(name, &wwpn, 1) < 0)
 		return NULL;
 	ft_wwn = kzalloc(sizeof(*ft_wwn), GFP_KERNEL);
@@ -366,7 +366,7 @@ static void ft_del_wwn(struct se_wwn *wwn)
 	struct ft_lport_wwn *ft_wwn = container_of(wwn,
 				struct ft_lport_wwn, se_wwn);
 
-	pr_debug("del wwn %s\n", ft_wwn->name);
+	pr_de("del wwn %s\n", ft_wwn->name);
 	mutex_lock(&ft_lport_lock);
 	list_del(&ft_wwn->ft_wwn_node);
 	mutex_unlock(&ft_lport_lock);

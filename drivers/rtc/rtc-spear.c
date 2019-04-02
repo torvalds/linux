@@ -63,7 +63,7 @@
 #define MONTH_MASK		0x7F
 #define YEAR_MASK		0xFFFF
 
-/* date reg equal to time reg, for debug only */
+/* date reg equal to time reg, for de only */
 #define TIME_BYP		(1<<9)
 #define INT_ENABLE		(1<<31)		/* interrupt enable */
 

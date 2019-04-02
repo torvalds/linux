@@ -27,7 +27,7 @@
 #include <linux/srcu.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -40,16 +40,16 @@
 
 #include "trace_hv.h"
 
-//#define DEBUG_RESIZE_HPT	1
+//#define DE_RESIZE_HPT	1
 
-#ifdef DEBUG_RESIZE_HPT
-#define resize_hpt_debug(resize, ...)				\
+#ifdef DE_RESIZE_HPT
+#define resize_hpt_de(resize, ...)				\
 	do {							\
-		printk(KERN_DEBUG "RESIZE HPT %p: ", resize);	\
+		printk(KERN_DE "RESIZE HPT %p: ", resize);	\
 		printk(__VA_ARGS__);				\
 	} while (0)
 #else
-#define resize_hpt_debug(resize, ...)				\
+#define resize_hpt_de(resize, ...)				\
 	do { } while (0)
 #endif
 
@@ -130,7 +130,7 @@ void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
 	kvm->arch.hpt = *info;
 	kvm->arch.sdr1 = __pa(info->virt) | (info->order - 18);
 
-	pr_debug("KVM guest htab at %lx (order %ld), LPID %x\n",
+	pr_de("KVM guest htab at %lx (order %ld), LPID %x\n",
 		 info->virt, (long)info->order, kvm->arch.lpid);
 }
 
@@ -1242,7 +1242,7 @@ static int resize_hpt_allocate(struct kvm_resize_hpt *resize)
 	if (rc < 0)
 		return rc;
 
-	resize_hpt_debug(resize, "resize_hpt_allocate(): HPT @ 0x%lx\n",
+	resize_hpt_de(resize, "resize_hpt_allocate(): HPT @ 0x%lx\n",
 			 resize->hpt.virt);
 
 	return 0;
@@ -1317,8 +1317,8 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 
 	/* Reload PTE after unmap */
 	vpte = be64_to_cpu(hptep[0]);
-	BUG_ON(vpte & HPTE_V_VALID);
-	BUG_ON(!(vpte & HPTE_V_ABSENT));
+	_ON(vpte & HPTE_V_VALID);
+	_ON(!(vpte & HPTE_V_ABSENT));
 
 	ret = 0;
 	if (!(vpte & HPTE_V_BOLTED))
@@ -1374,7 +1374,7 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 	}
 
 	if (replace_vpte & (HPTE_V_VALID | HPTE_V_ABSENT)) {
-		BUG_ON(new->order >= old->order);
+		_ON(new->order >= old->order);
 
 		if (replace_vpte & HPTE_V_BOLTED) {
 			if (vpte & HPTE_V_BOLTED)
@@ -1426,7 +1426,7 @@ static void resize_hpt_pivot(struct kvm_resize_hpt *resize)
 	/* Exchange the pending tables in the resize structure with
 	 * the active tables */
 
-	resize_hpt_debug(resize, "resize_hpt_pivot()\n");
+	resize_hpt_de(resize, "resize_hpt_pivot()\n");
 
 	spin_lock(&kvm->mmu_lock);
 	asm volatile("ptesync" : : : "memory");
@@ -1442,7 +1442,7 @@ static void resize_hpt_pivot(struct kvm_resize_hpt *resize)
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		kvmppc_setup_partition_table(kvm);
 
-	resize_hpt_debug(resize, "resize_hpt_pivot() done\n");
+	resize_hpt_de(resize, "resize_hpt_pivot() done\n");
 }
 
 static void resize_hpt_release(struct kvm *kvm, struct kvm_resize_hpt *resize)
@@ -1483,7 +1483,7 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 		 */
 		mutex_unlock(&kvm->lock);
 
-		resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
+		resize_hpt_de(resize, "resize_hpt_prepare_work(): order = %d\n",
 				 resize->order);
 
 		err = resize_hpt_allocate(resize);
@@ -2026,7 +2026,7 @@ int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *ghf)
 	return ret;
 }
 
-struct debugfs_htab_state {
+struct defs_htab_state {
 	struct kvm	*kvm;
 	struct mutex	mutex;
 	unsigned long	hpt_index;
@@ -2035,10 +2035,10 @@ struct debugfs_htab_state {
 	char		buf[64];
 };
 
-static int debugfs_htab_open(struct inode *inode, struct file *file)
+static int defs_htab_open(struct inode *inode, struct file *file)
 {
 	struct kvm *kvm = inode->i_private;
-	struct debugfs_htab_state *p;
+	struct defs_htab_state *p;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
@@ -2052,19 +2052,19 @@ static int debugfs_htab_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int debugfs_htab_release(struct inode *inode, struct file *file)
+static int defs_htab_release(struct inode *inode, struct file *file)
 {
-	struct debugfs_htab_state *p = file->private_data;
+	struct defs_htab_state *p = file->private_data;
 
 	kvm_put_kvm(p->kvm);
 	kfree(p);
 	return 0;
 }
 
-static ssize_t debugfs_htab_read(struct file *file, char __user *buf,
+static ssize_t defs_htab_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *ppos)
 {
-	struct debugfs_htab_state *p = file->private_data;
+	struct defs_htab_state *p = file->private_data;
 	ssize_t ret, r;
 	unsigned long i, n;
 	unsigned long v, hr, gr;
@@ -2143,26 +2143,26 @@ static ssize_t debugfs_htab_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static ssize_t debugfs_htab_write(struct file *file, const char __user *buf,
+static ssize_t defs_htab_write(struct file *file, const char __user *buf,
 			   size_t len, loff_t *ppos)
 {
 	return -EACCES;
 }
 
-static const struct file_operations debugfs_htab_fops = {
+static const struct file_operations defs_htab_fops = {
 	.owner	 = THIS_MODULE,
-	.open	 = debugfs_htab_open,
-	.release = debugfs_htab_release,
-	.read	 = debugfs_htab_read,
-	.write	 = debugfs_htab_write,
+	.open	 = defs_htab_open,
+	.release = defs_htab_release,
+	.read	 = defs_htab_read,
+	.write	 = defs_htab_write,
 	.llseek	 = generic_file_llseek,
 };
 
-void kvmppc_mmu_debugfs_init(struct kvm *kvm)
+void kvmppc_mmu_defs_init(struct kvm *kvm)
 {
-	kvm->arch.htab_dentry = debugfs_create_file("htab", 0400,
-						    kvm->arch.debugfs_dir, kvm,
-						    &debugfs_htab_fops);
+	kvm->arch.htab_dentry = defs_create_file("htab", 0400,
+						    kvm->arch.defs_dir, kvm,
+						    &defs_htab_fops);
 }
 
 void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)

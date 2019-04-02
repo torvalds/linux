@@ -12,7 +12,7 @@
  *					shutdown()
  *		Alan Cox	:	verify_area() fixes
  *		Alan Cox	:	Removed DDI
- *		Jonathan Kamens	:	SOCK_DGRAM reconnect bug
+ *		Jonathan Kamens	:	SOCK_DGRAM reconnect 
  *		Alan Cox	:	Moved a load of checks to the very
  *					top level.
  *		Alan Cox	:	Move address structures to/from user
@@ -40,7 +40,7 @@
  *					moment.
  *		Kevin Buhr	:	Fixed the dumb errors in the above.
  *		Andi Kleen	:	Some small cleanups, optimizations,
- *					and fixed a copy_from_user() bug.
+ *					and fixed a copy_from_user() .
  *		Tigran Aivazian	:	sys_send(args) calls sys_sendto(args, NULL, 0)
  *		Tigran Aivazian	:	Made listen(2) backlog sanity checks
  *					protocol-independent
@@ -213,7 +213,7 @@ static int move_addr_to_user(struct sockaddr_storage *kaddr, int klen,
 	int err;
 	int len;
 
-	BUG_ON(klen > sizeof(struct sockaddr_storage));
+	_ON(klen > sizeof(struct sockaddr_storage));
 	err = get_user(len, ulen);
 	if (err)
 		return err;
@@ -288,7 +288,7 @@ static void init_inodecache(void)
 					       SLAB_RECLAIM_ACCOUNT |
 					       SLAB_MEM_SPREAD | SLAB_ACCOUNT),
 					      init_once);
-	BUG_ON(sock_inode_cachep == NULL);
+	_ON(sock_inode_cachep == NULL);
 }
 
 static const struct super_operations sockfs_ops = {
@@ -649,7 +649,7 @@ EXPORT_SYMBOL(__sock_tx_timestamp);
 static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 {
 	int ret = sock->ops->sendmsg(sock, msg, msg_data_left(msg));
-	BUG_ON(ret == -EIOCBQUEUED);
+	_ON(ret == -EIOCBQUEUED);
 	return ret;
 }
 
@@ -1475,10 +1475,10 @@ int __sys_socket(int family, int type, int protocol)
 	int flags;
 
 	/* Check the SOCK_* constants for consistency.  */
-	BUILD_BUG_ON(SOCK_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON((SOCK_MAX | SOCK_TYPE_MASK) != SOCK_TYPE_MASK);
-	BUILD_BUG_ON(SOCK_CLOEXEC & SOCK_TYPE_MASK);
-	BUILD_BUG_ON(SOCK_NONBLOCK & SOCK_TYPE_MASK);
+	BUILD__ON(SOCK_CLOEXEC != O_CLOEXEC);
+	BUILD__ON((SOCK_MAX | SOCK_TYPE_MASK) != SOCK_TYPE_MASK);
+	BUILD__ON(SOCK_CLOEXEC & SOCK_TYPE_MASK);
+	BUILD__ON(SOCK_NONBLOCK & SOCK_TYPE_MASK);
 
 	flags = type & ~SOCK_TYPE_MASK;
 	if (flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
@@ -2221,7 +2221,7 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 		ctl_buf = msg_sys->msg_control;
 		ctl_len = msg_sys->msg_controllen;
 	} else if (ctl_len) {
-		BUILD_BUG_ON(sizeof(struct cmsghdr) !=
+		BUILD__ON(sizeof(struct cmsghdr) !=
 			     CMSG_ALIGN(sizeof(struct cmsghdr)));
 		if (ctl_len > sizeof(ctl)) {
 			ctl_buf = sock_kmalloc(sock->sk, ctl_len, GFP_KERNEL);
@@ -2838,7 +2838,7 @@ EXPORT_SYMBOL(sock_register);
  */
 void sock_unregister(int family)
 {
-	BUG_ON(family < 0 || family >= NPROTO);
+	_ON(family < 0 || family >= NPROTO);
 
 	spin_lock(&net_family_lock);
 	RCU_INIT_POINTER(net_families[family], NULL);
@@ -3029,11 +3029,11 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 		/* We expect there to be holes between fs.m_ext and
 		 * fs.ring_cookie and at the end of fs, but nowhere else.
 		 */
-		BUILD_BUG_ON(offsetof(struct compat_ethtool_rxnfc, fs.m_ext) +
+		BUILD__ON(offsetof(struct compat_ethtool_rxnfc, fs.m_ext) +
 			     sizeof(compat_rxnfc->fs.m_ext) !=
 			     offsetof(struct ethtool_rxnfc, fs.m_ext) +
 			     sizeof(rxnfc->fs.m_ext));
-		BUILD_BUG_ON(
+		BUILD__ON(
 			offsetof(struct compat_ethtool_rxnfc, fs.location) -
 			offsetof(struct compat_ethtool_rxnfc, fs.ring_cookie) !=
 			offsetof(struct ethtool_rxnfc, fs.location) -

@@ -285,7 +285,7 @@ static void raid_end_bio_io(struct r1bio *r1_bio)
 
 	/* if nobody has done the final endio yet, do it now */
 	if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
-		pr_debug("raid1: sync end %s on sectors %llu-%llu\n",
+		pr_de("raid1: sync end %s on sectors %llu-%llu\n",
 			 (bio_data_dir(bio) == WRITE) ? "write" : "read",
 			 (unsigned long long) bio->bi_iter.bi_sector,
 			 (unsigned long long) bio_end_sector(bio) - 1);
@@ -319,7 +319,7 @@ static int find_bio_disk(struct r1bio *r1_bio, struct bio *bio)
 		if (r1_bio->bios[mirror] == bio)
 			break;
 
-	BUG_ON(mirror == raid_disks * 2);
+	_ON(mirror == raid_disks * 2);
 	update_head_pos(mirror, r1_bio);
 
 	return mirror;
@@ -499,7 +499,7 @@ static void raid1_end_write_request(struct bio *bio)
 			/* Maybe we can return now */
 			if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
 				struct bio *mbio = r1_bio->master_bio;
-				pr_debug("raid1: behind end write sectors"
+				pr_de("raid1: behind end write sectors"
 					 " %llu-%llu\n",
 					 (unsigned long long) mbio->bi_iter.bi_sector,
 					 (unsigned long long) bio_end_sector(mbio) - 1);
@@ -763,7 +763,7 @@ static int raid1_congested(struct mddev *mddev, int bits)
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
 
-			BUG_ON(!q);
+			_ON(!q);
 
 			/* Note the '|| 1' - when read_balance prefers
 			 * non-congested targets, it can be removed
@@ -908,7 +908,7 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr)
 {
 	int idx = sector_to_idx(sector_nr);
 
-	BUG_ON(atomic_read(&conf->barrier[idx]) <= 0);
+	_ON(atomic_read(&conf->barrier[idx]) <= 0);
 
 	atomic_dec(&conf->barrier[idx]);
 	atomic_dec(&conf->nr_sync_pending);
@@ -1126,7 +1126,7 @@ skip_copy:
 	return;
 
 free_pages:
-	pr_debug("%dB behind alloc failed, doing sync I/O\n",
+	pr_de("%dB behind alloc failed, doing sync I/O\n",
 		 bio->bi_iter.bi_size);
 	bio_free_pages(behind_bio);
 	bio_put(behind_bio);
@@ -1623,12 +1623,12 @@ static void print_conf(struct r1conf *conf)
 {
 	int i;
 
-	pr_debug("RAID1 conf printout:\n");
+	pr_de("RAID1 conf printout:\n");
 	if (!conf) {
-		pr_debug("(!conf)\n");
+		pr_de("(!conf)\n");
 		return;
 	}
-	pr_debug(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
+	pr_de(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
 		 conf->raid_disks);
 
 	rcu_read_lock();
@@ -1636,7 +1636,7 @@ static void print_conf(struct r1conf *conf)
 		char b[BDEVNAME_SIZE];
 		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev)
-			pr_debug(" disk %d, wo:%d, o:%d, dev:%s\n",
+			pr_de(" disk %d, wo:%d, o:%d, dev:%s\n",
 				 i, !test_bit(In_sync, &rdev->flags),
 				 !test_bit(Faulty, &rdev->flags),
 				 bdevname(rdev->bdev,b));
@@ -2568,7 +2568,7 @@ static int init_resync(struct r1conf *conf)
 	int buffs;
 
 	buffs = RESYNC_WINDOW / RESYNC_BLOCK_SIZE;
-	BUG_ON(mempool_initialized(&conf->r1buf_pool));
+	_ON(mempool_initialized(&conf->r1buf_pool));
 
 	return mempool_init(&conf->r1buf_pool, buffs, r1buf_pool_alloc,
 			    r1buf_pool_free, conf->poolinfo);

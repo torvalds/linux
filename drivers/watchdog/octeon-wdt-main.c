@@ -557,7 +557,7 @@ static int __init octeon_wdt_init(void)
 		timeout_cnt = ((octeon_get_io_clock_rate() / divisor) * max_timeout_sec) >> 8;
 	} while (timeout_cnt > 65535);
 
-	BUG_ON(timeout_cnt == 0);
+	_ON(timeout_cnt == 0);
 
 	octeon_wdt_calc_parameters(heartbeat);
 

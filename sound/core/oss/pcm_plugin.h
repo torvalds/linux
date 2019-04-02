@@ -174,8 +174,8 @@ static inline int snd_pcm_plug_slave_format(int format, const struct snd_mask *f
 
 #endif
 
-#ifdef PLUGIN_DEBUG
-#define pdprintf(fmt, args...) printk(KERN_DEBUG "plugin: " fmt, ##args)
+#ifdef PLUGIN_DE
+#define pdprintf(fmt, args...) printk(KERN_DE "plugin: " fmt, ##args)
 #else
 #define pdprintf(fmt, args...)
 #endif

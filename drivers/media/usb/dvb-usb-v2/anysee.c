@@ -503,7 +503,7 @@ static int anysee_read_config(struct dvb_usb_device *d)
 
 	/*
 	 * Check which hardware we have.
-	 * We must do this call two times to get reliable values (hw/fw bug).
+	 * We must do this call two times to get reliable values (hw/fw ).
 	 */
 	ret = anysee_get_hw_info(d, hw_info);
 	if (ret)

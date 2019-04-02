@@ -198,7 +198,7 @@ static bool bpf_map_ptr_unpriv(const struct bpf_insn_aux_data *aux)
 static void bpf_map_ptr_store(struct bpf_insn_aux_data *aux,
 			      const struct bpf_map *map, bool unpriv)
 {
-	BUILD_BUG_ON((unsigned long)BPF_MAP_PTR_POISON & BPF_MAP_PTR_UNPRIV);
+	BUILD__ON((unsigned long)BPF_MAP_PTR_POISON & BPF_MAP_PTR_UNPRIV);
 	unpriv |= bpf_map_ptr_unpriv(aux);
 	aux->map_state = (unsigned long)map |
 			 (unpriv ? BPF_MAP_PTR_UNPRIV : 0UL);
@@ -541,7 +541,7 @@ static int copy_##NAME##_state(struct bpf_func_state *dst,		\
 	if (!src->FIELD)						\
 		return 0;						\
 	if (WARN_ON_ONCE(dst->COUNT < src->COUNT)) {			\
-		/* internal bug, make state invalid to reject the program */ \
+		/* internal , make state invalid to reject the program */ \
 		memset(dst, 0, sizeof(*dst));				\
 		return -EFAULT;						\
 	}								\
@@ -1144,7 +1144,7 @@ static int mark_reg_read(struct bpf_verifier_env *env,
 		if (writes && state->live & REG_LIVE_WRITTEN)
 			break;
 		if (parent->live & REG_LIVE_DONE) {
-			verbose(env, "verifier BUG type %s var_off %lld off %d\n",
+			verbose(env, "verifier  type %s var_off %lld off %d\n",
 				reg_type_str[parent->type],
 				parent->var_off.value, parent->off);
 			return -EFAULT;
@@ -1891,13 +1891,13 @@ continue_func:
 		i = i + insn[i].imm + 1;
 		idx = find_subprog(env, i);
 		if (idx < 0) {
-			WARN_ONCE(1, "verifier bug. No program starts at insn %d\n",
+			WARN_ONCE(1, "verifier . No program starts at insn %d\n",
 				  i);
 			return -EFAULT;
 		}
 		frame++;
 		if (frame >= MAX_CALL_FRAMES) {
-			WARN_ONCE(1, "verifier bug. Call stack is too deep\n");
+			WARN_ONCE(1, "verifier . Call stack is too deep\n");
 			return -EFAULT;
 		}
 		goto process_func;
@@ -1922,7 +1922,7 @@ static int get_callee_stack_depth(struct bpf_verifier_env *env,
 
 	subprog = find_subprog(env, start);
 	if (subprog < 0) {
-		WARN_ONCE(1, "verifier bug. No program starts at insn %d\n",
+		WARN_ONCE(1, "verifier . No program starts at insn %d\n",
 			  start);
 		return -EFAULT;
 	}
@@ -2721,7 +2721,7 @@ static bool check_arg_pair_ok(const struct bpf_func_proto *fn)
 {
 	/* bpf_xxx(..., buf, len) call will access 'len'
 	 * bytes from memory 'buf'. Both arg types need
-	 * to be paired, so make sure there's no buggy
+	 * to be paired, so make sure there's no gy
 	 * helper function specification.
 	 */
 	if (arg_type_is_mem_size(fn->arg1_type) ||
@@ -2854,14 +2854,14 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	target_insn = *insn_idx + insn->imm;
 	subprog = find_subprog(env, target_insn + 1);
 	if (subprog < 0) {
-		verbose(env, "verifier bug. No program starts at insn %d\n",
+		verbose(env, "verifier . No program starts at insn %d\n",
 			target_insn + 1);
 		return -EFAULT;
 	}
 
 	caller = state->frame[state->curframe];
 	if (state->frame[state->curframe + 1]) {
-		verbose(env, "verifier bug. Frame %d already allocated\n",
+		verbose(env, "verifier . Frame %d already allocated\n",
 			state->curframe + 1);
 		return -EFAULT;
 	}
@@ -5006,7 +5006,7 @@ static int check_ld_imm(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	}
 
 	/* replace_map_fd_with_map_ptr() should have caught bad ld_imm64 */
-	BUG_ON(insn->src_reg != BPF_PSEUDO_MAP_FD);
+	_ON(insn->src_reg != BPF_PSEUDO_MAP_FD);
 
 	regs[insn->dst_reg].type = CONST_PTR_TO_MAP;
 	regs[insn->dst_reg].map_ptr = ld_imm64_to_map_ptr(insn);
@@ -5247,7 +5247,7 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env)
 		/* forward- or cross-edge */
 		insn_state[t] = DISCOVERED | e;
 	} else {
-		verbose(env, "insn state internal bug\n");
+		verbose(env, "insn state internal \n");
 		return -EFAULT;
 	}
 	return 0;
@@ -5350,7 +5350,7 @@ peek_stack:
 mark_explored:
 	insn_state[t] = EXPLORED;
 	if (cur_stack-- <= 0) {
-		verbose(env, "pop stack internal bug\n");
+		verbose(env, "pop stack internal \n");
 		ret = -EFAULT;
 		goto err_free;
 	}
@@ -6077,7 +6077,7 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 		return -EFAULT;
 	}
 	/* Propagate read liveness of registers... */
-	BUILD_BUG_ON(BPF_REG_FP + 1 != MAX_BPF_REG);
+	BUILD__ON(BPF_REG_FP + 1 != MAX_BPF_REG);
 	for (frame = 0; frame <= vstate->curframe; frame++) {
 		/* We don't need to worry about FP liveness, it's read-only */
 		for (i = frame < vstate->curframe ? BPF_REG_6 : 0; i < BPF_REG_FP; i++) {
@@ -7018,7 +7018,7 @@ static int verifier_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
  * with 'ja -1'.
  *
  * Just nops are not optimal, e.g. if they would sit at the end of the
- * program and through another bug we would manage to jump there, then
+ * program and through another  we would manage to jump there, then
  * we'd execute beyond program memory otherwise. Returning exception
  * code also wouldn't work since we can have subprogs where the dead
  * code could be located.
@@ -7318,7 +7318,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		 */
 		subprog = find_subprog(env, i + insn->imm + 1);
 		if (subprog < 0) {
-			WARN_ONCE(1, "verifier bug. No program starts at insn %d\n",
+			WARN_ONCE(1, "verifier . No program starts at insn %d\n",
 				  i + insn->imm + 1);
 			return -EFAULT;
 		}
@@ -7369,7 +7369,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		func[i]->aux->func_info = prog->aux->func_info;
 
 		/* Use bpf_prog_F_tag to indicate functions in stack traces.
-		 * Long term would need debug info to populate names
+		 * Long term would need de info to populate names
 		 */
 		func[i]->aux->name[0] = 'F';
 		func[i]->aux->stack_depth = env->subprog_info[i].stack_depth;
@@ -7733,19 +7733,19 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 				continue;
 			}
 
-			BUILD_BUG_ON(!__same_type(ops->map_lookup_elem,
+			BUILD__ON(!__same_type(ops->map_lookup_elem,
 				     (void *(*)(struct bpf_map *map, void *key))NULL));
-			BUILD_BUG_ON(!__same_type(ops->map_delete_elem,
+			BUILD__ON(!__same_type(ops->map_delete_elem,
 				     (int (*)(struct bpf_map *map, void *key))NULL));
-			BUILD_BUG_ON(!__same_type(ops->map_update_elem,
+			BUILD__ON(!__same_type(ops->map_update_elem,
 				     (int (*)(struct bpf_map *map, void *key, void *value,
 					      u64 flags))NULL));
-			BUILD_BUG_ON(!__same_type(ops->map_push_elem,
+			BUILD__ON(!__same_type(ops->map_push_elem,
 				     (int (*)(struct bpf_map *map, void *value,
 					      u64 flags))NULL));
-			BUILD_BUG_ON(!__same_type(ops->map_pop_elem,
+			BUILD__ON(!__same_type(ops->map_pop_elem,
 				     (int (*)(struct bpf_map *map, void *value))NULL));
-			BUILD_BUG_ON(!__same_type(ops->map_peek_elem,
+			BUILD__ON(!__same_type(ops->map_peek_elem,
 				     (int (*)(struct bpf_map *map, void *value))NULL));
 
 			switch (insn->imm) {

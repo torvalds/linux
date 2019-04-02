@@ -219,7 +219,7 @@ static void table_instance_destroy(struct table_instance *ti,
 	if (!ti)
 		return;
 
-	BUG_ON(!ufid_ti);
+	_ON(!ufid_ti);
 	if (ti->keep_flows)
 		goto skip_flows;
 
@@ -389,7 +389,7 @@ static u32 flow_hash(const struct sw_flow_key *key,
 	int hash_u32s = (key_end - key_start) >> 2;
 
 	/* Make sure number of hash bytes are multiple of u32. */
-	BUILD_BUG_ON(sizeof(long) % sizeof(u32));
+	BUILD__ON(sizeof(long) % sizeof(u32));
 
 	return jhash2(hash_key, hash_u32s, 0);
 }
@@ -432,7 +432,7 @@ static bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
 	int key_start = flow_key_start(key);
 	int key_end = match->range.end;
 
-	BUG_ON(ovs_identifier_is_ufid(&flow->id));
+	_ON(ovs_identifier_is_ufid(&flow->id));
 	return cmp_key(flow->id.unmasked_key, key, key_start, key_end);
 }
 
@@ -564,7 +564,7 @@ static void flow_mask_remove(struct flow_table *tbl, struct sw_flow_mask *mask)
 		 * mask list.
 		 */
 		ASSERT_OVSL();
-		BUG_ON(!mask->ref_count);
+		_ON(!mask->ref_count);
 		mask->ref_count--;
 
 		if (!mask->ref_count) {
@@ -580,7 +580,7 @@ void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 	struct table_instance *ti = ovsl_dereference(table->ti);
 	struct table_instance *ufid_ti = ovsl_dereference(table->ufid_ti);
 
-	BUG_ON(table->count == 0);
+	_ON(table->count == 0);
 	hlist_del_rcu(&flow->flow_table.node[ti->node_ver]);
 	table->count--;
 	if (ovs_identifier_is_ufid(&flow->id)) {
@@ -646,7 +646,7 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 		mask->range = new->range;
 		list_add_rcu(&mask->list, &tbl->mask_list);
 	} else {
-		BUG_ON(!mask->ref_count);
+		_ON(!mask->ref_count);
 		mask->ref_count++;
 	}
 
@@ -720,8 +720,8 @@ int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
  * Returns zero if successful or a negative error code. */
 int ovs_flow_init(void)
 {
-	BUILD_BUG_ON(__alignof__(struct sw_flow_key) % __alignof__(long));
-	BUILD_BUG_ON(sizeof(struct sw_flow_key) % sizeof(long));
+	BUILD__ON(__alignof__(struct sw_flow_key) % __alignof__(long));
+	BUILD__ON(sizeof(struct sw_flow_key) % sizeof(long));
 
 	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow)
 				       + (nr_cpu_ids

@@ -200,8 +200,8 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	struct page *page;
 	int nr_isolate_pageblock = 0;
 
-	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
-	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
+	_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
+	_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
 
 	for (pfn = start_pfn;
 	     pfn < end_pfn;
@@ -238,8 +238,8 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	unsigned long pfn;
 	struct page *page;
 
-	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
-	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
+	_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
+	_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
 
 	for (pfn = start_pfn;
 	     pfn < end_pfn;
@@ -274,7 +274,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
 			/*
 			 * If the page is on a free list, it has to be on
 			 * the correct MIGRATE_ISOLATE freelist. There is no
-			 * simple way to verify that as VM_BUG_ON(), though.
+			 * simple way to verify that as VM__ON(), though.
 			 */
 			pfn += 1 << page_order(page);
 		else if (skip_hwpoisoned_pages && PageHWPoison(page))

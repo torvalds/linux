@@ -37,7 +37,7 @@ static int reset_gpio;
 extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
 
 /*
- * Beware PXA27x bugs:
+ * Beware PXA27x s:
  *
  *   o Slot 12 read from modem space will hang controller.
  *   o CDONE, SDONE interrupt fails after any slot 12 IO.
@@ -214,7 +214,7 @@ bool pxa2xx_ac97_try_warm_reset(void)
 		pxa_ac97_warm_pxa3xx();
 	else
 #endif
-		snd_BUG();
+		snd_();
 
 	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
 		mdelay(1);
@@ -251,7 +251,7 @@ bool pxa2xx_ac97_try_cold_reset(void)
 		pxa_ac97_cold_pxa3xx();
 	else
 #endif
-		snd_BUG();
+		snd_();
 
 	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
 		mdelay(1);
@@ -288,7 +288,7 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 
 		/* Although we don't use those we still need to clear them
 		   since they tend to spuriously trigger when MMC is used
-		   (hardware bug? go figure)... */
+		   (hardware ? go figure)... */
 		if (cpu_is_pxa27x()) {
 			MISR = MISR_EOC;
 			PISR = PISR_EOC;
@@ -356,7 +356,7 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 
 	if (cpu_is_pxa27x()) {
 		/*
-		 * This gpio is needed for a work-around to a bug in the ac97
+		 * This gpio is needed for a work-around to a  in the ac97
 		 * controller during warm reset.  The direction and level is set
 		 * here so that it is an output driven high when switching from
 		 * AC97_nRESET alt function to generic gpio.

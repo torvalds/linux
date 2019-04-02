@@ -1423,7 +1423,7 @@ static void mga_crtc_destroy(struct drm_crtc *crtc)
 static void mga_crtc_disable(struct drm_crtc *crtc)
 {
 	int ret;
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	mga_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		struct mga_framebuffer *mga_fb = to_mga_framebuffer(crtc->primary->fb);

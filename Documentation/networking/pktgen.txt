@@ -244,7 +244,7 @@ Usage: ./pktgen_sample01_simple.sh [-vx] -i ethX
   -c : ($SKB_CLONE) SKB clones send before alloc new SKB
   -b : ($BURST)     HW level bursting of SKBs
   -v : ($VERBOSE)   verbose
-  -x : ($DEBUG)     debug
+  -x : ($DE)     de
 
 The global variables being set are also listed.  E.g. the required
 interface/device parameter "-i" sets variable $DEV.  Copy the
@@ -301,7 +301,7 @@ rem_device_all
 count
 clone_skb
 burst
-debug
+de
 
 frags
 delay

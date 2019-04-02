@@ -74,10 +74,10 @@ void rds_info_register_func(int optname, rds_info_func func)
 {
 	int offset = optname - RDS_INFO_FIRST;
 
-	BUG_ON(optname < RDS_INFO_FIRST || optname > RDS_INFO_LAST);
+	_ON(optname < RDS_INFO_FIRST || optname > RDS_INFO_LAST);
 
 	spin_lock(&rds_info_lock);
-	BUG_ON(rds_info_funcs[offset]);
+	_ON(rds_info_funcs[offset]);
 	rds_info_funcs[offset] = func;
 	spin_unlock(&rds_info_lock);
 }
@@ -87,10 +87,10 @@ void rds_info_deregister_func(int optname, rds_info_func func)
 {
 	int offset = optname - RDS_INFO_FIRST;
 
-	BUG_ON(optname < RDS_INFO_FIRST || optname > RDS_INFO_LAST);
+	_ON(optname < RDS_INFO_FIRST || optname > RDS_INFO_LAST);
 
 	spin_lock(&rds_info_lock);
-	BUG_ON(rds_info_funcs[offset] != func);
+	_ON(rds_info_funcs[offset] != func);
 	rds_info_funcs[offset] = NULL;
 	spin_unlock(&rds_info_lock);
 }
@@ -123,7 +123,7 @@ void rds_info_copy(struct rds_info_iterator *iter, void *data,
 
 		this = min(bytes, PAGE_SIZE - iter->offset);
 
-		rdsdebug("page %p addr %p offset %lu this %lu data %p "
+		rdsde("page %p addr %p offset %lu this %lu data %p "
 			  "bytes %lu\n", *iter->pages, iter->addr,
 			  iter->offset, this, data, bytes);
 
@@ -203,7 +203,7 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
 		goto out;
 	}
 
-	rdsdebug("len %d nr_pages %lu\n", len, nr_pages);
+	rdsde("len %d nr_pages %lu\n", len, nr_pages);
 
 call_func:
 	func = rds_info_funcs[optname - RDS_INFO_FIRST];
@@ -217,7 +217,7 @@ call_func:
 	iter.offset = start & (PAGE_SIZE - 1);
 
 	func(sock, len, &iter, &lens);
-	BUG_ON(lens.each == 0);
+	_ON(lens.each == 0);
 
 	total = lens.nr * lens.each;
 

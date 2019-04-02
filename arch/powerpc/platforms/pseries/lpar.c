@@ -19,8 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-/* Enables debugging of low-level hash table routines - careful! */
-#undef DEBUG
+/* Enables deging of low-level hash table routines - careful! */
+#undef DE
 #define pr_fmt(fmt) "lpar: " fmt
 
 #include <linux/kernel.h>
@@ -48,7 +48,7 @@
 #include <asm/kexec.h>
 #include <asm/fadump.h>
 #include <asm/asm-prototypes.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 
 #include "pseries.h"
 
@@ -213,7 +213,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 		 * ANDCOND test.  H_RESOURCE may be returned, so we need to
 		 * check for that as well.
 		 */
-		BUG_ON(lpar_rc != H_NOT_FOUND && lpar_rc != H_RESOURCE);
+		_ON(lpar_rc != H_NOT_FOUND && lpar_rc != H_RESOURCE);
 
 		slot_offset++;
 		slot_offset &= 0x7;
@@ -325,7 +325,7 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	pr_devel("ok\n");
 
-	BUG_ON(lpar_rc != H_SUCCESS);
+	_ON(lpar_rc != H_SUCCESS);
 
 	return 0;
 }
@@ -387,7 +387,7 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	vpn = hpt_vpn(ea, vsid, ssize);
 
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
-	BUG_ON(slot == -1);
+	_ON(slot == -1);
 
 	flags = newpp & 7;
 	if (mmu_has_feature(MMU_FTR_KERNEL_RO))
@@ -396,7 +396,7 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 
 	lpar_rc = plpar_pte_protect(flags, slot, 0);
 
-	BUG_ON(lpar_rc != H_SUCCESS);
+	_ON(lpar_rc != H_SUCCESS);
 }
 
 static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
@@ -415,7 +415,7 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	if (lpar_rc == H_NOT_FOUND)
 		return;
 
-	BUG_ON(lpar_rc != H_SUCCESS);
+	_ON(lpar_rc != H_SUCCESS);
 }
 
 
@@ -464,7 +464,7 @@ again:
 	if (rc == H_SUCCESS)
 		return 0;
 
-	BUG_ON(rc != H_PARTIAL);
+	_ON(rc != H_PARTIAL);
 
 	/* Check that the unprocessed entries were 'not found' or 'busy' */
 	for (i = 0; i < idx-1; i++) {
@@ -475,7 +475,7 @@ again:
 			continue;
 		}
 
-		BUG_ON(ctrl != HBLKR_CTRL_SUCCESS
+		_ON(ctrl != HBLKR_CTRL_SUCCESS
 		       && ctrl != HBLKR_CTRL_ERRNOTFOUND);
 	}
 
@@ -564,7 +564,7 @@ static void hugepage_bulk_invalidate(unsigned long *slot, unsigned long *vpn,
 						  param[0], param[1], param[2],
 						  param[3], param[4], param[5],
 						  param[6], param[7]);
-				BUG_ON(rc != H_SUCCESS);
+				_ON(rc != H_SUCCESS);
 				pix = 0;
 			}
 		}
@@ -574,7 +574,7 @@ static void hugepage_bulk_invalidate(unsigned long *slot, unsigned long *vpn,
 		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
 				  param[2], param[3], param[4], param[5],
 				  param[6], param[7]);
-		BUG_ON(rc != H_SUCCESS);
+		_ON(rc != H_SUCCESS);
 	}
 }
 
@@ -805,7 +805,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 						param[0], param[1], param[2],
 						param[3], param[4], param[5],
 						param[6], param[7]);
-					BUG_ON(rc != H_SUCCESS);
+					_ON(rc != H_SUCCESS);
 					pix = 0;
 				}
 			}
@@ -816,7 +816,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
 				  param[2], param[3], param[4], param[5],
 				  param[6], param[7]);
-		BUG_ON(rc != H_SUCCESS);
+		_ON(rc != H_SUCCESS);
 	}
 
 out:
@@ -956,7 +956,7 @@ static int pseries_lpar_register_process_table(unsigned long base,
 	}
 	if (rc != H_SUCCESS) {
 		pr_err("Failed to register process table (rc=%ld)\n", rc);
-		BUG();
+		();
 	}
 	return rc;
 }
@@ -1241,8 +1241,8 @@ static int __init reserve_vrma_context_id(void)
 }
 machine_device_initcall(pseries, reserve_vrma_context_id);
 
-#ifdef CONFIG_DEBUG_FS
-/* debugfs file interface for vpa data */
+#ifdef CONFIG_DE_FS
+/* defs file interface for vpa data */
 static ssize_t vpa_file_read(struct file *filp, char __user *buf, size_t len,
 			      loff_t *pos)
 {
@@ -1259,7 +1259,7 @@ static const struct file_operations vpa_fops = {
 	.llseek		= default_llseek,
 };
 
-static int __init vpa_debugfs_init(void)
+static int __init vpa_defs_init(void)
 {
 	char name[16];
 	long i;
@@ -1268,7 +1268,7 @@ static int __init vpa_debugfs_init(void)
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
-	vpa_dir = debugfs_create_dir("vpa", powerpc_debugfs_root);
+	vpa_dir = defs_create_dir("vpa", powerpc_defs_root);
 	if (!vpa_dir) {
 		pr_warn("%s: can't create vpa root dir\n", __func__);
 		return -ENOMEM;
@@ -1280,7 +1280,7 @@ static int __init vpa_debugfs_init(void)
 
 		sprintf(name, "cpu-%ld", i);
 
-		d = debugfs_create_file(name, 0400, vpa_dir, (void *)i,
+		d = defs_create_file(name, 0400, vpa_dir, (void *)i,
 					&vpa_fops);
 		if (!d) {
 			pr_warn("%s: can't create per-cpu vpa file\n",
@@ -1291,5 +1291,5 @@ static int __init vpa_debugfs_init(void)
 
 	return 0;
 }
-machine_arch_initcall(pseries, vpa_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+machine_arch_initcall(pseries, vpa_defs_init);
+#endif /* CONFIG_DE_FS */

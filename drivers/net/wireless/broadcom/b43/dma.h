@@ -261,7 +261,7 @@ struct b43_dmaring {
 	 * This is the mac80211 "queue" value. */
 	u8 queue_prio;
 	struct b43_wldev *dev;
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_B43_DE
 	/* Maximum number of used slots. */
 	int max_used_slots;
 	/* Last time we injected a ring overflow. */
@@ -272,7 +272,7 @@ struct b43_dmaring {
 	u64 nr_failed_tx_packets;
 	/* Statistics: Total number of TX plus all retries. */
 	u64 nr_total_packet_tries;
-#endif /* CONFIG_B43_DEBUG */
+#endif /* CONFIG_B43_DE */
 };
 
 static inline u32 b43_dma_read(struct b43_dmaring *ring, u16 offset)

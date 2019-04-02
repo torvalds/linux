@@ -225,8 +225,8 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		return err;
 	}
 
-	GEM_BUG_ON(i915_gem_object_get_tiling(obj) != tile->tiling);
-	GEM_BUG_ON(i915_gem_object_get_stride(obj) != tile->stride);
+	GEM__ON(i915_gem_object_get_tiling(obj) != tile->tiling);
+	GEM__ON(i915_gem_object_get_stride(obj) != tile->stride);
 
 	for_each_prime_number_from(page, 1, npages) {
 		struct i915_ggtt_view view =
@@ -237,7 +237,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		u64 offset;
 		u32 *cpu;
 
-		GEM_BUG_ON(view.partial.size > nreal);
+		GEM__ON(view.partial.size > nreal);
 		cond_resched();
 
 		err = i915_gem_object_set_to_gtt_domain(obj, true);
@@ -255,7 +255,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		}
 
 		n = page - view.partial.offset;
-		GEM_BUG_ON(n >= view.partial.size);
+		GEM__ON(n >= view.partial.size);
 
 		io = i915_vma_pin_iomap(vma);
 		i915_vma_unpin(vma);
@@ -376,7 +376,7 @@ static int igt_partial_tiling(void *arg)
 			break;
 		}
 
-		GEM_BUG_ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN);
+		GEM__ON(tile.swizzle == I915_BIT_6_SWIZZLE_UNKNOWN);
 		if (tile.swizzle == I915_BIT_6_SWIZZLE_9_17 ||
 		    tile.swizzle == I915_BIT_6_SWIZZLE_9_10_17)
 			continue;
@@ -529,7 +529,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 
 	/* Disable background reaper */
 	disable_retire_worker(i915);
-	GEM_BUG_ON(!i915->gt.awake);
+	GEM__ON(!i915->gt.awake);
 
 	/* Trim the device mmap space to only a page */
 	memset(&resv, 0, sizeof(resv));
@@ -603,7 +603,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		}
 
 		/* NB we rely on the _active_ reference to access obj now */
-		GEM_BUG_ON(!i915_gem_object_is_active(obj));
+		GEM__ON(!i915_gem_object_is_active(obj));
 		err = i915_gem_object_create_mmap_offset(obj);
 		if (err) {
 			pr_err("[loop %d] i915_gem_object_create_mmap_offset failed with err=%d\n",

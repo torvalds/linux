@@ -66,7 +66,7 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 	struct mtd_info *mtd;
 	struct mtd_file_info *mfi;
 
-	pr_debug("MTD_open\n");
+	pr_de("MTD_open\n");
 
 	/* You can't open the RO devices RW */
 	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
@@ -115,7 +115,7 @@ static int mtdchar_close(struct inode *inode, struct file *file)
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
 
-	pr_debug("MTD_close\n");
+	pr_de("MTD_close\n");
 
 	/* Only sync if opened RW */
 	if ((file->f_mode & FMODE_WRITE))
@@ -158,7 +158,7 @@ static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
 	size_t size = count;
 	char *kbuf;
 
-	pr_debug("MTD_read\n");
+	pr_de("MTD_read\n");
 
 	if (*ppos + count > mtd->size) {
 		if (*ppos < mtd->size)
@@ -248,7 +248,7 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 	int ret=0;
 	int len;
 
-	pr_debug("MTD_write\n");
+	pr_de("MTD_write\n");
 
 	if (*ppos >= mtd->size)
 		return -ENOSPC;
@@ -653,7 +653,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 	int ret = 0;
 	struct mtd_info_user info;
 
-	pr_debug("MTD_ioctl\n");
+	pr_de("MTD_ioctl\n");
 
 	switch (cmd) {
 	case MEMGETREGIONCOUNT:

@@ -90,18 +90,18 @@ static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
 			       struct snd_pcm_plugin_channel *dst_channels,
 			       snd_pcm_uframes_t frames)
 {
-	if (snd_BUG_ON(!plugin || !src_channels || !dst_channels))
+	if (snd__ON(!plugin || !src_channels || !dst_channels))
 		return -ENXIO;
 	if (frames == 0)
 		return 0;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	{
 		unsigned int channel;
 		for (channel = 0; channel < plugin->src_format.channels; channel++) {
-			if (snd_BUG_ON(src_channels[channel].area.first % 8 ||
+			if (snd__ON(src_channels[channel].area.first % 8 ||
 				       src_channels[channel].area.step % 8))
 				return -ENXIO;
-			if (snd_BUG_ON(dst_channels[channel].area.first % 8 ||
+			if (snd__ON(dst_channels[channel].area.first % 8 ||
 				       dst_channels[channel].area.step % 8))
 				return -ENXIO;
 		}
@@ -153,15 +153,15 @@ int snd_pcm_plugin_build_linear(struct snd_pcm_substream *plug,
 	struct linear_priv *data;
 	struct snd_pcm_plugin *plugin;
 
-	if (snd_BUG_ON(!r_plugin))
+	if (snd__ON(!r_plugin))
 		return -ENXIO;
 	*r_plugin = NULL;
 
-	if (snd_BUG_ON(src_format->rate != dst_format->rate))
+	if (snd__ON(src_format->rate != dst_format->rate))
 		return -ENXIO;
-	if (snd_BUG_ON(src_format->channels != dst_format->channels))
+	if (snd__ON(src_format->channels != dst_format->channels))
 		return -ENXIO;
-	if (snd_BUG_ON(!snd_pcm_format_linear(src_format->format) ||
+	if (snd__ON(!snd_pcm_format_linear(src_format->format) ||
 		       !snd_pcm_format_linear(dst_format->format)))
 		return -ENXIO;
 

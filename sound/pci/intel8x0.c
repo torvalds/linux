@@ -70,8 +70,8 @@ static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int ac97_clock;
 static char *ac97_quirk;
-static bool buggy_semaphore;
-static int buggy_irq = -1; /* auto-check */
+static bool gy_semaphore;
+static int gy_irq = -1; /* auto-check */
 static bool xbox;
 static int spdif_aclink = -1;
 static int inside_vm = -1;
@@ -84,10 +84,10 @@ module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = whitelist + auto-detect, 1 = force autodetect).");
 module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
-module_param(buggy_semaphore, bool, 0444);
-MODULE_PARM_DESC(buggy_semaphore, "Enable workaround for hardwares with problematic codec semaphores.");
-module_param(buggy_irq, bint, 0444);
-MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
+module_param(gy_semaphore, bool, 0444);
+MODULE_PARM_DESC(gy_semaphore, "Enable workaround for hardwares with problematic codec semaphores.");
+module_param(gy_irq, bint, 0444);
+MODULE_PARM_DESC(gy_irq, "Enable workaround for gy interrupts on some motherboards.");
 module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
 module_param(spdif_aclink, int, 0444);
@@ -396,9 +396,9 @@ struct intel8x0 {
 		 in_sdin_init: 1;
 	unsigned in_measurement: 1;	/* during ac97 clock measurement */
 	unsigned fix_nocache: 1; 	/* workaround for 440MX */
-	unsigned buggy_irq: 1;		/* workaround for buggy mobos */
+	unsigned gy_irq: 1;		/* workaround for gy mobos */
 	unsigned xbox: 1;		/* workaround for Xbox AC'97 detection */
-	unsigned buggy_semaphore: 1;	/* workaround for buggy codec semaphore */
+	unsigned gy_semaphore: 1;	/* workaround for gy codec semaphore */
 	unsigned inside_vm: 1;		/* enable VM optimization */
 
 	int spdif_idx;	/* SPDIF BAR index; *_SPBAR or -1 if use PCMOUT */
@@ -523,7 +523,7 @@ static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int code
 	if ((igetdword(chip, ICHREG(GLOB_STA)) & codec) == 0)
 		return -EIO;
 
-	if (chip->buggy_semaphore)
+	if (chip->gy_semaphore)
 		return 0; /* just ignore ... */
 
 	/* Anyone holding a semaphore for 1 msec should be shot... */
@@ -623,7 +623,7 @@ static int snd_intel8x0_ali_codec_ready(struct intel8x0 *chip, int mask)
 static int snd_intel8x0_ali_codec_semaphore(struct intel8x0 *chip)
 {
 	int time = 100;
-	if (chip->buggy_semaphore)
+	if (chip->gy_semaphore)
 		return 0; /* just ignore ... */
 	while (--time && (igetdword(chip, ICHREG(ALI_CAS)) & ALI_CAS_SEM_BUSY))
 		udelay(1);
@@ -793,7 +793,7 @@ static irqreturn_t snd_intel8x0_interrupt(int irq, void *dev_id)
 		if (status) {
 			/* ack */
 			iputdword(chip, chip->int_sta_reg, status);
-			if (! chip->buggy_irq)
+			if (! chip->gy_irq)
 				status = 0;
 		}
 		return IRQ_RETVAL(status);
@@ -2213,7 +2213,7 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 				snd_intel8x0_codec_read_test(chip, codecs);
 				chip->ac97_sdin[codecs] =
 					igetbyte(chip, ICHREG(SDM)) & ICH_LDI_MASK;
-				if (snd_BUG_ON(chip->ac97_sdin[codecs] >= 3))
+				if (snd__ON(chip->ac97_sdin[codecs] >= 3))
 					chip->ac97_sdin[codecs] = 0;
 			} else
 				chip->ac97_sdin[codecs] = i;
@@ -2978,8 +2978,8 @@ static int snd_intel8x0_create(struct snd_card *card,
 	chip->irq = -1;
 
 	/* module parameters */
-	chip->buggy_irq = buggy_irq;
-	chip->buggy_semaphore = buggy_semaphore;
+	chip->gy_irq = gy_irq;
+	chip->gy_semaphore = gy_semaphore;
 	if (xbox)
 		chip->xbox = 1;
 
@@ -2987,7 +2987,7 @@ static int snd_intel8x0_create(struct snd_card *card,
 
 	/*
 	 * Intel 82443MX running a 100MHz processor system bus has a hardware
-	 * bug, which aborts PCI busmaster for audio transfer.  A workaround
+	 * , which aborts PCI busmaster for audio transfer.  A workaround
 	 * is to set the pages as non-cached.  For details, see the errata in
 	 *     http://download.intel.com/design/chipsets/specupdt/24505108.pdf
 	 */
@@ -3220,14 +3220,14 @@ static int snd_intel8x0_probe(struct pci_dev *pci,
 		}
 	}
 
-	if (buggy_irq < 0) {
+	if (gy_irq < 0) {
 		/* some Nforce[2] and ICH boards have problems with IRQ handling.
 		 * Needs to return IRQ_HANDLED for unknown irqs.
 		 */
 		if (pci_id->driver_data == DEVICE_NFORCE)
-			buggy_irq = 1;
+			gy_irq = 1;
 		else
-			buggy_irq = 0;
+			gy_irq = 0;
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,

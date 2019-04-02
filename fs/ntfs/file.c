@@ -35,7 +35,7 @@
 #include "attrib.h"
 #include "bitmap.h"
 #include "inode.h"
-#include "debug.h"
+#include "de.h"
 #include "lcnalloc.h"
 #include "malloc.h"
 #include "mft.h"
@@ -126,9 +126,9 @@ static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size)
 	read_lock_irqsave(&ni->size_lock, flags);
 	old_init_size = ni->initialized_size;
 	old_i_size = i_size_read(vi);
-	BUG_ON(new_init_size > ni->allocated_size);
+	_ON(new_init_size > ni->allocated_size);
 	read_unlock_irqrestore(&ni->size_lock, flags);
-	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, "
+	ntfs_de("Entering for i_ino 0x%lx, attribute type 0x%x, "
 			"old_initialized_size 0x%llx, "
 			"new_initialized_size 0x%llx, i_size 0x%llx.",
 			vi->i_ino, (unsigned)le32_to_cpu(ni->type),
@@ -141,7 +141,7 @@ static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size)
 	/* Use goto to reduce indentation and we need the label below anyway. */
 	if (NInoNonResident(ni))
 		goto do_non_resident_extend;
-	BUG_ON(old_init_size != old_i_size);
+	_ON(old_init_size != old_i_size);
 	m = map_mft_record(base_ni);
 	if (IS_ERR(m)) {
 		err = PTR_ERR(m);
@@ -162,10 +162,10 @@ static int ntfs_attr_extend_initialized(ntfs_inode *ni, const s64 new_init_size)
 	}
 	m = ctx->mrec;
 	a = ctx->attr;
-	BUG_ON(a->non_resident);
+	_ON(a->non_resident);
 	/* The total length of the attribute value. */
 	attr_len = le32_to_cpu(a->data.resident.value_length);
-	BUG_ON(old_i_size != (loff_t)attr_len);
+	_ON(old_i_size != (loff_t)attr_len);
 	/*
 	 * Do the zeroing in the mft record and update the attribute size in
 	 * the mft record.
@@ -206,8 +206,8 @@ do_non_resident_extend:
 		}
 		m = ctx->mrec;
 		a = ctx->attr;
-		BUG_ON(!a->non_resident);
-		BUG_ON(old_i_size != (loff_t)
+		_ON(!a->non_resident);
+		_ON(old_i_size != (loff_t)
 				sle64_to_cpu(a->data.non_resident.data_size));
 		a->data.non_resident.data_size = cpu_to_sle64(new_init_size);
 		flush_dcache_mft_record_page(ctx->ntfs_ino);
@@ -280,7 +280,7 @@ do_non_resident_extend:
 		cond_resched();
 	} while (++index < end_index);
 	read_lock_irqsave(&ni->size_lock, flags);
-	BUG_ON(ni->initialized_size != new_init_size);
+	_ON(ni->initialized_size != new_init_size);
 	read_unlock_irqrestore(&ni->size_lock, flags);
 	/* Now bring in sync the initialized_size in the mft record. */
 	m = map_mft_record(base_ni);
@@ -303,7 +303,7 @@ do_non_resident_extend:
 	}
 	m = ctx->mrec;
 	a = ctx->attr;
-	BUG_ON(!a->non_resident);
+	_ON(!a->non_resident);
 	a->data.non_resident.initialized_size = cpu_to_sle64(new_init_size);
 done:
 	flush_dcache_mft_record_page(ctx->ntfs_ino);
@@ -312,7 +312,7 @@ done:
 		ntfs_attr_put_search_ctx(ctx);
 	if (m)
 		unmap_mft_record(base_ni);
-	ntfs_debug("Done, initialized_size 0x%llx, i_size 0x%llx.",
+	ntfs_de("Done, initialized_size 0x%llx, i_size 0x%llx.",
 			(unsigned long long)new_init_size, i_size_read(vi));
 	return 0;
 init_err_out:
@@ -324,7 +324,7 @@ err_out:
 		ntfs_attr_put_search_ctx(ctx);
 	if (m)
 		unmap_mft_record(base_ni);
-	ntfs_debug("Failed.  Returning error code %i.", err);
+	ntfs_de("Failed.  Returning error code %i.", err);
 	return err;
 }
 
@@ -340,7 +340,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 	ntfs_inode *base_ni, *ni = NTFS_I(vi);
 	ntfs_volume *vol = ni->vol;
 
-	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
+	ntfs_de("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
 			"0x%llx, count 0x%zx.", vi->i_ino,
 			(unsigned)le32_to_cpu(ni->type),
 			(unsigned long long)iocb->ki_pos,
@@ -352,8 +352,8 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 	 * All checks have passed.  Before we start doing any writing we want
 	 * to abort any totally illegal writes.
 	 */
-	BUG_ON(NInoMstProtected(ni));
-	BUG_ON(ni->type != AT_DATA);
+	_ON(NInoMstProtected(ni));
+	_ON(ni->type != AT_DATA);
 	/* If file is encrypted, deny access, just like NT4. */
 	if (NInoEncrypted(ni)) {
 		/* Only $DATA attributes can be encrypted. */
@@ -361,13 +361,13 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 		 * Reminder for later: Encrypted files are _always_
 		 * non-resident so that the content can always be encrypted.
 		 */
-		ntfs_debug("Denying write access to encrypted file.");
+		ntfs_de("Denying write access to encrypted file.");
 		err = -EACCES;
 		goto out;
 	}
 	if (NInoCompressed(ni)) {
 		/* Only unnamed $DATA attribute can be compressed. */
-		BUG_ON(ni->name_len);
+		_ON(ni->name_len);
 		/*
 		 * Reminder for later: If resident, the data is not actually
 		 * compressed.  Only on the switch to non-resident does
@@ -411,10 +411,10 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 		 */
 		ll = ntfs_attr_extend_allocation(ni, end, -1, pos);
 		if (likely(ll >= 0)) {
-			BUG_ON(pos >= ll);
+			_ON(pos >= ll);
 			/* If the extension was partial truncate the write. */
 			if (end > ll) {
-				ntfs_debug("Truncating write to inode 0x%lx, "
+				ntfs_de("Truncating write to inode 0x%lx, "
 						"attribute type 0x%x, because "
 						"the allocation was only "
 						"partially extended.",
@@ -429,7 +429,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 			read_unlock_irqrestore(&ni->size_lock, flags);
 			/* Perform a partial write if possible or fail. */
 			if (pos < ll) {
-				ntfs_debug("Truncating write to inode 0x%lx "
+				ntfs_de("Truncating write to inode 0x%lx "
 						"attribute type 0x%x, because "
 						"extending the allocation "
 						"failed (error %d).",
@@ -450,7 +450,7 @@ static ssize_t ntfs_prepare_file_for_write(struct kiocb *iocb,
 							le32_to_cpu(ni->type),
 							(long)-err);
 				else
-					ntfs_debug("Cannot perform write to "
+					ntfs_de("Cannot perform write to "
 							"inode 0x%lx, "
 							"attribute type 0x%x, "
 							"because there is not "
@@ -511,7 +511,7 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 {
 	int err, nr;
 
-	BUG_ON(!nr_pages);
+	_ON(!nr_pages);
 	err = nr = 0;
 	do {
 		pages[nr] = find_get_page_flags(mapping, index, FGP_LOCK |
@@ -610,13 +610,13 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
 		u8 attr_switched:1;
 	} status = { 0, 0, 0, 0 };
 
-	BUG_ON(!nr_pages);
-	BUG_ON(!pages);
-	BUG_ON(!*pages);
+	_ON(!nr_pages);
+	_ON(!pages);
+	_ON(!*pages);
 	vi = pages[0]->mapping->host;
 	ni = NTFS_I(vi);
 	vol = ni->vol;
-	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, start page "
+	ntfs_de("Entering for inode 0x%lx, attribute type 0x%x, start page "
 			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%zx.",
 			vi->i_ino, ni->type, pages[0]->index, nr_pages,
 			(long long)pos, bytes);
@@ -625,7 +625,7 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
 	u = 0;
 	do {
 		page = pages[u];
-		BUG_ON(!page);
+		_ON(!page);
 		/*
 		 * create_empty_buffers() will create uptodate/dirty buffers if
 		 * the page is uptodate/dirty.
@@ -720,7 +720,7 @@ do_next_page:
 		cdelta = bh_cpos - vcn;
 		if (likely(!cdelta || (cdelta > 0 && cdelta < vcn_len))) {
 map_buffer_cached:
-			BUG_ON(lcn < 0);
+			_ON(lcn < 0);
 			bh->b_blocknr = lcn_block +
 					(cdelta << (vol->cluster_size_bits -
 					blocksize_bits)) +
@@ -969,13 +969,13 @@ rl_not_mapped_enoent:
 		 * Out of bounds buffer is invalid if it was not really out of
 		 * bounds.
 		 */
-		BUG_ON(lcn != LCN_HOLE);
+		_ON(lcn != LCN_HOLE);
 		/*
 		 * We need the runlist locked for writing, so if it is locked
 		 * for reading relock it now and retry in case it changed
 		 * whilst we dropped the lock.
 		 */
-		BUG_ON(!rl);
+		_ON(!rl);
 		if (!rl_write_locked) {
 			up_read(&ni->runlist.lock);
 			down_write(&ni->runlist.lock);
@@ -983,7 +983,7 @@ rl_not_mapped_enoent:
 			goto retry_remap;
 		}
 		/* Find the previous last allocated cluster. */
-		BUG_ON(rl->lcn != LCN_HOLE);
+		_ON(rl->lcn != LCN_HOLE);
 		lcn = -1;
 		rl2 = rl;
 		while (--rl2 >= ni->runlist.rl) {
@@ -996,7 +996,7 @@ rl_not_mapped_enoent:
 				false);
 		if (IS_ERR(rl2)) {
 			err = PTR_ERR(rl2);
-			ntfs_debug("Failed to allocate cluster, error code %i.",
+			ntfs_de("Failed to allocate cluster, error code %i.",
 					err);
 			break;
 		}
@@ -1018,7 +1018,7 @@ rl_not_mapped_enoent:
 		}
 		ni->runlist.rl = rl;
 		status.runlist_merged = 1;
-		ntfs_debug("Allocated cluster, lcn 0x%llx.",
+		ntfs_de("Allocated cluster, lcn 0x%llx.",
 				(unsigned long long)lcn);
 		/* Map and lock the mft record and get the attribute record. */
 		if (!NInoAttr(ni))
@@ -1055,9 +1055,9 @@ rl_not_mapped_enoent:
 		 */
 		vcn = sle64_to_cpu(a->data.non_resident.lowest_vcn);
 		rl2 = ntfs_rl_find_vcn_nolock(rl, vcn);
-		BUG_ON(!rl2);
-		BUG_ON(!rl2->length);
-		BUG_ON(rl2->lcn < LCN_HOLE);
+		_ON(!rl2);
+		_ON(!rl2->length);
+		_ON(rl2->lcn < LCN_HOLE);
 		highest_vcn = sle64_to_cpu(a->data.non_resident.highest_vcn);
 		/*
 		 * If @highest_vcn is zero, calculate the real highest_vcn
@@ -1076,7 +1076,7 @@ rl_not_mapped_enoent:
 		if (unlikely(mp_size <= 0)) {
 			if (!(err = mp_size))
 				err = -EIO;
-			ntfs_debug("Failed to get size for mapping pairs "
+			ntfs_de("Failed to get size for mapping pairs "
 					"array, error code %i.", err);
 			break;
 		}
@@ -1088,7 +1088,7 @@ rl_not_mapped_enoent:
 		err = ntfs_attr_record_resize(m, a, mp_size + le16_to_cpu(
 				a->data.non_resident.mapping_pairs_offset));
 		if (unlikely(err)) {
-			BUG_ON(err != -ENOSPC);
+			_ON(err != -ENOSPC);
 			// TODO: Deal with this by using the current attribute
 			// and fill it with as much of the mapping pairs
 			// array as possible.  Then loop over each attribute
@@ -1234,7 +1234,7 @@ rl_not_mapped_enoent:
 					clear_buffer_new(bh);
 			} while ((bh = bh->b_this_page) != head);
 		} while (++u < nr_pages);
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 		return err;
 	}
 	if (status.attr_switched) {
@@ -1271,7 +1271,7 @@ rl_not_mapped_enoent:
 	 * is not switched.
 	 */
 	if (status.runlist_merged && !status.attr_switched) {
-		BUG_ON(!rl_write_locked);
+		_ON(!rl_write_locked);
 		/* Make the file cluster we allocated sparse in the runlist. */
 		if (ntfs_rl_punch_nolock(vol, &ni->runlist, bh_cpos, 1)) {
 			ntfs_error(vol->sb, "Failed to punch hole into "
@@ -1374,7 +1374,7 @@ rl_not_mapped_enoent:
 static inline void ntfs_flush_dcache_pages(struct page **pages,
 		unsigned nr_pages)
 {
-	BUG_ON(!nr_pages);
+	_ON(!nr_pages);
 	/*
 	 * Warning: Do not do the decrement at the same time as the call to
 	 * flush_dcache_page() because it is a NULL macro on i386 and hence the
@@ -1451,7 +1451,7 @@ static inline int ntfs_commit_pages_after_non_resident_write(
 	initialized_size = ni->initialized_size;
 	read_unlock_irqrestore(&ni->size_lock, flags);
 	if (end <= initialized_size) {
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 		return 0;
 	}
 	/*
@@ -1470,7 +1470,7 @@ static inline int ntfs_commit_pages_after_non_resident_write(
 		ctx = NULL;
 		goto err_out;
 	}
-	BUG_ON(!NInoNonResident(ni));
+	_ON(!NInoNonResident(ni));
 	ctx = ntfs_attr_get_search_ctx(base_ni, m);
 	if (unlikely(!ctx)) {
 		err = -ENOMEM;
@@ -1484,9 +1484,9 @@ static inline int ntfs_commit_pages_after_non_resident_write(
 		goto err_out;
 	}
 	a = ctx->attr;
-	BUG_ON(!a->non_resident);
+	_ON(!a->non_resident);
 	write_lock_irqsave(&ni->size_lock, flags);
-	BUG_ON(end > ni->allocated_size);
+	_ON(end > ni->allocated_size);
 	ni->initialized_size = end;
 	a->data.non_resident.initialized_size = cpu_to_sle64(end);
 	if (end > i_size_read(vi)) {
@@ -1500,7 +1500,7 @@ static inline int ntfs_commit_pages_after_non_resident_write(
 	mark_mft_record_dirty(ctx->ntfs_ino);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 err_out:
 	if (ctx)
@@ -1566,20 +1566,20 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 	u32 attr_len;
 	int err;
 
-	BUG_ON(!nr_pages);
-	BUG_ON(!pages);
+	_ON(!nr_pages);
+	_ON(!pages);
 	page = pages[0];
-	BUG_ON(!page);
+	_ON(!page);
 	vi = page->mapping->host;
 	ni = NTFS_I(vi);
-	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, start page "
+	ntfs_de("Entering for inode 0x%lx, attribute type 0x%x, start page "
 			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%zx.",
 			vi->i_ino, ni->type, page->index, nr_pages,
 			(long long)pos, bytes);
 	if (NInoNonResident(ni))
 		return ntfs_commit_pages_after_non_resident_write(pages,
 				nr_pages, pos, bytes);
-	BUG_ON(nr_pages > 1);
+	_ON(nr_pages > 1);
 	/*
 	 * Attribute is resident, implying it is not compressed, encrypted, or
 	 * sparse.
@@ -1588,7 +1588,7 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 		base_ni = ni;
 	else
 		base_ni = ni->ext.base_ntfs_ino;
-	BUG_ON(NInoNonResident(ni));
+	_ON(NInoNonResident(ni));
 	/* Map, pin, and lock the mft record. */
 	m = map_mft_record(base_ni);
 	if (IS_ERR(m)) {
@@ -1610,14 +1610,14 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 		goto err_out;
 	}
 	a = ctx->attr;
-	BUG_ON(a->non_resident);
+	_ON(a->non_resident);
 	/* The total length of the attribute value. */
 	attr_len = le32_to_cpu(a->data.resident.value_length);
 	i_size = i_size_read(vi);
-	BUG_ON(attr_len != i_size);
-	BUG_ON(pos > attr_len);
+	_ON(attr_len != i_size);
+	_ON(pos > attr_len);
 	end = pos + bytes;
-	BUG_ON(end > le32_to_cpu(a->length) -
+	_ON(end > le32_to_cpu(a->length) -
 			le16_to_cpu(a->data.resident.value_offset));
 	kattr = (u8*)a + le16_to_cpu(a->data.resident.value_offset);
 	kaddr = kmap_atomic(page);
@@ -1646,9 +1646,9 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 	/* Update initialized_size/i_size if necessary. */
 	read_lock_irqsave(&ni->size_lock, flags);
 	initialized_size = ni->initialized_size;
-	BUG_ON(end > ni->allocated_size);
+	_ON(end > ni->allocated_size);
 	read_unlock_irqrestore(&ni->size_lock, flags);
-	BUG_ON(initialized_size != i_size);
+	_ON(initialized_size != i_size);
 	if (end > initialized_size) {
 		write_lock_irqsave(&ni->size_lock, flags);
 		ni->initialized_size = end;
@@ -1660,7 +1660,7 @@ static int ntfs_commit_pages_after_write(struct page **pages,
 	mark_mft_record_dirty(ctx->ntfs_ino);
 	ntfs_attr_put_search_ctx(ctx);
 	unmap_mft_record(base_ni);
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return 0;
 err_out:
 	if (err == -ENOMEM) {
@@ -1756,7 +1756,7 @@ static ssize_t ntfs_perform_write(struct file *file, struct iov_iter *i,
 	ssize_t status, written = 0;
 	unsigned nr_pages;
 
-	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
+	ntfs_de("Entering for i_ino 0x%lx, attribute type 0x%x, pos "
 			"0x%llx, count 0x%lx.", vi->i_ino,
 			(unsigned)le32_to_cpu(ni->type),
 			(unsigned long long)pos,
@@ -1921,7 +1921,7 @@ again:
 	} while (iov_iter_count(i));
 	if (cached_page)
 		put_page(cached_page);
-	ntfs_debug("Done.  Returning %s (written 0x%lx, status %li).",
+	ntfs_de("Done.  Returning %s (written 0x%lx, status %li).",
 			written ? "written" : "status", (unsigned long)written,
 			(long)status);
 	return written ? written : status;
@@ -1987,14 +1987,14 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	struct inode *vi = filp->f_mapping->host;
 	int err, ret = 0;
 
-	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
+	ntfs_de("Entering for inode 0x%lx.", vi->i_ino);
 
 	err = file_write_and_wait_range(filp, start, end);
 	if (err)
 		return err;
 	inode_lock(vi);
 
-	BUG_ON(S_ISDIR(vi->i_mode));
+	_ON(S_ISDIR(vi->i_mode));
 	if (!datasync || !NInoNonResident(NTFS_I(vi)))
 		ret = __ntfs_write_inode(vi, 1);
 	write_inode_now(vi, !datasync);
@@ -2007,7 +2007,7 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	if (unlikely(err && !ret))
 		ret = err;
 	if (likely(!ret))
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 	else
 		ntfs_warning(vi->i_sb, "Failed to f%ssync inode 0x%lx.  Error "
 				"%u.", datasync ? "data" : "", vi->i_ino, -ret);

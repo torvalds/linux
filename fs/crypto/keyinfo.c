@@ -247,7 +247,7 @@ allocate_skcipher_for_mode(struct fscrypt_mode *mode, const u8 *raw_key,
 	if (unlikely(!mode->logged_impl_name)) {
 		/*
 		 * fscrypt performance can vary greatly depending on which
-		 * crypto algorithm implementation is used.  Help people debug
+		 * crypto algorithm implementation is used.  Help people de
 		 * performance problems by logging the ->cra_driver_name the
 		 * first time a mode is used.  Note that multiple threads can
 		 * race here, but it doesn't really matter.
@@ -317,7 +317,7 @@ find_or_insert_master_key(struct fscrypt_master_key *to_insert,
 	 * raw key, and use crypto_memneq() when comparing raw keys.
 	 */
 
-	BUILD_BUG_ON(sizeof(hash_key) > FS_KEY_DESCRIPTOR_SIZE);
+	BUILD__ON(sizeof(hash_key) > FS_KEY_DESCRIPTOR_SIZE);
 	memcpy(&hash_key, ci->ci_master_key_descriptor, sizeof(hash_key));
 
 	spin_lock(&fscrypt_master_keys_lock);

@@ -241,19 +241,19 @@ struct nvme_nvm_chk_meta {
  */
 static inline void _nvme_nvm_check_size(void)
 {
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_identity) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_ph_rw) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_erase_blk) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_getbbtbl) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_setbbtbl) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id12_grp) != 960);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id12_addrf) != 16);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id12) != NVME_IDENTIFY_DATA_SIZE);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_bb_tbl) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id20_addrf) != 8);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id20) != NVME_IDENTIFY_DATA_SIZE);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_chk_meta) != 32);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_chk_meta) !=
+	BUILD__ON(sizeof(struct nvme_nvm_identity) != 64);
+	BUILD__ON(sizeof(struct nvme_nvm_ph_rw) != 64);
+	BUILD__ON(sizeof(struct nvme_nvm_erase_blk) != 64);
+	BUILD__ON(sizeof(struct nvme_nvm_getbbtbl) != 64);
+	BUILD__ON(sizeof(struct nvme_nvm_setbbtbl) != 64);
+	BUILD__ON(sizeof(struct nvme_nvm_id12_grp) != 960);
+	BUILD__ON(sizeof(struct nvme_nvm_id12_addrf) != 16);
+	BUILD__ON(sizeof(struct nvme_nvm_id12) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD__ON(sizeof(struct nvme_nvm_bb_tbl) != 64);
+	BUILD__ON(sizeof(struct nvme_nvm_id20_addrf) != 8);
+	BUILD__ON(sizeof(struct nvme_nvm_id20) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD__ON(sizeof(struct nvme_nvm_chk_meta) != 32);
+	BUILD__ON(sizeof(struct nvme_nvm_chk_meta) !=
 						sizeof(struct nvm_chk_meta));
 }
 

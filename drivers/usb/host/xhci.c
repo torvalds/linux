@@ -20,7 +20,7 @@
 #include "xhci.h"
 #include "xhci-trace.h"
 #include "xhci-mtk.h"
-#include "xhci-debugfs.h"
+#include "xhci-defs.h"
 #include "xhci-dbgcap.h"
 
 #define DRIVER_AUTHOR "Sarah Sharp"
@@ -696,7 +696,7 @@ int xhci_run(struct usb_hcd *hcd)
 
 	xhci_dbc_init(xhci);
 
-	xhci_debugfs_init(xhci);
+	xhci_defs_init(xhci);
 
 	return 0;
 }
@@ -756,7 +756,7 @@ static void xhci_stop(struct usb_hcd *hcd)
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "cleaning up memory");
 	xhci_mem_cleanup(xhci);
-	xhci_debugfs_exit(xhci);
+	xhci_defs_exit(xhci);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"xhci_stop completed - status = %x",
 			readl(&xhci->op_regs->status));
@@ -1153,7 +1153,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 		xhci_dbg(xhci, "cleaning up memory\n");
 		xhci_mem_cleanup(xhci);
-		xhci_debugfs_exit(xhci);
+		xhci_defs_exit(xhci);
 		xhci_dbg(xhci, "xhci_stop completed - status = %x\n",
 			    readl(&xhci->op_regs->status));
 
@@ -1308,11 +1308,11 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_virt_device	*virt_dev;
 
 	if (!hcd || (check_ep && !ep) || !udev) {
-		pr_debug("xHCI %s called with invalid args\n", func);
+		pr_de("xHCI %s called with invalid args\n", func);
 		return -EINVAL;
 	}
 	if (!udev->parent) {
-		pr_debug("xHCI %s called for root hub\n", func);
+		pr_de("xHCI %s called for root hub\n", func);
 		return 0;
 	}
 
@@ -1748,7 +1748,7 @@ static int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	ctrl_ctx->add_flags &= cpu_to_le32(~drop_flag);
 	new_add_flags = le32_to_cpu(ctrl_ctx->add_flags);
 
-	xhci_debugfs_remove_endpoint(xhci, xhci->devs[udev->slot_id], ep_index);
+	xhci_defs_remove_endpoint(xhci, xhci->devs[udev->slot_id], ep_index);
 
 	xhci_endpoint_zero(xhci, xhci->devs[udev->slot_id], ep);
 
@@ -1873,7 +1873,7 @@ static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	/* Store the usb_device pointer for later use */
 	ep->hcpriv = udev;
 
-	xhci_debugfs_create_endpoint(xhci, virt_dev, ep_index);
+	xhci_defs_create_endpoint(xhci, virt_dev, ep_index);
 
 	xhci_dbg(xhci, "add ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x\n",
 			(unsigned int) ep->desc.bEndpointAddress,
@@ -2929,7 +2929,7 @@ static void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Free any rings allocated for added endpoints */
 	for (i = 0; i < 31; i++) {
 		if (virt_dev->eps[i].new_ring) {
-			xhci_debugfs_remove_endpoint(xhci, virt_dev, i);
+			xhci_defs_remove_endpoint(xhci, virt_dev, i);
 			xhci_ring_free(xhci, virt_dev->eps[i].new_ring);
 			virt_dev->eps[i].new_ring = NULL;
 		}
@@ -3712,7 +3712,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		}
 
 		if (ep->ring) {
-			xhci_debugfs_remove_endpoint(xhci, virt_dev, i);
+			xhci_defs_remove_endpoint(xhci, virt_dev, i);
 			xhci_free_endpoint_ring(xhci, virt_dev, i);
 		}
 		if (!list_empty(&virt_dev->eps[i].bw_endpoint_list))
@@ -3771,7 +3771,7 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		virt_dev->eps[i].ep_state &= ~EP_STOP_CMD_PENDING;
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
-	xhci_debugfs_remove_slot(xhci, udev->slot_id);
+	xhci_defs_remove_slot(xhci, udev->slot_id);
 	virt_dev->udev = NULL;
 	ret = xhci_disable_slot(xhci, udev->slot_id);
 	if (ret)
@@ -3902,7 +3902,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 	udev->slot_id = slot_id;
 
-	xhci_debugfs_create_slot(xhci, slot_id);
+	xhci_defs_create_slot(xhci, slot_id);
 
 #ifndef CONFIG_USB_DEFAULT_PERSIST
 	/*
@@ -3962,7 +3962,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		/*
 		 * In plug/unplug torture test with an NEC controller,
 		 * a zero-dereference was observed once due to virt_dev = 0.
-		 * Print useful debug rather than crash if it is observed again!
+		 * Print useful de rather than crash if it is observed again!
 		 */
 		xhci_warn(xhci, "Virt dev invalid for slot_id 0x%x!\n",
 			udev->slot_id);
@@ -5197,7 +5197,7 @@ static const struct hc_driver xhci_hc_driver = {
 void xhci_init_driver(struct hc_driver *drv,
 		      const struct xhci_driver_overrides *over)
 {
-	BUG_ON(!over);
+	_ON(!over);
 
 	/* Copy the generic table to drv then apply the overrides */
 	*drv = xhci_hc_driver;
@@ -5222,24 +5222,24 @@ static int __init xhci_hcd_init(void)
 	 * Check the compiler generated sizes of structures that must be laid
 	 * out in specific ways for hardware access.
 	 */
-	BUILD_BUG_ON(sizeof(struct xhci_doorbell_array) != 256*32/8);
-	BUILD_BUG_ON(sizeof(struct xhci_slot_ctx) != 8*32/8);
-	BUILD_BUG_ON(sizeof(struct xhci_ep_ctx) != 8*32/8);
+	BUILD__ON(sizeof(struct xhci_doorbell_array) != 256*32/8);
+	BUILD__ON(sizeof(struct xhci_slot_ctx) != 8*32/8);
+	BUILD__ON(sizeof(struct xhci_ep_ctx) != 8*32/8);
 	/* xhci_device_control has eight fields, and also
 	 * embeds one xhci_slot_ctx and 31 xhci_ep_ctx
 	 */
-	BUILD_BUG_ON(sizeof(struct xhci_stream_ctx) != 4*32/8);
-	BUILD_BUG_ON(sizeof(union xhci_trb) != 4*32/8);
-	BUILD_BUG_ON(sizeof(struct xhci_erst_entry) != 4*32/8);
-	BUILD_BUG_ON(sizeof(struct xhci_cap_regs) != 8*32/8);
-	BUILD_BUG_ON(sizeof(struct xhci_intr_reg) != 8*32/8);
+	BUILD__ON(sizeof(struct xhci_stream_ctx) != 4*32/8);
+	BUILD__ON(sizeof(union xhci_trb) != 4*32/8);
+	BUILD__ON(sizeof(struct xhci_erst_entry) != 4*32/8);
+	BUILD__ON(sizeof(struct xhci_cap_regs) != 8*32/8);
+	BUILD__ON(sizeof(struct xhci_intr_reg) != 8*32/8);
 	/* xhci_run_regs has eight fields and embeds 128 xhci_intr_regs */
-	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
+	BUILD__ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
 
 	if (usb_disabled())
 		return -ENODEV;
 
-	xhci_debugfs_create_root();
+	xhci_defs_create_root();
 
 	return 0;
 }
@@ -5250,7 +5250,7 @@ static int __init xhci_hcd_init(void)
  */
 static void __exit xhci_hcd_fini(void)
 {
-	xhci_debugfs_remove_root();
+	xhci_defs_remove_root();
 }
 
 module_init(xhci_hcd_init);

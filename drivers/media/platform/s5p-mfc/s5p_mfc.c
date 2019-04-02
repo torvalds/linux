@@ -27,7 +27,7 @@
 #include <media/videobuf2-v4l2.h>
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_ctrl.h"
-#include "s5p_mfc_debug.h"
+#include "s5p_mfc_de.h"
 #include "s5p_mfc_dec.h"
 #include "s5p_mfc_enc.h"
 #include "s5p_mfc_intr.h"
@@ -39,9 +39,9 @@
 #define S5P_MFC_DEC_NAME	"s5p-mfc-dec"
 #define S5P_MFC_ENC_NAME	"s5p-mfc-enc"
 
-int mfc_debug_level;
-module_param_named(debug, mfc_debug_level, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level - higher value produces more verbose messages");
+int mfc_de_level;
+module_param_named(de, mfc_de_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level - higher value produces more verbose messages");
 
 static char *mfc_mem_size;
 module_param_named(mem, mfc_mem_size, charp, 0644);
@@ -230,7 +230,7 @@ static void s5p_mfc_handle_frame_all_extracted(struct s5p_mfc_ctx *ctx)
 	while (!list_empty(&ctx->dst_queue)) {
 		dst_buf = list_entry(ctx->dst_queue.next,
 				     struct s5p_mfc_buf, list);
-		mfc_debug(2, "Cleaning up buffer: %d\n",
+		mfc_de(2, "Cleaning up buffer: %d\n",
 					  dst_buf->b->vb2_buf.index);
 		vb2_set_plane_payload(&dst_buf->b->vb2_buf, 0, 0);
 		vb2_set_plane_payload(&dst_buf->b->vb2_buf, 1, 0);
@@ -295,7 +295,7 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 			default:
 				/* Don't know how to handle
 				   S5P_FIMV_DECODE_FRAME_OTHER_FRAME. */
-				mfc_debug(2, "Unexpected frame type: %d\n",
+				mfc_de(2, "Unexpected frame type: %d\n",
 						frame_type);
 			}
 			break;
@@ -376,7 +376,7 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	res_change = (s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
 				& S5P_FIMV_DEC_STATUS_RESOLUTION_MASK)
 				>> S5P_FIMV_DEC_STATUS_RESOLUTION_SHIFT;
-	mfc_debug(2, "Frame Status: %x\n", dst_frame_status);
+	mfc_de(2, "Frame Status: %x\n", dst_frame_status);
 	if (ctx->state == MFCINST_RES_CHANGE_INIT)
 		ctx->state = MFCINST_RES_CHANGE_FLUSH;
 	if (res_change == S5P_FIMV_RES_INCREASE ||
@@ -419,7 +419,7 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	    dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY) {
 		s5p_mfc_handle_frame_new(ctx, err);
 	} else {
-		mfc_debug(2, "No frame decode\n");
+		mfc_de(2, "No frame decode\n");
 	}
 	/* Mark source buffer as complete */
 	if (dst_frame_status != S5P_FIMV_DEC_STATUS_DISPLAY_ONLY
@@ -433,10 +433,10 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 			ctx->consumed_stream + STUFF_BYTE <
 			src_buf->b->vb2_buf.planes[0].bytesused) {
 			/* Run MFC again on the same buffer */
-			mfc_debug(2, "Running again the same buffer\n");
+			mfc_de(2, "Running again the same buffer\n");
 			ctx->after_packed_pb = 1;
 		} else {
-			mfc_debug(2, "MFC needs next buffer\n");
+			mfc_de(2, "MFC needs next buffer\n");
 			ctx->consumed_stream = 0;
 			if (src_buf->flags & MFC_BUF_FLAG_EOS)
 				ctx->state = MFCINST_FINISHING;
@@ -607,7 +607,7 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf *mb_entry;
 
-	mfc_debug(2, "Stream completed\n");
+	mfc_de(2, "Stream completed\n");
 
 	ctx->state = MFCINST_FINISHED;
 
@@ -637,7 +637,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	unsigned int reason;
 	unsigned int err;
 
-	mfc_debug_enter();
+	mfc_de_enter();
 	/* Reset the timeout watchdog */
 	atomic_set(&dev->watchdog_cnt, 0);
 	spin_lock(&dev->irqlock);
@@ -645,7 +645,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	/* Get the reason of interrupt and the error code */
 	reason = s5p_mfc_hw_call(dev->mfc_ops, get_int_reason, dev);
 	err = s5p_mfc_hw_call(dev->mfc_ops, get_int_err, dev);
-	mfc_debug(1, "Int reason: %d (err: %08x)\n", reason, err);
+	mfc_de(1, "Int reason: %d (err: %08x)\n", reason, err);
 	switch (reason) {
 	case S5P_MFC_R2H_CMD_ERR_RET:
 		/* An error has occurred */
@@ -726,11 +726,11 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 		goto irq_cleanup_hw;
 
 	default:
-		mfc_debug(2, "Unknown int reason\n");
+		mfc_de(2, "Unknown int reason\n");
 		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	}
 	spin_unlock(&dev->irqlock);
-	mfc_debug_leave();
+	mfc_de_leave();
 	return IRQ_HANDLED;
 irq_cleanup_hw:
 	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
@@ -746,7 +746,7 @@ irq_cleanup_hw:
 
 	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	spin_unlock(&dev->irqlock);
-	mfc_debug(2, "Exit via irq_cleanup_hw\n");
+	mfc_de(2, "Exit via irq_cleanup_hw\n");
 	return IRQ_HANDLED;
 }
 
@@ -759,7 +759,7 @@ static int s5p_mfc_open(struct file *file)
 	struct vb2_queue *q;
 	int ret = 0;
 
-	mfc_debug_enter();
+	mfc_de_enter();
 	if (mutex_lock_interruptible(&dev->mfc_mutex))
 		return -ERESTARTSYS;
 	dev->num_inst++;	/* It is guarded by mfc_mutex in vfd */
@@ -783,7 +783,7 @@ static int s5p_mfc_open(struct file *file)
 	while (dev->ctx[ctx->num]) {
 		ctx->num++;
 		if (ctx->num >= MFC_NUM_CONTEXTS) {
-			mfc_debug(2, "Too many open contexts\n");
+			mfc_de(2, "Too many open contexts\n");
 			ret = -EBUSY;
 			goto err_no_ctx;
 		}
@@ -905,7 +905,7 @@ static int s5p_mfc_open(struct file *file)
 		goto err_queue_init;
 	}
 	mutex_unlock(&dev->mfc_mutex);
-	mfc_debug_leave();
+	mfc_de_leave();
 	return ret;
 	/* Deinit when failure occurred */
 err_queue_init:
@@ -930,7 +930,7 @@ err_no_ctx:
 err_alloc:
 	dev->num_inst--;
 	mutex_unlock(&dev->mfc_mutex);
-	mfc_debug_leave();
+	mfc_de_leave();
 	return ret;
 }
 
@@ -941,7 +941,7 @@ static int s5p_mfc_release(struct file *file)
 	struct s5p_mfc_dev *dev = ctx->dev;
 
 	/* if dev is null, do cleanup that doesn't need dev */
-	mfc_debug_enter();
+	mfc_de_enter();
 	if (dev)
 		mutex_lock(&dev->mfc_mutex);
 	vb2_queue_release(&ctx->vq_src);
@@ -956,7 +956,7 @@ static int s5p_mfc_release(struct file *file)
 		 * return instance and free resources
 		*/
 		if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
-			mfc_debug(2, "Has to free instance\n");
+			mfc_de(2, "Has to free instance\n");
 			s5p_mfc_close_mfc_inst(dev, ctx);
 		}
 		/* hardware locking scheme */
@@ -964,14 +964,14 @@ static int s5p_mfc_release(struct file *file)
 			clear_bit(0, &dev->hw_lock);
 		dev->num_inst--;
 		if (dev->num_inst == 0) {
-			mfc_debug(2, "Last instance\n");
+			mfc_de(2, "Last instance\n");
 			s5p_mfc_deinit_hw(dev);
 			del_timer_sync(&dev->watchdog_timer);
 			s5p_mfc_clock_off();
 			if (s5p_mfc_power_off() < 0)
 				mfc_err("Power off failed\n");
 		} else {
-			mfc_debug(2, "Shutting down clock\n");
+			mfc_de(2, "Shutting down clock\n");
 			s5p_mfc_clock_off();
 		}
 	}
@@ -983,7 +983,7 @@ static int s5p_mfc_release(struct file *file)
 	if (dev)
 		v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
-	mfc_debug_leave();
+	mfc_de_leave();
 	if (dev)
 		mutex_unlock(&dev->mfc_mutex);
 
@@ -1050,10 +1050,10 @@ static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	if (offset < DST_QUEUE_OFF_BASE) {
-		mfc_debug(2, "mmaping source\n");
+		mfc_de(2, "mmaping source\n");
 		ret = vb2_mmap(&ctx->vq_src, vma);
 	} else {		/* capture */
-		mfc_debug(2, "mmaping destination\n");
+		mfc_de(2, "mmaping destination\n");
 		vma->vm_pgoff -= (DST_QUEUE_OFF_BASE >> PAGE_SHIFT);
 		ret = vb2_mmap(&ctx->vq_dst, vma);
 	}
@@ -1273,7 +1273,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	pr_debug("%s++\n", __func__);
+	pr_de("%s++\n", __func__);
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -1393,7 +1393,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	v4l2_info(&dev->v4l2_dev,
 		  "encoder registered as /dev/video%d\n", dev->vfd_enc->num);
 
-	pr_debug("%s--\n", __func__);
+	pr_de("%s--\n", __func__);
 	return 0;
 
 /* Deinit MFC if probe had failed */
@@ -1410,7 +1410,7 @@ err_v4l2_dev_reg:
 err_dma:
 	s5p_mfc_unconfigure_dma_memory(dev);
 
-	pr_debug("%s-- with error\n", __func__);
+	pr_de("%s-- with error\n", __func__);
 	return ret;
 
 }
@@ -1549,7 +1549,7 @@ static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.buf_size	= &buf_size_v6,
 	.fw_name[0]     = "s5p-mfc-v6.fw",
 	/*
-	 * v6-v2 firmware contains bug fixes and interface change
+	 * v6-v2 firmware contains  fixes and interface change
 	 * for init buffer command
 	 */
 	.fw_name[1]     = "s5p-mfc-v6-v2.fw",

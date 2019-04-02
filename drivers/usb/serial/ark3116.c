@@ -573,7 +573,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 		/*
 		 * Not sure what this data meant...
 		 */
-		usb_serial_debug_data(&port->dev, __func__,
+		usb_serial_de_data(&port->dev, __func__,
 				      urb->actual_length,
 				      urb->transfer_buffer);
 		break;
@@ -727,7 +727,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
  * RTS +5V when the 3116 cannot transfer the data to the USB bus
  * (verified by disabling the reading URB). Note that as far as I can
  * tell, the windows driver does NOT use this, so there might be some
- * hardware bug or something.
+ * hardware  or something.
  *
  * According to a patch provided here
  * (http://lkml.org/lkml/2009/7/26/56), the ARK3116 can also be used

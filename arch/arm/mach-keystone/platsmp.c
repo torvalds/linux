@@ -29,7 +29,7 @@ static int keystone_smp_boot_secondary(unsigned int cpu,
 	unsigned long start = virt_to_idmap(&secondary_startup);
 	int error;
 
-	pr_debug("keystone-smp: booting cpu %d, vector %08lx\n",
+	pr_de("keystone-smp: booting cpu %d, vector %08lx\n",
 		 cpu, start);
 
 	error = keystone_cpu_smc(KEYSTONE_MON_CPU_UP_IDX, cpu, start);

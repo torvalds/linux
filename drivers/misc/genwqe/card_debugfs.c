@@ -19,14 +19,14 @@
  */
 
 /*
- * Debugfs interfaces for the GenWQE card. Help to debug potential
- * problems. Dump internal chip state for debugging and failure
+ * Defs interfaces for the GenWQE card. Help to de potential
+ * problems. Dump internal chip state for deging and failure
  * determination.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 
@@ -324,7 +324,7 @@ static int info_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(info);
 
-int genwqe_init_debugfs(struct genwqe_dev *cd)
+int genwqe_init_defs(struct genwqe_dev *cd)
 {
 	struct dentry *root;
 	struct dentry *file;
@@ -335,41 +335,41 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 
 	sprintf(card_name, "%s%d_card", GENWQE_DEVNAME, cd->card_idx);
 
-	root = debugfs_create_dir(card_name, cd->debugfs_genwqe);
+	root = defs_create_dir(card_name, cd->defs_genwqe);
 	if (!root) {
 		ret = -ENOMEM;
 		goto err0;
 	}
 
 	/* non privileged interfaces are done here */
-	file = debugfs_create_file("ddcb_info", S_IRUGO, root, cd,
+	file = defs_create_file("ddcb_info", S_IRUGO, root, cd,
 				   &ddcb_info_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("info", S_IRUGO, root, cd,
+	file = defs_create_file("info", S_IRUGO, root, cd,
 				   &info_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_x64("err_inject", 0666, root, &cd->err_inject);
+	file = defs_create_x64("err_inject", 0666, root, &cd->err_inject);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_u32("ddcb_software_timeout", 0666, root,
+	file = defs_create_u32("ddcb_software_timeout", 0666, root,
 				  &cd->ddcb_software_timeout);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_u32("kill_timeout", 0666, root,
+	file = defs_create_u32("kill_timeout", 0666, root,
 				  &cd->kill_timeout);
 	if (!file) {
 		ret = -ENOMEM;
@@ -378,60 +378,60 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 
 	/* privileged interfaces follow here */
 	if (!genwqe_is_privileged(cd)) {
-		cd->debugfs_root = root;
+		cd->defs_root = root;
 		return 0;
 	}
 
-	file = debugfs_create_file("curr_regs", S_IRUGO, root, cd,
+	file = defs_create_file("curr_regs", S_IRUGO, root, cd,
 				   &curr_regs_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("curr_dbg_uid0", S_IRUGO, root, cd,
+	file = defs_create_file("curr_dbg_uid0", S_IRUGO, root, cd,
 				   &curr_dbg_uid0_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("curr_dbg_uid1", S_IRUGO, root, cd,
+	file = defs_create_file("curr_dbg_uid1", S_IRUGO, root, cd,
 				   &curr_dbg_uid1_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("curr_dbg_uid2", S_IRUGO, root, cd,
+	file = defs_create_file("curr_dbg_uid2", S_IRUGO, root, cd,
 				   &curr_dbg_uid2_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("prev_regs", S_IRUGO, root, cd,
+	file = defs_create_file("prev_regs", S_IRUGO, root, cd,
 				   &prev_regs_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("prev_dbg_uid0", S_IRUGO, root, cd,
+	file = defs_create_file("prev_dbg_uid0", S_IRUGO, root, cd,
 				   &prev_dbg_uid0_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("prev_dbg_uid1", S_IRUGO, root, cd,
+	file = defs_create_file("prev_dbg_uid1", S_IRUGO, root, cd,
 				   &prev_dbg_uid1_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("prev_dbg_uid2", S_IRUGO, root, cd,
+	file = defs_create_file("prev_dbg_uid2", S_IRUGO, root, cd,
 				   &prev_dbg_uid2_fops);
 	if (!file) {
 		ret = -ENOMEM;
@@ -441,7 +441,7 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 	for (i = 0; i <  GENWQE_MAX_VFS; i++) {
 		sprintf(name, "vf%u_jobtimeout_msec", i);
 
-		file = debugfs_create_u32(name, 0666, root,
+		file = defs_create_u32(name, 0666, root,
 					  &cd->vf_jobtimeout_msec[i]);
 		if (!file) {
 			ret = -ENOMEM;
@@ -449,43 +449,43 @@ int genwqe_init_debugfs(struct genwqe_dev *cd)
 		}
 	}
 
-	file = debugfs_create_file("jobtimer", S_IRUGO, root, cd,
+	file = defs_create_file("jobtimer", S_IRUGO, root, cd,
 				   &jtimer_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_file("queue_working_time", S_IRUGO, root, cd,
+	file = defs_create_file("queue_working_time", S_IRUGO, root, cd,
 				   &queue_working_time_fops);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_u32("skip_recovery", 0666, root,
+	file = defs_create_u32("skip_recovery", 0666, root,
 				  &cd->skip_recovery);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	file = debugfs_create_u32("use_platform_recovery", 0666, root,
+	file = defs_create_u32("use_platform_recovery", 0666, root,
 				  &cd->use_platform_recovery);
 	if (!file) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	cd->debugfs_root = root;
+	cd->defs_root = root;
 	return 0;
 err1:
-	debugfs_remove_recursive(root);
+	defs_remove_recursive(root);
 err0:
 	return ret;
 }
 
-void genqwe_exit_debugfs(struct genwqe_dev *cd)
+void genqwe_exit_defs(struct genwqe_dev *cd)
 {
-	debugfs_remove_recursive(cd->debugfs_root);
+	defs_remove_recursive(cd->defs_root);
 }

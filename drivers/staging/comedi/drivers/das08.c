@@ -240,7 +240,7 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 			else
 				data[n] = (1 << 15) - magnitude;
 		} else {
-			dev_err(dev->class_dev, "bug! unknown ai encoding\n");
+			dev_err(dev->class_dev, "! unknown ai encoding\n");
 			return -1;
 		}
 	}

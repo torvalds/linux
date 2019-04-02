@@ -1528,7 +1528,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		break;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(arizona_micd_levels) <
+	BUILD__ON(ARRAY_SIZE(arizona_micd_levels) <
 		     ARIZONA_NUM_MICD_BUTTON_LEVELS);
 
 	if (arizona->pdata.num_micd_ranges) {

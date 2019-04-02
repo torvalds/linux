@@ -3,10 +3,10 @@
 #               Makefile for wm-FPU-emu
 #
 
-#DEBUG	= -DDEBUGGING
-DEBUG	=
+#DE	= -DDEGING
+DE	=
 PARANOID = -DPARANOID
-ccflags-y += $(PARANOID) $(DEBUG) -fno-builtin $(MATH_EMULATION)
+ccflags-y += $(PARANOID) $(DE) -fno-builtin $(MATH_EMULATION)
 asflags-y += $(PARANOID)
 
 # From 'C' language sources:

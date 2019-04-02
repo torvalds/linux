@@ -22,7 +22,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/imu/adis.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #define ADIS16136_REG_FLASH_CNT		0x00
 #define ADIS16136_REG_TEMP_OUT		0x02
@@ -68,7 +68,7 @@ struct adis16136 {
 	struct adis adis;
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static ssize_t adis16136_show_serial(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
@@ -124,7 +124,7 @@ static int adis16136_show_product_id(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(adis16136_product_id_fops,
+DEFINE_DEFS_ATTRIBUTE(adis16136_product_id_fops,
 	adis16136_show_product_id, NULL, "%llu\n");
 
 static int adis16136_show_flash_count(void *arg, u64 *val)
@@ -142,21 +142,21 @@ static int adis16136_show_flash_count(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(adis16136_flash_count_fops,
+DEFINE_DEFS_ATTRIBUTE(adis16136_flash_count_fops,
 	adis16136_show_flash_count, NULL, "%lld\n");
 
-static int adis16136_debugfs_init(struct iio_dev *indio_dev)
+static int adis16136_defs_init(struct iio_dev *indio_dev)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
 
-	debugfs_create_file_unsafe("serial_number", 0400,
-		indio_dev->debugfs_dentry, adis16136,
+	defs_create_file_unsafe("serial_number", 0400,
+		indio_dev->defs_dentry, adis16136,
 		&adis16136_serial_fops);
-	debugfs_create_file_unsafe("product_id", 0400,
-		indio_dev->debugfs_dentry,
+	defs_create_file_unsafe("product_id", 0400,
+		indio_dev->defs_dentry,
 		adis16136, &adis16136_product_id_fops);
-	debugfs_create_file_unsafe("flash_count", 0400,
-		indio_dev->debugfs_dentry,
+	defs_create_file_unsafe("flash_count", 0400,
+		indio_dev->defs_dentry,
 		adis16136, &adis16136_flash_count_fops);
 
 	return 0;
@@ -164,7 +164,7 @@ static int adis16136_debugfs_init(struct iio_dev *indio_dev)
 
 #else
 
-static int adis16136_debugfs_init(struct iio_dev *indio_dev)
+static int adis16136_defs_init(struct iio_dev *indio_dev)
 {
 	return 0;
 }
@@ -405,7 +405,7 @@ static const struct iio_info adis16136_info = {
 	.read_raw = &adis16136_read_raw,
 	.write_raw = &adis16136_write_raw,
 	.update_scan_mode = adis_update_scan_mode,
-	.debugfs_reg_access = adis_debugfs_reg_access,
+	.defs_reg_access = adis_defs_reg_access,
 };
 
 static int adis16136_stop_device(struct iio_dev *indio_dev)
@@ -538,7 +538,7 @@ static int adis16136_probe(struct spi_device *spi)
 	if (ret)
 		goto error_stop_device;
 
-	adis16136_debugfs_init(indio_dev);
+	adis16136_defs_init(indio_dev);
 
 	return 0;
 

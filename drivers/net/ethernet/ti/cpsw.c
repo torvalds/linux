@@ -49,7 +49,7 @@
 
 #include <net/pkt_sched.h>
 
-#define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
+#define CPSW_DE	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
 			 NETIF_MSG_IFUP		| NETIF_MSG_INTR	| \
 			 NETIF_MSG_PROBE	| NETIF_MSG_TIMER	| \
@@ -176,9 +176,9 @@ enum {
 	CPSW_RX_VLAN_ENCAP_HDR_PKT_UNTAG,
 };
 
-static int debug_level;
-module_param(debug_level, int, 0);
-MODULE_PARM_DESC(debug_level, "cpsw debug level (NETIF_MSG bits)");
+static int de_level;
+module_param(de_level, int, 0);
+MODULE_PARM_DESC(de_level, "cpsw de level (NETIF_MSG bits)");
 
 static int ale_ageout = 10;
 module_param(ale_ageout, int, 0);
@@ -3418,7 +3418,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 	priv_sl2->cpsw = cpsw;
 	priv_sl2->ndev = ndev;
 	priv_sl2->dev  = &ndev->dev;
-	priv_sl2->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
+	priv_sl2->msg_enable = netif_msg_init(de_level, CPSW_DE);
 
 	if (is_valid_ether_addr(data->slave_data[1].mac_addr)) {
 		memcpy(priv_sl2->mac_addr, data->slave_data[1].mac_addr,
@@ -3500,7 +3500,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->cpsw = cpsw;
 	priv->ndev = ndev;
 	priv->dev  = &ndev->dev;
-	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
+	priv->msg_enable = netif_msg_init(de_level, CPSW_DE);
 	cpsw->rx_packet_max = max(rx_packet_max, 128);
 
 	mode = devm_gpiod_get_array_optional(&pdev->dev, "mode", GPIOD_OUT_LOW);

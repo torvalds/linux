@@ -126,7 +126,7 @@ struct ppp {
 	unsigned int	flags;		/* control bits 64 */
 	unsigned int	xstate;		/* transmit state bits 68 */
 	unsigned int	rstate;		/* receive state bits 6c */
-	int		debug;		/* debug flags 70 */
+	int		de;		/* de flags 70 */
 	struct slcompress *vj;		/* state for VJ header compression */
 	enum NPmode	npmode[NUM_NP];	/* what to do with each net proto 78 */
 	struct sk_buff	*xmit_pending;	/* a packet ready to go out 88 */
@@ -300,7 +300,7 @@ static struct class *ppp_class;
 /* per net-namespace data */
 static inline struct ppp_net *ppp_pernet(struct net *net)
 {
-	BUG_ON(!net);
+	_ON(!net);
 
 	return net_generic(net, ppp_net_id);
 }
@@ -692,15 +692,15 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		err = 0;
 		break;
 
-	case PPPIOCSDEBUG:
+	case PPPIOCSDE:
 		if (get_user(val, p))
 			break;
-		ppp->debug = val;
+		ppp->de = val;
 		err = 0;
 		break;
 
-	case PPPIOCGDEBUG:
-		if (put_user(ppp->debug, p))
+	case PPPIOCGDE:
+		if (put_user(ppp->de, p))
 			break;
 		err = 0;
 		break;
@@ -1518,8 +1518,8 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		*(u8 *)skb_push(skb, 2) = 1;
 		if (ppp->pass_filter &&
 		    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
-			if (ppp->debug & 1)
-				netdev_printk(KERN_DEBUG, ppp->dev,
+			if (ppp->de & 1)
+				netdev_printk(KERN_DE, ppp->dev,
 					      "PPP: outbound frame "
 					      "not passed\n");
 			kfree_skb(skb);
@@ -1894,7 +1894,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 
  noskb:
 	spin_unlock(&pch->downl);
-	if (ppp->debug & 1)
+	if (ppp->de & 1)
 		netdev_err(ppp->dev, "PPP: no memory (fragment)\n");
 	++ppp->dev->stats.tx_errors;
 	++ppp->nxseq;
@@ -2142,7 +2142,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 
 		len = slhc_uncompress(ppp->vj, skb->data + 2, skb->len - 2);
 		if (len <= 0) {
-			netdev_printk(KERN_DEBUG, ppp->dev,
+			netdev_printk(KERN_DE, ppp->dev,
 				      "PPP: VJ decompression error\n");
 			goto err;
 		}
@@ -2204,8 +2204,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			*(u8 *)skb_push(skb, 2) = 0;
 			if (ppp->pass_filter &&
 			    BPF_PROG_RUN(ppp->pass_filter, skb) == 0) {
-				if (ppp->debug & 1)
-					netdev_printk(KERN_DEBUG, ppp->dev,
+				if (ppp->de & 1)
+					netdev_printk(KERN_DE, ppp->dev,
 						      "PPP: inbound frame "
 						      "not passed\n");
 				kfree_skb(skb);
@@ -2473,8 +2473,8 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			seq = seq_before(minseq, PPP_MP_CB(p)->sequence)?
 				minseq + 1: PPP_MP_CB(p)->sequence;
 
-			if (ppp->debug & 1)
-				netdev_printk(KERN_DEBUG, ppp->dev,
+			if (ppp->de & 1)
+				netdev_printk(KERN_DE, ppp->dev,
 					      "lost frag %u..%u\n",
 					      oldseq, seq-1);
 
@@ -2503,7 +2503,7 @@ ppp_mp_reconstruct(struct ppp *ppp)
 		    (PPP_MP_CB(head)->BEbits & B)) {
 			if (len > ppp->mrru + 2) {
 				++ppp->dev->stats.rx_length_errors;
-				netdev_printk(KERN_DEBUG, ppp->dev,
+				netdev_printk(KERN_DE, ppp->dev,
 					      "PPP: reconstructed packet"
 					      " is too long (%d)\n", len);
 			} else {
@@ -2522,8 +2522,8 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			struct sk_buff *tmp2;
 
 			skb_queue_reverse_walk_from_safe(list, p, tmp2) {
-				if (ppp->debug & 1)
-					netdev_printk(KERN_DEBUG, ppp->dev,
+				if (ppp->de & 1)
+					netdev_printk(KERN_DE, ppp->dev,
 						      "discarding frag %u\n",
 						      PPP_MP_CB(p)->sequence);
 				__skb_unlink(p, list);
@@ -2544,16 +2544,16 @@ ppp_mp_reconstruct(struct ppp *ppp)
 			skb_queue_walk_safe(list, p, tmp) {
 				if (p == head)
 					break;
-				if (ppp->debug & 1)
-					netdev_printk(KERN_DEBUG, ppp->dev,
+				if (ppp->de & 1)
+					netdev_printk(KERN_DE, ppp->dev,
 						      "discarding frag %u\n",
 						      PPP_MP_CB(p)->sequence);
 				__skb_unlink(p, list);
 				kfree_skb(p);
 			}
 
-			if (ppp->debug & 1)
-				netdev_printk(KERN_DEBUG, ppp->dev,
+			if (ppp->de & 1)
+				netdev_printk(KERN_DE, ppp->dev,
 					      "  missed pkts %u..%u\n",
 					      ppp->nextseq,
 					      PPP_MP_CB(head)->sequence-1);
@@ -2863,7 +2863,7 @@ ppp_ccp_peek(struct ppp *ppp, struct sk_buff *skb, int inbound)
 			if (!ppp->rc_state)
 				break;
 			if (ppp->rcomp->decomp_init(ppp->rc_state, dp, len,
-					ppp->file.index, 0, ppp->mru, ppp->debug)) {
+					ppp->file.index, 0, ppp->mru, ppp->de)) {
 				ppp->rstate |= SC_DECOMP_RUN;
 				ppp->rstate &= ~(SC_DC_ERROR | SC_DC_FERROR);
 			}
@@ -2872,7 +2872,7 @@ ppp_ccp_peek(struct ppp *ppp, struct sk_buff *skb, int inbound)
 			if (!ppp->xc_state)
 				break;
 			if (ppp->xcomp->comp_init(ppp->xc_state, dp, len,
-					ppp->file.index, 0, ppp->debug))
+					ppp->file.index, 0, ppp->de))
 				ppp->xstate |= SC_COMP_RUN;
 		}
 		break;

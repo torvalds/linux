@@ -474,7 +474,7 @@ int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
 		 * cmd completes, and before it writes to the eeprom.
 		 * The startcmd for the read will fail the ack until
 		 * the writes have completed.   We do this inline to avoid
-		 * the debug prints that are in the real read routine
+		 * the de prints that are in the real read routine
 		 * if the startcmd fails.
 		 * We also use the proper device address, so it doesn't matter
 		 * whether we have real eeprom_dev. Legacy likes any address.

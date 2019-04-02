@@ -64,7 +64,7 @@ int o2nm_configured_node_map(unsigned long *map, unsigned bytes)
 {
 	struct o2nm_cluster *cluster = o2nm_single_cluster;
 
-	BUG_ON(bytes < (sizeof(cluster->cl_nodes_bitmap)));
+	_ON(bytes < (sizeof(cluster->cl_nodes_bitmap)));
 
 	if (cluster == NULL)
 		return -EINVAL;
@@ -749,7 +749,7 @@ static void o2nm_cluster_group_drop_item(struct config_group *group, struct conf
 {
 	struct o2nm_cluster *cluster = to_o2nm_cluster(item);
 
-	BUG_ON(o2nm_single_cluster != cluster);
+	_ON(o2nm_single_cluster != cluster);
 	o2nm_single_cluster = NULL;
 
 	configfs_remove_default_groups(&cluster->cl_group);
@@ -820,7 +820,7 @@ void o2nm_undepend_this_node(void)
 	struct o2nm_node *local_node;
 
 	local_node = o2nm_get_node_by_num(o2nm_this_node());
-	BUG_ON(!local_node);
+	_ON(!local_node);
 
 	o2nm_undepend_item(&local_node->nd_item);
 	o2nm_node_put(local_node);

@@ -841,7 +841,7 @@ xfs_qm_reset_dqcounts(
 	 * Reset all counters and timers. They'll be
 	 * started afresh by xfs_qm_quotacheck.
 	 */
-#ifdef DEBUG
+#ifdef DE
 	j = (int)XFS_FSB_TO_B(mp, XFS_DQUOT_CLUSTER_SIZE_FSB) /
 		sizeof(xfs_dqblk_t);
 	ASSERT(mp->m_quotainfo->qi_dqperchunk == j);

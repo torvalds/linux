@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_KMAP_TYPES_H
 #define _ASM_X86_KMAP_TYPES_H
 
-#if defined(CONFIG_X86_32) && defined(CONFIG_DEBUG_HIGHMEM)
+#if defined(CONFIG_X86_32) && defined(CONFIG_DE_HIGHMEM)
 #define  __WITH_KM_FENCE
 #endif
 

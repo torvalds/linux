@@ -1130,7 +1130,7 @@ static void txq_deinit(struct net_device *dev)
 
 	/* Free outstanding skb's on TX ring */
 	txq_reclaim(dev, 1);
-	BUG_ON(pep->tx_used_desc_q != pep->tx_curr_desc_q);
+	_ON(pep->tx_used_desc_q != pep->tx_curr_desc_q);
 	/* Free TX ring */
 	if (pep->p_tx_desc_area)
 		dma_free_coherent(pep->dev->dev.parent, pep->tx_desc_area_size,
@@ -1229,7 +1229,7 @@ static int eth_alloc_tx_desc_index(struct pxa168_eth_private *pep)
 
 	tx_desc_curr = pep->tx_curr_desc_q;
 	pep->tx_curr_desc_q = (tx_desc_curr + 1) % pep->tx_ring_size;
-	BUG_ON(pep->tx_curr_desc_q == pep->tx_used_desc_q);
+	_ON(pep->tx_curr_desc_q == pep->tx_used_desc_q);
 	pep->tx_desc_count++;
 
 	return tx_desc_curr;
@@ -1445,7 +1445,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	BUG_ON(!res);
+	_ON(!res);
 	dev->irq = res->start;
 	dev->netdev_ops = &pxa168_eth_netdev_ops;
 	dev->watchdog_timeo = 2 * HZ;
@@ -1507,7 +1507,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	}
 
 	/* Hardware supports only 3 ports */
-	BUG_ON(pep->port_num > 2);
+	_ON(pep->port_num > 2);
 	netif_napi_add(dev, &pep->napi, pxa168_rx_poll, pep->rx_ring_size);
 
 	memset(&pep->timeout, 0, sizeof(struct timer_list));

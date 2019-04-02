@@ -3,7 +3,7 @@
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2009
  */
 
@@ -53,7 +53,7 @@
 #include <linux/log2.h>
 #include <asm/ccwdev.h>
 #include <linux/workqueue.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/dasd.h>
 #include <asm/idals.h>
 #include <linux/bitops.h>
@@ -86,11 +86,11 @@ struct dasd_block;
 #define CDEV_NESTED_SECOND 2
 
 /*
- * SECTION: MACROs for klogd and s390 debug feature (dbf)
+ * SECTION: MACROs for klogd and s390 de feature (dbf)
  */
 #define DBF_DEV_EVENT(d_level, d_device, d_str, d_data...) \
 do { \
-	debug_sprintf_event(d_device->debug_area, \
+	de_sprintf_event(d_device->de_area, \
 			    d_level, \
 			    d_str "\n", \
 			    d_data); \
@@ -98,7 +98,7 @@ do { \
 
 #define DBF_EVENT(d_level, d_str, d_data...)\
 do { \
-	debug_sprintf_event(dasd_debug_area, \
+	de_sprintf_event(dasd_de_area, \
 			    d_level,\
 			    d_str "\n", \
 			    d_data); \
@@ -108,7 +108,7 @@ do { \
 do { \
 	struct ccw_dev_id __dev_id;			\
 	ccw_device_get_id(d_cdev, &__dev_id);		\
-	debug_sprintf_event(dasd_debug_area,		\
+	de_sprintf_event(dasd_de_area,		\
 			    d_level,					\
 			    "0.%x.%04x " d_str "\n",			\
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
@@ -117,7 +117,7 @@ do { \
 /* limit size for an errorstring */
 #define ERRORLENGTH 30
 
-/* definition of dbf debug levels */
+/* definition of dbf de levels */
 #define	DBF_EMERG	0	/* system is unusable			*/
 #define	DBF_ALERT	1	/* action must be taken immediately	*/
 #define	DBF_CRIT	2	/* critical conditions			*/
@@ -125,7 +125,7 @@ do { \
 #define	DBF_WARNING	4	/* warning conditions			*/
 #define	DBF_NOTICE	5	/* normal but significant condition	*/
 #define	DBF_INFO	6	/* informational			*/
-#define	DBF_DEBUG	6	/* debug-level messages			*/
+#define	DBF_DE	6	/* de-level messages			*/
 
 /* messages to be written via klogd and dbf */
 #define DEV_MESSAGE(d_loglevel,d_device,d_string,d_args...)\
@@ -495,7 +495,7 @@ struct dasd_device {
 	struct work_struct requeue_requests;
 	struct timer_list timer;
 
-	debug_info_t *debug_area;
+	de_info_t *de_area;
 
 	struct ccw_device *cdev;
 
@@ -511,7 +511,7 @@ struct dasd_device {
 	unsigned long path_thrhld;
 	unsigned long path_interval;
 
-	struct dentry *debugfs_dentry;
+	struct dentry *defs_dentry;
 	struct dentry *hosts_dentry;
 	struct dasd_profile profile;
 };
@@ -537,7 +537,7 @@ struct dasd_block {
 	struct tasklet_struct tasklet;
 	struct timer_list timer;
 
-	struct dentry *debugfs_dentry;
+	struct dentry *defs_dentry;
 	struct dasd_profile profile;
 };
 
@@ -691,7 +691,7 @@ dasd_check_blocksize(int bsize)
 #define DASD_PROFILE_ON 	 1
 #define DASD_PROFILE_GLOBAL_ONLY 2
 
-extern debug_info_t *dasd_debug_area;
+extern de_info_t *dasd_de_area;
 extern struct dasd_profile dasd_global_profile;
 extern unsigned int dasd_global_profile_level;
 extern const struct block_device_operations dasd_device_operations;

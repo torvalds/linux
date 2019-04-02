@@ -668,7 +668,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			if (skb_shared(frag))
 				goto slow_path_clean;
 
-			BUG_ON(frag->sk);
+			_ON(frag->sk);
 			if (skb->sk) {
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
@@ -839,7 +839,7 @@ slow_path:
 		/*
 		 *	Copy a block of the IP datagram.
 		 */
-		BUG_ON(skb_copy_bits(skb, ptr, skb_transport_header(frag),
+		_ON(skb_copy_bits(skb, ptr, skb_transport_header(frag),
 				     len));
 		left -= len;
 

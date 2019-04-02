@@ -14,7 +14,7 @@
 #include <linux/ktime.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/scatterlist.h>
 #include <linux/uaccess.h>
 
@@ -93,7 +93,7 @@ struct mon_reader_text {
 	char slab_name[SLAB_NAME_SZ];
 };
 
-static struct dentry *mon_dir;		/* Usually /sys/kernel/debug/usbmon */
+static struct dentry *mon_dir;		/* Usually /sys/kernel/de/usbmon */
 
 static void mon_text_ctor(void *);
 
@@ -217,7 +217,7 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	ep->tstamp = stamp;
 	ep->length = (ev_type == 'S') ?
 	    urb->transfer_buffer_length : urb->actual_length;
-	/* Collecting status makes debugging sense for submits, too */
+	/* Collecting status makes deging sense for submits, too */
 	ep->status = status;
 
 	if (ep->xfertype == USB_ENDPOINT_XFER_INT) {
@@ -712,30 +712,30 @@ int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 		rc = snprintf(name, NAMESZ, "%dt", busnum);
 		if (rc <= 0 || rc >= NAMESZ)
 			goto err_print_t;
-		mbus->dent_t = debugfs_create_file(name, 0600, mon_dir, mbus,
+		mbus->dent_t = defs_create_file(name, 0600, mon_dir, mbus,
 							     &mon_fops_text_t);
 	}
 
 	rc = snprintf(name, NAMESZ, "%du", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_u;
-	mbus->dent_u = debugfs_create_file(name, 0600, mon_dir, mbus,
+	mbus->dent_u = defs_create_file(name, 0600, mon_dir, mbus,
 					   &mon_fops_text_u);
 
 	rc = snprintf(name, NAMESZ, "%ds", busnum);
 	if (rc <= 0 || rc >= NAMESZ)
 		goto err_print_s;
-	mbus->dent_s = debugfs_create_file(name, 0600, mon_dir, mbus,
+	mbus->dent_s = defs_create_file(name, 0600, mon_dir, mbus,
 					   &mon_fops_stat);
 
 	return 1;
 
 err_print_s:
-	debugfs_remove(mbus->dent_u);
+	defs_remove(mbus->dent_u);
 	mbus->dent_u = NULL;
 err_print_u:
 	if (ubus != NULL) {
-		debugfs_remove(mbus->dent_t);
+		defs_remove(mbus->dent_t);
 		mbus->dent_t = NULL;
 	}
 err_print_t:
@@ -744,9 +744,9 @@ err_print_t:
 
 void mon_text_del(struct mon_bus *mbus)
 {
-	debugfs_remove(mbus->dent_u);
-	debugfs_remove(mbus->dent_t);
-	debugfs_remove(mbus->dent_s);
+	defs_remove(mbus->dent_u);
+	defs_remove(mbus->dent_t);
+	defs_remove(mbus->dent_s);
 }
 
 /*
@@ -763,11 +763,11 @@ static void mon_text_ctor(void *mem)
 
 int __init mon_text_init(void)
 {
-	mon_dir = debugfs_create_dir("usbmon", usb_debug_root);
+	mon_dir = defs_create_dir("usbmon", usb_de_root);
 	return 0;
 }
 
 void mon_text_exit(void)
 {
-	debugfs_remove(mon_dir);
+	defs_remove(mon_dir);
 }

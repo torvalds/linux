@@ -46,7 +46,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache, type, 2,
 			   XATTR_CREATE);
 	if (ret == 0) {
-		_debug("SET"); /* we succeeded */
+		_de("SET"); /* we succeeded */
 		goto error;
 	}
 
@@ -111,7 +111,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object,
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
-	_debug("SET #%u", auxdata->len);
+	_de("SET #%u", auxdata->len);
 
 	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
@@ -141,7 +141,7 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
-	_debug("SET #%u", auxdata->len);
+	_de("SET #%u", auxdata->len);
 
 	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
@@ -249,7 +249,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 
 		dlen = auxbuf->len - 1;
 
-		_debug("checkaux %s #%u",
+		_de("checkaux %s #%u",
 		       object->fscache.cookie->def->name, dlen);
 
 		result = fscache_check_aux(&object->fscache,
@@ -270,7 +270,7 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 			goto stale;
 
 		default:
-			BUG();
+			();
 		}
 
 		/* update the current label */

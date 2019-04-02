@@ -31,34 +31,34 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport_spi.h>
 
-#define NDEBUG_ARBITRATION	0x1
-#define NDEBUG_AUTOSENSE	0x2
-#define NDEBUG_DMA		0x4
-#define NDEBUG_HANDSHAKE	0x8
-#define NDEBUG_INFORMATION	0x10
-#define NDEBUG_INIT		0x20
-#define NDEBUG_INTR		0x40
-#define NDEBUG_LINKED		0x80
-#define NDEBUG_MAIN		0x100
-#define NDEBUG_NO_DATAOUT	0x200
-#define NDEBUG_NO_WRITE		0x400
-#define NDEBUG_PIO		0x800
-#define NDEBUG_PSEUDO_DMA	0x1000
-#define NDEBUG_QUEUES		0x2000
-#define NDEBUG_RESELECTION	0x4000
-#define NDEBUG_SELECTION	0x8000
-#define NDEBUG_USLEEP		0x10000
-#define NDEBUG_LAST_BYTE_SENT	0x20000
-#define NDEBUG_RESTART_SELECT	0x40000
-#define NDEBUG_EXTENDED		0x80000
-#define NDEBUG_C400_PREAD	0x100000
-#define NDEBUG_C400_PWRITE	0x200000
-#define NDEBUG_LISTS		0x400000
-#define NDEBUG_ABORT		0x800000
-#define NDEBUG_TAGS		0x1000000
-#define NDEBUG_MERGING		0x2000000
+#define NDE_ARBITRATION	0x1
+#define NDE_AUTOSENSE	0x2
+#define NDE_DMA		0x4
+#define NDE_HANDSHAKE	0x8
+#define NDE_INFORMATION	0x10
+#define NDE_INIT		0x20
+#define NDE_INTR		0x40
+#define NDE_LINKED		0x80
+#define NDE_MAIN		0x100
+#define NDE_NO_DATAOUT	0x200
+#define NDE_NO_WRITE		0x400
+#define NDE_PIO		0x800
+#define NDE_PSEUDO_DMA	0x1000
+#define NDE_QUEUES		0x2000
+#define NDE_RESELECTION	0x4000
+#define NDE_SELECTION	0x8000
+#define NDE_USLEEP		0x10000
+#define NDE_LAST_BYTE_SENT	0x20000
+#define NDE_RESTART_SELECT	0x40000
+#define NDE_EXTENDED		0x80000
+#define NDE_C400_PREAD	0x100000
+#define NDE_C400_PWRITE	0x200000
+#define NDE_LISTS		0x400000
+#define NDE_ABORT		0x800000
+#define NDE_TAGS		0x1000000
+#define NDE_MERGING		0x2000000
 
-#define NDEBUG_ANY		0xFFFFFFFFUL
+#define NDE_ANY		0xFFFFFFFFUL
 
 /* 
  * The contents of the OUTPUT DATA register are asserted on the bus when
@@ -242,24 +242,24 @@ static inline struct scsi_cmnd *NCR5380_to_scmd(struct NCR5380_cmd *ncmd_ptr)
 	return ((struct scsi_cmnd *)ncmd_ptr) - 1;
 }
 
-#ifndef NDEBUG
-#define NDEBUG (0)
+#ifndef NDE
+#define NDE (0)
 #endif
 
 #define dprintk(flg, fmt, ...) \
-	do { if ((NDEBUG) & (flg)) \
-		printk(KERN_DEBUG fmt, ## __VA_ARGS__); } while (0)
+	do { if ((NDE) & (flg)) \
+		printk(KERN_DE fmt, ## __VA_ARGS__); } while (0)
 
 #define dsprintk(flg, host, fmt, ...) \
-	do { if ((NDEBUG) & (flg)) \
-		shost_printk(KERN_DEBUG, host, fmt, ## __VA_ARGS__); \
+	do { if ((NDE) & (flg)) \
+		shost_printk(KERN_DE, host, fmt, ## __VA_ARGS__); \
 	} while (0)
 
-#if NDEBUG
+#if NDE
 #define NCR5380_dprint(flg, arg) \
-	do { if ((NDEBUG) & (flg)) NCR5380_print(arg); } while (0)
+	do { if ((NDE) & (flg)) NCR5380_print(arg); } while (0)
 #define NCR5380_dprint_phase(flg, arg) \
-	do { if ((NDEBUG) & (flg)) NCR5380_print_phase(arg); } while (0)
+	do { if ((NDE) & (flg)) NCR5380_print_phase(arg); } while (0)
 static void NCR5380_print_phase(struct Scsi_Host *instance);
 static void NCR5380_print(struct Scsi_Host *instance);
 #else

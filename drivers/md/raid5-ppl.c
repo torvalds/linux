@@ -171,7 +171,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct async_submit_ctl submit;
 
-	pr_debug("%s: stripe %llu\n", __func__, (unsigned long long)sh->sector);
+	pr_de("%s: stripe %llu\n", __func__, (unsigned long long)sh->sector);
 
 	/*
 	 * Partial parity is the XOR of stripe data chunks that are not changed
@@ -281,12 +281,12 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 	int data_disks = 0;
 	struct r5conf *conf = sh->raid_conf;
 
-	pr_debug("%s: stripe: %llu\n", __func__, (unsigned long long)sh->sector);
+	pr_de("%s: stripe: %llu\n", __func__, (unsigned long long)sh->sector);
 
 	/* check if current io_unit is full */
 	if (io && (io->pp_size == log->entry_space ||
 		   io->entries_count == PPL_HDR_MAX_ENTRIES)) {
-		pr_debug("%s: add io_unit blocked by seq: %llu\n",
+		pr_de("%s: add io_unit blocked by seq: %llu\n",
 			 __func__, io->seq);
 		io = NULL;
 	}
@@ -312,9 +312,9 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 			data_disks++;
 		}
 	}
-	BUG_ON(!data_disks);
+	_ON(!data_disks);
 
-	pr_debug("%s: seq: %llu data_sector: %llu data_disks: %d\n", __func__,
+	pr_de("%s: seq: %llu data_sector: %llu data_disks: %d\n", __func__,
 		 io->seq, (unsigned long long)data_sector, data_disks);
 
 	pplhdr = page_address(io->header_page);
@@ -409,7 +409,7 @@ static void ppl_log_endio(struct bio *bio)
 	struct ppl_conf *ppl_conf = log->ppl_conf;
 	struct stripe_head *sh, *next;
 
-	pr_debug("%s: seq: %llu\n", __func__, io->seq);
+	pr_de("%s: seq: %llu\n", __func__, io->seq);
 
 	if (bio->bi_status)
 		md_error(ppl_conf->mddev, log->rdev);
@@ -426,7 +426,7 @@ static void ppl_submit_iounit_bio(struct ppl_io_unit *io, struct bio *bio)
 {
 	char b[BDEVNAME_SIZE];
 
-	pr_debug("%s: seq: %llu size: %u sector: %llu dev: %s\n",
+	pr_de("%s: seq: %llu size: %u sector: %llu dev: %s\n",
 		 __func__, io->seq, bio->bi_iter.bi_size,
 		 (unsigned long long)bio->bi_iter.bi_sector,
 		 bio_devname(bio, b));
@@ -453,7 +453,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	for (i = 0; i < io->entries_count; i++) {
 		struct ppl_header_entry *e = &pplhdr->entries[i];
 
-		pr_debug("%s: seq: %llu entry: %d data_sector: %llu pp_size: %u data_size: %u\n",
+		pr_de("%s: seq: %llu entry: %d data_sector: %llu pp_size: %u data_size: %u\n",
 			 __func__, io->seq, i, le64_to_cpu(e->data_sector),
 			 le32_to_cpu(e->pp_size), le32_to_cpu(e->data_size));
 
@@ -479,7 +479,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
 	bio->bi_write_hint = ppl_conf->write_hint;
 
-	pr_debug("%s: log->current_io_sector: %llu\n", __func__,
+	pr_de("%s: log->current_io_sector: %llu\n", __func__,
 	    (unsigned long long)log->next_io_sector);
 
 	if (log->use_multippl)
@@ -565,7 +565,7 @@ static void ppl_io_unit_finished(struct ppl_io_unit *io)
 	struct r5conf *conf = ppl_conf->mddev->private;
 	unsigned long flags;
 
-	pr_debug("%s: seq: %llu\n", __func__, io->seq);
+	pr_de("%s: seq: %llu\n", __func__, io->seq);
 
 	local_irq_save(flags);
 
@@ -600,7 +600,7 @@ static void ppl_flush_endio(struct bio *bio)
 	struct r5conf *conf = ppl_conf->mddev->private;
 	char b[BDEVNAME_SIZE];
 
-	pr_debug("%s: dev: %s\n", __func__, bio_devname(bio, b));
+	pr_de("%s: dev: %s\n", __func__, bio_devname(bio, b));
 
 	if (bio->bi_status) {
 		struct md_rdev *rdev;
@@ -651,7 +651,7 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 			bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 			bio->bi_end_io = ppl_flush_endio;
 
-			pr_debug("%s: dev: %s\n", __func__,
+			pr_de("%s: dev: %s\n", __func__,
 				 bio_devname(bio, b));
 
 			submit_bio(bio);
@@ -846,7 +846,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 		r_sector_last = r_sector_first + (data_size >> 9);
 	}
 
-	pr_debug("%s: array sector first: %llu last: %llu\n", __func__,
+	pr_de("%s: array sector first: %llu last: %llu\n", __func__,
 		 (unsigned long long)r_sector_first,
 		 (unsigned long long)r_sector_last);
 
@@ -865,7 +865,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 		int disk;
 		int indent = 0;
 
-		pr_debug("%s:%*s iter %d start\n", __func__, indent, "", i);
+		pr_de("%s:%*s iter %d start\n", __func__, indent, "", i);
 		indent += 2;
 
 		memset(page_address(page1), 0, PAGE_SIZE);
@@ -878,12 +878,12 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 			sector_t r_sector = r_sector_first + i +
 					    (disk * conf->chunk_sectors);
 
-			pr_debug("%s:%*s data member disk %d start\n",
+			pr_de("%s:%*s data member disk %d start\n",
 				 __func__, indent, "", disk);
 			indent += 2;
 
 			if (r_sector >= r_sector_last) {
-				pr_debug("%s:%*s array sector %llu doesn't need parity update\n",
+				pr_de("%s:%*s array sector %llu doesn't need parity update\n",
 					 __func__, indent, "",
 					 (unsigned long long)r_sector);
 				indent -= 2;
@@ -895,7 +895,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 			/* map raid sector to member disk */
 			sector = raid5_compute_sector(conf, r_sector, 0,
 						      &dd_idx, NULL);
-			pr_debug("%s:%*s processing array sector %llu => data member disk %d, sector %llu\n",
+			pr_de("%s:%*s processing array sector %llu => data member disk %d, sector %llu\n",
 				 __func__, indent, "",
 				 (unsigned long long)r_sector, dd_idx,
 				 (unsigned long long)sector);
@@ -903,19 +903,19 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 			rdev = conf->disks[dd_idx].rdev;
 			if (!rdev || (!test_bit(In_sync, &rdev->flags) &&
 				      sector >= rdev->recovery_offset)) {
-				pr_debug("%s:%*s data member disk %d missing\n",
+				pr_de("%s:%*s data member disk %d missing\n",
 					 __func__, indent, "", dd_idx);
 				update_parity = false;
 				break;
 			}
 
-			pr_debug("%s:%*s reading data member disk %s sector %llu\n",
+			pr_de("%s:%*s reading data member disk %s sector %llu\n",
 				 __func__, indent, "", bdevname(rdev->bdev, b),
 				 (unsigned long long)sector);
 			if (!sync_page_io(rdev, sector, block_size, page2,
 					REQ_OP_READ, 0, false)) {
 				md_error(mddev, rdev);
-				pr_debug("%s:%*s read failed!\n", __func__,
+				pr_de("%s:%*s read failed!\n", __func__,
 					 indent, "");
 				ret = -EIO;
 				goto out;
@@ -930,14 +930,14 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 			continue;
 
 		if (pp_size > 0) {
-			pr_debug("%s:%*s reading pp disk sector %llu\n",
+			pr_de("%s:%*s reading pp disk sector %llu\n",
 				 __func__, indent, "",
 				 (unsigned long long)(ppl_sector + i));
 			if (!sync_page_io(log->rdev,
 					ppl_sector - log->rdev->data_offset + i,
 					block_size, page2, REQ_OP_READ, 0,
 					false)) {
-				pr_debug("%s:%*s read failed!\n", __func__,
+				pr_de("%s:%*s read failed!\n", __func__,
 					 indent, "");
 				md_error(mddev, log->rdev);
 				ret = -EIO;
@@ -950,17 +950,17 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 		/* map raid sector to parity disk */
 		parity_sector = raid5_compute_sector(conf, r_sector_first + i,
 				0, &disk, &sh);
-		BUG_ON(sh.pd_idx != le32_to_cpu(e->parity_disk));
+		_ON(sh.pd_idx != le32_to_cpu(e->parity_disk));
 		parity_rdev = conf->disks[sh.pd_idx].rdev;
 
-		BUG_ON(parity_rdev->bdev->bd_dev != log->rdev->bdev->bd_dev);
-		pr_debug("%s:%*s write parity at sector %llu, disk %s\n",
+		_ON(parity_rdev->bdev->bd_dev != log->rdev->bdev->bd_dev);
+		pr_de("%s:%*s write parity at sector %llu, disk %s\n",
 			 __func__, indent, "",
 			 (unsigned long long)parity_sector,
 			 bdevname(parity_rdev->bdev, b));
 		if (!sync_page_io(parity_rdev, parity_sector, block_size,
 				page1, REQ_OP_WRITE, 0, false)) {
-			pr_debug("%s:%*s parity write error!\n", __func__,
+			pr_de("%s:%*s parity write error!\n", __func__,
 				 indent, "");
 			md_error(mddev, parity_rdev);
 			ret = -EIO;
@@ -999,7 +999,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 		int ppl_entry_sectors = pp_size >> 9;
 		u32 crc, crc_stored;
 
-		pr_debug("%s: disk: %d entry: %d ppl_sector: %llu pp_size: %u\n",
+		pr_de("%s: disk: %d entry: %d ppl_sector: %llu pp_size: %u\n",
 			 __func__, rdev->raid_disk, i,
 			 (unsigned long long)ppl_sector, pp_size);
 
@@ -1031,7 +1031,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 			 * match, but keep going and try to recover other
 			 * entries.
 			 */
-			pr_debug("%s: ppl entry crc does not match: stored: 0x%x calculated: 0x%x\n",
+			pr_de("%s: ppl entry crc does not match: stored: 0x%x calculated: 0x%x\n",
 				 __func__, crc_stored, crc);
 			ppl_conf->mismatch_count++;
 		} else {
@@ -1058,7 +1058,7 @@ static int ppl_write_empty_header(struct ppl_log *log)
 	struct md_rdev *rdev = log->rdev;
 	int ret = 0;
 
-	pr_debug("%s: disk: %d ppl_sector: %llu\n", __func__,
+	pr_de("%s: disk: %d ppl_sector: %llu\n", __func__,
 		 rdev->raid_disk, (unsigned long long)rdev->ppl.sector);
 
 	page = alloc_page(GFP_NOIO | __GFP_ZERO);
@@ -1096,7 +1096,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 	int ret = 0, i;
 	sector_t pplhdr_offset = 0, prev_pplhdr_offset = 0;
 
-	pr_debug("%s: disk: %d\n", __func__, rdev->raid_disk);
+	pr_de("%s: disk: %d\n", __func__, rdev->raid_disk);
 	/* read PPL headers, find the recent one */
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
@@ -1128,7 +1128,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 		crc = ~crc32c_le(~0, pplhdr, PAGE_SIZE);
 
 		if (crc_stored != crc) {
-			pr_debug("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x (offset: %llu)\n",
+			pr_de("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x (offset: %llu)\n",
 				 __func__, crc_stored, crc,
 				 (unsigned long long)pplhdr_offset);
 			pplhdr = prev_pplhdr;
@@ -1145,7 +1145,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 			 */
 			ppl_conf->signature = signature;
 		} else if (ppl_conf->signature != signature) {
-			pr_debug("%s: ppl header signature does not match: stored: 0x%x configured: 0x%x (offset: %llu)\n",
+			pr_de("%s: ppl header signature does not match: stored: 0x%x configured: 0x%x (offset: %llu)\n",
 				 __func__, signature, ppl_conf->signature,
 				 (unsigned long long)pplhdr_offset);
 			pplhdr = prev_pplhdr;
@@ -1179,7 +1179,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 	if (!pplhdr)
 		ppl_conf->mismatch_count++;
 	else
-		pr_debug("%s: latest PPL found at offset: %llu, with generation: %llu\n",
+		pr_de("%s: latest PPL found at offset: %llu, with generation: %llu\n",
 		    __func__, (unsigned long long)pplhdr_offset,
 		    le64_to_cpu(pplhdr->generation));
 
@@ -1194,7 +1194,7 @@ static int ppl_load_distributed(struct ppl_log *log)
 	__free_page(page);
 	__free_page(page2);
 
-	pr_debug("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
+	pr_de("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
 		 __func__, ret, ppl_conf->mismatch_count,
 		 ppl_conf->recovered_entries);
 	return ret;
@@ -1236,7 +1236,7 @@ static int ppl_load(struct ppl_conf *ppl_conf)
 		}
 	}
 
-	pr_debug("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
+	pr_de("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
 		 __func__, ret, ppl_conf->mismatch_count,
 		 ppl_conf->recovered_entries);
 	return ret;
@@ -1344,7 +1344,7 @@ int ppl_init_log(struct r5conf *conf)
 	int max_disks;
 	int i;
 
-	pr_debug("md/raid:%s: enabling distributed Partial Parity Log\n",
+	pr_de("md/raid:%s: enabling distributed Partial Parity Log\n",
 		 mdname(conf->mddev));
 
 	if (PAGE_SIZE != 4096)
@@ -1480,7 +1480,7 @@ int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
 	if (!rdev)
 		return -EINVAL;
 
-	pr_debug("%s: disk: %d operation: %s dev: %s\n",
+	pr_de("%s: disk: %d operation: %s dev: %s\n",
 		 __func__, rdev->raid_disk, add ? "add" : "remove",
 		 bdevname(rdev->bdev, b));
 

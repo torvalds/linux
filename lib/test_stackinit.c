@@ -102,7 +102,7 @@ static noinline __init int test_ ## name (void)			\
 	u8 sum = 0, i;						\
 								\
 	/* Notice when a new test is larger than expected. */	\
-	BUILD_BUG_ON(sizeof(zero) > MAX_VAR_SIZE);		\
+	BUILD__ON(sizeof(zero) > MAX_VAR_SIZE);		\
 								\
 	/* Fill clone type with zero for per-field init. */	\
 	memset(&zero, 0x00, sizeof(zero));			\

@@ -33,7 +33,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	if (snd_BUG_ON((subdevice_id & 0xfff0) != DARLA24))
+	if (snd__ON((subdevice_id & 0xfff0) != DARLA24))
 		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
@@ -154,7 +154,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 static int set_input_clock(struct echoaudio *chip, u16 clock)
 {
-	if (snd_BUG_ON(clock != ECHO_CLOCK_INTERNAL &&
+	if (snd__ON(clock != ECHO_CLOCK_INTERNAL &&
 		       clock != ECHO_CLOCK_ESYNC))
 		return -EINVAL;
 	chip->input_clock = clock;

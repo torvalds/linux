@@ -65,21 +65,21 @@
  */
 #include "i2400m-usb.h"
 #include <linux/wimax/i2400m.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 
 
 #define D_SUBMODULE usb
-#include "usb-debug-levels.h"
+#include "usb-de-levels.h"
 
-static char i2400mu_debug_params[128];
-module_param_string(debug, i2400mu_debug_params, sizeof(i2400mu_debug_params),
+static char i2400mu_de_params[128];
+module_param_string(de, i2400mu_de_params, sizeof(i2400mu_de_params),
 		    0644);
-MODULE_PARM_DESC(debug,
+MODULE_PARM_DESC(de,
 		 "String of space-separated NAME:VALUE pairs, where NAMEs "
-		 "are the different debug submodules and VALUE are the "
-		 "initial debug value to set.");
+		 "are the different de submodules and VALUE are the "
+		 "initial de value to set.");
 
 /* Our firmware file name */
 static const char *i2400mu_bus_fw_names_5x50[] = {
@@ -319,7 +319,7 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 		}
 	} else {
 		result = -EINVAL;	/* shut gcc up in certain arches */
-		BUG();
+		();
 	}
 	if (result < 0
 	    && result != -EINVAL	/* device is gone */
@@ -370,7 +370,7 @@ void i2400mu_netdev_setup(struct net_device *net_dev)
 
 
 /*
- * Debug levels control; see debug.h
+ * De levels control; see de.h
  */
 struct d_level D_LEVEL[] = {
 	D_SUBMODULE_DEFINE(usb),
@@ -382,51 +382,51 @@ struct d_level D_LEVEL[] = {
 size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 
 
-#define __debugfs_register(prefix, name, parent)			\
+#define __defs_register(prefix, name, parent)			\
 do {									\
-	result = d_level_register_debugfs(prefix, name, parent);	\
+	result = d_level_register_defs(prefix, name, parent);	\
 	if (result < 0)							\
 		goto error;						\
 } while (0)
 
 
 static
-int i2400mu_debugfs_add(struct i2400mu *i2400mu)
+int i2400mu_defs_add(struct i2400mu *i2400mu)
 {
 	int result;
 	struct device *dev = &i2400mu->usb_iface->dev;
-	struct dentry *dentry = i2400mu->i2400m.wimax_dev.debugfs_dentry;
+	struct dentry *dentry = i2400mu->i2400m.wimax_dev.defs_dentry;
 	struct dentry *fd;
 
-	dentry = debugfs_create_dir("i2400m-usb", dentry);
+	dentry = defs_create_dir("i2400m-usb", dentry);
 	result = PTR_ERR(dentry);
 	if (IS_ERR(dentry)) {
 		if (result == -ENODEV)
-			result = 0;	/* No debugfs support */
+			result = 0;	/* No defs support */
 		goto error;
 	}
-	i2400mu->debugfs_dentry = dentry;
-	__debugfs_register("dl_", usb, dentry);
-	__debugfs_register("dl_", fw, dentry);
-	__debugfs_register("dl_", notif, dentry);
-	__debugfs_register("dl_", rx, dentry);
-	__debugfs_register("dl_", tx, dentry);
+	i2400mu->defs_dentry = dentry;
+	__defs_register("dl_", usb, dentry);
+	__defs_register("dl_", fw, dentry);
+	__defs_register("dl_", notif, dentry);
+	__defs_register("dl_", rx, dentry);
+	__defs_register("dl_", tx, dentry);
 
 	/* Don't touch these if you don't know what you are doing */
-	fd = debugfs_create_u8("rx_size_auto_shrink", 0600, dentry,
+	fd = defs_create_u8("rx_size_auto_shrink", 0600, dentry,
 			       &i2400mu->rx_size_auto_shrink);
 	result = PTR_ERR(fd);
 	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
+		dev_err(dev, "Can't create defs entry "
 			"rx_size_auto_shrink: %d\n", result);
 		goto error;
 	}
 
-	fd = debugfs_create_size_t("rx_size", 0600, dentry,
+	fd = defs_create_size_t("rx_size", 0600, dentry,
 				   &i2400mu->rx_size);
 	result = PTR_ERR(fd);
 	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
+		dev_err(dev, "Can't create defs entry "
 			"rx_size: %d\n", result);
 		goto error;
 	}
@@ -434,7 +434,7 @@ int i2400mu_debugfs_add(struct i2400mu *i2400mu)
 	return 0;
 
 error:
-	debugfs_remove_recursive(i2400mu->debugfs_dentry);
+	defs_remove_recursive(i2400mu->defs_dentry);
 	return result;
 }
 
@@ -549,14 +549,14 @@ int i2400mu_probe(struct usb_interface *iface,
 		dev_err(dev, "cannot setup device: %d\n", result);
 		goto error_setup;
 	}
-	result = i2400mu_debugfs_add(i2400mu);
+	result = i2400mu_defs_add(i2400mu);
 	if (result < 0) {
-		dev_err(dev, "Can't register i2400mu's debugfs: %d\n", result);
-		goto error_debugfs_add;
+		dev_err(dev, "Can't register i2400mu's defs: %d\n", result);
+		goto error_defs_add;
 	}
 	return 0;
 
-error_debugfs_add:
+error_defs_add:
 	i2400m_release(i2400m);
 error_setup:
 	usb_set_intfdata(iface, NULL);
@@ -584,7 +584,7 @@ void i2400mu_disconnect(struct usb_interface *iface)
 
 	d_fnstart(3, dev, "(iface %p i2400m %p)\n", iface, i2400m);
 
-	debugfs_remove_recursive(i2400mu->debugfs_dentry);
+	defs_remove_recursive(i2400mu->defs_dentry);
 	i2400m_release(i2400m);
 	usb_set_intfdata(iface, NULL);
 	usb_put_dev(i2400mu->usb_dev);
@@ -799,8 +799,8 @@ struct usb_driver i2400mu_driver = {
 static
 int __init i2400mu_driver_init(void)
 {
-	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400mu_debug_params,
-		       "i2400m_usb.debug");
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400mu_de_params,
+		       "i2400m_usb.de");
 	return usb_register(&i2400mu_driver);
 }
 module_init(i2400mu_driver_init);

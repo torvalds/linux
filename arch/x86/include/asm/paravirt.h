@@ -12,7 +12,7 @@
 #include <asm/paravirt_types.h>
 
 #ifndef __ASSEMBLY__
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <asm/frame.h>
@@ -92,16 +92,16 @@ static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
 }
 
 /*
- * These special macros can be used to get or set a debugging register
+ * These special macros can be used to get or set a deging register
  */
-static inline unsigned long paravirt_get_debugreg(int reg)
+static inline unsigned long paravirt_get_dereg(int reg)
 {
-	return PVOP_CALL1(unsigned long, cpu.get_debugreg, reg);
+	return PVOP_CALL1(unsigned long, cpu.get_dereg, reg);
 }
-#define get_debugreg(var, reg) var = paravirt_get_debugreg(reg)
-static inline void set_debugreg(unsigned long val, int reg)
+#define get_dereg(var, reg) var = paravirt_get_dereg(reg)
+static inline void set_dereg(unsigned long val, int reg)
 {
-	PVOP_VCALL2(cpu.set_debugreg, reg, val);
+	PVOP_VCALL2(cpu.set_dereg, reg, val);
 }
 
 static inline unsigned long read_cr0(void)
@@ -921,7 +921,7 @@ extern void default_banner(void);
 		  ANNOTATE_RETPOLINE_SAFE;				\
 		  jmp PARA_INDIRECT(pv_ops+PV_CPU_usergs_sysret64);)
 
-#ifdef CONFIG_DEBUG_ENTRY
+#ifdef CONFIG_DE_ENTRY
 #define SAVE_FLAGS(clobbers)                                        \
 	PARA_SITE(PARA_PATCH(PV_IRQ_save_fl),			    \
 		  PV_SAVE_REGS(clobbers | CLBR_CALLEE_SAVE);        \

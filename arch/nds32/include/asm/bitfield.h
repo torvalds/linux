@@ -157,7 +157,7 @@
 #define PSW_offDT		7	/* Enable data address translation */
 #define PSW_offIME		8	/* Instruction Machine Error flag */
 #define PSW_offDME		9	/* Data Machine Error flag */
-#define PSW_offDEX		10	/* Debug Exception */
+#define PSW_offDEX		10	/* De Exception */
 #define PSW_offHSS		11	/* Hardware Single Stepping */
 #define PSW_offDRBE		12	/* Device Register Endian Mode */
 #define PSW_offAEN		13	/* Audio ISA special feature */
@@ -236,7 +236,7 @@
 #define ITYPE_offINST		4	/* Exception caused by insn fetch or data access */
 /* bit 5:15 reserved */
 #define ITYPE_offVECTOR		5	/* Vector */
-#define ITYPE_offSWID		16	/* SWID of debugging exception */
+#define ITYPE_offSWID		16	/* SWID of deging exception */
 /* bit 31:31 reserved */
 
 #define ITYPE_mskETYPE		( 0xF  << ITYPE_offETYPE )
@@ -267,7 +267,7 @@
 #define ENTRY_TLB_MISC			3
 #define ENTRY_TLB_VLPT_MISS		4
 #define ENTRY_MACHINE_ERROR		5
-#define ENTRY_DEBUG_RELATED		6
+#define ENTRY_DE_RELATED		6
 #define ENTRY_GENERAL_EXCPETION		7
 #define ENTRY_SYSCALL			8
 
@@ -290,7 +290,7 @@
 
 /* Kerenl reserves software ID */
 #define SWID_RAISE_INTERRUPT_LEVEL	0x1a	/* SWID_RAISE_INTERRUPT_LEVEL is used to
-						 * raise interrupt level for debug exception
+						 * raise interrupt level for de exception
 						 */
 
 /******************************************************************************
@@ -595,7 +595,7 @@
  * dr40: EDM_CFG (EDM Configuration Register)
  *****************************************************************************/
 #define EDM_CFG_offBC		0	/* Number of hardware breakpoint sets implemented */
-#define EDM_CFG_offDIMU		3	/* Debug Instruction Memory Unit exists */
+#define EDM_CFG_offDIMU		3	/* De Instruction Memory Unit exists */
 /* bit 4:15 reserved */
 #define EDM_CFG_offVER		16	/* EDM version */
 
@@ -608,7 +608,7 @@
  *****************************************************************************/
 #define EDMSW_offWV		0	/* Write Valid */
 #define EDMSW_offRV		1	/* Read Valid */
-#define EDMSW_offDE		2	/* Debug exception has occurred for this core */
+#define EDMSW_offDE		2	/* De exception has occurred for this core */
 /* bit 3:31 reserved */
 
 #define EDMSW_mskWV		( 0x1  << EDMSW_offWV )
@@ -620,7 +620,7 @@
  *****************************************************************************/
 /* bit 0:30 reserved */
 #define EDM_CTL_offV3_EDM_MODE	6	/* EDM compatibility control bit */
-#define EDM_CTL_offDEH_SEL	31	/* Controls where debug exception is directed to */
+#define EDM_CTL_offDEH_SEL	31	/* Controls where de exception is directed to */
 
 #define EDM_CTL_mskV3_EDM_MODE	( 0x1 << EDM_CTL_offV3_EDM_MODE )
 #define EDM_CTL_mskDEH_SEL	( 0x1 << EDM_CTL_offDEH_SEL )
@@ -641,10 +641,10 @@
 #define BPMTC_mskBPMTC		( 0xFFFF  << BPMTC_offBPMTC )
 
 /******************************************************************************
- * dr45: DIMBR (Debug Instruction Memory Base Register)
+ * dr45: DIMBR (De Instruction Memory Base Register)
  *****************************************************************************/
 /* bit 0:11 reserved */
-#define DIMBR_offDIMB		12	/* Base address of the Debug Instruction Memory (DIM) */
+#define DIMBR_offDIMB		12	/* Base address of the De Instruction Memory (DIM) */
 #define DIMBR_mskDIMB		( 0xFFFFF  << DIMBR_offDIMB )
 
 /******************************************************************************
@@ -656,7 +656,7 @@
 #define TECR_offHWINT		9	/* Corresponding interrupt is used as a trigger source */
 #define TECR_offEVIC		15	/* Enable HWINT as a trigger source in EVIC mode */
 #define TECR_offSYS		16	/* Enable SYSCALL instruction as a trigger source */
-#define TECR_offDBG		17	/* Enable debug exception as a trigger source */
+#define TECR_offDBG		17	/* Enable de exception as a trigger source */
 #define TECR_offMRE		18	/* Enable MMU related exception as a trigger source */
 #define TECR_offE		19	/* An exception is used as a trigger source */
 /* bit 20:30 reserved */

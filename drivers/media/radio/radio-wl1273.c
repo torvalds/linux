@@ -2014,7 +2014,7 @@ static int wl1273_fm_radio_probe(struct platform_device *pdev)
 	struct v4l2_ctrl *ctrl;
 	int r = 0;
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	if (!core) {
 		dev_err(&pdev->dev, "No platform data.\n");

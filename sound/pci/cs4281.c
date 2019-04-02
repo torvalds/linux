@@ -574,7 +574,7 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 	struct cs4281 *chip = ac97->private_data;
 	int count;
 	unsigned short result;
-	// FIXME: volatile is necessary in the following due to a bug of
+	// FIXME: volatile is necessary in the following due to a  of
 	// some gcc versions
 	volatile int ac97_num = ((volatile struct snd_ac97 *)ac97)->num;
 
@@ -769,13 +769,13 @@ static void snd_cs4281_mode(struct cs4281 *chip, struct cs4281_dma *dma,
 	if (!capture) {
 		if (dma->left_slot == chip->src_left_play_slot) {
 			unsigned int val = snd_cs4281_rate(runtime->rate, NULL);
-			snd_BUG_ON(dma->right_slot != chip->src_right_play_slot);
+			snd__ON(dma->right_slot != chip->src_right_play_slot);
 			snd_cs4281_pokeBA0(chip, BA0_DACSR, val);
 		}
 	} else {
 		if (dma->left_slot == chip->src_left_rec_slot) {
 			unsigned int val = snd_cs4281_rate(runtime->rate, NULL);
-			snd_BUG_ON(dma->right_slot != chip->src_right_rec_slot);
+			snd__ON(dma->right_slot != chip->src_right_rec_slot);
 			snd_cs4281_pokeBA0(chip, BA0_ADCSR, val);
 		}
 	}
@@ -1199,7 +1199,7 @@ static void snd_cs4281_gameport_trigger(struct gameport *gameport)
 {
 	struct cs4281 *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return;
 	snd_cs4281_pokeBA0(chip, BA0_JSPT, 0xff);
 }
@@ -1208,7 +1208,7 @@ static unsigned char snd_cs4281_gameport_read(struct gameport *gameport)
 {
 	struct cs4281 *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 	return snd_cs4281_peekBA0(chip, BA0_JSPT);
 }
@@ -1220,7 +1220,7 @@ static int snd_cs4281_gameport_cooked_read(struct gameport *gameport,
 	struct cs4281 *chip = gameport_get_port_data(gameport);
 	unsigned js1, js2, jst;
 	
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 
 	js1 = snd_cs4281_peekBA0(chip, BA0_JSC1);

@@ -38,7 +38,7 @@
 #define XHCI_EXT_CAPS_VIRT	4
 #define XHCI_EXT_CAPS_ROUTE	5
 /* IDs 6-9 reserved */
-#define XHCI_EXT_CAPS_DEBUG	10
+#define XHCI_EXT_CAPS_DE	10
 /* Vendor caps */
 #define XHCI_EXT_CAPS_VENDOR_INTEL	192
 /* USB Legacy Support Capability - section 7.1.1 */

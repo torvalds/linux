@@ -7,7 +7,7 @@
 //
 // This driver is based on max8998.c
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>

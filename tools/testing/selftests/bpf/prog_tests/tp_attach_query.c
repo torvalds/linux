@@ -14,7 +14,7 @@ void test_tp_attach_query(void)
 	char buf[256];
 
 	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
+		 "/sys/kernel/de/tracing/events/sched/sched_switch/id");
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		return;

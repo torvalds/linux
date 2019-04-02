@@ -29,7 +29,7 @@
  *             queue code, added module options, other fixes, Daniel Quinlan
  * 2002-03-15: Clean up for kernel merge <alan@redhat.com>
  *             Fixed multi open race, fixed memory checks, fixed resource
- *             allocation, fixed close/powerdown bug, switched to new init
+ *             allocation, fixed close/powerdown , switched to new init
  * 2005-01-18: Ported to 2.6 from 2.4.28, Rick Koch
  * 2005-02-05: Rewritten for the input layer, Vojtech Pavlik
  *

@@ -63,9 +63,9 @@ MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages [dvb]");
 
 static unsigned int dvb_buf_tscnt = 32;
 module_param(dvb_buf_tscnt, int, 0644);
@@ -74,8 +74,8 @@ MODULE_PARM_DESC(dvb_buf_tscnt, "DVB Buffer TS count [dvb]");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (debug >= level)						\
-		printk(KERN_DEBUG pr_fmt("%s: dvb:" fmt),		\
+	if (de >= level)						\
+		printk(KERN_DE pr_fmt("%s: dvb:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 

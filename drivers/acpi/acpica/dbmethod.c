@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbmethod - Debug commands for control methods
+ * Module Name: dbmethod - De commands for control methods
  *
  ******************************************************************************/
 
@@ -9,11 +9,11 @@
 #include "accommon.h"
 #include "acdispat.h"
 #include "acnamesp.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acparser.h"
 #include "acpredef.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbmethod")
 
 /* Local prototypes */

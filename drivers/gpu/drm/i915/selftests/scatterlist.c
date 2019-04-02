@@ -224,7 +224,7 @@ static int alloc_table(struct pfn_table *pt,
 		return alloc_error;
 
 	/* count should be less than 20 to prevent overflowing sg->length */
-	GEM_BUG_ON(overflows_type(count * PAGE_SIZE, sg->length));
+	GEM__ON(overflows_type(count * PAGE_SIZE, sg->length));
 
 	/* Construct a table where each scatterlist contains different number
 	 * of entries. The idea is to check that we can iterate the individual
@@ -248,9 +248,9 @@ static int alloc_table(struct pfn_table *pt,
 			sg = sg_next(sg);
 		sg_set_page(sg, pfn_to_page(pfn), npages * PAGE_SIZE, 0);
 
-		GEM_BUG_ON(page_to_pfn(sg_page(sg)) != pfn);
-		GEM_BUG_ON(sg->length != npages * PAGE_SIZE);
-		GEM_BUG_ON(sg->offset != 0);
+		GEM__ON(page_to_pfn(sg_page(sg)) != pfn);
+		GEM__ON(sg->length != npages * PAGE_SIZE);
+		GEM__ON(sg->offset != 0);
 
 		pfn += npages;
 	}

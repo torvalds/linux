@@ -68,7 +68,7 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 	unsigned int bytes_per_pixel;
 	struct hibmc_bo *bo = NULL;
 
-	DRM_DEBUG_DRIVER("surface width(%d), height(%d) and bpp(%d)\n",
+	DRM_DE_DRIVER("surface width(%d), height(%d) and bpp(%d)\n",
 			 sizes->surface_width, sizes->surface_height,
 			 sizes->surface_bpp);
 
@@ -218,7 +218,7 @@ int hibmc_fbdev_init(struct hibmc_drm_private *priv)
 	var = &hifbdev->helper.fbdev->var;
 	fix = &hifbdev->helper.fbdev->fix;
 
-	DRM_DEBUG_DRIVER("Member of info->var is :\n"
+	DRM_DE_DRIVER("Member of info->var is :\n"
 			 "xres=%d\n"
 			 "yres=%d\n"
 			 "xres_virtual=%d\n"
@@ -229,7 +229,7 @@ int hibmc_fbdev_init(struct hibmc_drm_private *priv)
 			 "...\n", var->xres, var->yres, var->xres_virtual,
 			 var->yres_virtual, var->xoffset, var->yoffset,
 			 var->bits_per_pixel);
-	DRM_DEBUG_DRIVER("Member of info->fix is :\n"
+	DRM_DE_DRIVER("Member of info->fix is :\n"
 			 "smem_start=%lx\n"
 			 "smem_len=%d\n"
 			 "type=%d\n"

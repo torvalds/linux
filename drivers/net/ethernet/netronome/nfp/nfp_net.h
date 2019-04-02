@@ -34,7 +34,7 @@
 #define nn_err(nn, fmt, args...)	nn_pr(nn, KERN_ERR, fmt, ## args)
 #define nn_warn(nn, fmt, args...)	nn_pr(nn, KERN_WARNING, fmt, ## args)
 #define nn_info(nn, fmt, args...)	nn_pr(nn, KERN_INFO, fmt, ## args)
-#define nn_dbg(nn, fmt, args...)	nn_pr(nn, KERN_DEBUG, fmt, ## args)
+#define nn_dbg(nn, fmt, args...)	nn_pr(nn, KERN_DE, fmt, ## args)
 
 #define nn_dp_warn(dp, fmt, args...)					\
 	({								\
@@ -544,7 +544,7 @@ struct nfp_net_dp {
  * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
  * @reconfig_sync_present:  Some thread is performing synchronous reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
- * @reconfig_in_progress_update:	Update FW is processing now (debug only)
+ * @reconfig_in_progress_update:	Update FW is processing now (de only)
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -557,7 +557,7 @@ struct nfp_net_dp {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
- * @debugfs_dir:	Device directory in debugfs
+ * @defs_dir:	Device directory in defs
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
  * @app:		APP handle if available
@@ -630,7 +630,7 @@ struct nfp_net {
 
 	struct nfp_net_tlv_caps tlv_caps;
 
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 
 	struct list_head vnic_list;
 
@@ -885,34 +885,34 @@ struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn);
 int nfp_net_ring_reconfig(struct nfp_net *nn, struct nfp_net_dp *new,
 			  struct netlink_ext_ack *extack);
 
-#ifdef CONFIG_NFP_DEBUG
-void nfp_net_debugfs_create(void);
-void nfp_net_debugfs_destroy(void);
-struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev);
-void nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir);
-void nfp_net_debugfs_dir_clean(struct dentry **dir);
+#ifdef CONFIG_NFP_DE
+void nfp_net_defs_create(void);
+void nfp_net_defs_destroy(void);
+struct dentry *nfp_net_defs_device_add(struct pci_dev *pdev);
+void nfp_net_defs_vnic_add(struct nfp_net *nn, struct dentry *ddir);
+void nfp_net_defs_dir_clean(struct dentry **dir);
 #else
-static inline void nfp_net_debugfs_create(void)
+static inline void nfp_net_defs_create(void)
 {
 }
 
-static inline void nfp_net_debugfs_destroy(void)
+static inline void nfp_net_defs_destroy(void)
 {
 }
 
-static inline struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
+static inline struct dentry *nfp_net_defs_device_add(struct pci_dev *pdev)
 {
 	return NULL;
 }
 
 static inline void
-nfp_net_debugfs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
+nfp_net_defs_vnic_add(struct nfp_net *nn, struct dentry *ddir)
 {
 }
 
-static inline void nfp_net_debugfs_dir_clean(struct dentry **dir)
+static inline void nfp_net_defs_dir_clean(struct dentry **dir)
 {
 }
-#endif /* CONFIG_NFP_DEBUG */
+#endif /* CONFIG_NFP_DE */
 
 #endif /* _NFP_NET_H_ */

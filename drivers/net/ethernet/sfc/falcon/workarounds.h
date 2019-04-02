@@ -12,7 +12,7 @@
 
 /*
  * Hardware workarounds.
- * Bug numbers are from Solarflare's Bugzilla.
+ *  numbers are from Solarflare's zilla.
  */
 
 #define EF4_WORKAROUND_FALCON_A(efx) (ef4_nic_rev(efx) <= EF4_REV_FALCON_A1)

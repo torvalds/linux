@@ -142,12 +142,12 @@ static bool setup_custom_float(
 		(1 << (format->exponenta_bits + 1)) - 1;
 
 	if (mantissa & ~mantissa_mask) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		mantissa = mantissa_mask;
 	}
 
 	if (exponenta & ~exponenta_mask) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		exponenta = exponenta_mask;
 	}
 

@@ -36,10 +36,10 @@
 #ifndef __ASSEMBLY__
 
 /*
- * Board ID data structure - pointer to this retrieved from Bug by head.S
+ * Board ID data structure - pointer to this retrieved from  by head.S
  *
- * BI_VME_BRDINFO is a 32 byte struct as returned by the Bug code on
- * Motorola VME boards.  Contains board number, Bug version, board
+ * BI_VME_BRDINFO is a 32 byte struct as returned by the  code on
+ * Motorola VME boards.  Contains board number,  version, board
  * configuration options, etc.
  *
  * Note, bytes 12 and 13 are board no in BCD (0162,0166,0167,0177,etc)

@@ -6,7 +6,7 @@
  * Special hack: we have to be careful, because no indirections are allowed here,
  * and paravirt_ops is a kind of one. As it will only run in baremetal anyway,
  * we just keep it from happening. (This list needs to be extended when new
- * paravirt and debugging variants are added.)
+ * paravirt and deging variants are added.)
  */
 #undef CONFIG_PARAVIRT
 #undef CONFIG_PARAVIRT_XXL
@@ -48,21 +48,21 @@ void __puthex(unsigned long value);
 
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 
-#define debug_putstr(__x)  __putstr(__x)
-#define debug_puthex(__x)  __puthex(__x)
-#define debug_putaddr(__x) { \
-		debug_putstr(#__x ": 0x"); \
-		debug_puthex((unsigned long)(__x)); \
-		debug_putstr("\n"); \
+#define de_putstr(__x)  __putstr(__x)
+#define de_puthex(__x)  __puthex(__x)
+#define de_putaddr(__x) { \
+		de_putstr(#__x ": 0x"); \
+		de_puthex((unsigned long)(__x)); \
+		de_putstr("\n"); \
 	}
 
 #else
 
-static inline void debug_putstr(const char *s)
+static inline void de_putstr(const char *s)
 { }
-static inline void debug_puthex(const char *s)
+static inline void de_puthex(const char *s)
 { }
-#define debug_putaddr(x) /* */
+#define de_putaddr(x) /* */
 
 #endif
 

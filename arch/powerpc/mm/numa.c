@@ -45,8 +45,8 @@ static int numa_enabled = 1;
 
 static char *cmdline __initdata;
 
-static int numa_debug;
-#define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
+static int numa_de;
+#define dbg(args...) if (numa_de) { printk(KERN_INFO args); }
 
 int numa_cpu_lookup_table[NR_CPUS];
 cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
@@ -646,7 +646,7 @@ static int __init parse_numa_properties(void)
 		int nid;
 
 		cpu = of_get_cpu_node(i, NULL);
-		BUG_ON(!cpu);
+		_ON(!cpu);
 		nid = of_node_to_nid_single(cpu);
 		of_node_put(cpu);
 
@@ -726,9 +726,9 @@ static void __init setup_nonnuma(void)
 	unsigned int nid = 0;
 	struct memblock_region *reg;
 
-	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	printk(KERN_DE "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
-	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
+	printk(KERN_DE "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
 	for_each_memblock(memory, reg) {
@@ -897,8 +897,8 @@ static int __init early_numa(char *p)
 	if (strstr(p, "off"))
 		numa_enabled = 0;
 
-	if (strstr(p, "debug"))
-		numa_debug = 1;
+	if (strstr(p, "de"))
+		numa_de = 1;
 
 	p = strstr(p, "fake=");
 	if (p)
@@ -1108,7 +1108,7 @@ static void setup_cpu_associativity_change_counters(void)
 	int cpu;
 
 	/* The VPHN feature supports a maximum of 8 reference points */
-	BUILD_BUG_ON(MAX_DISTANCE_REF_POINTS > 8);
+	BUILD__ON(MAX_DISTANCE_REF_POINTS > 8);
 
 	for_each_possible_cpu(cpu) {
 		int i;
@@ -1235,7 +1235,7 @@ int find_and_online_cpu_nid(int cpu)
 #endif
 	}
 
-	pr_debug("%s:%d cpu %d nid %d\n", __FUNCTION__, __LINE__,
+	pr_de("%s:%d cpu %d nid %d\n", __FUNCTION__, __LINE__,
 		cpu, new_nid);
 	return new_nid;
 }
@@ -1371,10 +1371,10 @@ int numa_update_cpu_topology(bool cpus_locked)
 	if (i)
 		updates[i-1].next = NULL;
 
-	pr_debug("Topology update for the following CPUs:\n");
+	pr_de("Topology update for the following CPUs:\n");
 	if (cpumask_weight(&updated_cpus)) {
 		for (ud = &updates[0]; ud; ud = ud->next) {
-			pr_debug("cpu %d moving from node %d "
+			pr_de("cpu %d moving from node %d "
 					  "to %d\n", ud->cpu,
 					  ud->old_nid, ud->new_nid);
 		}

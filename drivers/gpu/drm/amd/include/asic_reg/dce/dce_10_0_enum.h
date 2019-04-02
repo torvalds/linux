@@ -130,28 +130,28 @@ typedef enum DCIO_DC_REF_CLK_CNTL_GENLK_CLK_OUTPUT_SEL {
 	DCIO_GENLK_CLK_OUTPUT_SEL_PPLL2                  = 0x2,
 	DCIO_GENLK_CLK_OUTPUT_SEL_RESERVED_VALUE3        = 0x3,
 } DCIO_DC_REF_CLK_CNTL_GENLK_CLK_OUTPUT_SEL;
-typedef enum DCIO_DC_GPIO_VIP_DEBUG {
-	DCIO_DC_GPIO_VIP_DEBUG_NORMAL                    = 0x0,
-	DCIO_DC_GPIO_VIP_DEBUG_CG_BIG                    = 0x1,
-} DCIO_DC_GPIO_VIP_DEBUG;
-typedef enum DCIO_DC_GPIO_MACRO_DEBUG {
-	DCIO_DC_GPIO_MACRO_DEBUG_NORMAL                  = 0x0,
-	DCIO_DC_GPIO_MACRO_DEBUG_CHIP_BIF                = 0x1,
-	DCIO_DC_GPIO_MACRO_DEBUG_RESERVED_VALUE2         = 0x2,
-	DCIO_DC_GPIO_MACRO_DEBUG_RESERVED_VALUE3         = 0x3,
-} DCIO_DC_GPIO_MACRO_DEBUG;
-typedef enum DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL {
-	DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL_NORMAL       = 0x0,
-	DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL_SWAP         = 0x1,
-} DCIO_DC_GPIO_CHIP_DEBUG_OUT_PIN_SEL;
-typedef enum DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN {
-	DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN_BYPASS            = 0x0,
-	DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN_ENABLE            = 0x1,
-} DCIO_DC_GPIO_DEBUG_BUS_FLOP_EN;
-typedef enum DCIO_DC_GPIO_DEBUG_DPRX_LOOPBACK_ENABLE {
+typedef enum DCIO_DC_GPIO_VIP_DE {
+	DCIO_DC_GPIO_VIP_DE_NORMAL                    = 0x0,
+	DCIO_DC_GPIO_VIP_DE_CG_BIG                    = 0x1,
+} DCIO_DC_GPIO_VIP_DE;
+typedef enum DCIO_DC_GPIO_MACRO_DE {
+	DCIO_DC_GPIO_MACRO_DE_NORMAL                  = 0x0,
+	DCIO_DC_GPIO_MACRO_DE_CHIP_BIF                = 0x1,
+	DCIO_DC_GPIO_MACRO_DE_RESERVED_VALUE2         = 0x2,
+	DCIO_DC_GPIO_MACRO_DE_RESERVED_VALUE3         = 0x3,
+} DCIO_DC_GPIO_MACRO_DE;
+typedef enum DCIO_DC_GPIO_CHIP_DE_OUT_PIN_SEL {
+	DCIO_DC_GPIO_CHIP_DE_OUT_PIN_SEL_NORMAL       = 0x0,
+	DCIO_DC_GPIO_CHIP_DE_OUT_PIN_SEL_SWAP         = 0x1,
+} DCIO_DC_GPIO_CHIP_DE_OUT_PIN_SEL;
+typedef enum DCIO_DC_GPIO_DE_BUS_FLOP_EN {
+	DCIO_DC_GPIO_DE_BUS_FLOP_EN_BYPASS            = 0x0,
+	DCIO_DC_GPIO_DE_BUS_FLOP_EN_ENABLE            = 0x1,
+} DCIO_DC_GPIO_DE_BUS_FLOP_EN;
+typedef enum DCIO_DC_GPIO_DE_DPRX_LOOPBACK_ENABLE {
 	DCIO_DPRX_LOOPBACK_ENABLE_NORMAL                 = 0x0,
 	DCIO_DPRX_LOOPBACK_ENABLE_LOOP                   = 0x1,
-} DCIO_DC_GPIO_DEBUG_DPRX_LOOPBACK_ENABLE;
+} DCIO_DC_GPIO_DE_DPRX_LOOPBACK_ENABLE;
 typedef enum DCIO_UNIPHY_LINK_CNTL_MINIMUM_PIXVLD_LOW_DURATION {
 	DCIO_UNIPHY_MINIMUM_PIXVLD_LOW_DURATION_3_CLOCKS = 0x0,
 	DCIO_UNIPHY_MINIMUM_PIXVLD_LOW_DURATION_7_CLOCKS = 0x1,
@@ -232,9 +232,9 @@ typedef enum DCIO_BL_PWM_CNTL_BL_PWM_EN {
 } DCIO_BL_PWM_CNTL_BL_PWM_EN;
 typedef enum DCIO_BL_PWM_CNTL2_DBG_BL_PWM_INPUT_REFCLK_SELECT {
 	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_NORMAL       = 0x0,
-	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DEBUG1       = 0x1,
-	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DEBUG2       = 0x2,
-	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DEBUG3       = 0x3,
+	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DE1       = 0x1,
+	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DE2       = 0x2,
+	DCIO_DBG_BL_PWM_INPUT_REFCLK_SELECT_DE3       = 0x3,
 } DCIO_BL_PWM_CNTL2_DBG_BL_PWM_INPUT_REFCLK_SELECT;
 typedef enum DCIO_BL_PWM_CNTL2_BL_PWM_OVERRIDE_BL_OUT_ENABLE {
 	DCIO_BL_PWM_OVERRIDE_BL_OUT_DISABLE              = 0x0,
@@ -703,7 +703,7 @@ typedef enum NumLowerPipes {
 	ADDR_CONFIG_1_LOWER_PIPES                        = 0x0,
 	ADDR_CONFIG_2_LOWER_PIPES                        = 0x1,
 } NumLowerPipes;
-typedef enum DebugBlockId {
+typedef enum DeBlockId {
 	DBG_CLIENT_BLKID_RESERVED                        = 0x0,
 	DBG_CLIENT_BLKID_dbg                             = 0x1,
 	DBG_CLIENT_BLKID_scf2                            = 0x2,
@@ -862,8 +862,8 @@ typedef enum DebugBlockId {
 	DBG_CLIENT_BLKID_dcfe05_0                        = 0x9b,
 	DBG_CLIENT_BLKID_dcfe06_0                        = 0x9c,
 	DBG_CLIENT_BLKID_RESERVED_LAST                   = 0x9d,
-} DebugBlockId;
-typedef enum DebugBlockId_OLD {
+} DeBlockId;
+typedef enum DeBlockId_OLD {
 	DBG_BLOCK_ID_RESERVED                            = 0x0,
 	DBG_BLOCK_ID_DBG                                 = 0x1,
 	DBG_BLOCK_ID_VMC                                 = 0x2,
@@ -1096,8 +1096,8 @@ typedef enum DebugBlockId_OLD {
 	DBG_BLOCK_ID_MCD5                                = 0xe5,
 	DBG_BLOCK_ID_UNUSED51                            = 0xe6,
 	DBG_BLOCK_ID_UNUSED52                            = 0xe7,
-} DebugBlockId_OLD;
-typedef enum DebugBlockId_BY2 {
+} DeBlockId_OLD;
+typedef enum DeBlockId_BY2 {
 	DBG_BLOCK_ID_RESERVED_BY2                        = 0x0,
 	DBG_BLOCK_ID_VMC_BY2                             = 0x1,
 	DBG_BLOCK_ID_CG_BY2                              = 0x2,
@@ -1214,8 +1214,8 @@ typedef enum DebugBlockId_BY2 {
 	DBG_BLOCK_ID_MCD2_BY2                            = 0x71,
 	DBG_BLOCK_ID_MCD4_BY2                            = 0x72,
 	DBG_BLOCK_ID_UNUSED51_BY2                        = 0x73,
-} DebugBlockId_BY2;
-typedef enum DebugBlockId_BY4 {
+} DeBlockId_BY2;
+typedef enum DeBlockId_BY4 {
 	DBG_BLOCK_ID_RESERVED_BY4                        = 0x0,
 	DBG_BLOCK_ID_CG_BY4                              = 0x1,
 	DBG_BLOCK_ID_CSC_BY4                             = 0x2,
@@ -1274,8 +1274,8 @@ typedef enum DebugBlockId_BY4 {
 	DBG_BLOCK_ID_UNUSED47_BY4                        = 0x37,
 	DBG_BLOCK_ID_MCD0_BY4                            = 0x38,
 	DBG_BLOCK_ID_MCD4_BY4                            = 0x39,
-} DebugBlockId_BY4;
-typedef enum DebugBlockId_BY8 {
+} DeBlockId_BY4;
+typedef enum DeBlockId_BY8 {
 	DBG_BLOCK_ID_RESERVED_BY8                        = 0x0,
 	DBG_BLOCK_ID_CSC_BY8                             = 0x1,
 	DBG_BLOCK_ID_DMA0_BY8                            = 0x2,
@@ -1305,8 +1305,8 @@ typedef enum DebugBlockId_BY8 {
 	DBG_BLOCK_ID_TD10_BY8                            = 0x1a,
 	DBG_BLOCK_ID_TD18_BY8                            = 0x1b,
 	DBG_BLOCK_ID_MCD0_BY8                            = 0x1c,
-} DebugBlockId_BY8;
-typedef enum DebugBlockId_BY16 {
+} DeBlockId_BY8;
+typedef enum DeBlockId_BY16 {
 	DBG_BLOCK_ID_RESERVED_BY16                       = 0x0,
 	DBG_BLOCK_ID_DMA0_BY16                           = 0x1,
 	DBG_BLOCK_ID_VGT0_BY16                           = 0x2,
@@ -1322,7 +1322,7 @@ typedef enum DebugBlockId_BY16 {
 	DBG_BLOCK_ID_TD00_BY16                           = 0xc,
 	DBG_BLOCK_ID_TD10_BY16                           = 0xd,
 	DBG_BLOCK_ID_MCD0_BY16                           = 0xe,
-} DebugBlockId_BY16;
+} DeBlockId_BY16;
 typedef enum ColorTransform {
 	DCC_CT_AUTO                                      = 0x0,
 	DCC_CT_NONE                                      = 0x1,

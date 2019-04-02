@@ -115,7 +115,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 	flags = le16_to_cpu(cmd->flags) & ICE_AQC_MAN_MAC_READ_M;
 
 	if (!(flags & ICE_AQC_MAN_MAC_LAN_ADDR_VALID)) {
-		ice_debug(hw, ICE_DBG_LAN, "got invalid MAC address\n");
+		ice_de(hw, ICE_DBG_LAN, "got invalid MAC address\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -377,7 +377,7 @@ static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
 		break;
 
 	default:
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "Flag programming for profile ID %d not supported\n",
 			  prof_id);
 	}
@@ -410,7 +410,7 @@ static void ice_init_flex_flds(struct ice_hw *hw, enum ice_rxdid prof_id)
 		break;
 
 	default:
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "Field init for profile ID %d not supported\n",
 			  prof_id);
 	}
@@ -634,10 +634,10 @@ out:
  */
 void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
 {
-	ice_debug(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg Start ]\n");
-	ice_debug_array(hw, ICE_DBG_AQ_MSG, 16, 1, (u8 *)buf,
+	ice_de(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg Start ]\n");
+	ice_de_array(hw, ICE_DBG_AQ_MSG, 16, 1, (u8 *)buf,
 			le16_to_cpu(desc->datalen));
-	ice_debug(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg End ]\n");
+	ice_de(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg End ]\n");
 }
 
 /**
@@ -665,7 +665,7 @@ static enum ice_status ice_get_itr_intrl_gran(struct ice_hw *hw)
 		hw->intrl_gran = ICE_INTRL_GRAN_MAX_25;
 		break;
 	default:
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "Failed to determine itr/intrl granularity\n");
 		return ICE_ERR_CFG;
 	}
@@ -708,7 +708,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	/* Enable FW logging. Not fatal if this fails. */
 	status = ice_cfg_fw_log(hw, true);
 	if (status)
-		ice_debug(hw, ICE_DBG_INIT, "Failed to enable FW logging.\n");
+		ice_de(hw, ICE_DBG_INIT, "Failed to enable FW logging.\n");
 
 	status = ice_clear_pf_cfg(hw);
 	if (status)
@@ -744,7 +744,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	/* Query the allocated resources for Tx scheduler */
 	status = ice_sched_query_res_alloc(hw);
 	if (status) {
-		ice_debug(hw, ICE_DBG_SCHED,
+		ice_de(hw, ICE_DBG_SCHED,
 			  "Failed to get scheduler allocated resources\n");
 		goto err_unroll_alloc;
 	}
@@ -774,7 +774,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	/* need a valid SW entry point to build a Tx tree */
 	if (!hw->sw_entry_point_layer) {
-		ice_debug(hw, ICE_DBG_SCHED, "invalid sw entry point\n");
+		ice_de(hw, ICE_DBG_SCHED, "invalid sw entry point\n");
 		status = ICE_ERR_CFG;
 		goto err_unroll_sched;
 	}
@@ -867,7 +867,7 @@ enum ice_status ice_check_reset(struct ice_hw *hw)
 	}
 
 	if (cnt == grst_delay) {
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "Global reset polling failed to complete.\n");
 		return ICE_ERR_RESET_FAILED;
 	}
@@ -879,7 +879,7 @@ enum ice_status ice_check_reset(struct ice_hw *hw)
 	for (cnt = 0; cnt < ICE_PF_RESET_WAIT_COUNT; cnt++) {
 		reg = rd32(hw, GLNVM_ULD) & ICE_RESET_DONE_MASK;
 		if (reg == ICE_RESET_DONE_MASK) {
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "Global reset processes done. %d\n", cnt);
 			break;
 		}
@@ -887,7 +887,7 @@ enum ice_status ice_check_reset(struct ice_hw *hw)
 	}
 
 	if (cnt == ICE_PF_RESET_WAIT_COUNT) {
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "Wait for Reset Done timed out. GLNVM_ULD = 0x%x\n",
 			  reg);
 		return ICE_ERR_RESET_FAILED;
@@ -935,7 +935,7 @@ static enum ice_status ice_pf_reset(struct ice_hw *hw)
 	}
 
 	if (cnt == ICE_PF_RESET_WAIT_COUNT) {
-		ice_debug(hw, ICE_DBG_INIT,
+		ice_de(hw, ICE_DBG_INIT,
 			  "PF reset polling failed to complete.\n");
 		return ICE_ERR_RESET_FAILED;
 	}
@@ -963,11 +963,11 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req)
 	case ICE_RESET_PFR:
 		return ice_pf_reset(hw);
 	case ICE_RESET_CORER:
-		ice_debug(hw, ICE_DBG_INIT, "CoreR requested\n");
+		ice_de(hw, ICE_DBG_INIT, "CoreR requested\n");
 		val = GLGEN_RTRIG_CORER_M;
 		break;
 	case ICE_RESET_GLOBR:
-		ice_debug(hw, ICE_DBG_INIT, "GlobalR requested\n");
+		ice_de(hw, ICE_DBG_INIT, "GlobalR requested\n");
 		val = GLGEN_RTRIG_GLOBR_M;
 		break;
 	default:
@@ -1006,7 +1006,7 @@ ice_copy_rxq_ctx_to_hw(struct ice_hw *hw, u8 *ice_rxq_ctx, u32 rxq_index)
 		wr32(hw, QRX_CONTEXT(i, rxq_index),
 		     *((u32 *)(ice_rxq_ctx + (i * sizeof(u32)))));
 
-		ice_debug(hw, ICE_DBG_QCTX, "qrxdata[%d]: %08X\n", i,
+		ice_de(hw, ICE_DBG_QCTX, "qrxdata[%d]: %08X\n", i,
 			  *((u32 *)(ice_rxq_ctx + (i * sizeof(u32)))));
 	}
 
@@ -1091,23 +1091,23 @@ const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 };
 
 /**
- * ice_debug_cq
+ * ice_de_cq
  * @hw: pointer to the hardware structure
- * @mask: debug mask
+ * @mask: de mask
  * @desc: pointer to control queue descriptor
  * @buf: pointer to command buffer
  * @buf_len: max length of buf
  *
- * Dumps debug log about control command with descriptor contents.
+ * Dumps de log about control command with descriptor contents.
  */
-void ice_debug_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc,
+void ice_de_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc,
 		  void *buf, u16 buf_len)
 {
 	struct ice_aq_desc *cq_desc = (struct ice_aq_desc *)desc;
 	u16 len;
 
-#ifndef CONFIG_DYNAMIC_DEBUG
-	if (!(mask & hw->debug_mask))
+#ifndef CONFIG_DYNAMIC_DE
+	if (!(mask & hw->de_mask))
 		return;
 #endif
 
@@ -1116,26 +1116,26 @@ void ice_debug_cq(struct ice_hw *hw, u32 __maybe_unused mask, void *desc,
 
 	len = le16_to_cpu(cq_desc->datalen);
 
-	ice_debug(hw, mask,
+	ice_de(hw, mask,
 		  "CQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
 		  le16_to_cpu(cq_desc->opcode),
 		  le16_to_cpu(cq_desc->flags),
 		  le16_to_cpu(cq_desc->datalen), le16_to_cpu(cq_desc->retval));
-	ice_debug(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
+	ice_de(hw, mask, "\tcookie (h,l) 0x%08X 0x%08X\n",
 		  le32_to_cpu(cq_desc->cookie_high),
 		  le32_to_cpu(cq_desc->cookie_low));
-	ice_debug(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
+	ice_de(hw, mask, "\tparam (0,1)  0x%08X 0x%08X\n",
 		  le32_to_cpu(cq_desc->params.generic.param0),
 		  le32_to_cpu(cq_desc->params.generic.param1));
-	ice_debug(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
+	ice_de(hw, mask, "\taddr (h,l)   0x%08X 0x%08X\n",
 		  le32_to_cpu(cq_desc->params.generic.addr_high),
 		  le32_to_cpu(cq_desc->params.generic.addr_low));
 	if (buf && cq_desc->datalen != 0) {
-		ice_debug(hw, mask, "Buffer:\n");
+		ice_de(hw, mask, "Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
 
-		ice_debug_array(hw, mask, 16, 1, (u8 *)buf, len);
+		ice_de_array(hw, mask, 16, 1, (u8 *)buf, len);
 	}
 }
 
@@ -1356,7 +1356,7 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		goto ice_acquire_res_exit;
 
 	if (status)
-		ice_debug(hw, ICE_DBG_RES,
+		ice_de(hw, ICE_DBG_RES,
 			  "resource %d acquire type %d failed.\n", res, access);
 
 	/* If necessary, poll until the current lock owner timeouts */
@@ -1375,15 +1375,15 @@ ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 			break;
 	}
 	if (status && status != ICE_ERR_AQ_NO_WORK)
-		ice_debug(hw, ICE_DBG_RES, "resource acquire timed out.\n");
+		ice_de(hw, ICE_DBG_RES, "resource acquire timed out.\n");
 
 ice_acquire_res_exit:
 	if (status == ICE_ERR_AQ_NO_WORK) {
 		if (access == ICE_RES_WRITE)
-			ice_debug(hw, ICE_DBG_RES,
+			ice_de(hw, ICE_DBG_RES,
 				  "resource indicates no work to do.\n");
 		else
-			ice_debug(hw, ICE_DBG_RES,
+			ice_de(hw, ICE_DBG_RES,
 				  "Warning: ICE_ERR_AQ_NO_WORK not expected\n");
 	}
 	return status;
@@ -1466,7 +1466,7 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		func_p = &hw->func_caps;
 		caps = &func_p->common_cap;
 	} else {
-		ice_debug(hw, ICE_DBG_INIT, "wrong opcode\n");
+		ice_de(hw, ICE_DBG_INIT, "wrong opcode\n");
 		return;
 	}
 
@@ -1479,28 +1479,28 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		switch (cap) {
 		case ICE_AQC_CAPS_VALID_FUNCTIONS:
 			caps->valid_functions = number;
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: Valid Functions = %d\n",
 				  caps->valid_functions);
 			break;
 		case ICE_AQC_CAPS_SRIOV:
 			caps->sr_iov_1_1 = (number == 1);
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: SR-IOV = %d\n", caps->sr_iov_1_1);
 			break;
 		case ICE_AQC_CAPS_VF:
 			if (dev_p) {
 				dev_p->num_vfs_exposed = number;
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: VFs exposed = %d\n",
 					  dev_p->num_vfs_exposed);
 			} else if (func_p) {
 				func_p->num_allocd_vfs = number;
 				func_p->vf_base_id = logical_id;
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: VFs allocated = %d\n",
 					  func_p->num_allocd_vfs);
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: VF base_id = %d\n",
 					  func_p->vf_base_id);
 			}
@@ -1508,12 +1508,12 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		case ICE_AQC_CAPS_VSI:
 			if (dev_p) {
 				dev_p->num_vsi_allocd_to_host = number;
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: Dev.VSI cnt = %d\n",
 					  dev_p->num_vsi_allocd_to_host);
 			} else if (func_p) {
 				func_p->guar_num_vsi = ice_get_guar_num_vsi(hw);
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: Func.VSI cnt = %d\n",
 					  number);
 			}
@@ -1521,54 +1521,54 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		case ICE_AQC_CAPS_RSS:
 			caps->rss_table_size = number;
 			caps->rss_table_entry_width = logical_id;
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: RSS table size = %d\n",
 				  caps->rss_table_size);
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: RSS table width = %d\n",
 				  caps->rss_table_entry_width);
 			break;
 		case ICE_AQC_CAPS_RXQS:
 			caps->num_rxq = number;
 			caps->rxq_first_id = phys_id;
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: Num Rx Qs = %d\n", caps->num_rxq);
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: Rx first queue ID = %d\n",
 				  caps->rxq_first_id);
 			break;
 		case ICE_AQC_CAPS_TXQS:
 			caps->num_txq = number;
 			caps->txq_first_id = phys_id;
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: Num Tx Qs = %d\n", caps->num_txq);
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: Tx first queue ID = %d\n",
 				  caps->txq_first_id);
 			break;
 		case ICE_AQC_CAPS_MSIX:
 			caps->num_msix_vectors = number;
 			caps->msix_vector_first_id = phys_id;
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: MSIX vector count = %d\n",
 				  caps->num_msix_vectors);
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: MSIX first vector index = %d\n",
 				  caps->msix_vector_first_id);
 			break;
 		case ICE_AQC_CAPS_MAX_MTU:
 			caps->max_mtu = number;
 			if (dev_p)
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: Dev.MaxMTU = %d\n",
 					  caps->max_mtu);
 			else if (func_p)
-				ice_debug(hw, ICE_DBG_INIT,
+				ice_de(hw, ICE_DBG_INIT,
 					  "HW caps: func.MaxMTU = %d\n",
 					  caps->max_mtu);
 			break;
 		default:
-			ice_debug(hw, ICE_DBG_INIT,
+			ice_de(hw, ICE_DBG_INIT,
 				  "HW caps: Unknown capability[%d]: 0x%x\n", i,
 				  cap);
 			break;
@@ -2096,7 +2096,7 @@ enum ice_status ice_get_link_status(struct ice_port_info *pi, bool *link_up)
 		status = ice_update_link_info(pi);
 
 		if (status)
-			ice_debug(pi->hw, ICE_DBG_LINK,
+			ice_de(pi->hw, ICE_DBG_LINK,
 				  "get link status error, status = %d\n",
 				  status);
 	}
@@ -2516,10 +2516,10 @@ do_aq:
 	status = ice_aq_send_cmd(hw, &desc, qg_list, buf_size, cd);
 	if (status) {
 		if (!qg_list)
-			ice_debug(hw, ICE_DBG_SCHED, "VM%d disable failed %d\n",
+			ice_de(hw, ICE_DBG_SCHED, "VM%d disable failed %d\n",
 				  vmvf_num, hw->adminq.sq_last_status);
 		else
-			ice_debug(hw, ICE_DBG_SCHED, "disable Q %d failed %d\n",
+			ice_de(hw, ICE_DBG_SCHED, "disable Q %d failed %d\n",
 				  le16_to_cpu(qg_list[0].q_id[0]),
 				  hw->adminq.sq_last_status);
 	}
@@ -2810,7 +2810,7 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_qgrps,
 	/* add the lan q */
 	status = ice_aq_add_lan_txq(hw, num_qgrps, buf, buf_size, cd);
 	if (status) {
-		ice_debug(hw, ICE_DBG_SCHED, "enable Q %d failed %d\n",
+		ice_de(hw, ICE_DBG_SCHED, "enable Q %d failed %d\n",
 			  le16_to_cpu(buf->txqs[0].txq_id),
 			  hw->adminq.sq_last_status);
 		goto ena_txq_exit;

@@ -202,7 +202,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 		}
 		dir_put_page(page);
 	}
-	BUG();
+	();
 	return -EINVAL;
 
 got_it:
@@ -236,7 +236,7 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct page *page)
 
 	lock_page(page);
 	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
-	BUG_ON(err);
+	_ON(err);
 	de->inode = 0;
 	err = dir_commit_chunk(page, pos, SYSV_DIRSIZE);
 	dir_put_page(page);
@@ -334,7 +334,7 @@ void sysv_set_link(struct sysv_dir_entry *de, struct page *page,
 
 	lock_page(page);
 	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
-	BUG_ON(err);
+	_ON(err);
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
 	err = dir_commit_chunk(page, pos, SYSV_DIRSIZE);
 	dir_put_page(page);

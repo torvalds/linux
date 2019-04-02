@@ -10,7 +10,7 @@
 #define _TRANSPORT_CLASS_H_
 
 #include <linux/device.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/attribute_container.h>
 
 struct transport_container;
@@ -90,7 +90,7 @@ static inline int transport_container_register(struct transport_container *tc)
 static inline void transport_container_unregister(struct transport_container *tc)
 {
 	if (unlikely(attribute_container_unregister(&tc->ac)))
-		BUG();
+		();
 }
 
 int transport_class_register(struct transport_class *);

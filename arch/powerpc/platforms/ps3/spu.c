@@ -136,11 +136,11 @@ static void _dump_areas(unsigned int spe_id, unsigned long priv2,
 	unsigned long problem, unsigned long ls, unsigned long shadow,
 	const char* func, int line)
 {
-	pr_debug("%s:%d: spe_id:  %xh (%u)\n", func, line, spe_id, spe_id);
-	pr_debug("%s:%d: priv2:   %lxh\n", func, line, priv2);
-	pr_debug("%s:%d: problem: %lxh\n", func, line, problem);
-	pr_debug("%s:%d: ls:      %lxh\n", func, line, ls);
-	pr_debug("%s:%d: shadow:  %lxh\n", func, line, shadow);
+	pr_de("%s:%d: spe_id:  %xh (%u)\n", func, line, spe_id, spe_id);
+	pr_de("%s:%d: priv2:   %lxh\n", func, line, priv2);
+	pr_de("%s:%d: problem: %lxh\n", func, line, problem);
+	pr_de("%s:%d: ls:      %lxh\n", func, line, ls);
+	pr_de("%s:%d: shadow:  %lxh\n", func, line, shadow);
 }
 
 u64 ps3_get_spe_id(void *arg)
@@ -176,7 +176,7 @@ static int __init construct_spu(struct spu *spu)
 	spu->local_store_phys = local_store_phys;
 
 	if (result) {
-		pr_debug("%s:%d: lv1_construct_logical_spe failed: %s\n",
+		pr_de("%s:%d: lv1_construct_logical_spe failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 		return result;
 	}
@@ -211,14 +211,14 @@ static int __init setup_areas(struct spu *spu)
 					   sizeof(struct spe_shadow),
 					   shadow_flags);
 	if (!spu_pdata(spu)->shadow) {
-		pr_debug("%s:%d: ioremap shadow failed\n", __func__, __LINE__);
+		pr_de("%s:%d: ioremap shadow failed\n", __func__, __LINE__);
 		goto fail_ioremap;
 	}
 
 	spu->local_store = (__force void *)ioremap_wc(spu->local_store_phys, LS_SIZE);
 
 	if (!spu->local_store) {
-		pr_debug("%s:%d: ioremap local_store failed\n",
+		pr_de("%s:%d: ioremap local_store failed\n",
 			__func__, __LINE__);
 		goto fail_ioremap;
 	}
@@ -227,7 +227,7 @@ static int __init setup_areas(struct spu *spu)
 		sizeof(struct spu_problem));
 
 	if (!spu->problem) {
-		pr_debug("%s:%d: ioremap problem failed\n", __func__, __LINE__);
+		pr_de("%s:%d: ioremap problem failed\n", __func__, __LINE__);
 		goto fail_ioremap;
 	}
 
@@ -235,7 +235,7 @@ static int __init setup_areas(struct spu *spu)
 		sizeof(struct spu_priv2));
 
 	if (!spu->priv2) {
-		pr_debug("%s:%d: ioremap priv2 failed\n", __func__, __LINE__);
+		pr_de("%s:%d: ioremap priv2 failed\n", __func__, __LINE__);
 		goto fail_ioremap;
 	}
 
@@ -295,7 +295,7 @@ static int __init enable_spu(struct spu *spu)
 		spu_pdata(spu)->resource_id);
 
 	if (result) {
-		pr_debug("%s:%d: lv1_enable_logical_spe failed: %s\n",
+		pr_de("%s:%d: lv1_enable_logical_spe failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 		goto fail_enable;
 	}
@@ -324,10 +324,10 @@ static int ps3_destroy_spu(struct spu *spu)
 {
 	int result;
 
-	pr_debug("%s:%d spu_%d\n", __func__, __LINE__, spu->number);
+	pr_de("%s:%d spu_%d\n", __func__, __LINE__, spu->number);
 
 	result = lv1_disable_logical_spe(spu_pdata(spu)->spe_id, 0);
-	BUG_ON(result);
+	_ON(result);
 
 	ps3_spe_irq_destroy(spu->irqs[2]);
 	ps3_spe_irq_destroy(spu->irqs[1]);
@@ -338,7 +338,7 @@ static int ps3_destroy_spu(struct spu *spu)
 	spu_unmap(spu);
 
 	result = lv1_destruct_logical_spe(spu_pdata(spu)->spe_id);
-	BUG_ON(result);
+	_ON(result);
 
 	kfree(spu->pdata);
 	spu->pdata = NULL;
@@ -350,7 +350,7 @@ static int __init ps3_create_spu(struct spu *spu, void *data)
 {
 	int result;
 
-	pr_debug("%s:%d spu_%d\n", __func__, __LINE__, spu->number);
+	pr_de("%s:%d spu_%d\n", __func__, __LINE__, spu->number);
 
 	spu->pdata = kzalloc(sizeof(struct spu_pdata),
 		GFP_KERNEL);
@@ -402,7 +402,7 @@ static int __init ps3_enumerate_spus(int (*fn)(void *data))
 
 	result = ps3_repository_read_num_spu_resource_id(&num_resource_id);
 
-	pr_debug("%s:%d: num_resource_id %u\n", __func__, __LINE__,
+	pr_de("%s:%d: num_resource_id %u\n", __func__, __LINE__,
 		num_resource_id);
 
 	/*
@@ -552,7 +552,7 @@ static void mfc_sr1_set(struct spu *spu, u64 sr1)
 	static const u64 allowed = ~(MFC_STATE1_LOCAL_STORAGE_DECODE_MASK
 		| MFC_STATE1_PROBLEM_STATE_MASK);
 
-	BUG_ON((sr1 & allowed) != (spu_pdata(spu)->cache.sr1 & allowed));
+	_ON((sr1 & allowed) != (spu_pdata(spu)->cache.sr1 & allowed));
 
 	spu_pdata(spu)->cache.sr1 = sr1;
 	lv1_set_spe_privilege_state_area_1_register(

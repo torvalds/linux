@@ -65,7 +65,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 
 	package = info->predefined + 1;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_NAMES,
 			  "%s Validating return Package of Type %X, Count %X\n",
 			  info->full_pathname, package->ret_info.type,
 			  return_object->package.count));
@@ -122,7 +122,7 @@ acpi_ns_check_package(struct acpi_evaluate_info *info,
 		if (count < expected_count) {
 			goto package_too_small;
 		} else if (count > expected_count) {
-			ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+			ACPI_DE_PRINT((ACPI_DB_REPAIR,
 					  "%s: Return Package is larger than needed - "
 					  "found %u, expected %u\n",
 					  info->full_pathname, count,
@@ -652,7 +652,7 @@ acpi_ns_custom_package(struct acpi_evaluate_info *info,
 				      count, expected_count));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	} else if (count > expected_count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+		ACPI_DE_PRINT((ACPI_DB_REPAIR,
 				  "%s: Return Package is larger than needed - "
 				  "found %u, expected %u\n",
 				  info->full_pathname, count, expected_count));

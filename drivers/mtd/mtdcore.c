@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/leds.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/nvmem-provider.h>
 
 #include <linux/mtd/mtd.h>
@@ -543,14 +543,14 @@ int add_mtd_device(struct mtd_info *mtd)
 	int i, error;
 
 	/*
-	 * May occur, for instance, on buggy drivers which call
+	 * May occur, for instance, on gy drivers which call
 	 * mtd_device_parse_register() multiple times on the same master MTD,
 	 * especially with CONFIG_MTD_PARTITIONED_MASTER=y.
 	 */
 	if (WARN_ONCE(mtd->dev.type, "MTD already registered\n"))
 		return -EEXIST;
 
-	BUG_ON(mtd->writesize == 0);
+	_ON(mtd->writesize == 0);
 
 	/*
 	 * MTD drivers should implement ->_{write,read}() or
@@ -622,9 +622,9 @@ int add_mtd_device(struct mtd_info *mtd)
 		goto fail_nvmem_add;
 
 	if (!IS_ERR_OR_NULL(dfs_dir_mtd)) {
-		mtd->dbg.dfs_dir = debugfs_create_dir(dev_name(&mtd->dev), dfs_dir_mtd);
+		mtd->dbg.dfs_dir = defs_create_dir(dev_name(&mtd->dev), dfs_dir_mtd);
 		if (IS_ERR_OR_NULL(mtd->dbg.dfs_dir)) {
-			pr_debug("mtd device %s won't show data in debugfs\n",
+			pr_de("mtd device %s won't show data in defs\n",
 				 dev_name(&mtd->dev));
 		}
 	}
@@ -632,7 +632,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	device_create(&mtd_class, mtd->dev.parent, MTD_DEVT(i) + 1, NULL,
 		      "mtd%dro", i);
 
-	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
+	pr_de("mtd: Giving out device %d to %s\n", i, mtd->name);
 	/* No need to get a refcount on the module containing
 	   the notifier, since we hold the mtd_table_mutex */
 	list_for_each_entry(not, &mtd_notifiers, list)
@@ -673,7 +673,7 @@ int del_mtd_device(struct mtd_info *mtd)
 
 	mutex_lock(&mtd_table_mutex);
 
-	debugfs_remove_recursive(mtd->dbg.dfs_dir);
+	defs_remove_recursive(mtd->dbg.dfs_dir);
 
 	if (idr_find(&mtd_idr, mtd->index) != mtd) {
 		ret = -ENODEV;
@@ -720,7 +720,7 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
 		if (!mtd->name)
 			mtd->name = dev_name(mtd->dev.parent);
 	} else {
-		pr_debug("mtd device won't show a device symlink in sysfs\n");
+		pr_de("mtd device won't show a device symlink in sysfs\n");
 	}
 
 	mtd->orig_flags = mtd->flags;
@@ -997,7 +997,7 @@ EXPORT_SYMBOL_GPL(put_mtd_device);
 void __put_mtd_device(struct mtd_info *mtd)
 {
 	--mtd->usecount;
-	BUG_ON(mtd->usecount < 0);
+	_ON(mtd->usecount < 0);
 
 	if (mtd->_put_device)
 		mtd->_put_device(mtd);
@@ -1921,7 +1921,7 @@ static int __init init_mtd(void)
 	if (ret)
 		goto out_procfs;
 
-	dfs_dir_mtd = debugfs_create_dir("mtd", NULL);
+	dfs_dir_mtd = defs_create_dir("mtd", NULL);
 
 	return 0;
 
@@ -1938,7 +1938,7 @@ err_reg:
 
 static void __exit cleanup_mtd(void)
 {
-	debugfs_remove_recursive(dfs_dir_mtd);
+	defs_remove_recursive(dfs_dir_mtd);
 	cleanup_mtdchar();
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);

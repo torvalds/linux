@@ -568,7 +568,7 @@ static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 		break;
 	case 0x6B:
 		if (superio_inb(SUPERIO_REG_DEVREV) & 0x80) {
-			pr_debug("Found SMSC LPC47M233, unsupported\n");
+			pr_de("Found SMSC LPC47M233, unsupported\n");
 			superio_exit();
 			return -ENODEV;
 		}

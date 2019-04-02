@@ -44,9 +44,9 @@ static LIST_HEAD(tape_device_list);
 static DEFINE_RWLOCK(tape_device_lock);
 
 /*
- * Pointer to debug area.
+ * Pointer to de area.
  */
-debug_info_t *TAPE_DBF_AREA = NULL;
+de_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
 /*
@@ -317,7 +317,7 @@ __tape_cancel_io(struct tape_device *device, struct tape_request *request)
 				DBF_EXCEPTION(2, "I/O error, retry\n");
 				break;
 			default:
-				BUG();
+				();
 		}
 	}
 
@@ -580,7 +580,7 @@ tape_put_device(struct tape_device *device)
 
 	count = atomic_dec_return(&device->ref_count);
 	DBF_EVENT(4, "tape_put_device(%p) -> %i\n", device, count);
-	BUG_ON(count < 0);
+	_ON(count < 0);
 	if (count == 0) {
 		kfree(device->modeset_byte);
 		kfree(device);
@@ -723,7 +723,7 @@ tape_alloc_request(int cplength, int datasize)
 {
 	struct tape_request *request;
 
-	BUG_ON(datasize > PAGE_SIZE || (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
+	_ON(datasize > PAGE_SIZE || (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	DBF_LH(6, "tape_alloc_request(%d, %d)\n", cplength, datasize);
 
@@ -874,7 +874,7 @@ static void tape_long_busy_timeout(struct timer_list *t)
 
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
 	request = list_entry(device->req_queue.next, struct tape_request, list);
-	BUG_ON(request->status != TAPE_REQUEST_LONG_BUSY);
+	_ON(request->status != TAPE_REQUEST_LONG_BUSY);
 	DBF_LH(6, "%08x: Long busy timeout.\n", device->cdev_id);
 	__tape_start_next_request(device);
 	tape_put_device(device);
@@ -1320,10 +1320,10 @@ tape_mtop(struct tape_device *device, int mt_op, int mt_count)
 static int
 tape_init (void)
 {
-	TAPE_DBF_AREA = debug_register ( "tape", 2, 2, 4*sizeof(long));
-	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
+	TAPE_DBF_AREA = de_register ( "tape", 2, 2, 4*sizeof(long));
+	de_register_view(TAPE_DBF_AREA, &de_sprintf_view);
 #ifdef DBF_LIKE_HELL
-	debug_set_level(TAPE_DBF_AREA, 6);
+	de_set_level(TAPE_DBF_AREA, 6);
 #endif
 	DBF_EVENT(3, "tape init\n");
 	tape_proc_init();
@@ -1342,7 +1342,7 @@ tape_exit(void)
 	/* Get rid of the frontends */
 	tapechar_exit();
 	tape_proc_cleanup();
-	debug_unregister (TAPE_DBF_AREA);
+	de_unregister (TAPE_DBF_AREA);
 }
 
 MODULE_AUTHOR("(C) 2001 IBM Deutschland Entwicklung GmbH by Carsten Otte and "

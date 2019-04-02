@@ -123,7 +123,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 	if (!buf->pt_cpu)
 		goto fail2;
 
-	/* init the buffers to a known pattern, easier during debugging */
+	/* init the buffers to a known pattern, easier during deging */
 	memset(buf->cpu, 0xff, buf->pci_size);
 	buf->crc = crc32(0, buf->cpu, buf->actual_size);
 	memset(buf->pt_cpu, 0xff, buf->pt_size);
@@ -261,14 +261,14 @@ int saa7164_buffer_cfg_port(struct saa7164_port *port)
 		buf = list_entry(c, struct saa7164_buffer, list);
 
 		if (buf->flags != SAA7164_BUFFER_FREE)
-			BUG();
+			();
 
 		/* Place the buffer in the h/w queue */
 		saa7164_buffer_activate(buf, i);
 
 		/* Don't exceed the device maximum # bufs */
 		if (i++ > port->hwcfg.buffercount)
-			BUG();
+			();
 
 	}
 	mutex_unlock(&port->dmaqueue_lock);

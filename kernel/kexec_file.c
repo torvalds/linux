@@ -95,7 +95,7 @@ static int kexec_image_verify_sig_default(struct kimage *image, void *buf,
 					  unsigned long buf_len)
 {
 	if (!image->fops || !image->fops->verify_sig) {
-		pr_debug("kernel loader does not support signature verification.\n");
+		pr_de("kernel loader does not support signature verification.\n");
 		return -EKEYREJECTED;
 	}
 
@@ -211,10 +211,10 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	ret = arch_kexec_kernel_verify_sig(image, image->kernel_buf,
 					   image->kernel_buf_len);
 	if (ret) {
-		pr_debug("kernel signature verification failed.\n");
+		pr_de("kernel signature verification failed.\n");
 		goto out;
 	}
-	pr_debug("kernel signature verification successful.\n");
+	pr_de("kernel signature verification successful.\n");
 #endif
 	/* It is possible that there no initramfs is being loaded */
 	if (!(flags & KEXEC_FILE_NO_INITRAMFS)) {
@@ -379,7 +379,7 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		struct kexec_segment *ksegment;
 
 		ksegment = &image->segment[i];
-		pr_debug("Loading segment %d: buf=0x%p bufsz=0x%zx mem=0x%lx memsz=0x%zx\n",
+		pr_de("Loading segment %d: buf=0x%p bufsz=0x%zx mem=0x%lx memsz=0x%zx\n",
 			 i, ksegment->buf, ksegment->bufsz, ksegment->mem,
 			 ksegment->memsz);
 
@@ -1043,7 +1043,7 @@ static const Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
 
 			if (syms[k].st_shndx == SHN_UNDEF ||
 			    syms[k].st_shndx >= ehdr->e_shnum) {
-				pr_debug("Symbol: %s has bad section index %d.\n",
+				pr_de("Symbol: %s has bad section index %d.\n",
 						name, syms[k].st_shndx);
 				return NULL;
 			}
@@ -1276,7 +1276,7 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
 		phdr->p_align = 0;
 		ehdr->e_phnum++;
 		phdr++;
-		pr_debug("Crash PT_LOAD elf header. phdr=%p vaddr=0x%llx, paddr=0x%llx, sz=0x%llx e_phnum=%d p_offset=0x%llx\n",
+		pr_de("Crash PT_LOAD elf header. phdr=%p vaddr=0x%llx, paddr=0x%llx, sz=0x%llx e_phnum=%d p_offset=0x%llx\n",
 			phdr, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz,
 			ehdr->e_phnum, phdr->p_offset);
 	}

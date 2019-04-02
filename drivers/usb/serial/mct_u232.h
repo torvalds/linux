@@ -218,7 +218,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  *	     1 0  7 Data Bits
  *	     1 1  8 Data Bits
  *
- *  SniffUSB observations: Bit 7 seems not to be used. There seem to be two bugs
+ *  SniffUSB observations: Bit 7 seems not to be used. There seem to be two s
  *  in the Win98 driver: the break does not work (bit 6 is not asserted) and the
  *  stick parity bit is not cleared when set once. The LCR can also be read
  *  back with USB request 6 but this has never been observed with SniffUSB.

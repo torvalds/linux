@@ -201,7 +201,7 @@ struct pci_dn *add_dev_pci_data(struct pci_dev *pdev)
 #ifdef CONFIG_EEH
 		/* Create the EEH device for the VF */
 		edev = eeh_dev_init(pdn);
-		BUG_ON(!edev);
+		_ON(!edev);
 		edev->physfn = pdev;
 #endif /* CONFIG_EEH */
 	}

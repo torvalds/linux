@@ -84,5 +84,5 @@ reports.
 References
 ----------
 
-.. _1: https://gcc.gnu.org/onlinedocs/gcc-4.9.0/gcc/Debugging-Options.html
-.. _2: https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
+.. _1: https://gcc.gnu.org/onlinedocs/gcc-4.9.0/gcc/Deging-Options.html
+.. _2: https://gcc.gnu.org/onlinedocs/gcc/Deging-Options.html

@@ -6,7 +6,7 @@ cxl-y				+= main.o file.o irq.o fault.o native.o
 cxl-y				+= context.o sysfs.o pci.o trace.o
 cxl-y				+= vphb.o api.o cxllib.o
 cxl-$(CONFIG_PPC_PSERIES)	+= flash.o guest.o of.o hcalls.o
-cxl-$(CONFIG_DEBUG_FS)		+= debugfs.o
+cxl-$(CONFIG_DE_FS)		+= defs.o
 obj-$(CONFIG_CXL)		+= cxl.o
 obj-$(CONFIG_CXL_BASE)		+= base.o
 

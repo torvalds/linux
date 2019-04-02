@@ -258,7 +258,7 @@ struct snd_gus_voice {
 	unsigned char index;
 	unsigned char pad;
 	
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	unsigned int interrupt_stat_wave;
 	unsigned int interrupt_stat_volume;
 #endif
@@ -349,7 +349,7 @@ struct snd_gf1 {
 	void (*interrupt_handler_dma_write) (struct snd_gus_card * gus);
 	void (*interrupt_handler_dma_read) (struct snd_gus_card * gus);
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	unsigned int interrupt_stat_midi_out;
 	unsigned int interrupt_stat_midi_in;
 	unsigned int interrupt_stat_timer1;
@@ -593,7 +593,7 @@ int snd_gf1_new_mixer(struct snd_gus_card * gus);
 
 int snd_gf1_pcm_new(struct snd_gus_card *gus, int pcm_dev, int control_index);
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 extern void snd_gf1_print_voice_registers(struct snd_gus_card * gus);
 #endif
 
@@ -614,7 +614,7 @@ int snd_gus_initialize(struct snd_gus_card * gus);
 /* gus_irq.c */
 
 irqreturn_t snd_gus_interrupt(int irq, void *dev_id);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 void snd_gus_irq_profile_init(struct snd_gus_card *gus);
 #endif
 

@@ -12,7 +12,7 @@
  * Released under the General Public License (GPL).
  */
 
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 
 typedef struct {
 	volatile unsigned int slock;
@@ -29,7 +29,7 @@ typedef struct { } arch_spinlock_t;
 #endif
 
 typedef struct {
-	/* no debug version on UP */
+	/* no de version on UP */
 } arch_rwlock_t;
 
 #define __ARCH_RW_LOCK_UNLOCKED { }

@@ -6,10 +6,10 @@
  * Copyright 2012 Google, Inc.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 
 #include "closure.h"
 
@@ -17,8 +17,8 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 {
 	int r = flags & CLOSURE_REMAINING_MASK;
 
-	BUG_ON(flags & CLOSURE_GUARD_MASK);
-	BUG_ON(!r && (flags & ~CLOSURE_DESTRUCTOR));
+	_ON(flags & CLOSURE_GUARD_MASK);
+	_ON(!r && (flags & ~CLOSURE_DESTRUCTOR));
 
 	if (!r) {
 		if (cl->fn && !(flags & CLOSURE_DESTRUCTOR)) {
@@ -29,7 +29,7 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 			struct closure *parent = cl->parent;
 			closure_fn *destructor = cl->fn;
 
-			closure_debug_destroy(cl);
+			closure_de_destroy(cl);
 
 			if (destructor)
 				destructor(cl);
@@ -127,40 +127,40 @@ void __sched __closure_sync(struct closure *cl)
 }
 EXPORT_SYMBOL(__closure_sync);
 
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_BCACHE_CLOSURES_DE
 
 static LIST_HEAD(closure_list);
 static DEFINE_SPINLOCK(closure_list_lock);
 
-void closure_debug_create(struct closure *cl)
+void closure_de_create(struct closure *cl)
 {
 	unsigned long flags;
 
-	BUG_ON(cl->magic == CLOSURE_MAGIC_ALIVE);
+	_ON(cl->magic == CLOSURE_MAGIC_ALIVE);
 	cl->magic = CLOSURE_MAGIC_ALIVE;
 
 	spin_lock_irqsave(&closure_list_lock, flags);
 	list_add(&cl->all, &closure_list);
 	spin_unlock_irqrestore(&closure_list_lock, flags);
 }
-EXPORT_SYMBOL(closure_debug_create);
+EXPORT_SYMBOL(closure_de_create);
 
-void closure_debug_destroy(struct closure *cl)
+void closure_de_destroy(struct closure *cl)
 {
 	unsigned long flags;
 
-	BUG_ON(cl->magic != CLOSURE_MAGIC_ALIVE);
+	_ON(cl->magic != CLOSURE_MAGIC_ALIVE);
 	cl->magic = CLOSURE_MAGIC_DEAD;
 
 	spin_lock_irqsave(&closure_list_lock, flags);
 	list_del(&cl->all);
 	spin_unlock_irqrestore(&closure_list_lock, flags);
 }
-EXPORT_SYMBOL(closure_debug_destroy);
+EXPORT_SYMBOL(closure_de_destroy);
 
-static struct dentry *closure_debug;
+static struct dentry *closure_de;
 
-static int debug_seq_show(struct seq_file *f, void *data)
+static int de_seq_show(struct seq_file *f, void *data)
 {
 	struct closure *cl;
 
@@ -189,28 +189,28 @@ static int debug_seq_show(struct seq_file *f, void *data)
 	return 0;
 }
 
-static int debug_seq_open(struct inode *inode, struct file *file)
+static int de_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, debug_seq_show, NULL);
+	return single_open(file, de_seq_show, NULL);
 }
 
-static const struct file_operations debug_ops = {
+static const struct file_operations de_ops = {
 	.owner		= THIS_MODULE,
-	.open		= debug_seq_open,
+	.open		= de_seq_open,
 	.read		= seq_read,
 	.release	= single_release
 };
 
-void  __init closure_debug_init(void)
+void  __init closure_de_init(void)
 {
-	if (!IS_ERR_OR_NULL(bcache_debug))
+	if (!IS_ERR_OR_NULL(bcache_de))
 		/*
 		 * it is unnecessary to check return value of
-		 * debugfs_create_file(), we should not care
+		 * defs_create_file(), we should not care
 		 * about this.
 		 */
-		closure_debug = debugfs_create_file(
-			"closures", 0400, bcache_debug, NULL, &debug_ops);
+		closure_de = defs_create_file(
+			"closures", 0400, bcache_de, NULL, &de_ops);
 }
 #endif
 

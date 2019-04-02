@@ -490,7 +490,7 @@
 #define	CP_RB_WPTR_DELAY				0x8704
 #define	CP_SEM_WAIT_TIMER				0x85BC
 #define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
-#define	CP_DEBUG					0xC1FC
+#define	CP_DE					0xC1FC
 
 /* Audio clocks */
 #define DCCG_AUDIO_DTO_SOURCE             0x05ac
@@ -1088,7 +1088,7 @@
 #define		DONE_FIFO_HIWATER(x)				((x) << 16)
 #define		ALU_UPDATE_FIFO_HIWATER(x)			((x) << 24)
 
-#define	SX_DEBUG_1					0x9058
+#define	SX_DE_1					0x9058
 #define		ENABLE_NEW_SMX_ADDRESS				(1 << 16)
 #define	SX_EXPORT_BUFFER_SIZES				0x900C
 #define		COLOR_BUFFER_SIZE(x)				((x) << 0)
@@ -1872,10 +1872,10 @@
 #define VGT_COMPUTE_THREAD_GROUP_SIZE                   0x89AC
 #define VGT_HS_OFFCHIP_PARAM                            0x89B0
 
-#define DB_DEBUG					0x9830
-#define DB_DEBUG2					0x9834
-#define DB_DEBUG3					0x9838
-#define DB_DEBUG4					0x983C
+#define DB_DE					0x9830
+#define DB_DE2					0x9834
+#define DB_DE3					0x9838
+#define DB_DE4					0x983C
 #define DB_WATERMARKS					0x9854
 #define DB_DEPTH_CONTROL				0x28800
 #define R_028800_DB_DEPTH_CONTROL                    0x028800

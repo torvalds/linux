@@ -14,12 +14,12 @@
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info (|-able))." DVB_USB_DEBUG_STATUS);
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info (|-able))." DVB_USB_DE_STATUS);
 MODULE_LICENSE("GPL");
 
-#define deb_info(args...) dprintk(debug,0x01,args)
+#define deb_info(args...) dprintk(de,0x01,args)
 
 /* common stuff used by the different dibusb modules */
 int dibusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)

@@ -133,7 +133,7 @@ extern const struct ieee80211_ops iwl_mvm_hw_ops;
  * @init_dbg: if true, then the NIC won't be stopped if the INIT fw asserted.
  *	We will register to mac80211 to have testmode working. The NIC must not
  *	be up'ed after the INIT fw asserted. This is useful to be able to use
- *	proprietary tools over testmode to debug the INIT fw.
+ *	proprietary tools over testmode to de the INIT fw.
  * @tfd_q_hang_detect: enabled the detection of hung transmit queues
  * @power_scheme: one of enum iwl_power_scheme
  */
@@ -191,18 +191,18 @@ enum iwl_power_scheme {
 #define IWL_CONN_MAX_LISTEN_INTERVAL	10
 #define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 enum iwl_dbgfs_pm_mask {
-	MVM_DEBUGFS_PM_KEEP_ALIVE = BIT(0),
-	MVM_DEBUGFS_PM_SKIP_OVER_DTIM = BIT(1),
-	MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS = BIT(2),
-	MVM_DEBUGFS_PM_RX_DATA_TIMEOUT = BIT(3),
-	MVM_DEBUGFS_PM_TX_DATA_TIMEOUT = BIT(4),
-	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
-	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
-	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
-	MVM_DEBUGFS_PM_UAPSD_MISBEHAVING = BIT(9),
-	MVM_DEBUGFS_PM_USE_PS_POLL = BIT(10),
+	MVM_DEFS_PM_KEEP_ALIVE = BIT(0),
+	MVM_DEFS_PM_SKIP_OVER_DTIM = BIT(1),
+	MVM_DEFS_PM_SKIP_DTIM_PERIODS = BIT(2),
+	MVM_DEFS_PM_RX_DATA_TIMEOUT = BIT(3),
+	MVM_DEFS_PM_TX_DATA_TIMEOUT = BIT(4),
+	MVM_DEFS_PM_LPRX_ENA = BIT(6),
+	MVM_DEFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
+	MVM_DEFS_PM_SNOOZE_ENABLE = BIT(8),
+	MVM_DEFS_PM_UAPSD_MISBEHAVING = BIT(9),
+	MVM_DEFS_PM_USE_PS_POLL = BIT(10),
 };
 
 struct iwl_dbgfs_pm {
@@ -222,17 +222,17 @@ struct iwl_dbgfs_pm {
 /* beacon filtering */
 
 enum iwl_dbgfs_bf_mask {
-	MVM_DEBUGFS_BF_ENERGY_DELTA = BIT(0),
-	MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA = BIT(1),
-	MVM_DEBUGFS_BF_ROAMING_STATE = BIT(2),
-	MVM_DEBUGFS_BF_TEMP_THRESHOLD = BIT(3),
-	MVM_DEBUGFS_BF_TEMP_FAST_FILTER = BIT(4),
-	MVM_DEBUGFS_BF_TEMP_SLOW_FILTER = BIT(5),
-	MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER = BIT(6),
-	MVM_DEBUGFS_BF_DEBUG_FLAG = BIT(7),
-	MVM_DEBUGFS_BF_ESCAPE_TIMER = BIT(8),
-	MVM_DEBUGFS_BA_ESCAPE_TIMER = BIT(9),
-	MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT = BIT(10),
+	MVM_DEFS_BF_ENERGY_DELTA = BIT(0),
+	MVM_DEFS_BF_ROAMING_ENERGY_DELTA = BIT(1),
+	MVM_DEFS_BF_ROAMING_STATE = BIT(2),
+	MVM_DEFS_BF_TEMP_THRESHOLD = BIT(3),
+	MVM_DEFS_BF_TEMP_FAST_FILTER = BIT(4),
+	MVM_DEFS_BF_TEMP_SLOW_FILTER = BIT(5),
+	MVM_DEFS_BF_ENABLE_BEACON_FILTER = BIT(6),
+	MVM_DEFS_BF_DE_FLAG = BIT(7),
+	MVM_DEFS_BF_ESCAPE_TIMER = BIT(8),
+	MVM_DEFS_BA_ESCAPE_TIMER = BIT(9),
+	MVM_DEFS_BA_ENABLE_BEACON_ABORT = BIT(10),
 };
 
 struct iwl_dbgfs_bf {
@@ -243,7 +243,7 @@ struct iwl_dbgfs_bf {
 	u32 bf_temp_fast_filter;
 	u32 bf_temp_slow_filter;
 	u32 bf_enable_beacon_filter;
-	u32 bf_debug_flag;
+	u32 bf_de_flag;
 	u32 bf_escape_timer;
 	u32 ba_escape_timer;
 	u32 ba_enable_beacon_abort;
@@ -285,7 +285,7 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_SENDING_CMD,
 	IWL_MVM_REF_RX,
 
-	/* update debugfs.c when changing this */
+	/* update defs.c when changing this */
 
 	IWL_MVM_REF_COUNT,
 };
@@ -300,7 +300,7 @@ enum iwl_bt_force_ant_mode {
 };
 
 /**
- * struct iwl_mvm_low_latency_force - low latency force mode set by debugfs
+ * struct iwl_mvm_low_latency_force - low latency force mode set by defs
  * @LOW_LATENCY_FORCE_UNSET: unset force mode
  * @LOW_LATENCY_FORCE_ON: for low latency on
  * @LOW_LATENCY_FORCE_OFF: for low latency off
@@ -316,22 +316,22 @@ enum iwl_mvm_low_latency_force {
 /**
 * struct iwl_mvm_low_latency_cause - low latency set causes
 * @LOW_LATENCY_TRAFFIC: indicates low latency traffic was detected
-* @LOW_LATENCY_DEBUGFS: low latency mode set from debugfs
+* @LOW_LATENCY_DEFS: low latency mode set from defs
 * @LOW_LATENCY_VCMD: low latency mode set from vendor command
 * @LOW_LATENCY_VIF_TYPE: low latency mode set because of vif type (ap)
-* @LOW_LATENCY_DEBUGFS_FORCE_ENABLE: indicate that force mode is enabled
-*	the actual set/unset is done with LOW_LATENCY_DEBUGFS_FORCE
-* @LOW_LATENCY_DEBUGFS_FORCE: low latency force mode from debugfs
-*	set this with LOW_LATENCY_DEBUGFS_FORCE_ENABLE flag
+* @LOW_LATENCY_DEFS_FORCE_ENABLE: indicate that force mode is enabled
+*	the actual set/unset is done with LOW_LATENCY_DEFS_FORCE
+* @LOW_LATENCY_DEFS_FORCE: low latency force mode from defs
+*	set this with LOW_LATENCY_DEFS_FORCE_ENABLE flag
 *	in low_latency.
 */
 enum iwl_mvm_low_latency_cause {
 	LOW_LATENCY_TRAFFIC = BIT(0),
-	LOW_LATENCY_DEBUGFS = BIT(1),
+	LOW_LATENCY_DEFS = BIT(1),
 	LOW_LATENCY_VCMD = BIT(2),
 	LOW_LATENCY_VIF_TYPE = BIT(3),
-	LOW_LATENCY_DEBUGFS_FORCE_ENABLE = BIT(4),
-	LOW_LATENCY_DEBUGFS_FORCE = BIT(5),
+	LOW_LATENCY_DEFS_FORCE_ENABLE = BIT(4),
+	LOW_LATENCY_DEFS_FORCE = BIT(5),
 };
 
 /**
@@ -470,7 +470,7 @@ struct iwl_mvm_vif {
 	int num_target_ipv6_addrs;
 #endif
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_slink;
 	struct iwl_dbgfs_pm dbgfs_pm;
@@ -617,9 +617,9 @@ enum {
 	D0I3_PENDING_WAKEUP,
 };
 
-#define IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE 0xff
-#define IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -100
-#define IWL_MVM_DEBUG_SET_TEMPERATURE_MAX 200
+#define IWL_MVM_DE_SET_TEMPERATURE_DISABLE 0xff
+#define IWL_MVM_DE_SET_TEMPERATURE_MIN -100
+#define IWL_MVM_DE_SET_TEMPERATURE_MAX 200
 
 enum iwl_mvm_tdls_cs_state {
 	IWL_MVM_TDLS_SW_IDLE = 0,
@@ -946,13 +946,13 @@ struct iwl_mvm {
 	/* the vif that requested the current scan */
 	struct iwl_mvm_vif *scan_vif;
 
-	/* rx chain antennas set through debugfs for the scan command */
+	/* rx chain antennas set through defs for the scan command */
 	u8 scan_rx_ant;
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 	/* broadcast filters to configure for each associated station */
 	const struct iwl_fw_bcast_filter *bcast_filters;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	struct {
 		bool override;
 		struct iwl_bcast_filter_cmd cmd;
@@ -972,8 +972,8 @@ struct iwl_mvm {
 	/* last smart fifo state that was successfully sent to firmware */
 	enum iwl_sf_state sf_state;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct dentry *debugfs_dir;
+#ifdef CONFIG_IWLWIFI_DEFS
+	struct dentry *defs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	u32 dbgfs_prph_reg_addr;
 	bool disable_power_off;
@@ -982,12 +982,12 @@ struct iwl_mvm {
 
 	bool scan_iter_notif_enabled;
 
-	struct debugfs_blob_wrapper nvm_hw_blob;
-	struct debugfs_blob_wrapper nvm_sw_blob;
-	struct debugfs_blob_wrapper nvm_calib_blob;
-	struct debugfs_blob_wrapper nvm_prod_blob;
-	struct debugfs_blob_wrapper nvm_phy_sku_blob;
-	struct debugfs_blob_wrapper nvm_reg_blob;
+	struct defs_blob_wrapper nvm_hw_blob;
+	struct defs_blob_wrapper nvm_sw_blob;
+	struct defs_blob_wrapper nvm_calib_blob;
+	struct defs_blob_wrapper nvm_prod_blob;
+	struct defs_blob_wrapper nvm_phy_sku_blob;
+	struct defs_blob_wrapper nvm_reg_blob;
 
 	struct iwl_mvm_frame_stats drv_rx_stats;
 	spinlock_t drv_stats_lock;
@@ -1034,7 +1034,7 @@ struct iwl_mvm {
 	struct ieee80211_channel **nd_channels;
 	int n_nd_channels;
 	bool net_detect;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	bool d3_wake_sysassert;
 	bool d3_test_active;
 	bool store_d3_resume_sram;
@@ -1077,11 +1077,11 @@ struct iwl_mvm {
 
 	s32 temperature;	/* Celsius */
 	/*
-	 * Debug option to set the NIC temperature. This option makes the
+	 * De option to set the NIC temperature. This option makes the
 	 * driver think this is the actual NIC temperature, and ignore the
 	 * real temperature that is received from the fw
 	 */
-	bool temperature_test;  /* Debug test temperature is enabled */
+	bool temperature_test;  /* De test temperature is enabled */
 
 	unsigned long bt_coex_last_tcm_ts;
 	struct iwl_mvm_tcm tcm;
@@ -1104,10 +1104,10 @@ struct iwl_mvm {
 	u16 p2p_dev_queue;
 
 	/* Indicate if device power save is allowed */
-	u8 ps_disabled; /* u8 instead of bool to ease debugfs_create_* usage */
+	u8 ps_disabled; /* u8 instead of bool to ease defs_create_* usage */
 	/* Indicate if 32Khz external clock is valid */
 	u32 ext_clock_valid;
-	unsigned int max_amsdu_len; /* used for debugfs only */
+	unsigned int max_amsdu_len; /* used for defs only */
 
 	struct ieee80211_vif __rcu *csa_vif;
 	struct ieee80211_vif __rcu *csa_tx_blocked_vif;
@@ -1564,7 +1564,7 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 				    struct ieee80211_sta *sta,
 				    unsigned int tid);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DE
 const char *iwl_mvm_get_tx_fail_reason(u32 status);
 #else
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
@@ -1783,8 +1783,8 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb);
 
-/* MVM debugfs */
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+/* MVM defs */
+#ifdef CONFIG_IWLWIFI_DEFS
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir);
 void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -1802,7 +1802,7 @@ static inline void
 iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 }
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_IWLWIFI_DEFS */
 
 /* rate scaling */
 int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool sync);
@@ -1925,13 +1925,13 @@ u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
 
 /* beacon filtering */
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 void
-iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
+iwl_mvm_beacon_filter_defs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd);
 #else
 static inline void
-iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
+iwl_mvm_beacon_filter_defs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd)
 {}
 #endif
@@ -1967,7 +1967,7 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 	 * should this consider associated/active/... state?
 	 *
 	 * Normally low-latency should only be active on interfaces
-	 * that are active, but at least with debugfs it can also be
+	 * that are active, but at least with defs it can also be
 	 * enabled on interfaces that aren't active. However, when
 	 * interface aren't active then they aren't added into the
 	 * binding, so this has no real impact. For now, just return
@@ -1988,26 +1988,26 @@ void iwl_mvm_vif_set_low_latency(struct iwl_mvm_vif *mvmvif, bool set,
 		mvmvif->low_latency &= ~cause;
 
 	/*
-	 * if LOW_LATENCY_DEBUGFS_FORCE_ENABLE is enabled no changes are
+	 * if LOW_LATENCY_DEFS_FORCE_ENABLE is enabled no changes are
 	 * allowed to actual mode.
 	 */
-	if (mvmvif->low_latency & LOW_LATENCY_DEBUGFS_FORCE_ENABLE &&
-	    cause != LOW_LATENCY_DEBUGFS_FORCE_ENABLE)
+	if (mvmvif->low_latency & LOW_LATENCY_DEFS_FORCE_ENABLE &&
+	    cause != LOW_LATENCY_DEFS_FORCE_ENABLE)
 		return;
 
-	if (cause == LOW_LATENCY_DEBUGFS_FORCE_ENABLE && set)
+	if (cause == LOW_LATENCY_DEFS_FORCE_ENABLE && set)
 		/*
 		 * We enter force state
 		 */
 		new_state = !!(mvmvif->low_latency &
-			       LOW_LATENCY_DEBUGFS_FORCE);
+			       LOW_LATENCY_DEFS_FORCE);
 	else
 		/*
 		 * Check if any other one set low latency
 		 */
 		new_state = !!(mvmvif->low_latency &
-				  ~(LOW_LATENCY_DEBUGFS_FORCE_ENABLE |
-				    LOW_LATENCY_DEBUGFS_FORCE));
+				  ~(LOW_LATENCY_DEFS_FORCE_ENABLE |
+				    LOW_LATENCY_DEFS_FORCE));
 
 	mvmvif->low_latency_actual = new_state;
 }
@@ -2157,8 +2157,8 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
+#ifdef CONFIG_IWLWIFI_DEFS
+void iwl_mvm_sta_add_defs(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta,
 			     struct dentry *dir);

@@ -87,7 +87,7 @@ dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		 *
 		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
 		 */
-		nvkm_debug(subdev, "DCB contains no useful data\n");
+		nvkm_de(subdev, "DCB contains no useful data\n");
 		return 0x0000;
 	}
 

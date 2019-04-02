@@ -70,7 +70,7 @@ config PPC_DT_CPU_FTRS
 	  If you're not sure say Y.
 
 config UDBG_RTAS_CONSOLE
-	bool "RTAS based debug console"
+	bool "RTAS based de console"
 	depends on PPC_RTAS
 
 config PPC_SMP_MUXED_IPI
@@ -158,7 +158,7 @@ config MPIC_BROKEN_REGREAD
 	depends on MPIC
 	help
 	  This option enables a MPIC driver workaround for some chips
-	  that have a bug that causes some interrupt source information
+	  that have a  that causes some interrupt source information
 	  to not read back properly. It is safe to use on other chips as
 	  well, but enabling it uses about 8KB of memory to keep copies
 	  of the register contents in software.
@@ -196,10 +196,10 @@ source "drivers/cpuidle/Kconfig"
 endmenu
 
 config PPC601_SYNC_FIX
-	bool "Workarounds for PPC601 bugs"
+	bool "Workarounds for PPC601 s"
 	depends on PPC_BOOK3S_32 && PPC_PMAC
 	help
-	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
+	  Some versions of the PPC601 (the first PowerPC chip) have s which
 	  mean that extra synchronization instructions are required near
 	  certain instructions, typically those that make major changes to the
 	  CPU state.  These extra instructions reduce performance slightly.
@@ -232,11 +232,11 @@ config TAU_INT
 	  a timer is used to re-check the temperature periodically.
 
 	  However, on some cpus it appears that the TAU interrupt hardware
-	  is buggy and can cause a situation which would lead unexplained hard
+	  is gy and can cause a situation which would lead unexplained hard
 	  lockups.
 
 	  Unless you are extending the TAU driver, or enjoy kernel/hardware
-	  debugging, leave this option off.
+	  deging, leave this option off.
 
 config TAU_AVERAGE
 	bool "Average high and low temp"

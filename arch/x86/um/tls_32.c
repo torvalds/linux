@@ -255,7 +255,7 @@ static int get_tls_entry(struct task_struct *task, struct user_desc *info,
 
 out:
 	/*
-	 * Temporary debugging check, to make sure that things have been
+	 * Temporary deging check, to make sure that things have been
 	 * flushed. This could be triggered if load_TLS() failed.
 	 */
 	if (unlikely(task == current &&
@@ -308,7 +308,7 @@ SYSCALL_DEFINE1(set_thread_area, struct user_desc __user *, user_desc)
 /*
  * Perform set_thread_area on behalf of the traced child.
  * Note: error handling is not done on the deferred load, and this differ from
- * i386. However the only possible error are caused by bugs.
+ * i386. However the only possible error are caused by s.
  */
 int ptrace_set_thread_area(struct task_struct *child, int idx,
 			   struct user_desc __user *user_desc)

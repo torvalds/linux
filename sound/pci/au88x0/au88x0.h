@@ -84,7 +84,7 @@
 /* Check for SDAC bit in "Extended audio ID" AC97 register */
 //#define VORTEX_IS_QUAD(x) (((x)->codec == NULL) ?  0 : ((x)->codec->ext_id&0x80))
 #define VORTEX_IS_QUAD(x) ((x)->isquad)
-/* Check if chip has bug. */
+/* Check if chip has . */
 #define IS_BAD_CHIP(x) (\
 	(x->rev == 0xfe && x->device == PCI_DEVICE_ID_AUREAL_VORTEX_2) || \
 	(x->rev == 0xfe && x->device == PCI_DEVICE_ID_AUREAL_ADVANTAGE))

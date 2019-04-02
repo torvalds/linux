@@ -310,7 +310,7 @@ int run_syscall(void)
 
 	/*
 	 * On paravirt kernels, flags are not preserved across syscalls.
-	 * Thus, we do not consider it a bug if some are changed.
+	 * Thus, we do not consider it a  if some are changed.
 	 * We just show ones which do.
 	 */
 	if ((0x200ed7 ^ flags) != 0) {

@@ -22,7 +22,7 @@
 #define PFM_RESTART		0x0a
 #define PFM_PROTECT_CONTEXT	0x0b /* obsolete */
 #define PFM_GET_FEATURES	0x0c
-#define PFM_DEBUG		0x0d
+#define PFM_DE		0x0d
 #define PFM_UNPROTECT_CONTEXT	0x0e /* obsolete */
 #define PFM_GET_PMC_RESET_VAL	0x0f
 #define PFM_LOAD_CONTEXT	0x10
@@ -105,10 +105,10 @@ typedef struct {
 } pfarg_reg_t;
 
 typedef struct {
-	unsigned int	dbreg_num;		/* which debug register */
+	unsigned int	dbreg_num;		/* which de register */
 	unsigned short	dbreg_set;		/* event set for this register */
 	unsigned short	dbreg_reserved1;	/* for future use */
-	unsigned long	dbreg_value;		/* value for debug register */
+	unsigned long	dbreg_value;		/* value for de register */
 	unsigned long	dbreg_flags;		/* return: dbreg error */
 	unsigned long	dbreg_reserved2[1];	/* for future use */
 } pfarg_dbreg_t;
@@ -133,7 +133,7 @@ typedef struct {
 	unsigned short  msg_active_set;		/* active set at the time of overflow */
 	unsigned short  msg_reserved1;		/* for future use */
 	unsigned int    msg_reserved2;		/* for future use */
-	unsigned long	msg_tstamp;		/* for perf tuning/debug */
+	unsigned long	msg_tstamp;		/* for perf tuning/de */
 } pfm_ovfl_msg_t;
 
 typedef struct {

@@ -46,13 +46,13 @@ use warnings;
 use strict;
 use Getopt::Long;
 
-# set the environment variable LOCALMODCONFIG_DEBUG to get
-# debug output.
-my $debugprint = 0;
-$debugprint = 1 if (defined($ENV{LOCALMODCONFIG_DEBUG}));
+# set the environment variable LOCALMODCONFIG_DE to get
+# de output.
+my $deprint = 0;
+$deprint = 1 if (defined($ENV{LOCALMODCONFIG_DE}));
 
 sub dprint {
-    return if (!$debugprint);
+    return if (!$deprint);
     print STDERR @_;
 }
 
@@ -401,7 +401,7 @@ foreach my $module (keys(%modules)) {
 	foreach my $conf (@arr) {
 	    $configs{$conf} = $module;
 	    dprint "$conf added by direct ($module)\n";
-	    if ($debugprint) {
+	    if ($deprint) {
 		my $c=$conf;
 		$c =~ s/^CONFIG_//;
 		if (defined($depends{$c})) {

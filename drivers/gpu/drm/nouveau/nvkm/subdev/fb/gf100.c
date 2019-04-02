@@ -36,9 +36,9 @@ gf100_fb_intr(struct nvkm_fb *base)
 	struct nvkm_device *device = subdev->device;
 	u32 intr = nvkm_rd32(device, 0x000100);
 	if (intr & 0x08000000)
-		nvkm_debug(subdev, "PFFB intr\n");
+		nvkm_de(subdev, "PFFB intr\n");
 	if (intr & 0x00002000)
-		nvkm_debug(subdev, "PBFB intr\n");
+		nvkm_de(subdev, "PBFB intr\n");
 }
 
 int
@@ -48,7 +48,7 @@ gf100_fb_oneinit(struct nvkm_fb *base)
 	struct nvkm_device *device = fb->base.subdev.device;
 	int ret, size = 1 << (fb->base.page ? fb->base.page : 17);
 
-	size = nvkm_longopt(device->cfgopt, "MmuDebugBufferSize", size);
+	size = nvkm_longopt(device->cfgopt, "MmuDeBufferSize", size);
 	size = max(size, 0x1000);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, size, 0x1000,

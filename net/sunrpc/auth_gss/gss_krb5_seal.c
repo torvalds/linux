@@ -65,7 +65,7 @@
 #include <linux/crypto.h>
 #include <linux/atomic.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
@@ -136,7 +136,7 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	u8			*cksumkey;
 
 	dprintk("RPC:       %s\n", __func__);
-	BUG_ON(ctx == NULL);
+	_ON(ctx == NULL);
 
 	now = get_seconds();
 
@@ -211,7 +211,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	switch (ctx->enctype) {
 	default:
-		BUG();
+		();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 	case ENCTYPE_ARCFOUR_HMAC:

@@ -117,7 +117,7 @@ int ivtv_g_pts_frame(struct ivtv *itv, s64 *pts, s64 *frame)
 	*frame = 0;
 	if (atomic_read(&itv->decoding)) {
 		if (ivtv_api(itv, CX2341X_DEC_GET_TIMING_INFO, 5, data)) {
-			IVTV_DEBUG_WARN("GET_TIMING: couldn't read clock\n");
+			IVTV_DE_WARN("GET_TIMING: couldn't read clock\n");
 			return -EIO;
 		}
 		memcpy(itv->last_dec_timing, data, sizeof(itv->last_dec_timing));

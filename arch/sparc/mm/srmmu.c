@@ -14,7 +14,7 @@
 #include <linux/memblock.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -52,7 +52,7 @@
 #include "mm_32.h"
 
 enum mbus_module srmmu_modtype;
-static unsigned int hwbug_bitmask;
+static unsigned int hw_bitmask;
 int vac_cache_size;
 EXPORT_SYMBOL(vac_cache_size);
 int vac_line_size;
@@ -188,7 +188,7 @@ static void *__srmmu_get_nocache(int size, int align)
 		       size);
 		size += SRMMU_NOCACHE_BITMAP_SHIFT - 1;
 	}
-	BUG_ON(align > SRMMU_NOCACHE_ALIGN_MAX);
+	_ON(align > SRMMU_NOCACHE_ALIGN_MAX);
 
 	offset = bit_map_string_get(&srmmu_nocache_map,
 				    size >> SRMMU_NOCACHE_BITMAP_SHIFT,
@@ -225,24 +225,24 @@ void srmmu_free_nocache(void *addr, int size)
 	if (vaddr < SRMMU_NOCACHE_VADDR) {
 		printk("Vaddr %lx is smaller than nocache base 0x%lx\n",
 		    vaddr, (unsigned long)SRMMU_NOCACHE_VADDR);
-		BUG();
+		();
 	}
 	if (vaddr + size > srmmu_nocache_end) {
 		printk("Vaddr %lx is bigger than nocache end 0x%lx\n",
 		    vaddr, srmmu_nocache_end);
-		BUG();
+		();
 	}
 	if (!is_power_of_2(size)) {
 		printk("Size 0x%x is not a power of 2\n", size);
-		BUG();
+		();
 	}
 	if (size < SRMMU_NOCACHE_BITMAP_SHIFT) {
 		printk("Size 0x%x is too small\n", size);
-		BUG();
+		();
 	}
 	if (vaddr & (size - 1)) {
 		printk("Vaddr %lx is not aligned to size 0x%x\n", vaddr, size);
-		BUG();
+		();
 	}
 
 	offset = (vaddr - SRMMU_NOCACHE_VADDR) >> SRMMU_NOCACHE_BITMAP_SHIFT;
@@ -392,7 +392,7 @@ void pte_free(struct mm_struct *mm, pgtable_t pte)
 	pgtable_page_dtor(pte);
 	p = (unsigned long)page_address(pte);	/* Cached address (for test) */
 	if (p == 0)
-		BUG();
+		();
 	p = page_to_pfn(pte) << PAGE_SHIFT;	/* Physical address */
 
 	/* free non cached virtual address*/
@@ -601,7 +601,7 @@ extern void swift_flush_tlb_range(struct vm_area_struct *vma,
 				  unsigned long start, unsigned long end);
 extern void swift_flush_tlb_page(struct vm_area_struct *vma, unsigned long page);
 
-#if 0  /* P3: deadwood to debug precise flushes on Swift. */
+#if 0  /* P3: deadwood to de precise flushes on Swift. */
 void swift_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	int cctx, ctx1;
@@ -787,7 +787,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 		if (start == 0)
 			break; /* probably wrap around */
 		if (start == 0xfef00000)
-			start = KADB_DEBUGGER_BEGVM;
+			start = KADB_DEGER_BEGVM;
 		probed = srmmu_probe(start);
 		if (!probed) {
 			/* continue probing until we find an entry */
@@ -1198,11 +1198,11 @@ static void __init init_swift(void)
 	case 0x20:
 	case 0x23:
 	case 0x30:
-		srmmu_modtype = Swift_lots_o_bugs;
-		hwbug_bitmask |= (HWBUG_KERN_ACCBROKEN | HWBUG_KERN_CBITBROKEN);
+		srmmu_modtype = Swift_lots_o_s;
+		hw_bitmask |= (HW_KERN_ACCBROKEN | HW_KERN_CBITBROKEN);
 		/*
 		 * Gee george, I wonder why Sun is so hush hush about
-		 * this hardware bug... really braindamage stuff going
+		 * this hardware ... really braindamage stuff going
 		 * on here.  However I think we can find a way to avoid
 		 * all of the workaround overhead under Linux.  Basically,
 		 * any page fault can cause kernel pages to become user
@@ -1210,7 +1210,7 @@ static void __init init_swift(void)
 		 * the ACC bits in kernel ptes).  Aha, sounds pretty
 		 * horrible eh?  But wait, after extensive testing it appears
 		 * that if you use pgd_t level large kernel pte's (like the
-		 * 4MB pages on the Pentium) the bug does not get tripped
+		 * 4MB pages on the Pentium) the  does not get tripped
 		 * at all.  This avoids almost all of the major overhead.
 		 * Welcome to a world where your vendor tells you to,
 		 * "apply this kernel patch" instead of "sorry for the
@@ -1221,9 +1221,9 @@ static void __init init_swift(void)
 	case 0x25:
 	case 0x31:
 		srmmu_modtype = Swift_bad_c;
-		hwbug_bitmask |= HWBUG_KERN_CBITBROKEN;
+		hw_bitmask |= HW_KERN_CBITBROKEN;
 		/*
-		 * You see Sun allude to this hardware bug but never
+		 * You see Sun allude to this hardware  but never
 		 * admit things directly, they'll say things like,
 		 * "the Swift chip cache problems" or similar.
 		 */
@@ -1489,10 +1489,10 @@ static struct sparc32_cachetlb_ops viking_ops __ro_after_init = {
 #ifdef CONFIG_SMP
 /* On sun4d the cpu broadcasts local TLB flushes, so we can just
  * perform the local TLB flush and all the other cpus will see it.
- * But, unfortunately, there is a bug in the sun4d XBUS backplane
+ * But, unfortunately, there is a  in the sun4d XBUS backplane
  * that requires that we add some synchronization to these flushes.
  *
- * The bug is that the fifo which keeps track of all the pending TLB
+ * The  is that the fifo which keeps track of all the pending TLB
  * broadcasts in the system is an entry or two too small, so if we
  * have too many going at once we'll overflow that fifo and lose a TLB
  * flush resulting in corruption.
@@ -1531,7 +1531,7 @@ static void __init init_viking(void)
 		/*
 		 * We need this to make sure old viking takes no hits
 		 * on it's cache for dma snoops to workaround the
-		 * "load from non-cacheable memory" interrupt bug.
+		 * "load from non-cacheable memory" interrupt .
 		 * This is only necessary because of the new way in
 		 * which we use the IOMMU.
 		 */
@@ -1564,7 +1564,7 @@ static void __init get_srmmu_type(void)
 	unsigned long mod_typ, mod_rev, psr_typ, psr_vers;
 
 	srmmu_modtype = SRMMU_INVAL_MOD;
-	hwbug_bitmask = 0;
+	hw_bitmask = 0;
 
 	mreg = srmmu_get_mmureg(); psr = get_psr();
 	mod_typ = (mreg & 0xf0000000) >> 28;

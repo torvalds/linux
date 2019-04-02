@@ -143,7 +143,7 @@ static void user_ast(struct ocfs2_dlm_lksb *lksb)
 		return;
 	}
 
-	mlog_bug_on_msg(lockres->l_requested == DLM_LOCK_IV,
+	mlog__on_msg(lockres->l_requested == DLM_LOCK_IV,
 			"Lockres %.*s, requested ivmode. flags 0x%x\n",
 			lockres->l_namelen, lockres->l_name, lockres->l_flags);
 
@@ -171,7 +171,7 @@ static inline void user_dlm_grab_inode_ref(struct user_lock_res *lockres)
 	struct inode *inode;
 	inode = user_dlm_inode_from_user_lockres(lockres);
 	if (!igrab(inode))
-		BUG();
+		();
 }
 
 static void user_dlm_unblock_lock(struct work_struct *work);
@@ -205,7 +205,7 @@ static void __user_dlm_cond_queue_lockres(struct user_lock_res *lockres)
 			queue = 1;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (queue)
@@ -251,11 +251,11 @@ static void user_unlock_ast(struct ocfs2_dlm_lksb *lksb, int status)
 		/* We tried to cancel a convert request, but it was
 		 * already granted. Don't clear the busy flag - the
 		 * ast should've done this already. */
-		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
+		_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
 		lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
 		goto out_noclear;
 	} else {
-		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
+		_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
 		/* Cancel succeeded, we want to re-queue */
 		lockres->l_requested = DLM_LOCK_IV; /* cancel an
 						    * upconvert
@@ -308,7 +308,7 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 
 	spin_lock(&lockres->l_lock);
 
-	mlog_bug_on_msg(!(lockres->l_flags & USER_LOCK_QUEUED),
+	mlog__on_msg(!(lockres->l_flags & USER_LOCK_QUEUED),
 			"Lockres %.*s, flags 0x%x\n",
 			lockres->l_namelen, lockres->l_name, lockres->l_flags);
 
@@ -407,7 +407,7 @@ static inline void user_dlm_inc_holders(struct user_lock_res *lockres,
 		lockres->l_ro_holders++;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -418,7 +418,7 @@ static inline int
 user_may_continue_on_blocked_lock(struct user_lock_res *lockres,
 				  int wanted)
 {
-	BUG_ON(!(lockres->l_flags & USER_LOCK_BLOCKED));
+	_ON(!(lockres->l_flags & USER_LOCK_BLOCKED));
 
 	return wanted <= user_highest_compat_lock_level(lockres->l_blocking);
 }
@@ -482,8 +482,8 @@ again:
 		lockres->l_flags |= USER_LOCK_BUSY;
 		spin_unlock(&lockres->l_lock);
 
-		BUG_ON(level == DLM_LOCK_IV);
-		BUG_ON(level == DLM_LOCK_NL);
+		_ON(level == DLM_LOCK_IV);
+		_ON(level == DLM_LOCK_NL);
 
 		/* call dlm_lock to upgrade lock now */
 		status = ocfs2_dlm_lock(conn, level, &lockres->l_lksb,
@@ -515,15 +515,15 @@ static inline void user_dlm_dec_holders(struct user_lock_res *lockres,
 {
 	switch(level) {
 	case DLM_LOCK_EX:
-		BUG_ON(!lockres->l_ex_holders);
+		_ON(!lockres->l_ex_holders);
 		lockres->l_ex_holders--;
 		break;
 	case DLM_LOCK_PR:
-		BUG_ON(!lockres->l_ro_holders);
+		_ON(!lockres->l_ro_holders);
 		lockres->l_ro_holders--;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -550,11 +550,11 @@ void user_dlm_write_lvb(struct inode *inode,
 	struct user_lock_res *lockres = &DLMFS_I(inode)->ip_lockres;
 	char *lvb;
 
-	BUG_ON(len > DLM_LVB_LEN);
+	_ON(len > DLM_LVB_LEN);
 
 	spin_lock(&lockres->l_lock);
 
-	BUG_ON(lockres->l_level < DLM_LOCK_EX);
+	_ON(lockres->l_level < DLM_LOCK_EX);
 	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 	memcpy(lvb, val, len);
 
@@ -569,11 +569,11 @@ ssize_t user_dlm_read_lvb(struct inode *inode,
 	char *lvb;
 	ssize_t ret = len;
 
-	BUG_ON(len > DLM_LVB_LEN);
+	_ON(len > DLM_LVB_LEN);
 
 	spin_lock(&lockres->l_lock);
 
-	BUG_ON(lockres->l_level < DLM_LOCK_PR);
+	_ON(lockres->l_level < DLM_LOCK_PR);
 	if (ocfs2_dlm_lvb_valid(&lockres->l_lksb)) {
 		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 		memcpy(val, lvb, len);
@@ -596,7 +596,7 @@ void user_dlm_lock_res_init(struct user_lock_res *lockres,
 	lockres->l_blocking = DLM_LOCK_IV;
 
 	/* should have been checked before getting here. */
-	BUG_ON(dentry->d_name.len >= USER_DLM_LOCK_ID_MAX_LEN);
+	_ON(dentry->d_name.len >= USER_DLM_LOCK_ID_MAX_LEN);
 
 	memcpy(lockres->l_name,
 	       dentry->d_name.name,

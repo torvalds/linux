@@ -115,7 +115,7 @@ struct option {
 	const struct option *parent;
 };
 
-#define check_vtype(v, type) ( BUILD_BUG_ON_ZERO(!__builtin_types_compatible_p(typeof(v), type)) + v )
+#define check_vtype(v, type) ( BUILD__ON_ZERO(!__builtin_types_compatible_p(typeof(v), type)) + v )
 
 #define OPT_END()                   { .type = OPTION_END }
 #define OPT_PARENT(p)               { .type = OPTION_END, .parent = (p) }

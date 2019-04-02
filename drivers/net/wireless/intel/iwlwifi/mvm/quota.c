@@ -71,7 +71,7 @@ struct iwl_mvm_quota_iterator_data {
 	int n_interfaces[MAX_BINDINGS];
 	int colors[MAX_BINDINGS];
 	int low_latency[MAX_BINDINGS];
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	int dbgfs_min[MAX_BINDINGS];
 #endif
 	int n_low_latency_bindings;
@@ -96,7 +96,7 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	id = mvmvif->phy_ctxt->id;
 
 	/* need at least one binding per PHY */
-	BUILD_BUG_ON(NUM_PHY_CTX > MAX_BINDINGS);
+	BUILD__ON(NUM_PHY_CTX > MAX_BINDINGS);
 
 	if (WARN_ON_ONCE(id >= MAX_BINDINGS))
 		return;
@@ -129,7 +129,7 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 
 	data->n_interfaces[id]++;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (mvmvif->dbgfs_quota_min)
 		data->dbgfs_min[id] = max(data->dbgfs_min[id],
 					  mvmvif->dbgfs_quota_min);
@@ -172,7 +172,7 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		quota *= (beacon_int - mvm->noa_duration);
 		quota /= beacon_int;
 
-		IWL_DEBUG_QUOTA(mvm, "quota: adjust for NoA from %d to %d\n",
+		IWL_DE_QUOTA(mvm, "quota: adjust for NoA from %d to %d\n",
 				le32_to_cpu(data->quota), quota);
 
 		data->quota = cpu_to_le32(quota);
@@ -206,7 +206,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		return 0;
 
 	/* iterator data above must match */
-	BUILD_BUG_ON(MAX_BINDINGS != 4);
+	BUILD__ON(MAX_BINDINGS != 4);
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -245,7 +245,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
 		quota_rem = QUOTA_100 - n_non_lowlat * quota -
 			    QUOTA_LOWLAT_MIN;
-		IWL_DEBUG_QUOTA(mvm,
+		IWL_DE_QUOTA(mvm,
 				"quota: low-latency binding active, remaining quota per other binding: %d\n",
 				quota);
 	} else if (num_active_macs) {
@@ -256,7 +256,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		 */
 		quota = QUOTA_100 / num_active_macs;
 		quota_rem = QUOTA_100 % num_active_macs;
-		IWL_DEBUG_QUOTA(mvm,
+		IWL_DE_QUOTA(mvm,
 				"quota: splitting evenly per binding: %d\n",
 				quota);
 	} else {
@@ -276,7 +276,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 
 		if (data.n_interfaces[i] <= 0)
 			qdata->quota = cpu_to_le32(0);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 		else if (data.dbgfs_min[i])
 			qdata->quota =
 				cpu_to_le32(data.dbgfs_min[i] * QUOTA_100 / 100);
@@ -308,7 +308,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, i);
 		if (le32_to_cpu(qdata->quota) != 0) {
 			le32_add_cpu(&qdata->quota, quota_rem);
-			IWL_DEBUG_QUOTA(mvm,
+			IWL_DE_QUOTA(mvm,
 					"quota: giving remainder of %d to binding %d\n",
 					quota_rem, i);
 			break;

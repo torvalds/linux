@@ -461,7 +461,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 			 * doesn't handle if functions with the same name are
 			 * not grouped together. Only the first contiguous
 			 * cluster is usable for each function name. This is a
-			 * bug that is not trivial to fix, but at least warn
+			 *  that is not trivial to fix, but at least warn
 			 * about it.
 			 */
 			for (child2 = of_get_next_child(np, child);

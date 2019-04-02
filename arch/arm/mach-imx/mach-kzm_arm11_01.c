@@ -77,7 +77,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.regshift	= 0,
 		.iotype		= UPIO_MEM,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
-				  UPF_BUGGY_UART,
+				  UPF_GY_UART,
 	},
 	{},
 };

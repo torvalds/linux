@@ -8,7 +8,7 @@
  */
 #include <linux/rwsem.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/export.h>
 
 enum rwsem_waiter_type {
@@ -41,11 +41,11 @@ EXPORT_SYMBOL(rwsem_is_locked);
 void __init_rwsem(struct rw_semaphore *sem, const char *name,
 		  struct lock_class_key *key)
 {
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	/*
 	 * Make sure we are not reinitializing a held semaphore:
 	 */
-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	de_check_no_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map(&sem->dep_map, name, key, 0);
 #endif
 	sem->count = 0;

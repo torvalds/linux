@@ -5,7 +5,7 @@
 
 #include <linux/hash.h>
 #include <linux/memblock.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 
 /*
  * Implement paravirt qspinlocks; the general idea is to halt the vcpus instead
@@ -233,7 +233,7 @@ static struct qspinlock **pv_hash(struct qspinlock *lock, struct pv_node *node)
 	 * The single entry is guaranteed by having the lock owner unhash
 	 * before it releases.
 	 */
-	BUG();
+	();
 }
 
 static struct pv_node *pv_unhash(struct qspinlock *lock)
@@ -256,7 +256,7 @@ static struct pv_node *pv_unhash(struct qspinlock *lock)
 	 * having the lock owner do the unhash -- IFF the unlock sees the
 	 * SLOW flag, there MUST be a hash entry.
 	 */
-	BUG();
+	();
 }
 
 /*
@@ -279,7 +279,7 @@ static void pv_init_node(struct mcs_spinlock *node)
 {
 	struct pv_node *pn = (struct pv_node *)node;
 
-	BUILD_BUG_ON(sizeof(struct pv_node) > sizeof(struct qnode));
+	BUILD__ON(sizeof(struct pv_node) > sizeof(struct qnode));
 
 	pn->cpu = smp_processor_id();
 	pn->state = vcpu_running;
@@ -494,7 +494,7 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 	struct pv_node *node;
 
 	if (unlikely(locked != _Q_SLOW_VAL)) {
-		WARN(!debug_locks_silent,
+		WARN(!de_locks_silent,
 		     "pvqspinlock: lock 0x%lx has corrupted value 0x%x!\n",
 		     (unsigned long)lock, atomic_read(&lock->val));
 		return;

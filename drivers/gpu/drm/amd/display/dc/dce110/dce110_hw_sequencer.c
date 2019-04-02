@@ -328,19 +328,19 @@ static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
 
 	if (!convert_to_custom_float_format(arr_points[0].x, &fmt,
 					    &arr_points[0].custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!convert_to_custom_float_format(arr_points[0].offset, &fmt,
 					    &arr_points[0].custom_float_offset)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!convert_to_custom_float_format(arr_points[0].slope, &fmt,
 					    &arr_points[0].custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -349,19 +349,19 @@ static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
 
 	if (!convert_to_custom_float_format(arr_points[1].x, &fmt,
 					    &arr_points[1].custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
 					    &arr_points[1].custom_float_y)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!convert_to_custom_float_format(arr_points[1].slope, &fmt,
 					    &arr_points[1].custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -371,37 +371,37 @@ static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
 	while (i != hw_points_num) {
 		if (!convert_to_custom_float_format(rgb->red, &fmt,
 						    &rgb->red_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->green, &fmt,
 						    &rgb->green_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->blue, &fmt,
 						    &rgb->blue_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
 						    &rgb->delta_red_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
 						    &rgb->delta_green_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
 						    &rgb->delta_blue_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
@@ -740,7 +740,7 @@ void hwss_edp_wait_for_hpd_ready(
 
 	if (dal_graphics_object_id_get_connector_id(connector)
 			!= CONNECTOR_ID_EDP) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -761,7 +761,7 @@ void hwss_edp_wait_for_hpd_ready(
 	hpd = get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
 
 	if (!hpd) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -806,7 +806,7 @@ void hwss_edp_power_control(
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 			!= CONNECTOR_ID_EDP) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -886,7 +886,7 @@ void hwss_edp_backlight_control(
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -971,7 +971,7 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
 
 		if (option != KEEP_ACQUIRED_RESOURCE ||
-				!dc->debug.az_endpoint_mute_only) {
+				!dc->de.az_endpoint_mute_only) {
 			/*only disalbe az_endpoint if power down or free*/
 			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
 		}
@@ -1211,7 +1211,7 @@ static void program_scaler(const struct dc *dc,
 		return;
 #endif
 
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
+	if (dc->de.visual_confirm == VISUAL_CONFIRM_SURFACE)
 		get_surface_visual_confirm_color(pipe_ctx, &color);
 	else
 		color_space_to_black_color(dc,
@@ -1270,7 +1270,7 @@ static enum dc_status dce110_enable_stream_timing(
 				pipe_ctx->clock_source,
 				&pipe_ctx->stream_res.pix_clk_params,
 				&pipe_ctx->pll_settings)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return DC_ERROR_UNEXPECTED;
 		}
 
@@ -1283,7 +1283,7 @@ static enum dc_status dce110_enable_stream_timing(
 	if (!pipe_ctx_old->stream) {
 		if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(
 				pipe_ctx->stream_res.tg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return DC_ERROR_UNEXPECTED;
 		}
 	}
@@ -1856,7 +1856,7 @@ static void dce110_reset_hw_ctx_wrap(
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
 				dm_error("DC: failed to blank crtc!\n");
-				BREAK_TO_DEBUGGER();
+				BREAK_TO_DEGER();
 			}
 			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(

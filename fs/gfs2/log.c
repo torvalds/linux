@@ -726,7 +726,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 		spin_unlock(&sdp->sd_statfs_spin);
 	}
 
-	BUILD_BUG_ON(offsetof(struct gfs2_log_header, lh_crc) != LH_V1_SIZE);
+	BUILD__ON(offsetof(struct gfs2_log_header, lh_crc) != LH_V1_SIZE);
 
 	crc = crc32c(~0, (void *)lh + LH_V1_SIZE + 4,
 		     sb->s_blocksize - LH_V1_SIZE - 4);
@@ -771,7 +771,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
  * gfs2_log_flush - flush incore transaction(s)
  * @sdp: the filesystem
  * @gl: The glock structure to flush.  If NULL, flush the whole incore log
- * @flags: The log header flags: GFS2_LOG_HEAD_FLUSH_* and debug flags
+ * @flags: The log header flags: GFS2_LOG_HEAD_FLUSH_* and de flags
  *
  */
 

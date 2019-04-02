@@ -32,12 +32,12 @@ int __initdata of_ioapic;
 
 void __init early_init_dt_scan_chosen_arch(unsigned long node)
 {
-	BUG();
+	();
 }
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	BUG();
+	();
 }
 
 void __init add_dtb(u64 data)

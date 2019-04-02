@@ -140,12 +140,12 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 
 	/*
 	 * If JobR error, we got more development work to do
-	 * Flag a bug now, but we really need to shut down and
+	 * Flag a  now, but we really need to shut down and
 	 * restart the queue (and fix code).
 	 */
 	if (irqstate & JRINT_JR_ERROR) {
 		dev_err(dev, "job ring error: irqstate: %08x\n", irqstate);
-		BUG();
+		();
 	}
 
 	/* mask valid interrupts */
@@ -188,7 +188,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 				break; /* found */
 		}
 		/* we should never fail to find a matching descriptor */
-		BUG_ON(CIRC_CNT(head, tail + i, JOBR_DEPTH) <= 0);
+		_ON(CIRC_CNT(head, tail + i, JOBR_DEPTH) <= 0);
 
 		/* Unmap just-run descriptor so we can post-process */
 		dma_unmap_single(dev,

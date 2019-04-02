@@ -124,10 +124,10 @@ static void dm_irq_work_func(struct work_struct *work)
 					  struct amdgpu_dm_irq_handler_data,
 					  list);
 
-		DRM_DEBUG_KMS("DM_IRQ: work_func: for dal_src=%d\n",
+		DRM_DE_KMS("DM_IRQ: work_func: for dal_src=%d\n",
 				handler_data->irq_source);
 
-		DRM_DEBUG_KMS("DM_IRQ: schedule_work: for dal_src=%d\n",
+		DRM_DE_KMS("DM_IRQ: schedule_work: for dal_src=%d\n",
 			handler_data->irq_source);
 
 		handler_data->handler(handler_data->handler_arg);
@@ -190,7 +190,7 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 
 	kfree(handler);
 
-	DRM_DEBUG_KMS(
+	DRM_DE_KMS(
 	"DM_IRQ: removed irq handler: %p for: dal_src=%d, irq context=%d\n",
 		ih, int_params->irq_source, int_params->int_context);
 
@@ -309,7 +309,7 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 	 * The same pointer will be needed in order to unregister the
 	 * interrupt. */
 
-	DRM_DEBUG_KMS(
+	DRM_DE_KMS(
 		"DM_IRQ: added irq handler: %p for: dal_src=%d, irq context=%d\n",
 		handler_data,
 		irq_source,
@@ -380,7 +380,7 @@ int amdgpu_dm_irq_init(struct amdgpu_device *adev)
 	int src;
 	struct irq_list_head *lh;
 
-	DRM_DEBUG_KMS("DM_IRQ\n");
+	DRM_DE_KMS("DM_IRQ\n");
 
 	spin_lock_init(&adev->dm.irq_handler_list_table_lock);
 
@@ -408,7 +408,7 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 	int src;
 	struct irq_list_head *lh;
 	unsigned long irq_table_flags;
-	DRM_DEBUG_KMS("DM_IRQ: releasing resources.\n");
+	DRM_DE_KMS("DM_IRQ: releasing resources.\n");
 	for (src = 0; src < DAL_IRQ_SOURCES_NUMBER; src++) {
 		DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 		/* The handler was removed from the table,
@@ -429,7 +429,7 @@ int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
 
 	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 
-	DRM_DEBUG_KMS("DM_IRQ: suspend\n");
+	DRM_DE_KMS("DM_IRQ: suspend\n");
 
 	/**
 	 * Disable HW interrupt  for HPD and HPDRX only since FLIP and VBLANK
@@ -459,7 +459,7 @@ int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
 
 	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 
-	DRM_DEBUG_KMS("DM_IRQ: early resume\n");
+	DRM_DE_KMS("DM_IRQ: early resume\n");
 
 	/* re-enable short pulse interrupts HW interrupt */
 	for (src = DC_IRQ_SOURCE_HPD1RX; src <= DC_IRQ_SOURCE_HPD6RX; src++) {
@@ -482,7 +482,7 @@ int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 
 	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 
-	DRM_DEBUG_KMS("DM_IRQ: resume\n");
+	DRM_DE_KMS("DM_IRQ: resume\n");
 
 	/**
 	 * Renable HW interrupt  for HPD and only since FLIP and VBLANK

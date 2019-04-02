@@ -93,10 +93,10 @@ fnic_trace_data_t *fnic_trace_get_buf(void)
 
 /*
  * fnic_get_trace_data - Copy trace buffer to a memory file
- * @fnic_dbgfs_t: pointer to debugfs trace buffer
+ * @fnic_dbgfs_t: pointer to defs trace buffer
  *
  * Description:
- * This routine gathers the fnic trace debugfs data from the fnic_trace_data_t
+ * This routine gathers the fnic trace defs data from the fnic_trace_data_t
  * buffer and dumps it to fnic_dbgfs_t. It will start at the rd_idx entry in
  * the log and process the log until the end of the buffer. Then it will gather
  * from the beginning of the log and process until the current entry @wr_idx.
@@ -202,30 +202,30 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 
 /*
  * fnic_get_stats_data - Copy fnic stats buffer to a memory file
- * @fnic_dbgfs_t: pointer to debugfs fnic stats buffer
+ * @fnic_dbgfs_t: pointer to defs fnic stats buffer
  *
  * Description:
- * This routine gathers the fnic stats debugfs data from the fnic_stats struct
- * and dumps it to stats_debug_info.
+ * This routine gathers the fnic stats defs data from the fnic_stats struct
+ * and dumps it to stats_de_info.
  *
  * Return Value:
  * This routine returns the amount of bytes that were dumped into
- * stats_debug_info
+ * stats_de_info
  */
-int fnic_get_stats_data(struct stats_debug_info *debug,
+int fnic_get_stats_data(struct stats_de_info *de,
 			struct fnic_stats *stats)
 {
 	int len = 0;
-	int buf_size = debug->buf_size;
+	int buf_size = de->buf_size;
 	struct timespec64 val1, val2;
 
 	ktime_get_real_ts64(&val1);
-	len = snprintf(debug->debug_buffer + len, buf_size - len,
+	len = snprintf(de->de_buffer + len, buf_size - len,
 		"------------------------------------------\n"
 		 "\t\tTime\n"
 		"------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		"Current time :          [%lld:%ld]\n"
 		"Last stats reset time:  [%lld:%09ld]\n"
 		"Last stats read time:   [%lld:%ld]\n"
@@ -243,11 +243,11 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 
 	stats->stats_timestamps.last_read_time = val1;
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "------------------------------------------\n"
 		  "\t\tIO Statistics\n"
 		  "------------------------------------------\n");
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Number of Active IOs: %lld\nMaximum Active IOs: %lld\n"
 		  "Number of IOs: %lld\nNumber of IO Completions: %lld\n"
 		  "Number of IO Failures: %lld\nNumber of IO NOT Found: %lld\n"
@@ -280,16 +280,16 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->io_stats.io_btw_10000_to_30000_msec),
 		  (u64)atomic64_read(&stats->io_stats.io_greater_than_30000_msec));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\nCurrent Max IO time : %lld\n",
 		  (u64)atomic64_read(&stats->io_stats.current_max_io_time));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tAbort Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Number of Aborts: %lld\n"
 		  "Number of Abort Failures: %lld\n"
 		  "Number of Abort Driver Timeouts: %lld\n"
@@ -318,12 +318,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_50_to_60_sec),
 		  (u64)atomic64_read(&stats->abts_stats.abort_issued_greater_than_60_sec));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tTerminate Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Number of Terminates: %lld\n"
 		  "Maximum Terminates: %lld\n"
 		  "Number of Terminate Driver Timeouts: %lld\n"
@@ -337,12 +337,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->term_stats.terminate_io_not_found),
 		  (u64)atomic64_read(&stats->term_stats.terminate_failures));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tReset Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Number of Device Resets: %lld\n"
 		  "Number of Device Reset Failures: %lld\n"
 		  "Number of Device Reset Aborts: %lld\n"
@@ -368,12 +368,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 			  &stats->reset_stats.fnic_reset_completions),
 		  (u64)atomic64_read(&stats->reset_stats.fnic_reset_failures));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tFirmware Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Number of Active FW Requests %lld\n"
 		  "Maximum FW Requests: %lld\n"
 		  "Number of FW out of resources: %lld\n"
@@ -383,12 +383,12 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->fw_stats.fw_out_of_resources),
 		  (u64)atomic64_read(&stats->fw_stats.io_fw_errs));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tVlan Discovery Statistics\n"
 		  "------------------------------------------\n");
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Number of Vlan Discovery Requests Sent %lld\n"
 		  "Vlan Response Received with no FCF VLAN ID: %lld\n"
 		  "No solicitations recvd after vlan set, expiry count: %lld\n"
@@ -398,7 +398,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->vlan_stats.sol_expiry_count),
 		  (u64)atomic64_read(&stats->vlan_stats.flogi_rejects));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tOther Important Statistics\n"
 		  "------------------------------------------\n");
@@ -406,7 +406,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 	jiffies_to_timespec64(stats->misc_stats.last_isr_time, &val1);
 	jiffies_to_timespec64(stats->misc_stats.last_ack_time, &val2);
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 		  "Last ISR time: %llu (%8llu.%09lu)\n"
 		  "Last ACK time: %llu (%8llu.%09lu)\n"
 		  "Max ISR jiffies: %llu\n"
@@ -452,7 +452,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
 
-	len += snprintf(debug->debug_buffer + len, buf_size - len,
+	len += snprintf(de->de_buffer + len, buf_size - len,
 			"Firmware reported port seed: %llu\n",
 			(u64)atomic64_read(
 				&stats->misc_stats.current_port_speed));
@@ -514,7 +514,7 @@ int fnic_trace_buf_init(void)
 		fnic_trace_entries.page_offset[i] = fnic_buf_head;
 		fnic_buf_head += FNIC_ENTRY_SIZE_BYTES;
 	}
-	fnic_trace_debugfs_init();
+	fnic_trace_defs_init();
 	pr_info("fnic: Successfully Initialized Trace Buffer\n");
 	return err;
 
@@ -528,7 +528,7 @@ err_fnic_trace_buf_init:
 void fnic_trace_free(void)
 {
 	fnic_tracing_enabled = 0;
-	fnic_trace_debugfs_terminate();
+	fnic_trace_defs_terminate();
 	if (fnic_trace_entries.page_offset) {
 		vfree((void *)fnic_trace_entries.page_offset);
 		fnic_trace_entries.page_offset = NULL;
@@ -602,7 +602,7 @@ int fnic_fc_trace_init(void)
 		fc_trace_entries.page_offset[i] = fc_trace_buf_head;
 		fc_trace_buf_head += FC_TRC_SIZE_BYTES;
 	}
-	fnic_fc_trace_debugfs_init();
+	fnic_fc_trace_defs_init();
 	pr_info("fnic: Successfully Initialized FC_CTLR Trace Buffer\n");
 	return err;
 
@@ -616,7 +616,7 @@ err_fnic_fc_ctlr_trace_buf_init:
 void fnic_fc_trace_free(void)
 {
 	fnic_fc_tracing_enabled = 0;
-	fnic_fc_trace_debugfs_terminate();
+	fnic_fc_trace_defs_terminate();
 	if (fc_trace_entries.page_offset) {
 		vfree((void *)fc_trace_entries.page_offset);
 		fc_trace_entries.page_offset = NULL;
@@ -714,7 +714,7 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
 /*
  * fnic_fc_ctlr_get_trace_data: Copy trace buffer to a memory file
  * Passed parameter:
- *       @fnic_dbgfs_t: pointer to debugfs trace buffer
+ *       @fnic_dbgfs_t: pointer to defs trace buffer
  *       rdata_flag: 1 => Unformated file
  *                   0 => formated file
  * Description:
@@ -783,7 +783,7 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag)
  * copy_and_format_trace_data: Copy formatted data to char * buffer
  * Passed Parameter:
  *      @fc_trace_hdr_t: pointer to trace data
- *      @fnic_dbgfs_t: pointer to debugfs trace buffer
+ *      @fnic_dbgfs_t: pointer to defs trace buffer
  *      @orig_len: pointer to len
  *      rdata_flag: 0 => Formated file, 1 => Unformated file
  * Description:

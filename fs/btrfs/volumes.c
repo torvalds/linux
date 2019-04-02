@@ -623,7 +623,7 @@ loop_lock:
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
 
-		BUG_ON(atomic_read(&cur->__bi_cnt) == 0);
+		_ON(atomic_read(&cur->__bi_cnt) == 0);
 
 		/*
 		 * if we're doing the sync list, record that our
@@ -1273,12 +1273,12 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 
 	new_device = btrfs_alloc_device(NULL, &device->devid,
 					device->uuid);
-	BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
+	_ON(IS_ERR(new_device)); /* -ENOMEM */
 
 	/* Safe because we are under uuid_mutex */
 	if (device->name) {
 		name = rcu_string_strdup(device->name->str, GFP_NOFS);
-		BUG_ON(!name); /* -ENOMEM */
+		_ON(!name); /* -ENOMEM */
 		rcu_assign_pointer(new_device->name, name);
 	}
 
@@ -1782,7 +1782,7 @@ again:
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		extent = btrfs_item_ptr(leaf, path->slots[0],
 					struct btrfs_dev_extent);
-		BUG_ON(found_key.offset > start || found_key.offset +
+		_ON(found_key.offset > start || found_key.offset +
 		       btrfs_dev_extent_length(leaf, extent) < start);
 		key = found_key;
 		btrfs_release_path(path);
@@ -1891,7 +1891,7 @@ static noinline int find_next_devid(struct btrfs_fs_info *fs_info,
 	if (ret < 0)
 		goto error;
 
-	BUG_ON(ret == 0); /* Corruption */
+	_ON(ret == 0); /* Corruption */
 
 	ret = btrfs_previous_item(fs_info->chunk_root, path,
 				  BTRFS_DEV_ITEMS_OBJECTID,
@@ -2558,7 +2558,7 @@ next_slot:
 				   BTRFS_FSID_SIZE);
 		device = btrfs_find_device(fs_info->fs_devices, devid, dev_uuid,
 					   fs_uuid, true);
-		BUG_ON(!device); /* Logic error */
+		_ON(!device); /* Logic error */
 
 		if (device->fs_devices->seeding) {
 			btrfs_set_device_generation(leaf, dev_item,
@@ -3180,7 +3180,7 @@ again:
 			mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 			goto error;
 		}
-		BUG_ON(ret == 0); /* Corruption */
+		_ON(ret == 0); /* Corruption */
 
 		ret = btrfs_previous_item(chunk_root, path, key.objectid,
 					  key.type);
@@ -3204,7 +3204,7 @@ again:
 			if (ret == -ENOSPC)
 				failed++;
 			else
-				BUG_ON(ret);
+				_ON(ret);
 		}
 		mutex_unlock(&fs_info->delete_unused_bgs_mutex);
 
@@ -3413,7 +3413,7 @@ static void reset_balance_state(struct btrfs_fs_info *fs_info)
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
 	int ret;
 
-	BUG_ON(!fs_info->balance_ctl);
+	_ON(!fs_info->balance_ctl);
 
 	spin_lock(&fs_info->balance_lock);
 	fs_info->balance_ctl = NULL;
@@ -3756,7 +3756,7 @@ again:
 		 * failed
 		 */
 		if (ret == 0)
-			BUG(); /* FIXME break ? */
+			(); /* FIXME break ? */
 
 		ret = btrfs_previous_item(chunk_root, path, 0,
 					  BTRFS_CHUNK_ITEM_KEY);
@@ -4208,13 +4208,13 @@ int btrfs_balance(struct btrfs_fs_info *fs_info,
 		goto out;
 
 	if (!(bctl->flags & BTRFS_BALANCE_RESUME)) {
-		BUG_ON(ret == -EEXIST);
-		BUG_ON(fs_info->balance_ctl);
+		_ON(ret == -EEXIST);
+		_ON(fs_info->balance_ctl);
 		spin_lock(&fs_info->balance_lock);
 		fs_info->balance_ctl = bctl;
 		spin_unlock(&fs_info->balance_lock);
 	} else {
-		BUG_ON(ret != -EEXIST);
+		_ON(ret != -EEXIST);
 		spin_lock(&fs_info->balance_lock);
 		update_balance_args(bctl);
 		spin_unlock(&fs_info->balance_lock);
@@ -4363,7 +4363,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	"balance: cannot set exclusive op status, resume manually");
 
 	mutex_lock(&fs_info->balance_mutex);
-	BUG_ON(fs_info->balance_ctl);
+	_ON(fs_info->balance_ctl);
 	spin_lock(&fs_info->balance_lock);
 	fs_info->balance_ctl = bctl;
 	spin_unlock(&fs_info->balance_lock);
@@ -4392,7 +4392,7 @@ int btrfs_pause_balance(struct btrfs_fs_info *fs_info)
 
 		mutex_lock(&fs_info->balance_mutex);
 		/* we are good with balance_ctl ripped off from under us */
-		BUG_ON(test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
+		_ON(test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
 		atomic_dec(&fs_info->balance_pause_req);
 	} else {
 		ret = -ENOTCONN;
@@ -4445,7 +4445,7 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 		}
 	}
 
-	BUG_ON(fs_info->balance_ctl ||
+	_ON(fs_info->balance_ctl ||
 		test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
 	atomic_dec(&fs_info->balance_cancel_req);
 	mutex_unlock(&fs_info->balance_mutex);
@@ -4998,11 +4998,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int j;
 	int index;
 
-	BUG_ON(!alloc_profile_is_valid(type, 0));
+	_ON(!alloc_profile_is_valid(type, 0));
 
 	if (list_empty(&fs_devices->alloc_list)) {
-		if (btrfs_test_opt(info, ENOSPC_DEBUG))
-			btrfs_debug(info, "%s: no writable device", __func__);
+		if (btrfs_test_opt(info, ENOSPC_DE))
+			btrfs_de(info, "%s: no writable device", __func__);
 		return -ENOSPC;
 	}
 
@@ -5038,7 +5038,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	} else {
 		btrfs_err(info, "invalid chunk type 0x%llx requested",
 		       type);
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	/* We don't want a chunk larger than 10% of writable space */
@@ -5089,8 +5089,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			max_avail = max_stripe_size * dev_stripes;
 
 		if (max_avail < BTRFS_STRIPE_LEN * dev_stripes) {
-			if (btrfs_test_opt(info, ENOSPC_DEBUG))
-				btrfs_debug(info,
+			if (btrfs_test_opt(info, ENOSPC_DE))
+				btrfs_de(info,
 			"%s: devid %llu has no free space, have=%llu want=%u",
 					    __func__, device->devid, max_avail,
 					    BTRFS_STRIPE_LEN * dev_stripes);
@@ -5120,8 +5120,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	if (ndevs < devs_min) {
 		ret = -ENOSPC;
-		if (btrfs_test_opt(info, ENOSPC_DEBUG)) {
-			btrfs_debug(info,
+		if (btrfs_test_opt(info, ENOSPC_DE)) {
+			btrfs_de(info,
 	"%s: not enough devices with free space: have=%d minimum required=%d",
 				    __func__, ndevs, devs_min);
 		}
@@ -6340,7 +6340,7 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 	}
 
 	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
-	BUG_ON(!buf); /* -ENOMEM */
+	_ON(!buf); /* -ENOMEM */
 
 	for (i = 0; i < map->num_stripes; i++) {
 		if (map->stripes[i].physical > physical ||
@@ -6401,7 +6401,7 @@ static void btrfs_end_bio(struct bio *bio)
 				btrfs_io_bio(bio)->stripe_index;
 			struct btrfs_device *dev;
 
-			BUG_ON(stripe_index >= bbio->num_stripes);
+			_ON(stripe_index >= bbio->num_stripes);
 			dev = bbio->stripes[stripe_index].dev;
 			if (dev->bdev) {
 				if (bio_op(bio) == REQ_OP_WRITE)
@@ -6502,7 +6502,7 @@ static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
 	btrfs_io_bio(bio)->stripe_index = dev_nr;
 	bio->bi_end_io = btrfs_end_bio;
 	bio->bi_iter.bi_sector = physical >> 9;
-	btrfs_debug_in_rcu(fs_info,
+	btrfs_de_in_rcu(fs_info,
 	"btrfs_map_bio: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
 		bio_op(bio), bio->bi_opf, (u64)bio->bi_iter.bi_sector,
 		(u_long)dev->bdev->bd_dev, rcu_str_deref(dev->name), dev->devid,
@@ -6585,7 +6585,7 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		btrfs_crit(fs_info,
 			   "mapping failed logical %llu bio len %llu len %llu",
 			   logical, length, map_length);
-		BUG();
+		();
 	}
 
 	for (dev_nr = 0; dev_nr < total_devs; dev_nr++) {
@@ -7081,7 +7081,7 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 	}
 
 	if (device->fs_devices != fs_info->fs_devices) {
-		BUG_ON(test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state));
+		_ON(test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state));
 		if (device->generation !=
 		    btrfs_device_generation(leaf, dev_item))
 			return -EINVAL;

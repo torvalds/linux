@@ -686,28 +686,28 @@ struct ib_qp *i40iw_get_qp(struct ib_device *device, int qpn)
 }
 
 /**
- * i40iw_debug_buf - print debug msg and buffer is mask set
+ * i40iw_de_buf - print de msg and buffer is mask set
  * @dev: hardware control device structure
- * @mask: mask to compare if to print debug buffer
+ * @mask: mask to compare if to print de buffer
  * @buf: points buffer addr
  * @size: saize of buffer to print
  */
-void i40iw_debug_buf(struct i40iw_sc_dev *dev,
-		     enum i40iw_debug_flag mask,
+void i40iw_de_buf(struct i40iw_sc_dev *dev,
+		     enum i40iw_de_flag mask,
 		     char *desc,
 		     u64 *buf,
 		     u32 size)
 {
 	u32 i;
 
-	if (!(dev->debug_mask & mask))
+	if (!(dev->de_mask & mask))
 		return;
-	i40iw_debug(dev, mask, "%s\n", desc);
-	i40iw_debug(dev, mask, "starting address virt=%p phy=%llxh\n", buf,
+	i40iw_de(dev, mask, "%s\n", desc);
+	i40iw_de(dev, mask, "starting address virt=%p phy=%llxh\n", buf,
 		    (unsigned long long)virt_to_phys(buf));
 
 	for (i = 0; i < size; i += 8)
-		i40iw_debug(dev, mask, "index %03d val: %016llx\n", i, buf[i / 8]);
+		i40iw_de(dev, mask, "index %03d val: %016llx\n", i, buf[i / 8]);
 }
 
 /**
@@ -1039,15 +1039,15 @@ static void i40iw_cqp_manage_hmc_fcn_callback(struct i40iw_cqp_request *cqp_requ
 	    back_dev;
 
 	if (hmcfcninfo && hmcfcninfo->callback_fcn) {
-		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_HMC, "%s1\n", __func__);
+		i40iw_de(&iwdev->sc_dev, I40IW_DE_HMC, "%s1\n", __func__);
 		atomic_inc(&cqp_request->refcount);
 		work = &iwdev->virtchnl_w[hmcfcninfo->iw_vf_idx];
 		work->cqp_request = cqp_request;
 		INIT_WORK(&work->work, i40iw_cqp_manage_hmc_fcn_worker);
 		queue_work(iwdev->virtchnl_wq, &work->work);
-		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_HMC, "%s2\n", __func__);
+		i40iw_de(&iwdev->sc_dev, I40IW_DE_HMC, "%s2\n", __func__);
 	} else {
-		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_HMC, "%s: Something wrong\n", __func__);
+		i40iw_de(&iwdev->sc_dev, I40IW_DE_HMC, "%s: Something wrong\n", __func__);
 	}
 }
 
@@ -1064,7 +1064,7 @@ enum i40iw_status_code i40iw_cqp_manage_hmc_fcn_cmd(struct i40iw_sc_dev *dev,
 	struct cqp_commands_info *cqp_info;
 	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
 
-	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_HMC, "%s\n", __func__);
+	i40iw_de(&iwdev->sc_dev, I40IW_DE_HMC, "%s\n", __func__);
 	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
 	if (!cqp_request)
 		return I40IW_ERR_NO_MEMORY;
@@ -1158,7 +1158,7 @@ enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev)
 	struct i40iw_device *iwdev = dev->back_dev;
 	int timeout_ret;
 
-	i40iw_debug(dev, I40IW_DEBUG_VIRT, "%s[%u] dev %p, iwdev %p\n",
+	i40iw_de(dev, I40IW_DE_VIRT, "%s[%u] dev %p, iwdev %p\n",
 		    __func__, __LINE__, dev, iwdev);
 
 	atomic_set(&iwdev->vchnl_msgs, 2);
@@ -1296,7 +1296,7 @@ void i40iw_ieq_mpa_crc_ae(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
 	struct i40iw_gen_ae_info info;
 	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
 
-	i40iw_debug(dev, I40IW_DEBUG_AEQ, "%s entered\n", __func__);
+	i40iw_de(dev, I40IW_DE_AEQ, "%s entered\n", __func__);
 	info.ae_code = I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR;
 	info.ae_source = I40IW_AE_SOURCE_RQ;
 	i40iw_gen_ae(iwdev, qp, &info, false);

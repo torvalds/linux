@@ -3,9 +3,9 @@
  *
  * This traverses the kernel virtual memory and dumps the pages that are in
  * the hash pagetable, along with their flags to
- * /sys/kernel/debug/kernel_hash_pagetable.
+ * /sys/kernel/de/kernel_hash_pagetable.
  *
- * If radix is enabled then there is no hash page table and so no debugfs file
+ * If radix is enabled then there is no hash page table and so no defs file
  * is generated.
  *
  * This program is free software; you can redistribute it and/or
@@ -13,7 +13,7 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -537,13 +537,13 @@ static const struct file_operations ptdump_fops = {
 
 static int ptdump_init(void)
 {
-	struct dentry *debugfs_file;
+	struct dentry *defs_file;
 
 	if (!radix_enabled()) {
 		populate_markers();
-		debugfs_file = debugfs_create_file("kernel_hash_pagetable",
+		defs_file = defs_create_file("kernel_hash_pagetable",
 				0400, NULL, NULL, &ptdump_fops);
-		return debugfs_file ? 0 : -ENOMEM;
+		return defs_file ? 0 : -ENOMEM;
 	}
 	return 0;
 }

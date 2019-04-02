@@ -289,7 +289,7 @@ bool amdgpu_atombios_encoder_mode_fixup(struct drm_encoder *encoder,
 	amdgpu_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	/* hw bug */
+	/* hw  */
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 	    && (mode->crtc_vsync_start < (mode->crtc_vdisplay + 2)))
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
@@ -1406,7 +1406,7 @@ amdgpu_atombios_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 
-	DRM_DEBUG_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
+	DRM_DE_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
 		  amdgpu_encoder->encoder_id, mode, amdgpu_encoder->devices,
 		  amdgpu_encoder->active_device);
 	switch (amdgpu_encoder->encoder_id) {
@@ -1755,13 +1755,13 @@ amdgpu_atombios_encoder_dac_detect(struct drm_encoder *encoder,
 	uint32_t bios_0_scratch;
 
 	if (!amdgpu_atombios_encoder_dac_load_detect(encoder, connector)) {
-		DRM_DEBUG_KMS("detect returned false \n");
+		DRM_DE_KMS("detect returned false \n");
 		return connector_status_unknown;
 	}
 
 	bios_0_scratch = RREG32(mmBIOS_SCRATCH_0);
 
-	DRM_DEBUG_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, amdgpu_encoder->devices);
+	DRM_DE_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, amdgpu_encoder->devices);
 	if (amdgpu_connector->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 		if (bios_0_scratch & ATOM_S0_CRT1_MASK)
 			return connector_status_connected;
@@ -1806,7 +1806,7 @@ amdgpu_atombios_encoder_dig_detect(struct drm_encoder *encoder,
 
 	bios_0_scratch = RREG32(mmBIOS_SCRATCH_0);
 
-	DRM_DEBUG_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, amdgpu_encoder->devices);
+	DRM_DE_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, amdgpu_encoder->devices);
 	if (amdgpu_connector->devices & ATOM_DEVICE_CRT1_SUPPORT) {
 		if (bios_0_scratch & ATOM_S0_CRT1_MASK)
 			return connector_status_connected;
@@ -1859,12 +1859,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_LCD1_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_LCD1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("LCD1 connected\n");
+			DRM_DE_KMS("LCD1 connected\n");
 			bios_0_scratch |= ATOM_S0_LCD1;
 			bios_3_scratch |= ATOM_S3_LCD1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_LCD1;
 		} else {
-			DRM_DEBUG_KMS("LCD1 disconnected\n");
+			DRM_DE_KMS("LCD1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_LCD1;
 			bios_3_scratch &= ~ATOM_S3_LCD1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_LCD1;
@@ -1873,12 +1873,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_CRT1_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_CRT1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("CRT1 connected\n");
+			DRM_DE_KMS("CRT1 connected\n");
 			bios_0_scratch |= ATOM_S0_CRT1_COLOR;
 			bios_3_scratch |= ATOM_S3_CRT1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_CRT1;
 		} else {
-			DRM_DEBUG_KMS("CRT1 disconnected\n");
+			DRM_DE_KMS("CRT1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_CRT1_MASK;
 			bios_3_scratch &= ~ATOM_S3_CRT1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_CRT1;
@@ -1887,12 +1887,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_CRT2_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_CRT2_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("CRT2 connected\n");
+			DRM_DE_KMS("CRT2 connected\n");
 			bios_0_scratch |= ATOM_S0_CRT2_COLOR;
 			bios_3_scratch |= ATOM_S3_CRT2_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_CRT2;
 		} else {
-			DRM_DEBUG_KMS("CRT2 disconnected\n");
+			DRM_DE_KMS("CRT2 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_CRT2_MASK;
 			bios_3_scratch &= ~ATOM_S3_CRT2_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_CRT2;
@@ -1901,12 +1901,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_DFP1_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_DFP1_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("DFP1 connected\n");
+			DRM_DE_KMS("DFP1 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP1;
 			bios_3_scratch |= ATOM_S3_DFP1_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP1;
 		} else {
-			DRM_DEBUG_KMS("DFP1 disconnected\n");
+			DRM_DE_KMS("DFP1 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP1;
 			bios_3_scratch &= ~ATOM_S3_DFP1_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP1;
@@ -1915,12 +1915,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_DFP2_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_DFP2_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("DFP2 connected\n");
+			DRM_DE_KMS("DFP2 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP2;
 			bios_3_scratch |= ATOM_S3_DFP2_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP2;
 		} else {
-			DRM_DEBUG_KMS("DFP2 disconnected\n");
+			DRM_DE_KMS("DFP2 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP2;
 			bios_3_scratch &= ~ATOM_S3_DFP2_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP2;
@@ -1929,12 +1929,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_DFP3_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_DFP3_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("DFP3 connected\n");
+			DRM_DE_KMS("DFP3 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP3;
 			bios_3_scratch |= ATOM_S3_DFP3_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP3;
 		} else {
-			DRM_DEBUG_KMS("DFP3 disconnected\n");
+			DRM_DE_KMS("DFP3 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP3;
 			bios_3_scratch &= ~ATOM_S3_DFP3_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP3;
@@ -1943,12 +1943,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_DFP4_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_DFP4_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("DFP4 connected\n");
+			DRM_DE_KMS("DFP4 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP4;
 			bios_3_scratch |= ATOM_S3_DFP4_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP4;
 		} else {
-			DRM_DEBUG_KMS("DFP4 disconnected\n");
+			DRM_DE_KMS("DFP4 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP4;
 			bios_3_scratch &= ~ATOM_S3_DFP4_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP4;
@@ -1957,12 +1957,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_DFP5_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_DFP5_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("DFP5 connected\n");
+			DRM_DE_KMS("DFP5 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP5;
 			bios_3_scratch |= ATOM_S3_DFP5_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP5;
 		} else {
-			DRM_DEBUG_KMS("DFP5 disconnected\n");
+			DRM_DE_KMS("DFP5 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP5;
 			bios_3_scratch &= ~ATOM_S3_DFP5_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP5;
@@ -1971,12 +1971,12 @@ amdgpu_atombios_encoder_set_bios_scratch_regs(struct drm_connector *connector,
 	if ((amdgpu_encoder->devices & ATOM_DEVICE_DFP6_SUPPORT) &&
 	    (amdgpu_connector->devices & ATOM_DEVICE_DFP6_SUPPORT)) {
 		if (connected) {
-			DRM_DEBUG_KMS("DFP6 connected\n");
+			DRM_DE_KMS("DFP6 connected\n");
 			bios_0_scratch |= ATOM_S0_DFP6;
 			bios_3_scratch |= ATOM_S3_DFP6_ACTIVE;
 			bios_6_scratch |= ATOM_S6_ACC_REQ_DFP6;
 		} else {
-			DRM_DEBUG_KMS("DFP6 disconnected\n");
+			DRM_DE_KMS("DFP6 disconnected\n");
 			bios_0_scratch &= ~ATOM_S0_DFP6;
 			bios_3_scratch &= ~ATOM_S3_DFP6_ACTIVE;
 			bios_6_scratch &= ~ATOM_S6_ACC_REQ_DFP6;

@@ -148,7 +148,7 @@ The list_del(), list_add(), and list_add_tail() primitives have been
 replaced by list_del_rcu(), list_add_rcu(), and list_add_tail_rcu().
 The _rcu() list-manipulation primitives add memory barriers that are
 needed on weakly ordered CPUs (most of them!).  The list_del_rcu()
-primitive omits the pointer poisoning debug-assist code that would
+primitive omits the pointer poisoning de-assist code that would
 otherwise cause concurrent readers to fail spectacularly.
 
 So, when readers can tolerate stale data and when entries are either added

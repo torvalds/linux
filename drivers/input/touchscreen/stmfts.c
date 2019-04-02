@@ -49,7 +49,7 @@
 #define STMFTS_EV_CONTROLLER_READY		0x10
 #define STMFTS_EV_SLEEP_OUT_CONTROLLER_READY	0x11
 #define STMFTS_EV_STATUS			0x16
-#define STMFTS_EV_DEBUG				0xdb
+#define STMFTS_EV_DE				0xdb
 
 /* multi touch related event masks */
 #define STMFTS_MASK_EVENT_ID			0x0f
@@ -258,7 +258,7 @@ static void stmfts_parse_events(struct stmfts_data *sdata)
 			/* fall through */
 
 		case STMFTS_EV_NO_EVENT:
-		case STMFTS_EV_DEBUG:
+		case STMFTS_EV_DE:
 			return;
 		}
 

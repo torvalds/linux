@@ -34,7 +34,7 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-#ifndef CONFIG_DEBUG_LIST
+#ifndef CONFIG_DE_LIST
 static inline void __list_add(struct list_head *new,
 			      struct list_head *prev,
 			      struct list_head *next)
@@ -96,7 +96,7 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
  * Note: list_empty() on entry does not return true after this, the entry is
  * in an undefined state.
  */
-#ifndef CONFIG_DEBUG_LIST
+#ifndef CONFIG_DE_LIST
 static inline void __list_del_entry(struct list_head *entry)
 {
 	__list_del(entry->prev, entry->next);

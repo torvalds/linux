@@ -5,9 +5,9 @@
  *
  */
 
-#undef DEBUG
-#undef DEBUGDATA
-#undef DEBUGCCW
+#undef DE
+#undef DEDATA
+#undef DECCW
 
 #define KMSG_COMPONENT "ctcm"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt

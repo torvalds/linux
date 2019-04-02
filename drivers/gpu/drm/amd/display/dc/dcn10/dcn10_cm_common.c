@@ -146,49 +146,49 @@ bool cm_helper_convert_to_custom_float(
 	 */
 	if (!convert_to_custom_float_format(corner_points[0].red.x, &fmt,
 				&corner_points[0].red.custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[0].green.x, &fmt,
 				&corner_points[0].green.custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[0].blue.x, &fmt,
 				&corner_points[0].blue.custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!convert_to_custom_float_format(corner_points[0].red.offset, &fmt,
 				&corner_points[0].red.custom_float_offset)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[0].green.offset, &fmt,
 				&corner_points[0].green.custom_float_offset)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[0].blue.offset, &fmt,
 				&corner_points[0].blue.custom_float_offset)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
 	if (!convert_to_custom_float_format(corner_points[0].red.slope, &fmt,
 				&corner_points[0].red.custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[0].green.slope, &fmt,
 				&corner_points[0].green.custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[0].blue.slope, &fmt,
 				&corner_points[0].blue.custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -197,17 +197,17 @@ bool cm_helper_convert_to_custom_float(
 
 	if (!convert_to_custom_float_format(corner_points[1].red.x, &fmt,
 				&corner_points[1].red.custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[1].green.x, &fmt,
 				&corner_points[1].green.custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[1].blue.x, &fmt,
 				&corner_points[1].blue.custom_float_x)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -221,34 +221,34 @@ bool cm_helper_convert_to_custom_float(
 	} else {
 		if (!convert_to_custom_float_format(corner_points[1].red.y,
 				&fmt, &corner_points[1].red.custom_float_y)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 		if (!convert_to_custom_float_format(corner_points[1].green.y,
 				&fmt, &corner_points[1].green.custom_float_y)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 		if (!convert_to_custom_float_format(corner_points[1].blue.y,
 				&fmt, &corner_points[1].blue.custom_float_y)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 	}
 
 	if (!convert_to_custom_float_format(corner_points[1].red.slope, &fmt,
 				&corner_points[1].red.custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[1].green.slope, &fmt,
 				&corner_points[1].green.custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 	if (!convert_to_custom_float_format(corner_points[1].blue.slope, &fmt,
 				&corner_points[1].blue.custom_float_slope)) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 
@@ -261,37 +261,37 @@ bool cm_helper_convert_to_custom_float(
 	while (i != hw_points_num) {
 		if (!convert_to_custom_float_format(rgb->red, &fmt,
 						    &rgb->red_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->green, &fmt,
 						    &rgb->green_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->blue, &fmt,
 						    &rgb->blue_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
 						    &rgb->delta_red_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
 						    &rgb->delta_green_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 
 		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
 						    &rgb->delta_blue_reg)) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 

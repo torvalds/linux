@@ -250,7 +250,7 @@ static int gntalloc_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = priv;
 
-	pr_debug("%s: priv %p\n", __func__, priv);
+	pr_de("%s: priv %p\n", __func__, priv);
 
 	return 0;
 
@@ -263,7 +263,7 @@ static int gntalloc_release(struct inode *inode, struct file *filp)
 	struct gntalloc_file_private_data *priv = filp->private_data;
 	struct gntalloc_gref *gref;
 
-	pr_debug("%s: priv %p\n", __func__, priv);
+	pr_de("%s: priv %p\n", __func__, priv);
 
 	mutex_lock(&gref_mutex);
 	while (!list_empty(&priv->list)) {
@@ -287,7 +287,7 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 	struct ioctl_gntalloc_alloc_gref op;
 	uint32_t *gref_ids;
 
-	pr_debug("%s: priv %p\n", __func__, priv);
+	pr_de("%s: priv %p\n", __func__, priv);
 
 	if (copy_from_user(&op, arg, sizeof(op))) {
 		rc = -EFAULT;
@@ -350,7 +350,7 @@ static long gntalloc_ioctl_dealloc(struct gntalloc_file_private_data *priv,
 	struct ioctl_gntalloc_dealloc_gref op;
 	struct gntalloc_gref *gref, *n;
 
-	pr_debug("%s: priv %p\n", __func__, priv);
+	pr_de("%s: priv %p\n", __func__, priv);
 
 	if (copy_from_user(&op, arg, sizeof(op))) {
 		rc = -EFAULT;
@@ -521,13 +521,13 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	mutex_lock(&gref_mutex);
 
-	pr_debug("%s: priv %p,%p, page %lu+%d\n", __func__,
+	pr_de("%s: priv %p,%p, page %lu+%d\n", __func__,
 		       priv, vm_priv, vma->vm_pgoff, count);
 
 	gref = find_grefs(priv, vma->vm_pgoff << PAGE_SHIFT, count);
 	if (gref == NULL) {
 		rv = -ENOENT;
-		pr_debug("%s: Could not find grant reference",
+		pr_de("%s: Could not find grant reference",
 				__func__);
 		kfree(vm_priv);
 		goto out_unlock;
@@ -592,7 +592,7 @@ static int __init gntalloc_init(void)
 		return err;
 	}
 
-	pr_debug("Created grant allocation device at %d,%d\n",
+	pr_de("Created grant allocation device at %d,%d\n",
 			MISC_MAJOR, gntalloc_miscdev.minor);
 
 	return 0;

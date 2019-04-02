@@ -18,8 +18,8 @@
 
 #include "hermes.h"
 
-/* To enable debug messages */
-/*#define ORINOCO_DEBUG		3*/
+/* To enable de messages */
+/*#define ORINOCO_DE		3*/
 
 #define WIRELESS_SPY		/* enable iwspy support */
 
@@ -167,15 +167,15 @@ struct orinoco_private {
 	struct notifier_block pm_notifier;
 };
 
-#ifdef ORINOCO_DEBUG
-extern int orinoco_debug;
-#define DEBUG(n, args...) do { \
-	if (orinoco_debug > (n)) \
-		printk(KERN_DEBUG args); \
+#ifdef ORINOCO_DE
+extern int orinoco_de;
+#define DE(n, args...) do { \
+	if (orinoco_de > (n)) \
+		printk(KERN_DE args); \
 } while (0)
 #else
-#define DEBUG(n, args...) do { } while (0)
-#endif	/* ORINOCO_DEBUG */
+#define DE(n, args...) do { } while (0)
+#endif	/* ORINOCO_DE */
 
 /********************************************************************/
 /* Exported prototypes                                              */
@@ -218,7 +218,7 @@ static inline int orinoco_lock(struct orinoco_private *priv,
 {
 	priv->hw.ops->lock_irqsave(&priv->lock, flags);
 	if (priv->hw_unavailable) {
-		DEBUG(1, "orinoco_lock() called with hw_unavailable (dev=%p)\n",
+		DE(1, "orinoco_lock() called with hw_unavailable (dev=%p)\n",
 		       priv->ndev);
 		priv->hw.ops->unlock_irqrestore(&priv->lock, flags);
 		return -EBUSY;

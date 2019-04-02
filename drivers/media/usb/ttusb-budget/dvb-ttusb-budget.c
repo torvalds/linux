@@ -52,18 +52,18 @@
     my TTUSB, so let it undef'd unless you want to implement another
     frontend. never tested.
 
-  debug:
-    define it to > 3 for really hardcore debugging. you probably don't want
+  de:
+    define it to > 3 for really hardcore deging. you probably don't want
     this unless the device doesn't load at all. > 2 for bandwidth statistics.
 */
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define dprintk(x...) do { if (debug) printk(KERN_DEBUG x); } while (0)
+#define dprintk(x...) do { if (de) printk(KERN_DE x); } while (0)
 
 #define ISO_BUF_COUNT      4
 #define FRAMES_PER_ISO_BUF 4
@@ -140,8 +140,8 @@ static int ttusb_cmd(struct ttusb *ttusb,
 	int err;
 	int i;
 
-	if (debug >= 3) {
-		printk(KERN_DEBUG ">");
+	if (de >= 3) {
+		printk(KERN_DE ">");
 		for (i = 0; i < len; ++i)
 			printk(KERN_CONT " %02x", data[i]);
 		printk(KERN_CONT "\n");
@@ -175,9 +175,9 @@ static int ttusb_cmd(struct ttusb *ttusb,
 		return err;
 	}
 
-	if (debug >= 3) {
+	if (de >= 3) {
 		actual_len = ttusb->last_result[3] + 4;
-		printk(KERN_DEBUG "<");
+		printk(KERN_DE "<");
 		for (i = 0; i < actual_len; ++i)
 			printk(KERN_CONT " %02x", ttusb->last_result[i]);
 		printk(KERN_CONT "\n");
@@ -675,7 +675,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 				memcpy(ttusb->muxpack + ttusb->muxpack_ptr,
 				       data, avail);
 				ttusb->muxpack_ptr += avail;
-				BUG_ON(ttusb->muxpack_ptr > 264);
+				_ON(ttusb->muxpack_ptr > 264);
 				data += avail;
 				len -= avail;
 				/* determine length */
@@ -740,7 +740,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 				break;
 			}
 		default:
-			BUG();
+			();
 			break;
 		}
 	}

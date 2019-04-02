@@ -89,7 +89,7 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
 #define UBI_UNKNOWN -1
 
 /*
- * The UBI debugfs directory name pattern and maximum name length (3 for "ubi"
+ * The UBI defs directory name pattern and maximum name length (3 for "ubi"
  * + 2 for the number plus 1 for the trailing zero byte.
  */
 #define UBI_DFS_DIR_NAME "ubi%d"
@@ -110,7 +110,7 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
  *
  * Note, it is probably better to have bit-flip and ebadmsg as flags which can
  * be or'ed with other error code. But this is a big change because there are
- * may callers, so it does not worth the risk of introducing a bug
+ * may callers, so it does not worth the risk of introducing a 
  */
 enum {
 	UBI_IO_FF = 1,
@@ -156,7 +156,7 @@ enum {
 };
 
 /*
- * Flags for emulate_power_cut in ubi_debug_info
+ * Flags for emulate_power_cut in ubi_de_info
  *
  * POWER_CUT_EC_WRITE: Emulate a power cut when writing an EC header
  * POWER_CUT_VID_WRITE: Emulate a power cut when writing a VID header
@@ -404,7 +404,7 @@ struct ubi_volume_desc {
 struct ubi_wl_entry;
 
 /**
- * struct ubi_debug_info - debugging information for an UBI device.
+ * struct ubi_de_info - deging information for an UBI device.
  *
  * @chk_gen: if UBI general extra checks are enabled
  * @chk_io: if UBI I/O extra checks are enabled
@@ -416,19 +416,19 @@ struct ubi_wl_entry;
  * @power_cut_counter: count down for writes left until emulated power cut
  * @power_cut_min: minimum number of writes before emulating a power cut
  * @power_cut_max: maximum number of writes until emulating a power cut
- * @dfs_dir_name: name of debugfs directory containing files of this UBI device
- * @dfs_dir: direntry object of the UBI device debugfs directory
- * @dfs_chk_gen: debugfs knob to enable UBI general extra checks
- * @dfs_chk_io: debugfs knob to enable UBI I/O extra checks
- * @dfs_chk_fastmap: debugfs knob to enable UBI fastmap extra checks
- * @dfs_disable_bgt: debugfs knob to disable the background task
- * @dfs_emulate_bitflips: debugfs knob to emulate bit-flips
- * @dfs_emulate_io_failures: debugfs knob to emulate write/erase failures
- * @dfs_emulate_power_cut: debugfs knob to emulate power cuts
- * @dfs_power_cut_min: debugfs knob for minimum writes before power cut
- * @dfs_power_cut_max: debugfs knob for maximum writes until power cut
+ * @dfs_dir_name: name of defs directory containing files of this UBI device
+ * @dfs_dir: direntry object of the UBI device defs directory
+ * @dfs_chk_gen: defs knob to enable UBI general extra checks
+ * @dfs_chk_io: defs knob to enable UBI I/O extra checks
+ * @dfs_chk_fastmap: defs knob to enable UBI fastmap extra checks
+ * @dfs_disable_bgt: defs knob to disable the background task
+ * @dfs_emulate_bitflips: defs knob to emulate bit-flips
+ * @dfs_emulate_io_failures: defs knob to emulate write/erase failures
+ * @dfs_emulate_power_cut: defs knob to emulate power cuts
+ * @dfs_power_cut_min: defs knob for minimum writes before power cut
+ * @dfs_power_cut_max: defs knob for maximum writes until power cut
  */
-struct ubi_debug_info {
+struct ubi_de_info {
 	unsigned int chk_gen:1;
 	unsigned int chk_io:1;
 	unsigned int chk_fastmap:1;
@@ -565,7 +565,7 @@ struct ubi_debug_info {
  * @buf_mutex: protects @peb_buf
  * @ckvol_mutex: serializes static volume checking when opening
  *
- * @dbg: debugging information for this UBI device
+ * @dbg: deging information for this UBI device
  */
 struct ubi_device {
 	struct cdev cdev;
@@ -663,7 +663,7 @@ struct ubi_device {
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
 
-	struct ubi_debug_info dbg;
+	struct ubi_de_info dbg;
 };
 
 /**
@@ -821,7 +821,7 @@ struct ubi_work {
 	int anchor;
 };
 
-#include "debug.h"
+#include "de.h"
 
 extern struct kmem_cache *ubi_wl_entry_slab;
 extern const struct file_operations ubi_ctrl_cdev_operations;

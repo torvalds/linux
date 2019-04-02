@@ -48,7 +48,7 @@ common to each controller of that type:
  - method to return the IRQ number associated to a given GPIO line
  - flag saying whether calls to its methods may sleep
  - optional line names array to identify lines
- - optional debugfs dump method (showing extra state like pullup config)
+ - optional defs dump method (showing extra state like pullup config)
  - optional base number (will be automatically assigned if omitted)
  - optional label for diagnostics and GPIO chip mapping using platform data
 
@@ -62,7 +62,7 @@ Often a gpio_chip is part of an instance-specific structure with states not
 exposed by the GPIO interfaces, such as addressing, power management, and more.
 Chips such as audio codecs will have complex non-GPIO states.
 
-Any debugfs dump method should normally ignore signals which haven't been
+Any defs dump method should normally ignore signals which haven't been
 requested as GPIOs. They can use gpiochip_is_requested(), which returns either
 NULL or the label associated with that GPIO when it was requested.
 

@@ -67,7 +67,7 @@ static int iop_set_next_event(unsigned long delta,
 {
 	u32 tmr = IOP_TMR_PRIVILEGED | IOP_TMR_RATIO_1_1;
 
-	BUG_ON(delta == 0);
+	_ON(delta == 0);
 	write_tmr0(tmr & ~(IOP_TMR_EN | IOP_TMR_RELOAD));
 	write_tcr0(delta);
 	write_tmr0((tmr & ~IOP_TMR_RELOAD) | IOP_TMR_EN);

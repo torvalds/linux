@@ -32,7 +32,7 @@
 #include <asm/e820/types.h>
 #include <asm/io_apic.h>
 #include <asm/hpet.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <asm/cpu.h>
 #include <asm/reboot.h>
 #include <asm/virtext.h>
@@ -455,7 +455,7 @@ int crash_load_segments(struct kimage *image)
 		if (ret)
 			return ret;
 		image->arch.backup_load_addr = kbuf.mem;
-		pr_debug("Loaded backup region at 0x%lx backup_start=0x%lx memsz=0x%lx\n",
+		pr_de("Loaded backup region at 0x%lx backup_start=0x%lx memsz=0x%lx\n",
 			 image->arch.backup_load_addr,
 			 image->arch.backup_src_start, kbuf.memsz);
 	}
@@ -477,7 +477,7 @@ int crash_load_segments(struct kimage *image)
 		return ret;
 	}
 	image->arch.elf_load_addr = kbuf.mem;
-	pr_debug("Loaded ELF headers at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
+	pr_de("Loaded ELF headers at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
 		 image->arch.elf_load_addr, kbuf.bufsz, kbuf.bufsz);
 
 	return ret;

@@ -18,7 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/export.h>
 
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
 #include <asm/cpu-type.h>
@@ -422,8 +422,8 @@ static int __init ftlb_disable(char *s)
 	mips_has_ftlb_configured = 0;
 
 	/*
-	 * noftlb is mainly used for debug purposes so print
-	 * an informative message instead of using pr_debug()
+	 * noftlb is mainly used for de purposes so print
+	 * an informative message instead of using pr_de()
 	 */
 	pr_info("FTLB has been disabled\n");
 
@@ -470,7 +470,7 @@ static inline void check_errata(void)
 	}
 }
 
-void __init check_bugs32(void)
+void __init check_s32(void)
 {
 	check_errata();
 }
@@ -964,7 +964,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 	set_ftlb_enable(c, mips_ftlb_disabled ? 0 : FTLB_EN);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
-	BUG_ON(!ok);				/* Arch spec violation!	 */
+	_ON(!ok);				/* Arch spec violation!	 */
 	if (ok)
 		ok = decode_config1(c);
 	if (ok)
@@ -1849,7 +1849,7 @@ static inline void cpu_probe_broadcom(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 	case PRID_IMP_BMIPS3300:
 	case PRID_IMP_BMIPS3300_ALT:
-	case PRID_IMP_BMIPS3300_BUG:
+	case PRID_IMP_BMIPS3300_:
 		c->cputype = CPU_BMIPS3300;
 		__cpu_name[cpu] = "Broadcom BMIPS3300";
 		set_elf_platform(cpu, "bmips3300");
@@ -1962,7 +1962,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	decode_configs(c);
 	/* JZRISC does not implement the CP0 counter. */
 	c->options &= ~MIPS_CPU_COUNTER;
-	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
+	_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_JZRISC:
 		c->cputype = CPU_JZRISC;
@@ -2123,15 +2123,15 @@ void cpu_probe(void)
 		break;
 	}
 
-	BUG_ON(!__cpu_name[cpu]);
-	BUG_ON(c->cputype == CPU_UNKNOWN);
+	_ON(!__cpu_name[cpu]);
+	_ON(c->cputype == CPU_UNKNOWN);
 
 	/*
 	 * Platform code can force the cpu type to optimize code
 	 * generation. In that case be sure the cpu type is correctly
-	 * manually setup otherwise it could trigger some nasty bugs.
+	 * manually setup otherwise it could trigger some nasty s.
 	 */
-	BUG_ON(current_cpu_type() != c->cputype);
+	_ON(current_cpu_type() != c->cputype);
 
 	if (cpu_has_rixi) {
 		/* Enable the RIXI exceptions */

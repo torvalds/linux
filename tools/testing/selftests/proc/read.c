@@ -19,7 +19,7 @@
 // 3) recursively (1) + (2) for every directory in /proc
 // 4) write to /proc/*/clear_refs and /proc/*/task/*/clear_refs
 // 5) write to /proc/sysrq-trigger
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <errno.h>
 #include <sys/types.h>

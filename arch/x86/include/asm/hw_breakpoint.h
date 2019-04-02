@@ -18,7 +18,7 @@ struct arch_hw_breakpoint {
 	u8		type;
 };
 
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/percpu.h>
 #include <linux/list.h>
 

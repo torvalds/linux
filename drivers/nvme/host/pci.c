@@ -232,19 +232,19 @@ struct nvme_iod {
  */
 static inline void _nvme_check_size(void)
 {
-	BUILD_BUG_ON(sizeof(struct nvme_rw_command) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_create_cq) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_create_sq) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_delete_queue) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_features) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_format_cmd) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_abort_cmd) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_command) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl) != NVME_IDENTIFY_DATA_SIZE);
-	BUILD_BUG_ON(sizeof(struct nvme_id_ns) != NVME_IDENTIFY_DATA_SIZE);
-	BUILD_BUG_ON(sizeof(struct nvme_lba_range_type) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_smart_log) != 512);
-	BUILD_BUG_ON(sizeof(struct nvme_dbbuf) != 64);
+	BUILD__ON(sizeof(struct nvme_rw_command) != 64);
+	BUILD__ON(sizeof(struct nvme_create_cq) != 64);
+	BUILD__ON(sizeof(struct nvme_create_sq) != 64);
+	BUILD__ON(sizeof(struct nvme_delete_queue) != 64);
+	BUILD__ON(sizeof(struct nvme_features) != 64);
+	BUILD__ON(sizeof(struct nvme_format_cmd) != 64);
+	BUILD__ON(sizeof(struct nvme_abort_cmd) != 64);
+	BUILD__ON(sizeof(struct nvme_command) != 64);
+	BUILD__ON(sizeof(struct nvme_id_ctrl) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD__ON(sizeof(struct nvme_id_ns) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD__ON(sizeof(struct nvme_lba_range_type) != 64);
+	BUILD__ON(sizeof(struct nvme_smart_log) != 512);
+	BUILD__ON(sizeof(struct nvme_dbbuf) != 64);
 }
 
 static unsigned int max_io_queues(void)
@@ -464,7 +464,7 @@ static int nvme_init_request(struct blk_mq_tag_set *set, struct request *req,
 	int queue_idx = (set == &dev->tagset) ? hctx_idx + 1 : 0;
 	struct nvme_queue *nvmeq = &dev->queues[queue_idx];
 
-	BUG_ON(!nvmeq);
+	_ON(!nvmeq);
 	iod->nvmeq = nvmeq;
 
 	nvme_req(req)->ctrl = &dev->ctrl;
@@ -491,7 +491,7 @@ static int nvme_pci_map_queues(struct blk_mq_tag_set *set)
 
 		map->nr_queues = dev->io_queues[i];
 		if (!map->nr_queues) {
-			BUG_ON(i == HCTX_TYPE_DEFAULT);
+			_ON(i == HCTX_TYPE_DEFAULT);
 			continue;
 		}
 
@@ -1177,7 +1177,7 @@ static int adapter_alloc_sq(struct nvme_dev *dev, u16 qid,
 	int flags = NVME_QUEUE_PHYS_CONTIG;
 
 	/*
-	 * Some drives have a bug that auto-enables WRRU if MEDIUM isn't
+	 * Some drives have a  that auto-enables WRRU if MEDIUM isn't
 	 * set. Since URGENT priority is zeroes, it makes all queues
 	 * URGENT.
 	 */
@@ -1770,7 +1770,7 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 	 * Ignore failing Create SQ/CQ commands, we can continue with less
 	 * than the desired amount of queues, and even a controller without
 	 * I/O queues can still be used to issue admin commands.  This might
-	 * be useful to upgrade a buggy firmware for example.
+	 * be useful to upgrade a gy firmware for example.
 	 */
 	return ret >= 0 ? 0 : ret;
 }
@@ -2675,7 +2675,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	return -ENODEV;
 }
 
-static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
+static unsigned long check_vendor_combination_(struct pci_dev *pdev)
 {
 	if (pdev->vendor == 0x144d && pdev->device == 0xa802) {
 		/*
@@ -2750,7 +2750,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (result)
 		goto unmap;
 
-	quirks |= check_vendor_combination_bug(pdev);
+	quirks |= check_vendor_combination_(pdev);
 
 	/*
 	 * Double check that our mempool alloc size will cover the biggest
@@ -2979,7 +2979,7 @@ static struct pci_driver nvme_driver = {
 
 static int __init nvme_init(void)
 {
-	BUILD_BUG_ON(IRQ_AFFINITY_MAX_SETS < 2);
+	BUILD__ON(IRQ_AFFINITY_MAX_SETS < 2);
 	return pci_register_driver(&nvme_driver);
 }
 

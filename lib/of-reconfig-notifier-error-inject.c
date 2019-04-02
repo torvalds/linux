@@ -32,7 +32,7 @@ static int err_inject_init(void)
 
 	err = of_reconfig_notifier_register(&reconfig_err_inject.nb);
 	if (err)
-		debugfs_remove_recursive(dir);
+		defs_remove_recursive(dir);
 
 	return err;
 }
@@ -40,7 +40,7 @@ static int err_inject_init(void)
 static void err_inject_exit(void)
 {
 	of_reconfig_notifier_unregister(&reconfig_err_inject.nb);
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 }
 
 module_init(err_inject_init);

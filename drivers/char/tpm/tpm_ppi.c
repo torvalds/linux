@@ -46,7 +46,7 @@ static inline union acpi_object *
 tpm_eval_dsm(acpi_handle ppi_handle, int func, acpi_object_type type,
 	     union acpi_object *argv4, u64 rev)
 {
-	BUG_ON(!ppi_handle);
+	_ON(!ppi_handle);
 	return acpi_evaluate_dsm_typed(ppi_handle, &tpm_ppi_guid,
 				       rev, func, argv4, type);
 }

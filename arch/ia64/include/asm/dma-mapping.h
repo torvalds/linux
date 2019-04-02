@@ -8,7 +8,7 @@
  */
 #include <asm/machvec.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 
 extern const struct dma_map_ops *dma_ops;
 extern struct ia64_machine_vector ia64_mv;

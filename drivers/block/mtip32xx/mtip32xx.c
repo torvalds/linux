@@ -38,7 +38,7 @@
 #include <linux/kthread.h>
 #include <../drivers/ata/ahci.h>
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/prefetch.h>
 #include <linux/numa.h>
 #include "mtip32xx.h"
@@ -2249,7 +2249,7 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 
 static DEVICE_ATTR(status, 0444, mtip_hw_show_status, NULL);
 
-/* debugsfs entries */
+/* desfs entries */
 
 static ssize_t show_device_status(struct device_driver *drv, char *buf)
 {
@@ -2514,30 +2514,30 @@ static int mtip_hw_sysfs_exit(struct driver_data *dd, struct kobject *kobj)
 	return 0;
 }
 
-static int mtip_hw_debugfs_init(struct driver_data *dd)
+static int mtip_hw_defs_init(struct driver_data *dd)
 {
 	if (!dfs_parent)
 		return -1;
 
-	dd->dfs_node = debugfs_create_dir(dd->disk->disk_name, dfs_parent);
+	dd->dfs_node = defs_create_dir(dd->disk->disk_name, dfs_parent);
 	if (IS_ERR_OR_NULL(dd->dfs_node)) {
 		dev_warn(&dd->pdev->dev,
-			"Error creating node %s under debugfs\n",
+			"Error creating node %s under defs\n",
 						dd->disk->disk_name);
 		dd->dfs_node = NULL;
 		return -1;
 	}
 
-	debugfs_create_file("flags", 0444, dd->dfs_node, dd, &mtip_flags_fops);
-	debugfs_create_file("registers", 0444, dd->dfs_node, dd,
+	defs_create_file("flags", 0444, dd->dfs_node, dd, &mtip_flags_fops);
+	defs_create_file("registers", 0444, dd->dfs_node, dd,
 			    &mtip_regs_fops);
 
 	return 0;
 }
 
-static void mtip_hw_debugfs_exit(struct driver_data *dd)
+static void mtip_hw_defs_exit(struct driver_data *dd)
 {
-	debugfs_remove_recursive(dd->dfs_node);
+	defs_remove_recursive(dd->dfs_node);
 }
 
 /*
@@ -2553,7 +2553,7 @@ static inline void hba_setup(struct driver_data *dd)
 	u32 hwdata;
 	hwdata = readl(dd->mmio + HOST_HSORG);
 
-	/* interrupt bug workaround: use only 1 IS bit.*/
+	/* interrupt  workaround: use only 1 IS bit.*/
 	writel(hwdata |
 		HSORG_DISABLE_SLOTGRP_INTR |
 		HSORG_DISABLE_SLOTGRP_PXIS,
@@ -3711,7 +3711,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 	dd->disk->private_data	= dd;
 	dd->index		= index;
 
-	mtip_hw_debugfs_init(dd);
+	mtip_hw_defs_init(dd);
 
 	memset(&dd->tags, 0, sizeof(dd->tags));
 	dd->tags.ops = &mtip_mq_ops;
@@ -3835,7 +3835,7 @@ init_hw_cmds_error:
 block_queue_alloc_init_error:
 	blk_mq_free_tag_set(&dd->tags);
 block_queue_alloc_tag_error:
-	mtip_hw_debugfs_exit(dd);
+	mtip_hw_defs_exit(dd);
 disk_index_error:
 	ida_free(&rssd_index_ida, index);
 
@@ -3872,7 +3872,7 @@ static int mtip_block_remove(struct driver_data *dd)
 {
 	struct kobject *kobj;
 
-	mtip_hw_debugfs_exit(dd);
+	mtip_hw_defs_exit(dd);
 
 	if (dd->mtip_svc_handler) {
 		set_bit(MTIP_PF_SVC_THD_STOP_BIT, &dd->port->flags);
@@ -4499,13 +4499,13 @@ static int __init mtip_init(void)
 	}
 	mtip_major = error;
 
-	dfs_parent = debugfs_create_dir("rssd", NULL);
+	dfs_parent = defs_create_dir("rssd", NULL);
 	if (IS_ERR_OR_NULL(dfs_parent)) {
-		pr_warn("Error creating debugfs parent\n");
+		pr_warn("Error creating defs parent\n");
 		dfs_parent = NULL;
 	}
 	if (dfs_parent) {
-		dfs_device_status = debugfs_create_file("device_status",
+		dfs_device_status = defs_create_file("device_status",
 					0444, dfs_parent, NULL,
 					&mtip_device_status_fops);
 		if (IS_ERR_OR_NULL(dfs_device_status)) {
@@ -4517,7 +4517,7 @@ static int __init mtip_init(void)
 	/* Register our PCI operations. */
 	error = pci_register_driver(&mtip_pci_driver);
 	if (error) {
-		debugfs_remove(dfs_parent);
+		defs_remove(dfs_parent);
 		unregister_blkdev(mtip_major, MTIP_DRV_NAME);
 	}
 
@@ -4542,7 +4542,7 @@ static void __exit mtip_exit(void)
 	/* Unregister the PCI driver. */
 	pci_unregister_driver(&mtip_pci_driver);
 
-	debugfs_remove_recursive(dfs_parent);
+	defs_remove_recursive(dfs_parent);
 }
 
 MODULE_AUTHOR("Micron Technology, Inc");

@@ -36,9 +36,9 @@
 
 #include "pmac.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)

@@ -20,7 +20,7 @@
 #include <linux/power_supply.h>
 #include <linux/mfd/da903x.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/notifier.h>
 
@@ -118,7 +118,7 @@ struct da9030_charger {
 	void (*battery_low)(void);
 	void (*battery_critical)(void);
 
-	struct dentry *debug_file;
+	struct dentry *de_file;
 };
 
 static inline int da9030_reg_to_mV(int reg)
@@ -136,8 +136,8 @@ static inline int da9030_reg_to_mA(int reg)
 	return ((reg * 24000) >> 8) / 15;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int bat_debug_show(struct seq_file *s, void *data)
+#ifdef CONFIG_DE_FS
+static int bat_de_show(struct seq_file *s, void *data)
 {
 	struct da9030_charger *charger = s->private;
 
@@ -175,35 +175,35 @@ static int bat_debug_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int debug_open(struct inode *inode, struct file *file)
+static int de_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, bat_debug_show, inode->i_private);
+	return single_open(file, bat_de_show, inode->i_private);
 }
 
-static const struct file_operations bat_debug_fops = {
-	.open		= debug_open,
+static const struct file_operations bat_de_fops = {
+	.open		= de_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static struct dentry *da9030_bat_create_debugfs(struct da9030_charger *charger)
+static struct dentry *da9030_bat_create_defs(struct da9030_charger *charger)
 {
-	charger->debug_file = debugfs_create_file("charger", 0666, NULL,
-						  charger, &bat_debug_fops);
-	return charger->debug_file;
+	charger->de_file = defs_create_file("charger", 0666, NULL,
+						  charger, &bat_de_fops);
+	return charger->de_file;
 }
 
-static void da9030_bat_remove_debugfs(struct da9030_charger *charger)
+static void da9030_bat_remove_defs(struct da9030_charger *charger)
 {
-	debugfs_remove(charger->debug_file);
+	defs_remove(charger->de_file);
 }
 #else
-static inline struct dentry *da9030_bat_create_debugfs(struct da9030_charger *charger)
+static inline struct dentry *da9030_bat_create_defs(struct da9030_charger *charger)
 {
 	return NULL;
 }
-static inline void da9030_bat_remove_debugfs(struct da9030_charger *charger)
+static inline void da9030_bat_remove_defs(struct da9030_charger *charger)
 {
 }
 #endif
@@ -550,7 +550,7 @@ static int da9030_battery_probe(struct platform_device *pdev)
 		goto err_ps_register;
 	}
 
-	charger->debug_file = da9030_bat_create_debugfs(charger);
+	charger->de_file = da9030_bat_create_defs(charger);
 	platform_set_drvdata(pdev, charger);
 	return 0;
 
@@ -569,7 +569,7 @@ static int da9030_battery_remove(struct platform_device *dev)
 {
 	struct da9030_charger *charger = platform_get_drvdata(dev);
 
-	da9030_bat_remove_debugfs(charger);
+	da9030_bat_remove_defs(charger);
 
 	da903x_unregister_notifier(charger->master, &charger->nb,
 				   DA9030_EVENT_CHDET | DA9030_EVENT_VBATMON |

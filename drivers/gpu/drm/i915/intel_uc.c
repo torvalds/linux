@@ -74,8 +74,8 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
 
 	if (!HAS_GUC(i915) || !intel_uc_is_using_guc(i915))
 		guc_log_level = GUC_LOG_LEVEL_DISABLED;
-	else if (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
-		 IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+	else if (IS_ENABLED(CONFIG_DRM_I915_DE) ||
+		 IS_ENABLED(CONFIG_DRM_I915_DE_GEM))
 		guc_log_level = GUC_LOG_LEVEL_MAX;
 	else
 		guc_log_level = GUC_LOG_LEVEL_NON_VERBOSE;
@@ -100,7 +100,7 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
  * "enable(1..4)" on platforms without the GuC. Default value for this
  * modparam varies between platforms and is usually set to "disable(0)"
  * unless GuC is enabled on given platform and the driver is compiled with
- * debug config when this modparam will default to "enable(1..4)".
+ * de config when this modparam will default to "enable(1..4)".
  */
 static void sanitize_options_early(struct drm_i915_private *i915)
 {
@@ -111,7 +111,7 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 	if (i915_modparams.enable_guc < 0)
 		i915_modparams.enable_guc = __get_platform_enable_guc(i915);
 
-	DRM_DEBUG_DRIVER("enable_guc=%d (submission:%s huc:%s)\n",
+	DRM_DE_DRIVER("enable_guc=%d (submission:%s huc:%s)\n",
 			 i915_modparams.enable_guc,
 			 yesno(intel_uc_is_using_guc_submission(i915)),
 			 yesno(intel_uc_is_using_huc(i915)));
@@ -152,15 +152,15 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 		i915_modparams.guc_log_level = GUC_LOG_LEVEL_MAX;
 	}
 
-	DRM_DEBUG_DRIVER("guc_log_level=%d (enabled:%s, verbose:%s, verbosity:%d)\n",
+	DRM_DE_DRIVER("guc_log_level=%d (enabled:%s, verbose:%s, verbosity:%d)\n",
 			 i915_modparams.guc_log_level,
 			 yesno(i915_modparams.guc_log_level),
 			 yesno(GUC_LOG_LEVEL_IS_VERBOSE(i915_modparams.guc_log_level)),
 			 GUC_LOG_LEVEL_TO_VERBOSITY(i915_modparams.guc_log_level));
 
 	/* Make sure that sanitization was done */
-	GEM_BUG_ON(i915_modparams.enable_guc < 0);
-	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
+	GEM__ON(i915_modparams.enable_guc < 0);
+	GEM__ON(i915_modparams.guc_log_level < 0);
 }
 
 void intel_uc_init_early(struct drm_i915_private *i915)
@@ -314,7 +314,7 @@ void intel_uc_fini(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return;
 
-	GEM_BUG_ON(!HAS_GUC(i915));
+	GEM__ON(!HAS_GUC(i915));
 
 	if (USES_GUC_SUBMISSION(i915))
 		intel_guc_submission_fini(guc);
@@ -330,7 +330,7 @@ void intel_uc_sanitize(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return;
 
-	GEM_BUG_ON(!HAS_GUC(i915));
+	GEM__ON(!HAS_GUC(i915));
 
 	guc_disable_communication(guc);
 
@@ -349,7 +349,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return 0;
 
-	GEM_BUG_ON(!HAS_GUC(i915));
+	GEM__ON(!HAS_GUC(i915));
 
 	gen9_reset_guc_interrupts(i915);
 
@@ -380,7 +380,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 		if (ret == 0 || ret != -ETIMEDOUT)
 			break;
 
-		DRM_DEBUG_DRIVER("GuC fw load failed: %d; will reset and "
+		DRM_DE_DRIVER("GuC fw load failed: %d; will reset and "
 				 "retry %d more time(s)\n", ret, attempts);
 	}
 
@@ -443,7 +443,7 @@ void intel_uc_fini_hw(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return;
 
-	GEM_BUG_ON(!HAS_GUC(i915));
+	GEM__ON(!HAS_GUC(i915));
 
 	if (USES_GUC_SUBMISSION(i915))
 		intel_guc_submission_disable(guc);
@@ -464,7 +464,7 @@ int intel_uc_suspend(struct drm_i915_private *i915)
 
 	err = intel_guc_suspend(guc);
 	if (err) {
-		DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
+		DRM_DE_DRIVER("Failed to suspend GuC, err=%d", err);
 		return err;
 	}
 
@@ -488,7 +488,7 @@ int intel_uc_resume(struct drm_i915_private *i915)
 
 	err = intel_guc_resume(guc);
 	if (err) {
-		DRM_DEBUG_DRIVER("Failed to resume GuC, err=%d", err);
+		DRM_DE_DRIVER("Failed to resume GuC, err=%d", err);
 		return err;
 	}
 

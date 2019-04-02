@@ -46,7 +46,7 @@
 #define TOP_RATE_2M         0x00200000
 #define TOP_RATE_1M         0x00100000
 
-unsigned int BBuGetFrameTime(unsigned char byPreambleType,
+unsigned int BetFrameTime(unsigned char byPreambleType,
 			     unsigned char byPktType,
 			     unsigned int cbFrameLength,
 			     unsigned short wRate);

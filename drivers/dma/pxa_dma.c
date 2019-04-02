@@ -130,7 +130,7 @@ struct pxad_device {
 	void __iomem			*base;
 	struct pxad_phy			*phys;
 	spinlock_t			phy_lock;	/* Phy association */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry			*dbgfs_root;
 	struct dentry			*dbgfs_state;
 	struct dentry			**dbgfs_chan;
@@ -182,10 +182,10 @@ static unsigned int pxad_drcmr(unsigned int line)
 static bool pxad_filter_fn(struct dma_chan *chan, void *param);
 
 /*
- * Debug fs
+ * De fs
  */
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 
@@ -331,17 +331,17 @@ static struct dentry *pxad_dbg_alloc_chan(struct pxad_device *pdev,
 	void *dt;
 
 	scnprintf(chan_name, sizeof(chan_name), "%d", ch);
-	chan = debugfs_create_dir(chan_name, chandir);
+	chan = defs_create_dir(chan_name, chandir);
 	dt = (void *)&pdev->phys[ch];
 
 	if (chan)
-		chan_state = debugfs_create_file("state", 0400, chan, dt,
+		chan_state = defs_create_file("state", 0400, chan, dt,
 						 &chan_state_fops);
 	if (chan_state)
-		chan_descr = debugfs_create_file("descriptors", 0400, chan, dt,
+		chan_descr = defs_create_file("descriptors", 0400, chan, dt,
 						 &descriptors_fops);
 	if (chan_descr)
-		chan_reqs = debugfs_create_file("requesters", 0400, chan, dt,
+		chan_reqs = defs_create_file("requesters", 0400, chan, dt,
 						&requester_chan_fops);
 	if (!chan_reqs)
 		goto err_state;
@@ -349,20 +349,20 @@ static struct dentry *pxad_dbg_alloc_chan(struct pxad_device *pdev,
 	return chan;
 
 err_state:
-	debugfs_remove_recursive(chan);
+	defs_remove_recursive(chan);
 	return NULL;
 }
 
-static void pxad_init_debugfs(struct pxad_device *pdev)
+static void pxad_init_defs(struct pxad_device *pdev)
 {
 	int i;
 	struct dentry *chandir;
 
-	pdev->dbgfs_root = debugfs_create_dir(dev_name(pdev->slave.dev), NULL);
+	pdev->dbgfs_root = defs_create_dir(dev_name(pdev->slave.dev), NULL);
 	if (IS_ERR(pdev->dbgfs_root) || !pdev->dbgfs_root)
 		goto err_root;
 
-	pdev->dbgfs_state = debugfs_create_file("state", 0400, pdev->dbgfs_root,
+	pdev->dbgfs_state = defs_create_file("state", 0400, pdev->dbgfs_root,
 						pdev, &state_fops);
 	if (!pdev->dbgfs_state)
 		goto err_state;
@@ -373,7 +373,7 @@ static void pxad_init_debugfs(struct pxad_device *pdev)
 	if (!pdev->dbgfs_chan)
 		goto err_alloc;
 
-	chandir = debugfs_create_dir("channels", pdev->dbgfs_root);
+	chandir = defs_create_dir("channels", pdev->dbgfs_root);
 	if (!chandir)
 		goto err_chandir;
 
@@ -389,18 +389,18 @@ err_chandir:
 	kfree(pdev->dbgfs_chan);
 err_alloc:
 err_state:
-	debugfs_remove_recursive(pdev->dbgfs_root);
+	defs_remove_recursive(pdev->dbgfs_root);
 err_root:
-	pr_err("pxad: debugfs is not available\n");
+	pr_err("pxad: defs is not available\n");
 }
 
-static void pxad_cleanup_debugfs(struct pxad_device *pdev)
+static void pxad_cleanup_defs(struct pxad_device *pdev)
 {
-	debugfs_remove_recursive(pdev->dbgfs_root);
+	defs_remove_recursive(pdev->dbgfs_root);
 }
 #else
-static inline void pxad_init_debugfs(struct pxad_device *pdev) {}
-static inline void pxad_cleanup_debugfs(struct pxad_device *pdev) {}
+static inline void pxad_init_defs(struct pxad_device *pdev) {}
+static inline void pxad_cleanup_defs(struct pxad_device *pdev) {}
 #endif
 
 static struct pxad_phy *lookup_phy(struct pxad_chan *pchan)
@@ -479,7 +479,7 @@ static bool is_running_chan_misaligned(struct pxad_chan *chan)
 {
 	u32 dalgn;
 
-	BUG_ON(!chan->phy);
+	_ON(!chan->phy);
 	dalgn = phy_readl_relaxed(chan->phy, DALGN);
 	return dalgn & (BIT(chan->phy->idx));
 }
@@ -602,7 +602,7 @@ static bool pxad_try_hotchain(struct virt_dma_chan *vc,
 	 * A change of alignment is not allowed, and forbids hotchaining.
 	 */
 	if (is_chan_running(chan)) {
-		BUG_ON(list_empty(&vc->desc_issued));
+		_ON(list_empty(&vc->desc_issued));
 
 		if (!is_running_chan_misaligned(chan) &&
 		    to_pxad_sw_desc(vd)->misaligned)
@@ -647,7 +647,7 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 	bool vd_completed;
 	dma_cookie_t last_started = 0;
 
-	BUG_ON(!chan);
+	_ON(!chan);
 
 	dcsr = clear_chan_irq(phy);
 	if (dcsr & PXA_DCSR_RUN)
@@ -760,7 +760,7 @@ static void pxad_free_desc(struct virt_dma_desc *vd)
 	dma_addr_t dma;
 	struct pxad_desc_sw *sw_desc = to_pxad_sw_desc(vd);
 
-	BUG_ON(sw_desc->nb_desc == 0);
+	_ON(sw_desc->nb_desc == 0);
 	for (i = sw_desc->nb_desc - 1; i >= 0; i--) {
 		if (i > 0)
 			dma = sw_desc->hw_desc[i - 1]->ddadr;
@@ -1271,7 +1271,7 @@ static int pxad_remove(struct platform_device *op)
 {
 	struct pxad_device *pdev = platform_get_drvdata(op);
 
-	pxad_cleanup_debugfs(pdev);
+	pxad_cleanup_defs(pdev);
 	pxad_free_channels(&pdev->slave);
 	return 0;
 }
@@ -1467,7 +1467,7 @@ static int pxad_probe(struct platform_device *op)
 	}
 
 	platform_set_drvdata(op, pdev);
-	pxad_init_debugfs(pdev);
+	pxad_init_defs(pdev);
 	dev_info(pdev->slave.dev, "initialized %d channels on %d requestors\n",
 		 dma_channels, nb_requestors);
 	return 0;

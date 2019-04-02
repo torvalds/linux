@@ -63,10 +63,10 @@ cmode:x  - chooses PowerMacintosh colour mode <x>. Deprecated.
 Limitations
 ===========
 
-There are known and unknown bugs, features and misfeatures.
-Currently there are following known bugs:
+There are known and unknown s, features and misfeatures.
+Currently there are following known s:
  + This driver is still experimental and is not finished.  Too many
-   bugs/errata to list here.
+   s/errata to list here.
 
 --
 Brad Douglas <brad@neruo.com>

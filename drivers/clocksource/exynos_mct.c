@@ -226,7 +226,7 @@ static struct delay_timer exynos4_delay_timer;
 
 static cycles_t exynos4_read_current_timer(void)
 {
-	BUILD_BUG_ON_MSG(sizeof(cycles_t) != sizeof(u32),
+	BUILD__ON_MSG(sizeof(cycles_t) != sizeof(u32),
 			 "cycles_t needs to move to 32-bit for ARM64 usage");
 	return exynos4_read_count_32();
 }

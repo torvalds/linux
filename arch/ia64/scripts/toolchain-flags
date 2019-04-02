@@ -18,7 +18,7 @@ $CC -nostdlib -static -Wl,-T$dir/check-segrel.lds $dir/check-segrel.S -o $out
 res=$($OBJDUMP --full --section .rodata $out | fgrep 000 | cut -f3 -d' ')
 rm -f $out
 if [ $res != 00000a00 ]; then
-    CPPFLAGS="$CPPFLAGS -DHAVE_BUGGY_SEGREL"
+    CPPFLAGS="$CPPFLAGS -DHAVE_GY_SEGREL"
     cat >&2 <<EOF
 warning: your linker cannot handle cross-segment segment-relative relocations.
          please upgrade to a newer version (it is safe to use this linker, but

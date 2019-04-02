@@ -601,17 +601,17 @@ static inline void cvmx_pko_get_port_status(uint64_t port_num, uint64_t clear,
 	}
 
 	if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
-		union cvmx_pko_mem_debug9 debug9;
+		union cvmx_pko_mem_de9 de9;
 		pko_reg_read_idx.s.index = cvmx_pko_get_base_queue(port_num);
 		cvmx_write_csr(CVMX_PKO_REG_READ_IDX, pko_reg_read_idx.u64);
-		debug9.u64 = cvmx_read_csr(CVMX_PKO_MEM_DEBUG9);
-		status->doorbell = debug9.cn38xx.doorbell;
+		de9.u64 = cvmx_read_csr(CVMX_PKO_MEM_DE9);
+		status->doorbell = de9.cn38xx.doorbell;
 	} else {
-		union cvmx_pko_mem_debug8 debug8;
+		union cvmx_pko_mem_de8 de8;
 		pko_reg_read_idx.s.index = cvmx_pko_get_base_queue(port_num);
 		cvmx_write_csr(CVMX_PKO_REG_READ_IDX, pko_reg_read_idx.u64);
-		debug8.u64 = cvmx_read_csr(CVMX_PKO_MEM_DEBUG8);
-		status->doorbell = debug8.cn50xx.doorbell;
+		de8.u64 = cvmx_read_csr(CVMX_PKO_MEM_DE8);
+		status->doorbell = de8.cn50xx.doorbell;
 	}
 }
 

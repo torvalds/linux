@@ -140,10 +140,10 @@ static int pll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	fin = parent_rate;
-	BUG_ON(fin < MHZ);
+	_ON(fin < MHZ);
 
 	nr = fin / MHZ;
-	BUG_ON((fin % MHZ) || nr > BIT(6));
+	_ON((fin % MHZ) || nr > BIT(6));
 
 	od = 1;
 
@@ -427,7 +427,7 @@ static int cpu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* switch to tmp pll before setting parent clock's rate */
 	if (cur_parent ==  clk_pll1.hw.clk) {
 		ret1 = clk_set_parent(hw->clk, clk_pll2.hw.clk);
-		BUG_ON(ret1);
+		_ON(ret1);
 	}
 
 	ret2 = clk_set_rate(clk_pll1.hw.clk, rate);
@@ -648,7 +648,7 @@ static int std_clk_enable(struct clk_hw *hw)
 	int bit;
 	struct clk_std *clk = to_stdclk(hw);
 
-	BUG_ON(clk->enable_bit < 0 || clk->enable_bit > 63);
+	_ON(clk->enable_bit < 0 || clk->enable_bit > 63);
 
 	bit = clk->enable_bit % 32;
 	reg = clk->enable_bit / 32;
@@ -665,7 +665,7 @@ static void std_clk_disable(struct clk_hw *hw)
 	int bit;
 	struct clk_std *clk = to_stdclk(hw);
 
-	BUG_ON(clk->enable_bit < 0 || clk->enable_bit > 63);
+	_ON(clk->enable_bit < 0 || clk->enable_bit > 63);
 
 	bit = clk->enable_bit % 32;
 	reg = clk->enable_bit / 32;

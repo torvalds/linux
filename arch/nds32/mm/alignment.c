@@ -6,7 +6,7 @@
 #include <linux/sysctl.h>
 #include <asm/unaligned.h>
 
-#define DEBUG(enable, tagged, ...)				\
+#define DE(enable, tagged, ...)				\
 	do{							\
 		if (enable) {					\
 			if (tagged)				\
@@ -150,7 +150,7 @@ extern pte_t va_kernel_present(unsigned long addr);
 extern int va_readable(struct pt_regs *regs, unsigned long addr);
 extern int va_writable(struct pt_regs *regs, unsigned long addr);
 
-int unalign_access_mode = 0, unalign_access_debug = 0;
+int unalign_access_mode = 0, unalign_access_de = 0;
 
 static inline unsigned long *idx_to_addr(struct pt_regs *regs, int idx)
 {
@@ -516,7 +516,7 @@ int do_unaligned_access(unsigned long addr, struct pt_regs *regs)
 
 	inst = get_inst(regs->ipc);
 
-	DEBUG((unalign_access_debug > 0), 1,
+	DE((unalign_access_de > 0), 1,
 	      "Faulting addr: 0x%08lx, pc: 0x%08lx [inst: 0x%08lx ]\n", addr,
 	      regs->ipc, inst);
 
@@ -543,9 +543,9 @@ static struct ctl_table alignment_tbl[3] = {
 	}
 	,
 	{
-	 .procname = "debug_info",
-	 .data = &unalign_access_debug,
-	 .maxlen = sizeof(unalign_access_debug),
+	 .procname = "de_info",
+	 .data = &unalign_access_de,
+	 .maxlen = sizeof(unalign_access_de),
 	 .mode = 0644,
 	 .proc_handler = &proc_dointvec
 	}

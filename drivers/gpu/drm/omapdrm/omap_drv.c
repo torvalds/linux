@@ -497,8 +497,8 @@ static struct drm_driver omap_drm_driver = {
 		DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = dev_open,
 	.lastclose = drm_fb_helper_lastclose,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init = omap_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init = omap_defs_init,
 #endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,

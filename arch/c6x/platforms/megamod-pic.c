@@ -273,7 +273,7 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 		/* record the mapping */
 		mapping[hwirq - 4] = i;
 
-		pr_debug("%pOF: combiner-%d cascading to hwirq %ld\n",
+		pr_de("%pOF: combiner-%d cascading to hwirq %ld\n",
 			 np, i, hwirq);
 
 		cascade_data[i].pic = pic;
@@ -290,7 +290,7 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 	/* Finally, set up the MUX registers */
 	for (i = 0; i < NR_MUX_OUTPUTS; i++) {
 		if (mapping[i] != IRQ_UNMAPPED) {
-			pr_debug("%pOF: setting mux %d to priority %d\n",
+			pr_de("%pOF: setting mux %d to priority %d\n",
 				 np, mapping[i], i + 4);
 			set_megamod_mux(pic, mapping[i], i);
 		}

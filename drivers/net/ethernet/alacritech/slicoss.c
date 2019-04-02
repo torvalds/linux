@@ -1427,7 +1427,7 @@ static netdev_tx_t slic_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 maplen;
 
 	if (unlikely(slic_get_free_tx_descs(txq) < SLIC_MAX_REQ_TX_DESCS)) {
-		netdev_err(dev, "BUG! not enough tx LEs left: %u\n",
+		netdev_err(dev, "! not enough tx LEs left: %u\n",
 			   slic_get_free_tx_descs(txq));
 		return NETDEV_TX_BUSY;
 	}

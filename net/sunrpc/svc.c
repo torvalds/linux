@@ -174,7 +174,7 @@ svc_pool_map_init_percpu(struct svc_pool_map *m)
 		return err;
 
 	for_each_online_cpu(cpu) {
-		BUG_ON(pidx >= maxpools);
+		_ON(pidx >= maxpools);
 		m->to_pool[cpu] = pidx;
 		m->pool_to[pidx] = cpu;
 		pidx++;
@@ -203,7 +203,7 @@ svc_pool_map_init_pernode(struct svc_pool_map *m)
 
 	for_each_node_with_cpus(node) {
 		/* some architectures (e.g. SN2) have cpuless nodes */
-		BUG_ON(pidx > maxpools);
+		_ON(pidx > maxpools);
 		m->to_pool[node] = pidx;
 		m->pool_to[pidx] = node;
 		pidx++;
@@ -543,8 +543,8 @@ svc_destroy(struct svc_serv *serv)
 	 * The last user is gone and thus all sockets have to be destroyed to
 	 * the point. Check this.
 	 */
-	BUG_ON(!list_empty(&serv->sv_permsocks));
-	BUG_ON(!list_empty(&serv->sv_tempsocks));
+	_ON(!list_empty(&serv->sv_permsocks));
+	_ON(!list_empty(&serv->sv_tempsocks));
 
 	cache_clean_deferred(serv);
 
@@ -1123,7 +1123,7 @@ static void svc_unregister(const struct svc_serv *serv, struct net *net)
 /*
  * dprintk the given error with the address of the client that caused it.
  */
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 static __printf(2, 3)
 void svc_printk(struct svc_rqst *rqstp, const char *fmt, ...)
 {

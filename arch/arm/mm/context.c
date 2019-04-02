@@ -33,7 +33,7 @@
  * +-------------------------------------+
  *
  * The ASID is used to tag entries in the CPU caches and TLBs.
- * The context ID is used by debuggers and trace logic, and
+ * The context ID is used by degers and trace logic, and
  * should be unique within all running processes.
  *
  * In big endian operation, the two 32 bit words are swapped if accessed

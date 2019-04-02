@@ -24,12 +24,12 @@ menuconfig SPI
 
 if SPI
 
-config SPI_DEBUG
-	bool "Debug support for SPI drivers"
-	depends on DEBUG_KERNEL
+config SPI_DE
+	bool "De support for SPI drivers"
+	depends on DE_KERNEL
 	help
-	  Say "yes" to enable debug messaging (like dev_dbg and pr_debug),
-	  sysfs, and debugfs support in SPI controller and protocol drivers.
+	  Say "yes" to enable de messaging (like dev_dbg and pr_de),
+	  sysfs, and defs support in SPI controller and protocol drivers.
 
 #
 # MASTER side ... talking to discrete SPI slave chips including microcontrollers

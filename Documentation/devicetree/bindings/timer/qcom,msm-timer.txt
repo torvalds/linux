@@ -8,7 +8,7 @@ Properties:
                "qcom,kpss-timer" - krait subsystem
                "qcom,scss-timer" - scorpion subsystem
 
-- interrupts : Interrupts for the debug timer, the first general purpose
+- interrupts : Interrupts for the de timer, the first general purpose
                timer, and optionally a second general purpose timer, and
                optionally as well, 2 watchdog interrupts, in that order.
 
@@ -20,7 +20,7 @@ Properties:
 - clock-names: The name of the clocks as free-form strings. They should be in
                the same order as the clocks.
 
-- clock-frequency : The frequency of the debug timer and the general purpose
+- clock-frequency : The frequency of the de timer and the general purpose
                     timer(s) in Hz in that order.
 
 Optional:

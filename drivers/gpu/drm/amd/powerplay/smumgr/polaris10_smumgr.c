@@ -21,7 +21,7 @@
  *
  */
 
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "smumgr.h"
 #include "smu74.h"
 #include "smu_ucode_xfer_vi.h"

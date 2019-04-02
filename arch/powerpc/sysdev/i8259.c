@@ -6,7 +6,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -107,7 +107,7 @@ static void i8259_mask_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
-	pr_debug("i8259_mask_irq(%d)\n", d->irq);
+	pr_de("i8259_mask_irq(%d)\n", d->irq);
 
 	raw_spin_lock_irqsave(&i8259_lock, flags);
 	if (d->irq < 8)
@@ -122,7 +122,7 @@ static void i8259_unmask_irq(struct irq_data *d)
 {
 	unsigned long flags;
 
-	pr_debug("i8259_unmask_irq(%d)\n", d->irq);
+	pr_de("i8259_unmask_irq(%d)\n", d->irq);
 
 	raw_spin_lock_irqsave(&i8259_lock, flags);
 	if (d->irq < 8)
@@ -172,7 +172,7 @@ static int i8259_host_match(struct irq_domain *h, struct device_node *node,
 static int i8259_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
-	pr_debug("i8259_host_map(%d, 0x%lx)\n", virq, hw);
+	pr_de("i8259_host_map(%d, 0x%lx)\n", virq, hw);
 
 	/* We block the internal cascade */
 	if (hw == 2)

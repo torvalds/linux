@@ -12,7 +12,7 @@
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
@@ -32,7 +32,7 @@ static void dpu_core_irq_callback_handler(void *arg, int irq_idx)
 	struct dpu_irq_callback *cb;
 	unsigned long irq_flags;
 
-	pr_debug("irq_idx=%d\n", irq_idx);
+	pr_de("irq_idx=%d\n", irq_idx);
 
 	if (list_empty(&irq_obj->irq_cb_tbl[irq_idx])) {
 		DRM_ERROR("no registered cb, idx:%d enable_count:%d\n", irq_idx,
@@ -94,7 +94,7 @@ static int _dpu_core_irq_enable(struct dpu_kms *dpu_kms, int irq_idx)
 	}
 
 	enable_count = atomic_read(&dpu_kms->irq_obj.enable_counts[irq_idx]);
-	DRM_DEBUG_KMS("irq_idx=%d enable_count=%d\n", irq_idx, enable_count);
+	DRM_DE_KMS("irq_idx=%d enable_count=%d\n", irq_idx, enable_count);
 	trace_dpu_core_irq_enable_idx(irq_idx, enable_count);
 
 	if (atomic_inc_return(&dpu_kms->irq_obj.enable_counts[irq_idx]) == 1) {
@@ -105,7 +105,7 @@ static int _dpu_core_irq_enable(struct dpu_kms *dpu_kms, int irq_idx)
 			DPU_ERROR("Fail to enable IRQ for irq_idx:%d\n",
 					irq_idx);
 
-		DPU_DEBUG("irq_idx=%d ret=%d\n", irq_idx, ret);
+		DPU_DE("irq_idx=%d ret=%d\n", irq_idx, ret);
 
 		spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
 		/* empty callback list but interrupt is enabled */
@@ -157,7 +157,7 @@ static int _dpu_core_irq_disable(struct dpu_kms *dpu_kms, int irq_idx)
 	}
 
 	enable_count = atomic_read(&dpu_kms->irq_obj.enable_counts[irq_idx]);
-	DRM_DEBUG_KMS("irq_idx=%d enable_count=%d\n", irq_idx, enable_count);
+	DRM_DE_KMS("irq_idx=%d enable_count=%d\n", irq_idx, enable_count);
 	trace_dpu_core_irq_disable_idx(irq_idx, enable_count);
 
 	if (atomic_dec_return(&dpu_kms->irq_obj.enable_counts[irq_idx]) == 0) {
@@ -167,7 +167,7 @@ static int _dpu_core_irq_disable(struct dpu_kms *dpu_kms, int irq_idx)
 		if (ret)
 			DPU_ERROR("Fail to disable IRQ for irq_idx:%d\n",
 					irq_idx);
-		DPU_DEBUG("irq_idx=%d ret=%d\n", irq_idx, ret);
+		DPU_DE("irq_idx=%d ret=%d\n", irq_idx, ret);
 	}
 
 	return ret;
@@ -231,7 +231,7 @@ int dpu_core_irq_register_callback(struct dpu_kms *dpu_kms, int irq_idx,
 		return -EINVAL;
 	}
 
-	DPU_DEBUG("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
+	DPU_DE("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
 
 	spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
 	trace_dpu_core_irq_register_callback(irq_idx, register_irq_cb);
@@ -266,7 +266,7 @@ int dpu_core_irq_unregister_callback(struct dpu_kms *dpu_kms, int irq_idx,
 		return -EINVAL;
 	}
 
-	DPU_DEBUG("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
+	DPU_DE("[%pS] irq_idx=%d\n", __builtin_return_address(0), irq_idx);
 
 	spin_lock_irqsave(&dpu_kms->irq_obj.cb_lock, irq_flags);
 	trace_dpu_core_irq_unregister_callback(irq_idx, register_irq_cb);
@@ -298,8 +298,8 @@ static void dpu_disable_all_irqs(struct dpu_kms *dpu_kms)
 	dpu_kms->hw_intr->ops.disable_all_irqs(dpu_kms->hw_intr);
 }
 
-#ifdef CONFIG_DEBUG_FS
-#define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)				\
+#ifdef CONFIG_DE_FS
+#define DEFINE_DPU_DEFS_SEQ_FOPS(__prefix)				\
 static int __prefix ## _open(struct inode *inode, struct file *file)	\
 {									\
 	return single_open(file, __prefix ## _show, inode->i_private);	\
@@ -312,7 +312,7 @@ static const struct file_operations __prefix ## _fops = {		\
 	.llseek = seq_lseek,						\
 }
 
-static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
+static int dpu_defs_core_irq_show(struct seq_file *s, void *v)
 {
 	struct dpu_irq *irq_obj = s->private;
 	struct dpu_irq_callback *cb;
@@ -339,13 +339,13 @@ static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_core_irq);
+DEFINE_DPU_DEFS_SEQ_FOPS(dpu_defs_core_irq);
 
-void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
+void dpu_defs_core_irq_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
-	debugfs_create_file("core_irq", 0600, parent, &dpu_kms->irq_obj,
-		&dpu_debugfs_core_irq_fops);
+	defs_create_file("core_irq", 0600, parent, &dpu_kms->irq_obj,
+		&dpu_defs_core_irq_fops);
 }
 #endif
 

@@ -17,7 +17,7 @@ video
 
 audio
 	- Works. The TV standard detection is made by the driver, as the
-	  hardware has bugs to auto-detect.
+	  hardware has s to auto-detect.
 	- audio data dma (i.e. recording without loopback cable to the
 	  sound card) is supported via cx88-alsa.
 

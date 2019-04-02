@@ -4,7 +4,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/cputable.h>
 
 static inline bool early_cpu_has_feature(unsigned long feature)
@@ -25,10 +25,10 @@ static __always_inline bool cpu_has_feature(unsigned long feature)
 	int i;
 
 #ifndef __clang__ /* clang can't cope with this */
-	BUILD_BUG_ON(!__builtin_constant_p(feature));
+	BUILD__ON(!__builtin_constant_p(feature));
 #endif
 
-#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DE
 	if (!static_key_initialized) {
 		printk("Warning! cpu_has_feature() used prior to jump label init!\n");
 		dump_stack();

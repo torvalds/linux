@@ -18,7 +18,7 @@
  * Author: Will Deacon <will.deacon@arm.com>
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io-pgtable.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

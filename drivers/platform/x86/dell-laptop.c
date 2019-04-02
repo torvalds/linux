@@ -28,7 +28,7 @@
 #include <linux/acpi.h>
 #include <linux/mm.h>
 #include <linux/i8042.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
@@ -548,7 +548,7 @@ static const struct rfkill_ops dell_rfkill_ops = {
 
 static struct dentry *dell_laptop_dir;
 
-static int dell_debugfs_show(struct seq_file *s, void *data)
+static int dell_defs_show(struct seq_file *s, void *data)
 {
 	struct calling_interface_buffer buffer;
 	int hwswitch_state;
@@ -631,7 +631,7 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(dell_debugfs);
+DEFINE_SHOW_ATTRIBUTE(dell_defs);
 
 static void dell_update_rfkill(struct work_struct *ignored)
 {
@@ -2175,10 +2175,10 @@ static int __init dell_init(void)
 
 	kbd_led_init(&platform_device->dev);
 
-	dell_laptop_dir = debugfs_create_dir("dell_laptop", NULL);
+	dell_laptop_dir = defs_create_dir("dell_laptop", NULL);
 	if (dell_laptop_dir != NULL)
-		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
-				    &dell_debugfs_fops);
+		defs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
+				    &dell_defs_fops);
 
 	dell_laptop_register_notifier(&dell_laptop_notifier);
 
@@ -2248,7 +2248,7 @@ fail_platform_driver:
 static void __exit dell_exit(void)
 {
 	dell_laptop_unregister_notifier(&dell_laptop_notifier);
-	debugfs_remove_recursive(dell_laptop_dir);
+	defs_remove_recursive(dell_laptop_dir);
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
 	kbd_led_exit();

@@ -85,7 +85,7 @@ static int analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 	if (!analogix_dp_psr_enabled(dp->adp))
 		return 0;
 
-	DRM_DEV_DEBUG(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
+	DRM_DEV_DE(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
 
 	ret = rockchip_drm_wait_vact_end(dp->encoder.crtc,
 					 PSR_WAIT_LINE_FLAG_TIMEOUT_MS);
@@ -159,7 +159,7 @@ static int rockchip_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 	u32 mask = DRM_COLOR_FORMAT_YCRCB444 | DRM_COLOR_FORMAT_YCRCB422;
 
 	if ((di->color_formats & mask)) {
-		DRM_DEBUG_KMS("Swapping display color format from YUV to RGB\n");
+		DRM_DE_KMS("Swapping display color format from YUV to RGB\n");
 		di->color_formats &= ~mask;
 		di->color_formats |= DRM_COLOR_FORMAT_RGB444;
 		di->bpc = 8;
@@ -199,7 +199,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 	else
 		val = dp->data->lcdsel_big;
 
-	DRM_DEV_DEBUG(dp->dev, "vop %s output to dp\n", (ret) ? "LIT" : "BIG");
+	DRM_DEV_DE(dp->dev, "vop %s output to dp\n", (ret) ? "LIT" : "BIG");
 
 	ret = clk_prepare_enable(dp->grfclk);
 	if (ret < 0) {
@@ -299,7 +299,7 @@ static int rockchip_dp_drm_create_encoder(struct rockchip_dp_device *dp)
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
+	DRM_DE_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_dp_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);

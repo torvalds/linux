@@ -1049,7 +1049,7 @@ static void show_rx_chain(struct spider_net_card *card)
 	dev_info(dev, "Last %d descrs with stat=0x%08x "
 	         "for a total of %d descrs\n", cnt, cstat, tot);
 
-#ifdef DEBUG
+#ifdef DE
 	/* Now dump the whole ring */
 	descr = start;
 	do
@@ -1986,7 +1986,7 @@ static void spider_net_link_phy(struct timer_list *t)
 	/* if link didn't come up after SPIDER_NET_ANEG_TIMEOUT tries, setup phy again */
 	if (card->aneg_count > SPIDER_NET_ANEG_TIMEOUT) {
 
-		pr_debug("%s: link is down trying to bring it up\n",
+		pr_de("%s: link is down trying to bring it up\n",
 			 card->netdev->name);
 
 		switch (card->medium) {
@@ -2081,7 +2081,7 @@ spider_net_setup_phy(struct spider_net_card *card)
 }
 
 /**
- * spider_net_workaround_rxramfull - work around firmware bug
+ * spider_net_workaround_rxramfull - work around firmware 
  * @card: card structure
  *
  * no return value

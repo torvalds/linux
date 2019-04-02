@@ -6,7 +6,7 @@
  * Author : Etienne BASSET  <etienne.basset@ensta.org>
  *
  * All credits to : Stephen Smalley, <sds@tycho.nsa.gov>
- * All BUGS to : Etienne BASSET  <etienne.basset@ensta.org>
+ * All S to : Etienne BASSET  <etienne.basset@ensta.org>
  */
 #ifndef _LSM_COMMON_LOGGING_
 #define _LSM_COMMON_LOGGING_

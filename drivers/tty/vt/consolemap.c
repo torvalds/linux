@@ -9,7 +9,7 @@
  *
  * Support for multiple unimaps by Jakub Jelinek <jj@ultra.linux.cz>, July 1998
  *
- * Fix bug in inverse translation. Stanislav Voronyi <stas@cnti.uanet.kharkov.ua>, Dec 1998
+ * Fix  in inverse translation. Stanislav Voronyi <stas@cnti.uanet.kharkov.ua>, Dec 1998
  *
  * In order to prevent the following circular lock dependency:
  *   &mm->mmap_sem --> cpu_hotplug.lock --> console_lock --> &mm->mmap_sem

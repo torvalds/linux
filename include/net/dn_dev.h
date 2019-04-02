@@ -180,7 +180,7 @@ static inline int dn_dev_islocal(struct net_device *dev, __le16 addr)
 	rcu_read_lock();
 	dn_db = rcu_dereference(dev->dn_ptr);
 	if (dn_db == NULL) {
-		printk(KERN_DEBUG "dn_dev_islocal: Called for non DECnet device\n");
+		printk(KERN_DE "dn_dev_islocal: Called for non DECnet device\n");
 		goto out;
 	}
 

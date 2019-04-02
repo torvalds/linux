@@ -185,14 +185,14 @@
 
 /*
  * The architecture-specific register number that contains the return
- * address in the .debug_frame table.
+ * address in the .de_frame table.
  */
 #define DWARF_ARCH_RA_REG	17
 
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/list.h>
 #include <linux/module.h>
 
@@ -212,7 +212,7 @@ static __always_inline unsigned long dwarf_read_arch_reg(unsigned int reg)
 		__asm__ __volatile__("mov r15, %0\n" : "=r" (value));
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return value;

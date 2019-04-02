@@ -42,7 +42,7 @@
 #include <linux/fs.h>
 #include <linux/exportfs.h>
 #include "cifsglob.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsfs.h"
 
 #ifdef CONFIG_CIFS_NFSD_EXPORT

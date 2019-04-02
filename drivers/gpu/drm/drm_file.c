@@ -217,7 +217,7 @@ void drm_file_free(struct drm_file *file)
 
 	dev = file->minor->dev;
 
-	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
+	DRM_DE("pid = %d, device = 0x%lx, open_count = %d\n",
 		  task_pid_nr(current),
 		  (long)old_encode_dev(file->minor->kdev->devt),
 		  dev->open_count);
@@ -290,7 +290,7 @@ static int drm_setup(struct drm_device * dev)
 		return ret;
 
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	return 0;
 }
 
@@ -380,7 +380,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON && dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
 
-	DRM_DEBUG("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
+	DRM_DE("pid = %d, minor = %d\n", task_pid_nr(current), minor->index);
 
 	priv = drm_file_alloc(minor);
 	if (IS_ERR(priv))
@@ -446,16 +446,16 @@ static void drm_legacy_dev_reinit(struct drm_device *dev)
 	dev->last_context = 0;
 	dev->if_version = 0;
 
-	DRM_DEBUG("lastclose completed\n");
+	DRM_DE("lastclose completed\n");
 }
 
 void drm_lastclose(struct drm_device * dev)
 {
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	if (dev->driver->lastclose)
 		dev->driver->lastclose(dev);
-	DRM_DEBUG("driver lastclose completed\n");
+	DRM_DE("driver lastclose completed\n");
 
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_dev_reinit(dev);
@@ -485,7 +485,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&drm_global_mutex);
 
-	DRM_DEBUG("open_count = %d\n", dev->open_count);
+	DRM_DE("open_count = %d\n", dev->open_count);
 
 	drm_close_helper(filp);
 

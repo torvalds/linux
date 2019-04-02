@@ -178,9 +178,9 @@ void hdlcdrv_receiver(struct net_device *dev, struct hdlcdrv_state *s)
 	while (!hdlcdrv_hbuf_empty(&s->hdlcrx.hbuf)) {
 		word = hdlcdrv_hbuf_get(&s->hdlcrx.hbuf);	
 
-#ifdef HDLCDRV_DEBUG
+#ifdef HDLCDRV_DE
 		hdlcdrv_add_bitbuffer_word(&s->bitbuf_hdlc, word);
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 	       	s->hdlcrx.bitstream >>= 16;
 		s->hdlcrx.bitstream |= word << 16;
 		s->hdlcrx.bitbuf >>= 16;
@@ -584,9 +584,9 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case HDLCDRVCTL_GETSAMPLES:
-#ifndef HDLCDRV_DEBUG
+#ifndef HDLCDRV_DE
 		return -EPERM;
-#else /* HDLCDRV_DEBUG */
+#else /* HDLCDRV_DE */
 		if (s->bitbuf_channel.rd == s->bitbuf_channel.wr) 
 			return -EAGAIN;
 		bi.data.bits = 
@@ -594,12 +594,12 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		s->bitbuf_channel.rd = (s->bitbuf_channel.rd+1) %
 			sizeof(s->bitbuf_channel.buffer);
 		break;
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 				
 	case HDLCDRVCTL_GETBITS:
-#ifndef HDLCDRV_DEBUG
+#ifndef HDLCDRV_DE
 		return -EPERM;
-#else /* HDLCDRV_DEBUG */
+#else /* HDLCDRV_DE */
 		if (s->bitbuf_hdlc.rd == s->bitbuf_hdlc.wr) 
 			return -EAGAIN;
 		bi.data.bits = 
@@ -607,7 +607,7 @@ static int hdlcdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		s->bitbuf_hdlc.rd = (s->bitbuf_hdlc.rd+1) %
 			sizeof(s->bitbuf_hdlc.buffer);
 		break;		
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 
 	case HDLCDRVCTL_DRIVERNAME:
 		if (s->ops && s->ops->drvname) {
@@ -666,13 +666,13 @@ static void hdlcdrv_setup(struct net_device *dev)
 	s->hdlctx.slotcnt = s->ch_params.slottime;
 	s->hdlctx.calibrate = 0;
 
-#ifdef HDLCDRV_DEBUG
+#ifdef HDLCDRV_DE
 	s->bitbuf_channel.rd = s->bitbuf_channel.wr = 0;
 	s->bitbuf_channel.shreg = 0x80;
 
 	s->bitbuf_hdlc.rd = s->bitbuf_hdlc.wr = 0;
 	s->bitbuf_hdlc.shreg = 0x80;
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 
 
 	/* Fill in the fields of the device structure */
@@ -701,7 +701,7 @@ struct net_device *hdlcdrv_register(const struct hdlcdrv_ops *ops,
 	struct hdlcdrv_state *s;
 	int err;
 
-	BUG_ON(ops == NULL);
+	_ON(ops == NULL);
 
 	if (privsize < sizeof(struct hdlcdrv_state))
 		privsize = sizeof(struct hdlcdrv_state);
@@ -736,7 +736,7 @@ void hdlcdrv_unregister(struct net_device *dev)
 {
 	struct hdlcdrv_state *s = netdev_priv(dev);
 
-	BUG_ON(s->magic != HDLCDRV_MAGIC);
+	_ON(s->magic != HDLCDRV_MAGIC);
 
 	if (s->opened && s->ops->close)
 		s->ops->close(dev);

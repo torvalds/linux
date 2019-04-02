@@ -876,7 +876,7 @@ static int s3fb_set_par(struct fb_info *info)
 		svga_wcrt_mask(par->state.vgabase, 0x67, 0xD0, 0xF0);
 		break;
 	default:
-		fb_err(info, "unsupported mode - bug\n");
+		fb_err(info, "unsupported mode - \n");
 		return -EINVAL;
 	}
 
@@ -1546,7 +1546,7 @@ static int  __init s3fb_setup(char *options)
 
 static void __exit s3fb_cleanup(void)
 {
-	pr_debug("s3fb: cleaning up\n");
+	pr_de("s3fb: cleaning up\n");
 	pci_unregister_driver(&s3fb_pci_driver);
 }
 
@@ -1563,7 +1563,7 @@ static int __init s3fb_init(void)
 	s3fb_setup(option);
 #endif
 
-	pr_debug("s3fb: initializing\n");
+	pr_de("s3fb: initializing\n");
 	return pci_register_driver(&s3fb_pci_driver);
 }
 

@@ -1,19 +1,19 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * linux/include/linux/nfsd/debug.h
+ * linux/include/linux/nfsd/de.h
  *
- * Debugging-related stuff for nfsd
+ * Deging-related stuff for nfsd
  *
  * Copyright (C) 1995 Olaf Kirch <okir@monad.swb.de>
  */
 
-#ifndef _UAPILINUX_NFSD_DEBUG_H
-#define _UAPILINUX_NFSD_DEBUG_H
+#ifndef _UAPILINUX_NFSD_DE_H
+#define _UAPILINUX_NFSD_DE_H
 
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 
 /*
- * knfsd debug flags
+ * knfsd de flags
  */
 #define NFSDDBG_SOCK		0x0001
 #define NFSDDBG_FH		0x0002
@@ -31,4 +31,4 @@
 
 
 
-#endif /* _UAPILINUX_NFSD_DEBUG_H */
+#endif /* _UAPILINUX_NFSD_DE_H */

@@ -843,7 +843,7 @@ static const struct v4l2_file_operations video_fops = {
 	.unlocked_ioctl = video_ioctl2,
 };
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 
 #define INDIR_SPACE_MAP_SHIFT 0x100000
 
@@ -917,7 +917,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_frameintervals = tw5864_enum_frameintervals,
 	.vidioc_s_parm = tw5864_s_parm,
 	.vidioc_g_parm = tw5864_g_parm,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register = tw5864_g_reg,
 	.vidioc_s_register = tw5864_s_reg,
 #endif
@@ -1351,7 +1351,7 @@ static void tw5864_handle_frame_task(unsigned long data)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static u32 tw5864_vlc_checksum(u32 *data, int len)
 {
 	u32 val, count_len = len;
@@ -1383,7 +1383,7 @@ static void tw5864_handle_frame(struct tw5864_h264_frame *frame)
 	u8 *src;
 	u8 *src_end;
 
-#ifdef DEBUG
+#ifdef DE
 	if (frame->checksum !=
 	    tw5864_vlc_checksum((u32 *)frame->vlc.addr, frame_len))
 		dev_err(&dev->pci->dev,

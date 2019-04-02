@@ -123,7 +123,7 @@ struct ar5523_chunk {
 	u8		flags;
 #define	UATH_CFLAGS_FINAL	0x01	/* final chunk of a msg */
 #define	UATH_CFLAGS_RXMSG	0x02	/* chunk contains rx completion */
-#define	UATH_CFLAGS_DEBUG	0x04	/* for debugging */
+#define	UATH_CFLAGS_DE	0x04	/* for deging */
 	__be16		length;		/* chunk size in bytes */
 	/* chunk data follows */
 } __packed;
@@ -328,10 +328,10 @@ enum {
 	CFG_SERVICE_TYPE,
 	/* MAC Address to use.  Overrides EEPROM */
 	CFG_MAC_ADDR,
-	CFG_DEBUG_EAR,
+	CFG_DE_EAR,
 	CFG_INIT_REGS,
-	/* An ID for use in error & debug messages */
-	CFG_DEBUG_ID,
+	/* An ID for use in error & de messages */
+	CFG_DE_ID,
 	CFG_COMP_WIN_SZ,
 	CFG_DIVERSITY_CTL,
 	CFG_TP_SCALE,
@@ -356,8 +356,8 @@ enum {
 	CAP_PHY_REVISION,
 	CAP_ANALOG_5GHz_REVISION,
 	CAP_ANALOG_2GHz_REVISION,
-	/* Target supports WDC message debug features */
-	CAP_DEBUG_WDCMSG_SUPPORT,
+	/* Target supports WDC message de features */
+	CAP_DE_WDCMSG_SUPPORT,
 
 	CAP_REG_DOMAIN,
 	CAP_COUNTRY_CODE,

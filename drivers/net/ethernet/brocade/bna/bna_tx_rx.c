@@ -1666,7 +1666,7 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 			break;
 
 		default:
-			BUG_ON(1);
+			_ON(1);
 		}
 
 		bfi_enet_datapath_q_init(&cfg_req->q_cfg[i].cq.q,
@@ -1710,7 +1710,7 @@ bna_bfi_rx_enet_start(struct bna_rx *rx)
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 	cfg_req->rx_cfg.strip_vlan = rx->rxf.vlan_strip_status;
 
@@ -1809,7 +1809,7 @@ bna_rx_get(struct bna_rx_mod *rx_mod, enum bna_rx_type type)
 {
 	struct bna_rx *rx = NULL;
 
-	BUG_ON(list_empty(&rx_mod->rx_free_q));
+	_ON(list_empty(&rx_mod->rx_free_q));
 	if (type == BNA_RX_T_REGULAR)
 		rx = list_first_entry(&rx_mod->rx_free_q, struct bna_rx, qe);
 	else

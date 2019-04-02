@@ -7,7 +7,7 @@
 #include <linux/wait.h> /* wait_queue_head_t */
 #include <linux/time.h> /* struct timeval */
 #include <linux/net.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/skbuff.h> /* struct sk_buff */
 #include <linux/uio.h>
 #include <net/sock.h>
@@ -285,7 +285,7 @@ static inline void atm_dev_hold(struct atm_dev *dev)
 static inline void atm_dev_put(struct atm_dev *dev)
 {
 	if (refcount_dec_and_test(&dev->refcnt)) {
-		BUG_ON(!test_bit(ATM_DF_REMOVED, &dev->flags));
+		_ON(!test_bit(ATM_DF_REMOVED, &dev->flags));
 		if (dev->ops->dev_close)
 			dev->ops->dev_close(dev);
 		put_device(&dev->class_dev);

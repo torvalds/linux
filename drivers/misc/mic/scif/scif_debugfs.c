@@ -15,13 +15,13 @@
  * Intel SCIF driver.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include "../common/mic_dev.h"
 #include "scif_main.h"
 
-/* Debugfs parent dir */
+/* Defs parent dir */
 static struct dentry *scif_dbg;
 
 static int scif_dev_show(struct seq_file *s, void *unused)
@@ -109,22 +109,22 @@ static int scif_rma_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(scif_rma);
 
-void __init scif_init_debugfs(void)
+void __init scif_init_defs(void)
 {
-	scif_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	scif_dbg = defs_create_dir(KBUILD_MODNAME, NULL);
 	if (!scif_dbg) {
 		dev_err(scif_info.mdev.this_device,
-			"can't create debugfs dir scif\n");
+			"can't create defs dir scif\n");
 		return;
 	}
 
-	debugfs_create_file("scif_dev", 0444, scif_dbg, NULL, &scif_dev_fops);
-	debugfs_create_file("scif_rma", 0444, scif_dbg, NULL, &scif_rma_fops);
-	debugfs_create_u8("en_msg_log", 0666, scif_dbg, &scif_info.en_msg_log);
-	debugfs_create_u8("p2p_enable", 0666, scif_dbg, &scif_info.p2p_enable);
+	defs_create_file("scif_dev", 0444, scif_dbg, NULL, &scif_dev_fops);
+	defs_create_file("scif_rma", 0444, scif_dbg, NULL, &scif_rma_fops);
+	defs_create_u8("en_msg_log", 0666, scif_dbg, &scif_info.en_msg_log);
+	defs_create_u8("p2p_enable", 0666, scif_dbg, &scif_info.p2p_enable);
 }
 
-void scif_exit_debugfs(void)
+void scif_exit_defs(void)
 {
-	debugfs_remove_recursive(scif_dbg);
+	defs_remove_recursive(scif_dbg);
 }

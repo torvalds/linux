@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include "../ath.h"
 #include "ath5k.h"
-#include "debug.h"
+#include "de.h"
 #include "base.h"
 #include "reg.h"
 

@@ -70,9 +70,9 @@ struct clk_core {
 	struct hlist_node	child_node;
 	struct hlist_head	clks;
 	unsigned int		notifier_count;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry		*dentry;
-	struct hlist_node	debug_node;
+	struct hlist_node	de_node;
 #endif
 	struct kref		ref;
 };
@@ -1701,7 +1701,7 @@ static int __clk_speculate_rates(struct clk_core *core,
 		ret = __clk_notify(core, PRE_RATE_CHANGE, core->rate, new_rate);
 
 	if (ret & NOTIFY_STOP_MASK) {
-		pr_debug("%s: clk notifier callback for clock %s aborted with error %d\n",
+		pr_de("%s: clk notifier callback for clock %s aborted with error %d\n",
 				__func__, core->name, ret);
 		goto out;
 	}
@@ -1796,7 +1796,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 	/* some clocks must be gated to change parent */
 	if (parent != old_parent &&
 	    (core->flags & CLK_SET_PARENT_GATE) && core->prepare_count) {
-		pr_debug("%s: %s not gated but wants to reparent\n",
+		pr_de("%s: %s not gated but wants to reparent\n",
 			 __func__, core->name);
 		return NULL;
 	}
@@ -1805,7 +1805,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 	if (parent && core->num_parents > 1) {
 		p_index = clk_fetch_parent_index(core, parent);
 		if (p_index < 0) {
-			pr_debug("%s: clk %s can not be parent of clk %s\n",
+			pr_de("%s: clk %s can not be parent of clk %s\n",
 				 __func__, parent->name, core->name);
 			return NULL;
 		}
@@ -2020,7 +2020,7 @@ static int clk_core_set_rate_nolock(struct clk_core *core,
 	/* notify that we are about to change rates */
 	fail_clk = clk_propagate_rate_change(top, PRE_RATE_CHANGE);
 	if (fail_clk) {
-		pr_debug("%s: failed to set %s rate\n", __func__,
+		pr_de("%s: failed to set %s rate\n", __func__,
 				fail_clk->name);
 		clk_propagate_rate_change(top, ABORT_RATE_CHANGE);
 		ret = -EBUSY;
@@ -2340,7 +2340,7 @@ static int clk_core_set_parent_nolock(struct clk_core *core,
 	if (parent) {
 		p_index = clk_fetch_parent_index(core, parent);
 		if (p_index < 0) {
-			pr_debug("%s: clk %s can not be parent of clk %s\n",
+			pr_de("%s: clk %s can not be parent of clk %s\n",
 					__func__, parent->name, core->name);
 			return p_index;
 		}
@@ -2711,15 +2711,15 @@ bool clk_is_match(const struct clk *p, const struct clk *q)
 }
 EXPORT_SYMBOL_GPL(clk_is_match);
 
-/***        debugfs support        ***/
+/***        defs support        ***/
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 
 static struct dentry *rootdir;
 static int inited = 0;
-static DEFINE_MUTEX(clk_debug_lock);
-static HLIST_HEAD(clk_debug_list);
+static DEFINE_MUTEX(clk_de_lock);
+static HLIST_HEAD(clk_de_list);
 
 static struct hlist_head *all_lists[] = {
 	&clk_root_list,
@@ -2908,110 +2908,110 @@ static int clk_duty_cycle_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(clk_duty_cycle);
 
-static void clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
+static void clk_de_create_one(struct clk_core *core, struct dentry *pdentry)
 {
 	struct dentry *root;
 
 	if (!core || !pdentry)
 		return;
 
-	root = debugfs_create_dir(core->name, pdentry);
+	root = defs_create_dir(core->name, pdentry);
 	core->dentry = root;
 
-	debugfs_create_ulong("clk_rate", 0444, root, &core->rate);
-	debugfs_create_ulong("clk_accuracy", 0444, root, &core->accuracy);
-	debugfs_create_u32("clk_phase", 0444, root, &core->phase);
-	debugfs_create_file("clk_flags", 0444, root, core, &clk_flags_fops);
-	debugfs_create_u32("clk_prepare_count", 0444, root, &core->prepare_count);
-	debugfs_create_u32("clk_enable_count", 0444, root, &core->enable_count);
-	debugfs_create_u32("clk_protect_count", 0444, root, &core->protect_count);
-	debugfs_create_u32("clk_notifier_count", 0444, root, &core->notifier_count);
-	debugfs_create_file("clk_duty_cycle", 0444, root, core,
+	defs_create_ulong("clk_rate", 0444, root, &core->rate);
+	defs_create_ulong("clk_accuracy", 0444, root, &core->accuracy);
+	defs_create_u32("clk_phase", 0444, root, &core->phase);
+	defs_create_file("clk_flags", 0444, root, core, &clk_flags_fops);
+	defs_create_u32("clk_prepare_count", 0444, root, &core->prepare_count);
+	defs_create_u32("clk_enable_count", 0444, root, &core->enable_count);
+	defs_create_u32("clk_protect_count", 0444, root, &core->protect_count);
+	defs_create_u32("clk_notifier_count", 0444, root, &core->notifier_count);
+	defs_create_file("clk_duty_cycle", 0444, root, core,
 			    &clk_duty_cycle_fops);
 
 	if (core->num_parents > 1)
-		debugfs_create_file("clk_possible_parents", 0444, root, core,
+		defs_create_file("clk_possible_parents", 0444, root, core,
 				    &possible_parents_fops);
 
-	if (core->ops->debug_init)
-		core->ops->debug_init(core->hw, core->dentry);
+	if (core->ops->de_init)
+		core->ops->de_init(core->hw, core->dentry);
 }
 
 /**
- * clk_debug_register - add a clk node to the debugfs clk directory
- * @core: the clk being added to the debugfs clk directory
+ * clk_de_register - add a clk node to the defs clk directory
+ * @core: the clk being added to the defs clk directory
  *
- * Dynamically adds a clk to the debugfs clk directory if debugfs has been
- * initialized.  Otherwise it bails out early since the debugfs clk directory
- * will be created lazily by clk_debug_init as part of a late_initcall.
+ * Dynamically adds a clk to the defs clk directory if defs has been
+ * initialized.  Otherwise it bails out early since the defs clk directory
+ * will be created lazily by clk_de_init as part of a late_initcall.
  */
-static void clk_debug_register(struct clk_core *core)
+static void clk_de_register(struct clk_core *core)
 {
-	mutex_lock(&clk_debug_lock);
-	hlist_add_head(&core->debug_node, &clk_debug_list);
+	mutex_lock(&clk_de_lock);
+	hlist_add_head(&core->de_node, &clk_de_list);
 	if (inited)
-		clk_debug_create_one(core, rootdir);
-	mutex_unlock(&clk_debug_lock);
+		clk_de_create_one(core, rootdir);
+	mutex_unlock(&clk_de_lock);
 }
 
  /**
- * clk_debug_unregister - remove a clk node from the debugfs clk directory
- * @core: the clk being removed from the debugfs clk directory
+ * clk_de_unregister - remove a clk node from the defs clk directory
+ * @core: the clk being removed from the defs clk directory
  *
  * Dynamically removes a clk and all its child nodes from the
- * debugfs clk directory if clk->dentry points to debugfs created by
- * clk_debug_register in __clk_core_init.
+ * defs clk directory if clk->dentry points to defs created by
+ * clk_de_register in __clk_core_init.
  */
-static void clk_debug_unregister(struct clk_core *core)
+static void clk_de_unregister(struct clk_core *core)
 {
-	mutex_lock(&clk_debug_lock);
-	hlist_del_init(&core->debug_node);
-	debugfs_remove_recursive(core->dentry);
+	mutex_lock(&clk_de_lock);
+	hlist_del_init(&core->de_node);
+	defs_remove_recursive(core->dentry);
 	core->dentry = NULL;
-	mutex_unlock(&clk_debug_lock);
+	mutex_unlock(&clk_de_lock);
 }
 
 /**
- * clk_debug_init - lazily populate the debugfs clk directory
+ * clk_de_init - lazily populate the defs clk directory
  *
  * clks are often initialized very early during boot before memory can be
- * dynamically allocated and well before debugfs is setup. This function
- * populates the debugfs clk directory once at boot-time when we know that
- * debugfs is setup. It should only be called once at boot-time, all other clks
- * added dynamically will be done so with clk_debug_register.
+ * dynamically allocated and well before defs is setup. This function
+ * populates the defs clk directory once at boot-time when we know that
+ * defs is setup. It should only be called once at boot-time, all other clks
+ * added dynamically will be done so with clk_de_register.
  */
-static int __init clk_debug_init(void)
+static int __init clk_de_init(void)
 {
 	struct clk_core *core;
 
-	rootdir = debugfs_create_dir("clk", NULL);
+	rootdir = defs_create_dir("clk", NULL);
 
-	debugfs_create_file("clk_summary", 0444, rootdir, &all_lists,
+	defs_create_file("clk_summary", 0444, rootdir, &all_lists,
 			    &clk_summary_fops);
-	debugfs_create_file("clk_dump", 0444, rootdir, &all_lists,
+	defs_create_file("clk_dump", 0444, rootdir, &all_lists,
 			    &clk_dump_fops);
-	debugfs_create_file("clk_orphan_summary", 0444, rootdir, &orphan_list,
+	defs_create_file("clk_orphan_summary", 0444, rootdir, &orphan_list,
 			    &clk_summary_fops);
-	debugfs_create_file("clk_orphan_dump", 0444, rootdir, &orphan_list,
+	defs_create_file("clk_orphan_dump", 0444, rootdir, &orphan_list,
 			    &clk_dump_fops);
 
-	mutex_lock(&clk_debug_lock);
-	hlist_for_each_entry(core, &clk_debug_list, debug_node)
-		clk_debug_create_one(core, rootdir);
+	mutex_lock(&clk_de_lock);
+	hlist_for_each_entry(core, &clk_de_list, de_node)
+		clk_de_create_one(core, rootdir);
 
 	inited = 1;
-	mutex_unlock(&clk_debug_lock);
+	mutex_unlock(&clk_de_lock);
 
 	return 0;
 }
-late_initcall(clk_debug_init);
+late_initcall(clk_de_init);
 #else
-static inline void clk_debug_register(struct clk_core *core) { }
-static inline void clk_debug_reparent(struct clk_core *core,
+static inline void clk_de_register(struct clk_core *core) { }
+static inline void clk_de_reparent(struct clk_core *core,
 				      struct clk_core *new_parent)
 {
 }
-static inline void clk_debug_unregister(struct clk_core *core)
+static inline void clk_de_unregister(struct clk_core *core)
 {
 }
 #endif
@@ -3041,7 +3041,7 @@ static int __clk_core_init(struct clk_core *core)
 
 	/* check to see if a clock with this name is already registered */
 	if (clk_core_lookup(core->name)) {
-		pr_debug("%s: clk %s already initialized\n",
+		pr_de("%s: clk %s already initialized\n",
 				__func__, core->name);
 		ret = -EEXIST;
 		goto out;
@@ -3209,7 +3209,7 @@ unlock:
 	clk_prepare_unlock();
 
 	if (!ret)
-		clk_debug_register(core);
+		clk_de_register(core);
 
 	return ret;
 }
@@ -3507,7 +3507,7 @@ void clk_unregister(struct clk *clk)
 	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
 		return;
 
-	clk_debug_unregister(clk->core);
+	clk_de_unregister(clk->core);
 
 	clk_prepare_lock();
 
@@ -3915,7 +3915,7 @@ int of_clk_add_provider(struct device_node *np,
 	mutex_lock(&of_clk_mutex);
 	list_add(&cp->link, &of_clk_providers);
 	mutex_unlock(&of_clk_mutex);
-	pr_debug("Added clock from %pOF\n", np);
+	pr_de("Added clock from %pOF\n", np);
 
 	ret = of_clk_set_defaults(np, true);
 	if (ret < 0)
@@ -3950,7 +3950,7 @@ int of_clk_add_hw_provider(struct device_node *np,
 	mutex_lock(&of_clk_mutex);
 	list_add(&cp->link, &of_clk_providers);
 	mutex_unlock(&of_clk_mutex);
-	pr_debug("Added clk_hw provider from %pOF\n", np);
+	pr_de("Added clk_hw provider from %pOF\n", np);
 
 	ret = of_clk_set_defaults(np, true);
 	if (ret < 0)

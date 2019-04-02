@@ -184,7 +184,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 			  DISPLAY_CTRL_PLANE);
 
 		/*
-		 * May a hardware bug or just my test chip (not confirmed).
+		 * May a hardware  or just my test chip (not confirmed).
 		 * PANEL_DISPLAY_CTRL register seems requiring few writes
 		 * before a value can be successfully written in.
 		 * Added some masks to mask out the reserved bits.

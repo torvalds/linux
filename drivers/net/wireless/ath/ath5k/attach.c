@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include "ath5k.h"
 #include "reg.h"
-#include "debug.h"
+#include "de.h"
 
 /**
  * ath5k_hw_post() - Power On Self Test helper function

@@ -294,7 +294,7 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	unsigned int ncrypto_fc;
 };
 
-struct chcr_stats_debug {
+struct chcr_stats_de {
 	atomic_t cipher_rqst;
 	atomic_t digest_rqst;
 	atomic_t aead_rqst;

@@ -290,7 +290,7 @@ unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 {
 	int irq;
 
-	BUG_ON(qe_ic == NULL);
+	_ON(qe_ic == NULL);
 
 	/* get the interrupt source vector. */
 	irq = qe_ic_read(qe_ic->regs, QEIC_CIVEC) >> 26;
@@ -306,7 +306,7 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 {
 	int irq;
 
-	BUG_ON(qe_ic == NULL);
+	_ON(qe_ic == NULL);
 
 	/* get the interrupt source vector. */
 	irq = qe_ic_read(qe_ic->regs, QEIC_CHIVEC) >> 26;
@@ -494,7 +494,7 @@ static int __init init_qe_ic_sysfs(void)
 {
 	int rc;
 
-	printk(KERN_DEBUG "Registering qe_ic with sysfs...\n");
+	printk(KERN_DE "Registering qe_ic with sysfs...\n");
 
 	rc = subsys_system_register(&qe_ic_subsys, NULL);
 	if (rc) {

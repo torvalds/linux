@@ -379,7 +379,7 @@ clusterip_hashfn(const struct sk_buff *skb,
 		/* This cannot happen, unless the check function wasn't called
 		 * at rule load time */
 		pr_info("unknown mode %u\n", config->hash_mode);
-		BUG();
+		();
 		break;
 	}
 
@@ -442,15 +442,15 @@ clusterip_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		break;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	nf_ct_dump_tuple_ip(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 #endif
-	pr_debug("hash=%u ct_hash=%u ", hash, ct->mark);
+	pr_de("hash=%u ct_hash=%u ", hash, ct->mark);
 	if (!clusterip_responsible(cipinfo->config, hash)) {
-		pr_debug("not responsible\n");
+		pr_de("not responsible\n");
 		return NF_DROP;
 	}
-	pr_debug("responsible\n");
+	pr_de("responsible\n");
 
 	/* despite being received via linklayer multicast, this is
 	 * actually a unicast IP packet. TCP doesn't like PACKET_MULTICAST */
@@ -586,7 +586,7 @@ struct arp_payload {
 	__be32 dst_ip;
 } __packed;
 
-#ifdef DEBUG
+#ifdef DE
 static void arp_print(struct arp_payload *payload)
 {
 #define HBUFFERLEN 30
@@ -600,7 +600,7 @@ static void arp_print(struct arp_payload *payload)
 	}
 	hbuffer[--k] = '\0';
 
-	pr_debug("src %pI4@%s, dst %pI4\n",
+	pr_de("src %pI4@%s, dst %pI4\n",
 		 &payload->src_ip, hbuffer, &payload->dst_ip);
 }
 #endif
@@ -639,7 +639,7 @@ arp_mangle(void *priv,
 	 * this wouldn't work, since we didn't subscribe the mcast group on
 	 * other interfaces */
 	if (c->ifindex != state->out->ifindex) {
-		pr_debug("not mangling arp reply on different interface: cip'%d'-skb'%d'\n",
+		pr_de("not mangling arp reply on different interface: cip'%d'-skb'%d'\n",
 			 c->ifindex, state->out->ifindex);
 		clusterip_config_put(c);
 		return NF_ACCEPT;
@@ -648,8 +648,8 @@ arp_mangle(void *priv,
 	/* mangle reply hardware address */
 	memcpy(payload->src_hw, c->clustermac, arp->ar_hln);
 
-#ifdef DEBUG
-	pr_debug("mangled arp reply: ");
+#ifdef DE
+	pr_de("mangled arp reply: ");
 	arp_print(payload);
 #endif
 

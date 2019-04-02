@@ -82,7 +82,7 @@ static unsigned int cpm_uart_tx_empty(struct uart_port *port)
 		bdp++;
 	}
 
-	pr_debug("CPM uart[%d]:tx_empty: %d\n", port->line, ret);
+	pr_de("CPM uart[%d]:tx_empty: %d\n", port->line, ret);
 
 	return ret;
 }
@@ -138,7 +138,7 @@ static void cpm_uart_stop_tx(struct uart_port *port)
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;
 
-	pr_debug("CPM uart[%d]:stop tx\n", port->line);
+	pr_de("CPM uart[%d]:stop tx\n", port->line);
 
 	if (IS_SMC(pinfo))
 		clrbits8(&smcp->smc_smcm, SMCM_TX);
@@ -156,7 +156,7 @@ static void cpm_uart_start_tx(struct uart_port *port)
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;
 
-	pr_debug("CPM uart[%d]:start tx\n", port->line);
+	pr_de("CPM uart[%d]:start tx\n", port->line);
 
 	if (IS_SMC(pinfo)) {
 		if (in_8(&smcp->smc_smcm) & SMCM_TX)
@@ -185,7 +185,7 @@ static void cpm_uart_stop_rx(struct uart_port *port)
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;
 
-	pr_debug("CPM uart[%d]:stop rx\n", port->line);
+	pr_de("CPM uart[%d]:stop rx\n", port->line);
 
 	if (IS_SMC(pinfo))
 		clrbits8(&smcp->smc_smcm, SMCM_RX);
@@ -201,7 +201,7 @@ static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
 	struct uart_cpm_port *pinfo =
 		container_of(port, struct uart_cpm_port, port);
 
-	pr_debug("CPM uart[%d]:break ctrl, break_state: %d\n", port->line,
+	pr_de("CPM uart[%d]:break ctrl, break_state: %d\n", port->line,
 		break_state);
 
 	if (break_state)
@@ -215,7 +215,7 @@ static void cpm_uart_break_ctl(struct uart_port *port, int break_state)
  */
 static void cpm_uart_int_tx(struct uart_port *port)
 {
-	pr_debug("CPM uart[%d]:TX INT\n", port->line);
+	pr_de("CPM uart[%d]:TX INT\n", port->line);
 
 	cpm_uart_tx_pump(port);
 }
@@ -239,7 +239,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	u16 status;
 	unsigned int flg;
 
-	pr_debug("CPM uart[%d]:RX INT\n", port->line);
+	pr_de("CPM uart[%d]:RX INT\n", port->line);
 
 	/* Just loop through the closed BDs and copy the characters into
 	 * the buffer.
@@ -364,7 +364,7 @@ static irqreturn_t cpm_uart_int(int irq, void *data)
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;
 
-	pr_debug("CPM uart[%d]:IRQ\n", port->line);
+	pr_de("CPM uart[%d]:IRQ\n", port->line);
 
 	if (IS_SMC(pinfo)) {
 		events = in_8(&smcp->smc_smce);
@@ -394,7 +394,7 @@ static int cpm_uart_startup(struct uart_port *port)
 	struct uart_cpm_port *pinfo =
 		container_of(port, struct uart_cpm_port, port);
 
-	pr_debug("CPM uart[%d]:startup\n", port->line);
+	pr_de("CPM uart[%d]:startup\n", port->line);
 
 	/* If the port is not the console, make sure rx is disabled. */
 	if (!(pinfo->flags & FLAG_CONSOLE)) {
@@ -440,7 +440,7 @@ static void cpm_uart_shutdown(struct uart_port *port)
 	struct uart_cpm_port *pinfo =
 		container_of(port, struct uart_cpm_port, port);
 
-	pr_debug("CPM uart[%d]:shutdown\n", port->line);
+	pr_de("CPM uart[%d]:shutdown\n", port->line);
 
 	/* free interrupt handler */
 	free_irq(port->irq, port);
@@ -494,7 +494,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	scc_t __iomem *sccp = pinfo->sccp;
 	int maxidl;
 
-	pr_debug("CPM uart[%d]:set_termios\n", port->line);
+	pr_de("CPM uart[%d]:set_termios\n", port->line);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 	if (baud < HW_BUF_SPD_THRESHOLD ||
@@ -640,7 +640,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 
 static const char *cpm_uart_type(struct uart_port *port)
 {
-	pr_debug("CPM uart[%d]:uart_type\n", port->line);
+	pr_de("CPM uart[%d]:uart_type\n", port->line);
 
 	return port->type == PORT_CPM ? "CPM UART" : NULL;
 }
@@ -653,7 +653,7 @@ static int cpm_uart_verify_port(struct uart_port *port,
 {
 	int ret = 0;
 
-	pr_debug("CPM uart[%d]:verify_port\n", port->line);
+	pr_de("CPM uart[%d]:verify_port\n", port->line);
 
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_CPM)
 		ret = -EINVAL;
@@ -749,7 +749,7 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo)
 	u8 *mem_addr;
 	cbd_t __iomem *bdp;
 
-	pr_debug("CPM uart[%d]:initbd\n", pinfo->port.line);
+	pr_de("CPM uart[%d]:initbd\n", pinfo->port.line);
 
 	/* Set the physical address of the host memory
 	 * buffers in the buffer descriptors, and the
@@ -787,7 +787,7 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	scc_t __iomem *scp;
 	scc_uart_t __iomem *sup;
 
-	pr_debug("CPM uart[%d]:init_scc\n", pinfo->port.line);
+	pr_de("CPM uart[%d]:init_scc\n", pinfo->port.line);
 
 	scp = pinfo->sccp;
 	sup = pinfo->sccup;
@@ -849,7 +849,7 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	smc_t __iomem *sp;
 	smc_uart_t __iomem *up;
 
-	pr_debug("CPM uart[%d]:init_smc\n", pinfo->port.line);
+	pr_de("CPM uart[%d]:init_smc\n", pinfo->port.line);
 
 	sp = pinfo->smcp;
 	up = pinfo->smcup;
@@ -908,7 +908,7 @@ static int cpm_uart_request_port(struct uart_port *port)
 		container_of(port, struct uart_cpm_port, port);
 	int ret;
 
-	pr_debug("CPM uart[%d]:request port\n", port->line);
+	pr_de("CPM uart[%d]:request port\n", port->line);
 
 	if (pinfo->flags & FLAG_CONSOLE)
 		return 0;
@@ -949,7 +949,7 @@ static void cpm_uart_release_port(struct uart_port *port)
  */
 static void cpm_uart_config_port(struct uart_port *port, int flags)
 {
-	pr_debug("CPM uart[%d]:config_port\n", port->line);
+	pr_de("CPM uart[%d]:config_port\n", port->line);
 
 	if (flags & UART_CONFIG_TYPE) {
 		port->type = PORT_CPM;
@@ -1036,7 +1036,7 @@ static void cpm_uart_early_write(struct uart_cpm_port *pinfo,
 
 #ifdef CONFIG_CONSOLE_POLL
 /* Serial polling routines for writing and reading from the uart while
- * in an interrupt or debug context.
+ * in an interrupt or de context.
  */
 
 #define GDB_BUF_SIZE	512	/* power of 2, please */
@@ -1239,7 +1239,7 @@ static int cpm_uart_init_port(struct device_node *np,
 		}
 	}
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_CPM
+#ifdef CONFIG_PPC_EARLY_DE_CPM
 	udbg_putc = NULL;
 #endif
 

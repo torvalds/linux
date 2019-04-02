@@ -248,7 +248,7 @@ acpi_ex_create_region(u8 * aml_start,
 			    space_id));
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "Region Type - %s (0x%X)\n",
+	ACPI_DE_PRINT((ACPI_DB_LOAD, "Region Type - %s (0x%X)\n",
 			  acpi_ut_get_region_name(space_id), space_id));
 
 	/* Create the region descriptor */

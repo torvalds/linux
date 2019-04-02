@@ -4,7 +4,7 @@
 
 #include <asm/types.h>
 #include <linux/fb.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
     /*
      *  Compose two values, using a bitmask as decision value

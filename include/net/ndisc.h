@@ -57,11 +57,11 @@ enum {
 #include <net/neighbour.h>
 
 /* Set to 3 to get tracing... */
-#define ND_DEBUG 1
+#define ND_DE 1
 
 #define ND_PRINTK(val, level, fmt, ...)				\
 do {								\
-	if (val <= ND_DEBUG)					\
+	if (val <= ND_DE)					\
 		net_##level##_ratelimited(fmt, ##__VA_ARGS__);	\
 } while (0)
 

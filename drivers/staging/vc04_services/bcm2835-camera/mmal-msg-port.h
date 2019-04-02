@@ -42,7 +42,7 @@ enum mmal_port_type {
  */
 struct mmal_port {
 	u32 priv; /* Private member used by the framework */
-	u32 name; /* Port name. Used for debugging purposes (RO) */
+	u32 name; /* Port name. Used for deging purposes (RO) */
 
 	u32 type;      /* Type of the port (RO) enum mmal_port_type */
 	u16 index;     /* Index of the port in its type list (RO) */

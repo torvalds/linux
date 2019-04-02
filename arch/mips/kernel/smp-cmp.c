@@ -16,7 +16,7 @@
  *    Chris Dearman (chris@mips.com)
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/sched/task_stack.h>
@@ -57,7 +57,7 @@ static void cmp_init_secondary(void)
 
 static void cmp_smp_finish(void)
 {
-	pr_debug("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
+	pr_de("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
 
 	/* CDFIXME: remove this? */
 	write_c0_compare(read_c0_count() + (8 * mips_hpt_frequency / HZ));
@@ -84,7 +84,7 @@ static int cmp_boot_secondary(int cpu, struct task_struct *idle)
 	unsigned long pc = (unsigned long)&smp_bootstrap;
 	unsigned long a0 = 0;
 
-	pr_debug("SMPCMP: CPU%d: %s cpu %d\n", smp_processor_id(),
+	pr_de("SMPCMP: CPU%d: %s cpu %d\n", smp_processor_id(),
 		__func__, cpu);
 
 #if 0
@@ -105,7 +105,7 @@ void __init cmp_smp_setup(void)
 	int i;
 	int ncpu = 0;
 
-	pr_debug("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
+	pr_de("SMPCMP: CPU%d: %s\n", smp_processor_id(), __func__);
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
@@ -135,7 +135,7 @@ void __init cmp_smp_setup(void)
 
 void __init cmp_prepare_cpus(unsigned int max_cpus)
 {
-	pr_debug("SMPCMP: CPU%d: %s max_cpus=%d\n",
+	pr_de("SMPCMP: CPU%d: %s max_cpus=%d\n",
 		 smp_processor_id(), __func__, max_cpus);
 
 #ifdef CONFIG_MIPS_MT

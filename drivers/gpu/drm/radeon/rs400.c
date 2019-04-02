@@ -33,7 +33,7 @@
 #include "rs400d.h"
 
 /* This files gather functions specifics to : rs400,rs480 */
-static int rs400_debugfs_pcie_gart_info_init(struct radeon_device *rdev);
+static int rs400_defs_pcie_gart_info_init(struct radeon_device *rdev);
 
 void rs400_gart_adjust_size(struct radeon_device *rdev)
 {
@@ -98,8 +98,8 @@ int rs400_gart_init(struct radeon_device *rdev)
 	r = radeon_gart_init(rdev);
 	if (r)
 		return r;
-	if (rs400_debugfs_pcie_gart_info_init(rdev))
-		DRM_ERROR("Failed to register debugfs file for RS400 GART !\n");
+	if (rs400_defs_pcie_gart_info_init(rdev))
+		DRM_ERROR("Failed to register defs file for RS400 GART !\n");
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
 	return radeon_gart_table_ram_alloc(rdev);
 }
@@ -301,8 +301,8 @@ void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
-#if defined(CONFIG_DEBUG_FS)
-static int rs400_debugfs_gart_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int rs400_defs_gart_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -372,14 +372,14 @@ static int rs400_debugfs_gart_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list rs400_gart_info_list[] = {
-	{"rs400_gart_info", rs400_debugfs_gart_info, 0, NULL},
+	{"rs400_gart_info", rs400_defs_gart_info, 0, NULL},
 };
 #endif
 
-static int rs400_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
+static int rs400_defs_pcie_gart_info_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, rs400_gart_info_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, rs400_gart_info_list, 1);
 #else
 	return 0;
 #endif

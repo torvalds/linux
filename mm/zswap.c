@@ -205,8 +205,8 @@ static bool zswap_has_pool;
 * helpers and fwd declarations
 **********************************/
 
-#define zswap_pool_debug(msg, p)				\
-	pr_debug("%s pool %s/%s\n", msg, (p)->tfm_name,		\
+#define zswap_pool_de(msg, p)				\
+	pr_de("%s pool %s/%s\n", msg, (p)->tfm_name,		\
 		 zpool_get_type((p)->zpool))
 
 static int zswap_writeback_entry(struct zpool *pool, unsigned long handle);
@@ -356,7 +356,7 @@ static void zswap_entry_put(struct zswap_tree *tree,
 {
 	int refcount = --entry->refcount;
 
-	BUG_ON(refcount < 0);
+	_ON(refcount < 0);
 	if (refcount == 0) {
 		zswap_rb_erase(&tree->rbroot, entry);
 		zswap_free_entry(entry);
@@ -540,7 +540,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 		pr_err("%s zpool not available\n", type);
 		goto error;
 	}
-	pr_debug("using %s zpool\n", zpool_get_type(pool->zpool));
+	pr_de("using %s zpool\n", zpool_get_type(pool->zpool));
 
 	strlcpy(pool->tfm_name, compressor, sizeof(pool->tfm_name));
 	pool->tfm = alloc_percpu(struct crypto_comp *);
@@ -553,7 +553,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 				       &pool->node);
 	if (ret)
 		goto error;
-	pr_debug("using %s compressor\n", pool->tfm_name);
+	pr_de("using %s compressor\n", pool->tfm_name);
 
 	/* being the current pool takes 1 ref; this func expects the
 	 * caller to always add the new pool as the current pool
@@ -561,7 +561,7 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	kref_init(&pool->kref);
 	INIT_LIST_HEAD(&pool->list);
 
-	zswap_pool_debug("created", pool);
+	zswap_pool_de("created", pool);
 
 	return pool;
 
@@ -615,7 +615,7 @@ static __init struct zswap_pool *__zswap_pool_create_fallback(void)
 
 static void zswap_pool_destroy(struct zswap_pool *pool)
 {
-	zswap_pool_debug("destroying", pool);
+	zswap_pool_de("destroying", pool);
 
 	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->node);
 	free_percpu(pool->tfm);
@@ -715,7 +715,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 
 	pool = zswap_pool_find_get(type, compressor);
 	if (pool) {
-		zswap_pool_debug("using existing", pool);
+		zswap_pool_de("using existing", pool);
 		WARN_ON(pool == zswap_pool_current());
 		list_del_rcu(&pool->list);
 	}
@@ -878,7 +878,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 		return 0;
 	}
 	spin_unlock(&tree->lock);
-	BUG_ON(offset != entry->offset);
+	_ON(offset != entry->offset);
 
 	/* try to allocate swap cache page */
 	switch (zswap_get_swap_cache_page(swpentry, &page)) {
@@ -904,8 +904,8 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 		put_cpu_ptr(entry->pool->tfm);
 		kunmap_atomic(dst);
 		zpool_unmap_handle(entry->pool->zpool, entry->handle);
-		BUG_ON(ret);
-		BUG_ON(dlen != PAGE_SIZE);
+		_ON(ret);
+		_ON(dlen != PAGE_SIZE);
 
 		/* page is up to date */
 		SetPageUptodate(page);
@@ -1172,7 +1172,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	put_cpu_ptr(entry->pool->tfm);
 	kunmap_atomic(dst);
 	zpool_unmap_handle(entry->pool->zpool, entry->handle);
-	BUG_ON(ret);
+	_ON(ret);
 
 freeentry:
 	spin_lock(&tree->lock);
@@ -1249,57 +1249,57 @@ static struct frontswap_ops zswap_frontswap_ops = {
 };
 
 /*********************************
-* debugfs functions
+* defs functions
 **********************************/
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 
-static struct dentry *zswap_debugfs_root;
+static struct dentry *zswap_defs_root;
 
-static int __init zswap_debugfs_init(void)
+static int __init zswap_defs_init(void)
 {
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return -ENODEV;
 
-	zswap_debugfs_root = debugfs_create_dir("zswap", NULL);
-	if (!zswap_debugfs_root)
+	zswap_defs_root = defs_create_dir("zswap", NULL);
+	if (!zswap_defs_root)
 		return -ENOMEM;
 
-	debugfs_create_u64("pool_limit_hit", 0444,
-			   zswap_debugfs_root, &zswap_pool_limit_hit);
-	debugfs_create_u64("reject_reclaim_fail", 0444,
-			   zswap_debugfs_root, &zswap_reject_reclaim_fail);
-	debugfs_create_u64("reject_alloc_fail", 0444,
-			   zswap_debugfs_root, &zswap_reject_alloc_fail);
-	debugfs_create_u64("reject_kmemcache_fail", 0444,
-			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
-	debugfs_create_u64("reject_compress_poor", 0444,
-			   zswap_debugfs_root, &zswap_reject_compress_poor);
-	debugfs_create_u64("written_back_pages", 0444,
-			   zswap_debugfs_root, &zswap_written_back_pages);
-	debugfs_create_u64("duplicate_entry", 0444,
-			   zswap_debugfs_root, &zswap_duplicate_entry);
-	debugfs_create_u64("pool_total_size", 0444,
-			   zswap_debugfs_root, &zswap_pool_total_size);
-	debugfs_create_atomic_t("stored_pages", 0444,
-				zswap_debugfs_root, &zswap_stored_pages);
-	debugfs_create_atomic_t("same_filled_pages", 0444,
-				zswap_debugfs_root, &zswap_same_filled_pages);
+	defs_create_u64("pool_limit_hit", 0444,
+			   zswap_defs_root, &zswap_pool_limit_hit);
+	defs_create_u64("reject_reclaim_fail", 0444,
+			   zswap_defs_root, &zswap_reject_reclaim_fail);
+	defs_create_u64("reject_alloc_fail", 0444,
+			   zswap_defs_root, &zswap_reject_alloc_fail);
+	defs_create_u64("reject_kmemcache_fail", 0444,
+			   zswap_defs_root, &zswap_reject_kmemcache_fail);
+	defs_create_u64("reject_compress_poor", 0444,
+			   zswap_defs_root, &zswap_reject_compress_poor);
+	defs_create_u64("written_back_pages", 0444,
+			   zswap_defs_root, &zswap_written_back_pages);
+	defs_create_u64("duplicate_entry", 0444,
+			   zswap_defs_root, &zswap_duplicate_entry);
+	defs_create_u64("pool_total_size", 0444,
+			   zswap_defs_root, &zswap_pool_total_size);
+	defs_create_atomic_t("stored_pages", 0444,
+				zswap_defs_root, &zswap_stored_pages);
+	defs_create_atomic_t("same_filled_pages", 0444,
+				zswap_defs_root, &zswap_same_filled_pages);
 
 	return 0;
 }
 
-static void __exit zswap_debugfs_exit(void)
+static void __exit zswap_defs_exit(void)
 {
-	debugfs_remove_recursive(zswap_debugfs_root);
+	defs_remove_recursive(zswap_defs_root);
 }
 #else
-static int __init zswap_debugfs_init(void)
+static int __init zswap_defs_init(void)
 {
 	return 0;
 }
 
-static void __exit zswap_debugfs_exit(void) { }
+static void __exit zswap_defs_exit(void) { }
 #endif
 
 /*********************************
@@ -1343,8 +1343,8 @@ static int __init init_zswap(void)
 	}
 
 	frontswap_register_ops(&zswap_frontswap_ops);
-	if (zswap_debugfs_init())
-		pr_warn("debugfs initialization failed\n");
+	if (zswap_defs_init())
+		pr_warn("defs initialization failed\n");
 	return 0;
 
 hp_fail:

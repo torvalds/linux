@@ -48,7 +48,7 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
 	 * establishing additional references. We should be the only one
 	 * holding a reference to the 'page' at this point.
 	 */
-	BUG_ON(!trylock_page(page));
+	_ON(!trylock_page(page));
 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
 	balloon_page_insert(b_dev_info, page);
 	__count_vm_event(BALLOON_INFLATE);
@@ -104,13 +104,13 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
 		 * If we are unable to dequeue a balloon page because the page
 		 * list is empty and there is no isolated pages, then something
 		 * went out of track and some balloon pages are lost.
-		 * BUG() here, otherwise the balloon driver may get stuck into
+		 * () here, otherwise the balloon driver may get stuck into
 		 * an infinite loop while attempting to release all its pages.
 		 */
 		spin_lock_irqsave(&b_dev_info->pages_lock, flags);
 		if (unlikely(list_empty(&b_dev_info->pages) &&
 			     !b_dev_info->isolated_pages))
-			BUG();
+			();
 		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 		page = NULL;
 	}
@@ -161,8 +161,8 @@ int balloon_page_migrate(struct address_space *mapping,
 	if (mode == MIGRATE_SYNC_NO_COPY)
 		return -EINVAL;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(newpage), newpage);
 
 	return balloon->migratepage(balloon, newpage, page, mode);
 }

@@ -1,10 +1,10 @@
 /*
  * Generic stack depot for storing stack traces.
  *
- * Some debugging tools need to save stack traces of certain events which can
+ * Some deging tools need to save stack traces of certain events which can
  * be later presented to the user. For example, KASAN needs to safe alloc and
  * free stacks for each object, but storing two stack traces per object
- * requires too much memory (e.g. SLUB_DEBUG needs 256 bytes per object for
+ * requires too much memory (e.g. SLUB_DE needs 256 bytes per object for
  * that).
  *
  * Instead, stack depot maintains a hashtable of unique stacktraces. Since alloc

@@ -9,7 +9,7 @@
 
 #include <linux/sunrpc/rpc_rdma.h>
 #include <linux/sunrpc/svc_rdma.h>
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>

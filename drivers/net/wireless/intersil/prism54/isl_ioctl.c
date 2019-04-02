@@ -71,7 +71,7 @@ prism54_mib_mode_helper(islpci_private *priv, u32 iw_mode)
 
 	/* For now, just catch early the Repeater and Secondary modes here */
 	if (iw_mode == IW_MODE_REPEAT || iw_mode == IW_MODE_SECOND) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s(): Sorry, Repeater mode and Secondary mode "
 		       "are not yet supported by this driver.\n", __func__);
 		return -EINVAL;
@@ -331,7 +331,7 @@ prism54_set_mode(struct net_device *ndev, struct iw_request_info *info,
 
 	/* Let's see if the user passed a valid Linux Wireless mode */
 	if (*uwrq > IW_MODE_MONITOR || *uwrq < IW_MODE_AUTO) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: %s() You passed a non-valid init_mode.\n",
 		       priv->ndev->name, __func__);
 		return -EINVAL;
@@ -372,7 +372,7 @@ prism54_get_mode(struct net_device *ndev, struct iw_request_info *info,
 {
 	islpci_private *priv = netdev_priv(ndev);
 
-	BUG_ON((priv->iw_mode < IW_MODE_AUTO) || (priv->iw_mode >
+	_ON((priv->iw_mode < IW_MODE_AUTO) || (priv->iw_mode >
 						  IW_MODE_MONITOR));
 	*uwrq = priv->iw_mode;
 
@@ -1232,7 +1232,7 @@ prism54_set_txpower(struct net_device *ndev, struct iw_request_info *info,
 	u *= 4;
 	if (vwrq->disabled) {
 		/* don't know how to disable radio */
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: %s() disabling radio is not yet supported.\n",
 		       priv->ndev->name, __func__);
 		return -ENOTSUPP;
@@ -1240,7 +1240,7 @@ prism54_set_txpower(struct net_device *ndev, struct iw_request_info *info,
 		/* currently only fixed value is supported */
 		return mgt_set_request(priv, OID_INL_OUTPUTPOWER, 0, &u);
 	else {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: %s() auto power will be implemented later.\n",
 		       priv->ndev->name, __func__);
 		return -ENOTSUPP;
@@ -1287,7 +1287,7 @@ static int prism54_set_genie(struct net_device *ndev,
 		ret = mgt_set_varlen(priv, DOT11_OID_ATTACHMENT, attach,
 			priv->wpa_ie_len);
 		if (ret == 0)
-			printk(KERN_DEBUG "%s: WPA IE Attachment was set\n",
+			printk(KERN_DE "%s: WPA IE Attachment was set\n",
 				ndev->name);
 	}
 
@@ -2069,7 +2069,7 @@ send_simple_event(islpci_private *priv, const char *str)
 	memptr = kmalloc(IW_CUSTOM_MAX, GFP_KERNEL);
 	if (!memptr)
 		return;
-	BUG_ON(n >= IW_CUSTOM_MAX);
+	_ON(n >= IW_CUSTOM_MAX);
 	wrqu.data.pointer = memptr;
 	wrqu.data.length = n;
 	strcpy(memptr, str);
@@ -2153,7 +2153,7 @@ prism54_wpa_bss_ie_add(islpci_private *priv, u8 *bssid,
 		bss->wpa_ie_len = wpa_ie_len;
 		bss->last_update = jiffies;
 	} else {
-		printk(KERN_DEBUG "Failed to add BSS WPA entry for "
+		printk(KERN_DE "Failed to add BSS WPA entry for "
 		       "%pM\n", bssid);
 	}
 
@@ -2228,7 +2228,7 @@ prism54_process_bss_data(islpci_private *priv, u32 oid, u8 *addr,
 	end = payload + len;
 	while (pos < end) {
 		if (pos + 2 + pos[1] > end) {
-			printk(KERN_DEBUG "Parsing Beacon/ProbeResp failed "
+			printk(KERN_DE "Parsing Beacon/ProbeResp failed "
 			       "for %pM\n", addr);
 			return;
 		}
@@ -2356,7 +2356,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 			break;
 
 		memcpy(&confirm->address, mlmeex->address, ETH_ALEN);
-		printk(KERN_DEBUG "Authenticate from: address:\t%pM\n",
+		printk(KERN_DE "Authenticate from: address:\t%pM\n",
 		       mlmeex->address);
 		confirm->id = -1; /* or mlmeex->id ? */
 		confirm->state = 0; /* not used */
@@ -2402,7 +2402,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 		wpa_ie_len = prism54_wpa_bss_ie_get(priv, mlmeex->address, wpa_ie);
 
 		if (!wpa_ie_len) {
-			printk(KERN_DEBUG "No WPA IE found from address:\t%pM\n",
+			printk(KERN_DE "No WPA IE found from address:\t%pM\n",
 			       mlmeex->address);
 			kfree(confirm);
 			break;
@@ -2439,7 +2439,7 @@ prism54_process_trap_helper(islpci_private *priv, enum oid_num_t oid,
 		wpa_ie_len = prism54_wpa_bss_ie_get(priv, mlmeex->address, wpa_ie);
 
 		if (!wpa_ie_len) {
-			printk(KERN_DEBUG "No WPA IE found from address:\t%pM\n",
+			printk(KERN_DE "No WPA IE found from address:\t%pM\n",
 			       mlmeex->address);
 			kfree(confirm);
 			break;
@@ -2573,7 +2573,7 @@ prism54_get_prismhdr(struct net_device *ndev, struct iw_request_info *info,
 }
 
 static int
-prism54_debug_oid(struct net_device *ndev, struct iw_request_info *info,
+prism54_de_oid(struct net_device *ndev, struct iw_request_info *info,
 		  __u32 * uwrq, char *extra)
 {
 	islpci_private *priv = netdev_priv(ndev);
@@ -2585,7 +2585,7 @@ prism54_debug_oid(struct net_device *ndev, struct iw_request_info *info,
 }
 
 static int
-prism54_debug_get_oid(struct net_device *ndev, struct iw_request_info *info,
+prism54_de_get_oid(struct net_device *ndev, struct iw_request_info *info,
 		      struct iw_point *data, char *extra)
 {
 	islpci_private *priv = netdev_priv(ndev);
@@ -2621,7 +2621,7 @@ prism54_debug_get_oid(struct net_device *ndev, struct iw_request_info *info,
 }
 
 static int
-prism54_debug_set_oid(struct net_device *ndev, struct iw_request_info *info,
+prism54_de_set_oid(struct net_device *ndev, struct iw_request_info *info,
 		      struct iw_point *data, char *extra)
 {
 	islpci_private *priv = netdev_priv(ndev);
@@ -2887,9 +2887,9 @@ static const iw_handler prism54_private_handler[] = {
 	(iw_handler) prism54_get_wpa,
 	(iw_handler) prism54_set_wpa,
 	(iw_handler) NULL,
-	(iw_handler) prism54_debug_oid,
-	(iw_handler) prism54_debug_get_oid,
-	(iw_handler) prism54_debug_set_oid,
+	(iw_handler) prism54_de_oid,
+	(iw_handler) prism54_de_get_oid,
+	(iw_handler) prism54_de_set_oid,
 	(iw_handler) prism54_get_oid,
 	(iw_handler) prism54_set_u32,
 	(iw_handler) NULL,

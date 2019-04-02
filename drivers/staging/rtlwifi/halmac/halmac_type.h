@@ -1248,7 +1248,7 @@ enum halmac_api_id {
 	HALMAC_API_ENTER_PS = 0x27,
 	HALMAC_API_LEAVE_PS = 0x28,
 	HALMAC_API_H2C_LB = 0x29,
-	HALMAC_API_DEBUG = 0x2A,
+	HALMAC_API_DE = 0x2A,
 	HALMAC_API_CFG_PARAMETER = 0x2B,
 	HALMAC_API_UPDATE_PACKET = 0x2C,
 	HALMAC_API_BCN_IE_FILTER = 0x2D,
@@ -1691,7 +1691,7 @@ struct halmac_api {
 		struct halmac_adapter *halmac_adapter);
 	enum halmac_ret_status (*halmac_h2c_lb)(
 		struct halmac_adapter *halmac_adapter);
-	enum halmac_ret_status (*halmac_debug)(
+	enum halmac_ret_status (*halmac_de)(
 		struct halmac_adapter *halmac_adapter);
 	enum halmac_ret_status (*halmac_cfg_parameter)(
 		struct halmac_adapter *halmac_adapter,

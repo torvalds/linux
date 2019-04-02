@@ -1423,7 +1423,7 @@ struct qla4_8xxx_minidump_template_hdr {
 	uint32_t entry_type;
 	uint32_t first_entry_offset;
 	uint32_t size_of_template;
-	uint32_t capture_debug_level;
+	uint32_t capture_de_level;
 	uint32_t num_of_entries;
 	uint32_t version;
 	uint32_t driver_timestamp;

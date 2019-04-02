@@ -292,7 +292,7 @@ static void __init nas100d_init(void)
 
 	/*
 	 * This is only useful on a modified machine, but it is valuable
-	 * to have it first in order to see debug messages, and so that
+	 * to have it first in order to see de messages, and so that
 	 * it does *not* get removed if platform_add_devices fails!
 	 */
 	(void)platform_device_register(&nas100d_uart);
@@ -304,7 +304,7 @@ static void __init nas100d_init(void)
 	if (request_irq(gpio_to_irq(NAS100D_RB_GPIO), &nas100d_reset_handler,
 		IRQF_TRIGGER_LOW, "NAS100D reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DE "Reset Button IRQ %d not available\n",
 			gpio_to_irq(NAS100D_RB_GPIO));
 	}
 

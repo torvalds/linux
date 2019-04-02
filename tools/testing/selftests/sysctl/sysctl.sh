@@ -57,7 +57,7 @@ function allow_user_defaults()
 		DEFAULT_NUM_TESTS=50
 	fi
 	if [ -z $SYSCTL ]; then
-		SYSCTL="/proc/sys/debug/test_sysctl"
+		SYSCTL="/proc/sys/de/test_sysctl"
 	fi
 	if [ -z $PROD_SYSCTL ]; then
 		PROD_SYSCTL="/proc/sys"

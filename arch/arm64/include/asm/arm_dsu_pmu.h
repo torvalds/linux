@@ -11,7 +11,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/barrier.h>
@@ -123,7 +123,7 @@ static inline u32 __dsu_pmu_read_pmceid(int n)
 	case 1:
 		return read_sysreg_s(CLUSTERPMCEID1_EL1);
 	default:
-		BUILD_BUG();
+		BUILD_();
 		return 0;
 	}
 }

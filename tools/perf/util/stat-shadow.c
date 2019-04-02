@@ -87,7 +87,7 @@ static void saved_value_delete(struct rblist *rblist __maybe_unused,
 {
 	struct saved_value *v;
 
-	BUG_ON(!rb_node);
+	_ON(!rb_node);
 	v = container_of(rb_node, struct saved_value, rb_node);
 	free(v);
 }

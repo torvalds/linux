@@ -246,8 +246,8 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter,
 			pool->consumer_index = 0;
 		index = pool->free_map[free_index];
 
-		BUG_ON(index == IBM_VETH_INVALID_MAP);
-		BUG_ON(pool->skbuff[index] != NULL);
+		_ON(index == IBM_VETH_INVALID_MAP);
+		_ON(pool->skbuff[index] != NULL);
 
 		dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
 				pool->buff_size, DMA_FROM_DEVICE);
@@ -377,12 +377,12 @@ static void ibmveth_remove_buffer_from_pool(struct ibmveth_adapter *adapter,
 	unsigned int free_index;
 	struct sk_buff *skb;
 
-	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
-	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
+	_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
+	_ON(index >= adapter->rx_buff_pool[pool].size);
 
 	skb = adapter->rx_buff_pool[pool].skbuff[index];
 
-	BUG_ON(skb == NULL);
+	_ON(skb == NULL);
 
 	adapter->rx_buff_pool[pool].skbuff[index] = NULL;
 
@@ -410,8 +410,8 @@ static inline struct sk_buff *ibmveth_rxq_get_buffer(struct ibmveth_adapter *ada
 	unsigned int pool = correlator >> 32;
 	unsigned int index = correlator & 0xffffffffUL;
 
-	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
-	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
+	_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
+	_ON(index >= adapter->rx_buff_pool[pool].size);
 
 	return adapter->rx_buff_pool[pool].skbuff[index];
 }
@@ -427,8 +427,8 @@ static int ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 	unsigned long lpar_rc;
 	int ret = 1;
 
-	BUG_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
-	BUG_ON(index >= adapter->rx_buff_pool[pool].size);
+	_ON(pool >= IBMVETH_NUM_BUFF_POOLS);
+	_ON(index >= adapter->rx_buff_pool[pool].size);
 
 	if (!adapter->rx_buff_pool[pool].active) {
 		ibmveth_rxq_harvest_buffer(adapter);
@@ -1394,7 +1394,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
 				       VIO_IRQ_ENABLE);
 
-		BUG_ON(lpar_rc != H_SUCCESS);
+		_ON(lpar_rc != H_SUCCESS);
 
 		if (ibmveth_rxq_pending_buffer(adapter) &&
 		    napi_reschedule(napi)) {
@@ -1415,7 +1415,7 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
 	if (napi_schedule_prep(&adapter->napi)) {
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
 				       VIO_IRQ_DISABLE);
-		BUG_ON(lpar_rc != H_SUCCESS);
+		_ON(lpar_rc != H_SUCCESS);
 		__napi_schedule(&adapter->napi);
 	}
 	return IRQ_HANDLED;
@@ -1919,7 +1919,7 @@ static struct vio_driver ibmveth_driver = {
 
 static int __init ibmveth_module_init(void)
 {
-	printk(KERN_DEBUG "%s: %s %s\n", ibmveth_driver_name,
+	printk(KERN_DE "%s: %s %s\n", ibmveth_driver_name,
 	       ibmveth_driver_string, ibmveth_driver_version);
 
 	return vio_register_driver(&ibmveth_driver);

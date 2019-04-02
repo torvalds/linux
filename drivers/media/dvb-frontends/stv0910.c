@@ -1091,7 +1091,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 	write_reg(state, RSTV0910_P2_BCLC2S232A + state->regoff, 0x84);
 
 	/*
-	 * Reset CAR3, bug DVBS2->DVBS1 lock
+	 * Reset CAR3,  DVBS2->DVBS1 lock
 	 * Note: The bit is only pulsed -> no lock on shared register needed
 	 */
 	write_reg(state, RSTV0910_TSTRES0, state->nr ? 0x04 : 0x08);

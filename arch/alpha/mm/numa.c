@@ -23,8 +23,8 @@
 pg_data_t node_data[MAX_NUMNODES];
 EXPORT_SYMBOL(node_data);
 
-#undef DEBUG_DISCONTIG
-#ifdef DEBUG_DISCONTIG
+#undef DE_DISCONTIG
+#ifdef DE_DISCONTIG
 #define DBGDCONT(args...) printk(args)
 #else
 #define DBGDCONT(args...)

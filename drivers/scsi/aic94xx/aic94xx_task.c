@@ -470,7 +470,7 @@ static void asd_unbuild_smp_ascb(struct asd_ascb *a)
 {
 	struct sas_task *task = a->uldd_task;
 
-	BUG_ON(!task);
+	_ON(!task);
 	dma_unmap_sg(&a->ha->pcidev->dev, &task->smp_task.smp_req, 1,
 		     DMA_TO_DEVICE);
 	dma_unmap_sg(&a->ha->pcidev->dev, &task->smp_task.smp_resp, 1,

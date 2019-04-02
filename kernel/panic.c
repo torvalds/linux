@@ -8,8 +8,8 @@
  * This function is used through-out the kernel (including mm and fs)
  * to indicate a major problem.
  */
-#include <linux/debug_locks.h>
-#include <linux/sched/debug.h>
+#include <linux/de_locks.h>
+#include <linux/sched/de.h>
 #include <linux/interrupt.h>
 #include <linux/kmsg_dump.h>
 #include <linux/kallsyms.h>
@@ -26,9 +26,9 @@
 #include <linux/init.h>
 #include <linux/nmi.h>
 #include <linux/console.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/ratelimit.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <asm/sections.h>
 
 #define PANIC_TIMER_STEP 100
@@ -144,7 +144,7 @@ static void panic_print_sys_info(void)
 		sysrq_timer_list_show();
 
 	if (panic_print & PANIC_PRINT_LOCK_INFO)
-		debug_show_all_locks();
+		de_show_all_locks();
 
 	if (panic_print & PANIC_PRINT_FTRACE_INFO)
 		ftrace_dump(DUMP_ALL);
@@ -206,7 +206,7 @@ void panic(const char *fmt, ...)
 		buf[len - 1] = '\0';
 
 	pr_emerg("Kernel panic - not syncing: %s\n", buf);
-#ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifdef CONFIG_DE_VERBOSE
 	/*
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
 	 */
@@ -272,11 +272,11 @@ void panic(const char *fmt, ...)
 	 * We may have ended up stopping the CPU holding the lock (in
 	 * smp_send_stop()) while still having some valuable data in the console
 	 * buffer.  Try to acquire the lock then release it regardless of the
-	 * result.  The release will also print the buffers out.  Locks debug
+	 * result.  The release will also print the buffers out.  Locks de
 	 * should be disabled to avoid reporting bad unlock balance when
 	 * panic() is not being callled from OOPS.
 	 */
-	debug_locks_off();
+	de_locks_off();
 	console_flush_on_panic();
 
 	panic_print_sys_info();
@@ -376,7 +376,7 @@ const char *print_tainted(void)
 {
 	static char buf[TAINT_FLAGS_COUNT + sizeof("Tainted: ")];
 
-	BUILD_BUG_ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
+	BUILD__ON(ARRAY_SIZE(taint_flags) != TAINT_FLAGS_COUNT);
 
 	if (tainted_mask) {
 		char *s;
@@ -409,15 +409,15 @@ unsigned long get_taint(void)
 /**
  * add_taint: add a taint flag if not already set.
  * @flag: one of the TAINT_* constants.
- * @lockdep_ok: whether lock debugging is still OK.
+ * @lockdep_ok: whether lock deging is still OK.
  *
- * If something bad has gone wrong, you'll want @lockdebug_ok = false, but for
+ * If something bad has gone wrong, you'll want @lockde_ok = false, but for
  * some notewortht-but-not-corrupting cases, it can be set to true.
  */
 void add_taint(unsigned flag, enum lockdep_ok lockdep_ok)
 {
-	if (lockdep_ok == LOCKDEP_NOW_UNRELIABLE && __debug_locks_off())
-		pr_warn("Disabling lock debugging due to kernel taint\n");
+	if (lockdep_ok == LOCKDEP_NOW_UNRELIABLE && __de_locks_off())
+		pr_warn("Disabling lock deging due to kernel taint\n");
 
 	set_bit(flag, &tainted_mask);
 }
@@ -499,7 +499,7 @@ void oops_enter(void)
 {
 	tracing_off();
 	/* can't trust the integrity of the kernel anymore: */
-	debug_locks_off();
+	de_locks_off();
 	do_oops_enter_exit();
 }
 
@@ -631,29 +631,29 @@ void __warn_printk(const char *fmt, ...)
 EXPORT_SYMBOL(__warn_printk);
 #endif
 
-#ifdef CONFIG_BUG
+#ifdef CONFIG_
 
 /* Support resetting WARN*_ONCE state */
 
 static int clear_warn_once_set(void *data, u64 val)
 {
-	generic_bug_clear_once();
+	generic__clear_once();
 	memset(__start_once, 0, __end_once - __start_once);
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(clear_warn_once_fops, NULL, clear_warn_once_set,
+DEFINE_DEFS_ATTRIBUTE(clear_warn_once_fops, NULL, clear_warn_once_set,
 			 "%lld\n");
 
-static __init int register_warn_debugfs(void)
+static __init int register_warn_defs(void)
 {
 	/* Don't care about failure */
-	debugfs_create_file_unsafe("clear_warn_once", 0200, NULL, NULL,
+	defs_create_file_unsafe("clear_warn_once", 0200, NULL, NULL,
 				   &clear_warn_once_fops);
 	return 0;
 }
 
-device_initcall(register_warn_debugfs);
+device_initcall(register_warn_defs);
 #endif
 
 #ifdef CONFIG_STACKPROTECTOR

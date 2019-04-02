@@ -18,7 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kgdb.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -32,7 +32,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/nmi.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -44,7 +44,7 @@
 
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <linux/atomic.h>
 #include <asm/text-patching.h>
 #include <asm/ftrace.h>
@@ -136,14 +136,14 @@ void ist_exit(struct pt_regs *regs)
  */
 void ist_begin_non_atomic(struct pt_regs *regs)
 {
-	BUG_ON(!user_mode(regs));
+	_ON(!user_mode(regs));
 
 	/*
 	 * Sanity check: we need to be on the normal thread stack.  This
-	 * will catch asm bugs and any attempt to use ist_preempt_enable
+	 * will catch asm s and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
-	BUG_ON(!on_thread_stack());
+	_ON(!on_thread_stack());
 
 	preempt_enable_no_resched();
 }
@@ -158,7 +158,7 @@ void ist_end_non_atomic(void)
 	preempt_disable();
 }
 
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	unsigned short ud;
 
@@ -171,17 +171,17 @@ int is_valid_bugaddr(unsigned long addr)
 	return ud == INSN_UD0 || ud == INSN_UD2;
 }
 
-int fixup_bug(struct pt_regs *regs, int trapnr)
+int fixup_(struct pt_regs *regs, int trapnr)
 {
 	if (trapnr != X86_TRAP_UD)
 		return 0;
 
-	switch (report_bug(regs->ip, regs)) {
-	case BUG_TRAP_TYPE_NONE:
-	case BUG_TRAP_TYPE_BUG:
+	switch (report_(regs->ip, regs)) {
+	case _TRAP_TYPE_NONE:
+	case _TRAP_TYPE_:
 		break;
 
-	case BUG_TRAP_TYPE_WARN:
+	case _TRAP_TYPE_WARN:
 		regs->ip += LEN_UD2;
 		return 1;
 	}
@@ -269,7 +269,7 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 	 * WARN*()s end up here; fix them up before we call the
 	 * notifier chain.
 	 */
-	if (!user_mode(regs) && fixup_bug(regs, trapnr))
+	if (!user_mode(regs) && fixup_(regs, trapnr))
 		return;
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
@@ -301,7 +301,7 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 						struct pt_regs *regs,
 						unsigned long fault_address)
 {
-	printk(KERN_EMERG "BUG: stack guard page was hit at %p (stack is %p..%p)\n",
+	printk(KERN_EMERG ": stack guard page was hit at %p (stack is %p..%p)\n",
 		 (void *)fault_address, current->stack,
 		 (char *)current->stack + THREAD_SIZE - 1);
 	die(message, regs, 0);
@@ -421,7 +421,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 #endif
 
 #ifdef CONFIG_DOUBLEFAULT
-	df_debug(regs, error_code);
+	df_de(regs, error_code);
 #endif
 	/*
 	 * This is always a kernel trap and never fixable (and thus must
@@ -657,7 +657,7 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 	/* Copy the remainder of the stack from the current stack. */
 	memmove(new_stack, s, offsetof(struct bad_iret_stack, regs.ip));
 
-	BUG_ON(!user_mode(&new_stack->regs));
+	_ON(!user_mode(&new_stack->regs));
 	return new_stack;
 }
 NOKPROBE_SYMBOL(fixup_bad_iret);
@@ -687,7 +687,7 @@ static bool is_sysenter_singlestep(struct pt_regs *regs)
 }
 
 /*
- * Our handling of the processor debug registers is non-trivial.
+ * Our handling of the processor de registers is non-trivial.
  * We do not clear them on entry and exit from the kernel. Therefore
  * it is possible to get a watchpoint trap here from inside the kernel.
  * However, the code in ./ptrace.c has ensured that the user can
@@ -697,20 +697,20 @@ static bool is_sysenter_singlestep(struct pt_regs *regs)
  * can equally take a page fault), therefore it is safe to call
  * force_sig_info even though that claims and releases locks.
  *
- * Code in ./signal.c ensures that the debug control register
+ * Code in ./signal.c ensures that the de control register
  * is restored before we deliver any signal, and therefore that
- * user code runs with the correct debug control register even though
+ * user code runs with the correct de control register even though
  * we clear it here.
  *
  * Being careful here means that we don't have to be as careful in a
  * lot of more complicated places (task switching can be a bit lazy
- * about restoring all the debug state, and ptrace doesn't have to
+ * about restoring all the de state, and ptrace doesn't have to
  * find every occurrence of the TF bit that could be saved away even
  * by user code)
  *
  * May run on IST stack.
  */
-dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+dotraplinkage void do_de(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
 	int user_icebp = 0;
@@ -719,26 +719,26 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 
 	ist_enter(regs);
 
-	get_debugreg(dr6, 6);
+	get_dereg(dr6, 6);
 	/*
 	 * The Intel SDM says:
 	 *
-	 *   Certain debug exceptions may clear bits 0-3. The remaining
+	 *   Certain de exceptions may clear bits 0-3. The remaining
 	 *   contents of the DR6 register are never cleared by the
-	 *   processor. To avoid confusion in identifying debug
-	 *   exceptions, debug handlers should clear the register before
+	 *   processor. To avoid confusion in identifying de
+	 *   exceptions, de handlers should clear the register before
 	 *   returning to the interrupted task.
 	 *
 	 * Keep it simple: clear DR6 immediately.
 	 */
-	set_debugreg(0, 6);
+	set_dereg(0, 6);
 
 	/* Filter out all the reserved bits which are preset to 1 */
 	dr6 &= ~DR6_RESERVED;
 
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
-	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * generates a de exception."  Clear TIF_BLOCKSTEP to keep
 	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
 	 */
 	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
@@ -764,22 +764,22 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 		user_icebp = 1;
 
 	/* Store the virtualized DR6 value */
-	tsk->thread.debugreg6 = dr6;
+	tsk->thread.dereg6 = dr6;
 
 #ifdef CONFIG_KPROBES
-	if (kprobe_debug_handler(regs))
+	if (kprobe_de_handler(regs))
 		goto exit;
 #endif
 
-	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, error_code,
+	if (notify_die(DIE_DE, "de", regs, (long)&dr6, error_code,
 							SIGTRAP) == NOTIFY_STOP)
 		goto exit;
 
 	/*
-	 * Let others (NMI) know that the debug stack is in use
+	 * Let others (NMI) know that the de stack is in use
 	 * as we may switch to the interrupt stack.
 	 */
-	debug_stack_usage_inc();
+	de_stack_usage_inc();
 
 	/* It's safe to allow irq's after DR6 has been saved */
 	cond_local_irq_enable(regs);
@@ -788,7 +788,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
 		cond_local_irq_disable(regs);
-		debug_stack_usage_dec();
+		de_stack_usage_dec();
 		goto exit;
 	}
 
@@ -799,20 +799,20 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 		 * without anyone hitting this warning, we'll turn this into
 		 * an oops.
 		 */
-		tsk->thread.debugreg6 &= ~DR_STEP;
+		tsk->thread.dereg6 &= ~DR_STEP;
 		set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 		regs->flags &= ~X86_EFLAGS_TF;
 	}
-	si_code = get_si_code(tsk->thread.debugreg6);
-	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
+	si_code = get_si_code(tsk->thread.dereg6);
+	if (tsk->thread.dereg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 		send_sigtrap(tsk, regs, error_code, si_code);
 	cond_local_irq_disable(regs);
-	debug_stack_usage_dec();
+	de_stack_usage_dec();
 
 exit:
 	ist_exit(regs);
 }
-NOKPROBE_SYMBOL(do_debug);
+NOKPROBE_SYMBOL(do_de);
 
 /*
  * Note that we play around with the 'TS' bit in an attempt to get
@@ -873,7 +873,7 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 }
 
 dotraplinkage void
-do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
+do_spurious_interrupt_(struct pt_regs *regs, long error_code)
 {
 	cond_local_irq_enable(regs);
 }
@@ -951,5 +951,5 @@ void __init trap_init(void)
 
 	x86_init.irqs.trap_init();
 
-	idt_setup_debugidt_traps();
+	idt_setup_deidt_traps();
 }

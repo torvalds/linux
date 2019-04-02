@@ -942,7 +942,7 @@ int mei_register(struct mei_device *dev, struct device *parent)
 
 	ret = mei_dbgfs_register(dev, dev_name(clsdev));
 	if (ret) {
-		dev_err(clsdev, "cannot register debugfs ret = %d\n", ret);
+		dev_err(clsdev, "cannot register defs ret = %d\n", ret);
 		goto err_dev_dbgfs;
 	}
 

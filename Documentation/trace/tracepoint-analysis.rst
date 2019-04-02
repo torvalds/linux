@@ -16,7 +16,7 @@ what is going on within the system. There are a large number of methods for
 gathering and interpreting these events. Lacking any current Best Practises,
 this document describes some of the methods that can be used.
 
-This document assumes that debugfs is mounted on /sys/kernel/debug and that
+This document assumes that defs is mounted on /sys/kernel/de and that
 the appropriate tracing options have been configured into the kernel. It is
 assumed that the PCL tool tools/perf has been installed and is in your path.
 
@@ -26,10 +26,10 @@ assumed that the PCL tool tools/perf has been installed and is in your path.
 2.1 Standard Utilities
 ----------------------
 
-All possible events are visible from /sys/kernel/debug/tracing/events. Simply
+All possible events are visible from /sys/kernel/de/tracing/events. Simply
 calling::
 
-  $ find /sys/kernel/debug/tracing/events -type d
+  $ find /sys/kernel/de/tracing/events -type d
 
 will give a fair indication of the number of events available.
 
@@ -59,7 +59,7 @@ See Documentation/trace/events.rst for a proper description on how events
 can be enabled system-wide. A short example of enabling all events related
 to page allocation would look something like::
 
-  $ for i in `find /sys/kernel/debug/tracing/events -name "enable" | grep mm_`; do echo 1 > $i; done
+  $ for i in `find /sys/kernel/de/tracing/events -name "enable" | grep mm_`; do echo 1 > $i; done
 
 3.2 System-Wide Event Enabling with SystemTap
 ---------------------------------------------
@@ -189,7 +189,7 @@ time on a system-wide basis using -a and sleep.
 ============================================
 
 When events are enabled the events that are triggering can be read from
-/sys/kernel/debug/tracing/trace_pipe in human-readable format although binary
+/sys/kernel/de/tracing/trace_pipe in human-readable format although binary
 options exist as well. By post-processing the output, further information can
 be gathered on-line as appropriate. Examples of post-processing might include
 

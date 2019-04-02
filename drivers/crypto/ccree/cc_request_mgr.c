@@ -430,10 +430,10 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 	spin_lock_bh(&mgr->hw_lock);
 	rc = cc_queues_status(drvdata, mgr, total_len);
 
-#ifdef CC_DEBUG_FORCE_BACKLOG
+#ifdef CC_DE_FORCE_BACKLOG
 	if (backlog_ok)
 		rc = -ENOSPC;
-#endif /* CC_DEBUG_FORCE_BACKLOG */
+#endif /* CC_DE_FORCE_BACKLOG */
 
 	if (rc == -ENOSPC && backlog_ok) {
 		spin_unlock_bh(&mgr->hw_lock);

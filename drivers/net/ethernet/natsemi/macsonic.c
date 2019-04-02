@@ -10,10 +10,10 @@
  *
  * (C) 1998 Alan Cox
  *
- * Debugging Andreas Ehliar, Michael Schmitz
+ * Deging Andreas Ehliar, Michael Schmitz
  *
  * Based on code
- * (C) 1996 by Thomas Bogendoerfer (tsbogend@bigbug.franken.de)
+ * (C) 1996 by Thomas Bogendoerfer (tsbogend@big.franken.de)
  *
  * This driver is based on work from Andreas Busse, but most of
  * the code is rewritten.
@@ -356,7 +356,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 		lp->reg_offset);
 
 	/* This is sometimes useful to find out how MacOS configured the card */
-	pr_debug("%s: DCR=0x%04x, DCR2=0x%04x\n", __func__,
+	pr_de("%s: DCR=0x%04x, DCR2=0x%04x\n", __func__,
 		 SONIC_READ(SONIC_DCR) & 0xffff,
 		 SONIC_READ(SONIC_DCR2) & 0xffff);
 

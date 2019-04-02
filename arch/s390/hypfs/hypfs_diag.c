@@ -449,7 +449,7 @@ __init int hypfs_diag_init(void)
 		if (rc) {
 			pr_err("The hardware system does not provide all "
 			       "functions required by hypfs\n");
-			debugfs_remove(dbfs_d204_file);
+			defs_remove(dbfs_d204_file);
 			return rc;
 		}
 	}
@@ -458,7 +458,7 @@ __init int hypfs_diag_init(void)
 
 void hypfs_diag_exit(void)
 {
-	debugfs_remove(dbfs_d204_file);
+	defs_remove(dbfs_d204_file);
 	diag224_delete_name_table();
 	diag204_free_buffer();
 	hypfs_dbfs_remove_file(&dbfs_file_d204);

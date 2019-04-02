@@ -13,7 +13,7 @@
 #include <linux/perf_event.h>
 #include <linux/kprobes.h>
 #include <linux/kernel.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
 
@@ -160,7 +160,7 @@ static int ev67_check_constraints(struct perf_event **event,
 	if (n_ev == 1)
 		goto success;
 
-	BUG_ON(n_ev != 2);
+	_ON(n_ev != 2);
 
 	if (evtype[0] == EV67_MBOXREPLAY || evtype[1] == EV67_MBOXREPLAY) {
 		/* MBOX replay traps must be on PMC 1 */
@@ -771,9 +771,9 @@ static struct pmu pmu = {
 
 /*
  * Main entry point - don't know when this is called but it
- * obviously dumps debug info.
+ * obviously dumps de info.
  */
-void perf_event_print_debug(void)
+void perf_event_print_de(void)
 {
 	unsigned long flags;
 	unsigned long pcr;

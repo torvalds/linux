@@ -457,7 +457,7 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 
 	if ((l & MSR_IA32_MISC_ENABLE_TM1) && (h & APIC_DM_SMI)) {
 		if (system_state == SYSTEM_BOOTING)
-			pr_debug("CPU%d: Thermal monitoring handled by SMI\n", cpu);
+			pr_de("CPU%d: Thermal monitoring handled by SMI\n", cpu);
 		return;
 	}
 

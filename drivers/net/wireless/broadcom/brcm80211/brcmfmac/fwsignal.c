@@ -27,7 +27,7 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "bus.h"
 #include "fwil.h"
 #include "fwil_types.h"
@@ -106,7 +106,7 @@ enum brcmf_fws_tlv_len {
 #define BRCMF_RXREORDER_EXPIDX_VALID		0x08
 #define BRCMF_RXREORDER_NEW_HOLE		0x10
 
-#ifdef DEBUG
+#ifdef DE
 /*
  * brcmf_fws_tlv_names - array of tlv names.
  */
@@ -134,9 +134,9 @@ static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 #else
 static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 {
-	return "NODEBUG";
+	return "NODE";
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 /*
  * The PKTTAG tlv has additional bytes when firmware-signalling
@@ -2273,8 +2273,8 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 	brcmf_fws_unlock(fws);
 }
 
-#ifdef DEBUG
-static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
+#ifdef DE
+static int brcmf_defs_fws_stats_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
 	struct brcmf_fws_stats *fwstats = &(drvr_to_fws(bus_if->drvr)->stats);
@@ -2336,7 +2336,7 @@ static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
 	return 0;
 }
 #else
-static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
+static int brcmf_defs_fws_stats_read(struct seq_file *seq, void *data)
 {
 	return 0;
 }
@@ -2458,11 +2458,11 @@ void brcmf_fws_detach(struct brcmf_fws_info *fws)
 	kfree(fws);
 }
 
-void brcmf_fws_debugfs_create(struct brcmf_pub *drvr)
+void brcmf_fws_defs_create(struct brcmf_pub *drvr)
 {
-	/* create debugfs file for statistics */
-	brcmf_debugfs_add_entry(drvr, "fws_stats",
-				brcmf_debugfs_fws_stats_read);
+	/* create defs file for statistics */
+	brcmf_defs_add_entry(drvr, "fws_stats",
+				brcmf_defs_fws_stats_read);
 }
 
 bool brcmf_fws_queue_skbs(struct brcmf_fws_info *fws)

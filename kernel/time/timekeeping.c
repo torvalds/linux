@@ -167,7 +167,7 @@ static inline u64 tk_clock_read(const struct tk_read_base *tkr)
 	return clock->read(clock);
 }
 
-#ifdef CONFIG_DEBUG_TIMEKEEPING
+#ifdef CONFIG_DE_TIMEKEEPING
 #define WARNING_FREQ (HZ*300) /* 5 minute rate-limiting */
 
 static void timekeeping_check_update(struct timekeeper *tk, u64 offset)
@@ -1586,7 +1586,7 @@ static void __timekeeping_inject_sleeptime(struct timekeeper *tk,
 	tk_xtime_add(tk, delta);
 	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, *delta));
 	tk_update_sleep_time(tk, timespec64_to_ktime(*delta));
-	tk_debug_account_sleep_time(delta);
+	tk_de_account_sleep_time(delta);
 }
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_RTC_HCTOSYS_DEVICE)

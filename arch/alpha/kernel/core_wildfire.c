@@ -23,17 +23,17 @@
 #include "proto.h"
 #include "pci_impl.h"
 
-#define DEBUG_CONFIG 0
-#define DEBUG_DUMP_REGS 0
-#define DEBUG_DUMP_CONFIG 1
+#define DE_CONFIG 0
+#define DE_DUMP_REGS 0
+#define DE_DUMP_CONFIG 1
 
-#if DEBUG_CONFIG
+#if DE_CONFIG
 # define DBG_CFG(args)	printk args
 #else
 # define DBG_CFG(args)
 #endif
 
-#if DEBUG_DUMP_REGS
+#if DE_DUMP_REGS
 static void wildfire_dump_pci_regs(int qbbno, int hoseno);
 static void wildfire_dump_pca_regs(int qbbno, int pcano);
 static void wildfire_dump_qsa_regs(int qbbno);
@@ -41,7 +41,7 @@ static void wildfire_dump_qsd_regs(int qbbno);
 static void wildfire_dump_iop_regs(int qbbno);
 static void wildfire_dump_gp_regs(int qbbno);
 #endif
-#if DEBUG_DUMP_CONFIG
+#if DE_DUMP_CONFIG
 static void wildfire_dump_hardware_config(void);
 #endif
 
@@ -95,7 +95,7 @@ wildfire_init_hose(int qbbno, int hoseno)
 		printk(KERN_ERR "Failed to request MEM on qbb %d hose %d\n",
 		       qbbno, hoseno);
 
-#if DEBUG_DUMP_REGS
+#if DE_DUMP_REGS
 	wildfire_dump_pci_regs(qbbno, hoseno);
 #endif
 
@@ -145,7 +145,7 @@ wildfire_init_pca(int qbbno, int pcano)
 	if (!WILDFIRE_PCA_EXISTS(qbbno, pcano))
 	    return;
 
-#if DEBUG_DUMP_REGS
+#if DE_DUMP_REGS
 	wildfire_dump_pca_regs(qbbno, pcano);
 #endif
 
@@ -163,7 +163,7 @@ wildfire_init_qbb(int qbbno)
 	if (!WILDFIRE_QBB_EXISTS(qbbno))
 		return;
 
-#if DEBUG_DUMP_REGS
+#if DE_DUMP_REGS
 	wildfire_dump_qsa_regs(qbbno);
 	wildfire_dump_qsd_regs(qbbno);
 	wildfire_dump_iop_regs(qbbno);
@@ -297,7 +297,7 @@ wildfire_hardware_probe(void)
 
 	    }
 	}
-#if DEBUG_DUMP_CONFIG
+#if DE_DUMP_CONFIG
 	wildfire_dump_hardware_config();
 #endif
 }
@@ -467,7 +467,7 @@ unsigned long wildfire_node_mem_size(int nid)
 	return 64UL * 1024 * 1024 * 1024;
 }
 
-#if DEBUG_DUMP_REGS
+#if DE_DUMP_REGS
 
 static void __init
 wildfire_dump_pci_regs(int qbbno, int hoseno)
@@ -621,7 +621,7 @@ wildfire_dump_gp_regs(int qbbno)
 }
 #endif /* DUMP_REGS */
 
-#if DEBUG_DUMP_CONFIG
+#if DE_DUMP_CONFIG
 static void __init
 wildfire_dump_hardware_config(void)
 {

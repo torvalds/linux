@@ -65,9 +65,9 @@ struct blk_mq_hw_ctx {
 	unsigned long		poll_invoked;
 	unsigned long		poll_success;
 
-#ifdef CONFIG_BLK_DEBUG_FS
-	struct dentry		*debugfs_dir;
-	struct dentry		*sched_debugfs_dir;
+#ifdef CONFIG_BLK_DE_FS
+	struct dentry		*defs_dir;
+	struct dentry		*sched_defs_dir;
 #endif
 
 	/* Must be the last member - see also blk_mq_hw_ctx_size(). */
@@ -205,9 +205,9 @@ struct blk_mq_ops {
 
 	map_queues_fn		*map_queues;
 
-#ifdef CONFIG_BLK_DEBUG_FS
+#ifdef CONFIG_BLK_DE_FS
 	/*
-	 * Used by the debugfs implementation to show driver-specific
+	 * Used by the defs implementation to show driver-specific
 	 * information about a request.
 	 */
 	void (*show_rq)(struct seq_file *m, struct request *rq);

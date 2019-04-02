@@ -360,20 +360,20 @@ struct mthca_dev {
 	bool		      active;
 };
 
-#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
-extern int mthca_debug_level;
+#ifdef CONFIG_INFINIBAND_MTHCA_DE
+extern int mthca_de_level;
 
 #define mthca_dbg(mdev, format, arg...)					\
 	do {								\
-		if (mthca_debug_level)					\
-			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
+		if (mthca_de_level)					\
+			dev_printk(KERN_DE, &mdev->pdev->dev, format, ## arg); \
 	} while (0)
 
-#else /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+#else /* CONFIG_INFINIBAND_MTHCA_DE */
 
 #define mthca_dbg(mdev, format, arg...) do { (void) mdev; } while (0)
 
-#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+#endif /* CONFIG_INFINIBAND_MTHCA_DE */
 
 #define mthca_err(mdev, format, arg...) \
 	dev_err(&mdev->pdev->dev, format, ## arg)
@@ -382,8 +382,8 @@ extern int mthca_debug_level;
 #define mthca_warn(mdev, format, arg...) \
 	dev_warn(&mdev->pdev->dev, format, ## arg)
 
-extern void __buggy_use_of_MTHCA_GET(void);
-extern void __buggy_use_of_MTHCA_PUT(void);
+extern void __gy_use_of_MTHCA_GET(void);
+extern void __gy_use_of_MTHCA_PUT(void);
 
 #define MTHCA_GET(dest, source, offset)                               \
 	do {                                                          \
@@ -393,7 +393,7 @@ extern void __buggy_use_of_MTHCA_PUT(void);
 		case 2: (dest) = be16_to_cpup(__p); break;	      \
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
 		case 8: (dest) = be64_to_cpup(__p); break;	      \
-		default: __buggy_use_of_MTHCA_GET();		      \
+		default: __gy_use_of_MTHCA_GET();		      \
 		}                                                     \
 	} while (0)
 
@@ -405,7 +405,7 @@ extern void __buggy_use_of_MTHCA_PUT(void);
 		case 2:	*(__be16 *) __d = cpu_to_be16(source); break; \
 		case 4:	*(__be32 *) __d = cpu_to_be32(source); break; \
 		case 8:	*(__be64 *) __d = cpu_to_be64(source); break; \
-		default: __buggy_use_of_MTHCA_PUT();		      \
+		default: __gy_use_of_MTHCA_PUT();		      \
 		}                                                     \
 	} while (0)
 

@@ -9,7 +9,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/crash_dump.h>
 #include <linux/io.h>
@@ -21,7 +21,7 @@
 #include <linux/uaccess.h>
 #include <asm/rtas.h>
 
-#ifdef DEBUG
+#ifdef DE
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else

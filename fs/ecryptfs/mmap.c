@@ -237,7 +237,7 @@ out:
 		ClearPageUptodate(page);
 	else
 		SetPageUptodate(page);
-	ecryptfs_printk(KERN_DEBUG, "Unlocking page with index = [0x%.16lx]\n",
+	ecryptfs_printk(KERN_DE, "Unlocking page with index = [0x%.16lx]\n",
 			page->index);
 	unlock_page(page);
 	return rc;
@@ -456,7 +456,7 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
 	struct ecryptfs_crypt_stat *crypt_stat;
 
 	crypt_stat = &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
-	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
+	_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
 		return ecryptfs_write_inode_size_to_xattr(ecryptfs_inode);
 	else
@@ -486,7 +486,7 @@ static int ecryptfs_write_end(struct file *file,
 		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	int rc;
 
-	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
+	ecryptfs_printk(KERN_DE, "Calling fill_zeros_to_end_of_page"
 			"(page w/ index = [0x%.16lx], to = [%d])\n", index, to);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page, 0,
@@ -520,7 +520,7 @@ static int ecryptfs_write_end(struct file *file,
 	}
 	if (pos + copied > i_size_read(ecryptfs_inode)) {
 		i_size_write(ecryptfs_inode, pos + copied);
-		ecryptfs_printk(KERN_DEBUG, "Expanded file size to "
+		ecryptfs_printk(KERN_DE, "Expanded file size to "
 			"[0x%.16llx]\n",
 			(unsigned long long)i_size_read(ecryptfs_inode));
 	}

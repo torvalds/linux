@@ -297,7 +297,7 @@ void __init pmsav7_adjust_lowmem_bounds(void)
 
 		total_mem_size += mem[i].size - subreg * hweight_long(mem[i].subreg);
 
-		pr_debug("MPU: base %pa size %pa disable subregions: %*pbl\n",
+		pr_de("MPU: base %pa size %pa disable subregions: %*pbl\n",
 			 &mem[i].base, &mem[i].size, PMSAv7_NR_SUBREGS, &mem[i].subreg);
 	}
 

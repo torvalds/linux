@@ -54,7 +54,7 @@ static unsigned char *pixis_bdcfg0, *pixis_arch;
 #ifdef CONFIG_SUSPEND
 static irqreturn_t mpc8610_sw9_irq(int irq, void *data)
 {
-	pr_debug("%s: PIXIS' event (sw9/wakeup) IRQ handled\n", __func__);
+	pr_de("%s: PIXIS' event (sw9/wakeup) IRQ handled\n", __func__);
 	return IRQ_HANDLED;
 }
 

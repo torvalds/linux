@@ -87,7 +87,7 @@ glantank_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{INTC, INTC, INTC, INTC}, /* USB (NEC) */
 	};
 
-	BUG_ON(pin < 1 || pin > 4);
+	_ON(pin < 1 || pin > 4);
 
 	return pci_irq_table[slot % 4][pin - 1];
 }

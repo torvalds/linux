@@ -76,12 +76,12 @@
 /* command list */
 #define SM501_COMMAND_LIST_STATUS	(0x000024)
 
-/* interrupt debug */
+/* interrupt de */
 #define SM501_RAW_IRQ_STATUS		(0x000028)
 #define SM501_RAW_IRQ_CLEAR		(0x000028)
 #define SM501_IRQ_STATUS		(0x00002C)
 #define SM501_IRQ_MASK			(0x000030)
-#define SM501_DEBUG_CONTROL		(0x000034)
+#define SM501_DE_CONTROL		(0x000034)
 
 /* power management */
 #define SM501_POWERMODE_P2X_SRC		(1<<29)

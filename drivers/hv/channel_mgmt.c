@@ -385,8 +385,8 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 	struct vmbus_channel *primary_channel;
 	unsigned long flags;
 
-	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
-	BUG_ON(!channel->rescind);
+	_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
+	_ON(!channel->rescind);
 
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
@@ -1007,7 +1007,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 
 void vmbus_hvsock_device_unregister(struct vmbus_channel *channel)
 {
-	BUG_ON(!is_hvsock_channel(channel));
+	_ON(!is_hvsock_channel(channel));
 
 	/* We always get a rescind msg when a connection is closed. */
 	while (!READ_ONCE(channel->probe_done) || !READ_ONCE(channel->rescind))

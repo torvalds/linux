@@ -358,7 +358,7 @@ static int __gmap_unlink_by_vmaddr(struct gmap *gmap, unsigned long vmaddr)
 	unsigned long *entry;
 	int flush = 0;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	spin_lock(&gmap->guest_table_lock);
 	entry = radix_tree_delete(&gmap->host_to_guest, vmaddr >> PMD_SHIFT);
 	if (entry) {
@@ -398,7 +398,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 	unsigned long off;
 	int flush;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	if ((to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
 	if (len == 0 || to + len < to)
@@ -430,7 +430,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 	unsigned long off;
 	int flush;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	if ((from | to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
 	if (len == 0 || from + len < from || to + len < to ||
@@ -549,7 +549,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	u64 unprot;
 	int rc;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	/* Create higher level tables in the gmap page table */
 	table = gmap->table;
 	if ((gmap->asce & _ASCE_TYPE_MASK) >= _ASCE_TYPE_REGION1) {
@@ -580,16 +580,16 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 	/* Walk the parent mm page table */
 	mm = gmap->mm;
 	pgd = pgd_offset(mm, vmaddr);
-	VM_BUG_ON(pgd_none(*pgd));
+	VM__ON(pgd_none(*pgd));
 	p4d = p4d_offset(pgd, vmaddr);
-	VM_BUG_ON(p4d_none(*p4d));
+	VM__ON(p4d_none(*p4d));
 	pud = pud_offset(p4d, vmaddr);
-	VM_BUG_ON(pud_none(*pud));
+	VM__ON(pud_none(*pud));
 	/* large puds cannot yet be handled */
 	if (pud_large(*pud))
 		return -EFAULT;
 	pmd = pmd_offset(pud, vmaddr);
-	VM_BUG_ON(pmd_none(*pmd));
+	VM__ON(pmd_none(*pmd));
 	/* Are we allowed to use huge pages? */
 	if (pmd_large(*pmd) && !gmap->mm->context.allow_gmap_hpage_1m)
 		return -EFAULT;
@@ -847,7 +847,7 @@ static pte_t *gmap_pte_op_walk(struct gmap *gmap, unsigned long gaddr,
 {
 	unsigned long *table;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	/* Walk the gmap page table, lock and get pte pointer */
 	table = gmap_table_walk(gmap, gaddr, 1); /* get segment pointer */
 	if (!table || *table & _SEGMENT_ENTRY_INVALID)
@@ -873,7 +873,7 @@ static int gmap_pte_op_fixup(struct gmap *gmap, unsigned long gaddr,
 	unsigned int fault_flags;
 	bool unlocked = false;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	fault_flags = (prot == PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 	if (fixup_user_fault(current, mm, vmaddr, fault_flags, &unlocked))
 		return -EFAULT;
@@ -906,7 +906,7 @@ static inline pmd_t *gmap_pmd_op_walk(struct gmap *gmap, unsigned long gaddr)
 {
 	pmd_t *pmdp;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	pmdp = (pmd_t *) gmap_table_walk(gmap, gaddr, 1);
 	if (!pmdp)
 		return NULL;
@@ -1040,7 +1040,7 @@ static int gmap_protect_range(struct gmap *gmap, unsigned long gaddr,
 	pmd_t *pmdp;
 	int rc;
 
-	BUG_ON(gmap_is_shadow(gmap));
+	_ON(gmap_is_shadow(gmap));
 	while (len) {
 		rc = -EAGAIN;
 		pmdp = gmap_pmd_op_walk(gmap, gaddr);
@@ -1175,7 +1175,7 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 {
 	void __rcu **slot;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	slot = radix_tree_lookup_slot(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT);
 	if (slot) {
 		rmap->next = radix_tree_deref_slot_protected(slot,
@@ -1208,7 +1208,7 @@ static int gmap_protect_rmap(struct gmap *sg, unsigned long raddr,
 	pte_t *ptep;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	parent = sg->parent;
 	while (len) {
 		vmaddr = __gmap_translate(parent, paddr);
@@ -1283,7 +1283,7 @@ static void gmap_unshadow_page(struct gmap *sg, unsigned long raddr)
 {
 	unsigned long *table;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	table = gmap_table_walk(sg, raddr, 0); /* get page table pointer */
 	if (!table || *table & _PAGE_INVALID)
 		return;
@@ -1304,7 +1304,7 @@ static void __gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr,
 {
 	int i;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	for (i = 0; i < _PAGE_ENTRIES; i++, raddr += _PAGE_SIZE)
 		pgt[i] = _PAGE_INVALID;
 }
@@ -1321,7 +1321,7 @@ static void gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr)
 	unsigned long sto, *ste, *pgt;
 	struct page *page;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	ste = gmap_table_walk(sg, raddr, 1); /* get segment pointer */
 	if (!ste || !(*ste & _SEGMENT_ENTRY_ORIGIN))
 		return;
@@ -1352,7 +1352,7 @@ static void __gmap_unshadow_sgt(struct gmap *sg, unsigned long raddr,
 	struct page *page;
 	int i;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _SEGMENT_SIZE) {
 		if (!(sgt[i] & _SEGMENT_ENTRY_ORIGIN))
 			continue;
@@ -1378,7 +1378,7 @@ static void gmap_unshadow_sgt(struct gmap *sg, unsigned long raddr)
 	unsigned long r3o, *r3e, *sgt;
 	struct page *page;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	r3e = gmap_table_walk(sg, raddr, 2); /* get region-3 pointer */
 	if (!r3e || !(*r3e & _REGION_ENTRY_ORIGIN))
 		return;
@@ -1409,7 +1409,7 @@ static void __gmap_unshadow_r3t(struct gmap *sg, unsigned long raddr,
 	struct page *page;
 	int i;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _REGION3_SIZE) {
 		if (!(r3t[i] & _REGION_ENTRY_ORIGIN))
 			continue;
@@ -1435,7 +1435,7 @@ static void gmap_unshadow_r3t(struct gmap *sg, unsigned long raddr)
 	unsigned long r2o, *r2e, *r3t;
 	struct page *page;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	r2e = gmap_table_walk(sg, raddr, 3); /* get region-2 pointer */
 	if (!r2e || !(*r2e & _REGION_ENTRY_ORIGIN))
 		return;
@@ -1466,7 +1466,7 @@ static void __gmap_unshadow_r2t(struct gmap *sg, unsigned long raddr,
 	struct page *page;
 	int i;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _REGION2_SIZE) {
 		if (!(r2t[i] & _REGION_ENTRY_ORIGIN))
 			continue;
@@ -1492,7 +1492,7 @@ static void gmap_unshadow_r2t(struct gmap *sg, unsigned long raddr)
 	unsigned long r1o, *r1e, *r2t;
 	struct page *page;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	r1e = gmap_table_walk(sg, raddr, 4); /* get region-1 pointer */
 	if (!r1e || !(*r1e & _REGION_ENTRY_ORIGIN))
 		return;
@@ -1523,7 +1523,7 @@ static void __gmap_unshadow_r1t(struct gmap *sg, unsigned long raddr,
 	struct page *page;
 	int i;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	asce = (unsigned long) r1t | _ASCE_TYPE_REGION1;
 	for (i = 0; i < _CRST_ENTRIES; i++, raddr += _REGION1_SIZE) {
 		if (!(r1t[i] & _REGION_ENTRY_ORIGIN))
@@ -1550,7 +1550,7 @@ static void gmap_unshadow(struct gmap *sg)
 {
 	unsigned long *table;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	if (sg->removed)
 		return;
 	sg->removed = 1;
@@ -1642,8 +1642,8 @@ struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
 	unsigned long limit;
 	int rc;
 
-	BUG_ON(parent->mm->context.allow_gmap_hpage_1m);
-	BUG_ON(gmap_is_shadow(parent));
+	_ON(parent->mm->context.allow_gmap_hpage_1m);
+	_ON(gmap_is_shadow(parent));
 	spin_lock(&parent->shadow_lock);
 	sg = gmap_find_shadow(parent, asce, edat_level);
 	spin_unlock(&parent->shadow_lock);
@@ -1735,7 +1735,7 @@ int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t,
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	/* Allocate a shadow region second table */
 	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
 	if (!page)
@@ -1819,7 +1819,7 @@ int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t,
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	/* Allocate a shadow region second table */
 	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
 	if (!page)
@@ -1902,7 +1902,7 @@ int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt,
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg) || (sgt & _REGION3_ENTRY_LARGE));
+	_ON(!gmap_is_shadow(sg) || (sgt & _REGION3_ENTRY_LARGE));
 	/* Allocate a shadow segment table */
 	page = alloc_pages(GFP_KERNEL, CRST_ALLOC_ORDER);
 	if (!page)
@@ -1986,7 +1986,7 @@ int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	spin_lock(&sg->guest_table_lock);
 	table = gmap_table_walk(sg, saddr, 1); /* get segment pointer */
 	if (table && !(*table & _SEGMENT_ENTRY_INVALID)) {
@@ -2026,7 +2026,7 @@ int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt,
 	struct page *page;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg) || (pgt & _SEGMENT_ENTRY_LARGE));
+	_ON(!gmap_is_shadow(sg) || (pgt & _SEGMENT_ENTRY_LARGE));
 	/* Allocate a shadow page table */
 	page = page_table_alloc_pgste(sg->mm);
 	if (!page)
@@ -2107,7 +2107,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 	int prot;
 	int rc;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 	parent = sg->parent;
 	prot = (pte_val(pte) & _PAGE_PROTECT) ? PROT_READ : PROT_WRITE;
 
@@ -2171,7 +2171,7 @@ static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
 	struct gmap_rmap *rmap, *rnext, *head;
 	unsigned long start, end, bits, raddr;
 
-	BUG_ON(!gmap_is_shadow(sg));
+	_ON(!gmap_is_shadow(sg));
 
 	spin_lock(&sg->guest_table_lock);
 	if (sg->removed) {

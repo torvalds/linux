@@ -733,7 +733,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 	/*
 	 * Note, we use 64 here for the standard size of struct page,
-	 * debugging options may cause it to be larger in which case the
+	 * deging options may cause it to be larger in which case the
 	 * implementation will limit the pfns advertised through
 	 * ->direct_access() to those that are included in the memmap.
 	 */

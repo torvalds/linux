@@ -8,7 +8,7 @@
  *
  * The PTI (Parallel Trace Interface) driver directs trace data routed from
  * various parts in the system out through the Intel Penwell PTI port and
- * out of the mobile device for analysis with a debugging tool
+ * out of the mobile device for analysis with a deging tool
  * (Lauterbach, Fido). This is part of a solution for the MIPI P1149.7,
  * compact JTAG, standard.
  *

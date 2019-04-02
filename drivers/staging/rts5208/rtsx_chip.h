@@ -824,7 +824,7 @@ struct rtsx_chip {
 	int baro_pkg;
 
 	int asic_code;
-	int phy_debug_mode;
+	int phy_de_mode;
 	int hw_bypass_sd;
 	int sdio_func_exist;
 	int aux_pwr_exist;

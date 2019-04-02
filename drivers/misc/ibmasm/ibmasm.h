@@ -45,11 +45,11 @@
 #define err(msg) printk(KERN_ERR "%s: " msg "\n", DRIVER_NAME)
 #define info(msg) printk(KERN_INFO "%s: " msg "\n", DRIVER_NAME)
 
-extern int ibmasm_debug;
+extern int ibmasm_de;
 #define dbg(STR, ARGS...)					\
 	do {							\
-		if (ibmasm_debug)				\
-			printk(KERN_DEBUG STR , ##ARGS);	\
+		if (ibmasm_de)				\
+			printk(KERN_DE STR , ##ARGS);	\
 	} while (0)
 
 static inline char *get_timestamp(char *buf)

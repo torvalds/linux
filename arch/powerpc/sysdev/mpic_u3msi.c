@@ -131,12 +131,12 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	int hwirq;
 
 	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("u3msi: MSI-X untested, trying anyway.\n");
+		pr_de("u3msi: MSI-X untested, trying anyway.\n");
 
 	/* If we can't find a magic address then MSI ain't gonna work */
 	if (find_ht_magic_addr(pdev, 0) == 0 &&
 	    find_u4_magic_addr(pdev, 0) == 0) {
-		pr_debug("u3msi: no magic address found for %s\n",
+		pr_de("u3msi: no magic address found for %s\n",
 			 pci_name(pdev));
 		return -ENXIO;
 	}
@@ -144,7 +144,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	for_each_pci_msi_entry(entry, pdev) {
 		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap, 1);
 		if (hwirq < 0) {
-			pr_debug("u3msi: failed allocating hwirq\n");
+			pr_de("u3msi: failed allocating hwirq\n");
 			return hwirq;
 		}
 
@@ -156,7 +156,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 		virq = irq_create_mapping(msi_mpic->irqhost, hwirq);
 		if (!virq) {
-			pr_debug("u3msi: failed mapping hwirq 0x%x\n", hwirq);
+			pr_de("u3msi: failed mapping hwirq 0x%x\n", hwirq);
 			msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq, 1);
 			return -ENOSPC;
 		}
@@ -165,7 +165,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		irq_set_chip(virq, &mpic_u3msi_chip);
 		irq_set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
-		pr_debug("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
+		pr_de("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
 			  virq, hwirq, (unsigned long)addr);
 
 		printk("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
@@ -186,13 +186,13 @@ int mpic_u3msi_init(struct mpic *mpic)
 
 	rc = mpic_msi_init_allocator(mpic);
 	if (rc) {
-		pr_debug("u3msi: Error allocating bitmap!\n");
+		pr_de("u3msi: Error allocating bitmap!\n");
 		return rc;
 	}
 
-	pr_debug("u3msi: Registering MPIC U3 MSI callbacks.\n");
+	pr_de("u3msi: Registering MPIC U3 MSI callbacks.\n");
 
-	BUG_ON(msi_mpic);
+	_ON(msi_mpic);
 	msi_mpic = mpic;
 
 	list_for_each_entry(phb, &hose_list, list_node) {

@@ -93,7 +93,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define IEEE80211_QOS_TID               0x0f
 #define IEEE80211_NONQOS_TID            16
 
-#define MAX_DEBUGFS_ENTRIES             4
+#define MAX_DEFS_ENTRIES             4
 
 #define TID_TO_WME_AC(_tid) (      \
 	((_tid) == 0 || (_tid) == 3) ? BE_Q : \
@@ -344,9 +344,9 @@ struct rsi_hw {
 	struct rsi_ps_info ps_info;
 	spinlock_t ps_lock; /*To protect power save config*/
 	u32 usb_buffer_status_reg;
-#ifdef CONFIG_RSI_DEBUGFS
-	struct rsi_debugfs *dfsentry;
-	u8 num_debugfs_entries;
+#ifdef CONFIG_RSI_DEFS
+	struct rsi_defs *dfsentry;
+	u8 num_defs_entries;
 #endif
 	char *fw_file_name;
 	struct timer_list bl_cmd_timer;

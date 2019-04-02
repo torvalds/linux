@@ -13,7 +13,7 @@
  */
 
 #include <asm/page.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/asm-const.h>
 
 /*
@@ -22,7 +22,7 @@
  * complete pgtable.h but only a portion of it.
  */
 #include <asm/book3s/64/pgtable.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/task_size_64.h>
 #include <asm/cpu_has_feature.h>
 
@@ -200,7 +200,7 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 {
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
-	BUG();
+	();
 }
 
 static inline unsigned int ap_to_shift(unsigned long ap)
@@ -483,11 +483,11 @@ static inline int __hash_page_thp(unsigned long ea, unsigned long access,
 				  unsigned long trap, unsigned long flags,
 				  int ssize, unsigned int psize)
 {
-	BUG();
+	();
 	return -1;
 }
 #endif
-extern void hash_failure_debug(unsigned long ea, unsigned long access,
+extern void hash_failure_de(unsigned long ea, unsigned long access,
 			       unsigned long vsid, unsigned long trap,
 			       int ssize, int psize, int lpsize,
 			       unsigned long pte);

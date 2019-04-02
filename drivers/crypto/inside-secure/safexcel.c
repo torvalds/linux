@@ -337,7 +337,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 		}
 
 		/* DMA transfer size to use */
-		val = EIP197_HIA_DFE_CFG_DIS_DEBUG;
+		val = EIP197_HIA_DFE_CFG_DIS_DE;
 		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(6) |
 		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(9);
 		val |= EIP197_HIA_DxE_CFG_MIN_CTRL_SIZE(6) |
@@ -376,7 +376,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 			;
 
 		/* DMA transfer size to use */
-		val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
+		val = EIP197_HIA_DSE_CFG_DIS_DE;
 		val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) |
 		       EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
 		val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);

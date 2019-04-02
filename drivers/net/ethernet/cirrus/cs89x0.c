@@ -36,10 +36,10 @@
 #endif
 
 /*
- * Set this to zero to remove all the debug statements via
+ * Set this to zero to remove all the de statements via
  * dead code elimination
  */
-#define DEBUGGING	1
+#define DEGING	1
 
 /* Sources:
  *	Crynwr packet driver epktisa.
@@ -82,7 +82,7 @@
 
 #define cs89_dbg(val, level, fmt, ...)				\
 do {								\
-	if (val <= net_debug)					\
+	if (val <= net_de)					\
 		pr_##level(fmt, ##__VA_ARGS__);			\
 } while (0)
 
@@ -114,10 +114,10 @@ static unsigned int cs8900_irq_map[] = {
 };
 #endif
 
-#if DEBUGGING
-static unsigned int net_debug = DEBUGGING;
+#if DEGING
+static unsigned int net_de = DEGING;
 #else
-#define net_debug 0	/* gcc will remove all the debug code for us */
+#define net_de 0	/* gcc will remove all the de code for us */
 #endif
 
 /* The number of low I/O ports used by the ethercard. */
@@ -425,7 +425,7 @@ dma_rx(struct net_device *dev)
 	length = bp[2] + (bp[3] << 8);
 	bp += 4;
 
-	cs89_dbg(5, debug, "%s: receiving DMA packet at %lx, status %x, length %x\n",
+	cs89_dbg(5, de, "%s: receiving DMA packet at %lx, status %x, length %x\n",
 		 dev->name, (unsigned long)bp, status, length);
 
 	if ((status & RX_OK) == 0) {
@@ -536,7 +536,7 @@ send_test_pkt(struct net_device *dev)
 	/* Write the contents of the packet */
 	writewords(lp, TX_FRAME_PORT, test_packet, (ETH_ZLEN + 1) >> 1);
 
-	cs89_dbg(1, debug, "Sending test packet ");
+	cs89_dbg(1, de, "Sending test packet ");
 	/* wait a couple of jiffies for packet to be received */
 	for (timenow = jiffies; time_before(jiffies, timenow + 3);)
 		;
@@ -561,7 +561,7 @@ detect_tp(struct net_device *dev)
 	unsigned long timenow = jiffies;
 	int fdx;
 
-	cs89_dbg(1, debug, "%s: Attempting TP\n", dev->name);
+	cs89_dbg(1, de, "%s: Attempting TP\n", dev->name);
 
 	/* If connected to another full duplex capable 10-Base-T card
 	 * the link pulses seem to be lost when the auto detect bit in
@@ -639,7 +639,7 @@ detect_bnc(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 
-	cs89_dbg(1, debug, "%s: Attempting BNC\n", dev->name);
+	cs89_dbg(1, de, "%s: Attempting BNC\n", dev->name);
 	control_dc_dc(dev, 1);
 
 	writereg(dev, PP_LineCTL, (lp->linectl & ~AUTO_AUI_10BASET) | AUI_ONLY);
@@ -655,7 +655,7 @@ detect_aui(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 
-	cs89_dbg(1, debug, "%s: Attempting AUI\n", dev->name);
+	cs89_dbg(1, de, "%s: Attempting AUI\n", dev->name);
 	control_dc_dc(dev, 0);
 
 	writereg(dev, PP_LineCTL, (lp->linectl & ~AUTO_AUI_10BASET) | AUI_ONLY);
@@ -694,7 +694,7 @@ net_rx(struct net_device *dev)
 	if (length & 1)
 		skb->data[length-1] = ioread16(lp->virt_addr + RX_FRAME_PORT);
 
-	cs89_dbg(3, debug, "%s: received %d byte packet of type %x\n",
+	cs89_dbg(3, de, "%s: received %d byte packet of type %x\n",
 		 dev->name, length,
 		 (skb->data[ETH_ALEN + ETH_ALEN] << 8) |
 		 skb->data[ETH_ALEN + ETH_ALEN + 1]);
@@ -727,7 +727,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 	 * vista, baby!
 	 */
 	while ((status = ioread16(lp->virt_addr + ISQ_PORT))) {
-		cs89_dbg(4, debug, "%s: event=%04x\n", dev->name, status);
+		cs89_dbg(4, de, "%s: event=%04x\n", dev->name, status);
 		handled = 1;
 		switch (status & ISQ_EVENT_MASK) {
 		case ISQ_RECEIVER_EVENT:
@@ -784,18 +784,18 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 			if (lp->use_dma && (status & RX_DMA)) {
 				int count = readreg(dev, PP_DmaFrameCnt);
 				while (count) {
-					cs89_dbg(5, debug,
+					cs89_dbg(5, de,
 						 "%s: receiving %d DMA frames\n",
 						 dev->name, count);
 					if (count > 1)
-						cs89_dbg(2, debug,
+						cs89_dbg(2, de,
 							 "%s: receiving %d DMA frames\n",
 							 dev->name, count);
 					dma_rx(dev);
 					if (--count == 0)
 						count = readreg(dev, PP_DmaFrameCnt);
 					if (count > 0)
-						cs89_dbg(2, debug,
+						cs89_dbg(2, de,
 							 "%s: continuing with %d DMA frames\n",
 							 dev->name, count);
 				}
@@ -891,7 +891,7 @@ net_open(struct net_device *dev)
 			       dev->name, lp->dmasize);
 			goto release_irq;
 		}
-		cs89_dbg(1, debug, "%s: dma %lx %lx\n",
+		cs89_dbg(1, de, "%s: dma %lx %lx\n",
 			 dev->name,
 			 (unsigned long)lp->dma_buff,
 			 (unsigned long)isa_virt_to_bus(lp->dma_buff));
@@ -1076,7 +1076,7 @@ release_irq:
 #endif
 			 ));
 	netif_start_queue(dev);
-	cs89_dbg(1, debug, "net_open() succeeded\n");
+	cs89_dbg(1, de, "net_open() succeeded\n");
 	return 0;
 bad_out:
 	return ret;
@@ -1144,7 +1144,7 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct net_local *lp = netdev_priv(dev);
 	unsigned long flags;
 
-	cs89_dbg(3, debug, "%s: sent %d byte packet of type %x\n",
+	cs89_dbg(3, de, "%s: sent %d byte packet of type %x\n",
 		 dev->name, skb->len,
 		 ((skb->data[ETH_ALEN + ETH_ALEN] << 8) |
 		  skb->data[ETH_ALEN + ETH_ALEN + 1]));
@@ -1229,7 +1229,7 @@ static int set_mac_address(struct net_device *dev, void *p)
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
-	cs89_dbg(0, debug, "%s: Setting MAC address to %pM\n",
+	cs89_dbg(0, de, "%s: Setting MAC address to %pM\n",
 		 dev->name, dev->dev_addr);
 
 	/* set the Ethernet address */
@@ -1332,13 +1332,13 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 #endif
 	}
 
-	pr_debug("PP_addr at %p[%x]: 0x%x\n",
+	pr_de("PP_addr at %p[%x]: 0x%x\n",
 		 ioaddr, ADD_PORT, ioread16(ioaddr + ADD_PORT));
 	iowrite16(PP_ChipID, ioaddr + ADD_PORT);
 
 	tmp = ioread16(ioaddr + DATA_PORT);
 	if (tmp != CHIP_EISA_ID_SIG) {
-		pr_debug("%s: incorrect signature at %p[%x]: 0x%x!="
+		pr_de("%s: incorrect signature at %p[%x]: 0x%x!="
 			 CHIP_EISA_ID_SIG_STR "\n",
 			 dev->name, ioaddr, DATA_PORT, tmp);
 		retval = -ENODEV;
@@ -1467,7 +1467,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 			dev->dev_addr[i * 2] = eeprom_buff[i];
 			dev->dev_addr[i * 2 + 1] = eeprom_buff[i] >> 8;
 		}
-		cs89_dbg(1, debug, "%s: new adapter_cnf: 0x%x\n",
+		cs89_dbg(1, de, "%s: new adapter_cnf: 0x%x\n",
 			 dev->name, lp->adapter_cnf);
 	}
 
@@ -1496,7 +1496,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 			lp->adapter_cnf |= A_CNF_MEDIA_10B_2;
 	}
 
-	cs89_dbg(1, debug, "%s: after force 0x%x, adapter_cnf=0x%x\n",
+	cs89_dbg(1, de, "%s: after force 0x%x, adapter_cnf=0x%x\n",
 		 dev->name, lp->force, lp->adapter_cnf);
 
 	/* FIXME: We don't let you set dc-dc polarity or low RX squelch from the command line: add it here */
@@ -1689,13 +1689,13 @@ out:
 
 static struct net_device *dev_cs89x0;
 
-/* Support the 'debug' module parm even if we're compiled for non-debug to
+/* Support the 'de' module parm even if we're compiled for non-de to
  * avoid breaking someone's startup scripts
  */
 
 static int io;
 static int irq;
-static int debug;
+static int de;
 static char media[8];
 static int duplex = -1;
 
@@ -1705,7 +1705,7 @@ static int dmasize = 16;		/* or 64 */
 
 module_param_hw(io, int, ioport, 0);
 module_param_hw(irq, int, irq, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param_string(media, media, sizeof(media), 0);
 module_param(duplex, int, 0);
 module_param_hw(dma , int, dma, 0);
@@ -1713,10 +1713,10 @@ module_param(dmasize , int, 0);
 module_param(use_dma , int, 0);
 MODULE_PARM_DESC(io, "cs89x0 I/O base address");
 MODULE_PARM_DESC(irq, "cs89x0 IRQ number");
-#if DEBUGGING
-MODULE_PARM_DESC(debug, "cs89x0 debug level (0-6)");
+#if DEGING
+MODULE_PARM_DESC(de, "cs89x0 de level (0-6)");
 #else
-MODULE_PARM_DESC(debug, "(ignored)");
+MODULE_PARM_DESC(de, "(ignored)");
 #endif
 MODULE_PARM_DESC(media, "Set cs89x0 adapter(s) media type(s) (rj45,bnc,aui)");
 /* No other value than -1 for duplex seems to be currently interpreted */
@@ -1740,7 +1740,7 @@ MODULE_LICENSE("GPL");
  * or media=aui
  * or medai=auto
  * duplex=0            - specify forced half/full/autonegotiate duplex
- * debug=#             - debug level
+ * de=#             - de level
  *
  * Default Chip Configuration:
  * DMA Burst = enabled
@@ -1763,10 +1763,10 @@ int __init init_module(void)
 	struct net_local *lp;
 	int ret = 0;
 
-#if DEBUGGING
-	net_debug = debug;
+#if DEGING
+	net_de = de;
 #else
-	debug = 0;
+	de = 0;
 #endif
 	if (!dev)
 		return -ENOMEM;

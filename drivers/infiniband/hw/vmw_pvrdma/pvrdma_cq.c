@@ -117,7 +117,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	struct pvrdma_create_cq_resp cq_resp = {0};
 	struct pvrdma_create_cq ucmd;
 
-	BUILD_BUG_ON(sizeof(struct pvrdma_cqe) != 64);
+	BUILD__ON(sizeof(struct pvrdma_cqe) != 64);
 
 	entries = roundup_pow_of_two(entries);
 	if (entries < 1 || entries > dev->dsr->caps.max_cqe)

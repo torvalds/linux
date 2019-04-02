@@ -1,13 +1,13 @@
 .. highlight:: none
 
-Debugging kernel and modules via gdb
+Deging kernel and modules via gdb
 ====================================
 
-The kernel debugger kgdb, hypervisors like QEMU or JTAG-based hardware
-interfaces allow to debug the Linux kernel and its modules during runtime
+The kernel deger kgdb, hypervisors like QEMU or JTAG-based hardware
+interfaces allow to de the Linux kernel and its modules during runtime
 using gdb. Gdb comes with a powerful scripting interface for python. The
 kernel provides a collection of helper scripts that can simplify typical
-kernel debugging steps. This is a short tutorial about how to enable and use
+kernel deging steps. This is a short tutorial about how to enable and use
 them. It focuses on QEMU/KVM virtual machines as target, but the examples can
 be transferred to the other gdb stubs as well.
 
@@ -28,7 +28,7 @@ Setup
   toolchains that can be helpful to start from.
 
 - Build the kernel with CONFIG_GDB_SCRIPTS enabled, but leave
-  CONFIG_DEBUG_INFO_REDUCED off. If your architecture supports
+  CONFIG_DE_INFO_REDUCED off. If your architecture supports
   CONFIG_FRAME_POINTER, keep it enabled.
 
 - Install that kernel on the guest, turn off KASLR if necessary by adding

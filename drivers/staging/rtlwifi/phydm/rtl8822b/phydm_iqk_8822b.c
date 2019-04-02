@@ -915,7 +915,7 @@ static bool _iqk_one_shot_8822b(void *dm_void, u8 path, u8 idx)
 		}
 	}
 
-	if (dm->debug_components & ODM_COMP_CALIBRATION) {
+	if (dm->de_components & ODM_COMP_CALIBRATION) {
 		odm_write_4byte(dm, 0x1b00, 0xf8000008 | path << 1);
 		ODM_RT_TRACE(dm, ODM_COMP_CALIBRATION,
 			     "[IQK]S%d ==> 0x1b00 = 0x%x, 0x1b08 = 0x%x\n",

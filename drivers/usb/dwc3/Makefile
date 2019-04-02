@@ -26,8 +26,8 @@ ifneq ($(CONFIG_USB_DWC3_ULPI),)
 	dwc3-y				+= ulpi.o
 endif
 
-ifneq ($(CONFIG_DEBUG_FS),)
-	dwc3-y				+= debugfs.o
+ifneq ($(CONFIG_DE_FS),)
+	dwc3-y				+= defs.o
 endif
 
 ##

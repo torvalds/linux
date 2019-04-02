@@ -151,7 +151,7 @@ extern void (*arch_iounmap)(volatile void __iomem *);
 /*
  * Bad read/write accesses...
  */
-extern void __readwrite_bug(const char *fn);
+extern void __readwrite_(const char *fn);
 
 /*
  * A typesafe __io() helper

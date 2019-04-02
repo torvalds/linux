@@ -97,7 +97,7 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 
 	full = width == fb->width && height == fb->height;
 
-	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
+	DRM_DE_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
 	if (!mipi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
@@ -194,7 +194,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 	int ret;
 	u8 am_id;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	mipi_dbi_hw_reset(mipi);
 
@@ -287,7 +287,7 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if (!mipi->enabled)
 		return;

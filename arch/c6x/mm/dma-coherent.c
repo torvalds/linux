@@ -63,7 +63,7 @@ static void __free_dma_pages(u32 addr, int order)
 
 	if (addr < dma_base || (pos + (1 << order)) >= dma_pages) {
 		printk(KERN_ERR "%s: freeing outside range.\n", __func__);
-		BUG();
+		();
 	}
 
 	spin_lock_irqsave(&dma_lock, flags);
@@ -147,7 +147,7 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
 static void c6x_dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
 		enum dma_data_direction dir)
 {
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 
 	switch (dir) {
 	case DMA_FROM_DEVICE:

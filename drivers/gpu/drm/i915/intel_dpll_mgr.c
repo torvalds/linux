@@ -143,7 +143,7 @@ void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 	mutex_lock(&dev_priv->dpll_lock);
 	WARN_ON(!pll->state.crtc_mask);
 	if (!pll->active_mask) {
-		DRM_DEBUG_DRIVER("setting up %s\n", pll->info->name);
+		DRM_DE_DRIVER("setting up %s\n", pll->info->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
@@ -178,7 +178,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 
 	pll->active_mask |= crtc_mask;
 
-	DRM_DEBUG_KMS("enable %s (active %x, on? %d) for crtc %d\n",
+	DRM_DE_KMS("enable %s (active %x, on? %d) for crtc %d\n",
 		      pll->info->name, pll->active_mask, pll->on,
 		      crtc->base.base.id);
 
@@ -189,7 +189,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	}
 	WARN_ON(pll->on);
 
-	DRM_DEBUG_KMS("enabling %s\n", pll->info->name);
+	DRM_DE_KMS("enabling %s\n", pll->info->name);
 	pll->info->funcs->enable(dev_priv, pll);
 	pll->on = true;
 
@@ -221,7 +221,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	if (WARN_ON(!(pll->active_mask & crtc_mask)))
 		goto out;
 
-	DRM_DEBUG_KMS("disable %s (active %x, on? %d) for crtc %d\n",
+	DRM_DE_KMS("disable %s (active %x, on? %d) for crtc %d\n",
 		      pll->info->name, pll->active_mask, pll->on,
 		      crtc->base.base.id);
 
@@ -232,7 +232,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	if (pll->active_mask)
 		goto out;
 
-	DRM_DEBUG_KMS("disabling %s\n", pll->info->name);
+	DRM_DE_KMS("disabling %s\n", pll->info->name);
 	pll->info->funcs->disable(dev_priv, pll);
 	pll->on = false;
 
@@ -266,7 +266,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		if (memcmp(&crtc_state->dpll_hw_state,
 			   &shared_dpll[i].hw_state,
 			   sizeof(crtc_state->dpll_hw_state)) == 0) {
-			DRM_DEBUG_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
+			DRM_DE_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
 				      crtc->base.base.id, crtc->base.name,
 				      pll->info->name,
 				      shared_dpll[i].crtc_mask,
@@ -277,7 +277,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 
 	/* Ok no matching timings, maybe there's a free one? */
 	if (unused_pll) {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
+		DRM_DE_KMS("[CRTC:%d:%s] allocated %s\n",
 			      crtc->base.base.id, crtc->base.name,
 			      unused_pll->info->name);
 		return unused_pll;
@@ -301,7 +301,7 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 			crtc_state->dpll_hw_state;
 
 	crtc_state->shared_dpll = pll;
-	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->info->name,
+	DRM_DE_DRIVER("using %s for pipe %c\n", pll->info->name,
 			 pipe_name(crtc->pipe));
 
 	shared_dpll[id].crtc_mask |= 1 << crtc->pipe;
@@ -432,7 +432,7 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		i = (enum intel_dpll_id) crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
-		DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+		DRM_DE_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
 			      crtc->base.base.id, crtc->base.name,
 			      pll->info->name);
 	} else {
@@ -453,7 +453,7 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 static void ibx_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
 {
-	DRM_DEBUG_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
+	DRM_DE_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
 		      "fp0: 0x%x, fp1: 0x%x\n",
 		      hw_state->dpll,
 		      hw_state->dpll_md,
@@ -807,7 +807,7 @@ hsw_ddi_dp_get_dpll(struct intel_encoder *encoder, int clock)
 		pll_id = DPLL_ID_LCPLL_2700;
 		break;
 	default:
-		DRM_DEBUG_KMS("Invalid clock for DP: %d\n", clock);
+		DRM_DE_KMS("Invalid clock for DP: %d\n", clock);
 		return NULL;
 	}
 
@@ -857,7 +857,7 @@ hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 static void hsw_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
 {
-	DRM_DEBUG_KMS("dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
+	DRM_DE_KMS("dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
 		      hw_state->wrpll, hw_state->spll);
 }
 
@@ -1292,7 +1292,7 @@ skip_remaining_dividers:
 	}
 
 	if (!ctx.p) {
-		DRM_DEBUG_DRIVER("No valid divider found for %dHz\n", clock);
+		DRM_DE_DRIVER("No valid divider found for %dHz\n", clock);
 		return false;
 	}
 
@@ -1396,13 +1396,13 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		bret = skl_ddi_hdmi_pll_dividers(crtc, crtc_state, clock);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
+			DRM_DE_KMS("Could not get HDMI pll dividers.\n");
 			return NULL;
 		}
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		bret = skl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
+			DRM_DE_KMS("Could not set DP dpll HW state.\n");
 			return NULL;
 		}
 		crtc_state->dpll_hw_state = dpll_hw_state;
@@ -1429,7 +1429,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 static void skl_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
 {
-	DRM_DEBUG_KMS("dpll_hw_state: "
+	DRM_DE_KMS("dpll_hw_state: "
 		      "ctrl1: 0x%x, cfgcr1: 0x%x, cfgcr2: 0x%x\n",
 		      hw_state->ctrl1,
 		      hw_state->cfgcr1,
@@ -1654,7 +1654,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	 */
 	hw_state->pcsdw12 = I915_READ(BXT_PORT_PCS_DW12_LN01(phy, ch));
 	if (I915_READ(BXT_PORT_PCS_DW12_LN23(phy, ch)) != hw_state->pcsdw12)
-		DRM_DEBUG_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
+		DRM_DE_DRIVER("lane stagger config different for lane 01 (%08x) and 23 (%08x)\n",
 				 hw_state->pcsdw12,
 				 I915_READ(BXT_PORT_PCS_DW12_LN23(phy, ch)));
 	hw_state->pcsdw12 &= LANE_STAGGER_MASK | LANESTAGGER_STRAP_OVRD;
@@ -1704,7 +1704,7 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc *intel_crtc,
 	 * i9xx_crtc_compute_clock
 	 */
 	if (!bxt_find_best_dpll(crtc_state, clock, &best_clock)) {
-		DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
+		DRM_DE_DRIVER("no PLL dividers found for clock %d pipe %c\n",
 				 clock, pipe_name(intel_crtc->pipe));
 		return false;
 	}
@@ -1854,7 +1854,7 @@ bxt_get_dpll(struct intel_crtc *crtc,
 	i = (enum intel_dpll_id) encoder->port;
 	pll = intel_get_shared_dpll_by_id(dev_priv, i);
 
-	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+	DRM_DE_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
 		      crtc->base.base.id, crtc->base.name, pll->info->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
@@ -1865,7 +1865,7 @@ bxt_get_dpll(struct intel_crtc *crtc,
 static void bxt_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
 {
-	DRM_DEBUG_KMS("dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
+	DRM_DE_KMS("dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
 		      "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
 		      "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pll10: 0x%x, pcsdw12: 0x%x\n",
 		      hw_state->ebb0,
@@ -2374,18 +2374,18 @@ cnl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		bret = cnl_ddi_hdmi_pll_dividers(crtc, crtc_state, clock);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
+			DRM_DE_KMS("Could not get HDMI pll dividers.\n");
 			return NULL;
 		}
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		bret = cnl_ddi_dp_set_dpll_hw_state(clock, &dpll_hw_state);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
+			DRM_DE_KMS("Could not set DP dpll HW state.\n");
 			return NULL;
 		}
 		crtc_state->dpll_hw_state = dpll_hw_state;
 	} else {
-		DRM_DEBUG_KMS("Skip DPLL setup for output_types 0x%x\n",
+		DRM_DE_KMS("Skip DPLL setup for output_types 0x%x\n",
 			      crtc_state->output_types);
 		return NULL;
 	}
@@ -2394,7 +2394,7 @@ cnl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 				     DPLL_ID_SKL_DPLL0,
 				     DPLL_ID_SKL_DPLL2);
 	if (!pll) {
-		DRM_DEBUG_KMS("No PLL selected\n");
+		DRM_DE_KMS("No PLL selected\n");
 		return NULL;
 	}
 
@@ -2406,7 +2406,7 @@ cnl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 static void cnl_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
 {
-	DRM_DEBUG_KMS("dpll_hw_state: "
+	DRM_DE_KMS("dpll_hw_state: "
 		      "cfgcr0: 0x%x, cfgcr1: 0x%x\n",
 		      hw_state->cfgcr0,
 		      hw_state->cfgcr1);
@@ -2745,7 +2745,7 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 
 	if (!icl_mg_pll_find_divisors(clock, is_dp, use_ssc, &dco_khz,
 				      pll_state)) {
-		DRM_DEBUG_KMS("Failed to find divisors for clock %d\n", clock);
+		DRM_DE_KMS("Failed to find divisors for clock %d\n", clock);
 		return false;
 	}
 
@@ -2755,7 +2755,7 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 		m1div = 4;
 		m2div_int = dco_khz / (refclk_khz * m1div);
 		if (m2div_int > 255) {
-			DRM_DEBUG_KMS("Failed to find mdiv for clock %d\n",
+			DRM_DE_KMS("Failed to find mdiv for clock %d\n",
 				      clock);
 			return false;
 		}
@@ -2939,7 +2939,7 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	}
 
 	if (!ret) {
-		DRM_DEBUG_KMS("Could not calculate PLL state.\n");
+		DRM_DE_KMS("Could not calculate PLL state.\n");
 		return NULL;
 	}
 
@@ -2947,7 +2947,7 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 	pll = intel_find_shared_dpll(crtc, crtc_state, min, max);
 	if (!pll) {
-		DRM_DEBUG_KMS("No PLL selected\n");
+		DRM_DE_KMS("No PLL selected\n");
 		return NULL;
 	}
 
@@ -3178,7 +3178,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 static void icl_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
 {
-	DRM_DEBUG_KMS("dpll_hw_state: cfgcr0: 0x%x, cfgcr1: 0x%x, "
+	DRM_DE_KMS("dpll_hw_state: cfgcr0: 0x%x, cfgcr1: 0x%x, "
 		      "mg_refclkin_ctl: 0x%x, hg_clktop2_coreclkctl1: 0x%x, "
 		      "mg_clktop2_hsclkctl: 0x%x, mg_pll_div0: 0x%x, "
 		      "mg_pll_div2: 0x%x, mg_pll_lf: 0x%x, "
@@ -3262,7 +3262,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	dev_priv->num_shared_dpll = i;
 	mutex_init(&dev_priv->dpll_lock);
 
-	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
+	_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
 
 	/* FIXME: Move this to a more suitable place */
 	if (HAS_DDI(dev_priv))
@@ -3323,7 +3323,7 @@ void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
  * @dev_priv: i915 drm device
  * @hw_state: hw state to be written to the log
  *
- * Write the relevant values in @hw_state to dmesg using DRM_DEBUG_KMS.
+ * Write the relevant values in @hw_state to dmesg using DRM_DE_KMS.
  */
 void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      struct intel_dpll_hw_state *hw_state)
@@ -3334,7 +3334,7 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
 		 */
-		DRM_DEBUG_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
+		DRM_DE_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
 			      "fp0: 0x%x, fp1: 0x%x\n",
 			      hw_state->dpll,
 			      hw_state->dpll_md,

@@ -19,7 +19,7 @@
  * PATA history into the clean libata layer.
  *
  * Thinkpad specific note: If you boot an MPIIX using a thinkpad with a PCMCIA
- * hard disk present this driver will not detect it. This is not a bug. In this
+ * hard disk present this driver will not detect it. This is not a . In this
  * configuration the secondary port of the MPIIX is disabled and the addresses
  * are decoded by the PCMCIA bridge and therefore are for a generic IDE driver
  * to operate.

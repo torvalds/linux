@@ -25,7 +25,7 @@ trace_open_vfs_getname() {
 }
 
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname || skip_if_no_deinfo
 err=$?
 if [ $err -ne 0 ] ; then
 	exit $err

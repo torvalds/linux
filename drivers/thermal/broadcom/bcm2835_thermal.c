@@ -6,7 +6,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -67,7 +67,7 @@ struct bcm2835_thermal_data {
 	struct thermal_zone_device *tz;
 	void __iomem *regs;
 	struct clk *clk;
-	struct dentry *debugfsdir;
+	struct dentry *defsdir;
 };
 
 static int bcm2835_thermal_adc2temp(u32 adc, int offset, int slope)
@@ -106,7 +106,7 @@ static int bcm2835_thermal_get_temp(void *d, int *temp)
 	return 0;
 }
 
-static const struct debugfs_reg32 bcm2835_thermal_regs[] = {
+static const struct defs_reg32 bcm2835_thermal_regs[] = {
 	{
 		.name = "ctl",
 		.offset = 0
@@ -117,13 +117,13 @@ static const struct debugfs_reg32 bcm2835_thermal_regs[] = {
 	}
 };
 
-static void bcm2835_thermal_debugfs(struct platform_device *pdev)
+static void bcm2835_thermal_defs(struct platform_device *pdev)
 {
 	struct bcm2835_thermal_data *data = platform_get_drvdata(pdev);
-	struct debugfs_regset32 *regset;
+	struct defs_regset32 *regset;
 
-	data->debugfsdir = debugfs_create_dir("bcm2835_thermal", NULL);
-	if (!data->debugfsdir)
+	data->defsdir = defs_create_dir("bcm2835_thermal", NULL);
+	if (!data->defsdir)
 		return;
 
 	regset = devm_kzalloc(&pdev->dev, sizeof(*regset), GFP_KERNEL);
@@ -134,7 +134,7 @@ static void bcm2835_thermal_debugfs(struct platform_device *pdev)
 	regset->nregs = ARRAY_SIZE(bcm2835_thermal_regs);
 	regset->base = data->regs;
 
-	debugfs_create_regset32("regset", 0444, data->debugfsdir, regset);
+	defs_create_regset32("regset", 0444, data->defsdir, regset);
 }
 
 static const struct thermal_zone_of_device_ops bcm2835_thermal_ops = {
@@ -276,7 +276,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	if (err)
 		goto err_tz;
 
-	bcm2835_thermal_debugfs(pdev);
+	bcm2835_thermal_defs(pdev);
 
 	return 0;
 err_tz:
@@ -292,7 +292,7 @@ static int bcm2835_thermal_remove(struct platform_device *pdev)
 	struct bcm2835_thermal_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tz;
 
-	debugfs_remove_recursive(data->debugfsdir);
+	defs_remove_recursive(data->defsdir);
 	thermal_zone_of_sensor_unregister(&pdev->dev, tz);
 	clk_disable_unprepare(data->clk);
 

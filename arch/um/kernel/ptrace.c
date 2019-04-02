@@ -145,7 +145,7 @@ void syscall_trace_leave(struct pt_regs *regs)
 
 	audit_syscall_exit(regs);
 
-	/* Fake a debug trap */
+	/* Fake a de trap */
 	if (ptraced & PT_DTRACE)
 		send_sigtrap(current, &regs->regs, 0);
 

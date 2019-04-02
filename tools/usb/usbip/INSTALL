@@ -22,7 +22,7 @@ It may also create one or more `.h' files containing system-dependent
 definitions.  Finally, it creates a shell script `config.status' that
 you can run in the future to recreate the current configuration, and a
 file `config.log' containing compiler output (useful mainly for
-debugging `configure').
+deging `configure').
 
    It can also use an optional file (typically called `config.cache'
 and enabled with `--cache-file=config.cache' or simply `-C') that saves
@@ -194,7 +194,7 @@ causes the specified `gcc' to be used as the C compiler (unless it is
 overridden in the site shell script).
 
 Unfortunately, this technique does not work for `CONFIG_SHELL' due to
-an Autoconf bug.  Until the bug is fixed you can use this workaround:
+an Autoconf .  Until the  is fixed you can use this workaround:
 
      CONFIG_SHELL=/bin/bash /bin/bash ./configure CONFIG_SHELL=/bin/bash
 

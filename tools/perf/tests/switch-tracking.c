@@ -69,11 +69,11 @@ static int check_comm(struct switch_tracking *switch_tracking,
 	    (pid_t)event->comm.tid == getpid() &&
 	    strcmp(event->comm.comm, comm) == 0) {
 		if (switch_tracking->comm_seen[nr]) {
-			pr_debug("Duplicate comm event\n");
+			pr_de("Duplicate comm event\n");
 			return -1;
 		}
 		switch_tracking->comm_seen[nr] = 1;
-		pr_debug3("comm event: %s nr: %d\n", event->comm.comm, nr);
+		pr_de3("comm event: %s nr: %d\n", event->comm.comm, nr);
 		return 1;
 	}
 	return 0;
@@ -122,7 +122,7 @@ static int process_sample_event(struct perf_evlist *evlist,
 	int cpu, err;
 
 	if (perf_evlist__parse_sample(evlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+		pr_de("perf_evlist__parse_sample failed\n");
 		return -1;
 	}
 
@@ -131,7 +131,7 @@ static int process_sample_event(struct perf_evlist *evlist,
 		next_tid = perf_evsel__intval(evsel, &sample, "next_pid");
 		prev_tid = perf_evsel__intval(evsel, &sample, "prev_pid");
 		cpu = sample.cpu;
-		pr_debug3("sched_switch: cpu: %d prev_tid %d next_tid %d\n",
+		pr_de3("sched_switch: cpu: %d prev_tid %d next_tid %d\n",
 			  cpu, prev_tid, next_tid);
 		err = check_cpu(switch_tracking, cpu);
 		if (err)
@@ -142,14 +142,14 @@ static int process_sample_event(struct perf_evlist *evlist,
 		 */
 		if (switch_tracking->tids[cpu] != -1 &&
 		    switch_tracking->tids[cpu] != prev_tid) {
-			pr_debug("Missing sched_switch events\n");
+			pr_de("Missing sched_switch events\n");
 			return -1;
 		}
 		switch_tracking->tids[cpu] = next_tid;
 	}
 
 	if (evsel == switch_tracking->cycles_evsel) {
-		pr_debug3("cycles event\n");
+		pr_de3("cycles event\n");
 		if (!switch_tracking->comm_seen[0])
 			switch_tracking->cycles_before_comm_1 = 1;
 		if (switch_tracking->comm_seen[1] &&
@@ -188,7 +188,7 @@ static int process_event(struct perf_evlist *evlist, union perf_event *event,
 			return -1;
 		done += err;
 		if (done != 1) {
-			pr_debug("Unexpected comm event\n");
+			pr_de("Unexpected comm event\n");
 			return -1;
 		}
 	}
@@ -210,19 +210,19 @@ static int add_event(struct perf_evlist *evlist, struct list_head *events,
 
 	node = malloc(sizeof(struct event_node));
 	if (!node) {
-		pr_debug("malloc failed\n");
+		pr_de("malloc failed\n");
 		return -1;
 	}
 	node->event = event;
 	list_add(&node->list, events);
 
 	if (perf_evlist__parse_sample(evlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+		pr_de("perf_evlist__parse_sample failed\n");
 		return -1;
 	}
 
 	if (!sample.time) {
-		pr_debug("event with no time\n");
+		pr_de("event with no time\n");
 		return -1;
 	}
 
@@ -278,7 +278,7 @@ static int process_events(struct perf_evlist *evlist,
 
 	events_array = calloc(cnt, sizeof(struct event_node));
 	if (!events_array) {
-		pr_debug("calloc failed\n");
+		pr_de("calloc failed\n");
 		ret = -1;
 		goto out_free_nodes;
 	}
@@ -298,7 +298,7 @@ static int process_events(struct perf_evlist *evlist,
 
 	ret = 0;
 out_free:
-	pr_debug("%u events recorded\n", cnt);
+	pr_de("%u events recorded\n", cnt);
 	free(events_array);
 out_free_nodes:
 	free_event_nodes(&events);
@@ -336,19 +336,19 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (!threads) {
-		pr_debug("thread_map__new failed!\n");
+		pr_de("thread_map__new failed!\n");
 		goto out_err;
 	}
 
 	cpus = cpu_map__new(NULL);
 	if (!cpus) {
-		pr_debug("cpu_map__new failed!\n");
+		pr_de("cpu_map__new failed!\n");
 		goto out_err;
 	}
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("perf_evlist__new failed!\n");
+		pr_de("perf_evlist__new failed!\n");
 		goto out_err;
 	}
 
@@ -357,7 +357,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	/* First event */
 	err = parse_events(evlist, "cpu-clock:u", NULL);
 	if (err) {
-		pr_debug("Failed to parse event dummy:u\n");
+		pr_de("Failed to parse event dummy:u\n");
 		goto out_err;
 	}
 
@@ -366,7 +366,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	/* Second event */
 	err = parse_events(evlist, "cycles:u", NULL);
 	if (err) {
-		pr_debug("Failed to parse event cycles:u\n");
+		pr_de("Failed to parse event cycles:u\n");
 		goto out_err;
 	}
 
@@ -374,14 +374,14 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* Third event */
 	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
-		pr_debug("No sched_switch\n");
+		pr_de("No sched_switch\n");
 		err = 0;
 		goto out;
 	}
 
 	err = parse_events(evlist, sched_switch, NULL);
 	if (err) {
-		pr_debug("Failed to parse event %s\n", sched_switch);
+		pr_de("Failed to parse event %s\n", sched_switch);
 		goto out_err;
 	}
 
@@ -396,12 +396,12 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* Test moving an event to the front */
 	if (cycles_evsel == perf_evlist__first(evlist)) {
-		pr_debug("cycles event already at front");
+		pr_de("cycles event already at front");
 		goto out_err;
 	}
 	perf_evlist__to_front(evlist, cycles_evsel);
 	if (cycles_evsel != perf_evlist__first(evlist)) {
-		pr_debug("Failed to move cycles event to front");
+		pr_de("Failed to move cycles event to front");
 		goto out_err;
 	}
 
@@ -411,7 +411,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	/* Fourth event */
 	err = parse_events(evlist, "dummy:u", NULL);
 	if (err) {
-		pr_debug("Failed to parse event dummy:u\n");
+		pr_de("Failed to parse event dummy:u\n");
 		goto out_err;
 	}
 
@@ -429,13 +429,13 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* Check moved event is still at the front */
 	if (cycles_evsel != perf_evlist__first(evlist)) {
-		pr_debug("Front event no longer at front");
+		pr_de("Front event no longer at front");
 		goto out_err;
 	}
 
 	/* Check tracking event is tracking */
 	if (!tracking_evsel->attr.mmap || !tracking_evsel->attr.comm) {
-		pr_debug("Tracking event not tracking\n");
+		pr_de("Tracking event not tracking\n");
 		goto out_err;
 	}
 
@@ -443,21 +443,21 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel != tracking_evsel) {
 			if (evsel->attr.mmap || evsel->attr.comm) {
-				pr_debug("Non-tracking event is tracking\n");
+				pr_de("Non-tracking event is tracking\n");
 				goto out_err;
 			}
 		}
 	}
 
 	if (perf_evlist__open(evlist) < 0) {
-		pr_debug("Not supported\n");
+		pr_de("Not supported\n");
 		err = 0;
 		goto out;
 	}
 
 	err = perf_evlist__mmap(evlist, UINT_MAX);
 	if (err) {
-		pr_debug("perf_evlist__mmap failed!\n");
+		pr_de("perf_evlist__mmap failed!\n");
 		goto out_err;
 	}
 
@@ -465,65 +465,65 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	err = perf_evsel__disable(cpu_clocks_evsel);
 	if (err) {
-		pr_debug("perf_evlist__disable_event failed!\n");
+		pr_de("perf_evlist__disable_event failed!\n");
 		goto out_err;
 	}
 
 	err = spin_sleep();
 	if (err) {
-		pr_debug("spin_sleep failed!\n");
+		pr_de("spin_sleep failed!\n");
 		goto out_err;
 	}
 
 	comm = "Test COMM 1";
 	err = prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0);
 	if (err) {
-		pr_debug("PR_SET_NAME failed!\n");
+		pr_de("PR_SET_NAME failed!\n");
 		goto out_err;
 	}
 
 	err = perf_evsel__disable(cycles_evsel);
 	if (err) {
-		pr_debug("perf_evlist__disable_event failed!\n");
+		pr_de("perf_evlist__disable_event failed!\n");
 		goto out_err;
 	}
 
 	comm = "Test COMM 2";
 	err = prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0);
 	if (err) {
-		pr_debug("PR_SET_NAME failed!\n");
+		pr_de("PR_SET_NAME failed!\n");
 		goto out_err;
 	}
 
 	err = spin_sleep();
 	if (err) {
-		pr_debug("spin_sleep failed!\n");
+		pr_de("spin_sleep failed!\n");
 		goto out_err;
 	}
 
 	comm = "Test COMM 3";
 	err = prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0);
 	if (err) {
-		pr_debug("PR_SET_NAME failed!\n");
+		pr_de("PR_SET_NAME failed!\n");
 		goto out_err;
 	}
 
 	err = perf_evsel__enable(cycles_evsel);
 	if (err) {
-		pr_debug("perf_evlist__disable_event failed!\n");
+		pr_de("perf_evlist__disable_event failed!\n");
 		goto out_err;
 	}
 
 	comm = "Test COMM 4";
 	err = prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0);
 	if (err) {
-		pr_debug("PR_SET_NAME failed!\n");
+		pr_de("PR_SET_NAME failed!\n");
 		goto out_err;
 	}
 
 	err = spin_sleep();
 	if (err) {
-		pr_debug("spin_sleep failed!\n");
+		pr_de("spin_sleep failed!\n");
 		goto out_err;
 	}
 
@@ -542,25 +542,25 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	/* Check all 4 comm events were seen i.e. that evsel->tracking works */
 	if (!switch_tracking.comm_seen[0] || !switch_tracking.comm_seen[1] ||
 	    !switch_tracking.comm_seen[2] || !switch_tracking.comm_seen[3]) {
-		pr_debug("Missing comm events\n");
+		pr_de("Missing comm events\n");
 		goto out_err;
 	}
 
 	/* Check cycles event got enabled */
 	if (!switch_tracking.cycles_before_comm_1) {
-		pr_debug("Missing cycles events\n");
+		pr_de("Missing cycles events\n");
 		goto out_err;
 	}
 
 	/* Check cycles event got disabled */
 	if (switch_tracking.cycles_between_comm_2_and_comm_3) {
-		pr_debug("cycles events even though event was disabled\n");
+		pr_de("cycles events even though event was disabled\n");
 		goto out_err;
 	}
 
 	/* Check cycles event got enabled again */
 	if (!switch_tracking.cycles_after_comm_4) {
-		pr_debug("Missing cycles events\n");
+		pr_de("Missing cycles events\n");
 		goto out_err;
 	}
 out:

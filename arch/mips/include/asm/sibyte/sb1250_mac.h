@@ -476,7 +476,7 @@
 #endif /* 1250 PASS3 || 112x PASS1 || 1480 */
 
 /*
- * MAC Fifo Pointer Registers (Table 9-19)    [Debug register]
+ * MAC Fifo Pointer Registers (Table 9-19)    [De register]
  * Register: MAC_FIFO_PTRS_0
  * Register: MAC_FIFO_PTRS_1
  * Register: MAC_FIFO_PTRS_2
@@ -503,7 +503,7 @@
 #define G_MAC_RX_RDPTR(x)	    _SB_GETVALUE(x, S_MAC_RX_RDPTR, M_MAC_TX_RDPTR)
 
 /*
- * MAC Fifo End Of Packet Count Registers (Table 9-20)	[Debug register]
+ * MAC Fifo End Of Packet Count Registers (Table 9-20)	[De register]
  * Register: MAC_EOPCNT_0
  * Register: MAC_EOPCNT_1
  * Register: MAC_EOPCNT_2

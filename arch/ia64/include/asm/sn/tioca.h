@@ -51,10 +51,10 @@ struct tioca {
 	u64	ca_agp_dma_addr_extn;		/* 0x0000E8 */
 	u64	ca_force_inta;			/* 0x0000F0 */
 	u64	ca_force_intb;			/* 0x0000F8 */
-	u64	ca_debug_vector_sel;		/* 0x000100 */
-	u64	ca_debug_mux_core_sel;		/* 0x000108 */
-	u64	ca_debug_mux_pci_sel;		/* 0x000110 */
-	u64	ca_debug_domain_sel;		/* 0x000118 */
+	u64	ca_de_vector_sel;		/* 0x000100 */
+	u64	ca_de_mux_core_sel;		/* 0x000108 */
+	u64	ca_de_mux_pci_sel;		/* 0x000110 */
+	u64	ca_de_domain_sel;		/* 0x000118 */
 
 	u64	ca_pad_000120[28];		/* 0x0001{20..F8} */
 
@@ -67,7 +67,7 @@ struct tioca {
  * to mainly use the names as they appear in the "TIO AEGIS Programmers'
  * Reference" with a CA_ prefix added.  Some exceptions were made to fix
  * duplicate field names or to generalize fields that are common to
- * different registers (ca_debug_mux_core_sel and ca_debug_mux_pci_sel for
+ * different registers (ca_de_mux_core_sel and ca_de_mux_pci_sel for
  * example).
  *
  * Fields consisting of a single bit have a single #define have a single
@@ -339,94 +339,94 @@ struct tioca {
 #define CA_AGP_DMA_PIO_MEM_TYPE		(1ull << 28)
 	/* bits 63:29 unused */
 
-/* ==== ca_debug_vector_sel */
-#define CA_DEBUG_MN_VSEL		(0xfull << 0)
-#define CA_DEBUG_MN_VSEL_SHFT		0
-#define CA_DEBUG_PP_VSEL		(0xfull << 4)
-#define CA_DEBUG_PP_VSEL_SHFT		4
-#define CA_DEBUG_GW_VSEL		(0xfull << 8)
-#define CA_DEBUG_GW_VSEL_SHFT		8
-#define CA_DEBUG_GT_VSEL		(0xfull << 12)
-#define CA_DEBUG_GT_VSEL_SHFT		12
-#define CA_DEBUG_PD_VSEL		(0xfull << 16)
-#define CA_DEBUG_PD_VSEL_SHFT		16
-#define CA_DEBUG_AD_VSEL		(0xfull << 20)
-#define CA_DEBUG_AD_VSEL_SHFT		20
-#define CA_DEBUG_CX_VSEL		(0xfull << 24)
-#define CA_DEBUG_CX_VSEL_SHFT		24
-#define CA_DEBUG_CR_VSEL		(0xfull << 28)
-#define CA_DEBUG_CR_VSEL_SHFT		28
-#define CA_DEBUG_BA_VSEL		(0xfull << 32)
-#define CA_DEBUG_BA_VSEL_SHFT		32
-#define CA_DEBUG_PE_VSEL		(0xfull << 36)
-#define CA_DEBUG_PE_VSEL_SHFT		36
-#define CA_DEBUG_BO_VSEL		(0xfull << 40)
-#define CA_DEBUG_BO_VSEL_SHFT		40
-#define CA_DEBUG_BI_VSEL		(0xfull << 44)
-#define CA_DEBUG_BI_VSEL_SHFT		44
-#define CA_DEBUG_AS_VSEL		(0xfull << 48)
-#define CA_DEBUG_AS_VSEL_SHFT		48
-#define CA_DEBUG_PS_VSEL		(0xfull << 52)
-#define CA_DEBUG_PS_VSEL_SHFT		52
-#define CA_DEBUG_PM_VSEL		(0xfull << 56)
-#define CA_DEBUG_PM_VSEL_SHFT		56
+/* ==== ca_de_vector_sel */
+#define CA_DE_MN_VSEL		(0xfull << 0)
+#define CA_DE_MN_VSEL_SHFT		0
+#define CA_DE_PP_VSEL		(0xfull << 4)
+#define CA_DE_PP_VSEL_SHFT		4
+#define CA_DE_GW_VSEL		(0xfull << 8)
+#define CA_DE_GW_VSEL_SHFT		8
+#define CA_DE_GT_VSEL		(0xfull << 12)
+#define CA_DE_GT_VSEL_SHFT		12
+#define CA_DE_PD_VSEL		(0xfull << 16)
+#define CA_DE_PD_VSEL_SHFT		16
+#define CA_DE_AD_VSEL		(0xfull << 20)
+#define CA_DE_AD_VSEL_SHFT		20
+#define CA_DE_CX_VSEL		(0xfull << 24)
+#define CA_DE_CX_VSEL_SHFT		24
+#define CA_DE_CR_VSEL		(0xfull << 28)
+#define CA_DE_CR_VSEL_SHFT		28
+#define CA_DE_BA_VSEL		(0xfull << 32)
+#define CA_DE_BA_VSEL_SHFT		32
+#define CA_DE_PE_VSEL		(0xfull << 36)
+#define CA_DE_PE_VSEL_SHFT		36
+#define CA_DE_BO_VSEL		(0xfull << 40)
+#define CA_DE_BO_VSEL_SHFT		40
+#define CA_DE_BI_VSEL		(0xfull << 44)
+#define CA_DE_BI_VSEL_SHFT		44
+#define CA_DE_AS_VSEL		(0xfull << 48)
+#define CA_DE_AS_VSEL_SHFT		48
+#define CA_DE_PS_VSEL		(0xfull << 52)
+#define CA_DE_PS_VSEL_SHFT		52
+#define CA_DE_PM_VSEL		(0xfull << 56)
+#define CA_DE_PM_VSEL_SHFT		56
 	/* bits 63:60 unused */
 
-/* ==== ca_debug_mux_core_sel */
-/* ==== ca_debug_mux_pci_sel */
-#define CA_DEBUG_MSEL0			(0x7ull << 0)
-#define CA_DEBUG_MSEL0_SHFT		0
+/* ==== ca_de_mux_core_sel */
+/* ==== ca_de_mux_pci_sel */
+#define CA_DE_MSEL0			(0x7ull << 0)
+#define CA_DE_MSEL0_SHFT		0
 	/* bit 3 unused */
-#define CA_DEBUG_NSEL0			(0x7ull << 4)
-#define CA_DEBUG_NSEL0_SHFT		4
+#define CA_DE_NSEL0			(0x7ull << 4)
+#define CA_DE_NSEL0_SHFT		4
 	/* bit 7 unused */
-#define CA_DEBUG_MSEL1			(0x7ull << 8)
-#define CA_DEBUG_MSEL1_SHFT		8
+#define CA_DE_MSEL1			(0x7ull << 8)
+#define CA_DE_MSEL1_SHFT		8
 	/* bit 11 unused */
-#define CA_DEBUG_NSEL1			(0x7ull << 12)
-#define CA_DEBUG_NSEL1_SHFT		12
+#define CA_DE_NSEL1			(0x7ull << 12)
+#define CA_DE_NSEL1_SHFT		12
 	/* bit 15 unused */
-#define CA_DEBUG_MSEL2			(0x7ull << 16)
-#define CA_DEBUG_MSEL2_SHFT		16
+#define CA_DE_MSEL2			(0x7ull << 16)
+#define CA_DE_MSEL2_SHFT		16
 	/* bit 19 unused */
-#define CA_DEBUG_NSEL2			(0x7ull << 20)
-#define CA_DEBUG_NSEL2_SHFT		20
+#define CA_DE_NSEL2			(0x7ull << 20)
+#define CA_DE_NSEL2_SHFT		20
 	/* bit 23 unused */
-#define CA_DEBUG_MSEL3			(0x7ull << 24)
-#define CA_DEBUG_MSEL3_SHFT		24
+#define CA_DE_MSEL3			(0x7ull << 24)
+#define CA_DE_MSEL3_SHFT		24
 	/* bit 27 unused */
-#define CA_DEBUG_NSEL3			(0x7ull << 28)
-#define CA_DEBUG_NSEL3_SHFT		28
+#define CA_DE_NSEL3			(0x7ull << 28)
+#define CA_DE_NSEL3_SHFT		28
 	/* bit 31 unused */
-#define CA_DEBUG_MSEL4			(0x7ull << 32)
-#define CA_DEBUG_MSEL4_SHFT		32
+#define CA_DE_MSEL4			(0x7ull << 32)
+#define CA_DE_MSEL4_SHFT		32
 	/* bit 35 unused */
-#define CA_DEBUG_NSEL4			(0x7ull << 36)
-#define CA_DEBUG_NSEL4_SHFT		36
+#define CA_DE_NSEL4			(0x7ull << 36)
+#define CA_DE_NSEL4_SHFT		36
 	/* bit 39 unused */
-#define CA_DEBUG_MSEL5			(0x7ull << 40)
-#define CA_DEBUG_MSEL5_SHFT		40
+#define CA_DE_MSEL5			(0x7ull << 40)
+#define CA_DE_MSEL5_SHFT		40
 	/* bit 43 unused */
-#define CA_DEBUG_NSEL5			(0x7ull << 44)
-#define CA_DEBUG_NSEL5_SHFT		44
+#define CA_DE_NSEL5			(0x7ull << 44)
+#define CA_DE_NSEL5_SHFT		44
 	/* bit 47 unused */
-#define CA_DEBUG_MSEL6			(0x7ull << 48)
-#define CA_DEBUG_MSEL6_SHFT		48
+#define CA_DE_MSEL6			(0x7ull << 48)
+#define CA_DE_MSEL6_SHFT		48
 	/* bit 51 unused */
-#define CA_DEBUG_NSEL6			(0x7ull << 52)
-#define CA_DEBUG_NSEL6_SHFT		52
+#define CA_DE_NSEL6			(0x7ull << 52)
+#define CA_DE_NSEL6_SHFT		52
 	/* bit 55 unused */
-#define CA_DEBUG_MSEL7			(0x7ull << 56)
-#define CA_DEBUG_MSEL7_SHFT		56
+#define CA_DE_MSEL7			(0x7ull << 56)
+#define CA_DE_MSEL7_SHFT		56
 	/* bit 59 unused */
-#define CA_DEBUG_NSEL7			(0x7ull << 60)
-#define CA_DEBUG_NSEL7_SHFT		60
+#define CA_DE_NSEL7			(0x7ull << 60)
+#define CA_DE_NSEL7_SHFT		60
 	/* bit 63 unused */
 
 
-/* ==== ca_debug_domain_sel */
-#define CA_DEBUG_DOMAIN_L		(1ull << 0)
-#define CA_DEBUG_DOMAIN_H		(1ull << 1)
+/* ==== ca_de_domain_sel */
+#define CA_DE_DOMAIN_L		(1ull << 0)
+#define CA_DE_DOMAIN_H		(1ull << 1)
 	/* bits 63:2 unused */
 
 /* ==== ca_gart_ptr_table */

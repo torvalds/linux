@@ -490,7 +490,7 @@ Direct support in Jackd
 Jack supports big endian devices only in recent versions (thanks to
 Andreas Steinmetz for his first big-endian patch). I can't remember 
 exactly when this support was released into jackd, let's just say that
-with jackd version 0.103.0 it's almost ok (just a small bug is affecting 
+with jackd version 0.103.0 it's almost ok (just a small  is affecting 
 16bits Big-Endian devices, but since you've read carefully the above
 paragraphs, you're now using kernel >= 2.6.23 and your 16bits devices 
 are now Little Endians ;-) ).

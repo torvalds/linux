@@ -1,5 +1,5 @@
 /*
- * Kernel Debug Core
+ * Kernel De Core
  *
  * Maintainer: Jason Wessel <jason.wessel@windriver.com>
  *
@@ -37,7 +37,7 @@
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/unaligned.h>
-#include "debug_core.h"
+#include "de_core.h"
 
 #define KGDB_MAX_THREAD_QUERY 17
 
@@ -473,7 +473,7 @@ static inline int shadow_pid(int realpid)
 /*
  * All the functions that start with gdb_cmd are the various
  * operations to implement the handlers for the gdbserial protocol
- * where KGDB is communicating with an external debugger
+ * where KGDB is communicating with an external deger
  */
 
 /* Handle the '?' status packets */
@@ -494,15 +494,15 @@ static void gdb_cmd_status(struct kgdb_state *ks)
 static void gdb_get_regs_helper(struct kgdb_state *ks)
 {
 	struct task_struct *thread;
-	void *local_debuggerinfo;
+	void *local_degerinfo;
 	int i;
 
 	thread = kgdb_usethread;
 	if (!thread) {
 		thread = kgdb_info[ks->cpu].task;
-		local_debuggerinfo = kgdb_info[ks->cpu].debuggerinfo;
+		local_degerinfo = kgdb_info[ks->cpu].degerinfo;
 	} else {
-		local_debuggerinfo = NULL;
+		local_degerinfo = NULL;
 		for_each_online_cpu(i) {
 			/*
 			 * Try to find the task on some other
@@ -511,17 +511,17 @@ static void gdb_get_regs_helper(struct kgdb_state *ks)
 			 * to approximate the results.
 			 */
 			if (thread == kgdb_info[i].task)
-				local_debuggerinfo = kgdb_info[i].debuggerinfo;
+				local_degerinfo = kgdb_info[i].degerinfo;
 		}
 	}
 
 	/*
-	 * All threads that don't have debuggerinfo should be
+	 * All threads that don't have degerinfo should be
 	 * in schedule() sleeping, since all other CPUs
-	 * are in kgdb_wait, and thus have debuggerinfo.
+	 * are in kgdb_wait, and thus have degerinfo.
 	 */
-	if (local_debuggerinfo) {
-		pt_regs_to_gdb_regs(gdb_regs, local_debuggerinfo);
+	if (local_degerinfo) {
+		pt_regs_to_gdb_regs(gdb_regs, local_degerinfo);
 	} else {
 		/*
 		 * Pull stuff saved during switch_to; nothing
@@ -666,7 +666,7 @@ static void gdb_cmd_detachkill(struct kgdb_state *ks)
 	} else {
 		/*
 		 * Assume the kill case, with no exit code checking,
-		 * trying to force detach the debugger:
+		 * trying to force detach the deger:
 		 */
 		dbg_remove_all_break();
 		kgdb_connected = 0;
@@ -1005,8 +1005,8 @@ int gdb_serial_stub(struct kgdb_state *ks)
 			/* kill or detach. KGDB should treat this like a
 			 * continue.
 			 */
-		case 'D': /* Debugger detach */
-		case 'k': /* Debugger detach via kill */
+		case 'D': /* Deger detach */
+		case 'k': /* Deger detach via kill */
 			gdb_cmd_detachkill(ks);
 			goto default_handle;
 		case 'R': /* Reboot */

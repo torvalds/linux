@@ -261,9 +261,9 @@ static int snd_ymfpci_voice_alloc(struct snd_ymfpci *chip,
 	unsigned long flags;
 	int result;
 	
-	if (snd_BUG_ON(!rvoice))
+	if (snd__ON(!rvoice))
 		return -EINVAL;
-	if (snd_BUG_ON(pair && type != YMFPCI_PCM))
+	if (snd__ON(pair && type != YMFPCI_PCM))
 		return -EINVAL;
 	
 	spin_lock_irqsave(&chip->voice_lock, flags);
@@ -282,7 +282,7 @@ static int snd_ymfpci_voice_free(struct snd_ymfpci *chip, struct snd_ymfpci_voic
 {
 	unsigned long flags;
 	
-	if (snd_BUG_ON(!pvoice))
+	if (snd__ON(!pvoice))
 		return -EINVAL;
 	snd_ymfpci_hw_stop(chip);
 	spin_lock_irqsave(&chip->voice_lock, flags);
@@ -509,7 +509,7 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 	u8 use_left, use_right;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!voice))
+	if (snd__ON(!voice))
 		return;
 	if (runtime->channels == 1) {
 		use_left = 1;
@@ -1842,7 +1842,7 @@ int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 	}
 
 	/* add S/PDIF control */
-	if (snd_BUG_ON(!chip->pcm_spdif))
+	if (snd__ON(!chip->pcm_spdif))
 		return -ENXIO;
 	if ((err = snd_ctl_add(chip->card, kctl = snd_ctl_new1(&snd_ymfpci_spdif_default, chip))) < 0)
 		return err;
@@ -2170,7 +2170,7 @@ static int snd_ymfpci_memalloc(struct snd_ymfpci *chip)
 	chip->work_base = ptr;
 	chip->work_base_addr = ptr_addr;
 	
-	snd_BUG_ON(ptr + chip->work_size !=
+	snd__ON(ptr + chip->work_size !=
 		   chip->work_ptr.area + chip->work_ptr.bytes);
 
 	snd_ymfpci_writel(chip, YDSXGR_PLAYCTRLBASE, chip->bank_base_playback_addr);
@@ -2206,7 +2206,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 {
 	u16 ctrl;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return -EINVAL;
 
 	if (chip->res_reg_area) {	/* don't touch busy hardware */
@@ -2229,7 +2229,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	/* Set PCI device to D3 state */
 #if 0
 	/* FIXME: temporarily disabled, otherwise we cannot fire up
-	 * the chip again unless reboot.  ACPI bug?
+	 * the chip again unless reboot.  ACPI ?
 	 */
 	pci_set_power_state(chip->pci, PCI_D3hot);
 #endif

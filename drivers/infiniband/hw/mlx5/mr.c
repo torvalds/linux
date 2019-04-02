@@ -33,7 +33,7 @@
 
 #include <linux/kref.h>
 #include <linux/random.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <rdma/ib_umem.h>
@@ -598,35 +598,35 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 	}
 }
 
-static void mlx5_mr_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_mr_cache_defs_cleanup(struct mlx5_ib_dev *dev)
 {
-	if (!mlx5_debugfs_root || dev->rep)
+	if (!mlx5_defs_root || dev->rep)
 		return;
 
-	debugfs_remove_recursive(dev->cache.root);
+	defs_remove_recursive(dev->cache.root);
 	dev->cache.root = NULL;
 }
 
-static void mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
+static void mlx5_mr_cache_defs_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent;
 	struct dentry *dir;
 	int i;
 
-	if (!mlx5_debugfs_root || dev->rep)
+	if (!mlx5_defs_root || dev->rep)
 		return;
 
-	cache->root = debugfs_create_dir("mr_cache", dev->mdev->priv.dbg_root);
+	cache->root = defs_create_dir("mr_cache", dev->mdev->priv.dbg_root);
 
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
 		ent = &cache->ent[i];
 		sprintf(ent->name, "%d", ent->order);
-		dir = debugfs_create_dir(ent->name, cache->root);
-		debugfs_create_file("size", 0600, dir, ent, &size_fops);
-		debugfs_create_file("limit", 0600, dir, ent, &limit_fops);
-		debugfs_create_u32("cur", 0400, dir, &ent->cur);
-		debugfs_create_u32("miss", 0600, dir, &ent->miss);
+		dir = defs_create_dir(ent->name, cache->root);
+		defs_create_file("size", 0600, dir, ent, &size_fops);
+		defs_create_file("limit", 0600, dir, ent, &limit_fops);
+		defs_create_u32("cur", 0400, dir, &ent->cur);
+		defs_create_u32("miss", 0600, dir, &ent->miss);
 	}
 }
 
@@ -685,7 +685,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		queue_work(cache->wq, &ent->work);
 	}
 
-	mlx5_mr_cache_debugfs_init(dev);
+	mlx5_mr_cache_defs_init(dev);
 
 	return 0;
 }
@@ -700,7 +700,7 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 	dev->cache.stopped = 1;
 	flush_workqueue(dev->cache.wq);
 
-	mlx5_mr_cache_debugfs_cleanup(dev);
+	mlx5_mr_cache_defs_cleanup(dev);
 	mlx5_cmd_cleanup_async_ctx(&dev->async_ctx);
 
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++)

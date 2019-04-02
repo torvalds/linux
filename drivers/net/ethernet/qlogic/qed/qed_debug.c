@@ -426,7 +426,7 @@ struct split_type_defs {
 
 #define STALL_DELAY_MS			500
 
-#define STATIC_DEBUG_LINE_DWORDS	9
+#define STATIC_DE_LINE_DWORDS	9
 
 #define NUM_COMMON_GLOBAL_PARAMS	8
 
@@ -462,7 +462,7 @@ struct dbg_array {
 	u32 size_in_dwords;
 };
 
-/* Debug arrays */
+/* De arrays */
 static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {NULL} };
 
 /* Chip constant definitions array */
@@ -1779,7 +1779,7 @@ static void qed_dbg_grc_init_params(struct qed_hwfn *p_hwfn)
 	}
 }
 
-/* Initializes debug data for the specified device */
+/* Initializes de data for the specified device */
 static enum dbg_status qed_dbg_dev_init(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt)
 {
@@ -2003,7 +2003,7 @@ static u32 qed_dump_fw_ver_param(struct qed_hwfn *p_hwfn,
 			     fw_info.ver.num.minor, fw_info.ver.num.rev,
 			     fw_info.ver.num.eng) < 0)
 			DP_NOTICE(p_hwfn,
-				  "Unexpected debug error: invalid FW version string\n");
+				  "Unexpected de error: invalid FW version string\n");
 		switch (fw_info.ver.image_id) {
 		case FW_IMG_MAIN:
 			strcpy(fw_img_str, "main");
@@ -2041,7 +2041,7 @@ static u32 qed_dump_mfw_ver_param(struct qed_hwfn *p_hwfn,
 		u32 public_data_addr, global_section_offsize_addr;
 
 		/* Find MCP public data GRC address. Needs to be ORed with
-		 * MCP_REG_SCRATCH due to a HW bug.
+		 * MCP_REG_SCRATCH due to a HW .
 		 */
 		public_data_addr = qed_rd(p_hwfn,
 					  p_ptt,
@@ -2069,7 +2069,7 @@ static u32 qed_dump_mfw_ver_param(struct qed_hwfn *p_hwfn,
 			     (u8)(mfw_ver >> 24), (u8)(mfw_ver >> 16),
 			     (u8)(mfw_ver >> 8), (u8)mfw_ver) < 0)
 			DP_NOTICE(p_hwfn,
-				  "Unexpected debug error: invalid MFW version string\n");
+				  "Unexpected de error: invalid MFW version string\n");
 	}
 
 	return qed_dump_str_param(dump_buf, dump, "mfw-version", mfw_ver_str);
@@ -2168,14 +2168,14 @@ static void qed_update_blocks_reset_state(struct qed_hwfn *p_hwfn,
 	}
 }
 
-/* Enable / disable the Debug block */
+/* Enable / disable the De block */
 static void qed_bus_enable_dbg_block(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt, bool enable)
 {
 	qed_wr(p_hwfn, p_ptt, DBG_REG_DBG_BLOCK_ON, enable ? 1 : 0);
 }
 
-/* Resets the Debug block */
+/* Resets the De block */
 static void qed_bus_reset_dbg_block(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt)
 {
@@ -2198,7 +2198,7 @@ static void qed_bus_set_framing_mode(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, DBG_REG_FRAMING_MODE, (u8)mode);
 }
 
-/* Enable / disable Debug Bus clients according to the specified mask
+/* Enable / disable De Bus clients according to the specified mask
  * (1 = enable, 0 = disable).
  */
 static void qed_bus_enable_clients(struct qed_hwfn *p_hwfn,
@@ -2507,7 +2507,7 @@ static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 	if (dev_data->num_regs_read >=
 	    s_platform_defs[dev_data->platform_id].log_thresh) {
 		DP_VERBOSE(p_hwfn,
-			   QED_MSG_DEBUG,
+			   QED_MSG_DE,
 			   "Dumping %d registers...\n",
 			   dev_data->num_regs_read);
 		dev_data->num_regs_read = 0;
@@ -2541,7 +2541,7 @@ static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 			return len;
 		dev_data->use_dmae = 0;
 		DP_VERBOSE(p_hwfn,
-			   QED_MSG_DEBUG,
+			   QED_MSG_DE,
 			   "Failed reading from chip using DMAE, using GRC instead\n");
 	}
 
@@ -2986,7 +2986,7 @@ static u32 qed_grc_dump_modified_regs(struct qed_hwfn *p_hwfn,
 	return offset;
 }
 
-/* Dumps registers that can't be represented in the debug arrays */
+/* Dumps registers that can't be represented in the de arrays */
 static u32 qed_grc_dump_special_regs(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     u32 *dump_buf, bool dump)
@@ -2997,26 +2997,26 @@ static u32 qed_grc_dump_special_regs(struct qed_hwfn *p_hwfn,
 					dump, 2, SPLIT_TYPE_NONE, 0,
 					NULL, NULL);
 
-	/* Dump R/TDIF_REG_DEBUG_ERROR_INFO_SIZE (every 8'th register should be
+	/* Dump R/TDIF_REG_DE_ERROR_INFO_SIZE (every 8'th register should be
 	 * skipped).
 	 */
-	addr = BYTES_TO_DWORDS(RDIF_REG_DEBUG_ERROR_INFO);
+	addr = BYTES_TO_DWORDS(RDIF_REG_DE_ERROR_INFO);
 	offset += qed_grc_dump_reg_entry_skip(p_hwfn,
 					      p_ptt,
 					      dump_buf + offset,
 					      dump,
 					      addr,
-					      RDIF_REG_DEBUG_ERROR_INFO_SIZE,
+					      RDIF_REG_DE_ERROR_INFO_SIZE,
 					      7,
 					      1);
-	addr = BYTES_TO_DWORDS(TDIF_REG_DEBUG_ERROR_INFO);
+	addr = BYTES_TO_DWORDS(TDIF_REG_DE_ERROR_INFO);
 	offset +=
 	    qed_grc_dump_reg_entry_skip(p_hwfn,
 					p_ptt,
 					dump_buf + offset,
 					dump,
 					addr,
-					TDIF_REG_DEBUG_ERROR_INFO_SIZE,
+					TDIF_REG_DE_ERROR_INFO_SIZE,
 					7,
 					1);
 
@@ -3818,7 +3818,7 @@ static u32 qed_grc_dump_phy(struct qed_hwfn *p_hwfn,
 		if (snprintf(mem_name, sizeof(mem_name), "tbus_%s",
 			     phy_defs->phy_name) < 0)
 			DP_NOTICE(p_hwfn,
-				  "Unexpected debug error: invalid PHY memory name\n");
+				  "Unexpected de error: invalid PHY memory name\n");
 
 		offset += qed_grc_dump_mem_hdr(p_hwfn,
 					       dump_buf + offset,
@@ -3874,20 +3874,20 @@ static void qed_config_dbg_line(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, block->dbg_force_frame_addr, force_frame_mask);
 }
 
-/* Dumps Static Debug data. Returns the dumped size in dwords. */
-static u32 qed_grc_dump_static_debug(struct qed_hwfn *p_hwfn,
+/* Dumps Static De data. Returns the dumped size in dwords. */
+static u32 qed_grc_dump_static_de(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     u32 *dump_buf, bool dump)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	u32 block_id, line_id, offset = 0;
 
-	/* Don't dump static debug if a debug bus recording is in progress */
+	/* Don't dump static de if a de bus recording is in progress */
 	if (dump && qed_rd(p_hwfn, p_ptt, DBG_REG_DBG_BLOCK_ON))
 		return 0;
 
 	if (dump) {
-		/* Disable all blocks debug output */
+		/* Disable all blocks de output */
 		for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 			struct block_defs *block = s_block_defs[block_id];
 
@@ -3901,12 +3901,12 @@ static u32 qed_grc_dump_static_debug(struct qed_hwfn *p_hwfn,
 		qed_bus_set_framing_mode(p_hwfn,
 					 p_ptt, DBG_BUS_FRAME_MODE_8HW_0ST);
 		qed_wr(p_hwfn,
-		       p_ptt, DBG_REG_DEBUG_TARGET, DBG_BUS_TARGET_ID_INT_BUF);
+		       p_ptt, DBG_REG_DE_TARGET, DBG_BUS_TARGET_ID_INT_BUF);
 		qed_wr(p_hwfn, p_ptt, DBG_REG_FULL_MODE, 1);
 		qed_bus_enable_dbg_block(p_hwfn, p_ptt, true);
 	}
 
-	/* Dump all static debug lines for each relevant block */
+	/* Dump all static de lines for each relevant block */
 	for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
 		struct block_defs *block = s_block_defs[block_id];
 		struct dbg_bus_block *block_desc;
@@ -3920,7 +3920,7 @@ static u32 qed_grc_dump_static_debug(struct qed_hwfn *p_hwfn,
 		block_desc = get_dbg_bus_block_desc(p_hwfn,
 						    (enum block_id)block_id);
 		block_dwords = NUM_DBG_LINES(block_desc) *
-			       STATIC_DEBUG_LINE_DWORDS;
+			       STATIC_DE_LINE_DWORDS;
 
 		/* Dump static section params */
 		offset += qed_grc_dump_mem_hdr(p_hwfn,
@@ -3951,16 +3951,16 @@ static u32 qed_grc_dump_static_debug(struct qed_hwfn *p_hwfn,
 				       BIT(dbg_client_id));
 
 		addr = BYTES_TO_DWORDS(DBG_REG_CALENDAR_OUT_DATA);
-		len = STATIC_DEBUG_LINE_DWORDS;
+		len = STATIC_DE_LINE_DWORDS;
 		for (line_id = 0; line_id < (u32)NUM_DBG_LINES(block_desc);
 		     line_id++) {
-			/* Configure debug line ID */
+			/* Configure de line ID */
 			qed_config_dbg_line(p_hwfn,
 					    p_ptt,
 					    (enum block_id)block_id,
 					    (u8)line_id, 0xf, 0, 0, 0);
 
-			/* Read debug line info */
+			/* Read de line info */
 			offset += qed_grc_dump_addr_range(p_hwfn,
 							  p_ptt,
 							  dump_buf + offset,
@@ -3971,7 +3971,7 @@ static u32 qed_grc_dump_static_debug(struct qed_hwfn *p_hwfn,
 							  0);
 		}
 
-		/* Disable block's client and debug output */
+		/* Disable block's client and de output */
 		qed_bus_enable_clients(p_hwfn, p_ptt, 0);
 		qed_wr(p_hwfn, p_ptt, block->dbg_enable_addr, 0);
 	}
@@ -4125,11 +4125,11 @@ static enum dbg_status qed_grc_dump(struct qed_hwfn *p_hwfn,
 		offset += qed_grc_dump_phy(p_hwfn,
 					   p_ptt, dump_buf + offset, dump);
 
-	/* Dump static debug data (only if not during debug bus recording) */
+	/* Dump static de data (only if not during de bus recording) */
 	if (qed_grc_is_included(p_hwfn,
 				DBG_GRC_PARAM_DUMP_STATIC) &&
 	    (!dump || dev_data->bus.state == DBG_BUS_STATE_IDLE))
-		offset += qed_grc_dump_static_debug(p_hwfn,
+		offset += qed_grc_dump_static_de(p_hwfn,
 						    p_ptt,
 						    dump_buf + offset, dump);
 
@@ -4531,7 +4531,7 @@ static enum dbg_status qed_find_nvram_image(struct qed_hwfn *p_hwfn,
 	*nvram_size_bytes = file_att.len;
 
 	DP_VERBOSE(p_hwfn,
-		   QED_MSG_DEBUG,
+		   QED_MSG_DE,
 		   "find_nvram_image: found NVRAM image of type %d in NVRAM offset %d bytes with size %d bytes\n",
 		   image_type, *nvram_offset_bytes, *nvram_size_bytes);
 
@@ -4553,7 +4553,7 @@ static enum dbg_status qed_nvram_read(struct qed_hwfn *p_hwfn,
 	u32 read_offset = 0;
 
 	DP_VERBOSE(p_hwfn,
-		   QED_MSG_DEBUG,
+		   QED_MSG_DE,
 		   "nvram_read: reading image of size %d bytes from NVRAM\n",
 		   nvram_size_bytes);
 
@@ -5089,7 +5089,7 @@ enum dbg_status qed_dbg_set_bin_ptr(const u8 * const bin_ptr)
 	struct bin_buffer_hdr *buf_array = (struct bin_buffer_hdr *)bin_ptr;
 	u8 buf_id;
 
-	/* convert binary data to debug arrays */
+	/* convert binary data to de arrays */
 	for (buf_id = 0; buf_id < MAX_BIN_DBG_BUFFER_TYPE; buf_id++) {
 		s_dbg_arrays[buf_id].ptr =
 		    (u32 *)(bin_ptr + buf_array[buf_id].offset);
@@ -5694,7 +5694,7 @@ struct mcp_trace_meta {
 	bool is_allocated;
 };
 
-/* Debug Tools user data */
+/* De Tools user data */
 struct dbg_tools_user_data {
 	struct mcp_trace_meta mcp_trace_meta;
 	const u32 *mcp_trace_user_meta_buf;
@@ -5721,7 +5721,7 @@ struct user_dbg_array {
 	u32 size_in_dwords;
 };
 
-/* Debug arrays */
+/* De arrays */
 static struct user_dbg_array
 s_user_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {NULL} };
 
@@ -5823,19 +5823,19 @@ static const char * const s_status_str[] = {
 	"Operation completed successfully",
 
 	/* DBG_STATUS_APP_VERSION_NOT_SET */
-	"Debug application version wasn't set",
+	"De application version wasn't set",
 
 	/* DBG_STATUS_UNSUPPORTED_APP_VERSION */
-	"Unsupported debug application version",
+	"Unsupported de application version",
 
 	/* DBG_STATUS_DBG_BLOCK_NOT_RESET */
-	"The debug block wasn't reset since the last recording",
+	"The de block wasn't reset since the last recording",
 
 	/* DBG_STATUS_INVALID_ARGS */
 	"Invalid arguments",
 
 	/* DBG_STATUS_OUTPUT_ALREADY_SET */
-	"The debug output was already set",
+	"The de output was already set",
 
 	/* DBG_STATUS_INVALID_PCI_BUF_SIZE */
 	"Invalid PCI buffer size",
@@ -5850,7 +5850,7 @@ static const char * const s_status_str[] = {
 	"Too many inputs were enabled. Enabled less inputs, or set 'unifyInputs' to true",
 
 	/* DBG_STATUS_INPUT_OVERLAP */
-	"Overlapping debug bus inputs",
+	"Overlapping de bus inputs",
 
 	/* DBG_STATUS_HW_ONLY_RECORDING */
 	"Cannot record Storm data since the entire recording cycle is used by HW",
@@ -5946,7 +5946,7 @@ static const char * const s_status_str[] = {
 	"Failed to resume MCP after halt",
 
 	/* DBG_STATUS_RESERVED2 */
-	"Reserved debug status - shouldn't be returned",
+	"Reserved de status - shouldn't be returned",
 
 	/* DBG_STATUS_SEMI_FIFO_NOT_EMPTY */
 	"Failed to empty SEMI sync FIFO",
@@ -5967,19 +5967,19 @@ static const char * const s_status_str[] = {
 	"Protection Override data is corrupt",
 
 	/* DBG_STATUS_DBG_ARRAY_NOT_SET */
-	"Debug arrays were not set (when using binary files, dbg_set_bin_ptr must be called)",
+	"De arrays were not set (when using binary files, dbg_set_bin_ptr must be called)",
 
-	/* DBG_STATUS_FILTER_BUG */
-	"Debug Bus filtering requires the -unifyInputs option (due to a HW bug)",
+	/* DBG_STATUS_FILTER_ */
+	"De Bus filtering requires the -unifyInputs option (due to a HW )",
 
 	/* DBG_STATUS_NON_MATCHING_LINES */
-	"Non-matching debug lines - all lines must be of the same type (either 128b or 256b)",
+	"Non-matching de lines - all lines must be of the same type (either 128b or 256b)",
 
 	/* DBG_STATUS_INVALID_TRIGGER_DWORD_OFFSET */
 	"The selected trigger dword offset wasn't enabled in the recorded HW block",
 
 	/* DBG_STATUS_DBG_BUS_IN_USE */
-	"The debug bus is in use"
+	"The de bus is in use"
 };
 
 /* Idle check severity names array */
@@ -5993,7 +5993,7 @@ static const char * const s_idle_chk_severity_str[] = {
 static const char * const s_mcp_trace_level_str[] = {
 	"ERROR",
 	"TRACE",
-	"DEBUG"
+	"DE"
 };
 
 /* Access type names array */
@@ -6555,7 +6555,7 @@ static enum dbg_status qed_parse_idle_chk_dump(u32 *dump_buf,
 
 /* Allocates and fills MCP Trace meta data based on the specified meta data
  * dump buffer.
- * Returns debug status code.
+ * Returns de status code.
  */
 static enum dbg_status
 qed_mcp_trace_alloc_meta_data(struct qed_hwfn *p_hwfn,
@@ -7334,7 +7334,7 @@ enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr)
 	struct bin_buffer_hdr *buf_array = (struct bin_buffer_hdr *)bin_ptr;
 	u8 buf_id;
 
-	/* Convert binary data to debug arrays */
+	/* Convert binary data to de arrays */
 	for (buf_id = 0; buf_id < MAX_BIN_DBG_BUFFER_TYPE; buf_id++) {
 		s_user_dbg_arrays[buf_id].ptr =
 			(u32 *)(bin_ptr + buf_array[buf_id].offset);
@@ -7358,7 +7358,7 @@ enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn)
 const char *qed_dbg_get_status_str(enum dbg_status status)
 {
 	return (status <
-		MAX_DBG_STATUS) ? s_status_str[status] : "Invalid debug status";
+		MAX_DBG_STATUS) ? s_status_str[status] : "Invalid de status";
 }
 
 enum dbg_status qed_get_idle_chk_results_buf_size(struct qed_hwfn *p_hwfn,
@@ -7710,7 +7710,7 @@ static void qed_dbg_print_feature(u8 *p_text_buf, u32 text_size)
 }
 
 #define QED_RESULTS_BUF_MIN_SIZE 16
-/* Generic function for decoding debug feature info */
+/* Generic function for decoding de feature info */
 static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 				      enum qed_dbg_features feature_idx)
 {
@@ -7777,7 +7777,7 @@ static enum dbg_status format_feature(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-/* Generic function for performing the dump of a debug feature. */
+/* Generic function for performing the dump of a de feature. */
 static enum dbg_status qed_dbg_dump(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt,
 				    enum qed_dbg_features feature_idx)
@@ -7787,7 +7787,7 @@ static enum dbg_status qed_dbg_dump(struct qed_hwfn *p_hwfn,
 	u32 buf_size_dwords;
 	enum dbg_status rc;
 
-	DP_NOTICE(p_hwfn->cdev, "Collecting a debug feature [\"%s\"]\n",
+	DP_NOTICE(p_hwfn->cdev, "Collecting a de feature [\"%s\"]\n",
 		  qed_features_lookup[feature_idx].name);
 
 	/* Dump_buf was already allocated need to free (this can happen if dump
@@ -7897,7 +7897,7 @@ static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
 			     enum qed_nvm_images image_id)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->dbg_params.engine_for_de];
 	u32 len_rounded, i;
 	__be32 val;
 	int rc;
@@ -7908,7 +7908,7 @@ static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
 		return rc;
 
 	DP_NOTICE(p_hwfn->cdev,
-		  "Collecting a debug feature [\"nvram image %d\"]\n",
+		  "Collecting a de feature [\"nvram image %d\"]\n",
 		  image_id);
 
 	len_rounded = roundup(len_rounded, sizeof(u32));
@@ -7964,14 +7964,14 @@ int qed_dbg_mcp_trace_size(struct qed_dev *cdev)
 	return qed_dbg_feature_size(cdev, DBG_FEATURE_MCP_TRACE);
 }
 
-/* Defines the amount of bytes allocated for recording the length of debugfs
+/* Defines the amount of bytes allocated for recording the length of defs
  * feature buffer.
  */
 #define REGDUMP_HEADER_SIZE			sizeof(u32)
 #define REGDUMP_HEADER_FEATURE_SHIFT		24
 #define REGDUMP_HEADER_ENGINE_SHIFT		31
 #define REGDUMP_HEADER_OMIT_ENGINE_SHIFT	30
-enum debug_print_features {
+enum de_print_features {
 	OLD_MODE = 0,
 	IDLE_CHK = 1,
 	GRC_DUMP = 2,
@@ -7986,7 +7986,7 @@ enum debug_print_features {
 	NVM_META = 11,
 };
 
-static u32 qed_calc_regdump_header(enum debug_print_features feature,
+static u32 qed_calc_regdump_header(enum de_print_features feature,
 				   int engine, u32 feature_size, u8 omit_engine)
 {
 	/* Insert the engine, feature and mode inside the header and combine it
@@ -8006,12 +8006,12 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 	if (cdev->num_hwfns == 1)
 		omit_engine = 1;
 
-	org_engine = qed_get_debug_engine(cdev);
+	org_engine = qed_get_de_engine(cdev);
 	for (cur_engine = 0; cur_engine < cdev->num_hwfns; cur_engine++) {
 		/* Collect idle_chks and grcDump for each hw function */
-		DP_VERBOSE(cdev, QED_MSG_DEBUG,
+		DP_VERBOSE(cdev, QED_MSG_DE,
 			   "obtaining idle_chk and grcdump for current engine\n");
-		qed_set_debug_engine(cdev, cur_engine);
+		qed_set_de_engine(cdev, cur_engine);
 
 		/* First idle_chk */
 		rc = qed_dbg_idle_chk(cdev, (u8 *)buffer + offset +
@@ -8105,7 +8105,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		}
 	}
 
-	qed_set_debug_engine(cdev, org_engine);
+	qed_set_de_engine(cdev, org_engine);
 	/* mcp_trace */
 	rc = qed_dbg_mcp_trace(cdev, (u8 *)buffer + offset +
 			       REGDUMP_HEADER_SIZE, &feature_size);
@@ -8170,16 +8170,16 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 int qed_dbg_all_data_size(struct qed_dev *cdev)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->dbg_params.engine_for_de];
 	u32 regs_len = 0, image_len = 0;
 	u8 cur_engine, org_engine;
 
-	org_engine = qed_get_debug_engine(cdev);
+	org_engine = qed_get_de_engine(cdev);
 	for (cur_engine = 0; cur_engine < cdev->num_hwfns; cur_engine++) {
 		/* Engine specific */
-		DP_VERBOSE(cdev, QED_MSG_DEBUG,
+		DP_VERBOSE(cdev, QED_MSG_DE,
 			   "calculating idle_chk and grcdump register length for current engine\n");
-		qed_set_debug_engine(cdev, cur_engine);
+		qed_set_de_engine(cdev, cur_engine);
 		regs_len += REGDUMP_HEADER_SIZE + qed_dbg_idle_chk_size(cdev) +
 			    REGDUMP_HEADER_SIZE + qed_dbg_idle_chk_size(cdev) +
 			    REGDUMP_HEADER_SIZE + qed_dbg_grc_size(cdev) +
@@ -8190,7 +8190,7 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 			    REGDUMP_HEADER_SIZE + qed_dbg_fw_asserts_size(cdev);
 	}
 
-	qed_set_debug_engine(cdev, org_engine);
+	qed_set_de_engine(cdev, org_engine);
 
 	/* Engine common */
 	regs_len += REGDUMP_HEADER_SIZE + qed_dbg_mcp_trace_size(cdev);
@@ -8211,7 +8211,7 @@ int qed_dbg_feature(struct qed_dev *cdev, void *buffer,
 		    enum qed_dbg_features feature, u32 *num_dumped_bytes)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->dbg_params.engine_for_de];
 	struct qed_dbg_feature *qed_feature =
 		&cdev->dbg_params.features[feature];
 	enum dbg_status dbg_rc;
@@ -8226,15 +8226,15 @@ int qed_dbg_feature(struct qed_dev *cdev, void *buffer,
 	/* Get dump */
 	dbg_rc = qed_dbg_dump(p_hwfn, p_ptt, feature);
 	if (dbg_rc != DBG_STATUS_OK) {
-		DP_VERBOSE(cdev, QED_MSG_DEBUG, "%s\n",
+		DP_VERBOSE(cdev, QED_MSG_DE, "%s\n",
 			   qed_dbg_get_status_str(dbg_rc));
 		*num_dumped_bytes = 0;
 		rc = -EINVAL;
 		goto out;
 	}
 
-	DP_VERBOSE(cdev, QED_MSG_DEBUG,
-		   "copying debugfs feature to external buffer\n");
+	DP_VERBOSE(cdev, QED_MSG_DE,
+		   "copying defs feature to external buffer\n");
 	memcpy(buffer, qed_feature->dump_buf, qed_feature->buf_size);
 	*num_dumped_bytes = cdev->dbg_params.features[feature].dumped_dwords *
 			    4;
@@ -8247,7 +8247,7 @@ out:
 int qed_dbg_feature_size(struct qed_dev *cdev, enum qed_dbg_features feature)
 {
 	struct qed_hwfn *p_hwfn =
-		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+		&cdev->hwfns[cdev->dbg_params.engine_for_de];
 	struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
 	struct qed_dbg_feature *qed_feature =
 		&cdev->dbg_params.features[feature];
@@ -8267,23 +8267,23 @@ int qed_dbg_feature_size(struct qed_dev *cdev, enum qed_dbg_features feature)
 	return qed_feature->buf_size;
 }
 
-u8 qed_get_debug_engine(struct qed_dev *cdev)
+u8 qed_get_de_engine(struct qed_dev *cdev)
 {
-	return cdev->dbg_params.engine_for_debug;
+	return cdev->dbg_params.engine_for_de;
 }
 
-void qed_set_debug_engine(struct qed_dev *cdev, int engine_number)
+void qed_set_de_engine(struct qed_dev *cdev, int engine_number)
 {
-	DP_VERBOSE(cdev, QED_MSG_DEBUG, "set debug engine to %d\n",
+	DP_VERBOSE(cdev, QED_MSG_DE, "set de engine to %d\n",
 		   engine_number);
-	cdev->dbg_params.engine_for_debug = engine_number;
+	cdev->dbg_params.engine_for_de = engine_number;
 }
 
 void qed_dbg_pf_init(struct qed_dev *cdev)
 {
 	const u8 *dbg_values;
 
-	/* Debug values are after init values.
+	/* De values are after init values.
 	 * The offset is the first dword of the file.
 	 */
 	dbg_values = cdev->firmware->data + *(u32 *)cdev->firmware->data;
@@ -8296,7 +8296,7 @@ void qed_dbg_pf_exit(struct qed_dev *cdev)
 	struct qed_dbg_feature *feature = NULL;
 	enum qed_dbg_features feature_idx;
 
-	/* Debug features' buffers may be allocated if debug feature was used
+	/* De features' buffers may be allocated if de feature was used
 	 * but dump wasn't called.
 	 */
 	for (feature_idx = 0; feature_idx < DBG_FEATURE_NUM; feature_idx++) {

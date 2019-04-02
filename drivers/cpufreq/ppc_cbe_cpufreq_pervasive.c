@@ -56,7 +56,7 @@ int cbe_cpufreq_set_pmode(int cpu, unsigned int pmode)
 	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
 	unsigned long flags;
 	u64 value;
-#ifdef DEBUG
+#ifdef DE
 	long time;
 #endif
 
@@ -65,7 +65,7 @@ int cbe_cpufreq_set_pmode(int cpu, unsigned int pmode)
 	mic_tm_regs = cbe_get_cpu_mic_tm_regs(cpu);
 	pmd_regs = cbe_get_cpu_pmd_regs(cpu);
 
-#ifdef DEBUG
+#ifdef DE
 	time = jiffies;
 #endif
 
@@ -83,7 +83,7 @@ int cbe_cpufreq_set_pmode(int cpu, unsigned int pmode)
 
 	out_be64(&pmd_regs->pmcr, value);
 
-#ifdef DEBUG
+#ifdef DE
 	/* wait until new pmode appears in status register */
 	value = in_be64(&pmd_regs->pmsr) & 0x07;
 	while (value != pmode) {
@@ -93,7 +93,7 @@ int cbe_cpufreq_set_pmode(int cpu, unsigned int pmode)
 
 	time = jiffies  - time;
 	time = jiffies_to_msecs(time);
-	pr_debug("had to wait %lu ms for a transition using " \
+	pr_de("had to wait %lu ms for a transition using " \
 		 "pervasive unit\n", time);
 #endif
 	local_irq_restore(flags);

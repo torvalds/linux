@@ -24,7 +24,7 @@
 
 /*
  * HW_breakpoint: a unified kernel/user-space hardware breakpoint facility,
- * using the CPU's debug registers.
+ * using the CPU's de registers.
  */
 
 #include <linux/perf_event.h>
@@ -34,7 +34,7 @@
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/percpu.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/sched.h>
@@ -42,15 +42,15 @@
 
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/user.h>
 
-/* Per cpu debug control register value */
+/* Per cpu de control register value */
 DEFINE_PER_CPU(unsigned long, cpu_dr7);
 EXPORT_PER_CPU_SYMBOL(cpu_dr7);
 
-/* Per cpu debug address registers values */
-static DEFINE_PER_CPU(unsigned long, cpu_debugreg[HBP_NUM]);
+/* Per cpu de address registers values */
+static DEFINE_PER_CPU(unsigned long, cpu_dereg[HBP_NUM]);
 
 /*
  * Stores the breakpoints currently in use on each breakpoint address
@@ -73,7 +73,7 @@ __encode_dr7(int drnum, unsigned int len, unsigned int type)
 
 /*
  * Encode the length, type, Exact, and Enable bits for a particular breakpoint
- * as stored in debug register 7.
+ * as stored in de register 7.
  */
 unsigned long encode_dr7(int drnum, unsigned int len, unsigned int type)
 {
@@ -82,7 +82,7 @@ unsigned long encode_dr7(int drnum, unsigned int len, unsigned int type)
 
 /*
  * Decode the length and type bits for a particular breakpoint as
- * stored in debug register 7.  Return the "enabled" status.
+ * stored in de register 7.  Return the "enabled" status.
  */
 int decode_dr7(unsigned long dr7, int bpnum, unsigned *len, unsigned *type)
 {
@@ -97,8 +97,8 @@ int decode_dr7(unsigned long dr7, int bpnum, unsigned *len, unsigned *type)
 /*
  * Install a perf counter breakpoint.
  *
- * We seek a free debug address register and use it for this
- * breakpoint. Eventually we enable it in the debug control register.
+ * We seek a free de address register and use it for this
+ * breakpoint. Eventually we enable it in the de control register.
  *
  * Atomic: we hold the counter->ctx->lock and we only handle variables
  * and registers local to this cpu.
@@ -121,13 +121,13 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	if (WARN_ONCE(i == HBP_NUM, "Can't find any breakpoint slot"))
 		return -EBUSY;
 
-	set_debugreg(info->address, i);
-	__this_cpu_write(cpu_debugreg[i], info->address);
+	set_dereg(info->address, i);
+	__this_cpu_write(cpu_dereg[i], info->address);
 
 	dr7 = this_cpu_ptr(&cpu_dr7);
 	*dr7 |= encode_dr7(i, info->len, info->type);
 
-	set_debugreg(*dr7, 7);
+	set_dereg(*dr7, 7);
 	if (info->mask)
 		set_dr_addr_mask(info->mask, i);
 
@@ -137,7 +137,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 /*
  * Uninstall the breakpoint contained in the given counter.
  *
- * First we search the debug address register it uses and then we disable
+ * First we search the de address register it uses and then we disable
  * it.
  *
  * Atomic: we hold the counter->ctx->lock and we only handle variables
@@ -164,7 +164,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	dr7 = this_cpu_ptr(&cpu_dr7);
 	*dr7 &= ~__encode_dr7(i, info->len, info->type);
 
-	set_debugreg(*dr7, 7);
+	set_dereg(*dr7, 7);
 	if (info->mask)
 		set_dr_addr_mask(0, i);
 }
@@ -368,14 +368,14 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 }
 
 /*
- * Dump the debug register contents to the user.
+ * Dump the de register contents to the user.
  * We can't dump our per cpu values because it
  * may contain cpu wide breakpoint, something that
  * doesn't belong to the current task.
  *
  * TODO: include non-ptrace user breakpoints (perf)
  */
-void aout_dump_debugregs(struct user *dump)
+void aout_dump_deregs(struct user *dump)
 {
 	int i;
 	int dr7 = 0;
@@ -387,21 +387,21 @@ void aout_dump_debugregs(struct user *dump)
 		bp = thread->ptrace_bps[i];
 
 		if (bp && !bp->attr.disabled) {
-			dump->u_debugreg[i] = bp->attr.bp_addr;
+			dump->u_dereg[i] = bp->attr.bp_addr;
 			info = counter_arch_bp(bp);
 			dr7 |= encode_dr7(i, info->len, info->type);
 		} else {
-			dump->u_debugreg[i] = 0;
+			dump->u_dereg[i] = 0;
 		}
 	}
 
-	dump->u_debugreg[4] = 0;
-	dump->u_debugreg[5] = 0;
-	dump->u_debugreg[6] = current->thread.debugreg6;
+	dump->u_dereg[4] = 0;
+	dump->u_dereg[5] = 0;
+	dump->u_dereg[6] = current->thread.dereg6;
 
-	dump->u_debugreg[7] = dr7;
+	dump->u_dereg[7] = dr7;
 }
-EXPORT_SYMBOL_GPL(aout_dump_debugregs);
+EXPORT_SYMBOL_GPL(aout_dump_deregs);
 
 /*
  * Release the user breakpoints used by ptrace
@@ -416,33 +416,33 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 		t->ptrace_bps[i] = NULL;
 	}
 
-	t->debugreg6 = 0;
+	t->dereg6 = 0;
 	t->ptrace_dr7 = 0;
 }
 
 void hw_breakpoint_restore(void)
 {
-	set_debugreg(__this_cpu_read(cpu_debugreg[0]), 0);
-	set_debugreg(__this_cpu_read(cpu_debugreg[1]), 1);
-	set_debugreg(__this_cpu_read(cpu_debugreg[2]), 2);
-	set_debugreg(__this_cpu_read(cpu_debugreg[3]), 3);
-	set_debugreg(current->thread.debugreg6, 6);
-	set_debugreg(__this_cpu_read(cpu_dr7), 7);
+	set_dereg(__this_cpu_read(cpu_dereg[0]), 0);
+	set_dereg(__this_cpu_read(cpu_dereg[1]), 1);
+	set_dereg(__this_cpu_read(cpu_dereg[2]), 2);
+	set_dereg(__this_cpu_read(cpu_dereg[3]), 3);
+	set_dereg(current->thread.dereg6, 6);
+	set_dereg(__this_cpu_read(cpu_dr7), 7);
 }
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
 
 /*
- * Handle debug exception notifications.
+ * Handle de exception notifications.
  *
  * Return value is either NOTIFY_STOP or NOTIFY_DONE as explained below.
  *
  * NOTIFY_DONE returned if one of the following conditions is true.
  * i) When the causative address is from user-space and the exception
- * is a valid one, i.e. not triggered as a result of lazy debug register
+ * is a valid one, i.e. not triggered as a result of lazy de register
  * switching
  * ii) When there are more bits than trap<n> set in DR6 register (such
- * as BD, BS or BT) indicating that more than one debug condition is
- * met and requires some more action in do_debug().
+ * as BD, BS or BT) indicating that more than one de condition is
+ * met and requires some more action in do_de().
  *
  * NOTIFY_STOP returned for all other cases
  *
@@ -466,15 +466,15 @@ static int hw_breakpoint_handler(struct die_args *args)
 	if ((dr6 & DR_TRAP_BITS) == 0)
 		return NOTIFY_DONE;
 
-	get_debugreg(dr7, 7);
+	get_dereg(dr7, 7);
 	/* Disable breakpoints during exception handling */
-	set_debugreg(0UL, 7);
+	set_dereg(0UL, 7);
 	/*
 	 * Assert that local interrupts are disabled
 	 * Reset the DRn bits in the virtualized register value.
 	 * The ptrace trigger routine will add in whatever is needed.
 	 */
-	current->thread.debugreg6 &= ~DR_TRAP_BITS;
+	current->thread.dereg6 &= ~DR_TRAP_BITS;
 	cpu = get_cpu();
 
 	/* Handle all the breakpoints that were triggered */
@@ -497,7 +497,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 		 */
 		(*dr6_p) &= ~(DR_TRAP0 << i);
 		/*
-		 * bp can be NULL due to lazy debug register switching
+		 * bp can be NULL due to lazy de register switching
 		 * or due to concurrent perf counter removing.
 		 */
 		if (!bp) {
@@ -517,27 +517,27 @@ static int hw_breakpoint_handler(struct die_args *args)
 		rcu_read_unlock();
 	}
 	/*
-	 * Further processing in do_debug() is needed for a) user-space
+	 * Further processing in do_de() is needed for a) user-space
 	 * breakpoints (to generate signals) and b) when the system has
 	 * taken exception due to multiple causes
 	 */
-	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
+	if ((current->thread.dereg6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
 
-	set_debugreg(dr7, 7);
+	set_dereg(dr7, 7);
 	put_cpu();
 
 	return rc;
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle de exception notifications.
  */
 int hw_breakpoint_exceptions_notify(
 		struct notifier_block *unused, unsigned long val, void *data)
 {
-	if (val != DIE_DEBUG)
+	if (val != DIE_DE)
 		return NOTIFY_DONE;
 
 	return hw_breakpoint_handler(data);

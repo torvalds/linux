@@ -554,8 +554,8 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_s_hw_freq_seek)(struct file *file, void *fh,
 				     const struct v4l2_hw_freq_seek *a);
 
-	/* Debugging ioctls */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* Deging ioctls */
+#ifdef CONFIG_VIDEO_ADV_DE
 	int (*vidioc_g_register)(struct file *file, void *fh,
 				 struct v4l2_dbg_register *reg);
 	int (*vidioc_s_register)(struct file *file, void *fh,
@@ -598,20 +598,20 @@ struct v4l2_ioctl_ops {
 };
 
 
-/* v4l debugging and diagnostics */
+/* v4l deging and diagnostics */
 
-/* Device debug flags to be used with the video device debug attribute */
+/* Device de flags to be used with the video device de attribute */
 
 /* Just log the ioctl name + error code */
-#define V4L2_DEV_DEBUG_IOCTL		0x01
+#define V4L2_DEV_DE_IOCTL		0x01
 /* Log the ioctl name arguments + error code */
-#define V4L2_DEV_DEBUG_IOCTL_ARG	0x02
+#define V4L2_DEV_DE_IOCTL_ARG	0x02
 /* Log the file operations open, release, mmap and get_unmapped_area */
-#define V4L2_DEV_DEBUG_FOP		0x04
+#define V4L2_DEV_DE_FOP		0x04
 /* Log the read and write file operations and the VIDIOC_(D)QBUF ioctls */
-#define V4L2_DEV_DEBUG_STREAMING	0x08
+#define V4L2_DEV_DE_STREAMING	0x08
 /* Log poll() */
-#define V4L2_DEV_DEBUG_POLL		0x10
+#define V4L2_DEV_DE_POLL		0x10
 
 /*  Video standard functions  */
 
@@ -672,13 +672,13 @@ int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id);
  * .. note::
  *
  *    If prefix != %NULL, then it will issue a
- *    ``printk(KERN_DEBUG "%s: ", prefix)`` first.
+ *    ``printk(KERN_DE "%s: ", prefix)`` first.
  */
 void v4l_printk_ioctl(const char *prefix, unsigned int cmd);
 
 struct video_device;
 
-/* names for fancy debug output */
+/* names for fancy de output */
 extern const char *v4l2_field_names[];
 extern const char *v4l2_type_names[];
 

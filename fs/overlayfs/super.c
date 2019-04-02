@@ -91,7 +91,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	if (!d_is_reg(dentry)) {
 		if (!inode || inode == d_inode(dentry))
 			return dentry;
-		goto bug;
+		goto ;
 	}
 
 	real = ovl_dentry_upper(dentry);
@@ -103,14 +103,14 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 
 	real = ovl_dentry_lowerdata(dentry);
 	if (!real)
-		goto bug;
+		goto ;
 
 	/* Handle recursion */
 	real = d_real(real, inode);
 
 	if (!inode || inode == d_inode(real))
 		return real;
-bug:
+:
 	WARN(1, "ovl_d_real(%pd4, %s:%lu): real dentry not found\n", dentry,
 	     inode ? inode->i_sb->s_id : "NULL", inode ? inode->i_ino : 0);
 	return dentry;
@@ -1319,7 +1319,7 @@ static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 		 * (i.e. ilog2(numlowerfs+1 - 1) + 1). fsid 0 is reserved for
 		 * upper fs even with non upper overlay.
 		 */
-		BUILD_BUG_ON(ilog2(OVL_MAX_STACK) > 31);
+		BUILD__ON(ilog2(OVL_MAX_STACK) > 31);
 		ofs->xino_bits = ilog2(ofs->numlowerfs) + 1;
 	}
 

@@ -104,7 +104,7 @@ static ssize_t __cstate_##_var##_show(struct kobject *kobj,	\
 				struct kobj_attribute *attr,	\
 				char *page)			\
 {								\
-	BUILD_BUG_ON(sizeof(_format) >= PAGE_SIZE);		\
+	BUILD__ON(sizeof(_format) >= PAGE_SIZE);		\
 	return sprintf(page, _format "\n");			\
 }								\
 static struct kobj_attribute format_attr_##_var =		\

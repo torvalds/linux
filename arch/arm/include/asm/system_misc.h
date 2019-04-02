@@ -36,7 +36,7 @@ static inline void harden_branch_predictor(void)
 #define UDBG_SEGV	(1 << 3)
 #define UDBG_BUS	(1 << 4)
 
-extern unsigned int user_debug;
+extern unsigned int user_de;
 
 #endif /* !__ASSEMBLY__ */
 

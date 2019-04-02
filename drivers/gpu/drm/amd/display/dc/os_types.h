@@ -42,7 +42,7 @@
 
 #undef FRAME_SIZE
 
-#define dm_output_to_console(fmt, ...) DRM_DEBUG_KMS(fmt, ##__VA_ARGS__)
+#define dm_output_to_console(fmt, ...) DRM_DE_KMS(fmt, ##__VA_ARGS__)
 
 #define dm_error(fmt, ...) DRM_ERROR(fmt, ##__VA_ARGS__)
 
@@ -52,7 +52,7 @@
 
 /*
  *
- * general debug capabilities
+ * general de capabilities
  *
  */
 #if defined(CONFIG_HAVE_KGDB) || defined(CONFIG_KGDB)
@@ -69,18 +69,18 @@
 } while (0)
 #endif
 
-#if defined(CONFIG_DEBUG_KERNEL_DC)
+#if defined(CONFIG_DE_KERNEL_DC)
 #define ASSERT(expr) ASSERT_CRITICAL(expr)
 
 #else
 #define ASSERT(expr) WARN_ON(!(expr))
 #endif
 
-#define BREAK_TO_DEBUGGER() ASSERT(0)
+#define BREAK_TO_DEGER() ASSERT(0)
 
 #define DC_ERR(...)  do { \
 	dm_error(__VA_ARGS__); \
-	BREAK_TO_DEBUGGER(); \
+	BREAK_TO_DEGER(); \
 } while (0)
 
 #endif /* _OS_TYPES_H_ */

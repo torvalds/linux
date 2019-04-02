@@ -9,7 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/sched/mm.h>	/* for init_mm */
@@ -208,6 +208,6 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 
 	iowa_bus_count++;
 
-	pr_debug("IOWA:[%d]Add bus, %pOF.\n", iowa_bus_count-1, np);
+	pr_de("IOWA:[%d]Add bus, %pOF.\n", iowa_bus_count-1, np);
 }
 

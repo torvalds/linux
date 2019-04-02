@@ -158,7 +158,7 @@ struct plat_stmmacenet_data {
 	int enh_desc;
 	int tx_coe;
 	int rx_coe;
-	int bugged_jumbo;
+	int ged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
 	int force_thresh_dma_mode;

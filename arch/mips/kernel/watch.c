@@ -23,7 +23,7 @@ void mips_install_watch_registers(struct task_struct *t)
 
 	switch (current_cpu_data.watch_reg_use_cnt) {
 	default:
-		BUG();
+		();
 	case 4:
 		write_c0_watchlo3(watches->watchlo[3]);
 		write_c0_watchhi3(watchhi | watches->watchhi[3]);
@@ -43,7 +43,7 @@ void mips_install_watch_registers(struct task_struct *t)
 }
 
 /*
- * Read back the watchhi registers so the user space debugger has
+ * Read back the watchhi registers so the user space deger has
  * access to the I, R, and W bits.  A maximum of four registers are
  * read although the machine may have more.
  */
@@ -55,7 +55,7 @@ void mips_read_watch_registers(void)
 
 	switch (current_cpu_data.watch_reg_use_cnt) {
 	default:
-		BUG();
+		();
 	case 4:
 		watches->watchhi[3] = (read_c0_watchhi3() & watchhi_mask);
 		/* fall through */
@@ -88,7 +88,7 @@ void mips_clear_watch_registers(void)
 {
 	switch (current_cpu_data.watch_reg_count) {
 	default:
-		BUG();
+		();
 	case 8:
 		write_c0_watchlo7(0);
 		/* fall through */

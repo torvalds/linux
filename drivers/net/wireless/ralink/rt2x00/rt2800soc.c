@@ -229,9 +229,9 @@ static const struct rt2x00_ops rt2800soc_ops = {
 	.lib			= &rt2800soc_rt2x00_ops,
 	.drv			= &rt2800soc_rt2800_ops,
 	.hw			= &rt2800soc_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs		= &rt2800_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#ifdef CONFIG_RT2X00_LIB_DEFS
+	.defs		= &rt2800_rt2x00de,
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 };
 
 static int rt2800soc_probe(struct platform_device *pdev)

@@ -50,9 +50,9 @@ static unsigned int auto_update_freq;
 module_param(auto_update, bool, 0);
 module_param(auto_update_freq, uint, 0644);
 
-#ifdef DEBUG
-bool omapfb_debug;
-module_param_named(debug, omapfb_debug, bool, 0644);
+#ifdef DE
+bool omapfb_de;
+module_param_named(de, omapfb_de, bool, 0644);
 static bool omapfb_test_pattern;
 module_param_named(test, omapfb_test_pattern, bool, 0644);
 #endif
@@ -61,7 +61,7 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi);
 static int omapfb_get_recommended_bpp(struct omapfb2_device *fbdev,
 		struct omap_dss_device *dssdev);
 
-#ifdef DEBUG
+#ifdef DE
 static void draw_pixel(struct fb_info *fbi, int x, int y, unsigned color)
 {
 	struct fb_var_screeninfo *var = &fbi->var;
@@ -177,7 +177,7 @@ static unsigned omapfb_get_vrfb_offset(const struct omapfb_info *ofbi, int rot)
 		offset = vrfb->xoffset * OMAP_VRFB_LINE_LEN;
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 
@@ -944,7 +944,7 @@ int omapfb_apply_changes(struct fb_info *fbi, int init)
 	u16 outw, outh;
 	int i;
 
-#ifdef DEBUG
+#ifdef DE
 	if (omapfb_test_pattern)
 		fill_fb(fbi);
 #endif
@@ -1186,7 +1186,7 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 	return r;
 }
@@ -2156,7 +2156,7 @@ static int omapfb_get_recommended_bpp(struct omapfb2_device *fbdev,
 {
 	struct omapfb_display_data *d;
 
-	BUG_ON(dssdev->driver->get_recommended_bpp == NULL);
+	_ON(dssdev->driver->get_recommended_bpp == NULL);
 
 	d = get_display_data(fbdev, dssdev);
 

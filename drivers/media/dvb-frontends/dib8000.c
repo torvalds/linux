@@ -30,13 +30,13 @@
 #define MAX_NUMBER_OF_FRONTENDS 6
 /* #define DIB8000_AGC_FREEZE */
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "turn on debugging (default: 0)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "turn on deging (default: 0)");
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 

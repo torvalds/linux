@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/signal.h>

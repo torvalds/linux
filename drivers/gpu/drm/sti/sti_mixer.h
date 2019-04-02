@@ -53,7 +53,7 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable);
 
-int sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor);
+int sti_mixer_defs_init(struct sti_mixer *mixer, struct drm_minor *minor);
 
 /* depth in Cross-bar control = z order */
 #define GAM_MIXER_NB_DEPTH_LEVEL 6

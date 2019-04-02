@@ -294,7 +294,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
 	}
 
-	/* We also try and read from IO memory to work round the above detection bug. If
+	/* We also try and read from IO memory to work round the above detection . If
 	 * there is no CAM, we will get a timeout. Only done if there is no cam
 	 * present, since this test actually breaks some cams :(
 	 *

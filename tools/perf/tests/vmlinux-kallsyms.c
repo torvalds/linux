@@ -7,7 +7,7 @@
 #include "symbol.h"
 #include "util.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "machine.h"
 
 #define UM(x) kallsyms_map->unmap_ip(kallsyms_map, (x))
@@ -40,7 +40,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 * and find the .ko files that match them in /lib/modules/`uname -r`/.
 	 */
 	if (machine__create_kernel_maps(&kallsyms) < 0) {
-		pr_debug("machine__create_kernel_maps ");
+		pr_de("machine__create_kernel_maps ");
 		goto out;
 	}
 
@@ -56,7 +56,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 * code and with the one got from /proc/modules from the "kallsyms" code.
 	 */
 	if (machine__load_kallsyms(&kallsyms, "/proc/kallsyms") <= 0) {
-		pr_debug("dso__load_kallsyms ");
+		pr_de("dso__load_kallsyms ");
 		goto out;
 	}
 
@@ -76,7 +76,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 * Now repeat step 2, this time for the vmlinux file we'll auto-locate.
 	 */
 	if (machine__create_kernel_maps(&vmlinux) < 0) {
-		pr_debug("machine__create_kernel_maps ");
+		pr_de("machine__create_kernel_maps ");
 		goto out;
 	}
 
@@ -94,7 +94,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 * to fixup the symbols.
 	 */
 	if (machine__load_vmlinux_path(&vmlinux) <= 0) {
-		pr_debug("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
+		pr_de("Couldn't find a vmlinux that matches the kernel running on this machine, skipping test\n");
 		err = TEST_SKIP;
 		goto out;
 	}
@@ -135,7 +135,7 @@ next_pair:
 				 */
 				s64 skew = mem_end - UM(pair->end);
 				if (llabs(skew) >= page_size)
-					pr_debug("WARN: %#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
+					pr_de("WARN: %#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
 						 mem_start, sym->name, mem_end,
 						 UM(pair->end));
 
@@ -152,17 +152,17 @@ next_pair:
 					if (UM(pair->start) == mem_start)
 						goto next_pair;
 
-					pr_debug("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
+					pr_de("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, pair->name);
 				} else {
-					pr_debug("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
+					pr_de("WARN: %#" PRIx64 ": diff name v: %s k: %s\n",
 						 mem_start, sym->name, first_pair->name);
 				}
 
 				continue;
 			}
 		} else
-			pr_debug("ERR : %#" PRIx64 ": %s not on kallsyms\n",
+			pr_de("ERR : %#" PRIx64 ": %s not on kallsyms\n",
 				 mem_start, sym->name);
 
 		err = -1;

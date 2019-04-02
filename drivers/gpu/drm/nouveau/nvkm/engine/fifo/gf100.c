@@ -565,7 +565,7 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	/* Determine number of PBDMAs by checking valid enable bits. */
 	nvkm_wr32(device, 0x002204, 0xffffffff);
 	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x002204));
-	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
+	nvkm_de(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,

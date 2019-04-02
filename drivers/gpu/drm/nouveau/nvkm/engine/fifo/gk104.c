@@ -85,7 +85,7 @@ gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 		status->chan = &status->prev;
 	}
 
-	nvkm_debug(subdev, "engine %02d: busy %d faulted %d chsw %d "
+	nvkm_de(subdev, "engine %02d: busy %d faulted %d chsw %d "
 			   "save %d load %d %sid %d%s-> %sid %d%s\n",
 		   engn, status->busy, status->faulted,
 		   status->chsw, status->save, status->load,
@@ -936,7 +936,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	u32 *map;
 
 	fifo->pbdma_nr = fifo->func->pbdma->nr(fifo);
-	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
+	nvkm_de(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
 	/* Read PBDMA->runlist(s) mapping from HW. */
 	if (!(map = kcalloc(fifo->pbdma_nr, sizeof(*map), GFP_KERNEL)))
@@ -956,7 +956,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 			}
 		}
 
-		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
+		nvkm_de(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
 			   engn, runl, pbid, nvkm_subdev_name[engidx]);
 
 		fifo->engine[engn].engine = nvkm_device_engine(device, engidx);

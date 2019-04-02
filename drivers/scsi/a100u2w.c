@@ -866,7 +866,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 	count_sg = scsi_dma_map(cmd);
 	if (count_sg < 0)
 		return count_sg;
-	BUG_ON(count_sg > TOTAL_SG_ENTRY);
+	_ON(count_sg > TOTAL_SG_ENTRY);
 
 	/* Build the scatter gather lists */
 	if (count_sg) {
@@ -1031,7 +1031,7 @@ static void inia100_scb_handler(struct orc_host *host, struct orc_scb *scb)
 	case 0x16:		/* Invalid CCB Operation Code-The first byte of the CCB was invalid. */
 
 	default:
-		printk(KERN_DEBUG "inia100: %x %x\n", scb->hastat, scb->tastat);
+		printk(KERN_DE "inia100: %x %x\n", scb->hastat, scb->tastat);
 		scb->hastat = DID_ERROR;	/* Couldn't find any better */
 		break;
 	}

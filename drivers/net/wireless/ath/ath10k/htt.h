@@ -8,7 +8,7 @@
 #ifndef _HTT_H_
 #define _HTT_H_
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/dmapool.h>
 #include <linux/hashtable.h>

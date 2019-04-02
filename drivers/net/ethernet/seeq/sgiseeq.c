@@ -4,7 +4,7 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
@@ -237,7 +237,7 @@ static void seeq_purge_ring(struct net_device *dev)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DE
 static struct sgiseeq_private *gpriv;
 static struct net_device *gdev;
 
@@ -756,7 +756,7 @@ static int sgiseeq_probe(struct platform_device *pdev)
 
 	memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 
-#ifdef DEBUG
+#ifdef DE
 	gpriv = sp;
 	gdev = dev;
 #endif

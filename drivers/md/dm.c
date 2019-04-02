@@ -116,7 +116,7 @@ struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size)
 	struct dm_io *io = (struct dm_io *)((char *)data + data_size);
 	if (io->magic == DM_IO_MAGIC)
 		return (struct bio *)((char *)io + offsetof(struct dm_io, tio) + offsetof(struct dm_target_io, clone));
-	BUG_ON(io->magic != DM_TIO_MAGIC);
+	_ON(io->magic != DM_TIO_MAGIC);
 	return (struct bio *)((char *)io + offsetof(struct dm_target_io, clone));
 }
 EXPORT_SYMBOL_GPL(dm_bio_from_per_bio_data);
@@ -748,7 +748,7 @@ static int open_table_device(struct table_device *td, dev_t dev,
 
 	int r;
 
-	BUG_ON(td->dm_dev.bdev);
+	_ON(td->dm_dev.bdev);
 
 	bdev = blkdev_get_by_dev(dev, td->dm_dev.mode | FMODE_EXCL, _dm_claim_ptr);
 	if (IS_ERR(bdev))
@@ -991,7 +991,7 @@ static void clone_endio(struct bio *bio)
 			return;
 		default:
 			DMWARN("unimplemented target endio return value: %d", r);
-			BUG();
+			();
 		}
 	}
 
@@ -1181,9 +1181,9 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 {
 	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
 	unsigned bi_size = bio->bi_iter.bi_size >> SECTOR_SHIFT;
-	BUG_ON(bio->bi_opf & REQ_PREFLUSH);
-	BUG_ON(bi_size > *tio->len_ptr);
-	BUG_ON(n_sectors > bi_size);
+	_ON(bio->bi_opf & REQ_PREFLUSH);
+	_ON(bi_size > *tio->len_ptr);
+	_ON(n_sectors > bi_size);
 	*tio->len_ptr -= bi_size - n_sectors;
 	bio->bi_iter.bi_size = n_sectors << SECTOR_SHIFT;
 }
@@ -1280,7 +1280,7 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
 		break;
 	default:
 		DMWARN("unimplemented target map return value: %d", r);
-		BUG();
+		();
 	}
 
 	return ret;
@@ -1410,7 +1410,7 @@ static int __send_empty_flush(struct clone_info *ci)
 	 */
 	bio_set_dev(ci->bio, ci->io->md->bdev);
 
-	BUG_ON(bio_has_data(ci->bio));
+	_ON(bio_has_data(ci->bio));
 	while ((ti = dm_table_get_target(ci->map, target_nr++)))
 		__send_duplicate_bios(ci, ti, ti->num_flush_bios, NULL);
 
@@ -1989,7 +1989,7 @@ static struct mapped_device *alloc_dev(int minor)
 	old_md = idr_replace(&_minor_idr, md, minor);
 	spin_unlock(&_minor_lock);
 
-	BUG_ON(old_md != MINOR_ALLOCED);
+	_ON(old_md != MINOR_ALLOCED);
 
 	return md;
 
@@ -2048,7 +2048,7 @@ static int __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		goto out;
 	}
 
-	BUG_ON(!p ||
+	_ON(!p ||
 	       bioset_initialized(&md->bs) ||
 	       bioset_initialized(&md->io_bs));
 
@@ -2215,7 +2215,7 @@ void dm_unlock_md_type(struct mapped_device *md)
 
 void dm_set_md_type(struct mapped_device *md, enum dm_queue_mode type)
 {
-	BUG_ON(!mutex_is_locked(&md->type_lock));
+	_ON(!mutex_is_locked(&md->type_lock));
 	md->type = type;
 }
 
@@ -2235,7 +2235,7 @@ struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
  */
 struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
 {
-	BUG_ON(!atomic_read(&md->holders));
+	_ON(!atomic_read(&md->holders));
 	return &md->queue->limits;
 }
 EXPORT_SYMBOL_GPL(dm_get_queue_limits);
@@ -2316,7 +2316,7 @@ void dm_set_mdptr(struct mapped_device *md, void *ptr)
 void dm_get(struct mapped_device *md)
 {
 	atomic_inc(&md->holders);
-	BUG_ON(test_bit(DMF_FREEING, &md->flags));
+	_ON(test_bit(DMF_FREEING, &md->flags));
 }
 
 int dm_hold(struct mapped_device *md)
@@ -2562,7 +2562,7 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	if (noflush)
 		set_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
 	else
-		pr_debug("%s: suspending with flush\n", dm_device_name(md));
+		pr_de("%s: suspending with flush\n", dm_device_name(md));
 
 	/*
 	 * This gets reverted if there's an error later and the targets
@@ -2784,7 +2784,7 @@ static void __dm_internal_suspend(struct mapped_device *md, unsigned suspend_fla
 
 static void __dm_internal_resume(struct mapped_device *md)
 {
-	BUG_ON(!md->internal_suspend_count);
+	_ON(!md->internal_suspend_count);
 
 	if (--md->internal_suspend_count)
 		return; /* resume from nested internal suspend */
@@ -2985,7 +2985,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 		/* per_io_data_size is used for blk-mq pdu at queue allocation */
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	ret = bioset_init(&pools->bs, pool_size, front_pad, 0);

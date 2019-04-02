@@ -71,10 +71,10 @@ static inline int REGISTER_FLD_WAIT(struct drm_device *dev, u32 reg,
 
 #define MDFLD_DSI_BRIGHTNESS_MAX_LEVEL 100
 
-#ifdef DEBUG
+#ifdef DE
 #define CHECK_PIPE(pipe) ({			\
 	const typeof(pipe) __pipe = (pipe);	\
-	BUG_ON(__pipe != 0 && __pipe != 2);	\
+	_ON(__pipe != 0 && __pipe != 2);	\
 	__pipe;	})
 #else
 #define CHECK_PIPE(pipe) (pipe)

@@ -132,7 +132,7 @@ static int proc_fit_show(struct seq_file *m, void *v)
 	int index;
 
 	for (index=0;;index++) {
-		BUG_ON(index * 60 > PAGE_SIZE);
+		_ON(index * 60 > PAGE_SIZE);
 		if (get_fit_entry(nasid, index, fentry, NULL, 0))
 			break;
 		dump_fit_entry(m, fentry);

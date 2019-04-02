@@ -17,7 +17,7 @@
 #include "dpu_formats.h"
 #include "dpu_trace.h"
 
-#define DPU_DEBUG_VIDENC(e, fmt, ...) DPU_DEBUG("enc%d intf%d " fmt, \
+#define DPU_DE_VIDENC(e, fmt, ...) DPU_DE("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
 		(e)->base.parent->base.id : -1, \
 		(e) && (e)->hw_intf ? \
@@ -155,26 +155,26 @@ static u32 programmable_fetch_get_num_lines(
 
 	/* Fetch must be outside active lines, otherwise undefined. */
 	if (start_of_frame_lines >= worst_case_needed_lines) {
-		DPU_DEBUG_VIDENC(vid_enc,
+		DPU_DE_VIDENC(vid_enc,
 				"prog fetch is not needed, large vbp+vsw\n");
 		actual_vfp_lines = 0;
 	} else if (timing->v_front_porch < needed_vfp_lines) {
 		/* Warn fetch needed, but not enough porch in panel config */
 		pr_warn_once
 			("low vbp+vfp may lead to perf issues in some cases\n");
-		DPU_DEBUG_VIDENC(vid_enc,
+		DPU_DE_VIDENC(vid_enc,
 				"less vfp than fetch req, using entire vfp\n");
 		actual_vfp_lines = timing->v_front_porch;
 	} else {
-		DPU_DEBUG_VIDENC(vid_enc, "room in vfp for needed prefetch\n");
+		DPU_DE_VIDENC(vid_enc, "room in vfp for needed prefetch\n");
 		actual_vfp_lines = needed_vfp_lines;
 	}
 
-	DPU_DEBUG_VIDENC(vid_enc,
+	DPU_DE_VIDENC(vid_enc,
 		"v_front_porch %u v_back_porch %u vsync_pulse_width %u\n",
 		timing->v_front_porch, timing->v_back_porch,
 		timing->vsync_pulse_width);
-	DPU_DEBUG_VIDENC(vid_enc,
+	DPU_DE_VIDENC(vid_enc,
 		"wc_lines %u needed_vfp_lines %u actual_vfp_lines %u\n",
 		worst_case_needed_lines, needed_vfp_lines, actual_vfp_lines);
 
@@ -216,7 +216,7 @@ static void programmable_fetch_config(struct dpu_encoder_phys *phys_enc,
 		f.fetch_start = vfp_fetch_start_vsync_counter;
 	}
 
-	DPU_DEBUG_VIDENC(vid_enc,
+	DPU_DE_VIDENC(vid_enc,
 		"vfp_fetch_lines %u vfp_fetch_start_vsync_counter %u\n",
 		vfp_fetch_lines, vfp_fetch_start_vsync_counter);
 
@@ -231,7 +231,7 @@ static bool dpu_encoder_phys_vid_mode_fixup(
 		struct drm_display_mode *adj_mode)
 {
 	if (phys_enc)
-		DPU_DEBUG_VIDENC(to_dpu_encoder_phys_vid(phys_enc), "\n");
+		DPU_DE_VIDENC(to_dpu_encoder_phys_vid(phys_enc), "\n");
 
 	/*
 	 * Modifying mode has consequences when the mode comes back to us
@@ -262,8 +262,8 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 		return;
 	}
 
-	DPU_DEBUG_VIDENC(vid_enc, "enabling mode:\n");
-	drm_mode_debug_printmodeline(&mode);
+	DPU_DE_VIDENC(vid_enc, "enabling mode:\n");
+	drm_mode_de_printmodeline(&mode);
 
 	if (phys_enc->split_role != ENC_ROLE_SOLO) {
 		mode.hdisplay >>= 1;
@@ -271,7 +271,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 		mode.hsync_start >>= 1;
 		mode.hsync_end >>= 1;
 
-		DPU_DEBUG_VIDENC(vid_enc,
+		DPU_DE_VIDENC(vid_enc,
 			"split_role %d, halve horizontal %d %d %d %d\n",
 			phys_enc->split_role,
 			mode.hdisplay, mode.htotal,
@@ -281,7 +281,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	drm_mode_to_intf_timing_params(vid_enc, &mode, &timing_params);
 
 	fmt = dpu_get_dpu_format(fmt_fourcc);
-	DPU_DEBUG_VIDENC(vid_enc, "fmt_fourcc 0x%X\n", fmt_fourcc);
+	DPU_DE_VIDENC(vid_enc, "fmt_fourcc 0x%X\n", fmt_fourcc);
 
 	intf_cfg.intf = vid_enc->hw_intf->idx;
 	intf_cfg.intf_mode_sel = DPU_CTL_MODE_SEL_VID;
@@ -407,8 +407,8 @@ static void dpu_encoder_phys_vid_mode_set(
 
 	if (adj_mode) {
 		phys_enc->cached_mode = *adj_mode;
-		drm_mode_debug_printmodeline(adj_mode);
-		DPU_DEBUG_VIDENC(vid_enc, "caching mode:\n");
+		drm_mode_de_printmodeline(adj_mode);
+		DPU_DE_VIDENC(vid_enc, "caching mode:\n");
 	}
 
 	_dpu_encoder_phys_vid_setup_irq_hw_idx(phys_enc);
@@ -440,7 +440,7 @@ static int dpu_encoder_phys_vid_control_vblank_irq(
 		goto end;
 	}
 
-	DRM_DEBUG_KMS("id:%u enable=%d/%d\n", DRMID(phys_enc->parent), enable,
+	DRM_DE_KMS("id:%u enable=%d/%d\n", DRMID(phys_enc->parent), enable,
 		      atomic_read(&phys_enc->vblank_refcount));
 
 	if (enable && atomic_inc_return(&phys_enc->vblank_refcount) == 1)
@@ -492,7 +492,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 		return;
 	}
 
-	DPU_DEBUG_VIDENC(vid_enc, "\n");
+	DPU_DE_VIDENC(vid_enc, "\n");
 
 	if (WARN_ON(!vid_enc->hw_intf->ops.enable_timing))
 		return;
@@ -514,7 +514,7 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 	ctl->ops.update_pending_flush(ctl, flush_mask);
 
 skip_flush:
-	DPU_DEBUG_VIDENC(vid_enc, "update pending flush ctl %d flush_mask %x\n",
+	DPU_DE_VIDENC(vid_enc, "update pending flush ctl %d flush_mask %x\n",
 		ctl->idx - CTL_0, flush_mask);
 
 	/* ctl_flush & timing engine enable will be triggered by framework */
@@ -532,7 +532,7 @@ static void dpu_encoder_phys_vid_destroy(struct dpu_encoder_phys *phys_enc)
 	}
 
 	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-	DPU_DEBUG_VIDENC(vid_enc, "\n");
+	DPU_DE_VIDENC(vid_enc, "\n");
 	kfree(vid_enc);
 }
 
@@ -636,7 +636,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 		return;
 	}
 
-	DPU_DEBUG_VIDENC(vid_enc, "\n");
+	DPU_DE_VIDENC(vid_enc, "\n");
 
 	if (WARN_ON(!vid_enc->hw_intf->ops.enable_timing))
 		return;
@@ -685,7 +685,7 @@ static void dpu_encoder_phys_vid_handle_post_kickoff(
 	}
 
 	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
-	DPU_DEBUG_VIDENC(vid_enc, "enable_state %d\n", phys_enc->enable_state);
+	DPU_DE_VIDENC(vid_enc, "enable_state %d\n", phys_enc->enable_state);
 
 	/*
 	 * Video mode must flush CTL before enabling timing engine
@@ -791,7 +791,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
 	phys_enc->intf_idx = p->intf_idx;
 
-	DPU_DEBUG_VIDENC(vid_enc, "\n");
+	DPU_DE_VIDENC(vid_enc, "\n");
 
 	dpu_encoder_phys_vid_init_ops(&phys_enc->ops);
 	phys_enc->parent = p->parent;
@@ -825,7 +825,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 	init_waitqueue_head(&phys_enc->pending_kickoff_wq);
 	phys_enc->enable_state = DPU_ENC_DISABLED;
 
-	DPU_DEBUG_VIDENC(vid_enc, "created intf idx:%d\n", p->intf_idx);
+	DPU_DE_VIDENC(vid_enc, "created intf idx:%d\n", p->intf_idx);
 
 	return phys_enc;
 

@@ -33,8 +33,8 @@
 #define LCDC_VDCTRL2			0x90
 #define LCDC_VDCTRL3			0xa0
 #define LCDC_VDCTRL4			0xb0
-#define LCDC_V4_DEBUG0			0x1d0
-#define LCDC_V3_DEBUG0			0x1f0
+#define LCDC_V4_DE0			0x1d0
+#define LCDC_V3_DE0			0x1f0
 
 #define CTRL_SFTRST			(1 << 31)
 #define CTRL_CLKGATE			(1 << 30)
@@ -91,8 +91,8 @@
 #define VDCTRL4_SYNC_SIGNALS_ON		(1 << 18)
 #define SET_DOTCLK_H_VALID_DATA_CNT(x)	((x) & 0x3ffff)
 
-#define DEBUG0_HSYNC			(1 < 26)
-#define DEBUG0_VSYNC			(1 < 25)
+#define DE0_HSYNC			(1 < 26)
+#define DE0_VSYNC			(1 < 25)
 
 #define MXSFB_MIN_XRES			120
 #define MXSFB_MIN_YRES			120

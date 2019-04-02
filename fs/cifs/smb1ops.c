@@ -21,7 +21,7 @@
 #include <linux/vfs.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifspdu.h"
 #include "cifs_unicode.h"
 
@@ -90,7 +90,7 @@ static unsigned int
 cifs_read_data_length(char *buf, bool in_remaining)
 {
 	READ_RSP *rsp = (READ_RSP *)buf;
-	/* It's a bug reading remaining data for SMB1 packets */
+	/* It's a  reading remaining data for SMB1 packets */
 	WARN_ON(in_remaining);
 	return (le16_to_cpu(rsp->DataLengthHigh) << 16) +
 	       le16_to_cpu(rsp->DataLength);

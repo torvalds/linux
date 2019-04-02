@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/iio/consumer.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <asm/unaligned.h>
 
@@ -126,7 +126,7 @@ struct axp288_fg_info {
 	struct mutex lock;
 	int status;
 	int max_volt;
-	struct dentry *debug_file;
+	struct dentry *de_file;
 };
 
 static enum power_supply_property fuel_gauge_props[] = {
@@ -215,8 +215,8 @@ static int fuel_gauge_read_12bit_word(struct axp288_fg_info *info, int reg)
 	return (buf[0] << 4) | ((buf[1] >> 4) & 0x0f);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int fuel_gauge_debug_show(struct seq_file *s, void *data)
+#ifdef CONFIG_DE_FS
+static int fuel_gauge_de_show(struct seq_file *s, void *data)
 {
 	struct axp288_fg_info *info = s->private;
 	int raw_val, ret;
@@ -307,23 +307,23 @@ static int fuel_gauge_debug_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(fuel_gauge_debug);
+DEFINE_SHOW_ATTRIBUTE(fuel_gauge_de);
 
-static void fuel_gauge_create_debugfs(struct axp288_fg_info *info)
+static void fuel_gauge_create_defs(struct axp288_fg_info *info)
 {
-	info->debug_file = debugfs_create_file("fuelgauge", 0666, NULL,
-		info, &fuel_gauge_debug_fops);
+	info->de_file = defs_create_file("fuelgauge", 0666, NULL,
+		info, &fuel_gauge_de_fops);
 }
 
-static void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
+static void fuel_gauge_remove_defs(struct axp288_fg_info *info)
 {
-	debugfs_remove(info->debug_file);
+	defs_remove(info->de_file);
 }
 #else
-static inline void fuel_gauge_create_debugfs(struct axp288_fg_info *info)
+static inline void fuel_gauge_create_defs(struct axp288_fg_info *info)
 {
 }
-static inline void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
+static inline void fuel_gauge_remove_defs(struct axp288_fg_info *info)
 {
 }
 #endif
@@ -815,7 +815,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		goto out_free_iio_chan;
 	}
 
-	fuel_gauge_create_debugfs(info);
+	fuel_gauge_create_defs(info);
 	fuel_gauge_init_irq(info);
 
 	return 0;
@@ -840,7 +840,7 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 	int i;
 
 	power_supply_unregister(info->bat);
-	fuel_gauge_remove_debugfs(info);
+	fuel_gauge_remove_defs(info);
 
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++)
 		if (info->irq[i] >= 0)

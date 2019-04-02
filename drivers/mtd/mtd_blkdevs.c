@@ -361,7 +361,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	if (mutex_trylock(&mtd_table_mutex)) {
 		mutex_unlock(&mtd_table_mutex);
-		BUG();
+		();
 	}
 
 	mutex_lock(&blktrans_ref_mutex);
@@ -495,7 +495,7 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 
 	if (mutex_trylock(&mtd_table_mutex)) {
 		mutex_unlock(&mtd_table_mutex);
-		BUG();
+		();
 	}
 
 	if (old->disk_attributes)
@@ -612,7 +612,7 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	unregister_blkdev(tr->major, tr->name);
 	mutex_unlock(&mtd_table_mutex);
 
-	BUG_ON(!list_empty(&tr->devs));
+	_ON(!list_empty(&tr->devs));
 	return 0;
 }
 

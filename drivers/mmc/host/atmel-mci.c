@@ -9,7 +9,7 @@
  */
 #include <linux/blkdev.h>
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -403,8 +403,8 @@ struct atmel_mci_slot {
 	set_bit(event, &host->pending_events)
 
 /*
- * The debugfs stuff below is mostly optimized away when
- * CONFIG_DEBUG_FS is not set.
+ * The defs stuff below is mostly optimized away when
+ * CONFIG_DE_FS is not set.
  */
 static int atmci_req_show(struct seq_file *s, void *v)
 {
@@ -574,39 +574,39 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(atmci_regs);
 
-static void atmci_init_debugfs(struct atmel_mci_slot *slot)
+static void atmci_init_defs(struct atmel_mci_slot *slot)
 {
 	struct mmc_host		*mmc = slot->mmc;
 	struct atmel_mci	*host = slot->host;
 	struct dentry		*root;
 	struct dentry		*node;
 
-	root = mmc->debugfs_root;
+	root = mmc->defs_root;
 	if (!root)
 		return;
 
-	node = debugfs_create_file("regs", S_IRUSR, root, host,
+	node = defs_create_file("regs", S_IRUSR, root, host,
 				   &atmci_regs_fops);
 	if (IS_ERR(node))
 		return;
 	if (!node)
 		goto err;
 
-	node = debugfs_create_file("req", S_IRUSR, root, slot,
+	node = defs_create_file("req", S_IRUSR, root, slot,
 				   &atmci_req_fops);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
+	node = defs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_x32("pending_events", S_IRUSR, root,
+	node = defs_create_x32("pending_events", S_IRUSR, root,
 				     (u32 *)&host->pending_events);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_x32("completed_events", S_IRUSR, root,
+	node = defs_create_x32("completed_events", S_IRUSR, root,
 				     (u32 *)&host->completed_events);
 	if (!node)
 		goto err;
@@ -614,7 +614,7 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 	return;
 
 err:
-	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
+	dev_err(&mmc->class_dev, "failed to initialize defs for slot\n");
 }
 
 #if defined(CONFIG_OF)
@@ -2346,7 +2346,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 		}
 	}
 
-	atmci_init_debugfs(slot);
+	atmci_init_defs(slot);
 
 	return 0;
 }
@@ -2354,7 +2354,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 static void atmci_cleanup_slot(struct atmel_mci_slot *slot,
 		unsigned int id)
 {
-	/* Debugfs stuff is cleaned up by mmc core */
+	/* Defs stuff is cleaned up by mmc core */
 
 	set_bit(ATMCI_SHUTDOWN, &slot->flags);
 	smp_wmb();

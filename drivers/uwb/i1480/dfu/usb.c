@@ -114,7 +114,7 @@ int i1480_usb_write(struct i1480 *i1480, u32 memory_address,
 	struct i1480_usb *i1480_usb = container_of(i1480, struct i1480_usb, i1480);
 	size_t buffer_size, itr = 0;
 
-	BUG_ON(size & 0x3); /* Needs to be a multiple of 4 */
+	_ON(size & 0x3); /* Needs to be a multiple of 4 */
 	while (size > 0) {
 		buffer_size = size < i1480->buf_size ? size : i1480->buf_size;
 		memcpy(i1480->cmd_buf, buffer + itr, buffer_size);
@@ -153,9 +153,9 @@ int i1480_usb_read(struct i1480 *i1480, u32 addr, size_t size)
 	size_t itr, read_size = i1480->buf_size;
 	struct i1480_usb *i1480_usb = container_of(i1480, struct i1480_usb, i1480);
 
-	BUG_ON(size > i1480->buf_size);
-	BUG_ON(size & 0x3); /* Needs to be a multiple of 4 */
-	BUG_ON(read_size > 512);
+	_ON(size > i1480->buf_size);
+	_ON(size & 0x3); /* Needs to be a multiple of 4 */
+	_ON(read_size > 512);
 
 	if (addr >= 0x8000d200 && addr < 0x8000d400)	/* Yeah, HW quirk */
 		read_size = 4;

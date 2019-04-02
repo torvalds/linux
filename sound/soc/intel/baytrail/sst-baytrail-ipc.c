@@ -139,7 +139,7 @@ struct sst_byt_fw_init {
 	struct sst_byt_fw_build_info build_info;
 	u16 result;
 	u8 module_id;
-	u8 debug_info;
+	u8 de_info;
 } __packed;
 
 struct sst_byt_stream;

@@ -100,7 +100,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS, GEN8_PRIVATE_PAT_HI, 0, false}, /* 0x40e4 */
 	{RCS, GEN8_CS_CHICKEN1, 0xffff, true}, /* 0x2580 */
 	{RCS, COMMON_SLICE_CHICKEN2, 0xffff, true}, /* 0x7014 */
-	{RCS, GEN9_CS_DEBUG_MODE1, 0xffff, false}, /* 0x20ec */
+	{RCS, GEN9_CS_DE_MODE1, 0xffff, false}, /* 0x20ec */
 	{RCS, GEN8_L3SQCREG4, 0, false}, /* 0xb118 */
 	{RCS, GEN7_HALF_SLICE_CHICKEN1, 0xffff, true}, /* 0xe100 */
 	{RCS, HALF_SLICE_CHICKEN2, 0xffff, true}, /* 0xe180 */

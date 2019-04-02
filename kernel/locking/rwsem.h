@@ -18,7 +18,7 @@
  * acquires the rwsem. The anonymous bit is set because that particular
  * reader may or may not still own the lock.
  *
- * That information may be helpful in debugging cases where the system
+ * That information may be helpful in deging cases where the system
  * seems to hang on a reader owned rwsem especially if only one reader
  * is involved. Ideally we would like to track all the readers that own
  * a rwsem, but the overhead is simply too big.
@@ -26,10 +26,10 @@
 #define RWSEM_READER_OWNED	(1UL << 0)
 #define RWSEM_ANONYMOUSLY_OWNED	(1UL << 1)
 
-#ifdef CONFIG_DEBUG_RWSEMS
-# define DEBUG_RWSEMS_WARN_ON(c)	DEBUG_LOCKS_WARN_ON(c)
+#ifdef CONFIG_DE_RWSEMS
+# define DE_RWSEMS_WARN_ON(c)	DE_LOCKS_WARN_ON(c)
 #else
-# define DEBUG_RWSEMS_WARN_ON(c)
+# define DE_RWSEMS_WARN_ON(c)
 #endif
 
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
@@ -90,9 +90,9 @@ static inline bool rwsem_has_anonymous_owner(struct task_struct *owner)
 	return (unsigned long)owner & RWSEM_ANONYMOUSLY_OWNED;
 }
 
-#ifdef CONFIG_DEBUG_RWSEMS
+#ifdef CONFIG_DE_RWSEMS
 /*
- * With CONFIG_DEBUG_RWSEMS configured, it will make sure that if there
+ * With CONFIG_DE_RWSEMS configured, it will make sure that if there
  * is a task pointer in owner of a reader-owned rwsem, it will be the
  * real owner or one of the real owners. The only exception is when the
  * unlock is done by up_read_non_owner().

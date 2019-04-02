@@ -299,7 +299,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 			else
 				pg_len = bytes_left;
 		} else {
-			BUG_ON(pg_offset != 0);
+			_ON(pg_offset != 0);
 			pg_len = PAGE_SIZE;
 		}
 

@@ -11,9 +11,9 @@ Tracepoints in ALSA PCM core
 ALSA PCM core registers ``snd_pcm`` subsystem to kernel tracepoint system.
 This subsystem includes two categories of tracepoints; for state of PCM buffer
 and for processing of PCM hardware parameters. These tracepoints are available
-when corresponding kernel configurations are enabled. When ``CONFIG_SND_DEBUG``
+when corresponding kernel configurations are enabled. When ``CONFIG_SND_DE``
 is enabled, the latter tracepoints are available. When additional
-``SND_PCM_XRUN_DEBUG`` is enabled too, the former trace points are enabled.
+``SND_PCM_XRUN_DE`` is enabled too, the former trace points are enabled.
 
 Tracepoints for state of PCM buffer
 ------------------------------------

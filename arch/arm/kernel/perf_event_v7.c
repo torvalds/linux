@@ -677,7 +677,7 @@ static struct attribute_group armv7_pmuv2_events_attr_group = {
 #define ARMV7_PMNC_C		(1 << 2) /* Cycle counter reset */
 #define ARMV7_PMNC_D		(1 << 3) /* CCNT counts every 64th cpu cycle */
 #define ARMV7_PMNC_X		(1 << 4) /* Export to ETM */
-#define ARMV7_PMNC_DP		(1 << 5) /* Disable CCNT if non-invasive debug*/
+#define ARMV7_PMNC_DP		(1 << 5) /* Disable CCNT if non-invasive de*/
 #define	ARMV7_PMNC_N_SHIFT	11	 /* Number of counters supported */
 #define	ARMV7_PMNC_N_MASK	0x1f
 #define	ARMV7_PMNC_MASK		0x3f	 /* Mask for writable bits */
@@ -702,9 +702,9 @@ static struct attribute_group armv7_pmuv2_events_attr_group = {
 #define	ARMV7_INCLUDE_HYP	(1 << 27)
 
 /*
- * Secure debug enable reg
+ * Secure de enable reg
  */
-#define ARMV7_SDER_SUNIDEN	BIT(1) /* Permit non-invasive debug */
+#define ARMV7_SDER_SUNIDEN	BIT(1) /* Permit non-invasive de */
 
 static inline u32 armv7_pmnc_read(void)
 {
@@ -829,7 +829,7 @@ static inline u32 armv7_pmnc_getreset_flags(void)
 	return val;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void armv7_pmnc_dump_regs(struct arm_pmu *cpu_pmu)
 {
 	u32 val;
@@ -1342,7 +1342,7 @@ static u32 krait_read_pmresrn(int n)
 		asm volatile("mrc p15, 1, %0, c9, c15, 2" : "=r" (val));
 		break;
 	default:
-		BUG(); /* Should be validated in krait_pmu_get_event_idx() */
+		(); /* Should be validated in krait_pmu_get_event_idx() */
 	}
 
 	return val;
@@ -1361,7 +1361,7 @@ static void krait_write_pmresrn(int n, u32 val)
 		asm volatile("mcr p15, 1, %0, c9, c15, 2" : : "r" (val));
 		break;
 	default:
-		BUG(); /* Should be validated in krait_pmu_get_event_idx() */
+		(); /* Should be validated in krait_pmu_get_event_idx() */
 	}
 }
 
@@ -1382,7 +1382,7 @@ static void venum_pre_pmresr(u32 *venum_orig_val, u32 *fp_orig_val)
 	u32 venum_new_val;
 	u32 fp_new_val;
 
-	BUG_ON(preemptible());
+	_ON(preemptible());
 	/* CPACR Enable CP10 and CP11 access */
 	*venum_orig_val = get_copro_access();
 	venum_new_val = *venum_orig_val | CPACC_SVC(10) | CPACC_SVC(11);
@@ -1396,7 +1396,7 @@ static void venum_pre_pmresr(u32 *venum_orig_val, u32 *fp_orig_val)
 
 static void venum_post_pmresr(u32 venum_orig_val, u32 fp_orig_val)
 {
-	BUG_ON(preemptible());
+	_ON(preemptible());
 	/* Restore FPEXC */
 	fmxr(FPEXC, fp_orig_val);
 	isb();
@@ -1724,7 +1724,7 @@ static u32 scorpion_read_pmresrn(int n)
 		asm volatile("mrc p15, 3, %0, c15, c2, 0" : "=r" (val));
 		break;
 	default:
-		BUG(); /* Should be validated in scorpion_pmu_get_event_idx() */
+		(); /* Should be validated in scorpion_pmu_get_event_idx() */
 	}
 
 	return val;
@@ -1746,7 +1746,7 @@ static void scorpion_write_pmresrn(int n, u32 val)
 		asm volatile("mcr p15, 3, %0, c15, c2, 0" : : "r" (val));
 		break;
 	default:
-		BUG(); /* Should be validated in scorpion_pmu_get_event_idx() */
+		(); /* Should be validated in scorpion_pmu_get_event_idx() */
 	}
 }
 

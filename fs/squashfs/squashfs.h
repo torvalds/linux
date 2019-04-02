@@ -21,7 +21,7 @@
  * squashfs.h
  */
 
-#define TRACE(s, args...)	pr_debug("SQUASHFS: "s, ## args)
+#define TRACE(s, args...)	pr_de("SQUASHFS: "s, ## args)
 
 #define ERROR(s, args...)	pr_err("SQUASHFS error: "s, ## args)
 

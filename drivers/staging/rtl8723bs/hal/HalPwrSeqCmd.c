@@ -21,7 +21,7 @@ Major Change History:
 
 --*/
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <HalPwrSeqCmd.h>
 
 

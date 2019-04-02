@@ -2,7 +2,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "print_binary.h"
 
 int test__is_printable_array(struct test *test __maybe_unused, int subtest __maybe_unused)

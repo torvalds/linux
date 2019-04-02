@@ -296,7 +296,7 @@
 #define IPR_PCII_IOA_UNIT_CHECKED			(0x80000000 >> 4)
 #define IPR_PCII_NO_HOST_RRQ				(0x80000000 >> 5)
 #define IPR_PCII_CRITICAL_OPERATION			(0x80000000 >> 6)
-#define IPR_PCII_IO_DEBUG_ACKNOWLEDGE		(0x80000000 >> 7)
+#define IPR_PCII_IO_DE_ACKNOWLEDGE		(0x80000000 >> 7)
 #define IPR_PCII_IOARRIN_LOST				(0x80000000 >> 27)
 #define IPR_PCII_MMIO_ERROR				(0x80000000 >> 28)
 #define IPR_PCII_PROC_ERR_STATE			(0x80000000 >> 29)
@@ -311,7 +311,7 @@ IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
 (IPR_PCII_ERROR_INTERRUPTS | IPR_PCII_HRRQ_UPDATED | IPR_PCII_IOA_TRANS_TO_OPER)
 
 #define IPR_UPROCI_RESET_ALERT			(0x80000000 >> 7)
-#define IPR_UPROCI_IO_DEBUG_ALERT			(0x80000000 >> 9)
+#define IPR_UPROCI_IO_DE_ALERT			(0x80000000 >> 9)
 #define IPR_UPROCI_SIS64_START_BIST			(0x80000000 >> 23)
 
 #define IPR_LDUMP_MAX_LONG_ACK_DELAY_IN_USEC		200000	/* 200 ms */
@@ -1512,7 +1512,7 @@ struct ipr_ioa_cfg {
 	u8 log_level;
 #define IPR_MAX_LOG_LEVEL			4
 #define IPR_DEFAULT_LOG_LEVEL		2
-#define IPR_DEBUG_LOG_LEVEL		3
+#define IPR_DE_LOG_LEVEL		3
 
 #define IPR_NUM_TRACE_INDEX_BITS	8
 #define IPR_NUM_TRACE_ENTRIES		(1 << IPR_NUM_TRACE_INDEX_BITS)
@@ -1766,7 +1766,7 @@ struct ipr_ucode_image_header {
 /*
  * Macros
  */
-#define IPR_DBG_CMD(CMD) if (ipr_debug) { CMD; }
+#define IPR_DBG_CMD(CMD) if (ipr_de) { CMD; }
 
 #ifdef CONFIG_SCSI_IPR_TRACE
 #define ipr_create_trace_file(kobj, attr) sysfs_create_bin_file(kobj, attr)

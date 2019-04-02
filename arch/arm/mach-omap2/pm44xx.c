@@ -177,8 +177,8 @@ static void omap_default_idle(void)
  * expected. The hardware recommendation is to enable static
  * dependencies for these to avoid system lock ups or random crashes.
  * The L4 wakeup depedency is added to workaround the OCP sync hardware
- * BUG with 32K synctimer which lead to incorrect timer value read
- * from the 32K counter. The BUG applies for GPTIMER1 and WDT2 which
+ *  with 32K synctimer which lead to incorrect timer value read
+ * from the 32K counter. The  applies for GPTIMER1 and WDT2 which
  * are part of L4 wakeup clockdomain.
  */
 static const struct static_dep_map omap4_static_dep_map[] = {

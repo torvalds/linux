@@ -456,7 +456,7 @@ unless otherwise stated.
 That said, all of the fields in this structure can be accessed without
 locking for tracing purposes.
 Yes, this can result in confusing traces, but better some tracing confusion
-than to be heisenbugged out of existence.
+than to be heisenged out of existence.
 
 <h5>Grace-Period Tracking</h5>
 
@@ -995,7 +995,7 @@ the <tt>-&gt;mynode-&gt;qsmask</tt> corresponding to this
 <tt>rcu_data</tt> structure, and is also used when propagating
 quiescent states.
 The <tt>-&gt;beenonline</tt> flag is set whenever the corresponding
-CPU comes online, which means that the debugfs tracing need not dump
+CPU comes online, which means that the defs tracing need not dump
 out any <tt>rcu_data</tt> structure for which this flag is not set.
 
 <h5>Quiescent-State and Grace-Period Tracking</h5>
@@ -1125,7 +1125,7 @@ of the corresponding CPU's dyntick-idle state when forcing
 quiescent states, and is therefore accessed from other CPUs.
 Finally, the <tt>-&gt;dynticks_fqs</tt> field is used to
 count the number of times this CPU is determined to be in
-dyntick-idle state, and is used for tracing and debugging purposes.
+dyntick-idle state, and is used for tracing and deging purposes.
 
 <p>
 This portion of the rcu_data structure is declared as follows:

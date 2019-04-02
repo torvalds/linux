@@ -719,7 +719,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 		case 16: value |= ATMEL_LCDC_PIXELSIZE_16; break;
 		case 24: value |= ATMEL_LCDC_PIXELSIZE_24; break;
 		case 32: value |= ATMEL_LCDC_PIXELSIZE_32; break;
-		default: BUG(); break;
+		default: (); break;
 	}
 	dev_dbg(info->device, "  * LCDCON2 = %08lx\n", value);
 	lcdc_writel(sinfo, ATMEL_LCDC_LCDCON2, value);

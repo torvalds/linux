@@ -57,7 +57,7 @@ static int scnprint_mac_oui(struct zd_chip *chip, char *buffer, size_t size)
 		         addr[0], addr[1], addr[2]);
 }
 
-/* Prints an identifier line, which will support debugging. */
+/* Prints an identifier line, which will support deging. */
 static int scnprint_id(struct zd_chip *chip, char *buffer, size_t size)
 {
 	int i = 0;
@@ -116,8 +116,8 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr
 
 	/* Use stack for values and addresses. */
 	count16 = 2 * count;
-	BUG_ON(count16 * sizeof(zd_addr_t) > sizeof(a16));
-	BUG_ON(count16 * sizeof(u16) > sizeof(v16));
+	_ON(count16 * sizeof(zd_addr_t) > sizeof(a16));
+	_ON(count16 * sizeof(u16) > sizeof(v16));
 
 	for (i = 0; i < count; i++) {
 		int j = 2*i;
@@ -159,7 +159,7 @@ static int _zd_iowrite32v_async_locked(struct zd_chip *chip,
 		return -EINVAL;
 
 	count16 = 2 * count;
-	BUG_ON(count16 * sizeof(struct zd_ioreq16) > sizeof(ioreqs16));
+	_ON(count16 * sizeof(struct zd_ioreq16) > sizeof(ioreqs16));
 
 	for (i = 0; i < count; i++) {
 		j = 2*i;
@@ -171,12 +171,12 @@ static int _zd_iowrite32v_async_locked(struct zd_chip *chip,
 	}
 
 	r = zd_usb_iowrite16v_async(&chip->usb, ioreqs16, count16);
-#ifdef DEBUG
+#ifdef DE
 	if (r) {
 		dev_dbg_f(zd_chip_dev(chip),
 			  "error %d in zd_usb_write16v\n", r);
 	}
-#endif /* DEBUG */
+#endif /* DE */
 	return r;
 }
 
@@ -962,7 +962,7 @@ static zd_addr_t fw_reg_addr(struct zd_chip *chip, u16 offset)
 	return (zd_addr_t)((u16)chip->fw_regs_base + offset);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static int dump_cr(struct zd_chip *chip, const zd_addr_t addr,
 	           const char *addr_string)
 {
@@ -1019,7 +1019,7 @@ static void dump_fw_registers(struct zd_chip *chip)
 	dev_dbg_f(zd_chip_dev(chip), "FW_FIX_TX_RATE %#06hx\n", values[2]);
 	dev_dbg_f(zd_chip_dev(chip), "FW_LINK_STATUS %#06hx\n", values[3]);
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static int print_fw_version(struct zd_chip *chip)
 {
@@ -1132,7 +1132,7 @@ int zd_chip_init_hw(struct zd_chip *chip)
 
 	mutex_lock(&chip->mutex);
 
-#ifdef DEBUG
+#ifdef DE
 	r = test_init(chip);
 	if (r)
 		goto out;
@@ -1179,12 +1179,12 @@ int zd_chip_init_hw(struct zd_chip *chip)
 	if (r)
 		goto out;
 
-#ifdef DEBUG
+#ifdef DE
 	dump_fw_registers(chip);
 	r = test_init(chip);
 	if (r)
 		goto out;
-#endif /* DEBUG */
+#endif /* DE */
 
 	r = read_cal_int_tables(chip);
 	if (r)

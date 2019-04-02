@@ -139,7 +139,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 	int ret;
 
 	/* We use sg_set_buf for coherent allocs, which assumes low memory */
-	BUG_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
+	_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
 
 	icm = kmalloc_node(sizeof(*icm),
 			   gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN),

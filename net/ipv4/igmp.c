@@ -1844,7 +1844,7 @@ static int ip_mc_del1_src(struct ip_mc_list *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf || psf->sf_count[sfmode] == 0) {
-		/* source filter not found, or count wrong =>  bug */
+		/* source filter not found, or count wrong =>   */
 		return -ESRCH;
 	}
 	psf->sf_count[sfmode]--;
@@ -1895,7 +1895,7 @@ static int ip_mc_del_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA not found??  */
 		rcu_read_unlock();
 		return -ESRCH;
 	}
@@ -2067,7 +2067,7 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 			break;
 	}
 	if (!pmc) {
-		/* MCA not found?? bug */
+		/* MCA not found??  */
 		rcu_read_unlock();
 		return -ESRCH;
 	}

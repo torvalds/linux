@@ -68,7 +68,7 @@ struct bcm_db {
 
 /**
  * struct qcom_icc_node - Qualcomm specific interconnect nodes
- * @name: the node name used in debugfs
+ * @name: the node name used in defs
  * @links: an array of nodes where we can go next while traversing
  * @id: a unique node identifier
  * @num_links: the total number of @links

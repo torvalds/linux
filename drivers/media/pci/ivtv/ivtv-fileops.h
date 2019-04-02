@@ -21,7 +21,7 @@
 #ifndef IVTV_FILEOPS_H
 #define IVTV_FILEOPS_H
 
-/* Testing/Debugging */
+/* Testing/Deging */
 int ivtv_v4l2_open(struct file *filp);
 ssize_t ivtv_v4l2_read(struct file *filp, char __user *buf, size_t count,
 		      loff_t * pos);

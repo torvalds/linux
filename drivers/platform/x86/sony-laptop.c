@@ -73,7 +73,7 @@
 
 #define dprintk(fmt, ...)			\
 do {						\
-	if (debug)				\
+	if (de)				\
 		pr_warn(fmt, ##__VA_ARGS__);	\
 } while (0)
 
@@ -89,9 +89,9 @@ MODULE_AUTHOR("Stelian Pop, Mattia Dongili");
 MODULE_DESCRIPTION("Sony laptop extras driver (SPIC and SNC ACPI device)");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "set this to 1 (and RTFM) if you want to help "
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "set this to 1 (and RTFM) if you want to help "
 		 "the development of this driver");
 
 static int no_spic;		/* = 0 */
@@ -653,20 +653,20 @@ struct sony_nc_value {
 	int (*validate)(const int, const int);	/* input/output validation */
 	int value;		/* current setting */
 	int valid;		/* Has ever been set */
-	int debug;		/* active only in debug mode ? */
+	int de;		/* active only in de mode ? */
 	struct device_attribute devattr;	/* sysfs attribute */
 };
 
 #define SNC_HANDLE_NAMES(_name, _values...) \
 	static char *snc_##_name[] = { _values, NULL }
 
-#define SNC_HANDLE(_name, _getters, _setters, _validate, _debug) \
+#define SNC_HANDLE(_name, _getters, _setters, _validate, _de) \
 	{ \
 		.name		= __stringify(_name), \
 		.acpiget	= _getters, \
 		.acpiset	= _setters, \
 		.validate	= _validate, \
-		.debug		= _debug, \
+		.de		= _de, \
 		.devattr	= __ATTR(_name, 0, sony_nc_sysfs_show, sony_nc_sysfs_store), \
 	}
 
@@ -868,7 +868,7 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 		}
 	}
 
-	if (debug) {
+	if (de) {
 		sysfs_attr_init(&handles->devattr.attr);
 		handles->devattr.attr.name = "handles";
 		handles->devattr.attr.mode = S_IRUGO;
@@ -888,7 +888,7 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 static int sony_nc_handles_cleanup(struct platform_device *pd)
 {
 	if (handles) {
-		if (debug)
+		if (de)
 			device_remove_file(&pd->dev, &handles->devattr);
 		kfree(handles);
 		handles = NULL;
@@ -3199,7 +3199,7 @@ static int sony_nc_add(struct acpi_device *device)
 	if (result)
 		goto outpresent;
 
-	if (debug) {
+	if (de) {
 		status = acpi_walk_namespace(ACPI_TYPE_METHOD,
 				sony_nc_acpi_handle, 1, sony_walk_callback,
 				NULL, NULL, NULL);
@@ -3236,7 +3236,7 @@ static int sony_nc_add(struct acpi_device *device)
 	/* create sony_pf sysfs attributes related to the SNC device */
 	for (item = sony_nc_values; item->name; ++item) {
 
-		if (!debug && item->debug)
+		if (!de && item->de)
 			continue;
 
 		/* find the available acpiget as described in the DSDT */

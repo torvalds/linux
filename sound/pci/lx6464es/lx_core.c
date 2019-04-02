@@ -22,7 +22,7 @@
  *
  */
 
-/* #define RMH_DEBUG 1 */
+/* #define RMH_DE 1 */
 
 #include <linux/bitops.h>
 #include <linux/module.h>
@@ -144,7 +144,7 @@ void lx_plx_reg_write(struct lx6464es *chip, int port, u32 data)
 
 /* rmh */
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 #define CMD_NAME(a) a
 #else
 #define CMD_NAME(a) NULL
@@ -178,8 +178,8 @@ struct dsp_cmd_info {
 
 static struct dsp_cmd_info dsp_commands[] =
 {
-	{ (CMD_00_INFO_DEBUG << OPCODE_OFFSET)			, 1 /*custom*/
-	  , 1	, 0 /**/		    , CMD_NAME("INFO_DEBUG") },
+	{ (CMD_00_INFO_DE << OPCODE_OFFSET)			, 1 /*custom*/
+	  , 1	, 0 /**/		    , CMD_NAME("INFO_DE") },
 	{ (CMD_01_GET_SYS_CFG << OPCODE_OFFSET) 		, 1 /**/
 	  , 1      , 2 /**/		    , CMD_NAME("GET_SYS_CFG") },
 	{ (CMD_02_SET_GRANULARITY << OPCODE_OFFSET)	        , 1 /**/
@@ -222,7 +222,7 @@ static struct dsp_cmd_info dsp_commands[] =
 
 static void lx_message_init(struct lx_rmh *rmh, enum cmd_mb_opcodes cmd)
 {
-	snd_BUG_ON(cmd >= CMD_14_INVALID);
+	snd__ON(cmd >= CMD_14_INVALID);
 
 	rmh->cmd[0] = dsp_commands[cmd].dcCodeOp;
 	rmh->cmd_len = dsp_commands[cmd].dcCmdLength;
@@ -231,15 +231,15 @@ static void lx_message_init(struct lx_rmh *rmh, enum cmd_mb_opcodes cmd)
 	rmh->cmd_idx = cmd;
 	memset(&rmh->cmd[1], 0, (REG_CRM_NUMBER - 1) * sizeof(u32));
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	memset(rmh->stat, 0, REG_CRM_NUMBER * sizeof(u32));
 #endif
-#ifdef RMH_DEBUG
+#ifdef RMH_DE
 	rmh->cmd_idx = cmd;
 #endif
 }
 
-#ifdef RMH_DEBUG
+#ifdef RMH_DE
 #define LXRMH "lx6464es rmh: "
 static void lx_message_dump(struct lx_rmh *rmh)
 {
@@ -302,7 +302,7 @@ polling_successful:
 	if ((reg & ERROR_VALUE) == 0) {
 		/* read response */
 		if (rmh->stat_len) {
-			snd_BUG_ON(rmh->stat_len >= (REG_CRM_NUMBER-1));
+			snd__ON(rmh->stat_len >= (REG_CRM_NUMBER-1));
 			lx_dsp_reg_readbuf(chip, eReg_CRM2, rmh->stat,
 					   rmh->stat_len);
 		}
@@ -475,7 +475,7 @@ int lx_buffer_ask(struct lx6464es *chip, u32 pipe, int is_capture,
 	int err;
 	u32 pipe_cmd = PIPE_INFO_TO_CMD(is_capture, pipe);
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (size_array)
 		memset(size_array, 0, sizeof(u32)*MAX_STREAM_BUFFER);
 #endif

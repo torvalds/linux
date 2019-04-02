@@ -1294,7 +1294,7 @@ static int nbpf_probe(struct platform_device *pdev)
 	int irqbuf[9] /* maximum 8 channels + error IRQ */;
 	unsigned int irqs = 0;
 
-	BUILD_BUG_ON(sizeof(struct nbpf_desc_page) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct nbpf_desc_page) > PAGE_SIZE);
 
 	/* DT only */
 	if (!np)

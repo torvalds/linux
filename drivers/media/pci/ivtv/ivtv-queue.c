@@ -199,7 +199,7 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 	if (s->buffers == 0)
 		return 0;
 
-	IVTV_DEBUG_INFO("Allocate %s%s stream: %d x %d buffers (%dkB total)\n",
+	IVTV_DE_INFO("Allocate %s%s stream: %d x %d buffers (%dkB total)\n",
 		s->dma != PCI_DMA_NONE ? "DMA " : "",
 		s->name, s->buffers, s->buf_size, s->buffers * s->buf_size / 1024);
 

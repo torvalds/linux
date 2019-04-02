@@ -162,11 +162,11 @@ static int opal_get_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 
 	/* check if no alarm is set */
 	if (y_m_d == 0 && h_m_s_ms == 0) {
-		pr_debug("No alarm is set\n");
+		pr_de("No alarm is set\n");
 		rc = -ENOENT;
 		goto exit;
 	} else {
-		pr_debug("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
+		pr_de("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
 	}
 
 	opal_to_tm(y_m_d, h_m_s_ms, &alarm->time);
@@ -187,10 +187,10 @@ static int opal_set_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 	/* if alarm is enabled */
 	if (alarm->enabled) {
 		tm_to_opal(&alarm->time, &y_m_d, &h_m_s_ms);
-		pr_debug("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
+		pr_de("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
 
 	} else {
-		pr_debug("Alarm getting disabled\n");
+		pr_de("Alarm getting disabled\n");
 	}
 
 	token = opal_async_get_token_interruptible();

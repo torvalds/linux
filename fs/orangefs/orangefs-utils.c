@@ -157,12 +157,12 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	if (iattr->ia_valid & ATTR_UID) {
 		attrs->owner = from_kuid(&init_user_ns, iattr->ia_uid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_UID;
-		gossip_debug(GOSSIP_UTILS_DEBUG, "(UID) %d\n", attrs->owner);
+		gossip_de(GOSSIP_UTILS_DE, "(UID) %d\n", attrs->owner);
 	}
 	if (iattr->ia_valid & ATTR_GID) {
 		attrs->group = from_kgid(&init_user_ns, iattr->ia_gid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_GID;
-		gossip_debug(GOSSIP_UTILS_DEBUG, "(GID) %d\n", attrs->group);
+		gossip_de(GOSSIP_UTILS_DE, "(GID) %d\n", attrs->group);
 	}
 
 	if (iattr->ia_valid & ATTR_ATIME) {
@@ -199,7 +199,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 				 */
 				tmp_mode -= S_ISVTX;
 			} else {
-				gossip_debug(GOSSIP_UTILS_DEBUG,
+				gossip_de(GOSSIP_UTILS_DE,
 					"%s: setting sticky bit not supported.\n",
 					__func__);
 				return -EINVAL;
@@ -207,7 +207,7 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 		}
 
 		if (tmp_mode & (S_ISUID)) {
-			gossip_debug(GOSSIP_UTILS_DEBUG,
+			gossip_de(GOSSIP_UTILS_DE,
 				"%s: setting setuid bit not supported.\n",
 				__func__);
 			return -EINVAL;
@@ -240,11 +240,11 @@ static void orangefs_make_bad_inode(struct inode *inode)
 		 * can't afford to lose the inode operations and such
 		 * associated with the root handle in any case.
 		 */
-		gossip_debug(GOSSIP_UTILS_DEBUG,
+		gossip_de(GOSSIP_UTILS_DE,
 			     "*** NOT making bad root inode %pU\n",
 			     get_khandle_from_ino(inode));
 	} else {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
+		gossip_de(GOSSIP_UTILS_DE,
 			     "*** making bad inode %pU\n",
 			     get_khandle_from_ino(inode));
 		make_bad_inode(inode);
@@ -280,7 +280,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	loff_t inode_size;
 	int ret, type;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
+	gossip_de(GOSSIP_UTILS_DE, "%s: called on inode %pU\n", __func__,
 	    get_khandle_from_ino(inode));
 
 	if (!new && !bypass) {
@@ -409,7 +409,7 @@ int orangefs_inode_check_changed(struct inode *inode)
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
+	gossip_de(GOSSIP_UTILS_DE, "%s: called on inode %pU\n", __func__,
 	    get_khandle_from_ino(inode));
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
@@ -454,7 +454,7 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 		ret = service_operation(new_op, __func__,
 				get_interruptible_flag(inode));
 
-		gossip_debug(GOSSIP_UTILS_DEBUG,
+		gossip_de(GOSSIP_UTILS_DE,
 			     "orangefs_inode_setattr: returning %d\n",
 			     ret);
 	}
@@ -539,7 +539,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 
 	/*
 	 * Only ORANGEFS protocol error codes should ever come here. Otherwise
-	 * there is a bug somewhere.
+	 * there is a  somewhere.
 	 */
 	} else {
 		gossip_err("%s: unknown error code.\n", __func__);

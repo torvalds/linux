@@ -19,7 +19,7 @@
  * a check for a break and insert a dummy read on the Rx for the
  * immediately following IRQ event.
  *
- * We re-use the already existing "bug handling" lsr_saved_flags
+ * We re-use the already existing " handling" lsr_saved_flags
  * field to carry the "what we just did" information from the one
  * IRQ event to the next one.
  */

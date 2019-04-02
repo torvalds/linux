@@ -117,7 +117,7 @@
 /* BAR number used to access the HBA registers. */
 #define MTIP_ABAR		5
 
-#ifdef DEBUG
+#ifdef DE
  #define dbg_printk(format, arg...)	\
 	printk(pr_fmt(format), ##arg);
 #else
@@ -436,7 +436,7 @@ struct mtip_port {
 	/* Counter to control queue depth of unaligned IOs */
 	atomic_t cmd_slot_unal;
 
-	/* Spinlock for working around command-issue bug. */
+	/* Spinlock for working around command-issue . */
 	spinlock_t cmd_issue_lock[MTIP_MAX_SLOT_GROUPS];
 };
 

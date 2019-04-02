@@ -147,7 +147,7 @@ err_free_bus:
 
 static int ep8248e_mdio_remove(struct platform_device *ofdev)
 {
-	BUG();
+	();
 	return 0;
 }
 

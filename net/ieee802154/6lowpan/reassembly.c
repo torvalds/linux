@@ -42,7 +42,7 @@ static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 {
 	const struct frag_lowpan_compare_key *key = a;
 
-	BUILD_BUG_ON(sizeof(*key) > sizeof(q->key));
+	BUILD__ON(sizeof(*key) > sizeof(q->key));
 	memcpy(&q->key, key, sizeof(*key));
 }
 
@@ -96,8 +96,8 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 	/* inet_frag_queue_* functions use skb->cb; see struct ipfrag_skb_cb
 	 * in inet_fragment.c
 	 */
-	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(struct inet_skb_parm));
-	BUILD_BUG_ON(sizeof(struct lowpan_802154_cb) > sizeof(struct inet6_skb_parm));
+	BUILD__ON(sizeof(struct lowpan_802154_cb) > sizeof(struct inet_skb_parm));
+	BUILD__ON(sizeof(struct lowpan_802154_cb) > sizeof(struct inet6_skb_parm));
 
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto err;

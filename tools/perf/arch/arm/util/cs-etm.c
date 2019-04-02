@@ -230,7 +230,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	}
 
 	if (opts->auxtrace_snapshot_mode)
-		pr_debug2("%s snapshot size: %zu\n", CORESIGHT_ETM_PMU_NAME,
+		pr_de2("%s snapshot size: %zu\n", CORESIGHT_ETM_PMU_NAME,
 			  opts->auxtrace_snapshot_size);
 
 	/*
@@ -541,7 +541,7 @@ static int cs_etm_find_snapshot(struct auxtrace_record *itr __maybe_unused,
 				unsigned char *data __maybe_unused,
 				u64 *head, u64 *old)
 {
-	pr_debug3("%s: mmap index %d old head %zu new head %zu size %zu\n",
+	pr_de3("%s: mmap index %d old head %zu new head %zu size %zu\n",
 		  __func__, idx, (size_t)*old, (size_t)*head, mm->len);
 
 	*old = *head;

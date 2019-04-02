@@ -257,7 +257,7 @@ void sn_dma_flush(u64 addr)
 
 	hubinfo = (NODEPDA(nasid_to_cnodeid(nasid)))->pdinfo;
 
-	BUG_ON(!hubinfo);
+	_ON(!hubinfo);
 
 	flush_nasid_list = &hubinfo->hdi_flush_nasid_list;
 	if (flush_nasid_list->widget_p == NULL)

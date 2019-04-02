@@ -443,7 +443,7 @@ static const int udp_timeouts[IP_VS_UDP_S_LAST+1] = {
 
 static const char *const udp_state_name_table[IP_VS_UDP_S_LAST+1] = {
 	[IP_VS_UDP_S_NORMAL]		=	"UDP",
-	[IP_VS_UDP_S_LAST]		=	"BUG!",
+	[IP_VS_UDP_S_LAST]		=	"!",
 };
 
 static const char * udp_state_name(int state)
@@ -503,6 +503,6 @@ struct ip_vs_protocol ip_vs_protocol_udp = {
 	.register_app =		udp_register_app,
 	.unregister_app =	udp_unregister_app,
 	.app_conn_bind =	udp_app_conn_bind,
-	.debug_packet =		ip_vs_tcpudp_debug_packet,
+	.de_packet =		ip_vs_tcpudp_de_packet,
 	.timeout_change =	NULL,
 };

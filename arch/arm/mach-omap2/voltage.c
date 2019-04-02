@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 
@@ -298,7 +298,7 @@ static int _voltdm_register(struct voltagedomain *voltdm)
 
 	list_add(&voltdm->node, &voltdm_list);
 
-	pr_debug("voltagedomain: registered %s\n", voltdm->name);
+	pr_de("voltagedomain: registered %s\n", voltdm->name);
 
 	return 0;
 }

@@ -1415,7 +1415,7 @@ static const struct iio_info mma8452_info = {
 	.write_event_value = &mma8452_write_event_value,
 	.read_event_config = &mma8452_read_event_config,
 	.write_event_config = &mma8452_write_event_config,
-	.debugfs_reg_access = &mma8452_reg_access_dbg,
+	.defs_reg_access = &mma8452_reg_access_dbg,
 };
 
 static const unsigned long mma8452_scan_masks[] = {0x7, 0};

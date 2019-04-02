@@ -185,7 +185,7 @@ static snd_pcm_sframes_t rate_src_frames(struct snd_pcm_plugin *plugin, snd_pcm_
 	struct rate_priv *data;
 	snd_pcm_sframes_t res;
 
-	if (snd_BUG_ON(!plugin))
+	if (snd__ON(!plugin))
 		return -ENXIO;
 	if (frames == 0)
 		return 0;
@@ -218,7 +218,7 @@ static snd_pcm_sframes_t rate_dst_frames(struct snd_pcm_plugin *plugin, snd_pcm_
 	struct rate_priv *data;
 	snd_pcm_sframes_t res;
 
-	if (snd_BUG_ON(!plugin))
+	if (snd__ON(!plugin))
 		return -ENXIO;
 	if (frames == 0)
 		return 0;
@@ -254,18 +254,18 @@ static snd_pcm_sframes_t rate_transfer(struct snd_pcm_plugin *plugin,
 	snd_pcm_uframes_t dst_frames;
 	struct rate_priv *data;
 
-	if (snd_BUG_ON(!plugin || !src_channels || !dst_channels))
+	if (snd__ON(!plugin || !src_channels || !dst_channels))
 		return -ENXIO;
 	if (frames == 0)
 		return 0;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	{
 		unsigned int channel;
 		for (channel = 0; channel < plugin->src_format.channels; channel++) {
-			if (snd_BUG_ON(src_channels[channel].area.first % 8 ||
+			if (snd__ON(src_channels[channel].area.first % 8 ||
 				       src_channels[channel].area.step % 8))
 				return -ENXIO;
-			if (snd_BUG_ON(dst_channels[channel].area.first % 8 ||
+			if (snd__ON(dst_channels[channel].area.first % 8 ||
 				       dst_channels[channel].area.step % 8))
 				return -ENXIO;
 		}
@@ -284,7 +284,7 @@ static int rate_action(struct snd_pcm_plugin *plugin,
 		       enum snd_pcm_plugin_action action,
 		       unsigned long udata)
 {
-	if (snd_BUG_ON(!plugin))
+	if (snd__ON(!plugin))
 		return -ENXIO;
 	switch (action) {
 	case INIT:
@@ -306,19 +306,19 @@ int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,
 	struct rate_priv *data;
 	struct snd_pcm_plugin *plugin;
 
-	if (snd_BUG_ON(!r_plugin))
+	if (snd__ON(!r_plugin))
 		return -ENXIO;
 	*r_plugin = NULL;
 
-	if (snd_BUG_ON(src_format->channels != dst_format->channels))
+	if (snd__ON(src_format->channels != dst_format->channels))
 		return -ENXIO;
-	if (snd_BUG_ON(src_format->channels <= 0))
+	if (snd__ON(src_format->channels <= 0))
 		return -ENXIO;
-	if (snd_BUG_ON(src_format->format != SNDRV_PCM_FORMAT_S16))
+	if (snd__ON(src_format->format != SNDRV_PCM_FORMAT_S16))
 		return -ENXIO;
-	if (snd_BUG_ON(dst_format->format != SNDRV_PCM_FORMAT_S16))
+	if (snd__ON(dst_format->format != SNDRV_PCM_FORMAT_S16))
 		return -ENXIO;
-	if (snd_BUG_ON(src_format->rate == dst_format->rate))
+	if (snd__ON(src_format->rate == dst_format->rate))
 		return -ENXIO;
 
 	err = snd_pcm_plugin_build(plug, "rate conversion",

@@ -70,8 +70,8 @@ struct pvr_s {
 #define PVR2_DIV_ZERO_EXC_MASK		0x00000002
 #define PVR2_FPU_EXC_MASK		0x00000001
 
-/* Debug and exception PVR masks */
-#define PVR3_DEBUG_ENABLED_MASK		0x80000000
+/* De and exception PVR masks */
+#define PVR3_DE_ENABLED_MASK		0x80000000
 #define PVR3_NUMBER_OF_PC_BRK_MASK	0x1E000000
 #define PVR3_NUMBER_OF_RD_ADDR_BRK_MASK	0x00380000
 #define PVR3_NUMBER_OF_WR_ADDR_BRK_MASK	0x0000E000
@@ -161,7 +161,7 @@ struct pvr_s {
 #define PVR_FPU_EXCEPTION(_pvr)		(_pvr.pvr[2] & PVR2_FPU_EXC_MASK)
 #define PVR_FSL_EXCEPTION(_pvr)		(_pvr.pvr[2] & PVR2_USE_EXTEND_FSL)
 
-#define PVR_DEBUG_ENABLED(_pvr)		(_pvr.pvr[3] & PVR3_DEBUG_ENABLED_MASK)
+#define PVR_DE_ENABLED(_pvr)		(_pvr.pvr[3] & PVR3_DE_ENABLED_MASK)
 #define PVR_NUMBER_OF_PC_BRK(_pvr) \
 			((_pvr.pvr[3] & PVR3_NUMBER_OF_PC_BRK_MASK) >> 25)
 #define PVR_NUMBER_OF_RD_ADDR_BRK(_pvr) \

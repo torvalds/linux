@@ -285,9 +285,9 @@ static void ocfs2_dx_dir_name_hash(struct inode *dir, const char *name, int len,
 		goto out;
 	}
 
-#ifdef OCFS2_DEBUG_DX_DIRS
+#ifdef OCFS2_DE_DX_DIRS
 	/*
-	 * This makes it very easy to debug indexing problems. We
+	 * This makes it very easy to de indexing problems. We
 	 * should never allow this to be selected without hand editing
 	 * this file though.
 	 */
@@ -449,7 +449,7 @@ static int ocfs2_validate_dir_block(struct super_block *sb,
 	 */
 	trace_ocfs2_validate_dir_block((unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
@@ -585,7 +585,7 @@ static int ocfs2_validate_dx_root(struct super_block *sb,
 	int ret;
 	struct ocfs2_dx_root_block *dx_root;
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	dx_root = (struct ocfs2_dx_root_block *) bh->b_data;
 
@@ -630,7 +630,7 @@ static int ocfs2_validate_dx_leaf(struct super_block *sb,
 	int ret;
 	struct ocfs2_dx_leaf *dx_leaf = (struct ocfs2_dx_leaf *)bh->b_data;
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	ret = ocfs2_validate_meta_ecc(sb, bh->b_data, &dx_leaf->dl_check);
 	if (ret) {
@@ -1279,8 +1279,8 @@ static int ocfs2_delete_entry_dx(handle_t *handle, struct inode *dir,
 
 	/* Neither of these are a disk corruption - that should have
 	 * been caught by lookup, before we got here. */
-	BUG_ON(le16_to_cpu(entry_list->de_count) <= 0);
-	BUG_ON(le16_to_cpu(entry_list->de_num_used) <= 0);
+	_ON(le16_to_cpu(entry_list->de_count) <= 0);
+	_ON(le16_to_cpu(entry_list->de_num_used) <= 0);
 
 	index = (char *)dx_entry - (char *)entry_list->de_entries;
 	index /= sizeof(*dx_entry);
@@ -1646,14 +1646,14 @@ int __ocfs2_add_entry(handle_t *handle,
 		data_start = di->id2.i_data.id_data;
 		size = i_size_read(dir);
 
-		BUG_ON(insert_bh != parent_fe_bh);
+		_ON(insert_bh != parent_fe_bh);
 	}
 
 	rec_len = OCFS2_DIR_REC_LEN(namelen);
 	offset = 0;
 	de = (struct ocfs2_dir_entry *) data_start;
 	while (1) {
-		BUG_ON((char *)de >= (size + data_start));
+		_ON((char *)de >= (size + data_start));
 
 		/* These checks should've already been passed by the
 		 * prepare function, but I guess we can leave them
@@ -1669,7 +1669,7 @@ int __ocfs2_add_entry(handle_t *handle,
 
 		/* We're guaranteed that we should have space, so we
 		 * can't possibly have hit the trailer...right? */
-		mlog_bug_on_msg(ocfs2_skip_dir_trailer(dir, de, offset, size),
+		mlog__on_msg(ocfs2_skip_dir_trailer(dir, de, offset, size),
 				"Hit dir trailer trying to insert %.*s "
 			        "(namelen %d) into directory %llu.  "
 				"offset is %lu, trailer offset is %d\n",
@@ -2596,7 +2596,7 @@ int ocfs2_fill_new_dir(struct ocfs2_super *osb,
 		       struct ocfs2_alloc_context *meta_ac)
 
 {
-	BUG_ON(!ocfs2_supports_inline_data(osb) && data_ac == NULL);
+	_ON(!ocfs2_supports_inline_data(osb) && data_ac == NULL);
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return ocfs2_fill_new_dir_id(osb, handle, parent, inode, fe_bh);
@@ -2852,7 +2852,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * extra space that the expansion to a single block gives. As
 	 * of today, that only happens on 4k/4k file systems.
 	 */
-	BUG_ON(alloc > 2);
+	_ON(alloc > 2);
 
 	ret = ocfs2_reserve_clusters(osb, alloc + dx_alloc, &data_ac);
 	if (ret) {
@@ -3134,7 +3134,7 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 		status = ocfs2_add_inode_data(OCFS2_SB(sb), dir, &offset,
 					      1, 0, parent_fe_bh, handle,
 					      data_ac, meta_ac, NULL);
-		BUG_ON(status == -EAGAIN);
+		_ON(status == -EAGAIN);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -3197,7 +3197,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		 * This would be a code error as an inline directory should
 		 * never have an index root.
 		 */
-		BUG_ON(dx_root_bh);
+		_ON(dx_root_bh);
 
 		status = ocfs2_expand_inline_dir(dir, parent_fe_bh,
 						 blocks_wanted, lookup,
@@ -3219,7 +3219,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 			 * here. Otherwise we have to expand i_size
 			 * and format the 2nd block below.
 			 */
-			BUG_ON(new_bh == NULL);
+			_ON(new_bh == NULL);
 			goto bail_bh;
 		}
 
@@ -3534,7 +3534,7 @@ static void dx_leaf_sort_swap(void *a, void *b, int size)
 	struct ocfs2_dx_entry *entry1 = a;
 	struct ocfs2_dx_entry *entry2 = b;
 
-	BUG_ON(size != sizeof(*entry1));
+	_ON(size != sizeof(*entry1));
 
 	swap(*entry1, *entry2);
 }
@@ -3638,7 +3638,7 @@ static int ocfs2_dx_dir_find_leaf_split(struct ocfs2_dx_leaf *dx_leaf,
 		    leaf_cpos)
 			break;
 
-	BUG_ON(i == num_used); /* Should be impossible */
+	_ON(i == num_used); /* Should be impossible */
 	*split_hash = le32_to_cpu(dl_list->de_entries[i].dx_major_hash);
 	return 0;
 }
@@ -4316,7 +4316,7 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 		/*
 		 * We have to expand the directory to add this name.
 		 */
-		BUG_ON(bh);
+		_ON(bh);
 
 		ret = ocfs2_extend_dir(osb, dir, parent_fe_bh, blocks_wanted,
 				       lookup, &bh);
@@ -4326,7 +4326,7 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 			goto out;
 		}
 
-		BUG_ON(!bh);
+		_ON(!bh);
 	}
 
 	lookup->dl_leaf_bh = bh;

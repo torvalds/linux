@@ -160,7 +160,7 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 	struct snd_ctl_file *ctl;
 	struct snd_kctl_event *ev;
 
-	if (snd_BUG_ON(!card || !id))
+	if (snd__ON(!card || !id))
 		return;
 	if (card->shutdown)
 		return;
@@ -252,7 +252,7 @@ struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new *ncontrol,
 	unsigned int access;
 	int err;
 
-	if (snd_BUG_ON(!ncontrol || !ncontrol->info))
+	if (snd__ON(!ncontrol || !ncontrol->info))
 		return NULL;
 
 	count = ncontrol->count;
@@ -409,7 +409,7 @@ static int snd_ctl_add_replace(struct snd_card *card,
 
 	if (! kcontrol)
 		return err;
-	if (snd_BUG_ON(!card || !kcontrol->info))
+	if (snd__ON(!card || !kcontrol->info))
 		goto error;
 
 	down_write(&card->controls_rwsem);
@@ -482,7 +482,7 @@ int snd_ctl_remove(struct snd_card *card, struct snd_kcontrol *kcontrol)
 	struct snd_ctl_elem_id id;
 	unsigned int idx;
 
-	if (snd_BUG_ON(!card || !kcontrol))
+	if (snd__ON(!card || !kcontrol))
 		return -EINVAL;
 	list_del(&kcontrol->list);
 	card->controls_count -= kcontrol->count;
@@ -657,7 +657,7 @@ struct snd_kcontrol *snd_ctl_find_numid(struct snd_card *card, unsigned int numi
 {
 	struct snd_kcontrol *kctl;
 
-	if (snd_BUG_ON(!card || !numid))
+	if (snd__ON(!card || !numid))
 		return NULL;
 	list_for_each_entry(kctl, &card->controls, list) {
 		if (kctl->id.numid <= numid && kctl->id.numid + kctl->count > numid)
@@ -685,7 +685,7 @@ struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card,
 {
 	struct snd_kcontrol *kctl;
 
-	if (snd_BUG_ON(!card || !id))
+	if (snd__ON(!card || !id))
 		return NULL;
 	if (id->numid != 0)
 		return snd_ctl_find_numid(card, id->numid);
@@ -822,12 +822,12 @@ static int snd_ctl_elem_info(struct snd_ctl_file *ctl,
 		up_read(&card->controls_rwsem);
 		return -ENOENT;
 	}
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	info->access = 0;
 #endif
 	result = kctl->info(kctl, info);
 	if (result >= 0) {
-		snd_BUG_ON(info->access);
+		snd__ON(info->access);
 		index_offset = snd_ctl_get_ioff(kctl, &info->id);
 		vd = &kctl->vd[index_offset];
 		snd_ctl_build_ioff(&info->id, kctl, index_offset);
@@ -1360,7 +1360,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	/*
 	 * Here we cannot fill any field for the number of elements added by
 	 * this operation because there're no specific fields. The usage of
-	 * 'owner' field for this purpose may cause any bugs to userspace
+	 * 'owner' field for this purpose may cause any s to userspace
 	 * applications because the field originally means PID of a process
 	 * which locks the element.
 	 */
@@ -1536,7 +1536,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 
 	ctl = file->private_data;
 	card = ctl->card;
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 	switch (cmd) {
 	case SNDRV_CTL_IOCTL_PVERSION:
@@ -1608,7 +1608,7 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
 	ssize_t result = 0;
 
 	ctl = file->private_data;
-	if (snd_BUG_ON(!ctl || !ctl->card))
+	if (snd__ON(!ctl || !ctl->card))
 		return -ENXIO;
 	if (!ctl->subscribed)
 		return -EBADFD;
@@ -1726,7 +1726,7 @@ static int _snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn,
 {
 	struct snd_kctl_ioctl *p;
 
-	if (snd_BUG_ON(!fcn))
+	if (snd__ON(!fcn))
 		return -EINVAL;
 	down_write(&snd_ioctl_rwsem);
 	list_for_each_entry(p, lists, list) {
@@ -1738,7 +1738,7 @@ static int _snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn,
 		}
 	}
 	up_write(&snd_ioctl_rwsem);
-	snd_BUG();
+	snd_();
 	return -EINVAL;
 }
 
@@ -1880,9 +1880,9 @@ int snd_ctl_create(struct snd_card *card)
 	};
 	int err;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
-	if (snd_BUG_ON(card->number < 0 || card->number >= SNDRV_CARDS))
+	if (snd__ON(card->number < 0 || card->number >= SNDRV_CARDS))
 		return -ENXIO;
 
 	snd_device_initialize(&card->ctl_dev, card);

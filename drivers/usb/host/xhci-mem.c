@@ -16,7 +16,7 @@
 
 #include "xhci.h"
 #include "xhci-trace.h"
-#include "xhci-debugfs.h"
+#include "xhci-defs.h"
 
 /*
  * Allocates a generic ring segment from the ring pool, sets the dma address,
@@ -965,7 +965,7 @@ static void xhci_free_virt_devices_depth_first(struct xhci_hcd *xhci, int slot_i
 	}
 out:
 	/* we are now at a leaf device */
-	xhci_debugfs_remove_slot(xhci, slot_id);
+	xhci_defs_remove_slot(xhci, slot_id);
 	xhci_free_virt_device(xhci, slot_id);
 }
 
@@ -1333,7 +1333,7 @@ static unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	return interval;
 }

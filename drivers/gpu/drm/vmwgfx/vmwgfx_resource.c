@@ -136,7 +136,7 @@ int vmw_resource_alloc_id(struct vmw_resource *res)
 	int ret;
 	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
-	BUG_ON(res->id != -1);
+	_ON(res->id != -1);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&dev_priv->resource_lock);
@@ -279,7 +279,7 @@ int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 	struct vmw_resource *res;
 	int ret;
 
-	BUG_ON(*out_surf || *out_buf);
+	_ON(*out_surf || *out_buf);
 
 	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, handle,
 					      user_surface_converter,
@@ -310,7 +310,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 	int ret;
 
 	if (likely(res->backup)) {
-		BUG_ON(res->backup->base.num_pages * PAGE_SIZE < size);
+		_ON(res->backup->base.num_pages * PAGE_SIZE < size);
 		return 0;
 	}
 
@@ -565,7 +565,7 @@ static int vmw_resource_do_evict(struct ww_acquire_ctx *ticket,
 	const struct vmw_res_func *func = res->func;
 	int ret;
 
-	BUG_ON(!func->may_evict);
+	_ON(!func->may_evict);
 
 	val_buf.bo = NULL;
 	val_buf.num_shared = 0;

@@ -300,7 +300,7 @@ static void qede_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		       ETH_GSTRING_LEN * QEDE_ETHTOOL_TEST_MAX);
 		break;
 	default:
-		DP_VERBOSE(edev, QED_MSG_DEBUG,
+		DP_VERBOSE(edev, QED_MSG_DE,
 			   "Unsupported stringset 0x%08x\n", stringset);
 	}
 }
@@ -397,7 +397,7 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 		else
 			return 0;
 	default:
-		DP_VERBOSE(edev, QED_MSG_DEBUG,
+		DP_VERBOSE(edev, QED_MSG_DE,
 			   "Unsupported stringset 0x%08x\n", stringset);
 		return -EINVAL;
 	}
@@ -732,7 +732,7 @@ static void qede_set_msglevel(struct net_device *ndev, u32 level)
 	u32 dp_module = 0;
 	u8 dp_level = 0;
 
-	qede_config_debug(level, &dp_module, &dp_level);
+	qede_config_de(level, &dp_module, &dp_level);
 
 	edev->dp_level = dp_level;
 	edev->dp_module = dp_module;
@@ -966,7 +966,7 @@ static void qede_get_pauseparam(struct net_device *dev,
 	if (current_link.pause_config & QED_LINK_PAUSE_TX_ENABLE)
 		epause->tx_pause = true;
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
+	DP_VERBOSE(edev, QED_MSG_DE,
 		   "ethtool_pauseparam: cmd %d  autoneg %d  rx_pause %d  tx_pause %d\n",
 		   epause->cmd, epause->autoneg, epause->rx_pause,
 		   epause->tx_pause);
@@ -1242,7 +1242,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	u8 set_caps = 0, clr_caps = 0;
 	int rc = 0;
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
+	DP_VERBOSE(edev, QED_MSG_DE,
 		   "Set rss flags command parameters: flow type = %d, data = %llu\n",
 		   info->flow_type, info->data);
 
@@ -1261,11 +1261,11 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		if (info->data == (RXH_IP_SRC | RXH_IP_DST |
 				   RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 			set_caps = QED_RSS_IPV4_UDP;
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "UDP 4-tuple enabled\n");
 		} else if (info->data == (RXH_IP_SRC | RXH_IP_DST)) {
 			clr_caps = QED_RSS_IPV4_UDP;
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "UDP 4-tuple disabled\n");
 		} else {
 			return -EINVAL;
@@ -1276,11 +1276,11 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		if (info->data == (RXH_IP_SRC | RXH_IP_DST |
 				   RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 			set_caps = QED_RSS_IPV6_UDP;
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "UDP 4-tuple enabled\n");
 		} else if (info->data == (RXH_IP_SRC | RXH_IP_DST)) {
 			clr_caps = QED_RSS_IPV6_UDP;
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "UDP 4-tuple disabled\n");
 		} else {
 			return -EINVAL;
@@ -1715,7 +1715,7 @@ static void qede_self_test(struct net_device *dev,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
+	DP_VERBOSE(edev, QED_MSG_DE,
 		   "Self-test command parameters: offline = %d, external_lb = %d\n",
 		   (etest->flags & ETH_TEST_FL_OFFLINE),
 		   (etest->flags & ETH_TEST_FL_EXTERNAL_LB) >> 2);
@@ -1767,7 +1767,7 @@ static int qede_set_tunable(struct net_device *dev,
 	case ETHTOOL_RX_COPYBREAK:
 		val = *(u32 *)data;
 		if (val < QEDE_MIN_PKT_LEN || val > QEDE_RX_HDR_SIZE) {
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "Invalid rx copy break value, range is [%u, %u]",
 				   QEDE_MIN_PKT_LEN, QEDE_RX_HDR_SIZE);
 			return -EINVAL;
@@ -1859,7 +1859,7 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	    ((edata->advertised & (ADVERTISED_1000baseT_Full |
 				   ADVERTISED_10000baseT_Full)) !=
 	     edata->advertised)) {
-		DP_VERBOSE(edev, QED_MSG_DEBUG,
+		DP_VERBOSE(edev, QED_MSG_DE,
 			   "Invalid advertised capabilities %d\n",
 			   edata->advertised);
 		return -EINVAL;
@@ -1956,7 +1956,7 @@ static int qede_get_module_eeprom(struct net_device *dev,
 							   QED_I2C_DEV_ADDR_A2,
 							   start_addr, size);
 		if (rc) {
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "Failed reading A2 section %d\n", rc);
 			return 0;
 		}

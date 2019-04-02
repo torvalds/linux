@@ -22,7 +22,7 @@ bool qid_eq(struct kqid left, struct kqid right)
 	case PRJQUOTA:
 		return projid_eq(left.projid, right.projid);
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL(qid_eq);
@@ -48,7 +48,7 @@ bool qid_lt(struct kqid left, struct kqid right)
 	case PRJQUOTA:
 		return projid_lt(left.projid, right.projid);
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL(qid_lt);
@@ -75,7 +75,7 @@ qid_t from_kqid(struct user_namespace *targ, struct kqid kqid)
 	case PRJQUOTA:
 		return from_kprojid(targ, kqid.projid);
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL(from_kqid);
@@ -108,7 +108,7 @@ qid_t from_kqid_munged(struct user_namespace *targ, struct kqid kqid)
 	case PRJQUOTA:
 		return from_kprojid_munged(targ, kqid.projid);
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL(from_kqid_munged);
@@ -127,7 +127,7 @@ bool qid_valid(struct kqid qid)
 	case PRJQUOTA:
 		return projid_valid(qid.projid);
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL(qid_valid);

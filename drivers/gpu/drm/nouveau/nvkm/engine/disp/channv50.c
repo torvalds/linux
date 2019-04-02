@@ -35,7 +35,7 @@
 #include <nvif/unpack.h>
 
 static void
-nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
+nv50_disp_mthd_list(struct nv50_disp *disp, int de, u32 base, int c,
 		    const struct nv50_disp_mthd_list *list, int inst)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -55,7 +55,7 @@ nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
 			else
 				snprintf(mods, sizeof(mods), "%13c", ' ');
 
-			nvkm_printk_(subdev, debug, info,
+			nvkm_printk_(subdev, de, info,
 				     "\t%04x: %08x %s%s%s\n",
 				     mthd, prev, mods, name ? " // " : "",
 				     name ? name : "");
@@ -64,7 +64,7 @@ nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
 }
 
 void
-nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int debug)
+nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int de)
 {
 	struct nv50_disp *disp = chan->disp;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
@@ -72,7 +72,7 @@ nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int debug)
 	const struct nv50_disp_mthd_list *list;
 	int i, j;
 
-	if (debug > subdev->debug)
+	if (de > subdev->de)
 		return;
 
 	for (i = 0; (list = mthd->data[i].mthd) != NULL; i++) {
@@ -94,8 +94,8 @@ nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int debug)
 				sname = sname_;
 			}
 
-			nvkm_printk_(subdev, debug, info, "%s%s:\n", cname, sname);
-			nv50_disp_mthd_list(disp, debug, base, mthd->prev,
+			nvkm_printk_(subdev, de, info, "%s%s:\n", cname, sname);
+			nv50_disp_mthd_list(disp, de, base, mthd->prev,
 					    list, j);
 		}
 	}

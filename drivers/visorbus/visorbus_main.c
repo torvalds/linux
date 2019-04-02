@@ -5,7 +5,7 @@
  */
 
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/visorbus.h>
@@ -21,7 +21,7 @@ static const guid_t visor_vbus_channel_guid = VISOR_VBUS_CHANNEL_GUID;
 
 /* stores whether bus_registration was successful */
 static bool initialized;
-static struct dentry *visorbus_debugfs_dir;
+static struct dentry *visorbus_defs_dir;
 
 /*
  * DEVICE type attributes
@@ -211,8 +211,8 @@ static void visorbus_release_busdevice(struct device *xdev)
 {
 	struct visor_device *dev = dev_get_drvdata(xdev);
 
-	debugfs_remove(dev->debugfs_bus_info);
-	debugfs_remove_recursive(dev->debugfs_dir);
+	defs_remove(dev->defs_bus_info);
+	defs_remove_recursive(dev->defs_dir);
 	visorchannel_destroy(dev->visorchannel);
 	kfree(dev);
 }
@@ -397,10 +397,10 @@ static struct attribute *visorbus_attrs[] = {
 ATTRIBUTE_GROUPS(visorbus);
 
 /*
- *  BUS debugfs entries
+ *  BUS defs entries
  *
- *  define & implement display of debugfs attributes under
- *  /sys/kernel/debug/visorbus/visorbus<n>.
+ *  define & implement display of defs attributes under
+ *  /sys/kernel/de/visorbus/visorbus<n>.
  */
 
 /*
@@ -436,7 +436,7 @@ static void vbuschannel_print_devinfo(struct visor_vbus_deviceinfo *devinfo,
 		   devinfo->infostrs);
 }
 
-static int bus_info_debugfs_show(struct seq_file *seq, void *v)
+static int bus_info_defs_show(struct seq_file *seq, void *v)
 {
 	int i = 0;
 	unsigned long off;
@@ -471,14 +471,14 @@ static int bus_info_debugfs_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int bus_info_debugfs_open(struct inode *inode, struct file *file)
+static int bus_info_defs_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, bus_info_debugfs_show, inode->i_private);
+	return single_open(file, bus_info_defs_show, inode->i_private);
 }
 
-static const struct file_operations bus_info_debugfs_fops = {
+static const struct file_operations bus_info_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = bus_info_debugfs_open,
+	.open = bus_info_defs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -746,7 +746,7 @@ static int get_vbus_header_info(struct visorchannel *chan,
  * Writes chipset info into the channel memory to be used for diagnostic
  * purposes.
  *
- * Returns no value since this is debug information and not needed for
+ * Returns no value since this is de information and not needed for
  * device functionality.
  */
 static void write_vbus_chp_info(struct visorchannel *chan,
@@ -772,7 +772,7 @@ static void write_vbus_chp_info(struct visorchannel *chan,
  * Writes bus info into the channel memory to be used for diagnostic
  * purposes.
  *
- * Returns no value since this is debug information and not needed for
+ * Returns no value since this is de information and not needed for
  * device functionality.
  */
 static void write_vbus_bus_info(struct visorchannel *chan,
@@ -799,7 +799,7 @@ static void write_vbus_bus_info(struct visorchannel *chan,
  * Writes device info into the channel memory to be used for diagnostic
  * purposes.
  *
- * Returns no value since this is debug information and not needed for
+ * Returns no value since this is de information and not needed for
  * device functionality.
  */
 static void write_vbus_dev_info(struct visorchannel *chan,
@@ -1018,18 +1018,18 @@ int visorbus_create_instance(struct visor_device *dev)
 	dev->device.bus = &visorbus_type;
 	dev->device.groups = visorbus_groups;
 	dev->device.release = visorbus_release_busdevice;
-	dev->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
-					      visorbus_debugfs_dir);
-	dev->debugfs_bus_info = debugfs_create_file("client_bus_info", 0440,
-						    dev->debugfs_dir, dev,
-						    &bus_info_debugfs_fops);
+	dev->defs_dir = defs_create_dir(dev_name(&dev->device),
+					      visorbus_defs_dir);
+	dev->defs_bus_info = defs_create_file("client_bus_info", 0440,
+						    dev->defs_dir, dev,
+						    &bus_info_defs_fops);
 	dev_set_drvdata(&dev->device, dev);
 	err = get_vbus_header_info(dev->visorchannel, &dev->device, hdr_info);
 	if (err < 0)
-		goto err_debugfs_dir;
+		goto err_defs_dir;
 	err = device_register(&dev->device);
 	if (err < 0)
-		goto err_debugfs_dir;
+		goto err_defs_dir;
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 	dev->state.created = 1;
 	dev->vbus_hdr_info = (void *)hdr_info;
@@ -1038,8 +1038,8 @@ int visorbus_create_instance(struct visor_device *dev)
 	visorbus_response(dev, err, CONTROLVM_BUS_CREATE);
 	return 0;
 
-err_debugfs_dir:
-	debugfs_remove_recursive(dev->debugfs_dir);
+err_defs_dir:
+	defs_remove_recursive(dev->defs_dir);
 	kfree(hdr_info);
 	dev_err(&dev->device, "%s failed: %d\n", __func__, err);
 	return err;
@@ -1207,7 +1207,7 @@ int visorbus_init(void)
 {
 	int err;
 
-	visorbus_debugfs_dir = debugfs_create_dir("visorbus", NULL);
+	visorbus_defs_dir = defs_create_dir("visorbus", NULL);
 	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
 	err = bus_register(&visorbus_type);
 	if (err < 0)
@@ -1230,5 +1230,5 @@ void visorbus_exit(void)
 	}
 	bus_unregister(&visorbus_type);
 	initialized = false;
-	debugfs_remove_recursive(visorbus_debugfs_dir);
+	defs_remove_recursive(visorbus_defs_dir);
 }

@@ -466,8 +466,8 @@ static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 {
 	struct qdisc_skb_cb *qcb;
 
-	BUILD_BUG_ON(sizeof(skb->cb) < offsetof(struct qdisc_skb_cb, data) + sz);
-	BUILD_BUG_ON(sizeof(qcb->data) < sz);
+	BUILD__ON(sizeof(skb->cb) < offsetof(struct qdisc_skb_cb, data) + sz);
+	BUILD__ON(sizeof(qcb->data) < sz);
 }
 
 static inline int qdisc_qlen(const struct Qdisc *q)

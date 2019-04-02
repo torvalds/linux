@@ -129,7 +129,7 @@ acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 	if (ret)
 		return ret;
 
-	nvkm_debug(&sb->subdev, "%s started\n",
+	nvkm_de(&sb->subdev, "%s started\n",
 		   nvkm_secboot_falcon_name[acr->boot_falcon]);
 
 	return 0;
@@ -170,7 +170,7 @@ acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 		return ret;
 
 	/*
-	 * There is a bug where the LS firmware sometimes require to be started
+	 * There is a  where the LS firmware sometimes require to be started
 	 * twice (this happens only on SEC). Detect and workaround that
 	 * condition.
 	 *
@@ -182,7 +182,7 @@ acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 			  break;
 	);
 	if (reg & BIT(4)) {
-		nvkm_debug(subdev, "applying workaround for start bug...\n");
+		nvkm_de(subdev, "applying workaround for start ...\n");
 		nvkm_falcon_start(sb->boot_falcon);
 		nvkm_msec(subdev->device, 1,
 			if ((reg = nvkm_rd32(subdev->device,
@@ -197,7 +197,7 @@ acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 		}
 	}
 
-	nvkm_debug(&sb->subdev, "%s started\n",
+	nvkm_de(&sb->subdev, "%s started\n",
 		   nvkm_secboot_falcon_name[acr->boot_falcon]);
 
 	return 0;

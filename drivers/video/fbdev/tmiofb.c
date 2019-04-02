@@ -833,14 +833,14 @@ static int tmiofb_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void tmiofb_dump_regs(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct tmiofb_par *par = info->par;
 
-	printk(KERN_DEBUG "lhccr:\n");
-#define CCR_PR(n)	printk(KERN_DEBUG "\t" #n " = \t%04x\n",\
+	printk(KERN_DE "lhccr:\n");
+#define CCR_PR(n)	printk(KERN_DE "\t" #n " = \t%04x\n",\
 		tmio_ioread16(par->ccr + CCR_ ## n));
 	CCR_PR(CMD);
 	CCR_PR(REVID);
@@ -854,8 +854,8 @@ static void tmiofb_dump_regs(struct platform_device *dev)
 	CCR_PR(VRAMBC);
 #undef CCR_PR
 
-	printk(KERN_DEBUG "lcr: \n");
-#define LCR_PR(n)	printk(KERN_DEBUG "\t" #n " = \t%04x\n",\
+	printk(KERN_DE "lcr: \n");
+#define LCR_PR(n)	printk(KERN_DE "\t" #n " = \t%04x\n",\
 		tmio_ioread16(par->lcr + LCR_ ## n));
 	LCR_PR(UIS);
 	LCR_PR(VHPN);

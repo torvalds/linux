@@ -67,7 +67,7 @@ static int bind_usbip(char *busid)
 	return 0;
 }
 
-/* buggy driver may cause dead lock */
+/* gy driver may cause dead lock */
 static int unbind_other(char *busid)
 {
 	enum unbind_status status = UNBIND_ST_OK;

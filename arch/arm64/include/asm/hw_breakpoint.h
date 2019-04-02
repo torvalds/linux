@@ -96,19 +96,19 @@ static inline void decode_ctrl_reg(u32 reg,
 #define ARM_MAX_BRP		16
 #define ARM_MAX_WRP		16
 
-/* Virtual debug register bases. */
+/* Virtual de register bases. */
 #define AARCH64_DBG_REG_BVR	0
 #define AARCH64_DBG_REG_BCR	(AARCH64_DBG_REG_BVR + ARM_MAX_BRP)
 #define AARCH64_DBG_REG_WVR	(AARCH64_DBG_REG_BCR + ARM_MAX_BRP)
 #define AARCH64_DBG_REG_WCR	(AARCH64_DBG_REG_WVR + ARM_MAX_WRP)
 
-/* Debug register names. */
+/* De register names. */
 #define AARCH64_DBG_REG_NAME_BVR	bvr
 #define AARCH64_DBG_REG_NAME_BCR	bcr
 #define AARCH64_DBG_REG_NAME_WVR	wvr
 #define AARCH64_DBG_REG_NAME_WCR	wcr
 
-/* Accessor macros for the debug registers. */
+/* Accessor macros for the de registers. */
 #define AARCH64_DBG_READ(N, REG, VAL) do {\
 	VAL = read_sysreg(dbg##REG##N##_el1);\
 } while (0)

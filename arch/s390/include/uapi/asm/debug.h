@@ -1,21 +1,21 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- *   S/390 debug facility
+ *   S/390 de facility
  *
  *    Copyright IBM Corp. 1999, 2000
  */
 
-#ifndef _UAPIDEBUG_H
-#define _UAPIDEBUG_H
+#ifndef _UAPIDE_H
+#define _UAPIDE_H
 
 #include <linux/fs.h>
 
 /* Note:
- * struct __debug_entry must be defined outside of #ifdef __KERNEL__ 
+ * struct __de_entry must be defined outside of #ifdef __KERNEL__ 
  * in order to allow a user program to analyze the 'raw'-view.
  */
 
-struct __debug_entry{
+struct __de_entry{
         union {
                 struct {
                         unsigned long long clock:52;
@@ -30,6 +30,6 @@ struct __debug_entry{
 } __attribute__((packed));
 
 
-#define __DEBUG_FEATURE_VERSION      2  /* version of debug feature */
+#define __DE_FEATURE_VERSION      2  /* version of de feature */
 
-#endif /* _UAPIDEBUG_H */
+#endif /* _UAPIDE_H */

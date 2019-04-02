@@ -49,7 +49,7 @@
 
 #include "rbd_types.h"
 
-#define RBD_DEBUG	/* Activate rbd_assert() calls */
+#define RBD_DE	/* Activate rbd_assert() calls */
 
 /*
  * Increment the given counter and return its updated value.
@@ -558,18 +558,18 @@ void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
 	va_end(args);
 }
 
-#ifdef RBD_DEBUG
+#ifdef RBD_DE
 #define rbd_assert(expr)						\
 		if (unlikely(!(expr))) {				\
 			printk(KERN_ERR "\nAssertion failure in %s() "	\
 						"at line %d:\n\n"	\
 					"\trbd_assert(%s);\n\n",	\
 					__func__, __LINE__, #expr);	\
-			BUG();						\
+			();						\
 		}
-#else /* !RBD_DEBUG */
+#else /* !RBD_DE */
 #  define rbd_assert(expr)	((void) 0)
-#endif /* !RBD_DEBUG */
+#endif /* !RBD_DE */
 
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev);
 
@@ -1453,7 +1453,7 @@ static bool rbd_img_is_write(struct rbd_img_request *img_req)
 	case OBJ_OP_ZEROOUT:
 		return true;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -2689,7 +2689,7 @@ static bool rbd_obj_handle_write(struct rbd_obj_request *obj_req)
 		}
 		return false;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -2718,7 +2718,7 @@ static bool __rbd_obj_handle_request(struct rbd_obj_request *obj_req)
 		}
 		return false;
 	default:
-		BUG();
+		();
 	}
 }
 

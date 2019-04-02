@@ -301,7 +301,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     MAC_CTRL_RX_CHKSUM_EN       0x1000000 /* 1: RX checksum enable */
 #define     MAC_CTRL_MC_ALL_EN          0x2000000 /* 1: upload all multicast frame without error to system */
 #define     MAC_CTRL_BC_EN              0x4000000 /* 1: upload all broadcast frame without error to system */
-#define     MAC_CTRL_DBG                0x8000000 /* 1: upload all received frame to system (Debug Mode) */
+#define     MAC_CTRL_DBG                0x8000000 /* 1: upload all received frame to system (De Mode) */
 
 /* MAC IPG/IFG Control Register  */
 #define REG_MAC_IPG_IFG             0x1484
@@ -544,7 +544,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define  ISR_SMB   		1
 #define  ISR_TIMER		2       /* Interrupt when Timer is counted down to zero */
 /*
- * Software manual interrupt, for debug. Set when SW_MAN_INT_EN is set
+ * Software manual interrupt, for de. Set when SW_MAN_INT_EN is set
  * in Table 51 Selene Master Control Register (Offset 0x1400).
  */
 #define  ISR_MANUAL         	4
@@ -623,9 +623,9 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_HOST_TX_CMB_LO    0x1840
 #define REG_HOST_SMB_ADDR_LO  0x1844
 
-/* DEBUG ADDR */
-#define REG_DEBUG_DATA0 0x1900
-#define REG_DEBUG_DATA1 0x1904
+/* DE ADDR */
+#define REG_DE_DATA0 0x1900
+#define REG_DE_DATA1 0x1904
 
 /***************************** MII definition ***************************************/
 /* PHY Common Register */

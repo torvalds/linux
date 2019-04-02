@@ -516,7 +516,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	 *	is not requested the Fib will just be deallocaed by the DPC
 	 *	routine when the response comes back from the adapter. No
 	 *	further processing will be done besides deleting the Fib. We
-	 *	will have a debug mode where the adapter can notify the host
+	 *	will have a de mode where the adapter can notify the host
 	 *	it had a problem and the host can log that fact.
 	 */
 	fibptr->flags = 0;
@@ -581,13 +581,13 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 
 	FIB_COUNTER_INCREMENT(aac_config.FibsSent);
 
-	dprintk((KERN_DEBUG "Fib contents:.\n"));
-	dprintk((KERN_DEBUG "  Command =               %d.\n", le32_to_cpu(hw_fib->header.Command)));
-	dprintk((KERN_DEBUG "  SubCommand =            %d.\n", le32_to_cpu(((struct aac_query_mount *)fib_data(fibptr))->command)));
-	dprintk((KERN_DEBUG "  XferState  =            %x.\n", le32_to_cpu(hw_fib->header.XferState)));
-	dprintk((KERN_DEBUG "  hw_fib va being sent=%p\n",fibptr->hw_fib_va));
-	dprintk((KERN_DEBUG "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
-	dprintk((KERN_DEBUG "  fib being sent=%p\n",fibptr));
+	dprintk((KERN_DE "Fib contents:.\n"));
+	dprintk((KERN_DE "  Command =               %d.\n", le32_to_cpu(hw_fib->header.Command)));
+	dprintk((KERN_DE "  SubCommand =            %d.\n", le32_to_cpu(((struct aac_query_mount *)fib_data(fibptr))->command)));
+	dprintk((KERN_DE "  XferState  =            %x.\n", le32_to_cpu(hw_fib->header.XferState)));
+	dprintk((KERN_DE "  hw_fib va being sent=%p\n",fibptr->hw_fib_va));
+	dprintk((KERN_DE "  hw_fib pa being sent=%lx\n",(ulong)fibptr->hw_fib_pa));
+	dprintk((KERN_DE "  fib being sent=%p\n",fibptr));
 
 	if (!dev->queues)
 		return -EBUSY;
@@ -700,7 +700,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 			return -ERESTARTSYS;
 		}
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
-		BUG_ON(fibptr->done == 0);
+		_ON(fibptr->done == 0);
 
 		if(unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
 			return -ETIMEDOUT;
@@ -864,7 +864,7 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
 			notify = HostNormRespNotFull;
 			break;
 		default:
-			BUG();
+			();
 			return;
 		}
 		aac_adapter_notify(dev, notify);
@@ -940,7 +940,7 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 	} else {
 		printk(KERN_WARNING "aac_fib_adapter_complete: "
 			"Unknown xferstate detected.\n");
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -998,7 +998,7 @@ int aac_fib_complete(struct fib *fibptr)
 	} else if(hw_fib->header.XferState & cpu_to_le32(HostOwned)) {
 		fib_dealloc(fibptr);
 	} else {
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -1422,7 +1422,7 @@ retry_next:
 	if (device) {
 		switch (device_config_needed) {
 		case DELETE:
-#if (defined(AAC_DEBUG_INSTRUMENT_AIF_DELETE))
+#if (defined(AAC_DE_INSTRUMENT_AIF_DELETE))
 			scsi_remove_device(device);
 #else
 			if (scsi_device_online(device)) {
@@ -1448,7 +1448,7 @@ retry_next:
 		case CHANGE:
 			if ((channel == CONTAINER_CHANNEL)
 			 && (!dev->fsa_dev[container].valid)) {
-#if (defined(AAC_DEBUG_INSTRUMENT_AIF_DELETE))
+#if (defined(AAC_DE_INSTRUMENT_AIF_DELETE))
 				scsi_remove_device(device);
 #else
 				if (!scsi_device_online(device))

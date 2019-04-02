@@ -289,8 +289,8 @@ static u32 atl1_check_link(struct atl1_adapter *adapter);
 	ISR_CMB_TX	|\
 	ISR_CMB_RX)
 
-/* Debug Interrupt Mask  (enable all interrupt) */
-#define IMR_DEBUG_MASK	(\
+/* De Interrupt Mask  (enable all interrupt) */
+#define IMR_DE_MASK	(\
 	ISR_SMB		|\
 	ISR_TIMER	|\
 	ISR_MANUAL	|\

@@ -2,7 +2,7 @@
 #include <linux/stat.h>
 #include <linux/sysctl.h>
 #include "../fs/xfs/xfs_sysctl.h"
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 #include <linux/string.h>
 #include <linux/syscalls.h>
 #include <linux/namei.h>
@@ -112,7 +112,7 @@ static const struct bin_table bin_kern_table[] = {
 	{ CTL_STR,	KERN_HOTPLUG,			"hotplug", },
 	{ CTL_INT,	KERN_IEEE_EMULATION_WARNINGS,	"ieee_emulation_warnings" },
 
-	{ CTL_INT,	KERN_S390_USER_DEBUG_LOGGING,	"userprocess_debug" },
+	{ CTL_INT,	KERN_S390_USER_DE_LOGGING,	"userprocess_de" },
 	{ CTL_INT,	KERN_CORE_USES_PID,		"core_uses_pid" },
 	/* KERN_TAINTED "tainted" no longer used */
 	{ CTL_INT,	KERN_CADPID,			"cad_pid" },
@@ -422,7 +422,7 @@ static const struct bin_table bin_net_ipv4_table[] = {
 	/* NET_TCP_DEFAULT_WIN_SCALE unused */
 	/* NET_TCP_BIC_BETA unused */
 	/* NET_IPV4_TCP_MAX_KA_PROBES unused */
-	/* NET_IPV4_IP_MASQ_DEBUG unused */
+	/* NET_IPV4_IP_MASQ_DE unused */
 	/* NET_TCP_SYN_TAILDROP unused */
 	/* NET_IPV4_ICMP_SOURCEQUENCH_RATE unused */
 	/* NET_IPV4_ICMP_DESTUNREACH_RATE unused */
@@ -619,7 +619,7 @@ static const struct bin_table bin_net_decnet_table[] = {
 	{ CTL_INT,	NET_DECNET_MEM,		"decnet_mem" },
 	{ CTL_INT,	NET_DECNET_RMEM,		"decnet_rmem" },
 	{ CTL_INT,	NET_DECNET_WMEM,		"decnet_wmem" },
-	{ CTL_INT,	NET_DECNET_DEBUG_LEVEL,	"debug" },
+	{ CTL_INT,	NET_DECNET_DE_LEVEL,	"de" },
 	{}
 };
 
@@ -858,16 +858,16 @@ static const struct bin_table bin_bus_table[] = {
 
 
 static const struct bin_table bin_s390dbf_table[] = {
-	{ CTL_INT,	5678 /* CTL_S390DBF_STOPPABLE */, "debug_stoppable" },
-	{ CTL_INT,	5679 /* CTL_S390DBF_ACTIVE */,	  "debug_active" },
+	{ CTL_INT,	5678 /* CTL_S390DBF_STOPPABLE */, "de_stoppable" },
+	{ CTL_INT,	5679 /* CTL_S390DBF_ACTIVE */,	  "de_active" },
 	{}
 };
 
 static const struct bin_table bin_sunrpc_table[] = {
-	/* CTL_RPCDEBUG	"rpc_debug"  no longer used */
-	/* CTL_NFSDEBUG "nfs_debug"  no longer used */
-	/* CTL_NFSDDEBUG "nfsd_debug" no longer used  */
-	/* CTL_NLMDEBUG "nlm_debug" no longer used */
+	/* CTL_RPCDE	"rpc_de"  no longer used */
+	/* CTL_NFSDE "nfs_de"  no longer used */
+	/* CTL_NFSDDE "nfsd_de" no longer used  */
+	/* CTL_NLMDE "nlm_de" no longer used */
 
 	{ CTL_INT,	CTL_SLOTTABLE_UDP,	"udp_slot_table_entries" },
 	{ CTL_INT,	CTL_SLOTTABLE_TCP,	"tcp_slot_table_entries" },
@@ -891,7 +891,7 @@ static const struct bin_table bin_root_table[] = {
 	{ CTL_DIR,	CTL_NET,	"net",		bin_net_table },
 	/* CTL_PROC not used */
 	{ CTL_DIR,	CTL_FS,		"fs",		bin_fs_table },
-	/* CTL_DEBUG "debug" no longer used */
+	/* CTL_DE "de" no longer used */
 	{ CTL_DIR,	CTL_DEV,	"dev",		bin_dev_table },
 	{ CTL_DIR,	CTL_BUS,	"bus",		bin_bus_table },
 	{ CTL_DIR,	CTL_ABI,	"abi" },

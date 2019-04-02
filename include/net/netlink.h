@@ -315,7 +315,7 @@ struct nla_policy {
 #define NLA_POLICY_NESTED_ARRAY(policy) \
 	_NLA_POLICY_NESTED_ARRAY(ARRAY_SIZE(policy) - 1, policy)
 
-#define __NLA_ENSURE(condition) BUILD_BUG_ON_ZERO(!(condition))
+#define __NLA_ENSURE(condition) BUILD__ON_ZERO(!(condition))
 #define NLA_ENSURE_INT_TYPE(tp)				\
 	(__NLA_ENSURE(tp == NLA_S8 || tp == NLA_U8 ||	\
 		      tp == NLA_S16 || tp == NLA_U16 ||	\

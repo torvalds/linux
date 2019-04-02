@@ -66,7 +66,7 @@
  *	align = register byte alignment (power of 2)
  *	asize = allocated size in bytes (asize*8 == bitsz + gapsz + padsz)
  *	  (not including any pad bytes required to galign this or next reg)
- *	dbnum = unique target number f/debug (see <xtensa-libdb-macros.h>)
+ *	dbnum = unique target number f/de (see <xtensa-libdb-macros.h>)
  *	base = reg shortname w/o index (or sr=special, ur=TIE user reg)
  *	regnum = reg index in regfile, or special/TIE-user reg number
  *	bitsz = number of significant bits (regfile width, or ur/sr mask bits)

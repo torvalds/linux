@@ -55,7 +55,7 @@ Multi-Channel Products:
    ABP3950U2W - Bus-Master PCI LVD/Ultra2-Wide and Ultra-Wide (253 CDB)
    ABP3950U3W - Bus-Master PCI Dual LVD2/Ultra3-Wide (253 CDB)
 
-Driver Compile Time Options and Debugging
+Driver Compile Time Options and Deging
 
 The following constants can be defined in the source file.
 
@@ -70,40 +70,40 @@ The following constants can be defined in the source file.
    problems. Enabling assertions will add a small overhead to the
    execution of the driver.
 
-2. ADVANSYS_DEBUG - Enable driver debugging (Def: Disabled)
+2. ADVANSYS_DE - Enable driver deging (Def: Disabled)
 
    Enabling this option adds tracing functions to the driver and the
    ability to set a driver tracing level at boot time.  This option is
-   very useful for debugging the driver, but it will add to the size
+   very useful for deging the driver, but it will add to the size
    of the driver execution image and add overhead to the execution of
    the driver.
 
-   The amount of debugging output can be controlled with the global
+   The amount of deging output can be controlled with the global
    variable 'asc_dbglvl'. The higher the number the more output. By
-   default the debug level is 0.
+   default the de level is 0.
 
    If the driver is loaded at boot time and the LILO Driver Option
-   is included in the system, the debug level can be changed by
+   is included in the system, the de level can be changed by
    specifying a 5th (ASC_NUM_IOPORT_PROBE + 1) I/O Port. The
    first three hex digits of the pseudo I/O Port must be set to
-   'deb' and the fourth hex digit specifies the debug level: 0 - F.
+   'deb' and the fourth hex digit specifies the de level: 0 - F.
    The following command line will look for an adapter at 0x330
-   and set the debug level to 2.
+   and set the de level to 2.
 
       linux advansys=0x330,0,0,0,0xdeb2
 
    If the driver is built as a loadable module this variable can be
    defined when the driver is loaded. The following insmod command
-   will set the debug level to one.
+   will set the de level to one.
 
       insmod advansys.o asc_dbglvl=1
 
-   Debugging Message Levels:
+   Deging Message Levels:
       0: Errors Only
       1: High-Level Tracing
       2-N: Verbose Tracing
 
-   To enable debug output to console, please make sure that:
+   To enable de output to console, please make sure that:
 
    a. System and kernel logging is enabled (syslogd, klogd running).
    b. Kernel messages are routed to console output. Check
@@ -120,7 +120,7 @@ The following constants can be defined in the source file.
 
    Alternatively you can enable printk() to console with this
    program. However, this is not the 'official' way to do this.
-   Debug output is logged in /var/log/messages.
+   De output is logged in /var/log/messages.
 
      main()
      {
@@ -128,7 +128,7 @@ The following constants can be defined in the source file.
      }
 
    Increasing LOG_BUF_LEN in kernel/printk.c to something like
-   40960 allows more debug messages to be buffered in the kernel
+   40960 allows more de messages to be buffered in the kernel
    and written to the console or log file.
 
 3. ADVANSYS_STATS - Enable statistics (Def: Enabled)
@@ -181,9 +181,9 @@ the driver, e.g.
 
       insmod advansys.o asc_iopflag=1 asc_ioport=0x110,0x330
 
-If ADVANSYS_DEBUG is defined a 5th (ASC_NUM_IOPORT_PROBE + 1)
-I/O Port may be added to specify the driver debug level. Refer to
-the 'Driver Compile Time Options and Debugging' section above for
+If ADVANSYS_DE is defined a 5th (ASC_NUM_IOPORT_PROBE + 1)
+I/O Port may be added to specify the driver de level. Refer to
+the 'Driver Compile Time Options and Deging' section above for
 more information.
 
 Credits (Chronological Order)
@@ -196,7 +196,7 @@ Nathan Hartwell <mage@cdc3.cdc.net> provided the directions and
 basis for the Linux v1.3.X changes which were included in the
 1.2 release.
 
-Thomas E Zerucha <zerucha@shell.portal.com> pointed out a bug
+Thomas E Zerucha <zerucha@shell.portal.com> pointed out a 
 in advansys_biosparam() which was fixed in the 1.3 release.
 
 Erik Ratcliffe <erik@caldera.com> has done testing of the
@@ -212,7 +212,7 @@ support in the 3.1A driver.
 Doug Gilbert <dgilbert@interlog.com> has made changes and
 suggestions to improve the driver and done a lot of testing.
 
-Ken Mort <ken@mort.net> reported a DEBUG compile bug fixed
+Ken Mort <ken@mort.net> reported a DE compile  fixed
 in 3.2K.
 
 Tom Rini <trini@kernel.crashing.org> provided the CONFIG_ISA
@@ -228,11 +228,11 @@ the 3.2M driver.
 Jerry Quinn <jlquinn@us.ibm.com> fixed PowerPC support (endian
 problems) for wide cards.
 
-Bryan Henderson <bryanh@giraffe-data.com> helped debug narrow
+Bryan Henderson <bryanh@giraffe-data.com> helped de narrow
 card error handling.
 
 Manuel Veloso <veloso@pobox.com> worked hard on PowerPC narrow
-board support and fixed a bug in AscGetEEPConfig().
+board support and fixed a  in AscGetEEPConfig().
 
 Arnaldo Carvalho de Melo <acme@conectiva.com.br> made
 save_flags/restore_flags changes.

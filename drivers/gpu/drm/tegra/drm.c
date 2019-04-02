@@ -158,9 +158,9 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		drm_mm_init(&tegra->mm, gem_start, gem_end - gem_start + 1);
 		mutex_init(&tegra->mm_lock);
 
-		DRM_DEBUG("IOMMU apertures:\n");
-		DRM_DEBUG("  GEM: %#llx-%#llx\n", gem_start, gem_end);
-		DRM_DEBUG("  Carveout: %#llx-%#llx\n", carveout_start,
+		DRM_DE("IOMMU apertures:\n");
+		DRM_DE("  GEM: %#llx-%#llx\n", gem_start, gem_end);
+		DRM_DE("  Carveout: %#llx-%#llx\n", carveout_start,
 			  carveout_end);
 	}
 
@@ -955,8 +955,8 @@ static void tegra_drm_postclose(struct drm_device *drm, struct drm_file *file)
 	kfree(fpriv);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
+#ifdef CONFIG_DE_FS
+static int tegra_defs_framebuffers(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)s->private;
 	struct drm_device *drm = node->minor->dev;
@@ -977,7 +977,7 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int tegra_debugfs_iova(struct seq_file *s, void *data)
+static int tegra_defs_iova(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)s->private;
 	struct drm_device *drm = node->minor->dev;
@@ -993,16 +993,16 @@ static int tegra_debugfs_iova(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list tegra_debugfs_list[] = {
-	{ "framebuffers", tegra_debugfs_framebuffers, 0 },
-	{ "iova", tegra_debugfs_iova, 0 },
+static struct drm_info_list tegra_defs_list[] = {
+	{ "framebuffers", tegra_defs_framebuffers, 0 },
+	{ "iova", tegra_defs_iova, 0 },
 };
 
-static int tegra_debugfs_init(struct drm_minor *minor)
+static int tegra_defs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(tegra_debugfs_list,
-					ARRAY_SIZE(tegra_debugfs_list),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(tegra_defs_list,
+					ARRAY_SIZE(tegra_defs_list),
+					minor->defs_root, minor);
 }
 #endif
 
@@ -1015,8 +1015,8 @@ static struct drm_driver tegra_drm_driver = {
 	.postclose = tegra_drm_postclose,
 	.lastclose = drm_fb_helper_lastclose,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = tegra_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = tegra_defs_init,
 #endif
 
 	.gem_free_object_unlocked = tegra_bo_free_object,

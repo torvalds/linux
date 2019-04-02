@@ -28,15 +28,15 @@
  *  Alon Levy <alevy@redhat.com>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <drm/drmP.h>
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 static int
-qxl_debugfs_irq_received(struct seq_file *m, void *data)
+qxl_defs_irq_received(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct qxl_device *qdev = node->minor->dev->dev_private;
@@ -50,7 +50,7 @@ qxl_debugfs_irq_received(struct seq_file *m, void *data)
 }
 
 static int
-qxl_debugfs_buffers_info(struct seq_file *m, void *data)
+qxl_defs_buffers_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct qxl_device *qdev = node->minor->dev->dev_private;
@@ -72,58 +72,58 @@ qxl_debugfs_buffers_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list qxl_debugfs_list[] = {
-	{ "irq_received", qxl_debugfs_irq_received, 0, NULL },
-	{ "qxl_buffers", qxl_debugfs_buffers_info, 0, NULL },
+static struct drm_info_list qxl_defs_list[] = {
+	{ "irq_received", qxl_defs_irq_received, 0, NULL },
+	{ "qxl_buffers", qxl_defs_buffers_info, 0, NULL },
 };
-#define QXL_DEBUGFS_ENTRIES ARRAY_SIZE(qxl_debugfs_list)
+#define QXL_DEFS_ENTRIES ARRAY_SIZE(qxl_defs_list)
 #endif
 
 int
-qxl_debugfs_init(struct drm_minor *minor)
+qxl_defs_init(struct drm_minor *minor)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	int r;
 	struct qxl_device *dev =
 		(struct qxl_device *) minor->dev->dev_private;
 
-	drm_debugfs_create_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
-				 minor->debugfs_root, minor);
+	drm_defs_create_files(qxl_defs_list, QXL_DEFS_ENTRIES,
+				 minor->defs_root, minor);
 
-	r = qxl_ttm_debugfs_init(dev);
+	r = qxl_ttm_defs_init(dev);
 	if (r) {
-		DRM_ERROR("Failed to init TTM debugfs\n");
+		DRM_ERROR("Failed to init TTM defs\n");
 		return r;
 	}
 #endif
 	return 0;
 }
 
-int qxl_debugfs_add_files(struct qxl_device *qdev,
+int qxl_defs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,
 			  unsigned int nfiles)
 {
 	unsigned int i;
 
-	for (i = 0; i < qdev->debugfs_count; i++) {
-		if (qdev->debugfs[i].files == files) {
+	for (i = 0; i < qdev->defs_count; i++) {
+		if (qdev->defs[i].files == files) {
 			/* Already registered */
 			return 0;
 		}
 	}
 
-	i = qdev->debugfs_count + 1;
-	if (i > QXL_DEBUGFS_MAX_COMPONENTS) {
-		DRM_ERROR("Reached maximum number of debugfs components.\n");
-		DRM_ERROR("Report so we increase QXL_DEBUGFS_MAX_COMPONENTS.\n");
+	i = qdev->defs_count + 1;
+	if (i > QXL_DEFS_MAX_COMPONENTS) {
+		DRM_ERROR("Reached maximum number of defs components.\n");
+		DRM_ERROR("Report so we increase QXL_DEFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
-	qdev->debugfs[qdev->debugfs_count].files = files;
-	qdev->debugfs[qdev->debugfs_count].num_files = nfiles;
-	qdev->debugfs_count = i;
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_create_files(files, nfiles,
-				 qdev->ddev.primary->debugfs_root,
+	qdev->defs[qdev->defs_count].files = files;
+	qdev->defs[qdev->defs_count].num_files = nfiles;
+	qdev->defs_count = i;
+#if defined(CONFIG_DE_FS)
+	drm_defs_create_files(files, nfiles,
+				 qdev->ddev.primary->defs_root,
 				 qdev->ddev.primary);
 #endif
 	return 0;

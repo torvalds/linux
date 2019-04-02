@@ -984,7 +984,7 @@ int dm_btree_walk(struct dm_btree_info *info, dm_block_t root,
 		  int (*fn)(void *context, uint64_t *keys, void *leaf),
 		  void *context)
 {
-	BUG_ON(info->levels > 1);
+	_ON(info->levels > 1);
 	return walk_node(info, root, fn, context);
 }
 EXPORT_SYMBOL_GPL(dm_btree_walk);
@@ -999,7 +999,7 @@ static void prefetch_values(struct dm_btree_cursor *c)
 	struct btree_node *bn = dm_block_data(n->b);
 	struct dm_block_manager *bm = dm_tm_get_bm(c->info->tm);
 
-	BUG_ON(c->info->value_type.size != sizeof(value_le));
+	_ON(c->info->value_type.size != sizeof(value_le));
 
 	nr = le32_to_cpu(bn->header.nr_entries);
 	for (i = 0; i < nr; i++) {

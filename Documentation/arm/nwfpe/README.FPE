@@ -140,7 +140,7 @@ be implemented in future versions.
 Signalling:
 
 Signals are implemented.  However current ELF kernels produced by Rebel.com
-have a bug in them that prevents the module from generating a SIGFPE.  This
+have a  in them that prevents the module from generating a SIGFPE.  This
 is caused by a failure to alias fp_current to the kernel variable
 current_set[0] correctly.
 

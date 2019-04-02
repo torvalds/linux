@@ -453,7 +453,7 @@ static int radeon_pmops_runtime_idle(struct device *dev)
 
 	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
 		if (crtc->enabled) {
-			DRM_DEBUG_DRIVER("failing to power off - crtc active\n");
+			DRM_DE_DRIVER("failing to power off - crtc active\n");
 			return -EBUSY;
 		}
 	}

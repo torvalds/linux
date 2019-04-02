@@ -446,7 +446,7 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	BUG_ON(idx >= priv->echo_skb_max);
+	_ON(idx >= priv->echo_skb_max);
 
 	/* check flag whether this packet has to be looped back */
 	if (!(dev->flags & IFF_ECHO) || skb->pkt_type != PACKET_LOOPBACK ||
@@ -471,7 +471,7 @@ void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		priv->echo_skb[idx] = skb;
 	} else {
 		/* locking problem with netif_stop_queue() ?? */
-		netdev_err(dev, "%s: BUG! echo_skb is occupied!\n", __func__);
+		netdev_err(dev, "%s: ! echo_skb is occupied!\n", __func__);
 		kfree_skb(skb);
 	}
 }
@@ -482,7 +482,7 @@ struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 
 	struct can_priv *priv = netdev_priv(dev);
 
 	if (idx >= priv->echo_skb_max) {
-		netdev_err(dev, "%s: BUG! Trying to access can_priv::echo_skb out of bounds (%u/max %u)\n",
+		netdev_err(dev, "%s: ! Trying to access can_priv::echo_skb out of bounds (%u/max %u)\n",
 			   __func__, idx, priv->echo_skb_max);
 		return NULL;
 	}
@@ -535,7 +535,7 @@ void can_free_echo_skb(struct net_device *dev, unsigned int idx)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	BUG_ON(idx >= priv->echo_skb_max);
+	_ON(idx >= priv->echo_skb_max);
 
 	if (priv->echo_skb[idx]) {
 		dev_kfree_skb_any(priv->echo_skb[idx]);
@@ -555,7 +555,7 @@ static void can_restart(struct net_device *dev)
 	struct can_frame *cf;
 	int err;
 
-	BUG_ON(netif_carrier_ok(dev));
+	_ON(netif_carrier_ok(dev));
 
 	/*
 	 * No synchronization needed because the device is bus-off and

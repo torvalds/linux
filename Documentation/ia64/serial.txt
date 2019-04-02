@@ -135,8 +135,8 @@ TROUBLESHOOTING SERIAL CONSOLE PROBLEMS
 
 [1] http://www.dig64.org/specifications/agreement 
     The table was originally defined as the "HCDP" for "Headless
-    Console/Debug Port."  The current version is the "PCDP" for
-    "Primary Console and Debug Port Devices."
+    Console/De Port."  The current version is the "PCDP" for
+    "Primary Console and De Port Devices."
 
 [2] The HP MP (management processor) is a PCI device that provides
     several UARTs.  One of the UARTs is often used as a console; the

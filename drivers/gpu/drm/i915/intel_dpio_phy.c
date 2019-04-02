@@ -315,14 +315,14 @@ bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
 
 	if ((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
 	     (PHY_POWER_GOOD | PHY_RESERVED)) != PHY_POWER_GOOD) {
-		DRM_DEBUG_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
+		DRM_DE_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
 				 phy);
 
 		return false;
 	}
 
 	if (!(I915_READ(BXT_PHY_CTL_FAMILY(phy)) & COMMON_RESET_DIS)) {
-		DRM_DEBUG_DRIVER("DDI PHY %d powered, but still in reset\n",
+		DRM_DE_DRIVER("DDI PHY %d powered, but still in reset\n",
 				 phy);
 
 		return false;
@@ -362,12 +362,12 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
 
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
-			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
+			DRM_DE_DRIVER("DDI PHY %d already enabled, "
 					 "won't reprogram it\n", phy);
 			return;
 		}
 
-		DRM_DEBUG_DRIVER("DDI PHY %d enabled with invalid state, "
+		DRM_DE_DRIVER("DDI PHY %d enabled with invalid state, "
 				 "force reprogramming it\n", phy);
 	}
 
@@ -501,7 +501,7 @@ __phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	vaf.fmt = reg_fmt;
 	vaf.va = &args;
 
-	DRM_DEBUG_DRIVER("DDI PHY %d reg %pV [%08x] state mismatch: "
+	DRM_DE_DRIVER("DDI PHY %d reg %pV [%08x] state mismatch: "
 			 "current %08x, expected %08x (mask %08x)\n",
 			 phy, &vaf, reg.reg, val, (val & ~mask) | expected,
 			 mask);

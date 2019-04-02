@@ -11,7 +11,7 @@ Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read only
 		Number of contexts for the AFU, in the format <n>/<max>
 		where:
-			n:	number of currently active contexts, for debug
+			n:	number of currently active contexts, for de
 			max:	maximum number of contexts supported by the AFU
 
 What:		/sys/class/ocxl/<afu name>/pp_mmio_size

@@ -31,7 +31,7 @@
 #include "jfs_metapage.h"
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  * forward references

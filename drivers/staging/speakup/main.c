@@ -1227,7 +1227,7 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 
 	version = *cp++;
 	if (version != KEY_MAP_VER) {
-		pr_debug("version found %d should be %d\n",
+		pr_de("version found %d should be %d\n",
 			 version, KEY_MAP_VER);
 		return -EINVAL;
 	}
@@ -1235,7 +1235,7 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	states = (int)cp[1];
 	key_data_len = (states + 1) * (num_keys + 1);
 	if (key_data_len + SHIFT_TBL_SIZE + 4 >= sizeof(spk_key_buf)) {
-		pr_debug("too many key_infos (%d over %u)\n",
+		pr_de("too many key_infos (%d over %u)\n",
 			 key_data_len + SHIFT_TBL_SIZE + 4,
 			 (unsigned int)(sizeof(spk_key_buf)));
 		return -EINVAL;
@@ -1251,7 +1251,7 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	for (i = 1; i <= states; i++) {
 		ch = *cp1++;
 		if (ch >= SHIFT_TBL_SIZE) {
-			pr_debug("(%d) not valid shift state (max_allowed = %d)\n",
+			pr_de("(%d) not valid shift state (max_allowed = %d)\n",
 				 ch, SHIFT_TBL_SIZE);
 			return -EINVAL;
 		}
@@ -1260,7 +1260,7 @@ int spk_set_key_info(const u_char *key_info, u_char *k_buffer)
 	keymap_flags = *cp1++;
 	while ((ch = *cp1)) {
 		if (ch >= MAX_KEY) {
-			pr_debug("(%d), not valid key, (max_allowed = %d)\n",
+			pr_de("(%d), not valid key, (max_allowed = %d)\n",
 				 ch, MAX_KEY);
 			return -EINVAL;
 		}

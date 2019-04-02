@@ -762,7 +762,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 	down_read(&xs_watch_rwsem);
 
 	spin_lock(&watches_lock);
-	BUG_ON(find_watch(token));
+	_ON(find_watch(token));
 	list_add(&watch->list, &watches);
 	spin_unlock(&watches_lock);
 
@@ -791,7 +791,7 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 	down_read(&xs_watch_rwsem);
 
 	spin_lock(&watches_lock);
-	BUG_ON(!find_watch(token));
+	_ON(!find_watch(token));
 	list_del(&watch->list);
 	spin_unlock(&watches_lock);
 

@@ -2,7 +2,7 @@
 #include "../../util/sort.h"
 #include "../../util/util.h"
 #include "../../util/hist.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/symbol.h"
 #include "../browser.h"
 #include "../libslang.h"
@@ -148,7 +148,7 @@ out:
 
 void run_script(char *cmd)
 {
-	pr_debug("Running %s\n", cmd);
+	pr_de("Running %s\n", cmd);
 	SLang_reset_tty();
 	if (system(cmd) < 0)
 		pr_warning("Cannot run %s\n", cmd);

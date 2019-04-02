@@ -13,7 +13,7 @@
 #ifndef __MACH_PUV3_OCD_H__
 #define __MACH_PUV3_OCD_H__
 
-#if defined(CONFIG_DEBUG_OCD)
+#if defined(CONFIG_DE_OCD)
 static inline void ocd_putc(unsigned int c)
 {
 	int status, i = 0x2000000;

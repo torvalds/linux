@@ -71,7 +71,7 @@ static int tegra_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void tegra_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 				       struct seq_file *s,
 				       unsigned offset)
@@ -217,7 +217,7 @@ static const struct pinctrl_ops tegra_pinctrl_ops = {
 	.get_groups_count = tegra_pinctrl_get_groups_count,
 	.get_group_name = tegra_pinctrl_get_group_name,
 	.get_group_pins = tegra_pinctrl_get_group_pins,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_dbg_show = tegra_pinctrl_pin_dbg_show,
 #endif
 	.dt_node_to_map = tegra_pinctrl_dt_node_to_map,
@@ -526,7 +526,7 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void tegra_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				   struct seq_file *s, unsigned offset)
 {
@@ -593,7 +593,7 @@ static const struct pinconf_ops tegra_pinconf_ops = {
 	.pin_config_set = tegra_pinconf_set,
 	.pin_config_group_get = tegra_pinconf_group_get,
 	.pin_config_group_set = tegra_pinconf_group_set,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_config_dbg_show = tegra_pinconf_dbg_show,
 	.pin_config_group_dbg_show = tegra_pinconf_group_dbg_show,
 	.pin_config_config_dbg_show = tegra_pinconf_config_dbg_show,
@@ -689,7 +689,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 			if (gfn == 4)
 				continue;
 
-			BUG_ON(group_pins - pmx->group_pins >=
+			_ON(group_pins - pmx->group_pins >=
 				soc_data->ngroups * 4);
 			*group_pins++ = g->name;
 			func->ngroups++;

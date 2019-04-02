@@ -139,7 +139,7 @@
 
 /*
  * The R8000 doesn't have the 32-bit compat spaces so we don't define them
- * in order to catch bugs in the source code.
+ * in order to catch s in the source code.
  */
 
 #define COMPAT_K1BASE32		_CONST64_(0xffffffffa0000000)

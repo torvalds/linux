@@ -349,7 +349,7 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 		elem = list_first_entry(&fs_info->tree_mod_seq_list,
 					struct seq_list, list);
 		if (seq >= elem->seq) {
-			btrfs_debug(fs_info,
+			btrfs_de(fs_info,
 				"holding back delayed_ref %#x.%x, lowest is %#x.%x",
 				(u32)(seq >> 32), (u32)seq,
 				(u32)(elem->seq >> 32), (u32)elem->seq);
@@ -483,7 +483,7 @@ static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int old_ref_mod;
 
-	BUG_ON(existing->is_data != update->is_data);
+	_ON(existing->is_data != update->is_data);
 
 	spin_lock(&existing->lock);
 	if (update->must_insert_reserved) {
@@ -564,7 +564,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	int must_insert_reserved = 0;
 
 	/* If reserved is provided, it must be a data extent. */
-	BUG_ON(!is_data && reserved);
+	_ON(!is_data && reserved);
 
 	/*
 	 * The head node stores the sum of all the mods, so dropping a ref
@@ -750,7 +750,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	int ret;
 	u8 ref_type;
 
-	BUG_ON(extent_op && extent_op->is_data);
+	_ON(extent_op && extent_op->is_data);
 	ref = kmem_cache_alloc(btrfs_delayed_tree_ref_cachep, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;

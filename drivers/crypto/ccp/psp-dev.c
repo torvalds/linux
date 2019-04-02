@@ -164,7 +164,7 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	dev_dbg(psp->dev, "sev command id %#x buffer 0x%08x%08x timeout %us\n",
 		cmd, phys_msb, phys_lsb, psp_timeout);
 
-	print_hex_dump_debug("(in):  ", DUMP_PREFIX_OFFSET, 16, 2, data,
+	print_hex_dump_de("(in):  ", DUMP_PREFIX_OFFSET, 16, 2, data,
 			     sev_cmd_buffer_len(cmd), false);
 
 	iowrite32(phys_lsb, psp->io_regs + psp->vdata->cmdbuff_addr_lo_reg);
@@ -200,7 +200,7 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 		ret = -EIO;
 	}
 
-	print_hex_dump_debug("(out): ", DUMP_PREFIX_OFFSET, 16, 2, data,
+	print_hex_dump_de("(out): ", DUMP_PREFIX_OFFSET, 16, 2, data,
 			     sev_cmd_buffer_len(cmd), false);
 
 	return ret;

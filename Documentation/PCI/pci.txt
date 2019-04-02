@@ -262,10 +262,10 @@ the PCI device by calling pci_enable_device(). This will:
 
 NOTE: pci_enable_device() can fail! Check the return value.
 
-[ OS BUG: we don't check resource allocations before enabling those
+[ OS : we don't check resource allocations before enabling those
   resources. The sequence would make more sense if we called
   pci_request_resources() before calling pci_enable_device().
-  Currently, the device drivers can't detect the bug when when two
+  Currently, the device drivers can't detect the  when when two
   devices have been allocated the same range. This is not a common
   problem and unlikely to get fixed soon.
 
@@ -304,7 +304,7 @@ Conversely, drivers should call pci_release_region() AFTER
 calling pci_disable_device().
 The idea is to prevent two devices colliding on the same address range.
 
-[ See OS BUG comment above. Currently (2.6.19), The driver can only
+[ See OS  comment above. Currently (2.6.19), The driver can only
   determine MMIO and IO Port resource availability _after_ calling
   pci_enable_device(). ]
 

@@ -71,9 +71,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");
 MODULE_DESCRIPTION("PA Semi PWRficient Ethernet driver");
 
-static int debug = -1;	/* -1 == use DEFAULT_MSG_ENABLE as value */
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "PA Semi MAC bitmapped debugging message enable value");
+static int de = -1;	/* -1 == use DEFAULT_MSG_ENABLE as value */
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "PA Semi MAC bitmapped deging message enable value");
 
 extern const struct ethtool_ops pasemi_mac_ethtool_ops;
 
@@ -737,7 +737,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 
 		info = NULL;
 
-		BUG_ON(!(macrx & XCT_MACRX_RR_8BRES));
+		_ON(!(macrx & XCT_MACRX_RR_8BRES));
 
 		eval = (RX_DESC(rx, n+1) & XCT_RXRES_8B_EVAL_M) >>
 			XCT_RXRES_8B_EVAL_S;
@@ -1304,19 +1304,19 @@ static int pasemi_mac_close(struct net_device *dev)
 	if (sta & (PAS_DMA_RXINT_RCMDSTA_BP |
 		      PAS_DMA_RXINT_RCMDSTA_OO |
 		      PAS_DMA_RXINT_RCMDSTA_BT))
-		printk(KERN_DEBUG "pasemi_mac: rcmdsta error: 0x%08x\n", sta);
+		printk(KERN_DE "pasemi_mac: rcmdsta error: 0x%08x\n", sta);
 
 	sta = read_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(rxch));
 	if (sta & (PAS_DMA_RXCHAN_CCMDSTA_DU |
 		     PAS_DMA_RXCHAN_CCMDSTA_OD |
 		     PAS_DMA_RXCHAN_CCMDSTA_FD |
 		     PAS_DMA_RXCHAN_CCMDSTA_DT))
-		printk(KERN_DEBUG "pasemi_mac: ccmdsta error: 0x%08x\n", sta);
+		printk(KERN_DE "pasemi_mac: ccmdsta error: 0x%08x\n", sta);
 
 	sta = read_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(txch));
 	if (sta & (PAS_DMA_TXCHAN_TCMDSTA_SZ | PAS_DMA_TXCHAN_TCMDSTA_DB |
 		      PAS_DMA_TXCHAN_TCMDSTA_DE | PAS_DMA_TXCHAN_TCMDSTA_DA))
-		printk(KERN_DEBUG "pasemi_mac: tcmdsta error: 0x%08x\n", sta);
+		printk(KERN_DE "pasemi_mac: tcmdsta error: 0x%08x\n", sta);
 
 	/* Clean out any pending buffers */
 	pasemi_mac_clean_tx(tx_ring(mac));
@@ -1375,7 +1375,7 @@ static void pasemi_mac_queue_csdesc(const struct sk_buff *skb,
 		cs_dest = map[0] + skb_transport_offset(skb) + 6;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	/* Do the checksum offloaded */
@@ -1767,7 +1767,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out;
 
-	mac->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	mac->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	/* Enable most messages by default */
 	mac->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;

@@ -44,7 +44,7 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 		return crypto_sha1_update(desc, data, len);
 
 	/* make sure casting to sha1_block_fn() is safe */
-	BUILD_BUG_ON(offsetof(struct sha1_state, state) != 0);
+	BUILD__ON(offsetof(struct sha1_state, state) != 0);
 
 	kernel_fpu_begin();
 	sha1_base_do_update(desc, data, len,

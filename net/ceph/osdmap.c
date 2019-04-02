@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -413,7 +413,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		default:
 			goto bad;
 		}
-		BUG_ON(size == 0);
+		_ON(size == 0);
 		b = c->buckets[i] = kzalloc(size, GFP_NOFS);
 		if (b == NULL)
 			goto badmem;
@@ -1283,7 +1283,7 @@ static int decode_new_primary_temp(void **p, void *end,
 
 u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd)
 {
-	BUG_ON(osd >= map->max_osd);
+	_ON(osd >= map->max_osd);
 
 	if (!map->osd_primary_affinity)
 		return CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
@@ -1293,7 +1293,7 @@ u32 ceph_get_primary_affinity(struct ceph_osdmap *map, int osd)
 
 static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 {
-	BUG_ON(osd >= map->max_osd);
+	_ON(osd >= map->max_osd);
 
 	if (!map->osd_primary_affinity) {
 		int i;
@@ -1576,7 +1576,7 @@ e_inval:
 bad:
 	pr_err("corrupt full osdmap (%d) epoch %d off %d (%p of %p-%p)\n",
 	       err, epoch, (int)(*p - start), *p, start, end);
-	print_hex_dump(KERN_DEBUG, "osdmap: ",
+	print_hex_dump(KERN_DE, "osdmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
 	return err;
@@ -1640,7 +1640,7 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 		ceph_decode_need(p, end, 2*sizeof(u32), e_inval);
 		osd = ceph_decode_32(p);
 		w = ceph_decode_32(p);
-		BUG_ON(osd >= map->max_osd);
+		_ON(osd >= map->max_osd);
 		pr_info("osd%d weight 0x%x %s\n", osd, w,
 		     w == CEPH_OSD_IN ? "(in)" :
 		     (w == CEPH_OSD_OUT ? "(out)" : ""));
@@ -1673,7 +1673,7 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 			xorstate = ceph_decode_8(p);
 		if (xorstate == 0)
 			xorstate = CEPH_OSD_UP;
-		BUG_ON(osd >= map->max_osd);
+		_ON(osd >= map->max_osd);
 		if ((map->osd_state[osd] & CEPH_OSD_UP) &&
 		    (xorstate & CEPH_OSD_UP))
 			pr_info("osd%d down\n", osd);
@@ -1701,7 +1701,7 @@ static int decode_new_up_state_weight(void **p, void *end, u8 struct_v,
 		osd = ceph_decode_32(p);
 		ceph_decode_copy(p, &addr, sizeof(addr));
 		ceph_decode_addr(&addr);
-		BUG_ON(osd >= map->max_osd);
+		_ON(osd >= map->max_osd);
 		pr_info("osd%d up\n", osd);
 		map->osd_state[osd] |= CEPH_OSD_EXISTS | CEPH_OSD_UP;
 		map->osd_addr[osd] = addr;
@@ -1742,7 +1742,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			 sizeof(u64) + sizeof(u32), e_inval);
 	ceph_decode_copy(p, &fsid, sizeof(fsid));
 	epoch = ceph_decode_32(p);
-	BUG_ON(epoch != map->epoch+1);
+	_ON(epoch != map->epoch+1);
 	ceph_decode_copy(p, &modified, sizeof(modified));
 	new_pool_max = ceph_decode_64(p);
 	new_flags = ceph_decode_32(p);
@@ -1864,7 +1864,7 @@ e_inval:
 bad:
 	pr_err("corrupt inc osdmap (%d) epoch %d off %d (%p of %p-%p)\n",
 	       err, epoch, (int)(*p - start), *p, start, end);
-	print_hex_dump(KERN_DEBUG, "osdmap: ",
+	print_hex_dump(KERN_DE, "osdmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);
 	return ERR_PTR(err);
@@ -1922,14 +1922,14 @@ int oid_printf_vargs(struct ceph_object_id *oid, const char *fmt, va_list ap)
 }
 
 /*
- * If oid doesn't fit into inline buffer, BUG.
+ * If oid doesn't fit into inline buffer, .
  */
 void ceph_oid_printf(struct ceph_object_id *oid, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	BUG_ON(oid_printf_vargs(oid, fmt, ap));
+	_ON(oid_printf_vargs(oid, fmt, ap));
 	va_end(ap);
 }
 EXPORT_SYMBOL(ceph_oid_printf);
@@ -2250,7 +2250,7 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 	struct crush_choose_arg_map *arg_map;
 	int r;
 
-	BUG_ON(result_max > CEPH_PG_MAX_SIZE);
+	_ON(result_max > CEPH_PG_MAX_SIZE);
 
 	arg_map = lookup_choose_arg_map(&map->crush->choose_args,
 					choose_args_index);
@@ -2418,7 +2418,7 @@ static void raw_to_up_osds(struct ceph_osdmap *osdmap,
 	int i;
 
 	/* ->primary is undefined for a raw set */
-	BUG_ON(set->primary != -1);
+	_ON(set->primary != -1);
 
 	if (ceph_can_shift_osds(pi)) {
 		int removed = 0;

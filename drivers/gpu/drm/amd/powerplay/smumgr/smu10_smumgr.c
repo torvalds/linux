@@ -29,7 +29,7 @@
 #include "rv_ppsmc.h"
 #include "smu10_driver_if.h"
 #include "smu10.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 
 #define BUFFER_SIZE                 80000

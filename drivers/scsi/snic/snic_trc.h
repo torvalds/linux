@@ -18,7 +18,7 @@
 #ifndef __SNIC_TRC_H
 #define __SNIC_TRC_H
 
-#ifdef CONFIG_SCSI_SNIC_DEBUG_FS
+#ifdef CONFIG_SCSI_SNIC_DE_FS
 
 extern ssize_t simple_read_from_buffer(void __user *to,
 					size_t count,
@@ -47,19 +47,19 @@ struct snic_trc {
 	u32	wr_idx;
 	bool	enable;			/* Control Variable for Tracing */
 
-	struct dentry *trc_enable;	/* debugfs file object */
+	struct dentry *trc_enable;	/* defs file object */
 	struct dentry *trc_file;
 };
 
 int snic_trc_init(void);
 void snic_trc_free(void);
-void snic_trc_debugfs_init(void);
-void snic_trc_debugfs_term(void);
+void snic_trc_defs_init(void);
+void snic_trc_defs_term(void);
 struct snic_trc_data *snic_get_trc_buf(void);
 int snic_get_trc_data(char *buf, int buf_sz);
 
-void snic_debugfs_init(void);
-void snic_debugfs_term(void);
+void snic_defs_init(void);
+void snic_defs_term(void);
 
 static inline void
 snic_trace(char *fn, u16 hno, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
@@ -107,7 +107,7 @@ snic_trace(char *fn, u16 hno, u32 tag, u64 d1, u64 d2, u64 d3, u64 d4, u64 d5)
 				 (u64)(d4),		\
 				 (u64)(d5));		\
 	} while (0)
-#endif /* end of CONFIG_SCSI_SNIC_DEBUG_FS */
+#endif /* end of CONFIG_SCSI_SNIC_DE_FS */
 
 #define SNIC_TRC_CMD(sc)	\
 	((u64)sc->cmnd[0] << 56 | (u64)sc->cmnd[7] << 40 |	\

@@ -72,7 +72,7 @@ static void mipid_transfer(struct mipid_device *md, int cmd, const u8 *wbuf,
 	u16			w;
 	int			r;
 
-	BUG_ON(md->spi == NULL);
+	_ON(md->spi == NULL);
 
 	spi_message_init(&m);
 
@@ -275,7 +275,7 @@ static u16 read_first_pixel(struct mipid_device *md)
 		break;
 	default:
 		pixel = 0;
-		BUG();
+		();
 	}
 
 	return pixel;

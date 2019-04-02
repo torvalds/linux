@@ -31,7 +31,7 @@
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/vmalloc.h>
 #include <linux/math64.h>
 
@@ -72,9 +72,9 @@ static struct workqueue_struct *reg_workq;
 #define DB_FC_RESUME_DELAY 1
 #define DB_FC_DRAIN_THRESH 0
 
-static struct dentry *c4iw_debugfs_root;
+static struct dentry *c4iw_defs_root;
 
-struct c4iw_debugfs_data {
+struct c4iw_defs_data {
 	struct c4iw_dev *devp;
 	char *buf;
 	int bufsize;
@@ -89,10 +89,10 @@ static int count_idrs(int id, void *p, void *data)
 	return 0;
 }
 
-static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count,
+static ssize_t defs_read(struct file *file, char __user *buf, size_t count,
 			    loff_t *ppos)
 {
-	struct c4iw_debugfs_data *d = file->private_data;
+	struct c4iw_defs_data *d = file->private_data;
 
 	return simple_read_from_buffer(buf, count, ppos, d->buf, d->pos);
 }
@@ -195,7 +195,7 @@ static ssize_t wr_log_clear(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations wr_log_debugfs_fops = {
+static const struct file_operations wr_log_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = wr_log_open,
 	.release = single_release,
@@ -253,7 +253,7 @@ static void set_ep_sin6_addrs(struct c4iw_ep *ep,
 static int dump_qp(int id, void *p, void *data)
 {
 	struct c4iw_qp *qp = p;
-	struct c4iw_debugfs_data *qpd = data;
+	struct c4iw_defs_data *qpd = data;
 	int space;
 	int cc;
 
@@ -323,7 +323,7 @@ static int dump_qp(int id, void *p, void *data)
 
 static int qp_release(struct inode *inode, struct file *file)
 {
-	struct c4iw_debugfs_data *qpd = file->private_data;
+	struct c4iw_defs_data *qpd = file->private_data;
 	if (!qpd) {
 		pr_info("%s null qpd?\n", __func__);
 		return 0;
@@ -335,7 +335,7 @@ static int qp_release(struct inode *inode, struct file *file)
 
 static int qp_open(struct inode *inode, struct file *file)
 {
-	struct c4iw_debugfs_data *qpd;
+	struct c4iw_defs_data *qpd;
 	int count = 1;
 
 	qpd = kmalloc(sizeof *qpd, GFP_KERNEL);
@@ -365,17 +365,17 @@ static int qp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations qp_debugfs_fops = {
+static const struct file_operations qp_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = qp_open,
 	.release = qp_release,
-	.read    = debugfs_read,
+	.read    = defs_read,
 	.llseek  = default_llseek,
 };
 
 static int dump_stag(int id, void *p, void *data)
 {
-	struct c4iw_debugfs_data *stagd = data;
+	struct c4iw_defs_data *stagd = data;
 	int space;
 	int cc;
 	struct fw_ri_tpte tpte;
@@ -411,7 +411,7 @@ static int dump_stag(int id, void *p, void *data)
 
 static int stag_release(struct inode *inode, struct file *file)
 {
-	struct c4iw_debugfs_data *stagd = file->private_data;
+	struct c4iw_defs_data *stagd = file->private_data;
 	if (!stagd) {
 		pr_info("%s null stagd?\n", __func__);
 		return 0;
@@ -423,7 +423,7 @@ static int stag_release(struct inode *inode, struct file *file)
 
 static int stag_open(struct inode *inode, struct file *file)
 {
-	struct c4iw_debugfs_data *stagd;
+	struct c4iw_defs_data *stagd;
 	int ret = 0;
 	int count = 1;
 
@@ -459,11 +459,11 @@ out:
 	return ret;
 }
 
-static const struct file_operations stag_debugfs_fops = {
+static const struct file_operations stag_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = stag_open,
 	.release = stag_release,
-	.read    = debugfs_read,
+	.read    = defs_read,
 	.llseek  = default_llseek,
 };
 
@@ -549,7 +549,7 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations stats_debugfs_fops = {
+static const struct file_operations stats_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = stats_open,
 	.release = single_release,
@@ -561,7 +561,7 @@ static const struct file_operations stats_debugfs_fops = {
 static int dump_ep(int id, void *p, void *data)
 {
 	struct c4iw_ep *ep = p;
-	struct c4iw_debugfs_data *epd = data;
+	struct c4iw_defs_data *epd = data;
 	int space;
 	int cc;
 
@@ -620,7 +620,7 @@ static int dump_ep(int id, void *p, void *data)
 static int dump_listen_ep(int id, void *p, void *data)
 {
 	struct c4iw_listen_ep *ep = p;
-	struct c4iw_debugfs_data *epd = data;
+	struct c4iw_defs_data *epd = data;
 	int space;
 	int cc;
 
@@ -662,7 +662,7 @@ static int dump_listen_ep(int id, void *p, void *data)
 
 static int ep_release(struct inode *inode, struct file *file)
 {
-	struct c4iw_debugfs_data *epd = file->private_data;
+	struct c4iw_defs_data *epd = file->private_data;
 	if (!epd) {
 		pr_info("%s null qpd?\n", __func__);
 		return 0;
@@ -674,7 +674,7 @@ static int ep_release(struct inode *inode, struct file *file)
 
 static int ep_open(struct inode *inode, struct file *file)
 {
-	struct c4iw_debugfs_data *epd;
+	struct c4iw_defs_data *epd;
 	int ret = 0;
 	int count = 1;
 
@@ -713,30 +713,30 @@ out:
 	return ret;
 }
 
-static const struct file_operations ep_debugfs_fops = {
+static const struct file_operations ep_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = ep_open,
 	.release = ep_release,
-	.read    = debugfs_read,
+	.read    = defs_read,
 };
 
-static void setup_debugfs(struct c4iw_dev *devp)
+static void setup_defs(struct c4iw_dev *devp)
 {
-	debugfs_create_file_size("qps", S_IWUSR, devp->debugfs_root,
-				 (void *)devp, &qp_debugfs_fops, 4096);
+	defs_create_file_size("qps", S_IWUSR, devp->defs_root,
+				 (void *)devp, &qp_defs_fops, 4096);
 
-	debugfs_create_file_size("stags", S_IWUSR, devp->debugfs_root,
-				 (void *)devp, &stag_debugfs_fops, 4096);
+	defs_create_file_size("stags", S_IWUSR, devp->defs_root,
+				 (void *)devp, &stag_defs_fops, 4096);
 
-	debugfs_create_file_size("stats", S_IWUSR, devp->debugfs_root,
-				 (void *)devp, &stats_debugfs_fops, 4096);
+	defs_create_file_size("stats", S_IWUSR, devp->defs_root,
+				 (void *)devp, &stats_defs_fops, 4096);
 
-	debugfs_create_file_size("eps", S_IWUSR, devp->debugfs_root,
-				 (void *)devp, &ep_debugfs_fops, 4096);
+	defs_create_file_size("eps", S_IWUSR, devp->defs_root,
+				 (void *)devp, &ep_defs_fops, 4096);
 
 	if (c4iw_wr_log)
-		debugfs_create_file_size("wr_log", S_IWUSR, devp->debugfs_root,
-					 (void *)devp, &wr_log_debugfs_fops, 4096);
+		defs_create_file_size("wr_log", S_IWUSR, devp->defs_root,
+					 (void *)devp, &wr_log_defs_fops, 4096);
 }
 
 void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
@@ -815,7 +815,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->qpmask = (rdev->lldi.udb_density * factor) - 1;
 	rdev->cqmask = (rdev->lldi.ucq_density * factor) - 1;
 
-	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u srq size %u\n",
+	pr_de("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u srq size %u\n",
 		 pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
 		 rdev->lldi.vr->pbl.start,
@@ -826,7 +826,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		 rdev->lldi.vr->cq.start,
 		 rdev->lldi.vr->cq.size,
 		 rdev->lldi.vr->srq.size);
-	pr_debug("udb %pR db_reg %p gts_reg %p qpmask 0x%x cqmask 0x%x\n",
+	pr_de("udb %pR db_reg %p gts_reg %p qpmask 0x%x cqmask 0x%x\n",
 		 &rdev->lldi.pdev->resource[2],
 		 rdev->lldi.db_reg, rdev->lldi.gts_reg,
 		 rdev->qpmask, rdev->cqmask);
@@ -951,7 +951,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 
 static void c4iw_remove(struct uld_ctx *ctx)
 {
-	pr_debug("c4iw_dev %p\n", ctx->dev);
+	pr_de("c4iw_dev %p\n", ctx->dev);
 	c4iw_unregister_device(ctx->dev);
 	c4iw_dealloc(ctx);
 }
@@ -985,7 +985,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	devp->rdev.lldi = *infop;
 
 	/* init various hw-queue params based on lld info */
-	pr_debug("Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
+	pr_de("Ing. padding boundary is %d, egrsstatuspagesize = %d\n",
 		 devp->rdev.lldi.sge_ingpadboundary,
 		 devp->rdev.lldi.sge_egrstatuspagesize);
 
@@ -1033,7 +1033,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		}
 	}
 
-	pr_debug("ocq memory: hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
+	pr_de("ocq memory: hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
 		 devp->rdev.lldi.vr->ocq.start, devp->rdev.lldi.vr->ocq.size,
 		 devp->rdev.oc_mw_pa, devp->rdev.oc_mw_kva);
 
@@ -1057,11 +1057,11 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	init_waitqueue_head(&devp->wait);
 	devp->avail_ird = devp->rdev.lldi.max_ird_adapter;
 
-	if (c4iw_debugfs_root) {
-		devp->debugfs_root = debugfs_create_dir(
+	if (c4iw_defs_root) {
+		devp->defs_root = defs_create_dir(
 					pci_name(devp->rdev.lldi.pdev),
-					c4iw_debugfs_root);
-		setup_debugfs(devp);
+					c4iw_defs_root);
+		setup_defs(devp);
 	}
 
 
@@ -1085,7 +1085,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	}
 	ctx->lldi = *infop;
 
-	pr_debug("found device %s nchan %u nrxq %u ntxq %u nports %u\n",
+	pr_de("found device %s nchan %u nrxq %u ntxq %u nports %u\n",
 		 pci_name(ctx->lldi.pdev),
 		 ctx->lldi.nchan, ctx->lldi.nrxq,
 		 ctx->lldi.ntxq, ctx->lldi.nports);
@@ -1095,7 +1095,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 	mutex_unlock(&dev_mutex);
 
 	for (i = 0; i < ctx->lldi.nrxq; i++)
-		pr_debug("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
+		pr_de("rxqid[%u] %u\n", i, ctx->lldi.rxq_ids[i]);
 out:
 	return ctx;
 }
@@ -1219,7 +1219,7 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 {
 	struct uld_ctx *ctx = handle;
 
-	pr_debug("new_state %u\n", new_state);
+	pr_de("new_state %u\n", new_state);
 	switch (new_state) {
 	case CXGB4_STATE_UP:
 		pr_info("%s: Up\n", pci_name(ctx->lldi.pdev));
@@ -1535,7 +1535,7 @@ void _c4iw_free_wr_wait(struct kref *kref)
 	struct c4iw_wr_wait *wr_waitp;
 
 	wr_waitp = container_of(kref, struct c4iw_wr_wait, kref);
-	pr_debug("Free wr_wait %p\n", wr_waitp);
+	pr_de("Free wr_wait %p\n", wr_waitp);
 	kfree(wr_waitp);
 }
 
@@ -1546,7 +1546,7 @@ struct c4iw_wr_wait *c4iw_alloc_wr_wait(gfp_t gfp)
 	wr_waitp = kzalloc(sizeof(*wr_waitp), gfp);
 	if (wr_waitp) {
 		kref_init(&wr_waitp->kref);
-		pr_debug("wr_wait %p\n", wr_waitp);
+		pr_de("wr_wait %p\n", wr_waitp);
 	}
 	return wr_waitp;
 }
@@ -1559,7 +1559,7 @@ static int __init c4iw_init_module(void)
 	if (err)
 		return err;
 
-	c4iw_debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
+	c4iw_defs_root = defs_create_dir(DRV_NAME, NULL);
 
 	reg_workq = create_singlethread_workqueue("Register_iWARP_device");
 	if (!reg_workq) {
@@ -1587,7 +1587,7 @@ static void __exit c4iw_exit_module(void)
 	destroy_workqueue(reg_workq);
 	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
 	c4iw_cm_term();
-	debugfs_remove_recursive(c4iw_debugfs_root);
+	defs_remove_recursive(c4iw_defs_root);
 }
 
 module_init(c4iw_init_module);

@@ -238,7 +238,7 @@ static void butterfly_attach(struct parport *p)
 	/*
 	 * Butterfly reset, powerup, run firmware
 	 */
-	pr_debug("%s: powerup/reset Butterfly\n", p->name);
+	pr_de("%s: powerup/reset Butterfly\n", p->name);
 
 	/* nCS for dataflash (this bit is inverted on output) */
 	parport_frob_control(pp->port, spi_cs_bit, 0);
@@ -274,7 +274,7 @@ static void butterfly_attach(struct parport *p)
 	pp->info[0].controller_data = pp;
 	pp->dataflash = spi_new_device(pp->bitbang.master, &pp->info[0]);
 	if (pp->dataflash)
-		pr_debug("%s: dataflash at %s\n", p->name,
+		pr_de("%s: dataflash at %s\n", p->name,
 			 dev_name(&pp->dataflash->dev));
 
 	pr_info("%s: AVR Butterfly\n", p->name);
@@ -291,7 +291,7 @@ clean1:
 clean0:
 	spi_master_put(pp->bitbang.master);
 done:
-	pr_debug("%s: butterfly probe, fail %d\n", p->name, status);
+	pr_de("%s: butterfly probe, fail %d\n", p->name, status);
 }
 
 static void butterfly_detach(struct parport *p)

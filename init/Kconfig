@@ -57,7 +57,7 @@ config THREAD_INFO_IN_TASK
 	help
 	  Select this to move thread_info off the stack into task_struct.  To
 	  make this work, an arch will need to remove all thread_info fields
-	  except flags and fix any runtime bugs.
+	  except flags and fix any runtime s.
 
 	  One subtle change that will be needed is to use try_get_task_stack()
 	  and put_task_stack() in save_thread_stack_tsk() and get_wchan().
@@ -130,7 +130,7 @@ config BUILD_SALT
        string "Build ID Salt"
        default ""
        help
-          The build ID is used to link binaries and their debug info. Setting
+          The build ID is used to link binaries and their de info. Setting
           this option will use the value in the calculation of the build id.
           This is mostly useful for distributions which want to ensure the
           build is unique between builds. It's safe to leave the default.
@@ -243,7 +243,7 @@ config KERNEL_UNCOMPRESSED
 	depends on HAVE_KERNEL_UNCOMPRESSED
 	help
 	  Produce uncompressed kernel image. This option is usually not what
-	  you want. It is useful for debugging the kernel in slow simulation
+	  you want. It is useful for deging the kernel in slow simulation
 	  environments, where decompressing and moving the kernel is awfully
 	  slow. This option allows early boot code to skip the decompressor
 	  and jump right at uncompressed kernel image.
@@ -790,13 +790,13 @@ config BLK_CGROUP
 
 	See Documentation/cgroup-v1/blkio-controller.txt for more information.
 
-config DEBUG_BLK_CGROUP
-	bool "IO controller debugging"
+config DE_BLK_CGROUP
+	bool "IO controller deging"
 	depends on BLK_CGROUP
 	default n
 	---help---
-	Enable some debugging help. Currently it exports additional stat
-	files in a cgroup which can be useful for debugging.
+	Enable some deging help. Currently it exports additional stat
+	files in a cgroup which can be useful for deging.
 
 config CGROUP_WRITEBACK
 	bool
@@ -945,14 +945,14 @@ config CGROUP_BPF
 	  BPF_CGROUP_INET_INGRESS will be executed on the ingress path of
 	  inet sockets.
 
-config CGROUP_DEBUG
-	bool "Debug controller"
+config CGROUP_DE
+	bool "De controller"
 	default n
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  This option enables a simple controller that exports
-	  debugging information about the cgroups framework. This
-	  controller is for control cgroup debugging only. Its
+	  deging information about the cgroups framework. This
+	  controller is for control cgroup deging only. Its
 	  interfaces are not stable.
 
 	  Say N.
@@ -1089,7 +1089,7 @@ config RELAY
 	select IRQ_WORK
 	help
 	  This option enables support for relay interface support in
-	  certain file systems (such as debugfs).
+	  certain file systems (such as defs).
 	  It is designed to provide an efficient mechanism for tools and
 	  facilities to relay large amounts of data from kernel space to
 	  user space.
@@ -1180,7 +1180,7 @@ config HAVE_UID16
 config SYSCTL_EXCEPTION_TRACE
 	bool
 	help
-	  Enable support for /proc/sys/debug/exception-trace.
+	  Enable support for /proc/sys/de/exception-trace.
 
 config SYSCTL_ARCH_UNALIGN_NO_WARN
 	bool
@@ -1206,8 +1206,8 @@ config BPF
 
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
-	# Unhide debug options, to make the on-by-default options visible
-	select DEBUG_KERNEL
+	# Unhide de options, to make the on-by-default options visible
+	select DE_KERNEL
 	help
 	  This option allows certain base kernel options and settings
           to be disabled or tweaked. This is for specialized
@@ -1318,11 +1318,11 @@ config PRINTK_NMI
 	depends on PRINTK
 	depends on HAVE_NMI
 
-config BUG
-	bool "BUG() support" if EXPERT
+config 
+	bool "() support" if EXPERT
 	default y
 	help
-          Disabling this option eliminates support for BUG and WARN, reducing
+          Disabling this option eliminates support for  and WARN, reducing
           the size of your kernel image and potentially quietly ignoring
           numerous fatal conditions. You should only consider disabling this
           option for embedded systems with no facilities for reporting errors.
@@ -1464,7 +1464,7 @@ config MEMBARRIER
 	  If unsure, say Y.
 
 config KALLSYMS
-	 bool "Load all symbols for debugging/ksymoops" if EXPERT
+	 bool "Load all symbols for deging/ksymoops" if EXPERT
 	 default y
 	 help
 	   Say Y here to let the kernel print out symbolic crash information and
@@ -1473,12 +1473,12 @@ config KALLSYMS
 
 config KALLSYMS_ALL
 	bool "Include all symbols in kallsyms"
-	depends on DEBUG_KERNEL && KALLSYMS
+	depends on DE_KERNEL && KALLSYMS
 	help
 	   Normally kallsyms only contains the symbols of functions for nicer
 	   OOPS messages and backtraces (i.e., symbols from the text and inittext
 	   sections). This is sufficient for most cases. And only in very rare
-	   cases (e.g., when a debugger is used) all symbols are required (e.g.,
+	   cases (e.g., when a deger is used) all symbols are required (e.g.,
 	   names of variables from the data sections, etc).
 
 	   This option makes sure that all symbols are loaded into the kernel
@@ -1559,12 +1559,12 @@ config RSEQ
 
 	  If unsure, say Y.
 
-config DEBUG_RSEQ
+config DE_RSEQ
 	default n
-	bool "Enabled debugging of rseq() system call" if EXPERT
-	depends on RSEQ && DEBUG_KERNEL
+	bool "Enabled deging of rseq() system call" if EXPERT
+	depends on RSEQ && DE_KERNEL
 	help
-	  Enable extra debugging checks for the rseq system call.
+	  Enable extra deging checks for the rseq system call.
 
 	  If unsure, say N.
 
@@ -1626,15 +1626,15 @@ config PERF_EVENTS
 
 	  Say Y if unsure.
 
-config DEBUG_PERF_USE_VMALLOC
+config DE_PERF_USE_VMALLOC
 	default n
-	bool "Debug: use vmalloc to back perf mmap() buffers"
-	depends on PERF_EVENTS && DEBUG_KERNEL && !PPC
+	bool "De: use vmalloc to back perf mmap() buffers"
+	depends on PERF_EVENTS && DE_KERNEL && !PPC
 	select PERF_USE_VMALLOC
 	help
 	 Use vmalloc memory to back perf mmap() buffers.
 
-	 Mostly useful for debugging the vmalloc code on platforms
+	 Mostly useful for deging the vmalloc code on platforms
 	 that don't require it.
 
 	 Say N if unsure.
@@ -1650,12 +1650,12 @@ config VM_EVENT_COUNTERS
 	  on EXPERT systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
-config SLUB_DEBUG
+config SLUB_DE
 	default y
-	bool "Enable SLUB debugging support" if EXPERT
+	bool "Enable SLUB deging support" if EXPERT
 	depends on SLUB && SYSFS
 	help
-	  SLUB has extensive debug support features. Disabling these can
+	  SLUB has extensive de support features. Disabling these can
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
@@ -1666,11 +1666,11 @@ config SLUB_MEMCG_SYSFS_ON
 	depends on SLUB && SYSFS && MEMCG
 	help
 	  SLUB creates a directory under /sys/kernel/slab for each
-	  allocation cache to host info and debug files. If memory
+	  allocation cache to host info and de files. If memory
 	  cgroup is enabled, each cache can have per memory cgroup
 	  caches. SLUB can create the same sysfs directories for these
 	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
-	  to a very high number of debug files being created. This is
+	  to a very high number of de files being created. This is
 	  controlled by slub_memcg_sysfs boot parameter and this
 	  config option determines the parameter's default value.
 
@@ -1918,7 +1918,7 @@ config MODULE_SIG
 
 	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
 	  module DOES NOT get stripped after being signed.  This includes the
-	  debuginfo strip done by some packagers (such as rpmbuild) and
+	  deinfo strip done by some packagers (such as rpmbuild) and
 	  inclusion into an initramfs that wants the module size reduced.
 
 config MODULE_SIG_FORCE

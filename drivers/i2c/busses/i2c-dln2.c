@@ -84,7 +84,7 @@ static int dln2_i2c_write(struct dln2_i2c *dln2, u8 addr,
 	} __packed *tx = dln2->buf;
 	unsigned len;
 
-	BUILD_BUG_ON(sizeof(*tx) > DLN2_I2C_BUF_SIZE);
+	BUILD__ON(sizeof(*tx) > DLN2_I2C_BUF_SIZE);
 
 	tx->port = dln2->port;
 	tx->addr = addr;
@@ -118,7 +118,7 @@ static int dln2_i2c_read(struct dln2_i2c *dln2, u16 addr, u8 *data,
 	} __packed *rx = dln2->buf;
 	unsigned rx_len = sizeof(*rx);
 
-	BUILD_BUG_ON(sizeof(*rx) > DLN2_I2C_BUF_SIZE);
+	BUILD__ON(sizeof(*rx) > DLN2_I2C_BUF_SIZE);
 
 	tx.port = dln2->port;
 	tx.addr = addr;

@@ -167,7 +167,7 @@ acpi_ex_system_memory_space_handler(u32 function,
 	logical_addr_ptr = mem_info->mapped_logical_address +
 	    ((u64) address - (u64) mem_info->mapped_physical_address);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "System-Memory (width %u) R/W %u Address=%8.8X%8.8X\n",
 			  bit_width, function, ACPI_FORMAT_UINT64(address)));
 
@@ -282,7 +282,7 @@ acpi_ex_system_io_space_handler(u32 function,
 
 	ACPI_FUNCTION_TRACE(ex_system_io_space_handler);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "System-IO (width %u) R/W %u Address=%8.8X%8.8X\n",
 			  bit_width, function, ACPI_FORMAT_UINT64(address)));
 
@@ -358,7 +358,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	pci_id = (struct acpi_pci_id *)region_context;
 	pci_register = (u16) (u32) address;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Pci-Config %u (%u) Seg(%04x) Bus(%04x) "
 			  "Dev(%04x) Func(%04x) Reg(%04x)\n",
 			  function, bit_width, pci_id->segment, pci_id->bus,

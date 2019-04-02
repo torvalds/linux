@@ -61,7 +61,7 @@ then
 				sum+=$i;
 		}
 		END { print sum }'`
-		print_bug $title FAILURE, $nerrs instances
+		print_ $title FAILURE, $nerrs instances
 		exit
 	fi
 
@@ -117,8 +117,8 @@ then
 	fi
 fi | tee -a $file.diags
 
-egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:|detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state|rcu_.*kthread starved for' < $file |
-grep -v 'ODEBUG: ' |
+egrep 'Badness|WARNING:|Warn||===========|Call Trace:|Oops:|detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state|rcu_.*kthread starved for' < $file |
+grep -v 'ODE: ' |
 grep -v 'Warning: unable to open an initial console' > $T.diags
 if test -s $T.diags
 then
@@ -135,10 +135,10 @@ then
 	then
 		summary="$summary  Warnings: $n_warn"
 	fi
-	n_bugs=`egrep -c 'BUG|Oops:' $file`
-	if test "$n_bugs" -ne 0
+	n_s=`egrep -c '|Oops:' $file`
+	if test "$n_s" -ne 0
 	then
-		summary="$summary  Bugs: $n_bugs"
+		summary="$summary  s: $n_s"
 	fi
 	n_calltrace=`grep -c 'Call Trace:' $file`
 	if test "$n_calltrace" -ne 0

@@ -154,7 +154,7 @@ static inline int rtm_msgindex(int msgtype)
 	 * control code. msgindex >= RTM_NR_MSGTYPES may indicate that
 	 * the message type has not been added to linux/rtnetlink.h
 	 */
-	BUG_ON(msgindex < 0 || msgindex >= RTM_NR_MSGTYPES);
+	_ON(msgindex < 0 || msgindex >= RTM_NR_MSGTYPES);
 
 	return msgindex;
 }
@@ -183,7 +183,7 @@ static int rtnl_register_internal(struct module *owner,
 	int msgindex;
 	int ret = -ENOBUFS;
 
-	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
+	_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
 	rtnl_lock();
@@ -293,7 +293,7 @@ int rtnl_unregister(int protocol, int msgtype)
 	struct rtnl_link **tab, *link;
 	int msgindex;
 
-	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
+	_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
 	rtnl_lock();
@@ -325,7 +325,7 @@ void rtnl_unregister_all(int protocol)
 	struct rtnl_link **tab, *link;
 	int msgindex;
 
-	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
+	_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 
 	rtnl_lock();
 	tab = rtnl_msg_handlers[protocol];
@@ -774,7 +774,7 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 
 				if (!user_features)
 					continue;
-				BUILD_BUG_ON(RTAX_FEATURE_MASK & DST_FEATURE_MASK);
+				BUILD__ON(RTAX_FEATURE_MASK & DST_FEATURE_MASK);
 				if (nla_put_u32(skb, i + 1, user_features))
 					goto nla_put_failure;
 			} else {
@@ -860,7 +860,7 @@ static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 {
 	unsigned int flags = ifm->ifi_flags;
 
-	/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
+	/* wards compatibility: ifi_change == 0 is treated as ~0 */
 	if (ifm->ifi_change)
 		flags = (flags & ifm->ifi_change) |
 			(rtnl_dev_get_flags(dev) & ~ifm->ifi_change);
@@ -2635,7 +2635,7 @@ static int do_setlink(const struct sk_buff *skb,
 
 			rcu_read_lock();
 
-			BUG_ON(!(af_ops = rtnl_af_lookup(nla_type(af))));
+			_ON(!(af_ops = rtnl_af_lookup(nla_type(af))));
 
 			err = af_ops->set_link_af(dev, af);
 			if (err < 0) {
@@ -3341,7 +3341,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       nlh->nlmsg_seq, 0, 0, ext_filter_mask,
 			       0, NULL, 0, netnsid);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in if_nlmsg_size */
+		/* -EMSGSIZE implies  in if_nlmsg_size */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(nskb);
 	} else
@@ -3453,7 +3453,7 @@ struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
 			       type, 0, 0, change, 0, 0, event,
 			       new_nsid, new_ifindex, -1);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in if_nlmsg_size() */
+		/* -EMSGSIZE implies  in if_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -5014,7 +5014,7 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 				  NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
 				  0, filter_mask, &idxattr, &prividx);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in if_nlmsg_stats_size */
+		/* -EMSGSIZE implies  in if_nlmsg_stats_size */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(nskb);
 	} else {

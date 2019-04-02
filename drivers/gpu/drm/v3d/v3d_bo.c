@@ -339,7 +339,7 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 
@@ -360,7 +360,7 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_v3d_bo(gem_obj);

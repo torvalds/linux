@@ -111,8 +111,8 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 
 	local_irq_disable();
 
-	crtc->debug.min_vbl = min;
-	crtc->debug.max_vbl = max;
+	crtc->de.min_vbl = min;
+	crtc->de.max_vbl = max;
 	trace_i915_pipe_update_start(crtc);
 
 	for (;;) {
@@ -162,9 +162,9 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	while (need_vlv_dsi_wa && scanline == vblank_start)
 		scanline = intel_get_crtc_scanline(crtc);
 
-	crtc->debug.scanline_start = scanline;
-	crtc->debug.start_vbl_time = ktime_get();
-	crtc->debug.start_vbl_count = intel_crtc_get_vblank_counter(crtc);
+	crtc->de.scanline_start = scanline;
+	crtc->de.start_vbl_time = ktime_get();
+	crtc->de.start_vbl_count = intel_crtc_get_vblank_counter(crtc);
 
 	trace_i915_pipe_update_vblank_evaded(crtc);
 	return;
@@ -211,21 +211,21 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	if (intel_vgpu_active(dev_priv))
 		return;
 
-	if (crtc->debug.start_vbl_count &&
-	    crtc->debug.start_vbl_count != end_vbl_count) {
+	if (crtc->de.start_vbl_count &&
+	    crtc->de.start_vbl_count != end_vbl_count) {
 		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us, min %d, max %d, scanline start %d, end %d\n",
-			  pipe_name(pipe), crtc->debug.start_vbl_count,
+			  pipe_name(pipe), crtc->de.start_vbl_count,
 			  end_vbl_count,
-			  ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
-			  crtc->debug.min_vbl, crtc->debug.max_vbl,
-			  crtc->debug.scanline_start, scanline_end);
+			  ktime_us_delta(end_vbl_time, crtc->de.start_vbl_time),
+			  crtc->de.min_vbl, crtc->de.max_vbl,
+			  crtc->de.scanline_start, scanline_end);
 	}
-#ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
-	else if (ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time) >
+#ifdef CONFIG_DRM_I915_DE_VBLANK_EVADE
+	else if (ktime_us_delta(end_vbl_time, crtc->de.start_vbl_time) >
 		 VBLANK_EVASION_TIME_US)
 		DRM_WARN("Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
 			 pipe_name(pipe),
-			 ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
+			 ktime_us_delta(end_vbl_time, crtc->de.start_vbl_time),
 			 VBLANK_EVASION_TIME_US);
 #endif
 }
@@ -243,7 +243,7 @@ int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 				       fb->modifier, rotation);
 
 	if (stride > max_stride) {
-		DRM_DEBUG_KMS("[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
+		DRM_DE_KMS("[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
 			      fb->base.id, stride,
 			      plane->base.base.id, plane->base.name, max_stride);
 		return -EINVAL;
@@ -276,7 +276,7 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 	if (fb->format->is_yuv &&
 	    (src_x & 1 || src_w & 1)) {
-		DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of 2 for YUV planes\n",
+		DRM_DE_KMS("src x/w (%u, %u) must be a multiple of 2 for YUV planes\n",
 			      src_x, src_w);
 		return -EINVAL;
 	}
@@ -284,7 +284,7 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	if (fb->format->is_yuv &&
 	    fb->format->num_planes > 1 &&
 	    (src_y & 1 || src_h & 1)) {
-		DRM_DEBUG_KMS("src y/h (%u, %u) must be a multiple of 2 for planar YUV planes\n",
+		DRM_DE_KMS("src y/h (%u, %u) must be a multiple of 2 for planar YUV planes\n",
 			      src_y, src_h);
 		return -EINVAL;
 	}
@@ -1314,7 +1314,7 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		if (src_h & 1) {
-			DRM_DEBUG_KMS("Source height must be even with interlaced modes\n");
+			DRM_DE_KMS("Source height must be even with interlaced modes\n");
 			return -EINVAL;
 		}
 		min_height = 6;
@@ -1326,19 +1326,19 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 
 	if (src_w < min_width || src_h < min_height ||
 	    src_w > 2048 || src_h > 2048) {
-		DRM_DEBUG_KMS("Source dimensions (%dx%d) exceed hardware limits (%dx%d - %dx%d)\n",
+		DRM_DE_KMS("Source dimensions (%dx%d) exceed hardware limits (%dx%d - %dx%d)\n",
 			      src_w, src_h, min_width, min_height, 2048, 2048);
 		return -EINVAL;
 	}
 
 	if (width_bytes > 4096) {
-		DRM_DEBUG_KMS("Fetch width (%d) exceeds hardware max with scaling (%u)\n",
+		DRM_DE_KMS("Fetch width (%d) exceeds hardware max with scaling (%u)\n",
 			      width_bytes, 4096);
 		return -EINVAL;
 	}
 
 	if (width_bytes > 4096 || fb->pitches[0] > 4096) {
-		DRM_DEBUG_KMS("Stride (%u) exceeds hardware max with scaling (%u)\n",
+		DRM_DE_KMS("Stride (%u) exceeds hardware max with scaling (%u)\n",
 			      fb->pitches[0], 4096);
 		return -EINVAL;
 	}
@@ -1406,7 +1406,7 @@ int chv_plane_check_rotation(const struct intel_plane_state *plane_state)
 	if (IS_CHERRYVIEW(dev_priv) &&
 	    rotation & DRM_MODE_ROTATE_180 &&
 	    rotation & DRM_MODE_REFLECT_X) {
-		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
+		DRM_DE_KMS("Cannot rotate and reflect at the same time\n");
 		return -EINVAL;
 	}
 
@@ -1461,21 +1461,21 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 
 	if (rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180) &&
 	    is_ccs_modifier(fb->modifier)) {
-		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation (%x)\n",
+		DRM_DE_KMS("RC support only with 0/180 degree rotation (%x)\n",
 			      rotation);
 		return -EINVAL;
 	}
 
 	if (rotation & DRM_MODE_REFLECT_X &&
 	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
-		DRM_DEBUG_KMS("horizontal flip is not supported with linear surface formats\n");
+		DRM_DE_KMS("horizontal flip is not supported with linear surface formats\n");
 		return -EINVAL;
 	}
 
 	if (drm_rotation_90_or_270(rotation)) {
 		if (fb->modifier != I915_FORMAT_MOD_Y_TILED &&
 		    fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
-			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
+			DRM_DE_KMS("Y/Yf tiling required for 90/270!\n");
 			return -EINVAL;
 		}
 
@@ -1491,7 +1491,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 				break;
 			/* fall through */
 		case DRM_FORMAT_C8:
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
+			DRM_DE_KMS("Unsupported pixel format %s for 90/270!\n",
 				      drm_get_format_name(fb->format->format,
 							  &format_name));
 			return -EINVAL;
@@ -1507,7 +1507,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
 	     fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
 	     fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)) {
-		DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
+		DRM_DE_KMS("Y/Yf tiling not supported in IF-ID mode\n");
 		return -EINVAL;
 	}
 
@@ -1534,7 +1534,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 	 */
 	if ((IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
 	    (crtc_x + crtc_w < 4 || crtc_x > pipe_src_w - 4)) {
-		DRM_DEBUG_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
+		DRM_DE_KMS("requested plane X %s position %d invalid (valid range %d-%d)\n",
 			      crtc_x + crtc_w < 4 ? "end" : "start",
 			      crtc_x + crtc_w < 4 ? crtc_x + crtc_w : crtc_x,
 			      4, pipe_src_w - 4);
@@ -1554,7 +1554,7 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	if (fb->format->format == DRM_FORMAT_NV12 && src_w & 3 &&
 	    (rotation == DRM_MODE_ROTATE_270 ||
 	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
-		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated NV12\n");
+		DRM_DE_KMS("src width must be multiple of 4 for rotated NV12\n");
 		return -EINVAL;
 	}
 

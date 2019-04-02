@@ -44,7 +44,7 @@ read
         "<card_ID>,decodes=<io_state>,owns=<io_state>,locks=<io_state> (ic,mc)"
 
         An IO state string is of the form {io,mem,io+mem,none}, mc and
-        ic are respectively mem and io lock counts (for debugging/
+        ic are respectively mem and io lock counts (for deging/
         diagnostic only). "decodes" indicate what the card currently
         decodes, "owns" indicates what is currently enabled on it, and
         "locks" indicates what is locked by this card. If the card is

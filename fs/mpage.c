@@ -406,7 +406,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 		}
 		put_page(page);
 	}
-	BUG_ON(!list_empty(pages));
+	_ON(!list_empty(pages));
 	if (args.bio)
 		mpage_bio_submit(REQ_OP_READ, REQ_RAHEAD, args.bio);
 	return 0;
@@ -526,7 +526,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 		/* If they're all mapped and dirty, do it */
 		page_block = 0;
 		do {
-			BUG_ON(buffer_locked(bh));
+			_ON(buffer_locked(bh));
 			if (!buffer_mapped(bh)) {
 				/*
 				 * unmapped dirty buffers are created by
@@ -572,7 +572,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 	/*
 	 * The page has no buffers: map it to disk
 	 */
-	BUG_ON(!PageUptodate(page));
+	_ON(!PageUptodate(page));
 	block_in_file = (sector_t)page->index << (PAGE_SHIFT - blkbits);
 	last_block = (i_size - 1) >> blkbits;
 	map_bh.b_page = page;
@@ -599,7 +599,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 			break;
 		block_in_file++;
 	}
-	BUG_ON(page_block == 0);
+	_ON(page_block == 0);
 
 	first_unmapped = page_block;
 
@@ -657,7 +657,7 @@ alloc_new:
 
 	clean_buffers(page, first_unmapped);
 
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 	unlock_page(page);
 	if (boundary || (first_unmapped != blocks_per_page)) {

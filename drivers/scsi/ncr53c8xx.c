@@ -92,7 +92,7 @@
 /* Name and version of the driver */
 #define SCSI_NCR_DRIVER_NAME	"ncr53c8xx-3.4.3g"
 
-#define SCSI_NCR_DEBUG_FLAGS	(0)
+#define SCSI_NCR_DE_FLAGS	(0)
 
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -130,34 +130,34 @@
 
 /*==========================================================
 **
-**	Debugging tags
+**	Deging tags
 **
 **==========================================================
 */
 
-#define DEBUG_ALLOC    (0x0001)
-#define DEBUG_PHASE    (0x0002)
-#define DEBUG_QUEUE    (0x0008)
-#define DEBUG_RESULT   (0x0010)
-#define DEBUG_POINTER  (0x0020)
-#define DEBUG_SCRIPT   (0x0040)
-#define DEBUG_TINY     (0x0080)
-#define DEBUG_TIMING   (0x0100)
-#define DEBUG_NEGO     (0x0200)
-#define DEBUG_TAGS     (0x0400)
-#define DEBUG_SCATTER  (0x0800)
-#define DEBUG_IC        (0x1000)
+#define DE_ALLOC    (0x0001)
+#define DE_PHASE    (0x0002)
+#define DE_QUEUE    (0x0008)
+#define DE_RESULT   (0x0010)
+#define DE_POINTER  (0x0020)
+#define DE_SCRIPT   (0x0040)
+#define DE_TINY     (0x0080)
+#define DE_TIMING   (0x0100)
+#define DE_NEGO     (0x0200)
+#define DE_TAGS     (0x0400)
+#define DE_SCATTER  (0x0800)
+#define DE_IC        (0x1000)
 
 /*
-**    Enable/Disable debug messages.
+**    Enable/Disable de messages.
 **    Can be changed at runtime too.
 */
 
-#ifdef SCSI_NCR_DEBUG_INFO_SUPPORT
-static int ncr_debug = SCSI_NCR_DEBUG_FLAGS;
-	#define DEBUG_FLAGS ncr_debug
+#ifdef SCSI_NCR_DE_INFO_SUPPORT
+static int ncr_de = SCSI_NCR_DE_FLAGS;
+	#define DE_FLAGS ncr_de
 #else
-	#define DEBUG_FLAGS	SCSI_NCR_DEBUG_FLAGS
+	#define DE_FLAGS	SCSI_NCR_DE_FLAGS
 #endif
 
 static inline struct list_head *ncr_list_pop(struct list_head *head)
@@ -268,7 +268,7 @@ static void *___m_alloc(m_pool_s *mp, int size)
 			h[j].next->next = NULL;
 		}
 	}
-#ifdef DEBUG
+#ifdef DE
 	printk("___m_alloc(%d) = %p\n", size, (void *) a);
 #endif
 	return (void *) a;
@@ -282,7 +282,7 @@ static void ___m_free(m_pool_s *mp, void *ptr, int size)
 	m_addr_t a, b;
 	m_link_s *h = mp->h;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("___m_free(%p, %d)\n", ptr, size);
 #endif
 
@@ -328,7 +328,7 @@ static void *__m_calloc2(m_pool_s *mp, int size, char *name, int uflags)
 
 	p = ___m_alloc(mp, size);
 
-	if (DEBUG_FLAGS & DEBUG_ALLOC)
+	if (DE_FLAGS & DE_ALLOC)
 		printk ("new %-10s[%4d] @%p.\n", name, size, p);
 
 	if (p)
@@ -343,7 +343,7 @@ static void *__m_calloc2(m_pool_s *mp, int size, char *name, int uflags)
 
 static void __m_free(m_pool_s *mp, void *ptr, int size, char *name)
 {
-	if (DEBUG_FLAGS & DEBUG_ALLOC)
+	if (DE_FLAGS & DE_ALLOC)
 		printk ("freeing %-10s[%4d] @%p.\n", name, size, ptr);
 
 	___m_free(mp, ptr, size);
@@ -599,7 +599,7 @@ static struct ncr_driver_setup
 #define OPT_REVERSE_PROBE	8
 #define OPT_DEFAULT_SYNC	9
 #define OPT_VERBOSE		10
-#define OPT_DEBUG		11
+#define OPT_DE		11
 #define OPT_BURST_MAX		12
 #define OPT_LED_PIN		13
 #define OPT_MAX_WIDE		14
@@ -632,7 +632,7 @@ static char setup_token[] __initdata =
 	"specf:"  "ultra:"
 	"fsn:"    "revprob:"
 	"sync:"   "verb:"
-	"debug:"  "burst:"
+	"de:"  "burst:"
 	"led:"    "wide:"
 	"settle:" "diff:"
 	"irqm:"   "pcifix:"
@@ -719,8 +719,8 @@ static int __init sym53c8xx__setup(char *str)
 		case OPT_VERBOSE:
 			driver_setup.verbose = val;
 			break;
-		case OPT_DEBUG:
-			driver_setup.debug = val;
+		case OPT_DE:
+			driver_setup.de = val;
 			break;
 		case OPT_BURST_MAX:
 			driver_setup.burst_max = val;
@@ -879,7 +879,7 @@ static int device_queue_depth(int unit, int target, int lun)
 
 /*==========================================================
 **
-**	Configuration and Debugging
+**	Configuration and Deging
 **
 **==========================================================
 */
@@ -1143,7 +1143,7 @@ struct	usrcmd {
 
 #define UC_SETSYNC      10
 #define UC_SETTAGS	11
-#define UC_SETDEBUG	12
+#define UC_SETDE	12
 #define UC_SETORDER	13
 #define UC_SETWIDE	14
 #define UC_SETFLAG	15
@@ -1713,7 +1713,7 @@ struct ncb {
 	u_long		settle_time;	/* Resetting the SCSI BUS	*/
 
 	/*----------------------------------------------------------------
-	**	Debugging and profiling.
+	**	Deging and profiling.
 	**----------------------------------------------------------------
 	*/
 	struct ncr_reg	regdump;	/* Register dump		*/
@@ -3453,7 +3453,7 @@ void __init ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =PADDR (idle);
 	}
 
-	BUG_ON((u_long)p != (u_long)&scrh->tryloop + sizeof (scrh->tryloop));
+	_ON((u_long)p != (u_long)&scrh->tryloop + sizeof (scrh->tryloop));
 
 #ifdef SCSI_NCR_CCB_DONE_SUPPORT
 
@@ -3466,7 +3466,7 @@ void __init ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =PADDR (done_end);
 	}
 
-	BUG_ON((u_long)p != (u_long)&scrh->done_queue+sizeof(scrh->done_queue));
+	_ON((u_long)p != (u_long)&scrh->done_queue+sizeof(scrh->done_queue));
 
 #endif /* SCSI_NCR_CCB_DONE_SUPPORT */
 
@@ -3478,7 +3478,7 @@ void __init ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =offsetof (struct dsb, data[i]);
 	}
 
-	BUG_ON((u_long)p != (u_long)&scrh->hdata_in + sizeof (scrh->hdata_in));
+	_ON((u_long)p != (u_long)&scrh->hdata_in + sizeof (scrh->hdata_in));
 
 	p = scr->data_in;
 	for (i=MAX_SCATTERH; i<MAX_SCATTERH+MAX_SCATTERL; i++) {
@@ -3488,7 +3488,7 @@ void __init ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =offsetof (struct dsb, data[i]);
 	}
 
-	BUG_ON((u_long)p != (u_long)&scr->data_in + sizeof (scr->data_in));
+	_ON((u_long)p != (u_long)&scr->data_in + sizeof (scr->data_in));
 
 	p = scrh->hdata_out;
 	for (i=0; i<MAX_SCATTERH; i++) {
@@ -3498,7 +3498,7 @@ void __init ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =offsetof (struct dsb, data[i]);
 	}
 
-	BUG_ON((u_long)p != (u_long)&scrh->hdata_out + sizeof (scrh->hdata_out));
+	_ON((u_long)p != (u_long)&scrh->hdata_out + sizeof (scrh->hdata_out));
 
 	p = scr->data_out;
 	for (i=MAX_SCATTERH; i<MAX_SCATTERH+MAX_SCATTERL; i++) {
@@ -3508,7 +3508,7 @@ void __init ncr_script_fill (struct script * scr, struct scripth * scrh)
 		*p++ =offsetof (struct dsb, data[i]);
 	}
 
-	BUG_ON((u_long) p != (u_long)&scr->data_out + sizeof (scr->data_out));
+	_ON((u_long) p != (u_long)&scr->data_out + sizeof (scr->data_out));
 }
 
 /*==========================================================
@@ -3549,8 +3549,8 @@ ncr_script_copy_and_bind (struct ncb *np, ncrcmd *src, ncrcmd *dst, int len)
 			mdelay(1000);
 		}
 
-		if (DEBUG_FLAGS & DEBUG_SCRIPT)
-			printk (KERN_DEBUG "%p:  <%x>\n",
+		if (DE_FLAGS & DE_SCRIPT)
+			printk (KERN_DE "%p:  <%x>\n",
 				(src-1), (unsigned)opcode);
 
 		/*
@@ -4096,7 +4096,7 @@ static int ncr_prepare_nego(struct ncb *np, struct ccb *cp, u_char *msgptr)
 
 	if (nego) {
 		tp->nego_cp = cp;
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			ncr_print_msg(cp, nego == NS_WIDE ?
 					  "wide msgout":"sync_msgout", msgptr);
 		}
@@ -4156,7 +4156,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 		return DID_BAD_TARGET;
 	}
 
-	if (DEBUG_FLAGS & DEBUG_TINY) {
+	if (DE_FLAGS & DE_TINY) {
 		PRINT_ADDR(cmd, "CMD=%x ", cmd->cmnd[0]);
 	}
 
@@ -4209,7 +4209,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 		if (lp && time_after(jiffies, lp->tags_stime)) {
 			if (lp->tags_smap) {
 				order = ORDERED_QUEUE_TAG;
-				if ((DEBUG_FLAGS & DEBUG_TAGS)||bootverbose>2){ 
+				if ((DE_FLAGS & DE_TAGS)||bootverbose>2){ 
 					PRINT_ADDR(cmd,
 						"ordered tag forced.\n");
 				}
@@ -4465,7 +4465,7 @@ static void ncr_put_start_queue(struct ncb *np, struct ccb *cp)
 	++np->queuedccbs;
 	cp->queued = 1;
 
-	if (DEBUG_FLAGS & DEBUG_QUEUE)
+	if (DE_FLAGS & DE_QUEUE)
 		printk ("%s: queuepos=%d.\n", ncr_name (np), np->squeueput);
 
 	/*
@@ -4720,7 +4720,7 @@ static void ncr_detach(struct ncb *np)
 **	Set release_stage to 1 and wait that ncr_timeout() set it to 2.
 */
 
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 	printk("%s: stopping the timer\n", ncr_name(np));
 #endif
 	np->release_stage = 1;
@@ -4734,7 +4734,7 @@ static void ncr_detach(struct ncb *np)
 **	Disable chip interrupts
 */
 
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 	printk("%s: disabling chip interrupts\n", ncr_name(np));
 #endif
 	OUTW (nc_sien , 0);
@@ -4769,7 +4769,7 @@ static void ncr_detach(struct ncb *np)
 		printk("%s: shall free an active ccb (host_status=%d)\n",
 			ncr_name(np), cp->host_status);
 		}
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 	printk("%s: freeing ccb (%lx)\n", ncr_name(np), (u_long) cp);
 #endif
 		m_free_dma(cp, sizeof(*cp), "CCB");
@@ -4782,7 +4782,7 @@ static void ncr_detach(struct ncb *np)
 		for (lun = 0 ; lun < MAX_LUN ; lun++) {
 			lp = tp->lp[lun];
 			if (lp) {
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 	printk("%s: freeing lp (%lx)\n", ncr_name(np), (u_long) lp);
 #endif
 				if (lp->jump_ccb != &lp->jump_ccb_0)
@@ -4827,10 +4827,10 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		return;
 
 	/*
-	**	Print minimal debug information.
+	**	Print minimal de information.
 	*/
 
-	if (DEBUG_FLAGS & DEBUG_TINY)
+	if (DE_FLAGS & DE_TINY)
 		printk ("CCB=%lx STAT=%x/%x\n", (unsigned long)cp,
 			cp->host_status,cp->scsi_status);
 
@@ -4901,9 +4901,9 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 	}
 
 	/*
-	**	Print out any error for debugging purpose.
+	**	Print out any error for deging purpose.
 	*/
-	if (DEBUG_FLAGS & (DEBUG_RESULT|DEBUG_TINY)) {
+	if (DE_FLAGS & (DE_RESULT|DE_TINY)) {
 		if (cp->host_status!=HS_COMPLETE || cp->scsi_status!=S_GOOD) {
 			PRINT_ADDR(cmd, "ERROR: cmd=%x host_status=%x "
 					"scsi_status=%x\n", cmd->cmnd[0],
@@ -4966,7 +4966,7 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		       min_t(size_t, SCSI_SENSE_BUFFERSIZE,
 			     sizeof(cp->sense_buf)));
 
-		if (DEBUG_FLAGS & (DEBUG_RESULT|DEBUG_TINY)) {
+		if (DE_FLAGS & (DE_RESULT|DE_TINY)) {
 			u_char *p = cmd->sense_buffer;
 			int i;
 			PRINT_ADDR(cmd, "sense data:");
@@ -5534,7 +5534,7 @@ static void ncr_setsync (struct ncb *np, struct ccb *cp, u_char scntl3, u_char s
 	u_char target = INB (nc_sdid) & 0x0f;
 	u_char idiv;
 
-	BUG_ON(target != (scmd_id(cmd) & 0xf));
+	_ON(target != (scmd_id(cmd) & 0xf));
 
 	tp = &np->target[target];
 
@@ -5592,7 +5592,7 @@ static void ncr_setwide (struct ncb *np, struct ccb *cp, u_char wide, u_char ack
 	u_char	scntl3;
 	u_char	sxfer;
 
-	BUG_ON(target != (scmd_id(cmd) & 0xf));
+	_ON(target != (scmd_id(cmd) & 0xf));
 
 	tp = &np->target[target];
 	tp->widedone  =  wide+1;
@@ -5783,9 +5783,9 @@ static void ncr_timeout (struct ncb *np)
 		/*
 		**	Process pending interrupts.
 		*/
-		if (DEBUG_FLAGS & DEBUG_TINY) printk ("{");
+		if (DE_FLAGS & DE_TINY) printk ("{");
 		ncr_exception (np);
-		if (DEBUG_FLAGS & DEBUG_TINY) printk ("}");
+		if (DE_FLAGS & DE_TINY) printk ("}");
 	}
 #endif /* SCSI_NCR_BROKEN_INTR */
 }
@@ -5917,7 +5917,7 @@ void ncr_exception (struct ncb *np)
 	if (istat & INTF) {
 		OUTB (nc_istat, (istat & SIGP) | INTF);
 		istat = INB (nc_istat);
-		if (DEBUG_FLAGS & DEBUG_TINY) printk ("F ");
+		if (DE_FLAGS & DE_TINY) printk ("F ");
 		ncr_wakeup_done (np);
 	}
 
@@ -5935,7 +5935,7 @@ void ncr_exception (struct ncb *np)
 	sist  = (istat & SIP) ? INW (nc_sist)  : 0;
 	dstat = (istat & DIP) ? INB (nc_dstat) : 0;
 
-	if (DEBUG_FLAGS & DEBUG_TINY)
+	if (DE_FLAGS & DE_TINY)
 		printk ("<%d|%x:%x|%x:%x>",
 			(int)INB(nc_scr0),
 			dstat,sist,
@@ -6073,7 +6073,7 @@ void ncr_exception (struct ncb *np)
 **
 **==========================================================
 **
-**	There seems to be a bug in the 53c810.
+**	There seems to be a  in the 53c810.
 **	Although a STO-Interrupt is pending,
 **	it continues executing script commands.
 **	But it will fail and interrupt (IID) on
@@ -6087,7 +6087,7 @@ void ncr_int_sto (struct ncb *np)
 {
 	u_long dsa;
 	struct ccb *cp;
-	if (DEBUG_FLAGS & DEBUG_TINY) printk ("T");
+	if (DE_FLAGS & DE_TINY) printk ("T");
 
 	/*
 	**	look for ccb and set the status.
@@ -6294,12 +6294,12 @@ static void ncr_int_ma (struct ncb *np)
 			if (ss2 & ORF1) rest++;
 		}
 
-		if (DEBUG_FLAGS & (DEBUG_TINY|DEBUG_PHASE))
+		if (DE_FLAGS & (DE_TINY|DE_PHASE))
 			printk ("P%x%x RL=%d D=%d SS0=%x ", cmd&7, sbcl&7,
 				(unsigned) rest, (unsigned) delta, ss0);
 
 	} else	{
-		if (DEBUG_FLAGS & (DEBUG_TINY|DEBUG_PHASE))
+		if (DE_FLAGS & (DE_TINY|DE_PHASE))
 			printk ("P%x%x RL=%d ", cmd&7, sbcl&7, rest);
 	}
 
@@ -6356,7 +6356,7 @@ static void ncr_int_ma (struct ncb *np)
 	**	log the information
 	*/
 
-	if (DEBUG_FLAGS & DEBUG_PHASE) {
+	if (DE_FLAGS & DE_PHASE) {
 		printk ("\nCP=%p CP2=%p DSP=%x NXT=%x VDSP=%p CMD=%x ",
 			cp, np->header.cp,
 			(unsigned)dsp,
@@ -6391,7 +6391,7 @@ static void ncr_int_ma (struct ncb *np)
 		olen = scr_to_cpu(vdsp[0]) & 0xffffff;
 	}
 
-	if (DEBUG_FLAGS & DEBUG_PHASE) {
+	if (DE_FLAGS & DE_PHASE) {
 		printk ("OCMD=%x\nTBLP=%p OLEN=%x OADR=%x\n",
 			(unsigned) (scr_to_cpu(vdsp[0]) >> 24),
 			tblp,
@@ -6454,7 +6454,7 @@ static void ncr_int_ma (struct ncb *np)
 	newcmd[2] = cpu_to_scr(SCR_JUMP);
 	newcmd[3] = cpu_to_scr(nxtdsp);
 
-	if (DEBUG_FLAGS & DEBUG_PHASE) {
+	if (DE_FLAGS & DE_PHASE) {
 		PRINT_ADDR(cp->cmd, "newcmd[%d] %x %x %x %x.\n",
 			(int) (newcmd - cp->patch),
 			(unsigned)scr_to_cpu(newcmd[0]),
@@ -6700,7 +6700,7 @@ void ncr_int_sir (struct ncb *np)
 	struct tcb *tp     = &np->target[target];
 	struct scsi_target *starget = tp->starget;
 
-	if (DEBUG_FLAGS & DEBUG_TINY) printk ("I#%d", num);
+	if (DE_FLAGS & DE_TINY) printk ("I#%d", num);
 
 	switch (num) {
 	case SIR_INTFLY:
@@ -6753,8 +6753,8 @@ void ncr_int_sir (struct ncb *np)
 		while (cp && (CCB_PHYS (cp, phys) != dsa))
 			cp = cp->link_ccb;
 
-		BUG_ON(!cp);
-		BUG_ON(cp != np->header.cp);
+		_ON(!cp);
+		_ON(cp != np->header.cp);
 
 		if (!cp || cp != np->header.cp)
 			goto out;
@@ -6844,7 +6844,7 @@ void ncr_int_sir (struct ncb *np)
 		**-------------------------------------------------------
 		*/
 
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			PRINT_ADDR(cp->cmd, "negotiation failed sir=%x "
 					"status=%x.\n", num, cp->nego_status);
 		}
@@ -6873,7 +6873,7 @@ void ncr_int_sir (struct ncb *np)
 		break;
 
 	case SIR_NEGO_SYNC:
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			ncr_print_msg(cp, "sync msgin", np->msgin);
 		}
 
@@ -6920,7 +6920,7 @@ void ncr_int_sir (struct ncb *np)
 			tp->minsync = 0;
 		}
 
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			PRINT_ADDR(cp->cmd, "sync: per=%d scntl3=0x%x ofs=%d "
 				"fak=%d chg=%d.\n", per, scntl3, ofs, fak, chg);
 		}
@@ -6965,7 +6965,7 @@ void ncr_int_sir (struct ncb *np)
 		spi_populate_sync_msg(np->msgout, per, ofs);
 		cp->nego_status = NS_SYNC;
 
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			ncr_print_msg(cp, "sync msgout", np->msgout);
 		}
 
@@ -6981,7 +6981,7 @@ void ncr_int_sir (struct ncb *np)
 		/*
 		**	Wide request message received.
 		*/
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			ncr_print_msg(cp, "wide msgin", np->msgin);
 		}
 
@@ -7007,7 +7007,7 @@ void ncr_int_sir (struct ncb *np)
 		if (wide > tp->usrwide)
 			{chg = 1; wide = tp->usrwide;}
 
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			PRINT_ADDR(cp->cmd, "wide: wide=%d chg=%d.\n", wide,
 					chg);
 		}
@@ -7054,7 +7054,7 @@ void ncr_int_sir (struct ncb *np)
 
 		cp->nego_status = NS_WIDE;
 
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			ncr_print_msg(cp, "wide msgout", np->msgin);
 		}
 		break;
@@ -7235,7 +7235,7 @@ static struct ccb *ncr_get_ccb(struct ncb *np, struct scsi_cmnd *cmd)
 	cp->target = tn;
 	cp->lun    = ln;
 
-	if (DEBUG_FLAGS & DEBUG_TAGS) {
+	if (DE_FLAGS & DE_TAGS) {
 		PRINT_ADDR(cmd, "ccb @%p using tag %d.\n", cp, tag);
 	}
 
@@ -7256,7 +7256,7 @@ static void ncr_free_ccb (struct ncb *np, struct ccb *cp)
 	struct tcb *tp = &np->target[cp->target];
 	struct lcb *lp = tp->lp[cp->lun];
 
-	if (DEBUG_FLAGS & DEBUG_TAGS) {
+	if (DE_FLAGS & DE_TAGS) {
 		PRINT_ADDR(cp->cmd, "ccb @%p freeing tag %d.\n", cp, cp->tag);
 	}
 
@@ -7468,14 +7468,14 @@ static void ncr_init_tcb (struct ncb *np, u_char tn)
 	**	These assert's should be moved at driver initialisations.
 	*/
 #ifdef SCSI_NCR_BIG_ENDIAN
-	BUG_ON(((offsetof(struct ncr_reg, nc_sxfer) ^
+	_ON(((offsetof(struct ncr_reg, nc_sxfer) ^
 		 offsetof(struct tcb    , sval    )) &3) != 3);
-	BUG_ON(((offsetof(struct ncr_reg, nc_scntl3) ^
+	_ON(((offsetof(struct ncr_reg, nc_scntl3) ^
 		 offsetof(struct tcb    , wval    )) &3) != 3);
 #else
-	BUG_ON(((offsetof(struct ncr_reg, nc_sxfer) ^
+	_ON(((offsetof(struct ncr_reg, nc_sxfer) ^
 		 offsetof(struct tcb    , sval    )) &3) != 0);
-	BUG_ON(((offsetof(struct ncr_reg, nc_scntl3) ^
+	_ON(((offsetof(struct ncr_reg, nc_scntl3) ^
 		 offsetof(struct tcb    , wval    )) &3) != 0);
 #endif
 }
@@ -8014,7 +8014,7 @@ static int ncr53c8xx_slave_configure(struct scsi_device *device)
 	}
 	ncr_setup_tags (np, device);
 
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 	printk("ncr53c8xx_select_queue_depth: host=%d, id=%d, lun=%d, depth=%d\n",
 	       np->unit, device->id, device->lun, depth_to_use);
 #endif
@@ -8031,7 +8031,7 @@ static int ncr53c8xx_queue_command_lck (struct scsi_cmnd *cmd, void (*done)(stru
      unsigned long flags;
      int sts;
 
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 printk("ncr53c8xx_queue_command\n");
 #endif
 
@@ -8044,11 +8044,11 @@ printk("ncr53c8xx_queue_command\n");
 
      if ((sts = ncr_queue_command(np, cmd)) != DID_OK) {
 	  cmd->result = sts << 16;
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 printk("ncr53c8xx : command not queued - result=%d\n", sts);
 #endif
      }
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
      else
 printk("ncr53c8xx : command successfully queued\n");
 #endif
@@ -8074,11 +8074,11 @@ irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
      struct ncb *np = host_data->ncb;
      struct scsi_cmnd *done_list;
 
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
      printk("ncr53c8xx : interrupt received\n");
 #endif
 
-     if (DEBUG_FLAGS & DEBUG_TINY) printk ("[");
+     if (DE_FLAGS & DE_TINY) printk ("[");
 
      spin_lock_irqsave(&np->smp_lock, flags);
      ncr_exception(np);
@@ -8086,7 +8086,7 @@ irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
      np->done_list = NULL;
      spin_unlock_irqrestore(&np->smp_lock, flags);
 
-     if (DEBUG_FLAGS & DEBUG_TINY) printk ("]\n");
+     if (DE_FLAGS & DE_TINY) printk ("]\n");
 
      if (done_list)
 	     ncr_flush_done_cmds(done_list);
@@ -8179,7 +8179,7 @@ static void insert_into_waiting_list(struct ncb *np, struct scsi_cmnd *cmd)
 {
 	struct scsi_cmnd *wcmd;
 
-#ifdef DEBUG_WAITING_LIST
+#ifdef DE_WAITING_LIST
 	printk("%s: cmd %lx inserted into waiting list\n", ncr_name(np), (u_long) cmd);
 #endif
 	cmd->next_wcmd = NULL;
@@ -8201,7 +8201,7 @@ static struct scsi_cmnd *retrieve_from_waiting_list(int to_remove, struct ncb *n
 				*pcmd = (struct scsi_cmnd *) cmd->next_wcmd;
 				cmd->next_wcmd = NULL;
 			}
-#ifdef DEBUG_WAITING_LIST
+#ifdef DE_WAITING_LIST
 	printk("%s: cmd %lx retrieved from waiting list\n", ncr_name(np), (u_long) cmd);
 #endif
 			return cmd;
@@ -8218,20 +8218,20 @@ static void process_waiting_list(struct ncb *np, int sts)
 	waiting_list = np->waiting_list;
 	np->waiting_list = NULL;
 
-#ifdef DEBUG_WAITING_LIST
+#ifdef DE_WAITING_LIST
 	if (waiting_list) printk("%s: waiting_list=%lx processing sts=%d\n", ncr_name(np), (u_long) waiting_list, sts);
 #endif
 	while ((wcmd = waiting_list) != NULL) {
 		waiting_list = (struct scsi_cmnd *) wcmd->next_wcmd;
 		wcmd->next_wcmd = NULL;
 		if (sts == DID_OK) {
-#ifdef DEBUG_WAITING_LIST
+#ifdef DE_WAITING_LIST
 	printk("%s: cmd %lx trying to requeue\n", ncr_name(np), (u_long) wcmd);
 #endif
 			sts = ncr_queue_command(np, wcmd);
 		}
 		if (sts != DID_OK) {
-#ifdef DEBUG_WAITING_LIST
+#ifdef DE_WAITING_LIST
 	printk("%s: cmd %lx done forced sts=%d\n", ncr_name(np), (u_long) wcmd, sts);
 #endif
 			wcmd->result = sts << 16;
@@ -8405,7 +8405,7 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	instance->can_queue	= (MAX_START-4);
 	/* This can happen if you forget to call ncr53c8xx_init from
 	 * your module_init */
-	BUG_ON(!ncr53c8xx_transport_template);
+	_ON(!ncr53c8xx_transport_template);
 	instance->transportt	= ncr53c8xx_transport_template;
 
 	/* Patch script to physical addresses */
@@ -8524,7 +8524,7 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 void ncr53c8xx_release(struct Scsi_Host *host)
 {
 	struct host_data *host_data = shost_priv(host);
-#ifdef DEBUG_NCR53C8XX
+#ifdef DE_NCR53C8XX
 	printk("ncr53c8xx: release\n");
 #endif
 	if (host_data->ncb)

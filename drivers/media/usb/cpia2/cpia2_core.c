@@ -37,9 +37,9 @@
 #define FIRMWARE "cpia2/stv0672_vp4.bin"
 MODULE_FIRMWARE(FIRMWARE);
 
-/* #define _CPIA2_DEBUG_ */
+/* #define _CPIA2_DE_ */
 
-#ifdef _CPIA2_DEBUG_
+#ifdef _CPIA2_DE_
 
 static const char *block_name[] = {
 	"System",
@@ -49,7 +49,7 @@ static const char *block_name[] = {
 };
 #endif
 
-static unsigned int debugs_on;	/* default 0 - DEBUG_REG */
+static unsigned int des_on;	/* default 0 - DE_REG */
 
 
 /******************************************************************************
@@ -543,7 +543,7 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		count = cmd->reg_count * sizeof(struct cpia2_register);
 		start = 0;
 		buffer = (u8 *) & cmd->buffer;
-		if (debugs_on & DEBUG_REG)
+		if (des_on & DE_REG)
 			DBG("%s Random: Register block %s\n", DIR(cmd),
 			    block_name[BINDEX(cmd)]);
 		break;
@@ -551,7 +551,7 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		count = cmd->reg_count;
 		start = cmd->start;
 		buffer = cmd->buffer.block_data;
-		if (debugs_on & DEBUG_REG)
+		if (des_on & DE_REG)
 			DBG("%s Block: Register block %s\n", DIR(cmd),
 			    block_name[BINDEX(cmd)]);
 		break;
@@ -559,7 +559,7 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		count = cmd->reg_count * sizeof(struct cpia2_reg_mask);
 		start = 0;
 		buffer = (u8 *) & cmd->buffer;
-		if (debugs_on & DEBUG_REG)
+		if (des_on & DE_REG)
 			DBG("%s Mask: Register block %s\n", DIR(cmd),
 			    block_name[BINDEX(cmd)]);
 		break;
@@ -567,7 +567,7 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 		count = cmd->reg_count;
 		start = cmd->start;
 		buffer = cmd->buffer.block_data;
-		if (debugs_on & DEBUG_REG)
+		if (des_on & DE_REG)
 			DBG("%s Repeat: Register block %s\n", DIR(cmd),
 			    block_name[BINDEX(cmd)]);
 		break;
@@ -580,8 +580,8 @@ int cpia2_send_command(struct camera_data *cam, struct cpia2_command *cmd)
 					buffer,
 					cmd->req_mode,
 					start, count, cmd->direction);
-#ifdef _CPIA2_DEBUG_
-	if (debugs_on & DEBUG_REG) {
+#ifdef _CPIA2_DE_
+	if (des_on & DE_REG) {
 		int i;
 		for (i = 0; i < cmd->reg_count; i++) {
 			if((cmd->req_mode & 0x0c) == CAMERAACCESS_TYPE_BLOCK)
@@ -1772,7 +1772,7 @@ int cpia2_set_fps(struct camera_data *cam, int framerate)
 
 	if (cam->params.pnp_id.device_type == DEVICE_STV_672 &&
 	    framerate == CPIA2_VP_FRAMERATE_15)
-		framerate = 0; /* Work around bug in VP4 */
+		framerate = 0; /* Work around  in VP4 */
 
 	retval = cpia2_do_command(cam,
 				 CPIA2_CMD_FRAMERATE_REQ,
@@ -1793,7 +1793,7 @@ int cpia2_set_fps(struct camera_data *cam, int framerate)
 void cpia2_set_brightness(struct camera_data *cam, unsigned char value)
 {
 	/***
-	 * Don't let the register be set to zero - bug in VP4 - flash of full
+	 * Don't let the register be set to zero -  in VP4 - flash of full
 	 * brightness
 	 ***/
 	if (cam->params.pnp_id.device_type == DEVICE_STV_672 && value == 0)
@@ -1901,10 +1901,10 @@ void cpia2_set_format(struct camera_data *cam)
  *****************************************************************************/
 void cpia2_dbg_dump_registers(struct camera_data *cam)
 {
-#ifdef _CPIA2_DEBUG_
+#ifdef _CPIA2_DE_
 	struct cpia2_command cmd;
 
-	if (!(debugs_on & DEBUG_DUMP_REGS))
+	if (!(des_on & DE_DUMP_REGS))
 		return;
 
 	cmd.direction = TRANSFER_READ;
@@ -1914,11 +1914,11 @@ void cpia2_dbg_dump_registers(struct camera_data *cam)
 	cmd.reg_count = 3;
 	cmd.start = 0;
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "System Device Hi      = 0x%X\n",
+	printk(KERN_DE "System Device Hi      = 0x%X\n",
 	       cmd.buffer.block_data[0]);
-	printk(KERN_DEBUG "System Device Lo      = 0x%X\n",
+	printk(KERN_DE "System Device Lo      = 0x%X\n",
 	       cmd.buffer.block_data[1]);
-	printk(KERN_DEBUG "System_system control = 0x%X\n",
+	printk(KERN_DE "System_system control = 0x%X\n",
 	       cmd.buffer.block_data[2]);
 
 	/* Bank 1 (VC) */
@@ -1926,92 +1926,92 @@ void cpia2_dbg_dump_registers(struct camera_data *cam)
 	cmd.reg_count = 4;
 	cmd.start = 0x80;
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "ASIC_ID       = 0x%X\n",
+	printk(KERN_DE "ASIC_ID       = 0x%X\n",
 	       cmd.buffer.block_data[0]);
-	printk(KERN_DEBUG "ASIC_REV      = 0x%X\n",
+	printk(KERN_DE "ASIC_REV      = 0x%X\n",
 	       cmd.buffer.block_data[1]);
-	printk(KERN_DEBUG "PW_CONTRL     = 0x%X\n",
+	printk(KERN_DE "PW_CONTRL     = 0x%X\n",
 	       cmd.buffer.block_data[2]);
-	printk(KERN_DEBUG "WAKEUP        = 0x%X\n",
+	printk(KERN_DE "WAKEUP        = 0x%X\n",
 	       cmd.buffer.block_data[3]);
 
 	cmd.start = 0xA0;	/* ST_CTRL */
 	cmd.reg_count = 1;
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "Stream ctrl   = 0x%X\n",
+	printk(KERN_DE "Stream ctrl   = 0x%X\n",
 	       cmd.buffer.block_data[0]);
 
 	cmd.start = 0xA4;	/* Stream status */
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "Stream status = 0x%X\n",
+	printk(KERN_DE "Stream status = 0x%X\n",
 	       cmd.buffer.block_data[0]);
 
 	cmd.start = 0xA8;	/* USB status */
 	cmd.reg_count = 3;
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "USB_CTRL      = 0x%X\n",
+	printk(KERN_DE "USB_CTRL      = 0x%X\n",
 	       cmd.buffer.block_data[0]);
-	printk(KERN_DEBUG "USB_STRM      = 0x%X\n",
+	printk(KERN_DE "USB_STRM      = 0x%X\n",
 	       cmd.buffer.block_data[1]);
-	printk(KERN_DEBUG "USB_STATUS    = 0x%X\n",
+	printk(KERN_DE "USB_STATUS    = 0x%X\n",
 	       cmd.buffer.block_data[2]);
 
 	cmd.start = 0xAF;	/* USB settings */
 	cmd.reg_count = 1;
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "USB settings  = 0x%X\n",
+	printk(KERN_DE "USB settings  = 0x%X\n",
 	       cmd.buffer.block_data[0]);
 
 	cmd.start = 0xC0;	/* VC stuff */
 	cmd.reg_count = 26;
 	cpia2_send_command(cam, &cmd);
-	printk(KERN_DEBUG "VC Control    = 0x%0X\n",
+	printk(KERN_DE "VC Control    = 0x%0X\n",
 	       cmd.buffer.block_data[0]);
-	printk(KERN_DEBUG "VC Format     = 0x%0X\n",
+	printk(KERN_DE "VC Format     = 0x%0X\n",
 	       cmd.buffer.block_data[3]);
-	printk(KERN_DEBUG "VC Clocks     = 0x%0X\n",
+	printk(KERN_DE "VC Clocks     = 0x%0X\n",
 	       cmd.buffer.block_data[4]);
-	printk(KERN_DEBUG "VC IHSize     = 0x%0X\n",
+	printk(KERN_DE "VC IHSize     = 0x%0X\n",
 	       cmd.buffer.block_data[5]);
-	printk(KERN_DEBUG "VC Xlim Hi    = 0x%0X\n",
+	printk(KERN_DE "VC Xlim Hi    = 0x%0X\n",
 	       cmd.buffer.block_data[6]);
-	printk(KERN_DEBUG "VC XLim Lo    = 0x%0X\n",
+	printk(KERN_DE "VC XLim Lo    = 0x%0X\n",
 	       cmd.buffer.block_data[7]);
-	printk(KERN_DEBUG "VC YLim Hi    = 0x%0X\n",
+	printk(KERN_DE "VC YLim Hi    = 0x%0X\n",
 	       cmd.buffer.block_data[8]);
-	printk(KERN_DEBUG "VC YLim Lo    = 0x%0X\n",
+	printk(KERN_DE "VC YLim Lo    = 0x%0X\n",
 	       cmd.buffer.block_data[9]);
-	printk(KERN_DEBUG "VC OHSize     = 0x%0X\n",
+	printk(KERN_DE "VC OHSize     = 0x%0X\n",
 	       cmd.buffer.block_data[10]);
-	printk(KERN_DEBUG "VC OVSize     = 0x%0X\n",
+	printk(KERN_DE "VC OVSize     = 0x%0X\n",
 	       cmd.buffer.block_data[11]);
-	printk(KERN_DEBUG "VC HCrop      = 0x%0X\n",
+	printk(KERN_DE "VC HCrop      = 0x%0X\n",
 	       cmd.buffer.block_data[12]);
-	printk(KERN_DEBUG "VC VCrop      = 0x%0X\n",
+	printk(KERN_DE "VC VCrop      = 0x%0X\n",
 	       cmd.buffer.block_data[13]);
-	printk(KERN_DEBUG "VC HPhase     = 0x%0X\n",
+	printk(KERN_DE "VC HPhase     = 0x%0X\n",
 	       cmd.buffer.block_data[14]);
-	printk(KERN_DEBUG "VC VPhase     = 0x%0X\n",
+	printk(KERN_DE "VC VPhase     = 0x%0X\n",
 	       cmd.buffer.block_data[15]);
-	printk(KERN_DEBUG "VC HIspan     = 0x%0X\n",
+	printk(KERN_DE "VC HIspan     = 0x%0X\n",
 	       cmd.buffer.block_data[16]);
-	printk(KERN_DEBUG "VC VIspan     = 0x%0X\n",
+	printk(KERN_DE "VC VIspan     = 0x%0X\n",
 	       cmd.buffer.block_data[17]);
-	printk(KERN_DEBUG "VC HiCrop     = 0x%0X\n",
+	printk(KERN_DE "VC HiCrop     = 0x%0X\n",
 	       cmd.buffer.block_data[18]);
-	printk(KERN_DEBUG "VC ViCrop     = 0x%0X\n",
+	printk(KERN_DE "VC ViCrop     = 0x%0X\n",
 	       cmd.buffer.block_data[19]);
-	printk(KERN_DEBUG "VC HiFract    = 0x%0X\n",
+	printk(KERN_DE "VC HiFract    = 0x%0X\n",
 	       cmd.buffer.block_data[20]);
-	printk(KERN_DEBUG "VC ViFract    = 0x%0X\n",
+	printk(KERN_DE "VC ViFract    = 0x%0X\n",
 	       cmd.buffer.block_data[21]);
-	printk(KERN_DEBUG "VC JPeg Opt   = 0x%0X\n",
+	printk(KERN_DE "VC JPeg Opt   = 0x%0X\n",
 	       cmd.buffer.block_data[22]);
-	printk(KERN_DEBUG "VC Creep Per  = 0x%0X\n",
+	printk(KERN_DE "VC Creep Per  = 0x%0X\n",
 	       cmd.buffer.block_data[23]);
-	printk(KERN_DEBUG "VC User Sq.   = 0x%0X\n",
+	printk(KERN_DE "VC User Sq.   = 0x%0X\n",
 	       cmd.buffer.block_data[24]);
-	printk(KERN_DEBUG "VC Target KB  = 0x%0X\n",
+	printk(KERN_DE "VC Target KB  = 0x%0X\n",
 	       cmd.buffer.block_data[25]);
 
 	/*** VP ***/
@@ -2020,92 +2020,92 @@ void cpia2_dbg_dump_registers(struct camera_data *cam)
 	cmd.start = 0;
 	cpia2_send_command(cam, &cmd);
 
-	printk(KERN_DEBUG "VP Dev Hi     = 0x%0X\n",
+	printk(KERN_DE "VP Dev Hi     = 0x%0X\n",
 	       cmd.buffer.block_data[0]);
-	printk(KERN_DEBUG "VP Dev Lo     = 0x%0X\n",
+	printk(KERN_DE "VP Dev Lo     = 0x%0X\n",
 	       cmd.buffer.block_data[1]);
-	printk(KERN_DEBUG "VP Sys State  = 0x%0X\n",
+	printk(KERN_DE "VP Sys State  = 0x%0X\n",
 	       cmd.buffer.block_data[2]);
-	printk(KERN_DEBUG "VP Sys Ctrl   = 0x%0X\n",
+	printk(KERN_DE "VP Sys Ctrl   = 0x%0X\n",
 	       cmd.buffer.block_data[3]);
-	printk(KERN_DEBUG "VP Sensor flg = 0x%0X\n",
+	printk(KERN_DE "VP Sensor flg = 0x%0X\n",
 	       cmd.buffer.block_data[5]);
-	printk(KERN_DEBUG "VP Sensor Rev = 0x%0X\n",
+	printk(KERN_DE "VP Sensor Rev = 0x%0X\n",
 	       cmd.buffer.block_data[6]);
-	printk(KERN_DEBUG "VP Dev Config = 0x%0X\n",
+	printk(KERN_DE "VP Dev Config = 0x%0X\n",
 	       cmd.buffer.block_data[7]);
-	printk(KERN_DEBUG "VP GPIO_DIR   = 0x%0X\n",
+	printk(KERN_DE "VP GPIO_DIR   = 0x%0X\n",
 	       cmd.buffer.block_data[8]);
-	printk(KERN_DEBUG "VP GPIO_DATA  = 0x%0X\n",
+	printk(KERN_DE "VP GPIO_DATA  = 0x%0X\n",
 	       cmd.buffer.block_data[9]);
-	printk(KERN_DEBUG "VP Ram ADDR H = 0x%0X\n",
+	printk(KERN_DE "VP Ram ADDR H = 0x%0X\n",
 	       cmd.buffer.block_data[10]);
-	printk(KERN_DEBUG "VP Ram ADDR L = 0x%0X\n",
+	printk(KERN_DE "VP Ram ADDR L = 0x%0X\n",
 	       cmd.buffer.block_data[11]);
-	printk(KERN_DEBUG "VP RAM Data   = 0x%0X\n",
+	printk(KERN_DE "VP RAM Data   = 0x%0X\n",
 	       cmd.buffer.block_data[12]);
-	printk(KERN_DEBUG "Do Call       = 0x%0X\n",
+	printk(KERN_DE "Do Call       = 0x%0X\n",
 	       cmd.buffer.block_data[13]);
 
 	if (cam->params.pnp_id.device_type == DEVICE_STV_672) {
 		cmd.reg_count = 9;
 		cmd.start = 0x0E;
 		cpia2_send_command(cam, &cmd);
-		printk(KERN_DEBUG "VP Clock Ctrl = 0x%0X\n",
+		printk(KERN_DE "VP Clock Ctrl = 0x%0X\n",
 		       cmd.buffer.block_data[0]);
-		printk(KERN_DEBUG "VP Patch Rev  = 0x%0X\n",
+		printk(KERN_DE "VP Patch Rev  = 0x%0X\n",
 		       cmd.buffer.block_data[1]);
-		printk(KERN_DEBUG "VP Vid Mode   = 0x%0X\n",
+		printk(KERN_DE "VP Vid Mode   = 0x%0X\n",
 		       cmd.buffer.block_data[2]);
-		printk(KERN_DEBUG "VP Framerate  = 0x%0X\n",
+		printk(KERN_DE "VP Framerate  = 0x%0X\n",
 		       cmd.buffer.block_data[3]);
-		printk(KERN_DEBUG "VP UserEffect = 0x%0X\n",
+		printk(KERN_DE "VP UserEffect = 0x%0X\n",
 		       cmd.buffer.block_data[4]);
-		printk(KERN_DEBUG "VP White Bal  = 0x%0X\n",
+		printk(KERN_DE "VP White Bal  = 0x%0X\n",
 		       cmd.buffer.block_data[5]);
-		printk(KERN_DEBUG "VP WB thresh  = 0x%0X\n",
+		printk(KERN_DE "VP WB thresh  = 0x%0X\n",
 		       cmd.buffer.block_data[6]);
-		printk(KERN_DEBUG "VP Exp Modes  = 0x%0X\n",
+		printk(KERN_DE "VP Exp Modes  = 0x%0X\n",
 		       cmd.buffer.block_data[7]);
-		printk(KERN_DEBUG "VP Exp Target = 0x%0X\n",
+		printk(KERN_DE "VP Exp Target = 0x%0X\n",
 		       cmd.buffer.block_data[8]);
 
 		cmd.reg_count = 1;
 		cmd.start = 0x1B;
 		cpia2_send_command(cam, &cmd);
-		printk(KERN_DEBUG "VP FlickerMds = 0x%0X\n",
+		printk(KERN_DE "VP FlickerMds = 0x%0X\n",
 		       cmd.buffer.block_data[0]);
 	} else {
 		cmd.reg_count = 8 ;
 		cmd.start = 0x0E;
 		cpia2_send_command(cam, &cmd);
-		printk(KERN_DEBUG "VP Clock Ctrl = 0x%0X\n",
+		printk(KERN_DE "VP Clock Ctrl = 0x%0X\n",
 		       cmd.buffer.block_data[0]);
-		printk(KERN_DEBUG "VP Patch Rev  = 0x%0X\n",
+		printk(KERN_DE "VP Patch Rev  = 0x%0X\n",
 		       cmd.buffer.block_data[1]);
-		printk(KERN_DEBUG "VP Vid Mode   = 0x%0X\n",
+		printk(KERN_DE "VP Vid Mode   = 0x%0X\n",
 		       cmd.buffer.block_data[5]);
-		printk(KERN_DEBUG "VP Framerate  = 0x%0X\n",
+		printk(KERN_DE "VP Framerate  = 0x%0X\n",
 		       cmd.buffer.block_data[6]);
-		printk(KERN_DEBUG "VP UserEffect = 0x%0X\n",
+		printk(KERN_DE "VP UserEffect = 0x%0X\n",
 		       cmd.buffer.block_data[7]);
 
 		cmd.reg_count = 1;
 		cmd.start = CPIA2_VP5_EXPOSURE_TARGET;
 		cpia2_send_command(cam, &cmd);
-		printk(KERN_DEBUG "VP5 Exp Target= 0x%0X\n",
+		printk(KERN_DE "VP5 Exp Target= 0x%0X\n",
 		       cmd.buffer.block_data[0]);
 
 		cmd.reg_count = 4;
 		cmd.start = 0x3A;
 		cpia2_send_command(cam, &cmd);
-		printk(KERN_DEBUG "VP5 MY Black  = 0x%0X\n",
+		printk(KERN_DE "VP5 MY Black  = 0x%0X\n",
 		       cmd.buffer.block_data[0]);
-		printk(KERN_DEBUG "VP5 MCY Range = 0x%0X\n",
+		printk(KERN_DE "VP5 MCY Range = 0x%0X\n",
 		       cmd.buffer.block_data[1]);
-		printk(KERN_DEBUG "VP5 MYCEILING = 0x%0X\n",
+		printk(KERN_DE "VP5 MYCEILING = 0x%0X\n",
 		       cmd.buffer.block_data[2]);
-		printk(KERN_DEBUG "VP5 MCUV Sat  = 0x%0X\n",
+		printk(KERN_DE "VP5 MCUV Sat  = 0x%0X\n",
 		       cmd.buffer.block_data[3]);
 	}
 #endif

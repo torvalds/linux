@@ -60,7 +60,7 @@ void omap4_prminst_set_prm_dev_inst(s32 dev_inst)
 /* Read a register in a PRM instance */
 u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 {
-	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
+	_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part].va);
 	return readl_relaxed(_prm_bases[part].va + inst + idx);
@@ -69,7 +69,7 @@ u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 /* Write into a register in a PRM instance */
 void omap4_prminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 {
-	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
+	_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part].va);
 	writel_relaxed(val, _prm_bases[part].va + inst + idx);

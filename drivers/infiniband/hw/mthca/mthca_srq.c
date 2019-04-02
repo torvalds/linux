@@ -128,7 +128,7 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 	memset(context, 0, sizeof *context);
 
 	/*
-	 * Put max in a temporary variable to work around gcc bug
+	 * Put max in a temporary variable to work around gcc 
 	 * triggered by ilog2() on sparc64.
 	 */
 	max = srq->max;

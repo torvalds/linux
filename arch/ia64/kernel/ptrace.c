@@ -40,9 +40,9 @@
 /*
  * Bits in the PSR that we allow ptrace() to change:
  *	be, up, ac, mfl, mfh (the user mask; five bits total)
- *	db (debug breakpoint fault; one bit)
- *	id (instruction debug fault disable; one bit)
- *	dd (data debug fault disable; one bit)
+ *	db (de breakpoint fault; one bit)
+ *	id (instruction de fault disable; one bit)
+ *	dd (data de fault disable; one bit)
  *	ri (restart instruction; two bits)
  *	is (instruction set; one bit)
  */
@@ -52,9 +52,9 @@
 #define MASK(nbits)	((1UL << (nbits)) - 1)	/* mask with NBITS bits set */
 #define PFM_MASK	MASK(38)
 
-#define PTRACE_DEBUG	0
+#define PTRACE_DE	0
 
-#if PTRACE_DEBUG
+#if PTRACE_DE
 # define dprintk(format...)	printk(format)
 # define inline
 #else
@@ -594,7 +594,7 @@ static void do_sync_rbs(struct unw_frame_info *info, void *arg)
 }
 
 /*
- * when a thread is stopped (ptraced), debugger might change thread's user
+ * when a thread is stopped (ptraced), deger might change thread's user
  * stack (change memory directly), and we must avoid the RSE stored in kernel
  * to override user stack (user space's RSE is newer than kernel's in the
  * case). To workaround the issue, we copy kernel RSE to user RSE before the
@@ -2050,7 +2050,7 @@ access_uarea(struct task_struct *child, unsigned long addr,
 		return 0;
 	}
 
-	/* access debug registers */
+	/* access de registers */
 	if (addr >= PT_IBR) {
 		regnum = (addr - PT_IBR) >> 3;
 		ptr = &child->thread.ibr[0];
@@ -2066,23 +2066,23 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	}
 #ifdef CONFIG_PERFMON
 	/*
-	 * Check if debug registers are used by perfmon. This
+	 * Check if de registers are used by perfmon. This
 	 * test must be done once we know that we can do the
 	 * operation, i.e. the arguments are all valid, but
 	 * before we start modifying the state.
 	 *
 	 * Perfmon needs to keep a count of how many processes
-	 * are trying to modify the debug registers for system
+	 * are trying to modify the de registers for system
 	 * wide monitoring sessions.
 	 *
 	 * We also include read access here, because they may
-	 * cause the PMU-installed debug register state
+	 * cause the PMU-installed de register state
 	 * (dbr[], ibr[]) to be reset. The two arrays are also
 	 * used by perfmon, but we do not use
 	 * IA64_THREAD_DBG_VALID. The registers are restored
 	 * by the PMU context switch code.
 	 */
-	if (pfm_use_debug_registers(child))
+	if (pfm_use_de_registers(child))
 		return -1;
 #endif
 

@@ -3283,7 +3283,7 @@ nv50_gr_construct_xfer2(struct nvkm_grctx *ctx)
 	if (device->chipset < 0xa0) {
 		for (i = 0; i < 8; i++) {
 			ctx->ctxvals_pos = offset + i;
-			/* that little bugger belongs to csched. No idea
+			/* that little ger belongs to csched. No idea
 			 * what it's doing here. */
 			if (i == 0)
 				xf_emit(ctx, 1, 0x08100c12); /* FP_INTERPOLANT_CTRL */
@@ -3295,7 +3295,7 @@ nv50_gr_construct_xfer2(struct nvkm_grctx *ctx)
 	} else {
 		/* Strand 0: TPs 0, 1 */
 		ctx->ctxvals_pos = offset;
-		/* that little bugger belongs to csched. No idea
+		/* that little ger belongs to csched. No idea
 		 * what it's doing here. */
 		xf_emit(ctx, 1, 0x08100c12); /* FP_INTERPOLANT_CTRL */
 		if (units & (1 << 0))

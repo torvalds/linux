@@ -67,7 +67,7 @@ int crypto_authenc_extractkeys(struct crypto_authenc_keys *keys, const u8 *key,
 	 */
 	if (RTA_PAYLOAD(rta) != sizeof(*param))
 		return -EINVAL;
-	BUILD_BUG_ON(sizeof(*param) % RTA_ALIGNTO);
+	BUILD__ON(sizeof(*param) % RTA_ALIGNTO);
 
 	param = RTA_DATA(rta);
 	keys->enckeylen = be32_to_cpu(param->enckeylen);

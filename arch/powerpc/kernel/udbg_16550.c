@@ -255,18 +255,18 @@ void __init udbg_init_pas_realmode(void)
 
 #endif /* CONFIG_PPC_PASEMI */
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_44x
+#ifdef CONFIG_PPC_EARLY_DE_44x
 
 #include <platforms/44x/44x.h>
 
 static u8 udbg_uart_in_44x_as1(unsigned int reg)
 {
-	return as1_readb((void __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR + reg);
+	return as1_readb((void __iomem *)PPC44x_EARLY_DE_VIRTADDR + reg);
 }
 
 static void udbg_uart_out_44x_as1(unsigned int reg, u8 val)
 {
-	as1_writeb(val, (void __iomem *)PPC44x_EARLY_DEBUG_VIRTADDR + reg);
+	as1_writeb(val, (void __iomem *)PPC44x_EARLY_DE_VIRTADDR + reg);
 }
 
 void __init udbg_init_44x_as1(void)
@@ -276,19 +276,19 @@ void __init udbg_init_44x_as1(void)
 	udbg_use_uart();
 }
 
-#endif /* CONFIG_PPC_EARLY_DEBUG_44x */
+#endif /* CONFIG_PPC_EARLY_DE_44x */
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_40x
+#ifdef CONFIG_PPC_EARLY_DE_40x
 
 static u8 udbg_uart_in_40x(unsigned int reg)
 {
-	return real_readb((void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
+	return real_readb((void __iomem *)CONFIG_PPC_EARLY_DE_40x_PHYSADDR
 			  + reg);
 }
 
 static void udbg_uart_out_40x(unsigned int reg, u8 val)
 {
-	real_writeb(val, (void __iomem *)CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR
+	real_writeb(val, (void __iomem *)CONFIG_PPC_EARLY_DE_40x_PHYSADDR
 		    + reg);
 }
 
@@ -299,4 +299,4 @@ void __init udbg_init_40x_realmode(void)
 	udbg_use_uart();
 }
 
-#endif /* CONFIG_PPC_EARLY_DEBUG_40x */
+#endif /* CONFIG_PPC_EARLY_DE_40x */

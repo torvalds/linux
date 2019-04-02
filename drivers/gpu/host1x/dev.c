@@ -35,7 +35,7 @@
 
 #include "bus.h"
 #include "channel.h"
-#include "debug.h"
+#include "de.h"
 #include "dev.h"
 #include "intr.h"
 
@@ -352,7 +352,7 @@ skip_iommu:
 		goto fail_deinit_syncpt;
 	}
 
-	host1x_debug_init(host);
+	host1x_de_init(host);
 
 	if (host->info->has_hypervisor)
 		host1x_setup_sid_table(host);

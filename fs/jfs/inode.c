@@ -30,7 +30,7 @@
 #include "jfs_imap.h"
 #include "jfs_extent.h"
 #include "jfs_unicode.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 
 struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
@@ -232,7 +232,7 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 			 * We should mark the whole page not ABNR, but how
 			 * will we know to mark the other blocks BH_New?
 			 */
-			BUG();
+			();
 #endif				/* _JFS_4K */
 			rc = extRecord(ip, &xad);
 			if (rc)
@@ -266,7 +266,7 @@ int jfs_get_block(struct inode *ip, sector_t lblock,
 	 * We need to do whatever it takes to keep all but the last buffers
 	 * in 4K pages - see jfs_write.c
 	 */
-	BUG();
+	();
 #endif				/* _JFS_4K */
 
       unlock:

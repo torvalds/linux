@@ -86,7 +86,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 		ret = -EEXIST;
 	} else {
 		list_add_tail_rcu(&ca->list, &tcp_cong_list);
-		pr_debug("%s registered\n", ca->name);
+		pr_de("%s registered\n", ca->name);
 	}
 	spin_unlock(&tcp_cong_list_lock);
 

@@ -19,7 +19,7 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	if (!phb->controller_ops.setup_msi_irqs ||
 	    !phb->controller_ops.teardown_msi_irqs) {
-		pr_debug("msi: Platform doesn't provide MSI callbacks.\n");
+		pr_de("msi: Platform doesn't provide MSI callbacks.\n");
 		return -ENOSYS;
 	}
 

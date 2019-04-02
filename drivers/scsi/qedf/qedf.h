@@ -443,7 +443,7 @@ extern uint qedf_stop_io_on_error;
 extern uint qedf_link_down_tmo;
 #define QEDF_RETRY_DELAY_MAX		20 /* 2 seconds */
 extern bool qedf_retry_delay;
-extern uint qedf_debug;
+extern uint qedf_de;
 
 extern struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf);
 extern void qedf_cmd_mgr_free(struct qedf_cmd_mgr *cmgr);

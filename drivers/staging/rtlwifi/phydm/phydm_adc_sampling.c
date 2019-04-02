@@ -157,7 +157,7 @@ static void phydm_la_mode_set_mac_iq_dump(void *dm_void)
 			"[MAC_trig] ref_mask = ((0x%x)), ref_value = ((0x%x)), dbg_port = ((0x%x))\n",
 			adc_smp->la_mac_ref_mask, adc_smp->la_trig_sig_sel,
 			adc_smp->la_dbg_port);
-		/*[Set MAC Debug Port]*/
+		/*[Set MAC De Port]*/
 		odm_set_mac_reg(dm, 0xF4, BIT(16), 1);
 		odm_set_mac_reg(dm, 0x38, 0xff0000, adc_smp->la_dbg_port);
 		odm_set_mac_reg(dm, 0x7c4, MASKDWORD, adc_smp->la_mac_ref_mask);
@@ -465,7 +465,7 @@ void phydm_la_mode_bb_setting(void *dm_void)
 		/*disable dbg clk gating*/
 		odm_set_bb_reg(dm, 0x198C, BIT(2) | BIT(1) | BIT(0), 7);
 
-		/*0x95C[4:0], BB debug port bit*/
+		/*0x95C[4:0], BB de port bit*/
 		odm_set_bb_reg(dm, 0x95C, 0x1f, trig_sig_sel);
 		odm_set_bb_reg(dm, 0x8FC, MASKDWORD, dbg_port);
 		/*0: posedge, 1: negedge*/
@@ -481,7 +481,7 @@ void phydm_la_mode_bb_setting(void *dm_void)
 		 *	(7:) '160MHz (for BW160 ic)'
 		 */
 	} else {
-		/*0x9A0[4:0], BB debug port bit*/
+		/*0x9A0[4:0], BB de port bit*/
 		odm_set_bb_reg(dm, 0x9a0, 0x1f, trig_sig_sel);
 		odm_set_bb_reg(dm, 0x908, MASKDWORD, dbg_port);
 		/*0: posedge, 1: negedge*/

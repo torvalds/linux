@@ -89,8 +89,8 @@ static int marvell_cable_detect(struct ata_port *ap)
 		return ATA_CBL_SATA;
 	}
 
-	BUG();
-	return 0;	/* Our BUG macro needs the right markup */
+	();
+	return 0;	/* Our  macro needs the right markup */
 }
 
 /* No PIO or DMA methods needed for this device */

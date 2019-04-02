@@ -74,7 +74,7 @@ I don't have any device lists, neither black-list nor white-list.  Thus
 it is quite useless to ask me whenever a specific device is supported or
 not.  In theory every changer device which supports the SCSI-2 media
 changer command set should work out-of-the-box with this driver.  If it
-doesn't, it is a bug.  Either within the driver or within the firmware
+doesn't, it is a .  Either within the driver or within the firmware
 of the changer device.
 
 
@@ -100,7 +100,7 @@ broken devices. So you can try:
 Trouble?
 --------
 
-If you insmod the driver with "insmod debug=1", it will be verbose and
+If you insmod the driver with "insmod de=1", it will be verbose and
 prints a lot of stuff to the syslog.  Compiling the kernel with
 CONFIG_SCSI_CONSTANTS=y improves the quality of the error messages a lot
 because the kernel will translate the error codes into human-readable
@@ -114,8 +114,8 @@ driver, please include these messages.
 Insmod options
 --------------
 
-debug=0/1
-	Enable debug messages (see above, default: 0).
+de=0/1
+	Enable de messages (see above, default: 0).
 
 verbose=0/1
 	Be verbose (default: 1).

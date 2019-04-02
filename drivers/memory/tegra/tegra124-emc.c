@@ -18,7 +18,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -1006,9 +1006,9 @@ tegra_emc_find_node_by_ram_code(struct device_node *node, u32 ram_code)
 	return NULL;
 }
 
-/* Debugfs entry */
+/* Defs entry */
 
-static int emc_debug_rate_get(void *data, u64 *rate)
+static int emc_de_rate_get(void *data, u64 *rate)
 {
 	struct clk *c = data;
 
@@ -1017,17 +1017,17 @@ static int emc_debug_rate_get(void *data, u64 *rate)
 	return 0;
 }
 
-static int emc_debug_rate_set(void *data, u64 rate)
+static int emc_de_rate_set(void *data, u64 rate)
 {
 	struct clk *c = data;
 
 	return clk_set_rate(c, rate);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(emc_debug_rate_fops, emc_debug_rate_get,
-			emc_debug_rate_set, "%lld\n");
+DEFINE_SIMPLE_ATTRIBUTE(emc_de_rate_fops, emc_de_rate_get,
+			emc_de_rate_set, "%lld\n");
 
-static int emc_debug_supported_rates_show(struct seq_file *s, void *data)
+static int emc_de_supported_rates_show(struct seq_file *s, void *data)
 {
 	struct tegra_emc *emc = s->private;
 	const char *prefix = "";
@@ -1046,46 +1046,46 @@ static int emc_debug_supported_rates_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int emc_debug_supported_rates_open(struct inode *inode,
+static int emc_de_supported_rates_open(struct inode *inode,
 					  struct file *file)
 {
-	return single_open(file, emc_debug_supported_rates_show,
+	return single_open(file, emc_de_supported_rates_show,
 			   inode->i_private);
 }
 
-static const struct file_operations emc_debug_supported_rates_fops = {
-	.open = emc_debug_supported_rates_open,
+static const struct file_operations emc_de_supported_rates_fops = {
+	.open = emc_de_supported_rates_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static void emc_debugfs_init(struct device *dev, struct tegra_emc *emc)
+static void emc_defs_init(struct device *dev, struct tegra_emc *emc)
 {
 	struct dentry *root, *file;
 	struct clk *clk;
 
-	root = debugfs_create_dir("emc", NULL);
+	root = defs_create_dir("emc", NULL);
 	if (!root) {
-		dev_err(dev, "failed to create debugfs directory\n");
+		dev_err(dev, "failed to create defs directory\n");
 		return;
 	}
 
-	clk = clk_get_sys("tegra-clk-debug", "emc");
+	clk = clk_get_sys("tegra-clk-de", "emc");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "failed to get debug clock: %ld\n", PTR_ERR(clk));
+		dev_err(dev, "failed to get de clock: %ld\n", PTR_ERR(clk));
 		return;
 	}
 
-	file = debugfs_create_file("rate", S_IRUGO | S_IWUSR, root, clk,
-				   &emc_debug_rate_fops);
+	file = defs_create_file("rate", S_IRUGO | S_IWUSR, root, clk,
+				   &emc_de_rate_fops);
 	if (!file)
-		dev_err(dev, "failed to create debugfs entry\n");
+		dev_err(dev, "failed to create defs entry\n");
 
-	file = debugfs_create_file("supported_rates", S_IRUGO, root, emc,
-				   &emc_debug_supported_rates_fops);
+	file = defs_create_file("supported_rates", S_IRUGO, root, emc,
+				   &emc_de_supported_rates_fops);
 	if (!file)
-		dev_err(dev, "failed to create debugfs entry\n");
+		dev_err(dev, "failed to create defs entry\n");
 }
 
 static int tegra_emc_probe(struct platform_device *pdev)
@@ -1153,8 +1153,8 @@ static int tegra_emc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, emc);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		emc_debugfs_init(&pdev->dev, emc);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		emc_defs_init(&pdev->dev, emc);
 
 	return 0;
 };

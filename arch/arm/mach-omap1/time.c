@@ -202,7 +202,7 @@ static void __init omap_mpu_timer_init(void)
 	struct clk	*ck_ref = clk_get(NULL, "ck_ref");
 	unsigned long	rate;
 
-	BUG_ON(IS_ERR(ck_ref));
+	_ON(IS_ERR(ck_ref));
 
 	rate = clk_get_rate(ck_ref);
 	clk_put(ck_ref);

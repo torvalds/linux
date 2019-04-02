@@ -150,7 +150,7 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 	int end, next;
 	int org = *beg;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	RFALSE(bmap_n >= reiserfs_bmap_count(s), "Bitmap %u is out of "
 	       "range (0..%u)", bmap_n, reiserfs_bmap_count(s) - 1);
 	PROC_INFO_INC(s, scan_bitmap.bmap);
@@ -354,7 +354,7 @@ static int scan_bitmap(struct reiserfs_transaction_handle *th,
 	unsigned int end_bm, end_off;
 	unsigned int off_max = s->s_blocksize << 3;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	PROC_INFO_INC(s, scan_bitmap.call);
 
 	/* No point in looking for more free blocks */
@@ -423,7 +423,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 	struct reiserfs_bitmap_info *apbi;
 	unsigned int nr, offset;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	PROC_INFO_INC(s, free_block);
 	rs = SB_DISK_SUPER_BLOCK(s);
 	sbh = SB_BUFFER_WITH_SB(s);
@@ -470,7 +470,7 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th,
 {
 	struct super_block *s = th->t_super;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	RFALSE(!s, "vs-4061: trying to free block on nonexistent device");
 	if (!is_reusable(s, block, 1))
 		return;
@@ -491,7 +491,7 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th,
 static void reiserfs_free_prealloc_block(struct reiserfs_transaction_handle *th,
 					 struct inode *inode, b_blocknr_t block)
 {
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	RFALSE(!th->t_super,
 	       "vs-4060: trying to free block on nonexistent device");
 	if (!is_reusable(th->t_super, block, 1))
@@ -506,7 +506,7 @@ static void __discard_prealloc(struct reiserfs_transaction_handle *th,
 	int dirty = 0;
 	struct inode *inode = &ei->vfs_inode;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 #ifdef CONFIG_REISERFS_CHECK
 	if (ei->i_prealloc_count < 0)
 		reiserfs_error(th->t_super, "zam-4001",
@@ -538,7 +538,7 @@ void reiserfs_discard_prealloc(struct reiserfs_transaction_handle *th,
 {
 	struct reiserfs_inode_info *ei = REISERFS_I(inode);
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	if (ei->i_prealloc_count)
 		__discard_prealloc(th, ei);
 }
@@ -547,7 +547,7 @@ void reiserfs_discard_all_prealloc(struct reiserfs_transaction_handle *th)
 {
 	struct list_head *plist = &SB_JOURNAL(th->t_super)->j_prealloc_list;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	while (!list_empty(plist)) {
 		struct reiserfs_inode_info *ei;
 		ei = list_entry(plist->next, struct reiserfs_inode_info,
@@ -1204,8 +1204,8 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 	determine_prealloc_size(hint);
 	if (!hint->formatted_node) {
 		int quota_ret;
-#ifdef REISERQUOTA_DEBUG
-		reiserfs_debug(s, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+		reiserfs_de(s, REISERFS_DE_CODE,
 			       "reiserquota: allocating %d blocks id=%u",
 			       amount_needed, hint->inode->i_uid);
 #endif
@@ -1217,8 +1217,8 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			return QUOTA_EXCEEDED;
 		}
 		if (hint->preallocate && hint->prealloc_size) {
-#ifdef REISERQUOTA_DEBUG
-			reiserfs_debug(s, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+			reiserfs_de(s, REISERFS_DE_CODE,
 				       "reiserquota: allocating (prealloc) %d blocks id=%u",
 				       hint->prealloc_size, hint->inode->i_uid);
 #endif
@@ -1249,8 +1249,8 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			/* We've tried searching everywhere, not enough space */
 			/* Free the blocks */
 			if (!hint->formatted_node) {
-#ifdef REISERQUOTA_DEBUG
-				reiserfs_debug(s, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+				reiserfs_de(s, REISERFS_DE_CODE,
 					       "reiserquota: freeing (nospace) %d blocks id=%u",
 					       amount_needed +
 					       hint->prealloc_size -
@@ -1285,8 +1285,8 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 	    amount_needed + hint->prealloc_size >
 	    nr_allocated + REISERFS_I(hint->inode)->i_prealloc_count) {
 		/* Some of preallocation blocks were not allocated */
-#ifdef REISERQUOTA_DEBUG
-		reiserfs_debug(s, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+		reiserfs_de(s, REISERFS_DE_CODE,
 			       "reiserquota: freeing (failed prealloc) %d blocks id=%u",
 			       amount_needed + hint->prealloc_size -
 			       nr_allocated -
@@ -1441,8 +1441,8 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 			__wait_on_buffer(bh);
 			reiserfs_write_lock_nested(sb, depth);
 		}
-		BUG_ON(!buffer_uptodate(bh));
-		BUG_ON(atomic_read(&bh->b_count) == 0);
+		_ON(!buffer_uptodate(bh));
+		_ON(atomic_read(&bh->b_count) == 0);
 
 		if (info->free_count == UINT_MAX)
 			reiserfs_cache_bitmap_metadata(sb, bh, info);

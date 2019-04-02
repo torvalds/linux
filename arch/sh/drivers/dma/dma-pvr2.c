@@ -27,7 +27,7 @@ static irqreturn_t pvr2_dma_interrupt(int irq, void *dev_id)
 	}
 
 	if (count++ < 10)
-		pr_debug("Got a pvr2 dma interrupt for channel %d\n",
+		pr_de("Got a pvr2 dma interrupt for channel %d\n",
 			 irq - HW_EVENT_PVR2_DMA);
 
 	xfer_complete = 1;

@@ -28,7 +28,7 @@
  *
  * Output includes socket fd instead of socket pointer address to avoid
  * leaking kernel memory address in:
- *	/sys/devices/platform/vhci_hcd.0/status and in debug output.
+ *	/sys/devices/platform/vhci_hcd.0/status and in de output.
  * The socket pointer address is not used at the moment and it was made
  * visible as a convenient way to find IP address from socket pointer
  * address by looking up /proc/net/{tcp,tcp6}. As this opens a security
@@ -463,7 +463,7 @@ int vhci_init_attr_group(void)
 	*attrs = &dev_attr_nports.attr;
 	*(attrs + 1) = &dev_attr_detach.attr;
 	*(attrs + 2) = &dev_attr_attach.attr;
-	*(attrs + 3) = &dev_attr_usbip_debug.attr;
+	*(attrs + 3) = &dev_attr_usbip_de.attr;
 	for (i = 0; i < vhci_num_controllers; i++)
 		*(attrs + i + 4) = &((status_attrs + i)->attr.attr);
 	vhci_attr_group.attrs = attrs;

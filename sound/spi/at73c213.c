@@ -8,7 +8,7 @@
  * the Free Software Foundation.
  */
 
-/*#define DEBUG*/
+/*#define DE*/
 
 #include <linux/clk.h>
 #include <linux/err.h>

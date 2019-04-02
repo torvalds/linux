@@ -125,14 +125,14 @@ void local_flush_tlb_range(struct vm_area_struct *vma,
 /*
  * Invalidate the selected mm context only.
  *
- * FIXME: Due to some bug here, we're flushing everything for now.
+ * FIXME: Due to some  here, we're flushing everything for now.
  * This should be changed to loop over over mm and call flush_tlb_range.
  */
 
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
 
-	/* Was seeing bugs with the mm struct passed to us. Scrapped most of
+	/* Was seeing s with the mm struct passed to us. Scrapped most of
 	   this function. */
 	/* Several architctures do this */
 	local_flush_tlb_all();

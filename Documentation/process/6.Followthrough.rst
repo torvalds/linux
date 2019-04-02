@@ -152,9 +152,9 @@ More importantly, though: inclusion into the mainline puts your code into
 the hands of a much larger group of testers.  Even if you have contributed
 a driver for hardware which is not yet available, you will be surprised by
 how many people will build your code into their kernels.  And, of course,
-where there are testers, there will be bug reports.
+where there are testers, there will be  reports.
 
-The worst sort of bug reports are regressions.  If your patch causes a
+The worst sort of  reports are regressions.  If your patch causes a
 regression, you'll find an uncomfortable number of eyes upon you;
 regressions need to be fixed as soon as possible.  If you are unwilling or
 unable to fix the regression (and nobody else does it for you), your patch
@@ -164,14 +164,14 @@ having a patch pulled as the result of a failure to fix a regression could
 well make it harder for you to get work merged in the future.
 
 After any regressions have been dealt with, there may be other, ordinary
-bugs to deal with.  The stabilization period is your best opportunity to
-fix these bugs and ensure that your code's debut in a mainline kernel
-release is as solid as possible.  So, please, answer bug reports, and fix
+s to deal with.  The stabilization period is your best opportunity to
+fix these s and ensure that your code's debut in a mainline kernel
+release is as solid as possible.  So, please, answer  reports, and fix
 the problems if at all possible.  That's what the stabilization period is
 for; you can start creating cool new patches once any problems with the old
 ones have been taken care of.
 
-And don't forget that there are other milestones which may also create bug
+And don't forget that there are other milestones which may also create 
 reports: the next mainline stable release, when prominent distributors pick
 up a version of the kernel containing your patch, etc.  Continuing to
 respond to these reports is a matter of basic pride in your work.  If that

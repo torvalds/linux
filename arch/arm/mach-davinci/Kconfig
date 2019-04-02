@@ -209,11 +209,11 @@ config DAVINCI_MUX
 	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
 	  say Y.
 
-config DAVINCI_MUX_DEBUG
-	bool "Multiplexing debug output"
+config DAVINCI_MUX_DE
+	bool "Multiplexing de output"
 	depends on DAVINCI_MUX
 	help
-	  Makes the multiplexing functions print out a lot of debug info.
+	  Makes the multiplexing functions print out a lot of de info.
 	  This is useful if you want to find out the correct values of the
 	  multiplexing registers.
 

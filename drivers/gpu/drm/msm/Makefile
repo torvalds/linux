@@ -76,7 +76,7 @@ msm-y := \
 	disp/dpu1/dpu_rm.o \
 	disp/dpu1/dpu_vbif.o \
 	msm_atomic.o \
-	msm_debugfs.o \
+	msm_defs.o \
 	msm_drv.o \
 	msm_fb.o \
 	msm_fence.o \
@@ -94,7 +94,7 @@ msm-y := \
 	msm_gpu_tracepoints.o \
 	msm_gpummu.o
 
-msm-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o
+msm-$(CONFIG_DE_FS) += adreno/a5xx_defs.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += disp/mdp4/mdp4_lvds_pll.o

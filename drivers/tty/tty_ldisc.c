@@ -20,12 +20,12 @@
 #include <linux/uaccess.h>
 #include <linux/ratelimit.h>
 
-#undef LDISC_DEBUG_HANGUP
+#undef LDISC_DE_HANGUP
 
-#ifdef LDISC_DEBUG_HANGUP
-#define tty_ldisc_debug(tty, f, args...)	tty_debug(tty, f, ##args)
+#ifdef LDISC_DE_HANGUP
+#define tty_ldisc_de(tty, f, args...)	tty_de(tty, f, ##args)
 #else
-#define tty_ldisc_debug(tty, f, args...)
+#define tty_ldisc_de(tty, f, args...)
 #endif
 
 /* lockdep nested classes for tty->ldisc_sem */
@@ -454,7 +454,7 @@ static void tty_set_termios_ldisc(struct tty_struct *tty, int disc)
  *	@tty: tty we are opening the ldisc on
  *	@ld: discipline to open
  *
- *	A helper opening method. Also a convenient debugging and check
+ *	A helper opening method. Also a convenient deging and check
  *	point.
  *
  *	Locking: always called with BTM already held.
@@ -470,7 +470,7 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 		if (ret)
 			clear_bit(TTY_LDISC_OPEN, &tty->flags);
 
-		tty_ldisc_debug(tty, "%p: opened\n", ld);
+		tty_ldisc_de(tty, "%p: opened\n", ld);
 		return ret;
 	}
 	return 0;
@@ -481,7 +481,7 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
  *	@tty: tty we are opening the ldisc on
  *	@ld: discipline to close
  *
- *	A helper close method. Also a convenient debugging and check
+ *	A helper close method. Also a convenient deging and check
  *	point.
  */
 
@@ -492,7 +492,7 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 	clear_bit(TTY_LDISC_OPEN, &tty->flags);
 	if (ld->ops->close)
 		ld->ops->close(tty);
-	tty_ldisc_debug(tty, "%p: closed\n", ld);
+	tty_ldisc_de(tty, "%p: closed\n", ld);
 }
 
 /**
@@ -684,7 +684,7 @@ int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 	lockdep_assert_held_exclusive(&tty->ldisc_sem);
 	ld = tty_ldisc_get(tty, disc);
 	if (IS_ERR(ld)) {
-		BUG_ON(disc == N_TTY);
+		_ON(disc == N_TTY);
 		return PTR_ERR(ld);
 	}
 
@@ -723,7 +723,7 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 {
 	struct tty_ldisc *ld;
 
-	tty_ldisc_debug(tty, "%p: hangup\n", tty->ldisc);
+	tty_ldisc_de(tty, "%p: hangup\n", tty->ldisc);
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
@@ -819,7 +819,7 @@ void tty_ldisc_release(struct tty_struct *tty)
 	/* And the memory resources remaining (buffers, termios) will be
 	   disposed of when the kref hits zero */
 
-	tty_ldisc_debug(tty, "released\n");
+	tty_ldisc_de(tty, "released\n");
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_release);
 

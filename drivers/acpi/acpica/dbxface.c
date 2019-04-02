@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbxface - AML Debugger external interfaces
+ * Module Name: dbxface - AML Deger external interfaces
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "amlcode.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acinterp.h"
 #include "acparser.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbxface")
 
 /* Local prototypes */
@@ -40,7 +40,7 @@ static union acpi_parse_object *acpi_db_get_display_op(struct acpi_walk_state
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Enter debugger command loop
+ * DESCRIPTION: Enter deger command loop
  *
  ******************************************************************************/
 
@@ -112,8 +112,8 @@ void acpi_db_signal_break_point(struct acpi_walk_state *walk_state)
 #endif
 
 	/*
-	 * Set the single-step flag. This will cause the debugger (if present)
-	 * to break to the console within the AML debugger at the start of the
+	 * Set the single-step flag. This will cause the deger (if present)
+	 * to break to the console within the AML deger at the start of the
 	 * next AML instruction.
 	 */
 	acpi_gbl_cm_single_step = TRUE;
@@ -204,7 +204,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 {
 	union acpi_parse_object *next;
 	acpi_status status = AE_OK;
-	u32 original_debug_level;
+	u32 original_de_level;
 	u32 aml_offset;
 
 	ACPI_FUNCTION_ENTRY();
@@ -271,22 +271,22 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * Under certain debug conditions, display this opcode and its operands
+	 * Under certain de conditions, display this opcode and its operands
 	 */
 	if ((acpi_gbl_db_output_to_file) ||
 	    (acpi_gbl_cm_single_step) || (acpi_dbg_level & ACPI_LV_PARSE)) {
 		if ((acpi_gbl_db_output_to_file) ||
 		    (acpi_dbg_level & ACPI_LV_PARSE)) {
 			acpi_os_printf
-			    ("\nAML Debug: Next AML Opcode to execute:\n");
+			    ("\nAML De: Next AML Opcode to execute:\n");
 		}
 
 		/*
 		 * Display this op (and only this op - zero out the NEXT field
 		 * temporarily, and disable parser trace output for the duration of
-		 * the display because we don't want the extraneous debug output)
+		 * the display because we don't want the extraneous de output)
 		 */
-		original_debug_level = acpi_dbg_level;
+		original_de_level = acpi_dbg_level;
 		acpi_dbg_level &= ~(ACPI_LV_PARSE | ACPI_LV_FUNCTIONS);
 		next = op->common.next;
 		op->common.next = NULL;
@@ -328,7 +328,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		    (acpi_dbg_level & ACPI_LV_PARSE)) {
 			acpi_os_printf("\n");
 		}
-		acpi_dbg_level = original_debug_level;
+		acpi_dbg_level = original_de_level;
 	}
 
 	/* If we are not single stepping, just continue executing the method */
@@ -382,21 +382,21 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_initialize_debugger
+ * FUNCTION:    acpi_initialize_deger
  *
  * PARAMETERS:  None
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Init and start debugger
+ * DESCRIPTION: Init and start deger
  *
  ******************************************************************************/
 
-acpi_status acpi_initialize_debugger(void)
+acpi_status acpi_initialize_deger(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE(acpi_initialize_debugger);
+	ACPI_FUNCTION_TRACE(acpi_initialize_deger);
 
 	/* Init globals */
 
@@ -404,17 +404,17 @@ acpi_status acpi_initialize_debugger(void)
 	acpi_gbl_db_filename = NULL;
 	acpi_gbl_db_output_to_file = FALSE;
 
-	acpi_gbl_db_debug_level = ACPI_LV_VERBOSITY2;
-	acpi_gbl_db_console_debug_level = ACPI_NORMAL_DEFAULT | ACPI_LV_TABLES;
+	acpi_gbl_db_de_level = ACPI_LV_VERBOSITY2;
+	acpi_gbl_db_console_de_level = ACPI_NORMAL_DEFAULT | ACPI_LV_TABLES;
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
 
 	acpi_gbl_db_opt_no_ini_methods = FALSE;
 
-	acpi_gbl_db_buffer = acpi_os_allocate(ACPI_DEBUG_BUFFER_SIZE);
+	acpi_gbl_db_buffer = acpi_os_allocate(ACPI_DE_BUFFER_SIZE);
 	if (!acpi_gbl_db_buffer) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
-	memset(acpi_gbl_db_buffer, 0, ACPI_DEBUG_BUFFER_SIZE);
+	memset(acpi_gbl_db_buffer, 0, ACPI_DE_BUFFER_SIZE);
 
 	/* Initial scope is the root */
 
@@ -427,28 +427,28 @@ acpi_status acpi_initialize_debugger(void)
 	acpi_gbl_db_terminate_loop = FALSE;
 
 	/*
-	 * If configured for multi-thread support, the debug executor runs in
+	 * If configured for multi-thread support, the de executor runs in
 	 * a separate thread so that the front end can be in another address
 	 * space, environment, or even another machine.
 	 */
-	if (acpi_gbl_debugger_configuration & DEBUGGER_MULTI_THREADED) {
+	if (acpi_gbl_deger_configuration & DEGER_MULTI_THREADED) {
 
 		/* These were created with one unit, grab it */
 
-		status = acpi_os_initialize_debugger();
+		status = acpi_os_initialize_deger();
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not get debugger mutex\n");
+			acpi_os_printf("Could not get deger mutex\n");
 			return_ACPI_STATUS(status);
 		}
 
-		/* Create the debug execution thread to execute commands */
+		/* Create the de execution thread to execute commands */
 
 		acpi_gbl_db_threads_terminated = FALSE;
-		status = acpi_os_execute(OSL_DEBUGGER_MAIN_THREAD,
+		status = acpi_os_execute(OSL_DEGER_MAIN_THREAD,
 					 acpi_db_execute_thread, NULL);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not start debugger thread"));
+					"Could not start deger thread"));
 			acpi_gbl_db_threads_terminated = TRUE;
 			return_ACPI_STATUS(status);
 		}
@@ -459,35 +459,35 @@ acpi_status acpi_initialize_debugger(void)
 	return_ACPI_STATUS(AE_OK);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_initialize_debugger)
+ACPI_EXPORT_SYMBOL(acpi_initialize_deger)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_terminate_debugger
+ * FUNCTION:    acpi_terminate_deger
  *
  * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Stop debugger
+ * DESCRIPTION: Stop deger
  *
  ******************************************************************************/
-void acpi_terminate_debugger(void)
+void acpi_terminate_deger(void)
 {
 
-	/* Terminate the AML Debugger */
+	/* Terminate the AML Deger */
 
 	acpi_gbl_db_terminate_loop = TRUE;
 
-	if (acpi_gbl_debugger_configuration & DEBUGGER_MULTI_THREADED) {
+	if (acpi_gbl_deger_configuration & DEGER_MULTI_THREADED) {
 
-		/* Wait the AML Debugger threads */
+		/* Wait the AML Deger threads */
 
 		while (!acpi_gbl_db_threads_terminated) {
 			acpi_os_sleep(100);
 		}
 
-		acpi_os_terminate_debugger();
+		acpi_os_terminate_deger();
 	}
 
 	if (acpi_gbl_db_buffer) {
@@ -495,27 +495,27 @@ void acpi_terminate_debugger(void)
 		acpi_gbl_db_buffer = NULL;
 	}
 
-	/* Ensure that debug output is now disabled */
+	/* Ensure that de output is now disabled */
 
 	acpi_gbl_db_output_flags = ACPI_DB_DISABLE_OUTPUT;
 }
 
-ACPI_EXPORT_SYMBOL(acpi_terminate_debugger)
+ACPI_EXPORT_SYMBOL(acpi_terminate_deger)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_set_debugger_thread_id
+ * FUNCTION:    acpi_set_deger_thread_id
  *
- * PARAMETERS:  thread_id       - Debugger thread ID
+ * PARAMETERS:  thread_id       - Deger thread ID
  *
  * RETURN:      None
  *
- * DESCRIPTION: Set debugger thread ID
+ * DESCRIPTION: Set deger thread ID
  *
  ******************************************************************************/
-void acpi_set_debugger_thread_id(acpi_thread_id thread_id)
+void acpi_set_deger_thread_id(acpi_thread_id thread_id)
 {
 	acpi_gbl_db_thread_id = thread_id;
 }
 
-ACPI_EXPORT_SYMBOL(acpi_set_debugger_thread_id)
+ACPI_EXPORT_SYMBOL(acpi_set_deger_thread_id)

@@ -1856,12 +1856,12 @@ static int bdc_gadget_ep_enable(struct usb_ep *_ep,
 	int ret;
 
 	if (!_ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
-		pr_debug("bdc_gadget_ep_enable invalid parameters\n");
+		pr_de("bdc_gadget_ep_enable invalid parameters\n");
 		return -EINVAL;
 	}
 
 	if (!desc->wMaxPacketSize) {
-		pr_debug("bdc_gadget_ep_enable missing wMaxPacketSize\n");
+		pr_de("bdc_gadget_ep_enable missing wMaxPacketSize\n");
 		return -EINVAL;
 	}
 
@@ -1895,7 +1895,7 @@ static int bdc_gadget_ep_disable(struct usb_ep *_ep)
 	int ret;
 
 	if (!_ep) {
-		pr_debug("bdc: invalid parameters\n");
+		pr_de("bdc: invalid parameters\n");
 		return -EINVAL;
 	}
 	ep = to_bdc_ep(_ep);

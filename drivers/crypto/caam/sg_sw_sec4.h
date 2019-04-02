@@ -35,7 +35,7 @@ static inline void dma_to_sec4_sg_one(struct sec4_sg_entry *sec4_sg_ptr,
 		sec4_sg_ptr->bpid_offset = cpu_to_caam32(offset &
 							 SEC4_SG_OFFSET_MASK);
 	}
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "sec4_sg_ptr@: ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, sec4_sg_ptr,
 		       sizeof(struct sec4_sg_entry), 1);

@@ -62,7 +62,7 @@ interface for w/w mutexes:
 Acquire context: To ensure eventual forward progress it is important the a task
 trying to acquire locks doesn't grab a new reservation id, but keeps the one it
 acquired when starting the lock acquisition. This ticket is stored in the
-acquire context. Furthermore the acquire context keeps track of debugging state
+acquire context. Furthermore the acquire context keeps track of deging state
 to catch w/w mutex interface abuse. An acquire context is representing a
 transaction.
 
@@ -89,7 +89,7 @@ Furthermore there are three different class of w/w lock acquire functions:
     has a void return type. Note that since ww mutex code needs loops/retries
     anyway the __must_check doesn't result in spurious warnings, even though the
     very first lock operation can never fail.
-  - When full debugging is enabled ww_mutex_lock_slow checks that all acquired
+  - When full deging is enabled ww_mutex_lock_slow checks that all acquired
     ww mutex have been released (preventing deadlocks) and makes sure that we
     block on the contending lock (preventing spinning through the -EDEADLK
     slowpath until the contended lock can be acquired).
@@ -255,7 +255,7 @@ list of starting nodes (passed in from userspace) using one of the above
 methods. And then lock any additional objects affected by the operations using
 method #3 below. The backoff/retry procedure will be a bit more involved, since
 when the dynamic locking step hits -EDEADLK we also need to unlock all the
-objects acquired with the fixed list. But the w/w mutex debug checks will catch
+objects acquired with the fixed list. But the w/w mutex de checks will catch
 any interface misuse for these cases.
 
 Also, method 3 can't fail the lock acquisition step since it doesn't return
@@ -357,7 +357,7 @@ Design:
 Lockdep:
   Special care has been taken to warn for as many cases of api abuse
   as possible. Some common api abuses will be caught with
-  CONFIG_DEBUG_MUTEXES, but CONFIG_PROVE_LOCKING is recommended.
+  CONFIG_DE_MUTEXES, but CONFIG_PROVE_LOCKING is recommended.
 
   Some of the errors which will be warned about:
    - Forgetting to call ww_acquire_fini or ww_acquire_init.

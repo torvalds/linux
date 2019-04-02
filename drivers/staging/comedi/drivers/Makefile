@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for individual comedi drivers
 #
-ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
+ccflags-$(CONFIG_COMEDI_DE)		:= -DDE
 
 # Comedi "helper" modules
 obj-$(CONFIG_COMEDI_8254)		+= comedi_8254.o

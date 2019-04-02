@@ -139,7 +139,7 @@ int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->size = gem_obj->size;
 	args->pitch = pitch;
 
-	DRM_DEBUG_DRIVER("Created object of size %lld\n", size);
+	DRM_DE_DRIVER("Created object of size %lld\n", size);
 
 	return 0;
 }

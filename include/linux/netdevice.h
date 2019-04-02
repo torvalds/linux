@@ -26,7 +26,7 @@
 #define _LINUX_NETDEVICE_H
 
 #include <linux/timer.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
 #include <linux/prefetch.h>
@@ -513,7 +513,7 @@ void napi_disable(struct napi_struct *n);
  */
 static inline void napi_enable(struct napi_struct *n)
 {
-	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
+	_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
 	smp_mb__before_atomic();
 	clear_bit(NAPI_STATE_SCHED, &n->state);
 	clear_bit(NAPI_STATE_NPSVC, &n->state);
@@ -2845,7 +2845,7 @@ static inline void *skb_gro_remcsum_process(struct sk_buff *skb, void *ptr,
 	__wsum delta;
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
 
-	BUG_ON(!NAPI_GRO_CB(skb)->csum_valid);
+	_ON(!NAPI_GRO_CB(skb)->csum_valid);
 
 	if (!nopartial) {
 		NAPI_GRO_CB(skb)->gro_remcsum_start = off + hdrlen + start;
@@ -3561,7 +3561,7 @@ static inline unsigned int get_netdev_rx_queue_index(
 	struct net_device *dev = queue->dev;
 	int index = queue - dev->_rx;
 
-	BUG_ON(index >= dev->num_rx_queues);
+	_ON(index >= dev->num_rx_queues);
 	return index;
 }
 #endif
@@ -3879,15 +3879,15 @@ enum {
 #define netif_msg_hw(p)		((p)->msg_enable & NETIF_MSG_HW)
 #define netif_msg_wol(p)	((p)->msg_enable & NETIF_MSG_WOL)
 
-static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
+static inline u32 netif_msg_init(int de_value, int default_msg_enable_bits)
 {
 	/* use default */
-	if (debug_value < 0 || debug_value >= (sizeof(u32) * 8))
+	if (de_value < 0 || de_value >= (sizeof(u32) * 8))
 		return default_msg_enable_bits;
-	if (debug_value == 0)	/* no output */
+	if (de_value == 0)	/* no output */
 		return 0;
 	/* set low N bits */
-	return (1U << debug_value) - 1;
+	return (1U << de_value) - 1;
 }
 
 static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
@@ -4385,7 +4385,7 @@ static inline bool can_checksum_protocol(netdev_features_t features,
 	}
 }
 
-#ifdef CONFIG_BUG
+#ifdef CONFIG_
 void netdev_rx_csum_fault(struct net_device *dev, struct sk_buff *skb);
 #else
 static inline void netdev_rx_csum_fault(struct net_device *dev,
@@ -4493,24 +4493,24 @@ static inline bool net_gso_ok(netdev_features_t features, int gso_type)
 	netdev_features_t feature = (netdev_features_t)gso_type << NETIF_F_GSO_SHIFT;
 
 	/* check flags correspondence */
-	BUILD_BUG_ON(SKB_GSO_TCPV4   != (NETIF_F_TSO >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_DODGY   != (NETIF_F_GSO_ROBUST >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_TCP_ECN != (NETIF_F_TSO_ECN >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_TCP_FIXEDID != (NETIF_F_TSO_MANGLEID >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_TCPV6   != (NETIF_F_TSO6 >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_FCOE    != (NETIF_F_FSO >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_GRE     != (NETIF_F_GSO_GRE >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_GRE_CSUM != (NETIF_F_GSO_GRE_CSUM >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_IPXIP4  != (NETIF_F_GSO_IPXIP4 >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_IPXIP6  != (NETIF_F_GSO_IPXIP6 >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_UDP_TUNNEL != (NETIF_F_GSO_UDP_TUNNEL >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_UDP_TUNNEL_CSUM != (NETIF_F_GSO_UDP_TUNNEL_CSUM >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_PARTIAL != (NETIF_F_GSO_PARTIAL >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_TUNNEL_REMCSUM != (NETIF_F_GSO_TUNNEL_REMCSUM >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_SCTP    != (NETIF_F_GSO_SCTP >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_ESP != (NETIF_F_GSO_ESP >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_UDP != (NETIF_F_GSO_UDP >> NETIF_F_GSO_SHIFT));
-	BUILD_BUG_ON(SKB_GSO_UDP_L4 != (NETIF_F_GSO_UDP_L4 >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_TCPV4   != (NETIF_F_TSO >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_DODGY   != (NETIF_F_GSO_ROBUST >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_TCP_ECN != (NETIF_F_TSO_ECN >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_TCP_FIXEDID != (NETIF_F_TSO_MANGLEID >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_TCPV6   != (NETIF_F_TSO6 >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_FCOE    != (NETIF_F_FSO >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_GRE     != (NETIF_F_GSO_GRE >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_GRE_CSUM != (NETIF_F_GSO_GRE_CSUM >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_IPXIP4  != (NETIF_F_GSO_IPXIP4 >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_IPXIP6  != (NETIF_F_GSO_IPXIP6 >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_UDP_TUNNEL != (NETIF_F_GSO_UDP_TUNNEL >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_UDP_TUNNEL_CSUM != (NETIF_F_GSO_UDP_TUNNEL_CSUM >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_PARTIAL != (NETIF_F_GSO_PARTIAL >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_TUNNEL_REMCSUM != (NETIF_F_GSO_TUNNEL_REMCSUM >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_SCTP    != (NETIF_F_GSO_SCTP >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_ESP != (NETIF_F_GSO_ESP >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_UDP != (NETIF_F_GSO_UDP >> NETIF_F_GSO_SHIFT));
+	BUILD__ON(SKB_GSO_UDP_L4 != (NETIF_F_GSO_UDP_L4 >> NETIF_F_GSO_SHIFT));
 
 	return (features & feature) == feature;
 }
@@ -4663,7 +4663,7 @@ static inline bool netif_reduces_vlan_mtu(struct net_device *dev)
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
-/* Logging, debugging and troubleshooting/diagnostic helpers. */
+/* Logging, deging and troubleshooting/diagnostic helpers. */
 
 /* netdev_printk helpers, similar to dev_printk */
 
@@ -4740,30 +4740,30 @@ do {								\
 #define MODULE_ALIAS_NETDEV(device) \
 	MODULE_ALIAS("netdev-" device)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 #define netdev_dbg(__dev, format, args...)			\
 do {								\
 	dynamic_netdev_dbg(__dev, format, ##args);		\
 } while (0)
-#elif defined(DEBUG)
+#elif defined(DE)
 #define netdev_dbg(__dev, format, args...)			\
-	netdev_printk(KERN_DEBUG, __dev, format, ##args)
+	netdev_printk(KERN_DE, __dev, format, ##args)
 #else
 #define netdev_dbg(__dev, format, args...)			\
 ({								\
 	if (0)							\
-		netdev_printk(KERN_DEBUG, __dev, format, ##args); \
+		netdev_printk(KERN_DE, __dev, format, ##args); \
 })
 #endif
 
-#if defined(VERBOSE_DEBUG)
+#if defined(VERBOSE_DE)
 #define netdev_vdbg	netdev_dbg
 #else
 
 #define netdev_vdbg(dev, format, args...)			\
 ({								\
 	if (0)							\
-		netdev_printk(KERN_DEBUG, dev, format, ##args);	\
+		netdev_printk(KERN_DE, dev, format, ##args);	\
 	0;							\
 })
 #endif
@@ -4810,25 +4810,25 @@ do {								\
 #define netif_info(priv, type, dev, fmt, args...)		\
 	netif_level(info, priv, type, dev, fmt, ##args)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 #define netif_dbg(priv, type, netdev, format, args...)		\
 do {								\
 	if (netif_msg_##type(priv))				\
 		dynamic_netdev_dbg(netdev, format, ##args);	\
 } while (0)
-#elif defined(DEBUG)
+#elif defined(DE)
 #define netif_dbg(priv, type, dev, format, args...)		\
-	netif_printk(priv, type, KERN_DEBUG, dev, format, ##args)
+	netif_printk(priv, type, KERN_DE, dev, format, ##args)
 #else
 #define netif_dbg(priv, type, dev, format, args...)			\
 ({									\
 	if (0)								\
-		netif_printk(priv, type, KERN_DEBUG, dev, format, ##args); \
+		netif_printk(priv, type, KERN_DE, dev, format, ##args); \
 	0;								\
 })
 #endif
 
-/* if @cond then downgrade to debug, else print at @level */
+/* if @cond then downgrade to de, else print at @level */
 #define netif_cond_dbg(priv, type, netdev, cond, level, fmt, args...)     \
 	do {                                                              \
 		if (cond)                                                 \
@@ -4837,13 +4837,13 @@ do {								\
 			netif_ ## level(priv, type, netdev, fmt, ##args); \
 	} while (0)
 
-#if defined(VERBOSE_DEBUG)
+#if defined(VERBOSE_DE)
 #define netif_vdbg	netif_dbg
 #else
 #define netif_vdbg(priv, type, dev, format, args...)		\
 ({								\
 	if (0)							\
-		netif_printk(priv, type, KERN_DEBUG, dev, format, ##args); \
+		netif_printk(priv, type, KERN_DE, dev, format, ##args); \
 	0;							\
 })
 #endif

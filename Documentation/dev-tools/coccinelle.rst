@@ -193,37 +193,37 @@ semantic patch as shown in the previous section.
 The "report" mode is the default. You can select another one with the
 MODE variable explained above.
 
-Debugging Coccinelle SmPL patches
+Deging Coccinelle SmPL patches
 ---------------------------------
 
 Using coccicheck is best as it provides in the spatch command line
 include options matching the options used when we compile the kernel.
 You can learn what these options are by using V=1, you could then
-manually run Coccinelle with debug options added.
+manually run Coccinelle with de options added.
 
-Alternatively you can debug running Coccinelle against SmPL patches
+Alternatively you can de running Coccinelle against SmPL patches
 by asking for stderr to be redirected to stderr, by default stderr
 is redirected to /dev/null, if you'd like to capture stderr you
-can specify the ``DEBUG_FILE="file.txt"`` option to coccicheck. For
+can specify the ``DE_FILE="file.txt"`` option to coccicheck. For
 instance::
 
     rm -f cocci.err
-    make coccicheck COCCI=scripts/coccinelle/free/kfree.cocci MODE=report DEBUG_FILE=cocci.err
+    make coccicheck COCCI=scripts/coccinelle/free/kfree.cocci MODE=report DE_FILE=cocci.err
     cat cocci.err
 
-You can use SPFLAGS to add debugging flags, for instance you may want to
-add both --profile --show-trying to SPFLAGS when debugging. For instance
+You can use SPFLAGS to add deging flags, for instance you may want to
+add both --profile --show-trying to SPFLAGS when deging. For instance
 you may want to use::
 
     rm -f err.log
     export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
-    make coccicheck DEBUG_FILE="err.log" MODE=report SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
+    make coccicheck DE_FILE="err.log" MODE=report SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
 
 err.log will now have the profiling information, while stdout will
 provide some progress information as Coccinelle moves forward with
 work.
 
-DEBUG_FILE support is only supported when using coccinelle >= 1.0.2.
+DE_FILE support is only supported when using coccinelle >= 1.0.2.
 
 .cocciconfig support
 --------------------

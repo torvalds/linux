@@ -102,7 +102,7 @@ static unsigned long dove_recalc_rate(struct clk_hw *hw, unsigned long parent)
 	unsigned int divider = dove_get_divider(dc);
 	unsigned long rate = DIV_ROUND_CLOSEST(parent, divider);
 
-	pr_debug("%s(): %s divider=%u parent=%lu rate=%lu\n",
+	pr_de("%s(): %s divider=%u parent=%lu rate=%lu\n",
 		 __func__, dc->name, divider, parent, rate);
 
 	return rate;
@@ -121,7 +121,7 @@ static long dove_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	rate = DIV_ROUND_CLOSEST(parent_rate, divider);
 
-	pr_debug("%s(): %s divider=%u parent=%lu rate=%lu\n",
+	pr_de("%s(): %s divider=%u parent=%lu rate=%lu\n",
 		 __func__, dc->name, divider, parent_rate, rate);
 
 	return rate;
@@ -138,7 +138,7 @@ static int dove_set_clock(struct clk_hw *hw, unsigned long rate,
 	if (divider < 0)
 		return divider;
 
-	pr_debug("%s(): %s divider=%u parent=%lu rate=%lu\n",
+	pr_de("%s(): %s divider=%u parent=%lu rate=%lu\n",
 		 __func__, dc->name, divider, parent_rate, rate);
 
 	div = (u32)divider << dc->div_bit_start;

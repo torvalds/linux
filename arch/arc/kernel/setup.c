@@ -355,7 +355,7 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 			       IS_AVAIL1(cpu->extn.fpu_dp, "DP "));
 
 	if (cpu->extn.ap_num | cpu->extn.smart | cpu->extn.rtt) {
-		n += scnprintf(buf + n, len - n, "DEBUG\t\t: %s%s",
+		n += scnprintf(buf + n, len - n, "DE\t\t: %s%s",
 			       IS_AVAIL1(cpu->extn.smart, "smaRT "),
 			       IS_AVAIL1(cpu->extn.rtt, "RTT "));
 		if (cpu->extn.ap_num) {

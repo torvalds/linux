@@ -86,7 +86,7 @@ static irqreturn_t cb710_irq_handler(int irq, void *data)
 
 static void cb710_release_slot(struct device *dev)
 {
-#ifdef CONFIG_CB710_DEBUG_ASSUMPTIONS
+#ifdef CONFIG_CB710_DE_ASSUMPTIONS
 	struct cb710_slot *slot = cb710_pdev_to_slot(to_platform_device(dev));
 	struct cb710_chip *chip = cb710_slot_to_chip(slot);
 
@@ -119,7 +119,7 @@ static int cb710_register_slot(struct cb710_chip *chip,
 
 	err = platform_device_register(&slot->pdev);
 
-#ifdef CONFIG_CB710_DEBUG_ASSUMPTIONS
+#ifdef CONFIG_CB710_DE_ASSUMPTIONS
 	atomic_inc(&chip->slot_refs_count);
 #endif
 
@@ -150,7 +150,7 @@ static void cb710_unregister_slot(struct cb710_chip *chip,
 
 	/* complementary to spin_unlock() in cb710_set_irq_handler() */
 	smp_rmb();
-	BUG_ON(chip->slot[nr].irq_handler != NULL);
+	_ON(chip->slot[nr].irq_handler != NULL);
 
 	/* slot->irq_handler == NULL here, so no lock needed */
 	--chip->slots;
@@ -289,8 +289,8 @@ unreg_ms:
 unreg_mmc:
 	cb710_unregister_slot(chip, CB710_SLOT_MMC);
 
-#ifdef CONFIG_CB710_DEBUG_ASSUMPTIONS
-	BUG_ON(atomic_read(&chip->slot_refs_count) != 0);
+#ifdef CONFIG_CB710_DE_ASSUMPTIONS
+	_ON(atomic_read(&chip->slot_refs_count) != 0);
 #endif
 	return err;
 }
@@ -302,8 +302,8 @@ static void cb710_remove_one(struct pci_dev *pdev)
 	cb710_unregister_slot(chip, CB710_SLOT_SM);
 	cb710_unregister_slot(chip, CB710_SLOT_MS);
 	cb710_unregister_slot(chip, CB710_SLOT_MMC);
-#ifdef CONFIG_CB710_DEBUG_ASSUMPTIONS
-	BUG_ON(atomic_read(&chip->slot_refs_count) != 0);
+#ifdef CONFIG_CB710_DE_ASSUMPTIONS
+	_ON(atomic_read(&chip->slot_refs_count) != 0);
 #endif
 
 	ida_free(&cb710_ida, chip->platform_id);

@@ -323,7 +323,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 			     "currently.\n", dlm->name, create.namelen,
 			     create.name, res->owner);
 			dlm_print_one_lock_resource(res);
-			BUG();
+			();
 		}
 	} else {
 		mlog(ML_ERROR, "%s: res %.*s, Error %d send CREATE LOCK to "
@@ -354,11 +354,11 @@ static void dlm_lock_release(struct kref *kref)
 
 	lock = container_of(kref, struct dlm_lock, lock_refs);
 
-	BUG_ON(!list_empty(&lock->list));
-	BUG_ON(!list_empty(&lock->ast_list));
-	BUG_ON(!list_empty(&lock->bast_list));
-	BUG_ON(lock->ast_pending);
-	BUG_ON(lock->bast_pending);
+	_ON(!list_empty(&lock->list));
+	_ON(!list_empty(&lock->ast_list));
+	_ON(!list_empty(&lock->bast_list));
+	_ON(lock->ast_pending);
+	_ON(lock->bast_pending);
 
 	dlm_lock_detach_lockres(lock);
 
@@ -466,7 +466,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	char *name;
 	unsigned int namelen;
 
-	BUG_ON(!dlm);
+	_ON(!dlm);
 
 	if (!dlm_grab(dlm))
 		return DLM_REJECTED;

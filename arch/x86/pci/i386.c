@@ -374,7 +374,7 @@ fs_initcall(pcibios_assign_resources);
 
 void pcibios_resource_survey_bus(struct pci_bus *bus)
 {
-	dev_printk(KERN_DEBUG, &bus->dev, "Allocating resources\n");
+	dev_printk(KERN_DE, &bus->dev, "Allocating resources\n");
 
 	pcibios_allocate_bus_resources(bus);
 

@@ -73,7 +73,7 @@ static bool check_atom_bios(uint8_t *bios, size_t size)
 
 	if (!memcmp(bios + tmp, "ATOM", 4) ||
 	    !memcmp(bios + tmp, "MOTA", 4)) {
-		DRM_DEBUG("ATOMBIOS detected\n");
+		DRM_DE("ATOMBIOS detected\n");
 		return true;
 	}
 

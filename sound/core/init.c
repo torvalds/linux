@@ -180,7 +180,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	struct snd_card *card;
 	int err;
 
-	if (snd_BUG_ON(!card_ret))
+	if (snd__ON(!card_ret))
 		return -EINVAL;
 	*card_ret = NULL;
 
@@ -737,7 +737,7 @@ int snd_card_register(struct snd_card *card)
 {
 	int err;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -EINVAL;
 
 	if (!card->registered) {
@@ -890,7 +890,7 @@ int snd_component_add(struct snd_card *card, const char *component)
 			return 1;
 	}
 	if (strlen(card->components) + 1 + len + 1 > sizeof(card->components)) {
-		snd_BUG();
+		snd_();
 		return -ENOMEM;
 	}
 	if (card->components[0] != '\0')

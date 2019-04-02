@@ -8,4 +8,4 @@ obj-$(CONFIG_OCXL)		+= ocxl.o
 # For tracepoints to include our trace.h from tracepoint infrastructure:
 CFLAGS_trace.o := -I$(src)
 
-# ccflags-y += -DDEBUG
+# ccflags-y += -DDE

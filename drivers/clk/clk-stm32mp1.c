@@ -1983,7 +1983,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 		  _MUX(RCC_MCO2CFGR, 0, 3, 0),
 		  _DIV(RCC_MCO2CFGR, 4, 4, 0, NULL)),
 
-	/* Debug clocks */
+	/* De clocks */
 	GATE(CK_DBG, "ck_sys_dbg", "ck_axi", CLK_IGNORE_UNUSED,
 	     RCC_DBGCFGR, 8, 0),
 

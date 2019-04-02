@@ -88,9 +88,9 @@ static int init_num;
 module_param_array(init, short, &init_num, 0000);
 MODULE_PARM_DESC(init, "Init sequence, used with the custom argument");
 
-static unsigned long debug;
-module_param(debug, ulong, 0000);
-MODULE_PARM_DESC(debug,
+static unsigned long de;
+module_param(de, ulong, 0000);
+MODULE_PARM_DESC(de,
 		 "level: 0-7 (the remaining 29 bits is for advanced usage)");
 
 static unsigned int verbose = 3;
@@ -964,7 +964,7 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 	static u16 prev_data;
 #endif
 
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	while (len) {
@@ -1035,7 +1035,7 @@ static int spi_device_found(struct device *dev, void *data)
 
 static void pr_spi_devices(void)
 {
-	pr_debug("SPI devices registered:\n");
+	pr_de("SPI devices registered:\n");
 	bus_for_each_dev(&spi_bus_type, NULL, NULL, spi_device_found);
 }
 
@@ -1053,7 +1053,7 @@ static int p_device_found(struct device *dev, void *data)
 
 static void pr_p_devices(void)
 {
-	pr_debug("'fb' Platform devices registered:\n");
+	pr_de("'fb' Platform devices registered:\n");
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, p_device_found);
 }
 
@@ -1128,7 +1128,7 @@ static int __init fbtft_device_init(void)
 		pr_p_devices(); /* print list of 'fb' platform devices */
 	}
 
-	pr_debug("name='%s', busnum=%d, cs=%d\n", name, busnum, cs);
+	pr_de("name='%s', busnum=%d, cs=%d\n", name, busnum, cs);
 
 	if (rotate > 0 && rotate < 4) {
 		rotate = (4 - rotate) * 90;
@@ -1196,7 +1196,7 @@ static int __init fbtft_device_init(void)
 				pdata->startbyte = startbyte;
 			if (gamma)
 				pdata->gamma = gamma;
-			pdata->display.debug = debug;
+			pdata->display.de = de;
 			if (fps)
 				pdata->fps = fps;
 			if (txbuflen)

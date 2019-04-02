@@ -1191,7 +1191,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	}
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	if (ecryptfs_verbosity > 0) {
-		ecryptfs_printk(KERN_DEBUG, "Decrypted session key:\n");
+		ecryptfs_printk(KERN_DE, "Decrypted session key:\n");
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
 	}
@@ -1668,7 +1668,7 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(
-			KERN_DEBUG, "Session key encryption key (size [%d]):\n",
+			KERN_DE, "Session key encryption key (size [%d]):\n",
 			auth_tok->token.password.session_key_encryption_key_bytes);
 		ecryptfs_dump_hex(
 			auth_tok->token.password.session_key_encryption_key,
@@ -1740,7 +1740,7 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	       auth_tok->session_key.decrypted_key_size);
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "FEK of size [%zd]:\n",
+		ecryptfs_printk(KERN_DE, "FEK of size [%zd]:\n",
 				crypt_stat->key_size);
 		ecryptfs_dump_hex(crypt_stat->key,
 				  crypt_stat->key_size);
@@ -1855,7 +1855,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			rc = -EIO;
 			goto out_wipe_list;
 		default:
-			ecryptfs_printk(KERN_DEBUG, "No packet at offset [%zd] "
+			ecryptfs_printk(KERN_DE, "No packet at offset [%zd] "
 					"of the file header; hex value of "
 					"character is [0x%.2x]\n", i, src[i]);
 			next_packet_is_auth_tok_packet = 0;
@@ -1879,7 +1879,7 @@ find_next_matching_auth_tok:
 	list_for_each_entry(auth_tok_list_item, &auth_tok_list, list) {
 		candidate_auth_tok = &auth_tok_list_item->auth_tok;
 		if (unlikely(ecryptfs_verbosity > 0)) {
-			ecryptfs_printk(KERN_DEBUG,
+			ecryptfs_printk(KERN_DE,
 					"Considering candidate auth tok:\n");
 			ecryptfs_dump_auth_tok(candidate_auth_tok);
 		}
@@ -1950,7 +1950,7 @@ found_matching_auth_tok:
 				goto find_next_matching_auth_tok;
 			}
 		}
-		BUG();
+		();
 	}
 	rc = ecryptfs_compute_root_iv(crypt_stat);
 	if (rc) {
@@ -2066,7 +2066,7 @@ write_tag_1_packet(char *dest, size_t *remaining_bytes,
 		goto out;
 	}
 	if (ecryptfs_verbosity > 0) {
-		ecryptfs_printk(KERN_DEBUG, "Encrypted key:\n");
+		ecryptfs_printk(KERN_DE, "Encrypted key:\n");
 		ecryptfs_dump_hex(key_rec->enc_key, key_rec->enc_key_size);
 	}
 encrypted_session_key_set:
@@ -2241,7 +2241,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		encrypted_session_key_valid |=
 			auth_tok->session_key.encrypted_key[i];
 	if (encrypted_session_key_valid) {
-		ecryptfs_printk(KERN_DEBUG, "encrypted_session_key_valid != 0; "
+		ecryptfs_printk(KERN_DE, "encrypted_session_key_valid != 0; "
 				"using auth_tok->session_key.encrypted_key, "
 				"where key_rec->enc_key_size = [%zd]\n",
 				key_rec->enc_key_size);
@@ -2252,20 +2252,20 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 	}
 	if (auth_tok->token.password.flags &
 	    ECRYPTFS_SESSION_KEY_ENCRYPTION_KEY_SET) {
-		ecryptfs_printk(KERN_DEBUG, "Using previously generated "
+		ecryptfs_printk(KERN_DE, "Using previously generated "
 				"session key encryption key of size [%d]\n",
 				auth_tok->token.password.
 				session_key_encryption_key_bytes);
 		memcpy(session_key_encryption_key,
 		       auth_tok->token.password.session_key_encryption_key,
 		       crypt_stat->key_size);
-		ecryptfs_printk(KERN_DEBUG,
+		ecryptfs_printk(KERN_DE,
 				"Cached session key encryption key:\n");
 		if (ecryptfs_verbosity > 0)
 			ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
 	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Session key encryption key:\n");
+		ecryptfs_printk(KERN_DE, "Session key encryption key:\n");
 		ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
 	rc = virt_to_scatterlist(crypt_stat->key, key_rec->enc_key_size,
@@ -2313,7 +2313,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 				      NULL, NULL);
 
 	rc = 0;
-	ecryptfs_printk(KERN_DEBUG, "Encrypting [%zd] bytes of the key\n",
+	ecryptfs_printk(KERN_DE, "Encrypting [%zd] bytes of the key\n",
 			crypt_stat->key_size);
 	skcipher_request_set_crypt(req, src_sg, dst_sg,
 				   (*key_rec).enc_key_size, NULL);
@@ -2324,9 +2324,9 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		printk(KERN_ERR "Error encrypting; rc = [%d]\n", rc);
 		goto out;
 	}
-	ecryptfs_printk(KERN_DEBUG, "This should be the encrypted key:\n");
+	ecryptfs_printk(KERN_DE, "This should be the encrypted key:\n");
 	if (ecryptfs_verbosity > 0) {
-		ecryptfs_printk(KERN_DEBUG, "EFEK of size [%zd]:\n",
+		ecryptfs_printk(KERN_DE, "EFEK of size [%zd]:\n",
 				key_rec->enc_key_size);
 		ecryptfs_dump_hex(key_rec->enc_key,
 				  key_rec->enc_key_size);

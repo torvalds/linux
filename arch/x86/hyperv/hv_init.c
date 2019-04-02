@@ -307,7 +307,7 @@ void __init hyperv_init(void)
 	 */
 	hyperv_pcpu_input_arg = alloc_percpu(void  *);
 
-	BUG_ON(hyperv_pcpu_input_arg == NULL);
+	_ON(hyperv_pcpu_input_arg == NULL);
 
 	/* Allocate percpu VP index */
 	hv_vp_index = kmalloc_array(num_possible_cpus(), sizeof(*hv_vp_index),
@@ -435,7 +435,7 @@ void hyperv_report_panic(struct pt_regs *regs, long err)
 
 	/*
 	 * We prefer to report panic on 'die' chain as we have proper
-	 * registers to report, but if we miss it (e.g. on BUG()) we need
+	 * registers to report, but if we miss it (e.g. on ()) we need
 	 * to report it on 'panic'.
 	 */
 	if (panic_reported)

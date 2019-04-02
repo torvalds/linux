@@ -146,7 +146,7 @@ static int snd_opl3_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 	struct snd_opl3 *opl3 = closure;
 	int err;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 
 	if ((err = snd_opl3_synth_setup(opl3)) < 0)
@@ -169,7 +169,7 @@ static int snd_opl3_close_seq_oss(struct snd_seq_oss_arg *arg)
 {
 	struct snd_opl3 *opl3;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	opl3 = arg->private_data;
 
@@ -192,7 +192,7 @@ static int snd_opl3_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 	char name[32];
 	int err, type;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	opl3 = arg->private_data;
 
@@ -231,7 +231,7 @@ static int snd_opl3_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 static int snd_opl3_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd,
 				  unsigned long ioarg)
 {
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	switch (cmd) {
 		case SNDCTL_FM_LOAD_INSTR:
@@ -256,7 +256,7 @@ static int snd_opl3_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd,
 /* reset device */
 static int snd_opl3_reset_seq_oss(struct snd_seq_oss_arg *arg)
 {
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 
 	return 0;

@@ -17,7 +17,7 @@
 #include "hns_dsaf_rcb.h"
 
 #define HNS_PPE_SERVICE_NW_ENGINE_NUM DSAF_COMM_CHN
-#define HNS_PPE_DEBUG_NW_ENGINE_NUM 1
+#define HNS_PPE_DE_NW_ENGINE_NUM 1
 #define HNS_PPE_COM_NUM DSAF_COMM_DEV_NUM
 
 #define PPE_COMMON_REG_OFFSET 0x70000
@@ -53,7 +53,7 @@ enum ppe_port_mode {
 };
 
 enum ppe_common_mode {
-	PPE_COMMON_MODE_DEBUG = 0,
+	PPE_COMMON_MODE_DE = 0,
 	PPE_COMMON_MODE_SERVICE,
 	PPE_COMMON_MODE_MAX
 };

@@ -27,7 +27,7 @@
 #include <linux/types.h>
 
 #include "smumgr.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "ci_smumgr.h"
 #include "ppsmc.h"
 #include "smu7_hwmgr.h"
@@ -2277,7 +2277,7 @@ static uint32_t ci_get_offsetof(uint32_t type, uint32_t member)
 		}
 		break;
 	}
-	pr_debug("can't get the offset of type %x member %x\n", type, member);
+	pr_de("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2300,7 +2300,7 @@ static uint32_t ci_get_mac_definition(uint32_t value)
 		return SMU7_MAX_LEVELS_MVDD;
 	}
 
-	pr_debug("can't get the mac of %x\n", value);
+	pr_de("can't get the mac of %x\n", value);
 	return 0;
 }
 

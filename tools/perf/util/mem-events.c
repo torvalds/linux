@@ -9,7 +9,7 @@
 #include <api/fs/fs.h>
 #include <linux/kernel.h>
 #include "mem-events.h"
-#include "debug.h"
+#include "de.h"
 #include "symbol.h"
 #include "sort.h"
 

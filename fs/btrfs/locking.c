@@ -7,7 +7,7 @@
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/page-flags.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include "ctree.h"
 #include "extent_io.h"
 #include "locking.h"
@@ -57,7 +57,7 @@ void btrfs_clear_lock_blocking_read(struct extent_buffer *eb)
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
-	BUG_ON(atomic_read(&eb->blocking_readers) == 0);
+	_ON(atomic_read(&eb->blocking_readers) == 0);
 	read_lock(&eb->lock);
 	atomic_inc(&eb->spinning_readers);
 	/* atomic_dec_and_test implies a barrier */
@@ -75,7 +75,7 @@ void btrfs_clear_lock_blocking_write(struct extent_buffer *eb)
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
-	BUG_ON(atomic_read(&eb->blocking_writers) != 1);
+	_ON(atomic_read(&eb->blocking_writers) != 1);
 	write_lock(&eb->lock);
 	WARN_ON(atomic_read(&eb->spinning_writers));
 	atomic_inc(&eb->spinning_writers);
@@ -91,7 +91,7 @@ void btrfs_clear_lock_blocking_write(struct extent_buffer *eb)
 void btrfs_tree_read_lock(struct extent_buffer *eb)
 {
 again:
-	BUG_ON(!atomic_read(&eb->blocking_writers) &&
+	_ON(!atomic_read(&eb->blocking_writers) &&
 	       current->pid == eb->lock_owner);
 
 	read_lock(&eb->lock);
@@ -103,7 +103,7 @@ again:
 		 * thread. btrfs_find_all_roots() depends on this as it may be
 		 * called on a partly (write-)locked tree.
 		 */
-		BUG_ON(eb->lock_nested);
+		_ON(eb->lock_nested);
 		eb->lock_nested = 1;
 		read_unlock(&eb->lock);
 		return;
@@ -255,7 +255,7 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 {
 	int blockers = atomic_read(&eb->blocking_writers);
 
-	BUG_ON(blockers > 1);
+	_ON(blockers > 1);
 
 	btrfs_assert_tree_locked(eb);
 	eb->lock_owner = 0;
@@ -276,10 +276,10 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 
 void btrfs_assert_tree_locked(struct extent_buffer *eb)
 {
-	BUG_ON(!atomic_read(&eb->write_locks));
+	_ON(!atomic_read(&eb->write_locks));
 }
 
 static void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
 {
-	BUG_ON(!atomic_read(&eb->read_locks));
+	_ON(!atomic_read(&eb->read_locks));
 }

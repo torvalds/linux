@@ -78,19 +78,19 @@ OPTIONS
                         mmap = minimal cache that is only used for read-write
                                 mmap.  Northing else is cached, like cache=none
 
-  debug=n	specifies debug level.  The debug level is a bitmask.
+  de=n	specifies de level.  The de level is a bitmask.
 			0x01  = display verbose error messages
-			0x02  = developer debug (DEBUG_CURRENT)
+			0x02  = developer de (DE_CURRENT)
 			0x04  = display 9p trace
 			0x08  = display VFS trace
-			0x10  = display Marshalling debug
-			0x20  = display RPC debug
-			0x40  = display transport debug
-			0x80  = display allocation debug
-			0x100 = display protocol message debug
-			0x200 = display Fid debug
-			0x400 = display packet debug
-			0x800 = display fscache tracing debug
+			0x10  = display Marshalling de
+			0x20  = display RPC de
+			0x40  = display transport de
+			0x80  = display allocation de
+			0x100 = display protocol message de
+			0x200 = display Fid de
+			0x400 = display packet de
+			0x800 = display fscache tracing de
 
   rfdno=n	the file descriptor for reading with trans=fd
 
@@ -151,7 +151,7 @@ on sourceforge (http://sourceforge.net/projects/v9fs).
 News and other information is maintained on a Wiki.
 (http://sf.net/apps/mediawiki/v9fs/index.php).
 
-Bug reports are best issued via the mailing list.
+ reports are best issued via the mailing list.
 
 For more information on the Plan 9 Operating System check out
 http://plan9.bell-labs.com/plan9

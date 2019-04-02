@@ -35,7 +35,7 @@ static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
 	struct device *dev = cdma_to_channel(cdma)->dev;
 	void *mem = NULL;
 
-	if (host1x_debug_trace_cmdbuf)
+	if (host1x_de_trace_cmdbuf)
 		mem = host1x_bo_mmap(bo);
 
 	if (mem) {

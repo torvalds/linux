@@ -237,7 +237,7 @@ static void b43_set_txpower_g(struct b43_wldev *dev,
 	gphy->rfatt.with_padmix = !!(tx_control & B43_TXCTL_TXMIX);
 	memmove(&gphy->bbatt, bbatt, sizeof(*bbatt));
 
-	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
+	if (b43_de(dev, B43_DBG_XMITPOWER)) {
 		b43dbg(dev->wl, "Tuning TX-power to bbatt(%u), "
 		       "rfatt(%u), tx_control(0x%02X), "
 		       "tx_bias(0x%02X), tx_magn(0x%02X)\n",
@@ -1966,7 +1966,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 		}
 		b43_dummy_transmission(dev, false, true);
 		gphy->cur_idle_tssi = b43_phy_read(dev, B43_PHY_ITSSI);
-		if (B43_DEBUG) {
+		if (B43_DE) {
 			/* Current-Idle-TSSI sanity check. */
 			if (abs(gphy->cur_idle_tssi - gphy->tgt_idle_tssi) >= 20) {
 				b43dbg(dev->wl,
@@ -2876,7 +2876,7 @@ static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 	gphy->rfatt.att = rfatt;
 	gphy->bbatt.att = bbatt;
 
-	if (b43_debug(dev, B43_DBG_XMITPOWER))
+	if (b43_de(dev, B43_DBG_XMITPOWER))
 		b43dbg(dev->wl, "Adjusting TX power\n");
 
 	/* Adjust the hardware */
@@ -2944,7 +2944,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 		desired_pwr = INT_TO_Q52(phy->desired_txpower);
 	/* And limit it. max_pwr already is Q5.2 */
 	desired_pwr = clamp_val(desired_pwr, 0, max_pwr);
-	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
+	if (b43_de(dev, B43_DBG_XMITPOWER)) {
 		b43dbg(dev->wl,
 		       "[TX power]  current = " Q52_FMT
 		       " dBm,  desired = " Q52_FMT
@@ -2972,8 +2972,8 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	 * Baseband attennuation. Subtract it. */
 	bbatt_delta -= 4 * rfatt_delta;
 
-#if B43_DEBUG
-	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
+#if B43_DE
+	if (b43_de(dev, B43_DBG_XMITPOWER)) {
 		int dbm = pwr_adjust < 0 ? -pwr_adjust : pwr_adjust;
 		b43dbg(dev->wl,
 		       "[TX power deltas]  %s" Q52_FMT " dBm   =>   "
@@ -2981,7 +2981,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 		       (pwr_adjust < 0 ? "-" : ""), Q52_ARG(dbm),
 		       bbatt_delta, rfatt_delta);
 	}
-#endif /* DEBUG */
+#endif /* DE */
 
 	/* So do we finally need to adjust something in hardware? */
 	if ((rfatt_delta == 0) && (bbatt_delta == 0))

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -78,7 +78,7 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 	struct inode *inode = ceph_get_inode(parent->i_sb, vino);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	BUG_ON(!S_ISDIR(parent->i_mode));
+	_ON(!S_ISDIR(parent->i_mode));
 	if (IS_ERR(inode))
 		return inode;
 	inode->i_mode = parent->i_mode;
@@ -211,7 +211,7 @@ static u32 __ceph_choose_frag(struct ceph_inode_info *ci, u32 v,
 				break;
 			}
 		}
-		BUG_ON(i == nway);
+		_ON(i == nway);
 	}
 	dout("choose_frag(%x) = %x\n", v, t);
 
@@ -1114,7 +1114,7 @@ static int splice_dentry(struct dentry **pdn, struct inode *in)
 	struct dentry *dn = *pdn;
 	struct dentry *realdn;
 
-	BUG_ON(d_inode(dn));
+	_ON(d_inode(dn));
 
 	if (S_ISDIR(in->i_mode)) {
 		/* If inode is directory, d_splice_alias() below will remove
@@ -1156,7 +1156,7 @@ static int splice_dentry(struct dentry **pdn, struct inode *in)
 		dput(dn);
 		*pdn = realdn;
 	} else {
-		BUG_ON(!ceph_dentry(dn));
+		_ON(!ceph_dentry(dn));
 		dout("dn %p attached to %p ino %llx.%llx\n",
 		     dn, d_inode(dn), ceph_vinop(d_inode(dn)));
 	}
@@ -1213,11 +1213,11 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req)
 			struct qstr dname;
 			struct dentry *dn, *parent;
 
-			BUG_ON(!rinfo->head->is_target);
-			BUG_ON(req->r_dentry);
+			_ON(!rinfo->head->is_target);
+			_ON(req->r_dentry);
 
 			parent = d_find_any_alias(dir);
-			BUG_ON(!parent);
+			_ON(!parent);
 
 			dname.name = rinfo->dname;
 			dname.len = rinfo->dname_len;
@@ -1297,15 +1297,15 @@ retry_lookup:
 		struct dentry *dn = req->r_dentry;
 		bool have_dir_cap, have_lease;
 
-		BUG_ON(!dn);
-		BUG_ON(!dir);
-		BUG_ON(d_inode(dn->d_parent) != dir);
+		_ON(!dn);
+		_ON(!dir);
+		_ON(d_inode(dn->d_parent) != dir);
 
 		dvino.ino = le64_to_cpu(rinfo->diri.in->ino);
 		dvino.snap = le64_to_cpu(rinfo->diri.in->snapid);
 
-		BUG_ON(ceph_ino(dir) != dvino.ino);
-		BUG_ON(ceph_snap(dir) != dvino.snap);
+		_ON(ceph_ino(dir) != dvino.ino);
+		_ON(ceph_snap(dir) != dvino.snap);
 
 		/* do we have a lease on the whole dir? */
 		have_dir_cap =
@@ -1321,7 +1321,7 @@ retry_lookup:
 		/* rename? */
 		if (req->r_old_dentry && req->r_op == CEPH_MDS_OP_RENAME) {
 			struct inode *olddir = req->r_old_dentry_dir;
-			BUG_ON(!olddir);
+			_ON(!olddir);
 
 			dout(" src %p '%pd' dst %p '%pd'\n",
 			     req->r_old_dentry,
@@ -1341,7 +1341,7 @@ retry_lookup:
 			     dn, dn);
 
 			/* ensure target dentry is invalidated, despite
-			   rehashing bug in vfs_rename_dir */
+			   rehashing  in vfs_rename_dir */
 			ceph_invalidate_dentry_lease(dn);
 
 			dout("dn %p gets new offset %lld\n", req->r_old_dentry,
@@ -1403,9 +1403,9 @@ retry_lookup:
 		struct inode *dir = req->r_parent;
 
 		/* fill out a snapdir LOOKUPSNAP dentry */
-		BUG_ON(!dir);
-		BUG_ON(ceph_snap(dir) != CEPH_SNAPDIR);
-		BUG_ON(!req->r_dentry);
+		_ON(!dir);
+		_ON(ceph_snap(dir) != CEPH_SNAPDIR);
+		_ON(!req->r_dentry);
 		dout(" linking snapped dir %p to dn %p\n", in, req->r_dentry);
 		ceph_dir_clear_ordered(dir);
 		ihold(in);

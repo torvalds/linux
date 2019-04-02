@@ -92,7 +92,7 @@ struct kvmppc_icp {
 	unsigned long n_check_resend;
 	unsigned long n_reject;
 
-	/* Debug stuff for real mode */
+	/* De stuff for real mode */
 	union kvmppc_icp_state rm_dbgstate;
 	struct kvm_vcpu *rm_dbgtgt;
 };

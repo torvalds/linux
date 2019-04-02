@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: dbhistry - debugger HISTORY command
+ * Module Name: dbhistry - deger HISTORY command
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -9,9 +9,9 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbhistry")
 
 #define HI_NO_HISTORY       0

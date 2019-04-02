@@ -204,7 +204,7 @@ static ssize_t sysfs_int_show(struct kobject *kobj,
 {
 	int rc = -EIO;
 
-	gossip_debug(GOSSIP_SYSFS_DEBUG, "sysfs_int_show: id:%s:\n",
+	gossip_de(GOSSIP_SYSFS_DE, "sysfs_int_show: id:%s:\n",
 	    kobj->name);
 
 	if (!strcmp(kobj->name, ORANGEFS_KOBJ_ID)) {
@@ -267,7 +267,7 @@ static ssize_t sysfs_int_store(struct kobject *kobj,
 {
 	int rc = 0;
 
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
+	gossip_de(GOSSIP_SYSFS_DE,
 		     "sysfs_int_store: start attr->attr.name:%s: buf:%s:\n",
 		     attr->attr.name, buf);
 
@@ -307,7 +307,7 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 	char *ser_op_type = NULL;
 	__u32 op_alloc_type;
 
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
+	gossip_de(GOSSIP_SYSFS_DE,
 		     "sysfs_service_op_show: id:%s:\n",
 		     kobj->name);
 
@@ -521,7 +521,7 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 	int val = 0;
 	int rc = 0;
 
-	gossip_debug(GOSSIP_SYSFS_DEBUG,
+	gossip_de(GOSSIP_SYSFS_DE,
 		     "sysfs_service_op_store: id:%s:\n",
 		     kobj->name);
 
@@ -1091,7 +1091,7 @@ int orangefs_sysfs_init(void)
 {
 	int rc = -EINVAL;
 
-	gossip_debug(GOSSIP_SYSFS_DEBUG, "orangefs_sysfs_init: start\n");
+	gossip_de(GOSSIP_SYSFS_DE, "orangefs_sysfs_init: start\n");
 
 	/* create /sys/fs/orangefs. */
 	orangefs_obj = kzalloc(sizeof(*orangefs_obj), GFP_KERNEL);
@@ -1231,7 +1231,7 @@ out:
 
 void orangefs_sysfs_exit(void)
 {
-	gossip_debug(GOSSIP_SYSFS_DEBUG, "orangefs_sysfs_exit: start\n");
+	gossip_de(GOSSIP_SYSFS_DE, "orangefs_sysfs_exit: start\n");
 	kobject_put(acache_orangefs_obj);
 	kobject_put(capcache_orangefs_obj);
 	kobject_put(ccache_orangefs_obj);

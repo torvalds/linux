@@ -264,7 +264,7 @@ acpi_status acpi_hw_read(u64 *value, struct acpi_generic_address *reg)
 		index++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+	ACPI_DE_PRINT((ACPI_DB_IO,
 			  "Read:  %8.8X%8.8X width %2d from %8.8X%8.8X (%s)\n",
 			  ACPI_FORMAT_UINT64(*value), access_width,
 			  ACPI_FORMAT_UINT64(address),
@@ -357,7 +357,7 @@ acpi_status acpi_hw_write(u64 value, struct acpi_generic_address *reg)
 		index++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+	ACPI_DE_PRINT((ACPI_DB_IO,
 			  "Wrote: %8.8X%8.8X width %2d   to %8.8X%8.8X (%s)\n",
 			  ACPI_FORMAT_UINT64(value), access_width,
 			  ACPI_FORMAT_UINT64(address),
@@ -386,7 +386,7 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	ACPI_FUNCTION_TRACE(hw_clear_acpi_status);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %8.8X%8.8X\n",
+	ACPI_DE_PRINT((ACPI_DB_IO, "About to write %04X to %8.8X%8.8X\n",
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
 			  ACPI_FORMAT_UINT64(acpi_gbl_xpm1a_status.address)));
 

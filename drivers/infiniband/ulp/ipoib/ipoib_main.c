@@ -68,11 +68,11 @@ MODULE_PARM_DESC(send_queue_size, "Number of descriptors in send queue");
 module_param_named(recv_queue_size, ipoib_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Number of descriptors in receive queue");
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-int ipoib_debug_level;
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
+int ipoib_de_level;
 
-module_param_named(debug_level, ipoib_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+module_param_named(de_level, ipoib_de_level, int, 0644);
+MODULE_PARM_DESC(de_level, "Enable de tracing if > 0");
 #endif
 
 struct ipoib_path_iter {
@@ -108,7 +108,7 @@ static struct ib_client ipoib_client = {
 	.get_net_dev_by_params = ipoib_get_net_dev_by_params,
 };
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 static int ipoib_netdev_event(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
@@ -120,14 +120,14 @@ static int ipoib_netdev_event(struct notifier_block *this,
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		ipoib_create_debug_files(dev);
+		ipoib_create_de_files(dev);
 		break;
 	case NETDEV_CHANGENAME:
-		ipoib_delete_debug_files(dev);
-		ipoib_create_debug_files(dev);
+		ipoib_delete_de_files(dev);
+		ipoib_create_de_files(dev);
 		break;
 	case NETDEV_UNREGISTER:
-		ipoib_delete_debug_files(dev);
+		ipoib_delete_de_files(dev);
 		break;
 	}
 
@@ -624,7 +624,7 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 	kfree(path);
 }
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 
 struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
 {
@@ -680,7 +680,7 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 	*path = iter->path;
 }
 
-#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
+#endif /* CONFIG_INFINIBAND_IPOIB_DE */
 
 void ipoib_mark_paths_invalid(struct net_device *dev)
 {
@@ -2226,7 +2226,7 @@ void ipoib_intf_free(struct net_device *dev)
 	 */
 	dev->priv_destructor = NULL;
 
-	/* unregister/destroy is very complicated. Make bugs more obvious. */
+	/* unregister/destroy is very complicated. Make s more obvious. */
 	rn->clnt_priv = NULL;
 
 	kfree(priv);
@@ -2549,7 +2549,7 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 	kfree(dev_list);
 }
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 static struct notifier_block ipoib_netdev_notifier = {
 	.notifier_call = ipoib_netdev_event,
 };
@@ -2575,9 +2575,9 @@ static int __init ipoib_init_module(void)
 	 * When copying small received packets, we only copy from the
 	 * linear data part of the SKB, so we rely on this condition.
 	 */
-	BUILD_BUG_ON(IPOIB_CM_COPYBREAK > IPOIB_CM_HEAD_SIZE);
+	BUILD__ON(IPOIB_CM_COPYBREAK > IPOIB_CM_HEAD_SIZE);
 
-	ipoib_register_debugfs();
+	ipoib_register_defs();
 
 	/*
 	 * We create a global workqueue here that is used for all flush
@@ -2605,7 +2605,7 @@ static int __init ipoib_init_module(void)
 	if (ret)
 		goto err_client;
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 	register_netdevice_notifier(&ipoib_netdev_notifier);
 #endif
 	return 0;
@@ -2618,20 +2618,20 @@ err_sa:
 	destroy_workqueue(ipoib_workqueue);
 
 err_fs:
-	ipoib_unregister_debugfs();
+	ipoib_unregister_defs();
 
 	return ret;
 }
 
 static void __exit ipoib_cleanup_module(void)
 {
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 	unregister_netdevice_notifier(&ipoib_netdev_notifier);
 #endif
 	ipoib_netlink_fini();
 	ib_unregister_client(&ipoib_client);
 	ib_sa_unregister_client(&ipoib_sa_client);
-	ipoib_unregister_debugfs();
+	ipoib_unregister_defs();
 	destroy_workqueue(ipoib_workqueue);
 }
 

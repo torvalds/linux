@@ -100,7 +100,7 @@ void omap5_erratum_workaround_801819(void)
 	acr |= acr_mask;
 	omap_smc1(OMAP5_DRA7_MON_SET_ACR_INDEX, acr);
 
-	pr_debug("%s: ARM erratum workaround 801819 applied on CPU%d\n",
+	pr_de("%s: ARM erratum workaround 801819 applied on CPU%d\n",
 		 __func__, smp_processor_id());
 }
 #else
@@ -139,7 +139,7 @@ static void omap5_secondary_harden_predictor(void)
 	acr |= acr_mask;
 	omap_smc1(OMAP5_DRA7_MON_SET_ACR_INDEX, acr);
 
-	pr_debug("%s: ARM ACR setup for CVE_2017_5715 applied on CPU%d\n",
+	pr_de("%s: ARM ACR setup for CVE_2017_5715 applied on CPU%d\n",
 		 __func__, smp_processor_id());
 }
 #else
@@ -271,7 +271,7 @@ static void __init omap4_smp_init_cpus(void)
 		 * SoC detection won't work until after init_early.
 		 */
 		cfg.scu_base =  OMAP2_L4_IO_ADDRESS(scu_a9_get_base());
-		BUG_ON(!cfg.scu_base);
+		_ON(!cfg.scu_base);
 		ncores = scu_get_core_count(cfg.scu_base);
 	} else if (cpu_id == CPU_CORTEX_A15) {
 		ncores = OMAP5_CORE_COUNT;

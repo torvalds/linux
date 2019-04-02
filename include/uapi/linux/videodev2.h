@@ -2321,7 +2321,7 @@ struct v4l2_event_subscription {
  *	A D V A N C E D   D E B U G G I N G
  *
  *	NOTE: EXPERIMENTAL API, NEVER RELY ON THIS IN APPLICATIONS!
- *	FOR DEBUGGING, TESTING AND INTERNAL USE ONLY!
+ *	FOR DEGING, TESTING AND INTERNAL USE ONLY!
  */
 
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
@@ -2448,8 +2448,8 @@ struct v4l2_create_buffers {
 #define VIDIOC_TRY_ENCODER_CMD  _IOWR('V', 78, struct v4l2_encoder_cmd)
 
 /*
- * Experimental, meant for debugging, testing and internal use.
- * Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
+ * Experimental, meant for deging, testing and internal use.
+ * Only implemented if CONFIG_VIDEO_ADV_DE is defined.
  * You must be root to use these ioctls. Never use these in applications!
  */
 #define	VIDIOC_DBG_S_REGISTER	 _IOW('V', 79, struct v4l2_dbg_register)
@@ -2473,7 +2473,7 @@ struct v4l2_create_buffers {
 #define VIDIOC_ENUM_FREQ_BANDS	_IOWR('V', 101, struct v4l2_frequency_band)
 
 /*
- * Experimental, meant for debugging, testing and internal use.
+ * Experimental, meant for deging, testing and internal use.
  * Never use this in applications!
  */
 #define VIDIOC_DBG_G_CHIP_INFO  _IOWR('V', 102, struct v4l2_dbg_chip_info)

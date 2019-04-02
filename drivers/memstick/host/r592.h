@@ -119,13 +119,13 @@
 /* bit 16 is set, then bit 20 is waited */
 /* time to wait is about 50 spins * 2 ^ (bits 17..19) */
 /* seems to be possible just to ignore */
-/* Probably debug register */
+/* Probably de register */
 #define R592_REG38			0x38
 #define R592_REG38_CHANGE		(1 << 16)	/* Start bit */
 #define R592_REG38_DONE			(1 << 20)	/* HW set this after the delay */
 #define R592_REG38_SHIFT		17
 
-/* Debug register, written (0xABCDEF00) when error happens - not used*/
+/* De register, written (0xABCDEF00) when error happens - not used*/
 #define R592_REG_3C			0x3C
 
 struct r592_device {
@@ -162,8 +162,8 @@ struct r592_device {
 
 #define __dbg(level, format, ...) \
 	do { \
-		if (debug >= level) \
-			printk(KERN_DEBUG DRV_NAME \
+		if (de >= level) \
+			printk(KERN_DE DRV_NAME \
 				": " format "\n", ## __VA_ARGS__); \
 	} while (0)
 

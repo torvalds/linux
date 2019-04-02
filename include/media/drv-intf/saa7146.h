@@ -22,33 +22,33 @@
 #define saa7146_write(sxy,adr,dat)    writel((dat),(sxy->mem+(adr)))
 #define saa7146_read(sxy,adr)         readl(sxy->mem+(adr))
 
-extern unsigned int saa7146_debug;
+extern unsigned int saa7146_de;
 
-#ifndef DEBUG_VARIABLE
-	#define DEBUG_VARIABLE saa7146_debug
+#ifndef DE_VARIABLE
+	#define DE_VARIABLE saa7146_de
 #endif
 
 #define ERR(fmt, ...)	pr_err("%s: " fmt, __func__, ##__VA_ARGS__)
 
 #define _DBG(mask, fmt, ...)						\
 do {									\
-	if (DEBUG_VARIABLE & mask)					\
-		pr_debug("%s(): " fmt, __func__, ##__VA_ARGS__);	\
+	if (DE_VARIABLE & mask)					\
+		pr_de("%s(): " fmt, __func__, ##__VA_ARGS__);	\
 } while (0)
 
-/* simple debug messages */
+/* simple de messages */
 #define DEB_S(fmt, ...)		_DBG(0x01, fmt, ##__VA_ARGS__)
-/* more detailed debug messages */
+/* more detailed de messages */
 #define DEB_D(fmt, ...)		_DBG(0x02, fmt, ##__VA_ARGS__)
 /* print enter and exit of functions */
 #define DEB_EE(fmt, ...)	_DBG(0x04, fmt, ##__VA_ARGS__)
-/* i2c debug messages */
+/* i2c de messages */
 #define DEB_I2C(fmt, ...)	_DBG(0x08, fmt, ##__VA_ARGS__)
-/* vbi debug messages */
+/* vbi de messages */
 #define DEB_VBI(fmt, ...)	_DBG(0x10, fmt, ##__VA_ARGS__)
-/* interrupt debug messages */
+/* interrupt de messages */
 #define DEB_INT(fmt, ...)	_DBG(0x20, fmt, ##__VA_ARGS__)
-/* capture debug messages */
+/* capture de messages */
 #define DEB_CAP(fmt, ...)	_DBG(0x40, fmt, ##__VA_ARGS__)
 
 #define SAA7146_ISR_CLEAR(x,y) \
@@ -126,7 +126,7 @@ struct saa7146_dev
 	struct mutex			v4l2_lock;
 
 	unsigned char			__iomem *mem;		/* pointer to mapped IO memory */
-	u32				revision;	/* chip revision; needed for bug-workarounds*/
+	u32				revision;	/* chip revision; needed for -workarounds*/
 
 	/* pci-device & irq stuff*/
 	char				name[32];

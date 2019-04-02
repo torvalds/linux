@@ -57,7 +57,7 @@ int qtnf_trans_send_cmd_with_resp(struct qtnf_bus *bus, struct sk_buff *cmd_skb,
 			pr_err("response timeout\n");
 		} else {
 			ret = -EINTR;
-			pr_debug("interrupted\n");
+			pr_de("interrupted\n");
 		}
 	}
 

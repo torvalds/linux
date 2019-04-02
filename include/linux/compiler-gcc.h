@@ -16,7 +16,7 @@
 
 /* Optimization barrier */
 
-/* The "volatile" is due to gcc bugs */
+/* The "volatile" is due to gcc s */
 #define barrier() __asm__ __volatile__("": : :"memory")
 /*
  * This version is i.e. to prevent dead stores elimination on @ptr
@@ -29,7 +29,7 @@
  * from that, it proved that the inline asm wasn't touching any of
  * it. This version works well with both compilers, i.e. we're telling
  * the compiler that the inline asm absolutely may see the contents
- * of @ptr. See also: https://llvm.org/bugs/show_bug.cgi?id=15495
+ * of @ptr. See also: https://llvm.org/s/show_.cgi?id=15495
  */
 #define barrier_data(ptr) __asm__ __volatile__("": :"r"(ptr) :"memory")
 
@@ -46,8 +46,8 @@
  * To work around it we hide the relationship of the pointer and the object
  * using this macro.
  *
- * Versions of the ppc64 compiler before 4.1 had a bug where use of
- * RELOC_HIDE could trash r30. The bug can be worked around by changing
+ * Versions of the ppc64 compiler before 4.1 had a  where use of
+ * RELOC_HIDE could trash r30. The  can be worked around by changing
  * the inline assembly constraint from =g to =r, in this particular
  * case either is valid.
  */
@@ -82,7 +82,7 @@
 /*
  * calling noreturn functions, __builtin_unreachable() and __builtin_trap()
  * confuse the stack allocation in gcc, leading to overly large stack
- * frames, see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82365
+ * frames, see https://gcc.gnu.org/zilla/show_.cgi?id=82365
  *
  * Adding an empty inline assembly before it works around the problem
  */
@@ -111,7 +111,7 @@
 /*
  * GCC 'asm goto' miscompiles certain code sequences:
  *
- *   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58670
+ *   http://gcc.gnu.org/zilla/show_.cgi?id=58670
  *
  * Work it around via a compiler barrier quirk suggested by Jakub Jelinek.
  *

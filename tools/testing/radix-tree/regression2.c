@@ -2,7 +2,7 @@
 /*
  * Regression2
  * Description:
- * Toshiyuki Okajima describes the following radix-tree bug:
+ * Toshiyuki Okajima describes the following radix-tree :
  *
  * In the following case, we can get a hangup on
  *   radix_radix_tree_gang_lookup_tag_slot.
@@ -37,7 +37,7 @@
  * if it doesn't set any tags within the specified range.
  *
  * Running:
- * This test should run to completion immediately. The above bug would cause it
+ * This test should run to completion immediately. The above  would cause it
  * to hang indefinitely.
  *
  * Upstream commit:
@@ -117,7 +117,7 @@ void regression2_test(void)
 	/* We remove all the remained nodes */
 	free(radix_tree_delete(&mt_tree, max_slots));
 
-	BUG_ON(!radix_tree_empty(&mt_tree));
+	_ON(!radix_tree_empty(&mt_tree));
 
 	printv(1, "regression test 2, done\n");
 }

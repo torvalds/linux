@@ -919,12 +919,12 @@ enum bfa_ioc_state bfa_ioc_get_state(struct bfa_ioc_s *ioc);
 void bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr);
 void bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 		struct bfa_adapter_attr_s *ad_attr);
-void bfa_ioc_debug_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave);
-bfa_status_t bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata,
+void bfa_ioc_de_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave);
+bfa_status_t bfa_ioc_de_fwsave(struct bfa_ioc_s *ioc, void *trcdata,
 		int *trclen);
-bfa_status_t bfa_ioc_debug_fwtrc(struct bfa_ioc_s *ioc, void *trcdata,
+bfa_status_t bfa_ioc_de_fwtrc(struct bfa_ioc_s *ioc, void *trcdata,
 				 int *trclen);
-bfa_status_t bfa_ioc_debug_fwcore(struct bfa_ioc_s *ioc, void *buf,
+bfa_status_t bfa_ioc_de_fwcore(struct bfa_ioc_s *ioc, void *buf,
 	u32 *offset, int *buflen);
 bfa_status_t bfa_ioc_fwsig_invalidate(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_sem_get(void __iomem *sem_reg);
@@ -935,7 +935,7 @@ bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 void bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event);
 bfa_status_t bfa_ioc_fw_stats_get(struct bfa_ioc_s *ioc, void *stats);
 bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
-void bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc);
+void bfa_ioc_de_save_ftrc(struct bfa_ioc_s *ioc);
 
 /*
  * asic block configuration related APIs

@@ -385,7 +385,7 @@ int pkcs7_extract_cert(void *context, size_t hdrlen,
 	struct x509_certificate *x509;
 
 	if (tag != ((ASN1_UNIV << 6) | ASN1_CONS_BIT | ASN1_SEQ)) {
-		pr_debug("Cert began with tag %02x at %lu\n",
+		pr_de("Cert began with tag %02x at %lu\n",
 			 tag, (unsigned long)ctx - ctx->data);
 		return -EBADMSG;
 	}
@@ -406,8 +406,8 @@ int pkcs7_extract_cert(void *context, size_t hdrlen,
 		return PTR_ERR(x509);
 
 	x509->index = ++ctx->x509_index;
-	pr_debug("Got cert %u for %s\n", x509->index, x509->subject);
-	pr_debug("- fingerprint %*phN\n", x509->id->len, x509->id->data);
+	pr_de("Got cert %u for %s\n", x509->index, x509->subject);
+	pr_de("- fingerprint %*phN\n", x509->id->len, x509->id->data);
 
 	*ctx->ppcerts = x509;
 	ctx->ppcerts = &x509->next;
@@ -461,7 +461,7 @@ int pkcs7_note_data(void *context, size_t hdrlen,
 {
 	struct pkcs7_parse_context *ctx = context;
 
-	pr_debug("Got data\n");
+	pr_de("Got data\n");
 
 	ctx->msg->data = value;
 	ctx->msg->data_len = vlen;

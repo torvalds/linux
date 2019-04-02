@@ -60,7 +60,7 @@ MODULE_DEVICE_TABLE(pci, mvumi_pci_table);
 static void tag_init(struct mvumi_tag *st, unsigned short size)
 {
 	unsigned short i;
-	BUG_ON(size != st->size);
+	_ON(size != st->size);
 	st->top = size;
 	for (i = 0; i < size; i++)
 		st->stack[i] = size - 1 - i;
@@ -68,14 +68,14 @@ static void tag_init(struct mvumi_tag *st, unsigned short size)
 
 static unsigned short tag_get_one(struct mvumi_hba *mhba, struct mvumi_tag *st)
 {
-	BUG_ON(st->top <= 0);
+	_ON(st->top <= 0);
 	return st->stack[--st->top];
 }
 
 static void tag_release_one(struct mvumi_hba *mhba, struct mvumi_tag *st,
 							unsigned short tag)
 {
-	BUG_ON(st->top >= st->size);
+	_ON(st->top >= st->size);
 	st->stack[st->top++] = tag;
 }
 
@@ -735,7 +735,7 @@ static int mvumi_issue_blocked_cmd(struct mvumi_hba *mhba,
 		dev_err(&mhba->pdev->dev,
 			"last blocked cmd not finished, sync_cmd = %d\n",
 						atomic_read(&cmd->sync_cmd));
-		BUG_ON(1);
+		_ON(1);
 		return -1;
 	}
 	atomic_inc(&cmd->sync_cmd);

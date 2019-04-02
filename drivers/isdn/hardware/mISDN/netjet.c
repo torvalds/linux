@@ -99,19 +99,19 @@ struct tiger_hw {
 
 static LIST_HEAD(Cards);
 static DEFINE_RWLOCK(card_lock); /* protect Cards */
-static u32 debug;
+static u32 de;
 static int nj_cnt;
 
 static void
-_set_debug(struct tiger_hw *card)
+_set_de(struct tiger_hw *card)
 {
-	card->isac.dch.debug = debug;
-	card->bc[0].bch.debug = debug;
-	card->bc[1].bch.debug = debug;
+	card->isac.dch.de = de;
+	card->bc[0].bch.de = de;
+	card->bc[1].bch.de = de;
 }
 
 static int
-set_debug(const char *val, const struct kernel_param *kp)
+set_de(const char *val, const struct kernel_param *kp)
 {
 	int ret;
 	struct tiger_hw *card;
@@ -120,7 +120,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 	if (!ret) {
 		read_lock(&card_lock);
 		list_for_each_entry(card, &Cards, list)
-			_set_debug(card);
+			_set_de(card);
 		read_unlock(&card_lock);
 	}
 	return ret;
@@ -129,8 +129,8 @@ set_debug(const char *val, const struct kernel_param *kp)
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(NETJET_REV);
-module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Netjet debug mask");
+module_param_call(de, set_de, param_get_uint, &de, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Netjet de mask");
 
 static void
 nj_disable_hwirq(struct tiger_hw *card)
@@ -190,7 +190,7 @@ fill_mem(struct tiger_ch *bc, u32 idx, u32 cnt, u32 fill)
 	struct tiger_hw *card = bc->bch.hw;
 	u32 mask = 0xff, val;
 
-	pr_debug("%s: B%1d fill %02x len %d idx %d/%d\n", card->name,
+	pr_de("%s: B%1d fill %02x len %d idx %d/%d\n", card->name,
 		 bc->bch.nr, fill, cnt, idx, card->send.idx);
 	if (bc->bch.nr & 2) {
 		fill  <<= 8;
@@ -212,7 +212,7 @@ mode_tiger(struct tiger_ch *bc, u32 protocol)
 {
 	struct tiger_hw *card = bc->bch.hw;
 
-	pr_debug("%s: B%1d protocol %x-->%x\n", card->name,
+	pr_de("%s: B%1d protocol %x-->%x\n", card->name,
 		 bc->bch.nr, bc->bch.state, protocol);
 	switch (protocol) {
 	case ISDN_P_NONE:
@@ -272,7 +272,7 @@ mode_tiger(struct tiger_ch *bc, u32 protocol)
 	card->recv.dmacur = inl(card->base + NJ_DMA_WRITE_ADR);
 	card->send.idx = (card->send.dmacur - card->send.dmastart) >> 2;
 	card->recv.idx = (card->recv.dmacur - card->recv.dmastart) >> 2;
-	pr_debug("%s: %s ctrl %x irq  %02x/%02x idx %d/%d\n",
+	pr_de("%s: %s ctrl %x irq  %02x/%02x idx %d/%d\n",
 		 card->name, __func__,
 		 inb(card->base + NJ_DMACTRL),
 		 inb(card->base + NJ_IRQMASK0),
@@ -342,7 +342,7 @@ inittiger(struct tiger_hw *card)
 		(4 * ((NJ_DMA_TXSIZE / 2) - 1));
 	card->send.size = NJ_DMA_TXSIZE;
 
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s: send buffer phy %#x - %#x - %#x  virt %p"
 			  " size %zu u32\n", card->name,
 			  card->send.dmastart, card->send.dmairq,
@@ -360,7 +360,7 @@ inittiger(struct tiger_hw *card)
 		(4 * ((NJ_DMA_RXSIZE / 2) - 1));
 	card->recv.size = NJ_DMA_RXSIZE;
 
-	if (debug & DEBUG_HW)
+	if (de & DE_HW)
 		pr_notice("%s: recv buffer phy %#x - %#x - %#x  virt %p"
 			  " size %zu u32\n", card->name,
 			  card->recv.dmastart, card->recv.dmairq,
@@ -422,7 +422,7 @@ read_dma(struct tiger_ch *bc, u32 idx, int cnt)
 				       bc->bch.rx_skb->data, bc->bch.maxlen);
 		if (stat > 0) { /* valid frame received */
 			p = skb_put(bc->bch.rx_skb, stat);
-			if (debug & DEBUG_HW_BFIFO) {
+			if (de & DE_HW_BFIFO) {
 				snprintf(card->log, LOG_SIZE,
 					 "B%1d-recv %s %d ", bc->bch.nr,
 					 card->name, stat);
@@ -490,7 +490,7 @@ resync(struct tiger_ch *bc, struct tiger_hw *card)
 	else
 		bc->idx = card->recv.size - 1;
 	bc->txstate = TX_RUN;
-	pr_debug("%s: %s B%1d free %d idx %d/%d\n", card->name,
+	pr_de("%s: %s B%1d free %d idx %d/%d\n", card->name,
 		 __func__, bc->bch.nr, bc->free, bc->idx, card->send.idx);
 }
 
@@ -506,14 +506,14 @@ fill_hdlc_flag(struct tiger_ch *bc)
 
 	if (bc->free == 0)
 		return;
-	pr_debug("%s: %s B%1d %d state %x idx %d/%d\n", card->name,
+	pr_de("%s: %s B%1d %d state %x idx %d/%d\n", card->name,
 		 __func__, bc->bch.nr, bc->free, bc->txstate,
 		 bc->idx, card->send.idx);
 	if (bc->txstate & (TX_IDLE | TX_INIT | TX_UNDERRUN))
 		resync(bc, card);
 	count = isdnhdlc_encode(&bc->hsend, NULL, 0, &i,
 				bc->hsbuf, bc->free);
-	pr_debug("%s: B%1d hdlc encoded %d flags\n", card->name,
+	pr_de("%s: B%1d hdlc encoded %d flags\n", card->name,
 		 bc->bch.nr, count);
 	bc->free -= count;
 	p = bc->hsbuf;
@@ -526,7 +526,7 @@ fill_hdlc_flag(struct tiger_ch *bc)
 		v |= (bc->bch.nr & 1) ? (u32)(p[i]) : ((u32)(p[i])) << 8;
 		card->send.start[bc->idx++] = v;
 	}
-	if (debug & DEBUG_HW_BFIFO) {
+	if (de & DE_HW_BFIFO) {
 		snprintf(card->log, LOG_SIZE, "B%1d-send %s %d ",
 			 bc->bch.nr, card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, p, count);
@@ -553,7 +553,7 @@ fill_dma(struct tiger_ch *bc)
 		count = bc->bch.tx_skb->len - bc->bch.tx_idx;
 		if (count <= 0)
 			return;
-		pr_debug("%s: %s B%1d %d/%d/%d/%d state %x idx %d/%d\n",
+		pr_de("%s: %s B%1d %d/%d/%d/%d state %x idx %d/%d\n",
 			 card->name, __func__, bc->bch.nr, count, bc->free,
 			 bc->bch.tx_idx, bc->bch.tx_skb->len, bc->txstate,
 			 bc->idx, card->send.idx);
@@ -564,7 +564,7 @@ fill_dma(struct tiger_ch *bc)
 	if (test_bit(FLG_HDLC, &bc->bch.Flags) && !fillempty) {
 		count = isdnhdlc_encode(&bc->hsend, p, count, &i,
 					bc->hsbuf, bc->free);
-		pr_debug("%s: B%1d hdlc encoded %d in %d\n", card->name,
+		pr_de("%s: B%1d hdlc encoded %d in %d\n", card->name,
 			 bc->bch.nr, i, count);
 		bc->bch.tx_idx += i;
 		bc->free -= count;
@@ -600,7 +600,7 @@ fill_dma(struct tiger_ch *bc)
 			card->send.start[bc->idx++] = v;
 		}
 	}
-	if (debug & DEBUG_HW_BFIFO) {
+	if (de & DE_HW_BFIFO) {
 		snprintf(card->log, LOG_SIZE, "B%1d-send %s %d ",
 			 bc->bch.nr, card->name, count);
 		print_hex_dump_bytes(card->log, DUMP_PREFIX_OFFSET, p, count);
@@ -655,7 +655,7 @@ send_tiger_bc(struct tiger_hw *card, struct tiger_ch *bc)
 			fill_hdlc_flag(bc);
 			return;
 		}
-		pr_debug("%s: B%1d TX no data free %d idx %d/%d\n", card->name,
+		pr_de("%s: B%1d TX no data free %d idx %d/%d\n", card->name,
 			 bc->bch.nr, bc->free, bc->idx, card->send.idx);
 		if (!(bc->txstate & (TX_IDLE | TX_INIT))) {
 			fill_mem(bc, bc->idx, bc->free, 0xff);
@@ -699,7 +699,7 @@ nj_irq(int intno, void *dev_id)
 		spin_unlock(&card->lock);
 		return IRQ_NONE;
 	}
-	pr_debug("%s: IRQSTAT0 %02x IRQSTAT1 %02x\n", card->name, s0val, s1val);
+	pr_de("%s: IRQSTAT0 %02x IRQSTAT1 %02x\n", card->name, s0val, s1val);
 	card->irqcnt++;
 	if (!(s1val & NJ_ISACIRQ)) {
 		val = ReadISAC_nj(card, ISAC_ISTA);
@@ -728,7 +728,7 @@ nj_irq(int intno, void *dev_id)
 	else
 		s0val |= 0x01;	/* the 1st read area is free */
 
-	pr_debug("%s: DMA Status %02x/%02x/%02x %d/%d\n", card->name,
+	pr_de("%s: DMA Status %02x/%02x/%02x %d/%d\n", card->name,
 		 s1val, s0val, card->last_is0,
 		 card->recv.idx, card->send.idx);
 	/* test if we have a DMA interrupt */
@@ -808,7 +808,7 @@ nj_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	int ret = -EINVAL;
 	u_long flags;
 
-	pr_debug("%s: %s cmd:%x %p\n", card->name, __func__, cmd, arg);
+	pr_de("%s: %s cmd:%x %p\n", card->name, __func__, cmd, arg);
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
@@ -889,7 +889,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	struct channel_req	*rq;
 	int			err = 0;
 
-	pr_debug("%s: %s cmd:%x %p\n", card->name, __func__, cmd, arg);
+	pr_de("%s: %s cmd:%x %p\n", card->name, __func__, cmd, arg);
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		rq = arg;
@@ -903,7 +903,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 			pr_info("%s: cannot get module\n", card->name);
 		break;
 	case CLOSE_CHANNEL:
-		pr_debug("%s: dev(%d) close from %p\n", card->name, dch->dev.id,
+		pr_de("%s: dev(%d) close from %p\n", card->name, dch->dev.id,
 			 __builtin_return_address(0));
 		module_put(THIS_MODULE);
 		break;
@@ -911,7 +911,7 @@ nj_dctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 		err = channel_ctrl(card, arg);
 		break;
 	default:
-		pr_debug("%s: %s unknown command %x\n",
+		pr_de("%s: %s unknown command %x\n",
 			 card->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -1019,7 +1019,7 @@ setup_instance(struct tiger_hw *card)
 	list_add_tail(&card->list, &Cards);
 	write_unlock_irqrestore(&card_lock, flags);
 
-	_set_debug(card);
+	_set_de(card);
 	card->isac.name = card->name;
 	spin_lock_init(&card->lock);
 	card->isac.hwlock = &card->lock;

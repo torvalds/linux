@@ -261,7 +261,7 @@ static struct resource *nfit_test_request_region(struct device *dev,
 
 			if (start + n > nfit_res->res.start
 					+ resource_size(&nfit_res->res)) {
-				pr_debug("%s: start: %llx n: %llx overflow: %pr\n",
+				pr_de("%s: start: %llx n: %llx overflow: %pr\n",
 						__func__, start, n,
 						&nfit_res->res);
 				return NULL;
@@ -307,7 +307,7 @@ static struct resource *nfit_test_request_region(struct device *dev,
 				devres_add(dev, d);
 			}
 
-			pr_debug("%s: %pr\n", __func__, res);
+			pr_de("%s: %pr\n", __func__, res);
 			return res;
 		}
 	}

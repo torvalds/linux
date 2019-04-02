@@ -161,12 +161,12 @@ int native_cpu_disable(unsigned int cpu)
 void native_cpu_die(unsigned int cpu)
 {
 	/* We said "no" in __cpu_disable */
-	BUG();
+	();
 }
 
 void native_play_dead(void)
 {
-	BUG();
+	();
 }
 #endif
 
@@ -353,8 +353,8 @@ static void flush_tlb_mm_ipi(void *mm)
  * at switch_mm time, should the mm ever be used on other cpus. For
  * multithreaded address spaces, intercpu interrupts have to be sent.
  * Another case where intercpu interrupts are required is when the target
- * mm might be active on another cpu (eg debuggers doing the flushes on
- * behalf of debugees, kswapd stealing pages from another process etc).
+ * mm might be active on another cpu (eg degers doing the flushes on
+ * behalf of deees, kswapd stealing pages from another process etc).
  * Kanoj 07/00.
  */
 void flush_tlb_mm(struct mm_struct *mm)

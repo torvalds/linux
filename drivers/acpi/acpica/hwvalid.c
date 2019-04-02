@@ -108,7 +108,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 	byte_width = ACPI_DIV_8(bit_width);
 	last_address = address + byte_width - 1;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+	ACPI_DE_PRINT((ACPI_DB_IO,
 			  "Address %8.8X%8.8X LastAddress %8.8X%8.8X Length %X",
 			  ACPI_FORMAT_UINT64(address),
 			  ACPI_FORMAT_UINT64(last_address), byte_width));
@@ -146,7 +146,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 			/* Port illegality may depend on the _OSI calls made by the BIOS */
 
 			if (acpi_gbl_osi_data >= port_info->osi_dependency) {
-				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
+				ACPI_DE_PRINT((ACPI_DB_VALUES,
 						  "Denied AML access to port 0x%8.8X%8.8X/%X (%s 0x%.4X-0x%.4X)\n",
 						  ACPI_FORMAT_UINT64(address),
 						  byte_width, port_info->name,

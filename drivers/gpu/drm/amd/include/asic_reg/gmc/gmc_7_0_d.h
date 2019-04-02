@@ -30,8 +30,8 @@
 #define mmMC_ARB_FED_CNTL                                                       0x9c1
 #define mmMC_ARB_GECC2_STATUS                                                   0x9c2
 #define mmMC_ARB_GECC2_MISC                                                     0x9c3
-#define mmMC_ARB_GECC2_DEBUG                                                    0x9c4
-#define mmMC_ARB_GECC2_DEBUG2                                                   0x9c5
+#define mmMC_ARB_GECC2_DE                                                    0x9c4
+#define mmMC_ARB_GECC2_DE2                                                   0x9c5
 #define mmMC_ARB_GECC2                                                          0x9c9
 #define mmMC_ARB_GECC2_CLI                                                      0x9ca
 #define mmMC_ARB_ADDR_SWIZ0                                                     0x9cb
@@ -42,7 +42,7 @@
 #define mmMC_ARB_RTT_CNTL0                                                      0x9d0
 #define mmMC_ARB_RTT_CNTL1                                                      0x9d1
 #define mmMC_ARB_RTT_CNTL2                                                      0x9d2
-#define mmMC_ARB_RTT_DEBUG                                                      0x9d3
+#define mmMC_ARB_RTT_DE                                                      0x9d3
 #define mmMC_ARB_CAC_CNTL                                                       0x9d4
 #define mmMC_ARB_MISC2                                                          0x9d5
 #define mmMC_ARB_MISC                                                           0x9d6
@@ -261,22 +261,22 @@
 #define mmMC_CG_CONFIG_MCD                                                      0x829
 #define mmMC_MEM_POWER_LS                                                       0x82a
 #define mmMC_SHARED_BLACKOUT_CNTL                                               0x82b
-#define mmMC_VM_MB_L1_TLB0_DEBUG                                                0x891
-#define mmMC_VM_MB_L1_TLB2_DEBUG                                                0x893
+#define mmMC_VM_MB_L1_TLB0_DE                                                0x891
+#define mmMC_VM_MB_L1_TLB2_DE                                                0x893
 #define mmMC_VM_MB_L1_TLB0_STATUS                                               0x895
 #define mmMC_VM_MB_L1_TLB1_STATUS                                               0x896
 #define mmMC_VM_MB_L1_TLB2_STATUS                                               0x897
 #define mmMC_VM_MB_L2ARBITER_L2_CREDITS                                         0x8a1
-#define mmMC_VM_MB_L1_TLB3_DEBUG                                                0x8a5
+#define mmMC_VM_MB_L1_TLB3_DE                                                0x8a5
 #define mmMC_VM_MB_L1_TLB3_STATUS                                               0x8a6
-#define mmMC_VM_MD_L1_TLB0_DEBUG                                                0x998
-#define mmMC_VM_MD_L1_TLB1_DEBUG                                                0x999
-#define mmMC_VM_MD_L1_TLB2_DEBUG                                                0x99a
+#define mmMC_VM_MD_L1_TLB0_DE                                                0x998
+#define mmMC_VM_MD_L1_TLB1_DE                                                0x999
+#define mmMC_VM_MD_L1_TLB2_DE                                                0x99a
 #define mmMC_VM_MD_L1_TLB0_STATUS                                               0x99b
 #define mmMC_VM_MD_L1_TLB1_STATUS                                               0x99c
 #define mmMC_VM_MD_L1_TLB2_STATUS                                               0x99d
 #define mmMC_VM_MD_L2ARBITER_L2_CREDITS                                         0x9a4
-#define mmMC_VM_MD_L1_TLB3_DEBUG                                                0x9a7
+#define mmMC_VM_MD_L1_TLB3_DE                                                0x9a7
 #define mmMC_VM_MD_L1_TLB3_STATUS                                               0x9a8
 #define mmMC_XPB_RTR_SRC_APRTR0                                                 0x8cd
 #define mmMC_XPB_RTR_SRC_APRTR1                                                 0x8ce
@@ -342,7 +342,7 @@
 #define mmMC_XPB_P2P_BAR6                                                       0x90a
 #define mmMC_XPB_P2P_BAR7                                                       0x90b
 #define mmMC_XPB_P2P_BAR_SETUP                                                  0x90c
-#define mmMC_XPB_P2P_BAR_DEBUG                                                  0x90d
+#define mmMC_XPB_P2P_BAR_DE                                                  0x90d
 #define mmMC_XPB_P2P_BAR_DELTA_ABOVE                                            0x90e
 #define mmMC_XPB_P2P_BAR_DELTA_BELOW                                            0x90f
 #define mmMC_XPB_PEER_SYS_BAR0                                                  0x910
@@ -482,8 +482,8 @@
 #define mmATC_VM_APERTURE0_CNTL2                                                0xcc6
 #define mmATC_VM_APERTURE1_CNTL2                                                0xcc7
 #define mmATC_ATS_CNTL                                                          0xcc9
-#define mmATC_ATS_DEBUG                                                         0xcca
-#define mmATC_ATS_FAULT_DEBUG                                                   0xccb
+#define mmATC_ATS_DE                                                         0xcca
+#define mmATC_ATS_FAULT_DE                                                   0xccb
 #define mmATC_ATS_STATUS                                                        0xccc
 #define mmATC_ATS_FAULT_CNTL                                                    0xccd
 #define mmATC_ATS_FAULT_STATUS_INFO                                             0xcce
@@ -493,12 +493,12 @@
 #define mmATC_MISC_CG                                                           0xcd4
 #define mmATC_L2_CNTL                                                           0xcd5
 #define mmATC_L2_CNTL2                                                          0xcd6
-#define mmATC_L2_DEBUG                                                          0xcd7
-#define mmATC_L2_DEBUG2                                                         0xcd8
+#define mmATC_L2_DE                                                          0xcd7
+#define mmATC_L2_DE2                                                         0xcd8
 #define mmATC_L1_CNTL                                                           0xcdc
 #define mmATC_L1_ADDRESS_OFFSET                                                 0xcdd
-#define mmATC_L1RD_DEBUG_TLB                                                    0xcde
-#define mmATC_L1WR_DEBUG_TLB                                                    0xcdf
+#define mmATC_L1RD_DE_TLB                                                    0xcde
+#define mmATC_L1WR_DE_TLB                                                    0xcdf
 #define mmATC_L1RD_STATUS                                                       0xce0
 #define mmATC_L1WR_STATUS                                                       0xce1
 #define mmATC_VMID_PASID_MAPPING_UPDATE_STATUS                                  0xce6
@@ -537,7 +537,7 @@
 #define mmGMCON_PGFSM_READ                                                      0xd50
 #define mmGMCON_MISC3                                                           0xd51
 #define mmGMCON_MASK                                                            0xd52
-#define mmGMCON_DEBUG                                                           0xd5f
+#define mmGMCON_DE                                                           0xd5f
 #define mmVM_L2_CNTL                                                            0x500
 #define mmVM_L2_CNTL2                                                           0x501
 #define mmVM_L2_CNTL3                                                           0x502
@@ -589,7 +589,7 @@
 #define mmVM_CONTEXT1_PAGE_TABLE_START_ADDR                                     0x558
 #define mmVM_CONTEXT0_PAGE_TABLE_END_ADDR                                       0x55f
 #define mmVM_CONTEXT1_PAGE_TABLE_END_ADDR                                       0x560
-#define mmVM_DEBUG                                                              0x56f
+#define mmVM_DE                                                              0x56f
 #define mmVM_L2_CG                                                              0x570
 #define mmVM_L2_BANK_SELECT_MASKA                                               0x572
 #define mmVM_L2_BANK_SELECT_MASKB                                               0x573
@@ -651,7 +651,7 @@
 #define mmMC_FUS_ARB_GARLIC_WR_PRI                                              0xa21
 #define mmMC_FUS_ARB_GARLIC_WR_PRI2                                             0xa22
 #define mmMC_CG_DATAPORT                                                        0xa32
-#define mmCHUB_ATC_L1_DEBUG_TLB                                                 0x8c00
+#define mmCHUB_ATC_L1_DE_TLB                                                 0x8c00
 #define mmCHUB_ATC_L1_STATUS                                                    0x8c01
 
 #endif /* GMC_7_0_D_H */

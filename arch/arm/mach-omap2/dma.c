@@ -193,13 +193,13 @@ static unsigned configure_dma_errata(void)
 
 	/*
 	 * Erratum ID: Not Available
-	 * A bug in ROM code leaves IRQ status for channels 0 and 1 uncleared
+	 * A  in ROM code leaves IRQ status for channels 0 and 1 uncleared
 	 * after secure sram context save and restore.
 	 * Work around: Hence we need to manually clear those IRQs to avoid
 	 * spurious interrupts. This affects only secure devices.
 	 */
 	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
-		SET_DMA_ERRATA(DMA_ROMCODE_BUG);
+		SET_DMA_ERRATA(DMA_ROMCODE_);
 
 	return errata;
 }

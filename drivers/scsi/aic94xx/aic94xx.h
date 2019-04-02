@@ -47,7 +47,7 @@
 #define EXIT
 #endif
 
-#ifdef ASD_DEBUG
+#ifdef ASD_DE
 #define ASD_DPRINTK asd_printk
 #else
 #define ASD_DPRINTK(fmt, ...)

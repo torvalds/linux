@@ -233,7 +233,7 @@ EXPORT_SYMBOL(frame_vector_create);
 void frame_vector_destroy(struct frame_vector *vec)
 {
 	/* Make sure put_vaddr_frames() got called properly... */
-	VM_BUG_ON(vec->nr_frames > 0);
+	VM__ON(vec->nr_frames > 0);
 	kvfree(vec);
 }
 EXPORT_SYMBOL(frame_vector_destroy);

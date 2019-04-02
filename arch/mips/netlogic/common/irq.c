@@ -89,7 +89,7 @@ static void xlp_pic_enable(struct irq_data *d)
 	unsigned long flags;
 	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 
-	BUG_ON(!pd);
+	_ON(!pd);
 	spin_lock_irqsave(&pd->node->piclock, flags);
 	nlm_pic_enable_irt(pd->node->picbase, pd->irt);
 	spin_unlock_irqrestore(&pd->node->piclock, flags);
@@ -100,7 +100,7 @@ static void xlp_pic_disable(struct irq_data *d)
 	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 	unsigned long flags;
 
-	BUG_ON(!pd);
+	_ON(!pd);
 	spin_lock_irqsave(&pd->node->piclock, flags);
 	nlm_pic_disable_irt(pd->node->picbase, pd->irt);
 	spin_unlock_irqrestore(&pd->node->piclock, flags);
@@ -118,7 +118,7 @@ static void xlp_pic_unmask(struct irq_data *d)
 {
 	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 
-	BUG_ON(!pd);
+	_ON(!pd);
 
 	if (pd->extra_ack)
 		pd->extra_ack(d);
@@ -188,7 +188,7 @@ void nlm_setup_pic_irq(int node, int picirq, int irq, int irt)
 
 	xirq = nlm_irq_to_xirq(node, irq);
 	pic_data = kzalloc(sizeof(*pic_data), GFP_KERNEL);
-	BUG_ON(pic_data == NULL);
+	_ON(pic_data == NULL);
 	pic_data->irt = irt;
 	pic_data->picirq = picirq;
 	pic_data->node = nlm_get_node(node);

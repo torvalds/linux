@@ -47,20 +47,20 @@ Revision History:
 	 3. MII support.
 	 4. Dynamic IPG support
 	3.0.2  05/29/2003
-	 1. Bug fix: Fixed failure to send jumbo packets larger than 4k.
-	 2. Bug fix: Fixed VLAN support failure.
-	 3. Bug fix: Fixed receive interrupt coalescing bug.
+	 1.  fix: Fixed failure to send jumbo packets larger than 4k.
+	 2.  fix: Fixed VLAN support failure.
+	 3.  fix: Fixed receive interrupt coalescing .
 	 4. Dynamic IPG support is disabled by default.
 	3.0.3 06/05/2003
-	 1. Bug fix: Fixed failure to close the interface if SMP is enabled.
+	 1.  fix: Fixed failure to close the interface if SMP is enabled.
 	3.0.4 12/09/2003
 	 1. Added set_mac_address routine for bonding driver support.
 	 2. Tested the driver for bonding support
-	 3. Bug fix: Fixed mismach in actual receive buffer lenth and lenth
+	 3.  fix: Fixed mismach in actual receive buffer lenth and lenth
 	    indicated to the h/w.
 	 4. Modified amd8111e_rx() routine to receive all the received packets
 	    in the first interrupt.
-	 5. Bug fix: Corrected  rx_errors  reported in get_stats() function.
+	 5.  fix: Corrected  rx_errors  reported in get_stats() function.
 	3.0.5 03/22/2004
 	 1. Added NAPI support
 
@@ -499,7 +499,7 @@ static int amd8111e_restart(struct net_device *dev)
 	writel(VAL2 | RDMD0, mmio + CMD0);
 	writel(VAL0 | INTREN | RUN, mmio + CMD0);
 
-	/* To avoid PCI posting bug */
+	/* To avoid PCI posting  */
 	readl(mmio+CMD0);
 	return 0;
 }
@@ -588,7 +588,7 @@ static void amd8111e_init_hw_default(struct amd8111e_priv *lp)
 	/* Set default value to CTRL1 Register */
 	writel(CTRL1_DEFAULT, mmio + CTRL1);
 
-	/* To avoid PCI posting bug */
+	/* To avoid PCI posting  */
 	readl(mmio + CMD2);
 
 }
@@ -607,7 +607,7 @@ static void amd8111e_disable_interrupt(struct amd8111e_priv *lp)
 	intr0 = readl(lp->mmio + INT0);
 	writel(intr0, lp->mmio + INT0);
 
-	/* To avoid PCI posting bug */
+	/* To avoid PCI posting  */
 	readl(lp->mmio + INT0);
 
 }
@@ -617,7 +617,7 @@ static void amd8111e_stop_chip(struct amd8111e_priv *lp)
 {
 	writel(RUN, lp->mmio + CMD0);
 
-	/* To avoid PCI posting bug */
+	/* To avoid PCI posting  */
 	readl(lp->mmio + CMD0);
 }
 
@@ -1129,7 +1129,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 			/* Schedule a polling routine */
 			__napi_schedule(&lp->napi);
 		} else if (intren0 & RINTEN0) {
-			netdev_dbg(dev, "************Driver bug! interrupt while in poll\n");
+			netdev_dbg(dev, "************Driver ! interrupt while in poll\n");
 			/* Fix by disable receive interrupts */
 			writel(RINTEN0, mmio + INTEN0);
 		}
@@ -1368,7 +1368,7 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 	}
 	amd8111e_writeq(*(u64 *)mc_filter, lp->mmio + LADRF);
 
-	/* To eliminate PCI posting bug */
+	/* To eliminate PCI posting  */
 	readl(lp->mmio + CMD2);
 
 }
@@ -1561,7 +1561,7 @@ static int amd8111e_enable_magicpkt(struct amd8111e_priv *lp)
 	writel( VAL1|MPPLBA, lp->mmio + CMD3);
 	writel( VAL0|MPEN_SW, lp->mmio + CMD7);
 
-	/* To eliminate PCI posting bug */
+	/* To eliminate PCI posting  */
 	readl(lp->mmio + CMD7);
 	return 0;
 }
@@ -1572,7 +1572,7 @@ static int amd8111e_enable_link_change(struct amd8111e_priv *lp)
 	/* Adapter is already stoped/suspended/interrupt-disabled */
 	writel(VAL0|LCMODE_SW,lp->mmio + CMD7);
 
-	/* To eliminate PCI posting bug */
+	/* To eliminate PCI posting  */
 	readl(lp->mmio + CMD7);
 	return 0;
 }

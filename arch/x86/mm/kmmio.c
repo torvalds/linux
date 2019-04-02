@@ -18,14 +18,14 @@
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
 #include <linux/percpu.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <linux/errno.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <linux/mmiotrace.h>
 
 #define KMMIO_PAGE_HASH_BITS 4
@@ -268,7 +268,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 			 * condition needs handling by do_page_fault(), the
 			 * page really not being present is the most common.
 			 */
-			pr_debug("secondary hit for 0x%08lx CPU %d.\n",
+			pr_de("secondary hit for 0x%08lx CPU %d.\n",
 				 addr, smp_processor_id());
 
 			if (!faultpage->old_presence)
@@ -337,11 +337,11 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 
 	if (!ctx->active) {
 		/*
-		 * debug traps without an active context are due to either
-		 * something external causing them (f.e. using a debugger while
+		 * de traps without an active context are due to either
+		 * something external causing them (f.e. using a deger while
 		 * mmio tracing enabled), or erroneous behaviour
 		 */
-		pr_warning("unexpected debug trap on CPU %d.\n",
+		pr_warning("unexpected de trap on CPU %d.\n",
 			   smp_processor_id());
 		goto out;
 	}
@@ -360,14 +360,14 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 
 	/* These were acquired in kmmio_handler(). */
 	ctx->active--;
-	BUG_ON(ctx->active);
+	_ON(ctx->active);
 	rcu_read_unlock();
 	preempt_enable_no_resched();
 
 	/*
 	 * if somebody else is singlestepping across a probe point, flags
 	 * will have TF set, in which case, continue the remaining processing
-	 * of do_debug, as if this is not a probe hit.
+	 * of do_de, as if this is not a probe hit.
 	 */
 	if (!(regs->flags & X86_EFLAGS_TF))
 		ret = 1;
@@ -417,7 +417,7 @@ static void release_kmmio_fault_page(unsigned long addr,
 		return;
 
 	f->count--;
-	BUG_ON(f->count < 0);
+	_ON(f->count < 0);
 	if (!f->count) {
 		disarm_kmmio_fault_page(f);
 		if (!f->scheduled_for_release) {
@@ -484,7 +484,7 @@ static void rcu_free_kmmio_fault_pages(struct rcu_head *head)
 	struct kmmio_fault_page *f = dr->release_list;
 	while (f) {
 		struct kmmio_fault_page *next = f->release_next;
-		BUG_ON(f->count);
+		_ON(f->count);
 		kfree(f);
 		f = next;
 	}
@@ -588,7 +588,7 @@ kmmio_die_notifier(struct notifier_block *nb, unsigned long val, void *args)
 	struct die_args *arg = args;
 	unsigned long* dr6_p = (unsigned long *)ERR_PTR(arg->err);
 
-	if (val == DIE_DEBUG && (*dr6_p & DR_STEP))
+	if (val == DIE_DE && (*dr6_p & DR_STEP))
 		if (post_kmmio_handler(*dr6_p, arg->regs) == 1) {
 			/*
 			 * Reset the BS bit in dr6 (pointed by args->err) to

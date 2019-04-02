@@ -51,7 +51,7 @@
 
 2004-04-06 Karsten Wiese
 	Version 0.6.0:
-	Runs on 2.6.5 kernel without any "--with-debug=" things.
+	Runs on 2.6.5 kernel without any "--with-de=" things.
 	us224 reported running.
 
 2004-01-14 Karsten Wiese
@@ -174,7 +174,7 @@ static void snd_usX2Y_card_private_free(struct snd_card *card);
  */
 static void i_usX2Y_Out04Int(struct urb *urb)
 {
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (urb->status) {
 		int 		i;
 		struct usX2Ydev *usX2Y = urb->context;

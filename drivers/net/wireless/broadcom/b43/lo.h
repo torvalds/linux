@@ -14,7 +14,7 @@ struct b43_loctl {
 	s8 i;
 	s8 q;
 };
-/* Debugging: Poison value for i and q values. */
+/* Deging: Poison value for i and q values. */
 #define B43_LOCTL_POISON	111
 
 /* This struct holds calibrated LO settings for a set of

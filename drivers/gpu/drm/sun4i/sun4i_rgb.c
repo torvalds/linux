@@ -62,7 +62,7 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	unsigned long rate = mode->clock * 1000;
 	long rounded_rate;
 
-	DRM_DEBUG_DRIVER("Validating modes...\n");
+	DRM_DE_DRIVER("Validating modes...\n");
 
 	if (hsync < 1)
 		return MODE_HSYNC_NARROW;
@@ -76,7 +76,7 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	if ((mode->hdisplay > 0x7ff) || (mode->htotal > 0xfff))
 		return MODE_BAD_HVALUE;
 
-	DRM_DEBUG_DRIVER("Horizontal parameters OK\n");
+	DRM_DE_DRIVER("Horizontal parameters OK\n");
 
 	if (vsync < 1)
 		return MODE_VSYNC_NARROW;
@@ -90,7 +90,7 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	if ((mode->vdisplay > 0x7ff) || (mode->vtotal > 0xfff))
 		return MODE_BAD_VVALUE;
 
-	DRM_DEBUG_DRIVER("Vertical parameters OK\n");
+	DRM_DE_DRIVER("Vertical parameters OK\n");
 
 	tcon->dclk_min_div = 6;
 	tcon->dclk_max_div = 127;
@@ -101,7 +101,7 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	if (rounded_rate > rate)
 		return MODE_CLOCK_HIGH;
 
-	DRM_DEBUG_DRIVER("Clock rate OK\n");
+	DRM_DE_DRIVER("Clock rate OK\n");
 
 	return MODE_OK;
 }
@@ -133,7 +133,7 @@ static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
 	struct sun4i_tcon *tcon = rgb->tcon;
 
-	DRM_DEBUG_DRIVER("Enabling RGB output\n");
+	DRM_DE_DRIVER("Enabling RGB output\n");
 
 	if (tcon->panel) {
 		drm_panel_prepare(tcon->panel);
@@ -146,7 +146,7 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 	struct sun4i_rgb *rgb = drm_encoder_to_sun4i_rgb(encoder);
 	struct sun4i_tcon *tcon = rgb->tcon;
 
-	DRM_DEBUG_DRIVER("Disabling RGB output\n");
+	DRM_DE_DRIVER("Disabling RGB output\n");
 
 	if (tcon->panel) {
 		drm_panel_disable(tcon->panel);

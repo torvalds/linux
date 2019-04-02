@@ -309,7 +309,7 @@ extern struct list_head *audit_killed_trees(void);
 #define audit_get_watch(w) {}
 #define audit_to_watch(k, p, l, o) (-EINVAL)
 #define audit_add_watch(k, l) (-EINVAL)
-#define audit_remove_watch_rule(k) BUG()
+#define audit_remove_watch_rule(k) ()
 #define audit_watch_path(w) ""
 #define audit_watch_compare(w, i, d) 0
 
@@ -321,14 +321,14 @@ extern struct list_head *audit_killed_trees(void);
 #define audit_exe_compare(t, m) (-EINVAL)
 #define audit_dupe_exe(n, o) (-EINVAL)
 
-#define audit_remove_tree_rule(rule) BUG()
+#define audit_remove_tree_rule(rule) ()
 #define audit_add_tree_rule(rule) -EINVAL
 #define audit_make_tree(rule, str, op) -EINVAL
 #define audit_trim_trees() (void)0
 #define audit_put_tree(tree) (void)0
 #define audit_tag_tree(old, new) -EINVAL
 #define audit_tree_path(rule) ""	/* never called */
-#define audit_kill_trees(context) BUG()
+#define audit_kill_trees(context) ()
 
 #define audit_signal_info(s, t) AUDIT_DISABLED
 #define audit_filter_inodes(t, c) AUDIT_DISABLED

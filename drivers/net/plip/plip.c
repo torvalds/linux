@@ -119,11 +119,11 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 /* Maximum number of devices to support. */
 #define PLIP_MAX  8
 
-/* Use 0 for production, 1 for verification, >2 for debug */
-#ifndef NET_DEBUG
-#define NET_DEBUG 1
+/* Use 0 for production, 1 for verification, >2 for de */
+#ifndef NET_DE
+#define NET_DE 1
 #endif
-static const unsigned int net_debug = NET_DEBUG;
+static const unsigned int net_de = NET_DE;
 
 #define ENABLE(irq)  if (irq != -1) enable_irq(irq)
 #define DISABLE(irq) if (irq != -1) disable_irq(irq)
@@ -534,7 +534,7 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
  *	PLIP is ethernet ish but the daddr might not be valid if unicast.
  *	PLIP fortunately has no bus architecture (its Point-to-point).
  *
- *	We can't fix the daddr thing as that quirk (more bug) is embedded
+ *	We can't fix the daddr thing as that quirk (more ) is embedded
  *	in far too many old systems not all even running Linux.
  */
 
@@ -594,8 +594,8 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		/* Don't need to synchronize irq, as we can safely ignore it */
 		disable_parport_interrupts (dev);
 		write_data (dev, 0x01); /* send ACK */
-		if (net_debug > 2)
-			printk(KERN_DEBUG "%s: receive start\n", dev->name);
+		if (net_de > 2)
+			printk(KERN_DE "%s: receive start\n", dev->name);
 		rcv->state = PLIP_PK_LENGTH_LSB;
 		rcv->nibble = PLIP_NB_BEGIN;
 		/* fall through */
@@ -663,8 +663,8 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 			return TIMEOUT;
 		if (rcv->data != rcv->checksum) {
 			dev->stats.rx_crc_errors++;
-			if (net_debug)
-				printk(KERN_DEBUG "%s: checksum error\n", dev->name);
+			if (net_de)
+				printk(KERN_DE "%s: checksum error\n", dev->name);
 			return ERROR;
 		}
 		rcv->state = PLIP_PK_DONE;
@@ -677,8 +677,8 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		dev->stats.rx_bytes += rcv->length.h;
 		dev->stats.rx_packets++;
 		rcv->skb = NULL;
-		if (net_debug > 2)
-			printk(KERN_DEBUG "%s: receive end\n", dev->name);
+		if (net_de > 2)
+			printk(KERN_DE "%s: receive end\n", dev->name);
 
 		/* Close the connection. */
 		write_data (dev, 0x00);
@@ -759,7 +759,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 	unsigned int cx;
 
 	if (snd->skb == NULL || (lbuf = snd->skb->data) == NULL) {
-		printk(KERN_DEBUG "%s: send skb lost\n", dev->name);
+		printk(KERN_DE "%s: send skb lost\n", dev->name);
 		snd->state = PLIP_PK_DONE;
 		snd->skb = NULL;
 		return ERROR;
@@ -799,8 +799,8 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 					return OK;
 				}
 				disable_parport_interrupts (dev);
-				if (net_debug > 2)
-					printk(KERN_DEBUG "%s: send start\n", dev->name);
+				if (net_de > 2)
+					printk(KERN_DE "%s: send start\n", dev->name);
 				snd->state = PLIP_PK_LENGTH_LSB;
 				snd->nibble = PLIP_NB_BEGIN;
 				nl->timeout_count = 0;
@@ -856,8 +856,8 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 		/* Close the connection */
 		write_data (dev, 0x00);
 		snd->skb = NULL;
-		if (net_debug > 2)
-			printk(KERN_DEBUG "%s: send end\n", dev->name);
+		if (net_de > 2)
+			printk(KERN_DE "%s: send end\n", dev->name);
 		nl->connection = PLIP_CN_CLOSING;
 		nl->is_deferred = 1;
 		schedule_delayed_work(&nl->deferred, 1);
@@ -894,8 +894,8 @@ plip_error(struct net_device *dev, struct net_local *nl,
 
 	status = read_status(dev);
 	if ((status & 0xf8) == 0x80) {
-		if (net_debug > 2)
-			printk(KERN_DEBUG "%s: reset interface.\n", dev->name);
+		if (net_de > 2)
+			printk(KERN_DE "%s: reset interface.\n", dev->name);
 		nl->connection = PLIP_CN_NONE;
 		nl->should_relinquish = 0;
 		netif_start_queue (dev);
@@ -927,14 +927,14 @@ plip_interrupt(void *dev_id)
 
 	c0 = read_status(dev);
 	if ((c0 & 0xf8) != 0xc0) {
-		if ((dev->irq != -1) && (net_debug > 1))
-			printk(KERN_DEBUG "%s: spurious interrupt\n", dev->name);
+		if ((dev->irq != -1) && (net_de > 1))
+			printk(KERN_DE "%s: spurious interrupt\n", dev->name);
 		spin_unlock_irqrestore (&nl->lock, flags);
 		return;
 	}
 
-	if (net_debug > 3)
-		printk(KERN_DEBUG "%s: interrupt.\n", dev->name);
+	if (net_de > 3)
+		printk(KERN_DE "%s: interrupt.\n", dev->name);
 
 	switch (nl->connection) {
 	case PLIP_CN_CLOSING:
@@ -986,8 +986,8 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (net_debug > 2)
-		printk(KERN_DEBUG "%s: send request\n", dev->name);
+	if (net_de > 2)
+		printk(KERN_DE "%s: send request\n", dev->name);
 
 	spin_lock_irq(&nl->lock);
 	snd->skb = skb;
@@ -1189,10 +1189,10 @@ plip_wakeup(void *handle)
 
 	if (nl->port_owner) {
 		/* Why are we being woken up? */
-		printk(KERN_DEBUG "%s: why am I being woken up?\n", dev->name);
+		printk(KERN_DE "%s: why am I being woken up?\n", dev->name);
 		if (!parport_claim(nl->pardev))
 			/* bus_owner is already set (but why?) */
-			printk(KERN_DEBUG "%s: I'm broken.\n", dev->name);
+			printk(KERN_DE "%s: I'm broken.\n", dev->name);
 		else
 			return;
 	}

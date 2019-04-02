@@ -1509,7 +1509,7 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 	if (ctrl->nr_streams && ns->sws && ns->sgs)
 		size *= ns->sws * ns->sgs;
 
-	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
+	BUILD__ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
 			NVME_DSM_MAX_RANGES);
 
 	queue->limits.discard_alignment = 0;
@@ -2175,7 +2175,7 @@ static const struct nvme_core_quirk_entry core_quirks[] = {
 	{
 		/*
 		 * This Toshiba device seems to die using any APST states.  See:
-		 * https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1678184/comments/11
+		 * https://s.launchpad.net/ubuntu/+source/linux/+/1678184/comments/11
 		 */
 		.vid = 0x1179,
 		.mn = "THNSF5256GPUK TOSHIBA",
@@ -3730,7 +3730,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	memset(&ctrl->ka_cmd, 0, sizeof(ctrl->ka_cmd));
 	ctrl->ka_cmd.common.opcode = nvme_admin_keep_alive;
 
-	BUILD_BUG_ON(NVME_DSM_MAX_RANGES * sizeof(struct nvme_dsm_range) >
+	BUILD__ON(NVME_DSM_MAX_RANGES * sizeof(struct nvme_dsm_range) >
 			PAGE_SIZE);
 	ctrl->discard_page = alloc_page(GFP_KERNEL);
 	if (!ctrl->discard_page) {

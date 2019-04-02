@@ -1013,7 +1013,7 @@ ConfigInfoView::ConfigInfoView(QWidget* parent, const char *name)
 
 	if (!objectName().isEmpty()) {
 		configSettings->beginGroup(objectName());
-		setShowDebug(configSettings->value("/showDebug", false).toBool());
+		setShowDe(configSettings->value("/showDe", false).toBool());
 		configSettings->endGroup();
 		connect(configApp, SIGNAL(aboutToQuit()), SLOT(saveSettings()));
 	}
@@ -1023,20 +1023,20 @@ void ConfigInfoView::saveSettings(void)
 {
 	if (!objectName().isEmpty()) {
 		configSettings->beginGroup(objectName());
-		configSettings->setValue("/showDebug", showDebug());
+		configSettings->setValue("/showDe", showDe());
 		configSettings->endGroup();
 	}
 }
 
-void ConfigInfoView::setShowDebug(bool b)
+void ConfigInfoView::setShowDe(bool b)
 {
-	if (_showDebug != b) {
-		_showDebug = b;
+	if (_showDe != b) {
+		_showDe = b;
 		if (_menu)
 			menuInfo();
 		else if (sym)
 			symbolInfo();
-		emit showDebugChanged(b);
+		emit showDeChanged(b);
 	}
 }
 
@@ -1063,7 +1063,7 @@ void ConfigInfoView::symbolInfo(void)
 	str += "<br>visibility: ";
 	str += sym->visible == yes ? "y" : sym->visible == mod ? "m" : "n";
 	str += "<br>";
-	str += debug_info(sym);
+	str += de_info(sym);
 
 	setText(str);
 }
@@ -1071,7 +1071,7 @@ void ConfigInfoView::symbolInfo(void)
 void ConfigInfoView::menuInfo(void)
 {
 	struct symbol* sym;
-	QString head, debug, help;
+	QString head, de, help;
 
 	sym = _menu->sym;
 	if (sym) {
@@ -1081,26 +1081,26 @@ void ConfigInfoView::menuInfo(void)
 			head += "</b></big>";
 			if (sym->name) {
 				head += " (";
-				if (showDebug())
+				if (showDe())
 					head += QString().sprintf("<a href=\"s%p\">", sym);
 				head += print_filter(sym->name);
-				if (showDebug())
+				if (showDe())
 					head += "</a>";
 				head += ")";
 			}
 		} else if (sym->name) {
 			head += "<big><b>";
-			if (showDebug())
+			if (showDe())
 				head += QString().sprintf("<a href=\"s%p\">", sym);
 			head += print_filter(sym->name);
-			if (showDebug())
+			if (showDe())
 				head += "</a>";
 			head += "</b></big>";
 		}
 		head += "<br><br>";
 
-		if (showDebug())
-			debug = debug_info(sym);
+		if (showDe())
+			de = de_info(sym);
 
 		struct gstr help_gstr = str_new();
 		menu_get_ext_help(_menu, &help_gstr);
@@ -1110,71 +1110,71 @@ void ConfigInfoView::menuInfo(void)
 		head += "<big><b>";
 		head += print_filter(_menu->prompt->text);
 		head += "</b></big><br><br>";
-		if (showDebug()) {
+		if (showDe()) {
 			if (_menu->prompt->visible.expr) {
-				debug += "&nbsp;&nbsp;dep: ";
-				expr_print(_menu->prompt->visible.expr, expr_print_help, &debug, E_NONE);
-				debug += "<br><br>";
+				de += "&nbsp;&nbsp;dep: ";
+				expr_print(_menu->prompt->visible.expr, expr_print_help, &de, E_NONE);
+				de += "<br><br>";
 			}
 		}
 	}
-	if (showDebug())
-		debug += QString().sprintf("defined at %s:%d<br><br>", _menu->file->name, _menu->lineno);
+	if (showDe())
+		de += QString().sprintf("defined at %s:%d<br><br>", _menu->file->name, _menu->lineno);
 
-	setText(head + debug + help);
+	setText(head + de + help);
 }
 
-QString ConfigInfoView::debug_info(struct symbol *sym)
+QString ConfigInfoView::de_info(struct symbol *sym)
 {
-	QString debug;
+	QString de;
 
-	debug += "type: ";
-	debug += print_filter(sym_type_name(sym->type));
+	de += "type: ";
+	de += print_filter(sym_type_name(sym->type));
 	if (sym_is_choice(sym))
-		debug += " (choice)";
-	debug += "<br>";
+		de += " (choice)";
+	de += "<br>";
 	if (sym->rev_dep.expr) {
-		debug += "reverse dep: ";
-		expr_print(sym->rev_dep.expr, expr_print_help, &debug, E_NONE);
-		debug += "<br>";
+		de += "reverse dep: ";
+		expr_print(sym->rev_dep.expr, expr_print_help, &de, E_NONE);
+		de += "<br>";
 	}
 	for (struct property *prop = sym->prop; prop; prop = prop->next) {
 		switch (prop->type) {
 		case P_PROMPT:
 		case P_MENU:
-			debug += QString().sprintf("prompt: <a href=\"m%p\">", prop->menu);
-			debug += print_filter(prop->text);
-			debug += "</a><br>";
+			de += QString().sprintf("prompt: <a href=\"m%p\">", prop->menu);
+			de += print_filter(prop->text);
+			de += "</a><br>";
 			break;
 		case P_DEFAULT:
 		case P_SELECT:
 		case P_RANGE:
-			debug += prop_get_type_name(prop->type);
-			debug += ": ";
-			expr_print(prop->expr, expr_print_help, &debug, E_NONE);
-			debug += "<br>";
+			de += prop_get_type_name(prop->type);
+			de += ": ";
+			expr_print(prop->expr, expr_print_help, &de, E_NONE);
+			de += "<br>";
 			break;
 		case P_CHOICE:
 			if (sym_is_choice(sym)) {
-				debug += "choice: ";
-				expr_print(prop->expr, expr_print_help, &debug, E_NONE);
-				debug += "<br>";
+				de += "choice: ";
+				expr_print(prop->expr, expr_print_help, &de, E_NONE);
+				de += "<br>";
 			}
 			break;
 		default:
-			debug += "unknown property: ";
-			debug += prop_get_type_name(prop->type);
-			debug += "<br>";
+			de += "unknown property: ";
+			de += prop_get_type_name(prop->type);
+			de += "<br>";
 		}
 		if (prop->visible.expr) {
-			debug += "&nbsp;&nbsp;&nbsp;&nbsp;dep: ";
-			expr_print(prop->visible.expr, expr_print_help, &debug, E_NONE);
-			debug += "<br>";
+			de += "&nbsp;&nbsp;&nbsp;&nbsp;dep: ";
+			expr_print(prop->visible.expr, expr_print_help, &de, E_NONE);
+			de += "<br>";
 		}
 	}
-	debug += "<br>";
+	de += "<br>";
 
-	return debug;
+	return de;
 }
 
 QString ConfigInfoView::print_filter(const QString &str)
@@ -1224,11 +1224,11 @@ void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char 
 QMenu* ConfigInfoView::createStandardContextMenu(const QPoint & pos)
 {
 	QMenu* popup = Parent::createStandardContextMenu(pos);
-	QAction* action = new QAction("Show Debug Info", popup);
+	QAction* action = new QAction("Show De Info", popup);
 	  action->setCheckable(true);
-	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDebug(bool)));
-	  connect(this, SIGNAL(showDebugChanged(bool)), action, SLOT(setOn(bool)));
-	  action->setChecked(showDebug());
+	  connect(action, SIGNAL(toggled(bool)), SLOT(setShowDe(bool)));
+	  connect(this, SIGNAL(showDeChanged(bool)), action, SLOT(setOn(bool)));
+	  action->setChecked(showDe());
 	popup->addSeparator();
 	popup->addAction(action);
 	return popup;
@@ -1434,10 +1434,10 @@ ConfigMainWindow::ConfigMainWindow(void)
 	configView->showAllAction->setCheckable(true);
 	configView->showPromptAction->setCheckable(true);
 
-	QAction *showDebugAction = new QAction("Show Debug Info", this);
-	  showDebugAction->setCheckable(true);
-	  connect(showDebugAction, SIGNAL(toggled(bool)), helpText, SLOT(setShowDebug(bool)));
-	  showDebugAction->setChecked(helpText->showDebug());
+	QAction *showDeAction = new QAction("Show De Info", this);
+	  showDeAction->setCheckable(true);
+	  connect(showDeAction, SIGNAL(toggled(bool)), helpText, SLOT(setShowDe(bool)));
+	  showDeAction->setChecked(helpText->showDe());
 
 	QAction *showIntroAction = new QAction("Introduction", this);
 	  connect(showIntroAction, SIGNAL(triggered(bool)), SLOT(showIntro()));
@@ -1474,7 +1474,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 	optionMenu->addSeparator();
 	optionMenu->addActions(optGroup->actions());
 	optionMenu->addSeparator();
-	optionMenu->addAction(showDebugAction);
+	optionMenu->addAction(showDeAction);
 
 	// create help menu
 	menu->addSeparator();
@@ -1775,7 +1775,7 @@ void ConfigMainWindow::showIntro(void)
 		"Although there is no cross reference yet to help you figure out what other\n"
 		"options must be enabled to support the option you are interested in, you can\n"
 		"still view the help of a grayed-out option.\n\n"
-		"Toggling Show Debug Info under the Options menu will show the dependencies,\n"
+		"Toggling Show De Info under the Options menu will show the dependencies,\n"
 		"which you can then match by examining other options.\n\n";
 
 	QMessageBox::information(this, "qconf", str);
@@ -1785,7 +1785,7 @@ void ConfigMainWindow::showAbout(void)
 {
 	static const QString str = "qconf is Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>.\n"
 		"Copyright (C) 2015 Boris Barbulovski <bbarbulovski@gmail.com>.\n\n"
-		"Bug reports and feature request can also be entered at http://bugzilla.kernel.org/\n";
+		" reports and feature request can also be entered at http://zilla.kernel.org/\n";
 
 	QMessageBox::information(this, "qconf", str);
 }

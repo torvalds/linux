@@ -4,7 +4,7 @@
  */
 
 #include <linux/blkdev.h>
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 
 int queue_zone_wlock_show(void *data, struct seq_file *m)
 {

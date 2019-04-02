@@ -70,8 +70,8 @@ void *kmap_atomic(struct page *page)
 	flush_cache_all();
 #endif
 
-#ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
+#ifdef CONFIG_DE_HIGHMEM
+	_ON(!pte_none(*(kmap_pte-idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, kmap_prot));
 /* XXX Fix - Anton */
@@ -98,12 +98,12 @@ void __kunmap_atomic(void *kvaddr)
 
 	type = kmap_atomic_idx();
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	{
 		unsigned long idx;
 
 		idx = type + KM_TYPE_NR * smp_processor_id();
-		BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx));
+		_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx));
 
 		/* XXX Fix - Anton */
 #if 0

@@ -81,11 +81,11 @@ struct serial8250_config {
 					 * STOP PARITY EPAR SPAR WLEN5 WLEN6
 					 */
 
-#define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
-#define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
-#define UART_BUG_NOMSR	(1 << 2)	/* UART has buggy MSR status bits (Au1x00) */
-#define UART_BUG_THRE	(1 << 3)	/* UART has buggy THRE reassertion */
-#define UART_BUG_PARITY	(1 << 4)	/* UART mishandles parity if FIFO enabled */
+#define UART__QUOT	(1 << 0)	/* UART has gy quot LSB */
+#define UART__TXEN	(1 << 1)	/* UART has gy TX IIR status */
+#define UART__NOMSR	(1 << 2)	/* UART has gy MSR status bits (Au1x00) */
+#define UART__THRE	(1 << 3)	/* UART has gy THRE reassertion */
+#define UART__PARITY	(1 << 4)	/* UART mishandles parity if FIFO enabled */
 
 
 #ifdef CONFIG_SERIAL_8250_SHARE_IRQ

@@ -140,7 +140,7 @@ static void *rw_thread_main(void *thread_info)
 			 * ring-buffer.
 			 */
 			usleep(READ_WAIT_USEC);
-			pr_debug("Read retry(cpu:%d)\n", ts->cpu_num);
+			pr_de("Read retry(cpu:%d)\n", ts->cpu_num);
 			continue;
 		}
 

@@ -38,7 +38,7 @@ struct musb_ep;
 #define MUSB_HWVERS_1900	0x784
 #define MUSB_HWVERS_2000	0x800
 
-#include "musb_debug.h"
+#include "musb_de.h"
 #include "musb_dma.h"
 
 #include "musb_io.h"
@@ -403,8 +403,8 @@ struct musb {
 	const struct musb_hdrc_config *config;
 
 	int			xceiv_old_state;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry		*debugfs_root;
+#ifdef CONFIG_DE_FS
+	struct dentry		*defs_root;
 #endif
 };
 

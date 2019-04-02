@@ -39,7 +39,7 @@
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/xip.h>
 
-#define AMD_BOOTLOC_BUG
+#define AMD_BOOTLOC_
 #define FORCE_WORD_WRITE 0
 
 #define MAX_RETRIES 3
@@ -98,10 +98,10 @@ static struct mtd_chip_driver cfi_amdstd_chipdrv = {
 };
 
 
-/* #define DEBUG_CFI_FEATURES */
+/* #define DE_CFI_FEATURES */
 
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 static void cfi_tell_features(struct cfi_pri_amdstd *extp)
 {
 	const char* erase_suspend[3] = {
@@ -151,7 +151,7 @@ static void cfi_tell_features(struct cfi_pri_amdstd *extp)
 }
 #endif
 
-#ifdef AMD_BOOTLOC_BUG
+#ifdef AMD_BOOTLOC_
 /* Wheee. Bring me the head of someone at AMD. */
 static void fixup_amd_bootblock(struct mtd_info *mtd)
 {
@@ -164,7 +164,7 @@ static void fixup_amd_bootblock(struct mtd_info *mtd)
 	if (((major << 8) | minor) < 0x3131) {
 		/* CFI version 1.0 => don't trust bootloc */
 
-		pr_debug("%s: JEDEC Vendor ID is 0x%02X Device ID is 0x%02X\n",
+		pr_de("%s: JEDEC Vendor ID is 0x%02X Device ID is 0x%02X\n",
 			map->name, cfi->mfr, cfi->id);
 
 		/* AFAICS all 29LV400 with a bottom boot block have a device ID
@@ -184,7 +184,7 @@ static void fixup_amd_bootblock(struct mtd_info *mtd)
 			 * the 8-bit device ID.
 			 */
 			(cfi->mfr == CFI_MFR_MACRONIX)) {
-			pr_debug("%s: Macronix MX29LV400C with bottom boot block"
+			pr_de("%s: Macronix MX29LV400C with bottom boot block"
 				" detected\n", map->name);
 			extp->TopBottom = 2;	/* bottom boot */
 		} else
@@ -195,7 +195,7 @@ static void fixup_amd_bootblock(struct mtd_info *mtd)
 			extp->TopBottom = 2;	/* bottom boot */
 		}
 
-		pr_debug("%s: AMD CFI PRI V%c.%c has no boot block field;"
+		pr_de("%s: AMD CFI PRI V%c.%c has no boot block field;"
 			" deduced %s from Device ID\n", map->name, major, minor,
 			extp->TopBottom == 2 ? "bottom" : "top");
 	}
@@ -207,7 +207,7 @@ static void fixup_use_write_buffers(struct mtd_info *mtd)
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
 	if (cfi->cfiq->BufWriteTimeoutTyp) {
-		pr_debug("Using buffer write method\n");
+		pr_de("Using buffer write method\n");
 		mtd->_write = cfi_amdstd_write_buffers;
 	}
 }
@@ -380,7 +380,7 @@ static struct cfi_fixup cfi_nopri_fixup_table[] = {
 
 static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri },
-#ifdef AMD_BOOTLOC_BUG
+#ifdef AMD_BOOTLOC_
 	{ CFI_MFR_AMD, CFI_ID_ANY, fixup_amd_bootblock },
 	{ CFI_MFR_AMIC, CFI_ID_ANY, fixup_amd_bootblock },
 	{ CFI_MFR_MACRONIX, CFI_ID_ANY, fixup_amd_bootblock },
@@ -544,7 +544,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->writesize = 1;
 	mtd->writebufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 
-	pr_debug("MTD %s(): write buffer size %d\n", __func__,
+	pr_de("MTD %s(): write buffer size %d\n", __func__,
 			mtd->writebufsize);
 
 	mtd->_panic_write = cfi_amdstd_panic_write;
@@ -590,7 +590,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 			/* Apply cfi device specific fixups */
 			cfi_fixup(mtd, cfi_fixup_table);
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 			/* Tell the user about it in lots of lovely detail */
 			cfi_tell_features(extp);
 #endif
@@ -1576,7 +1576,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 		return ret;
 	}
 
-	pr_debug("MTD %s(): WRITE 0x%.8lx(0x%.8lx)\n",
+	pr_de("MTD %s(): WRITE 0x%.8lx(0x%.8lx)\n",
 		 __func__, adr, datum.x[0]);
 
 	if (mode == FL_OTP_WRITE)
@@ -1584,13 +1584,13 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 
 	/*
 	 * Check for a NOP for the case when the datum to write is already
-	 * present - it saves time and works around buggy chips that corrupt
+	 * present - it saves time and works around gy chips that corrupt
 	 * data at other locations when 0xff is written to a location that
 	 * already contains 0xff.
 	 */
 	oldd = map_read(map, adr);
 	if (map_word_equal(map, oldd, datum)) {
-		pr_debug("MTD %s(): NOP\n",
+		pr_de("MTD %s(): NOP\n",
 		       __func__);
 		goto op_done;
 	}
@@ -1820,7 +1820,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	datum = map_word_load(map, buf);
 
-	pr_debug("MTD %s(): WRITE 0x%.8lx(0x%.8lx)\n",
+	pr_de("MTD %s(): WRITE 0x%.8lx(0x%.8lx)\n",
 		 __func__, adr, datum.x[0]);
 
 	XIP_INVAL_CACHED_RANGE(map, adr, len);
@@ -2070,18 +2070,18 @@ static int do_panic_write_oneword(struct map_info *map, struct flchip *chip,
 	if (ret)
 		return ret;
 
-	pr_debug("MTD %s(): PANIC WRITE 0x%.8lx(0x%.8lx)\n",
+	pr_de("MTD %s(): PANIC WRITE 0x%.8lx(0x%.8lx)\n",
 			__func__, adr, datum.x[0]);
 
 	/*
 	 * Check for a NOP for the case when the datum to write is already
-	 * present - it saves time and works around buggy chips that corrupt
+	 * present - it saves time and works around gy chips that corrupt
 	 * data at other locations when 0xff is written to a location that
 	 * already contains 0xff.
 	 */
 	oldd = map_read(map, adr);
 	if (map_word_equal(map, oldd, datum)) {
-		pr_debug("MTD %s(): NOP\n", __func__);
+		pr_de("MTD %s(): NOP\n", __func__);
 		goto op_done;
 	}
 
@@ -2251,7 +2251,7 @@ static int __xipram do_erase_chip(struct map_info *map, struct flchip *chip)
 		return ret;
 	}
 
-	pr_debug("MTD %s(): ERASE 0x%.8lx\n",
+	pr_de("MTD %s(): ERASE 0x%.8lx\n",
 	       __func__, chip->start);
 
 	XIP_INVAL_CACHED_RANGE(map, adr, map->size);
@@ -2347,7 +2347,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 		return ret;
 	}
 
-	pr_debug("MTD %s(): ERASE 0x%.8lx\n",
+	pr_de("MTD %s(): ERASE 0x%.8lx\n",
 		 __func__, adr);
 
 	XIP_INVAL_CACHED_RANGE(map, adr, len);
@@ -2458,7 +2458,7 @@ static int do_atmel_lock(struct map_info *map, struct flchip *chip,
 		goto out_unlock;
 	chip->state = FL_LOCKING;
 
-	pr_debug("MTD %s(): LOCK 0x%08lx len %d\n", __func__, adr, len);
+	pr_de("MTD %s(): LOCK 0x%08lx len %d\n", __func__, adr, len);
 
 	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi,
 			 cfi->device_type, NULL);
@@ -2493,7 +2493,7 @@ static int do_atmel_unlock(struct map_info *map, struct flchip *chip,
 		goto out_unlock;
 	chip->state = FL_UNLOCKING;
 
-	pr_debug("MTD %s(): LOCK 0x%08lx len %d\n", __func__, adr, len);
+	pr_de("MTD %s(): LOCK 0x%08lx len %d\n", __func__, adr, len);
 
 	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi,
 			 cfi->device_type, NULL);
@@ -2550,7 +2550,7 @@ static int __maybe_unused do_ppb_xxlock(struct map_info *map,
 		return ret;
 	}
 
-	pr_debug("MTD %s(): XXLOCK 0x%08lx len %d\n", __func__, adr, len);
+	pr_de("MTD %s(): XXLOCK 0x%08lx len %d\n", __func__, adr, len);
 
 	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi,
 			 cfi->device_type, NULL);
@@ -2577,7 +2577,7 @@ static int __maybe_unused do_ppb_xxlock(struct map_info *map,
 		/* Return locked status: 0->locked, 1->unlocked */
 		ret = !cfi_read_query(map, adr);
 	} else
-		BUG();
+		();
 
 	/*
 	 * Wait for some time as unlocking of all sectors takes quite long

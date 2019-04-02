@@ -227,7 +227,7 @@ function in this case, ftrace_set_filter_ip() can be used.
 
 Although the ip must be the address where the call to fentry or mcount is
 located in the function. This function is used by perf and kprobes that
-gets the ip address from the user (usually using debug info from the kernel).
+gets the ip address from the user (usually using de info from the kernel).
 
 If a glob is used to set the filter, functions can be added to a "notrace"
 list that will prevent those functions from calling the callback.

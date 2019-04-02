@@ -127,7 +127,7 @@ static char *strL1Event[] =
 };
 
 void
-debugl1(struct IsdnCardState *cs, char *fmt, ...)
+del1(struct IsdnCardState *cs, char *fmt, ...)
 {
 	va_list args;
 	char tmp[8];
@@ -139,7 +139,7 @@ debugl1(struct IsdnCardState *cs, char *fmt, ...)
 }
 
 static void
-l1m_debug(struct FsmInst *fi, char *fmt, ...)
+l1m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
 	struct PStack *st = fi->userdata;
@@ -211,26 +211,26 @@ DChannel_proc_rcv(struct IsdnCardState *cs)
 		if (test_bit(FLG_L1_ACTTIMER, &stptr->l1.Flags))
 			FsmEvent(&stptr->l1.l1m, EV_TIMER_ACT, NULL);
 	while ((skb = skb_dequeue(&cs->rq))) {
-#ifdef L2FRAME_DEBUG		/* psa */
-		if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+		if (cs->de & L1_DEB_LAPD)
 			Logl2Frame(cs, skb, "PH_DATA", 1);
 #endif
 		stptr = cs->stlist;
 		if (skb->len < 3) {
-			debugl1(cs, "D-channel frame too short(%d)", skb->len);
+			del1(cs, "D-channel frame too short(%d)", skb->len);
 			dev_kfree_skb(skb);
 			return;
 		}
 		if ((skb->data[0] & 1) || !(skb->data[1] & 1)) {
-			debugl1(cs, "D-channel frame wrong EA0/EA1");
+			del1(cs, "D-channel frame wrong EA0/EA1");
 			dev_kfree_skb(skb);
 			return;
 		}
 		sapi = skb->data[0] >> 2;
 		tei = skb->data[1] >> 1;
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 1);
 		if (tei == GROUP_TEI) {
 			if (sapi == CTRL_SAPI) { /* sapi 0 */
@@ -273,7 +273,7 @@ BChannel_proc_xmt(struct BCState *bcs)
 	struct PStack *st = bcs->st;
 
 	if (test_bit(BC_FLG_BUSY, &bcs->Flag)) {
-		debugl1(bcs->cs, "BC_BUSY Error");
+		del1(bcs->cs, "BC_BUSY Error");
 		return;
 	}
 
@@ -372,7 +372,7 @@ init_bcstate(struct IsdnCardState *cs, int bc)
 	bcs->Flag = 0;
 }
 
-#ifdef L2FRAME_DEBUG		/* psa */
+#ifdef L2FRAME_DE		/* psa */
 
 static char *
 l2cmd(u_char cmd)
@@ -446,9 +446,9 @@ Logl2Frame(struct IsdnCardState *cs, struct sk_buff *skb, char *buf, int dir)
 	ptr = skb->data;
 
 	if (ptr[0] & 1 || !(ptr[1] & 1))
-		debugl1(cs, "Address not LAPD");
+		del1(cs, "Address not LAPD");
 	else
-		debugl1(cs, "%s %s: %s%c (sapi %d, tei %d)",
+		del1(cs, "%s %s: %s%c (sapi %d, tei %d)",
 			(dir ? "<-" : "->"), buf, l2frames(ptr),
 			((ptr[0] & 2) >> 1) == dir ? 'C' : 'R', ptr[0] >> 2, ptr[1] >> 1);
 }
@@ -809,8 +809,8 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 		st->l1.l1hw(st, pr, arg);
 		break;
 	case (PH_ACTIVATE | REQUEST):
-		if (cs->debug)
-			debugl1(cs, "PH_ACTIVATE_REQ %s",
+		if (cs->de)
+			del1(cs, "PH_ACTIVATE_REQ %s",
 				st->l1.l1m.fsm->strState[st->l1.l1m.state]);
 		if (test_bit(FLG_L1_ACTIVATED, &st->l1.Flags))
 			st->l1.l1l2(st, PH_ACTIVATE | CONFIRM, NULL);
@@ -821,16 +821,16 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 		break;
 	case (PH_TESTLOOP | REQUEST):
 		if (1 & (long) arg)
-			debugl1(cs, "PH_TEST_LOOP B1");
+			del1(cs, "PH_TEST_LOOP B1");
 		if (2 & (long) arg)
-			debugl1(cs, "PH_TEST_LOOP B2");
+			del1(cs, "PH_TEST_LOOP B2");
 		if (!(3 & (long) arg))
-			debugl1(cs, "PH_TEST_LOOP DISABLED");
+			del1(cs, "PH_TEST_LOOP DISABLED");
 		st->l1.l1hw(st, HW_TESTLOOP | REQUEST, arg);
 		break;
 	default:
-		if (cs->debug)
-			debugl1(cs, "dch_l2l1 msg %04X unhandled", pr);
+		if (cs->de)
+			del1(cs, "dch_l2l1 msg %04X unhandled", pr);
 		break;
 	}
 }
@@ -866,8 +866,8 @@ l1_msg(struct IsdnCardState *cs, int pr, void *arg) {
 			FsmEvent(&st->l1.l1m, EV_INFO4_IND, arg);
 			break;
 		default:
-			if (cs->debug)
-				debugl1(cs, "%s %04X unhandled", __func__, pr);
+			if (cs->de)
+				del1(cs, "%s %04X unhandled", __func__, pr);
 			break;
 		}
 		st = st->next;
@@ -901,10 +901,10 @@ setstack_HiSax(struct PStack *st, struct IsdnCardState *cs)
 		st->l1.Flags = FLG_L1_UINT;
 	}
 #endif
-	st->l1.l1m.debug = cs->debug;
+	st->l1.l1m.de = cs->de;
 	st->l1.l1m.userdata = st;
 	st->l1.l1m.userint = 0;
-	st->l1.l1m.printdebug = l1m_debug;
+	st->l1.l1m.printde = l1m_de;
 	FsmInitTimer(&st->l1.l1m, &st->l1.timer);
 	setstack_tei(st);
 	setstack_manager(st);
@@ -921,10 +921,10 @@ setstack_l1_B(struct PStack *st)
 
 	st->l1.l1m.fsm = &l1fsm_b;
 	st->l1.l1m.state = ST_L1_NULL;
-	st->l1.l1m.debug = cs->debug;
+	st->l1.l1m.de = cs->de;
 	st->l1.l1m.userdata = st;
 	st->l1.l1m.userint = 0;
-	st->l1.l1m.printdebug = l1m_debug;
+	st->l1.l1m.printde = l1m_de;
 	st->l1.Flags = 0;
 	FsmInitTimer(&st->l1.l1m, &st->l1.timer);
 }

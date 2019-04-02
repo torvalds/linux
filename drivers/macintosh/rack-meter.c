@@ -14,7 +14,7 @@
  * time. Patches welcome :-)
  *
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -147,7 +147,7 @@ static void rackmeter_do_pause(struct rackmeter *rm, int pause)
 {
 	struct rackmeter_dma *rdma = rm->dma_buf_v;
 
-	pr_debug("rackmeter: %s\n", pause ? "paused" : "started");
+	pr_de("rackmeter: %s\n", pause ? "paused" : "started");
 
 	rm->paused = pause;
 	if (pause) {
@@ -173,11 +173,11 @@ static void rackmeter_setup_dbdma(struct rackmeter *rm)
 	/* Make sure dbdma is reset */
 	DBDMA_DO_RESET(rm->dma_regs);
 
-	pr_debug("rackmeter: mark offset=0x%zx\n",
+	pr_de("rackmeter: mark offset=0x%zx\n",
 		 offsetof(struct rackmeter_dma, mark));
-	pr_debug("rackmeter: buf1 offset=0x%zx\n",
+	pr_de("rackmeter: buf1 offset=0x%zx\n",
 		 offsetof(struct rackmeter_dma, buf1));
-	pr_debug("rackmeter: buf2 offset=0x%zx\n",
+	pr_de("rackmeter: buf2 offset=0x%zx\n",
 		 offsetof(struct rackmeter_dma, buf2));
 
 	/* Prepare 4 dbdma commands for the 2 buffers */
@@ -292,16 +292,16 @@ static void rackmeter_stop_cpu_sniffer(struct rackmeter *rm)
 
 static int rackmeter_setup(struct rackmeter *rm)
 {
-	pr_debug("rackmeter: setting up i2s..\n");
+	pr_de("rackmeter: setting up i2s..\n");
 	rackmeter_setup_i2s(rm);
 
-	pr_debug("rackmeter: setting up default pattern..\n");
+	pr_de("rackmeter: setting up default pattern..\n");
 	rackmeter_set_default_pattern(rm);
 
-	pr_debug("rackmeter: setting up dbdma..\n");
+	pr_de("rackmeter: setting up dbdma..\n");
 	rackmeter_setup_dbdma(rm);
 
-	pr_debug("rackmeter: start CPU measurements..\n");
+	pr_de("rackmeter: start CPU measurements..\n");
 	rackmeter_init_cpu_sniffer(rm);
 
 	printk(KERN_INFO "RackMeter initialized\n");
@@ -373,7 +373,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	struct resource ri2s, rdma;
 	int rc = -ENODEV;
 
-	pr_debug("rackmeter_probe()\n");
+	pr_de("rackmeter_probe()\n");
 
 	/* Get i2s-a node */
 	for_each_child_of_node(mdev->ofdev.dev.of_node, i2s)
@@ -381,7 +381,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 			break;
 
 	if (i2s == NULL) {
-		pr_debug("  i2s-a child not found\n");
+		pr_de("  i2s-a child not found\n");
 		goto bail;
 	}
 	/* Get lightshow or virtual sound */
@@ -393,7 +393,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 		       break;
 	}
 	if (np == NULL) {
-		pr_debug("  lightshow or sound+virtual child not found\n");
+		pr_de("  lightshow or sound+virtual child not found\n");
 		goto bail;
 	}
 
@@ -439,9 +439,9 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	}
 #endif
 
-	pr_debug("  i2s @0x%08x\n", (unsigned int)ri2s.start);
-	pr_debug("  dma @0x%08x\n", (unsigned int)rdma.start);
-	pr_debug("  irq %d\n", rm->irq);
+	pr_de("  i2s @0x%08x\n", (unsigned int)ri2s.start);
+	pr_de("  dma @0x%08x\n", (unsigned int)rdma.start);
+	pr_de("  irq %d\n", rm->irq);
 
 	rm->ubuf = (u8 *)__get_free_page(GFP_KERNEL);
 	if (rm->ubuf == NULL) {
@@ -600,14 +600,14 @@ static struct macio_driver rackmeter_driver = {
 
 static int __init rackmeter_init(void)
 {
-	pr_debug("rackmeter_init()\n");
+	pr_de("rackmeter_init()\n");
 
 	return macio_register_driver(&rackmeter_driver);
 }
 
 static void __exit rackmeter_exit(void)
 {
-	pr_debug("rackmeter_exit()\n");
+	pr_de("rackmeter_exit()\n");
 
 	macio_unregister_driver(&rackmeter_driver);
 }

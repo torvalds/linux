@@ -21,7 +21,7 @@
  */
 /* GENERAL NOTES:
  *
- * BUGS:
+ * S:
  * - There are pops (we can't delay in trigger function, cause midlevel 
  *   often need to trigger down and then up very quickly).
  *   Any ideas?
@@ -53,7 +53,7 @@
  *   have either FM playback or Video playback but not both simultaneously.
  *   The Video Playback Switch mixer control toggles this choice.
  *
- * BUGS:
+ * S:
  *
  * - There is a major trouble I noted:
  *
@@ -199,7 +199,7 @@ static int snd_es18xx_dsp_get_byte(struct snd_es18xx *chip)
         return -ENODEV;
 }
 
-#undef REG_DEBUG
+#undef REG_DE
 
 static int snd_es18xx_write(struct snd_es18xx *chip,
 			    unsigned char reg, unsigned char data)
@@ -214,8 +214,8 @@ static int snd_es18xx_write(struct snd_es18xx *chip,
         ret = snd_es18xx_dsp_command(chip, data);
  end:
         spin_unlock_irqrestore(&chip->reg_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Reg %02x set to %02x\n", reg, data);
+#ifdef REG_DE
+	snd_printk(KERN_DE "Reg %02x set to %02x\n", reg, data);
 #endif
 	return ret;
 }
@@ -233,8 +233,8 @@ static int snd_es18xx_read(struct snd_es18xx *chip, unsigned char reg)
 		goto end;
 	data = snd_es18xx_dsp_get_byte(chip);
 	ret = data;
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Reg %02x now is %02x (%d)\n", reg, data, ret);
+#ifdef REG_DE
+	snd_printk(KERN_DE "Reg %02x now is %02x (%d)\n", reg, data, ret);
 #endif
  end:
         spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -269,8 +269,8 @@ static int snd_es18xx_bits(struct snd_es18xx *chip, unsigned char reg,
 		ret = snd_es18xx_dsp_command(chip, new);
 		if (ret < 0)
 			goto end;
-#ifdef REG_DEBUG
-		snd_printk(KERN_DEBUG "Reg %02x was %02x, set to %02x (%d)\n",
+#ifdef REG_DE
+		snd_printk(KERN_DE "Reg %02x was %02x, set to %02x (%d)\n",
 			   reg, old, new, ret);
 #endif
 	}
@@ -288,8 +288,8 @@ static inline void snd_es18xx_mixer_write(struct snd_es18xx *chip,
         outb(reg, chip->port + 0x04);
         outb(data, chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x set to %02x\n", reg, data);
+#ifdef REG_DE
+	snd_printk(KERN_DE "Mixer reg %02x set to %02x\n", reg, data);
 #endif
 }
 
@@ -301,8 +301,8 @@ static inline int snd_es18xx_mixer_read(struct snd_es18xx *chip, unsigned char r
         outb(reg, chip->port + 0x04);
 	data = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x now is %02x\n", reg, data);
+#ifdef REG_DE
+	snd_printk(KERN_DE "Mixer reg %02x now is %02x\n", reg, data);
 #endif
         return data;
 }
@@ -320,8 +320,8 @@ static inline int snd_es18xx_mixer_bits(struct snd_es18xx *chip, unsigned char r
 	if (val != oval) {
 		new = (old & ~mask) | (val & mask);
 		outb(new, chip->port + 0x05);
-#ifdef REG_DEBUG
-		snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x\n",
+#ifdef REG_DE
+		snd_printk(KERN_DE "Mixer reg %02x was %02x, set to %02x\n",
 			   reg, old, new);
 #endif
 	}
@@ -341,8 +341,8 @@ static inline int snd_es18xx_mixer_writable(struct snd_es18xx *chip, unsigned ch
 	outb(expected, chip->port + 0x05);
 	new = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x, now is %02x\n",
+#ifdef REG_DE
+	snd_printk(KERN_DE "Mixer reg %02x was %02x, set to %02x, now is %02x\n",
 		   reg, old, expected, new);
 #endif
 	return expected == new;
@@ -894,7 +894,7 @@ static int snd_es18xx_playback_open(struct snd_pcm_substream *substream)
 			return -EAGAIN;
 		chip->playback_b_substream = substream;
 	} else {
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	substream->runtime->hw = snd_es18xx_playback;
@@ -1387,8 +1387,8 @@ static void snd_es18xx_config_write(struct snd_es18xx *chip,
 	   otherwise protected init code */
 	outb(reg, chip->ctrl_port);
 	outb(data, chip->ctrl_port + 1);
-#ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Config reg %02x set to %02x\n", reg, data);
+#ifdef REG_DE
+	snd_printk(KERN_DE "Config reg %02x set to %02x\n", reg, data);
 #endif
 }
 

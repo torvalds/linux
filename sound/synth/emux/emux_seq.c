@@ -255,7 +255,7 @@ snd_emux_event_input(struct snd_seq_event *ev, int direct, void *private_data,
 	struct snd_emux_port *port;
 
 	port = private_data;
-	if (snd_BUG_ON(!port || !ev))
+	if (snd__ON(!port || !ev))
 		return -EINVAL;
 
 	snd_midi_process_event(&emux_ops, ev, &port->chset);
@@ -322,10 +322,10 @@ snd_emux_use(void *private_data, struct snd_seq_port_subscribe *info)
 	struct snd_emux *emu;
 
 	p = private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -EINVAL;
 	emu = p->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -EINVAL;
 
 	mutex_lock(&emu->register_mutex);
@@ -345,10 +345,10 @@ snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 	struct snd_emux *emu;
 
 	p = private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -EINVAL;
 	emu = p->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -EINVAL;
 
 	mutex_lock(&emu->register_mutex);
@@ -389,12 +389,12 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 			goto __error;
 		}
 		emu->vmidi[i] = rmidi;
-		/* snd_printk(KERN_DEBUG "virmidi %d ok\n", i); */
+		/* snd_printk(KERN_DE "virmidi %d ok\n", i); */
 	}
 	return 0;
 
 __error:
-	/* snd_printk(KERN_DEBUG "error init..\n"); */
+	/* snd_printk(KERN_DE "error init..\n"); */
 	snd_emux_delete_virmidi(emu);
 	return -ENOMEM;
 }

@@ -348,7 +348,7 @@ const struct stmmac_ops dwxgmac210_ops = {
 	.pcs_ctrl_ane = NULL,
 	.pcs_rane = NULL,
 	.pcs_get_adv_lp = NULL,
-	.debug = NULL,
+	.de = NULL,
 	.set_filter = dwxgmac2_set_filter,
 };
 

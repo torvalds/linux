@@ -42,7 +42,7 @@ nvbios_imagen(struct nvkm_bios *bios, struct nvbios_image *image)
 	case 0x4e56: /* NV */
 		break;
 	default:
-		nvkm_debug(subdev, "%08x: ROM signature (%04x) unknown\n",
+		nvkm_de(subdev, "%08x: ROM signature (%04x) unknown\n",
 			   image->base, data);
 		return false;
 	}

@@ -206,7 +206,7 @@ Valid options:
   If a large number of drivers or config options is listed for a node,
   and the '$pr_flag_value[$pr_flag_pos_hard_coded]' flag is set consider using --white-list-config and/or
   --white-list-driver.  If the white list option suppresses the correct
-  entry please report that as a bug.
+  entry please report that as a .
 
   CAUTION:
      This program uses heuristics to guess which driver(s) support each

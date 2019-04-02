@@ -29,7 +29,7 @@
 
 
 #define D_SUBMODULE sysfs
-#include "debug-levels.h"
+#include "de-levels.h"
 
 
 /*

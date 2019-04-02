@@ -147,11 +147,11 @@ config PILOT3
 	help
 	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
 
-config XCOPILOT_BUGS
+config XCOPILOT_S
 	bool "(X)Copilot support"
 	depends on PILOT3
 	help
-	  Support the bugs of Xcopilot.
+	  Support the s of Xcopilot.
 
 config UCSIMM
 	bool "uCsimm module support"

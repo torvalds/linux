@@ -52,7 +52,7 @@ static int __init cpm_init(void)
 }
 subsys_initcall(cpm_init);
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_CPM
+#ifdef CONFIG_PPC_EARLY_DE_CPM
 static u32 __iomem *cpm_udbg_txdesc;
 static u8 __iomem *cpm_udbg_txbuf;
 
@@ -72,14 +72,14 @@ void __init udbg_init_cpm(void)
 {
 #ifdef CONFIG_PPC_8xx
 	cpm_udbg_txdesc = (u32 __iomem __force *)
-			  (CONFIG_PPC_EARLY_DEBUG_CPM_ADDR - PHYS_IMMR_BASE +
+			  (CONFIG_PPC_EARLY_DE_CPM_ADDR - PHYS_IMMR_BASE +
 			   VIRT_IMMR_BASE);
 	cpm_udbg_txbuf = (u8 __iomem __force *)
 			 (in_be32(&cpm_udbg_txdesc[1]) - PHYS_IMMR_BASE +
 			  VIRT_IMMR_BASE);
 #else
 	cpm_udbg_txdesc = (u32 __iomem __force *)
-			  CONFIG_PPC_EARLY_DEBUG_CPM_ADDR;
+			  CONFIG_PPC_EARLY_DE_CPM_ADDR;
 	cpm_udbg_txbuf = (u8 __iomem __force *)in_be32(&cpm_udbg_txdesc[1]);
 #endif
 

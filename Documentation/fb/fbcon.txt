@@ -37,7 +37,7 @@ support->Bootup logo.
 you don't do anything, the kernel configuration tool will select one for you,
 usually an 8x16 font.
 
-GOTCHA: A common bug report is enabling the framebuffer without enabling the
+GOTCHA: A common  report is enabling the framebuffer without enabling the
 framebuffer console.  Depending on the driver, you may get a blanked or
 garbled display, but the system still boots to completion.  If you are
 fortunate to have a driver that does not alter the graphics chip, then you

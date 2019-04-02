@@ -1020,7 +1020,7 @@ static void snd_ice1712_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	case 88200: val = 11; break;
 	case 96000: val = 7; break;
 	default:
-		snd_BUG();
+		snd_();
 		val = 0;
 		rate = 48000;
 		break;
@@ -1835,7 +1835,7 @@ static int snd_ice1712_pro_internal_clock_get(struct snd_kcontrol *kcontrol,
 	} else {
 		val = xlate[inb(ICEMT(ice, RATE)) & 15];
 		if (val == 255) {
-			snd_BUG();
+			snd_();
 			val = 0;
 		}
 		ucontrol->value.enumerated.item[0] = val;
@@ -2416,7 +2416,7 @@ int snd_ice1712_spdif_build_controls(struct snd_ice1712 *ice)
 	int err;
 	struct snd_kcontrol *kctl;
 
-	if (snd_BUG_ON(!ice->pcm_pro))
+	if (snd__ON(!ice->pcm_pro))
 		return -EIO;
 	err = snd_ctl_add(ice->card, kctl = snd_ctl_new1(&snd_ice1712_spdif_default, ice));
 	if (err < 0)

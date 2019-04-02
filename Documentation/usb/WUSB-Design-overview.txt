@@ -19,7 +19,7 @@ Linux UWB + Wireless USB + WiNET
    02110-1301, USA.
 
 
-Please visit http://bughost.org/thewiki/Design-overview.txt-1.8 for
+Please visit http://host.org/thewiki/Design-overview.txt-1.8 for
 updated content.
 
     * Design-overview.txt-1.8

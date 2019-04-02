@@ -212,7 +212,7 @@ static struct mv_sata_platform_data rd88f5182_sata_data = {
  * General Setup
  ****************************************************************************/
 static unsigned int rd88f5182_mpp_modes[] __initdata = {
-	MPP0_GPIO,		/* Debug Led */
+	MPP0_GPIO,		/* De Led */
 	MPP1_GPIO,		/* Reset Switch */
 	MPP2_UNUSED,
 	MPP3_GPIO,		/* RTC Int */

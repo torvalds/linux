@@ -151,7 +151,7 @@ static int _store_optimized_voltages(struct device *dev,
 
 		/*
 		 * Some older samples might not have optimized efuse
-		 * Use reference voltage for those - just add debug message
+		 * Use reference voltage for those - just add de message
 		 * for them.
 		 */
 		if (!table->optimized_uv) {

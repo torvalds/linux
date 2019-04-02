@@ -86,7 +86,7 @@ static int nbp1_entered;
 struct timespec start_time;
 static unsigned long long timediff;
 
-#ifdef DEBUG
+#ifdef DE
 struct timespec dbg_time;
 long dbg_timediff;
 #endif
@@ -234,7 +234,7 @@ static int amd_fam14h_start(void)
 		for (cpu = 0; cpu < cpu_count; cpu++)
 			amd_fam14h_init(&amd_fam14h_cstates[num], cpu);
 	}
-#ifdef DEBUG
+#ifdef DE
 	clock_gettime(CLOCK_REALTIME, &dbg_time);
 	dbg_timediff = timespec_diff_us(start_time, dbg_time);
 	dprint("Enabling counters took: %lu us\n",
@@ -254,7 +254,7 @@ static int amd_fam14h_stop(void)
 		for (cpu = 0; cpu < cpu_count; cpu++)
 			amd_fam14h_disable(&amd_fam14h_cstates[num], cpu);
 	}
-#ifdef DEBUG
+#ifdef DE
 	clock_gettime(CLOCK_REALTIME, &dbg_time);
 	dbg_timediff = timespec_diff_us(end_time, dbg_time);
 	dprint("Disabling counters took: %lu ns\n", dbg_timediff);

@@ -56,8 +56,8 @@ Note that if a page is stored and the page already exists in transcendent memory
 or the store fails AND the page is invalidated.  This ensures stale data may
 never be obtained from frontswap.
 
-If properly configured, monitoring of frontswap is done via debugfs in
-the `/sys/kernel/debug/frontswap` directory.  The effectiveness of
+If properly configured, monitoring of frontswap is done via defs in
+the `/sys/kernel/de/frontswap` directory.  The effectiveness of
 frontswap can be measured (across all swap devices) with:
 
 ``failed_stores``

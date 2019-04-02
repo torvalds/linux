@@ -19,7 +19,7 @@
 #include <media/i2c/ir-kbd-i2c.h>
 #include "pvrusb2-i2c-core.h"
 #include "pvrusb2-hdw-internal.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include "pvrusb2-fx2-cmd.h"
 #include "pvrusb2.h"
 
@@ -474,7 +474,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 
  done:
-	if (pvrusb2_debug & PVR2_TRACE_I2C_TRAF) {
+	if (pvrusb2_de & PVR2_TRACE_I2C_TRAF) {
 		unsigned int idx,offs,cnt;
 		for (idx = 0; idx < num; idx++) {
 			cnt = msgs[idx].len;

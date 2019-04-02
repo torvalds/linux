@@ -55,7 +55,7 @@ void autofs_kill_sb(struct super_block *sb)
 		put_pid(sbi->oz_pgrp);
 	}
 
-	pr_debug("shutting down\n");
+	pr_de("shutting down\n");
 	kill_litter_super(sb);
 	if (sbi)
 		kfree_rcu(sbi, rcu);
@@ -234,7 +234,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
-	pr_debug("starting up, sbi = %p\n", sbi);
+	pr_de("starting up, sbi = %p\n", sbi);
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
@@ -321,7 +321,7 @@ int autofs_fill_super(struct super_block *s, void *data, int silent)
 	root_inode->i_fop = &autofs_root_operations;
 	root_inode->i_op = &autofs_dir_inode_operations;
 
-	pr_debug("pipe fd = %d, pgrp = %u\n",
+	pr_de("pipe fd = %d, pgrp = %u\n",
 		 sbi->pipefd, pid_nr(sbi->oz_pgrp));
 	pipe = fget(sbi->pipefd);
 

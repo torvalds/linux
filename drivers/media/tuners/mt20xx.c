@@ -11,9 +11,9 @@
 #include "tuner-i2c.h"
 #include "mt20xx.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 /* ---------------------------------------------------------------------- */
 
@@ -469,7 +469,7 @@ static void mt2050_set_if_freq(struct dvb_frontend *fe,unsigned int freq, unsign
 	div2a=(lo2/8)-1;
 	div2b=lo2-(div2a+1)*8;
 
-	if (debug > 1) {
+	if (de > 1) {
 		tuner_dbg("lo1 lo2 = %d %d\n", lo1, lo2);
 		tuner_dbg("num1 num2 div1a div1b div2a div2b= %x %x %x %x %x %x\n",
 			  num1,num2,div1a,div1b,div2a,div2b);
@@ -485,7 +485,7 @@ static void mt2050_set_if_freq(struct dvb_frontend *fe,unsigned int freq, unsign
 	buf[5]=div2a;
 	if(num2!=0) buf[5]=buf[5]|0x40;
 
-	if (debug > 1)
+	if (de > 1)
 		tuner_dbg("bufs is: %*ph\n", 6, buf);
 
 	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,6);
@@ -612,7 +612,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 
 	tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
 	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
-	if (debug)
+	if (de)
 		tuner_dbg("MT20xx hexdump: %*ph\n", 21, buf);
 
 	company_code = buf[0x11] << 8 | buf[0x12];

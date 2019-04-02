@@ -2003,7 +2003,7 @@ out:
 int
 bfad_iocmd_porglog_get(struct bfad_s *bfad, void *cmd)
 {
-	struct bfa_bsg_debug_s *iocmd = (struct bfa_bsg_debug_s *)cmd;
+	struct bfa_bsg_de_s *iocmd = (struct bfa_bsg_de_s *)cmd;
 	void *iocmd_bufptr;
 
 	if (iocmd->bufsz < sizeof(struct bfa_plog_s)) {
@@ -2013,40 +2013,40 @@ bfad_iocmd_porglog_get(struct bfad_s *bfad, void *cmd)
 	}
 
 	iocmd->status = BFA_STATUS_OK;
-	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_debug_s);
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_de_s);
 	memcpy(iocmd_bufptr, (u8 *) &bfad->plog_buf, sizeof(struct bfa_plog_s));
 out:
 	return 0;
 }
 
-#define BFA_DEBUG_FW_CORE_CHUNK_SZ	0x4000U /* 16K chunks for FW dump */
+#define BFA_DE_FW_CORE_CHUNK_SZ	0x4000U /* 16K chunks for FW dump */
 int
-bfad_iocmd_debug_fw_core(struct bfad_s *bfad, void *cmd,
+bfad_iocmd_de_fw_core(struct bfad_s *bfad, void *cmd,
 			unsigned int payload_len)
 {
-	struct bfa_bsg_debug_s *iocmd = (struct bfa_bsg_debug_s *)cmd;
+	struct bfa_bsg_de_s *iocmd = (struct bfa_bsg_de_s *)cmd;
 	void	*iocmd_bufptr;
 	unsigned long	flags;
 	u32 offset;
 
-	if (bfad_chk_iocmd_sz(payload_len, sizeof(struct bfa_bsg_debug_s),
-			BFA_DEBUG_FW_CORE_CHUNK_SZ) != BFA_STATUS_OK) {
+	if (bfad_chk_iocmd_sz(payload_len, sizeof(struct bfa_bsg_de_s),
+			BFA_DE_FW_CORE_CHUNK_SZ) != BFA_STATUS_OK) {
 		iocmd->status = BFA_STATUS_VERSION_FAIL;
 		return 0;
 	}
 
-	if (iocmd->bufsz < BFA_DEBUG_FW_CORE_CHUNK_SZ ||
+	if (iocmd->bufsz < BFA_DE_FW_CORE_CHUNK_SZ ||
 			!IS_ALIGNED(iocmd->bufsz, sizeof(u16)) ||
 			!IS_ALIGNED(iocmd->offset, sizeof(u32))) {
-		bfa_trc(bfad, BFA_DEBUG_FW_CORE_CHUNK_SZ);
+		bfa_trc(bfad, BFA_DE_FW_CORE_CHUNK_SZ);
 		iocmd->status = BFA_STATUS_EINVAL;
 		goto out;
 	}
 
-	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_debug_s);
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_de_s);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	offset = iocmd->offset;
-	iocmd->status = bfa_ioc_debug_fwcore(&bfad->bfa.ioc, iocmd_bufptr,
+	iocmd->status = bfa_ioc_de_fwcore(&bfad->bfa.ioc, iocmd_bufptr,
 				&offset, &iocmd->bufsz);
 	iocmd->offset = offset;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -2055,20 +2055,20 @@ out:
 }
 
 int
-bfad_iocmd_debug_ctl(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
+bfad_iocmd_de_ctl(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 {
 	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
 	unsigned long	flags;
 
-	if (v_cmd == IOCMD_DEBUG_FW_STATE_CLR) {
+	if (v_cmd == IOCMD_DE_FW_STATE_CLR) {
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
 		bfad->bfa.ioc.dbg_fwsave_once = BFA_TRUE;
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-	} else if (v_cmd == IOCMD_DEBUG_PORTLOG_CLR)
+	} else if (v_cmd == IOCMD_DE_PORTLOG_CLR)
 		bfad->plog_buf.head = bfad->plog_buf.tail = 0;
-	else if (v_cmd == IOCMD_DEBUG_START_DTRC)
+	else if (v_cmd == IOCMD_DE_START_DTRC)
 		bfa_trc_init(bfad->trcmod);
-	else if (v_cmd == IOCMD_DEBUG_STOP_DTRC)
+	else if (v_cmd == IOCMD_DE_STOP_DTRC)
 		bfa_trc_stop(bfad->trcmod);
 
 	iocmd->status = BFA_STATUS_OK;
@@ -3010,19 +3010,19 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 	case IOCMD_VHBA_QUERY:
 		rc = bfad_iocmd_vhba_query(bfad, iocmd);
 		break;
-	case IOCMD_DEBUG_PORTLOG:
+	case IOCMD_DE_PORTLOG:
 		rc = bfad_iocmd_porglog_get(bfad, iocmd);
 		break;
-	case IOCMD_DEBUG_FW_CORE:
-		rc = bfad_iocmd_debug_fw_core(bfad, iocmd, payload_len);
+	case IOCMD_DE_FW_CORE:
+		rc = bfad_iocmd_de_fw_core(bfad, iocmd, payload_len);
 		break;
-	case IOCMD_DEBUG_FW_STATE_CLR:
-	case IOCMD_DEBUG_PORTLOG_CLR:
-	case IOCMD_DEBUG_START_DTRC:
-	case IOCMD_DEBUG_STOP_DTRC:
-		rc = bfad_iocmd_debug_ctl(bfad, iocmd, cmd);
+	case IOCMD_DE_FW_STATE_CLR:
+	case IOCMD_DE_PORTLOG_CLR:
+	case IOCMD_DE_START_DTRC:
+	case IOCMD_DE_STOP_DTRC:
+		rc = bfad_iocmd_de_ctl(bfad, iocmd, cmd);
 		break;
-	case IOCMD_DEBUG_PORTLOG_CTL:
+	case IOCMD_DE_PORTLOG_CTL:
 		rc = bfad_iocmd_porglog_ctl(bfad, iocmd);
 		break;
 	case IOCMD_FCPIM_PROFILE_ON:

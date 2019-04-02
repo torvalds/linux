@@ -23,7 +23,7 @@
  * Rob Clark <robdclark@gmail.com>
  */
 
-#define DEBUG /* for pr_debug() */
+#define DE /* for pr_de() */
 
 #include <stdarg.h>
 #include <linux/seq_file.h>
@@ -136,11 +136,11 @@ void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_info);
 
-void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
+void __drm_printfn_de(struct drm_printer *p, struct va_format *vaf)
 {
-	pr_debug("%s %pV", p->prefix, vaf);
+	pr_de("%s %pV", p->prefix, vaf);
 }
-EXPORT_SYMBOL(__drm_printfn_debug);
+EXPORT_SYMBOL(__drm_printfn_de);
 
 /**
  * drm_puts - print a const string to a &drm_printer stream
@@ -201,7 +201,7 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 	struct va_format vaf;
 	va_list args;
 
-	if (!(drm_debug & category))
+	if (!(drm_de & category))
 		return;
 
 	va_start(args, format);
@@ -209,10 +209,10 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 	vaf.va = &args;
 
 	if (dev)
-		dev_printk(KERN_DEBUG, dev, "[" DRM_NAME ":%ps] %pV",
+		dev_printk(KERN_DE, dev, "[" DRM_NAME ":%ps] %pV",
 			   __builtin_return_address(0), &vaf);
 	else
-		printk(KERN_DEBUG "[" DRM_NAME ":%ps] %pV",
+		printk(KERN_DE "[" DRM_NAME ":%ps] %pV",
 		       __builtin_return_address(0), &vaf);
 
 	va_end(args);
@@ -224,14 +224,14 @@ void drm_dbg(unsigned int category, const char *format, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (!(drm_debug & category))
+	if (!(drm_de & category))
 		return;
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[" DRM_NAME ":%ps] %pV",
+	printk(KERN_DE "[" DRM_NAME ":%ps] %pV",
 	       __builtin_return_address(0), &vaf);
 
 	va_end(args);

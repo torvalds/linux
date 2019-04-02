@@ -48,7 +48,7 @@
  */
 
 /*
- * Testing and debugging help provided by Daniel Koch.
+ * Testing and deging help provided by Daniel Koch.
  *
  * Keithley Manuals:
  *	2309.PDF (das16)

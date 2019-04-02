@@ -302,7 +302,7 @@ static int at91_pm_enter(suspend_state_t state)
 		break;
 
 	default:
-		pr_debug("AT91: PM - bogus suspend state %d\n", state);
+		pr_de("AT91: PM - bogus suspend state %d\n", state);
 		goto error;
 	}
 

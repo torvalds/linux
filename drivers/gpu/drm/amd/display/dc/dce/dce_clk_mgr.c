@@ -338,7 +338,7 @@ int dce112_set_clock(struct clk_mgr *clk_mgr, int requested_clk_khz)
 
 static void dce_clock_read_integrated_info(struct dce_clk_mgr *clk_mgr_dce)
 {
-	struct dc_debug_options *debug = &clk_mgr_dce->base.ctx->dc->debug;
+	struct dc_de_options *de = &clk_mgr_dce->base.ctx->dc->de;
 	struct dc_bios *bp = clk_mgr_dce->base.ctx->dc_bios;
 	struct integrated_info info = { { { 0 } } };
 	struct dc_firmware_info fw_info = { { 0 } };
@@ -389,7 +389,7 @@ static void dce_clock_read_integrated_info(struct dce_clk_mgr *clk_mgr_dce)
 				info.disp_clk_voltage[i].max_supported_clk;
 	}
 
-	if (!debug->disable_dfs_bypass && bp->integrated_info)
+	if (!de->disable_dfs_bypass && bp->integrated_info)
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)
 			clk_mgr_dce->dfs_bypass_enabled = true;
 }
@@ -845,7 +845,7 @@ struct clk_mgr *dce_clk_mgr_create(
 	struct dce_clk_mgr *clk_mgr_dce = kzalloc(sizeof(*clk_mgr_dce), GFP_KERNEL);
 
 	if (clk_mgr_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -868,7 +868,7 @@ struct clk_mgr *dce110_clk_mgr_create(
 	struct dce_clk_mgr *clk_mgr_dce = kzalloc(sizeof(*clk_mgr_dce), GFP_KERNEL);
 
 	if (clk_mgr_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -893,7 +893,7 @@ struct clk_mgr *dce112_clk_mgr_create(
 	struct dce_clk_mgr *clk_mgr_dce = kzalloc(sizeof(*clk_mgr_dce), GFP_KERNEL);
 
 	if (clk_mgr_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -914,7 +914,7 @@ struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx)
 	struct dce_clk_mgr *clk_mgr_dce = kzalloc(sizeof(*clk_mgr_dce), GFP_KERNEL);
 
 	if (clk_mgr_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -937,7 +937,7 @@ struct clk_mgr *dce121_clk_mgr_create(struct dc_context *ctx)
 						  GFP_KERNEL);
 
 	if (clk_mgr_dce == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 

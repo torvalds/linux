@@ -61,7 +61,7 @@ void omap4_cpu_die(unsigned int cpu)
 			 */
 			break;
 		}
-		pr_debug("CPU%u: spurious wakeup call\n", cpu);
+		pr_de("CPU%u: spurious wakeup call\n", cpu);
 	}
 }
 

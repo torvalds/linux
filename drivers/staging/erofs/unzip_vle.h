@@ -107,7 +107,7 @@ static inline void z_erofs_vle_set_workgrp_fmt(
 #define z_erofs_vle_work_workgroup(wrk, primary)	\
 	((primary) ? container_of(wrk,	\
 		struct z_erofs_vle_workgroup, work) : \
-		({ BUG(); (void *)NULL; }))
+		({ (); (void *)NULL; }))
 
 
 #define Z_EROFS_WORKGROUP_SIZE       sizeof(struct z_erofs_vle_workgroup)
@@ -147,7 +147,7 @@ static inline unsigned z_erofs_onlinepage_index(struct page *page)
 {
 	union z_erofs_onlinepage_converter u;
 
-	BUG_ON(!PagePrivate(page));
+	_ON(!PagePrivate(page));
 	u.v = &page_private(page);
 
 	return atomic_read(u.o) >> Z_EROFS_ONLINEPAGE_INDEX_SHIFT;
@@ -179,7 +179,7 @@ repeat:
 		if (!index)
 			return;
 
-		BUG_ON(id != index);
+		_ON(id != index);
 	}
 
 	v = (index << Z_EROFS_ONLINEPAGE_INDEX_SHIFT) |
@@ -193,7 +193,7 @@ static inline void z_erofs_onlinepage_endio(struct page *page)
 	union z_erofs_onlinepage_converter u;
 	unsigned v;
 
-	BUG_ON(!PagePrivate(page));
+	_ON(!PagePrivate(page));
 	u.v = &page_private(page);
 
 	v = atomic_dec_return(u.o);
@@ -204,7 +204,7 @@ static inline void z_erofs_onlinepage_endio(struct page *page)
 		unlock_page(page);
 	}
 
-	debugln("%s, page %p value %x", __func__, page, atomic_read(u.o));
+	deln("%s, page %p value %x", __func__, page, atomic_read(u.o));
 }
 
 #define Z_EROFS_VLE_VMAP_ONSTACK_PAGES	\

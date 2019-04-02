@@ -9,7 +9,7 @@ Rules on what kind of patches are accepted, and which ones are not, into the
  - It must be obviously correct and tested.
  - It cannot be bigger than 100 lines, with context.
  - It must fix only one thing.
- - It must fix a real bug that bothers people (not a, "This could be a
+ - It must fix a real  that bothers people (not a, "This could be a
    problem..." type thing).
  - It must fix a problem that causes a build error (but not for things
    marked CONFIG_BROKEN), an oops, a hang, data corruption, a real
@@ -19,7 +19,7 @@ Rules on what kind of patches are accepted, and which ones are not, into the
    be considered if they fix a notable performance or interactivity issue.
    As these fixes are not as obvious and have a higher risk of a subtle
    regression they should only be submitted by a distribution kernel
-   maintainer and include an addendum linking to a bugzilla entry if it
+   maintainer and include an addendum linking to a zilla entry if it
    exists and additional information on the user-visible impact.
  - New device IDs and quirks are also accepted.
  - No "theoretical race condition" issues, unless an explanation of how the
@@ -43,7 +43,7 @@ Procedure for submitting patches to the -stable tree
    to ensure the requested patch is not already queued up.
  - Security patches should not be handled (solely) by the -stable review
    process but should follow the procedures in
-   :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.
+   :ref:`Documentation/admin-guide/security-s.rst <securitys>`.
 
 For all other submissions, choose one of the following procedures
 -----------------------------------------------------------------

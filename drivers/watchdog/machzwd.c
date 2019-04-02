@@ -140,11 +140,11 @@ static unsigned long next_heartbeat;
 /* number of ticks on WD#1 (driven by a 32KHz clock, 2s) */
 #define ZF_CTIMEOUT 0xffff
 
-#ifndef ZF_DEBUG
+#ifndef ZF_DE
 #define dprintk(format, args...)
 #else
 #define dprintk(format, args...)					\
-	pr_debug(":%s:%d: " format, __func__, __LINE__ , ## args)
+	pr_de(":%s:%d: " format, __func__, __LINE__ , ## args)
 #endif
 
 

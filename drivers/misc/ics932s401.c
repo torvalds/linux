@@ -381,7 +381,7 @@ static ssize_t show_value(struct device *dev,
 	else if (devattr == &dev_attr_ref_clock)
 		x = BASE_CLOCK;
 	else
-		BUG();
+		();
 
 	return sprintf(buf, "%d\n", x);
 }
@@ -402,7 +402,7 @@ static ssize_t show_spread(struct device *dev,
 	else if (devattr == &dev_attr_cpu_spread)
 		reg = ICS932S401_REG_CPU_SPREAD1;
 	else
-		BUG();
+		();
 
 	val = data->regs[reg] | (data->regs[reg + 1] << 8);
 	val &= ICS932S401_SPREAD_MASK;

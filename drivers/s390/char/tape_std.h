@@ -142,7 +142,7 @@ void tape_std_error_recovery_has_failed(struct tape_device *,int error_id);
 void tape_std_error_recovery_succeded(struct tape_device *);
 void tape_std_error_recovery_do_retry(struct tape_device *);
 void tape_std_error_recovery_read_opposite(struct tape_device *);
-void tape_std_error_recovery_HWBUG(struct tape_device *, int condno);
+void tape_std_error_recovery_HW(struct tape_device *, int condno);
 
 /* S390 tape types */
 enum s390_tape_type {

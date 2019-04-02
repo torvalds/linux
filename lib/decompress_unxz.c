@@ -372,7 +372,7 @@ STATIC int INIT unxz(unsigned char *in, long in_size,
 		break;
 
 	default:
-		error("Bug in the XZ decompressor");
+		error(" in the XZ decompressor");
 		break;
 	}
 

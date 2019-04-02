@@ -683,7 +683,7 @@ static int bm_release_bpid(u32 bpid)
 
 	ret = bm_shutdown_pool(bpid);
 	if (ret) {
-		pr_debug("BPID %d leaked\n", bpid);
+		pr_de("BPID %d leaked\n", bpid);
 		return ret;
 	}
 

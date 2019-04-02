@@ -130,14 +130,14 @@ struct fnic_stats {
 	struct misc_stats misc_stats;
 };
 
-struct stats_debug_info {
-	char *debug_buffer;
+struct stats_de_info {
+	char *de_buffer;
 	void *i_private;
 	int buf_size;
 	int buffer_len;
 };
 
-int fnic_get_stats_data(struct stats_debug_info *, struct fnic_stats *);
-void fnic_stats_debugfs_init(struct fnic *);
-void fnic_stats_debugfs_remove(struct fnic *);
+int fnic_get_stats_data(struct stats_de_info *, struct fnic_stats *);
+void fnic_stats_defs_init(struct fnic *);
+void fnic_stats_defs_remove(struct fnic *);
 #endif /* _FNIC_STATS_H_ */

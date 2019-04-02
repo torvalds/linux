@@ -393,7 +393,7 @@ static void rocker_desc_head_set(const struct rocker *rocker,
 {
 	u32 head = __pos_inc(info->head, info->size);
 
-	BUG_ON(head == info->tail);
+	_ON(head == info->tail);
 	rocker_desc_commit(desc_info);
 	info->head = head;
 	rocker_write32(rocker, DMA_DESC_HEAD(info->type), head);
@@ -435,7 +435,7 @@ static int rocker_dma_ring_create(const struct rocker *rocker,
 {
 	int i;
 
-	BUG_ON(size != rocker_dma_ring_size_fix(size));
+	_ON(size != rocker_dma_ring_size_fix(size));
 	info->size = size;
 	info->type = type;
 	info->head = 0;
@@ -480,7 +480,7 @@ static void rocker_dma_ring_pass_to_producer(const struct rocker *rocker,
 {
 	int i;
 
-	BUG_ON(info->head || info->tail);
+	_ON(info->head || info->tail);
 
 	/* When ring is consumer, we need to advance head for each desc.
 	 * That tells hw that the desc is ready to be used by it.

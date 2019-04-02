@@ -86,7 +86,7 @@
 #define L2TP_HDR_SIZE_MAX		14
 
 /* Default trace flags */
-#define L2TP_DEFAULT_DEBUG_FLAGS	0
+#define L2TP_DEFAULT_DE_FLAGS	0
 
 /* Private data stored for received packets in the skb.
  */
@@ -125,7 +125,7 @@ static inline struct l2tp_tunnel *l2tp_tunnel(struct sock *sk)
 
 static inline struct l2tp_net *l2tp_pernet(const struct net *net)
 {
-	BUG_ON(!net);
+	_ON(!net);
 
 	return net_generic(net, l2tp_net_id);
 }
@@ -777,8 +777,8 @@ EXPORT_SYMBOL(l2tp_recv_common);
 static int l2tp_session_queue_purge(struct l2tp_session *session)
 {
 	struct sk_buff *skb = NULL;
-	BUG_ON(!session);
-	BUG_ON(session->magic != L2TP_SESSION_MAGIC);
+	_ON(!session);
+	_ON(session->magic != L2TP_SESSION_MAGIC);
 	while ((skb = skb_dequeue(&session->reorder_q))) {
 		atomic_long_inc(&session->stats.rx_errors);
 		kfree_skb(skb);
@@ -815,12 +815,12 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	}
 
 	/* Trace packet contents, if enabled */
-	if (tunnel->debug & L2TP_MSG_DATA) {
+	if (tunnel->de & L2TP_MSG_DATA) {
 		length = min(32u, skb->len);
 		if (!pskb_may_pull(skb, length))
 			goto error;
 
-		pr_debug("%s: recv\n", tunnel->name);
+		pr_de("%s: recv\n", tunnel->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
 	}
 
@@ -1009,7 +1009,7 @@ static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 	unsigned int len = skb->len;
 	int error;
 
-	/* Debug */
+	/* De */
 	if (session->send_seq)
 		l2tp_dbg(session, L2TP_MSG_DATA, "%s: send %zd bytes, ns=%u\n",
 			 session->name, data_len, session->ns - 1);
@@ -1017,11 +1017,11 @@ static void l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 		l2tp_dbg(session, L2TP_MSG_DATA, "%s: send %zd bytes\n",
 			 session->name, data_len);
 
-	if (session->debug & L2TP_MSG_DATA) {
+	if (session->de & L2TP_MSG_DATA) {
 		int uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
 		unsigned char *datap = skb->data + uhlen;
 
-		pr_debug("%s: xmit\n", session->name);
+		pr_de("%s: xmit\n", session->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
 				     datap, min_t(size_t, 32, len - uhlen));
 	}
@@ -1191,7 +1191,7 @@ static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 	struct hlist_node *tmp;
 	struct l2tp_session *session;
 
-	BUG_ON(tunnel == NULL);
+	_ON(tunnel == NULL);
 
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing all sessions...\n",
 		  tunnel->name);
@@ -1420,7 +1420,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	tunnel->version = version;
 	tunnel->tunnel_id = tunnel_id;
 	tunnel->peer_tunnel_id = peer_tunnel_id;
-	tunnel->debug = L2TP_DEFAULT_DEBUG_FLAGS;
+	tunnel->de = L2TP_DEFAULT_DE_FLAGS;
 
 	tunnel->magic = L2TP_TUNNEL_MAGIC;
 	sprintf(&tunnel->name[0], "tunl %u", tunnel_id);
@@ -1428,7 +1428,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	tunnel->acpt_newsess = true;
 
 	if (cfg != NULL)
-		tunnel->debug = cfg->debug;
+		tunnel->de = cfg->de;
 
 	tunnel->encap = encap;
 
@@ -1563,10 +1563,10 @@ void l2tp_session_free(struct l2tp_session *session)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 
-	BUG_ON(refcount_read(&session->ref_count) != 0);
+	_ON(refcount_read(&session->ref_count) != 0);
 
 	if (tunnel) {
-		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
+		_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
 		l2tp_tunnel_dec_refcount(tunnel);
 	}
 
@@ -1670,12 +1670,12 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		INIT_HLIST_NODE(&session->hlist);
 		INIT_HLIST_NODE(&session->global_hlist);
 
-		/* Inherit debug options from tunnel */
-		session->debug = tunnel->debug;
+		/* Inherit de options from tunnel */
+		session->de = tunnel->de;
 
 		if (cfg) {
 			session->pwtype = cfg->pw_type;
-			session->debug = cfg->debug;
+			session->de = cfg->de;
 			session->send_seq = cfg->send_seq;
 			session->recv_seq = cfg->recv_seq;
 			session->lns_mode = cfg->lns_mode;

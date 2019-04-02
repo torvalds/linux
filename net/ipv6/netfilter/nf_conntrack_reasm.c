@@ -187,7 +187,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 	u8 ecn;
 
 	if (fq->q.flags & INET_FRAG_COMPLETE) {
-		pr_debug("Already completed\n");
+		pr_de("Already completed\n");
 		goto err;
 	}
 
@@ -198,7 +198,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 			((u8 *)(fhdr + 1) - (u8 *)(ipv6_hdr(skb) + 1)));
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
-		pr_debug("offset is too large.\n");
+		pr_de("offset is too large.\n");
 		return -EINVAL;
 	}
 
@@ -218,7 +218,7 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 		 */
 		if (end < fq->q.len ||
 		    ((fq->q.flags & INET_FRAG_LAST_IN) && end != fq->q.len)) {
-			pr_debug("already received last fragment\n");
+			pr_de("already received last fragment\n");
 			goto err;
 		}
 		fq->q.flags |= INET_FRAG_LAST_IN;
@@ -231,14 +231,14 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 			/* RFC2460 says always send parameter problem in
 			 * this case. -DaveM
 			 */
-			pr_debug("end of fragment not rounded to 8 bytes.\n");
+			pr_de("end of fragment not rounded to 8 bytes.\n");
 			inet_frag_kill(&fq->q);
 			return -EPROTO;
 		}
 		if (end > fq->q.len) {
 			/* Some bits beyond end -> corruption. */
 			if (fq->q.flags & INET_FRAG_LAST_IN) {
-				pr_debug("last packet already reached.\n");
+				pr_de("last packet already reached.\n");
 				goto err;
 			}
 			fq->q.len = end;
@@ -250,11 +250,11 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 
 	/* Point into the IP datagram 'data' part. */
 	if (!pskb_pull(skb, (u8 *) (fhdr + 1) - skb->data)) {
-		pr_debug("queue: message is too short.\n");
+		pr_de("queue: message is too short.\n");
 		goto err;
 	}
 	if (pskb_trim_rcsum(skb, end - offset)) {
-		pr_debug("Can't trim\n");
+		pr_de("Can't trim\n");
 		goto err;
 	}
 
@@ -407,15 +407,15 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 			return -1;
 		}
 		if (nexthdr == NEXTHDR_NONE) {
-			pr_debug("next header is none\n");
+			pr_de("next header is none\n");
 			return -1;
 		}
 		if (len < (int)sizeof(struct ipv6_opt_hdr)) {
-			pr_debug("too short\n");
+			pr_de("too short\n");
 			return -1;
 		}
 		if (skb_copy_bits(skb, start, &hdr, sizeof(hdr)))
-			BUG();
+			();
 		if (nexthdr == NEXTHDR_AUTH)
 			hdrlen = (hdr.hdrlen+2)<<2;
 		else
@@ -450,7 +450,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 
 	/* Jumbo payload inhibits frag. header */
 	if (ipv6_hdr(skb)->payload_len == 0) {
-		pr_debug("payload len = 0\n");
+		pr_de("payload len = 0\n");
 		return 0;
 	}
 
@@ -468,7 +468,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 	fq = fq_find(net, fhdr->identification, user, hdr,
 		     skb->dev ? skb->dev->ifindex : 0);
 	if (fq == NULL) {
-		pr_debug("Can't find and can't create new queue\n");
+		pr_de("Can't find and can't create new queue\n");
 		return -ENOMEM;
 	}
 

@@ -92,7 +92,7 @@ parameter is applicable::
 	CLK	Common clock infrastructure is enabled.
 	CMA	Contiguous Memory Area support is enabled.
 	DRM	Direct Rendering Management support is enabled.
-	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
+	DYNAMIC_DE Build in de messages and enable them at runtime
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
@@ -110,7 +110,7 @@ parameter is applicable::
 	ISDN	Appropriate ISDN support is enabled.
 	ISOL	CPU Isolation is enabled.
 	JOY	Appropriate joystick support is enabled.
-	KGDB	Kernel debugger support is enabled.
+	KGDB	Kernel deger support is enabled.
 	KVM	Kernel Virtual Machine support is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
@@ -173,7 +173,7 @@ parameter is applicable::
 
 In addition, the following text indicates that the option::
 
-	BUGS=	Relates to possible processor bugs on the said processor.
+	S=	Relates to possible processor s on the said processor.
 	KNL	Is a kernel start-up parameter.
 	BOOT	Is a boot loader parameter.
 

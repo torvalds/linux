@@ -112,7 +112,7 @@ static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
 	/* new API has more data, from rxfifo_addr field and on */
 	if (fw_has_capa(&fwrt->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
-		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
+		BUILD__ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
 			     sizeof(mem_cfg->internal_txfifo_size));
 
 		fwrt->smem_cfg.internal_txfifo_addr =
@@ -150,7 +150,7 @@ void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
 	else
 		iwl_parse_shared_mem(fwrt, pkt);
 
-	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
+	IWL_DE_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
 
 	iwl_free_resp(&cmd);
 }

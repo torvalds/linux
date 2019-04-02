@@ -846,7 +846,7 @@ int rs690_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* initialize memory controller */
 	rs690_mc_init(rdev);
-	rv515_debugfs(rdev);
+	rv515_defs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

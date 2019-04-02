@@ -354,12 +354,12 @@ static inline struct wusbhc *wusbhc_get_by_usb_dev(struct usb_device *usb_dev)
 		/* but root hubs */
 		dev_err(&usb_dev->dev, "devnum %d wusb %d\n", usb_dev->devnum,
 			usb_dev->wusb);
-		BUG_ON(usb_dev->devnum > 1 && !usb_dev->wusb);
+		_ON(usb_dev->devnum > 1 && !usb_dev->wusb);
 	}
 	usb_hcd = usb_hcd_get_by_usb_dev(usb_dev);
 	if (usb_hcd == NULL)
 		return NULL;
-	BUG_ON(usb_hcd->wireless == 0);
+	_ON(usb_hcd->wireless == 0);
 	return wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 }
 

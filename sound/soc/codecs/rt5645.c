@@ -3125,7 +3125,7 @@ static void rt5645_enable_push_button_irq(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 					RT5650_4BTN_IL_CMD2, 0x8000, 0x8000);
 		snd_soc_component_read32(component, RT5650_4BTN_IL_CMD1);
-		pr_debug("%s read %x = %x\n", __func__, RT5650_4BTN_IL_CMD1,
+		pr_de("%s read %x = %x\n", __func__, RT5650_4BTN_IL_CMD1,
 			snd_soc_component_read32(component, RT5650_4BTN_IL_CMD1));
 	} else {
 		snd_soc_component_update_bits(component, RT5650_4BTN_IL_CMD2, 0x8000, 0x0);
@@ -3220,7 +3220,7 @@ static int rt5645_button_detect(struct snd_soc_component *component)
 	int btn_type, val;
 
 	val = snd_soc_component_read32(component, RT5650_4BTN_IL_CMD1);
-	pr_debug("val=0x%x\n", val);
+	pr_de("val=0x%x\n", val);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5650_4BTN_IL_CMD1, val);
 

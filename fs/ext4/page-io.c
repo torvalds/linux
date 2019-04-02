@@ -125,8 +125,8 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 {
 	struct bio *bio, *next_bio;
 
-	BUG_ON(!list_empty(&io_end->list));
-	BUG_ON(io_end->flag & EXT4_IO_END_UNWRITTEN);
+	_ON(!list_empty(&io_end->list));
+	_ON(io_end->flag & EXT4_IO_END_UNWRITTEN);
 	WARN_ON(io_end->handle);
 
 	for (bio = io_end->bio; bio; bio = next_bio) {
@@ -153,7 +153,7 @@ static int ext4_end_io(ext4_io_end_t *io)
 	handle_t *handle = io->handle;
 	int ret = 0;
 
-	ext4_debug("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
+	ext4_de("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 		   io, inode->i_ino, io->list.next, io->list.prev);
 
@@ -173,14 +173,14 @@ static int ext4_end_io(ext4_io_end_t *io)
 
 static void dump_completed_IO(struct inode *inode, struct list_head *head)
 {
-#ifdef	EXT4FS_DEBUG
+#ifdef	EXT4FS_DE
 	struct list_head *cur, *before, *after;
 	ext4_io_end_t *io, *io0, *io1;
 
 	if (list_empty(head))
 		return;
 
-	ext4_debug("Dump inode %lu completed io list\n", inode->i_ino);
+	ext4_de("Dump inode %lu completed io list\n", inode->i_ino);
 	list_for_each_entry(io, head, list) {
 		cur = &io->list;
 		before = cur->prev;
@@ -188,7 +188,7 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 		after = cur->next;
 		io1 = container_of(after, ext4_io_end_t, list);
 
-		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
+		ext4_de("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
 			    io, inode->i_ino, io0, io1);
 	}
 #endif
@@ -229,7 +229,7 @@ static int ext4_do_flush_completed_IO(struct inode *inode,
 
 	while (!list_empty(&unwritten)) {
 		io = list_entry(unwritten.next, ext4_io_end_t, list);
-		BUG_ON(!(io->flag & EXT4_IO_END_UNWRITTEN));
+		_ON(!(io->flag & EXT4_IO_END_UNWRITTEN));
 		list_del_init(&io->list);
 
 		err = ext4_end_io(io);
@@ -424,8 +424,8 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	int nr_submitted = 0;
 	int nr_to_submit = 0;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(PageWriteback(page));
+	_ON(!PageLocked(page));
+	_ON(PageWriteback(page));
 
 	if (keep_towrite)
 		set_page_writeback_keepwrite(page);

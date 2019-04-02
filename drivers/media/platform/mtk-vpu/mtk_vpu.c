@@ -12,7 +12,7 @@
 * GNU General Public License for more details.
 */
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/iommu.h>
@@ -620,8 +620,8 @@ static void vpu_init_ipi_handler(void *data, unsigned int len, void *priv)
 	wake_up_interruptible(&vpu->run.wq);
 }
 
-#ifdef CONFIG_DEBUG_FS
-static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
+#ifdef CONFIG_DE_FS
+static ssize_t vpu_de_read(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 	char buf[256];
@@ -661,11 +661,11 @@ static ssize_t vpu_debug_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static const struct file_operations vpu_debug_fops = {
+static const struct file_operations vpu_de_fops = {
 	.open = simple_open,
-	.read = vpu_debug_read,
+	.read = vpu_de_read,
 };
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static void vpu_free_ext_mem(struct mtk_vpu *vpu, u8 fw_type)
 {
@@ -770,8 +770,8 @@ static irqreturn_t vpu_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static struct dentry *vpu_debugfs;
+#ifdef CONFIG_DE_FS
+static struct dentry *vpu_defs;
 #endif
 static int mtk_vpu_probe(struct platform_device *pdev)
 {
@@ -843,10 +843,10 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 		goto vpu_mutex_destroy;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	vpu_debugfs = debugfs_create_file("mtk_vpu", S_IRUGO, NULL, (void *)dev,
-					  &vpu_debug_fops);
-	if (!vpu_debugfs) {
+#ifdef CONFIG_DE_FS
+	vpu_defs = defs_create_file("mtk_vpu", S_IRUGO, NULL, (void *)dev,
+					  &vpu_de_fops);
+	if (!vpu_defs) {
 		ret = -ENOMEM;
 		goto cleanup_ipi;
 	}
@@ -868,7 +868,7 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	ret = vpu_alloc_ext_mem(vpu, D_FW);
 	if (ret) {
 		dev_err(dev, "Allocate DM failed\n");
-		goto remove_debugfs;
+		goto remove_defs;
 	}
 
 	ret = vpu_alloc_ext_mem(vpu, P_FW);
@@ -903,10 +903,10 @@ free_p_mem:
 	vpu_free_ext_mem(vpu, P_FW);
 free_d_mem:
 	vpu_free_ext_mem(vpu, D_FW);
-remove_debugfs:
+remove_defs:
 	of_reserved_mem_device_release(dev);
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove(vpu_debugfs);
+#ifdef CONFIG_DE_FS
+	defs_remove(vpu_defs);
 cleanup_ipi:
 #endif
 	memset(vpu->ipi_desc, 0, sizeof(struct vpu_ipi_desc) * IPI_MAX);
@@ -932,8 +932,8 @@ static int mtk_vpu_remove(struct platform_device *pdev)
 {
 	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove(vpu_debugfs);
+#ifdef CONFIG_DE_FS
+	defs_remove(vpu_defs);
 #endif
 	if (vpu->wdt.wq) {
 		flush_workqueue(vpu->wdt.wq);

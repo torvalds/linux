@@ -150,7 +150,7 @@
  * Events can be squirted out of the UART (using LOG_CTRL) without a
  * MCDI header.  An event can be distinguished from a MCDI response by
  * examining the first byte which is 0xc0.  This corresponds to the
- * non-existent MCDI command MC_CMD_DEBUG_LOG.
+ * non-existent MCDI command MC_CMD_DE_LOG.
  *
  *      0         7        8
  *     | command | Resync |     = 0xc0
@@ -273,7 +273,7 @@
 #define MC_CMD_ERR_NO_PRIVILEGE 0x1013
 /* Workaround 26807 could not be turned on/off because some functions
  * have already installed filters. See the comment at
- * MC_CMD_WORKAROUND_BUG26807.
+ * MC_CMD_WORKAROUND_26807.
  * May also returned for other operations such as sub-variant switching. */
 #define MC_CMD_ERR_FILTERS_PRESENT 0x1014
 /* The clock whose frequency you've attempted to set set
@@ -1345,8 +1345,8 @@
 #define          MC_CMD_PTP_OP_MANFTEST_PACKET 0x9
 /* enum: Reset some of the PTP related statistics */
 #define          MC_CMD_PTP_OP_RESET_STATS 0xa
-/* enum: Debug operations to MC. */
-#define          MC_CMD_PTP_OP_DEBUG 0xb
+/* enum: De operations to MC. */
+#define          MC_CMD_PTP_OP_DE 0xb
 /* enum: Read an FPGA register. Siena PTP adapters only. */
 #define          MC_CMD_PTP_OP_FPGAREAD 0xc
 /* enum: Write an FPGA register. Siena PTP adapters only. */
@@ -1578,15 +1578,15 @@
 /*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
 /*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
 
-/* MC_CMD_PTP_IN_DEBUG msgrequest */
-#define    MC_CMD_PTP_IN_DEBUG_LEN 12
+/* MC_CMD_PTP_IN_DE msgrequest */
+#define    MC_CMD_PTP_IN_DE_LEN 12
 /*            MC_CMD_PTP_IN_CMD_OFST 0 */
 /*            MC_CMD_PTP_IN_CMD_LEN 4 */
 /*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
 /*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Debug operations */
-#define       MC_CMD_PTP_IN_DEBUG_DEBUG_PARAM_OFST 8
-#define       MC_CMD_PTP_IN_DEBUG_DEBUG_PARAM_LEN 4
+/* De operations */
+#define       MC_CMD_PTP_IN_DE_DE_PARAM_OFST 8
+#define       MC_CMD_PTP_IN_DE_DE_PARAM_LEN 4
 
 /* MC_CMD_PTP_IN_FPGAREAD msgrequest */
 #define    MC_CMD_PTP_IN_FPGAREAD_LEN 16
@@ -2212,7 +2212,7 @@
 /* HP OCSD sub-command. When address is not NULL, request activation of OCSD at
  * the specified address with the specified interval.When address is NULL,
  * INTERVAL is interpreted as a command: 0: stop OCSD / 1: Report OCSD current
- * state / 2: (debug) Show temperature reported by one of the supported
+ * state / 2: (de) Show temperature reported by one of the supported
  * sensors.
  */
 #define       MC_CMD_HP_IN_SUBCMD_OFST 0
@@ -2736,7 +2736,7 @@
 /* enum: Prefer to use firmware with additional DPDK support */
 #define          MC_CMD_FW_DPDK 0x6
 /* enum: Prefer to use "l3xudp" custom datapath firmware (see SF-119495-PD and
- * bug69716)
+ * 69716)
  */
 #define          MC_CMD_FW_L3XUDP 0x7
 /* enum: Only this option is allowed for non-admin functions */
@@ -3830,7 +3830,7 @@
 /* MC_CMD_SET_MAC_IN msgrequest */
 #define    MC_CMD_SET_MAC_IN_LEN 28
 /* The MTU is the MTU programmed directly into the XMAC/GMAC (inclusive of
- * EtherII, VLAN, bug16011 padding).
+ * EtherII, VLAN, 16011 padding).
  */
 #define       MC_CMD_SET_MAC_IN_MTU_OFST 0
 #define       MC_CMD_SET_MAC_IN_MTU_LEN 4
@@ -3868,7 +3868,7 @@
 /* MC_CMD_SET_MAC_EXT_IN msgrequest */
 #define    MC_CMD_SET_MAC_EXT_IN_LEN 32
 /* The MTU is the MTU programmed directly into the XMAC/GMAC (inclusive of
- * EtherII, VLAN, bug16011 padding).
+ * EtherII, VLAN, 16011 padding).
  */
 #define       MC_CMD_SET_MAC_EXT_IN_MTU_OFST 0
 #define       MC_CMD_SET_MAC_EXT_IN_MTU_LEN 4
@@ -5622,30 +5622,30 @@
 /* The enums here must correspond with those in MC_CMD_GET_WORKAROUND. */
 #define       MC_CMD_WORKAROUND_IN_TYPE_OFST 0
 #define       MC_CMD_WORKAROUND_IN_TYPE_LEN 4
-/* enum: Bug 17230 work around. */
-#define          MC_CMD_WORKAROUND_BUG17230 0x1
-/* enum: Bug 35388 work around (unsafe EVQ writes). */
-#define          MC_CMD_WORKAROUND_BUG35388 0x2
-/* enum: Bug35017 workaround (A64 tables must be identity map) */
-#define          MC_CMD_WORKAROUND_BUG35017 0x3
-/* enum: Bug 41750 present (MC_CMD_TRIGGER_INTERRUPT won't work) */
-#define          MC_CMD_WORKAROUND_BUG41750 0x4
-/* enum: Bug 42008 present (Interrupts can overtake associated events). Caution
+/* enum:  17230 work around. */
+#define          MC_CMD_WORKAROUND_17230 0x1
+/* enum:  35388 work around (unsafe EVQ writes). */
+#define          MC_CMD_WORKAROUND_35388 0x2
+/* enum: 35017 workaround (A64 tables must be identity map) */
+#define          MC_CMD_WORKAROUND_35017 0x3
+/* enum:  41750 present (MC_CMD_TRIGGER_INTERRUPT won't work) */
+#define          MC_CMD_WORKAROUND_41750 0x4
+/* enum:  42008 present (Interrupts can overtake associated events). Caution
  * - before adding code that queries this workaround, remember that there's
- * released Monza firmware that doesn't understand MC_CMD_WORKAROUND_BUG42008,
- * and will hence (incorrectly) report that the bug doesn't exist.
+ * released Monza firmware that doesn't understand MC_CMD_WORKAROUND_42008,
+ * and will hence (incorrectly) report that the  doesn't exist.
  */
-#define          MC_CMD_WORKAROUND_BUG42008 0x5
-/* enum: Bug 26807 features present in firmware (multicast filter chaining)
+#define          MC_CMD_WORKAROUND_42008 0x5
+/* enum:  26807 features present in firmware (multicast filter chaining)
  * This feature cannot be turned on/off while there are any filters already
  * present. The behaviour in such case depends on the acting client's privilege
  * level. If the client has the admin privilege, then all functions that have
  * filters installed will be FLRed and the FLR_DONE flag will be set. Otherwise
  * the command will fail with MC_CMD_ERR_FILTERS_PRESENT.
  */
-#define          MC_CMD_WORKAROUND_BUG26807 0x6
-/* enum: Bug 61265 work around (broken EVQ TMR writes). */
-#define          MC_CMD_WORKAROUND_BUG61265 0x7
+#define          MC_CMD_WORKAROUND_26807 0x6
+/* enum:  61265 work around (broken EVQ TMR writes). */
+#define          MC_CMD_WORKAROUND_61265 0x7
 /* 0 = disable the workaround indicated by TYPE; any non-zero value = enable
  * the workaround
  */
@@ -5656,7 +5656,7 @@
 #define    MC_CMD_WORKAROUND_OUT_LEN 0
 
 /* MC_CMD_WORKAROUND_EXT_OUT msgresponse: This response format will be used
- * when (TYPE == MC_CMD_WORKAROUND_BUG26807)
+ * when (TYPE == MC_CMD_WORKAROUND_26807)
  */
 #define    MC_CMD_WORKAROUND_EXT_OUT_LEN 4
 #define       MC_CMD_WORKAROUND_EXT_OUT_FLAGS_OFST 0
@@ -6150,7 +6150,7 @@
 /*            MC_CMD_MUM_IN_CMD_LEN 4 */
 /*            MC_CMD_MUM_IN_LOG_OP_OFST 4 */
 /*            MC_CMD_MUM_IN_LOG_OP_LEN 4 */
-/* Enable/disable debug output to UART */
+/* Enable/disable de output to UART */
 #define       MC_CMD_MUM_IN_LOG_OP_UART_ENABLE_OFST 8
 #define       MC_CMD_MUM_IN_LOG_OP_UART_ENABLE_LEN 4
 
@@ -8804,8 +8804,8 @@
 
 /***********************************/
 /* MC_CMD_PARSER_DISP_RW
- * Direct read/write of parser-dispatcher state (DICPUs and LUE) for debugging.
- * Please note that this interface is only of use to debug tools which have
+ * Direct read/write of parser-dispatcher state (DICPUs and LUE) for deging.
+ * Please note that this interface is only of use to de tools which have
  * knowledge of firmware and hardware data structures; nothing here is intended
  * for use by normal driver code. Note that although this command is in the
  * Admin privilege group, in tamperproof adapters, only read operations are
@@ -8884,7 +8884,7 @@
 #define       MC_CMD_PARSER_DISP_RW_OUT_LUE_READ_VALUE_OFST 0
 #define       MC_CMD_PARSER_DISP_RW_OUT_LUE_READ_VALUE_LEN 20
 /* up to 8 32-bit words of additional soft state from the LUE manager (the
- * exact content is firmware-dependent and intended only for debug use)
+ * exact content is firmware-dependent and intended only for de use)
  */
 #define       MC_CMD_PARSER_DISP_RW_OUT_LUE_MGR_STATE_OFST 20
 #define       MC_CMD_PARSER_DISP_RW_OUT_LUE_MGR_STATE_LEN 32
@@ -9750,7 +9750,7 @@
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_DPDK 0xa
@@ -9793,7 +9793,7 @@
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_DPDK 0xa
@@ -9964,7 +9964,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_DPDK 0xa
@@ -10007,7 +10007,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_DPDK 0xa
@@ -10283,7 +10283,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_DPDK 0xa
@@ -10326,7 +10326,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_DPDK 0xa
@@ -10627,7 +10627,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_DPDK 0xa
@@ -10670,7 +10670,7 @@
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_LAYER2_PERF 0x7
 /* enum: Rules engine TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_RULES_ENGINE 0x8
-/* enum: Custom firmware variant (see SF-119495-PD and bug69716) */
+/* enum: Custom firmware variant (see SF-119495-PD and 69716) */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_L3XUDP 0x9
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_DPDK 0xa
@@ -11991,7 +11991,7 @@
 
 /***********************************/
 /* MC_CMD_DUMP_BUFTBL_ENTRIES
- * Dump buffer table entries, mainly for command client debug use. Dumps
+ * Dump buffer table entries, mainly for command client de use. Dumps
  * absolute entries, and does not use chunk handles. All entries must be in
  * range, and used for q page mapping, Although the latter restriction may be
  * lifted in future.
@@ -14202,24 +14202,24 @@
 #define       MC_CMD_GET_WORKAROUNDS_OUT_IMPLEMENTED_LEN 4
 #define       MC_CMD_GET_WORKAROUNDS_OUT_ENABLED_OFST 4
 #define       MC_CMD_GET_WORKAROUNDS_OUT_ENABLED_LEN 4
-/* enum: Bug 17230 work around. */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG17230 0x2
-/* enum: Bug 35388 work around (unsafe EVQ writes). */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG35388 0x4
-/* enum: Bug35017 workaround (A64 tables must be identity map) */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG35017 0x8
-/* enum: Bug 41750 present (MC_CMD_TRIGGER_INTERRUPT won't work) */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG41750 0x10
-/* enum: Bug 42008 present (Interrupts can overtake associated events). Caution
+/* enum:  17230 work around. */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_17230 0x2
+/* enum:  35388 work around (unsafe EVQ writes). */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_35388 0x4
+/* enum: 35017 workaround (A64 tables must be identity map) */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_35017 0x8
+/* enum:  41750 present (MC_CMD_TRIGGER_INTERRUPT won't work) */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_41750 0x10
+/* enum:  42008 present (Interrupts can overtake associated events). Caution
  * - before adding code that queries this workaround, remember that there's
- * released Monza firmware that doesn't understand MC_CMD_WORKAROUND_BUG42008,
- * and will hence (incorrectly) report that the bug doesn't exist.
+ * released Monza firmware that doesn't understand MC_CMD_WORKAROUND_42008,
+ * and will hence (incorrectly) report that the  doesn't exist.
  */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG42008 0x20
-/* enum: Bug 26807 features present in firmware (multicast filter chaining) */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 0x40
-/* enum: Bug 61265 work around (broken EVQ TMR writes). */
-#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG61265 0x80
+#define          MC_CMD_GET_WORKAROUNDS_OUT_42008 0x20
+/* enum:  26807 features present in firmware (multicast filter chaining) */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_26807 0x40
+/* enum:  61265 work around (broken EVQ TMR writes). */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_61265 0x80
 
 
 /***********************************/
@@ -14977,27 +14977,27 @@
  */
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS_OFST 20
 #define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS_LEN 4
-/* For timers updated using the bug35388 workaround, this is the time interval
+/* For timers updated using the 35388 workaround, this is the time interval
  * (in nanoseconds) for each increment of the timer load/reload count. The
  * requested duration of a timer is this value multiplied by the timer
- * load/reload count. This field is only meaningful if the bug35388 workaround
+ * load/reload count. This field is only meaningful if the 35388 workaround
  * is enabled.
  */
-#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_NS_PER_COUNT_OFST 24
-#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_NS_PER_COUNT_LEN 4
-/* For timers updated using the bug35388 workaround, this is the maximum value
+#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_NS_PER_COUNT_OFST 24
+#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_NS_PER_COUNT_LEN 4
+/* For timers updated using the 35388 workaround, this is the maximum value
  * allowed for timer load/reload counts. This field is only meaningful if the
- * bug35388 workaround is enabled.
+ * 35388 workaround is enabled.
  */
-#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT_OFST 28
-#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT_LEN 4
-/* For timers updated using the bug35388 workaround, timer load/reload counts
+#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_MAX_COUNT_OFST 28
+#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_MAX_COUNT_LEN 4
+/* For timers updated using the 35388 workaround, timer load/reload counts
  * not a multiple of this step size will be rounded in an implementation
- * defined manner. This field is only meaningful if the bug35388 workaround is
+ * defined manner. This field is only meaningful if the 35388 workaround is
  * enabled.
  */
-#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_STEP_OFST 32
-#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_STEP_LEN 4
+#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_STEP_OFST 32
+#define       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_STEP_LEN 4
 
 
 /***********************************/

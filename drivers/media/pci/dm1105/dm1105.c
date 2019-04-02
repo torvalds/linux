@@ -194,9 +194,9 @@ static unsigned int card[]  = {[0 ... 3] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-static int ir_debug;
-module_param(ir_debug, int, 0644);
-MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
+static int ir_de;
+module_param(ir_de, int, 0644);
+MODULE_PARM_DESC(ir_de, "enable deging information for IR decoding");
 
 static unsigned int dm1105_devcount;
 
@@ -669,7 +669,7 @@ static void dm1105_emit_key(struct work_struct *work)
 	u32 ircom = ir->ir_command;
 	u8 data;
 
-	if (ir_debug)
+	if (ir_de)
 		printk(KERN_INFO "%s: received byte 0x%04x\n", __func__, ircom);
 
 	data = (ircom >> 8) & 0x7f;

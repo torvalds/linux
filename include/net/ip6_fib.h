@@ -29,10 +29,10 @@
 #define FIB6_TABLE_HASHSZ 1
 #endif
 
-#define RT6_DEBUG 2
+#define RT6_DE 2
 
-#if RT6_DEBUG >= 3
-#define RT6_TRACE(x...) pr_debug(x)
+#if RT6_DE >= 3
+#define RT6_TRACE(x...) pr_de(x)
 #else
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
@@ -272,7 +272,7 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	/* dst_release() accepts a NULL parameter.
 	 * We rely on dst being first structure in struct rt6_info
 	 */
-	BUILD_BUG_ON(offsetof(struct rt6_info, dst) != 0);
+	BUILD__ON(offsetof(struct rt6_info, dst) != 0);
 	dst_release(&rt->dst);
 }
 

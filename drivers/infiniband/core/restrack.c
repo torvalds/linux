@@ -71,7 +71,7 @@ void rdma_restrack_clean(struct ib_device *dev)
 
 			if (!found) {
 				pr_err("restrack: %s", CUT_HERE);
-				dev_err(&dev->dev, "BUG: RESTRACK detected leak of resources\n");
+				dev_err(&dev->dev, ": RESTRACK detected leak of resources\n");
 			}
 			xa_for_each(xa, index, e) {
 				if (rdma_is_kernel_res(e)) {

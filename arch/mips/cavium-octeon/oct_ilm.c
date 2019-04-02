@@ -3,7 +3,7 @@
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-ciu-defs.h>
 #include <asm/octeon/cvmx.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -63,11 +63,11 @@ static int reset_statistics(void *data, u64 value)
 
 DEFINE_SIMPLE_ATTRIBUTE(reset_statistics_ops, NULL, reset_statistics, "%llu\n");
 
-static void init_debugfs(void)
+static void init_defs(void)
 {
-	dir = debugfs_create_dir("oct_ilm", 0);
-	debugfs_create_file("statistics", 0222, dir, NULL, &oct_ilm_ops);
-	debugfs_create_file("reset", 0222, dir, NULL, &reset_statistics_ops);
+	dir = defs_create_dir("oct_ilm", 0);
+	defs_create_file("statistics", 0222, dir, NULL, &oct_ilm_ops);
+	defs_create_file("reset", 0222, dir, NULL, &reset_statistics_ops);
 }
 
 static void init_latency_info(struct latency_info *li, int startup)
@@ -149,7 +149,7 @@ static __init int oct_ilm_module_init(void)
 	int rc;
 	int irq = OCTEON_IRQ_TIMER0 + TIMER_NUM;
 
-	init_debugfs();
+	init_defs();
 
 	rc = request_irq(irq, cvm_oct_ciu_timer_interrupt, IRQF_NO_THREAD,
 			 "oct_ilm", 0);
@@ -163,14 +163,14 @@ static __init int oct_ilm_module_init(void)
 
 	return 0;
 err_irq:
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 	return rc;
 }
 
 static __exit void oct_ilm_module_exit(void)
 {
 	disable_timer(TIMER_NUM);
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 	free_irq(OCTEON_IRQ_TIMER0 + TIMER_NUM, 0);
 }
 

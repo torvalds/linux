@@ -650,23 +650,23 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	int nr_irqs, i;
 	u32 control;
 
-	BUG_ON(of_address_to_resource(node, 0, &main_int_res));
-	BUG_ON(of_address_to_resource(node, 1, &per_cpu_int_res));
+	_ON(of_address_to_resource(node, 0, &main_int_res));
+	_ON(of_address_to_resource(node, 1, &per_cpu_int_res));
 
-	BUG_ON(!request_mem_region(main_int_res.start,
+	_ON(!request_mem_region(main_int_res.start,
 				   resource_size(&main_int_res),
 				   node->full_name));
-	BUG_ON(!request_mem_region(per_cpu_int_res.start,
+	_ON(!request_mem_region(per_cpu_int_res.start,
 				   resource_size(&per_cpu_int_res),
 				   node->full_name));
 
 	main_int_base = ioremap(main_int_res.start,
 				resource_size(&main_int_res));
-	BUG_ON(!main_int_base);
+	_ON(!main_int_base);
 
 	per_cpu_int_base = ioremap(per_cpu_int_res.start,
 				   resource_size(&per_cpu_int_res));
-	BUG_ON(!per_cpu_int_base);
+	_ON(!per_cpu_int_base);
 
 	control = readl(main_int_base + ARMADA_370_XP_INT_CONTROL);
 	nr_irqs = (control >> 2) & 0x3ff;
@@ -677,7 +677,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	armada_370_xp_mpic_domain =
 		irq_domain_add_linear(node, nr_irqs,
 				&armada_370_xp_mpic_irq_ops, NULL);
-	BUG_ON(!armada_370_xp_mpic_domain);
+	_ON(!armada_370_xp_mpic_domain);
 	irq_domain_update_bus_token(armada_370_xp_mpic_domain, DOMAIN_BUS_WIRED);
 
 	/* Setup for the boot CPU */

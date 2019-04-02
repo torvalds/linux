@@ -64,7 +64,7 @@
 #include <sound/initval.h>
 
 #if 0
-#define POINTER_DEBUG
+#define POINTER_DE
 #endif
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -813,7 +813,7 @@ static inline unsigned int calc_linear_pos(struct via82xx *chip,
 				res = base;
 		}
 		if (check_invalid_pos(viadev, res)) {
-#ifdef POINTER_DEBUG
+#ifdef POINTER_DE
 			dev_dbg(chip->card->dev,
 				"fail: idx = %i/%i, lastpos = 0x%x, bufsize2 = 0x%x, offsize = 0x%x, size = 0x%x, count = 0x%x\n",
 				idx, viadev->tbl_entries,
@@ -842,7 +842,7 @@ static snd_pcm_uframes_t snd_via686_pcm_pointer(struct snd_pcm_substream *substr
 	struct viadev *viadev = substream->runtime->private_data;
 	unsigned int idx, ptr, count, res;
 
-	if (snd_BUG_ON(!viadev->tbl_entries))
+	if (snd__ON(!viadev->tbl_entries))
 		return 0;
 	if (!(inb(VIADEV_REG(viadev, OFFSET_STATUS)) & VIA_REG_STAT_ACTIVE))
 		return 0;
@@ -874,7 +874,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	unsigned int idx, count, res;
 	int status;
 	
-	if (snd_BUG_ON(!viadev->tbl_entries))
+	if (snd__ON(!viadev->tbl_entries))
 		return 0;
 
 	spin_lock(&chip->reg_lock);
@@ -883,7 +883,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	if (!status)
 		status = inb(VIADEV_REG(viadev, OFFSET_STATUS));
 
-	/* An apparent bug in the 8251 is worked around by sending a 
+	/* An apparent  in the 8251 is worked around by sending a 
 	 * REG_CTRL_START. */
 	if (chip->revision == VIA_REV_8251 && (status & VIA_REG_STAT_EOL))
 		snd_via82xx_pcm_trigger(substream, SNDRV_PCM_TRIGGER_START);
@@ -895,7 +895,7 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	if (count & 0xffffff) {
 		idx = count >> 24;
 		if (idx >= viadev->tbl_entries) {
-#ifdef POINTER_DEBUG
+#ifdef POINTER_DE
 			dev_dbg(chip->card->dev,
 				"fail: invalid idx = %i/%i\n", idx,
 			       viadev->tbl_entries);
@@ -1058,7 +1058,7 @@ static int snd_via8233_playback_prepare(struct snd_pcm_substream *substream)
 	else
 		rbits = (0x100000 / 48000) * runtime->rate +
 			((0x100000 % 48000) * runtime->rate) / 48000;
-	snd_BUG_ON(rbits & ~0xfffff);
+	snd__ON(rbits & ~0xfffff);
 	snd_via82xx_channel_reset(chip, viadev);
 	snd_via82xx_set_table_ptr(chip, viadev);
 	outb(chip->playback_volume[viadev->reg_offset / 0x10][0],
@@ -1886,7 +1886,7 @@ static const struct ac97_quirk ac97_quirks[] = {
 		.subvendor = 0x161f,
 		.subdevice = 0x2032,
 		.name = "m680x",
-		.type = AC97_TUNE_HP_ONLY, /* http://launchpad.net/bugs/38546 */
+		.type = AC97_TUNE_HP_ONLY, /* http://launchpad.net/s/38546 */
 	},
 	{
 		.subvendor = 0x1297,
@@ -2237,7 +2237,7 @@ static int snd_via82xx_chip_init(struct via82xx *chip)
 	}
 
 	if (chip->chip_type != TYPE_VIA686) {
-		/* Workaround for Award BIOS bug:
+		/* Workaround for Award BIOS :
 		 * DXS channels don't work properly with VRA if MC97 is disabled.
 		 */
 		struct pci_dev *pci;

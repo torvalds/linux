@@ -116,7 +116,7 @@ int dns_query(const char *type, const char *name, size_t namelen,
 
 	if (!options)
 		options = "";
-	kdebug("call request_key(,%s,%s)", desc, options);
+	kde("call request_key(,%s,%s)", desc, options);
 
 	/* make the upcall, using special credentials to prevent the use of
 	 * add_key() to preinstall malicious redirections

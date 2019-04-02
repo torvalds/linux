@@ -3,7 +3,7 @@
 #include <sys/ioctl.h>
 #include <linux/hw_breakpoint.h>
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "cloexec.h"
 
 #define WP_TEST_ASSERT_VAL(fd, text, val)       \
@@ -21,7 +21,7 @@ static int wp_read(int fd, long long *count, int size)
 	int ret = read(fd, count, size);
 
 	if (ret != size) {
-		pr_debug("failed to read: %d\n", ret);
+		pr_de("failed to read: %d\n", ret);
 		return -1;
 	}
 	return 0;
@@ -52,7 +52,7 @@ static int __event(int wp_type, void *wp_addr, unsigned long wp_len)
 	fd = sys_perf_event_open(&attr, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 	if (fd < 0)
-		pr_debug("failed opening event %x\n", attr.bp_type);
+		pr_de("failed opening event %x\n", attr.bp_type);
 
 	return fd;
 }
@@ -134,7 +134,7 @@ static int wp_modify_test(void)
 	new_attr.disabled = 1;
 	ret = ioctl(fd, PERF_EVENT_IOC_MODIFY_ATTRIBUTES, &new_attr);
 	if (ret < 0) {
-		pr_debug("ioctl(PERF_EVENT_IOC_MODIFY_ATTRIBUTES) failed\n");
+		pr_de("ioctl(PERF_EVENT_IOC_MODIFY_ATTRIBUTES) failed\n");
 		close(fd);
 		return ret;
 	}
@@ -145,7 +145,7 @@ static int wp_modify_test(void)
 	/* Enable the event */
 	ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 	if (ret < 0) {
-		pr_debug("Failed to enable event\n");
+		pr_de("Failed to enable event\n");
 		close(fd);
 		return ret;
 	}
@@ -172,7 +172,7 @@ static bool wp_ro_supported(void)
 static void wp_ro_skip_msg(void)
 {
 #if defined (__x86_64__) || defined (__i386__)
-	pr_debug("Hardware does not support read only watchpoints.\n");
+	pr_de("Hardware does not support read only watchpoints.\n");
 #endif
 }
 

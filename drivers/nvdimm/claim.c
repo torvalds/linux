@@ -244,9 +244,9 @@ u64 nd_sb_checksum(struct nd_gen_sb *nd_gen_sb)
 	u64 sum;
 	__le64 sum_save;
 
-	BUILD_BUG_ON(sizeof(struct btt_sb) != SZ_4K);
-	BUILD_BUG_ON(sizeof(struct nd_pfn_sb) != SZ_4K);
-	BUILD_BUG_ON(sizeof(struct nd_gen_sb) != SZ_4K);
+	BUILD__ON(sizeof(struct btt_sb) != SZ_4K);
+	BUILD__ON(sizeof(struct nd_pfn_sb) != SZ_4K);
+	BUILD__ON(sizeof(struct nd_gen_sb) != SZ_4K);
 
 	sum_save = nd_gen_sb->checksum;
 	nd_gen_sb->checksum = 0;

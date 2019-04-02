@@ -290,7 +290,7 @@ static void snd_cs4231_dout(struct snd_cs4231 *chip, unsigned char reg,
 			    unsigned char value)
 {
 	snd_cs4231_ready(chip);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
 		snd_printdd("out: auto calibration time out - reg = 0x%x, "
 			    "value = 0x%x\n",
@@ -323,7 +323,7 @@ static void snd_cs4231_out(struct snd_cs4231 *chip, unsigned char reg,
 static unsigned char snd_cs4231_in(struct snd_cs4231 *chip, unsigned char reg)
 {
 	snd_cs4231_ready(chip);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
 		snd_printdd("in: auto calibration time out - reg = 0x%x\n",
 			    reg);
@@ -361,7 +361,7 @@ static void snd_cs4231_mce_up(struct snd_cs4231 *chip)
 
 	spin_lock_irqsave(&chip->lock, flags);
 	snd_cs4231_ready(chip);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
 		snd_printdd("mce_up - auto calibration time out (0)\n");
 #endif
@@ -384,7 +384,7 @@ static void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 
 	snd_cs4231_busy_wait(chip);
 	spin_lock_irqsave(&chip->lock, flags);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
 		snd_printdd("mce_down [%p] - auto calibration time out (0)\n",
 			    CS4231U(chip, REGSEL));
@@ -709,7 +709,7 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 
 	snd_cs4231_mce_down(chip);
 
-#ifdef SNDRV_DEBUG_MCE
+#ifdef SNDRV_DE_MCE
 	snd_printdd("init: (1)\n");
 #endif
 	snd_cs4231_mce_up(chip);
@@ -724,7 +724,7 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 	snd_cs4231_mce_down(chip);
 
-#ifdef SNDRV_DEBUG_MCE
+#ifdef SNDRV_DE_MCE
 	snd_printdd("init: (2)\n");
 #endif
 
@@ -735,7 +735,7 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 	snd_cs4231_mce_down(chip);
 
-#ifdef SNDRV_DEBUG_MCE
+#ifdef SNDRV_DE_MCE
 	snd_printdd("init: (3) - afei = 0x%x\n",
 		    chip->image[CS4231_ALT_FEATURE_1]);
 #endif
@@ -752,7 +752,7 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 	snd_cs4231_mce_down(chip);
 
-#ifdef SNDRV_DEBUG_MCE
+#ifdef SNDRV_DE_MCE
 	snd_printdd("init: (4)\n");
 #endif
 
@@ -762,7 +762,7 @@ static void snd_cs4231_init(struct snd_cs4231 *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 	snd_cs4231_mce_down(chip);
 
-#ifdef SNDRV_DEBUG_MCE
+#ifdef SNDRV_DE_MCE
 	snd_printdd("init: (5)\n");
 #endif
 }
@@ -1537,7 +1537,7 @@ static int snd_cs4231_mixer(struct snd_card *card)
 	struct snd_cs4231 *chip = card->private_data;
 	int err, idx;
 
-	if (snd_BUG_ON(!chip || !chip->pcm))
+	if (snd__ON(!chip || !chip->pcm))
 		return -EINVAL;
 
 	strcpy(card->mixername, chip->pcm->name);

@@ -103,7 +103,7 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 		offset += 4;
 	}
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: max_x: %d max_y: %d\n", __func__,
+	rmi_dbg(RMI_DE_FN, &fn->dev, "%s: max_x: %d max_y: %d\n", __func__,
 		sensor->max_x, sensor->max_y);
 
 	if (rmi_register_desc_has_subpacket(item, 1)) {
@@ -114,7 +114,7 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 
 	if (rmi_register_desc_has_subpacket(item, 2)) {
 		/* Units 1/128 sensor pitch */
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+		rmi_dbg(RMI_DE_FN, &fn->dev,
 			"%s: Inactive Border xlo:%d xhi:%d ylo:%d yhi:%d\n",
 			__func__,
 			buf[offset], buf[offset + 1],
@@ -137,7 +137,7 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	sensor->x_mm = (pitch_x * rx_receivers) >> 12;
 	sensor->y_mm = (pitch_y * tx_receivers) >> 12;
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: x_mm: %d y_mm: %d\n", __func__,
+	rmi_dbg(RMI_DE_FN, &fn->dev, "%s: x_mm: %d y_mm: %d\n", __func__,
 		sensor->x_mm, sensor->y_mm);
 
 	return 0;
@@ -321,7 +321,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	u16 data_offset = 0;
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s\n", __func__);
+	rmi_dbg(RMI_DE_FN, &fn->dev, "%s\n", __func__);
 
 	ret = rmi_read(fn->rmi_dev, query_addr, &buf);
 	if (ret < 0) {
@@ -397,7 +397,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 		sensor->sensor_type =
 			f12->sensor_pdata.sensor_type;
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: data packet size: %d\n", __func__,
+	rmi_dbg(RMI_DE_FN, &fn->dev, "%s: data packet size: %d\n", __func__,
 		sensor->pkt_size);
 	sensor->data_pkt = devm_kzalloc(&fn->dev, sensor->pkt_size, GFP_KERNEL);
 	if (!sensor->data_pkt)

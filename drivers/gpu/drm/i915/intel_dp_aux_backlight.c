@@ -34,7 +34,7 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_EDP_DISPLAY_CONTROL_REGISTER,
 			      &reg_val) < 0) {
-		DRM_DEBUG_KMS("Failed to read DPCD register 0x%x\n",
+		DRM_DE_KMS("Failed to read DPCD register 0x%x\n",
 			      DP_EDP_DISPLAY_CONTROL_REGISTER);
 		return;
 	}
@@ -45,7 +45,7 @@ static void set_aux_backlight_enable(struct intel_dp *intel_dp, bool enable)
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_EDP_DISPLAY_CONTROL_REGISTER,
 			       reg_val) != 1) {
-		DRM_DEBUG_KMS("Failed to %s aux backlight\n",
+		DRM_DE_KMS("Failed to %s aux backlight\n",
 			      enable ? "enable" : "disable");
 	}
 }
@@ -62,7 +62,7 @@ static u32 intel_dp_aux_get_backlight(struct intel_connector *connector)
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
 			     &read_val, sizeof(read_val)) < 0) {
-		DRM_DEBUG_KMS("Failed to read DPCD register 0x%x\n",
+		DRM_DE_KMS("Failed to read DPCD register 0x%x\n",
 			      DP_EDP_BACKLIGHT_BRIGHTNESS_MSB);
 		return 0;
 	}
@@ -93,7 +93,7 @@ intel_dp_aux_set_backlight(const struct drm_connector_state *conn_state, u32 lev
 	}
 	if (drm_dp_dpcd_write(&intel_dp->aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
 			      vals, sizeof(vals)) < 0) {
-		DRM_DEBUG_KMS("Failed to write aux backlight level\n");
+		DRM_DE_KMS("Failed to write aux backlight level\n");
 		return;
 	}
 }
@@ -118,9 +118,9 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 	 * minimum value will applied automatically. So no need to check that.
 	 */
 	freq = dev_priv->vbt.backlight.pwm_freq_hz;
-	DRM_DEBUG_KMS("VBT defined backlight frequency %u Hz\n", freq);
+	DRM_DE_KMS("VBT defined backlight frequency %u Hz\n", freq);
 	if (!freq) {
-		DRM_DEBUG_KMS("Use panel default backlight frequency\n");
+		DRM_DE_KMS("Use panel default backlight frequency\n");
 		return false;
 	}
 
@@ -135,12 +135,12 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 	 */
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			       DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN, &pn_min) != 1) {
-		DRM_DEBUG_KMS("Failed to read pwmgen bit count cap min\n");
+		DRM_DE_KMS("Failed to read pwmgen bit count cap min\n");
 		return false;
 	}
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			       DP_EDP_PWMGEN_BIT_COUNT_CAP_MAX, &pn_max) != 1) {
-		DRM_DEBUG_KMS("Failed to read pwmgen bit count cap max\n");
+		DRM_DE_KMS("Failed to read pwmgen bit count cap max\n");
 		return false;
 	}
 	pn_min &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
@@ -149,7 +149,7 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 	fxp_min = DIV_ROUND_CLOSEST(fxp * 3, 4);
 	fxp_max = DIV_ROUND_CLOSEST(fxp * 5, 4);
 	if (fxp_min < (1 << pn_min) || (255 << pn_max) < fxp_max) {
-		DRM_DEBUG_KMS("VBT defined backlight frequency out of range\n");
+		DRM_DE_KMS("VBT defined backlight frequency out of range\n");
 		return false;
 	}
 
@@ -162,12 +162,12 @@ static bool intel_dp_aux_set_pwm_freq(struct intel_connector *connector)
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			       DP_EDP_PWMGEN_BIT_COUNT, pn) < 0) {
-		DRM_DEBUG_KMS("Failed to write aux pwmgen bit count\n");
+		DRM_DE_KMS("Failed to write aux pwmgen bit count\n");
 		return false;
 	}
 	if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			       DP_EDP_BACKLIGHT_FREQ_SET, (u8) f) < 0) {
-		DRM_DEBUG_KMS("Failed to write aux backlight freq\n");
+		DRM_DE_KMS("Failed to write aux backlight freq\n");
 		return false;
 	}
 	return true;
@@ -182,7 +182,7 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &dpcd_buf) != 1) {
-		DRM_DEBUG_KMS("Failed to read DPCD register 0x%x\n",
+		DRM_DE_KMS("Failed to read DPCD register 0x%x\n",
 			      DP_EDP_BACKLIGHT_MODE_SET_REGISTER);
 		return;
 	}
@@ -211,7 +211,7 @@ static void intel_dp_aux_enable_backlight(const struct intel_crtc_state *crtc_st
 	if (new_dpcd_buf != dpcd_buf) {
 		if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			DP_EDP_BACKLIGHT_MODE_SET_REGISTER, new_dpcd_buf) < 0) {
-			DRM_DEBUG_KMS("Failed to write aux backlight mode\n");
+			DRM_DE_KMS("Failed to write aux backlight mode\n");
 		}
 	}
 
@@ -254,7 +254,7 @@ intel_dp_aux_display_control_capable(struct intel_connector *connector)
 	if (intel_dp->edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP &&
 	    (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP) &&
 	    !(intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_PWM_PIN_CAP)) {
-		DRM_DEBUG_KMS("AUX Backlight Control Supported!\n");
+		DRM_DE_KMS("AUX Backlight Control Supported!\n");
 		return true;
 	}
 	return false;

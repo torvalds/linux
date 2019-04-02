@@ -83,13 +83,13 @@ void __init kernel_randomize_memory(void)
 	vaddr = vaddr_start;
 
 	/*
-	 * These BUILD_BUG_ON checks ensure the memory layout is consistent
+	 * These BUILD__ON checks ensure the memory layout is consistent
 	 * with the vaddr_start/vaddr_end variables. These checks are very
 	 * limited....
 	 */
-	BUILD_BUG_ON(vaddr_start >= vaddr_end);
-	BUILD_BUG_ON(vaddr_end != CPU_ENTRY_AREA_BASE);
-	BUILD_BUG_ON(vaddr_end > __START_KERNEL_map);
+	BUILD__ON(vaddr_start >= vaddr_end);
+	BUILD__ON(vaddr_end != CPU_ENTRY_AREA_BASE);
+	BUILD__ON(vaddr_end > __START_KERNEL_map);
 
 	if (!kaslr_memory_enabled())
 		return;
@@ -101,7 +101,7 @@ void __init kernel_randomize_memory(void)
 	 * Update Physical memory mapping to available and
 	 * add padding if needed (especially for memory hotplug support).
 	 */
-	BUG_ON(kaslr_regions[0].base != &page_offset_base);
+	_ON(kaslr_regions[0].base != &page_offset_base);
 	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
 		CONFIG_RANDOMIZE_MEMORY_PHYSICAL_PADDING;
 

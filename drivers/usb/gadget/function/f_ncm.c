@@ -495,7 +495,7 @@ static inline void put_ncm(__le16 **p, unsigned size, unsigned val)
 
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	*p += size;
@@ -513,7 +513,7 @@ static inline unsigned get_ncm(__le16 **p, unsigned size)
 		tmp = get_unaligned_le32(*p);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	*p += size;

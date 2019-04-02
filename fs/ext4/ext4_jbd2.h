@@ -419,7 +419,7 @@ static inline int ext4_inode_journal_mode(struct inode *inode)
 		return EXT4_INODE_ORDERED_DATA_MODE;	/* ordered */
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)
 		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
-	BUG();
+	();
 }
 
 static inline int ext4_should_journal_data(struct inode *inode)

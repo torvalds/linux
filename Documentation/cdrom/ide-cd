@@ -253,7 +253,7 @@ b. Timeout/IRQ errors.
 c. System hangups.
 
   - If the system locks up when you try to access the CDROM, the most
-    likely cause is that you have a buggy IDE adapter which doesn't
+    likely cause is that you have a gy IDE adapter which doesn't
     properly handle simultaneous transactions on multiple interfaces.
     The most notorious of these is the CMD640B chip.  This problem can
     be worked around by specifying the `serialize' option when
@@ -262,7 +262,7 @@ c. System hangups.
     foolproof.  See Documentation/ide/ide.txt for more information
     about the `serialize' option and the CMD640B.
 
-  - Note that many MS-DOS CDROM drivers will work with such buggy
+  - Note that many MS-DOS CDROM drivers will work with such gy
     hardware, apparently because they never attempt to overlap CDROM
     operations with other disk activity.
 
@@ -314,14 +314,14 @@ d. Can't mount a CDROM.
 e. Directory listings are unpredictably truncated, and `dmesg' shows
    `buffer botch' error messages from the driver.
 
-  - There was a bug in the version of the driver in 1.2.x kernels
+  - There was a  in the version of the driver in 1.2.x kernels
     which could cause this.  It was fixed in 1.3.0.  If you can't
     upgrade, you can probably work around the problem by specifying a
     blocksize of 2048 when mounting.  (Note that you won't be able to
     directly execute binaries off the CDROM in that case.)
 
     If you see this in kernels later than 1.3.0, please report it as a
-    bug.
+    .
 
 
 f. Data corruption.

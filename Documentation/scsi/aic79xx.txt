@@ -130,7 +130,7 @@ The following information is available in this file:
           to reset our transceivers.
 
    1.3.5 (March 24th, 2003)
-        - Fix a few register window mode bugs.
+        - Fix a few register window mode s.
         - Include read streaming in the PPR flags we display in
           diagnostics as well as /proc.
         - Add PCI hot plug support for 2.5.X kernels.
@@ -225,12 +225,12 @@ The following information is available in this file:
      Possible Values: This option is a flag
        Default Value: disabled
    -----------------------------------------------------------------
-              Option: debug:[value]
-          Definition: Enables various levels of debugging information
-                      The bit definitions for the debugging mask can
+              Option: de:[value]
+          Definition: Enables various levels of deging information
+                      The bit definitions for the deging mask can
                       be found in drivers/scsi/aic7xxx/aic79xx.h under
-                      the "Debug" heading.
-     Possible Values: 0x0000 = no debugging, 0xffff = full debugging
+                      the "De" heading.
+     Possible Values: 0x0000 = no deging, 0xffff = full deging
        Default Value: 0x0000
    -----------------------------------------------------------------
               Option: no_reset

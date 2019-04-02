@@ -922,7 +922,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 		struct dma_fence *f;
 
 		bo_va = fpriv->csa_va;
-		BUG_ON(!bo_va);
+		_ON(!bo_va);
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 		if (r)
 			return r;
@@ -969,8 +969,8 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 
 	p->job->vm_pd_addr = amdgpu_gmc_pd_addr(vm->root.base.bo);
 
-	if (amdgpu_vm_debug) {
-		/* Invalidate all BOs to test for userspace bugs */
+	if (amdgpu_vm_de) {
+		/* Invalidate all BOs to test for userspace s */
 		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 			struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
 

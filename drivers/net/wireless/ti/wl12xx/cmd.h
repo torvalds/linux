@@ -35,7 +35,7 @@ struct wl1271_general_parms_cmd {
 
 	struct wl1271_ini_general_params general_params;
 
-	u8 sr_debug_table[WL1271_INI_MAX_SMART_REFLEX_PARAM];
+	u8 sr_de_table[WL1271_INI_MAX_SMART_REFLEX_PARAM];
 	u8 sr_sen_n_p;
 	u8 sr_sen_n_p_gain;
 	u8 sr_sen_nrn;
@@ -50,7 +50,7 @@ struct wl128x_general_parms_cmd {
 
 	struct wl128x_ini_general_params general_params;
 
-	u8 sr_debug_table[WL1271_INI_MAX_SMART_REFLEX_PARAM];
+	u8 sr_de_table[WL1271_INI_MAX_SMART_REFLEX_PARAM];
 	u8 sr_sen_n_p;
 	u8 sr_sen_n_p_gain;
 	u8 sr_sen_nrn;

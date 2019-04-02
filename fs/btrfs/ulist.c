@@ -137,7 +137,7 @@ static void ulist_rbtree_erase(struct ulist *ulist, struct ulist_node *node)
 	rb_erase(&node->rb_node, &ulist->root);
 	list_del(&node->list);
 	kfree(node);
-	BUG_ON(ulist->nnodes == 0);
+	_ON(ulist->nnodes == 0);
 	ulist->nnodes--;
 }
 

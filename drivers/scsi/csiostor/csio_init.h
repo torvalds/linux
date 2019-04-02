@@ -74,8 +74,8 @@ struct csio_lnode *csio_shost_init(struct csio_hw *, struct device *, bool,
 void csio_shost_exit(struct csio_lnode *);
 void csio_lnodes_exit(struct csio_hw *, bool);
 
-/* DebugFS helper routines */
-void csio_add_debugfs_mem(struct csio_hw *, const char *,
+/* DeFS helper routines */
+void csio_add_defs_mem(struct csio_hw *, const char *,
 		unsigned int, unsigned int);
 
 static inline struct Scsi_Host *

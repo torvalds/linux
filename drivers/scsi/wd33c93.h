@@ -28,12 +28,12 @@
 #define PROC_STATISTICS    /* add code for keeping various real time stats */
 #endif
 
-#define SYNC_DEBUG         /* extra info on sync negotiation printed */
-#define DEBUGGING_ON       /* enable command-line debugging bitmask */
-#define DEBUG_DEFAULTS 0   /* default debugging bitmask */
+#define SYNC_DE         /* extra info on sync negotiation printed */
+#define DEGING_ON       /* enable command-line deging bitmask */
+#define DE_DEFAULTS 0   /* default deging bitmask */
 
 
-#ifdef DEBUGGING_ON
+#ifdef DEGING_ON
 #define DB(f,a) if (hostdata->args & (f)) a;
 #else
 #define DB(f,a)

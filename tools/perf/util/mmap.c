@@ -9,11 +9,11 @@
 
 #include <sys/mman.h>
 #include <inttypes.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #ifdef HAVE_LIBNUMA_SUPPORT
 #include <numaif.h>
 #endif
-#include "debug.h"
+#include "de.h"
 #include "event.h"
 #include "mmap.h"
 #include "util.h" /* page_size */
@@ -112,7 +112,7 @@ void perf_mmap__get(struct perf_mmap *map)
 
 void perf_mmap__put(struct perf_mmap *map)
 {
-	BUG_ON(map->base && refcount_read(&map->refcnt) == 0);
+	_ON(map->base && refcount_read(&map->refcnt) == 0);
 
 	if (refcount_dec_and_test(&map->refcnt))
 		perf_mmap__munmap(map);
@@ -228,24 +228,24 @@ static int perf_mmap__aio_mmap(struct perf_mmap *map, struct mmap_params *mp)
 	if (map->aio.nr_cblocks) {
 		map->aio.aiocb = calloc(map->aio.nr_cblocks, sizeof(struct aiocb *));
 		if (!map->aio.aiocb) {
-			pr_debug2("failed to allocate aiocb for data buffer, error %m\n");
+			pr_de2("failed to allocate aiocb for data buffer, error %m\n");
 			return -1;
 		}
 		map->aio.cblocks = calloc(map->aio.nr_cblocks, sizeof(struct aiocb));
 		if (!map->aio.cblocks) {
-			pr_debug2("failed to allocate cblocks for data buffer, error %m\n");
+			pr_de2("failed to allocate cblocks for data buffer, error %m\n");
 			return -1;
 		}
 		map->aio.data = calloc(map->aio.nr_cblocks, sizeof(void *));
 		if (!map->aio.data) {
-			pr_debug2("failed to allocate data buffer, error %m\n");
+			pr_de2("failed to allocate data buffer, error %m\n");
 			return -1;
 		}
 		delta_max = sysconf(_SC_AIO_PRIO_DELTA_MAX);
 		for (i = 0; i < map->aio.nr_cblocks; ++i) {
 			ret = perf_mmap__aio_alloc(map, i);
 			if (ret == -1) {
-				pr_debug2("failed to allocate data buffer area, error %m");
+				pr_de2("failed to allocate data buffer area, error %m");
 				return -1;
 			}
 			ret = perf_mmap__aio_bind(map, i, map->cpu, mp->affinity);
@@ -430,7 +430,7 @@ int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd, int c
 	map->base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
 			 MAP_SHARED, fd, 0);
 	if (map->base == MAP_FAILED) {
-		pr_debug2("failed to mmap perf event ring buffer, error %d\n",
+		pr_de2("failed to mmap perf event ring buffer, error %d\n",
 			  errno);
 		map->base = NULL;
 		return -1;
@@ -453,11 +453,11 @@ static int overwrite_rb_find_range(void *buf, int mask, u64 *start, u64 *end)
 	u64 evt_head = *start;
 	int size = mask + 1;
 
-	pr_debug2("%s: buf=%p, start=%"PRIx64"\n", __func__, buf, *start);
+	pr_de2("%s: buf=%p, start=%"PRIx64"\n", __func__, buf, *start);
 	pheader = (struct perf_event_header *)(buf + (*start & mask));
 	while (true) {
 		if (evt_head - *start >= (unsigned int)size) {
-			pr_debug("Finished reading overwrite ring buffer: rewind\n");
+			pr_de("Finished reading overwrite ring buffer: rewind\n");
 			if (evt_head - *start > (unsigned int)size)
 				evt_head -= pheader->size;
 			*end = evt_head;
@@ -467,13 +467,13 @@ static int overwrite_rb_find_range(void *buf, int mask, u64 *start, u64 *end)
 		pheader = (struct perf_event_header *)(buf + (evt_head & mask));
 
 		if (pheader->size == 0) {
-			pr_debug("Finished reading overwrite ring buffer: get start\n");
+			pr_de("Finished reading overwrite ring buffer: get start\n");
 			*end = evt_head;
 			return 0;
 		}
 
 		evt_head += pheader->size;
-		pr_debug3("move evt_head: %"PRIx64"\n", evt_head);
+		pr_de3("move evt_head: %"PRIx64"\n", evt_head);
 	}
 	WARN_ONCE(1, "Shouldn't get here\n");
 	return -1;

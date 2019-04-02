@@ -29,7 +29,7 @@ config ENC28J60_WRITEVERIFY
 	bool "Enable write verify"
 	depends on ENC28J60
 	---help---
-	  Enable the verify after the buffer write useful for debugging purpose.
+	  Enable the verify after the buffer write useful for deging purpose.
 	  If unsure, say N.
 
 config ENCX24J600

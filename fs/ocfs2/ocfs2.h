@@ -200,14 +200,14 @@ struct ocfs2_lock_res {
 
 	wait_queue_head_t        l_event;
 
-	struct list_head         l_debug_list;
+	struct list_head         l_de_list;
 
 #ifdef CONFIG_OCFS2_FS_STATS
 	struct ocfs2_lock_stats  l_lock_prmode;		/* PR mode stats */
 	u32                      l_lock_refresh;	/* Disk refreshes */
 	struct ocfs2_lock_stats  l_lock_exmode;		/* EX mode stats */
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map	 l_lockdep_map;
 #endif
 };
@@ -233,7 +233,7 @@ struct ocfs2_orphan_scan {
 	atomic_t		os_state;              /* ACTIVE or INACTIVE */
 };
 
-struct ocfs2_dlm_debug {
+struct ocfs2_dlm_de {
 	struct kref d_refcnt;
 	struct dentry *d_locking_state;
 	struct list_head d_lockres_tracking;
@@ -408,9 +408,9 @@ struct ocfs2_super
 	struct ocfs2_lock_res osb_nfs_sync_lockres;
 	struct ocfs2_lock_res osb_trim_fs_lockres;
 	struct mutex obs_trim_fs_mutex;
-	struct ocfs2_dlm_debug *osb_dlm_debug;
+	struct ocfs2_dlm_de *osb_dlm_de;
 
-	struct dentry *osb_debug_root;
+	struct dentry *osb_de_root;
 	struct dentry *osb_ctxt;
 
 	wait_queue_head_t recovery_event;
@@ -871,7 +871,7 @@ static inline unsigned int ocfs2_pages_per_cluster(struct super_block *sb)
 static inline unsigned int ocfs2_megabytes_to_clusters(struct super_block *sb,
 						       unsigned int megs)
 {
-	BUILD_BUG_ON(OCFS2_MAX_CLUSTERSIZE > 1048576);
+	BUILD__ON(OCFS2_MAX_CLUSTERSIZE > 1048576);
 
 	return megs << (20 - OCFS2_SB(sb)->s_clustersize_bits);
 }

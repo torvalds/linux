@@ -20,7 +20,7 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <crypto/algapi.h>
@@ -39,15 +39,15 @@
 #define SMP_DEV(hdev) \
 	((struct smp_dev *)((struct l2cap_chan *)((hdev)->smp_data))->data)
 
-/* Low-level debug macros to be used for stuff that we don't want
+/* Low-level de macros to be used for stuff that we don't want
  * accidentially in dmesg, i.e. the values of the various crypto keys
  * and the inputs & outputs of crypto functions.
  */
-#ifdef DEBUG
-#define SMP_DBG(fmt, ...) printk(KERN_DEBUG "%s: " fmt, __func__, \
+#ifdef DE
+#define SMP_DBG(fmt, ...) printk(KERN_DE "%s: " fmt, __func__, \
 				 ##__VA_ARGS__)
 #else
-#define SMP_DBG(fmt, ...) no_printk(KERN_DEBUG "%s: " fmt, __func__, \
+#define SMP_DBG(fmt, ...) no_printk(KERN_DE "%s: " fmt, __func__, \
 				    ##__VA_ARGS__)
 #endif
 
@@ -73,7 +73,7 @@ enum {
 	SMP_FLAG_INITIATOR,
 	SMP_FLAG_SC,
 	SMP_FLAG_REMOTE_PK,
-	SMP_FLAG_DEBUG_KEY,
+	SMP_FLAG_DE_KEY,
 	SMP_FLAG_WAIT_USER,
 	SMP_FLAG_DHKEY_PENDING,
 	SMP_FLAG_REMOTE_OOB,
@@ -86,7 +86,7 @@ struct smp_dev {
 	bool			local_oob;
 	u8			local_pk[64];
 	u8			local_rand[16];
-	bool			debug_key;
+	bool			de_key;
 
 	struct crypto_cipher	*tfm_aes;
 	struct crypto_shash	*tfm_cmac;
@@ -132,11 +132,11 @@ struct smp_chan {
 	struct crypto_kpp	*tfm_ecdh;
 };
 
-/* These debug key values are defined in the SMP section of the core
- * specification. debug_pk is the public debug key and debug_sk the
- * private debug key.
+/* These de key values are defined in the SMP section of the core
+ * specification. de_pk is the public de key and de_sk the
+ * private de key.
  */
-static const u8 debug_pk[64] = {
+static const u8 de_pk[64] = {
 		0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
 		0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
 		0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
@@ -148,7 +148,7 @@ static const u8 debug_pk[64] = {
 		0x6d, 0xeb, 0x2a, 0x65, 0x49, 0x9c, 0x80, 0xdc,
 };
 
-static const u8 debug_sk[32] = {
+static const u8 de_sk[32] = {
 		0xbd, 0x1a, 0x3c, 0xcd, 0xa6, 0xb8, 0x99, 0x58,
 		0x99, 0xb7, 0x40, 0xeb, 0x7b, 0x60, 0xff, 0x4a,
 		0x50, 0x3f, 0x10, 0xd2, 0xe3, 0xb3, 0xc9, 0x74,
@@ -562,13 +562,13 @@ int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
 
 	smp = chan->data;
 
-	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
-		BT_DBG("Using debug keys");
-		err = set_ecdh_privkey(smp->tfm_ecdh, debug_sk);
+	if (hci_dev_test_flag(hdev, HCI_USE_DE_KEYS)) {
+		BT_DBG("Using de keys");
+		err = set_ecdh_privkey(smp->tfm_ecdh, de_sk);
 		if (err)
 			return err;
-		memcpy(smp->local_pk, debug_pk, 64);
-		smp->debug_key = true;
+		memcpy(smp->local_pk, de_pk, 64);
+		smp->de_key = true;
 	} else {
 		while (true) {
 			/* Generate key pair for Secure Connections */
@@ -577,12 +577,12 @@ int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
 				return err;
 
 			/* This is unlikely, but we need to check that
-			 * we didn't accidentially generate a debug key.
+			 * we didn't accidentially generate a de key.
 			 */
-			if (crypto_memneq(smp->local_pk, debug_pk, 64))
+			if (crypto_memneq(smp->local_pk, de_pk, 64))
 				break;
 		}
-		smp->debug_key = false;
+		smp->de_key = false;
 	}
 
 	SMP_DBG("OOB Public Key X: %32phN", smp->local_pk);
@@ -758,7 +758,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	struct hci_conn *hcon = conn->hcon;
 	bool complete;
 
-	BUG_ON(!smp);
+	_ON(!smp);
 
 	cancel_delayed_work_sync(&smp->security_timer);
 
@@ -773,11 +773,11 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	crypto_free_shash(smp->tfm_cmac);
 	crypto_free_kpp(smp->tfm_ecdh);
 
-	/* Ensure that we don't leave any debug key around if debug key
+	/* Ensure that we don't leave any de key around if de key
 	 * support hasn't been explicitly enabled.
 	 */
-	if (smp->ltk && smp->ltk->type == SMP_LTK_P256_DEBUG &&
-	    !hci_dev_test_flag(hcon->hdev, HCI_KEEP_DEBUG_KEYS)) {
+	if (smp->ltk && smp->ltk->type == SMP_LTK_P256_DE &&
+	    !hci_dev_test_flag(hcon->hdev, HCI_KEEP_DE_KEYS)) {
 		list_del_rcu(&smp->ltk->list);
 		kfree_rcu(smp->ltk, rcu);
 		smp->ltk = NULL;
@@ -1051,7 +1051,7 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 	bool persistent;
 
 	if (hcon->type == ACL_LINK) {
-		if (hcon->key_type == HCI_LK_DEBUG_COMBINATION)
+		if (hcon->key_type == HCI_LK_DE_COMBINATION)
 			persistent = false;
 		else
 			persistent = !test_bit(HCI_CONN_FLUSH_KEY,
@@ -1107,8 +1107,8 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		struct link_key *key;
 		u8 type;
 
-		if (test_bit(SMP_FLAG_DEBUG_KEY, &smp->flags))
-			type = HCI_LK_DEBUG_COMBINATION;
+		if (test_bit(SMP_FLAG_DE_KEY, &smp->flags))
+			type = HCI_LK_DE_COMBINATION;
 		else if (hcon->sec_level == BT_SECURITY_FIPS)
 			type = HCI_LK_AUTH_COMBINATION_P256;
 		else
@@ -1119,11 +1119,11 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		if (key) {
 			mgmt_new_link_key(hdev, key, persistent);
 
-			/* Don't keep debug keys around if the relevant
+			/* Don't keep de keys around if the relevant
 			 * flag is not set.
 			 */
-			if (!hci_dev_test_flag(hdev, HCI_KEEP_DEBUG_KEYS) &&
-			    key->type == HCI_LK_DEBUG_COMBINATION) {
+			if (!hci_dev_test_flag(hdev, HCI_KEEP_DE_KEYS) &&
+			    key->type == HCI_LK_DE_COMBINATION) {
 				list_del_rcu(&key->list);
 				kfree_rcu(key, rcu);
 			}
@@ -1136,8 +1136,8 @@ static void sc_add_ltk(struct smp_chan *smp)
 	struct hci_conn *hcon = smp->conn->hcon;
 	u8 key_type, auth;
 
-	if (test_bit(SMP_FLAG_DEBUG_KEY, &smp->flags))
-		key_type = SMP_LTK_P256_DEBUG;
+	if (test_bit(SMP_FLAG_DE_KEY, &smp->flags))
+		key_type = SMP_LTK_P256_DE;
 	else
 		key_type = SMP_LTK_P256;
 
@@ -1215,8 +1215,8 @@ static void sc_generate_ltk(struct smp_chan *smp)
 		return;
 	}
 
-	if (key->type == HCI_LK_DEBUG_COMBINATION)
-		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
+	if (key->type == HCI_LK_DE_COMBINATION)
+		set_bit(SMP_FLAG_DE_KEY, &smp->flags);
 
 	if (test_bit(SMP_FLAG_CT2, &smp->flags)) {
 		/* SALT = 0x00000000000000000000000000000000746D7032 */
@@ -1898,18 +1898,18 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 		memcpy(smp->local_pk, smp_dev->local_pk, 64);
 		memcpy(smp->lr, smp_dev->local_rand, 16);
 
-		if (smp_dev->debug_key)
-			set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
+		if (smp_dev->de_key)
+			set_bit(SMP_FLAG_DE_KEY, &smp->flags);
 
 		goto done;
 	}
 
-	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
-		BT_DBG("Using debug keys");
-		if (set_ecdh_privkey(smp->tfm_ecdh, debug_sk))
+	if (hci_dev_test_flag(hdev, HCI_USE_DE_KEYS)) {
+		BT_DBG("Using de keys");
+		if (set_ecdh_privkey(smp->tfm_ecdh, de_sk))
 			return SMP_UNSPECIFIED;
-		memcpy(smp->local_pk, debug_pk, 64);
-		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
+		memcpy(smp->local_pk, de_pk, 64);
+		set_bit(SMP_FLAG_DE_KEY, &smp->flags);
 	} else {
 		while (true) {
 			/* Generate key pair for Secure Connections */
@@ -1917,9 +1917,9 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 				return SMP_UNSPECIFIED;
 
 			/* This is unlikely, but we need to check that
-			 * we didn't accidentially generate a debug key.
+			 * we didn't accidentially generate a de key.
 			 */
-			if (crypto_memneq(smp->local_pk, debug_pk, 64))
+			if (crypto_memneq(smp->local_pk, de_pk, 64))
 				break;
 		}
 	}
@@ -2748,8 +2748,8 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	else
 		hcon->pending_sec_level = BT_SECURITY_FIPS;
 
-	if (!crypto_memneq(debug_pk, smp->remote_pk, 64))
-		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
+	if (!crypto_memneq(de_pk, smp->remote_pk, 64))
+		set_bit(SMP_FLAG_DE_KEY, &smp->flags);
 
 	if (smp->method == DSP_PASSKEY) {
 		get_random_bytes(&hcon->passkey_notify,
@@ -3491,20 +3491,20 @@ int smp_register(struct hci_dev *hdev)
 
 	hdev->smp_data = chan;
 
-	debugfs_create_file("le_min_key_size", 0644, hdev->debugfs, hdev,
+	defs_create_file("le_min_key_size", 0644, hdev->defs, hdev,
 			    &le_min_key_size_fops);
-	debugfs_create_file("le_max_key_size", 0644, hdev->debugfs, hdev,
+	defs_create_file("le_max_key_size", 0644, hdev->defs, hdev,
 			    &le_max_key_size_fops);
 
 	/* If the controller does not support BR/EDR Secure Connections
 	 * feature, then the BR/EDR SMP channel shall not be present.
 	 *
-	 * To test this with Bluetooth 4.0 controllers, create a debugfs
+	 * To test this with Bluetooth 4.0 controllers, create a defs
 	 * switch that allows forcing BR/EDR SMP support and accepting
 	 * cross-transport pairing on non-AES encrypted connections.
 	 */
 	if (!lmp_sc_capable(hdev)) {
-		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,
+		defs_create_file("force_bredr_smp", 0644, hdev->defs,
 				    hdev, &force_bredr_smp_fops);
 
 		/* Flag can be already set here (due to power toggle) */
@@ -3551,12 +3551,12 @@ void smp_unregister(struct hci_dev *hdev)
 
 #if IS_ENABLED(CONFIG_BT_SELFTEST_SMP)
 
-static int __init test_debug_key(struct crypto_kpp *tfm_ecdh)
+static int __init test_de_key(struct crypto_kpp *tfm_ecdh)
 {
 	u8 pk[64];
 	int err;
 
-	err = set_ecdh_privkey(tfm_ecdh, debug_sk);
+	err = set_ecdh_privkey(tfm_ecdh, de_sk);
 	if (err)
 		return err;
 
@@ -3564,7 +3564,7 @@ static int __init test_debug_key(struct crypto_kpp *tfm_ecdh)
 	if (err)
 		return err;
 
-	if (crypto_memneq(pk, debug_pk, 64))
+	if (crypto_memneq(pk, de_pk, 64))
 		return -EINVAL;
 
 	return 0;
@@ -3826,9 +3826,9 @@ static int __init run_selftests(struct crypto_cipher *tfm_aes,
 
 	calltime = ktime_get();
 
-	err = test_debug_key(tfm_ecdh);
+	err = test_de_key(tfm_ecdh);
 	if (err) {
-		BT_ERR("debug_key test failed");
+		BT_ERR("de_key test failed");
 		goto done;
 	}
 
@@ -3893,7 +3893,7 @@ done:
 	else
 		snprintf(test_smp_buffer, sizeof(test_smp_buffer), "FAIL\n");
 
-	debugfs_create_file("selftest_smp", 0444, bt_debugfs, NULL,
+	defs_create_file("selftest_smp", 0444, bt_defs, NULL,
 			    &test_smp_fops);
 
 	return err;

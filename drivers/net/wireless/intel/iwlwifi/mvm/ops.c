@@ -69,7 +69,7 @@
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "fw/img.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
@@ -100,7 +100,7 @@ struct iwl_mvm_mod_params iwlmvm_mod_params = {
 
 module_param_named(init_dbg, iwlmvm_mod_params.init_dbg, bool, 0444);
 MODULE_PARM_DESC(init_dbg,
-		 "set to true to debug an ASSERT in INIT fw (default: false");
+		 "set to true to de an ASSERT in INIT fw (default: false");
 module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, 0444);
 MODULE_PARM_DESC(power_scheme,
 		 "power management scheme: 1-active, 2-balanced, 3-low power, default: 2");
@@ -176,8 +176,8 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	if (mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
 
-	if (iwl_fw_dbg_is_d3_debug_enabled(&mvm->fwrt))
-		reg_val |= CSR_HW_IF_CONFIG_REG_D3_DEBUG;
+	if (iwl_fw_dbg_is_d3_de_enabled(&mvm->fwrt))
+		reg_val |= CSR_HW_IF_CONFIG_REG_D3_DE;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
@@ -187,10 +187,10 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 				CSR_HW_IF_CONFIG_REG_MSK_PHY_DASH |
 				CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 				CSR_HW_IF_CONFIG_REG_BIT_MAC_SI   |
-				CSR_HW_IF_CONFIG_REG_D3_DEBUG,
+				CSR_HW_IF_CONFIG_REG_D3_DE,
 				reg_val);
 
-	IWL_DEBUG_INFO(mvm, "Radio type=0x%x-0x%x-0x%x\n", radio_cfg_type,
+	IWL_DE_INFO(mvm, "Radio type=0x%x-0x%x-0x%x\n", radio_cfg_type,
 		       radio_cfg_step, radio_cfg_dash);
 
 	/*
@@ -308,7 +308,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(LOCATION_GROUP, TOF_LC_NOTIF,
 		       iwl_mvm_ftm_lc_notif, RX_HANDLER_ASYNC_LOCKED),
 
-	RX_HANDLER_GRP(DEBUG_GROUP, MFU_ASSERT_DUMP_NTF,
+	RX_HANDLER_GRP(DE_GROUP, MFU_ASSERT_DUMP_NTF,
 		       iwl_mvm_mfu_assert_dump_notif, RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
 		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC),
@@ -464,7 +464,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search
  */
-static const struct iwl_hcmd_names iwl_mvm_debug_names[] = {
+static const struct iwl_hcmd_names iwl_mvm_de_names[] = {
 	HCMD_NAME(MFU_ASSERT_DUMP_NTF),
 };
 
@@ -480,7 +480,7 @@ static const struct iwl_hcmd_names iwl_mvm_location_names[] = {
 	HCMD_NAME(TOF_RESPONDER_DYN_CONFIG_CMD),
 	HCMD_NAME(TOF_LC_NOTIF),
 	HCMD_NAME(TOF_RESPONDER_STATS),
-	HCMD_NAME(TOF_MCSI_DEBUG_NOTIF),
+	HCMD_NAME(TOF_MCSI_DE_NOTIF),
 	HCMD_NAME(TOF_RANGE_RESPONSE_NOTIF),
 };
 
@@ -601,9 +601,9 @@ static int iwl_mvm_fwrt_send_hcmd(void *ctx, struct iwl_host_cmd *host_cmd)
 	return ret;
 }
 
-static bool iwl_mvm_d3_debug_enable(void *ctx)
+static bool iwl_mvm_d3_de_enable(void *ctx)
 {
-	return IWL_MVM_D3_DEBUG;
+	return IWL_MVM_D3_DE;
 }
 
 static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
@@ -611,7 +611,7 @@ static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.dump_end = iwl_mvm_fwrt_dump_end,
 	.fw_running = iwl_mvm_fwrt_fw_running,
 	.send_hcmd = iwl_mvm_fwrt_send_hcmd,
-	.d3_debug_enable = iwl_mvm_d3_debug_enable,
+	.d3_de_enable = iwl_mvm_d3_de_enable,
 };
 
 static struct iwl_op_mode *
@@ -634,7 +634,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	 * index all over the driver - check that its value corresponds to the
 	 * array size.
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) != IWL_MVM_STATION_COUNT);
+	BUILD__ON(ARRAY_SIZE(mvm->fw_id_to_mac_id) != IWL_MVM_STATION_COUNT);
 
 	/********************************
 	 * 1. Allocating and configuring HW data
@@ -768,7 +768,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		trans_cfg.rx_buf_size = rb_size_default;
 	}
 
-	BUILD_BUG_ON(sizeof(struct iwl_ldbg_config_cmd) !=
+	BUILD__ON(sizeof(struct iwl_ldbg_config_cmd) !=
 		     LDBG_CFG_COMMAND_SIZE);
 
 	trans->wide_cmd_header = true;
@@ -824,7 +824,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (iwlwifi_mod_params.nvm_file)
 		mvm->nvm_file_name = iwlwifi_mod_params.nvm_file;
 	else
-		IWL_DEBUG_EEPROM(mvm->trans->dev,
+		IWL_DE_EEPROM(mvm->trans->dev,
 				 "working without external nvm file\n");
 
 	err = iwl_trans_start_hw(mvm->trans);
@@ -928,7 +928,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->error_recovery_buf);
 	mvm->error_recovery_buf = NULL;
 
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEFS)
 	kfree(mvm->d3_resume_sram);
 #endif
 	iwl_trans_op_mode_leave(mvm->trans);
@@ -1433,7 +1433,7 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO | CMD_SEND_IN_IDLE;
 
-	IWL_DEBUG_RPM(mvm, "entering D0i3 - vif %pM\n", vif->addr);
+	IWL_DE_RPM(mvm, "entering D0i3 - vif %pM\n", vif->addr);
 	if (vif->type != NL80211_IFTYPE_STATION ||
 	    !vif->bss_conf.assoc)
 		return;
@@ -1514,7 +1514,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		.wakeup_flags = cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR),
 	};
 
-	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
+	IWL_DE_RPM(mvm, "MVM entering D0i3\n");
 
 	if (WARN_ON_ONCE(mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR))
 		return -EINVAL;
@@ -1528,7 +1528,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	 * configure the firmware to enter d0i3
 	 */
 	if (iwl_mvm_ref_taken(mvm)) {
-		IWL_DEBUG_RPM(mvm->trans, "abort d0i3 due to taken ref\n");
+		IWL_DE_RPM(mvm->trans, "abort d0i3 due to taken ref\n");
 		clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
 		wake_up(&mvm->d0i3_exit_waitq);
 		return 1;
@@ -1595,7 +1595,7 @@ static void iwl_mvm_exit_d0i3_iterator(void *_data, u8 *mac,
 	struct iwl_mvm *mvm = _data;
 	u32 flags = CMD_ASYNC | CMD_HIGH_PRIO;
 
-	IWL_DEBUG_RPM(mvm, "exiting D0i3 - vif %pM\n", vif->addr);
+	IWL_DE_RPM(mvm, "exiting D0i3 - vif %pM\n", vif->addr);
 	if (vif->type != NL80211_IFTYPE_STATION ||
 	    !vif->bss_conf.assoc)
 		return;
@@ -1643,7 +1643,7 @@ void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
 	if (mvm->d0i3_ap_sta_id == IWL_MVM_INVALID_STA)
 		goto out;
 
-	IWL_DEBUG_RPM(mvm, "re-enqueue packets\n");
+	IWL_DE_RPM(mvm, "re-enqueue packets\n");
 
 	/* get the sta in order to update seq numbers and re-enqueue skbs */
 	sta = rcu_dereference_protected(
@@ -1708,7 +1708,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
 	qos_seq = status->qos_seq_ctr;
 
-	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
+	IWL_DE_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
 
 	iter_data.wakeup_reasons = wakeup_reasons;
 	iter_data.status = status;
@@ -1719,7 +1719,7 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 out:
 	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
 
-	IWL_DEBUG_INFO(mvm, "d0i3 exit completed (wakeup reasons: 0x%x)\n",
+	IWL_DE_INFO(mvm, "d0i3 exit completed (wakeup reasons: 0x%x)\n",
 		       wakeup_reasons);
 
 	/* qos_seq might point inside resp_pkt, so free it only now */
@@ -1739,14 +1739,14 @@ int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm)
 		    CMD_WAKE_UP_TRANS;
 	int ret;
 
-	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
+	IWL_DE_RPM(mvm, "MVM exiting D0i3\n");
 
 	if (WARN_ON_ONCE(mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR))
 		return -EINVAL;
 
 	mutex_lock(&mvm->d0i3_suspend_mutex);
 	if (test_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags)) {
-		IWL_DEBUG_RPM(mvm, "Deferring d0i3 exit until resume\n");
+		IWL_DE_RPM(mvm, "Deferring d0i3 exit until resume\n");
 		__set_bit(D0I3_PENDING_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
 		return 0;

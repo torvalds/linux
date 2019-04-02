@@ -203,7 +203,7 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);

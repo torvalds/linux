@@ -436,7 +436,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += TKIP_HDR_LEN;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_LIB80211_DE
 		net_dbg_ratelimited("TKIP: replay detected: STA=%pM previous TSC %08x%04x received TSC %08x%04x\n",
 				    hdr->addr2, tkey->rx_iv32, tkey->rx_iv16,
 				    iv32, iv16);
@@ -468,7 +468,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			 * it needs to be recalculated for the next packet. */
 			tkey->rx_phase1_done = 0;
 		}
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_LIB80211_DE
 		net_dbg_ratelimited("TKIP: ICV error detected: STA=%pM\n",
 				    hdr->addr2);
 #endif
@@ -564,7 +564,7 @@ static int lib80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 	u8 *pos;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
-		printk(KERN_DEBUG "Invalid packet for Michael MIC add "
+		printk(KERN_DE "Invalid packet for Michael MIC add "
 		       "(tailroom=%d hdr_len=%d skb->len=%d)\n",
 		       skb_tailroom(skb), hdr_len, skb->len);
 		return -1;
@@ -616,7 +616,7 @@ static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct ieee80211_hdr *hdr;
 		hdr = (struct ieee80211_hdr *)skb->data;
-		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
+		printk(KERN_DE "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);

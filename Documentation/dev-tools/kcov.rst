@@ -3,7 +3,7 @@ kcov: code coverage for fuzzing
 
 kcov exposes kernel code coverage information in a form suitable for coverage-
 guided fuzzing (randomized testing). Coverage data of a running kernel is
-exported via the "kcov" debugfs file. Coverage collection is enabled on a task
+exported via the "kcov" defs file. Coverage collection is enabled on a task
 basis, and thus it can capture precise coverage of a single system call.
 
 Note that kcov does not aim to collect as much coverage as possible. It aims
@@ -28,9 +28,9 @@ If the comparison operands need to be collected, set::
 
 	CONFIG_KCOV_ENABLE_COMPARISONS=y
 
-Profiling data will only become accessible once debugfs has been mounted::
+Profiling data will only become accessible once defs has been mounted::
 
-        mount -t debugfs none /sys/kernel/debug
+        mount -t defs none /sys/kernel/de
 
 Coverage collection
 -------------------
@@ -66,7 +66,7 @@ program using kcov:
 	/* A single fd descriptor allows coverage collection on a single
 	 * thread.
 	 */
-	fd = open("/sys/kernel/debug/kcov", O_RDWR);
+	fd = open("/sys/kernel/de/kcov", O_RDWR);
 	if (fd == -1)
 		perror("open"), exit(1);
 	/* Setup trace mode and trace size. */
@@ -119,10 +119,10 @@ After piping through addr2line output of the program looks as follows::
     fs/read_write.c:562
 
 If a program needs to collect coverage from several threads (independently),
-it needs to open /sys/kernel/debug/kcov in each thread separately.
+it needs to open /sys/kernel/de/kcov in each thread separately.
 
 The interface is fine-grained to allow efficient forking of test processes.
-That is, a parent process opens /sys/kernel/debug/kcov, enables trace mode,
+That is, a parent process opens /sys/kernel/de/kcov, enables trace mode,
 mmaps coverage buffer and then forks child processes in a loop. Child processes
 only need to enable coverage (disable happens automatically on thread end).
 
@@ -154,7 +154,7 @@ Comparison operands collection is similar to coverage collection:
 	uint64_t *cover, type, arg1, arg2, is_const, size;
 	unsigned long n, i;
 
-	fd = open("/sys/kernel/debug/kcov", O_RDWR);
+	fd = open("/sys/kernel/de/kcov", O_RDWR);
 	if (fd == -1)
 		perror("open"), exit(1);
 	if (ioctl(fd, KCOV_INIT_TRACE, COVER_SIZE))

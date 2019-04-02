@@ -25,7 +25,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -296,7 +296,7 @@ void sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
 
-	pr_debug("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
+	pr_de("%s: outq:%p, chunk:%p[%s]\n", __func__, q, chunk,
 		 chunk && chunk->chunk_hdr ?
 		 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 		 "illegal chunk");
@@ -305,7 +305,7 @@ void sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk, gfp_t gfp)
 	 * immediately.
 	 */
 	if (sctp_chunk_is_data(chunk)) {
-		pr_debug("%s: outqueueing: outq:%p, chunk:%p[%s])\n",
+		pr_de("%s: outqueueing: outq:%p, chunk:%p[%s])\n",
 			 __func__, q, chunk, chunk && chunk->chunk_hdr ?
 			 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 			 "illegal chunk");
@@ -536,7 +536,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		}
 	}
 
-	pr_debug("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d, "
+	pr_de("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d, "
 		 "flight_size:%d, pba:%d\n", __func__, transport, reason,
 		 transport->cwnd, transport->ssthresh, transport->flight_size,
 		 transport->partial_bytes_acked);
@@ -575,7 +575,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		transport->asoc->init_retries++;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	sctp_retransmit_mark(q, transport, reason);
@@ -977,7 +977,7 @@ static void sctp_outq_flush_ctrl(struct sctp_flush_ctx *ctx)
 
 		default:
 			/* We built a chunk with an illegal type! */
-			BUG();
+			();
 		}
 	}
 }
@@ -1095,7 +1095,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 
 		sctp_outq_select_transport(ctx, chunk);
 
-		pr_debug("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p skb->users:%d\n",
+		pr_de("%s: outq:%p, chunk:%p[%s], tx-tsn:0x%x skb->head:%p skb->users:%d\n",
 			 __func__, ctx->q, chunk, chunk && chunk->chunk_hdr ?
 			 sctp_cname(SCTP_ST_CHUNK(chunk->chunk_hdr->type)) :
 			 "illegal chunk", ntohl(chunk->subh.data_hdr->tsn),
@@ -1109,7 +1109,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 			/* We could not append this chunk, so put
 			 * the chunk back on the output queue.
 			 */
-			pr_debug("%s: could not transmit tsn:0x%x, status:%d\n",
+			pr_de("%s: could not transmit tsn:0x%x, status:%d\n",
 				 __func__, ntohl(chunk->subh.data_hdr->tsn),
 				 status);
 
@@ -1379,8 +1379,8 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 	asoc->stream.si->generate_ftsn(q, sack_ctsn);
 
-	pr_debug("%s: sack cumulative tsn ack:0x%x\n", __func__, sack_ctsn);
-	pr_debug("%s: cumulative tsn ack of assoc:%p is 0x%x, "
+	pr_de("%s: sack cumulative tsn ack:0x%x\n", __func__, sack_ctsn);
+	pr_de("%s: cumulative tsn ack of assoc:%p is 0x%x, "
 		 "advertised peer ack point:0x%x\n", __func__, asoc, ctsn,
 		 asoc->adv_peer_ack_point);
 
@@ -1405,7 +1405,7 @@ int sctp_outq_is_empty(const struct sctp_outq *q)
  * list and move chunks that are acked by the Cumulative TSN Ack to q->sacked.
  * The retransmit list will not have an associated transport.
  *
- * I added coherent debug information output.	--xguo
+ * I added coherent de information output.	--xguo
  *
  * Instead of printing 'sacked' or 'kept' for each TSN on the
  * transmitted_queue, we print a range: SACKED: TSN1-TSN2, TSN3, TSN4-TSN5.
@@ -1555,7 +1555,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			}
 		} else {
 			if (tchunk->tsn_gap_acked) {
-				pr_debug("%s: receiver reneged on data TSN:0x%x\n",
+				pr_de("%s: receiver reneged on data TSN:0x%x\n",
 					 __func__, tsn);
 
 				tchunk->tsn_gap_acked = 0;
@@ -1652,7 +1652,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			    !list_empty(&tlist) &&
 			    (sack_ctsn+2 == q->asoc->next_tsn) &&
 			    q->asoc->state < SCTP_STATE_SHUTDOWN_PENDING) {
-				pr_debug("%s: sack received for zero window "
+				pr_de("%s: sack received for zero window "
 					 "probe:%u\n", __func__, sack_ctsn);
 
 				q->asoc->overall_error_count = 0;
@@ -1720,7 +1720,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 						count_of_newacks, tsn)) {
 				chunk->tsn_missing_report++;
 
-				pr_debug("%s: tsn:0x%x missing counter:%d\n",
+				pr_de("%s: tsn:0x%x missing counter:%d\n",
 					 __func__, tsn, chunk->tsn_missing_report);
 			}
 		}
@@ -1741,7 +1741,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 		if (do_fast_retransmit)
 			sctp_retransmit(q, transport, SCTP_RTXR_FAST_RTX);
 
-		pr_debug("%s: transport:%p, cwnd:%d, ssthresh:%d, "
+		pr_de("%s: transport:%p, cwnd:%d, ssthresh:%d, "
 			 "flight_size:%d, pba:%d\n",  __func__, transport,
 			 transport->cwnd, transport->ssthresh,
 			 transport->flight_size, transport->partial_bytes_acked);

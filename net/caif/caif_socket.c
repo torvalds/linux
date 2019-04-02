@@ -17,7 +17,7 @@
 #include <linux/poll.h>
 #include <linux/tcp.h>
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/caif/caif_socket.h>
 #include <linux/pkt_sched.h>
 #include <net/sock.h>
@@ -49,7 +49,7 @@ struct caifsock {
 	u32 flow_state;
 	struct caif_connect_request conn_req;
 	struct mutex readlock;
-	struct dentry *debugfs_socket_dir;
+	struct dentry *defs_socket_dir;
 	int headroom, tailroom, maxframe;
 };
 
@@ -247,7 +247,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	default:
-		pr_debug("Unexpected flow command %d\n", flow);
+		pr_de("Unexpected flow command %d\n", flow);
 	}
 }
 
@@ -915,8 +915,8 @@ static int caif_release(struct socket *sock)
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
 	sock->sk = NULL;
 
-	WARN_ON(IS_ERR(cf_sk->debugfs_socket_dir));
-	debugfs_remove_recursive(cf_sk->debugfs_socket_dir);
+	WARN_ON(IS_ERR(cf_sk->defs_socket_dir));
+	defs_remove_recursive(cf_sk->defs_socket_dir);
 
 	lock_sock(&(cf_sk->sk));
 	sk->sk_state = CAIF_DISCONNECTED;
@@ -1017,7 +1017,7 @@ static void caif_sock_destructor(struct sock *sk)
 	caif_assert(sk_unhashed(sk));
 	caif_assert(!sk->sk_socket);
 	if (!sock_flag(sk, SOCK_DEAD)) {
-		pr_debug("Attempt to release alive CAIF socket: %p\n", sk);
+		pr_de("Attempt to release alive CAIF socket: %p\n", sk);
 		return;
 	}
 	sk_stream_kill_queues(&cf_sk->sk);

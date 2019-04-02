@@ -18,7 +18,7 @@ add_probe_vfs_getname() {
 	fi
 }
 
-skip_if_no_debuginfo() {
-	add_probe_vfs_getname -v 2>&1 | egrep -q "^(Failed to find the path for kernel|Debuginfo-analysis is not supported)" && return 2
+skip_if_no_deinfo() {
+	add_probe_vfs_getname -v 2>&1 | egrep -q "^(Failed to find the path for kernel|Deinfo-analysis is not supported)" && return 2
 	return 1
 }

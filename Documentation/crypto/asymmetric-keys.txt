@@ -327,7 +327,7 @@ Functions are provided to register and unregister parsers:
 	void unregister_asymmetric_key_parser(struct asymmetric_key_parser *subtype);
 
 Parsers may not have the same name.  The names are otherwise only used for
-displaying in debugging messages.
+displaying in deging messages.
 
 
 =========================

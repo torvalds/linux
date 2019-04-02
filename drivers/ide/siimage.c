@@ -61,7 +61,7 @@ static int pdev_is_sata(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_SII_680:
 		return 0;
 	}
-	BUG();
+	();
 #endif
 	return 0;
 }
@@ -214,7 +214,7 @@ static u8 sil_pata_udma_filter(ide_drive_t *drive)
 		mask = ATA_UDMA5;
 		break;
 	default: 	/* Disabled ? */
-		BUG();
+		();
 	}
 
 	return mask;

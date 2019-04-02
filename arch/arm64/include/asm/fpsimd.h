@@ -24,7 +24,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/stddef.h>
@@ -140,8 +140,8 @@ static inline int sve_get_current_vl(void)
 	return -EINVAL;
 }
 
-static inline void sve_user_disable(void) { BUILD_BUG(); }
-static inline void sve_user_enable(void) { BUILD_BUG(); }
+static inline void sve_user_disable(void) { BUILD_(); }
+static inline void sve_user_enable(void) { BUILD_(); }
 
 static inline void sve_init_vq_map(void) { }
 static inline void sve_update_vq_map(void) { }

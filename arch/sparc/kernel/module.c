@@ -101,7 +101,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		loc32 = (u32 *) location;
 
 #ifdef CONFIG_SPARC64
-		BUG_ON(((u64)location >> (u64)32) != (u64)0);
+		_ON(((u64)location >> (u64)32) != (u64)0);
 #endif /* CONFIG_SPARC64 */
 
 		/* This is the symbol it is referring to.  Note that all

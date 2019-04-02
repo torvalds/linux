@@ -341,8 +341,8 @@ static int shmem_replace_entry(struct address_space *mapping,
 	XA_STATE(xas, &mapping->i_pages, index);
 	void *item;
 
-	VM_BUG_ON(!expected);
-	VM_BUG_ON(!replacement);
+	VM__ON(!expected);
+	VM__ON(!replacement);
 	item = xas_load(&xas);
 	if (item != expected)
 		return -ENOENT;
@@ -434,7 +434,7 @@ static const char *shmem_format_huge(int huge)
 	case SHMEM_HUGE_FORCE:
 		return "force";
 	default:
-		VM_BUG_ON(1);
+		VM__ON(1);
 		return "bad_val";
 	}
 }
@@ -594,11 +594,11 @@ static int shmem_add_to_page_cache(struct page *page,
 	unsigned long i = 0;
 	unsigned long nr = 1UL << compound_order(page);
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(index != round_down(index, nr), page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
-	VM_BUG_ON(expected && PageTransHuge(page));
+	VM__ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(index != round_down(index, nr), page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageSwapBacked(page), page);
+	VM__ON(expected && PageTransHuge(page));
 
 	page_ref_add(page, nr);
 	page->mapping = mapping;
@@ -647,7 +647,7 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
 	struct address_space *mapping = page->mapping;
 	int error;
 
-	VM_BUG_ON_PAGE(PageCompound(page), page);
+	VM__ON_PAGE(PageCompound(page), page);
 
 	xa_lock_irq(&mapping->i_pages);
 	error = shmem_replace_entry(mapping, page->index, page, radswap);
@@ -657,7 +657,7 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
 	__dec_node_page_state(page, NR_SHMEM);
 	xa_unlock_irq(&mapping->i_pages);
 	put_page(page);
-	BUG_ON(error);
+	_ON(error);
 }
 
 /*
@@ -816,7 +816,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 				continue;
 			}
 
-			VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page);
+			VM__ON_PAGE(page_to_pgoff(page) != index, page);
 
 			if (!trylock_page(page))
 				continue;
@@ -841,9 +841,9 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			}
 
 			if (!unfalloc || !PageUptodate(page)) {
-				VM_BUG_ON_PAGE(PageTail(page), page);
+				VM__ON_PAGE(PageTail(page), page);
 				if (page_mapping(page) == mapping) {
-					VM_BUG_ON_PAGE(PageWriteback(page), page);
+					VM__ON_PAGE(PageWriteback(page), page);
 					truncate_inode_page(mapping, page);
 				}
 			}
@@ -946,9 +946,9 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			}
 
 			if (!unfalloc || !PageUptodate(page)) {
-				VM_BUG_ON_PAGE(PageTail(page), page);
+				VM__ON_PAGE(PageTail(page), page);
 				if (page_mapping(page) == mapping) {
-					VM_BUG_ON_PAGE(PageWriteback(page), page);
+					VM__ON_PAGE(PageWriteback(page), page);
 					truncate_inode_page(mapping, page);
 				} else {
 					/* Page was replaced by swap: retry */
@@ -1286,8 +1286,8 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	swp_entry_t swap;
 	pgoff_t index;
 
-	VM_BUG_ON_PAGE(PageCompound(page), page);
-	BUG_ON(!PageLocked(page));
+	VM__ON_PAGE(PageCompound(page), page);
+	_ON(!PageLocked(page));
 	mapping = page->mapping;
 	index = page->index;
 	inode = mapping->host;
@@ -1367,7 +1367,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
 
 		mutex_unlock(&shmem_swaplist_mutex);
-		BUG_ON(page_mapped(page));
+		_ON(page_mapped(page));
 		swap_writepage(page, wbc);
 		return 0;
 	}
@@ -1624,7 +1624,7 @@ static int shmem_swapin_page(struct inode *inode, pgoff_t index,
 	swp_entry_t swap;
 	int error;
 
-	VM_BUG_ON(!*pagep || !xa_is_value(*pagep));
+	VM__ON(!*pagep || !xa_is_value(*pagep));
 	swap = radix_to_swp_entry(*pagep);
 	*pagep = NULL;
 
@@ -2102,7 +2102,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 		struct super_block *sb;
 
 		if (file) {
-			VM_BUG_ON(file->f_op != &shmem_file_operations);
+			VM__ON(file->f_op != &shmem_file_operations);
 			sb = file_inode(file)->i_sb;
 		} else {
 			/*
@@ -2336,7 +2336,7 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 		*pagep = NULL;
 	}
 
-	VM_BUG_ON(PageLocked(page) || PageSwapBacked(page));
+	VM__ON(PageLocked(page) || PageSwapBacked(page));
 	__SetPageLocked(page);
 	__SetPageSwapBacked(page);
 	__SetPageUptodate(page);
@@ -3897,7 +3897,7 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
 			/* TODO: implement fadvise() hints */
 			return (vma->vm_flags & VM_HUGEPAGE);
 		default:
-			VM_BUG_ON(1);
+			VM__ON(1);
 			return false;
 	}
 }
@@ -3923,10 +3923,10 @@ static struct file_system_type shmem_fs_type = {
 
 int __init shmem_init(void)
 {
-	BUG_ON(register_filesystem(&shmem_fs_type) != 0);
+	_ON(register_filesystem(&shmem_fs_type) != 0);
 
 	shm_mnt = kern_mount(&shmem_fs_type);
-	BUG_ON(IS_ERR(shm_mnt));
+	_ON(IS_ERR(shm_mnt));
 
 	return 0;
 }
@@ -4101,7 +4101,7 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 	struct page *page;
 	int error;
 
-	BUG_ON(mapping->a_ops != &shmem_aops);
+	_ON(mapping->a_ops != &shmem_aops);
 	error = shmem_getpage_gfp(inode, index, &page, SGP_CACHE,
 				  gfp, NULL, NULL, NULL);
 	if (error)

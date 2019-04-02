@@ -16,7 +16,7 @@
 #include "util/parse-events.h"
 #include <subcmd/parse-options.h>
 #include "util/bpf-loader.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/event.h"
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
@@ -150,11 +150,11 @@ struct option options[] = {
 	OPT_ARGUMENT("html-path", "html-path"),
 	OPT_ARGUMENT("paginate", "paginate"),
 	OPT_ARGUMENT("no-pager", "no-pager"),
-	OPT_ARGUMENT("debugfs-dir", "debugfs-dir"),
+	OPT_ARGUMENT("defs-dir", "defs-dir"),
 	OPT_ARGUMENT("buildid-dir", "buildid-dir"),
 	OPT_ARGUMENT("list-cmds", "list-cmds"),
 	OPT_ARGUMENT("list-opts", "list-opts"),
-	OPT_ARGUMENT("debug", "debug"),
+	OPT_ARGUMENT("de", "de"),
 	OPT_END()
 };
 
@@ -215,9 +215,9 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			use_pager = 0;
 			if (envchanged)
 				*envchanged = 1;
-		} else if (!strcmp(cmd, "--debugfs-dir")) {
+		} else if (!strcmp(cmd, "--defs-dir")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No directory given for --debugfs-dir.\n");
+				fprintf(stderr, "No directory given for --defs-dir.\n");
 				usage(perf_usage_string);
 			}
 			tracing_path_set((*argv)[1]);
@@ -235,8 +235,8 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
-		} else if (strstarts(cmd, CMD_DEBUGFS_DIR)) {
-			tracing_path_set(cmd + strlen(CMD_DEBUGFS_DIR));
+		} else if (strstarts(cmd, CMD_DEFS_DIR)) {
+			tracing_path_set(cmd + strlen(CMD_DEFS_DIR));
 			fprintf(stderr, "dir: %s\n", tracing_path_mount());
 			if (envchanged)
 				*envchanged = 1;
@@ -258,12 +258,12 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			}
 			putchar('\n');
 			exit(0);
-		} else if (!strcmp(cmd, "--debug")) {
+		} else if (!strcmp(cmd, "--de")) {
 			if (*argc < 2) {
-				fprintf(stderr, "No variable specified for --debug.\n");
+				fprintf(stderr, "No variable specified for --de.\n");
 				usage(perf_usage_string);
 			}
-			if (perf_debug_option((*argv)[1]))
+			if (perf_de_option((*argv)[1]))
 				usage(perf_usage_string);
 
 			(*argv)++;
@@ -513,7 +513,7 @@ int main(int argc, const char **argv)
 	 */
 	pthread__block_sigwinch();
 
-	perf_debug_setup();
+	perf_de_setup();
 
 	while (1) {
 		static int done_help;

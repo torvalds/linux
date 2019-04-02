@@ -9,4 +9,4 @@ obj-y := sram.o dma.o counter_32k.o
 
 # omap_device support (OMAP2+ only at the moment)
 
-obj-$(CONFIG_OMAP_DEBUG_LEDS) += debug-leds.o
+obj-$(CONFIG_OMAP_DE_LEDS) += de-leds.o

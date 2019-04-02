@@ -86,7 +86,7 @@ static int qede_ptp_adjtime(struct ptp_clock_info *info, s64 delta)
 	ptp = container_of(info, struct qede_ptp, clock_info);
 	edev = ptp->edev;
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "PTP adjtime called, delta = %llx\n",
+	DP_VERBOSE(edev, QED_MSG_DE, "PTP adjtime called, delta = %llx\n",
 		   delta);
 
 	spin_lock_bh(&ptp->lock);
@@ -109,7 +109,7 @@ static int qede_ptp_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
 	ns = timecounter_read(&ptp->tc);
 	spin_unlock_bh(&ptp->lock);
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "PTP gettime called, ns = %llu\n", ns);
+	DP_VERBOSE(edev, QED_MSG_DE, "PTP gettime called, ns = %llu\n", ns);
 
 	*ts = ns_to_timespec64(ns);
 
@@ -128,7 +128,7 @@ static int qede_ptp_settime(struct ptp_clock_info *info,
 
 	ns = timespec64_to_ns(ts);
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "PTP settime called, ns = %llu\n", ns);
+	DP_VERBOSE(edev, QED_MSG_DE, "PTP settime called, ns = %llu\n", ns);
 
 	/* Re-init the timecounter */
 	spin_lock_bh(&ptp->lock);
@@ -183,7 +183,7 @@ static void qede_ptp_task(struct work_struct *work)
 	ptp->tx_skb = NULL;
 	clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
+	DP_VERBOSE(edev, QED_MSG_DE,
 		   "Tx timestamp, timestamp cycles = %llu, ns = %llu\n",
 		   timestamp, ns);
 }
@@ -202,7 +202,7 @@ static u64 qede_ptp_read_cc(const struct cyclecounter *cc)
 	if (rc)
 		WARN_ONCE(1, "PHC read err %d\n", rc);
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG, "PHC read cycles = %llu\n", phc_cycles);
+	DP_VERBOSE(edev, QED_MSG_DE, "PHC read cycles = %llu\n", phc_cycles);
 
 	return phc_cycles;
 }
@@ -310,7 +310,7 @@ int qede_ptp_hw_ts(struct qede_dev *edev, struct ifreq *ifr)
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
+	DP_VERBOSE(edev, QED_MSG_DE,
 		   "HWTSTAMP IOCTL: Requested tx_type = %d, requested rx_filters = %d\n",
 		   config.tx_type, config.rx_filter);
 
@@ -553,7 +553,7 @@ void qede_ptp_rx_ts(struct qede_dev *edev, struct sk_buff *skb)
 	ns = timecounter_cyc2time(&ptp->tc, timestamp);
 	spin_unlock_bh(&ptp->lock);
 	skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(ns);
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
+	DP_VERBOSE(edev, QED_MSG_DE,
 		   "Rx timestamp, timestamp cycles = %llu, ns = %llu\n",
 		   timestamp, ns);
 }

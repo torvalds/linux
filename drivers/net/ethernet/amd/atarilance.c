@@ -16,7 +16,7 @@
 	      Initial version
 	v1.1: (in 1.2.13pl5)
 	      more comments
-		  deleted some debugging stuff
+		  deleted some deging stuff
 		  optimized register access (keep AREG pointing to CSR0)
 		  following AMD, CSR0_STRT should be set only after IDON is detected
 		  use memcpy() for data transfers, that also employs long word moves
@@ -63,34 +63,34 @@ static const char version[] = "atarilance.c: v1.3 04/04/96 "
 #include <asm/atariints.h>
 #include <asm/io.h>
 
-/* Debug level:
+/* De level:
  *  0 = silent, print only serious errors
  *  1 = normal, print error messages
- *  2 = debug, print debug infos
- *  3 = debug, print even more debug infos (packet data)
+ *  2 = de, print de infos
+ *  3 = de, print even more de infos (packet data)
  */
 
-#define	LANCE_DEBUG	1
+#define	LANCE_DE	1
 
-#ifdef LANCE_DEBUG
-static int lance_debug = LANCE_DEBUG;
+#ifdef LANCE_DE
+static int lance_de = LANCE_DE;
 #else
-static int lance_debug = 1;
+static int lance_de = 1;
 #endif
-module_param(lance_debug, int, 0);
-MODULE_PARM_DESC(lance_debug, "atarilance debug level (0-3)");
+module_param(lance_de, int, 0);
+MODULE_PARM_DESC(lance_de, "atarilance de level (0-3)");
 MODULE_LICENSE("GPL");
 
-/* Print debug messages on probing? */
-#undef LANCE_DEBUG_PROBE
+/* Print de messages on probing? */
+#undef LANCE_DE_PROBE
 
 #define	DPRINTK(n,a)							\
 	do {										\
-		if (lance_debug >= n)					\
+		if (lance_de >= n)					\
 			printk a;							\
 	} while( 0 )
 
-#ifdef LANCE_DEBUG_PROBE
+#ifdef LANCE_DE_PROBE
 # define PROBE_PRINT(a)	printk a
 #else
 # define PROBE_PRINT(a)
@@ -787,7 +787,7 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	len = skb->len;
 	if (len < ETH_ZLEN)
 		len = ETH_ZLEN;
-	/* PAM-Card has a bug: Can only send packets with even number of bytes! */
+	/* PAM-Card has a : Can only send packets with even number of bytes! */
 	else if (lp->cardtype == PAM_CARD && (len & 1))
 		++len;
 
@@ -799,7 +799,7 @@ lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue (dev);
 
 	/* Fill in a Tx ring entry */
-	if (lance_debug >= 3) {
+	if (lance_de >= 3) {
 		printk( "%s: TX pkt type 0x%04x from %pM to %pM"
 				" data at 0x%08x len %d\n",
 				dev->name, ((u_short *)skb->data)[6],
@@ -1010,10 +1010,10 @@ static int lance_rx( struct net_device *dev )
 					break;
 				}
 
-				if (lance_debug >= 3) {
+				if (lance_de >= 3) {
 					u_char *data = PKTBUF_ADDR(head);
 
-					printk(KERN_DEBUG "%s: RX pkt type 0x%04x from %pM to %pM "
+					printk(KERN_DE "%s: RX pkt type 0x%04x from %pM to %pM "
 						   "data %8ph len %d\n",
 						   dev->name, ((u_short *)data)[6],
 						   &data[6], data, &data[15], pkt_len);

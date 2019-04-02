@@ -1338,7 +1338,7 @@ do { \
 } while (0)
 #endif
 
-	/* Define this unconditionally, so it can be used for debugging.  */
+	/* Define this unconditionally, so it can be used for deging.  */
 #define __udiv_qrnnd_c(q, r, n1, n0, d) \
 do { \
 	UWtype __d1, __d0, __q1, __q0, __r1, __r0, __m; \

@@ -3,7 +3,7 @@
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/kernel.h>
@@ -66,7 +66,7 @@ static bool
 nfp_prog_confirm_current_offset(struct nfp_prog *nfp_prog, unsigned int off)
 {
 	/* If there is a recorded error we may have dropped instructions;
-	 * that doesn't have to be due to translator bug, and the translation
+	 * that doesn't have to be due to translator , and the translation
 	 * will fail anyway, so just return OK.
 	 */
 	if (nfp_prog->error)
@@ -163,7 +163,7 @@ emit_br_relo(struct nfp_prog *nfp_prog, enum br_mask mask, u16 addr, u8 defer,
 	     enum nfp_relo_type relo)
 {
 	if (mask == BR_UNC && defer > 2) {
-		pr_err("BUG: branch defer out of bounds %d\n", defer);
+		pr_err(": branch defer out of bounds %d\n", defer);
 		nfp_prog->error = -EFAULT;
 		return;
 	}
@@ -1649,7 +1649,7 @@ static int adjust_tail(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u32 ret_einval, end;
 	swreg plen, delta;
 
-	BUILD_BUG_ON(plen_reg(nfp_prog) != reg_b(STATIC_REG_PKT_LEN));
+	BUILD__ON(plen_reg(nfp_prog) != reg_b(STATIC_REG_PKT_LEN));
 
 	plen = imm_a(nfp_prog);
 	delta = reg_a(2 * 2);
@@ -3264,7 +3264,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 *   address to the stack for leaf functions.
 	 */
 	if (!meta->jmp_dst) {
-		pr_err("BUG: BPF-to-BPF call has no destination recorded\n");
+		pr_err(": BPF-to-BPF call has no destination recorded\n");
 		return -ELOOP;
 	}
 	if (nfp_prog->subprog[meta->jmp_dst->subprog_idx].needs_reg_push) {
@@ -3497,7 +3497,7 @@ nfp_fixup_immed_relo(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		     struct nfp_insn_meta *jmp_dst, u32 br_idx)
 {
 	if (immed_get_value(nfp_prog->prog[br_idx + 1])) {
-		pr_err("BUG: failed to fix up callee register saving\n");
+		pr_err(": failed to fix up callee register saving\n");
 		return -EINVAL;
 	}
 
@@ -4519,7 +4519,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 			break;
 		case RELO_BR_GO_CALL_PUSH_REGS:
 			if (!nfp_prog->tgt_call_push_regs) {
-				pr_err("BUG: failed to detect subprogram registers needs\n");
+				pr_err(": failed to detect subprogram registers needs\n");
 				err = -EINVAL;
 				goto err_free_prog;
 			}
@@ -4528,7 +4528,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 			break;
 		case RELO_BR_GO_CALL_POP_REGS:
 			if (!nfp_prog->tgt_call_pop_regs) {
-				pr_err("BUG: failed to detect subprogram registers needs\n");
+				pr_err(": failed to detect subprogram registers needs\n");
 				err = -EINVAL;
 				goto err_free_prog;
 			}

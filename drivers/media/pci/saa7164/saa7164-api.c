@@ -24,7 +24,7 @@ int saa7164_api_get_load_info(struct saa7164_dev *dev, struct tmFwInfoStruct *i)
 {
 	int ret;
 
-	if (!(saa_debug & DBGLVL_CPU))
+	if (!(saa_de & DBGLVL_CPU))
 		return 0;
 
 	dprintk(DBGLVL_API, "%s()\n", __func__);
@@ -44,9 +44,9 @@ int saa7164_api_get_load_info(struct saa7164_dev *dev, struct tmFwInfoStruct *i)
 	return ret;
 }
 
-int saa7164_api_collect_debug(struct saa7164_dev *dev)
+int saa7164_api_collect_de(struct saa7164_dev *dev)
 {
-	struct tmComResDebugGetData d;
+	struct tmComResDeGetData d;
 	u8 more = 255;
 	int ret;
 
@@ -57,7 +57,7 @@ int saa7164_api_collect_debug(struct saa7164_dev *dev)
 		memset(&d, 0, sizeof(d));
 
 		ret = saa7164_cmd_send(dev, 0, GET_CUR,
-			GET_DEBUG_DATA_CONTROL, sizeof(d), &d);
+			GET_DE_DATA_CONTROL, sizeof(d), &d);
 		if (ret != SAA_OK)
 			printk(KERN_ERR "%s() error, ret = 0x%x\n",
 				__func__, ret);
@@ -66,32 +66,32 @@ int saa7164_api_collect_debug(struct saa7164_dev *dev)
 			break;
 
 		printk(KERN_INFO "saa7164[%d]-FWMSG: %s", dev->nr,
-			d.ucDebugData);
+			d.ucDeData);
 	}
 
 	return 0;
 }
 
-int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level)
+int saa7164_api_set_de(struct saa7164_dev *dev, u8 level)
 {
-	struct tmComResDebugSetLevel lvl;
+	struct tmComResDeSetLevel lvl;
 	int ret;
 
 	dprintk(DBGLVL_API, "%s(level=%d)\n", __func__, level);
 
 	/* Retrieve current state */
 	ret = saa7164_cmd_send(dev, 0, GET_CUR,
-		SET_DEBUG_LEVEL_CONTROL, sizeof(lvl), &lvl);
+		SET_DE_LEVEL_CONTROL, sizeof(lvl), &lvl);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
-	dprintk(DBGLVL_API, "%s() Was %d\n", __func__, lvl.dwDebugLevel);
+	dprintk(DBGLVL_API, "%s() Was %d\n", __func__, lvl.dwDeLevel);
 
-	lvl.dwDebugLevel = level;
+	lvl.dwDeLevel = level;
 
 	/* set new state */
 	ret = saa7164_cmd_send(dev, 0, SET_CUR,
-		SET_DEBUG_LEVEL_CONTROL, sizeof(lvl), &lvl);
+		SET_DE_LEVEL_CONTROL, sizeof(lvl), &lvl);
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret = 0x%x\n", __func__, ret);
 
@@ -344,7 +344,7 @@ int saa7164_api_set_aspect_ratio(struct saa7164_port *port)
 		ar.height = 100;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	dprintk(DBGLVL_ENC, "%s(%d) now %d:%d\n", __func__,
@@ -584,7 +584,7 @@ int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect)
 
 	dprintk(DBGLVL_API, "%s(%d)\n", __func__, autodetect);
 
-	/* Disable TV Audio autodetect if not already set (buggy) */
+	/* Disable TV Audio autodetect if not already set (gy) */
 	if (autodetect)
 		p.mode = TU_STANDARD_AUTO;
 	else
@@ -766,7 +766,7 @@ int saa7164_api_initialize_dif(struct saa7164_port *port)
 		else
 			p = &dev->ports[SAA7164_PORT_ENC2];
 	} else
-		BUG();
+		();
 
 	if (p)
 		ret = saa7164_api_configure_dif(p, std);
@@ -1349,7 +1349,7 @@ int saa7164_api_enum_subdevs(struct saa7164_dev *dev)
 		goto out;
 	}
 
-	if (saa_debug & DBGLVL_API)
+	if (saa_de & DBGLVL_API)
 		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1, buf,
 			       buflen & ~15, false);
 
@@ -1402,7 +1402,7 @@ int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,
 
 	dprintk(DBGLVL_API, "%s() len = %d bytes\n", __func__, len);
 
-	if (saa_debug & DBGLVL_I2C)
+	if (saa_de & DBGLVL_I2C)
 		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1, buf,
 			       32, false);
 
@@ -1411,7 +1411,7 @@ int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,
 	if (ret != SAA_OK)
 		printk(KERN_ERR "%s() error, ret(2) = 0x%x\n", __func__, ret);
 	else {
-		if (saa_debug & DBGLVL_I2C)
+		if (saa_de & DBGLVL_I2C)
 			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
 				       buf, sizeof(buf), false);
 		memcpy(data, (buf + 2 * sizeof(u32) + reglen), datalen);
@@ -1474,7 +1474,7 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 	*((u32 *)(buf + 1 * sizeof(u32))) = datalen - reglen;
 	memcpy((buf + 2 * sizeof(u32)), data, datalen);
 
-	if (saa_debug & DBGLVL_I2C)
+	if (saa_de & DBGLVL_I2C)
 		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
 			       buf, sizeof(buf), false);
 

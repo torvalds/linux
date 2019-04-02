@@ -37,14 +37,14 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(VPIF_CAPTURE_VERSION);
 
 #define vpif_err(fmt, arg...)	v4l2_err(&vpif_obj.v4l2_dev, fmt, ## arg)
-#define vpif_dbg(level, debug, fmt, arg...)	\
-		v4l2_dbg(level, debug, &vpif_obj.v4l2_dev, fmt, ## arg)
+#define vpif_dbg(level, de, fmt, arg...)	\
+		v4l2_dbg(level, de, &vpif_obj.v4l2_dev, fmt, ## arg)
 
-static int debug = 1;
+static int de = 1;
 
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level 0-1");
+MODULE_PARM_DESC(de, "De level 0-1");
 
 #define VPIF_DRIVER_NAME	"vpif_capture"
 MODULE_ALIAS("platform:" VPIF_DRIVER_NAME);
@@ -82,7 +82,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 	struct common_obj *common;
 	unsigned long addr;
 
-	vpif_dbg(2, debug, "vpif_buffer_prepare\n");
+	vpif_dbg(2, de, "vpif_buffer_prepare\n");
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
@@ -97,7 +97,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
 		!IS_ALIGNED((addr + common->ybtm_off), 8) ||
 		!IS_ALIGNED((addr + common->ctop_off), 8) ||
 		!IS_ALIGNED((addr + common->cbtm_off), 8)) {
-		vpif_dbg(1, debug, "offset is not aligned\n");
+		vpif_dbg(1, de, "offset is not aligned\n");
 		return -EINVAL;
 	}
 
@@ -123,7 +123,7 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	unsigned size = common->fmt.fmt.pix.sizeimage;
 
-	vpif_dbg(2, debug, "vpif_buffer_setup\n");
+	vpif_dbg(2, de, "vpif_buffer_setup\n");
 
 	if (*nplanes) {
 		if (sizes[0] < size)
@@ -157,7 +157,7 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
-	vpif_dbg(2, debug, "vpif_buffer_queue\n");
+	vpif_dbg(2, de, "vpif_buffer_queue\n");
 
 	spin_lock_irqsave(&common->irqlock, flags);
 	/* add the buffer to the DMA queue */
@@ -189,21 +189,21 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 		ret = vpif_config_data->
 			setup_input_channel_mode(vpif->std_info.ycmux_mode);
 		if (ret < 0) {
-			vpif_dbg(1, debug, "can't set vpif channel mode\n");
+			vpif_dbg(1, de, "can't set vpif channel mode\n");
 			goto err;
 		}
 	}
 
 	ret = v4l2_subdev_call(ch->sd, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV) {
-		vpif_dbg(1, debug, "stream on failed in subdev\n");
+		vpif_dbg(1, de, "stream on failed in subdev\n");
 		goto err;
 	}
 
 	/* Call vpif_set_params function to set the parameters and addresses */
 	ret = vpif_set_video_params(vpif, ch->channel_id);
 	if (ret < 0) {
-		vpif_dbg(1, debug, "can't set video params\n");
+		vpif_dbg(1, de, "can't set video params\n");
 		goto err;
 	}
 
@@ -286,7 +286,7 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 
 	ret = v4l2_subdev_call(ch->sd, video, s_stream, 0);
 	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV)
-		vpif_dbg(1, debug, "stream off failed in subdev\n");
+		vpif_dbg(1, de, "stream off failed in subdev\n");
 
 	/* release all active buffers */
 	if (common->cur_frm == common->next_frm) {
@@ -475,7 +475,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	int index;
 	struct v4l2_pix_format *pixfmt = &common->fmt.fmt.pix;
 
-	vpif_dbg(2, debug, "vpif_update_std_info\n");
+	vpif_dbg(2, de, "vpif_update_std_info\n");
 
 	/*
 	 * if called after try_fmt or g_fmt, there will already be a size
@@ -508,13 +508,13 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	for (index = 0; index < vpif_ch_params_count; index++) {
 		config = &vpif_ch_params[index];
 		if (config->hd_sd == 0) {
-			vpif_dbg(2, debug, "SD format\n");
+			vpif_dbg(2, de, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {
 				memcpy(std_info, config, sizeof(*config));
 				break;
 			}
 		} else {
-			vpif_dbg(2, debug, "HD format\n");
+			vpif_dbg(2, de, "HD format\n");
 			if (!memcmp(&config->dv_timings, &vid_ch->dv_timings,
 				sizeof(vid_ch->dv_timings))) {
 				memcpy(std_info, config, sizeof(*config));
@@ -571,7 +571,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	enum v4l2_field field = common->fmt.fmt.pix.field;
 
-	vpif_dbg(2, debug, "vpif_calculate_offsets\n");
+	vpif_dbg(2, de, "vpif_calculate_offsets\n");
 
 	if (V4L2_FIELD_ANY == field) {
 		if (vpifparams->std_info.frm_fmt)
@@ -647,7 +647,7 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 {
 	struct common_obj *common;
 
-	vpif_dbg(2, debug, "vpif_config_addr\n");
+	vpif_dbg(2, de, "vpif_config_addr\n");
 
 	common = &(ch->common[VPIF_VIDEO_INDEX]);
 
@@ -678,7 +678,7 @@ static int vpif_input_to_subdev(
 	const char *subdev_name;
 	int i;
 
-	vpif_dbg(2, debug, "vpif_input_to_subdev\n");
+	vpif_dbg(2, de, "vpif_input_to_subdev\n");
 
 	if (!chan_cfg)
 		return -1;
@@ -732,7 +732,7 @@ static int vpif_set_input(
 		ret = vpif_cfg->setup_input_path(ch->channel_id,
 				       subdev_info->name);
 		if (ret < 0) {
-			vpif_dbg(1, debug, "couldn't setup input path for the" \
+			vpif_dbg(1, de, "couldn't setup input path for the" \
 			" sub device %s, for input index %d\n",
 			subdev_info->name, index);
 			return ret;
@@ -745,7 +745,7 @@ static int vpif_set_input(
 		ret = v4l2_subdev_call(sd, video, s_routing,
 				input, output, 0);
 		if (ret < 0 && ret != -ENOIOCTLCMD) {
-			vpif_dbg(1, debug, "Failed to set input\n");
+			vpif_dbg(1, de, "Failed to set input\n");
 			return ret;
 		}
 	}
@@ -773,7 +773,7 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	struct channel_obj *ch = video_get_drvdata(vdev);
 	int ret;
 
-	vpif_dbg(2, debug, "vpif_querystd\n");
+	vpif_dbg(2, de, "vpif_querystd\n");
 
 	/* Call querystd function of decoder device */
 	ret = v4l2_subdev_call(ch->sd, video, querystd, std_id);
@@ -781,7 +781,7 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -ENODATA;
 	if (ret) {
-		vpif_dbg(1, debug, "Failed to query standard for sub devices\n");
+		vpif_dbg(1, de, "Failed to query standard for sub devices\n");
 		return ret;
 	}
 
@@ -802,7 +802,7 @@ static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	struct vpif_capture_chan_config *chan_cfg;
 	struct v4l2_input input;
 
-	vpif_dbg(2, debug, "vpif_g_std\n");
+	vpif_dbg(2, de, "vpif_g_std\n");
 
 	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
@@ -832,7 +832,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	struct v4l2_input input;
 	int ret;
 
-	vpif_dbg(2, debug, "vpif_s_std\n");
+	vpif_dbg(2, de, "vpif_s_std\n");
 
 	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
@@ -858,7 +858,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	/* set standard in the sub device */
 	ret = v4l2_subdev_call(ch->sd, video, s_std, std_id);
 	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV) {
-		vpif_dbg(1, debug, "Failed to set standard for sub devices\n");
+		vpif_dbg(1, de, "Failed to set standard for sub devices\n");
 		return ret;
 	}
 	return 0;
@@ -942,7 +942,7 @@ static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 	struct channel_obj *ch = video_get_drvdata(vdev);
 
 	if (fmt->index != 0) {
-		vpif_dbg(1, debug, "Invalid format index\n");
+		vpif_dbg(1, de, "Invalid format index\n");
 		return -EINVAL;
 	}
 
@@ -1069,7 +1069,7 @@ static int vpif_s_fmt_vid_cap(struct file *file, void *priv,
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret;
 
-	vpif_dbg(2, debug, "%s\n", __func__);
+	vpif_dbg(2, de, "%s\n", __func__);
 
 	if (vb2_is_busy(&common->buffer_queue))
 		return -EBUSY;
@@ -1200,7 +1200,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 		return -ENODATA;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
-		vpif_dbg(2, debug, "Timing type not defined\n");
+		vpif_dbg(2, de, "Timing type not defined\n");
 		return -EINVAL;
 	}
 
@@ -1212,7 +1212,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		ret = 0;
 	if (ret < 0) {
-		vpif_dbg(2, debug, "Error setting custom DV timings\n");
+		vpif_dbg(2, de, "Error setting custom DV timings\n");
 		return ret;
 	}
 
@@ -1223,7 +1223,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 				timings->bt.vfrontporch &&
 				(timings->bt.vbackporch ||
 				 timings->bt.vsync))) {
-		vpif_dbg(2, debug, "Timings for width, height, horizontal back porch, horizontal sync, horizontal front porch, vertical back porch, vertical sync and vertical back porch must be defined\n");
+		vpif_dbg(2, de, "Timings for width, height, horizontal back porch, horizontal sync, horizontal front porch, vertical back porch, vertical sync and vertical back porch must be defined\n");
 		return -EINVAL;
 	}
 
@@ -1248,7 +1248,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 			std_info->l11 = std_info->vsize -
 				(bt->il_vfrontporch - 1);
 		} else {
-			vpif_dbg(2, debug, "Required timing values for interlaced BT format missing\n");
+			vpif_dbg(2, de, "Required timing values for interlaced BT format missing\n");
 			return -EINVAL;
 		}
 	} else {
@@ -1398,7 +1398,7 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 			vpif_obj.sd[i] = subdev;
 			vpif_obj.config->chan_config->inputs[i].subdev_name =
 				(char *)to_of_node(subdev->fwnode)->full_name;
-			vpif_dbg(2, debug,
+			vpif_dbg(2, de,
 				 "%s: setting input %d subdev_name = %s\n",
 				 __func__, i,
 				vpif_obj.config->chan_config->inputs[i].subdev_name);

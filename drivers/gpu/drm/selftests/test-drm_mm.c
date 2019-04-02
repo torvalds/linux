@@ -196,7 +196,7 @@ static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
 }
 
 #define show_mm(mm) do { \
-	struct drm_printer __p = drm_debug_printer(__func__); \
+	struct drm_printer __p = drm_de_printer(__func__); \
 	drm_mm_print((mm), &__p); } while (0)
 
 static int igt_init(void *ignored)
@@ -260,14 +260,14 @@ out:
 	return ret;
 }
 
-static int igt_debug(void *ignored)
+static int igt_de(void *ignored)
 {
 	struct drm_mm mm;
 	struct drm_mm_node nodes[2];
 	int ret;
 
 	/* Create a small drm_mm with a couple of nodes and a few holes, and
-	 * check that the debug iterator doesn't explode over a trivial drm_mm.
+	 * check that the de iterator doesn't explode over a trivial drm_mm.
 	 */
 
 	drm_mm_init(&mm, 0, 4096);
@@ -381,8 +381,8 @@ static int __igt_reserve(unsigned int count, u64 size)
 	 * the tree and nodes should be intact.
 	 */
 
-	DRM_MM_BUG_ON(!count);
-	DRM_MM_BUG_ON(!size);
+	DRM_MM__ON(!count);
+	DRM_MM__ON(!size);
 
 	ret = -ENOMEM;
 	order = drm_random_order(count, &prng);
@@ -575,8 +575,8 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 
 	/* Fill a range with lots of nodes, check it doesn't fail too early */
 
-	DRM_MM_BUG_ON(!count);
-	DRM_MM_BUG_ON(!size);
+	DRM_MM__ON(!count);
+	DRM_MM__ON(!size);
 
 	ret = -ENOMEM;
 	nodes = vmalloc(array_size(count, sizeof(*nodes)));
@@ -681,7 +681,7 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
-		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+		DRM_MM__ON(!drm_mm_clean(&mm));
 
 		cond_resched();
 	}
@@ -880,9 +880,9 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 	unsigned int n, start_n, end_n;
 	int ret;
 
-	DRM_MM_BUG_ON(!count);
-	DRM_MM_BUG_ON(!size);
-	DRM_MM_BUG_ON(end <= start);
+	DRM_MM__ON(!count);
+	DRM_MM__ON(!size);
+	DRM_MM__ON(end <= start);
 
 	/* Very similar to __igt_insert(), but now instead of populating the
 	 * full range of the drm_mm, we try to fill a small portion of it.
@@ -945,7 +945,7 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
-		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+		DRM_MM__ON(!drm_mm_clean(&mm));
 
 		cond_resched();
 	}
@@ -1071,7 +1071,7 @@ static int igt_align(void *ignored)
 
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
-		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+		DRM_MM__ON(!drm_mm_clean(&mm));
 
 		cond_resched();
 	}
@@ -1477,7 +1477,7 @@ static int igt_evict(void *ignored)
 		for_each_prime_number_from(n, 1, min(size, max_prime)) {
 			unsigned int nsize = (size - n + 1) / 2;
 
-			DRM_MM_BUG_ON(!nsize);
+			DRM_MM__ON(!nsize);
 
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, 0, U64_MAX,
@@ -1575,7 +1575,7 @@ static int igt_evict_range(void *ignored)
 		for_each_prime_number_from(n, 1, min(range_size, max_prime)) {
 			unsigned int nsize = (range_size - n + 1) / 2;
 
-			DRM_MM_BUG_ON(!nsize);
+			DRM_MM__ON(!nsize);
 
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, range_start, range_end,
@@ -1699,14 +1699,14 @@ static int igt_topdown(void *ignored)
 				__clear_bit(last, bitmap);
 			}
 
-			DRM_MM_BUG_ON(find_first_bit(bitmap, count) != count);
+			DRM_MM__ON(find_first_bit(bitmap, count) != count);
 
 			o += n;
 		}
 
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
-		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+		DRM_MM__ON(!drm_mm_clean(&mm));
 		cond_resched();
 	}
 
@@ -1800,14 +1800,14 @@ static int igt_bottomup(void *ignored)
 				__clear_bit(first, bitmap);
 			}
 
-			DRM_MM_BUG_ON(find_first_bit(bitmap, count) != count);
+			DRM_MM__ON(find_first_bit(bitmap, count) != count);
 
 			o += n;
 		}
 
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
-		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+		DRM_MM__ON(!drm_mm_clean(&mm));
 		cond_resched();
 	}
 
@@ -2219,7 +2219,7 @@ static int igt_color_evict(void *ignored)
 		for_each_prime_number_from(n, 1, min(total_size, max_prime)) {
 			unsigned int nsize = (total_size - n + 1) / 2;
 
-			DRM_MM_BUG_ON(!nsize);
+			DRM_MM__ON(!nsize);
 
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, 0, U64_MAX,
@@ -2320,7 +2320,7 @@ static int igt_color_evict_range(void *ignored)
 		for_each_prime_number_from(n, 1, min(range_size, max_prime)) {
 			unsigned int nsize = (range_size - n + 1) / 2;
 
-			DRM_MM_BUG_ON(!nsize);
+			DRM_MM__ON(!nsize);
 
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, range_start, range_end,

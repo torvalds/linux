@@ -656,7 +656,7 @@ static int mcp23s08_irqchip_setup(struct mcp23s08 *mcp)
 
 /*----------------------------------------------------------------------*/
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #include <linux/seq_file.h>
 

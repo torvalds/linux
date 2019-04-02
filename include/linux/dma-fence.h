@@ -224,7 +224,7 @@ struct dma_fence_ops {
 	/**
 	 * @fence_value_str:
 	 *
-	 * Callback to fill in free-form debug info specific to this fence, like
+	 * Callback to fill in free-form de info specific to this fence, like
 	 * the sequence number.
 	 *
 	 * This callback is optional.

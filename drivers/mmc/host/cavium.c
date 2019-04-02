@@ -537,7 +537,7 @@ static u64 prepare_dma_single(struct cvm_mmc_host *host, struct mmc_data *data)
 		dma_cfg |= FIELD_PREP(MIO_EMM_DMA_CFG_ADR, addr);
 	writeq(dma_cfg, host->dma_base + MIO_EMM_DMA_CFG(host));
 
-	pr_debug("[%s] sg_dma_len: %u  total sg_elem: %d\n",
+	pr_de("[%s] sg_dma_len: %u  total sg_elem: %d\n",
 		 (rw) ? "W" : "R", sg_dma_len(&data->sg[0]), count);
 
 	if (host->big_dma_addr)
@@ -594,7 +594,7 @@ static u64 prepare_dma_sg(struct cvm_mmc_host *host, struct mmc_data *data)
 		 * and increments the FIFO's COUNT field.
 		 */
 		writeq(fifo_cmd, host->dma_base + MIO_EMM_DMA_FIFO_CMD(host));
-		pr_debug("[%s] sg_dma_len: %u  sg_elem: %d/%d\n",
+		pr_de("[%s] sg_dma_len: %u  sg_elem: %d/%d\n",
 			 (rw) ? "W" : "R", sg_dma_len(sg), i, count);
 	}
 
@@ -640,7 +640,7 @@ static u64 prepare_ext_dma(struct mmc_host *mmc, struct mmc_request *mrq)
 	    (mmc->card->scr.cmds & SD_SCR_CMD23_SUPPORT)))
 		emm_dma |= FIELD_PREP(MIO_EMM_DMA_MULTI, 1);
 
-	pr_debug("[%s] blocks: %u  multi: %d\n",
+	pr_de("[%s] blocks: %u  multi: %d\n",
 		(emm_dma & MIO_EMM_DMA_RW) ? "W" : "R",
 		 mrq->data->blocks, (emm_dma & MIO_EMM_DMA_MULTI) ? 1 : 0);
 	return emm_dma;
@@ -664,7 +664,7 @@ static void cvm_mmc_dma_request(struct mmc_host *mmc,
 	cvm_mmc_switch_to(slot);
 
 	data = mrq->data;
-	pr_debug("DMA request  blocks: %d  block_size: %d  total_size: %d\n",
+	pr_de("DMA request  blocks: %d  block_size: %d  total_size: %d\n",
 		 data->blocks, data->blksz, data->blocks * data->blksz);
 	if (data->timeout_ns)
 		set_wdog(slot, data->timeout_ns);

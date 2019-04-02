@@ -612,7 +612,7 @@ static unsigned lock_level(struct bio *bio)
 static struct per_bio_data *get_per_bio_data(struct bio *bio)
 {
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
-	BUG_ON(!pb);
+	_ON(!pb);
 	return pb;
 }
 
@@ -764,7 +764,7 @@ static void set_discard(struct cache *cache, dm_dblock_t b)
 {
 	unsigned long flags;
 
-	BUG_ON(from_dblock(b) >= from_dblock(cache->discard_nr_blocks));
+	_ON(from_dblock(b) >= from_dblock(cache->discard_nr_blocks));
 	atomic_inc(&cache->stats.discard_count);
 
 	spin_lock_irqsave(&cache->lock, flags);
@@ -930,7 +930,7 @@ static void remap_to_origin_and_cache(struct cache *cache, struct bio *bio,
 {
 	struct bio *origin_bio = bio_clone_fast(bio, GFP_NOIO, &cache->bs);
 
-	BUG_ON(!origin_bio);
+	_ON(!origin_bio);
 
 	bio_chain(origin_bio, bio);
 	/*
@@ -1465,7 +1465,7 @@ static void mg_copy(struct work_struct *ws)
 			 * Fallback to a real full copy after doing some tidying up.
 			 */
 			bool rb = bio_detain_shared(mg->cache, mg->op->oblock, mg->overwrite_bio);
-			BUG_ON(rb); /* An exclussive lock must _not_ be held for this block */
+			_ON(rb); /* An exclussive lock must _not_ be held for this block */
 			mg->overwrite_bio = NULL;
 			inc_io_migrations(mg->cache);
 			mg_full_copy(ws);
@@ -1752,7 +1752,7 @@ static int map_bio(struct cache *cache, struct bio *bio, dm_oblock_t block,
 
 		if (r == -ENOENT && op) {
 			bio_drop_shared_lock(cache, bio);
-			BUG_ON(op->op != POLICY_PROMOTE);
+			_ON(op->op != POLICY_PROMOTE);
 			mg_start(cache, op, bio);
 			return DM_MAPIO_SUBMITTED;
 		}
@@ -2424,7 +2424,7 @@ static int create_cache_policy(struct cache *cache, struct cache_args *ca,
 		return PTR_ERR(p);
 	}
 	cache->policy = p;
-	BUG_ON(!cache->policy);
+	_ON(!cache->policy);
 
 	return 0;
 }
@@ -2889,7 +2889,7 @@ static void cache_postsuspend(struct dm_target *ti)
 	struct cache *cache = ti->private;
 
 	prevent_background_work(cache);
-	BUG_ON(atomic_read(&cache->nr_io_migrations));
+	_ON(atomic_read(&cache->nr_io_migrations));
 
 	cancel_delayed_work(&cache->waker);
 	flush_workqueue(cache->wq);

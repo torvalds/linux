@@ -5,7 +5,7 @@
  * Copyright (C) 2006-2008 David Brownell
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/kallsyms.h>
 #include <linux/kernel.h>
@@ -1418,7 +1418,7 @@ static int count_ext_compat(struct usb_configuration *c)
 				++res;
 		}
 	}
-	BUG_ON(res > 255);
+	_ON(res > 255);
 	return res;
 }
 

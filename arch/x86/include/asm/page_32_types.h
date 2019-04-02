@@ -24,7 +24,7 @@
 
 #define DOUBLEFAULT_STACK 1
 #define NMI_STACK 0
-#define DEBUG_STACK 0
+#define DE_STACK 0
 #define MCE_STACK 0
 #define N_EXCEPTION_STACKS 1
 

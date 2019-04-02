@@ -108,7 +108,7 @@ static inline __u32 tcp_acceptable_seq(const struct sock *sk)
  * 1. It is independent of path mtu.
  * 2. Ideally, it is maximal possible segment size i.e. 65535-40.
  * 3. For IPv4 it is reasonable to calculate it from maximal MTU of
- *    attached devices, because some buggy hosts are confused by
+ *    attached devices, because some gy hosts are confused by
  *    large MSS.
  * 4. We do not make 3, we advertise MSS, calculated from first
  *    hop device mtu, but allow to raise it to ip_rt_min_advmss.
@@ -221,8 +221,8 @@ void tcp_select_initial_window(const struct sock *sk, int __space, __u32 mss,
 		space = rounddown(space, mss);
 
 	/* NOTE: offering an initial window larger than 32767
-	 * will break some buggy TCP stacks. If the admin tells us
-	 * it is likely we could be speaking with such a buggy stack
+	 * will break some gy TCP stacks. If the admin tells us
+	 * it is likely we could be speaking with such a gy stack
 	 * we will truncate our initial window offering to 32K-1
 	 * unless the remote has sent us a window scaling option,
 	 * which we interpret as a sign the remote TCP is not
@@ -675,7 +675,7 @@ static unsigned int tcp_synack_options(const struct sock *sk,
 		/* We can't fit any SACK blocks in a packet with MD5 + TS
 		 * options. There was discussion about disabling SACK
 		 * rather than TS in order to fit in better with old,
-		 * buggy kernels, but that was deemed to be unnecessary.
+		 * gy kernels, but that was deemed to be unnecessary.
 		 */
 		ireq->tstamp_ok &= !ireq->sack_ok;
 	}
@@ -1028,7 +1028,7 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	u64 prior_wstamp;
 	int err;
 
-	BUG_ON(!skb || !tcp_skb_pcount(skb));
+	_ON(!skb || !tcp_skb_pcount(skb));
 	tp = tcp_sk(sk);
 	prior_wstamp = tp->tcp_wstamp_ns;
 	tp->tcp_wstamp_ns = max(tp->tcp_wstamp_ns, tp->tcp_clock_cache);
@@ -1928,8 +1928,8 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 
 	in_flight = tcp_packets_in_flight(tp);
 
-	BUG_ON(tcp_skb_pcount(skb) <= 1);
-	BUG_ON(tp->snd_cwnd <= in_flight);
+	_ON(tcp_skb_pcount(skb) <= 1);
+	_ON(tp->snd_cwnd <= in_flight);
 
 	send_win = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
 
@@ -2354,7 +2354,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 			break;
 
 		tso_segs = tcp_init_tso_segs(skb, mss_now);
-		BUG_ON(!tso_segs);
+		_ON(!tso_segs);
 
 		cwnd_quota = tcp_cwnd_test(tp, skb);
 		if (!cwnd_quota) {
@@ -2585,7 +2585,7 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 {
 	struct sk_buff *skb = tcp_send_head(sk);
 
-	BUG_ON(!skb || skb->len < mss_now);
+	_ON(!skb || skb->len < mss_now);
 
 	tcp_write_xmit(sk, mss_now, TCP_NAGLE_PUSH, 1, sk->sk_allocation);
 }
@@ -2744,7 +2744,7 @@ static bool tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 
 	next_skb_size = next_skb->len;
 
-	BUG_ON(tcp_skb_pcount(skb) != 1 || tcp_skb_pcount(next_skb) != 1);
+	_ON(tcp_skb_pcount(skb) != 1 || tcp_skb_pcount(next_skb) != 1);
 
 	if (next_skb_size) {
 		if (next_skb_size <= skb_availroom(skb))
@@ -2959,7 +2959,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb, int segs)
 	int err = __tcp_retransmit_skb(sk, skb, segs);
 
 	if (err == 0) {
-#if FASTRETRANS_DEBUG > 0
+#if FASTRETRANS_DE > 0
 		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
 			net_dbg_ratelimited("retrans_out leaked\n");
 		}

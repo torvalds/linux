@@ -17,7 +17,7 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cryptouser.h>
 #include <linux/compiler.h>
 #include <linux/list.h>

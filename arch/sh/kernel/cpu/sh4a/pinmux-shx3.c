@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010  Paul Mundt
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>

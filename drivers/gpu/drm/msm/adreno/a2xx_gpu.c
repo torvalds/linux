@@ -5,7 +5,7 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 
-extern bool hang_debug;
+extern bool hang_de;
 
 static void a2xx_dump(struct msm_gpu *gpu);
 static bool a2xx_idle(struct msm_gpu *gpu);
@@ -137,7 +137,7 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A2XX_RBBM_PM_OVERRIDE2, 0); /* 0x80/0x1a0 for a22x? */
 
 	/* note: gsl doesn't set this */
-	gpu_write(gpu, REG_A2XX_RBBM_DEBUG, 0x00080000);
+	gpu_write(gpu, REG_A2XX_RBBM_DE, 0x00080000);
 
 	gpu_write(gpu, REG_A2XX_RBBM_INT_CNTL,
 		A2XX_RBBM_INT_CNTL_RDERR_INT_MASK);
@@ -175,8 +175,8 @@ static int a2xx_hw_init(struct msm_gpu *gpu)
 	len = adreno_gpu->fw[ADRENO_FW_PM4]->size / 4;
 	DBG("loading PM4 ucode version: %x", ptr[1]);
 
-	gpu_write(gpu, REG_AXXX_CP_DEBUG,
-			AXXX_CP_DEBUG_MIU_128BIT_WRITE_ENABLE);
+	gpu_write(gpu, REG_AXXX_CP_DE,
+			AXXX_CP_DE_MIU_128BIT_WRITE_ENABLE);
 	gpu_write(gpu, REG_AXXX_CP_ME_RAM_WADDR, 0);
 	for (i = 1; i < len; i++)
 		gpu_write(gpu, REG_AXXX_CP_ME_RAM_DATA, ptr[i]);
@@ -210,7 +210,7 @@ static void a2xx_recover(struct msm_gpu *gpu)
 	}
 
 	/* dump registers before resetting gpu, if enabled: */
-	if (hang_debug)
+	if (hang_de)
 		a2xx_dump(gpu);
 
 	gpu_write(gpu, REG_A2XX_RBBM_SOFT_RESET, 1);
@@ -424,7 +424,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = adreno_active_ring,
 		.irq = a2xx_irq,
 		.destroy = a2xx_destroy,
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = adreno_show,
 #endif
 		.gpu_state_get = a2xx_gpu_state_get,

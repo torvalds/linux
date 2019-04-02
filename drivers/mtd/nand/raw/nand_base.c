@@ -215,13 +215,13 @@ static int check_offs_len(struct nand_chip *chip, loff_t ofs, uint64_t len)
 
 	/* Start address must align on block boundary */
 	if (ofs & ((1ULL << chip->phys_erase_shift) - 1)) {
-		pr_debug("%s: unaligned address\n", __func__);
+		pr_de("%s: unaligned address\n", __func__);
 		ret = -EINVAL;
 	}
 
 	/* Length must align on block boundary */
 	if (len & ((1ULL << chip->phys_erase_shift) - 1)) {
-		pr_debug("%s: length not block aligned\n", __func__);
+		pr_de("%s: length not block aligned\n", __func__);
 		ret = -EINVAL;
 	}
 
@@ -241,7 +241,7 @@ void nand_select_target(struct nand_chip *chip, unsigned int cs)
 {
 	/*
 	 * cs should always lie between 0 and chip->numchips, when that's not
-	 * the case it's a bug and the caller should be fixed.
+	 * the case it's a  and the caller should be fixed.
 	 */
 	if (WARN_ON(cs > chip->numchips))
 		return;
@@ -400,11 +400,11 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob, size_t len,
 	case MTD_OPS_AUTO_OOB:
 		ret = mtd_ooblayout_set_databytes(mtd, oob, chip->oob_poi,
 						  ops->ooboffs, len);
-		BUG_ON(ret);
+		_ON(ret);
 		return oob + len;
 
 	default:
-		BUG();
+		();
 	}
 	return NULL;
 }
@@ -423,14 +423,14 @@ static int nand_do_write_oob(struct nand_chip *chip, loff_t to,
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int chipnr, page, status, len, ret;
 
-	pr_debug("%s: to = 0x%08x, len = %i\n",
+	pr_de("%s: to = 0x%08x, len = %i\n",
 			 __func__, (unsigned int)to, (int)ops->ooblen);
 
 	len = mtd_oobavail(mtd, ops);
 
 	/* Do not allow write past end of page */
 	if ((ops->ooboffs + ops->ooblen) > len) {
-		pr_debug("%s: attempt to write past end of page\n",
+		pr_de("%s: attempt to write past end of page\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -2075,14 +2075,14 @@ nand_op_parser_match_pat(const struct nand_op_parser_pattern *pat,
 	return true;
 }
 
-#if IS_ENABLED(CONFIG_DYNAMIC_DEBUG) || defined(DEBUG)
+#if IS_ENABLED(CONFIG_DYNAMIC_DE) || defined(DE)
 static void nand_op_parser_trace(const struct nand_op_parser_ctx *ctx)
 {
 	const struct nand_op_instr *instr;
 	char *prefix = "      ";
 	unsigned int i;
 
-	pr_debug("executing subop:\n");
+	pr_de("executing subop:\n");
 
 	for (i = 0; i < ctx->ninstrs; i++) {
 		instr = &ctx->instrs[i];
@@ -2092,30 +2092,30 @@ static void nand_op_parser_trace(const struct nand_op_parser_ctx *ctx)
 
 		switch (instr->type) {
 		case NAND_OP_CMD_INSTR:
-			pr_debug("%sCMD      [0x%02x]\n", prefix,
+			pr_de("%sCMD      [0x%02x]\n", prefix,
 				 instr->ctx.cmd.opcode);
 			break;
 		case NAND_OP_ADDR_INSTR:
-			pr_debug("%sADDR     [%d cyc: %*ph]\n", prefix,
+			pr_de("%sADDR     [%d cyc: %*ph]\n", prefix,
 				 instr->ctx.addr.naddrs,
 				 instr->ctx.addr.naddrs < 64 ?
 				 instr->ctx.addr.naddrs : 64,
 				 instr->ctx.addr.addrs);
 			break;
 		case NAND_OP_DATA_IN_INSTR:
-			pr_debug("%sDATA_IN  [%d B%s]\n", prefix,
+			pr_de("%sDATA_IN  [%d B%s]\n", prefix,
 				 instr->ctx.data.len,
 				 instr->ctx.data.force_8bit ?
 				 ", force 8-bit" : "");
 			break;
 		case NAND_OP_DATA_OUT_INSTR:
-			pr_debug("%sDATA_OUT [%d B%s]\n", prefix,
+			pr_de("%sDATA_OUT [%d B%s]\n", prefix,
 				 instr->ctx.data.len,
 				 instr->ctx.data.force_8bit ?
 				 ", force 8-bit" : "");
 			break;
 		case NAND_OP_WAITRDY_INSTR:
-			pr_debug("%sWAITRDY  [max %d ms]\n", prefix,
+			pr_de("%sWAITRDY  [max %d ms]\n", prefix,
 				 instr->ctx.waitrdy.timeout_ms);
 			break;
 		}
@@ -2187,7 +2187,7 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 		}
 
 		if (i == parser->npatterns) {
-			pr_debug("->exec_op() parser: pattern not found!\n");
+			pr_de("->exec_op() parser: pattern not found!\n");
 			return -ENOTSUPP;
 		}
 
@@ -3079,11 +3079,11 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
 	case MTD_OPS_AUTO_OOB:
 		ret = mtd_ooblayout_get_databytes(mtd, oob, chip->oob_poi,
 						  ops->ooboffs, len);
-		BUG_ON(ret);
+		_ON(ret);
 		return oob + len;
 
 	default:
-		BUG();
+		();
 	}
 	return NULL;
 }
@@ -3099,7 +3099,7 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
  */
 static int nand_setup_read_retry(struct nand_chip *chip, int retry_mode)
 {
-	pr_debug("setting READ RETRY mode %d\n", retry_mode);
+	pr_de("setting READ RETRY mode %d\n", retry_mode);
 
 	if (retry_mode >= chip->read_retries)
 		return -EINVAL;
@@ -3177,7 +3177,7 @@ static int nand_do_read_ops(struct nand_chip *chip, loff_t from,
 			bufpoi = use_bufpoi ? chip->data_buf : buf;
 
 			if (use_bufpoi && aligned)
-				pr_debug("%s: using read bounce buffer for buf@%p\n",
+				pr_de("%s: using read bounce buffer for buf@%p\n",
 						 __func__, buf);
 
 read_retry:
@@ -3470,7 +3470,7 @@ static int nand_do_read_oob(struct nand_chip *chip, loff_t from,
 	uint8_t *buf = ops->oobbuf;
 	int ret = 0;
 
-	pr_debug("%s: from = 0x%08Lx, len = %i\n",
+	pr_de("%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
 
 	stats = mtd->ecc_stats;
@@ -4000,7 +4000,7 @@ static int nand_do_write_ops(struct nand_chip *chip, loff_t to,
 
 		/* Partial page write?, or need to use bounce buffer */
 		if (use_bufpoi) {
-			pr_debug("%s: using write bounce buffer for buf@%p\n",
+			pr_de("%s: using write bounce buffer for buf@%p\n",
 					 __func__, buf);
 			if (part_pagewr)
 				bytes = min_t(int, bytes - column, writelen);
@@ -4150,7 +4150,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 	int page, pages_per_block, ret, chipnr;
 	loff_t len;
 
-	pr_debug("%s: start = 0x%012llx, len = %llu\n",
+	pr_de("%s: start = 0x%012llx, len = %llu\n",
 			__func__, (unsigned long long)instr->addr,
 			(unsigned long long)instr->len);
 
@@ -4174,7 +4174,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(chip)) {
-		pr_debug("%s: device is write protected!\n",
+		pr_de("%s: device is write protected!\n",
 				__func__);
 		ret = -EIO;
 		goto erase_exit;
@@ -4204,7 +4204,7 @@ int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		ret = nand_erase_op(chip, (page & chip->pagemask) >>
 				    (chip->phys_erase_shift - chip->page_shift));
 		if (ret) {
-			pr_debug("%s: failed erase, page 0x%08x\n",
+			pr_de("%s: failed erase, page 0x%08x\n",
 					__func__, page);
 			instr->fail_addr =
 				((loff_t)page << chip->page_shift);
@@ -4244,7 +4244,7 @@ static void nand_sync(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 
-	pr_debug("%s: called\n", __func__);
+	pr_de("%s: called\n", __func__);
 
 	/* Grab the lock and see if the device is available */
 	WARN_ON(nand_get_device(chip));

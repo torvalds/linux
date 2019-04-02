@@ -190,7 +190,7 @@ int omap2_pwrdm_wait_transition(struct powerdomain *pwrdm)
 		return -EAGAIN;
 	}
 
-	pr_debug("powerdomain: completed transition in %d loops\n", c);
+	pr_de("powerdomain: completed transition in %d loops\n", c);
 
 	return 0;
 }

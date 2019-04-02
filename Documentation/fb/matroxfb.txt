@@ -280,8 +280,8 @@ fv:X     - maximum vertical frequency. X must be specified in Hz. Default is
 Limitations
 ===========
 
-There are known and unknown bugs, features and misfeatures.
-Currently there are following known bugs:
+There are known and unknown s, features and misfeatures.
+Currently there are following known s:
  + SVGALib does not restore screen on exit
  + generic fbcon-cfbX procedures do not work on Alphas. Due to this,
    `noaccel' (and cfb4 accel) driver does not work on Alpha. So everyone

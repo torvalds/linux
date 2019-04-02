@@ -116,7 +116,7 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 
 	/*
 	 * Optionally do not load any SSDTs from the RSDT/XSDT. This can
-	 * be useful for debugging ACPI problems on some machines.
+	 * be useful for deging ACPI problems on some machines.
 	 */
 	if (!reload &&
 	    acpi_gbl_disable_ssdt_table_install &&

@@ -170,7 +170,7 @@ static int pcxhr_check_reg_bit(struct pcxhr_mgr *mgr, unsigned int reg,
 #define PCXHR_IT_DOWNLOAD_DSP		(0x0000000C | \
 					 PCXHR_MASK_IT_MANAGE_HF5 | \
 					 PCXHR_MASK_IT_WAIT)
-#define PCXHR_IT_DEBUG			(0x0000005A | PCXHR_MASK_IT_NO_HF0_HF1)
+#define PCXHR_IT_DE			(0x0000005A | PCXHR_MASK_IT_NO_HF0_HF1)
 #define PCXHR_IT_RESET_SEMAPHORE	(0x0000005C | PCXHR_MASK_IT_NO_HF0_HF1)
 #define PCXHR_IT_MESSAGE		(0x00000074 | PCXHR_MASK_IT_NO_HF0_HF1)
 #define PCXHR_IT_RESET_CHK		(0x00000076 | PCXHR_MASK_IT_NO_HF0_HF1)
@@ -342,7 +342,7 @@ static int pcxhr_download_dsp(struct pcxhr_mgr *mgr, const struct firmware *dsp)
 		return -EINVAL;
 	if (dsp->size % 3)
 		return -EINVAL;
-	if (snd_BUG_ON(!dsp->data))
+	if (snd__ON(!dsp->data))
 		return -EINVAL;
 	/* transfert data buffer from PC to DSP */
 	for (i = 0; i < dsp->size; i += 3) {
@@ -420,7 +420,7 @@ int pcxhr_load_boot_binary(struct pcxhr_mgr *mgr, const struct firmware *boot)
 	unsigned char dummy;
 
 	/* send the hostport address to the DSP (only the upper 24 bit !) */
-	if (snd_BUG_ON(physaddr & 0xff))
+	if (snd__ON(physaddr & 0xff))
 		return -EINVAL;
 	PCXHR_OUTPL(mgr, PCXHR_PLX_MBOX1, (physaddr >> 8));
 
@@ -509,7 +509,7 @@ static struct pcxhr_cmd_info pcxhr_dsp_cmds[] = {
 [CMD_MANAGE_SIGNAL] =			{ 0x0f0000, 0, RMH_SSIZE_FIXED },
 };
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 static char* cmd_names[] = {
 [CMD_VERSION] =				"CMD_VERSION",
 [CMD_SUPPORTED] =			"CMD_SUPPORTED",
@@ -590,7 +590,7 @@ static int pcxhr_read_rmh_status(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 				}
 			}
 		}
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 		if (rmh->cmd_idx < CMD_LAST_INDEX)
 			dev_dbg(&mgr->pci->dev, "    stat[%d]=%x\n", i, data);
 #endif
@@ -612,7 +612,7 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 	u32 data;
 	unsigned char reg;
 
-	if (snd_BUG_ON(rmh->cmd_len >= PCXHR_SIZE_MAX_CMD))
+	if (snd__ON(rmh->cmd_len >= PCXHR_SIZE_MAX_CMD))
 		return -EINVAL;
 	err = pcxhr_send_it_dsp(mgr, PCXHR_IT_MESSAGE, 1);
 	if (err) {
@@ -641,7 +641,7 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 		data |= 0x008000;	/* MASK_MORE_THAN_1_WORD_COMMAND */
 	else
 		data &= 0xff7fff;	/* MASK_1_WORD_COMMAND */
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	if (rmh->cmd_idx < CMD_LAST_INDEX)
 		dev_dbg(&mgr->pci->dev, "MSG cmd[0]=%x (%s)\n",
 			    data, cmd_names[rmh->cmd_idx]);
@@ -671,7 +671,7 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
 		for (i=1; i < rmh->cmd_len; i++) {
 			/* send other words */
 			data = rmh->cmd[i];
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 			if (rmh->cmd_idx < CMD_LAST_INDEX)
 				dev_dbg(&mgr->pci->dev,
 					"    cmd[%d]=%x\n", i, data);
@@ -729,7 +729,7 @@ static int pcxhr_send_msg_nolock(struct pcxhr_mgr *mgr, struct pcxhr_rmh *rmh)
  */
 void pcxhr_init_rmh(struct pcxhr_rmh *rmh, int cmd)
 {
-	if (snd_BUG_ON(cmd >= CMD_LAST_INDEX))
+	if (snd__ON(cmd >= CMD_LAST_INDEX))
 		return;
 	rmh->cmd[0] = pcxhr_dsp_cmds[cmd].opcode;
 	rmh->cmd_len = 1;
@@ -743,17 +743,17 @@ void pcxhr_set_pipe_cmd_params(struct pcxhr_rmh *rmh, int capture,
 			       unsigned int param1, unsigned int param2,
 			       unsigned int param3)
 {
-	snd_BUG_ON(param1 > MASK_FIRST_FIELD);
+	snd__ON(param1 > MASK_FIRST_FIELD);
 	if (capture)
 		rmh->cmd[0] |= 0x800;		/* COMMAND_RECORD_MASK */
 	if (param1)
 		rmh->cmd[0] |= (param1 << FIELD_SIZE);
 	if (param2) {
-		snd_BUG_ON(param2 > MASK_FIRST_FIELD);
+		snd__ON(param2 > MASK_FIRST_FIELD);
 		rmh->cmd[0] |= param2;
 	}
 	if(param3) {
-		snd_BUG_ON(param3 > MASK_DSP_WORD);
+		snd__ON(param3 > MASK_DSP_WORD);
 		rmh->cmd[1] = param3;
 		rmh->cmd_len = 2;
 	}
@@ -909,7 +909,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask,
 	int state, i, err;
 	int audio_mask;
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	ktime_t start_time, stop_time, diff_time;
 
 	start_time = ktime_get();
@@ -960,7 +960,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask,
 		if (err)
 			return err;
 	}
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	stop_time = ktime_get();
 	diff_time = ktime_sub(stop_time, start_time);
 	dev_dbg(&mgr->pci->dev, "***SET PIPE STATE*** TIME = %ld (err = %x)\n",
@@ -1268,7 +1268,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id)
 		mgr->src_it_dsp = reg;
 		wake_thread = true;
 	}
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	if (reg & PCXHR_FATAL_DSP_ERR)
 		dev_dbg(&mgr->pci->dev, "FATAL DSP ERROR : %x\n", reg);
 #endif
@@ -1307,7 +1307,7 @@ irqreturn_t pcxhr_threaded_irq(int irq, void *dev_id)
 				mgr->dsp_time_err++;
 			}
 		}
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 		if (dsp_time_diff == 0)
 			dev_dbg(&mgr->pci->dev,
 				"ERROR DSP TIME NO DIFF time(%d)\n",

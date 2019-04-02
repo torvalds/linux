@@ -29,8 +29,8 @@
 #include "hid-ids.h"
 
 
-#define pk_debug(format, arg...) \
-	pr_debug("hid-prodikeys: " format "\n" , ## arg)
+#define pk_de(format, arg...) \
+	pr_de("hid-prodikeys: " format "\n" , ## arg)
 #define pk_error(format, arg...) \
 	pr_err("hid-prodikeys: " format "\n" , ## arg)
 

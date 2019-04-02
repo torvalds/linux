@@ -715,7 +715,7 @@ void wbt_disable_default(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(wbt_disable_default);
 
-#ifdef CONFIG_BLK_DEBUG_FS
+#ifdef CONFIG_BLK_DE_FS
 static int wbt_curr_win_nsec_show(void *data, struct seq_file *m)
 {
 	struct rq_qos *rqos = data;
@@ -790,7 +790,7 @@ static int wbt_background_show(void *data, struct seq_file *m)
 	return 0;
 }
 
-static const struct blk_mq_debugfs_attr wbt_debugfs_attrs[] = {
+static const struct blk_mq_defs_attr wbt_defs_attrs[] = {
 	{"curr_win_nsec", 0400, wbt_curr_win_nsec_show},
 	{"enabled", 0400, wbt_enabled_show},
 	{"id", 0400, wbt_id_show},
@@ -811,8 +811,8 @@ static struct rq_qos_ops wbt_rqos_ops = {
 	.done = wbt_done,
 	.cleanup = wbt_cleanup,
 	.exit = wbt_exit,
-#ifdef CONFIG_BLK_DEBUG_FS
-	.debugfs_attrs = wbt_debugfs_attrs,
+#ifdef CONFIG_BLK_DE_FS
+	.defs_attrs = wbt_defs_attrs,
 #endif
 };
 

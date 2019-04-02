@@ -196,7 +196,7 @@ int ieee80211_encrypt_fragment(
 			struct rtl_80211_hdr_3addrqos *header;
 
 			header = (struct rtl_80211_hdr_3addrqos *)frag->data;
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
+			printk(KERN_DE "%s: TKIP countermeasures: dropped "
 			       "TX packet to %pM\n",
 			       ieee->dev->name, header->addr1);
 		}
@@ -649,11 +649,11 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_dropped++;
 			goto success;
 		}
-	#ifdef CONFIG_IEEE80211_DEBUG
+	#ifdef CONFIG_IEEE80211_DE
 		if (crypt && !encrypt && ether_type == ETH_P_PAE) {
 			struct eapol *eap = (struct eapol *)(skb->data +
 				sizeof(struct ethhdr) - SNAP_SIZE - sizeof(u16));
-			IEEE80211_DEBUG_EAP("TX: IEEE 802.11 EAPOL frame: %s\n",
+			IEEE80211_DE_EAP("TX: IEEE 802.11 EAPOL frame: %s\n",
 				eap_get_type(eap->type));
 		}
 	#endif

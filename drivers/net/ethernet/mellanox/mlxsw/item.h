@@ -26,14 +26,14 @@ static inline unsigned int
 __mlxsw_item_offset(const struct mlxsw_item *item, unsigned short index,
 		    size_t typesize)
 {
-	BUG_ON(index && !item->step);
+	_ON(index && !item->step);
 	if (item->offset % typesize != 0 ||
 	    item->step % typesize != 0 ||
 	    item->in_step_offset % typesize != 0) {
-		pr_err("mlxsw: item bug (name=%s,offset=%x,step=%x,in_step_offset=%x,typesize=%zx)\n",
+		pr_err("mlxsw: item  (name=%s,offset=%x,step=%x,in_step_offset=%x,typesize=%zx)\n",
 		       item->name, item->offset, item->step,
 		       item->in_step_offset, typesize);
-		BUG();
+		();
 	}
 
 	return ((item->offset + item->step * index + item->in_step_offset) /
@@ -209,12 +209,12 @@ __mlxsw_item_bit_array_offset(const struct mlxsw_item *item,
 	u16 offset;		/* byte offset inside the array */
 	u8 in_byte_index;
 
-	BUG_ON(index && !item->element_size);
+	_ON(index && !item->element_size);
 	if (item->offset % sizeof(u32) != 0 ||
 	    BITS_PER_BYTE % item->element_size != 0) {
-		pr_err("mlxsw: item bug (name=%s,offset=%x,element_size=%x)\n",
+		pr_err("mlxsw: item  (name=%s,offset=%x,element_size=%x)\n",
 		       item->name, item->offset, item->element_size);
-		BUG();
+		();
 	}
 
 	max_index = (item->size.bytes << 3) / item->element_size - 1;

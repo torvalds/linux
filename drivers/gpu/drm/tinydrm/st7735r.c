@@ -46,7 +46,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 	int ret;
 	u8 addr_mode;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	ret = mipi_dbi_poweron_reset(mipi);
 	if (ret)
@@ -121,7 +121,7 @@ static struct drm_driver st7735r_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &st7735r_fops,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
-	.debugfs_init		= mipi_dbi_debugfs_init,
+	.defs_init		= mipi_dbi_defs_init,
 	.name			= "st7735r",
 	.desc			= "Sitronix ST7735R",
 	.date			= "20171128",

@@ -94,7 +94,7 @@ xlog_ungrant_log_space(
 	struct xlog		*log,
 	struct xlog_ticket	*ticket);
 
-#if defined(DEBUG)
+#if defined(DE)
 STATIC void
 xlog_verify_dest_ptr(
 	struct xlog		*log,
@@ -668,7 +668,7 @@ xfs_log_mount(
 		}
 		xfs_crit(mp, "Log size out of supported range.");
 		xfs_crit(mp,
-"Continuing onwards, but if log hangs are experienced then please report this message in the bug report.");
+"Continuing onwards, but if log hangs are experienced then please report this message in the  report.");
 	}
 
 	/*
@@ -921,7 +921,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 {
 	struct xlog	 *log = mp->m_log;
 	xlog_in_core_t	 *iclog;
-#ifdef DEBUG
+#ifdef DE
 	xlog_in_core_t	 *first_iclog;
 #endif
 	int		 error;
@@ -939,7 +939,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
 
-#ifdef DEBUG
+#ifdef DE
 	first_iclog = iclog = log->l_iclog;
 	do {
 		if (!(iclog->ic_state & XLOG_STATE_IOERROR)) {
@@ -1258,7 +1258,7 @@ xlog_iodone(xfs_buf_t *bp)
 
 	/*
 	 * Race to shutdown the filesystem if we see an error or the iclog is in
-	 * IOABORT state. The IOABORT state is only set in DEBUG mode to inject
+	 * IOABORT state. The IOABORT state is only set in DE mode to inject
 	 * CRC errors into log recovery.
 	 */
 	if (XFS_TEST_ERROR(bp->b_error, l->l_mp, XFS_ERRTAG_IODONE_IOERR) ||
@@ -1538,7 +1538,7 @@ xlog_alloc_log(
 		bp->b_iodone = xlog_iodone;
 		iclog->ic_bp = bp;
 		iclog->ic_data = bp->b_addr;
-#ifdef DEBUG
+#ifdef DE
 		log->l_iclog_bak[i] = &iclog->ic_header;
 #endif
 		head = &iclog->ic_header;
@@ -2875,7 +2875,7 @@ xlog_state_do_callback(
 		}
 	} while (!ioerrors && loopdidcallbacks);
 
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 * Make one last gasp attempt to see if iclogs are being left in limbo.
 	 * If the above loop finds an iclog earlier than the current iclog and
@@ -3710,11 +3710,11 @@ xlog_ticket_alloc(
 
 /******************************************************************************
  *
- *		Log debug routines
+ *		Log de routines
  *
  ******************************************************************************
  */
-#if defined(DEBUG)
+#if defined(DE)
 /*
  * Make sure that the destination ptr is within the valid data region of
  * one of the iclogs.  This uses backup pointers stored in a different
@@ -3746,7 +3746,7 @@ xlog_verify_dest_ptr(
  * This check is run unlocked, so can give false positives. Rather than assert
  * on failures, use a warn-once flag and a panic tag to allow the admin to
  * determine if they want to panic the machine when such an error occurs. For
- * debug kernels this will have the same effect as using an assert but, unlinke
+ * de kernels this will have the same effect as using an assert but, unlinke
  * an assert, it can be turned off at runtime.
  */
 STATIC void
@@ -4027,7 +4027,7 @@ xfs_log_force_umount(
 	wake_up_all(&log->l_cilp->xc_commit_wait);
 	xlog_state_do_callback(log, XFS_LI_ABORTED, NULL);
 
-#ifdef XFSERRORDEBUG
+#ifdef XFSERRORDE
 	{
 		xlog_in_core_t	*iclog;
 

@@ -29,8 +29,8 @@
 #include "testmode.h"
 
 unsigned int wcn36xx_dbg_mask;
-module_param_named(debug_mask, wcn36xx_dbg_mask, uint, 0644);
-MODULE_PARM_DESC(debug_mask, "Debugging mask");
+module_param_named(de_mask, wcn36xx_dbg_mask, uint, 0644);
+MODULE_PARM_DESC(de_mask, "Deging mask");
 
 #define CHAN2G(_freq, _idx) { \
 	.band = NL80211_BAND_2GHZ, \
@@ -327,7 +327,7 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 		goto out_smd_stop;
 	}
 
-	wcn36xx_debugfs_init(wcn);
+	wcn36xx_defs_init(wcn);
 
 	INIT_LIST_HEAD(&wcn->vif_list);
 	spin_lock_init(&wcn->dxe_lock);
@@ -367,7 +367,7 @@ static void wcn36xx_stop(struct ieee80211_hw *hw)
 	wcn->scan_req = NULL;
 	mutex_unlock(&wcn->scan_lock);
 
-	wcn36xx_debugfs_exit(wcn);
+	wcn36xx_defs_exit(wcn);
 	wcn36xx_smd_stop(wcn);
 	wcn36xx_dxe_deinit(wcn);
 	wcn36xx_smd_close(wcn);
@@ -739,7 +739,7 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 	}
 
 	if (sta->ht_cap.ht_supported) {
-		BUILD_BUG_ON(sizeof(sta->ht_cap.mcs.rx_mask) >
+		BUILD__ON(sizeof(sta->ht_cap.mcs.rx_mask) >
 			sizeof(sta_priv->supported_rates.supported_mcs_set));
 		memcpy(sta_priv->supported_rates.supported_mcs_set,
 		       sta->ht_cap.mcs.rx_mask,

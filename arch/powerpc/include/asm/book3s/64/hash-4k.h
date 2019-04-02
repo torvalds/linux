@@ -88,27 +88,27 @@ static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
 
 static inline char *get_hpte_slot_array(pmd_t *pmdp)
 {
-	BUG();
+	();
 	return NULL;
 }
 
 static inline unsigned int hpte_valid(unsigned char *hpte_slot_array, int index)
 {
-	BUG();
+	();
 	return 0;
 }
 
 static inline unsigned int hpte_hash_index(unsigned char *hpte_slot_array,
 					   int index)
 {
-	BUG();
+	();
 	return 0;
 }
 
 static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
 					unsigned int index, unsigned int hidx)
 {
-	BUG();
+	();
 }
 
 static inline int hash__pmd_trans_huge(pmd_t pmd)
@@ -118,13 +118,13 @@ static inline int hash__pmd_trans_huge(pmd_t pmd)
 
 static inline int hash__pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 {
-	BUG();
+	();
 	return 0;
 }
 
 static inline pmd_t hash__pmd_mkhuge(pmd_t pmd)
 {
-	BUG();
+	();
 	return pmd;
 }
 

@@ -12,7 +12,7 @@
 #include "util/session.h"
 #include "util/data.h"
 #include "util/mem-events.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/map.h"
 #include "util/symbol.h"
 
@@ -132,13 +132,13 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		rec_argv[i] = argv[j];
 
 	if (verbose > 0) {
-		pr_debug("calling: record ");
+		pr_de("calling: record ");
 
 		while (rec_argv[j]) {
-			pr_debug("%s ", rec_argv[j]);
+			pr_de("%s ", rec_argv[j]);
 			j++;
 		}
-		pr_debug("\n");
+		pr_de("\n");
 	}
 
 	ret = cmd_record(i, rec_argv);

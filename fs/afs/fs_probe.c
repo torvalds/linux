@@ -116,7 +116,7 @@ responded:
 out:
 	spin_unlock(&server->probe_lock);
 
-	_debug("probe [%u][%u] %pISpc rtt=%u ret=%d",
+	_de("probe [%u][%u] %pISpc rtt=%u ret=%d",
 	       server_index, index, &alist->addrs[index].transport,
 	       (unsigned int)rtt, ret);
 

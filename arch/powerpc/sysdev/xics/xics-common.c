@@ -11,7 +11,7 @@
 #include <linux/threads.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
@@ -55,7 +55,7 @@ void xics_update_irq_servers(void)
 
 	/* Find the server numbers for the boot cpu. */
 	np = of_get_cpu_node(boot_cpuid, NULL);
-	BUG_ON(!np);
+	_ON(!np);
 
 	hcpuid = get_hard_smp_processor_id(boot_cpuid);
 	xics_default_server = xics_default_distrib_server = hcpuid;
@@ -132,12 +132,12 @@ static void xics_request_ipi(void)
 	unsigned int ipi;
 
 	ipi = irq_create_mapping(xics_host, XICS_IPI);
-	BUG_ON(!ipi);
+	_ON(!ipi);
 
 	/*
 	 * IPIs are marked IRQF_PERCPU. The handler was set in map.
 	 */
-	BUG_ON(request_irq(ipi, icp_ops->ipi_action,
+	_ON(request_irq(ipi, icp_ops->ipi_action,
 			   IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL));
 }
 
@@ -426,7 +426,7 @@ static const struct irq_domain_ops xics_host_ops = {
 static void __init xics_init_host(void)
 {
 	xics_host = irq_domain_add_tree(NULL, &xics_host_ops, NULL);
-	BUG_ON(xics_host == NULL);
+	_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);
 }
 

@@ -2026,7 +2026,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_bla_claim_table_seq_print_text() - print the claim table in a seq file
  * @seq: seq file to print on
@@ -2259,7 +2259,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_bla_backbone_table_seq_print_text() - print the backbone table in a
  *  seq file

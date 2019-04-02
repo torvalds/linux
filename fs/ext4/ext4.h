@@ -61,32 +61,32 @@
 #define DOUBLE_CHECK__
 
 /*
- * Define EXT4FS_DEBUG to produce debug messages
+ * Define EXT4FS_DE to produce de messages
  */
-#undef EXT4FS_DEBUG
+#undef EXT4FS_DE
 
 /*
- * Debug code
+ * De code
  */
-#ifdef EXT4FS_DEBUG
-#define ext4_debug(f, a...)						\
+#ifdef EXT4FS_DE
+#define ext4_de(f, a...)						\
 	do {								\
-		printk(KERN_DEBUG "EXT4-fs DEBUG (%s, %d): %s:",	\
+		printk(KERN_DE "EXT4-fs DE (%s, %d): %s:",	\
 			__FILE__, __LINE__, __func__);			\
-		printk(KERN_DEBUG f, ## a);				\
+		printk(KERN_DE f, ## a);				\
 	} while (0)
 #else
-#define ext4_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define ext4_de(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /*
- * Turn on EXT_DEBUG to get lots of info about extents operations.
+ * Turn on EXT_DE to get lots of info about extents operations.
  */
-#define EXT_DEBUG__
-#ifdef EXT_DEBUG
-#define ext_debug(fmt, ...)	printk(fmt, ##__VA_ARGS__)
+#define EXT_DE__
+#ifdef EXT_DE
+#define ext_de(fmt, ...)	printk(fmt, ##__VA_ARGS__)
 #else
-#define ext_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define ext_de(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /* data type for block offset of block group */
@@ -109,7 +109,7 @@ enum SHIFT_DIRECTION {
 /*
  * Flags used in mballoc's allocation_context flags field.
  *
- * Also used to show what's going on for debugging purposes when the
+ * Also used to show what's going on for deging purposes when the
  * flag field is exported via the traceport interface
  */
 
@@ -486,7 +486,7 @@ enum {
  * It's not paranoia if the Murphy's Law really *is* out to get you.  :-)
  */
 #define TEST_FLAG_VALUE(FLAG) (EXT4_##FLAG##_FL == (1 << EXT4_INODE_##FLAG))
-#define CHECK_FLAG_VALUE(FLAG) BUILD_BUG_ON(!TEST_FLAG_VALUE(FLAG))
+#define CHECK_FLAG_VALUE(FLAG) BUILD__ON(!TEST_FLAG_VALUE(FLAG))
 
 static inline void ext4_check_flag_values(void)
 {
@@ -1087,7 +1087,7 @@ struct ext4_inode_info {
  */
 #define EXT4_MOUNT_NO_MBCACHE		0x00001 /* Do not use mbcache */
 #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
-#define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
+#define EXT4_MOUNT_DE		0x00008	/* Some deging messages */
 #define EXT4_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
 #define EXT4_MOUNT_ERRORS_RO		0x00020	/* Remount fs ro on errors */
 #define EXT4_MOUNT_ERRORS_PANIC		0x00040	/* Panic on errors */
@@ -1859,7 +1859,7 @@ static inline int ext4_forced_shutdown(struct ext4_sb_info *sbi)
 /*
  * Default mount options
  */
-#define EXT4_DEFM_DEBUG		0x0001
+#define EXT4_DEFM_DE		0x0001
 #define EXT4_DEFM_BSDGROUPS	0x0002
 #define EXT4_DEFM_XATTR_USER	0x0004
 #define EXT4_DEFM_ACL		0x0008
@@ -1977,7 +1977,7 @@ ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize)
 static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 {
 	if ((len > blocksize) || (blocksize > (1 << 18)) || (len & 3))
-		BUG();
+		();
 #if (PAGE_SIZE >= 65536)
 	if (len < 65536)
 		return cpu_to_le16(len);
@@ -2021,13 +2021,13 @@ static inline u32 ext4_chksum(struct ext4_sb_info *sbi, u32 crc,
 		char ctx[4];
 	} desc;
 
-	BUG_ON(crypto_shash_descsize(sbi->s_chksum_driver)!=sizeof(desc.ctx));
+	_ON(crypto_shash_descsize(sbi->s_chksum_driver)!=sizeof(desc.ctx));
 
 	desc.shash.tfm = sbi->s_chksum_driver;
 	desc.shash.flags = 0;
 	*(u32 *)desc.ctx = crc;
 
-	BUG_ON(crypto_shash_update(&desc.shash, address, length));
+	_ON(crypto_shash_update(&desc.shash, address, length));
 
 	return *(u32 *)desc.ctx;
 }
@@ -2792,7 +2792,7 @@ struct ext4_group_info *ext4_get_group_info(struct super_block *sb,
 {
 	 struct ext4_group_info ***grp_info;
 	 long indexv, indexh;
-	 BUG_ON(group >= EXT4_SB(sb)->s_groups_count);
+	 _ON(group >= EXT4_SB(sb)->s_groups_count);
 	 grp_info = EXT4_SB(sb)->s_group_info;
 	 indexv = group >> (EXT4_DESC_PER_BLOCK_BITS(sb));
 	 indexh = group & ((EXT4_DESC_PER_BLOCK(sb)) - 1);

@@ -28,8 +28,8 @@
 
 #include "mm_32.h"
 
-/* #define IOUNIT_DEBUG */
-#ifdef IOUNIT_DEBUG
+/* #define IOUNIT_DE */
+#ifdef IOUNIT_DE
 #define IOD(x) printk(x)
 #else
 #define IOD(x) do { } while (0)

@@ -112,7 +112,7 @@ static void
 ppp_print_buffer (const char *name, const __u8 *buf, int count)
 {
 	if (name != NULL)
-		printk(KERN_DEBUG "ppp_synctty: %s, count = %d\n", name, count);
+		printk(KERN_DE "ppp_synctty: %s, count = %d\n", name, count);
 
 	print_hex_dump_bytes("", DUMP_PREFIX_NONE, buf, count);
 }

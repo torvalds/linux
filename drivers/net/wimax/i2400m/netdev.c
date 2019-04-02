@@ -81,7 +81,7 @@
 
 
 #define D_SUBMODULE netdev
-#include "debug-levels.h"
+#include "de-levels.h"
 
 enum {
 /* netdev interface */
@@ -551,7 +551,7 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 		net_dev->stats.rx_bytes += skb->len;
 		break;
 	default:
-		dev_err(dev, "ERX: BUG? CS type %u unsupported\n", cs);
+		dev_err(dev, "ERX: ? CS type %u unsupported\n", cs);
 		goto error;
 
 	}

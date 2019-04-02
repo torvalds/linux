@@ -2347,8 +2347,8 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	}
 	rtlpriv->mac80211.mac80211_registered = 1;
 
-	/* add for debug */
-	rtl_debug_add_one(hw);
+	/* add for de */
+	rtl_de_add_one(hw);
 
 	/*init rfkill */
 	rtl_init_rfkill(hw);	/* Init PCI sw */
@@ -2397,8 +2397,8 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 	wait_for_completion(&rtlpriv->firmware_loading_complete);
 	clear_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 
-	/* remove form debug */
-	rtl_debug_remove_one(hw);
+	/* remove form de */
+	rtl_de_remove_one(hw);
 
 	/*ieee80211_unregister_hw will call ops_stop */
 	if (rtlmac->mac80211_registered == 1) {

@@ -1354,7 +1354,7 @@ static int i40e_set_fec_cfg(struct net_device *netdev, u8 fec_cfg)
 		pf->flags = flags;
 		status = i40e_update_link_info(hw);
 		if (status)
-			/* debug level message only due to relation to the link
+			/* de level message only due to relation to the link
 			 * itself rather than to the FEC settings
 			 * (e.g. no physical connection etc.)
 			 */
@@ -1616,10 +1616,10 @@ static u32 i40e_get_msglevel(struct net_device *netdev)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
-	u32 debug_mask = pf->hw.debug_mask;
+	u32 de_mask = pf->hw.de_mask;
 
-	if (debug_mask)
-		netdev_info(netdev, "i40e debug_mask: 0x%08X\n", debug_mask);
+	if (de_mask)
+		netdev_info(netdev, "i40e de_mask: 0x%08X\n", de_mask);
 
 	return pf->msg_enable;
 }
@@ -1629,8 +1629,8 @@ static void i40e_set_msglevel(struct net_device *netdev, u32 data)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
 
-	if (I40E_DEBUG_USER & data)
-		pf->hw.debug_mask = data;
+	if (I40E_DE_USER & data)
+		pf->hw.de_mask = data;
 	else
 		pf->msg_enable = data;
 }
@@ -1708,7 +1708,7 @@ static int i40e_get_eeprom(struct net_device *netdev,
 		else
 			ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
 
-		if ((errno || ret_val) && (hw->debug_mask & I40E_DEBUG_NVM))
+		if ((errno || ret_val) && (hw->de_mask & I40E_DE_NVM))
 			dev_info(&pf->pdev->dev,
 				 "NVMUpdate read failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
 				 ret_val, hw->aq.asq_last_status, errno,
@@ -1815,7 +1815,7 @@ static int i40e_set_eeprom(struct net_device *netdev,
 	else
 		ret_val = i40e_nvmupd_command(hw, cmd, bytes, &errno);
 
-	if ((errno || ret_val) && (hw->debug_mask & I40E_DEBUG_NVM))
+	if ((errno || ret_val) && (hw->de_mask & I40E_DE_NVM))
 		dev_info(&pf->pdev->dev,
 			 "NVMUpdate write failed err=%d status=0x%x errno=%d module=%d offset=0x%x size=%d\n",
 			 ret_val, hw->aq.asq_last_status, errno,
@@ -2602,7 +2602,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 			pf->led_status = i40e_led_get(hw);
 		} else {
 			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
-				i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_ALL,
+				i40e_aq_set_phy_de(hw, I40E_PHY_DE_ALL,
 						      NULL);
 			ret = i40e_led_get_phy(hw, &temp_status,
 					       &pf->phy_led_val);
@@ -2629,7 +2629,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 					       (pf->phy_led_val |
 					       I40E_PHY_LED_MODE_ORIG));
 			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
-				i40e_aq_set_phy_debug(hw, 0, NULL);
+				i40e_aq_set_phy_de(hw, 0, NULL);
 		}
 		break;
 	default:
@@ -3171,7 +3171,7 @@ static int i40e_get_ethtool_fdir_entry(struct i40e_pf *pf,
 		break;
 	default:
 		/* If we have stored a filter with a flow type not listed here
-		 * it is almost certainly a driver bug. WARN(), and then
+		 * it is almost certainly a driver . WARN(), and then
 		 * assign the input_set as if all fields are enabled to avoid
 		 * reading unassigned memory.
 		 */
@@ -4477,7 +4477,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 
 	/* Add the input filter to the fdir_input_list, possibly replacing
 	 * a previous filter. Do not free the input structure after adding it
-	 * to the list as this would cause a use-after-free bug.
+	 * to the list as this would cause a use-after-free .
 	 */
 	i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
 	ret = i40e_add_del_fdir(vsi, input, true);

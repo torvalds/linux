@@ -107,7 +107,7 @@ struct sdma_txreq {
 	struct iowait *wait;
 	/* private: */
 	callback_t                  complete;
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 	u64 sn;
 #endif
 	/* private: - used in coalesce/pad processing */

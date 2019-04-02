@@ -18,10 +18,10 @@
 #define SUPPORTED_CHIPSETS		"830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM/945GME/965G/965GM"
 
 
-/*** Debug/feature defines ***/
+/*** De/feature defines ***/
 
-#ifndef DEBUG
-#define DEBUG				0
+#ifndef DE
+#define DE				0
 #endif
 
 #ifndef VERBOSE
@@ -95,8 +95,8 @@
 #define WRN_MSG(fmt, args...)	printk(KERN_WARNING PFX fmt, ## args)
 #define NOT_MSG(fmt, args...)	printk(KERN_NOTICE PFX fmt, ## args)
 #define INF_MSG(fmt, args...)	printk(KERN_INFO PFX fmt, ## args)
-#if DEBUG
-#define DBG_MSG(fmt, args...)	printk(KERN_DEBUG PFX fmt, ## args)
+#if DE
+#define DBG_MSG(fmt, args...)	printk(KERN_DE PFX fmt, ## args)
 #else
 #define DBG_MSG(fmt, args...)	while (0) printk(fmt, ## args)
 #endif

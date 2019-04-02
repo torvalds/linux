@@ -33,7 +33,7 @@
  * has no way for users to trigger remote wakeup.
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>

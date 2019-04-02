@@ -85,7 +85,7 @@ int use_calgary __read_mostly = 0;
 /* CalIOC2 specific */
 #define PHB_SAVIOR_L2		0x0DB0
 #define PHB_PAGE_MIG_CTRL	0x0DA8
-#define PHB_PAGE_MIG_DEBUG	0x0DA0
+#define PHB_PAGE_MIG_DE	0x0DA0
 #define PHB_ROOT_COMPLEX_STATUS 0x0CB0
 
 /* PHB_CONFIG_RW */
@@ -101,7 +101,7 @@ int use_calgary __read_mostly = 0;
 #define CSR_AGENT_MASK		0xffe0ffff
 /* CCR (Calgary Configuration Register) */
 #define CCR_2SEC_TIMEOUT	0x000000000000000EUL
-/* PMCR/PMDR (Page Migration Control/Debug Registers */
+/* PMCR/PMDR (Page Migration Control/De Registers */
 #define PMR_SOFTSTOP		0x80000000
 #define PMR_SOFTSTOPFAULT	0x40000000
 #define PMR_HARDSTOP		0x20000000
@@ -139,21 +139,21 @@ static const unsigned long phb_offsets[] = {
 	0xB000 /* PHB3 */
 };
 
-/* PHB debug registers */
+/* PHB de registers */
 
-static const unsigned long phb_debug_offsets[] = {
-	0x4000	/* PHB 0 DEBUG */,
-	0x5000	/* PHB 1 DEBUG */,
-	0x6000	/* PHB 2 DEBUG */,
-	0x7000	/* PHB 3 DEBUG */
+static const unsigned long phb_de_offsets[] = {
+	0x4000	/* PHB 0 DE */,
+	0x5000	/* PHB 1 DE */,
+	0x6000	/* PHB 2 DE */,
+	0x7000	/* PHB 3 DE */
 };
 
 /*
- * STUFF register for each debug PHB,
+ * STUFF register for each de PHB,
  * byte 1 = start bus number, byte 2 = end bus number
  */
 
-#define PHB_DEBUG_STUFF_OFFSET	0x0020
+#define PHB_DE_STUFF_OFFSET	0x0020
 
 unsigned int specified_table_size = TCE_TABLE_SIZE_UNSPECIFIED;
 static int translate_empty_slots __read_mostly = 0;
@@ -234,7 +234,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 			      PAGE_SIZE) >> PAGE_SHIFT;
 
-	BUG_ON(npages == 0);
+	_ON(npages == 0);
 
 	spin_lock_irqsave(&tbl->it_lock, flags);
 
@@ -256,7 +256,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	}
 
 	tbl->it_hint = offset + npages;
-	BUG_ON(tbl->it_hint > tbl->it_size);
+	_ON(tbl->it_hint > tbl->it_size);
 
 	spin_unlock_irqrestore(&tbl->it_lock, flags);
 
@@ -300,7 +300,7 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 
 	entry = dma_addr >> PAGE_SHIFT;
 
-	BUG_ON(entry + npages > tbl->it_size);
+	_ON(entry + npages > tbl->it_size);
 
 	tce_free(tbl, entry, npages);
 
@@ -329,7 +329,7 @@ static inline struct iommu_table *find_iommu_table(struct device *dev)
 		pbus = pbus->parent;
 	} while (pbus);
 
-	BUG_ON(tbl && (tbl->it_busno != pbus->number));
+	_ON(tbl && (tbl->it_busno != pbus->number));
 
 	return tbl;
 }
@@ -370,7 +370,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for_each_sg(sg, s, nelems, i) {
-		BUG_ON(!sg_page(s));
+		_ON(!sg_page(s));
 
 		vaddr = (unsigned long) sg_virt(s);
 		npages = iommu_num_pages(vaddr, s->length, PAGE_SIZE);
@@ -581,19 +581,19 @@ static void calioc2_tce_cache_blast(struct iommu_table *tbl)
 	unsigned char bus = tbl->it_busno;
 
 begin:
-	printk(KERN_DEBUG "Calgary: CalIOC2 bus 0x%x entering tce cache blast "
+	printk(KERN_DE "Calgary: CalIOC2 bus 0x%x entering tce cache blast "
 	       "sequence - count %d\n", bus, count);
 
 	/* 1. using the Page Migration Control reg set SoftStop */
 	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
 	val = be32_to_cpu(readl(target));
-	printk(KERN_DEBUG "1a. read 0x%x [LE] from %p\n", val, target);
+	printk(KERN_DE "1a. read 0x%x [LE] from %p\n", val, target);
 	val |= PMR_SOFTSTOP;
-	printk(KERN_DEBUG "1b. writing 0x%x [LE] to %p\n", val, target);
+	printk(KERN_DE "1b. writing 0x%x [LE] to %p\n", val, target);
 	writel(cpu_to_be32(val), target);
 
 	/* 2. poll split queues until all DMA activity is done */
-	printk(KERN_DEBUG "2a. starting to poll split queues\n");
+	printk(KERN_DE "2a. starting to poll split queues\n");
 	target = calgary_reg(bbar, split_queue_offset(bus));
 	do {
 		val64 = readq(target);
@@ -602,10 +602,10 @@ begin:
 	if (i == 100)
 		pr_warn("CalIOC2: PCI bus not quiesced, continuing anyway\n");
 
-	/* 3. poll Page Migration DEBUG for SoftStopFault */
-	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DEBUG);
+	/* 3. poll Page Migration DE for SoftStopFault */
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DE);
 	val = be32_to_cpu(readl(target));
-	printk(KERN_DEBUG "3. read 0x%x [LE] from %p\n", val, target);
+	printk(KERN_DE "3. read 0x%x [LE] from %p\n", val, target);
 
 	/* 4. if SoftStopFault - goto (1) */
 	if (val & PMR_SOFTSTOPFAULT) {
@@ -619,32 +619,32 @@ begin:
 
 	/* 5. Slam into HardStop by reading PHB_PAGE_MIG_CTRL */
 	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
-	printk(KERN_DEBUG "5a. slamming into HardStop by reading %p\n", target);
+	printk(KERN_DE "5a. slamming into HardStop by reading %p\n", target);
 	val = be32_to_cpu(readl(target));
-	printk(KERN_DEBUG "5b. read 0x%x [LE] from %p\n", val, target);
-	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DEBUG);
+	printk(KERN_DE "5b. read 0x%x [LE] from %p\n", val, target);
+	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_DE);
 	val = be32_to_cpu(readl(target));
-	printk(KERN_DEBUG "5c. read 0x%x [LE] from %p (debug)\n", val, target);
+	printk(KERN_DE "5c. read 0x%x [LE] from %p (de)\n", val, target);
 
 	/* 6. invalidate TCE cache */
-	printk(KERN_DEBUG "6. invalidating TCE cache\n");
+	printk(KERN_DE "6. invalidating TCE cache\n");
 	target = calgary_reg(bbar, tar_offset(bus));
 	writeq(tbl->tar_val, target);
 
 	/* 7. Re-read PMCR */
-	printk(KERN_DEBUG "7a. Re-reading PMCR\n");
+	printk(KERN_DE "7a. Re-reading PMCR\n");
 	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
 	val = be32_to_cpu(readl(target));
-	printk(KERN_DEBUG "7b. read 0x%x [LE] from %p\n", val, target);
+	printk(KERN_DE "7b. read 0x%x [LE] from %p\n", val, target);
 
 	/* 8. Remove HardStop */
-	printk(KERN_DEBUG "8a. removing HardStop from PMCR\n");
+	printk(KERN_DE "8a. removing HardStop from PMCR\n");
 	target = calgary_reg(bbar, phb_offset(bus) | PHB_PAGE_MIG_CTRL);
 	val = 0;
-	printk(KERN_DEBUG "8b. writing 0x%x [LE] to %p\n", val, target);
+	printk(KERN_DE "8b. writing 0x%x [LE] to %p\n", val, target);
 	writel(cpu_to_be32(val), target);
 	val = be32_to_cpu(readl(target));
-	printk(KERN_DEBUG "8c. read 0x%x [LE] from %p\n", val, target);
+	printk(KERN_DE "8c. read 0x%x [LE] from %p\n", val, target);
 }
 
 static void __init calgary_reserve_mem_region(struct pci_dev *dev, u64 start,
@@ -768,7 +768,7 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 	else if (is_calioc2(dev->device))
 		tbl->chip_ops = &calioc2_chip_ops;
 	else
-		BUG();
+		();
 
 	calgary_reserve_regions(dev);
 
@@ -782,7 +782,7 @@ static int __init calgary_setup_tar(struct pci_dev *dev, void __iomem *bbar)
 
 	val64 |= table_phys;
 
-	BUG_ON(specified_table_size > TCE_TABLE_SIZE_8M);
+	_ON(specified_table_size > TCE_TABLE_SIZE_8M);
 	val64 |= (u64) specified_table_size;
 
 	tbl->tar_val = cpu_to_be64(val64);
@@ -929,7 +929,7 @@ static void __init calgary_set_split_completion_timeout(void __iomem *bbar,
 	case 3: phb_shift = (63 - 35);
 		break;
 	default:
-		BUG_ON(busno_to_phbid(busnum));
+		_ON(busno_to_phbid(busnum));
 	}
 
 	target = calgary_reg(bbar, CALGARY_CONFIG_REG);
@@ -965,7 +965,7 @@ static void __init calgary_handle_quirks(struct iommu_table *tbl, struct pci_dev
 
 	/*
 	 * Give split completion a longer timeout on bus 1 for aic94xx
-	 * http://bugzilla.kernel.org/show_bug.cgi?id=7180
+	 * http://zilla.kernel.org/show_.cgi?id=7180
 	 */
 	if (is_calgary(dev->device) && (busnum == 1))
 		calgary_set_split_completion_timeout(tbl->bbar, busnum,
@@ -1093,7 +1093,7 @@ static int __init calgary_locate_bbars(void)
 			goto error;
 
 		for (phb = 0; phb < PHBS_PER_CALGARY; phb++) {
-			offset = phb_debug_offsets[phb] | PHB_DEBUG_STUFF_OFFSET;
+			offset = phb_de_offsets[phb] | PHB_DE_STUFF_OFFSET;
 			target = calgary_reg(bbar, offset);
 
 			val = be32_to_cpu(readl(target));
@@ -1382,7 +1382,7 @@ int __init detect_calgary(void)
 	if (!early_pci_allowed())
 		return -ENODEV;
 
-	printk(KERN_DEBUG "Calgary: detecting Calgary via BIOS EBDA area\n");
+	printk(KERN_DE "Calgary: detecting Calgary via BIOS EBDA area\n");
 
 	ptr = (unsigned long)phys_to_virt(get_bios_ebda());
 
@@ -1404,14 +1404,14 @@ int __init detect_calgary(void)
 		offset = *((unsigned short *)(ptr + offset));
 	}
 	if (!rio_table_hdr) {
-		printk(KERN_DEBUG "Calgary: Unable to locate Rio Grande table "
+		printk(KERN_DE "Calgary: Unable to locate Rio Grande table "
 		       "in EBDA - bailing!\n");
 		return -ENODEV;
 	}
 
 	ret = build_detail_arrays();
 	if (ret) {
-		printk(KERN_DEBUG "Calgary: build_detail_arrays ret %d\n", ret);
+		printk(KERN_DE "Calgary: build_detail_arrays ret %d\n", ret);
 		return -ENOMEM;
 	}
 
@@ -1447,7 +1447,7 @@ int __init detect_calgary(void)
 		}
 	}
 
-	printk(KERN_DEBUG "Calgary: finished detection, Calgary %s\n",
+	printk(KERN_DE "Calgary: finished detection, Calgary %s\n",
 	       calgary_found ? "found" : "not found");
 
 	if (calgary_found) {
@@ -1564,7 +1564,7 @@ static int __init calgary_fixup_tce_spaces(void)
 	if (no_iommu || swiotlb || !calgary_detected)
 		return -ENODEV;
 
-	printk(KERN_DEBUG "Calgary: fixing up tce spaces\n");
+	printk(KERN_DE "Calgary: fixing up tce spaces\n");
 
 	do {
 		dev = pci_get_device(PCI_VENDOR_ID_IBM, PCI_ANY_ID, dev);

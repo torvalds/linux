@@ -11,8 +11,8 @@
 
 #define PROC_LIMIT (PAGE_SIZE - 80)
 
-#if !defined(PRISM2_NO_PROCFS_DEBUG) && defined(CONFIG_PROC_FS)
-static int prism2_debug_proc_show(struct seq_file *m, void *v)
+#if !defined(PRISM2_NO_PROCFS_DE) && defined(CONFIG_PROC_FS)
+static int prism2_de_proc_show(struct seq_file *m, void *v)
 {
 	local_info_t *local = m->private;
 	int i;
@@ -228,35 +228,35 @@ static const struct file_operations prism2_aux_dump_proc_fops = {
 };
 
 
-#ifdef PRISM2_IO_DEBUG
-static int prism2_io_debug_proc_read(char *page, char **start, off_t off,
+#ifdef PRISM2_IO_DE
+static int prism2_io_de_proc_read(char *page, char **start, off_t off,
 				     int count, int *eof, void *data)
 {
 	local_info_t *local = (local_info_t *) data;
-	int head = local->io_debug_head;
+	int head = local->io_de_head;
 	int start_bytes, left, copy, copied;
 
-	if (off + count > PRISM2_IO_DEBUG_SIZE * 4) {
+	if (off + count > PRISM2_IO_DE_SIZE * 4) {
 		*eof = 1;
-		if (off >= PRISM2_IO_DEBUG_SIZE * 4)
+		if (off >= PRISM2_IO_DE_SIZE * 4)
 			return 0;
-		count = PRISM2_IO_DEBUG_SIZE * 4 - off;
+		count = PRISM2_IO_DE_SIZE * 4 - off;
 	}
 
 	copied = 0;
-	start_bytes = (PRISM2_IO_DEBUG_SIZE - head) * 4;
+	start_bytes = (PRISM2_IO_DE_SIZE - head) * 4;
 	left = count;
 
 	if (off < start_bytes) {
 		copy = start_bytes - off;
 		if (copy > count)
 			copy = count;
-		memcpy(page, ((u8 *) &local->io_debug[head]) + off, copy);
+		memcpy(page, ((u8 *) &local->io_de[head]) + off, copy);
 		left -= copy;
 		if (left > 0)
-			memcpy(&page[copy], local->io_debug, left);
+			memcpy(&page[copy], local->io_de, left);
 	} else {
-		memcpy(page, ((u8 *) local->io_debug) + (off - start_bytes),
+		memcpy(page, ((u8 *) local->io_de) + (off - start_bytes),
 		       left);
 	}
 
@@ -264,7 +264,7 @@ static int prism2_io_debug_proc_read(char *page, char **start, off_t off,
 
 	return count;
 }
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 
 #ifndef PRISM2_NO_STATION_MODES
@@ -371,10 +371,10 @@ void hostap_init_proc(local_info_t *local)
 		return;
 	}
 
-#ifndef PRISM2_NO_PROCFS_DEBUG
-	proc_create_single_data("debug", 0, local->proc,
-			prism2_debug_proc_show, local);
-#endif /* PRISM2_NO_PROCFS_DEBUG */
+#ifndef PRISM2_NO_PROCFS_DE
+	proc_create_single_data("de", 0, local->proc,
+			prism2_de_proc_show, local);
+#endif /* PRISM2_NO_PROCFS_DE */
 	proc_create_single_data("stats", 0, local->proc, prism2_stats_proc_show,
 			local);
 	proc_create_seq_data("wds", 0, local->proc,
@@ -388,10 +388,10 @@ void hostap_init_proc(local_info_t *local)
 			&prism2_bss_list_proc_seqops, local);
 	proc_create_single_data("crypt", 0, local->proc, prism2_crypt_proc_show,
 		local);
-#ifdef PRISM2_IO_DEBUG
-	proc_create_single_data("io_debug", 0, local->proc,
-			prism2_debug_proc_show, local);
-#endif /* PRISM2_IO_DEBUG */
+#ifdef PRISM2_IO_DE
+	proc_create_single_data("io_de", 0, local->proc,
+			prism2_de_proc_show, local);
+#endif /* PRISM2_IO_DE */
 #ifndef PRISM2_NO_STATION_MODES
 	proc_create_seq_data("scan_results", 0, local->proc,
 			&prism2_scan_results_proc_seqops, local);

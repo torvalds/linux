@@ -67,7 +67,7 @@ struct fjes_adapter {
 
 	struct fjes_hw hw;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dbg_adapter;
 #endif
 };
@@ -78,7 +78,7 @@ extern const u32 fjes_support_mtu[];
 
 void fjes_set_ethtool_ops(struct net_device *);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void fjes_dbg_adapter_init(struct fjes_adapter *adapter);
 void fjes_dbg_adapter_exit(struct fjes_adapter *adapter);
 void fjes_dbg_init(void);
@@ -88,6 +88,6 @@ static inline void fjes_dbg_adapter_init(struct fjes_adapter *adapter) {}
 static inline void fjes_dbg_adapter_exit(struct fjes_adapter *adapter) {}
 static inline void fjes_dbg_init(void) {}
 static inline void fjes_dbg_exit(void) {}
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 #endif /* FJES_H_ */

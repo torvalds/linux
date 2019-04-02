@@ -3,7 +3,7 @@
 #define _ASM_POWERPC_PGTABLE_H
 
 #ifndef __ASSEMBLY__
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/mmzone.h>
 #include <asm/processor.h>		/* For TASK_SIZE */
 #include <asm/mmu.h>

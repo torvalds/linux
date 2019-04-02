@@ -43,7 +43,7 @@ int mxl111sf_init_tuner_demod(struct mxl111sf_state *state)
 		{0,    0,    0}
 	};
 
-	mxl_debug("()");
+	mxl_de("()");
 
 	return mxl111sf_ctrl_program_regs(state, mxl_111_overwrite_default);
 }
@@ -51,7 +51,7 @@ int mxl111sf_init_tuner_demod(struct mxl111sf_state *state)
 int mxl1x1sf_soft_reset(struct mxl111sf_state *state)
 {
 	int ret;
-	mxl_debug("()");
+	mxl_de("()");
 
 	ret = mxl111sf_write_reg(state, 0xff, 0x00); /* AIC */
 	if (mxl_fail(ret))
@@ -66,7 +66,7 @@ int mxl1x1sf_set_device_mode(struct mxl111sf_state *state, int mode)
 {
 	int ret;
 
-	mxl_debug("(%s)", MXL_SOC_MODE == mode ?
+	mxl_de("(%s)", MXL_SOC_MODE == mode ?
 		"MXL_SOC_MODE" : "MXL_TUNER_MODE");
 
 	/* set device mode */
@@ -92,21 +92,21 @@ fail:
 /* power up tuner */
 int mxl1x1sf_top_master_ctrl(struct mxl111sf_state *state, int onoff)
 {
-	mxl_debug("(%d)", onoff);
+	mxl_de("(%d)", onoff);
 
 	return mxl111sf_write_reg(state, 0x01, onoff ? 0x01 : 0x00);
 }
 
 int mxl111sf_disable_656_port(struct mxl111sf_state *state)
 {
-	mxl_debug("()");
+	mxl_de("()");
 
 	return mxl111sf_write_reg_mask(state, 0x12, 0x04, 0x00);
 }
 
 int mxl111sf_enable_usb_output(struct mxl111sf_state *state)
 {
-	mxl_debug("()");
+	mxl_de("()");
 
 	return mxl111sf_write_reg_mask(state, 0x17, 0x40, 0x00);
 }
@@ -122,7 +122,7 @@ int mxl111sf_config_mpeg_in(struct mxl111sf_state *state,
 	int ret;
 	u8 mode, tmp;
 
-	mxl_debug("(%u,%u,%u,%u,%u)", parallel_serial, msb_lsb_1st,
+	mxl_de("(%u,%u,%u,%u,%u)", parallel_serial, msb_lsb_1st,
 		  clock_phase, mpeg_valid_pol, mpeg_sync_pol);
 
 	/* Enable PIN MUX */
@@ -213,7 +213,7 @@ int mxl111sf_init_i2s_port(struct mxl111sf_state *state, u8 sample_size)
 	};
 	int ret;
 
-	mxl_debug("(0x%02x)", sample_size);
+	mxl_de("(0x%02x)", sample_size);
 
 	ret = mxl111sf_ctrl_program_regs(state, init_i2s);
 	if (mxl_fail(ret))
@@ -232,7 +232,7 @@ int mxl111sf_disable_i2s_port(struct mxl111sf_state *state)
 		{0,    0,    0}
 	};
 
-	mxl_debug("()");
+	mxl_de("()");
 
 	return mxl111sf_ctrl_program_regs(state, disable_i2s);
 }
@@ -243,7 +243,7 @@ int mxl111sf_config_i2s(struct mxl111sf_state *state,
 	int ret;
 	u8 tmp;
 
-	mxl_debug("(0x%02x, 0x%02x)", msb_start_pos, data_width);
+	mxl_de("(0x%02x, 0x%02x)", msb_start_pos, data_width);
 
 	ret = mxl111sf_read_reg(state, V6_I2S_STREAM_START_BIT_REG, &tmp);
 	if (mxl_fail(ret))
@@ -272,7 +272,7 @@ int mxl111sf_config_spi(struct mxl111sf_state *state, int onoff)
 	u8 val;
 	int ret;
 
-	mxl_debug("(%d)", onoff);
+	mxl_de("(%d)", onoff);
 
 	ret = mxl111sf_write_reg(state, 0x00, 0x02);
 	if (mxl_fail(ret))

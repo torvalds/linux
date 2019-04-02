@@ -25,7 +25,7 @@
 #include <asm/pgtable.h>
 #include <asm/bootinfo.h>
 
-#undef DEBUG
+#undef DE
 
 /*
  * For ARC firmware memory functions the unit of meassuring memory is always
@@ -38,7 +38,7 @@ struct linux_mdesc * __init ArcGetMemoryDescriptor(struct linux_mdesc *Current)
 	return (struct linux_mdesc *) ARC_CALL1(get_mdesc, Current);
 }
 
-#ifdef DEBUG /* convenient for debugging */
+#ifdef DE /* convenient for deging */
 static char *arcs_mtypes[8] = {
 	"Exception Block",
 	"ARCS Romvec Page",
@@ -79,7 +79,7 @@ static inline int memtype_classify_arcs(union linux_memtypes type)
 	case arcs_aperm:
 		return BOOT_MEM_RESERVED;
 	default:
-		BUG();
+		();
 	}
 	while(1);				/* Nuke warning.  */
 }
@@ -99,7 +99,7 @@ static inline int memtype_classify_arc(union linux_memtypes type)
 	case arc_aperm:
 		return BOOT_MEM_RESERVED;
 	default:
-		BUG();
+		();
 	}
 	while(1);				/* Nuke warning.  */
 }
@@ -116,7 +116,7 @@ void __init prom_meminit(void)
 {
 	struct linux_mdesc *p;
 
-#ifdef DEBUG
+#ifdef DE
 	int i = 0;
 
 	printk("ARCS MEMORY DESCRIPTOR dump:\n");

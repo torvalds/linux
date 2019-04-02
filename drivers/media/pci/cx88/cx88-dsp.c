@@ -66,13 +66,13 @@
 #define FREQ_NOISE_START	((s32)(0.100000 * 32768.0))
 #define FREQ_NOISE_END		((s32)(1.200000 * 32768.0))
 
-static unsigned int dsp_debug;
-module_param(dsp_debug, int, 0644);
-MODULE_PARM_DESC(dsp_debug, "enable audio dsp debug messages");
+static unsigned int dsp_de;
+module_param(dsp_de, int, 0644);
+MODULE_PARM_DESC(dsp_de, "enable audio dsp de messages");
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (dsp_debug >= level)						\
-		printk(KERN_DEBUG pr_fmt("%s: dsp:" fmt),		\
+	if (dsp_de >= level)						\
+		printk(KERN_DE pr_fmt("%s: dsp:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 

@@ -77,7 +77,7 @@ int x25_output(struct sock *sk, struct sk_buff *skb)
 					kfree_skb(skb);
 					return sent;
 				}
-				SOCK_DEBUG(sk, "x25_output: fragment alloc"
+				SOCK_DE(sk, "x25_output: fragment alloc"
 					       " failed, err=%d, %d bytes "
 					       "sent\n", err, sent);
 				return err;

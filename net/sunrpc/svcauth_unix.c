@@ -682,7 +682,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		sin6 = svc_addr_in6(rqstp);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	rqstp->rq_client = NULL;
@@ -699,7 +699,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 
 	switch (cache_check(sn->ip_map_cache, &ipm->h, &rqstp->rq_chandle)) {
 		default:
-			BUG();
+			();
 		case -ETIMEDOUT:
 			return SVC_CLOSE;
 		case -EAGAIN:

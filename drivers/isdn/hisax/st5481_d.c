@@ -168,7 +168,7 @@ static struct FsmNode L1FnList[] __initdata =
 };
 
 static __printf(2, 3)
-	void l1m_debug(struct FsmInst *fi, char *fmt, ...)
+	void l1m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
 	char buf[256];
@@ -271,7 +271,7 @@ static char *strDoutEvent[] =
 };
 
 static __printf(2, 3)
-	void dout_debug(struct FsmInst *fi, char *fmt, ...)
+	void dout_de(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
 	char buf[256];
@@ -598,7 +598,7 @@ void st5481_d_l2l1(struct hisax_if *hisax_d_if, int pr, void *arg)
 		break;
 	case PH_DATA | REQUEST:
 		DBG(2, "PH_DATA REQUEST len %d", skb->len);
-		BUG_ON(adapter->d_out.tx_skb);
+		_ON(adapter->d_out.tx_skb);
 		adapter->d_out.tx_skb = skb;
 		FsmEvent(&adapter->d_out.fsm, EV_DOUT_START_XMIT, NULL);
 		break;
@@ -713,16 +713,16 @@ int st5481_setup_d(struct st5481_adapter *adapter)
 
 	adapter->l1m.fsm = &l1fsm;
 	adapter->l1m.state = ST_L1_F3;
-	adapter->l1m.debug = st5481_debug & 0x100;
+	adapter->l1m.de = st5481_de & 0x100;
 	adapter->l1m.userdata = adapter;
-	adapter->l1m.printdebug = l1m_debug;
+	adapter->l1m.printde = l1m_de;
 	FsmInitTimer(&adapter->l1m, &adapter->timer);
 
 	adapter->d_out.fsm.fsm = &dout_fsm;
 	adapter->d_out.fsm.state = ST_DOUT_NONE;
-	adapter->d_out.fsm.debug = st5481_debug & 0x100;
+	adapter->d_out.fsm.de = st5481_de & 0x100;
 	adapter->d_out.fsm.userdata = adapter;
-	adapter->d_out.fsm.printdebug = dout_debug;
+	adapter->d_out.fsm.printde = dout_de;
 
 	return 0;
 

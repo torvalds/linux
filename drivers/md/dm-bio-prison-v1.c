@@ -366,7 +366,7 @@ void dm_deferred_entry_dec(struct dm_deferred_entry *entry, struct list_head *he
 	unsigned long flags;
 
 	spin_lock_irqsave(&entry->ds->lock, flags);
-	BUG_ON(!entry->count);
+	_ON(!entry->count);
 	--entry->count;
 	__sweep(entry->ds, head);
 	spin_unlock_irqrestore(&entry->ds->lock, flags);

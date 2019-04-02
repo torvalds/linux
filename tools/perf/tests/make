@@ -62,7 +62,7 @@ has = $(shell which $1 2>/dev/null)
 # standard single make variable specified
 make_clean_all      := clean all
 make_python_perf_so := python/perf.so
-make_debug          := DEBUG=1
+make_de          := DE=1
 make_no_libperl     := NO_LIBPERL=1
 make_no_libpython   := NO_LIBPYTHON=1
 make_no_scripts     := NO_LIBPYTHON=1 NO_LIBPERL=1
@@ -121,7 +121,7 @@ else
 MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
-run += make_debug
+run += make_de
 run += make_no_libperl
 run += make_no_libpython
 run += make_no_scripts
@@ -273,7 +273,7 @@ endif
 
 max_width := $(shell echo $(run_O) | sed 's/ /\n/g' | wc -L)
 
-ifdef DEBUG
+ifdef DE
 d := $(info run   $(run))
 d := $(info run_O $(run_O))
 endif

@@ -147,7 +147,7 @@ void read_decode_cache_bcr(void)
 		goto dc_chk;
 
 	if (ibcr.ver <= 3) {
-		BUG_ON(ibcr.config != 3);
+		_ON(ibcr.config != 3);
 		p_ic->assoc = 2;		/* Fixed to 2w set assoc */
 	} else if (ibcr.ver >= 4) {
 		p_ic->assoc = 1 << ibcr.config;	/* 1,2,4,8 */
@@ -166,7 +166,7 @@ dc_chk:
 		goto slc_chk;
 
 	if (dbcr.ver <= 3) {
-		BUG_ON(dbcr.config != 2);
+		_ON(dbcr.config != 2);
 		p_dc->assoc = 4;		/* Fixed to 4w set assoc */
 		p_dc->vipt = 1;
 		p_dc->alias = p_dc->sz_k/p_dc->assoc/TO_KB(PAGE_SIZE) > 1;
@@ -1269,7 +1269,7 @@ void __init arc_cache_init_master(void)
 	 * Check that SMP_CACHE_BYTES (and hence ARCH_DMA_MINALIGN) is larger
 	 * or equal to any cache line length.
 	 */
-	BUILD_BUG_ON_MSG(L1_CACHE_BYTES > SMP_CACHE_BYTES,
+	BUILD__ON_MSG(L1_CACHE_BYTES > SMP_CACHE_BYTES,
 			 "SMP_CACHE_BYTES must be >= any cache line length");
 	if (is_isa_arcv2() && (l2_line_sz > SMP_CACHE_BYTES))
 		panic("L2 Cache line [%d] > kernel Config [%d]\n",

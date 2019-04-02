@@ -115,7 +115,7 @@ struct ccid3_hc_tx_sock {
 static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
-	BUG_ON(hctx == NULL);
+	_ON(hctx == NULL);
 	return hctx;
 }
 
@@ -154,7 +154,7 @@ struct ccid3_hc_rx_sock {
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
-	BUG_ON(hcrx == NULL);
+	_ON(hcrx == NULL);
 	return hcrx;
 }
 

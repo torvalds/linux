@@ -32,7 +32,7 @@
 
 #include <linux/apple-gmux.h>
 #include <linux/console.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fb.h>
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -100,7 +100,7 @@
  *	and later given their true id in vga_switcheroo_enable()
  * @active: whether the outputs are currently switched to this client
  * @driver_power_control: whether power state is controlled by the driver's
- *	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
+ *	runtime pm. If true, writing ON and OFF to the vga_switcheroo defs
  *	interface is a no-op so as not to interfere with runtime pm
  * @list: client list
  * @vga_dev: pci device, indicate which GPU is bound to current audio client
@@ -132,8 +132,8 @@ static DEFINE_MUTEX(vgasr_mutex);
  *	Prerequisite is the registration of two GPUs and a handler
  * @delayed_switch_active: whether a delayed switch is pending
  * @delayed_client_id: client to which a delayed switch is pending
- * @debugfs_root: directory for vga_switcheroo debugfs interface
- * @switch_file: file for vga_switcheroo debugfs interface
+ * @defs_root: directory for vga_switcheroo defs interface
+ * @switch_file: file for vga_switcheroo defs interface
  * @registered_clients: number of registered GPUs
  *	(counting only vga clients, not audio clients)
  * @clients: list of registered clients
@@ -151,7 +151,7 @@ struct vgasr_priv {
 	bool delayed_switch_active;
 	enum vga_switcheroo_client_id delayed_client_id;
 
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	struct dentry *switch_file;
 
 	int registered_clients;
@@ -168,8 +168,8 @@ struct vgasr_priv {
 #define client_is_vga(c)		(!client_is_audio(c))
 #define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
-static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv);
+static int vga_switcheroo_defs_init(struct vgasr_priv *priv);
+static void vga_switcheroo_defs_fini(struct vgasr_priv *priv);
 
 /* only one switcheroo per system */
 static struct vgasr_priv vgasr_priv = {
@@ -219,7 +219,7 @@ static void vga_switcheroo_enable(void)
 			client->ops->gpu_bound(client->pdev, ret);
 	}
 
-	vga_switcheroo_debugfs_init(&vgasr_priv);
+	vga_switcheroo_defs_init(&vgasr_priv);
 	vgasr_priv.active = true;
 }
 
@@ -267,7 +267,7 @@ void vga_switcheroo_unregister_handler(void)
 	vgasr_priv.handler = NULL;
 	if (vgasr_priv.active) {
 		pr_info("disabled\n");
-		vga_switcheroo_debugfs_fini(&vgasr_priv);
+		vga_switcheroo_defs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
 	mutex_unlock(&vgasr_priv.mux_hw_lock);
@@ -510,7 +510,7 @@ void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 	}
 	if (vgasr_priv.active && vgasr_priv.registered_clients < 2) {
 		pr_info("disabled\n");
-		vga_switcheroo_debugfs_fini(&vgasr_priv);
+		vga_switcheroo_defs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
 	mutex_unlock(&vgasr_mutex);
@@ -611,7 +611,7 @@ EXPORT_SYMBOL(vga_switcheroo_unlock_ddc);
 /**
  * DOC: Manual switching and manual power control
  *
- * In this mode of use, the file /sys/kernel/debug/vgaswitcheroo/switch
+ * In this mode of use, the file /sys/kernel/de/vgaswitcheroo/switch
  * can be read to retrieve the current vga_switcheroo state and commands
  * can be written to it to change the state. The file appears as soon as
  * two GPU drivers and one handler have registered with vga_switcheroo.
@@ -665,7 +665,7 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int vga_switcheroo_debugfs_open(struct inode *inode, struct file *file)
+static int vga_switcheroo_defs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, vga_switcheroo_show, NULL);
 }
@@ -779,7 +779,7 @@ static bool check_can_switch(void)
 }
 
 static ssize_t
-vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
+vga_switcheroo_defs_write(struct file *filp, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos)
 {
 	char usercmd[64];
@@ -903,48 +903,48 @@ out:
 	return cnt;
 }
 
-static const struct file_operations vga_switcheroo_debugfs_fops = {
+static const struct file_operations vga_switcheroo_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = vga_switcheroo_debugfs_open,
-	.write = vga_switcheroo_debugfs_write,
+	.open = vga_switcheroo_defs_open,
+	.write = vga_switcheroo_defs_write,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv)
+static void vga_switcheroo_defs_fini(struct vgasr_priv *priv)
 {
-	debugfs_remove(priv->switch_file);
+	defs_remove(priv->switch_file);
 	priv->switch_file = NULL;
 
-	debugfs_remove(priv->debugfs_root);
-	priv->debugfs_root = NULL;
+	defs_remove(priv->defs_root);
+	priv->defs_root = NULL;
 }
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
+static int vga_switcheroo_defs_init(struct vgasr_priv *priv)
 {
-	static const char mp[] = "/sys/kernel/debug";
+	static const char mp[] = "/sys/kernel/de";
 
 	/* already initialised */
-	if (priv->debugfs_root)
+	if (priv->defs_root)
 		return 0;
-	priv->debugfs_root = debugfs_create_dir("vgaswitcheroo", NULL);
+	priv->defs_root = defs_create_dir("vgaswitcheroo", NULL);
 
-	if (!priv->debugfs_root) {
+	if (!priv->defs_root) {
 		pr_err("Cannot create %s/vgaswitcheroo\n", mp);
 		goto fail;
 	}
 
-	priv->switch_file = debugfs_create_file("switch", 0644,
-						priv->debugfs_root, NULL,
-						&vga_switcheroo_debugfs_fops);
+	priv->switch_file = defs_create_file("switch", 0644,
+						priv->defs_root, NULL,
+						&vga_switcheroo_defs_fops);
 	if (!priv->switch_file) {
 		pr_err("cannot create %s/vgaswitcheroo/switch\n", mp);
 		goto fail;
 	}
 	return 0;
 fail:
-	vga_switcheroo_debugfs_fini(priv);
+	vga_switcheroo_defs_fini(priv);
 	return -1;
 }
 
@@ -993,7 +993,7 @@ EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
  *
  * In this mode of use, the discrete GPU automatically powers up and down at
  * the discretion of the driver's runtime pm. On muxed machines, the user may
- * still influence the muxer state by way of the debugfs interface, however
+ * still influence the muxer state by way of the defs interface, however
  * the ON and OFF commands become a no-op for the discrete GPU.
  *
  * This mode is the default on Nvidia HybridPower/Optimus and ATI PowerXpress.
@@ -1014,7 +1014,7 @@ EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
  * On muxed machines, if the mux is initially switched to the discrete GPU,
  * the user ends up with a black screen when the GPU powers down after boot.
  * As a workaround, the mux is forced to the integrated GPU on runtime suspend,
- * cf. https://bugs.freedesktop.org/show_bug.cgi?id=75917
+ * cf. https://s.freedesktop.org/show_.cgi?id=75917
  */
 
 static void vga_switcheroo_power_switch(struct pci_dev *pdev,

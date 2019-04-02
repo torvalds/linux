@@ -1195,7 +1195,7 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 	struct srp_login_req *login;
 	struct srp_event_struct *evt_struct = get_event_struct(&hostdata->pool);
 
-	BUG_ON(!evt_struct);
+	_ON(!evt_struct);
 	init_event_struct(evt_struct, login_rsp,
 			  VIOSRP_SRP_FORMAT, login_timeout);
 
@@ -1263,7 +1263,7 @@ static void send_mad_capabilities(struct ibmvscsi_host_data *hostdata)
 	const char *location;
 
 	evt_struct = get_event_struct(&hostdata->pool);
-	BUG_ON(!evt_struct);
+	_ON(!evt_struct);
 
 	init_event_struct(evt_struct, capabilities_rsp,
 			  VIOSRP_MAD_FORMAT, info_timeout);
@@ -1355,7 +1355,7 @@ static int enable_fast_fail(struct ibmvscsi_host_data *hostdata)
 	}
 
 	evt_struct = get_event_struct(&hostdata->pool);
-	BUG_ON(!evt_struct);
+	_ON(!evt_struct);
 
 	init_event_struct(evt_struct, fast_fail_rsp, VIOSRP_MAD_FORMAT, info_timeout);
 
@@ -1431,7 +1431,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 	unsigned long flags;
 
 	evt_struct = get_event_struct(&hostdata->pool);
-	BUG_ON(!evt_struct);
+	_ON(!evt_struct);
 
 	init_event_struct(evt_struct,
 			  adapter_info_rsp,
@@ -2160,7 +2160,7 @@ static int ibmvscsi_work(void *data)
 		rc = wait_event_interruptible(hostdata->work_wait_q,
 					      ibmvscsi_work_to_do(hostdata));
 
-		BUG_ON(rc);
+		_ON(rc);
 
 		if (kthread_should_stop())
 			break;

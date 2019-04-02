@@ -418,7 +418,7 @@ struct saa7164_port {
 	struct saa7164_vbi_params vbi_params;
 	struct saa7164_port *enc_port;
 
-	/* Debug */
+	/* De */
 	u32 sync_errors;
 	u32 v_cc_errors;
 	u32 a_cc_errors;
@@ -477,7 +477,7 @@ struct saa7164_dev {
 	struct work_struct workcmd;
 
 	/* A kernel thread to monitor the firmware log, used
-	 * only in debug mode.
+	 * only in de mode.
 	 */
 	struct task_struct *kthread;
 
@@ -551,8 +551,8 @@ int saa7164_api_set_audio_std(struct saa7164_port *port);
 int saa7164_api_set_audio_detection(struct saa7164_port *port, int autodetect);
 int saa7164_api_get_videomux(struct saa7164_port *port);
 int saa7164_api_set_vbi_format(struct saa7164_port *port);
-int saa7164_api_set_debug(struct saa7164_dev *dev, u8 level);
-int saa7164_api_collect_debug(struct saa7164_dev *dev);
+int saa7164_api_set_de(struct saa7164_dev *dev, u8 level);
+int saa7164_api_collect_de(struct saa7164_dev *dev);
 int saa7164_api_get_load_info(struct saa7164_dev *dev,
 	struct tmFwInfoStruct *i);
 
@@ -614,10 +614,10 @@ void saa7164_vbi_unregister(struct saa7164_port *port);
 
 extern unsigned int crc_checking;
 
-extern unsigned int saa_debug;
+extern unsigned int saa_de;
 #define dprintk(level, fmt, arg...)\
-	do { if (saa_debug & level)\
-		printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg);\
+	do { if (saa_de & level)\
+		printk(KERN_DE "%s: " fmt, dev->name, ## arg);\
 	} while (0)
 
 #define log_warn(fmt, arg...)\

@@ -26,7 +26,7 @@
  *			   Anthony Tong <atong@uiuc.edu>
  *
  *  Generic LCD support written by Daniel Mantione, ported from 2.4.20 by Alex Kern
- *  Many Thanks to Ville Syrjälä for patches and fixing nasting 16 bit color bug.
+ *  Many Thanks to Ville Syrjälä for patches and fixing nasting 16 bit color .
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for
@@ -100,10 +100,10 @@
 #endif
 
 /*
- * Debug flags.
+ * De flags.
  */
-#undef DEBUG
-/*#define DEBUG*/
+#undef DE
+/*#define DE*/
 
 /* Make sure n * PAGE_SIZE is protected at end of Aperture for GUI-regs */
 /*  - must be large enough to catch all GUI-Regs   */
@@ -123,8 +123,8 @@
 		return -EINVAL; \
 	} \
 } while (0)
-#ifdef DEBUG
-#define DPRINTK(fmt, args...)	printk(KERN_DEBUG "atyfb: " fmt, ## args)
+#ifdef DE
+#define DPRINTK(fmt, args...)	printk(KERN_DE "atyfb: " fmt, ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -1303,8 +1303,8 @@ static int atyfb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	u32 tmp, pixclock;
 	int err;
-#ifdef DEBUG
-	struct fb_var_screeninfo debug;
+#ifdef DE
+	struct fb_var_screeninfo de;
 	u32 pixclock_in_ps;
 #endif
 	if (par->asleep)
@@ -1344,7 +1344,7 @@ static int atyfb_set_par(struct fb_info *info)
 			      var->bits_per_pixel, par->accel_flags);
 	par->pll_ops->set_pll(info, &par->pll);
 
-#ifdef DEBUG
+#ifdef DE
 	if (par->pll_ops && par->pll_ops->pll_to_var)
 		pixclock_in_ps = par->pll_ops->pll_to_var(info, &par->pll);
 	else
@@ -1355,20 +1355,20 @@ static int atyfb_set_par(struct fb_info *info)
 		pixclock_in_ps = pixclock;
 	}
 
-	memset(&debug, 0, sizeof(debug));
-	if (!aty_crtc_to_var(&par->crtc, &debug)) {
+	memset(&de, 0, sizeof(de));
+	if (!aty_crtc_to_var(&par->crtc, &de)) {
 		u32 hSync, vRefresh;
 		u32 h_disp, h_sync_strt, h_sync_end, h_total;
 		u32 v_disp, v_sync_strt, v_sync_end, v_total;
 
-		h_disp = debug.xres;
-		h_sync_strt = h_disp + debug.right_margin;
-		h_sync_end = h_sync_strt + debug.hsync_len;
-		h_total = h_sync_end + debug.left_margin;
-		v_disp = debug.yres;
-		v_sync_strt = v_disp + debug.lower_margin;
-		v_sync_end = v_sync_strt + debug.vsync_len;
-		v_total = v_sync_end + debug.upper_margin;
+		h_disp = de.xres;
+		h_sync_strt = h_disp + de.right_margin;
+		h_sync_end = h_sync_strt + de.hsync_len;
+		h_total = h_sync_end + de.left_margin;
+		v_disp = de.yres;
+		v_sync_strt = v_disp + de.lower_margin;
+		v_sync_end = v_sync_strt + de.vsync_len;
+		v_total = v_sync_end + de.upper_margin;
 
 		hSync = 1000000000 / (pixclock_in_ps * h_total);
 		vRefresh = (hSync * 1000) / v_total;
@@ -1394,10 +1394,10 @@ static int atyfb_set_par(struct fb_info *info)
 			v_disp, v_sync_strt, v_sync_end, v_total);
 		DPRINTK(" fb style: %i  %i %i %i %i %i %i %i %i\n",
 			pixclock_in_ps,
-			debug.left_margin, h_disp, debug.right_margin, debug.hsync_len,
-			debug.upper_margin, v_disp, debug.lower_margin, debug.vsync_len);
+			de.left_margin, h_disp, de.right_margin, de.hsync_len,
+			de.upper_margin, v_disp, de.lower_margin, de.vsync_len);
 	}
-#endif /* DEBUG */
+#endif /* DE */
 
 	if (!M64_HAS(INTEGRATED)) {
 		/* Don't forget MEM_CNTL */
@@ -1471,18 +1471,18 @@ static int atyfb_set_par(struct fb_info *info)
 	if (!(par->crtc.gen_cntl & CRTC_EXT_DISP_EN))
 		aty_st_le32(CRTC_GEN_CNTL, par->crtc.gen_cntl | CRTC_EXT_DISP_EN, par);
 #endif
-#ifdef DEBUG
+#ifdef DE
 {
 	/* dump non shadow CRTC, pll, LCD registers */
 	int i; u32 base;
 
 	/* CRTC registers */
 	base = 0x2000;
-	printk("debug atyfb: Mach64 non-shadow register values:");
+	printk("de atyfb: Mach64 non-shadow register values:");
 	for (i = 0; i < 256; i = i+4) {
 		if (i % 16 == 0) {
 			pr_cont("\n");
-			printk("debug atyfb: 0x%04X: ", base + i);
+			printk("de atyfb: 0x%04X: ", base + i);
 		}
 		pr_cont(" %08X", aty_ld_le32(i, par));
 	}
@@ -1491,11 +1491,11 @@ static int atyfb_set_par(struct fb_info *info)
 #ifdef CONFIG_FB_ATY_CT
 	/* PLL registers */
 	base = 0x00;
-	printk("debug atyfb: Mach64 PLL register values:");
+	printk("de atyfb: Mach64 PLL register values:");
 	for (i = 0; i < 64; i++) {
 		if (i % 16 == 0) {
 			pr_cont("\n");
-			printk("debug atyfb: 0x%02X: ", base + i);
+			printk("de atyfb: 0x%02X: ", base + i);
 		}
 		if (i % 4 == 0)
 			pr_cont(" ");
@@ -1508,19 +1508,19 @@ static int atyfb_set_par(struct fb_info *info)
 	if (par->lcd_table != 0) {
 		/* LCD registers */
 		base = 0x00;
-		printk("debug atyfb: LCD register values:");
+		printk("de atyfb: LCD register values:");
 		if (M64_HAS(LT_LCD_REGS)) {
 			for (i = 0; i <= POWER_MANAGEMENT; i++) {
 				if (i == EXT_VERT_STRETCH)
 					continue;
-				pr_cont("\ndebug atyfb: 0x%04X: ",
+				pr_cont("\nde atyfb: 0x%04X: ",
 				       lt_lcd_regs[i]);
 				pr_cont(" %08X", aty_ld_lcd(i, par));
 			}
 		} else {
 			for (i = 0; i < 64; i++) {
 				if (i % 4 == 0)
-					pr_cont("\ndebug atyfb: 0x%02X: ",
+					pr_cont("\nde atyfb: 0x%02X: ",
 					       base + i);
 				pr_cont(" %08X", aty_ld_lcd(i, par));
 			}
@@ -1529,7 +1529,7 @@ static int atyfb_set_par(struct fb_info *info)
 	}
 #endif /* CONFIG_FB_ATY_GENERIC_LCD */
 }
-#endif /* DEBUG */
+#endif /* DE */
 	return 0;
 }
 
@@ -1800,7 +1800,7 @@ static int aty_waitforvblank(struct atyfb_par *par, u32 crtc)
 }
 
 
-#ifdef DEBUG
+#ifdef DE
 #define ATYIO_CLKR		0x41545900	/* ATY\00 */
 #define ATYIO_CLKW		0x41545901	/* ATY\01 */
 
@@ -1856,7 +1856,7 @@ static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 			return aty_waitforvblank(par, crtc);
 		}
 
-#if defined(DEBUG) && defined(CONFIG_FB_ATY_CT)
+#if defined(DE) && defined(CONFIG_FB_ATY_CT)
 	case ATYIO_CLKR:
 		if (M64_HAS(INTEGRATED)) {
 			struct atyclk clk = { 0 };
@@ -1915,7 +1915,7 @@ static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		if (put_user(par->features, (u32 __user *) arg))
 			return -EFAULT;
 		break;
-#endif /* DEBUG && CONFIG_FB_ATY_CT */
+#endif /* DE && CONFIG_FB_ATY_CT */
 	default:
 		return -EINVAL;
 	}
@@ -2582,16 +2582,16 @@ static int aty_init(struct fb_info *info)
 		par->pll_limits.pll_max, par->pll_limits.mclk,
 		par->pll_limits.xclk);
 
-#if defined(DEBUG) && defined(CONFIG_FB_ATY_CT)
+#if defined(DE) && defined(CONFIG_FB_ATY_CT)
 	if (M64_HAS(INTEGRATED)) {
 		int i;
-		printk("debug atyfb: BUS_CNTL DAC_CNTL MEM_CNTL "
+		printk("de atyfb: BUS_CNTL DAC_CNTL MEM_CNTL "
 		       "EXT_MEM_CNTL CRTC_GEN_CNTL DSP_CONFIG "
 		       "DSP_ON_OFF CLOCK_CNTL\n"
-		       "debug atyfb: %08x %08x %08x "
+		       "de atyfb: %08x %08x %08x "
 		       "%08x     %08x      %08x   "
 		       "%08x   %08x\n"
-		       "debug atyfb: PLL",
+		       "de atyfb: PLL",
 		       aty_ld_le32(BUS_CNTL, par),
 		       aty_ld_le32(DAC_CNTL, par),
 		       aty_ld_le32(MEM_CNTL, par),

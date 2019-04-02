@@ -34,7 +34,7 @@
 static DEFINE_MUTEX(device_ctls_mutex);
 static LIST_HEAD(edac_device_list);
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 {
 	edac_dbg(3, "\tedac_dev = %p dev_idx=%d\n",
@@ -45,7 +45,7 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
 		 edac_dev->mod_name, edac_dev->ctl_name);
 	edac_dbg(3, "\tpvt_info = %p\n\n", edac_dev->pvt_info);
 }
-#endif				/* CONFIG_EDAC_DEBUG */
+#endif				/* CONFIG_EDAC_DE */
 
 struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	unsigned sz_private,
@@ -307,7 +307,7 @@ fail0:
 
 fail1:
 	edac_printk(KERN_WARNING, EDAC_MC,
-			"bug in low-level driver: attempt to assign\n"
+			" in low-level driver: attempt to assign\n"
 			"    duplicate dev_idx %d in %s()\n", rover->dev_idx,
 			__func__);
 	return 1;
@@ -449,8 +449,8 @@ int edac_device_add_device(struct edac_device_ctl_info *edac_dev)
 {
 	edac_dbg(0, "\n");
 
-#ifdef CONFIG_EDAC_DEBUG
-	if (edac_debug_level >= 3)
+#ifdef CONFIG_EDAC_DE
+	if (edac_de_level >= 3)
 		edac_device_dump_device(edac_dev);
 #endif
 	mutex_lock(&device_ctls_mutex);

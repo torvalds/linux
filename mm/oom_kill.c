@@ -610,7 +610,7 @@ static void oom_reap_task(struct task_struct *tsk)
 
 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
 		task_pid_nr(tsk), tsk->comm);
-	debug_show_all_locks();
+	de_show_all_locks();
 
 done:
 	tsk->oom_reaper_list = NULL;

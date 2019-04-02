@@ -172,7 +172,7 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 setnew:
 	apicd->vector = newvec;
 	apicd->cpu = newcpu;
-	BUG_ON(!IS_ERR_OR_NULL(per_cpu(vector_irq, newcpu)[newvec]));
+	_ON(!IS_ERR_OR_NULL(per_cpu(vector_irq, newcpu)[newvec]));
 	per_cpu(vector_irq, newcpu)[newvec] = desc;
 }
 
@@ -418,7 +418,7 @@ static int activate_managed(struct irq_data *irqd)
 
 	ret = assign_managed_vector(irqd, vector_searchmask);
 	/*
-	 * This should not happen. The vector reservation got buggered.  Handle
+	 * This should not happen. The vector reservation got gered.  Handle
 	 * it gracefully.
 	 */
 	if (WARN_ON_ONCE(ret < 0)) {
@@ -534,7 +534,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 
 	for (i = 0; i < nr_irqs; i++) {
 		irqd = irq_domain_get_irq_data(domain, virq + i);
-		BUG_ON(!irqd);
+		_ON(!irqd);
 		node = irq_data_get_node(irqd);
 		WARN_ON_ONCE(irqd->chip_data);
 		apicd = alloc_apic_chip_data(node);
@@ -576,8 +576,8 @@ error:
 	return err;
 }
 
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-static void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
+#ifdef CONFIG_GENERIC_IRQ_DEFS
+static void x86_vector_de_show(struct seq_file *m, struct irq_domain *d,
 				  struct irq_data *irqd, int ind)
 {
 	struct apic_chip_data apicd;
@@ -585,7 +585,7 @@ static void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
 	int irq;
 
 	if (!irqd) {
-		irq_matrix_debug_show(m, vector_matrix, ind);
+		irq_matrix_de_show(m, vector_matrix, ind);
 		return;
 	}
 
@@ -624,8 +624,8 @@ static const struct irq_domain_ops x86_vector_domain_ops = {
 	.free		= x86_vector_free_irqs,
 	.activate	= x86_vector_activate,
 	.deactivate	= x86_vector_deactivate,
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-	.debug_show	= x86_vector_debug_show,
+#ifdef CONFIG_GENERIC_IRQ_DEFS
+	.de_show	= x86_vector_de_show,
 #endif
 };
 
@@ -691,16 +691,16 @@ int __init arch_early_irq_init(void)
 	struct fwnode_handle *fn;
 
 	fn = irq_domain_alloc_named_fwnode("VECTOR");
-	BUG_ON(!fn);
+	_ON(!fn);
 	x86_vector_domain = irq_domain_create_tree(fn, &x86_vector_domain_ops,
 						   NULL);
-	BUG_ON(x86_vector_domain == NULL);
+	_ON(x86_vector_domain == NULL);
 	irq_domain_free_fwnode(fn);
 	irq_set_default_host(x86_vector_domain);
 
 	arch_init_msi_domain(x86_vector_domain);
 
-	BUG_ON(!alloc_cpumask_var(&vector_searchmask, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&vector_searchmask, GFP_KERNEL));
 
 	/*
 	 * Allocate the vector matrix allocator data structure and limit the
@@ -708,7 +708,7 @@ int __init arch_early_irq_init(void)
 	 */
 	vector_matrix = irq_alloc_matrix(NR_VECTORS, FIRST_EXTERNAL_VECTOR,
 					 FIRST_SYSTEM_VECTOR);
-	BUG_ON(!vector_matrix);
+	_ON(!vector_matrix);
 
 	return arch_early_ioapic_init();
 }
@@ -1047,7 +1047,7 @@ static void __init print_APIC_field(int base)
 {
 	int i;
 
-	printk(KERN_DEBUG);
+	printk(KERN_DE);
 
 	for (i = 0; i < 8; i++)
 		pr_cont("%08x", apic_read(base + i*0x10));
@@ -1060,7 +1060,7 @@ static void __init print_local_APIC(void *dummy)
 	unsigned int i, v, ver, maxlvt;
 	u64 icr;
 
-	pr_debug("printing local APIC contents on CPU#%d/%d:\n",
+	pr_de("printing local APIC contents on CPU#%d/%d:\n",
 		 smp_processor_id(), hard_smp_processor_id());
 	v = apic_read(APIC_ID);
 	pr_info("... APIC ID:      %08x (%01x)\n", v, read_apic_id());
@@ -1070,17 +1070,17 @@ static void __init print_local_APIC(void *dummy)
 	maxlvt = lapic_get_maxlvt();
 
 	v = apic_read(APIC_TASKPRI);
-	pr_debug("... APIC TASKPRI: %08x (%02x)\n", v, v & APIC_TPRI_MASK);
+	pr_de("... APIC TASKPRI: %08x (%02x)\n", v, v & APIC_TPRI_MASK);
 
 	/* !82489DX */
 	if (APIC_INTEGRATED(ver)) {
 		if (!APIC_XAPIC(ver)) {
 			v = apic_read(APIC_ARBPRI);
-			pr_debug("... APIC ARBPRI: %08x (%02x)\n",
+			pr_de("... APIC ARBPRI: %08x (%02x)\n",
 				 v, v & APIC_ARBPRI_MASK);
 		}
 		v = apic_read(APIC_PROCPRI);
-		pr_debug("... APIC PROCPRI: %08x\n", v);
+		pr_de("... APIC PROCPRI: %08x\n", v);
 	}
 
 	/*
@@ -1089,23 +1089,23 @@ static void __init print_local_APIC(void *dummy)
 	 */
 	if (!APIC_INTEGRATED(ver) || maxlvt == 3) {
 		v = apic_read(APIC_RRR);
-		pr_debug("... APIC RRR: %08x\n", v);
+		pr_de("... APIC RRR: %08x\n", v);
 	}
 
 	v = apic_read(APIC_LDR);
-	pr_debug("... APIC LDR: %08x\n", v);
+	pr_de("... APIC LDR: %08x\n", v);
 	if (!x2apic_enabled()) {
 		v = apic_read(APIC_DFR);
-		pr_debug("... APIC DFR: %08x\n", v);
+		pr_de("... APIC DFR: %08x\n", v);
 	}
 	v = apic_read(APIC_SPIV);
-	pr_debug("... APIC SPIV: %08x\n", v);
+	pr_de("... APIC SPIV: %08x\n", v);
 
-	pr_debug("... APIC ISR field:\n");
+	pr_de("... APIC ISR field:\n");
 	print_APIC_field(APIC_ISR);
-	pr_debug("... APIC TMR field:\n");
+	pr_de("... APIC TMR field:\n");
 	print_APIC_field(APIC_TMR);
-	pr_debug("... APIC IRR field:\n");
+	pr_de("... APIC IRR field:\n");
 	print_APIC_field(APIC_IRR);
 
 	/* !82489DX */
@@ -1115,48 +1115,48 @@ static void __init print_local_APIC(void *dummy)
 			apic_write(APIC_ESR, 0);
 
 		v = apic_read(APIC_ESR);
-		pr_debug("... APIC ESR: %08x\n", v);
+		pr_de("... APIC ESR: %08x\n", v);
 	}
 
 	icr = apic_icr_read();
-	pr_debug("... APIC ICR: %08x\n", (u32)icr);
-	pr_debug("... APIC ICR2: %08x\n", (u32)(icr >> 32));
+	pr_de("... APIC ICR: %08x\n", (u32)icr);
+	pr_de("... APIC ICR2: %08x\n", (u32)(icr >> 32));
 
 	v = apic_read(APIC_LVTT);
-	pr_debug("... APIC LVTT: %08x\n", v);
+	pr_de("... APIC LVTT: %08x\n", v);
 
 	if (maxlvt > 3) {
 		/* PC is LVT#4. */
 		v = apic_read(APIC_LVTPC);
-		pr_debug("... APIC LVTPC: %08x\n", v);
+		pr_de("... APIC LVTPC: %08x\n", v);
 	}
 	v = apic_read(APIC_LVT0);
-	pr_debug("... APIC LVT0: %08x\n", v);
+	pr_de("... APIC LVT0: %08x\n", v);
 	v = apic_read(APIC_LVT1);
-	pr_debug("... APIC LVT1: %08x\n", v);
+	pr_de("... APIC LVT1: %08x\n", v);
 
 	if (maxlvt > 2) {
 		/* ERR is LVT#3. */
 		v = apic_read(APIC_LVTERR);
-		pr_debug("... APIC LVTERR: %08x\n", v);
+		pr_de("... APIC LVTERR: %08x\n", v);
 	}
 
 	v = apic_read(APIC_TMICT);
-	pr_debug("... APIC TMICT: %08x\n", v);
+	pr_de("... APIC TMICT: %08x\n", v);
 	v = apic_read(APIC_TMCCT);
-	pr_debug("... APIC TMCCT: %08x\n", v);
+	pr_de("... APIC TMCCT: %08x\n", v);
 	v = apic_read(APIC_TDCR);
-	pr_debug("... APIC TDCR: %08x\n", v);
+	pr_de("... APIC TDCR: %08x\n", v);
 
 	if (boot_cpu_has(X86_FEATURE_EXTAPIC)) {
 		v = apic_read(APIC_EFEAT);
 		maxlvt = (v >> 16) & 0xff;
-		pr_debug("... APIC EFEAT: %08x\n", v);
+		pr_de("... APIC EFEAT: %08x\n", v);
 		v = apic_read(APIC_ECTRL);
-		pr_debug("... APIC ECTRL: %08x\n", v);
+		pr_de("... APIC ECTRL: %08x\n", v);
 		for (i = 0; i < maxlvt; i++) {
 			v = apic_read(APIC_EILVTn(i));
-			pr_debug("... APIC EILVT%d: %08x\n", i, v);
+			pr_de("... APIC EILVT%d: %08x\n", i, v);
 		}
 	}
 	pr_cont("\n");
@@ -1186,15 +1186,15 @@ static void __init print_PIC(void)
 	if (!nr_legacy_irqs())
 		return;
 
-	pr_debug("\nprinting PIC contents\n");
+	pr_de("\nprinting PIC contents\n");
 
 	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	v = inb(0xa1) << 8 | inb(0x21);
-	pr_debug("... PIC  IMR: %04x\n", v);
+	pr_de("... PIC  IMR: %04x\n", v);
 
 	v = inb(0xa0) << 8 | inb(0x20);
-	pr_debug("... PIC  IRR: %04x\n", v);
+	pr_de("... PIC  IRR: %04x\n", v);
 
 	outb(0x0b, 0xa0);
 	outb(0x0b, 0x20);
@@ -1204,10 +1204,10 @@ static void __init print_PIC(void)
 
 	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 
-	pr_debug("... PIC  ISR: %04x\n", v);
+	pr_de("... PIC  ISR: %04x\n", v);
 
 	v = inb(0x4d1) << 8 | inb(0x4d0);
-	pr_debug("... PIC ELCR: %04x\n", v);
+	pr_de("... PIC ELCR: %04x\n", v);
 }
 
 static int show_lapic __initdata = 1;

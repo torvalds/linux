@@ -1081,7 +1081,7 @@ static enum version_8723e _rtl8723e_read_chip_version(struct ieee80211_hw *hw)
 			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT.\n");
 		break;
 	default:
-		pr_err("Chip Version ID: Unknown. Bug?\n");
+		pr_err("Chip Version ID: Unknown. ?\n");
 		break;
 	}
 

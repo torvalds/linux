@@ -265,7 +265,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 			return error;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
 	acpi_bus_trim(device);
@@ -588,7 +588,7 @@ static int acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
 	status = acpi_get_data_full(handle, acpi_scan_drop_device,
 				    (void **)device, callback);
 	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
+		ACPI_DE_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
 				  handle));
 		return -ENODEV;
 	}
@@ -901,7 +901,7 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	 */
 	err = acpi_device_sleep_wake(device, 0, 0, 0);
 	if (err)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				"error in _DSW or _PSW evaluation\n"));
 }
 
@@ -1113,7 +1113,7 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
 
 	if (acpi_has_method(handle, "_BCM") &&
 	    acpi_has_method(handle, "_BCL")) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found generic backlight "
 				  "support\n"));
 		*cap |= ACPI_VIDEO_BACKLIGHT;
 		/* We have backlight support, no need to scan further */
@@ -1189,7 +1189,7 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
 }
 
 /*
- * Old IBM workstations have a DSDT bug wherein the SMBus object
+ * Old IBM workstations have a DSDT  wherein the SMBus object
  * lacks the SMBUS01 HID and the methods do not have the necessary "_"
  * prefix.  Work around this.
  */
@@ -1500,7 +1500,7 @@ static void acpi_init_coherency(struct acpi_device *adev)
 			 */
 			cca = 1;
 		else
-			acpi_handle_debug(adev->handle,
+			acpi_handle_de(adev->handle,
 					  "ACPI device is missing _CCA.\n");
 	}
 
@@ -1641,7 +1641,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 	acpi_power_add_remove_device(device, true);
 	acpi_device_add_finalize(device);
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Added %s [%s] parent %s\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Added %s [%s] parent %s\n",
 		dev_name(&device->dev), (char *) buffer.pointer,
 		device->parent ? dev_name(&device->parent->dev) : "(null)"));
 	kfree(buffer.pointer);

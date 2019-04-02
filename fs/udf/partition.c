@@ -32,7 +32,7 @@ uint32_t udf_get_pblock(struct super_block *sb, uint32_t block,
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	if (partition >= sbi->s_partitions) {
-		udf_debug("block=%u, partition=%u, offset=%u: invalid partition\n",
+		udf_de("block=%u, partition=%u, offset=%u: invalid partition\n",
 			  block, partition, offset);
 		return 0xFFFFFFFF;
 	}
@@ -59,7 +59,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	vdata = &map->s_type_specific.s_virtual;
 
 	if (block > vdata->s_num_entries) {
-		udf_debug("Trying to access block beyond end of VAT (%u max %u)\n",
+		udf_de("Trying to access block beyond end of VAT (%u max %u)\n",
 			  block, vdata->s_num_entries);
 		return 0xFFFFFFFF;
 	}
@@ -83,7 +83,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 
 	bh = sb_bread(sb, loc);
 	if (!bh) {
-		udf_debug("get_pblock(UDF_VIRTUAL_MAP:%p,%u,%u) VAT: %u[%u]\n",
+		udf_de("get_pblock(UDF_VIRTUAL_MAP:%p,%u,%u) VAT: %u[%u]\n",
 			  sb, block, partition, loc, index);
 		return 0xFFFFFFFF;
 	}
@@ -94,7 +94,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 
 translate:
 	if (iinfo->i_location.partitionReferenceNum == partition) {
-		udf_debug("recursive call to udf_get_pblock!\n");
+		udf_de("recursive call to udf_get_pblock!\n");
 		return 0xFFFFFFFF;
 	}
 
@@ -312,7 +312,7 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 	uint32_t retblk;
 	struct inode *inode;
 
-	udf_debug("READING from METADATA\n");
+	udf_de("READING from METADATA\n");
 
 	map = &sbi->s_partmaps[partition];
 	mdata = &map->s_type_specific.s_metadata;

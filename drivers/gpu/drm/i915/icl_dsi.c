@@ -1452,7 +1452,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
-		DRM_DEBUG_KMS("no device found\n");
+		DRM_DE_KMS("no device found\n");
 		goto err;
 	}
 

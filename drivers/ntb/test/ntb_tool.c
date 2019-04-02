@@ -47,14 +47,14 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * PCIe NTB Debugging Tool Linux driver
+ * PCIe NTB Deging Tool Linux driver
  */
 
 /*
  * How to use this tool, by example.
  *
  * Assuming $DBG_DIR is something like:
- * '/sys/kernel/debug/ntb_tool/0000:00:03.0'
+ * '/sys/kernel/de/ntb_tool/0000:00:03.0'
  * Suppose aside from local device there is at least one remote device
  * connected to NTB with index 0.
  *-----------------------------------------------------------------------------
@@ -180,7 +180,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -194,7 +194,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR("Allen Hubbe <Allen.Hubbe@emc.com>");
-MODULE_DESCRIPTION("PCIe NTB Debugging Tool");
+MODULE_DESCRIPTION("PCIe NTB Deging Tool");
 
 /*
  * Inbound and outbound memory windows descriptor. Union members selection
@@ -220,7 +220,7 @@ struct tool_mw {
 
 /*
  * Wrapper structure is used to distinguish the outbound MW peers reference
- * within the corresponding DebugFS directory IO operation.
+ * within the corresponding DeFS directory IO operation.
  */
 struct tool_mw_wrap {
 	int pidx;
@@ -605,7 +605,7 @@ static int tool_setup_mw(struct tool_ctx *tc, int pidx, int widx,
 		goto err_free_dma;
 
 	snprintf(buf, sizeof(buf), "mw%d", widx);
-	inmw->dbgfs_file = debugfs_create_file(buf, 0600,
+	inmw->dbgfs_file = defs_create_file(buf, 0600,
 					       tc->peers[pidx].dbgfs_dir, inmw,
 					       &tool_mw_fops);
 
@@ -625,7 +625,7 @@ static void tool_free_mw(struct tool_ctx *tc, int pidx, int widx)
 {
 	struct tool_mw *inmw = &tc->peers[pidx].inmws[widx];
 
-	debugfs_remove(inmw->dbgfs_file);
+	defs_remove(inmw->dbgfs_file);
 
 	if (inmw->mm_base != NULL) {
 		ntb_mw_clear_trans(tc->ntb, pidx, widx);
@@ -837,7 +837,7 @@ static int tool_setup_peer_mw(struct tool_ctx *tc, int pidx, int widx,
 	outmw->pidx = pidx;
 
 	snprintf(buf, sizeof(buf), "peer_mw%d", widx);
-	outmw->dbgfs_file = debugfs_create_file(buf, 0600,
+	outmw->dbgfs_file = defs_create_file(buf, 0600,
 					       tc->peers[pidx].dbgfs_dir, outmw,
 					       &tool_peer_mw_fops);
 
@@ -853,7 +853,7 @@ static void tool_free_peer_mw(struct tool_ctx *tc, int widx)
 {
 	struct tool_mw *outmw = &tc->outmws[widx];
 
-	debugfs_remove(outmw->dbgfs_file);
+	defs_remove(outmw->dbgfs_file);
 
 	if (outmw->io_base != NULL) {
 		iounmap(tc->outmws[widx].io_base);
@@ -1489,40 +1489,40 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 		return;
 	}
 
-	tc->dbgfs_dir = debugfs_create_dir(dev_name(&tc->ntb->dev),
+	tc->dbgfs_dir = defs_create_dir(dev_name(&tc->ntb->dev),
 					   tool_dbgfs_topdir);
 	if (!tc->dbgfs_dir)
 		return;
 
-	debugfs_create_file("port", 0600, tc->dbgfs_dir,
+	defs_create_file("port", 0600, tc->dbgfs_dir,
 			    tc, &tool_port_fops);
 
-	debugfs_create_file("link", 0600, tc->dbgfs_dir,
+	defs_create_file("link", 0600, tc->dbgfs_dir,
 			    tc, &tool_link_fops);
 
-	debugfs_create_file("db", 0600, tc->dbgfs_dir,
+	defs_create_file("db", 0600, tc->dbgfs_dir,
 			    tc, &tool_db_fops);
 
-	debugfs_create_file("db_valid_mask", 0600, tc->dbgfs_dir,
+	defs_create_file("db_valid_mask", 0600, tc->dbgfs_dir,
 			    tc, &tool_db_valid_mask_fops);
 
-	debugfs_create_file("db_mask", 0600, tc->dbgfs_dir,
+	defs_create_file("db_mask", 0600, tc->dbgfs_dir,
 			    tc, &tool_db_mask_fops);
 
-	debugfs_create_file("db_event", 0600, tc->dbgfs_dir,
+	defs_create_file("db_event", 0600, tc->dbgfs_dir,
 			    tc, &tool_db_event_fops);
 
-	debugfs_create_file("peer_db", 0600, tc->dbgfs_dir,
+	defs_create_file("peer_db", 0600, tc->dbgfs_dir,
 			    tc, &tool_peer_db_fops);
 
-	debugfs_create_file("peer_db_mask", 0600, tc->dbgfs_dir,
+	defs_create_file("peer_db_mask", 0600, tc->dbgfs_dir,
 			    tc, &tool_peer_db_mask_fops);
 
 	if (tc->inspad_cnt != 0) {
 		for (sidx = 0; sidx < tc->inspad_cnt; sidx++) {
 			snprintf(buf, sizeof(buf), "spad%d", sidx);
 
-			debugfs_create_file(buf, 0600, tc->dbgfs_dir,
+			defs_create_file(buf, 0600, tc->dbgfs_dir,
 					   &tc->inspads[sidx], &tool_spad_fops);
 		}
 	}
@@ -1530,46 +1530,46 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 	if (tc->inmsg_cnt != 0) {
 		for (midx = 0; midx < tc->inmsg_cnt; midx++) {
 			snprintf(buf, sizeof(buf), "msg%d", midx);
-			debugfs_create_file(buf, 0600, tc->dbgfs_dir,
+			defs_create_file(buf, 0600, tc->dbgfs_dir,
 					   &tc->inmsgs[midx], &tool_inmsg_fops);
 		}
 
-		debugfs_create_file("msg_sts", 0600, tc->dbgfs_dir,
+		defs_create_file("msg_sts", 0600, tc->dbgfs_dir,
 				    tc, &tool_msg_sts_fops);
 
-		debugfs_create_file("msg_inbits", 0600, tc->dbgfs_dir,
+		defs_create_file("msg_inbits", 0600, tc->dbgfs_dir,
 				    tc, &tool_msg_inbits_fops);
 
-		debugfs_create_file("msg_outbits", 0600, tc->dbgfs_dir,
+		defs_create_file("msg_outbits", 0600, tc->dbgfs_dir,
 				    tc, &tool_msg_outbits_fops);
 
-		debugfs_create_file("msg_mask", 0600, tc->dbgfs_dir,
+		defs_create_file("msg_mask", 0600, tc->dbgfs_dir,
 				    tc, &tool_msg_mask_fops);
 
-		debugfs_create_file("msg_event", 0600, tc->dbgfs_dir,
+		defs_create_file("msg_event", 0600, tc->dbgfs_dir,
 				    tc, &tool_msg_event_fops);
 	}
 
 	for (pidx = 0; pidx < tc->peer_cnt; pidx++) {
 		snprintf(buf, sizeof(buf), "peer%d", pidx);
 		tc->peers[pidx].dbgfs_dir =
-			debugfs_create_dir(buf, tc->dbgfs_dir);
+			defs_create_dir(buf, tc->dbgfs_dir);
 
-		debugfs_create_file("port", 0600,
+		defs_create_file("port", 0600,
 				    tc->peers[pidx].dbgfs_dir,
 				    &tc->peers[pidx], &tool_peer_port_fops);
 
-		debugfs_create_file("link", 0200,
+		defs_create_file("link", 0200,
 				    tc->peers[pidx].dbgfs_dir,
 				    &tc->peers[pidx], &tool_peer_link_fops);
 
-		debugfs_create_file("link_event", 0200,
+		defs_create_file("link_event", 0200,
 				  tc->peers[pidx].dbgfs_dir,
 				  &tc->peers[pidx], &tool_peer_link_event_fops);
 
 		for (widx = 0; widx < tc->peers[pidx].inmw_cnt; widx++) {
 			snprintf(buf, sizeof(buf), "mw_trans%d", widx);
-			debugfs_create_file(buf, 0600,
+			defs_create_file(buf, 0600,
 					    tc->peers[pidx].dbgfs_dir,
 					    &tc->peers[pidx].inmws[widx],
 					    &tool_mw_trans_fops);
@@ -1577,7 +1577,7 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 
 		for (widx = 0; widx < tc->peers[pidx].outmw_cnt; widx++) {
 			snprintf(buf, sizeof(buf), "peer_mw_trans%d", widx);
-			debugfs_create_file(buf, 0600,
+			defs_create_file(buf, 0600,
 					    tc->peers[pidx].dbgfs_dir,
 					    &tc->peers[pidx].outmws[widx],
 					    &tool_peer_mw_trans_fops);
@@ -1586,7 +1586,7 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 		for (sidx = 0; sidx < tc->peers[pidx].outspad_cnt; sidx++) {
 			snprintf(buf, sizeof(buf), "spad%d", sidx);
 
-			debugfs_create_file(buf, 0600,
+			defs_create_file(buf, 0600,
 					    tc->peers[pidx].dbgfs_dir,
 					    &tc->peers[pidx].outspads[sidx],
 					    &tool_peer_spad_fops);
@@ -1594,7 +1594,7 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 
 		for (midx = 0; midx < tc->peers[pidx].outmsg_cnt; midx++) {
 			snprintf(buf, sizeof(buf), "msg%d", midx);
-			debugfs_create_file(buf, 0600,
+			defs_create_file(buf, 0600,
 					    tc->peers[pidx].dbgfs_dir,
 					    &tc->peers[pidx].outmsgs[midx],
 					    &tool_outmsg_fops);
@@ -1604,7 +1604,7 @@ static void tool_setup_dbgfs(struct tool_ctx *tc)
 
 static void tool_clear_dbgfs(struct tool_ctx *tc)
 {
-	debugfs_remove_recursive(tc->dbgfs_dir);
+	defs_remove_recursive(tc->dbgfs_dir);
 }
 
 static int tool_probe(struct ntb_client *self, struct ntb_dev *ntb)
@@ -1673,12 +1673,12 @@ static int __init tool_init(void)
 {
 	int ret;
 
-	if (debugfs_initialized())
-		tool_dbgfs_topdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized())
+		tool_dbgfs_topdir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	ret = ntb_register_client(&tool_client);
 	if (ret)
-		debugfs_remove_recursive(tool_dbgfs_topdir);
+		defs_remove_recursive(tool_dbgfs_topdir);
 
 	return ret;
 }
@@ -1687,7 +1687,7 @@ module_init(tool_init);
 static void __exit tool_exit(void)
 {
 	ntb_unregister_client(&tool_client);
-	debugfs_remove_recursive(tool_dbgfs_topdir);
+	defs_remove_recursive(tool_dbgfs_topdir);
 }
 module_exit(tool_exit);
 

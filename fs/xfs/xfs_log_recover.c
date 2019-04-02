@@ -47,7 +47,7 @@ STATIC int
 xlog_clear_stale_blocks(
 	struct xlog	*,
 	xfs_lsn_t);
-#if defined(DEBUG)
+#if defined(DE)
 STATIC void
 xlog_recover_check_summary(
 	struct xlog *);
@@ -290,18 +290,18 @@ xlog_bwrite(
 	return error;
 }
 
-#ifdef DEBUG
+#ifdef DE
 /*
- * dump debug superblock and log record information
+ * dump de superblock and log record information
  */
 STATIC void
 xlog_header_check_dump(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	xfs_debug(mp, "%s:  SB : uuid = %pU, fmt = %d",
+	xfs_de(mp, "%s:  SB : uuid = %pU, fmt = %d",
 		__func__, &mp->m_sb.sb_uuid, XLOG_FMT);
-	xfs_debug(mp, "    log : uuid = %pU, fmt = %d",
+	xfs_de(mp, "    log : uuid = %pU, fmt = %d",
 		&head->h_fs_uuid, be32_to_cpu(head->h_fmt));
 }
 #else
@@ -4875,7 +4875,7 @@ xlog_recover_process_intents(
 	struct xfs_log_item	*lip;
 	struct xfs_ail		*ailp;
 	int			error;
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
 #endif
 
@@ -4895,7 +4895,7 @@ xlog_recover_process_intents(
 	ailp = log->l_ailp;
 	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
 #endif
 	while (lip != NULL) {
@@ -4904,7 +4904,7 @@ xlog_recover_process_intents(
 		 * There should be no intents left in the AIL now.
 		 */
 		if (!xlog_item_is_intent(lip)) {
-#ifdef DEBUG
+#ifdef DE
 			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
 				ASSERT(!xlog_item_is_intent(lip));
 #endif
@@ -4974,7 +4974,7 @@ xlog_recover_cancel_intents(
 		 * There should be no intents left in the AIL now.
 		 */
 		if (!xlog_item_is_intent(lip)) {
-#ifdef DEBUG
+#ifdef DE
 			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
 				ASSERT(!xlog_item_is_intent(lip));
 #endif
@@ -5352,7 +5352,7 @@ xlog_do_recovery_pass(
 			goto bread_err1;
 
 		/*
-		 * xfsprogs has a bug where record length is based on lsunit but
+		 * xfsprogs has a  where record length is based on lsunit but
 		 * h_size (iclog size) is hardcoded to 32k. Now that we
 		 * unconditionally CRC verify the unmount record, this means the
 		 * log buffer can be too small for the record and cause an
@@ -5633,14 +5633,14 @@ xlog_do_log_recovery(
 	 */
 	error = xlog_do_recovery_pass(log, head_blk, tail_blk,
 				      XLOG_RECOVER_PASS2, NULL);
-#ifdef DEBUG
+#ifdef DE
 	if (!error) {
 		int	i;
 
 		for (i = 0; i < XLOG_BC_TABLE_SIZE; i++)
 			ASSERT(list_empty(&log->l_buf_cancel_table[i]));
 	}
-#endif	/* DEBUG */
+#endif	/* DE */
 
 	kmem_free(log->l_buf_cancel_table);
 	log->l_buf_cancel_table = NULL;
@@ -5794,7 +5794,7 @@ xlog_recover(
 		}
 
 		/*
-		 * Delay log recovery if the debug hook is set. This is debug
+		 * Delay log recovery if the de hook is set. This is de
 		 * instrumention to coordinate simulation of I/O failures with
 		 * log recovery.
 		 */
@@ -5878,7 +5878,7 @@ xlog_recover_cancel(
 	return error;
 }
 
-#if defined(DEBUG)
+#if defined(DE)
 /*
  * Read all of the agf and agi counters and check that they
  * are consistent with the superblock counters.
@@ -5927,4 +5927,4 @@ xlog_recover_check_summary(
 		}
 	}
 }
-#endif /* DEBUG */
+#endif /* DE */

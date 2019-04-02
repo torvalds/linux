@@ -126,7 +126,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		tag += 2;
 	}
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	print_hex_dump_bytes("rtllib_ADDBA(): ", DUMP_PREFIX_NONE, skb->data,
 			     skb->len);
 #endif
@@ -177,7 +177,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	print_hex_dump_bytes("rtllib_DELBA(): ", DUMP_PREFIX_NONE, skb->data,
 			     skb->len);
 #endif
@@ -242,7 +242,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	print_hex_dump_bytes("rtllib_rx_ADDBAReq(): ", DUMP_PREFIX_NONE,
 			     skb->data, skb->len);
 #endif
@@ -440,7 +440,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	print_hex_dump_bytes("rtllib_rx_DELBA(): ", DUMP_PREFIX_NONE, skb->data,
 			     skb->len);
 #endif

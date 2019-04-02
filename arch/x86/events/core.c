@@ -19,7 +19,7 @@
 #include <linux/kprobes.h>
 #include <linux/export.h>
 #include <linux/init.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/clock.h>
 #include <linux/uaccess.h>
@@ -259,7 +259,7 @@ static bool check_hw_exists(void)
 	 */
 	if (bios_fail) {
 		pr_cont("Broken BIOS detected, complain to your hardware vendor.\n");
-		pr_err(FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n",
+		pr_err(FW_ "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n",
 			      reg_fail, val_fail);
 	}
 
@@ -1284,10 +1284,10 @@ static void x86_pmu_start(struct perf_event *event, int flags)
 	perf_event_update_userpage(event);
 }
 
-void perf_event_print_debug(void)
+void perf_event_print_de(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left, fixed;
-	u64 pebs, debugctl;
+	u64 pebs, dectl;
 	struct cpu_hw_events *cpuc;
 	unsigned long flags;
 	int cpu, idx;
@@ -1316,8 +1316,8 @@ void perf_event_print_debug(void)
 			pr_info("CPU#%d: pebs:       %016llx\n", cpu, pebs);
 		}
 		if (x86_pmu.lbr_nr) {
-			rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-			pr_info("CPU#%d: debugctl:   %016llx\n", cpu, debugctl);
+			rdmsrl(MSR_IA32_DECTLMSR, dectl);
+			pr_info("CPU#%d: dectl:   %016llx\n", cpu, dectl);
 		}
 	}
 	pr_info("CPU#%d: active:     %016llx\n", cpu, *(u64 *)cpuc->active_mask);

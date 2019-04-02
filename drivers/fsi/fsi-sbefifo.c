@@ -210,7 +210,7 @@ int sbefifo_parse_status(struct device *dev, u16 cmd, __be32 *response,
 	size_t ffdc_sz;
 
 	if (resp_len < 3) {
-		pr_debug("sbefifo: cmd %04x, response too small: %zd\n",
+		pr_de("sbefifo: cmd %04x, response too small: %zd\n",
 			 cmd, resp_len);
 		return -ENXIO;
 	}

@@ -46,7 +46,7 @@
 #define BRCMF_STA_APSD_VI		0x00000800	/* APSD delv/trigger for AC_VI is default enabled */
 #define BRCMF_STA_APSD_VO		0x00001000	/* APSD delv/trigger for AC_VO is default enabled */
 #define BRCMF_STA_N_CAP			0x00002000	/* STA 802.11n capable */
-#define BRCMF_STA_SCBSTATS		0x00004000	/* Per STA debug stats */
+#define BRCMF_STA_SCBSTATS		0x00004000	/* Per STA de stats */
 #define BRCMF_STA_AMPDU_CAP		0x00008000	/* STA AMPDU capable */
 #define BRCMF_STA_AMSDU_CAP		0x00010000	/* STA AMSDU capable */
 #define BRCMF_STA_MIMO_PS		0x00020000	/* mimo ps mode is enabled */

@@ -143,7 +143,7 @@ static void srpt_event_handler(struct ib_event_handler *handler,
 	if (!sdev || sdev->device != event->device)
 		return;
 
-	pr_debug("ASYNC event= %d on device= %s\n", event->event,
+	pr_de("ASYNC event= %d on device= %s\n", event->event,
 		 dev_name(&sdev->device->dev));
 
 	switch (event->event) {
@@ -190,7 +190,7 @@ static void srpt_event_handler(struct ib_event_handler *handler,
  */
 static void srpt_srq_event(struct ib_event *event, void *ctx)
 {
-	pr_debug("SRQ event %d\n", event->event);
+	pr_de("SRQ event %d\n", event->event);
 }
 
 static const char *get_ch_state_name(enum rdma_ch_state s)
@@ -217,7 +217,7 @@ static const char *get_ch_state_name(enum rdma_ch_state s)
  */
 static void srpt_qp_event(struct ib_event *event, struct srpt_rdma_ch *ch)
 {
-	pr_debug("QP event %d on ch=%p sess_name=%s state=%d\n",
+	pr_de("QP event %d on ch=%p sess_name=%s state=%d\n",
 		 event->event, ch, ch->sess_name, ch->state);
 
 	switch (event->event) {
@@ -228,7 +228,7 @@ static void srpt_qp_event(struct ib_event *event, struct srpt_rdma_ch *ch)
 			ib_cm_notify(ch->ib_cm.cm_id, event->event);
 		break;
 	case IB_EVENT_QP_LAST_WQE_REACHED:
-		pr_debug("%s-%d, state %s: received Last WQE event.\n",
+		pr_de("%s-%d, state %s: received Last WQE event.\n",
 			 ch->sess_name, ch->qp->qp_num,
 			 get_ch_state_name(ch->state));
 		break;
@@ -485,7 +485,7 @@ static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
 	if (IS_ERR(ah))
 		goto err;
 
-	BUILD_BUG_ON(offsetof(struct ib_dm_mad, data) != IB_MGMT_DEVICE_HDR);
+	BUILD__ON(offsetof(struct ib_dm_mad, data) != IB_MGMT_DEVICE_HDR);
 
 	rsp = ib_create_send_mad(mad_agent, mad_wc->wc->src_qp,
 				 mad_wc->wc->pkey_index, 0,
@@ -824,7 +824,7 @@ static int srpt_post_recv(struct srpt_device *sdev, struct srpt_rdma_ch *ch,
 	struct ib_sge list;
 	struct ib_recv_wr wr;
 
-	BUG_ON(!sdev);
+	_ON(!sdev);
 	list.addr = ioctx->ioctx.dma + ioctx->ioctx.offset;
 	list.length = srp_max_req_size;
 	list.lkey = sdev->lkey;
@@ -861,7 +861,7 @@ static int srpt_zerolength_write(struct srpt_rdma_ch *ch)
 		}
 	};
 
-	pr_debug("%s-%d: queued zerolength write\n", ch->sess_name,
+	pr_de("%s-%d: queued zerolength write\n", ch->sess_name,
 		 ch->qp->qp_num);
 
 	return ib_post_send(ch->qp, &wr.wr, NULL);
@@ -871,7 +871,7 @@ static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct srpt_rdma_ch *ch = cq->cq_context;
 
-	pr_debug("%s-%d wc->status %d\n", ch->sess_name, ch->qp->qp_num,
+	pr_de("%s-%d wc->status %d\n", ch->sess_name, ch->qp->qp_num,
 		 wc->status);
 
 	if (wc->status == IB_WC_SUCCESS) {
@@ -880,7 +880,7 @@ static void srpt_zerolength_write_done(struct ib_cq *cq, struct ib_wc *wc)
 		if (srpt_set_ch_state(ch, CH_DISCONNECTED))
 			schedule_work(&ch->release_work);
 		else
-			pr_debug("%s-%d: already disconnected.\n",
+			pr_de("%s-%d: already disconnected.\n",
 				 ch->sess_name, ch->qp->qp_num);
 	}
 }
@@ -978,7 +978,7 @@ static inline void *srpt_get_desc_buf(struct srp_cmd *srp_cmd)
 	 * if srp_cmd::add_data is declared as s8*, u8*, s8[] or u8[], so check
 	 * whether srp_cmd::add_data has been declared as a byte pointer.
 	 */
-	BUILD_BUG_ON(!__same_type(srp_cmd->add_data[0], (s8)0) &&
+	BUILD__ON(!__same_type(srp_cmd->add_data[0], (s8)0) &&
 		     !__same_type(srp_cmd->add_data[0], (u8)0));
 
 	/*
@@ -1014,8 +1014,8 @@ static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 		struct scatterlist **sg, unsigned int *sg_cnt, u64 *data_len,
 		u16 imm_data_offset)
 {
-	BUG_ON(!dir);
-	BUG_ON(!data_len);
+	_ON(!dir);
+	_ON(!data_len);
 
 	/*
 	 * The lower four bits of the buffer format field contain the DATA-IN
@@ -1219,14 +1219,14 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 	struct srpt_send_ioctx *ioctx;
 	int tag, cpu;
 
-	BUG_ON(!ch);
+	_ON(!ch);
 
 	tag = sbitmap_queue_get(&ch->sess->sess_tag_pool, &cpu);
 	if (tag < 0)
 		return NULL;
 
 	ioctx = ch->ioctx_ring[tag];
-	BUG_ON(ioctx->ch != ch);
+	_ON(ioctx->ch != ch);
 	ioctx->state = SRPT_STATE_NEW;
 	WARN_ON_ONCE(ioctx->recv_ioctx);
 	ioctx->n_rdma = 0;
@@ -1252,7 +1252,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 {
 	enum srpt_command_state state;
 
-	BUG_ON(!ioctx);
+	_ON(!ioctx);
 
 	/*
 	 * If the command is in a state where the target core is waiting for
@@ -1274,7 +1274,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		break;
 	}
 
-	pr_debug("Aborting cmd with state %d -> %d and tag %lld\n", state,
+	pr_de("Aborting cmd with state %d -> %d and tag %lld\n", state,
 		 ioctx->state, ioctx->cmd.tag);
 
 	switch (state) {
@@ -1288,7 +1288,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		 */
 		break;
 	case SRPT_STATE_NEED_DATA:
-		pr_debug("tag %#llx: RDMA read error\n", ioctx->cmd.tag);
+		pr_de("tag %#llx: RDMA read error\n", ioctx->cmd.tag);
 		transport_generic_request_failure(&ioctx->cmd,
 					TCM_CHECK_CONDITION_ABORT_CMD);
 		break;
@@ -1375,7 +1375,7 @@ static int srpt_build_cmd_rsp(struct srpt_rdma_ch *ch,
 	WARN_ON(status & 1);
 
 	srp_rsp = ioctx->ioctx.buf;
-	BUG_ON(!srp_rsp);
+	_ON(!srp_rsp);
 
 	sense_data = ioctx->sense_data;
 	sense_data_len = ioctx->cmd.scsi_sense_length;
@@ -1389,7 +1389,7 @@ static int srpt_build_cmd_rsp(struct srpt_rdma_ch *ch,
 	srp_rsp->status = status;
 
 	if (sense_data_len) {
-		BUILD_BUG_ON(MIN_MAX_RSP_SIZE <= sizeof(*srp_rsp));
+		BUILD__ON(MIN_MAX_RSP_SIZE <= sizeof(*srp_rsp));
 		max_sense_len = ch->max_ti_iu_len - sizeof(*srp_rsp);
 		if (sense_data_len > max_sense_len) {
 			pr_warn("truncated sense data from %d to %d bytes\n",
@@ -1430,7 +1430,7 @@ static int srpt_build_tskmgmt_rsp(struct srpt_rdma_ch *ch,
 	resp_len = sizeof(*srp_rsp) + resp_data_len;
 
 	srp_rsp = ioctx->ioctx.buf;
-	BUG_ON(!srp_rsp);
+	_ON(!srp_rsp);
 	memset(srp_rsp, 0, sizeof(*srp_rsp));
 
 	srp_rsp->opcode = SRP_RSP;
@@ -1471,7 +1471,7 @@ static void srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	enum dma_data_direction dir;
 	int rc;
 
-	BUG_ON(!send_ioctx);
+	_ON(!send_ioctx);
 
 	srp_cmd = recv_ioctx->ioctx.buf + recv_ioctx->ioctx.offset;
 	cmd = &send_ioctx->cmd;
@@ -1509,7 +1509,7 @@ static void srpt_handle_cmd(struct srpt_rdma_ch *ch,
 			       TCM_SIMPLE_TAG, dir, TARGET_SCF_ACK_KREF,
 			       sg, sg_cnt, NULL, 0, NULL, 0);
 	if (rc != 0) {
-		pr_debug("target_submit_cmd() returned %d for tag %#llx\n", rc,
+		pr_de("target_submit_cmd() returned %d for tag %#llx\n", rc,
 			 srp_cmd->tag);
 		goto busy;
 	}
@@ -1558,12 +1558,12 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 	int tcm_tmr;
 	int rc;
 
-	BUG_ON(!send_ioctx);
+	_ON(!send_ioctx);
 
 	srp_tsk = recv_ioctx->ioctx.buf + recv_ioctx->ioctx.offset;
 	cmd = &send_ioctx->cmd;
 
-	pr_debug("recv tsk_mgmt fn %d for task_tag %lld and cmd tag %lld ch %p sess %p\n",
+	pr_de("recv tsk_mgmt fn %d for task_tag %lld and cmd tag %lld ch %p sess %p\n",
 		 srp_tsk->tsk_mgmt_func, srp_tsk->task_tag, srp_tsk->tag, ch,
 		 ch->sess);
 
@@ -1594,8 +1594,8 @@ srpt_handle_new_iu(struct srpt_rdma_ch *ch, struct srpt_recv_ioctx *recv_ioctx)
 	bool res = false;
 	u8 opcode;
 
-	BUG_ON(!ch);
-	BUG_ON(!recv_ioctx);
+	_ON(!ch);
+	_ON(!recv_ioctx);
 
 	if (unlikely(ch->state == CH_CONNECTING))
 		goto push;
@@ -1629,10 +1629,10 @@ srpt_handle_new_iu(struct srpt_rdma_ch *ch, struct srpt_recv_ioctx *recv_ioctx)
 		pr_err("Not yet implemented: SRP_I_LOGOUT\n");
 		break;
 	case SRP_CRED_RSP:
-		pr_debug("received SRP_CRED_RSP\n");
+		pr_de("received SRP_CRED_RSP\n");
 		break;
 	case SRP_AER_RSP:
-		pr_debug("received SRP_AER_RSP\n");
+		pr_de("received SRP_AER_RSP\n");
 		break;
 	case SRP_RSP:
 		pr_err("Received SRP_RSP\n");
@@ -1822,7 +1822,7 @@ retry:
 		bool retry = sq_size > MIN_SRPT_SQ_SIZE;
 
 		if (retry) {
-			pr_debug("failed to create queue pair with sq_size = %d (%d) - retrying\n",
+			pr_de("failed to create queue pair with sq_size = %d (%d) - retrying\n",
 				 sq_size, ret);
 			ib_free_cq(ch->cq);
 			sq_size = max(sq_size / 2, MIN_SRPT_SQ_SIZE);
@@ -1836,7 +1836,7 @@ retry:
 
 	atomic_set(&ch->sq_wr_avail, qp_init->cap.max_send_wr);
 
-	pr_debug("%s: max_cqe= %d max_sge= %d sq_size = %d ch= %p\n",
+	pr_de("%s: max_cqe= %d max_sge= %d sq_size = %d ch= %p\n",
 		 __func__, ch->cq->cqe, qp_init->cap.max_send_sge,
 		 qp_init->cap.max_send_wr, ch);
 
@@ -1875,7 +1875,7 @@ static bool srpt_close_ch(struct srpt_rdma_ch *ch)
 	int ret;
 
 	if (!srpt_set_ch_state(ch, CH_DRAINING)) {
-		pr_debug("%s: already closed\n", ch->sess_name);
+		pr_de("%s: already closed\n", ch->sess_name);
 		return false;
 	}
 
@@ -1957,7 +1957,7 @@ static void srpt_disconnect_ch_sync(struct srpt_rdma_ch *ch)
 {
 	struct srpt_port *sport = ch->sport;
 
-	pr_debug("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
+	pr_de("ch %s-%d state %d\n", ch->sess_name, ch->qp->qp_num,
 		 ch->state);
 
 	mutex_lock(&sport->mutex);
@@ -2068,13 +2068,13 @@ static void srpt_release_channel_work(struct work_struct *w)
 	struct se_session *se_sess;
 
 	ch = container_of(w, struct srpt_rdma_ch, release_work);
-	pr_debug("%s-%d\n", ch->sess_name, ch->qp->qp_num);
+	pr_de("%s-%d\n", ch->sess_name, ch->qp->qp_num);
 
 	sdev = ch->sport->sdev;
-	BUG_ON(!sdev);
+	_ON(!sdev);
 
 	se_sess = ch->sess;
-	BUG_ON(!se_sess);
+	_ON(!se_sess);
 
 	target_sess_cmd_list_set_waiting(se_sess);
 	target_wait_for_sess_cmds(se_sess);
@@ -2252,7 +2252,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		u32 req_sz;
 
 		if (req->req_flags & SRP_IMMED_REQUESTED)
-			pr_debug("imm_data_offset = %d\n",
+			pr_de("imm_data_offset = %d\n",
 				 be16_to_cpu(req->imm_data_offset));
 		if (imm_data_offset >= sizeof(struct srp_cmd)) {
 			ch->imm_data_offset = imm_data_offset;
@@ -2296,7 +2296,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 			be64_to_cpu(*(__be64 *)nexus->i_port_id),
 			be64_to_cpu(*(__be64 *)(nexus->i_port_id + 8)));
 
-	pr_debug("registering session %s\n", ch->sess_name);
+	pr_de("registering session %s\n", ch->sess_name);
 
 	tag_num = ch->rq_size;
 	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
@@ -2362,7 +2362,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		goto reject;
 	}
 
-	pr_debug("Establish connection sess=%p name=%s ch=%p\n", ch->sess,
+	pr_de("Establish connection sess=%p name=%s ch=%p\n", ch->sess,
 		 ch->sess_name, ch);
 
 	/* create srp_login_response */
@@ -2776,7 +2776,7 @@ static void srpt_queue_response(struct se_cmd *cmd)
 	int resp_len, ret, i;
 	u8 srp_tm_status;
 
-	BUG_ON(!ch);
+	_ON(!ch);
 
 	state = ioctx->state;
 	switch (state) {
@@ -2890,7 +2890,7 @@ static int srpt_queue_status(struct se_cmd *cmd)
 	struct srpt_send_ioctx *ioctx;
 
 	ioctx = container_of(cmd, struct srpt_send_ioctx, cmd);
-	BUG_ON(ioctx->sense_data != cmd->sense_buffer);
+	_ON(ioctx->sense_data != cmd->sense_buffer);
 	if (cmd->se_cmd_flags &
 	    (SCF_TRANSPORT_TASK_SENSE | SCF_EMULATED_TASK_SENSE))
 		WARN_ON(cmd->scsi_status != SAM_STAT_CHECK_CONDITION);
@@ -3025,11 +3025,11 @@ static int srpt_alloc_srq(struct srpt_device *sdev)
 	WARN_ON_ONCE(sdev->srq);
 	srq = ib_create_srq(sdev->pd, &srq_attr);
 	if (IS_ERR(srq)) {
-		pr_debug("ib_create_srq() failed: %ld\n", PTR_ERR(srq));
+		pr_de("ib_create_srq() failed: %ld\n", PTR_ERR(srq));
 		return PTR_ERR(srq);
 	}
 
-	pr_debug("create SRQ #wr= %d max_allow=%d dev= %s\n", sdev->srq_size,
+	pr_de("create SRQ #wr= %d max_allow=%d dev= %s\n", sdev->srq_size,
 		 sdev->device->attrs.max_srq_wr, dev_name(&device->dev));
 
 	sdev->req_buf_cache = kmem_cache_create("srpt-srq-req-buf",
@@ -3073,7 +3073,7 @@ static int srpt_use_srq(struct srpt_device *sdev, bool use_srq)
 	} else if (use_srq && !sdev->srq) {
 		ret = srpt_alloc_srq(sdev);
 	}
-	pr_debug("%s(%s): use_srq = %d; ret = %d\n", __func__,
+	pr_de("%s(%s): use_srq = %d; ret = %d\n", __func__,
 		 dev_name(&device->dev), sdev->use_srq, ret);
 	return ret;
 }
@@ -3088,7 +3088,7 @@ static void srpt_add_one(struct ib_device *device)
 	struct srpt_port *sport;
 	int i, ret;
 
-	pr_debug("device = %p\n", device);
+	pr_de("device = %p\n", device);
 
 	sdev = kzalloc(struct_size(sdev, port, device->phys_port_cnt),
 		       GFP_KERNEL);
@@ -3122,7 +3122,7 @@ static void srpt_add_one(struct ib_device *device)
 	}
 
 	/* print out target login information */
-	pr_debug("Target login info: id_ext=%016llx,ioc_guid=%016llx,pkey=ffff,service_id=%016llx\n",
+	pr_de("Target login info: id_ext=%016llx,ioc_guid=%016llx,pkey=ffff,service_id=%016llx\n",
 		 srpt_service_guid, srpt_service_guid, srpt_service_guid);
 
 	/*
@@ -3170,7 +3170,7 @@ static void srpt_add_one(struct ib_device *device)
 
 out:
 	ib_set_client_data(device, &srpt_client, sdev);
-	pr_debug("added %s.\n", dev_name(&device->dev));
+	pr_de("added %s.\n", dev_name(&device->dev));
 	return;
 
 err_event:
@@ -3335,7 +3335,7 @@ static void srpt_set_default_node_attrs(struct se_node_acl *nacl)
 {
 }
 
-/* Note: only used from inside debug printk's by the TCM core. */
+/* Note: only used from inside de printk's by the TCM core. */
 static int srpt_get_tcm_cmd_state(struct se_cmd *se_cmd)
 {
 	struct srpt_send_ioctx *ioctx;

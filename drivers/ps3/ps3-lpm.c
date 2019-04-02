@@ -80,7 +80,7 @@
  * @pm_control: Shadow of the processor's pm_control register.
  * @pm_start_stop: Shadow of the processor's pm_start_stop register.
  * @group_control: Shadow of the processor's group_control register.
- * @debug_bus_control: Shadow of the processor's debug_bus_control register.
+ * @de_bus_control: Shadow of the processor's de_bus_control register.
  *
  * The logical performance monitor provides a write-only interface to
  * these processor registers.  These shadow variables cache the processor
@@ -94,7 +94,7 @@ struct ps3_lpm_shadow_regs {
 	u64 pm_control;
 	u64 pm_start_stop;
 	u64 group_control;
-	u64 debug_bus_control;
+	u64 de_bus_control;
 };
 
 #define PS3_LPM_SHADOW_REG_INIT 0xFFFFFFFF00000000ULL
@@ -157,7 +157,7 @@ static struct ps3_lpm_priv *lpm_priv;
 
 static struct device *sbd_core(void)
 {
-	BUG_ON(!lpm_priv || !lpm_priv->sbd);
+	_ON(!lpm_priv || !lpm_priv->sbd);
 	return &lpm_priv->sbd->core;
 }
 
@@ -238,7 +238,7 @@ u32 ps3_read_phys_ctr(u32 cpu, u32 phys_ctr)
 	case 3:
 		return counter2637 & PS3_PM_COUNTER_MASK_LO;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -291,7 +291,7 @@ void ps3_write_phys_ctr(u32 cpu, u32 phys_ctr, u32 val)
 		counter2637_mask = PS3_PM_COUNTER_MASK_LO;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	result = lv1_set_lpm_counter(lpm_priv->lpm_id,
@@ -419,8 +419,8 @@ u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg)
 		return (u32)val;
 	case group_control:
 		return lpm_priv->shadow.group_control;
-	case debug_bus_control:
-		return lpm_priv->shadow.debug_bus_control;
+	case de_bus_control:
+		return lpm_priv->shadow.de_bus_control;
 	case pm_status:
 		result = lv1_get_lpm_interrupt_status(lpm_priv->lpm_id,
 						      &val);
@@ -436,7 +436,7 @@ u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg)
 	default:
 		dev_dbg(sbd_core(), "%s:%u: unknown reg: %d\n", __func__,
 			__LINE__, reg);
-		BUG();
+		();
 		break;
 	}
 
@@ -462,13 +462,13 @@ void ps3_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 							   &dummy);
 		lpm_priv->shadow.group_control = val;
 		break;
-	case debug_bus_control:
-		if (val != lpm_priv->shadow.debug_bus_control)
-			result = lv1_set_lpm_debug_bus_control(lpm_priv->lpm_id,
+	case de_bus_control:
+		if (val != lpm_priv->shadow.de_bus_control)
+			result = lv1_set_lpm_de_bus_control(lpm_priv->lpm_id,
 							      val,
 							      PS3_WRITE_PM_MASK,
 							      &dummy);
-		lpm_priv->shadow.debug_bus_control = val;
+		lpm_priv->shadow.de_bus_control = val;
 		break;
 	case pm_control:
 		if (use_start_stop_bookmark)
@@ -501,7 +501,7 @@ void ps3_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 	default:
 		dev_dbg(sbd_core(), "%s:%u: unknown reg: %d\n", __func__,
 			__LINE__, reg);
-		BUG();
+		();
 		break;
 	}
 
@@ -560,7 +560,7 @@ void ps3_set_ctr_size(u32 cpu, u32 phys_ctr, u32 ctr_size)
 		ps3_write_pm(cpu, pm_control, pm_ctrl);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL_GPL(ps3_set_ctr_size);
@@ -735,7 +735,7 @@ static u64 pm_signal_group_to_ps3_lv1_signal_group(u64 group)
 	default:
 		dev_dbg(sbd_core(), "%s:%u: island not found: %llu\n", __func__,
 			__LINE__, group);
-		BUG();
+		();
 		break;
 	}
 	return 0;
@@ -1089,8 +1089,8 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 	int result;
 	u64 tb_size;
 
-	BUG_ON(!lpm_priv);
-	BUG_ON(tb_type != PS3_LPM_TB_TYPE_NONE
+	_ON(!lpm_priv);
+	_ON(tb_type != PS3_LPM_TB_TYPE_NONE
 		&& tb_type != PS3_LPM_TB_TYPE_INTERNAL);
 
 	if (tb_type == PS3_LPM_TB_TYPE_NONE && tb_cache)
@@ -1147,7 +1147,7 @@ int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
 	lpm_priv->shadow.pm_control = PS3_LPM_SHADOW_REG_INIT;
 	lpm_priv->shadow.pm_start_stop = PS3_LPM_SHADOW_REG_INIT;
 	lpm_priv->shadow.group_control = PS3_LPM_SHADOW_REG_INIT;
-	lpm_priv->shadow.debug_bus_control = PS3_LPM_SHADOW_REG_INIT;
+	lpm_priv->shadow.de_bus_control = PS3_LPM_SHADOW_REG_INIT;
 
 	dev_dbg(sbd_core(), "%s:%u: lpm_id 0x%llx, outlet_id 0x%llx, "
 		"tb_size 0x%llx\n", __func__, __LINE__, lpm_priv->lpm_id,
@@ -1234,13 +1234,13 @@ static struct ps3_system_bus_driver ps3_lpm_driver = {
 
 static int __init ps3_lpm_init(void)
 {
-	pr_debug("%s:%d:\n", __func__, __LINE__);
+	pr_de("%s:%d:\n", __func__, __LINE__);
 	return ps3_system_bus_driver_register(&ps3_lpm_driver);
 }
 
 static void __exit ps3_lpm_exit(void)
 {
-	pr_debug("%s:%d:\n", __func__, __LINE__);
+	pr_de("%s:%d:\n", __func__, __LINE__);
 	ps3_system_bus_driver_unregister(&ps3_lpm_driver);
 }
 

@@ -405,7 +405,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 			ppi[0] = &info_628x_fast;
 	}
 
-	BUG_ON(ppi[0] == NULL);
+	_ON(ppi[0] == NULL);
 
 	atp8xx_fixup(pdev);
 

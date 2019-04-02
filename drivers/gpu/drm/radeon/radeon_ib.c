@@ -38,7 +38,7 @@
  * produce command buffers which are send to the kernel and
  * put in IBs for execution by the requested ring.
  */
-static int radeon_debugfs_sa_init(struct radeon_device *rdev);
+static int radeon_defs_sa_init(struct radeon_device *rdev);
 
 /**
  * radeon_ib_get - request an IB (Indirect Buffer)
@@ -221,8 +221,8 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	}
 
 	rdev->ib_pool_ready = true;
-	if (radeon_debugfs_sa_init(rdev)) {
-		dev_err(rdev->dev, "failed to register debugfs file for SA\n");
+	if (radeon_defs_sa_init(rdev)) {
+		dev_err(rdev->dev, "failed to register defs file for SA\n");
 	}
 	return 0;
 }
@@ -287,32 +287,32 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int radeon_debugfs_sa_info(struct seq_file *m, void *data)
+static int radeon_defs_sa_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	radeon_sa_bo_dump_debug_info(&rdev->ring_tmp_bo, m);
+	radeon_sa_bo_dump_de_info(&rdev->ring_tmp_bo, m);
 
 	return 0;
 
 }
 
-static struct drm_info_list radeon_debugfs_sa_list[] = {
-	{"radeon_sa_info", &radeon_debugfs_sa_info, 0, NULL},
+static struct drm_info_list radeon_defs_sa_list[] = {
+	{"radeon_sa_info", &radeon_defs_sa_info, 0, NULL},
 };
 
 #endif
 
-static int radeon_debugfs_sa_init(struct radeon_device *rdev)
+static int radeon_defs_sa_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_sa_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, radeon_defs_sa_list, 1);
 #else
 	return 0;
 #endif

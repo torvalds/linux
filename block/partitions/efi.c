@@ -64,7 +64,7 @@
  * Mon Oct 08 2001 Matt Domsch <Matt_Domsch@dell.com>
  * - Change read_lba() to use the page cache per Al Viro's work.
  * - print u64s properly on all architectures
- * - fixed debug_printk(), now Dprintk()
+ * - fixed de_printk(), now Dprintk()
  *
  * Mon Oct 01 2001 Matt Domsch <Matt_Domsch@dell.com>
  * - Style cleanups
@@ -92,7 +92,7 @@
  * - Fixed the last_lba() call to return the proper last block
  *
  * Thu Oct 12 2000 Matt Domsch <Matt_Domsch@dell.com>
- * - Thanks to Andries Brouwer for his debugging assistance.
+ * - Thanks to Andries Brouwer for his deging assistance.
  * - Code works, detects all the partitions.
  *
  ************************************************************/
@@ -230,7 +230,7 @@ check_hybrid:
 	if (ret == GPT_MBR_PROTECTIVE) {
 		sz = le32_to_cpu(mbr->partition_record[part].size_in_lba);
 		if (sz != (uint32_t) total_sectors - 1 && sz != 0xFFFFFFFF)
-			pr_debug("GPT: mbr size in lba (%u) different than whole disk (%u).\n",
+			pr_de("GPT: mbr size in lba (%u) different than whole disk (%u).\n",
 				 sz, min_t(uint32_t,
 					   total_sectors - 1, 0xFFFFFFFF));
 	}
@@ -361,7 +361,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 
 	/* Check the GUID Partition Table signature */
 	if (le64_to_cpu((*gpt)->signature) != GPT_HEADER_SIGNATURE) {
-		pr_debug("GUID Partition Table Header signature is wrong:"
+		pr_de("GUID Partition Table Header signature is wrong:"
 			 "%lld != %lld\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->signature),
 			 (unsigned long long)GPT_HEADER_SIGNATURE);
@@ -371,7 +371,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 	/* Check the GUID Partition Table header size is too big */
 	if (le32_to_cpu((*gpt)->header_size) >
 			bdev_logical_block_size(state->bdev)) {
-		pr_debug("GUID Partition Table Header size is too large: %u > %u\n",
+		pr_de("GUID Partition Table Header size is too large: %u > %u\n",
 			le32_to_cpu((*gpt)->header_size),
 			bdev_logical_block_size(state->bdev));
 		goto fail;
@@ -379,7 +379,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 
 	/* Check the GUID Partition Table header size is too small */
 	if (le32_to_cpu((*gpt)->header_size) < sizeof(gpt_header)) {
-		pr_debug("GUID Partition Table Header size is too small: %u < %zu\n",
+		pr_de("GUID Partition Table Header size is too small: %u < %zu\n",
 			le32_to_cpu((*gpt)->header_size),
 			sizeof(gpt_header));
 		goto fail;
@@ -391,7 +391,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 	crc = efi_crc32((const unsigned char *) (*gpt), le32_to_cpu((*gpt)->header_size));
 
 	if (crc != origcrc) {
-		pr_debug("GUID Partition Table Header CRC is wrong: %x != %x\n",
+		pr_de("GUID Partition Table Header CRC is wrong: %x != %x\n",
 			 crc, origcrc);
 		goto fail;
 	}
@@ -400,7 +400,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 	/* Check that the my_lba entry points to the LBA that contains
 	 * the GUID Partition Table */
 	if (le64_to_cpu((*gpt)->my_lba) != lba) {
-		pr_debug("GPT my_lba incorrect: %lld != %lld\n",
+		pr_de("GPT my_lba incorrect: %lld != %lld\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->my_lba),
 			 (unsigned long long)lba);
 		goto fail;
@@ -411,26 +411,26 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 	 */
 	lastlba = last_lba(state->bdev);
 	if (le64_to_cpu((*gpt)->first_usable_lba) > lastlba) {
-		pr_debug("GPT: first_usable_lba incorrect: %lld > %lld\n",
+		pr_de("GPT: first_usable_lba incorrect: %lld > %lld\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->first_usable_lba),
 			 (unsigned long long)lastlba);
 		goto fail;
 	}
 	if (le64_to_cpu((*gpt)->last_usable_lba) > lastlba) {
-		pr_debug("GPT: last_usable_lba incorrect: %lld > %lld\n",
+		pr_de("GPT: last_usable_lba incorrect: %lld > %lld\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
 			 (unsigned long long)lastlba);
 		goto fail;
 	}
 	if (le64_to_cpu((*gpt)->last_usable_lba) < le64_to_cpu((*gpt)->first_usable_lba)) {
-		pr_debug("GPT: last_usable_lba incorrect: %lld > %lld\n",
+		pr_de("GPT: last_usable_lba incorrect: %lld > %lld\n",
 			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
 			 (unsigned long long)le64_to_cpu((*gpt)->first_usable_lba));
 		goto fail;
 	}
 	/* Check that sizeof_partition_entry has the correct value */
 	if (le32_to_cpu((*gpt)->sizeof_partition_entry) != sizeof(gpt_entry)) {
-		pr_debug("GUID Partition Entry Size check failed.\n");
+		pr_de("GUID Partition Entry Size check failed.\n");
 		goto fail;
 	}
 
@@ -438,7 +438,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 	pt_size = (u64)le32_to_cpu((*gpt)->num_partition_entries) *
 		le32_to_cpu((*gpt)->sizeof_partition_entry);
 	if (pt_size > KMALLOC_MAX_SIZE) {
-		pr_debug("GUID Partition Table is too large: %llu > %lu bytes\n",
+		pr_de("GUID Partition Table is too large: %llu > %lu bytes\n",
 			 (unsigned long long)pt_size, KMALLOC_MAX_SIZE);
 		goto fail;
 	}
@@ -450,7 +450,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 	crc = efi_crc32((const unsigned char *) (*ptes), pt_size);
 
 	if (crc != le32_to_cpu((*gpt)->partition_entry_array_crc32)) {
-		pr_debug("GUID Partition Entry Array CRC check failed.\n");
+		pr_de("GUID Partition Entry Array CRC check failed.\n");
 		goto fail_ptes;
 	}
 
@@ -621,7 +621,7 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
 		if (!good_pmbr)
 			goto fail;
 
-		pr_debug("Device has a %s MBR\n",
+		pr_de("Device has a %s MBR\n",
 			 good_pmbr == GPT_MBR_PROTECTIVE ?
 						"protective" : "hybrid");
 	}
@@ -702,7 +702,7 @@ int efi_partition(struct parsed_partitions *state)
 		return 0;
 	}
 
-	pr_debug("GUID Partition Table is valid!  Yea!\n");
+	pr_de("GUID Partition Table is valid!  Yea!\n");
 
 	for (i = 0; i < le32_to_cpu(gpt->num_partition_entries) && i < state->limit-1; i++) {
 		struct partition_meta_info *info;

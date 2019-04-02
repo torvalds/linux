@@ -68,7 +68,7 @@ static void fragrun_append_to_last(struct inet_frag_queue *q,
 /* Create a new "run" with the skb. */
 static void fragrun_create(struct inet_frag_queue *q, struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct ipfrag_skb_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct ipfrag_skb_cb) > sizeof(skb->cb));
 	fragcb_clear(skb);
 
 	if (q->last_run_head)

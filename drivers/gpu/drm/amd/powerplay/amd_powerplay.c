@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
@@ -97,7 +97,7 @@ static int pp_sw_init(void *handle)
 
 	ret = hwmgr_sw_init(hwmgr);
 
-	pr_debug("powerplay sw init %s\n", ret ? "failed" : "successfully");
+	pr_de("powerplay sw init %s\n", ret ? "failed" : "successfully");
 
 	return ret;
 }
@@ -725,7 +725,7 @@ static int pp_dpm_force_clock_level(void *handle,
 	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_debug("force clock level is for dpm manual mode only.\n");
+		pr_de("force clock level is for dpm manual mode only.\n");
 		return -EINVAL;
 	}
 
@@ -899,7 +899,7 @@ static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
 	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_debug("power profile setting is for manual dpm mode only.\n");
+		pr_de("power profile setting is for manual dpm mode only.\n");
 		return ret;
 	}
 
@@ -1072,7 +1072,7 @@ static int pp_get_current_clocks(void *handle,
 					&hw_clocks, PHM_PerformanceLevelDesignation_Activity);
 
 	if (ret) {
-		pr_debug("Error in phm_get_clock_info \n");
+		pr_de("Error in phm_get_clock_info \n");
 		mutex_unlock(&hwmgr->smu_lock);
 		return -EINVAL;
 	}
@@ -1340,7 +1340,7 @@ static int pp_set_min_deep_sleep_dcefclk(void *handle, uint32_t clock)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+		pr_de("%s was not implemented.\n", __func__);
 		return -EINVAL;;
 	}
 
@@ -1359,7 +1359,7 @@ static int pp_set_hard_min_dcefclk_by_freq(void *handle, uint32_t clock)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+		pr_de("%s was not implemented.\n", __func__);
 		return -EINVAL;;
 	}
 
@@ -1378,7 +1378,7 @@ static int pp_set_hard_min_fclk_by_freq(void *handle, uint32_t clock)
 		return -EINVAL;
 
 	if (hwmgr->hwmgr_func->set_hard_min_fclk_by_freq == NULL) {
-		pr_debug("%s was not implemented.\n", __func__);
+		pr_de("%s was not implemented.\n", __func__);
 		return -EINVAL;;
 	}
 

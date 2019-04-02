@@ -85,7 +85,7 @@ static inline void apbt_set_mapping(void)
 	int phy_cs_timer_id = 0;
 
 	if (apbt_virt_address) {
-		pr_debug("APBT base already mapped\n");
+		pr_de("APBT base already mapped\n");
 		return;
 	}
 	mtmr = sfi_get_mtmr(APBT_CLOCKEVENT0_NUM);
@@ -101,7 +101,7 @@ static inline void apbt_set_mapping(void)
 	}
 	apbt_virt_address = ioremap_nocache(apbt_address, APBT_MMAP_SIZE);
 	if (!apbt_virt_address) {
-		pr_debug("Failed mapping APBT phy address at %lu\n",\
+		pr_de("Failed mapping APBT phy address at %lu\n",\
 			 (unsigned long)apbt_address);
 		goto panic_noapbt;
 	}
@@ -114,7 +114,7 @@ static inline void apbt_set_mapping(void)
 		goto panic_noapbt;
 
 	/* Now figure out the physical timer id */
-	pr_debug("Use timer %d for clocksource\n",
+	pr_de("Use timer %d for clocksource\n",
 		 (int)(mtmr->phys_addr & 0xff) / APBTMRS_REG_SIZE);
 	phy_cs_timer_id = (unsigned int)(mtmr->phys_addr & 0xff) /
 		APBTMRS_REG_SIZE;
@@ -157,7 +157,7 @@ static int __init apbt_clockevent_register(void)
 
 	if (intel_mid_timer_options == INTEL_MID_TIMER_LAPIC_APBT) {
 		global_clock_event = &adev->timer->ced;
-		printk(KERN_DEBUG "%s clockevent registered as global\n",
+		printk(KERN_DE "%s clockevent registered as global\n",
 		       global_clock_event->name);
 	}
 
@@ -221,9 +221,9 @@ static int apbt_cpu_dead(unsigned int cpu)
 
 	dw_apb_clockevent_pause(adev->timer);
 	if (system_state == SYSTEM_RUNNING) {
-		pr_debug("skipping APBT CPU %u offline\n", cpu);
+		pr_de("skipping APBT CPU %u offline\n", cpu);
 	} else {
-		pr_debug("APBT clockevent for cpu %u offline\n", cpu);
+		pr_de("APBT clockevent for cpu %u offline\n", cpu);
 		dw_apb_clockevent_stop(adev->timer);
 	}
 	return 0;
@@ -302,17 +302,17 @@ void __init apbt_time_init(void)
 	 */
 
 	if (apbt_freq < APBT_MIN_FREQ || apbt_freq > APBT_MAX_FREQ) {
-		pr_debug("APBT has invalid freq 0x%lx\n", apbt_freq);
+		pr_de("APBT has invalid freq 0x%lx\n", apbt_freq);
 		goto out_noapbt;
 	}
 	if (apbt_clocksource_register()) {
-		pr_debug("APBT has failed to register clocksource\n");
+		pr_de("APBT has failed to register clocksource\n");
 		goto out_noapbt;
 	}
 	if (!apbt_clockevent_register())
 		apb_timer_block_enabled = 1;
 	else {
-		pr_debug("APBT has failed to register clockevent\n");
+		pr_de("APBT has failed to register clockevent\n");
 		goto out_noapbt;
 	}
 #ifdef CONFIG_SMP
@@ -321,12 +321,12 @@ void __init apbt_time_init(void)
 		printk(KERN_INFO "apbt: disabled per cpu timer\n");
 		return;
 	}
-	pr_debug("%s: %d CPUs online\n", __func__, num_online_cpus());
+	pr_de("%s: %d CPUs online\n", __func__, num_online_cpus());
 	if (num_possible_cpus() <= sfi_mtimer_num)
 		apbt_num_timers_used = num_possible_cpus();
 	else
 		apbt_num_timers_used = 1;
-	pr_debug("%s: %d APB timers used\n", __func__, apbt_num_timers_used);
+	pr_de("%s: %d APB timers used\n", __func__, apbt_num_timers_used);
 
 	/* here we set up per CPU timer data structure */
 	for (i = 0; i < apbt_num_timers_used; i++) {

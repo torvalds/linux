@@ -46,7 +46,7 @@
 /*
  * Complain if VAR is out of range.
  */
-#define DEBUG_VAR 1
+#define DE_VAR 1
 
 #define DRIVER_NAME "imx-fb"
 
@@ -380,7 +380,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->xres_virtual	= max(var->xres_virtual, var->xres);
 	var->yres_virtual	= max(var->yres_virtual, var->yres);
 
-	pr_debug("var->bits_per_pixel=%d\n", var->bits_per_pixel);
+	pr_de("var->bits_per_pixel=%d\n", var->bits_per_pixel);
 
 	lcd_clk = clk_get_rate(fbi->clk_per);
 
@@ -441,11 +441,11 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->blue   = rgb->blue;
 	var->transp = rgb->transp;
 
-	pr_debug("RGBT length = %d:%d:%d:%d\n",
+	pr_de("RGBT length = %d:%d:%d:%d\n",
 		var->red.length, var->green.length, var->blue.length,
 		var->transp.length);
 
-	pr_debug("RGBT offset = %d:%d:%d:%d\n",
+	pr_de("RGBT offset = %d:%d:%d:%d\n",
 		var->red.offset, var->green.offset, var->blue.offset,
 		var->transp.offset);
 
@@ -489,7 +489,7 @@ static int imxfb_enable_controller(struct imxfb_info *fbi)
 	if (fbi->enabled)
 		return 0;
 
-	pr_debug("Enabling LCD controller\n");
+	pr_de("Enabling LCD controller\n");
 
 	writel(fbi->map_dma, fbi->regs + LCDC_SSA);
 
@@ -536,7 +536,7 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	if (!fbi->enabled)
 		return;
 
-	pr_debug("Disabling LCD controller\n");
+	pr_de("Disabling LCD controller\n");
 
 	clk_disable_unprepare(fbi->clk_per);
 	clk_disable_unprepare(fbi->clk_ahb);
@@ -550,7 +550,7 @@ static int imxfb_blank(int blank, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
 
-	pr_debug("imxfb_blank: blank=%d\n", blank);
+	pr_de("imxfb_blank: blank=%d\n", blank);
 
 	switch (blank) {
 	case FB_BLANK_POWERDOWN:
@@ -587,14 +587,14 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	struct imxfb_info *fbi = info->par;
 	u32 ymax_mask = is_imx1_fb(fbi) ? YMAX_MASK_IMX1 : YMAX_MASK_IMX21;
 
-	pr_debug("var: xres=%d hslen=%d lm=%d rm=%d\n",
+	pr_de("var: xres=%d hslen=%d lm=%d rm=%d\n",
 		var->xres, var->hsync_len,
 		var->left_margin, var->right_margin);
-	pr_debug("var: yres=%d vslen=%d um=%d bm=%d\n",
+	pr_de("var: yres=%d vslen=%d um=%d bm=%d\n",
 		var->yres, var->vsync_len,
 		var->upper_margin, var->lower_margin);
 
-#if DEBUG_VAR
+#if DE_VAR
 	if (var->xres < 16        || var->xres > 1024)
 		printk(KERN_ERR "%s: invalid xres %d\n",
 			info->fix.id, var->xres);
@@ -660,7 +660,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	struct imxfb_info *fbi = info->par;
 	struct device_node *np;
 
-	pr_debug("%s\n",__func__);
+	pr_de("%s\n",__func__);
 
 	info->pseudo_palette = kmalloc_array(16, sizeof(u32), GFP_KERNEL);
 	if (!info->pseudo_palette)

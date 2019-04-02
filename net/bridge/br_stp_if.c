@@ -138,10 +138,10 @@ static int br_stp_call_user(struct net_bridge *br, char *arg)
 	rc = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
 	if (rc > 0) {
 		if (rc & 0xff)
-			br_debug(br, BR_STP_PROG " received signal %d\n",
+			br_de(br, BR_STP_PROG " received signal %d\n",
 				 rc & 0x7f);
 		else
-			br_debug(br, BR_STP_PROG " exited with code %d\n",
+			br_de(br, BR_STP_PROG " exited with code %d\n",
 				 (rc >> 8) & 0xff);
 	}
 
@@ -167,10 +167,10 @@ static void br_stp_start(struct net_bridge *br)
 
 	if (!err) {
 		br->stp_enabled = BR_USER_STP;
-		br_debug(br, "userspace STP started\n");
+		br_de(br, "userspace STP started\n");
 	} else {
 		br->stp_enabled = BR_KERNEL_STP;
-		br_debug(br, "using kernel STP\n");
+		br_de(br, "using kernel STP\n");
 
 		/* To start timers on any ports left in blocking */
 		if (br->dev->flags & IFF_UP)

@@ -85,12 +85,12 @@ The mutex subsystem checks and enforces the following rules:
     - Mutexes may not be used in hardware or software interrupt
       contexts such as tasklets and timers.
 
-These semantics are fully enforced when CONFIG DEBUG_MUTEXES is enabled.
-In addition, the mutex debugging code also implements a number of other
-features that make lock debugging easier and faster:
+These semantics are fully enforced when CONFIG DE_MUTEXES is enabled.
+In addition, the mutex deging code also implements a number of other
+features that make lock deging easier and faster:
 
     - Uses symbolic names of mutexes, whenever they are printed
-      in debug output.
+      in de output.
     - Point-of-acquire tracking, symbolic lookup of function names,
       list of all locks held in the system, printout of them.
     - Owner tracking.

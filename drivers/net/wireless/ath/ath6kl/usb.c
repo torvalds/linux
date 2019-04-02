@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 
-#include "debug.h"
+#include "de.h"
 #include "core.h"
 
 /* constants */

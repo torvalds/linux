@@ -34,7 +34,7 @@
 
 #include "usb.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "scsiglue.h"
 #include "transport.h"
 

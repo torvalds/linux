@@ -962,7 +962,7 @@ static int p54u_load_firmware(struct ieee80211_hw *dev,
 	struct device *device = &udev->dev;
 	int err, i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(p54u_fwlist) != __NUM_P54U_HWTYPES);
+	BUILD__ON(ARRAY_SIZE(p54u_fwlist) != __NUM_P54U_HWTYPES);
 
 	init_completion(&priv->fw_wait_load);
 	i = p54_find_type(priv);

@@ -8,7 +8,7 @@ struct nvkm_subdev {
 	struct nvkm_device *device;
 	enum nvkm_devidx index;
 	struct mutex mutex;
-	u32 debug;
+	u32 de;
 
 	bool oneinit;
 };
@@ -36,7 +36,7 @@ void nvkm_subdev_intr(struct nvkm_subdev *);
 /* subdev logging */
 #define nvkm_printk_(s,l,p,f,a...) do {                                        \
 	const struct nvkm_subdev *_subdev = (s);                               \
-	if (CONFIG_NOUVEAU_DEBUG >= (l) && _subdev->debug >= (l)) {            \
+	if (CONFIG_NOUVEAU_DE >= (l) && _subdev->de >= (l)) {            \
 		dev_##p(_subdev->device->dev, "%s: "f,                         \
 			nvkm_subdev_name[_subdev->index], ##a);                \
 	}                                                                      \
@@ -46,7 +46,7 @@ void nvkm_subdev_intr(struct nvkm_subdev *);
 #define nvkm_error(s,f,a...) nvkm_printk((s), ERROR,    err, f, ##a)
 #define nvkm_warn(s,f,a...)  nvkm_printk((s),  WARN, notice, f, ##a)
 #define nvkm_info(s,f,a...)  nvkm_printk((s),  INFO,   info, f, ##a)
-#define nvkm_debug(s,f,a...) nvkm_printk((s), DEBUG,   info, f, ##a)
+#define nvkm_de(s,f,a...) nvkm_printk((s), DE,   info, f, ##a)
 #define nvkm_trace(s,f,a...) nvkm_printk((s), TRACE,   info, f, ##a)
 #define nvkm_spam(s,f,a...)  nvkm_printk((s),  SPAM,    dbg, f, ##a)
 #endif

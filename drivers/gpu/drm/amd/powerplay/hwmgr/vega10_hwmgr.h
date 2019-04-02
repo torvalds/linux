@@ -345,7 +345,7 @@ struct vega10_hwmgr {
 
 	/* ---- Vega10 Dyn Register Settings ---- */
 
-	uint32_t                       debug_settings;
+	uint32_t                       de_settings;
 	uint32_t                       lowest_uclk_reserved_for_ulv;
 	uint32_t                       gfxclk_average_alpha;
 	uint32_t                       socclk_average_alpha;

@@ -38,9 +38,9 @@
 MODULE_DESCRIPTION("ADV7343 video encoder driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level 0-1");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level 0-1");
 
 struct adv7343_state {
 	struct v4l2_subdev sd;
@@ -148,7 +148,7 @@ static int adv7343_setstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	}
 
 	if (i == num_std) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 				"Invalid std or std is not supported: %llx\n",
 						(unsigned long long)std);
 		return -EINVAL;
@@ -209,7 +209,7 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 	int err = 0;
 
 	if (output_type > ADV7343_SVIDEO_ID) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"Invalid output type or output type not supported:%d\n",
 								output_type);
 		return -EINVAL;

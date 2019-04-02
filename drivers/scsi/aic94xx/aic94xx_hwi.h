@@ -340,7 +340,7 @@ static inline void asd_ascb_free(struct asd_ascb *ascb)
 		struct asd_ha_struct *asd_ha = ascb->ha;
 		unsigned long flags;
 
-		BUG_ON(!list_empty(&ascb->list));
+		_ON(!list_empty(&ascb->list));
 		spin_lock_irqsave(&ascb->ha->seq.tc_index_lock, flags);
 		asd_tc_index_release(&ascb->ha->seq, ascb->tc_index);
 		spin_unlock_irqrestore(&ascb->ha->seq.tc_index_lock, flags);

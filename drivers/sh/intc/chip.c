@@ -108,7 +108,7 @@ static void intc_mask_ack(struct irq_data *data)
 			__raw_writel(0xffffffff ^ value, addr);
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 	}

@@ -193,7 +193,7 @@ static void smc_destruct(struct sock *sk)
 	if (!sock_flag(sk, SOCK_DEAD))
 		return;
 
-	sk_refcnt_debug_dec(sk);
+	sk_refcnt_de_dec(sk);
 }
 
 static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
@@ -220,7 +220,7 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
 	spin_lock_init(&smc->accept_q_lock);
 	spin_lock_init(&smc->conn.send_lock);
 	sk->sk_prot->hash(sk);
-	sk_refcnt_debug_inc(sk);
+	sk_refcnt_de_inc(sk);
 	mutex_init(&smc->clcsock_release_lock);
 
 	return sk;
@@ -1055,7 +1055,7 @@ static void smc_listen_out_connected(struct smc_sock *new_smc)
 {
 	struct sock *newsmcsk = &new_smc->sk;
 
-	sk_refcnt_debug_inc(newsmcsk);
+	sk_refcnt_de_inc(newsmcsk);
 	if (newsmcsk->sk_state == SMC_INIT)
 		newsmcsk->sk_state = SMC_ACTIVE;
 

@@ -96,7 +96,7 @@ struct dpu_hw_blk *dpu_hw_blk_get(struct dpu_hw_blk *hw_blk, u32 type, int id)
 	}
 
 	if (!hw_blk) {
-		pr_debug("no hw_blk:%d\n", type);
+		pr_de("no hw_blk:%d\n", type);
 		return NULL;
 	}
 
@@ -110,7 +110,7 @@ struct dpu_hw_blk *dpu_hw_blk_get(struct dpu_hw_blk *hw_blk, u32 type, int id)
 		}
 	}
 
-	pr_debug("hw_blk:%d.%d refcount:%d\n", hw_blk->type,
+	pr_de("hw_blk:%d.%d refcount:%d\n", hw_blk->type,
 			hw_blk->id, refcount);
 	return hw_blk;
 
@@ -131,7 +131,7 @@ void dpu_hw_blk_put(struct dpu_hw_blk *hw_blk)
 		return;
 	}
 
-	pr_debug("hw_blk:%d.%d refcount:%d\n", hw_blk->type, hw_blk->id,
+	pr_de("hw_blk:%d.%d refcount:%d\n", hw_blk->type, hw_blk->id,
 			atomic_read(&hw_blk->refcount));
 
 	if (!atomic_read(&hw_blk->refcount)) {

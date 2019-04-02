@@ -33,7 +33,7 @@
 
 #include "aops.h"
 #include "attrib.h"
-#include "debug.h"
+#include "de.h"
 #include "inode.h"
 #include "mft.h"
 #include "runlist.h"
@@ -118,7 +118,7 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 			if (likely(buffer_locked(tmp)))
 				goto still_busy;
 			/* Async buffers must be locked. */
-			BUG();
+			();
 		}
 		tmp = tmp->b_this_page;
 	} while (tmp != bh);
@@ -143,7 +143,7 @@ static void ntfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		rec_size = ni->itype.index.block_size;
 		recs = PAGE_SIZE / rec_size;
 		/* Should have been verified before we got here... */
-		BUG_ON(!recs);
+		_ON(!recs);
 		kaddr = kmap_atomic(page);
 		for (i = 0; i < recs; i++)
 			post_read_mst_fixup((NTFS_RECORD*)(kaddr +
@@ -200,7 +200,7 @@ static int ntfs_read_block(struct page *page)
 	vol = ni->vol;
 
 	/* $MFT/$DATA must have its complete runlist in memory at all times. */
-	BUG_ON(!ni->runlist.rl && !ni->mft_no && !NInoAttr(ni));
+	_ON(!ni->runlist.rl && !ni->mft_no && !NInoAttr(ni));
 
 	blocksize = vol->sb->s_blocksize;
 	blocksize_bits = vol->sb->s_blocksize_bits;
@@ -213,7 +213,7 @@ static int ntfs_read_block(struct page *page)
 		}
 	}
 	bh = head = page_buffers(page);
-	BUG_ON(!bh);
+	_ON(!bh);
 
 	/*
 	 * We may be racing with truncate.  To avoid some of the problems we
@@ -405,14 +405,14 @@ static int ntfs_readpage(struct file *file, struct page *page)
 	int err = 0;
 
 retry_readpage:
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	vi = page->mapping->host;
 	i_size = i_size_read(vi);
 	/* Is the page fully outside i_size? (truncate in progress) */
 	if (unlikely(page->index >= (i_size + PAGE_SIZE - 1) >>
 			PAGE_SHIFT)) {
 		zero_user(page, 0, PAGE_SIZE);
-		ntfs_debug("Read outside i_size - truncated?");
+		ntfs_de("Read outside i_size - truncated?");
 		goto done;
 	}
 	/*
@@ -435,14 +435,14 @@ retry_readpage:
 	if (ni->type != AT_INDEX_ALLOCATION) {
 		/* If attribute is encrypted, deny access, just like NT4. */
 		if (NInoEncrypted(ni)) {
-			BUG_ON(ni->type != AT_DATA);
+			_ON(ni->type != AT_DATA);
 			err = -EACCES;
 			goto err_out;
 		}
 		/* Compressed data streams are handled in compress.c. */
 		if (NInoNonResident(ni) && NInoCompressed(ni)) {
-			BUG_ON(ni->type != AT_DATA);
-			BUG_ON(ni->name_len);
+			_ON(ni->type != AT_DATA);
+			_ON(ni->name_len);
 			return ntfs_read_compressed_block(page);
 		}
 	}
@@ -566,15 +566,15 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 	ni = NTFS_I(vi);
 	vol = ni->vol;
 
-	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, page index "
+	ntfs_de("Entering for inode 0x%lx, attribute type 0x%x, page index "
 			"0x%lx.", ni->mft_no, ni->type, page->index);
 
-	BUG_ON(!NInoNonResident(ni));
-	BUG_ON(NInoMstProtected(ni));
+	_ON(!NInoNonResident(ni));
+	_ON(NInoMstProtected(ni));
 	blocksize = vol->sb->s_blocksize;
 	blocksize_bits = vol->sb->s_blocksize_bits;
 	if (!page_has_buffers(page)) {
-		BUG_ON(!PageUptodate(page));
+		_ON(!PageUptodate(page));
 		create_empty_buffers(page, blocksize,
 				(1 << BH_Uptodate) | (1 << BH_Dirty));
 		if (unlikely(!page_has_buffers(page))) {
@@ -591,7 +591,7 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 		}
 	}
 	bh = head = page_buffers(page);
-	BUG_ON(!bh);
+	_ON(!bh);
 
 	/* NOTE: Different naming scheme to ntfs_read_block()! */
 
@@ -834,7 +834,7 @@ lock_retry_remap:
 		if (buffer_mapped(bh) && buffer_dirty(bh)) {
 			lock_buffer(bh);
 			if (test_clear_buffer_dirty(bh)) {
-				BUG_ON(!buffer_uptodate(bh));
+				_ON(!buffer_uptodate(bh));
 				mark_buffer_async_write(bh);
 			} else
 				unlock_buffer(bh);
@@ -866,7 +866,7 @@ lock_retry_remap:
 			SetPageError(page);
 	}
 
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);	/* Keeps try_to_free_buffers() away. */
 
 	/* Submit the prepared buffers for i/o. */
@@ -885,7 +885,7 @@ lock_retry_remap:
 	if (unlikely(need_end_writeback))
 		end_page_writeback(page);
 
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return err;
 }
 
@@ -934,36 +934,36 @@ static int ntfs_write_mst_block(struct page *page,
 	if (WARN_ON(rec_size < NTFS_BLOCK_SIZE))
 		return -EINVAL;
 
-	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, page index "
+	ntfs_de("Entering for inode 0x%lx, attribute type 0x%x, page index "
 			"0x%lx.", vi->i_ino, ni->type, page->index);
-	BUG_ON(!NInoNonResident(ni));
-	BUG_ON(!NInoMstProtected(ni));
+	_ON(!NInoNonResident(ni));
+	_ON(!NInoMstProtected(ni));
 	is_mft = (S_ISREG(vi->i_mode) && !vi->i_ino);
 	/*
 	 * NOTE: ntfs_write_mst_block() would be called for $MFTMirr if a page
 	 * in its page cache were to be marked dirty.  However this should
 	 * never happen with the current driver and considering we do not
-	 * handle this case here we do want to BUG(), at least for now.
+	 * handle this case here we do want to (), at least for now.
 	 */
-	BUG_ON(!(is_mft || S_ISDIR(vi->i_mode) ||
+	_ON(!(is_mft || S_ISDIR(vi->i_mode) ||
 			(NInoAttr(ni) && ni->type == AT_INDEX_ALLOCATION)));
 	bh_size = vol->sb->s_blocksize;
 	bh_size_bits = vol->sb->s_blocksize_bits;
 	max_bhs = PAGE_SIZE / bh_size;
-	BUG_ON(!max_bhs);
-	BUG_ON(max_bhs > MAX_BUF_PER_PAGE);
+	_ON(!max_bhs);
+	_ON(max_bhs > MAX_BUF_PER_PAGE);
 
 	/* Were we called for sync purposes? */
 	sync = (wbc->sync_mode == WB_SYNC_ALL);
 
 	/* Make sure we have mapped buffers. */
 	bh = head = page_buffers(page);
-	BUG_ON(!bh);
+	_ON(!bh);
 
 	rec_size_bits = ni->itype.index.block_size_bits;
-	BUG_ON(!(PAGE_SIZE >> rec_size_bits));
+	_ON(!(PAGE_SIZE >> rec_size_bits));
 	bhs_per_rec = rec_size >> bh_size_bits;
-	BUG_ON(!bhs_per_rec);
+	_ON(!bhs_per_rec);
 
 	/* The first block in the page. */
 	rec_block = block = (sector_t)page->index <<
@@ -998,7 +998,7 @@ static int ntfs_write_mst_block(struct page *page,
 				continue;
 			}
 		} else /* if (block == rec_block) */ {
-			BUG_ON(block > rec_block);
+			_ON(block > rec_block);
 			/* This block is the first one in the record. */
 			rec_block += bhs_per_rec;
 			err2 = 0;
@@ -1106,8 +1106,8 @@ lock_retry_remap:
 				continue;
 			}
 		}
-		BUG_ON(!buffer_uptodate(bh));
-		BUG_ON(nr_bhs >= max_bhs);
+		_ON(!buffer_uptodate(bh));
+		_ON(nr_bhs >= max_bhs);
 		bhs[nr_bhs++] = bh;
 	} while (block++, (bh = bh->b_this_page) != head);
 	if (unlikely(rl))
@@ -1118,7 +1118,7 @@ lock_retry_remap:
 	/* Map the page so we can access its contents. */
 	kaddr = kmap(page);
 	/* Clear the page uptodate flag whilst the mst fixups are applied. */
-	BUG_ON(!PageUptodate(page));
+	_ON(!PageUptodate(page));
 	ClearPageUptodate(page);
 	for (i = 0; i < nr_bhs; i++) {
 		unsigned int ofs;
@@ -1195,11 +1195,11 @@ lock_retry_remap:
 		if (!tbh)
 			continue;
 		if (!trylock_buffer(tbh))
-			BUG();
+			();
 		/* The buffer dirty state is now irrelevant, just clean it. */
 		clear_buffer_dirty(tbh);
-		BUG_ON(!buffer_uptodate(tbh));
-		BUG_ON(!buffer_mapped(tbh));
+		_ON(!buffer_uptodate(tbh));
+		_ON(!buffer_mapped(tbh));
 		get_bh(tbh);
 		tbh->b_end_io = end_buffer_write_sync;
 		submit_bh(REQ_OP_WRITE, 0, tbh);
@@ -1282,10 +1282,10 @@ unm_done:
 			base_tni = tni;
 		else {
 			base_tni = tni->ext.base_ntfs_ino;
-			BUG_ON(!base_tni);
+			_ON(!base_tni);
 		}
 		mutex_unlock(&tni->extent_lock);
-		ntfs_debug("Unlocking %s inode 0x%lx.",
+		ntfs_de("Unlocking %s inode 0x%lx.",
 				tni == base_tni ? "base" : "extent",
 				tni->mft_no);
 		mutex_unlock(&tni->mrec_lock);
@@ -1305,7 +1305,7 @@ done:
 		NVolSetErrors(vol);
 	}
 	if (page_is_dirty) {
-		ntfs_debug("Page still contains one or more dirty ntfs "
+		ntfs_de("Page still contains one or more dirty ntfs "
 				"records.  Redirtying the page starting at "
 				"record 0x%lx.", page->index <<
 				(PAGE_SHIFT - rec_size_bits));
@@ -1317,13 +1317,13 @@ done:
 		 * radix-tree tag PAGECACHE_TAG_DIRTY remains set even though
 		 * the page is clean.
 		 */
-		BUG_ON(PageWriteback(page));
+		_ON(PageWriteback(page));
 		set_page_writeback(page);
 		unlock_page(page);
 		end_page_writeback(page);
 	}
 	if (likely(!err))
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 	return err;
 }
 
@@ -1362,7 +1362,7 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 	int err;
 
 retry_writepage:
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	i_size = i_size_read(vi);
 	/* Is the page fully outside i_size? (truncate in progress) */
 	if (unlikely(page->index >= (i_size + PAGE_SIZE - 1) >>
@@ -1373,7 +1373,7 @@ retry_writepage:
 		 */
 		block_invalidatepage(page, 0, PAGE_SIZE);
 		unlock_page(page);
-		ntfs_debug("Write outside i_size - truncated?");
+		ntfs_de("Write outside i_size - truncated?");
 		return 0;
 	}
 	/*
@@ -1388,14 +1388,14 @@ retry_writepage:
 		/* If file is encrypted, deny access, just like NT4. */
 		if (NInoEncrypted(ni)) {
 			unlock_page(page);
-			BUG_ON(ni->type != AT_DATA);
-			ntfs_debug("Denying write access to encrypted file.");
+			_ON(ni->type != AT_DATA);
+			ntfs_de("Denying write access to encrypted file.");
 			return -EACCES;
 		}
 		/* Compressed data streams are handled in compress.c. */
 		if (NInoNonResident(ni) && NInoCompressed(ni)) {
-			BUG_ON(ni->type != AT_DATA);
-			BUG_ON(ni->name_len);
+			_ON(ni->type != AT_DATA);
+			_ON(ni->name_len);
 			// TODO: Implement and replace this with
 			// return ntfs_write_compressed_block(page);
 			unlock_page(page);
@@ -1433,12 +1433,12 @@ retry_writepage:
 	 * marked compressed but if it is resident the actual data is not
 	 * compressed so we are ok to ignore the compressed flag here.
 	 */
-	BUG_ON(page_has_buffers(page));
-	BUG_ON(!PageUptodate(page));
+	_ON(page_has_buffers(page));
+	_ON(!PageUptodate(page));
 	if (unlikely(page->index > 0)) {
-		ntfs_error(vi->i_sb, "BUG()! page->index (0x%lx) > 0.  "
+		ntfs_error(vi->i_sb, "()! page->index (0x%lx) > 0.  "
 				"Aborting write.", page->index);
-		BUG_ON(PageWriteback(page));
+		_ON(PageWriteback(page));
 		set_page_writeback(page);
 		unlock_page(page);
 		end_page_writeback(page);
@@ -1477,7 +1477,7 @@ retry_writepage:
 	 * Keep the VM happy.  This must be done otherwise the radix-tree tag
 	 * PAGECACHE_TAG_DIRTY remains set even though the page is clean.
 	 */
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 	unlock_page(page);
 	attr_len = le32_to_cpu(ctx->attr->data.resident.value_length);
@@ -1492,7 +1492,7 @@ retry_writepage:
 		err = ntfs_resident_attr_value_resize(ctx->mrec, ctx->attr,
 				attr_len);
 		/* Shrinking cannot fail. */
-		BUG_ON(err);
+		_ON(err);
 	}
 	addr = kmap_atomic(page);
 	/* Copy the data from the page to the mft record. */
@@ -1571,7 +1571,7 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 	unsigned delta;
 	unsigned char blocksize_bits, cluster_size_shift;
 
-	ntfs_debug("Entering for mft_no 0x%lx, logical block 0x%llx.",
+	ntfs_de("Entering for mft_no 0x%lx, logical block 0x%llx.",
 			ni->mft_no, (unsigned long long)block);
 	if (ni->type != AT_DATA || !NInoNonResident(ni) || NInoEncrypted(ni)) {
 		ntfs_error(vol->sb, "BMAP does not make sense for %s "
@@ -1582,8 +1582,8 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 		return 0;
 	}
 	/* None of these can happen. */
-	BUG_ON(NInoCompressed(ni));
-	BUG_ON(NInoMstProtected(ni));
+	_ON(NInoCompressed(ni));
+	_ON(NInoMstProtected(ni));
 	blocksize = vol->sb->s_blocksize;
 	blocksize_bits = vol->sb->s_blocksize_bits;
 	ofs = (s64)block << blocksize_bits;
@@ -1635,7 +1635,7 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 	if (lcn < 0) {
 		/* It is a hole. */
 hole:
-		ntfs_debug("Done (returning hole).");
+		ntfs_de("Done (returning hole).");
 		return 0;
 	}
 	/*
@@ -1656,7 +1656,7 @@ hole:
 	} else
 		block = ((lcn << cluster_size_shift) + delta) >>
 				blocksize_bits;
-	ntfs_debug("Done (returning block 0x%llx).", (unsigned long long)lcn);
+	ntfs_de("Done (returning block 0x%llx).", (unsigned long long)lcn);
 	return block;
 }
 
@@ -1732,7 +1732,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 	struct buffer_head *bh, *head, *buffers_to_free = NULL;
 	unsigned int end, bh_size, bh_ofs;
 
-	BUG_ON(!PageUptodate(page));
+	_ON(!PageUptodate(page));
 	end = ofs + ni->itype.index.block_size;
 	bh_size = VFS_I(ni)->i_sb->s_blocksize;
 	spin_lock(&mapping->private_lock);
@@ -1754,7 +1754,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 			buffers_to_free = bh;
 	}
 	bh = head = page_buffers(page);
-	BUG_ON(!bh);
+	_ON(!bh);
 	do {
 		bh_ofs = bh_offset(bh);
 		if (bh_ofs + bh_size <= ofs)

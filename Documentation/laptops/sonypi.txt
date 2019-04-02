@@ -119,7 +119,7 @@ This supposes the use of minor 250 for the sonypi device:
 
 	# mknod /dev/sonypi c 10 250
 
-Bugs:
+s:
 -----
 
 	- several users reported that this driver disables the BIOS-managed

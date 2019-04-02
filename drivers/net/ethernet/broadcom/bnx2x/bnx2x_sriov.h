@@ -43,7 +43,7 @@ extern struct workqueue_struct *bnx2x_iov_wq;
 struct bnx2x_sriov {
 	u32 first_vf_in_pf;
 
-	/* standard SRIOV capability fields, mostly for debugging */
+	/* standard SRIOV capability fields, mostly for deging */
 	int pos;		/* capability position */
 	int nres;		/* number of resources */
 	u32 cap;		/* SR-IOV Capabilities */

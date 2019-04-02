@@ -54,7 +54,7 @@ static int __init com20020isa_probe(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 	int err;
 
-	if (BUGLVL(D_NORMAL))
+	if (LVL(D_NORMAL))
 		pr_info("%s\n", "COM20020 ISA support (by David Woodhouse et al.)");
 
 	ioaddr = dev->base_addr;

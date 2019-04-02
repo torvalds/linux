@@ -539,8 +539,8 @@ static void rio_hw_init(struct net_device *dev)
 
 	rio_set_led_mode(dev);
 
-	/* DebugCtrl bit 4, 5, 9 must set */
-	dw32(DebugCtrl, dr32(DebugCtrl) | 0x0230);
+	/* DeCtrl bit 4, 5, 9 must set */
+	dw32(DeCtrl, dr32(DeCtrl) | 0x0230);
 
 	if (np->chip_id == CHIP_IP1000A &&
 	    (np->pdev->revision == 0x40 || np->pdev->revision == 0x41)) {
@@ -745,7 +745,7 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 							PCI_DMA_TODEVICE));
 	txdesc->fraginfo |= cpu_to_le64((u64)skb->len << 48);
 
-	/* DL2K bug: DMA fails to get next descriptor ptr in 10Mbps mode
+	/* DL2K : DMA fails to get next descriptor ptr in 10Mbps mode
 	 * Work around: Always use 1 descriptor in 10Mbps mode */
 	if (entry % np->tx_coalesce == 0 || np->speed == 10)
 		txdesc->status = cpu_to_le64 (entry | tfc_vlan_tag |

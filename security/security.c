@@ -57,10 +57,10 @@ static __initconst const char * const builtin_lsm_order = CONFIG_LSM;
 static __initdata struct lsm_info **ordered_lsms;
 static __initdata struct lsm_info *exclusive;
 
-static __initdata bool debug;
-#define init_debug(...)						\
+static __initdata bool de;
+#define init_de(...)						\
 	do {							\
-		if (debug)					\
+		if (de)					\
 			pr_info(__VA_ARGS__);			\
 	} while (0)
 
@@ -125,7 +125,7 @@ static void __init append_ordered_lsm(struct lsm_info *lsm, const char *from)
 		lsm->enabled = &lsm_enabled_true;
 	ordered_lsms[last_lsm++] = lsm;
 
-	init_debug("%s ordering: %s (%sabled)\n", from, lsm->name,
+	init_de("%s ordering: %s (%sabled)\n", from, lsm->name,
 		   is_enabled(lsm) ? "en" : "dis");
 }
 
@@ -138,7 +138,7 @@ static bool __init lsm_allowed(struct lsm_info *lsm)
 
 	/* Not allowed if another exclusive LSM already initialized. */
 	if ((lsm->flags & LSM_FLAG_EXCLUSIVE) && exclusive) {
-		init_debug("exclusive disabled: %s\n", lsm->name);
+		init_de("exclusive disabled: %s\n", lsm->name);
 		return false;
 	}
 
@@ -187,7 +187,7 @@ static void __init prepare_lsm(struct lsm_info *lsm)
 	if (enabled) {
 		if ((lsm->flags & LSM_FLAG_EXCLUSIVE) && !exclusive) {
 			exclusive = lsm;
-			init_debug("exclusive chosen: %s\n", lsm->name);
+			init_de("exclusive chosen: %s\n", lsm->name);
 		}
 
 		lsm_set_blob_sizes(lsm->blobs);
@@ -200,7 +200,7 @@ static void __init initialize_lsm(struct lsm_info *lsm)
 	if (is_enabled(lsm)) {
 		int ret;
 
-		init_debug("initializing %s\n", lsm->name);
+		init_de("initializing %s\n", lsm->name);
 		ret = lsm->init();
 		WARN(ret, "%s failed to initialize: %d\n", lsm->name, ret);
 	}
@@ -233,7 +233,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 			if ((major->flags & LSM_FLAG_LEGACY_MAJOR) &&
 			    strcmp(major->name, chosen_major_lsm) != 0) {
 				set_enabled(major, false);
-				init_debug("security=%s disabled: %s\n",
+				init_de("security=%s disabled: %s\n",
 					   chosen_major_lsm, major->name);
 			}
 		}
@@ -254,7 +254,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		}
 
 		if (!found)
-			init_debug("%s ignored: %s\n", origin, name);
+			init_de("%s ignored: %s\n", origin, name);
 	}
 
 	/* Process "security=", if given. */
@@ -272,7 +272,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		if (exists_ordered_lsm(lsm))
 			continue;
 		set_enabled(lsm, false);
-		init_debug("%s disabled: %s\n", origin, lsm->name);
+		init_de("%s disabled: %s\n", origin, lsm->name);
 	}
 
 	kfree(sep);
@@ -300,12 +300,12 @@ static void __init ordered_lsm_init(void)
 	for (lsm = ordered_lsms; *lsm; lsm++)
 		prepare_lsm(*lsm);
 
-	init_debug("cred blob size     = %d\n", blob_sizes.lbs_cred);
-	init_debug("file blob size     = %d\n", blob_sizes.lbs_file);
-	init_debug("inode blob size    = %d\n", blob_sizes.lbs_inode);
-	init_debug("ipc blob size      = %d\n", blob_sizes.lbs_ipc);
-	init_debug("msg_msg blob size  = %d\n", blob_sizes.lbs_msg_msg);
-	init_debug("task blob size     = %d\n", blob_sizes.lbs_task);
+	init_de("cred blob size     = %d\n", blob_sizes.lbs_cred);
+	init_de("file blob size     = %d\n", blob_sizes.lbs_file);
+	init_de("inode blob size    = %d\n", blob_sizes.lbs_inode);
+	init_de("ipc blob size      = %d\n", blob_sizes.lbs_ipc);
+	init_de("msg_msg blob size  = %d\n", blob_sizes.lbs_msg_msg);
+	init_de("task blob size     = %d\n", blob_sizes.lbs_task);
 
 	/*
 	 * Create any kmem_caches needed for blobs
@@ -365,13 +365,13 @@ static int __init choose_lsm_order(char *str)
 }
 __setup("lsm=", choose_lsm_order);
 
-/* Enable LSM order debugging. */
-static int __init enable_debug(char *str)
+/* Enable LSM order deging. */
+static int __init enable_de(char *str)
 {
-	debug = true;
+	de = true;
 	return 1;
 }
-__setup("lsm.debug", enable_debug);
+__setup("lsm.de", enable_de);
 
 static bool match_last_lsm(const char *list, const char *lsm)
 {
@@ -2262,7 +2262,7 @@ void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl)
 	int rc = call_int_hook(xfrm_decode_session, 0, skb, &fl->flowi_secid,
 				0);
 
-	BUG_ON(rc);
+	_ON(rc);
 }
 EXPORT_SYMBOL(security_skb_classify_flow);
 

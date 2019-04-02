@@ -34,13 +34,13 @@ module_param_array(video_nr, int, NULL, 0444);
 
 MODULE_PARM_DESC(video_nr, "video device numbers");
 
-static unsigned int video_debug = VIDEO_DEBUG;
-module_param(video_debug, int, 0644);
-MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
+static unsigned int video_de = VIDEO_DE;
+module_param(video_de, int, 0644);
+MODULE_PARM_DESC(video_de, "enable de messages [video]");
 
-static unsigned int irq_debug;
-module_param(irq_debug, int, 0644);
-MODULE_PARM_DESC(irq_debug, "enable debug messages [IRQ handler]");
+static unsigned int irq_de;
+module_param(irq_de, int, 0644);
+MODULE_PARM_DESC(irq_de, "enable de messages [IRQ handler]");
 
 #define FORMAT_FLAGS_PACKED       0x01
 

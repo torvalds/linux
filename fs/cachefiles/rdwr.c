@@ -41,11 +41,11 @@ static int cachefiles_read_waiter(wait_queue_entry_t *wait, unsigned mode,
 	    key->bit_nr != PG_locked)
 		return 0;
 
-	_debug("--- monitor %p %lx ---", page, page->flags);
+	_de("--- monitor %p %lx ---", page, page->flags);
 
 	if (!PageUptodate(page) && !PageError(page)) {
 		/* unlocked, not uptodate and not erronous? */
-		_debug("page probably truncated");
+		_de("page probably truncated");
 	}
 
 	/* remove from the waitqueue */
@@ -122,7 +122,7 @@ static int cachefiles_read_reissue(struct cachefiles_object *object,
 		if (PageUptodate(backpage))
 			goto unlock_discard;
 
-		_debug("reissue read");
+		_de("reissue read");
 		ret = bmapping->a_ops->readpage(NULL, backpage);
 		if (ret < 0)
 			goto unlock_discard;
@@ -132,7 +132,7 @@ static int cachefiles_read_reissue(struct cachefiles_object *object,
 	 * the monitor may miss the event - so we have to ensure that we do get
 	 * one in such a case */
 	if (trylock_page(backpage)) {
-		_debug("jumpstart %p {%lx}", backpage, backpage->flags);
+		_de("jumpstart %p {%lx}", backpage, backpage->flags);
 		unlock_page(backpage);
 	}
 
@@ -176,7 +176,7 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 
 		spin_unlock_irq(&object->work_lock);
 
-		_debug("- copy {%lu}", monitor->back_page->index);
+		_de("- copy {%lu}", monitor->back_page->index);
 
 	recheck:
 		if (test_bit(FSCACHE_COOKIE_INVALIDATING,
@@ -241,7 +241,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 
 	_enter("");
 
-	_debug("read back %p{%lu,%d}",
+	_de("read back %p{%lu,%d}",
 	       netpage, netpage->index, page_count(netpage));
 
 	monitor = kzalloc(sizeof(*monitor), cachefiles_gfp);
@@ -279,7 +279,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 	/* we've installed a new backing page, so now we need to start
 	 * it reading */
 installed_new_backing_page:
-	_debug("- new %p", newpage);
+	_de("- new %p", newpage);
 
 	backpage = newpage;
 	newpage = NULL;
@@ -291,7 +291,7 @@ read_backing_page:
 
 	/* set the monitor to transfer the data across */
 monitor_backing_page:
-	_debug("- monitor add");
+	_de("- monitor add");
 
 	/* install the monitor */
 	get_page(monitor->netfs_page);
@@ -305,7 +305,7 @@ monitor_backing_page:
 	 * the monitor may miss the event - so we have to ensure that we do get
 	 * one in such a case */
 	if (trylock_page(backpage)) {
-		_debug("jumpstart %p {%lx}", backpage, backpage->flags);
+		_de("jumpstart %p {%lx}", backpage, backpage->flags);
 		unlock_page(backpage);
 	}
 	goto success;
@@ -313,7 +313,7 @@ monitor_backing_page:
 	/* if the backing page is already present, it can be in one of
 	 * three states: read in progress, read failed or read okay */
 backing_page_already_present:
-	_debug("- present");
+	_de("- present");
 
 	if (newpage) {
 		put_page(newpage);
@@ -328,13 +328,13 @@ backing_page_already_present:
 
 	if (!trylock_page(backpage))
 		goto monitor_backing_page;
-	_debug("read %p {%lx}", backpage, backpage->flags);
+	_de("read %p {%lx}", backpage, backpage->flags);
 	goto read_backing_page;
 
 	/* the backing page is already up to date, attach the netfs
 	 * page to the pagecache and LRU and copy the data across */
 backing_page_already_uptodate:
-	_debug("- uptodate");
+	_de("- uptodate");
 
 	fscache_mark_page_cached(op, netpage);
 
@@ -343,7 +343,7 @@ backing_page_already_uptodate:
 	fscache_retrieval_complete(op, 1);
 
 success:
-	_debug("success");
+	_de("success");
 	ret = 0;
 
 out:
@@ -357,7 +357,7 @@ out:
 	return ret;
 
 read_error:
-	_debug("read error %d", ret);
+	_de("read error %d", ret);
 	if (ret == -ENOMEM) {
 		fscache_retrieval_complete(op, 1);
 		goto out;
@@ -436,7 +436,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	block0 <<= shift;
 
 	block = inode->i_mapping->a_ops->bmap(inode->i_mapping, block0);
-	_debug("%llx -> %llx",
+	_de("%llx -> %llx",
 	       (unsigned long long) block0,
 	       (unsigned long long) block);
 
@@ -480,7 +480,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 	list_for_each_entry_safe(netpage, _n, list, lru) {
 		list_del(&netpage->lru);
 
-		_debug("read back %p{%lu,%d}",
+		_de("read back %p{%lu,%d}",
 		       netpage, netpage->index, page_count(netpage));
 
 		if (!monitor) {
@@ -516,7 +516,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		/* we've installed a new backing page, so now we need
 		 * to start it reading */
 	installed_new_backing_page:
-		_debug("- new %p", newpage);
+		_de("- new %p", newpage);
 
 		backpage = newpage;
 		newpage = NULL;
@@ -529,7 +529,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		/* add the netfs page to the pagecache and LRU, and set the
 		 * monitor to transfer the data across */
 	monitor_backing_page:
-		_debug("- monitor add");
+		_de("- monitor add");
 
 		ret = add_to_page_cache_lru(netpage, op->mapping,
 					    netpage->index, cachefiles_gfp);
@@ -559,7 +559,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		 * installed, so the monitor may miss the event - so we have to
 		 * ensure that we do get one in such a case */
 		if (trylock_page(backpage)) {
-			_debug("2unlock %p {%lx}", backpage, backpage->flags);
+			_de("2unlock %p {%lx}", backpage, backpage->flags);
 			unlock_page(backpage);
 		}
 
@@ -573,7 +573,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		/* if the backing page is already present, it can be in one of
 		 * three states: read in progress, read failed or read okay */
 	backing_page_already_present:
-		_debug("- present %p", backpage);
+		_de("- present %p", backpage);
 
 		if (PageError(backpage))
 			goto io_error;
@@ -581,13 +581,13 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		if (PageUptodate(backpage))
 			goto backing_page_already_uptodate;
 
-		_debug("- not ready %p{%lx}", backpage, backpage->flags);
+		_de("- not ready %p{%lx}", backpage, backpage->flags);
 
 		if (!trylock_page(backpage))
 			goto monitor_backing_page;
 
 		if (PageError(backpage)) {
-			_debug("error %lx", backpage->flags);
+			_de("error %lx", backpage->flags);
 			unlock_page(backpage);
 			goto io_error;
 		}
@@ -602,10 +602,10 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 		/* the backing page is already up to date, attach the netfs
 		 * page to the pagecache and LRU and copy the data across */
 	backing_page_already_uptodate_unlock:
-		_debug("uptodate %lx", backpage->flags);
+		_de("uptodate %lx", backpage->flags);
 		unlock_page(backpage);
 	backing_page_already_uptodate:
-		_debug("- uptodate");
+		_de("- uptodate");
 
 		ret = add_to_page_cache_lru(netpage, op->mapping,
 					    netpage->index, cachefiles_gfp);
@@ -638,7 +638,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 
 	netpage = NULL;
 
-	_debug("out");
+	_de("out");
 
 out:
 	/* tidy up */
@@ -663,12 +663,12 @@ out:
 	return ret;
 
 nomem:
-	_debug("nomem");
+	_de("nomem");
 	ret = -ENOMEM;
 	goto record_page_complete;
 
 read_error:
-	_debug("read error %d", ret);
+	_de("read error %d", ret);
 	if (ret == -ENOMEM)
 		goto record_page_complete;
 io_error:
@@ -703,7 +703,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 			     struct cachefiles_cache, cache);
 
 	_enter("{OBJ%x,%d},,%d,,",
-	       object->fscache.debug_id, atomic_read(&op->op.usage),
+	       object->fscache.de_id, atomic_read(&op->op.usage),
 	       *nr_pages);
 
 	if (!object->backer)
@@ -745,7 +745,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 
 		block = inode->i_mapping->a_ops->bmap(inode->i_mapping,
 						      block0);
-		_debug("%llx -> %llx",
+		_de("%llx -> %llx",
 		       (unsigned long long) block0,
 		       (unsigned long long) block);
 
@@ -932,7 +932,7 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	len = PAGE_SIZE;
 	if (eof & ~PAGE_MASK) {
 		if (eof - pos < PAGE_SIZE) {
-			_debug("cut short %llx to %llx",
+			_de("cut short %llx to %llx",
 			       pos, eof);
 			len = eof - pos;
 			ASSERTCMP(pos + len, ==, eof);

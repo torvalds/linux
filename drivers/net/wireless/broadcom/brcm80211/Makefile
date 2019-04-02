@@ -16,7 +16,7 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 # common flags
-subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DDEBUG
+subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DDE
 
 obj-$(CONFIG_BRCMUTIL)	+= brcmutil/
 obj-$(CONFIG_BRCMFMAC)	+= brcmfmac/

@@ -222,7 +222,7 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 
 			/* Found a handler, is it for the same address space? */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+			ACPI_DE_PRINT((ACPI_DB_OPREGION,
 					  "Found handler for region [%s] in device %p(%p) handler %p\n",
 					  acpi_ut_get_region_name(handler_obj->
 								  address_space.
@@ -433,7 +433,7 @@ acpi_ev_install_space_handler(struct acpi_namespace_node *node,
 			goto unlock_and_exit;
 		}
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+		ACPI_DE_PRINT((ACPI_DB_OPREGION,
 				  "Creating object on Device %p while installing handler\n",
 				  node));
 
@@ -468,7 +468,7 @@ acpi_ev_install_space_handler(struct acpi_namespace_node *node,
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+	ACPI_DE_PRINT((ACPI_DB_OPREGION,
 			  "Installing address handler for region %s(%X) "
 			  "on Device %4.4s %p(%p)\n",
 			  acpi_ut_get_region_name(space_id), space_id,

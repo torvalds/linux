@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/lp.h>
 #include <linux/mutex.h>
-#undef DEBUG
+#undef DE
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/ratelimit.h>
@@ -164,7 +164,7 @@ struct usblp {
 							/* first 2 bytes are (big-endian) length */
 };
 
-#ifdef DEBUG
+#ifdef DE
 static void usblp_dump(struct usblp *usblp)
 {
 	struct device *dev = &usblp->intf->dev;
@@ -279,7 +279,7 @@ static int usblp_ctrl_msg(struct usblp *usblp, int request, int type, int dir, i
 
 /*
  * See the description for usblp_select_alts() below for the usage
- * explanation.  Look into your /sys/kernel/debug/usb/devices and dmesg in
+ * explanation.  Look into your /sys/kernel/de/usb/devices and dmesg in
  * case of any trouble.
  */
 static int proto_bias = -1;
@@ -563,7 +563,7 @@ static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				goto done;
 			}
 
-#ifdef DEBUG
+#ifdef DE
 			if (arg == -10) {
 				usblp_dump(usblp);
 				break;
@@ -857,7 +857,7 @@ done:
  * This is called under the ->wmut, so the idle path stays idle.
  *
  * Our write path has a peculiar property: it does not buffer like a tty,
- * but waits for the write to succeed. This allows our ->release to bug out
+ * but waits for the write to succeed. This allows our ->release to  out
  * without waiting for writes to drain. But it obviously does not work
  * when O_NONBLOCK is set. So, applications setting O_NONBLOCK must use
  * select(2) or poll(2) to wait for the buffer to drain before closing.
@@ -1160,7 +1160,7 @@ static int usblp_probe(struct usb_interface *intf,
 	if (retval)
 		goto abort_intfdata;
 
-#ifdef DEBUG
+#ifdef DE
 	usblp_check_status(usblp, 0);
 #endif
 
@@ -1257,11 +1257,11 @@ static int usblp_select_alts(struct usblp *usblp)
 			res = usb_find_bulk_out_endpoint(ifd, &epwrite);
 		}
 
-		/* Ignore buggy hardware without the right endpoints. */
+		/* Ignore gy hardware without the right endpoints. */
 		if (res)
 			continue;
 
-		/* Turn off reads for buggy bidirectional printers. */
+		/* Turn off reads for gy bidirectional printers. */
 		if (usblp->quirks & USBLP_QUIRK_BIDIR) {
 			printk(KERN_INFO "usblp%d: Disabling reads from "
 			    "problematic bidirectional printer\n",
@@ -1357,7 +1357,7 @@ static void usblp_disconnect(struct usb_interface *intf)
 
 	if (!usblp || !usblp->dev) {
 		dev_err(&intf->dev, "bogus disconnect\n");
-		BUG();
+		();
 	}
 
 	device_remove_file(&intf->dev, &dev_attr_ieee1284_id);

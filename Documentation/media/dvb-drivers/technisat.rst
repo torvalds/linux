@@ -7,7 +7,7 @@ How to set up the Technisat/B2C2 Flexcop devices
 
    This documentation is outdated.
 
-Author: Uwe Bugla <uwe.bugla@gmx.de> August 2009
+Author: Uwe la <uwe.la@gmx.de> August 2009
 
 Find out what device you have
 -----------------------------
@@ -45,7 +45,7 @@ Then please activate:
   #) => ``Technisat/B2C2 Air/Sky/Cable2PC PCI`` (PCI card) or
   #) => ``Technisat/B2C2 Air/Sky/Cable2PC USB`` (USB 1.1 adapter)
      and for troubleshooting purposes:
-  #) => ``Enable debug for the B2C2 FlexCop drivers``
+  #) => ``Enable de for the B2C2 FlexCop drivers``
 
 - Frontend / Tuner / Demodulator module part:
 

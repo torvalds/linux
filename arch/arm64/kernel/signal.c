@@ -33,7 +33,7 @@
 #include <linux/syscalls.h>
 
 #include <asm/daifflags.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
@@ -249,7 +249,7 @@ static int preserve_sve_context(struct sve_context __user *ctx)
 	__put_user_error(round_up(SVE_SIG_CONTEXT_SIZE(vq), 16),
 			 &ctx->head.size, err);
 	__put_user_error(vl, &ctx->vl, err);
-	BUILD_BUG_ON(sizeof(ctx->__reserved) != sizeof(reserved));
+	BUILD__ON(sizeof(ctx->__reserved) != sizeof(reserved));
 	err |= __copy_to_user(&ctx->__reserved, reserved, sizeof(reserved));
 
 	if (vq) {
@@ -863,7 +863,7 @@ static void do_signal(struct pt_regs *regs)
 
 		/*
 		 * Prepare for system call restart. We do this here so that a
-		 * debugger will see the already changed PC.
+		 * deger will see the already changed PC.
 		 */
 		switch (retval) {
 		case -ERESTARTNOHAND:
@@ -878,13 +878,13 @@ static void do_signal(struct pt_regs *regs)
 
 	/*
 	 * Get the signal to deliver. When running under ptrace, at this point
-	 * the debugger may change all of our registers.
+	 * the deger may change all of our registers.
 	 */
 	if (get_signal(&ksig)) {
 		/*
 		 * Depending on the signal settings, we may need to revert the
 		 * decision to restart the system call, but skip this if a
-		 * debugger has chosen to restart at a different PC.
+		 * deger has chosen to restart at a different PC.
 		 */
 		if (regs->pc == restart_addr &&
 		    (retval == -ERESTARTNOHAND ||
@@ -900,7 +900,7 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * Handle restarting a different system call. As above, if a debugger
+	 * Handle restarting a different system call. As above, if a deger
 	 * has chosen to restart at a different PC, ignore the restart.
 	 */
 	if (syscall && regs->pc == restart_addr) {
@@ -927,7 +927,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 		addr_limit_user_check();
 
 		if (thread_flags & _TIF_NEED_RESCHED) {
-			/* Unmask Debug and SError for the next task */
+			/* Unmask De and SError for the next task */
 			local_daif_restore(DAIF_PROCCTX_NOIRQ);
 
 			schedule();

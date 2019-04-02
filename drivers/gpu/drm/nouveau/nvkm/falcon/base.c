@@ -142,7 +142,7 @@ nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 
 	mutex_lock(&falcon->mutex);
 	if (falcon->user == user) {
-		nvkm_debug(falcon->user, "released %s falcon\n", falcon->name);
+		nvkm_de(falcon->user, "released %s falcon\n", falcon->name);
 		falcon->user = NULL;
 	}
 	mutex_unlock(&falcon->mutex);
@@ -159,7 +159,7 @@ nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 		return -EBUSY;
 	}
 
-	nvkm_debug(user, "acquired %s falcon\n", falcon->name);
+	nvkm_de(user, "acquired %s falcon\n", falcon->name);
 	falcon->user = user;
 	mutex_unlock(&falcon->mutex);
 	return 0;
@@ -170,7 +170,7 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 		 struct nvkm_subdev *subdev, const char *name, u32 addr,
 		 struct nvkm_falcon *falcon)
 {
-	u32 debug_reg;
+	u32 de_reg;
 	u32 reg;
 
 	falcon->func = func;
@@ -192,31 +192,31 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 
 	switch (subdev->index) {
 	case NVKM_ENGINE_GR:
-		debug_reg = 0x0;
+		de_reg = 0x0;
 		break;
 	case NVKM_SUBDEV_PMU:
-		debug_reg = 0xc08;
+		de_reg = 0xc08;
 		break;
 	case NVKM_ENGINE_NVDEC0:
-		debug_reg = 0xd00;
+		de_reg = 0xd00;
 		break;
 	case NVKM_ENGINE_SEC2:
-		debug_reg = 0x408;
+		de_reg = 0x408;
 		falcon->has_emem = true;
 		break;
 	case NVKM_SUBDEV_GSP:
-		debug_reg = 0x0; /*XXX*/
+		de_reg = 0x0; /*XXX*/
 		break;
 	default:
 		nvkm_warn(subdev, "unsupported falcon %s!\n",
 			  nvkm_subdev_name[subdev->index]);
-		debug_reg = 0;
+		de_reg = 0;
 		break;
 	}
 
-	if (debug_reg) {
-		u32 val = nvkm_falcon_rd32(falcon, debug_reg);
-		falcon->debug = (val >> 20) & 0x1;
+	if (de_reg) {
+		u32 val = nvkm_falcon_rd32(falcon, de_reg);
+		falcon->de = (val >> 20) & 0x1;
 	}
 }
 

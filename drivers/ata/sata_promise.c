@@ -51,7 +51,7 @@
 enum {
 	PDC_MAX_PORTS		= 4,
 	PDC_MMIO_BAR		= 3,
-	PDC_MAX_PRD		= LIBATA_MAX_PRD - 1, /* -1 for ASIC PRD bug workaround */
+	PDC_MAX_PRD		= LIBATA_MAX_PRD - 1, /* -1 for ASIC PRD  workaround */
 
 	/* host register offsets (from host->iomap[PDC_MMIO_BAR]) */
 	PDC_INT_SEQMASK		= 0x40,	/* Mask of asserted SEQ INTs */
@@ -80,8 +80,8 @@ enum {
 	PDC_PHYMODE4		= 0x14,
 	PDC_LINK_LAYER_ERRORS	= 0x6C,
 	PDC_FPDMA_CTLSTAT	= 0xD8,
-	PDC_INTERNAL_DEBUG_1	= 0xF8,	/* also used for PATA */
-	PDC_INTERNAL_DEBUG_2	= 0xFC,	/* also used for PATA */
+	PDC_INTERNAL_DE_1	= 0xF8,	/* also used for PATA */
+	PDC_INTERNAL_DE_2	= 0xFC,	/* also used for PATA */
 
 	/* PDC_FPDMA_CTLSTAT bit definitions */
 	PDC_FPDMA_CTLSTAT_RESET			= 1 << 3,
@@ -414,15 +414,15 @@ static void pdc_not_at_command_packet_phase(struct ata_port *ap)
 
 	/* check not at ASIC packet command phase */
 	for (i = 0; i < 100; ++i) {
-		writel(0, sata_mmio + PDC_INTERNAL_DEBUG_1);
-		tmp = readl(sata_mmio + PDC_INTERNAL_DEBUG_2);
+		writel(0, sata_mmio + PDC_INTERNAL_DE_1);
+		tmp = readl(sata_mmio + PDC_INTERNAL_DE_2);
 		if ((tmp & 0xF) != 1)
 			break;
 		udelay(100);
 	}
 }
 
-static void pdc_clear_internal_debug_record_error_register(struct ata_port *ap)
+static void pdc_clear_internal_de_record_error_register(struct ata_port *ap)
 {
 	void __iomem *sata_mmio = ap->ioaddr.scr_addr;
 
@@ -460,7 +460,7 @@ static void pdc_reset_port(struct ata_port *ap)
 
 	if (sata_scr_valid(&ap->link) && (ap->flags & PDC_FLAG_GEN_II)) {
 		pdc_fpdma_reset(ap);
-		pdc_clear_internal_debug_record_error_register(ap);
+		pdc_clear_internal_de_record_error_register(ap);
 	}
 }
 
@@ -523,7 +523,7 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 		buf32[0] = cpu_to_le32(PDC_PKT_NODATA);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 	buf32[1] = cpu_to_le32(sg_table);	/* S/G table addr */
@@ -567,7 +567,7 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	buf[29] = dev_sel;
 
 	/* we can represent cdb lengths 2/4/6/8/10/12/14/16 */
-	BUG_ON(cdb_len & ~0x1E);
+	_ON(cdb_len & ~0x1E);
 
 	/* append the CDB as the final part */
 	buf[30] = (((cdb_len >> 1) & 7) << 5) | ATA_REG_DATA | PDC_LAST_REG;
@@ -591,7 +591,7 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_bmdma_prd *prd = ap->bmdma_prd;
 	struct scatterlist *sg;
-	const u32 SG_COUNT_ASIC_BUG = 41*4;
+	const u32 SG_COUNT_ASIC_ = 41*4;
 	unsigned int si, idx;
 	u32 len;
 
@@ -628,17 +628,17 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 
 	len = le32_to_cpu(prd[idx - 1].flags_len);
 
-	if (len > SG_COUNT_ASIC_BUG) {
+	if (len > SG_COUNT_ASIC_) {
 		u32 addr;
 
 		VPRINTK("Splitting last PRD.\n");
 
 		addr = le32_to_cpu(prd[idx - 1].addr);
-		prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_BUG);
-		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_BUG);
+		prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_);
 
-		addr = addr + len - SG_COUNT_ASIC_BUG;
-		len = SG_COUNT_ASIC_BUG;
+		addr = addr + len - SG_COUNT_ASIC_;
+		len = SG_COUNT_ASIC_;
 		prd[idx].addr = cpu_to_le32(addr);
 		prd[idx].flags_len = cpu_to_le32(len);
 		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
@@ -709,7 +709,7 @@ static unsigned int pdc_sata_ata_port_to_ata_no(const struct ata_port *ap)
 
 	for (i = 0; i < nr_ports && host->ports[i] != ap; ++i)
 		;
-	BUG_ON(i >= nr_ports);
+	_ON(i >= nr_ports);
 	return pdc_port_no_to_ata_no(i, pdc_is_sataii_tx4(ap->flags));
 }
 

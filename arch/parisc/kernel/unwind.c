@@ -22,9 +22,9 @@
 
 #include <asm/unwind.h>
 
-/* #define DEBUG 1 */
-#ifdef DEBUG
-#define dbg(x...) pr_debug(x)
+/* #define DE 1 */
+#ifdef DE
+#define dbg(x...) pr_de(x)
 #else
 #define dbg(x...)
 #endif

@@ -267,7 +267,7 @@ struct gf100_gr_chan {
 	} data[4];
 };
 
-void gf100_gr_ctxctl_debug(struct gf100_gr *);
+void gf100_gr_ctxctl_de(struct gf100_gr *);
 
 void gf100_gr_dtor_fw(struct gf100_gr_fuc *);
 int  gf100_gr_ctor_fw(struct gf100_gr *, const char *,

@@ -163,7 +163,7 @@ Off  Off  Off  Off   380-3C3
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-REPORTING BUGS
+REPORTING S
 --------------
 
 For technical support, please provide the following

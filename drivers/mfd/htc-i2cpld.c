@@ -86,13 +86,13 @@ static void htcpld_mask(struct irq_data *data)
 {
 	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
 	chip->irqs_enabled &= ~(1 << (data->irq - chip->irq_start));
-	pr_debug("HTCPLD mask %d %04x\n", data->irq, chip->irqs_enabled);
+	pr_de("HTCPLD mask %d %04x\n", data->irq, chip->irqs_enabled);
 }
 static void htcpld_unmask(struct irq_data *data)
 {
 	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
 	chip->irqs_enabled |= 1 << (data->irq - chip->irq_start);
-	pr_debug("HTCPLD unmask %d %04x\n", data->irq, chip->irqs_enabled);
+	pr_de("HTCPLD unmask %d %04x\n", data->irq, chip->irqs_enabled);
 }
 
 static int htcpld_set_type(struct irq_data *data, unsigned int flags)
@@ -130,7 +130,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 	int irqpin;
 
 	if (!htcpld) {
-		pr_debug("htcpld is null in ISR\n");
+		pr_de("htcpld is null in ISR\n");
 		return IRQ_HANDLED;
 	}
 
@@ -148,7 +148,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 		unsigned long uval, old_val;
 
 		if (!chip) {
-			pr_debug("chip %d is null in ISR\n", i);
+			pr_de("chip %d is null in ISR\n", i);
 			continue;
 		}
 
@@ -157,7 +157,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 
 		client = chip->client;
 		if (!client) {
-			pr_debug("client %d is null in ISR\n", i);
+			pr_de("client %d is null in ISR\n", i);
 			continue;
 		}
 
@@ -198,7 +198,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 
 			if ((!oldb && newb && (type & IRQ_TYPE_EDGE_RISING)) ||
 			    (oldb && !newb && (type & IRQ_TYPE_EDGE_FALLING))) {
-				pr_debug("fire IRQ %d\n", irqpin);
+				pr_de("fire IRQ %d\n", irqpin);
 				generic_handle_irq(irq);
 			}
 		}

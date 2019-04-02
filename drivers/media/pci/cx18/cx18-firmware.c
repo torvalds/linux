@@ -172,7 +172,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 			offset += seghdr.size;
 			continue;
 		}
-		CX18_DEBUG_INFO("load segment %x-%x\n", seghdr.addr,
+		CX18_DE_INFO("load segment %x-%x\n", seghdr.addr,
 				seghdr.addr + seghdr.size - 1);
 		if (*entry_addr == 0)
 			*entry_addr = seghdr.addr;
@@ -207,7 +207,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 
 void cx18_halt_firmware(struct cx18 *cx)
 {
-	CX18_DEBUG_INFO("Preparing for firmware halt.\n");
+	CX18_DE_INFO("Preparing for firmware halt.\n");
 	cx18_write_reg_expect(cx, 0x000F000F, CX18_PROC_SOFT_RESET,
 				  0x0000000F, 0x000F000F);
 	cx18_write_reg_expect(cx, 0x00020002, CX18_ADEC_CONTROL,
@@ -441,7 +441,7 @@ int cx18_firmware_init(struct cx18 *cx)
 	cx18_sw2_irq_disable_cpu(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
 	/* Try a benign command to see if the CPU is alive and well */
-	sz = cx18_vapi_result(cx, api_args, CX18_CPU_DEBUG_PEEK32, 1, 0);
+	sz = cx18_vapi_result(cx, api_args, CX18_CPU_DE_PEEK32, 1, 0);
 	if (sz < 0)
 		return sz;
 

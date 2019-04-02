@@ -57,20 +57,20 @@
 #define VBI_DEFLINES 16
 
 static unsigned int vbibufs = 4;
-static unsigned int vbi_debug;
+static unsigned int vbi_de;
 
 module_param(vbibufs,   int, 0444);
-module_param(vbi_debug, int, 0644);
+module_param(vbi_de, int, 0644);
 MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32, default 4");
-MODULE_PARM_DESC(vbi_debug,"vbi code debug messages, default is 0 (no)");
+MODULE_PARM_DESC(vbi_de,"vbi code de messages, default is 0 (no)");
 
 #ifdef dprintk
 # undef dprintk
 #endif
 #define dprintk(fmt, ...)						\
 do {									\
-	if (vbi_debug)							\
-		pr_debug("%d: " fmt, btv->c.nr, ##__VA_ARGS__);		\
+	if (vbi_de)							\
+		pr_de("%d: " fmt, btv->c.nr, ##__VA_ARGS__);		\
 } while (0)
 
 #define IMAGE_SIZE(fmt) \
@@ -262,7 +262,7 @@ static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
 	if (min_start > max_start)
 		return -EBUSY;
 
-	BUG_ON(max_start >= max_end);
+	_ON(max_start >= max_end);
 
 	f->sampling_rate    = tvnorm->Fsc;
 	f->samples_per_line = VBI_BPL;
@@ -442,8 +442,8 @@ void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm)
 	real_count              = ((tvnorm->cropcap.defrect.top >> 1)
 				   - tvnorm->vbistart[0]);
 
-	BUG_ON(real_samples_per_line > VBI_BPL);
-	BUG_ON(real_count > VBI_DEFLINES);
+	_ON(real_samples_per_line > VBI_BPL);
+	_ON(real_count > VBI_DEFLINES);
 
 	f->tvnorm               = tvnorm;
 

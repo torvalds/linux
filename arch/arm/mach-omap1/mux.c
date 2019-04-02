@@ -424,8 +424,8 @@ static int omap1_cfg_reg(const struct pin_config *cfg)
 #endif
 	}
 
-#ifdef CONFIG_OMAP_MUX_DEBUG
-	if (cfg->debug || warn) {
+#ifdef CONFIG_OMAP_MUX_DE
+	if (cfg->de || warn) {
 		printk("MUX: Setting register %s\n", cfg->name);
 		printk("      %s (0x%08x) = 0x%08x -> 0x%08x\n",
 		       cfg->mux_reg_name, cfg->mux_reg, reg_orig, reg);

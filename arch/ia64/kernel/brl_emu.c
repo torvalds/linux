@@ -195,7 +195,7 @@ ia64_emulate_brl (struct pt_regs *regs, unsigned long ar_ec)
 		/*
 		 *  The target address contains unimplemented bits.
 		 */
-		printk(KERN_DEBUG "Woah! Unimplemented Instruction Address Trap!\n");
+		printk(KERN_DE "Woah! Unimplemented Instruction Address Trap!\n");
 		force_sig_fault(SIGILL, ILL_BADIADDR, (void __user *)NULL,
 				0, 0, 0, current);
 	} else if (ia64_psr(regs)->tb) {

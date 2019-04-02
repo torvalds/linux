@@ -19,7 +19,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -104,7 +104,7 @@ struct pmbus_data {
 	int num_attributes;
 	struct attribute_group group;
 	const struct attribute_group *groups[2];
-	struct dentry *debugfs;		/* debugfs device directory */
+	struct dentry *defs;		/* defs device directory */
 
 	struct pmbus_sensor *sensors;
 
@@ -124,7 +124,7 @@ struct pmbus_data {
 	u8 currpage;
 };
 
-struct pmbus_debugfs_entry {
+struct pmbus_defs_entry {
 	struct i2c_client *client;
 	u8 page;
 	u8 reg;
@@ -2121,13 +2121,13 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 }
 #endif
 
-static struct dentry *pmbus_debugfs_dir;	/* pmbus debugfs directory */
+static struct dentry *pmbus_defs_dir;	/* pmbus defs directory */
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-static int pmbus_debugfs_get(void *data, u64 *val)
+#if IS_ENABLED(CONFIG_DE_FS)
+static int pmbus_defs_get(void *data, u64 *val)
 {
 	int rc;
-	struct pmbus_debugfs_entry *entry = data;
+	struct pmbus_defs_entry *entry = data;
 
 	rc = _pmbus_read_byte_data(entry->client, entry->page, entry->reg);
 	if (rc < 0)
@@ -2137,13 +2137,13 @@ static int pmbus_debugfs_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops, pmbus_debugfs_get, NULL,
+DEFINE_DEFS_ATTRIBUTE(pmbus_defs_ops, pmbus_defs_get, NULL,
 			 "0x%02llx\n");
 
-static int pmbus_debugfs_get_status(void *data, u64 *val)
+static int pmbus_defs_get_status(void *data, u64 *val)
 {
 	int rc;
-	struct pmbus_debugfs_entry *entry = data;
+	struct pmbus_defs_entry *entry = data;
 	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
 
 	rc = pdata->read_status(entry->client, entry->page);
@@ -2154,27 +2154,27 @@ static int pmbus_debugfs_get_status(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops_status, pmbus_debugfs_get_status,
+DEFINE_DEFS_ATTRIBUTE(pmbus_defs_ops_status, pmbus_defs_get_status,
 			 NULL, "0x%04llx\n");
 
-static int pmbus_init_debugfs(struct i2c_client *client,
+static int pmbus_init_defs(struct i2c_client *client,
 			      struct pmbus_data *data)
 {
 	int i, idx = 0;
 	char name[PMBUS_NAME_SIZE];
-	struct pmbus_debugfs_entry *entries;
+	struct pmbus_defs_entry *entries;
 
-	if (!pmbus_debugfs_dir)
+	if (!pmbus_defs_dir)
 		return -ENODEV;
 
 	/*
-	 * Create the debugfs directory for this device. Use the hwmon device
+	 * Create the defs directory for this device. Use the hwmon device
 	 * name to avoid conflicts (hwmon numbers are globally unique).
 	 */
-	data->debugfs = debugfs_create_dir(dev_name(data->hwmon_dev),
-					   pmbus_debugfs_dir);
-	if (IS_ERR_OR_NULL(data->debugfs)) {
-		data->debugfs = NULL;
+	data->defs = defs_create_dir(dev_name(data->hwmon_dev),
+					   pmbus_defs_dir);
+	if (IS_ERR_OR_NULL(data->defs)) {
+		data->defs = NULL;
 		return -ENODEV;
 	}
 
@@ -2192,9 +2192,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].client = client;
 			entries[idx].page = i;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops_status);
+					    &pmbus_defs_ops_status);
 		}
 
 		if (data->info->func[i] & PMBUS_HAVE_STATUS_VOUT) {
@@ -2202,9 +2202,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_VOUT;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_vout", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (data->info->func[i] & PMBUS_HAVE_STATUS_IOUT) {
@@ -2212,9 +2212,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_IOUT;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_iout", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (data->info->func[i] & PMBUS_HAVE_STATUS_INPUT) {
@@ -2222,9 +2222,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_INPUT;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_input", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (data->info->func[i] & PMBUS_HAVE_STATUS_TEMP) {
@@ -2232,9 +2232,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_TEMPERATURE;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_temp", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (pmbus_check_byte_register(client, i, PMBUS_STATUS_CML)) {
@@ -2242,9 +2242,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_CML;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_cml", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (pmbus_check_byte_register(client, i, PMBUS_STATUS_OTHER)) {
@@ -2252,9 +2252,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_OTHER;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_other", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (pmbus_check_byte_register(client, i,
@@ -2263,9 +2263,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_MFR_SPECIFIC;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_mfr", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (data->info->func[i] & PMBUS_HAVE_STATUS_FAN12) {
@@ -2273,9 +2273,9 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_FAN_12;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_fan12", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 
 		if (data->info->func[i] & PMBUS_HAVE_STATUS_FAN34) {
@@ -2283,21 +2283,21 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 			entries[idx].page = i;
 			entries[idx].reg = PMBUS_STATUS_FAN_34;
 			scnprintf(name, PMBUS_NAME_SIZE, "status%d_fan34", i);
-			debugfs_create_file(name, 0444, data->debugfs,
+			defs_create_file(name, 0444, data->defs,
 					    &entries[idx++],
-					    &pmbus_debugfs_ops);
+					    &pmbus_defs_ops);
 		}
 	}
 
 	return 0;
 }
 #else
-static int pmbus_init_debugfs(struct i2c_client *client,
+static int pmbus_init_defs(struct i2c_client *client,
 			      struct pmbus_data *data)
 {
 	return 0;
 }
-#endif	/* IS_ENABLED(CONFIG_DEBUG_FS) */
+#endif	/* IS_ENABLED(CONFIG_DE_FS) */
 
 int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		   struct pmbus_driver_info *info)
@@ -2358,9 +2358,9 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	if (ret)
 		goto out_unregister;
 
-	ret = pmbus_init_debugfs(client, data);
+	ret = pmbus_init_defs(client, data);
 	if (ret)
-		dev_warn(dev, "Failed to register debugfs\n");
+		dev_warn(dev, "Failed to register defs\n");
 
 	return 0;
 
@@ -2376,7 +2376,7 @@ int pmbus_do_remove(struct i2c_client *client)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
 
-	debugfs_remove_recursive(data->debugfs);
+	defs_remove_recursive(data->defs);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	kfree(data->group.attrs);
@@ -2384,26 +2384,26 @@ int pmbus_do_remove(struct i2c_client *client)
 }
 EXPORT_SYMBOL_GPL(pmbus_do_remove);
 
-struct dentry *pmbus_get_debugfs_dir(struct i2c_client *client)
+struct dentry *pmbus_get_defs_dir(struct i2c_client *client)
 {
 	struct pmbus_data *data = i2c_get_clientdata(client);
 
-	return data->debugfs;
+	return data->defs;
 }
-EXPORT_SYMBOL_GPL(pmbus_get_debugfs_dir);
+EXPORT_SYMBOL_GPL(pmbus_get_defs_dir);
 
 static int __init pmbus_core_init(void)
 {
-	pmbus_debugfs_dir = debugfs_create_dir("pmbus", NULL);
-	if (IS_ERR(pmbus_debugfs_dir))
-		pmbus_debugfs_dir = NULL;
+	pmbus_defs_dir = defs_create_dir("pmbus", NULL);
+	if (IS_ERR(pmbus_defs_dir))
+		pmbus_defs_dir = NULL;
 
 	return 0;
 }
 
 static void __exit pmbus_core_exit(void)
 {
-	debugfs_remove_recursive(pmbus_debugfs_dir);
+	defs_remove_recursive(pmbus_defs_dir);
 }
 
 module_init(pmbus_core_init);

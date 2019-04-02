@@ -775,7 +775,7 @@ config NETFILTER_XT_TARGET_CHECKSUM
 	depends on NETFILTER_ADVANCED
 	---help---
 	  This option adds a `CHECKSUM' target, which can be used in the iptables mangle
-	  table to work around buggy DHCP clients in virtualized environments.
+	  table to work around gy DHCP clients in virtualized environments.
 
 	  Some old DHCP clients drop packets because they are not aware
 	  that the checksum would normally be offloaded to hardware and

@@ -104,7 +104,7 @@ struct thread_struct {
 	struct pt_regs *uregs;
 
 	unsigned long address;
-	/* Hardware debugging registers may come here */
+	/* Hardware deging registers may come here */
 
 	/* floating point info */
 	union thread_xstate *xstate;

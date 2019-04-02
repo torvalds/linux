@@ -28,7 +28,7 @@
 #include <linux/export.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 
 #include <asm/arcregs.h>
 #include <asm/unwind.h>
@@ -159,7 +159,7 @@ arc_unwind_core(struct task_struct *tsk, struct pt_regs *regs,
  */
 
 /* Call-back which plugs into unwinding core to dump the stack in
- * case of panic/OOPs/BUG etc
+ * case of panic/OOPs/ etc
  */
 static int __print_sym(unsigned int address, void *unused)
 {

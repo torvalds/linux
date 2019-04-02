@@ -18,7 +18,7 @@
  * Intel Virtio Over PCIe (VOP) driver.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include "vop_main.h"
@@ -180,21 +180,21 @@ static int vop_vdev_info_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(vop_vdev_info);
 
-void vop_init_debugfs(struct vop_info *vi)
+void vop_init_defs(struct vop_info *vi)
 {
 	char name[16];
 
 	snprintf(name, sizeof(name), "%s%d", KBUILD_MODNAME, vi->vpdev->dnode);
-	vi->dbg = debugfs_create_dir(name, NULL);
+	vi->dbg = defs_create_dir(name, NULL);
 	if (!vi->dbg) {
-		pr_err("can't create debugfs dir vop\n");
+		pr_err("can't create defs dir vop\n");
 		return;
 	}
-	debugfs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
-	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);
+	defs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
+	defs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);
 }
 
-void vop_exit_debugfs(struct vop_info *vi)
+void vop_exit_defs(struct vop_info *vi)
 {
-	debugfs_remove_recursive(vi->dbg);
+	defs_remove_recursive(vi->dbg);
 }

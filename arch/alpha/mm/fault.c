@@ -160,7 +160,7 @@ retry:
 			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {

@@ -92,11 +92,11 @@ class Event(dict):
 
     def add(self, data):
         for key, val in data:
-            log.debug("      %s = %s" % (key, val))
+            log.de("      %s = %s" % (key, val))
             self[key] = val
 
     def __init__(self, name, data, base):
-        log.debug("    Event %s" % name);
+        log.de("    Event %s" % name);
         self.name  = name;
         self.group = ''
         self.add(base)
@@ -104,7 +104,7 @@ class Event(dict):
 
     def equal(self, other):
         for t in Event.terms:
-            log.debug("      [%s] %s %s" % (t, self[t], other[t]));
+            log.de("      [%s] %s %s" % (t, self[t], other[t]));
             if t not in self or t not in other:
                 return False
             if not data_equal(self[t], other[t]):
@@ -163,7 +163,7 @@ class Test(object):
 
         self.expect   = {}
         self.result   = {}
-        log.debug("  loading expected events");
+        log.de("  loading expected events");
         self.load_events(path, self.expect)
 
     def is_event(self, name):
@@ -237,31 +237,31 @@ class Test(object):
     def compare(self, expect, result):
         match = {}
 
-        log.debug("  compare");
+        log.de("  compare");
 
         # For each expected event find all matching
         # events in result. Fail if there's not any.
         for exp_name, exp_event in expect.items():
             exp_list = []
             res_event = {}
-            log.debug("    matching [%s]" % exp_name)
+            log.de("    matching [%s]" % exp_name)
             for res_name, res_event in result.items():
-                log.debug("      to [%s]" % res_name)
+                log.de("      to [%s]" % res_name)
                 if (exp_event.equal(res_event)):
                     exp_list.append(res_name)
-                    log.debug("    ->OK")
+                    log.de("    ->OK")
                 else:
-                    log.debug("    ->FAIL");
+                    log.de("    ->FAIL");
 
-            log.debug("    match: [%s] matches %s" % (exp_name, str(exp_list)))
+            log.de("    match: [%s] matches %s" % (exp_name, str(exp_list)))
 
             # we did not any matching event - fail
             if not exp_list:
                 if exp_event.optional():
-                    log.debug("    %s does not match, but is optional" % exp_name)
+                    log.de("    %s does not match, but is optional" % exp_name)
                 else:
                     if not res_event:
-                        log.debug("    res_event is empty");
+                        log.de("    res_event is empty");
                     else:
                         exp_event.diff(res_event)
                     raise Fail(self, 'match failure');
@@ -281,10 +281,10 @@ class Test(object):
                 if res_group not in match[group]:
                     raise Fail(self, 'group failure')
 
-                log.debug("    group: [%s] matches group leader %s" %
+                log.de("    group: [%s] matches group leader %s" %
                          (exp_name, str(match[group])))
 
-        log.debug("  matched")
+        log.de("  matched")
 
     def resolve_groups(self, events):
         for name, event in events.items():
@@ -295,7 +295,7 @@ class Test(object):
             for iname, ievent in events.items():
                 if (ievent['fd'] == group_fd):
                     event.group = iname
-                    log.debug('[%s] has group leader [%s]' % (name, iname))
+                    log.de('[%s] has group leader [%s]' % (name, iname))
                     break;
 
     def run(self):
@@ -306,7 +306,7 @@ class Test(object):
             self.run_cmd(tempdir);
 
             # load events expectation for the test
-            log.debug("  loading result events");
+            log.de("  loading result events");
             for f in glob.glob(tempdir + '/event*'):
                 self.load_events(f, self.result);
 
@@ -341,7 +341,7 @@ def setup_log(verbose):
     if verbose == 2:
         level = logging.INFO
     if verbose >= 3:
-        level = logging.DEBUG
+        level = logging.DE
 
     log = logging.getLogger('test')
     log.setLevel(level)

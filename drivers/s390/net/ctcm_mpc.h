@@ -199,7 +199,7 @@ struct mpc_group {
 	fsm_instance	*fsm; /* group xid fsm */
 };
 
-#ifdef DEBUGDATA
+#ifdef DEDATA
 void ctcmpc_dumpit(char *buf, int len);
 #else
 static inline void ctcmpc_dumpit(char *buf, int len)
@@ -207,9 +207,9 @@ static inline void ctcmpc_dumpit(char *buf, int len)
 }
 #endif
 
-#ifdef DEBUGDATA
+#ifdef DEDATA
 /*
- * Dump header and first 16 bytes of an sk_buff for debugging purposes.
+ * Dump header and first 16 bytes of an sk_buff for deging purposes.
  *
  * skb	 The struct sk_buff to dump.
  * offset Offset relative to skb-data, where to start the dump.

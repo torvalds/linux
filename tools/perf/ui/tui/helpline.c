@@ -4,7 +4,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../helpline.h"
 #include "../ui.h"
 #include "../libslang.h"

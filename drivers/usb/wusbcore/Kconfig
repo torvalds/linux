@@ -30,11 +30,11 @@ config USB_WUSB_CBAF
 	  It is safe to select even if you don't have a compatible
 	  hardware.
 
-config USB_WUSB_CBAF_DEBUG
-	bool "Enable CBA debug messages"
+config USB_WUSB_CBAF_DE
+	bool "Enable CBA de messages"
 	depends on USB_WUSB_CBAF
 	help
-	  Say Y here if you want the CBA to produce a bunch of debug messages
+	  Say Y here if you want the CBA to produce a bunch of de messages
 	  to the system log. Select this if you are having a problem with
 	  CBA support and want to see more of what is going on.
 

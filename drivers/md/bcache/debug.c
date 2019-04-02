@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Assorted bcache debug code
+ * Assorted bcache de code
  *
  * Copyright 2010, 2011 Kent Overstreet <kent.overstreet@gmail.com>
  * Copyright 2012 Google, Inc.
@@ -8,18 +8,18 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "extents.h"
 
 #include <linux/console.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/seq_file.h>
 
-struct dentry *bcache_debug;
+struct dentry *bcache_de;
 
-#ifdef CONFIG_BCACHE_DEBUG
+#ifdef CONFIG_BCACHE_DE
 
 #define for_each_written_bset(b, start, i)				\
 	for (i = (start);						\
@@ -152,7 +152,7 @@ out_put:
 
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 /* XXX: cache set refcounting */
 
@@ -227,37 +227,37 @@ static int bch_dump_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations cache_set_debug_ops = {
+static const struct file_operations cache_set_de_ops = {
 	.owner		= THIS_MODULE,
 	.open		= bch_dump_open,
 	.read		= bch_dump_read,
 	.release	= bch_dump_release
 };
 
-void bch_debug_init_cache_set(struct cache_set *c)
+void bch_de_init_cache_set(struct cache_set *c)
 {
-	if (!IS_ERR_OR_NULL(bcache_debug)) {
+	if (!IS_ERR_OR_NULL(bcache_de)) {
 		char name[50];
 
 		snprintf(name, 50, "bcache-%pU", c->sb.set_uuid);
-		c->debug = debugfs_create_file(name, 0400, bcache_debug, c,
-					       &cache_set_debug_ops);
+		c->de = defs_create_file(name, 0400, bcache_de, c,
+					       &cache_set_de_ops);
 	}
 }
 
 #endif
 
-void bch_debug_exit(void)
+void bch_de_exit(void)
 {
-	debugfs_remove_recursive(bcache_debug);
+	defs_remove_recursive(bcache_de);
 }
 
-void __init bch_debug_init(void)
+void __init bch_de_init(void)
 {
 	/*
 	 * it is unnecessary to check return value of
-	 * debugfs_create_file(), we should not care
+	 * defs_create_file(), we should not care
 	 * about this.
 	 */
-	bcache_debug = debugfs_create_dir("bcache", NULL);
+	bcache_de = defs_create_dir("bcache", NULL);
 }

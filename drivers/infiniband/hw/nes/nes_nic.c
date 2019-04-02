@@ -91,7 +91,7 @@ static struct nic_qp_map *nic_qp_mapping_per_function[] = {
 
 static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
 		| NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
-static int debug = -1;
+static int de = -1;
 static int nics_per_function = 1;
 
 /**
@@ -121,7 +121,7 @@ static int nes_netdev_poll(struct napi_struct *napi, int budget)
 		/* clear out completed cqes but don't arm */
 		nes_write32(nesdev->regs+NES_CQE_ALLOC,
 				nescq->cq_number | (nescq->cqe_allocs_pending << 16));
-		nes_debug(NES_DBG_NETDEV, "%s: exiting with work pending\n",
+		nes_de(NES_DBG_NETDEV, "%s: exiting with work pending\n",
 				nesvnic->netdev->name);
 	}
 	return nescq->rx_pkts_indicated;
@@ -198,7 +198,7 @@ static int nes_netdev_open(struct net_device *netdev)
 		if (nesvnic->qp_nic_index[i] == 0xf) {
 			break;
 		}
-		nes_debug(NES_DBG_NETDEV, "i=%d, perfect filter table index= %d, PERF FILTER LOW"
+		nes_de(NES_DBG_NETDEV, "i=%d, perfect filter table index= %d, PERF FILTER LOW"
 				" (Addr:%08X) = %08X, HIGH = %08X.\n",
 				i, nesvnic->qp_nic_index[i],
 				NES_IDX_PERFECT_FILTER_LOW+
@@ -225,7 +225,7 @@ static int nes_netdev_open(struct net_device *netdev)
 			break;
 	}
 	if (first_nesvnic->netdev_open == 0) {
-		nes_debug(NES_DBG_INIT, "Setting up MAC interrupt mask.\n");
+		nes_de(NES_DBG_INIT, "Setting up MAC interrupt mask.\n");
 		nes_write_indexed(nesdev, NES_IDX_MAC_INT_MASK + (0x200 * nesdev->mac_index),
 				~(NES_MAC_INT_LINK_STAT_CHG | NES_MAC_INT_XGMII_EXT |
 				NES_MAC_INT_TX_UNDERFLOW | NES_MAC_INT_TX_ERROR));
@@ -281,7 +281,7 @@ static int nes_netdev_stop(struct net_device *netdev)
 	struct list_head *list_pos, *list_temp;
 	unsigned long flags;
 
-	nes_debug(NES_DBG_SHUTDOWN, "nesvnic=%p, nesdev=%p, netdev=%p %s\n",
+	nes_de(NES_DBG_SHUTDOWN, "nesvnic=%p, nesdev=%p, netdev=%p %s\n",
 			nesvnic, nesdev, netdev, netdev->name);
 	if (nesvnic->netdev_open == 0)
 		return 0;
@@ -372,7 +372,7 @@ static bool nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 
 	/* setup the VLAN tag if present */
 	if (skb_vlan_tag_present(skb)) {
-		nes_debug(NES_DBG_NIC_TX, "%s: VLAN packet to send... VLAN = %08X\n",
+		nes_de(NES_DBG_NIC_TX, "%s: VLAN packet to send... VLAN = %08X\n",
 				netdev->name, skb_vlan_tag_get(skb));
 		wqe_misc = NES_NIC_SQ_WQE_TAGVALUE_ENABLE;
 		wqe_fragment_length[0] = (__force __le16) skb_vlan_tag_get(skb);
@@ -387,7 +387,7 @@ static bool nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (skb_is_gso(skb)) {
 			tcph = tcp_hdr(skb);
-			/* nes_debug(NES_DBG_NIC_TX, "%s: TSO request... is_gso = %u seg size = %u\n",
+			/* nes_de(NES_DBG_NIC_TX, "%s: TSO request... is_gso = %u seg size = %u\n",
 					netdev->name, skb_is_gso(skb), skb_shinfo(skb)->gso_size); */
 			wqe_misc |= NES_NIC_SQ_WQE_LSO_ENABLE | (u16)skb_shinfo(skb)->gso_size;
 			set_wqe_32bit_value(nic_sqe->wqe_words, NES_NIC_SQ_WQE_LSO_INFO_IDX,
@@ -407,7 +407,7 @@ static bool nes_nic_send(struct sk_buff *skb, struct net_device *netdev)
 	wqe_fragment_length[1] = 0;
 	if (skb_headlen(skb) > NES_FIRST_FRAG_SIZE) {
 		if ((skb_shinfo(skb)->nr_frags + 1) > 4) {
-			nes_debug(NES_DBG_NIC_TX, "%s: Packet with %u fragments not sent, skb_headlen=%u\n",
+			nes_de(NES_DBG_NIC_TX, "%s: Packet with %u fragments not sent, skb_headlen=%u\n",
 					netdev->name, skb_shinfo(skb)->nr_frags + 2, skb_headlen(skb));
 			kfree_skb(skb);
 			nesvnic->tx_sw_dropped++;
@@ -490,7 +490,7 @@ static netdev_tx_t nes_netdev_start_xmit(struct sk_buff *skb, struct net_device 
 	u32 wqe_misc;
 
 	/*
-	 * nes_debug(NES_DBG_NIC_TX, "%s Request to tx NIC packet length %u, headlen %u,"
+	 * nes_de(NES_DBG_NIC_TX, "%s Request to tx NIC packet length %u, headlen %u,"
 	 *		" (%u frags), tso_size=%u\n",
 	 *		netdev->name, skb->len, skb_headlen(skb),
 	 *		skb_shinfo(skb)->nr_frags, skb_is_gso(skb));
@@ -541,7 +541,7 @@ sq_no_longer_full:
 					}
 				}
 				nesvnic->sq_full++;
-				nes_debug(NES_DBG_NIC_TX, "%s: HNIC SQ full- TSO request has too many frags!\n",
+				nes_de(NES_DBG_NIC_TX, "%s: HNIC SQ full- TSO request has too many frags!\n",
 						netdev->name);
 				return NETDEV_TX_BUSY;
 			}
@@ -570,7 +570,7 @@ tso_sq_no_longer_full:
 						(__le16 *)&nic_sqe->wqe_words[NES_NIC_SQ_WQE_LENGTH_0_TAG_IDX];
 				/* setup the VLAN tag if present */
 				if (skb_vlan_tag_present(skb)) {
-					nes_debug(NES_DBG_NIC_TX, "%s: VLAN packet to send... VLAN = %08X\n",
+					nes_de(NES_DBG_NIC_TX, "%s: VLAN packet to send... VLAN = %08X\n",
 							netdev->name,
 						  skb_vlan_tag_get(skb));
 					wqe_misc = NES_NIC_SQ_WQE_TAGVALUE_ENABLE;
@@ -583,9 +583,9 @@ tso_sq_no_longer_full:
 
 				/* Assumes header totally fits in allocated buffer and is in first fragment */
 				if (original_first_length > NES_FIRST_FRAG_SIZE) {
-					nes_debug(NES_DBG_NIC_TX, "ERROR: SKB header too big, headlen=%u, FIRST_FRAG_SIZE=%u\n",
+					nes_de(NES_DBG_NIC_TX, "ERROR: SKB header too big, headlen=%u, FIRST_FRAG_SIZE=%u\n",
 							original_first_length, NES_FIRST_FRAG_SIZE);
-					nes_debug(NES_DBG_NIC_TX, "%s Request to tx NIC packet length %u, headlen %u,"
+					nes_de(NES_DBG_NIC_TX, "%s Request to tx NIC packet length %u, headlen %u,"
 							" (%u frags), is_gso = %u tso_size=%u\n",
 							netdev->name,
 							skb->len, skb_headlen(skb),
@@ -789,7 +789,7 @@ static void nes_netdev_tx_timeout(struct net_device *netdev)
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 
 	if (netif_msg_timer(nesvnic))
-		nes_debug(NES_DBG_NIC_TX, "%s: tx timeout\n", netdev->name);
+		nes_de(NES_DBG_NIC_TX, "%s: tx timeout\n", netdev->name);
 }
 
 
@@ -894,7 +894,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 		nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL, nic_active);
 	}
 
-	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscuous = %d, All Multicast = %d.\n",
+	nes_de(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscuous = %d, All Multicast = %d.\n",
 		  mc_count, !!(netdev->flags & IFF_PROMISC),
 		  !!(netdev->flags & IFF_ALLMULTI));
 	if (!mc_all_on) {
@@ -924,7 +924,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 				nesadapter->pft_mcast_map[mc_index] !=
 					nesvnic->nic_index &&
 					mc_index < max_pft_entries_avaiable) {
-				nes_debug(NES_DBG_NIC_RX,
+				nes_de(NES_DBG_NIC_RX,
 					  "mc_index=%d skipping nic_index=%d, used for=%d\n",
 					  mc_index, nesvnic->nic_index,
 					  nesadapter->pft_mcast_map[mc_index]);
@@ -935,7 +935,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 			if (i < mc_count) {
 				char *addr = get_addr(addrs, i++);
 
-				nes_debug(NES_DBG_NIC_RX, "Assigning MC Address %pM to register 0x%04X nic_idx=%d\n",
+				nes_de(NES_DBG_NIC_RX, "Assigning MC Address %pM to register 0x%04X nic_idx=%d\n",
 					  addr,
 					  perfect_filter_register_address+(mc_index * 8),
 					  mc_nic_index);
@@ -956,7 +956,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 				nesadapter->pft_mcast_map[mc_index] =
 							nesvnic->nic_index;
 			} else {
-				nes_debug(NES_DBG_NIC_RX, "Clearing MC Address at register 0x%04X\n",
+				nes_de(NES_DBG_NIC_RX, "Clearing MC Address at register 0x%04X\n",
 						  perfect_filter_register_address+(mc_index * 8));
 				nes_write_indexed(nesdev,
 						perfect_filter_register_address+4+(mc_index * 8),
@@ -1441,17 +1441,17 @@ static int nes_netdev_set_pauseparam(struct net_device *netdev,
 	}
 	if ((et_pauseparam->rx_pause == 1) && (nesdev->disable_rx_flow_control == 1)) {
 		u32temp = nes_read_indexed(nesdev,
-				NES_IDX_MPP_DEBUG + (nesdev->mac_index*0x40));
-		u32temp &= ~NES_IDX_MPP_DEBUG_PORT_DISABLE_PAUSE;
+				NES_IDX_MPP_DE + (nesdev->mac_index*0x40));
+		u32temp &= ~NES_IDX_MPP_DE_PORT_DISABLE_PAUSE;
 		nes_write_indexed(nesdev,
-				NES_IDX_MPP_DEBUG + (nesdev->mac_index*0x40), u32temp);
+				NES_IDX_MPP_DE + (nesdev->mac_index*0x40), u32temp);
 		nesdev->disable_rx_flow_control = 0;
 	} else if ((et_pauseparam->rx_pause == 0) && (nesdev->disable_rx_flow_control == 0)) {
 		u32temp = nes_read_indexed(nesdev,
-				NES_IDX_MPP_DEBUG + (nesdev->mac_index*0x40));
-		u32temp |= NES_IDX_MPP_DEBUG_PORT_DISABLE_PAUSE;
+				NES_IDX_MPP_DE + (nesdev->mac_index*0x40));
+		u32temp |= NES_IDX_MPP_DE_PORT_DISABLE_PAUSE;
 		nes_write_indexed(nesdev,
-				NES_IDX_MPP_DEBUG + (nesdev->mac_index*0x40), u32temp);
+				NES_IDX_MPP_DE + (nesdev->mac_index*0x40), u32temp);
 		nesdev->disable_rx_flow_control = 1;
 	}
 
@@ -1585,7 +1585,7 @@ static void nes_vlan_mode(struct net_device *netdev, struct nes_device *nesdev, 
 
 	spin_lock_irqsave(&nesadapter->phy_lock, flags);
 
-	nes_debug(NES_DBG_NETDEV, "%s: %s\n", __func__, netdev->name);
+	nes_de(NES_DBG_NETDEV, "%s: %s\n", __func__, netdev->name);
 
 	/* Enable/Disable VLAN Stripping */
 	u32temp = nes_read_indexed(nesdev, NES_IDX_PCIX_DIAG);
@@ -1657,7 +1657,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	}
 	nesvnic = netdev_priv(netdev);
 
-	nes_debug(NES_DBG_INIT, "netdev = %p, %s\n", netdev, netdev->name);
+	nes_de(NES_DBG_INIT, "netdev = %p, %s\n", netdev, netdev->name);
 
 	SET_NETDEV_DEV(netdev, &nesdev->pcidev->dev);
 
@@ -1670,12 +1670,12 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->netdev_ops = &nes_netdev_ops;
 	netdev->ethtool_ops = &nes_ethtool_ops;
 	netif_napi_add(netdev, &nesvnic->napi, nes_netdev_poll, 128);
-	nes_debug(NES_DBG_INIT, "Enabling VLAN Insert/Delete.\n");
+	nes_de(NES_DBG_INIT, "Enabling VLAN Insert/Delete.\n");
 
 	/* Fill in the port structure */
 	nesvnic->netdev = netdev;
 	nesvnic->nesdev = nesdev;
-	nesvnic->msg_enable = netif_msg_init(debug, default_msg);
+	nesvnic->msg_enable = netif_msg_init(de, default_msg);
 	nesvnic->netdev_index = nesdev->netdev_count;
 	nesvnic->perfect_filter_index = nesdev->nesadapter->netdev_count;
 	nesvnic->max_frame_size = netdev->mtu + netdev->hard_header_len + VLAN_HLEN;
@@ -1702,7 +1702,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 
 	netdev->features = netdev->hw_features | NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_CTAG_TX;
 
-	nes_debug(NES_DBG_INIT, "nesvnic = %p, reported features = 0x%lX, QPid = %d,"
+	nes_de(NES_DBG_INIT, "nesvnic = %p, reported features = 0x%lX, QPid = %d,"
 			" nic_index = %d, logical_port = %d, mac_index = %d.\n",
 			nesvnic, (unsigned long)netdev->features, nesvnic->nic.qp_id,
 			nesvnic->nic_index, nesvnic->logical_port,  nesdev->mac_index);
@@ -1748,7 +1748,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	spin_lock_init(&nesvnic->port_ibevent_lock);
 	nesdev->netdev[nesdev->netdev_count] = netdev;
 
-	nes_debug(NES_DBG_INIT, "Adding nesvnic (%p) to the adapters nesvnic_list for MAC%d.\n",
+	nes_de(NES_DBG_INIT, "Adding nesvnic (%p) to the adapters nesvnic_list for MAC%d.\n",
 			nesvnic, nesdev->mac_index);
 	list_add_tail(&nesvnic->list, &nesdev->nesadapter->nesvnic_list[nesdev->mac_index]);
 
@@ -1821,7 +1821,7 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 
 		/* clear the MAC interrupt status, assumes direct logical to physical mapping */
 		u32temp = nes_read_indexed(nesdev, NES_IDX_MAC_INT_STATUS + (0x200 * nesdev->mac_index));
-		nes_debug(NES_DBG_INIT, "Phy interrupt status = 0x%X.\n", u32temp);
+		nes_de(NES_DBG_INIT, "Phy interrupt status = 0x%X.\n", u32temp);
 		nes_write_indexed(nesdev, NES_IDX_MAC_INT_STATUS + (0x200 * nesdev->mac_index), u32temp);
 
 		nes_init_phy(nesdev);
@@ -1863,7 +1863,7 @@ int nes_nic_cm_xmit(struct sk_buff *skb, struct net_device *netdev)
 	skb->dev = netdev;
 	ret = dev_queue_xmit(skb);
 	if (ret) {
-		nes_debug(NES_DBG_CM, "Bad return code from dev_queue_xmit %d\n", ret);
+		nes_de(NES_DBG_CM, "Bad return code from dev_queue_xmit %d\n", ret);
 	}
 
 	return ret;

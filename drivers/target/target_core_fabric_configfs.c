@@ -50,7 +50,7 @@ static void target_fabric_setup_##_name##_cit(struct target_fabric_configfs *tf)
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = _attrs;						\
 	cit->ct_owner = tf->tf_ops->module;				\
-	pr_debug("Setup generic %s\n", __stringify(_name));		\
+	pr_de("Setup generic %s\n", __stringify(_name));		\
 }
 
 #define TF_CIT_SETUP_DRV(_name, _item_ops, _group_ops)		\
@@ -63,7 +63,7 @@ static void target_fabric_setup_##_name##_cit(struct target_fabric_configfs *tf)
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = attrs;						\
 	cit->ct_owner = tf->tf_ops->module;				\
-	pr_debug("Setup generic %s\n", __stringify(_name));		\
+	pr_de("Setup generic %s\n", __stringify(_name));		\
 }
 
 static struct configfs_item_operations target_fabric_port_item_ops;
@@ -201,7 +201,7 @@ static ssize_t target_fabric_mappedlun_write_protect_store(
 	/* wp=1 means lun_access_ro=true */
 	core_update_device_list_access(lacl->mapped_lun, wp, lacl->se_lun_nacl);
 
-	pr_debug("%s_ConfigFS: Changed Initiator ACL: %s"
+	pr_de("%s_ConfigFS: Changed Initiator ACL: %s"
 		" Mapped LUN: %llu Write Protect bit to %s\n",
 		se_tpg->se_tpg_tfo->fabric_name,
 		se_nacl->initiatorname, lacl->mapped_lun, (wp) ? "ON" : "OFF");

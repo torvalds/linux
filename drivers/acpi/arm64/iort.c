@@ -317,7 +317,7 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 			return 0;
 		}
 
-		pr_warn(FW_BUG "[map %p] SINGLE MAPPING flag not allowed for node type %d, skipping ID map\n",
+		pr_warn(FW_ "[map %p] SINGLE MAPPING flag not allowed for node type %d, skipping ID map\n",
 			map, type);
 		return -ENXIO;
 	}
@@ -343,9 +343,9 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
 			   node->mapping_offset + index * sizeof(*map));
 
-	/* Firmware bug! */
+	/* Firmware ! */
 	if (!map->output_reference) {
-		pr_err(FW_BUG "[node %p type %d] ID map has NULL parent reference\n",
+		pr_err(FW_ "[node %p type %d] ID map has NULL parent reference\n",
 		       node, node->type);
 		return NULL;
 	}
@@ -388,7 +388,7 @@ static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 			return -EINVAL;
 
 		if (smmu->id_mapping_index >= node->mapping_count) {
-			pr_err(FW_BUG "[node %p type %d] ID mapping index overflows valid mappings\n",
+			pr_err(FW_ "[node %p type %d] ID mapping index overflows valid mappings\n",
 			       node, node->type);
 			return -EINVAL;
 		}
@@ -422,9 +422,9 @@ static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 		map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
 				   node->mapping_offset);
 
-		/* Firmware bug! */
+		/* Firmware ! */
 		if (!map->output_reference) {
-			pr_err(FW_BUG "[node %p type %d] ID map has NULL parent reference\n",
+			pr_err(FW_ "[node %p type %d] ID map has NULL parent reference\n",
 			       node, node->type);
 			goto fail_map;
 		}
@@ -665,10 +665,10 @@ static void iort_set_device_domain(struct device *dev,
 	map = ACPI_ADD_PTR(struct acpi_iort_id_mapping, node,
 			   node->mapping_offset + index * sizeof(*map));
 
-	/* Firmware bug! */
+	/* Firmware ! */
 	if (!map->output_reference ||
 	    !(map->flags & ACPI_IORT_ID_SINGLE_MAPPING)) {
-		pr_err(FW_BUG "[node %p type %d] Invalid MSI mapping\n",
+		pr_err(FW_ "[node %p type %d] Invalid MSI mapping\n",
 		       node, node->type);
 		return;
 	}

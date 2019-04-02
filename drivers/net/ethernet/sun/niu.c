@@ -86,10 +86,10 @@ MODULE_DEVICE_TABLE(pci, niu_pci_tbl);
 
 #define NIU_MSG_DEFAULT (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-static int niu_debug;
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "NIU debug level");
+static int niu_de;
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "NIU de level");
 
 #define niu_lock_parent(np, flags) \
 	spin_lock_irqsave(&np->parent->lock, flags)
@@ -129,7 +129,7 @@ static int __niu_set_and_wait_clear_mac(struct niu *np, unsigned long reg,
 }
 
 #define niu_set_and_wait_clear_mac(NP, REG, BITS, LIMIT, DELAY, REG_NAME) \
-({	BUILD_BUG_ON(LIMIT <= 0 || DELAY < 0); \
+({	BUILD__ON(LIMIT <= 0 || DELAY < 0); \
 	__niu_set_and_wait_clear_mac(NP, REG, BITS, LIMIT, DELAY, REG_NAME); \
 })
 
@@ -168,7 +168,7 @@ static int __niu_set_and_wait_clear_ipp(struct niu *np, unsigned long reg,
 }
 
 #define niu_set_and_wait_clear_ipp(NP, REG, BITS, LIMIT, DELAY, REG_NAME) \
-({	BUILD_BUG_ON(LIMIT <= 0 || DELAY < 0); \
+({	BUILD__ON(LIMIT <= 0 || DELAY < 0); \
 	__niu_set_and_wait_clear_ipp(NP, REG, BITS, LIMIT, DELAY, REG_NAME); \
 })
 
@@ -188,7 +188,7 @@ static int __niu_wait_bits_clear(struct niu *np, unsigned long reg,
 }
 
 #define niu_wait_bits_clear(NP, REG, BITS, LIMIT, DELAY) \
-({	BUILD_BUG_ON(LIMIT <= 0 || DELAY < 0); \
+({	BUILD__ON(LIMIT <= 0 || DELAY < 0); \
 	__niu_wait_bits_clear(NP, REG, BITS, LIMIT, DELAY); \
 })
 
@@ -208,7 +208,7 @@ static int __niu_set_and_wait_clear(struct niu *np, unsigned long reg,
 }
 
 #define niu_set_and_wait_clear(NP, REG, BITS, LIMIT, DELAY, REG_NAME) \
-({	BUILD_BUG_ON(LIMIT <= 0 || DELAY < 0); \
+({	BUILD__ON(LIMIT <= 0 || DELAY < 0); \
 	__niu_set_and_wait_clear(NP, REG, BITS, LIMIT, DELAY, REG_NAME); \
 })
 
@@ -3175,7 +3175,7 @@ static int fflp_early_init(struct niu *np)
 			fflp_set_timings(np);
 			err = fflp_disable_all_partitions(np);
 			if (err) {
-				netif_printk(np, probe, KERN_DEBUG, np->dev,
+				netif_printk(np, probe, KERN_DE, np->dev,
 					     "fflp_disable_all_partitions failed, err=%d\n",
 					     err);
 				goto out;
@@ -3184,7 +3184,7 @@ static int fflp_early_init(struct niu *np)
 
 		err = tcam_early_init(np);
 		if (err) {
-			netif_printk(np, probe, KERN_DEBUG, np->dev,
+			netif_printk(np, probe, KERN_DE, np->dev,
 				     "tcam_early_init failed, err=%d\n", err);
 			goto out;
 		}
@@ -3195,14 +3195,14 @@ static int fflp_early_init(struct niu *np)
 
 		err = tcam_flush_all(np);
 		if (err) {
-			netif_printk(np, probe, KERN_DEBUG, np->dev,
+			netif_printk(np, probe, KERN_DE, np->dev,
 				     "tcam_flush_all failed, err=%d\n", err);
 			goto out;
 		}
 		if (np->parent->plat_type != PLAT_TYPE_NIU) {
 			err = fflp_hash_clear(np);
 			if (err) {
-				netif_printk(np, probe, KERN_DEBUG, np->dev,
+				netif_printk(np, probe, KERN_DE, np->dev,
 					     "fflp_hash_clear failed, err=%d\n",
 					     err);
 				goto out;
@@ -3291,7 +3291,7 @@ static struct page *niu_find_rxpage(struct rx_ring_info *rp, u64 addr,
 			goto found;
 		}
 	}
-	BUG();
+	();
 
 found:
 	return p;
@@ -3352,7 +3352,7 @@ static void niu_rbr_refill(struct niu *np, struct rx_ring_info *rp, gfp_t mask)
 		}
 
 		rp->rbr_index += rp->rbr_blocks_per_page;
-		BUG_ON(rp->rbr_index > rp->rbr_table_size);
+		_ON(rp->rbr_index > rp->rbr_table_size);
 		if (rp->rbr_index == rp->rbr_table_size)
 			rp->rbr_index = 0;
 
@@ -3569,7 +3569,7 @@ static int release_tx_packet(struct niu *np, struct tx_ring_info *rp, int idx)
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		tb = &rp->tx_buffs[idx];
-		BUG_ON(tb->skb != NULL);
+		_ON(tb->skb != NULL);
 		np->ops->unmap_page(np->device, tb->mapping,
 				    skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				    DMA_TO_DEVICE);
@@ -3605,7 +3605,7 @@ static void niu_tx_work(struct niu *np, struct tx_ring_info *rp)
 
 	cons = rp->cons;
 
-	netif_printk(np, tx_done, KERN_DEBUG, np->dev,
+	netif_printk(np, tx_done, KERN_DE, np->dev,
 		     "%s() pkt_cnt[%u] cons[%d]\n", __func__, pkt_cnt, cons);
 
 	while (pkt_cnt--)
@@ -3657,7 +3657,7 @@ static inline void niu_sync_rx_discard_stats(struct niu *np,
 			dev_err(np->device, "rx-%d: Counter overflow RXMISC discard\n",
 				rx_channel);
 
-		netif_printk(np, rx_err, KERN_DEBUG, np->dev,
+		netif_printk(np, rx_err, KERN_DE, np->dev,
 			     "rx-%d: MISC drop=%u over=%u\n",
 			     rx_channel, misc, misc-limit);
 	}
@@ -3671,7 +3671,7 @@ static inline void niu_sync_rx_discard_stats(struct niu *np,
 		if (unlikely(wred & RED_DIS_CNT_OFLOW))
 			dev_err(np->device, "rx-%d: Counter overflow WRED discard\n", rx_channel);
 
-		netif_printk(np, rx_err, KERN_DEBUG, np->dev,
+		netif_printk(np, rx_err, KERN_DE, np->dev,
 			     "rx-%d: WRED drop=%u over=%u\n",
 			     rx_channel, wred, wred-limit);
 	}
@@ -3694,7 +3694,7 @@ static int niu_rx_work(struct napi_struct *napi, struct niu *np,
 	mbox->rx_dma_ctl_stat = 0;
 	mbox->rcrstat_a = 0;
 
-	netif_printk(np, rx_status, KERN_DEBUG, np->dev,
+	netif_printk(np, rx_status, KERN_DE, np->dev,
 		     "%s(chan[%d]), stat[%llx] qlen=%d\n",
 		     __func__, rp->rx_channel, (unsigned long long)stat, qlen);
 
@@ -3733,7 +3733,7 @@ static int niu_poll_core(struct niu *np, struct niu_ldg *lp, int budget)
 	u32 rx_vec = (v0 & 0xffffffff);
 	int i, work_done = 0;
 
-	netif_printk(np, intr, KERN_DEBUG, np->dev,
+	netif_printk(np, intr, KERN_DE, np->dev,
 		     "%s() v0[%016llx]\n", __func__, (unsigned long long)v0);
 
 	for (i = 0; i < np->num_tx_rings; i++) {
@@ -4134,7 +4134,7 @@ static void niu_rxchan_intr(struct niu *np, struct rx_ring_info *rp,
 		      RX_DMA_CTL_STAT_RCRTO);
 	nw64(RX_DMA_CTL_STAT(rp->rx_channel), stat_write);
 
-	netif_printk(np, intr, KERN_DEBUG, np->dev,
+	netif_printk(np, intr, KERN_DE, np->dev,
 		     "%s() stat[%llx]\n", __func__, (unsigned long long)stat);
 }
 
@@ -4143,7 +4143,7 @@ static void niu_txchan_intr(struct niu *np, struct tx_ring_info *rp,
 {
 	rp->tx_cs = nr64(TX_CS(rp->tx_channel));
 
-	netif_printk(np, intr, KERN_DEBUG, np->dev,
+	netif_printk(np, intr, KERN_DE, np->dev,
 		     "%s() cs[%llx]\n", __func__, (unsigned long long)rp->tx_cs);
 }
 
@@ -4202,7 +4202,7 @@ static irqreturn_t niu_interrupt(int irq, void *dev_id)
 	u64 v0, v1, v2;
 
 	if (netif_msg_intr(np))
-		printk(KERN_DEBUG KBUILD_MODNAME ": " "%s() ldg[%p](%d)",
+		printk(KERN_DE KBUILD_MODNAME ": " "%s() ldg[%p](%d)",
 		       __func__, lp, ldg);
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -4324,7 +4324,7 @@ static void niu_free_channels(struct niu *np)
 static int niu_alloc_rx_ring_info(struct niu *np,
 				  struct rx_ring_info *rp)
 {
-	BUILD_BUG_ON(sizeof(struct rxdma_mailbox) != 64);
+	BUILD__ON(sizeof(struct rxdma_mailbox) != 64);
 
 	rp->rxhash = kcalloc(MAX_RBR_RING_SIZE, sizeof(struct page *),
 			     GFP_KERNEL);
@@ -4387,7 +4387,7 @@ static void niu_set_max_burst(struct niu *np, struct tx_ring_info *rp)
 static int niu_alloc_tx_ring_info(struct niu *np,
 				  struct tx_ring_info *rp)
 {
-	BUILD_BUG_ON(sizeof(struct txdma_mailbox) != 64);
+	BUILD__ON(sizeof(struct txdma_mailbox) != 64);
 
 	rp->mbox = np->ops->alloc_coherent(np->device,
 					   sizeof(struct txdma_mailbox),
@@ -5556,7 +5556,7 @@ static void niu_init_tx_mac(struct niu *np)
 	/* The XMAC_MIN register only accepts values for TX min which
 	 * have the low 3 bits cleared.
 	 */
-	BUG_ON(min & 0x7);
+	_ON(min & 0x7);
 
 	if (np->flags & NIU_FLAGS_XMAC)
 		niu_init_tx_xmac(np, min, max);
@@ -5922,12 +5922,12 @@ static int niu_init_hw(struct niu *np)
 {
 	int i, err;
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize TXC\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize TXC\n");
 	niu_txc_enable_port(np, 1);
 	niu_txc_port_dma_enable(np, 1);
 	niu_txc_set_imask(np, 0);
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize TX channels\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize TX channels\n");
 	for (i = 0; i < np->num_tx_rings; i++) {
 		struct tx_ring_info *rp = &np->tx_rings[i];
 
@@ -5936,27 +5936,27 @@ static int niu_init_hw(struct niu *np)
 			return err;
 	}
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize RX channels\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize RX channels\n");
 	err = niu_init_rx_channels(np);
 	if (err)
 		goto out_uninit_tx_channels;
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize classifier\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize classifier\n");
 	err = niu_init_classifier_hw(np);
 	if (err)
 		goto out_uninit_rx_channels;
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize ZCP\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize ZCP\n");
 	err = niu_init_zcp(np);
 	if (err)
 		goto out_uninit_rx_channels;
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize IPP\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize IPP\n");
 	err = niu_init_ipp(np);
 	if (err)
 		goto out_uninit_rx_channels;
 
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Initialize MAC\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Initialize MAC\n");
 	err = niu_init_mac(np);
 	if (err)
 		goto out_uninit_ipp;
@@ -5964,16 +5964,16 @@ static int niu_init_hw(struct niu *np)
 	return 0;
 
 out_uninit_ipp:
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Uninit IPP\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Uninit IPP\n");
 	niu_disable_ipp(np);
 
 out_uninit_rx_channels:
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Uninit RX channels\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Uninit RX channels\n");
 	niu_stop_rx_channels(np);
 	niu_reset_rx_channels(np);
 
 out_uninit_tx_channels:
-	netif_printk(np, ifup, KERN_DEBUG, np->dev, "Uninit TX channels\n");
+	netif_printk(np, ifup, KERN_DE, np->dev, "Uninit TX channels\n");
 	niu_stop_tx_channels(np);
 	niu_reset_tx_channels(np);
 
@@ -5982,25 +5982,25 @@ out_uninit_tx_channels:
 
 static void niu_stop_hw(struct niu *np)
 {
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Disable interrupts\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Disable interrupts\n");
 	niu_enable_interrupts(np, 0);
 
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Disable RX MAC\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Disable RX MAC\n");
 	niu_enable_rx_mac(np, 0);
 
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Disable IPP\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Disable IPP\n");
 	niu_disable_ipp(np);
 
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Stop TX channels\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Stop TX channels\n");
 	niu_stop_tx_channels(np);
 
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Stop RX channels\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Stop RX channels\n");
 	niu_stop_rx_channels(np);
 
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Reset TX channels\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Reset TX channels\n");
 	niu_reset_tx_channels(np);
 
-	netif_printk(np, ifdown, KERN_DEBUG, np->dev, "Reset RX channels\n");
+	netif_printk(np, ifdown, KERN_DE, np->dev, "Reset RX channels\n");
 	niu_reset_rx_channels(np);
 }
 
@@ -6625,7 +6625,7 @@ static netdev_tx_t niu_start_xmit(struct sk_buff *skb,
 
 	if (niu_tx_avail(rp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_tx_stop_queue(txq);
-		dev_err(np->device, "%s: BUG! Tx ring full when queue awake!\n", dev->name);
+		dev_err(np->device, "%s: ! Tx ring full when queue awake!\n", dev->name);
 		rp->tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -7910,7 +7910,7 @@ static int niu_ldg_assign_ldn(struct niu *np, struct niu_parent *parent,
 		/* On N2 NIU, the ldn-->ldg assignments are setup and fixed by
 		 * the firmware, and we're not supposed to change them.
 		 * Validate the mapping, because if it's wrong we probably
-		 * won't get any interrupts and that's painful to debug.
+		 * won't get any interrupts and that's painful to de.
 		 */
 		if (nr64(LDG_NUM(ldn)) != ldg) {
 			dev_err(np->device, "Port %u, mis-matched LDG assignment for ldn %d, should be %d is %llu\n",
@@ -8060,7 +8060,7 @@ static void niu_vpd_parse_version(struct niu *np)
 	s += i + 5;
 	sscanf(s, "%d.%d", &vpd->fcode_major, &vpd->fcode_minor);
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "VPD_SCAN: FCODE major(%d) minor(%d)\n",
 		     vpd->fcode_major, vpd->fcode_minor);
 	if (vpd->fcode_major > NIU_VPD_MIN_MAJOR ||
@@ -8081,7 +8081,7 @@ static int niu_pci_vpd_scan_props(struct niu *np, u32 start, u32 end)
 #define FOUND_MASK_PHY		0x00000020
 #define FOUND_MASK_ALL		0x0000003f
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "VPD_SCAN: start[%x] end[%x]\n", start, end);
 	while (start < end) {
 		int len, err, prop_len;
@@ -8144,7 +8144,7 @@ static int niu_pci_vpd_scan_props(struct niu *np, u32 start, u32 end)
 			u32 off = start + 5 + err;
 			int i;
 
-			netif_printk(np, probe, KERN_DEBUG, np->dev,
+			netif_printk(np, probe, KERN_DE, np->dev,
 				     "VPD_SCAN: Reading in property [%s] len[%d]\n",
 				     namebuf, prop_len);
 			for (i = 0; i < prop_len; i++) {
@@ -8363,7 +8363,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 
 	np->eeprom_len = len;
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: Image size %llu\n", (unsigned long long)val);
 
 	sum = 0;
@@ -8374,7 +8374,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 		sum += (val >> 16) & 0xff;
 		sum += (val >> 24) & 0xff;
 	}
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: Checksum %x\n", (int)(sum & 0xff));
 	if ((sum & 0xff) != 0xab) {
 		dev_err(np->device, "Bad SPROM checksum (%x, should be 0xab)\n", (int)(sum & 0xff));
@@ -8404,7 +8404,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 			np->port);
 		return -EINVAL;
 	}
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: PHY type %x\n", val8);
 
 	switch (val8) {
@@ -8442,7 +8442,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 	}
 
 	val = nr64(ESPC_MAC_ADDR0);
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: MAC_ADDR0[%08llx]\n", (unsigned long long)val);
 	dev->dev_addr[0] = (val >>  0) & 0xff;
 	dev->dev_addr[1] = (val >>  8) & 0xff;
@@ -8450,7 +8450,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 	dev->dev_addr[3] = (val >> 24) & 0xff;
 
 	val = nr64(ESPC_MAC_ADDR1);
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: MAC_ADDR1[%08llx]\n", (unsigned long long)val);
 	dev->dev_addr[4] = (val >>  0) & 0xff;
 	dev->dev_addr[5] = (val >>  8) & 0xff;
@@ -8467,7 +8467,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 		dev->dev_addr[4]++;
 
 	val = nr64(ESPC_MOD_STR_LEN);
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: MOD_STR_LEN[%llu]\n", (unsigned long long)val);
 	if (val >= 8 * 4)
 		return -EINVAL;
@@ -8483,7 +8483,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 	np->vpd.model[val] = '\0';
 
 	val = nr64(ESPC_BD_MOD_STR_LEN);
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: BD_MOD_STR_LEN[%llu]\n", (unsigned long long)val);
 	if (val >= 4 * 4)
 		return -EINVAL;
@@ -8500,7 +8500,7 @@ static int niu_pci_probe_sprom(struct niu *np)
 
 	np->vpd.mac_num =
 		nr64(ESPC_NUM_PORTS_MACS) & ESPC_NUM_PORTS_MACS_VAL;
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "SPROM: NUM_PORTS_MACS[%d]\n", np->vpd.mac_num);
 
 	return 0;
@@ -8692,7 +8692,7 @@ static void niu_divide_channels(struct niu_parent *parent,
 			parent->txchan_per_port[i] = 1;
 	}
 	if (tot_rx < NIU_NUM_RXCHAN || tot_tx < NIU_NUM_TXCHAN) {
-		pr_warn("niu%d: Driver bug, wasted channels, RX[%d] TX[%d]\n",
+		pr_warn("niu%d: Driver , wasted channels, RX[%d] TX[%d]\n",
 			parent->index, tot_rx, tot_tx);
 	}
 }
@@ -9025,7 +9025,7 @@ static void niu_try_msix(struct niu *np, u8 *ldg_num_map)
 	num_irqs = (parent->rxchan_per_port[np->port] +
 		    parent->txchan_per_port[np->port] +
 		    (np->port == 0 ? 3 : 1));
-	BUG_ON(num_irqs > (NIU_NUM_LDG / parent->num_ports));
+	_ON(num_irqs > (NIU_NUM_LDG / parent->num_ports));
 
 	for (i = 0; i < num_irqs; i++) {
 		msi_vec[i].vector = 0;
@@ -9282,7 +9282,7 @@ static int niu_get_invariants(struct niu *np)
 
 		nw64(ESPC_PIO_EN, ESPC_PIO_EN_ENABLE);
 		offset = niu_pci_vpd_offset(np);
-		netif_printk(np, probe, KERN_DEBUG, np->dev,
+		netif_printk(np, probe, KERN_DE, np->dev,
 			     "%s() VPD offset [%08x]\n", __func__, offset);
 		if (offset)
 			niu_pci_vpd_fetch(np, offset);
@@ -9540,9 +9540,9 @@ static void niu_put_parent(struct niu *np)
 	u8 port = np->port;
 	char port_name[8];
 
-	BUG_ON(!p || p->ports[port] != np);
+	_ON(!p || p->ports[port] != np);
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
+	netif_printk(np, probe, KERN_DE, np->dev,
 		     "%s() port[%u]\n", __func__, port);
 
 	sprintf(port_name, "port%d", port);
@@ -9645,7 +9645,7 @@ static struct net_device *niu_alloc_and_init(struct device *gen_dev,
 	np->device = gen_dev;
 	np->ops = ops;
 
-	np->msg_enable = niu_debug;
+	np->msg_enable = niu_de;
 
 	spin_lock_init(&np->lock);
 	INIT_WORK(&np->reset_task, niu_reset_task);
@@ -10174,9 +10174,9 @@ static int __init niu_init(void)
 {
 	int err = 0;
 
-	BUILD_BUG_ON(PAGE_SIZE < 4 * 1024);
+	BUILD__ON(PAGE_SIZE < 4 * 1024);
 
-	niu_debug = netif_msg_init(debug, NIU_MSG_DEFAULT);
+	niu_de = netif_msg_init(de, NIU_MSG_DEFAULT);
 
 #ifdef CONFIG_SPARC64
 	err = platform_driver_register(&niu_of_driver);

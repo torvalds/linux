@@ -49,7 +49,7 @@ static int init_mac(struct s_smc *smc, int all);
 static void rtm_init(struct s_smc *smc);
 static void smt_split_up_fifo(struct s_smc *smc);
 
-#if (!defined(NO_SMT_PANIC) || defined(DEBUG))
+#if (!defined(NO_SMT_PANIC) || defined(DE))
 static	char write_mdr_warning [] = "E350 write_mdr() FM_SNPPND is set\n";
 static	char cam_warning [] = "E_SMT_004: CAM still busy\n";
 #endif
@@ -951,7 +951,7 @@ static int init_mac(struct s_smc *smc, int all)
 		t_max-- ;
 	outpw(FM_A(FM_TMAX),(u_short)t_max) ;
 
-	/* BugFix for report #10204 */
+	/* Fix for report #10204 */
 	if (smc->mib.m[MAC0].fddiMACTvxValue < (u_long) (- US2BCLK(52))) {
 		outpw(FM_A(FM_TVX), (u_short) (- US2BCLK(52))/255 & MB) ;
 	} else {

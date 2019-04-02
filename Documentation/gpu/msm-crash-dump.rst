@@ -2,7 +2,7 @@
 MSM Crash Dump Format
 =====================
 
-Following a GPU hang the MSM driver outputs debugging information via
+Following a GPU hang the MSM driver outputs deging information via
 /sys/kernel/dri/X/show or via devcoredump (/sys/class/devcoredump/dcdX/data).
 This document describes how the output is formatted.
 

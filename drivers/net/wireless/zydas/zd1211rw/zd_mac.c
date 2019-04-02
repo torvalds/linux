@@ -791,7 +791,7 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
 		req_pos++;
 	}
 
-	BUG_ON(req_pos != num_cmds);
+	_ON(req_pos != num_cmds);
 
 	r = zd_iowrite32a_locked(&mac->chip, ioreqs, num_cmds);
 

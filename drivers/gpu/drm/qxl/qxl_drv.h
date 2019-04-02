@@ -60,7 +60,7 @@
 #define DRIVER_MINOR 1
 #define DRIVER_PATCHLEVEL 0
 
-#define QXL_DEBUGFS_MAX_COMPONENTS		32
+#define QXL_DEFS_MAX_COMPONENTS		32
 
 extern int qxl_num_crtc;
 extern int qxl_max_ioctls;
@@ -186,17 +186,17 @@ struct qxl_draw_fill {
 };
 
 /*
- * Debugfs
+ * Defs
  */
-struct qxl_debugfs {
+struct qxl_defs {
 	struct drm_info_list	*files;
 	unsigned int num_files;
 };
 
-int qxl_debugfs_add_files(struct qxl_device *rdev,
+int qxl_defs_add_files(struct qxl_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned int nfiles);
-int qxl_debugfs_fence_init(struct qxl_device *rdev);
+int qxl_defs_fence_init(struct qxl_device *rdev);
 
 struct qxl_device;
 
@@ -253,9 +253,9 @@ struct qxl_device {
 	wait_queue_head_t io_cmd_event;
 	struct work_struct client_monitors_config_work;
 
-	/* debugfs */
-	struct qxl_debugfs	debugfs[QXL_DEBUGFS_MAX_COMPONENTS];
-	unsigned int debugfs_count;
+	/* defs */
+	struct qxl_defs	defs[QXL_DEFS_MAX_COMPONENTS];
+	unsigned int defs_count;
 
 	struct mutex		update_area_mutex;
 
@@ -435,17 +435,17 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 void qxl_release_free(struct qxl_device *qdev,
 		      struct qxl_release *release);
 
-/* used by qxl_debugfs_release */
+/* used by qxl_defs_release */
 struct qxl_release *qxl_release_from_id_locked(struct qxl_device *qdev,
 						   uint64_t id);
 
 bool qxl_queue_garbage_collect(struct qxl_device *qdev, bool flush);
 int qxl_garbage_collect(struct qxl_device *qdev);
 
-/* debugfs */
+/* defs */
 
-int qxl_debugfs_init(struct drm_minor *minor);
-int qxl_ttm_debugfs_init(struct qxl_device *qdev);
+int qxl_defs_init(struct drm_minor *minor);
+int qxl_ttm_defs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */
 int qxl_gem_prime_pin(struct drm_gem_object *obj);
@@ -463,7 +463,7 @@ int qxl_gem_prime_mmap(struct drm_gem_object *obj,
 int qxl_irq_init(struct qxl_device *qdev);
 irqreturn_t qxl_irq_handler(int irq, void *arg);
 
-int qxl_debugfs_add_files(struct qxl_device *qdev,
+int qxl_defs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,
 			  unsigned int nfiles);
 

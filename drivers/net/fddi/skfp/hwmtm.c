@@ -58,9 +58,9 @@ static	int call_count = 0 ;
 	-------------------------------------------------------------
 */
 
-#ifdef	DEBUG
-#ifndef	DEBUG_BRD
-extern	struct smt_debug	debug ;
+#ifdef	DE
+#ifndef	DE_BRD
+extern	struct smt_de	de ;
 #endif
 #endif
 
@@ -157,8 +157,8 @@ u_int mac_drv_check_space(void);
 
 SMbuf* smt_get_mbuf(struct s_smc *smc);
 
-#ifdef DEBUG
-	void mac_drv_debug_lev(struct s_smc *smc, int flag, int lev);
+#ifdef DE
+	void mac_drv_de_lev(struct s_smc *smc, int flag, int lev);
 #endif
 
 /*
@@ -1159,7 +1159,7 @@ void process_receive(struct s_smc *smc)
 		queue->rx_used = rx_used ;
 
 		/*
-		 * ASIC Errata no. 7 (STF - Bit Bug)
+		 * ASIC Errata no. 7 (STF - Bit )
 		 */
 		rxd->rxd_rbctrl &= cpu_to_le32(~BMU_STF) ;
 
@@ -1205,7 +1205,7 @@ void process_receive(struct s_smc *smc)
 			goto abort_frame ;
 		}
 		/*
-		 * SUPERNET 3 Bug: FORMAC delivers status words
+		 * SUPERNET 3 : FORMAC delivers status words
 		 * of aborded frames to the BMU
 		 */
 		if (len <= 4) {
@@ -1374,7 +1374,7 @@ rx_end:
 #ifdef	ALL_RX_COMPLETE
 	mac_drv_all_receives_complete(smc) ;
 #endif
-	return ;	/* lint bug: needs return detect end of function */
+	return ;	/* lint : needs return detect end of function */
 }
 
 static void smt_to_llc(struct s_smc *smc, SMbuf *mb)
@@ -1635,7 +1635,7 @@ void hwm_tx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 	queue = smc->os.hwm.tx_p ;
 
 	NDD_TRACE("THfB",virt,len,frame_status) ;
-	/* Bug fix: AF / May 31 1999 (#missing)
+	/*  fix: AF / May 31 1999 (#missing)
 	 * snmpinfo problem reported by IBM is caused by invalid
 	 * t-pointer (txd) if LAN_TX is not set but LOC_TX only.
 	 * Set: t = queue->tx_curr_put  here !
@@ -2093,34 +2093,34 @@ void mac_drv_clear_tx_queue(struct s_smc *smc)
 	-------------------------------------------------------------
 */
 
-#ifdef	DEBUG
+#ifdef	DE
 /*
- *	BEGIN_MANUAL_ENTRY(mac_drv_debug_lev)
- *	void mac_drv_debug_lev(smc,flag,lev)
+ *	BEGIN_MANUAL_ENTRY(mac_drv_de_lev)
+ *	void mac_drv_de_lev(smc,flag,lev)
  *
  * function	DOWNCALL	(drvsr.c)
- *		To get a special debug info the user can assign a debug level
- *		to any debug flag.
+ *		To get a special de info the user can assign a de level
+ *		to any de flag.
  *
- * para	flag	debug flag, possible values are:
- *			= 0:	reset all debug flags (the defined level is
+ * para	flag	de flag, possible values are:
+ *			= 0:	reset all de flags (the defined level is
  *				ignored)
- *			= 1:	debug.d_smtf
- *			= 2:	debug.d_smt
- *			= 3:	debug.d_ecm
- *			= 4:	debug.d_rmt
- *			= 5:	debug.d_cfm
- *			= 6:	debug.d_pcm
+ *			= 1:	de.d_smtf
+ *			= 2:	de.d_smt
+ *			= 3:	de.d_ecm
+ *			= 4:	de.d_rmt
+ *			= 5:	de.d_cfm
+ *			= 6:	de.d_pcm
  *
- *			= 10:	debug.d_os.hwm_rx (hardware module receive path)
- *			= 11:	debug.d_os.hwm_tx(hardware module transmit path)
- *			= 12:	debug.d_os.hwm_gen(hardware module general flag)
+ *			= 10:	de.d_os.hwm_rx (hardware module receive path)
+ *			= 11:	de.d_os.hwm_tx(hardware module transmit path)
+ *			= 12:	de.d_os.hwm_gen(hardware module general flag)
  *
- *	lev	debug level
+ *	lev	de level
  *
  *	END_MANUAL_ENTRY
  */
-void mac_drv_debug_lev(struct s_smc *smc, int flag, int lev)
+void mac_drv_de_lev(struct s_smc *smc, int flag, int lev)
 {
 	switch(flag) {
 	case (int)NULL:
@@ -2134,30 +2134,30 @@ void mac_drv_debug_lev(struct s_smc *smc, int flag, int lev)
 		DB_P.d_ess = 0 ;
 #endif
 		break ;
-	case DEBUG_SMTF:
+	case DE_SMTF:
 		DB_P.d_smtf = lev ;
 		break ;
-	case DEBUG_SMT:
+	case DE_SMT:
 		DB_P.d_smt = lev ;
 		break ;
-	case DEBUG_ECM:
+	case DE_ECM:
 		DB_P.d_ecm = lev ;
 		break ;
-	case DEBUG_RMT:
+	case DE_RMT:
 		DB_P.d_rmt = lev ;
 		break ;
-	case DEBUG_CFM:
+	case DE_CFM:
 		DB_P.d_cfm = lev ;
 		break ;
-	case DEBUG_PCM:
+	case DE_PCM:
 		DB_P.d_pcm = lev ;
 		break ;
-	case DEBUG_SBA:
+	case DE_SBA:
 #ifdef	SBA
 		DB_P.d_sba = lev ;
 #endif
 		break ;
-	case DEBUG_ESS:
+	case DE_ESS:
 #ifdef	ESS
 		DB_P.d_ess = lev ;
 #endif

@@ -342,9 +342,9 @@ extern int request_dma(unsigned int dmanr, const char *device_id);
 extern void free_dma(unsigned int dmanr);
 
 #ifdef CONFIG_PCI
-extern int isa_dma_bridge_buggy;
+extern int isa_dma_bridge_gy;
 #else
-#define isa_dma_bridge_buggy	(0)
+#define isa_dma_bridge_gy	(0)
 #endif
 
 #endif /* __KERNEL__ */

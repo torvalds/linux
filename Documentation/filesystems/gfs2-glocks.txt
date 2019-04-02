@@ -58,7 +58,7 @@ go_demote_ok     | Returns boolean value of whether its ok to demote a glock
                  | (e.g. checks timeout, and that there is no cached data)
 go_lock          | Called for the first local holder of a lock
 go_unlock        | Called on the final local unlock of a lock
-go_dump          | Called to print content of object for debugfs file, or on
+go_dump          | Called to print content of object for defs file, or on
                  | error to dump glock to the log.
 go_type          | The type of the glock, LM_TYPE_.....
 go_callback	 | Called if the DLM sends a callback to drop this lock
@@ -196,11 +196,11 @@ measuring system, but I hope this is as accurate as we
 can reasonably make it.
 
 Per sb stats can be found here:
-/sys/kernel/debug/gfs2/<fsname>/sbstats
+/sys/kernel/de/gfs2/<fsname>/sbstats
 Per glock stats can be found here:
-/sys/kernel/debug/gfs2/<fsname>/glstats
+/sys/kernel/de/gfs2/<fsname>/glstats
 
-Assuming that debugfs is mounted on /sys/kernel/debug and also
+Assuming that defs is mounted on /sys/kernel/de and also
 that <fsname> is replaced with the name of the gfs2 filesystem
 in question.
 

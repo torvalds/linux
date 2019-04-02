@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <asm/diag.h>
 #include <asm/trace/diag.h>
 
@@ -115,7 +115,7 @@ static const struct file_operations show_diag_stat_fops = {
 
 static int __init show_diag_stat_init(void)
 {
-	debugfs_create_file("diag_stat", 0400, NULL, NULL,
+	defs_create_file("diag_stat", 0400, NULL, NULL,
 			    &show_diag_stat_fops);
 	return 0;
 }

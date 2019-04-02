@@ -141,7 +141,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 
 	if (vsyscall_nr < 0) {
 		warn_bad_vsyscall(KERN_WARNING, regs,
-				  "misaligned vsyscall (exploit attempt or buggy program) -- look up the vsyscall kernel parameter if you need a workaround");
+				  "misaligned vsyscall (exploit attempt or gy program) -- look up the vsyscall kernel parameter if you need a workaround");
 		goto sigsegv;
 	}
 
@@ -203,7 +203,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	regs->ax = -ENOSYS;
 	tmp = secure_computing(NULL);
 	if ((!tmp && regs->orig_ax != syscall_nr) || regs->ip != address) {
-		warn_bad_vsyscall(KERN_DEBUG, regs,
+		warn_bad_vsyscall(KERN_DE, regs,
 				  "seccomp tried to change syscall nr or ip");
 		do_exit(SIGSYS);
 	}
@@ -363,6 +363,6 @@ void __init map_vsyscall(void)
 		set_vsyscall_pgtable_user_bits(swapper_pg_dir);
 	}
 
-	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=
+	BUILD__ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=
 		     (unsigned long)VSYSCALL_ADDR);
 }

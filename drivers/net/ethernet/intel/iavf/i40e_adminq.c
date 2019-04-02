@@ -579,7 +579,7 @@ static u16 i40e_clean_asq(struct iavf_hw *hw)
 	desc = IAVF_ADMINQ_DESC(*asq, ntc);
 	details = I40E_ADMINQ_DETAILS(*asq, ntc);
 	while (rd32(hw, hw->aq.asq.head) != ntc) {
-		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 			   "ntc %d head %d.\n", ntc, rd32(hw, hw->aq.asq.head));
 
 		if (details->callback) {
@@ -645,7 +645,7 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 	mutex_lock(&hw->aq.asq_mutex);
 
 	if (hw->aq.asq.count == 0) {
-		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 			   "AQTX: Admin queue not initialized.\n");
 		status = I40E_ERR_QUEUE_EMPTY;
 		goto asq_send_command_error;
@@ -655,7 +655,7 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 
 	val = rd32(hw, hw->aq.asq.head);
 	if (val >= hw->aq.num_asq_entries) {
-		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 			   "AQTX: head overrun at %d\n", val);
 		status = I40E_ERR_QUEUE_EMPTY;
 		goto asq_send_command_error;
@@ -684,8 +684,8 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 	desc->flags |= cpu_to_le16(details->flags_ena);
 
 	if (buff_size > hw->aq.asq_buf_size) {
-		iavf_debug(hw,
-			   IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw,
+			   IAVF_DE_AQ_MESSAGE,
 			   "AQTX: Invalid buffer size: %d.\n",
 			   buff_size);
 		status = I40E_ERR_INVALID_SIZE;
@@ -693,8 +693,8 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 	}
 
 	if (details->postpone && !details->async) {
-		iavf_debug(hw,
-			   IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw,
+			   IAVF_DE_AQ_MESSAGE,
 			   "AQTX: Async flag not set along with postpone flag");
 		status = I40E_ERR_PARAM;
 		goto asq_send_command_error;
@@ -708,8 +708,8 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 	 * in case of asynchronous completions
 	 */
 	if (i40e_clean_asq(hw) == 0) {
-		iavf_debug(hw,
-			   IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw,
+			   IAVF_DE_AQ_MESSAGE,
 			   "AQTX: Error queue is full.\n");
 		status = I40E_ERR_ADMIN_QUEUE_FULL;
 		goto asq_send_command_error;
@@ -738,8 +738,8 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 	}
 
 	/* bump the tail */
-	iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE, "AQTX: desc and buffer:\n");
-	iavf_debug_aq(hw, IAVF_DEBUG_AQ_COMMAND, (void *)desc_on_ring,
+	iavf_de(hw, IAVF_DE_AQ_MESSAGE, "AQTX: desc and buffer:\n");
+	iavf_de_aq(hw, IAVF_DE_AQ_COMMAND, (void *)desc_on_ring,
 		      buff, buff_size);
 	(hw->aq.asq.next_to_use)++;
 	if (hw->aq.asq.next_to_use == hw->aq.asq.count)
@@ -771,8 +771,8 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 			memcpy(buff, dma_buff->va, buff_size);
 		retval = le16_to_cpu(desc->retval);
 		if (retval != 0) {
-			iavf_debug(hw,
-				   IAVF_DEBUG_AQ_MESSAGE,
+			iavf_de(hw,
+				   IAVF_DE_AQ_MESSAGE,
 				   "AQTX: Command completed with error 0x%X.\n",
 				   retval);
 
@@ -789,9 +789,9 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 		hw->aq.asq_last_status = (enum i40e_admin_queue_err)retval;
 	}
 
-	iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+	iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 		   "AQTX: desc and buffer writeback:\n");
-	iavf_debug_aq(hw, IAVF_DEBUG_AQ_COMMAND, (void *)desc, buff, buff_size);
+	iavf_de_aq(hw, IAVF_DE_AQ_COMMAND, (void *)desc, buff, buff_size);
 
 	/* save writeback aq if requested */
 	if (details->wb_desc)
@@ -801,11 +801,11 @@ iavf_status iavf_asq_send_command(struct iavf_hw *hw, struct i40e_aq_desc *desc,
 	if ((!cmd_completed) &&
 	    (!details->async && !details->postpone)) {
 		if (rd32(hw, hw->aq.asq.len) & IAVF_VF_ATQLEN1_ATQCRIT_MASK) {
-			iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+			iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 				   "AQTX: AQ Critical error.\n");
 			status = I40E_ERR_ADMIN_QUEUE_CRITICAL_ERROR;
 		} else {
-			iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+			iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 				   "AQTX: Writeback timeout.\n");
 			status = I40E_ERR_ADMIN_QUEUE_TIMEOUT;
 		}
@@ -861,7 +861,7 @@ iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	mutex_lock(&hw->aq.arq_mutex);
 
 	if (hw->aq.arq.count == 0) {
-		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw, IAVF_DE_AQ_MESSAGE,
 			   "AQRX: Admin queue not initialized.\n");
 		ret_code = I40E_ERR_QUEUE_EMPTY;
 		goto clean_arq_element_err;
@@ -884,8 +884,8 @@ iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	flags = le16_to_cpu(desc->flags);
 	if (flags & I40E_AQ_FLAG_ERR) {
 		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
-		iavf_debug(hw,
-			   IAVF_DEBUG_AQ_MESSAGE,
+		iavf_de(hw,
+			   IAVF_DE_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",
 			   hw->aq.arq_last_status);
 	}
@@ -897,8 +897,8 @@ iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 		memcpy(e->msg_buf, hw->aq.arq.r.arq_bi[desc_idx].va,
 		       e->msg_len);
 
-	iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE, "AQRX: desc and buffer:\n");
-	iavf_debug_aq(hw, IAVF_DEBUG_AQ_COMMAND, (void *)desc, e->msg_buf,
+	iavf_de(hw, IAVF_DE_AQ_MESSAGE, "AQRX: desc and buffer:\n");
+	iavf_de_aq(hw, IAVF_DE_AQ_COMMAND, (void *)desc, e->msg_buf,
 		      hw->aq.arq_buf_size);
 
 	/* Restore the original datalen and buffer address in the desc,

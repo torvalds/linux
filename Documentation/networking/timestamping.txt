@@ -292,7 +292,7 @@ It is essential that all timestamps implement the same semantics,
 regardless of these possible transformations, as otherwise they are
 incomparable. Handling "rare" corner cases differently from the
 simple case (a 1:1 mapping from buffer to skb) is insufficient
-because performance debugging often needs to focus on such outliers.
+because performance deging often needs to focus on such outliers.
 
 In practice, timestamps can be correlated with segments of a
 bytestream consistently, if both semantics of the timestamp and the

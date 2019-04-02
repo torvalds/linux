@@ -528,7 +528,7 @@ static void a6xx_recover(struct msm_gpu *gpu)
 		DRM_DEV_INFO(&gpu->pdev->dev, "CP_SCRATCH_REG%d: %u\n", i,
 			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(i)));
 
-	if (hang_debug)
+	if (hang_de)
 		a6xx_dump(gpu);
 
 	/*
@@ -781,7 +781,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = a6xx_active_ring,
 		.irq = a6xx_irq,
 		.destroy = a6xx_destroy,
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = a6xx_show,
 #endif
 		.gpu_busy = a6xx_gpu_busy,
@@ -823,7 +823,7 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	node = of_parse_phandle(pdev->dev.of_node, "qcom,gmu", 0);
 
 	/* FIXME: How do we gracefully handle this? */
-	BUG_ON(!node);
+	_ON(!node);
 
 	ret = a6xx_gmu_probe(a6xx_gpu, node);
 	if (ret) {

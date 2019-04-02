@@ -224,7 +224,7 @@ static void bnx2x_stats_pmf_update(struct bnx2x *bp)
 
 	/* sanity */
 	if (!bp->port.pmf || !bp->port.port_stx) {
-		BNX2X_ERR("BUG!\n");
+		BNX2X_ERR("!\n");
 		return;
 	}
 
@@ -273,7 +273,7 @@ static void bnx2x_port_stats_init(struct bnx2x *bp)
 
 	/* sanity */
 	if (!bp->link_vars.link_up || !bp->port.pmf) {
-		BNX2X_ERR("BUG!\n");
+		BNX2X_ERR("!\n");
 		return;
 	}
 
@@ -491,7 +491,7 @@ static void bnx2x_func_stats_init(struct bnx2x *bp)
 
 	/* sanity */
 	if (!bp->func_stx) {
-		BNX2X_ERR("BUG!\n");
+		BNX2X_ERR("!\n");
 		return;
 	}
 
@@ -1199,14 +1199,14 @@ static void bnx2x_drv_stats_update(struct bnx2x *bp)
 	}
 }
 
-static bool bnx2x_edebug_stats_stopped(struct bnx2x *bp)
+static bool bnx2x_ede_stats_stopped(struct bnx2x *bp)
 {
 	u32 val;
 
-	if (SHMEM2_HAS(bp, edebug_driver_if[1])) {
-		val = SHMEM2_RD(bp, edebug_driver_if[1]);
+	if (SHMEM2_HAS(bp, ede_driver_if[1])) {
+		val = SHMEM2_RD(bp, ede_driver_if[1]);
 
-		if (val == EDEBUG_DRIVER_IF_OP_CODE_DISABLE_STAT)
+		if (val == EDE_DRIVER_IF_OP_CODE_DISABLE_STAT)
 			return true;
 	}
 
@@ -1217,7 +1217,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 {
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 
-	if (bnx2x_edebug_stats_stopped(bp))
+	if (bnx2x_ede_stats_stopped(bp))
 		return;
 
 	if (IS_PF(bp)) {
@@ -1404,7 +1404,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 
 	/* sanity */
 	if (!bp->port.pmf || !bp->port.port_stx) {
-		BNX2X_ERR("BUG!\n");
+		BNX2X_ERR("!\n");
 		return;
 	}
 

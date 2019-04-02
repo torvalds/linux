@@ -11,7 +11,7 @@
 #include <linux/completion.h>
 #include <net/mac80211.h>
 
-#include "debugfs.h"
+#include "defs.h"
 #include "leds.h"
 #include "rfkill.h"
 #include "bus.h"
@@ -19,10 +19,10 @@
 #include "phy_common.h"
 
 
-#ifdef CONFIG_B43_DEBUG
-# define B43_DEBUG	1
+#ifdef CONFIG_B43_DE
+# define B43_DE	1
 #else
-# define B43_DEBUG	0
+# define B43_DE	0
 #endif
 
 /* MMIO offsets */
@@ -320,7 +320,7 @@ enum {
 #define B43_SHM_SH_UCODEPATCH		0x0002	/* Microcode patchlevel */
 #define B43_SHM_SH_UCODEDATE		0x0004	/* Microcode date */
 #define B43_SHM_SH_UCODETIME		0x0006	/* Microcode time */
-#define B43_SHM_SH_UCODESTAT		0x0040	/* Microcode debug status code */
+#define B43_SHM_SH_UCODESTAT		0x0040	/* Microcode de status code */
 #define  B43_SHM_SH_UCODESTAT_INVALID	0
 #define  B43_SHM_SH_UCODESTAT_INIT	1
 #define  B43_SHM_SH_UCODESTAT_ACTIVE	2
@@ -454,7 +454,7 @@ enum {
 #define B43_MACCTL_SHM_ENABLED		0x00000100	/* SHM Enabled */
 #define B43_MACCTL_SHM_UPPER		0x00000200	/* SHM Upper */
 #define B43_MACCTL_IHR_ENABLED		0x00000400	/* IHR Region Enabled */
-#define B43_MACCTL_PSM_DBG		0x00002000	/* Microcode debugging enabled */
+#define B43_MACCTL_PSM_DBG		0x00002000	/* Microcode deging enabled */
 #define B43_MACCTL_GPOUTSMSK		0x0000C000	/* GPOUT Select Mask */
 #define B43_MACCTL_BE			0x00010000	/* Big Endian mode */
 #define B43_MACCTL_INFRA		0x00020000	/* Infrastructure mode */
@@ -546,7 +546,7 @@ enum {
 #define B43_IRQ_TXFIFO_FLUSH_OK		0x00010000
 #define B43_IRQ_CCA_MEASURE_OK		0x00020000
 #define B43_IRQ_NOISESAMPLE_OK		0x00040000
-#define B43_IRQ_UCODE_DEBUG		0x08000000
+#define B43_IRQ_UCODE_DE		0x08000000
 #define B43_IRQ_RFKILL			0x10000000
 #define B43_IRQ_TX_OK			0x20000000
 #define B43_IRQ_PHY_G_CHANGED		0x40000000
@@ -561,18 +561,18 @@ enum {
 					 B43_IRQ_DMA | \
 					 B43_IRQ_TXFIFO_FLUSH_OK | \
 					 B43_IRQ_NOISESAMPLE_OK | \
-					 B43_IRQ_UCODE_DEBUG | \
+					 B43_IRQ_UCODE_DE | \
 					 B43_IRQ_RFKILL | \
 					 B43_IRQ_TX_OK)
 
-/* The firmware register to fetch the debug-IRQ reason from. */
-#define B43_DEBUGIRQ_REASON_REG		63
-/* Debug-IRQ reasons. */
-#define B43_DEBUGIRQ_PANIC		0	/* The firmware panic'ed */
-#define B43_DEBUGIRQ_DUMP_SHM		1	/* Dump shared SHM */
-#define B43_DEBUGIRQ_DUMP_REGS		2	/* Dump the microcode registers */
-#define B43_DEBUGIRQ_MARKER		3	/* A "marker" was thrown by the firmware. */
-#define B43_DEBUGIRQ_ACK		0xFFFF	/* The host writes that to ACK the IRQ */
+/* The firmware register to fetch the de-IRQ reason from. */
+#define B43_DEIRQ_REASON_REG		63
+/* De-IRQ reasons. */
+#define B43_DEIRQ_PANIC		0	/* The firmware panic'ed */
+#define B43_DEIRQ_DUMP_SHM		1	/* Dump shared SHM */
+#define B43_DEIRQ_DUMP_REGS		2	/* Dump the microcode registers */
+#define B43_DEIRQ_MARKER		3	/* A "marker" was thrown by the firmware. */
+#define B43_DEIRQ_ACK		0xFFFF	/* The host writes that to ACK the IRQ */
 
 /* The firmware register that contains the "marker" line. */
 #define B43_MARKER_ID_REG		2
@@ -884,8 +884,8 @@ struct b43_wldev {
 	/* Devicelist in struct b43_wl (all 802.11 cores) */
 	struct list_head list;
 
-	/* Debugging stuff follows. */
-#ifdef CONFIG_B43_DEBUG
+	/* Deging stuff follows. */
+#ifdef CONFIG_B43_DE
 	struct b43_dfsentry *dfsentry;
 	unsigned int irq_count;
 	unsigned int irq_bit_count[32];
@@ -1089,9 +1089,9 @@ __printf(2, 3) void b43warn(struct b43_wl *wl, const char *fmt, ...);
 __printf(2, 3) void b43dbg(struct b43_wl *wl, const char *fmt, ...);
 
 
-/* A WARN_ON variant that vanishes when b43 debugging is disabled.
- * This _also_ evaluates the arg with debugging disabled. */
-#if B43_DEBUG
+/* A WARN_ON variant that vanishes when b43 deging is disabled.
+ * This _also_ evaluates the arg with deging disabled. */
+#if B43_DE
 # define B43_WARN_ON(x)	WARN_ON(x)
 #else
 static inline bool __b43_warn_on_dummy(bool x) { return x; }

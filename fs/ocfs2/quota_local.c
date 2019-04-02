@@ -826,7 +826,7 @@ static int ocfs2_local_free_info(struct super_block *sb, int type)
 			       ol_quota_chunk_block(sb, chunk->qc_num) - 1)
 			      * ol_quota_entries_per_block(sb);
 		}
-		/* Not all entries free? Bug! */
+		/* Not all entries free? ! */
 		if (le32_to_cpu(dchunk->dqc_free) != len) {
 			mlog(ML_ERROR, "releasing quota file with used "
 					"entries (type=%d)\n", type);

@@ -65,8 +65,8 @@
 #define MLT_PRM_MONI_X		0x10
 #define MLT_PRM_MONI_Y		0x11
 
-#define DEBUG_MONI_1		0x12
-#define DEBUG_MONI_2		0x13
+#define DE_MONI_1		0x12
+#define DE_MONI_2		0x13
 
 #define VADOUT_ZX_H		0x14
 #define VADOUT_ZX_L		0x15

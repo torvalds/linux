@@ -14,7 +14,7 @@
 #include <asm/ip32/mace.h>
 #include <asm/ip32/ip32_ints.h>
 
-#undef DEBUG_MACE_PCI
+#undef DE_MACE_PCI
 
 /*
  * Handle errors from the bridge.  This includes master and target aborts,
@@ -132,7 +132,7 @@ static int __init mace_init(void)
 
 	printk("MACE PCI rev %d\n", mace->pci.rev);
 
-	BUG_ON(request_irq(MACE_PCI_BRIDGE_IRQ, macepci_error, 0,
+	_ON(request_irq(MACE_PCI_BRIDGE_IRQ, macepci_error, 0,
 			   "MACE PCI error", NULL));
 
 	/* extend memory resources */

@@ -1,7 +1,7 @@
 /*
- * kernel/sched/debug.c
+ * kernel/sched/de.c
  *
- * Print the CFS rbtree and other debugging details
+ * Print the CFS rbtree and other deging details
  *
  * Copyright(C) 2007, Red Hat, Inc., Ingo Molnar
  *
@@ -11,10 +11,10 @@
  */
 #include "sched.h"
 
-static DEFINE_SPINLOCK(sched_debug_lock);
+static DEFINE_SPINLOCK(sched_de_lock);
 
 /*
- * This allows printing both to /proc/sched_debug and
+ * This allows printing both to /proc/sched_de and
  * to the console
  */
 #define SEQ_printf(m, x...)			\
@@ -172,19 +172,19 @@ static const struct file_operations sched_feat_fops = {
 	.release	= single_release,
 };
 
-__read_mostly bool sched_debug_enabled;
+__read_mostly bool sched_de_enabled;
 
-static __init int sched_init_debug(void)
+static __init int sched_init_de(void)
 {
-	debugfs_create_file("sched_features", 0644, NULL, NULL,
+	defs_create_file("sched_features", 0644, NULL, NULL,
 			&sched_feat_fops);
 
-	debugfs_create_bool("sched_debug", 0644, NULL,
-			&sched_debug_enabled);
+	defs_create_bool("sched_de", 0644, NULL,
+			&sched_de_enabled);
 
 	return 0;
 }
-late_initcall(sched_init_debug);
+late_initcall(sched_init_de);
 
 #ifdef CONFIG_SMP
 
@@ -690,13 +690,13 @@ do {									\
 	}
 #undef P
 
-	spin_lock_irqsave(&sched_debug_lock, flags);
+	spin_lock_irqsave(&sched_de_lock, flags);
 	print_cfs_stats(m, cpu);
 	print_rt_stats(m, cpu);
 	print_dl_stats(m, cpu);
 
 	print_rq(m, rq, cpu);
-	spin_unlock_irqrestore(&sched_debug_lock, flags);
+	spin_unlock_irqrestore(&sched_de_lock, flags);
 	SEQ_printf(m, "\n");
 }
 
@@ -706,7 +706,7 @@ static const char *sched_tunable_scaling_names[] = {
 	"linear"
 };
 
-static void sched_debug_header(struct seq_file *m)
+static void sched_de_header(struct seq_file *m)
 {
 	u64 ktime, sched_clk, cpu_clk;
 	unsigned long flags;
@@ -717,7 +717,7 @@ static void sched_debug_header(struct seq_file *m)
 	cpu_clk = local_clock();
 	local_irq_restore(flags);
 
-	SEQ_printf(m, "Sched Debug Version: v0.11, %s %.*s\n",
+	SEQ_printf(m, "Sched De Version: v0.11, %s %.*s\n",
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
@@ -758,23 +758,23 @@ static void sched_debug_header(struct seq_file *m)
 	SEQ_printf(m, "\n");
 }
 
-static int sched_debug_show(struct seq_file *m, void *v)
+static int sched_de_show(struct seq_file *m, void *v)
 {
 	int cpu = (unsigned long)(v - 2);
 
 	if (cpu != -1)
 		print_cpu(m, cpu);
 	else
-		sched_debug_header(m);
+		sched_de_header(m);
 
 	return 0;
 }
 
-void sysrq_sched_debug_show(void)
+void sysrq_sched_de_show(void)
 {
 	int cpu;
 
-	sched_debug_header(NULL);
+	sched_de_header(NULL);
 	for_each_online_cpu(cpu)
 		print_cpu(NULL, cpu);
 
@@ -787,7 +787,7 @@ void sysrq_sched_debug_show(void)
  * In a hotplugged system some CPUs, including CPU 0, may be missing so we have
  * to use cpumask_* to iterate over the CPUs.
  */
-static void *sched_debug_start(struct seq_file *file, loff_t *offset)
+static void *sched_de_start(struct seq_file *file, loff_t *offset)
 {
 	unsigned long n = *offset;
 
@@ -809,31 +809,31 @@ static void *sched_debug_start(struct seq_file *file, loff_t *offset)
 	return NULL;
 }
 
-static void *sched_debug_next(struct seq_file *file, void *data, loff_t *offset)
+static void *sched_de_next(struct seq_file *file, void *data, loff_t *offset)
 {
 	(*offset)++;
-	return sched_debug_start(file, offset);
+	return sched_de_start(file, offset);
 }
 
-static void sched_debug_stop(struct seq_file *file, void *data)
+static void sched_de_stop(struct seq_file *file, void *data)
 {
 }
 
-static const struct seq_operations sched_debug_sops = {
-	.start		= sched_debug_start,
-	.next		= sched_debug_next,
-	.stop		= sched_debug_stop,
-	.show		= sched_debug_show,
+static const struct seq_operations sched_de_sops = {
+	.start		= sched_de_start,
+	.next		= sched_de_next,
+	.stop		= sched_de_stop,
+	.show		= sched_de_show,
 };
 
-static int __init init_sched_debug_procfs(void)
+static int __init init_sched_de_procfs(void)
 {
-	if (!proc_create_seq("sched_debug", 0444, NULL, &sched_debug_sops))
+	if (!proc_create_seq("sched_de", 0444, NULL, &sched_de_sops))
 		return -ENOMEM;
 	return 0;
 }
 
-__initcall(init_sched_debug_procfs);
+__initcall(init_sched_de_procfs);
 
 #define __P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)F)
 #define   P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)p->F)

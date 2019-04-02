@@ -194,7 +194,7 @@ struct i2400m_bootrom_header {
 enum i2400m_pt {
 	I2400M_PT_DATA = 0,
 	I2400M_PT_CTRL,
-	I2400M_PT_TRACE,	/* For device debug */
+	I2400M_PT_TRACE,	/* For device de */
 	I2400M_PT_RESET_WARM,	/* device reset */
 	I2400M_PT_RESET_COLD,	/* USB[transport] reset, like reconnect */
 	I2400M_PT_EDATA,	/* Extended RX data */

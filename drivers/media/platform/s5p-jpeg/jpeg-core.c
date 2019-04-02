@@ -1375,7 +1375,7 @@ static int s5p_jpeg_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	    ct->mode == S5P_JPEG_DECODE && !ct->hdr_parsed)
 		return -EINVAL;
 	q_data = get_q_data(ct, f->type);
-	BUG_ON(q_data == NULL);
+	_ON(q_data == NULL);
 
 	pix->width = q_data->w;
 	pix->height = q_data->h;
@@ -1627,7 +1627,7 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 		return -EINVAL;
 
 	q_data = get_q_data(ct, f->type);
-	BUG_ON(q_data == NULL);
+	_ON(q_data == NULL);
 
 	if (vb2_is_busy(vq)) {
 		v4l2_err(&ct->jpeg->v4l2_dev, "%s queue busy\n", __func__);
@@ -2500,7 +2500,7 @@ static int s5p_jpeg_queue_setup(struct vb2_queue *vq,
 	unsigned int size, count = *nbuffers;
 
 	q_data = get_q_data(ctx, vq->type);
-	BUG_ON(q_data == NULL);
+	_ON(q_data == NULL);
 
 	size = q_data->size;
 
@@ -2524,7 +2524,7 @@ static int s5p_jpeg_buf_prepare(struct vb2_buffer *vb)
 	struct s5p_jpeg_q_data *q_data = NULL;
 
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
-	BUG_ON(q_data == NULL);
+	_ON(q_data == NULL);
 
 	if (vb2_plane_size(vb, 0) < q_data->size) {
 		pr_err("%s data will not fit into plane (%lu < %lu)\n",

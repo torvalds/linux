@@ -591,7 +591,7 @@ static long hsc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static inline void __hsc_port_release(struct hsc_client_data *cl_data)
 {
-	BUG_ON(cl_data->usecnt == 0);
+	_ON(cl_data->usecnt == 0);
 
 	if (--cl_data->usecnt == 0) {
 		hsi_flush(cl_data->cl);
@@ -605,7 +605,7 @@ static int hsc_open(struct inode *inode, struct file *file)
 	struct hsc_channel *channel;
 	int ret = 0;
 
-	pr_debug("open, minor = %d\n", iminor(inode));
+	pr_de("open, minor = %d\n", iminor(inode));
 
 	cl_data = container_of(inode->i_cdev, struct hsc_client_data, cdev);
 	mutex_lock(&cl_data->lock);

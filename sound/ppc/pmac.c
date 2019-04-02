@@ -49,7 +49,7 @@ static int tumbler_freqs[1] = {
 /*
  * we will allocate a single 'emergency' dbdma cmd block to use if the
  * tx status comes up "DEAD".  This happens on some PowerComputing Pmac
- * clones, either owing to a bug in dbdma or some interaction between
+ * clones, either owing to a  in dbdma or some interaction between
  * IDE and sound.  However, this measure would deal with DEAD status if
  * it appeared elsewhere.
  */
@@ -149,7 +149,7 @@ static struct pmac_stream *snd_pmac_get_stream(struct snd_pmac *chip, int stream
 	case SNDRV_PCM_STREAM_CAPTURE:
 		return &chip->capture;
 	default:
-		snd_BUG();
+		snd_();
 		return NULL;
 	}
 }
@@ -300,7 +300,7 @@ static int snd_pmac_pcm_trigger(struct snd_pmac *chip, struct pmac_stream *rec,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		spin_lock(&chip->reg_lock);
 		rec->running = 0;
-		/*printk(KERN_DEBUG "stopped!!\n");*/
+		/*printk(KERN_DE "stopped!!\n");*/
 		snd_pmac_dma_stop(rec);
 		for (i = 0, cp = rec->cmd.cmds; i < rec->nperiods; i++, cp++)
 			out_le16(&cp->command, DBDMA_STOP);
@@ -335,7 +335,7 @@ static snd_pcm_uframes_t snd_pmac_pcm_pointer(struct snd_pmac *chip,
 	}
 #endif
 	count += rec->cur_period * rec->period_size;
-	/*printk(KERN_DEBUG "pointer=%d\n", count);*/
+	/*printk(KERN_DE "pointer=%d\n", count);*/
 	return bytes_to_frames(subs->runtime, count);
 }
 
@@ -487,7 +487,7 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
 			if (! (stat & ACTIVE))
 				break;
 
-			/*printk(KERN_DEBUG "update frag %d\n", rec->cur_period);*/
+			/*printk(KERN_DE "update frag %d\n", rec->cur_period);*/
 			cp->xfer_status = cpu_to_le16(0);
 			cp->req_count = cpu_to_le16(rec->period_size);
 			/*cp->res_count = cpu_to_le16(0);*/
@@ -807,7 +807,7 @@ snd_pmac_ctrl_intr(int irq, void *devid)
 	struct snd_pmac *chip = devid;
 	int ctrl = in_le32(&chip->awacs->control);
 
-	/*printk(KERN_DEBUG "pmac: control interrupt.. 0x%x\n", ctrl);*/
+	/*printk(KERN_DE "pmac: control interrupt.. 0x%x\n", ctrl);*/
 	if (ctrl & MASK_PORTCHG) {
 		/* do something when headphone is plugged/unplugged? */
 		if (chip->update_automute)
@@ -816,7 +816,7 @@ snd_pmac_ctrl_intr(int irq, void *devid)
 	if (ctrl & MASK_CNTLERR) {
 		int err = (in_le32(&chip->awacs->codec_stat) & MASK_ERRCODE) >> 16;
 		if (err && chip->model <= PMAC_SCREAMER)
-			snd_printk(KERN_DEBUG "error %x\n", err);
+			snd_printk(KERN_DE "error %x\n", err);
 	}
 	/* Writing 1s to the CNTLERR and PORTCHG bits clears them... */
 	out_le32(&chip->awacs->control, ctrl);

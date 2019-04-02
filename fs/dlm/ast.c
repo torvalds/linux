@@ -78,7 +78,7 @@ int dlm_add_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 			if ((prev_mode == mode) ||
 			    (prev_mode > mode && prev_mode > DLM_LOCK_PR)) {
 
-				log_debug(ls, "skip %x add bast %llu mode %d "
+				log_de(ls, "skip %x add bast %llu mode %d "
 					  "for bast %llu mode %d",
 					  lkb->lkb_id,
 					  (unsigned long long)seq,
@@ -146,7 +146,7 @@ int dlm_rem_lkb_callback(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		if (dlm_modes_compat(cb->mode, lkb->lkb_last_cast.mode)) {
 			cb->flags |= DLM_CB_SKIP;
 
-			log_debug(ls, "skip %x bast %llu mode %d "
+			log_de(ls, "skip %x bast %llu mode %d "
 				  "for cast %llu mode %d",
 				  lkb->lkb_id,
 				  (unsigned long long)cb->seq,

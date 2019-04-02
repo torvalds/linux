@@ -41,7 +41,7 @@
 #include "util/svghelper.h"
 #include "util/tool.h"
 #include "util/data.h"
-#include "util/debug.h"
+#include "util/de.h"
 
 #ifdef LACKS_OPEN_MEMSTREAM_PROTOTYPE
 FILE *open_memstream(char **ptr, size_t *sizeloc);
@@ -523,7 +523,7 @@ static const char *cat_backtrace(union perf_event *event,
 				cpumode = PERF_RECORD_MISC_USER;
 				break;
 			default:
-				pr_debug("invalid callchain context: "
+				pr_de("invalid callchain context: "
 					 "%"PRId64"\n", (s64) ip);
 
 				/*

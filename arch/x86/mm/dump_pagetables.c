@@ -1,5 +1,5 @@
 /*
- * Debug helper to dump the current kernel pagetables of the system
+ * De helper to dump the current kernel pagetables of the system
  * so that we can see what the various memory ranges are set to.
  *
  * (C) Copyright 2008 Intel Corporation
@@ -12,7 +12,7 @@
  * of the License.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kasan.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -380,7 +380,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
  * eventually point to the kasan_early_shadow_page we could call note_page()
  * right away without walking through lower level page tables. This saves
  * us dozens of seconds (minutes for 5-level config) while checking for
- * W+X mapping or reading kernel_page_tables debugfs file.
+ * W+X mapping or reading kernel_page_tables defs file.
  */
 static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 				void *pt)
@@ -574,7 +574,7 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
 	ptdump_walk_pgd_level_core(m, pgd, false, true);
 }
 
-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
+void ptdump_walk_pgd_level_defs(struct seq_file *m, pgd_t *pgd, bool user)
 {
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	if (user && static_cpu_has(X86_FEATURE_PTI))
@@ -582,7 +582,7 @@ void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
 #endif
 	ptdump_walk_pgd_level_core(m, pgd, false, false);
 }
-EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
+EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_defs);
 
 void ptdump_walk_user_pgd_level_checkwx(void)
 {

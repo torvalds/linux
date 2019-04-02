@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-$(CONFIG_USBIP_DEBUG) := -DDEBUG
+ccflags-$(CONFIG_USBIP_DE) := -DDE
 
 obj-$(CONFIG_USBIP_CORE) += usbip-core.o
 usbip-core-y := usbip_common.o usbip_event.o

@@ -203,7 +203,7 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 		ret = crypto_akcipher_sign(req);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	ret = crypto_wait_req(ret, &cwait);
@@ -235,9 +235,9 @@ int public_key_verify_signature(const struct public_key *pkey,
 
 	pr_devel("==>%s()\n", __func__);
 
-	BUG_ON(!pkey);
-	BUG_ON(!sig);
-	BUG_ON(!sig->s);
+	_ON(!pkey);
+	_ON(!sig);
+	_ON(!sig->s);
 
 	ret = software_key_determine_akcipher(sig->encoding,
 					      sig->hash_algo,

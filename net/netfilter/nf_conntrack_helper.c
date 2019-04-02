@@ -139,7 +139,7 @@ nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 	if (help)
 		INIT_HLIST_HEAD(&help->expectations);
 	else
-		pr_debug("failed to add helper extension area");
+		pr_de("failed to add helper extension area");
 	return help;
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_ext_add);
@@ -335,9 +335,9 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 	struct nf_conntrack_helper *cur;
 	int ret = 0, i;
 
-	BUG_ON(me->expect_policy == NULL);
-	BUG_ON(me->expect_class_max >= NF_CT_MAX_EXPECT_CLASSES);
-	BUG_ON(strlen(me->name) > NF_CT_HELPER_NAME_LEN - 1);
+	_ON(me->expect_policy == NULL);
+	_ON(me->expect_class_max >= NF_CT_MAX_EXPECT_CLASSES);
+	_ON(strlen(me->name) > NF_CT_HELPER_NAME_LEN - 1);
 
 	if (me->expect_policy->max_expected > NF_CT_EXPECT_MAX_CNT)
 		return -EINVAL;

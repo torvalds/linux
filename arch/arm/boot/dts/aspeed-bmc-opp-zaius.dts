@@ -350,8 +350,8 @@
 	status = "disabled";
 
 	/* MUX PI3USB102
-	 *   CPU0 debug
-	 *   CPU1 debug
+	 *   CPU0 de
+	 *   CPU1 de
 	 */
 };
 

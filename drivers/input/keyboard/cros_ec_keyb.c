@@ -294,7 +294,7 @@ static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
 	unsigned short *keymap = ckdev->idev->keycode;
 	unsigned short code;
 
-	BUG_ON(ckdev->idev->keycodesize != sizeof(*keymap));
+	_ON(ckdev->idev->keycodesize != sizeof(*keymap));
 
 	for (col = 0; col < ckdev->cols; col++) {
 		for (row = 0; row < ckdev->rows; row++) {

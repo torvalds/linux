@@ -302,7 +302,7 @@ void board_pcmcia_power(int power)
 		trizeps_conxs_bcr &= ~0xf;
 		BCR_writew(trizeps_conxs_bcr);
 	}
-	pr_debug("%s: o%s 0x%x\n", __func__, power ? "n" : "ff",
+	pr_de("%s: o%s 0x%x\n", __func__, power ? "n" : "ff",
 			trizeps_conxs_bcr);
 }
 EXPORT_SYMBOL(board_pcmcia_power);
@@ -315,7 +315,7 @@ static void board_backlight_power(int on)
 	else
 		trizeps_conxs_bcr &= ~ConXS_BCR_L_DISP;
 
-	pr_debug("%s: o%s 0x%x\n", __func__, on ? "n" : "ff",
+	pr_de("%s: o%s 0x%x\n", __func__, on ? "n" : "ff",
 			trizeps_conxs_bcr);
 	BCR_writew(trizeps_conxs_bcr);
 }

@@ -116,8 +116,8 @@ do {								\
 
 #define BRIDGE_ERROR_INTR	53	/* Setup by PROM to catch	*/
 					/* Bridge Errors */
-#define DEBUG_INTR_A		54
-#define DEBUG_INTR_B		55	/* Used by symmon to stop all cpus */
+#define DE_INTR_A		54
+#define DE_INTR_B		55	/* Used by symmon to stop all cpus */
 #define IO_ERROR_INTR		57	/* Setup by PROM */
 #define CLK_ERR_INTR		58
 #define COR_ERR_INTR_A		59

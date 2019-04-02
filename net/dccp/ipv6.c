@@ -84,8 +84,8 @@ static int dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	 * 4 bytes in dccp header.
 	 * Our caller (icmpv6_notify()) already pulled 8 bytes for us.
 	 */
-	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_sport) > 8);
-	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_dport) > 8);
+	BUILD__ON(offsetofend(struct dccp_hdr, dccph_sport) > 8);
+	BUILD__ON(offsetofend(struct dccp_hdr, dccph_dport) > 8);
 	dh = (struct dccp_hdr *)(skb->data + offset);
 
 	sk = __inet6_lookup_established(net, &dccp_hashinfo,
@@ -440,7 +440,7 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 		newnp->mcast_hops  = ip_hdr(skb)->ttl;
 
 		/*
-		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
+		 * No need to charge this sock to the relevant IPv6 refcnt de socks count
 		 * here, dccp_create_openreq_child now does this for us, see the comment in
 		 * that function for the gory details. -acme
 		 */
@@ -471,7 +471,7 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 		goto out_nonewsk;
 
 	/*
-	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
+	 * No need to charge this sock to the relevant IPv6 refcnt de socks
 	 * count here, dccp_create_openreq_child now does this for us, see the
 	 * comment in that function for the gory details. -acme
 	 */
@@ -716,7 +716,7 @@ lookup:
 			        dh->dccph_sport, dh->dccph_dport,
 				inet6_iif(skb), 0, &refcounted);
 	if (!sk) {
-		dccp_pr_debug("failed to look up flow ID in table and "
+		dccp_pr_de("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
 		goto no_dccp_socket;
 	}
@@ -728,7 +728,7 @@ lookup:
 	 *		Drop packet and return
 	 */
 	if (sk->sk_state == DCCP_TIME_WAIT) {
-		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
+		dccp_pr_de("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
 		inet_twsk_put(inet_twsk(sk));
 		goto no_dccp_socket;
 	}
@@ -766,7 +766,7 @@ lookup:
 	 */
 	min_cov = dccp_sk(sk)->dccps_pcrlen;
 	if (dh->dccph_cscov  &&  (min_cov == 0 || dh->dccph_cscov < min_cov))  {
-		dccp_pr_debug("Packet CsCov %d does not satisfy MinCsCov %d\n",
+		dccp_pr_de("Packet CsCov %d does not satisfy MinCsCov %d\n",
 			      dh->dccph_cscov, min_cov);
 		/* FIXME: send Data Dropped option (see also dccp_v4_rcv) */
 		goto discard_and_relse;
@@ -878,7 +878,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		u32 exthdrlen = icsk->icsk_ext_hdr_len;
 		struct sockaddr_in sin;
 
-		SOCK_DEBUG(sk, "connect: ipv4 mapped\n");
+		SOCK_DE(sk, "connect: ipv4 mapped\n");
 
 		if (__ipv6_only_sock(sk))
 			return -ENETUNREACH;

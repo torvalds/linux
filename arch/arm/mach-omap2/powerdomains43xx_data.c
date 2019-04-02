@@ -67,7 +67,7 @@ static struct powerdomain wkup_43xx_pwrdm = {
 	.pwrsts		  = PWRSTS_ON,
 	.banks		  = 1,
 	.pwrsts_mem_on	= {
-		[0] = PWRSTS_ON,	/* debugss_mem */
+		[0] = PWRSTS_ON,	/* dess_mem */
 	},
 };
 

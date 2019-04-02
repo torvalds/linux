@@ -14,13 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __RSI_DEBUGFS_H__
-#define __RSI_DEBUGFS_H__
+#ifndef __RSI_DEFS_H__
+#define __RSI_DEFS_H__
 
 #include "rsi_main.h"
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-#ifndef CONFIG_RSI_DEBUGFS
+#ifndef CONFIG_RSI_DEFS
 static inline int rsi_init_dbgfs(struct rsi_hw *adapter)
 {
 	return 0;
@@ -37,10 +37,10 @@ struct rsi_dbg_files {
 	const struct file_operations fops;
 };
 
-struct rsi_debugfs {
+struct rsi_defs {
 	struct dentry *subdir;
 	struct rsi_dbg_ops *dfs_get_ops;
-	struct dentry *rsi_files[MAX_DEBUGFS_ENTRIES];
+	struct dentry *rsi_files[MAX_DEFS_ENTRIES];
 };
 int rsi_init_dbgfs(struct rsi_hw *adapter);
 void rsi_remove_dbgfs(struct rsi_hw *adapter);

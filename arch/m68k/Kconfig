@@ -9,7 +9,7 @@ config M68K
 	select ARCH_NO_PREEMPT if !COLDFIRE
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
-	select HAVE_DEBUG_BUGVERBOSE
+	select HAVE_DE_VERBOSE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_ATOMIC64
 	select HAVE_UID16

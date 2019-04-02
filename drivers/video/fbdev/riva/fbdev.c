@@ -7,14 +7,14 @@
  *
  * Contributors:
  *
- *	Ani Joshi:  Lots of debugging and cleanup work, really helped
+ *	Ani Joshi:  Lots of deging and cleanup work, really helped
  *	get the driver going
  *
- *	Ferenc Bakonyi:  Bug fixes, cleanup, modularization
+ *	Ferenc Bakonyi:   fixes, cleanup, modularization
  *
  *	Jindrich Makovicka:  Accel code help, hw cursor, mtrr
  *
- *	Paul Richards:  Bug fixes, updates
+ *	Paul Richards:   fixes, updates
  *
  * Initial template from skeletonfb.c, created 28 Dec 1997 by Geert Uytterhoeven
  * Includes riva_hw.c from nVidia, see copyright below.
@@ -24,7 +24,7 @@
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  *
- * Known bugs and issues:
+ * Known s and issues:
  *	restoring text mode fails
  *	doublescan modes are broken
  */
@@ -57,7 +57,7 @@
  * various helpful macros and constants
  *
  * ------------------------------------------------------------------------- */
-#ifdef CONFIG_FB_RIVA_DEBUG
+#ifdef CONFIG_FB_RIVA_DE
 #define NVTRACE          printk
 #else
 #define NVTRACE          if(0) printk
@@ -66,12 +66,12 @@
 #define NVTRACE_ENTER(...)  NVTRACE("%s START\n", __func__)
 #define NVTRACE_LEAVE(...)  NVTRACE("%s END\n", __func__)
 
-#ifdef CONFIG_FB_RIVA_DEBUG
+#ifdef CONFIG_FB_RIVA_DE
 #define assert(expr) \
 	if(!(expr)) { \
 	printk( "Assertion failed! %s,%s,%s,line=%d\n",\
 	#expr,__FILE__,__func__,__LINE__); \
-	BUG(); \
+	(); \
 	}
 #else
 #define assert(expr)
@@ -1704,7 +1704,7 @@ static int riva_set_fbinfo(struct fb_info *info)
 
 	/* Accel seems to not work properly on NV30 yet...*/
 	if ((par->riva.Architecture == NV_ARCH_30) || noaccel) {
-	    	printk(KERN_DEBUG PFX "disabling acceleration\n");
+	    	printk(KERN_DE PFX "disabling acceleration\n");
   		info->flags |= FBINFO_HWACCEL_DISABLED;
 	}
 

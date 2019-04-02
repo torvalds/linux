@@ -67,7 +67,7 @@ extern struct list_head opp_tables;
  * @required_opps: List of OPPs that are required by this OPP.
  * @opp_table:	points back to the opp_table struct this opp belongs to
  * @np:		OPP's device node.
- * @dentry:	debugfs dentry pointer (per opp)
+ * @dentry:	defs dentry pointer (per opp)
  *
  * This structure stores the OPP information for a given device.
  */
@@ -92,7 +92,7 @@ struct dev_pm_opp {
 
 	struct device_node *np;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dentry;
 #endif
 };
@@ -101,7 +101,7 @@ struct dev_pm_opp {
  * struct opp_device - devices managed by 'struct opp_table'
  * @node:	list node
  * @dev:	device to which the struct object belongs
- * @dentry:	debugfs dentry pointer (per device)
+ * @dentry:	defs dentry pointer (per device)
  *
  * This is an internal data structure maintaining the devices that are managed
  * by 'struct opp_table'.
@@ -110,7 +110,7 @@ struct opp_device {
 	struct list_head node;
 	const struct device *dev;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dentry;
 #endif
 };
@@ -154,7 +154,7 @@ enum opp_table_access {
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_opp: Platform specific set_opp callback
  * @set_opp_data: Data to be passed to set_opp callback
- * @dentry:	debugfs dentry pointer of the real device directory (not links).
+ * @dentry:	defs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
  * @voltage_tolerance_v1: In percentage, for v1 bindings only.
@@ -200,7 +200,7 @@ struct opp_table {
 	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct dev_pm_set_opp_data *set_opp_data;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dentry;
 	char dentry_name[NAME_MAX];
 #endif
@@ -236,23 +236,23 @@ static inline void _of_opp_free_required_opps(struct opp_table *opp_table,
 					      struct dev_pm_opp *opp) {}
 #endif
 
-#ifdef CONFIG_DEBUG_FS
-void opp_debug_remove_one(struct dev_pm_opp *opp);
-void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table);
-void opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table);
-void opp_debug_unregister(struct opp_device *opp_dev, struct opp_table *opp_table);
+#ifdef CONFIG_DE_FS
+void opp_de_remove_one(struct dev_pm_opp *opp);
+void opp_de_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table);
+void opp_de_register(struct opp_device *opp_dev, struct opp_table *opp_table);
+void opp_de_unregister(struct opp_device *opp_dev, struct opp_table *opp_table);
 #else
-static inline void opp_debug_remove_one(struct dev_pm_opp *opp) {}
+static inline void opp_de_remove_one(struct dev_pm_opp *opp) {}
 
-static inline void opp_debug_create_one(struct dev_pm_opp *opp,
+static inline void opp_de_create_one(struct dev_pm_opp *opp,
 					struct opp_table *opp_table) { }
 
-static inline void opp_debug_register(struct opp_device *opp_dev,
+static inline void opp_de_register(struct opp_device *opp_dev,
 				      struct opp_table *opp_table) { }
 
-static inline void opp_debug_unregister(struct opp_device *opp_dev,
+static inline void opp_de_unregister(struct opp_device *opp_dev,
 					struct opp_table *opp_table)
 { }
-#endif		/* DEBUG_FS */
+#endif		/* DE_FS */
 
 #endif		/* __DRIVER_OPP_H__ */

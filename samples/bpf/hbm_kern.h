@@ -30,8 +30,8 @@
 #define ALLOW_PKT	1
 #define TCP_ECN_OK	1
 
-#define HBM_DEBUG 0  // Set to 1 to enable debugging
-#if HBM_DEBUG
+#define HBM_DE 0  // Set to 1 to enable deging
+#if HBM_DE
 #define bpf_printk(fmt, ...)					\
 ({								\
 	char ____fmt[] = fmt;					\

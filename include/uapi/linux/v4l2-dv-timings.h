@@ -18,7 +18,7 @@
 #define _V4L2_DV_TIMINGS_H
 
 #if __GNUC__ < 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ < 6))
-/* Sadly gcc versions older than 4.6 have a bug in how they initialize
+/* Sadly gcc versions older than 4.6 have a  in how they initialize
    anonymous unions where they require additional curly brackets.
    This violates the C1x standard. This workaround adds the curly brackets
    if needed. */

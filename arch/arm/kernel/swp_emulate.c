@@ -107,7 +107,7 @@ static void set_segfault(struct pt_regs *regs, unsigned long addr)
 		si_code = SEGV_ACCERR;
 	up_read(&current->mm->mmap_sem);
 
-	pr_debug("SWP{B} emulation: access caused memory abort!\n");
+	pr_de("SWP{B} emulation: access caused memory abort!\n");
 	arm_notify_die("Illegal memory access", regs,
 		       SIGSEGV, si_code,
 		       (void __user *)instruction_pointer(regs),
@@ -123,7 +123,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	if ((type != TYPE_SWPB) && (address & 0x3)) {
 		/* SWP to unaligned address not permitted */
-		pr_debug("SWP instruction on unaligned pointer!\n");
+		pr_de("SWP instruction on unaligned pointer!\n");
 		return -EFAULT;
 	}
 
@@ -182,7 +182,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 	}
 
 	if (current->pid != previous_pid) {
-		pr_debug("\"%s\" (%ld) uses deprecated SWP{B} instruction\n",
+		pr_de("\"%s\" (%ld) uses deprecated SWP{B} instruction\n",
 			 current->comm, (unsigned long)current->pid);
 		previous_pid = current->pid;
 	}
@@ -193,13 +193,13 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 
 	type = instr & TYPE_SWPB;
 
-	pr_debug("addr in r%d->0x%08x, dest is r%d, source in r%d->0x%08x)\n",
+	pr_de("addr in r%d->0x%08x, dest is r%d, source in r%d->0x%08x)\n",
 		 EXTRACT_REG_NUM(instr, RN_OFFSET), address,
 		 destreg, EXTRACT_REG_NUM(instr, RT2_OFFSET), data);
 
 	/* Check access in reasonable access range for both SWP and SWPB */
 	if (!access_ok((address & ~3), 4)) {
-		pr_debug("SWP{B} emulation: access to %p not allowed!\n",
+		pr_de("SWP{B} emulation: access to %p not allowed!\n",
 			 (void *)address);
 		res = -EFAULT;
 	} else {

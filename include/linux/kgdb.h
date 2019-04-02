@@ -244,7 +244,7 @@ extern void kgdb_arch_late(void);
  * @remove_all_hw_break: Allow an architecture to specify how to remove all
  * hardware breakpoints.
  * @correct_hw_break: Allow an architecture to specify how to correct the
- * hardware debug registers.
+ * hardware de registers.
  * @enable_nmi: Manage NMI-triggered entry to KGDB
  */
 struct kgdb_arch {

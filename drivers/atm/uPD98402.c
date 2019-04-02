@@ -17,7 +17,7 @@
 
 
 #if 0
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
+#define DPRINTK(format,args...) printk(KERN_DE format,##args)
 #else
 #define DPRINTK(format,args...)
 #endif

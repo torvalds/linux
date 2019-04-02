@@ -82,7 +82,7 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 	if (!vbuf)
 		return ERR_PTR(-ENOMEM);
 
-	BUG_ON(size > MAX_INLINE_CMD_SIZE);
+	_ON(size > MAX_INLINE_CMD_SIZE);
 	vbuf->buf = (void *)vbuf + sizeof(*vbuf);
 	vbuf->size = size;
 
@@ -92,7 +92,7 @@ virtio_gpu_get_vbuf(struct virtio_gpu_device *vgdev,
 		vbuf->resp_buf = (void *)vbuf->buf + size;
 	else
 		vbuf->resp_buf = resp_buf;
-	BUG_ON(!vbuf->resp_buf);
+	_ON(!vbuf->resp_buf);
 	return vbuf;
 }
 
@@ -168,7 +168,7 @@ static void reclaim_vbufs(struct virtqueue *vq, struct list_head *reclaim_list)
 		freed++;
 	}
 	if (freed == 0)
-		DRM_DEBUG("Huh? zero vbufs reclaimed");
+		DRM_DE("Huh? zero vbufs reclaimed");
 }
 
 void virtio_gpu_dequeue_ctrl_func(struct work_struct *work)
@@ -200,7 +200,7 @@ void virtio_gpu_dequeue_ctrl_func(struct work_struct *work)
 					  le32_to_cpu(resp->type),
 					  le32_to_cpu(cmd->type));
 			} else
-				DRM_DEBUG("response 0x%x\n", le32_to_cpu(resp->type));
+				DRM_DE("response 0x%x\n", le32_to_cpu(resp->type));
 		}
 		if (resp->flags & cpu_to_le32(VIRTIO_GPU_FLAG_FENCE)) {
 			u64 f = le64_to_cpu(resp->fence_id);
@@ -534,13 +534,13 @@ static void virtio_gpu_cmd_get_display_info_cb(struct virtio_gpu_device *vgdev,
 	for (i = 0; i < vgdev->num_scanouts; i++) {
 		vgdev->outputs[i].info = resp->pmodes[i];
 		if (resp->pmodes[i].enabled) {
-			DRM_DEBUG("output %d: %dx%d+%d+%d", i,
+			DRM_DE("output %d: %dx%d+%d+%d", i,
 				  le32_to_cpu(resp->pmodes[i].r.width),
 				  le32_to_cpu(resp->pmodes[i].r.height),
 				  le32_to_cpu(resp->pmodes[i].r.x),
 				  le32_to_cpu(resp->pmodes[i].r.y));
 		} else {
-			DRM_DEBUG("output %d: disabled", i);
+			DRM_DE("output %d: disabled", i);
 		}
 	}
 
@@ -773,8 +773,8 @@ void virtio_gpu_cmd_context_create(struct virtio_gpu_device *vgdev, uint32_t id,
 	cmd_p->hdr.type = cpu_to_le32(VIRTIO_GPU_CMD_CTX_CREATE);
 	cmd_p->hdr.ctx_id = cpu_to_le32(id);
 	cmd_p->nlen = cpu_to_le32(nlen);
-	strncpy(cmd_p->debug_name, name, sizeof(cmd_p->debug_name) - 1);
-	cmd_p->debug_name[sizeof(cmd_p->debug_name) - 1] = 0;
+	strncpy(cmd_p->de_name, name, sizeof(cmd_p->de_name) - 1);
+	cmd_p->de_name[sizeof(cmd_p->de_name) - 1] = 0;
 	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
 }
 

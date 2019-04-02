@@ -316,13 +316,13 @@ struct snd_hda_pin_quirk {
 	unsigned int codec;             /* Codec vendor/device ID */
 	unsigned short subvendor;	/* PCI subvendor ID */
 	const struct hda_pintbl *pins;  /* list of matching pins */
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	const char *name;
 #endif
 	int value;			/* quirk value */
 };
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 
 #define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
 	{ .codec = _codec,\

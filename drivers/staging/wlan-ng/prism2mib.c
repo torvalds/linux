@@ -330,7 +330,7 @@ int prism2mgmt_mibset_mibget(struct wlandevice *wlandev, void *msgp)
 
 	if (msg->resultcode.data == P80211ENUM_resultcode_success) {
 		if (result != 0) {
-			pr_debug("get/set failure, result=%d\n", result);
+			pr_de("get/set failure, result=%d\n", result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 		} else {

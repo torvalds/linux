@@ -10,13 +10,13 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/signal.h>
 #include <asm/traps.h>
 #include <linux/uaccess.h>
 #include <asm/addrspace.h>
 #include <asm/ptrace.h>
-#include <asm/tlbdebug.h>
+#include <asm/tlbde.h>
 
 static int ip32_be_handler(struct pt_regs *regs, int is_fixup)
 {

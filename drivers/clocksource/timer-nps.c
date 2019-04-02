@@ -126,7 +126,7 @@ TIMER_OF_DECLARE(ezchip_nps400_clk_src, "ezchip,nps400-timer1",
 
 /*
  * Interrupt Enabled (IE) - re-arm the timer
- * Not Halted (NH) - is cleared when working with JTAG (for debug)
+ * Not Halted (NH) - is cleared when working with JTAG (for de)
  */
 #define TIMER0_CTRL_IE		BIT(0)
 #define TIMER0_CTRL_NH		BIT(1)

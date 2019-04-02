@@ -31,9 +31,9 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/seq_file.h>
-#define PCI_DEBUG
+#define PCI_DE
 #include <linux/pci.h>
-#undef PCI_DEBUG
+#undef PCI_DE
 #include <linux/proc_fs.h>
 #include <linux/export.h>
 #include <linux/sched.h>

@@ -82,7 +82,7 @@ static inline notrace unsigned long irq_soft_mask_return(void)
  */
 static inline notrace void irq_soft_mask_set(unsigned long mask)
 {
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DE
 	/*
 	 * The irq mask must always include the STD bit if any are set.
 	 *
@@ -112,7 +112,7 @@ static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
 	unsigned long flags;
 
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DE
 	WARN_ON(mask && !(mask & IRQS_DISABLED));
 #endif
 
@@ -137,7 +137,7 @@ static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
 		  "r" (mask)
 		: "memory");
 
-#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DE
 	WARN_ON((mask | flags) && !((mask | flags) & IRQS_DISABLED));
 #endif
 

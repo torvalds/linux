@@ -8,7 +8,7 @@
 #endif
 
 #include "../../util/cache.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"

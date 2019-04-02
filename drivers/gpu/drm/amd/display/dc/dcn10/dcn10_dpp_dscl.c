@@ -96,11 +96,11 @@ static void dpp1_dscl_set_overscan(
 	int bottom = data->v_active - data->recout.y - data->recout.height;
 
 	if (right < 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		right = 0;
 	}
 	if (bottom < 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		bottom = 0;
 	}
 
@@ -243,8 +243,8 @@ static const uint16_t *dpp1_dscl_get_filter_coeffs_64p(int taps, struct fixed31_
 	else if (taps == 1)
 		return NULL;
 	else {
-		/* should never happen, bug */
-		BREAK_TO_DEBUGGER();
+		/* should never happen,  */
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 }
@@ -395,7 +395,7 @@ static int dpp1_dscl_get_lb_depth_bpc(enum lb_pixel_depth depth)
 	else if (depth == LB_PIXEL_DEPTH_36BPP)
 		return 12;
 	else {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return -1; /* Unsupported */
 	}
 }
@@ -468,7 +468,7 @@ static enum lb_memory_config dpp1_dscl_find_lb_memory_config(struct dcn10_dpp *d
 	int ceil_vratio_c = dc_fixpt_ceil(scl_data->ratios.vert_c);
 	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
 
-	if (dpp->base.ctx->dc->debug.use_max_lb)
+	if (dpp->base.ctx->dc->de.use_max_lb)
 		return mem_cfg;
 
 	dpp->base.caps->dscl_calc_lb_num_partitions(
@@ -512,7 +512,7 @@ void dpp1_dscl_set_scaler_auto_scale(
 	enum lb_memory_config lb_config;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	enum dscl_mode_sel dscl_mode = dpp1_dscl_get_dscl_mode(
-			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
+			dpp_base, scl_data, dpp_base->ctx->dc->de.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 
@@ -626,7 +626,7 @@ static void dpp1_dscl_set_recout(
 			struct dcn10_dpp *dpp, const struct rect *recout)
 {
 	int visual_confirm_on = 0;
-	if (dpp->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE)
+	if (dpp->base.ctx->dc->de.visual_confirm != VISUAL_CONFIRM_DISABLE)
 		visual_confirm_on = 1;
 
 	REG_SET_2(RECOUT_START, 0,
@@ -651,7 +651,7 @@ void dpp1_dscl_set_scaler_manual_scale(
 	enum lb_memory_config lb_config;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	enum dscl_mode_sel dscl_mode = dpp1_dscl_get_dscl_mode(
-			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
+			dpp_base, scl_data, dpp_base->ctx->dc->de.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
 

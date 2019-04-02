@@ -46,7 +46,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 
 
 /* Called to verify a rcv'ed ADISC was intended for us. */
@@ -821,7 +821,7 @@ lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		if (ndlp->nlp_type & NLP_FCP_TARGET)
 			roles |= FC_RPORT_ROLE_FCP_TARGET;
 
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 			"rport rolechg:   role:x%x did:x%x flg:x%x",
 			roles, ndlp->nlp_DID, ndlp->nlp_flag);
 
@@ -2904,7 +2904,7 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 evt, ndlp->nlp_DID, cur_state, ndlp->nlp_rpi,
 			 ndlp->nlp_flag, ndlp->nlp_fc4_type);
 
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+	lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 		 "DSM in:          evt:%d ste:%d did:x%x",
 		evt, cur_state, ndlp->nlp_DID);
 
@@ -2918,7 +2918,7 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 "rpi x%x Data: x%x\n",
 			 rc, ndlp->nlp_DID, ndlp->nlp_rpi, ndlp->nlp_flag);
 
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 			"DSM out:         ste:%d did:x%x flg:x%x",
 			rc, ndlp->nlp_DID, ndlp->nlp_flag);
 		/* Decrement the ndlp reference count held for this function */
@@ -2927,7 +2927,7 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			"0213 DSM out state %d on NPort free\n", rc);
 
-		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
+		lpfc_defs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 			"DSM out:         ste:%d did:x%x flg:x%x",
 			rc, 0, 0);
 	}

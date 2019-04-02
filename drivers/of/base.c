@@ -1936,7 +1936,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
 	strncpy(ap->stem, stem, stem_len);
 	ap->stem[stem_len] = 0;
 	list_add_tail(&ap->link, &aliases_lookup);
-	pr_debug("adding DT alias:%s: stem=%s id=%i node=%pOF\n",
+	pr_de("adding DT alias:%s: stem=%s id=%i node=%pOF\n",
 		 ap->alias, ap->stem, ap->id, np);
 }
 
@@ -2064,19 +2064,19 @@ int of_alias_get_alias_list(const struct of_device_id *matches,
 	bitmap_zero(bitmap, nbits);
 
 	mutex_lock(&of_mutex);
-	pr_debug("%s: Looking for stem: %s\n", __func__, stem);
+	pr_de("%s: Looking for stem: %s\n", __func__, stem);
 	list_for_each_entry(app, &aliases_lookup, link) {
-		pr_debug("%s: stem: %s, id: %d\n",
+		pr_de("%s: stem: %s, id: %d\n",
 			 __func__, app->stem, app->id);
 
 		if (strcmp(app->stem, stem) != 0) {
-			pr_debug("%s: stem comparison didn't pass %s\n",
+			pr_de("%s: stem comparison didn't pass %s\n",
 				 __func__, app->stem);
 			continue;
 		}
 
 		if (of_match_node(matches, app->np)) {
-			pr_debug("%s: Allocated ID %d\n", __func__, app->id);
+			pr_de("%s: Allocated ID %d\n", __func__, app->id);
 
 			if (app->id >= nbits) {
 				pr_warn("%s: ID %d >= than bitmap field %d\n",
@@ -2287,7 +2287,7 @@ int of_map_rid(struct device_node *np, u32 rid,
 		if (id_out)
 			*id_out = masked_rid - rid_base + out_base;
 
-		pr_debug("%pOF: %s, using mask %08x, rid-base: %08x, out-base: %08x, length: %08x, rid: %08x -> %08x\n",
+		pr_de("%pOF: %s, using mask %08x, rid-base: %08x, out-base: %08x, length: %08x, rid: %08x -> %08x\n",
 			np, map_name, map_mask, rid_base, out_base,
 			rid_len, rid, masked_rid - rid_base + out_base);
 		return 0;

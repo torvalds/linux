@@ -112,7 +112,7 @@ const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 	};
 	unsigned int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(protocol_name) != DSA_TAG_LAST);
+	BUILD__ON(ARRAY_SIZE(protocol_name) != DSA_TAG_LAST);
 
 	for (i = 0; i < ARRAY_SIZE(dsa_device_ops); i++)
 		if (ops == dsa_device_ops[i])

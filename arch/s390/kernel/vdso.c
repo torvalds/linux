@@ -288,7 +288,7 @@ static int __init vdso_init(void)
 	/* Make sure pages are in the correct state */
 	vdso32_pagelist = kcalloc(vdso32_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
-	BUG_ON(vdso32_pagelist == NULL);
+	_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages - 1; i++) {
 		struct page *pg = virt_to_page(vdso32_kbase + i*PAGE_SIZE);
 		get_page(pg);
@@ -305,7 +305,7 @@ static int __init vdso_init(void)
 	/* Make sure pages are in the correct state */
 	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
-	BUG_ON(vdso64_pagelist == NULL);
+	_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages - 1; i++) {
 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
 		get_page(pg);
@@ -314,7 +314,7 @@ static int __init vdso_init(void)
 	vdso64_pagelist[vdso64_pages - 1] = virt_to_page(vdso_data);
 	vdso64_pagelist[vdso64_pages] = NULL;
 	if (vdso_alloc_per_cpu(&S390_lowcore))
-		BUG();
+		();
 
 	get_page(virt_to_page(vdso_data));
 

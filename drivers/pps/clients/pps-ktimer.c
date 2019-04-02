@@ -97,5 +97,5 @@ module_init(pps_ktimer_init);
 module_exit(pps_ktimer_exit);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
-MODULE_DESCRIPTION("dummy PPS source by using a kernel timer (just for debug)");
+MODULE_DESCRIPTION("dummy PPS source by using a kernel timer (just for de)");
 MODULE_LICENSE("GPL");

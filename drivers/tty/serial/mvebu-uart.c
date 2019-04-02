@@ -703,7 +703,7 @@ static int mvebu_uart_console_setup(struct console *co, char *options)
 	port = &mvebu_uart_ports[co->index];
 
 	if (!port->mapbase || !port->membase) {
-		pr_debug("console on ttyMV%i not present\n", co->index);
+		pr_de("console on ttyMV%i not present\n", co->index);
 		return -ENODEV;
 	}
 

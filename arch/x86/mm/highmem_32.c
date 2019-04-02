@@ -15,7 +15,7 @@ EXPORT_SYMBOL(kmap);
 void kunmap(struct page *page)
 {
 	if (in_interrupt())
-		BUG();
+		();
 	if (!PageHighMem(page))
 		return;
 	kunmap_high(page);
@@ -44,7 +44,7 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
+	_ON(!pte_none(*(kmap_pte-idx)));
 	set_pte(kmap_pte-idx, mk_pte(page, prot));
 	arch_flush_lazy_mmu_mode();
 
@@ -79,7 +79,7 @@ void __kunmap_atomic(void *kvaddr)
 		type = kmap_atomic_idx();
 		idx = type + KM_TYPE_NR * smp_processor_id();
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 		WARN_ON_ONCE(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 #endif
 		/*
@@ -92,10 +92,10 @@ void __kunmap_atomic(void *kvaddr)
 		kmap_atomic_idx_pop();
 		arch_flush_lazy_mmu_mode();
 	}
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	else {
-		BUG_ON(vaddr < PAGE_OFFSET);
-		BUG_ON(vaddr >= (unsigned long)high_memory);
+		_ON(vaddr < PAGE_OFFSET);
+		_ON(vaddr >= (unsigned long)high_memory);
 	}
 #endif
 

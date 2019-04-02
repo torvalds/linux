@@ -298,7 +298,7 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	 * garbage for pointers.
 	 */
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
-		DEBUG2(printk("scsi%ld: %s: Adapter OFFLINE! "
+		DE2(printk("scsi%ld: %s: Adapter OFFLINE! "
 			      "Do not issue command.\n",
 			      ha->host_no, __func__));
 		goto queuing_error;
@@ -515,7 +515,7 @@ int qla4xxx_ping_iocb(struct scsi_qla_host *ha, uint32_t options,
 
 	mrb = qla4xxx_get_new_mrb(ha);
 	if (!mrb) {
-		DEBUG2(ql4_printk(KERN_WARNING, ha, "%s: fail to get new mrb\n",
+		DE2(ql4_printk(KERN_WARNING, ha, "%s: fail to get new mrb\n",
 				  __func__));
 		rval = QLA_ERROR;
 		goto exit_ping;

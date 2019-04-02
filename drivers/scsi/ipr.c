@@ -95,7 +95,7 @@ static unsigned int ipr_max_speed = 1;
 static int ipr_testmode = 0;
 static unsigned int ipr_fastfail = 0;
 static unsigned int ipr_transop_timeout = 0;
-static unsigned int ipr_debug = 0;
+static unsigned int ipr_de = 0;
 static unsigned int ipr_max_devs = IPR_DEFAULT_SIS64_DEVS;
 static unsigned int ipr_dual_ioa_raid = 1;
 static unsigned int ipr_number_of_msix = 16;
@@ -214,8 +214,8 @@ module_param_named(fastfail, ipr_fastfail, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fastfail, "Reduce timeouts and retries");
 module_param_named(transop_timeout, ipr_transop_timeout, int, 0);
 MODULE_PARM_DESC(transop_timeout, "Time in seconds to wait for adapter to come operational (default: 300)");
-module_param_named(debug, ipr_debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable device driver debugging logging. Set to 1 to enable. (default: 0)");
+module_param_named(de, ipr_de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Enable device driver deging logging. Set to 1 to enable. (default: 0)");
 module_param_named(dual_ioa_raid, ipr_dual_ioa_raid, int, 0);
 MODULE_PARM_DESC(dual_ioa_raid, "Enable dual adapter RAID support. Set to 1 to enable. (default: 1)");
 module_param_named(max_devs, ipr_max_devs, int, 0);
@@ -495,15 +495,15 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9072: Link not operational transition"},
 	{0x066B8200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9032: Array exposed but still protected"},
-	{0x066B8300, 0, IPR_DEBUG_LOG_LEVEL,
+	{0x066B8300, 0, IPR_DE_LOG_LEVEL,
 	"70DD: Device forced failed by disrupt device command"},
 	{0x066B9100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4061: Multipath redundancy level got better"},
 	{0x066B9200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4060: Multipath redundancy level got worse"},
-	{0x06808100, 0, IPR_DEBUG_LOG_LEVEL,
+	{0x06808100, 0, IPR_DE_LOG_LEVEL,
 	"9083: Device raw mode enabled"},
-	{0x06808200, 0, IPR_DEBUG_LOG_LEVEL,
+	{0x06808200, 0, IPR_DE_LOG_LEVEL,
 	"9084: Device raw mode disabled"},
 	{0x07270000, 0, 0,
 	"Failure due to other device"},
@@ -2817,11 +2817,11 @@ static u32 ipr_get_max_scsi_speed(struct ipr_ioa_cfg *ioa_cfg, u8 bus, u8 bus_wi
 }
 
 /**
- * ipr_wait_iodbg_ack - Wait for an IODEBUG ACK from the IOA
+ * ipr_wait_iodbg_ack - Wait for an IODE ACK from the IOA
  * @ioa_cfg:		ioa config struct
  * @max_delay:		max delay in micro-seconds to wait
  *
- * Waits for an IODEBUG ACK from the IOA, doing busy looping.
+ * Waits for an IODE ACK from the IOA, doing busy looping.
  *
  * Return value:
  * 	0 on success / other on failure
@@ -2831,11 +2831,11 @@ static int ipr_wait_iodbg_ack(struct ipr_ioa_cfg *ioa_cfg, int max_delay)
 	volatile u32 pcii_reg;
 	int delay = 1;
 
-	/* Read interrupt reg until IOA signals IO Debug Acknowledge */
+	/* Read interrupt reg until IOA signals IO De Acknowledge */
 	while (delay < max_delay) {
 		pcii_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
 
-		if (pcii_reg & IPR_PCII_IO_DEBUG_ACKNOWLEDGE)
+		if (pcii_reg & IPR_PCII_IO_DE_ACKNOWLEDGE)
 			return 0;
 
 		/* udelay cannot be used if delay is more than a few milliseconds */
@@ -2896,10 +2896,10 @@ static int ipr_get_ldump_data_section(struct ipr_ioa_cfg *ioa_cfg,
 						       dest, length_in_words);
 
 	/* Write IOA interrupt reg starting LDUMP state  */
-	writel((IPR_UPROCI_RESET_ALERT | IPR_UPROCI_IO_DEBUG_ALERT),
+	writel((IPR_UPROCI_RESET_ALERT | IPR_UPROCI_IO_DE_ALERT),
 	       ioa_cfg->regs.set_uproc_interrupt_reg32);
 
-	/* Wait for IO debug acknowledge */
+	/* Wait for IO de acknowledge */
 	if (ipr_wait_iodbg_ack(ioa_cfg,
 			       IPR_LDUMP_MAX_LONG_ACK_DELAY_IN_USEC)) {
 		dev_err(&ioa_cfg->pdev->dev,
@@ -2907,8 +2907,8 @@ static int ipr_get_ldump_data_section(struct ipr_ioa_cfg *ioa_cfg,
 		return -EIO;
 	}
 
-	/* Signal LDUMP interlocked - clear IO debug ack */
-	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE,
+	/* Signal LDUMP interlocked - clear IO de ack */
+	writel(IPR_PCII_IO_DE_ACKNOWLEDGE,
 	       ioa_cfg->regs.clr_interrupt_reg);
 
 	/* Write Mailbox with starting address */
@@ -2919,7 +2919,7 @@ static int ipr_get_ldump_data_section(struct ipr_ioa_cfg *ioa_cfg,
 	       ioa_cfg->regs.clr_uproc_interrupt_reg32);
 
 	for (i = 0; i < length_in_words; i++) {
-		/* Wait for IO debug acknowledge */
+		/* Wait for IO de acknowledge */
 		if (ipr_wait_iodbg_ack(ioa_cfg,
 				       IPR_LDUMP_MAX_SHORT_ACK_DELAY_IN_USEC)) {
 			dev_err(&ioa_cfg->pdev->dev,
@@ -2933,21 +2933,21 @@ static int ipr_get_ldump_data_section(struct ipr_ioa_cfg *ioa_cfg,
 
 		/* For all but the last word of data, signal data received */
 		if (i < (length_in_words - 1)) {
-			/* Signal dump data received - Clear IO debug Ack */
-			writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE,
+			/* Signal dump data received - Clear IO de Ack */
+			writel(IPR_PCII_IO_DE_ACKNOWLEDGE,
 			       ioa_cfg->regs.clr_interrupt_reg);
 		}
 	}
 
-	/* Signal end of block transfer. Set reset alert then clear IO debug ack */
+	/* Signal end of block transfer. Set reset alert then clear IO de ack */
 	writel(IPR_UPROCI_RESET_ALERT,
 	       ioa_cfg->regs.set_uproc_interrupt_reg32);
 
-	writel(IPR_UPROCI_IO_DEBUG_ALERT,
+	writel(IPR_UPROCI_IO_DE_ALERT,
 	       ioa_cfg->regs.clr_uproc_interrupt_reg32);
 
-	/* Signal dump data received - Clear IO debug Ack */
-	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE,
+	/* Signal dump data received - Clear IO de Ack */
+	writel(IPR_PCII_IO_DE_ACKNOWLEDGE,
 	       ioa_cfg->regs.clr_interrupt_reg);
 
 	/* Wait for IOA to signal LDUMP exit - IOA reset alert will be cleared */
@@ -5676,7 +5676,7 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
 		ipr_reset_ioa_job(ioa_cfg->reset_cmd);
 	} else if ((int_reg & IPR_PCII_HRRQ_UPDATED) == int_reg) {
 		if (ioa_cfg->clear_isr) {
-			if (ipr_debug && printk_ratelimit())
+			if (ipr_de && printk_ratelimit())
 				dev_err(&ioa_cfg->pdev->dev,
 					"Spurious interrupt detected. 0x%08X\n", int_reg);
 			writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
@@ -9683,7 +9683,7 @@ static int ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 		ioa_cfg->hrrq[i].size = entries_each_hrrq;
 	}
 
-	BUG_ON(ioa_cfg->hrrq_num == 0);
+	_ON(ioa_cfg->hrrq_num == 0);
 
 	i = IPR_NUM_CMD_BLKS -
 		ioa_cfg->hrrq[ioa_cfg->hrrq_num - 1].max_cmd_id - 1;
@@ -10114,7 +10114,7 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 	init_waitqueue_head(&ioa_cfg->msi_wait_q);
 	ioa_cfg->msi_received = 0;
 	ipr_mask_and_clear_interrupts(ioa_cfg, ~IPR_PCII_IOA_TRANS_TO_OPER);
-	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE, ioa_cfg->regs.clr_interrupt_mask_reg32);
+	writel(IPR_PCII_IO_DE_ACKNOWLEDGE, ioa_cfg->regs.clr_interrupt_mask_reg32);
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
@@ -10122,10 +10122,10 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 	if (rc) {
 		dev_err(&pdev->dev, "Can not assign irq %d\n", irq);
 		return rc;
-	} else if (ipr_debug)
+	} else if (ipr_de)
 		dev_info(&pdev->dev, "IRQ assigned: %d\n", irq);
 
-	writel(IPR_PCII_IO_DEBUG_ACKNOWLEDGE, ioa_cfg->regs.sense_interrupt_reg32);
+	writel(IPR_PCII_IO_DE_ACKNOWLEDGE, ioa_cfg->regs.sense_interrupt_reg32);
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
 	wait_event_timeout(ioa_cfg->msi_wait_q, ioa_cfg->msi_received, HZ);
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -10135,7 +10135,7 @@ static int ipr_test_msi(struct ipr_ioa_cfg *ioa_cfg, struct pci_dev *pdev)
 		/* MSI test failed */
 		dev_info(&pdev->dev, "MSI test failed.  Falling back to LSI.\n");
 		rc = -EOPNOTSUPP;
-	} else if (ipr_debug)
+	} else if (ipr_de)
 		dev_info(&pdev->dev, "MSI test succeeded.\n");
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);

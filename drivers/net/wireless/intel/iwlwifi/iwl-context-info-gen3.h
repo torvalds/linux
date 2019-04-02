@@ -80,13 +80,13 @@ enum iwl_prph_scratch_mtr_format {
 
 /**
  * enum iwl_prph_scratch_flags - PRPH scratch control flags
- * @IWL_PRPH_SCRATCH_EARLY_DEBUG_EN: enable early debug conf
+ * @IWL_PRPH_SCRATCH_EARLY_DE_EN: enable early de conf
  * @IWL_PRPH_SCRATCH_EDBG_DEST_DRAM: use DRAM, with size allocated
  *	in hwm config.
  * @IWL_PRPH_SCRATCH_EDBG_DEST_INTERNAL: use buffer on SRAM
  * @IWL_PRPH_SCRATCH_EDBG_DEST_ST_ARBITER: use st arbiter, mainly for
  *	multicomm.
- * @IWL_PRPH_SCRATCH_EDBG_DEST_TB22DTF: route debug data to SoC HW
+ * @IWL_PRPH_SCRATCH_EDBG_DEST_TB22DTF: route de data to SoC HW
  * @IWL_PRPH_SCTATCH_RB_SIZE_4K: Use 4K RB size (the default is 2K)
  * @IWL_PRPH_SCRATCH_MTR_MODE: format used for completion - 0: for
  *	completion descriptor, 1 for responses (legacy)
@@ -95,7 +95,7 @@ enum iwl_prph_scratch_mtr_format {
  *	3: 256 bit.
  */
 enum iwl_prph_scratch_flags {
-	IWL_PRPH_SCRATCH_EARLY_DEBUG_EN		= BIT(4),
+	IWL_PRPH_SCRATCH_EARLY_DE_EN		= BIT(4),
 	IWL_PRPH_SCRATCH_EDBG_DEST_DRAM		= BIT(8),
 	IWL_PRPH_SCRATCH_EDBG_DEST_INTERNAL	= BIT(9),
 	IWL_PRPH_SCRATCH_EDBG_DEST_ST_ARBITER	= BIT(10),

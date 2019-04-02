@@ -95,14 +95,14 @@ static bool set_watchpoint(pid_t pid, int size, int wp)
 	const unsigned int type = 2; /* Write */
 	const unsigned int enable = 1;
 	const unsigned int control = byte_mask << 5 | type << 3 | enable;
-	struct user_hwdebug_state dreg_state;
+	struct user_hwde_state dreg_state;
 	struct iovec iov;
 
 	memset(&dreg_state, 0, sizeof(dreg_state));
 	dreg_state.dbg_regs[0].addr = (uintptr_t)(addr - offset);
 	dreg_state.dbg_regs[0].ctrl = control;
 	iov.iov_base = &dreg_state;
-	iov.iov_len = offsetof(struct user_hwdebug_state, dbg_regs) +
+	iov.iov_len = offsetof(struct user_hwde_state, dbg_regs) +
 				sizeof(dreg_state.dbg_regs[0]);
 	if (ptrace(PTRACE_SETREGSET, pid, NT_ARM_HW_WATCH, &iov) == 0)
 		return true;

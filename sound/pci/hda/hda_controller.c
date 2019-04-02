@@ -656,10 +656,10 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	}
 	snd_pcm_limit_hw_rates(runtime);
 	/* sanity check */
-	if (snd_BUG_ON(!runtime->hw.channels_min) ||
-	    snd_BUG_ON(!runtime->hw.channels_max) ||
-	    snd_BUG_ON(!runtime->hw.formats) ||
-	    snd_BUG_ON(!runtime->hw.rates)) {
+	if (snd__ON(!runtime->hw.channels_min) ||
+	    snd__ON(!runtime->hw.channels_max) ||
+	    snd__ON(!runtime->hw.formats) ||
+	    snd__ON(!runtime->hw.rates)) {
 		azx_release_device(azx_dev);
 		if (hinfo->ops.close)
 			hinfo->ops.close(hinfo, apcm->codec, substream);
@@ -784,7 +784,7 @@ static unsigned int azx_command_addr(u32 cmd)
 	unsigned int addr = cmd >> 28;
 
 	if (addr >= AZX_MAX_CODECS) {
-		snd_BUG();
+		snd_();
 		addr = 0;
 	}
 
@@ -894,7 +894,7 @@ static int azx_rirb_get_response(struct hdac_bus *bus, unsigned int addr,
  *       intended for the BIOS only, and may get confused with unsolicited
  *       responses.  So, we shouldn't use it for normal operation from the
  *       driver.
- *       I left the codes, however, for debugging/testing purposes.
+ *       I left the codes, however, for deging/testing purposes.
  */
 
 /* receive a response */

@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _ASM_ARC_BUG_H
-#define _ASM_ARC_BUG_H
+#ifndef _ASM_ARC__H
+#define _ASM_ARC__H
 
 #ifndef __ASSEMBLY__
 
@@ -21,15 +21,15 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 			    unsigned long address);
 void die(const char *str, struct pt_regs *regs, unsigned long address);
 
-#define BUG()	do {								\
-	pr_warn("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
+#define ()	do {								\
+	pr_warn(": failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
 	barrier_before_unreachable();						\
 	__builtin_trap();							\
 } while (0)
 
-#define HAVE_ARCH_BUG
+#define HAVE_ARCH_
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
 #endif	/* !__ASSEMBLY__ */
 

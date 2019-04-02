@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbexec - debugger control method execution
+ * Module Name: dbexec - deger control method execution
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acnamesp.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbexec")
 
 static struct acpi_db_method_info acpi_gbl_db_method_info;
@@ -96,13 +96,13 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 {
 	acpi_status status;
 	struct acpi_object_list param_objects;
-	union acpi_object params[ACPI_DEBUGGER_MAX_ARGS + 1];
+	union acpi_object params[ACPI_DEGER_MAX_ARGS + 1];
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(db_execute_method);
 
 	if (acpi_gbl_db_output_to_file && !acpi_dbg_level) {
-		acpi_os_printf("Warning: debug output is not enabled!\n");
+		acpi_os_printf("Warning: de output is not enabled!\n");
 	}
 
 	param_objects.count = 0;
@@ -135,7 +135,7 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 	/* Prepare for a return object of arbitrary size */
 
 	return_obj->pointer = acpi_gbl_db_buffer;
-	return_obj->length = ACPI_DEBUG_BUFFER_SIZE;
+	return_obj->length = ACPI_DE_BUFFER_SIZE;
 
 	/* Do the actual method execution */
 
@@ -149,7 +149,7 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 	if (ACPI_FAILURE(status)) {
 		if ((status == AE_ABORT_METHOD) || acpi_gbl_abort_method) {
 
-			/* Clear the abort and fall back to the debugger prompt */
+			/* Clear the abort and fall back to the deger prompt */
 
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Aborting top-level method"));
@@ -160,14 +160,14 @@ acpi_db_execute_method(struct acpi_db_method_info *info,
 		}
 
 		ACPI_EXCEPTION((AE_INFO, status,
-				"while executing %s from AML Debugger",
+				"while executing %s from AML Deger",
 				info->pathname));
 
 		if (status == AE_BUFFER_OVERFLOW) {
 			ACPI_ERROR((AE_INFO,
-				    "Possible buffer overflow within AML Debugger "
+				    "Possible buffer overflow within AML Deger "
 				    "buffer (size 0x%X needed 0x%X)",
-				    ACPI_DEBUG_BUFFER_SIZE,
+				    ACPI_DE_BUFFER_SIZE,
 				    (u32)return_obj->length));
 		}
 	}
@@ -345,20 +345,20 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 	struct acpi_buffer return_obj;
 	char *name_string;
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 	u32 previous_allocations;
 	u32 allocations;
 #endif
 
 	/*
-	 * Allow one execution to be performed by debugger or single step
+	 * Allow one execution to be performed by deger or single step
 	 * execution will be dead locked by the interpreter mutexes.
 	 */
 	if (acpi_gbl_method_executing) {
-		acpi_os_printf("Only one debugger execution is allowed.\n");
+		acpi_os_printf("Only one deger execution is allowed.\n");
 		return;
 	}
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 	/* Memory allocation tracking */
 
 	previous_allocations = acpi_db_get_outstanding_allocations();
@@ -419,7 +419,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
 	 */
 	acpi_os_sleep((u64)10);
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 
 	/* Memory allocation tracking */
 
@@ -478,7 +478,7 @@ acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Debugger execute thread. Waits for a command line, then
+ * DESCRIPTION: Deger execute thread. Waits for a command line, then
  *              simply dispatches it.
  *
  ******************************************************************************/
@@ -569,7 +569,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
 		status = acpi_os_signal_semaphore(info->main_thread_gate, 1);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not signal debugger thread sync semaphore, %s\n",
+			    ("Could not signal deger thread sync semaphore, %s\n",
 			     acpi_format_exception(status));
 		}
 	}
@@ -614,7 +614,7 @@ static void ACPI_SYSTEM_XFACE acpi_db_single_execution_thread(void *context)
 	}
 
 	acpi_os_printf("\nBackground thread completed\n%c ",
-		       ACPI_DEBUGGER_COMMAND_PROMPT);
+		       ACPI_DEGER_COMMAND_PROMPT);
 }
 
 /*******************************************************************************
@@ -671,7 +671,7 @@ acpi_db_create_execution_thread(char *method_name_arg,
 		return;
 	}
 
-	status = acpi_os_execute(OSL_DEBUGGER_EXEC_THREAD,
+	status = acpi_os_execute(OSL_DEGER_EXEC_THREAD,
 				 acpi_db_single_execution_thread,
 				 &acpi_gbl_db_method_info);
 	if (ACPI_FAILURE(status)) {
@@ -825,7 +825,7 @@ acpi_db_create_execution_threads(char *num_threads_arg,
 
 	for (i = 0; i < (num_threads); i++) {
 		status =
-		    acpi_os_execute(OSL_DEBUGGER_EXEC_THREAD,
+		    acpi_os_execute(OSL_DEGER_EXEC_THREAD,
 				    acpi_db_method_thread,
 				    &acpi_gbl_db_method_info);
 		if (ACPI_FAILURE(status)) {

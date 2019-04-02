@@ -37,9 +37,9 @@ struct processor {
 	 */
 	void (*_proc_init)(void);
 	/*
-	 * Check for processor bugs
+	 * Check for processor s
 	 */
-	void (*check_bugs)(void);
+	void (*check_s)(void);
 	/*
 	 * Disable any processor specifics
 	 */
@@ -135,7 +135,7 @@ static inline void init_proc_vtable(const struct processor *p)
 #endif
 
 #define cpu_proc_init			PROC_VTABLE(_proc_init)
-#define cpu_check_bugs			PROC_VTABLE(check_bugs)
+#define cpu_check_s			PROC_VTABLE(check_s)
 #define cpu_proc_fin			PROC_VTABLE(_proc_fin)
 #define cpu_reset			PROC_VTABLE(reset)
 #define cpu_do_idle			PROC_VTABLE(_do_idle)

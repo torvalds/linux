@@ -22,7 +22,7 @@ This driver implements the support for Linux of Silicon Labs (Silabs)
 C2 Interface used for in-system programming of micro controllers.
 
 By using this driver you can reprogram the in-system flash without EC2
-or EC3 debug adapter. This solution is also useful in those systems
+or EC3 de adapter. This solution is also useful in those systems
 where the micro controller is connected via special GPIOs pins.
 
 References
@@ -38,7 +38,7 @@ http://www.silabs.com/Support Documents/TechnicalDocs/an127.pdf
 http://www.silabs.com/pages/DownloadDoc.aspx?FILEURL=Support%20Documents/TechnicalDocs/an127.pdf&src=SearchResults
 
 however it implements a two wire serial communication protocol (bit
-banging) designed to enable in-system programming, debugging, and
+banging) designed to enable in-system programming, deging, and
 boundary-scan testing on low pin-count Silicon Labs devices. Currently
 this code supports only flash programming but extensions are easy to
 add.

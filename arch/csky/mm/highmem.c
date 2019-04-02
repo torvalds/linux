@@ -29,7 +29,7 @@ EXPORT_SYMBOL(kmap);
 
 void kunmap(struct page *page)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	if (!PageHighMem(page))
 		return;
 	kunmap_high(page);
@@ -49,8 +49,8 @@ void *kmap_atomic(struct page *page)
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte - idx)));
+#ifdef CONFIG_DE_HIGHMEM
+	_ON(!pte_none(*(kmap_pte - idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, PAGE_KERNEL));
 	flush_tlb_one((unsigned long)vaddr);
@@ -67,10 +67,10 @@ void __kunmap_atomic(void *kvaddr)
 	if (vaddr < FIXADDR_START)
 		goto out;
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DE_HIGHMEM
 	idx = KM_TYPE_NR*smp_processor_id() + kmap_atomic_idx();
 
-	BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
+	_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
 
 	pte_clear(&init_mm, vaddr, kmap_pte - idx);
 	flush_tlb_one(vaddr);
@@ -147,7 +147,7 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 						      PAGE_SIZE);
 
 					set_pmd(pmd, __pmd(__pa(pte)));
-					BUG_ON(pte != pte_offset_kernel(pmd, 0));
+					_ON(pte != pte_offset_kernel(pmd, 0));
 				}
 				vaddr += PMD_SIZE;
 			}

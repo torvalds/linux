@@ -1248,7 +1248,7 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 	cmd = megasas_get_cmd(instance);
 
 	if (!cmd) {
-		dev_printk(KERN_DEBUG, &instance->pdev->dev, "Failed to get cmd for map info\n");
+		dev_printk(KERN_DE, &instance->pdev->dev, "Failed to get cmd for map info\n");
 		return -ENOMEM;
 	}
 
@@ -1267,7 +1267,7 @@ megasas_get_ld_map_info(struct megasas_instance *instance)
 	ci_h = fusion->ld_map_phys[(instance->map_id & 1)];
 
 	if (!ci) {
-		dev_printk(KERN_DEBUG, &instance->pdev->dev, "Failed to alloc mem for ld_map_info\n");
+		dev_printk(KERN_DE, &instance->pdev->dev, "Failed to alloc mem for ld_map_info\n");
 		megasas_return_cmd(instance, cmd);
 		return -ENOMEM;
 	}
@@ -1340,7 +1340,7 @@ megasas_sync_map_info(struct megasas_instance *instance)
 	cmd = megasas_get_cmd(instance);
 
 	if (!cmd) {
-		dev_printk(KERN_DEBUG, &instance->pdev->dev, "Failed to get cmd for sync info\n");
+		dev_printk(KERN_DE, &instance->pdev->dev, "Failed to get cmd for sync info\n");
 		return -ENOMEM;
 	}
 
@@ -1886,7 +1886,7 @@ map_cmd_status(struct fusion_context *fusion,
 		if (resid &&
 			((cmd_type == READ_WRITE_LDIO) ||
 			(cmd_type == READ_WRITE_SYSPDIO)))
-			scmd_printk(KERN_INFO, scmd, "BRCM Debug mfi stat 0x%x, data len"
+			scmd_printk(KERN_INFO, scmd, "BRCM De mfi stat 0x%x, data len"
 				" requested/completed 0x%x/0x%x\n",
 				status, scsi_bufflen(scmd), data_length);
 		break;

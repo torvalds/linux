@@ -86,9 +86,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, pci
 
 /*
  * Addresses issues with problems in the memory write queue timer in
- * certain VIA Northbridges.  This bugfix is per VIA's specifications,
+ * certain VIA Northbridges.  This fix is per VIA's specifications,
  * except for the KL133/KM133: clearing bit 5 on those Northbridges seems
- * to trigger a bug in its integrated ProSavage video card, which
+ * to trigger a  in its integrated ProSavage video card, which
  * causes screen corruption.  We only clear bits 6 and 7 for that chipset,
  * until VIA can provide us with definitive information on why screen
  * corruption occurs, and what exactly those bits do.
@@ -104,7 +104,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3, pci
 #define VIA_8363_KL133_REVISION_ID 0x81
 #define VIA_8363_KM133_REVISION_ID 0x84
 
-static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
+static void pci_fixup_via_northbridge_(struct pci_dev *d)
 {
 	u8 v;
 	int where = 0x55;
@@ -112,7 +112,7 @@ static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 
 	if (d->device == PCI_DEVICE_ID_VIA_8367_0) {
 		/* fix pci bus latency issues resulted by NB bios error
-		   it appears on bug free^Wreduced kt266x's bios forces
+		   it appears on  free^Wreduced kt266x's bios forces
 		   NB latency to zero */
 		pci_write_config_byte(d, PCI_LATENCY_TIMER, 0);
 
@@ -133,14 +133,14 @@ static void pci_fixup_via_northbridge_bug(struct pci_dev *d)
 		pci_write_config_byte(d, where, v);
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_bug);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_bug);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8363_0, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8622, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8361, pci_fixup_via_northbridge_);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8367_0, pci_fixup_via_northbridge_);
 
 /*
  * For some reasons Intel decided that certain parts of their
@@ -410,7 +410,7 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
  * IRQ, PCI cache line size, and BARs, otherwise the device won't function
  * properly.  In some cases, the device will generate an interrupt on
  * the wrong IRQ line, causing any devices sharing the line it's
- * *supposed* to use to be disabled by the kernel's IRQ debug code.
+ * *supposed* to use to be disabled by the kernel's IRQ de code.
  */
 static u16 toshiba_line_size;
 
@@ -540,7 +540,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, 0x4385, sb600_hpet_quirk);
  * Twinhead H12Y needs us to block out a region otherwise we map devices
  * there and any access kills the box.
  *
- *   See: https://bugzilla.kernel.org/show_bug.cgi?id=10231
+ *   See: https://zilla.kernel.org/show_.cgi?id=10231
  *
  * Match off the LPC and svid/sdid (older kernels lose the bridge subvendor)
  */
@@ -599,7 +599,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x7808, pci_fixup_amd_ehci_pme);
  * Port itself.  Attaching the quirk to the Root Port is a convenience, but
  * it could probably also be a standalone DMI quirk.
  *
- * https://bugzilla.kernel.org/show_bug.cgi?id=103211
+ * https://zilla.kernel.org/show_.cgi?id=103211
  */
 static void quirk_apple_mbp_poweroff(struct pci_dev *pdev)
 {

@@ -309,7 +309,7 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 		 */
 		if (cpu_is_pxa27x() &&
 		    (cmd->flags & MMC_RSP_136 && cmd->resp[0] & 0x80000000))
-			pr_debug("ignoring CRC from command %d - *risky*\n", cmd->opcode);
+			pr_de("ignoring CRC from command %d - *risky*\n", cmd->opcode);
 		else
 			cmd->error = -EILSEQ;
 	}
@@ -351,7 +351,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 		data->error = -EILSEQ;
 
 	/*
-	 * There appears to be a hardware design bug here.  There seems to
+	 * There appears to be a hardware design  here.  There seems to
 	 * be no way to find out how much data was transferred to the card.
 	 * This means that if there was an error on any block, we mark all
 	 * data blocks as being in error.
@@ -385,7 +385,7 @@ static irqreturn_t pxamci_irq(int irq, void *devid)
 	if (ireg) {
 		unsigned stat = readl(host->base + MMC_STAT);
 
-		pr_debug("PXAMCI: irq %08x stat %08x\n", ireg, stat);
+		pr_de("PXAMCI: irq %08x stat %08x\n", ireg, stat);
 
 		if (ireg & END_CMD_RES)
 			handled |= pxamci_cmd_done(host, stat);

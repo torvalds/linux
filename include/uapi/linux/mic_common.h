@@ -148,7 +148,7 @@ struct mic_vqconfig {
  * for the avail index and magic for the card.
  *
  * @avail_idx: host avail idx
- * @magic: A magic debug cookie.
+ * @magic: A magic de cookie.
  */
 struct _mic_vring_info {
 	__u16 avail_idx;

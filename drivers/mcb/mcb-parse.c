@@ -87,7 +87,7 @@ static int chameleon_parse_gdd(struct mcb_bus *bus,
 		goto err;
 	}
 
-	pr_debug("Found a 16z%03d\n", mdev->id);
+	pr_de("Found a 16z%03d\n", mdev->id);
 
 	mdev->irq.start = GDD_IRQ(reg1);
 	mdev->irq.end = GDD_IRQ(reg1);

@@ -31,7 +31,7 @@ KBUILD_CFLAGS_KERNEL := -mconstant-gp
 GAS_STATUS	= $(shell $(srctree)/arch/ia64/scripts/check-gas "$(CC)" "$(OBJDUMP)")
 KBUILD_CPPFLAGS += $(shell $(srctree)/arch/ia64/scripts/toolchain-flags "$(CC)" "$(OBJDUMP)" "$(READELF)")
 
-ifeq ($(GAS_STATUS),buggy)
+ifeq ($(GAS_STATUS),gy)
 $(error Sorry, you need a newer version of the assember, one that is built from	\
 	a source-tree that post-dates 18-Dec-2002.  You can find a pre-compiled	\
 	static binary of such an assembler at:					\

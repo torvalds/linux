@@ -22,7 +22,7 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
@@ -62,7 +62,7 @@ void machine_restart(void)
 
 /*
  * Similar to machine_power_off, but don't shut off power.  Add code
- * here to freeze the system for e.g. post-mortem debug purpose when
+ * here to freeze the system for e.g. post-mortem de purpose when
  * possible.  This halt has nothing to do with the idle halt.
  */
 void machine_halt(void)
@@ -93,7 +93,7 @@ void (*pm_power_off) (void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
- * When a process does an "exec", machine state like FPU and debug
+ * When a process does an "exec", machine state like FPU and de
  * registers need to be reset.  This is a hook function for that.
  * Currently we don't have any such state to reset, so this is empty.
  */

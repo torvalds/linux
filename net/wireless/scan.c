@@ -1632,7 +1632,7 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 				      u.probe_resp.variable);
 	int bss_type;
 
-	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
+	BUILD__ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
 			offsetof(struct ieee80211_mgmt, u.beacon.variable));
 
 	trace_cfg80211_inform_bss_frame(wiphy, data, mgmt, len);

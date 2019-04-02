@@ -31,7 +31,7 @@
 
 #include "hpi_internal.h"
 #include "hpimsginit.h"
-#include "hpidebug.h"
+#include "hpide.h"
 #include "hpi6205.h"
 #include "hpidspcd.h"
 #include "hpicmn.h"
@@ -298,7 +298,7 @@ static void outstream_message(struct hpi_adapter_obj *pao,
 
 	if (phm->obj_index >= HPI_MAX_STREAMS) {
 		phr->error = HPI_ERROR_INVALID_OBJ_INDEX;
-		HPI_DEBUG_LOG(WARNING,
+		HPI_DE_LOG(WARNING,
 			"Message referencing invalid stream %d "
 			"on adapter index %d\n", phm->obj_index,
 			phm->adapter_index);
@@ -342,7 +342,7 @@ static void instream_message(struct hpi_adapter_obj *pao,
 
 	if (phm->obj_index >= HPI_MAX_STREAMS) {
 		phr->error = HPI_ERROR_INVALID_OBJ_INDEX;
-		HPI_DEBUG_LOG(WARNING,
+		HPI_DE_LOG(WARNING,
 			"Message referencing invalid stream %d "
 			"on adapter index %d\n", phm->obj_index,
 			phm->adapter_index);
@@ -383,11 +383,11 @@ void _HPI_6205(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	struct hpi_response *phr)
 {
 	if (pao && (pao->dsp_crashed >= 10)
-		&& (phm->function != HPI_ADAPTER_DEBUG_READ)) {
-		/* allow last resort debug read even after crash */
+		&& (phm->function != HPI_ADAPTER_DE_READ)) {
+		/* allow last resort de read even after crash */
 		hpi_init_response(phr, phm->object, phm->function,
 			HPI_ERROR_DSP_HARDWARE);
-		HPI_DEBUG_LOG(WARNING, " %d,%d dsp crashed.\n", phm->object,
+		HPI_DE_LOG(WARNING, " %d,%d dsp crashed.\n", phm->object,
 			phm->function);
 		return;
 	}
@@ -396,7 +396,7 @@ void _HPI_6205(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	if (phm->function != HPI_SUBSYS_CREATE_ADAPTER)
 		phr->error = HPI_ERROR_PROCESSING_MESSAGE;
 
-	HPI_DEBUG_LOG(VERBOSE, "start of switch\n");
+	HPI_DE_LOG(VERBOSE, "start of switch\n");
 	switch (phm->type) {
 	case HPI_TYPE_REQUEST:
 		switch (phm->object) {
@@ -468,13 +468,13 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	u32 os_error_code;
 	u16 err;
 
-	HPI_DEBUG_LOG(DEBUG, " subsys_create_adapter\n");
+	HPI_DE_LOG(DE, " subsys_create_adapter\n");
 
 	memset(&ao, 0, sizeof(ao));
 
 	ao.priv = kzalloc(sizeof(struct hpi_hw_obj), GFP_KERNEL);
 	if (!ao.priv) {
-		HPI_DEBUG_LOG(ERROR, "can't get mem for adapter object\n");
+		HPI_DE_LOG(ERROR, "can't get mem for adapter object\n");
 		phr->error = HPI_ERROR_MEMORY_ALLOC;
 		return;
 	}
@@ -559,7 +559,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 			(void *)&phw->p_interface_buffer))
 		phw->p_interface_buffer = NULL;
 
-	HPI_DEBUG_LOG(DEBUG, "interface buffer address %p\n",
+	HPI_DE_LOG(DE, "interface buffer address %p\n",
 		phw->p_interface_buffer);
 
 	if (phw->p_interface_buffer) {
@@ -570,12 +570,12 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 
 	err = adapter_boot_load_dsp(pao, pos_error_code);
 	if (err) {
-		HPI_DEBUG_LOG(ERROR, "DSP code load failed\n");
+		HPI_DE_LOG(ERROR, "DSP code load failed\n");
 		/* no need to clean up as SubSysCreateAdapter */
 		/* calls DeleteAdapter on error. */
 		return err;
 	}
-	HPI_DEBUG_LOG(INFO, "load DSP code OK\n");
+	HPI_DE_LOG(INFO, "load DSP code OK\n");
 
 	/* allow boot load even if mem alloc wont work */
 	if (!phw->p_interface_buffer)
@@ -585,7 +585,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 
 	/* make sure the DSP has started ok */
 	if (!wait_dsp_ack(phw, H620_HIF_RESET, HPI6205_TIMEOUT * 10)) {
-		HPI_DEBUG_LOG(ERROR, "timed out waiting reset state \n");
+		HPI_DE_LOG(ERROR, "timed out waiting reset state \n");
 		return HPI6205_ERROR_6205_INIT_FAILED;
 	}
 	/* Note that *pao, *phw are zeroed after allocation,
@@ -636,7 +636,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 		struct hpi_message hm;
 		struct hpi_response hr;
 
-		HPI_DEBUG_LOG(VERBOSE, "init ADAPTER_GET_INFO\n");
+		HPI_DE_LOG(VERBOSE, "init ADAPTER_GET_INFO\n");
 		memset(&hm, 0, sizeof(hm));
 		/* wAdapterIndex == version == 0 */
 		hm.type = HPI_TYPE_REQUEST;
@@ -649,7 +649,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 
 		err = message_response_sequence(pao, &hm, &hr);
 		if (err) {
-			HPI_DEBUG_LOG(ERROR, "message transport error %d\n",
+			HPI_DE_LOG(ERROR, "message transport error %d\n",
 				err);
 			return err;
 		}
@@ -659,7 +659,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 		pao->type = hr.u.ax.info.adapter_type;
 		pao->index = hr.u.ax.info.adapter_index;
 
-		HPI_DEBUG_LOG(VERBOSE,
+		HPI_DE_LOG(VERBOSE,
 			"got adapter info type %x index %d serial %d\n",
 			hr.u.ax.info.adapter_type, hr.u.ax.info.adapter_index,
 			hr.u.ax.info.serial_number);
@@ -668,7 +668,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 	if (phw->p_cache)
 		phw->p_cache->adap_idx = pao->index;
 
-	HPI_DEBUG_LOG(INFO, "bootload DSP OK\n");
+	HPI_DE_LOG(INFO, "bootload DSP OK\n");
 
 	pao->irq_query_and_clear = adapter_irq_query_and_clear;
 	pao->instream_host_buffer_status =
@@ -810,7 +810,7 @@ static void outstream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 
 		if (phm->u.d.u.buffer.buffer_size & (phm->u.d.u.buffer.
 				buffer_size - 1)) {
-			HPI_DEBUG_LOG(ERROR,
+			HPI_DE_LOG(ERROR,
 				"Buffer size must be 2^N not %d\n",
 				phm->u.d.u.buffer.buffer_size);
 			phr->error = HPI_ERROR_INVALID_DATASIZE;
@@ -1086,7 +1086,7 @@ static void instream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 
 		if (phm->u.d.u.buffer.buffer_size & (phm->u.d.u.buffer.
 				buffer_size - 1)) {
-			HPI_DEBUG_LOG(ERROR,
+			HPI_DE_LOG(ERROR,
 				"Buffer size must be 2^N not %d\n",
 				phm->u.d.u.buffer.buffer_size);
 			phr->error = HPI_ERROR_INVALID_DATASIZE;
@@ -1500,7 +1500,7 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 				host_mailbox_address_on_dsp);
 		}
 	}
-	HPI_DEBUG_LOG(DEBUG, "starting DS_ps running\n");
+	HPI_DE_LOG(DE, "starting DS_ps running\n");
 	/* enable interrupts */
 	temp = ioread32(phw->prHSR);
 	temp &= ~(u32)C6205_HSR_INTAM;
@@ -1534,7 +1534,7 @@ static u32 boot_loader_read_mem32(struct hpi_adapter_obj *pao, int dsp_index,
 			p_data = pao->pci.ap_mem_base[1] +
 				(address & 0x007fffff) /
 				sizeof(*pao->pci.ap_mem_base[1]);
-			/* HPI_DEBUG_LOG(WARNING,
+			/* HPI_DE_LOG(WARNING,
 			   "BAR1 access %08x\n", dwAddress); */
 		} else {
 			u32 dw4M_page = address >> 22L;
@@ -1697,7 +1697,7 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		read_data =
 			0xFFF7 & boot_loader_read_mem32(pao, 0, HPICL_ADDR);
 		if (write_data != read_data) {
-			HPI_DEBUG_LOG(ERROR, "HPICL %x %x\n", write_data,
+			HPI_DE_LOG(ERROR, "HPICL %x %x\n", write_data,
 				read_data);
 			return HPI6205_ERROR_C6713_HPIC;
 		}
@@ -1717,7 +1717,7 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 						HPIAH_ADDR))
 				<< 16);
 			if (read_data != write_data) {
-				HPI_DEBUG_LOG(ERROR, "HPIA %x %x\n",
+				HPI_DE_LOG(ERROR, "HPIA %x %x\n",
 					write_data, read_data);
 				return HPI6205_ERROR_C6713_HPIA;
 			}
@@ -1863,7 +1863,7 @@ static u16 boot_loader_test_memory(struct hpi_adapter_obj *pao, int dsp_index,
 			data = boot_loader_read_mem32(pao, dsp_index,
 				test_addr);
 			if (data != test_data) {
-				HPI_DEBUG_LOG(VERBOSE,
+				HPI_DE_LOG(VERBOSE,
 					"Memtest error details  "
 					"%08x %08x %08x %i\n", test_addr,
 					test_data, data, dsp_index);
@@ -1883,7 +1883,7 @@ static u16 boot_loader_test_memory(struct hpi_adapter_obj *pao, int dsp_index,
 		boot_loader_write_mem32(pao, dsp_index, test_addr + 4, 0);
 		data = boot_loader_read_mem32(pao, dsp_index, test_addr);
 		if (data != test_data) {
-			HPI_DEBUG_LOG(VERBOSE,
+			HPI_DE_LOG(VERBOSE,
 				"Memtest error details  "
 				"%08x %08x %08x %i\n", test_addr, test_data,
 				data, dsp_index);
@@ -2029,12 +2029,12 @@ static short hpi6205_transfer_data(struct hpi_adapter_obj *pao, u8 *p_data,
 		send_dsp_command(phw, operation);
 
 		temp2 = wait_dsp_ack(phw, operation, HPI6205_TIMEOUT);
-		HPI_DEBUG_LOG(DEBUG, "spun %d times for data xfer of %d\n",
+		HPI_DE_LOG(DE, "spun %d times for data xfer of %d\n",
 			HPI6205_TIMEOUT - temp2, this_copy);
 
 		if (!temp2) {
 			/* timed out */
-			HPI_DEBUG_LOG(ERROR,
+			HPI_DE_LOG(ERROR,
 				"Timed out waiting for " "state %d got %d\n",
 				operation, interface->dsp_ack);
 
@@ -2047,7 +2047,7 @@ static short hpi6205_transfer_data(struct hpi_adapter_obj *pao, u8 *p_data,
 		data_transferred += this_copy;
 	}
 	if (interface->dsp_ack != operation)
-		HPI_DEBUG_LOG(DEBUG, "interface->dsp_ack=%d, expected %d\n",
+		HPI_DE_LOG(DE, "interface->dsp_ack=%d, expected %d\n",
 			interface->dsp_ack, operation);
 	/*                      err=HPI_ERROR_DSP_HARDWARE; */
 
@@ -2070,7 +2070,7 @@ static int wait_dsp_ack(struct hpi_hw_obj *phw, int state, int timeout_us)
 		rmb();	/* DSP changes dsp_ack by DMA */
 	}
 
-	/*HPI_DEBUG_LOG(VERBOSE, "Spun %d for %d\n", timeout_us/4-t, state); */
+	/*HPI_DE_LOG(VERBOSE, "Spun %d for %d\n", timeout_us/4-t, state); */
 	return t * 4;
 }
 
@@ -2105,7 +2105,7 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 		phr->error = HPI_ERROR_MESSAGE_BUFFER_TOO_SMALL;
 		phr->specific_error = sizeof(interface->u.message_buffer);
 		phr->size = sizeof(struct hpi_response_header);
-		HPI_DEBUG_LOG(ERROR,
+		HPI_DE_LOG(ERROR,
 			"message len %d too big for buffer %zd \n", phm->size,
 			sizeof(interface->u.message_buffer));
 		return 0;
@@ -2115,7 +2115,7 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 	   is allocated "noncacheable" */
 
 	if (!wait_dsp_ack(phw, H620_HIF_IDLE, HPI6205_TIMEOUT)) {
-		HPI_DEBUG_LOG(DEBUG, "timeout waiting for idle\n");
+		HPI_DE_LOG(DE, "timeout waiting for idle\n");
 		return HPI6205_ERROR_MSG_RESP_IDLE_TIMEOUT;
 	}
 
@@ -2126,11 +2126,11 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 	time_out2 = wait_dsp_ack(phw, H620_HIF_GET_RESP, HPI6205_TIMEOUT);
 
 	if (!time_out2) {
-		HPI_DEBUG_LOG(ERROR,
+		HPI_DE_LOG(ERROR,
 			"(%u) Timed out waiting for " "GET_RESP state [%x]\n",
 			message_count, interface->dsp_ack);
 	} else {
-		HPI_DEBUG_LOG(VERBOSE,
+		HPI_DE_LOG(VERBOSE,
 			"(%u) transition to GET_RESP after %u\n",
 			message_count, HPI6205_TIMEOUT - time_out2);
 	}
@@ -2143,7 +2143,7 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 			memcpy(phr, &interface->u.response_buffer,
 				interface->u.response_buffer.response.size);
 		else {
-			HPI_DEBUG_LOG(ERROR,
+			HPI_DE_LOG(ERROR,
 				"response len %d too big for buffer %d\n",
 				interface->u.response_buffer.response.size,
 				phr->size);
@@ -2159,14 +2159,14 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 	send_dsp_command(phw, H620_HIF_IDLE);
 
 	if (!time_out || !time_out2) {
-		HPI_DEBUG_LOG(DEBUG, "something timed out!\n");
+		HPI_DE_LOG(DE, "something timed out!\n");
 		return HPI6205_ERROR_MSG_RESP_TIMEOUT;
 	}
 	/* special case for adapter close - */
 	/* wait for the DSP to indicate it is idle */
 	if (phm->function == HPI_ADAPTER_CLOSE) {
 		if (!wait_dsp_ack(phw, H620_HIF_IDLE, HPI6205_TIMEOUT)) {
-			HPI_DEBUG_LOG(DEBUG,
+			HPI_DE_LOG(DE,
 				"Timeout waiting for idle "
 				"(on adapter_close)\n");
 			return HPI6205_ERROR_MSG_RESP_IDLE_TIMEOUT;

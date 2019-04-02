@@ -138,7 +138,7 @@ static void cs_hsi_read_on_data(struct cs_hsi_iface *hi);
 
 static inline void rx_ptr_shift_too_big(void)
 {
-	BUILD_BUG_ON((1LLU << RX_PTR_MAX_SHIFT) > UINT_MAX);
+	BUILD__ON((1LLU << RX_PTR_MAX_SHIFT) > UINT_MAX);
 }
 
 static void cs_notify(u32 message, struct list_head *head)
@@ -253,7 +253,7 @@ static struct hsi_msg *cs_claim_cmd(struct cs_hsi_iface* ssi)
 {
 	struct hsi_msg *msg;
 
-	BUG_ON(list_empty(&ssi->cmdqueue));
+	_ON(list_empty(&ssi->cmdqueue));
 
 	msg = list_first_entry(&ssi->cmdqueue, struct hsi_msg, link);
 	list_del(&msg->link);
@@ -894,7 +894,7 @@ static void cs_hsi_data_enable(struct cs_hsi_iface *hi,
 {
 	unsigned int data_start, i;
 
-	BUG_ON(hi->buf_size == 0);
+	_ON(hi->buf_size == 0);
 
 	set_buffer_sizes(hi, buf_cfg->rx_bufs, buf_cfg->tx_bufs);
 
@@ -1051,7 +1051,7 @@ static int cs_hsi_start(struct cs_hsi_iface **hi, struct hsi_client *cl,
 
 	dev_dbg(&cl->device, "cs_hsi_start...done\n");
 
-	BUG_ON(!hi);
+	_ON(!hi);
 	*hi = hsi_if;
 
 	return 0;

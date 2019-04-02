@@ -251,7 +251,7 @@ void dvb_free_device(struct dvb_device *dvbdev);
  *
  * This is a combination of dvb_remove_device() and dvb_free_device().
  * Using this function is usually a mistake, and is often an indicator
- * for a use-after-free bug (when a userspace process keeps a file
+ * for a use-after-free  (when a userspace process keeps a file
  * handle to a detached device).
  *
  * @dvbdev:	pointer to struct dvb_device
@@ -370,7 +370,7 @@ struct i2c_client;
  * @module_name:
  *	Name of the I2C module to be probed
  * @name:
- *	Optional name for the I2C module. Used for debug purposes.
+ *	Optional name for the I2C module. Used for de purposes.
  * 	If %NULL, defaults to @module_name.
  * @adap:
  *	pointer to &struct i2c_adapter that describes the I2C adapter where

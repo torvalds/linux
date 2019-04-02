@@ -3,7 +3,7 @@
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C24XX CPU Frequency scaling - debugfs status support
+ * S3C24XX CPU Frequency scaling - defs status support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
 
@@ -110,7 +110,7 @@ static int io_show(struct seq_file *seq, void *p)
 		return 0;
 	}
 
-	show_bank = cfg->info->debug_io_show;
+	show_bank = cfg->info->de_io_show;
 	if (!show_bank) {
 		seq_printf(seq, "no code to show bank timing\n");
 		return 0;
@@ -142,25 +142,25 @@ static int io_show(struct seq_file *seq, void *p)
 
 DEFINE_SHOW_ATTRIBUTE(io);
 
-static int __init s3c_freq_debugfs_init(void)
+static int __init s3c_freq_defs_init(void)
 {
-	dbgfs_root = debugfs_create_dir("s3c-cpufreq", NULL);
+	dbgfs_root = defs_create_dir("s3c-cpufreq", NULL);
 	if (IS_ERR(dbgfs_root)) {
-		pr_err("%s: error creating debugfs root\n", __func__);
+		pr_err("%s: error creating defs root\n", __func__);
 		return PTR_ERR(dbgfs_root);
 	}
 
-	dbgfs_file_io = debugfs_create_file("io-timing", S_IRUGO, dbgfs_root,
+	dbgfs_file_io = defs_create_file("io-timing", S_IRUGO, dbgfs_root,
 					    NULL, &io_fops);
 
-	dbgfs_file_info = debugfs_create_file("info", S_IRUGO, dbgfs_root,
+	dbgfs_file_info = defs_create_file("info", S_IRUGO, dbgfs_root,
 					      NULL, &info_fops);
 
-	dbgfs_file_board = debugfs_create_file("board", S_IRUGO, dbgfs_root,
+	dbgfs_file_board = defs_create_file("board", S_IRUGO, dbgfs_root,
 					       NULL, &board_fops);
 
 	return 0;
 }
 
-late_initcall(s3c_freq_debugfs_init);
+late_initcall(s3c_freq_defs_init);
 

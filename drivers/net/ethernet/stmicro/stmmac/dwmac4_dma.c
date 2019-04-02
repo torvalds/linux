@@ -202,10 +202,10 @@ static void dwmac4_dma_rx_chan_op_mode(void __iomem *ioaddr, int mode,
 	mtl_rx_op = readl(ioaddr + MTL_CHAN_RX_OP_MODE(channel));
 
 	if (mode == SF_DMA_MODE) {
-		pr_debug("GMAC: enable RX store and forward mode\n");
+		pr_de("GMAC: enable RX store and forward mode\n");
 		mtl_rx_op |= MTL_OP_MODE_RSF;
 	} else {
-		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", mode);
+		pr_de("GMAC: disable RX SF mode (threshold %d)\n", mode);
 		mtl_rx_op &= ~MTL_OP_MODE_RSF;
 		mtl_rx_op &= MTL_OP_MODE_RTC_MASK;
 		if (mode <= 32)
@@ -282,11 +282,11 @@ static void dwmac4_dma_tx_chan_op_mode(void __iomem *ioaddr, int mode,
 	unsigned int tqs = fifosz / 256 - 1;
 
 	if (mode == SF_DMA_MODE) {
-		pr_debug("GMAC: enable TX store and forward mode\n");
+		pr_de("GMAC: enable TX store and forward mode\n");
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		mtl_tx_op |= MTL_OP_MODE_TSF;
 	} else {
-		pr_debug("GMAC: disabling TX SF (threshold %d)\n", mode);
+		pr_de("GMAC: disabling TX SF (threshold %d)\n", mode);
 		mtl_tx_op &= ~MTL_OP_MODE_TSF;
 		mtl_tx_op &= MTL_OP_MODE_TTC_MASK;
 		/* Set the transmit threshold */

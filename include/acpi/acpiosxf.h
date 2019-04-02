@@ -21,8 +21,8 @@ typedef enum {
 	OSL_GLOBAL_LOCK_HANDLER,
 	OSL_NOTIFY_HANDLER,
 	OSL_GPE_HANDLER,
-	OSL_DEBUGGER_MAIN_THREAD,
-	OSL_DEBUGGER_EXEC_THREAD,
+	OSL_DEGER_MAIN_THREAD,
+	OSL_DEGER_EXEC_THREAD,
 	OSL_EC_POLL_HANDLER,
 	OSL_EC_BURST_HANDLER
 } acpi_execute_type;
@@ -327,7 +327,7 @@ acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value);
 #endif
 
 /*
- * Debug print routines
+ * De print routines
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_printf
 void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *format, ...);
@@ -342,18 +342,18 @@ void acpi_os_redirect_output(void *destination);
 #endif
 
 /*
- * Debug IO
+ * De IO
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_line
 acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read);
 #endif
 
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_debugger
-acpi_status acpi_os_initialize_debugger(void);
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_deger
+acpi_status acpi_os_initialize_deger(void);
 #endif
 
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_debugger
-void acpi_os_terminate_debugger(void);
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_deger
+void acpi_os_terminate_deger(void);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_wait_command_ready

@@ -592,7 +592,7 @@ static int renesas_sdhi_multi_io_quirk(struct mmc_card *card,
 	 * depending on the timing with which the
 	 * response register is read, the response
 	 * value may not be read properly.
-	 * Use single block read for this HW bug
+	 * Use single block read for this HW 
 	 */
 	if ((direction == MMC_DATA_READ) &&
 	    blk_size == 2)

@@ -30,8 +30,8 @@
  * status of a command.
  */
 
-#ifdef CONFIG_USB_STORAGE_DEBUG
-#define DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
+#define DE
 #endif
 
 #include <linux/sched.h>
@@ -50,7 +50,7 @@
 #include "scsiglue.h"
 #include "transport.h"
 #include "protocol.h"
-#include "debug.h"
+#include "de.h"
 #include "initializers.h"
 
 #include "sierra_ms.h"
@@ -150,7 +150,7 @@ static void us_set_lock_class(struct mutex *mutex,
 			break;
 	}
 
-	BUG_ON(i == config->desc.bNumInterfaces);
+	_ON(i == config->desc.bNumInterfaces);
 
 	lockdep_set_class(mutex, &us_interface_key[i]);
 }
@@ -376,7 +376,7 @@ static int usb_stor_control_thread(void * __us)
 
 		/* we've got a command, let's do it! */
 		else {
-			US_DEBUG(usb_stor_show_command(us, srb));
+			US_DE(usb_stor_show_command(us, srb));
 			us->proto_handler(srb, us);
 			usb_mark_last_busy(us->pusb_dev);
 		}

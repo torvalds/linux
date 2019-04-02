@@ -205,7 +205,7 @@ uint32_t generic_reg_get8(const struct dc_context *ctx, uint32_t addr,
 	return reg_val;
 }
 /* note:  va version of this is pretty bad idea, since there is a output parameter pass by pointer
- * compiler won't be able to check for size match and is prone to stack corruption type of bugs
+ * compiler won't be able to check for size match and is prone to stack corruption type of s
 
 uint32_t generic_reg_get(const struct dc_context *ctx,
 		uint32_t addr, int n, ...)
@@ -274,7 +274,7 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 			func_name, line);
 
 	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 
 	return reg_val;
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -30,7 +30,7 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
 		    num_pages - got, write_page, pages + got);
 		if (rc < 0)
 			break;
-		BUG_ON(rc == 0);
+		_ON(rc == 0);
 		got += rc;
 	}
 	if (rc < 0)

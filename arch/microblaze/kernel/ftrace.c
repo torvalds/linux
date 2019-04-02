@@ -133,10 +133,10 @@ int ftrace_make_nop(struct module *mod,
 	if (recorded == 0) {
 		recorded = 1;
 		imm = *(unsigned int *)rec->ip;
-		pr_debug("%s: imm:0x%x\n", __func__, imm);
+		pr_de("%s: imm:0x%x\n", __func__, imm);
 #ifdef USE_FTRACE_NOP
 		bralid = *(unsigned int *)(rec->ip + 4);
-		pr_debug("%s: bralid 0x%x\n", __func__, bralid);
+		pr_de("%s: bralid 0x%x\n", __func__, bralid);
 #endif /* USE_FTRACE_NOP */
 	}
 
@@ -153,11 +153,11 @@ int ftrace_make_nop(struct module *mod,
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	int ret;
-	pr_debug("%s: addr:0x%x, rec->ip: 0x%x, imm:0x%x\n",
+	pr_de("%s: addr:0x%x, rec->ip: 0x%x, imm:0x%x\n",
 		__func__, (unsigned int)addr, (unsigned int)rec->ip, imm);
 	ret = ftrace_modify_code(rec->ip, imm);
 #ifdef USE_FTRACE_NOP
-	pr_debug("%s: bralid:0x%x\n", __func__, bralid);
+	pr_de("%s: bralid:0x%x\n", __func__, bralid);
 	ret += ftrace_modify_code(rec->ip + 4, bralid);
 #endif /* USE_FTRACE_NOP */
 	return ret;
@@ -179,7 +179,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	upper = 0xb0000000 + (upper >> 16); /* imm func_upper */
 	lower = 0x32800000 + (lower & 0xFFFF); /* addik r20, r0, func_lower */
 
-	pr_debug("%s: func=0x%x, ip=0x%x, upper=0x%x, lower=0x%x\n",
+	pr_de("%s: func=0x%x, ip=0x%x, upper=0x%x, lower=0x%x\n",
 		__func__, (unsigned int)func, (unsigned int)ip, upper, lower);
 
 	/* save upper and lower code */
@@ -204,7 +204,7 @@ int ftrace_enable_ftrace_graph_caller(void)
 	old_jump = *(unsigned int *)ip; /* save jump over instruction */
 	ret = ftrace_modify_code(ip, MICROBLAZE_NOP);
 
-	pr_debug("%s: Replace instruction: 0x%x\n", __func__, old_jump);
+	pr_de("%s: Replace instruction: 0x%x\n", __func__, old_jump);
 	return ret;
 }
 
@@ -215,7 +215,7 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 	ret = ftrace_modify_code(ip, old_jump);
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 	return ret;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

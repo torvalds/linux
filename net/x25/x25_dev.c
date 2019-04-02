@@ -91,7 +91,7 @@ static int x25_receive_data(struct sk_buff *skb, struct x25_neigh *nb)
 */
 
 	if (frametype != X25_CLEAR_CONFIRMATION)
-		pr_debug("x25_receive_data(): unknown frame type %2x\n",frametype);
+		pr_de("x25_receive_data(): unknown frame type %2x\n",frametype);
 
 	return 0;
 }
@@ -116,7 +116,7 @@ int x25_lapb_receive_frame(struct sk_buff *skb, struct net_device *dev,
 	 */
 	nb = x25_get_neigh(dev);
 	if (!nb) {
-		pr_debug("unknown neighbour - %s\n", dev->name);
+		pr_de("unknown neighbour - %s\n", dev->name);
 		goto drop;
 	}
 

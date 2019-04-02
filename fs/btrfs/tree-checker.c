@@ -5,7 +5,7 @@
 
 /*
  * The module is used to catch unexpected/corrupted tree block data.
- * Such behavior can be caused either by a fuzzed image or bugs.
+ * Such behavior can be caused either by a fuzzed image or s.
  *
  * The objective is to do leaf/node validation checks when tree block is read
  * from disk, and check *every* possible member, so other code won't

@@ -861,7 +861,7 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 	 * put_user() or similar functions are *not* called. These
 	 * functions can generate page faults which will cause the process
 	 * to be de-scheduled with MSR[TS] set but without calling
-	 * tm_recheckpoint(). This can cause a bug.
+	 * tm_recheckpoint(). This can cause a .
 	 *
 	 * Pull in the MSR TM bits from the user context
 	 */
@@ -917,7 +917,7 @@ int handle_rt_signal32(struct ksignal *ksig, sigset_t *oldset,
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
@@ -1254,15 +1254,15 @@ SYSCALL_DEFINE0(rt_sigreturn)
 }
 
 #ifdef CONFIG_PPC32
-SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
+SYSCALL_DEFINE3(de_setcontext, struct ucontext __user *, ctx,
 			 int, ndbg, struct sig_dbg_op __user *, dbg)
 {
 	struct pt_regs *regs = current_pt_regs();
 	struct sig_dbg_op op;
 	int i;
 	unsigned long new_msr = regs->msr;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	unsigned long new_dbcr0 = current->thread.debug.dbcr0;
+#ifdef CONFIG_PPC_ADV_DE_REGS
+	unsigned long new_dbcr0 = current->thread.de.dbcr0;
 #endif
 
 	for (i=0; i<ndbg; i++) {
@@ -1270,14 +1270,14 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 			return -EFAULT;
 		switch (op.dbg_type) {
 		case SIG_DBG_SINGLE_STEPPING:
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 			if (op.dbg_value) {
 				new_msr |= MSR_DE;
 				new_dbcr0 |= (DBCR0_IDM | DBCR0_IC);
 			} else {
 				new_dbcr0 &= ~DBCR0_IC;
 				if (!DBCR_ACTIVE_EVENTS(new_dbcr0,
-						current->thread.debug.dbcr1)) {
+						current->thread.de.dbcr1)) {
 					new_msr &= ~MSR_DE;
 					new_dbcr0 &= ~DBCR0_IDM;
 				}
@@ -1290,7 +1290,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 #endif
 			break;
 		case SIG_DBG_BRANCH_TRACING:
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 			return -EINVAL;
 #else
 			if (op.dbg_value)
@@ -1311,8 +1311,8 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	   failure is a problem, anyway, and it's very unlikely unless
 	   the user is really doing something wrong. */
 	regs->msr = new_msr;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
-	current->thread.debug.dbcr0 = new_dbcr0;
+#ifdef CONFIG_PPC_ADV_DE_REGS
+	current->thread.de.dbcr0 = new_dbcr0;
 #endif
 
 	if (!access_ok(ctx, sizeof(*ctx)) ||
@@ -1333,7 +1333,7 @@ SYSCALL_DEFINE3(debug_setcontext, struct ucontext __user *, ctx,
 	if (do_setcontext(ctx, regs, 1)) {
 		if (show_unhandled_signals)
 			printk_ratelimited(KERN_INFO "%s[%d]: bad frame in "
-					   "sys_debug_setcontext: %p nip %08lx "
+					   "sys_de_setcontext: %p nip %08lx "
 					   "lr %08lx\n",
 					   current->comm, current->pid,
 					   ctx, regs->nip, regs->link);
@@ -1371,7 +1371,7 @@ int handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 	unsigned long tramp;
 	struct pt_regs *regs = tsk->thread.regs;
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	/* Set up Signal Frame */
 	frame = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*frame), 1);

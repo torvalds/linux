@@ -56,8 +56,8 @@ void fpu_state_restore(struct pt_regs *regs)
 	struct task_struct *tsk = current;
 
 	if (unlikely(!user_mode(regs))) {
-		printk(KERN_ERR "BUG: FPU is used in kernel mode.\n");
-		BUG();
+		printk(KERN_ERR ": FPU is used in kernel mode.\n");
+		();
 		return;
 	}
 

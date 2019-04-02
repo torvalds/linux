@@ -27,7 +27,7 @@
 #define FIXADDR_TOP	((unsigned long) (-2*PAGE_SIZE))
 
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/page.h>
 
 /*
@@ -59,7 +59,7 @@ enum fixed_addresses {
 
 /*
  * 'index to address' translation. If anyone tries to use the idx
- * directly without tranlation, we catch the bug with a NULL-deference
+ * directly without tranlation, we catch the  with a NULL-deference
  * kernel oops. Illegal ranges of incoming indices are caught too.
  */
 static __always_inline unsigned long fix_to_virt(const unsigned int idx)
@@ -74,14 +74,14 @@ static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 	 * loudly with a reasonably clear error message..
 	 */
 	if (idx >= __end_of_fixed_addresses)
-		BUG();
+		();
 
 	return __fix_to_virt(idx);
 }
 
 static inline unsigned long virt_to_fix(const unsigned long vaddr)
 {
-	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
+	_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
 	return __virt_to_fix(vaddr);
 }
 

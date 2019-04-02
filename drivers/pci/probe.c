@@ -214,7 +214,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 	/*
 	 * I don't know how l can have all bits set.  Copied from old code.
-	 * Maybe it fixes a bug on some ancient platform.
+	 * Maybe it fixes a  on some ancient platform.
 	 */
 	if (l == 0xffffffff)
 		l = 0;
@@ -258,7 +258,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 	sz64 = pci_size(l64, sz64, mask64);
 	if (!sz64) {
-		pci_info(dev, FW_BUG "reg 0x%x: invalid BAR (can't size)\n",
+		pci_info(dev, FW_ "reg 0x%x: invalid BAR (can't size)\n",
 			 pos);
 		goto fail;
 	}
@@ -317,7 +317,7 @@ fail:
 	res->flags = 0;
 out:
 	if (res->flags)
-		pci_printk(KERN_DEBUG, dev, "reg 0x%x: %pR\n", pos, res);
+		pci_printk(KERN_DE, dev, "reg 0x%x: %pR\n", pos, res);
 
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
 }
@@ -435,7 +435,7 @@ static void pci_read_bridge_io(struct pci_bus *child)
 		region.start = base;
 		region.end = limit + io_granularity - 1;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		pci_printk(KERN_DEBUG, dev, "  bridge window %pR\n", res);
+		pci_printk(KERN_DE, dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -457,7 +457,7 @@ static void pci_read_bridge_mmio(struct pci_bus *child)
 		region.start = base;
 		region.end = limit + 0xfffff;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		pci_printk(KERN_DEBUG, dev, "  bridge window %pR\n", res);
+		pci_printk(KERN_DE, dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -510,7 +510,7 @@ static void pci_read_bridge_mmio_pref(struct pci_bus *child)
 		region.start = base;
 		region.end = limit + 0xfffff;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		pci_printk(KERN_DEBUG, dev, "  bridge window %pR\n", res);
+		pci_printk(KERN_DE, dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -540,7 +540,7 @@ void pci_read_bridge_bases(struct pci_bus *child)
 			if (res && res->flags) {
 				pci_bus_add_resource(child, res,
 						     PCI_SUBTRACTIVE_DECODE);
-				pci_printk(KERN_DEBUG, dev,
+				pci_printk(KERN_DE, dev,
 					   "  bridge window %pR (subtractive decode)\n",
 					   res);
 			}
@@ -1690,7 +1690,7 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->revision = class & 0xff;
 	dev->class = class >> 8;		    /* upper 3 bytes */
 
-	pci_printk(KERN_DEBUG, dev, "[%04x:%04x] type %02x class %#08x\n",
+	pci_printk(KERN_DE, dev, "[%04x:%04x] type %02x class %#08x\n",
 		   dev->vendor, dev->device, dev->hdr_type, dev->class);
 
 	if (pci_early_dump)
@@ -1839,7 +1839,7 @@ static void pci_configure_mps(struct pci_dev *dev)
 		return;
 
 	if (pcie_bus_config == PCIE_BUS_TUNE_OFF) {
-		pci_warn(dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+		pci_warn(dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a \n",
 			 mps, pci_name(bridge), p_mps);
 		return;
 	}
@@ -1861,7 +1861,7 @@ static void pci_configure_mps(struct pci_dev *dev)
 
 	rc = pcie_set_mps(dev, p_mps);
 	if (rc) {
-		pci_warn(dev, "can't set Max Payload Size to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+		pci_warn(dev, "can't set Max Payload Size to %d; if necessary, use \"pci=pcie_bus_safe\" and report a \n",
 			 p_mps);
 		return;
 	}
@@ -3086,7 +3086,7 @@ int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int bus_max)
 	conflict = request_resource_conflict(parent_res, res);
 
 	if (conflict)
-		dev_printk(KERN_DEBUG, &b->dev,
+		dev_printk(KERN_DE, &b->dev,
 			   "busn_res: can not insert %pR under %s%pR (conflicts with %s %pR)\n",
 			    res, pci_is_root_bus(b) ? "domain " : "",
 			    parent_res, conflict->name, conflict);
@@ -3106,7 +3106,7 @@ int pci_bus_update_busn_res_end(struct pci_bus *b, int bus_max)
 
 	size = bus_max - res->start + 1;
 	ret = adjust_resource(res, res->start, size);
-	dev_printk(KERN_DEBUG, &b->dev,
+	dev_printk(KERN_DE, &b->dev,
 			"busn_res: %pR end %s updated to %02x\n",
 			&old_res, ret ? "can not be" : "is", bus_max);
 
@@ -3125,7 +3125,7 @@ void pci_bus_release_busn_res(struct pci_bus *b)
 		return;
 
 	ret = release_resource(res);
-	dev_printk(KERN_DEBUG, &b->dev,
+	dev_printk(KERN_DE, &b->dev,
 			"busn_res: %pR %s released\n",
 			res, ret ? "can not be" : "is");
 }

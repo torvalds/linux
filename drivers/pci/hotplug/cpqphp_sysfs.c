@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/mutex.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "cpqphp.h"
 
 static DEFINE_MUTEX(cpqphp_mutex);
@@ -111,7 +111,7 @@ static int show_dev(struct controller *ctrl, char *buf)
 	return out - buf;
 }
 
-static int spew_debug_info(struct controller *ctrl, char *data, int size)
+static int spew_de_info(struct controller *ctrl, char *data, int size)
 {
 	int used;
 
@@ -143,7 +143,7 @@ static int open(struct inode *inode, struct file *file)
 		kfree(dbg);
 		goto exit;
 	}
-	dbg->size = spew_debug_info(ctrl, dbg->data, MAX_OUTPUT);
+	dbg->size = spew_de_info(ctrl, dbg->data, MAX_OUTPUT);
 	file->private_data = dbg;
 	retval = 0;
 exit:
@@ -173,7 +173,7 @@ static int release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations debug_ops = {
+static const struct file_operations de_ops = {
 	.owner = THIS_MODULE,
 	.open = open,
 	.llseek = lseek,
@@ -183,26 +183,26 @@ static const struct file_operations debug_ops = {
 
 static struct dentry *root;
 
-void cpqhp_initialize_debugfs(void)
+void cpqhp_initialize_defs(void)
 {
 	if (!root)
-		root = debugfs_create_dir("cpqhp", NULL);
+		root = defs_create_dir("cpqhp", NULL);
 }
 
-void cpqhp_shutdown_debugfs(void)
+void cpqhp_shutdown_defs(void)
 {
-	debugfs_remove(root);
+	defs_remove(root);
 }
 
-void cpqhp_create_debugfs_files(struct controller *ctrl)
+void cpqhp_create_defs_files(struct controller *ctrl)
 {
-	ctrl->dentry = debugfs_create_file(dev_name(&ctrl->pci_dev->dev),
-					   S_IRUGO, root, ctrl, &debug_ops);
+	ctrl->dentry = defs_create_file(dev_name(&ctrl->pci_dev->dev),
+					   S_IRUGO, root, ctrl, &de_ops);
 }
 
-void cpqhp_remove_debugfs_files(struct controller *ctrl)
+void cpqhp_remove_defs_files(struct controller *ctrl)
 {
-	debugfs_remove(ctrl->dentry);
+	defs_remove(ctrl->dentry);
 	ctrl->dentry = NULL;
 }
 

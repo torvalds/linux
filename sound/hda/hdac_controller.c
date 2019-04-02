@@ -123,7 +123,7 @@ static unsigned int azx_command_addr(u32 cmd)
 {
 	unsigned int addr = cmd >> 28;
 
-	if (snd_BUG_ON(addr >= HDA_MAX_CODECS))
+	if (snd__ON(addr >= HDA_MAX_CODECS))
 		addr = 0;
 	return addr;
 }
@@ -207,7 +207,7 @@ void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 			dev_err(bus->dev,
 				"spurious response %#x:%#x, rp = %d, wp = %d",
 				res, res_ex, bus->rirb.rp, wp);
-			snd_BUG();
+			snd_();
 		} else if (res_ex & AZX_RIRB_EX_UNSOL_EV)
 			snd_hdac_bus_queue_event(bus, res, res_ex);
 		else if (bus->rirb.cmds[addr]) {

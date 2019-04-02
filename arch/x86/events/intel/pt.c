@@ -16,7 +16,7 @@
  * http://software.intel.com/en-us/intel-isa-extensions
  */
 
-#undef DEBUG
+#undef DE
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -649,7 +649,7 @@ static void topa_insert_table(struct pt_buffer *buf, struct topa *topa)
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
 		return;
 
-	BUG_ON(last->last != TENTS_PER_PAGE - 1);
+	_ON(last->last != TENTS_PER_PAGE - 1);
 
 	TOPA_ENTRY(last, -1)->base = topa->phys >> TOPA_SHIFT;
 	TOPA_ENTRY(last, -1)->end = 1;
@@ -723,10 +723,10 @@ static void pt_topa_dump(struct pt_buffer *buf)
 	list_for_each_entry(topa, &buf->tables, list) {
 		int i;
 
-		pr_debug("# table @%p (%016Lx), off %llx size %zx\n", topa->table,
+		pr_de("# table @%p (%016Lx), off %llx size %zx\n", topa->table,
 			 topa->phys, topa->offset, topa->size);
 		for (i = 0; i < TENTS_PER_PAGE; i++) {
-			pr_debug("# entry @%p (%lx sz %u %c%c%c) raw=%16llx\n",
+			pr_de("# entry @%p (%lx sz %u %c%c%c) raw=%16llx\n",
 				 &topa->table[i],
 				 (unsigned long)topa->table[i].base << TOPA_SHIFT,
 				 sizes(topa->table[i].size),
@@ -1493,7 +1493,7 @@ static __init int pt_init(void)
 {
 	int ret, cpu, prior_warn = 0;
 
-	BUILD_BUG_ON(sizeof(struct topa) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct topa) > PAGE_SIZE);
 
 	if (!boot_cpu_has(X86_FEATURE_INTEL_PT))
 		return -ENODEV;

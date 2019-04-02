@@ -87,7 +87,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	dev_dbg(&dev->dev, "PCIE-MSI:%s called. vec %x type %d\n",
 		__func__, nvec, type);
 	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("ppc4xx msi: MSI-X untested, trying anyway.\n");
+		pr_de("ppc4xx msi: MSI-X untested, trying anyway.\n");
 
 	msi_data->msi_virqs = kmalloc_array(msi_irqs, sizeof(int), GFP_KERNEL);
 	if (!msi_data->msi_virqs)
@@ -98,7 +98,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (int_no >= 0)
 			break;
 		if (int_no < 0) {
-			pr_debug("%s: fail allocating msi interrupt\n",
+			pr_de("%s: fail allocating msi interrupt\n",
 					__func__);
 		}
 		virq = irq_of_parse_and_map(msi_data->msi_dev, int_no);

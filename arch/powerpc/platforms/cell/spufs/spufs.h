@@ -239,7 +239,7 @@ struct spufs_tree_descr {
 
 extern const struct spufs_tree_descr spufs_dir_contents[];
 extern const struct spufs_tree_descr spufs_dir_nosched_contents[];
-extern const struct spufs_tree_descr spufs_dir_debug_contents[];
+extern const struct spufs_tree_descr spufs_dir_de_contents[];
 
 /* system call implementation */
 extern struct spufs_calls spufs_calls;

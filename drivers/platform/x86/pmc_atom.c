@@ -15,7 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -47,9 +47,9 @@ struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regmap;
 	const struct pmc_reg_map *map;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dbgfs_dir;
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 	bool init;
 };
 
@@ -272,7 +272,7 @@ static void pmc_hw_reg_setup(struct pmc_dev *pmc)
 	pmc_reg_write(pmc, PMC_S0IX_WAKE_EN, (u32)PMC_WAKE_EN_SETTING);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void pmc_dev_state_print(struct seq_file *s, int reg_index,
 				u32 sts, const struct pmc_bit_map *sts_map,
 				u32 fd, const struct pmc_bit_map *fd_map)
@@ -351,30 +351,30 @@ DEFINE_SHOW_ATTRIBUTE(pmc_sleep_tmr);
 
 static void pmc_dbgfs_unregister(struct pmc_dev *pmc)
 {
-	debugfs_remove_recursive(pmc->dbgfs_dir);
+	defs_remove_recursive(pmc->dbgfs_dir);
 }
 
 static int pmc_dbgfs_register(struct pmc_dev *pmc)
 {
 	struct dentry *dir, *f;
 
-	dir = debugfs_create_dir("pmc_atom", NULL);
+	dir = defs_create_dir("pmc_atom", NULL);
 	if (!dir)
 		return -ENOMEM;
 
 	pmc->dbgfs_dir = dir;
 
-	f = debugfs_create_file("dev_state", S_IFREG | S_IRUGO,
+	f = defs_create_file("dev_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_dev_state_fops);
 	if (!f)
 		goto err;
 
-	f = debugfs_create_file("pss_state", S_IFREG | S_IRUGO,
+	f = defs_create_file("pss_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_pss_state_fops);
 	if (!f)
 		goto err;
 
-	f = debugfs_create_file("sleep_state", S_IFREG | S_IRUGO,
+	f = defs_create_file("sleep_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_sleep_tmr_fops);
 	if (!f)
 		goto err;
@@ -389,7 +389,7 @@ static int pmc_dbgfs_register(struct pmc_dev *pmc)
 {
 	return 0;
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int pmc_setup_clks(struct pci_dev *pdev, void __iomem *pmc_regmap,
 			  const struct pmc_data *pmc_data)
@@ -448,7 +448,7 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ret = pmc_dbgfs_register(pmc);
 	if (ret)
-		dev_warn(&pdev->dev, "debugfs register failed\n");
+		dev_warn(&pdev->dev, "defs register failed\n");
 
 	/* Register platform clocks - PMC_PLT_CLK [0..5] */
 	ret = pmc_setup_clks(pdev, pmc->regmap, data);

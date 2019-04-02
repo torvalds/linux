@@ -179,19 +179,19 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	int int_type;
 	irqreturn_t ret = IRQ_NONE;
 
-	int_type = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
+	int_type = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DE_ERROR;
 	if (!int_type) {
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_0);
 		/*
 		 * if we have a timeout error, there's nothing we can
-		 * do besides rebooting the board. So let's BUG on any
+		 * do besides rebooting the board. So let's  on any
 		 * of such errors and handle the others. timeout error
 		 * is severe and not expected to occur.
 		 */
-		BUG_ON(status & L3_STATUS_0_TIMEOUT_MASK);
+		_ON(status & L3_STATUS_0_TIMEOUT_MASK);
 	} else {
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_1);
-		/* No timeout error for debug sources */
+		/* No timeout error for de sources */
 	}
 
 	/* identify the error source */
@@ -250,11 +250,11 @@ static int omap3_l3_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	l3->debug_irq = platform_get_irq(pdev, 0);
-	ret = request_irq(l3->debug_irq, omap3_l3_app_irq, IRQF_TRIGGER_RISING,
-			  "l3-debug-irq", l3);
+	l3->de_irq = platform_get_irq(pdev, 0);
+	ret = request_irq(l3->de_irq, omap3_l3_app_irq, IRQF_TRIGGER_RISING,
+			  "l3-de-irq", l3);
 	if (ret) {
-		dev_err(&pdev->dev, "couldn't request debug irq\n");
+		dev_err(&pdev->dev, "couldn't request de irq\n");
 		goto err1;
 	}
 
@@ -269,7 +269,7 @@ static int omap3_l3_probe(struct platform_device *pdev)
 	return 0;
 
 err2:
-	free_irq(l3->debug_irq, l3);
+	free_irq(l3->de_irq, l3);
 err1:
 	iounmap(l3->rt);
 err0:
@@ -282,7 +282,7 @@ static int omap3_l3_remove(struct platform_device *pdev)
 	struct omap3_l3         *l3 = platform_get_drvdata(pdev);
 
 	free_irq(l3->app_irq, l3);
-	free_irq(l3->debug_irq, l3);
+	free_irq(l3->de_irq, l3);
 	iounmap(l3->rt);
 	kfree(l3);
 

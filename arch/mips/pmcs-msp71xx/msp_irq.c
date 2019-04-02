@@ -123,7 +123,7 @@ void __init arch_init_irq(void)
 {
 	/* assume we'll be using vectored interrupt mode except in UP mode*/
 #ifdef CONFIG_MIPS_MT
-	BUG_ON(!cpu_has_vint);
+	_ON(!cpu_has_vint);
 #endif
 	/* initialize the 1st-level CPU based interrupt controller */
 	mips_cpu_irq_init();

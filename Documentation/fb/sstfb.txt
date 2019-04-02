@@ -13,7 +13,7 @@ Introduction
 	not completely working...Don't worry, it's still more than usable
 	(I eat my own dog food)
 
-	  Please read the Bug section, and report any success or failure to me
+	  Please read the  section, and report any success or failure to me
 	(Ghozlane Toumi <gtoumi@laposte.net>).
 	  BTW, If you have only one monitor , and you don't feel like playing
 	with the vga passthrou cable, I can only suggest borrowing a screen
@@ -114,19 +114,19 @@ dev=x		dev:x		Attach the driver to device number x.
 
 Tools
 
-	These tools are mostly for debugging purposes, but you can 
+	These tools are mostly for deging purposes, but you can 
 	find some of these interesting :
 	 - con2fb , maps a tty to a fbramebuffer .
 		con2fb /dev/fb1 /dev/tty5
 	 - sst_dbg_vgapass , changes vga passthrou. You have to recompile the
-	driver with SST_DEBUG and SST_DEBUG_IOCTL set to 1
+	driver with SST_DE and SST_DE_IOCTL set to 1
 		sst_dbg_vgapass /dev/fb1 1 (enables vga cable)
 		sst_dbg_vgapass /dev/fb1 0 (disables vga cable)
 	 - glide_reset , resets the voodoo using glide
 		use this after rmmoding sstfb, if the module refuses to
 		reinsert .
 
-Bugs
+s
 
 	- DO NOT use glide while the sstfb module is in, you'll most likely
 	hang your computer.

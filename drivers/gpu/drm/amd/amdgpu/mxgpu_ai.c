@@ -214,7 +214,7 @@ static int xgpu_ai_mailbox_ack_irq(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	DRM_DE("get ack intr and do nothing.\n");
 	return 0;
 }
 

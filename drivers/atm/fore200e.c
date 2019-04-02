@@ -59,8 +59,8 @@
 #define FORE200E_USE_TASKLET
 #endif
 
-#if 0 /* enable the debugging code of the buffer supply queues */
-#define FORE200E_BSQ_DEBUG
+#if 0 /* enable the deging code of the buffer supply queues */
+#define FORE200E_BSQ_DE
 #endif
 
 #if 1 /* ensure correct handling of 52-byte AAL0 SDUs expected by atmdump-like apps */
@@ -75,10 +75,10 @@
 #define FORE200E         "fore200e: "
 
 #if 0 /* override .config */
-#define CONFIG_ATM_FORE200E_DEBUG 1
+#define CONFIG_ATM_FORE200E_DE 1
 #endif
-#if defined(CONFIG_ATM_FORE200E_DEBUG) && (CONFIG_ATM_FORE200E_DEBUG > 0)
-#define DPRINTK(level, format, args...)  do { if (CONFIG_ATM_FORE200E_DEBUG >= (level)) \
+#if defined(CONFIG_ATM_FORE200E_DE) && (CONFIG_ATM_FORE200E_DE > 0)
+#define DPRINTK(level, format, args...)  do { if (CONFIG_ATM_FORE200E_DE >= (level)) \
                                                   printk(FORE200E format, ##args); } while (0)
 #else
 #define DPRINTK(level, format, args...)  do {} while (0)
@@ -126,7 +126,7 @@ static const int fore200e_rx_buf_size[ BUFFER_SCHEME_NBR ][ BUFFER_MAGN_NBR ] = 
 };
 
 
-#if defined(CONFIG_ATM_FORE200E_DEBUG) && (CONFIG_ATM_FORE200E_DEBUG > 0)
+#if defined(CONFIG_ATM_FORE200E_DE) && (CONFIG_ATM_FORE200E_DE > 0)
 static const char* fore200e_traffic_class[] = { "NONE", "UBR", "CBR", "VBR", "ABR", "ANY" };
 #endif
 
@@ -465,7 +465,7 @@ fore200e_pca_irq_check(struct fore200e* fore200e)
     /* this is a 1 bit register */
     int irq_posted = readl(fore200e->regs.pca.psr);
 
-#if defined(CONFIG_ATM_FORE200E_DEBUG) && (CONFIG_ATM_FORE200E_DEBUG == 2)
+#if defined(CONFIG_ATM_FORE200E_DE) && (CONFIG_ATM_FORE200E_DE == 2)
     if (irq_posted && (readl(fore200e->regs.pca.hcr) & PCA200E_HCR_OUTFULL)) {
 	DPRINTK(2,"FIFO OUT full, device %d\n", fore200e->atm_dev->number);
     }
@@ -870,7 +870,7 @@ fore200e_tx_irq(struct fore200e* fore200e)
 }
 
 
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
 int bsq_audit(int where, struct host_bsq* bsq, int scheme, int magn)
 {
     struct buffer* buffer;
@@ -926,7 +926,7 @@ fore200e_supply(struct fore200e* fore200e)
 
 	    bsq = &fore200e->host_bsq[ scheme ][ magn ];
 
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
 	    bsq_audit(1, bsq, scheme, magn);
 #endif
 	    while (bsq->freebuf_count >= RBD_BLK_SIZE) {
@@ -947,7 +947,7 @@ fore200e_supply(struct fore200e* fore200e)
 		    }
 		    bsq->freebuf = buffer->next;
 		    
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
 		    if (buffer->supplied)
 			printk(FORE200E "queue %d.%d, buffer %lu already supplied\n",
 			       scheme, magn, buffer->index);
@@ -1076,7 +1076,7 @@ fore200e_collect_rpd(struct fore200e* fore200e, struct rpd* rpd)
 
 	bsq = &fore200e->host_bsq[ buffer->scheme ][ buffer->magn ];
 
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
 	bsq_audit(2, bsq, buffer->scheme, buffer->magn);
 
 	if (buffer->supplied == 0)
@@ -2037,7 +2037,7 @@ static int fore200e_alloc_rx_buf(struct fore200e *fore200e)
 
 		buffer[ i ].scheme = scheme;
 		buffer[ i ].magn   = magn;
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
 		buffer[ i ].index  = i;
 		buffer[ i ].supplied = 0;
 #endif
@@ -2061,7 +2061,7 @@ static int fore200e_alloc_rx_buf(struct fore200e *fore200e)
 	    /* all the buffers are free, initially */
 	    bsq->freebuf_count = nbr;
 
-#ifdef FORE200E_BSQ_DEBUG
+#ifdef FORE200E_BSQ_DE
 	    bsq_audit(3, bsq, scheme, magn);
 #endif
 	}

@@ -37,7 +37,7 @@ void __gcov_init(struct gcov_info *info)
 	if (gcov_version == 0) {
 		gcov_version = gcov_info_version(info);
 		/*
-		 * Printing gcc's version magic may prove useful for debugging
+		 * Printing gcc's version magic may prove useful for deging
 		 * incompatibility reports.
 		 */
 		pr_info("version magic: 0x%x\n", gcov_version);

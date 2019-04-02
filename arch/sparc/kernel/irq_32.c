@@ -160,13 +160,13 @@ void irq_link(unsigned int irq)
 	unsigned long flags;
 	unsigned int pil;
 
-	BUG_ON(irq >= NR_IRQS);
+	_ON(irq >= NR_IRQS);
 
 	spin_lock_irqsave(&irq_map_lock, flags);
 
 	p = &irq_table[irq];
 	pil = p->pil;
-	BUG_ON(pil >= SUN4D_MAX_IRQ);
+	_ON(pil >= SUN4D_MAX_IRQ);
 	p->next = irq_map[pil];
 	irq_map[pil] = p;
 
@@ -178,12 +178,12 @@ void irq_unlink(unsigned int irq)
 	struct irq_bucket *p, **pnext;
 	unsigned long flags;
 
-	BUG_ON(irq >= NR_IRQS);
+	_ON(irq >= NR_IRQS);
 
 	spin_lock_irqsave(&irq_map_lock, flags);
 
 	p = &irq_table[irq];
-	BUG_ON(p->pil >= SUN4D_MAX_IRQ);
+	_ON(p->pil >= SUN4D_MAX_IRQ);
 	pnext = &irq_map[p->pil];
 	while (*pnext != p)
 		pnext = &(*pnext)->next;
@@ -220,7 +220,7 @@ void handler_irq(unsigned int pil, struct pt_regs *regs)
 	struct pt_regs *old_regs;
 	struct irq_bucket *p;
 
-	BUG_ON(pil > 15);
+	_ON(pil > 15);
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 

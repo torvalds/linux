@@ -32,7 +32,7 @@
 #include <linux/ptrace.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/prctl.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -48,7 +48,7 @@
 #include <asm/proto.h>
 #include <asm/ia32.h>
 #include <asm/syscalls.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/switch_to.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/vdso.h>
@@ -120,14 +120,14 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 	printk(KERN_DEFAULT "CR2: %016lx CR3: %016lx CR4: %016lx\n", cr2, cr3,
 			cr4);
 
-	get_debugreg(d0, 0);
-	get_debugreg(d1, 1);
-	get_debugreg(d2, 2);
-	get_debugreg(d3, 3);
-	get_debugreg(d6, 6);
-	get_debugreg(d7, 7);
+	get_dereg(d0, 0);
+	get_dereg(d1, 1);
+	get_dereg(d2, 2);
+	get_dereg(d3, 3);
+	get_dereg(d6, 6);
+	get_dereg(d7, 7);
 
-	/* Only print out debug registers if they are in their non-default state. */
+	/* Only print out de registers if they are in their non-default state. */
 	if (!((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
 	    (d6 == DR6_RESERVED) && (d7 == 0x400))) {
 		printk(KERN_DEFAULT "DR0: %016lx DR1: %016lx DR2: %016lx\n",
@@ -149,7 +149,7 @@ void release_thread(struct task_struct *dead_task)
 				dead_task->comm,
 				dead_task->mm->context.ldt->entries,
 				dead_task->mm->context.ldt->nr_entries);
-			BUG();
+			();
 		}
 #endif
 	}
@@ -172,9 +172,9 @@ static __always_inline void save_base_legacy(struct task_struct *prev_p,
 {
 	if (likely(selector == 0)) {
 		/*
-		 * On Intel (without X86_BUG_NULL_SEG), the segment base could
+		 * On Intel (without X86__NULL_SEG), the segment base could
 		 * be the pre-existing saved base or it could be zero.  On AMD
-		 * (with X86_BUG_NULL_SEG), the segment base could be almost
+		 * (with X86__NULL_SEG), the segment base could be almost
 		 * anything.
 		 *
 		 * This branch is very hot (it's hit twice on almost every
@@ -183,15 +183,15 @@ static __always_inline void save_base_legacy(struct task_struct *prev_p,
 		 * value is already saved is correct.  This matches historical
 		 * Linux behavior, so it won't break existing applications.
 		 *
-		 * To avoid leaking state, on non-X86_BUG_NULL_SEG CPUs, if we
+		 * To avoid leaking state, on non-X86__NULL_SEG CPUs, if we
 		 * report that the base is zero, it needs to actually be zero:
 		 * see the corresponding logic in load_seg_legacy.
 		 */
 	} else {
 		/*
 		 * If the selector is 1, 2, or 3, then the base is zero on
-		 * !X86_BUG_NULL_SEG CPUs and could be anything on
-		 * X86_BUG_NULL_SEG CPUs.  In the latter case, Linux
+		 * !X86__NULL_SEG CPUs and could be anything on
+		 * X86__NULL_SEG CPUs.  In the latter case, Linux
 		 * has never attempted to preserve the base across context
 		 * switches.
 		 *
@@ -252,7 +252,7 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 			 * Nasty case: on AMD CPUs, we need to forcibly zero
 			 * the base.
 			 */
-			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
+			if (static_cpu_has_(X86__NULL_SEG)) {
 				loadseg(which, __USER_DS);
 				loadseg(which, next_index);
 			} else {
@@ -461,7 +461,7 @@ start_thread_common(struct pt_regs *regs, unsigned long new_ip,
 {
 	WARN_ON_ONCE(regs != current_pt_regs());
 
-	if (static_cpu_has(X86_BUG_NULL_SEG)) {
+	if (static_cpu_has(X86__NULL_SEG)) {
 		/* Loading zero below won't clear the base. */
 		loadsegment(fs, __USER_DS);
 		load_gs_index(__USER_DS);
@@ -517,7 +517,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_DE_ENTRY) &&
 		     this_cpu_read(irq_count) != -1);
 
 	switch_fpu_prepare(prev_fpu, cpu);
@@ -592,7 +592,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		xen_set_iopl_mask(next->iopl);
 #endif
 
-	if (static_cpu_has_bug(X86_BUG_SYSRET_SS_ATTRS)) {
+	if (static_cpu_has_(X86__SYSRET_SS_ATTRS)) {
 		/*
 		 * AMD CPUs have a misfeature: SYSRET sets the SS selector but
 		 * does not update the cached descriptor.  As a result, if we

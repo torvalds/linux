@@ -48,7 +48,7 @@
  * Xiangliang Yu <Xiangliang.Yu@amd.com>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -70,8 +70,8 @@ MODULE_VERSION(NTB_VER);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("AMD Inc.");
 
-static const struct file_operations amd_ntb_debugfs_info;
-static struct dentry *debugfs_dir;
+static const struct file_operations amd_ntb_defs_info;
+static struct dentry *defs_dir;
 
 static int ndev_mw_to_bar(struct amd_ntb_dev *ndev, int idx)
 {
@@ -708,7 +708,7 @@ static void ndev_deinit_isr(struct amd_ntb_dev *ndev)
 	}
 }
 
-static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
+static ssize_t ndev_defs_read(struct file *filp, char __user *ubuf,
 				 size_t count, loff_t *offp)
 {
 	struct amd_ntb_dev *ndev;
@@ -805,28 +805,28 @@ static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
 	return ret;
 }
 
-static void ndev_init_debugfs(struct amd_ntb_dev *ndev)
+static void ndev_init_defs(struct amd_ntb_dev *ndev)
 {
-	if (!debugfs_dir) {
-		ndev->debugfs_dir = NULL;
-		ndev->debugfs_info = NULL;
+	if (!defs_dir) {
+		ndev->defs_dir = NULL;
+		ndev->defs_info = NULL;
 	} else {
-		ndev->debugfs_dir =
-			debugfs_create_dir(pci_name(ndev->ntb.pdev),
-					   debugfs_dir);
-		if (!ndev->debugfs_dir)
-			ndev->debugfs_info = NULL;
+		ndev->defs_dir =
+			defs_create_dir(pci_name(ndev->ntb.pdev),
+					   defs_dir);
+		if (!ndev->defs_dir)
+			ndev->defs_info = NULL;
 		else
-			ndev->debugfs_info =
-				debugfs_create_file("info", S_IRUSR,
-						    ndev->debugfs_dir, ndev,
-						    &amd_ntb_debugfs_info);
+			ndev->defs_info =
+				defs_create_file("info", S_IRUSR,
+						    ndev->defs_dir, ndev,
+						    &amd_ntb_defs_info);
 	}
 }
 
-static void ndev_deinit_debugfs(struct amd_ntb_dev *ndev)
+static void ndev_deinit_defs(struct amd_ntb_dev *ndev)
 {
-	debugfs_remove_recursive(ndev->debugfs_dir);
+	defs_remove_recursive(ndev->defs_dir);
 }
 
 static inline void ndev_init_struct(struct amd_ntb_dev *ndev,
@@ -1084,7 +1084,7 @@ static int amd_ntb_pci_probe(struct pci_dev *pdev,
 
 	amd_poll_link(ndev);
 
-	ndev_init_debugfs(ndev);
+	ndev_init_defs(ndev);
 
 	rc = ntb_register_device(&ndev->ntb);
 	if (rc)
@@ -1095,7 +1095,7 @@ static int amd_ntb_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
-	ndev_deinit_debugfs(ndev);
+	ndev_deinit_defs(ndev);
 	amd_deinit_dev(ndev);
 err_init_dev:
 	amd_ntb_deinit_pci(ndev);
@@ -1110,17 +1110,17 @@ static void amd_ntb_pci_remove(struct pci_dev *pdev)
 	struct amd_ntb_dev *ndev = pci_get_drvdata(pdev);
 
 	ntb_unregister_device(&ndev->ntb);
-	ndev_deinit_debugfs(ndev);
+	ndev_deinit_defs(ndev);
 	amd_deinit_side_info(ndev);
 	amd_deinit_dev(ndev);
 	amd_ntb_deinit_pci(ndev);
 	kfree(ndev);
 }
 
-static const struct file_operations amd_ntb_debugfs_info = {
+static const struct file_operations amd_ntb_defs_info = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = ndev_debugfs_read,
+	.read = ndev_defs_read,
 };
 
 static const struct pci_device_id amd_ntb_pci_tbl[] = {
@@ -1140,8 +1140,8 @@ static int __init amd_ntb_pci_driver_init(void)
 {
 	pr_info("%s %s\n", NTB_DESC, NTB_VER);
 
-	if (debugfs_initialized())
-		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized())
+		defs_dir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	return pci_register_driver(&amd_ntb_pci_driver);
 }
@@ -1150,6 +1150,6 @@ module_init(amd_ntb_pci_driver_init);
 static void __exit amd_ntb_pci_driver_exit(void)
 {
 	pci_unregister_driver(&amd_ntb_pci_driver);
-	debugfs_remove_recursive(debugfs_dir);
+	defs_remove_recursive(defs_dir);
 }
 module_exit(amd_ntb_pci_driver_exit);

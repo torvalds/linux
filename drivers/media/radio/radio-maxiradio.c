@@ -24,12 +24,12 @@
  *     - tiding up
  *     - removed support for multiple devices as it didn't work anyway
  *
- * BUGS:
+ * S:
  *   - card unmutes if you change frequency
  *
  * (c) 2006, 2007 by Mauro Carvalho Chehab <mchehab@kernel.org>:
  *	- Conversion to V4L2 API
- *      - Uses video_ioctl2 for parsing and to add debug support
+ *      - Uses video_ioctl2 for parsing and to add de support
  */
 
 

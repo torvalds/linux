@@ -272,9 +272,9 @@ rcu_dereference()
 		rcu_read_lock();
 		p = rcu_dereference(head.next);
 		rcu_read_unlock();
-		x = p->address;	/* BUG!!! */
+		x = p->address;	/* !!! */
 		rcu_read_lock();
-		y = p->data;	/* BUG!!! */
+		y = p->data;	/* !!! */
 		rcu_read_unlock();
 
 	Holding a reference from one RCU read-side critical section

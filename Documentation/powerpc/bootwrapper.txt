@@ -63,7 +63,7 @@ Currently, the following image format targets exist:
 			the embedded device tree for all information.
 			  The simpleImage is useful for booting systems with
 			an unknown firmware interface or for booting from
-			a debugger when no firmware is present (such as on
+			a deger when no firmware is present (such as on
 			the Xilinx Virtex platform).  The only assumption that
 			simpleImage makes is that RAM is correctly initialized
 			and that the MMU is either off or has RAM mapped to

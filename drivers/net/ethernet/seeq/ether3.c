@@ -35,12 +35,12 @@
  * 1.12	RMK	31/12/1997	Removed reference to dev_tint for Linux 2.1.
  *      RMK	27/06/1998	Changed asm/delay.h to linux/delay.h.
  * 1.13	RMK	29/06/1998	Fixed problem with transmission of packets.
- *				Chip seems to have a bug in, whereby if the
+ *				Chip seems to have a  in, whereby if the
  *				packet starts two bytes from the end of the
  *				buffer, it corrupts the receiver chain, and
  *				never updates the transmit status correctly.
  * 1.14	RMK	07/01/1998	Added initial code for ETHERB addressing.
- * 1.15	RMK	30/04/1999	More fixes to the transmit routine for buggy
+ * 1.15	RMK	30/04/1999	More fixes to the transmit routine for gy
  *				hardware.
  * 1.16	RMK	10/02/2000	Updated for 2.3.43
  * 1.17	RMK	13/05/2000	Updated for 2.3.99-pre8
@@ -71,7 +71,7 @@ static char version[] = "ether3 ethernet driver (c) 1995-2000 R.M.King v1.17\n";
 
 #include "ether3.h"
 
-static unsigned int net_debug = NET_DEBUG;
+static unsigned int net_de = NET_DE;
 
 static void	ether3_setmulticastlist(struct net_device *dev);
 static int	ether3_rx(struct net_device *dev, unsigned int maxcnt);
@@ -363,7 +363,7 @@ ether3_probe_bus_8(struct net_device *dev, int val)
 	write_low = val & 255;
 	write_high = val >> 8;
 
-	printk(KERN_DEBUG "ether3_probe: write8 [%02X:%02X]", write_high, write_low);
+	printk(KERN_DE "ether3_probe: write8 [%02X:%02X]", write_high, write_low);
 
 	ether3_outb(write_low, REG_RECVPTR);
 	ether3_outb(write_high, REG_RECVPTR + 4);
@@ -384,7 +384,7 @@ ether3_probe_bus_16(struct net_device *dev, int val)
 	ether3_outw(val, REG_RECVPTR);
 	read_val = ether3_inw(REG_RECVPTR);
 
-	printk(KERN_DEBUG "ether3_probe: write16 [%04X], read16 [%04X]\n", val, read_val);
+	printk(KERN_DE "ether3_probe: write16 [%04X], read16 [%04X]\n", val, read_val);
 
 	return read_val == val;
 }
@@ -552,8 +552,8 @@ ether3_interrupt(int irq, void *dev_id)
 	struct net_device *dev = (struct net_device *)dev_id;
 	unsigned int status, handled = IRQ_NONE;
 
-#if NET_DEBUG > 1
-	if(net_debug & DEBUG_INT)
+#if NET_DE > 1
+	if(net_de & DE_INT)
 		printk("eth3irq: %d ", irq);
 #endif
 
@@ -571,8 +571,8 @@ ether3_interrupt(int irq, void *dev_id)
 		handled = IRQ_HANDLED;
 	}
 
-#if NET_DEBUG > 1
-	if(net_debug & DEBUG_INT)
+#if NET_DE > 1
+	if(net_de & DE_INT)
 		printk("done\n");
 #endif
 	return handled;
@@ -735,7 +735,7 @@ static void ether3_banner(void)
 {
 	static unsigned version_printed = 0;
 
-	if (net_debug && version_printed++ == 0)
+	if (net_de && version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 }
 

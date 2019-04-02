@@ -45,11 +45,11 @@
 
 #define reader_to_dev(x)	(&x->p_dev->dev)
 
-/* n (debug level) is ignored */
-/* additional debug output may be enabled by re-compiling with
- * CM4000_DEBUG set */
-/* #define CM4000_DEBUG */
-#define DEBUGP(n, rdr, x, args...) do { 		\
+/* n (de level) is ignored */
+/* additional de output may be enabled by re-compiling with
+ * CM4000_DE set */
+/* #define CM4000_DE */
+#define DEP(n, rdr, x, args...) do { 		\
 		dev_dbg(reader_to_dev(rdr), "%s:" x, 	\
 			   __func__ , ## args);		\
 	} while (0)
@@ -168,13 +168,13 @@ static unsigned char fi_di_table[10][14] = {
 /* 9 */ {0x09,0x19,0x29,0x39,0x49,0x59,0x69,0x11,0x11,0x99,0xA9,0xB9,0xC9,0xD9}
 };
 
-#ifndef CM4000_DEBUG
+#ifndef CM4000_DE
 #define	xoutb	outb
 #define	xinb	inb
 #else
 static inline void xoutb(unsigned char val, unsigned short port)
 {
-	pr_debug("outb(val=%.2x,port=%.4x)\n", val, port);
+	pr_de("outb(val=%.2x,port=%.4x)\n", val, port);
 	outb(val, port);
 }
 static inline unsigned char xinb(unsigned short port)
@@ -182,7 +182,7 @@ static inline unsigned char xinb(unsigned short port)
 	unsigned char val;
 
 	val = inb(port);
-	pr_debug("%.2x=inb(%.4x)\n", val, port);
+	pr_de("%.2x=inb(%.4x)\n", val, port);
 
 	return val;
 }
@@ -322,10 +322,10 @@ static int parse_atr(struct cm4000_dev *dev)
 	unsigned char ch, ifno;
 	int ix, done;
 
-	DEBUGP(3, dev, "-> parse_atr: dev->atr_len = %i\n", dev->atr_len);
+	DEP(3, dev, "-> parse_atr: dev->atr_len = %i\n", dev->atr_len);
 
 	if (dev->atr_len < 3) {
-		DEBUGP(5, dev, "parse_atr: atr_len < 3\n");
+		DEP(5, dev, "parse_atr: atr_len < 3\n");
 		return 0;
 	}
 
@@ -343,14 +343,14 @@ static int parse_atr(struct cm4000_dev *dev)
 		if (ifno == 1 && (ch & 0x10)) {
 			/* read first interface byte and TA1 is present */
 			dev->ta1 = dev->atr[2];
-			DEBUGP(5, dev, "Card says FiDi is 0x%.2x\n", dev->ta1);
+			DEP(5, dev, "Card says FiDi is 0x%.2x\n", dev->ta1);
 			ifno++;
 		} else if ((ifno == 2) && (ch & 0x10)) { /* TA(2) */
 			dev->ta1 = 0x11;
 			ifno++;
 		}
 
-		DEBUGP(5, dev, "Yi=%.2x\n", ch & 0xf0);
+		DEP(5, dev, "Yi=%.2x\n", ch & 0xf0);
 		ix += ((ch & 0x10) >> 4)	/* no of int.face chars */
 		    +((ch & 0x20) >> 5)
 		    + ((ch & 0x40) >> 6)
@@ -360,19 +360,19 @@ static int parse_atr(struct cm4000_dev *dev)
 			ch = dev->atr[ix];
 			if ((ch & 0x0f)) {
 				any_t1 = 1;
-				DEBUGP(5, dev, "card is capable of T=1\n");
+				DEP(5, dev, "card is capable of T=1\n");
 			} else {
 				any_t0 = 1;
-				DEBUGP(5, dev, "card is capable of T=0\n");
+				DEP(5, dev, "card is capable of T=0\n");
 			}
 		} else
 			done = 1;
 	} while (!done);
 
-	DEBUGP(5, dev, "ix=%d noHist=%d any_t1=%d\n",
+	DEP(5, dev, "ix=%d noHist=%d any_t1=%d\n",
 	      ix, dev->atr[1] & 15, any_t1);
 	if (ix + 1 + (dev->atr[1] & 0x0f) + any_t1 != dev->atr_len) {
-		DEBUGP(5, dev, "length error\n");
+		DEP(5, dev, "length error\n");
 		return 0;
 	}
 	if (any_t0)
@@ -385,7 +385,7 @@ static int parse_atr(struct cm4000_dev *dev)
 			dev->atr_csum ^= dev->atr[i];
 		if (dev->atr_csum) {
 			set_bit(IS_BAD_CSUM, &dev->flags);
-			DEBUGP(5, dev, "bad checksum\n");
+			DEP(5, dev, "bad checksum\n");
 			goto return_0;
 		}
 #endif
@@ -423,16 +423,16 @@ static void set_cardparameter(struct cm4000_dev *dev)
 	unsigned int iobase = dev->p_dev->resource[0]->start;
 	u_int8_t stopbits = 0x02; /* ISO default */
 
-	DEBUGP(3, dev, "-> set_cardparameter\n");
+	DEP(3, dev, "-> set_cardparameter\n");
 
 	dev->flags1 = dev->flags1 | (((dev->baudv - 1) & 0x0100) >> 8);
 	xoutb(dev->flags1, REG_FLAGS1(iobase));
-	DEBUGP(5, dev, "flags1 = 0x%02x\n", dev->flags1);
+	DEP(5, dev, "flags1 = 0x%02x\n", dev->flags1);
 
 	/* set baudrate */
 	xoutb((unsigned char)((dev->baudv - 1) & 0xFF), REG_BAUDRATE(iobase));
 
-	DEBUGP(5, dev, "baudv = %i -> write 0x%02x\n", dev->baudv,
+	DEP(5, dev, "baudv = %i -> write 0x%02x\n", dev->baudv,
 	      ((dev->baudv - 1) & 0xFF));
 
 	/* set stopbits */
@@ -443,7 +443,7 @@ static void set_cardparameter(struct cm4000_dev *dev)
 	}
 	xoutb(stopbits, REG_STOPBITS(iobase));
 
-	DEBUGP(3, dev, "<- set_cardparameter\n");
+	DEP(3, dev, "<- set_cardparameter\n");
 }
 
 static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
@@ -457,8 +457,8 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 
 	rc = 0;
 
-	DEBUGP(3, dev, "-> set_protocol\n");
-	DEBUGP(5, dev, "ptsreq->Protocol = 0x%.8x, ptsreq->Flags=0x%.8x, "
+	DEP(3, dev, "-> set_protocol\n");
+	DEP(5, dev, "ptsreq->Protocol = 0x%.8x, ptsreq->Flags=0x%.8x, "
 		 "ptsreq->pts1=0x%.2x, ptsreq->pts2=0x%.2x, "
 		 "ptsreq->pts3=0x%.2x\n", (unsigned int)ptsreq->protocol,
 		 (unsigned int)ptsreq->flags, ptsreq->pts1, ptsreq->pts2,
@@ -474,14 +474,14 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 	dev->pts[1] = (0x01 << 4) | (dev->pts[1]);
 
 	/* Correct Fi/Di according to CM4000 Fi/Di table */
-	DEBUGP(5, dev, "Ta(1) from ATR is 0x%.2x\n", dev->ta1);
+	DEP(5, dev, "Ta(1) from ATR is 0x%.2x\n", dev->ta1);
 	/* set Fi/Di according to ATR TA(1) */
 	dev->pts[2] = fi_di_table[dev->ta1 & 0x0F][(dev->ta1 >> 4) & 0x0F];
 
 	/* Calculate PCK character */
 	dev->pts[3] = dev->pts[0] ^ dev->pts[1] ^ dev->pts[2];
 
-	DEBUGP(5, dev, "pts0=%.2x, pts1=%.2x, pts2=%.2x, pts3=%.2x\n",
+	DEP(5, dev, "pts0=%.2x, pts1=%.2x, pts2=%.2x, pts3=%.2x\n",
 	       dev->pts[0], dev->pts[1], dev->pts[2], dev->pts[3]);
 
 	/* check card convention */
@@ -492,30 +492,30 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 	xoutb(0x80, REG_FLAGS0(iobase));
 
 	/* Enable access to the message buffer */
-	DEBUGP(5, dev, "Enable access to the messages buffer\n");
+	DEP(5, dev, "Enable access to the messages buffer\n");
 	dev->flags1 = 0x20	/* T_Active */
 	    | (test_bit(IS_INVREV, &dev->flags) ? 0x02 : 0x00) /* inv parity */
 	    | ((dev->baudv >> 8) & 0x01);	/* MSB-baud */
 	xoutb(dev->flags1, REG_FLAGS1(iobase));
 
-	DEBUGP(5, dev, "Enable message buffer -> flags1 = 0x%.2x\n",
+	DEP(5, dev, "Enable message buffer -> flags1 = 0x%.2x\n",
 	       dev->flags1);
 
 	/* write challenge to the buffer */
-	DEBUGP(5, dev, "Write challenge to buffer: ");
+	DEP(5, dev, "Write challenge to buffer: ");
 	for (i = 0; i < 4; i++) {
 		xoutb(i, REG_BUF_ADDR(iobase));
 		xoutb(dev->pts[i], REG_BUF_DATA(iobase));	/* buf data */
-#ifdef CM4000_DEBUG
-		pr_debug("0x%.2x ", dev->pts[i]);
+#ifdef CM4000_DE
+		pr_de("0x%.2x ", dev->pts[i]);
 	}
-	pr_debug("\n");
+	pr_de("\n");
 #else
 	}
 #endif
 
 	/* set number of bytes to write */
-	DEBUGP(5, dev, "Set number of bytes to write\n");
+	DEP(5, dev, "Set number of bytes to write\n");
 	xoutb(0x04, REG_NUM_SEND(iobase));
 
 	/* Trigger CARDMAN CONTROLLER */
@@ -523,27 +523,27 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 
 	/* Monitor progress */
 	/* wait for xmit done */
-	DEBUGP(5, dev, "Waiting for NumRecBytes getting valid\n");
+	DEP(5, dev, "Waiting for NumRecBytes getting valid\n");
 
 	for (i = 0; i < 100; i++) {
 		if (inb(REG_FLAGS0(iobase)) & 0x08) {
-			DEBUGP(5, dev, "NumRecBytes is valid\n");
+			DEP(5, dev, "NumRecBytes is valid\n");
 			break;
 		}
 		usleep_range(10000, 11000);
 	}
 	if (i == 100) {
-		DEBUGP(5, dev, "Timeout waiting for NumRecBytes getting "
+		DEP(5, dev, "Timeout waiting for NumRecBytes getting "
 		       "valid\n");
 		rc = -EIO;
 		goto exit_setprotocol;
 	}
 
-	DEBUGP(5, dev, "Reading NumRecBytes\n");
+	DEP(5, dev, "Reading NumRecBytes\n");
 	for (i = 0; i < 100; i++) {
 		io_read_num_rec_bytes(iobase, &num_bytes_read);
 		if (num_bytes_read >= 4) {
-			DEBUGP(2, dev, "NumRecBytes = %i\n", num_bytes_read);
+			DEP(2, dev, "NumRecBytes = %i\n", num_bytes_read);
 			break;
 		}
 		usleep_range(10000, 11000);
@@ -554,30 +554,30 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 		i = 0;
 
 	if (i == 100) {
-		DEBUGP(5, dev, "Timeout reading num_bytes_read\n");
+		DEP(5, dev, "Timeout reading num_bytes_read\n");
 		rc = -EIO;
 		goto exit_setprotocol;
 	}
 
-	DEBUGP(5, dev, "Reset the CARDMAN CONTROLLER\n");
+	DEP(5, dev, "Reset the CARDMAN CONTROLLER\n");
 	xoutb(0x80, REG_FLAGS0(iobase));
 
 	/* Read PPS reply */
-	DEBUGP(5, dev, "Read PPS reply\n");
+	DEP(5, dev, "Read PPS reply\n");
 	for (i = 0; i < num_bytes_read; i++) {
 		xoutb(i, REG_BUF_ADDR(iobase));
 		pts_reply[i] = inb(REG_BUF_DATA(iobase));
 	}
 
-#ifdef CM4000_DEBUG
-	DEBUGP(2, dev, "PTSreply: ");
+#ifdef CM4000_DE
+	DEP(2, dev, "PTSreply: ");
 	for (i = 0; i < num_bytes_read; i++) {
-		pr_debug("0x%.2x ", pts_reply[i]);
+		pr_de("0x%.2x ", pts_reply[i]);
 	}
-	pr_debug("\n");
-#endif	/* CM4000_DEBUG */
+	pr_de("\n");
+#endif	/* CM4000_DE */
 
-	DEBUGP(5, dev, "Clear Tactive in Flags1\n");
+	DEP(5, dev, "Clear Tactive in Flags1\n");
 	xoutb(0x20, REG_FLAGS1(iobase));
 
 	/* Compare ptsreq and ptsreply */
@@ -597,7 +597,7 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 		rc = -EIO;
 
 exit_setprotocol:
-	DEBUGP(3, dev, "<- set_protocol\n");
+	DEP(3, dev, "<- set_protocol\n");
 	return rc;
 }
 
@@ -628,7 +628,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
 	/* tell the monitor to stop and wait until
 	 * it terminates.
 	 */
-	DEBUGP(3, dev, "-> terminate_monitor\n");
+	DEP(3, dev, "-> terminate_monitor\n");
 	wait_event_interruptible(dev->devq,
 				 test_and_set_bit(LOCK_MONITOR,
 						  (void *)&dev->flags));
@@ -638,17 +638,17 @@ static void terminate_monitor(struct cm4000_dev *dev)
 	 * the monitor will indicate that it has
 	 * finished by clearing this bit.
 	 */
-	DEBUGP(5, dev, "Now allow last cycle of monitor!\n");
+	DEP(5, dev, "Now allow last cycle of monitor!\n");
 	while (test_bit(LOCK_MONITOR, (void *)&dev->flags))
 		msleep(25);
 
-	DEBUGP(5, dev, "Delete timer\n");
+	DEP(5, dev, "Delete timer\n");
 	del_timer_sync(&dev->timer);
-#ifdef CM4000_DEBUG
+#ifdef CM4000_DE
 	dev->monitor_running = 0;
 #endif
 
-	DEBUGP(3, dev, "<- terminate_monitor\n");
+	DEP(3, dev, "<- terminate_monitor\n");
 }
 
 /*
@@ -667,11 +667,11 @@ static void monitor_card(struct timer_list *t)
 	struct ptsreq ptsreq;
 	int i, atrc;
 
-	DEBUGP(7, dev, "->  monitor_card\n");
+	DEP(7, dev, "->  monitor_card\n");
 
 	/* if someone has set the lock for us: we're done! */
 	if (test_and_set_bit(LOCK_MONITOR, &dev->flags)) {
-		DEBUGP(4, dev, "About to stop monitor\n");
+		DEP(4, dev, "About to stop monitor\n");
 		/* no */
 		dev->rlen =
 		    dev->rpos =
@@ -680,22 +680,22 @@ static void monitor_card(struct timer_list *t)
 		clear_bit(LOCK_MONITOR, &dev->flags);
 		/* close et al. are sleeping on devq, so wake it */
 		wake_up_interruptible(&dev->devq);
-		DEBUGP(2, dev, "<- monitor_card (we are done now)\n");
+		DEP(2, dev, "<- monitor_card (we are done now)\n");
 		return;
 	}
 
 	/* try to lock io: if it is already locked, just add another timer */
 	if (test_and_set_bit(LOCK_IO, (void *)&dev->flags)) {
-		DEBUGP(4, dev, "Couldn't get IO lock\n");
+		DEP(4, dev, "Couldn't get IO lock\n");
 		goto return_with_timer;
 	}
 
 	/* is a card/a reader inserted at all ? */
 	dev->flags0 = xinb(REG_FLAGS0(iobase));
-	DEBUGP(7, dev, "dev->flags0 = 0x%2x\n", dev->flags0);
-	DEBUGP(7, dev, "smartcard present: %s\n",
+	DEP(7, dev, "dev->flags0 = 0x%2x\n", dev->flags0);
+	DEP(7, dev, "smartcard present: %s\n",
 	       dev->flags0 & 1 ? "yes" : "no");
-	DEBUGP(7, dev, "cardman present: %s\n",
+	DEP(7, dev, "cardman present: %s\n",
 	       dev->flags0 == 0xff ? "no" : "yes");
 
 	if ((dev->flags0 & 1) == 0	/* no smartcard inserted */
@@ -709,10 +709,10 @@ static void monitor_card(struct timer_list *t)
 		dev->flags &= 0x000000ff; /* only keep IO and MONITOR locks */
 
 		if (dev->flags0 == 0xff) {
-			DEBUGP(4, dev, "set IS_CMM_ABSENT bit\n");
+			DEP(4, dev, "set IS_CMM_ABSENT bit\n");
 			set_bit(IS_CMM_ABSENT, &dev->flags);
 		} else if (test_bit(IS_CMM_ABSENT, &dev->flags)) {
-			DEBUGP(4, dev, "clear IS_CMM_ABSENT bit "
+			DEP(4, dev, "clear IS_CMM_ABSENT bit "
 			       "(card is removed)\n");
 			clear_bit(IS_CMM_ABSENT, &dev->flags);
 		}
@@ -721,19 +721,19 @@ static void monitor_card(struct timer_list *t)
 	} else if ((dev->flags0 & 1) && test_bit(IS_CMM_ABSENT, &dev->flags)) {
 		/* cardman and card present but cardman was absent before
 		 * (after suspend with inserted card) */
-		DEBUGP(4, dev, "clear IS_CMM_ABSENT bit (card is inserted)\n");
+		DEP(4, dev, "clear IS_CMM_ABSENT bit (card is inserted)\n");
 		clear_bit(IS_CMM_ABSENT, &dev->flags);
 	}
 
 	if (test_bit(IS_ATR_VALID, &dev->flags) == 1) {
-		DEBUGP(7, dev, "believe ATR is already valid (do nothing)\n");
+		DEP(7, dev, "believe ATR is already valid (do nothing)\n");
 		goto release_io;
 	}
 
 	switch (dev->mstate) {
 		unsigned char flags0;
 	case M_CARDOFF:
-		DEBUGP(4, dev, "M_CARDOFF\n");
+		DEP(4, dev, "M_CARDOFF\n");
 		flags0 = inb(REG_FLAGS0(iobase));
 		if (flags0 & 0x02) {
 			/* wait until Flags0 indicate power is off */
@@ -756,9 +756,9 @@ static void monitor_card(struct timer_list *t)
 		}
 		break;
 	case M_FETCH_ATR:
-		DEBUGP(4, dev, "M_FETCH_ATR\n");
+		DEP(4, dev, "M_FETCH_ATR\n");
 		xoutb(0x80, REG_FLAGS0(iobase));
-		DEBUGP(4, dev, "Reset BAUDV to 9600\n");
+		DEP(4, dev, "Reset BAUDV to 9600\n");
 		dev->baudv = 0x173;	/* 9600 */
 		xoutb(0x02, REG_STOPBITS(iobase));	/* stopbits=2 */
 		xoutb(0x73, REG_BAUDRATE(iobase));	/* baud value */
@@ -770,14 +770,14 @@ static void monitor_card(struct timer_list *t)
 		dev->mstate = M_TIMEOUT_WAIT;
 		break;
 	case M_TIMEOUT_WAIT:
-		DEBUGP(4, dev, "M_TIMEOUT_WAIT\n");
+		DEP(4, dev, "M_TIMEOUT_WAIT\n");
 		/* numRecBytes */
 		io_read_num_rec_bytes(iobase, &dev->atr_len);
 		dev->mdelay = T_10MSEC;
 		dev->mstate = M_READ_ATR_LEN;
 		break;
 	case M_READ_ATR_LEN:
-		DEBUGP(4, dev, "M_READ_ATR_LEN\n");
+		DEP(4, dev, "M_READ_ATR_LEN\n");
 		/* infinite loop possible, since there is no timeout */
 
 #define	MAX_ATR_LEN_RETRY	100
@@ -792,17 +792,17 @@ static void monitor_card(struct timer_list *t)
 			dev->atr_len_retry = 0;	/* set new timeout */
 		}
 
-		DEBUGP(4, dev, "Current ATR_LEN = %i\n", dev->atr_len);
+		DEP(4, dev, "Current ATR_LEN = %i\n", dev->atr_len);
 		break;
 	case M_READ_ATR:
-		DEBUGP(4, dev, "M_READ_ATR\n");
+		DEP(4, dev, "M_READ_ATR\n");
 		xoutb(0x80, REG_FLAGS0(iobase));	/* reset SM */
 		for (i = 0; i < dev->atr_len; i++) {
 			xoutb(i, REG_BUF_ADDR(iobase));
 			dev->atr[i] = inb(REG_BUF_DATA(iobase));
 		}
 		/* Deactivate T_Active flags */
-		DEBUGP(4, dev, "Deactivate T_Active flags\n");
+		DEP(4, dev, "Deactivate T_Active flags\n");
 		dev->flags1 = 0x01;
 		xoutb(dev->flags1, REG_FLAGS1(iobase));
 
@@ -821,14 +821,14 @@ static void monitor_card(struct timer_list *t)
 		}
 
 		if (test_bit(IS_ATR_VALID, &dev->flags) == 1) {
-			DEBUGP(4, dev, "monitor_card: ATR valid\n");
+			DEP(4, dev, "monitor_card: ATR valid\n");
  			/* if ta1 == 0x11, no PPS necessary (default values) */
 			/* do not do PPS with multi protocol cards */
 			if ((test_bit(IS_AUTOPPS_ACT, &dev->flags) == 0) &&
 			    (dev->ta1 != 0x11) &&
 			    !(test_bit(IS_ANY_T0, &dev->flags) &&
 			    test_bit(IS_ANY_T1, &dev->flags))) {
-				DEBUGP(4, dev, "Perform AUTOPPS\n");
+				DEP(4, dev, "Perform AUTOPPS\n");
 				set_bit(IS_AUTOPPS_ACT, &dev->flags);
 				ptsreq.protocol = (0x01 << dev->proto);
 				ptsreq.flags = 0x01;
@@ -836,11 +836,11 @@ static void monitor_card(struct timer_list *t)
 				ptsreq.pts2 = 0x00;
 				ptsreq.pts3 = 0x00;
 				if (set_protocol(dev, &ptsreq) == 0) {
-					DEBUGP(4, dev, "AUTOPPS ret SUCC\n");
+					DEP(4, dev, "AUTOPPS ret SUCC\n");
 					clear_bit(IS_AUTOPPS_ACT, &dev->flags);
 					wake_up_interruptible(&dev->atrq);
 				} else {
-					DEBUGP(4, dev, "AUTOPPS failed: "
+					DEP(4, dev, "AUTOPPS failed: "
 					       "repower using defaults\n");
 					/* prepare for repowering  */
 					clear_bit(IS_ATR_PRESENT, &dev->flags);
@@ -858,38 +858,38 @@ static void monitor_card(struct timer_list *t)
 				 * params (extra guard time) */
 				set_cardparameter(dev);
 				if (test_bit(IS_AUTOPPS_ACT, &dev->flags) == 1)
-					DEBUGP(4, dev, "AUTOPPS already active "
+					DEP(4, dev, "AUTOPPS already active "
 					       "2nd try:use default values\n");
 				if (dev->ta1 == 0x11)
-					DEBUGP(4, dev, "No AUTOPPS necessary "
+					DEP(4, dev, "No AUTOPPS necessary "
 					       "TA(1)==0x11\n");
 				if (test_bit(IS_ANY_T0, &dev->flags)
 				    && test_bit(IS_ANY_T1, &dev->flags))
-					DEBUGP(4, dev, "Do NOT perform AUTOPPS "
+					DEP(4, dev, "Do NOT perform AUTOPPS "
 					       "with multiprotocol cards\n");
 				clear_bit(IS_AUTOPPS_ACT, &dev->flags);
 				wake_up_interruptible(&dev->atrq);
 			}
 		} else {
-			DEBUGP(4, dev, "ATR invalid\n");
+			DEP(4, dev, "ATR invalid\n");
 			wake_up_interruptible(&dev->atrq);
 		}
 		break;
 	case M_BAD_CARD:
-		DEBUGP(4, dev, "M_BAD_CARD\n");
+		DEP(4, dev, "M_BAD_CARD\n");
 		/* slow down warning, but prompt immediately after insertion */
 		if (dev->cwarn == 0 || dev->cwarn == 10) {
 			set_bit(IS_BAD_CARD, &dev->flags);
 			dev_warn(&dev->p_dev->dev, MODULE_NAME ": ");
 			if (test_bit(IS_BAD_CSUM, &dev->flags)) {
-				DEBUGP(4, dev, "ATR checksum (0x%.2x, should "
+				DEP(4, dev, "ATR checksum (0x%.2x, should "
 				       "be zero) failed\n", dev->atr_csum);
 			}
-#ifdef CM4000_DEBUG
+#ifdef CM4000_DE
 			else if (test_bit(IS_BAD_LENGTH, &dev->flags)) {
-				DEBUGP(4, dev, "ATR length error\n");
+				DEP(4, dev, "ATR length error\n");
 			} else {
-				DEBUGP(4, dev, "card damaged or wrong way "
+				DEP(4, dev, "card damaged or wrong way "
 					"inserted\n");
 			}
 #endif
@@ -901,17 +901,17 @@ static void monitor_card(struct timer_list *t)
 		dev->mstate = M_FETCH_ATR;
 		break;
 	default:
-		DEBUGP(7, dev, "Unknown action\n");
+		DEP(7, dev, "Unknown action\n");
 		break;		/* nothing */
 	}
 
 release_io:
-	DEBUGP(7, dev, "release_io\n");
+	DEP(7, dev, "release_io\n");
 	clear_bit(LOCK_IO, &dev->flags);
 	wake_up_interruptible(&dev->ioq);	/* whoever needs IO */
 
 return_with_timer:
-	DEBUGP(7, dev, "<- monitor_card (returns with timer)\n");
+	DEP(7, dev, "<- monitor_card (returns with timer)\n");
 	mod_timer(&dev->timer, jiffies + dev->mdelay);
 	clear_bit(LOCK_MONITOR, &dev->flags);
 }
@@ -926,7 +926,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 	ssize_t rc;
 	int i, j, k;
 
-	DEBUGP(2, dev, "-> cmm_read(%s,%d)\n", current->comm, current->pid);
+	DEP(2, dev, "-> cmm_read(%s,%d)\n", current->comm, current->pid);
 
 	if (count == 0)		/* according to manpage */
 		return 0;
@@ -984,19 +984,19 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 		goto release_io;
 	}
 
-	DEBUGP(4, dev, "begin read answer\n");
+	DEP(4, dev, "begin read answer\n");
 	j = min(count, (size_t)(dev->rlen - dev->rpos));
 	k = dev->rpos;
 	if (k + j > 255)
 		j = 256 - k;
-	DEBUGP(4, dev, "read1 j=%d\n", j);
+	DEP(4, dev, "read1 j=%d\n", j);
 	for (i = 0; i < j; i++) {
 		xoutb(k++, REG_BUF_ADDR(iobase));
 		dev->rbuf[i] = xinb(REG_BUF_DATA(iobase));
 	}
 	j = min(count, (size_t)(dev->rlen - dev->rpos));
 	if (k + j > 255) {
-		DEBUGP(4, dev, "read2 j=%d\n", j);
+		DEP(4, dev, "read2 j=%d\n", j);
 		dev->flags1 |= 0x10;	/* MSB buf addr set */
 		xoutb(dev->flags1, REG_FLAGS1(iobase));
 		for (; i < j; i++) {
@@ -1006,7 +1006,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 	}
 
 	if (dev->proto == 0 && count > dev->rlen - dev->rpos && i) {
-		DEBUGP(4, dev, "T=0 and count > buffer\n");
+		DEP(4, dev, "T=0 and count > buffer\n");
 		dev->rbuf[i] = dev->rbuf[i - 1];
 		dev->rbuf[i - 1] = dev->procbyte;
 		j++;
@@ -1016,7 +1016,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 	dev->rpos = dev->rlen + 1;
 
 	/* Clear T1Active */
-	DEBUGP(4, dev, "Clear T1Active\n");
+	DEP(4, dev, "Clear T1Active\n");
 	dev->flags1 &= 0xdf;
 	xoutb(dev->flags1, REG_FLAGS1(iobase));
 
@@ -1037,7 +1037,7 @@ release_io:
 	clear_bit(LOCK_IO, &dev->flags);
 	wake_up_interruptible(&dev->ioq);
 
-	DEBUGP(2, dev, "<- cmm_read returns: rc = %zi\n",
+	DEP(2, dev, "<- cmm_read returns: rc = %zi\n",
 	       (rc < 0 ? rc : count));
 	return rc < 0 ? rc : count;
 }
@@ -1056,14 +1056,14 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 	ssize_t rc;
 	int i;
 
-	DEBUGP(2, dev, "-> cmm_write(%s,%d)\n", current->comm, current->pid);
+	DEP(2, dev, "-> cmm_write(%s,%d)\n", current->comm, current->pid);
 
 	if (count == 0)		/* according to manpage */
 		return 0;
 
 	if (dev->proto == 0 && count < 4) {
 		/* T0 must have at least 4 bytes */
-		DEBUGP(4, dev, "T0 short write\n");
+		DEP(4, dev, "T0 short write\n");
 		return -EIO;
 	}
 
@@ -1076,7 +1076,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 		return -ENODEV;
 
 	if (test_bit(IS_BAD_CSUM, &dev->flags)) {
-		DEBUGP(4, dev, "bad csum\n");
+		DEP(4, dev, "bad csum\n");
 		return -EIO;
 	}
 
@@ -1101,7 +1101,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 	}
 
 	if (test_bit(IS_ATR_VALID, &dev->flags) == 0) {	/* invalid atr */
-		DEBUGP(4, dev, "invalid ATR\n");
+		DEP(4, dev, "invalid ATR\n");
 		return -EIO;
 	}
 
@@ -1127,7 +1127,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			set_bit(IS_CMM_ABSENT, &dev->flags);
 			rc = -ENODEV;
 		} else {
-			DEBUGP(4, dev, "IO error\n");
+			DEP(4, dev, "IO error\n");
 			rc = -EIO;
 		}
 		goto release_io;
@@ -1152,11 +1152,11 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 	    | (sendT0)
 	    | (test_bit(IS_INVREV, &dev->flags) ? 2 : 0)/* inverse parity  */
 	    | (((dev->baudv - 1) & 0x0100) >> 8);	/* MSB-Baud */
-	DEBUGP(1, dev, "set dev->flags1 = 0x%.2x\n", dev->flags1);
+	DEP(1, dev, "set dev->flags1 = 0x%.2x\n", dev->flags1);
 	xoutb(dev->flags1, REG_FLAGS1(iobase));
 
 	/* xmit data */
-	DEBUGP(4, dev, "Xmit data\n");
+	DEP(4, dev, "Xmit data\n");
 	for (i = 0; i < nr; i++) {
 		if (i >= 256) {
 			dev->flags1 = 0x20	/* T_Active */
@@ -1165,12 +1165,12 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			    | (test_bit(IS_INVREV, &dev->flags) ? 2 : 0)
 			    | (((dev->baudv - 1) & 0x0100) >> 8) /* MSB-Baud */
 			    | 0x10;	/* set address high */
-			DEBUGP(4, dev, "dev->flags = 0x%.2x - set address "
+			DEP(4, dev, "dev->flags = 0x%.2x - set address "
 			       "high\n", dev->flags1);
 			xoutb(dev->flags1, REG_FLAGS1(iobase));
 		}
 		if (test_bit(IS_INVREV, &dev->flags)) {
-			DEBUGP(4, dev, "Apply inverse convention for 0x%.2x "
+			DEP(4, dev, "Apply inverse convention for 0x%.2x "
 				"-> 0x%.2x\n", (unsigned char)dev->sbuf[i],
 			      invert_revert(dev->sbuf[i]));
 			xoutb(i, REG_BUF_ADDR(iobase));
@@ -1181,12 +1181,12 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			xoutb(dev->sbuf[i], REG_BUF_DATA(iobase));
 		}
 	}
-	DEBUGP(4, dev, "Xmit done\n");
+	DEP(4, dev, "Xmit done\n");
 
 	if (dev->proto == 0) {
 		/* T=0 proto: 0 byte reply  */
 		if (nr == 4) {
-			DEBUGP(4, dev, "T=0 assumes 0 byte reply\n");
+			DEP(4, dev, "T=0 assumes 0 byte reply\n");
 			xoutb(i, REG_BUF_ADDR(iobase));
 			if (test_bit(IS_INVREV, &dev->flags))
 				xoutb(0xff, REG_BUF_DATA(iobase));
@@ -1211,19 +1211,19 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 
 	/* T0: output procedure byte */
 	if (test_bit(IS_INVREV, &dev->flags)) {
-		DEBUGP(4, dev, "T=0 set Procedure byte (inverse-reverse) "
+		DEP(4, dev, "T=0 set Procedure byte (inverse-reverse) "
 		       "0x%.2x\n", invert_revert(dev->sbuf[1]));
 		xoutb(invert_revert(dev->sbuf[1]), REG_NUM_BYTES(iobase));
 	} else {
-		DEBUGP(4, dev, "T=0 set Procedure byte 0x%.2x\n", dev->sbuf[1]);
+		DEP(4, dev, "T=0 set Procedure byte 0x%.2x\n", dev->sbuf[1]);
 		xoutb(dev->sbuf[1], REG_NUM_BYTES(iobase));
 	}
 
-	DEBUGP(1, dev, "set NumSendBytes = 0x%.2x\n",
+	DEP(1, dev, "set NumSendBytes = 0x%.2x\n",
 	       (unsigned char)(nsend & 0xff));
 	xoutb((unsigned char)(nsend & 0xff), REG_NUM_SEND(iobase));
 
-	DEBUGP(1, dev, "Trigger CARDMAN CONTROLLER (0x%.2x)\n",
+	DEP(1, dev, "Trigger CARDMAN CONTROLLER (0x%.2x)\n",
 	       0x40	/* SM_Active */
 	      | (dev->flags0 & 2 ? 0 : 4)	/* power on if needed */
 	      |(dev->proto ? 0x10 : 0x08)	/* T=1/T=0 */
@@ -1236,14 +1236,14 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 
 	/* wait for xmit done */
 	if (dev->proto == 1) {
-		DEBUGP(4, dev, "Wait for xmit done\n");
+		DEP(4, dev, "Wait for xmit done\n");
 		for (i = 0; i < 1000; i++) {
 			if (inb(REG_FLAGS0(iobase)) & 0x08)
 				break;
 			msleep_interruptible(10);
 		}
 		if (i == 1000) {
-			DEBUGP(4, dev, "timeout waiting for xmit done\n");
+			DEP(4, dev, "timeout waiting for xmit done\n");
 			rc = -EIO;
 			goto release_io;
 		}
@@ -1258,13 +1258,13 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			io_read_num_rec_bytes(iobase, &s);
 			if (s >= 3) {
 				infolen = inb(REG_FLAGS1(iobase));
-				DEBUGP(4, dev, "infolen=%d\n", infolen);
+				DEP(4, dev, "infolen=%d\n", infolen);
 				break;
 			}
 			msleep_interruptible(10);
 		}
 		if (i == 6000) {
-			DEBUGP(4, dev, "timeout waiting for infoLen\n");
+			DEP(4, dev, "timeout waiting for infoLen\n");
 			rc = -EIO;
 			goto release_io;
 		}
@@ -1282,7 +1282,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 		/* numRecBytes | bit9 of numRecytes */
 		io_read_num_rec_bytes(iobase, &s);
 		if (s > dev->rlen) {
-			DEBUGP(1, dev, "NumRecBytes inc (reset timeout)\n");
+			DEP(1, dev, "NumRecBytes inc (reset timeout)\n");
 			i = 0;	/* reset timeout */
 			dev->rlen = s;
 		}
@@ -1296,19 +1296,19 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 		else if (dev->proto == 0) {
 			if ((inb(REG_BUF_ADDR(iobase)) & 0x80)) {
 				/* no procedure byte received since last read */
-				DEBUGP(1, dev, "NoProcedure byte set\n");
+				DEP(1, dev, "NoProcedure byte set\n");
 				/* i=0; */
 			} else {
 				/* procedure byte received since last read */
-				DEBUGP(1, dev, "NoProcedure byte unset "
+				DEP(1, dev, "NoProcedure byte unset "
 					"(reset timeout)\n");
 				dev->procbyte = inb(REG_FLAGS1(iobase));
-				DEBUGP(1, dev, "Read procedure byte 0x%.2x\n",
+				DEP(1, dev, "Read procedure byte 0x%.2x\n",
 				      dev->procbyte);
 				i = 0;	/* resettimeout */
 			}
 			if (inb(REG_FLAGS0(iobase)) & 0x08) {
-				DEBUGP(1, dev, "T0Done flag (read reply)\n");
+				DEP(1, dev, "T0Done flag (read reply)\n");
 				break;
 			}
 		}
@@ -1316,43 +1316,43 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			infolen = inb(REG_FLAGS1(iobase));
 	}
 	if (i == 600) {
-		DEBUGP(1, dev, "timeout waiting for numRecBytes\n");
+		DEP(1, dev, "timeout waiting for numRecBytes\n");
 		rc = -EIO;
 		goto release_io;
 	} else {
 		if (dev->proto == 0) {
-			DEBUGP(1, dev, "Wait for T0Done bit to be  set\n");
+			DEP(1, dev, "Wait for T0Done bit to be  set\n");
 			for (i = 0; i < 1000; i++) {
 				if (inb(REG_FLAGS0(iobase)) & 0x08)
 					break;
 				msleep_interruptible(10);
 			}
 			if (i == 1000) {
-				DEBUGP(1, dev, "timeout waiting for T0Done\n");
+				DEP(1, dev, "timeout waiting for T0Done\n");
 				rc = -EIO;
 				goto release_io;
 			}
 
 			dev->procbyte = inb(REG_FLAGS1(iobase));
-			DEBUGP(4, dev, "Read procedure byte 0x%.2x\n",
+			DEP(4, dev, "Read procedure byte 0x%.2x\n",
 			      dev->procbyte);
 
 			io_read_num_rec_bytes(iobase, &dev->rlen);
-			DEBUGP(4, dev, "Read NumRecBytes = %i\n", dev->rlen);
+			DEP(4, dev, "Read NumRecBytes = %i\n", dev->rlen);
 
 		}
 	}
 	/* T=1: read offset=zero, T=0: read offset=after challenge */
 	dev->rpos = dev->proto ? 0 : nr == 4 ? 5 : nr > dev->rlen ? 5 : nr;
-	DEBUGP(4, dev, "dev->rlen = %i,  dev->rpos = %i, nr = %i\n",
+	DEP(4, dev, "dev->rlen = %i,  dev->rpos = %i, nr = %i\n",
 	      dev->rlen, dev->rpos, nr);
 
 release_io:
-	DEBUGP(4, dev, "Reset SM\n");
+	DEP(4, dev, "Reset SM\n");
 	xoutb(0x80, REG_FLAGS0(iobase));	/* reset SM */
 
 	if (rc < 0) {
-		DEBUGP(4, dev, "Write failed but clear T_Active\n");
+		DEP(4, dev, "Write failed but clear T_Active\n");
 		dev->flags1 &= 0xdf;
 		xoutb(dev->flags1, REG_FLAGS1(iobase));
 	}
@@ -1365,35 +1365,35 @@ release_io:
 	memset((char *)dev->sbuf, 0, 512);
 
 	/* return error or actually written bytes */
-	DEBUGP(2, dev, "<- cmm_write\n");
+	DEP(2, dev, "<- cmm_write\n");
 	return rc < 0 ? rc : nr;
 }
 
 static void start_monitor(struct cm4000_dev *dev)
 {
-	DEBUGP(3, dev, "-> start_monitor\n");
+	DEP(3, dev, "-> start_monitor\n");
 	if (!dev->monitor_running) {
-		DEBUGP(5, dev, "create, init and add timer\n");
+		DEP(5, dev, "create, init and add timer\n");
 		timer_setup(&dev->timer, monitor_card, 0);
 		dev->monitor_running = 1;
 		mod_timer(&dev->timer, jiffies);
 	} else
-		DEBUGP(5, dev, "monitor already running\n");
-	DEBUGP(3, dev, "<- start_monitor\n");
+		DEP(5, dev, "monitor already running\n");
+	DEP(3, dev, "<- start_monitor\n");
 }
 
 static void stop_monitor(struct cm4000_dev *dev)
 {
-	DEBUGP(3, dev, "-> stop_monitor\n");
+	DEP(3, dev, "-> stop_monitor\n");
 	if (dev->monitor_running) {
-		DEBUGP(5, dev, "stopping monitor\n");
+		DEP(5, dev, "stopping monitor\n");
 		terminate_monitor(dev);
 		/* reset monitor SM */
 		clear_bit(IS_ATR_VALID, &dev->flags);
 		clear_bit(IS_ATR_PRESENT, &dev->flags);
 	} else
-		DEBUGP(5, dev, "monitor already stopped\n");
-	DEBUGP(3, dev, "<- stop_monitor\n");
+		DEP(5, dev, "monitor already stopped\n");
+	DEP(3, dev, "<- stop_monitor\n");
 }
 
 static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -1405,7 +1405,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int size;
 	int rc;
 	void __user *argp = (void __user *)arg;
-#ifdef CM4000_DEBUG
+#ifdef CM4000_DE
 	char *ioctl_names[CM_IOC_MAXNR + 1] = {
 		[_IOC_NR(CM_IOCGSTATUS)] "CM_IOCGSTATUS",
 		[_IOC_NR(CM_IOCGATR)] "CM_IOCGATR",
@@ -1413,7 +1413,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		[_IOC_NR(CM_IOCSPTS)] "CM_IOCSPTS",
 		[_IOC_NR(CM_IOSDBGLVL)] "CM4000_DBGLVL",
 	};
-	DEBUGP(3, dev, "cmm_ioctl(device=%d.%d) %s\n", imajor(inode),
+	DEP(3, dev, "cmm_ioctl(device=%d.%d) %s\n", imajor(inode),
 	       iminor(inode), ioctl_names[_IOC_NR(cmd)]);
 #endif
 
@@ -1421,27 +1421,27 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	rc = -ENODEV;
 	link = dev_table[iminor(inode)];
 	if (!pcmcia_dev_present(link)) {
-		DEBUGP(4, dev, "DEV_OK false\n");
+		DEP(4, dev, "DEV_OK false\n");
 		goto out;
 	}
 
 	if (test_bit(IS_CMM_ABSENT, &dev->flags)) {
-		DEBUGP(4, dev, "CMM_ABSENT flag set\n");
+		DEP(4, dev, "CMM_ABSENT flag set\n");
 		goto out;
 	}
 	rc = -EINVAL;
 
 	if (_IOC_TYPE(cmd) != CM_IOC_MAGIC) {
-		DEBUGP(4, dev, "ioctype mismatch\n");
+		DEP(4, dev, "ioctype mismatch\n");
 		goto out;
 	}
 	if (_IOC_NR(cmd) > CM_IOC_MAXNR) {
-		DEBUGP(4, dev, "iocnr mismatch\n");
+		DEP(4, dev, "iocnr mismatch\n");
 		goto out;
 	}
 	size = _IOC_SIZE(cmd);
 	rc = -EFAULT;
-	DEBUGP(4, dev, "iocdir=%.4x iocr=%.4x iocw=%.4x iocsize=%d cmd=%.4x\n",
+	DEP(4, dev, "iocdir=%.4x iocr=%.4x iocw=%.4x iocsize=%d cmd=%.4x\n",
 	      _IOC_DIR(cmd), _IOC_READ, _IOC_WRITE, size, cmd);
 
 	if (_IOC_DIR(cmd) & _IOC_READ) {
@@ -1456,7 +1456,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case CM_IOCGSTATUS:
-		DEBUGP(4, dev, " ... in CM_IOCGSTATUS\n");
+		DEP(4, dev, " ... in CM_IOCGSTATUS\n");
 		{
 			int status;
 
@@ -1476,7 +1476,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case CM_IOCGATR:
-		DEBUGP(4, dev, "... in CM_IOCGATR\n");
+		DEP(4, dev, "... in CM_IOCGATR\n");
 		{
 			struct atreq __user *atreq = argp;
 			int tmp;
@@ -1513,17 +1513,17 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 	case CM_IOCARDOFF:
 
-#ifdef CM4000_DEBUG
-		DEBUGP(4, dev, "... in CM_IOCARDOFF\n");
+#ifdef CM4000_DE
+		DEP(4, dev, "... in CM_IOCARDOFF\n");
 		if (dev->flags0 & 0x01) {
-			DEBUGP(4, dev, "    Card inserted\n");
+			DEP(4, dev, "    Card inserted\n");
 		} else {
-			DEBUGP(2, dev, "    No card inserted\n");
+			DEP(2, dev, "    No card inserted\n");
 		}
 		if (dev->flags0 & 0x02) {
-			DEBUGP(4, dev, "    Card powered\n");
+			DEP(4, dev, "    Card powered\n");
 		} else {
-			DEBUGP(2, dev, "    Card not powered\n");
+			DEP(2, dev, "    Card not powered\n");
 		}
 #endif
 
@@ -1543,7 +1543,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 			/* Set Flags0 = 0x42 */
-			DEBUGP(4, dev, "Set Flags0=0x42 \n");
+			DEP(4, dev, "Set Flags0=0x42 \n");
 			xoutb(0x42, REG_FLAGS0(iobase));
 			clear_bit(IS_ATR_PRESENT, &dev->flags);
 			clear_bit(IS_ATR_VALID, &dev->flags);
@@ -1578,7 +1578,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}
 
 			rc = 0;
-			DEBUGP(4, dev, "... in CM_IOCSPTS\n");
+			DEP(4, dev, "... in CM_IOCSPTS\n");
 			/* wait for ATR to get valid */
 			if (wait_event_interruptible
 			    (dev->atrq,
@@ -1615,13 +1615,13 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		}
 		break;
-#ifdef CM4000_DEBUG
+#ifdef CM4000_DE
 	case CM_IOSDBGLVL:
 		rc = -ENOTTY;
 		break;
 #endif
 	default:
-		DEBUGP(4, dev, "... in default (unknown IOCTL code)\n");
+		DEP(4, dev, "... in default (unknown IOCTL code)\n");
 		rc = -ENOTTY;
 	}
 out:
@@ -1654,7 +1654,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	dev = link->priv;
 	filp->private_data = dev;
 
-	DEBUGP(2, dev, "-> cmm_open(device=%d.%d process=%s,%d)\n",
+	DEP(2, dev, "-> cmm_open(device=%d.%d process=%s,%d)\n",
 	      imajor(inode), minor, current->comm, current->pid);
 
 	/* init device variables, they may be "polluted" after close
@@ -1681,7 +1681,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 
 	link->open = 1;		/* only one open per device */
 
-	DEBUGP(2, dev, "<- cmm_open\n");
+	DEP(2, dev, "<- cmm_open\n");
 	ret = nonseekable_open(inode, filp);
 out:
 	mutex_unlock(&cmm_mutex);
@@ -1703,7 +1703,7 @@ static int cmm_close(struct inode *inode, struct file *filp)
 
 	dev = link->priv;
 
-	DEBUGP(2, dev, "-> cmm_close(maj/min=%d.%d)\n",
+	DEP(2, dev, "-> cmm_close(maj/min=%d.%d)\n",
 	       imajor(inode), minor);
 
 	stop_monitor(dev);
@@ -1713,7 +1713,7 @@ static int cmm_close(struct inode *inode, struct file *filp)
 	link->open = 0;		/* only one open per device */
 	wake_up(&dev->devq);	/* socket removed? */
 
-	DEBUGP(2, dev, "cmm_close\n");
+	DEP(2, dev, "cmm_close\n");
 	return 0;
 }
 
@@ -1724,7 +1724,7 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 	/* dont terminate the monitor, rather rely on
 	 * close doing that for us.
 	 */
-	DEBUGP(3, dev, "-> cmm_cm4000_release\n");
+	DEP(3, dev, "-> cmm_cm4000_release\n");
 	while (link->open) {
 		printk(KERN_INFO MODULE_NAME ": delaying release until "
 		       "process has terminated\n");
@@ -1735,7 +1735,7 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 		wait_event(dev->devq, (link->open == 0));
 	}
 	/* dev->devq=NULL;	this cannot be zeroed earlier */
-	DEBUGP(3, dev, "<- cmm_cm4000_release\n");
+	DEP(3, dev, "<- cmm_cm4000_release\n");
 	return;
 }
 

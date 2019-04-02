@@ -44,7 +44,7 @@ static void ca_midi_clear_rx(struct snd_ca_midi *midi)
 	int timeout = 100000;
 	for (; timeout > 0 && ca_midi_input_avail(midi); timeout--)
 		ca_midi_read_data(midi);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (timeout <= 0)
 		pr_err("ca_midi_clear_rx: timeout (status = 0x%x)\n",
 			   ca_midi_read_stat(midi));
@@ -125,7 +125,7 @@ static int ca_midi_input_open(struct snd_rawmidi_substream *substream)
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 	
-	if (snd_BUG_ON(!midi->dev_id))
+	if (snd__ON(!midi->dev_id))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	midi->midi_mode |= CA_MIDI_MODE_INPUT;
@@ -145,7 +145,7 @@ static int ca_midi_output_open(struct snd_rawmidi_substream *substream)
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!midi->dev_id))
+	if (snd__ON(!midi->dev_id))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	midi->midi_mode |= CA_MIDI_MODE_OUTPUT;
@@ -165,7 +165,7 @@ static int ca_midi_input_close(struct snd_rawmidi_substream *substream)
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!midi->dev_id))
+	if (snd__ON(!midi->dev_id))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	midi->interrupt_disable(midi,midi->rx_enable);
@@ -185,7 +185,7 @@ static int ca_midi_output_close(struct snd_rawmidi_substream *substream)
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!midi->dev_id))
+	if (snd__ON(!midi->dev_id))
 		return -ENXIO;
 	
 	spin_lock_irqsave(&midi->open_lock, flags);
@@ -207,7 +207,7 @@ static void ca_midi_input_trigger(struct snd_rawmidi_substream *substream, int u
 {
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 
-	if (snd_BUG_ON(!midi->dev_id))
+	if (snd__ON(!midi->dev_id))
 		return;
 
 	if (up) {
@@ -222,7 +222,7 @@ static void ca_midi_output_trigger(struct snd_rawmidi_substream *substream, int 
 	struct snd_ca_midi *midi = substream->rmidi->private_data;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!midi->dev_id))
+	if (snd__ON(!midi->dev_id))
 		return;
 
 	if (up) {

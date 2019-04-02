@@ -98,7 +98,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 	while (list) {
 		next = list->next;
 		prefetch(next);
-		debug_rcu_head_unqueue(list);
+		de_rcu_head_unqueue(list);
 		local_bh_disable();
 		__rcu_reclaim("", list);
 		local_bh_enable();
@@ -134,7 +134,7 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	unsigned long flags;
 
-	debug_rcu_head_queue(head);
+	de_rcu_head_queue(head);
 	head->func = func;
 	head->next = NULL;
 

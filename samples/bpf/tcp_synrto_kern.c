@@ -19,7 +19,7 @@
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 
-#define DEBUG 1
+#define DE 1
 
 #define bpf_printk(fmt, ...)					\
 ({								\
@@ -45,7 +45,7 @@ int bpf_synrto(struct bpf_sock_ops *skops)
 
 	op = (int) skops->op;
 
-#ifdef DEBUG
+#ifdef DE
 	bpf_printk("BPF command: %d\n", op);
 #endif
 
@@ -62,7 +62,7 @@ int bpf_synrto(struct bpf_sock_ops *skops)
 		    (bpf_ntohl(skops->remote_ip6[1]) & 0xfff00000))
 			rv = 10;
 	}
-#ifdef DEBUG
+#ifdef DE
 	bpf_printk("Returning %d\n", rv);
 #endif
 	skops->reply = rv;

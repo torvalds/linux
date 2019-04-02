@@ -17,7 +17,7 @@ nouveau-y += $(nvkm-y)
 ifdef CONFIG_X86
 nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
 endif
-nouveau-$(CONFIG_DEBUG_FS) += nouveau_debugfs.o
+nouveau-$(CONFIG_DE_FS) += nouveau_defs.o
 nouveau-y += nouveau_drm.o
 nouveau-y += nouveau_hwmon.o
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

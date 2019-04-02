@@ -678,7 +678,7 @@ int medusa_video_init(struct cx25821_dev *dev)
 		goto error;
 
 	/*
-	 * FIXME: due to a coding bug the duration was always 0. It's
+	 * FIXME: due to a coding  the duration was always 0. It's
 	 * likely that it really should be something else, but due to the
 	 * lack of documentation I have no idea what it should be. For
 	 * now just fill in 0 as the duration.

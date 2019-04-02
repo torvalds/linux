@@ -9,7 +9,7 @@
 
 #include "protocol.h"
 #include "orangefs-kernel.h"
-#include "orangefs-debugfs.h"
+#include "orangefs-defs.h"
 #include "orangefs-sysfs.h"
 
 /* ORANGEFS_VERSION is a ./configure define */
@@ -26,8 +26,8 @@ struct orangefs_stats orangefs_stats;
 /* the size of the hash tables for ops in progress */
 int hash_table_size = 509;
 
-static ulong module_parm_debug_mask;
-__u64 orangefs_gossip_debug_mask;
+static ulong module_parm_de_mask;
+__u64 orangefs_gossip_de_mask;
 int op_timeout_secs = ORANGEFS_DEFAULT_OP_TIMEOUT_SECS;
 int slot_timeout_secs = ORANGEFS_DEFAULT_SLOT_TIMEOUT_SECS;
 int orangefs_dcache_timeout_msecs = 50;
@@ -36,7 +36,7 @@ int orangefs_getattr_timeout_msecs = 50;
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ORANGEFS Development Team");
 MODULE_DESCRIPTION("The Linux Kernel VFS interface to ORANGEFS");
-MODULE_PARM_DESC(module_parm_debug_mask, "debugging level (see orangefs-debug.h for values)");
+MODULE_PARM_DESC(module_parm_de_mask, "deging level (see orangefs-de.h for values)");
 MODULE_PARM_DESC(op_timeout_secs, "Operation timeout in seconds");
 MODULE_PARM_DESC(slot_timeout_secs, "Slot timeout in seconds");
 MODULE_PARM_DESC(hash_table_size,
@@ -50,7 +50,7 @@ static struct file_system_type orangefs_fs_type = {
 };
 
 module_param(hash_table_size, int, 0);
-module_param(module_parm_debug_mask, ulong, 0644);
+module_param(module_parm_de_mask, ulong, 0644);
 module_param(op_timeout_secs, int, 0);
 module_param(slot_timeout_secs, int, 0);
 
@@ -111,25 +111,25 @@ static int __init orangefs_init(void)
 		goto cleanup_progress_table;
 
 	/*
-	 * Build the contents of /sys/kernel/debug/orangefs/debug-help
+	 * Build the contents of /sys/kernel/de/orangefs/de-help
 	 * from the keywords in the kernel keyword/mask array.
 	 *
 	 * The keywords in the client keyword/mask array are
 	 * unknown at boot time.
 	 *
-	 * orangefs_prepare_debugfs_help_string will be used again
-	 * later to rebuild the debug-help-string after the client starts
+	 * orangefs_prepare_defs_help_string will be used again
+	 * later to rebuild the de-help-string after the client starts
 	 * and passes along the needed info. The argument signifies
-	 * which time orangefs_prepare_debugfs_help_string is being
+	 * which time orangefs_prepare_defs_help_string is being
 	 * called.
 	 */
-	ret = orangefs_prepare_debugfs_help_string(1);
+	ret = orangefs_prepare_defs_help_string(1);
 	if (ret)
 		goto cleanup_key_table;
 
-	ret = orangefs_debugfs_init(module_parm_debug_mask);
+	ret = orangefs_defs_init(module_parm_de_mask);
 	if (ret)
-		goto debugfs_init_failed;
+		goto defs_init_failed;
 
 	ret = orangefs_sysfs_init();
 	if (ret)
@@ -160,8 +160,8 @@ cleanup_device:
 
 sysfs_init_failed:
 
-debugfs_init_failed:
-	orangefs_debugfs_cleanup();
+defs_init_failed:
+	orangefs_defs_cleanup();
 
 cleanup_key_table:
 	fsid_key_table_finalize();
@@ -182,16 +182,16 @@ out:
 static void __exit orangefs_exit(void)
 {
 	int i = 0;
-	gossip_debug(GOSSIP_INIT_DEBUG, "orangefs: orangefs_exit called\n");
+	gossip_de(GOSSIP_INIT_DE, "orangefs: orangefs_exit called\n");
 
 	unregister_filesystem(&orangefs_fs_type);
-	orangefs_debugfs_cleanup();
+	orangefs_defs_cleanup();
 	orangefs_sysfs_exit();
 	fsid_key_table_finalize();
 	orangefs_dev_cleanup();
-	BUG_ON(!list_empty(&orangefs_request_list));
+	_ON(!list_empty(&orangefs_request_list));
 	for (i = 0; i < hash_table_size; i++)
-		BUG_ON(!list_empty(&orangefs_htable_ops_in_progress[i]));
+		_ON(!list_empty(&orangefs_htable_ops_in_progress[i]));
 
 	orangefs_inode_cache_finalize();
 	op_cache_finalize();
@@ -219,7 +219,7 @@ void purge_inprogress_ops(void)
 					 &orangefs_htable_ops_in_progress[i],
 					 list) {
 			set_op_state_purged(op);
-			gossip_debug(GOSSIP_DEV_DEBUG,
+			gossip_de(GOSSIP_DEV_DE,
 				     "%s: op:%s: op_state:%d: process:%s:\n",
 				     __func__,
 				     get_opname_string(op),

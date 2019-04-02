@@ -37,7 +37,7 @@ SINTASSI
 
 \ **parse_headers.pl**\  [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
 
-Dove <options> può essere: --debug, --usage o --help.
+Dove <options> può essere: --de, --usage o --help.
 
 
 OPZIONI
@@ -45,9 +45,9 @@ OPZIONI
 
 
 
-\ **--debug**\
+\ **--de**\
 
- Lo script viene messo in modalità verbosa, utile per il debugging.
+ Lo script viene messo in modalità verbosa, utile per il deging.
 
 
 \ **--usage**\
@@ -178,7 +178,7 @@ enum foo { BAR1, BAR2, PRIVATE };
 Genererà un riferimento ai valori BAR1 e BAR2 dal simbolo foo nel dominio C.
 
 
-BUGS
+S
 ****
 
 Riferire ogni malfunzionamento a Mauro Carvalho Chehab <mchehab@s-opensource.com>

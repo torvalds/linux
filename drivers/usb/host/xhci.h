@@ -259,7 +259,7 @@ struct xhci_op_regs {
  */
 #define	DEV_NOTE_MASK		(0xffff)
 #define ENABLE_DEV_NOTE(x)	(1 << (x))
-/* Most of the device notification types should only be used for debug.
+/* Most of the device notification types should only be used for de.
  * SW does need to pay attention to function wake notifications.
  */
 #define	DEV_NOTE_FWAKE		ENABLE_DEV_NOTE(1)
@@ -489,7 +489,7 @@ struct xhci_intr_reg {
 /* irq_pending bitmasks */
 #define	ER_IRQ_PENDING(p)	((p) & 0x1)
 /* bits 2:31 need to be preserved */
-/* THIS IS BUGGY - FIXME - IP IS WRITE 1 TO CLEAR */
+/* THIS IS GY - FIXME - IP IS WRITE 1 TO CLEAR */
 #define	ER_IRQ_CLEAR(p)		((p) & 0xfffffffe)
 #define	ER_IRQ_ENABLE(p)	((ER_IRQ_CLEAR(p)) | 0x2)
 #define	ER_IRQ_DISABLE(p)	((ER_IRQ_CLEAR(p)) & ~(0x2))
@@ -744,7 +744,7 @@ struct xhci_ep_ctx {
 /* ep_info2 bitmasks */
 /*
  * Force Event - generate transfer events for all TRBs for this endpoint
- * This will tell the HC to ignore the IOC and ISP flags (for debugging only).
+ * This will tell the HC to ignore the IOC and ISP flags (for deging only).
  */
 #define	FORCE_EVENT	(0x1)
 #define ERROR_COUNT(p)	(((p) & 0x3) << 1)
@@ -1012,8 +1012,8 @@ struct xhci_virt_device {
 	struct xhci_tt_bw_info		*tt_info;
 	/* The current max exit latency for the enabled USB3 link states. */
 	u16				current_mel;
-	/* Used for the debugfs interfaces. */
-	void				*debugfs_private;
+	/* Used for the defs interfaces. */
+	void				*defs_private;
 };
 
 /*
@@ -1874,8 +1874,8 @@ struct xhci_hcd {
 /* Compliance Mode Timer Triggered every 2 seconds */
 #define COMP_MODE_RCVRY_MSECS 2000
 
-	struct dentry		*debugfs_root;
-	struct dentry		*debugfs_slots;
+	struct dentry		*defs_root;
+	struct dentry		*defs_slots;
 	struct list_head	regset_list;
 
 	void			*dbc;
@@ -1946,7 +1946,7 @@ static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
 	return xhci->quirks & XHCI_LINK_TRB_QUIRK;
 }
 
-/* xHCI debugging */
+/* xHCI deging */
 char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx);
 void xhci_dbg_trace(struct xhci_hcd *xhci, void (*trace)(struct va_format *),
@@ -2057,7 +2057,7 @@ int xhci_alloc_tt_info(struct xhci_hcd *xhci,
 dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
 struct xhci_segment *trb_in_td(struct xhci_hcd *xhci,
 		struct xhci_segment *start_seg, union xhci_trb *start_trb,
-		union xhci_trb *end_trb, dma_addr_t suspect_dma, bool debug);
+		union xhci_trb *end_trb, dma_addr_t suspect_dma, bool de);
 int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code);
 void xhci_ring_cmd_db(struct xhci_hcd *xhci);
 int xhci_queue_slot_control(struct xhci_hcd *xhci, struct xhci_command *cmd,

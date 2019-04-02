@@ -59,7 +59,7 @@
  * - default to synchronous operation
  * - synchronous negotiation fixed
  * - added timeout to loops
- * - debugging output can be controlled through procfs
+ * - deging output can be controlled through procfs
  *
  * Revision 1.20  1999/11/07 18:37:31  fischer
  * - synchronous operation works
@@ -124,7 +124,7 @@
  *
  * Revision 1.5  1994/10/30  14:39:56  root
  * - abort code fixed
- * - debugging improved
+ * - deging improved
  *
  * Revision 1.4  1994/09/12  11:33:01  root
  * - irqaction to request_irq
@@ -136,7 +136,7 @@
  * - parity check now configurable
  *
  * Revision 1.2  1994/07/03  12:56:36  root
- * - cleaned up debugging code
+ * - cleaned up deging code
  * - more tweaking on reset delays
  * - updated abort/reset code (pretty untested...)
  *
@@ -178,14 +178,14 @@
  * - minor changes
  *
  * Revision 0.94  1993/09/18  14:08:22  root
- * - fixed bug in multiple outstanding command code
+ * - fixed  in multiple outstanding command code
  * - changed detection
  * - support for kernel command line configuration
  * - reset corrected
  * - changed message handling
  *
  * Revision 0.93  1993/09/15  20:41:19  root
- * - fixed bugs with multiple outstanding commands
+ * - fixed s with multiple outstanding commands
  *
  * Revision 0.92  1993/09/13  02:46:33  root
  * - multiple outstanding commands work (no problems with IBM drive)
@@ -1126,7 +1126,7 @@ static void free_hard_reset_SCs(struct Scsi_Host *shpnt,
 		if(SCDATA(ptr)) {
 			next = SCNEXT(ptr);
 		} else {
-			scmd_printk(KERN_DEBUG, ptr,
+			scmd_printk(KERN_DE, ptr,
 				    "queue corrupted at %p\n", ptr);
 			next = NULL;
 		}
@@ -1446,7 +1446,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 
 				sc = SCDATA(ptr);
 				/* It was allocated in aha152x_internal_queue? */
-				BUG_ON(!sc);
+				_ON(!sc);
 				scsi_eh_prep_cmnd(ptr, &sc->ses, NULL, 0, ~0);
 
 				DO_UNLOCK(flags);
@@ -2422,7 +2422,7 @@ static void disp_enintr(struct Scsi_Host *shpnt)
 	s0 = GETPORT(SIMODE0);
 	s1 = GETPORT(SIMODE1);
 
-	shost_printk(KERN_DEBUG, shpnt,
+	shost_printk(KERN_DE, shpnt,
 		     "enabled interrupts (%s%s%s%s%s%s%s%s%s%s%s%s%s%s)\n",
 		     (s0 & ENSELDO) ? "ENSELDO " : "",
 		     (s0 & ENSELDI) ? "ENSELDI " : "",
@@ -2446,7 +2446,7 @@ static void disp_enintr(struct Scsi_Host *shpnt)
 static void show_command(struct scsi_cmnd *ptr)
 {
 	scsi_print_command(ptr);
-	scmd_printk(KERN_DEBUG, ptr,
+	scmd_printk(KERN_DE, ptr,
 		    "request_bufflen=%d; resid=%d; "
 		    "phase |%s%s%s%s%s%s%s%s%s; next=0x%p",
 		    scsi_bufflen(ptr), scsi_get_resid(ptr),
@@ -2471,18 +2471,18 @@ static void show_queues(struct Scsi_Host *shpnt)
 	unsigned long flags;
 
 	DO_LOCK(flags);
-	printk(KERN_DEBUG "\nqueue status:\nissue_SC:\n");
+	printk(KERN_DE "\nqueue status:\nissue_SC:\n");
 	for (ptr = ISSUE_SC; ptr; ptr = SCNEXT(ptr))
 		show_command(ptr);
 	DO_UNLOCK(flags);
 
-	printk(KERN_DEBUG "current_SC:\n");
+	printk(KERN_DE "current_SC:\n");
 	if (CURRENT_SC)
 		show_command(CURRENT_SC);
 	else
-		printk(KERN_DEBUG "none\n");
+		printk(KERN_DE "none\n");
 
-	printk(KERN_DEBUG "disconnected_SC:\n");
+	printk(KERN_DE "disconnected_SC:\n");
 	for (ptr = DISCONNECTED_SC; ptr; ptr = SCDATA(ptr) ? SCNEXT(ptr) : NULL)
 		show_command(ptr);
 

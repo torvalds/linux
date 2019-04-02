@@ -67,7 +67,7 @@ static bool vcc_tx_ready(struct atm_vcc *vcc, unsigned int size)
 	struct sock *sk = sk_atm(vcc);
 
 	if (sk_wmem_alloc_get(sk) && !atm_may_send(vcc, size)) {
-		pr_debug("Sorry: wmem_alloc = %d, size = %d, sndbuf = %d\n",
+		pr_de("Sorry: wmem_alloc = %d, size = %d, sndbuf = %d\n",
 			 sk_wmem_alloc_get(sk), size, sk->sk_sndbuf);
 		return false;
 	}
@@ -77,11 +77,11 @@ static bool vcc_tx_ready(struct atm_vcc *vcc, unsigned int size)
 static void vcc_sock_destruct(struct sock *sk)
 {
 	if (atomic_read(&sk->sk_rmem_alloc))
-		printk(KERN_DEBUG "%s: rmem leakage (%d bytes) detected.\n",
+		printk(KERN_DE "%s: rmem leakage (%d bytes) detected.\n",
 		       __func__, atomic_read(&sk->sk_rmem_alloc));
 
 	if (refcount_read(&sk->sk_wmem_alloc))
-		printk(KERN_DEBUG "%s: wmem leakage (%d bytes) detected.\n",
+		printk(KERN_DE "%s: wmem leakage (%d bytes) detected.\n",
 		       __func__, refcount_read(&sk->sk_wmem_alloc));
 }
 
@@ -243,7 +243,7 @@ EXPORT_SYMBOL(vcc_process_recv_queue);
 
 void atm_dev_signal_change(struct atm_dev *dev, char signal)
 {
-	pr_debug("%s signal=%d dev=%p number=%d dev->signal=%d\n",
+	pr_de("%s signal=%d dev=%p number=%d dev->signal=%d\n",
 		__func__, signal, dev, dev->number, dev->signal);
 
 	/* atm driver sending invalid signal */
@@ -430,13 +430,13 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 		error = adjust_tp(&vcc->qos.rxtp, vcc->qos.aal);
 	if (error)
 		goto fail;
-	pr_debug("VCC %d.%d, AAL %d\n", vpi, vci, vcc->qos.aal);
-	pr_debug("  TX: %d, PCR %d..%d, SDU %d\n",
+	pr_de("VCC %d.%d, AAL %d\n", vpi, vci, vcc->qos.aal);
+	pr_de("  TX: %d, PCR %d..%d, SDU %d\n",
 		 vcc->qos.txtp.traffic_class,
 		 vcc->qos.txtp.min_pcr,
 		 vcc->qos.txtp.max_pcr,
 		 vcc->qos.txtp.max_sdu);
-	pr_debug("  RX: %d, PCR %d..%d, SDU %d\n",
+	pr_de("  RX: %d, PCR %d..%d, SDU %d\n",
 		 vcc->qos.rxtp.traffic_class,
 		 vcc->qos.rxtp.min_pcr,
 		 vcc->qos.rxtp.max_pcr,
@@ -464,7 +464,7 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	struct atm_vcc *vcc = ATM_SD(sock);
 	int error;
 
-	pr_debug("(vpi %d, vci %d)\n", vpi, vci);
+	pr_de("(vpi %d, vci %d)\n", vpi, vci);
 	if (sock->state == SS_CONNECTED)
 		return -EISCONN;
 	if (sock->state != SS_UNCONNECTED)
@@ -477,7 +477,7 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	else
 		if (test_bit(ATM_VF_PARTIAL, &vcc->flags))
 			return -EINVAL;
-	pr_debug("(TX: cl %d,bw %d-%d,sdu %d; "
+	pr_de("(TX: cl %d,bw %d-%d,sdu %d; "
 		 "RX: cl %d,bw %d-%d,sdu %d,AAL %s%d)\n",
 		 vcc->qos.txtp.traffic_class, vcc->qos.txtp.min_pcr,
 		 vcc->qos.txtp.max_pcr, vcc->qos.txtp.max_sdu,
@@ -555,7 +555,7 @@ int vcc_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (!(flags & MSG_PEEK)) {
-		pr_debug("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc),
+		pr_de("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc),
 			 skb->truesize);
 		atm_return(vcc, skb->truesize);
 	}
@@ -629,7 +629,7 @@ int vcc_sendmsg(struct socket *sock, struct msghdr *m, size_t size)
 		error = -ENOMEM;
 		goto out;
 	}
-	pr_debug("%d += %d\n", sk_wmem_alloc_get(sk), skb->truesize);
+	pr_de("%d += %d\n", sk_wmem_alloc_get(sk), skb->truesize);
 	atm_account_tx(vcc, skb);
 
 	skb->dev = NULL; /* for paths shared with net_device interfaces */

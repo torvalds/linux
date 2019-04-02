@@ -36,7 +36,7 @@ extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned lon
 
 const sys_call_ptr_t sys_call_table[] ____cacheline_aligned = {
 	/*
-	 * Smells like a compiler bug -- it doesn't work
+	 * Smells like a compiler  -- it doesn't work
 	 * when the & below is removed.
 	 */
 	[0 ... __NR_syscall_max] = &sys_ni_syscall,

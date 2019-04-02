@@ -251,7 +251,7 @@ DSA does not currently create slave network devices for the CPU or DSA ports, as
 described before. This might be an issue in the following cases:
 
 - inability to fetch switch CPU port statistics counters using ethtool, which
-  can make it harder to debug MDIO switch connected using xMII interfaces
+  can make it harder to de MDIO switch connected using xMII interfaces
 
 - inability to configure the CPU port link parameters based on the Ethernet
   controller capabilities attached to it: http://patchwork.ozlabs.org/patch/509806/

@@ -166,7 +166,7 @@ static const struct error_descr lmc_errors[] = {
 
 #define RING_ENTRIES	8
 
-struct debugfs_entry {
+struct defs_entry {
 	const char *name;
 	umode_t mode;
 	const struct file_operations fops;
@@ -213,8 +213,8 @@ struct thunderx_lmc {
 
 #define ring_pos(pos, size) ((pos) & (size - 1))
 
-#define DEBUGFS_STRUCT(_name, _mode, _write, _read)			    \
-static struct debugfs_entry debugfs_##_name = {				    \
+#define DEFS_STRUCT(_name, _mode, _write, _read)			    \
+static struct defs_entry defs_##_name = {				    \
 	.name = __stringify(_name),					    \
 	.mode = VERIFY_OCTAL_PERMISSIONS(_mode),			    \
 	.fops = {							    \
@@ -225,7 +225,7 @@ static struct debugfs_entry debugfs_##_name = {				    \
 	},								    \
 }
 
-#define DEBUGFS_FIELD_ATTR(_type, _field)				    \
+#define DEFS_FIELD_ATTR(_type, _field)				    \
 static ssize_t thunderx_##_type##_##_field##_read(struct file *file,	    \
 					    char __user *data,		    \
 					    size_t count, loff_t *ppos)	    \
@@ -250,11 +250,11 @@ static ssize_t thunderx_##_type##_##_field##_write(struct file *file,	    \
 	return res ? res : count;					    \
 }									    \
 									    \
-DEBUGFS_STRUCT(_field, 0600,						    \
+DEFS_STRUCT(_field, 0600,						    \
 		   thunderx_##_type##_##_field##_write,			    \
 		   thunderx_##_type##_##_field##_read)			    \
 
-#define DEBUGFS_REG_ATTR(_type, _name, _reg)				    \
+#define DEFS_REG_ATTR(_type, _name, _reg)				    \
 static ssize_t thunderx_##_type##_##_name##_read(struct file *file,	    \
 					   char __user *data,		    \
 					   size_t count, loff_t *ppos)      \
@@ -285,20 +285,20 @@ static ssize_t thunderx_##_type##_##_name##_write(struct file *file,	    \
 	return res;							    \
 }									    \
 									    \
-DEBUGFS_STRUCT(_name, 0600,						    \
+DEFS_STRUCT(_name, 0600,						    \
 	       thunderx_##_type##_##_name##_write,			    \
 	       thunderx_##_type##_##_name##_read)
 
-#define LMC_DEBUGFS_ENT(_field)	DEBUGFS_FIELD_ATTR(lmc, _field)
+#define LMC_DEFS_ENT(_field)	DEFS_FIELD_ATTR(lmc, _field)
 
 /*
  * To get an ECC error injected, the following steps are needed:
  * - Setup the ECC injection by writing the appropriate parameters:
- *	echo <bit mask value> > /sys/kernel/debug/<device number>/ecc_mask0
- *	echo <bit mask value> > /sys/kernel/debug/<device number>/ecc_mask2
- *	echo 0x802 > /sys/kernel/debug/<device number>/ecc_parity_test
+ *	echo <bit mask value> > /sys/kernel/de/<device number>/ecc_mask0
+ *	echo <bit mask value> > /sys/kernel/de/<device number>/ecc_mask2
+ *	echo 0x802 > /sys/kernel/de/<device number>/ecc_parity_test
  * - Do the actual injection:
- *	echo 1 > /sys/kernel/debug/<device number>/inject_ecc
+ *	echo 1 > /sys/kernel/de/<device number>/inject_ecc
  */
 static ssize_t thunderx_lmc_inject_int_write(struct file *file,
 					     const char __user *data,
@@ -446,39 +446,39 @@ static ssize_t thunderx_lmc_inject_ecc_write(struct file *file,
 	return count;
 }
 
-LMC_DEBUGFS_ENT(mask0);
-LMC_DEBUGFS_ENT(mask2);
-LMC_DEBUGFS_ENT(parity_test);
+LMC_DEFS_ENT(mask0);
+LMC_DEFS_ENT(mask2);
+LMC_DEFS_ENT(parity_test);
 
-DEBUGFS_STRUCT(inject_int, 0200, thunderx_lmc_inject_int_write, NULL);
-DEBUGFS_STRUCT(inject_ecc, 0200, thunderx_lmc_inject_ecc_write, NULL);
-DEBUGFS_STRUCT(int_w1c, 0400, NULL, thunderx_lmc_int_read);
+DEFS_STRUCT(inject_int, 0200, thunderx_lmc_inject_int_write, NULL);
+DEFS_STRUCT(inject_ecc, 0200, thunderx_lmc_inject_ecc_write, NULL);
+DEFS_STRUCT(int_w1c, 0400, NULL, thunderx_lmc_int_read);
 
-struct debugfs_entry *lmc_dfs_ents[] = {
-	&debugfs_mask0,
-	&debugfs_mask2,
-	&debugfs_parity_test,
-	&debugfs_inject_ecc,
-	&debugfs_inject_int,
-	&debugfs_int_w1c,
+struct defs_entry *lmc_dfs_ents[] = {
+	&defs_mask0,
+	&defs_mask2,
+	&defs_parity_test,
+	&defs_inject_ecc,
+	&defs_inject_int,
+	&defs_int_w1c,
 };
 
-static int thunderx_create_debugfs_nodes(struct dentry *parent,
-					  struct debugfs_entry *attrs[],
+static int thunderx_create_defs_nodes(struct dentry *parent,
+					  struct defs_entry *attrs[],
 					  void *data,
 					  size_t num)
 {
 	int i;
 	struct dentry *ent;
 
-	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
+	if (!IS_ENABLED(CONFIG_EDAC_DE))
 		return 0;
 
 	if (!parent)
 		return -ENOENT;
 
 	for (i = 0; i < num; i++) {
-		ent = edac_debugfs_create_file(attrs[i]->name, attrs[i]->mode,
+		ent = edac_defs_create_file(attrs[i]->name, attrs[i]->mode,
 					       parent, data, &attrs[i]->fops);
 
 		if (!ent)
@@ -779,14 +779,14 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	writeq(LMC_INT_ENA_ALL, lmc->regs + LMC_INT_ENA_W1S);
 
-	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
-		ret = thunderx_create_debugfs_nodes(mci->debugfs,
+	if (IS_ENABLED(CONFIG_EDAC_DE)) {
+		ret = thunderx_create_defs_nodes(mci->defs,
 						    lmc_dfs_ents,
 						    lmc,
 						    ARRAY_SIZE(lmc_dfs_ents));
 
 		if (ret != ARRAY_SIZE(lmc_dfs_ents)) {
-			dev_warn(&pdev->dev, "Error creating debugfs entries: %d%s\n",
+			dev_warn(&pdev->dev, "Error creating defs entries: %d%s\n",
 				 ret, ret >= 0 ? " created" : "");
 		}
 	}
@@ -1055,7 +1055,7 @@ struct thunderx_ocx {
 	struct pci_dev *pdev;
 	struct edac_device_ctl_info *edac_dev;
 
-	struct dentry *debugfs;
+	struct dentry *defs;
 	struct msix_entry msix_ent[OCX_INTS];
 
 	struct ocx_com_err_ctx com_err_ctx[RING_ENTRIES];
@@ -1235,88 +1235,88 @@ err_free:
 	return ret;
 }
 
-#define OCX_DEBUGFS_ATTR(_name, _reg)	DEBUGFS_REG_ATTR(ocx, _name, _reg)
+#define OCX_DEFS_ATTR(_name, _reg)	DEFS_REG_ATTR(ocx, _name, _reg)
 
-OCX_DEBUGFS_ATTR(tlk0_ecc_ctl, OCX_TLKX_ECC_CTL(0));
-OCX_DEBUGFS_ATTR(tlk1_ecc_ctl, OCX_TLKX_ECC_CTL(1));
-OCX_DEBUGFS_ATTR(tlk2_ecc_ctl, OCX_TLKX_ECC_CTL(2));
+OCX_DEFS_ATTR(tlk0_ecc_ctl, OCX_TLKX_ECC_CTL(0));
+OCX_DEFS_ATTR(tlk1_ecc_ctl, OCX_TLKX_ECC_CTL(1));
+OCX_DEFS_ATTR(tlk2_ecc_ctl, OCX_TLKX_ECC_CTL(2));
 
-OCX_DEBUGFS_ATTR(rlk0_ecc_ctl, OCX_RLKX_ECC_CTL(0));
-OCX_DEBUGFS_ATTR(rlk1_ecc_ctl, OCX_RLKX_ECC_CTL(1));
-OCX_DEBUGFS_ATTR(rlk2_ecc_ctl, OCX_RLKX_ECC_CTL(2));
+OCX_DEFS_ATTR(rlk0_ecc_ctl, OCX_RLKX_ECC_CTL(0));
+OCX_DEFS_ATTR(rlk1_ecc_ctl, OCX_RLKX_ECC_CTL(1));
+OCX_DEFS_ATTR(rlk2_ecc_ctl, OCX_RLKX_ECC_CTL(2));
 
-OCX_DEBUGFS_ATTR(com_link0_int, OCX_COM_LINKX_INT_W1S(0));
-OCX_DEBUGFS_ATTR(com_link1_int, OCX_COM_LINKX_INT_W1S(1));
-OCX_DEBUGFS_ATTR(com_link2_int, OCX_COM_LINKX_INT_W1S(2));
+OCX_DEFS_ATTR(com_link0_int, OCX_COM_LINKX_INT_W1S(0));
+OCX_DEFS_ATTR(com_link1_int, OCX_COM_LINKX_INT_W1S(1));
+OCX_DEFS_ATTR(com_link2_int, OCX_COM_LINKX_INT_W1S(2));
 
-OCX_DEBUGFS_ATTR(lne00_badcnt, OCX_LNE_BAD_CNT(0));
-OCX_DEBUGFS_ATTR(lne01_badcnt, OCX_LNE_BAD_CNT(1));
-OCX_DEBUGFS_ATTR(lne02_badcnt, OCX_LNE_BAD_CNT(2));
-OCX_DEBUGFS_ATTR(lne03_badcnt, OCX_LNE_BAD_CNT(3));
-OCX_DEBUGFS_ATTR(lne04_badcnt, OCX_LNE_BAD_CNT(4));
-OCX_DEBUGFS_ATTR(lne05_badcnt, OCX_LNE_BAD_CNT(5));
-OCX_DEBUGFS_ATTR(lne06_badcnt, OCX_LNE_BAD_CNT(6));
-OCX_DEBUGFS_ATTR(lne07_badcnt, OCX_LNE_BAD_CNT(7));
+OCX_DEFS_ATTR(lne00_badcnt, OCX_LNE_BAD_CNT(0));
+OCX_DEFS_ATTR(lne01_badcnt, OCX_LNE_BAD_CNT(1));
+OCX_DEFS_ATTR(lne02_badcnt, OCX_LNE_BAD_CNT(2));
+OCX_DEFS_ATTR(lne03_badcnt, OCX_LNE_BAD_CNT(3));
+OCX_DEFS_ATTR(lne04_badcnt, OCX_LNE_BAD_CNT(4));
+OCX_DEFS_ATTR(lne05_badcnt, OCX_LNE_BAD_CNT(5));
+OCX_DEFS_ATTR(lne06_badcnt, OCX_LNE_BAD_CNT(6));
+OCX_DEFS_ATTR(lne07_badcnt, OCX_LNE_BAD_CNT(7));
 
-OCX_DEBUGFS_ATTR(lne08_badcnt, OCX_LNE_BAD_CNT(8));
-OCX_DEBUGFS_ATTR(lne09_badcnt, OCX_LNE_BAD_CNT(9));
-OCX_DEBUGFS_ATTR(lne10_badcnt, OCX_LNE_BAD_CNT(10));
-OCX_DEBUGFS_ATTR(lne11_badcnt, OCX_LNE_BAD_CNT(11));
-OCX_DEBUGFS_ATTR(lne12_badcnt, OCX_LNE_BAD_CNT(12));
-OCX_DEBUGFS_ATTR(lne13_badcnt, OCX_LNE_BAD_CNT(13));
-OCX_DEBUGFS_ATTR(lne14_badcnt, OCX_LNE_BAD_CNT(14));
-OCX_DEBUGFS_ATTR(lne15_badcnt, OCX_LNE_BAD_CNT(15));
+OCX_DEFS_ATTR(lne08_badcnt, OCX_LNE_BAD_CNT(8));
+OCX_DEFS_ATTR(lne09_badcnt, OCX_LNE_BAD_CNT(9));
+OCX_DEFS_ATTR(lne10_badcnt, OCX_LNE_BAD_CNT(10));
+OCX_DEFS_ATTR(lne11_badcnt, OCX_LNE_BAD_CNT(11));
+OCX_DEFS_ATTR(lne12_badcnt, OCX_LNE_BAD_CNT(12));
+OCX_DEFS_ATTR(lne13_badcnt, OCX_LNE_BAD_CNT(13));
+OCX_DEFS_ATTR(lne14_badcnt, OCX_LNE_BAD_CNT(14));
+OCX_DEFS_ATTR(lne15_badcnt, OCX_LNE_BAD_CNT(15));
 
-OCX_DEBUGFS_ATTR(lne16_badcnt, OCX_LNE_BAD_CNT(16));
-OCX_DEBUGFS_ATTR(lne17_badcnt, OCX_LNE_BAD_CNT(17));
-OCX_DEBUGFS_ATTR(lne18_badcnt, OCX_LNE_BAD_CNT(18));
-OCX_DEBUGFS_ATTR(lne19_badcnt, OCX_LNE_BAD_CNT(19));
-OCX_DEBUGFS_ATTR(lne20_badcnt, OCX_LNE_BAD_CNT(20));
-OCX_DEBUGFS_ATTR(lne21_badcnt, OCX_LNE_BAD_CNT(21));
-OCX_DEBUGFS_ATTR(lne22_badcnt, OCX_LNE_BAD_CNT(22));
-OCX_DEBUGFS_ATTR(lne23_badcnt, OCX_LNE_BAD_CNT(23));
+OCX_DEFS_ATTR(lne16_badcnt, OCX_LNE_BAD_CNT(16));
+OCX_DEFS_ATTR(lne17_badcnt, OCX_LNE_BAD_CNT(17));
+OCX_DEFS_ATTR(lne18_badcnt, OCX_LNE_BAD_CNT(18));
+OCX_DEFS_ATTR(lne19_badcnt, OCX_LNE_BAD_CNT(19));
+OCX_DEFS_ATTR(lne20_badcnt, OCX_LNE_BAD_CNT(20));
+OCX_DEFS_ATTR(lne21_badcnt, OCX_LNE_BAD_CNT(21));
+OCX_DEFS_ATTR(lne22_badcnt, OCX_LNE_BAD_CNT(22));
+OCX_DEFS_ATTR(lne23_badcnt, OCX_LNE_BAD_CNT(23));
 
-OCX_DEBUGFS_ATTR(com_int, OCX_COM_INT_W1S);
+OCX_DEFS_ATTR(com_int, OCX_COM_INT_W1S);
 
-struct debugfs_entry *ocx_dfs_ents[] = {
-	&debugfs_tlk0_ecc_ctl,
-	&debugfs_tlk1_ecc_ctl,
-	&debugfs_tlk2_ecc_ctl,
+struct defs_entry *ocx_dfs_ents[] = {
+	&defs_tlk0_ecc_ctl,
+	&defs_tlk1_ecc_ctl,
+	&defs_tlk2_ecc_ctl,
 
-	&debugfs_rlk0_ecc_ctl,
-	&debugfs_rlk1_ecc_ctl,
-	&debugfs_rlk2_ecc_ctl,
+	&defs_rlk0_ecc_ctl,
+	&defs_rlk1_ecc_ctl,
+	&defs_rlk2_ecc_ctl,
 
-	&debugfs_com_link0_int,
-	&debugfs_com_link1_int,
-	&debugfs_com_link2_int,
+	&defs_com_link0_int,
+	&defs_com_link1_int,
+	&defs_com_link2_int,
 
-	&debugfs_lne00_badcnt,
-	&debugfs_lne01_badcnt,
-	&debugfs_lne02_badcnt,
-	&debugfs_lne03_badcnt,
-	&debugfs_lne04_badcnt,
-	&debugfs_lne05_badcnt,
-	&debugfs_lne06_badcnt,
-	&debugfs_lne07_badcnt,
-	&debugfs_lne08_badcnt,
-	&debugfs_lne09_badcnt,
-	&debugfs_lne10_badcnt,
-	&debugfs_lne11_badcnt,
-	&debugfs_lne12_badcnt,
-	&debugfs_lne13_badcnt,
-	&debugfs_lne14_badcnt,
-	&debugfs_lne15_badcnt,
-	&debugfs_lne16_badcnt,
-	&debugfs_lne17_badcnt,
-	&debugfs_lne18_badcnt,
-	&debugfs_lne19_badcnt,
-	&debugfs_lne20_badcnt,
-	&debugfs_lne21_badcnt,
-	&debugfs_lne22_badcnt,
-	&debugfs_lne23_badcnt,
+	&defs_lne00_badcnt,
+	&defs_lne01_badcnt,
+	&defs_lne02_badcnt,
+	&defs_lne03_badcnt,
+	&defs_lne04_badcnt,
+	&defs_lne05_badcnt,
+	&defs_lne06_badcnt,
+	&defs_lne07_badcnt,
+	&defs_lne08_badcnt,
+	&defs_lne09_badcnt,
+	&defs_lne10_badcnt,
+	&defs_lne11_badcnt,
+	&defs_lne12_badcnt,
+	&defs_lne13_badcnt,
+	&defs_lne14_badcnt,
+	&defs_lne15_badcnt,
+	&defs_lne16_badcnt,
+	&defs_lne17_badcnt,
+	&defs_lne18_badcnt,
+	&defs_lne19_badcnt,
+	&defs_lne20_badcnt,
+	&defs_lne21_badcnt,
+	&defs_lne22_badcnt,
+	&defs_lne23_badcnt,
 
-	&debugfs_com_int,
+	&defs_com_int,
 };
 
 static const struct pci_device_id thunderx_ocx_pci_tbl[] = {
@@ -1424,15 +1424,15 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 		goto err_free;
 	}
 
-	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
-		ocx->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
+	if (IS_ENABLED(CONFIG_EDAC_DE)) {
+		ocx->defs = edac_defs_create_dir(pdev->dev.kobj.name);
 
-		ret = thunderx_create_debugfs_nodes(ocx->debugfs,
+		ret = thunderx_create_defs_nodes(ocx->defs,
 						    ocx_dfs_ents,
 						    ocx,
 						    ARRAY_SIZE(ocx_dfs_ents));
 		if (ret != ARRAY_SIZE(ocx_dfs_ents)) {
-			dev_warn(&pdev->dev, "Error creating debugfs entries: %d%s\n",
+			dev_warn(&pdev->dev, "Error creating defs entries: %d%s\n",
 				 ret, ret >= 0 ? " created" : "");
 		}
 	}
@@ -1483,7 +1483,7 @@ static void thunderx_ocx_remove(struct pci_dev *pdev)
 		       ocx->regs + OCX_COM_LINKX_INT_ENA_W1C(i));
 	}
 
-	edac_debugfs_remove_recursive(ocx->debugfs);
+	edac_defs_remove_recursive(ocx->defs);
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(edac_dev);
@@ -1746,7 +1746,7 @@ struct thunderx_l2c {
 	struct pci_dev *pdev;
 	struct edac_device_ctl_info *edac_dev;
 
-	struct dentry *debugfs;
+	struct dentry *defs;
 
 	int index;
 
@@ -1915,24 +1915,24 @@ err_free:
 	return ret;
 }
 
-#define L2C_DEBUGFS_ATTR(_name, _reg)	DEBUGFS_REG_ATTR(l2c, _name, _reg)
+#define L2C_DEFS_ATTR(_name, _reg)	DEFS_REG_ATTR(l2c, _name, _reg)
 
-L2C_DEBUGFS_ATTR(tad_int, L2C_TAD_INT_W1S);
+L2C_DEFS_ATTR(tad_int, L2C_TAD_INT_W1S);
 
-struct debugfs_entry *l2c_tad_dfs_ents[] = {
-	&debugfs_tad_int,
+struct defs_entry *l2c_tad_dfs_ents[] = {
+	&defs_tad_int,
 };
 
-L2C_DEBUGFS_ATTR(cbc_int, L2C_CBC_INT_W1S);
+L2C_DEFS_ATTR(cbc_int, L2C_CBC_INT_W1S);
 
-struct debugfs_entry *l2c_cbc_dfs_ents[] = {
-	&debugfs_cbc_int,
+struct defs_entry *l2c_cbc_dfs_ents[] = {
+	&defs_cbc_int,
 };
 
-L2C_DEBUGFS_ATTR(mci_int, L2C_MCI_INT_W1S);
+L2C_DEFS_ATTR(mci_int, L2C_MCI_INT_W1S);
 
-struct debugfs_entry *l2c_mci_dfs_ents[] = {
-	&debugfs_mci_int,
+struct defs_entry *l2c_mci_dfs_ents[] = {
+	&defs_mci_int,
 };
 
 static const struct pci_device_id thunderx_l2c_pci_tbl[] = {
@@ -1947,7 +1947,7 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 {
 	struct thunderx_l2c *l2c;
 	struct edac_device_ctl_info *edac_dev;
-	struct debugfs_entry **l2c_devattr;
+	struct defs_entry **l2c_devattr;
 	size_t dfs_entries;
 	irqreturn_t (*thunderx_l2c_isr)(int, void *) = NULL;
 	char name[32];
@@ -2054,14 +2054,14 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 		goto err_free;
 	}
 
-	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
-		l2c->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
+	if (IS_ENABLED(CONFIG_EDAC_DE)) {
+		l2c->defs = edac_defs_create_dir(pdev->dev.kobj.name);
 
-		ret = thunderx_create_debugfs_nodes(l2c->debugfs, l2c_devattr,
+		ret = thunderx_create_defs_nodes(l2c->defs, l2c_devattr,
 					      l2c, dfs_entries);
 
 		if (ret != dfs_entries) {
-			dev_warn(&pdev->dev, "Error creating debugfs entries: %d%s\n",
+			dev_warn(&pdev->dev, "Error creating defs entries: %d%s\n",
 				 ret, ret >= 0 ? " created" : "");
 		}
 	}
@@ -2095,7 +2095,7 @@ static void thunderx_l2c_remove(struct pci_dev *pdev)
 		break;
 	}
 
-	edac_debugfs_remove_recursive(l2c->debugfs);
+	edac_defs_remove_recursive(l2c->defs);
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(edac_dev);

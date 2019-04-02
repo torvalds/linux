@@ -53,10 +53,10 @@
 	printk(KERN_ERR "fmdrv: " format, ## __VA_ARGS__)
 #define fmwarn(format, ...) \
 	printk(KERN_WARNING "fmdrv: " format, ##__VA_ARGS__)
-#ifdef DEBUG
+#ifdef DE
 #define fmdbg(format, ...) \
-	printk(KERN_DEBUG "fmdrv: " format, ## __VA_ARGS__)
-#else /* DEBUG */
+	printk(KERN_DE "fmdrv: " format, ## __VA_ARGS__)
+#else /* DE */
 #define fmdbg(format, ...) do {} while(0)
 #endif
 enum {

@@ -38,7 +38,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/list.h>
@@ -162,7 +162,7 @@ struct sba_device {
 	struct list_head reqs_active_list;
 	struct list_head reqs_aborted_list;
 	struct list_head reqs_free_list;
-	/* DebugFS directory entries */
+	/* DeFS directory entries */
 	struct dentry *root;
 	struct dentry *stats;
 };
@@ -1455,9 +1455,9 @@ static void sba_receive_message(struct mbox_client *cl, void *msg)
 	sba_process_received_request(sba, req);
 }
 
-/* ====== Debugfs callbacks ====== */
+/* ====== Defs callbacks ====== */
 
-static int sba_debugfs_stats_show(struct seq_file *file, void *offset)
+static int sba_defs_stats_show(struct seq_file *file, void *offset)
 {
 	struct platform_device *pdev = to_platform_device(file->private);
 	struct sba_device *sba = platform_get_drvdata(pdev);
@@ -1711,24 +1711,24 @@ static int sba_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_free_mchan;
 
-	/* Check availability of debugfs */
-	if (!debugfs_initialized())
-		goto skip_debugfs;
+	/* Check availability of defs */
+	if (!defs_initialized())
+		goto skip_defs;
 
-	/* Create debugfs root entry */
-	sba->root = debugfs_create_dir(dev_name(sba->dev), NULL);
+	/* Create defs root entry */
+	sba->root = defs_create_dir(dev_name(sba->dev), NULL);
 	if (IS_ERR_OR_NULL(sba->root)) {
-		dev_err(sba->dev, "failed to create debugfs root entry\n");
+		dev_err(sba->dev, "failed to create defs root entry\n");
 		sba->root = NULL;
-		goto skip_debugfs;
+		goto skip_defs;
 	}
 
-	/* Create debugfs stats entry */
-	sba->stats = debugfs_create_devm_seqfile(sba->dev, "stats", sba->root,
-						 sba_debugfs_stats_show);
+	/* Create defs stats entry */
+	sba->stats = defs_create_devm_seqfile(sba->dev, "stats", sba->root,
+						 sba_defs_stats_show);
 	if (IS_ERR_OR_NULL(sba->stats))
-		dev_err(sba->dev, "failed to create debugfs stats file\n");
-skip_debugfs:
+		dev_err(sba->dev, "failed to create defs stats file\n");
+skip_defs:
 
 	/* Register DMA device with Linux async framework */
 	ret = sba_async_register(sba);
@@ -1743,7 +1743,7 @@ skip_debugfs:
 	return 0;
 
 fail_free_resources:
-	debugfs_remove_recursive(sba->root);
+	defs_remove_recursive(sba->root);
 	sba_freeup_channel_resources(sba);
 fail_free_mchan:
 	mbox_free_channel(sba->mchan);
@@ -1756,7 +1756,7 @@ static int sba_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&sba->dma_dev);
 
-	debugfs_remove_recursive(sba->root);
+	defs_remove_recursive(sba->root);
 
 	sba_freeup_channel_resources(sba);
 

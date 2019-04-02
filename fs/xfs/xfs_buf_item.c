@@ -602,7 +602,7 @@ xfs_buf_item_unlock(
 	bool			released;
 	bool			hold = bip->bli_flags & XFS_BLI_HOLD;
 	bool			stale = bip->bli_flags & XFS_BLI_STALE;
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 	bool			ordered = bip->bli_flags & XFS_BLI_ORDERED;
 	bool			dirty = bip->bli_flags & XFS_BLI_DIRTY;
 #endif

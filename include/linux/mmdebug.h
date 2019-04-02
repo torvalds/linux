@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef LINUX_MM_DEBUG_H
-#define LINUX_MM_DEBUG_H 1
+#ifndef LINUX_MM_DE_H
+#define LINUX_MM_DE_H 1
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/stringify.h>
 
 struct page;
@@ -14,27 +14,27 @@ extern void __dump_page(struct page *page, const char *reason);
 void dump_vma(const struct vm_area_struct *vma);
 void dump_mm(const struct mm_struct *mm);
 
-#ifdef CONFIG_DEBUG_VM
-#define VM_BUG_ON(cond) BUG_ON(cond)
-#define VM_BUG_ON_PAGE(cond, page)					\
+#ifdef CONFIG_DE_VM
+#define VM__ON(cond) _ON(cond)
+#define VM__ON_PAGE(cond, page)					\
 	do {								\
 		if (unlikely(cond)) {					\
-			dump_page(page, "VM_BUG_ON_PAGE(" __stringify(cond)")");\
-			BUG();						\
+			dump_page(page, "VM__ON_PAGE(" __stringify(cond)")");\
+			();						\
 		}							\
 	} while (0)
-#define VM_BUG_ON_VMA(cond, vma)					\
+#define VM__ON_VMA(cond, vma)					\
 	do {								\
 		if (unlikely(cond)) {					\
 			dump_vma(vma);					\
-			BUG();						\
+			();						\
 		}							\
 	} while (0)
-#define VM_BUG_ON_MM(cond, mm)						\
+#define VM__ON_MM(cond, mm)						\
 	do {								\
 		if (unlikely(cond)) {					\
 			dump_mm(mm);					\
-			BUG();						\
+			();						\
 		}							\
 	} while (0)
 #define VM_WARN_ON(cond) (void)WARN_ON(cond)
@@ -42,26 +42,26 @@ void dump_mm(const struct mm_struct *mm);
 #define VM_WARN_ONCE(cond, format...) (void)WARN_ONCE(cond, format)
 #define VM_WARN(cond, format...) (void)WARN(cond, format)
 #else
-#define VM_BUG_ON(cond) BUILD_BUG_ON_INVALID(cond)
-#define VM_BUG_ON_PAGE(cond, page) VM_BUG_ON(cond)
-#define VM_BUG_ON_VMA(cond, vma) VM_BUG_ON(cond)
-#define VM_BUG_ON_MM(cond, mm) VM_BUG_ON(cond)
-#define VM_WARN_ON(cond) BUILD_BUG_ON_INVALID(cond)
-#define VM_WARN_ON_ONCE(cond) BUILD_BUG_ON_INVALID(cond)
-#define VM_WARN_ONCE(cond, format...) BUILD_BUG_ON_INVALID(cond)
-#define VM_WARN(cond, format...) BUILD_BUG_ON_INVALID(cond)
+#define VM__ON(cond) BUILD__ON_INVALID(cond)
+#define VM__ON_PAGE(cond, page) VM__ON(cond)
+#define VM__ON_VMA(cond, vma) VM__ON(cond)
+#define VM__ON_MM(cond, mm) VM__ON(cond)
+#define VM_WARN_ON(cond) BUILD__ON_INVALID(cond)
+#define VM_WARN_ON_ONCE(cond) BUILD__ON_INVALID(cond)
+#define VM_WARN_ONCE(cond, format...) BUILD__ON_INVALID(cond)
+#define VM_WARN(cond, format...) BUILD__ON_INVALID(cond)
 #endif
 
-#ifdef CONFIG_DEBUG_VIRTUAL
-#define VIRTUAL_BUG_ON(cond) BUG_ON(cond)
+#ifdef CONFIG_DE_VIRTUAL
+#define VIRTUAL__ON(cond) _ON(cond)
 #else
-#define VIRTUAL_BUG_ON(cond) do { } while (0)
+#define VIRTUAL__ON(cond) do { } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_VM_PGFLAGS
-#define VM_BUG_ON_PGFLAGS(cond, page) VM_BUG_ON_PAGE(cond, page)
+#ifdef CONFIG_DE_VM_PGFLAGS
+#define VM__ON_PGFLAGS(cond, page) VM__ON_PAGE(cond, page)
 #else
-#define VM_BUG_ON_PGFLAGS(cond, page) BUILD_BUG_ON_INVALID(cond)
+#define VM__ON_PGFLAGS(cond, page) BUILD__ON_INVALID(cond)
 #endif
 
 #endif

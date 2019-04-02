@@ -60,7 +60,7 @@ static void setup_prom_vectors(void)
 		__prom_putc = (void *)PROM_PUTC_ADDR;
 		prom_monitor = (void *)PROM_MONITOR_ADDR;
 	}
-	printk(KERN_DEBUG "prom vectors set up\n");
+	printk(KERN_DE "prom vectors set up\n");
 }
 
 static struct at93c_defs at93c_defs[N_MACHTYPES] = {

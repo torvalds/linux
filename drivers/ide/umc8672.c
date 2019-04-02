@@ -13,7 +13,7 @@
  *			This will get cleaned up in a subsequent release.
  *
  *  Version 0.02	now configs/compiles separate from ide.c  -ml
- *  Version 0.03	enhanced auto-tune, fix display bug
+ *  Version 0.03	enhanced auto-tune, fix display 
  *  Version 0.05	replace sti() with restore_flags()  -ml
  *			add detection of possible race condition  -ml
  */

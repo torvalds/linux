@@ -32,7 +32,7 @@
 
 #include "go7007-priv.h"
 
-/*#define GO7007_HPI_DEBUG*/
+/*#define GO7007_HPI_DE*/
 
 enum hpi_address {
 	HPI_ADDR_VIDEO_BUFFER = 0xe4,
@@ -163,7 +163,7 @@ static int saa7134_go7007_interface_reset(struct go7007 *go)
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 
 	saa_readb(SAA7134_GPIO_GPSTATUS2);
-	/*pr_debug("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "not OK"); */
+	/*pr_de("status is %s\n", saa_readb(SAA7134_GPIO_GPSTATUS2) & 0x40 ? "OK" : "not OK"); */
 
 	/* enter command mode...(?) */
 	saa_writeb(SAA7134_GPIO_GPSTATUS2, GPIO_COMMAND_REQ1);
@@ -192,8 +192,8 @@ static int saa7134_go7007_write_interrupt(struct go7007 *go, int addr, int data)
 	int i;
 	u16 status_reg;
 
-#ifdef GO7007_HPI_DEBUG
-	pr_debug("saa7134-go7007: WriteInterrupt: %04x %04x\n", addr, data);
+#ifdef GO7007_HPI_DE
+	pr_de("saa7134-go7007: WriteInterrupt: %04x %04x\n", addr, data);
 #endif
 
 	for (i = 0; i < 100; ++i) {
@@ -222,8 +222,8 @@ static int saa7134_go7007_read_interrupt(struct go7007 *go)
 	go->interrupt_available = 1;
 	gpio_read(dev, HPI_ADDR_INTR_RET_VALUE, &go->interrupt_value);
 	gpio_read(dev, HPI_ADDR_INTR_RET_DATA, &go->interrupt_data);
-#ifdef GO7007_HPI_DEBUG
-	pr_debug("saa7134-go7007: ReadInterrupt: %04x %04x\n",
+#ifdef GO7007_HPI_DE
+	pr_de("saa7134-go7007: ReadInterrupt: %04x %04x\n",
 			go->interrupt_value, go->interrupt_data);
 #endif
 	return 0;
@@ -238,7 +238,7 @@ static void saa7134_go7007_irq_ts_done(struct saa7134_dev *dev,
 	if (!vb2_is_streaming(&go->vidq))
 		return;
 	if (0 != (status & 0x000f0000))
-		pr_debug("saa7134-go7007: irq: lost %ld\n",
+		pr_de("saa7134-go7007: irq: lost %ld\n",
 				(status >> 16) & 0x0f);
 	if (status & 0x100000) {
 		dma_sync_single_for_cpu(&dev->pci->dev,
@@ -347,8 +347,8 @@ static int saa7134_go7007_send_firmware(struct go7007 *go, u8 *data, int len)
 	u16 status_reg;
 	int i;
 
-#ifdef GO7007_HPI_DEBUG
-	pr_debug("saa7134-go7007: DownloadBuffer sending %d bytes\n", len);
+#ifdef GO7007_HPI_DE
+	pr_de("saa7134-go7007: DownloadBuffer sending %d bytes\n", len);
 #endif
 
 	while (len > 0) {
@@ -421,7 +421,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 	struct saa7134_go7007 *saa;
 	struct v4l2_subdev *sd;
 
-	pr_debug("saa7134-go7007: probing new SAA713X board\n");
+	pr_de("saa7134-go7007: probing new SAA713X board\n");
 
 	go = go7007_alloc(&board_voyager, &dev->pci->dev);
 	if (go == NULL)

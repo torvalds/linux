@@ -106,7 +106,7 @@ snic_request_intr(struct snic *snic)
 	enum vnic_dev_intr_mode intr_mode;
 
 	intr_mode = svnic_dev_get_intr_mode(snic->vdev);
-	SNIC_BUG_ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);
+	SNIC__ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);
 
 	/*
 	 * Currently HW supports single WQ and CQ. So passing devid as snic.
@@ -164,7 +164,7 @@ snic_set_intr_mode(struct snic *snic)
 	 * We need n WQs, m CQs, and n+m+1 INTRs
 	 * (last INTR is used for WQ/CQ errors and notification area
 	 */
-	BUILD_BUG_ON((ARRAY_SIZE(snic->wq) + SNIC_CQ_IO_CMPL_MAX) >
+	BUILD__ON((ARRAY_SIZE(snic->wq) + SNIC_CQ_IO_CMPL_MAX) >
 			ARRAY_SIZE(snic->intr));
 
 	if (snic->wq_count < n || snic->cq_count < n + m)

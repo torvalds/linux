@@ -15,7 +15,7 @@
 #include "util/map.h"
 #include "util/session.h"
 #include "util/tool.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/build-id.h"
 #include "util/data.h"
 #include "util/auxtrace.h"
@@ -404,7 +404,7 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 	int err;
 
 	if (dso__read_build_id(dso) < 0) {
-		pr_debug("no build_id found for %s\n", dso->long_name);
+		pr_de("no build_id found for %s\n", dso->long_name);
 		return -1;
 	}
 
@@ -449,7 +449,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 			} else {
 #ifdef HAVE_LIBELF_SUPPORT
 				pr_warning("no symbols found in %s, maybe "
-					   "install a debug package?\n",
+					   "install a de package?\n",
 					   al.map->dso->long_name);
 #endif
 			}
@@ -621,7 +621,7 @@ static void strip_fini(struct perf_inject *inject)
 	evlist__for_each_entry_safe(evlist, tmp, evsel) {
 		if (evsel->handler == drop_sample &&
 		    ok_to_remove(evlist, evsel)) {
-			pr_debug("Deleting %s\n", perf_evsel__name(evsel));
+			pr_de("Deleting %s\n", perf_evsel__name(evsel));
 			perf_evlist__remove(evlist, evsel);
 			perf_evsel__delete(evsel);
 		}
@@ -722,7 +722,7 @@ static int __cmd_inject(struct perf_inject *inject)
 			evsel = perf_evlist__id2evsel_strict(session->evlist,
 							     inject->aux_id);
 			if (evsel) {
-				pr_debug("Deleting %s\n",
+				pr_de("Deleting %s\n",
 					 perf_evsel__name(evsel));
 				perf_evlist__remove(session->evlist, evsel);
 				perf_evsel__delete(evsel);

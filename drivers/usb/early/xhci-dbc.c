@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * xhci-dbc.c - xHCI debug capability early driver
+ * xhci-dbc.c - xHCI de capability early driver
  *
  * Copyright (C) 2016 Intel Corporation
  *
@@ -257,7 +257,7 @@ static void xdbc_mem_init(void)
 	xdbc_write64(xdbc.erst_dma, &xdbc.xdbc_reg->erstba);
 	xdbc_write64(xdbc.evt_seg.dma, &xdbc.xdbc_reg->erdp);
 
-	/* Debug capability contexts: */
+	/* De capability contexts: */
 	xdbc.dbcc_size	= 64 * 3;
 	xdbc.dbcc_base	= xdbc.table_base + index * XDBC_TABLE_ENTRY_SIZE;
 	xdbc.dbcc_dma	= xdbc.table_dma + index * XDBC_TABLE_ENTRY_SIZE;
@@ -317,7 +317,7 @@ static void xdbc_mem_init(void)
 	ctx->info.length	= cpu_to_le32(string_length);
 
 	/* Populate bulk out endpoint context: */
-	max_burst = DEBUG_MAX_BURST(readl(&xdbc.xdbc_reg->control));
+	max_burst = DE_MAX_BURST(readl(&xdbc.xdbc_reg->control));
 	ep_out = (struct xdbc_ep_context *)&ctx->out;
 
 	ep_out->ep_info1	= 0;
@@ -344,7 +344,7 @@ static void xdbc_mem_init(void)
 	xdbc.in_dma = xdbc.out_dma + XDBC_MAX_PACKET;
 }
 
-static void xdbc_do_reset_debug_port(u32 id, u32 count)
+static void xdbc_do_reset_de_port(u32 id, u32 count)
 {
 	void __iomem *ops_reg;
 	void __iomem *portsc;
@@ -363,7 +363,7 @@ static void xdbc_do_reset_debug_port(u32 id, u32 count)
 	}
 }
 
-static void xdbc_reset_debug_port(void)
+static void xdbc_reset_de_port(void)
 {
 	u32 val, port_offset, port_count;
 	int offset = 0;
@@ -381,7 +381,7 @@ static void xdbc_reset_debug_port(void)
 		port_offset = XHCI_EXT_PORT_OFF(val);
 		port_count = XHCI_EXT_PORT_COUNT(val);
 
-		xdbc_do_reset_debug_port(port_offset, port_count);
+		xdbc_do_reset_de_port(port_offset, port_count);
 	} while (1);
 }
 
@@ -429,7 +429,7 @@ static int xdbc_start(void)
 
 	/* Reset port to avoid bus hang: */
 	if (xdbc.vendor == PCI_VENDOR_ID_INTEL)
-		xdbc_reset_debug_port();
+		xdbc_reset_de_port();
 
 	/* Wait for port connection: */
 	ret = handshake(&xdbc.xdbc_reg->portsc, PORTSC_CONN_STATUS, PORTSC_CONN_STATUS, 5000000, 100);
@@ -438,7 +438,7 @@ static int xdbc_start(void)
 		return ret;
 	}
 
-	/* Wait for debug device to be configured: */
+	/* Wait for de device to be configured: */
 	ret = handshake(&xdbc.xdbc_reg->control, CTRL_DBC_RUN, CTRL_DBC_RUN, 5000000, 100);
 	if (ret) {
 		xdbc_trace("waiting for device configuration timed out\n");
@@ -447,12 +447,12 @@ static int xdbc_start(void)
 
 	/* Check port number: */
 	status = readl(&xdbc.xdbc_reg->status);
-	if (!DCST_DEBUG_PORT(status)) {
+	if (!DCST_DE_PORT(status)) {
 		xdbc_trace("invalid root hub port number\n");
 		return -ENODEV;
 	}
 
-	xdbc.port_number = DCST_DEBUG_PORT(status);
+	xdbc.port_number = DCST_DE_PORT(status);
 
 	xdbc_trace("DbC is running now, control 0x%08x port ID %d\n",
 		   readl(&xdbc.xdbc_reg->control), xdbc.port_number);
@@ -641,9 +641,9 @@ int __init early_xdbc_parse_parameter(char *s)
 		return -EINVAL;
 
 	/* Locate DbC registers: */
-	offset = xhci_find_next_ext_cap(xdbc.xhci_base, 0, XHCI_EXT_CAPS_DEBUG);
+	offset = xhci_find_next_ext_cap(xdbc.xhci_base, 0, XHCI_EXT_CAPS_DE);
 	if (!offset) {
-		pr_notice("xhci host doesn't support debug capability\n");
+		pr_notice("xhci host doesn't support de capability\n");
 		early_iounmap(xdbc.xhci_base, xdbc.xhci_length);
 		xdbc.xhci_base = NULL;
 		xdbc.xhci_length = 0;
@@ -966,7 +966,7 @@ static int __init xdbc_init(void)
 		return 0;
 
 	/*
-	 * It's time to shut down the DbC, so that the debug
+	 * It's time to shut down the DbC, so that the de
 	 * port can be reused by the host controller:
 	 */
 	if (early_xdbc_console.index == -1 ||
@@ -985,7 +985,7 @@ static int __init xdbc_init(void)
 	raw_spin_lock_irqsave(&xdbc.lock, flags);
 	early_iounmap(xdbc.xhci_base, xdbc.xhci_length);
 	xdbc.xhci_base = base;
-	offset = xhci_find_next_ext_cap(xdbc.xhci_base, 0, XHCI_EXT_CAPS_DEBUG);
+	offset = xhci_find_next_ext_cap(xdbc.xhci_base, 0, XHCI_EXT_CAPS_DE);
 	xdbc.xdbc_reg = (struct xdbc_regs __iomem *)(xdbc.xhci_base + offset);
 	raw_spin_unlock_irqrestore(&xdbc.lock, flags);
 

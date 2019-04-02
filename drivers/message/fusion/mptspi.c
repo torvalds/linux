@@ -141,7 +141,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 					factor = MPT_ULTRA320;
 					if (scsi_device_qas(sdev)) {
 						ddvprintk(ioc,
-						printk(MYIOC_s_DEBUG_FMT "Enabling QAS due to "
+						printk(MYIOC_s_DE_FMT "Enabling QAS due to "
 						"byte56=%02x on id=%d!\n", ioc->name,
 						scsi_device_qas(sdev), id));
 						noQas = 0;
@@ -234,7 +234,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 		/* Disable QAS in a mixed configuration case
 		 */
 
-		ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		ddvprintk(ioc, printk(MYIOC_s_DE_FMT
 			"Disabling QAS due to noQas=%02x on id=%d!\n", ioc->name, noQas, id));
 	}
 }
@@ -307,7 +307,7 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 
 	ioc->add_sge((char *)&pReq->PageBufferSGE, flagsLength, dataDma);
 
-	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	ddvprintk(ioc, printk(MYIOC_s_DE_FMT
 		"writeIOCPage4: MaxSEP=%d ActiveSEP=%d id=%d bus=%d\n",
 		ioc->name, IOCPage4Ptr->MaxSEP, IOCPage4Ptr->ActiveSEP, id, channel));
 
@@ -435,7 +435,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	if (starget->channel == 0 &&
 	    mptspi_is_raid(hd, starget->id)) {
 		vtarget->raidVolume = 1;
-		ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		ddvprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "RAID Volume @ channel=%d id=%d\n", ioc->name, starget->channel,
 		    starget->id));
 	}
@@ -466,7 +466,7 @@ mptspi_target_destroy(struct scsi_target *starget)
 }
 
 /**
- *	mptspi_print_write_nego - negotiation parameters debug info that is being sent
+ *	mptspi_print_write_nego - negotiation parameters de info that is being sent
  *	@hd: Pointer to a SCSI HOST structure
  *	@starget: SCSI target
  *	@ii: negotiation parameters
@@ -475,7 +475,7 @@ mptspi_target_destroy(struct scsi_target *starget)
 static void
 mptspi_print_write_nego(struct _MPT_SCSI_HOST *hd, struct scsi_target *starget, u32 ii)
 {
-	ddvprintk(hd->ioc, printk(MYIOC_s_DEBUG_FMT "id=%d Requested = 0x%08x"
+	ddvprintk(hd->ioc, printk(MYIOC_s_DE_FMT "id=%d Requested = 0x%08x"
 	    " ( %s factor = 0x%02x @ offset = 0x%02x %s%s%s%s%s%s%s%s)\n",
 	    hd->ioc->name, starget->id, ii,
 	    ii & MPI_SCSIDEVPAGE0_NP_WIDE ? "Wide ": "",
@@ -491,7 +491,7 @@ mptspi_print_write_nego(struct _MPT_SCSI_HOST *hd, struct scsi_target *starget, 
 }
 
 /**
- *	mptspi_print_read_nego - negotiation parameters debug info that is being read
+ *	mptspi_print_read_nego - negotiation parameters de info that is being read
  *	@hd: Pointer to a SCSI HOST structure
  *	@starget: SCSI target
  *	@ii: negotiation parameters
@@ -500,7 +500,7 @@ mptspi_print_write_nego(struct _MPT_SCSI_HOST *hd, struct scsi_target *starget, 
 static void
 mptspi_print_read_nego(struct _MPT_SCSI_HOST *hd, struct scsi_target *starget, u32 ii)
 {
-	ddvprintk(hd->ioc, printk(MYIOC_s_DEBUG_FMT "id=%d Read = 0x%08x"
+	ddvprintk(hd->ioc, printk(MYIOC_s_DE_FMT "id=%d Read = 0x%08x"
 	    " ( %s factor = 0x%02x @ offset = 0x%02x %s%s%s%s%s%s%s%s)\n",
 	    hd->ioc->name, starget->id, ii,
 	    ii & MPI_SCSIDEVPAGE0_NP_WIDE ? "Wide ": "",
@@ -656,7 +656,7 @@ mptscsih_quiesce_raid(MPT_SCSI_HOST *hd, int quiesce, u8 channel, u8 id)
 	ioc->add_sge((char *)&pReq->ActionDataSGE,
 		MPT_SGE_FLAGS_SSIMPLE_READ | 0, (dma_addr_t) -1);
 
-	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT "RAID Volume action=%x channel=%d id=%d\n",
+	ddvprintk(ioc, printk(MYIOC_s_DE_FMT "RAID Volume action=%x channel=%d id=%d\n",
 			ioc->name, pReq->Action, channel, id));
 
 	INITIALIZE_MGMT_STATUS(ioc->internal_cmds.status)
@@ -664,7 +664,7 @@ mptscsih_quiesce_raid(MPT_SCSI_HOST *hd, int quiesce, u8 channel, u8 id)
 	timeleft = wait_for_completion_timeout(&ioc->internal_cmds.done, 10*HZ);
 	if (!(ioc->internal_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
 		ret = -ETIME;
-		dfailprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: TIMED OUT!\n",
+		dfailprintk(ioc, printk(MYIOC_s_DE_FMT "%s: TIMED OUT!\n",
 		    ioc->name, __func__));
 		if (ioc->internal_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
 			goto out;
@@ -764,7 +764,7 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 	if (ret)
 		return ret;
 
-	ddvprintk(hd->ioc, printk(MYIOC_s_DEBUG_FMT "id=%d min_period=0x%02x"
+	ddvprintk(hd->ioc, printk(MYIOC_s_DE_FMT "id=%d min_period=0x%02x"
 		" max_offset=0x%02x max_width=%d\n", hd->ioc->name,
 		sdev->id, spi_min_period(scsi_target(sdev)),
 		spi_max_offset(scsi_target(sdev)),
@@ -912,7 +912,7 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 		for (i = 0 ; i < 16; i++) {
 			sdev = scsi_device_lookup_by_target(starget, i);
 			if (sdev && sdev->type == TYPE_TAPE) {
-				sdev_printk(KERN_DEBUG, sdev, MYIOC_s_FMT
+				sdev_printk(KERN_DE, sdev, MYIOC_s_FMT
 					    "IDP:ON\n", ioc->name);
 				nego_parms |= MPI_SCSIDEVPAGE1_RP_IDP;
 				pg1->RequestedParameters =
@@ -1484,7 +1484,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (numSGE < sh->sg_tablesize) {
 		/* Reset this value */
-		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dprintk(ioc, printk(MYIOC_s_DE_FMT
 		  "Resetting sg_tablesize to %d from %d\n",
 		  ioc->name, numSGE, sh->sg_tablesize));
 		sh->sg_tablesize = numSGE;
@@ -1505,11 +1505,11 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	spin_lock_init(&ioc->scsi_lookup_lock);
 
-	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ScsiLookup @ %p\n",
+	dprintk(ioc, printk(MYIOC_s_DE_FMT "ScsiLookup @ %p\n",
 		 ioc->name, ioc->ScsiLookup));
 
 	ioc->spi_data.Saf_Te = mpt_saf_te;
-	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	ddvprintk(ioc, printk(MYIOC_s_DE_FMT
 		"saf_te %x\n",
 		ioc->name,
 		mpt_saf_te));

@@ -11,7 +11,7 @@
  * next radix_tree_next_slot and go to slow-path into radix_tree_next_chunk.
  *
  * Running:
- * This test should run to completion immediately. The above bug would
+ * This test should run to completion immediately. The above  would
  * cause it to segfault.
  *
  * Upstream commit:

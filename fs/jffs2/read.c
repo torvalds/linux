@@ -60,7 +60,7 @@ int jffs2_read_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		ret = -EIO;
 		goto out_ri;
 	}
-	/* There was a bug where we wrote hole nodes out with csize/dsize
+	/* There was a  where we wrote hole nodes out with csize/dsize
 	   swapped. Deal with it */
 	if (ri->compr == JFFS2_COMPR_ZERO && !je32_to_cpu(ri->dsize) &&
 	    je32_to_cpu(ri->csize)) {

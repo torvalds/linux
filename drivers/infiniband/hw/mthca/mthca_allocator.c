@@ -153,7 +153,7 @@ void mthca_array_clear(struct mthca_array *array, int index)
 		array->page_list[p].page[index & MTHCA_ARRAY_MASK] = NULL;
 
 	if (array->page_list[p].used < 0)
-		pr_debug("Array %p index %d page %d with ref count %d < 0\n",
+		pr_de("Array %p index %d page %d with ref count %d < 0\n",
 			 array, index, p, array->page_list[p].used);
 }
 

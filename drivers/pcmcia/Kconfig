@@ -217,22 +217,22 @@ config PCMCIA_PXA2XX
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 
-config PCMCIA_DEBUG
-	bool "Enable debugging"
+config PCMCIA_DE
+	bool "Enable deging"
 	depends on (PCMCIA_SA1111 || PCMCIA_SA1100 || PCMCIA_PXA2XX)
 	help
-	  Say Y here to enable debugging for the SoC PCMCIA layer.
-	  You will need to choose the debugging level either via the
+	  Say Y here to enable deging for the SoC PCMCIA layer.
+	  You will need to choose the deging level either via the
 	  kernel command line, or module options depending whether
 	  you build the drivers as modules.
 
 	  The kernel command line options are:
-	    sa11xx_core.pc_debug=N
-	    pxa2xx_core.pc_debug=N
+	    sa11xx_core.pc_de=N
+	    pxa2xx_core.pc_de=N
 
-	  The module option is called pc_debug=N
+	  The module option is called pc_de=N
 
-	  In all the above examples, N is the debugging verbosity
+	  In all the above examples, N is the deging verbosity
 	  level.
 
 config PCMCIA_PROBE

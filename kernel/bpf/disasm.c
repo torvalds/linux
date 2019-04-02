@@ -25,7 +25,7 @@ static const char *__func_get_name(const struct bpf_insn_cbs *cbs,
 				   const struct bpf_insn *insn,
 				   char *buff, size_t len)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(func_id_str) != __BPF_FUNC_MAX_ID);
+	BUILD__ON(ARRAY_SIZE(func_id_str) != __BPF_FUNC_MAX_ID);
 
 	if (insn->src_reg != BPF_PSEUDO_CALL &&
 	    insn->imm >= 0 && insn->imm < __BPF_FUNC_MAX_ID &&
@@ -132,7 +132,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 	if (class == BPF_ALU || class == BPF_ALU64) {
 		if (BPF_OP(insn->code) == BPF_END) {
 			if (class == BPF_ALU64)
-				verbose(cbs->private_data, "BUG_alu64_%02x\n", insn->code);
+				verbose(cbs->private_data, "_alu64_%02x\n", insn->code);
 			else
 				print_bpf_end_insn(verbose, cbs->private_data, insn);
 		} else if (BPF_OP(insn->code) == BPF_NEG) {
@@ -168,10 +168,10 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->dst_reg, insn->off,
 				insn->src_reg);
 		else
-			verbose(cbs->private_data, "BUG_%02x\n", insn->code);
+			verbose(cbs->private_data, "_%02x\n", insn->code);
 	} else if (class == BPF_ST) {
 		if (BPF_MODE(insn->code) != BPF_MEM) {
-			verbose(cbs->private_data, "BUG_st_%02x\n", insn->code);
+			verbose(cbs->private_data, "_st_%02x\n", insn->code);
 			return;
 		}
 		verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = %d\n",
@@ -181,7 +181,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			insn->off, insn->imm);
 	} else if (class == BPF_LDX) {
 		if (BPF_MODE(insn->code) != BPF_MEM) {
-			verbose(cbs->private_data, "BUG_ldx_%02x\n", insn->code);
+			verbose(cbs->private_data, "_ldx_%02x\n", insn->code);
 			return;
 		}
 		verbose(cbs->private_data, "(%02x) r%d = *(%s *)(r%d %+d)\n",
@@ -216,7 +216,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				__func_imm_name(cbs, insn, imm,
 						tmp, sizeof(tmp)));
 		} else {
-			verbose(cbs->private_data, "BUG_ld_%02x\n", insn->code);
+			verbose(cbs->private_data, "_ld_%02x\n", insn->code);
 			return;
 		}
 	} else if (class == BPF_JMP32 || class == BPF_JMP) {

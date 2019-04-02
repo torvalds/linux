@@ -61,7 +61,7 @@ static struct clk ** const uart_clks[] __initconst = {
 
 static void __init _mx27_clocks_init(unsigned long fref)
 {
-	BUG_ON(!ccm);
+	_ON(!ccm);
 
 	clk[IMX27_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clk[IMX27_CLK_CKIH] = imx_clk_fixed("ckih", fref);

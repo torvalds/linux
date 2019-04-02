@@ -33,7 +33,7 @@
 
 #include "chp.h"
 #include "cio.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "css.h"
 #include "device.h"
 #include "ioasm.h"

@@ -372,7 +372,7 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET))
 			issue_reset = 1;
@@ -446,13 +446,13 @@ _transport_delete_port(struct MPT3SAS_ADAPTER *ioc,
 	    "remove: sas_addr(0x%016llx)\n",
 	    (unsigned long long) sas_address);
 
-	ioc->logging_level |= MPT_DEBUG_TRANSPORT;
+	ioc->logging_level |= MPT_DE_TRANSPORT;
 	if (device_type == SAS_END_DEVICE)
 		mpt3sas_device_remove_by_sas_address(ioc, sas_address);
 	else if (device_type == SAS_EDGE_EXPANDER_DEVICE ||
 	    device_type == SAS_FANOUT_EXPANDER_DEVICE)
 		mpt3sas_expander_remove(ioc, sas_address);
-	ioc->logging_level &= ~MPT_DEBUG_TRANSPORT;
+	ioc->logging_level &= ~MPT_DE_TRANSPORT;
 }
 
 /**
@@ -678,7 +678,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 
 	list_for_each_entry(mpt3sas_phy, &mpt3sas_port->phy_list,
 	    port_siblings) {
-		if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
+		if ((ioc->logging_level & MPT_DE_TRANSPORT))
 			dev_printk(KERN_INFO, &port->dev,
 				"add: handle(0x%04x), sas_addr(0x%016llx), phy(%d)\n",
 				handle, (unsigned long long)
@@ -719,7 +719,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		sas_device_put(sas_device);
 	}
 
-	if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
+	if ((ioc->logging_level & MPT_DE_TRANSPORT))
 		dev_printk(KERN_INFO, &rphy->dev,
 			"add: handle(0x%04x), sas_addr(0x%016llx)\n",
 			handle, (unsigned long long)
@@ -799,7 +799,7 @@ mpt3sas_transport_port_remove(struct MPT3SAS_ADAPTER *ioc, u64 sas_address,
 
 	list_for_each_entry_safe(mpt3sas_phy, next_phy,
 	    &mpt3sas_port->phy_list, port_siblings) {
-		if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
+		if ((ioc->logging_level & MPT_DE_TRANSPORT))
 			dev_printk(KERN_INFO, &mpt3sas_port->port->dev,
 			    "remove: sas_addr(0x%016llx), phy(%d)\n",
 			    (unsigned long long)
@@ -870,7 +870,7 @@ mpt3sas_transport_add_host_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 		sas_phy_free(phy);
 		return -1;
 	}
-	if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
+	if ((ioc->logging_level & MPT_DE_TRANSPORT))
 		dev_printk(KERN_INFO, &phy->dev,
 		    "add: handle(0x%04x), sas_addr(0x%016llx)\n"
 		    "\tattached_handle(0x%04x), sas_addr(0x%016llx)\n",
@@ -940,7 +940,7 @@ mpt3sas_transport_add_expander_phy(struct MPT3SAS_ADAPTER *ioc, struct _sas_phy
 		sas_phy_free(phy);
 		return -1;
 	}
-	if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
+	if ((ioc->logging_level & MPT_DE_TRANSPORT))
 		dev_printk(KERN_INFO, &phy->dev,
 		    "add: handle(0x%04x), sas_addr(0x%016llx)\n"
 		    "\tattached_handle(0x%04x), sas_addr(0x%016llx)\n",
@@ -995,7 +995,7 @@ mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 		mpt3sas_phy->phy->negotiated_linkrate =
 		    _transport_convert_phy_link_rate(link_rate);
 
-	if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
+	if ((ioc->logging_level & MPT_DE_TRANSPORT))
 		dev_printk(KERN_INFO, &mpt3sas_phy->phy->dev,
 		    "refresh: parent sas_addr(0x%016llx),\n"
 		    "\tlink_rate(0x%02x), phy(%d)\n"
@@ -1144,7 +1144,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET))
 			issue_reset = 1;
@@ -1439,7 +1439,7 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET))
 			issue_reset = 1;
@@ -1916,7 +1916,7 @@ _transport_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	if (!(ioc->transport_cmds.status & MPT3_CMD_COMPLETE)) {
 		ioc_err(ioc, "%s: timeout\n", __func__);
-		_debug_dump_mf(mpi_request,
+		_de_dump_mf(mpi_request,
 		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
 		if (!(ioc->transport_cmds.status & MPT3_CMD_RESET)) {
 			mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);

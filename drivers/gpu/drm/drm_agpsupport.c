@@ -323,7 +323,7 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 	if (retcode)
 		return retcode;
 	entry->bound = dev->agp->base + (page << PAGE_SHIFT);
-	DRM_DEBUG("base = 0x%lx entry->bound = 0x%lx\n",
+	DRM_DE("base = 0x%lx entry->bound = 0x%lx\n",
 		  dev->agp->base, entry->bound);
 	return 0;
 }
@@ -476,7 +476,7 @@ drm_agp_bind_pages(struct drm_device *dev,
 	struct agp_memory *mem;
 	int ret, i;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	mem = agp_allocate_memory(dev->agp->bridge, num_pages,
 				      type);

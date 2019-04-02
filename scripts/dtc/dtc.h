@@ -38,10 +38,10 @@
 
 #include "util.h"
 
-#ifdef DEBUG
-#define debug(...)	printf(__VA_ARGS__)
+#ifdef DE
+#define de(...)	printf(__VA_ARGS__)
 #else
-#define debug(...)
+#define de(...)
 #endif
 
 #define DEFAULT_FDT_VERSION	17

@@ -309,7 +309,7 @@ static int rt305x_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 			(8 << GDMA_RT305X_CTRL0_DST_REQ_SHIFT);
 	} else if (chan->desc->direction == DMA_MEM_TO_MEM) {
 		/*
-		 * TODO: memcpy function have bugs. sometime it will copy
+		 * TODO: memcpy function have s. sometime it will copy
 		 * more 8 bytes data when using dmatest verify.
 		 */
 		src_addr = sg->src_addr;

@@ -106,7 +106,7 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 
 	CI(area_optimised, AREA_OPTIMISED);
 
-	CI(hw_debug, DEBUG_ENABLED);
+	CI(hw_de, DE_ENABLED);
 	CI(num_pc_brk, NUMBER_OF_PC_BRK);
 	CI(num_rd_brk, NUMBER_OF_RD_ADDR_BRK);
 	CI(num_wr_brk, NUMBER_OF_WR_ADDR_BRK);

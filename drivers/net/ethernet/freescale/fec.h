@@ -439,7 +439,7 @@ struct bufdesc_ex {
  * register clock is 66Mhz, so the wait-time-cycles must be greater than 240ns
  * (40ns * 6).
  */
-#define FEC_QUIRK_BUG_CAPTURE		(1 << 10)
+#define FEC_QUIRK__CAPTURE		(1 << 10)
 /* Controller has only one MDIO bus */
 #define FEC_QUIRK_SINGLE_MDIO		(1 << 11)
 /* Controller supports RACC register */

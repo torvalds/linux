@@ -15,25 +15,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ARCH_ARM64_ASM_BUG_H
-#define _ARCH_ARM64_ASM_BUG_H
+#ifndef _ARCH_ARM64_ASM__H
+#define _ARCH_ARM64_ASM__H
 
 #include <linux/stringify.h>
 
-#include <asm/asm-bug.h>
+#include <asm/asm-.h>
 
-#define __BUG_FLAGS(flags)				\
-	asm volatile (__stringify(ASM_BUG_FLAGS(flags)));
+#define ___FLAGS(flags)				\
+	asm volatile (__stringify(ASM__FLAGS(flags)));
 
-#define BUG() do {					\
-	__BUG_FLAGS(0);					\
+#define () do {					\
+	___FLAGS(0);					\
 	unreachable();					\
 } while (0)
 
-#define __WARN_FLAGS(flags) __BUG_FLAGS(BUGFLAG_WARNING|(flags))
+#define __WARN_FLAGS(flags) ___FLAGS(FLAG_WARNING|(flags))
 
-#define HAVE_ARCH_BUG
+#define HAVE_ARCH_
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
-#endif /* ! _ARCH_ARM64_ASM_BUG_H */
+#endif /* ! _ARCH_ARM64_ASM__H */

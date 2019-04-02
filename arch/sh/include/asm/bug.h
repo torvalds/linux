@@ -1,54 +1,54 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_SH_BUG_H
-#define __ASM_SH_BUG_H
+#ifndef __ASM_SH__H
+#define __ASM_SH__H
 
 #include <linux/linkage.h>
 
-#define TRAPA_BUG_OPCODE	0xc33e	/* trapa #0x3e */
-#define BUGFLAG_UNWINDER	(1 << 1)
+#define TRAPA__OPCODE	0xc33e	/* trapa #0x3e */
+#define FLAG_UNWINDER	(1 << 1)
 
-#ifdef CONFIG_GENERIC_BUG
-#define HAVE_ARCH_BUG
+#ifdef CONFIG_GENERIC_
+#define HAVE_ARCH_
 #define HAVE_ARCH_WARN_ON
 
 /**
- * _EMIT_BUG_ENTRY
+ * _EMIT__ENTRY
  * %1 - __FILE__
  * %2 - __LINE__
  * %3 - trap type
- * %4 - sizeof(struct bug_entry)
+ * %4 - sizeof(struct _entry)
  *
  * The trapa opcode itself sits in %0.
  * The %O notation is used to avoid # generation.
  *
- * The offending file and line are encoded in the __bug_table section.
+ * The offending file and line are encoded in the ___table section.
  */
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-#define _EMIT_BUG_ENTRY				\
-	"\t.pushsection __bug_table,\"aw\"\n"	\
+#ifdef CONFIG_DE_VERBOSE
+#define _EMIT__ENTRY				\
+	"\t.pushsection ___table,\"aw\"\n"	\
 	"2:\t.long 1b, %O1\n"			\
 	"\t.short %O2, %O3\n"			\
 	"\t.org 2b+%O4\n"			\
 	"\t.popsection\n"
 #else
-#define _EMIT_BUG_ENTRY				\
-	"\t.pushsection __bug_table,\"aw\"\n"	\
+#define _EMIT__ENTRY				\
+	"\t.pushsection ___table,\"aw\"\n"	\
 	"2:\t.long 1b\n"			\
 	"\t.short %O3\n"			\
 	"\t.org 2b+%O4\n"			\
 	"\t.popsection\n"
 #endif
 
-#define BUG()						\
+#define ()						\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\
-		_EMIT_BUG_ENTRY				\
+		_EMIT__ENTRY				\
 		 :					\
-		 : "n" (TRAPA_BUG_OPCODE),		\
+		 : "n" (TRAPA__OPCODE),		\
 		   "i" (__FILE__),			\
 		   "i" (__LINE__), "i" (0),		\
-		   "i" (sizeof(struct bug_entry)));	\
+		   "i" (sizeof(struct _entry)));	\
 	unreachable();					\
 } while (0)
 
@@ -56,13 +56,13 @@ do {							\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\
-		 _EMIT_BUG_ENTRY			\
+		 _EMIT__ENTRY			\
 		 :					\
-		 : "n" (TRAPA_BUG_OPCODE),		\
+		 : "n" (TRAPA__OPCODE),		\
 		   "i" (__FILE__),			\
 		   "i" (__LINE__),			\
-		   "i" (BUGFLAG_WARNING|(flags)),	\
-		   "i" (sizeof(struct bug_entry)));	\
+		   "i" (FLAG_WARNING|(flags)),	\
+		   "i" (sizeof(struct _entry)));	\
 } while (0)
 
 #define WARN_ON(x) ({						\
@@ -77,39 +77,39 @@ do {							\
 	unlikely(__ret_warn_on);				\
 })
 
-#define UNWINDER_BUG()					\
+#define UNWINDER_()					\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\
-		_EMIT_BUG_ENTRY				\
+		_EMIT__ENTRY				\
 		 :					\
-		 : "n" (TRAPA_BUG_OPCODE),		\
+		 : "n" (TRAPA__OPCODE),		\
 		   "i" (__FILE__),			\
 		   "i" (__LINE__),			\
-		   "i" (BUGFLAG_UNWINDER),		\
-		   "i" (sizeof(struct bug_entry)));	\
+		   "i" (FLAG_UNWINDER),		\
+		   "i" (sizeof(struct _entry)));	\
 } while (0)
 
-#define UNWINDER_BUG_ON(x) ({					\
+#define UNWINDER__ON(x) ({					\
 	int __ret_unwinder_on = !!(x);				\
 	if (__builtin_constant_p(__ret_unwinder_on)) {		\
 		if (__ret_unwinder_on)				\
-			UNWINDER_BUG();				\
+			UNWINDER_();				\
 	} else {						\
 		if (unlikely(__ret_unwinder_on))		\
-			UNWINDER_BUG();				\
+			UNWINDER_();				\
 	}							\
 	unlikely(__ret_unwinder_on);				\
 })
 
 #else
 
-#define UNWINDER_BUG	BUG
-#define UNWINDER_BUG_ON	BUG_ON
+#define UNWINDER_	
+#define UNWINDER__ON	_ON
 
-#endif /* CONFIG_GENERIC_BUG */
+#endif /* CONFIG_GENERIC_ */
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
 struct pt_regs;
 
@@ -118,4 +118,4 @@ extern void die(const char *str, struct pt_regs *regs, long err) __attribute__ (
 extern void die_if_kernel(const char *str, struct pt_regs *regs, long err);
 extern void die_if_no_fixup(const char *str, struct pt_regs *regs, long err);
 
-#endif /* __ASM_SH_BUG_H */
+#endif /* __ASM_SH__H */

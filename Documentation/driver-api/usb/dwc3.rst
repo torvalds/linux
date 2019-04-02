@@ -52,8 +52,8 @@ driver at the time of this writing:
 	   *Interrupt*, and *Isochronous*)
 	7. SuperSpeed Bulk Streams
 	8. Link Power Management
-	9. Trace Events for debugging
-	10. DebugFS [#debugfs]_ interface
+	9. Trace Events for deging
+	10. DeFS [#defs]_ interface
 
 These features have all been exercised with many of the **in-tree**
 gadget drivers. We have verified both *ConfigFS* [#configfs]_ and
@@ -108,9 +108,9 @@ exactly 4096 bytes, or 1 Page.
 DWC3 driver will try its best to cope with more than 255 requests and,
 for the most part, it should work normally. However this is not
 something that has been exercised very frequently. If you experience
-any problems, see section **Reporting Bugs** below.
+any problems, see section **Reporting s** below.
 
-Reporting Bugs
+Reporting s
 ================
 
 Whenever you encounter a problem with DWC3, first and foremost you
@@ -127,9 +127,9 @@ information so we can be of any help to you.
 Required Information
 ---------------------
 
-DWC3 relies exclusively on Trace Events for debugging. Everything is
-exposed there, with some extra bits being exposed to DebugFS
-[#debugfs]_.
+DWC3 relies exclusively on Trace Events for deging. Everything is
+exposed there, with some extra bits being exposed to DeFS
+[#defs]_.
 
 In order to capture DWC3's Trace Events you should run the following
 commands **before** plugging the USB cable to a host machine:
@@ -138,7 +138,7 @@ commands **before** plugging the USB cable to a host machine:
 
 		 # mkdir -p /d
 		 # mkdir -p /t
-		 # mount -t debugfs none /d
+		 # mount -t defs none /d
 		 # mount -t tracefs none /t
 		 # echo 81920 > /t/buffer_size_kb
 		 # echo 1 > /t/events/dwc3/enable
@@ -157,7 +157,7 @@ and email it to `me`_ with `linux-usb`_ in Cc. If you want to be extra
 sure that I'll help you, write your subject line in the following
 format:
 
-	**[BUG REPORT] usb: dwc3: Bug while doing XYZ**
+	**[ REPORT] usb: dwc3:  while doing XYZ**
 
 On the email body, make sure to detail what you doing, which gadget
 driver you were using, how to reproduce the problem, what SoC you're
@@ -166,19 +166,19 @@ using, which OS (and its version) was running on the Host machine.
 With all this information, we should be able to understand what's
 going on and be helpful to you.
 
-Debugging
+Deging
 ===========
 
 First and foremost a disclaimer::
 
-  DISCLAIMER: The information available on DebugFS and/or TraceFS can
+  DISCLAIMER: The information available on DeFS and/or TraceFS can
   change at any time at any Major Linux Kernel Release. If writing
   scripts, do **NOT** assume information to be available in the
   current format.
 
 With that out of the way, let's carry on.
 
-If you're willing to debug your own problem, you deserve a round of
+If you're willing to de your own problem, you deserve a round of
 applause :-)
 
 Anyway, there isn't much to say here other than Trace Events will be
@@ -190,13 +190,13 @@ there's a lot that can be understood without looking at the wire.
 
 Feel free to email `me`_ and Cc `linux-usb`_ if you need any help.
 
-``DebugFS``
+``DeFS``
 -------------
 
-``DebugFS`` is very good for gathering snapshots of what's going on
+``DeFS`` is very good for gathering snapshots of what's going on
 with DWC3 and/or any endpoint.
 
-On DWC3's ``DebugFS`` directory, you will find the following files and
+On DWC3's ``DeFS`` directory, you will find the following files and
 directories:
 
 ``ep[0..15]{in,out}/``
@@ -540,7 +540,7 @@ In order to use these events, you must enable ``CONFIG_FTRACE`` in
 your kernel config.
 
 For details about how enable DWC3 events, see section **Reporting
-Bugs**.
+s**.
 
 The following subsections will give details about each Event Class and
 each Event defined by DWC3.
@@ -549,7 +549,7 @@ MMIO
 ```````
 
 It is sometimes useful to look at every MMIO access when looking for
-bugs. Because of that, DWC3 offers two Trace Events (one for
+s. Because of that, DWC3 offers two Trace Events (one for
 dwc3_readl() and one for dwc3_writel()). ``TP_printk`` follows::
 
   TP_printk("addr %p value %08x", __entry->base + __entry->offset,
@@ -703,7 +703,7 @@ Structures, Methods and Definitions
 .. [#trb] Transfer Request Block
 .. [#link_trb] Transfer Request Block pointing to another Transfer
 	       Request Block.
-.. [#debugfs] The Debug File System
+.. [#defs] The De File System
 .. [#configfs] The Config File System
 .. [#cbw] Command Block Wrapper
 .. _Linus' tree: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/

@@ -87,14 +87,14 @@ static struct entry *__get_entry(struct entry_space *es, unsigned block)
 	struct entry *e;
 
 	e = es->begin + block;
-	BUG_ON(e >= es->end);
+	_ON(e >= es->end);
 
 	return e;
 }
 
 static unsigned to_index(struct entry_space *es, struct entry *e)
 {
-	BUG_ON(e < es->begin || e >= es->end);
+	_ON(e < es->begin || e >= es->end);
 	return e - es->begin;
 }
 
@@ -294,7 +294,7 @@ static unsigned q_size(struct queue *q)
  */
 static void q_push(struct queue *q, struct entry *e)
 {
-	BUG_ON(e->pending_work);
+	_ON(e->pending_work);
 
 	if (!e->sentinel)
 		q->nr_elts++;
@@ -304,7 +304,7 @@ static void q_push(struct queue *q, struct entry *e)
 
 static void q_push_front(struct queue *q, struct entry *e)
 {
-	BUG_ON(e->pending_work);
+	_ON(e->pending_work);
 
 	if (!e->sentinel)
 		q->nr_elts++;
@@ -314,7 +314,7 @@ static void q_push_front(struct queue *q, struct entry *e)
 
 static void q_push_before(struct queue *q, struct entry *old, struct entry *e)
 {
-	BUG_ON(e->pending_work);
+	_ON(e->pending_work);
 
 	if (!e->sentinel)
 		q->nr_elts++;
@@ -387,8 +387,8 @@ static void q_set_targets_subrange_(struct queue *q, unsigned nr_elts, unsigned 
 {
 	unsigned level, nr_levels, entries_per_level, remainder;
 
-	BUG_ON(lbegin > lend);
-	BUG_ON(lend > q->nr_levels);
+	_ON(lbegin > lend);
+	_ON(lend > q->nr_levels);
 	nr_levels = lend - lbegin;
 	entries_per_level = safe_div(nr_elts, nr_levels);
 	remainder = safe_mod(nr_elts, nr_levels);
@@ -442,7 +442,7 @@ static void q_redistribute(struct queue *q)
 		while (l->nr_elts < target) {
 			e = __redist_pop_from(q, level + 1u);
 			if (!e) {
-				/* bug in nr_elts */
+				/*  in nr_elts */
 				break;
 			}
 
@@ -458,7 +458,7 @@ static void q_redistribute(struct queue *q)
 			e = l_pop_tail(q->es, l);
 
 			if (!e)
-				/* bug in nr_elts */
+				/*  in nr_elts */
 				break;
 
 			e->level = level + 1u;
@@ -746,7 +746,7 @@ static struct entry *alloc_particular_entry(struct entry_alloc *ea, unsigned i)
 {
 	struct entry *e = __get_entry(ea->es, ea->begin + i);
 
-	BUG_ON(e->allocated);
+	_ON(e->allocated);
 
 	l_del(ea->es, &ea->free, e);
 	init_entry(e);
@@ -757,8 +757,8 @@ static struct entry *alloc_particular_entry(struct entry_alloc *ea, unsigned i)
 
 static void free_entry(struct entry_alloc *ea, struct entry *e)
 {
-	BUG_ON(!ea->nr_allocated);
-	BUG_ON(!e->allocated);
+	_ON(!ea->nr_allocated);
+	_ON(!e->allocated);
 
 	ea->nr_allocated--;
 	e->allocated = false;
@@ -1159,15 +1159,15 @@ static bool free_target_met(struct smq_policy *mq)
 
 static void mark_pending(struct smq_policy *mq, struct entry *e)
 {
-	BUG_ON(e->sentinel);
-	BUG_ON(!e->allocated);
-	BUG_ON(e->pending_work);
+	_ON(e->sentinel);
+	_ON(!e->allocated);
+	_ON(e->pending_work);
 	e->pending_work = true;
 }
 
 static void clear_pending(struct smq_policy *mq, struct entry *e)
 {
-	BUG_ON(!e->pending_work);
+	_ON(!e->pending_work);
 	e->pending_work = false;
 }
 
@@ -1251,7 +1251,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 	 * background work is aborted we must remember to free it.
 	 */
 	e = alloc_entry(&mq->cache_alloc);
-	BUG_ON(!e);
+	_ON(!e);
 	e->pending_work = true;
 	work.op = POLICY_PROMOTE;
 	work.oblock = oblock;

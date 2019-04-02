@@ -14,8 +14,8 @@
 #include <linux/init.h>
 
 /*
- * Memory entry used for the DEBUG_LL UART configuration, relative to
- * start of RAM. See also uncompress.h and debug-macro.S.
+ * Memory entry used for the DE_LL UART configuration, relative to
+ * start of RAM. See also uncompress.h and de-macro.S.
  *
  * Note that using a memory location for storing the UART configuration
  * has at least two limitations:
@@ -34,7 +34,7 @@
 #define OMAP16XX_BASE_BAUD	(48000000/16)
 
 /*
- * DEBUG_LL port encoding stored into the UART1 scratchpad register by
+ * DE_LL port encoding stored into the UART1 scratchpad register by
  * decomp_setup in uncompress.h
  */
 #define OMAP1UART1		11

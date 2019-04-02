@@ -29,7 +29,7 @@
  * issues can usefully be addressed by this framework.
  */
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
@@ -421,7 +421,7 @@ static void __usbnet_queue_skb(struct sk_buff_head *list,
 /*-------------------------------------------------------------------------*/
 
 /* some LK 2.4 HCDs oopsed if we freed or resubmitted urbs from
- * completion callbacks.  2.5 should have fixed those bugs...
+ * completion callbacks.  2.5 should have fixed those s...
  */
 
 static enum skb_state defer_bh(struct usbnet *dev, struct sk_buff *skb,
@@ -2174,7 +2174,7 @@ EXPORT_SYMBOL_GPL(usbnet_write_cmd_async);
 static int __init usbnet_init(void)
 {
 	/* Compiler should optimize this out. */
-	BUILD_BUG_ON(
+	BUILD__ON(
 		FIELD_SIZEOF(struct sk_buff, cb) < sizeof(struct skb_data));
 
 	eth_random_addr(node_id);

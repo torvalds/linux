@@ -24,7 +24,7 @@ static void __init r8a7778_init_irq_dt(void)
 {
 	void __iomem *base = ioremap_nocache(0xfe700000, 0x00100000);
 
-	BUG_ON(!base);
+	_ON(!base);
 
 	irqchip_init();
 

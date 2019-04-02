@@ -28,7 +28,7 @@ typedef __builtin_va_list va_list;
 
 #define ACPI_INLINE             __inline__
 
-/* Function name is used for debug output. Non-ANSI, compiler-dependent */
+/* Function name is used for de output. Non-ANSI, compiler-dependent */
 
 #define ACPI_GET_FUNCTION_NAME          __func__
 

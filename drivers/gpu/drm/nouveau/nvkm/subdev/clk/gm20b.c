@@ -208,7 +208,7 @@ gm20b_dvfs_calc_det_coeff(struct gm20b_clk *clk, s32 uv,
 
 	dvfs->dfs_det_max = 0;
 
-	nvkm_debug(subdev, "%s uv: %d coeff: %x, ext_cal: %d, det_max: %d\n",
+	nvkm_de(subdev, "%s uv: %d coeff: %x, ext_cal: %d, det_max: %d\n",
 		   __func__, uv, dvfs->dfs_coeff, dvfs->dfs_ext_cal,
 		   dvfs->dfs_det_max);
 }
@@ -258,7 +258,7 @@ gm20b_dvfs_calc_ndiv(struct gm20b_clk *clk, u32 n_eff, u32 *n_int, u32 *sdm_din)
 	/* lose 8 LSB and clip - sdm_din only keeps the most significant byte */
 	*sdm_din = (rem >> BITS_PER_BYTE) & MASK(GPCPLL_CFG2_SDM_DIN_WIDTH);
 
-	nvkm_debug(subdev, "%s n_eff: %d, n_int: %d, sdm_din: %d\n", __func__,
+	nvkm_de(subdev, "%s n_eff: %d, n_int: %d, sdm_din: %d\n", __func__,
 		   n_eff, *n_int, *sdm_din);
 }
 
@@ -300,9 +300,9 @@ gm20b_pllg_slide(struct gm20b_clk *clk, u32 n)
 		  BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT));
 
 	/* wait for ramping to complete */
-	if (nvkm_wait_usec(device, 500, GPC_BCAST_NDIV_SLOWDOWN_DEBUG,
-		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK,
-		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK) < 0)
+	if (nvkm_wait_usec(device, 500, GPC_BCAST_NDIV_SLOWDOWN_DE,
+		GPC_BCAST_NDIV_SLOWDOWN_DE_PLL_DYNRAMP_DONE_SYNCED_MASK,
+		GPC_BCAST_NDIV_SLOWDOWN_DE_PLL_DYNRAMP_DONE_SYNCED_MASK) < 0)
 		ret = -ETIMEDOUT;
 
 	/* in DVFS mode complete SDM update */
@@ -476,7 +476,7 @@ gm20b_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	clk->new_uv = volt->vid[cstate->voltage].uv;
 	gm20b_dvfs_calc_det_coeff(clk, clk->new_uv, &clk->new_dvfs);
 
-	nvkm_debug(subdev, "%s uv: %d uv\n", __func__, clk->new_uv);
+	nvkm_de(subdev, "%s uv: %d uv\n", __func__, clk->new_uv);
 
 	return 0;
 }
@@ -790,7 +790,7 @@ gm20b_clk_init_dvfs(struct gm20b_clk *clk)
 	clk->uvdet_slope = ADC_SLOPE_UV;
 	clk->uvdet_offs = ((s32)clk->uv) - data * ADC_SLOPE_UV;
 
-	nvkm_debug(subdev, "calibrated DVFS parameters: offs %d, slope %d\n",
+	nvkm_de(subdev, "calibrated DVFS parameters: offs %d, slope %d\n",
 		   clk->uvdet_offs, clk->uvdet_slope);
 
 calibrated:
@@ -970,7 +970,7 @@ gm20b_clk_init_fused_params(struct gm20b_clk *clk)
 			((val >> FUSE_RESERVED_CALIB0_INTERCEPT_FRAC_SHIFT) &
 			 MASK(FUSE_RESERVED_CALIB0_INTERCEPT_FRAC_WIDTH)) * 100;
 
-	nvkm_debug(subdev, "fused calibration data: slope %d, offs %d\n",
+	nvkm_de(subdev, "fused calibration data: slope %d, offs %d\n",
 		   clk->uvdet_slope, clk->uvdet_offs);
 	return 0;
 }
@@ -1008,7 +1008,7 @@ gm20b_clk_init_safe_fmax(struct gm20b_clk *clk)
 
 	/* we are safe at 90% of the max frequency */
 	clk->safe_fmax_vmin = fmax * (100 - 10) / 100;
-	nvkm_debug(subdev, "safe fmax @ vmin = %u Khz\n", clk->safe_fmax_vmin);
+	nvkm_de(subdev, "safe fmax @ vmin = %u Khz\n", clk->safe_fmax_vmin);
 
 	return 0;
 }

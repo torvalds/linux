@@ -99,7 +99,7 @@ static int adf_ring_show(struct seq_file *sfile, void *v)
 
 		seq_puts(sfile, "------- Ring configuration -------\n");
 		seq_printf(sfile, "ring name: %s\n",
-			   ring->ring_debug->ring_name);
+			   ring->ring_de->ring_name);
 		seq_printf(sfile, "ring num %d, bank num %d\n",
 			   ring->ring_number, ring->bank->bank_number);
 		seq_printf(sfile, "head %x, tail %x, empty: %d\n",
@@ -140,39 +140,39 @@ static int adf_ring_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static const struct file_operations adf_ring_debug_fops = {
+static const struct file_operations adf_ring_de_fops = {
 	.open = adf_ring_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release
 };
 
-int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name)
+int adf_ring_defs_add(struct adf_etr_ring_data *ring, const char *name)
 {
-	struct adf_etr_ring_debug_entry *ring_debug;
+	struct adf_etr_ring_de_entry *ring_de;
 	char entry_name[8];
 
-	ring_debug = kzalloc(sizeof(*ring_debug), GFP_KERNEL);
-	if (!ring_debug)
+	ring_de = kzalloc(sizeof(*ring_de), GFP_KERNEL);
+	if (!ring_de)
 		return -ENOMEM;
 
-	strlcpy(ring_debug->ring_name, name, sizeof(ring_debug->ring_name));
+	strlcpy(ring_de->ring_name, name, sizeof(ring_de->ring_name));
 	snprintf(entry_name, sizeof(entry_name), "ring_%02d",
 		 ring->ring_number);
 
-	ring_debug->debug = debugfs_create_file(entry_name, S_IRUSR,
-						ring->bank->bank_debug_dir,
-						ring, &adf_ring_debug_fops);
-	ring->ring_debug = ring_debug;
+	ring_de->de = defs_create_file(entry_name, S_IRUSR,
+						ring->bank->bank_de_dir,
+						ring, &adf_ring_de_fops);
+	ring->ring_de = ring_de;
 	return 0;
 }
 
-void adf_ring_debugfs_rm(struct adf_etr_ring_data *ring)
+void adf_ring_defs_rm(struct adf_etr_ring_data *ring)
 {
-	if (ring->ring_debug) {
-		debugfs_remove(ring->ring_debug->debug);
-		kfree(ring->ring_debug);
-		ring->ring_debug = NULL;
+	if (ring->ring_de) {
+		defs_remove(ring->ring_de->de);
+		kfree(ring->ring_de);
+		ring->ring_de = NULL;
 	}
 }
 
@@ -251,29 +251,29 @@ static int adf_bank_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static const struct file_operations adf_bank_debug_fops = {
+static const struct file_operations adf_bank_de_fops = {
 	.open = adf_bank_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release
 };
 
-int adf_bank_debugfs_add(struct adf_etr_bank_data *bank)
+int adf_bank_defs_add(struct adf_etr_bank_data *bank)
 {
 	struct adf_accel_dev *accel_dev = bank->accel_dev;
-	struct dentry *parent = accel_dev->transport->debug;
+	struct dentry *parent = accel_dev->transport->de;
 	char name[8];
 
 	snprintf(name, sizeof(name), "bank_%02d", bank->bank_number);
-	bank->bank_debug_dir = debugfs_create_dir(name, parent);
-	bank->bank_debug_cfg = debugfs_create_file("config", S_IRUSR,
-						   bank->bank_debug_dir, bank,
-						   &adf_bank_debug_fops);
+	bank->bank_de_dir = defs_create_dir(name, parent);
+	bank->bank_de_cfg = defs_create_file("config", S_IRUSR,
+						   bank->bank_de_dir, bank,
+						   &adf_bank_de_fops);
 	return 0;
 }
 
-void adf_bank_debugfs_rm(struct adf_etr_bank_data *bank)
+void adf_bank_defs_rm(struct adf_etr_bank_data *bank)
 {
-	debugfs_remove(bank->bank_debug_cfg);
-	debugfs_remove(bank->bank_debug_dir);
+	defs_remove(bank->bank_de_cfg);
+	defs_remove(bank->bank_de_dir);
 }

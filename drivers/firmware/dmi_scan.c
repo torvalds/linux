@@ -393,7 +393,7 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 	if (dm->type != DMI_ENTRY_MEM_DEVICE || dm->length < 0x12)
 		return;
 	if (nr >= dmi_memdev_nr) {
-		pr_warn(FW_BUG "Too many DIMM entries in SMBIOS table\n");
+		pr_warn(FW_ "Too many DIMM entries in SMBIOS table\n");
 		return;
 	}
 	dmi_memdev[nr].handle = get_unaligned(&dm->handle);
@@ -542,12 +542,12 @@ static int __init dmi_present(const u8 *buf)
 		switch (smbios_ver) {
 		case 0x021F:
 		case 0x0221:
-			pr_debug("SMBIOS version fixup (2.%d->2.%d)\n",
+			pr_de("SMBIOS version fixup (2.%d->2.%d)\n",
 				 smbios_ver & 0xFF, 3);
 			smbios_ver = 0x0203;
 			break;
 		case 0x0233:
-			pr_debug("SMBIOS version fixup (2.%d->2.%d)\n", 51, 6);
+			pr_de("SMBIOS version fixup (2.%d->2.%d)\n", 51, 6);
 			smbios_ver = 0x0206;
 			break;
 		}

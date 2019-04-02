@@ -638,7 +638,7 @@ static void pmao_restore_workaround(bool ebb)
 {
 	unsigned pmcs[6];
 
-	if (!cpu_has_feature(CPU_FTR_PMAO_BUG))
+	if (!cpu_has_feature(CPU_FTR_PMAO_))
 		return;
 
 	/*
@@ -802,7 +802,7 @@ static void write_pmc(int idx, unsigned long val)
 }
 
 /* Called from sysrq_handle_showregs() */
-void perf_event_print_debug(void)
+void perf_event_print_de(void)
 {
 	unsigned long sdar, sier, flags;
 	u32 pmcs[MAX_HWEVENTS];
@@ -2219,13 +2219,13 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 			write_pmc(i + 1, 0);
 	}
 	if (!found && pvr_version_is(PVR_POWER7)) {
-		/* check active counters for special buggy p7 overflow */
+		/* check active counters for special gy p7 overflow */
 		for (i = 0; i < cpuhw->n_events; ++i) {
 			event = cpuhw->event[i];
 			if (!event->hw.idx || is_limited_pmc(event->hw.idx))
 				continue;
 			if (pmc_overflow_power7(val[event->hw.idx - 1])) {
-				/* event has overflowed in a buggy way*/
+				/* event has overflowed in a gy way*/
 				found = 1;
 				record_and_restart(event,
 						   val[event->hw.idx - 1],

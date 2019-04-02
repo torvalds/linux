@@ -22,7 +22,7 @@
  * aeb@cwi.nl - efter Friedas begravelse - 950211
  *
  * machek@k332.feld.cvut.cz - modified not to send characters to wrong console
- *	 - fixed some fatal off-by-one bugs (0-- no longer == -1 -> looping and looping and looping...)
+ *	 - fixed some fatal off-by-one s (0-- no longer == -1 -> looping and looping and looping...)
  *	 - making it shorter - scr_readw are macros which expand in PRETTY long code
  */
 

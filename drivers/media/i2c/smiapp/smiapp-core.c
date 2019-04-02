@@ -401,7 +401,7 @@ static void smiapp_update_mbus_formats(struct smiapp_sensor *sensor)
 		&smiapp_csi_data_formats[internal_csi_format_idx
 					 + pixel_order];
 
-	BUG_ON(max(internal_csi_format_idx, csi_format_idx) + pixel_order
+	_ON(max(internal_csi_format_idx, csi_format_idx) + pixel_order
 	       >= ARRAY_SIZE(smiapp_csi_data_formats));
 
 	dev_dbg(&client->dev, "new pixel order %s\n",
@@ -1686,13 +1686,13 @@ static void smiapp_get_crop_compose(struct v4l2_subdev *subdev,
 		if (crops) {
 			for (i = 0; i < subdev->entity.num_pads; i++) {
 				crops[i] = v4l2_subdev_get_try_crop(subdev, cfg, i);
-				BUG_ON(!crops[i]);
+				_ON(!crops[i]);
 			}
 		}
 		if (comps) {
 			*comps = v4l2_subdev_get_try_compose(subdev, cfg,
 							     SMIAPP_PAD_SINK);
-			BUG_ON(!*comps);
+			_ON(!*comps);
 		}
 	}
 }
@@ -1729,7 +1729,7 @@ static void smiapp_propagate(struct v4l2_subdev *subdev,
 		*crops[SMIAPP_PAD_SRC] = *comp;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

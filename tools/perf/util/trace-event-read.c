@@ -34,7 +34,7 @@
 #include "../perf.h"
 #include "util.h"
 #include "trace-event.h"
-#include "debug.h"
+#include "de.h"
 
 static int input_fd;
 
@@ -55,7 +55,7 @@ static int __do_read(int fd, void *buf, int size)
 			int retw = write(STDOUT_FILENO, buf, ret);
 
 			if (retw <= 0 || retw != ret) {
-				pr_debug("repiping input file");
+				pr_de("repiping input file");
 				return -1;
 			}
 		}
@@ -73,7 +73,7 @@ static int do_read(void *data, int size)
 
 	r = __do_read(input_fd, data, size);
 	if (r <= 0) {
-		pr_debug("reading input file (size expected=%d received=%d)",
+		pr_de("reading input file (size expected=%d received=%d)",
 			 size, r);
 		return -1;
 	}
@@ -125,12 +125,12 @@ static char *read_string(void)
 	for (;;) {
 		r = read(input_fd, &c, 1);
 		if (r < 0) {
-			pr_debug("reading input file");
+			pr_de("reading input file");
 			goto out;
 		}
 
 		if (!r) {
-			pr_debug("no data");
+			pr_de("no data");
 			goto out;
 		}
 
@@ -138,7 +138,7 @@ static char *read_string(void)
 			int retw = write(STDOUT_FILENO, &c, 1);
 
 			if (retw <= 0 || retw != r) {
-				pr_debug("repiping input file string");
+				pr_de("repiping input file string");
 				goto out;
 			}
 		}
@@ -219,7 +219,7 @@ static int read_header_files(struct tep_handle *pevent)
 		return -1;
 
 	if (memcmp(buf, "header_page", 12) != 0) {
-		pr_debug("did not read header page");
+		pr_de("did not read header page");
 		return -1;
 	}
 
@@ -230,7 +230,7 @@ static int read_header_files(struct tep_handle *pevent)
 		return -1;
 
 	if (do_read(header_page, size) < 0) {
-		pr_debug("did not read header page");
+		pr_de("did not read header page");
 		free(header_page);
 		return -1;
 	}
@@ -249,7 +249,7 @@ static int read_header_files(struct tep_handle *pevent)
 		return -1;
 
 	if (memcmp(buf, "header_event", 13) != 0) {
-		pr_debug("did not read header event");
+		pr_de("did not read header event");
 		return -1;
 	}
 
@@ -266,19 +266,19 @@ static int read_ftrace_file(struct tep_handle *pevent, unsigned long long size)
 
 	buf = malloc(size);
 	if (buf == NULL) {
-		pr_debug("memory allocation failure\n");
+		pr_de("memory allocation failure\n");
 		return -1;
 	}
 
 	ret = do_read(buf, size);
 	if (ret < 0) {
-		pr_debug("error reading ftrace file.\n");
+		pr_de("error reading ftrace file.\n");
 		goto out;
 	}
 
 	ret = parse_ftrace_file(pevent, buf, size);
 	if (ret < 0)
-		pr_debug("error parsing ftrace file.\n");
+		pr_de("error parsing ftrace file.\n");
 out:
 	free(buf);
 	return ret;
@@ -292,7 +292,7 @@ static int read_event_file(struct tep_handle *pevent, char *sys,
 
 	buf = malloc(size);
 	if (buf == NULL) {
-		pr_debug("memory allocation failure\n");
+		pr_de("memory allocation failure\n");
 		return -1;
 	}
 
@@ -302,7 +302,7 @@ static int read_event_file(struct tep_handle *pevent, char *sys,
 
 	ret = parse_event_file(pevent, buf, size, sys);
 	if (ret < 0)
-		pr_debug("error parsing event file.\n");
+		pr_de("error parsing event file.\n");
 out:
 	free(buf);
 	return ret;
@@ -370,13 +370,13 @@ static int read_saved_cmdline(struct tep_handle *pevent)
 
 	buf = malloc(size + 1);
 	if (buf == NULL) {
-		pr_debug("memory allocation failure\n");
+		pr_de("memory allocation failure\n");
 		return -1;
 	}
 
 	ret = do_read(buf, size);
 	if (ret < 0) {
-		pr_debug("error reading saved cmdlines\n");
+		pr_de("error reading saved cmdlines\n");
 		goto out;
 	}
 
@@ -409,14 +409,14 @@ ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 	if (do_read(buf, 3) < 0)
 		return -1;
 	if (memcmp(buf, test, 3) != 0) {
-		pr_debug("no trace data in the file");
+		pr_de("no trace data in the file");
 		return -1;
 	}
 
 	if (do_read(buf, 7) < 0)
 		return -1;
 	if (memcmp(buf, "tracing", 7) != 0) {
-		pr_debug("not a trace file (missing 'tracing' tag)");
+		pr_de("not a trace file (missing 'tracing' tag)");
 		return -1;
 	}
 
@@ -434,7 +434,7 @@ ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 	host_bigendian = bigendian();
 
 	if (trace_event__init(tevent)) {
-		pr_debug("trace_event__init failed");
+		pr_de("trace_event__init failed");
 		goto out;
 	}
 

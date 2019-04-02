@@ -28,7 +28,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "fscache.h"
@@ -128,7 +128,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	if (max_buf < sizeof(struct smb2_lock_element))
 		return -EINVAL;
 
-	BUILD_BUG_ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf, PAGE_SIZE);
 	max_num = max_buf / sizeof(struct smb2_lock_element);
 	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
@@ -266,7 +266,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
+	BUILD__ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf, PAGE_SIZE);
 	max_num = max_buf / sizeof(struct smb2_lock_element);
 	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);

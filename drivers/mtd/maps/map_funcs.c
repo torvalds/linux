@@ -31,7 +31,7 @@ static void __xipram simple_map_copy_to(struct map_info *map, unsigned long to, 
 
 void simple_map_init(struct map_info *map)
 {
-	BUG_ON(!map_bankwidth_supported(map->bankwidth));
+	_ON(!map_bankwidth_supported(map->bankwidth));
 
 	map->read = simple_map_read;
 	map->write = simple_map_write;

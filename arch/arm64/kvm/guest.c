@@ -37,7 +37,7 @@
 #define VM_STAT(x) { #x, offsetof(struct kvm, stat.x), KVM_STAT_VM }
 #define VCPU_STAT(x) { #x, offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU }
 
-struct kvm_stats_debugfs_item debugfs_entries[] = {
+struct kvm_stats_defs_item defs_entries[] = {
 	VCPU_STAT(hvc_exit_stat),
 	VCPU_STAT(wfe_exit_stat),
 	VCPU_STAT(wfi_exit_stat),
@@ -447,21 +447,21 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 			    KVM_GUESTDBG_SINGLESTEP)
 
 /**
- * kvm_arch_vcpu_ioctl_set_guest_debug - set up guest debugging
+ * kvm_arch_vcpu_ioctl_set_guest_de - set up guest deging
  * @kvm:	pointer to the KVM struct
- * @kvm_guest_debug: the ioctl data buffer
+ * @kvm_guest_de: the ioctl data buffer
  *
- * This sets up and enables the VM for guest debugging. Userspace
- * passes in a control flag to enable different debug types and
+ * This sets up and enables the VM for guest deging. Userspace
+ * passes in a control flag to enable different de types and
  * potentially other architecture specific information in the rest of
  * the structure.
  */
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-					struct kvm_guest_debug *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_de(struct kvm_vcpu *vcpu,
+					struct kvm_guest_de *dbg)
 {
 	int ret = 0;
 
-	trace_kvm_set_guest_debug(vcpu, dbg->control);
+	trace_kvm_set_guest_de(vcpu, dbg->control);
 
 	if (dbg->control & ~KVM_GUESTDBG_VALID_MASK) {
 		ret = -EINVAL;
@@ -469,16 +469,16 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	}
 
 	if (dbg->control & KVM_GUESTDBG_ENABLE) {
-		vcpu->guest_debug = dbg->control;
+		vcpu->guest_de = dbg->control;
 
 		/* Hardware assisted Break and Watch points */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW) {
-			vcpu->arch.external_debug_state = dbg->arch;
+		if (vcpu->guest_de & KVM_GUESTDBG_USE_HW) {
+			vcpu->arch.external_de_state = dbg->arch;
 		}
 
 	} else {
 		/* If not enabled clear all flags */
-		vcpu->guest_debug = 0;
+		vcpu->guest_de = 0;
 	}
 
 out:

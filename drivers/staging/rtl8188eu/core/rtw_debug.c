@@ -4,9 +4,9 @@
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#define _RTW_DEBUG_C_
+#define _RTW_DE_C_
 
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <usb_ops_linux.h>
 
 int proc_get_drv_version(char *page, char **start,
@@ -169,7 +169,7 @@ int proc_get_best_channel(char *page, char **start,
 			}
 		}
 
-		/*  debug */
+		/*  de */
 		len += snprintf(page + len, count - len, "The rx cnt of channel %3d = %d\n",
 					pmlmeext->channel_set[i].ChannelNum, pmlmeext->channel_set[i].rx_count);
 	}

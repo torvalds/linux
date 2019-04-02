@@ -36,7 +36,7 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
 
 
 /*------------------------Define global variable-----------------------------*/
-/* Debug variable ? */
+/* De variable ? */
 struct dig dm_digtable;
 /* Store current software write register content for MAC PHY. */
 u8		dm_shadow[16][256] = { {0} };
@@ -1398,7 +1398,7 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 		TempVal =	priv->cck_txbbgain_table[priv->cck_present_attenuation].ccktxbb_valuearray[6] +
 					(priv->cck_txbbgain_table[priv->cck_present_attenuation].ccktxbb_valuearray[7]<<8);
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl8192_setBBreg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 	} else {
 		TempVal =	priv->cck_txbbgain_ch14_table[priv->cck_present_attenuation].ccktxbb_valuearray[0] +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attenuation].ccktxbb_valuearray[1]<<8);
@@ -1414,7 +1414,7 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 		TempVal =	priv->cck_txbbgain_ch14_table[priv->cck_present_attenuation].ccktxbb_valuearray[6] +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attenuation].ccktxbb_valuearray[7]<<8);
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl8192_setBBreg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 	}
 }
 
@@ -1443,11 +1443,11 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev, bool  bInCH
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8);
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl8192_setBBreg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
-			rCCK0_DebugPort, TempVal);
+			rCCK0_DePort, TempVal);
 	} else {
-		/*priv->CCKTxPowerAdjustCntNotCh14++;	cosa add for debug.*/
+		/*priv->CCKTxPowerAdjustCntNotCh14++;	cosa add for de.*/
 		/* Write 0xa22 0xa23 */
 		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][0] +
 					(CCKSwingTable_Ch14[priv->CCK_index][1]<<8);
@@ -1467,9 +1467,9 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev, bool  bInCH
 		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][6] +
 					(CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
 
-		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
+		rtl8192_setBBreg(dev, rCCK0_DePort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
-			rCCK0_DebugPort, TempVal);
+			rCCK0_DePort, TempVal);
 	}
 }
 
@@ -1647,7 +1647,7 @@ static void dm_dig_init(struct net_device *dev)
 	dm_digtable.rssi_high_power_lowthresh = DM_DIG_HIGH_PWR_THRESH_LOW;
 	dm_digtable.rssi_high_power_highthresh = DM_DIG_HIGH_PWR_THRESH_HIGH;
 
-	dm_digtable.rssi_val = 50;	/* for new dig debug rssi value */
+	dm_digtable.rssi_val = 50;	/* for new dig de rssi value */
 	dm_digtable.backoff_val = DM_DIG_BACKOFF;
 	if (priv->CustomerID == RT_CID_819x_Netcore)
 		dm_digtable.rx_gain_range_min = DM_DIG_MIN_NETCORE;

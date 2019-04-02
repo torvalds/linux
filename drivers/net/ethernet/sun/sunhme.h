@@ -273,7 +273,7 @@
  * half and full duplex mode.  It also supports auto negotiation.
  *
  * But.... THIS THING IS A PAIN IN THE ASS TO PROGRAM!
- * Debugging eeprom burnt code is more fun than programming this chip!
+ * Deging eeprom burnt code is more fun than programming this chip!
  */
 
 /* Generic MII registers defined in linux/mii.h, these below

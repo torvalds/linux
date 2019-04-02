@@ -97,7 +97,7 @@ static void u_audio_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	 * Afterall, the ISOCH xfers could fail legitimately.
 	 */
 	if (status)
-		pr_debug("%s: iso_complete status(%d) %d/%d\n",
+		pr_de("%s: iso_complete status(%d) %d/%d\n",
 			__func__, status, req->actual, req->length);
 
 	substream = prm->ss;

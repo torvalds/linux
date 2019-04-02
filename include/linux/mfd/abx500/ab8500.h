@@ -58,12 +58,12 @@ enum ab8500_version {
 #define AB8500_RTC		0xF
 #define AB8500_MISC		0x10
 #define AB8500_DEVELOPMENT	0x11
-#define AB8500_DEBUG		0x12
+#define AB8500_DE		0x12
 #define AB8500_PROD_TEST	0x13
 #define AB8500_STE_TEST		0x14
 #define AB8500_OTP_EMUL		0x15
 
-#define AB8500_DEBUG_FIELD_LAST	0x16
+#define AB8500_DE_FIELD_LAST	0x16
 
 /*
  * Interrupts
@@ -506,13 +506,13 @@ static inline int is_ab9540_2p0_or_earlier(struct ab8500 *ab)
 
 void ab8500_override_turn_on_stat(u8 mask, u8 set);
 
-#ifdef CONFIG_AB8500_DEBUG
+#ifdef CONFIG_AB8500_DE
 extern int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 void ab8500_dump_all_banks(struct device *dev);
-void ab8500_debug_register_interrupt(int line);
+void ab8500_de_register_interrupt(int line);
 #else
 static inline void ab8500_dump_all_banks(struct device *dev) {}
-static inline void ab8500_debug_register_interrupt(int line) {}
+static inline void ab8500_de_register_interrupt(int line) {}
 #endif
 
 #endif /* MFD_AB8500_H */

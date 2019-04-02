@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm_wakeirq.h>
 #include <trace/events/power.h>
 
@@ -804,7 +804,7 @@ void pm_print_active_wakeup_sources(void)
 	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->active) {
-			pr_debug("active wakeup source: %s\n", ws->name);
+			pr_de("active wakeup source: %s\n", ws->name);
 			active = 1;
 		} else if (!active &&
 			   (!last_activity_ws ||
@@ -815,7 +815,7 @@ void pm_print_active_wakeup_sources(void)
 	}
 
 	if (!active && last_activity_ws)
-		pr_debug("last active wakeup source: %s\n",
+		pr_de("last active wakeup source: %s\n",
 			last_activity_ws->name);
 	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
@@ -845,7 +845,7 @@ bool pm_wakeup_pending(void)
 	raw_spin_unlock_irqrestore(&events_lock, flags);
 
 	if (ret) {
-		pr_debug("Wakeup pending, aborting suspend\n");
+		pr_de("Wakeup pending, aborting suspend\n");
 		pm_print_active_wakeup_sources();
 	}
 
@@ -1099,11 +1099,11 @@ static const struct file_operations wakeup_sources_stats_fops = {
 	.release = seq_release_private,
 };
 
-static int __init wakeup_sources_debugfs_init(void)
+static int __init wakeup_sources_defs_init(void)
 {
-	wakeup_sources_stats_dentry = debugfs_create_file("wakeup_sources",
+	wakeup_sources_stats_dentry = defs_create_file("wakeup_sources",
 			S_IRUGO, NULL, NULL, &wakeup_sources_stats_fops);
 	return 0;
 }
 
-postcore_initcall(wakeup_sources_debugfs_init);
+postcore_initcall(wakeup_sources_defs_init);

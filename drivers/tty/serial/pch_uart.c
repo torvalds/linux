@@ -21,7 +21,7 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dmaengine.h>
 #include <linux/pch_dma.h>
 
@@ -238,7 +238,7 @@ struct eg20t_port {
 	void				*rx_buf_virt;
 	dma_addr_t			rx_buf_dma;
 
-	struct dentry	*debugfs;
+	struct dentry	*defs;
 #define IRQ_NAME_SIZE 17
 	char				irq_name[IRQ_NAME_SIZE];
 
@@ -294,7 +294,7 @@ static const int trigger_level_64[4] = { 1, 16, 32, 56 };
 static const int trigger_level_16[4] = { 1, 4, 8, 14 };
 static const int trigger_level_1[4] = { 1, 1, 1, 1 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #define PCH_REGS_BUFSIZE	1024
 
@@ -355,7 +355,7 @@ static const struct file_operations port_regs_ops = {
 	.read		= port_show_regs,
 	.llseek		= default_llseek,
 };
-#endif	/* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DE_FS */
 
 static const struct dmi_system_id pch_uart_dmi_table[] = {
 	{
@@ -1539,7 +1539,7 @@ static void wait_for_xmitr(struct eg20t_port *up, int bits)
 #ifdef CONFIG_CONSOLE_POLL
 /*
  * Console polling routines for communicate via uart while
- * in an interrupt or debug context.
+ * in an interrupt or de context.
  */
 static int pch_uart_get_poll_char(struct uart_port *port)
 {
@@ -1739,8 +1739,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int fifosize;
 	int port_type;
 	struct pch_uart_driver_data *board;
-#ifdef CONFIG_DEBUG_FS
-	char name[32];	/* for debugfs file name */
+#ifdef CONFIG_DE_FS
+	char name[32];	/* for defs file name */
 #endif
 
 	board = &drv_dat[id->driver_data];
@@ -1816,9 +1816,9 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	if (ret < 0)
 		goto init_port_hal_free;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	snprintf(name, sizeof(name), "uart%d_regs", board->line_no);
-	priv->debugfs = debugfs_create_file(name, S_IFREG | S_IRUGO,
+	priv->defs = defs_create_file(name, S_IFREG | S_IRUGO,
 				NULL, priv, &port_regs_ops);
 #endif
 
@@ -1839,8 +1839,8 @@ init_port_alloc_err:
 static void pch_uart_exit_port(struct eg20t_port *priv)
 {
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove(priv->debugfs);
+#ifdef CONFIG_DE_FS
+	defs_remove(priv->defs);
 #endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
 	free_page((unsigned long)priv->rxbuf.buf);

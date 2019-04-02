@@ -158,19 +158,19 @@ config INPUT_EVDEV
 	  To compile this driver as a module, choose M here: the
 	  module will be called evdev.
 
-config INPUT_EVBUG
-	tristate "Event debugging"
+config INPUT_EV
+	tristate "Event deging"
 	help
 	  Say Y here if you have a problem with the input subsystem and
 	  want all events (keypresses, mouse movements), to be output to
-	  the system log. While this is useful for debugging, it's also
+	  the system log. While this is useful for deging, it's also
 	  a security threat - your keypresses include your passwords, of
 	  course.
 
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called evbug.
+	  module will be called ev.
 
 config INPUT_APMPOWER
 	tristate "Input Power Event -> APM Bridge" if EXPERT

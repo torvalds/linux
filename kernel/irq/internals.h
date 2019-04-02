@@ -19,7 +19,7 @@
 
 #define istate core_internal_state__do_not_mess_with_it
 
-extern bool noirqdebug;
+extern bool noirqde;
 
 extern struct irqaction chained_action;
 
@@ -64,7 +64,7 @@ enum {
 	IRQS_NMI		= 0x00002000,
 };
 
-#include "debug.h"
+#include "de.h"
 #include "settings.h"
 
 extern int __irq_set_trigger(struct irq_desc *desc, unsigned long flags);
@@ -459,31 +459,31 @@ static inline void irq_domain_deactivate_irq(struct irq_data *data)
 }
 #endif
 
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-#include <linux/debugfs.h>
+#ifdef CONFIG_GENERIC_IRQ_DEFS
+#include <linux/defs.h>
 
-void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
-static inline void irq_remove_debugfs_entry(struct irq_desc *desc)
+void irq_add_defs_entry(unsigned int irq, struct irq_desc *desc);
+static inline void irq_remove_defs_entry(struct irq_desc *desc)
 {
-	debugfs_remove(desc->debugfs_file);
+	defs_remove(desc->defs_file);
 	kfree(desc->dev_name);
 }
-void irq_debugfs_copy_devname(int irq, struct device *dev);
+void irq_defs_copy_devname(int irq, struct device *dev);
 # ifdef CONFIG_IRQ_DOMAIN
-void irq_domain_debugfs_init(struct dentry *root);
+void irq_domain_defs_init(struct dentry *root);
 # else
-static inline void irq_domain_debugfs_init(struct dentry *root)
+static inline void irq_domain_defs_init(struct dentry *root)
 {
 }
 # endif
-#else /* CONFIG_GENERIC_IRQ_DEBUGFS */
-static inline void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *d)
+#else /* CONFIG_GENERIC_IRQ_DEFS */
+static inline void irq_add_defs_entry(unsigned int irq, struct irq_desc *d)
 {
 }
-static inline void irq_remove_debugfs_entry(struct irq_desc *d)
+static inline void irq_remove_defs_entry(struct irq_desc *d)
 {
 }
-static inline void irq_debugfs_copy_devname(int irq, struct device *dev)
+static inline void irq_defs_copy_devname(int irq, struct device *dev)
 {
 }
-#endif /* CONFIG_GENERIC_IRQ_DEBUGFS */
+#endif /* CONFIG_GENERIC_IRQ_DEFS */

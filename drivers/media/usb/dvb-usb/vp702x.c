@@ -17,10 +17,10 @@
 #include "vp702x.h"
 #include <linux/mutex.h>
 
-/* debug */
-int dvb_usb_vp702x_debug;
-module_param_named(debug,dvb_usb_vp702x_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DEBUG_STATUS);
+/* de */
+int dvb_usb_vp702x_de;
+module_param_named(de,dvb_usb_vp702x_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -50,7 +50,7 @@ static int vp702x_usb_in_op_unlocked(struct dvb_usb_device *d, u8 req,
 
 
 	deb_xfer("in: req. %02x, val: %04x, ind: %04x, buffer: ",req,value,index);
-	debug_dump(b,blen,deb_xfer);
+	de_dump(b,blen,deb_xfer);
 
 	return ret;
 }
@@ -72,7 +72,7 @@ static int vp702x_usb_out_op_unlocked(struct dvb_usb_device *d, u8 req,
 {
 	int ret;
 	deb_xfer("out: req. %02x, val: %04x, ind: %04x, buffer: ",req,value,index);
-	debug_dump(b,blen,deb_xfer);
+	de_dump(b,blen,deb_xfer);
 
 	if ((ret = usb_control_msg(d->udev,
 			usb_sndctrlpipe(d->udev,0),

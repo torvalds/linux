@@ -33,7 +33,7 @@
 
 #include <media/cec-notifier.h>
 
-#define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
+#define DBG(fmt, ...) DRM_DE(fmt"\n", ##__VA_ARGS__)
 
 struct tda998x_audio_port {
 	u8 format;		/* AFMT_xxx */
@@ -786,7 +786,7 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 		flag0 = reg_read(priv, REG_INT_FLAGS_0);
 		flag1 = reg_read(priv, REG_INT_FLAGS_1);
 		flag2 = reg_read(priv, REG_INT_FLAGS_2);
-		DRM_DEBUG_DRIVER(
+		DRM_DE_DRIVER(
 			"tda irq sta %02x cec %02x lvl %02x f0 %02x f1 %02x f2 %02x\n",
 			sta, cec, lvl, flag0, flag1, flag2);
 

@@ -532,8 +532,8 @@ It hangs/crashes/fails/whatevers! Help!
 ---------------------------------------
 
 Make sure that the card has its own interrupts (see /proc/interrupts), check
-the output of dmesg at high verbosity (load zr36067.o with debug=2,
-load all other modules with debug=1). Check that your mainboard is favorable
+the output of dmesg at high verbosity (load zr36067.o with de=2,
+load all other modules with de=1). Check that your mainboard is favorable
 (see question 2) and if not, test the card in another computer. Also see the
 notes given in question 3 and try lowering quality/buffersize/capturesize
 if recording fails after a period of time.
@@ -550,14 +550,14 @@ Maintainers/Contacting
 ----------------------
 
 The driver is currently maintained by Laurent Pinchart and Ronald Bultje
-(<laurent.pinchart@skynet.be> and <rbultje@ronald.bitfreak.net>). For bug
+(<laurent.pinchart@skynet.be> and <rbultje@ronald.bitfreak.net>). For 
 reports or questions, please contact the mailinglist instead of the developers
-individually. For user questions (i.e. bug reports or how-to questions), send
+individually. For user questions (i.e.  reports or how-to questions), send
 an email to <mjpeg-users@lists.sf.net>, for developers (i.e. if you want to
 help programming), send an email to <mjpeg-developer@lists.sf.net>. See
 http://www.sf.net/projects/mjpeg/ for subscription information.
 
-For bug reports, be sure to include all the information as described in
+For  reports, be sure to include all the information as described in
 the section 'It hangs/crashes/fails/whatevers! Help!'. Please make sure
 you're using the latest version (http://mjpeg.sf.net/driver-zoran/).
 

@@ -18,9 +18,9 @@ MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL v2");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 #define R00_MT9V011_CHIP_VERSION	0x00
 #define R01_MT9V011_ROWSTART		0x01
@@ -75,19 +75,19 @@ static int mt9v011_read(struct v4l2_subdev *sd, unsigned char addr)
 
 	rc = i2c_master_send(c, &addr, 1);
 	if (rc != 1)
-		v4l2_dbg(0, debug, sd,
+		v4l2_dbg(0, de, sd,
 			 "i2c i/o error: rc == %d (should be 1)\n", rc);
 
 	msleep(10);
 
 	rc = i2c_master_recv(c, (char *)&buffer, 2);
 	if (rc != 2)
-		v4l2_dbg(0, debug, sd,
+		v4l2_dbg(0, de, sd,
 			 "i2c i/o error: rc == %d (should be 2)\n", rc);
 
 	val = be16_to_cpu(buffer);
 
-	v4l2_dbg(2, debug, sd, "mt9v011: read 0x%02x = 0x%04x\n", addr, val);
+	v4l2_dbg(2, de, sd, "mt9v011: read 0x%02x = 0x%04x\n", addr, val);
 
 	return val;
 }
@@ -103,11 +103,11 @@ static void mt9v011_write(struct v4l2_subdev *sd, unsigned char addr,
 	buffer[1] = value >> 8;
 	buffer[2] = value & 0xff;
 
-	v4l2_dbg(2, debug, sd,
+	v4l2_dbg(2, de, sd,
 		 "mt9v011: writing 0x%02x 0x%04x\n", buffer[0], value);
 	rc = i2c_master_send(c, buffer, 3);
 	if (rc != 3)
-		v4l2_dbg(0, debug, sd,
+		v4l2_dbg(0, de, sd,
 			 "i2c i/o error: rc == %d (should be 3)\n", rc);
 }
 
@@ -219,7 +219,7 @@ static void calc_fps(struct v4l2_subdev *sd, u32 *numerator, u32 *denominator)
 	do_div(frames_per_ms, t_time);
 	tmp = frames_per_ms;
 
-	v4l2_dbg(1, debug, sd, "Programmed to %u.%03u fps (%d pixel clcks)\n",
+	v4l2_dbg(1, de, sd, "Programmed to %u.%03u fps (%d pixel clcks)\n",
 		tmp / 1000, tmp % 1000, t_time);
 
 	if (numerator && denominator) {
@@ -383,7 +383,7 @@ static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
 	speed = calc_speed(sd, tpf->numerator, tpf->denominator);
 
 	mt9v011_write(sd, R0A_MT9V011_CLK_SPEED, speed);
-	v4l2_dbg(1, debug, sd, "Setting speed to %d\n", speed);
+	v4l2_dbg(1, de, sd, "Setting speed to %d\n", speed);
 
 	/* Recalculate and update fps info */
 	calc_fps(sd, &tpf->numerator, &tpf->denominator);
@@ -391,7 +391,7 @@ static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int mt9v011_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
@@ -451,7 +451,7 @@ static const struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 	.reset = mt9v011_reset,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = mt9v011_g_register,
 	.s_register = mt9v011_s_register,
 #endif
@@ -551,7 +551,7 @@ static int mt9v011_probe(struct i2c_client *c,
 		struct mt9v011_platform_data *pdata = c->dev.platform_data;
 
 		core->xtal = pdata->xtal;
-		v4l2_dbg(1, debug, sd, "xtal set to %d.%03d MHz\n",
+		v4l2_dbg(1, de, sd, "xtal set to %d.%03d MHz\n",
 			core->xtal / 1000000, (core->xtal / 1000) % 1000);
 	}
 
@@ -566,7 +566,7 @@ static int mt9v011_remove(struct i2c_client *c)
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct mt9v011 *core = to_mt9v011(sd);
 
-	v4l2_dbg(1, debug, sd,
+	v4l2_dbg(1, de, sd,
 		"mt9v011.c: removing mt9v011 adapter on address 0x%x\n",
 		c->addr << 1);
 

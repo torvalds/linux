@@ -173,7 +173,7 @@ struct pvr2_hdw {
 
 	/* Mutex for all hardware state control */
 	struct mutex big_lock_mutex;
-	int big_lock_held;  /* For debugging */
+	int big_lock_held;  /* For deging */
 
 	/* This is a simple string which identifies the instance of this
 	   driver.  It is unique within the set of existing devices, but
@@ -206,7 +206,7 @@ struct pvr2_hdw {
 
 	/* Stuff for handling low level control interaction with device */
 	struct mutex ctl_lock_mutex;
-	int ctl_lock_held;  /* For debugging */
+	int ctl_lock_held;  /* For deging */
 	struct urb *ctl_write_urb;
 	struct urb *ctl_read_urb;
 	unsigned char *ctl_write_buffer;
@@ -216,10 +216,10 @@ struct pvr2_hdw {
 	int ctl_timeout_flag;
 	struct completion ctl_done;
 	unsigned char cmd_buffer[PVR2_CTL_BUFFSIZE];
-	int cmd_debug_state;               // Low level command debugging info
-	unsigned char cmd_debug_code;      //
-	unsigned int cmd_debug_write_len;  //
-	unsigned int cmd_debug_read_len;   //
+	int cmd_de_state;               // Low level command deging info
+	unsigned char cmd_de_code;      //
+	unsigned int cmd_de_write_len;  //
+	unsigned int cmd_de_read_len;   //
 
 	/* Bits of state that describe what is going on with various parts
 	   of the driver. */

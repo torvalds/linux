@@ -40,7 +40,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-   Bugs/Comments/Suggestions should be mailed to:
+   s/Comments/Suggestions should be mailed to:
    aradford@gmail.com
 
    Note: This version of the driver does not contain a bundled firmware
@@ -71,10 +71,10 @@
    2.26.02.010 - Add support for 9690SA controllers.
    2.26.02.011 - Increase max AENs drained to 256.
                  Add MSI support and "use_msi" module parameter.
-                 Fix bug in twa_get_param() on 4GB+.
+                 Fix  in twa_get_param() on 4GB+.
                  Use pci_resource_len() for ioremap().
    2.26.02.012 - Add power management support.
-   2.26.02.013 - Fix bug in twa_load_sgl().
+   2.26.02.013 - Fix  in twa_load_sgl().
    2.26.02.014 - Force 60 second timeout default.
 */
 
@@ -407,7 +407,7 @@ static void twa_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 	header->err_specific_desc[sizeof(header->err_specific_desc) - 1] = '\0';
 	event->parameter_len = strlen(header->err_specific_desc);
 	memcpy(event->parameter_data, header->err_specific_desc, event->parameter_len + (error_str[0] == '\0' ? 0 : (1 + strlen(error_str))));
-	if (event->severity != TW_AEN_SEVERITY_DEBUG)
+	if (event->severity != TW_AEN_SEVERITY_DE)
 		printk(KERN_WARNING "3w-9xxx:%s AEN: %s (0x%02X:0x%04X): %s:%s.\n",
 		       host,
 		       twa_aen_severity_lookup(TW_SEV_OUT(header->status_block.severity__reserved)),
@@ -462,7 +462,7 @@ static char *twa_aen_severity_lookup(unsigned char severity_code)
 	char *retval = NULL;
 
 	if ((severity_code < (unsigned char) TW_AEN_SEVERITY_ERROR) ||
-	    (severity_code > (unsigned char) TW_AEN_SEVERITY_DEBUG))
+	    (severity_code > (unsigned char) TW_AEN_SEVERITY_DE))
 		goto out;
 
 	retval = twa_aen_severity_table[severity_code];

@@ -52,7 +52,7 @@ with an mmap but of the device file).
 For flat data sets (array, grid, image, ...) this isn't too hard to achieve but
 complex data sets (list, tree, ...) are hard to get right. Duplicating a
 complex data set needs to re-map all the pointer relations between each of its
-elements. This is error prone and program gets harder to debug because of the
+elements. This is error prone and program gets harder to de because of the
 duplicate data set and addresses.
 
 Split address space also means that libraries cannot transparently use data

@@ -6,10 +6,10 @@
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 #include <linux/dma-direction.h>
 #include <linux/scatterlist.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mem_encrypt.h>
 
 /**
@@ -285,12 +285,12 @@ static inline dma_addr_t dma_map_page_attrs(struct device *dev,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	dma_addr_t addr;
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		addr = dma_direct_map_page(dev, page, offset, size, dir, attrs);
 	else
 		addr = ops->map_page(dev, page, offset, size, dir, attrs);
-	debug_dma_map_page(dev, page, offset, size, dir, addr);
+	de_dma_map_page(dev, page, offset, size, dir, addr);
 
 	return addr;
 }
@@ -300,12 +300,12 @@ static inline void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		dma_direct_unmap_page(dev, addr, size, dir, attrs);
 	else if (ops->unmap_page)
 		ops->unmap_page(dev, addr, size, dir, attrs);
-	debug_dma_unmap_page(dev, addr, size, dir);
+	de_dma_unmap_page(dev, addr, size, dir);
 }
 
 /*
@@ -319,13 +319,13 @@ static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	int ents;
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		ents = dma_direct_map_sg(dev, sg, nents, dir, attrs);
 	else
 		ents = ops->map_sg(dev, sg, nents, dir, attrs);
-	BUG_ON(ents < 0);
-	debug_dma_map_sg(dev, sg, nents, ents, dir);
+	_ON(ents < 0);
+	de_dma_map_sg(dev, sg, nents, ents, dir);
 
 	return ents;
 }
@@ -336,8 +336,8 @@ static inline void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
-	debug_dma_unmap_sg(dev, sg, nents, dir);
+	_ON(!valid_dma_direction(dir));
+	de_dma_unmap_sg(dev, sg, nents, dir);
 	if (dma_is_direct(ops))
 		dma_direct_unmap_sg(dev, sg, nents, dir, attrs);
 	else if (ops->unmap_sg)
@@ -353,7 +353,7 @@ static inline dma_addr_t dma_map_resource(struct device *dev,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	dma_addr_t addr = DMA_MAPPING_ERROR;
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 
 	/* Don't allow RAM to be mapped */
 	if (WARN_ON_ONCE(pfn_valid(PHYS_PFN(phys_addr))))
@@ -364,7 +364,7 @@ static inline dma_addr_t dma_map_resource(struct device *dev,
 	else if (ops->map_resource)
 		addr = ops->map_resource(dev, phys_addr, size, dir, attrs);
 
-	debug_dma_map_resource(dev, phys_addr, size, dir, addr);
+	de_dma_map_resource(dev, phys_addr, size, dir, addr);
 	return addr;
 }
 
@@ -374,10 +374,10 @@ static inline void dma_unmap_resource(struct device *dev, dma_addr_t addr,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (!dma_is_direct(ops) && ops->unmap_resource)
 		ops->unmap_resource(dev, addr, size, dir, attrs);
-	debug_dma_unmap_resource(dev, addr, size, dir);
+	de_dma_unmap_resource(dev, addr, size, dir);
 }
 
 static inline void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr,
@@ -386,12 +386,12 @@ static inline void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		dma_direct_sync_single_for_cpu(dev, addr, size, dir);
 	else if (ops->sync_single_for_cpu)
 		ops->sync_single_for_cpu(dev, addr, size, dir);
-	debug_dma_sync_single_for_cpu(dev, addr, size, dir);
+	de_dma_sync_single_for_cpu(dev, addr, size, dir);
 }
 
 static inline void dma_sync_single_for_device(struct device *dev,
@@ -400,12 +400,12 @@ static inline void dma_sync_single_for_device(struct device *dev,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		dma_direct_sync_single_for_device(dev, addr, size, dir);
 	else if (ops->sync_single_for_device)
 		ops->sync_single_for_device(dev, addr, size, dir);
-	debug_dma_sync_single_for_device(dev, addr, size, dir);
+	de_dma_sync_single_for_device(dev, addr, size, dir);
 }
 
 static inline void
@@ -414,12 +414,12 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		dma_direct_sync_sg_for_cpu(dev, sg, nelems, dir);
 	else if (ops->sync_sg_for_cpu)
 		ops->sync_sg_for_cpu(dev, sg, nelems, dir);
-	debug_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
+	de_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
 }
 
 static inline void
@@ -428,18 +428,18 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	BUG_ON(!valid_dma_direction(dir));
+	_ON(!valid_dma_direction(dir));
 	if (dma_is_direct(ops))
 		dma_direct_sync_sg_for_device(dev, sg, nelems, dir);
 	else if (ops->sync_sg_for_device)
 		ops->sync_sg_for_device(dev, sg, nelems, dir);
-	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
+	de_dma_sync_sg_for_device(dev, sg, nelems, dir);
 
 }
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	debug_dma_mapping_error(dev, dma_addr);
+	de_dma_mapping_error(dev, dma_addr);
 
 	if (dma_addr == DMA_MAPPING_ERROR)
 		return -ENOMEM;
@@ -577,7 +577,7 @@ static inline size_t dma_max_mapping_size(struct device *dev)
 static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
-	debug_dma_map_single(dev, ptr, size);
+	de_dma_map_single(dev, ptr, size);
 	return dma_map_page_attrs(dev, virt_to_page(ptr), offset_in_page(ptr),
 			size, dir, attrs);
 }

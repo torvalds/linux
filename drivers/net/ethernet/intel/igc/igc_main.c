@@ -14,14 +14,14 @@
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-static int debug = -1;
+static int de = -1;
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 char igc_driver_name[] = "igc";
 char igc_driver_version[] = DRV_VERSION;
@@ -2092,7 +2092,7 @@ static void igc_configure_msix(struct igc_adapter *adapter)
 	switch (hw->mac.type) {
 	case igc_i225:
 		/* Turn on MSI-X capability first, or our settings
-		 * won't stick.  And it will take days to debug.
+		 * won't stick.  And it will take days to de.
 		 */
 		wr32(IGC_GPIE, IGC_GPIE_MSIX_MODE |
 		     IGC_GPIE_PBA | IGC_GPIE_EIAME |
@@ -3620,7 +3620,7 @@ static int igc_probe(struct pci_dev *pdev,
 	hw = &adapter->hw;
 	hw->back = adapter;
 	adapter->port_num = hw->bus.func;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	err = pci_save_state(pdev);
 	if (err)
@@ -3918,7 +3918,7 @@ int igc_reinit_queues(struct igc_adapter *adapter)
  * igc_get_hw_dev - return device
  * @hw: pointer to hardware structure
  *
- * used by hardware layer to print debugging information
+ * used by hardware layer to print deging information
  */
 struct net_device *igc_get_hw_dev(struct igc_hw *hw)
 {

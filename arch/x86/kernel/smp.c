@@ -36,9 +36,9 @@
 #include <asm/virtext.h>
 
 /*
- *	Some notes on x86 processor bugs affecting SMP operation:
+ *	Some notes on x86 processor s affecting SMP operation:
  *
- *	Pentium, Pentium Pro, II, III (and all CPUs) have bugs.
+ *	Pentium, Pentium Pro, II, III (and all CPUs) have s.
  *	The Linux implications for SMP are handled as follows:
  *
  *	Pentium III / [Xeon]
@@ -109,8 +109,8 @@
  *	18AP.	not affected - worked around in hardware
  *	19AP.	not affected - worked around in BIOS
  *
- *	If this sounds worrying believe me these bugs are either ___RARE___,
- *	or are signal timing bugs worked around in hardware and there's
+ *	If this sounds worrying believe me these s are either ___RARE___,
+ *	or are signal timing s worked around in hardware and there's
  *	about nothing of note with C stepping upwards.
  */
 

@@ -82,7 +82,7 @@ static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
 		__vlan_hwaccel_put_tag(skb, p->tcfv_push_proto, tci);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 out:

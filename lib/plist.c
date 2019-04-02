@@ -23,10 +23,10 @@
  * information.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/plist.h>
 
-#ifdef CONFIG_DEBUG_PI_LIST
+#ifdef CONFIG_DE_PI_LIST
 
 static struct plist_head test_head;
 
@@ -149,8 +149,8 @@ void plist_requeue(struct plist_node *node, struct plist_head *head)
 	struct list_head *node_next = &head->node_list;
 
 	plist_check_head(head);
-	BUG_ON(plist_head_empty(head));
-	BUG_ON(plist_node_empty(node));
+	_ON(plist_head_empty(head));
+	_ON(plist_node_empty(node));
 
 	if (node == plist_last(head))
 		return;
@@ -173,7 +173,7 @@ void plist_requeue(struct plist_node *node, struct plist_head *head)
 	plist_check_head(head);
 }
 
-#ifdef CONFIG_DEBUG_PI_LIST
+#ifdef CONFIG_DE_PI_LIST
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
 #include <linux/module.h>
@@ -186,7 +186,7 @@ static void __init plist_test_check(int nr_expect)
 	struct plist_node *first, *prio_pos, *node_pos;
 
 	if (plist_head_empty(&test_head)) {
-		BUG_ON(nr_expect != 0);
+		_ON(nr_expect != 0);
 		return;
 	}
 
@@ -197,17 +197,17 @@ static void __init plist_test_check(int nr_expect)
 		if (node_pos == first)
 			continue;
 		if (node_pos->prio == prio_pos->prio) {
-			BUG_ON(!list_empty(&node_pos->prio_list));
+			_ON(!list_empty(&node_pos->prio_list));
 			continue;
 		}
 
-		BUG_ON(prio_pos->prio > node_pos->prio);
-		BUG_ON(prio_pos->prio_list.next != &node_pos->prio_list);
+		_ON(prio_pos->prio > node_pos->prio);
+		_ON(prio_pos->prio_list.next != &node_pos->prio_list);
 		prio_pos = node_pos;
 	}
 
-	BUG_ON(nr_expect != 0);
-	BUG_ON(prio_pos->prio_list.next != &first->prio_list);
+	_ON(nr_expect != 0);
+	_ON(prio_pos->prio_list.next != &first->prio_list);
 }
 
 static void __init plist_test_requeue(struct plist_node *node)
@@ -215,7 +215,7 @@ static void __init plist_test_requeue(struct plist_node *node)
 	plist_requeue(node, &test_head);
 
 	if (node != plist_last(&test_head))
-		BUG_ON(node->prio == plist_next(node)->prio);
+		_ON(node->prio == plist_next(node)->prio);
 }
 
 static int  __init plist_test(void)
@@ -223,7 +223,7 @@ static int  __init plist_test(void)
 	int nr_expect = 0, i, loop;
 	unsigned int r = local_clock();
 
-	printk(KERN_DEBUG "start plist test\n");
+	printk(KERN_DE "start plist test\n");
 	plist_head_init(&test_head);
 	for (i = 0; i < ARRAY_SIZE(test_node); i++)
 		plist_node_init(test_node + i, 0);
@@ -255,7 +255,7 @@ static int  __init plist_test(void)
 		plist_test_check(nr_expect);
 	}
 
-	printk(KERN_DEBUG "end plist test\n");
+	printk(KERN_DE "end plist test\n");
 	return 0;
 }
 

@@ -29,11 +29,11 @@ struct seq_file;
  * @pin_config_group_get: get configurations for an entire pin group; should
  *	return -ENOTSUPP and -EINVAL using the same rules as pin_config_get.
  * @pin_config_group_set: configure all pins in a group
- * @pin_config_dbg_show: optional debugfs display hook that will provide
- *	per-device info for a certain pin in debugfs
- * @pin_config_group_dbg_show: optional debugfs display hook that will provide
- *	per-device info for a certain group in debugfs
- * @pin_config_config_dbg_show: optional debugfs display hook that will decode
+ * @pin_config_dbg_show: optional defs display hook that will provide
+ *	per-device info for a certain pin in defs
+ * @pin_config_group_dbg_show: optional defs display hook that will provide
+ *	per-device info for a certain group in defs
+ * @pin_config_config_dbg_show: optional defs display hook that will decode
  *	and display a driver's pin configuration parameter
  */
 struct pinconf_ops {

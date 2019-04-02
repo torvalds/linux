@@ -36,7 +36,7 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	u64 utime, stime, utimescaled, stimescaled;
 	u64 delta;
 
-	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
+	BUILD__ON(TS_COMM_LEN < TASK_COMM_LEN);
 
 	/* calculate task elapsed time in nsec */
 	delta = ktime_get_ns() - tsk->start_time;

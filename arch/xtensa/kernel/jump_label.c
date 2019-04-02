@@ -78,7 +78,7 @@ void arch_jump_label_transform(struct jump_entry *e,
 	u32 insn;
 
 	/* Jump only works within 128K of the J instruction. */
-	BUG_ON(!((d & J_SIGN_MASK) == 0 ||
+	_ON(!((d & J_SIGN_MASK) == 0 ||
 		 (d & J_SIGN_MASK) == J_SIGN_MASK));
 
 	if (type == JUMP_LABEL_JMP) {

@@ -35,7 +35,7 @@ Description:
 		Exports the FDT blob that was passed to the kernel by
 		the bootloader. This allows userland applications such
 		as kexec to access the raw binary. This blob is also
-		useful when debugging since it contains any changes
+		useful when deging since it contains any changes
 		made to the blob by the bootloader.
 
 		The fact that this node does not reside under
@@ -49,4 +49,4 @@ Description:
 		entry is instantiated only if the checksum is valid,
 		i.e., if the FDT blob has not been modified in the mean
 		time. Otherwise, a warning is printed.
-Users:		kexec, debugging
+Users:		kexec, deging

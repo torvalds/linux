@@ -763,7 +763,7 @@ static void rt2800usb_queue_init(struct data_queue *queue)
 	case QID_ATIM:
 		/* fallthrough */
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -779,9 +779,9 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.lib			= &rt2800usb_rt2x00_ops,
 	.drv			= &rt2800usb_rt2800_ops,
 	.hw			= &rt2800usb_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs		= &rt2800_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#ifdef CONFIG_RT2X00_LIB_DEFS
+	.defs		= &rt2800_rt2x00de,
+#endif /* CONFIG_RT2X00_LIB_DEFS */
 };
 
 /*

@@ -168,7 +168,7 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 {
 	struct tcm_loop_cmd *tl_cmd;
 
-	pr_debug("%s() %d:%d:%d:%llu got CDB: 0x%02x scsi_buf_len: %u\n",
+	pr_de("%s() %d:%d:%d:%llu got CDB: 0x%02x scsi_buf_len: %u\n",
 		 __func__, sc->device->host->host_no, sc->device->id,
 		 sc->device->channel, sc->device->lun, sc->cmnd[0],
 		 scsi_bufflen(sc));
@@ -426,7 +426,7 @@ static int tcm_loop_alloc_core_bus(void)
 		goto bus_unreg;
 	}
 
-	pr_debug("Initialized TCM Loop Core Bus\n");
+	pr_de("Initialized TCM Loop Core Bus\n");
 	return ret;
 
 bus_unreg:
@@ -442,7 +442,7 @@ static void tcm_loop_release_core_bus(void)
 	bus_unregister(&tcm_loop_lld_bus);
 	root_device_unregister(tcm_loop_primary);
 
-	pr_debug("Releasing TCM Loop Core BUS\n");
+	pr_de("Releasing TCM Loop Core BUS\n");
 }
 
 static inline struct tcm_loop_tpg *tl_tpg(struct se_portal_group *se_tpg)
@@ -551,7 +551,7 @@ static int tcm_loop_queue_data_in(struct se_cmd *se_cmd)
 				struct tcm_loop_cmd, tl_se_cmd);
 	struct scsi_cmnd *sc = tl_cmd->sc;
 
-	pr_debug("%s() called for scsi_cmnd: %p cdb: 0x%02x\n",
+	pr_de("%s() called for scsi_cmnd: %p cdb: 0x%02x\n",
 		 __func__, sc, sc->cmnd[0]);
 
 	sc->result = SAM_STAT_GOOD;
@@ -569,7 +569,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 				struct tcm_loop_cmd, tl_se_cmd);
 	struct scsi_cmnd *sc = tl_cmd->sc;
 
-	pr_debug("%s() called for scsi_cmnd: %p cdb: 0x%02x\n",
+	pr_de("%s() called for scsi_cmnd: %p cdb: 0x%02x\n",
 		 __func__, sc, sc->cmnd[0]);
 
 	if (se_cmd->sense_buffer &&
@@ -637,7 +637,7 @@ static int tcm_loop_port_link(
 	 */
 	scsi_add_device(tl_hba->sh, 0, tl_tpg->tl_tpgt, lun->unpacked_lun);
 
-	pr_debug("TCM_Loop_ConfigFS: Port Link Successful\n");
+	pr_de("TCM_Loop_ConfigFS: Port Link Successful\n");
 	return 0;
 }
 
@@ -667,7 +667,7 @@ static void tcm_loop_port_unlink(
 
 	atomic_dec_mb(&tl_tpg->tl_tpg_port_count);
 
-	pr_debug("TCM_Loop_ConfigFS: Port Unlink Successful\n");
+	pr_de("TCM_Loop_ConfigFS: Port Unlink Successful\n");
 }
 
 /* End items for tcm_loop_port_cit */
@@ -732,7 +732,7 @@ static int tcm_loop_make_nexus(
 	int ret;
 
 	if (tl_tpg->tl_nexus) {
-		pr_debug("tl_tpg->tl_nexus already exists\n");
+		pr_de("tl_tpg->tl_nexus already exists\n");
 		return -EEXIST;
 	}
 
@@ -749,7 +749,7 @@ static int tcm_loop_make_nexus(
 		return ret;
 	}
 
-	pr_debug("TCM_Loop_ConfigFS: Established I_T Nexus to emulated %s Initiator Port: %s\n",
+	pr_de("TCM_Loop_ConfigFS: Established I_T Nexus to emulated %s Initiator Port: %s\n",
 		 tcm_loop_dump_proto_id(tl_hba), name);
 	return 0;
 }
@@ -774,7 +774,7 @@ static int tcm_loop_drop_nexus(
 		return -EPERM;
 	}
 
-	pr_debug("TCM_Loop_ConfigFS: Removing I_T Nexus to emulated %s Initiator Port: %s\n",
+	pr_de("TCM_Loop_ConfigFS: Removing I_T Nexus to emulated %s Initiator Port: %s\n",
 		 tcm_loop_dump_proto_id(tpg->tl_hba),
 		 tl_nexus->se_sess->se_node_acl->initiatorname);
 	/*
@@ -986,7 +986,7 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(struct se_wwn *wwn,
 	if (ret < 0)
 		return ERR_PTR(-ENOMEM);
 
-	pr_debug("TCM_Loop_ConfigFS: Allocated Emulated %s Target Port %s,t,0x%04lx\n",
+	pr_de("TCM_Loop_ConfigFS: Allocated Emulated %s Target Port %s,t,0x%04lx\n",
 		 tcm_loop_dump_proto_id(tl_hba),
 		 config_item_name(&wwn->wwn_group.cg_item), tpgt);
 	return &tl_tpg->tl_se_tpg;
@@ -1015,7 +1015,7 @@ static void tcm_loop_drop_naa_tpg(
 	tl_tpg->tl_hba = NULL;
 	tl_tpg->tl_tpgt = 0;
 
-	pr_debug("TCM_Loop_ConfigFS: Deallocated Emulated %s Target Port %s,t,0x%04x\n",
+	pr_de("TCM_Loop_ConfigFS: Deallocated Emulated %s Target Port %s,t,0x%04x\n",
 		 tcm_loop_dump_proto_id(tl_hba),
 		 config_item_name(&wwn->wwn_group.cg_item), tpgt);
 }
@@ -1082,7 +1082,7 @@ check_len:
 
 	sh = tl_hba->sh;
 	tcm_loop_hba_no_cnt++;
-	pr_debug("TCM_Loop_ConfigFS: Allocated emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
+	pr_de("TCM_Loop_ConfigFS: Allocated emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
 		 tcm_loop_dump_proto_id(tl_hba), name, sh->host_no);
 	return &tl_hba->tl_hba_wwn;
 out:
@@ -1096,7 +1096,7 @@ static void tcm_loop_drop_scsi_hba(
 	struct tcm_loop_hba *tl_hba = container_of(wwn,
 				struct tcm_loop_hba, tl_hba_wwn);
 
-	pr_debug("TCM_Loop_ConfigFS: Deallocating emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
+	pr_de("TCM_Loop_ConfigFS: Deallocating emulated Target %s Address: %s at Linux/SCSI Host ID: %d\n",
 		 tcm_loop_dump_proto_id(tl_hba), tl_hba->tl_wwn_address,
 		 tl_hba->sh->host_no);
 	/*
@@ -1169,7 +1169,7 @@ static int __init tcm_loop_fabric_init(void)
 				__alignof__(struct tcm_loop_cmd),
 				0, NULL);
 	if (!tcm_loop_cmd_cache) {
-		pr_debug("kmem_cache_create() for tcm_loop_cmd_cache failed\n");
+		pr_de("kmem_cache_create() for tcm_loop_cmd_cache failed\n");
 		goto out_destroy_workqueue;
 	}
 

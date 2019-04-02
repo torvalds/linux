@@ -132,7 +132,7 @@ struct tda18271_priv {
 
 /*---------------------------------------------------------------------*/
 
-extern int tda18271_debug;
+extern int tda18271_de;
 
 #define DBG_INFO 1
 #define DBG_MAP  2
@@ -149,8 +149,8 @@ void _tda_printk(struct tda18271_priv *state, const char *level,
 
 #define tda_dprintk(st, lvl, fmt, arg...)			\
 do {								\
-	if (tda18271_debug & lvl)				\
-		tda_printk(st, KERN_DEBUG, fmt, ##arg);		\
+	if (tda18271_de & lvl)				\
+		tda_printk(st, KERN_DE, fmt, ##arg);		\
 } while (0)
 
 #define tda_info(fmt, arg...)	pr_info(fmt, ##arg)

@@ -1,7 +1,7 @@
 /*
  * CAN bus driver for Microchip 251x CAN Controller with SPI Interface
  *
- * MCP2510 support and bug fixes by Christian Pellegrin
+ * MCP2510 support and  fixes by Christian Pellegrin
  * <chripell@evolware.org>
  *
  * Copyright 2009 Christian Pellegrin EVOL S.r.l.

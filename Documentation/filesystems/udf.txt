@@ -45,7 +45,7 @@ For typical desktop use of removable media, you should set the ID to that of
 the interactively logged on user, and also specify the forget option.  This way
 the interactive user will always see the files on the disk as belonging to him.
 
-The remaining are for debugging and disaster recovery:
+The remaining are for deging and disaster recovery:
 
 	novrs		Skip volume sequence recognition 
 

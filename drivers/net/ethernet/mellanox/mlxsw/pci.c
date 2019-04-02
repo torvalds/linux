@@ -412,7 +412,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 
 	for (i = 0; i < q->count; i++) {
 		elem_info = mlxsw_pci_queue_elem_info_producer_get(q);
-		BUG_ON(!elem_info);
+		_ON(!elem_info);
 		err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
 		if (err)
 			goto rollback;

@@ -414,7 +414,7 @@ static int tegra_xusb_padctl_pinconf_group_set(struct pinctrl_dev *pinctrl,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const char *strip_prefix(const char *s)
 {
 	const char *comma = strchr(s, ',');
@@ -476,7 +476,7 @@ tegra_xusb_padctl_pinconf_config_dbg_show(struct pinctrl_dev *pinctrl,
 static const struct pinconf_ops tegra_xusb_padctl_pinconf_ops = {
 	.pin_config_group_get = tegra_xusb_padctl_pinconf_group_get,
 	.pin_config_group_set = tegra_xusb_padctl_pinconf_group_set,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.pin_config_group_dbg_show = tegra_xusb_padctl_pinconf_group_dbg_show,
 	.pin_config_config_dbg_show = tegra_xusb_padctl_pinconf_config_dbg_show,
 #endif

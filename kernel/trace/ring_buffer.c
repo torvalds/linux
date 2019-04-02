@@ -201,7 +201,7 @@ rb_event_length(struct ring_buffer_event *event)
 	case RINGBUF_TYPE_DATA:
 		return rb_event_data_length(event);
 	default:
-		BUG();
+		();
 	}
 	/* not hit */
 	return 0;
@@ -257,7 +257,7 @@ rb_event_data(struct ring_buffer_event *event)
 {
 	if (extended_time(event))
 		event = skip_time_extend(event);
-	BUG_ON(event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX);
+	_ON(event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX);
 	/* If length is in len field, then array[0] has the data */
 	if (event->type_len)
 		return (void *)&event->array[0];
@@ -748,12 +748,12 @@ __poll_t ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 	})
 
 /* Up this if you want to test the TIME_EXTENTS and normalization */
-#define DEBUG_SHIFT 0
+#define DE_SHIFT 0
 
 static inline u64 rb_time_stamp(struct ring_buffer *buffer)
 {
-	/* shift to debug/test normalization and TIME_EXTENTS */
-	return buffer->clock() << DEBUG_SHIFT;
+	/* shift to de/test normalization and TIME_EXTENTS */
+	return buffer->clock() << DE_SHIFT;
 }
 
 u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
@@ -772,7 +772,7 @@ void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
 				      int cpu, u64 *ts)
 {
 	/* Just stupid testing the normalize function and deltas */
-	*ts >>= DEBUG_SHIFT;
+	*ts >>= DE_SHIFT;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
 
@@ -2815,7 +2815,7 @@ rb_handle_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 		  sched_clock_stable() ? "" :
 		  "If you just came from a suspend/resume,\n"
 		  "please switch to the trace global clock:\n"
-		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n"
+		  "  echo global > /sys/kernel/de/tracing/trace_clock\n"
 		  "or add trace_clock=global to the kernel command line\n");
 	info->add_timestamp = 1;
 }
@@ -2913,7 +2913,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	 * back here. Even with heavy interrupts happening, this
 	 * should only happen a few times in a row. If this happens
 	 * 1000 times in a row, there must be either an interrupt
-	 * storm or we have something buggy.
+	 * storm or we have something gy.
 	 * Bail!
 	 */
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
@@ -3641,7 +3641,7 @@ rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		return;
 
 	default:
-		BUG();
+		();
 	}
 	return;
 }
@@ -3671,7 +3671,7 @@ rb_update_iter_read_stamp(struct ring_buffer_iter *iter,
 		return;
 
 	default:
-		BUG();
+		();
 	}
 	return;
 }
@@ -3947,7 +3947,7 @@ rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts,
 		return event;
 
 	default:
-		BUG();
+		();
 	}
 
 	return NULL;
@@ -4035,7 +4035,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 		return event;
 
 	default:
-		BUG();
+		();
 	}
 
 	return NULL;

@@ -1112,7 +1112,7 @@ static int nvm_init(struct nvm_dev *dev)
 		goto err;
 	}
 
-	pr_debug("nvm: ver:%u.%u nvm_vendor:%x\n",
+	pr_de("nvm: ver:%u.%u nvm_vendor:%x\n",
 				geo->major_ver_id, geo->minor_ver_id,
 				geo->vmnt);
 

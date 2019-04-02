@@ -208,7 +208,7 @@ static int wdt977_set_timeout(int t)
 	tmrval = (t + 59) / 60;
 
 	if (machine_is_netwinder()) {
-		/* we have a hw bug somewhere, so each 977 minute is actually
+		/* we have a hw  somewhere, so each 977 minute is actually
 		 * only 30sec. This limits the max timeout to half of device
 		 * max of 255 minutes...
 		 */

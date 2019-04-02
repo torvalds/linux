@@ -3,7 +3,7 @@
 #define _LINUX_SWAPOPS_H
 
 #include <linux/radix-tree.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm_types.h>
 
 /*
@@ -178,7 +178,7 @@ static inline vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 #ifdef CONFIG_MIGRATION
 static inline swp_entry_t make_migration_entry(struct page *page, int write)
 {
-	BUG_ON(!PageLocked(compound_head(page)));
+	_ON(!PageLocked(compound_head(page)));
 
 	return swp_entry(write ? SWP_MIGRATION_WRITE : SWP_MIGRATION_READ,
 			page_to_pfn(page));
@@ -207,7 +207,7 @@ static inline struct page *migration_entry_to_page(swp_entry_t entry)
 	 * Any use of migration entries may only occur while the
 	 * corresponding page is locked
 	 */
-	BUG_ON(!PageLocked(compound_head(p)));
+	_ON(!PageLocked(compound_head(p)));
 	return p;
 }
 
@@ -291,13 +291,13 @@ static inline int is_pmd_migration_entry(pmd_t pmd)
 static inline void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 		struct page *page)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 
 static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,
 		struct page *new)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 
 static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
@@ -327,7 +327,7 @@ extern atomic_long_t num_poisoned_pages __read_mostly;
  */
 static inline swp_entry_t make_hwpoison_entry(struct page *page)
 {
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	return swp_entry(SWP_HWPOISON, page_to_pfn(page));
 }
 

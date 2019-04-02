@@ -29,7 +29,7 @@
 
 #include "sigframe.h"
 
-#define DEBUG_SIG	0
+#define DE_SIG	0
 #define STACK_ALIGN	16		/* minimal alignment for stack pointer */
 
 #if _NSIG_WORDS > 1
@@ -143,7 +143,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	if (restore_sigcontext(sc, scr))
 		goto give_sigsegv;
 
-#if DEBUG_SIG
+#if DE_SIG
 	printk("SIG return (%s:%d): sp=%lx ip=%lx\n",
 	       current->comm, current->pid, scr->pt.r12, scr->pt.cr_iip);
 #endif
@@ -307,7 +307,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 	 */
 	scr->scratch_unat = 0; /* ensure NaT bits of r12 is clear */
 
-#if DEBUG_SIG
+#if DE_SIG
 	printk("SIG deliver (%s:%d): sig=%d sp=%lx ip=%lx handler=%p\n",
 	       current->comm, current->pid, ksig->sig, scr->pt.r12, frame->sc.sc_ip, frame->handler);
 #endif
@@ -344,8 +344,8 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 		get_signal(&ksig);
 
 		/*
-		 * get_signal() may have run a debugger (via notify_parent())
-		 * and the debugger may have modified the state (e.g., to arrange for an
+		 * get_signal() may have run a deger (via notify_parent())
+		 * and the deger may have modified the state (e.g., to arrange for an
 		 * inferior call), thus it's important to check for restarting _after_
 		 * get_signal().
 		 */

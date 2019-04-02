@@ -18,7 +18,7 @@
 
 #include <asm/inst.h>
 #include <asm/elf.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/uasm.h>
 
 #define RS_MASK		0x1f
@@ -220,7 +220,7 @@ static void build_insn(u32 **buf, enum opcode opc, ...)
 	u32 op;
 
 	if (opc < 0 || opc >= insn_invalid ||
-	    (opc == insn_daddiu && r4k_daddiu_bug()) ||
+	    (opc == insn_daddiu && r4k_daddiu_()) ||
 	    (insn_table[opc].match == 0 && insn_table[opc].fields == 0))
 		panic("Unsupported Micro-assembler instruction %d", opc);
 

@@ -21,13 +21,13 @@
 #define MAX_BUFFER 1024
 
 /* use raw logging */
-#ifdef CS_DEBUG_RAW
+#ifdef CS_DE_RAW
 #define CS_LOG_RAW_FRAMES
 #ifdef CS_RAW_PACKED
-#define CS_RAW_DEBUG_FLAGS (OCSD_DFRMTR_UNPACKED_RAW_OUT | \
+#define CS_RAW_DE_FLAGS (OCSD_DFRMTR_UNPACKED_RAW_OUT | \
 			    OCSD_DFRMTR_PACKED_RAW_OUT)
 #else
-#define CS_RAW_DEBUG_FLAGS (OCSD_DFRMTR_UNPACKED_RAW_OUT)
+#define CS_RAW_DE_FLAGS (OCSD_DFRMTR_UNPACKED_RAW_OUT)
 #endif
 #endif
 
@@ -215,7 +215,7 @@ cs_etm_decoder__init_raw_frame_logging(struct cs_etm_decoder_params *d_params,
 
 		/* use the built in library printer for the raw frames */
 		ocsd_dt_set_raw_frame_printer(decoder->dcd_tree,
-					      CS_RAW_DEBUG_FLAGS);
+					      CS_RAW_DE_FLAGS);
 	}
 }
 #else

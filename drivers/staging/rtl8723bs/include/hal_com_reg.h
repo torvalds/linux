@@ -190,7 +190,7 @@
 #define REG_DBI_CTRL					0x0350	/* Backdoor REG for Access Configuration */
 #define REG_DBI_FLAG					0x0352	/* Backdoor REG for Access Configuration */
 #define REG_MDIO						0x0354	/*  MDIO for Access PCIE PHY */
-#define REG_DBG_SEL						0x0360	/*  Debug Selection Register */
+#define REG_DBG_SEL						0x0360	/*  De Selection Register */
 #define REG_PCIE_HRPWM					0x0361	/* PCIe RPWM */
 #define REG_PCIE_HCPWM					0x0363	/* PCIe CPWM */
 #define REG_WATCH_DOG					0x0368

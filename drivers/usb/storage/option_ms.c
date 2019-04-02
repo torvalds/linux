@@ -14,7 +14,7 @@
 #include "usb.h"
 #include "transport.h"
 #include "option_ms.h"
-#include "debug.h"
+#include "de.h"
 
 #define ZCD_FORCE_MODEM			0x01
 #define ZCD_ALLOW_MS 			0x02

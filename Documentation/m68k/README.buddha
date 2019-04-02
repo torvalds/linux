@@ -80,7 +80,7 @@ $fc0		write-only: Writing any value to this
 		IDE ports to the Zorro bus. This mechanism 
 		has been implemented to be compatible with 
 		harddisks that are either defective or have
-		a buggy firmware and pull the IRQ line up 
+		a gy firmware and pull the IRQ line up 
 		while starting up. If interrupts would 
 		always be passed to the bus, the computer 
 		might not start up. Once enabled, this flag 

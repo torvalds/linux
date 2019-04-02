@@ -27,13 +27,13 @@
 #include <linux/moduleparam.h>
 #include <linux/nmi.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/slab.h>
 #include <linux/clocksource.h>
 
 #include <asm/apic.h>
 #include <asm/current.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/local64.h>
 #include <asm/nmi.h>
 #include <asm/traps.h>
@@ -164,12 +164,12 @@ module_param_named(pch_intr_enable, uv_pch_intr_enable, bool, 0644);
 static bool uv_pch_init_enable = true;
 module_param_named(pch_init_enable, uv_pch_init_enable, bool, 0644);
 
-static int uv_nmi_debug;
-module_param_named(debug, uv_nmi_debug, int, 0644);
+static int uv_nmi_de;
+module_param_named(de, uv_nmi_de, int, 0644);
 
-#define nmi_debug(fmt, ...)				\
+#define nmi_de(fmt, ...)				\
 	do {						\
-		if (uv_nmi_debug)			\
+		if (uv_nmi_de)			\
 			pr_info(fmt, ##__VA_ARGS__);	\
 	} while (0)
 
@@ -288,11 +288,11 @@ static void uv_init_hubless_pch_io(int offset, int mask, int data)
 	if (mask) {			/* OR in new data */
 		int writed = (readd & ~mask) | data;
 
-		nmi_debug("UV:PCH: %p = %x & %x | %x (%x)\n",
+		nmi_de("UV:PCH: %p = %x & %x | %x (%x)\n",
 			addr, readd, ~mask, data, writed);
 		writel(writed, addr);
 	} else if (readd & data) {	/* clear status bit */
-		nmi_debug("UV:PCH: %p = %x\n", addr, data);
+		nmi_de("UV:PCH: %p = %x\n", addr, data);
 		writel(data, addr);
 	}
 
@@ -307,7 +307,7 @@ static void uv_nmi_setup_hubless_intr(void)
 		PAD_CFG_DW0_GPP_D_0, GPIROUTNMI,
 		uv_pch_intr_now_enabled ? GPIROUTNMI : 0);
 
-	nmi_debug("UV:NMI: GPP_D_0 interrupt %s\n",
+	nmi_de("UV:NMI: GPP_D_0 interrupt %s\n",
 		uv_pch_intr_now_enabled ? "enabled" : "disabled");
 }
 
@@ -424,7 +424,7 @@ static void uv_init_hubless_pch_d0(void)
 		return;
 	}
 
-	nmi_debug("UV: Initializing UV Hubless NMI on PCH\n");
+	nmi_de("UV: Initializing UV Hubless NMI on PCH\n");
 	for (i = 0; i < ARRAY_SIZE(init_nmi); i++) {
 		uv_init_hubless_pch_io(init_nmi[i].offset,
 					init_nmi[i].mask,
@@ -1019,15 +1019,15 @@ static void __init uv_nmi_setup_common(bool hubbed)
 	int cpu;
 
 	uv_hub_nmi_list = kzalloc(size, GFP_KERNEL);
-	nmi_debug("UV: NMI hub list @ 0x%p (%d)\n", uv_hub_nmi_list, size);
-	BUG_ON(!uv_hub_nmi_list);
+	nmi_de("UV: NMI hub list @ 0x%p (%d)\n", uv_hub_nmi_list, size);
+	_ON(!uv_hub_nmi_list);
 	size = sizeof(struct uv_hub_nmi_s);
 	for_each_present_cpu(cpu) {
 		int nid = cpu_to_node(cpu);
 		if (uv_hub_nmi_list[nid] == NULL) {
 			uv_hub_nmi_list[nid] = kzalloc_node(size,
 							    GFP_KERNEL, nid);
-			BUG_ON(!uv_hub_nmi_list[nid]);
+			_ON(!uv_hub_nmi_list[nid]);
 			raw_spin_lock_init(&(uv_hub_nmi_list[nid]->nmi_lock));
 			atomic_set(&uv_hub_nmi_list[nid]->cpu_owner, -1);
 			uv_hub_nmi_list[nid]->hub_present = hubbed;
@@ -1035,7 +1035,7 @@ static void __init uv_nmi_setup_common(bool hubbed)
 		}
 		uv_hub_nmi_per(cpu) = uv_hub_nmi_list[nid];
 	}
-	BUG_ON(!alloc_cpumask_var(&uv_nmi_cpu_mask, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&uv_nmi_cpu_mask, GFP_KERNEL));
 }
 
 /* Setup for UV Hub systems */
@@ -1052,7 +1052,7 @@ void __init uv_nmi_setup_hubless(void)
 {
 	uv_nmi_setup_common(false);
 	pch_base = xlate_dev_mem_ptr(PCH_PCR_GPIO_1_BASE);
-	nmi_debug("UV: PCH base:%p from 0x%lx, GPP_D_0\n",
+	nmi_de("UV: PCH base:%p from 0x%lx, GPP_D_0\n",
 		pch_base, PCH_PCR_GPIO_1_BASE);
 	if (uv_pch_init_enable)
 		uv_init_hubless_pch_d0();

@@ -75,7 +75,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 	/* Check if this object is already attached */
 
 	if (node->object == object) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Obj %p already installed in NameObj %p\n",
 				  object, node));
 
@@ -115,7 +115,7 @@ acpi_ns_attach_object(struct acpi_namespace_node *node,
 		object_type = type;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Installing %p into Node %p [%4.4s]\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Installing %p into Node %p [%4.4s]\n",
 			  obj_desc, node, acpi_ut_get_node_name(node)));
 
 	/* Detach an existing attached object if present */
@@ -217,7 +217,7 @@ void acpi_ns_detach_object(struct acpi_namespace_node *node)
 
 	node->type = ACPI_TYPE_ANY;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "Node %p [%4.4s] Object %p\n",
+	ACPI_DE_PRINT((ACPI_DB_NAMES, "Node %p [%4.4s] Object %p\n",
 			  node, acpi_ut_get_node_name(node), obj_desc));
 
 	/* Remove one reference on the object (and all subobjects) */

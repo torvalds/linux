@@ -1576,7 +1576,7 @@ struct compat_ebt_entry_mwt {
 /* account for possible padding between match_size and ->data */
 static int ebt_compat_entry_padsize(void)
 {
-	BUILD_BUG_ON(sizeof(struct ebt_entry_match) <
+	BUILD__ON(sizeof(struct ebt_entry_match) <
 			sizeof(struct compat_ebt_entry_mwt));
 	return (int) sizeof(struct ebt_entry_match) -
 			sizeof(struct compat_ebt_entry_mwt);
@@ -1770,7 +1770,7 @@ static int compat_calc_entry(const struct ebt_entry *e,
 		if (info->hook_entry[i] &&
 		    (e < (struct ebt_entry *)(base - hookptr))) {
 			newinfo->hook_entry[i] -= off;
-			pr_debug("0x%08X -> 0x%08X\n",
+			pr_de("0x%08X -> 0x%08X\n",
 					newinfo->hook_entry[i] + off,
 					newinfo->hook_entry[i]);
 		}
@@ -2118,7 +2118,7 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 			return ret;
 		new_offset += ret;
 		if (offsets_update && new_offset) {
-			pr_debug("change offset %d to %d\n",
+			pr_de("change offset %d to %d\n",
 				offsets_update[i], offsets[j] + new_offset);
 			offsets_update[i] = offsets[j] + new_offset;
 		}
@@ -2250,7 +2250,7 @@ static int compat_do_replace(struct net *net, void __user *user,
 	if (ret < 0)
 		goto out_unlock;
 
-	pr_debug("tmp.entries_size %d, kern off %d, user off %d delta %d\n",
+	pr_de("tmp.entries_size %d, kern off %d, user off %d delta %d\n",
 		tmp.entries_size, state.buf_kern_offset, state.buf_user_offset,
 		xt_compat_calc_jump(NFPROTO_BRIDGE, tmp.entries_size));
 

@@ -34,7 +34,7 @@
 #include "jfs_dmap.h"
 #include "jfs_imap.h"
 #include "jfs_metapage.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  * NAME:	jfs_umount(vfsp, flags, crp)

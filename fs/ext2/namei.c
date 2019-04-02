@@ -3,13 +3,13 @@
  * linux/fs/ext2/namei.c
  *
  * Rewrite to pagecache. Almost all code had been changed, so blame me
- * if the things go wrong. Please, send bug reports to
+ * if the things go wrong. Please, send  reports to
  * viro@parcelfarce.linux.theplanet.co.uk
  *
  * Stuff here is basically a glue between the VFS and generic UNIXish
  * filesystem that keeps everything in pagecache. All knowledge of the
  * directory layout is in fs/ext2/dir.c - it turned out to be easily separatable
- * and it's easier to debug that way. In principle we might want to
+ * and it's easier to de that way. In principle we might want to
  * generalize that a bit and turn it into a library. Or not.
  *
  * The only non-static object here is ext2_dir_inode_operations.

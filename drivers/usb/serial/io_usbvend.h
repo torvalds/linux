@@ -489,8 +489,8 @@ struct edge_manuf_descriptor {
 
 // Values of bottom 5 bits of CpuRev & BoardRev for
 // Implementation 0 (ie, 930-based)
-#define	MANUF_CPU_REV_AD4		1	// 930 AD4, with EP1 Rx bug (needs RXSPM)
-#define	MANUF_CPU_REV_AD5		2	// 930 AD5, with above bug (supposedly) fixed
+#define	MANUF_CPU_REV_AD4		1	// 930 AD4, with EP1 Rx  (needs RXSPM)
+#define	MANUF_CPU_REV_AD5		2	// 930 AD5, with above  (supposedly) fixed
 #define	MANUF_CPU_80251			0x20	// Intel 80251
 
 

@@ -58,7 +58,7 @@
 #define SCC_SMN_CIPHERTEXT_CHECK	0x1028
 #define SCC_SMN_TIMER_IV		0x102C
 #define SCC_SMN_TIMER_CONTROL		0x1030
-#define SCC_SMN_DEBUG_DETECT_STAT	0x1034
+#define SCC_SMN_DE_DETECT_STAT	0x1034
 #define SCC_SMN_TIMER			0x1038
 
 #define SCC_SCM_CTRL_START_CIPHER	BIT(2)
@@ -187,7 +187,7 @@ static int mxc_scc_get_data(struct mxc_scc_ctx *ctx,
 		return -EINVAL;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "red memory@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4,
@@ -280,7 +280,7 @@ static int mxc_scc_put_data(struct mxc_scc_ctx *ctx,
 
 	ctx->size = len;
 
-#ifdef DEBUG
+#ifdef DE
 	dev_dbg(scc->dev, "copied %d bytes to 0x%p\n", len, to);
 	print_hex_dump(KERN_ERR,
 		       "init vector0@"__stringify(__LINE__)": ",
@@ -307,7 +307,7 @@ static int mxc_scc_put_data(struct mxc_scc_ctx *ctx,
 		ctx->size += padding_byte_count;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR,
 		       "data to encrypt@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4,

@@ -165,7 +165,7 @@ static inline void s3c_write_cmd(int value, unsigned int cmd)
 	writel(value, onenand->ahb_addr + cmd);
 }
 
-#ifdef SAMSUNG_DEBUG
+#ifdef SAMSUNG_DE
 static void s3c_dump_reg(void)
 {
 	int i;
@@ -819,7 +819,7 @@ static void s3c_onenand_setup(struct mtd_info *mtd)
 		this->chip_probe = s5pc110_chip_probe;
 		return;
 	} else {
-		BUG();
+		();
 	}
 
 	this->read_word = s3c_onenand_readw;

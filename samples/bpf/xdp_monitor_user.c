@@ -31,11 +31,11 @@ static const char *__doc_err_only__=
 #include "bpf_util.h"
 
 static int verbose = 1;
-static bool debug = false;
+static bool de = false;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
-	{"debug",	no_argument,		NULL, 'D' },
+	{"de",	no_argument,		NULL, 'D' },
 	{"stats",	no_argument,		NULL, 'S' },
 	{"sec", 	required_argument,	NULL, 's' },
 	{0, 0, NULL,  0 }
@@ -665,7 +665,7 @@ int main(int argc, char **argv)
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'D':
-			debug = true;
+			de = true;
 			break;
 		case 'S':
 			errors_only = false;
@@ -694,7 +694,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if (debug) {
+	if (de) {
 		print_bpf_prog_info();
 	}
 

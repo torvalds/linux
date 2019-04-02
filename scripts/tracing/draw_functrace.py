@@ -12,9 +12,9 @@ calls. Only the functions's names and the the call time are provided.
 
 Usage:
 	Be sure that you have CONFIG_FUNCTION_TRACER
-	# mount -t debugfs nodev /sys/kernel/debug
-	# echo function > /sys/kernel/debug/tracing/current_tracer
-	$ cat /sys/kernel/debug/tracing/trace_pipe > ~/raw_trace_func
+	# mount -t defs nodev /sys/kernel/de
+	# echo function > /sys/kernel/de/tracing/current_tracer
+	$ cat /sys/kernel/de/tracing/trace_pipe > ~/raw_trace_func
 	Wait some times but not too much, the script is a bit slow.
 	Break the pipe (Ctrl + Z)
 	$ scripts/draw_functrace.py < raw_trace_func > draw_functrace

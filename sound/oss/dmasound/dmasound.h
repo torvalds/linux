@@ -30,7 +30,7 @@
 #define SND_DEV_PSS	SND_DEV_SNDPROC
 
 /* switch on various prinks */
-#define DEBUG_DMASOUND 1
+#define DE_DMASOUND 1
 
 #define MAX_AUDIO_DEV	5
 #define MAX_MIXER_DEV	4

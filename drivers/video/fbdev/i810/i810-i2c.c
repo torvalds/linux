@@ -31,9 +31,9 @@
 #define SDA_VAL_OUT		0x0800
 #define SDA_VAL_IN		0x1000
 
-#define DEBUG  /* define this for verbose EDID parsing output */
+#define DE  /* define this for verbose EDID parsing output */
 
-#ifdef DEBUG
+#ifdef DE
 #define DPRINTK(fmt, args...) printk(fmt,## args)
 #else
 #define DPRINTK(fmt, args...)

@@ -348,11 +348,11 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			refcount_inc(&cb->pending_bios);
 			ret = btrfs_bio_wq_end_io(fs_info, bio,
 						  BTRFS_WQ_ENDIO_DATA);
-			BUG_ON(ret); /* -ENOMEM */
+			_ON(ret); /* -ENOMEM */
 
 			if (!skip_sum) {
 				ret = btrfs_csum_one_bio(inode, bio, start, 1);
-				BUG_ON(ret); /* -ENOMEM */
+				_ON(ret); /* -ENOMEM */
 			}
 
 			ret = btrfs_map_bio(fs_info, bio, 0, 1);
@@ -378,11 +378,11 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	}
 
 	ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DATA);
-	BUG_ON(ret); /* -ENOMEM */
+	_ON(ret); /* -ENOMEM */
 
 	if (!skip_sum) {
 		ret = btrfs_csum_one_bio(inode, bio, start, 1);
-		BUG_ON(ret); /* -ENOMEM */
+		_ON(ret); /* -ENOMEM */
 	}
 
 	ret = btrfs_map_bio(fs_info, bio, 0, 1);
@@ -620,7 +620,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		    PAGE_SIZE) {
 			ret = btrfs_bio_wq_end_io(fs_info, comp_bio,
 						  BTRFS_WQ_ENDIO_DATA);
-			BUG_ON(ret); /* -ENOMEM */
+			_ON(ret); /* -ENOMEM */
 
 			/*
 			 * inc the count before we submit the bio so
@@ -633,7 +633,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 				ret = btrfs_lookup_bio_sums(inode, comp_bio,
 							    sums);
-				BUG_ON(ret); /* -ENOMEM */
+				_ON(ret); /* -ENOMEM */
 			}
 			sums += DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
 					     fs_info->sectorsize);
@@ -655,11 +655,11 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	}
 
 	ret = btrfs_bio_wq_end_io(fs_info, comp_bio, BTRFS_WQ_ENDIO_DATA);
-	BUG_ON(ret); /* -ENOMEM */
+	_ON(ret); /* -ENOMEM */
 
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 		ret = btrfs_lookup_bio_sums(inode, comp_bio, sums);
-		BUG_ON(ret); /* -ENOMEM */
+		_ON(ret); /* -ENOMEM */
 	}
 
 	ret = btrfs_map_bio(fs_info, comp_bio, mirror_num, 0);

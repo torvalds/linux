@@ -18,10 +18,10 @@
 #ifndef _ATH5K_H
 #define _ATH5K_H
 
-/* TODO: Clean up channel debugging (doesn't work anyway) and start
+/* TODO: Clean up channel deging (doesn't work anyway) and start
  * working on reg. control code using all available eeprom information
  * (rev. engineering needed) */
-#define CHAN_DEBUG	0
+#define CHAN_DE	0
 
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -39,7 +39,7 @@
  * TODO: Make a more generic struct (eg. add more stuff to ath5k_capabilities)
  * and clean up common bits, then introduce set/get functions in eeprom.c */
 #include "eeprom.h"
-#include "debug.h"
+#include "de.h"
 #include "../ath.h"
 #include "ani.h"
 
@@ -158,7 +158,7 @@ do {									\
 
 /*
  * Some tunable values (these should be changeable by the user)
- * TODO: Make use of them and add more options OR use debug/configfs
+ * TODO: Make use of them and add more options OR use de/configfs
  */
 #define AR5K_TUNE_DMA_BEACON_RESP		2
 #define AR5K_TUNE_SW_BEACON_RESP		10
@@ -460,7 +460,7 @@ enum ath5k_driver_mode {
  * @AR5K_ANTMODE_SINGLE_AP: STA locked on a single ap
  * @AR5K_ANTMODE_SECTOR_AP: AP with tx antenna set on tx desc
  * @AR5K_ANTMODE_SECTOR_STA: STA with tx antenna set on tx desc
- * @AR5K_ANTMODE_DEBUG: Debug mode -A -> Rx, B-> Tx-
+ * @AR5K_ANTMODE_DE: De mode -A -> Rx, B-> Tx-
  * @AR5K_ANTMODE_MAX: Used for boundary checks
  *
  * For more infos on antenna control check out phy.c
@@ -472,7 +472,7 @@ enum ath5k_ant_mode {
 	AR5K_ANTMODE_SINGLE_AP	= 3,
 	AR5K_ANTMODE_SECTOR_AP	= 4,
 	AR5K_ANTMODE_SECTOR_STA	= 5,
-	AR5K_ANTMODE_DEBUG	= 6,
+	AR5K_ANTMODE_DE	= 6,
 	AR5K_ANTMODE_MAX,
 };
 
@@ -1240,7 +1240,7 @@ struct ath5k_statistics {
 #define AR5K_MAX_GPIO		10
 #define AR5K_MAX_RF_BANKS	8
 
-#if CHAN_DEBUG
+#if CHAN_DE
 #define ATH_CHAN_MAX	(26 + 26 + 26 + 200 + 200)
 #else
 #define ATH_CHAN_MAX	(14 + 14 + 14 + 252 + 20)
@@ -1271,9 +1271,9 @@ struct ath5k_hw {
 	s8			rate_idx[NUM_NL80211_BANDS][AR5K_MAX_RATES];
 	enum nl80211_iftype	opmode;
 
-#ifdef CONFIG_ATH5K_DEBUG
-	struct ath5k_dbg_info	debug;		/* debug info */
-#endif /* CONFIG_ATH5K_DEBUG */
+#ifdef CONFIG_ATH5K_DE
+	struct ath5k_dbg_info	de;		/* de info */
+#endif /* CONFIG_ATH5K_DE */
 
 	struct ath5k_buf	*bufptr;	/* allocated buffer ptr */
 	struct ath5k_desc	*desc;		/* TX/RX descriptors */

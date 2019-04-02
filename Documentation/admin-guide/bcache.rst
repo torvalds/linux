@@ -176,7 +176,7 @@ or disappeared and came back, and needs to be (re-)registered::
 
 C) Corrupt bcache crashes the kernel at device registration time:
 
-This should never happen.  If it does happen, then you have found a bug!
+This should never happen.  If it does happen, then you have found a !
 Please report it to the bcache development list: linux-bcache@vger.kernel.org
 
 Be sure to provide as much information that you can including kernel dmesg
@@ -377,7 +377,7 @@ want for getting the best possible numbers when benchmarking.
 
  - Still getting cache misses, of the same data
 
-   One last issue that sometimes trips people up is actually an old bug, due to
+   One last issue that sometimes trips people up is actually an old , due to
    the way cache coherency is handled for cache misses. If a btree node is full,
    a cache miss won't be able to insert a key for the new data and the data
    won't be written to the cache.

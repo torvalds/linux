@@ -434,7 +434,7 @@ static const struct vb2_ops cobalt_qops = {
 
 /* V4L2 ioctls */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cobalt_cobaltc(struct cobalt *cobalt, unsigned int cmd, void *arg)
 {
 	struct v4l2_dbg_register *regs = arg;
@@ -1165,14 +1165,14 @@ static const struct v4l2_ioctl_ops cobalt_ioctl_ops = {
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
 	.vidioc_expbuf			= vb2_ioctl_expbuf,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register              = cobalt_g_register,
 	.vidioc_s_register              = cobalt_s_register,
 #endif
 };
 
 static const struct v4l2_ioctl_ops cobalt_ioctl_empty_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register              = cobalt_g_register,
 	.vidioc_s_register              = cobalt_s_register,
 #endif

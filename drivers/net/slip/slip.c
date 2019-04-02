@@ -147,7 +147,7 @@ static int sl_alloc_bufs(struct slip *sl, int mtu)
 
 	/*
 	 * allow for arrival of larger UDP packets, even if we say not to
-	 * also fixes a bug in which SunOS sends 512-byte packets even with
+	 * also fixes a  in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
 	if (len < 576 * 2)
@@ -228,7 +228,7 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 
 /*
  * allow for arrival of larger UDP packets, even if we say not to
- * also fixes a bug in which SunOS sends 512-byte packets even with
+ * also fixes a  in which SunOS sends 512-byte packets even with
  * an MSS of 128
  */
 	if (len < 576 * 2)
@@ -1409,7 +1409,7 @@ static void sl_keepalive(struct timer_list *t)
 			if (sl->outfill)
 				/* outfill timer must be deleted too */
 				(void)del_timer(&sl->outfill_timer);
-			printk(KERN_DEBUG "%s: no packets received during keepalive timeout, hangup.\n", sl->dev->name);
+			printk(KERN_DE "%s: no packets received during keepalive timeout, hangup.\n", sl->dev->name);
 			/* this must hangup tty & close slip */
 			tty_hangup(sl->tty);
 			/* I think we need not something else */

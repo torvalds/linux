@@ -74,7 +74,7 @@ static const struct iwl_base_params iwl6000_base_params = {
 	.led_compensation = 51,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.shadow_reg_enable = false, /* TODO: fix s using this feature */
 	.scd_chain_ext_wa = true,
 };
 
@@ -87,7 +87,7 @@ static const struct iwl_base_params iwl6050_base_params = {
 	.led_compensation = 51,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 1024,
-	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.shadow_reg_enable = false, /* TODO: fix s using this feature */
 	.scd_chain_ext_wa = true,
 };
 
@@ -100,7 +100,7 @@ static const struct iwl_base_params iwl6000_g2_base_params = {
 	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.shadow_reg_enable = false, /* TODO: fix s using this feature */
 	.scd_chain_ext_wa = true,
 };
 

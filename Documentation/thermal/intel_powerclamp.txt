@@ -157,10 +157,10 @@ Compensation to each target ratio consists of two parts:
 	additional idle ratio can be added to quiet interrupts, by
 	slowing down CPU activities.
 
-A debugfs file is provided for the user to examine compensation
+A defs file is provided for the user to examine compensation
 progress and results, such as on a Westmere system.
 [jacob@nex01 ~]$ cat
-/sys/kernel/debug/intel_powerclamp/powerclamp_calib
+/sys/kernel/de/intel_powerclamp/powerclamp_calib
 controlling cpu: 0
 pct confidence steady dynamic (compensation)
 0	0	0	0

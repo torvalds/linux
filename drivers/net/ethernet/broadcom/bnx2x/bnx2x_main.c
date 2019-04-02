@@ -116,11 +116,11 @@ MODULE_PARM_DESC(dropless_fc, " Pause on exhausted host ring");
 
 static int mrrs = -1;
 module_param(mrrs, int, 0444);
-MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
+MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for de)");
 
-static int debug;
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, " Default debug msglevel");
+static int de;
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, " Default de msglevel");
 
 static struct workqueue_struct *bnx2x_wq;
 struct workqueue_struct *bnx2x_iov_wq;
@@ -874,7 +874,7 @@ static void bnx2x_hc_int_disable(struct bnx2x *bp)
 
 	REG_WR(bp, addr, val);
 	if (REG_RD(bp, addr) != val)
-		BNX2X_ERR("BUG! Proper val not read from IGU!\n");
+		BNX2X_ERR("! Proper val not read from IGU!\n");
 }
 
 static void bnx2x_igu_int_disable(struct bnx2x *bp)
@@ -892,7 +892,7 @@ static void bnx2x_igu_int_disable(struct bnx2x *bp)
 
 	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
 	if (REG_RD(bp, IGU_REG_PF_CONFIGURATION) != val)
-		BNX2X_ERR("BUG! Proper val not read from IGU!\n");
+		BNX2X_ERR("! Proper val not read from IGU!\n");
 }
 
 static void bnx2x_int_disable(struct bnx2x *bp)
@@ -1535,7 +1535,7 @@ static int bnx2x_pf_flr_clnup(struct bnx2x *bp)
 	if (bnx2x_is_pcie_pending(bp->pdev))
 		BNX2X_ERR("PCIE Transactions still pending\n");
 
-	/* Debug */
+	/* De */
 	bnx2x_hw_enable_status(bp);
 
 	/*
@@ -2767,7 +2767,7 @@ static int bnx2x_afex_handle_vif_list_cmd(struct bnx2x *bp, u8 cmd_type,
 
 	/* validate only LIST_SET and LIST_GET are received from switch */
 	if ((cmd_type != VIF_LIST_RULE_GET) && (cmd_type != VIF_LIST_RULE_SET))
-		BNX2X_ERR("BUG! afex_handle_vif_list_cmd invalid type 0x%x\n",
+		BNX2X_ERR("! afex_handle_vif_list_cmd invalid type 0x%x\n",
 			  cmd_type);
 
 	func_params.f_obj = &bp->func_obj;
@@ -3043,7 +3043,7 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 	if (seq == (rc & FW_MSG_SEQ_NUMBER_MASK))
 		rc &= FW_MSG_CODE_MASK;
 	else {
-		/* FW BUG! */
+		/* FW ! */
 		BNX2X_ERR("FW failed to respond!\n");
 		bnx2x_fw_dump(bp);
 		rc = 0;
@@ -3540,7 +3540,7 @@ static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
  */
 static void bnx2x_config_mf_bw(struct bnx2x *bp)
 {
-	/* Workaround for MFW bug.
+	/* Workaround for MFW .
 	 * MFW is not supposed to generate BW attention in
 	 * single function mode.
 	 */
@@ -3888,13 +3888,13 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 
 	if (common) {
 		if (!atomic_read(&bp->eq_spq_left)) {
-			BNX2X_ERR("BUG! EQ ring full!\n");
+			BNX2X_ERR("! EQ ring full!\n");
 			spin_unlock_bh(&bp->spq_lock);
 			bnx2x_panic();
 			return -EBUSY;
 		}
 	} else if (!atomic_read(&bp->cq_spq_left)) {
-			BNX2X_ERR("BUG! SPQ ring full!\n");
+			BNX2X_ERR("! SPQ ring full!\n");
 			spin_unlock_bh(&bp->spq_lock);
 			bnx2x_panic();
 			return -EBUSY;
@@ -4740,10 +4740,10 @@ static bool bnx2x_check_blocks_with_parity1(struct bnx2x *bp, u32 sig,
 							  "VAUX PCI CORE");
 				*global = true;
 				break;
-			case AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR:
+			case AEU_INPUTS_ATTN_BITS_DE_PARITY_ERROR:
 				if (print) {
 					_print_next_block((*par_num)++,
-							  "DEBUG");
+							  "DE");
 					_print_parity(bp, DBG_REG_DBG_PRTY_STS);
 				}
 				break;
@@ -6376,7 +6376,7 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 	__set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
 	__set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
 
-	BUG_ON(fp->max_cos > BNX2X_MULTI_TX_COS);
+	_ON(fp->max_cos > BNX2X_MULTI_TX_COS);
 
 	/* init tx data */
 	for_each_cos_in_tx_queue(fp, cos) {
@@ -6485,7 +6485,7 @@ static void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	__set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
 
 	/* No multi-CoS for FCoE L2 client */
-	BUG_ON(fp->max_cos != 1);
+	_ON(fp->max_cos != 1);
 
 	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id,
 			     &fp->cid, 1, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
@@ -6662,7 +6662,7 @@ static int bnx2x_gunzip(struct bnx2x *bp, const u8 *zbuf, int len)
  * General service functions
  */
 
-/* send a NIG loopback debug packet */
+/* send a NIG loopback de packet */
 static void bnx2x_lb_pckt(struct bnx2x *bp)
 {
 	u32 wb_write[3];
@@ -6671,18 +6671,18 @@ static void bnx2x_lb_pckt(struct bnx2x *bp)
 	wb_write[0] = 0x55555555;
 	wb_write[1] = 0x55555555;
 	wb_write[2] = 0x20;		/* SOP */
-	REG_WR_DMAE(bp, NIG_REG_DEBUG_PACKET_LB, wb_write, 3);
+	REG_WR_DMAE(bp, NIG_REG_DE_PACKET_LB, wb_write, 3);
 
 	/* NON-IP protocol */
 	wb_write[0] = 0x09000000;
 	wb_write[1] = 0x55555555;
 	wb_write[2] = 0x10;		/* EOP, eop_bvalid = 0 */
-	REG_WR_DMAE(bp, NIG_REG_DEBUG_PACKET_LB, wb_write, 3);
+	REG_WR_DMAE(bp, NIG_REG_DE_PACKET_LB, wb_write, 3);
 }
 
 /* some of the internal memories
  * are not directly readable from the driver
- * to test them we send debug packets
+ * to test them we send de packets
  */
 static int bnx2x_int_mem_test(struct bnx2x *bp)
 {
@@ -6700,7 +6700,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	/* Disable inputs of parser neighbor blocks */
 	REG_WR(bp, TSDM_REG_ENABLE_IN1, 0x0);
 	REG_WR(bp, TCM_REG_PRS_IFEN, 0x0);
-	REG_WR(bp, CFC_REG_DEBUG0, 0x1);
+	REG_WR(bp, CFC_REG_DE0, 0x1);
 	REG_WR(bp, NIG_REG_PRS_REQ_IN_EN, 0x0);
 
 	/*  Write 0 to parser credits for CFC search request */
@@ -6755,7 +6755,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	/* Disable inputs of parser neighbor blocks */
 	REG_WR(bp, TSDM_REG_ENABLE_IN1, 0x0);
 	REG_WR(bp, TCM_REG_PRS_IFEN, 0x0);
-	REG_WR(bp, CFC_REG_DEBUG0, 0x1);
+	REG_WR(bp, CFC_REG_DE0, 0x1);
 	REG_WR(bp, NIG_REG_PRS_REQ_IN_EN, 0x0);
 
 	/* Write 0 to parser credits for CFC search request */
@@ -6821,7 +6821,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	/* Enable inputs of parser neighbor blocks */
 	REG_WR(bp, TSDM_REG_ENABLE_IN1, 0x7fffffff);
 	REG_WR(bp, TCM_REG_PRS_IFEN, 0x1);
-	REG_WR(bp, CFC_REG_DEBUG0, 0x0);
+	REG_WR(bp, CFC_REG_DE0, 0x0);
 	REG_WR(bp, NIG_REG_PRS_REQ_IN_EN, 0x1);
 
 	DP(NETIF_MSG_HW, "done\n");
@@ -7127,13 +7127,13 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		return -EBUSY;
 	}
 
-	/* Timers bug workaround E2 only. We need to set the entire ILT to
+	/* Timers  workaround E2 only. We need to set the entire ILT to
 	 * have entries with value "0" and valid bit on.
 	 * This needs to be done by the first PF that is loaded in a path
 	 * (i.e. common phase)
 	 */
 	if (!CHIP_IS_E1x(bp)) {
-/* In E2 there is a bug in the timers block that can cause function 6 / 7
+/* In E2 there is a  in the timers block that can cause function 6 / 7
  * (i.e. vnic3) to start even if it is marked as "scan-off".
  * This occurs when a different function (func2,3) is being marked
  * as "scan-off". Real-life scenario for example: if a driver is being
@@ -7395,7 +7395,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	REG_WR(bp, CFC_REG_CFC_INT_MASK, 0);
 
 	/* set the thresholds to prevent CFC/CDU race */
-	REG_WR(bp, CFC_REG_DEBUG0, 0x20020000);
+	REG_WR(bp, CFC_REG_DE0, 0x20020000);
 
 	bnx2x_init_block(bp, BLOCK_HC, PHASE_COMMON);
 
@@ -7405,7 +7405,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	bnx2x_init_block(bp, BLOCK_IGU, PHASE_COMMON);
 	bnx2x_init_block(bp, BLOCK_MISC_AEU, PHASE_COMMON);
 
-	/* Reset PCIE errors for debug */
+	/* Reset PCIE errors for de */
 	REG_WR(bp, 0x2814, 0xffffffff);
 	REG_WR(bp, 0x3820, 0xffffffff);
 
@@ -7452,7 +7452,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 		BNX2X_ERR("CFC CAM_INIT failed\n");
 		return -EBUSY;
 	}
-	REG_WR(bp, CFC_REG_DEBUG0, 0);
+	REG_WR(bp, CFC_REG_DE0, 0);
 
 	if (CHIP_IS_E1(bp)) {
 		/* read NIG statistic
@@ -7521,7 +7521,7 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	bnx2x_init_block(bp, BLOCK_PXP, init_phase);
 	bnx2x_init_block(bp, BLOCK_PXP2, init_phase);
 
-	/* Timers bug workaround: disables the pf_master bit in pglue at
+	/* Timers  workaround: disables the pf_master bit in pglue at
 	 * common phase, we need to enable it here before any dmae access are
 	 * attempted. Therefore we manually added the enable-master to the
 	 * port phase (it also happens in the function phase)
@@ -8018,7 +8018,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 		if (!(bp->flags & USING_MSIX_FLAG))
 			pf_conf |= IGU_PF_CONF_SINGLE_ISR_EN;
 		/*
-		 * Timers workaround bug: function init part.
+		 * Timers workaround : function init part.
 		 * Need to wait 20msec after initializing ILT,
 		 * needed to make sure there are no requests in
 		 * one of the PXP internal queues with "old" ILT addresses
@@ -8217,7 +8217,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 		}
 	}
 
-	/* Reset PCIE errors for debug */
+	/* Reset PCIE errors for de */
 	REG_WR(bp, 0x2114, 0xffffffff);
 	REG_WR(bp, 0x2120, 0xffffffff);
 
@@ -8713,7 +8713,7 @@ void bnx2x_ilt_set_info(struct bnx2x *bp)
 		   ilog2(ilt_client->page_size >> 12));
 	}
 
-	BUG_ON(line > ILT_MAX_LINES);
+	_ON(line > ILT_MAX_LINES);
 }
 
 /**
@@ -9031,7 +9031,7 @@ static void bnx2x_reset_func(struct bnx2x *bp)
 	/* Clear ILT */
 	bnx2x_clear_func_ilt(bp, func);
 
-	/* Timers workaround bug for E2: if this is vnic-3,
+	/* Timers workaround  for E2: if this is vnic-3,
 	 * we need to set the entire ilt range for this timers.
 	 */
 	if (!CHIP_IS_E1x(bp) && BP_VN(bp) == 3) {
@@ -9109,7 +9109,7 @@ static int bnx2x_func_stop(struct bnx2x *bp)
 	/*
 	 * Try to stop the function the 'good way'. If fails (in case
 	 * of a parity error during bnx2x_chip_cleanup()) and we are
-	 * not in a debug mode, perform a state transaction in order to
+	 * not in a de mode, perform a state transaction in order to
 	 * enable further HW_RESET transaction.
 	 */
 	rc = bnx2x_func_state_change(bp, &func_params);
@@ -10304,7 +10304,7 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 
 	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE)) {
 #ifdef BNX2X_STOP_ON_ERROR
-		BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow debug dump,\n"
+		BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow de dump,\n"
 			  "you will need to reboot when done\n");
 		goto sp_rtnl_not_reset;
 #endif
@@ -10323,7 +10323,7 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state)) {
 #ifdef BNX2X_STOP_ON_ERROR
-		BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow debug dump,\n"
+		BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined so reset not done to allow de dump,\n"
 			  "you will need to reboot when done\n");
 		goto sp_rtnl_not_reset;
 #endif
@@ -10363,7 +10363,7 @@ sp_rtnl_not_reset:
 		bnx2x_after_function_update(bp);
 	/*
 	 * in case of fan failure we need to reset id if the "stop on error"
-	 * debug flag is set, since we trying to prevent permanent overheating
+	 * de flag is set, since we trying to prevent permanent overheating
 	 * damage
 	 */
 	if (test_and_clear_bit(BNX2X_SP_RTNL_FAN_FAILURE, &bp->sp_rtnl_state)) {
@@ -14025,7 +14025,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 
 	bp->igu_sb_cnt = max_non_def_sbs;
 	bp->igu_base_addr = IS_VF(bp) ? PXP_VF_ADDR_IGU_START : BAR_IGU_INTMEM;
-	bp->msg_enable = debug;
+	bp->msg_enable = de;
 	bp->cnic_support = cnic_cnt;
 	bp->cnic_probe = bnx2x_cnic_probe;
 
@@ -14572,7 +14572,7 @@ static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 #endif
 
 	spin_lock_bh(&bp->spq_lock);
-	BUG_ON(bp->cnic_spq_pending < count);
+	_ON(bp->cnic_spq_pending < count);
 	bp->cnic_spq_pending -= count;
 
 	for (; bp->cnic_kwq_pending; bp->cnic_kwq_pending--) {

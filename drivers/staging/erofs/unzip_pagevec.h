@@ -71,7 +71,7 @@ z_erofs_pagevec_ctor_next_page(struct z_erofs_pagevec_ctor *ctor,
 	}
 
 	if (unlikely(nr >= ctor->nr))
-		BUG();
+		();
 
 	return NULL;
 }
@@ -150,7 +150,7 @@ z_erofs_pagevec_ctor_dequeue(struct z_erofs_pagevec_ctor *ctor,
 	erofs_vtptr_t t;
 
 	if (unlikely(ctor->index >= ctor->nr)) {
-		DBG_BUGON(!ctor->next);
+		DBG_ON(!ctor->next);
 		z_erofs_pagevec_ctor_pagedown(ctor, true);
 	}
 

@@ -43,9 +43,9 @@
 #include "mls.h"
 #include "services.h"
 
-#define _DEBUG_HASHES
+#define _DE_HASHES
 
-#ifdef DEBUG_HASHES
+#ifdef DE_HASHES
 static const char *symtab_name[SYM_NUM] = {
 	"common prefixes",
 	"classes",
@@ -469,13 +469,13 @@ static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 	cat_index,
 };
 
-#ifdef DEBUG_HASHES
+#ifdef DE_HASHES
 static void hash_eval(struct hashtab *h, const char *hash_name)
 {
 	struct hashtab_info info;
 
 	hashtab_stat(h, &info);
-	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, "
+	pr_de("SELinux: %s:  %d entries and %d/%d buckets used, "
 	       "longest chain length %d\n", hash_name, h->nel,
 	       info.slots_used, h->size, info.max_chain_len);
 }
@@ -505,18 +505,18 @@ static int policydb_index(struct policydb *p)
 	int i, rc;
 
 	if (p->mls_enabled)
-		pr_debug("SELinux:  %d users, %d roles, %d types, %d bools, %d sens, %d cats\n",
+		pr_de("SELinux:  %d users, %d roles, %d types, %d bools, %d sens, %d cats\n",
 			 p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim,
 			 p->p_bools.nprim, p->p_levels.nprim, p->p_cats.nprim);
 	else
-		pr_debug("SELinux:  %d users, %d roles, %d types, %d bools\n",
+		pr_de("SELinux:  %d users, %d roles, %d types, %d bools\n",
 			 p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim,
 			 p->p_bools.nprim);
 
-	pr_debug("SELinux:  %d classes, %d rules\n",
+	pr_de("SELinux:  %d classes, %d rules\n",
 		 p->p_classes.nprim, p->te_avtab.nel);
 
-#ifdef DEBUG_HASHES
+#ifdef DE_HASHES
 	avtab_hash_eval(&p->te_avtab, "rules");
 	symtab_hash_eval(p->symtab);
 #endif
@@ -1721,7 +1721,7 @@ static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 		}
 
 		upper = p->type_val_to_struct_array[upper->bounds - 1];
-		BUG_ON(!upper);
+		_ON(!upper);
 
 		if (upper->attribute) {
 			pr_err("SELinux: type %s: "
@@ -2570,7 +2570,7 @@ static int mls_write_range_helper(struct mls_range *r, void *fp)
 	if (!eq)
 		buf[2] = cpu_to_le32(r->level[1].sens);
 
-	BUG_ON(items > ARRAY_SIZE(buf));
+	_ON(items > ARRAY_SIZE(buf));
 
 	rc = put_entry(buf, sizeof(u32), items, fp);
 	if (rc)
@@ -2952,7 +2952,7 @@ static int role_write(void *vkey, void *datum, void *ptr)
 	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
 		buf[items++] = cpu_to_le32(role->bounds);
 
-	BUG_ON(items > ARRAY_SIZE(buf));
+	_ON(items > ARRAY_SIZE(buf));
 
 	rc = put_entry(buf, sizeof(u32), items, fp);
 	if (rc)
@@ -3002,7 +3002,7 @@ static int type_write(void *vkey, void *datum, void *ptr)
 	} else {
 		buf[items++] = cpu_to_le32(typdatum->primary);
 	}
-	BUG_ON(items > ARRAY_SIZE(buf));
+	_ON(items > ARRAY_SIZE(buf));
 	rc = put_entry(buf, sizeof(u32), items, fp);
 	if (rc)
 		return rc;
@@ -3031,7 +3031,7 @@ static int user_write(void *vkey, void *datum, void *ptr)
 	buf[items++] = cpu_to_le32(usrdatum->value);
 	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
 		buf[items++] = cpu_to_le32(usrdatum->bounds);
-	BUG_ON(items > ARRAY_SIZE(buf));
+	_ON(items > ARRAY_SIZE(buf));
 	rc = put_entry(buf, sizeof(u32), items, fp);
 	if (rc)
 		return rc;

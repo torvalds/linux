@@ -16,9 +16,9 @@
 #include "target.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "debug.h"
+#include "de.h"
 #include "units.h"
-#include "asm/bug.h"
+#include "asm/.h"
 #include "bpf-event.h"
 #include <signal.h>
 #include <unistd.h>
@@ -837,7 +837,7 @@ static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist,
 	int nr_cpus = cpu_map__nr(evlist->cpus);
 	int nr_threads = thread_map__nr(evlist->threads);
 
-	pr_debug2("perf event ring buffer mmapped per cpu\n");
+	pr_de2("perf event ring buffer mmapped per cpu\n");
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		int output = -1;
 		int output_overwrite = -1;
@@ -865,7 +865,7 @@ static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist,
 	int thread;
 	int nr_threads = thread_map__nr(evlist->threads);
 
-	pr_debug2("perf event ring buffer mmapped per thread\n");
+	pr_de2("perf event ring buffer mmapped per thread\n");
 	for (thread = 0; thread < nr_threads; thread++) {
 		int output = -1;
 		int output_overwrite = -1;
@@ -1030,7 +1030,7 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 		return -ENOMEM;
 
 	evlist->mmap_len = perf_evlist__mmap_size(pages);
-	pr_debug("mmap size %zuB\n", evlist->mmap_len);
+	pr_de("mmap size %zuB\n", evlist->mmap_len);
 	mp.mask = evlist->mmap_len - page_size - 1;
 
 	auxtrace_mmap_params__init(&mp.auxtrace_mp, evlist->mmap_len,
@@ -1809,7 +1809,7 @@ struct perf_evsel *perf_evlist__reset_weak_group(struct perf_evlist *evsel_list,
 	bool is_open = true;
 
 	leader = evsel->leader;
-	pr_debug("Weak group for %s/%d failed\n",
+	pr_de("Weak group for %s/%d failed\n",
 			leader->name, leader->nr_members);
 
 	/*

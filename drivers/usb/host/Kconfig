@@ -29,12 +29,12 @@ config USB_XHCI_HCD
 
 if USB_XHCI_HCD
 config USB_XHCI_DBGCAP
-	bool "xHCI support for debug capability"
+	bool "xHCI support for de capability"
 	depends on TTY
 	---help---
-	  Say 'Y' to enable the support for the xHCI debug capability. Make
-	  sure that your xHCI host supports the extended debug capability and
-	  you want a TTY serial device based on the xHCI debug capability
+	  Say 'Y' to enable the support for the xHCI de capability. Make
+	  sure that your xHCI host supports the extended de capability and
+	  you want a TTY serial device based on the xHCI de capability
 	  before enabling this option. If unsure, say 'N'.
 
 config USB_XHCI_PCI
@@ -632,12 +632,12 @@ config USB_FHCI_HCD
 	  (as found on MPC8360 and MPC8323 processors), the driver supports
 	  Full and Low Speed USB.
 
-config FHCI_DEBUG
-	bool "Freescale QE USB Host Controller debug support"
-	depends on USB_FHCI_HCD && DEBUG_FS
+config FHCI_DE
+	bool "Freescale QE USB Host Controller de support"
+	depends on USB_FHCI_HCD && DE_FS
 	help
-	  Say "y" to see some FHCI debug information and statistics
-	  through debugfs.
+	  Say "y" to see some FHCI de information and statistics
+	  through defs.
 
 config USB_U132_HCD
 	tristate "Elan U132 Adapter Host Controller"

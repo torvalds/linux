@@ -531,7 +531,7 @@ static int sdc_init_panel(struct mx3fb_data *mx3fb, enum ipu_panel panel,
 		((uint32_t) (width + h_start_width + h_end_width - 1) << 16);
 	mx3fb_write_reg(mx3fb, reg, SDC_HOR_CONF);
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_CONT " hor_conf %x,", reg);
 #endif
 
@@ -539,7 +539,7 @@ static int sdc_init_panel(struct mx3fb_data *mx3fb, enum ipu_panel panel,
 	    ((uint32_t) (height + v_start_width + v_end_width - 1) << 16);
 	mx3fb_write_reg(mx3fb, reg, SDC_VER_CONF);
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_CONT " ver_conf %x\n", reg);
 #endif
 
@@ -588,7 +588,7 @@ static int sdc_init_panel(struct mx3fb_data *mx3fb, enum ipu_panel panel,
 	/*
 	 * DISP3_IF_CLK_DOWN_WR is half the divider value and 2 fraction bits
 	 * fewer. Subtract 1 extra from DISP3_IF_CLK_DOWN_WR based on timing
-	 * debug. DISP3_IF_CLK_UP_WR is 0
+	 * de. DISP3_IF_CLK_UP_WR is 0
 	 */
 	mx3fb_write_reg(mx3fb, (((div / 8) - 1) << 22) | div, DI_DISP3_TIME_CONF);
 
@@ -1582,7 +1582,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 		goto eremap;
 	}
 
-	pr_debug("Remapped %pR at %p\n", sdc_reg, mx3fb->reg_base);
+	pr_de("Remapped %pR at %p\n", sdc_reg, mx3fb->reg_base);
 
 	/* IDMAC interface */
 	dmaengine_get();

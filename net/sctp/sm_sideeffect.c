@@ -25,7 +25,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -256,7 +256,7 @@ void sctp_generate_t3_rtx_event(struct timer_list *t)
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		pr_debug("%s: sock is busy\n", __func__);
+		pr_de("%s: sock is busy\n", __func__);
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->T3_rtx_timer, jiffies + (HZ/20)))
@@ -291,7 +291,7 @@ static void sctp_generate_timeout_event(struct sctp_association *asoc,
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		pr_debug("%s: sock is busy: timer %d\n", __func__,
+		pr_de("%s: sock is busy: timer %d\n", __func__,
 			 timeout_type);
 
 		/* Try again later.  */
@@ -385,7 +385,7 @@ void sctp_generate_heartbeat_event(struct timer_list *t)
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		pr_debug("%s: sock is busy\n", __func__);
+		pr_de("%s: sock is busy\n", __func__);
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->hb_timer, jiffies + (HZ/20)))
@@ -429,7 +429,7 @@ void sctp_generate_proto_unreach_event(struct timer_list *t)
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		pr_debug("%s: sock is busy\n", __func__);
+		pr_de("%s: sock is busy\n", __func__);
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->proto_unreach_timer,
@@ -465,7 +465,7 @@ void sctp_generate_reconf_event(struct timer_list *t)
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
-		pr_debug("%s: sock is busy\n", __func__);
+		pr_de("%s: sock is busy\n", __func__);
 
 		/* Try again later.  */
 		if (!mod_timer(&transport->reconf_timer, jiffies + (HZ / 20)))
@@ -574,7 +574,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_cmd_seq *commands,
 
 	if (transport->state != SCTP_INACTIVE &&
 	    (transport->error_count > transport->pathmaxrxt)) {
-		pr_debug("%s: association:%p transport addr:%pISpc failed\n",
+		pr_de("%s: association:%p transport addr:%pISpc failed\n",
 			 __func__, asoc, &transport->ipaddr.sa);
 
 		sctp_assoc_control_transport(asoc, transport,
@@ -871,7 +871,7 @@ static void sctp_cmd_new_state(struct sctp_cmd_seq *cmds,
 
 	asoc->state = state;
 
-	pr_debug("%s: asoc:%p[%s]\n", __func__, asoc, sctp_state_tbl[state]);
+	pr_de("%s: asoc:%p[%s]\n", __func__, asoc, sctp_state_tbl[state]);
 
 	if (sctp_style(sk, TCP)) {
 		/* Change the sk->sk_state of a TCP-style socket that has
@@ -1088,7 +1088,7 @@ static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
 		}
 		asoc->init_cycle++;
 
-		pr_debug("%s: T1[%s] timeout adjustment init_err_counter:%d"
+		pr_de("%s: T1[%s] timeout adjustment init_err_counter:%d"
 			 " cycle:%d timeout:%ld\n", __func__, name,
 			 asoc->init_err_counter, asoc->init_cycle,
 			 asoc->timeouts[timer]);
@@ -1138,21 +1138,21 @@ static void sctp_cmd_send_asconf(struct sctp_association *asoc)
 }
 
 
-/* These three macros allow us to pull the debugging code out of the
+/* These three macros allow us to pull the deging code out of the
  * main flow of sctp_do_sm() to keep attention focused on the real
  * functionality there.
  */
-#define debug_pre_sfn() \
-	pr_debug("%s[pre-fn]: ep:%p, %s, %s, asoc:%p[%s], %s\n", __func__, \
-		 ep, sctp_evttype_tbl[event_type], (*debug_fn)(subtype),   \
+#define de_pre_sfn() \
+	pr_de("%s[pre-fn]: ep:%p, %s, %s, asoc:%p[%s], %s\n", __func__, \
+		 ep, sctp_evttype_tbl[event_type], (*de_fn)(subtype),   \
 		 asoc, sctp_state_tbl[state], state_fn->name)
 
-#define debug_post_sfn() \
-	pr_debug("%s[post-fn]: asoc:%p, status:%s\n", __func__, asoc, \
+#define de_post_sfn() \
+	pr_de("%s[post-fn]: asoc:%p, status:%s\n", __func__, asoc, \
 		 sctp_status_tbl[status])
 
-#define debug_post_sfx() \
-	pr_debug("%s[post-sfx]: error:%d, asoc:%p[%s]\n", __func__, error, \
+#define de_post_sfx() \
+	pr_de("%s[post-sfx]: error:%d, asoc:%p[%s]\n", __func__, error, \
 		 asoc, sctp_state_tbl[(asoc && sctp_id2assoc(ep->base.sk, \
 		 sctp_assoc2id(asoc))) ? asoc->state : SCTP_STATE_CLOSED])
 
@@ -1171,7 +1171,7 @@ int sctp_do_sm(struct net *net, enum sctp_event_type event_type,
 	static printfn_t *table[] = {
 		NULL, sctp_cname, sctp_tname, sctp_oname, sctp_pname,
 	};
-	printfn_t *debug_fn  __attribute__ ((unused)) = table[event_type];
+	printfn_t *de_fn  __attribute__ ((unused)) = table[event_type];
 	const struct sctp_sm_table_entry *state_fn;
 	struct sctp_cmd_seq commands;
 	enum sctp_disposition status;
@@ -1184,14 +1184,14 @@ int sctp_do_sm(struct net *net, enum sctp_event_type event_type,
 
 	sctp_init_cmd_seq(&commands);
 
-	debug_pre_sfn();
+	de_pre_sfn();
 	status = state_fn->fn(net, ep, asoc, subtype, event_arg, &commands);
-	debug_post_sfn();
+	de_post_sfn();
 
 	error = sctp_side_effects(event_type, subtype, state,
 				  ep, &asoc, event_arg, status,
 				  &commands, gfp);
-	debug_post_sfx();
+	de_post_sfx();
 
 	return error;
 }
@@ -1225,7 +1225,7 @@ static int sctp_side_effects(enum sctp_event_type event_type,
 
 	switch (status) {
 	case SCTP_DISPOSITION_DISCARD:
-		pr_debug("%s: ignored sctp protocol event - state:%d, "
+		pr_de("%s: ignored sctp protocol event - state:%d, "
 			 "event_type:%d, event_id:%d\n", __func__, state,
 			 event_type, subtype.chunk);
 		break;
@@ -1234,7 +1234,7 @@ static int sctp_side_effects(enum sctp_event_type event_type,
 		/* We ran out of memory, so we need to discard this
 		 * packet.
 		 */
-		/* BUG--we should now recover some memory, probably by
+		/* --we should now recover some memory, probably by
 		 * reneging...
 		 */
 		error = -ENOMEM;
@@ -1263,16 +1263,16 @@ static int sctp_side_effects(enum sctp_event_type event_type,
 			state, event_type, subtype.chunk);
 		break;
 
-	case SCTP_DISPOSITION_BUG:
-		pr_err("bug in state %d, event_type %d, event_id %d\n",
+	case SCTP_DISPOSITION_:
+		pr_err(" in state %d, event_type %d, event_id %d\n",
 		       state, event_type, subtype.chunk);
-		BUG();
+		();
 		break;
 
 	default:
 		pr_err("impossible disposition %d in state %d, event_type %d, event_id %d\n",
 		       status, state, event_type, subtype.chunk);
-		BUG();
+		();
 		break;
 	}
 
@@ -1332,7 +1332,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 
 			/* Register with the endpoint.  */
 			asoc = cmd->obj.asoc;
-			BUG_ON(asoc->peer.primary_path == NULL);
+			_ON(asoc->peer.primary_path == NULL);
 			sctp_endpoint_add_asoc(ep, asoc);
 			break;
 
@@ -1472,7 +1472,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 
 		case SCTP_CMD_CHUNK_ULP:
 			/* Send a chunk to the sockets layer.  */
-			pr_debug("%s: sm_sideff: chunk_up:%p, ulpq:%p\n",
+			pr_de("%s: sm_sideff: chunk_up:%p, ulpq:%p\n",
 				 __func__, cmd->obj.chunk, &asoc->ulpq);
 
 			asoc->stream.si->ulpevent_data(&asoc->ulpq,
@@ -1482,7 +1482,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 
 		case SCTP_CMD_EVENT_ULP:
 			/* Send a notification to the sockets layer.  */
-			pr_debug("%s: sm_sideff: event_up:%p, ulpq:%p\n",
+			pr_de("%s: sm_sideff: event_up:%p, ulpq:%p\n",
 				 __func__, cmd->obj.ulpevent, &asoc->ulpq);
 
 			asoc->stream.si->enqueue_event(&asoc->ulpq,
@@ -1551,7 +1551,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 		case SCTP_CMD_TIMER_START:
 			timer = &asoc->timers[cmd->obj.to];
 			timeout = asoc->timeouts[cmd->obj.to];
-			BUG_ON(!timeout);
+			_ON(!timeout);
 
 			timer->expires = jiffies + timeout;
 			sctp_association_hold(asoc);
@@ -1650,7 +1650,7 @@ static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 			break;
 
 		case SCTP_CMD_REPORT_BAD_TAG:
-			pr_debug("%s: vtag mismatch!\n", __func__);
+			pr_de("%s: vtag mismatch!\n", __func__);
 			break;
 
 		case SCTP_CMD_STRIKE:

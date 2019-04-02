@@ -59,7 +59,7 @@
 #include "trace.h"
 #include "qp.h"
 #include "sdma.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "vnic.h"
 #include "fault.h"
 

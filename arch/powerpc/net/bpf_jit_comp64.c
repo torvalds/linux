@@ -86,7 +86,7 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 				- (8 * (32 - reg));
 
 	pr_err("BPF JIT is asking about unknown registers");
-	BUG();
+	();
 }
 
 static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)

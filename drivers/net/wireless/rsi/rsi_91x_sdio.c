@@ -887,8 +887,8 @@ static int rsi_init_sdio_interface(struct rsi_hw *adapter,
 	adapter->determine_event_timeout = rsi_sdio_determine_event_timeout;
 	adapter->check_hw_queue_status = rsi_sdio_check_buffer_status;
 
-#ifdef CONFIG_RSI_DEBUGFS
-	adapter->num_debugfs_entries = MAX_DEBUGFS_ENTRIES;
+#ifdef CONFIG_RSI_DEFS
+	adapter->num_defs_entries = MAX_DEFS_ENTRIES;
 #endif
 	return status;
 fail:

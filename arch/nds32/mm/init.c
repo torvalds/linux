@@ -191,7 +191,7 @@ static void __init set_max_mapnr_init(void)
 void __init mem_init(void)
 {
 	phys_addr_t memory_start = memblock_start_of_DRAM();
-	BUG_ON(!mem_map);
+	_ON(!mem_map);
 	set_max_mapnr_init();
 
 	free_highmem();
@@ -235,19 +235,19 @@ void __init mem_init(void)
 	 * be detected at build time already.
 	 */
 #ifdef CONFIG_HIGHMEM
-	BUILD_BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > FIXADDR_START);
-	BUILD_BUG_ON((CONSISTENT_END) > PKMAP_BASE);
+	BUILD__ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > FIXADDR_START);
+	BUILD__ON((CONSISTENT_END) > PKMAP_BASE);
 #endif
-	BUILD_BUG_ON(VMALLOC_END > CONSISTENT_BASE);
-	BUILD_BUG_ON(VMALLOC_START >= VMALLOC_END);
+	BUILD__ON(VMALLOC_END > CONSISTENT_BASE);
+	BUILD__ON(VMALLOC_START >= VMALLOC_END);
 
 #ifdef CONFIG_HIGHMEM
-	BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > FIXADDR_START);
-	BUG_ON(CONSISTENT_END > PKMAP_BASE);
+	_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > FIXADDR_START);
+	_ON(CONSISTENT_END > PKMAP_BASE);
 #endif
-	BUG_ON(VMALLOC_END > CONSISTENT_BASE);
-	BUG_ON(VMALLOC_START >= VMALLOC_END);
-	BUG_ON((unsigned long)high_memory > VMALLOC_START);
+	_ON(VMALLOC_END > CONSISTENT_BASE);
+	_ON(VMALLOC_START >= VMALLOC_END);
+	_ON((unsigned long)high_memory > VMALLOC_START);
 
 	return;
 }
@@ -270,7 +270,7 @@ void __set_fixmap(enum fixed_addresses idx,
 	unsigned long addr = __fix_to_virt(idx);
 	pte_t *pte;
 
-	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
+	_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	pte = (pte_t *)&fixmap_pmd_p[pte_index(addr)];;
 

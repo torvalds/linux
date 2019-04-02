@@ -28,7 +28,7 @@
 
 #define cmpxchg64_local(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_local((ptr), (o), (n));					\
 })
 
@@ -67,7 +67,7 @@
 
 #define cmpxchg64(ptr, o, n)						\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg((ptr), (o), (n));					\
 })
 

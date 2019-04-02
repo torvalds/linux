@@ -358,7 +358,7 @@ static int savage_dispatch_dma_prim(drm_savage_private_t * dev_priv,
 		dev_priv->state.common.vbaddr = dmabuf->bus_address;
 	}
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset) && dev_priv->waiting) {
-		/* Workaround for what looks like a hardware bug. If a
+		/* Workaround for what looks like a hardware . If a
 		 * WAIT_3D_IDLE was emitted some time before the
 		 * indexed drawing command then the engine will lock
 		 * up. There are two known workarounds:
@@ -610,7 +610,7 @@ static int savage_dispatch_dma_idx(drm_savage_private_t * dev_priv,
 		dev_priv->state.common.vbaddr = dmabuf->bus_address;
 	}
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset) && dev_priv->waiting) {
-		/* Workaround for what looks like a hardware bug. If a
+		/* Workaround for what looks like a hardware . If a
 		 * WAIT_3D_IDLE was emitted some time before the
 		 * indexed drawing command then the engine will lock
 		 * up. There are two known workarounds:
@@ -970,7 +970,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 	unsigned int i, j;
 	int ret = 0;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 

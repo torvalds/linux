@@ -324,7 +324,7 @@ static int evm_pcf_setup(struct i2c_client *client, int gpio,
 static int evm_pcf_teardown(struct i2c_client *client, int gpio,
 			unsigned int ngpio, void *c)
 {
-	BUG_ON(ngpio < 8);
+	_ON(ngpio < 8);
 
 	evm_sw_teardown(client, gpio, 4, c);
 	evm_led_teardown(client, gpio+4, 4, c);

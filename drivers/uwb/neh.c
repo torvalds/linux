@@ -498,7 +498,7 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 			needtofree = rc->filter_event(rc, &rceb, size,
 						      &real_size, &event_size);
 			if (needtofree < 0 && needtofree != -ENOANO) {
-				dev_err(dev, "BUG: Unable to filter event "
+				dev_err(dev, ": Unable to filter event "
 					"(0x%02x/%04x/%02x) from "
 					"device. \n", rceb->bEventType,
 					le16_to_cpu(rceb->wEvent),
@@ -514,7 +514,7 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 			if (ret < 0)
 				break;
 			if (ret > size) {
-				dev_err(dev, "BUG: hw sent incomplete event "
+				dev_err(dev, ": hw sent incomplete event "
 					"0x%02x/%04x/%02x (%zd bytes), only got "
 					"%zu bytes. We don't handle that.\n",
 					rceb->bEventType, le16_to_cpu(rceb->wEvent),

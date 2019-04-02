@@ -419,7 +419,7 @@ static void iwl_mvm_ack_rates(struct iwl_mvm *mvm,
 			if (lowest_present_ofdm > hw)
 				lowest_present_ofdm = hw;
 		} else {
-			BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
+			BUILD__ON(IWL_FIRST_CCK_RATE != 0);
 
 			cck |= BIT(hw);
 			if (lowest_present_cck > hw)
@@ -493,7 +493,7 @@ static void iwl_mvm_mac_ctxt_set_ht_flags(struct iwl_mvm *mvm,
 	/* The fw does not distinguish between ht and fat */
 	u32 ht_flag = MAC_PROT_FLG_HT_PROT | MAC_PROT_FLG_FAT_PROT;
 
-	IWL_DEBUG_RATE(mvm, "protection mode set to %d\n", protection_mode);
+	IWL_DE_RATE(mvm, "protection mode set to %d\n", protection_mode);
 	/*
 	 * See section 9.23.3.1 of IEEE 80211-2012.
 	 * Nongreenfield HT STAs Present is not supported.
@@ -605,7 +605,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	if (vif->bss_conf.use_cts_prot)
 		cmd->protection_flags |= cpu_to_le32(MAC_PROT_FLG_TGG_PROTECT);
 
-	IWL_DEBUG_RATE(mvm, "use_cts_prot %d, ht_operation_mode %d\n",
+	IWL_DE_RATE(mvm, "use_cts_prot %d, ht_operation_mode %d\n",
 		       vif->bss_conf.use_cts_prot,
 		       vif->bss_conf.ht_operation_mode);
 	if (vif->bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
@@ -681,7 +681,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 		ctxt_sta->assoc_beacon_arrive_time =
 			cpu_to_le32(vif->bss_conf.sync_device_ts);
 
-		IWL_DEBUG_INFO(mvm, "DTIM TBTT is 0x%llx/0x%x, offset %d\n",
+		IWL_DE_INFO(mvm, "DTIM TBTT is 0x%llx/0x%x, offset %d\n",
 			       le64_to_cpu(ctxt_sta->dtim_tsf),
 			       le32_to_cpu(ctxt_sta->dtim_time),
 			       dtim_offs);
@@ -1044,7 +1044,7 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 	if (!beacon)
 		return -ENOMEM;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (mvm->beacon_inject_active)
 		return -EBUSY;
 #endif
@@ -1106,9 +1106,9 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 	cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 	if (mvmvif->ap_assoc_sta_count || !mvm->drop_bcn_ap_mode) {
 		cmd->filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
-		IWL_DEBUG_HC(mvm, "Asking FW to pass beacons\n");
+		IWL_DE_HC(mvm, "Asking FW to pass beacons\n");
 	} else {
-		IWL_DEBUG_HC(mvm, "No need to receive beacons\n");
+		IWL_DE_HC(mvm, "No need to receive beacons\n");
 	}
 
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax)
@@ -1354,7 +1354,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 		mvm->ibss_manager = beacon_v5->ibss_mgr_status != 0;
 		agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
 		status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
-		IWL_DEBUG_RX(mvm,
+		IWL_DE_RX(mvm,
 			     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
 			     status, beacon_notify_hdr->failure_frame,
 			     le64_to_cpu(beacon->tsf),
@@ -1363,7 +1363,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	} else {
 		mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 		status = le32_to_cpu(beacon->status) & TX_STATUS_MSK;
-		IWL_DEBUG_RX(mvm,
+		IWL_DE_RX(mvm,
 			     "beacon status %#x tsf:0x%016llX gp2:0x%X\n",
 			     status, le64_to_cpu(beacon->tsf),
 			     mvm->ap_last_beacon_gp2);
@@ -1412,7 +1412,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	struct ieee80211_vif *vif;
 	u32 id = le32_to_cpu(mb->mac_id);
 
-	IWL_DEBUG_INFO(mvm,
+	IWL_DE_INFO(mvm,
 		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
 		       le32_to_cpu(mb->mac_id),
 		       le32_to_cpu(mb->consec_missed_beacons),
@@ -1513,7 +1513,7 @@ void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(len < sizeof(*notif)))
 		return;
 
-	IWL_DEBUG_INFO(mvm, "Probe response data notif: noa %d, csa %d\n",
+	IWL_DE_INFO(mvm, "Probe response data notif: noa %d, csa %d\n",
 		       notif->noa_active, notif->csa_counter);
 
 	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
@@ -1588,7 +1588,7 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 			 csa_id, id_n_color))
 			goto out_unlock;
 
-		IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
+		IWL_DE_INFO(mvm, "Channel Switch Started Notification\n");
 
 		schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
 				      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *

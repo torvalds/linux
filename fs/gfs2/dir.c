@@ -304,7 +304,7 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, __be64 *buf,
 						&dblock, &extlen);
 			if (error || !dblock)
 				goto fail;
-			BUG_ON(extlen < 1);
+			_ON(extlen < 1);
 			bh = gfs2_meta_ra(ip->i_gl, dblock, extlen);
 		} else {
 			error = gfs2_meta_read(ip->i_gl, dblock, DIO_WAIT, 0, &bh);
@@ -345,7 +345,7 @@ static __be64 *gfs2_dir_get_hash_table(struct gfs2_inode *ip)
 	u32 hsize;
 	__be64 *hc;
 
-	BUG_ON(!(ip->i_diskflags & GFS2_DIF_EXHASH));
+	_ON(!(ip->i_diskflags & GFS2_DIF_EXHASH));
 
 	hc = ip->i_hash_cache;
 	if (hc)
@@ -539,7 +539,7 @@ static int gfs2_dirent_offset(struct gfs2_sbd *sdp, const void *buf)
 	const struct gfs2_meta_header *h = buf;
 	int offset;
 
-	BUG_ON(buf == NULL);
+	_ON(buf == NULL);
 
 	switch(be32_to_cpu(h->mh_type)) {
 	case GFS2_METATYPE_LF:
@@ -601,7 +601,7 @@ static struct gfs2_dirent *gfs2_dirent_scan(struct inode *inode, void *buf,
 	case 2:
 		return prev ? prev : dent;
 	default:
-		BUG_ON(ret > 0);
+		_ON(ret > 0);
 		return ERR_PTR(ret);
 	}
 
@@ -720,7 +720,7 @@ static struct gfs2_dirent *do_init_dirent(struct inode *inode,
 	unsigned totlen;
 
 	totlen = be16_to_cpu(dent->de_rec_len);
-	BUG_ON(offset + name->len > totlen);
+	_ON(offset + name->len > totlen);
 	gfs2_trans_add_meta(ip->i_gl, bh);
 	ndent = (struct gfs2_dirent *)((char *)dent + offset);
 	dent->de_rec_len = cpu_to_be16(offset);
@@ -1461,7 +1461,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, struct dir_context *ctx,
 		}
 	} while(lfn);
 
-	BUG_ON(entries2 != entries);
+	_ON(entries2 != entries);
 	error = do_filldir_main(ip, ctx, darr, entries, need_sort ?
 				sort_offset : entries, copied);
 out_free:
@@ -1720,7 +1720,7 @@ out:
  * to the hash table, 2 for one layer of indirection, 3 for two layers
  * etc. We are thus able to tell the difference between an old leaf
  * with dist set to zero (i.e. "don't know") and a new one where we
- * set this information for debug/fsck purposes.
+ * set this information for de/fsck purposes.
  *
  * Returns: 0 on success, or -ve on error
  */

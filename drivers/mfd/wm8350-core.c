@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -35,13 +35,13 @@
 #define WM8350_CLOCK_CONTROL_1		0x28
 #define WM8350_AIF_TEST			0x74
 
-/* debug */
-#define WM8350_BUS_DEBUG 0
-#if WM8350_BUS_DEBUG
+/* de */
+#define WM8350_BUS_DE 0
+#if WM8350_BUS_DE
 #define dump(regs, src) do { \
 	int i_; \
 	u16 *src_ = src; \
-	printk(KERN_DEBUG); \
+	printk(KERN_DE); \
 	for (i_ = 0; i_ < regs; i_++) \
 		printk(" 0x%4.4x", *src_++); \
 	printk("\n"); \
@@ -50,8 +50,8 @@
 #define dump(bytes, src)
 #endif
 
-#define WM8350_LOCK_DEBUG 0
-#if WM8350_LOCK_DEBUG
+#define WM8350_LOCK_DE 0
+#if WM8350_LOCK_DE
 #define ldbg(format, arg...) printk(format, ## arg)
 #else
 #define ldbg(format, arg...)

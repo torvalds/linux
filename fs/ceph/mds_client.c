@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/fs.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
 
@@ -18,7 +18,7 @@
 #include <linux/ceph/decode.h>
 #include <linux/ceph/pagelist.h>
 #include <linux/ceph/auth.h>
-#include <linux/ceph/debugfs.h>
+#include <linux/ceph/defs.h>
 
 #define RECONNECT_MAX_SIZE (INT_MAX - PAGE_SIZE)
 
@@ -336,7 +336,7 @@ static int parse_reply_info_readdir(void **p, void *end,
 	if (num == 0)
 		goto done;
 
-	BUG_ON(!info->dir_entries);
+	_ON(!info->dir_entries);
 	if ((unsigned long)(info->dir_entries + num) >
 	    (unsigned long)info->dir_entries + info->dir_buf_size) {
 		pr_err("dir contents are larger than expected\n");
@@ -663,7 +663,7 @@ static void __unregister_session(struct ceph_mds_client *mdsc,
 			       struct ceph_mds_session *s)
 {
 	dout("__unregister_session mds%d %p\n", s->s_mds, s);
-	BUG_ON(mdsc->sessions[s->s_mds] != s);
+	_ON(mdsc->sessions[s->s_mds] != s);
 	mdsc->sessions[s->s_mds] = NULL;
 	s->s_state = 0;
 	ceph_con_close(&s->s_con);
@@ -1038,14 +1038,14 @@ static void encode_supported_features(void **p, void *end)
 		size_t i;
 		size_t size = ((size_t)bits[count - 1] + 64) / 64 * 8;
 
-		BUG_ON(*p + 4 + size > end);
+		_ON(*p + 4 + size > end);
 		ceph_encode_32(p, size);
 		memset(*p, 0, size);
 		for (i = 0; i < count; i++)
 			((unsigned char*)(*p))[i / 8] |= 1 << (bits[i] % 8);
 		*p += size;
 	} else {
-		BUG_ON(*p + 4 > end);
+		_ON(*p + 4 > end);
 		ceph_encode_32(p, 0);
 	}
 }
@@ -1324,7 +1324,7 @@ static int iterate_session_caps(struct ceph_mds_session *session,
 		if (!cap->ci) {
 			dout("iterate_session_caps  finishing cap %p removal\n",
 			     cap);
-			BUG_ON(cap->session != session);
+			_ON(cap->session != session);
 			cap->session = NULL;
 			list_del_init(&cap->session_caps);
 			session->s_nr_caps--;
@@ -1477,8 +1477,8 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	// drop cap expires and unlock s_cap_lock
 	detach_cap_releases(session, &dispose);
 
-	BUG_ON(session->s_nr_caps > 0);
-	BUG_ON(!list_empty(&session->s_cap_flushing));
+	_ON(session->s_nr_caps > 0);
+	_ON(!list_empty(&session->s_cap_flushing));
 	spin_unlock(&session->s_cap_lock);
 	dispose_cap_releases(session->s_mdsc, &dispose);
 }
@@ -1875,7 +1875,7 @@ again:
 		}
 	}
 
-	BUG_ON(num_cap_releases != 0);
+	_ON(num_cap_releases != 0);
 
 	spin_lock(&session->s_cap_lock);
 	if (!list_empty(&session->s_cap_releases))
@@ -2346,7 +2346,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		ceph_encode_copy(&p, &ts, sizeof(ts));
 	}
 
-	BUG_ON(p > end);
+	_ON(p > end);
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 
@@ -2971,8 +2971,8 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	} else {
 		/* resend. forward race not possible; mds would drop */
 		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
-		BUG_ON(req->r_err);
-		BUG_ON(test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags));
+		_ON(req->r_err);
+		_ON(test_bit(CEPH_MDS_R_GOT_RESULT, &req->r_req_flags));
 		req->r_attempts = 0;
 		req->r_num_fwd = fwd_seq;
 		req->r_resend_mds = next_mds;
@@ -3208,7 +3208,7 @@ static int send_reconnect_partial(struct ceph_reconnect_state *recon_state)
 		return -ENOSPC;
 
 	/* can't handle message that contains both caps and realm */
-	BUG_ON(!recon_state->nr_caps == !recon_state->nr_realms);
+	_ON(!recon_state->nr_caps == !recon_state->nr_realms);
 
 	/* pre-allocate new pagelist */
 	_pagelist = ceph_pagelist_alloc(GFP_NOFS);

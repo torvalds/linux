@@ -29,7 +29,7 @@ static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pnode *info)
 	unsigned long mmr_value;
 	struct uv_IO_APIC_route_entry *entry;
 
-	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) !=
+	BUILD__ON(sizeof(struct uv_IO_APIC_route_entry) !=
 		     sizeof(unsigned long));
 
 	mmr_value = 0;
@@ -111,7 +111,7 @@ static void uv_domain_free(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_data *irq_data = irq_domain_get_irq_data(domain, virq);
 
-	BUG_ON(nr_irqs != 1);
+	_ON(nr_irqs != 1);
 	kfree(irq_data->chip_data);
 	irq_clear_status_flags(virq, IRQ_MOVE_PCNTXT);
 	irq_clear_status_flags(virq, IRQ_NO_BALANCING);

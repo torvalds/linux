@@ -8,7 +8,7 @@
 #define __PINCTRL_UNIPHIER_H__
 
 #include <linux/bits.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
@@ -167,7 +167,7 @@ struct uniphier_pinctrl_socdata {
 #define UNIPHIER_PINCTRL_GROUP(grp)					\
 	__UNIPHIER_PINCTRL_GROUP(grp,					\
 			grp##_muxvals +					\
-			BUILD_BUG_ON_ZERO(ARRAY_SIZE(grp##_pins) !=	\
+			BUILD__ON_ZERO(ARRAY_SIZE(grp##_pins) !=	\
 					  ARRAY_SIZE(grp##_muxvals)))
 
 #define UNIPHIER_PINCTRL_GROUP_GPIO(grp)				\

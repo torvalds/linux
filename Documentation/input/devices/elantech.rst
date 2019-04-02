@@ -92,17 +92,17 @@ Extra knobs
 Currently the Linux Elantech touchpad driver provides three extra knobs under
 /sys/bus/serio/drivers/psmouse/serio? for the user.
 
-* debug
+* de
 
-   Turn different levels of debugging ON or OFF.
+   Turn different levels of deging ON or OFF.
 
-   By echoing "0" to this file all debugging will be turned OFF.
+   By echoing "0" to this file all deging will be turned OFF.
 
-   Currently a value of "1" will turn on some basic debugging and a value of
-   "2" will turn on packet debugging. For hardware version 1 the default is
+   Currently a value of "1" will turn on some basic deging and a value of
+   "2" will turn on packet deging. For hardware version 1 the default is
    OFF. For version 2 the default is "1".
 
-   Turning packet debugging on will make the driver dump every packet
+   Turning packet deging on will make the driver dump every packet
    received to the syslog before processing it. Be warned that this can
    generate quite a lot of data!
 
@@ -297,7 +297,7 @@ byte 3::
 Native absolute mode 4 byte packet format
 -----------------------------------------
 
-EF013 and EF019 have a special behaviour (due to a bug in the firmware?), and
+EF013 and EF019 have a special behaviour (due to a  in the firmware?), and
 when 1 finger is touching, the first 2 position reports must be discarded.
 This counting is reset whenever a different number of fingers is reported.
 

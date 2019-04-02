@@ -11,7 +11,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -66,7 +66,7 @@ static int __init pcibios_init(void)
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
 
-	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
+	printk(KERN_DE "PCI: Probing PCI hardware done\n");
 
 	return 0;
 }
@@ -94,7 +94,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 		struct resource *res = bus->resource[0];
 #endif
 
-		pr_debug("IO unmapping for PCI-PCI bridge %s\n",
+		pr_de("IO unmapping for PCI-PCI bridge %s\n",
 			 pci_name(bus->self));
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -111,8 +111,8 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	if (hose->io_base_alloc == NULL)
 		return 0;
 
-	pr_debug("IO unmapping for PHB %pOF\n", hose->dn);
-	pr_debug("  alloc=0x%p\n", hose->io_base_alloc);
+	pr_de("IO unmapping for PHB %pOF\n", hose->dn);
+	pr_de("  alloc=0x%p\n", hose->io_base_alloc);
 
 	/* This is a PHB, we fully unmap the IO area */
 	vunmap(hose->io_base_alloc);
@@ -151,10 +151,10 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 	hose->io_base_virt = (void __iomem *)(area->addr +
 					      hose->io_base_phys - phys_page);
 
-	pr_debug("IO mapping for PHB %pOF\n", hose->dn);
-	pr_debug("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
+	pr_de("IO mapping for PHB %pOF\n", hose->dn);
+	pr_de("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
 		 hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
-	pr_debug("  size=0x%016llx (alloc=0x%016lx)\n",
+	pr_de("  size=0x%016llx (alloc=0x%016lx)\n",
 		 hose->pci_io_size, size_page);
 
 	/* Establish the mapping */
@@ -167,7 +167,7 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 	hose->io_resource.start += io_virt_offset;
 	hose->io_resource.end += io_virt_offset;
 
-	pr_debug("  hose->io_resource=%pR\n", &hose->io_resource);
+	pr_de("  hose->io_resource=%pR\n", &hose->io_resource);
 
 	return 0;
 }
@@ -180,9 +180,9 @@ int pcibios_map_io_space(struct pci_bus *bus)
 	 * thus HPTEs will be faulted in when needed
 	 */
 	if (bus->self) {
-		pr_debug("IO mapping for PCI-PCI bridge %s\n",
+		pr_de("IO mapping for PCI-PCI bridge %s\n",
 			 pci_name(bus->self));
-		pr_debug("  virt=0x%016llx...0x%016llx\n",
+		pr_de("  virt=0x%016llx...0x%016llx\n",
 			 bus->resource[0]->start + _IO_BASE,
 			 bus->resource[0]->end + _IO_BASE);
 		return 0;

@@ -139,7 +139,7 @@ struct bsd_db {
     unsigned char  hshift;		/* used in hash function */
     unsigned char  n_bits;		/* current bits/code */
     unsigned char  maxbits;		/* maximum bits/code */
-    unsigned char  debug;		/* non-zero if debug desired */
+    unsigned char  de;		/* non-zero if de desired */
     unsigned char  unit;		/* ppp unit number */
     unsigned short seqno;		/* sequence # of next packet */
     unsigned int   mru;			/* size of receive (decompress) bufr */
@@ -171,12 +171,12 @@ static void	*bsd_comp_alloc (unsigned char *options, int opt_len);
 static void	*bsd_decomp_alloc (unsigned char *options, int opt_len);
 
 static int	bsd_init        (void *db, unsigned char *options,
-			         int opt_len, int unit, int debug, int decomp);
+			         int opt_len, int unit, int de, int decomp);
 static int	bsd_comp_init   (void *state, unsigned char *options,
-			         int opt_len, int unit, int opthdr, int debug);
+			         int opt_len, int unit, int opthdr, int de);
 static int	bsd_decomp_init (void *state, unsigned char *options,
 				 int opt_len, int unit, int opthdr, int mru,
-				 int debug);
+				 int de);
 
 static void	bsd_reset (void *state);
 static void	bsd_comp_stats (void *state, struct compstat *stats);
@@ -461,7 +461,7 @@ static void *bsd_decomp_alloc (unsigned char *options, int opt_len)
  */
 
 static int bsd_init (void *state, unsigned char *options,
-		     int opt_len, int unit, int debug, int decomp)
+		     int opt_len, int unit, int de, int decomp)
   {
     struct bsd_db *db = state;
     int indx;
@@ -493,10 +493,10 @@ static int bsd_init (void *state, unsigned char *options,
 
     db->unit = unit;
     db->mru  = 0;
-#ifndef DEBUG
-    if (debug)
+#ifndef DE
+    if (de)
 #endif
-      db->debug = 1;
+      db->de = 1;
 
     bsd_reset(db);
 
@@ -504,16 +504,16 @@ static int bsd_init (void *state, unsigned char *options,
   }
 
 static int bsd_comp_init (void *state, unsigned char *options,
-			  int opt_len, int unit, int opthdr, int debug)
+			  int opt_len, int unit, int opthdr, int de)
   {
-    return bsd_init (state, options, opt_len, unit, debug, 0);
+    return bsd_init (state, options, opt_len, unit, de, 0);
   }
 
 static int bsd_decomp_init (void *state, unsigned char *options,
 			    int opt_len, int unit, int opthdr, int mru,
-			    int debug)
+			    int de)
   {
-    return bsd_init (state, options, opt_len, unit, debug, 1);
+    return bsd_init (state, options, opt_len, unit, de, 1);
   }
 
 /*
@@ -523,7 +523,7 @@ static int bsd_decomp_init (void *state, unsigned char *options,
 #define dict_ptrx(p,idx) &(p->dict[idx])
 #define lens_ptrx(p,idx) &(p->lens[idx])
 
-#ifdef DEBUG
+#ifdef DE
 static unsigned short *lens_ptr(struct bsd_db *db, int idx)
   {
     if ((unsigned int) idx > (unsigned int) db->maxmaxcode)
@@ -820,7 +820,7 @@ static void bsd_incomp (void *state, unsigned char *ibuf, int icnt)
  *
  * Given that the frame has the correct sequence number and a good FCS,
  * errors such as invalid codes in the input most likely indicate a
- * bug, so we return DECOMP_FATALERROR for them in order to turn off
+ * , so we return DECOMP_FATALERROR for them in order to turn off
  * compression, even though they are detected by inspecting the input.
  */
 
@@ -874,7 +874,7 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 
     if (seq != db->seqno)
       {
-	if (db->debug)
+	if (db->de)
 	  {
 	    printk("bsd_decomp%d: bad sequence # %d, expected %d\n",
 		   db->unit, seq, db->seqno - 1);
@@ -936,11 +936,11 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 	  {
 	    if (ilen > 0)
 	      {
-		if (db->debug)
+		if (db->de)
 		  {
 		    printk("bsd_decomp%d: bad CLEAR\n", db->unit);
 		  }
-		return DECOMP_FATALERROR;	/* probably a bug */
+		return DECOMP_FATALERROR;	/* probably a  */
 	      }
 
 	    bsd_clear(db);
@@ -950,14 +950,14 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 	if ((incode > max_ent + 2) || (incode > db->maxmaxcode)
 	    || (incode > max_ent && oldcode == CLEAR))
 	  {
-	    if (db->debug)
+	    if (db->de)
 	      {
 		printk("bsd_decomp%d: bad code 0x%x oldcode=0x%x ",
 		       db->unit, incode, oldcode);
 		printk("max_ent=0x%x explen=%d seqno=%d\n",
 		       max_ent, explen, db->seqno);
 	      }
-	    return DECOMP_FATALERROR;	/* probably a bug */
+	    return DECOMP_FATALERROR;	/* probably a  */
 	  }
 
 	/* Special case for KwKwK string. */
@@ -976,10 +976,10 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 	explen += codelen + extra;
 	if (explen > osize)
 	  {
-	    if (db->debug)
+	    if (db->de)
 	      {
 		printk("bsd_decomp%d: ran out of mru\n", db->unit);
-#ifdef DEBUG
+#ifdef DE
 		printk("  len=%d, finchar=0x%x, codelen=%d, explen=%d\n",
 		       ilen, finchar, codelen, explen);
 #endif
@@ -998,7 +998,7 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 	    struct bsd_dict *dictp2 = dict_ptr (db, finchar);
 
 	    dictp = dict_ptr (db, dictp2->cptr);
-#ifdef DEBUG
+#ifdef DE
 	    if (--codelen <= 0 || dictp->codem1 != finchar-1)
 	      {
 		if (codelen <= 0)
@@ -1027,7 +1027,7 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 	  }
 	*--p = finchar;
 
-#ifdef DEBUG
+#ifdef DE
 	if (--codelen != 0)
 	  {
 	    printk("bsd_decomp%d: short by %d after code 0x%x, max_ent=0x%x\n",
@@ -1116,7 +1116,7 @@ static int bsd_decompress (void *state, unsigned char *ibuf, int isize,
 
     if (bsd_check(db))
       {
-	if (db->debug)
+	if (db->de)
 	  {
 	    printk("bsd_decomp%d: peer should have cleared dictionary on %d\n",
 		   db->unit, db->seqno - 1);

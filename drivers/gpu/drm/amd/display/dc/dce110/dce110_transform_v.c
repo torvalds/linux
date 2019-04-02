@@ -235,17 +235,17 @@ static void program_overscan(
 	int overscan_right = data->h_active - data->recout.x - data->recout.width;
 	int overscan_bottom = data->v_active - data->recout.y - data->recout.height;
 
-	if (xfm_dce->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
+	if (xfm_dce->base.ctx->dc->de.visual_confirm != VISUAL_CONFIRM_DISABLE) {
 		overscan_bottom += 2;
 		overscan_right += 2;
 	}
 
 	if (overscan_right < 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		overscan_right = 0;
 	}
 	if (overscan_bottom < 0) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		overscan_bottom = 0;
 	}
 
@@ -495,8 +495,8 @@ static const uint16_t *get_filter_coeffs_64p(int taps, struct fixed31_32 ratio)
 	else if (taps == 1)
 		return NULL;
 	else {
-		/* should never happen, bug */
-		BREAK_TO_DEBUGGER();
+		/* should never happen,  */
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 }
@@ -651,7 +651,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 		expan_mode  = 0;
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 

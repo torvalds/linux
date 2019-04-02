@@ -112,7 +112,7 @@ static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
 
 	info->h_iter = 0;
 	xen_for_each_gfn(&page, nr_gfn, setup_hparams, info);
-	BUG_ON(info->h_iter != nr_gfn);
+	_ON(info->h_iter != nr_gfn);
 
 	set_xen_guest_handle(xatp.idxs, info->h_idxs);
 	set_xen_guest_handle(xatp.gpfns, info->h_gpfns);
@@ -154,7 +154,7 @@ int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 
 	/* Kept here for the purpose of making sure code doesn't break
 	   x86 PVOPS */
-	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
+	_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
 
 	data.fgfn = gfn;
 	data.nr_fgfn = nr;
@@ -222,7 +222,7 @@ int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
 	int rc;
 	unsigned long nr_pages;
 
-	BUG_ON(nr_grant_frames == 0);
+	_ON(nr_grant_frames == 0);
 	nr_pages = DIV_ROUND_UP(nr_grant_frames, XEN_PFN_PER_PAGE);
 	pages = kcalloc(nr_pages, sizeof(pages[0]), GFP_KERNEL);
 	if (!pages)

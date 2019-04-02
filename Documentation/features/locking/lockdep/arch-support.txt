@@ -1,7 +1,7 @@
 #
 # Feature name:          lockdep
 #         Kconfig:       LOCKDEP_SUPPORT
-#         description:   arch supports the runtime locking correctness debug facility
+#         description:   arch supports the runtime locking correctness de facility
 #
     -----------------------
     |         arch |status|

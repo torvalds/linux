@@ -48,14 +48,14 @@ PREFIX = "ahd_"
 #include "scsi_message.h"
 
 restart:
-if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {
+if ((ahd->s & AHD_INTCOLLISION_) != 0) {
 	test	SEQINTCODE, 0xFF jz idle_loop;
 	SET_SEQINTCODE(NO_SEQINT)
 }
 
 idle_loop:
 
-	if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {
+	if ((ahd->s & AHD_INTCOLLISION_) != 0) {
 		/*
 		 * Convert ERROR status into a sequencer
 		 * interrupt to handle the case of an
@@ -121,7 +121,7 @@ END_CRITICAL;
 idle_loop_check_nonpackreq:
 	test	SSTAT2, NONPACKREQ jz . + 2;
 	call	unexpected_nonpkt_phase_find_ctxt;
-	if ((ahd->bugs & AHD_FAINT_LED_BUG) != 0) {
+	if ((ahd->s & AHD_FAINT_LED_) != 0) {
 		/*
 		 * On Rev A. hardware, the busy LED is only
 		 * turned on automaically during selections
@@ -295,7 +295,7 @@ fetch_new_scb_done:
 	clr	A;
 	add	CMDS_PENDING, 1;
 	adc	CMDS_PENDING[1], A;
-	if ((ahd->bugs & AHD_PKT_LUN_BUG) != 0) {
+	if ((ahd->s & AHD_PKT_LUN_) != 0) {
 		/*
 		 * "Short Luns" are not placed into outgoing LQ
 		 * packets in the correct byte order.  Use a full
@@ -510,14 +510,14 @@ longjmp:
 	bmov	STACK, LONGJMP_ADDR, 2 ret;
 END_CRITICAL;
 
-/*************************** Chip Bug Work Arounds ****************************/
+/*************************** Chip  Work Arounds ****************************/
 /*
  * Must disable interrupts when setting the mode pointer
  * register as an interrupt occurring mid update will
  * fail to store the new mode value for restoration on
  * an iret.
  */
-if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {
+if ((ahd->s & AHD_SET_MODE_) != 0) {
 set_mode_work_around:
 	mvi	SEQINTCTL, INTVEC1DSL;
 	mov	MODE_PTR, SINDEX;
@@ -525,7 +525,7 @@ set_mode_work_around:
 }
 
 
-if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {
+if ((ahd->s & AHD_INTCOLLISION_) != 0) {
 set_seqint_work_around:
 	mov	SEQINTCODE, SINDEX;
 	mvi	SEQINTCODE, NO_SEQINT ret;
@@ -536,7 +536,7 @@ SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
 start_selection:
 BEGIN_CRITICAL;
-	if ((ahd->bugs & AHD_SENT_SCB_UPDATE_BUG) != 0) {
+	if ((ahd->s & AHD_SENT_SCB_UPDATE_) != 0) {
 		/*
 		 * Razor #494
 		 * Rev A hardware fails to update LAST/CURR/NEXTSCB
@@ -556,7 +556,7 @@ BEGIN_CRITICAL;
 		 *    manually walk the list counting MAXCMDCNT elements
 		 *    to find the last SCB that was sent correctly.
 		 *
-		 * To simplify the workaround for this bug in SELDO
+		 * To simplify the workaround for this  in SELDO
 		 * handling, we initialize LASTSCB prior to enabling
 		 * selection so we can rely on it even for case #1 above.
 		 */
@@ -591,7 +591,7 @@ allocate_fifo_loop:
 	call	idle_loop_service_fifos;
 	SET_MODE(M_SCSI, M_SCSI)
 allocate_fifo:
-	if ((ahd->bugs & AHD_NONPACKFIFO_BUG) != 0) {
+	if ((ahd->s & AHD_NONPACKFIFO_) != 0) {
 		and	A, FIFO0FREE|FIFO1FREE, DFFSTAT;
 		cmp	A, FIFO0FREE|FIFO1FREE jne allocate_fifo_loop;
 	} else {
@@ -615,7 +615,7 @@ allocate_fifo1:
 SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
 select_in:
-	if ((ahd->bugs & AHD_FAINT_LED_BUG) != 0) {
+	if ((ahd->s & AHD_FAINT_LED_) != 0) {
 		/*
 		 * On Rev A. hardware, the busy LED is only
 		 * turned on automaically during selections
@@ -630,7 +630,7 @@ select_in:
 		 */
 		or	SBLKCTL, DIAGLEDEN|DIAGLEDON;
 	}
-	if ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0) {
+	if ((ahd->s & AHD_BUSFREEREV_) != 0) {
 		/*
 		 * Test to ensure that the bus has not
 		 * already gone free prior to clearing
@@ -668,7 +668,7 @@ SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
 select_out:
 BEGIN_CRITICAL;
-	if ((ahd->bugs & AHD_FAINT_LED_BUG) != 0) {
+	if ((ahd->s & AHD_FAINT_LED_) != 0) {
 		/*
 		 * On Rev A. hardware, the busy LED is only
 		 * turned on automaically during selections
@@ -684,7 +684,7 @@ BEGIN_CRITICAL;
 		or	SBLKCTL, DIAGLEDEN|DIAGLEDON;
 	}
 	/* Clear out all SCBs that have been successfully sent. */
-	if ((ahd->bugs & AHD_SENT_SCB_UPDATE_BUG) != 0) {
+	if ((ahd->s & AHD_SENT_SCB_UPDATE_) != 0) {
 		/*
 		 * For packetized, the LQO manager clears ENSELO on
 		 * the assertion of SELDO.  If we are non-packetized,
@@ -798,7 +798,7 @@ select_out_inc_tid_q:
 	 * exceptions are the case of MK_MESSAGE and task management
 	 * SCBs.
 	 */
-	if ((ahd->bugs & AHD_LQO_ATNO_BUG) != 0) {
+	if ((ahd->s & AHD_LQO_ATNO_) != 0) {
 		/*
 		 * In the A, the LQO manager transitions to LQOSTOP0 even if
 		 * we have selected out with ATN asserted and the target
@@ -816,7 +816,7 @@ select_out_no_message:
 select_out_non_packetized:
 	/* Non packetized request. */
 	and     SCSISEQ0, ~ENSELO;
-	if ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0) {
+	if ((ahd->s & AHD_BUSFREEREV_) != 0) {
 		/*
 		 * Test to ensure that the bus has not
 		 * already gone free prior to clearing
@@ -1111,16 +1111,16 @@ mesgin_identify:
  * tag + 256.
  */
 snoop_tag:
-	if ((ahd->flags & AHD_SEQUENCER_DEBUG) != 0) {
+	if ((ahd->flags & AHD_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x80;
 	}
 	mov	NONE, SCSIDAT;		/* ACK Identify MSG */
 	call	phase_lock;
-	if ((ahd->flags & AHD_SEQUENCER_DEBUG) != 0) {
+	if ((ahd->flags & AHD_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x1;
 	}
 	cmp	LASTPHASE, P_MESGIN	jne not_found_ITloop;
-	if ((ahd->flags & AHD_SEQUENCER_DEBUG) != 0) {
+	if ((ahd->flags & AHD_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x2;
 	}
 	cmp	SCSIBUS, MSG_SIMPLE_Q_TAG jne not_found;
@@ -1143,7 +1143,7 @@ verify_other_scb:
  * an SCB transaction to the reconnecting target.
  */
 setup_SCB:
-	if ((ahd->flags & AHD_SEQUENCER_DEBUG) != 0) {
+	if ((ahd->flags & AHD_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x10;
 	}
 	test	SCB_CONTROL,DISCONNECTED jz not_found;
@@ -1306,9 +1306,9 @@ queue_disc_scb:
 	/* FALLTHROUGH */
 await_busfree:
 	and	SIMODE1, ~ENBUSFREE;
-	if ((ahd->bugs & AHD_BUSFREEREV_BUG) == 0) {
+	if ((ahd->s & AHD_BUSFREEREV_) == 0) {
 		/*
-		 * In the BUSFREEREV_BUG case, the
+		 * In the BUSFREEREV_ case, the
 		 * busfree status was cleared at the
 		 * beginning of the connection.
 		 */
@@ -1389,7 +1389,7 @@ msgin_rdptrs_get_fifo:
 	jmp	mesgin_done;
 
 phase_lock:     
-	if ((ahd->bugs & AHD_EARLY_REQ_BUG) != 0) {
+	if ((ahd->s & AHD_EARLY_REQ_) != 0) {
 		/*
 		 * Don't ignore persistent REQ assertions just because
 		 * they were asserted within the bus settle delay window.
@@ -1497,7 +1497,7 @@ service_fifo:
 
 		/*
 		 * Switch to the other FIFO.  Non-RTI chips
-		 * also have the "set mode" bug, so we must
+		 * also have the "set mode" , so we must
 		 * disable interrupts during the switch.
 		 */
 		mvi	SEQINTCTL, INTVEC1DSL;
@@ -1528,7 +1528,7 @@ idle_sgfetch_start:
 	 */
 	bmov	SGHADDR, SCB_RESIDUAL_SGPTR, 4;
 	mvi	SGHCNT, SG_PREFETCH_CNT;
-	if ((ahd->bugs & AHD_REG_SLOW_SETTLE_BUG) != 0) {
+	if ((ahd->s & AHD_REG_SLOW_SETTLE_) != 0) {
 		/*
 		 * Need two instructions between "touches" of SGHADDR.
 		 */
@@ -1709,7 +1709,7 @@ data_group_dmafinish:
 	 */
 	test	DFCNTRL, DIRECTION jnz data_phase_finish;
 data_group_fifoflush:
-	if ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0) {
+	if ((ahd->s & AHD_AUTOFLUSH_) != 0) {
 		or	DFCNTRL, FIFOFLUSH;
 	}
 	/*
@@ -1832,7 +1832,7 @@ sgptr_fixup_done:
 export timer_isr:
 	call	issue_cmdcmplt;
 	mvi	CLRSEQINTSTAT, CLRSEQ_SWTMRTO;
-	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {
+	if ((ahd->s & AHD_SET_MODE_) != 0) {
 		/*
 		 * In H2A4, the mode pointer is not saved
 		 * for intvec2, but is restored on iret.
@@ -2031,7 +2031,7 @@ pkt_last_seg:
  */
 pkt_saveptrs:
 BEGIN_CRITICAL;
-	if ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0) {
+	if ((ahd->s & AHD_AUTOFLUSH_) != 0) {
 		or	DFCNTRL, FIFOFLUSH;
 	}
 	mov	REG0, SEQINTSRC;
@@ -2127,7 +2127,7 @@ pkt_handle_status:
 	test	SEQINTSRC, CTXTDONE jz pkt_status_check_nonpackreq;
 	test	SG_CACHE_SHADOW, LAST_SEG_DONE jnz pkt_status_check_overrun;
 pkt_status_IU_done:
-	if ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0) {
+	if ((ahd->s & AHD_AUTOFLUSH_) != 0) {
 		or	DFCNTRL, FIFOFLUSH;
 	}
 	test	DFSTATUS, FIFOEMP jz return;
@@ -2212,7 +2212,7 @@ SET_DST_MODE	M_DFF0;
 	mvi	DFFSXFRCTL, CLRCHN;
 unexpected_nonpkt_mode_cleared:
 	mvi	CLRSINT2, CLRNONPACKREQ;
-	if ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0) {
+	if ((ahd->s & AHD_BUSFREEREV_) != 0) {
 		/*
 		 * Test to ensure that the bus has not
 		 * already gone free prior to clearing
@@ -2243,7 +2243,7 @@ pkt_handle_overrun_inc_use_count:
 pkt_handle_overrun:
 	SET_SEQINTCODE(CFG4OVERRUN)
 	call	freeze_queue;
-	if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) == 0) {
+	if ((ahd->s & AHD_PKT_BITBUCKET_) == 0) {
 		or	DFFSXFRCTL, DFFBITBUCKET;
 SET_SRC_MODE	M_DFF1;
 SET_DST_MODE	M_DFF1;
@@ -2252,7 +2252,7 @@ SET_DST_MODE	M_DFF1;
 		mvi	DFCNTRL, (HDMAEN|SCSIEN|PRELOADEN);
 	}
 	call	setjmp;
-	if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) != 0) {
+	if ((ahd->s & AHD_PKT_BITBUCKET_) != 0) {
 		test	DFSTATUS, PRELOAD_AVAIL jz overrun_load_done;
 		call	load_overrun_buf;
 		or	DFCNTRL, PRELOADEN;
@@ -2270,7 +2270,7 @@ pkt_overrun_end:
 	test	SCB_CONTROL, STATUS_RCVD jnz pkt_complete_scb_if_fifos_idle;
 	mvi	DFFSXFRCTL, CLRCHN ret;
 
-if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) != 0) {
+if ((ahd->s & AHD_PKT_BITBUCKET_) != 0) {
 load_overrun_buf:
 	/*
 	 * Load a dummy segment if preload space is available.

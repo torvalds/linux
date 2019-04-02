@@ -58,7 +58,7 @@ static vm_fault_t fb_deferred_io_fault(struct vm_fault *vmf)
 	else
 		printk(KERN_ERR "no mapping available\n");
 
-	BUG_ON(!page->mapping);
+	_ON(!page->mapping);
 	page->index = vmf->pgoff;
 
 	vmf->page = page;
@@ -204,7 +204,7 @@ void fb_deferred_io_init(struct fb_info *info)
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 
-	BUG_ON(!fbdefio);
+	_ON(!fbdefio);
 	mutex_init(&fbdefio->lock);
 	info->fbops->fb_mmap = fb_deferred_io_mmap;
 	INIT_DELAYED_WORK(&info->deferred_work, fb_deferred_io_work);
@@ -228,7 +228,7 @@ void fb_deferred_io_cleanup(struct fb_info *info)
 	struct page *page;
 	int i;
 
-	BUG_ON(!fbdefio);
+	_ON(!fbdefio);
 	cancel_delayed_work_sync(&info->deferred_work);
 
 	/* clear out the mapping that we setup */

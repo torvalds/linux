@@ -158,7 +158,7 @@ static void octeon_flush_cache_page(struct vm_area_struct *vma,
 
 static void octeon_flush_kernel_vmap_range(unsigned long vaddr, int size)
 {
-	BUG();
+	();
 }
 
 /**

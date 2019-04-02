@@ -62,7 +62,7 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph = ip_hdr(skb);
 
 	if (unlikely(optlen)) {
-		BUG_ON(optlen < 0);
+		_ON(optlen < 0);
 
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = optlen / 8;
@@ -146,7 +146,7 @@ static void __exit xfrm4_beet_exit(void)
 	int err;
 
 	err = xfrm_unregister_mode(&xfrm4_beet_mode, AF_INET);
-	BUG_ON(err);
+	_ON(err);
 }
 
 module_init(xfrm4_beet_init);

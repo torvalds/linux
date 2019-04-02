@@ -376,7 +376,7 @@ struct iio_trigger; /* forward declaration */
  *			current trigger gets changed.
  * @update_scan_mode:	function to configure device and scan buffer when
  *			channels have changed
- * @debugfs_reg_access:	function to read or write register value of device
+ * @defs_reg_access:	function to read or write register value of device
  * @of_xlate:		function pointer to obtain channel specifier index.
  *			When #iio-cells is greater than '0', the driver could
  *			provide a custom of_xlate function that reads the
@@ -454,7 +454,7 @@ struct iio_info {
 				struct iio_trigger *trig);
 	int (*update_scan_mode)(struct iio_dev *indio_dev,
 				const unsigned long *scan_mask);
-	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
+	int (*defs_reg_access)(struct iio_dev *indio_dev,
 				  unsigned reg, unsigned writeval,
 				  unsigned *readval);
 	int (*of_xlate)(struct iio_dev *indio_dev,
@@ -522,8 +522,8 @@ struct iio_buffer_setup_ops {
  * @groups:		[INTERN] attribute groups
  * @groupcounter:	[INTERN] index of next attribute group
  * @flags:		[INTERN] file ops related flags including busy flag.
- * @debugfs_dentry:	[INTERN] device specific debugfs dentry.
- * @cached_reg_addr:	[INTERN] cached register address for debugfs reads.
+ * @defs_dentry:	[INTERN] device specific defs dentry.
+ * @cached_reg_addr:	[INTERN] cached register address for defs reads.
  */
 struct iio_dev {
 	int				id;
@@ -566,8 +566,8 @@ struct iio_dev {
 	int				groupcounter;
 
 	unsigned long			flags;
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*debugfs_dentry;
+#if defined(CONFIG_DE_FS)
+	struct dentry			*defs_dentry;
 	unsigned			cached_reg_addr;
 #endif
 };
@@ -710,16 +710,16 @@ static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
 }
 
 /**
- * iio_get_debugfs_dentry() - helper function to get the debugfs_dentry
+ * iio_get_defs_dentry() - helper function to get the defs_dentry
  * @indio_dev:		IIO device structure for device
  **/
-#if defined(CONFIG_DEBUG_FS)
-static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
+#if defined(CONFIG_DE_FS)
+static inline struct dentry *iio_get_defs_dentry(struct iio_dev *indio_dev)
 {
-	return indio_dev->debugfs_dentry;
+	return indio_dev->defs_dentry;
 }
 #else
-static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
+static inline struct dentry *iio_get_defs_dentry(struct iio_dev *indio_dev)
 {
 	return NULL;
 }

@@ -13,7 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/jiffies.h>
 #include <linux/refcount.h>
 #include <net/neighbour.h>
@@ -123,7 +123,7 @@ static inline u32 *dst_metrics_write_ptr(struct dst_entry *dst)
 {
 	unsigned long p = dst->_metrics;
 
-	BUG_ON(!p);
+	_ON(!p);
 
 	if (p & DST_METRICS_READ_ONLY)
 		return dst->ops->cow_metrics(dst, p);
@@ -235,7 +235,7 @@ static inline void dst_hold(struct dst_entry *dst)
 	 * If your kernel compilation stops here, please check
 	 * the placement of __refcnt in struct dst_entry
 	 */
-	BUILD_BUG_ON(offsetof(struct dst_entry, __refcnt) & 63);
+	BUILD__ON(offsetof(struct dst_entry, __refcnt) & 63);
 	WARN_ON(atomic_inc_not_zero(&dst->__refcnt) == 0);
 }
 

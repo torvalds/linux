@@ -659,7 +659,7 @@ static bool search_nested_keyrings(struct key *keyring,
 	       ctx->index_key.description);
 
 #define STATE_CHECKS (KEYRING_SEARCH_NO_STATE_CHECK | KEYRING_SEARCH_DO_STATE_CHECK)
-	BUG_ON((ctx->flags & STATE_CHECKS) == 0 ||
+	_ON((ctx->flags & STATE_CHECKS) == 0 ||
 	       (ctx->flags & STATE_CHECKS) == STATE_CHECKS);
 
 	/* Check to see if this top-level keyring is what we are looking for
@@ -682,7 +682,7 @@ static bool search_nested_keyrings(struct key *keyring,
 
 	/* Start processing a new keyring */
 descend_to_keyring:
-	kdebug("descend to %d", keyring->serial);
+	kde("descend to %d", keyring->serial);
 	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
 			      (1 << KEY_FLAG_REVOKED)))
 		goto not_this_keyring;
@@ -728,16 +728,16 @@ descend_to_node:
 	/* Descend to a more distal node in this keyring's content tree and go
 	 * through that.
 	 */
-	kdebug("descend");
+	kde("descend");
 	if (assoc_array_ptr_is_shortcut(ptr)) {
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
 		ptr = READ_ONCE(shortcut->next_node);
-		BUG_ON(!assoc_array_ptr_is_node(ptr));
+		_ON(!assoc_array_ptr_is_node(ptr));
 	}
 	node = assoc_array_ptr_to_node(ptr);
 
 begin_node:
-	kdebug("begin_node");
+	kde("begin_node");
 	slot = 0;
 ascend_to_node:
 	/* Go through the slots in a node */
@@ -798,7 +798,7 @@ ascend_to_node:
 	 * so there can't be any more keyrings for us to find.
 	 */
 	if (node->back_pointer) {
-		kdebug("ascend %d", slot);
+		kde("ascend %d", slot);
 		goto ascend_to_node;
 	}
 
@@ -806,7 +806,7 @@ ascend_to_node:
 	 * matching key.
 	 */
 not_this_keyring:
-	kdebug("not_this_keyring %d", sp);
+	kde("not_this_keyring %d", sp);
 	if (sp <= 0) {
 		kleave(" = false");
 		return false;
@@ -817,7 +817,7 @@ not_this_keyring:
 	keyring = stack[sp].keyring;
 	node = stack[sp].node;
 	slot = stack[sp].slot + 1;
-	kdebug("ascend to %d [%d]", keyring->serial, slot);
+	kde("ascend to %d [%d]", keyring->serial, slot);
 	goto ascend_to_node;
 
 	/* We found a viable match */
@@ -1210,7 +1210,7 @@ int __key_link_begin(struct key *keyring,
 	kenter("%d,%s,%s,",
 	       keyring->serial, index_key->type->name, index_key->description);
 
-	BUG_ON(index_key->desc_len == 0);
+	_ON(index_key->desc_len == 0);
 
 	if (keyring->type != &key_type_keyring)
 		return -ENOTDIR;
@@ -1305,7 +1305,7 @@ void __key_link_end(struct key *keyring,
 	__releases(&keyring->sem)
 	__releases(&keyring_serialise_link_sem)
 {
-	BUG_ON(index_key->type == NULL);
+	_ON(index_key->type == NULL);
 	kenter("%d,%s,", keyring->serial, index_key->type->name);
 
 	if (index_key->type == &key_type_keyring)
@@ -1364,7 +1364,7 @@ int key_link(struct key *keyring, struct key *key)
 
 	ret = __key_link_begin(keyring, &key->index_key, &edit);
 	if (ret == 0) {
-		kdebug("begun {%d,%d}", keyring->serial, refcount_read(&keyring->usage));
+		kde("begun {%d,%d}", keyring->serial, refcount_read(&keyring->usage));
 		ret = __key_link_check_restriction(keyring, key);
 		if (ret == 0)
 			ret = __key_link_check_live_key(keyring, key);

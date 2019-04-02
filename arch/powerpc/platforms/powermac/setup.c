@@ -455,7 +455,7 @@ pmac_halt(void)
  */
 static void __init pmac_init(void)
 {
-	/* Enable early btext debug if requested */
+	/* Enable early btext de if requested */
 	if (strstr(boot_command_line, "btextdbg")) {
 		udbg_adb_init_early();
 		register_early_udbg_console();
@@ -464,7 +464,7 @@ static void __init pmac_init(void)
 	/* Probe motherboard chipset */
 	pmac_feature_init();
 
-	/* Initialize debug stuff */
+	/* Initialize de stuff */
 	udbg_scc_init(!!strstr(boot_command_line, "sccdbg"));
 	udbg_adb_init(!!strstr(boot_command_line, "btextdbg"));
 
@@ -532,16 +532,16 @@ static int __init check_pmac_serial_console(void)
 	char *devname = "ttyPZ";
 #endif
 
-	pr_debug(" -> check_pmac_serial_console()\n");
+	pr_de(" -> check_pmac_serial_console()\n");
 
 	/* The user has requested a console so this is already set up. */
 	if (strstr(boot_command_line, "console=")) {
-		pr_debug(" console was specified !\n");
+		pr_de(" console was specified !\n");
 		return -EBUSY;
 	}
 
 	if (!of_chosen) {
-		pr_debug(" of_chosen is NULL !\n");
+		pr_de(" of_chosen is NULL !\n");
 		return -ENODEV;
 	}
 
@@ -549,15 +549,15 @@ static int __init check_pmac_serial_console(void)
 	/* ... So use the full path instead */
 	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name == NULL) {
-		pr_debug(" no linux,stdout-path !\n");
+		pr_de(" no linux,stdout-path !\n");
 		return -ENODEV;
 	}
 	prom_stdout = of_find_node_by_path(name);
 	if (!prom_stdout) {
-		pr_debug(" can't find stdout package %s !\n", name);
+		pr_de(" can't find stdout package %s !\n", name);
 		return -ENODEV;
 	}
-	pr_debug("stdout is %pOF\n", prom_stdout);
+	pr_de("stdout is %pOF\n", prom_stdout);
 
 	if (of_node_name_eq(prom_stdout, "ch-a"))
 		offset = 0;
@@ -567,12 +567,12 @@ static int __init check_pmac_serial_console(void)
 		goto not_found;
 	of_node_put(prom_stdout);
 
-	pr_debug("Found serial console at %s%d\n", devname, offset);
+	pr_de("Found serial console at %s%d\n", devname, offset);
 
 	return add_preferred_console(devname, offset, NULL);
 
  not_found:
-	pr_debug("No preferred console found !\n");
+	pr_de("No preferred console found !\n");
 	of_node_put(prom_stdout);
 	return -ENODEV;
 }

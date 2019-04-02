@@ -59,7 +59,7 @@
  */
 #define DWC2_NAKS_BEFORE_DELAY		3
 
-/* This function is for debug only */
+/* This function is for de only */
 static void dwc2_track_missed_sofs(struct dwc2_hsotg *hsotg)
 {
 	u16 curr_frame_number = hsotg->frame_number;
@@ -146,7 +146,7 @@ static void dwc2_sof_intr(struct dwc2_hsotg *hsotg)
 	/* Clear interrupt */
 	dwc2_writel(hsotg, GINTSTS_SOF, GINTSTS);
 
-#ifdef DEBUG_SOF
+#ifdef DE_SOF
 	dev_vdbg(hsotg->dev, "--Start of Frame Interrupt--\n");
 #endif
 
@@ -1760,7 +1760,7 @@ static void dwc2_hc_datatglerr_intr(struct dwc2_hsotg *hsotg,
 }
 
 /*
- * For debug only. It checks that a valid halt status is set and that
+ * For de only. It checks that a valid halt status is set and that
  * HCCHARn.chdis is clear. If there's a problem, corrective action is
  * taken and a warning is issued.
  *
@@ -1770,7 +1770,7 @@ static bool dwc2_halt_status_ok(struct dwc2_hsotg *hsotg,
 				struct dwc2_host_chan *chan, int chnum,
 				struct dwc2_qtd *qtd)
 {
-#ifdef DEBUG
+#ifdef DE
 	u32 hcchar;
 	u32 hctsiz;
 	u32 hcintmsk;
@@ -1872,7 +1872,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 
 	if (chan->hcint & HCINTMSK_XFERCOMPL) {
 		/*
-		 * Todo: This is here because of a possible hardware bug. Spec
+		 * Todo: This is here because of a possible hardware . Spec
 		 * says that on SPLIT-ISOC OUT transfers in DMA mode that a HALT
 		 * interrupt w/ACK bit set should occur, but I only see the
 		 * XFERCOMP bit, even with it masked out. This is a workaround
@@ -2240,7 +2240,7 @@ irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg)
 		retval = IRQ_HANDLED;
 
 		dbg_gintsts = gintsts;
-#ifndef DEBUG_SOF
+#ifndef DE_SOF
 		dbg_gintsts &= ~GINTSTS_SOF;
 #endif
 		if (!dbg_perio())

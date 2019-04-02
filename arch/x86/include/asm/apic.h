@@ -15,11 +15,11 @@
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
 /*
- * Debugging macros
+ * Deging macros
  */
 #define APIC_QUIET   0
 #define APIC_VERBOSE 1
-#define APIC_DEBUG   2
+#define APIC_DE   2
 
 /* Macros for apic_extnmi which controls external NMI masking */
 #define APIC_EXTNMI_BSP		0 /* Default */
@@ -29,7 +29,7 @@
 /*
  * Define the default level of output to be very little
  * This can be turned up by using apic=verbose for more
- * information and apic=debug for _lots_ of information.
+ * information and apic=de for _lots_ of information.
  * apic_verbosity is defined in apic.c
  */
 #define apic_printk(v, s, a...) do {       \
@@ -73,7 +73,7 @@ static inline void __inquire_remote_apic(int apicid)
 
 static inline void default_inquire_remote_apic(int apicid)
 {
-	if (apic_verbosity >= APIC_DEBUG)
+	if (apic_verbosity >= APIC_DE)
 		__inquire_remote_apic(apicid);
 }
 
@@ -103,7 +103,7 @@ static inline void native_apic_mem_write(u32 reg, u32 v)
 {
 	volatile u32 *addr = (volatile u32 *)(APIC_BASE + reg);
 
-	alternative_io("movl %0, %P1", "xchgl %0, %P1", X86_BUG_11AP,
+	alternative_io("movl %0, %P1", "xchgl %0, %P1", X86__11AP,
 		       ASM_OUTPUT2("=r" (v), "=m" (*addr)),
 		       ASM_OUTPUT2("0" (v), "m" (*addr)));
 }

@@ -14,7 +14,7 @@
  */
 
 #include <linux/sched/signal.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
 #include <linux/kprobes.h>

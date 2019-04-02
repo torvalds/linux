@@ -59,7 +59,7 @@
 
 static unsigned int ci_dbg;
 module_param(ci_dbg, int, 0644);
-MODULE_PARM_DESC(ci_dbg, "Enable CI debugging");
+MODULE_PARM_DESC(ci_dbg, "Enable CI deging");
 
 static unsigned int ci_irq_enable;
 module_param(ci_irq_enable, int, 0644);
@@ -68,7 +68,7 @@ MODULE_PARM_DESC(ci_irq_enable, "Enable IRQ from CAM");
 #define ci_dbg_print(fmt, args...) \
 	do { \
 		if (ci_dbg) \
-			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			printk(KERN_DE pr_fmt("%s: " fmt), \
 			       __func__, ##args); \
 	} while (0)
 

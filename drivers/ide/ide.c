@@ -25,7 +25,7 @@
  *  |
  *  | modified by Drew Eckhardt to check nr of hd's from the CMOS.
  *  |
- *  | Thanks to Branko Lankester, lankeste@fwi.uva.nl, who found a bug
+ *  | Thanks to Branko Lankester, lankeste@fwi.uva.nl, who found a 
  *  | in the early extended-partition checks and added DM partitions.
  *  |
  *  | Early work on error handling by Mika Liljeberg (liljeber@cs.Helsinki.FI).

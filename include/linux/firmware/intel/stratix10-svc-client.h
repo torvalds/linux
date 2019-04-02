@@ -73,7 +73,7 @@ struct stratix10_svc_chan;
 /**
  * enum stratix10_svc_command_code - supported service commands
  *
- * @COMMAND_NOOP: do 'dummy' request for integration/debug/trouble-shooting
+ * @COMMAND_NOOP: do 'dummy' request for integration/de/trouble-shooting
  *
  * @COMMAND_RECONFIG: ask for FPGA configuration preparation, return status
  * is SVC_STATUS_RECONFIG_REQUEST_OK

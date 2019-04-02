@@ -21,7 +21,7 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 /* Driver always calls main vsi_handle first */
 #define ICE_MAIN_VSI_HANDLE		0
 
-/* debug masks - set these bits in hw->debug_mask to control output */
+/* de masks - set these bits in hw->de_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
 #define ICE_DBG_LINK		BIT_ULL(4)
 #define ICE_DBG_QCTX		BIT_ULL(6)
@@ -308,7 +308,7 @@ struct ice_hw {
 	void *back;
 	struct ice_aqc_layer_props *layer_info;
 	struct ice_port_info *port_info;
-	u64 debug_mask;		/* bitmap for debug mask */
+	u64 de_mask;		/* bitmap for de mask */
 	enum ice_mac_type mac_type;
 
 	/* pci info */

@@ -307,15 +307,15 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 {
 	u64 desc;
 
-	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (BIT(GEN8_CTX_ID_WIDTH)));
-	BUILD_BUG_ON(GEN11_MAX_CONTEXT_HW_ID > (BIT(GEN11_SW_CTX_ID_WIDTH)));
+	BUILD__ON(MAX_CONTEXT_HW_ID > (BIT(GEN8_CTX_ID_WIDTH)));
+	BUILD__ON(GEN11_MAX_CONTEXT_HW_ID > (BIT(GEN11_SW_CTX_ID_WIDTH)));
 
 	desc = ctx->desc_template;				/* bits  0-11 */
-	GEM_BUG_ON(desc & GENMASK_ULL(63, 12));
+	GEM__ON(desc & GENMASK_ULL(63, 12));
 
 	desc |= i915_ggtt_offset(ce->state) + LRC_HEADER_PAGES * PAGE_SIZE;
 								/* bits 12-31 */
-	GEM_BUG_ON(desc & GENMASK_ULL(63, 32));
+	GEM__ON(desc & GENMASK_ULL(63, 32));
 
 	/*
 	 * The following 32bits are copied into the OA reports (dword 2).
@@ -323,7 +323,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 	 * anything below.
 	 */
 	if (INTEL_GEN(ctx->i915) >= 11) {
-		GEM_BUG_ON(ctx->hw_id >= BIT(GEN11_SW_CTX_ID_WIDTH));
+		GEM__ON(ctx->hw_id >= BIT(GEN11_SW_CTX_ID_WIDTH));
 		desc |= (u64)ctx->hw_id << GEN11_SW_CTX_ID_SHIFT;
 								/* bits 37-47 */
 
@@ -335,7 +335,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 		desc |= (u64)engine->class << GEN11_ENGINE_CLASS_SHIFT;
 								/* bits 61-63 */
 	} else {
-		GEM_BUG_ON(ctx->hw_id >= BIT(GEN8_CTX_ID_WIDTH));
+		GEM__ON(ctx->hw_id >= BIT(GEN8_CTX_ID_WIDTH));
 		desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;	/* bits 32-52 */
 	}
 
@@ -366,14 +366,14 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		__i915_request_unsubmit(rq);
 		unwind_wa_tail(rq);
 
-		GEM_BUG_ON(rq->hw_context->active);
+		GEM__ON(rq->hw_context->active);
 
-		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
+		GEM__ON(rq_prio(rq) == I915_PRIORITY_INVALID);
 		if (rq_prio(rq) != prio) {
 			prio = rq_prio(rq);
 			pl = i915_sched_lookup_priolist(engine, prio);
 		}
-		GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
+		GEM__ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 
 		list_add(&rq->sched.link, pl);
 
@@ -434,7 +434,7 @@ execlists_user_end(struct intel_engine_execlists *execlists)
 static inline void
 execlists_context_schedule_in(struct i915_request *rq)
 {
-	GEM_BUG_ON(rq->hw_context->active);
+	GEM__ON(rq->hw_context->active);
 
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
 	intel_engine_context_in(rq->engine);
@@ -501,7 +501,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 	 * that all ELSP are drained i.e. we have processed the CSB,
 	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
 	 */
-	GEM_BUG_ON(!engine->i915->gt.awake);
+	GEM__ON(!engine->i915->gt.awake);
 
 	/*
 	 * ELSQ note: the submit queue is not cleared after being submitted
@@ -516,12 +516,12 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 
 		rq = port_unpack(&port[n], &count);
 		if (rq) {
-			GEM_BUG_ON(count > !n);
+			GEM__ON(count > !n);
 			if (!count++)
 				execlists_context_schedule_in(rq);
 			port_set(&port[n], port_pack(rq, count));
 			desc = execlists_update_context(rq);
-			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
+			GEM_DE_EXEC(port[n].context_id = upper_32_bits(desc));
 
 			GEM_TRACE("%s in[%d]:  ctx=%d.%d, global=%d (fence %llx:%lld) (current %d:%d), prio=%d\n",
 				  engine->name, n,
@@ -532,7 +532,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 				  intel_engine_get_seqno(engine),
 				  rq_prio(rq));
 		} else {
-			GEM_BUG_ON(!n);
+			GEM__ON(!n);
 			desc = 0;
 		}
 
@@ -566,7 +566,7 @@ static bool can_merge_ctx(const struct intel_context *prev,
 
 static void port_assign(struct execlist_port *port, struct i915_request *rq)
 {
-	GEM_BUG_ON(rq == port_request(port));
+	GEM__ON(rq == port_request(port));
 
 	if (port_isset(port))
 		i915_request_put(port_request(port));
@@ -581,7 +581,7 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 		to_intel_context(engine->i915->preempt_context, engine);
 	unsigned int n;
 
-	GEM_BUG_ON(execlists->preempt_complete_status !=
+	GEM__ON(execlists->preempt_complete_status !=
 		   upper_32_bits(ce->lrc_desc));
 
 	/*
@@ -606,7 +606,7 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 
 static void complete_preempt_context(struct intel_engine_execlists *execlists)
 {
-	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
+	GEM__ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT));
 
 	if (inject_preempt_hang(execlists))
 		return;
@@ -656,9 +656,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		 * know the next preemption status we see corresponds
 		 * to this ELSP update.
 		 */
-		GEM_BUG_ON(!execlists_is_active(execlists,
+		GEM__ON(!execlists_is_active(execlists,
 						EXECLISTS_ACTIVE_USER));
-		GEM_BUG_ON(!port_count(&port[0]));
+		GEM__ON(!port_count(&port[0]));
 
 		/*
 		 * If we write to ELSP a second time before the HW has had
@@ -716,7 +716,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		int i;
 
 		priolist_for_each_request_consume(rq, rn, p, i) {
-			GEM_BUG_ON(!assert_priority_queue(execlists, last, rq));
+			GEM__ON(!assert_priority_queue(execlists, last, rq));
 
 			/*
 			 * Can we combine this request with the current port?
@@ -750,13 +750,13 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				    ctx_single_port_submission(rq->hw_context))
 					goto done;
 
-				GEM_BUG_ON(last->hw_context == rq->hw_context);
+				GEM__ON(last->hw_context == rq->hw_context);
 
 				if (submit)
 					port_assign(port, last);
 				port++;
 
-				GEM_BUG_ON(port_isset(port));
+				GEM__ON(port_isset(port));
 			}
 
 			list_del_init(&rq->sched.link);
@@ -799,7 +799,7 @@ done:
 	}
 
 	/* We must always keep the beast fed if we have work piled up */
-	GEM_BUG_ON(rb_first_cached(&execlists->queue) &&
+	GEM__ON(rb_first_cached(&execlists->queue) &&
 		   !port_isset(execlists->port));
 
 	/* Re-evaluate the executing context setup after each preemptive kick */
@@ -807,7 +807,7 @@ done:
 		execlists_user_begin(execlists, execlists->port);
 
 	/* If the engine is now idle, so should be the flag; and vice versa. */
-	GEM_BUG_ON(execlists_is_active(&engine->execlists,
+	GEM__ON(execlists_is_active(&engine->execlists,
 				       EXECLISTS_ACTIVE_USER) ==
 		   !port_isset(engine->execlists.port));
 }
@@ -829,7 +829,7 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 			  hwsp_seqno(rq),
 			  intel_engine_get_seqno(rq->engine));
 
-		GEM_BUG_ON(!execlists->active);
+		GEM__ON(!execlists->active);
 		execlists_context_schedule_out(rq,
 					       i915_request_completed(rq) ?
 					       INTEL_CONTEXT_SCHEDULE_OUT :
@@ -908,7 +908,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->timeline.requests, link) {
-		GEM_BUG_ON(!rq->global_seqno);
+		GEM__ON(!rq->global_seqno);
 
 		if (!i915_request_signaled(rq))
 			dma_fence_set_error(&rq->fence, -EIO);
@@ -941,9 +941,9 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
-	GEM_BUG_ON(port_isset(execlists->port));
+	GEM__ON(port_isset(execlists->port));
 
-	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
+	GEM__ON(__tasklet_is_enabled(&execlists->tasklet));
 	execlists->tasklet.func = nop_submission_tasklet;
 
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
@@ -1034,7 +1034,7 @@ static void process_csb(struct intel_engine_cs *engine)
 			continue;
 
 		/* We should never get a COMPLETED | IDLE_ACTIVE! */
-		GEM_BUG_ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
+		GEM__ON(status & GEN8_CTX_STATUS_IDLE_ACTIVE);
 
 		if (status & GEN8_CTX_STATUS_COMPLETE &&
 		    buf[2*head + 1] == execlists->preempt_complete_status) {
@@ -1048,7 +1048,7 @@ static void process_csb(struct intel_engine_cs *engine)
 					EXECLISTS_ACTIVE_PREEMPT))
 			continue;
 
-		GEM_BUG_ON(!execlists_is_active(execlists,
+		GEM__ON(!execlists_is_active(execlists,
 						EXECLISTS_ACTIVE_USER));
 
 		rq = port_unpack(port, &count);
@@ -1063,9 +1063,9 @@ static void process_csb(struct intel_engine_cs *engine)
 			  rq ? rq_prio(rq) : 0);
 
 		/* Check the context/desc id for this event matches */
-		GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
+		GEM_DE__ON(buf[2 * head + 1] != port->context_id);
 
-		GEM_BUG_ON(count == 0);
+		GEM__ON(count == 0);
 		if (--count == 0) {
 			/*
 			 * On the final event corresponding to the
@@ -1075,10 +1075,10 @@ static void process_csb(struct intel_engine_cs *engine)
 			 * marker). No more preemptions, lite-restore
 			 * or otherwise.
 			 */
-			GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
-			GEM_BUG_ON(port_isset(&port[1]) &&
+			GEM__ON(status & GEN8_CTX_STATUS_PREEMPTED);
+			GEM__ON(port_isset(&port[1]) &&
 				   !(status & GEN8_CTX_STATUS_ELEMENT_SWITCH));
-			GEM_BUG_ON(!port_isset(&port[1]) &&
+			GEM__ON(!port_isset(&port[1]) &&
 				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
 
 			/*
@@ -1087,7 +1087,7 @@ static void process_csb(struct intel_engine_cs *engine)
 			 * coherent (visible from the CPU) before the
 			 * user interrupt and CSB is processed.
 			 */
-			GEM_BUG_ON(!i915_request_completed(rq));
+			GEM__ON(!i915_request_completed(rq));
 
 			execlists_context_schedule_out(rq,
 						       INTEL_CONTEXT_SCHEDULE_OUT);
@@ -1188,8 +1188,8 @@ static void execlists_submit_request(struct i915_request *request)
 
 	queue_request(engine, &request->sched, rq_prio(request));
 
-	GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
-	GEM_BUG_ON(list_empty(&request->sched.link));
+	GEM__ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
+	GEM__ON(list_empty(&request->sched.link));
 
 	submit_queue(engine, rq_prio(request));
 
@@ -1198,14 +1198,14 @@ static void execlists_submit_request(struct i915_request *request)
 
 static void execlists_context_destroy(struct intel_context *ce)
 {
-	GEM_BUG_ON(ce->pin_count);
+	GEM__ON(ce->pin_count);
 
 	if (!ce->state)
 		return;
 
 	intel_ring_free(ce->ring);
 
-	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
+	GEM__ON(i915_gem_object_is_active(ce->state->obj));
 	i915_gem_object_put(ce->state->obj);
 }
 
@@ -1230,7 +1230,7 @@ static void execlists_context_unpin(struct intel_context *ce)
 		process_csb(engine);
 		spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
-		GEM_BUG_ON(READ_ONCE(ce->active));
+		GEM__ON(READ_ONCE(ce->active));
 	}
 
 	i915_gem_context_unpin_hw_id(ce->gem_context);
@@ -1294,7 +1294,7 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	ret = execlists_context_deferred_alloc(ctx, engine, ce);
 	if (ret)
 		goto err;
-	GEM_BUG_ON(!ce->state);
+	GEM__ON(!ce->state);
 
 	ret = __context_pin(ctx, ce->state);
 	if (ret)
@@ -1318,7 +1318,7 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 
 	intel_lr_context_descriptor_update(ctx, engine, ce);
 
-	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
+	GEM__ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
 
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 
@@ -1351,11 +1351,11 @@ execlists_context_pin(struct intel_engine_cs *engine,
 	struct intel_context *ce = to_intel_context(ctx, engine);
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	GEM_BUG_ON(!ctx->ppgtt);
+	GEM__ON(!ctx->ppgtt);
 
 	if (likely(ce->pin_count++))
 		return ce;
-	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
+	GEM__ON(!ce->pin_count); /* no overflow please! */
 
 	ce->ops = &execlists_context_ops;
 
@@ -1366,7 +1366,7 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 {
 	u32 *cs;
 
-	GEM_BUG_ON(!rq->timeline->has_initial_breadcrumb);
+	GEM__ON(!rq->timeline->has_initial_breadcrumb);
 
 	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
@@ -1397,7 +1397,7 @@ static int emit_pdps(struct i915_request *rq)
 	int err, i;
 	u32 *cs;
 
-	GEM_BUG_ON(intel_vgpu_active(rq->i915));
+	GEM__ON(intel_vgpu_active(rq->i915));
 
 	/*
 	 * Beware ye of the dragons, this sequence is magic!
@@ -1447,7 +1447,7 @@ static int execlists_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!request->hw_context->pin_count);
+	GEM__ON(!request->hw_context->pin_count);
 
 	/*
 	 * Flush enough space to reduce the likelihood of waiting after
@@ -1574,7 +1574,7 @@ struct lri {
 
 static u32 *emit_lri(u32 *batch, const struct lri *lri, unsigned int count)
 {
-	GEM_BUG_ON(!count || count > 63);
+	GEM__ON(!count || count > 63);
 
 	*batch++ = MI_LOAD_REGISTER_IMM(count);
 	do {
@@ -1732,7 +1732,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	unsigned int i;
 	int ret;
 
-	if (GEM_DEBUG_WARN_ON(engine->id != RCS))
+	if (GEM_DE_WARN_ON(engine->id != RCS))
 		return -EINVAL;
 
 	switch (INTEL_GEN(engine->i915)) {
@@ -1757,7 +1757,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 
 	ret = lrc_setup_wa_ctx(engine);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Failed to setup context WA page: %d\n", ret);
+		DRM_DE_DRIVER("Failed to setup context WA page: %d\n", ret);
 		return ret;
 	}
 
@@ -1771,7 +1771,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	 */
 	for (i = 0; i < ARRAY_SIZE(wa_bb_fn); i++) {
 		wa_bb[i]->offset = batch_ptr - batch;
-		if (GEM_DEBUG_WARN_ON(!IS_ALIGNED(wa_bb[i]->offset,
+		if (GEM_DE_WARN_ON(!IS_ALIGNED(wa_bb[i]->offset,
 						  CACHELINE_BYTES))) {
 			ret = -EINVAL;
 			break;
@@ -1781,7 +1781,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 		wa_bb[i]->size = batch_ptr - (batch + wa_bb[i]->offset);
 	}
 
-	BUG_ON(batch_ptr - batch > CTX_WA_BB_OBJ_SIZE);
+	_ON(batch_ptr - batch > CTX_WA_BB_OBJ_SIZE);
 
 	kunmap_atomic(batch);
 	if (ret)
@@ -1825,7 +1825,7 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 	bool unexpected = false;
 
 	if (I915_READ(RING_MI_MODE(engine->mmio_base)) & STOP_RING) {
-		DRM_DEBUG_DRIVER("STOP_RING still set in RING_MI_MODE\n");
+		DRM_DE_DRIVER("STOP_RING still set in RING_MI_MODE\n");
 		unexpected = true;
 	}
 
@@ -1841,8 +1841,8 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	intel_engine_reset_breadcrumbs(engine);
 
-	if (GEM_SHOW_DEBUG() && unexpected_starting_state(engine)) {
-		struct drm_printer p = drm_debug_printer(__func__);
+	if (GEM_SHOW_DE() && unexpected_starting_state(engine)) {
+		struct drm_printer p = drm_de_printer(__func__);
 
 		intel_engine_dump(engine, &p, NULL);
 	}
@@ -1870,7 +1870,7 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	 * prevents the race.
 	 */
 	__tasklet_disable_sync_once(&execlists->tasklet);
-	GEM_BUG_ON(!reset_in_progress(execlists));
+	GEM__ON(!reset_in_progress(execlists));
 
 	/* And flush any current direct submission. */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
@@ -1963,7 +1963,7 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 	 * to sleep before we restart and reload a context.
 	 *
 	 */
-	GEM_BUG_ON(!reset_in_progress(execlists));
+	GEM__ON(!reset_in_progress(execlists));
 	if (!RB_EMPTY_ROOT(&execlists->queue.rb_root))
 		execlists->tasklet.func(execlists->tasklet.data);
 
@@ -2149,7 +2149,7 @@ static u32 *gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
 static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 {
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
+	BUILD__ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
 
 	cs = gen8_emit_ggtt_write(cs,
 				  request->fence.seqno,
@@ -2501,7 +2501,7 @@ u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *req_sseu)
 	if (IS_GEN(i915, 11) &&
 	    slices == 1 &&
 	    subslices > min_t(u8, 4, hweight8(sseu->subslice_mask[0]) / 2)) {
-		GEM_BUG_ON(subslices & 1);
+		GEM__ON(subslices & 1);
 
 		subslice_pg = false;
 		slices *= 2;
@@ -2524,7 +2524,7 @@ u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *req_sseu)
 			val <<= GEN8_RPCS_S_CNT_SHIFT;
 		}
 
-		GEM_BUG_ON(val & ~mask);
+		GEM__ON(val & ~mask);
 		val &= mask;
 
 		rpcs |= GEN8_RPCS_ENABLE | GEN8_RPCS_S_CNT_ENABLE | val;
@@ -2535,7 +2535,7 @@ u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *req_sseu)
 
 		val <<= GEN8_RPCS_SS_CNT_SHIFT;
 
-		GEM_BUG_ON(val & ~GEN8_RPCS_SS_CNT_MASK);
+		GEM__ON(val & ~GEN8_RPCS_SS_CNT_MASK);
 		val &= GEN8_RPCS_SS_CNT_MASK;
 
 		rpcs |= GEN8_RPCS_ENABLE | GEN8_RPCS_SS_CNT_ENABLE | val;
@@ -2545,13 +2545,13 @@ u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *req_sseu)
 		u32 val;
 
 		val = ctx_sseu.min_eus_per_subslice << GEN8_RPCS_EU_MIN_SHIFT;
-		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MIN_MASK);
+		GEM__ON(val & ~GEN8_RPCS_EU_MIN_MASK);
 		val &= GEN8_RPCS_EU_MIN_MASK;
 
 		rpcs |= val;
 
 		val = ctx_sseu.max_eus_per_subslice << GEN8_RPCS_EU_MAX_SHIFT;
-		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MAX_MASK);
+		GEM__ON(val & ~GEN8_RPCS_EU_MAX_MASK);
 		val &= GEN8_RPCS_EU_MAX_MASK;
 
 		rpcs |= val;
@@ -2705,14 +2705,14 @@ populate_lr_context(struct i915_gem_context *ctx,
 
 	ret = i915_gem_object_set_to_cpu_domain(ctx_obj, true);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Could not set to CPU domain\n");
+		DRM_DE_DRIVER("Could not set to CPU domain\n");
 		return ret;
 	}
 
 	vaddr = i915_gem_object_pin_map(ctx_obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
-		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
+		DRM_DE_DRIVER("Could not map object pages! (%d)\n", ret);
 		return ret;
 	}
 	ctx_obj->mm.dirty = true;
@@ -2801,7 +2801,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	ret = populate_lr_context(ctx, ctx_obj, engine, ring);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Failed to populate LRC: %d\n", ret);
+		DRM_DE_DRIVER("Failed to populate LRC: %d\n", ret);
 		goto error_ring_free;
 	}
 

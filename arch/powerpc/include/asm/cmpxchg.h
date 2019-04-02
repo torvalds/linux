@@ -5,7 +5,7 @@
 #ifdef __KERNEL__
 #include <linux/compiler.h>
 #include <asm/synch.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/asm-405.h>
 
 #ifdef __BIG_ENDIAN
@@ -170,7 +170,7 @@ __xchg_local(void *ptr, unsigned long x, unsigned int size)
 		return __xchg_u64_local(ptr, x);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg");
+	BUILD__ON_MSG(1, "Unsupported size for __xchg");
 	return x;
 }
 
@@ -189,7 +189,7 @@ __xchg_relaxed(void *ptr, unsigned long x, unsigned int size)
 		return __xchg_u64_relaxed(ptr, x);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __xchg_local");
+	BUILD__ON_MSG(1, "Unsupported size for __xchg_local");
 	return x;
 }
 #define xchg_local(ptr,x)						     \
@@ -415,7 +415,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64(ptr, old, new);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg");
+	BUILD__ON_MSG(1, "Unsupported size for __cmpxchg");
 	return old;
 }
 
@@ -435,7 +435,7 @@ __cmpxchg_local(void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64_local(ptr, old, new);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg_local");
+	BUILD__ON_MSG(1, "Unsupported size for __cmpxchg_local");
 	return old;
 }
 
@@ -455,7 +455,7 @@ __cmpxchg_relaxed(void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64_relaxed(ptr, old, new);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg_relaxed");
+	BUILD__ON_MSG(1, "Unsupported size for __cmpxchg_relaxed");
 	return old;
 }
 
@@ -475,7 +475,7 @@ __cmpxchg_acquire(void *ptr, unsigned long old, unsigned long new,
 		return __cmpxchg_u64_acquire(ptr, old, new);
 #endif
 	}
-	BUILD_BUG_ON_MSG(1, "Unsupported size for __cmpxchg_acquire");
+	BUILD__ON_MSG(1, "Unsupported size for __cmpxchg_acquire");
 	return old;
 }
 #define cmpxchg(ptr, o, n)						 \
@@ -515,22 +515,22 @@ __cmpxchg_acquire(void *ptr, unsigned long old, unsigned long new,
 #ifdef CONFIG_PPC64
 #define cmpxchg64(ptr, o, n)						\
   ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg((ptr), (o), (n));					\
   })
 #define cmpxchg64_local(ptr, o, n)					\
   ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_local((ptr), (o), (n));					\
   })
 #define cmpxchg64_relaxed(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_relaxed((ptr), (o), (n));				\
 })
 #define cmpxchg64_acquire(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_acquire((ptr), (o), (n));				\
 })
 #else

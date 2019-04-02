@@ -89,8 +89,8 @@ static struct page *page_chain_del(struct page **head, int n)
 	struct page *page;
 	struct page *tmp;
 
-	BUG_ON(!n);
-	BUG_ON(!head);
+	_ON(!n);
+	_ON(!head);
 
 	page = *head;
 
@@ -146,7 +146,7 @@ static void page_chain_add(struct page **head,
 #if 1
 	struct page *tmp;
 	tmp = page_chain_tail(chain_first, NULL);
-	BUG_ON(tmp != chain_last);
+	_ON(tmp != chain_last);
 #endif
 
 	/* add chain to head */
@@ -1670,7 +1670,7 @@ int drbd_submit_peer_request(struct drbd_device *device,
 		 * zeroing things out. */
 		conn_wait_active_ee_empty(peer_req->peer_device->connection);
 		/* add it to the active list now,
-		 * so we can find it to present it in debugfs */
+		 * so we can find it to present it in defs */
 		peer_req->submit_jif = jiffies;
 		peer_req->flags |= EE_SUBMITTED;
 
@@ -1726,7 +1726,7 @@ next_bio:
 	D_ASSERT(device, page == NULL);
 
 	atomic_set(&peer_req->pending_bios, n_bios);
-	/* for debugfs: update timestamp, mark as submitted */
+	/* for defs: update timestamp, mark as submitted */
 	peer_req->submit_jif = jiffies;
 	peer_req->flags |= EE_SUBMITTED;
 	do {
@@ -2894,7 +2894,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 			drbd_send_ack_ex(peer_device, P_OV_RESULT, sector, size, ID_IN_SYNC);
 			break;
 		default:
-			BUG();
+			();
 		}
 		if (verb && __ratelimit(&drbd_ratelimit_state))
 			drbd_err(device, "Can not satisfy peer's read request, "
@@ -2991,7 +2991,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	/* Throttle, drbd_rs_begin_io and submit should become asynchronous
@@ -3019,7 +3019,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 
 	/* Even though this may be a resync request, we do add to "read_ee";
 	 * "sync_ee" is only used for resync WRITEs.
-	 * Add to list early, so debugfs can find this request
+	 * Add to list early, so defs can find this request
 	 * even if we have to sleep below. */
 	spin_lock_irq(&device->resource->req_lock);
 	list_add_tail(&peer_req->w.list, &device->read_ee);
@@ -5775,7 +5775,7 @@ static int got_BlockAck(struct drbd_connection *connection, struct packet_info *
 		what = POSTPONE_WRITE;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return validate_req_change_req_state(device, p->block_id, sector,
@@ -5869,7 +5869,7 @@ static int got_NegRSDReply(struct drbd_connection *connection, struct packet_inf
 		case P_RS_CANCEL:
 			break;
 		default:
-			BUG();
+			();
 		}
 		put_ldev(device);
 	}

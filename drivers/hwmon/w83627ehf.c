@@ -12,7 +12,7 @@
  *  Copyright (C) 2003  Mark Studebaker
  *
  *  Thanks to Leon Moonen, Steve Cliffe and Grant Coady for their help
- *  in testing and debugging this driver.
+ *  in testing and deging this driver.
  *
  *  This driver also supports the W83627EHG, which is the lead-free
  *  version of the W83627EHF.
@@ -2772,7 +2772,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 		break;
 	default:
 		if (val != 0xffff)
-			pr_debug("unsupported chip ID: 0x%04x\n", val);
+			pr_de("unsupported chip ID: 0x%04x\n", val);
 		superio_exit(sioaddr);
 		return -ENODEV;
 	}

@@ -243,9 +243,9 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 struct igb_reg_info {
 	u32 ofs;
@@ -648,7 +648,7 @@ static const struct i2c_algo_bit_data igb_i2c_algo = {
  *  igb_get_hw_dev - return device
  *  @hw: pointer to hardware structure
  *
- *  used by hardware layer to print debugging information
+ *  used by hardware layer to print deging information
  **/
 struct net_device *igb_get_hw_dev(struct e1000_hw *hw)
 {
@@ -852,7 +852,7 @@ static void igb_assign_vector(struct igb_q_vector *q_vector, int msix_vector)
 		q_vector->eims_value = BIT(msix_vector);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -904,7 +904,7 @@ static void igb_configure_msix(struct igb_adapter *adapter)
 	case e1000_i210:
 	case e1000_i211:
 		/* Turn on MSI-X capability first, or our settings
-		 * won't stick.  And it will take days to debug.
+		 * won't stick.  And it will take days to de.
 		 */
 		wr32(E1000_GPIE, E1000_GPIE_MSIX_MODE |
 		     E1000_GPIE_PBA | E1000_GPIE_EIAME |
@@ -3066,7 +3066,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->pdev = pdev;
 	hw = &adapter->hw;
 	hw->back = adapter;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	err = -EIO;
 	adapter->io_addr = pci_iomap(pdev, 0, 0);
@@ -3924,7 +3924,7 @@ static int __igb_open(struct net_device *netdev, bool resuming)
 	igb_power_up_link(adapter);
 
 	/* before we allocate an interrupt, we must be ready to handle it.
-	 * Setting DEBUG_SHIRQ in the kernel makes it fire an interrupt
+	 * Setting DE_SHIRQ in the kernel makes it fire an interrupt
 	 * as soon as we call pci_request_irq, so we have to setup our
 	 * clean_rx handler before we do so.
 	 */

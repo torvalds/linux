@@ -27,9 +27,9 @@
 #define VERSION	"1.0"
 #define MFG_FIRMWARE	"mwifiex_mfg.bin"
 
-static unsigned int debug_mask = MWIFIEX_DEFAULT_DEBUG_MASK;
-module_param(debug_mask, uint, 0);
-MODULE_PARM_DESC(debug_mask, "bitmap for debug flags");
+static unsigned int de_mask = MWIFIEX_DEFAULT_DE_MASK;
+module_param(de_mask, uint, 0);
+MODULE_PARM_DESC(de_mask, "bitmap for de flags");
 
 const char driver_version[] = "mwifiex " VERSION " (%s) ";
 static char *cal_data_cfg;
@@ -79,7 +79,7 @@ static int mwifiex_register(void *card, struct device *dev,
 
 	/* Save interface specific operations in adapter */
 	memmove(&adapter->if_ops, if_ops, sizeof(struct mwifiex_if_ops));
-	adapter->debug_mask = debug_mask;
+	adapter->de_mask = de_mask;
 
 	/* card specific initialization has been deferred until now .. */
 	if (adapter->if_ops.init_if)
@@ -489,7 +489,7 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 	}
 
 	mwifiex_unregister(adapter);
-	pr_debug("info: %s: free adapter\n", __func__);
+	pr_de("info: %s: free adapter\n", __func__);
 }
 
 /*
@@ -654,7 +654,7 @@ err_dnld_fw:
 	mwifiex_terminate_workqueue(adapter);
 
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
-		pr_debug("info: %s: shutdown mwifiex\n", __func__);
+		pr_de("info: %s: shutdown mwifiex\n", __func__);
 		mwifiex_shutdown_drv(adapter);
 		mwifiex_free_cmd_buffers(adapter);
 	}
@@ -1100,7 +1100,7 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 	struct mwifiex_private *priv;
 	int i, idx;
 	struct netdev_queue *txq;
-	struct mwifiex_debug_info *debug_info;
+	struct mwifiex_de_info *de_info;
 
 	mwifiex_dbg(adapter, MSG, "===mwifiex driverinfo dump start===\n");
 
@@ -1176,18 +1176,18 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 		if (adapter->if_ops.reg_dump)
 			p += adapter->if_ops.reg_dump(adapter, p);
 	}
-	p += sprintf(p, "\n=== more debug information\n");
-	debug_info = kzalloc(sizeof(*debug_info), GFP_KERNEL);
-	if (debug_info) {
+	p += sprintf(p, "\n=== more de information\n");
+	de_info = kzalloc(sizeof(*de_info), GFP_KERNEL);
+	if (de_info) {
 		for (i = 0; i < adapter->priv_num; i++) {
 			if (!adapter->priv[i] || !adapter->priv[i]->netdev)
 				continue;
 			priv = adapter->priv[i];
-			mwifiex_get_debug_info(priv, debug_info);
-			p += mwifiex_debug_info_to_buffer(priv, p, debug_info);
+			mwifiex_get_de_info(priv, de_info);
+			p += mwifiex_de_info_to_buffer(priv, p, de_info);
 			break;
 		}
-		kfree(debug_info);
+		kfree(de_info);
 	}
 
 	strcpy(p, "\n========End dump========\n");
@@ -1698,14 +1698,14 @@ mwifiex_add_card(void *card, struct completion *fw_done,
 	return 0;
 
 err_init_fw:
-	pr_debug("info: %s: unregister device\n", __func__);
+	pr_de("info: %s: unregister device\n", __func__);
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
 err_registerdev:
 	set_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags);
 	mwifiex_terminate_workqueue(adapter);
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
-		pr_debug("info: %s: shutdown mwifiex\n", __func__);
+		pr_de("info: %s: shutdown mwifiex\n", __func__);
 		mwifiex_shutdown_drv(adapter);
 		mwifiex_free_cmd_buffers(adapter);
 	}
@@ -1761,7 +1761,7 @@ void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
 	struct va_format vaf;
 	va_list args;
 
-	if (!(adapter->debug_mask & mask))
+	if (!(adapter->de_mask & mask))
 		return;
 
 	va_start(args, fmt);
@@ -1781,13 +1781,13 @@ EXPORT_SYMBOL_GPL(_mwifiex_dbg);
 /*
  * This function initializes the module.
  *
- * The debug FS is also initialized if configured.
+ * The de FS is also initialized if configured.
  */
 static int
 mwifiex_init_module(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	mwifiex_debugfs_init();
+#ifdef CONFIG_DE_FS
+	mwifiex_defs_init();
 #endif
 	return 0;
 }
@@ -1795,13 +1795,13 @@ mwifiex_init_module(void)
 /*
  * This function cleans up the module.
  *
- * The debug FS is removed if available.
+ * The de FS is removed if available.
  */
 static void
 mwifiex_cleanup_module(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	mwifiex_debugfs_remove();
+#ifdef CONFIG_DE_FS
+	mwifiex_defs_remove();
 #endif
 }
 

@@ -151,7 +151,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 	struct backlight_device *bd = dev_priv->backlight_device;
 
-	DRM_DEBUG_DRIVER("asle set backlight %x\n", bclp);
+	DRM_DE_DRIVER("asle set backlight %x\n", bclp);
 
 	if (!(bclp & ASLE_BCLP_VALID))
 		return ASLE_BACKLIGHT_FAILED;
@@ -185,7 +185,7 @@ static void psb_intel_opregion_asle_work(struct work_struct *work)
 
 	asle_req = asle->aslc & ASLE_REQ_MSK;
 	if (!asle_req) {
-		DRM_DEBUG_DRIVER("non asle set request??\n");
+		DRM_DE_DRIVER("non asle set request??\n");
 		return;
 	}
 
@@ -312,19 +312,19 @@ int psb_intel_opregion_setup(struct drm_device *dev)
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &opregion_phy);
 	if (opregion_phy == 0) {
-		DRM_DEBUG_DRIVER("ACPI Opregion not supported\n");
+		DRM_DE_DRIVER("ACPI Opregion not supported\n");
 		return -ENOTSUPP;
 	}
 
 	INIT_WORK(&opregion->asle_work, psb_intel_opregion_asle_work);
 
-	DRM_DEBUG("OpRegion detected at 0x%8x\n", opregion_phy);
+	DRM_DE("OpRegion detected at 0x%8x\n", opregion_phy);
 	base = acpi_os_ioremap(opregion_phy, 8*1024);
 	if (!base)
 		return -ENOMEM;
 
 	if (memcmp(base, OPREGION_SIGNATURE, 16)) {
-		DRM_DEBUG_DRIVER("opregion signature mismatch\n");
+		DRM_DE_DRIVER("opregion signature mismatch\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -336,12 +336,12 @@ int psb_intel_opregion_setup(struct drm_device *dev)
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
-		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
+		DRM_DE_DRIVER("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
 	}
 
 	if (mboxes & MBOX_ASLE) {
-		DRM_DEBUG_DRIVER("ASLE supported\n");
+		DRM_DE_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
 	}
 

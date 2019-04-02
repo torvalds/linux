@@ -18,7 +18,7 @@
  * 	along with this program; if not, write to the Free Software
  * 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *	Questions/Comments/Bugfixes to ssic-linux-devel@lists.sourceforge.net
+ *	Questions/Comments/fixes to ssic-linux-devel@lists.sourceforge.net
  *
  *  Copyright (C) 1992  Rick Sladkey
  *

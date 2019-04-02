@@ -146,7 +146,7 @@ static int ppa_show_info(struct seq_file *m, struct Scsi_Host *host)
 	seq_printf(m, "Version : %s\n", PPA_VERSION);
 	seq_printf(m, "Parport : %s\n", dev->dev->port->name);
 	seq_printf(m, "Mode    : %s\n", PPA_MODE_STRING[dev->mode]);
-#if PPA_DEBUG > 0
+#if PPA_DE > 0
 	seq_printf(m, "recon_tmo : %lu\n", dev->recon_tmo);
 #endif
 	return 0;
@@ -154,7 +154,7 @@ static int ppa_show_info(struct seq_file *m, struct Scsi_Host *host)
 
 static int device_check(ppa_struct *dev);
 
-#if PPA_DEBUG > 0
+#if PPA_DE > 0
 #define ppa_fail(x,y) printk("ppa: ppa_fail(%i) from %s at line %d\n",\
 	   y, __func__, __LINE__); ppa_fail_func(x,y);
 static inline void ppa_fail_func(ppa_struct *dev, int error_code)
@@ -313,7 +313,7 @@ static int ppa_out(ppa_struct *dev, char *buffer, int len)
 		break;
 
 	default:
-		printk(KERN_ERR "PPA: bug in ppa_out()\n");
+		printk(KERN_ERR "PPA:  in ppa_out()\n");
 		r = 0;
 	}
 	return r;
@@ -366,7 +366,7 @@ static int ppa_in(ppa_struct *dev, char *buffer, int len)
 		break;
 
 	default:
-		printk(KERN_ERR "PPA: bug in ppa_ins()\n");
+		printk(KERN_ERR "PPA:  in ppa_ins()\n");
 		r = 0;
 		break;
 	}
@@ -616,7 +616,7 @@ static void ppa_interrupt(struct work_struct *work)
 	struct scsi_cmnd *cmd = dev->cur_cmd;
 
 	if (!cmd) {
-		printk(KERN_ERR "PPA: bug in ppa_interrupt\n");
+		printk(KERN_ERR "PPA:  in ppa_interrupt\n");
 		return;
 	}
 	if (ppa_engine(dev, cmd)) {
@@ -624,30 +624,30 @@ static void ppa_interrupt(struct work_struct *work)
 		return;
 	}
 	/* Command must of completed hence it is safe to let go... */
-#if PPA_DEBUG > 0
+#if PPA_DE > 0
 	switch ((cmd->result >> 16) & 0xff) {
 	case DID_OK:
 		break;
 	case DID_NO_CONNECT:
-		printk(KERN_DEBUG "ppa: no device at SCSI ID %i\n", cmd->device->target);
+		printk(KERN_DE "ppa: no device at SCSI ID %i\n", cmd->device->target);
 		break;
 	case DID_BUS_BUSY:
-		printk(KERN_DEBUG "ppa: BUS BUSY - EPP timeout detected\n");
+		printk(KERN_DE "ppa: BUS BUSY - EPP timeout detected\n");
 		break;
 	case DID_TIME_OUT:
-		printk(KERN_DEBUG "ppa: unknown timeout\n");
+		printk(KERN_DE "ppa: unknown timeout\n");
 		break;
 	case DID_ABORT:
-		printk(KERN_DEBUG "ppa: told to abort\n");
+		printk(KERN_DE "ppa: told to abort\n");
 		break;
 	case DID_PARITY:
-		printk(KERN_DEBUG "ppa: parity error (???)\n");
+		printk(KERN_DE "ppa: parity error (???)\n");
 		break;
 	case DID_ERROR:
-		printk(KERN_DEBUG "ppa: internal driver error\n");
+		printk(KERN_DE "ppa: internal driver error\n");
 		break;
 	case DID_RESET:
-		printk(KERN_DEBUG "ppa: told to reset device\n");
+		printk(KERN_DE "ppa: told to reset device\n");
 		break;
 	case DID_BAD_INTR:
 		printk(KERN_WARNING "ppa: bad interrupt (???)\n");
@@ -792,7 +792,7 @@ static int ppa_queuecommand_lck(struct scsi_cmnd *cmd,
 	ppa_struct *dev = ppa_dev(cmd->device->host);
 
 	if (dev->cur_cmd) {
-		printk(KERN_ERR "PPA: bug in ppa_queuecommand\n");
+		printk(KERN_ERR "PPA:  in ppa_queuecommand\n");
 		return 0;
 	}
 	dev->failed = 0;

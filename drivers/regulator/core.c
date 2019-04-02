@@ -15,7 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/async.h>
@@ -47,7 +47,7 @@
 #define rdev_info(rdev, fmt, ...)					\
 	pr_info("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
 #define rdev_dbg(rdev, fmt, ...)					\
-	pr_debug("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
+	pr_de("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
 
 static DEFINE_WW_CLASS(regulator_ww_class);
 static DEFINE_MUTEX(regulator_nesting_mutex);
@@ -57,7 +57,7 @@ static LIST_HEAD(regulator_ena_gpio_list);
 static LIST_HEAD(regulator_supply_alias_list);
 static bool has_full_constraints;
 
-static struct dentry *debugfs_root;
+static struct dentry *defs_root;
 
 /*
  * struct regulator_map
@@ -432,7 +432,7 @@ static struct device_node *of_get_regulator(struct device *dev, const char *supp
 static int regulator_check_voltage(struct regulator_dev *rdev,
 				   int *min_uV, int *max_uV)
 {
-	BUG_ON(*min_uV > *max_uV);
+	_ON(*min_uV > *max_uV);
 
 	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_VOLTAGE)) {
 		rdev_err(rdev, "voltage operation not allowed\n");
@@ -497,7 +497,7 @@ static int regulator_check_consumers(struct regulator_dev *rdev,
 static int regulator_check_current_limit(struct regulator_dev *rdev,
 					int *min_uA, int *max_uA)
 {
-	BUG_ON(*min_uA > *max_uA);
+	_ON(*min_uA > *max_uA);
 
 	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_CURRENT)) {
 		rdev_err(rdev, "current operation not allowed\n");
@@ -1480,7 +1480,7 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 		if (strcmp(node->supply, supply) != 0)
 			continue;
 
-		pr_debug("%s: %s/%s is '%s' supply; fail %s/%s\n",
+		pr_de("%s: %s/%s is '%s' supply; fail %s/%s\n",
 			 consumer_dev_name,
 			 dev_name(&node->regulator->dev),
 			 node->regulator->desc->name,
@@ -1521,7 +1521,7 @@ static void unset_regulator_supplies(struct regulator_dev *rdev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static ssize_t constraint_flags_read_file(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -1563,7 +1563,7 @@ static ssize_t constraint_flags_read_file(struct file *file,
 #endif
 
 static const struct file_operations constraint_flags_fops = {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.open = simple_open,
 	.read = constraint_flags_read_file,
 	.llseek = default_llseek,
@@ -1614,19 +1614,19 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			goto overflow_err;
 	}
 
-	regulator->debugfs = debugfs_create_dir(regulator->supply_name,
-						rdev->debugfs);
-	if (!regulator->debugfs) {
-		rdev_dbg(rdev, "Failed to create debugfs directory\n");
+	regulator->defs = defs_create_dir(regulator->supply_name,
+						rdev->defs);
+	if (!regulator->defs) {
+		rdev_dbg(rdev, "Failed to create defs directory\n");
 	} else {
-		debugfs_create_u32("uA_load", 0444, regulator->debugfs,
+		defs_create_u32("uA_load", 0444, regulator->defs,
 				   &regulator->uA_load);
-		debugfs_create_u32("min_uV", 0444, regulator->debugfs,
+		defs_create_u32("min_uV", 0444, regulator->defs,
 				   &regulator->voltage[PM_SUSPEND_ON].min_uV);
-		debugfs_create_u32("max_uV", 0444, regulator->debugfs,
+		defs_create_u32("max_uV", 0444, regulator->defs,
 				   &regulator->voltage[PM_SUSPEND_ON].max_uV);
-		debugfs_create_file("constraint_flags", 0444,
-				    regulator->debugfs, regulator,
+		defs_create_file("constraint_flags", 0444,
+				    regulator->defs, regulator,
 				    &constraint_flags_fops);
 	}
 
@@ -2047,7 +2047,7 @@ static void _regulator_put(struct regulator *regulator)
 
 	rdev = regulator->rdev;
 
-	debugfs_remove_recursive(regulator->debugfs);
+	defs_remove_recursive(regulator->defs);
 
 	if (regulator->dev) {
 		device_link_remove(regulator->dev, &rdev->dev);
@@ -4674,30 +4674,30 @@ static void regulator_dev_release(struct device *dev)
 	kfree(rdev);
 }
 
-static void rdev_init_debugfs(struct regulator_dev *rdev)
+static void rdev_init_defs(struct regulator_dev *rdev)
 {
 	struct device *parent = rdev->dev.parent;
 	const char *rname = rdev_get_name(rdev);
 	char name[NAME_MAX];
 
-	/* Avoid duplicate debugfs directory names */
+	/* Avoid duplicate defs directory names */
 	if (parent && rname == rdev->desc->name) {
 		snprintf(name, sizeof(name), "%s-%s", dev_name(parent),
 			 rname);
 		rname = name;
 	}
 
-	rdev->debugfs = debugfs_create_dir(rname, debugfs_root);
-	if (!rdev->debugfs) {
-		rdev_warn(rdev, "Failed to create debugfs directory\n");
+	rdev->defs = defs_create_dir(rname, defs_root);
+	if (!rdev->defs) {
+		rdev_warn(rdev, "Failed to create defs directory\n");
 		return;
 	}
 
-	debugfs_create_u32("use_count", 0444, rdev->debugfs,
+	defs_create_u32("use_count", 0444, rdev->defs,
 			   &rdev->use_count);
-	debugfs_create_u32("open_count", 0444, rdev->debugfs,
+	defs_create_u32("open_count", 0444, rdev->defs,
 			   &rdev->open_count);
-	debugfs_create_u32("bypass_count", 0444, rdev->debugfs,
+	defs_create_u32("bypass_count", 0444, rdev->defs,
 			   &rdev->bypass_count);
 }
 
@@ -5013,7 +5013,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		goto unset_supplies;
 	}
 
-	rdev_init_debugfs(rdev);
+	rdev_init_defs(rdev);
 
 	/* try to resolve regulators coupling since a new one was registered */
 	mutex_lock(&regulator_list_mutex);
@@ -5066,7 +5066,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 
 	mutex_lock(&regulator_list_mutex);
 
-	debugfs_remove_recursive(rdev->debugfs);
+	defs_remove_recursive(rdev->defs);
 	flush_work(&rdev->disable_work.work);
 	WARN_ON(rdev->open_count);
 	regulator_remove_coupling(rdev);
@@ -5225,7 +5225,7 @@ void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data)
 }
 EXPORT_SYMBOL_GPL(regulator_get_init_drvdata);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int supply_map_show(struct seq_file *sf, void *data)
 {
 	struct regulator_map *map;
@@ -5462,7 +5462,7 @@ static int regulator_summary_show(struct seq_file *s, void *data)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(regulator_summary);
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int __init regulator_init(void)
 {
@@ -5470,15 +5470,15 @@ static int __init regulator_init(void)
 
 	ret = class_register(&regulator_class);
 
-	debugfs_root = debugfs_create_dir("regulator", NULL);
-	if (!debugfs_root)
-		pr_warn("regulator: Failed to create debugfs directory\n");
+	defs_root = defs_create_dir("regulator", NULL);
+	if (!defs_root)
+		pr_warn("regulator: Failed to create defs directory\n");
 
-#ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("supply_map", 0444, debugfs_root, NULL,
+#ifdef CONFIG_DE_FS
+	defs_create_file("supply_map", 0444, defs_root, NULL,
 			    &supply_map_fops);
 
-	debugfs_create_file("regulator_summary", 0444, debugfs_root,
+	defs_create_file("regulator_summary", 0444, defs_root,
 			    NULL, &regulator_summary_fops);
 #endif
 	regulator_dummy_init();

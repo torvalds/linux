@@ -7,7 +7,7 @@
 #define _RTW_IOCTL_SET_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 
 #define IS_MAC_ADDRESS_BROADCAST(addr) \
 (\

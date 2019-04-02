@@ -20,7 +20,7 @@
 static void backtrace_test_normal(void)
 {
 	pr_info("Testing a backtrace from process context.\n");
-	pr_info("The following trace is a kernel self test and not a bug!\n");
+	pr_info("The following trace is a kernel self test and not a !\n");
 
 	dump_stack();
 }
@@ -38,7 +38,7 @@ static DECLARE_TASKLET(backtrace_tasklet, &backtrace_test_irq_callback, 0);
 static void backtrace_test_irq(void)
 {
 	pr_info("Testing a backtrace from irq context.\n");
-	pr_info("The following trace is a kernel self test and not a bug!\n");
+	pr_info("The following trace is a kernel self test and not a !\n");
 
 	init_completion(&backtrace_work);
 	tasklet_schedule(&backtrace_tasklet);
@@ -52,7 +52,7 @@ static void backtrace_test_saved(void)
 	unsigned long entries[8];
 
 	pr_info("Testing a saved backtrace.\n");
-	pr_info("The following trace is a kernel self test and not a bug!\n");
+	pr_info("The following trace is a kernel self test and not a !\n");
 
 	trace.nr_entries = 0;
 	trace.max_entries = ARRAY_SIZE(entries);

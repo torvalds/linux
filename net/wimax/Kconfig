@@ -21,19 +21,19 @@ menuconfig WIMAX
 
 	  If unsure, it is safe to select M (module).
 
-config WIMAX_DEBUG_LEVEL
-	int "WiMAX debug level"
+config WIMAX_DE_LEVEL
+	int "WiMAX de level"
 	depends on WIMAX
 	default 8
 	help
 
-	  Select the maximum debug verbosity level to be compiled into
+	  Select the maximum de verbosity level to be compiled into
 	  the WiMAX stack code.
 
-	  By default, debug messages are disabled at runtime and can
+	  By default, de messages are disabled at runtime and can
 	  be selectively enabled for different parts of the code using
-	  the sysfs debug-levels file.
+	  the sysfs de-levels file.
 
-	  If set at zero, this will compile out all the debug code.
+	  If set at zero, this will compile out all the de code.
 
 	  It is recommended that it is left at 8.

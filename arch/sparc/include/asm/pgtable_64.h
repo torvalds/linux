@@ -240,9 +240,9 @@ extern struct page *mem_map_zero;
 	unsigned long *_pp = (void *)(pp);				\
 									\
 	 /* Check that struct page is either 64, 72, or 80 bytes */	\
-	BUILD_BUG_ON(sizeof(struct page) & 7);				\
-	BUILD_BUG_ON(sizeof(struct page) < 64);				\
-	BUILD_BUG_ON(sizeof(struct page) > 80);				\
+	BUILD__ON(sizeof(struct page) & 7);				\
+	BUILD__ON(sizeof(struct page) < 64);				\
+	BUILD__ON(sizeof(struct page) > 80);				\
 									\
 	switch (sizeof(struct page)) {					\
 	case 80:							\
@@ -270,7 +270,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 {
 	unsigned long paddr = pfn << PAGE_SHIFT;
 
-	BUILD_BUG_ON(_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL);
+	BUILD__ON(_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL);
 	return __pte(paddr | pgprot_val(prot));
 }
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
@@ -321,7 +321,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	 * Note: We encode this into 3 sun4v 2-insn patch sequences.
 	 */
 
-	BUILD_BUG_ON(_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL);
+	BUILD__ON(_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL);
 	__asm__ __volatile__(
 	"\n661:	sethi		%%uhi(%2), %1\n"
 	"	sethi		%%hi(%2), %0\n"

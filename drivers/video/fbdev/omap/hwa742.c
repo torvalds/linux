@@ -249,7 +249,7 @@ static inline struct hwa742_request *alloc_req(void)
 		req_flags = REQ_FROM_IRQ_POOL;
 
 	spin_lock_irqsave(&hwa742.req_lock, flags);
-	BUG_ON(list_empty(&hwa742.free_req_list));
+	_ON(list_empty(&hwa742.free_req_list));
 	req = list_entry(hwa742.free_req_list.next,
 			 struct hwa742_request, entry);
 	list_del(&req->entry);
@@ -941,7 +941,7 @@ static int hwa742_init(struct omapfb_device *fbdev, int ext_mode,
 	int extif_mem_div;
 	struct omapfb_platform_data *omapfb_conf;
 
-	BUG_ON(!fbdev->ext_if || !fbdev->int_ctrl);
+	_ON(!fbdev->ext_if || !fbdev->int_ctrl);
 
 	hwa742.fbdev = fbdev;
 	hwa742.extif = fbdev->ext_if;
@@ -1013,7 +1013,7 @@ static int hwa742_init(struct omapfb_device *fbdev, int ext_mode,
 	INIT_LIST_HEAD(&hwa742.pending_req_list);
 	for (i = 0; i < ARRAY_SIZE(hwa742.req_pool); i++)
 		list_add(&hwa742.req_pool[i].entry, &hwa742.free_req_list);
-	BUG_ON(i <= IRQ_REQ_POOL_SIZE);
+	_ON(i <= IRQ_REQ_POOL_SIZE);
 	sema_init(&hwa742.req_sema, i - IRQ_REQ_POOL_SIZE);
 
 	conf = hwa742_read_reg(HWA742_CONFIG_REG);

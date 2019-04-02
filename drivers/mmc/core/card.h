@@ -42,7 +42,7 @@
 
 /*
  * The world is not perfect and supplies us with broken mmc/sdio devices.
- * For at least some of these bugs we need a work-around.
+ * For at least some of these s we need a work-around.
  */
 struct mmc_fixup {
 	/* CID-specific fields. */

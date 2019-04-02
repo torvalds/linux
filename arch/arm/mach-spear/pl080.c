@@ -13,7 +13,7 @@
 
 #include <linux/amba/pl08x.h>
 #include <linux/amba/bus.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/spinlock_types.h>
@@ -70,7 +70,7 @@ void pl080_put_signal(const struct pl08x_channel_data *cd, int signal)
 
 	/* if signal is not used */
 	if (!signals[signal].busy)
-		BUG();
+		();
 
 	signals[signal].busy--;
 

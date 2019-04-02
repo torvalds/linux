@@ -71,7 +71,7 @@
 #define GET_BATCHRSP		0x44
 
 #define CHIP_NORMALMODE		0x00
-#define CHIP_DEBUGMODE		0x01
+#define CHIP_DEMODE		0x01
 
 /* SD Pass Through Command Extension */
 #define SD_PASS_THRU_MODE	0xD0

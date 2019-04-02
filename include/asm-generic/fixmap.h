@@ -15,7 +15,7 @@
 #ifndef __ASM_GENERIC_FIXMAP_H
 #define __ASM_GENERIC_FIXMAP_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm_types.h>
 
 #define __fix_to_virt(x)	(FIXADDR_TOP - ((x) << PAGE_SHIFT))
@@ -24,18 +24,18 @@
 #ifndef __ASSEMBLY__
 /*
  * 'index to address' translation. If anyone tries to use the idx
- * directly without translation, we catch the bug with a NULL-deference
+ * directly without translation, we catch the  with a NULL-deference
  * kernel oops. Illegal ranges of incoming indices are caught too.
  */
 static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 {
-	BUILD_BUG_ON(idx >= __end_of_fixed_addresses);
+	BUILD__ON(idx >= __end_of_fixed_addresses);
 	return __fix_to_virt(idx);
 }
 
 static inline unsigned long virt_to_fix(const unsigned long vaddr)
 {
-	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
+	_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
 	return __virt_to_fix(vaddr);
 }
 

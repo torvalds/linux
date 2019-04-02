@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 #include <linux/ceph/striper.h>
 
 #include <linux/module.h>
@@ -204,7 +204,7 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 
 	dout("%s %p %p 0%o (%s)\n", __func__, inode, file,
 			inode->i_mode, isdir ? "dir" : "regular");
-	BUG_ON(inode->i_fop->release != ceph_release);
+	_ON(inode->i_fop->release != ceph_release);
 
 	if (isdir) {
 		struct ceph_dir_file_info *dfi =
@@ -268,7 +268,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 		 * have .release set to ceph_release.
 		 */
 		ceph_put_fmode(ceph_inode(inode), fmode); /* clean up */
-		BUG_ON(inode->i_fop->release == ceph_release);
+		_ON(inode->i_fop->release == ceph_release);
 
 		/* call the proper open fop */
 		ret = inode->i_fop->open(inode, file);
@@ -776,15 +776,15 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	struct ceph_aio_request *aio_req = req->r_priv;
 	struct ceph_osd_data *osd_data = osd_req_op_extent_osd_data(req, 0);
 
-	BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_BVECS);
-	BUG_ON(!osd_data->num_bvecs);
+	_ON(osd_data->type != CEPH_OSD_DATA_TYPE_BVECS);
+	_ON(!osd_data->num_bvecs);
 
 	dout("ceph_aio_complete_req %p rc %d bytes %u\n",
 	     inode, rc, osd_data->bvec_pos.iter.bi_size);
 
 	if (rc == -EOLDSNAPC) {
 		struct ceph_aio_work *aio_work;
-		BUG_ON(!aio_req->write);
+		_ON(!aio_req->write);
 
 		aio_work = kmalloc(sizeof(*aio_work), GFP_NOFS);
 		if (aio_work) {
@@ -855,7 +855,7 @@ static void ceph_aio_retry_work(struct work_struct *work)
 					ci_item);
 		snapc = ceph_get_snap_context(capsnap->context);
 	} else {
-		BUG_ON(!ci->i_head_snapc);
+		_ON(!ci->i_head_snapc);
 		snapc = ceph_get_snap_context(ci->i_head_snapc);
 	}
 	spin_unlock(&ci->i_ceph_lock);
@@ -1311,7 +1311,7 @@ again:
 			if (page)
 				__free_page(page);
 			if (statret == -ENODATA) {
-				BUG_ON(retry_op != READ_INLINE);
+				_ON(retry_op != READ_INLINE);
 				goto again;
 			}
 			return statret;
@@ -1319,7 +1319,7 @@ again:
 
 		i_size = i_size_read(inode);
 		if (retry_op == READ_INLINE) {
-			BUG_ON(ret > 0 || read > 0);
+			_ON(ret > 0 || read > 0);
 			if (iocb->ki_pos < i_size &&
 			    iocb->ki_pos < PAGE_SIZE) {
 				loff_t end = min_t(loff_t, i_size,
@@ -1473,7 +1473,7 @@ retry_snap:
 							ci_item);
 			snapc = ceph_get_snap_context(capsnap->context);
 		} else {
-			BUG_ON(!ci->i_head_snapc);
+			_ON(!ci->i_head_snapc);
 			snapc = ceph_get_snap_context(ci->i_head_snapc);
 		}
 		spin_unlock(&ci->i_ceph_lock);

@@ -7,7 +7,7 @@
  * Author(s):
  *	Original netiucv driver:
  *		Fritz Elfert (elfert@de.ibm.com, felfert@millenux.com)
- *	Sysfs integration and all bugs therein:
+ *	Sysfs integration and all s therein:
  *		Cornelia Huck (cornelia.huck@de.ibm.com)
  *	PM functions:
  *		Ursula Braun (ursula.braun@de.ibm.com)
@@ -24,7 +24,7 @@
 #define KMSG_COMPONENT "netiucv"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#undef DEBUG
+#undef DE
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -59,7 +59,7 @@ MODULE_AUTHOR
 MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
 /**
- * Debug Facility stuff
+ * De Facility stuff
  */
 #define IUCV_DBF_SETUP_NAME "iucv_setup"
 #define IUCV_DBF_SETUP_LEN 64
@@ -81,36 +81,36 @@ MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
 #define IUCV_DBF_TEXT(name,level,text) \
 	do { \
-		debug_text_event(iucv_dbf_##name,level,text); \
+		de_text_event(iucv_dbf_##name,level,text); \
 	} while (0)
 
 #define IUCV_DBF_HEX(name,level,addr,len) \
 	do { \
-		debug_event(iucv_dbf_##name,level,(void*)(addr),len); \
+		de_event(iucv_dbf_##name,level,(void*)(addr),len); \
 	} while (0)
 
 DECLARE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
 #define IUCV_DBF_TEXT_(name, level, text...) \
 	do { \
-		if (debug_level_enabled(iucv_dbf_##name, level)) { \
+		if (de_level_enabled(iucv_dbf_##name, level)) { \
 			char* __buf = get_cpu_var(iucv_dbf_txt_buf); \
 			sprintf(__buf, text); \
-			debug_text_event(iucv_dbf_##name, level, __buf); \
+			de_text_event(iucv_dbf_##name, level, __buf); \
 			put_cpu_var(iucv_dbf_txt_buf); \
 		} \
 	} while (0)
 
 #define IUCV_DBF_SPRINTF(name,level,text...) \
 	do { \
-		debug_sprintf_event(iucv_dbf_trace, level, ##text ); \
-		debug_sprintf_event(iucv_dbf_trace, level, text ); \
+		de_sprintf_event(iucv_dbf_trace, level, ##text ); \
+		de_sprintf_event(iucv_dbf_trace, level, text ); \
 	} while (0)
 
 /**
- * some more debug stuff
+ * some more de stuff
  */
-#define PRINTK_HEADER " iucv: "       /* for debugging */
+#define PRINTK_HEADER " iucv: "       /* for deging */
 
 /* dummy device to make sure netiucv_pm functions are called */
 static struct device *netiucv_dev;
@@ -461,31 +461,31 @@ static const char *conn_state_names[] = {
 
 
 /**
- * Debug Facility Stuff
+ * De Facility Stuff
  */
-static debug_info_t *iucv_dbf_setup = NULL;
-static debug_info_t *iucv_dbf_data = NULL;
-static debug_info_t *iucv_dbf_trace = NULL;
+static de_info_t *iucv_dbf_setup = NULL;
+static de_info_t *iucv_dbf_data = NULL;
+static de_info_t *iucv_dbf_trace = NULL;
 
 DEFINE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
 static void iucv_unregister_dbf_views(void)
 {
-	debug_unregister(iucv_dbf_setup);
-	debug_unregister(iucv_dbf_data);
-	debug_unregister(iucv_dbf_trace);
+	de_unregister(iucv_dbf_setup);
+	de_unregister(iucv_dbf_data);
+	de_unregister(iucv_dbf_trace);
 }
 static int iucv_register_dbf_views(void)
 {
-	iucv_dbf_setup = debug_register(IUCV_DBF_SETUP_NAME,
+	iucv_dbf_setup = de_register(IUCV_DBF_SETUP_NAME,
 					IUCV_DBF_SETUP_PAGES,
 					IUCV_DBF_SETUP_NR_AREAS,
 					IUCV_DBF_SETUP_LEN);
-	iucv_dbf_data = debug_register(IUCV_DBF_DATA_NAME,
+	iucv_dbf_data = de_register(IUCV_DBF_DATA_NAME,
 				       IUCV_DBF_DATA_PAGES,
 				       IUCV_DBF_DATA_NR_AREAS,
 				       IUCV_DBF_DATA_LEN);
-	iucv_dbf_trace = debug_register(IUCV_DBF_TRACE_NAME,
+	iucv_dbf_trace = de_register(IUCV_DBF_TRACE_NAME,
 					IUCV_DBF_TRACE_PAGES,
 					IUCV_DBF_TRACE_NR_AREAS,
 					IUCV_DBF_TRACE_LEN);
@@ -495,14 +495,14 @@ static int iucv_register_dbf_views(void)
 		iucv_unregister_dbf_views();
 		return -ENOMEM;
 	}
-	debug_register_view(iucv_dbf_setup, &debug_hex_ascii_view);
-	debug_set_level(iucv_dbf_setup, IUCV_DBF_SETUP_LEVEL);
+	de_register_view(iucv_dbf_setup, &de_hex_ascii_view);
+	de_set_level(iucv_dbf_setup, IUCV_DBF_SETUP_LEVEL);
 
-	debug_register_view(iucv_dbf_data, &debug_hex_ascii_view);
-	debug_set_level(iucv_dbf_data, IUCV_DBF_DATA_LEVEL);
+	de_register_view(iucv_dbf_data, &de_hex_ascii_view);
+	de_set_level(iucv_dbf_data, IUCV_DBF_DATA_LEVEL);
 
-	debug_register_view(iucv_dbf_trace, &debug_hex_ascii_view);
-	debug_set_level(iucv_dbf_trace, IUCV_DBF_TRACE_LEVEL);
+	de_register_view(iucv_dbf_trace, &de_hex_ascii_view);
+	de_set_level(iucv_dbf_trace, IUCV_DBF_TRACE_LEVEL);
 
 	return 0;
 }

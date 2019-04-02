@@ -1,7 +1,7 @@
 /*
  * BIOS Flash chip on Intel 440GX board.
  *
- * Bugs this currently does not work under linuxBIOS.
+ * s this currently does not work under linuxBIOS.
  */
 
 #include <linux/module.h>

@@ -737,7 +737,7 @@ static BATADV_ATTR(gw_bandwidth, 0644, batadv_show_gw_bwidth,
 #ifdef CONFIG_BATMAN_ADV_MCAST
 BATADV_ATTR_SIF_BOOL(multicast_mode, 0644, NULL);
 #endif
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 BATADV_ATTR_SIF_UINT(log_level, log_level, 0644, 0, BATADV_DBG_ALL, NULL);
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC
@@ -765,7 +765,7 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_hop_penalty,
 	&batadv_attr_gw_sel_class,
 	&batadv_attr_gw_bandwidth,
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 	&batadv_attr_log_level,
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC

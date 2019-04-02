@@ -54,8 +54,8 @@ int rfi_flush_test(void)
 
 	SKIP_IF(geteuid() != 0);
 
-	if (read_debugfs_file("powerpc/rfi_flush", &rfi_flush_org)) {
-		perror("Unable to read powerpc/rfi_flush debugfs file");
+	if (read_defs_file("powerpc/rfi_flush", &rfi_flush_org)) {
+		perror("Unable to read powerpc/rfi_flush defs file");
 		SKIP_IF(1);
 	}
 
@@ -111,8 +111,8 @@ again:
 
 	if (rfi_flush == rfi_flush_org) {
 		rfi_flush = !rfi_flush_org;
-		if (write_debugfs_file("powerpc/rfi_flush", rfi_flush) < 0) {
-			perror("error writing to powerpc/rfi_flush debugfs file");
+		if (write_defs_file("powerpc/rfi_flush", rfi_flush) < 0) {
+			perror("error writing to powerpc/rfi_flush defs file");
 			return 1;
 		}
 		iter = repetitions;
@@ -126,8 +126,8 @@ again:
 
 	set_dscr(0);
 
-	if (write_debugfs_file("powerpc/rfi_flush", rfi_flush_org) < 0) {
-		perror("unable to restore original value of powerpc/rfi_flush debugfs file");
+	if (write_defs_file("powerpc/rfi_flush", rfi_flush_org) < 0) {
+		perror("unable to restore original value of powerpc/rfi_flush defs file");
 		return 1;
 	}
 

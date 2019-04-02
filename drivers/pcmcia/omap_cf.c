@@ -87,7 +87,7 @@ static void omap_cf_timer(struct timer_list *t)
 
 	if (present != cf->present) {
 		cf->present = present;
-		pr_debug("%s: card %s\n", driver_name,
+		pr_de("%s: card %s\n", driver_name,
 			present ? "present" : "gone");
 		pcmcia_parse_events(&cf->socket, SS_DETECT);
 	}
@@ -146,7 +146,7 @@ omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 	else
 		omap_writew(0, CF_CONTROL);
 
-	pr_debug("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
+	pr_de("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
 		driver_name, s->Vcc, s->io_irq, s->flags, s->csc_mask);
 
 	return 0;
@@ -154,7 +154,7 @@ omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 
 static int omap_cf_ss_suspend(struct pcmcia_socket *s)
 {
-	pr_debug("%s: %s\n", driver_name, __func__);
+	pr_de("%s: %s\n", driver_name, __func__);
 	return omap_cf_set_socket(s, &dead_socket);
 }
 
@@ -277,14 +277,14 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	 * TRM only shows how to affect regular flash signals, not their
 	 * CF/PCMCIA variants...
 	 */
-	pr_debug("%s: cs%d, previous ccs %08x acs %08x\n", driver_name,
+	pr_de("%s: cs%d, previous ccs %08x acs %08x\n", driver_name,
 		seg, omap_readl(EMIFS_CCS(seg)), omap_readl(EMIFS_ACS(seg)));
 	omap_writel(0x0004a1b3, EMIFS_CCS(seg));	/* synch mode 4 etc */
 	omap_writel(0x00000000, EMIFS_ACS(seg));	/* OE hold/setup */
 
 	/* CF uses armxor_ck, which is "always" available */
 
-	pr_debug("%s: sts %04x cfg %04x control %04x %s\n", driver_name,
+	pr_de("%s: sts %04x cfg %04x control %04x %s\n", driver_name,
 		omap_readw(CF_STATUS), omap_readw(CF_CFG),
 		omap_readw(CF_CONTROL),
 		omap_cf_present() ? "present" : "(not present)");

@@ -14,7 +14,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 #include "blk-wbt.h"
 
 struct queue_sysfs_entry {
@@ -866,7 +866,7 @@ static void __blk_release_queue(struct work_struct *work)
 	blk_trace_shutdown(q);
 
 	if (queue_is_mq(q))
-		blk_mq_debugfs_unregister(q);
+		blk_mq_defs_unregister(q);
 
 	bioset_exit(&q->bio_split);
 
@@ -941,7 +941,7 @@ int blk_register_queue(struct gendisk *disk)
 
 	if (queue_is_mq(q)) {
 		__blk_mq_register_dev(dev, q);
-		blk_mq_debugfs_register(q);
+		blk_mq_defs_register(q);
 	}
 
 	kobject_uevent(&q->kobj, KOBJ_ADD);

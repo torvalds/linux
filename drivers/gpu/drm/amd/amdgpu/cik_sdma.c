@@ -109,7 +109,7 @@ static int cik_sdma_init_microcode(struct amdgpu_device *adev)
 	char fw_name[30];
 	int err = 0, i;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
@@ -127,7 +127,7 @@ static int cik_sdma_init_microcode(struct amdgpu_device *adev)
 	case CHIP_MULLINS:
 		chip_name = "mullins";
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -1160,7 +1160,7 @@ static int cik_sdma_process_trap_irq(struct amdgpu_device *adev,
 
 	instance_id = (entry->ring_id & 0x3) >> 0;
 	queue_id = (entry->ring_id & 0xc) >> 2;
-	DRM_DEBUG("IH: SDMA trap\n");
+	DRM_DE("IH: SDMA trap\n");
 	switch (instance_id) {
 	case 0:
 		switch (queue_id) {

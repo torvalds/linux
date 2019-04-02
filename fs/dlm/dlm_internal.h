@@ -70,22 +70,22 @@ do { \
 	if (dlm_config.ci_log_info) \
 		printk(KERN_INFO "dlm: %s: " fmt "\n", \
 			(ls)->ls_name, ##args); \
-	else if (dlm_config.ci_log_debug) \
-		printk(KERN_DEBUG "dlm: %s: " fmt "\n", \
+	else if (dlm_config.ci_log_de) \
+		printk(KERN_DE "dlm: %s: " fmt "\n", \
 		       (ls)->ls_name , ##args); \
 } while (0)
 
-#define log_debug(ls, fmt, args...) \
+#define log_de(ls, fmt, args...) \
 do { \
-	if (dlm_config.ci_log_debug) \
-		printk(KERN_DEBUG "dlm: %s: " fmt "\n", \
+	if (dlm_config.ci_log_de) \
+		printk(KERN_DE "dlm: %s: " fmt "\n", \
 		       (ls)->ls_name , ##args); \
 } while (0)
 
 #define log_limit(ls, fmt, args...) \
 do { \
-	if (dlm_config.ci_log_debug) \
-		printk_ratelimited(KERN_DEBUG "dlm: %s: " fmt "\n", \
+	if (dlm_config.ci_log_de) \
+		printk_ratelimited(KERN_DE "dlm: %s: " fmt "\n", \
 			(ls)->ls_name , ##args); \
 } while (0)
 
@@ -99,7 +99,7 @@ do { \
                __LINE__, __FILE__, #x, jiffies); \
     {do} \
     printk("\n"); \
-    BUG(); \
+    (); \
     panic("DLM:  Record message above and reboot.\n"); \
   } \
 }
@@ -249,7 +249,7 @@ struct dlm_lkb {
 
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
 	int8_t			lkb_wait_count;
-	int			lkb_wait_nodeid; /* for debugging */
+	int			lkb_wait_nodeid; /* for deging */
 
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
 	struct list_head	lkb_rsb_lookup;	/* waiting for rsb lookup */
@@ -266,8 +266,8 @@ struct dlm_lkb {
 	struct dlm_callback	lkb_callbacks[DLM_CALLBACKS_SIZE];
 	struct dlm_callback	lkb_last_cast;
 	struct dlm_callback	lkb_last_bast;
-	ktime_t			lkb_last_cast_time;	/* for debugging */
-	ktime_t			lkb_last_bast_time;	/* for debugging */
+	ktime_t			lkb_last_cast_time;	/* for deging */
+	ktime_t			lkb_last_bast_time;	/* for deging */
 
 	uint64_t		lkb_recover_seq; /* from ls_recover_seq */
 
@@ -573,11 +573,11 @@ struct dlm_ls {
 	struct dlm_lkb		ls_stub_lkb;	/* for returning errors */
 	struct dlm_message	ls_stub_ms;	/* for faking a reply */
 
-	struct dentry		*ls_debug_rsb_dentry; /* debugfs */
-	struct dentry		*ls_debug_waiters_dentry; /* debugfs */
-	struct dentry		*ls_debug_locks_dentry; /* debugfs */
-	struct dentry		*ls_debug_all_dentry; /* debugfs */
-	struct dentry		*ls_debug_toss_dentry; /* debugfs */
+	struct dentry		*ls_de_rsb_dentry; /* defs */
+	struct dentry		*ls_de_waiters_dentry; /* defs */
+	struct dentry		*ls_de_locks_dentry; /* defs */
+	struct dentry		*ls_de_all_dentry; /* defs */
+	struct dentry		*ls_de_toss_dentry; /* defs */
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;
@@ -605,7 +605,7 @@ struct dlm_ls {
 	struct list_head	ls_requestqueue;/* queue remote requests */
 	struct mutex		ls_requestqueue_mutex;
 	struct dlm_rcom		*ls_recover_buf;
-	int			ls_recover_nodeid; /* for debugging */
+	int			ls_recover_nodeid; /* for deging */
 	unsigned int		ls_recover_dir_sent_res; /* for log info */
 	unsigned int		ls_recover_dir_sent_msg; /* for log info */
 	unsigned int		ls_recover_locks_in; /* for log info */
@@ -720,16 +720,16 @@ void dlm_timeout_warn(struct dlm_lkb *lkb);
 int dlm_plock_init(void);
 void dlm_plock_exit(void);
 
-#ifdef CONFIG_DLM_DEBUG
-int dlm_register_debugfs(void);
-void dlm_unregister_debugfs(void);
-int dlm_create_debug_file(struct dlm_ls *ls);
-void dlm_delete_debug_file(struct dlm_ls *ls);
+#ifdef CONFIG_DLM_DE
+int dlm_register_defs(void);
+void dlm_unregister_defs(void);
+int dlm_create_de_file(struct dlm_ls *ls);
+void dlm_delete_de_file(struct dlm_ls *ls);
 #else
-static inline int dlm_register_debugfs(void) { return 0; }
-static inline void dlm_unregister_debugfs(void) { }
-static inline int dlm_create_debug_file(struct dlm_ls *ls) { return 0; }
-static inline void dlm_delete_debug_file(struct dlm_ls *ls) { }
+static inline int dlm_register_defs(void) { return 0; }
+static inline void dlm_unregister_defs(void) { }
+static inline int dlm_create_de_file(struct dlm_ls *ls) { return 0; }
+static inline void dlm_delete_de_file(struct dlm_ls *ls) { }
 #endif
 
 #endif				/* __DLM_INTERNAL_DOT_H__ */

@@ -905,7 +905,7 @@ test_rom:
 		unsigned long rom_base;
 		rom_base = pci_resource_start(sti->pd, PCI_ROM_RESOURCE);	
 		pci_write_config_dword(sti->pd, PCI_ROM_ADDRESS, rom_base & ~PCI_ROM_ADDRESS_ENABLE);
-		DPRINTK((KERN_DEBUG "STI PCI ROM disabled\n"));
+		DPRINTK((KERN_DE "STI PCI ROM disabled\n"));
 	}
 
 	if (sti_init_graph(sti))
@@ -980,13 +980,13 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 	rom_len = pci_resource_len(pd, PCI_ROM_RESOURCE);
 	if (rom_base) {
 		pci_write_config_dword(pd, PCI_ROM_ADDRESS, rom_base | PCI_ROM_ADDRESS_ENABLE);
-		DPRINTK((KERN_DEBUG "STI PCI ROM enabled at 0x%08lx\n", rom_base));
+		DPRINTK((KERN_DE "STI PCI ROM enabled at 0x%08lx\n", rom_base));
 	}
 
 	printk(KERN_INFO "STI PCI graphic ROM found at %08lx (%u kB), fb at %08lx (%u MB)\n",
 		rom_base, rom_len/1024, fb_base, fb_len/1024/1024);
 
-	DPRINTK((KERN_DEBUG "Trying PCI STI ROM at %08lx, PCI hpa at %08lx\n",
+	DPRINTK((KERN_DE "Trying PCI STI ROM at %08lx, PCI hpa at %08lx\n",
 		    rom_base, fb_base));
 
 	sti = sti_try_rom_generic(rom_base, fb_base, pd);
@@ -1009,7 +1009,7 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 
 static void __exit sticore_pci_remove(struct pci_dev *pd)
 {
-	BUG();
+	();
 }
 
 

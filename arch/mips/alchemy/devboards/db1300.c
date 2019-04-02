@@ -800,7 +800,7 @@ int __init db1300_dev_setup(void)
 	bcsr_init_irq(DB1300_FIRST_INT, DB1300_LAST_INT, cpldirq);
 
 	/* insert/eject IRQs: one always triggers so don't enable them
-	 * when doing request_irq() on them.  DB1200 has this bug too.
+	 * when doing request_irq() on them.  DB1200 has this  too.
 	 */
 	irq_set_status_flags(DB1300_SD1_INSERT_INT, IRQ_NOAUTOEN);
 	irq_set_status_flags(DB1300_SD1_EJECT_INT, IRQ_NOAUTOEN);

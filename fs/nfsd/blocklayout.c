@@ -8,7 +8,7 @@
 #include <linux/slab.h>
 #include <linux/pr.h>
 
-#include <linux/nfsd/debug.h>
+#include <linux/nfsd/de.h>
 #include <scsi/scsi_proto.h>
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_request.h>

@@ -595,7 +595,7 @@ static int csi2_configure(struct iss_csi2_device *csi2)
 }
 
 /*
- * csi2_print_status - Prints CSI2 debug information.
+ * csi2_print_status - Prints CSI2 de information.
  */
 #define CSI2_PRINT_REGISTER(iss, regs, name)\
 	dev_dbg(iss->dev, "###CSI2 " #name "=0x%08x\n", \
@@ -718,7 +718,7 @@ static void csi2_isr_ctx(struct iss_csi2_device *csi2,
 	 * but it turned out that the interrupt is only generated when the CSI2
 	 * writes to memory (the CSI2_CTx_CTRL1::COUNT field is decreased
 	 * correctly and reaches 0 when data is forwarded to the video port only
-	 * but no interrupt arrives). Maybe a CSI2 hardware bug.
+	 * but no interrupt arrives). Maybe a CSI2 hardware .
 	 */
 	if (csi2->frame_skip) {
 		csi2->frame_skip--;

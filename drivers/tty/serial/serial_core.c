@@ -99,7 +99,7 @@ void uart_write_wakeup(struct uart_port *port)
 	 * This means you called this function _after_ the port was
 	 * closed.  No cookie for you.
 	 */
-	BUG_ON(!state);
+	_ON(!state);
 	tty_port_tty_wakeup(&state->port);
 }
 
@@ -309,7 +309,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	/*
 	 * Do not free() the transmit buffer page under the port lock since
 	 * this can create various circular locking scenarios. For instance,
-	 * console driver may need to allocate/free a debug object, which
+	 * console driver may need to allocate/free a de object, which
 	 * can endup in printk() recursion.
 	 */
 	uart_port_lock(state, flags);
@@ -657,7 +657,7 @@ static void uart_flush_buffer(struct tty_struct *tty)
 		return;
 	}
 
-	pr_debug("uart_flush_buffer(%d) called\n", tty->index);
+	pr_de("uart_flush_buffer(%d) called\n", tty->index);
 
 	port = uart_port_lock(state, flags);
 	if (!port)
@@ -1552,7 +1552,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 
-	pr_debug("uart_close(%d) called\n", tty->index);
+	pr_de("uart_close(%d) called\n", tty->index);
 
 	tty_port_close(tty->port, tty, filp);
 }
@@ -1622,7 +1622,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * ever clear.  This assumes the UART isn't doing flow
 	 * control, which is currently the case.  Hence, if it ever
 	 * takes longer than port->timeout, this is probably due to a
-	 * UART bug of some kind.  So, we clamp the timeout parameter at
+	 * UART  of some kind.  So, we clamp the timeout parameter at
 	 * 2*port->timeout.
 	 */
 	if (timeout == 0 || timeout > 2 * port->timeout)
@@ -1630,7 +1630,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 
 	expire = jiffies + timeout;
 
-	pr_debug("uart_wait_until_sent(%d), jiffies=%lu, expire=%lu...\n",
+	pr_de("uart_wait_until_sent(%d), jiffies=%lu, expire=%lu...\n",
 		port->line, jiffies, expire);
 
 	/*
@@ -1660,7 +1660,7 @@ static void uart_hangup(struct tty_struct *tty)
 	struct uart_port *uport;
 	unsigned long flags;
 
-	pr_debug("uart_hangup(%d)\n", tty->index);
+	pr_de("uart_hangup(%d)\n", tty->index);
 
 	mutex_lock(&port->mutex);
 	uport = uart_port_check(state);
@@ -2507,7 +2507,7 @@ int uart_register_driver(struct uart_driver *drv)
 	struct tty_driver *normal;
 	int i, retval;
 
-	BUG_ON(drv->state);
+	_ON(drv->state);
 
 	/*
 	 * Maybe we should be using a slab cache for this, especially if
@@ -2778,7 +2778,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	struct device *tty_dev;
 	int num_groups;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	if (uport->line >= drv->nr)
 		return -EINVAL;
@@ -2880,7 +2880,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	struct tty_struct *tty;
 	int ret = 0;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	mutex_lock(&port_mutex);
 

@@ -206,7 +206,7 @@ static void x25_asy_bump(struct x25_asy *sl)
 	err = lapb_data_received(skb->dev, skb);
 	if (err != LAPB_OK) {
 		kfree_skb(skb);
-		printk(KERN_DEBUG "x25_asy: data received err - %d\n", err);
+		printk(KERN_DE "x25_asy: data received err - %d\n", err);
 	} else {
 		netif_rx(skb);
 		dev->stats.rx_packets++;
@@ -222,7 +222,7 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 	if (len > mtu) {
 		/* Sigh, shouldn't occur BUT ... */
 		len = mtu;
-		printk(KERN_DEBUG "%s: truncating oversized transmit packet!\n",
+		printk(KERN_DE "%s: truncating oversized transmit packet!\n",
 					sl->dev->name);
 		sl->dev->stats.tx_dropped++;
 		x25_asy_unlock(sl);

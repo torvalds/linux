@@ -34,7 +34,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
 #include <asm/ccwdev.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
@@ -185,7 +185,7 @@ struct zfcp_adapter {
 						      for memory */
 	struct task_struct	*erp_thread;
 	struct zfcp_fc_wka_ports *gs;		   /* generic services */
-	struct zfcp_dbf		*dbf;		   /* debug traces */
+	struct zfcp_dbf		*dbf;		   /* de traces */
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct fc_host_statistics *fc_stats;
 	struct fsf_qtcb_bottom_port *stats_reset_data;

@@ -252,7 +252,7 @@ static s64 __init test_rhashtable(struct rhashtable *ht, struct test_obj *array,
 
 		if (array[i].value.id != TEST_INSERT_FAIL) {
 			obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
-			BUG_ON(!obj);
+			_ON(!obj);
 
 			rhashtable_remove_fast(ht, &obj->node, test_rht_params);
 		}

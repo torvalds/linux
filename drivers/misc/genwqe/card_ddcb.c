@@ -111,7 +111,7 @@ static int queue_free_ddcbs(struct ddcb_queue *queue)
 }
 
 /*
- * Use of the PRIV field in the DDCB for queue debugging:
+ * Use of the PRIV field in the DDCB for queue deging:
  *
  * (1) Trying to get rid of a DDCB which saw a timeout:
  *     pddcb->priv[6] = 0xcc;   # cleared
@@ -227,7 +227,7 @@ static inline void ddcb_requ_set_state(struct ddcb_requ *req,
 	req->req_state = new_state;
 }
 
-static inline int ddcb_requ_collect_debug_data(struct ddcb_requ *req)
+static inline int ddcb_requ_collect_de_data(struct ddcb_requ *req)
 {
 	return req->cmd.ddata_addr != 0x0;
 }
@@ -349,15 +349,15 @@ static void copy_ddcb_results(struct ddcb_requ *req, int ddcb_no)
 	req->cmd.progress = be32_to_cpu(pddcb->progress_32);
 	req->cmd.retc     = be16_to_cpu(pddcb->retc_16);
 
-	if (ddcb_requ_collect_debug_data(req)) {
+	if (ddcb_requ_collect_de_data(req)) {
 		int prev_no = (ddcb_no == 0) ?
 			queue->ddcb_max - 1 : ddcb_no - 1;
 		struct ddcb *prev_pddcb = &queue->ddcb_vaddr[prev_no];
 
-		memcpy(&req->debug_data.ddcb_finished, pddcb,
-		       sizeof(req->debug_data.ddcb_finished));
-		memcpy(&req->debug_data.ddcb_prev, prev_pddcb,
-		       sizeof(req->debug_data.ddcb_prev));
+		memcpy(&req->de_data.ddcb_finished, pddcb,
+		       sizeof(req->de_data.ddcb_finished));
+		memcpy(&req->de_data.ddcb_prev, prev_pddcb,
+		       sizeof(req->de_data.ddcb_prev));
 	}
 }
 
@@ -725,14 +725,14 @@ go_home:
 	return -EFAULT;
 }
 
-int genwqe_init_debug_data(struct genwqe_dev *cd, struct genwqe_debug_data *d)
+int genwqe_init_de_data(struct genwqe_dev *cd, struct genwqe_de_data *d)
 {
 	int len;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (d == NULL) {
 		dev_err(&pci_dev->dev,
-			"[%s] err: invalid memory for debug data!\n",
+			"[%s] err: invalid memory for de data!\n",
 			__func__);
 		return -EFAULT;
 	}
@@ -883,13 +883,13 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 	dev_dbg(&pci_dev->dev, "INPUT DDCB#%d\n", req->num);
 	genwqe_hexdump(pci_dev, pddcb, sizeof(*pddcb));
 
-	if (ddcb_requ_collect_debug_data(req)) {
-		/* use the kernel copy of debug data. copying back to
+	if (ddcb_requ_collect_de_data(req)) {
+		/* use the kernel copy of de data. copying back to
 		   user buffer happens later */
 
-		genwqe_init_debug_data(cd, &req->debug_data);
-		memcpy(&req->debug_data.ddcb_before, pddcb,
-		       sizeof(req->debug_data.ddcb_before));
+		genwqe_init_de_data(cd, &req->de_data);
+		memcpy(&req->de_data.ddcb_before, pddcb,
+		       sizeof(req->de_data.ddcb_before));
 	}
 
 	enqueue_ddcb(cd, queue, pddcb, req->num);
@@ -937,11 +937,11 @@ int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
 	if (rc < 0)		/* error or signal interrupt */
 		goto err_exit;
 
-	if (ddcb_requ_collect_debug_data(req)) {
-		if (copy_to_user((struct genwqe_debug_data __user *)
+	if (ddcb_requ_collect_de_data(req)) {
+		if (copy_to_user((struct genwqe_de_data __user *)
 				 (unsigned long)cmd->ddata_addr,
-				 &req->debug_data,
-				 sizeof(struct genwqe_debug_data)))
+				 &req->de_data,
+				 sizeof(struct genwqe_de_data)))
 			return -EFAULT;
 	}
 
@@ -961,11 +961,11 @@ int __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
  err_exit:
 	__genwqe_purge_ddcb(cd, req);
 
-	if (ddcb_requ_collect_debug_data(req)) {
-		if (copy_to_user((struct genwqe_debug_data __user *)
+	if (ddcb_requ_collect_de_data(req)) {
+		if (copy_to_user((struct genwqe_de_data __user *)
 				 (unsigned long)cmd->ddata_addr,
-				 &req->debug_data,
-				 sizeof(struct genwqe_debug_data)))
+				 &req->de_data,
+				 sizeof(struct genwqe_de_data)))
 			return -EFAULT;
 	}
 	return rc;
@@ -1156,7 +1156,7 @@ static irqreturn_t genwqe_pf_isr(int irq, void *dev_id)
 
 		/*
 		 * By default GFIRs causes recovery actions. This
-		 * count is just for debug when recovery is masked.
+		 * count is just for de when recovery is masked.
 		 */
 		dev_err_ratelimited(&pci_dev->dev,
 				    "[%s] GFIR=%016llx\n",
@@ -1363,7 +1363,7 @@ int genwqe_finish_queue(struct genwqe_dev *cd)
 			break;
 
 		dev_dbg(&pci_dev->dev,
-			"  DEBUG [%d/%d] waiting for queue to get empty: %d requests!\n",
+			"  DE [%d/%d] waiting for queue to get empty: %d requests!\n",
 			i, waitmax, in_flight);
 
 		/*

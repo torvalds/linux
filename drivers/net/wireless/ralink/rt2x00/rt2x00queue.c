@@ -200,7 +200,7 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 
 	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_SW_SEQNO)) {
 		/*
-		 * rt2800 has a H/W (or F/W) bug, device incorrectly increase
+		 * rt2800 has a H/W (or F/W) , device incorrectly increase
 		 * seqno on retransmited data (non-QOS) frames. To workaround
 		 * the problem let's generate seqno in software if QOS is
 		 * disabled.
@@ -506,7 +506,7 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 		     rt2x00dev->ops->lib->get_entry_state(entry))) {
 		rt2x00_err(rt2x00dev,
 			   "Corrupt queue %d, accessing entry which is not ours\n"
-			   "Please file bug report to %s\n",
+			   "Please file  report to %s\n",
 			   entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
@@ -542,9 +542,9 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 
 	/*
 	 * All processing on the frame has been completed, this means
-	 * it is now ready to be dumped to userspace through debugfs.
+	 * it is now ready to be dumped to userspace through defs.
 	 */
-	rt2x00debug_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry);
+	rt2x00de_dump_frame(queue->rt2x00dev, DUMP_FRAME_TX, entry);
 }
 
 static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
@@ -683,7 +683,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 				      &entry->flags))) {
 		rt2x00_err(queue->rt2x00dev,
 			   "Arrived at non-free entry in the non-full queue %d\n"
-			   "Please file bug report to %s\n",
+			   "Please file  report to %s\n",
 			   queue->qid, DRV_PROJECT);
 		ret = -EINVAL;
 		goto out;

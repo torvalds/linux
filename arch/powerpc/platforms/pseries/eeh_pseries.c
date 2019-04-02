@@ -311,7 +311,7 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 			eeh_add_flag(EEH_ENABLED);
 			eeh_add_to_parent_pe(edev);
 
-			pr_debug("%s: EEH enabled on %02x:%02x.%01x PHB#%x-PE#%x\n",
+			pr_de("%s: EEH enabled on %02x:%02x.%01x PHB#%x-PE#%x\n",
 				__func__, pdn->busno, PCI_SLOT(pdn->devfn),
 				PCI_FUNC(pdn->devfn), pe.phb->global_number,
 				pe.addr);

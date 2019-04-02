@@ -247,7 +247,7 @@ cleanup uncorrectable status register. Pls. refer to section 3.3.
 
 4. Software error injection
 
-Debugging PCIe AER error recovery code is quite difficult because it
+Deging PCIe AER error recovery code is quite difficult because it
 is hard to trigger real hardware errors. Software based error
 injection can be used to fake various kinds of PCIe errors.
 

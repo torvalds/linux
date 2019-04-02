@@ -65,7 +65,7 @@
 #include "bnxt_vfr.h"
 #include "bnxt_tc.h"
 #include "bnxt_devlink.h"
-#include "bnxt_debugfs.h"
+#include "bnxt_defs.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -8439,7 +8439,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	}
 
 	bnxt_enable_napi(bp);
-	bnxt_debug_dev_init(bp);
+	bnxt_de_dev_init(bp);
 
 	rc = bnxt_init_nic(bp, irq_re_init);
 	if (rc) {
@@ -8478,7 +8478,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	return 0;
 
 open_err:
-	bnxt_debug_dev_exit(bp);
+	bnxt_de_dev_exit(bp);
 	bnxt_disable_napi(bp);
 
 open_err_irq:
@@ -8585,7 +8585,7 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 
 	/* TODO CHIMP_FW: Link/PHY related cleanup if (link_re_init) */
 
-	bnxt_debug_dev_exit(bp);
+	bnxt_de_dev_exit(bp);
 	bnxt_disable_napi(bp);
 	del_timer_sync(&bp->timer);
 	bnxt_free_skbs(bp);
@@ -10889,7 +10889,7 @@ static struct pci_driver bnxt_pci_driver = {
 
 static int __init bnxt_init(void)
 {
-	bnxt_debug_init();
+	bnxt_de_init();
 	return pci_register_driver(&bnxt_pci_driver);
 }
 
@@ -10898,7 +10898,7 @@ static void __exit bnxt_exit(void)
 	pci_unregister_driver(&bnxt_pci_driver);
 	if (bnxt_pf_wq)
 		destroy_workqueue(bnxt_pf_wq);
-	bnxt_debug_exit();
+	bnxt_de_exit();
 }
 
 module_init(bnxt_init);

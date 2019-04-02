@@ -34,7 +34,7 @@
 		pinctrl-0 = <&pinctrl_led>;
 
 		user {
-			label = "debug";
+			label = "de";
 			gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};

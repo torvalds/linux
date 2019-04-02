@@ -15,7 +15,7 @@
  */
 
 #include "pvrusb2-std.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include <asm/string.h>
 #include <linux/slab.h>
 
@@ -320,7 +320,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 	v4l2_std_id idmsk,cmsk,fmsk;
 	struct v4l2_standard *stddefs;
 
-	if (pvrusb2_debug & PVR2_TRACE_STD) {
+	if (pvrusb2_de & PVR2_TRACE_STD) {
 		char buf[100];
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),id);
 		pvr2_trace(

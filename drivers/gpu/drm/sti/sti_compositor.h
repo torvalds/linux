@@ -79,7 +79,7 @@ struct sti_compositor {
 	struct notifier_block vtg_vblank_nb[STI_MAX_MIXER];
 };
 
-int sti_compositor_debugfs_init(struct sti_compositor *compo,
+int sti_compositor_defs_init(struct sti_compositor *compo,
 				struct drm_minor *minor);
 
 #endif

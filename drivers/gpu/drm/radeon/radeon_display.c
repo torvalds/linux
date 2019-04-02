@@ -48,7 +48,7 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	u16 *r, *g, *b;
 	int i;
 
-	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
+	DRM_DE_KMS("%d\n", radeon_crtc->crtc_id);
 	WREG32(AVIVO_DC_LUTA_CONTROL + radeon_crtc->crtc_offset, 0);
 
 	WREG32(AVIVO_DC_LUTA_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
@@ -86,7 +86,7 @@ static void dce4_crtc_load_lut(struct drm_crtc *crtc)
 	u16 *r, *g, *b;
 	int i;
 
-	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
+	DRM_DE_KMS("%d\n", radeon_crtc->crtc_id);
 	WREG32(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
 
 	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
@@ -120,7 +120,7 @@ static void dce5_crtc_load_lut(struct drm_crtc *crtc)
 	u16 *r, *g, *b;
 	int i;
 
-	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
+	DRM_DE_KMS("%d\n", radeon_crtc->crtc_id);
 
 	WREG32(NI_INPUT_CSC_CONTROL + radeon_crtc->crtc_offset,
 	       (NI_INPUT_CSC_GRPH_MODE(NI_INPUT_CSC_BYPASS) |
@@ -299,7 +299,7 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	if (radeon_crtc->flip_status != RADEON_FLIP_SUBMITTED) {
-		DRM_DEBUG_DRIVER("radeon_crtc->flip_status = %d != "
+		DRM_DE_DRIVER("radeon_crtc->flip_status = %d != "
 				 "RADEON_FLIP_SUBMITTED(%d)\n",
 				 radeon_crtc->flip_status,
 				 RADEON_FLIP_SUBMITTED);
@@ -368,7 +368,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	work = radeon_crtc->flip_work;
 	if (radeon_crtc->flip_status != RADEON_FLIP_SUBMITTED) {
-		DRM_DEBUG_DRIVER("radeon_crtc->flip_status = %d != "
+		DRM_DE_DRIVER("radeon_crtc->flip_status = %d != "
 				 "RADEON_FLIP_SUBMITTED(%d)\n",
 				 radeon_crtc->flip_status,
 				 RADEON_FLIP_SUBMITTED);
@@ -511,7 +511,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	new_rbo = gem_to_radeon_bo(obj);
 
 	/* pin the new buffer */
-	DRM_DEBUG_DRIVER("flip-ioctl() cur_rbo = %p, new_rbo = %p\n",
+	DRM_DE_DRIVER("flip-ioctl() cur_rbo = %p, new_rbo = %p\n",
 			 work->old_rbo, new_rbo);
 
 	r = radeon_bo_reserve(new_rbo, false);
@@ -575,7 +575,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
 	if (radeon_crtc->flip_status != RADEON_FLIP_NONE) {
-		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
+		DRM_DE_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
 		goto pflip_cleanup;
@@ -799,7 +799,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+				DRM_INFO("  DDC: no ddc bus - possible BIOS  - please report to xorg-driver-ati@lists.x.org\n");
 		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -1082,7 +1082,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	*ref_div_p = ref_div;
 	*post_div_p = post_div;
 
-	DRM_DEBUG_KMS("%d - %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+	DRM_DE_KMS("%d - %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
 		      freq, *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p,
 		      ref_div, post_div);
 }
@@ -1123,7 +1123,7 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	uint32_t post_div;
 	u32 pll_out_min, pll_out_max;
 
-	DRM_DEBUG_KMS("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
+	DRM_DE_KMS("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
 
 	if (pll->flags & RADEON_PLL_IS_LCD) {
@@ -1276,7 +1276,7 @@ void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	*frac_fb_div_p = best_frac_feedback_div;
 	*ref_div_p = best_ref_div;
 	*post_div_p = best_post_div;
-	DRM_DEBUG_KMS("%lld %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
+	DRM_DE_KMS("%lld %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
 		      (long long)freq,
 		      best_freq / 1000, best_feedback_div, best_frac_feedback_div,
 		      best_ref_div, best_post_div);
@@ -1323,7 +1323,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
 	if (obj->import_attach) {
-		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		DRM_DE_KMS("Cannot create framebuffer from imported dma_buf\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1468,7 +1468,7 @@ void radeon_update_display_priority(struct radeon_device *rdev)
 		 * this avoids flickering due to underflow to the
 		 * display controllers during heavy acceleration.
 		 * Don't force high on rs4xx igp chips as it seems to
-		 * affect the sound card.  See kernel bug 15982.
+		 * affect the sound card.  See kernel  15982.
 		 */
 		if ((ASIC_IS_R300(rdev) || (rdev->family == CHIP_RV515)) &&
 		    !(rdev->flags & RADEON_IS_IGP))
@@ -1519,7 +1519,7 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 		else /* DCE4 */
 			num_afmt = 6;
 
-		BUG_ON(num_afmt > ARRAY_SIZE(eg_offsets));
+		_ON(num_afmt > ARRAY_SIZE(eg_offsets));
 		for (i = 0; i < num_afmt; i++) {
 			rdev->mode_info.afmt[i] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
 			if (rdev->mode_info.afmt[i]) {

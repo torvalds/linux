@@ -21,9 +21,9 @@
 
 #define ANY_ID 0xff
 
-bool hang_debug = false;
-MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
-module_param_named(hang_debug, hang_debug, bool, 0600);
+bool hang_de = false;
+MODULE_PARM_DESC(hang_de, "Dump registers when hang is detected (can be slow!)");
+module_param_named(hang_de, hang_de, bool, 0600);
 
 static const struct adreno_info gpulist[] = {
 	{
@@ -242,10 +242,10 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		return NULL;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	if (gpu->funcs->debugfs_init) {
-		gpu->funcs->debugfs_init(gpu, dev->primary);
-		gpu->funcs->debugfs_init(gpu, dev->render);
+#ifdef CONFIG_DE_FS
+	if (gpu->funcs->defs_init) {
+		gpu->funcs->defs_init(gpu, dev->primary);
+		gpu->funcs->defs_init(gpu, dev->render);
 	}
 #endif
 

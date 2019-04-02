@@ -90,7 +90,7 @@ int st_int_write(struct st_data_s *st_gdata,
 	}
 	tty = st_gdata->tty;
 #ifdef VERBOSE
-	print_hex_dump(KERN_DEBUG, "<out<", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_DE, "<out<", DUMP_PREFIX_NONE,
 		16, 1, data, count, 0);
 #endif
 	return tty->ops->write(tty, data, count);
@@ -103,7 +103,7 @@ int st_int_write(struct st_data_s *st_gdata,
  */
 static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 {
-	pr_debug(" %s(prot:%d) ", __func__, chnl_id);
+	pr_de(" %s(prot:%d) ", __func__, chnl_id);
 
 	if (unlikely
 	    (st_gdata == NULL || st_gdata->rx_skb == NULL
@@ -166,7 +166,7 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 {
 	int room = skb_tailroom(st_gdata->rx_skb);
 
-	pr_debug("len %d room %d", len, room);
+	pr_de("len %d room %d", len, room);
 
 	if (!len) {
 		/* Received packet has only packet header and
@@ -253,7 +253,7 @@ void st_int_recv(void *disc_data,
 		return;
 	}
 
-	pr_debug("count %ld rx_state %ld"
+	pr_de("count %ld rx_state %ld"
 		   "rx_count %ld", count, st_gdata->rx_state,
 		   st_gdata->rx_count);
 
@@ -274,7 +274,7 @@ void st_int_recv(void *disc_data,
 			switch (st_gdata->rx_state) {
 			/* Waiting for complete packet ? */
 			case ST_W4_DATA:
-				pr_debug("Complete pkt received");
+				pr_de("Complete pkt received");
 				/* Ask ST CORE to forward
 				 * the packet to protocol driver */
 				st_send_frame(st_gdata->rx_chnl, st_gdata);
@@ -288,7 +288,7 @@ void st_int_recv(void *disc_data,
 				plen =
 				&st_gdata->rx_skb->data
 				[proto->offset_len_in_hdr];
-				pr_debug("plen pointing to %x\n", *plen);
+				pr_de("plen pointing to %x\n", *plen);
 				if (proto->len_size == 1)/* 1 byte len field */
 					payload_len = *(unsigned char *)plen;
 				else if (proto->len_size == 2)
@@ -300,7 +300,7 @@ void st_int_recv(void *disc_data,
 					__func__, proto->chnl_id);
 				st_check_data_len(st_gdata, proto->chnl_id,
 						payload_len);
-				pr_debug("off %d, pay len %d\n",
+				pr_de("off %d, pay len %d\n",
 					proto->offset_len_in_hdr, payload_len);
 				continue;
 			}	/* end of switch rx_state */
@@ -313,7 +313,7 @@ void st_int_recv(void *disc_data,
 		case LL_SLEEP_IND:
 		case LL_SLEEP_ACK:
 		case LL_WAKE_UP_IND:
-			pr_debug("PM packet");
+			pr_de("PM packet");
 			/* this takes appropriate action based on
 			 * sleep state received --
 			 */
@@ -330,7 +330,7 @@ void st_int_recv(void *disc_data,
 			count--;
 			continue;
 		case LL_WAKE_UP_ACK:
-			pr_debug("PM packet");
+			pr_de("PM packet");
 
 			spin_unlock_irqrestore(&st_gdata->lock, flags);
 			/* wake up ack received */
@@ -379,14 +379,14 @@ void st_int_recv(void *disc_data,
 			st_gdata->rx_chnl = *ptr;
 			st_gdata->rx_state = ST_W4_HEADER;
 			st_gdata->rx_count = st_gdata->list[type]->hdr_len;
-			pr_debug("rx_count %ld\n", st_gdata->rx_count);
+			pr_de("rx_count %ld\n", st_gdata->rx_count);
 		};
 		ptr++;
 		count--;
 	}
 done:
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
-	pr_debug("done %s", __func__);
+	pr_de("done %s", __func__);
 	return;
 }
 
@@ -400,7 +400,7 @@ static struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 {
 	struct sk_buff *returning_skb;
 
-	pr_debug("%s", __func__);
+	pr_de("%s", __func__);
 	if (st_gdata->tx_skb != NULL) {
 		returning_skb = st_gdata->tx_skb;
 		st_gdata->tx_skb = NULL;
@@ -422,12 +422,12 @@ static void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 {
 	unsigned long flags = 0;
 
-	pr_debug("%s", __func__);
+	pr_de("%s", __func__);
 	spin_lock_irqsave(&st_gdata->lock, flags);
 
 	switch (st_ll_getstate(st_gdata)) {
 	case ST_LL_AWAKE:
-		pr_debug("ST LL is AWAKE, sending normally");
+		pr_de("ST LL is AWAKE, sending normally");
 		skb_queue_tail(&st_gdata->txq, skb);
 		break;
 	case ST_LL_ASLEEP_TO_AWAKE:
@@ -450,7 +450,7 @@ static void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 	}
 
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
-	pr_debug("done %s", __func__);
+	pr_de("done %s", __func__);
 	return;
 }
 
@@ -471,10 +471,10 @@ void st_tx_wakeup(struct st_data_s *st_data)
 {
 	struct sk_buff *skb;
 	unsigned long flags;	/* for irq save flags */
-	pr_debug("%s", __func__);
+	pr_de("%s", __func__);
 	/* check for sending & set flag sending here */
 	if (test_and_set_bit(ST_TX_SENDING, &st_data->tx_state)) {
-		pr_debug("ST already sending");
+		pr_de("ST already sending");
 		/* keep sending */
 		set_bit(ST_TX_WAKEUP, &st_data->tx_state);
 		return;
@@ -601,7 +601,7 @@ long st_register(struct st_proto_s *new_proto)
 		 */
 		if ((st_gdata->protos_registered != ST_EMPTY) &&
 		    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
-			pr_debug(" call reg complete callback ");
+			pr_de(" call reg complete callback ");
 			st_reg_complete(st_gdata, 0);
 		}
 		clear_bit(ST_REG_PENDING, &st_gdata->st_state);
@@ -644,7 +644,7 @@ long st_unregister(struct st_proto_s *proto)
 	unsigned long flags = 0;
 	struct st_data_s	*st_gdata;
 
-	pr_debug("%s: %d ", __func__, proto->chnl_id);
+	pr_de("%s: %d ", __func__, proto->chnl_id);
 
 	st_kim_ref(&st_gdata, 0);
 	if (!st_gdata || proto->chnl_id >= ST_MAX_CHANNELS) {
@@ -700,7 +700,7 @@ long st_write(struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	pr_debug("%d to be written", skb->len);
+	pr_de("%d to be written", skb->len);
 	len = skb->len;
 
 	/* st_ll to decide where to enqueue the skb */
@@ -743,7 +743,7 @@ static int st_tty_open(struct tty_struct *tty)
 	 * installation of N_TI_WL ldisc is complete
 	 */
 	st_kim_complete(st_gdata->kim_data);
-	pr_debug("done %s", __func__);
+	pr_de("done %s", __func__);
 	return err;
 }
 
@@ -789,14 +789,14 @@ static void st_tty_close(struct tty_struct *tty)
 	st_gdata->rx_skb = NULL;
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 
-	pr_debug("%s: done ", __func__);
+	pr_de("%s: done ", __func__);
 }
 
 static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 			   char *tty_flags, int count)
 {
 #ifdef VERBOSE
-	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_DE, ">in>", DUMP_PREFIX_NONE,
 		16, 1, data, count, 0);
 #endif
 
@@ -805,7 +805,7 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 	 * to KIM for validation
 	 */
 	st_recv(tty->disc_data, data, count);
-	pr_debug("done %s", __func__);
+	pr_de("done %s", __func__);
 }
 
 /* wake-up function called in from the TTY layer
@@ -814,7 +814,7 @@ static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
 static void st_tty_wakeup(struct tty_struct *tty)
 {
 	struct	st_data_s *st_gdata = tty->disc_data;
-	pr_debug("%s ", __func__);
+	pr_de("%s ", __func__);
 	/* don't do an wakeup for now */
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
@@ -829,7 +829,7 @@ static void st_tty_wakeup(struct tty_struct *tty)
 static void st_tty_flush_buffer(struct tty_struct *tty)
 {
 	struct	st_data_s *st_gdata = tty->disc_data;
-	pr_debug("%s ", __func__);
+	pr_de("%s ", __func__);
 
 	kfree_skb(st_gdata->tx_skb);
 	st_gdata->tx_skb = NULL;
@@ -861,7 +861,7 @@ int st_core_init(struct st_data_s **core_data)
 			   N_TI_WL, err);
 		return err;
 	}
-	pr_debug("registered n_shared line discipline");
+	pr_de("registered n_shared line discipline");
 
 	st_gdata = kzalloc(sizeof(struct st_data_s), GFP_KERNEL);
 	if (!st_gdata) {

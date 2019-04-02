@@ -10,7 +10,7 @@
  * CPM capabilities.  I (or someone else) will add definitions as they
  * are needed.  -- Dan
  *
- * On the MBX board, EPPC-Bug loads CPM microcode into the first 512
+ * On the MBX board, EPPC- loads CPM microcode into the first 512
  * bytes of the DP RAM and relocates the I2C parameter area to the
  * IDMA1 space.  The remaining DP RAM is available for buffer descriptors
  * or other use.

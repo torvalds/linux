@@ -148,9 +148,9 @@
  *    Not too helpful.
  *  - Disable ACPI/power management/"Auto Detect RAM/PCI Clk" in BIOS
  *
- * BUGS
+ * S
  *  - full-duplex might *still* be problematic, however a recent test was fine
- *  - (non-bug) "Bass/Treble or 3D settings don't work" - they do get evaluated
+ *  - (non-) "Bass/Treble or 3D settings don't work" - they do get evaluated
  *    if you set PCM output switch to "pre 3D" instead of "post 3D".
  *    If this can't be set, then get a mixer application that Isn't Stupid (tm)
  *    (e.g. kmix, gamix) - unfortunately several are!!
@@ -181,7 +181,7 @@
 
 #include <linux/io.h>
 #include <linux/init.h>
-#include <linux/bug.h> /* WARN_ONCE */
+#include <linux/.h> /* WARN_ONCE */
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -216,7 +216,7 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 #define SUPPORT_GAMEPORT 1
 #endif
 
-/* === Debug settings ===
+/* === De settings ===
   Further diagnostic functionality than the settings below
   does not need to be provided, since one can easily write a POSIX shell script
   to dump the card's I/O ports (those listed in lspci -v -v):
@@ -1190,7 +1190,7 @@ snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!chip || !chip->card))
+	if (snd__ON(!chip || !chip->card))
 		return -EINVAL;
 
 	card = chip->card;
@@ -1765,7 +1765,7 @@ snd_azf3328_gameport_cooked_read(struct gameport *gameport,
 	u8 val;
 	unsigned long flags;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -1940,7 +1940,7 @@ snd_azf3328_interrupt(int irq, void *dev_id)
 
 	dev_dbg(chip->card->dev,
 		"irq_count %ld! IDX_IO_IRQSTATUS %04x\n",
-			irq_count++ /* debug-only */,
+			irq_count++ /* de-only */,
 			status);
 
 	if (status & IRQ_TIMER) {
@@ -2328,14 +2328,14 @@ snd_azf3328_test_bit(unsigned unsigned reg, int bit)
 
 	outb(val, reg);
 
-	printk(KERN_DEBUG "reg %04x bit %d: %02x %02x %02x\n",
+	printk(KERN_DE "reg %04x bit %d: %02x %02x %02x\n",
 				reg, bit, val, valoff, valon
 	);
 }
 #endif
 
 static inline void
-snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip)
+snd_azf3328_de_show_ports(const struct snd_azf3328 *chip)
 {
 	u16 tmp;
 
@@ -2465,7 +2465,7 @@ snd_azf3328_create(struct snd_card *card,
 	pci_set_master(pci);
 	synchronize_irq(chip->irq);
 
-	snd_azf3328_debug_show_ports(chip);
+	snd_azf3328_de_show_ports(chip);
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0)
@@ -2595,7 +2595,7 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	dev_info(card->dev,
 		 "Hardware was completely undocumented, unfortunately.\n");
 	dev_info(card->dev,
-		 "Feel free to contact andi AT lisas.de for bug reports etc.!\n");
+		 "Feel free to contact andi AT lisas.de for  reports etc.!\n");
 	dev_info(card->dev,
 		 "User-scalable sequencer timer set to %dHz (1024000Hz / %d).\n",
 		 1024000 / seqtimer_scaling, seqtimer_scaling);

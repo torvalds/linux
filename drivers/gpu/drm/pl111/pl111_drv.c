@@ -250,8 +250,8 @@ static struct drm_driver pl111_drm_driver = {
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = pl111_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = pl111_defs_init,
 #endif
 };
 

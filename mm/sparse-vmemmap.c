@@ -124,7 +124,7 @@ void * __meminit altmap_alloc_block_buf(unsigned long size,
 	altmap->align += nr_align;
 	pfn += nr_align;
 
-	pr_debug("%s: pfn: %#lx alloc: %ld align: %ld nr: %#lx\n",
+	pr_de("%s: pfn: %#lx alloc: %ld align: %ld nr: %#lx\n",
 			__func__, pfn, altmap->alloc, altmap->align, nr_pfns);
 	return __va(__pfn_to_phys(pfn));
 }

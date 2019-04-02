@@ -126,7 +126,7 @@ void ovs_unlock(void)
 #ifdef CONFIG_LOCKDEP
 int lockdep_ovsl_is_held(void)
 {
-	if (debug_locks)
+	if (de_locks)
 		return lockdep_is_held(&ovs_mutex);
 	else
 		return 1;
@@ -313,7 +313,7 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 	struct sk_buff *segs, *nskb;
 	int err;
 
-	BUILD_BUG_ON(sizeof(*OVS_CB(skb)) > SKB_SGO_CB_OFFSET);
+	BUILD__ON(sizeof(*OVS_CB(skb)) > SKB_SGO_CB_OFFSET);
 	segs = __skb_gso_segment(skb, NETIF_F_SG, false);
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
@@ -455,7 +455,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	upcall->dp_ifindex = dp_ifindex;
 
 	err = ovs_nla_put_key(key, key, OVS_PACKET_ATTR_KEY, false, user_skb);
-	BUG_ON(err);
+	_ON(err);
 
 	if (upcall_info->userdata)
 		__nla_put(user_skb, OVS_PACKET_ATTR_USERDATA,
@@ -470,7 +470,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		}
 		err = ovs_nla_put_tunnel_info(user_skb,
 					      upcall_info->egress_tun_info);
-		BUG_ON(err);
+		_ON(err);
 		nla_nest_end(user_skb, nla);
 	}
 
@@ -887,7 +887,7 @@ static struct sk_buff *ovs_flow_cmd_build_info(const struct sw_flow *flow,
 	retval = ovs_flow_cmd_fill_info(flow, dp_ifindex, skb,
 					info->snd_portid, info->snd_seq, 0,
 					cmd, ufid_flags);
-	BUG_ON(retval < 0);
+	_ON(retval < 0);
 	return skb;
 }
 
@@ -989,7 +989,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 						       info->snd_seq, 0,
 						       OVS_FLOW_CMD_NEW,
 						       ufid_flags);
-			BUG_ON(error < 0);
+			_ON(error < 0);
 		}
 		ovs_unlock();
 	} else {
@@ -998,7 +998,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		/* Bail out if we're not allowed to modify an existing flow.
 		 * We accept NLM_F_CREATE in place of the intended NLM_F_EXCL
 		 * because Generic Netlink treats the latter as a dump
-		 * request.  We also accept NLM_F_EXCL in case that bug ever
+		 * request.  We also accept NLM_F_EXCL in case that  ever
 		 * gets fixed.
 		 */
 		if (unlikely(info->nlhdr->nlmsg_flags & (NLM_F_CREATE
@@ -1031,7 +1031,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 						       info->snd_seq, 0,
 						       OVS_FLOW_CMD_NEW,
 						       ufid_flags);
-			BUG_ON(error < 0);
+			_ON(error < 0);
 		}
 		ovs_unlock();
 
@@ -1196,7 +1196,7 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 						       info->snd_seq, 0,
 						       OVS_FLOW_CMD_SET,
 						       ufid_flags);
-			BUG_ON(error < 0);
+			_ON(error < 0);
 		}
 	} else {
 		/* Could not alloc without acts before locking. */
@@ -1350,7 +1350,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 						     OVS_FLOW_CMD_DEL,
 						     ufid_flags);
 			rcu_read_unlock();
-			BUG_ON(err < 0);
+			_ON(err < 0);
 
 			ovs_notify(&dp_flow_genl_family, reply, info);
 		} else {
@@ -1638,7 +1638,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
 				   info->snd_seq, 0, OVS_DP_CMD_NEW);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	ovs_net = net_generic(ovs_dp_get_net(dp), ovs_net_id);
 	list_add_tail_rcu(&dp->list_node, &ovs_net->dps);
@@ -1708,7 +1708,7 @@ static int ovs_dp_cmd_del(struct sk_buff *skb, struct genl_info *info)
 
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
 				   info->snd_seq, 0, OVS_DP_CMD_DEL);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	__dp_destroy(dp);
 	ovs_unlock();
@@ -1743,7 +1743,7 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
 				   info->snd_seq, 0, OVS_DP_CMD_SET);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	ovs_unlock();
 	ovs_notify(&dp_datapath_genl_family, reply, info);
@@ -1774,7 +1774,7 @@ static int ovs_dp_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	}
 	err = ovs_dp_cmd_fill_info(dp, reply, info->snd_portid,
 				   info->snd_seq, 0, OVS_DP_CMD_GET);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 	ovs_unlock();
 
 	return genlmsg_reply(reply, info);
@@ -1922,7 +1922,7 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *vport, struct net *net,
 		return ERR_PTR(-ENOMEM);
 
 	retval = ovs_vport_cmd_fill_info(vport, skb, net, portid, seq, 0, cmd);
-	BUG_ON(retval < 0);
+	_ON(retval < 0);
 
 	return skb;
 }
@@ -2061,7 +2061,7 @@ restart:
 	else
 		netdev_set_rx_headroom(vport->dev, dp->max_headroom);
 
-	BUG_ON(err < 0);
+	_ON(err < 0);
 	ovs_unlock();
 
 	ovs_notify(&dp_vport_genl_family, reply, info);
@@ -2114,7 +2114,7 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	err = ovs_vport_cmd_fill_info(vport, reply, genl_info_net(info),
 				      info->snd_portid, info->snd_seq, 0,
 				      OVS_VPORT_CMD_SET);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	ovs_unlock();
 	ovs_notify(&dp_vport_genl_family, reply, info);
@@ -2153,7 +2153,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	err = ovs_vport_cmd_fill_info(vport, reply, genl_info_net(info),
 				      info->snd_portid, info->snd_seq, 0,
 				      OVS_VPORT_CMD_DEL);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 
 	/* the vport deletion may trigger dp headroom update */
 	dp = vport->dp;
@@ -2195,7 +2195,7 @@ static int ovs_vport_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	err = ovs_vport_cmd_fill_info(vport, reply, genl_info_net(info),
 				      info->snd_portid, info->snd_seq, 0,
 				      OVS_VPORT_CMD_GET);
-	BUG_ON(err < 0);
+	_ON(err < 0);
 	rcu_read_unlock();
 
 	return genlmsg_reply(reply, info);
@@ -2405,7 +2405,7 @@ static int __init dp_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD__ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
 

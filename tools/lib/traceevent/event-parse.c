@@ -1111,9 +1111,9 @@ static enum tep_event_type __read_token(char **tok)
 
 	if (type == TEP_EVENT_ITEM) {
 		/*
-		 * Older versions of the kernel has a bug that
+		 * Older versions of the kernel has a  that
 		 * creates invalid symbols and will break the mac80211
-		 * parsing. This is a work around to that bug.
+		 * parsing. This is a work around to that .
 		 *
 		 * See Linux kernel commit:
 		 *  811cb50baf63461ce0bdb234927046131fc7fa8b
@@ -3380,7 +3380,7 @@ unsigned long long tep_read_number(struct tep_handle *pevent,
 		memcpy(&val, (ptr), sizeof(unsigned long long));
 		return tep_data2host8(pevent, val);
 	default:
-		/* BUG! */
+		/* ! */
 		return 0;
 	}
 }
@@ -5764,7 +5764,7 @@ static void print_fields(struct trace_seq *s, struct tep_print_flag_sym *field)
 	}
 }
 
-/* for debugging */
+/* for deging */
 static void print_args(struct tep_print_arg *args)
 {
 	int print_paren = 1;
@@ -5958,7 +5958,7 @@ static void parse_header_field(const char *field,
  * This parses the header page format for information on the
  * ring buffer used. The @buf should be copied from
  *
- * /sys/kernel/debug/tracing/events/header_page
+ * /sys/kernel/de/tracing/events/header_page
  */
 int tep_parse_header_page(struct tep_handle *pevent, char *buf, unsigned long size,
 			  int long_size)
@@ -6052,7 +6052,7 @@ static int find_event_handle(struct tep_handle *pevent, struct tep_event *event)
  *
  * These files currently come from:
  *
- * /sys/kernel/debug/tracing/events/.../.../format
+ * /sys/kernel/de/tracing/events/.../.../format
  */
 enum tep_errno __tep_parse_format(struct tep_event **eventp,
 				  struct tep_handle *pevent, const char *buf,
@@ -6202,7 +6202,7 @@ event_add_failed:
  *
  * These files currently come from:
  *
- * /sys/kernel/debug/tracing/events/.../.../format
+ * /sys/kernel/de/tracing/events/.../.../format
  */
 enum tep_errno tep_parse_format(struct tep_handle *pevent,
 				struct tep_event **eventp,
@@ -6224,7 +6224,7 @@ enum tep_errno tep_parse_format(struct tep_handle *pevent,
  *
  * These files currently come from:
  *
- * /sys/kernel/debug/tracing/events/.../.../format
+ * /sys/kernel/de/tracing/events/.../.../format
  */
 enum tep_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
 			       unsigned long size, const char *sys)

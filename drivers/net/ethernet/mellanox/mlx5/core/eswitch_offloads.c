@@ -360,7 +360,7 @@ static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
 	struct mlx5_eswitch_rep *rep;
 	int vf_vport, err = 0;
 
-	esw_debug(esw->dev, "%s applying global %s policy\n", __func__, val ? "pop" : "none");
+	esw_de(esw->dev, "%s applying global %s policy\n", __func__, val ? "pop" : "none");
 	for (vf_vport = 1; vf_vport < esw->enabled_vports; vf_vport++) {
 		rep = &esw->offloads.vport_reps[vf_vport];
 		if (rep->rep_if[REP_ETH].state != REP_LOADED)
@@ -961,7 +961,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	void *match_criteria;
 	u8 *dmac;
 
-	esw_debug(esw->dev, "Create offloads FDB Tables\n");
+	esw_de(esw->dev, "Create offloads FDB Tables\n");
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
@@ -977,7 +977,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 			    MLX5_CAP_GEN(dev, max_flow_counter_15_0);
 	fdb_max = 1 << MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size);
 
-	esw_debug(dev, "Create offloads FDB table, min (max esw size(2^%d), max counters(%d), groups(%d), max flow table size(2^%d))\n",
+	esw_de(dev, "Create offloads FDB table, min (max esw size(2^%d), max counters(%d), groups(%d), max flow table size(2^%d))\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size),
 		  max_flow_counter, ESW_OFFLOADS_NUM_GROUPS,
 		  fdb_max);
@@ -1016,7 +1016,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 		esw_get_prio_table(esw, 0, 1, 0);
 		esw_get_prio_table(esw, 0, 1, 1);
 	} else {
-		esw_debug(dev, "Lazy creation of flow tables supported, deferring table opening\n");
+		esw_de(dev, "Lazy creation of flow tables supported, deferring table opening\n");
 		esw->fdb_table.flags |= ESW_FDB_CHAINS_AND_PRIOS_SUPPORTED;
 	}
 
@@ -1120,7 +1120,7 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	if (!esw->fdb_table.offloads.slow_fdb)
 		return;
 
-	esw_debug(esw->dev, "Destroy offloads FDB Tables\n");
+	esw_de(esw->dev, "Destroy offloads FDB Tables\n");
 	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_multi);
 	mlx5_del_flow_rules(esw->fdb_table.offloads.miss_rule_uni);
 	mlx5_destroy_flow_group(esw->fdb_table.offloads.send_to_vport_grp);

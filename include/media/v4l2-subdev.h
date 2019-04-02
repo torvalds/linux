@@ -101,7 +101,7 @@ struct v4l2_decode_vbi_line {
  * g_register
  * s_register
  *
- * This provides basic debugging support.
+ * This provides basic deging support.
  *
  * The ioctl ops is meant for generic ioctl-like commands. Depending on
  * the use-case it might be better to use subdev-specific ops (currently
@@ -207,7 +207,7 @@ struct v4l2_subdev_core_ops {
 	long (*compat_ioctl32)(struct v4l2_subdev *sd, unsigned int cmd,
 			       unsigned long arg);
 #endif
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 	int (*s_register)(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg);
 #endif
@@ -504,7 +504,7 @@ struct v4l2_subdev_vbi_ops {
  *		      several top lines of the output image, or which send their
  *		      metadata in them.
  * @g_skip_frames: number of frames to skip at stream start. This is needed for
- *		   buggy sensors that generate faulty frames when they are
+ *		   gy sensors that generate faulty frames when they are
  *		   turned on.
  */
 struct v4l2_subdev_sensor_ops {

@@ -126,7 +126,7 @@ struct dpu_crtc_frame_event {
  * @property_info : Opaque structure for generic property support
  * @property_defaults : Array of default values for generic property support
  * @stage_cfg     : H/w mixer stage configuration
- * @debugfs_root  : Parent of debugfs node
+ * @defs_root  : Parent of defs node
  * @vblank_cb_count : count of vblank callback since last reset
  * @play_count    : frame count between crtc enable and disable
  * @vblank_cb_time  : ktime at vblank count reset
@@ -157,7 +157,7 @@ struct dpu_crtc {
 	u32 vsync_count;
 
 	struct dpu_hw_stage_cfg stage_cfg;
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 
 	u32 vblank_cb_count;
 	u64 play_count;

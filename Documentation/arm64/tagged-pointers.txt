@@ -40,7 +40,7 @@ system calls is forbidden, and using a non-zero address tag for sp is
 strongly discouraged.
 
 Programs maintaining a frame pointer and frame records that use non-zero
-address tags may suffer impaired or inaccurate debug and profiling
+address tags may suffer impaired or inaccurate de and profiling
 visibility.
 
 
@@ -51,7 +51,7 @@ Non-zero tags are not preserved when delivering signals. This means that
 signal handlers in applications making use of tags cannot rely on the
 tag information for user virtual addresses being maintained for fields
 inside siginfo_t. One exception to this rule is for signals raised in
-response to watchpoint debug exceptions, where the tag information will
+response to watchpoint de exceptions, where the tag information will
 be preserved.
 
 The architecture prevents the use of a tagged PC, so the upper byte will

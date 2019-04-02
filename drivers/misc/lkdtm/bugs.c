@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This is for all the tests related to logic bugs (e.g. bad dereferences,
+ * This is for all the tests related to logic s (e.g. bad dereferences,
  * bad alignment, bad loops, bad locking, bad scheduling, deep stacks, and
  * lockups) along with other things that don't fit well into existing LKDTM
  * test source files.
@@ -45,7 +45,7 @@ static int recursive_loop(int remaining)
 }
 
 /* If the depth is negative, use the default, otherwise keep parameter. */
-void __init lkdtm_bugs_init(int *recur_param)
+void __init lkdtm_s_init(int *recur_param)
 {
 	if (*recur_param < 0)
 		*recur_param = recur_count;
@@ -58,9 +58,9 @@ void lkdtm_PANIC(void)
 	panic("dumptest");
 }
 
-void lkdtm_BUG(void)
+void lkdtm_(void)
 {
-	BUG();
+	();
 }
 
 static int warn_counter;
@@ -188,7 +188,7 @@ void lkdtm_CORRUPT_LIST_ADD(void)
 	list_add(&bad.node, &test_head);
 
 	if (target[0] == NULL && target[1] == NULL)
-		pr_err("Overwrite did not happen, but no BUG?!\n");
+		pr_err("Overwrite did not happen, but no ?!\n");
 	else
 		pr_err("list_add() corruption not detected!\n");
 }
@@ -213,7 +213,7 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 	list_del(&item.node);
 
 	if (target[0] == NULL && target[1] == NULL)
-		pr_err("Overwrite did not happen, but no BUG?!\n");
+		pr_err("Overwrite did not happen, but no ?!\n");
 	else
 		pr_err("list_del() corruption not detected!\n");
 }

@@ -279,8 +279,8 @@
 #define DC__NUM_DIG_LP__0 1
 #define DC__NUM_DIG_LP__MAX 2
 #define DC__NUM_DIG_LP__MAX__2 1
-#define DC__DPDEBUG_PRESENT 0
-#define DC__DPDEBUG_PRESENT__0 1
+#define DC__DPDE_PRESENT 0
+#define DC__DPDE_PRESENT__0 1
 #define DC__DISPLAY_WB_PRESENT 1
 #define DC__DISPLAY_WB_PRESENT__1 1
 #define DC__NUM_CWB 0

@@ -79,7 +79,7 @@ void radix__tlbiel_all(unsigned int action)
 		is = 2;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (early_cpu_has_feature(CPU_FTR_ARCH_300))
@@ -220,7 +220,7 @@ static inline void fixup_tlbie(void)
 	unsigned long pid = 0;
 	unsigned long va = ((1UL << 52) - 1);
 
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_)) {
 		asm volatile("ptesync": : :"memory");
 		__tlbie_va(va, pid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
@@ -230,7 +230,7 @@ static inline void fixup_tlbie_lpid(unsigned long lpid)
 {
 	unsigned long va = ((1UL << 52) - 1);
 
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_)) {
 		asm volatile("ptesync": : :"memory");
 		__tlbie_lpid_va(va, lpid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
@@ -293,7 +293,7 @@ static inline void _tlbiel_lpid(unsigned long lpid, unsigned long ric)
 {
 	int set;
 
-	VM_BUG_ON(mfspr(SPRN_LPID) != lpid);
+	VM__ON(mfspr(SPRN_LPID) != lpid);
 
 	asm volatile("ptesync": : :"memory");
 
@@ -345,7 +345,7 @@ static inline void _tlbiel_lpid_guest(unsigned long lpid, unsigned long ric)
 {
 	int set;
 
-	VM_BUG_ON(mfspr(SPRN_LPID) != lpid);
+	VM__ON(mfspr(SPRN_LPID) != lpid);
 
 	asm volatile("ptesync": : :"memory");
 
@@ -541,7 +541,7 @@ static void do_exit_flush_lazy_tlb(void *arg)
 		/*
 		 * Must be a kernel thread because sender is single-threaded.
 		 */
-		BUG_ON(current->mm);
+		_ON(current->mm);
 		mmgrab(&init_mm);
 		switch_mm(mm, &init_mm, current);
 		current->active_mm = &init_mm;

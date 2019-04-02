@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 
 #include "../wlcore/wlcore.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/io.h"
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
@@ -44,7 +44,7 @@
 #include "io.h"
 #include "scan.h"
 #include "event.h"
-#include "debugfs.h"
+#include "defs.h"
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
@@ -514,7 +514,7 @@ static struct wlcore_conf wl18xx_conf = {
 		.window_size                = 16,
 	},
 	.recovery = {
-		.bug_on_recovery	    = 0,
+		._on_recovery	    = 0,
 		.no_recovery		    = 0,
 	},
 };
@@ -678,7 +678,7 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 
 	switch (wl->chip.id) {
 	case CHIP_ID_185x_PG20:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG20)",
+		wl1271_de(DE_BOOT, "chip id 0x%x (185x PG20)",
 				 wl->chip.id);
 		wl->sr_fw_name = WL18XX_FW_NAME;
 		/* wl18xx uses the same firmware for PLT */
@@ -736,7 +736,7 @@ static int wl18xx_set_clk(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl1271_debug(DEBUG_BOOT, "clock freq %d (%d, %d, %d, %d, %s)", clk_freq,
+	wl1271_de(DE_BOOT, "clock freq %d (%d, %d, %d, %d, %s)", clk_freq,
 		     wl18xx_clk_table[clk_freq].n, wl18xx_clk_table[clk_freq].m,
 		     wl18xx_clk_table[clk_freq].p, wl18xx_clk_table[clk_freq].q,
 		     wl18xx_clk_table[clk_freq].swallow ? "swallow" : "spit");
@@ -881,7 +881,7 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	int ret;
 	u16 irq_invert;
 
-	BUILD_BUG_ON(sizeof(struct wl18xx_mac_and_phy_params) >
+	BUILD__ON(sizeof(struct wl18xx_mac_and_phy_params) >
 		WL18XX_PHY_INIT_MEM_SIZE);
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
@@ -897,7 +897,7 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl1271_debug(DEBUG_BOOT, "chip id 0x%x", tmp);
+	wl1271_de(DE_BOOT, "chip id 0x%x", tmp);
 
 	ret = wlcore_read32(wl, WL18XX_SCR_PAD2, &tmp);
 	if (ret < 0)
@@ -1102,7 +1102,7 @@ wl18xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 	else
 		desc->wl18xx_mem.ctrl = 0;
 
-	wl1271_debug(DEBUG_TX, "tx_fill_hdr: hlid: %d "
+	wl1271_de(DE_TX, "tx_fill_hdr: hlid: %d "
 		     "len: %d life: %d mem: %d", desc->hlid,
 		     le16_to_cpu(desc->length),
 		     le16_to_cpu(desc->life_time),
@@ -1289,13 +1289,13 @@ static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 
 	if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
 	    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
-		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
+		wl1271_de(DE_ACX, "using wide channel rate mask");
 		hw_rate_set |= CONF_TX_RATE_USE_WIDE_CHAN;
 
 		/* we don't support MIMO in wide-channel mode */
 		hw_rate_set &= ~CONF_TX_MIMO_RATES;
 	} else if (wl18xx_is_mimo_supported(wl)) {
-		wl1271_debug(DEBUG_ACX, "using MIMO channel rate mask");
+		wl1271_de(DE_ACX, "using MIMO channel rate mask");
 		hw_rate_set |= CONF_TX_MIMO_RATES;
 	}
 
@@ -1307,7 +1307,7 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 {
 	if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
 	    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
-		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
+		wl1271_de(DE_ACX, "using wide channel rate mask");
 
 		/* sanity check - we don't support this */
 		if (WARN_ON(wlvif->band != NL80211_BAND_5GHZ))
@@ -1316,7 +1316,7 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 		return CONF_TX_RATE_USE_WIDE_CHAN;
 	} else if (wl18xx_is_mimo_supported(wl) &&
 		   wlvif->band == NL80211_BAND_2GHZ) {
-		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
+		wl1271_de(DE_ACX, "using MIMO rate mask");
 		/*
 		 * we don't care about HT channel here - if a peer doesn't
 		 * support MIMO, we won't enable it in its rates
@@ -1561,7 +1561,7 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	bool change_spare = false, special_enc;
 	int ret;
 
-	wl1271_debug(DEBUG_CRYPT, "extra spare keys before: %d",
+	wl1271_de(DE_CRYPT, "extra spare keys before: %d",
 		     priv->extra_spare_key_count);
 
 	special_enc = key_conf->cipher == WL1271_CIPHER_SUITE_GEM ||
@@ -1587,7 +1587,7 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		}
 	}
 
-	wl1271_debug(DEBUG_CRYPT, "extra spare keys after: %d",
+	wl1271_de(DE_CRYPT, "extra spare keys after: %d",
 		     priv->extra_spare_key_count);
 
 	if (!change_spare)
@@ -1629,7 +1629,7 @@ static void wl18xx_sta_rc_update(struct wl1271 *wl,
 {
 	bool wide = wlvif->rc_update_bw >= IEEE80211_STA_RX_BW_40;
 
-	wl1271_debug(DEBUG_MAC80211, "mac80211 sta_rc_update wide %d", wide);
+	wl1271_de(DE_MAC80211, "mac80211 sta_rc_update wide %d", wide);
 
 	/* sanity */
 	if (WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS))
@@ -1741,7 +1741,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.sta_get_ap_rate_mask = wl18xx_sta_get_ap_rate_mask,
 	.ap_get_mimo_wide_rate_mask = wl18xx_ap_get_mimo_wide_rate_mask,
 	.get_mac	= wl18xx_get_mac,
-	.debugfs_init	= wl18xx_debugfs_add_files,
+	.defs_init	= wl18xx_defs_add_files,
 	.scan_start	= wl18xx_scan_start,
 	.scan_stop	= wl18xx_scan_stop,
 	.sched_scan_start	= wl18xx_sched_scan_start,
@@ -1924,9 +1924,9 @@ static int wl18xx_setup(struct wl1271 *wl)
 	struct wl18xx_priv *priv = wl->priv;
 	int ret;
 
-	BUILD_BUG_ON(WL18XX_MAX_LINKS > WLCORE_MAX_LINKS);
-	BUILD_BUG_ON(WL18XX_MAX_AP_STATIONS > WL18XX_MAX_LINKS);
-	BUILD_BUG_ON(WL18XX_CONF_SG_PARAMS_MAX > WLCORE_CONF_SG_PARAMS_MAX);
+	BUILD__ON(WL18XX_MAX_LINKS > WLCORE_MAX_LINKS);
+	BUILD__ON(WL18XX_MAX_AP_STATIONS > WL18XX_MAX_LINKS);
+	BUILD__ON(WL18XX_CONF_SG_PARAMS_MAX > WLCORE_CONF_SG_PARAMS_MAX);
 
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;

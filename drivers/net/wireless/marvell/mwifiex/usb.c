@@ -412,7 +412,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	id_vendor = le16_to_cpu(udev->descriptor.idVendor);
 	id_product = le16_to_cpu(udev->descriptor.idProduct);
 	bcd_device = le16_to_cpu(udev->descriptor.bcdDevice);
-	pr_debug("info: VID/PID = %X/%X, Boot2 version = %X\n",
+	pr_de("info: VID/PID = %X/%X, Boot2 version = %X\n",
 		 id_vendor, id_product, bcd_device);
 
 	/* PID_1 is used for firmware downloading only */
@@ -438,7 +438,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 	card->udev = udev;
 	card->intf = intf;
 
-	pr_debug("info: bcdUSB=%#x Device Class=%#x SubClass=%#x Protocol=%#x\n",
+	pr_de("info: bcdUSB=%#x Device Class=%#x SubClass=%#x Protocol=%#x\n",
 		 le16_to_cpu(udev->descriptor.bcdUSB),
 		 udev->descriptor.bDeviceClass,
 		 udev->descriptor.bDeviceSubClass,
@@ -452,7 +452,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		     usb_endpoint_xfer_int(epd))) {
 			card->rx_cmd_ep_type = usb_endpoint_type(epd);
 			card->rx_cmd_interval = epd->bInterval;
-			pr_debug("info: Rx CMD/EVT:: max pkt size: %d, addr: %d, ep_type: %d\n",
+			pr_de("info: Rx CMD/EVT:: max pkt size: %d, addr: %d, ep_type: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress, card->rx_cmd_ep_type);
 			card->rx_cmd_ep = usb_endpoint_num(epd);
@@ -461,7 +461,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		if (usb_endpoint_dir_in(epd) &&
 		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_DATA &&
 		    usb_endpoint_xfer_bulk(epd)) {
-			pr_debug("info: bulk IN: max pkt size: %d, addr: %d\n",
+			pr_de("info: bulk IN: max pkt size: %d, addr: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress);
 			card->rx_data_ep = usb_endpoint_num(epd);
@@ -470,7 +470,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		if (usb_endpoint_dir_out(epd) &&
 		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_DATA &&
 		    usb_endpoint_xfer_bulk(epd)) {
-			pr_debug("info: bulk OUT: max pkt size: %d, addr: %d\n",
+			pr_de("info: bulk OUT: max pkt size: %d, addr: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress);
 			card->port[0].tx_data_ep = usb_endpoint_num(epd);
@@ -479,7 +479,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		if (usb_endpoint_dir_out(epd) &&
 		    usb_endpoint_num(epd) == MWIFIEX_USB_EP_DATA_CH2 &&
 		    usb_endpoint_xfer_bulk(epd)) {
-			pr_debug("info: bulk OUT chan2:\t"
+			pr_de("info: bulk OUT chan2:\t"
 				 "max pkt size: %d, addr: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress);
@@ -492,10 +492,10 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 		     usb_endpoint_xfer_int(epd))) {
 			card->tx_cmd_ep_type = usb_endpoint_type(epd);
 			card->tx_cmd_interval = epd->bInterval;
-			pr_debug("info: bulk OUT: max pkt size: %d, addr: %d\n",
+			pr_de("info: bulk OUT: max pkt size: %d, addr: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress);
-			pr_debug("info: Tx CMD:: max pkt size: %d, addr: %d, ep_type: %d\n",
+			pr_de("info: Tx CMD:: max pkt size: %d, addr: %d, ep_type: %d\n",
 				 le16_to_cpu(epd->wMaxPacketSize),
 				 epd->bEndpointAddress, card->tx_cmd_ep_type);
 			card->tx_cmd_ep = usb_endpoint_num(epd);

@@ -83,7 +83,7 @@
 #define USBC_RSLT_SRC_1_5A		2
 #define USBC_RSLT_SRC_3_0A		3
 #define USBC_RSLT_SNK			4
-#define USBC_RSLT_DEBUG_ACC		5
+#define USBC_RSLT_DE_ACC		5
 #define USBC_RSLT_AUDIO_ACC		6
 #define USBC_RSLT_UNDEF			15
 #define USBC_STATUS1_ORIENT(r)		(((r) >> 4) & 0x3)
@@ -122,8 +122,8 @@
 #define USBC_PDCFG2_SOP			BIT(0)
 #define USBC_PDCFG2_SOP_P		BIT(1)
 #define USBC_PDCFG2_SOP_PP		BIT(2)
-#define USBC_PDCFG2_SOP_P_DEBUG		BIT(3)
-#define USBC_PDCFG2_SOP_PP_DEBUG	BIT(4)
+#define USBC_PDCFG2_SOP_P_DE		BIT(3)
+#define USBC_PDCFG2_SOP_PP_DE	BIT(4)
 
 #define USBC_PDCFG3_DATAROLE_SHIFT	1
 #define USBC_PDCFG3_SOP_SHIFT		2
@@ -389,8 +389,8 @@ static int wcove_pd_transmit(struct tcpc_dev *tcpc,
 	case TCPC_TX_SOP:
 	case TCPC_TX_SOP_PRIME:
 	case TCPC_TX_SOP_PRIME_PRIME:
-	case TCPC_TX_SOP_DEBUG_PRIME:
-	case TCPC_TX_SOP_DEBUG_PRIME_PRIME:
+	case TCPC_TX_SOP_DE_PRIME:
+	case TCPC_TX_SOP_DE_PRIME_PRIME:
 		info = type + 1;
 		cmd = USBC_TXCMD_MSG;
 		break;

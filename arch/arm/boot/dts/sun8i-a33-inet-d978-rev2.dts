@@ -54,7 +54,7 @@
 	};
 
 	chosen {
-		/* Delete debug UART as serial0 is the UART for bluetooth */
+		/* Delete de UART as serial0 is the UART for bluetooth */
 		/delete-property/stdout-path;
 	};
 

@@ -82,7 +82,7 @@ int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num, gfp_t gfp)
 	/* Update BM driver with number of buffers added to pool */
 	bm_pool->buf_num += i;
 
-	pr_debug("hwpm pool: %d of %d buffers added\n", i, buf_num);
+	pr_de("hwpm pool: %d of %d buffers added\n", i, buf_num);
 	spin_unlock_irqrestore(&bm_pool->lock, flags);
 
 	return i;

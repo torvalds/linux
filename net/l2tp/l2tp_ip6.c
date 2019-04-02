@@ -166,7 +166,7 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 		goto discard_sess;
 
 	/* Trace packet contents, if enabled */
-	if (tunnel->debug & L2TP_MSG_DATA) {
+	if (tunnel->de & L2TP_MSG_DATA) {
 		length = min(32u, skb->len);
 		if (!pskb_may_pull(skb, length))
 			goto discard_sess;
@@ -174,7 +174,7 @@ static int l2tp_ip6_recv(struct sk_buff *skb)
 		/* Point to L2TP header */
 		optr = ptr = skb->data;
 		ptr += 4;
-		pr_debug("%s: ip recv\n", tunnel->name);
+		pr_de("%s: ip recv\n", tunnel->name);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
 	}
 

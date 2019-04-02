@@ -1,5 +1,5 @@
 /*
- * ARMv8 single-step debug support and mdscr context switching.
+ * ARMv8 single-step de support and mdscr context switching.
  *
  * Copyright (C) 2012 ARM Limited
  *
@@ -19,7 +19,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
@@ -31,15 +31,15 @@
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
 #include <asm/daifflags.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/system_misc.h>
 #include <asm/traps.h>
 
-/* Determine debug architecture. */
-u8 debug_monitors_arch(void)
+/* Determine de architecture. */
+u8 de_monitors_arch(void)
 {
 	return cpuid_feature_extract_unsigned_field(read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1),
-						ID_AA64DFR0_DEBUGVER_SHIFT);
+						ID_AA64DFR0_DEVER_SHIFT);
 }
 
 /*
@@ -61,34 +61,34 @@ static u32 mdscr_read(void)
 NOKPROBE_SYMBOL(mdscr_read);
 
 /*
- * Allow root to disable self-hosted debug from userspace.
- * This is useful if you want to connect an external JTAG debugger.
+ * Allow root to disable self-hosted de from userspace.
+ * This is useful if you want to connect an external JTAG deger.
  */
-static bool debug_enabled = true;
+static bool de_enabled = true;
 
-static int create_debug_debugfs_entry(void)
+static int create_de_defs_entry(void)
 {
-	debugfs_create_bool("debug_enabled", 0644, NULL, &debug_enabled);
+	defs_create_bool("de_enabled", 0644, NULL, &de_enabled);
 	return 0;
 }
-fs_initcall(create_debug_debugfs_entry);
+fs_initcall(create_de_defs_entry);
 
-static int __init early_debug_disable(char *buf)
+static int __init early_de_disable(char *buf)
 {
-	debug_enabled = false;
+	de_enabled = false;
 	return 0;
 }
 
-early_param("nodebugmon", early_debug_disable);
+early_param("nodemon", early_de_disable);
 
 /*
- * Keep track of debug users on each core.
+ * Keep track of de users on each core.
  * The ref counts are per-cpu so we use a local_t type.
  */
 static DEFINE_PER_CPU(int, mde_ref_count);
 static DEFINE_PER_CPU(int, kde_ref_count);
 
-void enable_debug_monitors(enum dbg_active_el el)
+void enable_de_monitors(enum dbg_active_el el)
 {
 	u32 mdscr, enable = 0;
 
@@ -101,15 +101,15 @@ void enable_debug_monitors(enum dbg_active_el el)
 	    this_cpu_inc_return(kde_ref_count) == 1)
 		enable |= DBG_MDSCR_KDE;
 
-	if (enable && debug_enabled) {
+	if (enable && de_enabled) {
 		mdscr = mdscr_read();
 		mdscr |= enable;
 		mdscr_write(mdscr);
 	}
 }
-NOKPROBE_SYMBOL(enable_debug_monitors);
+NOKPROBE_SYMBOL(enable_de_monitors);
 
-void disable_debug_monitors(enum dbg_active_el el)
+void disable_de_monitors(enum dbg_active_el el)
 {
 	u32 mdscr, disable = 0;
 
@@ -128,7 +128,7 @@ void disable_debug_monitors(enum dbg_active_el el)
 		mdscr_write(mdscr);
 	}
 }
-NOKPROBE_SYMBOL(disable_debug_monitors);
+NOKPROBE_SYMBOL(disable_de_monitors);
 
 /*
  * OS lock clearing.
@@ -140,13 +140,13 @@ static int clear_os_lock(unsigned int cpu)
 	return 0;
 }
 
-static int debug_monitors_init(void)
+static int de_monitors_init(void)
 {
-	return cpuhp_setup_state(CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING,
-				 "arm64/debug_monitors:starting",
+	return cpuhp_setup_state(CPUHP_AP_ARM64_DE_MONITORS_STARTING,
+				 "arm64/de_monitors:starting",
 				 clear_os_lock, NULL);
 }
-postcore_initcall(debug_monitors_init);
+postcore_initcall(de_monitors_init);
 
 /*
  * Single step API and exception handling.
@@ -219,7 +219,7 @@ static void send_user_sigtrap(int si_code)
 
 	arm64_force_sig_fault(SIGTRAP, si_code,
 			     (void __user *)instruction_pointer(regs),
-			     "User debug trap");
+			     "User de trap");
 }
 
 static int single_step_handler(unsigned long addr, unsigned int esr,
@@ -366,15 +366,15 @@ int aarch32_break_handler(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(aarch32_break_handler);
 
-static int __init debug_traps_init(void)
+static int __init de_traps_init(void)
 {
-	hook_debug_fault_code(DBG_ESR_EVT_HWSS, single_step_handler, SIGTRAP,
+	hook_de_fault_code(DBG_ESR_EVT_HWSS, single_step_handler, SIGTRAP,
 			      TRAP_TRACE, "single-step handler");
-	hook_debug_fault_code(DBG_ESR_EVT_BRK, brk_handler, SIGTRAP,
+	hook_de_fault_code(DBG_ESR_EVT_BRK, brk_handler, SIGTRAP,
 			      TRAP_BRKPT, "ptrace BRK handler");
 	return 0;
 }
-arch_initcall(debug_traps_init);
+arch_initcall(de_traps_init);
 
 /* Re-enable single step for syscall restarting. */
 void user_rewind_single_step(struct task_struct *task)
@@ -400,7 +400,7 @@ void kernel_enable_single_step(struct pt_regs *regs)
 	WARN_ON(!irqs_disabled());
 	set_regs_spsr_ss(regs);
 	mdscr_write(mdscr_read() | DBG_MDSCR_SS);
-	enable_debug_monitors(DBG_ACTIVE_EL1);
+	enable_de_monitors(DBG_ACTIVE_EL1);
 }
 NOKPROBE_SYMBOL(kernel_enable_single_step);
 
@@ -408,7 +408,7 @@ void kernel_disable_single_step(void)
 {
 	WARN_ON(!irqs_disabled());
 	mdscr_write(mdscr_read() & ~DBG_MDSCR_SS);
-	disable_debug_monitors(DBG_ACTIVE_EL1);
+	disable_de_monitors(DBG_ACTIVE_EL1);
 }
 NOKPROBE_SYMBOL(kernel_disable_single_step);
 

@@ -32,45 +32,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "vchiq_core.h"
 #include "vchiq_arm.h"
-#include "vchiq_debugfs.h"
+#include "vchiq_defs.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 /****************************************************************************
 *
 *   log category entries
 *
 ***************************************************************************/
-#define DEBUGFS_WRITE_BUF_SIZE 256
+#define DEFS_WRITE_BUF_SIZE 256
 
 #define VCHIQ_LOG_ERROR_STR   "error"
 #define VCHIQ_LOG_WARNING_STR "warning"
 #define VCHIQ_LOG_INFO_STR    "info"
 #define VCHIQ_LOG_TRACE_STR   "trace"
 
-/* Global 'vchiq' debugfs and clients entry used by all instances */
+/* Global 'vchiq' defs and clients entry used by all instances */
 static struct dentry *vchiq_dbg_dir;
 static struct dentry *vchiq_dbg_clients;
 
-/* Log category debugfs entries */
-struct vchiq_debugfs_log_entry {
+/* Log category defs entries */
+struct vchiq_defs_log_entry {
 	const char *name;
 	void *plevel;
 };
 
-static struct vchiq_debugfs_log_entry vchiq_debugfs_log_entries[] = {
+static struct vchiq_defs_log_entry vchiq_defs_log_entries[] = {
 	{ "core", &vchiq_core_log_level },
 	{ "msg",  &vchiq_core_msg_log_level },
 	{ "sync", &vchiq_sync_log_level },
 	{ "susp", &vchiq_susp_log_level },
 	{ "arm",  &vchiq_arm_log_level },
 };
-static int n_log_entries = ARRAY_SIZE(vchiq_debugfs_log_entries);
+static int n_log_entries = ARRAY_SIZE(vchiq_defs_log_entries);
 
-static int debugfs_log_show(struct seq_file *f, void *offset)
+static int defs_log_show(struct seq_file *f, void *offset)
 {
 	int *levp = f->private;
 	char *log_value = NULL;
@@ -97,22 +97,22 @@ static int debugfs_log_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-static int debugfs_log_open(struct inode *inode, struct file *file)
+static int defs_log_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, debugfs_log_show, inode->i_private);
+	return single_open(file, defs_log_show, inode->i_private);
 }
 
-static ssize_t debugfs_log_write(struct file *file,
+static ssize_t defs_log_write(struct file *file,
 	const char __user *buffer,
 	size_t count, loff_t *ppos)
 {
 	struct seq_file *f = (struct seq_file *)file->private_data;
 	int *levp = f->private;
-	char kbuf[DEBUGFS_WRITE_BUF_SIZE + 1];
+	char kbuf[DEFS_WRITE_BUF_SIZE + 1];
 
-	memset(kbuf, 0, DEBUGFS_WRITE_BUF_SIZE + 1);
-	if (count >= DEBUGFS_WRITE_BUF_SIZE)
-		count = DEBUGFS_WRITE_BUF_SIZE;
+	memset(kbuf, 0, DEFS_WRITE_BUF_SIZE + 1);
+	if (count >= DEFS_WRITE_BUF_SIZE)
+		count = DEFS_WRITE_BUF_SIZE;
 
 	if (copy_from_user(kbuf, buffer, count) != 0)
 		return -EFAULT;
@@ -134,16 +134,16 @@ static ssize_t debugfs_log_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations debugfs_log_fops = {
+static const struct file_operations defs_log_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debugfs_log_open,
-	.write		= debugfs_log_write,
+	.open		= defs_log_open,
+	.write		= defs_log_write,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static int debugfs_usecount_show(struct seq_file *f, void *offset)
+static int defs_usecount_show(struct seq_file *f, void *offset)
 {
 	VCHIQ_INSTANCE_T instance = f->private;
 	int use_count;
@@ -153,9 +153,9 @@ static int debugfs_usecount_show(struct seq_file *f, void *offset)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(debugfs_usecount);
+DEFINE_SHOW_ATTRIBUTE(defs_usecount);
 
-static int debugfs_trace_show(struct seq_file *f, void *offset)
+static int defs_trace_show(struct seq_file *f, void *offset)
 {
 	VCHIQ_INSTANCE_T instance = f->private;
 	int trace;
@@ -166,12 +166,12 @@ static int debugfs_trace_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
-static int debugfs_trace_open(struct inode *inode, struct file *file)
+static int defs_trace_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, debugfs_trace_show, inode->i_private);
+	return single_open(file, defs_trace_show, inode->i_private);
 }
 
-static ssize_t debugfs_trace_write(struct file *file,
+static ssize_t defs_trace_write(struct file *file,
 	const char __user *buffer,
 	size_t count, loff_t *ppos)
 {
@@ -202,17 +202,17 @@ static ssize_t debugfs_trace_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations debugfs_trace_fops = {
+static const struct file_operations defs_trace_fops = {
 	.owner		= THIS_MODULE,
-	.open		= debugfs_trace_open,
-	.write		= debugfs_trace_write,
+	.open		= defs_trace_open,
+	.write		= defs_trace_write,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-/* add an instance (process) to the debugfs entries */
-void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
+/* add an instance (process) to the defs entries */
+void vchiq_defs_add_instance(VCHIQ_INSTANCE_T instance)
 {
 	char pidstr[16];
 	struct dentry *top;
@@ -220,62 +220,62 @@ void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 	snprintf(pidstr, sizeof(pidstr), "%d",
 		 vchiq_instance_get_pid(instance));
 
-	top = debugfs_create_dir(pidstr, vchiq_dbg_clients);
+	top = defs_create_dir(pidstr, vchiq_dbg_clients);
 
-	debugfs_create_file("use_count", 0444, top, instance,
-			    &debugfs_usecount_fops);
-	debugfs_create_file("trace", 0644, top, instance, &debugfs_trace_fops);
+	defs_create_file("use_count", 0444, top, instance,
+			    &defs_usecount_fops);
+	defs_create_file("trace", 0644, top, instance, &defs_trace_fops);
 
-	vchiq_instance_get_debugfs_node(instance)->dentry = top;
+	vchiq_instance_get_defs_node(instance)->dentry = top;
 }
 
-void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_defs_remove_instance(VCHIQ_INSTANCE_T instance)
 {
-	struct vchiq_debugfs_node *node =
-				vchiq_instance_get_debugfs_node(instance);
+	struct vchiq_defs_node *node =
+				vchiq_instance_get_defs_node(instance);
 
-	debugfs_remove_recursive(node->dentry);
+	defs_remove_recursive(node->dentry);
 }
 
-void vchiq_debugfs_init(void)
+void vchiq_defs_init(void)
 {
 	struct dentry *dir;
 	int i;
 
-	vchiq_dbg_dir = debugfs_create_dir("vchiq", NULL);
-	vchiq_dbg_clients = debugfs_create_dir("clients", vchiq_dbg_dir);
+	vchiq_dbg_dir = defs_create_dir("vchiq", NULL);
+	vchiq_dbg_clients = defs_create_dir("clients", vchiq_dbg_dir);
 
-	/* create an entry under <debugfs>/vchiq/log for each log category */
-	dir = debugfs_create_dir("log", vchiq_dbg_dir);
+	/* create an entry under <defs>/vchiq/log for each log category */
+	dir = defs_create_dir("log", vchiq_dbg_dir);
 
 	for (i = 0; i < n_log_entries; i++)
-		debugfs_create_file(vchiq_debugfs_log_entries[i].name, 0644,
-				    dir, vchiq_debugfs_log_entries[i].plevel,
-				    &debugfs_log_fops);
+		defs_create_file(vchiq_defs_log_entries[i].name, 0644,
+				    dir, vchiq_defs_log_entries[i].plevel,
+				    &defs_log_fops);
 }
 
-/* remove all the debugfs entries */
-void vchiq_debugfs_deinit(void)
+/* remove all the defs entries */
+void vchiq_defs_deinit(void)
 {
-	debugfs_remove_recursive(vchiq_dbg_dir);
+	defs_remove_recursive(vchiq_dbg_dir);
 }
 
-#else /* CONFIG_DEBUG_FS */
+#else /* CONFIG_DE_FS */
 
-void vchiq_debugfs_init(void)
-{
-}
-
-void vchiq_debugfs_deinit(void)
+void vchiq_defs_init(void)
 {
 }
 
-void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_defs_deinit(void)
 {
 }
 
-void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
+void vchiq_defs_add_instance(VCHIQ_INSTANCE_T instance)
 {
 }
 
-#endif /* CONFIG_DEBUG_FS */
+void vchiq_defs_remove_instance(VCHIQ_INSTANCE_T instance)
+{
+}
+
+#endif /* CONFIG_DE_FS */

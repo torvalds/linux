@@ -27,7 +27,7 @@
 #include "jfs_dmap.h"
 #include "jfs_superblock.h"
 #include "jfs_txnmgr.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 #define BITSPERPAGE	(PSIZE << 3)
 #define L2MEGABYTE	20

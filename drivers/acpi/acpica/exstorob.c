@@ -98,7 +98,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		memcpy(target_desc->buffer.pointer, buffer,
 		       target_desc->buffer.length);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Truncating source buffer from %X to %X\n",
 				  length, target_desc->buffer.length));
 	}

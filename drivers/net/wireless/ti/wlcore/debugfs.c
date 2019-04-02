@@ -21,7 +21,7 @@
  *
  */
 
-#include "debugfs.h"
+#include "defs.h"
 
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -29,7 +29,7 @@
 #include <linux/pm_runtime.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "acx.h"
 #include "ps.h"
 #include "io.h"
@@ -37,16 +37,16 @@
 #include "hw_ops.h"
 
 /* ms */
-#define WL1271_DEBUGFS_STATS_LIFETIME 1000
+#define WL1271_DEFS_STATS_LIFETIME 1000
 
 #define WLCORE_MAX_BLOCK_SIZE ((size_t)(4*PAGE_SIZE))
 
-/* debugfs macros idea from mac80211 */
+/* defs macros idea from mac80211 */
 int wl1271_format_buffer(char __user *userbuf, size_t count,
 			 loff_t *ppos, char *fmt, ...)
 {
 	va_list args;
-	char buf[DEBUGFS_FORMAT_BUFFER_SIZE];
+	char buf[DEFS_FORMAT_BUFFER_SIZE];
 	int res;
 
 	va_start(args, fmt);
@@ -57,7 +57,7 @@ int wl1271_format_buffer(char __user *userbuf, size_t count,
 }
 EXPORT_SYMBOL_GPL(wl1271_format_buffer);
 
-void wl1271_debugfs_update_stats(struct wl1271 *wl)
+void wl1271_defs_update_stats(struct wl1271 *wl)
 {
 	int ret;
 
@@ -74,7 +74,7 @@ void wl1271_debugfs_update_stats(struct wl1271 *wl)
 
 	if (!wl->plt &&
 	    time_after(jiffies, wl->stats.fw_stats_update +
-		       msecs_to_jiffies(WL1271_DEBUGFS_STATS_LIFETIME))) {
+		       msecs_to_jiffies(WL1271_DEFS_STATS_LIFETIME))) {
 		wl1271_acx_statistics(wl, wl->stats.fw_stats);
 		wl->stats.fw_stats_update = jiffies;
 	}
@@ -85,10 +85,10 @@ void wl1271_debugfs_update_stats(struct wl1271 *wl)
 out:
 	mutex_unlock(&wl->mutex);
 }
-EXPORT_SYMBOL_GPL(wl1271_debugfs_update_stats);
+EXPORT_SYMBOL_GPL(wl1271_defs_update_stats);
 
-DEBUGFS_READONLY_FILE(retry_count, "%u", wl->stats.retry_count);
-DEBUGFS_READONLY_FILE(excessive_retries, "%u",
+DEFS_READONLY_FILE(retry_count, "%u", wl->stats.retry_count);
+DEFS_READONLY_FILE(excessive_retries, "%u",
 		      wl->stats.excessive_retries);
 
 static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
@@ -118,7 +118,7 @@ static void chip_op_handler(struct wl1271 *wl, unsigned long value,
 	int (*chip_op) (struct wl1271 *wl);
 
 	if (!arg) {
-		wl1271_warning("debugfs chip_op_handler with no callback");
+		wl1271_warning("defs chip_op_handler with no callback");
 		return;
 	}
 
@@ -143,7 +143,7 @@ static inline void no_write_handler(struct wl1271 *wl,
 {
 }
 
-#define WL12XX_CONF_DEBUGFS(param, conf_sub_struct,			\
+#define WL12XX_CONF_DEFS(param, conf_sub_struct,			\
 			    min_val, max_val, write_handler_locked,	\
 			    write_handler_arg)				\
 	static ssize_t param##_read(struct file *file,			\
@@ -191,11 +191,11 @@ static inline void no_write_handler(struct wl1271 *wl,
 		.llseek = default_llseek,				\
 	};
 
-WL12XX_CONF_DEBUGFS(irq_pkt_threshold, rx, 0, 65535,
+WL12XX_CONF_DEFS(irq_pkt_threshold, rx, 0, 65535,
 		    chip_op_handler, wl1271_acx_init_rx_interrupt)
-WL12XX_CONF_DEBUGFS(irq_blk_threshold, rx, 0, 65535,
+WL12XX_CONF_DEFS(irq_blk_threshold, rx, 0, 65535,
 		    chip_op_handler, wl1271_acx_init_rx_interrupt)
-WL12XX_CONF_DEBUGFS(irq_timeout, rx, 0, 100,
+WL12XX_CONF_DEFS(irq_timeout, rx, 0, 100,
 		    chip_op_handler, wl1271_acx_init_rx_interrupt)
 
 static ssize_t gpio_power_read(struct file *file, char __user *user_buf,
@@ -989,7 +989,7 @@ static ssize_t fw_stats_raw_read(struct file *file,
 {
 	struct wl1271 *wl = file->private_data;
 
-	wl1271_debugfs_update_stats(wl);
+	wl1271_defs_update_stats(wl);
 
 	return simple_read_from_buffer(userbuf, count, ppos,
 				       wl->stats.fw_stats,
@@ -1301,42 +1301,42 @@ static const struct file_operations fw_logger_ops = {
 	.llseek = default_llseek,
 };
 
-static void wl1271_debugfs_add_files(struct wl1271 *wl,
+static void wl1271_defs_add_files(struct wl1271 *wl,
 				     struct dentry *rootdir)
 {
 	struct dentry *streaming;
 
-	DEBUGFS_ADD(tx_queue_len, rootdir);
-	DEBUGFS_ADD(retry_count, rootdir);
-	DEBUGFS_ADD(excessive_retries, rootdir);
+	DEFS_ADD(tx_queue_len, rootdir);
+	DEFS_ADD(retry_count, rootdir);
+	DEFS_ADD(excessive_retries, rootdir);
 
-	DEBUGFS_ADD(gpio_power, rootdir);
-	DEBUGFS_ADD(start_recovery, rootdir);
-	DEBUGFS_ADD(driver_state, rootdir);
-	DEBUGFS_ADD(vifs_state, rootdir);
-	DEBUGFS_ADD(dtim_interval, rootdir);
-	DEBUGFS_ADD(suspend_dtim_interval, rootdir);
-	DEBUGFS_ADD(beacon_interval, rootdir);
-	DEBUGFS_ADD(beacon_filtering, rootdir);
-	DEBUGFS_ADD(dynamic_ps_timeout, rootdir);
-	DEBUGFS_ADD(forced_ps, rootdir);
-	DEBUGFS_ADD(split_scan_timeout, rootdir);
-	DEBUGFS_ADD(irq_pkt_threshold, rootdir);
-	DEBUGFS_ADD(irq_blk_threshold, rootdir);
-	DEBUGFS_ADD(irq_timeout, rootdir);
-	DEBUGFS_ADD(fw_stats_raw, rootdir);
-	DEBUGFS_ADD(sleep_auth, rootdir);
-	DEBUGFS_ADD(fw_logger, rootdir);
+	DEFS_ADD(gpio_power, rootdir);
+	DEFS_ADD(start_recovery, rootdir);
+	DEFS_ADD(driver_state, rootdir);
+	DEFS_ADD(vifs_state, rootdir);
+	DEFS_ADD(dtim_interval, rootdir);
+	DEFS_ADD(suspend_dtim_interval, rootdir);
+	DEFS_ADD(beacon_interval, rootdir);
+	DEFS_ADD(beacon_filtering, rootdir);
+	DEFS_ADD(dynamic_ps_timeout, rootdir);
+	DEFS_ADD(forced_ps, rootdir);
+	DEFS_ADD(split_scan_timeout, rootdir);
+	DEFS_ADD(irq_pkt_threshold, rootdir);
+	DEFS_ADD(irq_blk_threshold, rootdir);
+	DEFS_ADD(irq_timeout, rootdir);
+	DEFS_ADD(fw_stats_raw, rootdir);
+	DEFS_ADD(sleep_auth, rootdir);
+	DEFS_ADD(fw_logger, rootdir);
 
-	streaming = debugfs_create_dir("rx_streaming", rootdir);
+	streaming = defs_create_dir("rx_streaming", rootdir);
 
-	DEBUGFS_ADD_PREFIX(rx_streaming, interval, streaming);
-	DEBUGFS_ADD_PREFIX(rx_streaming, always, streaming);
+	DEFS_ADD_PREFIX(rx_streaming, interval, streaming);
+	DEFS_ADD_PREFIX(rx_streaming, always, streaming);
 
-	DEBUGFS_ADD_PREFIX(dev, mem, rootdir);
+	DEFS_ADD_PREFIX(dev, mem, rootdir);
 }
 
-void wl1271_debugfs_reset(struct wl1271 *wl)
+void wl1271_defs_reset(struct wl1271 *wl)
 {
 	if (!wl->stats.fw_stats)
 		return;
@@ -1346,13 +1346,13 @@ void wl1271_debugfs_reset(struct wl1271 *wl)
 	wl->stats.excessive_retries = 0;
 }
 
-int wl1271_debugfs_init(struct wl1271 *wl)
+int wl1271_defs_init(struct wl1271 *wl)
 {
 	int ret;
 	struct dentry *rootdir;
 
-	rootdir = debugfs_create_dir(KBUILD_MODNAME,
-				     wl->hw->wiphy->debugfsdir);
+	rootdir = defs_create_dir(KBUILD_MODNAME,
+				     wl->hw->wiphy->defsdir);
 
 	wl->stats.fw_stats = kzalloc(wl->stats.fw_stats_len, GFP_KERNEL);
 	if (!wl->stats.fw_stats) {
@@ -1362,25 +1362,25 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 
 	wl->stats.fw_stats_update = jiffies;
 
-	wl1271_debugfs_add_files(wl, rootdir);
+	wl1271_defs_add_files(wl, rootdir);
 
-	ret = wlcore_debugfs_init(wl, rootdir);
+	ret = wlcore_defs_init(wl, rootdir);
 	if (ret < 0)
 		goto out_exit;
 
 	goto out;
 
 out_exit:
-	wl1271_debugfs_exit(wl);
+	wl1271_defs_exit(wl);
 
 out_remove:
-	debugfs_remove_recursive(rootdir);
+	defs_remove_recursive(rootdir);
 
 out:
 	return ret;
 }
 
-void wl1271_debugfs_exit(struct wl1271 *wl)
+void wl1271_defs_exit(struct wl1271 *wl)
 {
 	kfree(wl->stats.fw_stats);
 	wl->stats.fw_stats = NULL;

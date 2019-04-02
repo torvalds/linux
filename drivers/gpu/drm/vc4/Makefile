@@ -24,6 +24,6 @@ vc4-y := \
 	vc4_validate.o \
 	vc4_validate_shaders.o
 
-vc4-$(CONFIG_DEBUG_FS) += vc4_debugfs.o
+vc4-$(CONFIG_DE_FS) += vc4_defs.o
 
 obj-$(CONFIG_DRM_VC4)  += vc4.o

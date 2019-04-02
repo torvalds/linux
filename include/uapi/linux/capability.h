@@ -188,7 +188,7 @@ struct vfs_ns_cap_data {
 
 /* Allow interface configuration */
 /* Allow administration of IP firewall, masquerading and accounting */
-/* Allow setting debug option on sockets */
+/* Allow setting de option on sockets */
 /* Allow modification of routing tables */
 /* Allow setting arbitrary process / process group ownership on
    sockets */
@@ -267,7 +267,7 @@ struct vfs_ns_cap_data {
 /* Allow administration of apm_bios, serial and bttv (TV) device */
 /* Allow manufacturer commands in isdn CAPI support driver */
 /* Allow reading non-standardized portions of pci configuration space */
-/* Allow DDI debug ioctl on sbpcd driver */
+/* Allow DDI de ioctl on sbpcd driver */
 /* Allow setting up serial ports */
 /* Allow sending raw qic-117 commands */
 /* Allow enabling/disabling tagged queuing on SCSI controllers and sending

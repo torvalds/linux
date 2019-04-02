@@ -280,7 +280,7 @@ static struct pxafb_mode_info samsung_modes[] = {
 
 static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
 {
-	pr_debug("Toppoly LCD power: %s\n", on ? "on" : "off");
+	pr_de("Toppoly LCD power: %s\n", on ? "on" : "off");
 
 	if (on) {
 		gpio_set_value(EGPIO_MAGICIAN_TOPPOLY_POWER, 1);
@@ -306,7 +306,7 @@ static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
 
 static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
 {
-	pr_debug("Samsung LCD power: %s\n", on ? "on" : "off");
+	pr_de("Samsung LCD power: %s\n", on ? "on" : "off");
 
 	if (on) {
 		if (system_rev < 3)
@@ -380,7 +380,7 @@ static int magician_backlight_init(struct device *dev)
 
 static int magician_backlight_notify(struct device *dev, int brightness)
 {
-	pr_debug("Brightness = %i\n", brightness);
+	pr_de("Brightness = %i\n", brightness);
 	gpio_set_value(EGPIO_MAGICIAN_BL_POWER, brightness);
 	if (brightness >= 200) {
 		gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 1);
@@ -556,13 +556,13 @@ err_ac:
 static void magician_set_charge(int flags)
 {
 	if (flags & PDA_POWER_CHARGE_AC) {
-		pr_debug("Charging from AC\n");
+		pr_de("Charging from AC\n");
 		gpio_set_value(EGPIO_MAGICIAN_NICD_CHARGE, 1);
 	} else if (flags & PDA_POWER_CHARGE_USB) {
-		pr_debug("Charging from USB\n");
+		pr_de("Charging from USB\n");
 		gpio_set_value(EGPIO_MAGICIAN_NICD_CHARGE, 1);
 	} else {
-		pr_debug("Charging disabled\n");
+		pr_de("Charging disabled\n");
 		gpio_set_value(EGPIO_MAGICIAN_NICD_CHARGE, 0);
 	}
 }

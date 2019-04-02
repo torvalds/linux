@@ -30,7 +30,7 @@ versions of the sysfs interface.
 
 - sysfs is always at ``/sys``
     Parsing ``/proc/mounts`` is a waste of time. Other mount points are a
-    system configuration bug you should not try to solve. For test cases,
+    system configuration  you should not try to solve. For test cases,
     possibly support a ``SYSFS_PATH`` environment variable to overwrite the
     application's behavior, but never try to search for sysfs. Never try
     to mount it, if you are not an early boot script.
@@ -57,7 +57,7 @@ versions of the sysfs interface.
         That way the devpath to the device matches the devpath of the
         kernel used at event time.
       - using or exposing symlink values as elements in a devpath string
-        is a bug in the application
+        is a  in the application
 
     - kernel name (``sda``, ``tty``, ``0000:00:1f.2``, ...)
 
@@ -79,14 +79,14 @@ versions of the sysfs interface.
         last element of the target path
       - devices which do not have "driver"-link just do not have a
         driver; copying the driver value in a child device context is a
-        bug in the application
+         in the application
 
     - attributes
 
       - the files in the device directory or files below subdirectories
         of the same device directory
       - accessing attributes reached by a symlink pointing to another device,
-        like the "device"-link, is a bug in the application
+        like the "device"-link, is a  in the application
 
     Everything else is just a kernel driver-core implementation detail
     that should not be assumed to be stable across kernel releases.
@@ -126,7 +126,7 @@ versions of the sysfs interface.
     subsystem name.
 
     Assuming ``/sys/class/<subsystem>`` and ``/sys/bus/<subsystem>``, or
-    ``/sys/block`` and ``/sys/class/block`` are not interchangeable is a bug in
+    ``/sys/block`` and ``/sys/class/block`` are not interchangeable is a  in
     the application.
 
 - Block
@@ -134,7 +134,7 @@ versions of the sysfs interface.
     ``/sys/subsystem/block`` will contain the links for disks and partitions
     at the same level, never in a hierarchy. Assuming the block subsystem to
     contain only disks and not partition devices in the same flat list is
-    a bug in the application.
+    a  in the application.
 
 - "device"-link and <subsystem>:<kernel name>-links
     Never depend on the "device"-link. The "device"-link is a workaround
@@ -144,8 +144,8 @@ versions of the sysfs interface.
     "device"-link to find the parent devices in ``/sys/devices/``, That is the
     single valid use of the "device"-link; it must never appear in any
     path as an element. Assuming the existence of the "device"-link for
-    a device in ``/sys/devices/`` is a bug in the application.
-    Accessing ``/sys/class/net/eth0/device`` is a bug in the application.
+    a device in ``/sys/devices/`` is a  in the application.
+    Accessing ``/sys/class/net/eth0/device`` is a  in the application.
 
     Never depend on the class-specific links back to the ``/sys/class``
     directory.  These links are also a workaround for the design mistake
@@ -154,7 +154,7 @@ versions of the sysfs interface.
     may be used to find the child devices in ``/sys/class.`` That is the single
     valid use of these links; they must never appear in any path as an
     element. Assuming the existence of these links for devices which are
-    real child device directories in the ``/sys/devices`` tree is a bug in
+    real child device directories in the ``/sys/devices`` tree is a  in
     the application.
 
     It is planned to remove all these links when all class device
@@ -167,7 +167,7 @@ versions of the sysfs interface.
     by its subsystem value. You need to walk up the chain until you find
     the device that matches the expected subsystem. Depending on a specific
     position of a parent device or exposing relative paths using ``../`` to
-    access the chain of parents is a bug in the application.
+    access the chain of parents is a  in the application.
 
 - When reading and writing sysfs device attribute files, avoid dependency
     on specific error codes wherever possible. This minimizes coupling to

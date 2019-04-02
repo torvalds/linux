@@ -195,7 +195,7 @@ static irqreturn_t cryp_interrupt_handler(int irq, void *param)
 	struct cryp_device_data *device_data;
 
 	if (param == NULL) {
-		BUG_ON(!param);
+		_ON(!param);
 		return IRQ_HANDLED;
 	}
 
@@ -205,7 +205,7 @@ static irqreturn_t cryp_interrupt_handler(int irq, void *param)
 	ctx = device_data->current_ctx;
 
 	if (ctx == NULL) {
-		BUG_ON(!ctx);
+		_ON(!ctx);
 		return IRQ_HANDLED;
 	}
 
@@ -427,7 +427,7 @@ static int cryp_get_device_data(struct cryp_ctx *ctx,
 	struct klist_iter device_iterator;
 	struct klist_node *device_node;
 	struct cryp_device_data *local_device_data = NULL;
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	/* Wait until a device is available */
 	ret = down_interruptible(&driver_data.device_allocation);
@@ -759,12 +759,12 @@ static int hw_crypt_noxts(struct cryp_ctx *ctx,
 	u32 datalen = ctx->datalen;
 	u32 outlen = datalen;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	ctx->outlen = ctx->datalen;
 
 	if (unlikely(!IS_ALIGNED((u32)indata, 4))) {
-		pr_debug(DEV_DBG_NAME " [%s]: Data isn't aligned! Addr: "
+		pr_de(DEV_DBG_NAME " [%s]: Data isn't aligned! Addr: "
 			 "0x%08x", __func__, (u32)indata);
 		return -EINVAL;
 	}
@@ -838,7 +838,7 @@ static int ablk_dma_crypt(struct ablkcipher_request *areq)
 	int bytes_read = 0;
 	int ret;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	ctx->datalen = areq->nbytes;
 	ctx->outlen = areq->nbytes;
@@ -896,7 +896,7 @@ static int ablk_crypt(struct ablkcipher_request *areq)
 	int ret;
 	int nbytes;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	ret = cryp_get_device_data(ctx, &device_data);
 	if (ret)
@@ -954,7 +954,7 @@ static int aes_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 	struct cryp_ctx *ctx = crypto_ablkcipher_ctx(cipher);
 	u32 *flags = &cipher->base.crt_flags;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	switch (keylen) {
 	case AES_KEYSIZE_128:
@@ -991,10 +991,10 @@ static int des_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 	u32 tmp[DES_EXPKEY_WORDS];
 	int ret;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 	if (keylen != DES_KEY_SIZE) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_BAD_KEY_LEN",
+		pr_de(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_BAD_KEY_LEN",
 				__func__);
 		return -EINVAL;
 	}
@@ -1003,7 +1003,7 @@ static int des_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 	if (unlikely(ret == 0) &&
 	    (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
+		pr_de(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
 			 __func__);
 		return -EINVAL;
 	}
@@ -1024,10 +1024,10 @@ static int des3_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 	u32 tmp[DES3_EDE_EXPKEY_WORDS];
 	int i, ret;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 	if (keylen != DES3_EDE_KEY_SIZE) {
 		*flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
-		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_BAD_KEY_LEN",
+		pr_de(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_BAD_KEY_LEN",
 				__func__);
 		return -EINVAL;
 	}
@@ -1037,7 +1037,7 @@ static int des3_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 				!((K[2] ^ K[4]) | (K[3] ^ K[5]))) &&
 			(*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
+		pr_de(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
 			 __func__);
 		return -EINVAL;
 	}
@@ -1046,7 +1046,7 @@ static int des3_ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 		if (unlikely(ret == 0) &&
 		    (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 			*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-			pr_debug(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
+			pr_de(DEV_DBG_NAME " [%s]: CRYPTO_TFM_RES_WEAK_KEY",
 				 __func__);
 			return -EINVAL;
 		}
@@ -1064,12 +1064,12 @@ static int cryp_blk_encrypt(struct ablkcipher_request *areq)
 	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(areq);
 	struct cryp_ctx *ctx = crypto_ablkcipher_ctx(cipher);
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	ctx->config.algodir = CRYP_ALGORITHM_ENCRYPT;
 
 	/*
-	 * DMA does not work for DES due to a hw bug */
+	 * DMA does not work for DES due to a hw  */
 	if (cryp_mode == CRYP_MODE_DMA && mode_is_aes(ctx->config.algomode))
 		return ablk_dma_crypt(areq);
 
@@ -1082,11 +1082,11 @@ static int cryp_blk_decrypt(struct ablkcipher_request *areq)
 	struct crypto_ablkcipher *cipher = crypto_ablkcipher_reqtfm(areq);
 	struct cryp_ctx *ctx = crypto_ablkcipher_ctx(cipher);
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	ctx->config.algodir = CRYP_ALGORITHM_DECRYPT;
 
-	/* DMA does not work for DES due to a hw bug */
+	/* DMA does not work for DES due to a hw  */
 	if (cryp_mode == CRYP_MODE_DMA && mode_is_aes(ctx->config.algomode))
 		return ablk_dma_crypt(areq);
 
@@ -1379,7 +1379,7 @@ static int cryp_algs_register_all(void)
 	int i;
 	int count;
 
-	pr_debug("[%s]", __func__);
+	pr_de("[%s]", __func__);
 
 	for (i = 0; i < ARRAY_SIZE(cryp_algs); i++) {
 		ret = crypto_register_alg(&cryp_algs[i].crypto);
@@ -1404,7 +1404,7 @@ static void cryp_algs_unregister_all(void)
 {
 	int i;
 
-	pr_debug(DEV_DBG_NAME " [%s]", __func__);
+	pr_de(DEV_DBG_NAME " [%s]", __func__);
 
 	for (i = 0; i < ARRAY_SIZE(cryp_algs); i++)
 		crypto_unregister_alg(&cryp_algs[i].crypto);
@@ -1745,7 +1745,7 @@ static struct platform_driver cryp_driver = {
 
 static int __init ux500_cryp_mod_init(void)
 {
-	pr_debug("[%s] is called!", __func__);
+	pr_de("[%s] is called!", __func__);
 	klist_init(&driver_data.device_list, NULL, NULL);
 	/* Initialize the semaphore to 0 devices (locked state) */
 	sema_init(&driver_data.device_allocation, 0);
@@ -1754,7 +1754,7 @@ static int __init ux500_cryp_mod_init(void)
 
 static void __exit ux500_cryp_mod_fini(void)
 {
-	pr_debug("[%s] is called!", __func__);
+	pr_de("[%s] is called!", __func__);
 	platform_driver_unregister(&cryp_driver);
 }
 

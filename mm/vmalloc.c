@@ -18,7 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/debugobjects.h>
+#include <linux/deobjects.h>
 #include <linux/kallsyms.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
@@ -121,7 +121,7 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
 	pgd_t *pgd;
 	unsigned long next;
 
-	BUG_ON(addr >= end);
+	_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
@@ -223,7 +223,7 @@ static int vmap_page_range_noflush(unsigned long start, unsigned long end,
 	int err = 0;
 	int nr = 0;
 
-	BUG_ON(addr >= end);
+	_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
 	do {
 		next = pgd_addr_end(addr, end);
@@ -274,10 +274,10 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	pte_t *ptep, pte;
 
 	/*
-	 * XXX we might need to change this if we add VIRTUAL_BUG_ON for
+	 * XXX we might need to change this if we add VIRTUAL__ON for
 	 * architectures that do not vmalloc module space
 	 */
-	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
+	VIRTUAL__ON(!is_vmalloc_or_module_addr(vmalloc_addr));
 
 	if (pgd_none(*pgd))
 		return NULL;
@@ -375,7 +375,7 @@ static void __insert_vmap_area(struct vmap_area *va)
 		else if (va->va_end > tmp_va->va_start)
 			p = &(*p)->rb_right;
 		else
-			BUG();
+			();
 	}
 
 	rb_link_node(&va->rb_node, parent, p);
@@ -410,9 +410,9 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 	int purged = 0;
 	struct vmap_area *first;
 
-	BUG_ON(!size);
-	BUG_ON(offset_in_page(size));
-	BUG_ON(!is_power_of_2(align));
+	_ON(!size);
+	_ON(offset_in_page(size));
+	_ON(!is_power_of_2(align));
 
 	might_sleep();
 
@@ -512,9 +512,9 @@ found:
 	free_vmap_cache = &va->rb_node;
 	spin_unlock(&vmap_area_lock);
 
-	BUG_ON(!IS_ALIGNED(va->va_start, align));
-	BUG_ON(va->va_start < vstart);
-	BUG_ON(va->va_end > vend);
+	_ON(!IS_ALIGNED(va->va_start, align));
+	_ON(va->va_start < vstart);
+	_ON(va->va_end > vend);
 
 	return va;
 
@@ -556,7 +556,7 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
 
 static void __free_vmap_area(struct vmap_area *va)
 {
-	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+	_ON(RB_EMPTY_NODE(&va->rb_node));
 
 	if (free_vmap_cache) {
 		if (va->va_end < cached_vstart) {
@@ -740,7 +740,7 @@ static void free_unmap_vmap_area(struct vmap_area *va)
 {
 	flush_cache_vunmap(va->va_start, va->va_end);
 	unmap_vmap_area(va);
-	if (debug_pagealloc_enabled())
+	if (de_pagealloc_enabled())
 		flush_tlb_kernel_range(va->va_start, va->va_end);
 
 	free_vmap_area_noflush(va);
@@ -834,7 +834,7 @@ static void *vmap_block_vaddr(unsigned long va_start, unsigned long pages_off)
 	unsigned long addr;
 
 	addr = va_start + (pages_off << PAGE_SHIFT);
-	BUG_ON(addr_to_vb_idx(addr) != addr_to_vb_idx(va_start));
+	_ON(addr_to_vb_idx(addr) != addr_to_vb_idx(va_start));
 	return (void *)addr;
 }
 
@@ -881,7 +881,7 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 	spin_lock_init(&vb->lock);
 	vb->va = va;
 	/* At least something should be left free */
-	BUG_ON(VMAP_BBMAP_BITS <= (1UL << order));
+	_ON(VMAP_BBMAP_BITS <= (1UL << order));
 	vb->free = VMAP_BBMAP_BITS - (1UL << order);
 	vb->dirty = 0;
 	vb->dirty_min = VMAP_BBMAP_BITS;
@@ -892,7 +892,7 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 	spin_lock(&vmap_block_tree_lock);
 	err = radix_tree_insert(&vmap_block_tree, vb_idx, vb);
 	spin_unlock(&vmap_block_tree_lock);
-	BUG_ON(err);
+	_ON(err);
 	radix_tree_preload_end();
 
 	vbq = &get_cpu_var(vmap_block_queue);
@@ -913,7 +913,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	spin_lock(&vmap_block_tree_lock);
 	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
 	spin_unlock(&vmap_block_tree_lock);
-	BUG_ON(tmp != vb);
+	_ON(tmp != vb);
 
 	free_vmap_area_noflush(vb->va);
 	kfree_rcu(vb, rcu_head);
@@ -969,8 +969,8 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
 	void *vaddr = NULL;
 	unsigned int order;
 
-	BUG_ON(offset_in_page(size));
-	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+	_ON(offset_in_page(size));
+	_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
 	if (WARN_ON(size == 0)) {
 		/*
 		 * Allocating 0 bytes isn't what caller wants since
@@ -1022,8 +1022,8 @@ static void vb_free(const void *addr, unsigned long size)
 	unsigned int order;
 	struct vmap_block *vb;
 
-	BUG_ON(offset_in_page(size));
-	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+	_ON(offset_in_page(size));
+	_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
 
 	flush_cache_vunmap((unsigned long)addr, (unsigned long)addr + size);
 
@@ -1036,11 +1036,11 @@ static void vb_free(const void *addr, unsigned long size)
 	rcu_read_lock();
 	vb = radix_tree_lookup(&vmap_block_tree, vb_idx);
 	rcu_read_unlock();
-	BUG_ON(!vb);
+	_ON(!vb);
 
 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
 
-	if (debug_pagealloc_enabled())
+	if (de_pagealloc_enabled())
 		flush_tlb_kernel_range((unsigned long)addr,
 					(unsigned long)addr + size);
 
@@ -1052,7 +1052,7 @@ static void vb_free(const void *addr, unsigned long size)
 
 	vb->dirty += 1UL << order;
 	if (vb->dirty == VMAP_BBMAP_BITS) {
-		BUG_ON(vb->free);
+		_ON(vb->free);
 		spin_unlock(&vb->lock);
 		free_vmap_block(vb);
 	} else
@@ -1127,20 +1127,20 @@ void vm_unmap_ram(const void *mem, unsigned int count)
 	struct vmap_area *va;
 
 	might_sleep();
-	BUG_ON(!addr);
-	BUG_ON(addr < VMALLOC_START);
-	BUG_ON(addr > VMALLOC_END);
-	BUG_ON(!PAGE_ALIGNED(addr));
+	_ON(!addr);
+	_ON(addr < VMALLOC_START);
+	_ON(addr > VMALLOC_END);
+	_ON(!PAGE_ALIGNED(addr));
 
 	if (likely(count <= VMAP_MAX_ALLOC)) {
-		debug_check_no_locks_freed(mem, size);
+		de_check_no_locks_freed(mem, size);
 		vb_free(mem, size);
 		return;
 	}
 
 	va = find_vmap_area(addr);
-	BUG_ON(!va);
-	debug_check_no_locks_freed((void *)va->va_start,
+	_ON(!va);
+	de_check_no_locks_freed((void *)va->va_start,
 				    (va->va_end - va->va_start));
 	free_unmap_vmap_area(va);
 }
@@ -1206,13 +1206,13 @@ void __init vm_area_add_early(struct vm_struct *vm)
 {
 	struct vm_struct *tmp, **p;
 
-	BUG_ON(vmap_initialized);
+	_ON(vmap_initialized);
 	for (p = &vmlist; (tmp = *p) != NULL; p = &tmp->next) {
 		if (tmp->addr >= vm->addr) {
-			BUG_ON(tmp->addr < vm->addr + vm->size);
+			_ON(tmp->addr < vm->addr + vm->size);
 			break;
 		} else
-			BUG_ON(tmp->addr + tmp->size > vm->addr);
+			_ON(tmp->addr + tmp->size > vm->addr);
 	}
 	vm->next = *p;
 	*p = vm;
@@ -1382,7 +1382,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 	struct vmap_area *va;
 	struct vm_struct *area;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	size = PAGE_ALIGN(size);
 	if (unlikely(!size))
 		return NULL;
@@ -1523,8 +1523,8 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 	}
 
-	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
-	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+	de_check_no_locks_freed(area->addr, get_vm_area_size(area));
+	de_check_no_obj_freed(area->addr, get_vm_area_size(area));
 
 	remove_vm_area(addr);
 	if (deallocate_pages) {
@@ -1533,7 +1533,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		for (i = 0; i < area->nr_pages; i++) {
 			struct page *page = area->pages[i];
 
-			BUG_ON(!page);
+			_ON(!page);
 			__free_pages(page, 0);
 		}
 
@@ -1567,7 +1567,7 @@ static inline void __vfree_deferred(const void *addr)
  */
 void vfree_atomic(const void *addr)
 {
-	BUG_ON(in_nmi());
+	_ON(in_nmi());
 
 	kmemleak_free(addr);
 
@@ -1602,7 +1602,7 @@ static void __vfree(const void *addr)
  */
 void vfree(const void *addr)
 {
-	BUG_ON(in_nmi());
+	_ON(in_nmi());
 
 	kmemleak_free(addr);
 
@@ -1626,7 +1626,7 @@ EXPORT_SYMBOL(vfree);
  */
 void vunmap(const void *addr)
 {
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	might_sleep();
 	if (addr)
 		__vunmap(addr, 0);
@@ -2032,7 +2032,7 @@ static int aligned_vread(char *buf, char *addr, unsigned long count)
 		/*
 		 * To do safe access to this _mapped_ area, we need
 		 * lock. But adding lock here means that we need to add
-		 * overhead of vmalloc()/vfree() calles for this _debug_
+		 * overhead of vmalloc()/vfree() calles for this _de_
 		 * interface, rarely used. Instead of that, we'll use
 		 * kmap() and get small overhead in this access function.
 		 */
@@ -2071,7 +2071,7 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
 		/*
 		 * To do safe access to this _mapped_ area, we need
 		 * lock. But adding lock here means that we need to add
-		 * overhead of vmalloc()/vfree() calles for this _debug_
+		 * overhead of vmalloc()/vfree() calles for this _de_
 		 * interface, rarely used. Instead of that, we'll use
 		 * kmap() and get small overhead in this access function.
 		 */
@@ -2384,7 +2384,7 @@ void free_vm_area(struct vm_struct *area)
 {
 	struct vm_struct *ret;
 	ret = remove_vm_area(area->addr);
-	BUG_ON(ret != area);
+	_ON(ret != area);
 	kfree(area);
 }
 EXPORT_SYMBOL_GPL(free_vm_area);
@@ -2510,14 +2510,14 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 	bool purged = false;
 
 	/* verify parameters and allocate data structures */
-	BUG_ON(offset_in_page(align) || !is_power_of_2(align));
+	_ON(offset_in_page(align) || !is_power_of_2(align));
 	for (last_area = 0, area = 0; area < nr_vms; area++) {
 		start = offsets[area];
 		end = start + sizes[area];
 
 		/* is everything aligned properly? */
-		BUG_ON(!IS_ALIGNED(offsets[area], align));
-		BUG_ON(!IS_ALIGNED(sizes[area], align));
+		_ON(!IS_ALIGNED(offsets[area], align));
+		_ON(!IS_ALIGNED(sizes[area], align));
 
 		/* detect the area with the highest address */
 		if (start > offsets[last_area])
@@ -2527,7 +2527,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 			unsigned long start2 = offsets[area2];
 			unsigned long end2 = start2 + sizes[area2];
 
-			BUG_ON(start2 < end && start < end2);
+			_ON(start2 < end && start < end2);
 		}
 	}
 	last_end = offsets[last_area] + sizes[last_area];
@@ -2563,8 +2563,8 @@ retry:
 	base = pvm_determine_end(&next, &prev, align) - end;
 
 	while (true) {
-		BUG_ON(next && next->va_end <= base + end);
-		BUG_ON(prev && prev->va_end > base + end);
+		_ON(next && next->va_end <= base + end);
+		_ON(prev && prev->va_end > base + end);
 
 		/*
 		 * base might have underflowed, add last_end before

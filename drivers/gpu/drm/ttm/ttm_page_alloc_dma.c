@@ -419,7 +419,7 @@ static unsigned ttm_dma_page_pool_free(struct dma_pool *pool, unsigned nr_free,
 					      GFP_KERNEL);
 
 	if (!pages_to_free) {
-		pr_debug("%s: Failed to allocate memory for pool free operation\n",
+		pr_de("%s: Failed to allocate memory for pool free operation\n",
 		       pool->dev_name);
 		return 0;
 	}
@@ -592,7 +592,7 @@ static struct dma_pool *ttm_dma_pool_init(struct device *dev, gfp_t flags,
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 		pool->size = HPAGE_PMD_SIZE;
 #else
-		BUG();
+		();
 #endif
 	else
 		pool->size = PAGE_SIZE;
@@ -709,19 +709,19 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 				      GFP_KERNEL);
 
 	if (!caching_array) {
-		pr_debug("%s: Unable to allocate table for new pages\n",
+		pr_de("%s: Unable to allocate table for new pages\n",
 		       pool->dev_name);
 		return -ENOMEM;
 	}
 
 	if (count > 1)
-		pr_debug("%s: (%s:%d) Getting %d pages\n",
+		pr_de("%s: (%s:%d) Getting %d pages\n",
 			 pool->dev_name, pool->name, current->pid, count);
 
 	for (i = 0, cpages = 0; i < count; ++i) {
 		dma_p = __ttm_dma_alloc_page(pool);
 		if (!dma_p) {
-			pr_debug("%s: Unable to get page %u\n",
+			pr_de("%s: Unable to get page %u\n",
 				 pool->dev_name, i);
 
 			/* store already allocated pages in the pool after
@@ -808,7 +808,7 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
 			struct dma_page *d_page;
 			unsigned cpages = 0;
 
-			pr_debug("%s: Failed to fill %s pool (r:%d)!\n",
+			pr_de("%s: Failed to fill %s pool (r:%d)!\n",
 				 pool->dev_name, pool->name, r);
 
 			list_for_each_entry(d_page, &d_pages, page_list) {
@@ -1118,7 +1118,7 @@ ttm_dma_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		shrink_pages = ttm_dma_page_pool_free(p->pool, nr_free, true);
 		freed += nr_free - shrink_pages;
 
-		pr_debug("%s: (%s:%d) Asked to shrink %d, have %d more to go\n",
+		pr_de("%s: (%s:%d) Asked to shrink %d, have %d more to go\n",
 			 p->pool->dev_name, p->pool->name, current->pid,
 			 nr_free, shrink_pages);
 	}
@@ -1208,7 +1208,7 @@ void ttm_dma_page_alloc_fini(void)
 	_manager = NULL;
 }
 
-int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
+int ttm_dma_page_alloc_defs(struct seq_file *m, void *data)
 {
 	struct device_pools *p;
 	struct dma_pool *pool = NULL;
@@ -1233,6 +1233,6 @@ int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
 	mutex_unlock(&_manager->lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ttm_dma_page_alloc_debugfs);
+EXPORT_SYMBOL_GPL(ttm_dma_page_alloc_defs);
 
 #endif

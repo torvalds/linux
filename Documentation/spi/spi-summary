@@ -528,7 +528,7 @@ SPI MASTER METHODS
 	change them right away ... otherwise drivers could corrupt I/O
 	that's in progress for other SPI devices.
 
-		** BUG ALERT:  for some reason the first version of
+		**  ALERT:  for some reason the first version of
 		** many spi_master drivers seems to get this wrong.
 		** When you code setup(), ASSUME that the controller
 		** is actively processing transfers for another device.

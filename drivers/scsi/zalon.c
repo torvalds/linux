@@ -72,7 +72,7 @@ lasi_scsi_clock(void * hpa, int defaultclock)
 		clock = defaultclock; 
 	}
 
-	printk(KERN_DEBUG "%s: SCSI clock %d\n", __func__, clock);
+	printk(KERN_DE "%s: SCSI clock %d\n", __func__, clock);
  	return clock;
 }
 #endif
@@ -100,7 +100,7 @@ zalon_probe(struct parisc_device *dev)
 	__raw_writel(IOIIDATA_MINT5EN | IOIIDATA_PACKEN | IOIIDATA_PREFETCHEN,
 		zalon + IO_MODULE_II_CDATA);
 
-	/* XXX: Save the Zalon version for bug workarounds? */
+	/* XXX: Save the Zalon version for  workarounds? */
 	zalon_vers = (__raw_readl(zalon + IO_MODULE_II_CDATA) >> 24) & 0x07;
 
 	/* Setup the interrupts first.

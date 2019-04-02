@@ -402,7 +402,7 @@ static struct drm_plane *cirrus_primary_plane(struct drm_device *dev)
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
 	if (primary == NULL) {
-		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
+		DRM_DE_KMS("Failed to allocate primary plane\n");
 		return NULL;
 	}
 

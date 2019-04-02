@@ -9,14 +9,14 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "extents.h"
 #include "request.h"
 #include "writeback.h"
 
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/genhd.h>
 #include <linux/idr.h>
 #include <linux/kthread.h>
@@ -87,7 +87,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 	for (i = 0; i < SB_JOURNAL_BUCKETS; i++)
 		sb->d[i] = le64_to_cpu(s->d[i]);
 
-	pr_debug("read sb version %llu, flags %llu, seq %llu, journal size %u",
+	pr_de("read sb version %llu, flags %llu, seq %llu, journal size %u",
 		 sb->version, sb->flags, sb->seq, sb->keys);
 
 	err = "Not a bcache superblock";
@@ -231,7 +231,7 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 
 	out->csum = csum_set(out);
 
-	pr_debug("ver %llu, flags %llu, seq %llu",
+	pr_de("ver %llu, flags %llu, seq %llu",
 		 sb->version, sb->flags, sb->seq);
 
 	submit_bio(bio);
@@ -340,7 +340,7 @@ static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
 	unsigned int i;
 	char buf[80];
 
-	BUG_ON(!parent);
+	_ON(!parent);
 	down(&c->uuid_write_mutex);
 	closure_init(cl, parent);
 
@@ -362,11 +362,11 @@ static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
 	}
 
 	bch_extent_to_text(buf, sizeof(buf), k);
-	pr_debug("%s UUIDs at %s", op == REQ_OP_WRITE ? "wrote" : "read", buf);
+	pr_de("%s UUIDs at %s", op == REQ_OP_WRITE ? "wrote" : "read", buf);
 
 	for (u = c->uuids; u < c->uuids + c->nr_uuids; u++)
 		if (!bch_is_zero(u->uuid, 16))
-			pr_debug("Slot %zi: %pU: %s: 1st: %u last: %u inv: %u",
+			pr_de("Slot %zi: %pU: %s: 1st: %u last: %u inv: %u",
 				 u - c->uuids, u->uuid, u->label,
 				 u->first_reg, u->last_reg, u->invalidated);
 
@@ -540,7 +540,7 @@ void bch_prio_write(struct cache *ca)
 	atomic_long_add(ca->sb.bucket_size * prio_buckets(ca),
 			&ca->meta_sectors_written);
 
-	//pr_debug("free %zu, free_inc %zu, unused %zu", fifo_used(&ca->free),
+	//pr_de("free %zu, free_inc %zu, unused %zu", fifo_used(&ca->free),
 	//	 fifo_used(&ca->free_inc), fifo_used(&ca->unused));
 
 	for (i = prio_buckets(ca) - 1; i >= 0; --i) {
@@ -561,14 +561,14 @@ void bch_prio_write(struct cache *ca)
 		p->csum		= bch_crc64(&p->magic, bucket_bytes(ca) - 8);
 
 		bucket = bch_bucket_alloc(ca, RESERVE_PRIO, true);
-		BUG_ON(bucket == -1);
+		_ON(bucket == -1);
 
 		mutex_unlock(&ca->set->bucket_lock);
 		prio_io(ca, bucket, REQ_OP_WRITE, 0);
 		mutex_lock(&ca->set->bucket_lock);
 
 		ca->prio_buckets[i] = bucket;
-		atomic_dec_bug(&ca->buckets[bucket].pin);
+		atomic_dec_(&ca->buckets[bucket].pin);
 	}
 
 	mutex_unlock(&ca->set->bucket_lock);
@@ -767,7 +767,7 @@ static void bcache_device_free(struct bcache_device *d)
 	kvfree(d->full_dirty_stripes);
 	kvfree(d->stripe_sectors_dirty);
 
-	closure_debug_destroy(&d->cl);
+	closure_de_destroy(&d->cl);
 }
 
 static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
@@ -947,7 +947,7 @@ void bch_cached_dev_run(struct cached_dev *dc)
 
 	if (sysfs_create_link(&d->kobj, &disk_to_dev(d->disk)->kobj, "dev") ||
 	    sysfs_create_link(&disk_to_dev(d->disk)->kobj, &d->kobj, "bcache"))
-		pr_debug("error creating sysfs link");
+		pr_de("error creating sysfs link");
 
 	dc->status_update_thread = kthread_run(cached_dev_status_update,
 					       dc, "bcache_status_update");
@@ -990,8 +990,8 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	closure_init_stack(&cl);
 
-	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
-	BUG_ON(refcount_read(&dc->count));
+	_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
+	_ON(refcount_read(&dc->count));
 
 	mutex_lock(&bch_register_lock);
 
@@ -1510,7 +1510,7 @@ static void cache_set_free(struct closure *cl)
 	struct cache *ca;
 	unsigned int i;
 
-	debugfs_remove(c->debug);
+	defs_remove(c->de);
 
 	bch_open_buckets_free(c);
 	bch_btree_cache_free(c);
@@ -1541,7 +1541,7 @@ static void cache_set_free(struct closure *cl)
 	pr_info("Cache set %pU unregistered", c->sb.set_uuid);
 	wake_up(&unregister_wait);
 
-	closure_debug_destroy(&c->cl);
+	closure_de_destroy(&c->cl);
 	kobject_put(&c->kobj);
 }
 
@@ -1798,7 +1798,7 @@ static void run_cache_set(struct cache_set *c)
 		if (bch_journal_read(c, &journal))
 			goto err;
 
-		pr_debug("btree_journal_read() done");
+		pr_de("btree_journal_read() done");
 
 		err = "no journal entries found";
 		if (list_empty(&journal))
@@ -1842,7 +1842,7 @@ static void run_cache_set(struct cache_set *c)
 
 		bch_journal_mark(c, &journal);
 		bch_initial_gc_finish(c);
-		pr_debug("btree_check() done");
+		pr_de("btree_check() done");
 
 		/*
 		 * bcache_journal_next() can't happen sooner, or
@@ -1983,7 +1983,7 @@ static const char *register_cache_set(struct cache *ca)
 	if (bch_cache_accounting_add_kobjs(&c->accounting, &c->kobj))
 		goto err;
 
-	bch_debug_init_cache_set(c);
+	bch_de_init_cache_set(c);
 
 	list_add(&c->list, &bch_cache_sets);
 found:
@@ -1997,7 +1997,7 @@ found:
 		memcpy(c->sb.set_uuid, ca->sb.set_uuid, 16);
 		c->sb.flags             = ca->sb.flags;
 		c->sb.seq		= ca->sb.seq;
-		pr_debug("set version = %llu", c->sb.version);
+		pr_de("set version = %llu", c->sb.version);
 	}
 
 	kobject_get(&ca->kobj);
@@ -2022,7 +2022,7 @@ void bch_cache_release(struct kobject *kobj)
 	unsigned int i;
 
 	if (ca->set) {
-		BUG_ON(ca->set->cache[ca->sb.nr_this_dev] != ca);
+		_ON(ca->set->cache[ca->sb.nr_this_dev] != ca);
 		ca->set->cache[ca->sb.nr_this_dev] = NULL;
 	}
 
@@ -2408,7 +2408,7 @@ static struct notifier_block reboot = {
 
 static void bcache_exit(void)
 {
-	bch_debug_exit();
+	bch_de_exit();
 	bch_request_exit();
 	if (bcache_kobj)
 		kobject_put(bcache_kobj);
@@ -2486,8 +2486,8 @@ static int __init bcache_init(void)
 	    sysfs_create_files(bcache_kobj, files))
 		goto err;
 
-	bch_debug_init();
-	closure_debug_init();
+	bch_de_init();
+	closure_de_init();
 
 	return 0;
 err:

@@ -55,11 +55,11 @@ static int __initdata				nr_range;
 
 static struct var_mtrr_range_state __initdata	range_state[RANGE_NUM];
 
-static int __initdata debug_print;
-#define Dprintk(x...) do { if (debug_print) pr_debug(x); } while (0)
+static int __initdata de_print;
+#define Dprintk(x...) do { if (de_print) pr_de(x); } while (0)
 
-#define BIOS_BUG_MSG \
-	"WARNING: BIOS bug: VAR MTRR %d contains strange UC entry under 1M, check with your system vendor!\n"
+#define BIOS__MSG \
+	"WARNING: BIOS : VAR MTRR %d contains strange UC entry under 1M, check with your system vendor!\n"
 
 static int __init
 x86_get_mtrr_mem_range(struct range *range, int nr_range,
@@ -79,10 +79,10 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		nr_range = add_range_with_merge(range, RANGE_NUM, nr_range,
 						base, base + size);
 	}
-	if (debug_print) {
-		pr_debug("After WB checking\n");
+	if (de_print) {
+		pr_de("After WB checking\n");
 		for (i = 0; i < nr_range; i++)
-			pr_debug("MTRR MAP PFN: %016llx - %016llx\n",
+			pr_de("MTRR MAP PFN: %016llx - %016llx\n",
 				 range[i].start, range[i].end);
 	}
 
@@ -100,7 +100,7 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		    (mtrr_state.enabled & MTRR_STATE_MTRR_ENABLED) &&
 		    (mtrr_state.enabled & MTRR_STATE_MTRR_FIXED_ENABLED)) {
 			/* Var MTRR contains UC entry below 1M? Skip it: */
-			pr_warn(BIOS_BUG_MSG, i);
+			pr_warn(BIOS__MSG, i);
 			if (base + size <= (1<<(20-PAGE_SHIFT)))
 				continue;
 			size -= (1<<(20-PAGE_SHIFT)) - base;
@@ -112,22 +112,22 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		subtract_range(range, RANGE_NUM, extra_remove_base,
 				 extra_remove_base + extra_remove_size);
 
-	if  (debug_print) {
-		pr_debug("After UC checking\n");
+	if  (de_print) {
+		pr_de("After UC checking\n");
 		for (i = 0; i < RANGE_NUM; i++) {
 			if (!range[i].end)
 				continue;
-			pr_debug("MTRR MAP PFN: %016llx - %016llx\n",
+			pr_de("MTRR MAP PFN: %016llx - %016llx\n",
 				 range[i].start, range[i].end);
 		}
 	}
 
 	/* sort the ranges */
 	nr_range = clean_sort_range(range, RANGE_NUM);
-	if  (debug_print) {
-		pr_debug("After sorting\n");
+	if  (de_print) {
+		pr_de("After sorting\n");
 		for (i = 0; i < nr_range; i++)
-			pr_debug("MTRR MAP PFN: %016llx - %016llx\n",
+			pr_de("MTRR MAP PFN: %016llx - %016llx\n",
 				 range[i].start, range[i].end);
 	}
 
@@ -164,12 +164,12 @@ static int __init enable_mtrr_cleanup_setup(char *str)
 }
 early_param("enable_mtrr_cleanup", enable_mtrr_cleanup_setup);
 
-static int __init mtrr_cleanup_debug_setup(char *str)
+static int __init mtrr_cleanup_de_setup(char *str)
 {
-	debug_print = 1;
+	de_print = 1;
 	return 0;
 }
-early_param("mtrr_cleanup_debug", mtrr_cleanup_debug_setup);
+early_param("mtrr_cleanup_de", mtrr_cleanup_de_setup);
 
 static void __init
 set_var_mtrr(unsigned int reg, unsigned long basek, unsigned long sizek,
@@ -267,7 +267,7 @@ range_to_mtrr(unsigned int reg, unsigned long range_startk,
 			align = max_align;
 
 		sizek = 1UL << align;
-		if (debug_print) {
+		if (de_print) {
 			char start_factor = 'K', size_factor = 'K';
 			unsigned long start_base, size_base;
 
@@ -542,7 +542,7 @@ static void __init print_out_mtrr_range_state(void)
 		start_base = to_size_factor(start_base, &start_factor),
 		type = range_state[i].type;
 
-		pr_debug("reg %d, base: %ld%cB, range: %ld%cB, type %s\n",
+		pr_de("reg %d, base: %ld%cB, range: %ld%cB, type %s\n",
 			i, start_base, start_factor,
 			size_base, size_factor,
 			(type == MTRR_TYPE_UNCACHABLE) ? "UC" :
@@ -710,8 +710,8 @@ int __init mtrr_cleanup(unsigned address_bits)
 	if (!mtrr_need_cleanup())
 		return 0;
 
-	/* Print original var MTRRs at first, for debugging: */
-	pr_debug("original variable MTRRs\n");
+	/* Print original var MTRRs at first, for deging: */
+	pr_de("original variable MTRRs\n");
 	print_out_mtrr_range_state();
 
 	memset(range, 0, sizeof(range));
@@ -743,7 +743,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 
 		if (!result[i].bad) {
 			set_var_mtrr_all(address_bits);
-			pr_debug("New variable MTRRs\n");
+			pr_de("New variable MTRRs\n");
 			print_out_mtrr_range_state();
 			return 1;
 		}
@@ -763,7 +763,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 
 			mtrr_calc_range_state(chunk_size, gran_size,
 				      x_remove_base, x_remove_size, i);
-			if (debug_print) {
+			if (de_print) {
 				mtrr_print_out_one_result(i);
 				pr_info("\n");
 			}
@@ -787,7 +787,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 		gran_size <<= 10;
 		x86_setup_var_mtrrs(range, nr_range, chunk_size, gran_size);
 		set_var_mtrr_all(address_bits);
-		pr_debug("New variable MTRRs\n");
+		pr_de("New variable MTRRs\n");
 		print_out_mtrr_range_state();
 		return 1;
 	} else {
@@ -867,7 +867,7 @@ real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
  * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
  * @end_pfn: ending page frame number
  *
- * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
+ * Some gy BIOSes don't setup the MTRRs properly for systems with certain
  * memory configurations.  This routine checks that the highest MTRR matches
  * the end of memory, to make sure the MTRRs having a write back type cover
  * all of the memory the kernel is intending to use.  If not, it'll trim any
@@ -971,7 +971,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 							 end_pfn);
 
 	if (total_trim_size) {
-		pr_warn("WARNING: BIOS bug: CPU MTRRs don't cover all of memory, losing %lluMB of RAM.\n",
+		pr_warn("WARNING: BIOS : CPU MTRRs don't cover all of memory, losing %lluMB of RAM.\n",
 			total_trim_size >> 20);
 
 		if (!changed_by_mtrr_cleanup)

@@ -806,7 +806,7 @@ void b43_httab_write_bulk(struct b43_wldev *dev, u32 offset,
 	} while (0)
 void b43_phy_ht_tables_init(struct b43_wldev *dev)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(b43_httab_0x1a_0xc0_late) !=
+	BUILD__ON(ARRAY_SIZE(b43_httab_0x1a_0xc0_late) !=
 			B43_HTTAB_1A_C0_LATE_SIZE);
 
 	httab_upload(dev, B43_HTTAB16(0x12, 0), b43_httab_0x12);

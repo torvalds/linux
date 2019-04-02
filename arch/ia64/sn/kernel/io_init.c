@@ -171,7 +171,7 @@ sn_io_slot_fixup(struct pci_dev *dev)
 		(u64) __pa(pcidev_info),
 		(u64) __pa(sn_irq_info));
 
-	BUG_ON(status); /* Cannot get platform pci device information */
+	_ON(status); /* Cannot get platform pci device information */
 
 
 	/* Copy over PIO Mapped Addresses */
@@ -233,11 +233,11 @@ sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	prom_bussoft_ptr = __va(prom_bussoft_ptr);
 
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
-	BUG_ON(!controller);
+	_ON(!controller);
 	controller->segment = segment;
 
 	res = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
-	BUG_ON(!res);
+	_ON(!res);
 
 	/*
 	 * Temporarily save the prom_bussoft_ptr for use by sn_bus_fixup().

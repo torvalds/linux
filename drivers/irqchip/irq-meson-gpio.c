@@ -139,7 +139,7 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 
 	spin_unlock(&ctl->lock);
 
-	pr_debug("hwirq %lu assigned to channel %d - irq %u\n",
+	pr_de("hwirq %lu assigned to channel %d - irq %u\n",
 		 hwirq, idx, **channel_hwirq);
 
 	return 0;

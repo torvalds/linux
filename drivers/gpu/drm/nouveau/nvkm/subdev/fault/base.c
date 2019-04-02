@@ -99,7 +99,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 	fault->func->buffer.info(buffer);
 	fault->buffer[id] = buffer;
 
-	nvkm_debug(subdev, "buffer %d: %d entries\n", id, buffer->entries);
+	nvkm_de(subdev, "buffer %d: %d entries\n", id, buffer->entries);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, buffer->entries *
 			      fault->func->buffer.entry_size, 0x1000, true,

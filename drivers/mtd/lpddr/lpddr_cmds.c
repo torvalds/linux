@@ -721,7 +721,7 @@ static int do_xxlock(struct mtd_info *mtd, loff_t adr, uint32_t len, int thunk)
 		send_pfow_command(map, LPDDR_UNLOCK_BLOCK, adr, adr + len, NULL);
 		chip->state = FL_UNLOCKING;
 	} else
-		BUG();
+		();
 
 	ret = wait_for_ready(map, chip, 1);
 	if (ret)	{

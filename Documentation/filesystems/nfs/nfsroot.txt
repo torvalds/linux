@@ -220,9 +220,9 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>:
   root filesystem if it is on NFS).
 
 
-nfsrootdebug
+nfsrootde
 
-  This parameter enables debugging messages to appear in the kernel
+  This parameter enables deging messages to appear in the kernel
   log at boot time so that administrators can verify that the correct
   NFS mount options, server address, and root path are passed to the
   NFS client.

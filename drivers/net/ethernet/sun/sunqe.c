@@ -259,7 +259,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 {
 	struct net_device *dev = qep->dev;
-	int mace_hwbug_workaround = 0;
+	int mace_hw_workaround = 0;
 
 	if (qe_status & CREG_STAT_EDEFER) {
 		printk(KERN_ERR "%s: Excessive transmit defers.\n", dev->name);
@@ -275,20 +275,20 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 	if (qe_status & CREG_STAT_ERETRIES) {
 		printk(KERN_ERR "%s: Excessive transmit retries (more than 16).\n", dev->name);
 		dev->stats.tx_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_LCOLL) {
 		printk(KERN_ERR "%s: Late transmit collision.\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.collisions++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_FUFLOW) {
-		printk(KERN_ERR "%s: Transmit fifo underflow, driver bug.\n", dev->name);
+		printk(KERN_ERR "%s: Transmit fifo underflow, driver .\n", dev->name);
 		dev->stats.tx_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_JERROR) {
@@ -305,30 +305,30 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 	}
 
 	if (qe_status & CREG_STAT_TXDERROR) {
-		printk(KERN_ERR "%s: Transmit descriptor is bogus, driver bug.\n", dev->name);
+		printk(KERN_ERR "%s: Transmit descriptor is bogus, driver .\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.tx_aborted_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_TXLERR) {
 		printk(KERN_ERR "%s: Transmit late error.\n", dev->name);
 		dev->stats.tx_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_TXPERR) {
 		printk(KERN_ERR "%s: Transmit DMA parity error.\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.tx_aborted_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_TXSERR) {
 		printk(KERN_ERR "%s: Transmit DMA sbus error ack.\n", dev->name);
 		dev->stats.tx_errors++;
 		dev->stats.tx_aborted_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_RCCOFLOW) {
@@ -376,7 +376,7 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 	}
 
 	if (qe_status & CREG_STAT_RXSMALL) {
-		printk(KERN_ERR "%s: Receive buffer too small, driver bug.\n", dev->name);
+		printk(KERN_ERR "%s: Receive buffer too small, driver .\n", dev->name);
 		dev->stats.rx_errors++;
 		dev->stats.rx_length_errors++;
 	}
@@ -384,26 +384,26 @@ static int qe_is_bolixed(struct sunqe *qep, u32 qe_status)
 	if (qe_status & CREG_STAT_RXLERR) {
 		printk(KERN_ERR "%s: Receive late error.\n", dev->name);
 		dev->stats.rx_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_RXPERR) {
 		printk(KERN_ERR "%s: Receive DMA parity error.\n", dev->name);
 		dev->stats.rx_errors++;
 		dev->stats.rx_missed_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
 	if (qe_status & CREG_STAT_RXSERR) {
 		printk(KERN_ERR "%s: Receive DMA sbus error ack.\n", dev->name);
 		dev->stats.rx_errors++;
 		dev->stats.rx_missed_errors++;
-		mace_hwbug_workaround = 1;
+		mace_hw_workaround = 1;
 	}
 
-	if (mace_hwbug_workaround)
+	if (mace_hw_workaround)
 		qe_init(qep, 1);
-	return mace_hwbug_workaround;
+	return mace_hw_workaround;
 }
 
 /* Per-QE receive interrupt service routine.  Just like on the happy meal
@@ -668,7 +668,7 @@ static void qe_set_multicast(struct net_device *dev)
 	 * or enabling/disabling promiscuous mode causes the MACE to disable
 	 * the receiver.  So we must re-enable them here or else the MACE
 	 * refuses to listen to anything on the network.  Sheesh, took
-	 * me a day or two to find this bug.
+	 * me a day or two to find this .
 	 */
 	qep->mconfig = new_mconfig;
 	sbus_writeb(qep->mconfig, qep->mregs + MREGS_MCONFIG);

@@ -148,7 +148,7 @@ static int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		return PTR_ERR(dsaf_dev->ppe_base);
 	dsaf_dev->ppe_paddr = res->start;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+	if (!HNS_DSAF_IS_DE(dsaf_dev)) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "dsaf-base");
 		if (!res) {
@@ -765,7 +765,7 @@ static void hns_dsaf_tbl_tcam_data_ucast_pul(
 
 void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 {
-	if (AE_IS_VER1(dsaf_dev->dsaf_ver) && !HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) && !HNS_DSAF_IS_DE(dsaf_dev))
 		dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG,
 				 DSAF_CFG_MIX_MODE_S, !!en);
 }
@@ -1448,7 +1448,7 @@ static int hns_dsaf_init(struct dsaf_device *dsaf_dev)
 	u32 i;
 	int ret;
 
-	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (HNS_DSAF_IS_DE(dsaf_dev))
 		return 0;
 
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
@@ -2031,7 +2031,7 @@ int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev, u8 mac_id,
 	struct dsaf_tbl_tcam_mcast_cfg mac_data;
 	int ret = 0, i;
 
-	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+	if (HNS_DSAF_IS_DE(dsaf_dev))
 		return 0;
 
 	for (i = 0; i < DSAF_TCAM_SUM - DSAFV2_MAC_FUZZY_TCAM_NUM; i++) {

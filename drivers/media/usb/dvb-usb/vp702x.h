@@ -5,11 +5,11 @@
 #define DVB_USB_LOG_PREFIX "vp702x"
 #include "dvb-usb.h"
 
-extern int dvb_usb_vp702x_debug;
-#define deb_info(args...) dprintk(dvb_usb_vp702x_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_vp702x_debug,0x02,args)
-#define deb_rc(args...)   dprintk(dvb_usb_vp702x_debug,0x04,args)
-#define deb_fe(args...)   dprintk(dvb_usb_vp702x_debug,0x08,args)
+extern int dvb_usb_vp702x_de;
+#define deb_info(args...) dprintk(dvb_usb_vp702x_de,0x01,args)
+#define deb_xfer(args...) dprintk(dvb_usb_vp702x_de,0x02,args)
+#define deb_rc(args...)   dprintk(dvb_usb_vp702x_de,0x04,args)
+#define deb_fe(args...)   dprintk(dvb_usb_vp702x_de,0x08,args)
 
 /* commands are read and written with USB control messages */
 

@@ -106,7 +106,7 @@ static void __init gic_fixup_resource(struct resource *res)
 	if (WARN_ON(!virq))
 		return;
 
-	pr_debug("hwirq %u -> virq %u\n", hwirq, virq);
+	pr_de("hwirq %u -> virq %u\n", hwirq, virq);
 	res->start = virq;
 }
 
@@ -123,7 +123,7 @@ int __init board_staging_register_clock(const struct board_staging_clk *bsc)
 {
 	int error;
 
-	pr_debug("Aliasing clock %s for con_id %s dev_id %s\n", bsc->clk,
+	pr_de("Aliasing clock %s for con_id %s dev_id %s\n", bsc->clk,
 		 bsc->con_id, bsc->dev_id);
 	error = clk_add_alias(bsc->con_id, bsc->dev_id, bsc->clk, NULL);
 	if (error)
@@ -164,7 +164,7 @@ int __init board_staging_register_device(const struct board_staging_dev *dev)
 	unsigned int i;
 	int error;
 
-	pr_debug("Trying to register device %s\n", pdev->name);
+	pr_de("Trying to register device %s\n", pdev->name);
 	if (board_staging_dt_node_available(pdev->resource,
 					    pdev->num_resources)) {
 		pr_warn("Skipping %s, already in DT\n", pdev->name);

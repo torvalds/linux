@@ -21,7 +21,7 @@
  *
  */
 
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "smumgr.h"
 #include "smu7_dyn_defaults.h"
 #include "smu73.h"

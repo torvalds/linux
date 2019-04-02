@@ -168,7 +168,7 @@ struct aoedev {
 	ulong ref;
 	struct work_struct work;/* disk create work struct */
 	struct gendisk *gd;
-	struct dentry *debugfs;
+	struct dentry *defs;
 	struct request_queue *blkq;
 	struct list_head rq_list;
 	struct blk_mq_tag_set tag_set;
@@ -208,7 +208,7 @@ struct ktstate {
 int aoeblk_init(void);
 void aoeblk_exit(void);
 void aoeblk_gdalloc(void *);
-void aoedisk_rm_debugfs(struct aoedev *d);
+void aoedisk_rm_defs(struct aoedev *d);
 
 int aoechr_init(void);
 void aoechr_exit(void);

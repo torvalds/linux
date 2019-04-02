@@ -343,8 +343,8 @@ int fjes_hw_init(struct fjes_hw *hw)
 
 	ret = fjes_hw_setup(hw);
 
-	hw->hw_info.trace = vzalloc(FJES_DEBUG_BUFFER_SIZE);
-	hw->hw_info.trace_size = FJES_DEBUG_BUFFER_SIZE;
+	hw->hw_info.trace = vzalloc(FJES_DE_BUFFER_SIZE);
+	hw->hw_info.trace_size = FJES_DE_BUFFER_SIZE;
 
 	return ret;
 }
@@ -355,16 +355,16 @@ void fjes_hw_exit(struct fjes_hw *hw)
 
 	if (hw->base) {
 
-		if (hw->debug_mode) {
-			/* disable debug mode */
+		if (hw->de_mode) {
+			/* disable de mode */
 			mutex_lock(&hw->hw_info.lock);
-			fjes_hw_stop_debug(hw);
+			fjes_hw_stop_de(hw);
 			mutex_unlock(&hw->hw_info.lock);
 		}
 		vfree(hw->hw_info.trace);
 		hw->hw_info.trace = NULL;
 		hw->hw_info.trace_size = 0;
-		hw->debug_mode = 0;
+		hw->de_mode = 0;
 
 		ret = fjes_hw_reset(hw);
 		if (ret)
@@ -1191,7 +1191,7 @@ static void fjes_hw_epstop_task(struct work_struct *work)
 	}
 }
 
-int fjes_hw_start_debug(struct fjes_hw *hw)
+int fjes_hw_start_de(struct fjes_hw *hw)
 {
 	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
 	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
@@ -1203,18 +1203,18 @@ int fjes_hw_start_debug(struct fjes_hw *hw)
 
 	if (!hw->hw_info.trace)
 		return -EPERM;
-	memset(hw->hw_info.trace, 0, FJES_DEBUG_BUFFER_SIZE);
+	memset(hw->hw_info.trace, 0, FJES_DE_BUFFER_SIZE);
 
 	memset(req_buf, 0, hw->hw_info.req_buf_size);
 	memset(res_buf, 0, hw->hw_info.res_buf_size);
 
 	req_buf->start_trace.length =
 		FJES_DEV_COMMAND_START_DBG_REQ_LEN(hw->hw_info.trace_size);
-	req_buf->start_trace.mode = hw->debug_mode;
+	req_buf->start_trace.mode = hw->de_mode;
 	req_buf->start_trace.buffer_len = hw->hw_info.trace_size;
-	page_count = hw->hw_info.trace_size / FJES_DEBUG_PAGE_SIZE;
+	page_count = hw->hw_info.trace_size / FJES_DE_PAGE_SIZE;
 	for (i = 0; i < page_count; i++) {
-		addr = ((u8 *)hw->hw_info.trace) + i * FJES_DEBUG_PAGE_SIZE;
+		addr = ((u8 *)hw->hw_info.trace) + i * FJES_DE_PAGE_SIZE;
 		req_buf->start_trace.buffer[i] =
 			(__le64)(page_to_phys(vmalloc_to_page(addr)) +
 			offset_in_page(addr));
@@ -1223,14 +1223,14 @@ int fjes_hw_start_debug(struct fjes_hw *hw)
 	res_buf->start_trace.length = 0;
 	res_buf->start_trace.code = 0;
 
-	trace_fjes_hw_start_debug_req(req_buf);
-	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_START_DEBUG);
-	trace_fjes_hw_start_debug(res_buf);
+	trace_fjes_hw_start_de_req(req_buf);
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_START_DE);
+	trace_fjes_hw_start_de(res_buf);
 
 	if (res_buf->start_trace.length !=
 		FJES_DEV_COMMAND_START_DBG_RES_LEN) {
 		result = -ENOMSG;
-		trace_fjes_hw_start_debug_err("Invalid res_buf");
+		trace_fjes_hw_start_de_err("Invalid res_buf");
 	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->start_trace.code) {
 		case FJES_CMD_REQ_RES_CODE_NORMAL:
@@ -1246,7 +1246,7 @@ int fjes_hw_start_debug(struct fjes_hw *hw)
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
-			trace_fjes_hw_start_debug_err("Busy Timeout");
+			trace_fjes_hw_start_de_err("Busy Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
@@ -1260,7 +1260,7 @@ int fjes_hw_start_debug(struct fjes_hw *hw)
 	return result;
 }
 
-int fjes_hw_stop_debug(struct fjes_hw *hw)
+int fjes_hw_stop_de(struct fjes_hw *hw)
 {
 	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
 	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
@@ -1277,17 +1277,17 @@ int fjes_hw_stop_debug(struct fjes_hw *hw)
 	res_buf->stop_trace.length = 0;
 	res_buf->stop_trace.code = 0;
 
-	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_STOP_DEBUG);
-	trace_fjes_hw_stop_debug(res_buf);
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_STOP_DE);
+	trace_fjes_hw_stop_de(res_buf);
 
 	if (res_buf->stop_trace.length != FJES_DEV_COMMAND_STOP_DBG_RES_LEN) {
-		trace_fjes_hw_stop_debug_err("Invalid res_buf");
+		trace_fjes_hw_stop_de_err("Invalid res_buf");
 		result = -ENOMSG;
 	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->stop_trace.code) {
 		case FJES_CMD_REQ_RES_CODE_NORMAL:
 			result = 0;
-			hw->debug_mode = 0;
+			hw->de_mode = 0;
 			break;
 		default:
 			result = -EPERM;
@@ -1300,7 +1300,7 @@ int fjes_hw_stop_debug(struct fjes_hw *hw)
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
 			result = -EBUSY;
-			trace_fjes_hw_stop_debug_err("Busy Timeout");
+			trace_fjes_hw_stop_de_err("Busy Timeout");
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
 		case FJES_CMD_STATUS_ERROR_STATUS:

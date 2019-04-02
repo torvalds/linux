@@ -23,7 +23,7 @@
 
 #include <linux/types.h>
 #include <linux/hash.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/sched/clock.h>
@@ -105,9 +105,9 @@ void __chash_table_dump_stats(struct __chash_table *table)
 		CHASH_ITER_INC(iter);
 	} while (iter.slot);
 
-	pr_debug("chash: key size %u, value size %u\n",
+	pr_de("chash: key size %u, value size %u\n",
 		 table->key_size, table->value_size);
-	pr_debug("  Slots total/filled/empty/tombstones: %u / %u / %u / %u\n",
+	pr_de("  Slots total/filled/empty/tombstones: %u / %u / %u / %u\n",
 		 1 << table->bits, filled, empty, tombstones);
 	if (table->hits > 0) {
 		DIV_FRAC(table->hits_steps, table->hits, quot1, frac1, 1000);
@@ -117,7 +117,7 @@ void __chash_table_dump_stats(struct __chash_table *table)
 		quot1 = quot2 = 0;
 		frac1 = frac2 = 0;
 	}
-	pr_debug("  Hits   (avg.cost, rate): %llu (%llu.%03u, %llu.%03u M/s)\n",
+	pr_de("  Hits   (avg.cost, rate): %llu (%llu.%03u, %llu.%03u M/s)\n",
 		 table->hits, quot1, frac1, quot2, frac2);
 	if (table->miss > 0) {
 		DIV_FRAC(table->miss_steps, table->miss, quot1, frac1, 1000);
@@ -127,7 +127,7 @@ void __chash_table_dump_stats(struct __chash_table *table)
 		quot1 = quot2 = 0;
 		frac1 = frac2 = 0;
 	}
-	pr_debug("  Misses (avg.cost, rate): %llu (%llu.%03u, %llu.%03u M/s)\n",
+	pr_de("  Misses (avg.cost, rate): %llu (%llu.%03u, %llu.%03u M/s)\n",
 		 table->miss, quot1, frac1, quot2, frac2);
 	if (table->hits + table->miss > 0) {
 		DIV_FRAC(table->hits_steps + table->miss_steps,
@@ -139,16 +139,16 @@ void __chash_table_dump_stats(struct __chash_table *table)
 		quot1 = quot2 = 0;
 		frac1 = frac2 = 0;
 	}
-	pr_debug("  Total  (avg.cost, rate): %llu (%llu.%03u, %llu.%03u M/s)\n",
+	pr_de("  Total  (avg.cost, rate): %llu (%llu.%03u, %llu.%03u M/s)\n",
 		 table->hits + table->miss, quot1, frac1, quot2, frac2);
 	if (table->relocs > 0) {
 		DIV_FRAC(table->hits + table->miss, table->relocs,
 			 quot1, frac1, 1000);
 		DIV_FRAC(table->reloc_dist, table->relocs, quot2, frac2, 1000);
-		pr_debug("  Relocations (freq, avg.dist): %llu (1:%llu.%03u, %llu.%03u)\n",
+		pr_de("  Relocations (freq, avg.dist): %llu (1:%llu.%03u, %llu.%03u)\n",
 			 table->relocs, quot1, frac1, quot2, frac2);
 	} else {
-		pr_debug("  No relocations\n");
+		pr_de("  No relocations\n");
 	}
 }
 EXPORT_SYMBOL(__chash_table_dump_stats);
@@ -162,31 +162,31 @@ EXPORT_SYMBOL(__chash_table_dump_stats);
 #define CHASH_IN_RANGE(table, slot, first, last) \
 	(CHASH_SUB(table, slot, first) <= CHASH_SUB(table, last, first))
 
-/*#define CHASH_DEBUG Uncomment this to enable verbose debug output*/
-#ifdef CHASH_DEBUG
+/*#define CHASH_DE Uncomment this to enable verbose de output*/
+#ifdef CHASH_DE
 static void chash_table_dump(struct __chash_table *table)
 {
 	struct chash_iter iter = CHASH_ITER_INIT(table, 0);
 
 	do {
 		if ((iter.slot & 3) == 0)
-			pr_debug("%04x: ", iter.slot);
+			pr_de("%04x: ", iter.slot);
 
 		if (chash_iter_is_valid(iter))
-			pr_debug("[%016llx] ", chash_iter_key(iter));
+			pr_de("[%016llx] ", chash_iter_key(iter));
 		else if (chash_iter_is_empty(iter))
-			pr_debug("[    <empty>     ] ");
+			pr_de("[    <empty>     ] ");
 		else
-			pr_debug("[  <tombstone>   ] ");
+			pr_de("[  <tombstone>   ] ");
 
 		if ((iter.slot & 3) == 3)
-			pr_debug("\n");
+			pr_de("\n");
 
 		CHASH_ITER_INC(iter);
 	} while (iter.slot);
 
 	if ((iter.slot & 3) != 0)
-		pr_debug("\n");
+		pr_de("\n");
 }
 
 static int chash_table_check(struct __chash_table *table)
@@ -222,9 +222,9 @@ static int chash_table_check(struct __chash_table *table)
 
 static void chash_iter_relocate(struct chash_iter dst, struct chash_iter src)
 {
-	BUG_ON(src.table == dst.table && src.slot == dst.slot);
-	BUG_ON(src.table->key_size != dst.table->key_size);
-	BUG_ON(src.table->value_size != dst.table->value_size);
+	_ON(src.table == dst.table && src.slot == dst.slot);
+	_ON(src.table->key_size != dst.table->key_size);
+	_ON(src.table->value_size != dst.table->value_size);
 
 	if (dst.table->key_size == 4)
 		dst.table->keys32[dst.slot] = src.table->keys32[src.slot];
@@ -294,7 +294,7 @@ static int chash_table_find(struct chash_iter *iter, u64 key,
 					chash_iter_set_empty(first_redundant);
 				CHASH_ITER_INC(first_redundant);
 			}
-#ifdef CHASH_DEBUG
+#ifdef CHASH_DE
 			chash_table_check(iter->table);
 #endif
 			goto not_found;
@@ -505,7 +505,7 @@ static int __init chash_self_test(u8 bits, u8 key_size,
 				if (value != ~find_count) {
 					pr_err("Wrong value retrieved for key 0x%llx, expected 0x%llx got 0x%llx\n",
 					       find_count, ~find_count, value);
-#ifdef CHASH_DEBUG
+#ifdef CHASH_DE
 					chash_table_dump(&table.table);
 #endif
 					ret = -EFAULT;

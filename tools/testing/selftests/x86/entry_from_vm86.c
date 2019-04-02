@@ -290,7 +290,7 @@ int main(void)
 	 * SYSCALL would be a disaster in VM86 mode.  Fortunately,
 	 * there is no kernel that both enables SYSCALL and sets
 	 * EFER.SCE, so it's #UD on all systems.  But vm86 is
-	 * buggy (or has a "feature"), so the SIGILL will actually
+	 * gy (or has a "feature"), so the SIGILL will actually
 	 * be delivered.
 	 */
 	sethandler(SIGILL, sighandler, 0);

@@ -320,7 +320,7 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 
 	interval = mul_u64_u32_div(val, NSEC_PER_SEC, KVM_PIT_FREQ);
 
-	pr_debug("create pit timer, interval is %llu nsec\n", interval);
+	pr_de("create pit timer, interval is %llu nsec\n", interval);
 
 	/* TODO The new value only affected after the retriggered */
 	hrtimer_cancel(&ps->timer);
@@ -355,7 +355,7 @@ static void pit_load_count(struct kvm_pit *pit, int channel, u32 val)
 {
 	struct kvm_kpit_state *ps = &pit->pit_state;
 
-	pr_debug("load_count val is %d, channel is %d\n", val, channel);
+	pr_de("load_count val is %d, channel is %d\n", val, channel);
 
 	/*
 	 * The largest possible initial count is 0; this is equivalent
@@ -442,7 +442,7 @@ static int pit_ioport_write(struct kvm_vcpu *vcpu,
 	mutex_lock(&pit_state->lock);
 
 	if (val != 0)
-		pr_debug("write addr is 0x%x, len is %d, val is 0x%x\n",
+		pr_de("write addr is 0x%x, len is %d, val is 0x%x\n",
 			 (unsigned int)addr, len, val);
 
 	if (addr == 3) {

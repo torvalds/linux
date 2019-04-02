@@ -238,7 +238,7 @@ typedef struct isdn_net_local_s {
   int cisco_keepalive_period;		/* keepalive period */
   ulong cisco_last_slarp_in;		/* jiffie of last keepalive packet we received */
   char cisco_line_state;		/* state of line according to keepalive packets */
-  char cisco_debserint;			/* debugging flag of cisco hdlc with slarp */
+  char cisco_debserint;			/* deging flag of cisco hdlc with slarp */
   struct timer_list cisco_timer;
   struct work_struct tqueue;
 } isdn_net_local;

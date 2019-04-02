@@ -19,7 +19,7 @@
 #include "hw-ops.h"
 #include "ath9k.h"
 #include "dfs.h"
-#include "dfs_debug.h"
+#include "dfs_de.h"
 
 /* internal struct to pass radar data */
 struct ath_radar_data {

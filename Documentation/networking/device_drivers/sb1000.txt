@@ -199,7 +199,7 @@ Credits:  This README came from Franco Venturi's original README file which is
 still supplied with his driver .tar.gz archive.  I and all other sb1000 users
 owe Franco a tremendous "Thank you!"  Additional thanks goes to Carl Patten
 and Ralph Bonnell who are now managing the Linux SB1000 web site, and to
-the SB1000 users who reported and helped debug the common problems listed
+the SB1000 users who reported and helped de the common problems listed
 above.
 
 

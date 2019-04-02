@@ -1,5 +1,5 @@
 /*
- * udbg debug output routine via GELIC UDP broadcasts
+ * udbg de output routine via GELIC UDP broadcasts
  *
  * Copyright (C) 2007 Sony Computer Entertainment Inc.
  * Copyright 2006, 2007 Sony Corporation
@@ -25,7 +25,7 @@
 
 #define GELIC_BUS_ID 1
 #define GELIC_DEVICE_ID 0
-#define GELIC_DEBUG_PORT 18194
+#define GELIC_DE_PORT 18194
 #define GELIC_MAX_MESSAGE_SIZE 1000
 
 #define GELIC_LV1_GET_MAC_ADDRESS 1
@@ -57,7 +57,7 @@ struct gelic_descr {
 	__be32 data_error;	/* all zeroes for tx */
 } __attribute__((aligned(32)));
 
-struct debug_block {
+struct de_block {
 	struct gelic_descr descr;
 	u8 pkt[1520];
 } __packed;
@@ -70,7 +70,7 @@ static __iomem struct udphdr *h_udp;
 static __iomem char *pmsg;
 static __iomem char *pmsgc;
 
-static __iomem struct debug_block dbg __attribute__((aligned(32)));
+static __iomem struct de_block dbg __attribute__((aligned(32)));
 
 static int header_size;
 
@@ -118,7 +118,7 @@ static int unmap_dma_mem(int bus_id, int dev_id, u64 bus_addr, size_t len)
 	return lv1_free_device_dma_region(bus_id, dev_id, real_bus_addr);
 }
 
-static void gelic_debug_init(void)
+static void gelic_de_init(void)
 {
 	s64 result;
 	u64 v2;
@@ -134,7 +134,7 @@ static void gelic_debug_init(void)
 
 	memset(&dbg, 0, sizeof(dbg));
 
-	dbg.descr.buf_addr = bus_addr + offsetof(struct debug_block, pkt);
+	dbg.descr.buf_addr = bus_addr + offsetof(struct de_block, pkt);
 
 	wmb();
 
@@ -180,13 +180,13 @@ static void gelic_debug_init(void)
 
 	header_size += sizeof(struct udphdr);
 	h_udp = (struct udphdr *)(h_ip + 1);
-	h_udp->source = GELIC_DEBUG_PORT;
-	h_udp->dest = GELIC_DEBUG_PORT;
+	h_udp->source = GELIC_DE_PORT;
+	h_udp->dest = GELIC_DE_PORT;
 
 	pmsgc = pmsg = (char *)(h_udp + 1);
 }
 
-static void gelic_debug_shutdown(void)
+static void gelic_de_shutdown(void)
 {
 	if (bus_addr)
 		unmap_dma_mem(GELIC_BUS_ID, GELIC_DEVICE_ID,
@@ -237,13 +237,13 @@ static void ps3gelic_udbg_putc(char ch)
 
 void __init udbg_init_ps3gelic(void)
 {
-	gelic_debug_init();
+	gelic_de_init();
 	udbg_putc = ps3gelic_udbg_putc;
 }
 
 void udbg_shutdown_ps3gelic(void)
 {
 	udbg_putc = NULL;
-	gelic_debug_shutdown();
+	gelic_de_shutdown();
 }
 EXPORT_SYMBOL(udbg_shutdown_ps3gelic);

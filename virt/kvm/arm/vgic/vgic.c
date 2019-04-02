@@ -162,7 +162,7 @@ bool vgic_get_phys_line_level(struct vgic_irq *irq)
 {
 	bool line_level;
 
-	BUG_ON(!irq->hw);
+	_ON(!irq->hw);
 
 	if (irq->get_input_level)
 		return irq->get_input_level(irq->intid);
@@ -177,7 +177,7 @@ bool vgic_get_phys_line_level(struct vgic_irq *irq)
 void vgic_irq_set_phys_active(struct vgic_irq *irq, bool active)
 {
 
-	BUG_ON(!irq->hw);
+	_ON(!irq->hw);
 	WARN_ON(irq_set_irqchip_state(irq->host_irq,
 				      IRQCHIP_STATE_ACTIVE,
 				      active));
@@ -493,7 +493,7 @@ int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, unsigned int host_irq,
 	unsigned long flags;
 	int ret;
 
-	BUG_ON(!irq);
+	_ON(!irq);
 
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	ret = kvm_vgic_map_irq(vcpu, irq, host_irq, get_input_level);
@@ -538,7 +538,7 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int vintid)
 		return -EAGAIN;
 
 	irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
-	BUG_ON(!irq);
+	_ON(!irq);
 
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	kvm_vgic_unmap_irq(irq);
@@ -595,7 +595,7 @@ static void vgic_prune_ap_list(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_irq *irq, *tmp;
 
-	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
+	DE_SPINLOCK__ON(!irqs_disabled());
 
 retry:
 	raw_spin_lock(&vgic_cpu->ap_list_lock);
@@ -606,7 +606,7 @@ retry:
 
 		raw_spin_lock(&irq->irq_lock);
 
-		BUG_ON(vcpu != irq->vcpu);
+		_ON(vcpu != irq->vcpu);
 
 		target_vcpu = vgic_target_oracle(irq);
 
@@ -875,7 +875,7 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 	    !vgic_supports_direct_msis(vcpu->kvm))
 		return;
 
-	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
+	DE_SPINLOCK__ON(!irqs_disabled());
 
 	if (!list_empty(&vcpu->arch.vgic_cpu.ap_list_head)) {
 		raw_spin_lock(&vcpu->arch.vgic_cpu.ap_list_lock);

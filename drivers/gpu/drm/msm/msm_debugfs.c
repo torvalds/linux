@@ -15,12 +15,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #include "msm_drv.h"
 #include "msm_gpu.h"
 #include "msm_kms.h"
-#include "msm_debugfs.h"
+#include "msm_defs.h"
 
 struct msm_gpu_show_priv {
 	struct msm_gpu_state *state;
@@ -186,7 +186,7 @@ static int show_locked(struct seq_file *m, void *arg)
 	return ret;
 }
 
-static struct drm_info_list msm_debugfs_list[] = {
+static struct drm_info_list msm_defs_list[] = {
 		{"gem", show_locked, 0, msm_gem_show},
 		{ "mm", show_locked, 0, msm_mm_show },
 		{ "fb", show_locked, 0, msm_fb_show },
@@ -199,22 +199,22 @@ static int late_init_minor(struct drm_minor *minor)
 	if (!minor)
 		return 0;
 
-	ret = msm_rd_debugfs_init(minor);
+	ret = msm_rd_defs_init(minor);
 	if (ret) {
-		DRM_DEV_ERROR(minor->dev->dev, "could not install rd debugfs\n");
+		DRM_DEV_ERROR(minor->dev->dev, "could not install rd defs\n");
 		return ret;
 	}
 
-	ret = msm_perf_debugfs_init(minor);
+	ret = msm_perf_defs_init(minor);
 	if (ret) {
-		DRM_DEV_ERROR(minor->dev->dev, "could not install perf debugfs\n");
+		DRM_DEV_ERROR(minor->dev->dev, "could not install perf defs\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-int msm_debugfs_late_init(struct drm_device *dev)
+int msm_defs_late_init(struct drm_device *dev)
 {
 	int ret;
 	ret = late_init_minor(dev->primary);
@@ -224,26 +224,26 @@ int msm_debugfs_late_init(struct drm_device *dev)
 	return ret;
 }
 
-int msm_debugfs_init(struct drm_minor *minor)
+int msm_defs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 
-	ret = drm_debugfs_create_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list),
-			minor->debugfs_root, minor);
+	ret = drm_defs_create_files(msm_defs_list,
+			ARRAY_SIZE(msm_defs_list),
+			minor->defs_root, minor);
 
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not install msm_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could not install msm_defs_list\n");
 		return ret;
 	}
 
-	debugfs_create_file("gpu", S_IRUSR, minor->debugfs_root,
+	defs_create_file("gpu", S_IRUSR, minor->defs_root,
 		dev, &msm_gpu_fops);
 
-	if (priv->kms && priv->kms->funcs->debugfs_init) {
-		ret = priv->kms->funcs->debugfs_init(priv->kms, minor);
+	if (priv->kms && priv->kms->funcs->defs_init) {
+		ret = priv->kms->funcs->defs_init(priv->kms, minor);
 		if (ret)
 			return ret;
 	}

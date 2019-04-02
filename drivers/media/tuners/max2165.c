@@ -31,13 +31,13 @@
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "max2165: " args); \
+		if (de) \
+			printk(KERN_DE "max2165: " args); \
 	} while (0)
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 static int max2165_write_reg(struct max2165_priv *priv, u8 reg, u8 data)
 {
@@ -47,7 +47,7 @@ static int max2165_write_reg(struct max2165_priv *priv, u8 reg, u8 data)
 
 	msg.addr = priv->config->i2c_address;
 
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg, 1);
@@ -78,7 +78,7 @@ static int max2165_read_reg(struct max2165_priv *priv, u8 reg, u8 *p_data)
 	}
 
 	*p_data = b1[0];
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk("%s: reg=0x%02X, data=0x%02X\n",
 			__func__, reg, b1[0]);
 	return 0;
@@ -224,7 +224,7 @@ static int max2165_set_rf(struct max2165_priv *priv, u32 freq)
 	return 0;
 }
 
-static void max2165_debug_status(struct max2165_priv *priv)
+static void max2165_de_status(struct max2165_priv *priv)
 {
 	u8 status, autotune;
 	u8 auto_vco_success, auto_vco_active;
@@ -280,7 +280,7 @@ static int max2165_set_params(struct dvb_frontend *fe)
 	max2165_set_bandwidth(priv, c->bandwidth_hz);
 	ret = max2165_set_rf(priv, priv->frequency);
 	mdelay(50);
-	max2165_debug_status(priv);
+	max2165_de_status(priv);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
@@ -317,7 +317,7 @@ static int max2165_get_status(struct dvb_frontend *fe, u32 *status)
 	if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
-	max2165_debug_status(priv);
+	max2165_de_status(priv);
 	*status = lock_status;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -416,7 +416,7 @@ struct dvb_frontend *max2165_attach(struct dvb_frontend *fe,
 	fe->tuner_priv = priv;
 
 	max2165_init(fe);
-	max2165_debug_status(priv);
+	max2165_de_status(priv);
 
 	return fe;
 }

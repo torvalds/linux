@@ -246,7 +246,7 @@ static int apply_r_mips_gprel16(struct module *me, uint32_t *location,
 	}
 
 	if ((rel > 32768) || (rel < -32768)) {
-		pr_debug("VPE loader: apply_r_mips_gprel16: relative address 0x%x out of range of gp register\n",
+		pr_de("VPE loader: apply_r_mips_gprel16: relative address 0x%x out of range of gp register\n",
 			 rel);
 		return -ENOEXEC;
 	}
@@ -265,7 +265,7 @@ static int apply_r_mips_pc16(struct module *me, uint32_t *location,
 	rel -= 1;  /* and one instruction less due to the branch delay slot. */
 
 	if ((rel > 32768) || (rel < -32768)) {
-		pr_debug("VPE loader: apply_r_mips_pc16: relative address out of range 0x%x\n",
+		pr_de("VPE loader: apply_r_mips_pc16: relative address out of range 0x%x\n",
 			 rel);
 		return -ENOEXEC;
 	}
@@ -287,7 +287,7 @@ static int apply_r_mips_26(struct module *me, uint32_t *location,
 			   Elf32_Addr v)
 {
 	if (v % 4) {
-		pr_debug("VPE loader: apply_r_mips_26: unaligned relocation\n");
+		pr_de("VPE loader: apply_r_mips_26: unaligned relocation\n");
 		return -ENOEXEC;
 	}
 
@@ -350,7 +350,7 @@ static int apply_r_mips_lo16(struct module *me, uint32_t *location,
 			 * The value for the HI16 had best be the same.
 			 */
 			if (v != l->value) {
-				pr_debug("VPE loader: apply_r_mips_lo16/hi16: inconsistent value information\n");
+				pr_de("VPE loader: apply_r_mips_lo16/hi16: inconsistent value information\n");
 				goto out_free;
 			}
 
@@ -446,7 +446,7 @@ static int apply_relocations(Elf32_Shdr *sechdrs,
 			+ ELF32_R_SYM(r_info);
 
 		if (!sym->st_value) {
-			pr_debug("%s: undefined weak symbol %s\n",
+			pr_de("%s: undefined weak symbol %s\n",
 				 me->name, strtab + sym->st_name);
 			/* just print the warning, dont barf */
 		}
@@ -515,7 +515,7 @@ static void simplify_symbols(Elf_Shdr *sechdrs,
 			break;
 
 		case SHN_MIPS_SCOMMON:
-			pr_debug("simplify_symbols: ignoring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
+			pr_de("simplify_symbols: ignoring SHN_MIPS_SCOMMON symbol <%s> st_shndx %d\n",
 				 strtab + sym[i].st_name, sym[i].st_shndx);
 			/* .sbss section */
 			break;
@@ -532,16 +532,16 @@ static void simplify_symbols(Elf_Shdr *sechdrs,
 	}
 }
 
-#ifdef DEBUG_ELFLOADER
+#ifdef DE_ELFLOADER
 static void dump_elfsymbols(Elf_Shdr *sechdrs, unsigned int symindex,
 			    const char *strtab, struct module *mod)
 {
 	Elf_Sym *sym = (void *)sechdrs[symindex].sh_addr;
 	unsigned int i, n = sechdrs[symindex].sh_size / sizeof(Elf_Sym);
 
-	pr_debug("dump_elfsymbols: n %d\n", n);
+	pr_de("dump_elfsymbols: n %d\n", n);
 	for (i = 1; i < n; i++) {
-		pr_debug(" i %d name <%s> 0x%x\n", i, strtab + sym[i].st_name,
+		pr_de(" i %d name <%s> 0x%x\n", i, strtab + sym[i].st_name,
 			 sym[i].st_value);
 	}
 }
@@ -662,7 +662,7 @@ static int vpe_elfload(struct vpe *v)
 			/* Update sh_addr to point to copy in image. */
 			sechdrs[i].sh_addr = (unsigned long)dest;
 
-			pr_debug(" section sh_name %s sh_addr 0x%x\n",
+			pr_de(" section sh_name %s sh_addr 0x%x\n",
 				 secstrings + sechdrs[i].sh_name,
 				 sechdrs[i].sh_addr);
 		}
@@ -785,7 +785,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 
 	state = xchg(&v->state, VPE_STATE_INUSE);
 	if (state != VPE_STATE_UNUSED) {
-		pr_debug("VPE loader: tc in use dumping regs\n");
+		pr_de("VPE loader: tc in use dumping regs\n");
 
 		list_for_each_entry(notifier, &v->notify, list)
 			notifier->stop(aprp_cpu_index());

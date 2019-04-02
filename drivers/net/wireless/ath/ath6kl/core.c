@@ -22,25 +22,25 @@
 #include <linux/export.h>
 #include <linux/vmalloc.h>
 
-#include "debug.h"
+#include "de.h"
 #include "hif-ops.h"
 #include "htc-ops.h"
 #include "cfg80211.h"
 
-unsigned int debug_mask;
+unsigned int de_mask;
 static unsigned int suspend_mode;
 static unsigned int wow_mode;
-static unsigned int uart_debug;
+static unsigned int uart_de;
 static unsigned int uart_rate = 115200;
 static unsigned int ath6kl_p2p;
 static unsigned int testmode;
 static unsigned int recovery_enable;
 static unsigned int heart_beat_poll;
 
-module_param(debug_mask, uint, 0644);
+module_param(de_mask, uint, 0644);
 module_param(suspend_mode, uint, 0644);
 module_param(wow_mode, uint, 0644);
-module_param(uart_debug, uint, 0644);
+module_param(uart_de, uint, 0644);
 module_param(uart_rate, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
 module_param(testmode, uint, 0644);
@@ -180,13 +180,13 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	else
 		ar->wow_suspend_mode = 0;
 
-	if (uart_debug)
-		ar->conf_flags |= ATH6KL_CONF_UART_DEBUG;
+	if (uart_de)
+		ar->conf_flags |= ATH6KL_CONF_UART_DE;
 	ar->hw.uarttx_rate = uart_rate;
 
 	set_bit(FIRST_BOOT, &ar->flag);
 
-	ath6kl_debug_init(ar);
+	ath6kl_de_init(ar);
 
 	ret = ath6kl_init_hw_start(ar);
 	if (ret) {
@@ -202,7 +202,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	if (ret)
 		goto err_rxbuf_cleanup;
 
-	ret = ath6kl_debug_init_fs(ar);
+	ret = ath6kl_de_init_fs(ar);
 	if (ret) {
 		wiphy_unregister(ar->wiphy);
 		goto err_rxbuf_cleanup;
@@ -243,7 +243,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	return ret;
 
 err_rxbuf_cleanup:
-	ath6kl_debug_cleanup(ar);
+	ath6kl_de_cleanup(ar);
 	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
 	ath6kl_wmi_shutdown(ar->wmi);
@@ -342,7 +342,7 @@ void ath6kl_core_cleanup(struct ath6kl *ar)
 
 	ath6kl_bmi_cleanup(ar);
 
-	ath6kl_debug_cleanup(ar);
+	ath6kl_de_cleanup(ar);
 
 	kfree(ar->fw_board);
 	kfree(ar->fw_otp);

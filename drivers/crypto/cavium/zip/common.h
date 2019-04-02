@@ -181,24 +181,24 @@ static inline int zip_poll_result(union zip_zres_s *result)
 #define zip_msg(fmt, args...)
 #endif
 
-#if defined(ZIP_DEBUG_ENABLE) && defined(MSG_ENABLE)
+#if defined(ZIP_DE_ENABLE) && defined(MSG_ENABLE)
 
-#ifdef DEBUG_LEVEL
+#ifdef DE_LEVEL
 
 #define FILE_NAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : \
 	strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 
-#if DEBUG_LEVEL >= 4
+#if DE_LEVEL >= 4
 
 #define zip_dbg(fmt, args...) pr_info("ZIP DBG: %s: %s() : %d: " \
 			      fmt "\n", FILE_NAME, __func__, __LINE__, ## args)
 
-#elif DEBUG_LEVEL >= 3
+#elif DE_LEVEL >= 3
 
 #define zip_dbg(fmt, args...) pr_info("ZIP DBG: %s: %s() : %d: " \
 			      fmt "\n", FILE_NAME, __func__, __LINE__, ## args)
 
-#elif DEBUG_LEVEL >= 2
+#elif DE_LEVEL >= 2
 
 #define zip_dbg(fmt, args...) pr_info("ZIP DBG: %s() : %d: " \
 			      fmt "\n", __func__, __LINE__, ## args)
@@ -207,17 +207,17 @@ static inline int zip_poll_result(union zip_zres_s *result)
 
 #define zip_dbg(fmt, args...) pr_info("ZIP DBG:" fmt "\n", ## args)
 
-#endif /* DEBUG LEVEL >=4 */
+#endif /* DE LEVEL >=4 */
 
 #else
 
 #define zip_dbg(fmt, args...) pr_info("ZIP DBG:" fmt "\n", ## args)
 
-#endif /* DEBUG_LEVEL */
+#endif /* DE_LEVEL */
 #else
 
 #define zip_dbg(fmt, args...)
 
-#endif /* ZIP_DEBUG_ENABLE && MSG_ENABLE*/
+#endif /* ZIP_DE_ENABLE && MSG_ENABLE*/
 
 #endif

@@ -1068,7 +1068,7 @@ struct bnx2x_queue_sp_obj {
 	unsigned long	type;
 
 	/* BNX2X_Q_CMD_XX bits. This object implements "one
-	 * pending" paradigm but for debug and tracing purposes it's
+	 * pending" paradigm but for de and tracing purposes it's
 	 * more convenient to have different bits for different
 	 * commands.
 	 */
@@ -1330,7 +1330,7 @@ struct bnx2x_func_sp_obj {
 	enum bnx2x_func_state	state, next_state;
 
 	/* BNX2X_FUNC_CMD_XX bits. This object implements "one
-	 * pending" paradigm but for debug and tracing purposes it's
+	 * pending" paradigm but for de and tracing purposes it's
 	 * more convenient to have different bits for different
 	 * commands.
 	 */

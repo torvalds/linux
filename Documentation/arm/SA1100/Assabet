@@ -231,7 +231,7 @@ Enter script, terminate with empty line
 Boot script timeout (1000ms resolution): 3
 Use BOOTP for network configuration: true
 GDB connection port: 9000
-Network debug at boot time: false
+Network de at boot time: false
 Update RedBoot non-volatile configuration - are you sure (y/n)? y
 
 Then, rebooting the Assabet is just a matter of waiting for the login prompt.

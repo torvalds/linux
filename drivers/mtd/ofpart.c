@@ -48,9 +48,9 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		/*
 		 * We might get here even when ofpart isn't used at all (e.g.,
 		 * when using another parser), so don't be louder than
-		 * KERN_DEBUG
+		 * KERN_DE
 		 */
-		pr_debug("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
+		pr_de("%s: 'partitions' subnode not found on %pOF. Trying to parse direct subnodes as partitions.\n",
 			 master->name, mtd_node);
 		ofpart_node = mtd_node;
 		dedicated = false;
@@ -87,7 +87,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		reg = of_get_property(pp, "reg", &len);
 		if (!reg) {
 			if (dedicated) {
-				pr_debug("%s: ofpart partition %pOF (%pOF) missing reg property.\n",
+				pr_de("%s: ofpart partition %pOF (%pOF) missing reg property.\n",
 					 master->name, pp,
 					 mtd_node);
 				goto ofpart_fail;
@@ -100,7 +100,7 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		a_cells = of_n_addr_cells(pp);
 		s_cells = of_n_size_cells(pp);
 		if (len / 4 != a_cells + s_cells) {
-			pr_debug("%s: ofpart partition %pOF (%pOF) error parsing reg property.\n",
+			pr_de("%s: ofpart partition %pOF (%pOF) error parsing reg property.\n",
 				 master->name, pp,
 				 mtd_node);
 			goto ofpart_fail;

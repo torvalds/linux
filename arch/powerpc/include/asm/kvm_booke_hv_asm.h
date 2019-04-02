@@ -28,7 +28,7 @@
  *   *(r10 + THREAD_NORMSAVE(0)) = saved r11
  *   *(r10 + THREAD_NORMSAVE(2)) = saved r13
  *
- * Expected inputs (crit/mcheck/debug exceptions):
+ * Expected inputs (crit/mcheck/de exceptions):
  *   appropriate SCRATCH = saved r8
  *   r8 = exception level stack frame
  *   r9 = *(r8 + _CCR) = saved CR

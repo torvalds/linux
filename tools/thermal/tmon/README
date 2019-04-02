@@ -44,7 +44,7 @@ Usage: tmon [OPTION...]
   -h, --help            show this help message
   -t, --time-interval   set time interval for sampling
   -v, --version         show version
-  -g, --debug           debug message in syslog
+  -g, --de           de message in syslog
 
 1. For monitoring only:
 $ sudo ./tmon

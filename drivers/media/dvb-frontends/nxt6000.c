@@ -40,10 +40,10 @@ struct nxt6000_state {
 	struct dvb_frontend frontend;
 };
 
-static int debug;
+static int de;
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 		       __func__, ##arg);				\
 } while (0)
 
@@ -460,7 +460,7 @@ static int nxt6000_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if ((core_status & TPSLOCKED) && (*status == (FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC)))
 		*status |= FE_HAS_LOCK;
 
-	if (debug)
+	if (de)
 		nxt6000_dump_status(state);
 
 	return 0;
@@ -626,8 +626,8 @@ static const struct dvb_frontend_ops nxt6000_ops = {
 	.read_snr = nxt6000_read_snr,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("NxtWave NXT6000 DVB-T demodulator driver");
 MODULE_AUTHOR("Florian Schirmer");

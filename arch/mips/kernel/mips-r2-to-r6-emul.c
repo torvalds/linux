@@ -10,9 +10,9 @@
  *      MIPS R2 user space instruction emulator for MIPS R6
  *
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -21,7 +21,7 @@
 #include <asm/asm.h>
 #include <asm/branch.h>
 #include <asm/break.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
@@ -46,7 +46,7 @@
 #define LL	"ll "
 #define SC	"sc "
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2emustats);
 static DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2bdemustats);
 static DEFINE_PER_CPU(struct mips_r2br_emulator_stats, mipsr2bremustats);
@@ -182,7 +182,7 @@ static inline int mipsr6_emul(struct pt_regs *regs, u32 ir)
 		}
 		break;
 	default:
-		pr_debug("No fastpath BD emulation for instruction 0x%08x (op: %02x)\n",
+		pr_de("No fastpath BD emulation for instruction 0x%08x (op: %02x)\n",
 			 ir, MIPSInst_OPCODE(ir));
 	}
 
@@ -918,10 +918,10 @@ repeat:
 	epc = regs->cp0_epc;
 	err = compute_return_epc(regs);
 	if (err < 0) {
-		BUG();
+		();
 		return SIGEMT;
 	}
-	pr_debug("Emulating the 0x%08x R2 instruction @ 0x%08lx (pass=%d))\n",
+	pr_de("Emulating the 0x%08x R2 instruction @ 0x%08lx (pass=%d))\n",
 		 inst, epc, pass);
 
 	switch (MIPSInst_OPCODE(inst)) {
@@ -1006,7 +1006,7 @@ repeat:
 			}
 			/*
 			 * This will probably be optimized away when
-			 * CONFIG_DEBUG_FS is not enabled
+			 * CONFIG_DE_FS is not enabled
 			 */
 			switch (rt) {
 			case bltzl_op:
@@ -1061,7 +1061,7 @@ repeat:
 			}
 			/*
 			 * This will probably be optimized away when
-			 * CONFIG_DEBUG_FS is not enabled
+			 * CONFIG_DE_FS is not enabled
 			 */
 			switch (rt) {
 			case bltzal_op:
@@ -1132,7 +1132,7 @@ repeat:
 		}
 		/*
 		 * This will probably be optimized away when
-		 * CONFIG_DEBUG_FS is not enabled
+		 * CONFIG_DE_FS is not enabled
 		 */
 		switch (MIPSInst_OPCODE(inst)) {
 		case beql_op:
@@ -2233,7 +2233,7 @@ fpu_emul:
 	return err;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int mipsr2_emul_show(struct seq_file *s, void *unused)
 {
@@ -2349,15 +2349,15 @@ static int mipsr2_clear_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(mipsr2_emul);
 DEFINE_SHOW_ATTRIBUTE(mipsr2_clear);
 
-static int __init mipsr2_init_debugfs(void)
+static int __init mipsr2_init_defs(void)
 {
-	debugfs_create_file("r2_emul_stats", S_IRUGO, mips_debugfs_dir, NULL,
+	defs_create_file("r2_emul_stats", S_IRUGO, mips_defs_dir, NULL,
 			    &mipsr2_emul_fops);
-	debugfs_create_file("r2_emul_stats_clear", S_IRUGO, mips_debugfs_dir,
+	defs_create_file("r2_emul_stats_clear", S_IRUGO, mips_defs_dir,
 			    NULL, &mipsr2_clear_fops);
 	return 0;
 }
 
-device_initcall(mipsr2_init_debugfs);
+device_initcall(mipsr2_init_defs);
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

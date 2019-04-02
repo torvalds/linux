@@ -342,7 +342,7 @@ void ax25_destroy_socket(ax25_cb *ax25)
 /*
  * dl1bke 960311: set parameters for existing AX.25 connections,
  *		  includes a KILL command to abort any connection.
- *		  VERY useful for debugging ;-)
+ *		  VERY useful for deging ;-)
  */
 static int ax25_ctl_ioctl(const unsigned int cmd, void __user *arg)
 {
@@ -1117,7 +1117,7 @@ out:
 }
 
 /*
- *	FIXME: nonblock behaviour looks like it may have a bug.
+ *	FIXME: nonblock behaviour looks like it may have a .
  */
 static int __must_check ax25_connect(struct socket *sock,
 	struct sockaddr *uaddr, int addr_len, int flags)

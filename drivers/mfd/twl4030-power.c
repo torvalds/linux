@@ -44,7 +44,7 @@ static u8 twl4030_start_script_address = 0x2b;
 #define PWR_DEVOFF		BIT(0)
 
 /* Register bits for CFG_P1_TRANSITION (also for P2 and P3) */
-#define STARTON_SWBUG		BIT(7)	/* Start on watchdog */
+#define STARTON_SW		BIT(7)	/* Start on watchdog */
 #define STARTON_VBUS		BIT(5)	/* Start on VBUS */
 #define STARTON_VBAT		BIT(4)	/* Start on battery insert */
 #define STARTON_RTC		BIT(3)	/* Start on RTC */

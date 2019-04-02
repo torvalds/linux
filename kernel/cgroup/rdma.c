@@ -172,7 +172,7 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 
 	/*
 	 * rpool cannot be null at this stage. Let kernel operate in case
-	 * if there a bug in IB stack or rdma controller, instead of crashing
+	 * if there a  in IB stack or rdma controller, instead of crashing
 	 * the system.
 	 */
 	if (unlikely(!rpool)) {
@@ -184,7 +184,7 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 
 	/*
 	 * A negative count (or overflow) is invalid,
-	 * it indicates a bug in the rdma controller.
+	 * it indicates a  in the rdma controller.
 	 */
 	WARN_ON_ONCE(rpool->resources[index].usage < 0);
 	rpool->usage_sum--;

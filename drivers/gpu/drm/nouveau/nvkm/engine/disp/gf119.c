@@ -40,14 +40,14 @@ gf119_disp_super(struct work_struct *work)
 	struct nvkm_head *head;
 	u32 mask[4];
 
-	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super));
+	nvkm_de(subdev, "supervisor %d\n", ffs(disp->super));
 	list_for_each_entry(head, &disp->base.head, head) {
 		mask[head->id] = nvkm_rd32(device, 0x6101d4 + (head->id * 0x800));
 		HEAD_DBG(head, "%08x", mask[head->id]);
 	}
 
 	if (disp->super & 0x00000001) {
-		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
+		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DE);
 		nv50_disp_super_1(disp);
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(mask[head->id] & 0x00001000))

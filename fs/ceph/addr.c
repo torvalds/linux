@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
@@ -83,7 +83,7 @@ static int ceph_set_page_dirty(struct page *page)
 	if (PageDirty(page)) {
 		dout("%p set_page_dirty %p idx %lu -- already dirty\n",
 		     mapping->host, page, page->index);
-		BUG_ON(!PagePrivate(page));
+		_ON(!PagePrivate(page));
 		return 0;
 	}
 
@@ -92,7 +92,7 @@ static int ceph_set_page_dirty(struct page *page)
 
 	/* dirty the head */
 	spin_lock(&ci->i_ceph_lock);
-	BUG_ON(ci->i_wr_ref == 0); // caller should hold Fw reference
+	_ON(ci->i_wr_ref == 0); // caller should hold Fw reference
 	if (__ceph_have_pending_cap_snap(ci)) {
 		struct ceph_cap_snap *capsnap =
 				list_last_entry(&ci->i_cap_snaps,
@@ -101,7 +101,7 @@ static int ceph_set_page_dirty(struct page *page)
 		snapc = ceph_get_snap_context(capsnap->context);
 		capsnap->dirty_pages++;
 	} else {
-		BUG_ON(!ci->i_head_snapc);
+		_ON(!ci->i_head_snapc);
 		snapc = ceph_get_snap_context(ci->i_head_snapc);
 		++ci->i_wrbuffer_ref_head;
 	}
@@ -120,7 +120,7 @@ static int ceph_set_page_dirty(struct page *page)
 	 * Reference snap context in page->private.  Also set
 	 * PagePrivate so that we get invalidatepage callback.
 	 */
-	BUG_ON(PagePrivate(page));
+	_ON(PagePrivate(page));
 	page->private = (unsigned long)snapc;
 	SetPagePrivate(page);
 
@@ -268,7 +268,7 @@ static void finish_read(struct ceph_osd_request *req)
 
 	/* unlock all pages, zeroing any data we didn't read */
 	osd_data = osd_req_op_extent_osd_data(req, 0);
-	BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_PAGES);
+	_ON(osd_data->type != CEPH_OSD_DATA_TYPE_PAGES);
 	num_pages = calc_pages_for((u64)osd_data->alignment,
 					(u64)osd_data->length);
 	for (i = 0; i < num_pages; i++) {
@@ -376,7 +376,7 @@ static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
 	}
 	for (i = 0; i < nr_pages; ++i) {
 		page = list_entry(page_list->prev, struct page, lru);
-		BUG_ON(PageLocked(page));
+		_ON(PageLocked(page));
 		list_del(&page->lru);
 
  		dout("start_read %p adding %p idx %lu\n", inode, page,
@@ -665,7 +665,7 @@ static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int err;
 	struct inode *inode = page->mapping->host;
-	BUG_ON(!inode);
+	_ON(!inode);
 	ihold(inode);
 	err = writepage_nounlock(page, wbc);
 	if (err == -ERESTARTSYS) {
@@ -738,13 +738,13 @@ static void writepages_finish(struct ceph_osd_request *req)
 			break;
 
 		osd_data = osd_req_op_extent_osd_data(req, i);
-		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_PAGES);
+		_ON(osd_data->type != CEPH_OSD_DATA_TYPE_PAGES);
 		num_pages = calc_pages_for((u64)osd_data->alignment,
 					   (u64)osd_data->length);
 		total_pages += num_pages;
 		for (j = 0; j < num_pages; j++) {
 			page = osd_data->pages[j];
-			BUG_ON(!page);
+			_ON(!page);
 			WARN_ON(!PageUptodate(page));
 
 			if (atomic_long_dec_return(&fsc->writeback_count) <
@@ -963,7 +963,7 @@ get_more_pages:
 				strip_unit_end = page->index +
 					((len - 1) >> PAGE_SHIFT);
 
-				BUG_ON(pages);
+				_ON(pages);
 				max_pages = calc_pages_for(0, (u64)len);
 				pages = kmalloc_array(max_pages,
 						      sizeof(*pages),
@@ -971,7 +971,7 @@ get_more_pages:
 				if (!pages) {
 					pool = fsc->wb_pagevec_pool;
 					pages = mempool_alloc(pool, GFP_NOFS);
-					BUG_ON(!pages);
+					_ON(!pages);
 				}
 
 				len = 0;
@@ -1050,9 +1050,9 @@ new_request:
 						CEPH_OSD_FLAG_WRITE,
 						snapc, ceph_wbc.truncate_seq,
 						ceph_wbc.truncate_size, true);
-			BUG_ON(IS_ERR(req));
+			_ON(IS_ERR(req));
 		}
-		BUG_ON(len < page_offset(pages[locked_pages - 1]) +
+		_ON(len < page_offset(pages[locked_pages - 1]) +
 			     PAGE_SIZE - offset);
 
 		req->r_callback = writepages_finish;
@@ -1103,11 +1103,11 @@ new_request:
 						 0, !!pool, false);
 		osd_req_op_extent_update(req, op_idx, len);
 
-		BUG_ON(op_idx + 1 != req->r_num_ops);
+		_ON(op_idx + 1 != req->r_num_ops);
 
 		pool = NULL;
 		if (i < locked_pages) {
-			BUG_ON(num_ops <= req->r_num_ops);
+			_ON(num_ops <= req->r_num_ops);
 			num_ops -= req->r_num_ops;
 			locked_pages -= i;
 
@@ -1118,14 +1118,14 @@ new_request:
 			if (!pages) {
 				pool = fsc->wb_pagevec_pool;
 				pages = mempool_alloc(pool, GFP_NOFS);
-				BUG_ON(!pages);
+				_ON(!pages);
 			}
 			memcpy(pages, data_pages + i,
 			       locked_pages * sizeof(*pages));
 			memset(data_pages + i, 0,
 			       locked_pages * sizeof(*pages));
 		} else {
-			BUG_ON(num_ops != req->r_num_ops);
+			_ON(num_ops != req->r_num_ops);
 			index = pages[i - 1]->index + 1;
 			/* request message now owns the pages array */
 			pages = NULL;
@@ -1133,7 +1133,7 @@ new_request:
 
 		req->r_mtime = inode->i_mtime;
 		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
-		BUG_ON(rc);
+		_ON(rc);
 		req = NULL;
 
 		wbc->nr_to_write -= i;

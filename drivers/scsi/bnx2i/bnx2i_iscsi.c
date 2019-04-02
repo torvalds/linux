@@ -152,7 +152,7 @@ static int bnx2i_map_scsi_sg(struct bnx2i_hba *hba, struct bnx2i_cmd *cmd)
 	u64 addr;
 	int i;
 
-	BUG_ON(scsi_sg_count(sc) > ISCSI_MAX_BDS_PER_CMD);
+	_ON(scsi_sg_count(sc) > ISCSI_MAX_BDS_PER_CMD);
 
 	sg_count = scsi_dma_map(sc);
 
@@ -173,7 +173,7 @@ static int bnx2i_map_scsi_sg(struct bnx2i_hba *hba, struct bnx2i_cmd *cmd)
 	if (bd_count)
 		bd[bd_count - 1].flags |= ISCSI_BD_LAST_IN_BD_CHAIN;
 
-	BUG_ON(byte_count != scsi_bufflen(sc));
+	_ON(byte_count != scsi_bufflen(sc));
 	return bd_count;
 }
 

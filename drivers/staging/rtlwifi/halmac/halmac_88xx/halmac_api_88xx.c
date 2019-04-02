@@ -226,7 +226,7 @@ halmac_mount_api_88xx(struct halmac_adapter *halmac_adapter)
 	halmac_api->halmac_enter_ps = halmac_enter_ps_88xx;
 	halmac_api->halmac_leave_ps = halmac_leave_ps_88xx;
 	halmac_api->halmac_h2c_lb = halmac_h2c_lb_88xx;
-	halmac_api->halmac_debug = halmac_debug_88xx;
+	halmac_api->halmac_de = halmac_de_88xx;
 	halmac_api->halmac_cfg_parameter = halmac_cfg_parameter_88xx;
 	halmac_api->halmac_update_datapack = halmac_update_datapack_88xx;
 	halmac_api->halmac_run_datapack = halmac_run_datapack_88xx;
@@ -2549,7 +2549,7 @@ halmac_leave_ps_88xx(struct halmac_adapter *halmac_adapter)
 }
 
 /**
- * (debug API)halmac_h2c_lb_88xx() - send h2c loopback packet
+ * (de API)halmac_h2c_lb_88xx() - send h2c loopback packet
  * @halmac_adapter : the adapter of halmac
  * Author : KaiYuan Chang/Ivan Lin
  * Return : enum halmac_ret_status
@@ -2579,13 +2579,13 @@ enum halmac_ret_status halmac_h2c_lb_88xx(struct halmac_adapter *halmac_adapter)
 }
 
 /**
- * halmac_debug_88xx() - dump information for debugging
+ * halmac_de_88xx() - dump information for deging
  * @halmac_adapter : the adapter of halmac
  * Author : KaiYuan Chang/Ivan Lin
  * Return : enum halmac_ret_status
  * More details of status code can be found in prototype document
  */
-enum halmac_ret_status halmac_debug_88xx(struct halmac_adapter *halmac_adapter)
+enum halmac_ret_status halmac_de_88xx(struct halmac_adapter *halmac_adapter)
 {
 	u8 temp8 = 0;
 	u32 i = 0, temp32 = 0;
@@ -2598,7 +2598,7 @@ enum halmac_ret_status halmac_debug_88xx(struct halmac_adapter *halmac_adapter)
 	if (halmac_api_validate(halmac_adapter) != HALMAC_RET_SUCCESS)
 		return HALMAC_RET_API_INVALID;
 
-	halmac_api_record_id_88xx(halmac_adapter, HALMAC_API_DEBUG);
+	halmac_api_record_id_88xx(halmac_adapter, HALMAC_API_DE);
 
 	driver_adapter = halmac_adapter->driver_adapter;
 	halmac_api = (struct halmac_api *)halmac_adapter->halmac_api;
@@ -2614,14 +2614,14 @@ enum halmac_ret_status halmac_debug_88xx(struct halmac_adapter *halmac_adapter)
 			temp8 = PLATFORM_SDIO_CMD52_READ(halmac_adapter, i);
 			HALMAC_RT_TRACE(
 				driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: sdio[%x]=%x\n", i, temp8);
+				"halmac_de: sdio[%x]=%x\n", i, temp8);
 		}
 
 		/*Dump MAC Register*/
 		for (i = 0x0000; i < 0x17ff; i++) {
 			temp8 = PLATFORM_SDIO_CMD52_READ(halmac_adapter, i);
 			HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT,
-					DBG_DMESG, "halmac_debug: mac[%x]=%x\n",
+					DBG_DMESG, "halmac_de: mac[%x]=%x\n",
 					i, temp8);
 		}
 
@@ -2629,25 +2629,25 @@ enum halmac_ret_status halmac_debug_88xx(struct halmac_adapter *halmac_adapter)
 		i = REG_RXFF_PTR_V1;
 		temp8 = PLATFORM_SDIO_CMD52_READ(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp8);
+				"halmac_de: mac[%x]=%x\n", i, temp8);
 		i = REG_RXFF_WTR_V1;
 		temp8 = PLATFORM_SDIO_CMD52_READ(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp8);
+				"halmac_de: mac[%x]=%x\n", i, temp8);
 		i = REG_RXFF_PTR_V1;
 		temp8 = PLATFORM_SDIO_CMD52_READ(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp8);
+				"halmac_de: mac[%x]=%x\n", i, temp8);
 		i = REG_RXFF_WTR_V1;
 		temp8 = PLATFORM_SDIO_CMD52_READ(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp8);
+				"halmac_de: mac[%x]=%x\n", i, temp8);
 	} else {
 		/*Dump MAC Register*/
 		for (i = 0x0000; i < 0x17fc; i += 4) {
 			temp32 = HALMAC_REG_READ_32(halmac_adapter, i);
 			HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT,
-					DBG_DMESG, "halmac_debug: mac[%x]=%x\n",
+					DBG_DMESG, "halmac_de: mac[%x]=%x\n",
 					i, temp32);
 		}
 
@@ -2655,19 +2655,19 @@ enum halmac_ret_status halmac_debug_88xx(struct halmac_adapter *halmac_adapter)
 		i = REG_RXFF_PTR_V1;
 		temp32 = HALMAC_REG_READ_32(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp32);
+				"halmac_de: mac[%x]=%x\n", i, temp32);
 		i = REG_RXFF_WTR_V1;
 		temp32 = HALMAC_REG_READ_32(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp32);
+				"halmac_de: mac[%x]=%x\n", i, temp32);
 		i = REG_RXFF_PTR_V1;
 		temp32 = HALMAC_REG_READ_32(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp32);
+				"halmac_de: mac[%x]=%x\n", i, temp32);
 		i = REG_RXFF_WTR_V1;
 		temp32 = HALMAC_REG_READ_32(halmac_adapter, i);
 		HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_INIT, DBG_DMESG,
-				"halmac_debug: mac[%x]=%x\n", i, temp32);
+				"halmac_de: mac[%x]=%x\n", i, temp32);
 	}
 
 	/*	TODO: Add check register code, including MAC CLK, CPU CLK */
@@ -3082,7 +3082,7 @@ halmac_send_bt_coex_88xx(struct halmac_adapter *halmac_adapter, u8 *bt_buf,
 }
 
 /**
- * (debug API)halmac_verify_platform_api_88xx() - verify platform api
+ * (de API)halmac_verify_platform_api_88xx() - verify platform api
  * @halmac_adapter : the adapter of halmac
  * Author : KaiYuan Chang/Ivan Lin
  * Return : enum halmac_ret_status
@@ -5106,9 +5106,9 @@ enum halmac_ret_status halmac_psd_88xx(struct halmac_adapter *halmac_adapter,
  * halmac_cfg_la_mode_88xx() - config la mode
  * @halmac_adapter : the adapter of halmac
  * @la_mode :
- *	disable : no TXFF space reserved for LA debug
- *	partial : partial TXFF space is reserved for LA debug
- *	full : all TXFF space is reserved for LA debug
+ *	disable : no TXFF space reserved for LA de
+ *	partial : partial TXFF space is reserved for LA de
+ *	full : all TXFF space is reserved for LA de
  * Author : KaiYuan Chang
  * Return : enum halmac_ret_status
  * More details of status code can be found in prototype document

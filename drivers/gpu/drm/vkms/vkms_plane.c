@@ -18,7 +18,7 @@ vkms_plane_duplicate_state(struct drm_plane *plane)
 
 	crc_data = kzalloc(sizeof(*crc_data), GFP_KERNEL);
 	if (!crc_data) {
-		DRM_DEBUG_KMS("Couldn't allocate crc_data\n");
+		DRM_DE_KMS("Couldn't allocate crc_data\n");
 		kfree(vkms_state);
 		return NULL;
 	}

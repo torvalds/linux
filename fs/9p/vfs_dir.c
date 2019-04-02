@@ -108,7 +108,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 	struct p9_rdir *rdir;
 	struct kvec kvec;
 
-	p9_debug(P9_DEBUG_VFS, "name %pD\n", file);
+	p9_de(P9_DE_VFS, "name %pD\n", file);
 	fid = file->private_data;
 
 	buflen = fid->clnt->msize - P9_IOHDRSZ;
@@ -138,7 +138,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 			err = p9stat_read(fid->clnt, rdir->buf + rdir->head,
 					  rdir->tail - rdir->head, &st);
 			if (err <= 0) {
-				p9_debug(P9_DEBUG_VFS, "returned %d\n", err);
+				p9_de(P9_DE_VFS, "returned %d\n", err);
 				return -EIO;
 			}
 
@@ -168,7 +168,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 	struct p9_rdir *rdir;
 	struct p9_dirent curdirent;
 
-	p9_debug(P9_DEBUG_VFS, "name %pD\n", file);
+	p9_de(P9_DE_VFS, "name %pD\n", file);
 	fid = file->private_data;
 
 	buflen = fid->clnt->msize - P9_READDIRHDRSZ;
@@ -194,7 +194,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 					    rdir->tail - rdir->head,
 					    &curdirent);
 			if (err < 0) {
-				p9_debug(P9_DEBUG_VFS, "returned %d\n", err);
+				p9_de(P9_DE_VFS, "returned %d\n", err);
 				return -EIO;
 			}
 
@@ -223,7 +223,7 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 	struct p9_fid *fid;
 
 	fid = filp->private_data;
-	p9_debug(P9_DEBUG_VFS, "inode: %p filp: %p fid: %d\n",
+	p9_de(P9_DE_VFS, "inode: %p filp: %p fid: %d\n",
 		 inode, filp, fid ? fid->fid : -1);
 	if (fid)
 		p9_client_clunk(fid);

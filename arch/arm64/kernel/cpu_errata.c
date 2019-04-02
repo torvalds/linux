@@ -157,7 +157,7 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 
 	if (slot == -1) {
 		slot = atomic_inc_return(&arm64_el2_vector_last_slot);
-		BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
+		_ON(slot >= BP_HARDEN_EL2_SLOTS);
 		__copy_hyp_vect_bpi(slot, hyp_vecs_start, hyp_vecs_end);
 	}
 
@@ -311,7 +311,7 @@ void __init arm64_update_smccc_conduit(struct alt_instr *alt,
 {
 	u32 insn;
 
-	BUG_ON(nr_inst != 1);
+	_ON(nr_inst != 1);
 
 	switch (psci_ops.conduit) {
 	case PSCI_CONDUIT_HVC:
@@ -331,7 +331,7 @@ void __init arm64_enable_wa2_handling(struct alt_instr *alt,
 				      __le32 *origptr, __le32 *updptr,
 				      int nr_inst)
 {
-	BUG_ON(nr_inst != 1);
+	_ON(nr_inst != 1);
 	/*
 	 * Only allow mitigation on EL1 entry/exit and guest
 	 * ARCH_WORKAROUND_2 handling if the SSBD state allows it to

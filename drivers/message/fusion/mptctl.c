@@ -207,7 +207,7 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 	if (!req)
 		return 0;
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "completing mpi function "
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "completing mpi function "
 	    "(0x%02X), req=%p, reply=%p\n", ioc->name,  req->u.hdr.Function,
 	    req, reply));
 
@@ -228,7 +228,7 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 	memcpy(ioc->ioctl_cmds.reply, reply, sz);
 
 	if (reply->u.reply.IOCStatus || reply->u.reply.IOCLogInfo)
-		dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dctlprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "iocstatus (0x%04X), loginfo (0x%08X)\n", ioc->name,
 		    le16_to_cpu(reply->u.reply.IOCStatus),
 		    le32_to_cpu(reply->u.reply.IOCLogInfo)));
@@ -238,7 +238,7 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 		 MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
 
 		if (reply->u.sreply.SCSIStatus || reply->u.sreply.SCSIState)
-			dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+			dctlprintk(ioc, printk(MYIOC_s_DE_FMT
 			"scsi_status (0x%02x), scsi_state (0x%02x), "
 			"tag = (0x%04x), transfer_count (0x%08x)\n", ioc->name,
 			reply->u.sreply.SCSIStatus,
@@ -288,7 +288,7 @@ mptctl_taskmgmt_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	if (!mf)
 		return 0;
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		"TaskMgmt completed (mf=%p, mr=%p)\n",
 		ioc->name, mf, mr));
 
@@ -343,7 +343,7 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 		goto tm_done;
 	}
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt request (mf=%p)\n",
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT "TaskMgmt request (mf=%p)\n",
 		ioc->name, mf));
 
 	pScsiTm = (SCSITaskMgmt_t *) mf;
@@ -379,7 +379,7 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 	}
 
 	dtmprintk(ioc,
-		printk(MYIOC_s_DEBUG_FMT "TaskMgmt type=%d timeout=%ld\n",
+		printk(MYIOC_s_DE_FMT "TaskMgmt type=%d timeout=%ld\n",
 		ioc->name, tm_type, timeout));
 
 	INITIALIZE_MGMT_STATUS(ioc->taskmgmt_cmds.status)
@@ -406,7 +406,7 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 	ii = wait_for_completion_timeout(&ioc->taskmgmt_cmds.done, timeout*HZ);
 
 	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "TaskMgmt failed\n", ioc->name));
 		mpt_free_msg_frame(ioc, mf);
 		mpt_clear_taskmgmt_in_progress_flag(ioc);
@@ -418,14 +418,14 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 	}
 
 	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_RF_VALID)) {
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "TaskMgmt failed\n", ioc->name));
 		retval = -1; /* return failure */
 		goto tm_done;
 	}
 
 	pScsiTmReply = (SCSITaskMgmtReply_t *) ioc->taskmgmt_cmds.reply;
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 	    "TaskMgmt fw_channel = %d, fw_id = %d, task_type=0x%02X, "
 	    "iocstatus=0x%04X\n\tloginfo=0x%08X, response_code=0x%02X, "
 	    "term_cmnds=%d\n", ioc->name, pScsiTmReply->Bus,
@@ -442,7 +442,7 @@ mptctl_do_taskmgmt(MPT_ADAPTER *ioc, u8 tm_type, u8 bus_id, u8 target_id)
 	   iocstatus == MPI_IOCSTATUS_SUCCESS)
 		retval = 0;
 	else {
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "TaskMgmt failed\n", ioc->name));
 		retval = -1; /* return failure */
 	}
@@ -467,10 +467,10 @@ mptctl_timeout_expired(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 	SCSIIORequest_t *scsi_req = (SCSIIORequest_t *) mf;
 	u8 function = mf->u.hdr.Function;
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT ": %s\n",
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT ": %s\n",
 		ioc->name, __func__));
 
-	if (mpt_fwfault_debug)
+	if (mpt_fwfault_de)
 		mpt_halt_firmware(ioc);
 
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
@@ -506,7 +506,7 @@ mptctl_timeout_expired(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 			return;
 	}
 
-	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Calling Reset! \n",
+	dtmprintk(ioc, printk(MYIOC_s_DE_FMT "Calling Reset! \n",
 		 ioc->name));
 	mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 	mpt_free_msg_frame(ioc, mf);
@@ -525,15 +525,15 @@ mptctl_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
 	switch(reset_phase) {
 	case MPT_IOC_SETUP_RESET:
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: MPT_IOC_SETUP_RESET\n", ioc->name, __func__));
 		break;
 	case MPT_IOC_PRE_RESET:
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: MPT_IOC_PRE_RESET\n", ioc->name, __func__));
 		break;
 	case MPT_IOC_POST_RESET:
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dtmprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "%s: MPT_IOC_POST_RESET\n", ioc->name, __func__));
 		if (ioc->ioctl_cmds.status & MPT_MGMT_STATUS_PENDING) {
 			ioc->ioctl_cmds.status |= MPT_MGMT_STATUS_DID_IOCRESET;
@@ -556,7 +556,7 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 
 	event = le32_to_cpu(pEvReply->Event) & 0xFF;
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s() called\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "%s() called\n",
 	    ioc->name, __func__));
 	if(async_queue == NULL)
 		return 1;
@@ -567,9 +567,9 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	 */
 	 if (event == 0x21 ) {
 		ioc->aen_event_read_flag=1;
-		dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Raised SIGIO to application\n",
+		dctlprintk(ioc, printk(MYIOC_s_DE_FMT "Raised SIGIO to application\n",
 		    ioc->name));
-		devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		devtverboseprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "Raised SIGIO to application\n", ioc->name));
 		kill_fasync(&async_queue, SIGIO, POLL_IN);
 		return 1;
@@ -587,9 +587,9 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	 */
 	if (ioc->events && (ioc->eventTypes & ( 1 << event))) {
 		ioc->aen_event_read_flag=1;
-		dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dctlprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "Raised SIGIO to application\n", ioc->name));
-		devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		devtverboseprintk(ioc, printk(MYIOC_s_DE_FMT
 		    "Raised SIGIO to application\n", ioc->name));
 		kill_fasync(&async_queue, SIGIO, POLL_IN);
 	}
@@ -645,7 +645,7 @@ __mptctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ENODEV;
 
 	if (!iocp->active) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_ioctl() @%d - Controller disabled.\n",
+		printk(KERN_DE MYNAM "%s::mptctl_ioctl() @%d - Controller disabled.\n",
 				__FILE__, __LINE__);
 		return -EFAULT;
 	}
@@ -719,12 +719,12 @@ static int mptctl_do_reset(unsigned long arg)
 	}
 
 	if (mpt_verify_adapter(krinfo.hdr.iocnum, &iocp) < 0) {
-		printk(KERN_DEBUG MYNAM "%s@%d::mptctl_do_reset - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s@%d::mptctl_do_reset - ioc%d not found!\n",
 				__FILE__, __LINE__, krinfo.hdr.iocnum);
 		return -ENODEV; /* (-6) No such device or address */
 	}
 
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "mptctl_do_reset called.\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "mptctl_do_reset called.\n",
 	    iocp->name));
 
 	if (mpt_HardResetHandler(iocp, CAN_SLEEP) != 0) {
@@ -809,7 +809,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	unsigned long		 timeleft;
 
 	if (mpt_verify_adapter(ioc, &iocp) < 0) {
-		printk(KERN_DEBUG MYNAM "ioctl_fwdl - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "ioctl_fwdl - ioc%d not found!\n",
 				 ioc);
 		return -ENODEV; /* (-6) No such device or address */
 	} else {
@@ -820,13 +820,13 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 			return -EAGAIN;
 	}
 
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT
 	    "mptctl_do_fwdl called. mptctl_id = %xh.\n", iocp->name, mptctl_id));
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "DbG: kfwdl.bufp  = %p\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "DbG: kfwdl.bufp  = %p\n",
 	    iocp->name, ufwbuf));
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "DbG: kfwdl.fwlen = %d\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "DbG: kfwdl.fwlen = %d\n",
 	    iocp->name, (int)fwlen));
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "DbG: kfwdl.ioc   = %04xh\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "DbG: kfwdl.ioc   = %04xh\n",
 	    iocp->name, ioc));
 
 	dlmsg = (FWDownload_t*) mf;
@@ -898,7 +898,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 		goto fwdl_out;
 	}
 
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "DbG: sgl buffer = %p, sgfrags = %d\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "DbG: sgl buffer = %p, sgfrags = %d\n",
 	    iocp->name, sgl, numfrags));
 
 	/*
@@ -1137,10 +1137,10 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 	*frags = numfrags;
 	*blp = buflist;
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "-SG: kbuf_alloc_2_sgl() - "
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "-SG: kbuf_alloc_2_sgl() - "
 	   "%d SG frags generated!\n", ioc->name, numfrags));
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "-SG: kbuf_alloc_2_sgl() - "
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "-SG: kbuf_alloc_2_sgl() - "
 	   "last (big) alloc_sz=%d\n", ioc->name, alloc_sz));
 
 	return sglbuf;
@@ -1223,7 +1223,7 @@ kfree_sgl(MptSge_t *sgl, dma_addr_t sgl_dma, struct buflist *buflist, MPT_ADAPTE
 
 	pci_free_consistent(ioc->pcidev, MAX_SGL_BYTES, sgl, sgl_dma);
 	kfree(buflist);
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "-SG: Free'd 1 SGL buf + %d kbufs!\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "-SG: Free'd 1 SGL buf + %d kbufs!\n",
 	    ioc->name, n));
 }
 
@@ -1274,7 +1274,7 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 
 	if (((iocnum = mpt_verify_adapter(karg->hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_getiocinfo() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_getiocinfo() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		kfree(karg);
 		return -ENODEV;
@@ -1289,7 +1289,7 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 		return -EFAULT;
 	}
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_getiocinfo called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_getiocinfo called.\n",
 	    ioc->name));
 
 	/* Fill in the data and return the structure to the calling
@@ -1410,12 +1410,12 @@ mptctl_gettargetinfo (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_gettargetinfo() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_gettargetinfo() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_gettargetinfo called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_gettargetinfo called.\n",
 	    ioc->name));
 	/* Get the port number and set the maximum number of bytes
 	 * in the returned structure.
@@ -1526,12 +1526,12 @@ mptctl_readtest (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_readtest() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_readtest() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_readtest called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_readtest called.\n",
 	    ioc->name));
 	/* Fill in the data and return the structure to the calling
 	 * program
@@ -1587,12 +1587,12 @@ mptctl_eventquery (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_eventquery() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_eventquery() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_eventquery called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_eventquery called.\n",
 	    ioc->name));
 	karg.eventEntries = MPTCTL_EVENT_LOG_SIZE;
 	karg.eventTypes = ioc->eventTypes;
@@ -1626,12 +1626,12 @@ mptctl_eventenable (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_eventenable() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_eventenable() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_eventenable called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_eventenable called.\n",
 	    ioc->name));
 	if (ioc->events == NULL) {
 		/* Have not yet allocated memory - do so now.
@@ -1675,11 +1675,11 @@ mptctl_eventreport (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_eventreport() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_eventreport() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_eventreport called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_eventreport called.\n",
 	    ioc->name));
 
 	numBytes = karg.hdr.maxDataSize - sizeof(mpt_ioctl_header);
@@ -1729,12 +1729,12 @@ mptctl_replace_fw (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_replace_fw() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_replace_fw() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
 
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_replace_fw called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_replace_fw called.\n",
 	    ioc->name));
 	/* If caching FW, Free the old FW image
 	 */
@@ -1798,7 +1798,7 @@ mptctl_mpt_command (unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_mpt_command() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_mpt_command() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
@@ -1849,7 +1849,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_do_mpt_command() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_do_mpt_command() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
@@ -1914,7 +1914,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 	/* Verify that this request is allowed.
 	 */
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "sending mpi function (0x%02X), req=%p\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "sending mpi function (0x%02X), req=%p\n",
 	    ioc->name, hdr->Function, mf));
 
 	switch (function) {
@@ -1927,7 +1927,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	{
 		Config_t *config_frame;
 		config_frame = (Config_t *)mf;
-		dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "\ttype=0x%02x ext_type=0x%02x "
+		dctlprintk(ioc, printk(MYIOC_s_DE_FMT "\ttype=0x%02x ext_type=0x%02x "
 		    "number=0x%02x action=0x%02x\n", ioc->name,
 		    config_frame->Header.PageType,
 		    config_frame->ExtPageType,
@@ -2107,7 +2107,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	{
 		SCSITaskMgmt_t	*pScsiTm;
 		pScsiTm = (SCSITaskMgmt_t *)mf;
-		dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		dctlprintk(ioc, printk(MYIOC_s_DE_FMT
 			"\tTaskType=0x%x MsgFlags=0x%x "
 			"TaskMsgContext=0x%x id=%d channel=%d\n",
 			ioc->name, pScsiTm->TaskType, le32_to_cpu
@@ -2454,11 +2454,11 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 	    (ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_hp_hostinfo() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_hp_hostinfo() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT ": mptctl_hp_hostinfo called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT ": mptctl_hp_hostinfo called.\n",
 	    ioc->name));
 
 	/* Fill in the data and return the structure to the calling
@@ -2683,13 +2683,13 @@ mptctl_hp_targetinfo(unsigned long arg)
 
 	if (((iocnum = mpt_verify_adapter(karg.hdr.iocnum, &ioc)) < 0) ||
 		(ioc == NULL)) {
-		printk(KERN_DEBUG MYNAM "%s::mptctl_hp_targetinfo() @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "%s::mptctl_hp_targetinfo() @%d - ioc%d not found!\n",
 				__FILE__, __LINE__, iocnum);
 		return -ENODEV;
 	}
 	if (karg.hdr.id >= MPT_MAX_FC_DEVICES)
 		return -EINVAL;
-	dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_hp_targetinfo called.\n",
+	dctlprintk(ioc, printk(MYIOC_s_DE_FMT "mptctl_hp_targetinfo called.\n",
 	    ioc->name));
 
 	/*  There is nothing to do for FCP parts.
@@ -2840,7 +2840,7 @@ compat_mptfwxfer_ioctl(struct file *filp, unsigned int cmd,
 	iocnumX = kfw32.iocnum & 0xFF;
 	if (((iocnum = mpt_verify_adapter(iocnumX, &iocp)) < 0) ||
 	    (iocp == NULL)) {
-		printk(KERN_DEBUG MYNAM "::compat_mptfwxfer_ioctl @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "::compat_mptfwxfer_ioctl @%d - ioc%d not found!\n",
 			__LINE__, iocnumX);
 		return -ENODEV;
 	}
@@ -2848,7 +2848,7 @@ compat_mptfwxfer_ioctl(struct file *filp, unsigned int cmd,
 	if ((ret = mptctl_syscall_down(iocp, nonblock)) != 0)
 		return ret;
 
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "compat_mptfwxfer_ioctl() called\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "compat_mptfwxfer_ioctl() called\n",
 	    iocp->name));
 	kfw.iocnum = iocnum;
 	kfw.fwlen = kfw32.fwlen;
@@ -2880,7 +2880,7 @@ compat_mpt_command(struct file *filp, unsigned int cmd,
 	iocnumX = karg32.hdr.iocnum & 0xFF;
 	if (((iocnum = mpt_verify_adapter(iocnumX, &iocp)) < 0) ||
 	    (iocp == NULL)) {
-		printk(KERN_DEBUG MYNAM "::compat_mpt_command @%d - ioc%d not found!\n",
+		printk(KERN_DE MYNAM "::compat_mpt_command @%d - ioc%d not found!\n",
 			__LINE__, iocnumX);
 		return -ENODEV;
 	}
@@ -2888,7 +2888,7 @@ compat_mpt_command(struct file *filp, unsigned int cmd,
 	if ((ret = mptctl_syscall_down(iocp, nonblock)) != 0)
 		return ret;
 
-	dctlprintk(iocp, printk(MYIOC_s_DEBUG_FMT "compat_mpt_command() called\n",
+	dctlprintk(iocp, printk(MYIOC_s_DE_FMT "compat_mpt_command() called\n",
 	    iocp->name));
 	/* Copy data to karg */
 	karg.hdr.iocnum = karg32.hdr.iocnum;

@@ -716,7 +716,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				goto out;
 			}
 			if (opts->discovery_nqn) {
-				pr_debug("Ignoring nr_io_queues value for discovery controller\n");
+				pr_de("Ignoring nr_io_queues value for discovery controller\n");
 				break;
 			}
 
@@ -734,7 +734,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				ret = -EINVAL;
 				goto out;
 			} else if (token == 0 && !opts->discovery_nqn) {
-				/* Allowed for debug */
+				/* Allowed for de */
 				pr_warn("keep_alive_tmo 0 won't execute keep alives!!!\n");
 			}
 			opts->kato = token;
@@ -1188,10 +1188,10 @@ static void __exit nvmf_exit(void)
 	class_destroy(nvmf_class);
 	nvmf_host_put(nvmf_default_host);
 
-	BUILD_BUG_ON(sizeof(struct nvmf_connect_command) != 64);
-	BUILD_BUG_ON(sizeof(struct nvmf_property_get_command) != 64);
-	BUILD_BUG_ON(sizeof(struct nvmf_property_set_command) != 64);
-	BUILD_BUG_ON(sizeof(struct nvmf_connect_data) != 1024);
+	BUILD__ON(sizeof(struct nvmf_connect_command) != 64);
+	BUILD__ON(sizeof(struct nvmf_property_get_command) != 64);
+	BUILD__ON(sizeof(struct nvmf_property_set_command) != 64);
+	BUILD__ON(sizeof(struct nvmf_connect_data) != 1024);
 }
 
 MODULE_LICENSE("GPL v2");

@@ -27,7 +27,7 @@
 
 /* EMAC_MAC_CTRL */
 #define SINGLE_PAUSE_MODE       	0x10000000
-#define DEBUG_MODE                      0x08000000
+#define DE_MODE                      0x08000000
 #define BROAD_EN                        0x04000000
 #define MULTI_ALL                       0x02000000
 #define RX_CHKSUM_EN                    0x01000000
@@ -539,7 +539,7 @@ static void emac_mac_start(struct emac_adapter *adpt)
 	mac |= FLCHK;
 	mac &= ~RX_CHKSUM_EN;
 	mac &= ~(HUGEN | VLAN_STRIP | TPAUSE | SIMR | HUGE | MULTI_ALL |
-		 DEBUG_MODE | SINGLE_PAUSE_MODE);
+		 DE_MODE | SINGLE_PAUSE_MODE);
 
 	/* Enable single-pause-frame mode if requested.
 	 *

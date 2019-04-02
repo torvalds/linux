@@ -313,25 +313,25 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	case -EHOSTUNREACH:
 	case -EHOSTDOWN:
 	case -ECONNREFUSED:
-		_debug("no conn");
+		_de("no conn");
 		fc->error = error;
 		goto iterate_address;
 
 	case -ECONNRESET:
-		_debug("call reset");
+		_de("call reset");
 		fc->error = error;
 		goto failed;
 	}
 
 restart_from_beginning:
-	_debug("restart");
+	_de("restart");
 	afs_end_cursor(&fc->ac);
 	afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
 	fc->cbi = NULL;
 	afs_put_serverlist(afs_v2net(vnode), fc->server_list);
 	fc->server_list = NULL;
 start:
-	_debug("start");
+	_de("start");
 	/* See if we need to do an update of the volume record.  Note that the
 	 * volume may have moved or even have been deleted.
 	 */
@@ -342,13 +342,13 @@ start:
 	if (!afs_start_fs_iteration(fc, vnode))
 		goto failed;
 
-	_debug("__ VOL %llx __", vnode->volume->vid);
+	_de("__ VOL %llx __", vnode->volume->vid);
 	error = afs_probe_fileservers(afs_v2net(vnode), fc->key, fc->server_list);
 	if (error < 0)
 		goto failed_set_error;
 
 pick_server:
-	_debug("pick [%lx]", fc->untried);
+	_de("pick [%lx]", fc->untried);
 
 	error = afs_wait_for_fs_probes(fc->server_list, fc->untried);
 	if (error < 0)
@@ -358,12 +358,12 @@ pick_server:
 	 * callbacks, we stick with the server we're already using if we can.
 	 */
 	if (fc->cbi) {
-		_debug("cbi %u", fc->index);
+		_de("cbi %u", fc->index);
 		if (test_bit(fc->index, &fc->untried))
 			goto selected_server;
 		afs_put_cb_interest(afs_v2net(vnode), fc->cbi);
 		fc->cbi = NULL;
-		_debug("nocbi");
+		_de("nocbi");
 	}
 
 	fc->index = -1;
@@ -383,7 +383,7 @@ pick_server:
 		goto no_more_servers;
 
 selected_server:
-	_debug("use %d", fc->index);
+	_de("use %d", fc->index);
 	__clear_bit(fc->index, &fc->untried);
 
 	/* We're starting on a different fileserver from the list.  We need to
@@ -396,7 +396,7 @@ selected_server:
 	if (!afs_check_server_record(fc, server))
 		goto failed;
 
-	_debug("USING SERVER: %pU", &server->uuid);
+	_de("USING SERVER: %pU", &server->uuid);
 
 	/* Make sure we've got a callback interest record for this server.  We
 	 * have to link it in before we send the request as we can be sent a
@@ -433,13 +433,13 @@ iterate_address:
 	if (!afs_iterate_addresses(&fc->ac))
 		goto next_server;
 
-	_debug("address [%u] %u/%u", fc->index, fc->ac.index, fc->ac.alist->nr_addrs);
+	_de("address [%u] %u/%u", fc->index, fc->ac.index, fc->ac.alist->nr_addrs);
 
 	_leave(" = t");
 	return true;
 
 next_server:
-	_debug("next");
+	_de("next");
 	afs_end_cursor(&fc->ac);
 	goto pick_server;
 
@@ -530,7 +530,7 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
-		_debug("no conn");
+		_de("no conn");
 		fc->error = error;
 		goto iterate_address;
 	}
@@ -556,7 +556,7 @@ static void afs_dump_edestaddrreq(const struct afs_fs_cursor *fc)
 	static int count;
 	int i;
 
-	if (!IS_ENABLED(CONFIG_AFS_DEBUG_CURSOR) || count > 3)
+	if (!IS_ENABLED(CONFIG_AFS_DE_CURSOR) || count > 3)
 		return;
 	count++;
 

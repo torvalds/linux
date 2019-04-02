@@ -43,7 +43,7 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 {
 	WARN_ON(refcount_read(&transaction->use_count) == 0);
 	if (refcount_dec_and_test(&transaction->use_count)) {
-		BUG_ON(!list_empty(&transaction->list));
+		_ON(!list_empty(&transaction->list));
 		WARN_ON(!RB_EMPTY_ROOT(
 				&transaction->delayed_refs.href_root.rb_root));
 		if (transaction->delayed_refs.pending_csums)
@@ -209,7 +209,7 @@ loop:
 	 * JOIN_NOLOCK only happens during the transaction commit, so
 	 * it is impossible that ->running_transaction is NULL
 	 */
-	BUG_ON(type == TRANS_JOIN_NOLOCK);
+	_ON(type == TRANS_JOIN_NOLOCK);
 
 	cur_trans = kmalloc(sizeof(*cur_trans), GFP_NOFS);
 	if (!cur_trans)
@@ -1287,7 +1287,7 @@ int btrfs_defrag_root(struct btrfs_root *root)
 			break;
 
 		if (btrfs_defrag_cancelled(info)) {
-			btrfs_debug(info, "defrag_root cancelled");
+			btrfs_de(info, "defrag_root cancelled");
 			ret = -EAGAIN;
 			break;
 		}
@@ -1464,7 +1464,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	 * insert the directory item
 	 */
 	ret = btrfs_set_inode_index(BTRFS_I(parent_inode), &index);
-	BUG_ON(ret); /* -ENOMEM */
+	_ON(ret); /* -ENOMEM */
 
 	/* check if there is a file/dir which has the same name. */
 	dir_item = btrfs_lookup_dir_item(NULL, parent_root, path,
@@ -1604,7 +1604,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				    dentry->d_name.len, BTRFS_I(parent_inode),
 				    &key, BTRFS_FT_DIR, index);
 	/* We have check then name at the beginning, so it is impossible. */
-	BUG_ON(ret == -EEXIST || ret == -EOVERFLOW);
+	_ON(ret == -EEXIST || ret == -EOVERFLOW);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -1837,7 +1837,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 	 * transaction has been committed successfully, so it is impossible
 	 * to call the cleanup function.
 	 */
-	BUG_ON(list_empty(&cur_trans->list));
+	_ON(list_empty(&cur_trans->list));
 
 	list_del_init(&cur_trans->list);
 	if (cur_trans == fs_info->running_transaction) {
@@ -2349,7 +2349,7 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	list_del_init(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	btrfs_debug(fs_info, "cleaner removing %llu", root->root_key.objectid);
+	btrfs_de(fs_info, "cleaner removing %llu", root->root_key.objectid);
 
 	btrfs_kill_all_delayed_nodes(root);
 
@@ -2383,7 +2383,7 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 
 	bit = 1 << BTRFS_PENDING_COMMIT;
 	if (prev & bit)
-		btrfs_debug(fs_info, "pending commit done");
+		btrfs_de(fs_info, "pending commit done");
 	prev &= ~bit;
 
 	if (prev)

@@ -18,12 +18,12 @@
  * processing.
  *
  * Version 0.99 is the first release of this driver and there are
- * certainly a few bugs.
+ * certainly a few s.
  * It isn't testet on linux 2.4 yet, so consider this code to be
  * beta.
  *
  * Please don't report me any malfunction without sending
- * (compressed) debug-logs.
+ * (compressed) de-logs.
  * It would be nearly impossible to retrace it.
  *
  * Log D-channel-processing as follows:
@@ -37,7 +37,7 @@
  *    if you chose an other value for id, you need to modify the
  *    code below, too.
  *
- * 2. set debug-level
+ * 2. set de-level
  *
  *    hisaxctrl gerdes 1 0x3ff
  *    hisaxctrl gerdes 11 0x4f
@@ -149,8 +149,8 @@ static void dummywr(struct IsdnCardState *cs, int chan, unsigned char off, unsig
 static void
 reset_enpci(struct IsdnCardState *cs)
 {
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "enter:now PCI: reset");
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "enter:now PCI: reset");
 
 	/* Reset on, (also for AMD) */
 	cs->hw.njet.ctrl_reg = 0x07;
@@ -175,8 +175,8 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	u_long flags;
 	unsigned char *chan;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "enter:now PCI: card_msg: 0x%04X", mt);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "enter:now PCI: card_msg: 0x%04X", mt);
 
 	switch (mt) {
 	case CARD_RESET:
@@ -210,8 +210,8 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 		/* activate B-channel */
 		chan = (unsigned char *)arg;
 
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "enter:now PCI: assign phys. BC %d in AMD LMR1", *chan);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "enter:now PCI: assign phys. BC %d in AMD LMR1", *chan);
 
 		cs->dc.amd7930.ph_command(cs, (cs->dc.amd7930.lmr1 | (*chan + 1)), "MDL_BC_ASSIGN");
 		/* at least one b-channel in use, LED 2 on */
@@ -222,8 +222,8 @@ enpci_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 		/* deactivate B-channel */
 		chan = (unsigned char *)arg;
 
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "enter:now PCI: release phys. BC %d in Amd LMR1", *chan);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "enter:now PCI: release phys. BC %d in Amd LMR1", *chan);
 
 		cs->dc.amd7930.ph_command(cs, (cs->dc.amd7930.lmr1 & ~(*chan + 1)), "MDL_BC_RELEASE");
 		/* no b-channel active -> LED2 off */

@@ -126,9 +126,9 @@ typedef struct tag_tx_stats_feedback {
 	u8	rate;
 } __packed cmpk_tx_status_t;
 
-/* 6. Debug feedback message. */
-/* Define RX debug message  */
-typedef struct tag_rx_debug_message_feedback {
+/* 6. De feedback message. */
+/* Define RX de message  */
+typedef struct tag_rx_de_message_feedback {
 	/* For endian transfer --> for driver */
 	/* DW 0 */
 	u16	reserve1;
@@ -136,7 +136,7 @@ typedef struct tag_rx_debug_message_feedback {
 	u8	element_id;			/* Command packet type */
 
 	/* DW 1-?? */
-	/* Variable debug message. */
+	/* Variable de message. */
 
 } cmpk_rx_dbginfo_t;
 

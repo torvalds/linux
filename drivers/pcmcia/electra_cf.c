@@ -150,7 +150,7 @@ static int electra_cf_set_socket(struct pcmcia_socket *sock,
 	gpio |= 1 << (cf->gpio_5v + 16); /* enwr */
 	out_le32(cf->gpio_base+0x90, gpio);
 
-	pr_debug("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
+	pr_de("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
 		driver_name, s->Vcc, s->io_irq, s->flags, s->csc_mask);
 
 	return 0;

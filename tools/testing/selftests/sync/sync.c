@@ -165,7 +165,7 @@ int sync_fence_count_with_status(int fd, int status)
 
 int sw_sync_timeline_create(void)
 {
-	return open("/sys/kernel/debug/sync/sw_sync", O_RDWR);
+	return open("/sys/kernel/de/sync/sw_sync", O_RDWR);
 }
 
 int sw_sync_timeline_inc(int fd, unsigned int count)

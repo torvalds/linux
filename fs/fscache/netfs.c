@@ -9,7 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL COOKIE
+#define FSCACHE_DE_LEVEL COOKIE
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "internal.h"

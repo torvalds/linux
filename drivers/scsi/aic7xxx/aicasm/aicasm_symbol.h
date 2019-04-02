@@ -134,7 +134,7 @@ typedef struct symbol {
 		struct cond_info  *condinfo;
 		struct macro_info *macroinfo;
 	} info;
-	int	dont_generate_debug_code;
+	int	dont_generate_de_code;
 } symbol_t;
 
 typedef struct symbol_ref {

@@ -20,7 +20,7 @@
  *              Pekka Riikonen <priikone@poesidon.pspt.fi>
  *
  *	Changes:
- *              D.J. Barrow     :       Fixed bug where dev->refcnt gets set
+ *              D.J. Barrow     :       Fixed  where dev->refcnt gets set
  *                                      to 2 if register_netdev gets called
  *                                      before net_dev_init & also removed a
  *                                      few lines of code in the process.
@@ -61,7 +61,7 @@
  *		Andi Kleen	:	Fix error reporting for SIOCGIFCONF
  *	    Michael Chastain	:	Fix signed/unsigned for SIOCGIFCONF
  *		Cyrus Durgin	:	Cleaned for KMOD
- *		Adam Sulmicki   :	Bug Fix : Network Device Unload
+ *		Adam Sulmicki   :	 Fix : Network Device Unload
  *					A network device unload needs to purge
  *					the backlog queue.
  *	Paul Rusty Russell	:	SIOCSIFNAME
@@ -1118,7 +1118,7 @@ static int dev_alloc_name_ns(struct net *net,
 	char buf[IFNAMSIZ];
 	int ret;
 
-	BUG_ON(!net);
+	_ON(!net);
 	ret = __dev_alloc_name(net, name, buf);
 	if (ret >= 0)
 		strlcpy(dev->name, buf, IFNAMSIZ);
@@ -1148,7 +1148,7 @@ EXPORT_SYMBOL(dev_alloc_name);
 int dev_get_valid_name(struct net *net, struct net_device *dev,
 		       const char *name)
 {
-	BUG_ON(!net);
+	_ON(!net);
 
 	if (!dev_valid_name(name))
 		return -EINVAL;
@@ -1181,7 +1181,7 @@ int dev_change_name(struct net_device *dev, const char *newname)
 	struct net *net;
 
 	ASSERT_RTNL();
-	BUG_ON(!dev_net(dev));
+	_ON(!dev_net(dev));
 
 	net = dev_net(dev);
 	if (dev->flags & IFF_UP)
@@ -1783,7 +1783,7 @@ static int call_netdevice_notifiers_mtu(unsigned long val,
 		.ext.mtu = arg,
 	};
 
-	BUILD_BUG_ON(offsetof(struct netdev_notifier_info_ext, info) != 0);
+	BUILD__ON(offsetof(struct netdev_notifier_info_ext, info) != 0);
 
 	return call_netdevice_notifiers_info(val, &info.info);
 }
@@ -2040,13 +2040,13 @@ again:
 
 		/* skb->nh should be correctly
 		 * set by sender, so that the second statement is
-		 * just protection against buggy protocols.
+		 * just protection against gy protocols.
 		 */
 		skb_reset_mac_header(skb2);
 
 		if (skb_network_header(skb2) < skb2->data ||
 		    skb_network_header(skb2) > skb_tail_pointer(skb2)) {
-			net_crit_ratelimited("protocol %04x is buggy, dev %s\n",
+			net_crit_ratelimited("protocol %04x is gy, dev %s\n",
 					     ntohs(skb2->protocol),
 					     dev->name);
 			skb_reset_network_header(skb2);
@@ -2925,11 +2925,11 @@ int skb_checksum_help(struct sk_buff *skb)
 	}
 
 	offset = skb_checksum_start_offset(skb);
-	BUG_ON(offset >= skb_headlen(skb));
+	_ON(offset >= skb_headlen(skb));
 	csum = skb_checksum(skb, offset, skb->len - offset, 0);
 
 	offset += skb->csum_offset;
-	BUG_ON(offset + sizeof(__sum16) > skb_headlen(skb));
+	_ON(offset + sizeof(__sum16) > skb_headlen(skb));
 
 	if (skb_cloned(skb) &&
 	    !skb_clone_writable(skb, offset + sizeof(__sum16))) {
@@ -3090,7 +3090,7 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 			features &= ~NETIF_F_GSO_PARTIAL;
 	}
 
-	BUILD_BUG_ON(SKB_SGO_CB_OFFSET +
+	BUILD__ON(SKB_SGO_CB_OFFSET +
 		     sizeof(*SKB_GSO_CB(skb)) > sizeof(skb->cb));
 
 	SKB_GSO_CB(skb)->mac_offset = skb_headroom(skb);
@@ -3109,7 +3109,7 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 EXPORT_SYMBOL(__skb_gso_segment);
 
 /* Take action when hardware reception checksum errors are detected. */
-#ifdef CONFIG_BUG
+#ifdef CONFIG_
 void netdev_rx_csum_fault(struct net_device *dev, struct sk_buff *skb)
 {
 	if (net_ratelimit()) {
@@ -4910,7 +4910,7 @@ skip_classify:
 		case RX_HANDLER_PASS:
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -5348,7 +5348,7 @@ static int napi_gro_complete(struct sk_buff *skb)
 	struct list_head *head = &offload_base;
 	int err = -ENOENT;
 
-	BUILD_BUG_ON(sizeof(struct napi_gro_cb) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct napi_gro_cb) > sizeof(skb->cb));
 
 	if (NAPI_GRO_CB(skb)->count == 1) {
 		skb_shinfo(skb)->gso_size = 0;
@@ -5473,7 +5473,7 @@ static void gro_pull_from_frag0(struct sk_buff *skb, int grow)
 {
 	struct skb_shared_info *pinfo = skb_shinfo(skb);
 
-	BUG_ON(skb->end - skb->tail < grow);
+	_ON(skb->end - skb->tail < grow);
 
 	memcpy(skb_tail_pointer(skb), NAPI_GRO_CB(skb)->frag0, grow);
 
@@ -6890,7 +6890,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 
 	if (adj) {
 		adj->ref_nr += 1;
-		pr_debug("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d\n",
+		pr_de("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d\n",
 			 dev->name, adj_dev->name, adj->ref_nr);
 
 		return 0;
@@ -6906,7 +6906,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	adj->private = private;
 	dev_hold(adj_dev);
 
-	pr_debug("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d; dev_hold on %s\n",
+	pr_de("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d; dev_hold on %s\n",
 		 dev->name, adj_dev->name, adj->ref_nr, adj_dev->name);
 
 	if (netdev_adjacent_is_neigh_list(dev, adj_dev, dev_list)) {
@@ -6946,7 +6946,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 {
 	struct netdev_adjacent *adj;
 
-	pr_debug("Remove adjacency: dev %s adj_dev %s ref_nr %d\n",
+	pr_de("Remove adjacency: dev %s adj_dev %s ref_nr %d\n",
 		 dev->name, adj_dev->name, ref_nr);
 
 	adj = __netdev_find_adj(adj_dev, dev_list);
@@ -6959,7 +6959,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 	}
 
 	if (adj->ref_nr > ref_nr) {
-		pr_debug("adjacency: %s to %s ref_nr - %d = %d\n",
+		pr_de("adjacency: %s to %s ref_nr - %d = %d\n",
 			 dev->name, adj_dev->name, ref_nr,
 			 adj->ref_nr - ref_nr);
 		adj->ref_nr -= ref_nr;
@@ -6973,7 +6973,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 		netdev_adjacent_sysfs_del(dev, adj_dev->name, dev_list);
 
 	list_del_rcu(&adj->list);
-	pr_debug("adjacency: dev_put for %s, because link removed from %s to %s\n",
+	pr_de("adjacency: dev_put for %s, because link removed from %s to %s\n",
 		 adj_dev->name, dev->name, adj_dev->name);
 	dev_put(adj_dev);
 	kfree_rcu(adj, rcu);
@@ -7538,7 +7538,7 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags,
 	 *	Set the flags on our device.
 	 */
 
-	dev->flags = (flags & (IFF_DEBUG | IFF_NOTRAILERS | IFF_NOARP |
+	dev->flags = (flags & (IFF_DE | IFF_NOTRAILERS | IFF_NOARP |
 			       IFF_DYNAMIC | IFF_MULTICAST | IFF_PORTSEL |
 			       IFF_AUTOMEDIA)) |
 		     (dev->flags & (IFF_UP | IFF_VOLATILE | IFF_PROMISC |
@@ -8135,7 +8135,7 @@ static void rollback_registered_many(struct list_head *head)
 	struct net_device *dev, *tmp;
 	LIST_HEAD(close_head);
 
-	BUG_ON(dev_boot_phase);
+	_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
 	list_for_each_entry_safe(dev, tmp, head, unreg_list) {
@@ -8144,7 +8144,7 @@ static void rollback_registered_many(struct list_head *head)
 		 * devices and proceed with the remaining.
 		 */
 		if (dev->reg_state == NETREG_UNINITIALIZED) {
-			pr_debug("unregister_netdevice: device %s/%p never was registered\n",
+			pr_de("unregister_netdevice: device %s/%p never was registered\n",
 				 dev->name, dev);
 
 			WARN_ON(1);
@@ -8152,7 +8152,7 @@ static void rollback_registered_many(struct list_head *head)
 			continue;
 		}
 		dev->dismantle = true;
-		BUG_ON(dev->reg_state != NETREG_REGISTERED);
+		_ON(dev->reg_state != NETREG_REGISTERED);
 	}
 
 	/* If device is running, close it first. */
@@ -8503,7 +8503,7 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 	size_t sz = count * sizeof(*rx);
 	int err = 0;
 
-	BUG_ON(count < 1);
+	_ON(count < 1);
 
 	rx = kvzalloc(sz, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!rx)
@@ -8608,7 +8608,7 @@ EXPORT_SYMBOL(netif_tx_stop_all_queues);
  *	Callers must hold the rtnl semaphore. You may want
  *	register_netdev() instead of this.
  *
- *	BUGS:
+ *	S:
  *	The locking appears insufficient to guarantee two parallel registers
  *	will not get the same name.
  */
@@ -8618,16 +8618,16 @@ int register_netdevice(struct net_device *dev)
 	int ret;
 	struct net *net = dev_net(dev);
 
-	BUILD_BUG_ON(sizeof(netdev_features_t) * BITS_PER_BYTE <
+	BUILD__ON(sizeof(netdev_features_t) * BITS_PER_BYTE <
 		     NETDEV_FEATURE_COUNT);
-	BUG_ON(dev_boot_phase);
+	_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
 	might_sleep();
 
 	/* When net_device's are persistent, this will be fatal. */
-	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
-	BUG_ON(!net);
+	_ON(dev->reg_state != NETREG_UNINITIALIZED);
+	_ON(!net);
 
 	spin_lock_init(&dev->addr_list_lock);
 	netdev_set_addr_lockdep_class(dev);
@@ -8650,7 +8650,7 @@ int register_netdevice(struct net_device *dev)
 	     NETIF_F_HW_VLAN_CTAG_FILTER) &&
 	    (!dev->netdev_ops->ndo_vlan_rx_add_vid ||
 	     !dev->netdev_ops->ndo_vlan_rx_kill_vid)) {
-		netdev_WARN(dev, "Buggy VLAN acceleration in driver!\n");
+		netdev_WARN(dev, "gy VLAN acceleration in driver!\n");
 		ret = -EINVAL;
 		goto err_uninit;
 	}
@@ -8782,7 +8782,7 @@ int init_dummy_netdev(struct net_device *dev)
 	 */
 	memset(dev, 0, sizeof(struct net_device));
 
-	/* make sure we BUG if trying to hit standard
+	/* make sure we  if trying to hit standard
 	 * register/unregister code path
 	 */
 	dev->reg_state = NETREG_DUMMY;
@@ -8851,7 +8851,7 @@ EXPORT_SYMBOL(netdev_refcnt_read);
  * Any protocol or device that holds a reference should register
  * for netdevice notification, and cleanup and put back the
  * reference if they receive an UNREGISTER event.
- * We can get stuck here if buggy protocols don't correctly
+ * We can get stuck here if gy protocols don't correctly
  * call dev_put.
  */
 static void netdev_wait_allrefs(struct net_device *dev)
@@ -8958,9 +8958,9 @@ void netdev_run_todo(void)
 		netdev_wait_allrefs(dev);
 
 		/* paranoia */
-		BUG_ON(netdev_refcnt_read(dev));
-		BUG_ON(!list_empty(&dev->ptype_all));
-		BUG_ON(!list_empty(&dev->ptype_specific));
+		_ON(netdev_refcnt_read(dev));
+		_ON(!list_empty(&dev->ptype_all));
+		_ON(!list_empty(&dev->ptype_specific));
 		WARN_ON(rcu_access_pointer(dev->ip_ptr));
 		WARN_ON(rcu_access_pointer(dev->ip6_ptr));
 #if IS_ENABLED(CONFIG_DECNET)
@@ -8991,7 +8991,7 @@ void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
 			     const struct net_device_stats *netdev_stats)
 {
 #if BITS_PER_LONG == 64
-	BUILD_BUG_ON(sizeof(*stats64) < sizeof(*netdev_stats));
+	BUILD__ON(sizeof(*stats64) < sizeof(*netdev_stats));
 	memcpy(stats64, netdev_stats, sizeof(*netdev_stats));
 	/* zero out counters that only exist in rtnl_link_stats64 */
 	memset((char *)stats64 + sizeof(*netdev_stats), 0,
@@ -9001,7 +9001,7 @@ void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
 	const unsigned long *src = (const unsigned long *)netdev_stats;
 	u64 *dst = (u64 *)stats64;
 
-	BUILD_BUG_ON(n > sizeof(*stats64) / sizeof(u64));
+	BUILD__ON(n > sizeof(*stats64) / sizeof(u64));
 	for (i = 0; i < n; i++)
 		dst[i] = src[i];
 	/* zero out counters that only exist in rtnl_link_stats64 */
@@ -9098,7 +9098,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	unsigned int alloc_size;
 	struct net_device *p;
 
-	BUG_ON(strlen(name) >= sizeof(dev->name));
+	_ON(strlen(name) >= sizeof(dev->name));
 
 	if (txqs < 1) {
 		pr_err("alloc_netdev: Unable to allocate device with zero queues\n");
@@ -9226,7 +9226,7 @@ void free_netdev(struct net_device *dev)
 		return;
 	}
 
-	BUG_ON(dev->reg_state != NETREG_UNREGISTERED);
+	_ON(dev->reg_state != NETREG_UNREGISTERED);
 	dev->reg_state = NETREG_RELEASED;
 
 	/* will free via device release */
@@ -9549,7 +9549,7 @@ static struct hlist_head * __net_init netdev_create_hash(void)
 /* Initialize per network namespace state */
 static int __net_init netdev_init(struct net *net)
 {
-	BUILD_BUG_ON(GRO_HASH_BUCKETS >
+	BUILD__ON(GRO_HASH_BUCKETS >
 		     8 * FIELD_SIZEOF(struct napi_struct, gro_bitmask));
 
 	if (net != &init_net)
@@ -9693,7 +9693,7 @@ static void __net_exit default_device_exit(struct net *net)
 		if (err) {
 			pr_emerg("%s: failed to move %s to init_net: %d\n",
 				 __func__, dev->name, err);
-			BUG();
+			();
 		}
 	}
 	rtnl_unlock();
@@ -9782,7 +9782,7 @@ static int __init net_dev_init(void)
 {
 	int i, rc = -ENOMEM;
 
-	BUG_ON(!dev_boot_phase);
+	_ON(!dev_boot_phase);
 
 	if (dev_proc_init())
 		goto out;

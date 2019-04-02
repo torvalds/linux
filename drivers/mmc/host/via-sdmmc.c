@@ -224,7 +224,7 @@
  * 0 : 1.8V
  * 1 : 3.3V
  * NOTE : No mater what the actual value should be, this bit always
- * read as 0. This is a hardware bug.
+ * read as 0. This is a hardware .
  */
 #define VIA_CRDR_PCICLKGATT_3V3	0x10
 /*
@@ -232,7 +232,7 @@
  * 0 : Power off
  * 1 : Power on
   * NOTE : No mater what the actual value should be, this bit always
- * read as 0. This is a hardware bug.
+ * read as 0. This is a hardware .
  */
 #define VIA_CRDR_PCICLKGATT_PAD_PWRON	0x20
 
@@ -335,16 +335,16 @@ static void via_print_sdchc(struct via_crdr_mmc_host *host)
 {
 	void __iomem *addrbase = host->sdhc_mmiobase;
 
-	pr_debug("SDC MMIO Registers:\n");
-	pr_debug("SDCONTROL=%08x, SDCMDARG=%08x, SDBUSMODE=%08x\n",
+	pr_de("SDC MMIO Registers:\n");
+	pr_de("SDCONTROL=%08x, SDCMDARG=%08x, SDBUSMODE=%08x\n",
 		 readl(addrbase + VIA_CRDR_SDCTRL),
 		 readl(addrbase + VIA_CRDR_SDCARG),
 		 readl(addrbase + VIA_CRDR_SDBUSMODE));
-	pr_debug("SDBLKLEN=%08x, SDCURBLKCNT=%08x, SDINTMASK=%08x\n",
+	pr_de("SDBLKLEN=%08x, SDCURBLKCNT=%08x, SDINTMASK=%08x\n",
 		 readl(addrbase + VIA_CRDR_SDBLKLEN),
 		 readl(addrbase + VIA_CRDR_SDCURBLKCNT),
 		 readl(addrbase + VIA_CRDR_SDINTMASK));
-	pr_debug("SDSTATUS=%08x, SDCLKSEL=%08x, SDEXTCTRL=%08x\n",
+	pr_de("SDSTATUS=%08x, SDCLKSEL=%08x, SDEXTCTRL=%08x\n",
 		 readl(addrbase + VIA_CRDR_SDSTATUS),
 		 readl(addrbase + VIA_CRDR_SDCLKSEL),
 		 readl(addrbase + VIA_CRDR_SDEXTCTRL));
@@ -354,12 +354,12 @@ static void via_print_pcictrl(struct via_crdr_mmc_host *host)
 {
 	void __iomem *addrbase = host->pcictrl_mmiobase;
 
-	pr_debug("PCI Control Registers:\n");
-	pr_debug("PCICLKGATT=%02x, PCISDCCLK=%02x, PCIDMACLK=%02x\n",
+	pr_de("PCI Control Registers:\n");
+	pr_de("PCICLKGATT=%02x, PCISDCCLK=%02x, PCIDMACLK=%02x\n",
 		 readb(addrbase + VIA_CRDR_PCICLKGATT),
 		 readb(addrbase + VIA_CRDR_PCISDCCLK),
 		 readb(addrbase + VIA_CRDR_PCIDMACLK));
-	pr_debug("PCIINTCTRL=%02x, PCIINTSTATUS=%02x\n",
+	pr_de("PCIINTCTRL=%02x, PCIINTSTATUS=%02x\n",
 		 readb(addrbase + VIA_CRDR_PCIINTCTRL),
 		 readb(addrbase + VIA_CRDR_PCIINTSTATUS));
 }
@@ -486,15 +486,15 @@ static void via_sdc_preparedata(struct via_crdr_mmc_host *host,
 	WARN_ON(host->data);
 
 	/* Sanity checks */
-	BUG_ON(data->blksz > host->mmc->max_blk_size);
-	BUG_ON(data->blocks > host->mmc->max_blk_count);
+	_ON(data->blksz > host->mmc->max_blk_size);
+	_ON(data->blocks > host->mmc->max_blk_count);
 
 	host->data = data;
 
 	count = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 		((data->flags & MMC_DATA_READ) ?
 		PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE));
-	BUG_ON(count != 1);
+	_ON(count != 1);
 
 	via_set_ddma(host, sg_dma_address(data->sg), sg_dma_len(data->sg),
 		(data->flags & MMC_DATA_WRITE) ? 1 : 0, 1);
@@ -625,7 +625,7 @@ static void via_sdc_finish_data(struct via_crdr_mmc_host *host)
 {
 	struct mmc_data *data;
 
-	BUG_ON(!host->data);
+	_ON(!host->data);
 
 	data = host->data;
 	host->data = NULL;
@@ -836,7 +836,7 @@ static void via_reset_pcictrl(struct via_crdr_mmc_host *host)
 
 static void via_sdc_cmd_isr(struct via_crdr_mmc_host *host, u16 intmask)
 {
-	BUG_ON(intmask == 0);
+	_ON(intmask == 0);
 
 	if (!host->cmd) {
 		pr_err("%s: Got command interrupt 0x%x even "
@@ -858,7 +858,7 @@ static void via_sdc_cmd_isr(struct via_crdr_mmc_host *host, u16 intmask)
 
 static void via_sdc_data_isr(struct via_crdr_mmc_host *host, u16 intmask)
 {
-	BUG_ON(intmask == 0);
+	_ON(intmask == 0);
 
 	if (intmask & VIA_CRDR_SDSTS_DT)
 		host->data->error = -ETIMEDOUT;

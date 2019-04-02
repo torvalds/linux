@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <asm/mce.h>
 #include <linux/uaccess.h>
 
@@ -346,7 +346,7 @@ void __init mcheck_vendor_init_severity(void)
 		mce_severity = mce_severity_amd;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void *s_start(struct seq_file *f, loff_t *pos)
 {
 	if (*pos >= ARRAY_SIZE(severities))
@@ -402,15 +402,15 @@ static const struct file_operations severities_coverage_fops = {
 	.llseek		= seq_lseek,
 };
 
-static int __init severities_debugfs_init(void)
+static int __init severities_defs_init(void)
 {
 	struct dentry *dmce, *fsev;
 
-	dmce = mce_get_debugfs_dir();
+	dmce = mce_get_defs_dir();
 	if (!dmce)
 		goto err_out;
 
-	fsev = debugfs_create_file("severities-coverage", 0444, dmce, NULL,
+	fsev = defs_create_file("severities-coverage", 0444, dmce, NULL,
 				   &severities_coverage_fops);
 	if (!fsev)
 		goto err_out;
@@ -420,5 +420,5 @@ static int __init severities_debugfs_init(void)
 err_out:
 	return -ENOMEM;
 }
-late_initcall(severities_debugfs_init);
-#endif /* CONFIG_DEBUG_FS */
+late_initcall(severities_defs_init);
+#endif /* CONFIG_DE_FS */

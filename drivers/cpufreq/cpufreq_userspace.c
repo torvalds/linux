@@ -34,7 +34,7 @@ static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 	int ret = -EINVAL;
 	unsigned int *setspeed = policy->governor_data;
 
-	pr_debug("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
+	pr_de("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
 	mutex_lock(&userspace_mutex);
 	if (!per_cpu(cpu_is_managed, policy->cpu))
@@ -77,8 +77,8 @@ static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 {
 	unsigned int *setspeed = policy->governor_data;
 
-	BUG_ON(!policy->cur);
-	pr_debug("started managing cpu %u\n", policy->cpu);
+	_ON(!policy->cur);
+	pr_de("started managing cpu %u\n", policy->cpu);
 
 	mutex_lock(&userspace_mutex);
 	per_cpu(cpu_is_managed, policy->cpu) = 1;
@@ -91,7 +91,7 @@ static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 {
 	unsigned int *setspeed = policy->governor_data;
 
-	pr_debug("managing cpu %u stopped\n", policy->cpu);
+	pr_de("managing cpu %u stopped\n", policy->cpu);
 
 	mutex_lock(&userspace_mutex);
 	per_cpu(cpu_is_managed, policy->cpu) = 0;
@@ -105,7 +105,7 @@ static void cpufreq_userspace_policy_limits(struct cpufreq_policy *policy)
 
 	mutex_lock(&userspace_mutex);
 
-	pr_debug("limit event for cpu %u: %u - %u kHz, currently %u kHz, last set to %u kHz\n",
+	pr_de("limit event for cpu %u: %u - %u kHz, currently %u kHz, last set to %u kHz\n",
 		 policy->cpu, policy->min, policy->max, policy->cur, *setspeed);
 
 	if (policy->max < *setspeed)

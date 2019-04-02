@@ -23,12 +23,12 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "dc.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
-#include "amdgpu_dm_debugfs.h"
+#include "amdgpu_dm_defs.h"
 
 /* function description
  * get/ set DP configuration: lane_count, link_rate, spread_spectrum
@@ -41,7 +41,7 @@
  * 14h = 5.4Gbps per lane
  * 1Eh = 8.1Gbps per lane
  *
- * debugfs is located at /sys/kernel/debug/dri/0/DP-x/link_settings
+ * defs is located at /sys/kernel/de/dri/0/DP-x/link_settings
  *
  * --- to get dp configuration
  *
@@ -169,7 +169,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	/* r is bytes not be copied */
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not read\n");
+		DRM_DE_DRIVER("user data not read\n");
 		return -EINVAL;
 	}
 
@@ -185,7 +185,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 		r = kstrtol(sub_str, 16, &param[param_index]);
 
 		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
+			DRM_DE_DRIVER("string to int convert error code: %d\n", r);
 
 		param_index++;
 		while (isspace(*wr_buf_ptr))
@@ -216,7 +216,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	if (!valid_input) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
+		DRM_DE_DRIVER("Invalid Input value No HW will be programmed\n");
 		return bytes_from_user;
 	}
 
@@ -242,16 +242,16 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
  * post cursor2 : 0,1,2,3
  *
  *
- * how to use this debugfs
+ * how to use this defs
  *
- * debugfs is located at /sys/kernel/debug/dri/0/DP-x
+ * defs is located at /sys/kernel/de/dri/0/DP-x
  *
  * there will be directories, like DP-1, DP-2,DP-3, etc. for DP display
  *
  * To figure out which DP-x is the display for DP to be check,
  * cd DP-x
  * ls -ll
- * There should be debugfs file, like link_settings, phy_settings.
+ * There should be defs file, like link_settings, phy_settings.
  * cat link_settings
  * from lane_count, link_rate to figure which DP-x is for display to be worked
  * on
@@ -345,7 +345,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 	/* r is bytes not be copied */
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DE_DRIVER("user data not be read\n");
 		return 0;
 	}
 
@@ -361,7 +361,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 		r = kstrtol(sub_str, 16, &param[param_index]);
 
 		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
+			DRM_DE_DRIVER("string to int convert error code: %d\n", r);
 
 		param_index++;
 		while (isspace(*wr_buf_ptr))
@@ -372,7 +372,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 			(param[1] > PRE_EMPHASIS_MAX_LEVEL) ||
 			(param[2] > POST_CURSOR2_MAX_LEVEL)) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Input No HW will be programmed\n");
+		DRM_DE_DRIVER("Invalid Input No HW will be programmed\n");
 		return bytes_from_user;
 	}
 
@@ -447,7 +447,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
  * f = DP_TEST_PATTERN_HORIZONTAL_BARS
  * 10= DP_TEST_PATTERN_COLOR_RAMP
  *
- * debugfs phy_test_pattern is located at /syskernel/debug/dri/0/DP-x
+ * defs phy_test_pattern is located at /syskernel/de/dri/0/DP-x
  *
  * --- set test pattern
  * echo <test pattern #> > test_pattern
@@ -474,7 +474,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
  * "echo 0 > phy_test_pattern" will re-enable HPD pin again so that video sw
  * driver could detect "unplug scope" and "plug DP display"
  */
-static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __user *buf,
+static ssize_t dp_phy_test_pattern_defs_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
@@ -518,7 +518,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	/* r is bytes not be copied */
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DE_DRIVER("user data not be read\n");
 		return 0;
 	}
 
@@ -566,7 +566,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		r = kstrtol(sub_str, 16, &param[param_index]);
 
 		if (r)
-			DRM_DEBUG_DRIVER("string to int convert error code: %d\n", r);
+			DRM_DE_DRIVER("string to int convert error code: %d\n", r);
 
 		param_index++;
 	}
@@ -601,7 +601,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	if (!valid_test_pattern) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("Invalid Test Pattern Parameters\n");
+		DRM_DE_DRIVER("Invalid Test Pattern Parameters\n");
 		return bytes_from_user;
 	}
 
@@ -618,7 +618,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		}
 	}
 
-	/* Usage: set DP physical test pattern using debugfs with normal DP
+	/* Usage: set DP physical test pattern using defs with normal DP
 	 * panel. Then plug out DP panel and connect a scope to measure
 	 * For normal video mode and test pattern generated from CRCT,
 	 * they are visibile to user. So do not disable HPD.
@@ -672,8 +672,8 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 }
 
 /*
- * Returns the min and max vrr vfreq through the connector's debugfs file.
- * Example usage: cat /sys/kernel/debug/dri/0/DP-1/vrr_range
+ * Returns the min and max vrr vfreq through the connector's defs file.
+ * Example usage: cat /sys/kernel/de/dri/0/DP-1/vrr_range
  */
 static int vrr_range_show(struct seq_file *m, void *data)
 {
@@ -690,14 +690,14 @@ static int vrr_range_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(vrr_range);
 
-static const struct file_operations dp_link_settings_debugfs_fops = {
+static const struct file_operations dp_link_settings_defs_fops = {
 	.owner = THIS_MODULE,
 	.read = dp_link_settings_read,
 	.write = dp_link_settings_write,
 	.llseek = default_llseek
 };
 
-static const struct file_operations dp_phy_settings_debugfs_fop = {
+static const struct file_operations dp_phy_settings_defs_fop = {
 	.owner = THIS_MODULE,
 	.read = dp_phy_settings_read,
 	.write = dp_phy_settings_write,
@@ -706,33 +706,33 @@ static const struct file_operations dp_phy_settings_debugfs_fop = {
 
 static const struct file_operations dp_phy_test_pattern_fops = {
 	.owner = THIS_MODULE,
-	.write = dp_phy_test_pattern_debugfs_write,
+	.write = dp_phy_test_pattern_defs_write,
 	.llseek = default_llseek
 };
 
 static const struct {
 	char *name;
 	const struct file_operations *fops;
-} dp_debugfs_entries[] = {
-		{"link_settings", &dp_link_settings_debugfs_fops},
-		{"phy_settings", &dp_phy_settings_debugfs_fop},
+} dp_defs_entries[] = {
+		{"link_settings", &dp_link_settings_defs_fops},
+		{"phy_settings", &dp_phy_settings_defs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
 		{"vrr_range", &vrr_range_fops}
 };
 
-int connector_debugfs_init(struct amdgpu_dm_connector *connector)
+int connector_defs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
-	struct dentry *ent, *dir = connector->base.debugfs_entry;
+	struct dentry *ent, *dir = connector->base.defs_entry;
 
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
-		for (i = 0; i < ARRAY_SIZE(dp_debugfs_entries); i++) {
-			ent = debugfs_create_file(dp_debugfs_entries[i].name,
+		for (i = 0; i < ARRAY_SIZE(dp_defs_entries); i++) {
+			ent = defs_create_file(dp_defs_entries[i].name,
 						  0644,
 						  dir,
 						  connector,
-						  dp_debugfs_entries[i].fops);
+						  dp_defs_entries[i].fops);
 			if (IS_ERR(ent))
 				return PTR_ERR(ent);
 		}
@@ -743,7 +743,7 @@ int connector_debugfs_init(struct amdgpu_dm_connector *connector)
 
 /*
  * Writes DTN log state to the user supplied buffer.
- * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+ * Example usage: cat /sys/kernel/de/dri/0/amdgpu_dm_dtn_log
  */
 static ssize_t dtn_log_read(
 	struct file *f,
@@ -782,7 +782,7 @@ static ssize_t dtn_log_read(
 
 /*
  * Writes DTN log state to dmesg when triggered via a write.
- * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+ * Example usage: echo 1 > /sys/kernel/de/dri/0/amdgpu_dm_dtn_log
  */
 static ssize_t dtn_log_write(
 	struct file *f,
@@ -837,12 +837,12 @@ static int target_backlight_read(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
+static const struct drm_info_list amdgpu_dm_defs_list[] = {
 	{"amdgpu_current_backlight_pwm", &current_backlight_read},
 	{"amdgpu_target_backlight_pwm", &target_backlight_read},
 };
 
-int dtn_debugfs_init(struct amdgpu_device *adev)
+int dtn_defs_init(struct amdgpu_device *adev)
 {
 	static const struct file_operations dtn_log_fops = {
 		.owner = THIS_MODULE,
@@ -852,15 +852,15 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	};
 
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *ent, *root = minor->defs_root;
 	int ret;
 
-	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
-				ARRAY_SIZE(amdgpu_dm_debugfs_list));
+	ret = amdgpu_defs_add_files(adev, amdgpu_dm_defs_list,
+				ARRAY_SIZE(amdgpu_dm_defs_list));
 	if (ret)
 		return ret;
 
-	ent = debugfs_create_file(
+	ent = defs_create_file(
 		"amdgpu_dm_dtn_log",
 		0644,
 		root,

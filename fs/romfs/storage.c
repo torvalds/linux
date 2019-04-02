@@ -198,7 +198,7 @@ static int romfs_blk_strcmp(struct super_block *sb, unsigned long pos,
 	if (!terminated) {
 		/* the terminating NUL must be on the first byte of the next
 		 * block */
-		BUG_ON((pos & (ROMBSIZE - 1)) != 0);
+		_ON((pos & (ROMBSIZE - 1)) != 0);
 		bh = sb_bread(sb, pos >> ROMBSBITS);
 		if (!bh)
 			return -EIO;

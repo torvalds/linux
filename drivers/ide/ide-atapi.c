@@ -15,11 +15,11 @@
 #define DRV_NAME "ide-atapi"
 #define PFX DRV_NAME ": "
 
-#ifdef DEBUG
-#define debug_log(fmt, args...) \
+#ifdef DE
+#define de_log(fmt, args...) \
 	printk(KERN_INFO "ide: " fmt, ## args)
 #else
-#define debug_log(fmt, args...) do {} while (0)
+#define de_log(fmt, args...) do {} while (0)
 #endif
 
 #define ATAPI_MIN_CDB_BYTES	12
@@ -191,7 +191,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 		sense_len = 18;
 	}
 
-	BUG_ON(sense_len > sizeof(*sense));
+	_ON(sense_len > sizeof(*sense));
 
 	if (ata_sense_request(rq) || drive->sense_rq_armed)
 		return;
@@ -298,7 +298,7 @@ int ide_cd_expiry(ide_drive_t *drive)
 	struct request *rq = drive->hwif->rq;
 	unsigned long wait = 0;
 
-	debug_log("%s: scsi_req(rq)->cmd[0]: 0x%x\n", __func__, scsi_req(rq)->cmd[0]);
+	de_log("%s: scsi_req(rq)->cmd[0]: 0x%x\n", __func__, scsi_req(rq)->cmd[0]);
 
 	/*
 	 * Some commands are *slow* and normally take a long time to complete.
@@ -371,7 +371,7 @@ int ide_check_ireason(ide_drive_t *drive, struct request *rq, int len,
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	debug_log("ireason: 0x%x, rw: 0x%x\n", ireason, rw);
+	de_log("ireason: 0x%x, rw: 0x%x\n", ireason, rw);
 
 	if (ireason == (!rw << 1))
 		return 0;
@@ -424,7 +424,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	u8 stat, ireason, dsc = 0;
 	u8 write = !!(pc->flags & PC_FLAG_WRITING);
 
-	debug_log("Enter %s - interrupt handler\n", __func__);
+	de_log("Enter %s - interrupt handler\n", __func__);
 
 	timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
 					       : WAIT_TAPE_CMD;
@@ -447,7 +447,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		} else
 			scsi_req(rq)->resid_len = 0;
-		debug_log("%s: DMA finished\n", drive->name);
+		de_log("%s: DMA finished\n", drive->name);
 	}
 
 	/* No more interrupts */
@@ -455,7 +455,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		int uptodate;
 		blk_status_t error;
 
-		debug_log("Packet command completed, %d bytes transferred\n",
+		de_log("Packet command completed, %d bytes transferred\n",
 			  blk_rq_bytes(rq));
 
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
@@ -468,7 +468,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		if ((stat & ATA_ERR) || (pc->flags & PC_FLAG_DMA_ERROR)) {
 			/* Error detected */
-			debug_log("%s: I/O error\n", drive->name);
+			de_log("%s: I/O error\n", drive->name);
 
 			if (drive->media != ide_tape)
 				scsi_req(pc->rq)->result++;
@@ -479,7 +479,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 				return ide_do_reset(drive);
 			}
 
-			debug_log("[cmd %x]: check condition\n", scsi_req(rq)->cmd[0]);
+			de_log("[cmd %x]: check condition\n", scsi_req(rq)->cmd[0]);
 
 			/* Retry operation */
 			ide_retry_pc(drive);
@@ -546,7 +546,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	if (bcount)
 		ide_pad_transfer(drive, write, bcount);
 
-	debug_log("[cmd %x] transferred %d bytes, padded %d bytes, resid: %u\n",
+	de_log("[cmd %x] transferred %d bytes, padded %d bytes, resid: %u\n",
 		  scsi_req(rq)->cmd[0], done, bcount, scsi_req(rq)->resid_len);
 
 	/* And set the interrupt handler again */

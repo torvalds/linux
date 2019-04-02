@@ -490,7 +490,7 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	u64 chipid;
 	u32 phb_index;
 	u64 capp_unit_id;
-	u64 psl_debug;
+	u64 psl_de;
 	int rc;
 
 	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
@@ -536,14 +536,14 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	cxl_p1_write(adapter, CXL_PSL9_APCDEDALLOC, 0x800F000200000000ULL);
 
 	/* Enable NORST and DD2 features */
-	cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0xC000000000000000ULL);
+	cxl_p1_write(adapter, CXL_PSL9_DE, 0xC000000000000000ULL);
 
 	/*
 	 * Check if PSL has data-cache. We need to flush adapter datacache
 	 * when as its about to be removed.
 	 */
-	psl_debug = cxl_p1_read(adapter, CXL_PSL9_DEBUG);
-	if (psl_debug & CXL_PSL_DEBUG_CDC) {
+	psl_de = cxl_p1_read(adapter, CXL_PSL9_DE);
+	if (psl_de & CXL_PSL_DE_CDC) {
 		dev_dbg(&dev->dev, "No data-cache present\n");
 		adapter->native->no_data_cache = true;
 	}
@@ -578,7 +578,7 @@ static int init_implementation_adapter_regs_psl8(struct cxl *adapter, struct pci
 	psl_fircntl |= (0x1ULL << (63-6)); /* FIR_report */
 	psl_fircntl |= 0x1ULL; /* ce_thresh */
 	cxl_p1_write(adapter, CXL_PSL_FIR_CNTL, psl_fircntl);
-	/* for debugging with trace arrays */
+	/* for deging with trace arrays */
 	cxl_p1_write(adapter, CXL_PSL_TRACE, 0x0000FF7C00000000ULL);
 
 	return 0;
@@ -649,7 +649,7 @@ static int init_implementation_afu_regs_psl8(struct cxl_afu *afu)
 	cxl_p1n_write(afu, CXL_PSL_APCALLOC_A, 0xFFFFFFFEFEFEFEFEULL);
 	/* APC read/write masks for this slice */
 	cxl_p1n_write(afu, CXL_PSL_COALLOC_A, 0xFF000000FEFEFEFEULL);
-	/* for debugging with trace arrays */
+	/* for deging with trace arrays */
 	cxl_p1n_write(afu, CXL_PSL_SLICE_TRACE, 0x0000FFFF00000000ULL);
 	cxl_p1n_write(afu, CXL_PSL_RXCTL_A, CXL_PSL_RXCTL_AFUHP_4S);
 
@@ -918,7 +918,7 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 		 * breaking any existing dedicated process AFUs that left it as
 		 * 0 (not that I'm aware of any). It is clearly an error for an
 		 * AFU directed AFU to set this to 0, and would have previously
-		 * triggered a bug resulting in the maximum not being enforced
+		 * triggered a  resulting in the maximum not being enforced
 		 * at all since idr_alloc treats 0 as no maximum.
 		 */
 		dev_err(&afu->dev, "AFU does not support any processes\n");
@@ -1161,7 +1161,7 @@ static int pci_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
 		goto err_free_native;
 
 	/* Don't care if this fails */
-	cxl_debugfs_afu_add(afu);
+	cxl_defs_afu_add(afu);
 
 	/*
 	 * After we call this function we must not free the afu directly, even
@@ -1182,7 +1182,7 @@ static int pci_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
 
 err_put1:
 	pci_deconfigure_afu(afu);
-	cxl_debugfs_afu_remove(afu);
+	cxl_defs_afu_remove(afu);
 	device_unregister(&afu->dev);
 	return rc;
 
@@ -1203,7 +1203,7 @@ static void cxl_pci_remove_afu(struct cxl_afu *afu)
 
 	cxl_pci_vphb_remove(afu);
 	cxl_sysfs_afu_remove(afu);
-	cxl_debugfs_afu_remove(afu);
+	cxl_defs_afu_remove(afu);
 
 	spin_lock(&afu->adapter->afu_list_lock);
 	afu->adapter->afu[afu->slice] = NULL;
@@ -1588,11 +1588,11 @@ static const struct cxl_service_layer_ops psl9_ops = {
 	.attach_afu_directed = cxl_attach_afu_directed_psl9,
 	.attach_dedicated_process = cxl_attach_dedicated_process_psl9,
 	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl9,
-	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl9,
-	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl9,
+	.defs_add_adapter_regs = cxl_defs_add_adapter_regs_psl9,
+	.defs_add_afu_regs = cxl_defs_add_afu_regs_psl9,
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
 	.err_irq_dump_registers = cxl_native_err_irq_dump_regs_psl9,
-	.debugfs_stop_trace = cxl_stop_trace_psl9,
+	.defs_stop_trace = cxl_stop_trace_psl9,
 	.timebase_read = timebase_read_psl9,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
 	.needs_reset_before_disable = true,
@@ -1611,11 +1611,11 @@ static const struct cxl_service_layer_ops psl8_ops = {
 	.attach_afu_directed = cxl_attach_afu_directed_psl8,
 	.attach_dedicated_process = cxl_attach_dedicated_process_psl8,
 	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl8,
-	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl8,
-	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl8,
+	.defs_add_adapter_regs = cxl_defs_add_adapter_regs_psl8,
+	.defs_add_afu_regs = cxl_defs_add_afu_regs_psl8,
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl8,
 	.err_irq_dump_registers = cxl_native_err_irq_dump_regs_psl8,
-	.debugfs_stop_trace = cxl_stop_trace_psl8,
+	.defs_stop_trace = cxl_stop_trace_psl8,
 	.write_timebase_ctrl = write_timebase_ctrl_psl8,
 	.timebase_read = timebase_read_psl8,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
@@ -1664,7 +1664,7 @@ static struct cxl *cxl_pci_init_adapter(struct pci_dev *dev)
 	}
 
 	/* Don't care if this one fails: */
-	cxl_debugfs_adapter_add(adapter);
+	cxl_defs_adapter_add(adapter);
 
 	/*
 	 * After we call this function we must not free the adapter directly,
@@ -1685,7 +1685,7 @@ err_put1:
 	/* This should mirror cxl_remove_adapter, except without the
 	 * sysfs parts
 	 */
-	cxl_debugfs_adapter_remove(adapter);
+	cxl_defs_adapter_remove(adapter);
 	cxl_deconfigure_adapter(adapter);
 	device_unregister(&adapter->dev);
 	return ERR_PTR(rc);
@@ -1700,7 +1700,7 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 	pr_devel("cxl_remove_adapter\n");
 
 	cxl_sysfs_adapter_remove(adapter);
-	cxl_debugfs_adapter_remove(adapter);
+	cxl_defs_adapter_remove(adapter);
 
 	/*
 	 * Flush adapter datacache as its about to be removed.

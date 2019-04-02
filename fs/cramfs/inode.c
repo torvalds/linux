@@ -71,7 +71,7 @@ static unsigned long cramino(const struct cramfs_inode *cino, unsigned int offse
 		return offset + 1;
 
 	/*
-	 * The file mode test fixes buggy mkcramfs implementations where
+	 * The file mode test fixes gy mkcramfs implementations where
 	 * cramfs_inode->offset is set to a non zero value for entries
 	 * which did not contain data, like devices node and fifos.
 	 */
@@ -313,7 +313,7 @@ static u32 cramfs_get_block_range(struct inode *inode, u32 pgoff, u32 *pages)
 			     CRAMFS_BLK_FLAG_DIRECT_PTR |
 			     CRAMFS_BLK_FLAG_UNCOMPRESSED;
 		if (blockptrs[i] != expect) {
-			pr_debug("range: block %d/%d got %#x expects %#x\n",
+			pr_de("range: block %d/%d got %#x expects %#x\n",
 				 pgoff+i, pgoff + *pages - 1,
 				 blockptrs[i], expect);
 			if (i == 0)
@@ -391,7 +391,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* Don't map the last page if it contains some other data */
 	if (pgoff + pages == max_pages && cramfs_last_page_is_shared(inode)) {
-		pr_debug("mmap: %s: last page is shared\n",
+		pr_de("mmap: %s: last page is shared\n",
 			 file_dentry(file)->d_name.name);
 		pages--;
 	}
@@ -429,7 +429,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (!ret)
-		pr_debug("mapped %s[%lu] at 0x%08lx (%u/%lu pages) "
+		pr_de("mapped %s[%lu] at 0x%08lx (%u/%lu pages) "
 			 "to vma 0x%08lx, page_prot 0x%llx\n",
 			 file_dentry(file)->d_name.name, pgoff,
 			 address, pages, vma_pages(vma), vma->vm_start,
@@ -437,7 +437,7 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 
 bailout:
-	pr_debug("%s[%lu]: direct mmap impossible: %s\n",
+	pr_de("%s[%lu]: direct mmap impossible: %s\n",
 		 file_dentry(file)->d_name.name, pgoff, bailout_reason);
 	/* Didn't manage any direct map, but normal paging is still possible */
 	return 0;
@@ -468,7 +468,7 @@ static unsigned long cramfs_physmem_get_unmapped_area(struct file *file,
 	if (!offset || block_pages != pages)
 		return -ENOSYS;
 	addr = sbi->linear_phys_addr + offset;
-	pr_debug("get_unmapped for %s ofs %#lx siz %lu at 0x%08lx\n",
+	pr_de("get_unmapped for %s ofs %#lx siz %lu at 0x%08lx\n",
 		 file_dentry(file)->d_name.name, pgoff*PAGE_SIZE, len, addr);
 	return addr;
 }

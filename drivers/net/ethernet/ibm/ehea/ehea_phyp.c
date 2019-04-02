@@ -534,7 +534,7 @@ u64 ehea_h_query_ehea(const u64 adapter_handle, void *cb_addr)
 				       adapter_handle,		/* R4 */
 				       cb_logaddr,		/* R5 */
 				       0, 0, 0, 0, 0);		/* R6-R10 */
-#ifdef DEBUG
+#ifdef DE
 	ehea_dump(cb_addr, sizeof(struct hcp_query_ehea), "hcp_query_ehea");
 #endif
 	return hret;
@@ -571,7 +571,7 @@ u64 ehea_h_modify_ehea_port(const u64 adapter_handle, const u16 port_num,
 
 	port_info = EHEA_BMASK_SET(H_MEHEAPORT_CAT, cb_cat)
 		  | EHEA_BMASK_SET(H_MEHEAPORT_PN, port_num);
-#ifdef DEBUG
+#ifdef DE
 	ehea_dump(cb_addr, sizeof(struct hcp_ehea_port_cb0), "Before HCALL");
 #endif
 	return ehea_plpar_hcall9(H_MODIFY_HEA_PORT,

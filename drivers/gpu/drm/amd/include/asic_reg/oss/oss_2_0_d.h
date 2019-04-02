@@ -75,8 +75,8 @@
 #define mmSRBM_CAM_INDEX                                                        0x396
 #define mmSRBM_CAM_DATA                                                         0x397
 #define mmSRBM_SOFT_RESET                                                       0x398
-#define mmSRBM_DEBUG_CNTL                                                       0x399
-#define mmSRBM_DEBUG_DATA                                                       0x39a
+#define mmSRBM_DE_CNTL                                                       0x399
+#define mmSRBM_DE_DATA                                                       0x39a
 #define mmSRBM_CHIP_REVISION                                                    0x39b
 #define mmCC_SYS_RB_REDUNDANCY                                                  0x39f
 #define mmCC_SYS_RB_BACKEND_DISABLE                                             0x3a0
@@ -87,8 +87,8 @@
 #define mmSRBM_UVD_CLKEN_CNTL                                                   0x3b6
 #define mmSRBM_SDMA_CLKEN_CNTL                                                  0x3b7
 #define mmSRBM_SAM_CLKEN_CNTL                                                   0x3b8
-#define mmSRBM_DEBUG                                                            0x3a4
-#define mmSRBM_DEBUG_SNAPSHOT                                                   0x3a5
+#define mmSRBM_DE                                                            0x3a4
+#define mmSRBM_DE_SNAPSHOT                                                   0x3a5
 #define mmSRBM_READ_ERROR                                                       0x3a6
 #define mmSRBM_INT_CNTL                                                         0x3a8
 #define mmSRBM_INT_STATUS                                                       0x3a9
@@ -201,8 +201,8 @@
 #define ixCLIENT3_BM                                                            0x2d4
 #define ixCLIENT3_OFFSET                                                        0x2d8
 #define ixCLIENT3_STATUS                                                        0x2dc
-#define mmDC_TEST_DEBUG_INDEX                                                   0x157c
-#define mmDC_TEST_DEBUG_DATA                                                    0x157d
+#define mmDC_TEST_DE_INDEX                                                   0x157c
+#define mmDC_TEST_DE_DATA                                                    0x157d
 #define mmXDMA_SLV_CNTL                                                         0x460
 #define mmXDMA_SLV_MEM_CLIENT_CONFIG                                            0x461
 #define mmXDMA_SLV_SLS_PITCH                                                    0x462
@@ -554,8 +554,8 @@
 #define mmHDP_NONSURF_FLAGS                                                     0xbc9
 #define mmHDP_NONSURF_FLAGS_CLR                                                 0xbca
 #define mmHDP_SW_SEMAPHORE                                                      0xbcb
-#define mmHDP_DEBUG0                                                            0xbcc
-#define mmHDP_DEBUG1                                                            0xbcd
+#define mmHDP_DE0                                                            0xbcc
+#define mmHDP_DE1                                                            0xbcd
 #define mmHDP_LAST_SURFACE_HIT                                                  0xbce
 #define mmHDP_TILING_CONFIG                                                     0xbcf
 #define mmHDP_SC_MULTI_CHIP_CNTL                                                0xbd0

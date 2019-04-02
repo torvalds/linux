@@ -138,7 +138,7 @@ required reading:
     philosophy and is very important for people moving to Linux from
     development on other Operating Systems.
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/admin-guide/security-s.rst <securitys>`
     If you feel you have found a security problem in the Linux kernel,
     please follow the steps in this document to help notify the kernel
     developers, and help solve the issue.
@@ -255,7 +255,7 @@ https://kernel.org or in the repo.  Its development process is as follows:
     fine.
   - After two weeks a -rc1 kernel is released and the focus is on making the
     new kernel as rock solid as possible.  Most of the patches at this point
-    should fix a regression.  Bugs that have always existed are not
+    should fix a regression.  s that have always existed are not
     regressions, so only push these kinds of fixes if they are important.
     Please note that a whole new driver (or filesystem) might be accepted
     after -rc1 because there is no risk of causing regressions with such a
@@ -273,7 +273,7 @@ It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:
 
 	*"Nobody knows when a kernel will be released, because it's
-	released according to perceived bug status, not according to a
+	released according to perceived  status, not according to a
 	preconceived timeline."*
 
 Various stable trees with multiple major numbers
@@ -338,33 +338,33 @@ expected to go into the mainline kernel at the next merge period.
 Adventurous testers are very welcome to runtime-test the linux-next.
 
 
-Bug Reporting
+ Reporting
 -------------
 
-https://bugzilla.kernel.org is where the Linux kernel developers track kernel
-bugs.  Users are encouraged to report all bugs that they find in this
-tool.  For details on how to use the kernel bugzilla, please see:
+https://zilla.kernel.org is where the Linux kernel developers track kernel
+s.  Users are encouraged to report all s that they find in this
+tool.  For details on how to use the kernel zilla, please see:
 
-	https://bugzilla.kernel.org/page.cgi?id=faq.html
+	https://zilla.kernel.org/page.cgi?id=faq.html
 
-The file :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+The file :ref:`admin-guide/reporting-s.rst <reportings>`
 in the main kernel source directory has a good
-template for how to report a possible kernel bug, and details what kind
+template for how to report a possible kernel , and details what kind
 of information is needed by the kernel developers to help track down the
 problem.
 
 
-Managing bug reports
+Managing  reports
 --------------------
 
 One of the best ways to put into practice your hacking skills is by fixing
-bugs reported by other people. Not only you will help to make the kernel
+s reported by other people. Not only you will help to make the kernel
 more stable, you'll learn to fix real world problems and you will improve
 your skills, and other developers will be aware of your presence. Fixing
-bugs is one of the best ways to get merits among other developers, because
-not many people like wasting time fixing other people's bugs.
+s is one of the best ways to get merits among other developers, because
+not many people like wasting time fixing other people's s.
 
-To work in the already reported bug reports, go to https://bugzilla.kernel.org.
+To work in the already reported  reports, go to https://zilla.kernel.org.
 
 
 Mailing lists
@@ -538,7 +538,7 @@ The reasons for breaking things up are the following:
    review for correctness (the time it takes is exponentially
    proportional to the size of the patch, or something).
 
-   Small patches also make it very easy to debug when something goes
+   Small patches also make it very easy to de when something goes
    wrong.  It's much easier to back out patches one by one than it is
    to dissect a very large patch after it's been applied (and broken
    something).

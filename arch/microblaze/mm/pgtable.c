@@ -253,7 +253,7 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 	unsigned long address = __fix_to_virt(idx);
 
 	if (idx >= __end_of_fixed_addresses)
-		BUG();
+		();
 
 	map_page(address, phys, pgprot_val(flags));
 }

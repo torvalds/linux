@@ -571,7 +571,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 
 	/*
 	 * Samsung SSDs found on some macbooks.  NCQ times out if MSI is
-	 * enabled.  https://bugzilla.kernel.org/show_bug.cgi?id=60731
+	 * enabled.  https://zilla.kernel.org/show_.cgi?id=60731
 	 */
 	{ PCI_VDEVICE(SAMSUNG, 0x1600), board_ahci_nomsi },
 	{ PCI_VDEVICE(SAMSUNG, 0xa800), board_ahci_nomsi },
@@ -1205,13 +1205,13 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 		 * to the harddisk doesn't become online after
 		 * resuming from STR.  Warn and fail suspend.
 		 *
-		 * http://bugzilla.kernel.org/show_bug.cgi?id=12276
+		 * http://zilla.kernel.org/show_.cgi?id=12276
 		 *
 		 * Use dates instead of versions to match as HP is
 		 * apparently recycling both product and version
 		 * strings.
 		 *
-		 * http://bugzilla.kernel.org/show_bug.cgi?id=15462
+		 * http://zilla.kernel.org/show_.cgi?id=15462
 		 */
 		{
 			.ident = "dv4",
@@ -1256,7 +1256,7 @@ static bool ahci_broken_suspend(struct pci_dev *pdev)
 		 * that we don't have much idea about.  For now,
 		 * blacklist anything older than V3.04.
 		 *
-		 * http://bugzilla.kernel.org/show_bug.cgi?id=15104
+		 * http://zilla.kernel.org/show_.cgi?id=15104
 		 */
 		{
 			.ident = "G725",
@@ -1452,7 +1452,7 @@ static inline void ahci_gtf_filter_workaround(struct ata_host *host)
  * Overriding CAP.NP to 0x02 and the port_map to 0x7 will reveal all 3 ports
  * and can significantly reduce the occurrence of the problem.
  *
- * https://bugzilla.kernel.org/show_bug.cgi?id=189471
+ * https://zilla.kernel.org/show_.cgi?id=189471
  */
 static void acer_sa5_271_workaround(struct ahci_host_priv *hpriv,
 				    struct pci_dev *pdev)
@@ -1762,7 +1762,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/*
 		 * All AHCI controllers should be forward-compatible
 		 * with the new auxiliary field. This code should be
-		 * conditionalized if any buggy AHCI controllers are
+		 * conditionalized if any gy AHCI controllers are
 		 * encountered.
 		 */
 		pi.flags |= ATA_FLAG_FPDMA_AUX;

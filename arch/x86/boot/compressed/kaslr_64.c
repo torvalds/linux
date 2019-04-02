@@ -51,9 +51,9 @@ static void *alloc_pgt_page(void *context)
 
 	/* Validate there is space available for a new page. */
 	if (pages->pgt_buf_offset >= pages->pgt_buf_size) {
-		debug_putstr("out of pgt_buf in " __FILE__ "!?\n");
-		debug_putaddr(pages->pgt_buf_offset);
-		debug_putaddr(pages->pgt_buf_size);
+		de_putstr("out of pgt_buf in " __FILE__ "!?\n");
+		de_putaddr(pages->pgt_buf_offset);
+		de_putaddr(pages->pgt_buf_size);
 		return NULL;
 	}
 
@@ -112,12 +112,12 @@ void initialize_identity_maps(void)
 	 */
 	top_level_pgt = read_cr3_pa();
 	if (p4d_offset((pgd_t *)top_level_pgt, 0) == (p4d_t *)_pgtable) {
-		debug_putstr("booted via startup_32()\n");
+		de_putstr("booted via startup_32()\n");
 		pgt_data.pgt_buf = _pgtable + BOOT_INIT_PGT_SIZE;
 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE - BOOT_INIT_PGT_SIZE;
 		memset(pgt_data.pgt_buf, 0, pgt_data.pgt_buf_size);
 	} else {
-		debug_putstr("booted via startup_64()\n");
+		de_putstr("booted via startup_64()\n");
 		pgt_data.pgt_buf = _pgtable;
 		pgt_data.pgt_buf_size = BOOT_PGT_SIZE;
 		memset(pgt_data.pgt_buf, 0, pgt_data.pgt_buf_size);

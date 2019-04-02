@@ -71,11 +71,11 @@ struct stv0299_state {
 #define STATUS_BER 0
 #define STATUS_UCBLOCKS 1
 
-static int debug;
-static int debug_legacy_dish_switch;
+static int de;
+static int de_legacy_dish_switch;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "stv0299: " args); \
+		if (de) printk(KERN_DE "stv0299: " args); \
 	} while (0)
 
 
@@ -419,18 +419,18 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 		lv_mask = 0x10;
 
 	cmd = cmd << 1;
-	if (debug_legacy_dish_switch)
+	if (de_legacy_dish_switch)
 		printk ("%s switch command: 0x%04lx\n",__func__, cmd);
 
 	nexttime = ktime_get_boottime();
-	if (debug_legacy_dish_switch)
+	if (de_legacy_dish_switch)
 		tv[0] = nexttime;
 	stv0299_writeregI (state, 0x0c, reg0x0c | 0x50); /* set LNB to 18V */
 
 	dvb_frontend_sleep_until(&nexttime, 32000);
 
 	for (i=0; i<9; i++) {
-		if (debug_legacy_dish_switch)
+		if (de_legacy_dish_switch)
 			tv[i+1] = ktime_get_boottime();
 		if((cmd & 0x01) != last) {
 			/* set voltage to (last ? 13V : 18V) */
@@ -443,7 +443,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 		if (i != 8)
 			dvb_frontend_sleep_until(&nexttime, 8000);
 	}
-	if (debug_legacy_dish_switch) {
+	if (de_legacy_dish_switch) {
 		printk ("%s(%d): switch delay (should be 32k followed by all 8k\n",
 			__func__, fe->dvb->num);
 		for (i = 1; i < 10; i++)
@@ -753,11 +753,11 @@ static const struct dvb_frontend_ops stv0299_ops = {
 	.dishnetwork_send_legacy_command = stv0299_send_legacy_dish_cmd,
 };
 
-module_param(debug_legacy_dish_switch, int, 0444);
-MODULE_PARM_DESC(debug_legacy_dish_switch, "Enable timing analysis for Dish Network legacy switches");
+module_param(de_legacy_dish_switch, int, 0444);
+MODULE_PARM_DESC(de_legacy_dish_switch, "Enable timing analysis for Dish Network legacy switches");
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("ST STV0299 DVB Demodulator driver");
 MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Peter Schildmann, Felix Domke, Andreas Oberritter, Andrew de Quincey, Kenneth Aafly");

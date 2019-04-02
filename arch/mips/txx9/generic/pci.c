@@ -74,7 +74,7 @@ int __init txx9_pci66_check(struct pci_controller *hose, int top_bus,
 			early_read_config_word(hose, top_bus, current_bus,
 					       pci_devfn, PCI_STATUS, &stat);
 			if (!(stat & PCI_STATUS_66MHZ)) {
-				pr_debug("PCI: %02x:%02x not 66MHz capable.\n",
+				pr_de("PCI: %02x:%02x not 66MHz capable.\n",
 					 current_bus, pci_devfn);
 				cap66 = 0;
 				break;
@@ -129,7 +129,7 @@ txx9_alloc_pci_controller(struct pci_controller *pcic,
 		new->c.io_resource = &new->r_io;
 		pcic = &new->c;
 	} else
-		BUG_ON(pcic != &txx9_primary_pcic);
+		_ON(pcic != &txx9_primary_pcic);
 	pcic->io_resource->flags = IORESOURCE_IO;
 
 	/*

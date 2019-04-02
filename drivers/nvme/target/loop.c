@@ -230,7 +230,7 @@ static int nvme_loop_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nvme_loop_ctrl *ctrl = data;
 	struct nvme_loop_queue *queue = &ctrl->queues[hctx_idx + 1];
 
-	BUG_ON(hctx_idx >= ctrl->ctrl.queue_count);
+	_ON(hctx_idx >= ctrl->ctrl.queue_count);
 
 	hctx->driver_data = queue;
 	return 0;
@@ -242,7 +242,7 @@ static int nvme_loop_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nvme_loop_ctrl *ctrl = data;
 	struct nvme_loop_queue *queue = &ctrl->queues[0];
 
-	BUG_ON(hctx_idx != 0);
+	_ON(hctx_idx != 0);
 
 	hctx->driver_data = queue;
 	return 0;

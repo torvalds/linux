@@ -38,33 +38,33 @@ __kernel_size_t __clear_user(void *to, __kernel_size_t n)
 
 void local_flush_tlb_all(void)
 {
-	BUG();
+	();
 }
 
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
-	BUG();
+	();
 }
 
 void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end)
 {
-	BUG();
+	();
 }
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
-	BUG();
+	();
 }
 
 void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
-	BUG();
+	();
 }
 
 void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	BUG();
+	();
 }
 
 void __flush_tlb_global(void)
@@ -81,13 +81,13 @@ void __init kmap_coherent_init(void)
 
 void *kmap_coherent(struct page *page, unsigned long addr)
 {
-	BUG();
+	();
 	return NULL;
 }
 
 void kunmap_coherent(void *kvaddr)
 {
-	BUG();
+	();
 }
 
 void __init page_table_range_init(unsigned long start, unsigned long end,

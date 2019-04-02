@@ -15,7 +15,7 @@
 
 extern const char bad_pmd_string[];
 
-#define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })
+#define pmd_alloc_one(mm,address)       ({ (); ((pmd_t *)2); })
 
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
@@ -95,6 +95,6 @@ static inline pgd_t * pgd_alloc(struct mm_struct *mm)
      return new_pgd;
 }
 
-#define pgd_populate(mm, pmd, pte) BUG()
+#define pgd_populate(mm, pmd, pte) ()
 
 #endif /* SUN3_PGALLOC_H */

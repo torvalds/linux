@@ -118,7 +118,7 @@ static void encode_nfs_fh4(struct xdr_stream *xdr, const struct knfsd_fh *fh)
 	u32 length = fh->fh_size;
 	__be32 *p;
 
-	BUG_ON(length > NFS4_FHSIZE);
+	_ON(length > NFS4_FHSIZE);
 	p = xdr_reserve_space(xdr, 4 + length);
 	xdr_encode_opaque(p, &fh->fh_base, length);
 }
@@ -266,7 +266,7 @@ static void encode_cb_compound4args(struct xdr_stream *xdr,
  */
 static void encode_cb_nops(struct nfs4_cb_compound_hdr *hdr)
 {
-	BUG_ON(hdr->nops > NFS4_MAX_BACK_CHANNEL_OPS);
+	_ON(hdr->nops > NFS4_MAX_BACK_CHANNEL_OPS);
 	*hdr->nops_p = cpu_to_be32(hdr->nops);
 }
 
@@ -554,7 +554,7 @@ static void encode_cb_layout4args(struct xdr_stream *xdr,
 {
 	__be32 *p;
 
-	BUG_ON(hdr->minorversion == 0);
+	_ON(hdr->minorversion == 0);
 
 	p = xdr_reserve_space(xdr, 5 * 4);
 	*p++ = cpu_to_be32(OP_CB_LAYOUTRECALL);
@@ -637,7 +637,7 @@ static void nfs4_xdr_enc_cb_notify_lock(struct rpc_rqst *req,
 
 	__be32 *p;
 
-	BUG_ON(hdr.minorversion == 0);
+	_ON(hdr.minorversion == 0);
 
 	encode_cb_compound4args(xdr, &hdr);
 	encode_cb_sequence4args(xdr, cb, &hdr);
@@ -1123,7 +1123,7 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		nfsd4_mark_cb_down(clp, task->tk_status);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1214,7 +1214,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	 * Only serialized callback code is allowed to clear these
 	 * flags; main nfsd code can only set them:
 	 */
-	BUG_ON(!(clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK));
+	_ON(!(clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK));
 	clear_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags);
 	memcpy(&conn, &cb->cb_clp->cl_cb_conn, sizeof(struct nfs4_cb_conn));
 	c = __nfsd4_find_backchannel(clp);

@@ -3,7 +3,7 @@
 	Written 1998-2000 by Donald Becker.
 
 	Current maintainer is Ion Badulescu <ionut ta badula tod org>. Please
-	send all bug reports to me, and not to Donald Becker, as this code
+	send all  reports to me, and not to Donald Becker, as this code
 	has been heavily modified from Donald's original version.
 
 	This software may be used and distributed according to the terms of
@@ -77,7 +77,7 @@
 static int intr_latency;
 static int small_frames;
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int de = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
 static int max_interrupt_work = 20;
 static int mtu;
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
@@ -179,14 +179,14 @@ MODULE_FIRMWARE(FIRMWARE_TX);
 
 module_param(max_interrupt_work, int, 0);
 module_param(mtu, int, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(intr_latency, int, 0);
 module_param(small_frames, int, 0);
 module_param(enable_hw_cksum, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "Maximum events handled per interrupt");
 MODULE_PARM_DESC(mtu, "MTU (all boards)");
-MODULE_PARM_DESC(debug, "Debug level (0-6)");
+MODULE_PARM_DESC(de, "De level (0-6)");
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(intr_latency, "Maximum interrupt latency, in microseconds");
 MODULE_PARM_DESC(small_frames, "Maximum size of receive frames that bypass interrupt latency (0,64,128,256,512)");
@@ -600,7 +600,7 @@ static int netdev_vlan_rx_add_vid(struct net_device *dev,
 	struct netdev_private *np = netdev_priv(dev);
 
 	spin_lock(&np->lock);
-	if (debug > 1)
+	if (de > 1)
 		printk("%s: Adding vlanid %d to vlan filter\n", dev->name, vid);
 	set_bit(vid, np->active_vlans);
 	set_rx_mode(dev);
@@ -615,7 +615,7 @@ static int netdev_vlan_rx_kill_vid(struct net_device *dev,
 	struct netdev_private *np = netdev_priv(dev);
 
 	spin_lock(&np->lock);
-	if (debug > 1)
+	if (de > 1)
 		printk("%s: removing vlanid %d from vlan filter\n", dev->name, vid);
 	clear_bit(vid, np->active_vlans);
 	set_rx_mode(dev);
@@ -714,7 +714,7 @@ static int starfire_init_one(struct pci_dev *pdev,
 		dev->dev_addr[i] = readb(base + EEPROMCtrl + 20 - i);
 
 #if ! defined(final_version) /* Dump the EEPROM contents during development. */
-	if (debug > 4)
+	if (de > 4)
 		for (i = 0; i < 0x20; i++)
 			printk("%2.2x%s",
 			       (unsigned int)readb(base + EEPROMCtrl + i),
@@ -890,8 +890,8 @@ static int netdev_open(struct net_device *dev)
 	/* Disable the Rx and Tx, and reset the chip. */
 	writel(0, ioaddr + GenCtrl);
 	writel(1, ioaddr + PCIDeviceConfig);
-	if (debug > 1)
-		printk(KERN_DEBUG "%s: netdev_open() irq %d.\n",
+	if (de > 1)
+		printk(KERN_DE "%s: netdev_open() irq %d.\n",
 		       dev->name, irq);
 
 	/* Allocate the various queues. */
@@ -956,8 +956,8 @@ static int netdev_open(struct net_device *dev)
 	       (0 << RxComplThreshShift),
 	       ioaddr + RxCompletionAddr);
 
-	if (debug > 1)
-		printk(KERN_DEBUG "%s: Filling in the station address.\n", dev->name);
+	if (de > 1)
+		printk(KERN_DE "%s: Filling in the station address.\n", dev->name);
 
 	/* Fill both the Tx SA register and the Rx perfect filter. */
 	for (i = 0; i < 6; i++)
@@ -990,8 +990,8 @@ static int netdev_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 
-	if (debug > 1)
-		printk(KERN_DEBUG "%s: Setting the Rx and Tx modes.\n", dev->name);
+	if (de > 1)
+		printk(KERN_DE "%s: Setting the Rx and Tx modes.\n", dev->name);
 	set_rx_mode(dev);
 
 	np->mii_if.advertising = mdio_read(dev, np->phys[0], MII_ADVERTISE);
@@ -1055,8 +1055,8 @@ static int netdev_open(struct net_device *dev)
 		/* Enable the Rx and Tx units only. */
 		writel(TxEnable|RxEnable, ioaddr + GenCtrl);
 
-	if (debug > 1)
-		printk(KERN_DEBUG "%s: Done netdev_open().\n",
+	if (de > 1)
+		printk(KERN_DE "%s: Done netdev_open().\n",
 		       dev->name);
 
 out_tx:
@@ -1096,7 +1096,7 @@ static void check_duplex(struct net_device *dev)
 			reg0 |= BMCR_SPEED100;
 		if (np->mii_if.full_duplex)
 			reg0 |= BMCR_FULLDPLX;
-		printk(KERN_DEBUG "%s: Link forced to %sMbit %s-duplex\n",
+		printk(KERN_DE "%s: Link forced to %sMbit %s-duplex\n",
 		       dev->name,
 		       np->speed100 ? "100" : "10",
 		       np->mii_if.full_duplex ? "full" : "half");
@@ -1109,7 +1109,7 @@ static void tx_timeout(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
-	int old_debug;
+	int old_de;
 
 	printk(KERN_WARNING "%s: Transmit timed out, status %#8.8x, "
 	       "resetting...\n", dev->name, (int) readl(ioaddr + IntrStatus));
@@ -1118,13 +1118,13 @@ static void tx_timeout(struct net_device *dev)
 
 	/*
 	 * Stop and restart the interface.
-	 * Cheat and increase the debug level temporarily.
+	 * Cheat and increase the de level temporarily.
 	 */
-	old_debug = debug;
-	debug = 2;
+	old_de = de;
+	de = 2;
 	netdev_close(dev);
 	netdev_open(dev);
-	debug = old_debug;
+	de = old_de;
 
 	/* Trigger an immediate transmit demand. */
 
@@ -1250,8 +1250,8 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 
 		np->tx_ring[entry].addr = cpu_to_dma(np->tx_info[entry].mapping);
 		np->tx_ring[entry].status = cpu_to_le32(status);
-		if (debug > 3)
-			printk(KERN_DEBUG "%s: Tx #%d/#%d slot %d status %#8.8x.\n",
+		if (de > 3)
+			printk(KERN_DE "%s: Tx #%d/#%d slot %d status %#8.8x.\n",
 			       dev->name, np->cur_tx, np->dirty_tx,
 			       entry, status);
 		if (wrap_ring) {
@@ -1321,8 +1321,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	do {
 		u32 intr_status = readl(ioaddr + IntrClear);
 
-		if (debug > 4)
-			printk(KERN_DEBUG "%s: Interrupt status %#8.8x.\n",
+		if (de > 4)
+			printk(KERN_DE "%s: Interrupt status %#8.8x.\n",
 			       dev->name, intr_status);
 
 		if (intr_status == 0 || intr_status == (u32) -1)
@@ -1357,13 +1357,13 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		   There are redundant checks here that may be cleaned up
 		   after the driver has proven to be reliable. */
 		consumer = readl(ioaddr + TxConsumerIdx);
-		if (debug > 3)
-			printk(KERN_DEBUG "%s: Tx Consumer index is %d.\n",
+		if (de > 3)
+			printk(KERN_DE "%s: Tx Consumer index is %d.\n",
 			       dev->name, consumer);
 
 		while ((tx_status = le32_to_cpu(np->tx_done_q[np->tx_done].status)) != 0) {
-			if (debug > 3)
-				printk(KERN_DEBUG "%s: Tx completion #%d entry %d is %#8.8x.\n",
+			if (de > 3)
+				printk(KERN_DE "%s: Tx completion #%d entry %d is %#8.8x.\n",
 				       dev->name, np->dirty_tx, np->tx_done, tx_status);
 			if ((tx_status & 0xe0000000) == 0xa0000000) {
 				dev->stats.tx_packets++;
@@ -1416,7 +1416,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			netdev_error(dev, intr_status);
 
 		if (--boguscnt < 0) {
-			if (debug > 1)
+			if (de > 1)
 				printk(KERN_WARNING "%s: Too much work at interrupt, "
 				       "status=%#8.8x.\n",
 				       dev->name, intr_status);
@@ -1424,8 +1424,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		}
 	} while (1);
 
-	if (debug > 4)
-		printk(KERN_DEBUG "%s: exiting interrupt, status=%#8.8x.\n",
+	if (de > 4)
+		printk(KERN_DE "%s: exiting interrupt, status=%#8.8x.\n",
 		       dev->name, (int) readl(ioaddr + IntrStatus));
 	return IRQ_RETVAL(handled);
 }
@@ -1448,12 +1448,12 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		int entry;
 		rx_done_desc *desc = &np->rx_done_q[np->rx_done];
 
-		if (debug > 4)
-			printk(KERN_DEBUG "  netdev_rx() status of %d was %#8.8x.\n", np->rx_done, desc_status);
+		if (de > 4)
+			printk(KERN_DE "  netdev_rx() status of %d was %#8.8x.\n", np->rx_done, desc_status);
 		if (!(desc_status & RxOK)) {
 			/* There was an error. */
-			if (debug > 2)
-				printk(KERN_DEBUG "  netdev_rx() Rx error was %#8.8x.\n", desc_status);
+			if (de > 2)
+				printk(KERN_DE "  netdev_rx() Rx error was %#8.8x.\n", desc_status);
 			dev->stats.rx_errors++;
 			if (desc_status & RxFIFOErr)
 				dev->stats.rx_fifo_errors++;
@@ -1469,8 +1469,8 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		pkt_len = desc_status;	/* Implicitly Truncate */
 		entry = (desc_status >> 16) & 0x7ff;
 
-		if (debug > 4)
-			printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d, quota %d.\n", pkt_len, *quota);
+		if (de > 4)
+			printk(KERN_DE "  netdev_rx() normal Rx pkt length %d, quota %d.\n", pkt_len, *quota);
 		/* Check if the packet is long enough to accept without copying
 		   to a minimally-sized skbuff. */
 		if (pkt_len < rx_copybreak &&
@@ -1492,9 +1492,9 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 			np->rx_info[entry].mapping = 0;
 		}
 #ifndef final_version			/* Remove after testing. */
-		/* You will want this info for the initial debug. */
-		if (debug > 5) {
-			printk(KERN_DEBUG "  Rx data %pM %pM %2.2x%2.2x.\n",
+		/* You will want this info for the initial de. */
+		if (de > 5) {
+			printk(KERN_DE "  Rx data %pM %pM %2.2x%2.2x.\n",
 			       skb->data, skb->data + 6,
 			       skb->data[12], skb->data[13]);
 		}
@@ -1502,8 +1502,8 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 
 		skb->protocol = eth_type_trans(skb, dev);
 #ifdef VLAN_SUPPORT
-		if (debug > 4)
-			printk(KERN_DEBUG "  netdev_rx() status2 of %d was %#4.4x.\n", np->rx_done, le16_to_cpu(desc->status2));
+		if (de > 4)
+			printk(KERN_DE "  netdev_rx() status2 of %d was %#4.4x.\n", np->rx_done, le16_to_cpu(desc->status2));
 #endif
 		if (le16_to_cpu(desc->status2) & 0x0100) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1521,14 +1521,14 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		else if (le16_to_cpu(desc->status2) & 0x0040) {
 			skb->ip_summed = CHECKSUM_COMPLETE;
 			skb->csum = le16_to_cpu(desc->csum);
-			printk(KERN_DEBUG "%s: checksum_hw, status2 = %#x\n", dev->name, le16_to_cpu(desc->status2));
+			printk(KERN_DE "%s: checksum_hw, status2 = %#x\n", dev->name, le16_to_cpu(desc->status2));
 		}
 #ifdef VLAN_SUPPORT
 		if (le16_to_cpu(desc->status2) & 0x0200) {
 			u16 vlid = le16_to_cpu(desc->vlanid);
 
-			if (debug > 4) {
-				printk(KERN_DEBUG "  netdev_rx() vlanid = %d\n",
+			if (de > 4) {
+				printk(KERN_DE "  netdev_rx() vlanid = %d\n",
 				       vlid);
 			}
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlid);
@@ -1551,8 +1551,8 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 
  out:
 	refill_rx_ring(dev);
-	if (debug > 5)
-		printk(KERN_DEBUG "  exiting netdev_rx(): %d, status of %d was %#8.8x.\n",
+	if (de > 5)
+		printk(KERN_DE "  exiting netdev_rx(): %d, status of %d was %#8.8x.\n",
 		       retcode, np->rx_done, desc_status);
 	return retcode;
 }
@@ -1580,8 +1580,8 @@ static int netdev_poll(struct napi_struct *napi, int budget)
 	writel(intr_status, ioaddr + IntrEnable);
 
  out:
-	if (debug > 5)
-		printk(KERN_DEBUG "  exiting netdev_poll(): %d.\n",
+	if (de > 5)
+		printk(KERN_DE "  exiting netdev_poll(): %d.\n",
 		       budget - quota);
 
 	/* Restart Rx engine if stopped. */
@@ -1667,7 +1667,7 @@ static void netdev_media_change(struct net_device *dev)
 				np->mii_if.full_duplex = 0;
 		}
 		netif_carrier_on(dev);
-		printk(KERN_DEBUG "%s: Link is up, running at %sMbit %s-duplex\n",
+		printk(KERN_DE "%s: Link is up, running at %sMbit %s-duplex\n",
 		       dev->name,
 		       np->speed100 ? "100" : "10",
 		       np->mii_if.full_duplex ? "full" : "half");
@@ -1691,7 +1691,7 @@ static void netdev_media_change(struct net_device *dev)
 		}
 	} else {
 		netif_carrier_off(dev);
-		printk(KERN_DEBUG "%s: Link is down\n", dev->name);
+		printk(KERN_DE "%s: Link is down\n", dev->name);
 	}
 }
 
@@ -1717,7 +1717,7 @@ static void netdev_error(struct net_device *dev, int intr_status)
 		dev->stats.tx_fifo_errors++;
 		dev->stats.tx_errors++;
 	}
-	if ((intr_status & ~(IntrNormalMask | IntrAbnormalSummary | IntrLinkChange | IntrStatsMax | IntrTxDataLow | IntrRxGFPDead | IntrNoTxCsum | IntrPCIPad)) && debug)
+	if ((intr_status & ~(IntrNormalMask | IntrAbnormalSummary | IntrLinkChange | IntrStatsMax | IntrTxDataLow | IntrRxGFPDead | IntrNoTxCsum | IntrPCIPad)) && de)
 		printk(KERN_ERR "%s: Something Wicked happened! %#8.8x.\n",
 		       dev->name, intr_status);
 }
@@ -1893,12 +1893,12 @@ static u32 get_link(struct net_device *dev)
 
 static u32 get_msglevel(struct net_device *dev)
 {
-	return debug;
+	return de;
 }
 
 static void set_msglevel(struct net_device *dev, u32 val)
 {
-	debug = val;
+	de = val;
 }
 
 static const struct ethtool_ops ethtool_ops = {
@@ -1941,10 +1941,10 @@ static int netdev_close(struct net_device *dev)
 
 	napi_disable(&np->napi);
 
-	if (debug > 1) {
-		printk(KERN_DEBUG "%s: Shutting down ethercard, Intr status %#8.8x.\n",
+	if (de > 1) {
+		printk(KERN_DE "%s: Shutting down ethercard, Intr status %#8.8x.\n",
 			   dev->name, (int) readl(ioaddr + IntrStatus));
-		printk(KERN_DEBUG "%s: Queue pointers were Tx %d / %d, Rx %d / %d.\n",
+		printk(KERN_DE "%s: Queue pointers were Tx %d / %d, Rx %d / %d.\n",
 		       dev->name, np->cur_tx, np->dirty_tx,
 		       np->cur_rx, np->dirty_rx);
 	}
@@ -1956,19 +1956,19 @@ static int netdev_close(struct net_device *dev)
 	writel(0, ioaddr + GenCtrl);
 	readl(ioaddr + GenCtrl);
 
-	if (debug > 5) {
-		printk(KERN_DEBUG"  Tx ring at %#llx:\n",
+	if (de > 5) {
+		printk(KERN_DE"  Tx ring at %#llx:\n",
 		       (long long) np->tx_ring_dma);
 		for (i = 0; i < 8 /* TX_RING_SIZE is huge! */; i++)
-			printk(KERN_DEBUG " #%d desc. %#8.8x %#llx -> %#8.8x.\n",
+			printk(KERN_DE " #%d desc. %#8.8x %#llx -> %#8.8x.\n",
 			       i, le32_to_cpu(np->tx_ring[i].status),
 			       (long long) dma_to_cpu(np->tx_ring[i].addr),
 			       le32_to_cpu(np->tx_done_q[i].status));
-		printk(KERN_DEBUG "  Rx ring at %#llx -> %p:\n",
+		printk(KERN_DE "  Rx ring at %#llx -> %p:\n",
 		       (long long) np->rx_ring_dma, np->rx_done_q);
 		if (np->rx_done_q)
 			for (i = 0; i < 8 /* RX_RING_SIZE */; i++) {
-				printk(KERN_DEBUG " #%d desc. %#llx -> %#8.8x\n",
+				printk(KERN_DE " #%d desc. %#llx -> %#8.8x\n",
 				       i, (long long) dma_to_cpu(np->rx_ring[i].rxaddr), le32_to_cpu(np->rx_done_q[i].status));
 		}
 	}
@@ -2038,7 +2038,7 @@ static void starfire_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct netdev_private *np = netdev_priv(dev);
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	unregister_netdev(dev);
 
@@ -2078,7 +2078,7 @@ static int __init starfire_init (void)
 	printk(KERN_INFO DRV_NAME ": polling (NAPI) enabled\n");
 #endif
 
-	BUILD_BUG_ON(sizeof(dma_addr_t) != sizeof(netdrv_addr_t));
+	BUILD__ON(sizeof(dma_addr_t) != sizeof(netdrv_addr_t));
 
 	return pci_register_driver(&starfire_driver);
 }

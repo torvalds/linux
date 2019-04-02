@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-#ifdef CONFIG_DEBUG_KMEMLEAK
+#ifdef CONFIG_DE_KMEMLEAK
 
 extern void kmemleak_init(void) __init;
 extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
@@ -132,6 +132,6 @@ static inline void kmemleak_ignore_phys(phys_addr_t phys)
 {
 }
 
-#endif	/* CONFIG_DEBUG_KMEMLEAK */
+#endif	/* CONFIG_DE_KMEMLEAK */
 
 #endif	/* __KMEMLEAK_H */

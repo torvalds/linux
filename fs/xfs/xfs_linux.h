@@ -224,23 +224,23 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 #define ASSERT_ALWAYS(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
-#ifdef DEBUG
+#ifdef DE
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
-#else	/* !DEBUG */
+#else	/* !DE */
 
 #ifdef XFS_WARN
 
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : asswarn(#expr, __FILE__, __LINE__))
 
-#else	/* !DEBUG && !XFS_WARN */
+#else	/* !DE && !XFS_WARN */
 
 #define ASSERT(expr)	((void)0)
 
 #endif /* XFS_WARN */
-#endif /* DEBUG */
+#endif /* DE */
 
 #define STATIC static noinline
 
@@ -262,10 +262,10 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 /*
  * Starting in Linux 4.15, the %p (raw pointer value) printk modifier
  * prints a hashed version of the pointer to avoid leaking kernel
- * pointers into dmesg.  If we're trying to debug the kernel we want the
+ * pointers into dmesg.  If we're trying to de the kernel we want the
  * raw values, so override this behavior as best we can.
  */
-#ifdef DEBUG
+#ifdef DE
 # define PTR_FMT "%px"
 #else
 # define PTR_FMT "%p"

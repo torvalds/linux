@@ -39,7 +39,7 @@
 
 
 /*
- * NFS debug flags
+ * NFS de flags
  */
 #define NFSDBG_VFS		0x0001
 #define NFSDBG_DIRCACHE		0x0002

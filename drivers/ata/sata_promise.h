@@ -64,7 +64,7 @@ static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 		break;
 
 	default:
-		BUG();
+		();
 		break;
 	}
 

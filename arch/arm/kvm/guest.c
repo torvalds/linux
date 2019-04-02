@@ -32,7 +32,7 @@
 #define VM_STAT(x) { #x, offsetof(struct kvm, stat.x), KVM_STAT_VM }
 #define VCPU_STAT(x) { #x, offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU }
 
-struct kvm_stats_debugfs_item debugfs_entries[] = {
+struct kvm_stats_defs_item defs_entries[] = {
 	VCPU_STAT(hvc_exit_stat),
 	VCPU_STAT(wfe_exit_stat),
 	VCPU_STAT(wfi_exit_stat),
@@ -332,8 +332,8 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-					struct kvm_guest_debug *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_de(struct kvm_vcpu *vcpu,
+					struct kvm_guest_de *dbg)
 {
 	return -EINVAL;
 }

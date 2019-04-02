@@ -106,11 +106,11 @@ err:
 
 /*
  * The smbus doesn't always come back due to what is believed to be
- * hardware (power rail) bugs.  For older models where this is known to
+ * hardware (power rail) s.  For older models where this is known to
  * occur, our solution is to attempt to wait for the bus to stabilize;
  * if it doesn't happen, cut power to the dcon, repower it, and wait
  * for the bus to stabilize.  Rinse, repeat until we have a working
- * smbus.  For newer models, we simply BUG(); we want to know if this
+ * smbus.  For newer models, we simply (); we want to know if this
  * still happens despite the power fixes that have been made!
  */
 static int dcon_bus_stabilize(struct dcon_priv *dcon, int is_powered_down)
@@ -138,7 +138,7 @@ power_up:
 	}
 	if (x < 0) {
 		pr_err("unable to stabilize dcon's smbus, reasserting power and praying.\n");
-		BUG_ON(olpc_board_at_least(olpc_board(0xc2)));
+		_ON(olpc_board_at_least(olpc_board(0xc2)));
 		pm = 0;
 		olpc_ec_cmd(EC_DCON_POWER_MODE, &pm, 1, NULL, 0);
 		msleep(100);
@@ -366,7 +366,7 @@ static void dcon_source_switch(struct work_struct *work)
 		break;
 	}
 	default:
-		BUG();
+		();
 	}
 
 	dcon->curr_src = source;
@@ -737,7 +737,7 @@ irqreturn_t dcon_interrupt(int irq, void *id)
 
 	switch (status & 3) {
 	case 3:
-		pr_debug("DCONLOAD_MISSED interrupt\n");
+		pr_de("DCONLOAD_MISSED interrupt\n");
 		break;
 
 	case 2:	/* switch to DCON mode */
@@ -759,9 +759,9 @@ irqreturn_t dcon_interrupt(int irq, void *id)
 			dcon->switched = true;
 			dcon->irq_time = ktime_get();
 			wake_up(&dcon->waitq);
-			pr_debug("switching w/ status 0/0\n");
+			pr_de("switching w/ status 0/0\n");
 		} else {
-			pr_debug("scanline interrupt w/CPU\n");
+			pr_de("scanline interrupt w/CPU\n");
 		}
 	}
 

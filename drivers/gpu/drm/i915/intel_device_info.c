@@ -62,7 +62,7 @@ static const char * const platform_names[] = {
 
 const char *intel_platform_name(enum intel_platform platform)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(platform_names) != INTEL_MAX_PLATFORMS);
+	BUILD__ON(ARRAY_SIZE(platform_names) != INTEL_MAX_PLATFORMS);
 
 	if (WARN_ON_ONCE(platform >= ARRAY_SIZE(platform_names) ||
 			 platform_names[platform] == NULL))
@@ -738,7 +738,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		runtime->num_scalers[PIPE_C] = 1;
 	}
 
-	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
+	BUILD__ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
 
 	if (IS_GEN(dev_priv, 11))
 		for_each_pipe(dev_priv, pipe)
@@ -881,14 +881,14 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 	RUNTIME_INFO(dev_priv)->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
 		GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", RUNTIME_INFO(dev_priv)->vdbox_enable);
+	DRM_DE_DRIVER("vdbox enable: %04x\n", RUNTIME_INFO(dev_priv)->vdbox_enable);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
 
 		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vdbox_enable)) {
 			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
-			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+			DRM_DE_DRIVER("vcs%u fused off\n", i);
 			continue;
 		}
 
@@ -900,14 +900,14 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 			RUNTIME_INFO(dev_priv)->vdbox_sfc_access |= BIT(i);
 	}
 
-	DRM_DEBUG_DRIVER("vebox enable: %04x\n", RUNTIME_INFO(dev_priv)->vebox_enable);
+	DRM_DE_DRIVER("vebox enable: %04x\n", RUNTIME_INFO(dev_priv)->vebox_enable);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
 
 		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vebox_enable)) {
 			info->ring_mask &= ~ENGINE_MASK(_VECS(i));
-			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+			DRM_DE_DRIVER("vecs%u fused off\n", i);
 		}
 	}
 }

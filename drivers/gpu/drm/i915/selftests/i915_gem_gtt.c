@@ -77,7 +77,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
 
-		GEM_BUG_ON(!len);
+		GEM__ON(!len);
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
@@ -85,7 +85,7 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 
 		rem -= len;
 	}
-	GEM_BUG_ON(rem);
+	GEM__ON(rem);
 
 	obj->mm.madv = I915_MADV_DONTNEED;
 
@@ -114,8 +114,8 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 {
 	struct drm_i915_gem_object *obj;
 
-	GEM_BUG_ON(!size);
-	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
+	GEM__ON(!size);
+	GEM__ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
 
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
@@ -236,7 +236,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
 		count = hole_size >> 1;
 		if (!count) {
-			pr_debug("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
+			pr_de("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
 				 __func__, hole_start, hole_end, size, hole_size);
 			break;
 		}
@@ -248,10 +248,10 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		} while (count >>= 1);
 		if (!count)
 			return -ENOMEM;
-		GEM_BUG_ON(!order);
+		GEM__ON(!order);
 
-		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
-		GEM_BUG_ON(hole_start + count * BIT_ULL(size) > hole_end);
+		GEM__ON(count * BIT_ULL(size) > vm->total);
+		GEM__ON(hole_start + count * BIT_ULL(size) > hole_end);
 
 		/* Ignore allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
@@ -265,7 +265,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			break;
 		}
 
-		GEM_BUG_ON(obj->base.size != BIT_ULL(size));
+		GEM__ON(obj->base.size != BIT_ULL(size));
 
 		if (i915_gem_object_pin_pages(obj)) {
 			i915_gem_object_put(obj);
@@ -277,7 +277,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			u64 addr = hole_start + order[n] * BIT_ULL(size);
 			intel_wakeref_t wakeref;
 
-			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
+			GEM__ON(addr + BIT_ULL(size) > vm->total);
 
 			if (igt_timeout(end_time,
 					"%s timed out before %d/%d\n",
@@ -304,7 +304,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		for (n = 0; n < count; n++) {
 			u64 addr = hole_start + order[n] * BIT_ULL(size);
 
-			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
+			GEM__ON(addr + BIT_ULL(size) > vm->total);
 			vm->clear_range(vm, addr, BIT_ULL(size));
 		}
 
@@ -612,7 +612,7 @@ static int walk_hole(struct drm_i915_private *i915,
 				goto err_close;
 			}
 
-			GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
+			GEM__ON(drm_mm_node_allocated(&vma->node));
 
 			if (igt_timeout(end_time,
 					"%s timed out at %llx\n",
@@ -693,7 +693,7 @@ static int pot_hole(struct drm_i915_private *i915,
 
 			i915_vma_unpin(vma);
 			err = i915_vma_unbind(vma);
-			GEM_BUG_ON(err);
+			GEM__ON(err);
 		}
 
 		if (igt_timeout(end_time,
@@ -738,7 +738,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 			hole_size = KMALLOC_MAX_SIZE / sizeof(u32);
 		count = hole_size >> 1;
 		if (!count) {
-			pr_debug("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
+			pr_de("%s: hole is too small [%llx - %llx] >> %d: %lld\n",
 				 __func__, hole_start, hole_end, size, hole_size);
 			break;
 		}
@@ -750,7 +750,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 		} while (count >>= 1);
 		if (!count)
 			return -ENOMEM;
-		GEM_BUG_ON(!order);
+		GEM__ON(!order);
 
 		/* Ignore allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
@@ -770,7 +770,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 			goto err_obj;
 		}
 
-		GEM_BUG_ON(vma->size != BIT_ULL(size));
+		GEM__ON(vma->size != BIT_ULL(size));
 
 		for (n = 0; n < count; n++) {
 			u64 addr = hole_start + order[n] * BIT_ULL(size);
@@ -797,7 +797,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 
 			i915_vma_unpin(vma);
 			err = i915_vma_unbind(vma);
-			GEM_BUG_ON(err);
+			GEM__ON(err);
 
 			if (igt_timeout(end_time,
 					"%s timed out after %d/%d\n",
@@ -854,7 +854,7 @@ static int __shrink_hole(struct drm_i915_private *i915,
 			break;
 		}
 
-		GEM_BUG_ON(vma->size != size);
+		GEM__ON(vma->size != size);
 
 		err = i915_vma_pin(vma, 0, 0, addr | flags);
 		if (err) {
@@ -1015,8 +1015,8 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
 	}
-	GEM_BUG_ON(offset_in_page(ppgtt->vm.total));
-	GEM_BUG_ON(ppgtt->vm.closed);
+	GEM__ON(offset_in_page(ppgtt->vm.total));
+	GEM__ON(ppgtt->vm.closed);
 
 	err = func(dev_priv, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
@@ -1260,7 +1260,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 		return -ENOMEM;
 
 	ppgtt = ctx->ppgtt;
-	GEM_BUG_ON(!ppgtt);
+	GEM__ON(!ppgtt);
 
 	err = func(i915, &ppgtt->vm, 0, min(ppgtt->vm.total, limit), end_time);
 
@@ -1348,7 +1348,7 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != total ||
 		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 1) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
@@ -1398,7 +1398,7 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != total ||
 		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 2) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
@@ -1442,7 +1442,7 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != offset ||
 		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 3) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
@@ -1560,7 +1560,7 @@ static int igt_gtt_insert(void *arg)
 		track_vma_bind(vma);
 		__i915_vma_pin(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 	}
 
 	list_for_each_entry(obj, &objects, st_link) {
@@ -1592,7 +1592,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 		offset = vma->node.start;
 
 		err = i915_vma_unbind(vma);
@@ -1612,7 +1612,7 @@ static int igt_gtt_insert(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != offset) {
 			pr_err("i915_gem_gtt_insert did not return node to its previous location (the only hole), expected address %llx, found %llx\n",
 			       offset, vma->node.start);
@@ -1659,7 +1659,7 @@ static int igt_gtt_insert(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
 	}
 
 out:
@@ -1722,7 +1722,7 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ggtt_page),
 	};
 
-	GEM_BUG_ON(offset_in_page(i915->ggtt.vm.total));
+	GEM__ON(offset_in_page(i915->ggtt.vm.total));
 
 	return i915_subtests(tests, i915);
 }

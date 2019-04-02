@@ -865,7 +865,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 		return -ENOMEM;
 
 	cdev->outurb_active_mask = 0;
-	BUILD_BUG_ON(N_URBS > (sizeof(cdev->outurb_active_mask) * 8));
+	BUILD__ON(N_URBS > (sizeof(cdev->outurb_active_mask) * 8));
 
 	for (i = 0; i < N_URBS; i++) {
 		cdev->data_cb_info[i].cdev = cdev;

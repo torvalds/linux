@@ -157,11 +157,11 @@ CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mcmodel=medium,$(call cc-option,-mmi
 CFLAGS-$(CONFIG_PPC64)	+= $(call cc-option,-mno-pointers-to-nested-functions)
 
 # Clang unconditionally reserves r2 on ppc32 and does not support the flag
-# https://bugs.llvm.org/show_bug.cgi?id=39555
+# https://s.llvm.org/show_.cgi?id=39555
 CFLAGS-$(CONFIG_PPC32)	:= $(call cc-option, -ffixed-r2)
 
 # Clang doesn't support -mmultiple / -mno-multiple
-# https://bugs.llvm.org/show_bug.cgi?id=39556
+# https://s.llvm.org/show_.cgi?id=39556
 CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option, $(MULTIPLEWORD))
 
 CFLAGS-$(CONFIG_PPC32)	+= $(call cc-option,-mno-readonly-in-sdata)
@@ -183,9 +183,9 @@ CC_FLAGS_FTRACE := -pg
 ifdef CONFIG_MPROFILE_KERNEL
 CC_FLAGS_FTRACE += -mprofile-kernel
 endif
-# Work around gcc code-gen bugs with -pg / -fno-omit-frame-pointer in gcc <= 4.8
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=44199
-# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52828
+# Work around gcc code-gen s with -pg / -fno-omit-frame-pointer in gcc <= 4.8
+# https://gcc.gnu.org/zilla/show_.cgi?id=44199
+# https://gcc.gnu.org/zilla/show_.cgi?id=52828
 ifndef CONFIG_CC_IS_CLANG
 CC_FLAGS_FTRACE	+= $(call cc-ifversion, -lt, 0409, -mno-sched-epilog)
 endif

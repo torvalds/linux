@@ -4,7 +4,7 @@ Module options
 The mwave module takes the following options.  Note that these options
 are not saved by the BIOS and so do not persist after unload and reload.
 
-  mwave_debug=value, where value is bitwise OR of trace flags:
+  mwave_de=value, where value is bitwise OR of trace flags:
 	0x0001 mwavedd api tracing
 	0x0002 smapi api tracing
 	0x0004 3780i tracing

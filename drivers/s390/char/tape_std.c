@@ -39,7 +39,7 @@ tape_std_assign_timeout(struct timer_list *t)
 	struct tape_device *	device = request->device;
 	int rc;
 
-	BUG_ON(!device);
+	_ON(!device);
 
 	DBF_EVENT(3, "%08x: Assignment timeout. Device busy.\n",
 			device->cdev_id);

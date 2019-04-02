@@ -84,7 +84,7 @@ int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
 static inline void aspeed_sig_desc_print_val(
 		const struct aspeed_sig_desc *desc, bool enable, u32 rv)
 {
-	pr_debug("Want %s%X[0x%08X]=0x%X, got 0x%X from 0x%08X\n",
+	pr_de("Want %s%X[0x%08X]=0x%X, got 0x%X from 0x%08X\n",
 			aspeed_pinmux_ips[desc->ip], desc->reg,
 			desc->mask, enable ? desc->enable : desc->disable,
 			(rv & desc->mask) >> __ffs(desc->mask), rv);
@@ -410,7 +410,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		const struct aspeed_sig_expr **funcs;
 		const struct aspeed_sig_expr ***prios;
 
-		pr_debug("Muxing pin %d for %s\n", pin, pfunc->name);
+		pr_de("Muxing pin %d for %s\n", pin, pfunc->name);
 
 		if (!pdesc)
 			return -EINVAL;
@@ -726,7 +726,7 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
 		if (rc < 0)
 			return rc;
 
-		pr_debug("%s: Set SCU%02X[%d]=%d for param %d(=%d) on pin %d\n",
+		pr_de("%s: Set SCU%02X[%d]=%d for param %d(=%d) on pin %d\n",
 				__func__, pconf->reg, pconf->bit, pmap->val,
 				param, arg, offset);
 	}
@@ -764,7 +764,7 @@ int aspeed_pin_config_group_set(struct pinctrl_dev *pctldev,
 	int rc;
 	int i;
 
-	pr_debug("%s: Fetching pins for group selector %d\n",
+	pr_de("%s: Fetching pins for group selector %d\n",
 			__func__, selector);
 	rc = aspeed_pinctrl_get_group_pins(pctldev, selector, &pins, &npins);
 	if (rc < 0)

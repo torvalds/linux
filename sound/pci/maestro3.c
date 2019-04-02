@@ -534,7 +534,7 @@ MODULE_PARM_DESC(amp_gpio, "GPIO pin number for external amp. (default = -1)");
 #define KDATA_SPDIFIN_INT_METER         (KDATA_BASE_ADDR + 0x005E)
 
 #define KDATA_DSP_RESET_COUNT           (KDATA_BASE_ADDR + 0x005F)
-#define KDATA_DEBUG_OUTPUT              (KDATA_BASE_ADDR + 0x0060)
+#define KDATA_DE_OUTPUT              (KDATA_BASE_ADDR + 0x0060)
 
 #define KDATA_KERNEL_ISR_LIST           (KDATA_BASE_ADDR + 0x0061)
 
@@ -1115,7 +1115,7 @@ snd_m3_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 	struct m3_dma *s = subs->runtime->private_data;
 	int err = -EINVAL;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return -ENXIO;
 
 	spin_lock(&chip->reg_lock);
@@ -1428,7 +1428,7 @@ snd_m3_pcm_prepare(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	struct m3_dma *s = runtime->private_data;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return -ENXIO;
 
 	if (runtime->format != SNDRV_PCM_FORMAT_U8 &&
@@ -1489,7 +1489,7 @@ snd_m3_pcm_pointer(struct snd_pcm_substream *subs)
 	unsigned int ptr;
 	struct m3_dma *s = subs->runtime->private_data;
 
-	if (snd_BUG_ON(!s))
+	if (snd__ON(!s))
 		return 0;
 
 	spin_lock(&chip->reg_lock);
@@ -1930,7 +1930,7 @@ snd_m3_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 	snd_m3_outw(chip, val, CODEC_DATA);
 	snd_m3_outb(chip, reg & 0x7f, CODEC_COMMAND);
 	/*
-	 * Workaround for buggy ES1988 integrated AC'97 codec. It remains silent
+	 * Workaround for gy ES1988 integrated AC'97 codec. It remains silent
 	 * until the MASTER volume or mute is touched (alsactl restore does not
 	 * work).
 	 */

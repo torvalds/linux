@@ -31,8 +31,8 @@
 
 #define KVMPPC_INST_EHPRIV		0x7c00021c
 #define EHPRIV_OC_SHIFT			11
-/* "ehpriv 1" : ehpriv with OC = 1 is used for debug emulation */
-#define EHPRIV_OC_DEBUG			1
+/* "ehpriv 1" : ehpriv with OC = 1 is used for de emulation */
+#define EHPRIV_OC_DE			1
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {

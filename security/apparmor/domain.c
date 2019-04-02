@@ -389,8 +389,8 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 	bool conflict = false;
 	struct aa_profile *profile, *candidate = NULL;
 
-	AA_BUG(!name);
-	AA_BUG(!head);
+	AA_(!name);
+	AA_(!head);
 
 	list_for_each_entry_rcu(profile, head, base.list) {
 		if (profile->label.flags & FLAG_NULL &&
@@ -508,7 +508,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 	u32 xtype = xindex & AA_X_TYPE_MASK;
 	int index = xindex & AA_X_INDEX_MASK;
 
-	AA_BUG(!name);
+	AA_(!name);
 
 	/* index is guaranteed to be in range, validated at load time */
 	/* TODO: move lookup parsing to unpack time so this is a straight
@@ -628,16 +628,16 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 	bool nonewprivs = false;
 	int error = 0;
 
-	AA_BUG(!profile);
-	AA_BUG(!bprm);
-	AA_BUG(!buffer);
+	AA_(!profile);
+	AA_(!bprm);
+	AA_(!buffer);
 
 	error = aa_path_name(&bprm->file->f_path, profile->path_flags, buffer,
 			     &name, &info, profile->disconnected);
 	if (error) {
 		if (profile_unconfined(profile) ||
 		    (profile->label.flags & FLAG_IX_ON_NAME_ERROR)) {
-			AA_DEBUG("name lookup ix on error");
+			AA_DE("name lookup ix on error");
 			error = 0;
 			new = aa_get_newest_label(&profile->label);
 		}
@@ -649,10 +649,10 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 		new = find_attach(bprm, profile->ns,
 				  &profile->ns->base.profiles, name, &info);
 		if (new) {
-			AA_DEBUG("unconfined attached to new label");
+			AA_DE("unconfined attached to new label");
 			return new;
 		}
-		AA_DEBUG("unconfined exec no attachment");
+		AA_DE("unconfined exec no attachment");
 		return aa_get_newest_label(&profile->label);
 	}
 
@@ -720,7 +720,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
-		if (DEBUG_ON) {
+		if (DE_ON) {
 			dbg_printk("apparmor: scrubbing environment variables"
 				   " for %s profile=", name);
 			aa_label_printk(new, GFP_ATOMIC);
@@ -750,10 +750,10 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	const char *xname = NULL, *info = "change_profile onexec";
 	int error = -EACCES;
 
-	AA_BUG(!profile);
-	AA_BUG(!onexec);
-	AA_BUG(!bprm);
-	AA_BUG(!buffer);
+	AA_(!profile);
+	AA_(!onexec);
+	AA_(!bprm);
+	AA_(!buffer);
 
 	if (profile_unconfined(profile)) {
 		/* change_profile on exec already granted */
@@ -770,7 +770,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	if (error) {
 		if (profile_unconfined(profile) ||
 		    (profile->label.flags & FLAG_IX_ON_NAME_ERROR)) {
-			AA_DEBUG("name lookup ix on error");
+			AA_DE("name lookup ix on error");
 			error = 0;
 		}
 		xname = bprm->filename;
@@ -796,7 +796,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	}
 
 	if (!(perms.xindex & AA_X_UNSAFE)) {
-		if (DEBUG_ON) {
+		if (DE_ON) {
 			dbg_printk("apparmor: scrubbing environment "
 				   "variables for %s label=", xname);
 			aa_label_printk(onexec, GFP_ATOMIC);
@@ -822,10 +822,10 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 	struct aa_label *new;
 	int error;
 
-	AA_BUG(!label);
-	AA_BUG(!onexec);
-	AA_BUG(!bprm);
-	AA_BUG(!buffer);
+	AA_(!label);
+	AA_(!onexec);
+	AA_(!bprm);
+	AA_(!buffer);
 
 	if (!stack) {
 		error = fn_for_each_in_ns(label, profile,
@@ -890,8 +890,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		return 0;
 
 	ctx = task_ctx(current);
-	AA_BUG(!cred_label(bprm->cred));
-	AA_BUG(!ctx);
+	AA_(!cred_label(bprm->cred));
+	AA_(!ctx);
 
 	label = aa_get_newest_label(cred_label(bprm->cred));
 
@@ -917,7 +917,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 				profile_transition(profile, bprm, buffer,
 						   &cond, &unsafe));
 
-	AA_BUG(!new);
+	AA_(!new);
 	if (IS_ERR(new)) {
 		error = PTR_ERR(new);
 		goto done;
@@ -954,7 +954,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	}
 
 	if (unsafe) {
-		if (DEBUG_ON) {
+		if (DE_ON) {
 			dbg_printk("scrubbing environment variables for %s "
 				   "label=", bprm->filename);
 			aa_label_printk(new, GFP_ATOMIC);
@@ -965,7 +965,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 	if (label->proxy != new->proxy) {
 		/* when transitioning clear unsafe personality bits */
-		if (DEBUG_ON) {
+		if (DE_ON) {
 			dbg_printk("apparmor: clearing unsafe personality "
 				   "bits. %s label=", bprm->filename);
 			aa_label_printk(new, GFP_ATOMIC);
@@ -1060,9 +1060,9 @@ static struct aa_label *change_hat(struct aa_label *label, const char *hats[],
 	const char *name, *info = NULL;
 	int i, error;
 
-	AA_BUG(!label);
-	AA_BUG(!hats);
-	AA_BUG(count < 1);
+	AA_(!label);
+	AA_(!hats);
+	AA_(count < 1);
 
 	if (PROFILE_IS_HAT(labels_profile(label)))
 		sibling = true;
@@ -1196,7 +1196,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 
 	if (count) {
 		new = change_hat(label, hats, count, flags);
-		AA_BUG(!new);
+		AA_(!new);
 		if (IS_ERR(new)) {
 			error = PTR_ERR(new);
 			new = NULL;
@@ -1215,7 +1215,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		if (task_no_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_subset(new, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			AA_DE("no_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1236,7 +1236,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		if (task_no_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_subset(previous, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			AA_DE("no_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}
@@ -1334,7 +1334,7 @@ int aa_change_profile(const char *fqname, int flags)
 		ctx->nnp = aa_get_label(label);
 
 	if (!fqname || !*fqname) {
-		AA_DEBUG("no profile name");
+		AA_DE("no profile name");
 		return -EINVAL;
 	}
 
@@ -1432,7 +1432,7 @@ check:
 		if (task_no_new_privs(current) && !unconfined(label) &&
 		    !aa_label_is_subset(new, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
-			AA_DEBUG("no_new_privs - change_hat denied");
+			AA_DE("no_new_privs - change_hat denied");
 			error = -EPERM;
 			goto out;
 		}

@@ -88,7 +88,7 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	u32 ctl;
 
 	clk_info = &cgu->clock_info[ingenic_clk->idx];
-	BUG_ON(clk_info->type != CGU_CLK_PLL);
+	_ON(clk_info->type != CGU_CLK_PLL);
 	pll_info = &clk_info->pll;
 
 	spin_lock_irqsave(&cgu->lock, flags);
@@ -111,7 +111,7 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		if (pll_info->od_encoding[od] == od_enc)
 			break;
 	}
-	BUG_ON(od == pll_info->od_max);
+	_ON(od == pll_info->od_max);
 	od++;
 
 	return div_u64((u64)parent_rate * m, n * od);
@@ -157,7 +157,7 @@ static inline const struct ingenic_cgu_clk_info *to_clk_info(
 	const struct ingenic_cgu_clk_info *clk_info;
 
 	clk_info = &cgu->clock_info[ingenic_clk->idx];
-	BUG_ON(clk_info->type != CGU_CLK_PLL);
+	_ON(clk_info->type != CGU_CLK_PLL);
 
 	return clk_info;
 }
@@ -348,7 +348,7 @@ static int ingenic_clk_set_parent(struct clk_hw *hw, u8 idx)
 		}
 
 		/* idx should always be a valid parent */
-		BUG_ON(curr_idx != idx);
+		_ON(curr_idx != idx);
 
 		mask = GENMASK(clk_info->mux.bits - 1, 0);
 		mask <<= clk_info->mux.shift;
@@ -582,7 +582,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 	unsigned caps, i, num_possible;
 	int err = -EINVAL;
 
-	BUILD_BUG_ON(ARRAY_SIZE(clk_info->parents) > ARRAY_SIZE(parent_names));
+	BUILD__ON(ARRAY_SIZE(clk_info->parents) > ARRAY_SIZE(parent_names));
 
 	if (clk_info->type == CGU_CLK_EXT) {
 		clk = of_clk_get_by_name(cgu->np, clk_info->name);
@@ -641,10 +641,10 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 			clk_init.num_parents++;
 		}
 
-		BUG_ON(!clk_init.num_parents);
-		BUG_ON(clk_init.num_parents > ARRAY_SIZE(parent_names));
+		_ON(!clk_init.num_parents);
+		_ON(clk_init.num_parents > ARRAY_SIZE(parent_names));
 	} else {
-		BUG_ON(clk_info->parents[0] == -1);
+		_ON(clk_info->parents[0] == -1);
 		clk_init.num_parents = 1;
 		parent = cgu->clocks.clks[clk_info->parents[0]];
 		parent_names[0] = __clk_get_name(parent);

@@ -212,7 +212,7 @@ EXPORT_SYMBOL(blk_queue_max_hw_sectors);
  **/
 void blk_queue_chunk_sectors(struct request_queue *q, unsigned int chunk_sectors)
 {
-	BUG_ON(!is_power_of_2(chunk_sectors));
+	_ON(!is_power_of_2(chunk_sectors));
 	q->limits.chunk_sectors = chunk_sectors;
 }
 EXPORT_SYMBOL(blk_queue_chunk_sectors);
@@ -792,7 +792,7 @@ EXPORT_SYMBOL(blk_queue_dma_alignment);
  **/
 void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 {
-	BUG_ON(mask > PAGE_SIZE);
+	_ON(mask > PAGE_SIZE);
 
 	if (mask > q->dma_alignment)
 		q->dma_alignment = mask;

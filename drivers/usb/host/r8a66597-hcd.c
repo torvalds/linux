@@ -1195,7 +1195,7 @@ static int is_set_address(unsigned char *setup_packet)
 /* this function must be called with interrupt disabled */
 static int start_transfer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 {
-	BUG_ON(!td);
+	_ON(!td);
 
 	switch (td->type) {
 	case USB_PID_SETUP:
@@ -1245,7 +1245,7 @@ static void set_td_timer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 {
 	unsigned long time;
 
-	BUG_ON(!td);
+	_ON(!td);
 
 	if (!list_empty(&r8a66597->pipe_queue[td->pipenum]) &&
 	    !usb_pipecontrol(td->urb->pipe) && usb_pipein(td->urb->pipe)) {

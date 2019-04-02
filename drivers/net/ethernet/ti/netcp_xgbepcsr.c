@@ -305,7 +305,7 @@ static void netcp_xgbe_serdes_reset_cdr(void __iomem *serdes_regs,
 		tbus = netcp_xgbe_serdes_read_select_tbus(serdes_regs, lane +
 							  1, 0xe);
 
-		pr_debug("XGBE: CDR centered, DLPF: %4d,%d,%d.\n",
+		pr_de("XGBE: CDR centered, DLPF: %4d,%d,%d.\n",
 			 tmp >> 2, tmp & 3, (tbus >> 2) & 3);
 	}
 }
@@ -340,13 +340,13 @@ static int netcp_xgbe_check_link_status(void __iomem *serdes_regs,
 		case 0:
 			/* if good link lock the signal detect ON! */
 			if (!loss && blk_lock) {
-				pr_debug("XGBE PCSR Linked Lane: %d\n", i);
+				pr_de("XGBE PCSR Linked Lane: %d\n", i);
 				reg_rmw(sig_detect_reg, VAL_SH(3, 1),
 					MASK_WID_SH(2, 1));
 				current_state[i] = 1;
 			} else if (!blk_lock) {
 				/* if no lock, then reset CDR */
-				pr_debug("XGBE PCSR Recover Lane: %d\n", i);
+				pr_de("XGBE PCSR Recover Lane: %d\n", i);
 				netcp_xgbe_serdes_reset_cdr(serdes_regs,
 							    sig_detect_reg, i);
 			}
@@ -417,19 +417,19 @@ static int netcp_xgbe_serdes_check_lane(void __iomem *serdes_regs,
 			break;
 
 		if (lane_down[0])
-			pr_debug("XGBE: detected link down on lane 0\n");
+			pr_de("XGBE: detected link down on lane 0\n");
 
 		if (lane_down[1])
-			pr_debug("XGBE: detected link down on lane 1\n");
+			pr_de("XGBE: detected link down on lane 1\n");
 
 		if (++retries > 1) {
-			pr_debug("XGBE: timeout waiting for serdes link up\n");
+			pr_de("XGBE: timeout waiting for serdes link up\n");
 			return -ETIMEDOUT;
 		}
 		mdelay(100);
 	} while (!link_up);
 
-	pr_debug("XGBE: PCSR link is up\n");
+	pr_de("XGBE: PCSR link is up\n");
 	return 0;
 }
 
@@ -494,7 +494,7 @@ int netcp_xgbe_serdes_init(void __iomem *serdes_regs, void __iomem *xgbe_regs)
 	/* read COMLANE bits 4:0 */
 	val = readl(serdes_regs + 0xa00);
 	if (val & 0x1f) {
-		pr_debug("XGBE: serdes already in operation - reset\n");
+		pr_de("XGBE: serdes already in operation - reset\n");
 		netcp_xgbe_reset_serdes(serdes_regs);
 	}
 	return netcp_xgbe_serdes_config(serdes_regs, xgbe_regs);

@@ -14,7 +14,7 @@ To install:
                -t coherent
   may be used interchangeably, but the last two will eventually disappear.
 
-Bugs in the present implementation:
+s in the present implementation:
 - Coherent FS:
   - The "free list interleave" n:m is currently ignored.
   - Only file systems with no filesystem name and no pack name are recognized.

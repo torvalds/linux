@@ -89,9 +89,9 @@ static void l2c_write_sec(unsigned long val, void __iomem *base, unsigned reg)
  * register be written due to a work-around, as platforms running
  * in non-secure mode may not be able to access this register.
  */
-static inline void l2c_set_debug(void __iomem *base, unsigned long val)
+static inline void l2c_set_de(void __iomem *base, unsigned long val)
 {
-	l2c_write_sec(val, base, L2X0_DEBUG_CTRL);
+	l2c_write_sec(val, base, L2X0_DE_CTRL);
 }
 
 static void __l2c_op_way(void __iomem *reg)
@@ -237,7 +237,7 @@ static void l2c210_flush_all(void)
 {
 	void __iomem *base = l2x0_base;
 
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	__l2c_op_way(base + L2X0_CLEAN_INV_WAY);
 	__l2c210_cache_sync(base);
@@ -451,9 +451,9 @@ static const struct l2c_init_data l2c220_data = {
  * 588369: PL310 R0P0->R1P0, fixed R2P0.
  *	Affects: all clean+invalidate operations
  *	clean and invalidate skips the invalidate step, so we need to issue
- *	separate operations.  We also require the above debug workaround
+ *	separate operations.  We also require the above de workaround
  *	enclosing this code fragment on affected parts.  On unaffected parts,
- *	we must not use this workaround without the debug register writes
+ *	we must not use this workaround without the de register writes
  *	to avoid exposing a problem similar to 727915.
  *
  * 727915: PL310 R2P0->R3P0, fixed R3P1.
@@ -485,7 +485,7 @@ static void l2c310_inv_range_erratum(unsigned long start, unsigned long end)
 
 		/* Erratum 588369 for both clean+invalidate operations */
 		raw_spin_lock_irqsave(&l2x0_lock, flags);
-		l2c_set_debug(base, 0x03);
+		l2c_set_de(base, 0x03);
 
 		if (start & (CACHE_LINE_SIZE - 1)) {
 			start &= ~(CACHE_LINE_SIZE - 1);
@@ -500,7 +500,7 @@ static void l2c310_inv_range_erratum(unsigned long start, unsigned long end)
 			writel_relaxed(end, base + L2X0_INV_LINE_PA);
 		}
 
-		l2c_set_debug(base, 0x00);
+		l2c_set_de(base, 0x00);
 		raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 	}
 
@@ -518,13 +518,13 @@ static void l2c310_flush_range_erratum(unsigned long start, unsigned long end)
 	while (start < end) {
 		unsigned long blk_end = start + min(end - start, 4096UL);
 
-		l2c_set_debug(base, 0x03);
+		l2c_set_de(base, 0x03);
 		while (start < blk_end) {
 			writel_relaxed(start, base + L2X0_CLEAN_LINE_PA);
 			writel_relaxed(start, base + L2X0_INV_LINE_PA);
 			start += CACHE_LINE_SIZE;
 		}
-		l2c_set_debug(base, 0x00);
+		l2c_set_de(base, 0x00);
 
 		if (blk_end < end) {
 			raw_spin_unlock_irqrestore(lock, flags);
@@ -541,9 +541,9 @@ static void l2c310_flush_all_erratum(void)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
-	l2c_set_debug(base, 0x03);
+	l2c_set_de(base, 0x03);
 	__l2c_op_way(base + L2X0_CLEAN_INV_WAY);
-	l2c_set_debug(base, 0x00);
+	l2c_set_de(base, 0x00);
 	__l2c210_cache_sync(base);
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
@@ -636,7 +636,7 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 		u32 aux_cur = readl_relaxed(base + L2X0_AUX_CTRL);
 		u32 acr = get_auxcr();
 
-		pr_debug("Cortex-A9 ACR=0x%08x\n", acr);
+		pr_de("Cortex-A9 ACR=0x%08x\n", acr);
 
 		if (acr & BIT(3) && !(aux_cur & L310_AUX_CTRL_FULL_LINE_ZERO))
 			pr_err("L2C-310: full line of zeros enabled in Cortex-A9 but not L2C-310 - invalid\n");
@@ -1600,7 +1600,7 @@ static void bcm_inv_range(unsigned long start, unsigned long end)
 {
 	unsigned long new_start, new_end;
 
-	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+	_ON(start < BCM_SYS_EMI_START_ADDR);
 
 	if (unlikely(end <= start))
 		return;
@@ -1627,7 +1627,7 @@ static void bcm_clean_range(unsigned long start, unsigned long end)
 {
 	unsigned long new_start, new_end;
 
-	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+	_ON(start < BCM_SYS_EMI_START_ADDR);
 
 	if (unlikely(end <= start))
 		return;
@@ -1654,7 +1654,7 @@ static void bcm_flush_range(unsigned long start, unsigned long end)
 {
 	unsigned long new_start, new_end;
 
-	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+	_ON(start < BCM_SYS_EMI_START_ADDR);
 
 	if (unlikely(end <= start))
 		return;

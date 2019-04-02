@@ -385,7 +385,7 @@ extern void usb_serial_bus_deregister(struct usb_serial_driver *device);
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 
-static inline void usb_serial_debug_data(struct device *dev,
+static inline void usb_serial_de_data(struct device *dev,
 					 const char *function, int size,
 					 const unsigned char *data)
 {

@@ -163,7 +163,7 @@ static struct sas_end_device *sas_sdev_to_rdev(struct scsi_device *sdev)
 	struct sas_rphy *rphy = target_to_rphy(sdev->sdev_target);
 	struct sas_end_device *rdev;
 
-	BUG_ON(rphy->identify.device_type != SAS_END_DEVICE);
+	_ON(rphy->identify.device_type != SAS_END_DEVICE);
 
 	rdev = rphy_to_end_device(rphy);
 	return rdev;
@@ -755,7 +755,7 @@ sas_phy_delete(struct sas_phy *phy)
 	struct device *dev = &phy->dev;
 
 	/* this happens if the phy is still part of a port when deleted */
-	BUG_ON(!list_empty(&phy->port_siblings));
+	_ON(!list_empty(&phy->port_siblings));
 
 	transport_remove_device(dev);
 	device_del(dev);
@@ -823,7 +823,7 @@ static void sas_port_release(struct device *dev)
 {
 	struct sas_port *port = dev_to_sas_port(dev);
 
-	BUG_ON(!list_empty(&port->phy_list));
+	_ON(!list_empty(&port->phy_list));
 
 	put_device(dev->parent);
 	kfree(port);
@@ -941,7 +941,7 @@ int sas_port_add(struct sas_port *port)
 	int error;
 
 	/* No phys should be added until this is made visible */
-	BUG_ON(!list_empty(&port->phy_list));
+	_ON(!list_empty(&port->phy_list));
 
 	error = device_add(&port->dev);
 
@@ -1074,7 +1074,7 @@ void sas_port_add_phy(struct sas_port *port, struct sas_phy *phy)
 		if (unlikely(tmp != phy)) {
 			dev_printk(KERN_ERR, &port->dev, "trying to add phy %s fails: it's already part of another port\n",
 				   dev_name(&phy->dev));
-			BUG();
+			();
 		}
 	} else {
 		sas_port_create_link(port, phy);
@@ -1477,7 +1477,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 	struct sas_expander_device *rdev;
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
-	BUG_ON(type != SAS_EDGE_EXPANDER_DEVICE &&
+	_ON(type != SAS_EDGE_EXPANDER_DEVICE &&
 	       type != SAS_FANOUT_EXPANDER_DEVICE);
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);

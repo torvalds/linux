@@ -34,7 +34,7 @@ model features for SVE is included in Appendix A.
   following sections: software that needs to verify that those interfaces are
   present must check for HWCAP_SVE instead.
 
-* Debuggers should restrict themselves to interacting with the target via the
+* Degers should restrict themselves to interacting with the target via the
   NT_ARM_SVE regset.  The recommended way of detecting support for this regset
   is to connect to a target process first and then attempt a
   ptrace(PTRACE_GETREGSET, pid, NT_ARM_SVE, &iov).

@@ -8,7 +8,7 @@ Linux supports customizing ACPI control methods at runtime.
 
 Users can use this to
 1. override an existing method which may not work correctly,
-   or just for debugging purposes.
+   or just for deging purposes.
 2. insert a completely new method in order to create a missing
    method such as _OFF, _ON, _STA, _INI, etc.
 For these cases, it is far simpler to dynamically install a single
@@ -20,8 +20,8 @@ Note: Only ACPI METHOD can be overridden, any other object types like
       declared inside scope operators are also not supported.
 Note: The same ACPI control method can be overridden for many times,
       and it's always the latest one that used by Linux/kernel.
-Note: To get the ACPI debug object output (Store (AAAA, Debug)),
-      please run "echo 1 > /sys/module/acpi/parameters/aml_debug_output".
+Note: To get the ACPI de object output (Store (AAAA, De)),
+      please run "echo 1 > /sys/module/acpi/parameters/aml_de_output".
 
 1. override an existing method
    a) get the ACPI table via ACPI sysfs I/F. e.g. to get the DSDT,
@@ -35,7 +35,7 @@ Note: To get the ACPI debug object output (Store (AAAA, Debug)),
       {
 	Method (\_SB_.AC._PSR, 0, NotSerialized)
 	{
-		Store ("In AC _PSR", Debug)
+		Store ("In AC _PSR", De)
 		Return (ACON)
 	}
       }
@@ -45,9 +45,9 @@ Note: To get the ACPI debug object output (Store (AAAA, Debug)),
       e.g. "iasl -vw 6084 psr.asl" (psr.aml is generated as a result)
       If parameter "-vw 6084" is not supported by your iASL compiler,
       please try a newer version.
-   f) mount debugfs by "mount -t debugfs none /sys/kernel/debug"
-   g) override the old method via the debugfs by running
-      "cat /tmp/psr.aml > /sys/kernel/debug/acpi/custom_method"
+   f) mount defs by "mount -t defs none /sys/kernel/de"
+   g) override the old method via the defs by running
+      "cat /tmp/psr.aml > /sys/kernel/de/acpi/custom_method"
 
 2. insert a new method
    This is easier than overriding an existing method.
@@ -63,7 +63,7 @@ Note: To get the ACPI debug object output (Store (AAAA, Debug)),
 
 
 Note: We can use a kernel with multiple custom ACPI method running,
-      But each individual write to debugfs can implement a SINGLE
+      But each individual write to defs can implement a SINGLE
       method override. i.e. if we want to insert/override multiple
       ACPI methods, we need to redo step c) ~ g) for multiple times.
 

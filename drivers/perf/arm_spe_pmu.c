@@ -24,7 +24,7 @@
 #define pr_fmt(fmt)				DRVNAME ": " fmt
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/capability.h>
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>

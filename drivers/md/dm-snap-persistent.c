@@ -406,7 +406,7 @@ static int write_header(struct pstore *ps)
 static struct disk_exception *get_exception(struct pstore *ps, void *ps_area,
 					    uint32_t index)
 {
-	BUG_ON(index >= ps->exceptions_per_area);
+	_ON(index >= ps->exceptions_per_area);
 
 	return ((struct disk_exception *) ps_area) + index;
 }
@@ -814,7 +814,7 @@ static int persistent_commit_merge(struct dm_exception_store *store,
 	int r, i;
 	struct pstore *ps = get_info(store);
 
-	BUG_ON(nr_merged > ps->current_committed);
+	_ON(nr_merged > ps->current_committed);
 
 	for (i = 0; i < nr_merged; i++)
 		clear_exception(ps, ps->current_committed - 1 - i);

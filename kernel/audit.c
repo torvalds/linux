@@ -38,7 +38,7 @@
  *	  6) Support low-overhead kernel-based filtering to minimize the
  *	     information that must be passed to user-space.
  *
- * Audit userspace, documentation, tests, and bug/issue trackers:
+ * Audit userspace, documentation, tests, and /issue trackers:
  * 	https://github.com/linux-audit
  */
 
@@ -1118,7 +1118,7 @@ static int audit_set_feature(struct sk_buff *skb)
 	struct audit_features *uaf;
 	int i;
 
-	BUILD_BUG_ON(AUDIT_LAST_FEATURE + 1 > ARRAY_SIZE(audit_feature_names));
+	BUILD__ON(AUDIT_LAST_FEATURE + 1 > ARRAY_SIZE(audit_feature_names));
 	uaf = nlmsg_data(nlmsg_hdr(skb));
 
 	/* if there is ever a version 2 we should handle that here */
@@ -1856,7 +1856,7 @@ static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
 	if (!ab)
 		return;
 
-	BUG_ON(!ab->skb);
+	_ON(!ab->skb);
 	skb = ab->skb;
 	avail = skb_tailroom(skb);
 	if (avail == 0) {
@@ -1924,7 +1924,7 @@ void audit_log_n_hex(struct audit_buffer *ab, const unsigned char *buf,
 	if (!ab)
 		return;
 
-	BUG_ON(!ab->skb);
+	_ON(!ab->skb);
 	skb = ab->skb;
 	avail = skb_tailroom(skb);
 	new_len = len<<1;
@@ -1957,7 +1957,7 @@ void audit_log_n_string(struct audit_buffer *ab, const char *string,
 	if (!ab)
 		return;
 
-	BUG_ON(!ab->skb);
+	_ON(!ab->skb);
 	skb = ab->skb;
 	avail = skb_tailroom(skb);
 	new_len = slen + 3;	/* enclosing quotes + null terminator */

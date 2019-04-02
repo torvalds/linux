@@ -145,9 +145,9 @@ static int parse_esp_ip(enum ib_flow_spec_type proto,
 	/* If the flow IPv4/IPv6 flow specifications are extended, the mask
 	 * should be changed as well.
 	 */
-	BUILD_BUG_ON(offsetof(struct ib_uverbs_flow_ipv4_filter, flags) +
+	BUILD__ON(offsetof(struct ib_uverbs_flow_ipv4_filter, flags) +
 		     sizeof(ipv4.flags) != sizeof(ipv4));
-	BUILD_BUG_ON(offsetof(struct ib_uverbs_flow_ipv6_filter, reserved) +
+	BUILD__ON(offsetof(struct ib_uverbs_flow_ipv6_filter, reserved) +
 		     sizeof(ipv6.reserved) != sizeof(ipv6));
 
 	switch (proto) {

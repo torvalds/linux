@@ -106,7 +106,7 @@ static void z2_batt_update(struct z2_charger *charger)
 		POWER_SUPPLY_STATUS_UNKNOWN;
 
 	if (old_status != charger->bat_status) {
-		pr_debug("%s: %i -> %i\n", charger->batt_ps->desc->name,
+		pr_de("%s: %i -> %i\n", charger->batt_ps->desc->name,
 				old_status,
 				charger->bat_status);
 		power_supply_changed(charger->batt_ps);

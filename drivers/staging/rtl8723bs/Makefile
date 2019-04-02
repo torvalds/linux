@@ -3,7 +3,7 @@ r8723bs-y = \
 		core/rtw_ap.o \
 		core/rtw_btcoex.o \
 	 	core/rtw_cmd.o \
-		core/rtw_debug.o \
+		core/rtw_de.o \
 		core/rtw_efuse.o \
 		core/rtw_io.o \
 		core/rtw_ioctl_set.o \
@@ -28,7 +28,7 @@ r8723bs-y = \
 		hal/HalPwrSeqCmd.o \
 		hal/odm.o \
 		hal/odm_CfoTracking.o \
-		hal/odm_debug.o \
+		hal/odm_de.o \
 		hal/odm_DIG.o \
 		hal/odm_DynamicBBPowerSaving.o \
 		hal/odm_DynamicTxPower.o \

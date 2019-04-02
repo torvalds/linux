@@ -97,26 +97,26 @@ MODULE_FIRMWARE("libertas_cs.fw");
 /* This define enables wrapper functions which allow you
    to dump all register accesses. You normally won't this,
    except for development */
-/* #define DEBUG_IO */
+/* #define DE_IO */
 
-#ifdef DEBUG_IO
-static int debug_output = 0;
+#ifdef DE_IO
+static int de_output = 0;
 #else
 /* This way the compiler optimizes the printk's away */
-#define debug_output 0
+#define de_output 0
 #endif
 
 static inline unsigned int if_cs_read8(struct if_cs_card *card, uint reg)
 {
 	unsigned int val = ioread8(card->iobase + reg);
-	if (debug_output)
+	if (de_output)
 		printk(KERN_INFO "inb %08x<%02x\n", reg, val);
 	return val;
 }
 static inline unsigned int if_cs_read16(struct if_cs_card *card, uint reg)
 {
 	unsigned int val = ioread16(card->iobase + reg);
-	if (debug_output)
+	if (de_output)
 		printk(KERN_INFO "inw %08x<%04x\n", reg, val);
 	return val;
 }
@@ -126,7 +126,7 @@ static inline void if_cs_read16_rep(
 	void *buf,
 	unsigned long count)
 {
-	if (debug_output)
+	if (de_output)
 		printk(KERN_INFO "insw %08x<(0x%lx words)\n",
 			reg, count);
 	ioread16_rep(card->iobase + reg, buf, count);
@@ -134,14 +134,14 @@ static inline void if_cs_read16_rep(
 
 static inline void if_cs_write8(struct if_cs_card *card, uint reg, u8 val)
 {
-	if (debug_output)
+	if (de_output)
 		printk(KERN_INFO "outb %08x>%02x\n", reg, val);
 	iowrite8(val, card->iobase + reg);
 }
 
 static inline void if_cs_write16(struct if_cs_card *card, uint reg, u16 val)
 {
-	if (debug_output)
+	if (de_output)
 		printk(KERN_INFO "outw %08x>%04x\n", reg, val);
 	iowrite16(val, card->iobase + reg);
 }
@@ -152,7 +152,7 @@ static inline void if_cs_write16_rep(
 	const void *buf,
 	unsigned long count)
 {
-	if (debug_output)
+	if (de_output)
 		printk(KERN_INFO "outsw %08x>(0x%lx words)\n",
 			reg, count);
 	iowrite16_rep(card->iobase + reg, buf, count);
@@ -399,7 +399,7 @@ static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 	if_cs_disable_ints(card);
 
 	status = if_cs_read16(card, IF_CS_CARD_STATUS);
-	BUG_ON((status & IF_CS_BIT_TX) == 0);
+	_ON((status & IF_CS_BIT_TX) == 0);
 
 	if_cs_write16(card, IF_CS_WRITE_LEN, nb);
 
@@ -535,7 +535,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		i = (priv->resp_idx == 0) ? 1 : 0;
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-		BUG_ON(priv->resp_len[i]);
+		_ON(priv->resp_len[i]);
 		if_cs_receive_cmdres(priv, priv->resp_buf[i],
 			&priv->resp_len[i]);
 

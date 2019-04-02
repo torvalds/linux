@@ -15,9 +15,9 @@
 #include <linux/list.h>
 #include <linux/isdn/capilli.h>
 
-#ifdef KCAPI_DEBUG
+#ifdef KCAPI_DE
 #define DBG(format, arg...) do {					\
-		printk(KERN_DEBUG "%s: " format "\n" , __func__ , ## arg); \
+		printk(KERN_DE "%s: " format "\n" , __func__ , ## arg); \
 	} while (0)
 #else
 #define DBG(format, arg...) /* */

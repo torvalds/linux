@@ -463,8 +463,8 @@ struct br_input_skb_cb {
 #define br_info(__br, format, args...)			\
 	br_printk(KERN_INFO, __br, format, ##args)
 
-#define br_debug(br, format, args...)			\
-	pr_debug("%s: " format,  (br)->dev->name, ##args)
+#define br_de(br, format, args...)			\
+	pr_de("%s: " format,  (br)->dev->name, ##args)
 
 /* called under bridge lock */
 static inline int br_is_root_bridge(const struct net_bridge *br)

@@ -49,8 +49,8 @@ config B43LEGACY_HWRNG
 	depends on B43LEGACY && (HW_RANDOM = y || HW_RANDOM = B43LEGACY)
 	default y
 
-config B43LEGACY_DEBUG
-	bool "Broadcom 43xx-legacy debugging"
+config B43LEGACY_DE
+	bool "Broadcom 43xx-legacy deging"
 	depends on B43LEGACY
 	default y
 	---help---

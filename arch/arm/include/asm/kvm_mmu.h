@@ -80,7 +80,7 @@ void kvm_clear_hyp_idmap(void);
 
 #define kvm_mk_pmd(ptep)	__pmd(__pa(ptep) | PMD_TYPE_TABLE)
 #define kvm_mk_pud(pmdp)	__pud(__pa(pmdp) | PMD_TYPE_TABLE)
-#define kvm_mk_pgd(pudp)	({ BUILD_BUG(); 0; })
+#define kvm_mk_pgd(pudp)	({ BUILD_(); 0; })
 
 #define kvm_pfn_pte(pfn, prot)	pfn_pte(pfn, prot)
 #define kvm_pfn_pmd(pfn, prot)	pfn_pmd(pfn, prot)
@@ -133,7 +133,7 @@ static inline bool kvm_s2pud_exec(pud_t *pud)
 
 static inline pud_t kvm_s2pud_mkyoung(pud_t pud)
 {
-	BUG();
+	();
 	return pud;
 }
 
@@ -231,7 +231,7 @@ static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 	 * and iterate over the range.
 	 */
 
-	VM_BUG_ON(size & ~PAGE_MASK);
+	VM__ON(size & ~PAGE_MASK);
 
 	while (size) {
 		void *va = kmap_atomic_pfn(pfn);
@@ -263,7 +263,7 @@ static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
 	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
 	 */
 
-	VM_BUG_ON(size & ~PAGE_MASK);
+	VM__ON(size & ~PAGE_MASK);
 
 	if (icache_is_vivt_asid_tagged())
 		return;

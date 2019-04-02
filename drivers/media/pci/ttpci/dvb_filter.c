@@ -38,7 +38,7 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 
 	if (!found) return -1;
 	if (pr)
-		printk(KERN_DEBUG "Audiostream: AC3");
+		printk(KERN_DE "Audiostream: AC3");
 
 	ai->off = c;
 	if (c+5 >= count) return -1;
@@ -62,7 +62,7 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 	if ((frame & 1) &&  (fr == 1)) ai->framesize++;
 	ai->framesize = ai->framesize << 1;
 	if (pr)
-		printk(KERN_DEBUG "  Framesize %d\n", (int) ai->framesize);
+		printk(KERN_DE "  Framesize %d\n", (int) ai->framesize);
 
 	return 0;
 }

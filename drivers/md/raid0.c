@@ -59,7 +59,7 @@ static void dump_zones(struct mddev *mddev)
 	char b[BDEVNAME_SIZE];
 	struct r0conf *conf = mddev->private;
 	int raid_disks = conf->strip_zone[0].nb_dev;
-	pr_debug("md: RAID0 configuration for %s - %d zone%s\n",
+	pr_de("md: RAID0 configuration for %s - %d zone%s\n",
 		 mdname(mddev),
 		 conf->nr_strip_zones, conf->nr_strip_zones==1?"":"s");
 	for (j = 0; j < conf->nr_strip_zones; j++) {
@@ -70,10 +70,10 @@ static void dump_zones(struct mddev *mddev)
 			len += snprintf(line+len, 200-len, "%s%s", k?"/":"",
 					bdevname(conf->devlist[j*raid_disks
 							       + k]->bdev, b));
-		pr_debug("md: zone%d=[%s]\n", j, line);
+		pr_de("md: zone%d=[%s]\n", j, line);
 
 		zone_size  = conf->strip_zone[j].zone_end - zone_start;
-		pr_debug("      zone-offset=%10lluKB, device-offset=%10lluKB, size=%10lluKB\n",
+		pr_de("      zone-offset=%10lluKB, device-offset=%10lluKB, size=%10lluKB\n",
 			(unsigned long long)zone_start>>1,
 			(unsigned long long)conf->strip_zone[j].dev_start>>1,
 			(unsigned long long)zone_size>>1);
@@ -97,7 +97,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	if (!conf)
 		return -ENOMEM;
 	rdev_for_each(rdev1, mddev) {
-		pr_debug("md/raid0:%s: looking at %s\n",
+		pr_de("md/raid0:%s: looking at %s\n",
 			 mdname(mddev),
 			 bdevname(rdev1->bdev, b));
 		c = 0;
@@ -111,7 +111,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 				      rdev1->bdev->bd_disk->queue));
 
 		rdev_for_each(rdev2, mddev) {
-			pr_debug("md/raid0:%s:   comparing %s(%llu)"
+			pr_de("md/raid0:%s:   comparing %s(%llu)"
 				 " with %s(%llu)\n",
 				 mdname(mddev),
 				 bdevname(rdev1->bdev,b),
@@ -119,7 +119,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 				 bdevname(rdev2->bdev,b2),
 				 (unsigned long long)rdev2->sectors);
 			if (rdev2 == rdev1) {
-				pr_debug("md/raid0:%s:   END\n",
+				pr_de("md/raid0:%s:   END\n",
 					 mdname(mddev));
 				break;
 			}
@@ -128,23 +128,23 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 				 * Not unique, don't count it as a new
 				 * group
 				 */
-				pr_debug("md/raid0:%s:   EQUAL\n",
+				pr_de("md/raid0:%s:   EQUAL\n",
 					 mdname(mddev));
 				c = 1;
 				break;
 			}
-			pr_debug("md/raid0:%s:   NOT EQUAL\n",
+			pr_de("md/raid0:%s:   NOT EQUAL\n",
 				 mdname(mddev));
 		}
 		if (!c) {
-			pr_debug("md/raid0:%s:   ==> UNIQUE\n",
+			pr_de("md/raid0:%s:   ==> UNIQUE\n",
 				 mdname(mddev));
 			conf->nr_strip_zones++;
-			pr_debug("md/raid0:%s: %d zones\n",
+			pr_de("md/raid0:%s: %d zones\n",
 				 mdname(mddev), conf->nr_strip_zones);
 		}
 	}
-	pr_debug("md/raid0:%s: FINAL %d zones\n",
+	pr_de("md/raid0:%s: FINAL %d zones\n",
 		 mdname(mddev), conf->nr_strip_zones);
 	/*
 	 * now since we have the hard sector sizes, we can make sure
@@ -235,7 +235,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		zone = conf->strip_zone + i;
 		dev = conf->devlist + i * mddev->raid_disks;
 
-		pr_debug("md/raid0:%s: zone %d\n", mdname(mddev), i);
+		pr_de("md/raid0:%s: zone %d\n", mdname(mddev), i);
 		zone->dev_start = smallest->sectors;
 		smallest = NULL;
 		c = 0;
@@ -243,12 +243,12 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		for (j=0; j<cnt; j++) {
 			rdev = conf->devlist[j];
 			if (rdev->sectors <= zone->dev_start) {
-				pr_debug("md/raid0:%s: checking %s ... nope\n",
+				pr_de("md/raid0:%s: checking %s ... nope\n",
 					 mdname(mddev),
 					 bdevname(rdev->bdev, b));
 				continue;
 			}
-			pr_debug("md/raid0:%s: checking %s ..."
+			pr_de("md/raid0:%s: checking %s ..."
 				 " contained as device %d\n",
 				 mdname(mddev),
 				 bdevname(rdev->bdev, b), c);
@@ -256,7 +256,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 			c++;
 			if (!smallest || rdev->sectors < smallest->sectors) {
 				smallest = rdev;
-				pr_debug("md/raid0:%s:  (%llu) is smallest!.\n",
+				pr_de("md/raid0:%s:  (%llu) is smallest!.\n",
 					 mdname(mddev),
 					 (unsigned long long)rdev->sectors);
 			}
@@ -264,19 +264,19 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 
 		zone->nb_dev = c;
 		sectors = (smallest->sectors - zone->dev_start) * c;
-		pr_debug("md/raid0:%s: zone->nb_dev: %d, sectors: %llu\n",
+		pr_de("md/raid0:%s: zone->nb_dev: %d, sectors: %llu\n",
 			 mdname(mddev),
 			 zone->nb_dev, (unsigned long long)sectors);
 
 		curr_zone_end += sectors;
 		zone->zone_end = curr_zone_end;
 
-		pr_debug("md/raid0:%s: current zone start: %llu\n",
+		pr_de("md/raid0:%s: current zone start: %llu\n",
 			 mdname(mddev),
 			 (unsigned long long)smallest->sectors);
 	}
 
-	pr_debug("md/raid0:%s: done.\n", mdname(mddev));
+	pr_de("md/raid0:%s: done.\n", mdname(mddev));
 	*private_conf = conf;
 
 	return 0;
@@ -304,7 +304,7 @@ static struct strip_zone *find_zone(struct r0conf *conf,
 				*sectorp = sector - z[i-1].zone_end;
 			return z + i;
 		}
-	BUG();
+	();
 }
 
 /*
@@ -409,7 +409,7 @@ static int raid0_run(struct mddev *mddev)
 	/* calculate array device size */
 	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
 
-	pr_debug("md/raid0:%s: md_size is %llu sectors.\n",
+	pr_de("md/raid0:%s: md_size is %llu sectors.\n",
 		 mdname(mddev),
 		 (unsigned long long)mddev->array_sectors);
 

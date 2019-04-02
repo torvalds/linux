@@ -88,7 +88,7 @@ OPTIONS
 	- cpu: cpu number the task ran at the time of sample
 	- socket: processor socket number the task ran at the time of sample
 	- srcline: filename and line number executed at the time of sample.  The
-	DWARF debugging info must be provided.
+	DWARF deging info must be provided.
 	- srcfile: file name of the source file of the same. Requires dwarf
 	information.
 	- weight: Event specific weight, e.g. memory latency or transaction

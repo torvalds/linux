@@ -115,8 +115,8 @@ extern int tick_init_highres(void);
 static inline
 void tick_setup_oneshot(struct clock_event_device *newdev,
 			void (*handler)(struct clock_event_device *),
-			ktime_t nextevt) { BUG(); }
-static inline void tick_resume_oneshot(void) { BUG(); }
+			ktime_t nextevt) { (); }
+static inline void tick_resume_oneshot(void) { (); }
 static inline int tick_program_event(ktime_t expires, int force) { return 0; }
 static inline void tick_oneshot_notify(void) { }
 static inline bool tick_oneshot_possible(void) { return false; }

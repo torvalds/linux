@@ -14,7 +14,7 @@
 #ifndef _ASM_RISCV_CMPXCHG_H
 #define _ASM_RISCV_CMPXCHG_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <asm/barrier.h>
 #include <asm/fence.h>
@@ -40,7 +40,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -75,7 +75,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -110,7 +110,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -143,7 +143,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -156,13 +156,13 @@
 
 #define xchg32(ptr, x)							\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
+	BUILD__ON(sizeof(*(ptr)) != 4);				\
 	xchg((ptr), (x));						\
 })
 
 #define xchg64(ptr, x)							\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	xchg((ptr), (x));						\
 })
 
@@ -202,7 +202,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -248,7 +248,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -294,7 +294,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -340,7 +340,7 @@
 			: "memory");					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 	__ret;								\
 })
@@ -358,25 +358,25 @@
 
 #define cmpxchg32(ptr, o, n)						\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
+	BUILD__ON(sizeof(*(ptr)) != 4);				\
 	cmpxchg((ptr), (o), (n));					\
 })
 
 #define cmpxchg32_local(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
+	BUILD__ON(sizeof(*(ptr)) != 4);				\
 	cmpxchg_relaxed((ptr), (o), (n))				\
 })
 
 #define cmpxchg64(ptr, o, n)						\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg((ptr), (o), (n));					\
 })
 
 #define cmpxchg64_local(ptr, o, n)					\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	BUILD__ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg_relaxed((ptr), (o), (n));				\
 })
 

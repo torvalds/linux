@@ -989,7 +989,7 @@ static int __init parse_ioapics_under_ir(void)
 	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++) {
 		int ioapic_id = mpc_ioapic_id(ioapic_idx);
 		if (!map_ioapic_to_ir(ioapic_id)) {
-			pr_err(FW_BUG "ioapic %d has no mapping iommu, "
+			pr_err(FW_ "ioapic %d has no mapping iommu, "
 			       "interrupt remapping will be disabled\n",
 			       ioapic_id);
 			return -1;
@@ -1112,7 +1112,7 @@ static struct irq_domain *intel_get_ir_irq_domain(struct irq_alloc_info *info)
 		iommu = map_dev_to_ir(info->msi_dev);
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 
@@ -1271,7 +1271,7 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 	case X86_IRQ_ALLOC_TYPE_IOAPIC:
 		/* Set source-id of interrupt request */
 		set_ioapic_sid(irte, info->ioapic_id);
-		apic_printk(APIC_VERBOSE, KERN_DEBUG "IOAPIC[%d]: Set IRTE entry (P:%d FPD:%d Dst_Mode:%d Redir_hint:%d Trig_Mode:%d Dlvry_Mode:%X Avail:%X Vector:%02X Dest:%08X SID:%04X SQ:%X SVT:%X)\n",
+		apic_printk(APIC_VERBOSE, KERN_DE "IOAPIC[%d]: Set IRTE entry (P:%d FPD:%d Dst_Mode:%d Redir_hint:%d Trig_Mode:%d Dlvry_Mode:%X Avail:%X Vector:%02X Dest:%08X SID:%04X SQ:%X SVT:%X)\n",
 			info->ioapic_id, irte->present, irte->fpd,
 			irte->dst_mode, irte->redir_hint,
 			irte->trigger_mode, irte->dlvry_mode,
@@ -1314,7 +1314,7 @@ static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 }

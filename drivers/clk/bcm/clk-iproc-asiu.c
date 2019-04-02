@@ -102,7 +102,7 @@ static unsigned long iproc_asiu_clk_recalc_rate(struct clk_hw *hw,
 	div_l++;
 
 	clk->rate = parent_rate / (div_h + div_l);
-	pr_debug("%s: rate: %lu. parent rate: %lu div_h: %u div_l: %u\n",
+	pr_de("%s: rate: %lu. parent rate: %lu div_h: %u div_l: %u\n",
 		 __func__, clk->rate, parent_rate, div_h, div_l);
 
 	return clk->rate;

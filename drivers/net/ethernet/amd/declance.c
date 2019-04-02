@@ -287,7 +287,7 @@ struct lance_regs {
 	volatile unsigned short rap;	/* register address port */
 };
 
-int dec_lance_debug = 2;
+int dec_lance_de = 2;
 
 static struct tc_driver dec_lance_tc_driver;
 static struct net_device *root_lance_dev;
@@ -791,7 +791,7 @@ static int lance_open(struct net_device *dev)
 	 * so that lance_init_ring() called at any error will not
 	 * forget multicast filters.
 	 *
-	 * BTW it is common bug in all lance drivers! --ANK
+	 * BTW it is common  in all lance drivers! --ANK
 	 */
 	*lib_ptr(ib, mode, lp->type) = 0;
 	*lib_ptr(ib, filter[0], lp->type) = 0;
@@ -1033,7 +1033,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 	unsigned char *esar;
 	const char *desc;
 
-	if (dec_lance_debug && version_printed++ == 0)
+	if (dec_lance_de && version_printed++ == 0)
 		printk(version);
 
 	if (bdev)

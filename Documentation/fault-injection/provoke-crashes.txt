@@ -6,7 +6,7 @@ support.
 
 
 You can provide the way either through module arguments when inserting
-the module, or through a debugfs interface.
+the module, or through a defs interface.
 
 Usage: insmod lkdtm.ko [recur_count={>0}] cpoint_name=<> cpoint_type=<>
 				[cpoint_count={>0}]
@@ -19,17 +19,17 @@ Usage: insmod lkdtm.ko [recur_count={>0}] cpoint_name=<> cpoint_type=<>
 	 IDE_CORE_CP, DIRECT
 
   cpoint_type : Indicates the action to be taken on hitting the crash point.
-     It can be one of PANIC, BUG, EXCEPTION, LOOP, OVERFLOW,
+     It can be one of PANIC, , EXCEPTION, LOOP, OVERFLOW,
      CORRUPT_STACK, UNALIGNED_LOAD_STORE_WRITE, OVERWRITE_ALLOCATION,
      WRITE_AFTER_FREE,
 
   cpoint_count : Indicates the number of times the crash point is to be hit
     to trigger an action. The default is 10.
 
-You can also induce failures by mounting debugfs and writing the type to
+You can also induce failures by mounting defs and writing the type to
 <mountpoint>/provoke-crash/<crashpoint>. E.g.,
 
-  mount -t debugfs debugfs /mnt
+  mount -t defs defs /mnt
   echo EXCEPTION > /mnt/provoke-crash/INT_HARDWARE_ENTRY
 
 

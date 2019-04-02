@@ -113,10 +113,10 @@
 	 * then strings).  Use fdt_open_into() to reorganize the tree
 	 * into a form suitable for the read-write operations. */
 
-/* "Can't happen" error indicating a bug in libfdt */
+/* "Can't happen" error indicating a  in libfdt */
 #define FDT_ERR_INTERNAL	13
 	/* FDT_ERR_INTERNAL: libfdt has failed an internal assertion.
-	 * Should never be returned, if it is, it indicates a bug in
+	 * Should never be returned, if it is, it indicates a  in
 	 * libfdt itself. */
 
 /* Errors in device tree content */
@@ -1960,7 +1960,7 @@ int fdt_del_node(void *fdt, int nodeoffset);
 int fdt_overlay_apply(void *fdt, void *fdto);
 
 /**********************************************************************/
-/* Debugging / informational functions                                */
+/* Deging / informational functions                                */
 /**********************************************************************/
 
 const char *fdt_strerror(int errval);

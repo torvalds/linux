@@ -136,7 +136,7 @@ struct ion_heap *ion_chunk_heap_create(phys_addr_t base, size_t size, size_t chu
 	chunk_heap->heap.ops = &chunk_heap_ops;
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;
 	chunk_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
-	pr_debug("%s: base %pa size %zu\n", __func__, &base, size);
+	pr_de("%s: base %pa size %zu\n", __func__, &base, size);
 
 	return &chunk_heap->heap;
 

@@ -496,9 +496,9 @@ static int exynos_suspend_enter(suspend_state_t state)
 	u32 eint_wakeup_mask = exynos_read_eint_wakeup_mask();
 	int ret;
 
-	pr_debug("%s: suspending the system...\n", __func__);
+	pr_de("%s: suspending the system...\n", __func__);
 
-	pr_debug("%s: wakeup masks: %08x,%08x\n", __func__,
+	pr_de("%s: wakeup masks: %08x,%08x\n", __func__,
 		  exynos_irqwake_intmask, eint_wakeup_mask);
 
 	if (exynos_irqwake_intmask == -1U
@@ -521,10 +521,10 @@ static int exynos_suspend_enter(suspend_state_t state)
 	if (pm_data->pm_resume_prepare)
 		pm_data->pm_resume_prepare();
 
-	pr_debug("%s: wakeup stat: %08x\n", __func__,
+	pr_de("%s: wakeup stat: %08x\n", __func__,
 			pmu_raw_readl(S5P_WAKEUP_STAT));
 
-	pr_debug("%s: resuming the system...\n", __func__);
+	pr_de("%s: resuming the system...\n", __func__);
 
 	return 0;
 }

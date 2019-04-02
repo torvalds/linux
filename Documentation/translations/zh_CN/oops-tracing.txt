@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/admin-guide/bug-hunting.rst
+Chinese translated version of Documentation/admin-guide/-hunting.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: Dave Young <hidave.darkstar@gmail.com>
 ---------------------------------------------------------------------
-Documentation/admin-guide/bug-hunting.rst 的中文翻译
+Documentation/admin-guide/-hunting.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -74,12 +74,12 @@ From: Linus Torvalds <torvalds@osdl.org>
 	gdb /usr/src/linux/vmlinux
 	gdb> disassemble <offending_function>
 
-那是发现问题的简单办法，至少如果bug报告做的好的情况下（象这个一样-运行ksymoops
+那是发现问题的简单办法，至少如果报告做的好的情况下（象这个一样-运行ksymoops
 得到oops发生的函数及函数内的偏移）。
 
 哦，如果报告发生的内核以相同的编译器和相似的配置编译它会有帮助的。
 
-另一件要做的事是反汇编bug报告的“Code”部分：ksymoops也会用正确的工具来做这件事，
+另一件要做的事是反汇编报告的“Code”部分：ksymoops也会用正确的工具来做这件事，
 但如果没有那些工具你可以写一个傻程序：
 
 	char str[] = "\xXX\xXX\xXX...";
@@ -101,7 +101,7 @@ Code: f9 0f 8d f9 00 00 00 8d 42 0c e8 dd 26 11 c7 a1 60 ea 2b f9 8b 50 08 a1
 最后，如果你想知道代码来自哪里，你可以：
 
 	cd /usr/src/linux
-	make fs/buffer.s 	# 或任何产生BUG的文件
+	make fs/buffer.s 	# 或任何产生的文件
 
 然后你会比gdb反汇编更清楚的知道发生了什么。
 
@@ -205,7 +205,7 @@ Phone: 701-234-7556
 
   7：'U'如果用户或者用户应用程序特别请求设置污染标志，否则' '。
 
-  8：'D'如果内核刚刚死掉，比如有OOPS或者BUG。
+  8：'D'如果内核刚刚死掉，比如有OOPS或者。
 
 使用'Tainted: '字符串的主要原因是要告诉内核调试者，这是否是一个干净的内核亦或发
 生了任何的不正常的事。污染是永久的：即使出错的模块已经被卸载了，污染值仍然存在，

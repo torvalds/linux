@@ -19,7 +19,7 @@
 /*
  * This is commented-out for now.
  * Until a later patch is merged, the kernel can use only the first
- * contiguous RAM range and will BUG() if the memreserve is outside
+ * contiguous RAM range and will () if the memreserve is outside
  * that range.
  */
 /*/memreserve/ 0x10000000 0x0004000;*/	/* DSP RAM */
@@ -185,8 +185,8 @@
 				"DI_SPIN", "SLOT_LED", "EJECT_BTN", "SLOT_IN",
 				"SENSOR_BAR", "DO_EJECT", "EEP_CS", "EEP_CLK",
 				"EEP_MOSI", "EEP_MISO", "AVE_SCL", "AVE_SDA",
-				"DEBUG0", "DEBUG1", "DEBUG2", "DEBUG3",
-				"DEBUG4", "DEBUG5", "DEBUG6", "DEBUG7";
+				"DE0", "DE1", "DE2", "DE3",
+				"DE4", "DE5", "DE6", "DE7";
 
 			interrupt-controller;
 			#interrupt-cells = <2>;

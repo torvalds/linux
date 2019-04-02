@@ -286,8 +286,8 @@ static void __td_start_next(struct timb_dma_chan *td_chan)
 {
 	struct timb_dma_desc *td_desc;
 
-	BUG_ON(list_empty(&td_chan->queue));
-	BUG_ON(td_chan->ongoing);
+	_ON(list_empty(&td_chan->queue));
+	_ON(td_chan->ongoing);
 
 	td_desc = list_entry(td_chan->queue.next, struct timb_dma_desc,
 		desc_node);
@@ -414,7 +414,7 @@ static int td_alloc_chan_resources(struct dma_chan *chan)
 
 	dev_dbg(chan2dev(chan), "%s: entry\n", __func__);
 
-	BUG_ON(!list_empty(&td_chan->free_list));
+	_ON(!list_empty(&td_chan->free_list));
 	for (i = 0; i < td_chan->descs; i++) {
 		struct timb_dma_desc *td_desc = td_alloc_init_desc(td_chan);
 		if (!td_desc) {
@@ -447,8 +447,8 @@ static void td_free_chan_resources(struct dma_chan *chan)
 	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
 
 	/* check that all descriptors are free */
-	BUG_ON(!list_empty(&td_chan->active_list));
-	BUG_ON(!list_empty(&td_chan->queue));
+	_ON(!list_empty(&td_chan->active_list));
+	_ON(!list_empty(&td_chan->queue));
 
 	spin_lock_bh(&td_chan->lock);
 	list_splice_init(&td_chan->free_list, &list);

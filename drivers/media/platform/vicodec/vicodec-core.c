@@ -34,9 +34,9 @@ module_param(multiplanar, bool, 0444);
 MODULE_PARM_DESC(multiplanar,
 		 " use multi-planar API instead of single-planar API");
 
-static unsigned int debug;
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, " activates debug info");
+static unsigned int de;
+module_param(de, uint, 0644);
+MODULE_PARM_DESC(de, " activates de info");
 
 #define VICODEC_NAME		"vicodec"
 #define MAX_WIDTH		4096U
@@ -45,7 +45,7 @@ MODULE_PARM_DESC(debug, " activates debug info");
 #define MIN_HEIGHT		360U
 
 #define dprintk(dev, fmt, arg...) \
-	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(1, de, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 
 struct pixfmt_info {

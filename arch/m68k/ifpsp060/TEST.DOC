@@ -129,7 +129,7 @@ For _print_string(), the test programs pass a longword address
 of the string on the stack. For _print_number(), the test programs pass
 a longword number to be printed.
 
-For debugging purposes, after the main program performs a "print"
+For deging purposes, after the main program performs a "print"
 for a test package, it should flush the output so that it's not
 buffered. In this way, if the test program crashes, at least the previous
 statements printed will be seen.

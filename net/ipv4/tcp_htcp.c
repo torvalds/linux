@@ -298,8 +298,8 @@ static struct tcp_congestion_ops htcp __read_mostly = {
 
 static int __init htcp_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct htcp) > ICSK_CA_PRIV_SIZE);
-	BUILD_BUG_ON(BETA_MIN >= BETA_MAX);
+	BUILD__ON(sizeof(struct htcp) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(BETA_MIN >= BETA_MAX);
 	return tcp_register_congestion_control(&htcp);
 }
 

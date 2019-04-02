@@ -15,15 +15,15 @@
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("sysfs");
 
-#ifdef CONFIG_ACPI_DEBUG
+#ifdef CONFIG_ACPI_DE
 /*
- * ACPI debug sysfs I/F, including:
- * /sys/modules/acpi/parameters/debug_layer
- * /sys/modules/acpi/parameters/debug_level
+ * ACPI de sysfs I/F, including:
+ * /sys/modules/acpi/parameters/de_layer
+ * /sys/modules/acpi/parameters/de_level
  * /sys/modules/acpi/parameters/trace_method_name
  * /sys/modules/acpi/parameters/trace_state
- * /sys/modules/acpi/parameters/trace_debug_layer
- * /sys/modules/acpi/parameters/trace_debug_level
+ * /sys/modules/acpi/parameters/trace_de_layer
+ * /sys/modules/acpi/parameters/trace_de_level
  */
 
 struct acpi_dlayer {
@@ -34,89 +34,89 @@ struct acpi_dlevel {
 	const char *name;
 	unsigned long value;
 };
-#define ACPI_DEBUG_INIT(v)	{ .name = #v, .value = v }
+#define ACPI_DE_INIT(v)	{ .name = #v, .value = v }
 
-static const struct acpi_dlayer acpi_debug_layers[] = {
-	ACPI_DEBUG_INIT(ACPI_UTILITIES),
-	ACPI_DEBUG_INIT(ACPI_HARDWARE),
-	ACPI_DEBUG_INIT(ACPI_EVENTS),
-	ACPI_DEBUG_INIT(ACPI_TABLES),
-	ACPI_DEBUG_INIT(ACPI_NAMESPACE),
-	ACPI_DEBUG_INIT(ACPI_PARSER),
-	ACPI_DEBUG_INIT(ACPI_DISPATCHER),
-	ACPI_DEBUG_INIT(ACPI_EXECUTER),
-	ACPI_DEBUG_INIT(ACPI_RESOURCES),
-	ACPI_DEBUG_INIT(ACPI_CA_DEBUGGER),
-	ACPI_DEBUG_INIT(ACPI_OS_SERVICES),
-	ACPI_DEBUG_INIT(ACPI_CA_DISASSEMBLER),
-	ACPI_DEBUG_INIT(ACPI_COMPILER),
-	ACPI_DEBUG_INIT(ACPI_TOOLS),
+static const struct acpi_dlayer acpi_de_layers[] = {
+	ACPI_DE_INIT(ACPI_UTILITIES),
+	ACPI_DE_INIT(ACPI_HARDWARE),
+	ACPI_DE_INIT(ACPI_EVENTS),
+	ACPI_DE_INIT(ACPI_TABLES),
+	ACPI_DE_INIT(ACPI_NAMESPACE),
+	ACPI_DE_INIT(ACPI_PARSER),
+	ACPI_DE_INIT(ACPI_DISPATCHER),
+	ACPI_DE_INIT(ACPI_EXECUTER),
+	ACPI_DE_INIT(ACPI_RESOURCES),
+	ACPI_DE_INIT(ACPI_CA_DEGER),
+	ACPI_DE_INIT(ACPI_OS_SERVICES),
+	ACPI_DE_INIT(ACPI_CA_DISASSEMBLER),
+	ACPI_DE_INIT(ACPI_COMPILER),
+	ACPI_DE_INIT(ACPI_TOOLS),
 
-	ACPI_DEBUG_INIT(ACPI_BUS_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_AC_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_BATTERY_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_BUTTON_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_SBS_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_FAN_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_PCI_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_POWER_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_CONTAINER_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_SYSTEM_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_THERMAL_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_MEMORY_DEVICE_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_VIDEO_COMPONENT),
-	ACPI_DEBUG_INIT(ACPI_PROCESSOR_COMPONENT),
+	ACPI_DE_INIT(ACPI_BUS_COMPONENT),
+	ACPI_DE_INIT(ACPI_AC_COMPONENT),
+	ACPI_DE_INIT(ACPI_BATTERY_COMPONENT),
+	ACPI_DE_INIT(ACPI_BUTTON_COMPONENT),
+	ACPI_DE_INIT(ACPI_SBS_COMPONENT),
+	ACPI_DE_INIT(ACPI_FAN_COMPONENT),
+	ACPI_DE_INIT(ACPI_PCI_COMPONENT),
+	ACPI_DE_INIT(ACPI_POWER_COMPONENT),
+	ACPI_DE_INIT(ACPI_CONTAINER_COMPONENT),
+	ACPI_DE_INIT(ACPI_SYSTEM_COMPONENT),
+	ACPI_DE_INIT(ACPI_THERMAL_COMPONENT),
+	ACPI_DE_INIT(ACPI_MEMORY_DEVICE_COMPONENT),
+	ACPI_DE_INIT(ACPI_VIDEO_COMPONENT),
+	ACPI_DE_INIT(ACPI_PROCESSOR_COMPONENT),
 };
 
-static const struct acpi_dlevel acpi_debug_levels[] = {
-	ACPI_DEBUG_INIT(ACPI_LV_INIT),
-	ACPI_DEBUG_INIT(ACPI_LV_DEBUG_OBJECT),
-	ACPI_DEBUG_INIT(ACPI_LV_INFO),
-	ACPI_DEBUG_INIT(ACPI_LV_REPAIR),
-	ACPI_DEBUG_INIT(ACPI_LV_TRACE_POINT),
+static const struct acpi_dlevel acpi_de_levels[] = {
+	ACPI_DE_INIT(ACPI_LV_INIT),
+	ACPI_DE_INIT(ACPI_LV_DE_OBJECT),
+	ACPI_DE_INIT(ACPI_LV_INFO),
+	ACPI_DE_INIT(ACPI_LV_REPAIR),
+	ACPI_DE_INIT(ACPI_LV_TRACE_POINT),
 
-	ACPI_DEBUG_INIT(ACPI_LV_INIT_NAMES),
-	ACPI_DEBUG_INIT(ACPI_LV_PARSE),
-	ACPI_DEBUG_INIT(ACPI_LV_LOAD),
-	ACPI_DEBUG_INIT(ACPI_LV_DISPATCH),
-	ACPI_DEBUG_INIT(ACPI_LV_EXEC),
-	ACPI_DEBUG_INIT(ACPI_LV_NAMES),
-	ACPI_DEBUG_INIT(ACPI_LV_OPREGION),
-	ACPI_DEBUG_INIT(ACPI_LV_BFIELD),
-	ACPI_DEBUG_INIT(ACPI_LV_TABLES),
-	ACPI_DEBUG_INIT(ACPI_LV_VALUES),
-	ACPI_DEBUG_INIT(ACPI_LV_OBJECTS),
-	ACPI_DEBUG_INIT(ACPI_LV_RESOURCES),
-	ACPI_DEBUG_INIT(ACPI_LV_USER_REQUESTS),
-	ACPI_DEBUG_INIT(ACPI_LV_PACKAGE),
+	ACPI_DE_INIT(ACPI_LV_INIT_NAMES),
+	ACPI_DE_INIT(ACPI_LV_PARSE),
+	ACPI_DE_INIT(ACPI_LV_LOAD),
+	ACPI_DE_INIT(ACPI_LV_DISPATCH),
+	ACPI_DE_INIT(ACPI_LV_EXEC),
+	ACPI_DE_INIT(ACPI_LV_NAMES),
+	ACPI_DE_INIT(ACPI_LV_OPREGION),
+	ACPI_DE_INIT(ACPI_LV_BFIELD),
+	ACPI_DE_INIT(ACPI_LV_TABLES),
+	ACPI_DE_INIT(ACPI_LV_VALUES),
+	ACPI_DE_INIT(ACPI_LV_OBJECTS),
+	ACPI_DE_INIT(ACPI_LV_RESOURCES),
+	ACPI_DE_INIT(ACPI_LV_USER_REQUESTS),
+	ACPI_DE_INIT(ACPI_LV_PACKAGE),
 
-	ACPI_DEBUG_INIT(ACPI_LV_ALLOCATIONS),
-	ACPI_DEBUG_INIT(ACPI_LV_FUNCTIONS),
-	ACPI_DEBUG_INIT(ACPI_LV_OPTIMIZATIONS),
+	ACPI_DE_INIT(ACPI_LV_ALLOCATIONS),
+	ACPI_DE_INIT(ACPI_LV_FUNCTIONS),
+	ACPI_DE_INIT(ACPI_LV_OPTIMIZATIONS),
 
-	ACPI_DEBUG_INIT(ACPI_LV_MUTEX),
-	ACPI_DEBUG_INIT(ACPI_LV_THREADS),
-	ACPI_DEBUG_INIT(ACPI_LV_IO),
-	ACPI_DEBUG_INIT(ACPI_LV_INTERRUPTS),
+	ACPI_DE_INIT(ACPI_LV_MUTEX),
+	ACPI_DE_INIT(ACPI_LV_THREADS),
+	ACPI_DE_INIT(ACPI_LV_IO),
+	ACPI_DE_INIT(ACPI_LV_INTERRUPTS),
 
-	ACPI_DEBUG_INIT(ACPI_LV_AML_DISASSEMBLE),
-	ACPI_DEBUG_INIT(ACPI_LV_VERBOSE_INFO),
-	ACPI_DEBUG_INIT(ACPI_LV_FULL_TABLES),
-	ACPI_DEBUG_INIT(ACPI_LV_EVENTS),
+	ACPI_DE_INIT(ACPI_LV_AML_DISASSEMBLE),
+	ACPI_DE_INIT(ACPI_LV_VERBOSE_INFO),
+	ACPI_DE_INIT(ACPI_LV_FULL_TABLES),
+	ACPI_DE_INIT(ACPI_LV_EVENTS),
 };
 
-static int param_get_debug_layer(char *buffer, const struct kernel_param *kp)
+static int param_get_de_layer(char *buffer, const struct kernel_param *kp)
 {
 	int result = 0;
 	int i;
 
 	result = sprintf(buffer, "%-25s\tHex        SET\n", "Description");
 
-	for (i = 0; i < ARRAY_SIZE(acpi_debug_layers); i++) {
+	for (i = 0; i < ARRAY_SIZE(acpi_de_layers); i++) {
 		result += sprintf(buffer + result, "%-25s\t0x%08lX [%c]\n",
-				  acpi_debug_layers[i].name,
-				  acpi_debug_layers[i].value,
-				  (acpi_dbg_layer & acpi_debug_layers[i].value)
+				  acpi_de_layers[i].name,
+				  acpi_de_layers[i].value,
+				  (acpi_dbg_layer & acpi_de_layers[i].value)
 				  ? '*' : ' ');
 	}
 	result +=
@@ -127,45 +127,45 @@ static int param_get_debug_layer(char *buffer, const struct kernel_param *kp)
 		    == 0 ? ' ' : '-');
 	result +=
 	    sprintf(buffer + result,
-		    "--\ndebug_layer = 0x%08X ( * = enabled)\n",
+		    "--\nde_layer = 0x%08X ( * = enabled)\n",
 		    acpi_dbg_layer);
 
 	return result;
 }
 
-static int param_get_debug_level(char *buffer, const struct kernel_param *kp)
+static int param_get_de_level(char *buffer, const struct kernel_param *kp)
 {
 	int result = 0;
 	int i;
 
 	result = sprintf(buffer, "%-25s\tHex        SET\n", "Description");
 
-	for (i = 0; i < ARRAY_SIZE(acpi_debug_levels); i++) {
+	for (i = 0; i < ARRAY_SIZE(acpi_de_levels); i++) {
 		result += sprintf(buffer + result, "%-25s\t0x%08lX [%c]\n",
-				  acpi_debug_levels[i].name,
-				  acpi_debug_levels[i].value,
-				  (acpi_dbg_level & acpi_debug_levels[i].value)
+				  acpi_de_levels[i].name,
+				  acpi_de_levels[i].value,
+				  (acpi_dbg_level & acpi_de_levels[i].value)
 				  ? '*' : ' ');
 	}
 	result +=
-	    sprintf(buffer + result, "--\ndebug_level = 0x%08X (* = enabled)\n",
+	    sprintf(buffer + result, "--\nde_level = 0x%08X (* = enabled)\n",
 		    acpi_dbg_level);
 
 	return result;
 }
 
-static const struct kernel_param_ops param_ops_debug_layer = {
+static const struct kernel_param_ops param_ops_de_layer = {
 	.set = param_set_uint,
-	.get = param_get_debug_layer,
+	.get = param_get_de_layer,
 };
 
-static const struct kernel_param_ops param_ops_debug_level = {
+static const struct kernel_param_ops param_ops_de_level = {
 	.set = param_set_uint,
-	.get = param_get_debug_level,
+	.get = param_get_de_level,
 };
 
-module_param_cb(debug_layer, &param_ops_debug_layer, &acpi_dbg_layer, 0644);
-module_param_cb(debug_level, &param_ops_debug_level, &acpi_dbg_level, 0644);
+module_param_cb(de_layer, &param_ops_de_layer, &acpi_dbg_layer, 0644);
+module_param_cb(de_level, &param_ops_de_level, &acpi_dbg_level, 0644);
 
 static char trace_method_name[1024];
 
@@ -190,7 +190,7 @@ static int param_set_trace_method_name(const char *val,
 	 * state and disable it.
 	 */
 	saved_flags = acpi_gbl_trace_flags;
-	(void)acpi_debug_trace(NULL,
+	(void)acpi_de_trace(NULL,
 			       acpi_gbl_trace_dbg_level,
 			       acpi_gbl_trace_dbg_layer,
 			       0);
@@ -204,7 +204,7 @@ static int param_set_trace_method_name(const char *val,
 	}
 
 	/* Restore the original tracer state */
-	(void)acpi_debug_trace(trace_method_name,
+	(void)acpi_de_trace(trace_method_name,
 			       acpi_gbl_trace_dbg_level,
 			       acpi_gbl_trace_dbg_layer,
 			       saved_flags);
@@ -228,8 +228,8 @@ static const struct kernel_param_ops param_ops_trace_attrib = {
 };
 
 module_param_cb(trace_method_name, &param_ops_trace_method, &trace_method_name, 0644);
-module_param_cb(trace_debug_layer, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_layer, 0644);
-module_param_cb(trace_debug_level, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_level, 0644);
+module_param_cb(trace_de_layer, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_layer, 0644);
+module_param_cb(trace_de_level, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_level, 0644);
 
 static int param_set_trace_state(const char *val,
 				 const struct kernel_param *kp)
@@ -258,7 +258,7 @@ static int param_set_trace_state(const char *val,
 	else
 		return -EINVAL;
 
-	status = acpi_debug_trace(method,
+	status = acpi_de_trace(method,
 				  acpi_gbl_trace_dbg_level,
 				  acpi_gbl_trace_dbg_layer,
 				  flags);
@@ -286,15 +286,15 @@ static int param_get_trace_state(char *buffer, const struct kernel_param *kp)
 
 module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
 		  NULL, 0644);
-#endif /* CONFIG_ACPI_DEBUG */
+#endif /* CONFIG_ACPI_DE */
 
 
-/* /sys/modules/acpi/parameters/aml_debug_output */
+/* /sys/modules/acpi/parameters/aml_de_output */
 
-module_param_named(aml_debug_output, acpi_gbl_enable_aml_debug_object,
+module_param_named(aml_de_output, acpi_gbl_enable_aml_de_object,
 		   byte, 0644);
-MODULE_PARM_DESC(aml_debug_output,
-		 "To enable/disable the ACPI Debug Object output.");
+MODULE_PARM_DESC(aml_de_output,
+		 "To enable/disable the ACPI De Object output.");
 
 /* /sys/module/acpi/parameters/acpica_version */
 static int param_get_acpica_version(char *buffer,
@@ -639,12 +639,12 @@ static void acpi_global_event_handler(u32 event_type, acpi_handle device,
 {
 	if (event_type == ACPI_EVENT_TYPE_GPE) {
 		gpe_count(event_number);
-		pr_debug("GPE event 0x%02x\n", event_number);
+		pr_de("GPE event 0x%02x\n", event_number);
 	} else if (event_type == ACPI_EVENT_TYPE_FIXED) {
 		fixed_event_count(event_number);
-		pr_debug("Fixed event 0x%02x\n", event_number);
+		pr_de("Fixed event 0x%02x\n", event_number);
 	} else {
-		pr_debug("Other event 0x%02x\n", event_number);
+		pr_de("Other event 0x%02x\n", event_number);
 	}
 }
 
@@ -904,7 +904,7 @@ void acpi_irq_stats_init(void)
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_ERROR)
 			sprintf(buffer, "error");
 		else
-			sprintf(buffer, "bug%02X", i);
+			sprintf(buffer, "%02X", i);
 
 		name = kstrdup(buffer, GFP_KERNEL);
 		if (name == NULL)

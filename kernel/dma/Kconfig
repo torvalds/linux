@@ -140,12 +140,12 @@ config CMA_ALIGNMENT
 
 endif
 
-config DMA_API_DEBUG
-	bool "Enable debugging of DMA-API usage"
+config DMA_API_DE
+	bool "Enable deging of DMA-API usage"
 	select NEED_DMA_MAP_STATE
 	help
-	  Enable this option to debug the use of the DMA API by device drivers.
-	  With this option you will be able to detect common bugs in device
+	  Enable this option to de the use of the DMA API by device drivers.
+	  With this option you will be able to detect common s in device
 	  drivers like double-freeing of DMA mappings or freeing mappings that
 	  were never allocated.
 
@@ -155,14 +155,14 @@ config DMA_API_DEBUG
 	  not undergoing DMA.
 
 	  This option causes a performance degradation.  Use only if you want to
-	  debug device drivers and dma interactions.
+	  de device drivers and dma interactions.
 
 	  If unsure, say N.
 
-config DMA_API_DEBUG_SG
-	bool "Debug DMA scatter-gather usage"
+config DMA_API_DE_SG
+	bool "De DMA scatter-gather usage"
 	default y
-	depends on DMA_API_DEBUG
+	depends on DMA_API_DE
 	help
 	  Perform extra checking that callers of dma_map_sg() have respected the
 	  appropriate segment length/boundary limits for the given device when

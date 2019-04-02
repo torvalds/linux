@@ -298,7 +298,7 @@ static int stm32_exti_hwspin_lock(struct stm32_exti_chip_data *chip_data)
 				/* found valid hwspinlock */
 				host_data->hwlock_state = HWSPINLOCK_READY;
 				host_data->hwlock = hwlock;
-				pr_debug("%s hwspinlock = %d\n", __func__, id);
+				pr_de("%s hwspinlock = %d\n", __func__, id);
 			} else {
 				host_data->hwlock_state = HWSPINLOCK_NONE;
 			}

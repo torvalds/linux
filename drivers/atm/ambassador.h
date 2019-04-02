@@ -24,8 +24,8 @@
 #define AMBASSADOR_H
 
 
-#ifdef CONFIG_ATM_AMBASSADOR_DEBUG
-#define DEBUG_AMBASSADOR
+#ifdef CONFIG_ATM_AMBASSADOR_DE
+#define DE_AMBASSADOR
 #endif
 
 #define DEV_LABEL                          "amb"
@@ -45,7 +45,7 @@
 #define PRINTK(severity,format,args...) \
   printk(severity DEV_LABEL ": " format "\n" , ## args)
 
-#ifdef DEBUG_AMBASSADOR
+#ifdef DE_AMBASSADOR
 
 #define DBG_ERR  0x0001
 #define DBG_WARN 0x0002
@@ -66,15 +66,15 @@
 #define DBG_MASK 0xffff
 
 /* the ## prevents the annoying double expansion of the macro arguments */
-/* KERN_INFO is used since KERN_DEBUG often does not make it to the console */
+/* KERN_INFO is used since KERN_DE often does not make it to the console */
 #define PRINTDB(bits,format,args...) \
-  ( (debug & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format , ## args) : 1 )
+  ( (de & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format , ## args) : 1 )
 #define PRINTDM(bits,format,args...) \
-  ( (debug & (bits)) ? printk (format , ## args) : 1 )
+  ( (de & (bits)) ? printk (format , ## args) : 1 )
 #define PRINTDE(bits,format,args...) \
-  ( (debug & (bits)) ? printk (format "\n" , ## args) : 1 )
+  ( (de & (bits)) ? printk (format "\n" , ## args) : 1 )
 #define PRINTD(bits,format,args...) \
-  ( (debug & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format "\n" , ## args) : 1 )
+  ( (de & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format "\n" , ## args) : 1 )
 
 #else
 
@@ -241,12 +241,12 @@
 /* #define VERSION_NUMBER 0x01020000 // changed SUNI reset timings; allowed r/w onchip */
 
 /* #define VERSION_NUMBER 0x01030000 // clear local doorbell int reg on reset */
-/* #define VERSION_NUMBER 0x01040000 // PLX bug work around version PLUS */
+/* #define VERSION_NUMBER 0x01040000 // PLX  work around version PLUS */
 /* remove race conditions on basic interface */
 /* indicate to the host that diagnostics */
 /* have finished; if failed, how and what  */
 /* failed */
-/* fix host memory test to fix PLX bug */
+/* fix host memory test to fix PLX  */
 /* allow flash upgrade and BIA upgrade directly */
 /*  */
 #define VERSION_NUMBER 0x01050025 /* Jason's first hacked version. */

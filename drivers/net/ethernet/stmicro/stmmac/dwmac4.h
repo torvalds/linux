@@ -34,7 +34,7 @@
 #define GMAC_PCS_BASE			0x000000e0
 #define GMAC_PHYIF_CONTROL_STATUS	0x000000f8
 #define GMAC_PMT			0x000000c0
-#define GMAC_DEBUG			0x00000114
+#define GMAC_DE			0x00000114
 #define GMAC_HW_FEATURE0		0x0000011c
 #define GMAC_HW_FEATURE1		0x00000120
 #define GMAC_HW_FEATURE2		0x00000124
@@ -138,17 +138,17 @@ enum power_event {
 #define GMAC4_LPI_CTRL_STATUS_TLPIEX	BIT(1) /* Transmit LPI Exit */
 #define GMAC4_LPI_CTRL_STATUS_TLPIEN	BIT(0) /* Transmit LPI Entry */
 
-/* MAC Debug bitmap */
-#define GMAC_DEBUG_TFCSTS_MASK		GENMASK(18, 17)
-#define GMAC_DEBUG_TFCSTS_SHIFT		17
-#define GMAC_DEBUG_TFCSTS_IDLE		0
-#define GMAC_DEBUG_TFCSTS_WAIT		1
-#define GMAC_DEBUG_TFCSTS_GEN_PAUSE	2
-#define GMAC_DEBUG_TFCSTS_XFER		3
-#define GMAC_DEBUG_TPESTS		BIT(16)
-#define GMAC_DEBUG_RFCFCSTS_MASK	GENMASK(2, 1)
-#define GMAC_DEBUG_RFCFCSTS_SHIFT	1
-#define GMAC_DEBUG_RPESTS		BIT(0)
+/* MAC De bitmap */
+#define GMAC_DE_TFCSTS_MASK		GENMASK(18, 17)
+#define GMAC_DE_TFCSTS_SHIFT		17
+#define GMAC_DE_TFCSTS_IDLE		0
+#define GMAC_DE_TFCSTS_WAIT		1
+#define GMAC_DE_TFCSTS_GEN_PAUSE	2
+#define GMAC_DE_TFCSTS_XFER		3
+#define GMAC_DE_TPESTS		BIT(16)
+#define GMAC_DE_RFCFCSTS_MASK	GENMASK(2, 1)
+#define GMAC_DE_RFCFCSTS_SHIFT	1
+#define GMAC_DE_RPESTS		BIT(0)
 
 /* MAC config */
 #define GMAC_CONFIG_IPC			BIT(27)
@@ -232,10 +232,10 @@ enum power_event {
 					(x * MTL_CHAN_BASE_OFFSET))
 
 #define MTL_CHAN_TX_OP_MODE(x)		MTL_CHANX_BASE_ADDR(x)
-#define MTL_CHAN_TX_DEBUG(x)		(MTL_CHANX_BASE_ADDR(x) + 0x8)
+#define MTL_CHAN_TX_DE(x)		(MTL_CHANX_BASE_ADDR(x) + 0x8)
 #define MTL_CHAN_INT_CTRL(x)		(MTL_CHANX_BASE_ADDR(x) + 0x2c)
 #define MTL_CHAN_RX_OP_MODE(x)		(MTL_CHANX_BASE_ADDR(x) + 0x30)
-#define MTL_CHAN_RX_DEBUG(x)		(MTL_CHANX_BASE_ADDR(x) + 0x38)
+#define MTL_CHAN_RX_DE(x)		(MTL_CHANX_BASE_ADDR(x) + 0x38)
 
 #define MTL_OP_MODE_RSF			BIT(5)
 #define MTL_OP_MODE_TXQEN_MASK		GENMASK(3, 2)
@@ -317,34 +317,34 @@ enum power_event {
 
 #define MTL_HIGH_CRED_LC_MASK		GENMASK(28, 0)
 
-/*  MTL debug */
-#define MTL_DEBUG_TXSTSFSTS		BIT(5)
-#define MTL_DEBUG_TXFSTS		BIT(4)
-#define MTL_DEBUG_TWCSTS		BIT(3)
+/*  MTL de */
+#define MTL_DE_TXSTSFSTS		BIT(5)
+#define MTL_DE_TXFSTS		BIT(4)
+#define MTL_DE_TWCSTS		BIT(3)
 
-/* MTL debug: Tx FIFO Read Controller Status */
-#define MTL_DEBUG_TRCSTS_MASK		GENMASK(2, 1)
-#define MTL_DEBUG_TRCSTS_SHIFT		1
-#define MTL_DEBUG_TRCSTS_IDLE		0
-#define MTL_DEBUG_TRCSTS_READ		1
-#define MTL_DEBUG_TRCSTS_TXW		2
-#define MTL_DEBUG_TRCSTS_WRITE		3
-#define MTL_DEBUG_TXPAUSED		BIT(0)
+/* MTL de: Tx FIFO Read Controller Status */
+#define MTL_DE_TRCSTS_MASK		GENMASK(2, 1)
+#define MTL_DE_TRCSTS_SHIFT		1
+#define MTL_DE_TRCSTS_IDLE		0
+#define MTL_DE_TRCSTS_READ		1
+#define MTL_DE_TRCSTS_TXW		2
+#define MTL_DE_TRCSTS_WRITE		3
+#define MTL_DE_TXPAUSED		BIT(0)
 
-/* MAC debug: GMII or MII Transmit Protocol Engine Status */
-#define MTL_DEBUG_RXFSTS_MASK		GENMASK(5, 4)
-#define MTL_DEBUG_RXFSTS_SHIFT		4
-#define MTL_DEBUG_RXFSTS_EMPTY		0
-#define MTL_DEBUG_RXFSTS_BT		1
-#define MTL_DEBUG_RXFSTS_AT		2
-#define MTL_DEBUG_RXFSTS_FULL		3
-#define MTL_DEBUG_RRCSTS_MASK		GENMASK(2, 1)
-#define MTL_DEBUG_RRCSTS_SHIFT		1
-#define MTL_DEBUG_RRCSTS_IDLE		0
-#define MTL_DEBUG_RRCSTS_RDATA		1
-#define MTL_DEBUG_RRCSTS_RSTAT		2
-#define MTL_DEBUG_RRCSTS_FLUSH		3
-#define MTL_DEBUG_RWCSTS		BIT(0)
+/* MAC de: GMII or MII Transmit Protocol Engine Status */
+#define MTL_DE_RXFSTS_MASK		GENMASK(5, 4)
+#define MTL_DE_RXFSTS_SHIFT		4
+#define MTL_DE_RXFSTS_EMPTY		0
+#define MTL_DE_RXFSTS_BT		1
+#define MTL_DE_RXFSTS_AT		2
+#define MTL_DE_RXFSTS_FULL		3
+#define MTL_DE_RRCSTS_MASK		GENMASK(2, 1)
+#define MTL_DE_RRCSTS_SHIFT		1
+#define MTL_DE_RRCSTS_IDLE		0
+#define MTL_DE_RRCSTS_RDATA		1
+#define MTL_DE_RRCSTS_RSTAT		2
+#define MTL_DE_RRCSTS_FLUSH		3
+#define MTL_DE_RWCSTS		BIT(0)
 
 /*  MTL interrupt */
 #define MTL_RX_OVERFLOW_INT_EN		BIT(24)
@@ -357,34 +357,34 @@ enum power_event {
 /* To dump the core regs excluding  the Address Registers */
 #define	GMAC_REG_NUM	132
 
-/*  MTL debug */
-#define MTL_DEBUG_TXSTSFSTS		BIT(5)
-#define MTL_DEBUG_TXFSTS		BIT(4)
-#define MTL_DEBUG_TWCSTS		BIT(3)
+/*  MTL de */
+#define MTL_DE_TXSTSFSTS		BIT(5)
+#define MTL_DE_TXFSTS		BIT(4)
+#define MTL_DE_TWCSTS		BIT(3)
 
-/* MTL debug: Tx FIFO Read Controller Status */
-#define MTL_DEBUG_TRCSTS_MASK		GENMASK(2, 1)
-#define MTL_DEBUG_TRCSTS_SHIFT		1
-#define MTL_DEBUG_TRCSTS_IDLE		0
-#define MTL_DEBUG_TRCSTS_READ		1
-#define MTL_DEBUG_TRCSTS_TXW		2
-#define MTL_DEBUG_TRCSTS_WRITE		3
-#define MTL_DEBUG_TXPAUSED		BIT(0)
+/* MTL de: Tx FIFO Read Controller Status */
+#define MTL_DE_TRCSTS_MASK		GENMASK(2, 1)
+#define MTL_DE_TRCSTS_SHIFT		1
+#define MTL_DE_TRCSTS_IDLE		0
+#define MTL_DE_TRCSTS_READ		1
+#define MTL_DE_TRCSTS_TXW		2
+#define MTL_DE_TRCSTS_WRITE		3
+#define MTL_DE_TXPAUSED		BIT(0)
 
-/* MAC debug: GMII or MII Transmit Protocol Engine Status */
-#define MTL_DEBUG_RXFSTS_MASK		GENMASK(5, 4)
-#define MTL_DEBUG_RXFSTS_SHIFT		4
-#define MTL_DEBUG_RXFSTS_EMPTY		0
-#define MTL_DEBUG_RXFSTS_BT		1
-#define MTL_DEBUG_RXFSTS_AT		2
-#define MTL_DEBUG_RXFSTS_FULL		3
-#define MTL_DEBUG_RRCSTS_MASK		GENMASK(2, 1)
-#define MTL_DEBUG_RRCSTS_SHIFT		1
-#define MTL_DEBUG_RRCSTS_IDLE		0
-#define MTL_DEBUG_RRCSTS_RDATA		1
-#define MTL_DEBUG_RRCSTS_RSTAT		2
-#define MTL_DEBUG_RRCSTS_FLUSH		3
-#define MTL_DEBUG_RWCSTS		BIT(0)
+/* MAC de: GMII or MII Transmit Protocol Engine Status */
+#define MTL_DE_RXFSTS_MASK		GENMASK(5, 4)
+#define MTL_DE_RXFSTS_SHIFT		4
+#define MTL_DE_RXFSTS_EMPTY		0
+#define MTL_DE_RXFSTS_BT		1
+#define MTL_DE_RXFSTS_AT		2
+#define MTL_DE_RXFSTS_FULL		3
+#define MTL_DE_RRCSTS_MASK		GENMASK(2, 1)
+#define MTL_DE_RRCSTS_SHIFT		1
+#define MTL_DE_RRCSTS_IDLE		0
+#define MTL_DE_RRCSTS_RDATA		1
+#define MTL_DE_RRCSTS_RSTAT		2
+#define MTL_DE_RRCSTS_FLUSH		3
+#define MTL_DE_RWCSTS		BIT(0)
 
 /* SGMII/RGMII status register */
 #define GMAC_PHYIF_CTRLSTATUS_TC		BIT(0)

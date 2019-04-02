@@ -1138,7 +1138,7 @@ static int __init qcom_geni_serial_earlycon_setup(struct earlycon_device *dev,
 	dev->con->setup = NULL;
 	return 0;
 }
-OF_EARLYCON_DECLARE(qcom_geni, "qcom,geni-debug-uart",
+OF_EARLYCON_DECLARE(qcom_geni, "qcom,geni-de-uart",
 				qcom_geni_serial_earlycon_setup);
 
 static int __init console_register(struct uart_driver *drv)
@@ -1249,7 +1249,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	bool console = false;
 	struct uart_driver *drv;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,geni-debug-uart"))
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,geni-de-uart"))
 		console = true;
 
 	if (console) {
@@ -1336,7 +1336,7 @@ static const struct dev_pm_ops qcom_geni_serial_pm_ops = {
 };
 
 static const struct of_device_id qcom_geni_serial_match_table[] = {
-	{ .compatible = "qcom,geni-debug-uart", },
+	{ .compatible = "qcom,geni-de-uart", },
 	{ .compatible = "qcom,geni-uart", },
 	{}
 };

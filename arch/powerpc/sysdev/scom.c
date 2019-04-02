@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/prom.h>
 #include <asm/scom.h>
 #include <linux/uaccess.h>
@@ -95,17 +95,17 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 }
 EXPORT_SYMBOL_GPL(scom_map_device);
 
-#ifdef CONFIG_SCOM_DEBUGFS
-struct scom_debug_entry {
+#ifdef CONFIG_SCOM_DEFS
+struct scom_de_entry {
 	struct device_node *dn;
-	struct debugfs_blob_wrapper path;
+	struct defs_blob_wrapper path;
 	char name[16];
 };
 
-static ssize_t scom_debug_read(struct file *filp, char __user *ubuf,
+static ssize_t scom_de_read(struct file *filp, char __user *ubuf,
 			       size_t count, loff_t *ppos)
 {
-	struct scom_debug_entry *ent = filp->private_data;
+	struct scom_de_entry *ent = filp->private_data;
 	u64 __user *ubuf64 = (u64 __user *)ubuf;
 	loff_t off = *ppos;
 	ssize_t done = 0; 
@@ -139,10 +139,10 @@ static ssize_t scom_debug_read(struct file *filp, char __user *ubuf,
 	return done;
 }
 
-static ssize_t scom_debug_write(struct file* filp, const char __user *ubuf,
+static ssize_t scom_de_write(struct file* filp, const char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
-	struct scom_debug_entry *ent = filp->private_data;
+	struct scom_de_entry *ent = filp->private_data;
 	u64 __user *ubuf64 = (u64 __user *)ubuf;
 	loff_t off = *ppos;
 	ssize_t done = 0; 
@@ -175,17 +175,17 @@ static ssize_t scom_debug_write(struct file* filp, const char __user *ubuf,
 	return done;
 }
 
-static const struct file_operations scom_debug_fops = {
-	.read =		scom_debug_read,
-	.write =	scom_debug_write,
+static const struct file_operations scom_de_fops = {
+	.read =		scom_de_read,
+	.write =	scom_de_write,
 	.open =		simple_open,
 	.llseek =	default_llseek,
 };
 
-static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
+static int scom_de_init_one(struct dentry *root, struct device_node *dn,
 			       int i)
 {
-	struct scom_debug_entry *ent;
+	struct scom_de_entry *ent;
 	struct dentry *dir;
 
 	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
@@ -197,7 +197,7 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 	ent->path.data = (void*)kasprintf(GFP_KERNEL, "%pOF", dn);
 	ent->path.size = strlen((char *)ent->path.data);
 
-	dir = debugfs_create_dir(ent->name, root);
+	dir = defs_create_dir(ent->name, root);
 	if (!dir) {
 		of_node_put(dn);
 		kfree(ent->path.data);
@@ -205,19 +205,19 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 		return -1;
 	}
 
-	debugfs_create_blob("devspec", 0400, dir, &ent->path);
-	debugfs_create_file("access", 0600, dir, ent, &scom_debug_fops);
+	defs_create_blob("devspec", 0400, dir, &ent->path);
+	defs_create_file("access", 0600, dir, ent, &scom_de_fops);
 
 	return 0;
 }
 
-static int scom_debug_init(void)
+static int scom_de_init(void)
 {
 	struct device_node *dn;
 	struct dentry *root;
 	int i, rc;
 
-	root = debugfs_create_dir("scom", powerpc_debugfs_root);
+	root = defs_create_dir("scom", powerpc_defs_root);
 	if (!root)
 		return -1;
 
@@ -226,11 +226,11 @@ static int scom_debug_init(void)
 		int id = of_get_ibm_chip_id(dn);
 		if (id == -1)
 			id = i;
-		rc |= scom_debug_init_one(root, dn, id);
+		rc |= scom_de_init_one(root, dn, id);
 		i++;
 	}
 
 	return rc;
 }
-device_initcall(scom_debug_init);
-#endif /* CONFIG_SCOM_DEBUGFS */
+device_initcall(scom_de_init);
+#endif /* CONFIG_SCOM_DEFS */

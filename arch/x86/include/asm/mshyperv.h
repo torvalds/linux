@@ -452,7 +452,7 @@ static inline struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 static inline u64 hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg,
 				       u64 *cur_tsc)
 {
-	BUG();
+	();
 	return U64_MAX;
 }
 #endif

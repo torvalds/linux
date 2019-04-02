@@ -5,7 +5,7 @@
  * context. The enqueueing is NMI-safe.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/irq_work.h>
@@ -135,7 +135,7 @@ static void irq_work_run_list(struct llist_head *list)
 	struct llist_node *llnode;
 	unsigned long flags;
 
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	if (llist_empty(list))
 		return;

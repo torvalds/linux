@@ -825,12 +825,12 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 
 	case 1:
 		/* Uncorrectable error */
-		pr_debug("ECC UNCORRECTED_ERROR 1\n");
+		pr_de("ECC UNCORRECTED_ERROR 1\n");
 		return -EBADMSG;
 
 	case 11:
 		/* UN-Correctable error */
-		pr_debug("ECC UNCORRECTED_ERROR B\n");
+		pr_de("ECC UNCORRECTED_ERROR B\n");
 		return -EBADMSG;
 
 	case 12:
@@ -847,7 +847,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 
 		find_bit = (ecc_bit[5] << 2) + (ecc_bit[3] << 1) + ecc_bit[1];
 
-		pr_debug("Correcting single bit ECC error at offset: "
+		pr_de("Correcting single bit ECC error at offset: "
 				"%d, bit: %d\n", find_byte, find_bit);
 
 		page_data[find_byte] ^= (1 << find_bit);
@@ -860,7 +860,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 			    ecc_data2[2] == 0)
 				return 0;
 		}
-		pr_debug("UNCORRECTED_ERROR default\n");
+		pr_de("UNCORRECTED_ERROR default\n");
 		return -EBADMSG;
 	}
 }
@@ -1484,11 +1484,11 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
 
 				if (pos < error_max) {
 					if (byte_pos < 512) {
-						pr_debug("bitflip@dat[%d]=%x\n",
+						pr_de("bitflip@dat[%d]=%x\n",
 						     byte_pos, data[byte_pos]);
 						data[byte_pos] ^= 1 << bit_pos;
 					} else {
-						pr_debug("bitflip@oob[%d]=%x\n",
+						pr_de("bitflip@oob[%d]=%x\n",
 							(byte_pos - 512),
 						     spare_ecc[byte_pos - 512]);
 						spare_ecc[byte_pos - 512] ^=

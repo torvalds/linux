@@ -7,7 +7,7 @@
  */
 
 #include "delta.h"
-#include "delta-debug.h"
+#include "delta-de.h"
 
 char *delta_streaminfo_str(struct delta_streaminfo *s, char *str,
 			   unsigned int len)

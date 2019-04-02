@@ -42,7 +42,7 @@
 
 /*
  * 1992/7/22 -- Hennus Bergman: Added better error reporting, fixed
- * FDC data overrun bug, added some preliminary stuff for vertical
+ * FDC data overrun , added some preliminary stuff for vertical
  * recording support.
  *
  * 1992/9/17: Added DMA allocation & DMA functions. -- hhb.
@@ -56,7 +56,7 @@
  * Christoph H. Hochst\"atter.
  * I have fixed the shift values to the ones I always use. Maybe a new
  * ioctl() should be created to be able to modify them.
- * There is a bug in the driver that makes it impossible to format a
+ * There is a  in the driver that makes it impossible to format a
  * floppy as the first thing after bootup.
  */
 
@@ -76,7 +76,7 @@
 
 /*
  * 1994/8/8 -- Alain Knaff -- Switched to fdpatch driver: Support for bigger
- * format bug fixes, but unfortunately some new bugs too...
+ * format  fixes, but unfortunately some new s too...
  */
 
 /* 1994/9/17 -- Koen Holtman -- added logging of physical floppy write
@@ -114,7 +114,7 @@
  */
 
 /*
- * 1998/09/20 -- David Weinehall -- Added slow-down code for buggy PS/2-drives.
+ * 1998/09/20 -- David Weinehall -- Added slow-down code for gy PS/2-drives.
  */
 
 /*
@@ -148,17 +148,17 @@
 
 #define REALLY_SLOW_IO
 
-#define DEBUGT 2
+#define DET 2
 
 #define DPRINT(format, args...) \
 	pr_info("floppy%d: " format, current_drive, ##args)
 
-#define DCL_DEBUG		/* debug disk change line */
-#ifdef DCL_DEBUG
-#define debug_dcl(test, fmt, args...) \
-	do { if ((test) & FD_DEBUG) DPRINT(fmt, ##args); } while (0)
+#define DCL_DE		/* de disk change line */
+#ifdef DCL_DE
+#define de_dcl(test, fmt, args...) \
+	do { if ((test) & FD_DE) DPRINT(fmt, ##args); } while (0)
 #else
-#define debug_dcl(test, fmt, args...) \
+#define de_dcl(test, fmt, args...) \
 	do { if (0) DPRINT(fmt, ##args); } while (0)
 #endif
 
@@ -616,26 +616,26 @@ static inline int fd_eject(int drive)
 #endif
 
 /*
- * Debugging
+ * Deging
  * =========
  */
-#ifdef DEBUGT
-static long unsigned debugtimer;
+#ifdef DET
+static long unsigned detimer;
 
-static inline void set_debugt(void)
+static inline void set_det(void)
 {
-	debugtimer = jiffies;
+	detimer = jiffies;
 }
 
-static inline void debugt(const char *func, const char *msg)
+static inline void det(const char *func, const char *msg)
 {
-	if (DP->flags & DEBUGT)
-		pr_info("%s:%s dtime=%lu\n", func, msg, jiffies - debugtimer);
+	if (DP->flags & DET)
+		pr_info("%s:%s dtime=%lu\n", func, msg, jiffies - detimer);
 }
 #else
-static inline void set_debugt(void) { }
-static inline void debugt(const char *func, const char *msg) { }
-#endif /* DEBUGT */
+static inline void set_det(void) { }
+static inline void det(const char *func, const char *msg) { }
+#endif /* DET */
 
 
 static DECLARE_DELAYED_WORK(fd_timeout, floppy_shutdown);
@@ -685,7 +685,7 @@ static void __reschedule_timeout(int drive, const char *message)
 		delay = UDP->timeout;
 
 	mod_delayed_work(floppy_wq, &fd_timeout, delay);
-	if (UDP->flags & FD_DEBUG)
+	if (UDP->flags & FD_DE)
 		DPRINT("reschedule timeout %s\n", message);
 	timeout_message = message;
 }
@@ -748,11 +748,11 @@ static int disk_change(int drive)
 		       (unsigned int)FDCS->dor);
 	}
 
-	debug_dcl(UDP->flags,
+	de_dcl(UDP->flags,
 		  "checking disk change line for drive %d\n", drive);
-	debug_dcl(UDP->flags, "jiffies=%lu\n", jiffies);
-	debug_dcl(UDP->flags, "disk change line=%x\n", fd_inb(FD_DIR) & 0x80);
-	debug_dcl(UDP->flags, "flags=%lx\n", UDRS->flags);
+	de_dcl(UDP->flags, "jiffies=%lu\n", jiffies);
+	de_dcl(UDP->flags, "disk change line=%x\n", fd_inb(FD_DIR) & 0x80);
+	de_dcl(UDP->flags, "flags=%lx\n", UDRS->flags);
 
 	if (UDP->flags & FD_BROKEN_DCL)
 		return test_bit(FD_DISK_CHANGED_BIT, &UDRS->flags);
@@ -807,7 +807,7 @@ static int set_dor(int fdc, char mask, char data)
 		unit = olddor & 0x3;
 		if (is_selected(olddor, unit) && !is_selected(newdor, unit)) {
 			drive = REVDRIVE(fdc, unit);
-			debug_dcl(UDP->flags,
+			de_dcl(UDP->flags,
 				  "calling disk change from set_dor\n");
 			disk_change(drive);
 		}
@@ -1007,7 +1007,7 @@ static void cancel_activity(void)
  * transfer */
 static void fd_watchdog(void)
 {
-	debug_dcl(DP->flags, "calling disk change from watchdog\n");
+	de_dcl(DP->flags, "calling disk change from watchdog\n");
 
 	if (disk_change(current_drive)) {
 		DPRINT("disk removed during i/o\n");
@@ -1494,7 +1494,7 @@ static void setup_rw_floppy(void)
 	for (i = 0; i < raw_cmd->cmd_count; i++)
 		r |= output_byte(raw_cmd->cmd[i]);
 
-	debugt(__func__, "rw_command");
+	det(__func__, "rw_command");
 
 	if (r) {
 		cont->error();
@@ -1517,7 +1517,7 @@ static int blind_seek;
  */
 static void seek_interrupt(void)
 {
-	debugt(__func__, "");
+	det(__func__, "");
 	if (inr != 2 || (ST0 & 0xF8) != 0x20) {
 		DPRINT("seek failed\n");
 		DRS->track = NEED_2_RECAL;
@@ -1526,9 +1526,9 @@ static void seek_interrupt(void)
 		return;
 	}
 	if (DRS->track >= 0 && DRS->track != ST1 && !blind_seek) {
-		debug_dcl(DP->flags,
+		de_dcl(DP->flags,
 			  "clearing NEWCHANGE flag because of effective seek\n");
-		debug_dcl(DP->flags, "jiffies=%lu\n", jiffies);
+		de_dcl(DP->flags, "jiffies=%lu\n", jiffies);
 		clear_bit(FD_DISK_NEWCHANGE_BIT, &DRS->flags);
 					/* effective seek */
 		DRS->select_date = jiffies;
@@ -1549,9 +1549,9 @@ static void check_wp(void)
 		}
 		clear_bit(FD_VERIFY_BIT, &DRS->flags);
 		clear_bit(FD_NEED_TWADDLE_BIT, &DRS->flags);
-		debug_dcl(DP->flags,
+		de_dcl(DP->flags,
 			  "checking whether disk is write protected\n");
-		debug_dcl(DP->flags, "wp=%x\n", ST3 & 0x40);
+		de_dcl(DP->flags, "wp=%x\n", ST3 & 0x40);
 		if (!(ST3 & 0x40))
 			set_bit(FD_DISK_WRITABLE_BIT, &DRS->flags);
 		else
@@ -1565,7 +1565,7 @@ static void seek_floppy(void)
 
 	blind_seek = 0;
 
-	debug_dcl(DP->flags, "calling disk change from %s\n", __func__);
+	de_dcl(DP->flags, "calling disk change from %s\n", __func__);
 
 	if (!test_bit(FD_DISK_NEWCHANGE_BIT, &DRS->flags) &&
 	    disk_change(current_drive) && (raw_cmd->flags & FD_RAW_NEED_DISK)) {
@@ -1614,18 +1614,18 @@ static void seek_floppy(void)
 		reset_fdc();
 		return;
 	}
-	debugt(__func__, "");
+	det(__func__, "");
 }
 
 static void recal_interrupt(void)
 {
-	debugt(__func__, "");
+	det(__func__, "");
 	if (inr != 2)
 		FDCS->reset = 1;
 	else if (ST0 & ST0_ECE) {
 		switch (DRS->track) {
 		case NEED_1_RECAL:
-			debugt(__func__, "need 1 recal");
+			det(__func__, "need 1 recal");
 			/* after a second recalibrate, we still haven't
 			 * reached track 0. Probably no drive. Raise an
 			 * error, as failing immediately might upset
@@ -1634,21 +1634,21 @@ static void recal_interrupt(void)
 			cont->redo();
 			return;
 		case NEED_2_RECAL:
-			debugt(__func__, "need 2 recal");
+			det(__func__, "need 2 recal");
 			/* If we already did a recalibrate,
 			 * and we are not at track 0, this
 			 * means we have moved. (The only way
 			 * not to move at recalibration is to
 			 * be already at track 0.) Clear the
 			 * new change flag */
-			debug_dcl(DP->flags,
+			de_dcl(DP->flags,
 				  "clearing NEWCHANGE flag because of second recalibrate\n");
 
 			clear_bit(FD_DISK_NEWCHANGE_BIT, &DRS->flags);
 			DRS->select_date = jiffies;
 			/* fall through */
 		default:
-			debugt(__func__, "default");
+			det(__func__, "default");
 			/* Recalibrate moves the head by at
 			 * most 80 steps. If after one
 			 * recalibrate we don't have reached
@@ -1737,7 +1737,7 @@ irqreturn_t floppy_interrupt(int irq, void *dev_id)
 
 static void recalibrate_floppy(void)
 {
-	debugt(__func__, "");
+	det(__func__, "");
 	do_floppy = recal_interrupt;
 	output_byte(FD_RECALIBRATE);
 	if (output_byte(UNIT(current_drive)) < 0)
@@ -1749,7 +1749,7 @@ static void recalibrate_floppy(void)
  */
 static void reset_interrupt(void)
 {
-	debugt(__func__, "");
+	det(__func__, "");
 	result();		/* get the status ready for set_fdc */
 	if (FDCS->reset) {
 		pr_info("reset set in interrupt, calling %pf\n", cont->error);
@@ -1867,7 +1867,7 @@ static int start_motor(void (*function)(void))
 	data = UNIT(current_drive);
 	if (!(raw_cmd->flags & FD_RAW_NO_MOTOR)) {
 		if (!(FDCS->dor & (0x10 << UNIT(current_drive)))) {
-			set_debugt();
+			set_det();
 			/* no read since this drive is running */
 			DRS->first_read_date = 0;
 			/* note motor start time if motor is not yet running */
@@ -1897,7 +1897,7 @@ static void floppy_ready(void)
 	if (fdc_dtr())
 		return;
 
-	debug_dcl(DP->flags, "calling disk change from floppy_ready\n");
+	de_dcl(DP->flags, "calling disk change from floppy_ready\n");
 	if (!(raw_cmd->flags & FD_RAW_NO_MOTOR) &&
 	    disk_change(current_drive) && !DP->select_delay)
 		twaddle();	/* this clears the dcl on certain
@@ -1928,7 +1928,7 @@ static void floppy_start(void)
 	reschedule_timeout(current_reqD, "floppy start");
 
 	scandrives();
-	debug_dcl(DP->flags, "setting NEWCHANGE in floppy_start\n");
+	de_dcl(DP->flags, "setting NEWCHANGE in floppy_start\n");
 	set_bit(FD_DISK_NEWCHANGE_BIT, &DRS->flags);
 	floppy_ready();
 }
@@ -2165,7 +2165,7 @@ static void redo_format(void)
 	buffer_track = -1;
 	setup_format_params(format_req.track << STRETCH(_floppy));
 	floppy_start();
-	debugt(__func__, "queue format request");
+	det(__func__, "queue format request");
 }
 
 static const struct cont_t format_cont = {
@@ -2476,14 +2476,14 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 	}
 }
 
-/* work around a bug in pseudo DMA
+/* work around a  in pseudo DMA
  * (on some FDCs) pseudo DMA does not stop when the CPU stops
  * sending data.  Hence we need a different way to signal the
  * transfer length:  We use SECT_PER_TRACK.  Unfortunately, this
  * does not work with MT, hence we can only transfer one head at
  * a time
  */
-static void virtualdmabug_workaround(void)
+static void virtualdma_workaround(void)
 {
 	int hard_sectors;
 	int end_sector;
@@ -2610,7 +2610,7 @@ static int make_raw_rw_request(void)
 	} else if (!TRACK && !HEAD && !(_floppy->rate & FD_2M) && probing) {
 		max_sector = _floppy->sect;
 	} else if (!HEAD && CT(COMMAND) == FD_WRITE) {
-		/* for virtual DMA bug workaround */
+		/* for virtual DMA  workaround */
 		max_sector = _floppy->sect;
 	}
 
@@ -2683,7 +2683,7 @@ static int make_raw_rw_request(void)
 				       indirect, direct, fsector_t);
 				return 0;
 			}
-			virtualdmabug_workaround();
+			virtualdma_workaround();
 			return 2;
 		}
 	}
@@ -2785,7 +2785,7 @@ static int make_raw_rw_request(void)
 		return 0;
 	}
 
-	virtualdmabug_workaround();
+	virtualdma_workaround();
 	return 2;
 }
 
@@ -2863,7 +2863,7 @@ do_request:
 	if (test_bit(FD_NEED_TWADDLE_BIT, &DRS->flags))
 		twaddle();
 	schedule_bh(floppy_start);
-	debugt(__func__, "queue fd request");
+	det(__func__, "queue fd request");
 	return;
 }
 
@@ -2929,7 +2929,7 @@ static int poll_drive(bool interruptible, int flag)
 	raw_cmd->track = 0;
 	raw_cmd->cmd_count = 0;
 	cont = &poll_cont;
-	debug_dcl(DP->flags, "setting NEWCHANGE in poll_drive\n");
+	de_dcl(DP->flags, "setting NEWCHANGE in poll_drive\n");
 	set_bit(FD_DISK_NEWCHANGE_BIT, &DRS->flags);
 
 	return wait_til_done(floppy_ready, interruptible);
@@ -3200,7 +3200,7 @@ static int raw_cmd_ioctl(int cmd, void __user *param)
 	raw_cmd = my_raw_cmd;
 	cont = &raw_cmd_cont;
 	ret = wait_til_done(floppy_start, true);
-	debug_dcl(DP->flags, "calling disk change from raw_cmd ioctl\n");
+	de_dcl(DP->flags, "calling disk change from raw_cmd ioctl\n");
 
 	if (ret != -EINTR && FDCS->reset)
 		ret = -EIO;
@@ -3648,7 +3648,7 @@ static int compat_set_geometry(struct block_device *bdev, fmode_t mode, unsigned
 	int drive, type;
 	int err;
 
-	BUILD_BUG_ON(offsetof(struct floppy_struct, name) !=
+	BUILD__ON(offsetof(struct floppy_struct, name) !=
 		     offsetof(struct compat_floppy_struct, name));
 
 	if (!(mode & (FMODE_WRITE | FMODE_WRITE_IOCTL)))
@@ -4372,7 +4372,7 @@ static struct param_table {
 	{"broken_dcl", floppy_set_flags, NULL, 1, FD_BROKEN_DCL},
 	{"messages", floppy_set_flags, NULL, 1, FTD_MSG},
 	{"silent_dcl_clear", floppy_set_flags, NULL, 1, FD_SILENT_DCL_CLEAR},
-	{"debug", floppy_set_flags, NULL, 1, FD_DEBUG},
+	{"de", floppy_set_flags, NULL, 1, FD_DE},
 	{"nodma", NULL, &can_use_virtual_dma, 1, 0},
 	{"omnibook", NULL, &can_use_virtual_dma, 1, 0},
 	{"yesdma", NULL, &can_use_virtual_dma, 0, 0},
@@ -4505,7 +4505,7 @@ static int __init do_floppy_init(void)
 {
 	int i, unit, drive, err;
 
-	set_debugt();
+	set_det();
 	interruptjiffies = resultjiffies = jiffies;
 
 #if defined(CONFIG_PPC)

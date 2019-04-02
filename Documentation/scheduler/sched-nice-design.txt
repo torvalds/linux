@@ -79,7 +79,7 @@ A third complaint against Linux's nice level support was that negative
 nice levels were not 'punchy enough', so lots of people had to resort to
 run audio (and other multimedia) apps under RT priorities such as
 SCHED_FIFO. But this caused other problems: SCHED_FIFO is not starvation
-proof, and a buggy SCHED_FIFO app can also lock up the system for good.
+proof, and a gy SCHED_FIFO app can also lock up the system for good.
 
 The new scheduler in v2.6.23 addresses all three types of complaints:
 

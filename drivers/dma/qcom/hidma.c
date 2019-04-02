@@ -886,7 +886,7 @@ static int hidma_probe(struct platform_device *pdev)
 
 	dmadev->irq = chirq;
 	tasklet_init(&dmadev->task, hidma_issue_task, (unsigned long)dmadev);
-	hidma_debug_init(dmadev);
+	hidma_de_init(dmadev);
 	hidma_sysfs_init(dmadev);
 	dev_info(&pdev->dev, "HI-DMA engine driver registration complete\n");
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
@@ -897,7 +897,7 @@ uninit:
 	if (msi)
 		hidma_free_msis(dmadev);
 
-	hidma_debug_uninit(dmadev);
+	hidma_de_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 dmafree:
 	if (dmadev)
@@ -935,7 +935,7 @@ static int hidma_remove(struct platform_device *pdev)
 
 	tasklet_kill(&dmadev->task);
 	hidma_sysfs_uninit(dmadev);
-	hidma_debug_uninit(dmadev);
+	hidma_de_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 	hidma_free(dmadev);
 

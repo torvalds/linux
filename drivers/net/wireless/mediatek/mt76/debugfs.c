@@ -20,7 +20,7 @@ mt76_reg_set(void *data, u64 val)
 {
 	struct mt76_dev *dev = data;
 
-	dev->bus->wr(dev, dev->debugfs_reg, val);
+	dev->bus->wr(dev, dev->defs_reg, val);
 	return 0;
 }
 
@@ -29,11 +29,11 @@ mt76_reg_get(void *data, u64 *val)
 {
 	struct mt76_dev *dev = data;
 
-	*val = dev->bus->rr(dev, dev->debugfs_reg);
+	*val = dev->bus->rr(dev, dev->defs_reg);
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set,
+DEFINE_DEFS_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set,
 			 "0x%08llx\n");
 
 static int
@@ -85,25 +85,25 @@ static int mt76_read_rate_txpower(struct seq_file *s, void *data)
 	return 0;
 }
 
-struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
+struct dentry *mt76_register_defs(struct mt76_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("mt76", dev->hw->wiphy->debugfsdir);
+	dir = defs_create_dir("mt76", dev->hw->wiphy->defsdir);
 	if (!dir)
 		return NULL;
 
-	debugfs_create_u8("led_pin", 0600, dir, &dev->led_pin);
-	debugfs_create_u32("regidx", 0600, dir, &dev->debugfs_reg);
-	debugfs_create_file_unsafe("regval", 0600, dir, dev,
+	defs_create_u8("led_pin", 0600, dir, &dev->led_pin);
+	defs_create_u32("regidx", 0600, dir, &dev->defs_reg);
+	defs_create_file_unsafe("regval", 0600, dir, dev,
 				   &fops_regval);
-	debugfs_create_blob("eeprom", 0400, dir, &dev->eeprom);
+	defs_create_blob("eeprom", 0400, dir, &dev->eeprom);
 	if (dev->otp.data)
-		debugfs_create_blob("otp", 0400, dir, &dev->otp);
-	debugfs_create_devm_seqfile(dev->dev, "queues", dir, mt76_queues_read);
-	debugfs_create_devm_seqfile(dev->dev, "rate_txpower", dir,
+		defs_create_blob("otp", 0400, dir, &dev->otp);
+	defs_create_devm_seqfile(dev->dev, "queues", dir, mt76_queues_read);
+	defs_create_devm_seqfile(dev->dev, "rate_txpower", dir,
 				    mt76_read_rate_txpower);
 
 	return dir;
 }
-EXPORT_SYMBOL_GPL(mt76_register_debugfs);
+EXPORT_SYMBOL_GPL(mt76_register_defs);

@@ -234,7 +234,7 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *src_name,
 	bool enabled;
 
 	if (vkms_crc_parse_source(src_name, &enabled) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", src_name);
+		DRM_DE_DRIVER("unknown source %s\n", src_name);
 		return -EINVAL;
 	}
 

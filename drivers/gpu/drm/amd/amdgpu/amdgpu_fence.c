@@ -259,7 +259,7 @@ bool amdgpu_fence_process(struct amdgpu_ring *ring)
 		if (!r)
 			DMA_FENCE_TRACE(fence, "signaled from irq context\n");
 		else
-			BUG();
+			();
 
 		dma_fence_put(fence);
 	} while (last_seq != seq);
@@ -398,7 +398,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 	ring->fence_drv.irq_type = irq_type;
 	ring->fence_drv.initialized = true;
 
-	DRM_DEV_DEBUG(adev->dev, "fence driver on ring %s use gpu addr "
+	DRM_DEV_DE(adev->dev, "fence driver on ring %s use gpu addr "
 		      "0x%016llx, cpu addr 0x%p\n", ring->name,
 		      ring->fence_drv.gpu_addr, ring->fence_drv.cpu_addr);
 	return 0;
@@ -475,8 +475,8 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
  */
 int amdgpu_fence_driver_init(struct amdgpu_device *adev)
 {
-	if (amdgpu_debugfs_fence_init(adev))
-		dev_err(adev->dev, "fence debugfs file creation failed\n");
+	if (amdgpu_defs_fence_init(adev))
+		dev_err(adev->dev, "fence defs file creation failed\n");
 
 	return 0;
 }
@@ -656,10 +656,10 @@ static const struct dma_fence_ops amdgpu_fence_ops = {
 };
 
 /*
- * Fence debugfs
+ * Fence defs
  */
-#if defined(CONFIG_DEBUG_FS)
-static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int amdgpu_defs_fence_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -696,11 +696,11 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 }
 
 /**
- * amdgpu_debugfs_gpu_recover - manually trigger a gpu reset & recover
+ * amdgpu_defs_gpu_recover - manually trigger a gpu reset & recover
  *
  * Manually trigger a gpu reset at the next fence wait.
  */
-static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
+static int amdgpu_defs_gpu_recover(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -712,22 +712,22 @@ static int amdgpu_debugfs_gpu_recover(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_debugfs_fence_list[] = {
-	{"amdgpu_fence_info", &amdgpu_debugfs_fence_info, 0, NULL},
-	{"amdgpu_gpu_recover", &amdgpu_debugfs_gpu_recover, 0, NULL}
+static const struct drm_info_list amdgpu_defs_fence_list[] = {
+	{"amdgpu_fence_info", &amdgpu_defs_fence_info, 0, NULL},
+	{"amdgpu_gpu_recover", &amdgpu_defs_gpu_recover, 0, NULL}
 };
 
-static const struct drm_info_list amdgpu_debugfs_fence_list_sriov[] = {
-	{"amdgpu_fence_info", &amdgpu_debugfs_fence_info, 0, NULL},
+static const struct drm_info_list amdgpu_defs_fence_list_sriov[] = {
+	{"amdgpu_fence_info", &amdgpu_defs_fence_info, 0, NULL},
 };
 #endif
 
-int amdgpu_debugfs_fence_init(struct amdgpu_device *adev)
+int amdgpu_defs_fence_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	if (amdgpu_sriov_vf(adev))
-		return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list_sriov, 1);
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_fence_list, 2);
+		return amdgpu_defs_add_files(adev, amdgpu_defs_fence_list_sriov, 1);
+	return amdgpu_defs_add_files(adev, amdgpu_defs_fence_list, 2);
 #else
 	return 0;
 #endif

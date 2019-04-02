@@ -199,9 +199,9 @@ void sun4v_mach_sir(void);
  * 'time remaining' return value may be larger than the previously requested
  * timeout value.
  *
- * Any guest OS debugger should be aware that the watchdog service may be in
+ * Any guest OS deger should be aware that the watchdog service may be in
  * use.  Consequently, it is recommended that the watchdog service is
- * disabled upon debugger entry (e.g. reaching a breakpoint), and then
+ * disabled upon deger entry (e.g. reaching a breakpoint), and then
  * re-enabled upon returning to normal execution.  The API has been designed
  * with this in mind, and the 'time remaining' result of the disable call may
  * be used directly as the timeout argument of the re-enable call.
@@ -1341,7 +1341,7 @@ unsigned long sun4v_svc_clrstatus(unsigned long svc_id,
  * code running on each virtual CPU.  Privileged code provides a
  * round-robin trap trace queue within which the hypervisor writes
  * 64-byte entries detailing hyperprivileged traps taken n behalf of
- * privileged code.  This is provided as a debugging capability for
+ * privileged code.  This is provided as a deging capability for
  * privileged code.
  *
  * The trap trace control structure is 64-bytes long and placed at the
@@ -1503,7 +1503,7 @@ struct hv_trap_trace_entry {
  *
  * The dump services provide an opaque buffer into which the
  * hypervisor can place it's internal state in order to assist in
- * debugging such situations.  The contents are opaque and extremely
+ * deging such situations.  The contents are opaque and extremely
  * platform and hypervisor implementation specific.  The guest, during
  * a core dump, requests that the hypervisor update any information in
  * the dump buffer in preparation to being dumped as part of the
@@ -1532,7 +1532,7 @@ struct hv_trap_trace_entry {
  * hypervisor will fill the dump buffer with opaque data.
  *
  * Note: A guest may elect to include dump buffer contents as part of a crash
- *       dump to assist with debugging.  This function may be called any number
+ *       dump to assist with deging.  This function may be called any number
  *       of times so that a guest may relocate a dump buffer, or create
  *       "snapshots" of any dump-buffer information.  Each call to
  *       dump_buf_update() atomically declares the new dump buffer to the

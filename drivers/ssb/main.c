@@ -432,9 +432,9 @@ void ssb_bus_unregister(struct ssb_bus *bus)
 
 	err = ssb_gpio_unregister(bus);
 	if (err == -EBUSY)
-		pr_debug("Some GPIOs are still in use\n");
+		pr_de("Some GPIOs are still in use\n");
 	else if (err)
-		pr_debug("Can not unregister GPIO driver: %i\n", err);
+		pr_de("Can not unregister GPIO driver: %i\n", err);
 
 	ssb_buses_lock();
 	ssb_devices_unregister(bus);
@@ -577,9 +577,9 @@ static int ssb_attach_queued_buses(void)
 
 		err = ssb_gpio_init(bus);
 		if (err == -ENOTSUPP)
-			pr_debug("GPIO driver not activated\n");
+			pr_de("GPIO driver not activated\n");
 		else if (err)
-			pr_debug("Error registering GPIO driver: %i\n", err);
+			pr_de("Error registering GPIO driver: %i\n", err);
 
 		ssb_bus_may_powerdown(bus);
 
@@ -1022,7 +1022,7 @@ void ssb_device_enable(struct ssb_device *dev, u32 core_specific_flags)
 		    SSB_TMSLOW_FGC | core_specific_flags);
 	ssb_flush_tmslow(dev);
 
-	/* Clear SERR if set. This is a hw bug workaround. */
+	/* Clear SERR if set. This is a hw  workaround. */
 	if (ssb_read32(dev, SSB_TMSHIGH) & SSB_TMSHIGH_SERR)
 		ssb_write32(dev, SSB_TMSHIGH, 0);
 
@@ -1203,8 +1203,8 @@ static void ssb_broadcast_value(struct ssb_device *dev,
 {
 #ifdef CONFIG_SSB_DRIVER_PCICORE
 	/* This is used for both, PCI and ChipCommon core, so be careful. */
-	BUILD_BUG_ON(SSB_PCICORE_BCAST_ADDR != SSB_CHIPCO_BCAST_ADDR);
-	BUILD_BUG_ON(SSB_PCICORE_BCAST_DATA != SSB_CHIPCO_BCAST_DATA);
+	BUILD__ON(SSB_PCICORE_BCAST_ADDR != SSB_CHIPCO_BCAST_ADDR);
+	BUILD__ON(SSB_PCICORE_BCAST_DATA != SSB_CHIPCO_BCAST_DATA);
 #endif
 
 	ssb_write32(dev, SSB_CHIPCO_BCAST_ADDR, address);

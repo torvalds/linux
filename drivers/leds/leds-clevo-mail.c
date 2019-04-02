@@ -136,7 +136,7 @@ static int clevo_mail_led_blink(struct led_classdev *led_cdev,
 		status = 0;
 
 	} else {
-		pr_debug("clevo_mail_led_blink(..., %lu, %lu),"
+		pr_de("clevo_mail_led_blink(..., %lu, %lu),"
 		       " returning -EINVAL (unsupported)\n",
 		       *delay_on, *delay_off);
 	}

@@ -38,7 +38,7 @@ static int selnl_msglen(int msgtype)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	return ret;
 }
@@ -63,7 +63,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 	}
 
 	default:
-		BUG();
+		();
 	}
 }
 

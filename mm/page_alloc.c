@@ -49,7 +49,7 @@
 #include <linux/fault-inject.h>
 #include <linux/page-isolation.h>
 #include <linux/page_ext.h>
-#include <linux/debugobjects.h>
+#include <linux/deobjects.h>
 #include <linux/kmemleak.h>
 #include <linux/compaction.h>
 #include <trace/events/kmem.h>
@@ -462,15 +462,15 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
 	unsigned long bitidx, word_bitidx;
 	unsigned long old_word, word;
 
-	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
-	BUILD_BUG_ON(MIGRATE_TYPES > (1 << PB_migratetype_bits));
+	BUILD__ON(NR_PAGEBLOCK_BITS != 4);
+	BUILD__ON(MIGRATE_TYPES > (1 << PB_migratetype_bits));
 
 	bitmap = get_pageblock_bitmap(page, pfn);
 	bitidx = pfn_to_bitidx(page, pfn);
 	word_bitidx = bitidx / BITS_PER_LONG;
 	bitidx &= (BITS_PER_LONG-1);
 
-	VM_BUG_ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
+	VM__ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
 
 	bitidx += end_bitidx;
 	mask <<= (BITS_PER_LONG - bitidx - 1);
@@ -495,7 +495,7 @@ void set_pageblock_migratetype(struct page *page, int migratetype)
 					PB_migrate, PB_migrate_end);
 }
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
 	int ret = 0;
@@ -529,7 +529,7 @@ static int page_is_consistent(struct zone *zone, struct page *page)
 	return 1;
 }
 /*
- * Temporary debugging check for pages not lying within a given zone.
+ * Temporary deging check for pages not lying within a given zone.
  */
 static int __maybe_unused bad_range(struct zone *zone, struct page *page)
 {
@@ -565,7 +565,7 @@ static void bad_page(struct page *page, const char *reason,
 		}
 		if (nr_unshown) {
 			pr_alert(
-			      "BUG: Bad page state: %lu messages suppressed\n",
+			      ": Bad page state: %lu messages suppressed\n",
 				nr_unshown);
 			nr_unshown = 0;
 		}
@@ -574,7 +574,7 @@ static void bad_page(struct page *page, const char *reason,
 	if (nr_shown++ == 0)
 		resume = jiffies + 60 * HZ;
 
-	pr_alert("BUG: Bad page state in process %s  pfn:%05lx\n",
+	pr_alert(": Bad page state in process %s  pfn:%05lx\n",
 		current->comm, page_to_pfn(page));
 	__dump_page(page, reason);
 	bad_flags &= page->flags;
@@ -586,7 +586,7 @@ static void bad_page(struct page *page, const char *reason,
 	print_modules();
 	dump_stack();
 out:
-	/* Leave bad fields for debug, except PageBuddy could make trouble */
+	/* Leave bad fields for de, except PageBuddy could make trouble */
 	page_mapcount_reset(page); /* remove PageBuddy */
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
@@ -628,79 +628,79 @@ void prep_compound_page(struct page *page, unsigned int order)
 	atomic_set(compound_mapcount_ptr(page), -1);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-unsigned int _debug_guardpage_minorder;
-bool _debug_pagealloc_enabled __read_mostly
-			= IS_ENABLED(CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT);
-EXPORT_SYMBOL(_debug_pagealloc_enabled);
-bool _debug_guardpage_enabled __read_mostly;
+#ifdef CONFIG_DE_PAGEALLOC
+unsigned int _de_guardpage_minorder;
+bool _de_pagealloc_enabled __read_mostly
+			= IS_ENABLED(CONFIG_DE_PAGEALLOC_ENABLE_DEFAULT);
+EXPORT_SYMBOL(_de_pagealloc_enabled);
+bool _de_guardpage_enabled __read_mostly;
 
-static int __init early_debug_pagealloc(char *buf)
+static int __init early_de_pagealloc(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
-	return kstrtobool(buf, &_debug_pagealloc_enabled);
+	return kstrtobool(buf, &_de_pagealloc_enabled);
 }
-early_param("debug_pagealloc", early_debug_pagealloc);
+early_param("de_pagealloc", early_de_pagealloc);
 
-static bool need_debug_guardpage(void)
+static bool need_de_guardpage(void)
 {
-	/* If we don't use debug_pagealloc, we don't need guard page */
-	if (!debug_pagealloc_enabled())
+	/* If we don't use de_pagealloc, we don't need guard page */
+	if (!de_pagealloc_enabled())
 		return false;
 
-	if (!debug_guardpage_minorder())
+	if (!de_guardpage_minorder())
 		return false;
 
 	return true;
 }
 
-static void init_debug_guardpage(void)
+static void init_de_guardpage(void)
 {
-	if (!debug_pagealloc_enabled())
+	if (!de_pagealloc_enabled())
 		return;
 
-	if (!debug_guardpage_minorder())
+	if (!de_guardpage_minorder())
 		return;
 
-	_debug_guardpage_enabled = true;
+	_de_guardpage_enabled = true;
 }
 
-struct page_ext_operations debug_guardpage_ops = {
-	.need = need_debug_guardpage,
-	.init = init_debug_guardpage,
+struct page_ext_operations de_guardpage_ops = {
+	.need = need_de_guardpage,
+	.init = init_de_guardpage,
 };
 
-static int __init debug_guardpage_minorder_setup(char *buf)
+static int __init de_guardpage_minorder_setup(char *buf)
 {
 	unsigned long res;
 
 	if (kstrtoul(buf, 10, &res) < 0 ||  res > MAX_ORDER / 2) {
-		pr_err("Bad debug_guardpage_minorder value\n");
+		pr_err("Bad de_guardpage_minorder value\n");
 		return 0;
 	}
-	_debug_guardpage_minorder = res;
-	pr_info("Setting debug_guardpage_minorder to %lu\n", res);
+	_de_guardpage_minorder = res;
+	pr_info("Setting de_guardpage_minorder to %lu\n", res);
 	return 0;
 }
-early_param("debug_guardpage_minorder", debug_guardpage_minorder_setup);
+early_param("de_guardpage_minorder", de_guardpage_minorder_setup);
 
 static inline bool set_page_guard(struct zone *zone, struct page *page,
 				unsigned int order, int migratetype)
 {
 	struct page_ext *page_ext;
 
-	if (!debug_guardpage_enabled())
+	if (!de_guardpage_enabled())
 		return false;
 
-	if (order >= debug_guardpage_minorder())
+	if (order >= de_guardpage_minorder())
 		return false;
 
 	page_ext = lookup_page_ext(page);
 	if (unlikely(!page_ext))
 		return false;
 
-	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+	__set_bit(PAGE_EXT_DE_GUARD, &page_ext->flags);
 
 	INIT_LIST_HEAD(&page->lru);
 	set_page_private(page, order);
@@ -715,21 +715,21 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
 {
 	struct page_ext *page_ext;
 
-	if (!debug_guardpage_enabled())
+	if (!de_guardpage_enabled())
 		return;
 
 	page_ext = lookup_page_ext(page);
 	if (unlikely(!page_ext))
 		return;
 
-	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+	__clear_bit(PAGE_EXT_DE_GUARD, &page_ext->flags);
 
 	set_page_private(page, 0);
 	if (!is_migrate_isolate(migratetype))
 		__mod_zone_freepage_state(zone, (1 << order), migratetype);
 }
 #else
-struct page_ext_operations debug_guardpage_ops;
+struct page_ext_operations de_guardpage_ops;
 static inline bool set_page_guard(struct zone *zone, struct page *page,
 			unsigned int order, int migratetype) { return false; }
 static inline void clear_page_guard(struct zone *zone, struct page *page,
@@ -768,7 +768,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
 		if (page_zone_id(page) != page_zone_id(buddy))
 			return 0;
 
-		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+		VM__ON_PAGE(page_count(buddy) != 0, buddy);
 
 		return 1;
 	}
@@ -782,7 +782,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
 		if (page_zone_id(page) != page_zone_id(buddy))
 			return 0;
 
-		VM_BUG_ON_PAGE(page_count(buddy) != 0, buddy);
+		VM__ON_PAGE(page_count(buddy) != 0, buddy);
 
 		return 1;
 	}
@@ -877,15 +877,15 @@ static inline void __free_one_page(struct page *page,
 
 	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
 
-	VM_BUG_ON(!zone_is_initialized(zone));
-	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
+	VM__ON(!zone_is_initialized(zone));
+	VM__ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
 
-	VM_BUG_ON(migratetype == -1);
+	VM__ON(migratetype == -1);
 	if (likely(!is_migrate_isolate(migratetype)))
 		__mod_zone_freepage_state(zone, 1 << order, migratetype);
 
-	VM_BUG_ON_PAGE(pfn & ((1 << order) - 1), page);
-	VM_BUG_ON_PAGE(bad_range(zone, page), page);
+	VM__ON_PAGE(pfn & ((1 << order) - 1), page);
+	VM__ON_PAGE(bad_range(zone, page), page);
 
 continue_merging:
 	while (order < max_order - 1) {
@@ -902,7 +902,7 @@ continue_merging:
 		if (!page_is_buddy(page, buddy, order))
 			goto done_merging;
 		/*
-		 * Our buddy is free or it is CONFIG_DEBUG_PAGEALLOC guard page,
+		 * Our buddy is free or it is CONFIG_DE_PAGEALLOC guard page,
 		 * merge with it and move up one order.
 		 */
 		if (page_is_guard(buddy)) {
@@ -1037,9 +1037,9 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 	 * We rely page->lru.next never has bit 0 set, unless the page
 	 * is PageTail(). Let's make sure that's true even for poisoned ->lru.
 	 */
-	BUILD_BUG_ON((unsigned long)LIST_POISON1 & 1);
+	BUILD__ON((unsigned long)LIST_POISON1 & 1);
 
-	if (!IS_ENABLED(CONFIG_DEBUG_VM)) {
+	if (!IS_ENABLED(CONFIG_DE_VM)) {
 		ret = 0;
 		goto out;
 	}
@@ -1084,7 +1084,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
 {
 	int bad = 0;
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 
 	trace_mm_page_free(page, order);
 
@@ -1096,7 +1096,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
 		bool compound = PageCompound(page);
 		int i;
 
-		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
+		VM__ON_PAGE(compound && compound_order(page) != order, page);
 
 		if (compound)
 			ClearPageDoubleMap(page);
@@ -1124,9 +1124,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
 	reset_page_owner(page, order);
 
 	if (!PageHighMem(page)) {
-		debug_check_no_locks_freed(page_address(page),
+		de_check_no_locks_freed(page_address(page),
 					   PAGE_SIZE << order);
-		debug_check_no_obj_freed(page_address(page),
+		de_check_no_obj_freed(page_address(page),
 					   PAGE_SIZE << order);
 	}
 	arch_free_page(page, order);
@@ -1137,7 +1137,7 @@ static __always_inline bool free_pages_prepare(struct page *page,
 	return true;
 }
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 static inline bool free_pcp_prepare(struct page *page)
 {
 	return free_pages_prepare(page, 0, true);
@@ -1157,7 +1157,7 @@ static bool bulkfree_pcp_prepare(struct page *page)
 {
 	return free_pages_check(page);
 }
-#endif /* CONFIG_DEBUG_VM */
+#endif /* CONFIG_DE_VM */
 
 static inline void prefetch_buddy(struct page *page)
 {
@@ -1245,7 +1245,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 	list_for_each_entry_safe(page, tmp, &head, lru) {
 		int mt = get_pcppage_migratetype(page);
 		/* MIGRATE_ISOLATE page should not go to pcplists */
-		VM_BUG_ON_PAGE(is_migrate_isolate(mt), page);
+		VM__ON_PAGE(is_migrate_isolate(mt), page);
 		/* Pageblock could have been isolated meanwhile */
 		if (unlikely(isolated_pageblocks))
 			mt = get_pageblock_migratetype(page);
@@ -1661,8 +1661,8 @@ static int __init deferred_init_memmap(void *data)
 	}
 
 	/* Sanity check boundaries */
-	BUG_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
-	BUG_ON(pgdat->first_deferred_pfn > pgdat_end_pfn(pgdat));
+	_ON(pgdat->first_deferred_pfn < pgdat->node_start_pfn);
+	_ON(pgdat->first_deferred_pfn > pgdat_end_pfn(pgdat));
 	pgdat->first_deferred_pfn = ULONG_MAX;
 
 	/* Only the highest zone is deferred so find it */
@@ -1895,7 +1895,7 @@ static inline void expand(struct zone *zone, struct page *page,
 		area--;
 		high--;
 		size >>= 1;
-		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
+		VM__ON_PAGE(bad_range(zone, &page[size]), &page[size]);
 
 		/*
 		 * Mark as guard pages (or page), that will allow to
@@ -1960,7 +1960,7 @@ static inline bool free_pages_prezeroed(void)
 		page_poisoning_enabled();
 }
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 static bool check_pcp_refill(struct page *page)
 {
 	return false;
@@ -1979,7 +1979,7 @@ static bool check_new_pcp(struct page *page)
 {
 	return false;
 }
-#endif /* CONFIG_DEBUG_VM */
+#endif /* CONFIG_DE_VM */
 
 static bool check_new_pages(struct page *page, unsigned int order)
 {
@@ -2107,12 +2107,12 @@ static int move_freepages(struct zone *zone,
 #ifndef CONFIG_HOLES_IN_ZONE
 	/*
 	 * page_zone is not safe to call in this context when
-	 * CONFIG_HOLES_IN_ZONE is set. This bug check is probably redundant
+	 * CONFIG_HOLES_IN_ZONE is set. This  check is probably redundant
 	 * anyway as we check zone boundaries in move_freepages_block().
-	 * Remove at a later date when no bug reports exist related to
+	 * Remove at a later date when no  reports exist related to
 	 * grouping pages by mobility
 	 */
-	VM_BUG_ON(pfn_valid(page_to_pfn(start_page)) &&
+	VM__ON(pfn_valid(page_to_pfn(start_page)) &&
 	          pfn_valid(page_to_pfn(end_page)) &&
 	          page_zone(start_page) != page_zone(end_page));
 #endif
@@ -2123,7 +2123,7 @@ static int move_freepages(struct zone *zone,
 		}
 
 		/* Make sure we are not inadvertently changing nodes */
-		VM_BUG_ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
+		VM__ON_PAGE(page_to_nid(page) != zone_to_nid(zone), page);
 
 		if (!PageBuddy(page)) {
 			/*
@@ -2562,7 +2562,7 @@ find_smallest:
 	 * This should not happen - we already found a suitable fallback
 	 * when looking for the largest page.
 	 */
-	VM_BUG_ON(current_order == MAX_ORDER);
+	VM__ON(current_order == MAX_ORDER);
 
 do_steal:
 	page = list_first_entry(&area->free_list[fallback_mt],
@@ -2992,8 +2992,8 @@ void split_page(struct page *page, unsigned int order)
 {
 	int i;
 
-	VM_BUG_ON_PAGE(PageCompound(page), page);
-	VM_BUG_ON_PAGE(!page_count(page), page);
+	VM__ON_PAGE(PageCompound(page), page);
+	VM__ON_PAGE(!page_count(page), page);
 
 	for (i = 1; i < (1 << order); i++)
 		set_page_refcounted(page + i);
@@ -3007,7 +3007,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
 	struct zone *zone;
 	int mt;
 
-	BUG_ON(!PageBuddy(page));
+	_ON(!PageBuddy(page));
 
 	zone = page_zone(page);
 	mt = get_pageblock_migratetype(page);
@@ -3177,7 +3177,7 @@ out:
 		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
 	}
 
-	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
+	VM__ON_PAGE(page && bad_range(zone, page), page);
 	return page;
 
 failed:
@@ -3221,28 +3221,28 @@ static bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
 	return should_fail(&fail_page_alloc.attr, 1 << order);
 }
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 
-static int __init fail_page_alloc_debugfs(void)
+static int __init fail_page_alloc_defs(void)
 {
 	umode_t mode = S_IFREG | 0600;
 	struct dentry *dir;
 
-	dir = fault_create_debugfs_attr("fail_page_alloc", NULL,
+	dir = fault_create_defs_attr("fail_page_alloc", NULL,
 					&fail_page_alloc.attr);
 
-	debugfs_create_bool("ignore-gfp-wait", mode, dir,
+	defs_create_bool("ignore-gfp-wait", mode, dir,
 			    &fail_page_alloc.ignore_gfp_reclaim);
-	debugfs_create_bool("ignore-gfp-highmem", mode, dir,
+	defs_create_bool("ignore-gfp-highmem", mode, dir,
 			    &fail_page_alloc.ignore_gfp_highmem);
-	debugfs_create_u32("min-order", mode, dir, &fail_page_alloc.min_order);
+	defs_create_u32("min-order", mode, dir, &fail_page_alloc.min_order);
 
 	return 0;
 }
 
-late_initcall(fail_page_alloc_debugfs);
+late_initcall(fail_page_alloc_defs);
 
-#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+#endif /* CONFIG_FAULT_INJECTION_DE_FS */
 
 #else /* CONFIG_FAIL_PAGE_ALLOC */
 
@@ -3427,7 +3427,7 @@ alloc_flags_nofragment(struct zone *zone, gfp_t gfp_mask)
 	 * the pointer is within zone->zone_pgdat->node_zones[]. Also assume
 	 * on UMA that if Normal is populated then so is DMA32.
 	 */
-	BUILD_BUG_ON(ZONE_NORMAL - ZONE_DMA32 != 1);
+	BUILD__ON(ZONE_NORMAL - ZONE_DMA32 != 1);
 	if (nr_online_nodes > 1 && !populated_zone(--zone))
 		goto out;
 
@@ -3526,7 +3526,7 @@ retry:
 			}
 #endif
 			/* Checked here to keep the fast path fast */
-			BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
+			BUILD__ON(ALLOC_NO_WATERMARKS < NR_WMARK);
 			if (alloc_flags & ALLOC_NO_WATERMARKS)
 				goto try_this_zone;
 
@@ -4056,7 +4056,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
 	unsigned int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
 
 	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
-	BUILD_BUG_ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
+	BUILD__ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
 
 	/*
 	 * The caller may dip into page reserves a bit more if the caller
@@ -4674,7 +4674,7 @@ EXPORT_SYMBOL(__free_pages);
 void free_pages(unsigned long addr, unsigned int order)
 {
 	if (addr != 0) {
-		VM_BUG_ON(!virt_addr_valid((void *)addr));
+		VM__ON(!virt_addr_valid((void *)addr));
 		__free_pages(virt_to_page((void *)addr), order);
 	}
 }
@@ -4715,7 +4715,7 @@ static struct page *__page_frag_cache_refill(struct page_frag_cache *nc,
 
 void __page_frag_cache_drain(struct page *page, unsigned int count)
 {
-	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+	VM__ON_PAGE(page_ref_count(page) == 0, page);
 
 	if (page_ref_sub_and_test(page, count))
 		free_the_page(page, compound_order(page));
@@ -5825,7 +5825,7 @@ void __ref memmap_init_zone_device(struct zone *zone,
 
 		/*
 		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-		 * pointer and hmm_data.  It is a bug if a ZONE_DEVICE
+		 * pointer and hmm_data.  It is a  if a ZONE_DEVICE
 		 * page is ever freed or placed on a driver-private list.
 		 */
 		page->pgmap = pgmap;
@@ -6040,7 +6040,7 @@ static __meminit void zone_pcp_init(struct zone *zone)
 	zone->pageset = &boot_pageset;
 
 	if (populated_zone(zone))
-		printk(KERN_DEBUG "  %s zone: %lu pages, LIFO batch:%u\n",
+		printk(KERN_DE "  %s zone: %lu pages, LIFO batch:%u\n",
 			zone->name, zone->present_pages,
 					 zone_batchsize(zone));
 }
@@ -6180,7 +6180,7 @@ static void __init find_usable_zone_for_movable(void)
 			break;
 	}
 
-	VM_BUG_ON(zone_index == -1);
+	VM__ON(zone_index == -1);
 	movable_zone = zone_index;
 }
 
@@ -6411,7 +6411,7 @@ static void __init calculate_node_totalpages(struct pglist_data *pgdat,
 
 	pgdat->node_spanned_pages = totalpages;
 	pgdat->node_present_pages = realtotalpages;
-	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id,
+	printk(KERN_DE "On node %d totalpages: %lu\n", pgdat->node_id,
 							realtotalpages);
 }
 
@@ -6615,7 +6615,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat)
 			if (freesize >= memmap_pages) {
 				freesize -= memmap_pages;
 				if (memmap_pages)
-					printk(KERN_DEBUG
+					printk(KERN_DE
 					       "  %s zone: %lu pages used for memmap\n",
 					       zone_names[j], memmap_pages);
 			} else
@@ -6626,7 +6626,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat)
 		/* Account for reserved pages */
 		if (j == 0 && freesize > dma_reserve) {
 			freesize -= dma_reserve;
-			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
+			printk(KERN_DE "  %s zone: %lu pages reserved\n",
 					zone_names[0], dma_reserve);
 		}
 
@@ -6686,7 +6686,7 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
 			      size, pgdat->node_id);
 		pgdat->node_mem_map = map + offset;
 	}
-	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
+	pr_de("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
 				__func__, pgdat->node_id, (unsigned long)pgdat,
 				(unsigned long)pgdat->node_mem_map);
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -7934,7 +7934,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 			WARN_ON(!(flags & HASH_EARLY));
 			if (!(numentries >> *_hash_shift)) {
 				numentries = 1UL << *_hash_shift;
-				BUG_ON(!numentries);
+				_ON(!numentries);
 			}
 		} else if (unlikely((numentries * bucketsize) < PAGE_SIZE))
 			numentries = PAGE_SIZE / bucketsize;
@@ -8408,10 +8408,10 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 			continue;
 		}
 
-		BUG_ON(page_count(page));
-		BUG_ON(!PageBuddy(page));
+		_ON(page_count(page));
+		_ON(!PageBuddy(page));
 		order = page_order(page);
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		pr_info("remove from free list %lx %d %lx\n",
 			pfn, 1 << order, end_pfn);
 #endif

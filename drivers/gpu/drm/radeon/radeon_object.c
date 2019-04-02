@@ -221,20 +221,20 @@ int radeon_bo_create(struct radeon_device *rdev,
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
 	/* Write-combined CPU mappings of GTT cause GPU hangs with RV6xx
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=91268
+	 * See https://s.freedesktop.org/show_.cgi?id=91268
 	 */
 	if (rdev->family >= CHIP_RV610 && rdev->family <= CHIP_RV635)
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
 #ifdef CONFIG_X86_32
 	/* XXX: Write-combined CPU mappings of GTT seem broken on 32-bit
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
+	 * See https://s.freedesktop.org/show_.cgi?id=84627
 	 */
 	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 #elif defined(CONFIG_X86) && !defined(CONFIG_X86_PAT)
 	/* Don't try to enable write-combining when it can't work, or things
 	 * may be slow
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=88758
+	 * See https://s.freedesktop.org/show_.cgi?id=88758
 	 */
 #ifndef CONFIG_COMPILE_TEST
 #warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
@@ -638,7 +638,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 		reg = &rdev->surface_regs[steal];
 		old_object = reg->bo;
 		/* blow away the mapping */
-		DRM_DEBUG("stealing surface reg %d from %p\n", steal, old_object);
+		DRM_DE("stealing surface reg %d from %p\n", steal, old_object);
 		ttm_bo_unmap_virtual(&old_object->tbo);
 		old_object->surface_reg = -1;
 		i = steal;

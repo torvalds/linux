@@ -125,7 +125,7 @@ void mmc_command_done(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_complete_cmd(mrq);
 
-	pr_debug("%s: cmd done, tfr ongoing (CMD%u)\n",
+	pr_de("%s: cmd done, tfr ongoing (CMD%u)\n",
 		 mmc_hostname(host), mrq->cmd->opcode);
 }
 EXPORT_SYMBOL(mmc_command_done);
@@ -179,26 +179,26 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			led_trigger_event(host->led, LED_OFF);
 
 		if (mrq->sbc) {
-			pr_debug("%s: req done <CMD%u>: %d: %08x %08x %08x %08x\n",
+			pr_de("%s: req done <CMD%u>: %d: %08x %08x %08x %08x\n",
 				mmc_hostname(host), mrq->sbc->opcode,
 				mrq->sbc->error,
 				mrq->sbc->resp[0], mrq->sbc->resp[1],
 				mrq->sbc->resp[2], mrq->sbc->resp[3]);
 		}
 
-		pr_debug("%s: req done (CMD%u): %d: %08x %08x %08x %08x\n",
+		pr_de("%s: req done (CMD%u): %d: %08x %08x %08x %08x\n",
 			mmc_hostname(host), cmd->opcode, err,
 			cmd->resp[0], cmd->resp[1],
 			cmd->resp[2], cmd->resp[3]);
 
 		if (mrq->data) {
-			pr_debug("%s:     %d bytes transferred: %d\n",
+			pr_de("%s:     %d bytes transferred: %d\n",
 				mmc_hostname(host),
 				mrq->data->bytes_xfered, mrq->data->error);
 		}
 
 		if (mrq->stop) {
-			pr_debug("%s:     (CMD%u): %d: %08x %08x %08x %08x\n",
+			pr_de("%s:     (CMD%u): %d: %08x %08x %08x %08x\n",
 				mmc_hostname(host), mrq->stop->opcode,
 				mrq->stop->error,
 				mrq->stop->resp[0], mrq->stop->resp[1],
@@ -263,26 +263,26 @@ static void __mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	host->ops->request(host, mrq);
 }
 
-static void mmc_mrq_pr_debug(struct mmc_host *host, struct mmc_request *mrq,
+static void mmc_mrq_pr_de(struct mmc_host *host, struct mmc_request *mrq,
 			     bool cqe)
 {
 	if (mrq->sbc) {
-		pr_debug("<%s: starting CMD%u arg %08x flags %08x>\n",
+		pr_de("<%s: starting CMD%u arg %08x flags %08x>\n",
 			 mmc_hostname(host), mrq->sbc->opcode,
 			 mrq->sbc->arg, mrq->sbc->flags);
 	}
 
 	if (mrq->cmd) {
-		pr_debug("%s: starting %sCMD%u arg %08x flags %08x\n",
+		pr_de("%s: starting %sCMD%u arg %08x flags %08x\n",
 			 mmc_hostname(host), cqe ? "CQE direct " : "",
 			 mrq->cmd->opcode, mrq->cmd->arg, mrq->cmd->flags);
 	} else if (cqe) {
-		pr_debug("%s: starting CQE transfer for tag %d blkaddr %u\n",
+		pr_de("%s: starting CQE transfer for tag %d blkaddr %u\n",
 			 mmc_hostname(host), mrq->tag, mrq->data->blk_addr);
 	}
 
 	if (mrq->data) {
-		pr_debug("%s:     blksz %d blocks %d flags %08x "
+		pr_de("%s:     blksz %d blocks %d flags %08x "
 			"tsac %d ms nsac %d\n",
 			mmc_hostname(host), mrq->data->blksz,
 			mrq->data->blocks, mrq->data->flags,
@@ -291,7 +291,7 @@ static void mmc_mrq_pr_debug(struct mmc_host *host, struct mmc_request *mrq,
 	}
 
 	if (mrq->stop) {
-		pr_debug("%s:     CMD%u arg %08x flags %08x\n",
+		pr_de("%s:     CMD%u arg %08x flags %08x\n",
 			 mmc_hostname(host), mrq->stop->opcode,
 			 mrq->stop->arg, mrq->stop->flags);
 	}
@@ -345,7 +345,7 @@ int mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	if (mmc_card_removed(host->card))
 		return -ENOMEDIUM;
 
-	mmc_mrq_pr_debug(host, mrq, false);
+	mmc_mrq_pr_de(host, mrq, false);
 
 	WARN_ON(!host->claimed);
 
@@ -428,7 +428,7 @@ void mmc_wait_for_req_done(struct mmc_host *host, struct mmc_request *mrq)
 
 		mmc_retune_recheck(host);
 
-		pr_debug("%s: req failed (CMD%u): %d, retrying...\n",
+		pr_de("%s: req failed (CMD%u): %d, retrying...\n",
 			 mmc_hostname(host), cmd->opcode, cmd->error);
 		cmd->retries--;
 		cmd->error = 0;
@@ -463,7 +463,7 @@ int mmc_cqe_start_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mrq->host = host;
 
-	mmc_mrq_pr_debug(host, mrq, true);
+	mmc_mrq_pr_de(host, mrq, true);
 
 	err = mmc_mrq_prep(host, mrq);
 	if (err)
@@ -479,10 +479,10 @@ int mmc_cqe_start_req(struct mmc_host *host, struct mmc_request *mrq)
 
 out_err:
 	if (mrq->cmd) {
-		pr_debug("%s: failed to start CQE direct CMD%u, error %d\n",
+		pr_de("%s: failed to start CQE direct CMD%u, error %d\n",
 			 mmc_hostname(host), mrq->cmd->opcode, err);
 	} else {
-		pr_debug("%s: failed to start CQE transfer for tag %d, error %d\n",
+		pr_de("%s: failed to start CQE transfer for tag %d, error %d\n",
 			 mmc_hostname(host), mrq->tag, err);
 	}
 	return err;
@@ -509,15 +509,15 @@ void mmc_cqe_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	trace_mmc_request_done(host, mrq);
 
 	if (mrq->cmd) {
-		pr_debug("%s: CQE req done (direct CMD%u): %d\n",
+		pr_de("%s: CQE req done (direct CMD%u): %d\n",
 			 mmc_hostname(host), mrq->cmd->opcode, mrq->cmd->error);
 	} else {
-		pr_debug("%s: CQE transfer done tag %d\n",
+		pr_de("%s: CQE transfer done tag %d\n",
 			 mmc_hostname(host), mrq->tag);
 	}
 
 	if (mrq->data) {
-		pr_debug("%s:     %d bytes transferred: %d\n",
+		pr_de("%s:     %d bytes transferred: %d\n",
 			 mmc_hostname(host),
 			 mrq->data->bytes_xfered, mrq->data->error);
 	}
@@ -897,13 +897,13 @@ EXPORT_SYMBOL(mmc_put_card);
 
 /*
  * Internal function that does the actual ios call to the host driver,
- * optionally printing some debug output.
+ * optionally printing some de output.
  */
 static inline void mmc_set_ios(struct mmc_host *host)
 {
 	struct mmc_ios *ios = &host->ios;
 
-	pr_debug("%s: clock %uHz busmode %u powermode %u cs %u Vdd %u "
+	pr_de("%s: clock %uHz busmode %u powermode %u cs %u Vdd %u "
 		"width %u timing %u\n",
 		 mmc_hostname(host), ios->clock, ios->bus_mode,
 		 ios->power_mode, ios->chip_select, ios->vdd,
@@ -1259,7 +1259,7 @@ int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
 
 power_cycle:
 	if (err) {
-		pr_debug("%s: Signal voltage switch failed, "
+		pr_de("%s: Signal voltage switch failed, "
 			"power cycling card\n", mmc_hostname(host));
 		mmc_power_cycle(host, ocr);
 	}
@@ -2078,7 +2078,7 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 	} else if (max_discard < card->erase_size) {
 		max_discard = 0;
 	}
-	pr_debug("%s: calculated max. discard sectors %u for timeout %u ms\n",
+	pr_de("%s: calculated max. discard sectors %u for timeout %u ms\n",
 		mmc_hostname(host), max_discard, host->max_busy_timeout ?
 		host->max_busy_timeout : MMC_ERASE_TIMEOUT_MS);
 	return max_discard;
@@ -2167,7 +2167,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
 
-	pr_debug("%s: %s: trying to init card at %u Hz\n",
+	pr_de("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
 
 	mmc_power_up(host, host->ocr_avail);
@@ -2227,12 +2227,12 @@ int _mmc_detect_card_removed(struct mmc_host *host)
 	 */
 	if (!ret && host->ops->get_cd && !host->ops->get_cd(host)) {
 		mmc_detect_change(host, msecs_to_jiffies(200));
-		pr_debug("%s: card removed too slowly\n", mmc_hostname(host));
+		pr_de("%s: card removed too slowly\n", mmc_hostname(host));
 	}
 
 	if (ret) {
 		mmc_card_set_removed(host->card);
-		pr_debug("%s: card remove detected\n", mmc_hostname(host));
+		pr_de("%s: card remove detected\n", mmc_hostname(host));
 	}
 
 	return ret;

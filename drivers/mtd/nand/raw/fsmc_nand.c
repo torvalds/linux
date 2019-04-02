@@ -608,21 +608,21 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	unsigned int op_id;
 	int i;
 
-	pr_debug("Executing operation [%d instructions]:\n", op->ninstrs);
+	pr_de("Executing operation [%d instructions]:\n", op->ninstrs);
 
 	for (op_id = 0; op_id < op->ninstrs; op_id++) {
 		instr = &op->instrs[op_id];
 
 		switch (instr->type) {
 		case NAND_OP_CMD_INSTR:
-			pr_debug("  ->CMD      [0x%02x]\n",
+			pr_de("  ->CMD      [0x%02x]\n",
 				 instr->ctx.cmd.opcode);
 
 			writeb_relaxed(instr->ctx.cmd.opcode, host->cmd_va);
 			break;
 
 		case NAND_OP_ADDR_INSTR:
-			pr_debug("  ->ADDR     [%d cyc]",
+			pr_de("  ->ADDR     [%d cyc]",
 				 instr->ctx.addr.naddrs);
 
 			for (i = 0; i < instr->ctx.addr.naddrs; i++)
@@ -631,7 +631,7 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			break;
 
 		case NAND_OP_DATA_IN_INSTR:
-			pr_debug("  ->DATA_IN  [%d B%s]\n", instr->ctx.data.len,
+			pr_de("  ->DATA_IN  [%d B%s]\n", instr->ctx.data.len,
 				 instr->ctx.data.force_8bit ?
 				 ", force 8-bit" : "");
 
@@ -644,7 +644,7 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			break;
 
 		case NAND_OP_DATA_OUT_INSTR:
-			pr_debug("  ->DATA_OUT [%d B%s]\n", instr->ctx.data.len,
+			pr_de("  ->DATA_OUT [%d B%s]\n", instr->ctx.data.len,
 				 instr->ctx.data.force_8bit ?
 				 ", force 8-bit" : "");
 
@@ -658,7 +658,7 @@ static int fsmc_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 			break;
 
 		case NAND_OP_WAITRDY_INSTR:
-			pr_debug("  ->WAITRDY  [max %d ms]\n",
+			pr_de("  ->WAITRDY  [max %d ms]\n",
 				 instr->ctx.waitrdy.timeout_ms);
 
 			ret = nand_soft_waitrdy(chip,

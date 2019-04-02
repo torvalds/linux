@@ -33,10 +33,10 @@
 #include <asm/parisc-device.h>
 
 /*
-** Debug options
-** DEBUG_PAT Dump details which PDC PAT provides about ranges/devices.
+** De options
+** DE_PAT Dump details which PDC PAT provides about ranges/devices.
 */
-#undef DEBUG_PAT
+#undef DE_PAT
 
 int pdc_type __read_mostly = PDC_TYPE_ILLEGAL;
 
@@ -234,58 +234,58 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 
 	register_parisc_device(dev);	/* advertise device */
 
-#ifdef DEBUG_PAT
+#ifdef DE_PAT
 	/* dump what we see so far... */
 	switch (PAT_GET_ENTITY(dev->mod_info)) {
 		pdc_pat_cell_mod_maddr_block_t io_pdc_cell;
 		unsigned long i;
 
 	case PAT_ENTITY_PROC:
-		printk(KERN_DEBUG "PAT_ENTITY_PROC: id_eid 0x%lx\n",
+		printk(KERN_DE "PAT_ENTITY_PROC: id_eid 0x%lx\n",
 			pa_pdc_cell->mod[0]);
 		break;
 
 	case PAT_ENTITY_MEM:
-		printk(KERN_DEBUG 
+		printk(KERN_DE 
 			"PAT_ENTITY_MEM: amount 0x%lx min_gni_base 0x%lx min_gni_len 0x%lx\n",
 			pa_pdc_cell->mod[0], pa_pdc_cell->mod[1],
 			pa_pdc_cell->mod[2]);
 		break;
 	case PAT_ENTITY_CA:
-		printk(KERN_DEBUG "PAT_ENTITY_CA: %ld\n", pcell_loc);
+		printk(KERN_DE "PAT_ENTITY_CA: %ld\n", pcell_loc);
 		break;
 
 	case PAT_ENTITY_PBC:
-		printk(KERN_DEBUG "PAT_ENTITY_PBC: ");
+		printk(KERN_DE "PAT_ENTITY_PBC: ");
 		goto print_ranges;
 
 	case PAT_ENTITY_SBA:
-		printk(KERN_DEBUG "PAT_ENTITY_SBA: ");
+		printk(KERN_DE "PAT_ENTITY_SBA: ");
 		goto print_ranges;
 
 	case PAT_ENTITY_LBA:
-		printk(KERN_DEBUG "PAT_ENTITY_LBA: ");
+		printk(KERN_DE "PAT_ENTITY_LBA: ");
 
  print_ranges:
 		pdc_pat_cell_module(&bytecnt, pcell_loc, mod_index,
 				    IO_VIEW, &io_pdc_cell);
-		printk(KERN_DEBUG "ranges %ld\n", pa_pdc_cell->mod[1]);
+		printk(KERN_DE "ranges %ld\n", pa_pdc_cell->mod[1]);
 		for (i = 0; i < pa_pdc_cell->mod[1]; i++) {
-			printk(KERN_DEBUG 
+			printk(KERN_DE 
 				"  PA_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n", 
 				i, pa_pdc_cell->mod[2 + i * 3],	/* type */
 				pa_pdc_cell->mod[3 + i * 3],	/* start */
 				pa_pdc_cell->mod[4 + i * 3]);	/* finish (ie end) */
-			printk(KERN_DEBUG 
+			printk(KERN_DE 
 				"  IO_VIEW %ld: 0x%016lx 0x%016lx 0x%016lx\n", 
 				i, io_pdc_cell.mod[2 + i * 3],	/* type */
 				io_pdc_cell.mod[3 + i * 3],	/* start */
 				io_pdc_cell.mod[4 + i * 3]);	/* finish (ie end) */
 		}
-		printk(KERN_DEBUG "\n");
+		printk(KERN_DE "\n");
 		break;
 	}
-#endif /* DEBUG_PAT */
+#endif /* DE_PAT */
 
 	kfree(pa_pdc_cell);
 
@@ -383,8 +383,8 @@ static int __init pat_inventory(void)
 		return 0;
 	}
 
-#ifdef DEBUG_PAT
-	printk(KERN_DEBUG "CELL_GET_NUMBER: 0x%lx 0x%lx\n", cell_info.cell_num, 
+#ifdef DE_PAT
+	printk(KERN_DE "CELL_GET_NUMBER: 0x%lx 0x%lx\n", cell_info.cell_num, 
 	       cell_info.cell_loc);
 #endif
 

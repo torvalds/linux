@@ -39,7 +39,7 @@
 #include "trace-event.h"
 #include <api/fs/tracing_path.h>
 #include "evsel.h"
-#include "debug.h"
+#include "de.h"
 
 #define VERSION "0.6"
 
@@ -55,7 +55,7 @@ int bigendian(void)
 	return *ptr == 0x01020304;
 }
 
-/* unfortunately, you can not stat debugfs or proc files for size */
+/* unfortunately, you can not stat defs or proc files for size */
 static int record_file(const char *file, ssize_t hdr_sz)
 {
 	unsigned long long size = 0;
@@ -66,7 +66,7 @@ static int record_file(const char *file, ssize_t hdr_sz)
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		pr_debug("Can't read '%s'", file);
+		pr_de("Can't read '%s'", file);
 		return -errno;
 	}
 
@@ -91,7 +91,7 @@ static int record_file(const char *file, ssize_t hdr_sz)
 		sizep += sizeof(u64) - hdr_sz;
 
 	if (hdr_sz && pwrite(output_fd, sizep, hdr_sz, hdr_pos) < 0) {
-		pr_debug("writing file size failed\n");
+		pr_de("writing file size failed\n");
 		goto out;
 	}
 
@@ -108,22 +108,22 @@ static int record_header_files(void)
 	int err = -EIO;
 
 	if (!path) {
-		pr_debug("can't get tracing/events/header_page");
+		pr_de("can't get tracing/events/header_page");
 		return -ENOMEM;
 	}
 
 	if (stat(path, &st) < 0) {
-		pr_debug("can't read '%s'", path);
+		pr_de("can't read '%s'", path);
 		goto out;
 	}
 
 	if (write(output_fd, "header_page", 12) != 12) {
-		pr_debug("can't write header_page\n");
+		pr_de("can't write header_page\n");
 		goto out;
 	}
 
 	if (record_file(path, 8) < 0) {
-		pr_debug("can't record header_page file\n");
+		pr_de("can't record header_page file\n");
 		goto out;
 	}
 
@@ -131,23 +131,23 @@ static int record_header_files(void)
 
 	path = get_events_file("header_event");
 	if (!path) {
-		pr_debug("can't get tracing/events/header_event");
+		pr_de("can't get tracing/events/header_event");
 		err = -ENOMEM;
 		goto out;
 	}
 
 	if (stat(path, &st) < 0) {
-		pr_debug("can't read '%s'", path);
+		pr_de("can't read '%s'", path);
 		goto out;
 	}
 
 	if (write(output_fd, "header_event", 13) != 13) {
-		pr_debug("can't write header_event\n");
+		pr_de("can't write header_event\n");
 		goto out;
 	}
 
 	if (record_file(path, 8) < 0) {
-		pr_debug("can't record header_event file\n");
+		pr_de("can't record header_event file\n");
 		goto out;
 	}
 
@@ -186,7 +186,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 
 	dir = opendir(sys);
 	if (!dir) {
-		pr_debug("can't read directory '%s'", sys);
+		pr_de("can't read directory '%s'", sys);
 		return -errno;
 	}
 
@@ -207,7 +207,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 
 	if (write(output_fd, &count, 4) != 4) {
 		err = -EIO;
-		pr_debug("can't write count\n");
+		pr_de("can't write count\n");
 		goto out;
 	}
 
@@ -244,7 +244,7 @@ static int record_ftrace_files(struct tracepoint_path *tps)
 
 	path = get_events_file("ftrace");
 	if (!path) {
-		pr_debug("can't get tracing/events/ftrace");
+		pr_de("can't get tracing/events/ftrace");
 		return -ENOMEM;
 	}
 
@@ -279,14 +279,14 @@ static int record_event_files(struct tracepoint_path *tps)
 
 	path = get_tracing_file("events");
 	if (!path) {
-		pr_debug("can't get tracing/events");
+		pr_de("can't get tracing/events");
 		return -ENOMEM;
 	}
 
 	dir = opendir(path);
 	if (!dir) {
 		err = -errno;
-		pr_debug("can't read directory '%s'", path);
+		pr_de("can't read directory '%s'", path);
 		goto out;
 	}
 
@@ -300,7 +300,7 @@ static int record_event_files(struct tracepoint_path *tps)
 
 	if (write(output_fd, &count, 4) != 4) {
 		err = -EIO;
-		pr_debug("can't write count\n");
+		pr_de("can't write count\n");
 		goto out;
 	}
 
@@ -356,7 +356,7 @@ static int record_ftrace_printk(void)
 
 	path = get_tracing_file("printk_formats");
 	if (!path) {
-		pr_debug("can't get tracing/printk_formats");
+		pr_de("can't get tracing/printk_formats");
 		return -ENOMEM;
 	}
 
@@ -384,7 +384,7 @@ static int record_saved_cmdline(void)
 
 	path = get_tracing_file("saved_cmdlines");
 	if (!path) {
-		pr_debug("can't get tracing/saved_cmdline");
+		pr_de("can't get tracing/saved_cmdline");
 		return -ENOMEM;
 	}
 
@@ -443,7 +443,7 @@ try_id:
 		ppath->next = tracepoint_id_to_path(pos->attr.config);
 		if (!ppath->next) {
 error:
-			pr_debug("No memory to alloc tracepoints list\n");
+			pr_de("No memory to alloc tracepoints list\n");
 			put_tracepoints_path(&path);
 			return NULL;
 		}
@@ -530,14 +530,14 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 		snprintf(tdata->temp_file, sizeof(tdata->temp_file),
 			 "/tmp/perf-XXXXXX");
 		if (!mkstemp(tdata->temp_file)) {
-			pr_debug("Can't make temp file");
+			pr_de("Can't make temp file");
 			free(tdata);
 			return NULL;
 		}
 
 		temp_fd = open(tdata->temp_file, O_RDWR);
 		if (temp_fd < 0) {
-			pr_debug("Can't read '%s'", tdata->temp_file);
+			pr_de("Can't read '%s'", tdata->temp_file);
 			free(tdata);
 			return NULL;
 		}

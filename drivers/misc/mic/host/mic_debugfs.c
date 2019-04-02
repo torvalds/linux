@@ -18,7 +18,7 @@
  * Intel MIC Host driver.
  *
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 
@@ -27,7 +27,7 @@
 #include "mic_device.h"
 #include "mic_smpt.h"
 
-/* Debugfs parent dir */
+/* Defs parent dir */
 static struct dentry *mic_dbg;
 
 static int mic_smpt_show(struct seq_file *s, void *pos)
@@ -114,9 +114,9 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 DEFINE_SHOW_ATTRIBUTE(mic_msi_irq_info);
 
 /**
- * mic_create_debug_dir - Initialize MIC debugfs entries.
+ * mic_create_de_dir - Initialize MIC defs entries.
  */
-void mic_create_debug_dir(struct mic_device *mdev)
+void mic_create_de_dir(struct mic_device *mdev)
 {
 	char name[16];
 
@@ -124,45 +124,45 @@ void mic_create_debug_dir(struct mic_device *mdev)
 		return;
 
 	scnprintf(name, sizeof(name), "mic%d", mdev->id);
-	mdev->dbg_dir = debugfs_create_dir(name, mic_dbg);
+	mdev->dbg_dir = defs_create_dir(name, mic_dbg);
 	if (!mdev->dbg_dir)
 		return;
 
-	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev,
+	defs_create_file("smpt", 0444, mdev->dbg_dir, mdev,
 			    &mic_smpt_fops);
 
-	debugfs_create_file("post_code", 0444, mdev->dbg_dir, mdev,
+	defs_create_file("post_code", 0444, mdev->dbg_dir, mdev,
 			    &mic_post_code_fops);
 
-	debugfs_create_file("msi_irq_info", 0444, mdev->dbg_dir, mdev,
+	defs_create_file("msi_irq_info", 0444, mdev->dbg_dir, mdev,
 			    &mic_msi_irq_info_fops);
 }
 
 /**
- * mic_delete_debug_dir - Uninitialize MIC debugfs entries.
+ * mic_delete_de_dir - Uninitialize MIC defs entries.
  */
-void mic_delete_debug_dir(struct mic_device *mdev)
+void mic_delete_de_dir(struct mic_device *mdev)
 {
 	if (!mdev->dbg_dir)
 		return;
 
-	debugfs_remove_recursive(mdev->dbg_dir);
+	defs_remove_recursive(mdev->dbg_dir);
 }
 
 /**
- * mic_init_debugfs - Initialize global debugfs entry.
+ * mic_init_defs - Initialize global defs entry.
  */
-void __init mic_init_debugfs(void)
+void __init mic_init_defs(void)
 {
-	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	mic_dbg = defs_create_dir(KBUILD_MODNAME, NULL);
 	if (!mic_dbg)
-		pr_err("can't create debugfs dir\n");
+		pr_err("can't create defs dir\n");
 }
 
 /**
- * mic_exit_debugfs - Uninitialize global debugfs entry
+ * mic_exit_defs - Uninitialize global defs entry
  */
-void mic_exit_debugfs(void)
+void mic_exit_defs(void)
 {
-	debugfs_remove(mic_dbg);
+	defs_remove(mic_dbg);
 }

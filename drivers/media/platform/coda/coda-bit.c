@@ -386,7 +386,7 @@ static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
 					 struct coda_aux_buf *buf, size_t size,
 					 const char *name)
 {
-	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
+	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->defs_entry);
 }
 
 
@@ -1339,7 +1339,7 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		force_ipicture = 1;
 
 	/*
-	 * Workaround coda firmware BUG that only marks the first
+	 * Workaround coda firmware  that only marks the first
 	 * frame as IDR. This is a problem for some decoders that can't
 	 * recover when a frame is lost.
 	 */

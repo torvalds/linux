@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include <asm/bug.h>
+#include <asm/.h>
 #include "event-parse.h"
 #include "event-utils.h"
 

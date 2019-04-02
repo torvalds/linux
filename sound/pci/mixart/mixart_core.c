@@ -152,7 +152,7 @@ static int send_msg( struct mixart_mgr *mgr,
 	u32 msg_frame_address;
 	int i;
 
-	if (snd_BUG_ON(msg->size % 4))
+	if (snd__ON(msg->size % 4))
 		return -EINVAL;
 
 	/* get message frame address */
@@ -287,11 +287,11 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 	wait_queue_entry_t wait;
 	long timeout;
 
-	if (snd_BUG_ON(!notif_event))
+	if (snd__ON(!notif_event))
 		return -EINVAL;
-	if (snd_BUG_ON((notif_event & MSG_TYPE_MASK) != MSG_TYPE_NOTIFY))
+	if (snd__ON((notif_event & MSG_TYPE_MASK) != MSG_TYPE_NOTIFY))
 		return -EINVAL;
-	if (snd_BUG_ON(notif_event & MSG_CANCEL_NOTIFY_MASK))
+	if (snd__ON(notif_event & MSG_CANCEL_NOTIFY_MASK))
 		return -EINVAL;
 
 	init_waitqueue_entry(&wait, current);

@@ -51,7 +51,7 @@ struct mlx5_core_cq {
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
 	u32			cons_index;
 	unsigned		arm_sn;
-	struct mlx5_rsc_debug	*dbg;
+	struct mlx5_rsc_de	*dbg;
 	int			pid;
 	struct {
 		struct list_head list;
@@ -200,7 +200,7 @@ static inline void mlx5_dump_err_cqe(struct mlx5_core_dev *dev,
 	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 1, err_cqe,
 		       sizeof(*err_cqe), false);
 }
-int mlx5_debug_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
-void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
+int mlx5_de_cq_add(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
+void mlx5_de_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq);
 
 #endif /* MLX5_CORE_CQ_H */

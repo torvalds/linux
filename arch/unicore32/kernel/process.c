@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
@@ -209,7 +209,7 @@ void flush_thread(void)
 	struct task_struct *tsk = current;
 
 	memset(thread->used_cp, 0, sizeof(thread->used_cp));
-	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
+	memset(&tsk->thread.de, 0, sizeof(struct de_info));
 #ifdef CONFIG_UNICORE_FPU_F64
 	memset(&thread->fpstate, 0, sizeof(struct fp_state));
 #endif

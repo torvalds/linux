@@ -143,7 +143,7 @@ The VERSION number for the driver will be of the format v.xy.ab.
 eg: 1.00.02
    ----- --
     |    |
-    |    -- this will increase with bug fixes/enhancements to the driver
+    |    -- this will increase with  fixes/enhancements to the driver
     |-- this is the version of the PCC specification the driver adheres to
 
 

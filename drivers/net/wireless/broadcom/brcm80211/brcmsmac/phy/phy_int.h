@@ -1112,7 +1112,7 @@ int wlc_phy_poll_rssi_nphy(struct brcms_phy *pi, u8 rssi_type,
 void wlc_phy_rssi_cal_nphy(struct brcms_phy *pi);
 int wlc_phy_aci_scan_nphy(struct brcms_phy *pi);
 void wlc_phy_cal_txgainctrl_nphy(struct brcms_phy *pi, s32 dBm_targetpower,
-				 bool debug);
+				 bool de);
 int wlc_phy_tx_tone_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val, u8 mode,
 			 u8, bool);
 void wlc_phy_stopplayback_nphy(struct brcms_phy *pi);

@@ -269,7 +269,7 @@ int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt, u32 id, u32 size,
 			 u32 addr, void *cookie);
 int pkt_sys_unset_resource(struct hfi_sys_release_resource_pkt *pkt, u32 id,
 			   u32 size, void *cookie);
-void pkt_sys_debug_config(struct hfi_sys_set_property_pkt *pkt, u32 mode,
+void pkt_sys_de_config(struct hfi_sys_set_property_pkt *pkt, u32 mode,
 			  u32 config);
 void pkt_sys_coverage_config(struct hfi_sys_set_property_pkt *pkt, u32 mode);
 void pkt_sys_ping(struct hfi_sys_ping_pkt *pkt, u32 cookie);

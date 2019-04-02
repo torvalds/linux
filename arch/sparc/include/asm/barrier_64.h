@@ -19,7 +19,7 @@
  *	 mov	%o0, %l2
  *	membar	#LoadLoad
  *
- * The branch has to be mispredicted for the bug to occur.  Therefore, we put
+ * The branch has to be mispredicted for the  to occur.  Therefore, we put
  * the memory barrier explicitly into a "branch always, predicted taken"
  * delay slot to avoid the problem case.
  */

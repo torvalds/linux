@@ -53,7 +53,7 @@ extern void rmci_off(void);
 
 static inline void rmci_maybe_on(void)
 {
-#if defined(CONFIG_PPC_EARLY_DEBUG_BOOTX) && defined(CONFIG_PPC64)
+#if defined(CONFIG_PPC_EARLY_DE_BOOTX) && defined(CONFIG_PPC64)
 	if (!(mfmsr() & MSR_DR))
 		rmci_on();
 #endif
@@ -61,7 +61,7 @@ static inline void rmci_maybe_on(void)
 
 static inline void rmci_maybe_off(void)
 {
-#if defined(CONFIG_PPC_EARLY_DEBUG_BOOTX) && defined(CONFIG_PPC64)
+#if defined(CONFIG_PPC_EARLY_DE_BOOTX) && defined(CONFIG_PPC64)
 	if (!(mfmsr() & MSR_DR))
 		rmci_off();
 #endif
@@ -140,7 +140,7 @@ void __init btext_unmap(void)
 }
 
 /* Here's a small text engine to use during early boot
- * or for debugging purposes
+ * or for deging purposes
  *
  * todo:
  *

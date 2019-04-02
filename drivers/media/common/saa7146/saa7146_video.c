@@ -83,7 +83,7 @@ static struct saa7146_format formats[] = {
 	}
 };
 
-/* unfortunately, the saa7146 contains a bug which prevents it from doing on-the-fly byte swaps.
+/* unfortunately, the saa7146 contains a  which prevents it from doing on-the-fly byte swaps.
    due to this, it's impossible to provide additional *packed* formats, which are simply byte swapped
    (like V4L2_PIX_FMT_YUYV) ... 8-( */
 
@@ -355,7 +355,7 @@ static int video_begin(struct saa7146_fh *fh)
 
 	fmt = saa7146_format_by_fourcc(dev, vv->video_fmt.pixelformat);
 	/* we need to have a valid format set here */
-	BUG_ON(NULL == fmt);
+	_ON(NULL == fmt);
 
 	if (0 != (fmt->flags & FORMAT_IS_PLANAR)) {
 		resource = RESOURCE_DMA1_HPS|RESOURCE_DMA2_CLP|RESOURCE_DMA3_BRS;
@@ -408,7 +408,7 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 
 	fmt = saa7146_format_by_fourcc(dev, vv->video_fmt.pixelformat);
 	/* we need to have a valid format set here */
-	BUG_ON(NULL == fmt);
+	_ON(NULL == fmt);
 
 	if (0 != (fmt->flags & FORMAT_IS_PLANAR)) {
 		resource = RESOURCE_DMA1_HPS|RESOURCE_DMA2_CLP|RESOURCE_DMA3_BRS;

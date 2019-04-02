@@ -42,15 +42,15 @@
 
 #define TLAN_DBG(lvl, format, args...)					\
 	do {								\
-		if (debug&lvl)						\
-			printk(KERN_DEBUG "TLAN: " format, ##args);	\
+		if (de&lvl)						\
+			printk(KERN_DE "TLAN: " format, ##args);	\
 	} while (0)
 
-#define TLAN_DEBUG_GNRL		0x0001
-#define TLAN_DEBUG_TX		0x0002
-#define TLAN_DEBUG_RX		0x0004
-#define TLAN_DEBUG_LIST		0x0008
-#define TLAN_DEBUG_PROBE	0x0010
+#define TLAN_DE_GNRL		0x0001
+#define TLAN_DE_TX		0x0002
+#define TLAN_DE_RX		0x0004
+#define TLAN_DE_LIST		0x0008
+#define TLAN_DE_PROBE	0x0010
 
 #define TX_TIMEOUT		(10*HZ)	 /* We need time for auto-neg */
 #define MAX_TLAN_BOARDS		8	 /* Max number of boards installed
@@ -199,7 +199,7 @@ struct tlan_priv {
 	struct board		*adapter;
 	u32			adapter_rev;
 	u32			aui;
-	u32			debug;
+	u32			de;
 	u32			duplex;
 	u32			phy[2];
 	u32			phy_num;

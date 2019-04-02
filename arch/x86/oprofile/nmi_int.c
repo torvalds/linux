@@ -18,7 +18,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/cpu.h>
 #include <asm/nmi.h>
 #include <asm/msr.h>

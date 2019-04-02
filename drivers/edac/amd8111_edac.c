@@ -256,8 +256,8 @@ static void amd8111_lpc_bridge_init(struct amd8111_dev_info *dev_info)
 			REG_AT_COMPAT, LEGACY_NR_PORTS);
 	else {
 		val8 = __do_inb(REG_AT_COMPAT);
-		if (val8 == 0xff) { /* buggy port */
-			printk(KERN_INFO "%s: port %d is buggy, not supported"
+		if (val8 == 0xff) { /* gy port */
+			printk(KERN_INFO "%s: port %d is gy, not supported"
 				" by hardware?\n", __func__, REG_AT_COMPAT);
 			at_compat_reg_broken = 1;
 			release_region(REG_AT_COMPAT, LEGACY_NR_PORTS);

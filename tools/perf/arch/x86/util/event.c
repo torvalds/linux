@@ -6,7 +6,7 @@
 #include "../../util/tool.h"
 #include "../../util/map.h"
 #include "../../util/util.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 
 #if defined(__x86_64__)
 
@@ -22,7 +22,7 @@ int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
 					 machine->id_hdr_size);
 
 	if (!event) {
-		pr_debug("Not enough memory synthesizing mmap event "
+		pr_de("Not enough memory synthesizing mmap event "
 			 "for extra kernel maps\n");
 		return -1;
 	}

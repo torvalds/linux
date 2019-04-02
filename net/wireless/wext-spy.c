@@ -31,7 +31,7 @@ int iw_handler_set_spy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct sockaddr *	address = (struct sockaddr *) extra;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is not gy or using the old API */
 	if (!spydata)
 		return -EOPNOTSUPP;
 
@@ -80,7 +80,7 @@ int iw_handler_get_spy(struct net_device *	dev,
 	struct sockaddr *	address = (struct sockaddr *) extra;
 	int			i;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is not gy or using the old API */
 	if (!spydata)
 		return -EOPNOTSUPP;
 
@@ -115,7 +115,7 @@ int iw_handler_set_thrspy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is not gy or using the old API */
 	if (!spydata)
 		return -EOPNOTSUPP;
 
@@ -142,7 +142,7 @@ int iw_handler_get_thrspy(struct net_device *	dev,
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is not gy or using the old API */
 	if (!spydata)
 		return -EOPNOTSUPP;
 
@@ -197,7 +197,7 @@ void wireless_spy_update(struct net_device *	dev,
 	int			i;
 	int			match = -1;
 
-	/* Make sure driver is not buggy or using the old API */
+	/* Make sure driver is not gy or using the old API */
 	if (!spydata)
 		return;
 

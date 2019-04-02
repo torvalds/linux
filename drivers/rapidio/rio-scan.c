@@ -372,7 +372,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 		rdev->efptr = result & 0xffff;
 		rdev->phys_efptr = rio_mport_get_physefb(port, 0, destid,
 						hopcount, &rdev->phys_rmap);
-		pr_debug("RIO: %s Register Map %d device\n",
+		pr_de("RIO: %s Register Map %d device\n",
 			 __func__, rdev->phys_rmap);
 
 		rdev->em_efptr = rio_mport_get_feature(port, 0, destid,
@@ -534,12 +534,12 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 
 	if (rio_mport_chk_dev_access(port,
 			RIO_ANY_DESTID(port->sys_size), hopcount)) {
-		pr_debug("RIO: device access check failed\n");
+		pr_de("RIO: device access check failed\n");
 		return -1;
 	}
 
 	if (rio_get_host_deviceid_lock(port, hopcount) == port->host_deviceid) {
-		pr_debug("RIO: PE already discovered by this host\n");
+		pr_de("RIO: PE already discovered by this host\n");
 		/*
 		 * Already discovered by this host. Add it as another
 		 * link to the existing device.
@@ -551,7 +551,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 			rdev = rio_get_comptag((regval & 0xffff), NULL);
 
 			if (rdev && prev && rio_is_switch(prev)) {
-				pr_debug("RIO: redundant path to %s\n",
+				pr_de("RIO: redundant path to %s\n",
 					 rio_name(rdev));
 				prev->rswitch->nextdev[prev_port] = rdev;
 			}
@@ -576,7 +576,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 	}
 
 	if (rio_get_host_deviceid_lock(port, hopcount) > port->host_deviceid) {
-		pr_debug(
+		pr_de(
 		    "RIO: PE locked by a higher priority host...retreating\n");
 		return -1;
 	}
@@ -612,7 +612,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 			}
 			destid = rio_destid_next(net, destid + 1);
 		}
-		pr_debug(
+		pr_de(
 		    "RIO: found %s (vid %4.4x did %4.4x) with %d ports\n",
 		    rio_name(rdev), rdev->vid, rdev->did,
 		    RIO_GET_TOTAL_PORTS(rdev->swpinfo));
@@ -631,7 +631,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 			cur_destid = next_destid;
 
 			if (rio_sport_is_active(rdev, port_num)) {
-				pr_debug(
+				pr_de(
 				    "RIO: scanning device on port %d\n",
 				    port_num);
 				rio_enable_rx_tx_port(port, 0,
@@ -693,7 +693,7 @@ static int rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 
 		rdev->destid = sw_destid;
 	} else
-		pr_debug("RIO: found %s (vid %4.4x did %4.4x)\n",
+		pr_de("RIO: found %s (vid %4.4x did %4.4x)\n",
 		    rio_name(rdev), rdev->vid, rdev->did);
 
 	return 0;
@@ -748,7 +748,7 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 		/* Associated destid is how we accessed this switch */
 		rdev->destid = destid;
 
-		pr_debug(
+		pr_de(
 		    "RIO: found %s (vid %4.4x did %4.4x) with %d ports\n",
 		    rio_name(rdev), rdev->vid, rdev->did,
 		    RIO_GET_TOTAL_PORTS(rdev->swpinfo));
@@ -759,7 +759,7 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 				continue;
 
 			if (rio_sport_is_active(rdev, port_num)) {
-				pr_debug(
+				pr_de(
 				    "RIO: scanning device on port %d\n",
 				    port_num);
 
@@ -785,7 +785,7 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 			}
 		}
 	} else
-		pr_debug("RIO: found %s (vid %4.4x did %4.4x)\n",
+		pr_de("RIO: found %s (vid %4.4x did %4.4x)\n",
 		    rio_name(rdev), rdev->vid, rdev->did);
 
 	return 0;
@@ -813,7 +813,7 @@ static int rio_mport_is_active(struct rio_mport *port)
 
 static void rio_scan_release_net(struct rio_net *net)
 {
-	pr_debug("RIO-SCAN: %s: net_%d\n", __func__, net->id);
+	pr_de("RIO-SCAN: %s: net_%d\n", __func__, net->id);
 	kfree(net->enum_data);
 }
 
@@ -822,7 +822,7 @@ static void rio_scan_release_dev(struct device *dev)
 	struct rio_net *net;
 
 	net = to_rio_net(dev);
-	pr_debug("RIO-SCAN: %s: net_%d\n", __func__, net->id);
+	pr_de("RIO-SCAN: %s: net_%d\n", __func__, net->id);
 	kfree(net);
 }
 
@@ -1075,7 +1075,7 @@ static int rio_disc_mport(struct rio_mport *mport, u32 flags)
 		else if (flags & RIO_SCAN_ENUM_NO_WAIT)
 			return -EAGAIN;
 
-		pr_debug("RIO: wait for enumeration to complete...\n");
+		pr_de("RIO: wait for enumeration to complete...\n");
 
 		to_end = jiffies + CONFIG_RAPIDIO_DISC_TIMEOUT * HZ;
 		while (time_before(jiffies, to_end)) {
@@ -1084,11 +1084,11 @@ static int rio_disc_mport(struct rio_mport *mport, u32 flags)
 			msleep(10);
 		}
 
-		pr_debug("RIO: discovery timeout on mport %d %s\n",
+		pr_de("RIO: discovery timeout on mport %d %s\n",
 			 mport->id, mport->name);
 		goto bail;
 enum_done:
-		pr_debug("RIO: ... enumeration done\n");
+		pr_de("RIO: ... enumeration done\n");
 
 		net = rio_scan_alloc_net(mport, 0, 0);
 		if (!net) {

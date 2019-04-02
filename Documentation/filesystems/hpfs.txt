@@ -33,7 +33,7 @@ check=none,normal,strict (default normal)
 	Check level. Selecting none will cause only little speedup and big
 	danger. I tried to write it so that it won't crash if check=normal on
 	corrupted filesystems. check=strict means many superfluous checks -
-	used for debugging (for example it checks if file is allocated in
+	used for deging (for example it checks if file is allocated in
 	bitmaps when accessing it).
 errors=continue,remount-ro,panic (default remount-ro)
 	Behaviour when filesystem errors found.
@@ -105,7 +105,7 @@ Codepages
 HPFS can contain several uppercasing tables for several codepages and each
 file has a pointer to codepage its name is in. However OS/2 was created in
 America where people don't care much about codepages and so multiple codepages
-support is quite buggy. I have Czech OS/2 working in codepage 852 on my disk.
+support is quite gy. I have Czech OS/2 working in codepage 852 on my disk.
 Once I booted English OS/2 working in cp 850 and I created a file on my 852
 partition. It marked file name codepage as 850 - good. But when I again booted
 Czech OS/2, the file was completely inaccessible under any name. It seems that
@@ -121,13 +121,13 @@ again :-). chkdsk happily ignores these errors and only low-level disk
 modification saved me.  Never mix different language versions of OS/2 on one
 system although HPFS was designed to allow that.
 OK, I could implement complex codepage support to this driver but I think it
-would cause more problems than benefit with such buggy implementation in OS/2.
+would cause more problems than benefit with such gy implementation in OS/2.
 So this driver simply uses first codepage it finds for uppercasing and
 lowercasing no matter what's file codepage index. Usually all file names are in
 this codepage - if you don't try to do what I described above :-)
 
 
-Known bugs
+Known s
 
 HPFS386 on OS/2 server is not supported. HPFS386 installed on normal OS/2 client
 should work. If you have OS/2 server, use only read-only mode. I don't know how
@@ -177,16 +177,16 @@ What does "unbalanced tree" message mean?
 
 Old versions of this driver created sometimes unbalanced dnode trees. OS/2
 chkdsk doesn't scream if the tree is unbalanced (and sometimes creates
-unbalanced trees too :-) but both HPFS and HPFS386 contain bug that it rarely
+unbalanced trees too :-) but both HPFS and HPFS386 contain  that it rarely
 crashes when the tree is not balanced. This driver handles unbalanced trees
 correctly and writes warning if it finds them. If you see this message, this is
 probably because of directories created with old version of this driver.
 Workaround is to move all files from that directory to another and then back
 again. Do it in Linux, not OS/2! If you see this message in directory that is
-whole created by this driver, it is BUG - let me know about it.
+whole created by this driver, it is  - let me know about it.
 
 
-Bugs in OS/2
+s in OS/2
 
 When you have two (or more) lost directories pointing each to other, chkdsk
 locks up when repairing filesystem.
@@ -196,10 +196,10 @@ OS/2, OS/2 marks it as 'long'. chkdsk then removes this flag saying "Minor fs
 error corrected".
 
 File names like "a .b" are marked as 'long' by OS/2 but chkdsk "corrects" it and
-marks them as short (and writes "minor fs error corrected"). This bug is not in
+marks them as short (and writes "minor fs error corrected"). This  is not in
 HPFS386.
 
-Codepage bugs described above.
+Codepage s described above.
 
 If you don't install fixpacks, there are many, many more...
 
@@ -207,18 +207,18 @@ If you don't install fixpacks, there are many, many more...
 History
 
 0.90 First public release
-0.91 Fixed bug that caused shooting to memory when write_inode was called on
+0.91 Fixed  that caused shooting to memory when write_inode was called on
 	open inode (rarely happened)
 0.92 Fixed a little memory leak in freeing directory inodes
-0.93 Fixed bug that locked up the machine when there were too many filenames
+0.93 Fixed  that locked up the machine when there were too many filenames
 	with first 15 characters same
      Fixed write_file to zero file when writing behind file end
 0.94 Fixed a little memory leak when trying to delete busy file or directory
-0.95 Fixed a bug that i_hpfs_parent_dir was not updated when moving files
+0.95 Fixed a  that i_hpfs_parent_dir was not updated when moving files
 1.90 First version for 2.1.1xx kernels
-1.91 Fixed a bug that chk_sectors failed when sectors were at the end of disk
+1.91 Fixed a  that chk_sectors failed when sectors were at the end of disk
      Fixed a race-condition when write_inode is called while deleting file
-     Fixed a bug that could possibly happen (with very low probability) when
+     Fixed a  that could possibly happen (with very low probability) when
      	using 0xff in filenames
      Rewritten locking to avoid race-conditions
      Mount option 'eas' now works
@@ -227,8 +227,8 @@ History
      Remount support added
      Alloc is not so slow when filesystem becomes full
      Atimes are no more updated because it slows down operation
-     Code cleanup (removed all commented debug prints)
-1.92 Corrected a bug when sync was called just before closing file
+     Code cleanup (removed all commented de prints)
+1.92 Corrected a  when sync was called just before closing file
 1.93 Modified, so that it works with kernels >= 2.1.131, I don't know if it
 	works with previous versions
      Fixed a possible problem with disks > 64G (but I don't have one, so I can't
@@ -237,44 +237,44 @@ History
      Added new option 'timeshift'
      Changed behaviour on HPFS386: It is now possible to operate on HPFS386 in
      	read-only mode
-     Fixed a bug that slowed down alloc and prevented allocating 100% space
-     	(this bug was not destructive)
-1.94 Added workaround for one bug in Linux
+     Fixed a  that slowed down alloc and prevented allocating 100% space
+     	(this  was not destructive)
+1.94 Added workaround for one  in Linux
      Fixed one buffer leak
      Fixed some incompatibilities with large extended attributes (but it's still
 	not 100% ok, I have no info on it and OS/2 doesn't want to create them)
      Rewritten allocation
-     Fixed a bug with i_blocks (du sometimes didn't display correct values)
+     Fixed a  with i_blocks (du sometimes didn't display correct values)
      Directories have no longer archive attribute set (some programs don't like
 	it)
-     Fixed a bug that it set badly one flag in large anode tree (it was not
+     Fixed a  that it set badly one flag in large anode tree (it was not
 	destructive)
 1.95 Fixed one buffer leak, that could happen on corrupted filesystem
-     Fixed one bug in allocation in 1.94
-1.96 Added workaround for one bug in OS/2 (HPFS locked up, HPFS386 reported
+     Fixed one  in allocation in 1.94
+1.96 Added workaround for one  in OS/2 (HPFS locked up, HPFS386 reported
 	error sometimes when opening directories in PMSHELL)
      Fixed a possible bitmap race
      Fixed possible problem on large disks
      You can now delete open files
      Fixed a nondestructive race in rename
 1.97 Support for HPFS v3 (on large partitions)
-     Fixed a bug that it didn't allow creation of files > 128M (it should be 2G)
+     Fixed a  that it didn't allow creation of files > 128M (it should be 2G)
 1.97.1 Changed names of global symbols
-       Fixed a bug when chmoding or chowning root directory
+       Fixed a  when chmoding or chowning root directory
 1.98 Fixed a deadlock when using old_readdir
-     Better directory handling; workaround for "unbalanced tree" bug in OS/2
+     Better directory handling; workaround for "unbalanced tree"  in OS/2
 1.99 Corrected a possible problem when there's not enough space while deleting
 	file
      Now it tries to truncate the file if there's not enough space when deleting
      Removed a lot of redundant code
-2.00 Fixed a bug in rename (it was there since 1.96)
+2.00 Fixed a  in rename (it was there since 1.96)
      Better anti-fragmentation strategy
 2.01 Fixed problem with directory listing over NFS
      Directory lseek now checks for proper parameters
      Fixed race-condition in buffer code - it is in all filesystems in Linux;
         when reading device (cat /dev/hda) while creating files on it, files
         could be damaged
-2.02 Workaround for bug in breada in Linux. breada could cause accesses beyond
+2.02 Workaround for  in breada in Linux. breada could cause accesses beyond
         end of partition
 2.03 Char, block devices and pipes are correctly created
      Fixed non-crashing race in unlink (Alexander Viro)

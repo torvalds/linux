@@ -2,7 +2,7 @@ Amlogic Internal Clock Measurer
 ===============================
 
 The Amlogic SoCs contains an IP to measure the internal clocks.
-The precision is multiple of MHz, useful to debug the clock states.
+The precision is multiple of MHz, useful to de the clock states.
 
 Required properties:
 - compatible: Shall contain one of the following :

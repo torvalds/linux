@@ -91,7 +91,7 @@ static int ssi_startup(struct snd_pcm_substream *substream,
 {
 	struct ssi_priv *ssi = &ssi_cpu_data[dai->id];
 	if (ssi->inuse) {
-		pr_debug("ssi: already in use!\n");
+		pr_de("ssi: already in use!\n");
 		return -EBUSY;
 	} else
 		ssi->inuse = 1;
@@ -137,8 +137,8 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 	bits = params->msbits;
 	recv = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ? 0 : 1;
 
-	pr_debug("ssi_hw_params() enter\nssicr was    %08lx\n", ssicr);
-	pr_debug("bits: %u channels: %u\n", bits, channels);
+	pr_de("ssi_hw_params() enter\nssicr was    %08lx\n", ssicr);
+	pr_de("bits: %u channels: %u\n", bits, channels);
 
 	ssicr &= ~(CR_TRMD | CR_CHNL_MASK | CR_DWL_MASK | CR_PDTA |
 		   CR_SWL_MASK);
@@ -149,7 +149,7 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 
 	/* channels */
 	if ((channels < 2) || (channels > 8) || (channels & 1)) {
-		pr_debug("ssi: invalid number of channels\n");
+		pr_de("ssi: invalid number of channels\n");
 		return -EINVAL;
 	}
 	ssicr |= ((channels >> 1) - 1) << CR_CHNL_SHIFT;
@@ -166,7 +166,7 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 		 ssicr |= i << CR_DWL_SHIFT;
 	case 8:	 break;
 	default:
-		pr_debug("ssi: invalid sample width\n");
+		pr_de("ssi: invalid sample width\n");
 		return -EINVAL;
 	}
 
@@ -195,13 +195,13 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 		  ssicr |= i << CR_SWL_SHIFT;
 	case 8:   break;
 	default:
-		pr_debug("ssi: invalid system word length computed\n");
+		pr_de("ssi: invalid system word length computed\n");
 		return -EINVAL;
 	}
 
 	SSIREG(SSICR) = ssicr;
 
-	pr_debug("ssi_hw_params() leave\nssicr is now %08lx\n", ssicr);
+	pr_de("ssi_hw_params() leave\nssicr is now %08lx\n", ssicr);
 	return 0;
 }
 
@@ -235,7 +235,7 @@ static int ssi_set_clkdiv(struct snd_soc_dai *dai, int did, int div)
 		 SSIREG(SSICR) = ssicr | (i << CR_CKDIV_SHIFT);
 	case 1:  break;
 	default:
-		pr_debug("ssi: invalid sck divider %d\n", div);
+		pr_de("ssi: invalid sck divider %d\n", div);
 		return -EINVAL;
 	}
 
@@ -247,7 +247,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct ssi_priv *ssi = &ssi_cpu_data[dai->id];
 	unsigned long ssicr = SSIREG(SSICR);
 
-	pr_debug("ssi_set_fmt()\nssicr was    0x%08lx\n", ssicr);
+	pr_de("ssi_set_fmt()\nssicr was    0x%08lx\n", ssicr);
 
 	ssicr &= ~(CR_DEL | CR_PDTA | CR_BREN | CR_SWSP | CR_SCKP |
 		   CR_SWS_MASTER | CR_SCK_MASTER);
@@ -262,7 +262,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		ssicr |= CR_DEL;
 		break;
 	default:
-		pr_debug("ssi: unsupported format\n");
+		pr_de("ssi: unsupported format\n");
 		return -EINVAL;
 	}
 
@@ -287,7 +287,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		ssicr |= CR_SWSP;	/* word select starts low */
 		break;
 	default:
-		pr_debug("ssi: invalid inversion\n");
+		pr_de("ssi: invalid inversion\n");
 		return -EINVAL;
 	}
 
@@ -304,12 +304,12 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		ssicr |= CR_SWS_MASTER | CR_SCK_MASTER;
 		break;
 	default:
-		pr_debug("ssi: invalid master/slave configuration\n");
+		pr_de("ssi: invalid master/slave configuration\n");
 		return -EINVAL;
 	}
 
 	SSIREG(SSICR) = ssicr;
-	pr_debug("ssi_set_fmt() leave\nssicr is now 0x%08lx\n", ssicr);
+	pr_de("ssi_set_fmt() leave\nssicr is now 0x%08lx\n", ssicr);
 
 	return 0;
 }

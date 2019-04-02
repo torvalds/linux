@@ -348,7 +348,7 @@ config 476FPE_ERR46
 	depends on 476FPE
 	bool "Enable linker work around for PPC476FPE errata #46"
 	help
-	  This option enables a work around for an icache bug on 476
+	  This option enables a work around for an icache  on 476
 	  that can cause execution of stale instructions when falling
 	  through pages (IBM errata #46). It requires a recent version
 	  of binutils which supports the --ppc476-workaround option.

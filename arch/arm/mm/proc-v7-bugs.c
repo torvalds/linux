@@ -155,7 +155,7 @@ void cpu_v7_ca15_ibe(void)
 		cpu_v7_spectre_init();
 }
 
-void cpu_v7_bugs_init(void)
+void cpu_v7_s_init(void)
 {
 	cpu_v7_spectre_init();
 }

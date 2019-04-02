@@ -1126,7 +1126,7 @@ void hsw_fdi_link_train(struct intel_crtc *crtc,
 
 		temp = I915_READ(DP_TP_STATUS(PORT_E));
 		if (temp & DP_TP_STATUS_AUTOTRAIN_DONE) {
-			DRM_DEBUG_KMS("FDI link training done on step %d\n", i);
+			DRM_DE_KMS("FDI link training done on step %d\n", i);
 			break;
 		}
 
@@ -1200,7 +1200,7 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 		WARN(1, "%d encoders on crtc for pipe %c\n", num_encoders,
 		     pipe_name(crtc->pipe));
 
-	BUG_ON(ret == NULL);
+	_ON(ret == NULL);
 	return ret;
 }
 
@@ -1779,7 +1779,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 		temp |= TRANS_DDI_BPC_12;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_PVSYNC)
@@ -1808,7 +1808,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 			temp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 	}
@@ -1851,7 +1851,7 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 
 	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		DRM_DEBUG_KMS("Quirk Increase DDI disabled time\n");
+		DRM_DE_KMS("Quirk Increase DDI disabled time\n");
 		/* Quirk time at 100ms for reliable operation */
 		msleep(100);
 	}
@@ -2012,17 +2012,17 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	}
 
 	if (!*pipe_mask)
-		DRM_DEBUG_KMS("No pipe for ddi port %c found\n",
+		DRM_DE_KMS("No pipe for ddi port %c found\n",
 			      port_name(port));
 
 	if (!mst_pipe_mask && hweight8(*pipe_mask) > 1) {
-		DRM_DEBUG_KMS("Multiple pipes for non DP-MST port %c (pipe_mask %02x)\n",
+		DRM_DE_KMS("Multiple pipes for non DP-MST port %c (pipe_mask %02x)\n",
 			      port_name(port), *pipe_mask);
 		*pipe_mask = BIT(ffs(*pipe_mask) - 1);
 	}
 
 	if (mst_pipe_mask && mst_pipe_mask != *pipe_mask)
-		DRM_DEBUG_KMS("Conflicting MST and non-MST encoders for port %c (pipe_mask %02x mst_pipe_mask %02x)\n",
+		DRM_DE_KMS("Conflicting MST and non-MST encoders for port %c (pipe_mask %02x mst_pipe_mask %02x)\n",
 			      port_name(port), *pipe_mask, mst_pipe_mask);
 	else
 		*is_dp_mst = mst_pipe_mask;
@@ -2422,7 +2422,7 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 		return;
 
 	if (level >= n_entries) {
-		DRM_DEBUG_KMS("DDI translation not found for level %d. Using %d instead.", level, n_entries - 1);
+		DRM_DE_KMS("DDI translation not found for level %d. Using %d instead.", level, n_entries - 1);
 		level = n_entries - 1;
 	}
 
@@ -2548,7 +2548,7 @@ static void icl_mg_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	ddi_translations = icl_mg_phy_ddi_translations;
 	/* The table does not have values for level 3 and level 9. */
 	if (level >= n_entries || level == 3 || level == 9) {
-		DRM_DEBUG_KMS("DDI translation not found for level %d. Using %d instead.",
+		DRM_DE_KMS("DDI translation not found for level %d. Using %d instead.",
 			      level, n_entries - 2);
 		level = n_entries - 2;
 	}
@@ -3061,7 +3061,7 @@ static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
 		return;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_FEC_CONFIGURATION, DP_FEC_READY) <= 0)
-		DRM_DEBUG_KMS("Failed to set FEC_READY in the sink\n");
+		DRM_DE_KMS("Failed to set FEC_READY in the sink\n");
 }
 
 static void intel_ddi_enable_fec(struct intel_encoder *encoder,
@@ -3534,7 +3534,7 @@ static void intel_disable_ddi_hdmi(struct intel_encoder *encoder,
 
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
 					       false, false))
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Failed to reset sink scrambling/TMDS bit clock ratio\n",
+		DRM_DE_KMS("[CONNECTOR:%d:%s] Failed to reset sink scrambling/TMDS bit clock ratio\n",
 			      connector->base.id, connector->name);
 }
 
@@ -3816,7 +3816,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		 * up by the BIOS, and thus we can't get the mode at module
 		 * load.
 		 */
-		DRM_DEBUG_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+		DRM_DE_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
 			      pipe_config->pipe_bpp, dev_priv->vbt.edp.bpp);
 		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
 	}
@@ -4146,7 +4146,7 @@ intel_ddi_max_lanes(struct intel_digital_port *intel_dport)
 	 * so we use the proper lane count for our calculations.
 	 */
 	if (intel_ddi_a_force_4_lanes(intel_dport)) {
-		DRM_DEBUG_KMS("Forcing DDI_A_4_LANES for port A\n");
+		DRM_DE_KMS("Forcing DDI_A_4_LANES for port A\n");
 		intel_dport->saved_port_bits |= DDI_A_4_LANES;
 		max_lanes = 4;
 	}
@@ -4176,11 +4176,11 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		init_dp = true;
 		init_lspcon = true;
 		init_hdmi = false;
-		DRM_DEBUG_KMS("VBT says port %c has lspcon\n", port_name(port));
+		DRM_DE_KMS("VBT says port %c has lspcon\n", port_name(port));
 	}
 
 	if (!init_dp && !init_hdmi) {
-		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
+		DRM_DE_KMS("VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
 			      port_name(port));
 		return;
 	}
@@ -4276,7 +4276,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	if (init_lspcon) {
 		if (lspcon_init(intel_dig_port))
 			/* TODO: handle hdmi info frame part */
-			DRM_DEBUG_KMS("LSPCON init success on port %c\n",
+			DRM_DE_KMS("LSPCON init success on port %c\n",
 				port_name(port));
 		else
 			/*

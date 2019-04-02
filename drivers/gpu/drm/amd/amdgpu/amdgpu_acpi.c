@@ -110,7 +110,7 @@ static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
 
 	/* Fail only if calling the method fails and ATIF is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		DRM_DEBUG_DRIVER("failed to evaluate ATIF got %s\n",
+		DRM_DE_DRIVER("failed to evaluate ATIF got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
 		return NULL;
@@ -195,7 +195,7 @@ static int amdgpu_atif_verify_interface(struct amdgpu_atif *atif)
 	memcpy(&output, info->buffer.pointer, size);
 
 	/* TODO: check version? */
-	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
+	DRM_DE_DRIVER("ATIF version %u\n", output.version);
 
 	amdgpu_atif_parse_notification(&atif->notifications, output.notification_mask);
 	amdgpu_atif_parse_functions(&atif->functions, output.function_bits);
@@ -226,11 +226,11 @@ static acpi_handle amdgpu_atif_probe_handle(acpi_handle dhandle)
 			goto out;
 	}
 
-	DRM_DEBUG_DRIVER("No ATIF handle found\n");
+	DRM_DE_DRIVER("No ATIF handle found\n");
 	return NULL;
 out:
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-	DRM_DEBUG_DRIVER("Found ATIF handle %s\n", acpi_method_name);
+	DRM_DE_DRIVER("Found ATIF handle %s\n", acpi_method_name);
 	return handle;
 }
 
@@ -271,7 +271,7 @@ static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
 	size = min(sizeof(params), size);
 	memcpy(&params, info->buffer.pointer, size);
 
-	DRM_DEBUG_DRIVER("SYSTEM_PARAMS: mask = %#x, flags = %#x\n",
+	DRM_DE_DRIVER("SYSTEM_PARAMS: mask = %#x, flags = %#x\n",
 			params.flags, params.valid_mask);
 	params.flags = params.flags & params.valid_mask;
 
@@ -291,7 +291,7 @@ static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
 	}
 
 out:
-	DRM_DEBUG_DRIVER("Notification %s, command code = %#x\n",
+	DRM_DE_DRIVER("Notification %s, command code = %#x\n",
 			(n->enabled ? "enabled" : "disabled"),
 			n->command_code);
 	kfree(info);
@@ -389,7 +389,7 @@ static int amdgpu_atif_get_sbios_requests(struct amdgpu_atif *atif,
 
 	size = min(sizeof(*req), size);
 	memcpy(req, info->buffer.pointer, size);
-	DRM_DEBUG_DRIVER("SBIOS pending requests: %#x\n", req->pending);
+	DRM_DE_DRIVER("SBIOS pending requests: %#x\n", req->pending);
 
 	count = hweight32(req->pending);
 
@@ -416,7 +416,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 	struct amdgpu_atif *atif = adev->atif;
 	int count;
 
-	DRM_DEBUG_DRIVER("event, device_class = %s, type = %#x\n",
+	DRM_DE_DRIVER("event, device_class = %s, type = %#x\n",
 			event->device_class, event->type);
 
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
@@ -442,7 +442,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		if (count <= 0)
 			return NOTIFY_BAD;
 
-		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
+		DRM_DE_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
 		/* todo: add DC handling */
 		if ((req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) &&
@@ -452,7 +452,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			if (enc) {
 				struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
 
-				DRM_DEBUG_DRIVER("Changing brightness to %d\n",
+				DRM_DE_DRIVER("Changing brightness to %d\n",
 						 req.backlight_level);
 
 				amdgpu_display_backlight_set_level(adev, enc, req.backlight_level);
@@ -524,7 +524,7 @@ static union acpi_object *amdgpu_atcs_call(acpi_handle handle, int function,
 
 	/* Fail only if calling the method fails and ATIF is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		DRM_DEBUG_DRIVER("failed to evaluate ATCS got %s\n",
+		DRM_DE_DRIVER("failed to evaluate ATCS got %s\n",
 				 acpi_format_exception(status));
 		kfree(buffer.pointer);
 		return NULL;
@@ -587,7 +587,7 @@ static int amdgpu_atcs_verify_interface(acpi_handle handle,
 	memcpy(&output, info->buffer.pointer, size);
 
 	/* TODO: check version? */
-	DRM_DEBUG_DRIVER("ATCS version %u\n", output.version);
+	DRM_DE_DRIVER("ATCS version %u\n", output.version);
 
 	amdgpu_atcs_parse_functions(&atcs->functions, output.function_bits);
 
@@ -748,9 +748,9 @@ static int amdgpu_acpi_event(struct notifier_block *nb,
 
 	if (strcmp(entry->device_class, ACPI_AC_CLASS) == 0) {
 		if (power_supply_is_system_supplied() > 0)
-			DRM_DEBUG_DRIVER("pm: AC\n");
+			DRM_DE_DRIVER("pm: AC\n");
 		else
-			DRM_DEBUG_DRIVER("pm: DC\n");
+			DRM_DE_DRIVER("pm: DC\n");
 
 		amdgpu_pm_acpi_event_handler(adev);
 	}
@@ -785,7 +785,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	/* Call the ATCS method */
 	ret = amdgpu_atcs_verify_interface(handle, atcs);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Call to ATCS verify_interface failed: %d\n", ret);
+		DRM_DE_DRIVER("Call to ATCS verify_interface failed: %d\n", ret);
 	}
 
 	/* Probe for ATIF, and initialize it if found */
@@ -803,7 +803,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	/* Call the ATIF method */
 	ret = amdgpu_atif_verify_interface(atif);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
+		DRM_DE_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
 		kfree(atif);
 		goto out;
 	}
@@ -839,7 +839,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	if (atif->functions.system_params) {
 		ret = amdgpu_atif_get_notification_params(atif);
 		if (ret) {
-			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
+			DRM_DE_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
 			/* Disable notification */
 			atif->notification_cfg.enabled = false;
@@ -849,7 +849,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	if (atif->functions.query_backlight_transfer_characteristics) {
 		ret = amdgpu_atif_query_backlight_caps(atif);
 		if (ret) {
-			DRM_DEBUG_DRIVER("Call to QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS failed: %d\n",
+			DRM_DE_DRIVER("Call to QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS failed: %d\n",
 					ret);
 			atif->backlight_caps.caps_valid = false;
 		}

@@ -47,10 +47,10 @@ the interrupt came from user mode, then the interrupt handler prologue
 will switch back to the per-thread stack.  If software wants to allow
 nested IST interrupts then the handler must adjust the IST values on
 entry to and exit from the interrupt handler.  (This is occasionally
-done, e.g. for debug exceptions.)
+done, e.g. for de exceptions.)
 
 Events with different IST codes (i.e. with different stacks) can be
-nested.  For example, a debug interrupt can safely be interrupted by an
+nested.  For example, a de interrupt can safely be interrupted by an
 NMI.  arch/x86_64/kernel/entry.S::paranoidentry adjusts the stack
 pointers on entry to and exit from all IST events, in theory allowing
 IST events with the same code to be nested.  However in most cases, the
@@ -76,12 +76,12 @@ The currently assigned IST stacks are :-
   middle of switching stacks.  Using IST for NMI events avoids making
   assumptions about the previous state of the kernel stack.
 
-* DEBUG_STACK.  DEBUG_STKSZ
+* DE_STACK.  DE_STKSZ
 
-  Used for hardware debug interrupts (interrupt 1) and for software
-  debug interrupts (INT3).
+  Used for hardware de interrupts (interrupt 1) and for software
+  de interrupts (INT3).
 
-  When debugging a kernel, debug interrupts (both hardware and
+  When deging a kernel, de interrupts (both hardware and
   software) can occur at any time.  Using IST for these interrupts
   avoids making assumptions about the previous state of the kernel
   stack.
@@ -132,7 +132,7 @@ information from that as well.
 
 The most important property of this method is that we _never_ lose
 information: we always strive to print _all_ addresses on the stack(s)
-that look like kernel text addresses, so if debug information is wrong,
+that look like kernel text addresses, so if de information is wrong,
 we still print out the real call chain as well - just with more question
 marks than ideal.
 

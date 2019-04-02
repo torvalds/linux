@@ -23,7 +23,7 @@ majority of embedded systems in variety of application domains. Users may
 simply attach their IP on one of the system buses together with certain glue
 logics to complete a SoC solution for a specific application. With
 comprehensive simulation and design environments, users may evaluate the
-system performance of their applications and track bugs of their designs
+system performance of their applications and track s of their designs
 efficiently. The optional hardware development platform further provides real
 system environment for early prototyping and software/hardware co-development.
 

@@ -31,27 +31,27 @@
 
 #include "cx231xx-reg.h"
 
-/* #define ENABLE_DEBUG_ISOC_FRAMES */
+/* #define ENABLE_DE_ISOC_FRAMES */
 
-static unsigned int core_debug;
-module_param(core_debug, int, 0644);
-MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
+static unsigned int core_de;
+module_param(core_de, int, 0644);
+MODULE_PARM_DESC(core_de, "enable de messages [core]");
 
 #define cx231xx_coredbg(fmt, arg...) do {\
-	if (core_debug) \
+	if (core_de) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-static unsigned int reg_debug;
-module_param(reg_debug, int, 0644);
-MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
+static unsigned int reg_de;
+module_param(reg_de, int, 0644);
+MODULE_PARM_DESC(reg_de, "enable de messages [URB reg]");
 
 static int alt = CX231XX_PINOUT;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
 #define cx231xx_isocdbg(fmt, arg...) do {\
-	if (core_debug) \
+	if (core_de) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
@@ -232,7 +232,7 @@ EXPORT_SYMBOL_GPL(cx231xx_send_usb_command);
  * Sends/Receives URB control messages, assuring to use a kalloced buffer
  * for all operations (dev->urb_buf), to avoid using stacked buffers, as
  * they aren't safe for usage with USB, due to DMA restrictions.
- * Also implements the debug code for control URB's.
+ * Also implements the de code for control URB's.
  */
 static int __usb_control_msg(struct cx231xx *dev, unsigned int pipe,
 	__u8 request, __u8 requesttype, __u16 value, __u16 index,
@@ -240,8 +240,8 @@ static int __usb_control_msg(struct cx231xx *dev, unsigned int pipe,
 {
 	int rc, i;
 
-	if (reg_debug) {
-		printk(KERN_DEBUG "%s: (pipe 0x%08x): %s:  %02x %02x %02x %02x %02x %02x %02x %02x ",
+	if (reg_de) {
+		printk(KERN_DE "%s: (pipe 0x%08x): %s:  %02x %02x %02x %02x %02x %02x %02x %02x ",
 				dev->name,
 				pipe,
 				(requesttype & USB_DIR_IN) ? "IN" : "OUT",
@@ -268,7 +268,7 @@ static int __usb_control_msg(struct cx231xx *dev, unsigned int pipe,
 		memcpy(data, dev->urb_buf, size);
 	mutex_unlock(&dev->ctrl_urb_lock);
 
-	if (reg_debug) {
+	if (reg_de) {
 		if (unlikely(rc < 0)) {
 			printk(KERN_CONT "FAILED!\n");
 			return rc;
@@ -442,7 +442,7 @@ int cx231xx_write_ctrl_reg(struct cx231xx *dev, u8 req, u16 reg, char *buf,
 	if (val == 0xFF)
 		return -EINVAL;
 
-	if (reg_debug) {
+	if (reg_de) {
 		int byte;
 
 		cx231xx_isocdbg("(pipe 0x%08x): OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",

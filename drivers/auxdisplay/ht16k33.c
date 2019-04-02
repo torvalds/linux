@@ -420,7 +420,7 @@ static int ht16k33_probe(struct i2c_client *client,
 		return err;
 
 	/* Framebuffer (2 bytes per column) */
-	BUILD_BUG_ON(PAGE_SIZE < HT16K33_FB_SIZE);
+	BUILD__ON(PAGE_SIZE < HT16K33_FB_SIZE);
 	fbdev->buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
 	if (!fbdev->buffer)
 		return -ENOMEM;

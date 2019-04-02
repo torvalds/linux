@@ -358,7 +358,7 @@ static struct device *chan2dev(struct dma_chan *chan)
 	return &chan->dev->device;
 }
 
-#if defined(VERBOSE_DEBUG)
+#if defined(VERBOSE_DE)
 static void vdbg_dump_regs(struct at_dma_chan *atchan)
 {
 	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);

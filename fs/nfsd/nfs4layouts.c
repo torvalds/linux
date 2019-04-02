@@ -204,7 +204,7 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 		locks_free_lock(fl);
 		return status;
 	}
-	BUG_ON(fl != NULL);
+	_ON(fl != NULL);
 	return 0;
 }
 
@@ -239,7 +239,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 		ls->ls_file = get_file(fp->fi_deleg_file);
 	else
 		ls->ls_file = find_any_file(fp);
-	BUG_ON(!ls->ls_file);
+	_ON(!ls->ls_file);
 
 	if (nfsd4_layout_setlease(ls)) {
 		fput(ls->ls_file);
@@ -738,7 +738,7 @@ static int
 nfsd4_layout_lm_change(struct file_lock *onlist, int arg,
 		struct list_head *dispose)
 {
-	BUG_ON(!(arg & F_UNLCK));
+	_ON(!(arg & F_UNLCK));
 	return lease_modify(onlist, arg, dispose);
 }
 

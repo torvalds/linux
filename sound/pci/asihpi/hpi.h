@@ -198,7 +198,7 @@ enum HPI_SOURCENODES {
 	HPI_SOURCENODE_INTERNAL = 113,	     /**< node internal to the device. */
 	HPI_SOURCENODE_AVB = 114,	     /**< AVB input stream */
 	HPI_SOURCENODE_BLULINK = 115,	     /**< BLU-link input channel */
-	/* !!!Update this  AND hpidebug.h if you add a new sourcenode type!!! */
+	/* !!!Update this  AND hpide.h if you add a new sourcenode type!!! */
 	HPI_SOURCENODE_LAST_INDEX = 115	     /**< largest ID */
 		/* AX6 max sourcenode types = 15 */
 };
@@ -229,7 +229,7 @@ enum HPI_DESTNODES {
 	HPI_DESTNODE_AVB = 209,		     /**< AVB output stream */
 	HPI_DESTNODE_INTERNAL = 210,	     /**< node internal to the device. */
 	HPI_DESTNODE_BLULINK = 211,	     /**< BLU-link output channel. */
-	/* !!!Update this AND hpidebug.h if you add a new destnode type!!! */
+	/* !!!Update this AND hpide.h if you add a new destnode type!!! */
 	HPI_DESTNODE_LAST_INDEX = 211	     /**< largest ID */
 		/* AX6 max destnode types = 15 */
 };
@@ -275,7 +275,7 @@ enum HPI_CONTROLS {
 	HPI_CONTROL_SRC = 25,	/**< samplerate converter control. */
 	HPI_CONTROL_UNIVERSAL = 26,	/**< universal control. */
 
-/*  !!! Update this AND hpidebug.h if you add a new control type!!!*/
+/*  !!! Update this AND hpide.h if you add a new control type!!!*/
 	HPI_CONTROL_LAST_INDEX = 26 /**<highest control type ID */
 /* WARNING types 256 or greater impact bit packing in all AX6 DSP code */
 };
@@ -379,7 +379,7 @@ in the example above, the upper byte being the left most digit.
 Property 2 returns the 2nd two digits, i.e "22" in the example above*/
 	HPI_ADAPTER_PROPERTY_EXTENDED_ADAPTER_TYPE = 262,
 
-/** Readonly debug log buffer information */
+/** Readonly de log buffer information */
 	HPI_ADAPTER_PROPERTY_LOGTABLEN = 263,
 	HPI_ADAPTER_PROPERTY_LOGTABBEG = 264,
 
@@ -1065,7 +1065,7 @@ enum HPI_ERROR_CODES {
 
 	/* AES18 specific errors were 500..507 */
 
-	/** custom error to use for debugging */
+	/** custom error to use for deging */
 	HPI_ERROR_CUSTOM = 600,
 
 	/** hpioct32.c can't obtain mutex */
@@ -1212,7 +1212,7 @@ u16 hpi_adapter_enable_capability(u16 adapter_index, u16 capability, u32 key);
 
 u16 hpi_adapter_self_test(u16 adapter_index);
 
-u16 hpi_adapter_debug_read(u16 adapter_index, u32 dsp_address, char *p_bytes,
+u16 hpi_adapter_de_read(u16 adapter_index, u32 dsp_address, char *p_bytes,
 	int *count_bytes);
 
 u16 hpi_adapter_set_property(u16 adapter_index, u16 property, u16 paramter1,

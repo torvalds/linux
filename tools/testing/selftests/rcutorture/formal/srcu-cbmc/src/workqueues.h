@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #include "barriers.h"
-#include "bug_on.h"
+#include "_on.h"
 #include "int_typedefs.h"
 
 #include <linux/types.h>
@@ -48,20 +48,20 @@ struct delayed_work {
 
 static inline bool schedule_work(struct work_struct *work)
 {
-	BUG();
+	();
 	return true;
 }
 
 static inline bool schedule_work_on(int cpu, struct work_struct *work)
 {
-	BUG();
+	();
 	return true;
 }
 
 static inline bool queue_work(struct workqueue_struct *wq,
 			      struct work_struct *work)
 {
-	BUG();
+	();
 	return true;
 }
 
@@ -69,7 +69,7 @@ static inline bool queue_delayed_work(struct workqueue_struct *wq,
 				      struct delayed_work *dwork,
 				      unsigned long delay)
 {
-	BUG();
+	();
 	return true;
 }
 

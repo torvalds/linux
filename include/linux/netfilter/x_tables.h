@@ -416,7 +416,7 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
 		ret |= (a[2] ^ b[2]) & mask[2];
 	if (IFNAMSIZ > 3 * sizeof(unsigned long))
 		ret |= (a[3] ^ b[3]) & mask[3];
-	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
+	BUILD__ON(IFNAMSIZ > 4 * sizeof(unsigned long));
 	return ret;
 }
 

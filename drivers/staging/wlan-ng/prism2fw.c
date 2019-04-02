@@ -437,7 +437,7 @@ static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		}
 
 		/* Insert crc */
-		pr_debug("Adding crc @ 0x%06x\n", s3crc[i].addr - 2);
+		pr_de("Adding crc @ 0x%06x\n", s3crc[i].addr - 2);
 		chunkoff = crcstart - cstart - 2;
 		dest = fchunk[c].data + chunkoff;
 		*dest = 0xde;
@@ -559,7 +559,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 		if (!clist[i].data)
 			return 1;
 
-		pr_debug("chunk[%d]: addr=0x%06x len=%d\n",
+		pr_de("chunk[%d]: addr=0x%06x len=%d\n",
 			 i, clist[i].addr, clist[i].len);
 	}
 
@@ -741,7 +741,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 		/* Plug data */
 		chunkoff = pstart - cstart;
 		dest = fchunk[c].data + chunkoff;
-		pr_debug("Plugging item 0x%04x @ 0x%06x, len=%d, cnum=%d coff=0x%06x\n",
+		pr_de("Plugging item 0x%04x @ 0x%06x, len=%d, cnum=%d coff=0x%06x\n",
 			 s3plug[i].itemcode, pstart, s3plug[i].len,
 			 c, chunkoff);
 
@@ -878,7 +878,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 	u16		*ptr16;
 	u32		*ptr32, len, addr;
 
-	pr_debug("Reading fw file ...\n");
+	pr_de("Reading fw file ...\n");
 
 	while (record) {
 		rcnt++;
@@ -894,7 +894,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 		switch (addr) {
 		case S3ADDR_START:
 			startaddr = *ptr32;
-			pr_debug("  S7 start addr, record=%d addr=0x%08x\n",
+			pr_de("  S7 start addr, record=%d addr=0x%08x\n",
 				 rcnt,
 				 startaddr);
 			break;
@@ -903,7 +903,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 			s3plug[ns3plug].addr = *(ptr32 + 1);
 			s3plug[ns3plug].len = *(ptr32 + 2);
 
-			pr_debug("  S3 plugrec, record=%d itemcode=0x%08x addr=0x%08x len=%d\n",
+			pr_de("  S3 plugrec, record=%d itemcode=0x%08x addr=0x%08x len=%d\n",
 				 rcnt,
 				 s3plug[ns3plug].itemcode,
 				 s3plug[ns3plug].addr,
@@ -920,7 +920,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 			s3crc[ns3crc].len = *(ptr32 + 1);
 			s3crc[ns3crc].dowrite = *(ptr32 + 2);
 
-			pr_debug("  S3 crcrec, record=%d addr=0x%08x len=%d write=0x%08x\n",
+			pr_de("  S3 crcrec, record=%d addr=0x%08x len=%d write=0x%08x\n",
 				 rcnt,
 				 s3crc[ns3crc].addr,
 				 s3crc[ns3crc].len,
@@ -935,7 +935,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 			s3info[ns3info].len = *ptr16;
 			s3info[ns3info].type = *(ptr16 + 1);
 
-			pr_debug("  S3 inforec, record=%d len=0x%04x type=0x%04x\n",
+			pr_de("  S3 inforec, record=%d len=0x%04x type=0x%04x\n",
 				 rcnt,
 				 s3info[ns3info].len,
 				 s3info[ns3info].type);
@@ -946,12 +946,12 @@ static int read_fwfile(const struct ihex_binrec *record)
 			}
 
 			tmpinfo = (u16 *)&s3info[ns3info].info.version;
-			pr_debug("            info=");
+			pr_de("            info=");
 			for (i = 0; i < s3info[ns3info].len - 1; i++) {
 				tmpinfo[i] = *(ptr16 + 2 + i);
-				pr_debug("%04x ", tmpinfo[i]);
+				pr_de("%04x ", tmpinfo[i]);
 			}
-			pr_debug("\n");
+			pr_de("\n");
 
 			ns3info++;
 			if (ns3info == S3INFO_MAX) {
@@ -1047,7 +1047,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	rwrmsg->resultcode.len = sizeof(u32);
 
 	/* Send xxx_state(enable) */
-	pr_debug("Sending dl_state(enable) message.\n");
+	pr_de("Sending dl_state(enable) message.\n");
 	rstmsg->enable.data = P80211ENUM_truth_true;
 	rstmsg->exeaddr.data = startaddr;
 
@@ -1089,7 +1089,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 			       fchunk[i].data + curroff, currlen);
 
 			/* Send flashdl_write(pda) */
-			pr_debug
+			pr_de
 			    ("Sending xxxdl_write message addr=%06x len=%d.\n",
 			     currdaddr, currlen);
 
@@ -1113,7 +1113,7 @@ static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	}
 
 	/* Send xxx_state(disable) */
-	pr_debug("Sending dl_state(disable) message.\n");
+	pr_de("Sending dl_state(disable) message.\n");
 	rstmsg->enable.data = P80211ENUM_truth_false;
 	rstmsg->exeaddr.data = 0;
 
@@ -1145,26 +1145,26 @@ static int validate_identity(void)
 	int result = 1;
 	int trump = 0;
 
-	pr_debug("NIC ID: %#x v%d.%d.%d\n",
+	pr_de("NIC ID: %#x v%d.%d.%d\n",
 		 nicid.id, nicid.major, nicid.minor, nicid.variant);
-	pr_debug("MFI ID: %#x v%d %d->%d\n",
+	pr_de("MFI ID: %#x v%d %d->%d\n",
 		 rfid.id, rfid.variant, rfid.bottom, rfid.top);
-	pr_debug("CFI ID: %#x v%d %d->%d\n",
+	pr_de("CFI ID: %#x v%d %d->%d\n",
 		 macid.id, macid.variant, macid.bottom, macid.top);
-	pr_debug("PRI ID: %#x v%d %d->%d\n",
+	pr_de("PRI ID: %#x v%d %d->%d\n",
 		 priid.id, priid.variant, priid.bottom, priid.top);
 
 	for (i = 0; i < ns3info; i++) {
 		switch (s3info[i].type) {
 		case 1:
-			pr_debug("Version:  ID %#x %d.%d.%d\n",
+			pr_de("Version:  ID %#x %d.%d.%d\n",
 				 s3info[i].info.version.id,
 				 s3info[i].info.version.major,
 				 s3info[i].info.version.minor,
 				 s3info[i].info.version.variant);
 			break;
 		case 2:
-			pr_debug("Compat: Role %#x Id %#x v%d %d->%d\n",
+			pr_de("Compat: Role %#x Id %#x v%d %d->%d\n",
 				 s3info[i].info.compat.role,
 				 s3info[i].info.compat.id,
 				 s3info[i].info.compat.variant,
@@ -1198,11 +1198,11 @@ static int validate_identity(void)
 
 			break;
 		case 3:
-			pr_debug("Seq: %#x\n", s3info[i].info.buildseq);
+			pr_de("Seq: %#x\n", s3info[i].info.buildseq);
 
 			break;
 		case 4:
-			pr_debug("Platform:  ID %#x %d.%d.%d\n",
+			pr_de("Platform:  ID %#x %d.%d.%d\n",
 				 s3info[i].info.version.id,
 				 s3info[i].info.version.major,
 				 s3info[i].info.version.minor,
@@ -1221,11 +1221,11 @@ static int validate_identity(void)
 			trump = 1;
 			break;
 		case 0x8001:
-			pr_debug("name inforec len %d\n", s3info[i].len);
+			pr_de("name inforec len %d\n", s3info[i].len);
 
 			break;
 		default:
-			pr_debug("Unknown inforec type %d\n", s3info[i].type);
+			pr_de("Unknown inforec type %d\n", s3info[i].type);
 		}
 	}
 	/* walk through */

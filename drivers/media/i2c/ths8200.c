@@ -28,13 +28,13 @@
 
 #include "ths8200_regs.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de level (0-2)");
 
 MODULE_DESCRIPTION("Texas Instruments THS8200 video encoder driver");
 MODULE_AUTHOR("Mats Randgaard <mats.randgaard@cisco.com>");
-MODULE_AUTHOR("Martin Bugge <martin.bugge@cisco.com>");
+MODULE_AUTHOR("Martin ge <martin.ge@cisco.com>");
 MODULE_LICENSE("GPL v2");
 
 struct ths8200_state {
@@ -100,7 +100,7 @@ ths8200_write_and_or(struct v4l2_subdev *sd, u8 reg,
 	ths8200_write(sd, reg, (ths8200_read(sd, reg) & clr_mask) | val_mask);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 
 static int ths8200_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
@@ -146,7 +146,7 @@ static int ths8200_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct ths8200_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s: power %s\n", __func__, on ? "on" : "off");
+	v4l2_dbg(1, de, sd, "%s: power %s\n", __func__, on ? "on" : "off");
 
 	state->power_on = on;
 
@@ -159,7 +159,7 @@ static int ths8200_s_power(struct v4l2_subdev *sd, int on)
 static const struct v4l2_subdev_core_ops ths8200_core_ops = {
 	.log_status = ths8200_log_status,
 	.s_power = ths8200_s_power,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = ths8200_g_register,
 	.s_register = ths8200_s_register,
 #endif
@@ -179,7 +179,7 @@ static int ths8200_s_stream(struct v4l2_subdev *sd, int enable)
 	ths8200_write_and_or(sd, THS8200_CHIP_CTL, 0xfe,
 			     (enable ? 0x01 : 0x00));
 
-	v4l2_dbg(1, debug, sd, "%s: %sable\n",
+	v4l2_dbg(1, de, sd, "%s: %sable\n",
 		 __func__, (enable ? "en" : "dis"));
 
 	return 0;
@@ -351,7 +351,7 @@ static void ths8200_setup(struct v4l2_subdev *sd, struct v4l2_bt_timings *bt)
 	/* leave reset */
 	ths8200_s_stream(sd, true);
 
-	v4l2_dbg(1, debug, sd, "%s: frame %dx%d, polarity %d\n"
+	v4l2_dbg(1, de, sd, "%s: frame %dx%d, polarity %d\n"
 		 "horizontal: front porch %d, back porch %d, sync %d\n"
 		 "vertical: sync %d\n", __func__, htotal(bt), vtotal(bt),
 		 polarity, bt->hfrontporch, bt->hbackporch,
@@ -363,7 +363,7 @@ static int ths8200_s_dv_timings(struct v4l2_subdev *sd,
 {
 	struct ths8200_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	if (!v4l2_valid_dv_timings(timings, &ths8200_timings_cap,
 				NULL, NULL))
@@ -371,7 +371,7 @@ static int ths8200_s_dv_timings(struct v4l2_subdev *sd,
 
 	if (!v4l2_find_dv_timings_cap(timings, &ths8200_timings_cap, 10,
 				NULL, NULL)) {
-		v4l2_dbg(1, debug, sd, "Unsupported format\n");
+		v4l2_dbg(1, de, sd, "Unsupported format\n");
 		return -EINVAL;
 	}
 
@@ -390,7 +390,7 @@ static int ths8200_g_dv_timings(struct v4l2_subdev *sd,
 {
 	struct ths8200_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
+	v4l2_dbg(1, de, sd, "%s:\n", __func__);
 
 	*timings = state->dv_timings;
 
@@ -455,7 +455,7 @@ static int ths8200_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(sd, client, &ths8200_ops);
 
 	state->chip_version = ths8200_read(sd, THS8200_VERSION);
-	v4l2_dbg(1, debug, sd, "chip version 0x%x\n", state->chip_version);
+	v4l2_dbg(1, de, sd, "chip version 0x%x\n", state->chip_version);
 
 	ths8200_core_init(sd);
 
@@ -474,7 +474,7 @@ static int ths8200_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ths8200_state *decoder = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s removed @ 0x%x (%s)\n", client->name,
+	v4l2_dbg(1, de, sd, "%s removed @ 0x%x (%s)\n", client->name,
 		 client->addr << 1, client->adapter->name);
 
 	ths8200_s_power(sd, false);

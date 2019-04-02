@@ -22,11 +22,11 @@
 #define OF_CHECK_COUNTS(na, ns)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS && \
 			(ns) > 0)
 
-/* Debug utility */
-#ifdef DEBUG
+/* De utility */
+#ifdef DE
 static void __init of_dump_addr(const char *s, const __be32 *addr, int na)
 {
-	pr_debug("%s", s);
+	pr_de("%s", s);
 	while(na--)
 		pr_cont(" %08x", *(addr++));
 	pr_cont("\n");
@@ -76,7 +76,7 @@ static u64 __init fdt_bus_default_map(__be32 *addr, const __be32 *range,
 	s  = of_read_number(range + na + pna, ns);
 	da = of_read_number(addr, na);
 
-	pr_debug("default map, cp=%llx, s=%llx, da=%llx\n",
+	pr_de("default map, cp=%llx, s=%llx, da=%llx\n",
 	    cp, s, da);
 
 	if (da < cp || da >= (cp + s))
@@ -122,11 +122,11 @@ static int __init fdt_translate_one(const void *blob, int parent,
 	if (rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
-		pr_debug("empty ranges, 1:1 translation\n");
+		pr_de("empty ranges, 1:1 translation\n");
 		goto finish;
 	}
 
-	pr_debug("walking ranges...\n");
+	pr_de("walking ranges...\n");
 
 	/* Now walk through the ranges */
 	rlen /= 4;
@@ -137,14 +137,14 @@ static int __init fdt_translate_one(const void *blob, int parent,
 			break;
 	}
 	if (offset == OF_BAD_ADDR) {
-		pr_debug("not found !\n");
+		pr_de("not found !\n");
 		return 1;
 	}
 	memcpy(addr, ranges + na, 4 * pna);
 
  finish:
 	of_dump_addr("parent translation for:", addr, pna);
-	pr_debug("with offset: %llx\n", offset);
+	pr_de("with offset: %llx\n", offset);
 
 	/* Translate it into parent bus space */
 	return pbus->translate(addr, offset, pna);
@@ -169,7 +169,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	int na, ns, pna, pns;
 	u64 result = OF_BAD_ADDR;
 
-	pr_debug("** translation for device %s **\n",
+	pr_de("** translation for device %s **\n",
 		 fdt_get_name(blob, node_offset, NULL));
 
 	reg = fdt_getprop(blob, node_offset, "reg", &len);
@@ -194,7 +194,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 	}
 	memcpy(addr, reg, na * 4);
 
-	pr_debug("bus (na=%d, ns=%d) on %s\n",
+	pr_de("bus (na=%d, ns=%d) on %s\n",
 		 na, ns, fdt_get_name(blob, parent, NULL));
 	of_dump_addr("translating address:", addr, na);
 
@@ -206,7 +206,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 
 		/* If root, we have finished */
 		if (parent < 0) {
-			pr_debug("reached root node\n");
+			pr_de("reached root node\n");
 			result = of_read_number(addr, na);
 			break;
 		}
@@ -220,7 +220,7 @@ static u64 __init fdt_translate_address(const void *blob, int node_offset)
 			break;
 		}
 
-		pr_debug("parent bus (na=%d, ns=%d) on %s\n",
+		pr_de("parent bus (na=%d, ns=%d) on %s\n",
 			 pna, pns, fdt_get_name(blob, parent, NULL));
 
 		/* Apply bus translation */

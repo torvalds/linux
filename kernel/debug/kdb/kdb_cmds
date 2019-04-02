@@ -4,10 +4,10 @@
 # registers) are not reliable this early.  set and bp commands should
 # be safe.  Global breakpoint commands affect each cpu as it is booted.
 
-# Standard debugging information for first level support, just type archkdb
+# Standard deging information for first level support, just type archkdb
 # or archkdbcpu or archkdbshort at the kdb prompt.
 
-defcmd dumpcommon "" "Common kdb debugging"
+defcmd dumpcommon "" "Common kdb deging"
   set BTAPROMPT 0
   set LINES 10000
   -summary
@@ -17,7 +17,7 @@ defcmd dumpcommon "" "Common kdb debugging"
   -bt
 endefcmd
 
-defcmd dumpall "" "First line debugging"
+defcmd dumpall "" "First line deging"
   pid R
   -dumpcommon
   -bta

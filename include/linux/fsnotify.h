@@ -15,7 +15,7 @@
 #include <linux/fsnotify_backend.h>
 #include <linux/audit.h>
 #include <linux/slab.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 /*
  * Notify this @dir inode about a change in the directory entry @dentry.

@@ -15,7 +15,7 @@
 ({									\
 	long __ReS = a;							\
 									\
-	BUILD_BUG_ON((sizeof(t) > 4) && !__TYPE_IS_L(t) &&		\
+	BUILD__ON((sizeof(t) > 4) && !__TYPE_IS_L(t) &&		\
 		     !__TYPE_IS_UL(t) && !__TYPE_IS_PTR(t) &&		\
 		     !__TYPE_IS_LL(t));					\
 	if (__TYPE_IS_L(t))						\

@@ -43,7 +43,7 @@
 #include "transport.h"
 #include "protocol.h"
 #include "scsiglue.h"
-#include "debug.h"
+#include "de.h"
 
 #include <linux/blkdev.h>
 #include "../../scsi/sd.h"
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(usb_stor_clear_halt);
 /*
  * Interpret the results of a URB transfer
  *
- * This function prints appropriate debugging messages, clears halts on
+ * This function prints appropriate deging messages, clears halts on
  * non-control endpoints, and translates the status to the corresponding
  * USB_STOR_XFER_xxx return code.
  */
@@ -559,7 +559,7 @@ static void last_sector_hacks(struct us_data *us, struct scsi_cmnd *srb)
 
 		/*
 		 * The command succeeded.  We know this device doesn't
-		 * have the last-sector bug, so stop checking it.
+		 * have the last-sector , so stop checking it.
 		 */
 		us->use_last_sector_hacks = 0;
 
@@ -792,7 +792,7 @@ Retry_Sense:
 		usb_stor_dbg(us, "-- code: 0x%x, key: 0x%x, ASC: 0x%x, ASCQ: 0x%x\n",
 			     sshdr.response_code, sshdr.sense_key,
 			     sshdr.asc, sshdr.ascq);
-#ifdef CONFIG_USB_STORAGE_DEBUG
+#ifdef CONFIG_USB_STORAGE_DE
 		usb_stor_show_sense(us, sshdr.sense_key, sshdr.asc, sshdr.ascq);
 #endif
 

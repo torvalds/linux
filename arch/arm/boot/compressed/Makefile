@@ -10,8 +10,8 @@ OBJS		=
 AFLAGS_head.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 HEAD	= head.o
 OBJS	+= misc.o decompress.o
-ifeq ($(CONFIG_DEBUG_UNCOMPRESS),y)
-OBJS	+= debug.o
+ifeq ($(CONFIG_DE_UNCOMPRESS),y)
+OBJS	+= de.o
 endif
 FONTC	= $(srctree)/lib/fonts/font_acorn_8x8.c
 

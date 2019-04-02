@@ -46,7 +46,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 	struct i915_timeline_hwsp *hwsp;
 
-	BUILD_BUG_ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
+	BUILD__ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
 
 	spin_lock(&gt->hwsp_lock);
 
@@ -76,7 +76,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 		list_add(&hwsp->free_link, &gt->hwsp_free_list);
 	}
 
-	GEM_BUG_ON(!hwsp->free_bitmap);
+	GEM__ON(!hwsp->free_bitmap);
 	*cacheline = __ffs64(hwsp->free_bitmap);
 	hwsp->free_bitmap &= ~BIT_ULL(*cacheline);
 	if (!hwsp->free_bitmap)
@@ -84,7 +84,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 
 	spin_unlock(&gt->hwsp_lock);
 
-	GEM_BUG_ON(hwsp->vma->private != hwsp);
+	GEM__ON(hwsp->vma->private != hwsp);
 	return hwsp->vma;
 }
 
@@ -130,7 +130,7 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	 *
 	 * Called during early_init before we know how many engines there are.
 	 */
-	BUILD_BUG_ON(KSYNCMAP < I915_NUM_ENGINES);
+	BUILD__ON(KSYNCMAP < I915_NUM_ENGINES);
 
 	timeline->i915 = i915;
 	timeline->name = name;
@@ -234,9 +234,9 @@ void i915_timelines_park(struct drm_i915_private *i915)
 
 void i915_timeline_fini(struct i915_timeline *timeline)
 {
-	GEM_BUG_ON(timeline->pin_count);
-	GEM_BUG_ON(!list_empty(&timeline->requests));
-	GEM_BUG_ON(i915_active_request_isset(&timeline->barrier));
+	GEM__ON(timeline->pin_count);
+	GEM__ON(!list_empty(&timeline->requests));
+	GEM__ON(i915_active_request_isset(&timeline->barrier));
 
 	i915_syncmap_free(&timeline->sync);
 	hwsp_free(timeline);
@@ -274,7 +274,7 @@ int i915_timeline_pin(struct i915_timeline *tl)
 
 	if (tl->pin_count++)
 		return 0;
-	GEM_BUG_ON(!tl->pin_count);
+	GEM__ON(!tl->pin_count);
 
 	err = i915_vma_pin(tl->hwsp_ggtt, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
@@ -295,7 +295,7 @@ unpin:
 
 void i915_timeline_unpin(struct i915_timeline *tl)
 {
-	GEM_BUG_ON(!tl->pin_count);
+	GEM__ON(!tl->pin_count);
 	if (--tl->pin_count)
 		return;
 
@@ -324,8 +324,8 @@ void i915_timelines_fini(struct drm_i915_private *i915)
 {
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
 
-	GEM_BUG_ON(!list_empty(&gt->active_list));
-	GEM_BUG_ON(!list_empty(&gt->hwsp_free_list));
+	GEM__ON(!list_empty(&gt->active_list));
+	GEM__ON(!list_empty(&gt->hwsp_free_list));
 
 	mutex_destroy(&gt->mutex);
 }

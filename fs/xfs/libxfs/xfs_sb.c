@@ -675,7 +675,7 @@ xfs_sb_to_disk(
  * superblock are supposed to be zero. Hence a non-null crc field indicates that
  * we've potentially lost a feature bit and we should check it anyway.
  *
- * However, past bugs (i.e. in growfs) left non-zeroed regions beyond the
+ * However, past s (i.e. in growfs) left non-zeroed regions beyond the
  * last field in V4 secondary superblocks.  So for secondary superblocks,
  * we are more forgiving, and ignore CRC failures if the primary doesn't
  * indicate that the fs version is V5.
@@ -1104,7 +1104,7 @@ xfs_fs_geometry(
 	geo->rtblocks = sbp->sb_rblocks;
 	geo->rtextents = sbp->sb_rextents;
 	geo->logstart = sbp->sb_logstart;
-	BUILD_BUG_ON(sizeof(geo->uuid) != sizeof(sbp->sb_uuid));
+	BUILD__ON(sizeof(geo->uuid) != sizeof(sbp->sb_uuid));
 	memcpy(geo->uuid, &sbp->sb_uuid, sizeof(sbp->sb_uuid));
 
 	if (struct_version < 2)

@@ -25,7 +25,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -59,7 +59,7 @@ static const char *const sctp_cid_tbl[SCTP_NUM_BASE_CHUNK_TYPES] = {
 	"SHUTDOWN_COMPLETE",
 };
 
-/* Lookup "chunk type" debug name. */
+/* Lookup "chunk type" de name. */
 const char *sctp_cname(const union sctp_subtype cid)
 {
 	if (cid.chunk <= SCTP_CID_BASE_MAX)
@@ -125,7 +125,7 @@ const char *const sctp_status_tbl[] = {
 	"DISPOSITION_VIOLATION",
 	"DISPOSITION_NOT_IMPL",
 	"DISPOSITION_ERROR",
-	"DISPOSITION_BUG"
+	"DISPOSITION_"
 };
 
 /* Printable forms of primitives */
@@ -138,7 +138,7 @@ static const char *const sctp_primitive_tbl[SCTP_NUM_PRIMITIVE_TYPES] = {
 	"PRIMITIVE_ASCONF",
 };
 
-/* Lookup primitive debug name. */
+/* Lookup primitive de name. */
 const char *sctp_pname(const union sctp_subtype id)
 {
 	if (id.primitive <= SCTP_EVENT_PRIMITIVE_MAX)
@@ -151,7 +151,7 @@ static const char *const sctp_other_tbl[] = {
 	"ICMP_PROTO_UNREACH",
 };
 
-/* Lookup "other" debug name. */
+/* Lookup "other" de name. */
 const char *sctp_oname(const union sctp_subtype id)
 {
 	if (id.other <= SCTP_EVENT_OTHER_MAX)
@@ -173,10 +173,10 @@ static const char *const sctp_timer_tbl[] = {
 	"TIMEOUT_AUTOCLOSE",
 };
 
-/* Lookup timer debug name. */
+/* Lookup timer de name. */
 const char *sctp_tname(const union sctp_subtype id)
 {
-	BUILD_BUG_ON(SCTP_EVENT_TIMEOUT_MAX + 1 != ARRAY_SIZE(sctp_timer_tbl));
+	BUILD__ON(SCTP_EVENT_TIMEOUT_MAX + 1 != ARRAY_SIZE(sctp_timer_tbl));
 
 	if (id.timeout < ARRAY_SIZE(sctp_timer_tbl))
 		return sctp_timer_tbl[id.timeout];

@@ -1043,7 +1043,7 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	pm_runtime_irq_safe(obj->dev);
 	pm_runtime_enable(obj->dev);
 
-	omap_iommu_debugfs_add(obj);
+	omap_iommu_defs_add(obj);
 
 	dev_info(&pdev->dev, "%s registered\n", obj->name);
 
@@ -1068,7 +1068,7 @@ static int omap_iommu_remove(struct platform_device *pdev)
 		iommu_device_unregister(&obj->iommu);
 	}
 
-	omap_iommu_debugfs_remove(obj);
+	omap_iommu_defs_remove(obj);
 
 	pm_runtime_disable(obj->dev);
 
@@ -1575,7 +1575,7 @@ static int __init omap_iommu_init(void)
 		return -ENOMEM;
 	iopte_cachep = p;
 
-	omap_iommu_debugfs_init();
+	omap_iommu_defs_init();
 
 	ret = platform_driver_register(&omap_iommu_driver);
 	if (ret) {

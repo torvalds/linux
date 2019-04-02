@@ -161,7 +161,7 @@ enum fw_resource_type {
  *
  * @flags is used to provide IOMMU protection flags, and @name should
  * (optionally) contain a human readable name of this carveout region
- * (mainly for debugging purposes).
+ * (mainly for deging purposes).
  */
 struct fw_rsc_carveout {
 	u32 da;
@@ -193,7 +193,7 @@ struct fw_rsc_carveout {
  * the physical address we want to map, @len should specify the size of
  * the mapping and @flags is the IOMMU protection flags. As always, @name may
  * (optionally) contain a human readable name of this mapping (mainly for
- * debugging purposes).
+ * deging purposes).
  *
  * Note: at this point we just "trust" those devmem entries to contain valid
  * physical addresses, but this isn't safe and will be changed: eventually we
@@ -224,7 +224,7 @@ struct fw_rsc_devmem {
  * its size, and @name may contain a human readable name of the trace buffer.
  *
  * After booting the remote processor, the trace buffers are exposed to the
- * user via debugfs entries (called trace0, trace1, etc..).
+ * user via defs entries (called trace0, trace1, etc..).
  */
 struct fw_rsc_trace {
 	u32 da;
@@ -440,7 +440,7 @@ struct rproc_dump_segment {
  * @power: refcount of users who need this rproc powered up
  * @state: state of the device
  * @lock: lock which protects concurrent manipulations of the rproc
- * @dbg_dir: debugfs directory of this rproc device
+ * @dbg_dir: defs directory of this rproc device
  * @traces: list of trace buffers
  * @num_traces: number of trace buffers
  * @carveouts: list of physically contiguous memory allocations

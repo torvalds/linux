@@ -222,11 +222,11 @@ int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
 	int rc = 0;
 
 	if (S_ISDIR(ecryptfs_inode->i_mode)) {
-		ecryptfs_printk(KERN_DEBUG, "This is a directory\n");
+		ecryptfs_printk(KERN_DE, "This is a directory\n");
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
 		goto out;
 	}
-	ecryptfs_printk(KERN_DEBUG, "Initializing crypto context\n");
+	ecryptfs_printk(KERN_DE, "Initializing crypto context\n");
 	rc = ecryptfs_new_file_context(ecryptfs_inode);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error creating new file "
@@ -339,7 +339,7 @@ static struct dentry *ecryptfs_lookup_interpose(struct dentry *dentry,
 	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(dentry->d_parent));
 	fsstack_copy_attr_atime(d_inode(dentry->d_parent),
 				d_inode(lower_dentry->d_parent));
-	BUG_ON(!d_count(lower_dentry));
+	_ON(!d_count(lower_dentry));
 
 	ecryptfs_set_dentry_private(dentry, dentry_info);
 	dentry_info->lower_path.mnt = lower_mnt;
@@ -408,7 +408,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 
 	lower_dentry = lookup_one_len_unlocked(name, lower_dir_dentry, len);
 	if (IS_ERR(lower_dentry)) {
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+		ecryptfs_printk(KERN_DE, "%s: lookup_one_len() returned "
 				"[%ld] on lower_dentry = [%s]\n", __func__,
 				PTR_ERR(lower_dentry),
 				name);
@@ -1130,7 +1130,7 @@ static int ecryptfs_xattr_set(const struct xattr_handler *handler,
 	if (value)
 		return ecryptfs_setxattr(dentry, inode, name, value, size, flags);
 	else {
-		BUG_ON(flags != XATTR_REPLACE);
+		_ON(flags != XATTR_REPLACE);
 		return ecryptfs_removexattr(dentry, inode, name);
 	}
 }

@@ -497,7 +497,7 @@ static int selinux_is_genfs_special_handling(struct super_block *sb)
 	/* Special handling. Genfs but also in-core setxattr handler */
 	return	!strcmp(sb->s_type->name, "sysfs") ||
 		!strcmp(sb->s_type->name, "pstore") ||
-		!strcmp(sb->s_type->name, "debugfs") ||
+		!strcmp(sb->s_type->name, "defs") ||
 		!strcmp(sb->s_type->name, "tracefs") ||
 		!strcmp(sb->s_type->name, "rootfs") ||
 		(selinux_policycap_cgroupseclabel() &&
@@ -513,7 +513,7 @@ static int selinux_is_sblabel_mnt(struct super_block *sb)
 	 * IMPORTANT: Double-check logic in this function when adding a new
 	 * SECURITY_FS_USE_* definition!
 	 */
-	BUILD_BUG_ON(SECURITY_FS_USE_MAX != 7);
+	BUILD__ON(SECURITY_FS_USE_MAX != 7);
 
 	switch (sbsec->behavior) {
 	case SECURITY_FS_USE_XATTR:
@@ -749,7 +749,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	if (strcmp(sb->s_type->name, "proc") == 0)
 		sbsec->flags |= SE_SBPROC | SE_SBGENFS;
 
-	if (!strcmp(sb->s_type->name, "debugfs") ||
+	if (!strcmp(sb->s_type->name, "defs") ||
 	    !strcmp(sb->s_type->name, "tracefs") ||
 	    !strcmp(sb->s_type->name, "sysfs") ||
 	    !strcmp(sb->s_type->name, "pstore") ||
@@ -936,7 +936,7 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 		return -EINVAL;
 
 	/* how can we clone if the old one wasn't set up?? */
-	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
+	_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
 
 	/* if fs is reusing a sb, make sure that the contexts match */
 	if (newsbsec->flags & SE_SBINITIALIZED) {
@@ -1626,7 +1626,7 @@ static int cred_has_capability(const struct cred *cred,
 		break;
 	default:
 		pr_err("SELinux:  out of range capability %d\n", cap);
-		BUG();
+		();
 		return -EINVAL;
 	}
 
@@ -6915,9 +6915,9 @@ static __init int selinux_init(void)
 		panic("SELinux: Unable to register AVC LSM notifier callback\n");
 
 	if (selinux_enforcing_boot)
-		pr_debug("SELinux:  Starting in enforcing mode\n");
+		pr_de("SELinux:  Starting in enforcing mode\n");
 	else
-		pr_debug("SELinux:  Starting in permissive mode\n");
+		pr_de("SELinux:  Starting in permissive mode\n");
 
 	fs_validate_description(&selinux_fs_parameters);
 
@@ -6931,10 +6931,10 @@ static void delayed_superblock_init(struct super_block *sb, void *unused)
 
 void selinux_complete_init(void)
 {
-	pr_debug("SELinux:  Completing initialization.\n");
+	pr_de("SELinux:  Completing initialization.\n");
 
 	/* Set up any superblocks initialized prior to the policy load. */
-	pr_debug("SELinux:  Setting up existing superblocks.\n");
+	pr_de("SELinux:  Setting up existing superblocks.\n");
 	iterate_supers(delayed_superblock_init, NULL);
 }
 
@@ -7015,7 +7015,7 @@ static int __init selinux_nf_ip_init(void)
 	if (!selinux_enabled)
 		return 0;
 
-	pr_debug("SELinux:  Registering netfilter hooks\n");
+	pr_de("SELinux:  Registering netfilter hooks\n");
 
 	err = register_pernet_subsys(&selinux_net_ops);
 	if (err)
@@ -7028,7 +7028,7 @@ __initcall(selinux_nf_ip_init);
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 static void selinux_nf_ip_exit(void)
 {
-	pr_debug("SELinux:  Unregistering netfilter hooks\n");
+	pr_de("SELinux:  Unregistering netfilter hooks\n");
 
 	unregister_pernet_subsys(&selinux_net_ops);
 }

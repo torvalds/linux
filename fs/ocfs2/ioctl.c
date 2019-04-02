@@ -782,7 +782,7 @@ static int ocfs2_get_request_ptr(struct ocfs2_info *info, int idx,
 		 */
 		bp = (u64 __user *)(unsigned long)compat_ptr(info->oi_requests);
 #else
-		BUG();
+		();
 #endif
 	} else
 		bp = (u64 __user *)(unsigned long)(info->oi_requests);

@@ -139,7 +139,7 @@ static int __init pit_clockevent_init(unsigned long rate, int irq)
 	__raw_writel(0, clkevt_base + PITTCTRL);
 	__raw_writel(PITTFLG_TIF, clkevt_base + PITTFLG);
 
-	BUG_ON(setup_irq(irq, &pit_timer_irq));
+	_ON(setup_irq(irq, &pit_timer_irq));
 
 	clockevent_pit.cpumask = cpumask_of(0);
 	clockevent_pit.irq = irq;

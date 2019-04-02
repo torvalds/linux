@@ -71,7 +71,7 @@ static inline int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 				pgprot_t prot,  unsigned int domid,
 				bool no_translate, struct page **pages)
 {
-	BUG();
+	();
 	return 0;
 }
 #endif
@@ -137,11 +137,11 @@ static inline int xen_remap_domain_gfn_array(struct vm_area_struct *vma,
 		return xen_xlate_remap_gfn_array(vma, addr, gfn, nr, err_ptr,
 						 prot, domid, pages);
 
-	/* We BUG_ON because it's a programmer error to pass a NULL err_ptr,
+	/* We _ON because it's a programmer error to pass a NULL err_ptr,
 	 * and the consequences later is quite hard to detect what the actual
 	 * cause of "wrong memory was mapped in".
 	 */
-	BUG_ON(err_ptr == NULL);
+	_ON(err_ptr == NULL);
 	return xen_remap_pfn(vma, addr, gfn, nr, err_ptr, prot, domid,
 			     false, pages);
 }

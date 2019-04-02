@@ -698,7 +698,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 	}
 #endif
 	default:
-		BUG();
+		();
 		return 0;
 	}
 
@@ -1121,7 +1121,7 @@ static void dl_seq_print(struct dsthash_ent *ent, u_int8_t family,
 		break;
 #endif
 	default:
-		BUG();
+		();
 	}
 }
 

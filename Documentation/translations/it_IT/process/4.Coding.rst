@@ -258,7 +258,7 @@ però averne trovato la causa.
 Tenete a mente che non tutti gli avvertimenti sono disabilitati di default.
 Costruite il kernel con "make EXTRA_CFLAGS=-W" per ottenerli tutti.
 
-Il kernel fornisce differenti opzioni che abilitano funzionalità di debugging;
+Il kernel fornisce differenti opzioni che abilitano funzionalità di deging;
 molti di queste sono trovano all'interno del sotto menu "kernel hacking".
 La maggior parte di queste opzioni possono essere attivate per qualsiasi
 kernel utilizzato per lo sviluppo o a scopo di test.  In particolare dovreste
@@ -270,24 +270,24 @@ attivare:
    generato da questi avvertimenti può risultare verboso, ma non bisogna
    preoccuparsi per gli avvertimenti provenienti da altre parti del kernel.
 
- - DEBUG_OBJECTS aggiungerà un codice per tracciare il ciclo di vita di
+ - DE_OBJECTS aggiungerà un codice per tracciare il ciclo di vita di
    diversi oggetti creati dal kernel e avvisa quando qualcosa viene eseguito
    fuori controllo.  Se state aggiungendo un sottosistema che crea (ed
    esporta) oggetti complessi propri, considerate l'aggiunta di un supporto
-   al debugging dell'oggetto.
+   al deging dell'oggetto.
 
- - DEBUG_SLAB può trovare svariati errori di uso e di allocazione di memoria;
+ - DE_SLAB può trovare svariati errori di uso e di allocazione di memoria;
    esso dovrebbe esser usato dalla maggior parte dei kernel di sviluppo.
 
- - DEBUG_SPINLOCK, DEBUG_ATOMIC_SLEEP, e DEBUG_MUTEXES troveranno un certo
+ - DE_SPINLOCK, DE_ATOMIC_SLEEP, e DE_MUTEXES troveranno un certo
    numero di errori comuni di sincronizzazione.
 
-Esistono ancora delle altre opzioni di debugging, di alcune di esse
+Esistono ancora delle altre opzioni di deging, di alcune di esse
 discuteremo qui sotto.  Alcune di esse hanno un forte impatto e non dovrebbero
 essere usate tutte le volte.  Ma qualche volta il tempo speso nell'capire
 le opzioni disponibili porterà ad un risparmio di tempo nel breve termine.
 
-Uno degli strumenti di debugging più tosti è il *locking checker*, o
+Uno degli strumenti di deging più tosti è il *locking checker*, o
 "lockdep".  Questo strumento traccerà qualsiasi acquisizione e rilascio di
 ogni *lock* (spinlock o mutex) nel sistema, l'ordine con il quale i *lock*
 sono acquisiti in relazione l'uno con l'altro, l'ambiente corrente di

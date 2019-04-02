@@ -247,7 +247,7 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 			if (res->flags & IORESOURCE_MEM) {
 				/*
 				 * HP's firmware has a hack to work around a
-				 * Windows bug. Ignore these tiny memory ranges.
+				 * Windows . Ignore these tiny memory ranges.
 				 */
 				if (resource_size(res) <= 16) {
 					resource_list_del(entry);
@@ -406,7 +406,7 @@ pcibios_enable_device (struct pci_dev *dev, int mask)
 void
 pcibios_disable_device (struct pci_dev *dev)
 {
-	BUG_ON(atomic_read(&dev->enable_cnt));
+	_ON(atomic_read(&dev->enable_cnt));
 	if (!pci_dev_msi_enabled(dev))
 		acpi_pci_irq_disable(dev);
 }

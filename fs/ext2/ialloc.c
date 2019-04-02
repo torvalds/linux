@@ -112,7 +112,7 @@ void ext2_free_inode (struct inode * inode)
 	struct ext2_super_block * es;
 
 	ino = inode->i_ino;
-	ext2_debug ("freeing inode %lu\n", ino);
+	ext2_de ("freeing inode %lu\n", ino);
 
 	/*
 	 * Note: we must free any quota before locking the superblock,
@@ -598,7 +598,7 @@ got:
 		goto fail_free_drop;
 
 	mark_inode_dirty(inode);
-	ext2_debug("allocating inode %lu\n", inode->i_ino);
+	ext2_de("allocating inode %lu\n", inode->i_ino);
 	ext2_preread_inode(inode);
 	return inode;
 
@@ -624,7 +624,7 @@ unsigned long ext2_count_free_inodes (struct super_block * sb)
 	unsigned long desc_count = 0;
 	int i;	
 
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_DE
 	struct ext2_super_block *es;
 	unsigned long bitmap_count = 0;
 	struct buffer_head *bitmap_bh = NULL;

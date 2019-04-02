@@ -19,7 +19,7 @@ enum emulation_result kvm_mips_emul_hypcall(struct kvm_vcpu *vcpu,
 {
 	unsigned int code = (inst.co_format.code >> 5) & 0x3ff;
 
-	kvm_debug("[%#lx] HYPCALL %#03x\n", vcpu->arch.pc, code);
+	kvm_de("[%#lx] HYPCALL %#03x\n", vcpu->arch.pc, code);
 
 	switch (code) {
 	case 0:

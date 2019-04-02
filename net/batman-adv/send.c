@@ -20,7 +20,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>

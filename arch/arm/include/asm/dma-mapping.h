@@ -6,7 +6,7 @@
 
 #include <linux/mm_types.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 
 #include <asm/memory.h>
 
@@ -154,7 +154,7 @@ extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
  * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"
  * and utilize bounce buffers as needed to work around limited DMA windows.
  *
- * On the SA-1111, a bug limits DMA to only certain regions of RAM.
+ * On the SA-1111, a  limits DMA to only certain regions of RAM.
  * On the IXP425, the PCI inbound window is 64MB (256MB total RAM)
  * On some ADI engineering systems, PCI inbound window is 32MB (12MB total RAM)
  *

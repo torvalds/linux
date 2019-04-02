@@ -240,7 +240,7 @@ static void _sparc_free_io(struct resource *res)
 	unsigned long plen;
 
 	plen = resource_size(res);
-	BUG_ON((plen & (PAGE_SIZE-1)) != 0);
+	_ON((plen & (PAGE_SIZE-1)) != 0);
 	srmmu_unmapiorange(res->start, plen);
 	release_resource(res);
 }

@@ -12,7 +12,7 @@ clients write into the channel buffers using efficient write
 functions; these automatically log into the current cpu's channel
 buffer.  User space applications mmap() or read() from the relay files
 and retrieve the data as it becomes available.  The relay files
-themselves are files created in a host filesystem, e.g. debugfs, and
+themselves are files created in a host filesystem, e.g. defs, and
 are associated with the channel buffers using the API described below.
 
 The format of the data logged into the channel buffers is completely
@@ -77,7 +77,7 @@ kernel sides of a relay application.  When combined these two sets of
 boilerplate code provide glue to easily stream data to disk, without
 having to bother with mundane housekeeping chores.
 
-The 'klog debugging functions' patch (klog.patch in the relay-apps
+The 'klog deging functions' patch (klog.patch in the relay-apps
 tarball) provides a couple of high-level logging functions to the
 kernel which allow writing formatted text or raw data to a channel,
 regardless of whether a channel to write into exists or not, or even
@@ -140,7 +140,7 @@ close()     decrements the channel buffer's refcount.  When the refcount
 In order for a user application to make use of relay files, the
 host filesystem must be mounted.  For example,
 
-	mount -t debugfs debugfs /sys/kernel/debug
+	mount -t defs defs /sys/kernel/de
 
 NOTE:   the host filesystem doesn't need to be mounted for kernel
 	clients to create or use channels - it only needs to be
@@ -197,11 +197,11 @@ where N is the number of online cpus, and by default will be created
 in the root of the filesystem (if the parent param is NULL).  If you
 want a directory structure to contain your relay files, you should
 create it using the host filesystem's directory creation function,
-e.g. debugfs_create_dir(), and pass the parent directory to
+e.g. defs_create_dir(), and pass the parent directory to
 relay_open().  Users are responsible for cleaning up any directory
 structure they create, when the channel is closed - again the host
 filesystem's directory removal functions should be used for that,
-e.g. debugfs_remove().
+e.g. defs_remove().
 
 In order for a channel to be created and the host filesystem's files
 associated with its channel buffers, the user must provide definitions
@@ -215,10 +215,10 @@ the file(s) created in create_buf_file() and is called during
 relay_close().
 
 Here are some typical definitions for these callbacks, in this case
-using debugfs:
+using defs:
 
 /*
- * create_buf_file() callback.  Creates relay file in debugfs.
+ * create_buf_file() callback.  Creates relay file in defs.
  */
 static struct dentry *create_buf_file_handler(const char *filename,
                                               struct dentry *parent,
@@ -226,16 +226,16 @@ static struct dentry *create_buf_file_handler(const char *filename,
                                               struct rchan_buf *buf,
                                               int *is_global)
 {
-        return debugfs_create_file(filename, mode, parent, buf,
+        return defs_create_file(filename, mode, parent, buf,
 	                           &relay_file_operations);
 }
 
 /*
- * remove_buf_file() callback.  Removes relay file from debugfs.
+ * remove_buf_file() callback.  Removes relay file from defs.
  */
 static int remove_buf_file_handler(struct dentry *dentry)
 {
-        debugfs_remove(dentry);
+        defs_remove(dentry);
 
         return 0;
 }
@@ -490,5 +490,5 @@ Bob Wisniewski		<bob@watson.ibm.com>
 Karim Yaghmour		<karim@opersys.com>
 Tom Zanussi		<zanussi@us.ibm.com>
 
-Also thanks to Hubertus Franke for a lot of useful suggestions and bug
+Also thanks to Hubertus Franke for a lot of useful suggestions and 
 reports.

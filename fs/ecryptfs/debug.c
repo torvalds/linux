@@ -1,6 +1,6 @@
 /**
  * eCryptfs: Linux filesystem encryption layer
- * Functions only useful for debugging.
+ * Functions only useful for deging.
  *
  * Copyright (C) 2006 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
@@ -24,7 +24,7 @@
 #include "ecryptfs_kernel.h"
 
 /**
- * ecryptfs_dump_auth_tok - debug function to print auth toks
+ * ecryptfs_dump_auth_tok - de function to print auth toks
  *
  * This function will print the contents of an ecryptfs authentication
  * token.
@@ -34,52 +34,52 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
 	char salt[ECRYPTFS_SALT_SIZE * 2 + 1];
 	char sig[ECRYPTFS_SIG_SIZE_HEX + 1];
 
-	ecryptfs_printk(KERN_DEBUG, "Auth tok at mem loc [%p]:\n",
+	ecryptfs_printk(KERN_DE, "Auth tok at mem loc [%p]:\n",
 			auth_tok);
 	if (auth_tok->flags & ECRYPTFS_PRIVATE_KEY) {
-		ecryptfs_printk(KERN_DEBUG, " * private key type\n");
+		ecryptfs_printk(KERN_DE, " * private key type\n");
 	} else {
-		ecryptfs_printk(KERN_DEBUG, " * passphrase type\n");
+		ecryptfs_printk(KERN_DE, " * passphrase type\n");
 		ecryptfs_to_hex(salt, auth_tok->token.password.salt,
 				ECRYPTFS_SALT_SIZE);
 		salt[ECRYPTFS_SALT_SIZE * 2] = '\0';
-		ecryptfs_printk(KERN_DEBUG, " * salt = [%s]\n", salt);
+		ecryptfs_printk(KERN_DE, " * salt = [%s]\n", salt);
 		if (auth_tok->token.password.flags &
 		    ECRYPTFS_PERSISTENT_PASSWORD) {
-			ecryptfs_printk(KERN_DEBUG, " * persistent\n");
+			ecryptfs_printk(KERN_DE, " * persistent\n");
 		}
 		memcpy(sig, auth_tok->token.password.signature,
 		       ECRYPTFS_SIG_SIZE_HEX);
 		sig[ECRYPTFS_SIG_SIZE_HEX] = '\0';
-		ecryptfs_printk(KERN_DEBUG, " * signature = [%s]\n", sig);
+		ecryptfs_printk(KERN_DE, " * signature = [%s]\n", sig);
 	}
-	ecryptfs_printk(KERN_DEBUG, " * session_key.flags = [0x%x]\n",
+	ecryptfs_printk(KERN_DE, " * session_key.flags = [0x%x]\n",
 			auth_tok->session_key.flags);
 	if (auth_tok->session_key.flags
 	    & ECRYPTFS_USERSPACE_SHOULD_TRY_TO_DECRYPT)
-		ecryptfs_printk(KERN_DEBUG,
+		ecryptfs_printk(KERN_DE,
 				" * Userspace decrypt request set\n");
 	if (auth_tok->session_key.flags
 	    & ECRYPTFS_USERSPACE_SHOULD_TRY_TO_ENCRYPT)
-		ecryptfs_printk(KERN_DEBUG,
+		ecryptfs_printk(KERN_DE,
 				" * Userspace encrypt request set\n");
 	if (auth_tok->session_key.flags & ECRYPTFS_CONTAINS_DECRYPTED_KEY) {
-		ecryptfs_printk(KERN_DEBUG, " * Contains decrypted key\n");
-		ecryptfs_printk(KERN_DEBUG,
+		ecryptfs_printk(KERN_DE, " * Contains decrypted key\n");
+		ecryptfs_printk(KERN_DE,
 				" * session_key.decrypted_key_size = [0x%x]\n",
 				auth_tok->session_key.decrypted_key_size);
-		ecryptfs_printk(KERN_DEBUG, " * Decrypted session key "
+		ecryptfs_printk(KERN_DE, " * Decrypted session key "
 				"dump:\n");
 		if (ecryptfs_verbosity > 0)
 			ecryptfs_dump_hex(auth_tok->session_key.decrypted_key,
 					  ECRYPTFS_DEFAULT_KEY_BYTES);
 	}
 	if (auth_tok->session_key.flags & ECRYPTFS_CONTAINS_ENCRYPTED_KEY) {
-		ecryptfs_printk(KERN_DEBUG, " * Contains encrypted key\n");
-		ecryptfs_printk(KERN_DEBUG,
+		ecryptfs_printk(KERN_DE, " * Contains encrypted key\n");
+		ecryptfs_printk(KERN_DE,
 				" * session_key.encrypted_key_size = [0x%x]\n",
 				auth_tok->session_key.encrypted_key_size);
-		ecryptfs_printk(KERN_DEBUG, " * Encrypted session key "
+		ecryptfs_printk(KERN_DE, " * Encrypted session key "
 				"dump:\n");
 		if (ecryptfs_verbosity > 0)
 			ecryptfs_dump_hex(auth_tok->session_key.encrypted_key,
@@ -89,7 +89,7 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
 }
 
 /**
- * ecryptfs_dump_hex - debug hex printer
+ * ecryptfs_dump_hex - de hex printer
  * @data: string of bytes to be printed
  * @bytes: number of bytes to print
  *
@@ -103,7 +103,7 @@ void ecryptfs_dump_hex(char *data, int bytes)
 	if (ecryptfs_verbosity < 1)
 		return;
 	if (bytes != 0) {
-		printk(KERN_DEBUG "0x%.2x.", (unsigned char)data[i]);
+		printk(KERN_DE "0x%.2x.", (unsigned char)data[i]);
 		i++;
 	}
 	while (i < bytes) {

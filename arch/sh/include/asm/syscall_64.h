@@ -50,7 +50,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 	memcpy(args, &regs->regs[2 + i], n * sizeof(args[0]));
 }
 
@@ -59,7 +59,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
+	_ON(i + n > 6);
 	memcpy(&regs->regs[2 + i], args, n * sizeof(args[0]));
 }
 

@@ -133,8 +133,8 @@ enum vcpu_sysreg {
 	AMAIR_EL1,	/* Aux Memory Attribute Indirection Register */
 	CNTKCTL_EL1,	/* Timer Control Register (EL1) */
 	PAR_EL1,	/* Physical Address Register */
-	MDSCR_EL1,	/* Monitor Debug System Control Register */
-	MDCCINT_EL1,	/* Monitor Debug Comms Channel Interrupt Enable Reg */
+	MDSCR_EL1,	/* Monitor De System Control Register */
+	MDCCINT_EL1,	/* Monitor De Comms Channel Interrupt Enable Reg */
 	DISR_EL1,	/* Deferred Interrupt Status Register */
 
 	/* Performance Monitors Registers */
@@ -156,7 +156,7 @@ enum vcpu_sysreg {
 	DACR32_EL2,	/* Domain Access Control Register */
 	IFSR32_EL2,	/* Instruction Fault Status Register */
 	FPEXC32_EL2,	/* Floating-Point Exception Control Register */
-	DBGVCR32_EL2,	/* Debug Vector Catch Register */
+	DBGVCR32_EL2,	/* De Vector Catch Register */
 
 	NR_SYS_REGS	/* Nothing after this line! */
 };
@@ -238,21 +238,21 @@ struct kvm_vcpu_arch {
 	u64 flags;
 
 	/*
-	 * We maintain more than a single set of debug registers to support
-	 * debugging the guest from the host and to maintain separate host and
-	 * guest state during world switches. vcpu_debug_state are the debug
-	 * registers of the vcpu as the guest sees them.  host_debug_state are
+	 * We maintain more than a single set of de registers to support
+	 * deging the guest from the host and to maintain separate host and
+	 * guest state during world switches. vcpu_de_state are the de
+	 * registers of the vcpu as the guest sees them.  host_de_state are
 	 * the host registers which are saved and restored during
-	 * world switches. external_debug_state contains the debug
-	 * values we want to debug the guest. This is set via the
-	 * KVM_SET_GUEST_DEBUG ioctl.
+	 * world switches. external_de_state contains the de
+	 * values we want to de the guest. This is set via the
+	 * KVM_SET_GUEST_DE ioctl.
 	 *
-	 * debug_ptr points to the set of debug registers that should be loaded
+	 * de_ptr points to the set of de registers that should be loaded
 	 * onto the hardware when running the guest.
 	 */
-	struct kvm_guest_debug_arch *debug_ptr;
-	struct kvm_guest_debug_arch vcpu_debug_state;
-	struct kvm_guest_debug_arch external_debug_state;
+	struct kvm_guest_de_arch *de_ptr;
+	struct kvm_guest_de_arch vcpu_de_state;
+	struct kvm_guest_de_arch external_de_state;
 
 	/* Pointer to host CPU context */
 	kvm_cpu_context_t *host_cpu_context;
@@ -262,10 +262,10 @@ struct kvm_vcpu_arch {
 
 	struct {
 		/* {Break,watch}point registers */
-		struct kvm_guest_debug_arch regs;
+		struct kvm_guest_de_arch regs;
 		/* Statistical profiling extension */
 		u64 pmscr_el1;
-	} host_debug_state;
+	} host_de_state;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -278,15 +278,15 @@ struct kvm_vcpu_arch {
 	 */
 
 	/*
-	 * Guest registers we preserve during guest debugging.
+	 * Guest registers we preserve during guest deging.
 	 *
 	 * These shadow registers are updated by the kvm_handle_sys_reg
 	 * trap handler if the guest accesses or updates them while we
-	 * are using guest debug.
+	 * are using guest de.
 	 */
 	struct {
 		u32	mdscr_el1;
-	} guest_debug_preserved;
+	} guest_de_preserved;
 
 	/* vcpu power-off state */
 	bool power_off;
@@ -319,7 +319,7 @@ struct kvm_vcpu_arch {
 };
 
 /* vcpu_arch flags field values: */
-#define KVM_ARM64_DEBUG_DIRTY		(1 << 0)
+#define KVM_ARM64_DE_DIRTY		(1 << 0)
 #define KVM_ARM64_FP_ENABLED		(1 << 1) /* guest FP regs loaded */
 #define KVM_ARM64_FP_HOST		(1 << 2) /* host FP regs loaded */
 #define KVM_ARM64_HOST_SVE_IN_USE	(1 << 3) /* backup for host TIF_SVE */
@@ -461,7 +461,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	 * wrong, and hyp will crash and burn when it uses any
 	 * cpus_have_const_cap() wrapper.
 	 */
-	BUG_ON(!static_branch_likely(&arm64_const_caps_ready));
+	_ON(!static_branch_likely(&arm64_const_caps_ready));
 	__kvm_call_hyp((void *)pgd_ptr, hyp_stack_ptr, vector_ptr, tpidr_el2);
 
 	/*
@@ -497,10 +497,10 @@ static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
-void kvm_arm_init_debug(void);
-void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
-void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
-void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
+void kvm_arm_init_de(void);
+void kvm_arm_setup_de(struct kvm_vcpu *vcpu);
+void kvm_arm_clear_de(struct kvm_vcpu *vcpu);
+void kvm_arm_reset_de_ptr(struct kvm_vcpu *vcpu);
 int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,

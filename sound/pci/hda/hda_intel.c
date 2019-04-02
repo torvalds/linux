@@ -160,7 +160,7 @@ module_param_array(jackpoll_ms, int, NULL, 0444);
 MODULE_PARM_DESC(jackpoll_ms, "Ms between polling for jack events (default = 0, using unsol events only)");
 module_param(single_cmd, bint, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
-		 "(for debugging only).");
+		 "(for deging only).");
 module_param(enable_msi, bint, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
@@ -2123,32 +2123,32 @@ out_free:
  * to causes problems on these devices.
  */
 static struct snd_pci_quirk power_save_blacklist[] = {
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1849, 0xc892, "Asrock B85M-ITX", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1849, 0x0397, "Asrock N68C-S UCC", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1849, 0x7662, "Asrock H81M-HDS", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1043, 0x8733, "Asus Prime X370-Pro", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1581607 */
+	/* https://zilla.redhat.com/show_.cgi?id=1581607 */
 	SND_PCI_QUIRK(0x1558, 0x3501, "Clevo W35xSS_370SS", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x1028, 0x0497, "Dell Precision T3600", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	/* Note the P55A-UD3 and Z87-D3HP share the subsys id for the HDA dev */
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte P55A-UD3 / Z87-D3HP", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1525104 */
+	/* https://zilla.redhat.com/show_.cgi?id=1525104 */
 	SND_PCI_QUIRK(0x8086, 0x2040, "Intel DZ77BH-55K", 0),
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=199607 */
+	/* https://zilla.kernel.org/show_.cgi?id=199607 */
 	SND_PCI_QUIRK(0x8086, 0x2057, "Intel NUC5i7RYB", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1520902 */
+	/* https://zilla.redhat.com/show_.cgi?id=1520902 */
 	SND_PCI_QUIRK(0x8086, 0x2068, "Intel NUC7i3BNB", 0),
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=198611 */
+	/* https://zilla.kernel.org/show_.cgi?id=198611 */
 	SND_PCI_QUIRK(0x17aa, 0x2227, "Lenovo X1 Carbon 3rd Gen", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1689623 */
+	/* https://zilla.redhat.com/show_.cgi?id=1689623 */
 	SND_PCI_QUIRK(0x17aa, 0x367b, "Lenovo IdeaCentre B550", 0),
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=1572975 */
+	/* https://zilla.redhat.com/show_.cgi?id=1572975 */
 	SND_PCI_QUIRK(0x17aa, 0x36a7, "Lenovo C50 All in one", 0),
 	{}
 };

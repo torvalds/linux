@@ -289,7 +289,7 @@ void nf_conntrack_unregister_notifier(struct net *net,
 	mutex_lock(&nf_ct_ecache_mutex);
 	notify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
 					   lockdep_is_held(&nf_ct_ecache_mutex));
-	BUG_ON(notify != new);
+	_ON(notify != new);
 	RCU_INIT_POINTER(net->ct.nf_conntrack_event_cb, NULL);
 	mutex_unlock(&nf_ct_ecache_mutex);
 	/* synchronize_rcu() is called from ctnetlink_exit. */
@@ -326,7 +326,7 @@ void nf_ct_expect_unregister_notifier(struct net *net,
 	mutex_lock(&nf_ct_ecache_mutex);
 	notify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
 					   lockdep_is_held(&nf_ct_ecache_mutex));
-	BUG_ON(notify != new);
+	_ON(notify != new);
 	RCU_INIT_POINTER(net->ct.nf_expect_event_cb, NULL);
 	mutex_unlock(&nf_ct_ecache_mutex);
 	/* synchronize_rcu() is called from ctnetlink_exit. */
@@ -359,7 +359,7 @@ int nf_conntrack_ecache_init(void)
 	if (ret < 0)
 		pr_err("Unable to register event extension\n");
 
-	BUILD_BUG_ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
+	BUILD__ON(__IPCT_MAX >= 16);	/* ctmask, missed use u16 */
 
 	return ret;
 }

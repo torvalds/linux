@@ -159,7 +159,7 @@ static int nx842_crypto_add_header(struct nx842_crypto_header *hdr, u8 *buf)
 
 	memcpy(buf, hdr, s);
 
-	print_hex_dump_debug("header ", DUMP_PREFIX_OFFSET, 16, 1, buf, s, 0);
+	print_hex_dump_de("header ", DUMP_PREFIX_OFFSET, 16, 1, buf, s, 0);
 
 	return 0;
 }
@@ -197,7 +197,7 @@ static int compress(struct nx842_crypto_ctx *ctx,
 		memcpy(ctx->sbounce, src, slen);
 		src = ctx->sbounce;
 		slen = adj_slen;
-		pr_debug("using comp sbounce buffer, len %x\n", slen);
+		pr_de("using comp sbounce buffer, len %x\n", slen);
 	}
 
 	dst += hdrsize;
@@ -216,7 +216,7 @@ nospc:
 		dlen = min(p->oremain, BOUNCE_BUFFER_SIZE);
 		dlen = round_down(dlen, c->multiple);
 		dskip = 0;
-		pr_debug("using comp dbounce buffer, len %x\n", dlen);
+		pr_de("using comp dbounce buffer, len %x\n", dlen);
 	}
 	if (dlen > c->maximum)
 		dlen = c->maximum;
@@ -249,7 +249,7 @@ nospc:
 		slen = p->iremain;
 	}
 
-	pr_debug("compress slen %x ignore %x dlen %x padding %x\n",
+	pr_de("compress slen %x ignore %x dlen %x padding %x\n",
 		 slen, *ignore, dlen, dskip);
 
 	return update_param(p, slen, dskip + dlen);
@@ -324,7 +324,7 @@ int nx842_crypto_compress(struct crypto_tfm *tfm,
 	/* ignore indicates the input stream needed to be padded */
 	hdr->ignore = cpu_to_be16(ignore);
 	if (ignore)
-		pr_debug("marked %d bytes as ignore\n", ignore);
+		pr_de("marked %d bytes as ignore\n", ignore);
 
 	if (add_header)
 		ret = nx842_crypto_add_header(hdr, dst);
@@ -333,7 +333,7 @@ int nx842_crypto_compress(struct crypto_tfm *tfm,
 
 	*dlen = p.ototal;
 
-	pr_debug("compress total slen %x dlen %x\n", slen, *dlen);
+	pr_de("compress total slen %x dlen %x\n", slen, *dlen);
 
 unlock:
 	spin_unlock_bh(&ctx->lock);
@@ -384,7 +384,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 		src = ctx->sbounce;
 		spadding = adj_slen - slen;
 		slen = adj_slen;
-		pr_debug("using decomp sbounce buffer, len %x\n", slen);
+		pr_de("using decomp sbounce buffer, len %x\n", slen);
 	}
 
 	if (dlen % c->multiple)
@@ -392,7 +392,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 	if (dlen < required_len || (u64)dst % c->alignment) {
 		dst = ctx->dbounce;
 		dlen = min(required_len, BOUNCE_BUFFER_SIZE);
-		pr_debug("using decomp dbounce buffer, len %x\n", dlen);
+		pr_de("using decomp dbounce buffer, len %x\n", dlen);
 	}
 	if (dlen < c->minimum)
 		goto usesw;
@@ -428,12 +428,12 @@ usesw:
 
 	dlen -= ignore;
 	if (ignore)
-		pr_debug("ignoring last %x bytes\n", ignore);
+		pr_de("ignoring last %x bytes\n", ignore);
 
 	if (dst == ctx->dbounce)
 		memcpy(p->out, dst, dlen);
 
-	pr_debug("decompress slen %x padding %x dlen %x ignore %x\n",
+	pr_de("decompress slen %x padding %x dlen %x ignore %x\n",
 		 slen, padding, dlen, ignore);
 
 	return update_param(p, slen + padding, dlen);
@@ -515,7 +515,7 @@ int nx842_crypto_decompress(struct crypto_tfm *tfm,
 success:
 	*dlen = p.ototal;
 
-	pr_debug("decompress total slen %x dlen %x\n", slen, *dlen);
+	pr_de("decompress total slen %x dlen %x\n", slen, *dlen);
 
 	ret = 0;
 

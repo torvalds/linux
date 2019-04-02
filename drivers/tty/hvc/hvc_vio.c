@@ -21,7 +21,7 @@
  *   - retry nego on subsequent sends ?
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/init.h>
@@ -83,7 +83,7 @@ static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
 		pv->left = hvc_get_chars(pv->termno, pv->buf, count);
 
 		/*
-		 * Work around a HV bug where it gives us a null
+		 * Work around a HV  where it gives us a null
 		 * after every \r.  -- paulus
 		 */
 		for (i = 1; i < pv->left; ++i) {
@@ -414,15 +414,15 @@ void __init hvc_vio_init_early(void)
 	hvc_instantiate(0, 0, ops);
 }
 
-/* call this from early_init() for a working debug console on
+/* call this from early_init() for a working de console on
  * vterm capable LPAR machines
  */
-#ifdef CONFIG_PPC_EARLY_DEBUG_LPAR
-void __init udbg_init_debug_lpar(void)
+#ifdef CONFIG_PPC_EARLY_DE_LPAR
+void __init udbg_init_de_lpar(void)
 {
 	/*
 	 * If we're running as a hypervisor then we definitely can't call the
-	 * hypervisor to print debug output (we *are* the hypervisor), so don't
+	 * hypervisor to print de output (we *are* the hypervisor), so don't
 	 * register if we detect that MSR_HV=1.
 	 */
 	if (mfmsr() & MSR_HV)
@@ -436,17 +436,17 @@ void __init udbg_init_debug_lpar(void)
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
 }
-#endif /* CONFIG_PPC_EARLY_DEBUG_LPAR */
+#endif /* CONFIG_PPC_EARLY_DE_LPAR */
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI
-void __init udbg_init_debug_lpar_hvsi(void)
+#ifdef CONFIG_PPC_EARLY_DE_LPAR_HVSI
+void __init udbg_init_de_lpar_hvsi(void)
 {
-	/* See comment above in udbg_init_debug_lpar() */
+	/* See comment above in udbg_init_de_lpar() */
 	if (mfmsr() & MSR_HV)
 		return;
 
 	hvterm_privs[0] = &hvterm_priv0;
-	hvterm_priv0.termno = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
+	hvterm_priv0.termno = CONFIG_PPC_EARLY_DE_HVSI_VTERMNO;
 	hvterm_priv0.proto = HV_PROTOCOL_HVSI;
 	spin_lock_init(&hvterm_priv0.buf_lock);
 	udbg_putc = udbg_hvc_putc;
@@ -456,4 +456,4 @@ void __init udbg_init_debug_lpar_hvsi(void)
 		     hvterm_priv0.termno, 1);
 	hvsilib_establish(&hvterm_priv0.hvsi);
 }
-#endif /* CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI */
+#endif /* CONFIG_PPC_EARLY_DE_LPAR_HVSI */

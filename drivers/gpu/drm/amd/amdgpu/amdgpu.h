@@ -77,7 +77,7 @@
 #include "amdgpu_virt.h"
 #include "amdgpu_csa.h"
 #include "amdgpu_gart.h"
-#include "amdgpu_debugfs.h"
+#include "amdgpu_defs.h"
 #include "amdgpu_job.h"
 #include "amdgpu_bo_list.h"
 #include "amdgpu_gem.h"
@@ -129,7 +129,7 @@ extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
 extern int amdgpu_vm_fragment_size;
 extern int amdgpu_vm_fault_stop;
-extern int amdgpu_vm_debug;
+extern int amdgpu_vm_de;
 extern int amdgpu_vm_update_mode;
 extern int amdgpu_dc;
 extern int amdgpu_sched_jobs;
@@ -172,7 +172,7 @@ extern int amdgpu_cik_support;
 #define AMDGPU_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* AMDGPU_IB_POOL_SIZE must be a power of 2 */
 #define AMDGPU_IB_POOL_SIZE			16
-#define AMDGPU_DEBUGFS_MAX_COMPONENTS		32
+#define AMDGPU_DEFS_MAX_COMPONENTS		32
 #define AMDGPUFB_CONN_LIMIT			4
 #define AMDGPU_BIOS_NUM_SCRATCH			16
 
@@ -564,7 +564,7 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 int amdgpu_cs_wait_fences_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
-/* VRAM scratch page for HDP bug, default vram page */
+/* VRAM scratch page for HDP , default vram page */
 struct amdgpu_vram_scratch {
 	struct amdgpu_bo		*robj;
 	volatile uint32_t		*ptr;
@@ -729,10 +729,10 @@ struct amdgpu_device {
 	bool				accel_working;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
-	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
-	unsigned			debugfs_count;
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
+	struct amdgpu_defs		defs[AMDGPU_DEFS_MAX_COMPONENTS];
+	unsigned			defs_count;
+#if defined(CONFIG_DE_FS)
+	struct dentry			*defs_regs[AMDGPU_DEFS_MAX_COMPONENTS];
 #endif
 	struct amdgpu_atif		*atif;
 	struct amdgpu_atcs		atcs;

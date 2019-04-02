@@ -89,7 +89,7 @@ static int __mms114_read_reg(struct mms114_data *data, unsigned int reg,
 	int error;
 
 	if (reg <= MMS114_MODE_CONTROL && reg + len > MMS114_MODE_CONTROL)
-		BUG();
+		();
 
 	/* Write register: use repeated start */
 	xfer[0].addr = client->addr;

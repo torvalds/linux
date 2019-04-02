@@ -36,8 +36,8 @@
  * handle the system transaction.  Another involves timing.  Ho hum.
  */
 
-#define DEBUG_CONFIG 0
-#if DEBUG_CONFIG
+#define DE_CONFIG 0
+#if DE_CONFIG
 # define DBGC(args)	printk args
 #else
 # define DBGC(args)
@@ -496,7 +496,7 @@ verify_tb_operation(void)
 	if (mcheck_taken(0)) {
 		printk("pci: failed valid tag invalid pte reload test "
 		       "(mcheck; workaround available)\n");
-		/* Work around this bug by aligning new allocations
+		/* Work around this  by aligning new allocations
 		   on 4 page boundaries.  */
 		arena->align_entry = 4;
 	} else if (temp != data0) {
@@ -721,7 +721,7 @@ do_init_arch(int is_pyxis)
 	 * Window 3 is DAC access 4GB at 8GB (or S/G for tbia if CIA rev 1)
 	 *
 	 * ??? NetBSD hints that page tables must be aligned to 32K,
-	 * possibly due to a hardware bug.  This is over-aligned
+	 * possibly due to a hardware .  This is over-aligned
 	 * from the 8K alignment one would expect for an 8MB window. 
 	 * No description of what revisions affected.
 	 */

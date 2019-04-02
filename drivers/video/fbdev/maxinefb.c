@@ -17,7 +17,7 @@
 
 /*
  * Changes:
- * 2001/01/27 removed debugging and testing code, fixed fb_ops
+ * 2001/01/27 removed deging and testing code, fixed fb_ops
  *            initialization which had caused a crash before,
  *            general cleanup, first official release (KM)
  *

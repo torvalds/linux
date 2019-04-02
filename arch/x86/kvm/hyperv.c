@@ -834,7 +834,7 @@ static int kvm_hv_msr_set_crash_ctl(struct kvm_vcpu *vcpu, u64 data, bool host)
 
 	if (!host && (data & HV_CRASH_CTL_CRASH_NOTIFY)) {
 
-		vcpu_debug(vcpu, "hv crash (0x%llx 0x%llx 0x%llx 0x%llx 0x%llx)\n",
+		vcpu_de(vcpu, "hv crash (0x%llx 0x%llx 0x%llx 0x%llx 0x%llx)\n",
 			  hv->hv_crash_param[0],
 			  hv->hv_crash_param[1],
 			  hv->hv_crash_param[2],
@@ -936,8 +936,8 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	u32 tsc_seq;
 	u64 gfn;
 
-	BUILD_BUG_ON(sizeof(tsc_seq) != sizeof(hv->tsc_ref.tsc_sequence));
-	BUILD_BUG_ON(offsetof(HV_REFERENCE_TSC_PAGE, tsc_sequence) != 0);
+	BUILD__ON(sizeof(tsc_seq) != sizeof(hv->tsc_ref.tsc_sequence));
+	BUILD__ON(offsetof(HV_REFERENCE_TSC_PAGE, tsc_sequence) != 0);
 
 	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
 		return;
@@ -1039,7 +1039,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		return kvm_hv_msr_set_crash_ctl(vcpu, data, host);
 	case HV_X64_MSR_RESET:
 		if (data == 1) {
-			vcpu_debug(vcpu, "hyper-v reset requested\n");
+			vcpu_de(vcpu, "hyper-v reset requested\n");
 			kvm_make_request(KVM_REQ_HV_RESET, vcpu);
 		}
 		break;

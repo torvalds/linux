@@ -703,7 +703,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 		if ((dev->flags & IFF_POINTOPOINT) &&
 		    atalk_find_interface(sa->sat_addr.s_net,
 					 sa->sat_addr.s_node)) {
-			printk(KERN_DEBUG "AppleTalk: point-to-point "
+			printk(KERN_DE "AppleTalk: point-to-point "
 			       "interface added with "
 			       "existing address\n");
 			add_route = 0;
@@ -987,7 +987,7 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	BUG_ON(len > 0);
+	_ON(len > 0);
 
 	return sum;
 }
@@ -1327,7 +1327,7 @@ static int atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 		 * needs to be broadcast onto the default network?
 		 */
 		if (dev->type == ARPHRD_PPP)
-			printk(KERN_DEBUG "AppleTalk: didn't forward broadcast "
+			printk(KERN_DE "AppleTalk: didn't forward broadcast "
 					  "packet received from PPP iface\n");
 		goto free_it;
 	}
@@ -1444,7 +1444,7 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * in the middle of atalk_checksum() or recvmsg()).
 	 */
 	if (skb->len < sizeof(*ddp) || skb->len < (len_hops & 1023)) {
-		pr_debug("AppleTalk: dropping corrupted frame (deh_len=%u, "
+		pr_de("AppleTalk: dropping corrupted frame (deh_len=%u, "
 			 "skb->len=%u)\n", len_hops & 1023, skb->len);
 		goto drop;
 	}
@@ -1608,7 +1608,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	/* Build a packet */
-	SOCK_DEBUG(sk, "SK %p: Got address.\n", sk);
+	SOCK_DE(sk, "SK %p: Got address.\n", sk);
 
 	/* For headers */
 	size = sizeof(struct ddpehdr) + len + ddp_dl->header_length;
@@ -1629,7 +1629,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	dev = rt->dev;
 
-	SOCK_DEBUG(sk, "SK %p: Size needed %d, device %s\n",
+	SOCK_DE(sk, "SK %p: Size needed %d, device %s\n",
 			sk, size, dev->name);
 
 	size += dev->hard_header_len;
@@ -1643,7 +1643,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	skb_reserve(skb, dev->hard_header_len);
 	skb->dev = dev;
 
-	SOCK_DEBUG(sk, "SK %p: Begin build.\n", sk);
+	SOCK_DE(sk, "SK %p: Begin build.\n", sk);
 
 	ddp = skb_put(skb, sizeof(struct ddpehdr));
 	ddp->deh_len_hops  = htons(len + sizeof(*ddp));
@@ -1654,7 +1654,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	ddp->deh_dport = usat->sat_port;
 	ddp->deh_sport = at->src_port;
 
-	SOCK_DEBUG(sk, "SK %p: Copy user data (%zd bytes).\n", sk, len);
+	SOCK_DE(sk, "SK %p: Copy user data (%zd bytes).\n", sk, len);
 
 	err = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (err) {
@@ -1678,7 +1678,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 		if (skb2) {
 			loopback = 1;
-			SOCK_DEBUG(sk, "SK %p: send out(copy).\n", sk);
+			SOCK_DE(sk, "SK %p: send out(copy).\n", sk);
 			/*
 			 * If it fails it is queued/sent above in the aarp queue
 			 */
@@ -1687,7 +1687,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	if (dev->flags & IFF_LOOPBACK || loopback) {
-		SOCK_DEBUG(sk, "SK %p: Loop back.\n", sk);
+		SOCK_DE(sk, "SK %p: Loop back.\n", sk);
 		/* loop back */
 		skb_orphan(skb);
 		if (ddp->deh_dnode == ATADDR_BCAST) {
@@ -1707,7 +1707,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		}
 		ddp_dl->request(ddp_dl, skb, dev->dev_addr);
 	} else {
-		SOCK_DEBUG(sk, "SK %p: send out.\n", sk);
+		SOCK_DE(sk, "SK %p: send out.\n", sk);
 		if (rt->flags & RTF_GATEWAY) {
 		    gsat.sat_addr = rt->gateway;
 		    usat = &gsat;
@@ -1718,7 +1718,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		 */
 		aarp_send_ddp(dev, skb, &usat->sat_addr, NULL);
 	}
-	SOCK_DEBUG(sk, "SK %p: Done write (%zd).\n", sk, len);
+	SOCK_DE(sk, "SK %p: Done write (%zd).\n", sk, len);
 
 out:
 	release_sock(sk);

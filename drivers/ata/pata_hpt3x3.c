@@ -188,7 +188,7 @@ static int hpt3x3_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 #if defined(CONFIG_PATA_HPT3X3_DMA)
-		/* Further debug needed */
+		/* Further de needed */
 		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA2,
 #endif

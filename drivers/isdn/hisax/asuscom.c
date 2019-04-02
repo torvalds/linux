@@ -171,14 +171,14 @@ Start_ISAC:
 		isac_interrupt(cs, val);
 	val = readreg(cs->hw.asus.adr, cs->hw.asus.hscx, HSCX_ISTA + 0x40);
 	if (val) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "HSCX IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "HSCX IntStat after IntRoutine");
 		goto Start_HSCX;
 	}
 	val = readreg(cs->hw.asus.adr, cs->hw.asus.isac, ISAC_ISTA);
 	if (val) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	writereg(cs->hw.asus.adr, cs->hw.asus.hscx, HSCX_MASK, 0xFF);
@@ -201,8 +201,8 @@ asuscom_interrupt_ipac(int intno, void *dev_id)
 	spin_lock_irqsave(&cs->lock, flags);
 	ista = readreg(cs->hw.asus.adr, cs->hw.asus.isac, IPAC_ISTA);
 Start_IPAC:
-	if (cs->debug & L1_DEB_IPAC)
-		debugl1(cs, "IPAC ISTA %02X", ista);
+	if (cs->de & L1_DEB_IPAC)
+		del1(cs, "IPAC ISTA %02X", ista);
 	if (ista & 0x0f) {
 		val = readreg(cs->hw.asus.adr, cs->hw.asus.hscx, HSCX_ISTA + 0x40);
 		if (ista & 0x01)
@@ -284,7 +284,7 @@ Asus_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 		return (0);
 	case CARD_INIT:
 		spin_lock_irqsave(&cs->lock, flags);
-		cs->debug |= L1_DEB_IPAC;
+		cs->de |= L1_DEB_IPAC;
 		inithscxisac(cs, 3);
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return (0);

@@ -1,5 +1,5 @@
 /*
- * dwarf-regs.c : Mapping of DWARF debug register numbers into register names.
+ * dwarf-regs.c : Mapping of DWARF de register numbers into register names.
  * Extracted from probe-finder.c
  *
  * Written by Masami Hiramatsu <mhiramat@redhat.com>

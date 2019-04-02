@@ -37,7 +37,7 @@
 
 #include "aic94xx_dump.h"
 
-#ifdef ASD_DEBUG
+#ifdef ASD_DE
 
 #define MD(x)	    (1 << (x))
 #define MODE_COMMON (1 << 31)
@@ -964,4 +964,4 @@ void asd_dump_scb_list(struct asd_ascb *ascb, int num)
 
 #endif  /*  0  */
 
-#endif /* ASD_DEBUG */
+#endif /* ASD_DE */

@@ -2,7 +2,7 @@
 /*
  * Driver for the NXP ISP1760 chip
  *
- * However, the code might contain some bugs. What doesn't work for sure is:
+ * However, the code might contain some s. What doesn't work for sure is:
  * - ISO
  * - OTG
  e The interrupt line is configured as active low, level.
@@ -19,7 +19,7 @@
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -1253,7 +1253,7 @@ leave:
  * completed and its done map bit is set.
  *
  * The values of SLOT_TIMEOUT and SLOT_CHECK_PERIOD have been arbitrarily chosen
- * not to cause too much lag when this HW bug occurs, while still hopefully
+ * not to cause too much lag when this HW  occurs, while still hopefully
  * ensuring that the check does not falsely trigger.
  */
 #define SLOT_TIMEOUT 300
@@ -1402,7 +1402,7 @@ static void packetize_urb(struct usb_hcd *hcd,
 	 */
 
 	if (!urb->transfer_buffer && urb->transfer_buffer_length) {
-		/* XXX This looks like usb storage / SCSI bug */
+		/* XXX This looks like usb storage / SCSI  */
 		dev_err(hcd->self.controller,
 				"buf is null, dma is %08lx len is %d\n",
 				(long unsigned)urb->transfer_dma,

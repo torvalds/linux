@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * debugfs file to track time spent in suspend
+ * defs file to track time spent in suspend
  *
  * Copyright (c) 2011, Google, Inc.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -19,7 +19,7 @@
 
 static unsigned int sleep_time_bin[NUM_BINS] = {0};
 
-static int tk_debug_sleep_time_show(struct seq_file *s, void *data)
+static int tk_de_sleep_time_show(struct seq_file *s, void *data)
 {
 	unsigned int bin;
 	seq_puts(s, "      time (secs)        count\n");
@@ -33,17 +33,17 @@ static int tk_debug_sleep_time_show(struct seq_file *s, void *data)
 	}
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(tk_debug_sleep_time);
+DEFINE_SHOW_ATTRIBUTE(tk_de_sleep_time);
 
-static int __init tk_debug_sleep_time_init(void)
+static int __init tk_de_sleep_time_init(void)
 {
-	debugfs_create_file("sleep_time", 0444, NULL, NULL,
-			    &tk_debug_sleep_time_fops);
+	defs_create_file("sleep_time", 0444, NULL, NULL,
+			    &tk_de_sleep_time_fops);
 	return 0;
 }
-late_initcall(tk_debug_sleep_time_init);
+late_initcall(tk_de_sleep_time_init);
 
-void tk_debug_account_sleep_time(const struct timespec64 *t)
+void tk_de_account_sleep_time(const struct timespec64 *t)
 {
 	/* Cap bin index so we don't overflow the array */
 	int bin = min(fls(t->tv_sec), NUM_BINS-1);

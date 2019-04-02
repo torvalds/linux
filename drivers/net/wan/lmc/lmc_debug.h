@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LMC_DEBUG_H_
-#define _LMC_DEBUG_H_
+#ifndef _LMC_DE_H_
+#define _LMC_DE_H_
 
-#ifdef DEBUG
+#ifdef DE
 #ifdef LMC_PACKET_LOG
 #define LMC_CONSOLE_LOG(x,y,z) lmcConsoleLog((x), (y), (z))
 #else
@@ -14,7 +14,7 @@
 
 
 
-/* Debug --- Event log definitions --- */
+/* De --- Event log definitions --- */
 /* EVENTLOGSIZE*EVENTLOGARGS needs to be a power of 2 */
 #define LMC_EVENTLOGSIZE 1024	/* number of events in eventlog */
 #define LMC_EVENTLOGARGS 4		/* number of args for each event */
@@ -38,7 +38,7 @@
 #define LMC_EVENT_TBUSY1       16
 
 
-#ifdef DEBUG
+#ifdef DE
 extern u32 lmcEventLogIndex;
 extern u32 lmcEventLogBuf[LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS];
 #define LMC_EVENT_LOG(x, y, z) lmcEventLog((x), (y), (z))

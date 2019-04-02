@@ -77,13 +77,13 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 	}
 
 	if (tx) {
-		pr_debug("%s: (async) len: %zu\n", __func__, len);
+		pr_de("%s: (async) len: %zu\n", __func__, len);
 
 		dma_set_unmap(tx, unmap);
 		async_tx_submit(chan, tx, submit);
 	} else {
 		void *dest_buf, *src_buf;
-		pr_debug("%s: (sync) len: %zu\n", __func__, len);
+		pr_de("%s: (sync) len: %zu\n", __func__, len);
 
 		/* wait for any prerequisite operations */
 		async_tx_quiesce(&submit->depend_tx);

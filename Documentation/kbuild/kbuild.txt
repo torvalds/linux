@@ -162,7 +162,7 @@ INSTALL_MOD_STRIP
 --------------------------------------------------
 INSTALL_MOD_STRIP, if defined, will cause modules to be
 stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
-the default option --strip-debug will be used.  Otherwise,
+the default option --strip-de will be used.  Otherwise,
 INSTALL_MOD_STRIP value will be used as the options to the strip command.
 
 INSTALL_HDR_PATH

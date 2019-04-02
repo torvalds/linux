@@ -1286,7 +1286,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	mapping = pmu_map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_de("event %x:%llx not supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}

@@ -181,7 +181,7 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	if (mips_cpc_present()) {
@@ -238,7 +238,7 @@ static void smp_ipi_init_one(unsigned int virq,
 
 	irq_set_handler(virq, handle_percpu_irq);
 	ret = setup_irq(virq, action);
-	BUG_ON(ret);
+	_ON(ret);
 }
 
 static unsigned int call_virq, sched_virq;
@@ -272,17 +272,17 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 	 * setup, if we're running with only a single CPU.
 	 */
 	if (!ipidomain) {
-		BUG_ON(num_present_cpus() > 1);
+		_ON(num_present_cpus() > 1);
 		return 0;
 	}
 
 	virq = irq_reserve_ipi(ipidomain, mask);
-	BUG_ON(!virq);
+	_ON(!virq);
 	if (!call_virq)
 		call_virq = virq;
 
 	virq = irq_reserve_ipi(ipidomain, mask);
-	BUG_ON(!virq);
+	_ON(!virq);
 	if (!sched_virq)
 		sched_virq = virq;
 
@@ -317,7 +317,7 @@ int mips_smp_ipi_free(const struct cpumask *mask)
 	if (node && !ipidomain)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
-	BUG_ON(!ipidomain);
+	_ON(!ipidomain);
 
 	if (irq_domain_is_ipi_per_cpu(ipidomain)) {
 		int cpu;
@@ -533,8 +533,8 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
  * at switch_mm time, should the mm ever be used on other cpus. For
  * multithreaded address spaces, intercpu interrupts have to be sent.
  * Another case where intercpu interrupts are required is when the target
- * mm might be active on another cpu (eg debuggers doing the flushes on
- * behalf of debugees, kswapd stealing pages from another process etc).
+ * mm might be active on another cpu (eg degers doing the flushes on
+ * behalf of deees, kswapd stealing pages from another process etc).
  * Kanoj 07/00.
  */
 

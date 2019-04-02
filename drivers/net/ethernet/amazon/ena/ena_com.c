@@ -237,7 +237,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	/* In case of queue FULL */
 	cnt = (u16)atomic_read(&admin_queue->outstanding_cmds);
 	if (cnt >= admin_queue->q_depth) {
-		pr_debug("admin queue is full.\n");
+		pr_de("admin queue is full.\n");
 		admin_queue->stats.out_of_space++;
 		return ERR_PTR(-ENOSPC);
 	}
@@ -968,7 +968,7 @@ static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 	int ret;
 
 	if (!ena_com_check_supported_feature_id(ena_dev, feature_id)) {
-		pr_debug("Feature %d isn't supported\n", feature_id);
+		pr_de("Feature %d isn't supported\n", feature_id);
 		return -EOPNOTSUPP;
 	}
 
@@ -1206,7 +1206,7 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 			cmd_completion.llq_descriptors_offset);
 	}
 
-	pr_debug("created sq[%u], depth[%u]\n", io_sq->idx, io_sq->q_depth);
+	pr_de("created sq[%u], depth[%u]\n", io_sq->idx, io_sq->q_depth);
 
 	return ret;
 }
@@ -1311,7 +1311,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
 		if (comp_ctx == ERR_PTR(-ENODEV))
-			pr_debug("Failed to submit command [%ld]\n",
+			pr_de("Failed to submit command [%ld]\n",
 				 PTR_ERR(comp_ctx));
 		else
 			pr_err("Failed to submit command [%ld]\n",
@@ -1325,7 +1325,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 		if (admin_queue->running_state)
 			pr_err("Failed to process command. ret = %d\n", ret);
 		else
-			pr_debug("Failed to process command. ret = %d\n", ret);
+			pr_de("Failed to process command. ret = %d\n", ret);
 	}
 	return ret;
 }
@@ -1383,7 +1383,7 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
 			cmd_completion.numa_node_register_offset);
 
-	pr_debug("created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
+	pr_de("created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
 
 	return ret;
 }
@@ -1543,7 +1543,7 @@ int ena_com_get_dma_width(struct ena_com_dev *ena_dev)
 	width = (caps & ENA_REGS_CAPS_DMA_ADDR_WIDTH_MASK) >>
 		ENA_REGS_CAPS_DMA_ADDR_WIDTH_SHIFT;
 
-	pr_debug("ENA dma width: %d\n", width);
+	pr_de("ENA dma width: %d\n", width);
 
 	if ((width < 32) || width > ENA_MAX_PHYS_ADDR_SIZE_BITS) {
 		pr_err("DMA width illegal value: %d\n", width);
@@ -1985,7 +1985,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 		timestamp =
 			(unsigned long long)aenq_common->timestamp_low |
 			((unsigned long long)aenq_common->timestamp_high << 32);
-		pr_debug("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
+		pr_de("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
 			 aenq_common->group, aenq_common->syndrom, timestamp);
 
 		/* Handle specific event*/
@@ -2131,7 +2131,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 	int ret;
 
 	if (!ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_MTU)) {
-		pr_debug("Feature %d isn't supported\n", ENA_ADMIN_MTU);
+		pr_de("Feature %d isn't supported\n", ENA_ADMIN_MTU);
 		return -EOPNOTSUPP;
 	}
 
@@ -2184,7 +2184,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_HASH_FUNCTION)) {
-		pr_debug("Feature %d isn't supported\n",
+		pr_de("Feature %d isn't supported\n",
 			 ENA_ADMIN_RSS_HASH_FUNCTION);
 		return -EOPNOTSUPP;
 	}
@@ -2348,7 +2348,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_HASH_INPUT)) {
-		pr_debug("Feature %d isn't supported\n",
+		pr_de("Feature %d isn't supported\n",
 			 ENA_ADMIN_RSS_HASH_INPUT);
 		return -EOPNOTSUPP;
 	}
@@ -2507,7 +2507,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(
 		    ena_dev, ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG)) {
-		pr_debug("Feature %d isn't supported\n",
+		pr_de("Feature %d isn't supported\n",
 			 ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG);
 		return -EOPNOTSUPP;
 	}
@@ -2635,21 +2635,21 @@ int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 	return 0;
 }
 
-int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
-				u32 debug_area_size)
+int ena_com_allocate_de_area(struct ena_com_dev *ena_dev,
+				u32 de_area_size)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
-	host_attr->debug_area_virt_addr =
-		dma_alloc_coherent(ena_dev->dmadev, debug_area_size,
-				   &host_attr->debug_area_dma_addr,
+	host_attr->de_area_virt_addr =
+		dma_alloc_coherent(ena_dev->dmadev, de_area_size,
+				   &host_attr->de_area_dma_addr,
 				   GFP_KERNEL);
-	if (unlikely(!host_attr->debug_area_virt_addr)) {
-		host_attr->debug_area_size = 0;
+	if (unlikely(!host_attr->de_area_virt_addr)) {
+		host_attr->de_area_size = 0;
 		return -ENOMEM;
 	}
 
-	host_attr->debug_area_size = debug_area_size;
+	host_attr->de_area_size = de_area_size;
 
 	return 0;
 }
@@ -2665,15 +2665,15 @@ void ena_com_delete_host_info(struct ena_com_dev *ena_dev)
 	}
 }
 
-void ena_com_delete_debug_area(struct ena_com_dev *ena_dev)
+void ena_com_delete_de_area(struct ena_com_dev *ena_dev)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
-	if (host_attr->debug_area_virt_addr) {
-		dma_free_coherent(ena_dev->dmadev, host_attr->debug_area_size,
-				  host_attr->debug_area_virt_addr,
-				  host_attr->debug_area_dma_addr);
-		host_attr->debug_area_virt_addr = NULL;
+	if (host_attr->de_area_virt_addr) {
+		dma_free_coherent(ena_dev->dmadev, host_attr->de_area_size,
+				  host_attr->de_area_virt_addr,
+				  host_attr->de_area_dma_addr);
+		host_attr->de_area_virt_addr = NULL;
 	}
 }
 
@@ -2697,8 +2697,8 @@ int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
 	cmd.feat_common.feature_id = ENA_ADMIN_HOST_ATTR_CONFIG;
 
 	ret = ena_com_mem_addr_set(ena_dev,
-				   &cmd.u.host_attr.debug_ba,
-				   host_attr->debug_area_dma_addr);
+				   &cmd.u.host_attr.de_ba,
+				   host_attr->de_area_dma_addr);
 	if (unlikely(ret)) {
 		pr_err("memory address set failed\n");
 		return ret;
@@ -2712,7 +2712,7 @@ int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
 		return ret;
 	}
 
-	cmd.u.host_attr.debug_area_size = host_attr->debug_area_size;
+	cmd.u.host_attr.de_area_size = host_attr->de_area_size;
 
 	ret = ena_com_execute_admin_command(admin_queue,
 					    (struct ena_admin_aq_entry *)&cmd,
@@ -2782,7 +2782,7 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 
 	if (rc) {
 		if (rc == -EOPNOTSUPP) {
-			pr_debug("Feature %d isn't supported\n",
+			pr_de("Feature %d isn't supported\n",
 				 ENA_ADMIN_INTERRUPT_MODERATION);
 			rc = 0;
 		} else {

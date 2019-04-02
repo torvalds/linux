@@ -466,7 +466,7 @@ void pcibios_scan_root(int busnum)
 	}
 	sd->node = x86_pci_root_bus_node(busnum);
 	x86_pci_root_bus_resources(busnum, &resources);
-	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
+	printk(KERN_DE "PCI: Probing PCI hardware (bus %02x)\n", busnum);
 	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, sd, &resources);
 	if (!bus) {
 		pci_free_resource_list(&resources);
@@ -488,11 +488,11 @@ void __init pcibios_set_cache_line_size(void)
 	 */
 	if (c->x86_clflush_size > 0) {
 		pci_dfl_cache_line_size = c->x86_clflush_size >> 2;
-		printk(KERN_DEBUG "PCI: pci_cache_line_size set to %d bytes\n",
+		printk(KERN_DE "PCI: pci_cache_line_size set to %d bytes\n",
 			pci_dfl_cache_line_size << 2);
 	} else {
  		pci_dfl_cache_line_size = 32 >> 2;
-		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
+		printk(KERN_DE "PCI: Unknown cacheline size. Setting to 32 bytes\n");
 	}
 }
 

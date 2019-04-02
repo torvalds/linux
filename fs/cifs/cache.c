@@ -19,7 +19,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include "fscache.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 
 /*
  * CIFS filesystem definition for FS-Cache

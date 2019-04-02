@@ -247,7 +247,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 {
 	int si_code = 0;
 
-	pr_debug("VFP: raising exceptions %08x\n", exceptions);
+	pr_de("VFP: raising exceptions %08x\n", exceptions);
 
 	if (exceptions == VFP_EXCEPTION_ERROR) {
 		vfp_panic("unhandled bounce", inst);
@@ -291,7 +291,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 {
 	u32 exceptions = VFP_EXCEPTION_ERROR;
 
-	pr_debug("VFP: emulate: INST=0x%08x SCR=0x%08x\n", inst, fpscr);
+	pr_de("VFP: emulate: INST=0x%08x SCR=0x%08x\n", inst, fpscr);
 
 	if (INST_CPRTDO(inst)) {
 		if (!INST_CPRT(inst)) {
@@ -327,7 +327,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 {
 	u32 fpscr, orig_fpscr, fpsid, exceptions;
 
-	pr_debug("VFP: bounce: trigger %08x fpexc %08x\n", trigger, fpexc);
+	pr_de("VFP: bounce: trigger %08x fpexc %08x\n", trigger, fpexc);
 
 	/*
 	 * At this point, FPEXC can have the following configuration:
@@ -426,7 +426,7 @@ static void vfp_enable(void *unused)
 {
 	u32 access;
 
-	BUG_ON(preemptible());
+	_ON(preemptible());
 	access = get_copro_access();
 
 	/*
@@ -442,7 +442,7 @@ static void vfp_enable(void *unused)
 void vfp_disable(void)
 {
 	if (VFP_arch) {
-		pr_debug("%s: should be called prior to vfp_init\n", __func__);
+		pr_de("%s: should be called prior to vfp_init\n", __func__);
 		return;
 	}
 	VFP_arch = 1;
@@ -456,7 +456,7 @@ static int vfp_pm_suspend(void)
 
 	/* if vfp is on, then save state for resumption */
 	if (fpexc & FPEXC_EN) {
-		pr_debug("%s: saving vfp state\n", __func__);
+		pr_de("%s: saving vfp state\n", __func__);
 		vfp_save_state(&ti->vfpstate, fpexc);
 
 		/* disable, just in case */
@@ -656,13 +656,13 @@ void vfp_kmode_exception(void)
 	 * If the NEON/VFP unit was disabled, and the location pointed to below
 	 * is properly preceded by a call to kernel_neon_begin(), something has
 	 * caused the task to be scheduled out and back in again. In this case,
-	 * rebuilding and running with CONFIG_DEBUG_ATOMIC_SLEEP enabled should
+	 * rebuilding and running with CONFIG_DE_ATOMIC_SLEEP enabled should
 	 * be helpful in localizing the problem.
 	 */
 	if (fmrx(FPEXC) & FPEXC_EN)
-		pr_crit("BUG: unsupported FP instruction in kernel mode\n");
+		pr_crit(": unsupported FP instruction in kernel mode\n");
 	else
-		pr_crit("BUG: FP instruction issued in kernel mode with FP unit disabled\n");
+		pr_crit(": FP instruction issued in kernel mode with FP unit disabled\n");
 }
 
 #ifdef CONFIG_KERNEL_MODE_NEON
@@ -681,7 +681,7 @@ void kernel_neon_begin(void)
 	 * with preemption disabled. This will make sure that the kernel
 	 * mode NEON register contents never need to be preserved.
 	 */
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	cpu = get_cpu();
 
 	fpexc = fmrx(FPEXC) | FPEXC_EN;

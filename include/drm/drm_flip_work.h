@@ -63,7 +63,7 @@ struct drm_flip_task {
 
 /**
  * struct drm_flip_work - flip work queue
- * @name: debug name
+ * @name: de name
  * @func: callback fxn called for each committed item
  * @worker: worker which calls @func
  * @queued: queued tasks

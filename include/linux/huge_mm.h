@@ -60,8 +60,8 @@ enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
-#ifdef CONFIG_DEBUG_VM
-	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
+#ifdef CONFIG_DE_VM
+	TRANSPARENT_HUGEPAGE_DE_COW_FLAG,
 #endif
 };
 
@@ -126,13 +126,13 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma);
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
 	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
-#ifdef CONFIG_DEBUG_VM
-#define transparent_hugepage_debug_cow()				\
+#ifdef CONFIG_DE_VM
+#define transparent_hugepage_de_cow()				\
 	(transparent_hugepage_flags &					\
-	 (1<<TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG))
-#else /* CONFIG_DEBUG_VM */
-#define transparent_hugepage_debug_cow() 0
-#endif /* CONFIG_DEBUG_VM */
+	 (1<<TRANSPARENT_HUGEPAGE_DE_COW_FLAG))
+#else /* CONFIG_DE_VM */
+#define transparent_hugepage_de_cow() 0
+#endif /* CONFIG_DE_VM */
 
 extern unsigned long thp_get_unmapped_area(struct file *filp,
 		unsigned long addr, unsigned long len, unsigned long pgoff,
@@ -196,7 +196,7 @@ static inline int is_swap_pmd(pmd_t pmd)
 static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 		struct vm_area_struct *vma)
 {
-	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
+	VM__ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
 	if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
 		return __pmd_trans_huge_lock(pmd, vma);
 	else
@@ -205,7 +205,7 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
 		struct vm_area_struct *vma)
 {
-	VM_BUG_ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
+	VM__ON_VMA(!rwsem_is_locked(&vma->vm_mm->mmap_sem), vma);
 	if (pud_trans_huge(*pud) || pud_devmap(*pud))
 		return __pud_trans_huge_lock(pud, vma);
 	else
@@ -253,13 +253,13 @@ static inline bool thp_migration_supported(void)
 }
 
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
-#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+#define HPAGE_PMD_SHIFT ({ BUILD_(); 0; })
+#define HPAGE_PMD_MASK ({ BUILD_(); 0; })
+#define HPAGE_PMD_SIZE ({ BUILD_(); 0; })
 
-#define HPAGE_PUD_SHIFT ({ BUILD_BUG(); 0; })
-#define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
-#define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
+#define HPAGE_PUD_SHIFT ({ BUILD_(); 0; })
+#define HPAGE_PUD_MASK ({ BUILD_(); 0; })
+#define HPAGE_PUD_SIZE ({ BUILD_(); 0; })
 
 #define hpage_nr_pages(x) 1
 
@@ -282,7 +282,7 @@ static inline void prep_transhuge_page(struct page *page) {}
 static inline bool
 can_split_huge_page(struct page *page, int *pextra_pins)
 {
-	BUILD_BUG();
+	BUILD_();
 	return false;
 }
 static inline int
@@ -309,7 +309,7 @@ static inline void split_huge_pmd_address(struct vm_area_struct *vma,
 static inline int hugepage_madvise(struct vm_area_struct *vma,
 				   unsigned long *vm_flags, int advice)
 {
-	BUG();
+	();
 	return 0;
 }
 static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,

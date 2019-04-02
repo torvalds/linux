@@ -353,7 +353,7 @@ void dm_tm_inc(struct dm_transaction_manager *tm, dm_block_t b)
 	/*
 	 * The non-blocking clone doesn't support this.
 	 */
-	BUG_ON(tm->is_clone);
+	_ON(tm->is_clone);
 
 	dm_sm_inc_block(tm->sm, b);
 }
@@ -364,7 +364,7 @@ void dm_tm_dec(struct dm_transaction_manager *tm, dm_block_t b)
 	/*
 	 * The non-blocking clone doesn't support this.
 	 */
-	BUG_ON(tm->is_clone);
+	_ON(tm->is_clone);
 
 	dm_sm_dec_block(tm->sm, b);
 }

@@ -44,7 +44,7 @@
  *
  * Even though most software will never directly interact with
  * cvmx-cmd-queue, knowledge of its internal working can help
- * in diagnosing performance problems and help with debugging.
+ * in diagnosing performance problems and help with deging.
  *
  * Command queue pointers are stored in a global named block
  * called "cvmx_cmd_queues". Except for the PKO queues, each

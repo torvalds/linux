@@ -17,7 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/dcr.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -73,15 +73,15 @@ struct axon_msic {
 	dma_addr_t fifo_phys;
 	dcr_host_t dcr_host;
 	u32 read_offset;
-#ifdef DEBUG
+#ifdef DE
 	u32 __iomem *trigger;
 #endif
 };
 
-#ifdef DEBUG
-void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic);
+#ifdef DE
+void axon_msi_de_setup(struct device_node *dn, struct axon_msic *msic);
 #else
-static inline void axon_msi_debug_setup(struct device_node *dn,
+static inline void axon_msi_de_setup(struct device_node *dn,
 					struct axon_msic *msic) { }
 #endif
 
@@ -410,9 +410,9 @@ static int axon_msi_probe(struct platform_device *device)
 	cell_pci_controller_ops.setup_msi_irqs = axon_msi_setup_msi_irqs;
 	cell_pci_controller_ops.teardown_msi_irqs = axon_msi_teardown_msi_irqs;
 
-	axon_msi_debug_setup(dn, msic);
+	axon_msi_de_setup(dn, msic);
 
-	printk(KERN_DEBUG "axon_msi: setup MSIC on %pOF\n", dn);
+	printk(KERN_DE "axon_msi: setup MSIC on %pOF\n", dn);
 
 	return 0;
 
@@ -449,7 +449,7 @@ static int __init axon_msi_init(void)
 subsys_initcall(axon_msi_init);
 
 
-#ifdef DEBUG
+#ifdef DE
 static int msic_set(void *data, u64 val)
 {
 	struct axon_msic *msic = data;
@@ -465,7 +465,7 @@ static int msic_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_msic, msic_get, msic_set, "%llu\n");
 
-void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic)
+void axon_msi_de_setup(struct device_node *dn, struct axon_msic *msic)
 {
 	char name[8];
 	u64 addr;
@@ -484,10 +484,10 @@ void axon_msi_debug_setup(struct device_node *dn, struct axon_msic *msic)
 
 	snprintf(name, sizeof(name), "msic_%d", of_node_to_nid(dn));
 
-	if (!debugfs_create_file(name, 0600, powerpc_debugfs_root,
+	if (!defs_create_file(name, 0600, powerpc_defs_root,
 				 msic, &fops_msic)) {
-		pr_devel("axon_msi: debugfs_create_file failed!\n");
+		pr_devel("axon_msi: defs_create_file failed!\n");
 		return;
 	}
 }
-#endif /* DEBUG */
+#endif /* DE */

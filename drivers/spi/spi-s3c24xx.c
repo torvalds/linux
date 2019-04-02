@@ -310,7 +310,7 @@ static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 			code = NULL;
 		}
 
-		BUG_ON(!code);
+		_ON(!code);
 
 		ack_ptr = (u32 *)&code->data[code->ack_offset];
 		*ack_ptr = ack_bit(hw->irq);

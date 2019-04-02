@@ -386,7 +386,7 @@ static int sst25l_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "%s (%lld KiB)\n", flash_info->name,
 		 (long long)flash->mtd.size >> 10);
 
-	pr_debug("mtd .name = %s, .size = 0x%llx (%lldMiB) "
+	pr_de("mtd .name = %s, .size = 0x%llx (%lldMiB) "
 	      ".erasesize = 0x%.8x (%uKiB) .numeraseregions = %d\n",
 	      flash->mtd.name,
 	      (long long)flash->mtd.size, (long long)(flash->mtd.size >> 20),

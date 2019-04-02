@@ -57,7 +57,7 @@ static int mdio_mux_mmioreg_switch_fn(int current_child, int desired_child,
 			y = (x & ~s->mask) | desired_child;
 			if (x != y) {
 				iowrite8((x & ~s->mask) | desired_child, p);
-				pr_debug("%s: %02x -> %02x\n", __func__, x, y);
+				pr_de("%s: %02x -> %02x\n", __func__, x, y);
 			}
 
 			break;
@@ -69,7 +69,7 @@ static int mdio_mux_mmioreg_switch_fn(int current_child, int desired_child,
 			y = (x & ~s->mask) | desired_child;
 			if (x != y) {
 				iowrite16((x & ~s->mask) | desired_child, p);
-				pr_debug("%s: %04x -> %04x\n", __func__, x, y);
+				pr_de("%s: %04x -> %04x\n", __func__, x, y);
 			}
 
 			break;
@@ -81,7 +81,7 @@ static int mdio_mux_mmioreg_switch_fn(int current_child, int desired_child,
 			y = (x & ~s->mask) | desired_child;
 			if (x != y) {
 				iowrite32((x & ~s->mask) | desired_child, p);
-				pr_debug("%s: %08x -> %08x\n", __func__, x, y);
+				pr_de("%s: %08x -> %08x\n", __func__, x, y);
 			}
 
 			break;

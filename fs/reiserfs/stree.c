@@ -1033,7 +1033,7 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th,
 	struct item_head *p_le_ih = tp_item_head(path);
 	struct buffer_head *bh = PATH_PLAST_BUFFER(path);
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	/* Stat_data item. */
 	if (is_statdata_le_ih(p_le_ih)) {
@@ -1176,7 +1176,7 @@ static void init_tb_struct(struct reiserfs_transaction_handle *th,
 			   struct treepath *path, int size)
 {
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	memset(tb, '\0', sizeof(struct tree_balance));
 	tb->transaction_handle = th;
@@ -1195,7 +1195,7 @@ void padd_item(char *item, int total_length, int length)
 		item[--i] = 0;
 }
 
-#ifdef REISERQUOTA_DEBUG
+#ifdef REISERQUOTA_DE
 char key2type(struct reiserfs_key *ih)
 {
 	if (is_direntry_le_key(2, ih))
@@ -1248,7 +1248,7 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 	int iter = 0;
 #endif
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	init_tb_struct(th, &s_del_balance, sb, path,
 		       0 /*size is unknown */ );
@@ -1353,8 +1353,8 @@ int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 	/* Perform balancing after all resources have been collected at once. */
 	do_balance(&s_del_balance, NULL, NULL, M_DELETE);
 
-#ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(sb, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+	reiserfs_de(sb, REISERFS_DE_CODE,
 		       "reiserquota delete_item(): freeing %u, id=%u type=%c",
 		       quota_cut_bytes, inode->i_uid, head2type(&s_ih));
 #endif
@@ -1396,7 +1396,7 @@ void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 	int retval;
 	int quota_cut_bytes = 0;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	le_key2cpu_key(&cpu_key, key);
 
@@ -1449,8 +1449,8 @@ void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 			 */
 			if (inode) {
 				int depth;
-#ifdef REISERQUOTA_DEBUG
-				reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+				reiserfs_de(th->t_super, REISERFS_DE_CODE,
 					       "reiserquota delete_solid_item(): freeing %u id=%u type=%c",
 					       quota_cut_bytes, inode->i_uid,
 					       key2type(key));
@@ -1479,7 +1479,7 @@ int reiserfs_delete_object(struct reiserfs_transaction_handle *th,
 {
 	int err;
 	inode->i_size = 0;
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	/* for directory this deletes item containing "." and ".." */
 	err =
@@ -1547,8 +1547,8 @@ static int maybe_indirect_to_direct(struct reiserfs_transaction_handle *th,
 	struct super_block *sb = inode->i_sb;
 	int block_size = sb->s_blocksize;
 	int cut_bytes;
-	BUG_ON(!th->t_trans_id);
-	BUG_ON(new_file_size != inode->i_size);
+	_ON(!th->t_trans_id);
+	_ON(new_file_size != inode->i_size);
 
 	/*
 	 * the page being sent in could be NULL if there was an i/o error
@@ -1583,7 +1583,7 @@ static void indirect_to_direct_roll_back(struct reiserfs_transaction_handle *th,
 	struct cpu_key tail_key;
 	int tail_len;
 	int removed;
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	make_cpu_key(&tail_key, inode, inode->i_size + 1, TYPE_DIRECT, 4);
 	tail_key.key_length = 4;
@@ -1644,7 +1644,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 	loff_t tail_pos = 0;
 	int depth;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	init_tb_struct(th, &s_cut_balance, inode->i_sb, path,
 		       cut_size);
@@ -1829,8 +1829,8 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 		unmap_buffers(page, tail_pos);
 		REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
 	}
-#ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+	reiserfs_de(inode->i_sb, REISERFS_DE_CODE,
 		       "reiserquota cut_from_item(): freeing %u id=%u type=%c",
 		       quota_cut_bytes, inode->i_uid, '?');
 #endif
@@ -1843,7 +1843,7 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 static void truncate_directory(struct reiserfs_transaction_handle *th,
 			       struct inode *inode)
 {
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	if (inode->i_nlink)
 		reiserfs_error(inode->i_sb, "vs-5655", "link count != 0");
 
@@ -1880,7 +1880,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 	int retval;
 	int err = 0;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 	if (!
 	    (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
 	     || S_ISLNK(inode->i_mode)))
@@ -2080,12 +2080,12 @@ int reiserfs_paste_into_item(struct reiserfs_transaction_handle *th,
 	int fs_gen;
 	int depth;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	fs_gen = get_generation(inode->i_sb);
 
-#ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+	reiserfs_de(inode->i_sb, REISERFS_DE_CODE,
 		       "reiserquota paste_into_item(): allocating %u id=%u type=%c",
 		       pasted_size, inode->i_uid,
 		       key2type(&key->on_disk_key));
@@ -2146,8 +2146,8 @@ search_again:
 error_out:
 	/* this also releases the path */
 	unfix_nodes(&s_paste_balance);
-#ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+	reiserfs_de(inode->i_sb, REISERFS_DE_CODE,
 		       "reiserquota paste_into_item(): freeing %u id=%u type=%c",
 		       pasted_size, inode->i_uid,
 		       key2type(&key->on_disk_key));
@@ -2175,7 +2175,7 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 	int fs_gen = 0;
 	int quota_bytes = 0;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	if (inode) {		/* Do we count quotas for item? */
 		int depth;
@@ -2189,8 +2189,8 @@ int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 		 */
 		if (!S_ISLNK(inode->i_mode) && is_direct_le_ih(ih))
 			quota_bytes = inode->i_sb->s_blocksize + UNFM_P_SIZE;
-#ifdef REISERQUOTA_DEBUG
-		reiserfs_debug(inode->i_sb, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+		reiserfs_de(inode->i_sb, REISERFS_DE_CODE,
 			       "reiserquota insert_item(): allocating %u id=%u type=%c",
 			       quota_bytes, inode->i_uid, head2type(ih));
 #endif
@@ -2249,8 +2249,8 @@ search_again:
 error_out:
 	/* also releases the path */
 	unfix_nodes(&s_ins_balance);
-#ifdef REISERQUOTA_DEBUG
-	reiserfs_debug(th->t_super, REISERFS_DEBUG_CODE,
+#ifdef REISERQUOTA_DE
+	reiserfs_de(th->t_super, REISERFS_DE_CODE,
 		       "reiserquota insert_item(): freeing %u id=%u type=%c",
 		       quota_bytes, inode->i_uid, head2type(ih));
 #endif

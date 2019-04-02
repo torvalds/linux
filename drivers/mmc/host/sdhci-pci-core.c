@@ -319,13 +319,13 @@ static int mrst_hc_probe_slot(struct sdhci_pci_slot *slot)
 
 /*
  * ADMA operation is disabled for Moorestown platform due to
- * hardware bugs.
+ * hardware s.
  */
 static int mrst_hc_probe(struct sdhci_pci_chip *chip)
 {
 	/*
 	 * slots number is fixed here for MRST as SDIO3/5 are never used and
-	 * have hardware bugs.
+	 * have hardware s.
 	 */
 	chip->num_slots = 1;
 	return 0;
@@ -517,12 +517,12 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
-		pr_debug("%s: DSM not supported, error %d\n",
+		pr_de("%s: DSM not supported, error %d\n",
 			 mmc_hostname(mmc), err);
 		return;
 	}
 
-	pr_debug("%s: DSM function mask %#x\n",
+	pr_de("%s: DSM function mask %#x\n",
 		 mmc_hostname(mmc), intel_host->dsm_fns);
 
 	err = intel_dsm(intel_host, dev, INTEL_DSM_DRV_STRENGTH, &val);
@@ -652,7 +652,7 @@ static int intel_start_signal_voltage_switch(struct mmc_host *mmc,
 	}
 
 	err = intel_dsm(intel_host, dev, fn, &result);
-	pr_debug("%s: %s DSM fn %u error %d result %u\n",
+	pr_de("%s: %s DSM fn %u error %d result %u\n",
 		 mmc_hostname(mmc), __func__, fn, err, result);
 
 	return 0;
@@ -1934,8 +1934,8 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 	u8 slots, first_bar;
 	int ret, i;
 
-	BUG_ON(pdev == NULL);
-	BUG_ON(ent == NULL);
+	_ON(pdev == NULL);
+	_ON(ent == NULL);
 
 	dev_info(&pdev->dev, "SDHCI controller found [%04x:%04x] (rev %x)\n",
 		 (int)pdev->vendor, (int)pdev->device, (int)pdev->revision);
@@ -1949,7 +1949,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 	if (slots == 0)
 		return -ENODEV;
 
-	BUG_ON(slots > MAX_SLOTS);
+	_ON(slots > MAX_SLOTS);
 
 	ret = pci_read_config_byte(pdev, PCI_SLOT_INFO, &first_bar);
 	if (ret)

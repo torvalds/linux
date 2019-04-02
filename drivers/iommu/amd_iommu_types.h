@@ -600,9 +600,9 @@ struct amd_iommu {
 	u32 flags;
 	volatile u64 __aligned(8) cmd_sem;
 
-#ifdef CONFIG_AMD_IOMMU_DEBUGFS
-	/* DebugFS Info */
-	struct dentry *debugfs;
+#ifdef CONFIG_AMD_IOMMU_DEFS
+	/* DeFS Info */
+	struct dentry *defs;
 #endif
 };
 

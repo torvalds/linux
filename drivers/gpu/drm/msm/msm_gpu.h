@@ -63,12 +63,12 @@ struct msm_gpu_funcs {
 	struct msm_ringbuffer *(*active_ring)(struct msm_gpu *gpu);
 	void (*recover)(struct msm_gpu *gpu);
 	void (*destroy)(struct msm_gpu *gpu);
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
-	/* show GPU status in debugfs: */
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
+	/* show GPU status in defs: */
 	void (*show)(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			struct drm_printer *p);
-	/* for generation specific debugfs: */
-	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
+	/* for generation specific defs: */
+	int (*defs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
 	unsigned long (*gpu_busy)(struct msm_gpu *gpu);
 	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);

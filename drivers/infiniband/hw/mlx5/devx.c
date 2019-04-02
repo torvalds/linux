@@ -783,7 +783,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_EQN)(
  * QP/SQ/CQ with a UAR ID other than his, and then in this case other users
  * may ring a doorbell on its objects.
  * The consequence of that will be that another user can schedule a QP/SQ
- * of the buggy user for execution (just insert it to the hardware schedule
+ * of the gy user for execution (just insert it to the hardware schedule
  * queue or arm its CQ for event generation), no further harm is expected.
  */
 static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_QUERY_UAR)(

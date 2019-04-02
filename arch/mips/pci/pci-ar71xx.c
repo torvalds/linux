@@ -74,7 +74,7 @@ static inline u32 ar71xx_pci_get_ble(int where, int size, int local)
 	u32 t;
 
 	t = ar71xx_pci_ble_table[size & 3][where & 3];
-	BUG_ON(t == 0xf);
+	_ON(t == 0xf);
 	t <<= (local) ? 20 : 4;
 
 	return t;
@@ -302,7 +302,7 @@ static void ar71xx_pci_irq_init(struct ar71xx_pci_controller *apc)
 	__raw_writel(0, base + AR71XX_RESET_REG_PCI_INT_ENABLE);
 	__raw_writel(0, base + AR71XX_RESET_REG_PCI_INT_STATUS);
 
-	BUILD_BUG_ON(ATH79_PCI_IRQ_COUNT < AR71XX_PCI_IRQ_COUNT);
+	BUILD__ON(ATH79_PCI_IRQ_COUNT < AR71XX_PCI_IRQ_COUNT);
 
 	apc->irq_base = ATH79_PCI_IRQ_BASE;
 	for (i = apc->irq_base;

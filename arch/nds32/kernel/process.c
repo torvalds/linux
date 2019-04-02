@@ -2,7 +2,7 @@
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/delay.h>
 #include <linux/kallsyms.h>

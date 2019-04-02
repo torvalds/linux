@@ -23,7 +23,7 @@
 #include <brcmu_utils.h>
 #include "core.h"
 #include "bus.h"
-#include "debug.h"
+#include "de.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "tracepoint.h"
@@ -48,10 +48,10 @@ static int brcmf_sdiod_txglomsz = BRCMF_DEFAULT_TXGLOM_SIZE;
 module_param_named(txglomsz, brcmf_sdiod_txglomsz, int, 0);
 MODULE_PARM_DESC(txglomsz, "Maximum tx packet chain size [SDIO]");
 
-/* Debug level configuration. See debug.h for bits, sysfs modifiable */
+/* De level configuration. See de.h for bits, sysfs modifiable */
 int brcmf_msg_level;
-module_param_named(debug, brcmf_msg_level, int, 0600);
-MODULE_PARM_DESC(debug, "Level of debug output");
+module_param_named(de, brcmf_msg_level, int, 0600);
+MODULE_PARM_DESC(de, "Level of de output");
 
 static int brcmf_p2p_enable;
 module_param_named(p2pon, brcmf_p2p_enable, int, 0);
@@ -78,11 +78,11 @@ static int brcmf_iapp_enable;
 module_param_named(iapp, brcmf_iapp_enable, int, 0);
 MODULE_PARM_DESC(iapp, "Enable partial support for the obsoleted Inter-Access Point Protocol");
 
-#ifdef DEBUG
+#ifdef DE
 /* always succeed brcmf_bus_started() */
 static int brcmf_ignore_probe_fail;
 module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
-MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
+MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for deging");
 #endif
 
 static struct brcmfmac_platform_data *brcmfmac_pdata;
@@ -293,7 +293,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		brcmf_dbg(TRACE, "retrieving clmver failed, %d\n", err);
 	} else {
 		clmver = (char *)buf;
-		/* store CLM version for adding it to revinfo debugfs file */
+		/* store CLM version for adding it to revinfo defs file */
 		memcpy(ifp->drvr->clmver, clmver, sizeof(ifp->drvr->clmver));
 
 		/* Replace all newline/linefeed characters with space
@@ -382,7 +382,7 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	if (brcmf_msg_level & level)
-		pr_debug("%s %pV", func, &vaf);
+		pr_de("%s %pV", func, &vaf);
 	trace_brcmf_dbg(level, func, &vaf);
 	va_end(args);
 }
@@ -425,7 +425,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 	settings->fcmode = brcmf_fcmode;
 	settings->roamoff = !!brcmf_roamoff;
 	settings->iapp = !!brcmf_iapp_enable;
-#ifdef DEBUG
+#ifdef DE
 	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
 #endif
 

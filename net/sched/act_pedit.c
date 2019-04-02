@@ -398,7 +398,7 @@ static int tcf_pedit_act(struct sk_buff *skb, const struct tc_action *a,
 
 		goto done;
 	} else {
-		WARN(1, "pedit BUG: index %d\n", p->tcf_index);
+		WARN(1, "pedit : index %d\n", p->tcf_index);
 	}
 
 bad:

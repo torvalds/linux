@@ -22,8 +22,8 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/tlbmisc.h>
 
-#ifdef CONFIG_PCI_DEBUG
-#define DBG(x...) printk(KERN_DEBUG x)
+#ifdef CONFIG_PCI_DE
+#define DBG(x...) printk(KERN_DE x)
 #else
 #define DBG(x...) do {} while (0)
 #endif

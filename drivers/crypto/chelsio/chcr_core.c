@@ -59,7 +59,7 @@ static void detach_work_fn(struct work_struct *work)
 	if (atomic_read(&dev->inflight)) {
 		dev->wqretry--;
 		if (dev->wqretry) {
-			pr_debug("Request Inflight Count %d\n",
+			pr_de("Request Inflight Count %d\n",
 				atomic_read(&dev->inflight));
 
 			schedule_delayed_work(&dev->detach_work, WQ_DETACH_TM);
@@ -246,7 +246,7 @@ static void chcr_detach_device(struct uld_ctx *u_ctx)
 	spin_lock_bh(&dev->lock_chcr_dev);
 	if (dev->state == CHCR_DETACH) {
 		spin_unlock_bh(&dev->lock_chcr_dev);
-		pr_debug("Detached Event received for already detach device\n");
+		pr_de("Detached Event received for already detach device\n");
 		return;
 	}
 	dev->state = CHCR_DETACH;

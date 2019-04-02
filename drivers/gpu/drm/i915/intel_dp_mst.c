@@ -59,7 +59,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	bpp = 24;
 	if (intel_dp->compliance.test_data.bpc) {
 		bpp = intel_dp->compliance.test_data.bpc * 3;
-		DRM_DEBUG_KMS("Setting pipe bpp to %d\n",
+		DRM_DE_KMS("Setting pipe bpp to %d\n",
 			      bpp);
 	}
 	/*
@@ -83,7 +83,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr, port,
 					      mst_pbn);
 	if (slots < 0) {
-		DRM_DEBUG_KMS("failed finding vcpi slots:%d\n",
+		DRM_DE_KMS("failed finding vcpi slots:%d\n",
 			      slots);
 		return slots;
 	}
@@ -152,7 +152,7 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 		to_intel_connector(old_conn_state->connector);
 	int ret;
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	DRM_DE_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	drm_dp_mst_reset_vcpi_slots(&intel_dp->mst_mgr, connector->port);
 
@@ -200,7 +200,7 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 						  old_crtc_state, NULL);
 	}
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	DRM_DE_KMS("active links %d\n", intel_dp->active_mst_links);
 }
 
 static void intel_mst_pre_pll_enable_dp(struct intel_encoder *encoder,
@@ -250,7 +250,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	connector->encoder = encoder;
 	intel_mst->connector = connector;
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	DRM_DE_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	if (intel_dp->active_mst_links == 0)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
@@ -287,7 +287,7 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_dig_port->base.port;
 
-	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
+	DRM_DE_KMS("active links %d\n", intel_dp->active_mst_links);
 
 	if (intel_wait_for_register(dev_priv,
 				    DP_TP_STATUS(port),
@@ -510,7 +510,7 @@ static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id, connector->name);
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n", connector->base.id, connector->name);
 	drm_connector_unregister(connector);
 
 	if (dev_priv->fbdev)

@@ -869,7 +869,7 @@ extern int bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action);
 
 extern int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep);
 
-/* Debug related function prototypes */
+/* De related function prototypes */
 extern void bnx2i_print_pend_cmd_queue(struct bnx2i_conn *conn);
 extern void bnx2i_print_active_cmd_queue(struct bnx2i_conn *conn);
 extern void bnx2i_print_xmit_pdu_queue(struct bnx2i_conn *conn);

@@ -9,7 +9,7 @@ CFLAGS_xhci-trace.o := -I$(src)
 fhci-y := fhci-hcd.o fhci-hub.o fhci-q.o
 fhci-y += fhci-mem.o fhci-tds.o fhci-sched.o
 
-fhci-$(CONFIG_FHCI_DEBUG) += fhci-dbg.o
+fhci-$(CONFIG_FHCI_DE) += fhci-dbg.o
 
 xhci-hcd-y := xhci.o xhci-mem.o xhci-ext-caps.o
 xhci-hcd-y += xhci-ring.o xhci-hub.o xhci-dbg.o
@@ -31,8 +31,8 @@ ifneq ($(CONFIG_USB_XHCI_RCAR), )
 	xhci-plat-hcd-y		+= xhci-rcar.o
 endif
 
-ifneq ($(CONFIG_DEBUG_FS),)
-	xhci-hcd-y		+= xhci-debugfs.o
+ifneq ($(CONFIG_DE_FS),)
+	xhci-hcd-y		+= xhci-defs.o
 endif
 
 obj-$(CONFIG_USB_WHCI_HCD)	+= whci/

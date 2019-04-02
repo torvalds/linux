@@ -151,7 +151,7 @@ static int firmware_map_add_entry(u64 start, u64 end,
 				  const char *type,
 				  struct firmware_map_entry *entry)
 {
-	BUG_ON(start > end);
+	_ON(start > end);
 
 	entry->start = start;
 	entry->end = end - 1;

@@ -24,22 +24,22 @@ acpi_ps_update_parameter_list(struct acpi_evaluate_info *info, u16 action);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_debug_trace
+ * FUNCTION:    acpi_de_trace
  *
  * PARAMETERS:  method_name     - Valid ACPI name string
- *              debug_level     - Optional level mask. 0 to use default
- *              debug_layer     - Optional layer mask. 0 to use default
+ *              de_level     - Optional level mask. 0 to use default
+ *              de_layer     - Optional layer mask. 0 to use default
  *              flags           - bit 1: one shot(1) or persistent(0)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: External interface to enable debug tracing during control
+ * DESCRIPTION: External interface to enable de tracing during control
  *              method execution
  *
  ******************************************************************************/
 
 acpi_status
-acpi_debug_trace(const char *name, u32 debug_level, u32 debug_layer, u32 flags)
+acpi_de_trace(const char *name, u32 de_level, u32 de_layer, u32 flags)
 {
 	acpi_status status;
 
@@ -50,8 +50,8 @@ acpi_debug_trace(const char *name, u32 debug_level, u32 debug_layer, u32 flags)
 
 	acpi_gbl_trace_method_name = name;
 	acpi_gbl_trace_flags = flags;
-	acpi_gbl_trace_dbg_level = debug_level;
-	acpi_gbl_trace_dbg_layer = debug_layer;
+	acpi_gbl_trace_dbg_level = de_level;
+	acpi_gbl_trace_dbg_layer = de_layer;
 	status = AE_OK;
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -115,7 +115,7 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 	/*
 	 * Execute the method. Performs parse simultaneously
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "**** Begin Method Parse/Execute [%4.4s] **** Node=%p Obj=%p\n",
 			  info->node->name.ascii, info->node, info->obj_desc));
 
@@ -209,7 +209,7 @@ cleanup:
 	 * a control exception code
 	 */
 	if (info->return_object) {
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "Method returned ObjDesc=%p\n",
+		ACPI_DE_PRINT((ACPI_DB_PARSE, "Method returned ObjDesc=%p\n",
 				  info->return_object));
 		ACPI_DUMP_STACK_ENTRY(info->return_object);
 

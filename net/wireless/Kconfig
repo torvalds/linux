@@ -45,8 +45,8 @@ config NL80211_TESTMODE
 	  Select this option ONLY for kernels that are specifically
 	  built for such purposes.
 
-	  Debugging tools that are supposed to end up in the hands of
-	  users should better be implemented with debugfs.
+	  Deging tools that are supposed to end up in the hands of
+	  users should better be implemented with defs.
 
 	  Say N.
 
@@ -167,11 +167,11 @@ config CFG80211_DEFAULT_PS
 	  applications instead -- they need to register their network
 	  latency requirement, see Documentation/power/pm_qos_interface.txt.
 
-config CFG80211_DEBUGFS
-	bool "cfg80211 DebugFS entries"
-	depends on DEBUG_FS
+config CFG80211_DEFS
+	bool "cfg80211 DeFS entries"
+	depends on DE_FS
 	---help---
-	  You can enable this if you want debugfs entries for cfg80211.
+	  You can enable this if you want defs entries for cfg80211.
 
 	  If unsure, say N.
 
@@ -219,12 +219,12 @@ config LIB80211_CRYPT_CCMP
 config LIB80211_CRYPT_TKIP
 	tristate
 
-config LIB80211_DEBUG
-	bool "lib80211 debugging messages"
+config LIB80211_DE
+	bool "lib80211 deging messages"
 	depends on LIB80211
 	default n
 	---help---
-	  You can enable this if you want verbose debugging messages
+	  You can enable this if you want verbose deging messages
 	  from lib80211.
 
 	  If unsure, say N.

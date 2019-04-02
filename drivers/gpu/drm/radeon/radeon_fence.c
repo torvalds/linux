@@ -910,8 +910,8 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		radeon_fence_driver_init_ring(rdev, ring);
 	}
-	if (radeon_debugfs_fence_init(rdev)) {
-		dev_err(rdev->dev, "fence debugfs file creation failed\n");
+	if (radeon_defs_fence_init(rdev)) {
+		dev_err(rdev->dev, "fence defs file creation failed\n");
 	}
 	return 0;
 }
@@ -964,10 +964,10 @@ void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
 
 
 /*
- * Fence debugfs
+ * Fence defs
  */
-#if defined(CONFIG_DEBUG_FS)
-static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int radeon_defs_fence_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -996,11 +996,11 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 }
 
 /**
- * radeon_debugfs_gpu_reset - manually trigger a gpu reset
+ * radeon_defs_gpu_reset - manually trigger a gpu reset
  *
  * Manually trigger a gpu reset at the next fence wait.
  */
-static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
+static int radeon_defs_gpu_reset(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -1015,16 +1015,16 @@ static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list radeon_debugfs_fence_list[] = {
-	{"radeon_fence_info", &radeon_debugfs_fence_info, 0, NULL},
-	{"radeon_gpu_reset", &radeon_debugfs_gpu_reset, 0, NULL}
+static struct drm_info_list radeon_defs_fence_list[] = {
+	{"radeon_fence_info", &radeon_defs_fence_info, 0, NULL},
+	{"radeon_gpu_reset", &radeon_defs_gpu_reset, 0, NULL}
 };
 #endif
 
-int radeon_debugfs_fence_init(struct radeon_device *rdev)
+int radeon_defs_fence_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_fence_list, 2);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, radeon_defs_fence_list, 2);
 #else
 	return 0;
 #endif

@@ -442,7 +442,7 @@ static int tegra_bpmp_probe_clocks(struct tegra_bpmp *bpmp,
 		count++;
 
 		if (TEGRA_BPMP_DUMP_CLOCK_INFO)
-			tegra_bpmp_clk_info_dump(bpmp, KERN_DEBUG, info);
+			tegra_bpmp_clk_info_dump(bpmp, KERN_DE, info);
 	}
 
 	dev_dbg(bpmp->dev, "holes: %u\n", holes);

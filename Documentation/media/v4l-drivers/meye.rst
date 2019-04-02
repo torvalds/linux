@@ -128,7 +128,7 @@ MEYEIOC_STILLCAPT and MEYEIOC_STILLJCAPT
 
 Look at the 'motioneye' application code for an actual example.
 
-Bugs / Todo
+s / Todo
 -----------
 
 - 'motioneye' still uses the meye private v4l1 API extensions.

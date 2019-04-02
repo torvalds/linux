@@ -360,7 +360,7 @@ enum  velocity_owner {
 #define MAC_REG_JMPSR3      0x9B
 #define MAC_REG_CHIPGSR     0x9C
 #define MAC_REG_TESTCFG     0x9D
-#define MAC_REG_DEBUG       0x9E
+#define MAC_REG_DE       0x9E
 #define MAC_REG_CHIPGCR     0x9F	/* Chip Operation and Diagnostic Control */
 #define MAC_REG_WOLCR0_SET  0xA0
 #define MAC_REG_WOLCR1_SET  0xA1
@@ -1077,7 +1077,7 @@ struct mac_regs {
 	volatile u8 JMPSR3;
 	volatile u8 CHIPGSR;		/* 0x9C */
 	volatile u8 TESTCFG;
-	volatile u8 DEBUG;
+	volatile u8 DE;
 	volatile u8 CHIPGCR;
 
 	volatile __le16 WOLCRSet;	/* 0xA0 */
@@ -1296,7 +1296,7 @@ struct velocity_context {
     (id);})
 
 /*
- * Inline debug routine
+ * Inline de routine
  */
 
 
@@ -1305,15 +1305,15 @@ enum velocity_msg_level {
 	MSG_LEVEL_NOTICE = 1,	//Some errors need users to be notified.
 	MSG_LEVEL_INFO = 2,	//Normal message.
 	MSG_LEVEL_VERBOSE = 3,	//Will report all trival errors.
-	MSG_LEVEL_DEBUG = 4	//Only for debug purpose.
+	MSG_LEVEL_DE = 4	//Only for de purpose.
 };
 
-#ifdef VELOCITY_DEBUG
+#ifdef VELOCITY_DE
 #define ASSERT(x) { \
 	if (!(x)) { \
 		printk(KERN_ERR "assertion %s failed: file %s line %d\n", #x,\
 			__func__, __LINE__);\
-		BUG(); \
+		(); \
 	}\
 }
 #define VELOCITY_DBG(p,args...) printk(p, ##args)

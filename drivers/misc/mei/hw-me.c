@@ -1450,7 +1450,7 @@ static const struct mei_cfg *const mei_cfg_list[] = {
 
 const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(mei_cfg_list) != MEI_ME_NUM_CFG);
+	BUILD__ON(ARRAY_SIZE(mei_cfg_list) != MEI_ME_NUM_CFG);
 
 	if (idx >= MEI_ME_NUM_CFG)
 		return NULL;

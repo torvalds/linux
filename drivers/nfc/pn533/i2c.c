@@ -75,7 +75,7 @@ static int pn533_i2c_send_frame(struct pn533 *dev,
 
 	phy->aborted = false;
 
-	print_hex_dump_debug("PN533_i2c TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_de("PN533_i2c TX: ", DUMP_PREFIX_NONE, 16, 1,
 			     out->data, out->len, false);
 
 	rc = i2c_master_send(client, out->data, out->len);

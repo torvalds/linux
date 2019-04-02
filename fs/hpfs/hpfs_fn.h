@@ -8,7 +8,7 @@
  */
 
 //#define DBG
-//#define DEBUG_LOCKS
+//#define DE_LOCKS
 #ifdef pr_fmt
 #undef pr_fmt
 #endif

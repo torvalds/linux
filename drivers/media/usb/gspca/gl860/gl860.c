@@ -3,7 +3,7 @@
  *
  * 2009/09/24 Olivier Lorin <o.lorin@laposte.net>
  * GSPCA by Jean-Francois Moine <http://moinejf.free.fr>
- * Thanks BUGabundo and Malmostoso for your amazing help!
+ * Thanks abundo and Malmostoso for your amazing help!
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

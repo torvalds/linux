@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: exdebug - Support for stores to the AML Debug Object
+ * Module Name: exde - Support for stores to the AML De Object
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -12,32 +12,32 @@
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_EXECUTER
-ACPI_MODULE_NAME("exdebug")
+ACPI_MODULE_NAME("exde")
 
 #ifndef ACPI_NO_ERROR_MESSAGES
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_do_debug_object
+ * FUNCTION:    acpi_ex_do_de_object
  *
- * PARAMETERS:  source_desc         - Object to be output to "Debug Object"
+ * PARAMETERS:  source_desc         - Object to be output to "De Object"
  *              level               - Indentation level (used for packages)
  *              index               - Current package element, zero if not pkg
  *
  * RETURN:      None
  *
- * DESCRIPTION: Handles stores to the AML Debug Object. For example:
- *              Store(INT1, Debug)
+ * DESCRIPTION: Handles stores to the AML De Object. For example:
+ *              Store(INT1, De)
  *
  * This function is not compiled if ACPI_NO_ERROR_MESSAGES is set.
  *
- * This function is only enabled if acpi_gbl_enable_aml_debug_object is set, or
- * if ACPI_LV_DEBUG_OBJECT is set in the acpi_dbg_level. Thus, in the normal
- * operational case, stores to the debug object are ignored but can be easily
+ * This function is only enabled if acpi_gbl_enable_aml_de_object is set, or
+ * if ACPI_LV_DE_OBJECT is set in the acpi_dbg_level. Thus, in the normal
+ * operational case, stores to the de object are ignored but can be easily
  * enabled if necessary.
  *
  ******************************************************************************/
 void
-acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
+acpi_ex_do_de_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index)
 {
 	u32 i;
@@ -45,12 +45,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	union acpi_operand_object *object_desc;
 	u32 value;
 
-	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_do_de_object, source_desc);
 
-	/* Output must be enabled via the debug_object global or the dbg_level */
+	/* Output must be enabled via the de_object global or the dbg_level */
 
-	if (!acpi_gbl_enable_aml_debug_object &&
-	    !(acpi_dbg_level & ACPI_LV_DEBUG_OBJECT)) {
+	if (!acpi_gbl_enable_aml_de_object &&
+	    !(acpi_dbg_level & ACPI_LV_DE_OBJECT)) {
 		return_VOID;
 	}
 
@@ -71,10 +71,10 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
-		if (acpi_gbl_display_debug_timer) {
+		if (acpi_gbl_display_de_timer) {
 			/*
 			 * We will emit the current timer value (in microseconds) with each
-			 * debug output. Only need the lower 26 bits. This allows for 67
+			 * de output. Only need the lower 26 bits. This allows for 67
 			 * million microseconds or 67 seconds before rollover.
 			 *
 			 * Convert 100 nanosecond units to microseconds
@@ -82,10 +82,10 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			timer = ((u32)acpi_os_get_timer() / 10);
 			timer &= 0x03FFFFFF;
 
-			acpi_os_printf("ACPI Debug: T=0x%8.8X %*s", timer,
+			acpi_os_printf("ACPI De: T=0x%8.8X %*s", timer,
 				       level, " ");
 		} else {
-			acpi_os_printf("ACPI Debug: %*s", level, " ");
+			acpi_os_printf("ACPI De: %*s", level, " ");
 		}
 	}
 
@@ -167,7 +167,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		/* Output the entire contents of the package */
 
 		for (i = 0; i < source_desc->package.count; i++) {
-			acpi_ex_do_debug_object(source_desc->package.
+			acpi_ex_do_de_object(source_desc->package.
 						elements[i], level + 4, i + 1);
 		}
 		break;
@@ -229,7 +229,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 				default:
 
-					acpi_ex_do_debug_object((source_desc->
+					acpi_ex_do_de_object((source_desc->
 								 reference.
 								 node)->object,
 								level + 4, 0);
@@ -243,7 +243,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 				/* Reference object is a namespace node */
 
-				acpi_ex_do_debug_object(ACPI_CAST_PTR
+				acpi_ex_do_de_object(ACPI_CAST_PTR
 							(union
 							 acpi_operand_object,
 							 source_desc->reference.
@@ -279,7 +279,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 						acpi_os_printf
 						    ("[Uninitialized Package Element]\n");
 					} else {
-						acpi_ex_do_debug_object
+						acpi_ex_do_de_object
 						    (*source_desc->reference.
 						     where, level + 4, 0);
 					}
@@ -302,7 +302,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		break;
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC, "\n"));
+	ACPI_DE_PRINT_RAW((ACPI_DB_EXEC, "\n"));
 	return_VOID;
 }
 #endif

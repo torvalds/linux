@@ -87,7 +87,7 @@ static struct usb_function *f_msg;
 static struct fsg_module_parameters mod_data = {
 	.stall = 1
 };
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 
 static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
@@ -99,7 +99,7 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
-#endif /* CONFIG_USB_GADGET_DEBUG_FILES */
+#endif /* CONFIG_USB_GADGET_DE_FILES */
 
 FSG_MODULE_PARAMETERS(/* no prefix */, mod_data);
 

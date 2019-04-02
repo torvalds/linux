@@ -174,7 +174,7 @@ struct ldc_channel {
 };
 
 #define ldcdbg(TYPE, f, a...) \
-do {	if (lp->cfg.debug & LDC_DEBUG_##TYPE) \
+do {	if (lp->cfg.de & LDC_DE_##TYPE) \
 		printk(KERN_INFO PFX "ID[%lu] " f, lp->id, ## a); \
 } while (0)
 
@@ -341,7 +341,7 @@ static int send_tx_packet(struct ldc_channel *lp,
 			  struct ldc_packet *p,
 			  unsigned long new_tail)
 {
-	BUG_ON(p != (lp->tx_base + (lp->tx_tail / LDC_PACKET_SIZE)));
+	_ON(p != (lp->tx_base + (lp->tx_tail / LDC_PACKET_SIZE)));
 
 	return set_tx_tail(lp, new_tail);
 }
@@ -1607,7 +1607,7 @@ static int write_nonraw(struct ldc_channel *lp, const void *buf,
 		if (data_len > lp->mss)
 			data_len = lp->mss;
 
-		BUG_ON(data_len > LDC_LEN);
+		_ON(data_len > LDC_LEN);
 
 		p->env = (data_len |
 			  (copied == 0 ? LDC_START : 0) |
@@ -1763,7 +1763,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		struct ldc_packet *p;
 		int pkt_len;
 
-		BUG_ON(new == lp->rx_tail);
+		_ON(new == lp->rx_tail);
 		p = lp->rx_base + (new / LDC_PACKET_SIZE);
 
 		ldcdbg(RX, "RX read pkt[%02x:%02x:%02x:%02x:%08x:%08x] "
@@ -2223,7 +2223,7 @@ int ldc_map_single(struct ldc_channel *lp,
 	state.pte_idx = (base - iommu->page_table);
 	state.nc = 0;
 	fill_cookies(&state, (pa & PAGE_MASK), (pa & ~PAGE_MASK), len);
-	BUG_ON(state.nc > ncookies);
+	_ON(state.nc > ncookies);
 
 	return state.nc;
 }

@@ -583,7 +583,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		 * DAC's scan trigger source can be set to the
 		 * correct value.
 		 *
-		 * BUG: The first scan will be triggered immediately
+		 * : The first scan will be triggered immediately
 		 * if the scan trigger source is at logic level 1.
 		 */
 		if (cmd->scan_begin_src == TRIG_TIMER) {
@@ -1002,7 +1002,7 @@ pci224_auto_attach(struct comedi_device *dev, unsigned long context_model)
 		board = &pci224_boards[context_model];
 	if (!board || !board->name) {
 		dev_err(dev->class_dev,
-			"amplc_pci224: BUG! cannot determine board type!\n");
+			"amplc_pci224: ! cannot determine board type!\n");
 		return -EINVAL;
 	}
 	dev->board_ptr = board;

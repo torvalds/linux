@@ -15,18 +15,18 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 
 #include "ath9k.h"
-#include "dfs_debug.h"
+#include "dfs_de.h"
 #include "../dfs_pattern_detector.h"
 
 static struct ath_dfs_pool_stats dfs_pool_stats = { 0 };
 
 #define ATH9K_DFS_STAT(s, p) \
 	len += scnprintf(buf + len, size - len, "%28s : %10u\n", s, \
-			 sc->debug.stats.dfs_stats.p);
+			 sc->de.stats.dfs_stats.p);
 #define ATH9K_DFS_POOL_STAT(s, p) \
 	len += scnprintf(buf + len, size - len, "%28s : %10u\n", s, \
 			 dfs_pool_stats.p);
@@ -111,8 +111,8 @@ static ssize_t write_file_dfs(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	if (val == DFS_STATS_RESET_MAGIC)
-		memset(&sc->debug.stats.dfs_stats, 0,
-		       sizeof(sc->debug.stats.dfs_stats));
+		memset(&sc->de.stats.dfs_stats, 0,
+		       sizeof(sc->de.stats.dfs_stats));
 	return count;
 }
 
@@ -142,10 +142,10 @@ static const struct file_operations fops_dfs_stats = {
 	.llseek = default_llseek,
 };
 
-void ath9k_dfs_init_debug(struct ath_softc *sc)
+void ath9k_dfs_init_de(struct ath_softc *sc)
 {
-	debugfs_create_file("dfs_stats", 0400,
-			    sc->debug.debugfs_phy, sc, &fops_dfs_stats);
-	debugfs_create_file("dfs_simulate_radar", 0200,
-			    sc->debug.debugfs_phy, sc, &fops_simulate_radar);
+	defs_create_file("dfs_stats", 0400,
+			    sc->de.defs_phy, sc, &fops_dfs_stats);
+	defs_create_file("dfs_simulate_radar", 0200,
+			    sc->de.defs_phy, sc, &fops_simulate_radar);
 }

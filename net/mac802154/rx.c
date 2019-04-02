@@ -45,7 +45,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 	__le16 span, sshort;
 	int rc;
 
-	pr_debug("getting packet via slave interface %s\n", sdata->dev->name);
+	pr_de("getting packet via slave interface %s\n", sdata->dev->name);
 
 	span = wpan_dev->pan_id;
 	sshort = wpan_dev->short_addr;
@@ -81,7 +81,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	default:
-		pr_debug("invalid dest mode\n");
+		pr_de("invalid dest mode\n");
 		goto fail;
 	}
 
@@ -93,7 +93,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 	 */
 	rc = mac802154_llsec_decrypt(&sdata->sec, skb);
 	if (rc) {
-		pr_debug("decryption failed: %i\n", rc);
+		pr_de("decryption failed: %i\n", rc);
 		goto fail;
 	}
 
@@ -123,16 +123,16 @@ static void
 ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
 	if (addr->mode == IEEE802154_ADDR_NONE)
-		pr_debug("%s not present\n", name);
+		pr_de("%s not present\n", name);
 
-	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
+	pr_de("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
 	if (addr->mode == IEEE802154_ADDR_SHORT) {
-		pr_debug("%s is short: %04x\n", name,
+		pr_de("%s is short: %04x\n", name,
 			 le16_to_cpu(addr->short_addr));
 	} else {
 		u64 hw = swab64((__force u64)addr->extended_addr);
 
-		pr_debug("%s is hardware: %8phC\n", name, &hw);
+		pr_de("%s is hardware: %8phC\n", name, &hw);
 	}
 }
 
@@ -150,7 +150,7 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 
 	skb->mac_len = hlen;
 
-	pr_debug("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr->fc),
+	pr_de("fc: %04x dsn: %02x\n", le16_to_cpup((__le16 *)&hdr->fc),
 		 hdr->seq);
 
 	cb->type = hdr->fc.type;
@@ -166,19 +166,19 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 	if (hdr->fc.security_enabled) {
 		u64 key;
 
-		pr_debug("seclevel %i\n", hdr->sec.level);
+		pr_de("seclevel %i\n", hdr->sec.level);
 
 		switch (hdr->sec.key_id_mode) {
 		case IEEE802154_SCF_KEY_IMPLICIT:
-			pr_debug("implicit key\n");
+			pr_de("implicit key\n");
 			break;
 
 		case IEEE802154_SCF_KEY_INDEX:
-			pr_debug("key %02x\n", hdr->sec.key_id);
+			pr_de("key %02x\n", hdr->sec.key_id);
 			break;
 
 		case IEEE802154_SCF_KEY_SHORT_INDEX:
-			pr_debug("key %04x:%04x %02x\n",
+			pr_de("key %04x:%04x %02x\n",
 				 le32_to_cpu(hdr->sec.short_src) >> 16,
 				 le32_to_cpu(hdr->sec.short_src) & 0xffff,
 				 hdr->sec.key_id);
@@ -186,7 +186,7 @@ ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 
 		case IEEE802154_SCF_KEY_HW_INDEX:
 			key = swab64((__force u64)hdr->sec.extended_src);
-			pr_debug("key source %8phC %02x\n", &key,
+			pr_de("key source %8phC %02x\n", &key,
 				 hdr->sec.key_id);
 			break;
 		}
@@ -205,7 +205,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 
 	ret = ieee802154_parse_frame_start(skb, &hdr);
 	if (ret) {
-		pr_debug("got invalid frame\n");
+		pr_de("got invalid frame\n");
 		kfree_skb(skb);
 		return;
 	}

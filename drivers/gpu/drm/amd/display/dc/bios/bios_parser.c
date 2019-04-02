@@ -105,7 +105,7 @@ struct dc_bios *bios_parser_create(
 		return &bp->base;
 
 	kfree(bp);
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -120,7 +120,7 @@ static void bios_parser_destroy(struct dc_bios **dcb)
 	struct bios_parser *bp = BP_FROM_DCB(*dcb);
 
 	if (!bp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -198,7 +198,7 @@ static enum bp_result bios_parser_get_src_obj(struct dc_bios *dcb,
 	object = get_bios_object(bp, object_id);
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object id */
+		BREAK_TO_DEGER(); /* Invalid object id */
 		return BP_RESULT_BADINPUT;
 	}
 
@@ -340,7 +340,7 @@ static enum bp_result bios_parser_get_device_tag(
 	object = get_bios_object(bp, connector_object_id);
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object id */
+		BREAK_TO_DEGER(); /* Invalid object id */
 		return BP_RESULT_BADINPUT;
 	}
 
@@ -867,7 +867,7 @@ static ATOM_HPD_INT_RECORD *get_hpd_record(struct bios_parser *bp,
 	uint32_t offset;
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object */
+		BREAK_TO_DEGER(); /* Invalid object */
 		return NULL;
 	}
 
@@ -1507,7 +1507,7 @@ static ATOM_ENCODER_CAP_RECORD_V2 *get_encoder_cap_record(
 	uint32_t offset;
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object */
+		BREAK_TO_DEGER(); /* Invalid object */
 		return NULL;
 	}
 
@@ -1995,7 +1995,7 @@ static uint32_t get_src_obj_list(struct bios_parser *bp, ATOM_OBJECT *object,
 	uint8_t *number;
 
 	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object id */
+		BREAK_TO_DEGER(); /* Invalid object id */
 		return 0;
 	}
 
@@ -2072,7 +2072,7 @@ static struct device_id device_type_from_device_id(uint16_t device_id)
 		break;
 
 	default:
-		BREAK_TO_DEBUGGER(); /* Invalid device Id */
+		BREAK_TO_DEGER(); /* Invalid device Id */
 		result_device_id.device_type = DEVICE_TYPE_UNKNOWN;
 		result_device_id.enum_id = 0;
 	}

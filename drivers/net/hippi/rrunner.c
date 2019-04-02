@@ -15,7 +15,7 @@
  * (at your option) any later version.
  *
  * Thanks to Jayaram Bhat from ODS/Essential for fixing some of the
- * stupid bugs in my code.
+ * stupid s in my code.
  *
  * Softnet support and various other patches from Val Henson of
  * ODS/Essential.
@@ -24,7 +24,7 @@
  */
 
 
-#define DEBUG 1
+#define DE 1
 #define RX_DMA_SKBUFF 1
 #define PKT_COPY_THRESHOLD 512
 
@@ -378,7 +378,7 @@ static int rr_reset(struct net_device *dev)
 	start_pc = rr_read_eeprom_word(rrpriv,
 			offsetof(struct eeprom, rncd_info.FwStart));
 
-#if (DEBUG > 1)
+#if (DE > 1)
 	printk("%s: Executing firmware at address 0x%06x\n",
 	       dev->name, start_pc);
 #endif
@@ -525,7 +525,7 @@ static int rr_init(struct net_device *dev)
 		       (rev >> 16), ((rev >> 8) & 0xff), (rev & 0xff));
 	}
 
-#if (DEBUG > 2)
+#if (DE > 2)
 	printk("  Maximum receive rings %i\n", readl(&regs->MaxRxRng));
 #endif
 
@@ -936,7 +936,7 @@ static void rx_int(struct net_device *dev, u32 rxlimit, u32 index)
 
 		desc = &(rrpriv->rx_ring[index]);
 		pkt_len = desc->size;
-#if (DEBUG > 2)
+#if (DE > 2)
 		printk("index %i, rxlimit %i\n", index, rxlimit);
 		printk("len %x, mode %x\n", pkt_len, desc->mode);
 #endif
@@ -1038,7 +1038,7 @@ static irqreturn_t rr_interrupt(int irq, void *dev_id)
 	rxlimit = (prodidx >> 16) & 0xff;
 	prodidx &= 0xff;
 
-#if (DEBUG > 2)
+#if (DE > 2)
 	printk("%s: interrupt, prodidx = %i, eidx = %i\n", dev->name,
 	       prodidx, rrpriv->info->evt_ctrl.pi);
 #endif
@@ -1533,7 +1533,7 @@ static int rr_load_firmware(struct net_device *dev)
 
 	nr_seg = rr_read_eeprom_word(rrpriv, eptr);
 	eptr +=4;
-#if (DEBUG > 1)
+#if (DE > 1)
 	printk("%s: nr_seg %i\n", dev->name, nr_seg);
 #endif
 
@@ -1545,7 +1545,7 @@ static int rr_load_firmware(struct net_device *dev)
 		segptr = rr_read_eeprom_word(rrpriv, eptr);
 		segptr = ((segptr & 0x1fffff) >> 3);
 		eptr += 4;
-#if (DEBUG > 1)
+#if (DE > 1)
 		printk("%s: segment %i, sram address %06x, length %04x, segptr %06x\n",
 		       dev->name, i, sptr, len, segptr);
 #endif

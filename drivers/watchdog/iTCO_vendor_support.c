@@ -107,7 +107,7 @@ static void supermicro_old_pre_stop(struct resource *smires)
  *	the system.
  *
  *	These are the conclusions of Andriy Gapon <avg@icyb.net.ua> after
- *	debugging: the SMI handler is quite simple - it tests value in
+ *	deging: the SMI handler is quite simple - it tests value in
  *	TCO1_CNT against 0x800, i.e. checks TCO_TMR_HLT. If the bit is set
  *	the handler goes into an infinite loop, apparently to allow the
  *	second timeout and reboot. Otherwise it simply clears TIMEOUT bit

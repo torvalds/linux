@@ -348,7 +348,7 @@ config NLMON
 	  Thus applications like tcpdump will be able to see local netlink
 	  messages if they tap into the netlink device, record pcaps for further
 	  diagnostics, etc. This is mostly intended for developers or support
-	  to debug netlink issues. If unsure, say N.
+	  to de netlink issues. If unsure, say N.
 
 config NET_VRF
 	tristate "Virtual Routing and Forwarding (Lite)"
@@ -365,7 +365,7 @@ config VSOCKMON
     depends on VHOST_VSOCK
     ---help---
      This option enables a monitoring net device for vsock sockets. It is
-     mostly intended for developers or support to debug vsock issues. If
+     mostly intended for developers or support to de vsock issues. If
      unsure, say N.
 
 endif # NET_CORE
@@ -504,7 +504,7 @@ source "drivers/net/hyperv/Kconfig"
 
 config NETDEVSIM
 	tristate "Simulated networking device"
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially

@@ -107,7 +107,7 @@ static int socfpga_pm_suspend(unsigned long arg)
 
 	ret = socfpga_sdram_self_refresh_in_ocram((u32)sdr_ctl_base_addr);
 
-	pr_debug("%s self-refresh loops request=%d exit=%d\n", __func__,
+	pr_de("%s self-refresh loops request=%d exit=%d\n", __func__,
 		 ret & 0xffff, (ret >> 16) & 0xffff);
 
 	return 0;

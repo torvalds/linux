@@ -427,7 +427,7 @@ release it yourself.
 
 --
 [mandatory]
-	d_alloc_root() is gone, along with a lot of bugs caused by code
+	d_alloc_root() is gone, along with a lot of s caused by code
 misusing it.  Replacement: d_make_root(inode).  The difference is,
 d_make_root() drops the reference to inode if dentry allocation fails.  
 

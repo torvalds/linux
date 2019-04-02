@@ -187,7 +187,7 @@ static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if ((rnet->tx_cnt + add_num) > RIONET_TX_RING_SIZE) {
 		netif_stop_queue(ndev);
 		spin_unlock_irqrestore(&rnet->tx_lock, flags);
-		printk(KERN_ERR "%s: BUG! Tx Ring full when queue awake!\n",
+		printk(KERN_ERR "%s: ! Tx Ring full when queue awake!\n",
 		       ndev->name);
 		return NETDEV_TX_BUSY;
 	}
@@ -623,7 +623,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 		spin_lock_irqsave(&nets[netid].lock, flags);
 		list_add_tail(&peer->node, &nets[netid].peers);
 		spin_unlock_irqrestore(&nets[netid].lock, flags);
-		pr_debug("%s: %s add peer %s\n",
+		pr_de("%s: %s add peer %s\n",
 			 DRV_NAME, __func__, rio_name(rdev));
 
 		/* If netdev is already opened, send join request to new peer */
@@ -643,7 +643,7 @@ static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
 	unsigned long flags;
 	int i;
 
-	pr_debug("%s: %s\n", DRV_NAME, __func__);
+	pr_de("%s: %s\n", DRV_NAME, __func__);
 
 	for (i = 0; i < RIONET_MAX_NETS; i++) {
 		if (!nets[i].ndev)
@@ -670,7 +670,7 @@ static void rionet_remove_mport(struct device *dev,
 	struct net_device *ndev;
 	int id = mport->id;
 
-	pr_debug("%s %s\n", __func__, mport->name);
+	pr_de("%s %s\n", __func__, mport->name);
 
 	WARN(nets[id].nact, "%s called when connected to %d peers\n",
 	     __func__, nets[id].nact);

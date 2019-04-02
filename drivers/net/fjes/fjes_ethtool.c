@@ -241,25 +241,25 @@ static int fjes_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
 	int ret = 0;
 
 	if (dump->flag) {
-		if (hw->debug_mode)
+		if (hw->de_mode)
 			return -EPERM;
 
-		hw->debug_mode = dump->flag;
+		hw->de_mode = dump->flag;
 
-		/* enable debug mode */
+		/* enable de mode */
 		mutex_lock(&hw->hw_info.lock);
-		ret = fjes_hw_start_debug(hw);
+		ret = fjes_hw_start_de(hw);
 		mutex_unlock(&hw->hw_info.lock);
 
 		if (ret)
-			hw->debug_mode = 0;
+			hw->de_mode = 0;
 	} else {
-		if (!hw->debug_mode)
+		if (!hw->de_mode)
 			return -EPERM;
 
-		/* disable debug mode */
+		/* disable de mode */
 		mutex_lock(&hw->hw_info.lock);
-		ret = fjes_hw_stop_debug(hw);
+		ret = fjes_hw_stop_de(hw);
 		mutex_unlock(&hw->hw_info.lock);
 	}
 
@@ -274,7 +274,7 @@ static int fjes_get_dump_flag(struct net_device *netdev,
 
 	dump->len = hw->hw_info.trace_size;
 	dump->version = 1;
-	dump->flag = hw->debug_mode;
+	dump->flag = hw->de_mode;
 
 	return 0;
 }

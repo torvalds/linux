@@ -38,7 +38,7 @@
 /* #define CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE */
 /* #define CMDSET0001_DISABLE_WRITE_SUSPEND */
 
-// debugging, turns off buffer write mode if set to 1
+// deging, turns off buffer write mode if set to 1
 #define FORCE_WORD_WRITE 0
 
 /* Intel chips */
@@ -112,10 +112,10 @@ static struct mtd_chip_driver cfi_intelext_chipdrv = {
 	.module		= THIS_MODULE
 };
 
-/* #define DEBUG_LOCK_BITS */
-/* #define DEBUG_CFI_FEATURES */
+/* #define DE_LOCK_BITS */
+/* #define DE_CFI_FEATURES */
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 static void cfi_tell_features(struct cfi_pri_intelext *extp)
 {
 	int i;
@@ -218,7 +218,7 @@ static void fixup_at49bv640dx_lock(struct mtd_info *mtd)
 }
 
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
-/* Some Intel Strata Flash prior to FPO revision C has bugs in this area */
+/* Some Intel Strata Flash prior to FPO revision C has s in this area */
 static void fixup_intel_strataflash(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
@@ -379,7 +379,7 @@ static void cfi_fixup_major_minor(struct cfi_private *cfi,
 static int cfi_is_micron_28F00AP30(struct cfi_private *cfi, struct flchip *chip)
 {
 	/*
-	 * Micron(was Numonyx) 1Gbit bottom boot are buggy w.r.t
+	 * Micron(was Numonyx) 1Gbit bottom boot are gy w.r.t
 	 * Erase Supend for their small Erase Blocks(0x8000)
 	 */
 	if (cfi->mfr == CFI_MFR_INTEL && cfi->id == M28F00AP30)
@@ -525,7 +525,7 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 
 		cfi_fixup(mtd, cfi_fixup_table);
 
-#ifdef DEBUG_CFI_FEATURES
+#ifdef DE_CFI_FEATURES
 		/* Tell the user about it in lots of lovely detail */
 		cfi_tell_features(extp);
 #endif
@@ -603,7 +603,7 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 	int i,j;
 	unsigned long devsize = (1<<cfi->cfiq->DevSize) * cfi->interleave;
 
-	//printk(KERN_DEBUG "number of CFI chips: %d\n", cfi->numchips);
+	//printk(KERN_DE "number of CFI chips: %d\n", cfi->numchips);
 
 	mtd->size = devsize * cfi->numchips;
 
@@ -640,7 +640,7 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 	}
 
 	for (i=0; i<mtd->numeraseregions;i++){
-		printk(KERN_DEBUG "erase region %d: offset=0x%llx,size=0x%x,blocks=%d\n",
+		printk(KERN_DE "erase region %d: offset=0x%llx,size=0x%x,blocks=%d\n",
 		       i,(unsigned long long)mtd->eraseregions[i].offset,
 		       mtd->eraseregions[i].erasesize,
 		       mtd->eraseregions[i].numblocks);
@@ -735,7 +735,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 			prinfo = (struct cfi_intelext_programming_regioninfo *)&extp->extra[offs];
 			mtd->writesize = cfi->interleave << prinfo->ProgRegShift;
 			mtd->flags &= ~MTD_BIT_WRITEABLE;
-			printk(KERN_DEBUG "%s: program region size/ctrl_valid/ctrl_inval = %d/%d/%d\n",
+			printk(KERN_DE "%s: program region size/ctrl_valid/ctrl_inval = %d/%d/%d\n",
 			       map->name, mtd->writesize,
 			       cfi->interleave * prinfo->ControlValid,
 			       cfi->interleave * prinfo->ControlInvalid);
@@ -787,7 +787,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 			}
 		}
 
-		printk(KERN_DEBUG "%s: %d set(s) of %d interleaved chips "
+		printk(KERN_DE "%s: %d set(s) of %d interleaved chips "
 				  "--> %d partitions of %d KiB\n",
 				  map->name, cfi->numchips, cfi->interleave,
 				  newcfi->numchips, 1<<(newcfi->chipshift-10));
@@ -852,7 +852,7 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 		    chip->in_progress_block_addr)
 			goto sleep;
 
-		/* do not suspend small EBs, buggy Micron Chips */
+		/* do not suspend small EBs, gy Micron Chips */
 		if (cfi_is_micron_28F00AP30(cfi, chip) &&
 		    (chip->in_progress_block_mask == ~(0x8000-1)))
 			goto sleep;
@@ -1998,7 +1998,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 			printk(KERN_ERR "%s: block erase error: (bad VPP)\n", map->name);
 			ret = -EIO;
 		} else if (chipstatus & 0x20 && retries--) {
-			printk(KERN_DEBUG "block erase failed at 0x%08lx: status 0x%lx. Retrying...\n", adr, chipstatus);
+			printk(KERN_DE "block erase failed at 0x%08lx: status 0x%lx. Retrying...\n", adr, chipstatus);
 			DISABLE_VPP(map);
 			put_chip(map, chip, adr);
 			mutex_unlock(&chip->mutex);
@@ -2082,13 +2082,13 @@ static int __xipram do_getlockstatus_oneblock(struct map_info *map,
 	return status;
 }
 
-#ifdef DEBUG_LOCK_BITS
+#ifdef DE_LOCK_BITS
 static int __xipram do_printlockstatus_oneblock(struct map_info *map,
 						struct flchip *chip,
 						unsigned long adr,
 						int len, void *thunk)
 {
-	printk(KERN_DEBUG "block status register for 0x%08lx is %x\n",
+	printk(KERN_DE "block status register for 0x%08lx is %x\n",
 	       adr, do_getlockstatus_oneblock(map, chip, adr, len, thunk));
 	return 0;
 }
@@ -2125,7 +2125,7 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 		map_write(map, CMD(0xD0), adr);
 		chip->state = FL_UNLOCKING;
 	} else
-		BUG();
+		();
 
 	/*
 	 * If Instant Individual Block Locking supported then no need
@@ -2161,8 +2161,8 @@ static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	int ret;
 
-#ifdef DEBUG_LOCK_BITS
-	printk(KERN_DEBUG "%s: lock status before, ofs=0x%08llx, len=0x%08X\n",
+#ifdef DE_LOCK_BITS
+	printk(KERN_DE "%s: lock status before, ofs=0x%08llx, len=0x%08X\n",
 	       __func__, ofs, len);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
 		ofs, len, NULL);
@@ -2171,8 +2171,8 @@ static int cfi_intelext_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = cfi_varsize_frob(mtd, do_xxlock_oneblock,
 		ofs, len, DO_XXLOCK_ONEBLOCK_LOCK);
 
-#ifdef DEBUG_LOCK_BITS
-	printk(KERN_DEBUG "%s: lock status after, ret=%d\n",
+#ifdef DE_LOCK_BITS
+	printk(KERN_DE "%s: lock status after, ret=%d\n",
 	       __func__, ret);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
 		ofs, len, NULL);
@@ -2185,8 +2185,8 @@ static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	int ret;
 
-#ifdef DEBUG_LOCK_BITS
-	printk(KERN_DEBUG "%s: lock status before, ofs=0x%08llx, len=0x%08X\n",
+#ifdef DE_LOCK_BITS
+	printk(KERN_DE "%s: lock status before, ofs=0x%08llx, len=0x%08X\n",
 	       __func__, ofs, len);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
 		ofs, len, NULL);
@@ -2195,8 +2195,8 @@ static int cfi_intelext_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	ret = cfi_varsize_frob(mtd, do_xxlock_oneblock,
 					ofs, len, DO_XXLOCK_ONEBLOCK_UNLOCK);
 
-#ifdef DEBUG_LOCK_BITS
-	printk(KERN_DEBUG "%s: lock status after, ret=%d\n",
+#ifdef DE_LOCK_BITS
+	printk(KERN_DE "%s: lock status after, ret=%d\n",
 	       __func__, ret);
 	cfi_varsize_frob(mtd, do_printlockstatus_oneblock,
 		ofs, len, NULL);

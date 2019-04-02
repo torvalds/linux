@@ -32,8 +32,8 @@
 
 #include "mpc83xx.h"
 
-#undef DEBUG
-#ifdef DEBUG
+#undef DE
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -148,7 +148,7 @@ static int __init fsl_spi_init(struct spi_board_info *board_infos,
 
 static void mpc83xx_spi_cs_control(struct spi_device *spi, bool on)
 {
-	pr_debug("%s %d %d\n", __func__, spi->chip_select, on);
+	pr_de("%s %d %d\n", __func__, spi->chip_select, on);
 	par_io_data_set(3, 13, on);
 }
 

@@ -298,7 +298,7 @@ static void at91_rtc_flush_events(struct sam9_rtc *rtc)
 	rtc_update_irq(rtc->rtcdev, 1, rtc->events);
 	rtc->events = 0;
 
-	pr_debug("%s: num=%ld, events=0x%02lx\n", __func__,
+	pr_de("%s: num=%ld, events=0x%02lx\n", __func__,
 		rtc->events >> 8, rtc->events & 0x000000FF);
 }
 
@@ -460,7 +460,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	/* NOTE:  sam9260 rev A silicon has a ROM bug which resets the
+	/* NOTE:  sam9260 rev A silicon has a ROM  which resets the
 	 * RTT on at least some reboots.  If you have that chip, you must
 	 * initialize the time from some external source like a GPS, wall
 	 * clock, discrete RTC, etc

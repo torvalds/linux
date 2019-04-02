@@ -966,7 +966,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Cadence I2C controller has a bug wherein it generates
+	 * Cadence I2C controller has a  wherein it generates
 	 * invalid read transaction after HW timeout in master receiver mode.
 	 * HW timeout is not used by this driver and the interrupt is disabled.
 	 * But the feature itself cannot be disabled. Hence maximum value

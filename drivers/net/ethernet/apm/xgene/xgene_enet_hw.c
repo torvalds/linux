@@ -503,9 +503,9 @@ static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 		CFG_RXCLK_MUXSEL0_SET(&rgmii, pdata->rx_delay);
 		rgmii |= CFG_SPEED_1250;
 
-		xgene_enet_rd_csr(pdata, DEBUG_REG_ADDR, &value);
+		xgene_enet_rd_csr(pdata, DE_REG_ADDR, &value);
 		value |= CFG_BYPASS_UNISEC_TX | CFG_BYPASS_UNISEC_RX;
-		xgene_enet_wr_csr(pdata, DEBUG_REG_ADDR, value);
+		xgene_enet_wr_csr(pdata, DE_REG_ADDR, value);
 		break;
 	}
 

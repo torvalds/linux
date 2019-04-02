@@ -24,7 +24,7 @@
  */
 
 /* TODO
- * - bracket certain functions with scratch writes, useful for debugging
+ * - bracket certain functions with scratch writes, useful for deging
  * - watchdog timer around ctx operations
  */
 

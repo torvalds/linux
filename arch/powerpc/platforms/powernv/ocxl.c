@@ -240,7 +240,7 @@ static void assign_actags(struct npu_link *link)
 			range_start += actag_count;
 			WARN_ON(range_start >= PNV_OCXL_ACTAG_MAX);
 		}
-		pr_debug("link %x:%x:%x fct %d actags: start=%d count=%d (desired=%d)\n",
+		pr_de("link %x:%x:%x fct %d actags: start=%d count=%d (desired=%d)\n",
 			link->domain, link->bus, link->dev, i,
 			link->fn_actags[i].start, link->fn_actags[i].count,
 			link->fn_desired_actags[i]);

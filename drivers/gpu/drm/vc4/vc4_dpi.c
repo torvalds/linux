@@ -127,8 +127,8 @@ static const struct {
 	DPI_REG(DPI_ID),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_dpi_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;

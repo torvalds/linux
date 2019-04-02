@@ -31,8 +31,8 @@
 static struct hlist_head	nlm_files[FILE_NRHASH];
 static DEFINE_MUTEX(nlm_file_mutex);
 
-#ifdef CONFIG_SUNRPC_DEBUG
-static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
+#ifdef CONFIG_SUNRPC_DE
+static inline void nlm_de_print_fh(char *msg, struct nfs_fh *f)
 {
 	u32 *fhp = (u32*)f->data;
 
@@ -42,7 +42,7 @@ static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
 		fhp[4], fhp[5], fhp[6], fhp[7]);
 }
 
-static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
+static inline void nlm_de_print_file(char *msg, struct nlm_file *file)
 {
 	struct inode *inode = locks_inode(file->f_file);
 
@@ -50,12 +50,12 @@ static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
 		msg, inode->i_sb->s_id, inode->i_ino);
 }
 #else
-static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
+static inline void nlm_de_print_fh(char *msg, struct nfs_fh *f)
 {
 	return;
 }
 
-static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
+static inline void nlm_de_print_file(char *msg, struct nlm_file *file)
 {
 	return;
 }
@@ -87,7 +87,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	unsigned int	hash;
 	__be32		nfserr;
 
-	nlm_debug_print_fh("nlm_lookup_file", f);
+	nlm_de_print_fh("nlm_lookup_file", f);
 
 	hash = file_hash(f);
 
@@ -98,7 +98,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 		if (!nfs_compare_fh(&file->f_handle, f))
 			goto found;
 
-	nlm_debug_print_fh("creating file for", f);
+	nlm_de_print_fh("creating file for", f);
 
 	nfserr = nlm_lck_denied_nolocks;
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
@@ -144,7 +144,7 @@ out_free:
 static inline void
 nlm_delete_file(struct nlm_file *file)
 {
-	nlm_debug_print_file("closing file", file);
+	nlm_de_print_file("closing file", file);
 	if (!hlist_unhashed(&file->f_list)) {
 		hlist_del(&file->f_list);
 		nlmsvc_ops->fclose(file->f_file);
@@ -387,7 +387,7 @@ nlmsvc_free_host_resources(struct nlm_host *host)
 		printk(KERN_WARNING
 			"lockd: couldn't remove all locks held by %s\n",
 			host->h_name);
-		BUG();
+		();
 	}
 }
 

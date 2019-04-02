@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
@@ -140,7 +140,7 @@ static struct rt2880_pmx_func uart1_grp_mt7628[] = {
 
 static struct rt2880_pmx_func i2c_grp_mt7628[] = {
 	FUNC("-", 3, 4, 2),
-	FUNC("debug", 2, 4, 2),
+	FUNC("de", 2, 4, 2),
 	FUNC("gpio", 1, 4, 2),
 	FUNC("i2c", 0, 4, 2),
 };
@@ -542,7 +542,7 @@ void __init ralink_clk_init(void)
 		periph_rate = mt7620_get_periph_rate(xtal_rate);
 		pcmi2s_rate = periph_rate;
 
-		pr_debug(RFMT("XTAL") RFMT("CPU_PLL") RFMT("PLL"),
+		pr_de(RFMT("XTAL") RFMT("CPU_PLL") RFMT("PLL"),
 			 RINT(xtal_rate), RFRAC(xtal_rate),
 			 RINT(cpu_pll_rate), RFRAC(cpu_pll_rate),
 			 RINT(pll_rate), RFRAC(pll_rate));
@@ -550,7 +550,7 @@ void __init ralink_clk_init(void)
 		ralink_clk_add("10000500.uart", periph_rate);
 	}
 
-	pr_debug(RFMT("CPU") RFMT("DRAM") RFMT("SYS") RFMT("PERIPH"),
+	pr_de(RFMT("CPU") RFMT("DRAM") RFMT("SYS") RFMT("PERIPH"),
 		 RINT(cpu_rate), RFRAC(cpu_rate),
 		 RINT(dram_rate), RFRAC(dram_rate),
 		 RINT(sys_rate), RFRAC(sys_rate),
@@ -617,7 +617,7 @@ mt7620_dram_init(struct ralink_soc_info *soc_info)
 		soc_info->mem_size_max = MT7620_DDR2_SIZE_MAX;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -637,7 +637,7 @@ mt7628_dram_init(struct ralink_soc_info *soc_info)
 		soc_info->mem_size_max = MT7620_DDR2_SIZE_MAX;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

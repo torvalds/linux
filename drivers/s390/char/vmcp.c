@@ -24,7 +24,7 @@
 #include <linux/cma.h>
 #include <linux/mm.h>
 #include <asm/cpcmd.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/vmcp.h>
 
 struct vmcp_session {
@@ -36,7 +36,7 @@ struct vmcp_session {
 	struct mutex mutex;
 };
 
-static debug_info_t *vmcp_debug;
+static de_info_t *vmcp_de;
 
 static unsigned long vmcp_cma_size __initdata = CONFIG_VMCP_CMA_SIZE * 1024 * 1024;
 static struct cma *vmcp_cma;
@@ -173,7 +173,7 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 		kfree(cmd);
 		return -ENOMEM;
 	}
-	debug_text_event(vmcp_debug, 1, cmd);
+	de_text_event(vmcp_de, 1, cmd);
 	session->resp_size = cpcmd(cmd, session->response, session->bufsize,
 				   &session->resp_code);
 	mutex_unlock(&session->mutex);
@@ -256,19 +256,19 @@ static int __init vmcp_init(void)
 	if (!MACHINE_IS_VM)
 		return 0;
 
-	vmcp_debug = debug_register("vmcp", 1, 1, 240);
-	if (!vmcp_debug)
+	vmcp_de = de_register("vmcp", 1, 1, 240);
+	if (!vmcp_de)
 		return -ENOMEM;
 
-	ret = debug_register_view(vmcp_debug, &debug_hex_ascii_view);
+	ret = de_register_view(vmcp_de, &de_hex_ascii_view);
 	if (ret) {
-		debug_unregister(vmcp_debug);
+		de_unregister(vmcp_de);
 		return ret;
 	}
 
 	ret = misc_register(&vmcp_dev);
 	if (ret)
-		debug_unregister(vmcp_debug);
+		de_unregister(vmcp_de);
 	return ret;
 }
 device_initcall(vmcp_init);

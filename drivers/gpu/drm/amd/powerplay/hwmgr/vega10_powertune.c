@@ -27,7 +27,7 @@
 #include "vega10_powertune.h"
 #include "vega10_ppsmc.h"
 #include "vega10_inc.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "soc15_common.h"
 
 static const struct vega10_didt_config_reg SEDiDtTuningCtrlConfig_Vega10[] =

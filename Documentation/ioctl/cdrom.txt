@@ -56,7 +56,7 @@ are as follows:
 	CDROM_DISC_STATUS	Get disc type, etc.
 	CDROM_CHANGER_NSLOTS	Get number of slots
 	CDROM_LOCKDOOR		lock or unlock door
-	CDROM_DEBUG		Turn debug messages on/off
+	CDROM_DE		Turn de messages on/off
 	CDROM_GET_CAPABILITY	get capabilities
 	CDROMAUDIOBUFSIZ	set the audio buffer size
 	DVD_READ_STRUCT		Read structure
@@ -791,25 +791,25 @@ CDROM_LOCKDOOR			lock or unlock door
 	notes:
 	  As of 2.6.8.1, the lock flag is a global lock, meaning that
 	  all CD drives will be locked or unlocked together.  This is
-	  probably a bug.
+	  probably a .
 
 	  The EDRIVE_CANT_DO_THIS value is defined in <linux/cdrom.h>
 	  and is currently (2.6.8.1) the same as EOPNOTSUPP
 
 
 
-CDROM_DEBUG			Turn debug messages on/off
+CDROM_DE			Turn de messages on/off
 
 	usage:
 
-	  int debug;
-	  ioctl(fd, CDROM_DEBUG, debug);
+	  int de;
+	  ioctl(fd, CDROM_DE, de);
 
 	inputs:
-	  Cdrom debug flag, 0=disable, 1=enable
+	  Cdrom de flag, 0=disable, 1=enable
 
 	outputs:
-	  The ioctl return value will be the new debug flag.
+	  The ioctl return value will be the new de flag.
 
 	error return:
 	  EACCES	Access denied:  requires CAP_SYS_ADMIN

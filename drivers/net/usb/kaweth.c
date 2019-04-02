@@ -32,7 +32,7 @@
 /* TODO:
  * Develop test procedures for USB net interfaces
  * Run test procedures
- * Fix bugs from previous two steps
+ * Fix s from previous two steps
  * Snoop other OSs for any tricks we're not doing
  * Reduce arbitrary timeouts
  * Smart multicast support
@@ -57,7 +57,7 @@
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
-#undef DEBUG
+#undef DE
 
 #define KAWETH_MTU			1514
 #define KAWETH_BUF_SIZE			1664

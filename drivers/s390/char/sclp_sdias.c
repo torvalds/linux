@@ -12,18 +12,18 @@
 #include <linux/completion.h>
 #include <linux/sched.h>
 #include <asm/sclp.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/ipl.h>
 
 #include "sclp_sdias.h"
 #include "sclp.h"
 #include "sclp_rw.h"
 
-#define TRACE(x...) debug_sprintf_event(sdias_dbf, 1, x)
+#define TRACE(x...) de_sprintf_event(sdias_dbf, 1, x)
 
 #define SDIAS_RETRIES 300
 
-static struct debug_info *sdias_dbf;
+static struct de_info *sdias_dbf;
 
 static struct sclp_register sclp_sdias_register = {
 	.send_mask = EVTYP_SDIAS_MASK,
@@ -256,9 +256,9 @@ int __init sclp_sdias_init(void)
 {
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return 0;
-	sdias_dbf = debug_register("dump_sdias", 4, 1, 4 * sizeof(long));
-	debug_register_view(sdias_dbf, &debug_sprintf_view);
-	debug_set_level(sdias_dbf, 6);
+	sdias_dbf = de_register("dump_sdias", 4, 1, 4 * sizeof(long));
+	de_register_view(sdias_dbf, &de_sprintf_view);
+	de_set_level(sdias_dbf, 6);
 	if (sclp_sdias_init_sync() == 0)
 		goto out;
 	if (sclp_sdias_init_async() == 0)
@@ -272,6 +272,6 @@ out:
 
 void __exit sclp_sdias_exit(void)
 {
-	debug_unregister(sdias_dbf);
+	de_unregister(sdias_dbf);
 	sclp_unregister(&sclp_sdias_register);
 }

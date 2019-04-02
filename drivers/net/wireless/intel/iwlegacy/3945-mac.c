@@ -63,7 +63,7 @@
 #define DRV_DESCRIPTION	\
 "Intel(R) PRO/Wireless 3945ABG/BG Network Connection driver for Linux"
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 #define VD "d"
 #else
 #define VD
@@ -496,7 +496,7 @@ il3945_tx_skb(struct il_priv *il,
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	if (ieee80211_is_auth(fc))
 		D_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -769,7 +769,7 @@ il3945_hdl_alive(struct il_priv *il, struct il_rx_buf *rxb)
 static void
 il3945_hdl_add_sta(struct il_priv *il, struct il_rx_buf *rxb)
 {
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 #endif
 
@@ -781,7 +781,7 @@ il3945_hdl_beacon(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il3945_beacon_notif *beacon = &(pkt->u.beacon_status);
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	u8 rate = beacon->beacon_notify_hdr.rate;
 
 	D_RX("beacon status %x retries %d iss %d " "tsf %d %d rate %d\n",
@@ -843,7 +843,7 @@ il3945_setup_handlers(struct il_priv *il)
 	il->handlers[N_CHANNEL_SWITCH] = il_hdl_csa;
 	il->handlers[N_SPECTRUM_MEASUREMENT] = il_hdl_spectrum_measurement;
 	il->handlers[N_PM_SLEEP] = il_hdl_pm_sleep;
-	il->handlers[N_PM_DEBUG_STATS] = il_hdl_pm_debug_stats;
+	il->handlers[N_PM_DE_STATS] = il_hdl_pm_de_stats;
 	il->handlers[N_BEACON] = il3945_hdl_beacon;
 
 	/*
@@ -1227,9 +1227,9 @@ il3945_rx_handle(struct il_priv *il)
 		rxb = rxq->queue[i];
 
 		/* If an RXB doesn't have a Rx queue slot associated with it,
-		 * then a bug has been introduced in the queue refilling
+		 * then a  has been introduced in the queue refilling
 		 * routines -- catch it here */
-		BUG_ON(rxb == NULL);
+		_ON(rxb == NULL);
 
 		rxq->queue[i] = NULL;
 
@@ -1397,7 +1397,7 @@ il3945_irq_tasklet(struct il_priv *il)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 	u32 inta_mask;
 #endif
 
@@ -1415,9 +1415,9 @@ il3945_irq_tasklet(struct il_priv *il)
 	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 	_il_wr(il, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & IL_DL_ISR) {
-		/* just for debug */
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & IL_DL_ISR) {
+		/* just for de */
 		inta_mask = _il_rd(il, CSR_INT_MASK);
 		D_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n", inta,
 		      inta_mask, inta_fh);
@@ -1449,8 +1449,8 @@ il3945_irq_tasklet(struct il_priv *il)
 
 		return;
 	}
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & (IL_DL_ISR)) {
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & (IL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
 			D_ISR("Scheduler finished to transmit "
@@ -1465,7 +1465,7 @@ il3945_irq_tasklet(struct il_priv *il)
 		}
 	}
 #endif
-	/* Safely ignore these bits for debug checks below */
+	/* Safely ignore these bits for de checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
 	/* Error detected by uCode */
@@ -1528,8 +1528,8 @@ il3945_irq_tasklet(struct il_priv *il)
 	if (test_bit(S_INT_ENABLED, &il->status))
 		il_enable_interrupts(il);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
-	if (il_get_debug_level(il) & (IL_DL_ISR)) {
+#ifdef CONFIG_IWLEGACY_DE
+	if (il_get_de_level(il) & (IL_DL_ISR)) {
 		inta = _il_rd(il, CSR_INT);
 		inta_mask = _il_rd(il, CSR_INT_MASK);
 		inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
@@ -1690,7 +1690,7 @@ il3945_verify_inst_full(struct il_priv *il, __le32 * image, u32 len)
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
+		/* NOTE: Use the deless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
@@ -1727,7 +1727,7 @@ il3945_verify_inst_sparse(struct il_priv *il, __le32 * image, u32 len)
 
 	for (i = 0; i < len; i += 100, image += 100 / sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
+		/* NOTE: Use the deless read so we don't flood kernel log
 		 * if IL_DL_IO is set */
 		il_wr(il, HBUS_TARG_MEM_RADDR, i + IL39_RTC_INST_LOWER_BOUND);
 		val = _il_rd(il, HBUS_TARG_MEM_RDAT);
@@ -3074,29 +3074,29 @@ il3945_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 
 /*
  * The following adds a new attribute to the sysfs representation
  * of this device driver (i.e. a new file in /sys/bus/pci/drivers/iwl/)
- * used for controlling the debug level.
+ * used for controlling the de level.
  *
  * See the level definitions in iwl for details.
  *
- * The debug_level being managed using sysfs below is a per device debug
- * level that is used instead of the global debug level if it (the per
- * device debug level) is set.
+ * The de_level being managed using sysfs below is a per device de
+ * level that is used instead of the global de level if it (the per
+ * device de level) is set.
  */
 static ssize_t
-il3945_show_debug_level(struct device *d, struct device_attribute *attr,
+il3945_show_de_level(struct device *d, struct device_attribute *attr,
 			char *buf)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	return sprintf(buf, "0x%08X\n", il_get_debug_level(il));
+	return sprintf(buf, "0x%08X\n", il_get_de_level(il));
 }
 
 static ssize_t
-il3945_store_debug_level(struct device *d, struct device_attribute *attr,
+il3945_store_de_level(struct device *d, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	struct il_priv *il = dev_get_drvdata(d);
@@ -3107,15 +3107,15 @@ il3945_store_debug_level(struct device *d, struct device_attribute *attr,
 	if (ret)
 		IL_INFO("%s is not in hex or decimal form.\n", buf);
 	else
-		il->debug_level = val;
+		il->de_level = val;
 
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(debug_level, 0644, il3945_show_debug_level,
-		   il3945_store_debug_level);
+static DEVICE_ATTR(de_level, 0644, il3945_show_de_level,
+		   il3945_store_de_level);
 
-#endif /* CONFIG_IWLEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DE */
 
 static ssize_t
 il3945_show_temperature(struct device *d, struct device_attribute *attr,
@@ -3445,8 +3445,8 @@ static struct attribute *il3945_sysfs_entries[] = {
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLEGACY_DEBUG
-	&dev_attr_debug_level.attr,
+#ifdef CONFIG_IWLEGACY_DE
+	&dev_attr_de_level.attr,
 #endif
 	NULL
 };
@@ -3619,8 +3619,8 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
 	il->ops = &il3945_ops;
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	il->debugfs_ops = &il3945_debugfs_ops;
+#ifdef CONFIG_IWLEGACY_DEFS
+	il->defs_ops = &il3945_defs_ops;
 #endif
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
@@ -3934,9 +3934,9 @@ MODULE_PARM_DESC(swcrypto, "using software crypto (default 1 [software])");
 module_param_named(disable_hw_scan, il3945_mod_params.disable_hw_scan, int,
 		   0444);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 1)");
-#ifdef CONFIG_IWLEGACY_DEBUG
-module_param_named(debug, il_debug_level, uint, 0644);
-MODULE_PARM_DESC(debug, "debug output mask");
+#ifdef CONFIG_IWLEGACY_DE
+module_param_named(de, il_de_level, uint, 0644);
+MODULE_PARM_DESC(de, "de output mask");
 #endif
 module_param_named(fw_restart, il3945_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");

@@ -2,7 +2,7 @@
 obj-$(CONFIG_6LOWPAN) += 6lowpan.o
 
 6lowpan-y := core.o iphc.o nhc.o ndisc.o
-6lowpan-$(CONFIG_6LOWPAN_DEBUGFS) += debugfs.o
+6lowpan-$(CONFIG_6LOWPAN_DEFS) += defs.o
 
 #rfc6282 nhcs
 obj-$(CONFIG_6LOWPAN_NHC_DEST) += nhc_dest.o

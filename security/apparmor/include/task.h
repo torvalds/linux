@@ -72,7 +72,7 @@ static inline void aa_dup_task_ctx(struct aa_task_ctx *new,
  */
 static inline void aa_clear_task_ctx_trans(struct aa_task_ctx *ctx)
 {
-	AA_BUG(!ctx);
+	AA_(!ctx);
 
 	aa_put_label(ctx->previous);
 	aa_put_label(ctx->onexec);

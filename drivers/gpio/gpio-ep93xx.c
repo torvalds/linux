@@ -57,7 +57,7 @@ static const u8 int_debounce_register_offset[3]	= { 0xa8, 0xc4, 0x64 };
 
 static void ep93xx_gpio_update_int_params(struct ep93xx_gpio *epg, unsigned port)
 {
-	BUG_ON(port > 2);
+	_ON(port > 2);
 
 	writeb_relaxed(0, epg->base + int_en_register_offset[port]);
 

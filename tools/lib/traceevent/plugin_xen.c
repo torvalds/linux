@@ -13,8 +13,8 @@
 #define __HYPERVISOR_fpu_taskswitch			5
 #define __HYPERVISOR_sched_op_compat			6
 #define __HYPERVISOR_dom0_op				7
-#define __HYPERVISOR_set_debugreg			8
-#define __HYPERVISOR_get_debugreg			9
+#define __HYPERVISOR_set_dereg			8
+#define __HYPERVISOR_get_dereg			9
 #define __HYPERVISOR_update_descriptor			10
 #define __HYPERVISOR_memory_op				12
 #define __HYPERVISOR_multicall				13
@@ -61,8 +61,8 @@ static const char *xen_hypercall_names[] = {
 	N(fpu_taskswitch),
 	N(sched_op_compat),
 	N(dom0_op),
-	N(set_debugreg),
-	N(get_debugreg),
+	N(set_dereg),
+	N(get_dereg),
 	N(update_descriptor),
 	N(memory_op),
 	N(multicall),

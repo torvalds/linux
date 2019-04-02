@@ -625,7 +625,7 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 	if (geo->output.left + best > width_max)
 		geo->output.left = width_max - best;
 
-	pr_debug("%s(): W %u * %u/%u = %u\n", __func__, geo->in_width,
+	pr_de("%s(): W %u * %u/%u = %u\n", __func__, geo->in_width,
 		 vou_scale_h_num[idx_h], vou_scale_h_den[idx_h], best);
 
 	best_err = UINT_MAX;
@@ -655,7 +655,7 @@ static void vou_adjust_output(struct sh_vou_geometry *geo, v4l2_std_id std)
 	if (geo->output.top + best > height_max)
 		geo->output.top = height_max - best;
 
-	pr_debug("%s(): H %u * %u/%u = %u\n", __func__, geo->in_height,
+	pr_de("%s(): H %u * %u/%u = %u\n", __func__, geo->in_height,
 		 vou_scale_v_num[idx_v], vou_scale_v_den[idx_v], best);
 }
 

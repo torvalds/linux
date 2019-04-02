@@ -51,7 +51,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
  *
  * Since the PGD is immediately available, it is much faster to simply
  * pass this along as a second parameter, which is required for 8xx and
- * can be used for debugging on all processors (if you happen to have
+ * can be used for deging on all processors (if you happen to have
  * an Abatron).
  */
 extern void set_context(mm_context_t context, pgd_t *pgd);

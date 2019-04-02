@@ -13,7 +13,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/fixes to esc.storagedev@microsemi.com
  *
  */
 
@@ -472,11 +472,11 @@ static ssize_t host_store_hp_ssd_smart_path_status(struct device *dev,
 	return count;
 }
 
-static ssize_t host_store_raid_offload_debug(struct device *dev,
+static ssize_t host_store_raid_offload_de(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	int debug_level, len;
+	int de_level, len;
 	struct ctlr_info *h;
 	struct Scsi_Host *shost = class_to_shost(dev);
 	char tmpbuf[10];
@@ -486,14 +486,14 @@ static ssize_t host_store_raid_offload_debug(struct device *dev,
 	len = count > sizeof(tmpbuf) - 1 ? sizeof(tmpbuf) - 1 : count;
 	strncpy(tmpbuf, buf, len);
 	tmpbuf[len] = '\0';
-	if (sscanf(tmpbuf, "%d", &debug_level) != 1)
+	if (sscanf(tmpbuf, "%d", &de_level) != 1)
 		return -EINVAL;
-	if (debug_level < 0)
-		debug_level = 0;
+	if (de_level < 0)
+		de_level = 0;
 	h = shost_to_hba(shost);
-	h->raid_offload_debug = debug_level;
-	dev_warn(&h->pdev->dev, "hpsa: Set raid_offload_debug level = %d\n",
-		h->raid_offload_debug);
+	h->raid_offload_de = de_level;
+	dev_warn(&h->pdev->dev, "hpsa: Set raid_offload_de level = %d\n",
+		h->raid_offload_de);
 	return count;
 }
 
@@ -913,8 +913,8 @@ static DEVICE_ATTR_RO(path_info);
 static DEVICE_ATTR(hp_ssd_smart_path_status, S_IWUSR|S_IRUGO|S_IROTH,
 		host_show_hp_ssd_smart_path_status,
 		host_store_hp_ssd_smart_path_status);
-static DEVICE_ATTR(raid_offload_debug, S_IWUSR, NULL,
-			host_store_raid_offload_debug);
+static DEVICE_ATTR(raid_offload_de, S_IWUSR, NULL,
+			host_store_raid_offload_de);
 static DEVICE_ATTR(firmware_revision, S_IRUGO,
 	host_show_firmware_revision, NULL);
 static DEVICE_ATTR(commands_outstanding, S_IRUGO,
@@ -947,7 +947,7 @@ static struct device_attribute *hpsa_shost_attrs[] = {
 	&dev_attr_transport_mode,
 	&dev_attr_resettable,
 	&dev_attr_hp_ssd_smart_path_status,
-	&dev_attr_raid_offload_debug,
+	&dev_attr_raid_offload_de,
 	&dev_attr_lockup_detected,
 	&dev_attr_ctlr_num,
 	&dev_attr_legacy_board,
@@ -1326,7 +1326,7 @@ static int hpsa_scsi_add_entry(struct ctlr_info *h,
 	}
 	if (device->lun == -1) {
 		dev_warn(&h->pdev->dev, "physical device with no LUN=0,"
-			" suspect firmware bug or unsupported hardware "
+			" suspect firmware  or unsupported hardware "
 			"configuration.\n");
 		return -1;
 	}
@@ -1351,7 +1351,7 @@ static void hpsa_scsi_update_entry(struct ctlr_info *h,
 	int entry, struct hpsa_scsi_dev_t *new_entry)
 {
 	/* assumes h->devlock is held */
-	BUG_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
+	_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
 
 	/* Raid level changed. */
 	h->dev[entry]->raid_level = new_entry->raid_level;
@@ -1406,7 +1406,7 @@ static void hpsa_scsi_replace_entry(struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *removed[], int *nremoved)
 {
 	/* assumes h->devlock is held */
-	BUG_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
+	_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
 	removed[*nremoved] = h->dev[entry];
 	(*nremoved)++;
 
@@ -1434,7 +1434,7 @@ static void hpsa_scsi_remove_entry(struct ctlr_info *h, int entry,
 	int i;
 	struct hpsa_scsi_dev_t *sd;
 
-	BUG_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
+	_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
 
 	sd = h->dev[entry];
 	removed[*nremoved] = h->dev[entry];
@@ -2668,7 +2668,7 @@ static void complete_scsi_command(struct CommandList *cp)
 				"Returning no connection.\n", cp),
 
 			/* Ordinarily, this case should never happen,
-			 * but there is a bug in some released firmware
+			 * but there is a  in some released firmware
 			 * revisions that allows it to happen if, for
 			 * example, a 4100 backplane loses power and
 			 * the tape drive is in it.  We assume that
@@ -2696,7 +2696,7 @@ static void complete_scsi_command(struct CommandList *cp)
 		 * instead of a selection timeout (no response).  You will
 		 * see this if you yank out a drive, then try to access it.
 		 * This is kind of a shame because it means that any other
-		 * CMD_INVALID (e.g. driver bug) will get interpreted as a
+		 * CMD_INVALID (e.g. driver ) will get interpreted as a
 		 * missing target. */
 		cmd->result = DID_NO_CONNECT << 16;
 	}
@@ -2908,7 +2908,7 @@ static void hpsa_scsi_interpret_error(struct ctlr_info *h,
 			dev_warn(d, "SCSI status is abnormally zero.  "
 			"(probably indicates selection timeout "
 			"reported incorrectly due to a known "
-			"firmware bug, circa July, 2001.)\n");
+			"firmware , circa July, 2001.)\n");
 		break;
 	case CMD_DATA_UNDERRUN: /* let mid layer handle it. */
 		break;
@@ -3120,7 +3120,7 @@ static bool hpsa_cmd_dev_match(struct ctlr_info *h, struct CommandList *c,
 	default:
 		dev_err(&h->pdev->dev, "unexpected cmd_type: %d\n",
 			c->cmd_type);
-		BUG();
+		();
 	}
 
 	return match;
@@ -3138,7 +3138,7 @@ static int hpsa_do_reset(struct ctlr_info *h, struct hpsa_scsi_dev_t *dev,
 		return -EINTR;
 	}
 
-	BUG_ON(atomic_read(&dev->reset_cmds_out) != 0);
+	_ON(atomic_read(&dev->reset_cmds_out) != 0);
 
 	for (i = 0; i < h->nr_cmds; i++) {
 		struct CommandList *c = h->cmd_pool + i;
@@ -3213,9 +3213,9 @@ exit:
 	return;
 }
 
-#define HPSA_MAP_DEBUG
-#ifdef HPSA_MAP_DEBUG
-static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
+#define HPSA_MAP_DE
+#ifdef HPSA_MAP_DE
+static void hpsa_de_map_buff(struct ctlr_info *h, int rc,
 				struct raid_map_data *map_buff)
 {
 	struct raid_map_disk_data *dd = &map_buff->data[0];
@@ -3225,8 +3225,8 @@ static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
 	if (rc != 0)
 		return;
 
-	/* Show details only if debugging has been activated. */
-	if (h->raid_offload_debug < 2)
+	/* Show details only if deging has been activated. */
+	if (h->raid_offload_de < 2)
 		return;
 
 	dev_info(&h->pdev->dev, "structure_size = %u\n",
@@ -3284,7 +3284,7 @@ static void hpsa_debug_map_buff(struct ctlr_info *h, int rc,
 	}
 }
 #else
-static void hpsa_debug_map_buff(__attribute__((unused)) struct ctlr_info *h,
+static void hpsa_de_map_buff(__attribute__((unused)) struct ctlr_info *h,
 			__attribute__((unused)) int rc,
 			__attribute__((unused)) struct raid_map_data *map_buff)
 {
@@ -3325,7 +3325,7 @@ static int hpsa_get_raid_map(struct ctlr_info *h,
 		dev_warn(&h->pdev->dev, "RAID map size is too large!\n");
 		rc = -1;
 	}
-	hpsa_debug_map_buff(h, rc, &this_device->raid_map);
+	hpsa_de_map_buff(h, rc, &this_device->raid_map);
 	return rc;
 out:
 	cmd_free(h, c);
@@ -4146,7 +4146,7 @@ static u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position,
 	if (i < last_device)
 		return &logdev_list->LUN[i - nphysicals -
 			(raid_ctlr_position == 0)][0];
-	BUG();
+	();
 	return NULL;
 }
 
@@ -4548,7 +4548,7 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 	int use_sg, i, sg_limit, chained, last_sg;
 	struct SGDescriptor *curr_sg;
 
-	BUG_ON(scsi_sg_count(cmd) > h->maxsgentries);
+	_ON(scsi_sg_count(cmd) > h->maxsgentries);
 
 	use_sg = scsi_dma_map(cmd);
 	if (use_sg < 0)
@@ -4674,7 +4674,7 @@ static int fixup_ioaccel_cdb(u8 *cdb, int *cdb_len)
 			if (block_cnt == 0)
 				block_cnt = 256;
 		} else {
-			BUG_ON(*cdb_len != 12);
+			_ON(*cdb_len != 12);
 			block = get_unaligned_be32(&cdb[2]);
 			block_cnt = get_unaligned_be32(&cdb[6]);
 		}
@@ -4717,7 +4717,7 @@ static int hpsa_scsi_ioaccel1_queue_command(struct ctlr_info *h,
 		return IO_ACCEL_INELIGIBLE;
 	}
 
-	BUG_ON(cmd->cmd_len > IOACCEL1_IOFLAGS_CDBLEN_MAX);
+	_ON(cmd->cmd_len > IOACCEL1_IOFLAGS_CDBLEN_MAX);
 
 	if (is_zero_length_transfer(cdb)) {
 		warn_zero_length_transfer(h, cdb, cdb_len, __func__);
@@ -4735,7 +4735,7 @@ static int hpsa_scsi_ioaccel1_queue_command(struct ctlr_info *h,
 	/* Adjust the DMA address to point to the accelerated command buffer */
 	c->busaddr = (u32) h->ioaccel_cmd_pool_dhandle +
 				(c->cmdindex * sizeof(*cp));
-	BUG_ON(c->busaddr & 0x0000007F);
+	_ON(c->busaddr & 0x0000007F);
 
 	use_sg = scsi_dma_map(cmd);
 	if (use_sg < 0) {
@@ -4769,7 +4769,7 @@ static int hpsa_scsi_ioaccel1_queue_command(struct ctlr_info *h,
 		default:
 			dev_err(&h->pdev->dev, "unknown data direction: %d\n",
 			cmd->sc_data_direction);
-			BUG();
+			();
 			break;
 		}
 	} else {
@@ -4856,7 +4856,7 @@ static void set_encrypt_ioaccel2(struct ctlr_info *h,
 		dev_err(&h->pdev->dev,
 			"ERROR: %s: size (0x%x) not supported for encryption\n",
 			__func__, cmd->cmnd[0]);
-		BUG();
+		();
 		break;
 	}
 
@@ -4887,7 +4887,7 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	if (!cmd->device->hostdata)
 		return -1;
 
-	BUG_ON(scsi_sg_count(cmd) > h->maxsgentries);
+	_ON(scsi_sg_count(cmd) > h->maxsgentries);
 
 	if (is_zero_length_transfer(cdb)) {
 		warn_zero_length_transfer(h, cdb, cdb_len, __func__);
@@ -4904,7 +4904,7 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 	/* Adjust the DMA address to point to the accelerated command buffer */
 	c->busaddr = (u32) h->ioaccel2_cmd_pool_dhandle +
 				(c->cmdindex * sizeof(*cp));
-	BUG_ON(c->busaddr & 0x0000007F);
+	_ON(c->busaddr & 0x0000007F);
 
 	memset(cp, 0, sizeof(*cp));
 	cp->IU_type = IOACCEL2_IU_TYPE;
@@ -4958,7 +4958,7 @@ static int hpsa_scsi_ioaccel2_queue_command(struct ctlr_info *h,
 		default:
 			dev_err(&h->pdev->dev, "unknown data direction: %d\n",
 				cmd->sc_data_direction);
-			BUG();
+			();
 			break;
 		}
 	} else {
@@ -5211,7 +5211,7 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		 * (2-drive R1 and R10 with even # of drives.)
 		 * Appropriate for SSDs, not optimal for HDDs
 		 */
-		BUG_ON(le16_to_cpu(map->layout_map_count) != 2);
+		_ON(le16_to_cpu(map->layout_map_count) != 2);
 		if (dev->offload_to_mirror)
 			map_index += le16_to_cpu(map->data_disks_per_row);
 		dev->offload_to_mirror = !dev->offload_to_mirror;
@@ -5220,7 +5220,7 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		/* Handles N-way mirrors  (R1-ADM)
 		 * and R10 with # of drives divisible by 3.)
 		 */
-		BUG_ON(le16_to_cpu(map->layout_map_count) != 3);
+		_ON(le16_to_cpu(map->layout_map_count) != 3);
 
 		offload_to_mirror = dev->offload_to_mirror;
 		raid_map_helper(map, offload_to_mirror,
@@ -5245,7 +5245,7 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		r5or6_blocks_per_row =
 			le16_to_cpu(map->strip_size) *
 			le16_to_cpu(map->data_disks_per_row);
-		BUG_ON(r5or6_blocks_per_row == 0);
+		_ON(r5or6_blocks_per_row == 0);
 		stripesize = r5or6_blocks_per_row *
 			le16_to_cpu(map->layout_map_count);
 #if BITS_PER_LONG == 32
@@ -5348,7 +5348,7 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		disk_block <<= map->phys_blk_shift;
 		disk_block_cnt <<= map->phys_blk_shift;
 	}
-	BUG_ON(disk_block_cnt > 0xffff);
+	_ON(disk_block_cnt > 0xffff);
 
 	/* build the new CDB for the physical disk I/O */
 	if (disk_block > 0xffffffff) {
@@ -5406,7 +5406,7 @@ static int hpsa_ciss_submit(struct ctlr_info *h,
 	/* Fill in the request block... */
 
 	c->Request.Timeout = 0;
-	BUG_ON(cmd->cmd_len > sizeof(c->Request.CDB));
+	_ON(cmd->cmd_len > sizeof(c->Request.CDB));
 	c->Request.CDBLen = cmd->cmd_len;
 	memcpy(c->Request.CDB, cmd->cmnd, cmd->cmd_len);
 	switch (cmd->sc_data_direction) {
@@ -5423,7 +5423,7 @@ static int hpsa_ciss_submit(struct ctlr_info *h,
 			TYPE_ATTR_DIR(TYPE_CMD, ATTR_SIMPLE, XFER_NONE);
 		break;
 	case DMA_BIDIRECTIONAL:
-		/* This can happen if a buggy application does a scsi passthru
+		/* This can happen if a gy application does a scsi passthru
 		 * and sets both inlen and outlen to non-zero. ( see
 		 * ../scsi/scsi_ioctl.c:scsi_ioctl_send_command() )
 		 */
@@ -5443,7 +5443,7 @@ static int hpsa_ciss_submit(struct ctlr_info *h,
 	default:
 		dev_err(&h->pdev->dev, "unknown data direction: %d\n",
 			cmd->sc_data_direction);
-		BUG();
+		();
 		break;
 	}
 
@@ -5494,7 +5494,7 @@ static inline void hpsa_cmd_partial_init(struct ctlr_info *h, int index,
 {
 	dma_addr_t cmd_dma_handle = h->cmd_pool_dhandle + index * sizeof(*c);
 
-	BUG_ON(c->cmdindex != index);
+	_ON(c->cmdindex != index);
 
 	memset(c->Request.CDB, 0, sizeof(c->Request.CDB));
 	memset(c->err_info, 0, sizeof(*c->err_info));
@@ -5594,7 +5594,7 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	/* Get the ptr to our adapter structure out of cmd->host. */
 	h = sdev_to_hba(cmd->device);
 
-	BUG_ON(cmd->request->tag < 0);
+	_ON(cmd->request->tag < 0);
 
 	dev = cmd->device->hostdata;
 	if (!dev) {
@@ -6018,9 +6018,9 @@ static struct CommandList *cmd_tagged_alloc(struct ctlr_info *h,
 		dev_err(&h->pdev->dev, "Bad block tag: %d not in [%d..%d]\n",
 			idx, HPSA_NRESERVED_CMDS, h->nr_cmds - 1);
 		/* The index value comes from the block layer, so if it's out of
-		 * bounds, it's probably not our bug.
+		 * bounds, it's probably not our .
 		 */
-		BUG();
+		();
 	}
 
 	atomic_inc(&c->refcount);
@@ -6743,7 +6743,7 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			break;
 		default:
 			dev_warn(&h->pdev->dev, "unknown command 0x%c\n", cmd);
-			BUG();
+			();
 		}
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
@@ -6780,11 +6780,11 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 		default:
 			dev_warn(&h->pdev->dev, "unknown message type %d\n",
 				cmd);
-			BUG();
+			();
 		}
 	} else {
 		dev_warn(&h->pdev->dev, "unknown command type %d\n", cmd_type);
-		BUG();
+		();
 	}
 
 	switch (GET_DIR(c->Request.type_attr_dir)) {
@@ -6882,7 +6882,7 @@ static int ignore_bogus_interrupt(struct ctlr_info *h)
 		return 0;
 
 	dev_info(&h->pdev->dev, "Received interrupt while interrupts disabled "
-		"(known firmware bug.)  Ignoring.\n");
+		"(known firmware .)  Ignoring.\n");
 
 	return 1;
 }
@@ -7293,11 +7293,11 @@ unmap_vaddr:
 /*
  *  We cannot read the structure directly, for portability we must use
  *   the io functions.
- *   This is for debug only.
+ *   This is for de only.
  */
 static void print_cfg_table(struct device *dev, struct CfgTable __iomem *tb)
 {
-#ifdef HPSA_DEBUG
+#ifdef HPSA_DE
 	int i;
 	char temp_name[17];
 
@@ -7327,7 +7327,7 @@ static void print_cfg_table(struct device *dev, struct CfgTable __iomem *tb)
 	dev_info(dev, "   Server Name = %s\n", temp_name);
 	dev_info(dev, "   Heartbeat Counter = 0x%x\n\n\n",
 		readl(&(tb->HeartBeat)));
-#endif				/* HPSA_DEBUG */
+#endif				/* HPSA_DE */
 }
 
 static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
@@ -7565,7 +7565,7 @@ static int hpsa_find_cfgtables(struct ctlr_info *h)
 static void hpsa_get_max_perf_mode_cmds(struct ctlr_info *h)
 {
 #define MIN_MAX_COMMANDS 16
-	BUILD_BUG_ON(MIN_MAX_COMMANDS <= HPSA_NRESERVED_CMDS);
+	BUILD__ON(MIN_MAX_COMMANDS <= HPSA_NRESERVED_CMDS);
 
 	h->max_commands = readl(&h->cfgtable->MaxPerformantModeCommands);
 
@@ -7649,7 +7649,7 @@ static inline void hpsa_set_driver_support_bits(struct ctlr_info *h)
 	writel(driver_support, &(h->cfgtable->driver_support));
 }
 
-/* Disable DMA prefetch for the P600.  Otherwise an ASIC bug may result
+/* Disable DMA prefetch for the P600.  Otherwise an ASIC  may result
  * in a prefetch beyond physical memory.
  */
 static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
@@ -8557,7 +8557,7 @@ reinit_after_soft_reset:
 	 * the 5 lower bits of the address are used by the hardware. and by
 	 * the driver.  See comments in hpsa.h for more info.
 	 */
-	BUILD_BUG_ON(sizeof(struct CommandList) % COMMANDLIST_ALIGNMENT);
+	BUILD__ON(sizeof(struct CommandList) % COMMANDLIST_ALIGNMENT);
 	h = hpda_alloc_ctlr_info();
 	if (!h) {
 		dev_err(&pdev->dev, "Failed to allocate controller head\n");
@@ -9059,12 +9059,12 @@ static int hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 	int bft2[16] = {MIN_IOACCEL2_BFT_ENTRY, 6, 7, 8, 9, 10, 11, 12,
 			13, 14, 15, 16, 17, 18, 19,
 			HPSA_IOACCEL2_HEADER_SZ + IOACCEL2_MAXSGENTRIES};
-	BUILD_BUG_ON(ARRAY_SIZE(bft2) != 16);
-	BUILD_BUG_ON(ARRAY_SIZE(bft) != 8);
-	BUILD_BUG_ON(offsetof(struct io_accel2_cmd, sg) >
+	BUILD__ON(ARRAY_SIZE(bft2) != 16);
+	BUILD__ON(ARRAY_SIZE(bft) != 8);
+	BUILD__ON(offsetof(struct io_accel2_cmd, sg) >
 				 16 * MIN_IOACCEL2_BFT_ENTRY);
-	BUILD_BUG_ON(sizeof(struct ioaccel2_sg_element) != 16);
-	BUILD_BUG_ON(28 > SG_ENTRIES_IN_CMD + 4);
+	BUILD__ON(sizeof(struct ioaccel2_sg_element) != 16);
+	BUILD__ON(28 > SG_ENTRIES_IN_CMD + 4);
 	/*  5 = 1 s/g entry or 4k
 	 *  6 = 2 s/g entry or 8k
 	 *  8 = 4 s/g entry or 16k
@@ -9177,12 +9177,12 @@ static int hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 
 		rc = hpsa_find_cfg_addrs(h->pdev, h->vaddr, &cfg_base_addr,
 			&cfg_base_addr_index, &cfg_offset);
-		BUILD_BUG_ON(offsetof(struct io_accel2_cmd, sg) != 64);
+		BUILD__ON(offsetof(struct io_accel2_cmd, sg) != 64);
 		bft2[15] = h->ioaccel_maxsg + HPSA_IOACCEL2_HEADER_SZ;
 		calc_bucket_map(bft2, ARRAY_SIZE(bft2), h->ioaccel_maxsg,
 				4, h->ioaccel2_blockFetchTable);
 		bft2_offset = readl(&h->cfgtable->io_accel_request_size_offset);
-		BUILD_BUG_ON(offsetof(struct CfgTable,
+		BUILD__ON(offsetof(struct CfgTable,
 				io_accel_request_size_offset) != 0xb8);
 		h->ioaccel2_bft2_regs =
 			remap_pci_mem(pci_resource_start(h->pdev,
@@ -9229,7 +9229,7 @@ static int hpsa_alloc_ioaccel1_cmd_and_bft(struct ctlr_info *h)
 	 * because the 7 lower bits of the address are used by the
 	 * hardware.
 	 */
-	BUILD_BUG_ON(sizeof(struct io_accel1_cmd) %
+	BUILD__ON(sizeof(struct io_accel1_cmd) %
 			IOACCEL1_COMMANDLIST_ALIGNMENT);
 	h->ioaccel_cmd_pool =
 		dma_alloc_coherent(&h->pdev->dev,
@@ -9282,7 +9282,7 @@ static int hpsa_alloc_ioaccel2_cmd_and_bft(struct ctlr_info *h)
 	if (h->ioaccel_maxsg > IOACCEL2_MAXSGENTRIES)
 		h->ioaccel_maxsg = IOACCEL2_MAXSGENTRIES;
 
-	BUILD_BUG_ON(sizeof(struct io_accel2_cmd) %
+	BUILD__ON(sizeof(struct io_accel2_cmd) %
 			IOACCEL2_COMMANDLIST_ALIGNMENT);
 	h->ioaccel2_cmd_pool =
 		dma_alloc_coherent(&h->pdev->dev,
@@ -9799,7 +9799,7 @@ static void __exit hpsa_cleanup(void)
 static void __attribute__((unused)) verify_offsets(void)
 {
 #define VERIFY_OFFSET(member, offset) \
-	BUILD_BUG_ON(offsetof(struct raid_map_data, member) != offset)
+	BUILD__ON(offsetof(struct raid_map_data, member) != offset)
 
 	VERIFY_OFFSET(structure_size, 0);
 	VERIFY_OFFSET(volume_blk_size, 4);
@@ -9821,7 +9821,7 @@ static void __attribute__((unused)) verify_offsets(void)
 #undef VERIFY_OFFSET
 
 #define VERIFY_OFFSET(member, offset) \
-	BUILD_BUG_ON(offsetof(struct io_accel2_cmd, member) != offset)
+	BUILD__ON(offsetof(struct io_accel2_cmd, member) != offset)
 
 	VERIFY_OFFSET(IU_type, 0);
 	VERIFY_OFFSET(direction, 1);
@@ -9843,7 +9843,7 @@ static void __attribute__((unused)) verify_offsets(void)
 #undef VERIFY_OFFSET
 
 #define VERIFY_OFFSET(member, offset) \
-	BUILD_BUG_ON(offsetof(struct io_accel1_cmd, member) != offset)
+	BUILD__ON(offsetof(struct io_accel1_cmd, member) != offset)
 
 	VERIFY_OFFSET(dev_handle, 0x00);
 	VERIFY_OFFSET(reserved1, 0x02);

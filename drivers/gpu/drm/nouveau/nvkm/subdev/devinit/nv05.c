@@ -75,7 +75,7 @@ nv05_devinit_meminit(struct nvkm_devinit *init)
 	if (nvkm_rd32(device, NV04_PFB_BOOT_0) & NV04_PFB_BOOT_0_UMA_ENABLE)
 		goto out;
 
-	nvkm_mask(device, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+	nvkm_mask(device, NV04_PFB_DE_0, NV04_PFB_DE_0_REFRESH_OFF, 0);
 
 	/* If present load the hardcoded scrambling table */
 	if (data) {

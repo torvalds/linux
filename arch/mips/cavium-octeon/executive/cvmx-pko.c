@@ -427,7 +427,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 
 	result_code = CVMX_PKO_SUCCESS;
 
-#ifdef PKO_DEBUG
+#ifdef PKO_DE
 	cvmx_dprintf("num queues: %d (%lld,%lld)\n", num_queues,
 		     CVMX_PKO_QUEUES_PER_PORT_INTERFACE0,
 		     CVMX_PKO_QUEUES_PER_PORT_INTERFACE1);
@@ -547,7 +547,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 	return result_code;
 }
 
-#ifdef PKO_DEBUG
+#ifdef PKO_DE
 /**
  * Show map of ports -> queues for different cores.
  */

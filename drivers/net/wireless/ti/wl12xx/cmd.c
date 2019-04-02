@@ -21,7 +21,7 @@
  */
 
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 
 #include "wl12xx.h"
 #include "cmd.h"
@@ -49,7 +49,7 @@ int wl1271_cmd_ext_radio_parms(struct wl1271 *wl)
 	       rf->tx_per_channel_power_compensation_5,
 	       CONF_TX_PWR_COMPENSATION_LEN_5);
 
-	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_EXT_RADIO_PARAM: ",
+	wl1271_dump(DE_CMD, "TEST_CMD_INI_FILE_EXT_RADIO_PARAM: ",
 		    ext_radio_parms, sizeof(*ext_radio_parms));
 
 	ret = wl1271_cmd_test(wl, ext_radio_parms, sizeof(*ext_radio_parms), 0);
@@ -114,7 +114,7 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	if (wl->plt_mode == PLT_FEM_DETECT)
 		wl->fem_manuf = gp->tx_bip_fem_manufacturer;
 
-	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
+	wl1271_de(DE_CMD, "FEM autodetect: %s, manufacturer: %d\n",
 		answer == false ?
 			"manual" :
 		wl->plt_mode == PLT_FEM_DETECT ?
@@ -182,7 +182,7 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 	if (wl->plt_mode == PLT_FEM_DETECT)
 		wl->fem_manuf = gp->tx_bip_fem_manufacturer;
 
-	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
+	wl1271_de(DE_CMD, "FEM autodetect: %s, manufacturer: %d\n",
 		answer == false ?
 			"manual" :
 		wl->plt_mode == PLT_FEM_DETECT ?
@@ -228,7 +228,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       &nvs->dyn_radio_params_5[fem_idx].params,
 	       sizeof(struct wl1271_ini_fem_params_5));
 
-	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
+	wl1271_dump(DE_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));
 
 	ret = wl1271_cmd_test(wl, radio_parms, sizeof(*radio_parms), 0);
@@ -274,7 +274,7 @@ int wl128x_cmd_radio_parms(struct wl1271 *wl)
 
 	radio_parms->fem_vendor_and_options = nvs->fem_vendor_and_options;
 
-	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
+	wl1271_dump(DE_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));
 
 	ret = wl1271_cmd_test(wl, radio_parms, sizeof(*radio_parms), 0);
@@ -292,7 +292,7 @@ int wl12xx_cmd_channel_switch(struct wl1271 *wl,
 	struct wl12xx_cmd_channel_switch *cmd;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "cmd channel switch");
+	wl1271_de(DE_ACX, "cmd channel switch");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {

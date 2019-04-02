@@ -190,9 +190,9 @@ setup_ptcg_sem(int max_purges, int nptcg_from)
 
 	if (toolatetochangeptcgsem) {
 		if (nptcg_from == NPTCG_FROM_PAL && max_purges == 0)
-			BUG_ON(1 < nptcg);
+			_ON(1 < nptcg);
 		else
-			BUG_ON(max_purges < nptcg);
+			_ON(max_purges < nptcg);
 		return;
 	}
 
@@ -386,7 +386,7 @@ void ia64_tlb_init(void)
 		per_cpu(ia64_tr_num, cpu) = IA64_TR_ALLOC_MAX;
 		if (justonce) {
 			justonce = 0;
-			printk(KERN_DEBUG "TR register number exceeds "
+			printk(KERN_DE "TR register number exceeds "
 			       "IA64_TR_ALLOC_MAX!\n");
 		}
 	}
@@ -452,7 +452,7 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 								i++, p++) {
 			if (p->pte & 0x1)
 				if (is_tr_overlap(p, va, log_size)) {
-					printk(KERN_DEBUG "Overlapped Entry"
+					printk(KERN_DE "Overlapped Entry"
 						"Inserted for TR Register!!\n");
 					goto out;
 			}
@@ -464,7 +464,7 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 								i++, p++) {
 			if (p->pte & 0x1)
 				if (is_tr_overlap(p, va, log_size)) {
-					printk(KERN_DEBUG "Overlapped Entry"
+					printk(KERN_DE "Overlapped Entry"
 						"Inserted for TR Register!!\n");
 					goto out;
 				}

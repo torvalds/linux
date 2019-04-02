@@ -384,10 +384,10 @@ static u8 tomoyo_condition_type(const char *word)
 	return i;
 }
 
-/* Define this to enable debug mode. */
-/* #define DEBUG_CONDITION */
+/* Define this to enable de mode. */
+/* #define DE_CONDITION */
 
-#ifdef DEBUG_CONDITION
+#ifdef DE_CONDITION
 #define dprintk printk
 #else
 #define dprintk(...) do { } while (0)
@@ -656,7 +656,7 @@ store_value:
 		__LINE__, e.condc, e.numbers_count, e.names_count, e.argc,
 		e.envc);
 	if (entry) {
-		BUG_ON(e.names_count | e.numbers_count | e.argc | e.envc |
+		_ON(e.names_count | e.numbers_count | e.argc | e.envc |
 		       e.condc);
 		return tomoyo_commit_condition(entry);
 	}

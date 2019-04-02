@@ -615,7 +615,7 @@ static int udf_extend_file(struct inode *inode, loff_t newsize)
 	else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 		adsize = sizeof(struct long_ad);
 	else
-		BUG();
+		();
 
 	etype = inode_bmap(inode, first_block, &epos, &eloc, &elen, &offset);
 
@@ -1280,14 +1280,14 @@ static int udf_read_inode(struct inode *inode, bool hidden_inode)
 
 reread:
 	if (iloc->partitionReferenceNum >= sbi->s_partitions) {
-		udf_debug("partition reference: %u > logical volume partitions: %u\n",
+		udf_de("partition reference: %u > logical volume partitions: %u\n",
 			  iloc->partitionReferenceNum, sbi->s_partitions);
 		return -EIO;
 	}
 
 	if (iloc->logicalBlockNum >=
 	    sbi->s_partmaps[iloc->partitionReferenceNum].s_partition_len) {
-		udf_debug("block=%u, partition=%u out of range\n",
+		udf_de("block=%u, partition=%u out of range\n",
 			  iloc->logicalBlockNum, iloc->partitionReferenceNum);
 		return -EIO;
 	}
@@ -1534,13 +1534,13 @@ reread:
 		inode->i_mode = S_IFLNK | 0777;
 		break;
 	case ICBTAG_FILE_TYPE_MAIN:
-		udf_debug("METADATA FILE-----\n");
+		udf_de("METADATA FILE-----\n");
 		break;
 	case ICBTAG_FILE_TYPE_MIRROR:
-		udf_debug("METADATA MIRROR FILE-----\n");
+		udf_de("METADATA MIRROR FILE-----\n");
 		break;
 	case ICBTAG_FILE_TYPE_BITMAP:
-		udf_debug("METADATA BITMAP FILE-----\n");
+		udf_de("METADATA BITMAP FILE-----\n");
 		break;
 	default:
 		udf_err(inode->i_sb, "(ino %lu) failed unknown file type=%u\n",
@@ -1627,7 +1627,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	bh = udf_tgetblk(inode->i_sb,
 			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
-		udf_debug("getblk failure\n");
+		udf_de("getblk failure\n");
 		return -EIO;
 	}
 
@@ -2087,7 +2087,7 @@ int8_t udf_next_aext(struct inode *inode, struct extent_position *epos,
 		block = udf_get_lb_pblock(inode->i_sb, &epos->block, 0);
 		epos->bh = udf_tread(inode->i_sb, block);
 		if (!epos->bh) {
-			udf_debug("reading block %u failed!\n", block);
+			udf_de("reading block %u failed!\n", block);
 			return -1;
 		}
 	}
@@ -2142,7 +2142,7 @@ int8_t udf_current_aext(struct inode *inode, struct extent_position *epos,
 		*elen = le32_to_cpu(lad->extLength) & UDF_EXTENT_LENGTH_MASK;
 		break;
 	default:
-		udf_debug("alloc_type = %u unsupported\n", iinfo->i_alloc_type);
+		udf_de("alloc_type = %u unsupported\n", iinfo->i_alloc_type);
 		return -1;
 	}
 

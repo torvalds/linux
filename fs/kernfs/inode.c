@@ -241,7 +241,7 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 		inode->i_op = &kernfs_symlink_iops;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	unlock_new_inode(inode);

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-$(CONFIG_USB_MTU3_DEBUG)	+= -DDEBUG
+ccflags-$(CONFIG_USB_MTU3_DE)	+= -DDE
 
 obj-$(CONFIG_USB_MTU3)	+= mtu3.o
 

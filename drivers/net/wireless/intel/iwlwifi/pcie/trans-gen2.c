@@ -66,7 +66,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 {
 	int ret = 0;
 
-	IWL_DEBUG_INFO(trans, "Init card's basic functions\n");
+	IWL_DE_INFO(trans, "Init card's basic functions\n");
 
 	/*
 	 * Use "set_bit" below rather than "write", to preserve any hardware
@@ -75,7 +75,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 
 	/*
 	 * Disable L0s without affecting L1;
-	 * don't wait for ICH L0s (ICH bug W/A)
+	 * don't wait for ICH L0s (ICH  W/A)
 	 */
 	iwl_set_bit(trans, CSR_GIO_CHICKEN_BITS,
 		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
@@ -103,7 +103,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 
 static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 {
-	IWL_DEBUG_INFO(trans, "Stop card, put in low power state\n");
+	IWL_DE_INFO(trans, "Stop card, put in low power state\n");
 
 	if (op_mode_leave) {
 		if (!test_bit(STATUS_DEVICE_ENABLED, &trans->status))
@@ -164,7 +164,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	 * already dead.
 	 */
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
-		IWL_DEBUG_INFO(trans,
+		IWL_DE_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
 		iwl_pcie_gen2_tx_stop(trans);
 		iwl_pcie_rx_stop(trans);
@@ -187,7 +187,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 
 	/*
 	 * Upon stop, the IVAR table gets erased, so msi-x won't
-	 * work. This causes a bug in RF-KILL flows, since the interrupt
+	 * work. This causes a  in RF-KILL flows, since the interrupt
 	 * that enables radio won't fire on the correct irq, and the
 	 * driver won't be able to handle the interrupt.
 	 * Configure the IVAR table again after reset.
@@ -196,7 +196,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 
 	/*
 	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
-	 * This is a bug in certain verions of the hardware.
+	 * This is a  in certain verions of the hardware.
 	 * Certain devices also keep sending HW RF kill interrupt all
 	 * the time, unless the interrupt is ACKed even if the interrupt
 	 * should be masked. Re-ACK all the interrupts here.
@@ -253,7 +253,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 
 	/* enable shadow regs in HW */
 	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL, 0x800FFFFF);
-	IWL_DEBUG_INFO(trans, "Enabling shadow registers in device\n");
+	IWL_DE_INFO(trans, "Enabling shadow registers in device\n");
 
 	return 0;
 }

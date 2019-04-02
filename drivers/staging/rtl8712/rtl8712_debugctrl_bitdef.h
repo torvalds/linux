@@ -4,8 +4,8 @@
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#ifndef __RTL8712_DEBUGCTRL_BITDEF_H__
-#define __RTL8712_DEBUGCTRL_BITDEF_H__
+#ifndef __RTL8712_DECTRL_BITDEF_H__
+#define __RTL8712_DECTRL_BITDEF_H__
 
 /*BIST*/
 #define	_BIST_RST			BIT(0)
@@ -38,4 +38,4 @@
 /*FDLOCKFLAG1*/
 #define	_LOCKFLAG1_MSK		0x03
 
-#endif /* __RTL8712_DEBUGCTRL_BITDEF_H__ */
+#endif /* __RTL8712_DECTRL_BITDEF_H__ */

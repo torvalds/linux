@@ -744,7 +744,7 @@ static struct clk_regmap axg_pcie_mux = {
 		.offset = HHI_PCIE_PLL_CNTL6,
 		.mask = 0x1,
 		.shift = 2,
-		/* skip the parent mpll3, reserved for debug */
+		/* skip the parent mpll3, reserved for de */
 		.table = (u32[]){ 1 },
 	},
 	.hw.init = &(struct clk_init_data){
@@ -761,7 +761,7 @@ static struct clk_regmap axg_pcie_ref = {
 		.offset = HHI_PCIE_PLL_CNTL6,
 		.mask = 0x1,
 		.shift = 1,
-		/* skip the parent 0, reserved for debug */
+		/* skip the parent 0, reserved for de */
 		.table = (u32[]){ 1 },
 	},
 	.hw.init = &(struct clk_init_data){

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef BUG_H
-#define BUG_H
+#ifndef _H
+#define _H
 
-#define BUG_ON(__BUG_ON_cond) assert(!(__BUG_ON_cond))
+#define _ON(___ON_cond) assert(!(___ON_cond))
 
-#define BUILD_BUG_ON(x)
+#define BUILD__ON(x)
 
-#define BUG() abort()
+#define () abort()
 
-#endif /* BUG_H */
+#endif /* _H */

@@ -49,15 +49,15 @@
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 
-#undef DEBUG_SMP
-#ifdef DEBUG_SMP
-static int smp_debug_lvl = 0;
-#define smp_debug(lvl, printargs...)		\
-		if (lvl >= smp_debug_lvl)	\
+#undef DE_SMP
+#ifdef DE_SMP
+static int smp_de_lvl = 0;
+#define smp_de(lvl, printargs...)		\
+		if (lvl >= smp_de_lvl)	\
 			printk(printargs);
 #else
-#define smp_debug(lvl, ...)	do { } while(0)
-#endif /* DEBUG_SMP */
+#define smp_de(lvl, ...)	do { } while(0)
+#endif /* DE_SMP */
 
 volatile struct task_struct *smp_init_current_idle_task;
 
@@ -144,32 +144,32 @@ ipi_interrupt(int irq, void *dev_id)
 
 			switch (which) {
 			case IPI_NOP:
-				smp_debug(100, KERN_DEBUG "CPU%d IPI_NOP\n", this_cpu);
+				smp_de(100, KERN_DE "CPU%d IPI_NOP\n", this_cpu);
 				break;
 				
 			case IPI_RESCHEDULE:
-				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
+				smp_de(100, KERN_DE "CPU%d IPI_RESCHEDULE\n", this_cpu);
 				inc_irq_stat(irq_resched_count);
 				scheduler_ipi();
 				break;
 
 			case IPI_CALL_FUNC:
-				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC\n", this_cpu);
+				smp_de(100, KERN_DE "CPU%d IPI_CALL_FUNC\n", this_cpu);
 				inc_irq_stat(irq_call_count);
 				generic_smp_call_function_interrupt();
 				break;
 
 			case IPI_CPU_START:
-				smp_debug(100, KERN_DEBUG "CPU%d IPI_CPU_START\n", this_cpu);
+				smp_de(100, KERN_DE "CPU%d IPI_CPU_START\n", this_cpu);
 				break;
 
 			case IPI_CPU_STOP:
-				smp_debug(100, KERN_DEBUG "CPU%d IPI_CPU_STOP\n", this_cpu);
+				smp_de(100, KERN_DE "CPU%d IPI_CPU_STOP\n", this_cpu);
 				halt_processor();
 				break;
 
 			case IPI_CPU_TEST:
-				smp_debug(100, KERN_DEBUG "CPU%d is alive!\n", this_cpu);
+				smp_de(100, KERN_DE "CPU%d is alive!\n", this_cpu);
 				break;
 
 			default:
@@ -211,7 +211,7 @@ send_IPI_mask(const struct cpumask *mask, enum ipi_message_type op)
 static inline void
 send_IPI_single(int dest_cpu, enum ipi_message_type op)
 {
-	BUG_ON(dest_cpu == NO_PROC_ID);
+	_ON(dest_cpu == NO_PROC_ID);
 
 	ipi_send(dest_cpu, op);
 }
@@ -281,7 +281,7 @@ smp_cpu_init(int cpunum)
 	/* Initialise the idle task for this CPU */
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
+	_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	init_IRQ();   /* make sure no IRQs are enabled or pending */
@@ -372,7 +372,7 @@ int smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 
 alive:
 	/* Remember the Slave data */
-	smp_debug(100, KERN_DEBUG "SMP: CPU:%d came alive after %ld _us\n",
+	smp_de(100, KERN_DE "SMP: CPU:%d came alive after %ld _us\n",
 		cpuid, timeout * 100);
 	return 0;
 }

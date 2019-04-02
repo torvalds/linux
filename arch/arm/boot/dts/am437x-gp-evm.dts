@@ -169,7 +169,7 @@
 
 &am43xx_pinmux {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&wlan_pins_default &ddr3_vtt_toggle_default &unused_pins &debugss_pins>;
+	pinctrl-0 = <&wlan_pins_default &ddr3_vtt_toggle_default &unused_pins &dess_pins>;
 	pinctrl-1 = <&wlan_pins_sleep>;
 
 	ddr3_vtt_toggle_default: ddr_vtt_toggle_default {
@@ -585,7 +585,7 @@
 		>;
 	};
 
-	debugss_pins: pinmux_debugss_pins {
+	dess_pins: pinmux_dess_pins {
 		pinctrl-single,pins = <
 			AM4372_IOPAD(0xa90, PIN_INPUT_PULLDOWN)
 			AM4372_IOPAD(0xa94, PIN_INPUT_PULLDOWN)

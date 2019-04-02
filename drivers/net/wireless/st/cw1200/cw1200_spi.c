@@ -33,7 +33,7 @@ MODULE_DESCRIPTION("mac80211 ST-Ericsson CW1200 SPI driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:cw1200_wlan_spi");
 
-/* #define SPI_DEBUG */
+/* #define SPI_DE */
 
 struct hwbus_priv {
 	struct spi_device	*func;
@@ -78,7 +78,7 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 	regaddr |= SET_READ;
 	regaddr |= (count>>1);
 
-#ifdef SPI_DEBUG
+#ifdef SPI_DE
 	pr_info("READ : %04d from 0x%02x (%04x)\n", count, addr, regaddr);
 #endif
 
@@ -98,7 +98,7 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 	spi_message_add_tail(&t_msg, &m);
 	ret = spi_sync(self->func, &m);
 
-#ifdef SPI_DEBUG
+#ifdef SPI_DE
 	pr_info("READ : ");
 	for (i = 0; i < t_addr.len; i++)
 		printk("%02x ", ((u8 *)t_addr.tx_buf)[i]);
@@ -143,7 +143,7 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 	regaddr &= SET_WRITE;
 	regaddr |= (count>>1);
 
-#ifdef SPI_DEBUG
+#ifdef SPI_DE
 	pr_info("WRITE: %04d  to  0x%02x (%04x)\n", count, addr, regaddr);
 #endif
 
@@ -163,7 +163,7 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 			buf[i] = swab16(buf[i]);
 	}
 
-#ifdef SPI_DEBUG
+#ifdef SPI_DE
 	pr_info("WRITE: ");
 	for (i = 0; i < t_addr.len; i++)
 		printk("%02x ", ((u8 *)t_addr.tx_buf)[i]);
@@ -178,7 +178,7 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 	spi_message_add_tail(&t_msg, &m);
 	rval = spi_sync(self->func, &m);
 
-#ifdef SPI_DEBUG
+#ifdef SPI_DE
 	pr_info("WROTE: %d\n", m.actual_length);
 #endif
 
@@ -250,7 +250,7 @@ static int cw1200_spi_irq_subscribe(struct hwbus_priv *self)
 {
 	int ret;
 
-	pr_debug("SW IRQ subscribe\n");
+	pr_de("SW IRQ subscribe\n");
 
 	ret = request_threaded_irq(self->func->irq, NULL,
 				   cw1200_spi_irq_handler,
@@ -275,7 +275,7 @@ static int cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
 {
 	int ret = 0;
 
-	pr_debug("SW IRQ unsubscribe\n");
+	pr_de("SW IRQ unsubscribe\n");
 	disable_irq_wake(self->func->irq);
 	free_irq(self->func->irq, self);
 

@@ -27,9 +27,9 @@
 #include <asm/kvm_book3s.h>
 #include <asm/book3s/64/mmu-hash.h>
 
-/* #define DEBUG_MMU */
+/* #define DE_MMU */
 
-#ifdef DEBUG_MMU
+#ifdef DE_MMU
 #define dprintk(X...) printk(KERN_INFO X)
 #else
 #define dprintk(X...) do { } while(0)
@@ -634,7 +634,7 @@ static int kvmppc_mmu_book3s_64_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

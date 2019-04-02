@@ -365,10 +365,10 @@ static int allocate_power(struct thermal_zone_device *tz,
 	 * function returns.  Allocate them all in one go to simplify
 	 * the allocation and deallocation logic.
 	 */
-	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*max_power));
-	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*granted_power));
-	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*extra_actor_power));
-	BUILD_BUG_ON(sizeof(*req_power) != sizeof(*weighted_req_power));
+	BUILD__ON(sizeof(*req_power) != sizeof(*max_power));
+	BUILD__ON(sizeof(*req_power) != sizeof(*granted_power));
+	BUILD__ON(sizeof(*req_power) != sizeof(*extra_actor_power));
+	BUILD__ON(sizeof(*req_power) != sizeof(*weighted_req_power));
 	req_power = kcalloc(num_actors * 5, sizeof(*req_power), GFP_KERNEL);
 	if (!req_power) {
 		ret = -ENOMEM;

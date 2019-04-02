@@ -132,9 +132,9 @@ MODULE_PARM_DESC(output_types, " output types, default is 0x02. One bit per outp
 			      "\t\t    bit 0 == output 0, bit 15 == output 15.\n"
 			      "\t\t    Type 0 == S-Video, 1 == HDMI");
 
-unsigned vivid_debug;
-module_param(vivid_debug, uint, 0644);
-MODULE_PARM_DESC(vivid_debug, " activates debug info");
+unsigned vivid_de;
+module_param(vivid_de, uint, 0644);
+MODULE_PARM_DESC(vivid_de, " activates de info");
 
 static bool no_error_inj;
 module_param(no_error_inj, bool, 0444);

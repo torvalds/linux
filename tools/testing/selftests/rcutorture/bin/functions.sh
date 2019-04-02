@@ -185,7 +185,7 @@ identify_qemu_append () {
 	local console=ttyS0
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
-		echo noapic selinux=0 initcall_debug debug
+		echo noapic selinux=0 initcall_de de
 		;;
 	qemu-system-aarch64)
 		console=ttyAMA0
@@ -239,11 +239,11 @@ identify_qemu_vcpus () {
 	lscpu | grep '^CPU(s):' | sed -e 's/CPU(s)://'
 }
 
-# print_bug
+# print_
 #
-# Prints "BUG: " in red followed by remaining arguments
-print_bug () {
-	printf '\033[031mBUG: \033[m'
+# Prints ": " in red followed by remaining arguments
+print_ () {
+	printf '\033[031m: \033[m'
 	echo $*
 }
 

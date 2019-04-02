@@ -96,7 +96,7 @@ static inline struct anon_vma *anon_vma_alloc(void)
 
 static inline void anon_vma_free(struct anon_vma *anon_vma)
 {
-	VM_BUG_ON(atomic_read(&anon_vma->refcount));
+	VM__ON(atomic_read(&anon_vma->refcount));
 
 	/*
 	 * Synchronize against page_lock_anon_vma_read() such that
@@ -974,7 +974,7 @@ int page_mkclean(struct page *page)
 		.invalid_vma = invalid_mkclean_vma,
 	};
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (!page_mapped(page))
 		return 0;
@@ -1005,8 +1005,8 @@ void page_move_anon_rmap(struct page *page, struct vm_area_struct *vma)
 
 	page = compound_head(page);
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_VMA(!anon_vma, vma);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_VMA(!anon_vma, vma);
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	/*
@@ -1029,7 +1029,7 @@ static void __page_set_anon_rmap(struct page *page,
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 
-	BUG_ON(!anon_vma);
+	_ON(!anon_vma);
 
 	if (PageAnon(page))
 		return;
@@ -1056,7 +1056,7 @@ static void __page_set_anon_rmap(struct page *page,
 static void __page_check_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	/*
 	 * The page's anon-rmap details (mapping and index) are guaranteed to
 	 * be set up correctly at this point.
@@ -1069,8 +1069,8 @@ static void __page_check_anon_rmap(struct page *page,
 	 * are initially only visible via the pagetables, and the pte is locked
 	 * over the call to page_add_new_anon_rmap.
 	 */
-	BUG_ON(page_anon_vma(page)->root != vma->anon_vma->root);
-	BUG_ON(page_to_pgoff(page) != linear_page_index(vma, address));
+	_ON(page_anon_vma(page)->root != vma->anon_vma->root);
+	_ON(page_to_pgoff(page) != linear_page_index(vma, address));
 #endif
 }
 
@@ -1105,8 +1105,8 @@ void do_page_add_anon_rmap(struct page *page,
 
 	if (compound) {
 		atomic_t *mapcount;
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+		VM__ON_PAGE(!PageLocked(page), page);
+		VM__ON_PAGE(!PageTransHuge(page), page);
 		mapcount = compound_mapcount_ptr(page);
 		first = atomic_inc_and_test(mapcount);
 	} else {
@@ -1128,7 +1128,7 @@ void do_page_add_anon_rmap(struct page *page,
 	if (unlikely(PageKsm(page)))
 		return;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	/* address might be in next vma when migration races vma_adjust */
 	if (first)
@@ -1154,16 +1154,16 @@ void page_add_new_anon_rmap(struct page *page,
 {
 	int nr = compound ? hpage_nr_pages(page) : 1;
 
-	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+	VM__ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
 	__SetPageSwapBacked(page);
 	if (compound) {
-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+		VM__ON_PAGE(!PageTransHuge(page), page);
 		/* increment count (starts at -1) */
 		atomic_set(compound_mapcount_ptr(page), 0);
 		__inc_node_page_state(page, NR_ANON_THPS);
 	} else {
 		/* Anon THP always mapped first with PMD */
-		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+		VM__ON_PAGE(PageTransCompound(page), page);
 		/* increment count (starts at -1) */
 		atomic_set(&page->_mapcount, 0);
 	}
@@ -1182,7 +1182,7 @@ void page_add_file_rmap(struct page *page, bool compound)
 {
 	int i, nr = 1;
 
-	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+	VM__ON_PAGE(compound && !PageTransHuge(page), page);
 	lock_page_memcg(page);
 	if (compound && PageTransHuge(page)) {
 		for (i = 0, nr = 0; i < HPAGE_PMD_NR; i++) {
@@ -1191,7 +1191,7 @@ void page_add_file_rmap(struct page *page, bool compound)
 		}
 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
 			goto out;
-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+		VM__ON_PAGE(!PageSwapBacked(page), page);
 		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
 	} else {
 		if (PageTransCompound(page) && page_mapping(page)) {
@@ -1213,7 +1213,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
 {
 	int i, nr = 1;
 
-	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+	VM__ON_PAGE(compound && !PageHead(page), page);
 	lock_page_memcg(page);
 
 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
@@ -1231,7 +1231,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
 		}
 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
 			goto out;
-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+		VM__ON_PAGE(!PageSwapBacked(page), page);
 		__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
 	} else {
 		if (!atomic_add_negative(-1, &page->_mapcount))
@@ -1388,7 +1388,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
 		/* PMD-mapped THP migration entry */
 		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
-			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
+			VM__ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
 
 			set_pmd_migration_entry(&pvmw, page);
 			continue;
@@ -1419,7 +1419,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		}
 
 		/* Unexpected PMD-mapped THP? */
-		VM_BUG_ON_PAGE(!pvmw.pte, page);
+		VM__ON_PAGE(!pvmw.pte, page);
 
 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
 		address = pvmw.address;
@@ -1748,8 +1748,8 @@ void try_to_munlock(struct page *page)
 
 	};
 
-	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
-	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
+	VM__ON_PAGE(!PageLocked(page) || PageLRU(page), page);
+	VM__ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
 
 	rmap_walk(page, &rwc);
 }
@@ -1809,7 +1809,7 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
 	if (locked) {
 		anon_vma = page_anon_vma(page);
 		/* anon_vma disappear under us? */
-		VM_BUG_ON_PAGE(!anon_vma, page);
+		VM__ON_PAGE(!anon_vma, page);
 	} else {
 		anon_vma = rmap_walk_anon_lock(page, rwc);
 	}
@@ -1864,7 +1864,7 @@ static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
 	 * structure at mapping cannot be freed and reused yet,
 	 * so we can safely take mapping->i_mmap_rwsem.
 	 */
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 
 	if (!mapping)
 		return;
@@ -1907,7 +1907,7 @@ void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
 void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
 {
 	/* no ksm support for now */
-	VM_BUG_ON_PAGE(PageKsm(page), page);
+	VM__ON_PAGE(PageKsm(page), page);
 	if (PageAnon(page))
 		rmap_walk_anon(page, rwc, true);
 	else
@@ -1926,8 +1926,8 @@ void hugepage_add_anon_rmap(struct page *page,
 	struct anon_vma *anon_vma = vma->anon_vma;
 	int first;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(!anon_vma);
+	_ON(!PageLocked(page));
+	_ON(!anon_vma);
 	/* address might be in next vma when migration races vma_adjust */
 	first = atomic_inc_and_test(compound_mapcount_ptr(page));
 	if (first)
@@ -1937,7 +1937,7 @@ void hugepage_add_anon_rmap(struct page *page,
 void hugepage_add_new_anon_rmap(struct page *page,
 			struct vm_area_struct *vma, unsigned long address)
 {
-	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+	_ON(address < vma->vm_start || address >= vma->vm_end);
 	atomic_set(compound_mapcount_ptr(page), 0);
 	__page_set_anon_rmap(page, vma, address, 1);
 }

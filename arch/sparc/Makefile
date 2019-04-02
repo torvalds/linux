@@ -25,7 +25,7 @@ KBUILD_LDFLAGS := -m elf32_sparc
 export BITS    := 32
 UTS_MACHINE    := sparc
 
-# We are adding -Wa,-Av8 to KBUILD_CFLAGS to deal with a specs bug in some
+# We are adding -Wa,-Av8 to KBUILD_CFLAGS to deal with a specs  in some
 # versions of gcc.  Some gcc versions won't pass -Av8 to binutils when you
 # give -mcpu=v8.  This silently worked with older bintutils versions but
 # does not any more.

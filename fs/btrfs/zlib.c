@@ -141,7 +141,7 @@ static int zlib_compress_pages(struct list_head *ws,
 	while (workspace->strm.total_in < len) {
 		ret = zlib_deflate(&workspace->strm, Z_SYNC_FLUSH);
 		if (ret != Z_OK) {
-			pr_debug("BTRFS: deflate in loop returned %d\n",
+			pr_de("BTRFS: deflate in loop returned %d\n",
 			       ret);
 			zlib_deflateEnd(&workspace->strm);
 			ret = -EIO;

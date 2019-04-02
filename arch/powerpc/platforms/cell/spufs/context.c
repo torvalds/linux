@@ -92,7 +92,7 @@ void destroy_spu_context(struct kref *kref)
 		spu_gang_remove_ctx(ctx->gang, ctx);
 	if (ctx->prof_priv_kref)
 		kref_put(ctx->prof_priv_kref, ctx->prof_priv_release);
-	BUG_ON(!list_empty(&ctx->rq));
+	_ON(!list_empty(&ctx->rq));
 	atomic_dec(&nr_spu_contexts);
 	kfree(ctx->switch_log);
 	kfree(ctx);
@@ -177,7 +177,7 @@ int spu_acquire_saved(struct spu_context *ctx)
  */
 void spu_release_saved(struct spu_context *ctx)
 {
-	BUG_ON(ctx->state != SPU_STATE_SAVED);
+	_ON(ctx->state != SPU_STATE_SAVED);
 
 	if (test_and_clear_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags) &&
 			test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))

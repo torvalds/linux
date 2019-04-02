@@ -223,7 +223,7 @@ int qxl_garbage_collect(struct qxl_device *qdev)
 	union qxl_release_info *info;
 
 	while (qxl_ring_pop(qdev->release_ring, &id)) {
-		DRM_DEBUG_DRIVER("popped %lld\n", id);
+		DRM_DE_DRIVER("popped %lld\n", id);
 		while (id) {
 			release = qxl_release_from_id_locked(qdev, id);
 			if (release == NULL)
@@ -233,7 +233,7 @@ int qxl_garbage_collect(struct qxl_device *qdev)
 			next_id = info->next;
 			qxl_release_unmap(qdev, release, info);
 
-			DRM_DEBUG_DRIVER("popped %lld, next %lld\n", id,
+			DRM_DE_DRIVER("popped %lld, next %lld\n", id,
 					 next_id);
 
 			switch (release->type) {
@@ -252,7 +252,7 @@ int qxl_garbage_collect(struct qxl_device *qdev)
 		}
 	}
 
-	DRM_DEBUG_DRIVER("%d\n", i);
+	DRM_DE_DRIVER("%d\n", i);
 
 	return i;
 }
@@ -386,7 +386,7 @@ void qxl_io_create_primary(struct qxl_device *qdev, struct qxl_bo *bo)
 	if (WARN_ON(qdev->primary_bo))
 		return;
 
-	DRM_DEBUG_DRIVER("qdev %p, ram_header %p\n", qdev, qdev->ram_header);
+	DRM_DE_DRIVER("qdev %p, ram_header %p\n", qdev, qdev->ram_header);
 	create = &qdev->ram_header->create_surface;
 	create->format = bo->surf.format;
 	create->width = bo->surf.width;
@@ -394,7 +394,7 @@ void qxl_io_create_primary(struct qxl_device *qdev, struct qxl_bo *bo)
 	create->stride = bo->surf.stride;
 	create->mem = qxl_bo_physical_address(qdev, bo, 0);
 
-	DRM_DEBUG_DRIVER("mem = %llx, from %p\n", create->mem, bo->kptr);
+	DRM_DE_DRIVER("mem = %llx, from %p\n", create->mem, bo->kptr);
 
 	create->flags = QXL_SURF_FLAG_KEEP_DATA;
 	create->type = QXL_SURF_TYPE_PRIMARY;
@@ -407,7 +407,7 @@ void qxl_io_create_primary(struct qxl_device *qdev, struct qxl_bo *bo)
 
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id)
 {
-	DRM_DEBUG_DRIVER("qxl_memslot_add %d\n", id);
+	DRM_DE_DRIVER("qxl_memslot_add %d\n", id);
 	wait_for_io_cmd(qdev, id, QXL_IO_MEMSLOT_ADD_ASYNC);
 }
 

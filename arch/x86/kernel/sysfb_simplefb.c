@@ -78,7 +78,7 @@ __init int create_simplefb(const struct screen_info *si,
 	if (si->capabilities & VIDEO_CAPABILITY_64BIT_BASE)
 		base |= (u64)si->ext_lfb_base << 32;
 	if (!base || (u64)(resource_size_t)base != base) {
-		printk(KERN_DEBUG "sysfb: inaccessible VRAM base\n");
+		printk(KERN_DE "sysfb: inaccessible VRAM base\n");
 		return -EINVAL;
 	}
 

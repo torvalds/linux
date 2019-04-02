@@ -173,7 +173,7 @@ static unsigned char hv_get_nmi_reason(void)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 /*
- * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
+ * Prior to WS2016 De-VM sends NMIs to all CPUs which makes
  * it dificult to process CHANNELMSG_UNLOAD in case of crash. Handle
  * unknown NMI on the first CPU which gets it.
  */
@@ -230,7 +230,7 @@ static void __init ms_hyperv_init_platform(void)
 	ms_hyperv.max_vp_index = cpuid_eax(HYPERV_CPUID_IMPLEMENT_LIMITS);
 	ms_hyperv.max_lp_index = cpuid_ebx(HYPERV_CPUID_IMPLEMENT_LIMITS);
 
-	pr_debug("Hyper-V: max %u virtual processors, %u logical processors\n",
+	pr_de("Hyper-V: max %u virtual processors, %u logical processors\n",
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
 
 	/*

@@ -14,7 +14,7 @@
 #include <asm/sgialib.h>
 #include <asm/smp-ops.h>
 
-#undef DEBUG_PROM_INIT
+#undef DE_PROM_INIT
 
 /* Master romvec interface. */
 struct linux_romvec *romvec;
@@ -44,7 +44,7 @@ void __init prom_init(void)
 	       pb->ver, pb->rev);
 	prom_meminit();
 
-#ifdef DEBUG_PROM_INIT
+#ifdef DE_PROM_INIT
 	pr_info("Press a key to reboot\n");
 	ArcRead(0, &c, 1, &cnt);
 	ArcEnterInteractiveMode();

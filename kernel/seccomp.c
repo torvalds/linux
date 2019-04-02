@@ -338,7 +338,7 @@ static inline pid_t seccomp_can_sync_threads(void)
 {
 	struct task_struct *thread, *caller;
 
-	BUG_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
+	_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
 	assert_spin_locked(&current->sighand->siglock);
 
 	/* Validate all threads being eligible for synchronization. */
@@ -379,7 +379,7 @@ static inline void seccomp_sync_threads(unsigned long flags)
 {
 	struct task_struct *thread, *caller;
 
-	BUG_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
+	_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
 	assert_spin_locked(&current->sighand->siglock);
 
 	/* Synchronize all threads. */
@@ -436,7 +436,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	if (fprog->len == 0 || fprog->len > BPF_MAXINSNS)
 		return ERR_PTR(-EINVAL);
 
-	BUG_ON(INT_MAX / fprog->len < sizeof(struct sock_filter));
+	_ON(INT_MAX / fprog->len < sizeof(struct sock_filter));
 
 	/*
 	 * Installing a seccomp filter requires that the task has
@@ -693,7 +693,7 @@ static void __secure_computing_strict(int this_syscall)
 			return;
 	} while (*++syscall_whitelist);
 
-#ifdef SECCOMP_DEBUG
+#ifdef SECCOMP_DE
 	dump_stack();
 #endif
 	seccomp_log(this_syscall, SIGKILL, SECCOMP_RET_KILL_THREAD, true);
@@ -714,7 +714,7 @@ void secure_computing_strict(int this_syscall)
 	else if (mode == SECCOMP_MODE_STRICT)
 		__secure_computing_strict(this_syscall);
 	else
-		BUG();
+		();
 }
 #else
 
@@ -910,7 +910,7 @@ skip:
 static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 			    const bool recheck_after_trace)
 {
-	BUG();
+	();
 }
 #endif
 
@@ -933,7 +933,7 @@ int __secure_computing(const struct seccomp_data *sd)
 	case SECCOMP_MODE_FILTER:
 		return __seccomp_filter(this_syscall, sd, false);
 	default:
-		BUG();
+		();
 	}
 }
 #endif /* CONFIG_HAVE_ARCH_SECCOMP_FILTER */

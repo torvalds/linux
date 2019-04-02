@@ -32,9 +32,9 @@ MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("libfc");
 MODULE_LICENSE("GPL v2");
 
-unsigned int fc_debug_logging;
-module_param_named(debug_logging, fc_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+unsigned int fc_de_logging;
+module_param_named(de_logging, fc_de_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(de_logging, "a bit mask of logging levels");
 
 DEFINE_MUTEX(fc_prov_mutex);
 static LIST_HEAD(fc_local_ports);
@@ -241,8 +241,8 @@ EXPORT_SYMBOL(fc_fill_reply_hdr);
 void fc_fc4_conf_lport_params(struct fc_lport *lport, enum fc_fh_type type)
 {
 	struct fc4_prov *prov_entry;
-	BUG_ON(type >= FC_FC4_PROV_SIZE);
-	BUG_ON(!lport);
+	_ON(type >= FC_FC4_PROV_SIZE);
+	_ON(!lport);
 	prov_entry = fc_passive_prov[type];
 	if (type == FC_TYPE_FCP) {
 		if (prov_entry && prov_entry->recv)
@@ -293,7 +293,7 @@ EXPORT_SYMBOL(fc_fc4_register_provider);
  */
 void fc_fc4_deregister_provider(enum fc_fh_type type, struct fc4_prov *prov)
 {
-	BUG_ON(type >= FC_FC4_PROV_SIZE);
+	_ON(type >= FC_FC4_PROV_SIZE);
 	mutex_lock(&fc_prov_mutex);
 	if (prov->recv)
 		RCU_INIT_POINTER(fc_passive_prov[type], NULL);

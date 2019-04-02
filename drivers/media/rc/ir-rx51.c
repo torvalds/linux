@@ -68,7 +68,7 @@ static enum hrtimer_restart ir_rx51_timer_cb(struct hrtimer *timer)
 
 	if (ir_rx51->wbuf_index < 0) {
 		dev_err_ratelimited(ir_rx51->dev,
-				    "BUG wbuf_index has value of %i\n",
+				    " wbuf_index has value of %i\n",
 				    ir_rx51->wbuf_index);
 		goto end;
 	}

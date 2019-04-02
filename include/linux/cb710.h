@@ -33,7 +33,7 @@ struct cb710_chip {
 	struct pci_dev		*pdev;
 	void __iomem		*iobase;
 	unsigned		platform_id;
-#ifdef CONFIG_CB710_DEBUG_ASSUMPTIONS
+#ifdef CONFIG_CB710_DE_ASSUMPTIONS
 	atomic_t		slot_refs_count;
 #endif
 	unsigned		slot_mask;
@@ -104,9 +104,9 @@ static inline struct device *cb710_chip_dev(struct cb710_chip *chip)
 	return &chip->pdev->dev;
 }
 
-/* debugging aids */
+/* deging aids */
 
-#ifdef CONFIG_CB710_DEBUG
+#ifdef CONFIG_CB710_DE
 void cb710_dump_regs(struct cb710_chip *chip, unsigned dump);
 #else
 #define cb710_dump_regs(c, d) do {} while (0)

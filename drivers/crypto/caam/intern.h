@@ -99,34 +99,34 @@ struct caam_drv_private {
 	struct clk *caam_emi_slow;
 
 	/*
-	 * debugfs entries for developer view into driver/device
+	 * defs entries for developer view into driver/device
 	 * variables at runtime.
 	 */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
-	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
+	struct defs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
 #endif
 };
 
 void caam_jr_algapi_init(struct device *dev);
 void caam_jr_algapi_remove(struct device *dev);
 
-#ifdef CONFIG_DEBUG_FS
-static int caam_debugfs_u64_get(void *data, u64 *val)
+#ifdef CONFIG_DE_FS
+static int caam_defs_u64_get(void *data, u64 *val)
 {
 	*val = caam64_to_cpu(*(u64 *)data);
 	return 0;
 }
 
-static int caam_debugfs_u32_get(void *data, u64 *val)
+static int caam_defs_u32_get(void *data, u64 *val)
 {
 	*val = caam32_to_cpu(*(u32 *)data);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_defs_u32_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_defs_u64_get, NULL, "%llu\n");
 #endif
 
 #endif /* INTERN_H */

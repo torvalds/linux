@@ -8,7 +8,7 @@
  * option) any later version.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
@@ -128,7 +128,7 @@ static unsigned __init gen_fdt_mem_array(__be32 *mem_array, unsigned long size,
 	}
 
 done:
-	BUG_ON(entries > MAX_MEM_ARRAY_ENTRIES);
+	_ON(entries > MAX_MEM_ARRAY_ENTRIES);
 	return entries;
 }
 

@@ -988,7 +988,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 	struct vb2_buffer *vb = &buf->vbuf.vb2_buf;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	/* _init is used to debug races, see comment in pxa_camera_reqbufs() */
+	/* _init is used to de races, see comment in pxa_camera_reqbufs() */
 	list_del_init(&buf->queue);
 	vb->timestamp = ktime_get_ns();
 	vbuf->sequence = pcdev->buf_sequence++;
@@ -1467,7 +1467,7 @@ static int pxac_vb2_prepare(struct vb2_buffer *vb)
 
 	WARN_ON(!pcdev->current_fmt);
 
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 * This can be useful if you want to see if we actually fill
 	 * the buffer with something
@@ -1815,7 +1815,7 @@ static int pxa_camera_check_frame(u32 width, u32 height)
 		(width & 0x01);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int pxac_vidioc_g_register(struct file *file, void *priv,
 				  struct v4l2_dbg_register *reg)
 {
@@ -2116,7 +2116,7 @@ static const struct v4l2_ioctl_ops pxa_camera_ioctl_ops = {
 	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register		= pxac_vidioc_g_register,
 	.vidioc_s_register		= pxac_vidioc_s_register,
 #endif

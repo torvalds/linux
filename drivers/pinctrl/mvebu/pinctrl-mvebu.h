@@ -76,7 +76,7 @@ struct mvebu_mpp_ctrl {
  * mpp_get/_set function may use val to distinguish between different settings.
  *
  * The name will be used to switch to this setting in DT description, e.g.
- * marvell,function = "uart2". subname is only for debugging purposes.
+ * marvell,function = "uart2". subname is only for deging purposes.
  *
  * If name is one of "gpi", "gpo", "gpio" gpio capabilities are
  * parsed during initialization and stored in flags.
@@ -167,7 +167,7 @@ struct mvebu_pinctrl_soc_info {
 		.flags = 0,					\
 	}
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 #define MPP_VAR_FUNCTION(_val, _name, _subname, _mask)		\
 	_MPP_VAR_FUNCTION(_val, _name, _subname, _mask)
 #else

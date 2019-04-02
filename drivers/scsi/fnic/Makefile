@@ -9,7 +9,7 @@ fnic-y	:= \
 	fnic_fcs.o \
 	fnic_scsi.o \
 	fnic_trace.o \
-	fnic_debugfs.o \
+	fnic_defs.o \
 	vnic_cq.o \
 	vnic_dev.o \
 	vnic_intr.o \

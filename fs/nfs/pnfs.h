@@ -624,14 +624,14 @@ pnfs_lseg_request_intersecting(struct pnfs_layout_segment *lseg, struct nfs_page
 
 extern unsigned int layoutstats_timer;
 
-#ifdef NFS_DEBUG
+#ifdef NFS_DE
 void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
 #else
 static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
 {
 }
 
-#endif /* NFS_DEBUG */
+#endif /* NFS_DE */
 #else  /* CONFIG_NFS_V4_1 */
 
 static inline bool nfs_have_layout(struct inode *inode)

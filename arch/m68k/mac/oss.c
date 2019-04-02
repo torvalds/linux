@@ -42,7 +42,7 @@ void __init oss_init(void)
 		return;
 
 	oss = (struct mac_oss *) OSS_BASE;
-	pr_debug("OSS detected at %p", oss);
+	pr_de("OSS detected at %p", oss);
 	oss_present = 1;
 
 	/* Disable all interrupts. Unlike a VIA it looks like we    */

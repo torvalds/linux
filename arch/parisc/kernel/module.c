@@ -60,7 +60,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 
@@ -69,9 +69,9 @@
 #include <asm/sections.h>
 
 #if 0
-#define DEBUGP printk
+#define DEP printk
 #else
-#define DEBUGP(fmt...)
+#define DEP(fmt...)
 #endif
 
 #define RELOC_REACHABLE(val, bits) \
@@ -390,18 +390,18 @@ static Elf64_Word get_got(struct module *me, unsigned long value, long addend)
 
 	value += addend;
 
-	BUG_ON(value == 0);
+	_ON(value == 0);
 
 	got = me->core_layout.base + me->arch.got_offset;
 	for (i = 0; got[i].addr; i++)
 		if (got[i].addr == value)
 			goto out;
 
-	BUG_ON(++me->arch.got_count > me->arch.got_max);
+	_ON(++me->arch.got_count > me->arch.got_max);
 
 	got[i].addr = value;
  out:
-	DEBUGP("GOT ENTRY %d[%x] val %lx\n", i, i*sizeof(struct got_entry),
+	DEP("GOT ENTRY %d[%x] val %lx\n", i, i*sizeof(struct got_entry),
 	       value);
 	return i * sizeof(struct got_entry);
 }
@@ -424,7 +424,7 @@ static Elf_Addr get_fdesc(struct module *me, unsigned long value)
 		fdesc++;
 	}
 
-	BUG_ON(++me->arch.fdesc_count > me->arch.fdesc_max);
+	_ON(++me->arch.fdesc_count > me->arch.fdesc_max);
 
 	/* Create new one */
 	fdesc->addr = value;
@@ -459,7 +459,7 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
 	me->arch.section[targetsec].stub_offset += sizeof(struct stub_entry);
 
 	/* do not write outside available stub area */
-	BUG_ON(0 == me->arch.section[targetsec].stub_entries--);
+	_ON(0 == me->arch.section[targetsec].stub_entries--);
 
 
 #ifndef CONFIG_64BIT
@@ -554,7 +554,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 	//unsigned long dp = (unsigned long)$global$;
 	register unsigned long dp asm ("r27");
 
-	DEBUGP("Applying relocate section %u to %u\n", relsec,
+	DEP("Applying relocate section %u to %u\n", relsec,
 	       targetsec);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -578,7 +578,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 
 #if 0
 #define r(t) ELF32_R_TYPE(rel[i].r_info)==t ? #t :
-		DEBUGP("Symbol %s loc 0x%x val 0x%x addend 0x%x: %s\n",
+		DEP("Symbol %s loc 0x%x val 0x%x addend 0x%x: %s\n",
 			strtab + sym->st_name,
 			(uint32_t)loc, val, addend,
 			r(R_PARISC_PLABEL32)
@@ -698,7 +698,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 	Elf_Addr loc0;
 	unsigned int targetsec = sechdrs[relsec].sh_info;
 
-	DEBUGP("Applying relocate section %u to %u\n", relsec,
+	DEP("Applying relocate section %u to %u\n", relsec,
 	       targetsec);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -740,7 +740,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		case R_PARISC_LTOFF21L:
 			/* LT-relative; left 21 bits */
 			val = get_got(me, val, addend);
-			DEBUGP("LTOFF21L Symbol %s loc %p val %lx\n",
+			DEP("LTOFF21L Symbol %s loc %p val %lx\n",
 			       strtab + sym->st_name,
 			       loc, val);
 			val = lrsel(val, 0);
@@ -751,14 +751,14 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			/* LT-relative; right 14 bits */
 			val = get_got(me, val, addend);
 			val = rrsel(val, 0);
-			DEBUGP("LTOFF14R Symbol %s loc %p val %lx\n",
+			DEP("LTOFF14R Symbol %s loc %p val %lx\n",
 			       strtab + sym->st_name,
 			       loc, val);
 			*loc = mask(*loc, 14) | reassemble_14(val);
 			break;
 		case R_PARISC_PCREL22F:
 			/* PC-relative; 22 bits */
-			DEBUGP("PCREL22F Symbol %s loc %p val %lx\n",
+			DEP("PCREL22F Symbol %s loc %p val %lx\n",
 			       strtab + sym->st_name,
 			       loc, val);
 			val += addend;
@@ -790,7 +790,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 					val = get_stub(me, val, addend, ELF_STUB_GOT,
 						       loc0, targetsec);
 			}
-			DEBUGP("STUB FOR %s loc %lx, val %lx+%lx at %lx\n", 
+			DEP("STUB FOR %s loc %lx, val %lx+%lx at %lx\n", 
 			       strtab + sym->st_name, loc, sym->st_value,
 			       addend, val);
 			val = (val - dot - 8)/4;
@@ -820,14 +820,14 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			/* 64-bit function address */
 			if(in_local(me, (void *)(val + addend))) {
 				*loc64 = get_fdesc(me, val+addend);
-				DEBUGP("FDESC for %s at %p points to %lx\n",
+				DEP("FDESC for %s at %p points to %lx\n",
 				       strtab + sym->st_name, *loc64,
 				       ((Elf_Fdesc *)*loc64)->addr);
 			} else {
 				/* if the symbol is not local to this
 				 * module then val+addend is a pointer
 				 * to the function descriptor */
-				DEBUGP("Non local FPTR64 Symbol %s loc %p val %lx\n",
+				DEP("Non local FPTR64 Symbol %s loc %p val %lx\n",
 				       strtab + sym->st_name,
 				       loc, val);
 				*loc64 = val + addend;
@@ -858,7 +858,7 @@ register_unwind_table(struct module *me,
 	end = table + sechdrs[me->arch.unwind_section].sh_size;
 	gp = (Elf_Addr)me->core_layout.base + me->arch.got_offset;
 
-	DEBUGP("register_unwind_table(), sect = %d at 0x%p - 0x%p (gp=0x%lx)\n",
+	DEP("register_unwind_table(), sect = %d at 0x%p - 0x%p (gp=0x%lx)\n",
 	       me->arch.unwind_section, table, end, gp);
 	me->arch.unwind = unwind_table_add(me->name, 0, gp, table, end);
 }
@@ -881,7 +881,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	char *secstrings;
 	Elf_Sym *newptr, *oldptr;
 	Elf_Shdr *symhdr = NULL;
-#ifdef DEBUG
+#ifdef DE
 	Elf_Fdesc *entry;
 	u32 *addr;
 
@@ -914,7 +914,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		}
 	}
 
-	DEBUGP("module %s: strtab %p, symhdr %p\n",
+	DEP("module %s: strtab %p, symhdr %p\n",
 	       me->name, strtab, symhdr);
 
 	if(me->arch.got_count > MAX_GOTS) {
@@ -933,7 +933,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	oldptr = (void *)symhdr->sh_addr;
 	newptr = oldptr + 1;	/* we start counting at 1 */
 	nsyms = symhdr->sh_size / sizeof(Elf_Sym);
-	DEBUGP("OLD num_symtab %lu\n", nsyms);
+	DEP("OLD num_symtab %lu\n", nsyms);
 
 	for (i = 1; i < nsyms; i++) {
 		oldptr++;	/* note, count starts at 1 so preincrement */
@@ -948,7 +948,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 	}
 	nsyms = newptr - (Elf_Sym *)symhdr->sh_addr;
-	DEBUGP("NEW num_symtab %lu\n", nsyms);
+	DEP("NEW num_symtab %lu\n", nsyms);
 	symhdr->sh_size = nsyms * sizeof(Elf_Sym);
 
 	/* find .altinstructions section */

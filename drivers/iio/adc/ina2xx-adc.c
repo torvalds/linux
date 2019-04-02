@@ -870,7 +870,7 @@ static const struct iio_buffer_setup_ops ina2xx_setup_ops = {
 	.predisable = &ina2xx_buffer_disable,
 };
 
-static int ina2xx_debug_reg(struct iio_dev *indio_dev,
+static int ina2xx_de_reg(struct iio_dev *indio_dev,
 			    unsigned reg, unsigned writeval, unsigned *readval)
 {
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
@@ -925,14 +925,14 @@ static const struct iio_info ina219_info = {
 	.read_raw = ina2xx_read_raw,
 	.read_avail = ina2xx_read_avail,
 	.write_raw = ina2xx_write_raw,
-	.debugfs_reg_access = ina2xx_debug_reg,
+	.defs_reg_access = ina2xx_de_reg,
 };
 
 static const struct iio_info ina226_info = {
 	.attrs = &ina226_attribute_group,
 	.read_raw = ina2xx_read_raw,
 	.write_raw = ina2xx_write_raw,
-	.debugfs_reg_access = ina2xx_debug_reg,
+	.defs_reg_access = ina2xx_de_reg,
 };
 
 /* Initialize the configuration and calibration registers. */

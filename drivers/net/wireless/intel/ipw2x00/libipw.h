@@ -58,22 +58,22 @@
 /* QOS control */
 #define LIBIPW_QCTL_TID		0x000F
 
-/* debug macros */
+/* de macros */
 
-#ifdef CONFIG_LIBIPW_DEBUG
-extern u32 libipw_debug_level;
-#define LIBIPW_DEBUG(level, fmt, args...) \
-do { if (libipw_debug_level & (level)) \
-  printk(KERN_DEBUG "libipw: %c %s " fmt, \
+#ifdef CONFIG_LIBIPW_DE
+extern u32 libipw_de_level;
+#define LIBIPW_DE(level, fmt, args...) \
+do { if (libipw_de_level & (level)) \
+  printk(KERN_DE "libipw: %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 #else
-#define LIBIPW_DEBUG(level, fmt, args...) do {} while (0)
-#endif				/* CONFIG_LIBIPW_DEBUG */
+#define LIBIPW_DE(level, fmt, args...) do {} while (0)
+#endif				/* CONFIG_LIBIPW_DE */
 
 /*
- * To use the debug system:
+ * To use the de system:
  *
- * If you are defining a new debug classification, simply add it to the #define
+ * If you are defining a new de classification, simply add it to the #define
  * list here in the form of:
  *
  * #define LIBIPW_DL_xxxx VALUE
@@ -81,18 +81,18 @@ do { if (libipw_debug_level & (level)) \
  * shifting value to the left one bit from the previous entry.  xxxx should be
  * the name of the classification (for example, WEP)
  *
- * You then need to either add a LIBIPW_xxxx_DEBUG() macro definition for your
- * classification, or use LIBIPW_DEBUG(LIBIPW_DL_xxxx, ...) whenever you want
+ * You then need to either add a LIBIPW_xxxx_DE() macro definition for your
+ * classification, or use LIBIPW_DE(LIBIPW_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
- * To add your debug level to the list of levels seen when you perform
+ * To add your de level to the list of levels seen when you perform
  *
- * % cat /proc/net/ieee80211/debug_level
+ * % cat /proc/net/ieee80211/de_level
  *
- * you simply need to add your entry to the libipw_debug_level array.
+ * you simply need to add your entry to the libipw_de_level array.
  *
- * If you do not see debug_level in /proc/net/ieee80211 then you do not have
- * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
+ * If you do not see de_level in /proc/net/ieee80211 then you do not have
+ * CONFIG_LIBIPW_DE defined in your kernel configuration
  *
  */
 
@@ -110,17 +110,17 @@ do { if (libipw_debug_level & (level)) \
 
 #define LIBIPW_ERROR(f, a...) printk(KERN_ERR "libipw: " f, ## a)
 #define LIBIPW_WARNING(f, a...) printk(KERN_WARNING "libipw: " f, ## a)
-#define LIBIPW_DEBUG_INFO(f, a...)   LIBIPW_DEBUG(LIBIPW_DL_INFO, f, ## a)
+#define LIBIPW_DE_INFO(f, a...)   LIBIPW_DE(LIBIPW_DL_INFO, f, ## a)
 
-#define LIBIPW_DEBUG_WX(f, a...)     LIBIPW_DEBUG(LIBIPW_DL_WX, f, ## a)
-#define LIBIPW_DEBUG_SCAN(f, a...)   LIBIPW_DEBUG(LIBIPW_DL_SCAN, f, ## a)
-#define LIBIPW_DEBUG_STATE(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_STATE, f, ## a)
-#define LIBIPW_DEBUG_MGMT(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_MGMT, f, ## a)
-#define LIBIPW_DEBUG_FRAG(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_FRAG, f, ## a)
-#define LIBIPW_DEBUG_DROP(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_DROP, f, ## a)
-#define LIBIPW_DEBUG_TX(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_TX, f, ## a)
-#define LIBIPW_DEBUG_RX(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_RX, f, ## a)
-#define LIBIPW_DEBUG_QOS(f, a...)  LIBIPW_DEBUG(LIBIPW_DL_QOS, f, ## a)
+#define LIBIPW_DE_WX(f, a...)     LIBIPW_DE(LIBIPW_DL_WX, f, ## a)
+#define LIBIPW_DE_SCAN(f, a...)   LIBIPW_DE(LIBIPW_DL_SCAN, f, ## a)
+#define LIBIPW_DE_STATE(f, a...)  LIBIPW_DE(LIBIPW_DL_STATE, f, ## a)
+#define LIBIPW_DE_MGMT(f, a...)  LIBIPW_DE(LIBIPW_DL_MGMT, f, ## a)
+#define LIBIPW_DE_FRAG(f, a...)  LIBIPW_DE(LIBIPW_DL_FRAG, f, ## a)
+#define LIBIPW_DE_DROP(f, a...)  LIBIPW_DE(LIBIPW_DL_DROP, f, ## a)
+#define LIBIPW_DE_TX(f, a...)  LIBIPW_DE(LIBIPW_DL_TX, f, ## a)
+#define LIBIPW_DE_RX(f, a...)  LIBIPW_DE(LIBIPW_DL_RX, f, ## a)
+#define LIBIPW_DE_QOS(f, a...)  LIBIPW_DE(LIBIPW_DL_QOS, f, ## a)
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>	/* ARPHRD_ETHER */
 
@@ -618,7 +618,7 @@ struct libipw_network {
 	/* These entries are used to identify a unique network */
 	u8 bssid[ETH_ALEN];
 	u8 channel;
-	/* Ensure null-terminated for any debug msgs */
+	/* Ensure null-terminated for any de msgs */
 	u8 ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 ssid_len;
 

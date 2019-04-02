@@ -35,9 +35,9 @@ char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static const struct e1000_info *e1000_info_tbl[] = {
 	[board_82571]		= &e1000_82571_info,
@@ -113,7 +113,7 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
  *
  * When updating the MAC CSR registers, the Manageability Engine (ME) could
  * be accessing the registers at the same time.  Normally, this is handled in
- * h/w by an arbiter but on some parts there is a bug that acknowledges Host
+ * h/w by an arbiter but on some parts there is a  that acknowledges Host
  * accesses later than it should which could result in the register to have
  * an incorrect value.  Workaround this by checking the FWSM register which
  * has bit 24 set while ME is accessing MAC CSR registers, wait if it is set
@@ -2949,7 +2949,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		 * hthresh = 1 ==> prefetch when one or more available
 		 * pthresh = 0x1f ==> prefetch if internal cache 31 or less
 		 * BEWARE: this seems to work but should be considered first if
-		 * there are Tx hangs or other Tx related bugs
+		 * there are Tx hangs or other Tx related s
 		 */
 		txdctl |= E1000_TXDCTL_DMA_BURST_ENABLE;
 		ew32(TXDCTL(0), txdctl);
@@ -3804,7 +3804,7 @@ static void e1000_flush_tx_ring(struct e1000_adapter *adapter)
 	tctl = er32(TCTL);
 	ew32(TCTL, tctl | E1000_TCTL_EN);
 	tdt = er32(TDT(0));
-	BUG_ON(tdt != tx_ring->next_to_use);
+	_ON(tdt != tx_ring->next_to_use);
 	tx_desc =  E1000_TX_DESC(*tx_ring, tx_ring->next_to_use);
 	tx_desc->buffer_addr = tx_ring->dma;
 
@@ -4637,7 +4637,7 @@ int e1000e_open(struct net_device *netdev)
 			   PM_QOS_DEFAULT_VALUE);
 
 	/* before we allocate an interrupt, we must be ready to handle it.
-	 * Setting DEBUG_SHIRQ in the kernel makes it fire an interrupt
+	 * Setting DE_SHIRQ in the kernel makes it fire an interrupt
 	 * as soon as we call pci_request_irq, so we have to setup our
 	 * clean_rx handler before we do so.
 	 */
@@ -5757,7 +5757,7 @@ static int __e1000_maybe_stop_tx(struct e1000_ring *tx_ring, int size)
 
 static int e1000_maybe_stop_tx(struct e1000_ring *tx_ring, int size)
 {
-	BUG_ON(size > tx_ring->count);
+	_ON(size > tx_ring->count);
 
 	if (e1000_desc_unused(tx_ring) >= size)
 		return 0;
@@ -7114,7 +7114,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.adapter = adapter;
 	adapter->hw.mac.type = ei->mac;
 	adapter->max_hw_frame_size = ei->max_hw_frame_size;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+	adapter->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);

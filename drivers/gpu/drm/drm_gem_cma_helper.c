@@ -401,13 +401,13 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_get_unmapped_area);
 #endif
 
 /**
- * drm_gem_cma_print_info() - Print &drm_gem_cma_object info for debugfs
+ * drm_gem_cma_print_info() - Print &drm_gem_cma_object info for defs
  * @p: DRM printer
  * @indent: Tab indentation level
  * @obj: GEM object
  *
  * This function can be used as the &drm_driver->gem_print_info callback.
- * It prints paddr and vaddr for use in e.g. debugfs output.
+ * It prints paddr and vaddr for use in e.g. defs output.
  */
 void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *obj)
@@ -507,7 +507,7 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
 	cma_obj->paddr = sg_dma_address(sgt->sgl);
 	cma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &cma_obj->paddr, attach->dmabuf->size);
+	DRM_DE_PRIME("dma_addr = %pad, size = %zu\n", &cma_obj->paddr, attach->dmabuf->size);
 
 	return &cma_obj->base;
 }

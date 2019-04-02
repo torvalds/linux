@@ -189,7 +189,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 
 	wl1251_rx_status(wl, desc, &status, beacon);
 
-	wl1251_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
+	wl1251_de(DE_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
 		     beacon ? "beacon" : "");
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));

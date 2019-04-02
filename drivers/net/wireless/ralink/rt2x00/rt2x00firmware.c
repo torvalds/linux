@@ -42,7 +42,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	if (!fw_name) {
 		rt2x00_err(rt2x00dev,
 			   "Invalid firmware filename\n"
-			   "Please file bug report to %s\n", DRV_PROJECT);
+			   "Please file  report to %s\n", DRV_PROJECT);
 		return -EINVAL;
 	}
 

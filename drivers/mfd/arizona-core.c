@@ -83,7 +83,7 @@ int arizona_clk32k_disable(struct arizona *arizona)
 {
 	mutex_lock(&arizona->clk_lock);
 
-	BUG_ON(arizona->clk32k_ref <= 0);
+	_ON(arizona->clk32k_ref <= 0);
 
 	arizona->clk32k_ref--;
 
@@ -1010,7 +1010,7 @@ int arizona_dev_init(struct arizona *arizona)
 			return ret;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(arizona->mclk) != ARRAY_SIZE(mclk_name));
+	BUILD__ON(ARRAY_SIZE(arizona->mclk) != ARRAY_SIZE(mclk_name));
 	for (i = 0; i < ARRAY_SIZE(arizona->mclk); i++) {
 		arizona->mclk[i] = devm_clk_get(arizona->dev, mclk_name[i]);
 		if (IS_ERR(arizona->mclk[i])) {

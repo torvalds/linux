@@ -25,7 +25,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 
-#undef DEBUG_TLB
+#undef DE_TLB
 
 extern void build_tlb_refill_handler(void);
 
@@ -59,7 +59,7 @@ void local_flush_tlb_all(void)
 {
 	unsigned long flags;
 
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 	printk("[tlball]");
 #endif
 	local_irq_save(flags);
@@ -77,7 +77,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	if (cpu_context(cpu, mm) != 0) {
 		unsigned long size, flags;
 
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 		printk("[tlbrange<%lu,0x%08lx,0x%08lx>]",
 			cpu_context(cpu, mm) & asid_mask, start, end);
 #endif
@@ -115,7 +115,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long size, flags;
 
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 	printk("[tlbrange<%lu,0x%08lx,0x%08lx>]", start, end);
 #endif
 	local_irq_save(flags);
@@ -156,7 +156,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		unsigned long flags;
 		int oldpid, newpid, idx;
 
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 		printk("[tlbpage<%lu,0x%08lx>]", cpu_context(cpu, vma->vm_mm), page);
 #endif
 		newpid = cpu_context(cpu, vma->vm_mm) & asid_mask;
@@ -186,14 +186,14 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	int idx, pid;
 
 	/*
-	 * Handle debugger faulting in for debugee.
+	 * Handle deger faulting in for deee.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;
 
 	pid = read_c0_entryhi() & asid_mask;
 
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 	if ((pid != (cpu_context(cpu, vma->vm_mm) & asid_mask)) || (cpu_context(cpu, vma->vm_mm) == 0)) {
 		printk("update_mmu_cache: Wheee, bogus tlbpid mmpid=%lu tlbpid=%d\n",
 		       (cpu_context(cpu, vma->vm_mm)), pid);
@@ -229,7 +229,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 		unsigned long old_pagemask;
 		unsigned long w;
 
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 		printk("[tlbwired<entry lo0 %8x, hi %8x\n, pagemask %8x>]\n",
 		       entrylo0, entryhi, pagemask);
 #endif
@@ -253,7 +253,7 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 		local_irq_restore(flags);
 
 	} else if (wired < 8) {
-#ifdef DEBUG_TLB
+#ifdef DE_TLB
 		printk("[tlbwired<entry lo0 %8x, hi %8x\n>]\n",
 		       entrylo0, entryhi);
 #endif

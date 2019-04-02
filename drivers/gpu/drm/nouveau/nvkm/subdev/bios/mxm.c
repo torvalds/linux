@@ -32,7 +32,7 @@ mxm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr)
 	struct bit_entry x;
 
 	if (bit_entry(bios, 'x', &x)) {
-		nvkm_debug(subdev, "BIT 'x' table not present\n");
+		nvkm_de(subdev, "BIT 'x' table not present\n");
 		return 0x0000;
 	}
 

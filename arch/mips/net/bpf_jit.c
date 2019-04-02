@@ -674,7 +674,7 @@ static int build_body(struct jit_ctx *ctx)
 		u16 code;
 
 		inst = &(prog->insns[i]);
-		pr_debug("%s: code->0x%02x, jt->0x%x, jf->0x%x, k->0x%x\n",
+		pr_de("%s: code->0x%02x, jt->0x%x, jf->0x%x, k->0x%x\n",
 			 __func__, inst->code, inst->jt, inst->jf, inst->k);
 		k = inst->k;
 		code = bpf_anc_helper(inst);
@@ -689,7 +689,7 @@ static int build_body(struct jit_ctx *ctx)
 			emit_load_imm(r_A, k, ctx);
 			break;
 		case BPF_LD | BPF_W | BPF_LEN:
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
+			BUILD__ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
 			/* A <- len ==> lw r_A, offset(skb) */
 			ctx->flags |= SEEN_SKB | SEEN_A;
 			off = offsetof(struct sk_buff, len);
@@ -1093,7 +1093,7 @@ jmp_cmp:
 		case BPF_ANC | SKF_AD_PROTOCOL:
 			/* A = ntohs(skb->protocol */
 			ctx->flags |= SEEN_SKB | SEEN_OFF | SEEN_A;
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
+			BUILD__ON(FIELD_SIZEOF(struct sk_buff,
 						  protocol) != 2);
 			off = offsetof(struct sk_buff, protocol);
 			emit_half_load(r_A, r_skb, off, ctx);
@@ -1118,7 +1118,7 @@ jmp_cmp:
 		case BPF_ANC | SKF_AD_CPU:
 			ctx->flags |= SEEN_A | SEEN_OFF;
 			/* A = current_thread_info()->cpu */
-			BUILD_BUG_ON(FIELD_SIZEOF(struct thread_info,
+			BUILD__ON(FIELD_SIZEOF(struct thread_info,
 						  cpu) != 4);
 			off = offsetof(struct thread_info, cpu);
 			/* $28/gp points to the thread_info struct */
@@ -1137,30 +1137,30 @@ jmp_cmp:
 				   b_imm(prog->len, ctx), ctx);
 			emit_reg_move(r_ret, r_zero, ctx);
 			if (code == (BPF_ANC | SKF_AD_IFINDEX)) {
-				BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
+				BUILD__ON(FIELD_SIZEOF(struct net_device, ifindex) != 4);
 				off = offsetof(struct net_device, ifindex);
 				emit_load(r_A, r_s0, off, ctx);
 			} else { /* (code == (BPF_ANC | SKF_AD_HATYPE) */
-				BUILD_BUG_ON(FIELD_SIZEOF(struct net_device, type) != 2);
+				BUILD__ON(FIELD_SIZEOF(struct net_device, type) != 2);
 				off = offsetof(struct net_device, type);
 				emit_half_load_unsigned(r_A, r_s0, off, ctx);
 			}
 			break;
 		case BPF_ANC | SKF_AD_MARK:
 			ctx->flags |= SEEN_SKB | SEEN_A;
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
+			BUILD__ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
 			off = offsetof(struct sk_buff, mark);
 			emit_load(r_A, r_skb, off, ctx);
 			break;
 		case BPF_ANC | SKF_AD_RXHASH:
 			ctx->flags |= SEEN_SKB | SEEN_A;
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
+			BUILD__ON(FIELD_SIZEOF(struct sk_buff, hash) != 4);
 			off = offsetof(struct sk_buff, hash);
 			emit_load(r_A, r_skb, off, ctx);
 			break;
 		case BPF_ANC | SKF_AD_VLAN_TAG:
 			ctx->flags |= SEEN_SKB | SEEN_A;
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
+			BUILD__ON(FIELD_SIZEOF(struct sk_buff,
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit_half_load_unsigned(r_A, r_skb, off, ctx);
@@ -1186,15 +1186,15 @@ jmp_cmp:
 			break;
 		case BPF_ANC | SKF_AD_QUEUE:
 			ctx->flags |= SEEN_SKB | SEEN_A;
-			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
+			BUILD__ON(FIELD_SIZEOF(struct sk_buff,
 						  queue_mapping) != 2);
-			BUILD_BUG_ON(offsetof(struct sk_buff,
+			BUILD__ON(offsetof(struct sk_buff,
 					      queue_mapping) > 0xff);
 			off = offsetof(struct sk_buff, queue_mapping);
 			emit_half_load_unsigned(r_A, r_skb, off, ctx);
 			break;
 		default:
-			pr_debug("%s: Unhandled opcode: 0x%02x\n", __FILE__,
+			pr_de("%s: Unhandled opcode: 0x%02x\n", __FILE__,
 				 inst->code);
 			return -1;
 		}

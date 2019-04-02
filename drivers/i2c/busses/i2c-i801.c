@@ -1112,7 +1112,7 @@ static void dmi_check_onboard_device(u8 type, const char *name,
 }
 
 /* We use our own function to check for onboard devices instead of
-   dmi_find_device() as some buggy BIOS's have the devices we are interested
+   dmi_find_device() as some gy BIOS's have the devices we are interested
    in marked as disabled */
 static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 {

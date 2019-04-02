@@ -79,7 +79,7 @@ void irq_matrix_online(struct irq_matrix *m)
 {
 	struct cpumap *cm = this_cpu_ptr(m->maps);
 
-	BUG_ON(cm->online);
+	_ON(cm->online);
 
 	if (!cm->initialized) {
 		cm->available = m->alloc_size;
@@ -174,7 +174,7 @@ static unsigned int matrix_find_best_cpu_managed(struct irq_matrix *m,
  * @replace:	Replace an already allocated vector with a system
  *		vector at the same bit position.
  *
- * The BUG_ON()s below are on purpose. If this goes wrong in the
+ * The _ON()s below are on purpose. If this goes wrong in the
  * early boot process, then the chance to survive is about zero.
  * If this happens when the system is life, it's not much better.
  */
@@ -183,12 +183,12 @@ void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit,
 {
 	struct cpumap *cm = this_cpu_ptr(m->maps);
 
-	BUG_ON(bit > m->matrix_bits);
-	BUG_ON(m->online_maps > 1 || (m->online_maps && !replace));
+	_ON(bit > m->matrix_bits);
+	_ON(m->online_maps > 1 || (m->online_maps && !replace));
 
 	set_bit(bit, m->system_map);
 	if (replace) {
-		BUG_ON(!test_and_clear_bit(bit, cm->alloc_map));
+		_ON(!test_and_clear_bit(bit, cm->alloc_map));
 		cm->allocated--;
 		m->total_allocated--;
 	}
@@ -469,16 +469,16 @@ unsigned int irq_matrix_allocated(struct irq_matrix *m)
 	return cm->allocated;
 }
 
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+#ifdef CONFIG_GENERIC_IRQ_DEFS
 /**
- * irq_matrix_debug_show - Show detailed allocation information
+ * irq_matrix_de_show - Show detailed allocation information
  * @sf:		Pointer to the seq_file to print to
  * @m:		Pointer to the matrix allocator
  * @ind:	Indentation for the print format
  *
  * Note, this is a lockless snapshot.
  */
-void irq_matrix_debug_show(struct seq_file *sf, struct irq_matrix *m, int ind)
+void irq_matrix_de_show(struct seq_file *sf, struct irq_matrix *m, int ind)
 {
 	unsigned int nsys = bitmap_weight(m->system_map, m->matrix_bits);
 	int cpu;

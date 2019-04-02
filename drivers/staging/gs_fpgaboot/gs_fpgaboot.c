@@ -206,10 +206,10 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 	bitdata = (u8 *)fimage->fpgadata;
 	size = fimage->lendata;
 
-#ifdef DEBUG_FPGA
+#ifdef DE_FPGA
 	print_hex_dump_bytes("bitfile sample: ", DUMP_PREFIX_OFFSET,
 			     bitdata, 0x100);
-#endif /* DEBUG_FPGA */
+#endif /* DE_FPGA */
 	if (!xl_supported_prog_bus_width(bus_bytes)) {
 		pr_err("unsupported program bus width %d\n",
 		       bus_bytes);

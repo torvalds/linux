@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "tests.h"
 #include "dso.h"
-#include "debug.h"
+#include "de.h"
 
 static int test(const char *path, bool alloc_name, bool kmod,
 		int comp, const char *name)
@@ -15,7 +15,7 @@ static int test(const char *path, bool alloc_name, bool kmod,
 	TEST_ASSERT_VAL("kmod_path__parse",
 			!__kmod_path__parse(&m, path, alloc_name));
 
-	pr_debug("%s - alloc name %d, kmod %d, comp %d, name '%s'\n",
+	pr_de("%s - alloc name %d, kmod %d, comp %d, name '%s'\n",
 		 path, alloc_name, m.kmod, m.comp, m.name);
 
 	TEST_ASSERT_VAL("wrong kmod", m.kmod == kmod);
@@ -34,7 +34,7 @@ static int test_is_kernel_module(const char *path, int cpumode, bool expect)
 {
 	TEST_ASSERT_VAL("is_kernel_module",
 			(!!is_kernel_module(path, cpumode)) == (!!expect));
-	pr_debug("%s (cpumode: %d) - is_kernel_module: %s\n",
+	pr_de("%s (cpumode: %d) - is_kernel_module: %s\n",
 			path, cpumode, expect ? "true" : "false");
 	return 0;
 }

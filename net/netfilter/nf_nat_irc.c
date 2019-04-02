@@ -81,7 +81,7 @@ static unsigned int help(struct sk_buff *skb,
 	 */
 	/* AAA = "us", ie. where server normally talks to. */
 	snprintf(buffer, sizeof(buffer), "%u %u", ntohl(newaddr.ip), port);
-	pr_debug("inserting '%s' == %pI4, port %u\n",
+	pr_de("inserting '%s' == %pI4, port %u\n",
 		 buffer, &newaddr.ip, port);
 
 	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff, matchoff,
@@ -102,7 +102,7 @@ static void __exit nf_nat_irc_fini(void)
 
 static int __init nf_nat_irc_init(void)
 {
-	BUG_ON(nf_nat_irc_hook != NULL);
+	_ON(nf_nat_irc_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_irc_hook, help);
 	return 0;
 }

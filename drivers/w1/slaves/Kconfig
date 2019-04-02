@@ -38,7 +38,7 @@ config W1_SLAVE_DS2408_READBACK
 	  Enabling this will cause the driver to read back the values written
 	  to the chip's output register in order to detect errors.
 
-	  This is slower but useful when debugging chips and/or busses.
+	  This is slower but useful when deging chips and/or busses.
 
 config W1_SLAVE_DS2413
 	tristate "Dual Channel Addressable Switch 0x3a family support (DS2413)"

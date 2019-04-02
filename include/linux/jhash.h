@@ -20,7 +20,7 @@
  * Copyright (C) 2009-2010 Jozsef Kadlecsik (kadlec@blackhole.kfki.hu)
  *
  * I've modified Bob's hash to be useful in the Linux kernel, and
- * any bugs present are my fault.
+ * any s present are my fault.
  * Jozsef
  */
 #include <linux/bitops.h>

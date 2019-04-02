@@ -45,9 +45,9 @@ static wait_queue_head_t pca_wait;
 
 static void pca_isa_writebyte(void *pd, int reg, int val)
 {
-#ifdef DEBUG_IO
+#ifdef DE_IO
 	static char *names[] = { "T/O", "DAT", "ADR", "CON" };
-	printk(KERN_DEBUG "*** write %s at %#lx <= %#04x\n", names[reg],
+	printk(KERN_DE "*** write %s at %#lx <= %#04x\n", names[reg],
 	       base+reg, val);
 #endif
 	outb(val, base+reg);
@@ -56,10 +56,10 @@ static void pca_isa_writebyte(void *pd, int reg, int val)
 static int pca_isa_readbyte(void *pd, int reg)
 {
 	int res = inb(base+reg);
-#ifdef DEBUG_IO
+#ifdef DE_IO
 	{
 		static char *names[] = { "STA", "DAT", "ADR", "CON" };
-		printk(KERN_DEBUG "*** read  %s => %#04x\n", names[reg], res);
+		printk(KERN_DE "*** read  %s => %#04x\n", names[reg], res);
 	}
 #endif
 	return res;

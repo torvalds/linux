@@ -26,14 +26,14 @@
 #include <linux/netdevice.h>
 #include "hisax_isac.h"
 
-// debugging cruft
+// deging cruft
 
-#define __debug_variable debug
-#include "hisax_debug.h"
+#define __de_variable de
+#include "hisax_de.h"
 
-#ifdef CONFIG_HISAX_DEBUG
-static int debug = 1;
-module_param(debug, int, 0);
+#ifdef CONFIG_HISAX_DE
+static int de = 1;
+module_param(de, int, 0);
 
 static char *ISACVer[] = {
 	"2086/2186 V1.1",
@@ -428,7 +428,7 @@ static struct FsmNode L1FnList[] __initdata =
 	{ST_L1_F8,            EV_PH_DC,             l1_go_f3pdown},
 };
 
-static void l1m_debug(struct FsmInst *fi, char *fmt, ...)
+static void l1m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
 	char buf[256];
@@ -477,10 +477,10 @@ static void isac_fill_fifo(struct isac *isac)
 	unsigned char cmd;
 	u_char *ptr;
 
-	BUG_ON(!isac->tx_skb);
+	_ON(!isac->tx_skb);
 
 	count = isac->tx_skb->len;
-	BUG_ON(count <= 0);
+	_ON(count <= 0);
 
 	DBG(DBG_IRQ, "count %d", count);
 
@@ -759,13 +759,13 @@ void isac_init(struct isac *isac)
 	isac->tx_skb = NULL;
 	isac->l1m.fsm = &l1fsm;
 	isac->l1m.state = ST_L1_RESET;
-#ifdef CONFIG_HISAX_DEBUG
-	isac->l1m.debug = 1;
+#ifdef CONFIG_HISAX_DE
+	isac->l1m.de = 1;
 #else
-	isac->l1m.debug = 0;
+	isac->l1m.de = 0;
 #endif
 	isac->l1m.userdata = isac;
-	isac->l1m.printdebug = l1m_debug;
+	isac->l1m.printde = l1m_de;
 	FsmInitTimer(&isac->l1m, &isac->timer);
 }
 
@@ -858,7 +858,7 @@ void isac_d_l2l1(struct hisax_if *hisax_d_if, int pr, void *arg)
 			dev_kfree_skb(skb);
 			break;
 		}
-		BUG_ON(isac->tx_skb);
+		_ON(isac->tx_skb);
 
 		isac->tx_skb = skb;
 		isac_fill_fifo(isac);

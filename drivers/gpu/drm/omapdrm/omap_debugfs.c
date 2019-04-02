@@ -23,7 +23,7 @@
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int gem_show(struct seq_file *m, void *arg)
 {
@@ -76,7 +76,7 @@ static int fb_show(struct seq_file *m, void *arg)
 #endif
 
 /* list of debufs files that are applicable to all devices */
-static struct drm_info_list omap_debugfs_list[] = {
+static struct drm_info_list omap_defs_list[] = {
 	{"gem", gem_show, 0},
 	{"mm", mm_show, 0},
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -84,32 +84,32 @@ static struct drm_info_list omap_debugfs_list[] = {
 #endif
 };
 
-/* list of debugfs files that are specific to devices with dmm/tiler */
-static struct drm_info_list omap_dmm_debugfs_list[] = {
+/* list of defs files that are specific to devices with dmm/tiler */
+static struct drm_info_list omap_dmm_defs_list[] = {
 	{"tiler_map", tiler_map_show, 0},
 };
 
-int omap_debugfs_init(struct drm_minor *minor)
+int omap_defs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	int ret;
 
-	ret = drm_debugfs_create_files(omap_debugfs_list,
-			ARRAY_SIZE(omap_debugfs_list),
-			minor->debugfs_root, minor);
+	ret = drm_defs_create_files(omap_defs_list,
+			ARRAY_SIZE(omap_defs_list),
+			minor->defs_root, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install omap_debugfs_list\n");
+		dev_err(dev->dev, "could not install omap_defs_list\n");
 		return ret;
 	}
 
 	if (dmm_is_available())
-		ret = drm_debugfs_create_files(omap_dmm_debugfs_list,
-				ARRAY_SIZE(omap_dmm_debugfs_list),
-				minor->debugfs_root, minor);
+		ret = drm_defs_create_files(omap_dmm_defs_list,
+				ARRAY_SIZE(omap_dmm_defs_list),
+				minor->defs_root, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install omap_dmm_debugfs_list\n");
+		dev_err(dev->dev, "could not install omap_dmm_defs_list\n");
 		return ret;
 	}
 

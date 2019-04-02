@@ -65,13 +65,13 @@ acpi_ns_search_one_scope(u32 target_name,
 
 	ACPI_FUNCTION_TRACE(ns_search_one_scope);
 
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 	if (ACPI_LV_NAMES & acpi_dbg_level) {
 		char *scope_name;
 
 		scope_name = acpi_ns_get_normalized_pathname(parent_node, TRUE);
 		if (scope_name) {
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Searching %s (%p) For [%4.4s] (%s)\n",
 					  scope_name, parent_node,
 					  ACPI_CAST_PTR(char, &target_name),
@@ -104,7 +104,7 @@ acpi_ns_search_one_scope(u32 target_name,
 
 			/* Found matching entry */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Name [%4.4s] (%s) %p found in scope [%4.4s] %p\n",
 					  ACPI_CAST_PTR(char, &target_name),
 					  acpi_ut_get_type_name(node->type),
@@ -123,7 +123,7 @@ acpi_ns_search_one_scope(u32 target_name,
 
 	/* Searched entire namespace level, not found */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_NAMES,
 			  "Name [%4.4s] (%s) not found in search in scope [%4.4s] "
 			  "%p first child %p\n",
 			  ACPI_CAST_PTR(char, &target_name),
@@ -177,13 +177,13 @@ acpi_ns_search_parent_tree(u32 target_name,
 	 * we won't be searching the parent tree.
 	 */
 	if (!parent_node) {
-		ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
+		ACPI_DE_PRINT((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
 				  ACPI_CAST_PTR(char, &target_name)));
 		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
 
 	if (acpi_ns_local(type)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+		ACPI_DE_PRINT((ACPI_DB_NAMES,
 				  "[%4.4s] type [%s] must be local to this scope (no parent search)\n",
 				  ACPI_CAST_PTR(char, &target_name),
 				  acpi_ut_get_type_name(type)));
@@ -192,7 +192,7 @@ acpi_ns_search_parent_tree(u32 target_name,
 
 	/* Search the parent tree */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_NAMES,
 			  "Searching parent [%4.4s] for [%4.4s]\n",
 			  acpi_ut_get_node_name(parent_node),
 			  ACPI_CAST_PTR(char, &target_name)));
@@ -299,7 +299,7 @@ acpi_ns_search_and_enter(u32 target_name,
 			 * look like a new node that is owned by the override table.
 			 */
 			if (flags & ACPI_NS_OVERRIDE_IF_FOUND) {
-				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+				ACPI_DE_PRINT((ACPI_DB_NAMES,
 						  "Namespace override: %4.4s pass %u type %X Owner %X\n",
 						  ACPI_CAST_PTR(char,
 								&target_name),
@@ -361,7 +361,7 @@ acpi_ns_search_and_enter(u32 target_name,
 	/* In execute mode, just search, never add names. Exit now */
 
 	if (interpreter_mode == ACPI_IMODE_EXECUTE) {
-		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+		ACPI_DE_PRINT((ACPI_DB_NAMES,
 				  "%4.4s Not found in %p [Not adding]\n",
 				  ACPI_CAST_PTR(char, &target_name), node));
 

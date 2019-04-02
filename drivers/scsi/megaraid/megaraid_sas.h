@@ -305,7 +305,7 @@ enum MFI_STAT {
 };
 
 enum mfi_evt_class {
-	MFI_EVT_CLASS_DEBUG =		-2,
+	MFI_EVT_CLASS_DE =		-2,
 	MFI_EVT_CLASS_PROGRESS =	-1,
 	MFI_EVT_CLASS_INFO =		0,
 	MFI_EVT_CLASS_WARNING =		1,
@@ -340,7 +340,7 @@ enum _MR_CRASH_BUF_STATUS {
 
 enum MR_EVT_CLASS {
 
-	MR_EVT_CLASS_DEBUG = -2,
+	MR_EVT_CLASS_DE = -2,
 	MR_EVT_CLASS_PROGRESS = -1,
 	MR_EVT_CLASS_INFO = 0,
 	MR_EVT_CLASS_WARNING = 1,
@@ -1351,7 +1351,7 @@ struct megasas_ctrl_info {
 		u32     supportHOQRebuild:1;
 		u32     supportForceTo512e:1;
 		u32     supportNVCacheErase:1;
-		u32     supportDebugQueue:1;
+		u32     supportDeQueue:1;
 		u32     supportSwZone:1;
 		u32     supportCrashDump:1;
 		u32     supportMaxExtLDs:1;
@@ -1367,7 +1367,7 @@ struct megasas_ctrl_info {
 		u32	supportMaxExtLDs:1;
 		u32	supportCrashDump:1;
 		u32     supportSwZone:1;
-		u32     supportDebugQueue:1;
+		u32     supportDeQueue:1;
 		u32     supportNVCacheErase:1;
 		u32     supportForceTo512e:1;
 		u32     supportHOQRebuild:1;
@@ -1410,7 +1410,7 @@ struct megasas_ctrl_info {
 	#if defined(__BIG_ENDIAN_BITFIELD)
 		u16 reserved:2;
 		u16 support_nvme_passthru:1;
-		u16 support_pl_debug_info:1;
+		u16 support_pl_de_info:1;
 		u16 support_flash_comp_info:1;
 		u16 support_host_info:1;
 		u16 support_dual_fw_update:1;
@@ -1447,8 +1447,8 @@ struct megasas_ctrl_info {
 		/* FW supports MR_DCMD_CTRL_HOST_INFO_SET/GET */
 		u16 support_flash_comp_info:1;
 		/* FW supports MR_DCMD_CTRL_FLASH_COMP_INFO_GET */
-		u16 support_pl_debug_info:1;
-		/* FW supports retrieval of PL debug information through apps */
+		u16 support_pl_de_info:1;
+		/* FW supports retrieval of PL de information through apps */
 		u16 support_nvme_passthru:1;
 		/* FW supports NVMe passthru commands */
 		u16 reserved:2;
@@ -2427,10 +2427,10 @@ struct MR_CTRL_HB_HOST_MEM {
 	struct {
 		u32 fwCounter;	/* Firmware heart beat counter */
 		struct {
-			u32 debugmode:1; /* 1=Firmware is in debug mode.
+			u32 demode:1; /* 1=Firmware is in de mode.
 					    Heart beat will not be updated. */
 			u32 reserved:31;
-		} debug;
+		} de;
 		u32 reserved_fw[6];
 		u32 driverCounter; /* Driver heart beat counter.  0x20 */
 		u32 reserved_driver[7];

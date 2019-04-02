@@ -47,7 +47,7 @@ struct jitheader {
 enum jit_record_type {
 	JIT_CODE_LOAD		= 0,
         JIT_CODE_MOVE           = 1,
-	JIT_CODE_DEBUG_INFO	= 2,
+	JIT_CODE_DE_INFO	= 2,
 	JIT_CODE_CLOSE		= 3,
 	JIT_CODE_UNWINDING_INFO	= 4,
 
@@ -88,19 +88,19 @@ struct jr_code_move {
 	uint64_t code_index;
 };
 
-struct debug_entry {
+struct de_entry {
 	uint64_t addr;
 	int lineno;	    /* source line number starting at 1 */
 	int discrim;	    /* column discriminator, 0 is default */
 	const char name[0]; /* null terminated filename, \xff\0 if same as previous entry */
 };
 
-struct jr_code_debug_info {
+struct jr_code_de_info {
 	struct jr_prefix p;
 
 	uint64_t code_addr;
 	uint64_t nr_entry;
-	struct debug_entry entries[0];
+	struct de_entry entries[0];
 };
 
 struct jr_code_unwinding_info {
@@ -113,7 +113,7 @@ struct jr_code_unwinding_info {
 };
 
 union jr_entry {
-        struct jr_code_debug_info info;
+        struct jr_code_de_info info;
         struct jr_code_close close;
         struct jr_code_load load;
         struct jr_code_move move;
@@ -121,8 +121,8 @@ union jr_entry {
         struct jr_code_unwinding_info unwinding;
 };
 
-static inline struct debug_entry *
-debug_entry_next(struct debug_entry *ent)
+static inline struct de_entry *
+de_entry_next(struct de_entry *ent)
 {
 	void *a = ent + 1;
 	size_t l = strlen(ent->name) + 1;
@@ -130,7 +130,7 @@ debug_entry_next(struct debug_entry *ent)
 }
 
 static inline char *
-debug_entry_file(struct debug_entry *ent)
+de_entry_file(struct de_entry *ent)
 {
 	void *a = ent + 1;
 	return a;

@@ -38,7 +38,7 @@
  *					exceeding 576 bytes (RFC 1812).
  *	Willy Konynenberg	:	Transparent proxying support.
  *		Keith Owens	:	RFC1191 correction for 4.2BSD based
- *					path MTU bug.
+ *					path MTU .
  *		Thomas Quinot	:	ICMP Dest Unreach codes up to 15 are
  *					valid (RFC 1812).
  *		Andi Kleen	:	Check all packet lengths properly
@@ -48,7 +48,7 @@
  *					into the dest entry and use a token
  *					bucket filter (thanks to ANK). Make
  *					the rates sysctl configurable.
- *		Yu Tianli	:	Fixed two ugly bugs in icmp_send
+ *		Yu Tianli	:	Fixed two ugly s in icmp_send
  *					- IP option length was accounted wrongly
  *					- ICMP header length was not accounted
  *					  at all.
@@ -965,7 +965,7 @@ static bool icmp_timestamp(struct sk_buff *skb)
 	icmp_param.data.times[1] = inet_current_timestamp();
 	icmp_param.data.times[2] = icmp_param.data.times[1];
 
-	BUG_ON(skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4));
+	_ON(skb_copy_bits(skb, 0, &icmp_param.data.times[0], 4));
 
 	icmp_param.data.icmph	   = *icmp_hdr(skb);
 	icmp_param.data.icmph.type = ICMP_TIMESTAMPREPLY;

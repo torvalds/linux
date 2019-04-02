@@ -1103,7 +1103,7 @@ restart:
 			 * fc_seq_set_resp() and that func preempts cpu using
 			 * schedule. May be schedule and related code should be
 			 * removed instead of unlocking here to avoid scheduling
-			 * while atomic bug.
+			 * while atomic .
 			 */
 			spin_unlock_bh(&fsp->scsi_pkt_lock);
 
@@ -1793,7 +1793,7 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 
 	fh = fc_frame_header_get(fp);
 	/*
-	 * BUG? fc_fcp_srr_error calls fc_exch_done which would release
+	 * ? fc_fcp_srr_error calls fc_exch_done which would release
 	 * the ep. But if fc_fcp_srr_error had got -FC_EX_TIMEOUT,
 	 * then fc_exch_timeout would be sending an abort. The fc_exch_done
 	 * call by fc_fcp_srr_error would prevent fc_exch.c from seeing

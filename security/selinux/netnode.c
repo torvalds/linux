@@ -124,7 +124,7 @@ static struct sel_netnode *sel_netnode_find(const void *addr, u16 family)
 		idx = sel_netnode_hashfn_ipv6(addr);
 		break;
 	default:
-		BUG();
+		();
 		return NULL;
 	}
 
@@ -165,7 +165,7 @@ static void sel_netnode_insert(struct sel_netnode *node)
 		idx = sel_netnode_hashfn_ipv6(&node->nsec.addr.ipv6);
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -225,7 +225,7 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 		new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
 		break;
 	default:
-		BUG();
+		();
 		ret = -EINVAL;
 	}
 	if (ret != 0)

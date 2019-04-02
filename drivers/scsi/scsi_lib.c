@@ -35,7 +35,7 @@
 
 #include <trace/events/scsi.h>
 
-#include "scsi_debugfs.h"
+#include "scsi_defs.h"
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
@@ -1000,7 +1000,7 @@ static blk_status_t scsi_init_sgtable(struct request *req,
 	 * each segment.
 	 */
 	count = blk_rq_map_sg(req->q, req, sdb->table.sgl);
-	BUG_ON(count > sdb->table.nents);
+	_ON(count > sdb->table.nents);
 	sdb->table.nents = count;
 	sdb->length = blk_rq_payload_bytes(req);
 	return BLK_STS_OK;
@@ -1053,8 +1053,8 @@ blk_status_t scsi_init_io(struct scsi_cmnd *cmd)
 
 		count = blk_rq_map_integrity_sg(rq->q, rq->bio,
 						prot_sdb->table.sgl);
-		BUG_ON(count > ivecs);
-		BUG_ON(count > queue_max_integrity_segments(rq->q));
+		_ON(count > ivecs);
+		_ON(count > queue_max_integrity_segments(rq->q));
 
 		cmd->prot_sdb = prot_sdb;
 		cmd->prot_sdb->table.nents = count;
@@ -1111,7 +1111,7 @@ void scsi_del_cmd_from_list(struct scsi_cmnd *cmd)
 
 	if (shost->use_cmd_list) {
 		spin_lock_irqsave(&sdev->list_lock, flags);
-		BUG_ON(list_empty(&cmd->list));
+		_ON(list_empty(&cmd->list));
 		list_del_init(&cmd->list);
 		spin_unlock_irqrestore(&sdev->list_lock, flags);
 	}
@@ -1165,7 +1165,7 @@ static blk_status_t scsi_setup_scsi_cmnd(struct scsi_device *sdev,
 		if (unlikely(ret != BLK_STS_OK))
 			return ret;
 	} else {
-		BUG_ON(blk_rq_bytes(req));
+		_ON(blk_rq_bytes(req));
 
 		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 	}
@@ -1783,7 +1783,7 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 		shost->sg_prot_tablesize =
 			min_not_zero(shost->sg_prot_tablesize,
 				     (unsigned short)SCSI_MAX_PROT_SG_SEGMENTS);
-		BUG_ON(shost->sg_prot_tablesize < shost->sg_tablesize);
+		_ON(shost->sg_prot_tablesize < shost->sg_tablesize);
 		blk_queue_max_integrity_segments(q, shost->sg_prot_tablesize);
 	}
 
@@ -1813,7 +1813,7 @@ static const struct blk_mq_ops scsi_mq_ops = {
 	.queue_rq	= scsi_queue_rq,
 	.complete	= scsi_softirq_done,
 	.timeout	= scsi_timeout,
-#ifdef CONFIG_BLK_DEBUG_FS
+#ifdef CONFIG_BLK_DE_FS
 	.show_rq	= scsi_show_rq,
 #endif
 	.init_request	= scsi_mq_init_request,

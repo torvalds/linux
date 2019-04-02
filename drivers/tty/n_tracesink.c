@@ -24,7 +24,7 @@
 #include <linux/tty_ldisc.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include "n_tracesink.h"
 
 /*
@@ -145,10 +145,10 @@ static ssize_t n_tracesink_write(struct tty_struct *tty, struct file *file,
 
 /**
  * n_tracesink_datadrain() - Kernel API function used to route
- *			     trace debugging data to user-defined
+ *			     trace deging data to user-defined
  *			     port like USB.
  *
- * @buf:   Trace debuging data buffer to write to tty target
+ * @buf:   Trace deing data buffer to write to tty target
  *         port. Null value will return with no write occurring.
  * @count: Size of buf. Value of 0 or a negative number will
  *         return with no write occuring.

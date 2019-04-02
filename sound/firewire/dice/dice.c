@@ -99,13 +99,13 @@ static void dice_card_strings(struct snd_dice *dice)
 	strcpy(card->driver, "DICE");
 
 	strcpy(card->shortname, "DICE");
-	BUILD_BUG_ON(NICK_NAME_SIZE < sizeof(card->shortname));
+	BUILD__ON(NICK_NAME_SIZE < sizeof(card->shortname));
 	err = snd_dice_transaction_read_global(dice, GLOBAL_NICK_NAME,
 					       card->shortname,
 					       sizeof(card->shortname));
 	if (err >= 0) {
 		/* DICE strings are returned in "always-wrong" endianness */
-		BUILD_BUG_ON(sizeof(card->shortname) % 4 != 0);
+		BUILD__ON(sizeof(card->shortname) % 4 != 0);
 		for (i = 0; i < sizeof(card->shortname); i += 4)
 			swab32s((u32 *)&card->shortname[i]);
 		card->shortname[sizeof(card->shortname) - 1] = '\0';

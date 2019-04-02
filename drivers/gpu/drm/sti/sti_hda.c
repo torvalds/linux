@@ -358,20 +358,20 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list hda_debugfs_files[] = {
+static struct drm_info_list hda_defs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
 
-static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
+static int hda_defs_init(struct sti_hda *hda, struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(hda_debugfs_files); i++)
-		hda_debugfs_files[i].data = hda;
+	for (i = 0; i < ARRAY_SIZE(hda_defs_files); i++)
+		hda_defs_files[i].data = hda;
 
-	return drm_debugfs_create_files(hda_debugfs_files,
-					ARRAY_SIZE(hda_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(hda_defs_files,
+					ARRAY_SIZE(hda_defs_files),
+					minor->defs_root, minor);
 }
 
 /**
@@ -385,7 +385,7 @@ static void sti_hda_configure_awg(struct sti_hda *hda, u32 *awg_instr, int nb)
 {
 	unsigned int i;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	for (i = 0; i < nb; i++)
 		hda_write(hda, awg_instr[i], HDA_SYNC_AWGI + i * 4);
@@ -401,7 +401,7 @@ static void sti_hda_disable(struct drm_bridge *bridge)
 	if (!hda->enabled)
 		return;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Disable HD DAC and AWG */
 	val = hda_read(hda, HDA_ANA_CFG);
@@ -426,7 +426,7 @@ static void sti_hda_pre_enable(struct drm_bridge *bridge)
 	u32 *coef_y, *coef_c;
 	u32 filter_mode;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (hda->enabled)
 		return;
@@ -469,7 +469,7 @@ static void sti_hda_pre_enable(struct drm_bridge *bridge)
 		DRM_ERROR("Undefined resolution\n");
 		return;
 	}
-	DRM_DEBUG_DRIVER("Using HDA mode #%d\n", mode_idx);
+	DRM_DE_DRIVER("Using HDA mode #%d\n", mode_idx);
 
 	/* Enable HD Video DACs */
 	hda_enable_hd_dacs(hda, true);
@@ -516,7 +516,7 @@ static void sti_hda_set_mode(struct drm_bridge *bridge,
 	int hddac_rate;
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	memcpy(&hda->mode, mode, sizeof(struct drm_display_mode));
 
@@ -573,7 +573,7 @@ static int sti_hda_connector_get_modes(struct drm_connector *connector)
 		= to_sti_hda_connector(connector);
 	struct sti_hda *hda = hda_connector->hda;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	for (i = 0; i < ARRAY_SIZE(hda_supported_modes); i++) {
 		struct drm_display_mode *mode =
@@ -613,11 +613,11 @@ static int sti_hda_connector_mode_valid(struct drm_connector *connector,
 	} else {
 		result = clk_round_rate(hda->clk_pix, target);
 
-		DRM_DEBUG_DRIVER("target rate = %d => available rate = %d\n",
+		DRM_DE_DRIVER("target rate = %d => available rate = %d\n",
 				 target, result);
 
 		if ((result < target_min) || (result > target_max)) {
-			DRM_DEBUG_DRIVER("hda pixclk=%d not supported\n",
+			DRM_DE_DRIVER("hda pixclk=%d not supported\n",
 					 target);
 			return MODE_BAD;
 		}
@@ -638,8 +638,8 @@ static int sti_hda_late_register(struct drm_connector *connector)
 		= to_sti_hda_connector(connector);
 	struct sti_hda *hda = hda_connector->hda;
 
-	if (hda_debugfs_init(hda, hda->drm_dev->primary)) {
-		DRM_ERROR("HDA debugfs setup failed\n");
+	if (hda_defs_init(hda, hda->drm_dev->primary)) {
+		DRM_ERROR("HDA defs setup failed\n");
 		return -EINVAL;
 	}
 
@@ -767,7 +767,7 @@ static int sti_hda_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	} else {
 		/* If no existing video-dacs-ctrl resource continue the probe */
-		DRM_DEBUG_DRIVER("No video-dacs-ctrl resource\n");
+		DRM_DE_DRIVER("No video-dacs-ctrl resource\n");
 		hda->video_dacs_ctrl = NULL;
 	}
 

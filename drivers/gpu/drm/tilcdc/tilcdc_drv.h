@@ -102,9 +102,9 @@ struct tilcdc_module;
 struct tilcdc_module_ops {
 	/* create appropriate encoders/connectors: */
 	int (*modeset_init)(struct tilcdc_module *mod, struct drm_device *dev);
-#ifdef CONFIG_DEBUG_FS
-	/* create debugfs nodes (can be NULL): */
-	int (*debugfs_init)(struct tilcdc_module *mod, struct drm_minor *minor);
+#ifdef CONFIG_DE_FS
+	/* create defs nodes (can be NULL): */
+	int (*defs_init)(struct tilcdc_module *mod, struct drm_minor *minor);
 #endif
 };
 
@@ -158,7 +158,7 @@ struct tilcdc_panel_info {
 	uint32_t fifo_th;
 };
 
-#define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
+#define DBG(fmt, ...) DRM_DE(fmt"\n", ##__VA_ARGS__)
 
 int tilcdc_crtc_create(struct drm_device *dev);
 irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc);

@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _ASM_ARC_KDEBUG_H
-#define _ASM_ARC_KDEBUG_H
+#ifndef _ASM_ARC_KDE_H
+#define _ASM_ARC_KDE_H
 
 enum die_val {
 	DIE_UNUSED,

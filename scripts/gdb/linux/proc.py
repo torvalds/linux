@@ -1,5 +1,5 @@
 #
-# gdb helper commands and functions for Linux kernel debugging
+# gdb helper commands and functions for Linux kernel deging
 #
 #  Kernel proc information reader
 #

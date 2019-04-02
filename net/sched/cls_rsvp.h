@@ -245,7 +245,7 @@ static void rsvp_replace(struct tcf_proto *tp, struct rsvp_filter *n, u32 h)
 	/* Something went wrong if we are trying to replace a non-existant
 	 * node. Mind as well halt instead of silently failing.
 	 */
-	BUG_ON(1);
+	_ON(1);
 }
 
 static void *rsvp_get(struct tcf_proto *tp, u32 handle)

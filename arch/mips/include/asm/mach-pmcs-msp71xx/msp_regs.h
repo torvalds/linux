@@ -631,7 +631,7 @@
 
 /* Indirect memory controller registers */
 #define DDRC_CFG(n)		(n)
-#define DDRC_DEBUG(n)		(0x04 + n)
+#define DDRC_DE(n)		(0x04 + n)
 #define DDRC_CTL(n)		(0x40 + n)
 
 /* Macro to perform DDRC indirect write */

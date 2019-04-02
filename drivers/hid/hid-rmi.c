@@ -42,7 +42,7 @@
 
 /*
  * retrieve the ctrl registers
- * the ctrl register has a size of 20 but a fw bug split it into 16 + 4,
+ * the ctrl register has a size of 20 but a fw  split it into 16 + 4,
  * and there is no way to know if the first 20 bytes are here or not.
  * We use only the first 12 bytes, so get only them.
  */

@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <linux/genhd.h>
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(sync_start, "On by Default: Driver load will not complete "
 
 static DEFINE_IDA(rsxx_disk_ida);
 
-/* --------------------Debugfs Setup ------------------- */
+/* --------------------Defs Setup ------------------- */
 
 static int rsxx_attr_pci_regs_show(struct seq_file *m, void *p)
 {
@@ -101,22 +101,22 @@ static int rsxx_attr_pci_regs_show(struct seq_file *m, void *p)
 					ioread32(card->regmap + INTR_COAL));
 	seq_printf(m, "HW_ERROR		0x%08x\n",
 					ioread32(card->regmap + HW_ERROR));
-	seq_printf(m, "DEBUG0		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG0));
-	seq_printf(m, "DEBUG1		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG1));
-	seq_printf(m, "DEBUG2		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG2));
-	seq_printf(m, "DEBUG3		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG3));
-	seq_printf(m, "DEBUG4		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG4));
-	seq_printf(m, "DEBUG5		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG5));
-	seq_printf(m, "DEBUG6		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG6));
-	seq_printf(m, "DEBUG7		0x%08x\n",
-					ioread32(card->regmap + PCI_DEBUG7));
+	seq_printf(m, "DE0		0x%08x\n",
+					ioread32(card->regmap + PCI_DE0));
+	seq_printf(m, "DE1		0x%08x\n",
+					ioread32(card->regmap + PCI_DE1));
+	seq_printf(m, "DE2		0x%08x\n",
+					ioread32(card->regmap + PCI_DE2));
+	seq_printf(m, "DE3		0x%08x\n",
+					ioread32(card->regmap + PCI_DE3));
+	seq_printf(m, "DE4		0x%08x\n",
+					ioread32(card->regmap + PCI_DE4));
+	seq_printf(m, "DE5		0x%08x\n",
+					ioread32(card->regmap + PCI_DE5));
+	seq_printf(m, "DE6		0x%08x\n",
+					ioread32(card->regmap + PCI_DE6));
+	seq_printf(m, "DE7		0x%08x\n",
+					ioread32(card->regmap + PCI_DE7));
 	seq_printf(m, "RECONFIG		0x%08x\n",
 					ioread32(card->regmap + PCI_RECONFIG));
 
@@ -214,13 +214,13 @@ static ssize_t rsxx_cram_write(struct file *fp, const char __user *ubuf,
 	return cnt;
 }
 
-static const struct file_operations debugfs_cram_fops = {
+static const struct file_operations defs_cram_fops = {
 	.owner		= THIS_MODULE,
 	.read		= rsxx_cram_read,
 	.write		= rsxx_cram_write,
 };
 
-static const struct file_operations debugfs_stats_fops = {
+static const struct file_operations defs_stats_fops = {
 	.owner		= THIS_MODULE,
 	.open		= rsxx_attr_stats_open,
 	.read		= seq_read,
@@ -228,7 +228,7 @@ static const struct file_operations debugfs_stats_fops = {
 	.release	= single_release,
 };
 
-static const struct file_operations debugfs_pci_regs_fops = {
+static const struct file_operations defs_pci_regs_fops = {
 	.owner		= THIS_MODULE,
 	.open		= rsxx_attr_pci_regs_open,
 	.read		= seq_read,
@@ -236,43 +236,43 @@ static const struct file_operations debugfs_pci_regs_fops = {
 	.release	= single_release,
 };
 
-static void rsxx_debugfs_dev_new(struct rsxx_cardinfo *card)
+static void rsxx_defs_dev_new(struct rsxx_cardinfo *card)
 {
-	struct dentry *debugfs_stats;
-	struct dentry *debugfs_pci_regs;
-	struct dentry *debugfs_cram;
+	struct dentry *defs_stats;
+	struct dentry *defs_pci_regs;
+	struct dentry *defs_cram;
 
-	card->debugfs_dir = debugfs_create_dir(card->gendisk->disk_name, NULL);
-	if (IS_ERR_OR_NULL(card->debugfs_dir))
-		goto failed_debugfs_dir;
+	card->defs_dir = defs_create_dir(card->gendisk->disk_name, NULL);
+	if (IS_ERR_OR_NULL(card->defs_dir))
+		goto failed_defs_dir;
 
-	debugfs_stats = debugfs_create_file("stats", 0444,
-					    card->debugfs_dir, card,
-					    &debugfs_stats_fops);
-	if (IS_ERR_OR_NULL(debugfs_stats))
-		goto failed_debugfs_stats;
+	defs_stats = defs_create_file("stats", 0444,
+					    card->defs_dir, card,
+					    &defs_stats_fops);
+	if (IS_ERR_OR_NULL(defs_stats))
+		goto failed_defs_stats;
 
-	debugfs_pci_regs = debugfs_create_file("pci_regs", 0444,
-					       card->debugfs_dir, card,
-					       &debugfs_pci_regs_fops);
-	if (IS_ERR_OR_NULL(debugfs_pci_regs))
-		goto failed_debugfs_pci_regs;
+	defs_pci_regs = defs_create_file("pci_regs", 0444,
+					       card->defs_dir, card,
+					       &defs_pci_regs_fops);
+	if (IS_ERR_OR_NULL(defs_pci_regs))
+		goto failed_defs_pci_regs;
 
-	debugfs_cram = debugfs_create_file("cram", 0644,
-					   card->debugfs_dir, card,
-					   &debugfs_cram_fops);
-	if (IS_ERR_OR_NULL(debugfs_cram))
-		goto failed_debugfs_cram;
+	defs_cram = defs_create_file("cram", 0644,
+					   card->defs_dir, card,
+					   &defs_cram_fops);
+	if (IS_ERR_OR_NULL(defs_cram))
+		goto failed_defs_cram;
 
 	return;
-failed_debugfs_cram:
-	debugfs_remove(debugfs_pci_regs);
-failed_debugfs_pci_regs:
-	debugfs_remove(debugfs_stats);
-failed_debugfs_stats:
-	debugfs_remove(card->debugfs_dir);
-failed_debugfs_dir:
-	card->debugfs_dir = NULL;
+failed_defs_cram:
+	defs_remove(defs_pci_regs);
+failed_defs_pci_regs:
+	defs_remove(defs_stats);
+failed_defs_stats:
+	defs_remove(card->defs_dir);
+failed_defs_dir:
+	card->defs_dir = NULL;
 }
 
 /*----------------- Interrupt Control & Handling -------------------*/
@@ -946,8 +946,8 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 
 	rsxx_attach_dev(card);
 
-	/************* Setup Debugfs *************/
-	rsxx_debugfs_dev_new(card);
+	/************* Setup Defs *************/
+	rsxx_defs_dev_new(card);
 
 	return 0;
 
@@ -1024,7 +1024,7 @@ static void rsxx_pci_remove(struct pci_dev *dev)
 	/* Prevent work_structs from re-queuing themselves. */
 	card->halt = 1;
 
-	debugfs_remove_recursive(card->debugfs_dir);
+	defs_remove_recursive(card->defs_dir);
 
 	free_irq(dev->irq, card);
 

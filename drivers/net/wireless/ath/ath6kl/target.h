@@ -166,7 +166,7 @@ struct host_interest {
 	/* Pointer to register dump area, valid after Target crash. */
 	u32 hi_failure_state;                          /* 0x04 */
 
-	/* Pointer to debug logging header */
+	/* Pointer to de logging header */
 	u32 hi_dbglog_hdr;                             /* 0x08 */
 
 	u32 hi_unused1;                       /* 0x0c */

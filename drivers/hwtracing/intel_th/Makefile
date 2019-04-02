@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_INTEL_TH)		+= intel_th.o
 intel_th-y			:= core.o
-intel_th-$(CONFIG_INTEL_TH_DEBUG) += debug.o
+intel_th-$(CONFIG_INTEL_TH_DE) += de.o
 
 obj-$(CONFIG_INTEL_TH_PCI)	+= intel_th_pci.o
 intel_th_pci-y			:= pci.o

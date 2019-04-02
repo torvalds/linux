@@ -56,16 +56,16 @@
 #define ZR364XX_READ_IDLE	0
 #define ZR364XX_READ_FRAME	1
 
-/* Debug macro */
+/* De macro */
 #define DBG(fmt, args...) \
 	do { \
-		if (debug) { \
+		if (de) { \
 			printk(KERN_INFO KBUILD_MODNAME " " fmt, ##args); \
 		} \
 	} while (0)
 
-/*#define FULL_DEBUG 1*/
-#ifdef FULL_DEBUG
+/*#define FULL_DE 1*/
+#ifdef FULL_DE
 #define _DBG DBG
 #else
 #define _DBG(fmt, args...)
@@ -80,13 +80,13 @@
 
 
 /* Module parameters */
-static int debug;
+static int de;
 static int mode;
 
 
 /* Module parameters interface */
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level");
 module_param(mode, int, 0644);
 MODULE_PARM_DESC(mode, "0 = 320x240, 1 = 160x120, 2 = 640x480");
 
@@ -371,7 +371,7 @@ static void free_buffer(struct videobuf_queue *vq, struct zr364xx_buffer *buf)
 {
 	_DBG("%s\n", __func__);
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -510,7 +510,7 @@ static void zr364xx_fillbuff(struct zr364xx_camera *cam,
 			memcpy(vbuf, tmpbuf, buf->vb.size);
 			break;
 		default:
-			printk(KERN_DEBUG KBUILD_MODNAME ": unknown format?\n");
+			printk(KERN_DE KBUILD_MODNAME ": unknown format?\n");
 		}
 		cam->last_frame = -1;
 	} else {
@@ -677,7 +677,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 		if (ptr != pdest) {
 			DBG("Bogus frame ? %d\n", ++(cam->nb));
 		} else if (cam->b_acquire) {
-			/* we skip the 2 first frames which are usually buggy */
+			/* we skip the 2 first frames which are usually gy */
 			if (cam->skip)
 				cam->skip--;
 			else {

@@ -223,15 +223,15 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	if (ret >= 0) {
 		WARN_ON(ret > 0xf);
 		panel_type = ret;
-		DRM_DEBUG_KMS("Panel type: %d (OpRegion)\n", panel_type);
+		DRM_DE_KMS("Panel type: %d (OpRegion)\n", panel_type);
 	} else {
 		if (lvds_options->panel_type > 0xf) {
-			DRM_DEBUG_KMS("Invalid VBT panel type 0x%x\n",
+			DRM_DE_KMS("Invalid VBT panel type 0x%x\n",
 				      lvds_options->panel_type);
 			return;
 		}
 		panel_type = lvds_options->panel_type;
-		DRM_DEBUG_KMS("Panel type: %d (VBT)\n", panel_type);
+		DRM_DE_KMS("Panel type: %d (VBT)\n", panel_type);
 	}
 
 	dev_priv->vbt.panel_type = panel_type;
@@ -246,15 +246,15 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	switch (drrs_mode) {
 	case 0:
 		dev_priv->vbt.drrs_type = STATIC_DRRS_SUPPORT;
-		DRM_DEBUG_KMS("DRRS supported mode is static\n");
+		DRM_DE_KMS("DRRS supported mode is static\n");
 		break;
 	case 2:
 		dev_priv->vbt.drrs_type = SEAMLESS_DRRS_SUPPORT;
-		DRM_DEBUG_KMS("DRRS supported mode is seamless\n");
+		DRM_DE_KMS("DRRS supported mode is seamless\n");
 		break;
 	default:
 		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
-		DRM_DEBUG_KMS("DRRS not supported (VBT input)\n");
+		DRM_DE_KMS("DRRS not supported (VBT input)\n");
 		break;
 	}
 
@@ -278,8 +278,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 
-	DRM_DEBUG_KMS("Found panel mode in BIOS VBT tables:\n");
-	drm_mode_debug_printmodeline(panel_fixed_mode);
+	DRM_DE_KMS("Found panel mode in BIOS VBT tables:\n");
+	drm_mode_de_printmodeline(panel_fixed_mode);
 
 	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
 				       lvds_lfp_data_ptrs,
@@ -289,7 +289,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		if (fp_timing->x_res == panel_fixed_mode->hdisplay &&
 		    fp_timing->y_res == panel_fixed_mode->vdisplay) {
 			dev_priv->vbt.bios_lvds_val = fp_timing->lvds_reg_val;
-			DRM_DEBUG_KMS("VBT initial LVDS value %x\n",
+			DRM_DE_KMS("VBT initial LVDS value %x\n",
 				      dev_priv->vbt.bios_lvds_val);
 		}
 	}
@@ -308,7 +308,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 		return;
 
 	if (backlight_data->entry_size != sizeof(backlight_data->data[0])) {
-		DRM_DEBUG_KMS("Unsupported backlight data entry size %u\n",
+		DRM_DE_KMS("Unsupported backlight data entry size %u\n",
 			      backlight_data->entry_size);
 		return;
 	}
@@ -317,7 +317,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
 	if (!dev_priv->vbt.backlight.present) {
-		DRM_DEBUG_KMS("PWM backlight not present in VBT (type %u)\n",
+		DRM_DE_KMS("PWM backlight not present in VBT (type %u)\n",
 			      entry->type);
 		return;
 	}
@@ -335,7 +335,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
 	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
-	DRM_DEBUG_KMS("VBT backlight PWM modulation frequency %u Hz, "
+	DRM_DE_KMS("VBT backlight PWM modulation frequency %u Hz, "
 		      "active %s, min brightness %u, level %u, controller %u\n",
 		      dev_priv->vbt.backlight.pwm_freq_hz,
 		      dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
@@ -355,7 +355,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 
 	index = i915_modparams.vbt_sdvo_panel_type;
 	if (index == -2) {
-		DRM_DEBUG_KMS("Ignore SDVO panel mode from BIOS VBT tables.\n");
+		DRM_DE_KMS("Ignore SDVO panel mode from BIOS VBT tables.\n");
 		return;
 	}
 
@@ -381,8 +381,8 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
-	DRM_DEBUG_KMS("Found SDVO panel mode in BIOS VBT tables:\n");
-	drm_mode_debug_printmodeline(panel_fixed_mode);
+	DRM_DE_KMS("Found SDVO panel mode in BIOS VBT tables:\n");
+	drm_mode_de_printmodeline(panel_fixed_mode);
 }
 
 static int intel_bios_ssc_frequency(struct drm_i915_private *dev_priv,
@@ -426,7 +426,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 	} else {
 		dev_priv->vbt.orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 	}
-	DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
+	DRM_DE_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
 		      dev_priv->vbt.int_tv_support,
 		      dev_priv->vbt.int_crt_support,
 		      dev_priv->vbt.lvds_use_ssc,
@@ -453,7 +453,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
 	if (!IS_GEN_RANGE(dev_priv, 3, 7)) {
-		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
+		DRM_DE_KMS("Skipping SDVO device mapping\n");
 		return;
 	}
 
@@ -471,10 +471,10 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 		if (child->dvo_port != DEVICE_PORT_DVOB &&
 		    child->dvo_port != DEVICE_PORT_DVOC) {
 			/* skip the incorrect SDVO port */
-			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it\n");
+			DRM_DE_KMS("Incorrect SDVO port. Skip it\n");
 			continue;
 		}
-		DRM_DEBUG_KMS("the SDVO device with slave addr %2x is found on"
+		DRM_DE_KMS("the SDVO device with slave addr %2x is found on"
 			      " %s port\n",
 			      child->slave_addr,
 			      (child->dvo_port == DEVICE_PORT_DVOB) ?
@@ -487,20 +487,20 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 			mapping->ddc_pin = child->ddc_pin;
 			mapping->i2c_pin = child->i2c_pin;
 			mapping->initialized = 1;
-			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
+			DRM_DE_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
 				      mapping->dvo_port,
 				      mapping->slave_addr,
 				      mapping->dvo_wiring,
 				      mapping->ddc_pin,
 				      mapping->i2c_pin);
 		} else {
-			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
+			DRM_DE_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
 		}
 		if (child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
 			/* And the mapping info is not added */
-			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
+			DRM_DE_KMS("there exists the slave2_addr. Maybe this"
 				" is a SDVO device with multiple inputs.\n");
 		}
 		count++;
@@ -508,7 +508,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 
 	if (!count) {
 		/* No SDVO device info is found */
-		DRM_DEBUG_KMS("No SDVO device info is found in VBT\n");
+		DRM_DE_KMS("No SDVO device info is found in VBT\n");
 	}
 }
 
@@ -548,7 +548,7 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 			dev_priv->vbt.int_lvds_support = 0;
 	}
 
-	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
+	DRM_DE_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
 	/*
 	 * If DRRS is not supported, drrs_type has to be set to 0.
 	 * This is because, VBT is configured in such a way that
@@ -598,7 +598,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.rate = DP_LINK_BW_2_7;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP link rate value %u\n",
+		DRM_DE_KMS("VBT has unknown eDP link rate value %u\n",
 			      edp_link_params->rate);
 		break;
 	}
@@ -614,7 +614,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.lanes = 4;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP lane count value %u\n",
+		DRM_DE_KMS("VBT has unknown eDP lane count value %u\n",
 			      edp_link_params->lanes);
 		break;
 	}
@@ -633,7 +633,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_3;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP pre-emphasis value %u\n",
+		DRM_DE_KMS("VBT has unknown eDP pre-emphasis value %u\n",
 			      edp_link_params->preemphasis);
 		break;
 	}
@@ -652,7 +652,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP voltage swing value %u\n",
+		DRM_DE_KMS("VBT has unknown eDP voltage swing value %u\n",
 			      edp_link_params->vswing);
 		break;
 	}
@@ -680,7 +680,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 
 	psr = find_section(bdb, BDB_PSR);
 	if (!psr) {
-		DRM_DEBUG_KMS("No PSR BDB found.\n");
+		DRM_DE_KMS("No PSR BDB found.\n");
 		return;
 	}
 
@@ -707,7 +707,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.psr.lines_to_wait = PSR_8_LINES_TO_WAIT;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown PSR lines to wait %u\n",
+		DRM_DE_KMS("VBT has unknown PSR lines to wait %u\n",
 			      psr_table->lines_to_wait);
 		break;
 	}
@@ -730,7 +730,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 			dev_priv->vbt.psr.tp1_wakeup_time_us = 0;
 			break;
 		default:
-			DRM_DEBUG_KMS("VBT tp1 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
+			DRM_DE_KMS("VBT tp1 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
 					psr_table->tp1_wakeup_time);
 			/* fallthrough */
 		case 2:
@@ -749,7 +749,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 			dev_priv->vbt.psr.tp2_tp3_wakeup_time_us = 0;
 			break;
 		default:
-			DRM_DEBUG_KMS("VBT tp2_tp3 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
+			DRM_DE_KMS("VBT tp2_tp3 wakeup time value %d is outside range[0-3], defaulting to max value 2500us\n",
 					psr_table->tp2_tp3_wakeup_time);
 			/* fallthrough */
 		case 2:
@@ -831,11 +831,11 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	 */
 	start = find_section(bdb, BDB_MIPI_CONFIG);
 	if (!start) {
-		DRM_DEBUG_KMS("No MIPI config BDB found");
+		DRM_DE_KMS("No MIPI config BDB found");
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("Found MIPI Config block, panel index = %d\n",
+	DRM_DE_DRIVER("Found MIPI Config block, panel index = %d\n",
 								panel_type);
 
 	/*
@@ -1104,7 +1104,7 @@ static void fixup_mipi_sequences(struct drm_i915_private *dev_priv)
 	if (!len)
 		return;
 
-	DRM_DEBUG_KMS("Using init OTP fragment to deassert reset\n");
+	DRM_DE_KMS("Using init OTP fragment to deassert reset\n");
 
 	/* Copy the fragment, update seq byte and terminate it */
 	init_otp = (u8 *)dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
@@ -1139,7 +1139,7 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 
 	sequence = find_section(bdb, BDB_MIPI_SEQUENCE);
 	if (!sequence) {
-		DRM_DEBUG_KMS("No MIPI Sequence found, parsing complete\n");
+		DRM_DE_KMS("No MIPI Sequence found, parsing complete\n");
 		return;
 	}
 
@@ -1150,7 +1150,7 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("Found MIPI sequence block v%u\n", sequence->version);
+	DRM_DE_DRIVER("Found MIPI sequence block v%u\n", sequence->version);
 
 	seq_data = find_panel_sequence_block(sequence, panel_type, &seq_size);
 	if (!seq_data)
@@ -1173,7 +1173,7 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 
 		/* Log about presence of sequences we won't run. */
 		if (seq_id == MIPI_SEQ_TEAR_ON || seq_id == MIPI_SEQ_TEAR_OFF)
-			DRM_DEBUG_KMS("Unsupported sequence %u\n", seq_id);
+			DRM_DE_KMS("Unsupported sequence %u\n", seq_id);
 
 		dev_priv->vbt.dsi.sequence[seq_id] = data + index;
 
@@ -1193,7 +1193,7 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 
 	fixup_mipi_sequences(dev_priv);
 
-	DRM_DEBUG_DRIVER("MIPI related VBT parsing complete\n");
+	DRM_DE_DRIVER("MIPI related VBT parsing complete\n");
 	return;
 
 err:
@@ -1206,7 +1206,7 @@ static u8 translate_iboost(u8 val)
 	static const u8 mapping[] = { 1, 3, 7 }; /* See VBT spec */
 
 	if (val >= ARRAY_SIZE(mapping)) {
-		DRM_DEBUG_KMS("Unsupported I_boost value found in VBT (%d), display may not work properly\n", val);
+		DRM_DE_KMS("Unsupported I_boost value found in VBT (%d), display may not work properly\n", val);
 		return 0;
 	}
 	return mapping[val];
@@ -1228,7 +1228,7 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		if (info->alternate_ddc_pin != i->alternate_ddc_pin)
 			continue;
 
-		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
+		DRM_DE_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
 			      "disabling port %c DVI/HDMI support\n",
 			      port_name(p), i->alternate_ddc_pin,
 			      port_name(port), port_name(p));
@@ -1264,7 +1264,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		if (info->alternate_aux_channel != i->alternate_aux_channel)
 			continue;
 
-		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
+		DRM_DE_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
 			      "disabling port %c DP support\n",
 			      port_name(p), i->alternate_aux_channel,
 			      port_name(port), port_name(p));
@@ -1319,7 +1319,7 @@ static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 	if (vbt_pin < n_entries && ddc_pin_map[vbt_pin] != 0)
 		return ddc_pin_map[vbt_pin];
 
-	DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n",
+	DRM_DE_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n",
 		      vbt_pin);
 	return 0;
 }
@@ -1356,7 +1356,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 			if (it->dvo_port == dvo_ports[port][j]) {
 				if (child) {
-					DRM_DEBUG_KMS("More than one child device for port %c in VBT, using the first.\n",
+					DRM_DE_KMS("More than one child device for port %c in VBT, using the first.\n",
 						      port_name(port));
 				} else {
 					child = it;
@@ -1374,7 +1374,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	is_edp = is_dp && (child->device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
 
 	if (port == PORT_A && is_dvi) {
-		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, ignoring\n",
+		DRM_DE_KMS("VBT claims port A supports DVI%s, ignoring\n",
 			      is_hdmi ? "/HDMI" : "");
 		is_dvi = false;
 		is_hdmi = false;
@@ -1391,25 +1391,25 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (bdb_version >= 209)
 		info->supports_tbt = child->tbt;
 
-	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d TCUSB:%d TBT:%d\n",
+	DRM_DE_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d TCUSB:%d TBT:%d\n",
 		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt,
 		      info->supports_typec_usb, info->supports_tbt);
 
 	if (is_edp && is_dvi)
-		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",
+		DRM_DE_KMS("Internal DP port %c is TMDS compatible\n",
 			      port_name(port));
 	if (is_crt && port != PORT_E)
-		DRM_DEBUG_KMS("Port %c is analog\n", port_name(port));
+		DRM_DE_KMS("Port %c is analog\n", port_name(port));
 	if (is_crt && (is_dvi || is_dp))
-		DRM_DEBUG_KMS("Analog port %c is also DP or TMDS compatible\n",
+		DRM_DE_KMS("Analog port %c is also DP or TMDS compatible\n",
 			      port_name(port));
 	if (is_dvi && (port == PORT_A || port == PORT_E))
-		DRM_DEBUG_KMS("Port %c is TMDS compatible\n", port_name(port));
+		DRM_DE_KMS("Port %c is TMDS compatible\n", port_name(port));
 	if (!is_dvi && !is_dp && !is_crt)
-		DRM_DEBUG_KMS("Port %c is not DP/TMDS/CRT compatible\n",
+		DRM_DE_KMS("Port %c is not DP/TMDS/CRT compatible\n",
 			      port_name(port));
 	if (is_edp && (port == PORT_B || port == PORT_C || port == PORT_E))
-		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
+		DRM_DE_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
 		u8 ddc_pin;
@@ -1419,7 +1419,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			info->alternate_ddc_pin = ddc_pin;
 			sanitize_ddc_pin(dev_priv, port);
 		} else {
-			DRM_DEBUG_KMS("Port %c has invalid DDC pin %d, "
+			DRM_DE_KMS("Port %c has invalid DDC pin %d, "
 				      "sticking to defaults\n",
 				      port_name(port), ddc_pin);
 		}
@@ -1434,7 +1434,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (bdb_version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
 		u8 hdmi_level_shift = child->hdmi_level_shifter_value;
-		DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
+		DRM_DE_KMS("VBT HDMI level shift for port %c: %d\n",
 			      port_name(port),
 			      hdmi_level_shift);
 		info->hdmi_level_shift = hdmi_level_shift;
@@ -1459,7 +1459,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		}
 
 		if (max_tmds_clock)
-			DRM_DEBUG_KMS("VBT HDMI max TMDS clock for port %c: %d kHz\n",
+			DRM_DE_KMS("VBT HDMI max TMDS clock for port %c: %d kHz\n",
 				      port_name(port), max_tmds_clock);
 		info->max_tmds_clock = max_tmds_clock;
 	}
@@ -1467,10 +1467,10 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	/* Parse the I_boost config for SKL and above */
 	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
-		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
+		DRM_DE_KMS("VBT (e)DP boost level for port %c: %d\n",
 			      port_name(port), info->dp_boost_level);
 		info->hdmi_boost_level = translate_iboost(child->hdmi_iboost_level);
-		DRM_DEBUG_KMS("VBT HDMI boost level for port %c: %d\n",
+		DRM_DE_KMS("VBT HDMI boost level for port %c: %d\n",
 			      port_name(port), info->hdmi_boost_level);
 	}
 
@@ -1491,7 +1491,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 			info->dp_max_link_rate = 162000;
 			break;
 		}
-		DRM_DEBUG_KMS("VBT DP max link rate for port %c: %d\n",
+		DRM_DE_KMS("VBT DP max link rate for port %c: %d\n",
 			      port_name(port), info->dp_max_link_rate);
 	}
 }
@@ -1526,19 +1526,19 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 
 	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!defs) {
-		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
+		DRM_DE_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
 
 	block_size = get_blocksize(defs);
 	if (block_size < sizeof(*defs)) {
-		DRM_DEBUG_KMS("General definitions block too small (%u)\n",
+		DRM_DE_KMS("General definitions block too small (%u)\n",
 			      block_size);
 		return;
 	}
 
 	bus_pin = defs->crt_ddc_gmbus_pin;
-	DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
+	DRM_DE_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
 	if (intel_gmbus_is_valid_pin(dev_priv, bus_pin))
 		dev_priv->vbt.crt_ddc_pin = bus_pin;
 
@@ -1556,8 +1556,8 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = 39;
 	} else {
 		expected_size = sizeof(*child);
-		BUILD_BUG_ON(sizeof(*child) < 39);
-		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
+		BUILD__ON(sizeof(*child) < 39);
+		DRM_DE_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
 				 bdb->version, expected_size);
 	}
 
@@ -1568,7 +1568,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 
 	/* The legacy sized child device config is the minimum we need. */
 	if (defs->child_dev_size < LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
-		DRM_DEBUG_KMS("Child device config size %u is too small.\n",
+		DRM_DE_KMS("Child device config size %u is too small.\n",
 			      defs->child_dev_size);
 		return;
 	}
@@ -1584,12 +1584,12 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
+		DRM_DE_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->vbt.child_dev = kcalloc(count, sizeof(*child), GFP_KERNEL);
 	if (!dev_priv->vbt.child_dev) {
-		DRM_DEBUG_KMS("No memory space for child device\n");
+		DRM_DE_KMS("No memory space for child device\n");
 		return;
 	}
 
@@ -1643,7 +1643,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev_priv,
 			!HAS_PCH_SPLIT(dev_priv));
-	DRM_DEBUG_KMS("Set default to SSC at %d kHz\n", dev_priv->vbt.lvds_ssc_freq);
+	DRM_DE_KMS("Set default to SSC at %d kHz\n", dev_priv->vbt.lvds_ssc_freq);
 
 	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
 		struct ddi_vbt_port_info *info =
@@ -1700,12 +1700,12 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 		return false;
 
 	if (sizeof(struct vbt_header) > size) {
-		DRM_DEBUG_DRIVER("VBT header incomplete\n");
+		DRM_DE_DRIVER("VBT header incomplete\n");
 		return false;
 	}
 
 	if (memcmp(vbt->signature, "$VBT", 4)) {
-		DRM_DEBUG_DRIVER("VBT invalid signature\n");
+		DRM_DE_DRIVER("VBT invalid signature\n");
 		return false;
 	}
 
@@ -1713,13 +1713,13 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 			      vbt->bdb_offset,
 			      sizeof(struct bdb_header),
 			      size)) {
-		DRM_DEBUG_DRIVER("BDB header incomplete\n");
+		DRM_DE_DRIVER("BDB header incomplete\n");
 		return false;
 	}
 
 	bdb = get_bdb_header(vbt);
 	if (range_overflows_t(size_t, vbt->bdb_offset, bdb->bdb_size, size)) {
-		DRM_DEBUG_DRIVER("BDB incomplete\n");
+		DRM_DE_DRIVER("BDB incomplete\n");
 		return false;
 	}
 
@@ -1767,7 +1767,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	u8 __iomem *bios = NULL;
 
 	if (!HAS_DISPLAY(dev_priv)) {
-		DRM_DEBUG_KMS("Skipping VBT init due to disabled display.\n");
+		DRM_DE_KMS("Skipping VBT init due to disabled display.\n");
 		return;
 	}
 
@@ -1785,12 +1785,12 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 		if (!vbt)
 			goto out;
 
-		DRM_DEBUG_KMS("Found valid VBT in PCI ROM\n");
+		DRM_DE_KMS("Found valid VBT in PCI ROM\n");
 	}
 
 	bdb = get_bdb_header(vbt);
 
-	DRM_DEBUG_KMS("VBT signature \"%.*s\", BDB version %d\n",
+	DRM_DE_KMS("VBT signature \"%.*s\", BDB version %d\n",
 		      (int)sizeof(vbt->signature), vbt->signature, bdb->version);
 
 	/* Grab useful general definitions */
@@ -2027,7 +2027,7 @@ static bool child_dev_is_dp_dual_mode(const struct child_device_config *child,
 		u16 dp, hdmi;
 	} port_mapping[] = {
 		/*
-		 * Buggy VBTs may declare DP ports as having
+		 * gy VBTs may declare DP ports as having
 		 * HDMI type dvo_port :( So let's check both.
 		 */
 		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
@@ -2102,7 +2102,7 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 		} else if (dvo_port == DVO_PORT_MIPIB ||
 			   dvo_port == DVO_PORT_MIPIC ||
 			   dvo_port == DVO_PORT_MIPID) {
-			DRM_DEBUG_KMS("VBT has unsupported DSI port %c\n",
+			DRM_DE_KMS("VBT has unsupported DSI port %c\n",
 				      port_name(dvo_port - DVO_PORT_MIPIA));
 		}
 	}
@@ -2224,7 +2224,7 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 	if (!info->alternate_aux_channel) {
 		aux_ch = (enum aux_ch)port;
 
-		DRM_DEBUG_KMS("using AUX %c for port %c (platform default)\n",
+		DRM_DE_KMS("using AUX %c for port %c (platform default)\n",
 			      aux_ch_name(aux_ch), port_name(port));
 		return aux_ch;
 	}
@@ -2254,7 +2254,7 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	DRM_DEBUG_KMS("using AUX %c for port %c (VBT)\n",
+	DRM_DE_KMS("using AUX %c for port %c (VBT)\n",
 		      aux_ch_name(aux_ch), port_name(port));
 
 	return aux_ch;

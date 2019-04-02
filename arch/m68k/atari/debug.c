@@ -1,7 +1,7 @@
 /*
- * linux/arch/m68k/atari/debug.c
+ * linux/arch/m68k/atari/de.c
  *
- * Atari debugging and serial console stuff
+ * Atari deging and serial console stuff
  *
  * Assembled of parts of former atari/config.c 97-12-18 by Roman Hodek
  *
@@ -26,7 +26,7 @@ int atari_SCC_reset_done;
 EXPORT_SYMBOL(atari_SCC_reset_done);
 
 static struct console atari_console_driver = {
-	.name	= "debug",
+	.name	= "de",
 	.flags	= CON_PRINTBUFFER,
 	.index	= -1,
 };
@@ -155,7 +155,7 @@ int atari_midi_console_wait_key(struct console *co)
 
 /*
  * The following two functions do a quick'n'dirty initialization of the MFP or
- * SCC serial ports. They're used by the debugging interface, kgdb, and the
+ * SCC serial ports. They're used by the deging interface, kgdb, and the
  * serial console code.
  */
 static void __init atari_init_mfp_port(int cflag)
@@ -285,7 +285,7 @@ static void __init atari_init_midi_port(int cflag)
 		     ACIA_RHTID : ACIA_RLTID);
 }
 
-static int __init atari_debug_setup(char *arg)
+static int __init atari_de_setup(char *arg)
 {
 	bool registered;
 
@@ -326,4 +326,4 @@ static int __init atari_debug_setup(char *arg)
 	return 0;
 }
 
-early_param("debug", atari_debug_setup);
+early_param("de", atari_de_setup);

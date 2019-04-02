@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "mlx5_ib.h"
 #include "cmd.h"
@@ -377,25 +377,25 @@ static const struct file_operations dbg_cc_fops = {
 	.read	= get_param,
 };
 
-void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_cleanup_cong_defs(struct mlx5_ib_dev *dev, u8 port_num)
 {
-	if (!mlx5_debugfs_root ||
+	if (!mlx5_defs_root ||
 	    !dev->port[port_num].dbg_cc_params ||
 	    !dev->port[port_num].dbg_cc_params->root)
 		return;
 
-	debugfs_remove_recursive(dev->port[port_num].dbg_cc_params->root);
+	defs_remove_recursive(dev->port[port_num].dbg_cc_params->root);
 	kfree(dev->port[port_num].dbg_cc_params);
 	dev->port[port_num].dbg_cc_params = NULL;
 }
 
-void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_init_cong_defs(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_core_dev *mdev;
 	int i;
 
-	if (!mlx5_debugfs_root)
+	if (!mlx5_defs_root)
 		return;
 
 	/* Takes a 1-based port number */
@@ -413,7 +413,7 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 
 	dev->port[port_num].dbg_cc_params = dbg_cc_params;
 
-	dbg_cc_params->root = debugfs_create_dir("cc_params",
+	dbg_cc_params->root = defs_create_dir("cc_params",
 						 mdev->priv.dbg_root);
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
@@ -421,7 +421,7 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 		dbg_cc_params->params[i].dev = dev;
 		dbg_cc_params->params[i].port_num = port_num;
 		dbg_cc_params->params[i].dentry =
-			debugfs_create_file(mlx5_ib_dbg_cc_name[i],
+			defs_create_file(mlx5_ib_dbg_cc_name[i],
 					    0600, dbg_cc_params->root,
 					    &dbg_cc_params->params[i],
 					    &dbg_cc_fops);
@@ -432,12 +432,12 @@ put_mdev:
 	return;
 
 err:
-	mlx5_ib_warn(dev, "cong debugfs failure\n");
-	mlx5_ib_cleanup_cong_debugfs(dev, port_num);
+	mlx5_ib_warn(dev, "cong defs failure\n");
+	mlx5_ib_cleanup_cong_defs(dev, port_num);
 	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
 
 	/*
-	 * We don't want to fail driver if debugfs failed to initialize,
+	 * We don't want to fail driver if defs failed to initialize,
 	 * so we are not forwarding error to the user.
 	 */
 	return;

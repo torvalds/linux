@@ -11,7 +11,7 @@ Version 0.92 (2002-03-27)
 
 Version 0.91 (2002-03-26)
 ==========
-* Oy! Fixed stupid bug that would cause an unresolved symbol error.
+* Oy! Fixed stupid  that would cause an unresolved symbol error.
 	Thanks to Laszlo Boszormenyi for pointing this out to me.
 
 Version 0.9 (2002-03-14)
@@ -43,16 +43,16 @@ Version 0.64 (2002-02-07)
 
 Version 0.63 (2002-01-31)
 ==========
-* Fixed bug in befs_find_brun_indirect() that would result in the wrong
+* Fixed  in befs_find_brun_indirect() that would result in the wrong
 	block being read. It was introduced when adding byteswapping in 
 	0.61. (datastream.c) [WD]
 
-* Fixed a longstanding bug in befs_find_key() that would result in it 
+* Fixed a longstanding  in befs_find_key() that would result in it 
 	finding the first key that is a substring of the string it is searching
 	for. For example, this would cause files in the same directory with 
 	names like file1 and file2 to mysteriously be duplicates of each other 
 	(because they have the same inode number). Many thanks to Pavel Roskin 
-	for reporting this serious bug!!!
+	for reporting this serious !!!
 	(btree.c) [WD]
 
 * Added support for long symlinks, after Axel Dorfler explained up how 
@@ -76,7 +76,7 @@ Version 0.61 (2002-01-20)
 * Made functions in endian.h to do the correct byteswapping, no matter
 	the arch. [WD]
 
-* Abbandoned silly checks for a NULL superblock pointer in debug.c. [WD]
+* Abbandoned silly checks for a NULL superblock pointer in de.c. [WD]
 
 * Misc code cleanups. Also cleanup of this changelog file. [WD]
 
@@ -95,12 +95,12 @@ Version 0.6 (2001-12-15)
 
 * Make directory lookup/read use the NLS if an iocharset is provided. [WD]
 
-* Fixed stupid bug where specifying the uid or gid mount options as '0' 
+* Fixed stupid  where specifying the uid or gid mount options as '0' 
 	would result in the filesystem using the on-disk uid and gid. [WD]
 
-* Added mount option to control debug printing. 
-	The option is, simply enough, 'debug'. 
-	(super.c, debug.c) [WD]
+* Added mount option to control de printing. 
+	The option is, simply enough, 'de'. 
+	(super.c, de.c) [WD]
 
 * Removed notion of btree handle from btree.c. It was unnecessary, as the
 	linux VFS doesn't allow us to keep any state between calls. Updated 
@@ -110,7 +110,7 @@ Version 0.6 (2001-12-15)
 	Now works for overflow nodes hanging off of nodes other than the root 
 	node. This is the cleaner solution to Brent Miszalaski's problem. [WD]
 
-* Added new debug/warning/error print functions in debug.c. 
+* Added new de/warning/error print functions in de.c. 
 	More flexible. Will soon be controllable at mount time 
 	(see TODO). [WD]
 
@@ -124,7 +124,7 @@ Version 0.50 (2001-11-13)
 ==========
 * Added workaround for mis-understanding of the nature of the b+trees used 
 	in directories. A cleaner solution will come after I've thought about it 
-	for a while. Thanks to Brent Miszalaski for finding and reporting this bug. 
+	for a while. Thanks to Brent Miszalaski for finding and reporting this . 
 	(btree.c) [WD]
 
 * Minor cleanups
@@ -160,7 +160,7 @@ Version 0.50 (2001-11-13)
 	(super.c inode.c) [WD]
 
 * Moved the freeing of the private inode section from put_inode() to 
-	clear_inode(). This fixes a potential free twice type bug. Put_inode() 
+	clear_inode(). This fixes a potential free twice type . Put_inode() 
 	can be called multiple times for each inode struct. [WD]
 
 * Converted all non vfs-callback functions to use befs_sb_info as the 
@@ -206,9 +206,9 @@ Version 0.4 (2001-10-28)
 * Made it an option to use the old non-pagecache befs_file_read() for 
 	testing purposes. (fs/Config.in)
 
-* Fixed unused variable warnings when compiling without debugging.
+* Fixed unused variable warnings when compiling without deging.
 
-* Fixed a bug where the inode and super_block didn't get their blockbits 
+* Fixed a  where the inode and super_block didn't get their blockbits 
 	fields set (inode.c and super.c). 
 
 * Release patch version 11. AKA befs-driver version 0.4.
@@ -246,11 +246,11 @@ Version 0.4 (2001-10-28)
 
 2001-10-24
 ==========
-* Fix nasty bug in converting block numbers to struct befs_inode_addr. 
+* Fix nasty  in converting block numbers to struct befs_inode_addr. 
 	Subtle, because the old version was only sometimes wrong. 
 	Probably responsible for lots of problems. (inode.c)
 
-* Fix bug with reading an empty directory. (btree.c and dir.c)
+* Fix  with reading an empty directory. (btree.c and dir.c)
 
 * This one looks good. Release patch version 10
 
@@ -375,8 +375,8 @@ Version 0.4 (2001-10-28)
 	very end of befs_read_super(), after we are done with the disk superblock.
 	(fs/befs/super.c)
 	
-* Fixed wrong number of args bug in befs_dump_inode
-	(fs/befs/debug.c)
+* Fixed wrong number of args  in befs_dump_inode
+	(fs/befs/de.c)
 
 * Solved lots of type mismatches in kprint()s
 	(everwhere)
@@ -388,7 +388,7 @@ Version 0.4 (2001-10-28)
 * BeFS depends on NLS, so I made activating BeFS enable the NLS questions
 	(fs/nls/Config.in)
 
-* Added Configure.help entries for CONFIG_BEFS_FS and CONFIG_DEBUG_BEFS
+* Added Configure.help entries for CONFIG_BEFS_FS and CONFIG_DE_BEFS
 	(currently at fs/befs/Kconfig)
 
 2001-08-??
@@ -412,6 +412,6 @@ Version 0.4 (2001-10-28)
 * Tried to niceify the code using the ext2 fs as a guide
 	Declare befs_fs_type using the DECLARE_FSTYPE_DEV() macro
 
-* Made it a configure option to turn on debugging (fs/Config.in)
+* Made it a configure option to turn on deging (fs/Config.in)
 
 * Compiles on 2.4.7

@@ -43,7 +43,7 @@
 #define CQP_COMPL_WAIT_TIME     0x3E8
 #define CQP_TIMEOUT_THRESHOLD   5
 
-void i40iw_debug_buf(struct i40iw_sc_dev *dev, enum i40iw_debug_flag mask,
+void i40iw_de_buf(struct i40iw_sc_dev *dev, enum i40iw_de_flag mask,
 		     char *desc, u64 *buf, u32 size);
 /* init operations */
 enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,

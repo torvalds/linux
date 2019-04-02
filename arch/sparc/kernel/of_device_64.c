@@ -235,7 +235,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(of_busses); i ++)
 		if (!of_busses[i].match || of_busses[i].match(np))
 			return &of_busses[i];
-	BUG();
+	();
 	return NULL;
 }
 
@@ -713,7 +713,7 @@ static int __init scan_of_devices(void)
 }
 postcore_initcall(scan_of_devices);
 
-static int __init of_debug(char *str)
+static int __init of_de(char *str)
 {
 	int val = 0;
 
@@ -725,4 +725,4 @@ static int __init of_debug(char *str)
 	return 1;
 }
 
-__setup("of_debug=", of_debug);
+__setup("of_de=", of_de);

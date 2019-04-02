@@ -33,17 +33,17 @@
 
 #define DRIVER_NAME "TerraTec/qanu USB2.0 Highspeed DVB-T Receiver"
 
-extern int dvb_usb_cinergyt2_debug;
+extern int dvb_usb_cinergyt2_de;
 
-#define deb_info(args...)  dprintk(dvb_usb_cinergyt2_debug,  0x001, args)
-#define deb_xfer(args...)  dprintk(dvb_usb_cinergyt2_debug,  0x002, args)
-#define deb_pll(args...)   dprintk(dvb_usb_cinergyt2_debug,  0x004, args)
-#define deb_ts(args...)    dprintk(dvb_usb_cinergyt2_debug,  0x008, args)
-#define deb_err(args...)   dprintk(dvb_usb_cinergyt2_debug,  0x010, args)
-#define deb_rc(args...)    dprintk(dvb_usb_cinergyt2_debug,  0x020, args)
-#define deb_fw(args...)    dprintk(dvb_usb_cinergyt2_debug,  0x040, args)
-#define deb_mem(args...)   dprintk(dvb_usb_cinergyt2_debug,  0x080, args)
-#define deb_uxfer(args...) dprintk(dvb_usb_cinergyt2_debug,  0x100, args)
+#define deb_info(args...)  dprintk(dvb_usb_cinergyt2_de,  0x001, args)
+#define deb_xfer(args...)  dprintk(dvb_usb_cinergyt2_de,  0x002, args)
+#define deb_pll(args...)   dprintk(dvb_usb_cinergyt2_de,  0x004, args)
+#define deb_ts(args...)    dprintk(dvb_usb_cinergyt2_de,  0x008, args)
+#define deb_err(args...)   dprintk(dvb_usb_cinergyt2_de,  0x010, args)
+#define deb_rc(args...)    dprintk(dvb_usb_cinergyt2_de,  0x020, args)
+#define deb_fw(args...)    dprintk(dvb_usb_cinergyt2_de,  0x040, args)
+#define deb_mem(args...)   dprintk(dvb_usb_cinergyt2_de,  0x080, args)
+#define deb_uxfer(args...) dprintk(dvb_usb_cinergyt2_de,  0x100, args)
 
 
 

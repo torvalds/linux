@@ -76,7 +76,7 @@ double __extendsfdf2(float a)
 
 #include "dot11d.h"
 /* set here to open your trace code. */
-u32 rt_global_debug_component = COMP_DOWN	|
+u32 rt_global_de_component = COMP_DOWN	|
 				COMP_SEC	|
 				COMP_ERR; /* always open err flags on */
 
@@ -1451,7 +1451,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	pend = atomic_read(&priv->tx_pending[tcb_desc->queue_index]);
 	/* we are locked here so the two atomic_read and inc are executed
 	 * without interleaves
-	 * !!! For debug purpose
+	 * !!! For de purpose
 	 */
 	if (pend > MAX_TX_URB) {
 		netdev_dbg(dev, "To discard skb packet!\n");
@@ -3230,7 +3230,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	}
 }
 
-/* This function is used to fix Tx/Rx stop bug temporarily.
+/* This function is used to fix Tx/Rx stop  temporarily.
  * This function will do "system reset" to NIC when Tx or Rx is stuck.
  * The method checking Tx/Rx stuck of this function is supported by FW,
  * which reports Tx and Rx counter to register 0x128 and 0x130.
@@ -4368,7 +4368,7 @@ static void rtl8192_query_rxphystatus(struct r8192_priv *priv,
 		}
 
 
-		/* record rx statistics for debug */
+		/* record rx statistics for de */
 		rxsc_sgien_exflg = pofdm_buf->rxsc_sgien_exflg;
 		prxsc =	(struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *)
 			&rxsc_sgien_exflg;
@@ -4976,10 +4976,10 @@ static int __init rtl8192_usb_module_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_IEEE80211_DEBUG
-	ret = ieee80211_debug_init();
+#ifdef CONFIG_IEEE80211_DE
+	ret = ieee80211_de_init();
 	if (ret) {
-		pr_err("ieee80211_debug_init() failed %d\n", ret);
+		pr_err("ieee80211_de_init() failed %d\n", ret);
 		return ret;
 	}
 #endif

@@ -90,15 +90,15 @@ static void __init sni_console_setup(void)
 #endif
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void __init sni_idprom_dump(void)
 {
 	int	i;
 
-	pr_debug("SNI IDProm dump:\n");
+	pr_de("SNI IDProm dump:\n");
 	for (i = 0; i < 256; i++) {
 		if (i%16 == 0)
-			pr_debug("%04x ", i);
+			pr_de("%04x ", i);
 
 		printk("%02x ", *(unsigned char *) (SNI_IDPROM_BASE + i));
 
@@ -194,9 +194,9 @@ void __init plat_mem_setup(void)
 		system_type = "RM300-Exx";
 		break;
 	}
-	pr_debug("Found SNI brdtype %02x name %s\n", sni_brd_type, system_type);
+	pr_de("Found SNI brdtype %02x name %s\n", sni_brd_type, system_type);
 
-#ifdef DEBUG
+#ifdef DE
 	sni_idprom_dump();
 #endif
 

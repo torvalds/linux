@@ -112,7 +112,7 @@ read_pll_src(struct nv50_clk *clk, u32 base)
 		M    = (coef & 0x000000ff) >> 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (M)
@@ -317,7 +317,7 @@ nv50_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_de(subdev, "unknown clock source %d %08x\n", src, mast);
 	return -EINVAL;
 }
 

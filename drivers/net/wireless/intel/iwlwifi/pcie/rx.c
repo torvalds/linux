@@ -237,7 +237,7 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 		reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO(trans, "Rx queue requesting wakeup, GP1 = 0x%x\n",
+			IWL_DE_INFO(trans, "Rx queue requesting wakeup, GP1 = 0x%x\n",
 				       reg);
 			iwl_set_bit(trans, CSR_GP_CNTRL,
 				    BIT(trans->cfg->csr->flag_mac_access_req));
@@ -293,7 +293,7 @@ static void iwl_pcie_restock_bd(struct iwl_trans *trans,
 		bd[rxq->write] = cpu_to_le64(rxb->page_dma | rxb->vid);
 	}
 
-	IWL_DEBUG_RX(trans, "Assigned virtual RB ID %u to queue %d index %d\n",
+	IWL_DE_RX(trans, "Assigned virtual RB ID %u to queue %d index %d\n",
 		     (u32)rxb->vid, rxq->id, rxq->write);
 }
 
@@ -367,7 +367,7 @@ static void iwl_pcie_rxsq_restock(struct iwl_trans *trans,
 		__le32 *bd = (__le32 *)rxq->bd;
 		/* The overwritten rxb must be a used one */
 		rxb = rxq->queue[rxq->write];
-		BUG_ON(rxb && rxb->page);
+		_ON(rxb && rxb->page);
 
 		/* Get next free Rx buffer, remove from free list */
 		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
@@ -430,7 +430,7 @@ static struct page *iwl_pcie_rx_alloc_page(struct iwl_trans *trans,
 	page = alloc_pages(gfp_mask, trans_pcie->rx_page_order);
 	if (!page) {
 		if (net_ratelimit())
-			IWL_DEBUG_INFO(trans, "alloc_pages failed, order: %d\n",
+			IWL_DE_INFO(trans, "alloc_pages failed, order: %d\n",
 				       trans_pcie->rx_page_order);
 		/*
 		 * Issue an error if we don't have enough pre-allocated
@@ -485,7 +485,7 @@ void iwl_pcie_rxq_alloc_rbs(struct iwl_trans *trans, gfp_t priority,
 		list_del(&rxb->list);
 		spin_unlock(&rxq->lock);
 
-		BUG_ON(rxb->page);
+		_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
 		rxb->page_dma =
@@ -540,7 +540,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	struct list_head local_empty;
 	int pending = atomic_read(&rba->req_pending);
 
-	IWL_DEBUG_TPT(trans, "Pending allocation requests = %d\n", pending);
+	IWL_DE_TPT(trans, "Pending allocation requests = %d\n", pending);
 
 	/* If we were scheduled - there is at least one request */
 	spin_lock(&rba->lock);
@@ -566,11 +566,11 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 			 * possible gap between the time the page is allocated
 			 * to the time the RBD is added.
 			 */
-			BUG_ON(list_empty(&local_empty));
+			_ON(list_empty(&local_empty));
 			/* Get the first rxb from the rbd list */
 			rxb = list_first_entry(&local_empty,
 					       struct iwl_rx_mem_buffer, list);
-			BUG_ON(rxb->page);
+			_ON(rxb->page);
 
 			/* Alloc a new receive buffer */
 			page = iwl_pcie_rx_alloc_page(trans, gfp_mask);
@@ -599,7 +599,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 		if (!pending) {
 			pending = atomic_read(&rba->req_pending);
 			if (pending)
-				IWL_DEBUG_TPT(trans,
+				IWL_DE_TPT(trans,
 					      "Got more pending allocation requests = %d\n",
 					      pending);
 		}
@@ -620,7 +620,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	list_splice_tail(&local_empty, &rba->rbd_empty);
 	spin_unlock(&rba->lock);
 
-	IWL_DEBUG_TPT(trans, "%s, exit.\n", __func__);
+	IWL_DE_TPT(trans, "%s, exit.\n", __func__);
 }
 
 /*
@@ -786,7 +786,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 	if (!rxq->cr_tail)
 		goto err;
 	/*
-	 * W/A 22560 device step Z0 must be non zero bug
+	 * W/A 22560 device step Z0 must be non zero 
 	 * TODO: remove this when stop supporting Z0
 	 */
 	*rxq->cr_tail = cpu_to_le16(500);
@@ -904,7 +904,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 		    rxq->rb_stts_dma >> 4);
 
 	/* Enable Rx DMA
-	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
+	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW  in
 	 *      the credit mechanism in 5000 HW RX FIFO
 	 * Direct rx interrupts to hosts
 	 * Rx buffer size 4 or 8k or 12k
@@ -924,7 +924,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	/* Set interrupt coalescing timer to default (2048 usecs) */
 	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 
-	/* W/A for interrupt coalescing bug in 7260 and 3160 */
+	/* W/A for interrupt coalescing  in 7260 and 3160 */
 	if (trans->cfg->host_interrupt_operation_mode)
 		iwl_set_bit(trans, CSR_INT_COALESCING, IWL_HOST_INT_OPER_MODE);
 }
@@ -1094,7 +1094,7 @@ int _iwl_pcie_rx_init(struct iwl_trans *trans)
 	allocator_pool_size = trans->num_rx_queues *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
 	num_alloc = queue_size + allocator_pool_size;
-	BUILD_BUG_ON(ARRAY_SIZE(trans_pcie->global_table) !=
+	BUILD__ON(ARRAY_SIZE(trans_pcie->global_table) !=
 		     ARRAY_SIZE(trans_pcie->rx_pool));
 	for (i = 0; i < num_alloc; i++) {
 		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
@@ -1161,7 +1161,7 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 	 * exit now
 	 */
 	if (!trans_pcie->rxq) {
-		IWL_DEBUG_INFO(trans, "Free NULL rx context\n");
+		IWL_DE_INFO(trans, "Free NULL rx context\n");
 		return;
 	}
 
@@ -1271,7 +1271,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		pkt = rxb_addr(&rxcb);
 
 		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID)) {
-			IWL_DEBUG_RX(trans,
+			IWL_DE_RX(trans,
 				     "Q %d: RB end marker at offset %d\n",
 				     rxq->id, offset);
 			break;
@@ -1284,7 +1284,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		     (le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_RXQ_MASK) >>
 			FH_RSCSR_RXQ_POS);
 
-		IWL_DEBUG_RX(trans,
+		IWL_DE_RX(trans,
 			     "Q %d: cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
 			     rxq->id, offset,
 			     iwl_get_cmd_string(trans,
@@ -1413,7 +1413,7 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 	if (rxb->invalid)
 		goto out_err;
 
-	IWL_DEBUG_RX(trans, "Got virtual RB ID %u\n", (u32)rxb->vid);
+	IWL_DE_RX(trans, "Got virtual RB ID %u\n", (u32)rxb->vid);
 
 	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
 		rxb->size = le32_to_cpu(rxq->cd[i].size) & IWL_RX_CD_SIZE;
@@ -1445,12 +1445,12 @@ restart:
 	r = le16_to_cpu(iwl_get_closed_rb_stts(trans, rxq)) & 0x0FFF;
 	i = rxq->read;
 
-	/* W/A 9000 device step A0 wrap-around bug */
+	/* W/A 9000 device step A0 wrap-around  */
 	r &= (rxq->queue_size - 1);
 
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
-		IWL_DEBUG_RX(trans, "Q %d: HW = SW = %d\n", rxq->id, r);
+		IWL_DE_RX(trans, "Q %d: HW = SW = %d\n", rxq->id, r);
 
 	while (i != r) {
 		struct iwl_rb_allocator *rba = &trans_pcie->rba;
@@ -1464,12 +1464,12 @@ restart:
 			     !emergency)) {
 			iwl_pcie_rx_move_to_allocator(rxq, rba);
 			emergency = true;
-			IWL_DEBUG_TPT(trans,
+			IWL_DE_TPT(trans,
 				      "RX path is in emergency. Pending allocations %d\n",
 				      rb_pending_alloc);
 		}
 
-		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
+		IWL_DE_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
 
 		rxb = iwl_pcie_get_rxb(trans, rxq, i);
 		if (!rxb)
@@ -1497,7 +1497,7 @@ restart:
 			if (count == 8) {
 				count = 0;
 				if (rb_pending_alloc < rxq->queue_size / 3) {
-					IWL_DEBUG_TPT(trans,
+					IWL_DE_TPT(trans,
 						      "RX path exited emergency. Pending allocations %d\n",
 						      rb_pending_alloc);
 					emergency = false;
@@ -1662,7 +1662,7 @@ static u32 iwl_pcie_int_cause_ict(struct iwl_trans *trans)
 	 */
 	do {
 		val |= read;
-		IWL_DEBUG_ISR(trans, "ICT index %d value 0x%08X\n",
+		IWL_DE_ISR(trans, "ICT index %d value 0x%08X\n",
 				trans_pcie->ict_index, read);
 		trans_pcie->ict_tbl[trans_pcie->ict_index] = 0;
 		trans_pcie->ict_index =
@@ -1678,7 +1678,7 @@ static u32 iwl_pcie_int_cause_ict(struct iwl_trans *trans)
 		val = 0;
 
 	/*
-	 * this is a w/a for a h/w bug. the h/w bug may cause the Rx bit
+	 * this is a w/a for a h/w . the h/w  may cause the Rx bit
 	 * (bit 15 before shifting it to 31) to clear when using interrupt
 	 * coalescing. fortunately, bits 18 and 19 stay set when this happens
 	 * so we use them to decide on the real state of the Rx bit.
@@ -1721,7 +1721,7 @@ void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans)
 	if (hw_rfkill) {
 		if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 				       &trans->status))
-			IWL_DEBUG_RF_KILL(trans,
+			IWL_DE_RF_KILL(trans,
 					  "Rfkill while SYNC HCMD in flight\n");
 		wake_up(&trans_pcie->wait_command_queue);
 	} else {
@@ -1751,14 +1751,14 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	else
 		inta = iwl_pcie_int_cause_non_ict(trans);
 
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
-		IWL_DEBUG_ISR(trans,
+	if (iwl_have_de_level(IWL_DL_ISR)) {
+		IWL_DE_ISR(trans,
 			      "ISR inta 0x%08x, enabled 0x%08x(sw), enabled(hw) 0x%08x, fh 0x%08x\n",
 			      inta, trans_pcie->inta_mask,
 			      iwl_read32(trans, CSR_INT_MASK),
 			      iwl_read32(trans, CSR_FH_INT_STATUS));
 		if (inta & (~trans_pcie->inta_mask))
-			IWL_DEBUG_ISR(trans,
+			IWL_DE_ISR(trans,
 				      "We got a masked interrupt (0x%08x)\n",
 				      inta & (~trans_pcie->inta_mask));
 	}
@@ -1771,7 +1771,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	 * or due to sporadic interrupts thrown from our NIC.
 	 */
 	if (unlikely(!inta)) {
-		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
+		IWL_DE_ISR(trans, "Ignore interrupt, inta == 0\n");
 		/*
 		 * Re-enable interrupts here since we don't
 		 * have anything to service
@@ -1796,18 +1796,18 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
 	 */
-	/* There is a hardware bug in the interrupt mask function that some
+	/* There is a hardware  in the interrupt mask function that some
 	 * interrupts (i.e. CSR_INT_BIT_SCD) can still be generated even if
 	 * they are disabled in the CSR_INT_MASK register. Furthermore the
-	 * ICT interrupt handling mechanism has another bug that might cause
+	 * ICT interrupt handling mechanism has another  that might cause
 	 * these unmasked interrupts fail to be detected. We workaround the
-	 * hardware bugs here by ACKing all the possible interrupts so that
+	 * hardware s here by ACKing all the possible interrupts so that
 	 * interrupt coalescing can still be achieved.
 	 */
 	iwl_write32(trans, CSR_INT, inta | ~trans_pcie->inta_mask);
 
-	if (iwl_have_debug_level(IWL_DL_ISR))
-		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n",
+	if (iwl_have_de_level(IWL_DL_ISR))
+		IWL_DE_ISR(trans, "inta 0x%08x, enabled 0x%08x\n",
 			      inta, iwl_read32(trans, CSR_INT_MASK));
 
 	spin_unlock(&trans_pcie->irq_lock);
@@ -1827,17 +1827,17 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		goto out;
 	}
 
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
+	if (iwl_have_de_level(IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
-			IWL_DEBUG_ISR(trans,
+			IWL_DE_ISR(trans,
 				      "Scheduler finished to transmit the frame/frames.\n");
 			isr_stats->sch++;
 		}
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE) {
-			IWL_DEBUG_ISR(trans, "Alive interrupt\n");
+			IWL_DE_ISR(trans, "Alive interrupt\n");
 			isr_stats->alive++;
 			if (trans->cfg->gen2) {
 				/*
@@ -1849,7 +1849,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		}
 	}
 
-	/* Safely ignore these bits for debug checks below */
+	/* Safely ignore these bits for de checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
 	/* HW RF KILL switch toggled */
@@ -1876,7 +1876,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 	/* uCode wakes up after power-down sleep */
 	if (inta & CSR_INT_BIT_WAKEUP) {
-		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
+		IWL_DE_ISR(trans, "Wakeup interrupt\n");
 		iwl_pcie_rxq_check_wrptr(trans);
 		iwl_pcie_txq_check_wrptrs(trans);
 
@@ -1890,7 +1890,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	 * notifications from uCode come through here*/
 	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX |
 		    CSR_INT_BIT_RX_PERIODIC)) {
-		IWL_DEBUG_ISR(trans, "Rx interrupt\n");
+		IWL_DE_ISR(trans, "Rx interrupt\n");
 		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
 			handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
 			iwl_write32(trans, CSR_FH_INT_STATUS,
@@ -1937,7 +1937,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta & CSR_INT_BIT_FH_TX) {
 		iwl_write32(trans, CSR_FH_INT_STATUS, CSR_FH_INT_TX_MASK);
-		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
+		IWL_DE_ISR(trans, "uCode load interrupt\n");
 		isr_stats->tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
@@ -2038,7 +2038,7 @@ void iwl_pcie_reset_ict(struct iwl_trans *trans)
 	       CSR_DRAM_INIT_TBL_WRAP_CHECK |
 	       CSR_DRAM_INIT_TBL_WRITE_POINTER;
 
-	IWL_DEBUG_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%x\n", val);
+	IWL_DE_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%x\n", val);
 
 	iwl_write32(trans, CSR_DRAM_INT_TBL_REG, val);
 	trans_pcie->use_ict = true;
@@ -2103,13 +2103,13 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	trace_iwlwifi_dev_irq_msix(trans->dev, entry, true, inta_fh, inta_hw);
 
 	if (unlikely(!(inta_fh | inta_hw))) {
-		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
+		IWL_DE_ISR(trans, "Ignore interrupt, inta == 0\n");
 		lock_map_release(&trans->sync_cmd_lockdep_map);
 		return IRQ_NONE;
 	}
 
-	if (iwl_have_debug_level(IWL_DL_ISR))
-		IWL_DEBUG_ISR(trans, "ISR inta_fh 0x%08x, enabled 0x%08x\n",
+	if (iwl_have_de_level(IWL_DL_ISR))
+		IWL_DE_ISR(trans, "ISR inta_fh 0x%08x, enabled 0x%08x\n",
 			      inta_fh,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
 
@@ -2129,7 +2129,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
-		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
+		IWL_DE_ISR(trans, "uCode load interrupt\n");
 		isr_stats->tx++;
 		/*
 		 * Wake up uCode load routine,
@@ -2151,15 +2151,15 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	}
 
 	/* After checking FH register check HW register */
-	if (iwl_have_debug_level(IWL_DL_ISR))
-		IWL_DEBUG_ISR(trans,
+	if (iwl_have_de_level(IWL_DL_ISR))
+		IWL_DE_ISR(trans,
 			      "ISR inta_hw 0x%08x, enabled 0x%08x\n",
 			      inta_hw,
 			      iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD));
 
 	/* Alive notification via Rx interrupt will do the real work */
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_ALIVE) {
-		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
+		IWL_DE_ISR(trans, "Alive interrupt\n");
 		isr_stats->alive++;
 		if (trans->cfg->gen2) {
 			/* We can restock, since firmware configured the RFH */
@@ -2172,14 +2172,14 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		/* Reflect IML transfer status */
 		int res = iwl_read32(trans, CSR_IML_RESP_ADDR);
 
-		IWL_DEBUG_ISR(trans, "IML transfer status: %d\n", res);
+		IWL_DE_ISR(trans, "IML transfer status: %d\n", res);
 		if (res == IWL_IMAGE_RESP_FAIL) {
 			isr_stats->sw++;
 			iwl_pcie_irq_handle_error(trans);
 		}
 	} else if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP) {
 		/* uCode wakes up after power-down sleep */
-		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
+		IWL_DE_ISR(trans, "Wakeup interrupt\n");
 		iwl_pcie_rxq_check_wrptr(trans);
 		iwl_pcie_txq_check_wrptrs(trans);
 
@@ -2190,7 +2190,7 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		/* Reflect IML transfer status */
 		int res = iwl_read32(trans, CSR_IML_RESP_ADDR);
 
-		IWL_DEBUG_ISR(trans, "IML transfer status: %d\n", res);
+		IWL_DE_ISR(trans, "IML transfer status: %d\n", res);
 		if (res == IWL_IMAGE_RESP_FAIL) {
 			isr_stats->sw++;
 			iwl_pcie_irq_handle_error(trans);

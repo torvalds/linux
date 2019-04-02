@@ -33,7 +33,7 @@
 #define MANTIS_ERROR		0
 #define MANTIS_NOTICE		1
 #define MANTIS_INFO		2
-#define MANTIS_DEBUG		3
+#define MANTIS_DE		3
 #define MANTIS_TMG		9
 
 #define dprintk(y, z, format, arg...) do {								\
@@ -44,10 +44,10 @@
 			printk(KERN_NOTICE "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 		else if ((mantis->verbose > MANTIS_INFO) && (mantis->verbose > y))			\
 			printk(KERN_INFO "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
-		else if ((mantis->verbose > MANTIS_DEBUG) && (mantis->verbose > y))			\
-			printk(KERN_DEBUG "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
+		else if ((mantis->verbose > MANTIS_DE) && (mantis->verbose > y))			\
+			printk(KERN_DE "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 		else if ((mantis->verbose > MANTIS_TMG) && (mantis->verbose > y))			\
-			printk(KERN_DEBUG "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
+			printk(KERN_DE "%s (%d): " format "\n" , __func__ , mantis->num , ##arg);	\
 	} else {											\
 		if (mantis->verbose > y)								\
 			printk(format , ##arg);								\

@@ -63,7 +63,7 @@
 #include "trace.h"
 #include "mad.h"
 #include "sdma.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "verbs.h"
 #include "aspm.h"
 #include "affinity.h"
@@ -133,7 +133,7 @@ static int hfi1_create_kctxt(struct hfi1_devdata *dd,
 	int ret;
 
 	/* Control context has to be always 0 */
-	BUILD_BUG_ON(HFI1_CTRL_CTXT != 0);
+	BUILD__ON(HFI1_CTRL_CTXT != 0);
 
 	ret = hfi1_create_ctxtdata(ppd, dd->node, &rcd);
 	if (ret < 0) {
@@ -972,7 +972,7 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 		set_mtu(ppd);
 	}
 
-	/* enable chip even if we have an error, so we can debug cause */
+	/* enable chip even if we have an error, so we can de cause */
 	enable_chip(dd);
 
 done:
@@ -1826,7 +1826,7 @@ static void remove_one(struct pci_dev *pdev)
 {
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
-	/* close debugfs files before ib unregister */
+	/* close defs files before ib unregister */
 	hfi1_dbg_ibdev_exit(&dd->verbs_dev);
 
 	/* remove the /dev hfi1 interface */

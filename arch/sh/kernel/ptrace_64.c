@@ -488,14 +488,14 @@ asmlinkage int sh64_ptrace(long request, long pid,
 	static unsigned long first_call;
 
 	if (!test_and_set_bit(0, &first_call)) {
-		/* Set WPC.DBRMODE to 0.  This makes all debug events get
+		/* Set WPC.DBRMODE to 0.  This makes all de events get
 		 * delivered through RESVEC, i.e. into the handlers in entry.S.
 		 * (If the kernel was downloaded using a remote gdb, WPC.DBRMODE
-		 * would normally be left set to 1, which makes debug events get
+		 * would normally be left set to 1, which makes de events get
 		 * delivered through DBRVEC, i.e. into the remote gdb's
 		 * handlers.  This prevents ptrace getting them, and confuses
 		 * the remote gdb.) */
-		printk("DBRMODE set to 0 to permit native debugging\n");
+		printk("DBRMODE set to 0 to permit native deging\n");
 		poke_real_address_q(WPC_DBRMODE, 0);
 	}
 
@@ -543,9 +543,9 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 /* Called with interrupts disabled */
 asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 {
-	/* This is called after a single step exception (DEBUGSS).
+	/* This is called after a single step exception (DESS).
 	   There is no need to change the PC, as it is a post-execution
-	   exception, as entry.S does not do anything to the PC for DEBUGSS.
+	   exception, as entry.S does not do anything to the PC for DESS.
 	   We need to clear the Single Step setting in SR to avoid
 	   continually stepping. */
 	local_irq_enable();

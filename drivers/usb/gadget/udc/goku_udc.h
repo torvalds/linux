@@ -265,13 +265,13 @@ struct goku_udc {
 	printk(level "%s %s: " fmt , driver_name , \
 			pci_name(dev->pdev) , ## args)
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(dev,fmt,args...) \
-	xprintk(dev , KERN_DEBUG , fmt , ## args)
+	xprintk(dev , KERN_DE , fmt , ## args)
 #else
 #define DBG(dev,fmt,args...) \
 	do { } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
 #ifdef VERBOSE
 #define VDBG DBG

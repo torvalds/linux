@@ -187,7 +187,7 @@ static char *is_there_reiserfs_struct(char *fmt, int *what)
 }
 
 /*
- * debugging reiserfs we used to print out a lot of different
+ * deging reiserfs we used to print out a lot of different
  * variables, like keys, item headers, buffer heads etc. Values of
  * most fields matter. So it took a long time just to write
  * appropriative printk. With this reiserfs_warning you can use format
@@ -313,15 +313,15 @@ static void reiserfs_printk(const char *fmt, ...)
 	printk(error_buf);
 }
 
-void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
+void reiserfs_de(struct super_block *s, int level, const char *fmt, ...)
 {
 #ifdef CONFIG_REISERFS_CHECK
 	do_reiserfs_warning(fmt);
 	if (s)
-		printk(KERN_DEBUG "REISERFS debug (device %s): %s\n",
+		printk(KERN_DE "REISERFS de (device %s): %s\n",
 		       s->s_id, error_buf);
 	else
-		printk(KERN_DEBUG "REISERFS debug: %s\n", error_buf);
+		printk(KERN_DE "REISERFS de: %s\n", error_buf);
 #endif
 }
 
@@ -331,7 +331,7 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
  *          maintainer-errorid: [function-name:] message
  *
  *   where errorid is unique to the maintainer and function-name is
- *   optional, is recommended, so that anyone can easily find the bug
+ *   optional, is recommended, so that anyone can easily find the 
  *   with a simple grep for the short to type string
  *   maintainer-errorid.  Don't bother with reusing errorids, there are
  *   lots of numbers out there.
@@ -387,7 +387,7 @@ void __reiserfs_panic(struct super_block *sb, const char *id,
 	else
 		printk(KERN_WARNING "REISERFS panic: %s%s%s: %s\n",
 		      id ? id : "", id ? " " : "", function, error_buf);
-	BUG();
+	();
 }
 
 void __reiserfs_error(struct super_block *sb, const char *id,
@@ -395,7 +395,7 @@ void __reiserfs_error(struct super_block *sb, const char *id,
 {
 	do_reiserfs_warning(fmt);
 
-	BUG_ON(sb == NULL);
+	_ON(sb == NULL);
 
 	if (reiserfs_error_panic(sb))
 		__reiserfs_panic(sb, id, function, error_buf);

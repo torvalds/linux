@@ -549,7 +549,7 @@ bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
-		BUG_ON("Failed to found connector for link!");
+		_ON("Failed to found connector for link!");
 		return true;
 	}
 

@@ -776,7 +776,7 @@ static void macb_tx_error_task(struct work_struct *work)
 	 */
 	if (macb_halt_tx(bp))
 		/* Just complain for now, reinitializing TX path can be good */
-		netdev_err(bp->dev, "BUG: halt tx timed out\n");
+		netdev_err(bp->dev, ": halt tx timed out\n");
 
 	/* Treat frames in TX queue including the ones that caused the error.
 	 * Free transmit buffers in upper layer.
@@ -812,12 +812,12 @@ static void macb_tx_error_task(struct work_struct *work)
 			}
 		} else {
 			/* "Buffers exhausted mid-frame" errors may only happen
-			 * if the driver is buggy, so complain loudly about
+			 * if the driver is gy, so complain loudly about
 			 * those. Statistics are updated by hardware.
 			 */
 			if (ctrl & MACB_BIT(TX_BUF_EXHAUSTED))
 				netdev_err(bp->dev,
-					   "BUG: TX buffers exhausted mid-frame\n");
+					   ": TX buffers exhausted mid-frame\n");
 
 			desc->ctrl = ctrl | MACB_BIT(TX_USED);
 		}
@@ -1089,12 +1089,12 @@ static int gem_rx(struct macb_queue *queue, int budget)
 
 		gem_ptp_do_rxstamp(bp, skb, desc);
 
-#if defined(DEBUG) && defined(VERBOSE_DEBUG)
+#if defined(DE) && defined(VERBOSE_DE)
 		netdev_vdbg(bp->dev, "received skb of length %u, csum: %08x\n",
 			    skb->len, skb->csum);
-		print_hex_dump(KERN_DEBUG, " mac: ", DUMP_PREFIX_ADDRESS, 16, 1,
+		print_hex_dump(KERN_DE, " mac: ", DUMP_PREFIX_ADDRESS, 16, 1,
 			       skb_mac_header(skb), 16, true);
-		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_ADDRESS, 16, 1,
+		print_hex_dump(KERN_DE, "data: ", DUMP_PREFIX_ADDRESS, 16, 1,
 			       skb->data, 32, true);
 #endif
 
@@ -1594,7 +1594,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	/* Should never happen */
 	if (unlikely(!tx_skb)) {
-		netdev_err(bp->dev, "BUG! empty skb!\n");
+		netdev_err(bp->dev, "! empty skb!\n");
 		return 0;
 	}
 
@@ -1833,12 +1833,12 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else
 		hdrlen = min(skb_headlen(skb), bp->max_tx_length);
 
-#if defined(DEBUG) && defined(VERBOSE_DEBUG)
+#if defined(DE) && defined(VERBOSE_DE)
 	netdev_vdbg(bp->dev,
 		    "start_xmit: queue %hu len %u head %p data %p tail %p end %p\n",
 		    queue_index, skb->len, skb->head, skb->data,
 		    skb_tail_pointer(skb), skb_end_pointer(skb));
-	print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_OFFSET, 16, 1,
+	print_hex_dump(KERN_DE, "data: ", DUMP_PREFIX_OFFSET, 16, 1,
 		       skb->data, 16, true);
 #endif
 

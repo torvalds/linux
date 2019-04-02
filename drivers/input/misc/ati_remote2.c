@@ -61,7 +61,7 @@ static int ati_remote2_set_mask(const char *val,
 static int ati_remote2_set_channel_mask(const char *val,
 					const struct kernel_param *kp)
 {
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	return ati_remote2_set_mask(val, kp, ATI_REMOTE2_MAX_CHANNEL_MASK);
 }
@@ -69,7 +69,7 @@ static int ati_remote2_set_channel_mask(const char *val,
 static int ati_remote2_get_channel_mask(char *buffer,
 					const struct kernel_param *kp)
 {
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	return sprintf(buffer, "0x%04x", *(unsigned int *)kp->arg);
 }
@@ -77,7 +77,7 @@ static int ati_remote2_get_channel_mask(char *buffer,
 static int ati_remote2_set_mode_mask(const char *val,
 				     const struct kernel_param *kp)
 {
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	return ati_remote2_set_mask(val, kp, ATI_REMOTE2_MAX_MODE_MASK);
 }
@@ -85,7 +85,7 @@ static int ati_remote2_set_mode_mask(const char *val,
 static int ati_remote2_get_mode_mask(char *buffer,
 				     const struct kernel_param *kp)
 {
-	pr_debug("%s()\n", __func__);
+	pr_de("%s()\n", __func__);
 
 	return sprintf(buffer, "0x%02x", *(unsigned int *)kp->arg);
 }

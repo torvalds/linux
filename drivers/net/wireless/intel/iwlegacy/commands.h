@@ -112,7 +112,7 @@ enum {
 	/* Power Management */
 	C_POWER_TBL = 0x77,
 	N_PM_SLEEP = 0x7A,
-	N_PM_DEBUG_STATS = 0x7B,
+	N_PM_DE_STATS = 0x7B,
 
 	/* Scan commands and notifications */
 	C_SCAN = 0x80,
@@ -439,7 +439,7 @@ struct il_init_alive_resp {
  * See comments documenting "BSM" (bootstrap state machine).
  *
  * This response includes two pointers to structures within the device's
- * data SRAM (access via HBUS_TARG_MEM_* regs) that are useful for debugging:
+ * data SRAM (access via HBUS_TARG_MEM_* regs) that are useful for deging:
  *
  * 1)  log_event_table_ptr indicates base of the event log.  This traces
  *     a 256-entry history of uCode execution within a circular buffer.
@@ -2285,7 +2285,7 @@ struct il3945_powertable_cmd {
 struct il_powertable_cmd {
 	__le16 flags;
 	u8 keep_alive_seconds;	/* 3945 reserved */
-	u8 debug_flags;		/* 3945 reserved */
+	u8 de_flags;		/* 3945 reserved */
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
 	__le32 sleep_interval[IL_POWER_VEC_SIZE];

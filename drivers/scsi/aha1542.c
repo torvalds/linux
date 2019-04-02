@@ -170,7 +170,7 @@ static int makecode(unsigned hosterr, unsigned scsierr)
 	case 0x1a:		/* Invalid CCB or Segment List Parameter-A segment list with a zero
 				   length segment or invalid segment list boundaries was received.
 				   A CCB parameter was invalid. */
-#ifdef DEBUG
+#ifdef DE
 		printk("Aha1542: %x %x\n", hosterr, scsierr);
 #endif
 		hosterr = DID_ERROR;	/* Couldn't find any better */
@@ -268,10 +268,10 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
 
-#ifdef DEBUG
+#ifdef DE
 	{
 		flag = inb(INTRFLAGS(sh->io_port));
-		shost_printk(KERN_DEBUG, sh, "aha1542_intr_handle: ");
+		shost_printk(KERN_DE, sh, "aha1542_intr_handle: ");
 		if (!(flag & ANYINTR))
 			printk("no interrupt?");
 		if (flag & MBIF)
@@ -330,17 +330,17 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 		mb[mbi].status = 0;
 		aha1542->aha1542_last_mbi_used = mbi;
 
-#ifdef DEBUG
+#ifdef DE
 		if (ccb[mbo].tarstat | ccb[mbo].hastat)
-			shost_printk(KERN_DEBUG, sh, "aha1542_command: returning %x (status %d)\n",
+			shost_printk(KERN_DE, sh, "aha1542_command: returning %x (status %d)\n",
 			       ccb[mbo].tarstat + ((int) ccb[mbo].hastat << 16), mb[mbi].status);
 #endif
 
 		if (mbistatus == 3)
 			continue;	/* Aborted command not found */
 
-#ifdef DEBUG
-		shost_printk(KERN_DEBUG, sh, "...done %d %d\n", mbo, mbi);
+#ifdef DE
+		shost_printk(KERN_DE, sh, "...done %d %d\n", mbo, mbi);
 #endif
 
 		tmp_cmd = aha1542->int_cmds[mbo];
@@ -371,9 +371,9 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 		else
 			errstatus = 0;
 
-#ifdef DEBUG
+#ifdef DE
 		if (errstatus)
-			shost_printk(KERN_DEBUG, sh, "(aha1542 error:%x %x %x) ", errstatus,
+			shost_printk(KERN_DE, sh, "(aha1542 error:%x %x %x) ", errstatus,
 			       ccb[mbo].hastat, ccb[mbo].tarstat);
 		if (ccb[mbo].tarstat == 2)
 			print_hex_dump_bytes("sense: ", DUMP_PREFIX_NONE, &ccb[mbo].cdb[ccb[mbo].cdblen], 12);
@@ -407,14 +407,14 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		cmd->scsi_done(cmd);
 		return 0;
 	}
-#ifdef DEBUG
+#ifdef DE
 	{
 		int i = -1;
 		if (*cmd->cmnd == READ_10 || *cmd->cmnd == WRITE_10)
 			i = xscsi2int(cmd->cmnd + 2);
 		else if (*cmd->cmnd == READ_6 || *cmd->cmnd == WRITE_6)
 			i = scsi2int(cmd->cmnd + 2);
-		shost_printk(KERN_DEBUG, sh, "aha1542_queuecommand: dev %d cmd %02x pos %d len %d",
+		shost_printk(KERN_DE, sh, "aha1542_queuecommand: dev %d cmd %02x pos %d len %d",
 						target, *cmd->cmnd, i, bufflen);
 		print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
 	}
@@ -456,8 +456,8 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	aha1542->aha1542_last_mbo_used = mbo;
 
-#ifdef DEBUG
-	shost_printk(KERN_DEBUG, sh, "Sending command (%d %p)...", mbo, cmd->scsi_done);
+#ifdef DE
+	shost_printk(KERN_DE, sh, "Sending command (%d %p)...", mbo, cmd->scsi_done);
 #endif
 
 	/* This gets trashed for some reason */
@@ -486,8 +486,8 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		};
 		any2scsi(ccb[mbo].datalen, sg_count * sizeof(struct chain));
 		any2scsi(ccb[mbo].dataptr, acmd->chain_handle);
-#ifdef DEBUG
-		shost_printk(KERN_DEBUG, sh, "cptr %p: ", acmd->chain);
+#ifdef DE
+		shost_printk(KERN_DE, sh, "cptr %p: ", acmd->chain);
 		print_hex_dump_bytes("cptr: ", DUMP_PREFIX_NONE, acmd->chain, 18);
 #endif
 	} else {
@@ -500,7 +500,7 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	ccb[mbo].linkptr[0] = ccb[mbo].linkptr[1] = ccb[mbo].linkptr[2] = 0;
 	ccb[mbo].commlinkid = 0;
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump_bytes("sending: ", DUMP_PREFIX_NONE, &ccb[mbo], sizeof(ccb[mbo]) - 10);
 	printk("aha1542_queuecommand: now waiting for interrupt ");
 #endif
@@ -655,7 +655,7 @@ static int aha1542_query(struct Scsi_Host *sh)
 	aha1542->bios_translation = BIOS_TRANSLATION_6432;	/* Default case */
 
 	/* For an AHA1740 series board, we ignore the board since there is a
-	   hardware bug which can lead to wrong blocks being returned if the board
+	   hardware  which can lead to wrong blocks being returned if the board
 	   is operating in the 1542 emulation mode.  Since there is an extended mode
 	   driver, we simply ignore the board and let the 1740 driver pick it up.
 	 */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 
-#include "debug.h"
+#include "de.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
 
@@ -59,7 +59,7 @@ static int get_op(const char *op_str)
 			return val->val;
 	}
 
-	pr_debug("Failed to get op\n");
+	pr_de("Failed to get op\n");
 
 	return -1;
 }
@@ -86,7 +86,7 @@ static int get_branch(const char *branch_str)
 			return val->val;
 	}
 
-	pr_debug("Failed to get branch\n");
+	pr_de("Failed to get branch\n");
 
 	return -1;
 }
@@ -101,12 +101,12 @@ static int test_data_item(struct test_data *dat, int x86_64)
 	insn_get_length(&insn);
 
 	if (!insn_complete(&insn)) {
-		pr_debug("Failed to decode: %s\n", dat->asm_rep);
+		pr_de("Failed to decode: %s\n", dat->asm_rep);
 		return -1;
 	}
 
 	if (insn.length != dat->expected_length) {
-		pr_debug("Failed to decode length (%d vs expected %d): %s\n",
+		pr_de("Failed to decode length (%d vs expected %d): %s\n",
 			 insn.length, dat->expected_length, dat->asm_rep);
 		return -1;
 	}
@@ -115,29 +115,29 @@ static int test_data_item(struct test_data *dat, int x86_64)
 	branch = get_branch(dat->expected_branch_str);
 
 	if (intel_pt_get_insn(dat->data, MAX_INSN_SIZE, x86_64, &intel_pt_insn)) {
-		pr_debug("Intel PT failed to decode: %s\n", dat->asm_rep);
+		pr_de("Intel PT failed to decode: %s\n", dat->asm_rep);
 		return -1;
 	}
 
 	if ((int)intel_pt_insn.op != op) {
-		pr_debug("Failed to decode 'op' value (%d vs expected %d): %s\n",
+		pr_de("Failed to decode 'op' value (%d vs expected %d): %s\n",
 			 intel_pt_insn.op, op, dat->asm_rep);
 		return -1;
 	}
 
 	if ((int)intel_pt_insn.branch != branch) {
-		pr_debug("Failed to decode 'branch' value (%d vs expected %d): %s\n",
+		pr_de("Failed to decode 'branch' value (%d vs expected %d): %s\n",
 			 intel_pt_insn.branch, branch, dat->asm_rep);
 		return -1;
 	}
 
 	if (intel_pt_insn.rel != dat->expected_rel) {
-		pr_debug("Failed to decode 'rel' value (%#x vs expected %#x): %s\n",
+		pr_de("Failed to decode 'rel' value (%#x vs expected %#x): %s\n",
 			 intel_pt_insn.rel, dat->expected_rel, dat->asm_rep);
 		return -1;
 	}
 
-	pr_debug("Decoded ok: %s\n", dat->asm_rep);
+	pr_de("Decoded ok: %s\n", dat->asm_rep);
 
 	return 0;
 }

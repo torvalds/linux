@@ -23,10 +23,10 @@ static inline bool
 spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 {
 	bool r;
-	pr_debug("spi_match:%c 0x%x <= 0x%x <= 0x%x\n",
+	pr_de("spi_match:%c 0x%x <= 0x%x <= 0x%x\n",
 		 invert ? '!' : ' ', min, spi, max);
 	r = (spi >= min && spi <= max) ^ invert;
-	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
+	pr_de(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
@@ -45,7 +45,7 @@ static bool ah_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
-		pr_debug("Dropping evil AH tinygram.\n");
+		pr_de("Dropping evil AH tinygram.\n");
 		par->hotdrop = true;
 		return false;
 	}
@@ -61,7 +61,7 @@ static int ah_mt_check(const struct xt_mtchk_param *par)
 
 	/* Must specify no unknown invflags */
 	if (ahinfo->invflags & ~IPT_AH_INV_MASK) {
-		pr_debug("unknown flags %X\n", ahinfo->invflags);
+		pr_de("unknown flags %X\n", ahinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

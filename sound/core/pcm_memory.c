@@ -306,7 +306,7 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 
 	if (PCM_RUNTIME_CHECK(substream))
 		return -EINVAL;
-	if (snd_BUG_ON(substream->dma_buffer.dev.type ==
+	if (snd__ON(substream->dma_buffer.dev.type ==
 		       SNDRV_DMA_TYPE_UNKNOWN))
 		return -EINVAL;
 	runtime = substream->runtime;

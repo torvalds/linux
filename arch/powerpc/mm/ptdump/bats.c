@@ -6,7 +6,7 @@
  * This dumps the content of BATS
  */
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/pgtable.h>
 #include <asm/cpu_has_feature.h>
 
@@ -164,10 +164,10 @@ static const struct file_operations bats_fops = {
 
 static int __init bats_init(void)
 {
-	struct dentry *debugfs_file;
+	struct dentry *defs_file;
 
-	debugfs_file = debugfs_create_file("block_address_translation", 0400,
-					   powerpc_debugfs_root, NULL, &bats_fops);
-	return debugfs_file ? 0 : -ENOMEM;
+	defs_file = defs_create_file("block_address_translation", 0400,
+					   powerpc_defs_root, NULL, &bats_fops);
+	return defs_file ? 0 : -ENOMEM;
 }
 device_initcall(bats_init);

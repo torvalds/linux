@@ -26,12 +26,12 @@
 /* struct bio, bio_vec and BIO_* flags are defined in blk_types.h */
 #include <linux/blk_types.h>
 
-#define BIO_DEBUG
+#define BIO_DE
 
-#ifdef BIO_DEBUG
-#define BIO_BUG_ON	BUG_ON
+#ifdef BIO_DE
+#define BIO__ON	_ON
 #else
-#define BIO_BUG_ON
+#define BIO__ON
 #endif
 
 #define BIO_MAX_PAGES		256
@@ -546,7 +546,7 @@ static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 	local_irq_save(*flags);
 	addr = (unsigned long) kmap_atomic(bvec->bv_page);
 
-	BUG_ON(addr & ~PAGE_MASK);
+	_ON(addr & ~PAGE_MASK);
 
 	return (char *) addr + bvec->bv_offset;
 }

@@ -101,7 +101,7 @@ static DEFINE_MUTEX(adutux_mutex);
 
 static struct usb_driver adu_driver;
 
-static inline void adu_debug_data(struct device *dev, const char *function,
+static inline void adu_de_data(struct device *dev, const char *function,
 				  int size, const unsigned char *data)
 {
 	dev_dbg(dev, "%s - length = %d, data = %*ph\n",
@@ -157,7 +157,7 @@ static void adu_interrupt_in_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	adu_debug_data(&dev->udev->dev, __func__,
+	adu_de_data(&dev->udev->dev, __func__,
 		       urb->actual_length, urb->transfer_buffer);
 
 	spin_lock_irqsave(&dev->buflock, flags);
@@ -202,7 +202,7 @@ static void adu_interrupt_out_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned long flags;
 
-	adu_debug_data(&dev->udev->dev, __func__,
+	adu_de_data(&dev->udev->dev, __func__,
 		       urb->actual_length, urb->transfer_buffer);
 
 	if (status != 0) {
@@ -686,7 +686,7 @@ static int adu_probe(struct usb_interface *interface,
 	if (!dev->read_buffer_primary)
 		goto error;
 
-	/* debug code prime the buffer */
+	/* de code prime the buffer */
 	memset(dev->read_buffer_primary, 'a', in_end_size);
 	memset(dev->read_buffer_primary + in_end_size, 'b', in_end_size);
 	memset(dev->read_buffer_primary + (2 * in_end_size), 'c', in_end_size);
@@ -696,7 +696,7 @@ static int adu_probe(struct usb_interface *interface,
 	if (!dev->read_buffer_secondary)
 		goto error;
 
-	/* debug code prime the buffer */
+	/* de code prime the buffer */
 	memset(dev->read_buffer_secondary, 'e', in_end_size);
 	memset(dev->read_buffer_secondary + in_end_size, 'f', in_end_size);
 	memset(dev->read_buffer_secondary + (2 * in_end_size), 'g', in_end_size);
@@ -706,7 +706,7 @@ static int adu_probe(struct usb_interface *interface,
 	if (!dev->interrupt_in_buffer)
 		goto error;
 
-	/* debug code prime the buffer */
+	/* de code prime the buffer */
 	memset(dev->interrupt_in_buffer, 'i', in_end_size);
 
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);

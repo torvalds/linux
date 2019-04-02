@@ -33,7 +33,7 @@ __active_park(struct i915_active *ref)
 	struct active_node *it, *n;
 
 	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
-		GEM_BUG_ON(i915_active_request_isset(&it->base));
+		GEM__ON(i915_active_request_isset(&it->base));
 		kmem_cache_free(global.slab_cache, it);
 	}
 	ref->tree = RB_ROOT;
@@ -42,7 +42,7 @@ __active_park(struct i915_active *ref)
 static void
 __active_retire(struct i915_active *ref)
 {
-	GEM_BUG_ON(!ref->count);
+	GEM__ON(!ref->count);
 	if (--ref->count)
 		return;
 
@@ -137,9 +137,9 @@ replace:
 		/* Retire ourselves from the old rq->active_list */
 		__list_del_entry(&node->base.link);
 		ref->count--;
-		GEM_BUG_ON(!ref->count);
+		GEM__ON(!ref->count);
 	}
-	GEM_BUG_ON(list_empty(&ref->last.link));
+	GEM__ON(list_empty(&ref->last.link));
 	list_replace_init(&ref->last.link, &node->base.link);
 	node->base.request = fetch_and_zero(&ref->last.request);
 
@@ -178,7 +178,7 @@ int i915_active_ref(struct i915_active *ref,
 		ref->count++;
 	__i915_active_request_set(active, rq);
 
-	GEM_BUG_ON(!ref->count);
+	GEM__ON(!ref->count);
 out:
 	i915_active_release(ref);
 	return err;
@@ -252,12 +252,12 @@ out:
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_GEM)
 void i915_active_fini(struct i915_active *ref)
 {
-	GEM_BUG_ON(i915_active_request_isset(&ref->last));
-	GEM_BUG_ON(!RB_EMPTY_ROOT(&ref->tree));
-	GEM_BUG_ON(ref->count);
+	GEM__ON(i915_active_request_isset(&ref->last));
+	GEM__ON(!RB_EMPTY_ROOT(&ref->tree));
+	GEM__ON(ref->count);
 }
 #endif
 

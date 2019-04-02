@@ -518,10 +518,10 @@ static int iavf_set_priv_flags(struct net_device *netdev, u32 flags)
 }
 
 /**
- * iavf_get_msglevel - Get debug message level
+ * iavf_get_msglevel - Get de message level
  * @netdev: network interface device structure
  *
- * Returns current debug message level.
+ * Returns current de message level.
  **/
 static u32 iavf_get_msglevel(struct net_device *netdev)
 {
@@ -531,19 +531,19 @@ static u32 iavf_get_msglevel(struct net_device *netdev)
 }
 
 /**
- * iavf_set_msglevel - Set debug message level
+ * iavf_set_msglevel - Set de message level
  * @netdev: network interface device structure
  * @data: message level
  *
- * Set current debug message level. Higher values cause the driver to
+ * Set current de message level. Higher values cause the driver to
  * be noisier.
  **/
 static void iavf_set_msglevel(struct net_device *netdev, u32 data)
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 
-	if (IAVF_DEBUG_USER & data)
-		adapter->hw.debug_mask = data;
+	if (IAVF_DE_USER & data)
+		adapter->hw.de_mask = data;
 	adapter->msg_enable = data;
 }
 

@@ -157,7 +157,7 @@ struct dm_per_pkt_info {
 };
 
 struct odm_phy_dbg_info {
-	/*ODM Write,debug info*/
+	/*ODM Write,de info*/
 	s8 rx_snr_db[4];
 	u32 num_qry_phy_status;
 	u32 num_qry_phy_status_cck;
@@ -401,9 +401,9 @@ struct phy_dm_struct {
 	enum phy_reg_pg_type phy_reg_pg_value_type;
 	u8 phy_reg_pg_version;
 
-	u32 debug_components;
-	u32 fw_debug_components;
-	u32 debug_level;
+	u32 de_components;
+	u32 fw_de_components;
+	u32 de_level;
 
 	u32 num_qry_phy_status_all; /*CCK + OFDM*/
 	u32 last_num_qry_phy_status_all;
@@ -650,7 +650,7 @@ struct phy_dm_struct {
 	u8 nbi_set_result;
 
 	u8 c2h_cmd_start;
-	u8 fw_debug_trace[60];
+	u8 fw_de_trace[60];
 	u8 pre_c2h_seq;
 	bool fw_buff_is_enpty;
 	u32 data_frame_num;
@@ -850,7 +850,7 @@ void odm_dm_init(struct phy_dm_struct *dm);
 
 void odm_dm_reset(struct phy_dm_struct *dm);
 
-void phydm_support_ability_debug(void *dm_void, u32 *const dm_value, u32 *_used,
+void phydm_support_ability_de(void *dm_void, u32 *const dm_value, u32 *_used,
 				 char *output, u32 *_out_len);
 
 void phydm_config_ofdm_rx_path(struct phy_dm_struct *dm, u32 path);
@@ -927,7 +927,7 @@ void phydm_noisy_detection(struct phy_dm_struct *dm);
 void phydm_set_ext_switch(void *dm_void, u32 *const dm_value, u32 *_used,
 			  char *output, u32 *_out_len);
 
-void phydm_api_debug(void *dm_void, u32 function_map, u32 *const dm_value,
+void phydm_api_de(void *dm_void, u32 function_map, u32 *const dm_value,
 		     u32 *_used, char *output, u32 *_out_len);
 
 u8 phydm_nbi_setting(void *dm_void, u32 enable, u32 channel, u32 bw,

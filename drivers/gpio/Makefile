@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # generic gpio support: platform drivers, dedicated expander chips, etc
 
-ccflags-$(CONFIG_DEBUG_GPIO)	+= -DDEBUG
+ccflags-$(CONFIG_DE_GPIO)	+= -DDE
 
 obj-$(CONFIG_GPIOLIB)		+= gpiolib.o
 obj-$(CONFIG_GPIOLIB)		+= gpiolib-devres.o

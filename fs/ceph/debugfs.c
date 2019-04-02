@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/auth.h>
-#include <linux/ceph/debugfs.h>
+#include <linux/ceph/defs.h>
 
 #include "super.h"
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #include "mds_client.h"
 
@@ -44,7 +44,7 @@ static int mdsmap_show(struct seq_file *s, void *p)
 }
 
 /*
- * mdsc debugfs
+ * mdsc defs
  */
 static int mdsc_show(struct seq_file *s, void *p)
 {
@@ -182,7 +182,7 @@ CEPH_DEFINE_SHOW_FUNC(mds_sessions_show)
 
 
 /*
- * debugfs
+ * defs
  */
 static int congestion_kb_set(void *data, u64 val)
 {
@@ -204,91 +204,91 @@ DEFINE_SIMPLE_ATTRIBUTE(congestion_kb_fops, congestion_kb_get,
 			congestion_kb_set, "%llu\n");
 
 
-void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
+void ceph_fs_defs_cleanup(struct ceph_fs_client *fsc)
 {
-	dout("ceph_fs_debugfs_cleanup\n");
-	debugfs_remove(fsc->debugfs_bdi);
-	debugfs_remove(fsc->debugfs_congestion_kb);
-	debugfs_remove(fsc->debugfs_mdsmap);
-	debugfs_remove(fsc->debugfs_mds_sessions);
-	debugfs_remove(fsc->debugfs_caps);
-	debugfs_remove(fsc->debugfs_mdsc);
+	dout("ceph_fs_defs_cleanup\n");
+	defs_remove(fsc->defs_bdi);
+	defs_remove(fsc->defs_congestion_kb);
+	defs_remove(fsc->defs_mdsmap);
+	defs_remove(fsc->defs_mds_sessions);
+	defs_remove(fsc->defs_caps);
+	defs_remove(fsc->defs_mdsc);
 }
 
-int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
+int ceph_fs_defs_init(struct ceph_fs_client *fsc)
 {
 	char name[100];
 	int err = -ENOMEM;
 
-	dout("ceph_fs_debugfs_init\n");
-	BUG_ON(!fsc->client->debugfs_dir);
-	fsc->debugfs_congestion_kb =
-		debugfs_create_file("writeback_congestion_kb",
+	dout("ceph_fs_defs_init\n");
+	_ON(!fsc->client->defs_dir);
+	fsc->defs_congestion_kb =
+		defs_create_file("writeback_congestion_kb",
 				    0600,
-				    fsc->client->debugfs_dir,
+				    fsc->client->defs_dir,
 				    fsc,
 				    &congestion_kb_fops);
-	if (!fsc->debugfs_congestion_kb)
+	if (!fsc->defs_congestion_kb)
 		goto out;
 
 	snprintf(name, sizeof(name), "../../bdi/%s",
 		 dev_name(fsc->sb->s_bdi->dev));
-	fsc->debugfs_bdi =
-		debugfs_create_symlink("bdi",
-				       fsc->client->debugfs_dir,
+	fsc->defs_bdi =
+		defs_create_symlink("bdi",
+				       fsc->client->defs_dir,
 				       name);
-	if (!fsc->debugfs_bdi)
+	if (!fsc->defs_bdi)
 		goto out;
 
-	fsc->debugfs_mdsmap = debugfs_create_file("mdsmap",
+	fsc->defs_mdsmap = defs_create_file("mdsmap",
 					0400,
-					fsc->client->debugfs_dir,
+					fsc->client->defs_dir,
 					fsc,
 					&mdsmap_show_fops);
-	if (!fsc->debugfs_mdsmap)
+	if (!fsc->defs_mdsmap)
 		goto out;
 
-	fsc->debugfs_mds_sessions = debugfs_create_file("mds_sessions",
+	fsc->defs_mds_sessions = defs_create_file("mds_sessions",
 					0400,
-					fsc->client->debugfs_dir,
+					fsc->client->defs_dir,
 					fsc,
 					&mds_sessions_show_fops);
-	if (!fsc->debugfs_mds_sessions)
+	if (!fsc->defs_mds_sessions)
 		goto out;
 
-	fsc->debugfs_mdsc = debugfs_create_file("mdsc",
+	fsc->defs_mdsc = defs_create_file("mdsc",
 						0400,
-						fsc->client->debugfs_dir,
+						fsc->client->defs_dir,
 						fsc,
 						&mdsc_show_fops);
-	if (!fsc->debugfs_mdsc)
+	if (!fsc->defs_mdsc)
 		goto out;
 
-	fsc->debugfs_caps = debugfs_create_file("caps",
+	fsc->defs_caps = defs_create_file("caps",
 						   0400,
-						   fsc->client->debugfs_dir,
+						   fsc->client->defs_dir,
 						   fsc,
 						   &caps_show_fops);
-	if (!fsc->debugfs_caps)
+	if (!fsc->defs_caps)
 		goto out;
 
 	return 0;
 
 out:
-	ceph_fs_debugfs_cleanup(fsc);
+	ceph_fs_defs_cleanup(fsc);
 	return err;
 }
 
 
-#else  /* CONFIG_DEBUG_FS */
+#else  /* CONFIG_DE_FS */
 
-int ceph_fs_debugfs_init(struct ceph_fs_client *fsc)
+int ceph_fs_defs_init(struct ceph_fs_client *fsc)
 {
 	return 0;
 }
 
-void ceph_fs_debugfs_cleanup(struct ceph_fs_client *fsc)
+void ceph_fs_defs_cleanup(struct ceph_fs_client *fsc)
 {
 }
 
-#endif  /* CONFIG_DEBUG_FS */
+#endif  /* CONFIG_DE_FS */

@@ -24,7 +24,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
 #include <asm/byteorder.h>
@@ -68,7 +68,7 @@ static const char	hcd_name [] = "ehci_hcd";
 #define	EHCI_TUNE_MULT_TT	1
 /*
  * Some drivers think it's safe to schedule isochronous transfers more than
- * 256 ms into the future (partly as a result of an old bug in the scheduling
+ * 256 ms into the future (partly as a result of an old  in the scheduling
  * code).  In an attempt to avoid trouble, we will use a minimum scheduling
  * length of 512 frames instead of 256.
  */
@@ -118,7 +118,7 @@ static unsigned ehci_moschip_read_frame_index(struct ehci_hcd *ehci)
 
 static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
 {
-	if (ehci->frame_index_bug)
+	if (ehci->frame_index_)
 		return ehci_moschip_read_frame_index(ehci);
 	return ehci_readl(ehci, &ehci->regs->frame_index);
 }
@@ -141,7 +141,7 @@ static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
  * hardware flakeout), or the register reads as all-ones (hardware removed).
  *
  * That last failure should_only happen in cases like physical cardbus eject
- * before driver shutdown. But it also seems to be caused by bugs in cardbus
+ * before driver shutdown. But it also seems to be caused by s in cardbus
  * bridge shutdown:  shutting down the bridge before the devices using it.
  */
 int ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
@@ -231,10 +231,10 @@ int ehci_reset(struct ehci_hcd *ehci)
 	int	retval;
 	u32	command = ehci_readl(ehci, &ehci->regs->command);
 
-	/* If the EHCI debug controller is active, special care must be
+	/* If the EHCI de controller is active, special care must be
 	 * taken before and after a host controller reset */
-	if (ehci->debug && !dbgp_reset_prep(ehci_to_hcd(ehci)))
-		ehci->debug = NULL;
+	if (ehci->de && !dbgp_reset_prep(ehci_to_hcd(ehci)))
+		ehci->de = NULL;
 
 	command |= CMD_RESET;
 	dbg_cmd (ehci, "reset", command);
@@ -255,7 +255,7 @@ int ehci_reset(struct ehci_hcd *ehci)
 	if (ehci_is_TDI(ehci))
 		tdi_reset (ehci);
 
-	if (ehci->debug)
+	if (ehci->de)
 		dbgp_external_startup(ehci_to_hcd(ehci));
 
 	ehci->port_c_suspend = ehci->suspended_ports =
@@ -405,7 +405,7 @@ static void ehci_work (struct ehci_hcd *ehci)
 		goto rescan;
 	ehci->scanning = false;
 
-	/* the IO watchdog guards against hardware or driver bugs that
+	/* the IO watchdog guards against hardware or driver s that
 	 * misplace IRQs, and should let us run completely without IRQs.
 	 * such lossage has been observed on both VT6202 and VT8235.
 	 */
@@ -433,7 +433,7 @@ static void ehci_stop (struct usb_hcd *hcd)
 
 	hrtimer_cancel(&ehci->hrtimer);
 	remove_sysfs_files(ehci);
-	remove_debug_files (ehci);
+	remove_de_files (ehci);
 
 	/* root hub is shut down separately (first, when possible) */
 	spin_lock_irq (&ehci->lock);
@@ -496,7 +496,7 @@ static int ehci_init(struct usb_hcd *hcd)
 		case 0: ehci->periodic_size = 1024; break;
 		case 1: ehci->periodic_size = 512; break;
 		case 2: ehci->periodic_size = 256; break;
-		default:	BUG();
+		default:	();
 		}
 	}
 	if ((retval = ehci_mem_init(ehci, GFP_KERNEL)) < 0)
@@ -647,7 +647,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * So long as they're part of class devices, we can't do it init()
 	 * since the class device isn't created that early.
 	 */
-	create_debug_files(ehci);
+	create_de_files(ehci);
 	create_sysfs_files(ehci);
 
 	return 0;
@@ -965,7 +965,7 @@ rescan:
 		if (!list_empty(&stream->td_list))
 			goto idle_timeout;
 
-		/* BUG_ON(!list_empty(&stream->free_list)); */
+		/* _ON(!list_empty(&stream->free_list)); */
 		reserve_release_iso_bandwidth(ehci, stream, -1);
 		kfree(stream);
 		goto done;
@@ -1300,13 +1300,13 @@ static int __init ehci_hcd_init(void)
 		printk(KERN_WARNING "Warning! ehci_hcd should always be loaded"
 				" before uhci_hcd and ohci_hcd, not after\n");
 
-	pr_debug("%s: block sizes: qh %zd qtd %zd itd %zd sitd %zd\n",
+	pr_de("%s: block sizes: qh %zd qtd %zd itd %zd sitd %zd\n",
 		 hcd_name,
 		 sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
 		 sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
 
-#ifdef CONFIG_DYNAMIC_DEBUG
-	ehci_debug_root = debugfs_create_dir("ehci", usb_debug_root);
+#ifdef CONFIG_DYNAMIC_DE
+	ehci_de_root = defs_create_dir("ehci", usb_de_root);
 #endif
 
 #ifdef PLATFORM_DRIVER
@@ -1350,9 +1350,9 @@ clean2:
 	platform_driver_unregister(&PLATFORM_DRIVER);
 clean0:
 #endif
-#ifdef CONFIG_DYNAMIC_DEBUG
-	debugfs_remove(ehci_debug_root);
-	ehci_debug_root = NULL;
+#ifdef CONFIG_DYNAMIC_DE
+	defs_remove(ehci_de_root);
+	ehci_de_root = NULL;
 #endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
@@ -1373,8 +1373,8 @@ static void __exit ehci_hcd_cleanup(void)
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
-#ifdef CONFIG_DYNAMIC_DEBUG
-	debugfs_remove(ehci_debug_root);
+#ifdef CONFIG_DYNAMIC_DE
+	defs_remove(ehci_de_root);
 #endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }

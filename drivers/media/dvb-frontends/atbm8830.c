@@ -23,14 +23,14 @@
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "atbm8830: " args); \
+		if (de) \
+			printk(KERN_DE "atbm8830: " args); \
 	} while (0)
 
-static int debug;
+static int de;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 static int atbm8830_write_reg(struct atbm_state *priv, u16 reg, u8 data)
 {
@@ -45,7 +45,7 @@ static int atbm8830_write_reg(struct atbm_state *priv, u16 reg, u8 data)
 	msg1.addr = dev_addr;
 	msg2.addr = dev_addr;
 
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk("%s: reg=0x%04X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg1, 1);
@@ -81,7 +81,7 @@ static int atbm8830_read_reg(struct atbm_state *priv, u16 reg, u8 *p_data)
 		return -EIO;
 
 	*p_data = buf2[0];
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk("%s: reg=0x%04X, data=0x%02X\n",
 			__func__, reg, buf2[0]);
 

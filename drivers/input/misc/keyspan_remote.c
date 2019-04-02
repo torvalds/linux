@@ -18,9 +18,9 @@
 #include <linux/usb/input.h>
 
 /* Parameters that can be passed to the driver. */
-static int debug;
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Enable extra debug messages and information");
+static int de;
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "Enable extra de messages and information");
 
 /* Vendor and product ids */
 #define USB_KEYSPAN_VENDOR_ID		0x06CD
@@ -124,7 +124,7 @@ struct usb_keyspan {
 static struct usb_driver keyspan_driver;
 
 /*
- * Debug routine that prints out what we've received from the remote.
+ * De routine that prints out what we've received from the remote.
  */
 static void keyspan_print(struct usb_keyspan* dev) /*unsigned char* data)*/
 {
@@ -389,7 +389,7 @@ static void keyspan_irq_recv(struct urb *urb)
 		goto resubmit;
 	}
 
-	if (debug)
+	if (de)
 		keyspan_print(dev);
 
 	keyspan_check_data(dev);

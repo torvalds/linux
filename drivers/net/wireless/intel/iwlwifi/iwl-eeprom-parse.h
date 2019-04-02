@@ -105,7 +105,7 @@ struct iwl_nvm_data {
 /**
  * iwl_parse_eeprom_data - parse EEPROM data and return values
  *
- * @dev: device pointer we're parsing for, for debug only
+ * @dev: device pointer we're parsing for, for de only
  * @cfg: device configuration for parsing and overrides
  * @eeprom: the EEPROM data
  * @eeprom_size: length of the EEPROM data

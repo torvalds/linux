@@ -35,7 +35,7 @@
 #include <linux/types.h>
 #include <linux/sunrpc/gss_krb5.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 

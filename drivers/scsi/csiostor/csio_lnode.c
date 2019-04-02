@@ -1567,7 +1567,7 @@ csio_fcoe_fwevt_handler(struct csio_hw *hw, __u8 cpl_op, __be64 *cmd)
 				goto out_pld;
 			}
 
-			/* save previous event for debugging */
+			/* save previous event for deging */
 			ln->prev_evt = ln->cur_evt;
 			ln->cur_evt = rdev_wr->event_cause;
 			CSIO_INC_STATS(ln, n_evt_fw[rdev_wr->event_cause]);
@@ -1809,7 +1809,7 @@ csio_ln_mgmt_submit_req(struct csio_ioreq *io_req,
 	struct csio_mgmtm *mgmtm = csio_hw_to_mgmtm(hw);
 	int rv;
 
-	BUG_ON(pld_len > pld->len);
+	_ON(pld_len > pld->len);
 
 	io_req->io_cbfn = io_cbfn;	/* Upper layer callback handler */
 	io_req->fw_handle = (uintptr_t) (io_req);
@@ -2095,7 +2095,7 @@ csio_lnode_init(struct csio_lnode *ln, struct csio_hw *hw,
 	INIT_LIST_HEAD(&ln->rnhead);
 	INIT_LIST_HEAD(&ln->cln_head);
 
-	/* Initialize log level for debug */
+	/* Initialize log level for de */
 	ln->params.log_level	= hw->params.log_level;
 
 	if (csio_ln_init(ln))

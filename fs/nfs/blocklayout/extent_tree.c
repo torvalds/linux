@@ -161,7 +161,7 @@ __ext_tree_insert(struct rb_root *root,
 			}
 			p = &(*p)->rb_right;
 		} else {
-			BUG();
+			();
 		}
 	}
 

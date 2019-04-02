@@ -15,7 +15,7 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <asm/vectors.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 
 #include <linux/types.h>

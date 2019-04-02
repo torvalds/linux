@@ -37,21 +37,21 @@
 /*
  * Generic range manager structs
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/rbtree.h>
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#ifdef CONFIG_DRM_DEBUG_MM
+#ifdef CONFIG_DRM_DE_MM
 #include <linux/stackdepot.h>
 #endif
 #include <drm/drm_print.h>
 
-#ifdef CONFIG_DRM_DEBUG_MM
-#define DRM_MM_BUG_ON(expr) BUG_ON(expr)
+#ifdef CONFIG_DRM_DE_MM
+#define DRM_MM__ON(expr) _ON(expr)
 #else
-#define DRM_MM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
+#define DRM_MM__ON(expr) BUILD__ON_INVALID(expr)
 #endif
 
 /**
@@ -170,7 +170,7 @@ struct drm_mm_node {
 	u64 hole_size;
 	bool allocated : 1;
 	bool scanned_block : 1;
-#ifdef CONFIG_DRM_DEBUG_MM
+#ifdef CONFIG_DRM_DE_MM
 	depot_stack_handle_t stack;
 #endif
 };
@@ -300,7 +300,7 @@ static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
  * drm_mm_hole_node_start - computes the start of the hole following @node
  * @hole_node: drm_mm_node which implicitly tracks the following hole
  *
- * This is useful for driver-specific debug dumpers. Otherwise drivers should
+ * This is useful for driver-specific de dumpers. Otherwise drivers should
  * not inspect holes themselves. Drivers must check first whether a hole indeed
  * follows by looking at drm_mm_hole_follows()
  *
@@ -309,7 +309,7 @@ static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
  */
 static inline u64 drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
 {
-	DRM_MM_BUG_ON(!drm_mm_hole_follows(hole_node));
+	DRM_MM__ON(!drm_mm_hole_follows(hole_node));
 	return __drm_mm_hole_node_start(hole_node);
 }
 
@@ -322,7 +322,7 @@ static inline u64 __drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
  * drm_mm_hole_node_end - computes the end of the hole following @node
  * @hole_node: drm_mm_node which implicitly tracks the following hole
  *
- * This is useful for driver-specific debug dumpers. Otherwise drivers should
+ * This is useful for driver-specific de dumpers. Otherwise drivers should
  * not inspect holes themselves. Drivers must check first whether a hole indeed
  * follows by looking at drm_mm_hole_follows().
  *

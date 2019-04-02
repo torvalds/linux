@@ -16,7 +16,7 @@
 #include <asm/page.h>
 
 int no_iommu __read_mostly;
-#ifdef CONFIG_IOMMU_DEBUG
+#ifdef CONFIG_IOMMU_DE
 int force_iommu __read_mostly = 1;
 #else
 int force_iommu __read_mostly;

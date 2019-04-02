@@ -92,7 +92,7 @@
 #define HV_X64_CREATE_PORT			BIT(6)
 #define HV_X64_CONNECT_PORT			BIT(7)
 #define HV_X64_ACCESS_STATS			BIT(8)
-#define HV_X64_DEBUGGING			BIT(11)
+#define HV_X64_DEGING			BIT(11)
 #define HV_X64_CPU_POWER_MANAGEMENT		BIT(12)
 
 /*
@@ -102,8 +102,8 @@
  */
 /* The MWAIT instruction is available (per section MONITOR / MWAIT) */
 #define HV_X64_MWAIT_AVAILABLE				BIT(0)
-/* Guest debugging support is available */
-#define HV_X64_GUEST_DEBUGGING_AVAILABLE		BIT(1)
+/* Guest deging support is available */
+#define HV_X64_GUEST_DEGING_AVAILABLE		BIT(1)
 /* Performance Monitor support is available*/
 #define HV_X64_PERF_MONITOR_AVAILABLE			BIT(2)
 /* Support for physical CPU dynamic partitioning events is available*/
@@ -616,7 +616,7 @@ struct hv_enlightened_vmcs {
 	u64 virtual_apic_page_addr;
 	u64 vmcs_link_pointer;
 
-	u64 guest_ia32_debugctl;
+	u64 guest_ia32_dectl;
 	u64 guest_ia32_pat;
 	u64 guest_ia32_efer;
 

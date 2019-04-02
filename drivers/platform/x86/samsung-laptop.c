@@ -24,7 +24,7 @@
 #include <linux/rfkill.h>
 #include <linux/acpi.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ctype.h>
 #include <linux/efi.h>
 #include <linux/suspend.h>
@@ -291,7 +291,7 @@ static const struct sabi_config sabi_configs[] = {
 };
 
 /*
- * samsung-laptop/    - debugfs root directory
+ * samsung-laptop/    - defs root directory
  *   f0000_segment    - dump f0000 segment
  *   command          - current command
  *   data             - current data
@@ -310,14 +310,14 @@ static const struct sabi_config sabi_configs[] = {
  *  cat call
  */
 
-struct samsung_laptop_debug {
+struct samsung_laptop_de {
 	struct dentry *root;
 	struct sabi_data data;
 	u16 command;
 
-	struct debugfs_blob_wrapper f0000_wrapper;
-	struct debugfs_blob_wrapper data_wrapper;
-	struct debugfs_blob_wrapper sdiag_wrapper;
+	struct defs_blob_wrapper f0000_wrapper;
+	struct defs_blob_wrapper data_wrapper;
+	struct defs_blob_wrapper sdiag_wrapper;
 };
 
 struct samsung_laptop;
@@ -348,7 +348,7 @@ struct samsung_laptop {
 	struct workqueue_struct *led_workqueue;
 	struct work_struct kbd_led_work;
 
-	struct samsung_laptop_debug debug;
+	struct samsung_laptop_de de;
 	struct samsung_quirks *quirks;
 
 	struct notifier_block pm_nb;
@@ -391,9 +391,9 @@ module_param(force, bool, 0);
 MODULE_PARM_DESC(force,
 		"Disable the DMI check and forces the driver to be loaded");
 
-static bool debug;
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
+static bool de;
+module_param(de, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De enabled or not");
 
 static int sabi_command(struct samsung_laptop *samsung, u16 command,
 			struct sabi_data *in,
@@ -406,7 +406,7 @@ static int sabi_command(struct samsung_laptop *samsung, u16 command,
 
 	mutex_lock(&samsung->sabi_mutex);
 
-	if (debug) {
+	if (de) {
 		if (in)
 			pr_info("SABI command:0x%04x "
 				"data:{0x%08x, 0x%08x, 0x%04x, 0x%02x}",
@@ -438,10 +438,10 @@ static int sabi_command(struct samsung_laptop *samsung, u16 command,
 	iface_data = readb(samsung->sabi_iface + SABI_IFACE_DATA);
 
 	/* iface_data = 0xFF happens when a command is not known
-	 * so we only add a warning in debug mode since we will
+	 * so we only add a warning in de mode since we will
 	 * probably issue some unknown command at startup to find
 	 * out which features are supported */
-	if (complete != 0xaa || (iface_data == 0xff && debug))
+	if (complete != 0xaa || (iface_data == 0xff && de))
 		pr_warn("SABI command 0x%04x failed with"
 			" completion flag 0x%02x and interface data 0x%02x",
 			command, complete, iface_data);
@@ -458,7 +458,7 @@ static int sabi_command(struct samsung_laptop *samsung, u16 command,
 		out->d3 = readb(samsung->sabi_iface + SABI_IFACE_DATA + 1);
 	}
 
-	if (debug && out) {
+	if (de && out) {
 		pr_info("SABI return data:{0x%08x, 0x%08x, 0x%04x, 0x%02x}",
 			out->d0, out->d1, out->d2, out->d3);
 	}
@@ -1254,18 +1254,18 @@ static int __init samsung_sysfs_init(struct samsung_laptop *samsung)
 static int samsung_laptop_call_show(struct seq_file *m, void *data)
 {
 	struct samsung_laptop *samsung = m->private;
-	struct sabi_data *sdata = &samsung->debug.data;
+	struct sabi_data *sdata = &samsung->de.data;
 	int ret;
 
 	seq_printf(m, "SABI 0x%04x {0x%08x, 0x%08x, 0x%04x, 0x%02x}\n",
-		   samsung->debug.command,
+		   samsung->de.command,
 		   sdata->d0, sdata->d1, sdata->d2, sdata->d3);
 
-	ret = sabi_command(samsung, samsung->debug.command, sdata, sdata);
+	ret = sabi_command(samsung, samsung->de.command, sdata, sdata);
 
 	if (ret) {
 		seq_printf(m, "SABI command 0x%04x failed\n",
-			   samsung->debug.command);
+			   samsung->de.command);
 		return ret;
 	}
 
@@ -1275,83 +1275,83 @@ static int samsung_laptop_call_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(samsung_laptop_call);
 
-static void samsung_debugfs_exit(struct samsung_laptop *samsung)
+static void samsung_defs_exit(struct samsung_laptop *samsung)
 {
-	debugfs_remove_recursive(samsung->debug.root);
+	defs_remove_recursive(samsung->de.root);
 }
 
-static int samsung_debugfs_init(struct samsung_laptop *samsung)
+static int samsung_defs_init(struct samsung_laptop *samsung)
 {
 	struct dentry *dent;
 
-	samsung->debug.root = debugfs_create_dir("samsung-laptop", NULL);
-	if (!samsung->debug.root) {
-		pr_err("failed to create debugfs directory");
-		goto error_debugfs;
+	samsung->de.root = defs_create_dir("samsung-laptop", NULL);
+	if (!samsung->de.root) {
+		pr_err("failed to create defs directory");
+		goto error_defs;
 	}
 
-	samsung->debug.f0000_wrapper.data = samsung->f0000_segment;
-	samsung->debug.f0000_wrapper.size = 0xffff;
+	samsung->de.f0000_wrapper.data = samsung->f0000_segment;
+	samsung->de.f0000_wrapper.size = 0xffff;
 
-	samsung->debug.data_wrapper.data = &samsung->debug.data;
-	samsung->debug.data_wrapper.size = sizeof(samsung->debug.data);
+	samsung->de.data_wrapper.data = &samsung->de.data;
+	samsung->de.data_wrapper.size = sizeof(samsung->de.data);
 
-	samsung->debug.sdiag_wrapper.data = samsung->sdiag;
-	samsung->debug.sdiag_wrapper.size = strlen(samsung->sdiag);
+	samsung->de.sdiag_wrapper.data = samsung->sdiag;
+	samsung->de.sdiag_wrapper.size = strlen(samsung->sdiag);
 
-	dent = debugfs_create_u16("command", S_IRUGO | S_IWUSR,
-				  samsung->debug.root, &samsung->debug.command);
+	dent = defs_create_u16("command", S_IRUGO | S_IWUSR,
+				  samsung->de.root, &samsung->de.command);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_u32("d0", S_IRUGO | S_IWUSR, samsung->debug.root,
-				  &samsung->debug.data.d0);
+	dent = defs_create_u32("d0", S_IRUGO | S_IWUSR, samsung->de.root,
+				  &samsung->de.data.d0);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_u32("d1", S_IRUGO | S_IWUSR, samsung->debug.root,
-				  &samsung->debug.data.d1);
+	dent = defs_create_u32("d1", S_IRUGO | S_IWUSR, samsung->de.root,
+				  &samsung->de.data.d1);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_u16("d2", S_IRUGO | S_IWUSR, samsung->debug.root,
-				  &samsung->debug.data.d2);
+	dent = defs_create_u16("d2", S_IRUGO | S_IWUSR, samsung->de.root,
+				  &samsung->de.data.d2);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_u8("d3", S_IRUGO | S_IWUSR, samsung->debug.root,
-				 &samsung->debug.data.d3);
+	dent = defs_create_u8("d3", S_IRUGO | S_IWUSR, samsung->de.root,
+				 &samsung->de.data.d3);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_blob("data", S_IRUGO | S_IWUSR,
-				   samsung->debug.root,
-				   &samsung->debug.data_wrapper);
+	dent = defs_create_blob("data", S_IRUGO | S_IWUSR,
+				   samsung->de.root,
+				   &samsung->de.data_wrapper);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_blob("f0000_segment", S_IRUSR | S_IWUSR,
-				   samsung->debug.root,
-				   &samsung->debug.f0000_wrapper);
+	dent = defs_create_blob("f0000_segment", S_IRUSR | S_IWUSR,
+				   samsung->de.root,
+				   &samsung->de.f0000_wrapper);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_file("call", S_IFREG | S_IRUGO,
-				   samsung->debug.root, samsung,
+	dent = defs_create_file("call", S_IFREG | S_IRUGO,
+				   samsung->de.root, samsung,
 				   &samsung_laptop_call_fops);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
-	dent = debugfs_create_blob("sdiag", S_IRUGO | S_IWUSR,
-				   samsung->debug.root,
-				   &samsung->debug.sdiag_wrapper);
+	dent = defs_create_blob("sdiag", S_IRUGO | S_IWUSR,
+				   samsung->de.root,
+				   &samsung->de.sdiag_wrapper);
 	if (!dent)
-		goto error_debugfs;
+		goto error_defs;
 
 	return 0;
 
-error_debugfs:
-	samsung_debugfs_exit(samsung);
+error_defs:
+	samsung_defs_exit(samsung);
 	return -ENOMEM;
 }
 
@@ -1380,24 +1380,24 @@ static __init void samsung_sabi_infos(struct samsung_laptop *samsung, int loca,
 {
 	const struct sabi_config *config = samsung->config;
 
-	printk(KERN_DEBUG "This computer supports SABI==%x\n",
+	printk(KERN_DE "This computer supports SABI==%x\n",
 	       loca + 0xf0000 - 6);
 
-	printk(KERN_DEBUG "SABI header:\n");
-	printk(KERN_DEBUG " SMI Port Number = 0x%04x\n",
+	printk(KERN_DE "SABI header:\n");
+	printk(KERN_DE " SMI Port Number = 0x%04x\n",
 	       readw(samsung->sabi + config->header_offsets.port));
-	printk(KERN_DEBUG " SMI Interface Function = 0x%02x\n",
+	printk(KERN_DE " SMI Interface Function = 0x%02x\n",
 	       readb(samsung->sabi + config->header_offsets.iface_func));
-	printk(KERN_DEBUG " SMI enable memory buffer = 0x%02x\n",
+	printk(KERN_DE " SMI enable memory buffer = 0x%02x\n",
 	       readb(samsung->sabi + config->header_offsets.en_mem));
-	printk(KERN_DEBUG " SMI restore memory buffer = 0x%02x\n",
+	printk(KERN_DE " SMI restore memory buffer = 0x%02x\n",
 	       readb(samsung->sabi + config->header_offsets.re_mem));
-	printk(KERN_DEBUG " SABI data offset = 0x%04x\n",
+	printk(KERN_DE " SABI data offset = 0x%04x\n",
 	       readw(samsung->sabi + config->header_offsets.data_offset));
-	printk(KERN_DEBUG " SABI data segment = 0x%04x\n",
+	printk(KERN_DE " SABI data segment = 0x%04x\n",
 	       readw(samsung->sabi + config->header_offsets.data_segment));
 
-	printk(KERN_DEBUG " SABI pointer = 0x%08x\n", ifaceP);
+	printk(KERN_DE " SABI pointer = 0x%08x\n", ifaceP);
 }
 
 static void __init samsung_sabi_diag(struct samsung_laptop *samsung)
@@ -1424,7 +1424,7 @@ static void __init samsung_sabi_diag(struct samsung_laptop *samsung)
 			break ;
 	}
 
-	if (debug && samsung->sdiag[0])
+	if (de && samsung->sdiag[0])
 		pr_info("sdiag: %s", samsung->sdiag);
 }
 
@@ -1439,7 +1439,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 
 	samsung->f0000_segment = ioremap_nocache(0xf0000, 0xffff);
 	if (!samsung->f0000_segment) {
-		if (debug || force)
+		if (de || force)
 			pr_err("Can't map the segment at 0xf0000\n");
 		ret = -EINVAL;
 		goto exit;
@@ -1457,7 +1457,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	}
 
 	if (loca == 0xffff) {
-		if (debug || force)
+		if (de || force)
 			pr_err("This computer does not support SABI\n");
 		ret = -ENODEV;
 		goto exit;
@@ -1474,7 +1474,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	ifaceP = (readw(samsung->sabi + config->header_offsets.data_segment) & 0x0ffff) << 4;
 	ifaceP += readw(samsung->sabi + config->header_offsets.data_offset) & 0x0ffff;
 
-	if (debug)
+	if (de)
 		samsung_sabi_infos(samsung, loca, ifaceP);
 
 	samsung->sabi_iface = ioremap_nocache(ifaceP, 16);
@@ -1745,9 +1745,9 @@ static int __init samsung_init(void)
 	if (ret)
 		goto error_lid_handling;
 
-	ret = samsung_debugfs_init(samsung);
+	ret = samsung_defs_init(samsung);
 	if (ret)
-		goto error_debugfs;
+		goto error_defs;
 
 	samsung->pm_nb.notifier_call = samsung_pm_notification;
 	register_pm_notifier(&samsung->pm_nb);
@@ -1755,7 +1755,7 @@ static int __init samsung_init(void)
 	samsung_platform_device = samsung->platform_device;
 	return ret;
 
-error_debugfs:
+error_defs:
 	samsung_lid_handling_exit(samsung);
 error_lid_handling:
 	samsung_leds_exit(samsung);
@@ -1781,7 +1781,7 @@ static void __exit samsung_exit(void)
 	samsung = platform_get_drvdata(samsung_platform_device);
 	unregister_pm_notifier(&samsung->pm_nb);
 
-	samsung_debugfs_exit(samsung);
+	samsung_defs_exit(samsung);
 	samsung_lid_handling_exit(samsung);
 	samsung_leds_exit(samsung);
 	samsung_rfkill_exit(samsung);

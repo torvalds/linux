@@ -42,7 +42,7 @@ static int __init set_ignore_seg(const struct dmi_system_id *id)
 }
 
 static const struct dmi_system_id pci_crs_quirks[] __initconst = {
-	/* http://bugzilla.kernel.org/show_bug.cgi?id=14183 */
+	/* http://zilla.kernel.org/show_.cgi?id=14183 */
 	{
 		.callback = set_use_crs,
 		.ident = "IBM System x3800",
@@ -51,7 +51,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
 		},
 	},
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=16007 */
+	/* https://zilla.kernel.org/show_.cgi?id=16007 */
 	/* 2006 AMD HT/VIA system with two host bridges */
         {
 		.callback = set_use_crs,
@@ -60,7 +60,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ALiveSATA2-GLAN"),
                 },
         },
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=30552 */
+	/* https://zilla.kernel.org/show_.cgi?id=30552 */
 	/* 2006 AMD HT/VIA system with two host bridges */
 	{
 		.callback = set_use_crs,
@@ -71,7 +71,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
 		},
 	},
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=42619 */
+	/* https://zilla.kernel.org/show_.cgi?id=42619 */
 	{
 		.callback = set_use_crs,
 		.ident = "MSI MS-7253",
@@ -81,8 +81,8 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
 		},
 	},
-	/* https://bugs.launchpad.net/ubuntu/+source/alsa-driver/+bug/931368 */
-	/* https://bugs.launchpad.net/ubuntu/+source/alsa-driver/+bug/1033299 */
+	/* https://s.launchpad.net/ubuntu/+source/alsa-driver/+/931368 */
+	/* https://s.launchpad.net/ubuntu/+source/alsa-driver/+/1033299 */
 	{
 		.callback = set_use_crs,
 		.ident = "Foxconn K8M890-8237A",
@@ -95,7 +95,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 	/* Now for the blacklist.. */
 
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
+	/* https://zilla.redhat.com/show_.cgi?id=769657 */
 	{
 		.callback = set_nouse_crs,
 		.ident = "Dell Studio 1557",
@@ -105,7 +105,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "A09"),
 		},
 	},
-	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
+	/* https://zilla.redhat.com/show_.cgi?id=769657 */
 	{
 		.callback = set_nouse_crs,
 		.ident = "Thinkpad SL510",
@@ -115,7 +115,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "6JET85WW (1.43 )"),
 		},
 	},
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=42606 */
+	/* https://zilla.kernel.org/show_.cgi?id=42606 */
 	{
 		.callback = set_nouse_crs,
 		.ident = "Supermicro X8DTH",
@@ -126,7 +126,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 		},
 	},
 
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=15362 */
+	/* https://zilla.kernel.org/show_.cgi?id=15362 */
 	{
 		.callback = set_ignore_seg,
 		.ident = "HP xw9300",
@@ -157,7 +157,7 @@ void __init pci_acpi_crs_quirks(void)
 		pci_use_crs = true;
 
 	printk(KERN_INFO "PCI: %s host bridge windows from ACPI; "
-	       "if necessary, use \"pci=%s\" and report a bug\n",
+	       "if necessary, use \"pci=%s\" and report a \n",
 	       pci_use_crs ? "Using" : "Ignoring",
 	       pci_use_crs ? "nocrs" : "use_crs");
 }
@@ -251,7 +251,7 @@ static int pci_acpi_root_get_node(struct acpi_pci_root *root)
 	if (node == NUMA_NO_NODE) {
 		node = x86_pci_root_bus_node(busnum);
 		if (node != 0 && node != NUMA_NO_NODE)
-			dev_info(&device->dev, FW_BUG "no _PXM; falling back to node %d from hardware (may be inconsistent with ACPI node numbers)\n",
+			dev_info(&device->dev, FW_ "no _PXM; falling back to node %d from hardware (may be inconsistent with ACPI node numbers)\n",
 				node);
 	}
 	if (node != NUMA_NO_NODE && !node_online(node))
@@ -307,7 +307,7 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 	}
 
 	resource_list_for_each_entry_safe(entry, tmp, &ci->resources) {
-		dev_printk(KERN_DEBUG, &device->dev,
+		dev_printk(KERN_DE, &device->dev,
 			   "host bridge window %pR (ignored)\n", entry->res);
 		resource_list_destroy_entry(entry);
 	}

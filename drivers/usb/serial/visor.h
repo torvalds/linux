@@ -112,7 +112,7 @@ struct visor_connection_info {
 
 /* struct visor_connection_info.connection[x].port_function_id defines: */
 #define VISOR_FUNCTION_GENERIC		0x00
-#define VISOR_FUNCTION_DEBUGGER		0x01
+#define VISOR_FUNCTION_DEGER		0x01
 #define VISOR_FUNCTION_HOTSYNC		0x02
 #define VISOR_FUNCTION_CONSOLE		0x03
 #define VISOR_FUNCTION_REMOTE_FILE_SYS	0x04

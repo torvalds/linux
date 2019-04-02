@@ -26,7 +26,7 @@ static int read_inode(struct inode *inode, void *data)
 	if (unlikely(vi->data_mapping_mode >= EROFS_INODE_LAYOUT_MAX)) {
 		errln("unknown data mapping mode %u of nid %llu",
 			vi->data_mapping_mode, vi->nid);
-		DBG_BUGON(1);
+		DBG_ON(1);
 		return -EIO;
 	}
 
@@ -93,7 +93,7 @@ static int read_inode(struct inode *inode, void *data)
 	} else {
 		errln("unsupported on-disk inode version %u of nid %llu",
 			__inode_version(advise), vi->nid);
-		DBG_BUGON(1);
+		DBG_ON(1);
 		return -EIO;
 	}
 
@@ -119,7 +119,7 @@ static int fill_inline_data(struct inode *inode, void *data,
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 	int mode = vi->data_mapping_mode;
 
-	DBG_BUGON(mode >= EROFS_INODE_LAYOUT_MAX);
+	DBG_ON(mode >= EROFS_INODE_LAYOUT_MAX);
 
 	/* should be inode inline C */
 	if (mode != EROFS_INODE_LAYOUT_INLINE)
@@ -136,7 +136,7 @@ static int fill_inline_data(struct inode *inode, void *data,
 
 		/* inline symlink data shouldn't across page boundary as well */
 		if (unlikely(m_pofs + inode->i_size > PAGE_SIZE)) {
-			DBG_BUGON(1);
+			DBG_ON(1);
 			kfree(lnk);
 			return -EIO;
 		}
@@ -166,7 +166,7 @@ static int fill_inode(struct inode *inode, int isdir)
 	blkaddr = erofs_blknr(iloc(sbi, vi->nid));
 	ofs = erofs_blkoff(iloc(sbi, vi->nid));
 
-	debugln("%s, reading inode nid %llu at %u of blkaddr %u",
+	deln("%s, reading inode nid %llu at %u of blkaddr %u",
 		__func__, vi->nid, ofs, blkaddr);
 
 	page = erofs_get_meta_page(inode->i_sb, blkaddr, isdir);
@@ -177,7 +177,7 @@ static int fill_inode(struct inode *inode, int isdir)
 		return PTR_ERR(page);
 	}
 
-	DBG_BUGON(!PageUptodate(page));
+	DBG_ON(!PageUptodate(page));
 	data = page_address(page);
 
 	err = read_inode(inode, data + ofs);

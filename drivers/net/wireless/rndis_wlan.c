@@ -22,7 +22,7 @@
  *  http://ndiswrapper.sourceforge.net/
  */
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
@@ -617,7 +617,7 @@ static int rndis_akm_suite_to_key_mgmt(u32 akm_suite)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DE
 static const char *oid_to_string(u32 oid)
 {
 	switch (oid) {
@@ -891,16 +891,16 @@ static int rndis_set_config_parameter(struct usbnet *dev, char *param,
 	param_len = strlen(param) * sizeof(__le16);
 	info_len = sizeof(*infobuf) + param_len + value_len;
 
-#ifdef DEBUG
+#ifdef DE
 	info_len += 12;
 #endif
 	infobuf = kmalloc(info_len, GFP_KERNEL);
 	if (!infobuf)
 		return -ENOMEM;
 
-#ifdef DEBUG
+#ifdef DE
 	info_len -= 12;
-	/* extra 12 bytes are for padding (debug output) */
+	/* extra 12 bytes are for padding (de output) */
 	memset(infobuf, 0xCC, info_len + 12);
 #endif
 
@@ -931,7 +931,7 @@ static int rndis_set_config_parameter(struct usbnet *dev, char *param,
 		*dst_value = cpu_to_le32(*(u32 *)value);
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	netdev_dbg(dev->net, "info buffer (len: %d)\n", info_len);
 	for (i = 0; i < info_len; i += 12) {
 		u32 *tmp = (u32 *)((u8 *)infobuf + i);
@@ -1661,8 +1661,8 @@ set_filter:
 		   le32_to_cpu(filter), ret);
 }
 
-#ifdef DEBUG
-static void debug_print_pmkids(struct usbnet *usbdev,
+#ifdef DE
+static void de_print_pmkids(struct usbnet *usbdev,
 				struct ndis_80211_pmkid *pmkids,
 				const char *func_str)
 {
@@ -1692,7 +1692,7 @@ static void debug_print_pmkids(struct usbnet *usbdev,
 	}
 }
 #else
-static void debug_print_pmkids(struct usbnet *usbdev,
+static void de_print_pmkids(struct usbnet *usbdev,
 				struct ndis_80211_pmkid *pmkids,
 				const char *func_str)
 {
@@ -1729,7 +1729,7 @@ static struct ndis_80211_pmkid *get_device_pmkids(struct usbnet *usbdev)
 	if (le32_to_cpu(pmkids->bssid_info_count) > max_pmkids)
 		pmkids->bssid_info_count = cpu_to_le32(max_pmkids);
 
-	debug_print_pmkids(usbdev, pmkids, __func__);
+	de_print_pmkids(usbdev, pmkids, __func__);
 
 	return pmkids;
 }
@@ -1743,7 +1743,7 @@ static int set_device_pmkids(struct usbnet *usbdev,
 	len = sizeof(*pmkids) + num_pmkids * sizeof(pmkids->bssid_info[0]);
 	pmkids->length = cpu_to_le32(len);
 
-	debug_print_pmkids(usbdev, pmkids, __func__);
+	de_print_pmkids(usbdev, pmkids, __func__);
 
 	ret = rndis_set_oid(usbdev, RNDIS_OID_802_11_PMKID, pmkids,
 			    le32_to_cpu(pmkids->length));

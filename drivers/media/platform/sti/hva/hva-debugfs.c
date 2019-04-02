@@ -5,7 +5,7 @@
  *          Hugues Fruchet <hugues.fruchet@st.com>
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "hva.h"
 #include "hva-hw.h"
@@ -114,7 +114,7 @@ static void format_ctx(struct seq_file *s, struct hva_ctx *ctx)
 }
 
 /*
- * performance debug info
+ * performance de info
  */
 void hva_dbg_perf_begin(struct hva_ctx *ctx)
 {
@@ -268,7 +268,7 @@ static void hva_dbg_perf_compute(struct hva_ctx *ctx)
 }
 
 /*
- * device debug info
+ * device de info
  */
 
 static int device_show(struct seq_file *s, void *data)
@@ -326,7 +326,7 @@ static int regs_show(struct seq_file *s, void *data)
 }
 
 #define hva_dbg_create_entry(name)					 \
-	debugfs_create_file(#name, 0444, hva->dbg.debugfs_entry, hva, \
+	defs_create_file(#name, 0444, hva->dbg.defs_entry, hva, \
 			    &name##_fops)
 
 DEFINE_SHOW_ATTRIBUTE(device);
@@ -334,10 +334,10 @@ DEFINE_SHOW_ATTRIBUTE(encoders);
 DEFINE_SHOW_ATTRIBUTE(last);
 DEFINE_SHOW_ATTRIBUTE(regs);
 
-void hva_debugfs_create(struct hva_dev *hva)
+void hva_defs_create(struct hva_dev *hva)
 {
-	hva->dbg.debugfs_entry = debugfs_create_dir(HVA_NAME, NULL);
-	if (!hva->dbg.debugfs_entry)
+	hva->dbg.defs_entry = defs_create_dir(HVA_NAME, NULL);
+	if (!hva->dbg.defs_entry)
 		goto err;
 
 	if (!hva_dbg_create_entry(device))
@@ -355,17 +355,17 @@ void hva_debugfs_create(struct hva_dev *hva)
 	return;
 
 err:
-	hva_debugfs_remove(hva);
+	hva_defs_remove(hva);
 }
 
-void hva_debugfs_remove(struct hva_dev *hva)
+void hva_defs_remove(struct hva_dev *hva)
 {
-	debugfs_remove_recursive(hva->dbg.debugfs_entry);
-	hva->dbg.debugfs_entry = NULL;
+	defs_remove_recursive(hva->dbg.defs_entry);
+	hva->dbg.defs_entry = NULL;
 }
 
 /*
- * context (instance) debug info
+ * context (instance) de info
  */
 
 static int ctx_show(struct seq_file *s, void *data)
@@ -393,8 +393,8 @@ void hva_dbg_ctx_create(struct hva_ctx *ctx)
 
 	snprintf(name, sizeof(name), "%d", hva->instance_id);
 
-	ctx->dbg.debugfs_entry = debugfs_create_file(name, 0444,
-						     hva->dbg.debugfs_entry,
+	ctx->dbg.defs_entry = defs_create_file(name, 0444,
+						     hva->dbg.defs_entry,
 						     ctx, &ctx_fops);
 }
 
@@ -406,5 +406,5 @@ void hva_dbg_ctx_remove(struct hva_ctx *ctx)
 		/* save context before removing */
 		memcpy(&hva->dbg.last_ctx, ctx, sizeof(*ctx));
 
-	debugfs_remove(ctx->dbg.debugfs_entry);
+	defs_remove(ctx->dbg.defs_entry);
 }

@@ -271,7 +271,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 	case SYNTH_HID_PROTOCOL_RESPONSE:
 		/*
 		 * While it will be impossible for us to protect against
-		 * malicious/buggy hypervisor/host, add a check here to
+		 * malicious/gy hypervisor/host, add a check here to
 		 * ensure we don't corrupt memory.
 		 */
 		if ((pipe_msg->size + sizeof(struct pipe_prt_msg)

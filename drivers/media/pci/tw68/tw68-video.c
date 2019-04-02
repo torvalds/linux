@@ -261,7 +261,7 @@ static void set_tvnorm(struct tw68_dev *dev, const struct tw68_tvnorm *norm)
  *
  * Parameters:
  *	@dev		pointer to the device structure, needed for
- *			getting current norm (as well as debug print)
+ *			getting current norm (as well as de print)
  *	@width		actual image width (from user buffer)
  *	@height		actual image height
  *	@field		indicates Top, Bottom or Interlaced
@@ -270,7 +270,7 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 			  unsigned int height, enum v4l2_field field)
 {
 	const struct tw68_tvnorm *norm = dev->tvnorm;
-	/* set individually for debugging clarity */
+	/* set individually for deging clarity */
 	int hactive, hdelay, hscale;
 	int vactive, vdelay, vscale;
 	int comb;
@@ -278,7 +278,7 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 	if (V4L2_FIELD_HAS_BOTH(field))	/* if field is interlaced */
 		height /= 2;		/* we must set for 1-frame */
 
-	pr_debug("%s: width=%d, height=%d, both=%d\n"
+	pr_de("%s: width=%d, height=%d, both=%d\n"
 		 "  tvnorm h_delay=%d, h_start=%d, h_stop=%d, v_delay=%d, v_start=%d, v_stop=%d\n",
 		__func__, width, height, V4L2_FIELD_HAS_BOTH(field),
 		norm->h_delay, norm->h_start, norm->h_stop,
@@ -303,12 +303,12 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 	vactive = ((norm->id & V4L2_STD_525_60) ? 524 : 624) / 2 - norm->video_v_start;
 	vscale = (vactive * 256) / height;
 
-	pr_debug("%s: %dx%d [%s%s,%s]\n", __func__,
+	pr_de("%s: %dx%d [%s%s,%s]\n", __func__,
 		width, height,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
 		v4l2_norm_to_name(dev->tvnorm->id));
-	pr_debug("%s: hactive=%d, hdelay=%d, hscale=%d; vactive=%d, vdelay=%d, vscale=%d\n",
+	pr_de("%s: hactive=%d, hdelay=%d, hscale=%d; vactive=%d, vdelay=%d, vscale=%d\n",
 		 __func__,
 		hactive, hdelay, hscale, vactive, vdelay, vscale);
 
@@ -316,7 +316,7 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 		((vactive & 0x300) >> 4) |
 		((hdelay & 0x300)  >> 6) |
 		((hactive & 0x300) >> 8);
-	pr_debug("%s: setting CROP_HI=%02x, VDELAY_LO=%02x, VACTIVE_LO=%02x, HDELAY_LO=%02x, HACTIVE_LO=%02x\n",
+	pr_de("%s: setting CROP_HI=%02x, VDELAY_LO=%02x, VACTIVE_LO=%02x, HDELAY_LO=%02x, HACTIVE_LO=%02x\n",
 		__func__, comb, vdelay, vactive, hdelay, hactive);
 	tw_writeb(TW68_CROP_HI, comb);
 	tw_writeb(TW68_VDELAY_LO, vdelay & 0xff);
@@ -325,7 +325,7 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 	tw_writeb(TW68_HACTIVE_LO, hactive & 0xff);
 
 	comb = ((vscale & 0xf00) >> 4) | ((hscale & 0xf00) >> 8);
-	pr_debug("%s: setting SCALE_HI=%02x, VSCALE_LO=%02x, HSCALE_LO=%02x\n",
+	pr_de("%s: setting SCALE_HI=%02x, VSCALE_LO=%02x, HSCALE_LO=%02x\n",
 		 __func__, comb, vscale, hscale);
 	tw_writeb(TW68_SCALE_HI, comb);
 	tw_writeb(TW68_VSCALE_LO, vscale);
@@ -798,7 +798,7 @@ static int tw68_enum_fmt_vid_cap(struct file *file, void  *priv,
 }
 
 /*
- * Used strictly for internal development and debugging, this routine
+ * Used strictly for internal development and deging, this routine
  * prints out the current register contents for the tw68xx device.
  */
 static void tw68_dump_regs(struct tw68_dev *dev)
@@ -849,7 +849,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 	return v4l2_ctrl_log_status(file, priv);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_register(struct file *file, void *priv,
 			      struct v4l2_dbg_register *reg)
 {
@@ -910,7 +910,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_log_status		= vidioc_log_status,
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register              = vidioc_g_register,
 	.vidioc_s_register              = vidioc_s_register,
 #endif

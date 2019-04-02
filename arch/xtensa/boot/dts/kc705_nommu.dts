@@ -6,7 +6,7 @@
 / {
 	compatible = "cdns,xtensa-kc705";
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0x9d050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw debug";
+		bootargs = "earlycon=uart8250,mmio32,0x9d050020,115200n8 console=ttyS0,115200n8 ip=dhcp root=/dev/nfs rw de";
 	};
 	memory@0 {
 		device_type = "memory";

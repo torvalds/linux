@@ -40,7 +40,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "fscache.h"
 #include "smbdirect.h"
@@ -1141,7 +1141,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON(sizeof(struct smb_hdr) + sizeof(LOCKING_ANDX_RANGE) >
+	BUILD__ON(sizeof(struct smb_hdr) + sizeof(LOCKING_ANDX_RANGE) >
 		     PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf - sizeof(struct smb_hdr),
 			PAGE_SIZE);
@@ -1483,7 +1483,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	if (max_buf < (sizeof(struct smb_hdr) + sizeof(LOCKING_ANDX_RANGE)))
 		return -EINVAL;
 
-	BUILD_BUG_ON(sizeof(struct smb_hdr) + sizeof(LOCKING_ANDX_RANGE) >
+	BUILD__ON(sizeof(struct smb_hdr) + sizeof(LOCKING_ANDX_RANGE) >
 		     PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf - sizeof(struct smb_hdr),
 			PAGE_SIZE);

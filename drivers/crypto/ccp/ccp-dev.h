@@ -436,8 +436,8 @@ struct ccp_device {
 	/* Device Statistics */
 	unsigned long total_interrupts;
 
-	/* DebugFS info */
-	struct dentry *debugfs_instance;
+	/* DeFS info */
+	struct dentry *defs_instance;
 };
 
 enum ccp_memtype {
@@ -646,8 +646,8 @@ void ccp_unregister_rng(struct ccp_device *ccp);
 int ccp_dmaengine_register(struct ccp_device *ccp);
 void ccp_dmaengine_unregister(struct ccp_device *ccp);
 
-void ccp5_debugfs_setup(struct ccp_device *ccp);
-void ccp5_debugfs_destroy(void);
+void ccp5_defs_setup(struct ccp_device *ccp);
+void ccp5_defs_destroy(void);
 
 /* Structure for computation functions that are device-specific */
 struct ccp_actions {

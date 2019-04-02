@@ -138,7 +138,7 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	struct pci_dev *tmp;
 	struct dmar_pci_notify_info *info;
 
-	BUG_ON(dev->is_virtfn);
+	_ON(dev->is_virtfn);
 
 	/* Only generate path[] for device addition event */
 	if (event == BUS_NOTIFY_ADD_DEVICE)
@@ -210,7 +210,7 @@ fallback:
 	if (bus              == info->path[i].bus &&
 	    path[0].device   == info->path[i].device &&
 	    path[0].function == info->path[i].function) {
-		pr_info(FW_BUG "RMRR entry for device %02x:%02x.%x is broken - applying workaround\n",
+		pr_info(FW_ "RMRR entry for device %02x:%02x.%x is broken - applying workaround\n",
 			bus, path[0].device, path[0].function);
 		return true;
 	}
@@ -270,7 +270,7 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 						   get_device(dev));
 				return 1;
 			}
-		BUG_ON(i >= devices_cnt);
+		_ON(i >= devices_cnt);
 	}
 
 	return 0;
@@ -565,11 +565,11 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 		next = (void *)iter + iter->length;
 		if (iter->length == 0) {
 			/* Avoid looping forever on bad ACPI tables */
-			pr_debug(FW_BUG "Invalid 0-length structure\n");
+			pr_de(FW_ "Invalid 0-length structure\n");
 			break;
 		} else if (next > end) {
 			/* Avoid passing table end */
-			pr_warn(FW_BUG "Record passes table end\n");
+			pr_warn(FW_ "Record passes table end\n");
 			return -EINVAL;
 		}
 
@@ -578,7 +578,7 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 
 		if (iter->type >= ACPI_DMAR_TYPE_RESERVED) {
 			/* continue for forward compatibility */
-			pr_debug("Unknown DMAR structure type %d\n",
+			pr_de("Unknown DMAR structure type %d\n",
 				 iter->type);
 		} else if (cb->cb[iter->type]) {
 			int ret;
@@ -647,7 +647,7 @@ parse_dmar_table(void)
 	pr_info("Host address width %d\n", dmar->width + 1);
 	ret = dmar_walk_dmar_table(dmar, &cb);
 	if (ret == 0 && drhd_count == 0)
-		pr_warn(FW_BUG "No DRHD structure found in DMAR table\n");
+		pr_warn(FW_ "No DRHD structure found in DMAR table\n");
 
 	return ret;
 }
@@ -735,7 +735,7 @@ static void __init dmar_acpi_insert_dev_scope(u8 device_number,
 							   get_device(&adev->dev));
 					return;
 				}
-			BUG_ON(i >= dmaru->devices_cnt);
+			_ON(i >= dmaru->devices_cnt);
 		}
 	}
 	pr_warn("No IOMMU scope found for ANDD enumeration ID %d (%s)\n",
@@ -1565,7 +1565,7 @@ static inline int dmar_msi_reg(struct intel_iommu *iommu, int irq)
 	else if (iommu->pr_irq == irq)
 		return DMAR_PECTL_REG;
 	else
-		BUG();
+		();
 }
 
 void dmar_msi_unmask(struct irq_data *data)
@@ -1961,7 +1961,7 @@ static int dmar_hotplug_insert(acpi_handle handle)
 	ret = dmar_walk_dsm_resource(handle, DMAR_DSM_FUNC_DRHD,
 				     &dmar_parse_one_drhd, (void *)&drhd_count);
 	if (ret == 0 && drhd_count == 0) {
-		pr_warn(FW_BUG "No DRHD structures in buffer returned by _DSM method\n");
+		pr_warn(FW_ "No DRHD structures in buffer returned by _DSM method\n");
 		goto out;
 	} else if (ret) {
 		goto release_drhd;

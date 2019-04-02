@@ -190,7 +190,7 @@ EXPORT_SYMBOL_GPL(dm_cell_get_v2);
 static bool __put(struct dm_bio_prison_v2 *prison,
 		  struct dm_bio_prison_cell_v2 *cell)
 {
-	BUG_ON(!cell->shared_count);
+	_ON(!cell->shared_count);
 	cell->shared_count--;
 
 	// FIXME: shared locks granted above the lock level could starve this
@@ -323,7 +323,7 @@ static bool __unlock(struct dm_bio_prison_v2 *prison,
 		     struct dm_bio_prison_cell_v2 *cell,
 		     struct bio_list *bios)
 {
-	BUG_ON(!cell->exclusive_lock);
+	_ON(!cell->exclusive_lock);
 
 	bio_list_merge(bios, &cell->bios);
 	bio_list_init(&cell->bios);

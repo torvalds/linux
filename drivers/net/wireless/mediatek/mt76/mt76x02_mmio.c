@@ -220,8 +220,8 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	struct mt76_queue *q;
 	void *status_fifo;
 
-	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x02_txwi));
-	BUILD_BUG_ON(sizeof(struct mt76x02_rxwi) > MT_RX_HEADROOM);
+	BUILD__ON(sizeof(t->txwi) < sizeof(struct mt76x02_txwi));
+	BUILD__ON(sizeof(struct mt76x02_rxwi) > MT_RX_HEADROOM);
 
 	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
 	status_fifo = devm_kzalloc(dev->mt76.dev, fifo_size, GFP_KERNEL);

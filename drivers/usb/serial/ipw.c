@@ -6,7 +6,7 @@
  *   Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *
  * All information about the device was acquired using SnoopyPro
- * on MSFT's O/S, and examing the MSFT drivers' debug output
+ * on MSFT's O/S, and examing the MSFT drivers' de output
  * (insanely left _on_ in the enduser version)
  *
  * It was written out of frustration with the IPWireless USB modem

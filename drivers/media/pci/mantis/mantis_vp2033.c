@@ -168,7 +168,7 @@ static int vp2033_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 	}
 
 	mantis->fe = fe;
-	dprintk(MANTIS_DEBUG, 1, "Done!");
+	dprintk(MANTIS_DE, 1, "Done!");
 
 	return 0;
 }

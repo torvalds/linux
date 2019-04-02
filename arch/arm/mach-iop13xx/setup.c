@@ -31,8 +31,8 @@
 #include <mach/irqs.h>
 
 #define IOP13XX_UART_XTAL 33334000
-#define IOP13XX_SETUP_DEBUG 0
-#define PRINTK(x...) ((void)(IOP13XX_SETUP_DEBUG && printk(x)))
+#define IOP13XX_SETUP_DE 0
+#define PRINTK(x...) ((void)(IOP13XX_SETUP_DE && printk(x)))
 
 /* Standard IO mapping for all IOP13XX based systems
  */
@@ -435,7 +435,7 @@ void __init iop13xx_platform_init(void)
 	}
 
 	for(i = 0; i < IQ81340_NUM_I2C; i++) {
-		if ((init_i2c & (1 << i)) && IOP13XX_SETUP_DEBUG)
+		if ((init_i2c & (1 << i)) && IOP13XX_SETUP_DE)
 			printk("Adding i2c%d to platform device list\n", i);
 		switch(init_i2c & (1 << i)) {
 		case IOP13XX_INIT_I2C_0:
@@ -460,7 +460,7 @@ void __init iop13xx_platform_init(void)
 	adma_idx = 0;
 	for (i = 0; i < IQ81340_NUM_ADMA; i++) {
 		struct iop_adma_platform_data *plat_data;
-		if ((init_adma & (1 << i)) && IOP13XX_SETUP_DEBUG)
+		if ((init_adma & (1 << i)) && IOP13XX_SETUP_DE)
 			printk(KERN_INFO
 				"Adding adma%d to platform device list\n", i);
 		switch (init_adma & (1 << i)) {

@@ -89,8 +89,8 @@ int davinci_cfg_reg(const unsigned long index)
 #endif
 	}
 
-#ifdef CONFIG_DAVINCI_MUX_DEBUG
-	if (cfg->debug || warn) {
+#ifdef CONFIG_DAVINCI_MUX_DE
+	if (cfg->de || warn) {
 		pr_warn("Setting register %s\n", cfg->name);
 		pr_warn("   %s (0x%08x) = 0x%08x -> 0x%08x\n",
 			cfg->mux_reg_name, cfg->mux_reg, reg_orig, reg);

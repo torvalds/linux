@@ -56,7 +56,7 @@ out:
  */
 static void do_gpio_reset(void)
 {
-	BUG_ON(reset_gpio == -1);
+	_ON(reset_gpio == -1);
 
 	/* drive it low */
 	gpio_direction_output(reset_gpio, 0);

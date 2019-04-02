@@ -211,7 +211,7 @@ int phylink_gen_key(struct hci_conn *conn, u8 *data, u8 *len, u8 *type)
 		return err;
 	}
 
-	if (conn->key_type == HCI_LK_DEBUG_COMBINATION) {
+	if (conn->key_type == HCI_LK_DE_COMBINATION) {
 		BT_DBG("Use Generic AMP Key (gamp)");
 		memcpy(data, gamp_key, HCI_AMP_LINK_KEY_SIZE);
 		return err;

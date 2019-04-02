@@ -90,14 +90,14 @@ static int pm_map_process_vi(struct packet_manager *pm, uint32_t *buffer,
 
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_PROCESS,
 					sizeof(struct pm4_mes_map_process));
-	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
+	packet->bitfields2.diq_enable = (qpd->is_de) ? 1 : 0;
 	packet->bitfields2.process_quantum = 1;
 	packet->bitfields2.pasid = qpd->pqm->process->pasid;
 	packet->bitfields3.page_table_base = qpd->page_table_base;
 	packet->bitfields10.gds_size = qpd->gds_size;
 	packet->bitfields10.num_gws = qpd->num_gws;
 	packet->bitfields10.num_oac = qpd->num_oac;
-	packet->bitfields10.num_queues = (qpd->is_debug) ? 0 : qpd->queue_count;
+	packet->bitfields10.num_queues = (qpd->is_de) ? 0 : qpd->queue_count;
 
 	packet->sh_mem_config = qpd->sh_mem_config;
 	packet->sh_mem_bases = qpd->sh_mem_bases;
@@ -209,7 +209,7 @@ static int pm_map_queues_vi(struct packet_manager *pm, uint32_t *buffer,
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
 		packet->bitfields2.queue_type =
-			queue_type__mes_map_queues__debug_interface_queue_vi;
+			queue_type__mes_map_queues__de_interface_queue_vi;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
 		packet->bitfields2.engine_sel = q->properties.sdma_engine_id +

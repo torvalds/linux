@@ -132,7 +132,7 @@ static struct rio_switch_ops idtcps_switch_ops = {
 
 static int idtcps_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 
 	spin_lock(&rdev->rswitch->lock);
 
@@ -158,7 +158,7 @@ static int idtcps_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 
 static void idtcps_remove(struct rio_dev *rdev)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 	spin_lock(&rdev->rswitch->lock);
 	if (rdev->rswitch->ops != &idtcps_switch_ops) {
 		spin_unlock(&rdev->rswitch->lock);

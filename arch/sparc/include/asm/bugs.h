@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* include/asm/bugs.h:  Sparc probes for various bugs.
+/* include/asm/s.h:  Sparc probes for various s.
  *
  * Copyright (C) 1996, 2007 David S. Miller (davem@davemloft.net)
  */
@@ -10,7 +10,7 @@
 
 extern unsigned long loops_per_jiffy;
 
-static void __init check_bugs(void)
+static void __init check_s(void)
 {
 #if defined(CONFIG_SPARC32) && !defined(CONFIG_SMP)
 	cpu_data(0).udelay_val = loops_per_jiffy;

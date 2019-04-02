@@ -112,7 +112,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	}
 
 	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
-		DRM_DEBUG("PCI: no table in VRAM: using normal RAM\n");
+		DRM_DE("PCI: no table in VRAM: using normal RAM\n");
 
 		if (pci_set_dma_mask(dev->pdev, gart_info->table_mask)) {
 			DRM_ERROR("fail to set dma mask to 0x%Lx\n",
@@ -133,7 +133,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	} else {
 		address = gart_info->addr;
 		bus_address = gart_info->bus_addr;
-		DRM_DEBUG("PCI: Gart Table: VRAM %08LX mapped at %08lX\n",
+		DRM_DE("PCI: Gart Table: VRAM %08LX mapped at %08lX\n",
 			  (unsigned long long)bus_address,
 			  (unsigned long)address);
 	}

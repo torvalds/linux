@@ -45,8 +45,8 @@
 #include "irq_impl.h"
 
 
-#define DEBUG_SMP 0
-#if DEBUG_SMP
+#define DE_SMP 0
+#if DE_SMP
 #define DBGS(args)	printk args
 #else
 #define DBGS(args)
@@ -123,7 +123,7 @@ smp_callin(void)
 
 	if (cpu_online(cpuid)) {
 		printk("??, cpu 0x%x already present??\n", cpuid);
-		BUG();
+		();
 	}
 	set_cpu_online(cpuid, true);
 
@@ -573,7 +573,7 @@ handle_ipi(struct pt_regs *regs)
 void
 smp_send_reschedule(int cpu)
 {
-#ifdef DEBUG_IPI_MSG
+#ifdef DE_IPI_MSG
 	if (cpu == hard_smp_processor_id())
 		printk(KERN_WARNING
 		       "smp_send_reschedule: Sending IPI to self.\n");
@@ -587,7 +587,7 @@ smp_send_stop(void)
 	cpumask_t to_whom;
 	cpumask_copy(&to_whom, cpu_possible_mask);
 	cpumask_clear_cpu(smp_processor_id(), &to_whom);
-#ifdef DEBUG_IPI_MSG
+#ifdef DE_IPI_MSG
 	if (hard_smp_processor_id() != boot_cpu_id)
 		printk(KERN_WARNING "smp_send_stop: Not on boot cpu.\n");
 #endif

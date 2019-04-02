@@ -279,7 +279,7 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	mutex_unlock(&omap_fb->lock);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	int i, n = fb->format->num_planes;

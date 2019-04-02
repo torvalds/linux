@@ -1426,7 +1426,7 @@ No status bits are changed.
 /** locked once port is enabled */
 #define   DP_PORT_REVERSAL		(1 << 15)
 
-/** sends the clock on lane 15 of the PEG for debug */
+/** sends the clock on lane 15 of the PEG for de */
 #define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
 
 #define   DP_SCRAMBLING_DISABLE		(1 << 12)

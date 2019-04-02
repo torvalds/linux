@@ -67,7 +67,7 @@ static void rza_wdt_calc_timeout(struct rza_wdt *priv, int timeout)
 		priv->count = 0;
 	}
 
-	pr_debug("%s: timeout set to %u (WTCNT=%d)\n", __func__,
+	pr_de("%s: timeout set to %u (WTCNT=%d)\n", __func__,
 		 timeout, priv->count);
 }
 
@@ -107,7 +107,7 @@ static int rza_wdt_ping(struct watchdog_device *wdev)
 
 	writew(WTCNT_MAGIC | priv->count, priv->base + WTCNT);
 
-	pr_debug("%s: timeout = %u\n", __func__, wdev->timeout);
+	pr_de("%s: timeout = %u\n", __func__, wdev->timeout);
 
 	return 0;
 }

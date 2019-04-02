@@ -5,7 +5,7 @@
 #include "event.h"
 #include <string.h>
 #include <linux/bitops.h>
-#include "debug.h"
+#include "de.h"
 
 struct machine;
 

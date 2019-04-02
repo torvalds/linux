@@ -98,7 +98,7 @@ static void rds_destroy_mr(struct rds_mr *mr)
 	void *trans_private = NULL;
 	unsigned long flags;
 
-	rdsdebug("RDS: destroy mr key is %x refcnt %u\n",
+	rdsde("RDS: destroy mr key is %x refcnt %u\n",
 			mr->r_key, refcount_read(&mr->r_refcount));
 
 	if (test_and_set_bit(RDS_MR_DEAD, &mr->r_state))
@@ -208,7 +208,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		goto out;
 	}
 
-	rdsdebug("RDS: get_mr addr %llx len %llu nr_pages %u\n",
+	rdsde("RDS: get_mr addr %llx len %llu nr_pages %u\n",
 		args->vec.addr, args->vec.bytes, nr_pages);
 
 	/* XXX clamp nr_pages to limit the size of this alloc? */
@@ -263,7 +263,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	for (i = 0 ; i < nents; i++)
 		sg_set_page(&sg[i], pages[i], PAGE_SIZE, 0);
 
-	rdsdebug("RDS: trans_private nents is %u\n", nents);
+	rdsde("RDS: trans_private nents is %u\n", nents);
 
 	/* Obtain a transport specific MR. If this succeeds, the
 	 * s/g list is now owned by the MR.
@@ -283,7 +283,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 
 	mr->r_trans_private = trans_private;
 
-	rdsdebug("RDS: get_mr put_user key is %x cookie_addr %p\n",
+	rdsde("RDS: get_mr put_user key is %x cookie_addr %p\n",
 	       mr->r_key, (void *)(unsigned long) args->cookie_addr);
 
 	/* The user may pass us an unaligned address, but we can only
@@ -305,9 +305,9 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	found = rds_mr_tree_walk(&rs->rs_rdma_keys, mr->r_key, mr);
 	spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 
-	BUG_ON(found && found != mr);
+	_ON(found && found != mr);
 
-	rdsdebug("RDS: get_mr key is %x\n", mr->r_key);
+	rdsde("RDS: get_mr key is %x\n", mr->r_key);
 	if (mr_ret) {
 		refcount_inc(&mr->r_refcount);
 		*mr_ret = mr;
@@ -424,7 +424,7 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr) {
-		pr_debug("rds: trying to unuse MR with unknown r_key %u!\n",
+		pr_de("rds: trying to unuse MR with unknown r_key %u!\n",
 			 r_key);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		return;
@@ -664,7 +664,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	nr_bytes = 0;
 
-	rdsdebug("RDS: rdma prepare nr_local %llu rva %llx rkey %x\n",
+	rdsde("RDS: rdma prepare nr_local %llu rva %llx rkey %x\n",
 	       (unsigned long long)args->nr_local,
 	       (unsigned long long)args->remote_vec.addr,
 	       op->op_rkey);
@@ -686,7 +686,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		else
 			ret = 0;
 
-		rdsdebug("RDS: nr_bytes %u nr %u iov->bytes %llu iov->addr %llx\n",
+		rdsde("RDS: nr_bytes %u nr %u iov->bytes %llu iov->addr %llx\n",
 			 nr_bytes, nr, iov->bytes, iov->addr);
 
 		nr_bytes += iov->bytes;
@@ -700,7 +700,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 					min_t(unsigned int, iov->bytes, PAGE_SIZE - offset),
 					offset);
 
-			rdsdebug("RDS: sg->offset %x sg->len %x iov->addr %llx iov->bytes %llu\n",
+			rdsde("RDS: sg->offset %x sg->len %x iov->addr %llx iov->bytes %llu\n",
 			       sg->offset, sg->length, iov->addr, iov->bytes);
 
 			iov->addr += sg->length;
@@ -711,7 +711,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	}
 
 	if (nr_bytes > args->remote_vec.bytes) {
-		rdsdebug("RDS nr_bytes %u remote_bytes %u do not match\n",
+		rdsde("RDS nr_bytes %u remote_bytes %u do not match\n",
 				nr_bytes,
 				(unsigned int) args->remote_vec.bytes);
 		ret = -EINVAL;
@@ -830,7 +830,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		rm->atomic.op_m_cswp.swap_mask = args->m_cswp.swap_mask;
 		break;
 	default:
-		BUG(); /* should never happen */
+		(); /* should never happen */
 	}
 
 	rm->atomic.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);

@@ -29,9 +29,9 @@ static const char ID_sccs[] = "@(#)smtinit.c	1.15 97/05/06 (C) SK " ;
 
 void init_fddi_driver(struct s_smc *smc, u_char *mac_addr);
 
-/* define global debug variable */
-#if defined(DEBUG) && !defined(DEBUG_BRD)
-struct smt_debug debug;
+/* define global de variable */
+#if defined(DE) && !defined(DE_BRD)
+struct smt_de de;
 #endif
 
 #ifndef MULT_OEM
@@ -70,22 +70,22 @@ int init_smt(struct s_smc *smc, u_char *mac_addr)
 {
 	int	p ;
 
-#if defined(DEBUG) && !defined(DEBUG_BRD)
-	debug.d_smt = 0 ;
-	debug.d_smtf = 0 ;
-	debug.d_rmt = 0 ;
-	debug.d_ecm = 0 ;
-	debug.d_pcm = 0 ;
-	debug.d_cfm = 0 ;
+#if defined(DE) && !defined(DE_BRD)
+	de.d_smt = 0 ;
+	de.d_smtf = 0 ;
+	de.d_rmt = 0 ;
+	de.d_ecm = 0 ;
+	de.d_pcm = 0 ;
+	de.d_cfm = 0 ;
 
-	debug.d_plc = 0 ;
+	de.d_plc = 0 ;
 #ifdef	ESS
-	debug.d_ess = 0 ;
+	de.d_ess = 0 ;
 #endif
 #ifdef	SBA
-	debug.d_sba = 0 ;
+	de.d_sba = 0 ;
 #endif
-#endif	/* DEBUG && !DEBUG_BRD */
+#endif	/* DE && !DE_BRD */
 
 	/* First initialize the ports mib->pointers */
 	for ( p = 0; p < NUMPHYS; p ++ ) {

@@ -76,7 +76,7 @@ static void __exit xfrm6_ro_exit(void)
 	int err;
 
 	err = xfrm_unregister_mode(&xfrm6_ro_mode, AF_INET6);
-	BUG_ON(err);
+	_ON(err);
 }
 
 module_init(xfrm6_ro_init);

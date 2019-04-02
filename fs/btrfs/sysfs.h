@@ -6,7 +6,7 @@
 /*
  * Data exported through sysfs
  */
-extern u64 btrfs_debugfs_test;
+extern u64 btrfs_defs_test;
 
 enum btrfs_feature_set {
 	FEAT_COMPAT,

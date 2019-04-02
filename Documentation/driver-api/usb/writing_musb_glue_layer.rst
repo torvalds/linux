@@ -573,7 +573,7 @@ Device Quirks
 
 Completing the platform data specific to your device, you may also need
 to write some code in the glue layer to work around some device specific
-limitations. These quirks may be due to some hardware bugs, or simply be
+limitations. These quirks may be due to some hardware s, or simply be
 the result of an incomplete implementation of the USB On-the-Go
 specification.
 

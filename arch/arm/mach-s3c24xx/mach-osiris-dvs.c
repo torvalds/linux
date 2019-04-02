@@ -59,7 +59,7 @@ static int osiris_dvs_notify(struct notifier_block *nb,
 	if (!dvs_en)
 		return 0;
 
-	printk(KERN_DEBUG "%s: old %ld,%ld new %ld,%ld\n", __func__,
+	printk(KERN_DE "%s: old %ld,%ld new %ld,%ld\n", __func__,
 	       freqs->old.armclk, freqs->old.hclk,
 	       freqs->new.armclk, freqs->new.hclk);
 
@@ -67,7 +67,7 @@ static int osiris_dvs_notify(struct notifier_block *nb,
 	case CPUFREQ_PRECHANGE:
 		if ((old_dvs && !new_dvs) ||
 		    (cur_dvs && !new_dvs)) {
-			pr_debug("%s: exiting dvs\n", __func__);
+			pr_de("%s: exiting dvs\n", __func__);
 			cur_dvs = false;
 			gpio_set_value(OSIRIS_GPIO_DVS, 1);
 		}
@@ -75,7 +75,7 @@ static int osiris_dvs_notify(struct notifier_block *nb,
 	case CPUFREQ_POSTCHANGE:
 		if ((!old_dvs && new_dvs) ||
 		    (!cur_dvs && new_dvs)) {
-			pr_debug("entering dvs\n");
+			pr_de("entering dvs\n");
 			cur_dvs = true;
 			gpio_set_value(OSIRIS_GPIO_DVS, 0);
 		}

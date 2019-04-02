@@ -27,8 +27,8 @@
 #include "bttvp.h"
 
 
-static int ir_debug;
-module_param(ir_debug, int, 0644);
+static int ir_de;
+module_param(ir_de, int, 0644);
 
 static int ir_rc5_remote_gap = 885;
 module_param(ir_rc5_remote_gap, int, 0644);
@@ -36,7 +36,7 @@ module_param(ir_rc5_remote_gap, int, 0644);
 #undef dprintk
 #define dprintk(fmt, ...)			\
 do {						\
-	if (ir_debug >= 1)			\
+	if (ir_de >= 1)			\
 		pr_info(fmt, ##__VA_ARGS__);	\
 } while (0)
 

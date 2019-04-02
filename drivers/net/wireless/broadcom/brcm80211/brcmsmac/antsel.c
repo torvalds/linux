@@ -21,7 +21,7 @@
 #include "main.h"
 #include "phy_shim.h"
 #include "antsel.h"
-#include "debug.h"
+#include "de.h"
 
 #define ANT_SELCFG_AUTO		0x80	/* bit indicates antenna sel AUTO */
 #define ANT_SELCFG_MASK		0x33	/* antenna configuration mask */

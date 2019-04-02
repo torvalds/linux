@@ -371,11 +371,11 @@ EXPORT_SYMBOL_GPL(locks_release_private);
 /* Free a lock which is not in use. */
 void locks_free_lock(struct file_lock *fl)
 {
-	BUG_ON(waitqueue_active(&fl->fl_wait));
-	BUG_ON(!list_empty(&fl->fl_list));
-	BUG_ON(!list_empty(&fl->fl_blocked_requests));
-	BUG_ON(!list_empty(&fl->fl_blocked_member));
-	BUG_ON(!hlist_unhashed(&fl->fl_link));
+	_ON(waitqueue_active(&fl->fl_wait));
+	_ON(!list_empty(&fl->fl_list));
+	_ON(!list_empty(&fl->fl_blocked_requests));
+	_ON(!list_empty(&fl->fl_blocked_member));
+	_ON(!hlist_unhashed(&fl->fl_link));
 
 	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
@@ -801,7 +801,7 @@ static void __locks_insert_block(struct file_lock *blocker,
 					       struct file_lock *))
 {
 	struct file_lock *fl;
-	BUG_ON(!list_empty(&waiter->fl_blocked_member));
+	_ON(!list_empty(&waiter->fl_blocked_member));
 
 new_blocker:
 	list_for_each_entry(fl, &blocker->fl_blocked_requests, fl_blocked_member)
@@ -2082,7 +2082,7 @@ int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 			res = flock_lock_inode_wait(inode, fl);
 			break;
 		default:
-			BUG();
+			();
 	}
 	return res;
 }

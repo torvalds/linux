@@ -2,12 +2,12 @@
  * Copyright 2006, Red Hat, Inc., Dave Jones
  * Released under the General Public License (GPL).
  *
- * This file contains the linked list validation for DEBUG_LIST.
+ * This file contains the linked list validation for DE_LIST.
  */
 
 #include <linux/export.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/rculist.h>
 

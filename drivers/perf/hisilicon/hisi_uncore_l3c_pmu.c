@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/acpi.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpuhotplug.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>

@@ -50,7 +50,7 @@ struct media_request_object;
  * struct media_request - Media device request
  * @mdev: Media device this request belongs to
  * @kref: Reference count
- * @debug_str: Prefix for debug messages (process name:fd)
+ * @de_str: Prefix for de messages (process name:fd)
  * @state: The state of the request
  * @updating_count: count the number of request updates that are in progress
  * @access_count: count the number of request accesses that are in progress
@@ -62,7 +62,7 @@ struct media_request_object;
 struct media_request {
 	struct media_device *mdev;
 	struct kref kref;
-	char debug_str[TASK_COMM_LEN + 11];
+	char de_str[TASK_COMM_LEN + 11];
 	enum media_request_state state;
 	unsigned int updating_count;
 	unsigned int access_count;

@@ -37,7 +37,7 @@
 #include <asm/pci_clp.h>
 #include <asm/pci_dma.h>
 
-#define DEBUG				/* enable pr_debug */
+#define DE				/* enable pr_de */
 
 #define	SIC_IRQ_MODE_ALL		0
 #define	SIC_IRQ_MODE_SINGLE		1
@@ -697,7 +697,7 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
 
-	zpci_debug_init_device(zdev, dev_name(&pdev->dev));
+	zpci_de_init_device(zdev, dev_name(&pdev->dev));
 	zpci_fmb_enable_device(zdev);
 
 	return pci_enable_resources(pdev, mask);
@@ -708,7 +708,7 @@ void pcibios_disable_device(struct pci_dev *pdev)
 	struct zpci_dev *zdev = to_zpci(pdev);
 
 	zpci_fmb_disable_device(zdev);
-	zpci_debug_exit_device(zdev);
+	zpci_de_exit_device(zdev);
 }
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
@@ -924,7 +924,7 @@ EXPORT_SYMBOL(zpci_report_error);
 
 static int zpci_mem_init(void)
 {
-	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
+	BUILD__ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
 		     __alignof__(struct zpci_fmb) < sizeof(struct zpci_fmb));
 
 	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
@@ -985,7 +985,7 @@ static int __init pci_base_init(void)
 	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
-	rc = zpci_debug_init();
+	rc = zpci_de_init();
 	if (rc)
 		goto out;
 
@@ -1015,7 +1015,7 @@ out_dma:
 out_irq:
 	zpci_mem_exit();
 out_mem:
-	zpci_debug_exit();
+	zpci_de_exit();
 out:
 	return rc;
 }

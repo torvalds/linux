@@ -35,8 +35,8 @@
 
 #include "hd64572.h"
 
-#undef DEBUG_PKT
-#define DEBUG_RINGS
+#undef DE_PKT
+#define DE_RINGS
 
 #define PCI200SYN_PLX_SIZE	0x80	/* PLX control window size (128b) */
 #define PCI200SYN_SCA_SIZE	0x400	/* SCA window size (1Kb) */
@@ -189,7 +189,7 @@ static int pci200_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
 	port_t *port = dev_to_port(dev);
 
-#ifdef DEBUG_RINGS
+#ifdef DE_RINGS
 	if (cmd == SIOCDEVPRIVATE) {
 		sca_dump_rings(dev);
 		return 0;

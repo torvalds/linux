@@ -66,29 +66,29 @@
 
 /*--- Some configuration defines ---------------------------------------*/
 
-/* DEBUG_PARPORT_IP32
- *	0	disable debug
- *	1	standard level: pr_debug1 is enabled
+/* DE_PARPORT_IP32
+ *	0	disable de
+ *	1	standard level: pr_de1 is enabled
  *	2	parport_ip32_dump_state is enabled
- *	>=3	verbose level: pr_debug is enabled
+ *	>=3	verbose level: pr_de is enabled
  */
-#if !defined(DEBUG_PARPORT_IP32)
-#	define DEBUG_PARPORT_IP32  0	/* 0 (disabled) for production */
+#if !defined(DE_PARPORT_IP32)
+#	define DE_PARPORT_IP32  0	/* 0 (disabled) for production */
 #endif
 
 /*----------------------------------------------------------------------*/
 
-/* Setup DEBUG macros.  This is done before any includes, just in case we
- * activate pr_debug() with DEBUG_PARPORT_IP32 >= 3.
+/* Setup DE macros.  This is done before any includes, just in case we
+ * activate pr_de() with DE_PARPORT_IP32 >= 3.
  */
-#if DEBUG_PARPORT_IP32 == 1
-#	warning DEBUG_PARPORT_IP32 == 1
-#elif DEBUG_PARPORT_IP32 == 2
-#	warning DEBUG_PARPORT_IP32 == 2
-#elif DEBUG_PARPORT_IP32 >= 3
-#	warning DEBUG_PARPORT_IP32 >= 3
-#	if !defined(DEBUG)
-#		define DEBUG /* enable pr_debug() in kernel.h */
+#if DE_PARPORT_IP32 == 1
+#	warning DE_PARPORT_IP32 == 1
+#elif DE_PARPORT_IP32 == 2
+#	warning DE_PARPORT_IP32 == 2
+#elif DE_PARPORT_IP32 >= 3
+#	warning DE_PARPORT_IP32 >= 3
+#	if !defined(DE)
+#		define DE /* enable pr_de() in kernel.h */
 #	endif
 #endif
 
@@ -113,8 +113,8 @@
 
 /*--- Global variables -------------------------------------------------*/
 
-/* Verbose probing on by default for debugging. */
-#if DEBUG_PARPORT_IP32 >= 1
+/* Verbose probing on by default for deging. */
+#if DE_PARPORT_IP32 >= 1
 #	define DEFAULT_VERBOSE_PROBING	1
 #else
 #	define DEFAULT_VERBOSE_PROBING	0
@@ -271,17 +271,17 @@ struct parport_ip32_private {
 	struct completion		irq_complete;
 };
 
-/*--- Debug code -------------------------------------------------------*/
+/*--- De code -------------------------------------------------------*/
 
 /*
- * pr_debug1 - print debug messages
+ * pr_de1 - print de messages
  *
- * This is like pr_debug(), but is defined for %DEBUG_PARPORT_IP32 >= 1
+ * This is like pr_de(), but is defined for %DE_PARPORT_IP32 >= 1
  */
-#if DEBUG_PARPORT_IP32 >= 1
-#	define pr_debug1(...)	printk(KERN_DEBUG __VA_ARGS__)
-#else /* DEBUG_PARPORT_IP32 < 1 */
-#	define pr_debug1(...)	do { } while (0)
+#if DE_PARPORT_IP32 >= 1
+#	define pr_de1(...)	printk(KERN_DE __VA_ARGS__)
+#else /* DE_PARPORT_IP32 < 1 */
+#	define pr_de1(...)	do { } while (0)
 #endif
 
 /*
@@ -291,8 +291,8 @@ struct parport_ip32_private {
  * @...:	parameters for format string
  *
  * Macros used to trace function calls.  The given string is formatted after
- * function name.  pr_trace() uses pr_debug(), and pr_trace1() uses
- * pr_debug1().  __pr_trace() is the low-level macro and is not to be used
+ * function name.  pr_trace() uses pr_de(), and pr_trace1() uses
+ * pr_de1().  __pr_trace() is the low-level macro and is not to be used
  * directly.
  */
 #define __pr_trace(pr, p, fmt, ...)					\
@@ -300,8 +300,8 @@ struct parport_ip32_private {
 	   ({ const struct parport *__p = (p);				\
 		   __p ? __p->name : "parport_ip32"; }),		\
 	   __func__ , ##__VA_ARGS__)
-#define pr_trace(p, fmt, ...)	__pr_trace(pr_debug, p, fmt , ##__VA_ARGS__)
-#define pr_trace1(p, fmt, ...)	__pr_trace(pr_debug1, p, fmt , ##__VA_ARGS__)
+#define pr_trace(p, fmt, ...)	__pr_trace(pr_de, p, fmt , ##__VA_ARGS__)
+#define pr_trace1(p, fmt, ...)	__pr_trace(pr_de1, p, fmt , ##__VA_ARGS__)
 
 /*
  * __pr_probe, pr_probe - print message if @verbose_probing is true
@@ -322,25 +322,25 @@ struct parport_ip32_private {
  * @str:	string to add in message
  * @show_ecp_config:	shall we dump ECP configuration registers too?
  *
- * This function is only here for debugging purpose, and should be used with
+ * This function is only here for deging purpose, and should be used with
  * care.  Reading the parallel port registers may have undesired side effects.
  * Especially if @show_ecp_config is true, the parallel port is resetted.
- * This function is only defined if %DEBUG_PARPORT_IP32 >= 2.
+ * This function is only defined if %DE_PARPORT_IP32 >= 2.
  */
-#if DEBUG_PARPORT_IP32 >= 2
+#if DE_PARPORT_IP32 >= 2
 static void parport_ip32_dump_state(struct parport *p, char *str,
 				    unsigned int show_ecp_config)
 {
 	struct parport_ip32_private * const priv = p->physport->private_data;
 	unsigned int i;
 
-	printk(KERN_DEBUG PPIP32 "%s: state (%s):\n", p->name, str);
+	printk(KERN_DE PPIP32 "%s: state (%s):\n", p->name, str);
 	{
 		static const char ecr_modes[8][4] = {"SPP", "PS2", "PPF",
 						     "ECP", "EPP", "???",
 						     "TST", "CFG"};
 		unsigned int ecr = readb(priv->regs.ecr);
-		printk(KERN_DEBUG PPIP32 "    ecr=0x%02x", ecr);
+		printk(KERN_DE PPIP32 "    ecr=0x%02x", ecr);
 		printk(" %s",
 		       ecr_modes[(ecr & ECR_MODE_MASK) >> ECR_MODE_SHIFT]);
 		if (ecr & ECR_nERRINTR)
@@ -364,7 +364,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 		cnfgB = readb(priv->regs.cnfgB);
 		writeb(ECR_MODE_PS2, priv->regs.ecr);
 		writeb(oecr, priv->regs.ecr);
-		printk(KERN_DEBUG PPIP32 "    cnfgA=0x%02x", cnfgA);
+		printk(KERN_DE PPIP32 "    cnfgA=0x%02x", cnfgA);
 		printk(" ISA-%s", (cnfgA & CNFGA_IRQ) ? "Level" : "Pulses");
 		switch (cnfgA & CNFGA_ID_MASK) {
 		case CNFGA_ID_8:
@@ -386,7 +386,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 			printk(",%d byte%s left", cnfgA & CNFGA_PWORDLEFT,
 			       ((cnfgA & CNFGA_PWORDLEFT) > 1) ? "s" : "");
 		printk("\n");
-		printk(KERN_DEBUG PPIP32 "    cnfgB=0x%02x", cnfgB);
+		printk(KERN_DE PPIP32 "    cnfgB=0x%02x", cnfgB);
 		printk(" irq=%u,dma=%u",
 		       (cnfgB & CNFGB_IRQ_MASK) >> CNFGB_IRQ_SHIFT,
 		       (cnfgB & CNFGB_DMA_MASK) >> CNFGB_DMA_SHIFT);
@@ -397,7 +397,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 	}
 	for (i = 0; i < 2; i++) {
 		unsigned int dcr = i ? priv->dcr_cache : readb(priv->regs.dcr);
-		printk(KERN_DEBUG PPIP32 "    dcr(%s)=0x%02x",
+		printk(KERN_DE PPIP32 "    dcr(%s)=0x%02x",
 		       i ? "soft" : "hard", dcr);
 		printk(" %s", (dcr & DCR_DIR) ? "rev" : "fwd");
 		if (dcr & DCR_IRQ)
@@ -416,7 +416,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 	{
 		unsigned int f = 0;
 		unsigned int dsr = readb(priv->regs.dsr);
-		printk(KERN_DEBUG PPIP32 "    dsr=0x%02x", dsr);
+		printk(KERN_DE PPIP32 "    dsr=0x%02x", dsr);
 		if (!(dsr & DSR_nBUSY))
 			printk("%cBusy", sep);
 		if (dsr & DSR_nACK)
@@ -435,7 +435,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 	}
 #undef sep
 }
-#else /* DEBUG_PARPORT_IP32 < 2 */
+#else /* DE_PARPORT_IP32 < 2 */
 #define parport_ip32_dump_state(...)	do { } while (0)
 #endif
 
@@ -447,18 +447,18 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
  *
  * This is used to track and log extra bits that should not be there in
  * parport_ip32_write_control() and parport_ip32_frob_control().  It is only
- * defined if %DEBUG_PARPORT_IP32 >= 1.
+ * defined if %DE_PARPORT_IP32 >= 1.
  */
-#if DEBUG_PARPORT_IP32 >= 1
+#if DE_PARPORT_IP32 >= 1
 #define CHECK_EXTRA_BITS(p, b, m)					\
 	do {								\
 		unsigned int __b = (b), __m = (m);			\
 		if (__b & ~__m)						\
-			pr_debug1(PPIP32 "%s: extra bits in %s(%s): "	\
+			pr_de1(PPIP32 "%s: extra bits in %s(%s): "	\
 				  "0x%02x/0x%02x\n",			\
 				  (p)->name, __func__, #b, __b, __m);	\
 	} while (0)
-#else /* DEBUG_PARPORT_IP32 < 1 */
+#else /* DE_PARPORT_IP32 < 1 */
 #define CHECK_EXTRA_BITS(...)	do { } while (0)
 #endif
 
@@ -537,7 +537,7 @@ static void parport_ip32_dma_setup_context(unsigned int limit)
 	 * face an IRQ storm which can lock the machine.  Disable them
 	 * only once. */
 	if (parport_ip32_dma.left == 0 && parport_ip32_dma.irq_on) {
-		pr_debug(PPIP32 "IRQ off (ctx)\n");
+		pr_de(PPIP32 "IRQ off (ctx)\n");
 		disable_irq_nosync(MACEISA_PAR_CTXA_IRQ);
 		disable_irq_nosync(MACEISA_PAR_CTXB_IRQ);
 		parport_ip32_dma.irq_on = 0;
@@ -558,7 +558,7 @@ static irqreturn_t parport_ip32_dma_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#if DEBUG_PARPORT_IP32
+#if DE_PARPORT_IP32
 static irqreturn_t parport_ip32_merr_interrupt(int irq, void *dev_id)
 {
 	pr_trace1(NULL, "(%d)", irq);
@@ -585,7 +585,7 @@ static int parport_ip32_dma_start(enum dma_data_direction dir,
 
 	/* FIXME - add support for DMA_FROM_DEVICE.  In this case, buffer must
 	 * be 64 bytes aligned. */
-	BUG_ON(dir != DMA_TO_DEVICE);
+	_ON(dir != DMA_TO_DEVICE);
 
 	/* Reset DMA controller */
 	ctrl = MACEPAR_CTLSTAT_RESET;
@@ -642,7 +642,7 @@ static void parport_ip32_dma_stop(void)
 	/* Disable IRQs */
 	spin_lock_irq(&parport_ip32_dma.lock);
 	if (parport_ip32_dma.irq_on) {
-		pr_debug(PPIP32 "IRQ off (stop)\n");
+		pr_de(PPIP32 "IRQ off (stop)\n");
 		disable_irq_nosync(MACEISA_PAR_CTXA_IRQ);
 		disable_irq_nosync(MACEISA_PAR_CTXB_IRQ);
 		parport_ip32_dma.irq_on = 0;
@@ -680,7 +680,7 @@ static void parport_ip32_dma_stop(void)
 	/* Reset DMA controller, and re-enable IRQs */
 	ctrl = MACEPAR_CTLSTAT_RESET;
 	writeq(ctrl, &mace->perif.ctrl.parport.cntlstat);
-	pr_debug(PPIP32 "IRQ on (stop)\n");
+	pr_de(PPIP32 "IRQ on (stop)\n");
 	enable_irq(MACEISA_PAR_CTXA_IRQ);
 	enable_irq(MACEISA_PAR_CTXB_IRQ);
 	parport_ip32_dma.irq_on = 1;
@@ -723,7 +723,7 @@ static int parport_ip32_dma_register(void)
 			  0, "parport_ip32", NULL);
 	if (err)
 		goto fail_b;
-#if DEBUG_PARPORT_IP32
+#if DE_PARPORT_IP32
 	/* FIXME - what is this IRQ for? */
 	err = request_irq(MACEISA_PAR_MERR_IRQ, parport_ip32_merr_interrupt,
 			  0, "parport_ip32", NULL);
@@ -732,7 +732,7 @@ static int parport_ip32_dma_register(void)
 #endif
 	return 0;
 
-#if DEBUG_PARPORT_IP32
+#if DE_PARPORT_IP32
 fail_merr:
 	free_irq(MACEISA_PAR_CTXB_IRQ, NULL);
 #endif
@@ -747,7 +747,7 @@ fail_a:
  */
 static void parport_ip32_dma_unregister(void)
 {
-#if DEBUG_PARPORT_IP32
+#if DE_PARPORT_IP32
 	free_irq(MACEISA_PAR_MERR_IRQ, NULL);
 #endif
 	free_irq(MACEISA_PAR_CTXB_IRQ, NULL);
@@ -1250,15 +1250,15 @@ static unsigned int parport_ip32_fifo_wait_break(struct parport *p,
 {
 	cond_resched();
 	if (time_after(jiffies, expire)) {
-		pr_debug1(PPIP32 "%s: FIFO write timed out\n", p->name);
+		pr_de1(PPIP32 "%s: FIFO write timed out\n", p->name);
 		return 1;
 	}
 	if (signal_pending(current)) {
-		pr_debug1(PPIP32 "%s: Signal pending\n", p->name);
+		pr_de1(PPIP32 "%s: Signal pending\n", p->name);
 		return 1;
 	}
 	if (!(parport_ip32_read_status(p) & DSR_nFAULT)) {
-		pr_debug1(PPIP32 "%s: nFault asserted low\n", p->name);
+		pr_de1(PPIP32 "%s: nFault asserted low\n", p->name);
 		return 1;
 	}
 	return 0;
@@ -1554,7 +1554,7 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 	if (parport_ip32_read_econtrol(p) & ECR_F_EMPTY)
 		residue = 0;
 	else {
-		pr_debug1(PPIP32 "%s: FIFO is stuck\n", p->name);
+		pr_de1(PPIP32 "%s: FIFO is stuck\n", p->name);
 
 		/* Stop all transfers.
 		 *
@@ -1578,7 +1578,7 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 		}
 	}
 	if (residue)
-		pr_debug1(PPIP32 "%s: %d PWord%s left in FIFO\n",
+		pr_de1(PPIP32 "%s: %d PWord%s left in FIFO\n",
 			  p->name, residue,
 			  (residue == 1) ? " was" : "s were");
 
@@ -1590,12 +1590,12 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 		parport_ip32_data_reverse(p);
 		parport_ip32_frob_control(p, DCR_nINIT, 0);
 		if (parport_wait_peripheral(p, DSR_PERROR, 0))
-			pr_debug1(PPIP32 "%s: PEerror timeout 1 in %s\n",
+			pr_de1(PPIP32 "%s: PEerror timeout 1 in %s\n",
 				  p->name, __func__);
 		parport_ip32_frob_control(p, DCR_STROBE, DCR_STROBE);
 		parport_ip32_frob_control(p, DCR_nINIT, DCR_nINIT);
 		if (parport_wait_peripheral(p, DSR_PERROR, DSR_PERROR))
-			pr_debug1(PPIP32 "%s: PEerror timeout 2 in %s\n",
+			pr_de1(PPIP32 "%s: PEerror timeout 2 in %s\n",
 				  p->name, __func__);
 	}
 
@@ -1603,9 +1603,9 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 	parport_ip32_set_mode(p, ECR_MODE_CFG);
 	cnfga = readb(priv->regs.cnfgA);
 	if (!(cnfga & CNFGA_nBYTEINTRANS)) {
-		pr_debug1(PPIP32 "%s: cnfgA contains 0x%02x\n",
+		pr_de1(PPIP32 "%s: cnfgA contains 0x%02x\n",
 			  p->name, cnfga);
-		pr_debug1(PPIP32 "%s: Accounting for extra byte\n",
+		pr_de1(PPIP32 "%s: Accounting for extra byte\n",
 			  p->name);
 		residue++;
 	}
@@ -1671,7 +1671,7 @@ static size_t parport_ip32_compat_write_data(struct parport *p,
 
 	/* Then, wait for BUSY to get low. */
 	if (parport_wait_peripheral(p, DSR_nBUSY, DSR_nBUSY))
-		printk(KERN_DEBUG PPIP32 "%s: BUSY timeout in %s\n",
+		printk(KERN_DE PPIP32 "%s: BUSY timeout in %s\n",
 		       p->name, __func__);
 
 stop:
@@ -1715,7 +1715,7 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 
 		/* Event 49: PError goes high. */
 		if (parport_wait_peripheral(p, DSR_PERROR, DSR_PERROR)) {
-			printk(KERN_DEBUG PPIP32 "%s: PError timeout in %s",
+			printk(KERN_DE PPIP32 "%s: PError timeout in %s",
 			       p->name, __func__);
 			physport->ieee1284.phase = IEEE1284_PH_ECP_DIR_UNKNOWN;
 			return 0;
@@ -1752,7 +1752,7 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 
 	/* Then, wait for BUSY to get low. */
 	if (parport_wait_peripheral(p, DSR_nBUSY, DSR_nBUSY))
-		printk(KERN_DEBUG PPIP32 "%s: BUSY timeout in %s\n",
+		printk(KERN_DE PPIP32 "%s: BUSY timeout in %s\n",
 		       p->name, __func__);
 
 stop:

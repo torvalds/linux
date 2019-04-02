@@ -82,7 +82,7 @@ static inline bool pte_user(pte_t pte)
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
 
 /*
- * Protection used for kernel text. We want the debuggers to be able to
+ * Protection used for kernel text. We want the degers to be able to
  * set breakpoints anywhere, so don't write protect the kernel text
  * on platforms where such control is possible.
  */

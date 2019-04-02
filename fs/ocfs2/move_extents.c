@@ -108,7 +108,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 
 	rec = &el->l_recs[index];
 
-	BUG_ON(ext_flags != rec->e_flags);
+	_ON(ext_flags != rec->e_flags);
 	/*
 	 * after moving/defraging to new location, the extent is not going
 	 * to be refcounted anymore.
@@ -226,8 +226,8 @@ static int ocfs2_defrag_extent(struct ocfs2_move_extents_context *context,
 	int need_free = 0;
 
 	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && *len) {
-		BUG_ON(!ocfs2_is_refcount_inode(inode));
-		BUG_ON(!context->refcount_loc);
+		_ON(!ocfs2_is_refcount_inode(inode));
+		_ON(!context->refcount_loc);
 
 		ret = ocfs2_lock_refcount_tree(osb, context->refcount_loc, 1,
 					       &ref_tree, NULL);
@@ -599,8 +599,8 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 	phys_blkno = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
 
 	if ((ext_flags & OCFS2_EXT_REFCOUNTED) && len) {
-		BUG_ON(!ocfs2_is_refcount_inode(inode));
-		BUG_ON(!context->refcount_loc);
+		_ON(!ocfs2_is_refcount_inode(inode));
+		_ON(!context->refcount_loc);
 
 		ret = ocfs2_lock_refcount_tree(osb, context->refcount_loc, 1,
 					       &ref_tree, NULL);

@@ -1,7 +1,7 @@
 /* Simple expression parser */
 %{
 #include "util.h"
-#include "util/debug.h"
+#include "util/de.h"
 #define IN_EXPR_Y 1
 #include "expr.h"
 #include "smt.h"
@@ -41,7 +41,7 @@ static void expr__error(double *final_val __maybe_unused,
 		       const char **pp __maybe_unused,
 		       const char *s)
 {
-	pr_debug("%s\n", s);
+	pr_de("%s\n", s);
 }
 
 static int lookup_id(struct parse_ctx *ctx, char *id, double *val)
@@ -70,7 +70,7 @@ if_expr:
 
 expr:	  NUMBER
 	| ID			{ if (lookup_id(ctx, $1, &$$) < 0) {
-					pr_debug("%s not found\n", $1);
+					pr_de("%s not found\n", $1);
 					YYABORT;
 				  }
 				}
@@ -215,7 +215,7 @@ int expr__find_other(const char *p, const char *one, const char ***other,
 		}
 		if (tok == ID && !already_seen(val.id, one, *other, num_other)) {
 			if (num_other >= EXPR_MAX_OTHER - 1) {
-				pr_debug("Too many extra events in %s\n", orig);
+				pr_de("Too many extra events in %s\n", orig);
 				break;
 			}
 			(*other)[num_other] = strdup(val.id);

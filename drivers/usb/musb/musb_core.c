@@ -632,7 +632,7 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 	 * Workarounds:  (a) hardware: use self powered devices.
 	 * (b) software:  ignore non-repeated VBUS errors.
 	 *
-	 * REVISIT:  do delays from lots of DEBUG_KERNEL checks
+	 * REVISIT:  do delays from lots of DE_KERNEL checks
 	 * make trouble here, keeping VBUS < 4.4V ?
 	 */
 	switch (musb->xceiv->otg->state) {
@@ -662,7 +662,7 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 		break;
 	}
 
-	dev_printk(ignore ? KERN_DEBUG : KERN_ERR, musb->controller,
+	dev_printk(ignore ? KERN_DE : KERN_ERR, musb->controller,
 			"VBUS_ERROR in %s (%02x, %s), retry #%d, port1 %08x\n",
 			usb_otg_state_string(musb->xceiv->otg->state),
 			devctl,
@@ -993,7 +993,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			 */
 			if (ep->dwWaitFrame >= frame) {
 				ep->dwWaitFrame = 0;
-				pr_debug("SOF --> periodic TX%s on %d\n",
+				pr_de("SOF --> periodic TX%s on %d\n",
 					ep->tx_channel ? " DMA" : "",
 					epnum);
 				if (!ep->tx_channel)
@@ -1359,7 +1359,7 @@ static int ep_config_from_table(struct musb *musb)
 		break;
 	}
 
-	pr_debug("%s: setup fifo_mode %d\n", musb_driver_name, fifo_mode);
+	pr_de("%s: setup fifo_mode %d\n", musb_driver_name, fifo_mode);
 
 
 done:
@@ -1374,13 +1374,13 @@ done:
 		u8	epn = cfg->hw_ep_num;
 
 		if (epn >= musb->config->num_eps) {
-			pr_debug("%s: invalid ep %d\n",
+			pr_de("%s: invalid ep %d\n",
 					musb_driver_name, epn);
 			return -EINVAL;
 		}
 		offset = fifo_setup(musb, hw_ep + epn, cfg++, offset);
 		if (offset < 0) {
-			pr_debug("%s: mem overrun, ep %d\n",
+			pr_de("%s: mem overrun, ep %d\n",
 					musb_driver_name, epn);
 			return offset;
 		}
@@ -1388,13 +1388,13 @@ done:
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
 	}
 
-	pr_debug("%s: %d/%d max ep, %d/%d memory\n",
+	pr_de("%s: %d/%d max ep, %d/%d memory\n",
 			musb_driver_name,
 			n + 1, musb->config->num_eps * 2 - 1,
 			offset, (1 << (musb->config->ram_bits + 2)));
 
 	if (!musb->bulk_ep) {
-		pr_debug("%s: missing bulk\n", musb_driver_name);
+		pr_de("%s: missing bulk\n", musb_driver_name);
 		return -EINVAL;
 	}
 
@@ -1441,7 +1441,7 @@ static int ep_config_from_hw(struct musb *musb)
 	}
 
 	if (!musb->bulk_ep) {
-		pr_debug("%s: missing bulk\n", musb_driver_name);
+		pr_de("%s: missing bulk\n", musb_driver_name);
 		return -EINVAL;
 	}
 
@@ -1489,7 +1489,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 	if (reg & MUSB_CONFIGDATA_SOFTCONE)
 		strcat(aInfo, ", SoftConn");
 
-	pr_debug("%s: ConfigData=0x%02x (%s)\n", musb_driver_name, reg, aInfo);
+	pr_de("%s: ConfigData=0x%02x (%s)\n", musb_driver_name, reg, aInfo);
 
 	if (MUSB_CONTROLLER_MHDRC == musb_type) {
 		musb->is_multipoint = 1;
@@ -1505,7 +1505,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 
 	/* log release info */
 	musb->hwvers = musb_readw(mbase, MUSB_HWVERS);
-	pr_debug("%s: %sHDRC RTL version %d.%d%s\n",
+	pr_de("%s: %sHDRC RTL version %d.%d%s\n",
 		 musb_driver_name, type, MUSB_HWVERS_MAJOR(musb->hwvers),
 		 MUSB_HWVERS_MINOR(musb->hwvers),
 		 (musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
@@ -2008,7 +2008,7 @@ static struct musb *allocate_instance(struct device *dev,
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
 	musb->config = config;
-	BUG_ON(musb->config->num_eps > MUSB_C_NUM_EPS);
+	_ON(musb->config->num_eps > MUSB_C_NUM_EPS);
 	for (epnum = 0, ep = musb->endpoints;
 			epnum < musb->config->num_eps;
 			epnum++, ep++) {
@@ -2387,7 +2387,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail3;
 
-	musb_init_debugfs(musb);
+	musb_init_defs(musb);
 
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
 	if (status)
@@ -2400,7 +2400,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	return 0;
 
 fail5:
-	musb_exit_debugfs(musb);
+	musb_exit_defs(musb);
 
 	musb_gadget_cleanup(musb);
 	musb_host_cleanup(musb);
@@ -2472,7 +2472,7 @@ static int musb_remove(struct platform_device *pdev)
 	 *  - Peripheral mode: peripheral is deactivated (or never-activated)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
-	musb_exit_debugfs(musb);
+	musb_exit_defs(musb);
 
 	cancel_delayed_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);

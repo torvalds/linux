@@ -372,7 +372,7 @@ static void d40_log_fill_lli(struct d40_log_lli *lli,
 	lli->lcsp02 = ((data_size / data_width) <<
 		       D40_MEM_LCSP0_ECNT_POS) & D40_MEM_LCSP0_ECNT_MASK;
 
-	BUG_ON((data_size / data_width) > STEDMA40_MAX_SEG_SIZE);
+	_ON((data_size / data_width) > STEDMA40_MAX_SEG_SIZE);
 
 	/* 16 LSBs address of the current element */
 	lli->lcsp02 |= data & D40_MEM_LCSP0_SPTR_MASK;

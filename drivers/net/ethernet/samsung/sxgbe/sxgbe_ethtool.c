@@ -470,7 +470,7 @@ static void sxgbe_get_regs(struct net_device *dev,
 		reg_ix++;
 	}
 
-	BUG_ON(reg_ix * 4 > REG_SPACE_SIZE);
+	_ON(reg_ix * 4 > REG_SPACE_SIZE);
 }
 
 static int sxgbe_get_regs_len(struct net_device *dev)

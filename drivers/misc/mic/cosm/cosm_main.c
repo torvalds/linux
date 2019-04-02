@@ -282,7 +282,7 @@ static int cosm_driver_probe(struct cosm_device *cdev)
 		dev_err(&cdev->dev, "sysfs_get_dirent failed rc %d\n", rc);
 		goto destroy_device;
 	}
-	cosm_create_debug_dir(cdev);
+	cosm_create_de_dir(cdev);
 	return 0;
 destroy_device:
 	device_destroy(g_cosm_class, MKDEV(0, cdev->index));
@@ -294,7 +294,7 @@ scif_exit:
 
 static void cosm_driver_remove(struct cosm_device *cdev)
 {
-	cosm_delete_debug_dir(cdev);
+	cosm_delete_de_dir(cdev);
 	sysfs_put(cdev->state_sysfs);
 	device_destroy(g_cosm_class, MKDEV(0, cdev->index));
 	flush_work(&cdev->reset_trigger_work);
@@ -353,13 +353,13 @@ static int __init cosm_init(void)
 {
 	int ret;
 
-	cosm_init_debugfs();
+	cosm_init_defs();
 
 	g_cosm_class = class_create(THIS_MODULE, cosm_driver_name);
 	if (IS_ERR(g_cosm_class)) {
 		ret = PTR_ERR(g_cosm_class);
 		pr_err("class_create failed ret %d\n", ret);
-		goto cleanup_debugfs;
+		goto cleanup_defs;
 	}
 
 	ida_init(&g_cosm_ida);
@@ -372,8 +372,8 @@ static int __init cosm_init(void)
 ida_destroy:
 	ida_destroy(&g_cosm_ida);
 	class_destroy(g_cosm_class);
-cleanup_debugfs:
-	cosm_exit_debugfs();
+cleanup_defs:
+	cosm_exit_defs();
 	return ret;
 }
 
@@ -382,7 +382,7 @@ static void __exit cosm_exit(void)
 	cosm_unregister_driver(&cosm_driver);
 	ida_destroy(&g_cosm_ida);
 	class_destroy(g_cosm_class);
-	cosm_exit_debugfs();
+	cosm_exit_defs();
 }
 
 module_init(cosm_init);

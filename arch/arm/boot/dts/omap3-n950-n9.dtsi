@@ -51,11 +51,11 @@
 		compatible = "gpio-leds";
 
 		heartbeat {
-			label = "debug::sleep";
+			label = "de::sleep";
 			gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;  /* gpio92 */
 			linux,default-trigger = "default-on";
 			pinctrl-names = "default";
-			pinctrl-0 = <&debug_leds>;
+			pinctrl-0 = <&de_leds>;
 		};
 	};
 
@@ -75,7 +75,7 @@
 		>;
 	};
 
-	debug_leds: pinmux_debug_led_pins {
+	de_leds: pinmux_de_led_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2108, PIN_OUTPUT | MUX_MODE4)       /* dss_data22.gpio_92 */
 		>;
@@ -371,7 +371,7 @@
 		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
 		/*
-		 * These timings are based on CONFIG_OMAP_GPMC_DEBUG=y reported
+		 * These timings are based on CONFIG_OMAP_GPMC_DE=y reported
 		 * bootloader set values when booted with v4.19 using both N950
 		 * and N9 devices (OneNAND Manufacturer: Samsung):
 		 *

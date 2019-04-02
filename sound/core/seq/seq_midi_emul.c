@@ -26,7 +26,7 @@
  * the hardware doesn't.
  *
  * It was written for a AWE64 driver, but there should be no AWE specific
- * code in here.  If there is it should be reported as a bug.
+ * code in here.  If there is it should be reported as a .
  */
 
 #include <linux/init.h>
@@ -89,7 +89,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	int dest_channel = 0;
 
 	if (ev == NULL || chanset == NULL) {
-		pr_debug("ALSA: seq_midi_emul: ev or chanbase NULL (snd_midi_process_event)\n");
+		pr_de("ALSA: seq_midi_emul: ev or chanbase NULL (snd_midi_process_event)\n");
 		return;
 	}
 	if (chanset->channels == NULL)
@@ -98,7 +98,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	if (snd_seq_ev_is_channel_type(ev)) {
 		dest_channel = ev->data.note.channel;
 		if (dest_channel >= chanset->max_channels) {
-			pr_debug("ALSA: seq_midi_emul: dest channel is %d, max is %d\n",
+			pr_de("ALSA: seq_midi_emul: dest channel is %d, max is %d\n",
 				   dest_channel, chanset->max_channels);
 			return;
 		}
@@ -232,7 +232,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 	case SNDRV_SEQ_EVENT_ECHO:
 	not_yet:
 	default:
-		/*pr_debug("ALSA: seq_midi_emul: Unimplemented event %d\n", ev->type);*/
+		/*pr_de("ALSA: seq_midi_emul: Unimplemented event %d\n", ev->type);*/
 		break;
 	}
 }

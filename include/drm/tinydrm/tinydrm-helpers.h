@@ -50,20 +50,20 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 			 size_t len);
 void _tinydrm_dbg_spi_message(struct spi_device *spi, struct spi_message *m);
 
-#ifdef DEBUG
+#ifdef DE
 /**
  * tinydrm_dbg_spi_message - Dump SPI message
  * @spi: SPI device
  * @m: SPI message
  *
  * Dumps info about the transfers in a SPI message including buffer content.
- * DEBUG has to be defined for this function to be enabled alongside setting
- * the DRM_UT_DRIVER bit of &drm_debug.
+ * DE has to be defined for this function to be enabled alongside setting
+ * the DRM_UT_DRIVER bit of &drm_de.
  */
 static inline void tinydrm_dbg_spi_message(struct spi_device *spi,
 					   struct spi_message *m)
 {
-	if (drm_debug & DRM_UT_DRIVER)
+	if (drm_de & DRM_UT_DRIVER)
 		_tinydrm_dbg_spi_message(spi, m);
 }
 #else
@@ -71,6 +71,6 @@ static inline void tinydrm_dbg_spi_message(struct spi_device *spi,
 					   struct spi_message *m)
 {
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 #endif /* __LINUX_TINYDRM_HELPERS_H */

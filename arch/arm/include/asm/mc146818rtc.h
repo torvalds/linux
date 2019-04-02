@@ -8,7 +8,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 
-#define RTC_IRQ BUILD_BUG_ON(1)
+#define RTC_IRQ BUILD__ON(1)
 
 #ifndef RTC_PORT
 #define RTC_PORT(x)	(0x70 + (x))

@@ -23,7 +23,7 @@
 #------------------------------------------------------------------------------
 
 obj-$(CONFIG_ATH6KL) += ath6kl_core.o
-ath6kl_core-y += debug.o
+ath6kl_core-y += de.o
 ath6kl_core-y += hif.o
 ath6kl_core-y += htc_mbox.o
 ath6kl_core-y += htc_pipe.o

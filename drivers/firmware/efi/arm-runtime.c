@@ -27,7 +27,7 @@
 
 extern u64 efi_system_table;
 
-#ifdef CONFIG_ARM64_PTDUMP_DEBUGFS
+#ifdef CONFIG_ARM64_PTDUMP_DEFS
 #include <asm/ptdump.h>
 
 static struct ptdump_info efi_ptdump_info = {
@@ -43,7 +43,7 @@ static struct ptdump_info efi_ptdump_info = {
 static int __init ptdump_init(void)
 {
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
-		ptdump_debugfs_register(&efi_ptdump_info, "efi_page_tables");
+		ptdump_defs_register(&efi_ptdump_info, "efi_page_tables");
 
 	return 0;
 }

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
@@ -409,7 +409,7 @@ void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm)
 			s_chk_len = frm->payload[high_plane];
 		}
 	}
-	pr_debug("f_addr = 0x%08x, f_len = %d, s_addr = 0x%08x, s_len = %d\n",
+	pr_de("f_addr = 0x%08x, f_len = %d, s_addr = 0x%08x, s_len = %d\n",
 			f_chk_addr, f_chk_len, s_chk_addr, s_chk_len);
 }
 
@@ -423,7 +423,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	u32 min_w, min_h, tmp_w, tmp_h;
 	int i;
 
-	pr_debug("user put w: %d, h: %d", pix_mp->width, pix_mp->height);
+	pr_de("user put w: %d, h: %d", pix_mp->width, pix_mp->height);
 
 	fmt = find_fmt(&pix_mp->pixelformat, NULL, 0);
 	if (!fmt) {
@@ -435,7 +435,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	if (pix_mp->field == V4L2_FIELD_ANY)
 		pix_mp->field = V4L2_FIELD_NONE;
 	else if (pix_mp->field != V4L2_FIELD_NONE) {
-		pr_debug("Not supported field order(%d)\n", pix_mp->field);
+		pr_de("Not supported field order(%d)\n", pix_mp->field);
 		return -EINVAL;
 	}
 
@@ -457,7 +457,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 		pix_mp->colorspace = ctx->out_colorspace;
 	}
 
-	pr_debug("mod_x: %d, mod_y: %d, max_w: %d, max_h = %d",
+	pr_de("mod_x: %d, mod_y: %d, max_w: %d, max_h = %d",
 			mod_x, mod_y, max_w, max_h);
 
 	/* To check if image size is modified to adjust parameter against
@@ -468,7 +468,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 	v4l_bound_align_image(&pix_mp->width, min_w, max_w, mod_x,
 		&pix_mp->height, min_h, max_h, mod_y, 0);
 	if (tmp_w != pix_mp->width || tmp_h != pix_mp->height)
-		pr_debug("Image size has been modified from %dx%d to %dx%d\n",
+		pr_de("Image size has been modified from %dx%d to %dx%d\n",
 			 tmp_w, tmp_h, pix_mp->width, pix_mp->height);
 
 	pix_mp->num_planes = fmt->num_planes;
@@ -495,7 +495,7 @@ int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f)
 		plane_fmt->sizeimage = max(pix_mp->width * pix_mp->height *
 					   fmt->depth[i] / 8,
 					   plane_fmt->sizeimage);
-		pr_debug("[%d]: bpl: %d, sizeimage: %d",
+		pr_de("[%d]: bpl: %d, sizeimage: %d",
 				i, bpl, pix_mp->plane_fmt[i].sizeimage);
 	}
 
@@ -553,7 +553,7 @@ int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s)
 		pr_err("doesn't support negative values for top & left\n");
 		return -EINVAL;
 	}
-	pr_debug("user put w: %d, h: %d", s->r.width, s->r.height);
+	pr_de("user put w: %d, h: %d", s->r.width, s->r.height);
 
 	if (s->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		f = &ctx->d_frame;
@@ -596,9 +596,9 @@ int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s)
 			min_h = variant->pix_min->target_rot_dis_h;
 		}
 	}
-	pr_debug("mod_x: %d, mod_y: %d, min_w: %d, min_h = %d",
+	pr_de("mod_x: %d, mod_y: %d, min_w: %d, min_h = %d",
 					mod_x, mod_y, min_w, min_h);
-	pr_debug("tmp_w : %d, tmp_h : %d", tmp_w, tmp_h);
+	pr_de("tmp_w : %d, tmp_h : %d", tmp_w, tmp_h);
 
 	v4l_bound_align_image(&tmp_w, min_w, max_w, mod_x,
 			      &tmp_h, min_h, max_h, mod_y, 0);
@@ -624,7 +624,7 @@ int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s)
 	    s->r.left & 1)
 		s->r.left -= 1;
 
-	pr_debug("Aligned l:%d, t:%d, w:%d, h:%d, f_w: %d, f_h: %d",
+	pr_de("Aligned l:%d, t:%d, w:%d, h:%d, f_w: %d, f_h: %d",
 		 s->r.left, s->r.top, s->r.width, s->r.height, max_w, max_h);
 
 	return 0;
@@ -712,11 +712,11 @@ int gsc_set_scaler_info(struct gsc_ctx *ctx)
 	sc->main_hratio = (s_frame->crop.width << 16) / tx;
 	sc->main_vratio = (s_frame->crop.height << 16) / ty;
 
-	pr_debug("scaler input/output size : sx = %d, sy = %d, tx = %d, ty = %d",
+	pr_de("scaler input/output size : sx = %d, sy = %d, tx = %d, ty = %d",
 			s_frame->crop.width, s_frame->crop.height, tx, ty);
-	pr_debug("scaler ratio info : pre_shfactor : %d, pre_h : %d",
+	pr_de("scaler ratio info : pre_shfactor : %d, pre_h : %d",
 			sc->pre_shfactor, sc->pre_hratio);
-	pr_debug("pre_v :%d, main_h : %d, main_v : %d",
+	pr_de("pre_v :%d, main_h : %d, main_v : %d",
 			sc->pre_vratio, sc->main_hratio, sc->main_vratio);
 
 	return 0;
@@ -834,7 +834,7 @@ int gsc_prepare_addr(struct gsc_ctx *ctx, struct vb2_buffer *vb,
 
 	pix_size = frame->f_width * frame->f_height;
 
-	pr_debug("num_planes= %d, num_comp= %d, pix_size= %d",
+	pr_de("num_planes= %d, num_comp= %d, pix_size= %d",
 		frame->fmt->num_planes, frame->fmt->num_comp, pix_size);
 
 	addr->y = vb2_dma_contig_plane_dma_addr(vb, 0);
@@ -878,7 +878,7 @@ int gsc_prepare_addr(struct gsc_ctx *ctx, struct vb2_buffer *vb,
 		(frame->fmt->pixelformat == V4L2_PIX_FMT_YVU420M))
 		swap(addr->cb, addr->cr);
 
-	pr_debug("ADDR: y= %pad  cb= %pad cr= %pad ret= %d",
+	pr_de("ADDR: y= %pad  cb= %pad cr= %pad ret= %d",
 		&addr->y, &addr->cb, &addr->cr, ret);
 
 	return ret;
@@ -1296,7 +1296,7 @@ static int gsc_runtime_resume(struct device *dev)
 	int ret = 0;
 	int i;
 
-	pr_debug("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
+	pr_de("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
 
 	for (i = 0; i < gsc->num_clocks; i++) {
 		ret = clk_prepare_enable(gsc->clock[i]);
@@ -1327,7 +1327,7 @@ static int gsc_runtime_suspend(struct device *dev)
 	for (i = gsc->num_clocks - 1; i >= 0; i--)
 		clk_disable_unprepare(gsc->clock[i]);
 
-	pr_debug("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
+	pr_de("gsc%d: state: 0x%lx\n", gsc->id, gsc->state);
 	return ret;
 }
 #endif

@@ -219,7 +219,7 @@ struct rvin_dev {
 
 #define vin_to_source(vin)		((vin)->parallel->subdev)
 
-/* Debug */
+/* De */
 #define vin_dbg(d, fmt, arg...)		dev_dbg(d->dev, fmt, ##arg)
 #define vin_info(d, fmt, arg...)	dev_info(d->dev, fmt, ##arg)
 #define vin_warn(d, fmt, arg...)	dev_warn(d->dev, fmt, ##arg)

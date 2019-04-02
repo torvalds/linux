@@ -6,7 +6,7 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>

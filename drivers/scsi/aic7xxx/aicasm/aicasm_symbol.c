@@ -418,7 +418,7 @@ aic_print_reg_dump_end(FILE *ofile, FILE *dfile,
 	}
 
 	fprintf(ofile,
-"#if AIC_DEBUG_REGISTERS\n"
+"#if AIC_DE_REGISTERS\n"
 "%sreg_print_t %s%s_print;\n"
 "#else\n"
 "#define %s%s_print(regvalue, cur_col, wrap) \\\n"
@@ -535,7 +535,7 @@ symtable_dump(FILE *ofile, FILE *dfile)
 	aic_print_include(dfile, stock_include_file);
 	SLIST_FOREACH(curnode, &registers, links) {
 
-		if (curnode->symbol->dont_generate_debug_code)
+		if (curnode->symbol->dont_generate_de_code)
 			continue;
 
 		switch(curnode->symbol->type) {

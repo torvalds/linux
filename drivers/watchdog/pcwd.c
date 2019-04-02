@@ -24,7 +24,7 @@
  *		version reporting.  Added read routine for temperature.
  *		Removed some extra defines, added an autodetect Revision
  *		routine.
- * 961006	Revised some documentation, fixed some cosmetic bugs.  Made
+ * 961006	Revised some documentation, fixed some cosmetic s.  Made
  *		drivers to panic the system if it's overheating at bootup.
  * 961118	Changed some verbiage on some of the output, tidied up
  *		code bits, and added compatibility to 2.1.x.
@@ -190,11 +190,11 @@ static struct {
 /* module parameters */
 #define QUIET	0	/* Default */
 #define VERBOSE	1	/* Verbose */
-#define DEBUG	2	/* print fancy stuff too */
-static int debug = QUIET;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug,
-		"Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
+#define DE	2	/* print fancy stuff too */
+static int de = QUIET;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de,
+		"De level: 0=Quiet, 1=Verbose, 2=De (default=0)");
 
 /* default heartbeat = delay-time from dip-switches */
 #define WATCHDOG_HEARTBEAT 0
@@ -220,8 +220,8 @@ static int send_isa_command(int cmd)
 	int control_status;
 	int port0, last_port0;	/* Double read for stabilising */
 
-	if (debug >= DEBUG)
-		pr_debug("sending following data cmd=0x%02x\n", cmd);
+	if (de >= DE)
+		pr_de("sending following data cmd=0x%02x\n", cmd);
 
 	/* The WCMD bit must be 1 and the command is only 4 bits in size */
 	control_status = (cmd & 0x0F) | WD_WCMD;
@@ -239,8 +239,8 @@ static int send_isa_command(int cmd)
 		udelay(250);
 	}
 
-	if (debug >= DEBUG)
-		pr_debug("received following data for cmd=0x%02x: port0=0x%02x last_port0=0x%02x\n",
+	if (de >= DE)
+		pr_de("received following data for cmd=0x%02x: port0=0x%02x last_port0=0x%02x\n",
 			 cmd, port0, last_port0);
 
 	return port0;
@@ -269,8 +269,8 @@ static int set_command_mode(void)
 	spin_unlock(&pcwd_private.io_lock);
 	pcwd_private.command_mode = found;
 
-	if (debug >= DEBUG)
-		pr_debug("command_mode=%d\n", pcwd_private.command_mode);
+	if (de >= DE)
+		pr_de("command_mode=%d\n", pcwd_private.command_mode);
 
 	return found;
 }
@@ -285,8 +285,8 @@ static void unset_command_mode(void)
 
 	pcwd_private.command_mode = 0;
 
-	if (debug >= DEBUG)
-		pr_debug("command_mode=%d\n", pcwd_private.command_mode);
+	if (de >= DE)
+		pr_de("command_mode=%d\n", pcwd_private.command_mode);
 }
 
 static inline void pcwd_check_temperature_support(void)
@@ -331,7 +331,7 @@ static void pcwd_show_card_info(void)
 {
 	int option_switches;
 
-	/* Get some extra info from the hardware (in command/debug/diag mode) */
+	/* Get some extra info from the hardware (in command/de/diag mode) */
 	if (pcwd_private.revision == PCWD_REVISION_A)
 		pr_info("ISA-PC Watchdog (REV.A) detected at port 0x%04x\n",
 			pcwd_private.io_addr);
@@ -420,8 +420,8 @@ static int pcwd_start(void)
 		}
 	}
 
-	if (debug >= VERBOSE)
-		pr_debug("Watchdog started\n");
+	if (de >= VERBOSE)
+		pr_de("Watchdog started\n");
 
 	return 0;
 }
@@ -448,8 +448,8 @@ static int pcwd_stop(void)
 		}
 	}
 
-	if (debug >= VERBOSE)
-		pr_debug("Watchdog stopped\n");
+	if (de >= VERBOSE)
+		pr_de("Watchdog stopped\n");
 
 	return 0;
 }
@@ -459,8 +459,8 @@ static int pcwd_keepalive(void)
 	/* user land ping */
 	pcwd_private.next_heartbeat = jiffies + (heartbeat * HZ);
 
-	if (debug >= DEBUG)
-		pr_debug("Watchdog keepalive signal send\n");
+	if (de >= DE)
+		pr_de("Watchdog keepalive signal send\n");
 
 	return 0;
 }
@@ -472,8 +472,8 @@ static int pcwd_set_heartbeat(int t)
 
 	heartbeat = t;
 
-	if (debug >= VERBOSE)
-		pr_debug("New heartbeat: %d\n", heartbeat);
+	if (de >= VERBOSE)
+		pr_de("New heartbeat: %d\n", heartbeat);
 
 	return 0;
 }
@@ -533,14 +533,14 @@ static int pcwd_clear_status(void)
 	if (pcwd_private.revision == PCWD_REVISION_C) {
 		spin_lock(&pcwd_private.io_lock);
 
-		if (debug >= VERBOSE)
+		if (de >= VERBOSE)
 			pr_info("clearing watchdog trip status\n");
 
 		control_status = inb_p(pcwd_private.io_addr + 1);
 
-		if (debug >= DEBUG) {
-			pr_debug("status was: 0x%02x\n", control_status);
-			pr_debug("sending: 0x%02x\n",
+		if (de >= DE) {
+			pr_de("status was: 0x%02x\n", control_status);
+			pr_de("sending: 0x%02x\n",
 				 (control_status & WD_REVC_R2DS));
 		}
 
@@ -571,8 +571,8 @@ static int pcwd_get_temperature(int *temperature)
 	*temperature = ((inb(pcwd_private.io_addr)) * 9 / 5) + 32;
 	spin_unlock(&pcwd_private.io_lock);
 
-	if (debug >= DEBUG) {
-		pr_debug("temperature is: %d F\n", *temperature);
+	if (de >= DE) {
+		pr_de("temperature is: %d F\n", *temperature);
 	}
 
 	return 0;
@@ -809,8 +809,8 @@ static int pcwd_isa_match(struct device *dev, unsigned int id)
 	int i;
 	int retval;
 
-	if (debug >= DEBUG)
-		pr_debug("pcwd_isa_match id=%d\n", id);
+	if (de >= DE)
+		pr_de("pcwd_isa_match id=%d\n", id);
 
 	if (!request_region(base_addr, 4, "PCWD")) {
 		pr_info("Port 0x%04x unavailable\n", base_addr);
@@ -850,8 +850,8 @@ static int pcwd_isa_probe(struct device *dev, unsigned int id)
 {
 	int ret;
 
-	if (debug >= DEBUG)
-		pr_debug("pcwd_isa_probe id=%d\n", id);
+	if (de >= DE)
+		pr_de("pcwd_isa_probe id=%d\n", id);
 
 	cards_found++;
 	if (cards_found == 1)
@@ -951,8 +951,8 @@ error_request_region:
 
 static int pcwd_isa_remove(struct device *dev, unsigned int id)
 {
-	if (debug >= DEBUG)
-		pr_debug("pcwd_isa_remove id=%d\n", id);
+	if (de >= DE)
+		pr_de("pcwd_isa_remove id=%d\n", id);
 
 	if (!pcwd_private.io_addr)
 		return 1;
@@ -975,8 +975,8 @@ static int pcwd_isa_remove(struct device *dev, unsigned int id)
 
 static void pcwd_isa_shutdown(struct device *dev, unsigned int id)
 {
-	if (debug >= DEBUG)
-		pr_debug("pcwd_isa_shutdown id=%d\n", id);
+	if (de >= DE)
+		pr_de("pcwd_isa_shutdown id=%d\n", id);
 
 	pcwd_stop();
 }

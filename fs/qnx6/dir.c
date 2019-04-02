@@ -85,7 +85,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	lf_size = fs16_to_cpu(sbi, lf->lf_size);
 
 	if (lf_size > QNX6_LONG_NAME_MAX) {
-		pr_debug("file %s\n", lf->lf_fname);
+		pr_de("file %s\n", lf->lf_fname);
 		pr_err("Filename too long (%i)\n", lf_size);
 		qnx6_put_page(page);
 		return 0;
@@ -97,7 +97,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 			qnx6_lfile_checksum(lf->lf_fname, lf_size))
 		pr_info("long filename checksum error.\n");
 
-	pr_debug("qnx6_readdir:%.*s inode:%u\n",
+	pr_de("qnx6_readdir:%.*s inode:%u\n",
 		 lf_size, lf->lf_fname, de_inode);
 	if (!dir_emit(ctx, lf->lf_fname, lf_size, de_inode, DT_UNKNOWN)) {
 		qnx6_put_page(page);
@@ -154,7 +154,7 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 					break;
 				}
 			} else {
-				pr_debug("%s():%.*s inode:%u\n",
+				pr_de("%s():%.*s inode:%u\n",
 					 __func__, size, de->de_fname,
 					 no_inode);
 				if (!dir_emit(ctx, de->de_fname, size,

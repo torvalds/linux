@@ -1172,7 +1172,7 @@ static int mlx5e_get_pfc_prevention_tout(struct net_device *netdev,
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) ||
-	    !MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
+	    !MLX5_CAP_DE((priv)->mdev, stall_detect))
 		return -EOPNOTSUPP;
 
 	return mlx5_query_port_stall_watermark(mdev, pfc_prevention_tout, NULL);
@@ -1187,7 +1187,7 @@ static int mlx5e_set_pfc_prevention_tout(struct net_device *netdev,
 	u16 minor;
 
 	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) ||
-	    !MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
+	    !MLX5_CAP_DE((priv)->mdev, stall_detect))
 		return -EOPNOTSUPP;
 
 	critical_tout = (pfc_preven == PFC_STORM_PREVENTION_AUTO) ?

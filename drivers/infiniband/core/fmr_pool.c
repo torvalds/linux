@@ -57,7 +57,7 @@ enum {
  * its pool's free_list (if the FMR can be mapped again; that is,
  * remap_count < pool->max_remaps) or its pool's dirty_list (if the
  * FMR needs to be unmapped before being remapped).  In either of
- * these cases it is a bug if the ref_count is not 0.  In other words,
+ * these cases it is a  if the ref_count is not 0.  In other words,
  * if ref_count is > 0, then the list member must not be linked into
  * either free_list or dirty_list.
  *
@@ -149,7 +149,7 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 		fmr->remap_count = 0;
 		list_add_tail(&fmr->fmr->list, &fmr_list);
 
-#ifdef DEBUG
+#ifdef DE
 		if (fmr->ref_count !=0) {
 			pr_warn(PFX "Unmapping FMR 0x%08x with ref count %d\n",
 				fmr, fmr->ref_count);
@@ -496,7 +496,7 @@ void ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 		}
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	if (fmr->ref_count < 0)
 		pr_warn(PFX "FMR %p has ref count %d < 0\n",
 			fmr, fmr->ref_count);

@@ -42,14 +42,14 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	int board_id = smscore_get_board_id(coredev);
 	struct rc_dev *dev;
 
-	pr_debug("Allocating rc device\n");
+	pr_de("Allocating rc device\n");
 	dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!dev)
 		return -ENOMEM;
 
 	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
 	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
-	pr_debug("IR port %d, timeout %d ms\n",
+	pr_de("IR port %d, timeout %d ms\n",
 			coredev->ir.controller, coredev->ir.timeout);
 
 	snprintf(coredev->ir.name, sizeof(coredev->ir.name),
@@ -75,7 +75,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	dev->map_name = sms_get_board(board_id)->rc_codes;
 	dev->driver_name = MODULE_NAME;
 
-	pr_debug("Input device (IR) %s is set for key events\n",
+	pr_de("Input device (IR) %s is set for key events\n",
 		 dev->device_name);
 
 	err = rc_register_device(dev);
@@ -93,5 +93,5 @@ void sms_ir_exit(struct smscore_device_t *coredev)
 {
 	rc_unregister_device(coredev->ir.dev);
 
-	pr_debug("\n");
+	pr_de("\n");
 }

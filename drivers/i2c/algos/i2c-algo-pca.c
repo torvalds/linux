@@ -23,14 +23,14 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
 
-#define DEB1(fmt, args...) do { if (i2c_debug >= 1)			\
-				 printk(KERN_DEBUG fmt, ## args); } while (0)
-#define DEB2(fmt, args...) do { if (i2c_debug >= 2)			\
-				 printk(KERN_DEBUG fmt, ## args); } while (0)
-#define DEB3(fmt, args...) do { if (i2c_debug >= 3)			\
-				 printk(KERN_DEBUG fmt, ## args); } while (0)
+#define DEB1(fmt, args...) do { if (i2c_de >= 1)			\
+				 printk(KERN_DE fmt, ## args); } while (0)
+#define DEB2(fmt, args...) do { if (i2c_de >= 2)			\
+				 printk(KERN_DE fmt, ## args); } while (0)
+#define DEB3(fmt, args...) do { if (i2c_de >= 3)			\
+				 printk(KERN_DE fmt, ## args); } while (0)
 
-static int i2c_debug;
+static int i2c_de;
 
 #define pca_outw(adap, reg, val) adap->write_byte(adap->data, reg, val)
 #define pca_inw(adap, reg) adap->read_byte(adap->data, reg)
@@ -199,7 +199,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 	DEB1("{{{ XFER %d messages\n", num);
 
-	if (i2c_debug >= 2) {
+	if (i2c_de >= 2) {
 		for (curmsg = 0; curmsg < num; curmsg++) {
 			int addr, i;
 			msg = &msgs[curmsg];
@@ -555,4 +555,4 @@ MODULE_AUTHOR("Ian Campbell <icampbell@arcom.com>, "
 MODULE_DESCRIPTION("I2C-Bus PCA9564/PCA9665 algorithm");
 MODULE_LICENSE("GPL");
 
-module_param(i2c_debug, int, 0);
+module_param(i2c_de, int, 0);

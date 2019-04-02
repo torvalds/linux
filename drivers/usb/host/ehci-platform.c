@@ -55,7 +55,7 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	ehci->has_synopsys_hc_bug = pdata->has_synopsys_hc_bug;
+	ehci->has_synopsys_hc_ = pdata->has_synopsys_hc_;
 
 	if (pdata->pre_setup) {
 		retval = pdata->pre_setup(hcd);
@@ -347,7 +347,7 @@ static const struct of_device_id vt8500_ehci_ids[] = {
 MODULE_DEVICE_TABLE(of, vt8500_ehci_ids);
 
 static const struct acpi_device_id ehci_acpi_match[] = {
-	{ "PNP0D20", 0 }, /* EHCI controller without debug */
+	{ "PNP0D20", 0 }, /* EHCI controller without de */
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ehci_acpi_match);

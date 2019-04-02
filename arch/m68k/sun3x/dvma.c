@@ -59,8 +59,8 @@ static volatile unsigned long *iommu_pte = (unsigned long *)SUN3X_IOMMU;
 					 ((addr & 0x03c00000) >>     \
 						(DVMA_PAGE_SHIFT+4)))
 
-#ifdef DEBUG
-/* code to print out a dvma mapping for debugging purposes */
+#ifdef DE
+/* code to print out a dvma mapping for deging purposes */
 void dvma_print (unsigned long dvma_addr)
 {
 
@@ -88,7 +88,7 @@ inline int dvma_map_cpu(unsigned long kaddr,
 
 	end = PAGE_ALIGN(vaddr + len);
 
-	pr_debug("dvma: mapping kern %08lx to virt %08lx\n", kaddr, vaddr);
+	pr_de("dvma: mapping kern %08lx to virt %08lx\n", kaddr, vaddr);
 	pgd = pgd_offset_k(vaddr);
 
 	do {
@@ -120,7 +120,7 @@ inline int dvma_map_cpu(unsigned long kaddr,
 				end3 = end2;
 
 			do {
-				pr_debug("mapping %08lx phys to %08lx\n",
+				pr_de("mapping %08lx phys to %08lx\n",
 					 __pa(kaddr), vaddr);
 				set_pte(pte, pfn_pte(virt_to_pfn(kaddr),
 						     PAGE_KERNEL));
@@ -153,7 +153,7 @@ inline int dvma_map_iommu(unsigned long kaddr, unsigned long baddr,
 
 	for(; index < end ; index++) {
 //		if(dvma_entry_use(index))
-//			BUG();
+//			();
 //		pr_info("mapping pa %lx to ba %lx\n", __pa(kaddr),
 //			index << DVMA_PAGE_SHIFT);
 
@@ -165,7 +165,7 @@ inline int dvma_map_iommu(unsigned long kaddr, unsigned long baddr,
 		kaddr += DVMA_PAGE_SIZE;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	for(index = (baddr >> DVMA_PAGE_SHIFT); index < end; index++)
 		dvma_print(index << DVMA_PAGE_SHIFT);
 #endif
@@ -183,7 +183,7 @@ void dvma_unmap_iommu(unsigned long baddr, int len)
 	end = (DVMA_PAGE_ALIGN(baddr+len) >> DVMA_PAGE_SHIFT);
 
 	for(; index < end ; index++) {
-		pr_debug("freeing bus mapping %08x\n",
+		pr_de("freeing bus mapping %08x\n",
 			 index << DVMA_PAGE_SHIFT);
 #if 0
 		if(!dvma_entry_use(index))

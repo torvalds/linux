@@ -546,7 +546,7 @@ static void read_async_bio(struct mirror *m, struct bio *bio)
 
 	map_region(&io, m, bio);
 	bio_set_m(bio, m);
-	BUG_ON(dm_io(&io_req, 1, &io, NULL));
+	_ON(dm_io(&io_req, 1, &io, NULL));
 }
 
 static inline int region_in_sync(struct mirror_set *ms, region_t region,
@@ -673,7 +673,7 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 	 */
 	bio_set_m(bio, get_default_mirror(ms));
 
-	BUG_ON(dm_io(&io_req, ms->nr_mirrors, io, NULL));
+	_ON(dm_io(&io_req, ms->nr_mirrors, io, NULL));
 }
 
 static void do_writes(struct mirror_set *ms, struct bio_list *writes)

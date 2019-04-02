@@ -9,10 +9,10 @@ cw1200_core-y := \
 		wsm.o \
 		sta.o \
 		scan.o \
-		debug.o
+		de.o
 cw1200_core-$(CONFIG_PM)	+= pm.o
 
-# CFLAGS_sta.o += -DDEBUG
+# CFLAGS_sta.o += -DDE
 
 cw1200_wlan_sdio-y := cw1200_sdio.o
 cw1200_wlan_spi-y := cw1200_spi.o

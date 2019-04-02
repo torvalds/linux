@@ -24,7 +24,7 @@
 #define PSTATE_TSO  _AC(0x0000000000000000,UL) /* MM: TotalStoreOrder	*/
 #define PSTATE_PSO  _AC(0x0000000000000040,UL) /* MM: PartialStoreOrder	*/
 #define PSTATE_RMO  _AC(0x0000000000000080,UL) /* MM: RelaxedMemoryOrder*/
-#define PSTATE_RED  _AC(0x0000000000000020,UL) /* Reset Error Debug.	*/
+#define PSTATE_RED  _AC(0x0000000000000020,UL) /* Reset Error De.	*/
 #define PSTATE_PEF  _AC(0x0000000000000010,UL) /* Floating Point Enable.*/
 #define PSTATE_AM   _AC(0x0000000000000008,UL) /* Address Mask.		*/
 #define PSTATE_PRIV _AC(0x0000000000000004,UL) /* Privilege.		*/
@@ -66,7 +66,7 @@
 #define TSTATE_TSO	_AC(0x0000000000000000,UL) /* MM: TSO		*/
 #define TSTATE_PSO	_AC(0x0000000000004000,UL) /* MM: PSO		*/
 #define TSTATE_RMO	_AC(0x0000000000008000,UL) /* MM: RMO		*/
-#define TSTATE_RED	_AC(0x0000000000002000,UL) /* Reset Error Debug.*/
+#define TSTATE_RED	_AC(0x0000000000002000,UL) /* Reset Error De.*/
 #define TSTATE_PEF	_AC(0x0000000000001000,UL) /* FPU Enable.	*/
 #define TSTATE_AM	_AC(0x0000000000000800,UL) /* Address Mask.	*/
 #define TSTATE_PRIV	_AC(0x0000000000000400,UL) /* Privilege.	*/

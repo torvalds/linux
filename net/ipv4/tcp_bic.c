@@ -210,7 +210,7 @@ static struct tcp_congestion_ops bictcp __read_mostly = {
 
 static int __init bictcp_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&bictcp);
 }
 

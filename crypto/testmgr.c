@@ -244,7 +244,7 @@ struct test_sg_division {
  * This struct describes the data layout and other parameters with which each
  * crypto test vector can be tested.
  *
- * @name: name of this config, logged for debugging purposes if a test fails
+ * @name: name of this config, logged for deging purposes if a test fails
  * @inplace: operate on the data in-place, if applicable for the algorithm type?
  * @req_flags: extra request_flags, e.g. CRYPTO_TFM_REQ_MAY_SLEEP
  * @src_divs: description of how to arrange the source scatterlist
@@ -523,7 +523,7 @@ static int build_test_sglist(struct test_sglist *tsgl,
 	unsigned int len_remaining = total_len;
 	unsigned int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(partitions) != ARRAY_SIZE(tsgl->sgl));
+	BUILD__ON(ARRAY_SIZE(partitions) != ARRAY_SIZE(tsgl->sgl));
 	if (WARN_ON(ndivs > ARRAY_SIZE(partitions)))
 		return -EINVAL;
 
@@ -762,7 +762,7 @@ static char *generate_random_sgl_divisions(struct test_sg_division *divs,
 			}
 		}
 
-		BUILD_BUG_ON(TEST_SG_TOTAL != 10000); /* for "%u.%u%%" */
+		BUILD__ON(TEST_SG_TOTAL != 10000); /* for "%u.%u%%" */
 		p += scnprintf(p, end - p, "%s%u.%u%%@%s+%u%s",
 			       div->flush_type == FLUSH_TYPE_NONE ? "" :
 			       div->flush_type == FLUSH_TYPE_FLUSH ?

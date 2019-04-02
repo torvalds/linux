@@ -195,7 +195,7 @@ static int gs_write_register(struct spi_device *spi, u16 addr, u16 value)
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int gs_g_register(struct v4l2_subdev *sd,
 		  struct v4l2_dbg_register *reg)
 {
@@ -395,7 +395,7 @@ static int gs_dv_timings_cap(struct v4l2_subdev *sd,
 
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops gs_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = gs_g_register,
 	.s_register = gs_s_register,
 #endif

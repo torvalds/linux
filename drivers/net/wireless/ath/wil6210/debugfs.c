@@ -16,7 +16,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/pci.h>
 #include <linux/rtnetlink.h>
@@ -346,10 +346,10 @@ static int mbox_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(mbox);
 
-static int wil_debugfs_iomem_x32_set(void *data, u64 val)
+static int wil_defs_iomem_x32_set(void *data, u64 val)
 {
-	struct wil_debugfs_iomem_data *d = (struct
-					    wil_debugfs_iomem_data *)data;
+	struct wil_defs_iomem_data *d = (struct
+					    wil_defs_iomem_data *)data;
 	struct wil6210_priv *wil = d->wil;
 	int ret;
 
@@ -365,10 +365,10 @@ static int wil_debugfs_iomem_x32_set(void *data, u64 val)
 	return 0;
 }
 
-static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
+static int wil_defs_iomem_x32_get(void *data, u64 *val)
 {
-	struct wil_debugfs_iomem_data *d = (struct
-					    wil_debugfs_iomem_data *)data;
+	struct wil_defs_iomem_data *d = (struct
+					    wil_defs_iomem_data *)data;
 	struct wil6210_priv *wil = d->wil;
 	int ret;
 
@@ -383,23 +383,23 @@ static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
-			 wil_debugfs_iomem_x32_set, "0x%08llx\n");
+DEFINE_DEFS_ATTRIBUTE(fops_iomem_x32, wil_defs_iomem_x32_get,
+			 wil_defs_iomem_x32_set, "0x%08llx\n");
 
-static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
+static struct dentry *wil_defs_create_iomem_x32(const char *name,
 						   umode_t mode,
 						   struct dentry *parent,
 						   void *value,
 						   struct wil6210_priv *wil)
 {
 	struct dentry *file;
-	struct wil_debugfs_iomem_data *data = &wil->dbg_data.data_arr[
+	struct wil_defs_iomem_data *data = &wil->dbg_data.data_arr[
 					      wil->dbg_data.iomem_data_count];
 
 	data->wil = wil;
 	data->offset = value;
 
-	file = debugfs_create_file_unsafe(name, mode, parent, data,
+	file = defs_create_file_unsafe(name, mode, parent, data,
 					  &fops_iomem_x32);
 	if (!IS_ERR_OR_NULL(file))
 		wil->dbg_data.iomem_data_count++;
@@ -407,39 +407,39 @@ static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
 	return file;
 }
 
-static int wil_debugfs_ulong_set(void *data, u64 val)
+static int wil_defs_ulong_set(void *data, u64 val)
 {
 	*(ulong *)data = val;
 	return 0;
 }
 
-static int wil_debugfs_ulong_get(void *data, u64 *val)
+static int wil_defs_ulong_get(void *data, u64 *val)
 {
 	*val = *(ulong *)data;
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
-			 wil_debugfs_ulong_set, "0x%llx\n");
+DEFINE_DEFS_ATTRIBUTE(wil_fops_ulong, wil_defs_ulong_get,
+			 wil_defs_ulong_set, "0x%llx\n");
 
-static struct dentry *wil_debugfs_create_ulong(const char *name, umode_t mode,
+static struct dentry *wil_defs_create_ulong(const char *name, umode_t mode,
 					       struct dentry *parent,
 					       ulong *value)
 {
-	return debugfs_create_file_unsafe(name, mode, parent, value,
+	return defs_create_file_unsafe(name, mode, parent, value,
 					  &wil_fops_ulong);
 }
 
 /**
- * wil6210_debugfs_init_offset - create set of debugfs files
+ * wil6210_defs_init_offset - create set of defs files
  * @wil - driver's context, used for printing
- * @dbg - directory on the debugfs, where files will be created
+ * @dbg - directory on the defs, where files will be created
  * @base - base address used in address calculation
  * @tbl - table with file descriptions. Should be terminated with empty element.
  *
  * Creates files accordingly to the @tbl.
  */
-static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
+static void wil6210_defs_init_offset(struct wil6210_priv *wil,
 					struct dentry *dbg, void *base,
 					const struct dbg_off * const tbl)
 {
@@ -450,25 +450,25 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 
 		switch (tbl[i].type) {
 		case doff_u32:
-			f = debugfs_create_u32(tbl[i].name, tbl[i].mode, dbg,
+			f = defs_create_u32(tbl[i].name, tbl[i].mode, dbg,
 					       base + tbl[i].off);
 			break;
 		case doff_x32:
-			f = debugfs_create_x32(tbl[i].name, tbl[i].mode, dbg,
+			f = defs_create_x32(tbl[i].name, tbl[i].mode, dbg,
 					       base + tbl[i].off);
 			break;
 		case doff_ulong:
-			f = wil_debugfs_create_ulong(tbl[i].name, tbl[i].mode,
+			f = wil_defs_create_ulong(tbl[i].name, tbl[i].mode,
 						     dbg, base + tbl[i].off);
 			break;
 		case doff_io32:
-			f = wil_debugfs_create_iomem_x32(tbl[i].name,
+			f = wil_defs_create_iomem_x32(tbl[i].name,
 							 tbl[i].mode, dbg,
 							 base + tbl[i].off,
 							 wil);
 			break;
 		case doff_u8:
-			f = debugfs_create_u8(tbl[i].name, tbl[i].mode, dbg,
+			f = defs_create_u8(tbl[i].name, tbl[i].mode, dbg,
 					      base + tbl[i].off);
 			break;
 		default:
@@ -491,16 +491,16 @@ static const struct dbg_off isr_off[] = {
 	{},
 };
 
-static int wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
+static int wil6210_defs_create_ISR(struct wil6210_priv *wil,
 				      const char *name,
 				      struct dentry *parent, u32 off)
 {
-	struct dentry *d = debugfs_create_dir(name, parent);
+	struct dentry *d = defs_create_dir(name, parent);
 
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr + off,
+	wil6210_defs_init_offset(wil, d, (void * __force)wil->csr + off,
 				    isr_off);
 
 	return 0;
@@ -513,15 +513,15 @@ static const struct dbg_off pseudo_isr_off[] = {
 	{},
 };
 
-static int wil6210_debugfs_create_pseudo_ISR(struct wil6210_priv *wil,
+static int wil6210_defs_create_pseudo_ISR(struct wil6210_priv *wil,
 					     struct dentry *parent)
 {
-	struct dentry *d = debugfs_create_dir("PSEUDO_ISR", parent);
+	struct dentry *d = defs_create_dir("PSEUDO_ISR", parent);
 
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
+	wil6210_defs_init_offset(wil, d, (void * __force)wil->csr,
 				    pseudo_isr_off);
 
 	return 0;
@@ -566,27 +566,27 @@ static const struct dbg_off rx_itr_cnt_off[] = {
 	{},
 };
 
-static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
+static int wil6210_defs_create_ITR_CNT(struct wil6210_priv *wil,
 					  struct dentry *parent)
 {
 	struct dentry *d, *dtx, *drx;
 
-	d = debugfs_create_dir("ITR_CNT", parent);
+	d = defs_create_dir("ITR_CNT", parent);
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	dtx = debugfs_create_dir("TX", d);
-	drx = debugfs_create_dir("RX", d);
+	dtx = defs_create_dir("TX", d);
+	drx = defs_create_dir("RX", d);
 	if (IS_ERR_OR_NULL(dtx) || IS_ERR_OR_NULL(drx))
 		return -ENODEV;
 
-	wil6210_debugfs_init_offset(wil, d, (void * __force)wil->csr,
+	wil6210_defs_init_offset(wil, d, (void * __force)wil->csr,
 				    lgc_itr_cnt_off);
 
-	wil6210_debugfs_init_offset(wil, dtx, (void * __force)wil->csr,
+	wil6210_defs_init_offset(wil, dtx, (void * __force)wil->csr,
 				    tx_itr_cnt_off);
 
-	wil6210_debugfs_init_offset(wil, drx, (void * __force)wil->csr,
+	wil6210_defs_init_offset(wil, drx, (void * __force)wil->csr,
 				    rx_itr_cnt_off);
 	return 0;
 }
@@ -680,12 +680,12 @@ static const struct file_operations fops_ioblob = {
 };
 
 static
-struct dentry *wil_debugfs_create_ioblob(const char *name,
+struct dentry *wil_defs_create_ioblob(const char *name,
 					 umode_t mode,
 					 struct dentry *parent,
 					 struct wil_blob_wrapper *wil_blob)
 {
-	return debugfs_create_file(name, mode, parent, wil_blob, &fops_ioblob);
+	return defs_create_file(name, mode, parent, wil_blob, &fops_ioblob);
 }
 
 /*---write channel 1..4 to rxon for it, 0 to rxoff---*/
@@ -1645,7 +1645,7 @@ static int mids_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(mids);
 
-static int wil_tx_latency_debugfs_show(struct seq_file *s, void *data)
+static int wil_tx_latency_defs_show(struct seq_file *s, void *data)
 __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 {
 	struct wil6210_priv *wil = s->private;
@@ -1704,7 +1704,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 
 static int wil_tx_latency_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_tx_latency_debugfs_show,
+	return single_open(file, wil_tx_latency_defs_show,
 			   inode->i_private);
 }
 
@@ -1812,7 +1812,7 @@ static void wil_link_stats_print_global(struct wil6210_priv *wil,
 		   le32_to_cpu(global->tx_fail_no_ack));
 }
 
-static void wil_link_stats_debugfs_show_vif(struct wil6210_vif *vif,
+static void wil_link_stats_defs_show_vif(struct wil6210_vif *vif,
 					    struct seq_file *s)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
@@ -1836,7 +1836,7 @@ static void wil_link_stats_debugfs_show_vif(struct wil6210_vif *vif,
 	}
 }
 
-static int wil_link_stats_debugfs_show(struct seq_file *s, void *data)
+static int wil_link_stats_defs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 	struct wil6210_vif *vif;
@@ -1858,7 +1858,7 @@ static int wil_link_stats_debugfs_show(struct seq_file *s, void *data)
 			continue;
 		}
 
-		wil_link_stats_debugfs_show_vif(vif, s);
+		wil_link_stats_defs_show_vif(vif, s);
 	}
 
 	mutex_unlock(&wil->vif_mutex);
@@ -1868,7 +1868,7 @@ static int wil_link_stats_debugfs_show(struct seq_file *s, void *data)
 
 static int wil_link_stats_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_link_stats_debugfs_show, inode->i_private);
+	return single_open(file, wil_link_stats_defs_show, inode->i_private);
 }
 
 static ssize_t wil_link_stats_write(struct file *file, const char __user *buf,
@@ -1929,7 +1929,7 @@ static const struct file_operations fops_link_stats = {
 };
 
 static int
-wil_link_stats_global_debugfs_show(struct seq_file *s, void *data)
+wil_link_stats_global_defs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -1945,7 +1945,7 @@ wil_link_stats_global_debugfs_show(struct seq_file *s, void *data)
 static int
 wil_link_stats_global_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_link_stats_global_debugfs_show,
+	return single_open(file, wil_link_stats_global_defs_show,
 			   inode->i_private);
 }
 
@@ -2095,7 +2095,7 @@ static const struct file_operations fops_led_blink_time = {
 };
 
 /*---------FW capabilities------------*/
-static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
+static int wil_fw_capabilities_defs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -2107,7 +2107,7 @@ static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
 
 static int wil_fw_capabilities_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_fw_capabilities_debugfs_show,
+	return single_open(file, wil_fw_capabilities_defs_show,
 			   inode->i_private);
 }
 
@@ -2119,7 +2119,7 @@ static const struct file_operations fops_fw_capabilities = {
 };
 
 /*---------FW version------------*/
-static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
+static int wil_fw_version_defs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -2133,7 +2133,7 @@ static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
 
 static int wil_fw_version_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, wil_fw_version_debugfs_show,
+	return single_open(file, wil_fw_version_defs_show,
 			   inode->i_private);
 }
 
@@ -2259,7 +2259,7 @@ static const struct file_operations fops_compressed_rx_status = {
 };
 
 /*----------------*/
-static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
+static void wil6210_defs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
 {
 	int i;
@@ -2267,7 +2267,7 @@ static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 
 	for (i = 0; i < ARRAY_SIZE(fw_mapping); i++) {
 		struct wil_blob_wrapper *wil_blob = &wil->blobs[i];
-		struct debugfs_blob_wrapper *blob = &wil_blob->blob;
+		struct defs_blob_wrapper *blob = &wil_blob->blob;
 		const struct fw_map *map = &fw_mapping[i];
 
 		if (!map->name)
@@ -2277,7 +2277,7 @@ static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 		blob->data = (void * __force)wil->csr + HOSTADDR(map->host);
 		blob->size = map->to - map->from;
 		snprintf(name, sizeof(name), "blob_%s", map->name);
-		wil_debugfs_create_ioblob(name, 0444, dbg, wil_blob);
+		wil_defs_create_ioblob(name, 0444, dbg, wil_blob);
 	}
 }
 
@@ -2319,13 +2319,13 @@ static const struct {
 	{"link_stats_global",	0644,	&fops_link_stats_global},
 };
 
-static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
+static void wil6210_defs_init_files(struct wil6210_priv *wil,
 				       struct dentry *dbg)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dbg_files); i++)
-		debugfs_create_file(dbg_files[i].name, dbg_files[i].mode, dbg,
+		defs_create_file(dbg_files[i].name, dbg_files[i].mode, dbg,
 				    wil, dbg_files[i].fops);
 }
 
@@ -2340,13 +2340,13 @@ static const struct {
 	{"DMA_EP_MISC_ICR",	HOSTADDR(RGF_DMA_EP_MISC_ICR)},
 };
 
-static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
+static void wil6210_defs_init_isr(struct wil6210_priv *wil,
 				     struct dentry *dbg)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dbg_icr); i++)
-		wil6210_debugfs_create_ISR(wil, dbg_icr[i].name, dbg,
+		wil6210_defs_create_ISR(wil, dbg_icr[i].name, dbg,
 					   dbg_icr[i].icr_off);
 }
 
@@ -2397,19 +2397,19 @@ static const int dbg_off_count = 4 * (ARRAY_SIZE(isr_off) - 1) +
 				ARRAY_SIZE(tx_itr_cnt_off) - 1 +
 				ARRAY_SIZE(rx_itr_cnt_off) - 1;
 
-int wil6210_debugfs_init(struct wil6210_priv *wil)
+int wil6210_defs_init(struct wil6210_priv *wil)
 {
-	struct dentry *dbg = wil->debug = debugfs_create_dir(WIL_NAME,
-			wil_to_wiphy(wil)->debugfsdir);
+	struct dentry *dbg = wil->de = defs_create_dir(WIL_NAME,
+			wil_to_wiphy(wil)->defsdir);
 	if (IS_ERR_OR_NULL(dbg))
 		return -ENODEV;
 
 	wil->dbg_data.data_arr = kcalloc(dbg_off_count,
-					 sizeof(struct wil_debugfs_iomem_data),
+					 sizeof(struct wil_defs_iomem_data),
 					 GFP_KERNEL);
 	if (!wil->dbg_data.data_arr) {
-		debugfs_remove_recursive(dbg);
-		wil->debug = NULL;
+		defs_remove_recursive(dbg);
+		wil->de = NULL;
 		return -ENOMEM;
 	}
 
@@ -2417,27 +2417,27 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 
 	wil_pmc_init(wil);
 
-	wil6210_debugfs_init_files(wil, dbg);
-	wil6210_debugfs_init_isr(wil, dbg);
-	wil6210_debugfs_init_blobs(wil, dbg);
-	wil6210_debugfs_init_offset(wil, dbg, wil, dbg_wil_off);
-	wil6210_debugfs_init_offset(wil, dbg, (void * __force)wil->csr,
+	wil6210_defs_init_files(wil, dbg);
+	wil6210_defs_init_isr(wil, dbg);
+	wil6210_defs_init_blobs(wil, dbg);
+	wil6210_defs_init_offset(wil, dbg, wil, dbg_wil_off);
+	wil6210_defs_init_offset(wil, dbg, (void * __force)wil->csr,
 				    dbg_wil_regs);
-	wil6210_debugfs_init_offset(wil, dbg, NULL, dbg_statics);
+	wil6210_defs_init_offset(wil, dbg, NULL, dbg_statics);
 
-	wil6210_debugfs_create_pseudo_ISR(wil, dbg);
+	wil6210_defs_create_pseudo_ISR(wil, dbg);
 
-	wil6210_debugfs_create_ITR_CNT(wil, dbg);
+	wil6210_defs_create_ITR_CNT(wil, dbg);
 
 	return 0;
 }
 
-void wil6210_debugfs_remove(struct wil6210_priv *wil)
+void wil6210_defs_remove(struct wil6210_priv *wil)
 {
 	int i;
 
-	debugfs_remove_recursive(wil->debug);
-	wil->debug = NULL;
+	defs_remove_recursive(wil->de);
+	wil->de = NULL;
 
 	kfree(wil->dbg_data.data_arr);
 	for (i = 0; i < max_assoc_sta; i++)

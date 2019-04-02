@@ -62,8 +62,8 @@
 #define REG_TSC_INT_EN		0x40
 #define REG_TSC_INT_SIG_EN	0x50
 #define REG_TSC_INT_STATUS	0x60
-#define REG_TSC_DEBUG_MODE	0x70
-#define REG_TSC_DEBUG_MODE2	0x80
+#define REG_TSC_DE_MODE	0x70
+#define REG_TSC_DE_MODE2	0x80
 
 /* TSC configuration registers field define */
 #define DETECT_4_WIRE_MODE	(0x0 << 4)
@@ -194,7 +194,7 @@ static void imx6ul_tsc_set(struct imx6ul_tsc *tsc)
 	basic_setting |= DETECT_4_WIRE_MODE | AUTO_MEASURE;
 	writel(basic_setting, tsc->tsc_regs + REG_TSC_BASIC_SETING);
 
-	writel(DE_GLITCH_2, tsc->tsc_regs + REG_TSC_DEBUG_MODE2);
+	writel(DE_GLITCH_2, tsc->tsc_regs + REG_TSC_DE_MODE2);
 
 	writel(tsc->pre_charge_time, tsc->tsc_regs + REG_TSC_PRE_CHARGE_TIME);
 	writel(MEASURE_INT_EN, tsc->tsc_regs + REG_TSC_INT_EN);
@@ -242,15 +242,15 @@ static bool tsc_wait_detect_mode(struct imx6ul_tsc *tsc)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(2);
 	u32 state_machine;
-	u32 debug_mode2;
+	u32 de_mode2;
 
 	do {
 		if (time_after(jiffies, timeout))
 			return false;
 
 		usleep_range(200, 400);
-		debug_mode2 = readl(tsc->tsc_regs + REG_TSC_DEBUG_MODE2);
-		state_machine = (debug_mode2 >> 20) & 0x7;
+		de_mode2 = readl(tsc->tsc_regs + REG_TSC_DE_MODE2);
+		state_machine = (de_mode2 >> 20) & 0x7;
 	} while (state_machine != DETECT_MODE);
 
 	usleep_range(200, 400);

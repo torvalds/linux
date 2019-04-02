@@ -44,13 +44,13 @@
  *
  * Minor
  *  - OAM support
- *  - fix bugs listed below
+ *  - fix s listed below
  */
 
 /*
- * KNOWN BUGS:
+ * KNOWN S:
  *
- * - may run into JK-JK bug and deadlock
+ * - may run into JK-JK  and deadlock
  * - should allocate UBR channel first
  * - buffer space allocation algorithm is stupid
  *   (RX: should be maxSDU+maxdelay*rate
@@ -62,7 +62,7 @@
 
 
 #if 0
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
+#define DPRINTK(format,args...) printk(KERN_DE format,##args)
 #else
 #define DPRINTK(format,args...)
 #endif
@@ -74,7 +74,7 @@
 #endif
 
 
-#ifndef CONFIG_ATM_ENI_DEBUG
+#ifndef CONFIG_ATM_ENI_DE
 
 
 #define NULLCHECK(x)
@@ -99,7 +99,7 @@ static void event_dump(void)
 		printk(KERN_CRIT #x "==0x%lx\n",(unsigned long) (x))
 
 /*
- * Very extensive activity logging. Greatly improves bug detection speed but
+ * Very extensive activity logging. Greatly improves  detection speed but
  * costs a few Mbps if enabled.
  */
 
@@ -131,7 +131,7 @@ static void event_dump(void)
 }
 
 
-#endif /* CONFIG_ATM_ENI_DEBUG */
+#endif /* CONFIG_ATM_ENI_DE */
 
 
 /*
@@ -168,7 +168,7 @@ static void dump_mem(struct eni_dev *eni_dev)
 	int i;
 
 	for (i = 0; i < eni_dev->free_len; i++)
-		printk(KERN_DEBUG "  %d: %p %d\n",i,
+		printk(KERN_DE "  %d: %p %d\n",i,
 		    eni_dev->free_list[i].start,
 		    1 << eni_dev->free_list[i].order);
 }
@@ -826,7 +826,7 @@ static int open_rx_second(struct atm_vcc *vcc)
 	writel(0,here+4); /* descr, read = 0 */
 	writel(0,here+8); /* write, state, count = 0 */
 	if (eni_dev->rx_map[vcc->vci])
-		printk(KERN_CRIT DEV_LABEL "(itf %d): BUG - VCI %d already "
+		printk(KERN_CRIT DEV_LABEL "(itf %d):  - VCI %d already "
 		    "in use\n",vcc->dev->number,vcc->vci);
 	eni_dev->rx_map[vcc->vci] = vcc; /* now it counts */
 	writel(((vcc->qos.aal != ATM_AAL5 ? MID_MODE_RAW : MID_MODE_AAL5) <<
@@ -1470,9 +1470,9 @@ if (eni_boards) printk(KERN_INFO "loss: %ld\n",ENI_DEV(eni_boards)->lost);
 #endif
 
 
-static void bug_int(struct atm_dev *dev,unsigned long reason)
+static void _int(struct atm_dev *dev,unsigned long reason)
 {
-	DPRINTK(">bug_int\n");
+	DPRINTK(">_int\n");
 	if (reason & MID_DMA_ERR_ACK)
 		printk(KERN_CRIT DEV_LABEL "(itf %d): driver error - DMA "
 		    "error\n",dev->number);
@@ -1561,8 +1561,8 @@ static void eni_tasklet(unsigned long data)
 		/* poll_rx ? */
 	}
 	if (events & (MID_DMA_ERR_ACK | MID_TX_IDENT_MISM | MID_TX_DMA_OVFL)) {
-		EVENT("bug interrupt\n",0,0);
-		bug_int(dev,events);
+		EVENT(" interrupt\n",0,0);
+		_int(dev,events);
 	}
 	poll_tx(dev);
 }
@@ -2327,7 +2327,7 @@ static int __init eni_init(void)
 {
 	struct sk_buff *skb; /* dummy for sizeof */
 
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct eni_skb_prv));
+	BUILD__ON(sizeof(skb->cb) < sizeof(struct eni_skb_prv));
 	return pci_register_driver(&eni_driver);
 }
 

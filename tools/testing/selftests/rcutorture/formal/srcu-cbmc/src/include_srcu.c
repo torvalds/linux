@@ -12,7 +12,7 @@
 #include "int_typedefs.h"
 
 #include "barriers.h"
-#include "bug_on.h"
+#include "_on.h"
 #include "locks.h"
 #include "misc.h"
 #include "preempt.h"

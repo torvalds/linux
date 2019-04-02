@@ -343,7 +343,7 @@ static void via_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	via_mode_filter		-	filter buggy device/mode pairs
+ *	via_mode_filter		-	filter gy device/mode pairs
  *	@dev: ATA device
  *	@mask: Mode bitmask
  *
@@ -382,7 +382,7 @@ static unsigned long via_mode_filter(struct ata_device *dev, unsigned long mask)
  *
  *	Outputs ATA taskfile to standard ATA host controller.
  *
- *	Note: This is to fix the internal bug of via chipsets, which
+ *	Note: This is to fix the internal  of via chipsets, which
  *	will reset the device register after changing the IEN bit on
  *	ctl register
  */

@@ -60,7 +60,7 @@ struct a6xx_gmu {
 	int idle_level;
 
 	struct a6xx_gmu_bo *hfi;
-	struct a6xx_gmu_bo *debug;
+	struct a6xx_gmu_bo *de;
 
 	int nr_clocks;
 	struct clk_bulk_data *clocks;

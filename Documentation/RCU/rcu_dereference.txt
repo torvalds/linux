@@ -11,7 +11,7 @@ Follow these rules to keep your RCU code working properly:
 o	You must use one of the rcu_dereference() family of primitives
 	to load an RCU-protected pointer, otherwise CONFIG_PROVE_RCU
 	will complain.  Worse yet, your code can see random memory-corruption
-	bugs due to games that compilers and DEC Alpha can play.
+	s due to games that compilers and DEC Alpha can play.
 	Without one of the rcu_dereference() primitives, compilers
 	can reload the value, and won't your code have fun with two
 	different values for a single pointer!  Without rcu_dereference(),
@@ -47,7 +47,7 @@ o	Avoid cancellation when using the "+" and "-" infix arithmetic
 	"(x-(uintptr_t)x)" for char* pointers.	The compiler is within its
 	rights to substitute zero for this sort of expression, so that
 	subsequent accesses no longer depend on the rcu_dereference(),
-	again possibly resulting in bugs due to misordering.
+	again possibly resulting in s due to misordering.
 
 	Of course, if "p" is a pointer from rcu_dereference(), and "a"
 	and "b" are integers that happen to be equal, the expression
@@ -63,7 +63,7 @@ o	If you are using RCU to protect JITed functions, so that the
 
 o	Do not use the results from relational operators ("==", "!=",
 	">", ">=", "<", or "<=") when dereferencing.  For example,
-	the following (quite strange) code is buggy:
+	the following (quite strange) code is gy:
 
 		int *p;
 		int *q;
@@ -73,13 +73,13 @@ o	Do not use the results from relational operators ("==", "!=",
 		p = rcu_dereference(gp)
 		q = &global_q;
 		q += p > &oom_p;
-		r1 = *q;  /* BUGGY!!! */
+		r1 = *q;  /* GY!!! */
 
-	As before, the reason this is buggy is that relational operators
+	As before, the reason this is gy is that relational operators
 	are often compiled using branches.  And as before, although
 	weak-memory machines such as ARM or PowerPC do order stores
 	after such branches, but can speculate loads, which can again
-	result in misordering bugs.
+	result in misordering s.
 
 o	Be very careful about comparing pointers obtained from
 	rcu_dereference() against non-NULL values.  As Linus Torvalds
@@ -101,7 +101,7 @@ o	Be very careful about comparing pointers obtained from
 
 	On ARM and Power hardware, the load from "default_struct.a"
 	can now be speculated, such that it might happen before the
-	rcu_dereference().  This could result in bugs due to misordering.
+	rcu_dereference().  This could result in s due to misordering.
 
 	However, comparisons are OK in the following cases:
 
@@ -154,10 +154,10 @@ o	Be very careful about comparing pointers obtained from
 		ordering either way.
 
 		That said, this situation can make certain RCU usage
-		bugs more likely to happen.  Which can be a good thing,
+		s more likely to happen.  Which can be a good thing,
 		at least if they happen during testing.  An example
-		of such an RCU usage bug is shown in the section titled
-		"EXAMPLE OF AMPLIFIED RCU-USAGE BUG".
+		of such an RCU usage  is shown in the section titled
+		"EXAMPLE OF AMPLIFIED RCU-USAGE ".
 
 	o	All of the accesses following the comparison are stores,
 		so that a control dependency preserves the needed ordering.
@@ -187,7 +187,7 @@ o	Disable any value-speculation optimizations that your compiler
 	command-line options wisely!
 
 
-EXAMPLE OF AMPLIFIED RCU-USAGE BUG
+EXAMPLE OF AMPLIFIED RCU-USAGE 
 
 Because updaters can run concurrently with RCU readers, RCU readers can
 see stale and/or inconsistent values.  If RCU readers need fresh or

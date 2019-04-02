@@ -43,17 +43,17 @@
 
 #include "s3c2410fb.h"
 
-/* Debugging stuff */
-#ifdef CONFIG_FB_S3C2410_DEBUG
-static int debug	= 1;
+/* Deging stuff */
+#ifdef CONFIG_FB_S3C2410_DE
+static int de	= 1;
 #else
-static int debug;
+static int de;
 #endif
 
 #define dprintk(msg...) \
 do { \
-	if (debug) \
-		pr_debug(msg); \
+	if (de) \
+		pr_de(msg); \
 } while (0)
 
 /* useful functions */
@@ -588,13 +588,13 @@ static int s3c2410fb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int s3c2410fb_debug_show(struct device *dev,
+static int s3c2410fb_de_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", debug ? "on" : "off");
+	return snprintf(buf, PAGE_SIZE, "%s\n", de ? "on" : "off");
 }
 
-static int s3c2410fb_debug_store(struct device *dev,
+static int s3c2410fb_de_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t len)
 {
@@ -603,12 +603,12 @@ static int s3c2410fb_debug_store(struct device *dev,
 
 	if (strncasecmp(buf, "on", 2) == 0 ||
 	    strncasecmp(buf, "1", 1) == 0) {
-		debug = 1;
-		dev_dbg(dev, "s3c2410fb: Debug On");
+		de = 1;
+		dev_dbg(dev, "s3c2410fb: De On");
 	} else if (strncasecmp(buf, "off", 3) == 0 ||
 		   strncasecmp(buf, "0", 1) == 0) {
-		debug = 0;
-		dev_dbg(dev, "s3c2410fb: Debug Off");
+		de = 0;
+		dev_dbg(dev, "s3c2410fb: De Off");
 	} else {
 		return -EINVAL;
 	}
@@ -616,7 +616,7 @@ static int s3c2410fb_debug_store(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(debug, 0664, s3c2410fb_debug_show, s3c2410fb_debug_store);
+static DEVICE_ATTR(de, 0664, s3c2410fb_de_show, s3c2410fb_de_store);
 
 static struct fb_ops s3c2410fb_ops = {
 	.owner		= THIS_MODULE,
@@ -982,9 +982,9 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 	}
 
 	/* create device files */
-	ret = device_create_file(&pdev->dev, &dev_attr_debug);
+	ret = device_create_file(&pdev->dev, &dev_attr_de);
 	if (ret)
-		dev_err(&pdev->dev, "failed to add debug attribute\n");
+		dev_err(&pdev->dev, "failed to add de attribute\n");
 
 	dev_info(&pdev->dev, "fb%d: %s frame buffer device\n",
 		fbinfo->node, fbinfo->fix.id);

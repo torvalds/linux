@@ -34,17 +34,17 @@
 #include "msdos.h"
 
 /**
- * ldm_debug/info/error/crit - Output an error message
+ * ldm_de/info/error/crit - Output an error message
  * @f:    A printf format string containing the message
  * @...:  Variables to substitute into @f
  *
- * ldm_debug() writes a DEBUG level message to the syslog but only if the
- * driver was compiled with debug enabled. Otherwise, the call turns into a NOP.
+ * ldm_de() writes a DE level message to the syslog but only if the
+ * driver was compiled with de enabled. Otherwise, the call turns into a NOP.
  */
-#ifndef CONFIG_LDM_DEBUG
-#define ldm_debug(...)	do {} while (0)
+#ifndef CONFIG_LDM_DE
+#define ldm_de(...)	do {} while (0)
 #else
-#define ldm_debug(f, a...) _ldm_printk (KERN_DEBUG, __func__, f, ##a)
+#define ldm_de(f, a...) _ldm_printk (KERN_DE, __func__, f, ##a)
 #endif
 
 #define ldm_crit(f, a...)  _ldm_printk (KERN_CRIT,  __func__, f, ##a)
@@ -82,7 +82,7 @@ static bool ldm_parse_privhead(const u8 *data, struct privhead *ph)
 {
 	bool is_vista = false;
 
-	BUG_ON(!data || !ph);
+	_ON(!data || !ph);
 	if (MAGIC_PRIVHEAD != get_unaligned_be64(data)) {
 		ldm_error("Cannot find PRIVHEAD structure. LDM database is"
 			" corrupt. Aborting.");
@@ -102,7 +102,7 @@ static bool ldm_parse_privhead(const u8 *data, struct privhead *ph)
 			" Aborting.", ph->ver_major, ph->ver_minor);
 		return false;
 	}
-	ldm_debug("PRIVHEAD version %d.%d (Windows %s).", ph->ver_major,
+	ldm_de("PRIVHEAD version %d.%d (Windows %s).", ph->ver_major,
 			ph->ver_minor, is_vista ? "Vista" : "2000/XP");
 	if (ph->config_size != LDM_DB_SIZE) {	/* 1 MiB in sectors. */
 		/* Warn the user and continue, carefully. */
@@ -119,7 +119,7 @@ static bool ldm_parse_privhead(const u8 *data, struct privhead *ph)
 		ldm_error("PRIVHEAD contains an invalid GUID.");
 		return false;
 	}
-	ldm_debug("Parsed PRIVHEAD successfully.");
+	ldm_de("Parsed PRIVHEAD successfully.");
 	return true;
 }
 
@@ -139,7 +139,7 @@ static bool ldm_parse_privhead(const u8 *data, struct privhead *ph)
  */
 static bool ldm_parse_tocblock (const u8 *data, struct tocblock *toc)
 {
-	BUG_ON (!data || !toc);
+	_ON (!data || !toc);
 
 	if (MAGIC_TOCBLOCK != get_unaligned_be64(data)) {
 		ldm_crit ("Cannot find TOCBLOCK, database may be corrupt.");
@@ -166,7 +166,7 @@ static bool ldm_parse_tocblock (const u8 *data, struct tocblock *toc)
 				TOC_BITMAP2, toc->bitmap2_name);
 		return false;
 	}
-	ldm_debug ("Parsed TOCBLOCK successfully.");
+	ldm_de ("Parsed TOCBLOCK successfully.");
 	return true;
 }
 
@@ -185,7 +185,7 @@ static bool ldm_parse_tocblock (const u8 *data, struct tocblock *toc)
  */
 static bool ldm_parse_vmdb (const u8 *data, struct vmdb *vm)
 {
-	BUG_ON (!data || !vm);
+	_ON (!data || !vm);
 
 	if (MAGIC_VMDB != get_unaligned_be32(data)) {
 		ldm_crit ("Cannot find the VMDB, database may be corrupt.");
@@ -209,7 +209,7 @@ static bool ldm_parse_vmdb (const u8 *data, struct vmdb *vm)
 	vm->vblk_offset   = get_unaligned_be32(data + 0x0C);
 	vm->last_vblk_seq = get_unaligned_be32(data + 0x04);
 
-	ldm_debug ("Parsed VMDB successfully.");
+	ldm_de ("Parsed VMDB successfully.");
 	return true;
 }
 
@@ -226,7 +226,7 @@ static bool ldm_parse_vmdb (const u8 *data, struct vmdb *vm)
 static bool ldm_compare_privheads (const struct privhead *ph1,
 				   const struct privhead *ph2)
 {
-	BUG_ON (!ph1 || !ph2);
+	_ON (!ph1 || !ph2);
 
 	return ((ph1->ver_major          == ph2->ver_major)		&&
 		(ph1->ver_minor          == ph2->ver_minor)		&&
@@ -250,7 +250,7 @@ static bool ldm_compare_privheads (const struct privhead *ph1,
 static bool ldm_compare_tocblocks (const struct tocblock *toc1,
 				   const struct tocblock *toc2)
 {
-	BUG_ON (!toc1 || !toc2);
+	_ON (!toc1 || !toc2);
 
 	return ((toc1->bitmap1_start == toc2->bitmap1_start)	&&
 		(toc1->bitmap1_size  == toc2->bitmap1_size)	&&
@@ -287,7 +287,7 @@ static bool ldm_validate_privheads(struct parsed_partitions *state,
 	long num_sects;
 	int i;
 
-	BUG_ON (!state || !ph1);
+	_ON (!state || !ph1);
 
 	ph[1] = kmalloc (sizeof (*ph[1]), GFP_KERNEL);
 	ph[2] = kmalloc (sizeof (*ph[2]), GFP_KERNEL);
@@ -342,7 +342,7 @@ static bool ldm_validate_privheads(struct parsed_partitions *state,
 		ldm_crit ("Primary and backup PRIVHEADs don't match.");
 		goto out;
 	}*/
-	ldm_debug ("Validated PRIVHEADs successfully.");
+	ldm_de ("Validated PRIVHEADs successfully.");
 	result = true;
 out:
 	kfree (ph[1]);
@@ -375,7 +375,7 @@ static bool ldm_validate_tocblocks(struct parsed_partitions *state,
 	int i, nr_tbs;
 	bool result = false;
 
-	BUG_ON(!state || !ldb);
+	_ON(!state || !ldb);
 	ph = &ldb->ph;
 	tb[0] = &ldb->toc;
 	tb[1] = kmalloc_array(3, sizeof(*tb[1]), GFP_KERNEL);
@@ -419,7 +419,7 @@ static bool ldm_validate_tocblocks(struct parsed_partitions *state,
 			goto err;
 		}
 	}
-	ldm_debug("Validated %d TOCBLOCKs successfully.", nr_tbs);
+	ldm_de("Validated %d TOCBLOCKs successfully.", nr_tbs);
 	result = true;
 err:
 	kfree(tb[1]);
@@ -447,7 +447,7 @@ static bool ldm_validate_vmdb(struct parsed_partitions *state,
 	struct vmdb *vm;
 	struct tocblock *toc;
 
-	BUG_ON (!state || !ldb);
+	_ON (!state || !ldb);
 
 	vm  = &ldb->vm;
 	toc = &ldb->toc;
@@ -511,7 +511,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 	int i;
 	bool result = false;
 
-	BUG_ON(!state);
+	_ON(!state);
 
 	data = read_part_sector(state, 0, &sect);
 	if (!data) {
@@ -530,7 +530,7 @@ static bool ldm_validate_partition_table(struct parsed_partitions *state)
 		}
 
 	if (result)
-		ldm_debug ("Found W2K dynamic disk partition type.");
+		ldm_de ("Found W2K dynamic disk partition type.");
 
 out:
 	put_dev_sector (sect);
@@ -553,7 +553,7 @@ static struct vblk * ldm_get_disk_objid (const struct ldmdb *ldb)
 {
 	struct list_head *item;
 
-	BUG_ON (!ldb);
+	_ON (!ldb);
 
 	list_for_each (item, &ldb->v_disk) {
 		struct vblk *v = list_entry (item, struct vblk, list);
@@ -590,7 +590,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 	struct vblk_part *part;
 	int part_num = 1;
 
-	BUG_ON (!pp || !ldb);
+	_ON (!pp || !ldb);
 
 	disk = ldm_get_disk_objid (ldb);
 	if (!disk) {
@@ -673,7 +673,7 @@ static u64 ldm_get_vnum (const u8 *block)
 	u64 tmp = 0;
 	u8 length;
 
-	BUG_ON (!block);
+	_ON (!block);
 
 	length = *block++;
 
@@ -707,7 +707,7 @@ static int ldm_get_vstr (const u8 *block, u8 *buffer, int buflen)
 {
 	int length;
 
-	BUG_ON (!block || !buffer);
+	_ON (!block || !buffer);
 
 	length = block[0];
 	if (length >= buflen) {
@@ -736,7 +736,7 @@ static bool ldm_parse_cmp3 (const u8 *buffer, int buflen, struct vblk *vb)
 	int r_objid, r_name, r_vstate, r_child, r_parent, r_stripe, r_cols, len;
 	struct vblk_comp *comp;
 
-	BUG_ON (!buffer || !vb);
+	_ON (!buffer || !vb);
 
 	r_objid  = ldm_relative (buffer, buflen, 0x18, 0);
 	r_name   = ldm_relative (buffer, buflen, 0x18, r_objid);
@@ -787,7 +787,7 @@ static int ldm_parse_dgr3 (const u8 *buffer, int buflen, struct vblk *vb)
 	int r_objid, r_name, r_diskid, r_id1, r_id2, len;
 	struct vblk_dgrp *dgrp;
 
-	BUG_ON (!buffer || !vb);
+	_ON (!buffer || !vb);
 
 	r_objid  = ldm_relative (buffer, buflen, 0x18, 0);
 	r_name   = ldm_relative (buffer, buflen, 0x18, r_objid);
@@ -831,7 +831,7 @@ static bool ldm_parse_dgr4 (const u8 *buffer, int buflen, struct vblk *vb)
 	char buf[64];
 	int r_objid, r_name, r_id1, r_id2, len;
 
-	BUG_ON (!buffer || !vb);
+	_ON (!buffer || !vb);
 
 	r_objid  = ldm_relative (buffer, buflen, 0x18, 0);
 	r_name   = ldm_relative (buffer, buflen, 0x18, r_objid);
@@ -872,7 +872,7 @@ static bool ldm_parse_dsk3 (const u8 *buffer, int buflen, struct vblk *vb)
 	int r_objid, r_name, r_diskid, r_altname, len;
 	struct vblk_disk *disk;
 
-	BUG_ON (!buffer || !vb);
+	_ON (!buffer || !vb);
 
 	r_objid   = ldm_relative (buffer, buflen, 0x18, 0);
 	r_name    = ldm_relative (buffer, buflen, 0x18, r_objid);
@@ -911,7 +911,7 @@ static bool ldm_parse_dsk4 (const u8 *buffer, int buflen, struct vblk *vb)
 	int r_objid, r_name, len;
 	struct vblk_disk *disk;
 
-	BUG_ON (!buffer || !vb);
+	_ON (!buffer || !vb);
 
 	r_objid = ldm_relative (buffer, buflen, 0x18, 0);
 	r_name  = ldm_relative (buffer, buflen, 0x18, r_objid);
@@ -944,7 +944,7 @@ static bool ldm_parse_prt3(const u8 *buffer, int buflen, struct vblk *vb)
 	int r_objid, r_name, r_size, r_parent, r_diskid, r_index, len;
 	struct vblk_part *part;
 
-	BUG_ON(!buffer || !vb);
+	_ON(!buffer || !vb);
 	r_objid = ldm_relative(buffer, buflen, 0x18, 0);
 	if (r_objid < 0) {
 		ldm_error("r_objid %d < 0", r_objid);
@@ -1021,7 +1021,7 @@ static bool ldm_parse_vol5(const u8 *buffer, int buflen, struct vblk *vb)
 	int r_id1, r_id2, r_size2, r_drive, len;
 	struct vblk_volu *volu;
 
-	BUG_ON(!buffer || !vb);
+	_ON(!buffer || !vb);
 	r_objid = ldm_relative(buffer, buflen, 0x18, 0);
 	if (r_objid < 0) {
 		ldm_error("r_objid %d < 0", r_objid);
@@ -1129,7 +1129,7 @@ static bool ldm_parse_vblk (const u8 *buf, int len, struct vblk *vb)
 	bool result = false;
 	int r_objid;
 
-	BUG_ON (!buf || !vb);
+	_ON (!buf || !vb);
 
 	r_objid = ldm_relative (buf, len, 0x18, 0);
 	if (r_objid < 0) {
@@ -1153,7 +1153,7 @@ static bool ldm_parse_vblk (const u8 *buf, int len, struct vblk *vb)
 	}
 
 	if (result)
-		ldm_debug ("Parsed VBLK 0x%llx (type: 0x%02x) ok.",
+		ldm_de ("Parsed VBLK 0x%llx (type: 0x%02x) ok.",
 			 (unsigned long long) vb->obj_id, vb->type);
 	else
 		ldm_error ("Failed to parse VBLK 0x%llx (type: 0x%02x).",
@@ -1181,7 +1181,7 @@ static bool ldm_ldmdb_add (u8 *data, int len, struct ldmdb *ldb)
 	struct vblk *vb;
 	struct list_head *item;
 
-	BUG_ON (!data || !ldb);
+	_ON (!data || !ldb);
 
 	vb = kmalloc (sizeof (*vb), GFP_KERNEL);
 	if (!vb) {
@@ -1244,7 +1244,7 @@ static bool ldm_frag_add (const u8 *data, int size, struct list_head *frags)
 	struct list_head *item;
 	int rec, num, group;
 
-	BUG_ON (!data || !frags);
+	_ON (!data || !frags);
 
 	if (size < 2 * VBLK_SIZE_HEAD) {
 		ldm_error("Value of size is to small.");
@@ -1312,7 +1312,7 @@ static void ldm_frag_free (struct list_head *list)
 {
 	struct list_head *item, *tmp;
 
-	BUG_ON (!list);
+	_ON (!list);
 
 	list_for_each_safe (item, tmp, list)
 		kfree (list_entry (item, struct frag, list));
@@ -1334,7 +1334,7 @@ static bool ldm_frag_commit (struct list_head *frags, struct ldmdb *ldb)
 	struct frag *f;
 	struct list_head *item;
 
-	BUG_ON (!frags || !ldb);
+	_ON (!frags || !ldb);
 
 	list_for_each (item, frags) {
 		f = list_entry (item, struct frag, list);
@@ -1372,7 +1372,7 @@ static bool ldm_get_vblks(struct parsed_partitions *state, unsigned long base,
 	bool result = false;
 	LIST_HEAD (frags);
 
-	BUG_ON(!state || !ldb);
+	_ON(!state || !ldb);
 
 	size   = ldb->vm.vblk_size;
 	perbuf = 512 / size;
@@ -1427,7 +1427,7 @@ static void ldm_free_vblks (struct list_head *lh)
 {
 	struct list_head *item, *tmp;
 
-	BUG_ON (!lh);
+	_ON (!lh);
 
 	list_for_each_safe (item, tmp, lh)
 		kfree (list_entry (item, struct vblk, list));
@@ -1457,7 +1457,7 @@ int ldm_partition(struct parsed_partitions *state)
 	unsigned long base;
 	int result = -1;
 
-	BUG_ON(!state);
+	_ON(!state);
 
 	/* Look for signs of a Dynamic Disk */
 	if (!ldm_validate_partition_table(state))
@@ -1495,7 +1495,7 @@ int ldm_partition(struct parsed_partitions *state)
 
 	/* Finally, create the data partition devices. */
 	if (ldm_create_data_partitions(state, ldb)) {
-		ldm_debug ("Parsed LDM database successfully.");
+		ldm_de ("Parsed LDM database successfully.");
 		result = 1;
 	}
 	/* else Already logged */

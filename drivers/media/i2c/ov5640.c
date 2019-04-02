@@ -88,7 +88,7 @@
 #define OV5640_REG_JPG_MODE_SELECT	0x4713
 #define OV5640_REG_POLARITY_CTRL00	0x4740
 #define OV5640_REG_MIPI_CTRL00		0x4800
-#define OV5640_REG_DEBUG_MODE		0x4814
+#define OV5640_REG_DE_MODE		0x4814
 #define OV5640_REG_ISP_FORMAT_MUX_CTRL	0x501f
 #define OV5640_REG_PRE_ISP_TEST_SET1	0x503d
 #define OV5640_REG_SDE_CTRL0		0x5580
@@ -1314,7 +1314,7 @@ static int ov5640_set_stream_mipi(struct ov5640_dev *sensor, bool on)
 	 * [4] = 0	: Power up MIPI HS Tx
 	 * [3] = 0	: Power up MIPI LS Rx
 	 * [2] = 1/0	: MIPI interface enable/disable
-	 * [1:0] = 01/00: FIXME: 'debug'
+	 * [1:0] = 01/00: FIXME: 'de'
 	 */
 	ret = ov5640_write_reg(sensor, OV5640_REG_IO_MIPI_CTRL00,
 			       on ? 0x45 : 0x40);
@@ -1587,12 +1587,12 @@ static int ov5640_set_virtual_channel(struct ov5640_dev *sensor)
 		return -EINVAL;
 	}
 
-	ret = ov5640_read_reg(sensor, OV5640_REG_DEBUG_MODE, &temp);
+	ret = ov5640_read_reg(sensor, OV5640_REG_DE_MODE, &temp);
 	if (ret)
 		return ret;
 	temp &= ~(3 << 6);
 	temp |= (channel << 6);
-	return ov5640_write_reg(sensor, OV5640_REG_DEBUG_MODE, temp);
+	return ov5640_write_reg(sensor, OV5640_REG_DE_MODE, temp);
 }
 
 static const struct ov5640_mode_info *

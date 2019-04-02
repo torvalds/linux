@@ -114,7 +114,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
  */
 struct cred {
 	atomic_t	usage;
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 	atomic_t	subscribers;	/* number of processes subscribed */
 	void		*put_addr;
 	unsigned	magic;
@@ -174,7 +174,7 @@ extern void __init cred_init(void);
 /*
  * check for validity of credentials
  */
-#ifdef CONFIG_DEBUG_CREDENTIALS
+#ifdef CONFIG_DE_CREDENTIALS
 extern void __invalid_creds(const struct cred *, const char *, unsigned);
 extern void __validate_process_creds(struct task_struct *,
 				     const char *, unsigned);

@@ -170,7 +170,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		goto entryfail;
 	}
 
-	pr_debug("%pOF: using %pOFn as default timing\n", np, entry);
+	pr_de("%pOF: using %pOFn as default timing\n", np, entry);
 
 	native_mode = entry;
 
@@ -228,7 +228,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 	 */
 	of_node_put(native_mode);
 
-	pr_debug("%pOF: got %d timings. Using timing #%d as default\n",
+	pr_de("%pOF: got %d timings. Using timing #%d as default\n",
 		np, disp->num_timings,
 		disp->native_mode + 1);
 

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_SCHED_DEBUG_H
-#define _LINUX_SCHED_DEBUG_H
+#ifndef _LINUX_SCHED_DE_H
+#define _LINUX_SCHED_DE_H
 
 /*
- * Various scheduler/task debugging interfaces:
+ * Various scheduler/task deging interfaces:
  */
 
 struct task_struct;
@@ -34,7 +34,7 @@ extern void show_stack(struct task_struct *task, unsigned long *sp);
 
 extern void sched_show_task(struct task_struct *p);
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 struct seq_file;
 extern void proc_sched_show_task(struct task_struct *p,
 				 struct pid_namespace *ns, struct seq_file *m);
@@ -50,4 +50,4 @@ extern char __sched_text_start[], __sched_text_end[];
 /* Is this address in the __sched functions? */
 extern int in_sched_functions(unsigned long addr);
 
-#endif /* _LINUX_SCHED_DEBUG_H */
+#endif /* _LINUX_SCHED_DE_H */

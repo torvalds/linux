@@ -49,21 +49,21 @@
  * In case if read-only flag is specified in the dts-node of device desription,
  * User-space applications won't be able to write to the EEPROM sysfs-node.
  *    Additionally IDT 89HPESx SMBus interface has an ability to write/read
- * data of device CSRs. This driver exposes debugf-file to perform simple IO
- * operations using that ability for just basic debug purpose. Particularly
- * next file is created in the specific debugfs-directory:
- * /sys/kernel/debug/idt_csr/
- * Format of the debugfs-node is:
- * $ cat /sys/kernel/debug/idt_csr/<bus>-<devaddr>/<devname>;
+ * data of device CSRs. This driver exposes def-file to perform simple IO
+ * operations using that ability for just basic de purpose. Particularly
+ * next file is created in the specific defs-directory:
+ * /sys/kernel/de/idt_csr/
+ * Format of the defs-node is:
+ * $ cat /sys/kernel/de/idt_csr/<bus>-<devaddr>/<devname>;
  * <CSR address>:<CSR value>
  * So reading the content of the file gives current CSR address and it value.
  * If User-space application wishes to change current CSR address,
  * it can just write a proper value to the sysfs-file:
- * $ echo "<CSR address>" > /sys/kernel/debug/idt_csr/<bus>-<devaddr>/<devname>
+ * $ echo "<CSR address>" > /sys/kernel/de/idt_csr/<bus>-<devaddr>/<devname>
  * If it wants to change the CSR value as well, the format of the write
  * operation is:
  * $ echo "<CSR address>:<CSR value>" > \
- *        /sys/kernel/debug/idt_csr/<bus>-<devaddr>/<devname>;
+ *        /sys/kernel/de/idt_csr/<bus>-<devaddr>/<devname>;
  * CSR address and value can be any of hexadecimal, decimal or octal format.
  */
 
@@ -75,7 +75,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/i2c.h>
@@ -92,7 +92,7 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("T-platforms");
 
 /*
- * csr_dbgdir - CSR read/write operations Debugfs directory
+ * csr_dbgdir - CSR read/write operations Defs directory
  */
 static struct dentry *csr_dbgdir;
 
@@ -115,7 +115,7 @@ static struct dentry *csr_dbgdir;
  * @client:	i2c client used to perform IO operations
  *
  * @ee_file:	EEPROM read/write sysfs-file
- * @csr_file:	CSR read/write debugfs-node
+ * @csr_file:	CSR read/write defs-node
  */
 struct idt_smb_seq;
 struct idt_89hpesx_dev {
@@ -866,7 +866,7 @@ err_mutex_unlock:
 }
 
 /*===========================================================================
- *                          Sysfs/debugfs-nodes IO-operations
+ *                          Sysfs/defs-nodes IO-operations
  *===========================================================================
  */
 
@@ -919,7 +919,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 }
 
 /*
- * idt_dbgfs_csr_write() - CSR debugfs-node write callback
+ * idt_dbgfs_csr_write() - CSR defs-node write callback
  * @filep:	Pointer to the file system file descriptor
  * @buf:	Buffer to read data from
  * @count:	Size of the buffer
@@ -1018,7 +1018,7 @@ free_buf:
 }
 
 /*
- * idt_dbgfs_csr_read() - CSR debugfs-node read callback
+ * idt_dbgfs_csr_read() - CSR defs-node read callback
  * @filep:	Pointer to the file system file descriptor
  * @buf:	Buffer to write data to
  * @count:	Size of the buffer
@@ -1060,7 +1060,7 @@ static ssize_t idt_dbgfs_csr_read(struct file *filep, char __user *ubuf,
 static BIN_ATTR_RW(eeprom, EEPROM_DEF_SIZE);
 
 /*
- * csr_dbgfs_ops - CSR debugfs-node read/write operations
+ * csr_dbgfs_ops - CSR defs-node read/write operations
  */
 static const struct file_operations csr_dbgfs_ops = {
 	.owner = THIS_MODULE,
@@ -1364,7 +1364,7 @@ static void idt_remove_sysfs_files(struct idt_89hpesx_dev *pdev)
 }
 
 /*
- * idt_create_dbgfs_files() - create debugfs files
+ * idt_create_dbgfs_files() - create defs files
  * @pdev:	Pointer to the driver data
  */
 #define CSRNAME_LEN	((size_t)32)
@@ -1373,23 +1373,23 @@ static void idt_create_dbgfs_files(struct idt_89hpesx_dev *pdev)
 	struct i2c_client *cli = pdev->client;
 	char fname[CSRNAME_LEN];
 
-	/* Create Debugfs directory for CSR file */
+	/* Create Defs directory for CSR file */
 	snprintf(fname, CSRNAME_LEN, "%d-%04hx", cli->adapter->nr, cli->addr);
-	pdev->csr_dir = debugfs_create_dir(fname, csr_dbgdir);
+	pdev->csr_dir = defs_create_dir(fname, csr_dbgdir);
 
-	/* Create Debugfs file for CSR read/write operations */
-	pdev->csr_file = debugfs_create_file(cli->name, 0600,
+	/* Create Defs file for CSR read/write operations */
+	pdev->csr_file = defs_create_file(cli->name, 0600,
 		pdev->csr_dir, pdev, &csr_dbgfs_ops);
 }
 
 /*
- * idt_remove_dbgfs_files() - remove debugfs files
+ * idt_remove_dbgfs_files() - remove defs files
  * @pdev:	Pointer to the driver data
  */
 static void idt_remove_dbgfs_files(struct idt_89hpesx_dev *pdev)
 {
 	/* Remove CSR directory and it sysfs-node */
-	debugfs_remove_recursive(pdev->csr_dir);
+	defs_remove_recursive(pdev->csr_dir);
 }
 
 /*
@@ -1420,7 +1420,7 @@ static int idt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret != 0)
 		goto err_free_pdev;
 
-	/* Create debugfs files */
+	/* Create defs files */
 	idt_create_dbgfs_files(pdev);
 
 	return 0;
@@ -1438,7 +1438,7 @@ static int idt_remove(struct i2c_client *client)
 {
 	struct idt_89hpesx_dev *pdev = i2c_get_clientdata(client);
 
-	/* Remove debugfs files first */
+	/* Remove defs files first */
 	idt_remove_dbgfs_files(pdev);
 
 	/* Remove sysfs files */
@@ -1597,9 +1597,9 @@ static struct i2c_driver idt_driver = {
  */
 static int __init idt_init(void)
 {
-	/* Create Debugfs directory first */
-	if (debugfs_initialized())
-		csr_dbgdir = debugfs_create_dir("idt_csr", NULL);
+	/* Create Defs directory first */
+	if (defs_initialized())
+		csr_dbgdir = defs_create_dir("idt_csr", NULL);
 
 	/* Add new i2c-device driver */
 	return i2c_add_driver(&idt_driver);
@@ -1611,8 +1611,8 @@ module_init(idt_init);
  */
 static void __exit idt_exit(void)
 {
-	/* Discard debugfs directory and all files if any */
-	debugfs_remove_recursive(csr_dbgdir);
+	/* Discard defs directory and all files if any */
+	defs_remove_recursive(csr_dbgdir);
 
 	/* Unregister i2c-device driver */
 	i2c_del_driver(&idt_driver);

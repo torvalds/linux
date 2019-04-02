@@ -558,8 +558,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	memset(&ls->ls_stub_rsb, 0, sizeof(struct dlm_rsb));
 	ls->ls_stub_rsb.res_ls = ls;
 
-	ls->ls_debug_rsb_dentry = NULL;
-	ls->ls_debug_waiters_dentry = NULL;
+	ls->ls_de_rsb_dentry = NULL;
+	ls->ls_de_waiters_dentry = NULL;
 
 	init_waitqueue_head(&ls->ls_uevent_wait);
 	ls->ls_uevent_result = 0;
@@ -658,7 +658,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (error)
 		goto out_members;
 
-	dlm_create_debug_file(ls);
+	dlm_create_de_file(ls);
 
 	log_rinfo(ls, "join complete");
 	*lockspace = ls;
@@ -788,7 +788,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	spin_unlock(&lslist_lock);
 
 	if (rv) {
-		log_debug(ls, "release_lockspace no remove %d", rv);
+		log_de(ls, "release_lockspace no remove %d", rv);
 		return rv;
 	}
 
@@ -803,7 +803,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	remove_lockspace(ls);
 
-	dlm_delete_debug_file(ls);
+	dlm_delete_de_file(ls);
 
 	idr_destroy(&ls->ls_recover_idr);
 	kfree(ls->ls_recover_buf);

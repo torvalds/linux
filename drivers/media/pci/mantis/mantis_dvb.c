@@ -46,7 +46,7 @@ int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 
 	switch (power) {
 	case POWER_ON:
-		dprintk(MANTIS_DEBUG, 1, "Power ON");
+		dprintk(MANTIS_DE, 1, "Power ON");
 		mantis_gpio_set_bits(mantis, config->power, POWER_ON);
 		msleep(100);
 		mantis_gpio_set_bits(mantis, config->power, POWER_ON);
@@ -54,13 +54,13 @@ int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 		break;
 
 	case POWER_OFF:
-		dprintk(MANTIS_DEBUG, 1, "Power OFF");
+		dprintk(MANTIS_DE, 1, "Power OFF");
 		mantis_gpio_set_bits(mantis, config->power, POWER_OFF);
 		msleep(100);
 		break;
 
 	default:
-		dprintk(MANTIS_DEBUG, 1, "Unknown state <%02x>", power);
+		dprintk(MANTIS_DE, 1, "Unknown state <%02x>", power);
 		return -1;
 	}
 
@@ -72,7 +72,7 @@ void mantis_frontend_soft_reset(struct mantis_pci *mantis)
 {
 	struct mantis_hwconfig *config = mantis->hwconfig;
 
-	dprintk(MANTIS_DEBUG, 1, "Frontend RESET");
+	dprintk(MANTIS_DE, 1, "Frontend RESET");
 	mantis_gpio_set_bits(mantis, config->reset, 0);
 	msleep(100);
 	mantis_gpio_set_bits(mantis, config->reset, 0);
@@ -105,17 +105,17 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct mantis_pci *mantis = dvbdmx->priv;
 
-	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Start feed");
+	dprintk(MANTIS_DE, 1, "Mantis DVB Start feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DE, 1, "no frontend ?");
 		return -EINVAL;
 	}
 
 	mantis->feeds++;
-	dprintk(MANTIS_DEBUG, 1, "mantis start feed, feeds=%d",	mantis->feeds);
+	dprintk(MANTIS_DE, 1, "mantis start feed, feeds=%d",	mantis->feeds);
 
 	if (mantis->feeds == 1)	 {
-		dprintk(MANTIS_DEBUG, 1, "mantis start feed & dma");
+		dprintk(MANTIS_DE, 1, "mantis start feed & dma");
 		mantis_dma_start(mantis);
 		tasklet_enable(&mantis->tasklet);
 	}
@@ -128,15 +128,15 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
 	struct mantis_pci *mantis = dvbdmx->priv;
 
-	dprintk(MANTIS_DEBUG, 1, "Mantis DVB Stop feed");
+	dprintk(MANTIS_DE, 1, "Mantis DVB Stop feed");
 	if (!dvbdmx->dmx.frontend) {
-		dprintk(MANTIS_DEBUG, 1, "no frontend ?");
+		dprintk(MANTIS_DE, 1, "no frontend ?");
 		return -EINVAL;
 	}
 
 	mantis->feeds--;
 	if (mantis->feeds == 0) {
-		dprintk(MANTIS_DEBUG, 1, "mantis stop feed and dma");
+		dprintk(MANTIS_DE, 1, "mantis stop feed and dma");
 		tasklet_disable(&mantis->tasklet);
 		mantis_dma_stop(mantis);
 	}
@@ -149,7 +149,7 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 	struct mantis_hwconfig *config = mantis->hwconfig;
 	int result = -1;
 
-	dprintk(MANTIS_DEBUG, 1, "dvb_register_adapter");
+	dprintk(MANTIS_DE, 1, "dvb_register_adapter");
 
 	result = dvb_register_adapter(&mantis->dvb_adapter,
 				      "Mantis DVB adapter",
@@ -175,7 +175,7 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 	mantis->demux.stop_feed		= mantis_dvb_stop_feed;
 	mantis->demux.write_to_decoder	= NULL;
 
-	dprintk(MANTIS_DEBUG, 1, "dvb_dmx_init");
+	dprintk(MANTIS_DE, 1, "dvb_dmx_init");
 	result = dvb_dmx_init(&mantis->demux);
 	if (result < 0) {
 		dprintk(MANTIS_ERROR, 1, "dvb_dmx_init failed, ERROR=%d", result);
@@ -186,7 +186,7 @@ int mantis_dvb_init(struct mantis_pci *mantis)
 	mantis->dmxdev.filternum	= 256;
 	mantis->dmxdev.demux		= &mantis->demux.dmx;
 	mantis->dmxdev.capabilities	= 0;
-	dprintk(MANTIS_DEBUG, 1, "dvb_dmxdev_init");
+	dprintk(MANTIS_DE, 1, "dvb_dmxdev_init");
 
 	result = dvb_dmxdev_init(&mantis->dmxdev, &mantis->dvb_adapter);
 	if (result < 0) {
@@ -294,7 +294,7 @@ int mantis_dvb_exit(struct mantis_pci *mantis)
 	dvb_dmxdev_release(&mantis->dmxdev);
 	dvb_dmx_release(&mantis->demux);
 
-	dprintk(MANTIS_DEBUG, 1, "dvb_unregister_adapter");
+	dprintk(MANTIS_DE, 1, "dvb_unregister_adapter");
 	dvb_unregister_adapter(&mantis->dvb_adapter);
 
 	return 0;

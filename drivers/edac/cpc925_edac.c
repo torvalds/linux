@@ -460,7 +460,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 
 	*csrow = rank;
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	if (mci->csrows[rank]->first_page == 0) {
 		cpc925_mc_printk(mci, KERN_ERR, "ECC occurs in a "
 			"non-populated csrow, broken hardware?\n");

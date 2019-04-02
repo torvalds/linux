@@ -152,7 +152,7 @@ way to obfuscate the data being communicated by a sensor. Without knowing the
 mapping between the data and its encapsulated form, it is difficult for
 an application/driver to determine what data is being communicated by the sensor.
 This allows some differentiating use cases, where vendor can provide applications.
-Some common use cases are debug other sensors or to provide some events like
+Some common use cases are de other sensors or to provide some events like
 keyboard attached/detached or lid open/close.
 
 To allow application to utilize these sensors, here they are exported uses sysfs

@@ -23,7 +23,7 @@
 #define SMC_CMD_L2X0SETUP1	(-22)
 #define SMC_CMD_L2X0SETUP2	(-23)
 #define SMC_CMD_L2X0INVALL	(-24)
-#define SMC_CMD_L2X0DEBUG	(-25)
+#define SMC_CMD_L2X0DE	(-25)
 
 #ifndef __ASSEMBLY__
 

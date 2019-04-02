@@ -22,10 +22,10 @@
 
 #define pr_fmt(fmt) "mmiotrace: " fmt
 
-#define DEBUG 1
+#define DE 1
 
 #include <linux/moduleparam.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -104,7 +104,7 @@ static void print_pte(unsigned long address)
 	if (level == PG_LEVEL_2M) {
 		pr_emerg("4MB pages are not currently supported: 0x%08lx\n",
 			 address);
-		BUG();
+		();
 	}
 	pr_info("pte for 0x%lx: 0x%llx 0x%llx\n",
 		address,
@@ -136,7 +136,7 @@ static void die_kmmio_nesting_error(struct pt_regs *regs, unsigned long addr)
 		 regs->si, regs->di, regs->bp, regs->sp);
 #endif
 	put_cpu_var(pf_reason);
-	BUG();
+	();
 }
 
 static void pre(struct kmmio_probe *p, struct pt_regs *regs,
@@ -214,7 +214,7 @@ static void post(struct kmmio_probe *p, unsigned long condition,
 	my_reason->active_traces--;
 	if (my_reason->active_traces) {
 		pr_emerg("unexpected post handler");
-		BUG();
+		();
 	}
 
 	switch (my_reason->type) {
@@ -282,7 +282,7 @@ void mmiotrace_ioremap(resource_size_t offset, unsigned long size,
 	if (!is_enabled()) /* recheck and proper locking in *_core() */
 		return;
 
-	pr_debug("ioremap_*(0x%llx, 0x%lx) = %p\n",
+	pr_de("ioremap_*(0x%llx, 0x%lx) = %p\n",
 		 (unsigned long long)offset, size, addr);
 	if ((filter_offset) && (offset != filter_offset))
 		return;
@@ -301,7 +301,7 @@ static void iounmap_trace_core(volatile void __iomem *addr)
 	struct remap_trace *tmp;
 	struct remap_trace *found_trace = NULL;
 
-	pr_debug("Unmapping %p.\n", addr);
+	pr_de("Unmapping %p.\n", addr);
 
 	spin_lock_irq(&trace_lock);
 	if (!is_enabled())
@@ -465,7 +465,7 @@ void disable_mmiotrace(void)
 
 	spin_lock_irq(&trace_lock);
 	atomic_dec(&mmiotrace_enabled);
-	BUG_ON(is_enabled());
+	_ON(is_enabled());
 	spin_unlock_irq(&trace_lock);
 
 	clear_trace_list(); /* guarantees: no more kmmio callbacks */

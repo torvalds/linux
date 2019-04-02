@@ -29,7 +29,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "fscache.h"

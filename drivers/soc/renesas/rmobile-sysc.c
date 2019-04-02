@@ -72,7 +72,7 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 		}
 	}
 
-	pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n", genpd->name, mask,
+	pr_de("%s: Power off, 0x%08x -> PSTR = 0x%08x\n", genpd->name, mask,
 		 __raw_readl(rmobile_pd->base + PSTR));
 
 	return 0;
@@ -104,7 +104,7 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd)
 	if (!retry_count)
 		ret = -EIO;
 
-	pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
+	pr_de("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
 		 rmobile_pd->genpd.name, mask,
 		 __raw_readl(rmobile_pd->base + PSTR));
 
@@ -143,7 +143,7 @@ enum pd_types {
 	PD_NORMAL,
 	PD_CPU,
 	PD_CONSOLE,
-	PD_DEBUG,
+	PD_DE,
 	PD_MEMCTL,
 };
 
@@ -157,7 +157,7 @@ static struct special_pd {
 static unsigned int num_special_pds __initdata;
 
 static const struct of_device_id special_ids[] __initconst = {
-	{ .compatible = "arm,coresight-etm3x", .data = (void *)PD_DEBUG },
+	{ .compatible = "arm,coresight-etm3x", .data = (void *)PD_DE },
 	{ .compatible = "renesas,dbsc-r8a73a4", .data = (void *)PD_MEMCTL, },
 	{ .compatible = "renesas,dbsc3-r8a7740", .data = (void *)PD_MEMCTL, },
 	{ .compatible = "renesas,sbsc-sh73a0", .data = (void *)PD_MEMCTL, },
@@ -185,7 +185,7 @@ static void __init add_special_pd(struct device_node *np, enum pd_types type)
 		return;
 	}
 
-	pr_debug("Special PM domain %pOFn type %d for %pOF\n", pd, type, np);
+	pr_de("Special PM domain %pOFn type %d for %pOF\n", pd, type, np);
 
 	special_pds[num_special_pds].pd = pd;
 	special_pds[num_special_pds].type = type;
@@ -240,23 +240,23 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * This domain contains the CPU core and therefore it should
 		 * only be turned off if the CPU is not in use.
 		 */
-		pr_debug("PM domain %s contains CPU\n", name);
+		pr_de("PM domain %s contains CPU\n", name);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_CONSOLE:
-		pr_debug("PM domain %s contains serial console\n", name);
+		pr_de("PM domain %s contains serial console\n", name);
 		pd->gov = &pm_domain_always_on_gov;
 		pd->suspend = rmobile_pd_suspend_console;
 		break;
 
-	case PD_DEBUG:
+	case PD_DE:
 		/*
 		 * This domain contains the Coresight-ETM hardware block and
-		 * therefore it should only be turned off if the debug module
+		 * therefore it should only be turned off if the de module
 		 * is not in use.
 		 */
-		pr_debug("PM domain %s contains Coresight-ETM\n", name);
+		pr_de("PM domain %s contains Coresight-ETM\n", name);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
@@ -265,7 +265,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * This domain contains a memory-controller and therefore it
 		 * should only be turned off if memory is not in use.
 		 */
-		pr_debug("PM domain %s contains MEMCTL\n", name);
+		pr_de("PM domain %s contains MEMCTL\n", name);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 

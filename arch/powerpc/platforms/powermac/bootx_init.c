@@ -21,10 +21,10 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#undef DEBUG
+#undef DE
 #define SET_BOOT_BAT
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) do { bootx_printf(fmt); } while(0)
 #else
 #define DBG(fmt...) do { } while(0)
@@ -294,7 +294,7 @@ static void __init bootx_scan_dt_build_struct(unsigned long base,
 
 	DBG("* struct: %s\n", namep);
 
-	/* Fixup an Apple bug where they have bogus \0 chars in the
+	/* Fixup an Apple  where they have bogus \0 chars in the
 	 * middle of the path in some properties, and extract
 	 * the unit name (everything after the last '/').
 	 */
@@ -452,7 +452,7 @@ static void __init btext_welcome(boot_infos_t *bi)
 	    __asm__ __volatile__ ("mfspr %0, 1019" : "=r" (flags));
 	    bootx_printf("\nICTC             : 0x%x", flags);
 	}
-#ifdef DEBUG
+#ifdef DE
 	bootx_printf("\n\n");
 	bootx_printf("bi->deviceTreeOffset   : 0x%x\n",
 		     bi->deviceTreeOffset);

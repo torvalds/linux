@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
@@ -248,7 +248,7 @@ static LIST_HEAD(mconsole_devices);
 void mconsole_register_dev(struct mc_device *new)
 {
 	spin_lock(&mc_devices_lock);
-	BUG_ON(!list_empty(&new->list));
+	_ON(!list_empty(&new->list));
 	list_add(&new->list, &mconsole_devices);
 	spin_unlock(&mc_devices_lock);
 }

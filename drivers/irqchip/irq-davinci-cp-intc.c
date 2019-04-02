@@ -141,7 +141,7 @@ davinci_cp_intc_handle_irq(struct pt_regs *regs)
 static int davinci_cp_intc_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
-	pr_debug("cp_intc_host_map(%d, 0x%lx)\n", virq, hw);
+	pr_de("cp_intc_host_map(%d, 0x%lx)\n", virq, hw);
 
 	irq_set_chip(virq, &davinci_cp_intc_irq_chip);
 	irq_set_probe(virq);

@@ -77,7 +77,7 @@ static int __init sys_reg_genericv8_init(void)
 	unsigned int i;
 
 	for (i = 1; i < ARRAY_SIZE(genericv8_sys_regs); i++)
-		BUG_ON(cmp_sys_reg(&genericv8_sys_regs[i-1],
+		_ON(cmp_sys_reg(&genericv8_sys_regs[i-1],
 			       &genericv8_sys_regs[i]) >= 0);
 
 	kvm_register_target_sys_reg_table(KVM_ARM_TARGET_AEM_V8,

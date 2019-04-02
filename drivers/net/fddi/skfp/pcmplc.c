@@ -181,7 +181,7 @@ static	const struct plt {
 #ifdef	SUPERNET_3
 /*
  * Do we need the EBUF error during signaling, too, to detect SUPERNET_3
- * PLL bug?
+ * PLL ?
  */
 static const int plc_imsk_na = PL_PCM_CODE | PL_TRACE_PROP | PL_PCM_BREAK |
 			PL_PCM_ENABLED | PL_SELF_TEST | PL_EBUF_ERR;
@@ -549,12 +549,12 @@ static int plc_send_bits(struct s_smc *smc, struct s_phy *phy, int len)
 	/* write bit[n] & length = 1 to regs */
 	outpw(PLC(np,PL_VECTOR_LEN),len-1) ;	/* len=nr-1 */
 	outpw(PLC(np,PL_XMIT_VECTOR),n) ;
-#ifdef	DEBUG
+#ifdef	DE
 #if 1
-#ifdef	DEBUG_BRD
-	if (smc->debug.d_plc & 0x80)
+#ifdef	DE_BRD
+	if (smc->de.d_plc & 0x80)
 #else
-	if (debug.d_plc & 0x80)
+	if (de.d_plc & 0x80)
 #endif
 		printf("SIGNALING bit %d .. %d\n",phy->bitn,phy->bitn+len-1) ;
 #endif
@@ -1768,7 +1768,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 		case PL_B_HLS :		plc->b_hls++ ;	break ;
 		}
 
-		/*jd 05-Aug-1999 changed: Bug #10419 */
+		/*jd 05-Aug-1999 changed:  #10419 */
 		DB_PCMN(1, "PLC %d: MDcF = %x", np, smc->e.DisconnectFlag);
 		if (smc->e.DisconnectFlag == FALSE) {
 			DB_PCMN(1, "PLC %d: restart (reason %x)", np, reason);
@@ -1833,7 +1833,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 #if	0
 	if (cmd & PL_NP_ERR) {		/* NP has requested to r/w an inv reg*/
 		/*
-		 * It's a bug by AMD
+		 * It's a  by AMD
 		 */
 		plc->np_err++ ;
 	}
@@ -1847,7 +1847,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 #endif
 }
 
-#ifdef	DEBUG
+#ifdef	DE
 /*
  * fill state struct
  */

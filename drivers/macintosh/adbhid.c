@@ -978,7 +978,7 @@ adbhid_probe(void)
 		adb_try_handler_change(id, 3);
 
 		adb_get_infos(id, &default_id, &cur_handler_id);
-		printk(KERN_DEBUG "ADB keyboard at %d has handler 0x%X\n",
+		printk(KERN_DE "ADB keyboard at %d has handler 0x%X\n",
 		       id, cur_handler_id);
 		reg |= adbhid_input_reregister(id, default_id, org_handler_id,
 					       cur_handler_id, 0);
@@ -1076,7 +1076,7 @@ adbhid_probe(void)
 		}
 
 		adb_get_infos(id, &default_id, &cur_handler_id);
-		printk(KERN_DEBUG "ADB mouse (%s) at %d has handler 0x%X\n",
+		printk(KERN_DE "ADB mouse (%s) at %d has handler 0x%X\n",
 		       desc, id, cur_handler_id);
 		reg |= adbhid_input_reregister(id, default_id, org_handler_id,
 					       cur_handler_id, mouse_kind);

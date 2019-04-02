@@ -2,7 +2,7 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/signal_types.h>
 #include <linux/string.h>
 
@@ -91,7 +91,7 @@ static inline int sigisemptyset(sigset_t *set)
 	case 1:
 		return set->sig[0] == 0;
 	default:
-		BUILD_BUG();
+		BUILD_();
 		return 0;
 	}
 }
@@ -139,7 +139,7 @@ static inline void name(sigset_t *r, const sigset_t *a, const sigset_t *b) \
 		r->sig[0] = op(a0, b0);					\
 		break;							\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 }
 
@@ -169,7 +169,7 @@ static inline void name(sigset_t *set)					\
 	case 1:	set->sig[0] = op(set->sig[0]);				\
 		    break;						\
 	default:							\
-		BUILD_BUG();						\
+		BUILD_();						\
 	}								\
 }
 

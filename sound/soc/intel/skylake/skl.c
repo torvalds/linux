@@ -1123,7 +1123,7 @@ static void skl_remove(struct pci_dev *pci)
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(bus);
 
-	skl->debugfs = NULL;
+	skl->defs = NULL;
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);

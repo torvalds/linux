@@ -265,7 +265,7 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	if (IS_ERR(gpiod)) {
 		ret = PTR_ERR(gpiod);
 		if (ret == -EPROBE_DEFER)
-			pr_debug("%pOFn: %s: GPIOs not yet available, retry later\n",
+			pr_de("%pOFn: %s: GPIOs not yet available, retry later\n",
 					node, __func__);
 		else
 			pr_err("%pOFn: %s: Can't get '%s' named GPIO property\n",

@@ -28,7 +28,7 @@
 
 #include "ath5k.h"
 #include "reg.h"
-#include "debug.h"
+#include "de.h"
 
 /**
  * DOC: Protocol Control Unit (PCU) functions
@@ -60,7 +60,7 @@
  * -Different operating modes: AP, STA, IBSS
  *
  * Note: Most of these functions can be tweaked/bypassed so you can do
- * them on sw above for debugging or research. For more infos check out PCU
+ * them on sw above for deging or research. For more infos check out PCU
  * registers on reg.h.
  */
 
@@ -878,7 +878,7 @@ ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 	struct ath_common *common = ath5k_hw_common(ah);
 	u32 pcu_reg, beacon_reg, low_id, high_id;
 
-	ATH5K_DBG(ah, ATH5K_DEBUG_MODE, "mode %d\n", op_mode);
+	ATH5K_DBG(ah, ATH5K_DE_MODE, "mode %d\n", op_mode);
 
 	/* Preserve rest settings */
 	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;

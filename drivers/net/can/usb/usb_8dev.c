@@ -575,7 +575,7 @@ static void usb_8dev_write_bulk_callback(struct urb *urb)
 	struct usb_8dev_priv *priv;
 	struct net_device *netdev;
 
-	BUG_ON(!context);
+	_ON(!context);
 
 	priv = context->priv;
 	netdev = priv->netdev;

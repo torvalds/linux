@@ -244,7 +244,7 @@ static void s3c2410_demux_eint0_3(struct irq_desc *desc)
 	/* the first 4 eints have a simple 1 to 1 mapping */
 	virq = irq_linear_revmap(eint_data->domains[data->hwirq], data->hwirq);
 	/* Something must be really wrong if an unmapped EINT is unmasked */
-	BUG_ON(!virq);
+	_ON(!virq);
 
 	generic_handle_irq(virq);
 }
@@ -302,7 +302,7 @@ static void s3c2412_demux_eint0_3(struct irq_desc *desc)
 	/* the first 4 eints have a simple 1 to 1 mapping */
 	virq = irq_linear_revmap(eint_data->domains[data->hwirq], data->hwirq);
 	/* Something must be really wrong if an unmapped EINT is unmasked */
-	BUG_ON(!virq);
+	_ON(!virq);
 
 	generic_handle_irq(virq);
 
@@ -375,7 +375,7 @@ static inline void s3c24xx_demux_eint(struct irq_desc *desc,
 		pend &= ~(1 << irq);
 		virq = irq_linear_revmap(data->domains[irq], irq - offset);
 		/* Something is really wrong if an unmapped EINT is unmasked */
-		BUG_ON(!virq);
+		_ON(!virq);
 
 		generic_handle_irq(virq);
 	}

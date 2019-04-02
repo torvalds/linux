@@ -8,7 +8,7 @@
 
 #ifndef __ASSEMBLY__
 /*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
+ *  CPU type and hardware  flags. Kept separately for each CPU.
  *
  *  Each one of these also needs a CONFIG_CPU_SUBTYPE_xxx entry
  *  in arch/sh/mm/Kconfig, as well as an entry in arch/sh/kernel/setup.c

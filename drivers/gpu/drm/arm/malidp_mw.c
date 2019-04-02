@@ -136,7 +136,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 	fb = conn_state->writeback_job->fb;
 	if ((fb->width != crtc_state->mode.hdisplay) ||
 	    (fb->height != crtc_state->mode.vdisplay)) {
-		DRM_DEBUG_KMS("Invalid framebuffer size %ux%u\n",
+		DRM_DE_KMS("Invalid framebuffer size %ux%u\n",
 				fb->width, fb->height);
 		return -EINVAL;
 	}
@@ -147,7 +147,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 	if (mw_state->format == MALIDP_INVALID_FORMAT_ID) {
 		struct drm_format_name_buf format_name;
 
-		DRM_DEBUG_KMS("Invalid pixel format %s\n",
+		DRM_DE_KMS("Invalid pixel format %s\n",
 			      drm_get_format_name(fb->format->format,
 						  &format_name));
 		return -EINVAL;
@@ -160,7 +160,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 		u8 alignment = malidp_hw_get_pitch_align(malidp->dev, 0);
 
 		if (fb->pitches[i] & (alignment - 1)) {
-			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
+			DRM_DE_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
 		}
@@ -245,7 +245,7 @@ void malidp_mw_atomic_commit(struct drm_device *drm,
 	if (conn_state->writeback_job && conn_state->writeback_job->fb) {
 		struct drm_framebuffer *fb = conn_state->writeback_job->fb;
 
-		DRM_DEV_DEBUG_DRIVER(drm->dev,
+		DRM_DEV_DE_DRIVER(drm->dev,
 				     "Enable memwrite %ux%u:%d %pad fmt: %u\n",
 				     fb->width, fb->height,
 				     mw_state->pitches[0],
@@ -261,7 +261,7 @@ void malidp_mw_atomic_commit(struct drm_device *drm,
 					   mw_state->rgb2yuv_coeffs : NULL);
 		mw_state->rgb2yuv_initialized = !!mw_state->rgb2yuv_coeffs;
 	} else {
-		DRM_DEV_DEBUG_DRIVER(drm->dev, "Disable memwrite\n");
+		DRM_DEV_DE_DRIVER(drm->dev, "Disable memwrite\n");
 		hwdev->hw->disable_memwrite(hwdev);
 	}
 }

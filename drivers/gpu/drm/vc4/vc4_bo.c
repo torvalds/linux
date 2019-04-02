@@ -66,8 +66,8 @@ static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_bo_stats_defs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -107,7 +107,7 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
  * This is inefficient and could use a hash table instead of walking
  * an array and strcmp()ing.  However, the assumption is that user
  * labeling will be infrequent (scanout buffers and other long-lived
- * objects, or debug driver builds), so we can live with it for now.
+ * objects, or de driver builds), so we can live with it for now.
  */
 static int vc4_get_user_label(struct vc4_dev *vc4, const char *name)
 {
@@ -699,7 +699,7 @@ vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 	int ret;
 
 	if (bo->validated_shader) {
-		DRM_DEBUG("Attempting to export shader BO\n");
+		DRM_DE("Attempting to export shader BO\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -752,12 +752,12 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	bo = to_vc4_bo(gem_obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
+		DRM_DE("mmaping of shader BOs for writing not allowed.\n");
 		return -EINVAL;
 	}
 
 	if (bo->madv != VC4_MADV_WILLNEED) {
-		DRM_DEBUG("mmaping of %s BO not allowed\n",
+		DRM_DE("mmaping of %s BO not allowed\n",
 			  bo->madv == VC4_MADV_DONTNEED ?
 			  "purgeable" : "purged");
 		return -EINVAL;
@@ -797,7 +797,7 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
+		DRM_DE("mmaping of shader BOs for writing not allowed.\n");
 		return -EINVAL;
 	}
 
@@ -809,7 +809,7 @@ void *vc4_prime_vmap(struct drm_gem_object *obj)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader) {
-		DRM_DEBUG("mmaping of shader BOs not allowed.\n");
+		DRM_DE("mmaping of shader BOs not allowed.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -865,7 +865,7 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
 	}
 
@@ -971,7 +971,7 @@ int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_vc4_bo(gem_obj);
@@ -1002,7 +1002,7 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_vc4_bo(gem_obj);
@@ -1032,7 +1032,7 @@ int vc4_bo_cache_init(struct drm_device *dev)
 		return -ENOMEM;
 	vc4->num_labels = VC4_BO_TYPE_COUNT;
 
-	BUILD_BUG_ON(ARRAY_SIZE(bo_type_names) != VC4_BO_TYPE_COUNT);
+	BUILD__ON(ARRAY_SIZE(bo_type_names) != VC4_BO_TYPE_COUNT);
 	for (i = 0; i < VC4_BO_TYPE_COUNT; i++)
 		vc4->bo_labels[i].name = bo_type_names[i];
 

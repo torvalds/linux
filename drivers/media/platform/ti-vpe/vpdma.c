@@ -602,20 +602,20 @@ static void dump_cfd(struct vpdma_cfd *cfd)
 
 	class = cfd_get_class(cfd);
 
-	pr_debug("config descriptor of payload class: %s\n",
+	pr_de("config descriptor of payload class: %s\n",
 		class == CFD_CLS_BLOCK ? "simple block" :
 		"address data block");
 
 	if (class == CFD_CLS_BLOCK)
-		pr_debug("word0: dst_addr_offset = 0x%08x\n",
+		pr_de("word0: dst_addr_offset = 0x%08x\n",
 			cfd->dest_addr_offset);
 
 	if (class == CFD_CLS_BLOCK)
-		pr_debug("word1: num_data_wrds = %d\n", cfd->block_len);
+		pr_de("word1: num_data_wrds = %d\n", cfd->block_len);
 
-	pr_debug("word2: payload_addr = 0x%08x\n", cfd->payload_addr);
+	pr_de("word2: payload_addr = 0x%08x\n", cfd->payload_addr);
 
-	pr_debug("word3: pkt_type = %d, direct = %d, class = %d, dest = %d, payload_len = %d\n",
+	pr_de("word3: pkt_type = %d, direct = %d, class = %d, dest = %d, payload_len = %d\n",
 		 cfd_get_pkt_type(cfd),
 		 cfd_get_direct(cfd), class, cfd_get_dest(cfd),
 		 cfd_get_payload_len(cfd));
@@ -664,7 +664,7 @@ void vpdma_add_cfd_adb(struct vpdma_desc_list *list, int client,
 	WARN_ON(adb->dma_addr & VPDMA_DESC_ALIGN);
 
 	cfd = list->next;
-	BUG_ON((void *)(cfd + 1) > (list->buf.addr + list->buf.size));
+	_ON((void *)(cfd + 1) > (list->buf.addr + list->buf.size));
 
 	cfd->w0 = 0;
 	cfd->w1 = 0;
@@ -685,9 +685,9 @@ EXPORT_SYMBOL(vpdma_add_cfd_adb);
  */
 static void dump_ctd(struct vpdma_ctd *ctd)
 {
-	pr_debug("control descriptor\n");
+	pr_de("control descriptor\n");
 
-	pr_debug("word3: pkt_type = %d, source = %d, ctl_type = %d\n",
+	pr_de("word3: pkt_type = %d, source = %d, ctl_type = %d\n",
 		ctd_get_pkt_type(ctd), ctd_get_source(ctd), ctd_get_ctl(ctd));
 }
 
@@ -748,42 +748,42 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 	dir = dtd_get_dir(dtd);
 	chan = dtd_get_chan(dtd);
 
-	pr_debug("%s data transfer descriptor for channel %d\n",
+	pr_de("%s data transfer descriptor for channel %d\n",
 		dir == DTD_DIR_OUT ? "outbound" : "inbound", chan);
 
-	pr_debug("word0: data_type = %d, notify = %d, field = %d, 1D = %d, even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
+	pr_de("word0: data_type = %d, notify = %d, field = %d, 1D = %d, even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
 		dtd_get_data_type(dtd), dtd_get_notify(dtd), dtd_get_field(dtd),
 		dtd_get_1d(dtd), dtd_get_even_line_skip(dtd),
 		dtd_get_odd_line_skip(dtd), dtd_get_line_stride(dtd));
 
 	if (dir == DTD_DIR_IN)
-		pr_debug("word1: line_length = %d, xfer_height = %d\n",
+		pr_de("word1: line_length = %d, xfer_height = %d\n",
 			dtd_get_line_length(dtd), dtd_get_xfer_height(dtd));
 
-	pr_debug("word2: start_addr = %pad\n", &dtd->start_addr);
+	pr_de("word2: start_addr = %pad\n", &dtd->start_addr);
 
-	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, pri = %d, next_chan = %d\n",
+	pr_de("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, pri = %d, next_chan = %d\n",
 		 dtd_get_pkt_type(dtd),
 		 dtd_get_mode(dtd), dir, chan, dtd_get_priority(dtd),
 		 dtd_get_next_chan(dtd));
 
 	if (dir == DTD_DIR_IN)
-		pr_debug("word4: frame_width = %d, frame_height = %d\n",
+		pr_de("word4: frame_width = %d, frame_height = %d\n",
 			dtd_get_frame_width(dtd), dtd_get_frame_height(dtd));
 	else
-		pr_debug("word4: desc_write_addr = 0x%08x, write_desc = %d, drp_data = %d, use_desc_reg = %d\n",
+		pr_de("word4: desc_write_addr = 0x%08x, write_desc = %d, drp_data = %d, use_desc_reg = %d\n",
 			dtd_get_desc_write_addr(dtd), dtd_get_write_desc(dtd),
 			dtd_get_drop_data(dtd), dtd_get_use_desc(dtd));
 
 	if (dir == DTD_DIR_IN)
-		pr_debug("word5: hor_start = %d, ver_start = %d\n",
+		pr_de("word5: hor_start = %d, ver_start = %d\n",
 			dtd_get_h_start(dtd), dtd_get_v_start(dtd));
 	else
-		pr_debug("word5: max_width %d, max_height %d\n",
+		pr_de("word5: max_width %d, max_height %d\n",
 			dtd_get_max_width(dtd), dtd_get_max_height(dtd));
 
-	pr_debug("word6: client specific attr0 = 0x%08x\n", dtd->client_attr0);
-	pr_debug("word7: client specific attr1 = 0x%08x\n", dtd->client_attr1);
+	pr_de("word6: client specific attr0 = 0x%08x\n", dtd->client_attr0);
+	pr_de("word7: client specific attr1 = 0x%08x\n", dtd->client_attr1);
 }
 
 /*

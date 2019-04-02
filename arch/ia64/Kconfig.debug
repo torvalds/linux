@@ -20,7 +20,7 @@ endchoice
 
 config IA64_PRINT_HAZARDS
 	bool "Print possible IA-64 dependency violations to console"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  Selecting this option prints more information for Illegal Dependency
 	  Faults, that is, for Read-after-Write (RAW), Write-after-Write (WAW),
@@ -30,26 +30,26 @@ config IA64_PRINT_HAZARDS
 
 config DISABLE_VHPT
 	bool "Disable VHPT"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  The Virtual Hash Page Table (VHPT) enhances virtual address
 	  translation performance.  Normally you want the VHPT active but you
-	  can select this option to disable the VHPT for debugging.  If you're
+	  can select this option to disable the VHPT for deging.  If you're
 	  unsure, answer N.
 
-config IA64_DEBUG_CMPXCHG
-	bool "Turn on compare-and-exchange bug checking (slow!)"
-	depends on DEBUG_KERNEL
+config IA64_DE_CMPXCHG
+	bool "Turn on compare-and-exchange  checking (slow!)"
+	depends on DE_KERNEL
 	help
-	  Selecting this option turns on bug checking for the IA-64
+	  Selecting this option turns on  checking for the IA-64
 	  compare-and-exchange instructions.  This is slow!  Itaniums
 	  from step B3 or later don't have this problem. If you're unsure,
 	  select N.
 
-config IA64_DEBUG_IRQ
-	bool "Turn on irq debug checks (slow!)"
-	depends on DEBUG_KERNEL
+config IA64_DE_IRQ
+	bool "Turn on irq de checks (slow!)"
+	depends on DE_KERNEL
 	help
-	  Selecting this option turns on bug checking for the IA-64 irq_save
+	  Selecting this option turns on  checking for the IA-64 irq_save
 	  and restore instructions.  It's useful for tracking down spinlock
 	  problems, but slow!  If you're unsure, select N.

@@ -433,7 +433,7 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 	struct dm_dev_internal *dd;
 	struct dm_table *t = ti->table;
 
-	BUG_ON(!t);
+	_ON(!t);
 
 	dev = dm_get_dev_t(path);
 	if (!dev)
@@ -720,7 +720,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		return -EINVAL;
 	}
 
-	BUG_ON(t->num_targets >= t->num_allocated);
+	_ON(t->num_targets >= t->num_allocated);
 
 	tgt = t->targets + t->num_targets;
 	memset(tgt, 0, sizeof(*tgt));
@@ -856,7 +856,7 @@ EXPORT_SYMBOL(dm_shift_arg);
 
 void dm_consume_args(struct dm_arg_set *as, unsigned num_args)
 {
-	BUG_ON(as->argc < num_args);
+	_ON(as->argc < num_args);
 	as->argc -= num_args;
 	as->argv += num_args;
 }
@@ -942,8 +942,8 @@ static int dm_table_determine_type(struct dm_table *t)
 			/* possibly upgrade to a variant of bio-based */
 			goto verify_bio_based;
 		}
-		BUG_ON(t->type == DM_TYPE_DAX_BIO_BASED);
-		BUG_ON(t->type == DM_TYPE_NVME_BIO_BASED);
+		_ON(t->type == DM_TYPE_DAX_BIO_BASED);
+		_ON(t->type == DM_TYPE_NVME_BIO_BASED);
 		goto verify_rq_based;
 	}
 
@@ -995,7 +995,7 @@ verify_bio_based:
 		return 0;
 	}
 
-	BUG_ON(!request_based); /* No targets in this table */
+	_ON(!request_based); /* No targets in this table */
 
 	t->type = DM_TYPE_REQUEST_BASED;
 
@@ -1320,7 +1320,7 @@ void dm_table_event(struct dm_table *t)
 	 * You can no longer call dm_table_event() from interrupt
 	 * context, use a bottom half instead.
 	 */
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	mutex_lock(&_event_lock);
 	if (t->event_fn)

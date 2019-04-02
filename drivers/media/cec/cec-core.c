@@ -20,13 +20,13 @@
 #define CEC_NUM_DEVICES	256
 #define CEC_NAME	"cec"
 
-int cec_debug;
-module_param_named(debug, cec_debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+int cec_de;
+module_param_named(de, cec_de, int, 0644);
+MODULE_PARM_DESC(de, "de level (0-2)");
 
-static bool debug_phys_addr;
-module_param(debug_phys_addr, bool, 0644);
-MODULE_PARM_DESC(debug_phys_addr, "add CEC_CAP_PHYS_ADDR if set");
+static bool de_phys_addr;
+module_param(de_phys_addr, bool, 0644);
+MODULE_PARM_DESC(de_phys_addr, "add CEC_CAP_PHYS_ADDR if set");
 
 static dev_t cec_dev_t;
 
@@ -199,7 +199,7 @@ void cec_register_cec_notifier(struct cec_adapter *adap,
 EXPORT_SYMBOL_GPL(cec_register_cec_notifier);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static ssize_t cec_error_inj_write(struct file *file,
 	const char __user *ubuf, size_t count, loff_t *ppos)
 {
@@ -274,7 +274,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 	adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
 	adap->capabilities = caps;
-	if (debug_phys_addr)
+	if (de_phys_addr)
 		adap->capabilities |= CEC_CAP_PHYS_ADDR;
 	adap->needs_hpd = caps & CEC_CAP_NEEDS_HPD;
 	adap->available_log_addrs = available_las;
@@ -372,26 +372,26 @@ int cec_register_adapter(struct cec_adapter *adap,
 	}
 
 	dev_set_drvdata(&adap->devnode.dev, adap);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	if (!top_cec_dir)
 		return 0;
 
-	adap->cec_dir = debugfs_create_dir(dev_name(&adap->devnode.dev), top_cec_dir);
+	adap->cec_dir = defs_create_dir(dev_name(&adap->devnode.dev), top_cec_dir);
 	if (IS_ERR_OR_NULL(adap->cec_dir)) {
-		pr_warn("cec-%s: Failed to create debugfs dir\n", adap->name);
+		pr_warn("cec-%s: Failed to create defs dir\n", adap->name);
 		return 0;
 	}
-	adap->status_file = debugfs_create_devm_seqfile(&adap->devnode.dev,
+	adap->status_file = defs_create_devm_seqfile(&adap->devnode.dev,
 		"status", adap->cec_dir, cec_adap_status);
 	if (IS_ERR_OR_NULL(adap->status_file)) {
 		pr_warn("cec-%s: Failed to create status file\n", adap->name);
-		debugfs_remove_recursive(adap->cec_dir);
+		defs_remove_recursive(adap->cec_dir);
 		adap->cec_dir = NULL;
 		return 0;
 	}
 	if (!adap->ops->error_inj_show || !adap->ops->error_inj_parse_line)
 		return 0;
-	adap->error_inj_file = debugfs_create_file("error-inj", 0644,
+	adap->error_inj_file = defs_create_file("error-inj", 0644,
 						   adap->cec_dir, adap,
 						   &cec_error_inj_fops);
 	if (IS_ERR_OR_NULL(adap->error_inj_file))
@@ -412,7 +412,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 	rc_unregister_device(adap->rc);
 	adap->rc = NULL;
 #endif
-	debugfs_remove_recursive(adap->cec_dir);
+	defs_remove_recursive(adap->cec_dir);
 #ifdef CONFIG_CEC_NOTIFIER
 	if (adap->notifier)
 		cec_notifier_unregister(adap->notifier);
@@ -449,10 +449,10 @@ static int __init cec_devnode_init(void)
 		return ret;
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	top_cec_dir = debugfs_create_dir("cec", NULL);
+#ifdef CONFIG_DE_FS
+	top_cec_dir = defs_create_dir("cec", NULL);
 	if (IS_ERR_OR_NULL(top_cec_dir)) {
-		pr_warn("cec: Failed to create debugfs cec dir\n");
+		pr_warn("cec: Failed to create defs cec dir\n");
 		top_cec_dir = NULL;
 	}
 #endif
@@ -469,7 +469,7 @@ static int __init cec_devnode_init(void)
 
 static void __exit cec_devnode_exit(void)
 {
-	debugfs_remove_recursive(top_cec_dir);
+	defs_remove_recursive(top_cec_dir);
 	bus_unregister(&cec_bus_type);
 	unregister_chrdev_region(cec_dev_t, CEC_NUM_DEVICES);
 }

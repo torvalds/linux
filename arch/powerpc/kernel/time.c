@@ -6,7 +6,7 @@
  * MPC8xx/MBX changes by Dan Malek (dmalek@jlc.net).
  * Converted for 64-bit by Mike Corrigan (mikejc@us.ibm.com)
  *
- * First round of bugfixes by Gabriel Paubert (paubert@iram.es)
+ * First round of fixes by Gabriel Paubert (paubert@iram.es)
  * to make clock more stable (2.4.0-test5). The only thing
  * that this code assumes is that the timebases have been synchronized
  * by firmware on SMP and are never stopped (never do sleep
@@ -244,7 +244,7 @@ void accumulate_stolen_time(void)
 	/* We are called early in the exception entry, before
 	 * soft/hard_enabled are sync'ed to the expected state
 	 * for the exception. We are hard disabled but the PACA
-	 * needs to reflect that so various debug stuff doesn't
+	 * needs to reflect that so various de stuff doesn't
 	 * complain
 	 */
 	irq_soft_mask_set(IRQS_DISABLED);
@@ -1012,7 +1012,7 @@ static void register_decrementer_clockevent(int cpu)
 
 	clockevents_config_and_register(dec, ppc_tb_freq, 2, decrementer_max);
 
-	printk_once(KERN_DEBUG "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
+	printk_once(KERN_DE "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
 		    dec->name, dec->mult, dec->shift, cpu);
 
 	/* Set values for KVM, see kvm_emulate_dec() */
@@ -1096,9 +1096,9 @@ void __init time_init(void)
 	} else {
 		/* Normal PowerPC with timebase register */
 		ppc_md.calibrate_decr();
-		printk(KERN_DEBUG "time_init: decrementer frequency = %lu.%.6lu MHz\n",
+		printk(KERN_DE "time_init: decrementer frequency = %lu.%.6lu MHz\n",
 		       ppc_tb_freq / 1000000, ppc_tb_freq % 1000000);
-		printk(KERN_DEBUG "time_init: processor frequency   = %lu.%.6lu MHz\n",
+		printk(KERN_DE "time_init: processor frequency   = %lu.%.6lu MHz\n",
 		       ppc_proc_freq / 1000000, ppc_proc_freq % 1000000);
 	}
 
@@ -1193,7 +1193,7 @@ void div128_by_32(u64 dividend_high, u64 dividend_low,
 /* We don't need to calibrate delay, we use the CPU timebase for that */
 void calibrate_delay(void)
 {
-	/* Some generic code (such as spinlock debug) use loops_per_jiffy
+	/* Some generic code (such as spinlock de) use loops_per_jiffy
 	 * as the number of __delay(1) in a jiffy, so make it so
 	 */
 	loops_per_jiffy = tb_ticks_per_jiffy;

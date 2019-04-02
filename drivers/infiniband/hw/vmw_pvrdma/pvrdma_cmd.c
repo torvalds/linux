@@ -90,7 +90,7 @@ pvrdma_cmd_post(struct pvrdma_dev *dev, union pvrdma_cmd_req *req,
 	/* Serializiation */
 	down(&dev->cmd_sema);
 
-	BUILD_BUG_ON(sizeof(union pvrdma_cmd_req) !=
+	BUILD__ON(sizeof(union pvrdma_cmd_req) !=
 		     sizeof(struct pvrdma_cmd_modify_qp));
 
 	spin_lock(&dev->cmd_lock);

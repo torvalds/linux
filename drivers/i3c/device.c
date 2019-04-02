@@ -6,7 +6,7 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/mutex.h>

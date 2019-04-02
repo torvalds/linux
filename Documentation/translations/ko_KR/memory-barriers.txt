@@ -694,7 +694,7 @@ include/linux/rcupdate.h 의 rcu_assign_pointer() 와 rcu_dereference() 를
 
 	q = READ_ONCE(a);
 	if (q) {
-		<데이터 의존성 배리어>  /* BUG: No data dependency!!! */
+		<데이터 의존성 배리어>  /* : No data dependency!!! */
 		p = READ_ONCE(b);
 	}
 
@@ -730,7 +730,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 있다면, 앞의 예에서 "if" 문을 없애서 다음과 같이 최적화 할 수도 있습니다:
 
 	q = a;
-	b = 1;  /* BUG: Compiler and CPU can both reorder!!! */
+	b = 1;  /* : Compiler and CPU can both reorder!!! */
 
 그러니 READ_ONCE() 를 반드시 사용하세요.
 
@@ -753,12 +753,12 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	barrier();
-	WRITE_ONCE(b, 1);  /* BUG: No ordering vs. load from a!!! */
+	WRITE_ONCE(b, 1);  /* : No ordering vs. load from a!!! */
 	if (q) {
-		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, !!! */
 		do_something();
 	} else {
-		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
+		/* WRITE_ONCE(b, 1); -- moved up, !!! */
 		do_something_else();
 	}
 
@@ -819,7 +819,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 사용해 분명히 해야 합니다:
 
 	q = READ_ONCE(a);
-	BUILD_BUG_ON(MAX <= 1); /* Order load from a with store to b. */
+	BUILD__ON(MAX <= 1); /* Order load from a with store to b. */
 	if (q % MAX) {
 		WRITE_ONCE(b, 1);
 		do_something();
@@ -860,7 +860,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 	} else {
 		WRITE_ONCE(b, 2);
 	}
-	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from 'a'. */
+	WRITE_ONCE(c, 1);  /* : No ordering against the read from 'a'. */
 
 컴파일러는 volatile 타입에 대한 액세스를 재배치 할 수 없고 이 조건 하의 'b'
 로의 쓰기를 재배치 할 수 없기 때문에 여기에 순서 규칙이 존재한다고 주장하고

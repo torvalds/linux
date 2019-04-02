@@ -49,8 +49,8 @@ struct ves1x93_state {
 	u32 frequency;
 };
 
-static int debug;
-#define dprintk	if (debug) printk
+static int de;
+#define dprintk	if (de) printk
 
 #define DEMOD_VES1893		0
 #define DEMOD_VES1993		1
@@ -547,7 +547,7 @@ static const struct dvb_frontend_ops ves1x93_ops = {
 	.set_voltage = ves1x93_set_voltage,
 };
 
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 
 MODULE_DESCRIPTION("VLSI VES1x93 DVB-S Demodulator driver");
 MODULE_AUTHOR("Ralph Metzler");

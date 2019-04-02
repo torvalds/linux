@@ -16,7 +16,7 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfwdebug.h>
+#include <asm/mcfwde.h>
 
 /***************************************************************************/
 
@@ -25,7 +25,7 @@
 asmlinkage void dbginterrupt_c(struct frame *fp)
 {
 	extern void dump(struct pt_regs *fp);
-	printk(KERN_DEBUG "%s(%d): BUS ERROR TRAP\n", __FILE__, __LINE__);
+	printk(KERN_DE "%s(%d): BUS ERROR TRAP\n", __FILE__, __LINE__);
 	dump((struct pt_regs *) fp);
 	asm("halt");
 }

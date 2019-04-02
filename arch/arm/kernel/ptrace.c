@@ -386,7 +386,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 	int i;
 
 	for (i = 0; i < ARM_MAX_HBP_SLOTS; ++i)
-		if (current->thread.debug.hbp[i] == bp)
+		if (current->thread.de.hbp[i] == bp)
 			break;
 
 	num = (i == ARM_MAX_HBP_SLOTS) ? 0 : ptrace_hbp_idx_to_num(i);
@@ -401,7 +401,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
  */
 void clear_ptrace_hw_breakpoint(struct task_struct *tsk)
 {
-	memset(tsk->thread.debug.hbp, 0, sizeof(tsk->thread.debug.hbp));
+	memset(tsk->thread.de.hbp, 0, sizeof(tsk->thread.de.hbp));
 }
 
 /*
@@ -414,24 +414,24 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 	struct thread_struct *t = &tsk->thread;
 
 	for (i = 0; i < ARM_MAX_HBP_SLOTS; i++) {
-		if (t->debug.hbp[i]) {
-			unregister_hw_breakpoint(t->debug.hbp[i]);
-			t->debug.hbp[i] = NULL;
+		if (t->de.hbp[i]) {
+			unregister_hw_breakpoint(t->de.hbp[i]);
+			t->de.hbp[i] = NULL;
 		}
 	}
 }
 
 static u32 ptrace_get_hbp_resource_info(void)
 {
-	u8 num_brps, num_wrps, debug_arch, wp_len;
+	u8 num_brps, num_wrps, de_arch, wp_len;
 	u32 reg = 0;
 
 	num_brps	= hw_breakpoint_slots(TYPE_INST);
 	num_wrps	= hw_breakpoint_slots(TYPE_DATA);
-	debug_arch	= arch_get_debug_arch();
+	de_arch	= arch_get_de_arch();
 	wp_len		= arch_get_max_wp_len();
 
-	reg		|= debug_arch;
+	reg		|= de_arch;
 	reg		<<= 8;
 	reg		|= wp_len;
 	reg		<<= 8;
@@ -475,7 +475,7 @@ static int ptrace_gethbpregs(struct task_struct *tsk, long num,
 			goto out;
 		}
 
-		bp = tsk->thread.debug.hbp[idx];
+		bp = tsk->thread.de.hbp[idx];
 		if (!bp) {
 			reg = 0;
 			goto put;
@@ -531,14 +531,14 @@ static int ptrace_sethbpregs(struct task_struct *tsk, long num,
 		goto out;
 	}
 
-	bp = tsk->thread.debug.hbp[idx];
+	bp = tsk->thread.de.hbp[idx];
 	if (!bp) {
 		bp = ptrace_hbp_create(tsk, implied_type);
 		if (IS_ERR(bp)) {
 			ret = PTR_ERR(bp);
 			goto out;
 		}
-		tsk->thread.debug.hbp[idx] = bp;
+		tsk->thread.de.hbp[idx] = bp;
 	}
 
 	attr = bp->attr;
@@ -948,7 +948,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 asmlinkage void syscall_trace_exit(struct pt_regs *regs)
 {
 	/*
-	 * Audit the syscall before anything else, as a debugger may
+	 * Audit the syscall before anything else, as a deger may
 	 * come in and change the current registers.
 	 */
 	audit_syscall_exit(regs);

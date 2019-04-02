@@ -191,7 +191,7 @@ static bool offset_to_id(
 	case REG(DC_GPIO_PWRSEQ_A):
 	case REG(DC_GPIO_PAD_STRENGTH_1):
 	case REG(DC_GPIO_PAD_STRENGTH_2):
-	case REG(DC_GPIO_DEBUG):
+	case REG(DC_GPIO_DE):
 		return false;
 	/* UNEXPECTED */
 	default:

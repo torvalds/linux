@@ -137,7 +137,7 @@ struct mrq_response {
 #define MRQ_WRITE_TRACE		8
 #define MRQ_THREADED_PING	9
 #define MRQ_MODULE_MAIL		11
-#define MRQ_DEBUGFS		19
+#define MRQ_DEFS		19
 #define MRQ_RESET		20
 #define MRQ_I2C			21
 #define MRQ_CLK			22
@@ -176,7 +176,7 @@ struct mrq_response {
  *   @defgroup Query_Tag Query Tag
  *   @defgroup Module Loadable Modules
  *   @defgroup Trace Trace
- *   @defgroup Debugfs Debug File System
+ *   @defgroup Defs De File System
  *   @defgroup Reset Reset
  *   @defgroup I2C I2C
  *   @defgroup Clocks Clocks
@@ -540,56 +540,56 @@ struct mrq_module_mail_response {
 
 /**
  * @ingroup MRQ_Codes
- * @def MRQ_DEBUGFS
- * @brief Interact with BPMP's debugfs file nodes
+ * @def MRQ_DEFS
+ * @brief Interact with BPMP's defs file nodes
  *
  * * Platforms: T186, T194
  * * Initiators: Any
  * * Targets: BPMP
- * * Request Payload: @ref mrq_debugfs_request
- * * Response Payload: @ref mrq_debugfs_response
+ * * Request Payload: @ref mrq_defs_request
+ * * Response Payload: @ref mrq_defs_response
  */
 
 /**
- * @addtogroup Debugfs
+ * @addtogroup Defs
  * @{
  *
  * The BPMP firmware implements a pseudo-filesystem called
- * debugfs. Any driver within the firmware may register with debugfs
+ * defs. Any driver within the firmware may register with defs
  * to expose an arbitrary set of "files" in the filesystem. When
- * software on the CPU writes to a debugfs file, debugfs passes the
+ * software on the CPU writes to a defs file, defs passes the
  * written data to a callback provided by the driver. When software on
- * the CPU reads a debugfs file, debugfs queries the driver for the
- * data to return to the CPU. The intention of the debugfs filesystem
- * is to provide information useful for debugging the system at
+ * the CPU reads a defs file, defs queries the driver for the
+ * data to return to the CPU. The intention of the defs filesystem
+ * is to provide information useful for deging the system at
  * runtime.
  *
- * @note The files exposed via debugfs are not part of the
- * BPMP firmware's ABI. debugfs files may be added or removed in any
- * given version of the firmware. Typically the semantics of a debugfs
+ * @note The files exposed via defs are not part of the
+ * BPMP firmware's ABI. defs files may be added or removed in any
+ * given version of the firmware. Typically the semantics of a defs
  * file are consistent from version to version but even that is not
  * guaranteed.
  *
  * @}
  */
 
-/** @ingroup Debugfs */
-enum mrq_debugfs_commands {
+/** @ingroup Defs */
+enum mrq_defs_commands {
 	/** @brief Perform read */
-	CMD_DEBUGFS_READ = 1,
+	CMD_DEFS_READ = 1,
 	/** @brief Perform write */
-	CMD_DEBUGFS_WRITE = 2,
+	CMD_DEFS_WRITE = 2,
 	/** @brief Perform dumping directory */
-	CMD_DEBUGFS_DUMPDIR = 3,
+	CMD_DEFS_DUMPDIR = 3,
 	/** @brief Not a command */
-	CMD_DEBUGFS_MAX
+	CMD_DEFS_MAX
 };
 
 /**
- * @ingroup Debugfs
- * @brief Parameters for CMD_DEBUGFS_READ/WRITE command
+ * @ingroup Defs
+ * @brief Parameters for CMD_DEFS_READ/WRITE command
  */
-struct cmd_debugfs_fileop_request {
+struct cmd_defs_fileop_request {
 	/** @brief Physical address pointing at filename */
 	uint32_t fnameaddr;
 	/** @brief Length in bytes of filename buffer */
@@ -601,10 +601,10 @@ struct cmd_debugfs_fileop_request {
 } __ABI_PACKED;
 
 /**
- * @ingroup Debugfs
- * @brief Parameters for CMD_DEBUGFS_READ/WRITE command
+ * @ingroup Defs
+ * @brief Parameters for CMD_DEFS_READ/WRITE command
  */
-struct cmd_debugfs_dumpdir_request {
+struct cmd_defs_dumpdir_request {
 	/** @brief Physical address pointing to data buffer */
 	uint32_t dataaddr;
 	/** @brief Length in bytes of data buffer */
@@ -612,10 +612,10 @@ struct cmd_debugfs_dumpdir_request {
 } __ABI_PACKED;
 
 /**
- * @ingroup Debugfs
- * @brief Response data for CMD_DEBUGFS_READ/WRITE command
+ * @ingroup Defs
+ * @brief Response data for CMD_DEFS_READ/WRITE command
  */
-struct cmd_debugfs_fileop_response {
+struct cmd_defs_fileop_response {
 	/** @brief Always 0 */
 	uint32_t reserved;
 	/** @brief Number of bytes read from or written to data buffer */
@@ -623,10 +623,10 @@ struct cmd_debugfs_fileop_response {
 } __ABI_PACKED;
 
 /**
- * @ingroup Debugfs
- * @brief Response data for CMD_DEBUGFS_DUMPDIR command
+ * @ingroup Defs
+ * @brief Response data for CMD_DEFS_DUMPDIR command
  */
-struct cmd_debugfs_dumpdir_response {
+struct cmd_defs_dumpdir_response {
 	/** @brief Always 0 */
 	uint32_t reserved;
 	/** @brief Number of bytes read from or written to data buffer */
@@ -634,52 +634,52 @@ struct cmd_debugfs_dumpdir_response {
 } __ABI_PACKED;
 
 /**
- * @ingroup Debugfs
- * @brief Request with #MRQ_DEBUGFS.
+ * @ingroup Defs
+ * @brief Request with #MRQ_DEFS.
  *
- * The sender of an MRQ_DEBUGFS message uses #cmd to specify a debugfs
+ * The sender of an MRQ_DEFS message uses #cmd to specify a defs
  * command to execute. Legal commands are the values of @ref
- * mrq_debugfs_commands. Each command requires a specific additional
+ * mrq_defs_commands. Each command requires a specific additional
  * payload of data.
  *
  * |command            |payload|
  * |-------------------|-------|
- * |CMD_DEBUGFS_READ   |fop    |
- * |CMD_DEBUGFS_WRITE  |fop    |
- * |CMD_DEBUGFS_DUMPDIR|dumpdir|
+ * |CMD_DEFS_READ   |fop    |
+ * |CMD_DEFS_WRITE  |fop    |
+ * |CMD_DEFS_DUMPDIR|dumpdir|
  */
-struct mrq_debugfs_request {
-	/** @brief Sub-command (@ref mrq_debugfs_commands) */
+struct mrq_defs_request {
+	/** @brief Sub-command (@ref mrq_defs_commands) */
 	uint32_t cmd;
 	union {
-		struct cmd_debugfs_fileop_request fop;
-		struct cmd_debugfs_dumpdir_request dumpdir;
+		struct cmd_defs_fileop_request fop;
+		struct cmd_defs_dumpdir_request dumpdir;
 	} __UNION_ANON;
 } __ABI_PACKED;
 
 /**
- * @ingroup Debugfs
+ * @ingroup Defs
  */
-struct mrq_debugfs_response {
+struct mrq_defs_response {
 	/** @brief Always 0 */
 	int32_t reserved;
 	union {
-		/** @brief Response data for CMD_DEBUGFS_READ OR
-		 * CMD_DEBUGFS_WRITE command
+		/** @brief Response data for CMD_DEFS_READ OR
+		 * CMD_DEFS_WRITE command
 		 */
-		struct cmd_debugfs_fileop_response fop;
-		/** @brief Response data for CMD_DEBUGFS_DUMPDIR command */
-		struct cmd_debugfs_dumpdir_response dumpdir;
+		struct cmd_defs_fileop_response fop;
+		/** @brief Response data for CMD_DEFS_DUMPDIR command */
+		struct cmd_defs_dumpdir_response dumpdir;
 	} __UNION_ANON;
 } __ABI_PACKED;
 
 /**
- * @addtogroup Debugfs
+ * @addtogroup Defs
  * @{
  */
-#define DEBUGFS_S_ISDIR	(1 << 9)
-#define DEBUGFS_S_IRUSR	(1 << 8)
-#define DEBUGFS_S_IWUSR	(1 << 7)
+#define DEFS_S_ISDIR	(1 << 9)
+#define DEFS_S_IRUSR	(1 << 8)
+#define DEFS_S_IWUSR	(1 << 7)
 /** @} */
 
 /**
@@ -1683,7 +1683,7 @@ struct cpu_vhint_data {
  * 1. That future revision deprecates some MRQ
  * 2. That future revision introduces a breaking change to an existing
  *    MRQ or
- * 3. A bug is discovered in an existing implementation of the BPMP-FW
+ * 3. A  is discovered in an existing implementation of the BPMP-FW
  *    (or possibly one of its clients) which warrants deprecating that
  *    implementation.
  */
@@ -1886,11 +1886,11 @@ struct mrq_trace_iter_request {
 /**
  * @ingroup MRQ_Codes
  * @def MRQ_RINGBUF_CONSOLE
- * @brief A ring buffer debug console for BPMP
+ * @brief A ring buffer de console for BPMP
  * @addtogroup RingbufConsole
  *
- * The ring buffer debug console aims to be a substitute for the UART debug
- * console. The debug console is implemented with two ring buffers in the
+ * The ring buffer de console aims to be a substitute for the UART de
+ * console. The de console is implemented with two ring buffers in the
  * BPMP-FW, the RX (receive) and TX (transmit) buffers. Characters can be read
  * and written to the buffers by the host via the MRQ interface.
  *

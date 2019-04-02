@@ -1,5 +1,5 @@
 /*
- *   fs/cifs_debug.c
+ *   fs/cifs_de.c
  *
  *   Copyright (C) International Business Machines  Corp., 2000,2005
  *
@@ -28,7 +28,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsfs.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dfs_cache.h"
@@ -40,14 +40,14 @@
 void
 cifs_dump_mem(char *label, void *data, int length)
 {
-	pr_debug("%s: dump of %d bytes of data at 0x%p\n", label, length, data);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 4,
+	pr_de("%s: dump of %d bytes of data at 0x%p\n", label, length, data);
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 16, 4,
 		       data, length, true);
 }
 
 void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
 
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d\n",
@@ -55,12 +55,12 @@ void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 		 smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
 	cifs_dbg(VFS, "smb buf %p len %u\n", smb,
 		 server->ops->calc_smb_size(smb, server));
-#endif /* CONFIG_CIFS_DEBUG2 */
+#endif /* CONFIG_CIFS_DE2 */
 }
 
 void cifs_dump_mids(struct TCP_Server_Info *server)
 {
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	struct list_head *tmp;
 	struct mid_q_entry *mid_entry;
 
@@ -93,11 +93,11 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
-#endif /* CONFIG_CIFS_DEBUG2 */
+#endif /* CONFIG_CIFS_DE2 */
 }
 
 #ifdef CONFIG_PROC_FS
-static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
+static void cifs_de_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 {
 	__u32 dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
 
@@ -153,7 +153,7 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 		seq_printf(m, "\t\tIPv6: %pI6\n", &ipv6->sin6_addr);
 }
 
-static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
+static int cifs_de_files_proc_show(struct seq_file *m, void *v)
 {
 	struct list_head *stmp, *tmp, *tmp1, *tmp2;
 	struct TCP_Server_Info *server;
@@ -164,11 +164,11 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 	seq_puts(m, "# Version:1\n");
 	seq_puts(m, "# Format:\n");
 	seq_puts(m, "# <tree id> <persistent fid> <flags> <count> <pid> <uid>");
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	seq_printf(m, " <filename> <mid>\n");
 #else
 	seq_printf(m, " <filename>\n");
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(stmp, &cifs_tcp_ses_list) {
 		server = list_entry(stmp, struct TCP_Server_Info,
@@ -190,11 +190,11 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 						cfile->pid,
 						from_kuid(&init_user_ns, cfile->uid),
 						cfile->dentry->d_name.name);
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 					seq_printf(m, " 0x%llx\n", cfile->fid.mid);
 #else
 					seq_printf(m, "\n");
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 				}
 				spin_unlock(&tcon->open_file_lock);
 			}
@@ -205,7 +205,7 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
+static int cifs_de_data_proc_show(struct seq_file *m, void *v)
 {
 	struct list_head *tmp1, *tmp2, *tmp3;
 	struct mid_q_entry *mid_entry;
@@ -215,7 +215,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	int i, j;
 
 	seq_puts(m,
-		    "Display Internal CIFS Data Structures for Debugging\n"
+		    "Display Internal CIFS Data Structures for Deging\n"
 		    "---------------------------------------------------\n");
 	seq_printf(m, "CIFS Version %s\n", CIFS_VERSION);
 	seq_printf(m, "Features:");
@@ -233,10 +233,10 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 #else
 	seq_printf(m, ",STATS");
 #endif
-#ifdef CONFIG_CIFS_DEBUG2
-	seq_printf(m, ",DEBUG2");
-#elif defined(CONFIG_CIFS_DEBUG)
-	seq_printf(m, ",DEBUG");
+#ifdef CONFIG_CIFS_DE2
+	seq_printf(m, ",DE2");
+#elif defined(CONFIG_CIFS_DE)
+	seq_printf(m, ",DE");
 #endif
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	seq_printf(m, ",ALLOW_INSECURE_LEGACY");
@@ -290,7 +290,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			server->smbd_conn->keep_alive_interval,
 			server->smbd_conn->max_readwrite_size,
 			server->smbd_conn->rdma_readwrite_threshold);
-		seq_printf(m, "\nDebug count_get_receive_buffer: %x "
+		seq_printf(m, "\nDe count_get_receive_buffer: %x "
 			"count_put_receive_buffer: %x count_send_empty: %x",
 			server->smbd_conn->count_get_receive_buffer,
 			server->smbd_conn->count_put_receive_buffer,
@@ -386,7 +386,7 @@ skip_rdma:
 
 			seq_printf(m, "\n\t%d) IPC: ", j);
 			if (ses->tcon_ipc)
-				cifs_debug_tcon(m, ses->tcon_ipc);
+				cifs_de_tcon(m, ses->tcon_ipc);
 			else
 				seq_puts(m, "none\n");
 
@@ -395,7 +395,7 @@ skip_rdma:
 						  tcon_list);
 				++j;
 				seq_printf(m, "\n\t%d) ", j);
-				cifs_debug_tcon(m, tcon);
+				cifs_de_tcon(m, tcon);
 			}
 
 			seq_puts(m, "\n\tMIDs:\n");
@@ -627,11 +627,11 @@ cifs_proc_init(void)
 	if (proc_fs_cifs == NULL)
 		return;
 
-	proc_create_single("DebugData", 0, proc_fs_cifs,
-			cifs_debug_data_proc_show);
+	proc_create_single("DeData", 0, proc_fs_cifs,
+			cifs_de_data_proc_show);
 
 	proc_create_single("open_files", 0400, proc_fs_cifs,
-			cifs_debug_files_proc_show);
+			cifs_de_files_proc_show);
 
 	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
 	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
@@ -673,7 +673,7 @@ cifs_proc_clean(void)
 	if (proc_fs_cifs == NULL)
 		return;
 
-	remove_proc_entry("DebugData", proc_fs_cifs);
+	remove_proc_entry("DeData", proc_fs_cifs);
 	remove_proc_entry("open_files", proc_fs_cifs);
 	remove_proc_entry("cifsFYI", proc_fs_cifs);
 	remove_proc_entry("traceSMB", proc_fs_cifs);
@@ -722,7 +722,7 @@ static ssize_t cifsFYI_proc_write(struct file *file, const char __user *buffer,
 	if (strtobool(c, &bv) == 0)
 		cifsFYI = bv;
 	else if ((c[0] > '1') && (c[0] <= '9'))
-		cifsFYI = (int) (c[0] - '0'); /* see cifs_debug.h for meanings */
+		cifsFYI = (int) (c[0] - '0'); /* see cifs_de.h for meanings */
 	else
 		return -EINVAL;
 

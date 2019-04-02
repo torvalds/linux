@@ -20,7 +20,7 @@
  */
 
 /* Uncomment next line to get verbose printout */
-/* #define DEBUG */
+/* #define DE */
 #define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/init.h>
@@ -66,7 +66,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_local_apic *p =
 			    (struct acpi_madt_local_apic *)header;
-			pr_debug("LAPIC (acpi_id[0x%02x] lapic_id[0x%02x] %s)\n",
+			pr_de("LAPIC (acpi_id[0x%02x] lapic_id[0x%02x] %s)\n",
 				 p->processor_id, p->id,
 				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
@@ -76,7 +76,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_local_x2apic *p =
 			    (struct acpi_madt_local_x2apic *)header;
-			pr_debug("X2APIC (apic_id[0x%02x] uid[0x%02x] %s)\n",
+			pr_de("X2APIC (apic_id[0x%02x] uid[0x%02x] %s)\n",
 				 p->local_apic_id, p->uid,
 				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
@@ -86,7 +86,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_io_apic *p =
 			    (struct acpi_madt_io_apic *)header;
-			pr_debug("IOAPIC (id[0x%02x] address[0x%08x] gsi_base[%d])\n",
+			pr_de("IOAPIC (id[0x%02x] address[0x%08x] gsi_base[%d])\n",
 				 p->id, p->address, p->global_irq_base);
 		}
 		break;
@@ -160,7 +160,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_io_sapic *p =
 			    (struct acpi_madt_io_sapic *)header;
-			pr_debug("IOSAPIC (id[0x%x] address[%p] gsi_base[%d])\n",
+			pr_de("IOSAPIC (id[0x%x] address[%p] gsi_base[%d])\n",
 				 p->id, (void *)(unsigned long)p->address,
 				 p->global_irq_base);
 		}
@@ -170,7 +170,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_local_sapic *p =
 			    (struct acpi_madt_local_sapic *)header;
-			pr_debug("LSAPIC (acpi_id[0x%02x] lsapic_id[0x%02x] lsapic_eid[0x%02x] %s)\n",
+			pr_de("LSAPIC (acpi_id[0x%02x] lsapic_id[0x%02x] lsapic_eid[0x%02x] %s)\n",
 				 p->processor_id, p->id, p->eid,
 				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
@@ -192,7 +192,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_generic_interrupt *p =
 				(struct acpi_madt_generic_interrupt *)header;
-			pr_debug("GICC (acpi_id[0x%04x] address[%llx] MPIDR[0x%llx] %s)\n",
+			pr_de("GICC (acpi_id[0x%04x] address[%llx] MPIDR[0x%llx] %s)\n",
 				 p->uid, p->base_address,
 				 p->arm_mpidr,
 				 (p->flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
@@ -204,7 +204,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_generic_distributor *p =
 				(struct acpi_madt_generic_distributor *)header;
-			pr_debug("GIC Distributor (gic_id[0x%04x] address[%llx] gsi_base[%d])\n",
+			pr_de("GIC Distributor (gic_id[0x%04x] address[%llx] gsi_base[%d])\n",
 				 p->gic_id, p->base_address,
 				 p->global_irq_base);
 		}
@@ -220,7 +220,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 /**
  * acpi_parse_entries_array - for each proc_num find a suitable subtable
  *
- * @id: table id (for debugging purposes)
+ * @id: table id (for deging purposes)
  * @table_size: size of the root table
  * @table_header: where does the table start?
  * @proc: array of acpi_subtable_proc struct containing entry id
@@ -415,7 +415,7 @@ static void __init check_multiple_madt(void)
 
 	acpi_get_table(ACPI_SIG_MADT, 2, &table);
 	if (table) {
-		pr_warn("BIOS bug: multiple APIC/MADT found, using %d\n",
+		pr_warn("BIOS : multiple APIC/MADT found, using %d\n",
 			acpi_apic_instance);
 		pr_warn("If \"acpi_apic_instance=%d\" works better, "
 			"notify linux-acpi@vger.kernel.org\n",

@@ -41,9 +41,9 @@ struct acr_r367_lsf_lsb_header {
 	/**
 	 * LS falcon signatures
 	 * @prd_keys:		signature to use in production mode
-	 * @dgb_keys:		signature to use in debug mode
+	 * @dgb_keys:		signature to use in de mode
 	 * @b_prd_present:	whether the production key is present
-	 * @b_dgb_present:	whether the debug key is present
+	 * @b_dgb_present:	whether the de key is present
 	 * @falcon_id:		ID of the falcon the ucode applies to
 	 */
 	struct {

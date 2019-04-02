@@ -165,9 +165,9 @@ hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
 	*read = dsize - *write;
 }
 
-/* Get various debug metrics for the specified ring buffer. */
-int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-				struct hv_ring_buffer_debug_info *debug_info)
+/* Get various de metrics for the specified ring buffer. */
+int hv_ringbuffer_get_deinfo(const struct hv_ring_buffer_info *ring_info,
+				struct hv_ring_buffer_de_info *de_info)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
@@ -178,15 +178,15 @@ int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
 	hv_get_ringbuffer_availbytes(ring_info,
 				     &bytes_avail_toread,
 				     &bytes_avail_towrite);
-	debug_info->bytes_avail_toread = bytes_avail_toread;
-	debug_info->bytes_avail_towrite = bytes_avail_towrite;
-	debug_info->current_read_index = ring_info->ring_buffer->read_index;
-	debug_info->current_write_index = ring_info->ring_buffer->write_index;
-	debug_info->current_interrupt_mask
+	de_info->bytes_avail_toread = bytes_avail_toread;
+	de_info->bytes_avail_towrite = bytes_avail_towrite;
+	de_info->current_read_index = ring_info->ring_buffer->read_index;
+	de_info->current_write_index = ring_info->ring_buffer->write_index;
+	de_info->current_interrupt_mask
 		= ring_info->ring_buffer->interrupt_mask;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hv_ringbuffer_get_debuginfo);
+EXPORT_SYMBOL_GPL(hv_ringbuffer_get_deinfo);
 
 /* Initialize the ring buffer. */
 int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
@@ -195,7 +195,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 	int i;
 	struct page **pages_wraparound;
 
-	BUILD_BUG_ON((sizeof(struct hv_ring_buffer) != PAGE_SIZE));
+	BUILD__ON((sizeof(struct hv_ring_buffer) != PAGE_SIZE));
 
 	memset(ring_info, 0, sizeof(struct hv_ring_buffer_info));
 

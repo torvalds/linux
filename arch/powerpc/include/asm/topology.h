@@ -56,7 +56,7 @@ static inline int early_cpu_to_node(int cpu)
 	nid = numa_cpu_lookup_table[cpu];
 
 	/*
-	 * Fall back to node 0 if nid is unset (it should be, except bugs).
+	 * Fall back to node 0 if nid is unset (it should be, except s).
 	 * This allows callers to safely do NODE_DATA(early_cpu_to_node(cpu)).
 	 */
 	return (nid < 0) ? 0 : nid;

@@ -67,7 +67,7 @@ nouveau_conn_native_mode(struct drm_connector *connector)
 
 		/* Use preferred mode if there is one.. */
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			NV_DEBUG(drm, "native mode from preferred\n");
+			NV_DE(drm, "native mode from preferred\n");
 			return drm_mode_duplicate(dev, mode);
 		}
 
@@ -90,7 +90,7 @@ nouveau_conn_native_mode(struct drm_connector *connector)
 		largest = mode;
 	}
 
-	NV_DEBUG(drm, "native mode from largest: %dx%d@%d\n",
+	NV_DE(drm, "native mode from largest: %dx%d@%d\n",
 		      high_w, high_h, high_v);
 	return largest ? drm_mode_duplicate(dev, largest) : NULL;
 }
@@ -1050,7 +1050,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		clock = clock * (connector->display_info.bpc * 3) / 10;
 		break;
 	default:
-		BUG();
+		();
 		return MODE_BAD;
 	}
 
@@ -1137,7 +1137,7 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 		 * calls nvif_put() on our nvif_notify struct. So, simply
 		 * defer the hotplug event until the device finishes resuming
 		 */
-		NV_DEBUG(drm, "Deferring HPD on %s until runtime resume\n",
+		NV_DE(drm, "Deferring HPD on %s until runtime resume\n",
 			 name);
 		schedule_work(&drm->hpd_work);
 
@@ -1150,7 +1150,7 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 	}
 
 	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
-		NV_DEBUG(drm, "service %s\n", name);
+		NV_DE(drm, "service %s\n", name);
 		drm_dp_cec_irq(&nv_connector->aux);
 		if ((nv_encoder = find_encoder(connector, DCB_OUTPUT_DP)))
 			nv50_mstm_service(nv_encoder->dp.mstm);
@@ -1159,7 +1159,7 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 
 		if (!plugged)
 			drm_dp_cec_unset_edid(&nv_connector->aux);
-		NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
+		NV_DE(drm, "%splugged %s\n", plugged ? "" : "un", name);
 		if ((nv_encoder = find_encoder(connector, DCB_OUTPUT_DP))) {
 			if (!plugged)
 				nv50_mstm_remove(nv_encoder->dp.mstm);

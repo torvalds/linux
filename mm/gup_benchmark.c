@@ -3,7 +3,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
 #define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
@@ -122,7 +122,7 @@ static const struct file_operations gup_benchmark_fops = {
 
 static int gup_benchmark_init(void)
 {
-	debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
+	defs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
 				   &gup_benchmark_fops);
 
 	return 0;

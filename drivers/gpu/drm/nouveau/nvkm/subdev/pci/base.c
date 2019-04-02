@@ -223,7 +223,7 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 	if (pci->msi && func->msi_rearm) {
 		pci->msi = pci_enable_msi(pci->pdev) == 0;
 		if (pci->msi)
-			nvkm_debug(&pci->subdev, "MSI enabled\n");
+			nvkm_de(&pci->subdev, "MSI enabled\n");
 	} else {
 		pci->msi = false;
 	}

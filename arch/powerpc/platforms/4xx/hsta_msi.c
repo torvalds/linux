@@ -47,14 +47,14 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	/* We don't support MSI-X */
 	if (type == PCI_CAP_ID_MSIX) {
-		pr_debug("%s: MSI-X not supported.\n", __func__);
+		pr_de("%s: MSI-X not supported.\n", __func__);
 		return -EINVAL;
 	}
 
 	for_each_pci_msi_entry(entry, dev) {
 		irq = msi_bitmap_alloc_hwirqs(&ppc4xx_hsta_msi.bmp, 1);
 		if (irq < 0) {
-			pr_debug("%s: Failed to allocate msi interrupt\n",
+			pr_de("%s: Failed to allocate msi interrupt\n",
 				 __func__);
 			return irq;
 		}
@@ -76,7 +76,7 @@ static int hsta_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		/* Data is not used by the HSTA. */
 		msg.data = 0;
 
-		pr_debug("%s: Setup irq %d (0x%0llx)\n", __func__, hwirq,
+		pr_de("%s: Setup irq %d (0x%0llx)\n", __func__, hwirq,
 			 (((u64) msg.address_hi) << 32) | msg.address_lo);
 
 		if (irq_set_msi_desc(hwirq, entry)) {
@@ -116,10 +116,10 @@ static void hsta_teardown_msi_irqs(struct pci_dev *dev)
 		irq = hsta_find_hwirq_offset(entry->irq);
 
 		/* entry->irq should always be in irq_map */
-		BUG_ON(irq < 0);
+		_ON(irq < 0);
 		irq_set_msi_desc(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&ppc4xx_hsta_msi.bmp, irq, 1);
-		pr_debug("%s: Teardown IRQ %u (index %u)\n", __func__,
+		pr_de("%s: Teardown IRQ %u (index %u)\n", __func__,
 			 entry->irq, irq);
 	}
 }

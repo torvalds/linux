@@ -87,7 +87,7 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 		goto out;
 	}
 
-	BUG_ON(hdr_off || sg || off);
+	_ON(hdr_off || sg || off);
 
 	rds_inc_init(&rm->m_inc, conn, &conn->c_laddr);
 	/* For the embedded inc. Matching put is in loop_inc_free() */
@@ -129,7 +129,7 @@ struct rds_loop_connection {
 /*
  * Even the loopback transport needs to keep track of its connections,
  * so it can call rds_conn_destroy() on them on exit. N.B. there are
- * 1+ loopback addresses (127.*.*.*) so it's not a bug to have
+ * 1+ loopback addresses (127.*.*.*) so it's not a  to have
  * multiple loopback conns allocated, although rather useless.
  */
 static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
@@ -157,7 +157,7 @@ static void rds_loop_conn_free(void *arg)
 	struct rds_loop_connection *lc = arg;
 	unsigned long flags;
 
-	rdsdebug("lc %p\n", lc);
+	rdsde("lc %p\n", lc);
 	spin_lock_irqsave(&loop_conns_lock, flags);
 	list_del(&lc->loop_node);
 	spin_unlock_irqrestore(&loop_conns_lock, flags);

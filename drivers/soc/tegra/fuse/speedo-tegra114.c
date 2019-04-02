@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 
@@ -88,9 +88,9 @@ void __init tegra114_init_speedo_data(struct tegra_sku_info *sku_info)
 	int threshold;
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cpu_process_speedos) !=
+	BUILD__ON(ARRAY_SIZE(cpu_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(soc_process_speedos) !=
+	BUILD__ON(ARRAY_SIZE(soc_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
 	rev_sku_to_speedo_ids(sku_info, &threshold);

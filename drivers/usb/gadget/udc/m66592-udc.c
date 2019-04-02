@@ -389,7 +389,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 
 	ep->ep.desc = desc;
 
-	BUG_ON(ep->pipenum);
+	_ON(ep->pipenum);
 
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_BULK:
@@ -1312,7 +1312,7 @@ static int m66592_disable(struct usb_ep *_ep)
 	unsigned long flags;
 
 	ep = container_of(_ep, struct m66592_ep, ep);
-	BUG_ON(!ep);
+	_ON(!ep);
 
 	while (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next, struct m66592_request, queue);

@@ -60,7 +60,7 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, const char *fmt, ...)
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
 		fs_err(sdp, "about to withdraw this file system\n");
-		BUG_ON(sdp->sd_args.ar_debug);
+		_ON(sdp->sd_args.ar_de);
 
 		kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
 
@@ -118,8 +118,8 @@ int gfs2_assert_warn_i(struct gfs2_sbd *sdp, char *assertion,
 		fs_warn(sdp, "warning: assertion \"%s\" failed at function = %s, file = %s, line = %u\n",
 			assertion, function, file, line);
 
-	if (sdp->sd_args.ar_debug)
-		BUG();
+	if (sdp->sd_args.ar_de)
+		();
 	else
 		dump_stack();
 

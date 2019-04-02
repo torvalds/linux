@@ -45,7 +45,7 @@
  * USB Host Controller Driver framework
  *
  * Plugs into usbcore (usb_bus) and lets HCDs share code, minimizing
- * HCD-specific behaviors/bugs.
+ * HCD-specific behaviors/s.
  *
  * This does error checks, tracks devices and urbs, and delegates to a
  * "hc_driver" only for code (and data) that really needs to know about
@@ -535,7 +535,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	 * Most root hubs support wakeup from downstream devices, for
 	 * runtime power management (disabling USB clocks and reducing
 	 * VBUS power usage).  However, not all of them do so; silicon,
-	 * board, and BIOS bugs here are not uncommon, so these can't
+	 * board, and BIOS s here are not uncommon, so these can't
 	 * be treated quite like external hubs.
 	 *
 	 * Likewise, not all root hubs will pass wakeup events upstream,
@@ -1209,7 +1209,7 @@ long usb_calc_bus_time (int speed, int is_input, int isoc, int bytecount)
 			tmp = HS_NSECS (bytecount);
 		return tmp;
 	default:
-		pr_debug ("%s: bogus device speed!\n", usbcore_name);
+		pr_de ("%s: bogus device speed!\n", usbcore_name);
 		return -1;
 	}
 }

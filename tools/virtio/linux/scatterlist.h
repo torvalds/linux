@@ -34,9 +34,9 @@ static inline void sg_assign_page(struct scatterlist *sg, struct page *page)
 	 * In order for the low bit stealing approach to work, pages
 	 * must be aligned at a 32-bit boundary as a minimum.
 	 */
-	BUG_ON((unsigned long) page & 0x03);
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg_is_chain(sg));
+	_ON((unsigned long) page & 0x03);
+#ifdef CONFIG_DE_SG
+	_ON(sg_is_chain(sg));
 #endif
 	sg->page_link = page_link | (unsigned long) page;
 }
@@ -65,8 +65,8 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page,
 
 static inline struct page *sg_page(struct scatterlist *sg)
 {
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg_is_chain(sg));
+#ifdef CONFIG_DE_SG
+	_ON(sg_is_chain(sg));
 #endif
 	return (struct page *)((sg)->page_link & ~0x3);
 }

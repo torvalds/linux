@@ -39,51 +39,51 @@
 #include "ioasm.h"
 #include "io_sch.h"
 #include "blacklist.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "chp.h"
 #include "trace.h"
 
-debug_info_t *cio_debug_msg_id;
-debug_info_t *cio_debug_trace_id;
-debug_info_t *cio_debug_crw_id;
+de_info_t *cio_de_msg_id;
+de_info_t *cio_de_trace_id;
+de_info_t *cio_de_crw_id;
 
 DEFINE_PER_CPU_ALIGNED(struct irb, cio_irb);
 EXPORT_PER_CPU_SYMBOL(cio_irb);
 
 /*
- * Function: cio_debug_init
- * Initializes three debug logs for common I/O:
+ * Function: cio_de_init
+ * Initializes three de logs for common I/O:
  * - cio_msg logs generic cio messages
  * - cio_trace logs the calling of different functions
  * - cio_crw logs machine check related cio messages
  */
-static int __init cio_debug_init(void)
+static int __init cio_de_init(void)
 {
-	cio_debug_msg_id = debug_register("cio_msg", 16, 1, 11 * sizeof(long));
-	if (!cio_debug_msg_id)
+	cio_de_msg_id = de_register("cio_msg", 16, 1, 11 * sizeof(long));
+	if (!cio_de_msg_id)
 		goto out_unregister;
-	debug_register_view(cio_debug_msg_id, &debug_sprintf_view);
-	debug_set_level(cio_debug_msg_id, 2);
-	cio_debug_trace_id = debug_register("cio_trace", 16, 1, 16);
-	if (!cio_debug_trace_id)
+	de_register_view(cio_de_msg_id, &de_sprintf_view);
+	de_set_level(cio_de_msg_id, 2);
+	cio_de_trace_id = de_register("cio_trace", 16, 1, 16);
+	if (!cio_de_trace_id)
 		goto out_unregister;
-	debug_register_view(cio_debug_trace_id, &debug_hex_ascii_view);
-	debug_set_level(cio_debug_trace_id, 2);
-	cio_debug_crw_id = debug_register("cio_crw", 8, 1, 8 * sizeof(long));
-	if (!cio_debug_crw_id)
+	de_register_view(cio_de_trace_id, &de_hex_ascii_view);
+	de_set_level(cio_de_trace_id, 2);
+	cio_de_crw_id = de_register("cio_crw", 8, 1, 8 * sizeof(long));
+	if (!cio_de_crw_id)
 		goto out_unregister;
-	debug_register_view(cio_debug_crw_id, &debug_sprintf_view);
-	debug_set_level(cio_debug_crw_id, 4);
+	de_register_view(cio_de_crw_id, &de_sprintf_view);
+	de_set_level(cio_de_crw_id, 4);
 	return 0;
 
 out_unregister:
-	debug_unregister(cio_debug_msg_id);
-	debug_unregister(cio_debug_trace_id);
-	debug_unregister(cio_debug_crw_id);
+	de_unregister(cio_de_msg_id);
+	de_unregister(cio_de_trace_id);
+	de_unregister(cio_de_crw_id);
 	return -1;
 }
 
-arch_initcall (cio_debug_init);
+arch_initcall (cio_de_init);
 
 int cio_set_options(struct subchannel *sch, int flags)
 {

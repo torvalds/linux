@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "mt76x02.h"
 
 static int
@@ -139,28 +139,28 @@ mt76_edcca_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(fops_edcca, mt76_edcca_get, mt76_edcca_set,
+DEFINE_DEFS_ATTRIBUTE(fops_edcca, mt76_edcca_get, mt76_edcca_set,
 			 "%lld\n");
 
-void mt76x02_init_debugfs(struct mt76x02_dev *dev)
+void mt76x02_init_defs(struct mt76x02_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = mt76_register_debugfs(&dev->mt76);
+	dir = mt76_register_defs(&dev->mt76);
 	if (!dir)
 		return;
 
-	debugfs_create_u8("temperature", 0400, dir, &dev->cal.temp);
-	debugfs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
+	defs_create_u8("temperature", 0400, dir, &dev->cal.temp);
+	defs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
 
-	debugfs_create_file("edcca", 0400, dir, dev, &fops_edcca);
-	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
-	debugfs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
-	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
+	defs_create_file("edcca", 0400, dir, dev, &fops_edcca);
+	defs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
+	defs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
+	defs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
 				    read_txpower);
 
-	debugfs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
+	defs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
 
-	debugfs_create_u32("tx_hang_reset", 0400, dir, &dev->tx_hang_reset);
+	defs_create_u32("tx_hang_reset", 0400, dir, &dev->tx_hang_reset);
 }
-EXPORT_SYMBOL_GPL(mt76x02_init_debugfs);
+EXPORT_SYMBOL_GPL(mt76x02_init_defs);

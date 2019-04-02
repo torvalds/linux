@@ -35,16 +35,16 @@
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
 
-static int stvdebug;
-module_param_named(debug, stvdebug, int, 0644);
+static int stvde;
+module_param_named(de, stvde, int, 0644);
 
-static int i2cdebug;
-module_param_named(i2c_debug, i2cdebug, int, 0644);
+static int i2cde;
+module_param_named(i2c_de, i2cde, int, 0644);
 
 #define dprintk(args...) \
 	do { \
-		if (stvdebug) \
-			printk(KERN_DEBUG args); \
+		if (stvde) \
+			printk(KERN_DE args); \
 	} while (0)
 	/* DVB-C */
 
@@ -152,8 +152,8 @@ int stv0367_writeregs(struct stv0367_state *state, u16 reg, u8 *data, int len)
 	buf[1] = LSB(reg);
 	memcpy(buf + 2, data, len);
 
-	if (i2cdebug)
-		printk(KERN_DEBUG "%s: [%02x] %02x: %02x\n", __func__,
+	if (i2cde)
+		printk(KERN_DE "%s: [%02x] %02x: %02x\n", __func__,
 			state->config->demod_address, reg, buf[2]);
 
 	ret = i2c_transfer(state->i2c, &msg, 1);
@@ -166,7 +166,7 @@ int stv0367_writeregs(struct stv0367_state *state, u16 reg, u8 *data, int len)
 
 static int stv0367_writereg(struct stv0367_state *state, u16 reg, u8 data)
 {
-	u8 tmp = data; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = data; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 	return stv0367_writeregs(state, reg, &tmp, 1);
 }
@@ -198,8 +198,8 @@ static u8 stv0367_readreg(struct stv0367_state *state, u16 reg)
 		printk(KERN_ERR "%s: i2c read error ([%02x] %02x: %02x)\n",
 			__func__, state->config->demod_address, reg, b1[0]);
 
-	if (i2cdebug)
-		printk(KERN_DEBUG "%s: [%02x] %02x: %02x\n", __func__,
+	if (i2cde)
+		printk(KERN_DE "%s: [%02x] %02x: %02x\n", __func__,
 			state->config->demod_address, reg, b1[0]);
 
 	return b1[0];
@@ -2941,12 +2941,12 @@ EXPORT_SYMBOL(stv0367cab_attach);
 
 static void stv0367ddb_setup_ter(struct stv0367_state *state)
 {
-	stv0367_writereg(state, R367TER_DEBUG_LT4, 0x00);
-	stv0367_writereg(state, R367TER_DEBUG_LT5, 0x00);
-	stv0367_writereg(state, R367TER_DEBUG_LT6, 0x00); /* R367CAB_CTRL_1 */
-	stv0367_writereg(state, R367TER_DEBUG_LT7, 0x00); /* R367CAB_CTRL_2 */
-	stv0367_writereg(state, R367TER_DEBUG_LT8, 0x00);
-	stv0367_writereg(state, R367TER_DEBUG_LT9, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT4, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT5, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT6, 0x00); /* R367CAB_CTRL_1 */
+	stv0367_writereg(state, R367TER_DE_LT7, 0x00); /* R367CAB_CTRL_2 */
+	stv0367_writereg(state, R367TER_DE_LT8, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT9, 0x00);
 
 	/* Tuner Setup */
 	/* Buffer Q disabled, I Enabled, unsigned ADC */
@@ -2970,12 +2970,12 @@ static void stv0367ddb_setup_ter(struct stv0367_state *state)
 
 static void stv0367ddb_setup_cab(struct stv0367_state *state)
 {
-	stv0367_writereg(state, R367TER_DEBUG_LT4, 0x00);
-	stv0367_writereg(state, R367TER_DEBUG_LT5, 0x01);
-	stv0367_writereg(state, R367TER_DEBUG_LT6, 0x06); /* R367CAB_CTRL_1 */
-	stv0367_writereg(state, R367TER_DEBUG_LT7, 0x03); /* R367CAB_CTRL_2 */
-	stv0367_writereg(state, R367TER_DEBUG_LT8, 0x00);
-	stv0367_writereg(state, R367TER_DEBUG_LT9, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT4, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT5, 0x01);
+	stv0367_writereg(state, R367TER_DE_LT6, 0x06); /* R367CAB_CTRL_1 */
+	stv0367_writereg(state, R367TER_DE_LT7, 0x03); /* R367CAB_CTRL_2 */
+	stv0367_writereg(state, R367TER_DE_LT8, 0x00);
+	stv0367_writereg(state, R367TER_DE_LT9, 0x00);
 
 	/* Tuner Setup */
 	/* Buffer Q disabled, I Enabled, signed ADC */
@@ -3356,8 +3356,8 @@ error:
 }
 EXPORT_SYMBOL(stv0367ddb_attach);
 
-MODULE_PARM_DESC(debug, "Set debug");
-MODULE_PARM_DESC(i2c_debug, "Set i2c debug");
+MODULE_PARM_DESC(de, "Set de");
+MODULE_PARM_DESC(i2c_de, "Set i2c de");
 
 MODULE_AUTHOR("Igor M. Liplianin");
 MODULE_DESCRIPTION("ST STV0367 DVB-C/T demodulator driver");

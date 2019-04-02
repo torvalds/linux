@@ -9,12 +9,12 @@
 static __thread struct task_struct current_obj;
 
 /* lockdep wants these */
-bool debug_locks = true;
-bool debug_locks_silent;
+bool de_locks = true;
+bool de_locks_silent;
 
 __attribute__((destructor)) static void liblockdep_exit(void)
 {
-	debug_check_no_locks_held();
+	de_check_no_locks_held();
 }
 
 struct task_struct *__curr(void)

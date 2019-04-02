@@ -692,11 +692,11 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 			le32_to_cpu(firmware_info->info_21.ulDefaultDispEngineClkFreq);
 		/* set a reasonable default for DP */
 		if (adev->clock.default_dispclk < 53900) {
-			DRM_DEBUG("Changing default dispclk from %dMhz to 600Mhz\n",
+			DRM_DE("Changing default dispclk from %dMhz to 600Mhz\n",
 				  adev->clock.default_dispclk / 100);
 			adev->clock.default_dispclk = 60000;
 		} else if (adev->clock.default_dispclk <= 60000) {
-			DRM_DEBUG("Changing default dispclk from %dMhz to 625Mhz\n",
+			DRM_DE("Changing default dispclk from %dMhz to 625Mhz\n",
 				  adev->clock.default_dispclk / 100);
 			adev->clock.default_dispclk = 62500;
 		}
@@ -1791,7 +1791,7 @@ static int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
 		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
 
-		DRM_DEBUG("atom firmware requested %08x %dkb\n",
+		DRM_DE("atom firmware requested %08x %dkb\n",
 			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
 			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
 
@@ -2019,7 +2019,7 @@ int amdgpu_atombios_init(struct amdgpu_device *adev)
 		atom_card_info->ioreg_read = cail_ioreg_read;
 		atom_card_info->ioreg_write = cail_ioreg_write;
 	} else {
-		DRM_DEBUG("PCI I/O BAR is not found. Using MMIO to access ATOM BIOS\n");
+		DRM_DE("PCI I/O BAR is not found. Using MMIO to access ATOM BIOS\n");
 		atom_card_info->ioreg_read = cail_reg_read;
 		atom_card_info->ioreg_write = cail_reg_write;
 	}

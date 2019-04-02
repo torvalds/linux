@@ -24,7 +24,7 @@
  * this badly enough to write the code to handle it, we should support it
  * as an option.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/errno.h>

@@ -573,7 +573,7 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	sf = (xfs_attr_shortform_t *)ifp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count; sfe = XFS_ATTR_SF_NEXTENTRY(sfe), i++) {
-#ifdef DEBUG
+#ifdef DE
 		if (sfe->namelen != args->namelen)
 			continue;
 		if (memcmp(args->name, sfe->nameval, args->namelen) != 0)
@@ -2644,12 +2644,12 @@ xfs_attr3_leaf_clearflag(
 	struct xfs_attr_leaf_name_remote *name_rmt;
 	struct xfs_buf		*bp;
 	int			error;
-#ifdef DEBUG
+#ifdef DE
 	struct xfs_attr3_icleaf_hdr ichdr;
 	xfs_attr_leaf_name_local_t *name_loc;
 	int namelen;
 	char *name;
-#endif /* DEBUG */
+#endif /* DE */
 
 	trace_xfs_attr_leaf_clearflag(args);
 	/*
@@ -2663,7 +2663,7 @@ xfs_attr3_leaf_clearflag(
 	entry = &xfs_attr3_leaf_entryp(leaf)[args->index];
 	ASSERT(entry->flags & XFS_ATTR_INCOMPLETE);
 
-#ifdef DEBUG
+#ifdef DE
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &ichdr, leaf);
 	ASSERT(args->index < ichdr.count);
 	ASSERT(args->index >= 0);
@@ -2680,7 +2680,7 @@ xfs_attr3_leaf_clearflag(
 	ASSERT(be32_to_cpu(entry->hashval) == args->hashval);
 	ASSERT(namelen == args->namelen);
 	ASSERT(memcmp(name, args->name, namelen) == 0);
-#endif /* DEBUG */
+#endif /* DE */
 
 	entry->flags &= ~XFS_ATTR_INCOMPLETE;
 	xfs_trans_log_buf(args->trans, bp,
@@ -2713,7 +2713,7 @@ xfs_attr3_leaf_setflag(
 	struct xfs_attr_leaf_name_remote *name_rmt;
 	struct xfs_buf		*bp;
 	int error;
-#ifdef DEBUG
+#ifdef DE
 	struct xfs_attr3_icleaf_hdr ichdr;
 #endif
 
@@ -2727,7 +2727,7 @@ xfs_attr3_leaf_setflag(
 		return error;
 
 	leaf = bp->b_addr;
-#ifdef DEBUG
+#ifdef DE
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &ichdr, leaf);
 	ASSERT(args->index < ichdr.count);
 	ASSERT(args->index >= 0);
@@ -2771,13 +2771,13 @@ xfs_attr3_leaf_flipflags(
 	struct xfs_buf		*bp1;
 	struct xfs_buf		*bp2;
 	int error;
-#ifdef DEBUG
+#ifdef DE
 	struct xfs_attr3_icleaf_hdr ichdr1;
 	struct xfs_attr3_icleaf_hdr ichdr2;
 	xfs_attr_leaf_name_local_t *name_loc;
 	int namelen1, namelen2;
 	char *name1, *name2;
-#endif /* DEBUG */
+#endif /* DE */
 
 	trace_xfs_attr_leaf_flipflags(args);
 
@@ -2806,7 +2806,7 @@ xfs_attr3_leaf_flipflags(
 	leaf2 = bp2->b_addr;
 	entry2 = &xfs_attr3_leaf_entryp(leaf2)[args->index2];
 
-#ifdef DEBUG
+#ifdef DE
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &ichdr1, leaf1);
 	ASSERT(args->index < ichdr1.count);
 	ASSERT(args->index >= 0);
@@ -2836,7 +2836,7 @@ xfs_attr3_leaf_flipflags(
 	ASSERT(be32_to_cpu(entry1->hashval) == be32_to_cpu(entry2->hashval));
 	ASSERT(namelen1 == namelen2);
 	ASSERT(memcmp(name1, name2, namelen1) == 0);
-#endif /* DEBUG */
+#endif /* DE */
 
 	ASSERT(entry1->flags & XFS_ATTR_INCOMPLETE);
 	ASSERT((entry2->flags & XFS_ATTR_INCOMPLETE) == 0);

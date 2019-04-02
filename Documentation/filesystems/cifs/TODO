@@ -69,7 +69,7 @@ or unsupported feature errors.
 
 r) updating cifs documentation, and user guide.
 
-s) Addressing bugs found by running a broader set of xfstests in standard
+s) Addressing s found by running a broader set of xfstests in standard
 file system xfstest suite.
 
 t) split cifs and smb3 support into separate modules so legacy (and less
@@ -82,10 +82,10 @@ so far).
 w) Add support for additional strong encryption types, and additional spnego
 authentication mechanisms (see MS-SMB2)
 
-KNOWN BUGS
+KNOWN S
 ====================================
-See http://bugzilla.samba.org - search on product "CifsVFS" for
-current bug list.  Also check http://bugzilla.kernel.org (Product = File System, Component = CIFS)
+See http://zilla.samba.org - search on product "CifsVFS" for
+current  list.  Also check http://zilla.kernel.org (Product = File System, Component = CIFS)
 
 1) existing symbolic links (Windows reparse points) are recognized but
 can not be created remotely. They are implemented for Samba and those that
@@ -114,6 +114,6 @@ against Windows, Samba and Azure currently - to add additional tests and
 to allow the buildbot to execute the tests faster. The URL for the
 buildbot is: http://smb3-test-rhel-75.southcentralus.cloudapp.azure.com
 
-6) Address various coverity warnings (most are not bugs per-se, but
+6) Address various coverity warnings (most are not s per-se, but
 the more warnings are addressed, the easier it is to spot real
 problems that static analyzers will point out in the future).

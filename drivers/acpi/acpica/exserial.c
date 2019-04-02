@@ -41,7 +41,7 @@ acpi_status acpi_ex_read_gpio(union acpi_operand_object *obj_desc, void *buffer)
 	 * pin number index. The bit_length is the length of the field, which
 	 * is thus the number of pins.
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "GPIO FieldRead [FROM]:  Pin %u Bits %u\n",
 			  obj_desc->field.pin_number_index,
 			  obj_desc->field.bit_length));
@@ -96,7 +96,7 @@ acpi_ex_write_gpio(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "GPIO FieldWrite [FROM]: (%s:%X), Value %.8X  [TO]: Pin %u Bits %u\n",
 			  acpi_ut_get_type_name(source_desc->common.type),
 			  source_desc->common.type,

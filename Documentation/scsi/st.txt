@@ -461,7 +461,7 @@ MTSETDRVBUFFER
 		reading blocks shorter than the byte count; set this only
 		if you are sure that the drive supports SILI and the HBA
 		correctly returns transfer residuals
-	     MT_ST_DEBUGGING debugging (global; debugging must be
+	     MT_ST_DEGING deging (global; deging must be
 		compiled into the driver)
 	MT_ST_SETBOOLEANS
 	MT_ST_CLEARBOOLEANS
@@ -568,15 +568,15 @@ time or the MT_ST_CAN_BSR bit is set for the drive with an ioctl.
 user does not request data that far.)
 
 
-DEBUGGING HINTS
+DEGING HINTS
 
-Debugging code is now compiled in by default but debugging is turned off
-with the kernel module parameter debug_flag defaulting to 0.  Debugging
-can still be switched on and off with an ioctl.  To enable debug at
-module load time add debug_flag=1 to the module load options, the
-debugging output is not voluminous. Debugging can also be enabled
+Deging code is now compiled in by default but deging is turned off
+with the kernel module parameter de_flag defaulting to 0.  Deging
+can still be switched on and off with an ioctl.  To enable de at
+module load time add de_flag=1 to the module load options, the
+deging output is not voluminous. Deging can also be enabled
 and disabled by writing a '0' (disable) or '1' (enable) to the sysfs
-file /sys/bus/scsi/drivers/st/debug_flag.
+file /sys/bus/scsi/drivers/st/de_flag.
 
 If the tape seems to hang, I would be very interested to hear where
 the driver is waiting. With the command 'ps -l' you can see the state

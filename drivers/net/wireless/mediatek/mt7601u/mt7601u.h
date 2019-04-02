@@ -22,7 +22,7 @@
 #include <linux/usb.h>
 #include <linux/completion.h>
 #include <net/mac80211.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/average.h>
 
 #include "regs.h"
@@ -196,7 +196,7 @@ struct mt7601u_dev {
 	struct mutex hw_atomic_mutex;
 
 	u32 rxfilter;
-	u32 debugfs_reg;
+	u32 defs_reg;
 
 	u8 out_eps[8];
 	u8 in_eps[8];
@@ -286,7 +286,7 @@ struct mt7601u_rxwi;
 
 extern const struct ieee80211_ops mt7601u_ops;
 
-void mt7601u_init_debugfs(struct mt7601u_dev *dev);
+void mt7601u_init_defs(struct mt7601u_dev *dev);
 
 u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset);
 void mt7601u_wr(struct mt7601u_dev *dev, u32 offset, u32 val);

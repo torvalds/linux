@@ -41,10 +41,10 @@ struct tda8083_state {
 	struct dvb_frontend frontend;
 };
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "tda8083: " args); \
+		if (de) printk(KERN_DE "tda8083: " args); \
 	} while (0)
 
 
@@ -486,8 +486,8 @@ static const struct dvb_frontend_ops tda8083_ops = {
 	.set_voltage = tda8083_diseqc_set_voltage,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Philips TDA8083 DVB-S Demodulator");
 MODULE_AUTHOR("Ralph Metzler, Holger Waechtler");

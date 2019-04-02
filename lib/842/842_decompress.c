@@ -20,7 +20,7 @@
 #define MODULE_NAME "842_decompress"
 
 #include "842.h"
-#include "842_debugfs.h"
+#include "842_defs.h"
 
 /* rolling fifo sizes */
 #define I2_FIFO_SIZE	(2 * (1 << I2_BITS))
@@ -79,7 +79,7 @@ static int __split_next_bits(struct sw842_param *p, u64 *d, u8 n, u8 s)
 	int ret;
 
 	if (n <= s) {
-		pr_debug("split_next_bits invalid n %u s %u\n", n, s);
+		pr_de("split_next_bits invalid n %u s %u\n", n, s);
 		return -EINVAL;
 	}
 
@@ -98,7 +98,7 @@ static int next_bits(struct sw842_param *p, u64 *d, u8 n)
 	u8 *in = p->in, b = p->bit, bits = b + n;
 
 	if (n > 64) {
-		pr_debug("next_bits invalid n %u\n", n);
+		pr_de("next_bits invalid n %u\n", n);
 		return -EINVAL;
 	}
 
@@ -197,7 +197,7 @@ static int __do_index(struct sw842_param *p, u8 size, u8 bits, u64 fsize)
 	}
 
 	if (offset + size > total) {
-		pr_debug("index%x %lx points past end %lx\n", size,
+		pr_de("index%x %lx points past end %lx\n", size,
 			 (unsigned long)offset, (unsigned long)total);
 		return -EINVAL;
 	}
@@ -205,7 +205,7 @@ static int __do_index(struct sw842_param *p, u8 size, u8 bits, u64 fsize)
 	if (size != 2 && size != 4 && size != 8)
 		WARN(1, "__do_index invalid size %x\n", size);
 	else
-		pr_debug("index%x to %lx off %lx adjoff %lx tot %lx data %lx\n",
+		pr_de("index%x to %lx off %lx adjoff %lx tot %lx data %lx\n",
 			 size, (unsigned long)index,
 			 (unsigned long)(index * size), (unsigned long)offset,
 			 (unsigned long)total,
@@ -242,7 +242,7 @@ static int do_op(struct sw842_param *p, u8 o)
 	for (i = 0; i < 4; i++) {
 		u8 op = decomp_ops[o][i];
 
-		pr_debug("op is %x\n", op);
+		pr_de("op is %x\n", op);
 
 		switch (op & OP_ACTION) {
 		case OP_ACTION_DATA:
@@ -307,7 +307,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 		if (ret)
 			return ret;
 
-		pr_debug("template is %lx\n", (unsigned long)op);
+		pr_de("template is %lx\n", (unsigned long)op);
 
 		switch (op) {
 		case OP_REPEAT:
@@ -392,7 +392,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 	 * Validate CRC saved in compressed data.
 	 */
 	if (crc != (u64)crc32_be(0, out, total - p.olen)) {
-		pr_debug("CRC mismatch for decompression\n");
+		pr_de("CRC mismatch for decompression\n");
 		return -EINVAL;
 	}
 
@@ -408,7 +408,7 @@ EXPORT_SYMBOL_GPL(sw842_decompress);
 static int __init sw842_init(void)
 {
 	if (sw842_template_counts)
-		sw842_debugfs_create();
+		sw842_defs_create();
 
 	return 0;
 }
@@ -417,7 +417,7 @@ module_init(sw842_init);
 static void __exit sw842_exit(void)
 {
 	if (sw842_template_counts)
-		sw842_debugfs_remove();
+		sw842_defs_remove();
 }
 module_exit(sw842_exit);
 

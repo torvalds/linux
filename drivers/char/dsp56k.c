@@ -13,7 +13,7 @@
  *  97-02-15   Tomas Berndtsson,
  *               Fixed for kernel 2.1.26
  *
- * BUGS:
+ * S:
  *  Hmm... there must be something here :)
  *
  * Copyright (C) 1996,1997 Fredrik Noring, lars brinkhoff & Tomas Berndtsson

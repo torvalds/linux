@@ -1013,7 +1013,7 @@ struct elants_version_attribute {
 #define __ELANTS_FIELD_SIZE(_field)					\
 	sizeof(((struct elants_data *)NULL)->_field)
 #define __ELANTS_VERIFY_SIZE(_field)					\
-	(BUILD_BUG_ON_ZERO(__ELANTS_FIELD_SIZE(_field) > 2) +		\
+	(BUILD__ON_ZERO(__ELANTS_FIELD_SIZE(_field) > 2) +		\
 	 __ELANTS_FIELD_SIZE(_field))
 #define ELANTS_VERSION_ATTR(_field)					\
 	struct elants_version_attribute elants_ver_attr_##_field = {	\

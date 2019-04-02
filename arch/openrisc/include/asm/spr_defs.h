@@ -108,7 +108,7 @@
 #define SPR_MACLO	(SPRGROUP_MAC + 1)
 #define SPR_MACHI	(SPRGROUP_MAC + 2)
 
-/* Debug group */
+/* De group */
 #define SPR_DVR(N)	(SPRGROUP_D + (N))
 #define SPR_DCR(N)	(SPRGROUP_D + 8 + (N))
 #define SPR_DMR1	(SPRGROUP_D + 16)
@@ -164,7 +164,7 @@
 #define SPR_UPR_DMP	   0x00000008  /* Data MMU present */
 #define SPR_UPR_IMP	   0x00000010  /* Instruction MMU present */
 #define SPR_UPR_MP	   0x00000020  /* MAC present */
-#define SPR_UPR_DUP	   0x00000040  /* Debug unit present */
+#define SPR_UPR_DUP	   0x00000040  /* De unit present */
 #define SPR_UPR_PCUP	   0x00000080  /* Performance counters unit present */
 #define SPR_UPR_PICP	   0x00000100  /* PIC present */
 #define SPR_UPR_PMP	   0x00000200  /* Power management present */
@@ -186,7 +186,7 @@
 #define SPR_CPUCFGR_RES	   0xfffffc00  /* Reserved */
 
 /*
- * JPB: Bit definitions for the Debug configuration register and other
+ * JPB: Bit definitions for the De configuration register and other
  * constants.
  *
  */
@@ -385,7 +385,7 @@
 #define SPR_IMMUCFGR_NTS_OFF	2
 
 /*
- * Bit definitions for Debug Control registers
+ * Bit definitions for De Control registers
  *
  */
 #define SPR_DCR_DP	0x00000001  /* DVR/DCR present */
@@ -414,7 +414,7 @@
 /* SPR_DCR_CT_LSD doesn't seem to be implemented anywhere in or1ksim. 2004-1-30 HP */
 
 /*
- * Bit definitions for Debug Mode 1 register
+ * Bit definitions for De Mode 1 register
  *
  */
 #define SPR_DMR1_CW       0x000fffff  /* Chain register pair data */
@@ -454,7 +454,7 @@
 #define SPR_DMR1_RES2	  0xff000000  /* Reserved */
 
 /*
- * Bit definitions for Debug Mode 2 register. AWTC and WGB corrected by JPB
+ * Bit definitions for De Mode 2 register. AWTC and WGB corrected by JPB
  *
  */
 #define SPR_DMR2_WCE0	   0x00000001  /* Watchpoint counter 0 enable */
@@ -467,7 +467,7 @@
 #define SPR_DMR2_WBS_OFF           22  /* Bit offset to WBS field */
 
 /*
- * Bit definitions for Debug watchpoint counter registers
+ * Bit definitions for De watchpoint counter registers
  *
  */
 #define SPR_DWCR_COUNT	    0x0000ffff  /* Count */
@@ -475,7 +475,7 @@
 #define SPR_DWCR_MATCH_OFF          16  /* Match bit offset */
 
 /*
- * Bit definitions for Debug stop register
+ * Bit definitions for De stop register
  *
  */
 #define SPR_DSR_RSTE	0x00000001  /* Reset exception */
@@ -494,7 +494,7 @@
 #define SPR_DSR_TE	0x00002000  /* Trap exception */
 
 /*
- * Bit definitions for Debug reason register
+ * Bit definitions for De reason register
  *
  */
 #define SPR_DRR_RSTE	0x00000001  /* Reset exception */

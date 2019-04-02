@@ -361,7 +361,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cx18_g_register(struct file *file, void *fh,
 				struct v4l2_dbg_register *reg)
 {
@@ -515,11 +515,11 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 		return -EINVAL;
 
 	if (inp == cx->active_input) {
-		CX18_DEBUG_INFO("Input unchanged\n");
+		CX18_DE_INFO("Input unchanged\n");
 		return 0;
 	}
 
-	CX18_DEBUG_INFO("Changing input from %d to %d\n",
+	CX18_DE_INFO("Changing input from %d to %d\n",
 			cx->active_input, inp);
 
 	cx->active_input = inp;
@@ -561,7 +561,7 @@ int cx18_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *v
 		return -EINVAL;
 
 	cx18_mute(cx);
-	CX18_DEBUG_INFO("v4l2 ioctl: set frequency %d\n", vf->frequency);
+	CX18_DE_INFO("v4l2 ioctl: set frequency %d\n", vf->frequency);
 	cx18_call_all(cx, tuner, s_frequency, vf);
 	cx18_unmute(cx);
 	return 0;
@@ -603,7 +603,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id std)
 	cx->vbi.count = cx->is_50hz ? 18 : 12;
 	cx->vbi.start[0] = cx->is_50hz ? 6 : 10;
 	cx->vbi.start[1] = cx->is_50hz ? 318 : 273;
-	CX18_DEBUG_INFO("Switching standard to %llx.\n",
+	CX18_DE_INFO("Switching standard to %llx.\n",
 			(unsigned long long) cx->std);
 
 	/* Tuner */
@@ -927,19 +927,19 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_START\n");
 		enc->flags = 0;
 		return cx18_start_capture(id);
 
 	case V4L2_ENC_CMD_STOP:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_STOP\n");
 		enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 		cx18_stop_capture(id,
 				  enc->flags & V4L2_ENC_CMD_STOP_AT_GOP_END);
 		break;
 
 	case V4L2_ENC_CMD_PAUSE:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_PAUSE\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_PAUSE\n");
 		enc->flags = 0;
 		if (!atomic_read(&cx->ana_capturing))
 			return -EPERM;
@@ -955,7 +955,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 		break;
 
 	case V4L2_ENC_CMD_RESUME:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_RESUME\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_RESUME\n");
 		enc->flags = 0;
 		if (!atomic_read(&cx->ana_capturing))
 			return -EPERM;
@@ -971,7 +971,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 		break;
 
 	default:
-		CX18_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		CX18_DE_IOCTL("Unknown cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -984,27 +984,27 @@ static int cx18_try_encoder_cmd(struct file *file, void *fh,
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_START\n");
 		enc->flags = 0;
 		break;
 
 	case V4L2_ENC_CMD_STOP:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_STOP\n");
 		enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 		break;
 
 	case V4L2_ENC_CMD_PAUSE:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_PAUSE\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_PAUSE\n");
 		enc->flags = 0;
 		break;
 
 	case V4L2_ENC_CMD_RESUME:
-		CX18_DEBUG_IOCTL("V4L2_ENC_CMD_RESUME\n");
+		CX18_DE_IOCTL("V4L2_ENC_CMD_RESUME\n");
 		enc->flags = 0;
 		break;
 
 	default:
-		CX18_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
+		CX18_DE_IOCTL("Unknown cmd %d\n", enc->cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -1105,7 +1105,7 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_try_fmt_vbi_cap         = cx18_try_fmt_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap  = cx18_try_fmt_sliced_vbi_cap,
 	.vidioc_g_sliced_vbi_cap        = cx18_g_sliced_vbi_cap,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register              = cx18_g_register,
 	.vidioc_s_register              = cx18_s_register,
 #endif

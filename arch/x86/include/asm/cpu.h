@@ -30,8 +30,8 @@ struct x86_cpu {
 extern int arch_register_cpu(int num);
 extern void arch_unregister_cpu(int);
 extern void start_cpu0(void);
-#ifdef CONFIG_DEBUG_HOTPLUG_CPU0
-extern int _debug_hotplug_cpu(int cpu, int action);
+#ifdef CONFIG_DE_HOTPLUG_CPU0
+extern int _de_hotplug_cpu(int cpu, int action);
 #endif
 #endif
 

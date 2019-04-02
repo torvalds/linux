@@ -1993,7 +1993,7 @@ static int fuse_writepages(struct address_space *mapping,
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
-		BUG_ON(!data.req->num_pages);
+		_ON(!data.req->num_pages);
 		fuse_writepages_send(&data);
 		err = 0;
 	}
@@ -2581,7 +2581,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 #endif
 
 	/* assume all the iovs returned by client always fits in a page */
-	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
+	BUILD__ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
 	err = -ENOMEM;
 	pages = kcalloc(fc->max_pages, sizeof(pages[0]), GFP_KERNEL);
@@ -2816,7 +2816,7 @@ static void fuse_register_polled_file(struct fuse_conn *fc,
 		struct rb_node **link, *uninitialized_var(parent);
 
 		link = fuse_find_polled_node(fc, ff->kh, &parent);
-		BUG_ON(*link);
+		_ON(*link);
 		rb_link_node(&ff->polled_node, parent, link);
 		rb_insert_color(&ff->polled_node, &fc->polled_files);
 	}

@@ -94,7 +94,7 @@ static inline void flush_cache_one(unsigned long start, unsigned long phys)
 	 * All types of SH-4 require PC to be uncached to operate on the I-cache.
 	 * Some types of SH-4 require PC to be uncached to operate on the D-cache.
 	 */
-	if ((boot_cpu_data.flags & CPU_HAS_P2_FLUSH_BUG) ||
+	if ((boot_cpu_data.flags & CPU_HAS_P2_FLUSH_) ||
 	    (start < CACHE_OC_ADDRESS_ARRAY))
 		exec_offset = cached_to_uncached;
 

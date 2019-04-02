@@ -86,13 +86,13 @@ bool etnaviv_cmd_validate_one(struct etnaviv_gpu *gpu,
 	u32 *stream, unsigned int size,
 	struct drm_etnaviv_gem_submit_reloc *relocs, unsigned int reloc_size);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void etnaviv_gem_describe_objects(struct etnaviv_drm_private *priv,
 	struct seq_file *m);
 #endif
 
-#define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
-#define VERB(fmt, ...) if (0) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
+#define DBG(fmt, ...) DRM_DE(fmt"\n", ##__VA_ARGS__)
+#define VERB(fmt, ...) if (0) DRM_DE(fmt"\n", ##__VA_ARGS__)
 
 /*
  * Return the storage size of a structure with a variable length array.

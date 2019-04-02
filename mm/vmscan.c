@@ -221,7 +221,7 @@ static void unregister_memcg_shrinker(struct shrinker *shrinker)
 {
 	int id = shrinker->id;
 
-	BUG_ON(id < 0);
+	_ON(id < 0);
 
 	down_write(&shrinker_rwsem);
 	idr_remove(&shrinker_idr, id);
@@ -882,8 +882,8 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
 	unsigned long flags;
 	int refcount;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(mapping != page_mapping(page));
+	_ON(!PageLocked(page));
+	_ON(mapping != page_mapping(page));
 
 	xa_lock_irqsave(&mapping->i_pages, flags);
 	/*
@@ -1126,7 +1126,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (!trylock_page(page))
 			goto keep;
 
-		VM_BUG_ON_PAGE(PageActive(page), page);
+		VM__ON_PAGE(PageActive(page), page);
 
 		sc->nr_scanned++;
 
@@ -1464,7 +1464,7 @@ activate_locked:
 		if (PageSwapCache(page) && (mem_cgroup_swap_full(page) ||
 						PageMlocked(page)))
 			try_to_free_swap(page);
-		VM_BUG_ON_PAGE(PageActive(page), page);
+		VM__ON_PAGE(PageActive(page), page);
 		if (!PageMlocked(page)) {
 			SetPageActive(page);
 			stat->nr_activate++;
@@ -1474,7 +1474,7 @@ keep_locked:
 		unlock_page(page);
 keep:
 		list_add(&page->lru, &ret_pages);
-		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
+		VM__ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
 	}
 
 	mem_cgroup_uncharge_list(&free_pages);
@@ -1657,7 +1657,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
-		VM_BUG_ON_PAGE(!PageLRU(page), page);
+		VM__ON_PAGE(!PageLRU(page), page);
 
 		if (page_zonenum(page) > sc->reclaim_idx) {
 			list_move(&page->lru, &pages_skipped);
@@ -1686,7 +1686,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			continue;
 
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -1746,7 +1746,7 @@ int isolate_lru_page(struct page *page)
 {
 	int ret = -EBUSY;
 
-	VM_BUG_ON_PAGE(!page_count(page), page);
+	VM__ON_PAGE(!page_count(page), page);
 	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
 
 	if (PageLRU(page)) {
@@ -1818,7 +1818,7 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
 		struct page *page = lru_to_page(page_list);
 		int lru;
 
-		VM_BUG_ON_PAGE(PageLRU(page), page);
+		VM__ON_PAGE(PageLRU(page), page);
 		list_del(&page->lru);
 		if (unlikely(!page_evictable(page))) {
 			spin_unlock_irq(&pgdat->lru_lock);
@@ -2017,7 +2017,7 @@ static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
 		page = lru_to_page(list);
 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
 
-		VM_BUG_ON_PAGE(PageLRU(page), page);
+		VM__ON_PAGE(PageLRU(page), page);
 		SetPageLRU(page);
 
 		nr_pages = hpage_nr_pages(page);
@@ -2448,7 +2448,7 @@ out:
 			break;
 		default:
 			/* Look ma, no brain */
-			BUG();
+			();
 		}
 
 		*lru_pages += size;
@@ -3211,9 +3211,9 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 	 * scan_control uses s8 fields for order, priority, and reclaim_idx.
 	 * Confirm they are large enough for max values.
 	 */
-	BUILD_BUG_ON(MAX_ORDER > S8_MAX);
-	BUILD_BUG_ON(DEF_PRIORITY > S8_MAX);
-	BUILD_BUG_ON(MAX_NR_ZONES > S8_MAX);
+	BUILD__ON(MAX_ORDER > S8_MAX);
+	BUILD__ON(DEF_PRIORITY > S8_MAX);
+	BUILD__ON(MAX_NR_ZONES > S8_MAX);
 
 	/*
 	 * Do not enter reclaim if fatal signal was delivered while throttled.
@@ -4026,7 +4026,7 @@ int kswapd_run(int nid)
 	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
 	if (IS_ERR(pgdat->kswapd)) {
 		/* failure at boot is fatal */
-		BUG_ON(system_state < SYSTEM_RUNNING);
+		_ON(system_state < SYSTEM_RUNNING);
 		pr_err("Failed to start kswapd on node %d\n", nid);
 		ret = PTR_ERR(pgdat->kswapd);
 		pgdat->kswapd = NULL;
@@ -4294,7 +4294,7 @@ void check_move_unevictable_pages(struct pagevec *pvec)
 		if (page_evictable(page)) {
 			enum lru_list lru = page_lru_base_type(page);
 
-			VM_BUG_ON_PAGE(PageActive(page), page);
+			VM__ON_PAGE(PageActive(page), page);
 			ClearPageUnevictable(page);
 			del_page_from_lru_list(page, lruvec, LRU_UNEVICTABLE);
 			add_page_to_lru_list(page, lruvec, lru);

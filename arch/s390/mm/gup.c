@@ -36,7 +36,7 @@ static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 			return 0;
 		if ((pte_val(pte) & mask) != 0)
 			return 0;
-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+		VM__ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		head = compound_head(page);
 		if (!page_cache_get_speculative(head))
@@ -45,7 +45,7 @@ static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 			put_page(head);
 			return 0;
 		}
-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+		VM__ON_PAGE(compound_head(page) != head, page);
 		pages[*nr] = page;
 		(*nr)++;
 
@@ -64,13 +64,13 @@ static inline int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	mask = (write ? _SEGMENT_ENTRY_PROTECT : 0) | _SEGMENT_ENTRY_INVALID;
 	if ((pmd_val(pmd) & mask) != 0)
 		return 0;
-	VM_BUG_ON(!pfn_valid(pmd_val(pmd) >> PAGE_SHIFT));
+	VM__ON(!pfn_valid(pmd_val(pmd) >> PAGE_SHIFT));
 
 	refs = 0;
 	head = pmd_page(pmd);
 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
 	do {
-		VM_BUG_ON(compound_head(page) != head);
+		VM__ON(compound_head(page) != head);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;
@@ -138,13 +138,13 @@ static int gup_huge_pud(pud_t *pudp, pud_t pud, unsigned long addr,
 	mask = (write ? _REGION_ENTRY_PROTECT : 0) | _REGION_ENTRY_INVALID;
 	if ((pud_val(pud) & mask) != 0)
 		return 0;
-	VM_BUG_ON(!pfn_valid(pud_pfn(pud)));
+	VM__ON(!pfn_valid(pud_pfn(pud)));
 
 	refs = 0;
 	head = pud_page(pud);
 	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
 	do {
-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+		VM__ON_PAGE(compound_head(page) != head, page);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;

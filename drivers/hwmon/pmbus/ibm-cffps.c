@@ -8,7 +8,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/i2c.h>
@@ -47,13 +47,13 @@
 #define CFFPS_BLINK_RATE_MS			250
 
 enum {
-	CFFPS_DEBUGFS_INPUT_HISTORY = 0,
-	CFFPS_DEBUGFS_FRU,
-	CFFPS_DEBUGFS_PN,
-	CFFPS_DEBUGFS_SN,
-	CFFPS_DEBUGFS_CCIN,
-	CFFPS_DEBUGFS_FW,
-	CFFPS_DEBUGFS_NUM_ENTRIES
+	CFFPS_DEFS_INPUT_HISTORY = 0,
+	CFFPS_DEFS_FRU,
+	CFFPS_DEFS_PN,
+	CFFPS_DEFS_SN,
+	CFFPS_DEFS_CCIN,
+	CFFPS_DEFS_FW,
+	CFFPS_DEFS_NUM_ENTRIES
 };
 
 struct ibm_cffps_input_history {
@@ -69,14 +69,14 @@ struct ibm_cffps {
 
 	struct ibm_cffps_input_history input_history;
 
-	int debugfs_entries[CFFPS_DEBUGFS_NUM_ENTRIES];
+	int defs_entries[CFFPS_DEFS_NUM_ENTRIES];
 
 	char led_name[32];
 	u8 led_state;
 	struct led_classdev led;
 };
 
-#define to_psu(x, y) container_of((x), struct ibm_cffps, debugfs_entries[(y)])
+#define to_psu(x, y) container_of((x), struct ibm_cffps, defs_entries[(y)])
 
 static ssize_t ibm_cffps_read_input_history(struct ibm_cffps *psu,
 					    char __user *buf, size_t count,
@@ -126,7 +126,7 @@ static ssize_t ibm_cffps_read_input_history(struct ibm_cffps *psu,
 				       psu->input_history.byte_count);
 }
 
-static ssize_t ibm_cffps_debugfs_op(struct file *file, char __user *buf,
+static ssize_t ibm_cffps_defs_op(struct file *file, char __user *buf,
 				    size_t count, loff_t *ppos)
 {
 	u8 cmd;
@@ -137,25 +137,25 @@ static ssize_t ibm_cffps_debugfs_op(struct file *file, char __user *buf,
 	char data[I2C_SMBUS_BLOCK_MAX] = { 0 };
 
 	switch (idx) {
-	case CFFPS_DEBUGFS_INPUT_HISTORY:
+	case CFFPS_DEFS_INPUT_HISTORY:
 		return ibm_cffps_read_input_history(psu, buf, count, ppos);
-	case CFFPS_DEBUGFS_FRU:
+	case CFFPS_DEFS_FRU:
 		cmd = CFFPS_FRU_CMD;
 		break;
-	case CFFPS_DEBUGFS_PN:
+	case CFFPS_DEFS_PN:
 		cmd = CFFPS_PN_CMD;
 		break;
-	case CFFPS_DEBUGFS_SN:
+	case CFFPS_DEFS_SN:
 		cmd = CFFPS_SN_CMD;
 		break;
-	case CFFPS_DEBUGFS_CCIN:
+	case CFFPS_DEFS_CCIN:
 		rc = i2c_smbus_read_word_swapped(psu->client, CFFPS_CCIN_CMD);
 		if (rc < 0)
 			return rc;
 
 		rc = snprintf(data, 5, "%04X", rc);
 		goto done;
-	case CFFPS_DEBUGFS_FW:
+	case CFFPS_DEFS_FW:
 		for (i = 0; i < CFFPS_FW_NUM_BYTES; ++i) {
 			rc = i2c_smbus_read_byte_data(psu->client,
 						      CFFPS_FW_CMD_START + i);
@@ -184,7 +184,7 @@ done:
 
 static const struct file_operations ibm_cffps_fops = {
 	.llseek = noop_llseek,
-	.read = ibm_cffps_debugfs_op,
+	.read = ibm_cffps_defs_op,
 	.open = simple_open,
 };
 
@@ -351,7 +351,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	int i, rc;
-	struct dentry *debugfs;
+	struct dentry *defs;
 	struct dentry *ibm_cffps_dir;
 	struct ibm_cffps *psu;
 
@@ -362,7 +362,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 
 	/*
 	 * Don't fail the probe if there isn't enough memory for leds and
-	 * debugfs.
+	 * defs.
 	 */
 	psu = devm_kzalloc(&client->dev, sizeof(*psu), GFP_KERNEL);
 	if (!psu)
@@ -374,35 +374,35 @@ static int ibm_cffps_probe(struct i2c_client *client,
 
 	ibm_cffps_create_led_class(psu);
 
-	/* Don't fail the probe if we can't create debugfs */
-	debugfs = pmbus_get_debugfs_dir(client);
-	if (!debugfs)
+	/* Don't fail the probe if we can't create defs */
+	defs = pmbus_get_defs_dir(client);
+	if (!defs)
 		return 0;
 
-	ibm_cffps_dir = debugfs_create_dir(client->name, debugfs);
+	ibm_cffps_dir = defs_create_dir(client->name, defs);
 	if (!ibm_cffps_dir)
 		return 0;
 
-	for (i = 0; i < CFFPS_DEBUGFS_NUM_ENTRIES; ++i)
-		psu->debugfs_entries[i] = i;
+	for (i = 0; i < CFFPS_DEFS_NUM_ENTRIES; ++i)
+		psu->defs_entries[i] = i;
 
-	debugfs_create_file("input_history", 0444, ibm_cffps_dir,
-			    &psu->debugfs_entries[CFFPS_DEBUGFS_INPUT_HISTORY],
+	defs_create_file("input_history", 0444, ibm_cffps_dir,
+			    &psu->defs_entries[CFFPS_DEFS_INPUT_HISTORY],
 			    &ibm_cffps_fops);
-	debugfs_create_file("fru", 0444, ibm_cffps_dir,
-			    &psu->debugfs_entries[CFFPS_DEBUGFS_FRU],
+	defs_create_file("fru", 0444, ibm_cffps_dir,
+			    &psu->defs_entries[CFFPS_DEFS_FRU],
 			    &ibm_cffps_fops);
-	debugfs_create_file("part_number", 0444, ibm_cffps_dir,
-			    &psu->debugfs_entries[CFFPS_DEBUGFS_PN],
+	defs_create_file("part_number", 0444, ibm_cffps_dir,
+			    &psu->defs_entries[CFFPS_DEFS_PN],
 			    &ibm_cffps_fops);
-	debugfs_create_file("serial_number", 0444, ibm_cffps_dir,
-			    &psu->debugfs_entries[CFFPS_DEBUGFS_SN],
+	defs_create_file("serial_number", 0444, ibm_cffps_dir,
+			    &psu->defs_entries[CFFPS_DEFS_SN],
 			    &ibm_cffps_fops);
-	debugfs_create_file("ccin", 0444, ibm_cffps_dir,
-			    &psu->debugfs_entries[CFFPS_DEBUGFS_CCIN],
+	defs_create_file("ccin", 0444, ibm_cffps_dir,
+			    &psu->defs_entries[CFFPS_DEFS_CCIN],
 			    &ibm_cffps_fops);
-	debugfs_create_file("fw_version", 0444, ibm_cffps_dir,
-			    &psu->debugfs_entries[CFFPS_DEBUGFS_FW],
+	defs_create_file("fw_version", 0444, ibm_cffps_dir,
+			    &psu->defs_entries[CFFPS_DEFS_FW],
 			    &ibm_cffps_fops);
 
 	return 0;

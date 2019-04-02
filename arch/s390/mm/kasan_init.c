@@ -66,7 +66,7 @@ static pte_t * __init kasan_early_pte_alloc(void)
 	static void *pte_leftover;
 	pte_t *pte;
 
-	BUILD_BUG_ON(_PAGE_TABLE_SIZE * 2 != PAGE_SIZE);
+	BUILD__ON(_PAGE_TABLE_SIZE * 2 != PAGE_SIZE);
 
 	if (!pte_leftover) {
 		pte_leftover = kasan_early_alloc_pages(0);
@@ -277,16 +277,16 @@ void __init kasan_early_init(void)
 
 	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {
 		/* 4 level paging */
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
+		BUILD__ON(!IS_ALIGNED(KASAN_SHADOW_START, P4D_SIZE));
+		BUILD__ON(!IS_ALIGNED(KASAN_SHADOW_END, P4D_SIZE));
 		crst_table_init((unsigned long *)early_pg_dir,
 				_REGION2_ENTRY_EMPTY);
 		untracked_mem_end = vmax = _REGION1_SIZE;
 		asce_type = _ASCE_TYPE_REGION2;
 	} else {
 		/* 3 level paging */
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PUD_SIZE));
-		BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
+		BUILD__ON(!IS_ALIGNED(KASAN_SHADOW_START, PUD_SIZE));
+		BUILD__ON(!IS_ALIGNED(KASAN_SHADOW_END, PUD_SIZE));
 		crst_table_init((unsigned long *)early_pg_dir,
 				_REGION3_ENTRY_EMPTY);
 		untracked_mem_end = vmax = _REGION2_SIZE;

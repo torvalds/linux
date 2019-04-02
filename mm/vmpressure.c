@@ -145,7 +145,7 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
 	pressure = pressure * 100 / scale;
 
 out:
-	pr_debug("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
+	pr_de("%s: %3lu  (s: %lu  r: %lu)\n", __func__, pressure,
 		 scanned, reclaimed);
 
 	return vmpressure_level(pressure);

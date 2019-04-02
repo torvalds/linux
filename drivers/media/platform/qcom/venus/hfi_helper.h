@@ -402,7 +402,7 @@
  * HFI_PROPERTY_SYS_COMMON_START
  * HFI_DOMAIN_BASE_COMMON + HFI_ARCH_COMMON_OFFSET + 0x0000
  */
-#define HFI_PROPERTY_SYS_DEBUG_CONFIG				0x1
+#define HFI_PROPERTY_SYS_DE_CONFIG				0x1
 #define HFI_PROPERTY_SYS_RESOURCE_OCMEM_REQUIREMENT_INFO	0x2
 #define HFI_PROPERTY_SYS_CONFIG_VCODEC_CLKFREQ			0x3
 #define HFI_PROPERTY_SYS_IDLE_INDICATOR				0x4
@@ -572,17 +572,17 @@ struct hfi_capabilities {
 	struct hfi_capability data[1];
 };
 
-#define HFI_DEBUG_MSG_LOW	0x01
-#define HFI_DEBUG_MSG_MEDIUM	0x02
-#define HFI_DEBUG_MSG_HIGH	0x04
-#define HFI_DEBUG_MSG_ERROR	0x08
-#define HFI_DEBUG_MSG_FATAL	0x10
-#define HFI_DEBUG_MSG_PERF	0x20
+#define HFI_DE_MSG_LOW	0x01
+#define HFI_DE_MSG_MEDIUM	0x02
+#define HFI_DE_MSG_HIGH	0x04
+#define HFI_DE_MSG_ERROR	0x08
+#define HFI_DE_MSG_FATAL	0x10
+#define HFI_DE_MSG_PERF	0x20
 
-#define HFI_DEBUG_MODE_QUEUE	0x01
-#define HFI_DEBUG_MODE_QDSS	0x02
+#define HFI_DE_MODE_QUEUE	0x01
+#define HFI_DE_MODE_QDSS	0x02
 
-struct hfi_debug_config {
+struct hfi_de_config {
 	u32 config;
 	u32 mode;
 };

@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/dmi.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/reboot.h>
 #include <linux/efi.h>
 #include <linux/module.h>
@@ -762,7 +762,7 @@ static __init int gsmi_system_valid(void)
 		return -ENODEV;
 	}
 
-	/* Disable on board with 1.0 BIOS due to Google bug 2602657 */
+	/* Disable on board with 1.0 BIOS due to Google  2602657 */
 	hash = hash_oem_table_id(acpi_gbl_FADT.header.oem_table_id);
 	if (hash == QUIRKY_BOARD_HASH) {
 		const char *bios_ver = dmi_get_system_info(DMI_BIOS_VERSION);

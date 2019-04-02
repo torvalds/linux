@@ -351,7 +351,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				return 0;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -521,7 +521,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				return 0;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 
@@ -569,7 +569,7 @@ int p9stat_read(struct p9_client *clnt, char *buf, int len, struct p9_wstat *st)
 
 	ret = p9pdu_readf(&fake_pdu, clnt->proto_version, "S", st);
 	if (ret) {
-		p9_debug(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
+		p9_de(P9_DE_9P, "<<< p9stat_read failed: %d\n", ret);
 		trace_9p_protocol_dump(clnt, &fake_pdu);
 		return ret;
 	}
@@ -594,7 +594,7 @@ int p9pdu_finalize(struct p9_client *clnt, struct p9_fcall *pdu)
 	pdu->size = size;
 
 	trace_9p_protocol_dump(clnt, pdu);
-	p9_debug(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n",
+	p9_de(P9_DE_9P, ">>> size=%d type: %d tag: %d\n",
 		 pdu->size, pdu->id, pdu->tag);
 
 	return err;
@@ -621,14 +621,14 @@ int p9dirent_read(struct p9_client *clnt, char *buf, int len,
 	ret = p9pdu_readf(&fake_pdu, clnt->proto_version, "Qqbs", &dirent->qid,
 			  &dirent->d_off, &dirent->d_type, &nameptr);
 	if (ret) {
-		p9_debug(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
+		p9_de(P9_DE_9P, "<<< p9dirent_read failed: %d\n", ret);
 		trace_9p_protocol_dump(clnt, &fake_pdu);
 		return ret;
 	}
 
 	ret = strscpy(dirent->d_name, nameptr, sizeof(dirent->d_name));
 	if (ret < 0) {
-		p9_debug(P9_DEBUG_ERROR,
+		p9_de(P9_DE_ERROR,
 			 "On the wire dirent name too long: %s\n",
 			 nameptr);
 		kfree(nameptr);

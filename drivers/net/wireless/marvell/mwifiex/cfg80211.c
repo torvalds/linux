@@ -3097,8 +3097,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	mwifiex_dbg(adapter, INFO,
 		    "info: %s: Marvell 802.11 Adapter\n", dev->name);
 
-#ifdef CONFIG_DEBUG_FS
-	mwifiex_dev_debugfs_init(priv);
+#ifdef CONFIG_DE_FS
+	mwifiex_dev_defs_init(priv);
 #endif
 
 	switch (type) {
@@ -3149,8 +3149,8 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb, *tmp;
 
-#ifdef CONFIG_DEBUG_FS
-	mwifiex_dev_debugfs_remove(priv);
+#ifdef CONFIG_DE_FS
+	mwifiex_dev_defs_remove(priv);
 #endif
 
 	if (priv->sched_scanning)

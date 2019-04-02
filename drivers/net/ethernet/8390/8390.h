@@ -93,7 +93,7 @@ struct ei_device {
 	u32 *reg_offset;		/* Register mapping table */
 	spinlock_t page_lock;		/* Page register locks */
 	unsigned long priv;		/* Private field to store bus IDs etc. */
-	u32 msg_enable;			/* debug message level */
+	u32 msg_enable;			/* de message level */
 #ifdef AX88796_PLATFORM
 	unsigned char rxcr_base;	/* default value for RXCR */
 #endif

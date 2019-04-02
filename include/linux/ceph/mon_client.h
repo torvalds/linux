@@ -99,8 +99,8 @@ struct ceph_mon_client {
 	} subs[4];
 	int fs_cluster_id; /* "mdsmap.<id>" sub */
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_file;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_file;
 #endif
 };
 

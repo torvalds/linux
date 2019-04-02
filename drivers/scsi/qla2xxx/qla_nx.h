@@ -965,7 +965,7 @@ struct ct6_dsd {
 /*
  * Template Header
  * Parts of the template header can be modified by the driver.
- * These include the saved_state_array, capture_debug_level, driver_timestamp
+ * These include the saved_state_array, capture_de_level, driver_timestamp
  */
 
 #define QLA82XX_DBG_STATE_ARRAY_LEN        16
@@ -982,7 +982,7 @@ struct qla82xx_md_template_hdr {
 	uint32_t entry_type;
 	uint32_t first_entry_offset;
 	uint32_t size_of_template;
-	uint32_t capture_debug_level;
+	uint32_t capture_de_level;
 
 	uint32_t num_of_entries;
 	uint32_t version;

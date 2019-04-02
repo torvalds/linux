@@ -650,7 +650,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	/* set framerate, framerate = 1 n/ time per frame */
 	if (time_per_frame->numerator >= 536) {
 		/*
-		 * due to a hardware bug, framerate denominator can't exceed
+		 * due to a hardware , framerate denominator can't exceed
 		 * 536 (BRC overflow). Compute nearest framerate
 		 */
 		td->framerate_den = 1;

@@ -835,7 +835,7 @@ cbq_dequeue(struct Qdisc *sch)
 		 *
 		 * Reset 2d and 3d conditions and retry.
 		 *
-		 * Note, that NS and cbq-2.0 are buggy, peeking
+		 * Note, that NS and cbq-2.0 are gy, peeking
 		 * an arbitrary class is appropriate for ancestor-only
 		 * sharing, but not for toplevel algorithm.
 		 *
@@ -896,7 +896,7 @@ static void cbq_normalize_quanta(struct cbq_sched_data *q, int prio)
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
 		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
-			/* BUGGGG... Beware! This expression suffer of
+			/* GGG... Beware! This expression suffer of
 			 * arithmetic overflows!
 			 */
 			if (cl->priority == prio) {

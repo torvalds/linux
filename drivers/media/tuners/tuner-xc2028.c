@@ -41,9 +41,9 @@
 
 #define XREG_ADC_ENV      0x0100
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
@@ -388,7 +388,7 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			goto err;
 		}
 		tuner_dbg("Reading firmware type ");
-		if (debug) {
+		if (de) {
 			dump_firm_type_and_int_freq(type, int_freq);
 			printk(KERN_CONT "(%x), id %llx, size=%d.\n",
 			       type, (unsigned long long)id, size);
@@ -437,7 +437,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	unsigned int        type_mask = 0;
 
 	tuner_dbg("%s called, want type=", __func__);
-	if (debug) {
+	if (de) {
 		dump_firm_type(type);
 		printk(KERN_CONT "(%x), id %016llx.\n",
 		       type, (unsigned long long)*id);
@@ -515,7 +515,7 @@ found:
 
 ret:
 	tuner_dbg("%s firmware for type=", (i < 0) ? "Can't find" : "Found");
-	if (debug) {
+	if (de) {
 		dump_firm_type(type);
 		printk(KERN_CONT "(%x), id %016llx.\n",
 		       type, (unsigned long long)*id);
@@ -742,7 +742,7 @@ retry:
 	new_fw.int_freq = int_freq;
 
 	tuner_dbg("checking firmware, user requested type=");
-	if (debug) {
+	if (de) {
 		dump_firm_type(new_fw.type);
 		printk(KERN_CONT "(%x), id %016llx, ", new_fw.type,
 		       (unsigned long long)new_fw.std_req);
@@ -1302,7 +1302,7 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
-	if (debug > 1) {
+	if (de > 1) {
 		tuner_dbg("Printing sleep stack trace:\n");
 		dump_stack();
 	}
@@ -1460,8 +1460,8 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 	struct xc2028_data *priv;
 	int instance;
 
-	if (debug)
-		printk(KERN_DEBUG "xc2028: Xcv2028/3028 init called!\n");
+	if (de)
+		printk(KERN_DE "xc2028: Xcv2028/3028 init called!\n");
 
 	if (NULL == cfg)
 		return NULL;

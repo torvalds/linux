@@ -56,7 +56,7 @@ MODULE_VERSION(LSI_COMMON_MOD_VERSION);
 
 static int dbglevel = CL_ANN;
 module_param_named(dlevel, dbglevel, int, 0);
-MODULE_PARM_DESC(dlevel, "Debug level (default=0)");
+MODULE_PARM_DESC(dlevel, "De level (default=0)");
 
 EXPORT_SYMBOL(mraid_mm_register_adp);
 EXPORT_SYMBOL(mraid_mm_unregister_adp);

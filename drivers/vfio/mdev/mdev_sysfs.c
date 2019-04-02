@@ -83,7 +83,7 @@ static void mdev_type_release(struct kobject *kobj)
 {
 	struct mdev_type *type = to_mdev_type(kobj);
 
-	pr_debug("Releasing group %s\n", kobj->name);
+	pr_de("Releasing group %s\n", kobj->name);
 	kfree(type);
 }
 

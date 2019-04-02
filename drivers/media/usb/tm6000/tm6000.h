@@ -376,21 +376,21 @@ void tm6000_ir_wait(struct tm6000_core *dev, u8 state);
 int tm6000_ir_int_start(struct tm6000_core *dev);
 void tm6000_ir_int_stop(struct tm6000_core *dev);
 
-/* Debug stuff */
+/* De stuff */
 
-extern int tm6000_debug;
+extern int tm6000_de;
 
 #define dprintk(dev, level, fmt, arg...) do {\
-	if (tm6000_debug & level) \
+	if (tm6000_de & level) \
 		printk(KERN_INFO "(%lu) %s %s :"fmt, jiffies, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-#define V4L2_DEBUG_REG		0x0004
-#define V4L2_DEBUG_I2C		0x0008
-#define V4L2_DEBUG_QUEUE	0x0010
-#define V4L2_DEBUG_ISOC		0x0020
-#define V4L2_DEBUG_RES_LOCK	0x0040	/* Resource locking */
-#define V4L2_DEBUG_OPEN		0x0080	/* video open/close debug */
+#define V4L2_DE_REG		0x0004
+#define V4L2_DE_I2C		0x0008
+#define V4L2_DE_QUEUE	0x0010
+#define V4L2_DE_ISOC		0x0020
+#define V4L2_DE_RES_LOCK	0x0040	/* Resource locking */
+#define V4L2_DE_OPEN		0x0080	/* video open/close de */
 
 #define tm6000_err(fmt, arg...) do {\
 	printk(KERN_ERR "tm6000 %s :"fmt, \

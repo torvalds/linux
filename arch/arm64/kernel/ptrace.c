@@ -43,7 +43,7 @@
 
 #include <asm/compat.h>
 #include <asm/cpufeature.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/fpsimd.h>
 #include <asm/pgtable.h>
 #include <asm/pointer_auth.h>
@@ -191,14 +191,14 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 		int i;
 
 		for (i = 0; i < ARM_MAX_BRP; ++i) {
-			if (current->thread.debug.hbp_break[i] == bp) {
+			if (current->thread.de.hbp_break[i] == bp) {
 				si_errno = (i << 1) + 1;
 				break;
 			}
 		}
 
 		for (i = 0; i < ARM_MAX_WRP; ++i) {
-			if (current->thread.debug.hbp_watch[i] == bp) {
+			if (current->thread.de.hbp_watch[i] == bp) {
 				si_errno = -((i << 1) + 1);
 				break;
 			}
@@ -223,23 +223,23 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 	struct thread_struct *t = &tsk->thread;
 
 	for (i = 0; i < ARM_MAX_BRP; i++) {
-		if (t->debug.hbp_break[i]) {
-			unregister_hw_breakpoint(t->debug.hbp_break[i]);
-			t->debug.hbp_break[i] = NULL;
+		if (t->de.hbp_break[i]) {
+			unregister_hw_breakpoint(t->de.hbp_break[i]);
+			t->de.hbp_break[i] = NULL;
 		}
 	}
 
 	for (i = 0; i < ARM_MAX_WRP; i++) {
-		if (t->debug.hbp_watch[i]) {
-			unregister_hw_breakpoint(t->debug.hbp_watch[i]);
-			t->debug.hbp_watch[i] = NULL;
+		if (t->de.hbp_watch[i]) {
+			unregister_hw_breakpoint(t->de.hbp_watch[i]);
+			t->de.hbp_watch[i] = NULL;
 		}
 	}
 }
 
 void ptrace_hw_copy_thread(struct task_struct *tsk)
 {
-	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
+	memset(&tsk->thread.de, 0, sizeof(struct de_info));
 }
 
 static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
@@ -253,13 +253,13 @@ static struct perf_event *ptrace_hbp_get_event(unsigned int note_type,
 		if (idx >= ARM_MAX_BRP)
 			goto out;
 		idx = array_index_nospec(idx, ARM_MAX_BRP);
-		bp = tsk->thread.debug.hbp_break[idx];
+		bp = tsk->thread.de.hbp_break[idx];
 		break;
 	case NT_ARM_HW_WATCH:
 		if (idx >= ARM_MAX_WRP)
 			goto out;
 		idx = array_index_nospec(idx, ARM_MAX_WRP);
-		bp = tsk->thread.debug.hbp_watch[idx];
+		bp = tsk->thread.de.hbp_watch[idx];
 		break;
 	}
 
@@ -279,14 +279,14 @@ static int ptrace_hbp_set_event(unsigned int note_type,
 		if (idx >= ARM_MAX_BRP)
 			goto out;
 		idx = array_index_nospec(idx, ARM_MAX_BRP);
-		tsk->thread.debug.hbp_break[idx] = bp;
+		tsk->thread.de.hbp_break[idx] = bp;
 		err = 0;
 		break;
 	case NT_ARM_HW_WATCH:
 		if (idx >= ARM_MAX_WRP)
 			goto out;
 		idx = array_index_nospec(idx, ARM_MAX_WRP);
-		tsk->thread.debug.hbp_watch[idx] = bp;
+		tsk->thread.de.hbp_watch[idx] = bp;
 		err = 0;
 		break;
 	}
@@ -386,7 +386,7 @@ static int ptrace_hbp_get_resource_info(unsigned int note_type, u32 *info)
 		return -EINVAL;
 	}
 
-	reg |= debug_monitors_arch();
+	reg |= de_monitors_arch();
 	reg <<= 8;
 	reg |= num;
 
@@ -505,14 +505,14 @@ static int hw_break_get(struct task_struct *target,
 		return ret;
 
 	/* Pad */
-	offset = offsetof(struct user_hwdebug_state, pad);
+	offset = offsetof(struct user_hwde_state, pad);
 	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, offset,
 				       offset + PTRACE_HBP_PAD_SZ);
 	if (ret)
 		return ret;
 
 	/* (address, ctrl) registers */
-	offset = offsetof(struct user_hwdebug_state, dbg_regs);
+	offset = offsetof(struct user_hwde_state, dbg_regs);
 	limit = regset->n * regset->size;
 	while (count && offset < limit) {
 		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
@@ -556,7 +556,7 @@ static int hw_break_set(struct task_struct *target,
 	u64 addr;
 
 	/* Resource info and pad */
-	offset = offsetof(struct user_hwdebug_state, dbg_regs);
+	offset = offsetof(struct user_hwde_state, dbg_regs);
 	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
 	if (ret)
 		return ret;
@@ -818,14 +818,14 @@ static int sve_get(struct task_struct *target,
 
 	/* Registers: FPSIMD-only case */
 
-	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
+	BUILD__ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
 	if ((header.flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD)
 		return __fpr_get(target, regset, pos, count, kbuf, ubuf,
 				 SVE_PT_FPSIMD_OFFSET);
 
 	/* Otherwise: full SVE case */
 
-	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
+	BUILD__ON(SVE_PT_SVE_OFFSET != sizeof(header));
 	start = SVE_PT_SVE_OFFSET;
 	end = SVE_PT_SVE_FFR_OFFSET(vq) + SVE_PT_SVE_FFR_SIZE(vq);
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -894,7 +894,7 @@ static int sve_set(struct task_struct *target,
 
 	/* Registers: FPSIMD-only case */
 
-	BUILD_BUG_ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
+	BUILD__ON(SVE_PT_FPSIMD_OFFSET != sizeof(header));
 	if ((header.flags & SVE_PT_REGS_MASK) == SVE_PT_REGS_FPSIMD) {
 		ret = __fpr_set(target, regset, pos, count, kbuf, ubuf,
 				SVE_PT_FPSIMD_OFFSET);
@@ -924,7 +924,7 @@ static int sve_set(struct task_struct *target,
 	fpsimd_sync_to_sve(target);
 	set_tsk_thread_flag(target, TIF_SVE);
 
-	BUILD_BUG_ON(SVE_PT_SVE_OFFSET != sizeof(header));
+	BUILD__ON(SVE_PT_SVE_OFFSET != sizeof(header));
 	start = SVE_PT_SVE_OFFSET;
 	end = SVE_PT_SVE_FFR_OFFSET(vq) + SVE_PT_SVE_FFR_SIZE(vq);
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -1159,7 +1159,7 @@ static const struct user_regset aarch64_regsets[] = {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
 		.core_note_type = NT_ARM_HW_BREAK,
-		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
+		.n = sizeof(struct user_hwde_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
 		.get = hw_break_get,
@@ -1167,7 +1167,7 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 	[REGSET_HW_WATCH] = {
 		.core_note_type = NT_ARM_HW_WATCH,
-		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
+		.n = sizeof(struct user_hwde_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
 		.get = hw_break_get,
@@ -1487,7 +1487,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
 		.core_note_type = NT_ARM_HW_BREAK,
-		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
+		.n = sizeof(struct user_hwde_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
 		.get = hw_break_get,
@@ -1495,7 +1495,7 @@ static const struct user_regset aarch32_ptrace_regsets[] = {
 	},
 	[REGSET_HW_WATCH] = {
 		.core_note_type = NT_ARM_HW_WATCH,
-		.n = sizeof(struct user_hwdebug_state) / sizeof(u32),
+		.n = sizeof(struct user_hwde_state) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
 		.get = hw_break_get,
@@ -1581,15 +1581,15 @@ static int compat_ptrace_hbp_num_to_idx(compat_long_t num)
 
 static int compat_ptrace_hbp_get_resource_info(u32 *kdata)
 {
-	u8 num_brps, num_wrps, debug_arch, wp_len;
+	u8 num_brps, num_wrps, de_arch, wp_len;
 	u32 reg = 0;
 
 	num_brps	= hw_breakpoint_slots(TYPE_INST);
 	num_wrps	= hw_breakpoint_slots(TYPE_DATA);
 
-	debug_arch	= debug_monitors_arch();
+	de_arch	= de_monitors_arch();
 	wp_len		= 8;
-	reg		|= debug_arch;
+	reg		|= de_arch;
 	reg		<<= 8;
 	reg		|= wp_len;
 	reg		<<= 8;

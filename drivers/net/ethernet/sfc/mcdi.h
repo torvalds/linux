@@ -204,15 +204,15 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define MCDI_PTR(_buf, _field)						\
 	_MCDI_PTR(_buf, MC_CMD_ ## _field ## _OFST)
 #define _MCDI_CHECK_ALIGN(_ofst, _align)				\
-	((_ofst) + BUILD_BUG_ON_ZERO((_ofst) & (_align - 1)))
+	((_ofst) + BUILD__ON_ZERO((_ofst) & (_align - 1)))
 #define _MCDI_DWORD(_buf, _field)					\
 	((_buf) + (_MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, 4) >> 2))
 
 #define MCDI_BYTE(_buf, _field)						\
-	((void)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 1),	\
+	((void)BUILD__ON_ZERO(MC_CMD_ ## _field ## _LEN != 1),	\
 	 *MCDI_PTR(_buf, _field))
 #define MCDI_WORD(_buf, _field)						\
-	((u16)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +	\
+	((u16)BUILD__ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +	\
 	 le16_to_cpu(*(__force const __le16 *)MCDI_PTR(_buf, _field)))
 #define MCDI_SET_DWORD(_buf, _field, _value)				\
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
@@ -301,11 +301,11 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	min_t(size_t, MC_CMD_ ## _field ## _MAXNUM,			\
 	      ((_len) - MC_CMD_ ## _field ## _OFST) / MC_CMD_ ## _field ## _LEN)
 #define MCDI_ARRAY_WORD(_buf, _field, _index)				\
-	(BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +		\
+	(BUILD__ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +		\
 	 le16_to_cpu(*(__force const __le16 *)				\
 		     _MCDI_ARRAY_PTR(_buf, _field, _index, 2)))
 #define _MCDI_ARRAY_DWORD(_buf, _field, _index)				\
-	(BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 4) +		\
+	(BUILD__ON_ZERO(MC_CMD_ ## _field ## _LEN != 4) +		\
 	 (efx_dword_t *)_MCDI_ARRAY_PTR(_buf, _field, _index, 4))
 #define MCDI_SET_ARRAY_DWORD(_buf, _field, _index, _value)		\
 	EFX_SET_DWORD_FIELD(*_MCDI_ARRAY_DWORD(_buf, _field, _index),	\
@@ -313,7 +313,7 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define MCDI_ARRAY_DWORD(_buf, _field, _index)				\
 	EFX_DWORD_FIELD(*_MCDI_ARRAY_DWORD(_buf, _field, _index), EFX_DWORD_0)
 #define _MCDI_ARRAY_QWORD(_buf, _field, _index)				\
-	(BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 8) +		\
+	(BUILD__ON_ZERO(MC_CMD_ ## _field ## _LEN != 8) +		\
 	 (efx_dword_t *)_MCDI_ARRAY_PTR(_buf, _field, _index, 4))
 #define MCDI_SET_ARRAY_QWORD(_buf, _field, _index, _value)		\
 	do {								\

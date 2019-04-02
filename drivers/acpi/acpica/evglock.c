@@ -217,7 +217,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 		ACPI_ACQUIRE_GLOBAL_LOCK(acpi_gbl_FACS, acquired);
 		if (acquired) {
 			acpi_gbl_global_lock_acquired = TRUE;
-			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			ACPI_DE_PRINT((ACPI_DB_EXEC,
 					  "Acquired hardware Global Lock\n"));
 			break;
 		}
@@ -230,7 +230,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 		acpi_gbl_global_lock_pending = TRUE;
 		acpi_os_release_lock(acpi_gbl_global_lock_pending_lock, flags);
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Waiting for hardware Global Lock\n"));
 
 		/*
@@ -295,7 +295,7 @@ acpi_status acpi_ev_release_global_lock(void)
 			     ACPI_ENABLE_EVENT);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Released hardware Global Lock\n"));
 	}
 

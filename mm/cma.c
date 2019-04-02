@@ -18,9 +18,9 @@
 
 #define pr_fmt(fmt) "cma: " fmt
 
-#ifdef CONFIG_CMA_DEBUG
-#ifndef DEBUG
-#  define DEBUG
+#ifdef CONFIG_CMA_DE
+#ifndef DE
+#  define DE
 #endif
 #endif
 #define CREATE_TRACE_POINTS
@@ -132,7 +132,7 @@ static int __init cma_activate_area(struct cma *cma)
 
 	mutex_init(&cma->lock);
 
-#ifdef CONFIG_CMA_DEBUGFS
+#ifdef CONFIG_CMA_DEFS
 	INIT_HLIST_HEAD(&cma->mem_head);
 	spin_lock_init(&cma->mem_head_lock);
 #endif
@@ -253,12 +253,12 @@ int __init cma_declare_contiguous(phys_addr_t base,
 
 	/*
 	 * We can't use __pa(high_memory) directly, since high_memory
-	 * isn't a valid direct map VA, and DEBUG_VIRTUAL will (validly)
+	 * isn't a valid direct map VA, and DE_VIRTUAL will (validly)
 	 * complain. Find the boundary by adding one to the last valid
 	 * address.
 	 */
 	highmem_start = __pa(high_memory - 1) + 1;
-	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
+	pr_de("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
 		__func__, &size, &base, &limit, &alignment);
 
 	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
@@ -364,8 +364,8 @@ err:
 	return ret;
 }
 
-#ifdef CONFIG_CMA_DEBUG
-static void cma_debug_show_areas(struct cma *cma)
+#ifdef CONFIG_CMA_DE
+static void cma_de_show_areas(struct cma *cma)
 {
 	unsigned long next_zero_bit, next_set_bit;
 	unsigned long start = 0;
@@ -387,7 +387,7 @@ static void cma_debug_show_areas(struct cma *cma)
 	mutex_unlock(&cma->lock);
 }
 #else
-static inline void cma_debug_show_areas(struct cma *cma) { }
+static inline void cma_de_show_areas(struct cma *cma) { }
 #endif
 
 /**
@@ -414,7 +414,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	if (!cma || !cma->count)
 		return NULL;
 
-	pr_debug("%s(cma %p, count %zu, align %d)\n", __func__, (void *)cma,
+	pr_de("%s(cma %p, count %zu, align %d)\n", __func__, (void *)cma,
 		 count, align);
 
 	if (!count)
@@ -459,7 +459,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		if (ret != -EBUSY)
 			break;
 
-		pr_debug("%s(): memory range at %p is busy, retrying\n",
+		pr_de("%s(): memory range at %p is busy, retrying\n",
 			 __func__, pfn_to_page(pfn));
 		/* try again with a bit different memory target */
 		start = bitmap_no + mask + 1;
@@ -480,10 +480,10 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	if (ret && !no_warn) {
 		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
 			__func__, count, ret);
-		cma_debug_show_areas(cma);
+		cma_de_show_areas(cma);
 	}
 
-	pr_debug("%s(): returned %p\n", __func__, page);
+	pr_de("%s(): returned %p\n", __func__, page);
 	return page;
 }
 
@@ -504,14 +504,14 @@ bool cma_release(struct cma *cma, const struct page *pages, unsigned int count)
 	if (!cma || !pages)
 		return false;
 
-	pr_debug("%s(page %p)\n", __func__, (void *)pages);
+	pr_de("%s(page %p)\n", __func__, (void *)pages);
 
 	pfn = page_to_pfn(pages);
 
 	if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
 		return false;
 
-	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+	VM__ON(pfn + count > cma->base_pfn + cma->count);
 
 	free_contig_range(pfn, count);
 	cma_clear_bitmap(cma, pfn, count);

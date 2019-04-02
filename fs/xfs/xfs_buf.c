@@ -505,7 +505,7 @@ _xfs_buf_obj_cmp(
 	 * The key hashing in the lookup path depends on the key being the
 	 * first element of the compare_arg, make sure to assert this.
 	 */
-	BUILD_BUG_ON(offsetof(struct xfs_buf_map, bm_bn) != 0);
+	BUILD__ON(offsetof(struct xfs_buf_map, bm_bn) != 0);
 
 	if (bp->b_bn != map->bm_bn)
 		return 1;
@@ -2195,7 +2195,7 @@ void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {
 	/*
 	 * Set the lru reference count to 0 based on the error injection tag.
-	 * This allows userspace to disrupt buffer caching for debug/testing
+	 * This allows userspace to disrupt buffer caching for de/testing
 	 * purposes.
 	 */
 	if (XFS_TEST_ERROR(false, bp->b_target->bt_mount,

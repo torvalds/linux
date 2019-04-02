@@ -128,7 +128,7 @@ static int qcom_cpufreq_kryo_probe(struct platform_device *pdev)
 		versions = 1 << ((unsigned int)(*speedbin) + 4);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 	kfree(speedbin);

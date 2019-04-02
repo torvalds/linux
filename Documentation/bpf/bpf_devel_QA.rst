@@ -3,7 +3,7 @@ HOWTO interact with BPF subsystem
 =================================
 
 This document provides information for the BPF subsystem about various
-workflows related to reporting bugs, submitting patches, and queueing
+workflows related to reporting s, submitting patches, and queueing
 patches for stable kernels.
 
 For general information about submitting patches, please refer to
@@ -14,10 +14,10 @@ related to BPF.
     :local:
     :depth: 2
 
-Reporting bugs
+Reporting s
 ==============
 
-Q: How do I report bugs for BPF kernel code?
+Q: How do I report s for BPF kernel code?
 --------------------------------------------
 A: Since all BPF kernel development as well as bpftool and iproute2 BPF
 loader development happens through the netdev kernel mailing list,
@@ -34,11 +34,11 @@ maintainers to Cc (from kernel MAINTAINERS_ file):
 * Alexei Starovoitov <ast@kernel.org>
 * Daniel Borkmann <daniel@iogearbox.net>
 
-In case a buggy commit has already been identified, make sure to keep
+In case a gy commit has already been identified, make sure to keep
 the actual commit authors in Cc as well for the report. They can
 typically be identified through the kernel's git tree.
 
-**Please do NOT report BPF issues to bugzilla.kernel.org since it
+**Please do NOT report BPF issues to zilla.kernel.org since it
 is a guarantee that the reported issue will be overlooked.**
 
 Submitting patches
@@ -262,7 +262,7 @@ instead!
 Q: When should I add code to the bpftool?
 -----------------------------------------
 A: The main purpose of bpftool (under tools/bpf/bpftool/) is to provide
-a central user space tool for debugging and introspection of BPF programs
+a central user space tool for deging and introspection of BPF programs
 and maps that are active in the kernel. If UAPI changes related to BPF
 enable for dumping additional information of programs or maps, then
 bpftool should be extended as well to support dumping them.
@@ -401,7 +401,7 @@ Q: Queue stable patches
 Q: Where do I find currently queued BPF patches that will be submitted
 to stable?
 
-A: Once patches that fix critical bugs got applied into the bpf tree, they
+A: Once patches that fix critical s got applied into the bpf tree, they
 are queued up for stable submission under:
 
   http://patchwork.ozlabs.org/bundle/bpf/stable/?state=*
@@ -527,9 +527,9 @@ list and Cc BPF maintainers for LLVM and kernel bits:
 * Alexei Starovoitov <ast@kernel.org>
 * Daniel Borkmann <daniel@iogearbox.net>
 
-LLVM also has an issue tracker where BPF related bugs can be found:
+LLVM also has an issue tracker where BPF related s can be found:
 
-  https://bugs.llvm.org/buglist.cgi?quicksearch=bpf
+  https://s.llvm.org/list.cgi?quicksearch=bpf
 
 However, it is better to reach out through mailing lists with having
 maintainers in Cc.

@@ -233,9 +233,9 @@ struct iwl_rate_mcs_info {
  * struct iwl_lq_sta_rs_fw - rate and related statistics for RS in FW
  * @last_rate_n_flags: last rate reported by FW
  * @sta_id: the id of the station
-#ifdef CONFIG_MAC80211_DEBUGFS
- * @dbg_fixed_rate: for debug, use fixed rate if not 0
- * @dbg_agg_frame_count_lim: for debug, max number of frames in A-MPDU
+#ifdef CONFIG_MAC80211_DEFS
+ * @dbg_fixed_rate: for de, use fixed rate if not 0
+ * @dbg_agg_frame_count_lim: for de, max number of frames in A-MPDU
 #endif
  * @chains: bitmask of chains reported in %chain_signal
  * @chain_signal: per chain signal strength
@@ -250,7 +250,7 @@ struct iwl_lq_sta_rs_fw {
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers_rs_fw {
 		u32 sta_id;
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 		u32 dbg_fixed_rate;
 		u16 dbg_agg_frame_count_lim;
 #endif
@@ -389,7 +389,7 @@ struct iwl_lq_sta {
 
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers {
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 		u32 dbg_fixed_rate;
 		u8 dbg_fixed_txp_reduction;
 
@@ -451,12 +451,12 @@ struct iwl_mvm_sta;
 int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			  bool enable);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm);
 #endif
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-void rs_remove_sta_debugfs(void *mvm, void *mvm_sta);
+#ifdef CONFIG_MAC80211_DEFS
+void rs_remove_sta_defs(void *mvm, void *mvm_sta);
 #endif
 
 void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta);

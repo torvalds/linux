@@ -11,7 +11,7 @@
 #include <linux/extable.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/prefetch.h>
 #include <linux/uaccess.h>
 
@@ -180,7 +180,7 @@ retry:
 			signal = SIGBUS;
 			goto bad_area;
 		}
-		BUG();
+		();
 	}
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {

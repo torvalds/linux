@@ -86,7 +86,7 @@ class SystemValues(aslib.SystemValues):
 			return True
 		return False
 	def kernelParams(self):
-		cmdline = 'initcall_debug log_buf_len=32M'
+		cmdline = 'initcall_de log_buf_len=32M'
 		if self.useftrace:
 			if self.cpucount > 0:
 				bs = min(self.memtotal / 2, 2*1024*1024) / self.cpucount
@@ -1066,7 +1066,7 @@ if __name__ == '__main__':
 		if sysvals.useftrace and sysvals.ftracefile:
 			parseTraceLog(data)
 		if sysvals.cgdump:
-			data.debugPrint()
+			data.dePrint()
 			sys.exit()
 	else:
 		doError('dmesg file required')

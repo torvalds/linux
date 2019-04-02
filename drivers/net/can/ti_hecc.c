@@ -484,7 +484,7 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 		spin_unlock_irqrestore(&priv->mbx_lock, flags);
 		netif_stop_queue(ndev);
 		netdev_err(priv->ndev,
-			"BUG: TX mbx not ready tx_head=%08X, tx_tail=%08X\n",
+			": TX mbx not ready tx_head=%08X, tx_tail=%08X\n",
 			priv->tx_head, priv->tx_tail);
 		return NETDEV_TX_BUSY;
 	}

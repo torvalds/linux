@@ -146,7 +146,7 @@ static void program_addr(
 		break;
 	default:
 		/* not supported */
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 }
 
@@ -754,7 +754,7 @@ static void program_stutter_watermark(
 
 	stutter_cntl = dm_read_reg(ctx, stutter_addr);
 
-	if (ctx->dc->debug.disable_stutter) {
+	if (ctx->dc->de.disable_stutter) {
 		set_reg_field_value(stutter_cntl,
 			0,
 			DPGV0_PIPE_STUTTER_CONTROL,

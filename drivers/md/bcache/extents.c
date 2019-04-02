@@ -23,7 +23,7 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "extents.h"
 #include "writeback.h"
 
@@ -159,7 +159,7 @@ bool __bch_btree_ptr_invalid(struct cache_set *c, const struct bkey *k)
 	return false;
 bad:
 	bch_extent_to_text(buf, sizeof(buf), k);
-	cache_bug(c, "spotted btree ptr %s: %s", buf, bch_ptr_status(c, k));
+	cache_(c, "spotted btree ptr %s: %s", buf, bch_ptr_status(c, k));
 	return true;
 }
 
@@ -195,7 +195,7 @@ static bool btree_ptr_bad_expensive(struct btree *b, const struct bkey *k)
 err:
 	mutex_unlock(&b->c->bucket_lock);
 	bch_extent_to_text(buf, sizeof(buf), k);
-	btree_bug(b,
+	btree_(b,
 "inconsistent btree pointer %s: bucket %zi pin %i prio %i gen %i last_gc %i mark %llu",
 		  buf, PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
 		  g->prio, g->gen, g->last_gc, GC_MARK(g));
@@ -217,7 +217,7 @@ static bool bch_btree_ptr_bad(struct btree_keys *bk, const struct bkey *k)
 		    ptr_stale(b->c, k, i))
 			return true;
 
-	if (expensive_debug_checks(b->c) &&
+	if (expensive_de_checks(b->c) &&
 	    btree_ptr_bad_expensive(b, k))
 		return true;
 
@@ -291,7 +291,7 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 			heap_sift(iter, i - top, bch_extent_sort_cmp);
 		} else {
 			/* can't happen because of comparison func */
-			BUG_ON(!bkey_cmp(&START_KEY(top->k), &START_KEY(i->k)));
+			_ON(!bkey_cmp(&START_KEY(top->k), &START_KEY(i->k)));
 
 			if (bkey_cmp(i->k, top->k) < 0) {
 				bkey_copy(tmp, top->k);
@@ -330,8 +330,8 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 	uint64_t old_offset;
 	unsigned int old_size, sectors_found = 0;
 
-	BUG_ON(!KEY_OFFSET(insert));
-	BUG_ON(!KEY_SIZE(insert));
+	_ON(!KEY_OFFSET(insert));
+	_ON(!KEY_SIZE(insert));
 
 	while (1) {
 		struct bkey *k = bch_btree_iter_next(iter);
@@ -384,7 +384,7 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 			/* skip past gen */
 			offset <<= 8;
 
-			BUG_ON(!KEY_PTRS(replace_key));
+			_ON(!KEY_PTRS(replace_key));
 
 			for (i = 0; i < KEY_PTRS(replace_key); i++)
 				if (k->ptr[i] != replace_key->ptr[i] + offset)
@@ -493,7 +493,7 @@ bool __bch_extent_invalid(struct cache_set *c, const struct bkey *k)
 	return false;
 bad:
 	bch_extent_to_text(buf, sizeof(buf), k);
-	cache_bug(c, "spotted extent %s: %s", buf, bch_ptr_status(c, k));
+	cache_(c, "spotted extent %s: %s", buf, bch_ptr_status(c, k));
 	return true;
 }
 
@@ -527,7 +527,7 @@ static bool bch_extent_bad_expensive(struct btree *b, const struct bkey *k,
 err:
 	mutex_unlock(&b->c->bucket_lock);
 	bch_extent_to_text(buf, sizeof(buf), k);
-	btree_bug(b,
+	btree_(b,
 "inconsistent extent pointer %s:\nbucket %zu pin %i prio %i gen %i last_gc %i mark %llu",
 		  buf, PTR_BUCKET_NR(b->c, k, ptr), atomic_read(&g->pin),
 		  g->prio, g->gen, g->last_gc, GC_MARK(g));
@@ -557,14 +557,14 @@ static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 				stale, buf);
 		}
 
-		btree_bug_on(stale > BUCKET_GC_GEN_MAX, b,
+		btree__on(stale > BUCKET_GC_GEN_MAX, b,
 			     "key too stale: %i, need_gc %u",
 			     stale, b->c->need_gc);
 
 		if (stale)
 			return true;
 
-		if (expensive_debug_checks(b->c) &&
+		if (expensive_de_checks(b->c) &&
 		    bch_extent_bad_expensive(b, k, i))
 			return true;
 	}

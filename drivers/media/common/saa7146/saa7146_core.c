@@ -25,10 +25,10 @@
 
 static int saa7146_num;
 
-unsigned int saa7146_debug;
+unsigned int saa7146_de;
 
-module_param(saa7146_debug, uint, 0644);
-MODULE_PARM_DESC(saa7146_debug, "debug level (default: 0)");
+module_param(saa7146_de, uint, 0644);
+MODULE_PARM_DESC(saa7146_de, "de level (default: 0)");
 
 #if 0
 static void dump_registers(struct saa7146_dev* dev)
@@ -49,7 +49,7 @@ void saa7146_setgpio(struct saa7146_dev *dev, int port, u32 data)
 {
 	u32 value = 0;
 
-	BUG_ON(port > 3);
+	_ON(port > 3);
 
 	value = saa7146_read(dev, GPIO_CTRL);
 	value &= ~(0xff << (8*port));
@@ -71,7 +71,7 @@ static inline int saa7146_wait_for_debi_done_sleep(struct saa7146_dev *dev,
 		if (saa7146_read(dev, MC2) & 2)
 			break;
 		if (err) {
-			pr_debug("%s: %s timed out while waiting for registers getting programmed\n",
+			pr_de("%s: %s timed out while waiting for registers getting programmed\n",
 			       dev->name, __func__);
 			return -ETIMEDOUT;
 		}
@@ -144,7 +144,7 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
  ****************************************************************************/
 
 /* this is videobuf_vmalloc_to_sg() from videobuf-dma-sg.c
-   make sure virt has been allocated with vmalloc_32(), otherwise the BUG()
+   make sure virt has been allocated with vmalloc_32(), otherwise the ()
    may be triggered on highmem machines */
 static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 {
@@ -160,7 +160,7 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
-		BUG_ON(PageHighMem(pg));
+		_ON(PageHighMem(pg));
 		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
 	}
 	return sglist;
@@ -251,8 +251,8 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 	int nr_pages = 0;
 	int i,p;
 
-	BUG_ON(0 == sglen);
-	BUG_ON(list->offset > PAGE_SIZE);
+	_ON(0 == sglen);
+	_ON(list->offset > PAGE_SIZE);
 
 	/* if we have a user buffer, the first page may not be
 	   aligned to a page boundary. */
@@ -261,7 +261,7 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 	ptr = pt->cpu;
 	for (i = 0; i < sglen; i++, list++) {
 /*
-		pr_debug("i:%d, adr:0x%08x, len:%d, offset:%d\n",
+		pr_de("i:%d, adr:0x%08x, len:%d, offset:%d\n",
 			 i, sg_dma_address(list), sg_dma_len(list),
 			 list->offset);
 */
@@ -280,9 +280,9 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 
 /*
 	ptr = pt->cpu;
-	pr_debug("offset: %d\n", pt->offset);
+	pr_de("offset: %d\n", pt->offset);
 	for(i=0;i<5;i++) {
-		pr_debug("ptr1 %d: 0x%08x\n", i, ptr[i]);
+		pr_de("ptr1 %d: 0x%08x\n", i, ptr[i]);
 	}
 */
 	return 0;
@@ -380,7 +380,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 
 	dev->pci = pci;
 
-	/* get chip-revision; this is needed to enable bug-fixes */
+	/* get chip-revision; this is needed to enable -fixes */
 	dev->revision = pci->revision;
 
 	/* remap the memory from virtual to physical address */
@@ -580,7 +580,7 @@ EXPORT_SYMBOL_GPL(saa7146_setgpio);
 
 EXPORT_SYMBOL_GPL(saa7146_i2c_adapter_prepare);
 
-EXPORT_SYMBOL_GPL(saa7146_debug);
+EXPORT_SYMBOL_GPL(saa7146_de);
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("driver for generic saa7146-based hardware");

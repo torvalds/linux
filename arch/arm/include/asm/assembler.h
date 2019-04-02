@@ -543,17 +543,17 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 #endif
 	.endm
 
-	.macro	bug, msg, line
+	.macro	, msg, line
 #ifdef CONFIG_THUMB2_KERNEL
 1:	.inst	0xde02
 #else
 1:	.inst	0xe7f001f2
 #endif
-#ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifdef CONFIG_DE_VERBOSE
 	.pushsection .rodata.str, "aMS", %progbits, 1
 2:	.asciz	"\msg"
 	.popsection
-	.pushsection __bug_table, "aw"
+	.pushsection ___table, "aw"
 	.align	2
 	.word	1b, 2b
 	.hword	\line

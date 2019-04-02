@@ -51,15 +51,15 @@
 #include <linux/seq_file.h>
 
 
-/* for debug zone */
-unsigned int sd_debug_zone[4] = {
+/* for de zone */
+unsigned int sd_de_zone[4] = {
 	0,
 	0,
 	0,
 	0
 };
 
-#if defined(MT6575_SD_DEBUG)
+#if defined(MT6575_SD_DE)
 static char cmd_buf[256];
 /* for driver profile */
 #define TICKS_ONE_MS  (13000)
@@ -76,12 +76,12 @@ u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 		ret = new_L32 - old_L32;
 	} else if (new_H32 == (old_H32 + 1)) {
 		if (new_L32 > old_L32)
-			pr_debug("msdc old_L<0x%x> new_L<0x%x>\n",
+			pr_de("msdc old_L<0x%x> new_L<0x%x>\n",
 				 old_L32, new_L32);
 		ret = (0xffffffff - old_L32);
 		ret += new_L32;
 	} else {
-		pr_debug("msdc old_H<0x%x> new_H<0x%x>\n", old_H32, new_H32);
+		pr_de("msdc old_H<0x%x> new_H<0x%x>\n", old_H32, new_H32);
 	}
 
 	return ret;
@@ -92,18 +92,18 @@ void msdc_sdio_profile(struct sdio_profile *result)
 	struct cmd_profile *cmd;
 	u32 i;
 
-	pr_debug("sdio === performance dump ===\n");
-	pr_debug("sdio === total execute tick<%d> time<%dms> Tx<%dB> Rx<%dB>\n",
+	pr_de("sdio === performance dump ===\n");
+	pr_de("sdio === total execute tick<%d> time<%dms> Tx<%dB> Rx<%dB>\n",
 		 result->total_tc, result->total_tc / TICKS_ONE_MS,
 		 result->total_tx_bytes, result->total_rx_bytes);
 
 	/* CMD52 Dump */
 	cmd = &result->cmd52_rx;
-	pr_debug("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n",
+	pr_de("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n",
 		 cmd->count, cmd->tot_tc, cmd->max_tc, cmd->min_tc,
 		 cmd->tot_tc / cmd->count);
 	cmd = &result->cmd52_tx;
-	pr_debug("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n",
+	pr_de("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n",
 		 cmd->count, cmd->tot_tc, cmd->max_tc, cmd->min_tc,
 		 cmd->tot_tc / cmd->count);
 
@@ -111,7 +111,7 @@ void msdc_sdio_profile(struct sdio_profile *result)
 	for (i = 0; i < 512; i++) {
 		cmd = &result->cmd53_rx_byte[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+			pr_de("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
 				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
 				 cmd->min_tc, cmd->tot_tc / cmd->count,
 				 cmd->tot_bytes,
@@ -121,7 +121,7 @@ void msdc_sdio_profile(struct sdio_profile *result)
 	for (i = 0; i < 100; i++) {
 		cmd = &result->cmd53_rx_blk[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+			pr_de("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
 				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
 				 cmd->min_tc, cmd->tot_tc / cmd->count,
 				 cmd->tot_bytes,
@@ -133,7 +133,7 @@ void msdc_sdio_profile(struct sdio_profile *result)
 	for (i = 0; i < 512; i++) {
 		cmd = &result->cmd53_tx_byte[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+			pr_de("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
 				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
 				 cmd->min_tc, cmd->tot_tc / cmd->count,
 				 cmd->tot_bytes,
@@ -143,7 +143,7 @@ void msdc_sdio_profile(struct sdio_profile *result)
 	for (i = 0; i < 100; i++) {
 		cmd = &result->cmd53_tx_blk[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+			pr_de("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
 				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
 				 cmd->min_tc, cmd->tot_tc / cmd->count,
 				 cmd->tot_bytes,
@@ -151,7 +151,7 @@ void msdc_sdio_profile(struct sdio_profile *result)
 		}
 	}
 
-	pr_debug("sdio === performance dump done ===\n");
+	pr_de("sdio === performance dump done ===\n");
 }
 
 //========= sdio command table ===========
@@ -205,19 +205,19 @@ void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks)
 }
 
 //========== driver proc interface ===========
-static int msdc_debug_proc_read(struct seq_file *s, void *p)
+static int msdc_de_proc_read(struct seq_file *s, void *p)
 {
 	seq_puts(s, "\n=========================================\n");
 	seq_puts(s, "Index<0> + Id + Zone\n");
 	seq_puts(s, "-> PWR<9> WRN<8> | FIO<7> OPS<6> FUN<5> CFG<4> | INT<3> RSP<2> CMD<1> DMA<0>\n");
-	seq_puts(s, "-> echo 0 3 0x3ff >msdc_bebug -> host[3] debug zone set to 0x3ff\n");
-	seq_printf(s, "-> MSDC[0] Zone: 0x%.8x\n", sd_debug_zone[0]);
-	seq_printf(s, "-> MSDC[1] Zone: 0x%.8x\n", sd_debug_zone[1]);
-	seq_printf(s, "-> MSDC[2] Zone: 0x%.8x\n", sd_debug_zone[2]);
-	seq_printf(s, "-> MSDC[3] Zone: 0x%.8x\n", sd_debug_zone[3]);
+	seq_puts(s, "-> echo 0 3 0x3ff >msdc_be -> host[3] de zone set to 0x3ff\n");
+	seq_printf(s, "-> MSDC[0] Zone: 0x%.8x\n", sd_de_zone[0]);
+	seq_printf(s, "-> MSDC[1] Zone: 0x%.8x\n", sd_de_zone[1]);
+	seq_printf(s, "-> MSDC[2] Zone: 0x%.8x\n", sd_de_zone[2]);
+	seq_printf(s, "-> MSDC[3] Zone: 0x%.8x\n", sd_de_zone[3]);
 
 	seq_puts(s, "Index<3> + SDIO_PROFILE + TIME\n");
-	seq_puts(s, "-> echo 3 1 0x1E >msdc_bebug -> enable sdio_profile, 30s\n");
+	seq_puts(s, "-> echo 3 1 0x1E >msdc_be -> enable sdio_profile, 30s\n");
 	seq_printf(s, "-> SDIO_PROFILE<%d> TIME<%ds>\n",
 		   sdio_pro_enable, sdio_pro_time);
 	seq_puts(s, "=========================================\n\n");
@@ -225,7 +225,7 @@ static int msdc_debug_proc_read(struct seq_file *s, void *p)
 	return 0;
 }
 
-static ssize_t msdc_debug_proc_write(struct file *file,
+static ssize_t msdc_de_proc_write(struct file *file,
 				     const char __user *buf,
 				     size_t count, loff_t *data)
 {
@@ -244,7 +244,7 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 		return -EFAULT;
 
 	cmd_buf[count] = '\0';
-	pr_debug("msdc Write %s\n", cmd_buf);
+	pr_de("msdc Write %s\n", cmd_buf);
 
 	ret = sscanf(cmd_buf, "%x %x %x", &cmd, &p1, &p2);
 	if (ret != 3)
@@ -254,14 +254,14 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 		id = p1;
 		zone = p2;
 		zone &= 0x3ff;
-		pr_debug("msdc host_id<%d> zone<0x%.8x>\n", id, zone);
+		pr_de("msdc host_id<%d> zone<0x%.8x>\n", id, zone);
 		if (id >= 0 && id <= 3) {
-			sd_debug_zone[id] = zone;
+			sd_de_zone[id] = zone;
 		} else if (id == 4) {
-			sd_debug_zone[0] = sd_debug_zone[1] = zone;
-			sd_debug_zone[2] = sd_debug_zone[3] = zone;
+			sd_de_zone[0] = sd_de_zone[1] = zone;
+			sd_de_zone[2] = sd_de_zone[3] = zone;
 		} else {
-			pr_err("msdc host_id error when set debug zone\n");
+			pr_err("msdc host_id error when set de zone\n");
 		}
 	} else if (cmd == SD_TOOL_SDIO_PROFILE) {
 		if (p1 == 1) { /* enable profile */
@@ -282,23 +282,23 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 	return count;
 }
 
-static int msdc_debug_show(struct inode *inode, struct file *file)
+static int msdc_de_show(struct inode *inode, struct file *file)
 {
-	return single_open(file, msdc_debug_proc_read, NULL);
+	return single_open(file, msdc_de_proc_read, NULL);
 }
 
-static const struct file_operations msdc_debug_fops = {
+static const struct file_operations msdc_de_fops = {
 	.owner		= THIS_MODULE,
-	.open		= msdc_debug_show,
+	.open		= msdc_de_show,
 	.read		= seq_read,
-	.write		= msdc_debug_proc_write,
+	.write		= msdc_de_proc_write,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-void msdc_debug_proc_init(void)
+void msdc_de_proc_init(void)
 {
-	proc_create("msdc_debug", 0660, NULL, &msdc_debug_fops);
+	proc_create("msdc_de", 0660, NULL, &msdc_de_fops);
 }
-EXPORT_SYMBOL_GPL(msdc_debug_proc_init);
+EXPORT_SYMBOL_GPL(msdc_de_proc_init);
 #endif

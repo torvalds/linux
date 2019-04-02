@@ -26,7 +26,7 @@ static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	sense_len = le16_to_cpu(sts_entry->senseDataByteCnt);
 	if (sense_len == 0) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "scsi%ld:%d:%d:%llu: %s:"
+		DE2(ql4_printk(KERN_INFO, ha, "scsi%ld:%d:%d:%llu: %s:"
 				  " sense len 0\n", ha->host_no,
 				  cmd->device->channel, cmd->device->id,
 				  cmd->device->lun, __func__));
@@ -43,7 +43,7 @@ static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
 	sense_len = min_t(uint16_t, sense_len, IOCB_MAX_SENSEDATA_LEN);
 	memcpy(cmd->sense_buffer, sts_entry->senseData, sense_len);
 
-	DEBUG2(printk(KERN_INFO "scsi%ld:%d:%d:%llu: %s: sense key = %x, "
+	DE2(printk(KERN_INFO "scsi%ld:%d:%d:%llu: %s: sense key = %x, "
 		"ASL= %02x, ASC/ASCQ = %02x/%02x\n", ha->host_no,
 		cmd->device->channel, cmd->device->id,
 		cmd->device->lun, __func__,
@@ -52,7 +52,7 @@ static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
 		sts_entry->senseData[12],
 		sts_entry->senseData[13]));
 
-	DEBUG5(qla4xxx_dump_buffer(cmd->sense_buffer, sense_len));
+	DE5(qla4xxx_dump_buffer(cmd->sense_buffer, sense_len));
 	srb->flags |= SRB_GOT_SENSE;
 
 	/* Update srb, in case a sts_cont pkt follows */
@@ -84,7 +84,7 @@ qla4xxx_status_cont_entry(struct scsi_qla_host *ha,
 
 	cmd = srb->cmd;
 	if (cmd == NULL) {
-		DEBUG2(printk(KERN_INFO "scsi%ld: %s: Cmd already returned "
+		DE2(printk(KERN_INFO "scsi%ld: %s: Cmd already returned "
 			"back to OS srb=%p srb->state:%d\n", ha->host_no,
 			__func__, srb, srb->state));
 		ha->status_srb = NULL;
@@ -95,7 +95,7 @@ qla4xxx_status_cont_entry(struct scsi_qla_host *ha,
 	sense_len = min_t(uint16_t, srb->req_sense_len,
 			  IOCB_MAX_EXT_SENSEDATA_LEN);
 	memcpy(srb->req_sense_ptr, sts_cont->ext_sense_data, sense_len);
-	DEBUG5(qla4xxx_dump_buffer(srb->req_sense_ptr, sense_len));
+	DE5(qla4xxx_dump_buffer(srb->req_sense_ptr, sense_len));
 
 	srb->req_sense_ptr += sense_len;
 	srb->req_sense_len -= sense_len;
@@ -135,7 +135,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 	cmd = srb->cmd;
 	if (cmd == NULL) {
-		DEBUG2(printk("scsi%ld: %s: Command already returned back to "
+		DE2(printk("scsi%ld: %s: Command already returned back to "
 			      "OS pkt->handle=%d srb=%p srb->state:%d\n",
 			      ha->host_no, __func__, sts_entry->handle,
 			      srb, srb->state));
@@ -169,7 +169,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 				cmd->result = DID_ERROR << 16;
 
-				DEBUG2(printk("scsi%ld:%d:%d:%llu: %s: "
+				DE2(printk("scsi%ld:%d:%d:%llu: %s: "
 					"Mid-layer Data underrun0, "
 					"xferlen = 0x%x, "
 					"residual = 0x%x\n", ha->host_no,
@@ -197,7 +197,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 		break;
 
 	case SCS_RESET_OCCURRED:
-		DEBUG2(printk("scsi%ld:%d:%d:%llu: %s: Device RESET occurred\n",
+		DE2(printk("scsi%ld:%d:%d:%llu: %s: Device RESET occurred\n",
 			      ha->host_no, cmd->device->channel,
 			      cmd->device->id, cmd->device->lun, __func__));
 
@@ -205,7 +205,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 		break;
 
 	case SCS_ABORTED:
-		DEBUG2(printk("scsi%ld:%d:%d:%llu: %s: Abort occurred\n",
+		DE2(printk("scsi%ld:%d:%d:%llu: %s: Abort occurred\n",
 			      ha->host_no, cmd->device->channel,
 			      cmd->device->id, cmd->device->lun, __func__));
 
@@ -213,7 +213,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 		break;
 
 	case SCS_TIMEOUT:
-		DEBUG2(printk(KERN_INFO "scsi%ld:%d:%d:%llu: Timeout\n",
+		DE2(printk(KERN_INFO "scsi%ld:%d:%d:%llu: Timeout\n",
 			      ha->host_no, cmd->device->channel,
 			      cmd->device->id, cmd->device->lun));
 
@@ -232,7 +232,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 	case SCS_DATA_OVERRUN:
 		if ((sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_OVER) ||
 		     (sts_entry->completionStatus == SCS_DATA_OVERRUN)) {
-			DEBUG2(printk("scsi%ld:%d:%d:%llu: %s: " "Data overrun\n",
+			DE2(printk("scsi%ld:%d:%d:%llu: %s: " "Data overrun\n",
 				      ha->host_no,
 				      cmd->device->channel, cmd->device->id,
 				      cmd->device->lun, __func__));
@@ -258,7 +258,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			 */
 			if (!scsi_status && (scsi_bufflen(cmd) - residual) <
 			    cmd->underflow) {
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "scsi%ld:%d:%d:%llu: %s: Mid-layer Data underrun, xferlen = 0x%x,residual = 0x%x\n",
 						   ha->host_no,
 						   cmd->device->channel,
@@ -290,7 +290,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			 *   scsi_status and return DID_OK.
 			 */
 
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld:%d:%d:%llu: %s: Dropped frame(s) detected (0x%x of 0x%x bytes).\n",
 					  ha->host_no,
 					  cmd->device->channel,
@@ -313,7 +313,7 @@ check_scsi_status:
 
 	case SCS_DEVICE_LOGGED_OUT:
 	case SCS_DEVICE_UNAVAILABLE:
-		DEBUG2(printk(KERN_INFO "scsi%ld:%d:%d:%llu: SCS_DEVICE "
+		DE2(printk(KERN_INFO "scsi%ld:%d:%d:%llu: SCS_DEVICE "
 		    "state: 0x%x\n", ha->host_no,
 		    cmd->device->channel, cmd->device->id,
 		    cmd->device->lun, sts_entry->completionStatus));
@@ -333,7 +333,7 @@ check_scsi_status:
 		 * SCSI Mid-Layer handles device queue full
 		 */
 		cmd->result = DID_OK << 16 | sts_entry->scsiStatus;
-		DEBUG2(printk("scsi%ld:%d:%llu: %s: QUEUE FULL detected "
+		DE2(printk("scsi%ld:%d:%llu: %s: QUEUE FULL detected "
 			      "compl=%02x, scsi=%02x, state=%02x, iFlags=%02x,"
 			      " iResp=%02x\n", ha->host_no, cmd->device->id,
 			      cmd->device->lun, __func__,
@@ -438,7 +438,7 @@ static void qla4xxx_mbox_status_entry(struct scsi_qla_host *ha,
 
 	switch (mrb->mbox_cmd) {
 	case MBOX_CMD_PING:
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: mbox_cmd = 0x%x, "
+		DE2(ql4_printk(KERN_INFO, ha, "%s: mbox_cmd = 0x%x, "
 				  "mbox_sts[0] = 0x%x, mbox_sts[6] = 0x%x\n",
 				  __func__, mrb->mbox_cmd,
 				  mbox_sts_entry->out_mbox[0],
@@ -456,7 +456,7 @@ static void qla4xxx_mbox_status_entry(struct scsi_qla_host *ha,
 		break;
 
 	default:
-		DEBUG2(ql4_printk(KERN_WARNING, ha, "%s: invalid mbox_cmd = "
+		DE2(ql4_printk(KERN_WARNING, ha, "%s: invalid mbox_cmd = "
 				  "0x%x\n", __func__, mrb->mbox_cmd));
 	}
 
@@ -525,7 +525,7 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 			if (srb == NULL)
 				goto exit_prq_invalid_handle;
 
-			DEBUG2(printk("scsi%ld: %s: FW device queue full, "
+			DE2(printk("scsi%ld: %s: FW device queue full, "
 				      "srb %p\n", ha->host_no, __func__, srb));
 
 			/* ETRY normally by sending it back with
@@ -536,12 +536,12 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 
 		case ET_CONTINUE:
 			/* Just throw away the continuation entries */
-			DEBUG2(printk("scsi%ld: %s: Continuation entry - "
+			DE2(printk("scsi%ld: %s: Continuation entry - "
 				      "ignoring\n", ha->host_no, __func__));
 			break;
 
 		case ET_MBOX_STATUS:
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "%s: mbox status IOCB\n", __func__));
 			qla4xxx_mbox_status_entry(ha,
 					(struct mbox_status_iocb *)sts_entry);
@@ -552,7 +552,7 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 			 * Invalid entry in response queue, reset RISC
 			 * firmware.
 			 */
-			DEBUG2(printk("scsi%ld: %s: Invalid entry %x in "
+			DE2(printk("scsi%ld: %s: Invalid entry %x in "
 				      "response queue \n", ha->host_no,
 				      __func__,
 				      sts_entry->hdr.entryType));
@@ -570,7 +570,7 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 	return;
 
 exit_prq_invalid_handle:
-	DEBUG2(printk("scsi%ld: %s: Invalid handle(srb)=%p type=%x IOCS=%x\n",
+	DE2(printk("scsi%ld: %s: Invalid handle(srb)=%p type=%x IOCS=%x\n",
 		      ha->host_no, __func__, srb, sts_entry->hdr.entryType,
 		      sts_entry->completionStatus));
 
@@ -591,12 +591,12 @@ static int qla4_83xx_loopback_in_progress(struct scsi_qla_host *ha)
 	if (is_qla8032(ha) || is_qla8042(ha)) {
 		if ((ha->idc_info.info2 & ENABLE_INTERNAL_LOOPBACK) ||
 		    (ha->idc_info.info2 & ENABLE_EXTERNAL_LOOPBACK)) {
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "%s: Loopback diagnostics in progress\n",
 					  __func__));
 			rval = 1;
 		} else {
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "%s: Loopback diagnostics not in progress\n",
 					  __func__));
 			rval = 0;
@@ -710,7 +710,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			if ((is_qla8022(ha) && ql4xdontresethba) ||
 			    ((is_qla8032(ha) || is_qla8042(ha)) &&
 			     qla4_83xx_idc_dontreset(ha))) {
-				DEBUG2(printk("scsi%ld: %s:Don't Reset HBA\n",
+				DE2(printk("scsi%ld: %s:Don't Reset HBA\n",
 				    ha->host_no, __func__));
 			} else {
 				set_bit(AF_GET_CRASH_RECORD, &ha->flags);
@@ -723,7 +723,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_NVRAM_INVALID:
 		case MBOX_ASTS_IP_ADDRESS_CHANGED:
 		case MBOX_ASTS_DHCP_LEASE_EXPIRED:
-			DEBUG2(printk("scsi%ld: AEN %04x, ERROR Status, "
+			DE2(printk("scsi%ld: AEN %04x, ERROR Status, "
 				      "Reset HA\n", ha->host_no, mbox_status));
 			if (is_qla80XX(ha))
 				set_bit(DPC_RESET_HA_FW_CONTEXT,
@@ -766,7 +766,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_DHCP_LEASE_ACQUIRED:
-			DEBUG2(printk("scsi%ld: AEN %04x DHCP LEASE "
+			DE2(printk("scsi%ld: AEN %04x DHCP LEASE "
 				      "ACQUIRED\n", ha->host_no, mbox_status));
 			set_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags);
 			break;
@@ -780,7 +780,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_SUBNET_STATE_CHANGE:
 		case MBOX_ASTS_DUPLICATE_IP:
 			/* No action */
-			DEBUG2(printk("scsi%ld: AEN %04x\n", ha->host_no,
+			DE2(printk("scsi%ld: AEN %04x\n", ha->host_no,
 				      mbox_status));
 			break;
 
@@ -818,12 +818,12 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_IPV6_AUTO_PREFIX_IGNORED:
 		case MBOX_ASTS_IPV6_ND_LOCAL_PREFIX_IGNORED:
 			/* No action */
-			DEBUG2(ql4_printk(KERN_INFO, ha, "scsi%ld: AEN %04x\n",
+			DE2(ql4_printk(KERN_INFO, ha, "scsi%ld: AEN %04x\n",
 					  ha->host_no, mbox_status));
 			break;
 
 		case MBOX_ASTS_ICMPV6_ERROR_MSG_RCVD:
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x, IPv6 ERROR, "
 					  "mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3}=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
 					  ha->host_no, mbox_sts[0], mbox_sts[1],
@@ -834,7 +834,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_MAC_ADDRESS_CHANGED:
 		case MBOX_ASTS_DNS:
 			/* No action */
-			DEBUG2(printk(KERN_INFO "scsi%ld: AEN %04x, "
+			DE2(printk(KERN_INFO "scsi%ld: AEN %04x, "
 				      "mbox_sts[1]=%04x, mbox_sts[2]=%04x\n",
 				      ha->host_no, mbox_sts[0],
 				      mbox_sts[1], mbox_sts[2]));
@@ -843,7 +843,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_SELF_TEST_FAILED:
 		case MBOX_ASTS_LOGIN_FAILED:
 			/* No action */
-			DEBUG2(printk("scsi%ld: AEN %04x, mbox_sts[1]=%04x, "
+			DE2(printk("scsi%ld: AEN %04x, mbox_sts[1]=%04x, "
 				      "mbox_sts[2]=%04x, mbox_sts[3]=%04x\n",
 				      ha->host_no, mbox_sts[0], mbox_sts[1],
 				      mbox_sts[2], mbox_sts[3]));
@@ -861,8 +861,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 					ha->aen_q[ha->aen_in].mbox_sts[i] =
 					    mbox_sts[i];
 
-				/* print debug message */
-				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued "
+				/* print de message */
+				DE2(printk("scsi%ld: AEN[%d] %04x queued "
 					      "mb1:0x%x mb2:0x%x mb3:0x%x "
 					      "mb4:0x%x mb5:0x%x\n",
 					      ha->host_no, ha->aen_in,
@@ -878,16 +878,16 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				/* The DPC routine will process the aen */
 				set_bit(DPC_AEN, &ha->dpc_flags);
 			} else {
-				DEBUG2(printk("scsi%ld: %s: aen %04x, queue "
+				DE2(printk("scsi%ld: %s: aen %04x, queue "
 					      "overflowed!  AEN LOST!!\n",
 					      ha->host_no, __func__,
 					      mbox_sts[0]));
 
-				DEBUG2(printk("scsi%ld: DUMP AEN QUEUE\n",
+				DE2(printk("scsi%ld: DUMP AEN QUEUE\n",
 					      ha->host_no));
 
 				for (i = 0; i < MAX_AEN_ENTRIES; i++) {
-					DEBUG2(printk("AEN[%d] %04x %04x %04x "
+					DE2(printk("AEN[%d] %04x %04x %04x "
 						      "%04x\n", i, mbox_sts[0],
 						      mbox_sts[1], mbox_sts[2],
 						      mbox_sts[3]));
@@ -896,20 +896,20 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_TXSCVR_INSERTED:
-			DEBUG2(printk(KERN_WARNING
+			DE2(printk(KERN_WARNING
 			    "scsi%ld: AEN %04x Transceiver"
 			    " inserted\n",  ha->host_no, mbox_sts[0]));
 			break;
 
 		case MBOX_ASTS_TXSCVR_REMOVED:
-			DEBUG2(printk(KERN_WARNING
+			DE2(printk(KERN_WARNING
 			    "scsi%ld: AEN %04x Transceiver"
 			    " removed\n",  ha->host_no, mbox_sts[0]));
 			break;
 
 		case MBOX_ASTS_IDC_REQUEST_NOTIFICATION:
 			if (is_qla8032(ha) || is_qla8042(ha)) {
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
 						  ha->host_no, mbox_sts[0],
 						  mbox_sts[1], mbox_sts[2],
@@ -930,12 +930,12 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 
 		case MBOX_ASTS_IDC_COMPLETE:
 			if (is_qla8032(ha) || is_qla8042(ha)) {
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
 						  ha->host_no, mbox_sts[0],
 						  mbox_sts[1], mbox_sts[2],
 						  mbox_sts[3], mbox_sts[4]));
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "scsi:%ld: AEN %04x IDC Complete notification\n",
 						  ha->host_no, mbox_sts[0]));
 
@@ -960,24 +960,24 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_IPV6_DEFAULT_ROUTER_CHANGED:
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
 					  ha->host_no, mbox_sts[0], mbox_sts[1],
 					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
 					  mbox_sts[5]));
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x Received IPv6 default router changed notification\n",
 					  ha->host_no, mbox_sts[0]));
 			qla4xxx_default_router_changed(ha, mbox_sts);
 			break;
 
 		case MBOX_ASTS_IDC_TIME_EXTEND_NOTIFICATION:
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
 					  ha->host_no, mbox_sts[0], mbox_sts[1],
 					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
 					  mbox_sts[5]));
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x Received IDC Extend Timeout notification\n",
 					  ha->host_no, mbox_sts[0]));
 			/* new IDC timeout */
@@ -985,14 +985,14 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_INITIALIZATION_FAILED:
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x, mbox_sts[3]=%08x\n",
 					  ha->host_no, mbox_sts[0],
 					  mbox_sts[3]));
 			break;
 
 		case MBOX_ASTS_SYSTEM_WARNING_EVENT:
-			DEBUG2(ql4_printk(KERN_WARNING, ha,
+			DE2(ql4_printk(KERN_WARNING, ha,
 					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
 					  ha->host_no, mbox_sts[0], mbox_sts[1],
 					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
@@ -1000,24 +1000,24 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			break;
 
 		case MBOX_ASTS_DCBX_CONF_CHANGE:
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
 					  ha->host_no, mbox_sts[0], mbox_sts[1],
 					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
 					  mbox_sts[5]));
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x Received DCBX configuration changed notification\n",
 					  ha->host_no, mbox_sts[0]));
 			break;
 
 		default:
-			DEBUG2(printk(KERN_WARNING
+			DE2(printk(KERN_WARNING
 				      "scsi%ld: AEN %04x UNKNOWN\n",
 				      ha->host_no, mbox_sts[0]));
 			break;
 		}
 	} else {
-		DEBUG2(printk("scsi%ld: Unknown mailbox status %08X\n",
+		DE2(printk("scsi%ld: Unknown mailbox status %08X\n",
 			      ha->host_no, mbox_status));
 
 		ha->mbox_status[0] = mbox_status;
@@ -1104,7 +1104,7 @@ static void qla4_82xx_spurious_interrupt(struct scsi_qla_host *ha,
 	if (reqs_count)
 		return;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "Spurious Interrupt\n"));
+	DE2(ql4_printk(KERN_INFO, ha, "Spurious Interrupt\n"));
 	if (is_qla8022(ha)) {
 		writel(0, &ha->qla4_82xx_reg->host_int);
 		if (!ha->pdev->msi_enabled && !ha->pdev->msix_enabled)
@@ -1128,7 +1128,7 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 
 	ha = (struct scsi_qla_host *) dev_id;
 	if (!ha) {
-		DEBUG2(printk(KERN_INFO
+		DE2(printk(KERN_INFO
 			      "qla4xxx: Interrupt with NULL host ptr\n"));
 		return IRQ_NONE;
 	}
@@ -1158,7 +1158,7 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 		}
 
 		if (intr_status & CSR_FATAL_ERROR) {
-			DEBUG2(printk(KERN_INFO "scsi%ld: Fatal Error, "
+			DE2(printk(KERN_INFO "scsi%ld: Fatal Error, "
 				      "Status 0x%04x\n", ha->host_no,
 				      readl(isp_port_error_status (ha))));
 
@@ -1233,7 +1233,7 @@ irqreturn_t qla4_82xx_intr_handler(int irq, void *dev_id)
 
 	status = qla4_82xx_rd_32(ha, ISR_INT_STATE_REG);
 	if (!ISR_IS_LEGACY_INTR_TRIGGERED(status)) {
-		DEBUG7(ql4_printk(KERN_INFO, ha,
+		DE7(ql4_printk(KERN_INFO, ha,
 				  "%s legacy Int not triggered\n", __func__));
 		return IRQ_NONE;
 	}
@@ -1292,7 +1292,7 @@ irqreturn_t qla4_83xx_intr_handler(int irq, void *dev_id)
 
 	/* Legacy interrupt is valid if bit31 of leg_int_ptr is set */
 	if (!(leg_int_ptr & LEG_INT_PTR_B31)) {
-		DEBUG7(ql4_printk(KERN_ERR, ha,
+		DE7(ql4_printk(KERN_ERR, ha,
 				  "%s: Legacy Interrupt Bit 31 not set, spurious interrupt!\n",
 				  __func__));
 		return IRQ_NONE;
@@ -1300,7 +1300,7 @@ irqreturn_t qla4_83xx_intr_handler(int irq, void *dev_id)
 
 	/* Validate the PCIE function ID set in leg_int_ptr bits [19..16] */
 	if ((leg_int_ptr & PF_BITS_MASK) != ha->pf_bit) {
-		DEBUG7(ql4_printk(KERN_ERR, ha,
+		DE7(ql4_printk(KERN_ERR, ha,
 				  "%s: Incorrect function ID 0x%x in legacy interrupt register, ha->pf_bit = 0x%x\n",
 				  __func__, (leg_int_ptr & PF_BITS_MASK),
 				  ha->pf_bit));
@@ -1333,7 +1333,7 @@ qla4_8xxx_msi_handler(int irq, void *dev_id)
 
 	ha = (struct scsi_qla_host *) dev_id;
 	if (!ha) {
-		DEBUG2(printk(KERN_INFO
+		DE2(printk(KERN_INFO
 		    "qla4xxx: MSIX: Interrupt with NULL host ptr\n"));
 		return IRQ_NONE;
 	}
@@ -1493,7 +1493,7 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-		DEBUG2(printk("qla4xxx(%ld): AEN[%d]=0x%08x, mbx1=0x%08x mbx2=0x%08x"
+		DE2(printk("qla4xxx(%ld): AEN[%d]=0x%08x, mbx1=0x%08x mbx2=0x%08x"
 			" mbx3=0x%08x mbx4=0x%08x\n", ha->host_no,
 			(ha->aen_out ? (ha->aen_out-1): (MAX_AEN_ENTRIES-1)),
 			mbox_sts[0], mbox_sts[1], mbox_sts[2],
@@ -1503,7 +1503,7 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 		case MBOX_ASTS_DATABASE_CHANGED:
 			switch (process_aen) {
 			case FLUSH_DDB_CHANGED_AENS:
-				DEBUG2(printk("scsi%ld: AEN[%d] %04x, index "
+				DE2(printk("scsi%ld: AEN[%d] %04x, index "
 					      "[%d] state=%04x FLUSHED!\n",
 					      ha->host_no, ha->aen_out,
 					      mbox_sts[0], mbox_sts[2],
@@ -1548,7 +1548,7 @@ int qla4xxx_request_irqs(struct scsi_qla_host *ha)
 	/* Trying MSI-X */
 	ret = qla4_8xxx_enable_msix(ha);
 	if (!ret) {
-		DEBUG2(ql4_printk(KERN_INFO, ha,
+		DE2(ql4_printk(KERN_INFO, ha,
 		    "MSI-X: Enabled (0x%X).\n", ha->revision_id));
 		goto irq_attached;
 	} else {
@@ -1569,7 +1569,7 @@ try_msi:
 		ret = request_irq(ha->pdev->irq, qla4_8xxx_msi_handler,
 			0, DRIVER_NAME, ha);
 		if (!ret) {
-			DEBUG2(ql4_printk(KERN_INFO, ha, "MSI: Enabled.\n"));
+			DE2(ql4_printk(KERN_INFO, ha, "MSI: Enabled.\n"));
 			goto irq_attached;
 		} else {
 			ql4_printk(KERN_WARNING, ha,
@@ -1590,7 +1590,7 @@ try_intx:
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
 	    IRQF_SHARED, DRIVER_NAME, ha);
 	if (!ret) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "INTx: Enabled.\n"));
+		DE2(ql4_printk(KERN_INFO, ha, "INTx: Enabled.\n"));
 		goto irq_attached;
 
 	} else {

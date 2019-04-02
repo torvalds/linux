@@ -319,7 +319,7 @@ void usb_put_intf(struct usb_interface *intf);
  * struct usb_interface (which persists only as long as its configuration
  * is installed).  The altsetting arrays can be accessed through these
  * structures at any time, permitting comparison of configurations and
- * providing support for the /sys/kernel/debug/usb/devices pseudo-file.
+ * providing support for the /sys/kernel/de/usb/devices pseudo-file.
  */
 struct usb_interface_cache {
 	unsigned num_altsetting;	/* number of alternate settings */
@@ -1995,8 +1995,8 @@ static inline int usb_translate_errors(int error_code)
 extern void usb_register_notify(struct notifier_block *nb);
 extern void usb_unregister_notify(struct notifier_block *nb);
 
-/* debugfs stuff */
-extern struct dentry *usb_debug_root;
+/* defs stuff */
+extern struct dentry *usb_de_root;
 
 /* LED triggers */
 enum usb_led_event {

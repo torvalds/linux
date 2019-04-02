@@ -1013,7 +1013,7 @@ struct e1000_ffvt_entry {
 #define E1000_FACTPS    0x05B30	/* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50	/* SW Semaphore */
 #define E1000_FWSM      0x05B54	/* FW Semaphore */
-#define E1000_FFLT_DBG  0x05F04	/* Debug Register */
+#define E1000_FFLT_DBG  0x05F04	/* De Register */
 #define E1000_HICR      0x08F00	/* Host Interface Control */
 
 /* RSS registers */
@@ -2079,7 +2079,7 @@ struct e1000_hw {
 #define E1000_FWSM_SKUSEL_PERF_100 0x2	/* Perf & Corp 10/100 SKU */
 #define E1000_FWSM_SKUSEL_PERF_GBE 0x3	/* Perf & Copr GbE SKU */
 
-/* FFLT Debug Register */
+/* FFLT De Register */
 #define E1000_FFLT_DBG_INVC     0x00100000	/* Invalid /C/ code handling */
 
 typedef enum {

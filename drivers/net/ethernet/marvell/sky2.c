@@ -42,7 +42,7 @@
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
 #include <linux/prefetch.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/mii.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
@@ -86,9 +86,9 @@ static const u32 default_msg =
     | NETIF_MSG_TIMER | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR
     | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
 
-static int debug = -1;		/* defaults above */
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+static int de = -1;		/* defaults above */
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 
 static int copybreak __read_mostly = 128;
 module_param(copybreak, int, 0);
@@ -1009,7 +1009,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 		sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
 	}
 
-	/* Set threshold to 0xa (64 bytes) + 1 to workaround pause bug  */
+	/* Set threshold to 0xa (64 bytes) + 1 to workaround pause   */
 	reg = RX_GMF_FL_THR_DEF + 1;
 	/* Another magic mystery workaround from sk98lin */
 	if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
@@ -1173,7 +1173,7 @@ static unsigned sky2_get_rx_data_size(struct sky2_port *sky2)
 	size = roundup(sky2->netdev->mtu + ETH_HLEN + VLAN_HLEN, 8);
 
 	sky2->rx_nfrags = size >> PAGE_SHIFT;
-	BUG_ON(sky2->rx_nfrags > ARRAY_SIZE(re->frag_addr));
+	_ON(sky2->rx_nfrags > ARRAY_SIZE(re->frag_addr));
 
 	/* Compute residue after pages */
 	size -= sky2->rx_nfrags << PAGE_SHIFT;
@@ -1466,10 +1466,10 @@ static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2, gfp_t gfp)
 	if (sky2->hw->flags & SKY2_HW_RAM_BUFFER) {
 		unsigned char *start;
 		/*
-		 * Workaround for a bug in FIFO that cause hang
+		 * Workaround for a  in FIFO that cause hang
 		 * if the FIFO if the receive buffer is not 64 byte aligned.
 		 * The buffer returned from netdev_alloc_skb is
-		 * aligned except if slab debugging is enabled.
+		 * aligned except if slab deging is enabled.
 		 */
 		start = PTR_ALIGN(skb->data, 8);
 		skb_reserve(skb, start - skb->data);
@@ -1862,7 +1862,7 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 		goto mapping_error;
 
 	slot = sky2->tx_prod;
-	netif_printk(sky2, tx_queued, KERN_DEBUG, dev,
+	netif_printk(sky2, tx_queued, KERN_DE, dev,
 		     "tx queued, slot %u, len %d\n", slot, skb->len);
 
 	/* Send high bits if needed */
@@ -2019,7 +2019,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	u16 idx;
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 
-	BUG_ON(done >= sky2->tx_ring_size);
+	_ON(done >= sky2->tx_ring_size);
 
 	for (idx = sky2->tx_cons; idx != done;
 	     idx = RING_NEXT(idx, sky2->tx_ring_size)) {
@@ -2029,7 +2029,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 		sky2_tx_unmap(sky2->hw->pdev, re);
 
 		if (skb) {
-			netif_printk(sky2, tx_done, KERN_DEBUG, dev,
+			netif_printk(sky2, tx_done, KERN_DE, dev,
 				     "tx done %u\n", idx);
 
 			pkts_compl++;
@@ -2381,7 +2381,7 @@ static void sky2_tx_timeout(struct net_device *dev)
 
 	netif_err(sky2, timer, dev, "tx timeout\n");
 
-	netdev_printk(KERN_DEBUG, dev, "transmit ring %u .. %u report=%u done=%u\n",
+	netdev_printk(KERN_DE, dev, "transmit ring %u .. %u report=%u done=%u\n",
 		      sky2->tx_cons, sky2->tx_prod,
 		      sky2_read16(hw, sky2->port == 0 ? STAT_TXA1_RIDX : STAT_TXA2_RIDX),
 		      sky2_read16(hw, Q_ADDR(txqaddr[sky2->port], Q_DONE)));
@@ -2576,7 +2576,7 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 	struct sk_buff *skb = NULL;
 	u16 count = (status & GMR_FS_LEN) >> 16;
 
-	netif_printk(sky2, rx_status, KERN_DEBUG, dev,
+	netif_printk(sky2, rx_status, KERN_DE, dev,
 		     "rx slot %u status 0x%x len %d\n",
 		     sky2->rx_next, status, length);
 
@@ -2672,7 +2672,7 @@ static inline void sky2_rx_done(struct sky2_hw *hw, unsigned port,
 static void sky2_rx_checksum(struct sky2_port *sky2, u32 status)
 {
 	/* If this happens then driver assuming wrong format for chip type */
-	BUG_ON(sky2->hw->flags & SKY2_HW_NEW_LE);
+	_ON(sky2->hw->flags & SKY2_HW_NEW_LE);
 
 	/* Both checksum counters are programmed to start at
 	 * the same offset, so unless there is a problem they
@@ -2927,7 +2927,7 @@ static void sky2_mac_intr(struct sky2_hw *hw, unsigned port)
 	}
 }
 
-/* This should never happen it is a bug. */
+/* This should never happen it is a . */
 static void sky2_le_error(struct sky2_hw *hw, unsigned port, u16 q)
 {
 	struct net_device *dev = hw->dev[port];
@@ -2958,7 +2958,7 @@ static int sky2_rx_hung(struct net_device *dev)
 	     /* Check if the PCI RX hang */
 	     (fifo_rp == sky2->check.fifo_rp &&
 	      fifo_lev != 0 && fifo_lev >= sky2->check.fifo_lev))) {
-		netdev_printk(KERN_DEBUG, dev,
+		netdev_printk(KERN_DE, dev,
 			      "hung mac %d:%d fifo %d (%d:%d)\n",
 			      mac_lev, mac_rp, fifo_lev,
 			      fifo_rp, sky2_read8(hw, Q_ADDR(rxq, Q_WP)));
@@ -3118,7 +3118,7 @@ static u32 sky2_mhz(const struct sky2_hw *hw)
 		return 156;
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -3324,7 +3324,7 @@ static void sky2_reset(struct sky2_hw *hw)
 			/* set PHY Link Detect Timer to 1.1 second (11x 100ms) */
 			reg = 10;
 
-			/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
+			/* re-enable PEX PM in PEX PHY de reg. 8 (clear bit 12) */
 			sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
 		} else {
 			/* set PHY Link Detect Timer to 0.4 second (4x 100ms) */
@@ -3358,7 +3358,7 @@ static void sky2_reset(struct sky2_hw *hw)
 
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
-		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
+		/* re-enable PEX PM in PEX PHY de reg. 8 (clear bit 12) */
 		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
 	}
 
@@ -4442,9 +4442,9 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 	.set_link_ksettings = sky2_set_link_ksettings,
 };
 
-#ifdef CONFIG_SKY2_DEBUG
+#ifdef CONFIG_SKY2_DE
 
-static struct dentry *sky2_debug;
+static struct dentry *sky2_de;
 
 
 /*
@@ -4526,7 +4526,7 @@ out:
 	kfree(buf);
 }
 
-static int sky2_debug_show(struct seq_file *seq, void *v)
+static int sky2_de_show(struct seq_file *seq, void *v)
 {
 	struct net_device *dev = seq->private;
 	const struct sky2_port *sky2 = netdev_priv(dev);
@@ -4622,11 +4622,11 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 	napi_enable(&hw->napi);
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(sky2_debug);
+DEFINE_SHOW_ATTRIBUTE(sky2_de);
 
 /*
  * Use network device events to create/remove/rename
- * debugfs file entries
+ * defs file entries
  */
 static int sky2_device_event(struct notifier_block *unused,
 			     unsigned long event, void *ptr)
@@ -4634,31 +4634,31 @@ static int sky2_device_event(struct notifier_block *unused,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	if (dev->netdev_ops->ndo_open != sky2_open || !sky2_debug)
+	if (dev->netdev_ops->ndo_open != sky2_open || !sky2_de)
 		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		if (sky2->debugfs) {
-			sky2->debugfs = debugfs_rename(sky2_debug, sky2->debugfs,
-						       sky2_debug, dev->name);
+		if (sky2->defs) {
+			sky2->defs = defs_rename(sky2_de, sky2->defs,
+						       sky2_de, dev->name);
 		}
 		break;
 
 	case NETDEV_GOING_DOWN:
-		if (sky2->debugfs) {
-			netdev_printk(KERN_DEBUG, dev, "remove debugfs\n");
-			debugfs_remove(sky2->debugfs);
-			sky2->debugfs = NULL;
+		if (sky2->defs) {
+			netdev_printk(KERN_DE, dev, "remove defs\n");
+			defs_remove(sky2->defs);
+			sky2->defs = NULL;
 		}
 		break;
 
 	case NETDEV_UP:
-		sky2->debugfs = debugfs_create_file(dev->name, 0444,
-						    sky2_debug, dev,
-						    &sky2_debug_fops);
-		if (IS_ERR(sky2->debugfs))
-			sky2->debugfs = NULL;
+		sky2->defs = defs_create_file(dev->name, 0444,
+						    sky2_de, dev,
+						    &sky2_de_fops);
+		if (IS_ERR(sky2->defs))
+			sky2->defs = NULL;
 	}
 
 	return NOTIFY_DONE;
@@ -4669,30 +4669,30 @@ static struct notifier_block sky2_notifier = {
 };
 
 
-static __init void sky2_debug_init(void)
+static __init void sky2_de_init(void)
 {
 	struct dentry *ent;
 
-	ent = debugfs_create_dir("sky2", NULL);
+	ent = defs_create_dir("sky2", NULL);
 	if (!ent || IS_ERR(ent))
 		return;
 
-	sky2_debug = ent;
+	sky2_de = ent;
 	register_netdevice_notifier(&sky2_notifier);
 }
 
-static __exit void sky2_debug_cleanup(void)
+static __exit void sky2_de_cleanup(void)
 {
-	if (sky2_debug) {
+	if (sky2_de) {
 		unregister_netdevice_notifier(&sky2_notifier);
-		debugfs_remove(sky2_debug);
-		sky2_debug = NULL;
+		defs_remove(sky2_de);
+		sky2_de = NULL;
 	}
 }
 
 #else
-#define sky2_debug_init()
-#define sky2_debug_cleanup()
+#define sky2_de_init()
+#define sky2_de_cleanup()
 #endif
 
 /* Two copies of network device operations to handle special case of
@@ -4751,7 +4751,7 @@ static struct net_device *sky2_init_netdev(struct sky2_hw *hw, unsigned port,
 	sky2 = netdev_priv(dev);
 	sky2->netdev = dev;
 	sky2->hw = hw;
-	sky2->msg_enable = netif_msg_init(debug, default_msg);
+	sky2->msg_enable = netif_msg_init(de, default_msg);
 
 	u64_stats_init(&sky2->tx_stats.syncp);
 	u64_stats_init(&sky2->rx_stats.syncp);
@@ -5267,14 +5267,14 @@ static int __init sky2_init_module(void)
 {
 	pr_info("driver version " DRV_VERSION "\n");
 
-	sky2_debug_init();
+	sky2_de_init();
 	return pci_register_driver(&sky2_driver);
 }
 
 static void __exit sky2_cleanup_module(void)
 {
 	pci_unregister_driver(&sky2_driver);
-	sky2_debug_cleanup();
+	sky2_de_cleanup();
 }
 
 module_init(sky2_init_module);

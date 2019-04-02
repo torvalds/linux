@@ -26,9 +26,9 @@
 
 #include "gsc.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DEBPRINTK printk
 #else
 #define DEBPRINTK(x,...)
@@ -111,7 +111,7 @@ static void gsc_asic_mask_irq(struct irq_data *d)
 	int local_irq = gsc_find_local_irq(d->irq, irq_dev->global_irq, 32);
 	u32 imr;
 
-	DEBPRINTK(KERN_DEBUG "%s(%d) %s: IMR 0x%x\n", __func__, d->irq,
+	DEBPRINTK(KERN_DE "%s(%d) %s: IMR 0x%x\n", __func__, d->irq,
 			irq_dev->name, imr);
 
 	/* Disable the IRQ line by clearing the bit in the IMR */
@@ -126,7 +126,7 @@ static void gsc_asic_unmask_irq(struct irq_data *d)
 	int local_irq = gsc_find_local_irq(d->irq, irq_dev->global_irq, 32);
 	u32 imr;
 
-	DEBPRINTK(KERN_DEBUG "%s(%d) %s: IMR 0x%x\n", __func__, d->irq,
+	DEBPRINTK(KERN_DE "%s(%d) %s: IMR 0x%x\n", __func__, d->irq,
 			irq_dev->name, imr);
 
 	/* Enable the IRQ line by setting the bit in the IMR */

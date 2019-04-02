@@ -103,7 +103,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 
 	if (drive->dev_flags & IDE_DFLAG_LBA) {
 		if (lba48) {
-			pr_debug("%s: LBA=0x%012llx\n", drive->name,
+			pr_de("%s: LBA=0x%012llx\n", drive->name,
 					(unsigned long long)block);
 
 			tf->nsect  = nsectors & 0xff;
@@ -138,7 +138,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 		head  = track % drive->head;
 		cyl   = track / drive->head;
 
-		pr_debug("%s: CHS=%u/%u/%u\n", drive->name, cyl, head, sect);
+		pr_de("%s: CHS=%u/%u/%u\n", drive->name, cyl, head, sect);
 
 		tf->nsect  = nsectors & 0xff;
 		tf->lbal   = sect;
@@ -184,12 +184,12 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
-	BUG_ON(blk_rq_is_passthrough(rq));
+	_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
+	_ON(blk_rq_is_passthrough(rq));
 
 	ledtrig_disk_activity(rq_data_dir(rq) == WRITE);
 
-	pr_debug("%s: %sing: block=%llu, sectors=%u\n",
+	pr_de("%s: %sing: block=%llu, sectors=%u\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
 		 (unsigned long long)block, blk_rq_sectors(rq));
 
@@ -442,7 +442,7 @@ static bool idedisk_prep_rq(ide_drive_t *drive, struct request *rq)
 	}
 
 	/* FIXME: map struct ide_taskfile on rq->cmd[] */
-	BUG_ON(cmd == NULL);
+	_ON(cmd == NULL);
 
 	if (ata_id_flush_ext_enabled(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))

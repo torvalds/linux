@@ -1507,7 +1507,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
  * is not listed below.
  */
 static const struct dmi_system_id chv_no_valid_mask[] = {
-	/* See https://bugzilla.kernel.org/show_bug.cgi?id=194945 */
+	/* See https://zilla.kernel.org/show_.cgi?id=194945 */
 	{
 		.ident = "Intel_Strago based Chromebooks (All models)",
 		.matches = {
@@ -1596,7 +1596,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	 * configured GPIOs that generate spurious interrupts so we use
 	 * this same list to apply another quirk for them.
 	 *
-	 * See also https://bugzilla.kernel.org/show_bug.cgi?id=197953.
+	 * See also https://zilla.kernel.org/show_.cgi?id=197953.
 	 */
 	if (!need_valid_mask) {
 		/*

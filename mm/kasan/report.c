@@ -67,8 +67,8 @@ __setup("kasan_multi_shot", kasan_set_multi_shot);
 
 static void print_error_description(struct kasan_access_info *info)
 {
-	pr_err("BUG: KASAN: %s in %pS\n",
-		get_bug_type(info), (void *)info->ip);
+	pr_err(": KASAN: %s in %pS\n",
+		get__type(info), (void *)info->ip);
 	pr_err("%s of size %zu at addr %px by task %s/%d\n",
 		info->is_write ? "Write" : "Read", info->access_size,
 		info->access_addr, current->comm, task_pid_nr(current));
@@ -125,7 +125,7 @@ static void describe_object_addr(struct kmem_cache *cache, void *object,
 	const char *rel_type;
 	int rel_bytes;
 
-	pr_err("The buggy address belongs to the object at %px\n"
+	pr_err("The gy address belongs to the object at %px\n"
 	       " which belongs to the cache %s of size %d\n",
 		object, cache->name, cache->object_size);
 
@@ -143,7 +143,7 @@ static void describe_object_addr(struct kmem_cache *cache, void *object,
 		rel_bytes = access_addr - object_addr;
 	}
 
-	pr_err("The buggy address is located %d bytes %s of\n"
+	pr_err("The gy address is located %d bytes %s of\n"
 	       " %d-byte region [%px, %px)\n",
 		rel_bytes, rel_type, cache->object_size, (void *)object_addr,
 		(void *)(object_addr + cache->object_size));
@@ -195,12 +195,12 @@ static void print_address_description(void *addr)
 	}
 
 	if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
-		pr_err("The buggy address belongs to the variable:\n");
+		pr_err("The gy address belongs to the variable:\n");
 		pr_err(" %pS\n", addr);
 	}
 
 	if (page) {
-		pr_err("The buggy address belongs to the page:\n");
+		pr_err("The gy address belongs to the page:\n");
 		dump_page(page, "kasan: bad access detected");
 	}
 }
@@ -229,7 +229,7 @@ static void print_shadow_for_address(const void *addr)
 					SHADOW_BYTES_PER_ROW)
 		- SHADOW_ROWS_AROUND_ADDR * SHADOW_BYTES_PER_ROW;
 
-	pr_err("Memory state around the buggy address:\n");
+	pr_err("Memory state around the gy address:\n");
 
 	for (i = -SHADOW_ROWS_AROUND_ADDR; i <= SHADOW_ROWS_AROUND_ADDR; i++) {
 		const void *kaddr = kasan_shadow_to_mem(shadow_row);
@@ -271,7 +271,7 @@ void kasan_report_invalid_free(void *object, unsigned long ip)
 	unsigned long flags;
 
 	start_report(&flags);
-	pr_err("BUG: KASAN: double-free or invalid-free in %pS\n", (void *)ip);
+	pr_err(": KASAN: double-free or invalid-free in %pS\n", (void *)ip);
 	print_tags(get_tag(object), reset_tag(object));
 	object = reset_tag(object);
 	pr_err("\n");

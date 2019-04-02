@@ -88,7 +88,7 @@
  * does not limit clients at all.  Choose a high enough default value
  * such that the client shouldn't limit performance, but allow mount
  * to override (until you approach 64K, where we limit credits to 65000
- * to reduce possibility of seeing more server credit overflow bugs.
+ * to reduce possibility of seeing more server credit overflow s.
  */
 #define SMB2_MAX_CREDITS_AVAILABLE 32000
 
@@ -1186,9 +1186,9 @@ struct cifs_fid {
 	__u8 create_guid[16];
 	struct cifs_pending_open *pending_open;
 	unsigned int epoch;
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	__u64 mid;
-#endif /* CIFS_DEBUG2 */
+#endif /* CIFS_DE2 */
 	bool purge_cache;
 };
 
@@ -1812,7 +1812,7 @@ GLOBAL_EXTERN atomic_t tcpSesAllocCount;
 GLOBAL_EXTERN atomic_t tcpSesReconnectCount;
 GLOBAL_EXTERN atomic_t tconInfoReconnectCount;
 
-/* Various Debug counters */
+/* Various De counters */
 GLOBAL_EXTERN atomic_t bufAllocCount;    /* current number allocated  */
 #ifdef CONFIG_CIFS_STATS2
 GLOBAL_EXTERN atomic_t totBufAllocCount; /* total allocated over all time */

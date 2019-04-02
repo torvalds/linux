@@ -126,7 +126,7 @@ struct user {
   struct user_i387_struct *u_fpstate;	/* Math Co-processor pointer. */
   unsigned long magic;		/* To uniquely identify a core file */
   char u_comm[32];		/* User command that was responsible */
-  unsigned long u_debugreg[8];
+  unsigned long u_dereg[8];
   unsigned long error_code; /* CPU error code or 0 */
   unsigned long fault_address; /* CR3 or 0 */
 };

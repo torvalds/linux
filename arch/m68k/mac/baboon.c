@@ -33,7 +33,7 @@ void __init baboon_init(void)
 	baboon = (struct baboon *) BABOON_BASE;
 	baboon_present = 1;
 
-	pr_debug("Baboon detected at %p\n", baboon);
+	pr_de("Baboon detected at %p\n", baboon);
 }
 
 /*

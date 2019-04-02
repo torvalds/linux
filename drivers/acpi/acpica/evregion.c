@@ -238,7 +238,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		bit_width = field_obj->field.bit_length;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+	ACPI_DE_PRINT((ACPI_DB_OPREGION,
 			  "Handler %p (@%p) Address %8.8X%8.8X [%s]\n",
 			  &region_obj->region.handler->address_space, handler,
 			  ACPI_FORMAT_UINT64(address),
@@ -344,7 +344,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		/* Is this the correct Region? */
 
 		if (obj_desc == region_obj) {
-			ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+			ACPI_DE_PRINT((ACPI_DB_OPREGION,
 					  "Removing Region %p from address handler %p\n",
 					  region_obj, handler_obj));
 
@@ -447,7 +447,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 
 	/* If we get here, the region was not in the handler's region list */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+	ACPI_DE_PRINT((ACPI_DB_OPREGION,
 			  "Cannot remove region %p from address handler %p\n",
 			  region_obj, handler_obj));
 
@@ -483,7 +483,7 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+	ACPI_DE_PRINT((ACPI_DB_OPREGION,
 			  "Adding Region [%4.4s] %p to address handler %p [%s]\n",
 			  acpi_ut_get_node_name(region_obj->region.node),
 			  region_obj, handler_obj,
@@ -606,7 +606,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
 	/* Execute the method, no return value */
 
-	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+	ACPI_DE_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_METHOD, info->prefix_node, NULL));
 
 	status = acpi_ns_evaluate(info);
@@ -670,7 +670,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 	info.function = function;
 	info.reg_run_count = 0;
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES,
+	ACPI_DE_PRINT_RAW((ACPI_DB_NAMES,
 			      "    Running _REG methods for SpaceId %s\n",
 			      acpi_ut_get_region_name(info.space_id)));
 
@@ -690,7 +690,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 		acpi_ev_orphan_ec_reg_method(node);
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES,
+	ACPI_DE_PRINT_RAW((ACPI_DB_NAMES,
 			      "    Executed %u _REG methods for SpaceId %s\n",
 			      info.reg_run_count,
 			      acpi_ut_get_region_name(info.space_id)));

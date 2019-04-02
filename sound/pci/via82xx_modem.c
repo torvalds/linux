@@ -46,7 +46,7 @@
 #include <sound/initval.h>
 
 #if 0
-#define POINTER_DEBUG
+#define POINTER_DE
 #endif
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -581,7 +581,7 @@ static inline unsigned int calc_linear_pos(struct via82xx_modem *chip,
 			   (int)size, (int)count);
 		res = viadev->lastpos;
 	} else if (check_invalid_pos(viadev, res)) {
-#ifdef POINTER_DEBUG
+#ifdef POINTER_DE
 		dev_dbg(chip->card->dev,
 			"fail: idx = %i/%i, lastpos = 0x%x, bufsize2 = 0x%x, offsize = 0x%x, size = 0x%x, count = 0x%x\n",
 			idx, viadev->tbl_entries, viadev->lastpos,
@@ -623,7 +623,7 @@ static snd_pcm_uframes_t snd_via686_pcm_pointer(struct snd_pcm_substream *substr
 	struct viadev *viadev = substream->runtime->private_data;
 	unsigned int idx, ptr, count, res;
 
-	if (snd_BUG_ON(!viadev->tbl_entries))
+	if (snd__ON(!viadev->tbl_entries))
 		return 0;
 	if (!(inb(VIADEV_REG(viadev, OFFSET_STATUS)) & VIA_REG_STAT_ACTIVE))
 		return 0;

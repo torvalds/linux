@@ -747,7 +747,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	/*
 	 * For _PRT, many BIOSs reverse the 3rd and 4th Package elements (Source
-	 * and source_index). This bug is so prevalent that there is code in the
+	 * and source_index). This  is so prevalent that there is code in the
 	 * ACPICA Resource Manager to detect this and switch them back. For now,
 	 * do not allow and issue a warning. To allow this and eliminate the
 	 * warning, add the ACPI_RTYPE_REFERENCE type to the 4th element (index 3)

@@ -47,8 +47,8 @@
 #define IXP4XX_QMGR_REGION_SIZE		0x00004000
 
 /*
- * Peripheral space, including debug UART. Must be section-aligned so that
- * it can be used with the low-level debug code.
+ * Peripheral space, including de UART. Must be section-aligned so that
+ * it can be used with the low-level de code.
  */
 #define IXP4XX_PERIPHERAL_BASE_PHYS	0xC8000000
 #define IXP4XX_PERIPHERAL_BASE_VIRT	IOMEM(0xFEF00000)

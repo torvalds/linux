@@ -30,7 +30,7 @@ enum sys_t_message_severity {
 	MIPI_SYST_SEVERITY_INFO,
 	MIPI_SYST_SEVERITY_USER1,
 	MIPI_SYST_SEVERITY_USER2,
-	MIPI_SYST_SEVERITY_DEBUG,
+	MIPI_SYST_SEVERITY_DE,
 };
 
 enum sys_t_message_build_subtype {

@@ -29,38 +29,38 @@ void print_queue_properties(struct queue_properties *q)
 	if (!q)
 		return;
 
-	pr_debug("Printing queue properties:\n");
-	pr_debug("Queue Type: %u\n", q->type);
-	pr_debug("Queue Size: %llu\n", q->queue_size);
-	pr_debug("Queue percent: %u\n", q->queue_percent);
-	pr_debug("Queue Address: 0x%llX\n", q->queue_address);
-	pr_debug("Queue Id: %u\n", q->queue_id);
-	pr_debug("Queue Process Vmid: %u\n", q->vmid);
-	pr_debug("Queue Read Pointer: 0x%px\n", q->read_ptr);
-	pr_debug("Queue Write Pointer: 0x%px\n", q->write_ptr);
-	pr_debug("Queue Doorbell Pointer: 0x%p\n", q->doorbell_ptr);
-	pr_debug("Queue Doorbell Offset: %u\n", q->doorbell_off);
+	pr_de("Printing queue properties:\n");
+	pr_de("Queue Type: %u\n", q->type);
+	pr_de("Queue Size: %llu\n", q->queue_size);
+	pr_de("Queue percent: %u\n", q->queue_percent);
+	pr_de("Queue Address: 0x%llX\n", q->queue_address);
+	pr_de("Queue Id: %u\n", q->queue_id);
+	pr_de("Queue Process Vmid: %u\n", q->vmid);
+	pr_de("Queue Read Pointer: 0x%px\n", q->read_ptr);
+	pr_de("Queue Write Pointer: 0x%px\n", q->write_ptr);
+	pr_de("Queue Doorbell Pointer: 0x%p\n", q->doorbell_ptr);
+	pr_de("Queue Doorbell Offset: %u\n", q->doorbell_off);
 }
 
 void print_queue(struct queue *q)
 {
 	if (!q)
 		return;
-	pr_debug("Printing queue:\n");
-	pr_debug("Queue Type: %u\n", q->properties.type);
-	pr_debug("Queue Size: %llu\n", q->properties.queue_size);
-	pr_debug("Queue percent: %u\n", q->properties.queue_percent);
-	pr_debug("Queue Address: 0x%llX\n", q->properties.queue_address);
-	pr_debug("Queue Id: %u\n", q->properties.queue_id);
-	pr_debug("Queue Process Vmid: %u\n", q->properties.vmid);
-	pr_debug("Queue Read Pointer: 0x%px\n", q->properties.read_ptr);
-	pr_debug("Queue Write Pointer: 0x%px\n", q->properties.write_ptr);
-	pr_debug("Queue Doorbell Pointer: 0x%p\n", q->properties.doorbell_ptr);
-	pr_debug("Queue Doorbell Offset: %u\n", q->properties.doorbell_off);
-	pr_debug("Queue MQD Address: 0x%p\n", q->mqd);
-	pr_debug("Queue MQD Gart: 0x%llX\n", q->gart_mqd_addr);
-	pr_debug("Queue Process Address: 0x%p\n", q->process);
-	pr_debug("Queue Device Address: 0x%p\n", q->device);
+	pr_de("Printing queue:\n");
+	pr_de("Queue Type: %u\n", q->properties.type);
+	pr_de("Queue Size: %llu\n", q->properties.queue_size);
+	pr_de("Queue percent: %u\n", q->properties.queue_percent);
+	pr_de("Queue Address: 0x%llX\n", q->properties.queue_address);
+	pr_de("Queue Id: %u\n", q->properties.queue_id);
+	pr_de("Queue Process Vmid: %u\n", q->properties.vmid);
+	pr_de("Queue Read Pointer: 0x%px\n", q->properties.read_ptr);
+	pr_de("Queue Write Pointer: 0x%px\n", q->properties.write_ptr);
+	pr_de("Queue Doorbell Pointer: 0x%p\n", q->properties.doorbell_ptr);
+	pr_de("Queue Doorbell Offset: %u\n", q->properties.doorbell_off);
+	pr_de("Queue MQD Address: 0x%p\n", q->mqd);
+	pr_de("Queue MQD Gart: 0x%llX\n", q->gart_mqd_addr);
+	pr_de("Queue Process Address: 0x%p\n", q->process);
+	pr_de("Queue Device Address: 0x%p\n", q->device);
 }
 
 int init_queue(struct queue **q, const struct queue_properties *properties)

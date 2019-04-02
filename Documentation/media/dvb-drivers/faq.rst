@@ -12,7 +12,7 @@ Some very frequently asked questions about linuxtv-dvb
 
 1. The signal seems to die a few seconds after tuning.
 
-	It's not a bug, it's a feature. Because the frontends have
+	It's not a , it's a feature. Because the frontends have
 	significant power requirements (and hence get very hot), they
 	are powered down if they are unused (i.e. if the frontend device
 	is closed). The dvb-core.o module parameter "dvb_shutdown_timeout"
@@ -102,7 +102,7 @@ Some very frequently asked questions about linuxtv-dvb
 		(with software MPEG decode)
 
 	http://dvbsnoop.sourceforge.net/
-		DVB sniffer program to monitor, analyze, debug, dump
+		DVB sniffer program to monitor, analyze, de, dump
 		or view dvb/mpeg/dsm-cc/mhp stream information (TS,
 		PES, SECTION)
 
@@ -126,7 +126,7 @@ Some very frequently asked questions about linuxtv-dvb
 	all then maybe the PID is wrong. If there are error packets,
 	then either the PID is wrong or the stream does not conform to
 	the MPE standard (EN 301 192, http://www.etsi.org/). You can
-	use e.g. dvbsnoop for debugging.
+	use e.g. dvbsnoop for deging.
 
 6. The dvb_net device doesn't give me any multicast packets
 

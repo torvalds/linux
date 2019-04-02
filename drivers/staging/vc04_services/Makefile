@@ -5,7 +5,7 @@ vchiq-objs := \
    interface/vchiq_arm/vchiq_core.o  \
    interface/vchiq_arm/vchiq_arm.o \
    interface/vchiq_arm/vchiq_2835_arm.o \
-   interface/vchiq_arm/vchiq_debugfs.o \
+   interface/vchiq_arm/vchiq_defs.o \
    interface/vchiq_arm/vchiq_shim.o \
    interface/vchiq_arm/vchiq_util.o \
    interface/vchiq_arm/vchiq_connected.o \

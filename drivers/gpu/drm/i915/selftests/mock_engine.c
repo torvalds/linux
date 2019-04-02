@@ -37,7 +37,7 @@ static void mock_timeline_pin(struct i915_timeline *tl)
 
 static void mock_timeline_unpin(struct i915_timeline *tl)
 {
-	GEM_BUG_ON(!tl->pin_count);
+	GEM__ON(!tl->pin_count);
 	tl->pin_count--;
 }
 
@@ -89,7 +89,7 @@ static void advance(struct mock_request *request)
 	intel_engine_write_global_seqno(request->base.engine,
 					request->base.global_seqno);
 	i915_request_mark_complete(&request->base);
-	GEM_BUG_ON(!i915_request_completed(&request->base));
+	GEM__ON(!i915_request_completed(&request->base));
 
 	intel_engine_queue_breadcrumbs(request->base.engine);
 }
@@ -131,7 +131,7 @@ static void mock_context_unpin(struct intel_context *ce)
 
 static void mock_context_destroy(struct intel_context *ce)
 {
-	GEM_BUG_ON(ce->pin_count);
+	GEM__ON(ce->pin_count);
 
 	if (ce->ring)
 		mock_ring_free(ce->ring);
@@ -198,7 +198,7 @@ static void mock_submit_request(struct i915_request *request)
 	unsigned long flags;
 
 	i915_request_submit(request);
-	GEM_BUG_ON(!request->global_seqno);
+	GEM__ON(!request->global_seqno);
 
 	spin_lock_irqsave(&engine->hw_lock, flags);
 	list_add_tail(&mock->link, &engine->hw_queue);
@@ -217,7 +217,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 {
 	struct mock_engine *engine;
 
-	GEM_BUG_ON(id >= I915_NUM_ENGINES);
+	GEM__ON(id >= I915_NUM_ENGINES);
 
 	engine = kzalloc(sizeof(*engine) + PAGE_SIZE, GFP_KERNEL);
 	if (!engine)
@@ -287,7 +287,7 @@ void mock_engine_free(struct intel_engine_cs *engine)
 		container_of(engine, typeof(*mock), base);
 	struct intel_context *ce;
 
-	GEM_BUG_ON(timer_pending(&mock->hw_delay));
+	GEM__ON(timer_pending(&mock->hw_delay));
 
 	ce = fetch_and_zero(&engine->last_retired_context);
 	if (ce)

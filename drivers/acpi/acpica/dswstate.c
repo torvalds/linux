@@ -87,7 +87,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Obj=%p [%s] Index=%X State=%p Num=%X\n", *object,
 			  acpi_ut_get_object_type_name(*object),
 			  index, walk_state, walk_state->result_count));
@@ -157,7 +157,7 @@ acpi_ds_result_push(union acpi_operand_object *object,
 	state->results.obj_desc[index] = object;
 	walk_state->result_count++;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p Num=%X Cur=%X\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p Num=%X Cur=%X\n",
 			  object,
 			  acpi_ut_get_object_type_name((union
 							acpi_operand_object *)
@@ -207,7 +207,7 @@ static acpi_status acpi_ds_result_stack_push(struct acpi_walk_state *walk_state)
 
 	walk_state->result_size += ACPI_RESULTS_FRAME_OBJ_NUM;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Results=%p State=%p\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Results=%p State=%p\n",
 			  state, walk_state));
 
 	return (AE_OK);
@@ -234,7 +234,7 @@ static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state)
 	/* Check for stack underflow */
 
 	if (walk_state->results == NULL) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Result stack underflow - State=%p\n",
 				  walk_state));
 		return (AE_AML_NO_OPERAND);
@@ -252,7 +252,7 @@ static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state)
 
 	walk_state->result_size -= ACPI_RESULTS_FRAME_OBJ_NUM;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Result=%p RemainingResults=%X State=%p\n",
 			  state, walk_state->result_count, walk_state));
 
@@ -295,7 +295,7 @@ acpi_ds_obj_stack_push(void *object, struct acpi_walk_state *walk_state)
 
 	walk_state->operand_index++;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p #Ops=%X\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Obj=%p [%s] State=%p #Ops=%X\n",
 			  object,
 			  acpi_ut_get_object_type_name((union
 							acpi_operand_object *)
@@ -344,7 +344,7 @@ acpi_ds_obj_stack_pop(u32 pop_count, struct acpi_walk_state *walk_state)
 		walk_state->operands[walk_state->num_operands] = NULL;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%u\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%u\n",
 			  pop_count, walk_state, walk_state->num_operands));
 
 	return (AE_OK);
@@ -392,7 +392,7 @@ acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Count=%X State=%p #Ops=%X\n",
 			  pop_count, walk_state, walk_state->num_operands));
 }
 
@@ -418,7 +418,7 @@ struct acpi_walk_state *acpi_ds_get_current_walk_state(struct acpi_thread_state
 		return (NULL);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "Current WalkState %p\n",
+	ACPI_DE_PRINT((ACPI_DB_PARSE, "Current WalkState %p\n",
 			  thread->walk_state_list));
 
 	return (thread->walk_state_list);

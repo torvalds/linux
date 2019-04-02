@@ -20,8 +20,8 @@
  * included with this package.                                     *
  *******************************************************************/
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
-#define CONFIG_SCSI_LPFC_DEBUG_FS
+#if defined(CONFIG_DE_FS) && !defined(CONFIG_SCSI_LPFC_DE_FS)
+#define CONFIG_SCSI_LPFC_DE_FS
 #endif
 
 /* forward declaration for LPFC_IOCB_t's use */
@@ -410,7 +410,7 @@ struct lpfc_io_buf {
 
 			wait_queue_head_t *waitq;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 			/* Used to restore any changes to protection data for
 			 * error injection
 			 */
@@ -428,7 +428,7 @@ struct lpfc_io_buf {
 			struct nvmefc_fcp_req *nvmeCmd;
 			uint16_t qidx;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 			uint64_t ts_cmd_start;
 			uint64_t ts_last_cmd;
 			uint64_t ts_cmd_wqput;

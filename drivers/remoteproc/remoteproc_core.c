@@ -32,7 +32,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
 #include <linux/string.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/devcoredump.h>
 #include <linux/remoteproc.h>
 #include <linux/iommu.h>
@@ -598,7 +598,7 @@ void rproc_vdev_release(struct kref *ref)
  * @avail: size of available data (for sanity checking the image)
  *
  * In case the remote processor dumps trace logs into memory,
- * export it via debugfs.
+ * export it via defs.
  *
  * Currently, the 'da' member of @rsc should contain the device address
  * where the remote processor is dumping the traces. Later we could also
@@ -610,7 +610,7 @@ void rproc_vdev_release(struct kref *ref)
 static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 			      int offset, int avail)
 {
-	struct rproc_debug_trace *trace;
+	struct rproc_de_trace *trace;
 	struct device *dev = &rproc->dev;
 	char name[15];
 
@@ -639,7 +639,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 	/* make sure snprintf always null terminates, even if truncating */
 	snprintf(name, sizeof(name), "trace%d", rproc->num_traces);
 
-	/* create the debugfs entry */
+	/* create the defs entry */
 	trace->tfile = rproc_create_trace_file(name, rproc, trace);
 	if (!trace->tfile) {
 		kfree(trace);
@@ -1245,11 +1245,11 @@ static void rproc_coredump_cleanup(struct rproc *rproc)
 static void rproc_resource_cleanup(struct rproc *rproc)
 {
 	struct rproc_mem_entry *entry, *tmp;
-	struct rproc_debug_trace *trace, *ttmp;
+	struct rproc_de_trace *trace, *ttmp;
 	struct rproc_vdev *rvdev, *rvtmp;
 	struct device *dev = &rproc->dev;
 
-	/* clean up debugfs trace entries */
+	/* clean up defs trace entries */
 	list_for_each_entry_safe(trace, ttmp, &rproc->traces, node) {
 		rproc_remove_trace_file(trace->tfile);
 		rproc->num_traces--;
@@ -1681,7 +1681,7 @@ unlock_mutex:
  * rproc_crash_handler_work() - handle a crash
  *
  * This function needs to handle everything related to a crash, like cpu
- * registers and stack dump, information to help to debug the fatal error, etc.
+ * registers and stack dump, information to help to de the fatal error, etc.
  */
 static void rproc_crash_handler_work(struct work_struct *work)
 {
@@ -1783,7 +1783,7 @@ EXPORT_SYMBOL(rproc_boot);
  * without really powering off the device.
  *
  * Every call to rproc_boot() must (eventually) be accompanied by a call
- * to rproc_shutdown(). Calling rproc_shutdown() redundantly is a bug.
+ * to rproc_shutdown(). Calling rproc_shutdown() redundantly is a .
  *
  * Notes:
  * - we're not decrementing the rproc's refcount, only the power refcount.
@@ -1907,8 +1907,8 @@ int rproc_add(struct rproc *rproc)
 
 	dev_info(dev, "%s is available\n", rproc->name);
 
-	/* create debugfs entries */
-	rproc_create_debug_dir(rproc);
+	/* create defs entries */
+	rproc_create_de_dir(rproc);
 
 	/* if rproc is marked always-on, request it to boot */
 	if (rproc->auto_boot) {
@@ -2130,7 +2130,7 @@ int rproc_del(struct rproc *rproc)
 	rproc->state = RPROC_DELETED;
 	mutex_unlock(&rproc->lock);
 
-	rproc_delete_debug_dir(rproc);
+	rproc_delete_de_dir(rproc);
 
 	/* the rproc is downref'ed as soon as it's removed from the klist */
 	mutex_lock(&rproc_list_mutex);
@@ -2213,7 +2213,7 @@ EXPORT_SYMBOL(rproc_report_crash);
 static int __init remoteproc_init(void)
 {
 	rproc_init_sysfs();
-	rproc_init_debugfs();
+	rproc_init_defs();
 
 	return 0;
 }
@@ -2223,7 +2223,7 @@ static void __exit remoteproc_exit(void)
 {
 	ida_destroy(&rproc_dev_index);
 
-	rproc_exit_debugfs();
+	rproc_exit_defs();
 	rproc_exit_sysfs();
 }
 module_exit(remoteproc_exit);

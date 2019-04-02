@@ -21,33 +21,33 @@ config EARLY_PRINTK
 	  Write kernel log output directly into the VGA buffer or to a serial
 	  port.
 
-	  This is useful for kernel debugging when your machine crashes very
+	  This is useful for kernel deging when your machine crashes very
 	  early before the console code is initialized. For normal operation
 	  it is not recommended because it looks ugly and doesn't cooperate
 	  with klogd/syslogd or the X server. You should normally say N here,
-	  unless you want to debug such a crash.
+	  unless you want to de such a crash.
 
 config EARLY_PRINTK_DBGP
-	bool "Early printk via EHCI debug port"
+	bool "Early printk via EHCI de port"
 	depends on EARLY_PRINTK && PCI
 	select EARLY_PRINTK_USB
 	---help---
-	  Write kernel log output directly into the EHCI debug port.
+	  Write kernel log output directly into the EHCI de port.
 
-	  This is useful for kernel debugging when your machine crashes very
+	  This is useful for kernel deging when your machine crashes very
 	  early before the console code is initialized. For normal operation
 	  it is not recommended because it looks ugly and doesn't cooperate
 	  with klogd/syslogd or the X server. You should normally say N here,
-	  unless you want to debug such a crash. You need usb debug device.
+	  unless you want to de such a crash. You need usb de device.
 
 config EARLY_PRINTK_USB_XDBC
-	bool "Early printk via the xHCI debug port"
+	bool "Early printk via the xHCI de port"
 	depends on EARLY_PRINTK && PCI
 	select EARLY_PRINTK_USB
 	---help---
-	  Write kernel log output directly into the xHCI debug port.
+	  Write kernel log output directly into the xHCI de port.
 
-	  One use for this feature is kernel debugging, for example when your
+	  One use for this feature is kernel deging, for example when your
 	  machine crashes very early before the regular console code is
 	  initialized. Other uses include simpler, lockless logging instead of
 	  a full-blown printk console driver + klogd.
@@ -56,7 +56,7 @@ config EARLY_PRINTK_USB_XDBC
 	  because it doesn't feed events into klogd/syslogd and doesn't try to
 	  print anything on the screen.
 
-	  You should normally say N here, unless you want to debug early
+	  You should normally say N here, unless you want to de early
 	  crashes or need a very simple printk logging facility.
 
 config MCSAFE_TEST
@@ -66,13 +66,13 @@ config X86_PTDUMP_CORE
 	def_bool n
 
 config X86_PTDUMP
-	tristate "Export kernel pagetable layout to userspace via debugfs"
-	depends on DEBUG_KERNEL
-	select DEBUG_FS
+	tristate "Export kernel pagetable layout to userspace via defs"
+	depends on DE_KERNEL
+	select DE_FS
 	select X86_PTDUMP_CORE
 	---help---
 	  Say Y here if you want to show the kernel pagetable layout in a
-	  debugfs file. This information is only useful for kernel developers
+	  defs file. This information is only useful for kernel developers
 	  who are working in architecture specific areas of the kernel.
 	  It is probably not a good idea to enable this feature in a production
 	  kernel.
@@ -84,11 +84,11 @@ config EFI_PGT_DUMP
 	select X86_PTDUMP_CORE
 	---help---
 	  Enable this if you want to dump the EFI page table before
-	  enabling virtual mode. This can be used to debug miscellaneous
+	  enabling virtual mode. This can be used to de miscellaneous
 	  issues with the mapping of the EFI runtime regions into that
 	  table.
 
-config DEBUG_WX
+config DE_WX
 	bool "Warn on W+X mappings at boot"
 	select X86_PTDUMP_CORE
 	---help---
@@ -108,7 +108,7 @@ config DEBUG_WX
 	  Note that even if the check fails, your kernel is possibly
 	  still fine, as W+X mappings are not a security hole in
 	  themselves, what they do is that they make the exploitation
-	  of other unfixed kernel bugs easier.
+	  of other unfixed kernel s easier.
 
 	  There is no runtime or memory usage effect of this option
 	  once the kernel has booted up - it's a one time check.
@@ -124,9 +124,9 @@ config DOUBLEFAULT
 	  option saves about 4k and might cause you much additional grey
 	  hair.
 
-config DEBUG_TLBFLUSH
+config DE_TLBFLUSH
 	bool "Set upper limit of TLB entries to flush one-by-one"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	---help---
 
 	X86-only for now.
@@ -134,7 +134,7 @@ config DEBUG_TLBFLUSH
 	This option allows the user to tune the amount of TLB entries the
 	kernel flushes one-by-one instead of doing a full TLB flush. In
 	certain situations, the former is cheaper. This is controlled by the
-	tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
+	tlb_flushall_shift knob under /sys/kernel/de/x86. If you set it
 	to -1, the code flushes the whole TLB unconditionally. Otherwise,
 	for positive values of it, the kernel will use single TLB entry
 	invalidating instructions according to the following formula:
@@ -143,13 +143,13 @@ config DEBUG_TLBFLUSH
 
 	If in doubt, say "N".
 
-config IOMMU_DEBUG
-	bool "Enable IOMMU debugging"
-	depends on GART_IOMMU && DEBUG_KERNEL
+config IOMMU_DE
+	bool "Enable IOMMU deging"
+	depends on GART_IOMMU && DE_KERNEL
 	depends on X86_64
 	---help---
 	  Force the IOMMU to on even when you have less than 4GB of
-	  memory and add debugging code. On overflow always panic. And
+	  memory and add deging code. On overflow always panic. And
 	  allow to enable IOMMU leak tracing. Can be disabled at boot
 	  time with iommu=noforce. This will also enable scatter gather
 	  list merging.  Currently not recommended for production
@@ -161,17 +161,17 @@ config IOMMU_DEBUG
 
 config IOMMU_LEAK
 	bool "IOMMU leak tracing"
-	depends on IOMMU_DEBUG && DMA_API_DEBUG
+	depends on IOMMU_DE && DMA_API_DE
 	---help---
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
-	  are debugging a buggy device driver that leaks IOMMU mappings.
+	  are deging a gy device driver that leaks IOMMU mappings.
 
 config HAVE_MMIOTRACE_SUPPORT
 	def_bool y
 
 config X86_DECODER_SELFTEST
 	bool "x86 instruction decoder selftest"
-	depends on DEBUG_KERNEL && KPROBES
+	depends on DE_KERNEL && KPROBES
 	depends on !COMPILE_TEST
 	---help---
 	 Perform x86 instruction decoder selftests at build time.
@@ -213,7 +213,7 @@ config IO_DELAY_0XED
 	bool "port 0xed based port-IO delay"
 	---help---
 	  Use port 0xed as the IO delay. This frees up port 0x80 which is
-	  often used as a hardware-debug port.
+	  often used as a hardware-de port.
 
 config IO_DELAY_UDELAY
 	bool "udelay based port-IO delay"
@@ -253,16 +253,16 @@ config DEFAULT_IO_DELAY_TYPE
 	default IO_DELAY_TYPE_NONE
 endif
 
-config DEBUG_BOOT_PARAMS
-	bool "Debug boot parameters"
-	depends on DEBUG_KERNEL
-	depends on DEBUG_FS
+config DE_BOOT_PARAMS
+	bool "De boot parameters"
+	depends on DE_KERNEL
+	depends on DE_FS
 	---help---
-	  This option will cause struct boot_params to be exported via debugfs.
+	  This option will cause struct boot_params to be exported via defs.
 
-config CPA_DEBUG
+config CPA_DE
 	bool "CPA self-test code"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	---help---
 	  Do change_page_attr() self-tests every 30 seconds.
 
@@ -280,9 +280,9 @@ config OPTIMIZE_INLINING
 
 	  If unsure, say N.
 
-config DEBUG_ENTRY
-	bool "Debug low-level entry code"
-	depends on DEBUG_KERNEL
+config DE_ENTRY
+	bool "De low-level entry code"
+	depends on DE_KERNEL
 	---help---
 	  This option enables sanity checks in x86's low-level entry code.
 	  Some of these sanity checks may slow down kernel entries and
@@ -290,9 +290,9 @@ config DEBUG_ENTRY
 
 	  If unsure, say N.
 
-config DEBUG_NMI_SELFTEST
+config DE_NMI_SELFTEST
 	bool "NMI Selftest"
-	depends on DEBUG_KERNEL && X86_LOCAL_APIC
+	depends on DE_KERNEL && X86_LOCAL_APIC
 	---help---
 	  Enabling this option turns on a quick NMI selftest to verify
 	  that the NMI behaves correctly.
@@ -302,41 +302,41 @@ config DEBUG_NMI_SELFTEST
 
 	  If unsure, say N.
 
-config DEBUG_IMR_SELFTEST
+config DE_IMR_SELFTEST
 	bool "Isolated Memory Region self test"
 	depends on INTEL_IMR
 	---help---
 	  This option enables automated sanity testing of the IMR code.
 	  Some simple tests are run to verify IMR bounds checking, alignment
 	  and overlapping. This option is really only useful if you are
-	  debugging an IMR memory map or are modifying the IMR code and want to
+	  deging an IMR memory map or are modifying the IMR code and want to
 	  test your changes.
 
 	  If unsure say N here.
 
-config X86_DEBUG_FPU
-	bool "Debug the x86 FPU code"
-	depends on DEBUG_KERNEL
+config X86_DE_FPU
+	bool "De the x86 FPU code"
+	depends on DE_KERNEL
 	default y
 	---help---
 	  If this option is enabled then there will be extra sanity
-	  checks and (boot time) debug printouts added to the kernel.
-	  This debugging adds some small amount of runtime overhead
+	  checks and (boot time) de printouts added to the kernel.
+	  This deging adds some small amount of runtime overhead
 	  to the kernel.
 
 	  If unsure, say N.
 
-config PUNIT_ATOM_DEBUG
-	tristate "ATOM Punit debug driver"
+config PUNIT_ATOM_DE
+	tristate "ATOM Punit de driver"
 	depends on PCI
-	select DEBUG_FS
+	select DE_FS
 	select IOSF_MBI
 	---help---
-	  This is a debug driver, which gets the power states
+	  This is a de driver, which gets the power states
 	  of all Punit North Complex devices. The power states of
-	  each device is exposed as part of the debugfs interface.
+	  each device is exposed as part of the defs interface.
 	  The current power state can be read from
-	  /sys/kernel/debug/punit_atom/dev_power_state
+	  /sys/kernel/de/punit_atom/dev_power_state
 
 choice
 	prompt "Choose kernel unwinder"
@@ -344,7 +344,7 @@ choice
 	default UNWINDER_FRAME_POINTER if X86_32
 	---help---
 	  This determines which method will be used for unwinding kernel stack
-	  traces for panics, oopses, bugs, warnings, perf, /proc/<pid>/stack,
+	  traces for panics, oopses, s, warnings, perf, /proc/<pid>/stack,
 	  livepatch, lockdep, and more.
 
 config UNWINDER_ORC

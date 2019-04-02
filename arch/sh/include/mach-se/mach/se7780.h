@@ -59,7 +59,7 @@
 #define FPGA_INTSTS1		(PA_FPGA + 18)	/* Interrupt status register 1 */
 #define FPGA_INTSTS2		(PA_FPGA + 20)	/* Interrupt status register 2 */
 #define FPGA_REQSEL		(PA_FPGA + 22)	/* REQ/GNT select register */
-#define FPGA_DBG_LED		(PA_FPGA + 32)	/* Debug LED(D-LED[8:1] */
+#define FPGA_DBG_LED		(PA_FPGA + 32)	/* De LED(D-LED[8:1] */
 #define PA_LED			FPGA_DBG_LED
 #define FPGA_IVDRID		(PA_FPGA + 36)	/* iVDR ID Register */
 #define FPGA_IVDRPW		(PA_FPGA + 38)	/* iVDR Power ON Register */

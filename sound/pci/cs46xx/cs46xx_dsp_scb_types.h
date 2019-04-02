@@ -87,7 +87,7 @@ struct dsp_generic_scb {
 	/* For streaming I/O, the DSP should never alter any words in the DMA
 	   requestor or the scatter/gather extension.  Only ad hoc DMA request
 	   streams are free to alter the requestor (currently only occur in the
-	   DOS-based MIDI controller and in debugger-inserted code).
+	   DOS-based MIDI controller and in deger-inserted code).
     
 	   If an SCB does not have any associated DMA requestor, these 9 ints
 	   may be freed for use by other tasks, but the pointer to the SCB must

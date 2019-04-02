@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/property.h>
 
@@ -196,7 +196,7 @@ static void gpio_mockup_free(struct gpio_chip *gc, unsigned int offset)
 	__gpio_mockup_set(chip, offset, chip->lines[offset].pull);
 }
 
-static ssize_t gpio_mockup_debugfs_read(struct file *file,
+static ssize_t gpio_mockup_defs_read(struct file *file,
 					char __user *usr_buf,
 					size_t size, loff_t *ppos)
 {
@@ -221,7 +221,7 @@ static ssize_t gpio_mockup_debugfs_read(struct file *file,
 	return simple_read_from_buffer(usr_buf, size, ppos, buf, cnt);
 }
 
-static ssize_t gpio_mockup_debugfs_write(struct file *file,
+static ssize_t gpio_mockup_defs_write(struct file *file,
 					 const char __user *usr_buf,
 					 size_t size, loff_t *ppos)
 {
@@ -277,14 +277,14 @@ out:
 	return size;
 }
 
-static int gpio_mockup_debugfs_open(struct inode *inode, struct file *file)
+static int gpio_mockup_defs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, NULL, inode->i_private);
 }
 
 /*
  * Each mockup chip is represented by a directory named after the chip's device
- * name under /sys/kernel/debug/gpio-mockup/. Each line is represented by
+ * name under /sys/kernel/de/gpio-mockup/. Each line is represented by
  * a file using the line's offset as the name under the chip's directory.
  *
  * Reading from the line's file yields the current *value*, writing to the
@@ -295,23 +295,23 @@ static int gpio_mockup_debugfs_open(struct inode *inode, struct file *file)
  * - when a line pulled down is requested in output mode and driven high, its
  *   value will return to 0 once it's released
  * - when the line is requested in output mode and driven high, writing 0 to
- *   the corresponding debugfs file will change the pull to down but the
+ *   the corresponding defs file will change the pull to down but the
  *   reported value will still be 1 until the line is released
  * - line requested in input mode always reports the same value as its pull
  *   configuration
  * - when the line is requested in input mode and monitored for events, writing
- *   the same value to the debugfs file will be a noop, while writing the
+ *   the same value to the defs file will be a noop, while writing the
  *   opposite value will generate a dummy interrupt with an appropriate edge
  */
-static const struct file_operations gpio_mockup_debugfs_ops = {
+static const struct file_operations gpio_mockup_defs_ops = {
 	.owner = THIS_MODULE,
-	.open = gpio_mockup_debugfs_open,
-	.read = gpio_mockup_debugfs_read,
-	.write = gpio_mockup_debugfs_write,
+	.open = gpio_mockup_defs_open,
+	.read = gpio_mockup_defs_read,
+	.write = gpio_mockup_defs_write,
 	.llseek = no_llseek,
 };
 
-static void gpio_mockup_debugfs_setup(struct device *dev,
+static void gpio_mockup_defs_setup(struct device *dev,
 				      struct gpio_mockup_chip *chip)
 {
 	struct gpio_mockup_dbgfs_private *priv;
@@ -324,7 +324,7 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 	gc = &chip->gc;
 	devname = dev_name(&gc->gpiodev->dev);
 
-	chip->dbg_dir = debugfs_create_dir(devname, gpio_mockup_dbg_dir);
+	chip->dbg_dir = defs_create_dir(devname, gpio_mockup_dbg_dir);
 	if (IS_ERR_OR_NULL(chip->dbg_dir))
 		goto err;
 
@@ -341,8 +341,8 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 		priv->offset = i;
 		priv->desc = &gc->gpiodev->descs[i];
 
-		evfile = debugfs_create_file(name, 0200, chip->dbg_dir, priv,
-					     &gpio_mockup_debugfs_ops);
+		evfile = defs_create_file(name, 0200, chip->dbg_dir, priv,
+					     &gpio_mockup_defs_ops);
 		if (IS_ERR_OR_NULL(evfile))
 			goto err;
 	}
@@ -350,7 +350,7 @@ static void gpio_mockup_debugfs_setup(struct device *dev,
 	return;
 
 err:
-	dev_err(dev, "error creating debugfs files\n");
+	dev_err(dev, "error creating defs files\n");
 }
 
 static int gpio_mockup_name_lines(struct device *dev,
@@ -448,7 +448,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 		return rv;
 
 	if (!IS_ERR_OR_NULL(gpio_mockup_dbg_dir))
-		gpio_mockup_debugfs_setup(dev, chip);
+		gpio_mockup_defs_setup(dev, chip);
 
 	return 0;
 }
@@ -500,9 +500,9 @@ static int __init gpio_mockup_init(void)
 			return -EINVAL;
 	}
 
-	gpio_mockup_dbg_dir = debugfs_create_dir("gpio-mockup", NULL);
+	gpio_mockup_dbg_dir = defs_create_dir("gpio-mockup", NULL);
 	if (IS_ERR_OR_NULL(gpio_mockup_dbg_dir))
-		gpio_mockup_err("error creating debugfs directory\n");
+		gpio_mockup_err("error creating defs directory\n");
 
 	err = platform_driver_register(&gpio_mockup_driver);
 	if (err) {
@@ -548,7 +548,7 @@ static int __init gpio_mockup_init(void)
 
 static void __exit gpio_mockup_exit(void)
 {
-	debugfs_remove_recursive(gpio_mockup_dbg_dir);
+	defs_remove_recursive(gpio_mockup_dbg_dir);
 	platform_driver_unregister(&gpio_mockup_driver);
 	gpio_mockup_unregister_pdevs();
 }

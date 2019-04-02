@@ -199,7 +199,7 @@ static int __init mv78xx0_pcie_scan_bus(int nr, struct pci_host_bridge *bridge)
 	struct pci_sys_data *sys = pci_host_bridge_priv(bridge);
 
 	if (nr >= num_pcie_ports) {
-		BUG();
+		();
 		return -EINVAL;
 	}
 

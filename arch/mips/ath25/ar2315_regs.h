@@ -98,7 +98,7 @@
 #define AR2315_ARB_LOCAL		0x00000008  /* Local bus */
 #define AR2315_ARB_PCI			0x00000010  /* PCI bus */
 #define AR2315_ARB_ETHERNET		0x00000020  /* Ethernet */
-#define AR2315_ARB_RETRY		0x00000100  /* Retry policy (debug) */
+#define AR2315_ARB_RETRY		0x00000100  /* Retry policy (de) */
 
 /* Config Register */
 #define AR2315_ENDIAN_CTL		0x000c

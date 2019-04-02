@@ -407,7 +407,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		}
 
 		spin_unlock(&tfile->lock);
-		BUG_ON(ret != -EINVAL);
+		_ON(ret != -EINVAL);
 
 		ttm_mem_global_free(mem_glob, sizeof(*ref));
 		kfree(ref);
@@ -601,7 +601,7 @@ static void ttm_prime_refcount_release(struct ttm_base_object **p_base)
 
 	*p_base = NULL;
 	prime = container_of(base, struct ttm_prime_object, base);
-	BUG_ON(prime->dma_buf != NULL);
+	_ON(prime->dma_buf != NULL);
 	mutex_destroy(&prime->mutex);
 	if (prime->refcount_release)
 		prime->refcount_release(&base);

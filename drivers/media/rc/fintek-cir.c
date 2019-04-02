@@ -407,7 +407,7 @@ static irqreturn_t fintek_cir_isr(int irq, void *data)
 		return IRQ_RETVAL(IRQ_NONE);
 	}
 
-	if (debug)
+	if (de)
 		fintek_cir_log_irqs(status);
 
 	rx_irqs = status & (CIR_STATUS_RX_RECEIVE | CIR_STATUS_RX_TIMEOUT);
@@ -563,7 +563,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	device_init_wakeup(&pdev->dev, true);
 
 	fit_pr(KERN_NOTICE, "driver has been successfully loaded\n");
-	if (debug)
+	if (de)
 		cir_dump_regs(fintek);
 
 	return 0;
@@ -672,8 +672,8 @@ static struct pnp_driver fintek_driver = {
 	.shutdown	= fintek_shutdown,
 };
 
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging output");
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Enable deging output");
 
 MODULE_DEVICE_TABLE(pnp, fintek_ids);
 MODULE_DESCRIPTION(FINTEK_DESCRIPTION " driver");

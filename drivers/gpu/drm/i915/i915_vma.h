@@ -174,7 +174,7 @@ static inline bool i915_vma_has_ggtt_write(const struct i915_vma *vma)
 
 static inline void i915_vma_set_ggtt_write(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	GEM__ON(!i915_vma_is_ggtt(vma));
 	vma->flags |= I915_VMA_GGTT_WRITE;
 }
 
@@ -197,7 +197,7 @@ static inline bool i915_vma_is_closed(const struct i915_vma *vma)
 
 static inline bool i915_vma_set_userfault(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+	GEM__ON(!i915_vma_is_map_and_fenceable(vma));
 	return __test_and_set_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
 }
 
@@ -213,10 +213,10 @@ static inline bool i915_vma_has_userfault(const struct i915_vma *vma)
 
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
-	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON(!vma->node.allocated);
-	GEM_BUG_ON(upper_32_bits(vma->node.start));
-	GEM_BUG_ON(upper_32_bits(vma->node.start + vma->node.size - 1));
+	GEM__ON(!i915_vma_is_ggtt(vma));
+	GEM__ON(!vma->node.allocated);
+	GEM__ON(upper_32_bits(vma->node.start));
+	GEM__ON(upper_32_bits(vma->node.start + vma->node.size - 1));
 	return lower_32_bits(vma->node.start);
 }
 
@@ -248,13 +248,13 @@ i915_vma_compare(struct i915_vma *vma,
 {
 	ptrdiff_t cmp;
 
-	GEM_BUG_ON(view && !i915_is_ggtt(vm));
+	GEM__ON(view && !i915_is_ggtt(vm));
 
 	cmp = ptrdiff(vma->vm, vm);
 	if (cmp)
 		return cmp;
 
-	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL != 0);
+	BUILD__ON(I915_GGTT_VIEW_NORMAL != 0);
 	cmp = vma->ggtt_view.type;
 	if (!view)
 		return cmp;
@@ -275,9 +275,9 @@ i915_vma_compare(struct i915_vma *vma,
 	 * we assert above that all branches have the same address, and that
 	 * each branch has a unique type/size.
 	 */
-	BUILD_BUG_ON(I915_GGTT_VIEW_NORMAL >= I915_GGTT_VIEW_PARTIAL);
-	BUILD_BUG_ON(I915_GGTT_VIEW_PARTIAL >= I915_GGTT_VIEW_ROTATED);
-	BUILD_BUG_ON(offsetof(typeof(*view), rotated) !=
+	BUILD__ON(I915_GGTT_VIEW_NORMAL >= I915_GGTT_VIEW_PARTIAL);
+	BUILD__ON(I915_GGTT_VIEW_PARTIAL >= I915_GGTT_VIEW_ROTATED);
+	BUILD__ON(offsetof(typeof(*view), rotated) !=
 		     offsetof(typeof(*view), partial));
 	return memcmp(&vma->ggtt_view.partial, &view->partial, view->type);
 }
@@ -300,16 +300,16 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 static inline int __must_check
 i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	BUILD_BUG_ON(PIN_MBZ != I915_VMA_PIN_OVERFLOW);
-	BUILD_BUG_ON(PIN_GLOBAL != I915_VMA_GLOBAL_BIND);
-	BUILD_BUG_ON(PIN_USER != I915_VMA_LOCAL_BIND);
+	BUILD__ON(PIN_MBZ != I915_VMA_PIN_OVERFLOW);
+	BUILD__ON(PIN_GLOBAL != I915_VMA_GLOBAL_BIND);
+	BUILD__ON(PIN_USER != I915_VMA_LOCAL_BIND);
 
 	/* Pin early to prevent the shrinker/eviction logic from destroying
 	 * our vma as we insert and bind.
 	 */
 	if (likely(((++vma->flags ^ flags) & I915_VMA_BIND_MASK) == 0)) {
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
+		GEM__ON(!drm_mm_node_allocated(&vma->node));
+		GEM__ON(i915_vma_misplaced(vma, size, alignment, flags));
 		return 0;
 	}
 
@@ -329,7 +329,7 @@ static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
 static inline void __i915_vma_pin(struct i915_vma *vma)
 {
 	vma->flags++;
-	GEM_BUG_ON(vma->flags & I915_VMA_PIN_OVERFLOW);
+	GEM__ON(vma->flags & I915_VMA_PIN_OVERFLOW);
 }
 
 static inline void __i915_vma_unpin(struct i915_vma *vma)
@@ -339,8 +339,8 @@ static inline void __i915_vma_unpin(struct i915_vma *vma)
 
 static inline void i915_vma_unpin(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!i915_vma_is_pinned(vma));
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM__ON(!i915_vma_is_pinned(vma));
+	GEM__ON(!drm_mm_node_allocated(&vma->node));
 	__i915_vma_unpin(vma);
 }
 
@@ -379,7 +379,7 @@ void i915_vma_unpin_iomap(struct i915_vma *vma);
 
 static inline struct page *i915_vma_first_page(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!vma->pages);
+	GEM__ON(!vma->pages);
 	return sg_page(vma->pages->sgl);
 }
 
@@ -403,7 +403,7 @@ int __must_check i915_vma_put_fence(struct i915_vma *vma);
 
 static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->fence->pin_count <= 0);
+	GEM__ON(vma->fence->pin_count <= 0);
 	vma->fence->pin_count--;
 }
 

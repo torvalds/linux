@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 // Test that /proc/self gives correct TGID.
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <stdio.h>
 #include <unistd.h>

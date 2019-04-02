@@ -26,22 +26,22 @@
 
 #include <media/dvb-usb-ids.h>
 
-/* debug */
-#ifdef CONFIG_DVB_USB_DEBUG
+/* de */
+#ifdef CONFIG_DVB_USB_DE
 #define dprintk(var,level,args...) \
 	    do { if ((var & level)) { printk(args); } } while (0)
 
-#define debug_dump(b,l,func) {\
+#define de_dump(b,l,func) {\
 	int loop_; \
 	for (loop_ = 0; loop_ < l; loop_++) func("%02x ", b[loop_]); \
 	func("\n");\
 }
-#define DVB_USB_DEBUG_STATUS
+#define DVB_USB_DE_STATUS
 #else
 #define dprintk(args...)
-#define debug_dump(b,l,func)
+#define de_dump(b,l,func)
 
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#define DVB_USB_DE_STATUS " (deging is not enabled)"
 
 #endif
 

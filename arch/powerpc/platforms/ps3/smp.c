@@ -26,10 +26,10 @@
 
 #include "platform.h"
 
-#if defined(DEBUG)
+#if defined(DE)
 #define DBG udbg_printf
 #else
-#define DBG pr_debug
+#define DBG pr_de
 #endif
 
 /**
@@ -74,10 +74,10 @@ static void __init ps3_smp_probe(void)
 		* to index needs to be setup.
 		*/
 
-		BUILD_BUG_ON(PPC_MSG_CALL_FUNCTION    != 0);
-		BUILD_BUG_ON(PPC_MSG_RESCHEDULE       != 1);
-		BUILD_BUG_ON(PPC_MSG_TICK_BROADCAST   != 2);
-		BUILD_BUG_ON(PPC_MSG_NMI_IPI          != 3);
+		BUILD__ON(PPC_MSG_CALL_FUNCTION    != 0);
+		BUILD__ON(PPC_MSG_RESCHEDULE       != 1);
+		BUILD__ON(PPC_MSG_TICK_BROADCAST   != 2);
+		BUILD__ON(PPC_MSG_NMI_IPI          != 3);
 
 		for (i = 0; i < MSG_COUNT; i++) {
 			result = ps3_event_receive_port_setup(cpu, &virqs[i]);
@@ -96,7 +96,7 @@ static void __init ps3_smp_probe(void)
 				ps3_register_ipi_irq(cpu, virqs[i]);
 		}
 
-		ps3_register_ipi_debug_brk(cpu, virqs[PPC_MSG_NMI_IPI]);
+		ps3_register_ipi_de_brk(cpu, virqs[PPC_MSG_NMI_IPI]);
 
 		DBG(" <- %s:%d: (%d)\n", __func__, __LINE__, cpu);
 	}

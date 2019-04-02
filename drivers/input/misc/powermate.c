@@ -171,7 +171,7 @@ static void powermate_sync_state(struct powermate_device *pm)
 		pm->requires_update &= ~UPDATE_STATIC_BRIGHTNESS;
 	} else {
 		printk(KERN_ERR "powermate: unknown update required");
-		pm->requires_update = 0; /* fudge the bug */
+		pm->requires_update = 0; /* fudge the  */
 		return;
 	}
 

@@ -196,7 +196,7 @@ static int tap_disable_queue(struct tap_queue *q)
 
 	if (tap) {
 		int index = q->queue_index;
-		BUG_ON(index >= tap->numvtaps);
+		_ON(index >= tap->numvtaps);
 		nq = rtnl_dereference(tap->taps[tap->numvtaps - 1]);
 		nq->queue_index = index;
 
@@ -227,7 +227,7 @@ static void tap_put_queue(struct tap_queue *q)
 
 	if (tap) {
 		if (q->enabled)
-			BUG_ON(tap_disable_queue(q));
+			_ON(tap_disable_queue(q));
 
 		tap->numqueues--;
 		RCU_INIT_POINTER(q->tap, NULL);
@@ -307,8 +307,8 @@ void tap_del_queues(struct tap_dev *tap)
 		tap->numqueues--;
 		sock_put(&q->sk);
 	}
-	BUG_ON(tap->numvtaps);
-	BUG_ON(tap->numqueues);
+	_ON(tap->numvtaps);
+	_ON(tap->numqueues);
 	/* guarantee that any future tap_set_queue will fail */
 	tap->numvtaps = MAX_TAP_QUEUES;
 }
@@ -784,7 +784,7 @@ static ssize_t tap_put_user(struct tap_queue *q,
 		if (virtio_net_hdr_from_skb(skb, &vnet_hdr,
 					    tap_is_little_endian(q), true,
 					    vlan_hlen))
-			BUG();
+			();
 
 		if (copy_to_iter(&vnet_hdr, sizeof(vnet_hdr), iter) !=
 		    sizeof(vnet_hdr))

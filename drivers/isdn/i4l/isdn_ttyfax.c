@@ -11,8 +11,8 @@
  *
  */
 
-#undef ISDN_TTY_FAX_STAT_DEBUG
-#undef ISDN_TTY_FAX_CMD_DEBUG
+#undef ISDN_TTY_FAX_STAT_DE
+#undef ISDN_TTY_FAX_CMD_DE
 
 #include <linux/isdn.h>
 #include "isdn_common.h"
@@ -62,8 +62,8 @@ isdn_tty_fax_modem_result(int code, modem_info *info)
 	isdn_tty_at_cout("\r\n", info);
 	isdn_tty_at_cout(msg[code], info);
 
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-	printk(KERN_DEBUG "isdn_tty: Fax send %s on ttyI%d\n",
+#ifdef ISDN_TTY_FAX_CMD_DE
+	printk(KERN_DE "isdn_tty: Fax send %s on ttyI%d\n",
 	       msg[code], info->line);
 #endif
 	switch (code) {
@@ -97,8 +97,8 @@ isdn_tty_fax_modem_result(int code, modem_info *info)
 			strcat(rs, rss);
 		}
 		isdn_tty_at_cout(rs, info);
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-		printk(KERN_DEBUG "isdn_tty: Fax DIS=%s on ttyI%d\n",
+#ifdef ISDN_TTY_FAX_CMD_DE
+		printk(KERN_DE "isdn_tty: Fax DIS=%s on ttyI%d\n",
 		       rs, info->line);
 #endif
 		break;
@@ -116,8 +116,8 @@ isdn_tty_fax_modem_result(int code, modem_info *info)
 			strcat(rs, rss);
 		}
 		isdn_tty_at_cout(rs, info);
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-		printk(KERN_DEBUG "isdn_tty: Fax DCS=%s on ttyI%d\n",
+#ifdef ISDN_TTY_FAX_CMD_DE
+		printk(KERN_DE "isdn_tty: Fax DCS=%s on ttyI%d\n",
 		       rs, info->line);
 #endif
 		break;
@@ -154,8 +154,8 @@ isdn_tty_fax_command1(modem_info *info, isdn_ctrl *c)
 	static char *msg[] =
 		{"OK", "CONNECT", "NO CARRIER", "ERROR", "FCERROR"};
 
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-	printk(KERN_DEBUG "isdn_tty: FCLASS1 cmd(%d)\n", c->parm.aux.cmd);
+#ifdef ISDN_TTY_FAX_CMD_DE
+	printk(KERN_DE "isdn_tty: FCLASS1 cmd(%d)\n", c->parm.aux.cmd);
 #endif
 	if (c->parm.aux.cmd < ISDN_FAX_CLASS1_QUERY) {
 		if (info->online)
@@ -196,8 +196,8 @@ isdn_tty_fax_command(modem_info *info, isdn_ctrl *c)
 	if (TTY_IS_FCLASS1(info))
 		return (isdn_tty_fax_command1(info, c));
 
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-	printk(KERN_DEBUG "isdn_tty: Fax cmd %d on ttyI%d\n",
+#ifdef ISDN_TTY_FAX_CMD_DE
+	printk(KERN_DE "isdn_tty: Fax cmd %d on ttyI%d\n",
 	       f->r_code, info->line);
 #endif
 	switch (f->r_code) {
@@ -329,8 +329,8 @@ isdn_tty_cmd_FCLASS1(char **p, modem_info *info)
 		if (!strncmp(p[0], cmd[c.parm.aux.cmd], 2))
 			break;
 
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-	printk(KERN_DEBUG "isdn_tty_cmd_FCLASS1 (%s,%d)\n", p[0], c.parm.aux.cmd);
+#ifdef ISDN_TTY_FAX_CMD_DE
+	printk(KERN_DE "isdn_tty_cmd_FCLASS1 (%s,%d)\n", p[0], c.parm.aux.cmd);
 #endif
 	if (c.parm.aux.cmd == 7)
 		PARSE_ERROR1;
@@ -361,8 +361,8 @@ isdn_tty_cmd_FCLASS1(char **p, modem_info *info)
 		PARSE_ERROR1;
 	}
 	c.command = ISDN_CMD_FAXCMD;
-#ifdef ISDN_TTY_FAX_CMD_DEBUG
-	printk(KERN_DEBUG "isdn_tty_cmd_FCLASS1 %d/%d/%d)\n",
+#ifdef ISDN_TTY_FAX_CMD_DE
+	printk(KERN_DE "isdn_tty_cmd_FCLASS1 %d/%d/%d)\n",
 	       c.parm.aux.cmd, c.parm.aux.subcmd, c.parm.aux.para[0]);
 #endif
 	if (info->isdn_driver < 0) {
@@ -460,8 +460,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 255))
 					PARSE_ERROR1;
 				f->badlin = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FBADLIN=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FBADLIN=%d\n", par);
 #endif
 			}
 			break;
@@ -490,8 +490,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 255))
 					PARSE_ERROR1;
 				f->badmul = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FBADMUL=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FBADMUL=%d\n", par);
 #endif
 			}
 			break;
@@ -520,8 +520,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 1))
 					PARSE_ERROR1;
 				f->bor = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FBOR=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FBOR=%d\n", par);
 #endif
 			}
 			break;
@@ -550,8 +550,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 1))
 					PARSE_ERROR1;
 				f->nbc = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FNBC=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FNBC=%d\n", par);
 #endif
 			}
 			break;
@@ -563,8 +563,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 	/* BUF? - Readonly buffersize readout  */
 	if (!strncmp(p[0], "BUF?", 4)) {
 		p[0] += 4;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-		printk(KERN_DEBUG "isdn_tty: Fax FBUF? (%d) \n", (16 * m->mdmreg[REG_PSIZE]));
+#ifdef ISDN_TTY_FAX_STAT_DE
+		printk(KERN_DE "isdn_tty: Fax FBUF? (%d) \n", (16 * m->mdmreg[REG_PSIZE]));
 #endif
 		p[0]++;
 		sprintf(rs, "\r\n %d ", (16 * m->mdmreg[REG_PSIZE]));
@@ -599,8 +599,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 					f->pollid[r] = 32;
 				}
 				f->pollid[FAXIDLEN - 1] = 0;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax local poll ID rx \"%s\"\n", f->pollid);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax local poll ID rx \"%s\"\n", f->pollid);
 #endif
 			}
 			break;
@@ -629,8 +629,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 2))
 					PARSE_ERROR1;
 				f->cq = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FCQ=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FCQ=%d\n", par);
 #endif
 			}
 			break;
@@ -659,8 +659,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 1))
 					PARSE_ERROR1;
 				f->cr = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FCR=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FCR=%d\n", par);
 #endif
 			}
 			break;
@@ -689,8 +689,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 255))
 					PARSE_ERROR1;
 				f->ctcrty = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FCTCRTY=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FCTCRTY=%d\n", par);
 #endif
 			}
 			break;
@@ -734,8 +734,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 					} else
 						p[0]++;
 				}
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FDCC capabilities DCE=%d,%d,%d,%d,%d,%d,%d,%d\n",
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FDCC capabilities DCE=%d,%d,%d,%d,%d,%d,%d,%d\n",
 				       rp[0], rp[1], rp[2], rp[3], rp[4], rp[5], rp[6], rp[7]);
 #endif
 			}
@@ -780,8 +780,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 					} else
 						p[0]++;
 				}
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FDIS session parms=%d,%d,%d,%d,%d,%d,%d,%d\n",
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FDIS session parms=%d,%d,%d,%d,%d,%d,%d,%d\n",
 				       rp[0], rp[1], rp[2], rp[3], rp[4], rp[5], rp[6], rp[7]);
 #endif
 			}
@@ -796,8 +796,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 		p[0] += 2;
 		if ((info->faxonline & 16) &&	/* incoming connection */
 		    ((f->phase == ISDN_FAX_PHASE_B) || (f->phase == ISDN_FAX_PHASE_D))) {
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-			printk(KERN_DEBUG "isdn_tty: Fax FDR\n");
+#ifdef ISDN_TTY_FAX_STAT_DE
+			printk(KERN_DE "isdn_tty: Fax FDR\n");
 #endif
 			f->code = ISDN_TTY_FAX_DR;
 			cmd.driver = info->isdn_driver;
@@ -849,8 +849,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 			} else
 				p[0]++;
 		}
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-		printk(KERN_DEBUG "isdn_tty: Fax FDT tx data command parms=%d,%d,%d,%d\n",
+#ifdef ISDN_TTY_FAX_STAT_DE
+		printk(KERN_DE "isdn_tty: Fax FDT tx data command parms=%d,%d,%d,%d\n",
 		       rp[4], rp[0], rp[2], rp[3]);
 #endif
 		if ((f->phase == ISDN_FAX_PHASE_B) || (f->phase == ISDN_FAX_PHASE_D)) {
@@ -888,8 +888,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par != 0) && (par != 2))
 					PARSE_ERROR1;
 				f->ecm = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FECM=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FECM=%d\n", par);
 #endif
 			}
 			break;
@@ -918,8 +918,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 			cmd.arg = info->isdn_channel;
 			cmd.command = ISDN_CMD_FAXCMD;
 			isdn_command(&cmd);
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-			printk(KERN_DEBUG "isdn_tty: Fax FET=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+			printk(KERN_DE "isdn_tty: Fax FET=%d\n", par);
 #endif
 			return 1;
 		}
@@ -961,8 +961,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 					f->id[r] = 32;
 				}
 				f->id[FAXIDLEN - 1] = 0;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax local ID \"%s\"\n", f->id);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax local ID \"%s\"\n", f->id);
 #endif
 			}
 			break;
@@ -975,8 +975,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 	/* MDL? - DCE Model       */
 	if (!strncmp(p[0], "MDL?", 4)) {
 		p[0] += 4;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-		printk(KERN_DEBUG "isdn_tty: FMDL?\n");
+#ifdef ISDN_TTY_FAX_STAT_DE
+		printk(KERN_DE "isdn_tty: FMDL?\n");
 #endif
 		isdn_tty_at_cout("\r\nisdn4linux", info);
 		return 0;
@@ -984,8 +984,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 	/* MFR? - DCE Manufacturer */
 	if (!strncmp(p[0], "MFR?", 4)) {
 		p[0] += 4;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-		printk(KERN_DEBUG "isdn_tty: FMFR?\n");
+#ifdef ISDN_TTY_FAX_STAT_DE
+		printk(KERN_DE "isdn_tty: FMFR?\n");
 #endif
 		isdn_tty_at_cout("\r\nisdn4linux", info);
 		return 0;
@@ -1010,8 +1010,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 5))
 					PARSE_ERROR1;
 				f->minsp = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FMINSP=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FMINSP=%d\n", par);
 #endif
 			}
 			break;
@@ -1040,8 +1040,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 255))
 					PARSE_ERROR1;
 				f->phcto = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FPHCTO=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FPHCTO=%d\n", par);
 #endif
 			}
 			break;
@@ -1071,8 +1071,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 				if ((par < 0) || (par > 1))
 					PARSE_ERROR1;
 				f->rel = par;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-				printk(KERN_DEBUG "isdn_tty: Fax FREL=%d\n", par);
+#ifdef ISDN_TTY_FAX_STAT_DE
+				printk(KERN_DE "isdn_tty: Fax FREL=%d\n", par);
 #endif
 			}
 			break;
@@ -1084,8 +1084,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 	/* REV? - DCE Revision */
 	if (!strncmp(p[0], "REV?", 4)) {
 		p[0] += 4;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-		printk(KERN_DEBUG "isdn_tty: FREV?\n");
+#ifdef ISDN_TTY_FAX_STAT_DE
+		printk(KERN_DE "isdn_tty: FREV?\n");
 #endif
 		strcpy(rss, isdn_tty_fax_revision);
 		sprintf(rs, "\r\nRev: %s", isdn_getrev(rss));
@@ -1096,8 +1096,8 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 	/* Phase C Transmit Data Block Size */
 	if (!strncmp(p[0], "TBC=", 4)) {	/* dummy, not used */
 		p[0] += 4;
-#ifdef ISDN_TTY_FAX_STAT_DEBUG
-		printk(KERN_DEBUG "isdn_tty: Fax FTBC=%c\n", *p[0]);
+#ifdef ISDN_TTY_FAX_STAT_DE
+		printk(KERN_DE "isdn_tty: Fax FTBC=%c\n", *p[0]);
 #endif
 		switch (*p[0]) {
 		case '0':
@@ -1108,7 +1108,7 @@ isdn_tty_cmd_FCLASS2(char **p, modem_info *info)
 		}
 		return 0;
 	}
-	printk(KERN_DEBUG "isdn_tty: unknown token=>AT+F%s<\n", p[0]);
+	printk(KERN_DE "isdn_tty: unknown token=>AT+F%s<\n", p[0]);
 	PARSE_ERROR1;
 }
 

@@ -26,7 +26,7 @@
  * Check that none of the inode's in the buffer have a next
  * unlinked field of 0.
  */
-#if defined(DEBUG)
+#if defined(DE)
 void
 xfs_inobp_check(
 	xfs_mount_t	*mp,
@@ -69,7 +69,7 @@ xfs_dinode_good_version(
  * If the readahead buffer is invalid, we need to mark it with an error and
  * clear the DONE status of the buffer so that a followup read will re-read it
  * from disk. We don't report the error otherwise to avoid warnings during log
- * recovery and we don't get unnecssary panics on debug kernels. We use EIO here
+ * recovery and we don't get unnecssary panics on de kernels. We use EIO here
  * because all we want to do is say readahead failed; there is no-one to report
  * the error to, so this will distinguish it from a non-ra verifier failure.
  * Changes to this readahead error behavour also need to be reflected in
@@ -108,7 +108,7 @@ xfs_inode_buf_verify(
 				return;
 			}
 
-#ifdef DEBUG
+#ifdef DE
 			xfs_alert(mp,
 				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)bp->b_bn, i,
@@ -671,10 +671,10 @@ xfs_iread(
 		xfs_inode_from_disk(ip, dip);
 		error = xfs_iformat_fork(ip, dip);
 		if (error)  {
-#ifdef DEBUG
+#ifdef DE
 			xfs_alert(mp, "%s: xfs_iformat() returned error %d",
 				__func__, error);
-#endif /* DEBUG */
+#endif /* DE */
 			goto out_brelse;
 		}
 	} else {

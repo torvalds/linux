@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __API_DEBUG_INTERNAL_H__
-#define __API_DEBUG_INTERNAL_H__
+#ifndef __API_DE_INTERNAL_H__
+#define __API_DE_INTERNAL_H__
 
-#include "debug.h"
+#include "de.h"
 
 #define __pr(func, fmt, ...)	\
 do {				\
@@ -12,10 +12,10 @@ do {				\
 
 extern libapi_print_fn_t __pr_warning;
 extern libapi_print_fn_t __pr_info;
-extern libapi_print_fn_t __pr_debug;
+extern libapi_print_fn_t __pr_de;
 
 #define pr_warning(fmt, ...)	__pr(__pr_warning, fmt, ##__VA_ARGS__)
 #define pr_info(fmt, ...)	__pr(__pr_info, fmt, ##__VA_ARGS__)
-#define pr_debug(fmt, ...)	__pr(__pr_debug, fmt, ##__VA_ARGS__)
+#define pr_de(fmt, ...)	__pr(__pr_de, fmt, ##__VA_ARGS__)
 
-#endif /* __API_DEBUG_INTERNAL_H__ */
+#endif /* __API_DE_INTERNAL_H__ */

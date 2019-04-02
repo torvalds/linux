@@ -102,7 +102,7 @@ static void __always_unused ____ftrace_check_##name(void)		\
 #define __array(type, item, len)					\
 	do {								\
 		char *type_str = #type"["__stringify(len)"]";		\
-		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
+		BUILD__ON(len > MAX_FILTER_STR_VAL);			\
 		ret = trace_define_field(event_call, type_str, #item,	\
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item),			\
@@ -113,7 +113,7 @@ static void __always_unused ____ftrace_check_##name(void)		\
 
 #undef __array_desc
 #define __array_desc(type, container, item, len)			\
-	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
+	BUILD__ON(len > MAX_FILTER_STR_VAL);				\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field),		\
 					  container.item),		\

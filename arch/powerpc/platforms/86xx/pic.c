@@ -40,7 +40,7 @@ void __init mpc86xx_init_irq(void)
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 			MPIC_SINGLE_DEST_CPU,
 			0, 256, " MPIC     ");
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	mpic_init(mpic);
 
@@ -53,7 +53,7 @@ void __init mpc86xx_init_irq(void)
 		}
 
 	if (cascade_node == NULL) {
-		printk(KERN_DEBUG "Could not find i8259 PIC\n");
+		printk(KERN_DE "Could not find i8259 PIC\n");
 		return;
 	}
 

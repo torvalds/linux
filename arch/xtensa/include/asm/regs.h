@@ -103,15 +103,15 @@
 #define DBREAKC_STOR_BIT		31
 #define DBREAKC_STOR_MASK		0x80000000
 
-/*  DEBUGCAUSE register fields.  */
+/*  DECAUSE register fields.  */
 
-#define DEBUGCAUSE_DBNUM_MASK		0xf00
-#define DEBUGCAUSE_DBNUM_SHIFT		8	/* First bit of DBNUM field */
-#define DEBUGCAUSE_DEBUGINT_BIT		5	/* External debug interrupt */
-#define DEBUGCAUSE_BREAKN_BIT		4	/* BREAK.N instruction */
-#define DEBUGCAUSE_BREAK_BIT		3	/* BREAK instruction */
-#define DEBUGCAUSE_DBREAK_BIT		2	/* DBREAK match */
-#define DEBUGCAUSE_IBREAK_BIT		1	/* IBREAK match */
-#define DEBUGCAUSE_ICOUNT_BIT		0	/* ICOUNT would incr. to zero */
+#define DECAUSE_DBNUM_MASK		0xf00
+#define DECAUSE_DBNUM_SHIFT		8	/* First bit of DBNUM field */
+#define DECAUSE_DEINT_BIT		5	/* External de interrupt */
+#define DECAUSE_BREAKN_BIT		4	/* BREAK.N instruction */
+#define DECAUSE_BREAK_BIT		3	/* BREAK instruction */
+#define DECAUSE_DBREAK_BIT		2	/* DBREAK match */
+#define DECAUSE_IBREAK_BIT		1	/* IBREAK match */
+#define DECAUSE_ICOUNT_BIT		0	/* ICOUNT would incr. to zero */
 
 #endif /* _XTENSA_SPECREG_H */

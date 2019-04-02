@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014, The Linux Foundation. All rights reserved.
- * Debug helper to dump the current kernel pagetables of the system
+ * De helper to dump the current kernel pagetables of the system
  * so that we can see what the various memory ranges are set to.
  *
  * Derived from x86 and arm implementation:
@@ -13,7 +13,7 @@
  * as published by the Free Software Foundation; version 2
  * of the License.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -310,7 +310,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pudp, unsigned long start,
 		if (pmd_none(pmd) || pmd_sect(pmd)) {
 			note_page(st, addr, 3, pmd_val(pmd));
 		} else {
-			BUG_ON(pmd_bad(pmd));
+			_ON(pmd_bad(pmd));
 			walk_pte(st, pmdp, addr, next);
 		}
 	} while (pmdp++, addr = next, addr != end);
@@ -329,7 +329,7 @@ static void walk_pud(struct pg_state *st, pgd_t *pgdp, unsigned long start,
 		if (pud_none(pud) || pud_sect(pud)) {
 			note_page(st, addr, 2, pud_val(pud));
 		} else {
-			BUG_ON(pud_bad(pud));
+			_ON(pud_bad(pud));
 			walk_pmd(st, pudp, addr, next);
 		}
 	} while (pudp++, addr = next, addr != end);
@@ -349,7 +349,7 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
 		if (pgd_none(pgd)) {
 			note_page(st, addr, 1, pgd_val(pgd));
 		} else {
-			BUG_ON(pgd_bad(pgd));
+			_ON(pgd_bad(pgd));
 			walk_pud(st, pgdp, addr, next);
 		}
 	} while (pgdp++, addr = next, addr != end);
@@ -406,7 +406,7 @@ void ptdump_check_wx(void)
 static int ptdump_init(void)
 {
 	ptdump_initialize();
-	ptdump_debugfs_register(&kernel_ptdump_info, "kernel_page_tables");
+	ptdump_defs_register(&kernel_ptdump_info, "kernel_page_tables");
 	return 0;
 }
 device_initcall(ptdump_init);

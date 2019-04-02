@@ -7,7 +7,7 @@
  * Copyright (2004, 2005) Ingo Molnar
  *
  * This file contains the spinlock/rwlock implementations for the
- * SMP and the DEBUG_SPINLOCK cases. (UP-nondebug inlines them)
+ * SMP and the DE_SPINLOCK cases. (UP-nonde inlines them)
  *
  * Note that some architectures have special knowledge about the
  * stack frames of these functions in their profile_pc. If you
@@ -19,7 +19,7 @@
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/export.h>
 
 /*
@@ -27,7 +27,7 @@
  * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
  * not re-enabled during lock-acquire (which the preempt-spin-ops do):
  */
-#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
+#if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DE_LOCK_ALLOC)
 /*
  * The __lock_function inlines are taken from
  * spinlock : include/linux/spinlock_api_smp.h
@@ -346,7 +346,7 @@ void __lockfunc _raw_write_unlock_bh(rwlock_t *lock)
 EXPORT_SYMBOL(_raw_write_unlock_bh);
 #endif
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 
 void __lockfunc _raw_spin_lock_nested(raw_spinlock_t *lock, int subclass)
 {

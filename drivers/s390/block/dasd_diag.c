@@ -3,7 +3,7 @@
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Based on.......: linux/drivers/s390/block/mdisk.c
  * ...............: by Hartmunt Penner <hpenner@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2000
  *
  */
@@ -21,7 +21,7 @@
 #include <linux/jiffies.h>
 
 #include <asm/dasd.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
@@ -295,7 +295,7 @@ static void dasd_ext_handler(struct ext_code ext_code,
 		}
 	} else {
 		cqr->status = DASD_CQR_QUEUED;
-		DBF_DEV_EVENT(DBF_DEBUG, device, "interrupt status for "
+		DBF_DEV_EVENT(DBF_DE, device, "interrupt status for "
 			      "request %p was %d (%d retries left)", cqr,
 			      ext_code.subcode & 0xff, cqr->retries);
 		dasd_diag_erp(device);

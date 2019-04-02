@@ -75,7 +75,7 @@ enum msdc_dbg {
 	SD_TOOL_SDIO_PROFILE = 3,
 };
 
-/* Debug message event */
+/* De message event */
 #define DBG_EVT_NONE        (0)     /* No event */
 #define DBG_EVT_DMA         BIT(0)  /* DMA related event */
 #define DBG_EVT_CMD         BIT(1)  /* MSDC CMD related event */
@@ -91,9 +91,9 @@ enum msdc_dbg {
 
 #define DBG_EVT_MASK        (DBG_EVT_ALL)
 
-extern unsigned int sd_debug_zone[4];
+extern unsigned int sd_de_zone[4];
 #define TAG "msdc"
-void msdc_debug_proc_init(void);
+void msdc_de_proc_init(void);
 
 u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32);
 void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks);

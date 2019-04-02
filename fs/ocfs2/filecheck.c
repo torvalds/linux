@@ -75,7 +75,7 @@ ocfs2_filecheck_error(int errno)
 	if (!errno)
 		return ocfs2_filecheck_errs[errno];
 
-	BUG_ON(errno < OCFS2_FILECHECK_ERR_START ||
+	_ON(errno < OCFS2_FILECHECK_ERR_START ||
 	       errno > OCFS2_FILECHECK_ERR_END);
 	return ocfs2_filecheck_errs[errno - OCFS2_FILECHECK_ERR_START + 1];
 }
@@ -163,7 +163,7 @@ ocfs2_filecheck_sysfs_free(struct ocfs2_filecheck_sysfs_entry *entry)
 		p = list_first_entry(&entry->fs_fcheck->fc_head,
 				     struct ocfs2_filecheck_entry, fe_list);
 		list_del(&p->fe_list);
-		BUG_ON(!p->fe_done); /* To free a undone file check entry */
+		_ON(!p->fe_done); /* To free a undone file check entry */
 		kfree(p);
 	}
 	spin_unlock(&entry->fs_fcheck->fc_lock);
@@ -233,7 +233,7 @@ ocfs2_filecheck_adjust_max(struct ocfs2_filecheck_sysfs_entry *ent,
 		ret = -EBUSY;
 	} else {
 		if (len < ent->fs_fcheck->fc_size)
-			BUG_ON(!ocfs2_filecheck_erase_entries(ent,
+			_ON(!ocfs2_filecheck_erase_entries(ent,
 				ent->fs_fcheck->fc_size - len));
 
 		ent->fs_fcheck->fc_max = len;
@@ -501,7 +501,7 @@ static ssize_t ocfs2_filecheck_attr_store(struct kobject *kobj,
 			 * make sure the entry size in list does
 			 * not exceed maximum value
 			 */
-			BUG_ON(!ocfs2_filecheck_erase_entry(ent));
+			_ON(!ocfs2_filecheck_erase_entry(ent));
 		}
 
 		entry->fe_ino = args.fa_ino;

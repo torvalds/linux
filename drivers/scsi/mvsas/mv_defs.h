@@ -392,7 +392,7 @@ enum sas_cmd_port_registers {
 };
 
 enum mvs_info_flags {
-	MVF_PHY_PWR_FIX	= (1U << 1),	/* bug workaround */
+	MVF_PHY_PWR_FIX	= (1U << 1),	/*  workaround */
 	MVF_FLAG_SOC		= (1U << 2),	/* SoC integrated controllers */
 };
 

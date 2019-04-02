@@ -6,7 +6,7 @@ NoC provides the primitive values to get the performance data. The packets
 that the Network on Chip (NoC) probes detects are transported over
 the network infrastructure to observer units. You can configure probes to
 capture packets with header or data on the data request response network,
-or as traffic debug or statistic collectors. Exynos542x bus has multiple
+or as traffic de or statistic collectors. Exynos542x bus has multiple
 NoC probes to provide bandwidth information about behavior of the SoC
 that you can use while analyzing system performance.
 

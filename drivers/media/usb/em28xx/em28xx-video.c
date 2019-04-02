@@ -47,9 +47,9 @@
 		      "Mauro Carvalho Chehab <mchehab@kernel.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
-static unsigned int isoc_debug;
-module_param(isoc_debug, int, 0644);
-MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
+static unsigned int isoc_de;
+module_param(isoc_de, int, 0644);
+MODULE_PARM_DESC(isoc_de, "enable de messages [isoc transfers]");
 
 static unsigned int disable_vbi;
 module_param(disable_vbi, int, 0644);
@@ -60,14 +60,14 @@ module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
 #define em28xx_videodbg(fmt, arg...) do {				\
-	if (video_debug)						\
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (video_de)						\
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "video: %s: " fmt, __func__, ## arg);	\
 } while (0)
 
 #define em28xx_isocdbg(fmt, arg...) do {\
-	if (isoc_debug) \
-		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+	if (isoc_de) \
+		dev_printk(KERN_DE, &dev->intf->dev,			\
 			   "isoc: %s: " fmt, __func__, ## arg);		\
 } while (0)
 
@@ -95,9 +95,9 @@ MODULE_PARM_DESC(video_nr, "video device numbers");
 MODULE_PARM_DESC(vbi_nr,   "vbi device numbers");
 MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
-static unsigned int video_debug;
-module_param(video_debug, int, 0644);
-MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
+static unsigned int video_de;
+module_param(video_de, int, 0644);
+MODULE_PARM_DESC(video_de, "enable de messages [video]");
 
 /* supported video standards */
 static struct em28xx_fmt format[] = {
@@ -1893,7 +1893,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_chip_info(struct file *file, void *priv,
 			      struct v4l2_dbg_chip_info *chip)
 {
@@ -2398,7 +2398,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_frequency         = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info         = vidioc_g_chip_info,
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
@@ -2427,7 +2427,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info   = vidioc_g_chip_info,
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,

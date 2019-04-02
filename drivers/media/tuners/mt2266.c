@@ -47,11 +47,11 @@ struct mt2266_priv {
 
 /* Here, frequencies are expressed in kiloHertz to avoid 32 bits overflows */
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
-#define dprintk(args...) do { if (debug) {printk(KERN_DEBUG "MT2266: " args); printk("\n"); }} while (0)
+#define dprintk(args...) do { if (de) {printk(KERN_DE "MT2266: " args); printk("\n"); }} while (0)
 
 // Reads a single register
 static int mt2266_readreg(struct mt2266_priv *priv, u8 reg, u8 *val)

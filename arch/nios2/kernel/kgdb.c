@@ -23,10 +23,10 @@
  */
 #include <linux/ptrace.h>
 #include <linux/kgdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/io.h>
 
-static int wait_for_remote_debugger;
+static int wait_for_remote_deger;
 
 struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 {
@@ -146,17 +146,17 @@ asmlinkage void kgdb_breakpoint_c(struct pt_regs *regs)
 	 * The breakpoint entry code has moved the PC on by 4 bytes, so we must
 	 * move it back.  This could be done on the host but we do it here
 	 */
-	if (!wait_for_remote_debugger)
+	if (!wait_for_remote_deger)
 		regs->ea -= 4;
 	else	/* pass the first trap 30 code */
-		wait_for_remote_debugger = 0;
+		wait_for_remote_deger = 0;
 
 	kgdb_handle_exception(30, SIGTRAP, 0, regs);
 }
 
 int kgdb_arch_init(void)
 {
-	wait_for_remote_debugger = 1;
+	wait_for_remote_deger = 1;
 	return 0;
 }
 

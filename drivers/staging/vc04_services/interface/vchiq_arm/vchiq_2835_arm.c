@@ -485,7 +485,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 
 	/*
 	 * Initialize the scatterlist so that the magic cookie
-	 *  is filled if debugging is enabled
+	 *  is filled if deging is enabled
 	 */
 	sg_init_table(scatterlist, num_pages);
 	/* Now set the pages for each scatterlist */

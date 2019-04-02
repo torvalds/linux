@@ -109,7 +109,7 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 	(void)acpi_os_release_object(acpi_gbl_namespace_cache, node);
 
 	ACPI_MEM_TRACKING(acpi_gbl_ns_node_list->total_freed++);
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "Node %p, Remaining %X\n",
+	ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS, "Node %p, Remaining %X\n",
 			  node, acpi_gbl_current_node_count));
 }
 
@@ -236,7 +236,7 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 	node->owner_id = owner_id;
 	node->type = (u8) type;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_NAMES,
 			  "%4.4s (%s) [Node %p Owner %X] added to %4.4s (%s) [Node %p]\n",
 			  acpi_ut_get_node_name(node),
 			  acpi_ut_get_type_name(node->type), node, owner_id,

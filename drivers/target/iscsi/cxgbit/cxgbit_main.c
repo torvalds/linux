@@ -508,7 +508,7 @@ cxgbit_uld_lro_rx_handler(void *hndl, const __be64 *rsp,
 	op = rpl->ot.opcode;
 	cxgbit_skcb_rx_opcode(skb) = op;
 
-	pr_debug("cdev %p, opcode 0x%x(0x%x,0x%x), skb %p.\n",
+	pr_de("cdev %p, opcode 0x%x(0x%x,0x%x), skb %p.\n",
 		 cdev, op, rpl->ot.opcode_tid,
 		 ntohl(rpl->ot.opcode_tid), skb);
 
@@ -609,7 +609,7 @@ static void cxgbit_dcb_workfn(struct work_struct *work)
 		goto out;
 	}
 
-	pr_debug("priority for ifid %d is %u\n",
+	pr_de("priority for ifid %d is %u\n",
 		 iscsi_app->ifindex, priority);
 
 	ndev = dev_get_by_index(&init_net, iscsi_app->ifindex);
@@ -710,7 +710,7 @@ static int __init cxgbit_init(void)
 	pr_info("%s dcb enabled.\n", DRV_NAME);
 	register_dcbevent_notifier(&cxgbit_dcbevent_nb);
 #endif
-	BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, cb) <
+	BUILD__ON(FIELD_SIZEOF(struct sk_buff, cb) <
 		     sizeof(union cxgbit_skb_cb));
 	return 0;
 }

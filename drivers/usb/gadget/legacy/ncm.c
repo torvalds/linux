@@ -12,8 +12,8 @@
  * Copyright (C) 2008 Nokia Corporation
  */
 
-/* #define DEBUG */
-/* #define VERBOSE_DEBUG */
+/* #define DE */
+/* #define VERBOSE_DE */
 
 #include <linux/kernel.h>
 #include <linux/module.h>

@@ -174,7 +174,7 @@ static void skb_entry_set_link(union skb_entry *list, unsigned short id)
 
 static int skb_entry_is_link(const union skb_entry *list)
 {
-	BUILD_BUG_ON(sizeof(list->skb) != sizeof(list->link));
+	BUILD__ON(sizeof(list->skb) != sizeof(list->link));
 	return (unsigned long)list->skb < PAGE_OFFSET;
 }
 
@@ -306,7 +306,7 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 
 		id = xennet_rxidx(req_prod);
 
-		BUG_ON(queue->rx_skbs[id]);
+		_ON(queue->rx_skbs[id]);
 		queue->rx_skbs[id] = skb;
 
 		ref = gnttab_claim_grant_reference(&queue->gref_rx_head);
@@ -378,7 +378,7 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 	struct sk_buff *skb;
 	bool more_to_do;
 
-	BUG_ON(!netif_carrier_ok(queue->info->netdev));
+	_ON(!netif_carrier_ok(queue->info->netdev));
 
 	do {
 		prod = queue->tx.sring->rsp_prod;
@@ -397,7 +397,7 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 				queue->grant_tx_ref[id]) != 0)) {
 				pr_alert("%s: warning -- grant still in use by backend domain\n",
 					 __func__);
-				BUG();
+				();
 			}
 			gnttab_end_foreign_access_ref(
 				queue->grant_tx_ref[id], GNTMAP_readonly);
@@ -727,7 +727,7 @@ static void xennet_move_rx_slot(struct netfront_queue *queue, struct sk_buff *sk
 {
 	int new = xennet_rxidx(queue->rx.req_prod_pvt);
 
-	BUG_ON(queue->rx_skbs[new]);
+	_ON(queue->rx_skbs[new]);
 	queue->rx_skbs[new] = skb;
 	queue->grant_rx_ref[new] = ref;
 	RING_GET_REQUEST(&queue->rx, queue->rx.req_prod_pvt)->id = new;
@@ -811,7 +811,7 @@ static int xennet_get_responses(struct netfront_queue *queue,
 		}
 
 		/*
-		 * This definitely indicates a bug, either in this driver or in
+		 * This definitely indicates a , either in this driver or in
 		 * the backend driver. In future this should flag the bad
 		 * situation to the system controller to reboot the backend.
 		 */
@@ -824,7 +824,7 @@ static int xennet_get_responses(struct netfront_queue *queue,
 		}
 
 		ret = gnttab_end_foreign_access_ref(ref, 0);
-		BUG_ON(!ret);
+		_ON(!ret);
 
 		gnttab_release_grant_reference(&queue->gref_rx_head, ref);
 
@@ -903,7 +903,7 @@ static RING_IDX xennet_fill_frags(struct netfront_queue *queue,
 		if (skb_shinfo(skb)->nr_frags == MAX_SKB_FRAGS) {
 			unsigned int pull_to = NETFRONT_SKB_CB(skb)->pull_to;
 
-			BUG_ON(pull_to < skb_headlen(skb));
+			_ON(pull_to < skb_headlen(skb));
 			__pskb_pull_tail(skb, pull_to - skb_headlen(skb));
 		}
 		if (unlikely(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS)) {
@@ -928,7 +928,7 @@ static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 	bool recalculate_partial_csum = false;
 
 	/*
-	 * A GSO SKB must be CHECKSUM_PARTIAL. However some buggy
+	 * A GSO SKB must be CHECKSUM_PARTIAL. However some gy
 	 * peers can fail to set NETRXF_csum_blank when sending a GSO
 	 * frame. In this case force the SKB to CHECKSUM_PARTIAL and
 	 * recalculate the partial checksum.

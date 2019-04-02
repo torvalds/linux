@@ -115,7 +115,7 @@ void sb1250_clockevent_init(void)
 	unsigned char *name = per_cpu(sibyte_hpt_name, cpu);
 
 	/* Only have 4 general purpose timers, and we use last one as hpt */
-	BUG_ON(cpu > 2);
+	_ON(cpu > 2);
 
 	sprintf(name, "sb1250-counter-%d", cpu);
 	cd->name		= name;

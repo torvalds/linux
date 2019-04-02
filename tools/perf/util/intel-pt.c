@@ -37,7 +37,7 @@
 #include "symbol.h"
 #include "callchain.h"
 #include "dso.h"
-#include "debug.h"
+#include "de.h"
 #include "auxtrace.h"
 #include "tsc.h"
 #include "intel-pt.h"
@@ -2150,7 +2150,7 @@ static int intel_pt_synth_event(struct perf_session *session, const char *name,
 	struct intel_pt_synth intel_pt_synth;
 	int err;
 
-	pr_debug("Synthesizing '%s' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
+	pr_de("Synthesizing '%s' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
 		 name, id, (u64)attr->sample_type);
 
 	memset(&intel_pt_synth, 0, sizeof(struct intel_pt_synth));
@@ -2203,7 +2203,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	int err;
 
 	if (!evsel) {
-		pr_debug("There are no selected events with Intel Processor Trace data\n");
+		pr_de("There are no selected events with Intel Processor Trace data\n");
 		return 0;
 	}
 
@@ -2640,7 +2640,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->data_queued = true;
 
 	if (pt->timeless_decoding)
-		pr_debug2("Intel PT decoding without timestamps\n");
+		pr_de2("Intel PT decoding without timestamps\n");
 
 	return 0;
 

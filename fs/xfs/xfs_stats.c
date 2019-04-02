@@ -75,8 +75,8 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 
 	len += snprintf(buf + len, PATH_MAX-len, "xpc %Lu %Lu %Lu\n",
 			xs_xstrat_bytes, xs_write_bytes, xs_read_bytes);
-	len += snprintf(buf + len, PATH_MAX-len, "debug %u\n",
-#if defined(DEBUG)
+	len += snprintf(buf + len, PATH_MAX-len, "de %u\n",
+#if defined(DE)
 		1);
 #else
 		0);

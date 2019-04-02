@@ -47,7 +47,7 @@
 static struct hlist_head nfs4_deviceid_cache[NFS4_DEVICE_ID_HASH_SIZE];
 static DEFINE_SPINLOCK(nfs4_deviceid_lock);
 
-#ifdef NFS_DEBUG
+#ifdef NFS_DE
 void
 nfs4_print_deviceid(const struct nfs4_deviceid *id)
 {

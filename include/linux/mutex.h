@@ -18,7 +18,7 @@
 #include <linux/atomic.h>
 #include <asm/processor.h>
 #include <linux/osq_lock.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 
 struct ww_acquire_ctx;
 
@@ -37,12 +37,12 @@ struct ww_acquire_ctx;
  * - mutexes may not be used in hardware or software interrupt
  *   contexts such as tasklets and timers
  *
- * These semantics are fully enforced when DEBUG_MUTEXES is
+ * These semantics are fully enforced when DE_MUTEXES is
  * enabled. Furthermore, besides enforcing the above rules, the mutex
- * debugging code also implements a number of additional features
- * that make lock debugging easier and faster:
+ * deging code also implements a number of additional features
+ * that make lock deging easier and faster:
  *
- * - uses symbolic names of mutexes, whenever they are printed in debug output
+ * - uses symbolic names of mutexes, whenever they are printed in de output
  * - point-of-acquire tracking, symbolic lookup of function names
  * - list of all locks held in the system, printout of them
  * - owner tracking
@@ -57,10 +57,10 @@ struct mutex {
 	struct optimistic_spin_queue osq; /* Spinner MCS lock */
 #endif
 	struct list_head	wait_list;
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	void			*magic;
 #endif
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
 };
@@ -83,21 +83,21 @@ struct mutex_waiter {
 	struct list_head	list;
 	struct task_struct	*task;
 	struct ww_acquire_ctx	*ww_ctx;
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	void			*magic;
 #endif
 };
 
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 
-#define __DEBUG_MUTEX_INITIALIZER(lockname)				\
+#define __DE_MUTEX_INITIALIZER(lockname)				\
 	, .magic = &lockname
 
 extern void mutex_destroy(struct mutex *lock);
 
 #else
 
-# define __DEBUG_MUTEX_INITIALIZER(lockname)
+# define __DE_MUTEX_INITIALIZER(lockname)
 
 static inline void mutex_destroy(struct mutex *lock) {}
 
@@ -118,7 +118,7 @@ do {									\
 	__mutex_init((mutex), #mutex, &__key);				\
 } while (0)
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 # define __DEP_MAP_MUTEX_INITIALIZER(lockname) \
 		, .dep_map = { .name = #lockname }
 #else
@@ -129,7 +129,7 @@ do {									\
 		{ .owner = ATOMIC_LONG_INIT(0) \
 		, .wait_lock = __SPIN_LOCK_UNLOCKED(lockname.wait_lock) \
 		, .wait_list = LIST_HEAD_INIT(lockname.wait_list) \
-		__DEBUG_MUTEX_INITIALIZER(lockname) \
+		__DE_MUTEX_INITIALIZER(lockname) \
 		__DEP_MAP_MUTEX_INITIALIZER(lockname) }
 
 #define DEFINE_MUTEX(mutexname) \
@@ -153,7 +153,7 @@ static inline bool mutex_is_locked(struct mutex *lock)
  * See kernel/locking/mutex.c for detailed documentation of these APIs.
  * Also see Documentation/locking/mutex-design.txt.
  */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 extern void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
 extern void _mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest_lock);
 

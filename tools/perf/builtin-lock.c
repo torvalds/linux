@@ -15,7 +15,7 @@
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/data.h"
@@ -153,7 +153,7 @@ static void thread_stat_insert(struct thread_stat *new)
 		else if (new->tid > p->tid)
 			rb = &(*rb)->rb_right;
 		else
-			BUG_ON("inserting invalid thread_stat\n");
+			_ON("inserting invalid thread_stat\n");
 	}
 
 	rb_link_node(&new->rb, parent, rb);
@@ -458,7 +458,7 @@ broken:
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		_ON("Unknown state of lock sequence found!\n");
 		break;
 	}
 
@@ -519,7 +519,7 @@ static int report_lock_acquired_event(struct perf_evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		_ON("Unknown state of lock sequence found!\n");
 		break;
 	}
 
@@ -574,7 +574,7 @@ static int report_lock_contended_event(struct perf_evsel *evsel,
 		free(seq);
 		goto end;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		_ON("Unknown state of lock sequence found!\n");
 		break;
 	}
 
@@ -619,7 +619,7 @@ static int report_lock_release_event(struct perf_evsel *evsel,
 		break;
 	case SEQ_STATE_READ_ACQUIRED:
 		seq->read_count--;
-		BUG_ON(seq->read_count < 0);
+		_ON(seq->read_count < 0);
 		if (!seq->read_count) {
 			ls->nr_release++;
 			goto end;
@@ -633,7 +633,7 @@ static int report_lock_release_event(struct perf_evsel *evsel,
 		bad_hist[BROKEN_RELEASE]++;
 		goto free_seq;
 	default:
-		BUG_ON("Unknown state of lock sequence found!\n");
+		_ON("Unknown state of lock sequence found!\n");
 		break;
 	}
 
@@ -690,12 +690,12 @@ static int perf_evsel__process_lock_release(struct perf_evsel *evsel,
 
 static void print_bad_events(int bad, int total)
 {
-	/* Output for debug, this have to be removed */
+	/* Output for de, this have to be removed */
 	int i;
 	const char *name[4] =
 		{ "acquire", "acquired", "contended", "release" };
 
-	pr_info("\n=== output for debug===\n\n");
+	pr_info("\n=== output for de===\n\n");
 	pr_info("bad: %d, total: %d\n", bad, total);
 	pr_info("bad rate: %.2f %%\n", (double)bad / (double)total * 100);
 	pr_info("histogram of events caused bad sequence\n");
@@ -820,7 +820,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 							sample->tid);
 
 	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
+		pr_de("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
@@ -943,7 +943,7 @@ static int __cmd_record(int argc, const char **argv)
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	BUG_ON(i != rec_argc);
+	_ON(i != rec_argc);
 
 	ret = cmd_record(i, rec_argv);
 	free(rec_argv);

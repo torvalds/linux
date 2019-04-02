@@ -166,11 +166,11 @@ static unsigned long clk_audio_pll_fout(unsigned long parent_rate,
 {
 	unsigned long long fr = (unsigned long long)parent_rate * fracr;
 
-	pr_debug("A PLL: %s, fr = %llu\n", __func__, fr);
+	pr_de("A PLL: %s, fr = %llu\n", __func__, fr);
 
 	fr = DIV_ROUND_CLOSEST_ULL(fr, AUDIO_PLL_DIV_FRAC);
 
-	pr_debug("A PLL: %s, fr = %llu\n", __func__, fr);
+	pr_de("A PLL: %s, fr = %llu\n", __func__, fr);
 
 	return parent_rate * (nd + 1) + fr;
 }
@@ -183,7 +183,7 @@ static unsigned long clk_audio_pll_frac_recalc_rate(struct clk_hw *hw,
 
 	fout = clk_audio_pll_fout(parent_rate, frac->nd, frac->fracr);
 
-	pr_debug("A PLL: %s, fout = %lu (nd = %u, fracr = %lu)\n", __func__,
+	pr_de("A PLL: %s, fout = %lu (nd = %u, fracr = %lu)\n", __func__,
 		 fout, frac->nd, (unsigned long)frac->fracr);
 
 	return fout;
@@ -198,7 +198,7 @@ static unsigned long clk_audio_pll_pad_recalc_rate(struct clk_hw *hw,
 	if (apad_ck->qdaudio && apad_ck->div)
 		apad_rate = parent_rate / (apad_ck->qdaudio * apad_ck->div);
 
-	pr_debug("A PLL/PAD: %s, apad_rate = %lu (div = %u, qdaudio = %u)\n",
+	pr_de("A PLL/PAD: %s, apad_rate = %lu (div = %u, qdaudio = %u)\n",
 		 __func__, apad_rate, apad_ck->div, apad_ck->qdaudio);
 
 	return apad_rate;
@@ -212,7 +212,7 @@ static unsigned long clk_audio_pll_pmc_recalc_rate(struct clk_hw *hw,
 
 	apmc_rate = parent_rate / (apmc_ck->qdpmc + 1);
 
-	pr_debug("A PLL/PMC: %s, apmc_rate = %lu (qdpmc = %u)\n", __func__,
+	pr_de("A PLL/PMC: %s, apmc_rate = %lu (qdpmc = %u)\n", __func__,
 		 apmc_rate, apmc_ck->qdpmc);
 
 	return apmc_rate;
@@ -252,7 +252,7 @@ static int clk_audio_pll_frac_determine_rate(struct clk_hw *hw,
 	unsigned long fracr, nd;
 	int ret;
 
-	pr_debug("A PLL: %s, rate = %lu (parent_rate = %lu)\n", __func__,
+	pr_de("A PLL: %s, rate = %lu (parent_rate = %lu)\n", __func__,
 		 req->rate, req->best_parent_rate);
 
 	req->rate = clamp(req->rate, AUDIO_PLL_FOUT_MIN, AUDIO_PLL_FOUT_MAX);
@@ -269,7 +269,7 @@ static int clk_audio_pll_frac_determine_rate(struct clk_hw *hw,
 
 	req->best_parent_hw = clk_hw_get_parent(hw);
 
-	pr_debug("A PLL: %s, best_rate = %lu (nd = %lu, fracr = %lu)\n",
+	pr_de("A PLL: %s, best_rate = %lu (nd = %lu, fracr = %lu)\n",
 		 __func__, req->rate, nd, fracr);
 
 	return 0;
@@ -287,7 +287,7 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 	int tmp_diff;
 	int best_diff = -1;
 
-	pr_debug("A PLL/PAD: %s, rate = %lu (parent_rate = %lu)\n", __func__,
+	pr_de("A PLL/PAD: %s, rate = %lu (parent_rate = %lu)\n", __func__,
 		 rate, *parent_rate);
 
 	/*
@@ -320,7 +320,7 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 			}
 		}
 
-	pr_debug("A PLL/PAD: %s, best_rate = %ld, best_parent_rate = %lu\n",
+	pr_de("A PLL/PAD: %s, best_rate = %ld, best_parent_rate = %lu\n",
 		 __func__, best_rate, best_parent_rate);
 
 	return best_rate;
@@ -337,7 +337,7 @@ static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
 	int tmp_diff;
 	int best_diff = -1;
 
-	pr_debug("A PLL/PMC: %s, rate = %lu (parent_rate = %lu)\n", __func__,
+	pr_de("A PLL/PMC: %s, rate = %lu (parent_rate = %lu)\n", __func__,
 		 rate, *parent_rate);
 
 	if (!rate)
@@ -360,7 +360,7 @@ static long clk_audio_pll_pmc_round_rate(struct clk_hw *hw, unsigned long rate,
 		}
 	}
 
-	pr_debug("A PLL/PMC: %s, best_rate = %ld, best_parent_rate = %lu (qd = %d)\n",
+	pr_de("A PLL/PMC: %s, best_rate = %ld, best_parent_rate = %lu (qd = %d)\n",
 		 __func__, best_rate, *parent_rate, tmp_qd - 1);
 
 	return best_rate;
@@ -373,7 +373,7 @@ static int clk_audio_pll_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long fracr, nd;
 	int ret;
 
-	pr_debug("A PLL: %s, rate = %lu (parent_rate = %lu)\n", __func__, rate,
+	pr_de("A PLL: %s, rate = %lu (parent_rate = %lu)\n", __func__, rate,
 		 parent_rate);
 
 	if (rate < AUDIO_PLL_FOUT_MIN || rate > AUDIO_PLL_FOUT_MAX)
@@ -395,7 +395,7 @@ static int clk_audio_pll_pad_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_audio_pad *apad_ck = to_clk_audio_pad(hw);
 	u8 tmp_div;
 
-	pr_debug("A PLL/PAD: %s, rate = %lu (parent_rate = %lu)\n", __func__,
+	pr_de("A PLL/PAD: %s, rate = %lu (parent_rate = %lu)\n", __func__,
 		 rate, parent_rate);
 
 	if (!rate)
@@ -421,7 +421,7 @@ static int clk_audio_pll_pmc_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!rate)
 		return -EINVAL;
 
-	pr_debug("A PLL/PMC: %s, rate = %lu (parent_rate = %lu)\n", __func__,
+	pr_de("A PLL/PMC: %s, rate = %lu (parent_rate = %lu)\n", __func__,
 		 rate, parent_rate);
 
 	apmc_ck->qdpmc = parent_rate / rate - 1;

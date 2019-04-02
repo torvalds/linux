@@ -36,9 +36,9 @@ static void gen8_guc_raise_irq(struct intel_guc *guc)
 
 static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
 {
-	GEM_BUG_ON(!guc->send_regs.base);
-	GEM_BUG_ON(!guc->send_regs.count);
-	GEM_BUG_ON(i >= guc->send_regs.count);
+	GEM__ON(!guc->send_regs.base);
+	GEM__ON(!guc->send_regs.count);
+	GEM__ON(i >= guc->send_regs.count);
 
 	return _MMIO(guc->send_regs.base + 4 * i);
 }
@@ -51,7 +51,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 
 	guc->send_regs.base = i915_mmio_reg_offset(SOFT_SCRATCH(0));
 	guc->send_regs.count = GUC_MAX_MMIO_MSG_LEN;
-	BUILD_BUG_ON(GUC_MAX_MMIO_MSG_LEN > SOFT_SCRATCH_COUNT);
+	BUILD__ON(GUC_MAX_MMIO_MSG_LEN > SOFT_SCRATCH_COUNT);
 
 	for (i = 0; i < guc->send_regs.count; i++) {
 		fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
@@ -192,7 +192,7 @@ int intel_guc_init(struct intel_guc *guc)
 	ret = guc_shared_data_create(guc);
 	if (ret)
 		goto err_fetch;
-	GEM_BUG_ON(!guc->shared_data);
+	GEM__ON(!guc->shared_data);
 
 	ret = intel_guc_log_create(&guc->log);
 	if (ret)
@@ -201,7 +201,7 @@ int intel_guc_init(struct intel_guc *guc)
 	ret = intel_guc_ads_create(guc);
 	if (ret)
 		goto err_log;
-	GEM_BUG_ON(!guc->ads_vma);
+	GEM__ON(!guc->ads_vma);
 
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
@@ -228,7 +228,7 @@ void intel_guc_fini(struct intel_guc *guc)
 	intel_uc_fw_fini(&guc->fw);
 }
 
-static u32 guc_ctl_debug_flags(struct intel_guc *guc)
+static u32 guc_ctl_de_flags(struct intel_guc *guc)
 {
 	u32 level = intel_guc_log_get_level(&guc->log);
 	u32 flags;
@@ -293,18 +293,18 @@ static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 	#define FLAG 0
 	#endif
 
-	BUILD_BUG_ON(!CRASH_BUFFER_SIZE);
-	BUILD_BUG_ON(!IS_ALIGNED(CRASH_BUFFER_SIZE, UNIT));
-	BUILD_BUG_ON(!DPC_BUFFER_SIZE);
-	BUILD_BUG_ON(!IS_ALIGNED(DPC_BUFFER_SIZE, UNIT));
-	BUILD_BUG_ON(!ISR_BUFFER_SIZE);
-	BUILD_BUG_ON(!IS_ALIGNED(ISR_BUFFER_SIZE, UNIT));
+	BUILD__ON(!CRASH_BUFFER_SIZE);
+	BUILD__ON(!IS_ALIGNED(CRASH_BUFFER_SIZE, UNIT));
+	BUILD__ON(!DPC_BUFFER_SIZE);
+	BUILD__ON(!IS_ALIGNED(DPC_BUFFER_SIZE, UNIT));
+	BUILD__ON(!ISR_BUFFER_SIZE);
+	BUILD__ON(!IS_ALIGNED(ISR_BUFFER_SIZE, UNIT));
 
-	BUILD_BUG_ON((CRASH_BUFFER_SIZE / UNIT - 1) >
+	BUILD__ON((CRASH_BUFFER_SIZE / UNIT - 1) >
 			(GUC_LOG_CRASH_MASK >> GUC_LOG_CRASH_SHIFT));
-	BUILD_BUG_ON((DPC_BUFFER_SIZE / UNIT - 1) >
+	BUILD__ON((DPC_BUFFER_SIZE / UNIT - 1) >
 			(GUC_LOG_DPC_MASK >> GUC_LOG_DPC_SHIFT));
-	BUILD_BUG_ON((ISR_BUFFER_SIZE / UNIT - 1) >
+	BUILD__ON((ISR_BUFFER_SIZE / UNIT - 1) >
 			(GUC_LOG_ISR_MASK >> GUC_LOG_ISR_SHIFT));
 
 	flags = GUC_LOG_VALID |
@@ -346,11 +346,11 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
 	params[GUC_CTL_LOG_PARAMS]  = guc_ctl_log_params_flags(guc);
-	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
+	params[GUC_CTL_DE] = guc_ctl_de_flags(guc);
 	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		DRM_DEBUG_DRIVER("param[%2d] = %#x\n", i, params[i]);
+		DRM_DE_DRIVER("param[%2d] = %#x\n", i, params[i]);
 
 	/*
 	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
@@ -390,14 +390,14 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 	int i;
 	int ret;
 
-	GEM_BUG_ON(!len);
-	GEM_BUG_ON(len > guc->send_regs.count);
+	GEM__ON(!len);
+	GEM__ON(len > guc->send_regs.count);
 
 	/* We expect only action code */
-	GEM_BUG_ON(*action & ~INTEL_GUC_MSG_CODE_MASK);
+	GEM__ON(*action & ~INTEL_GUC_MSG_CODE_MASK);
 
 	/* If CT is available, we expect to use MMIO only during init/fini */
-	GEM_BUG_ON(HAS_GUC_CT(dev_priv) &&
+	GEM__ON(HAS_GUC_CT(dev_priv) &&
 		*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
 		*action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
 
@@ -585,7 +585,7 @@ int intel_guc_reset_engine(struct intel_guc *guc,
 {
 	u32 data[7];
 
-	GEM_BUG_ON(!guc->execbuf_client);
+	GEM__ON(!guc->execbuf_client);
 
 	data[0] = INTEL_GUC_ACTION_REQUEST_ENGINE_RESET;
 	data[1] = engine->guc_id;

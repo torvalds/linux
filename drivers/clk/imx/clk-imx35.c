@@ -102,7 +102,7 @@ static void __init _mx35_clocks_init(void)
 	unsigned char *hsp_div;
 
 	base = ioremap(MX35_CCM_BASE_ADDR, SZ_4K);
-	BUG_ON(!base);
+	_ON(!base);
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;

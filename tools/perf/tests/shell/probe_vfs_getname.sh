@@ -9,7 +9,7 @@ skip_if_no_perf_probe || exit 2
 
 . $(dirname $0)/lib/probe_vfs_getname.sh
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname || skip_if_no_deinfo
 err=$?
 cleanup_probe_vfs_getname
 exit $err

@@ -100,7 +100,7 @@ struct ssp_remote_node_context {
 	u32 nexus_loss_timer_enable:1;
 
 	/**
-	 * This field is the for driver debug only and is not used.
+	 * This field is the for driver de only and is not used.
 	 */
 	u32 check_bit:1;
 

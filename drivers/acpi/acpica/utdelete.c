@@ -55,7 +55,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	switch (object->common.type) {
 	case ACPI_TYPE_STRING:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "**** String %p, ptr %p\n", object,
 				  object->string.pointer));
 
@@ -71,7 +71,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_BUFFER:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "**** Buffer %p, ptr %p\n", object,
 				  object->buffer.pointer));
 
@@ -87,7 +87,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_PACKAGE:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  " **** Package of count %X\n",
 				  object->package.count));
 
@@ -129,7 +129,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_MUTEX:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Mutex %p, OS Mutex %p\n",
 				  object, object->mutex.os_mutex));
 
@@ -152,7 +152,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_EVENT:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Event %p, OS Semaphore %p\n",
 				  object, object->event.os_semaphore));
 
@@ -162,7 +162,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_METHOD:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Method %p\n", object));
 
 		/* Delete the method mutex if it exists */
@@ -181,7 +181,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_REGION:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Region %p\n", object));
 
 		/*
@@ -265,7 +265,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_BUFFER_FIELD:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Buffer Field %p\n", object));
 
 		second_desc = acpi_ns_get_secondary_object(object);
@@ -276,7 +276,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Bank Field %p\n", object));
 
 		second_desc = acpi_ns_get_secondary_object(object);
@@ -293,14 +293,14 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	/* Free any allocated memory (pointer within the object) found above */
 
 	if (obj_pointer) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "Deleting Object Subptr %p\n", obj_pointer));
 		ACPI_FREE(obj_pointer);
 	}
 
 	/* Now the object can be safely deleted */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
+	ACPI_DE_PRINT_RAW((ACPI_DB_ALLOCATIONS,
 			      "%s: Deleting Object %p [%s]\n",
 			      ACPI_GET_FUNCTION_NAME, object,
 			      acpi_ut_get_object_type_name(object)));
@@ -391,7 +391,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 				      object));
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 				  "Obj %p Type %.2X [%s] Refs %.2X [Incremented]\n",
 				  object, object->common.type,
 				  acpi_ut_get_object_type_name(object),
@@ -416,7 +416,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 				      object));
 		}
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
+		ACPI_DE_PRINT_RAW((ACPI_DB_ALLOCATIONS,
 				      "%s: Obj %p Type %.2X Refs %.2X [Decremented]\n",
 				      ACPI_GET_FUNCTION_NAME, object,
 				      object->common.type, new_count));
@@ -438,7 +438,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	}
 
 	/*
-	 * Sanity check the reference count, for debug purposes only.
+	 * Sanity check the reference count, for de purposes only.
 	 * (A deleted object will have a huge reference count)
 	 */
 	if (new_count > ACPI_MAX_REFERENCE_COUNT) {
@@ -486,7 +486,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		/* Make sure that this isn't a namespace handle */
 
 		if (ACPI_GET_DESCRIPTOR_TYPE(object) == ACPI_DESC_TYPE_NAMED) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+			ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 					  "Object %p is NS handle\n", object));
 			return (AE_OK);
 		}
@@ -679,7 +679,7 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
 		return;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+	ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS,
 			  "Obj %p Current Refs=%X [To Be Incremented]\n",
 			  object, object->common.reference_count));
 
@@ -721,7 +721,7 @@ void acpi_ut_remove_reference(union acpi_operand_object *object)
 		return;
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_ALLOCATIONS,
+	ACPI_DE_PRINT_RAW((ACPI_DB_ALLOCATIONS,
 			      "%s: Obj %p Current Refs=%X [To Be Decremented]\n",
 			      ACPI_GET_FUNCTION_NAME, object,
 			      object->common.reference_count));

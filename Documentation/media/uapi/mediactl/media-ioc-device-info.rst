@@ -63,7 +63,7 @@ ioctl never fails.
 	  ``driver_version`` field.
 
 	  Driver specific applications can use this information to verify
-	  the driver identity. It is also useful to work around known bugs,
+	  the driver identity. It is also useful to work around known s,
 	  or to identify drivers in error reports.
 
     *  -  char

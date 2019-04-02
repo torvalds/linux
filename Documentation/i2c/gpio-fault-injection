@@ -9,8 +9,8 @@ injection driver can create special states on the bus which the other I2C bus
 master driver should handle gracefully.
 
 Once the Kconfig option I2C_GPIO_FAULT_INJECTOR is enabled, there will be an
-'i2c-fault-injector' subdirectory in the Kernel debugfs filesystem, usually
-mounted at /sys/kernel/debug. There will be a separate subdirectory per GPIO
+'i2c-fault-injector' subdirectory in the Kernel defs filesystem, usually
+mounted at /sys/kernel/de. There will be a separate subdirectory per GPIO
 driven I2C bus. Each subdirectory will contain files to trigger the fault
 injection. They will be described now along with their intended use-cases.
 

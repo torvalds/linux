@@ -411,10 +411,10 @@ static void xfrm_policy_destroy_rcu(struct rcu_head *head)
 
 void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
-	BUG_ON(!policy->walk.dead);
+	_ON(!policy->walk.dead);
 
 	if (del_timer(&policy->timer) || del_timer(&policy->polq.hold_timer))
-		BUG();
+		();
 
 	call_rcu(&policy->rcu, xfrm_policy_destroy_rcu);
 }
@@ -859,7 +859,7 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 		 *
 		 * Matching both is fine, matching saddr in one policy
 		 * (but not daddr) and then matching only daddr in another
-		 * is a bug.
+		 * is a .
 		 */
 		matches_s = xfrm_policy_addr_delta(&policy->selector.saddr,
 						   &n->addr,
@@ -2483,7 +2483,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 		break;
 #endif
 	default:
-		BUG();
+		();
 	}
 	xdst = dst_alloc(dst_ops, NULL, 1, DST_OBSOLETE_NONE, 0);
 
@@ -3805,7 +3805,7 @@ static int __net_init xfrm_policy_init(struct net *net)
 					   NULL);
 		err = rhashtable_init(&xfrm_policy_inexact_table,
 				      &xfrm_pol_inexact_params);
-		BUG_ON(err);
+		_ON(err);
 	}
 
 	hmask = 8 - 1;

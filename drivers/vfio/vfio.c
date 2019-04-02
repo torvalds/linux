@@ -748,28 +748,28 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 		 */
 		break;
 	case IOMMU_GROUP_NOTIFY_BIND_DRIVER:
-		pr_debug("%s: Device %s, group %d binding to driver\n",
+		pr_de("%s: Device %s, group %d binding to driver\n",
 			 __func__, dev_name(dev),
 			 iommu_group_id(group->iommu_group));
 		break;
 	case IOMMU_GROUP_NOTIFY_BOUND_DRIVER:
-		pr_debug("%s: Device %s, group %d bound to driver %s\n",
+		pr_de("%s: Device %s, group %d bound to driver %s\n",
 			 __func__, dev_name(dev),
 			 iommu_group_id(group->iommu_group), dev->driver->name);
-		BUG_ON(vfio_group_nb_verify(group, dev));
+		_ON(vfio_group_nb_verify(group, dev));
 		break;
 	case IOMMU_GROUP_NOTIFY_UNBIND_DRIVER:
-		pr_debug("%s: Device %s, group %d unbinding from driver %s\n",
+		pr_de("%s: Device %s, group %d unbinding from driver %s\n",
 			 __func__, dev_name(dev),
 			 iommu_group_id(group->iommu_group), dev->driver->name);
 		break;
 	case IOMMU_GROUP_NOTIFY_UNBOUND_DRIVER:
-		pr_debug("%s: Device %s, group %d unbound from driver\n",
+		pr_de("%s: Device %s, group %d unbound from driver\n",
 			 __func__, dev_name(dev),
 			 iommu_group_id(group->iommu_group));
 		/*
 		 * XXX An unbound device in a live group is ok, but we'd
-		 * really like to avoid the above BUG_ON by preventing other
+		 * really like to avoid the above _ON by preventing other
 		 * drivers from binding to it.  Once that occurs, we have to
 		 * stop the system to maintain isolation.  At a minimum, we'd
 		 * want a toggle to disable driver auto probe for this device.

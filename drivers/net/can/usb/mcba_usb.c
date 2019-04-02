@@ -131,7 +131,7 @@ struct __packed mcba_usb_msg_ka_can {
 	u8 can_stat;
 	u8 soft_ver_major;
 	u8 soft_ver_minor;
-	u8 debug_mode;
+	u8 de_mode;
 	u8 test_complete;
 	u8 test_result;
 	u8 unused[4];

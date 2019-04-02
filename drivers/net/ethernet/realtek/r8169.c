@@ -231,7 +231,7 @@ MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
 static struct {
 	u32 msg_enable;
-} debug = { -1 };
+} de = { -1 };
 
 enum rtl_registers {
 	MAC0		= 0,	/* Ethernet hardware address. */
@@ -704,8 +704,8 @@ struct rtl8169_private {
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
-module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+module_param_named(de, de.msg_enable, int, 0);
+MODULE_PARM_DESC(de, "De verbosity level (0=none, ..., 16=all)");
 MODULE_SOFTDEP("pre: realtek");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_8168D_1);
@@ -1069,7 +1069,7 @@ DECLARE_RTL_COND(rtl_eriar_cond)
 static void rtl_eri_write(struct rtl8169_private *tp, int addr, u32 mask,
 			  u32 val, int type)
 {
-	BUG_ON((addr & 3) || (mask == 0));
+	_ON((addr & 3) || (mask == 0));
 	RTL_W32(tp, ERIDR, val);
 	RTL_W32(tp, ERIAR, ERIAR_WRITE_CMD | type | mask | addr);
 
@@ -1191,7 +1191,7 @@ static void rtl8168_driver_start(struct rtl8169_private *tp)
 		rtl8168ep_driver_start(tp);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -1225,7 +1225,7 @@ static void rtl8168_driver_stop(struct rtl8169_private *tp)
 		rtl8168ep_driver_stop(tp);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -1486,7 +1486,7 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 
 	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
 	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
-	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
+	BUILD__ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
 	if (rtl_fw)
 		strlcpy(info->fw_version, rtl_fw->version,
 			sizeof(info->fw_version));
@@ -2529,7 +2529,7 @@ static void rtl_phy_write_fw(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			break;
 
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -6008,7 +6008,7 @@ err_out:
 	return -EIO;
 }
 
-static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
+static bool rtl_test_hw_pad_(struct rtl8169_private *tp, struct sk_buff *skb)
 {
 	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
 }
@@ -6135,7 +6135,7 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u8 ip_protocol;
 
-		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
+		if (unlikely(rtl_test_hw_pad_(tp, skb)))
 			return !(skb_checksum_help(skb) || eth_skb_pad(skb));
 
 		if (transport_offset > TCPHO_MAX) {
@@ -6170,7 +6170,7 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 
 		opts[1] |= transport_offset << TCPHO_SHIFT;
 	} else {
-		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
+		if (unlikely(rtl_test_hw_pad_(tp, skb)))
 			return !eth_skb_pad(skb);
 	}
 
@@ -6198,7 +6198,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	int frags;
 
 	if (unlikely(!rtl_tx_slots_avail(tp, skb_shinfo(skb)->nr_frags))) {
-		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
+		netif_err(tp, drv, dev, "! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
 
@@ -7344,7 +7344,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp = netdev_priv(dev);
 	tp->dev = dev;
 	tp->pci_dev = pdev;
-	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
+	tp->msg_enable = netif_msg_init(de.msg_enable, R8169_MSG_DEFAULT);
 	tp->supports_gmii = cfg->has_gmii;
 
 	/* Get the *optional* external "ether_clk" used on some boards */
@@ -7462,7 +7462,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->cp_cmd |= RxChkSum | RxVlan;
 
 	/*
-	 * Pretend we are using VLANs; This bypasses a nasty bug where
+	 * Pretend we are using VLANs; This bypasses a nasty  where
 	 * Interrupts stop flowing on high load on 8110SCd controllers.
 	 */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05)

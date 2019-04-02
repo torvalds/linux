@@ -20,7 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/percpu.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/cpumask.h>
 #include <asm/hvcall.h>
@@ -42,7 +42,7 @@ struct hcall_stats {
 DEFINE_PER_CPU(struct hcall_stats[HCALL_STAT_ARRAY_SIZE], hcall_stats);
 
 /*
- * Routines for displaying the statistics in debugfs
+ * Routines for displaying the statistics in defs
  */
 static void *hc_start(struct seq_file *m, loff_t *pos)
 {
@@ -157,13 +157,13 @@ static int __init hcall_inst_init(void)
 		return -EINVAL;
 	}
 
-	hcall_root = debugfs_create_dir(HCALL_ROOT_DIR, NULL);
+	hcall_root = defs_create_dir(HCALL_ROOT_DIR, NULL);
 	if (!hcall_root)
 		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
 		snprintf(cpu_name_buf, CPU_NAME_BUF_SIZE, "cpu%d", cpu);
-		hcall_file = debugfs_create_file(cpu_name_buf, 0444,
+		hcall_file = defs_create_file(cpu_name_buf, 0444,
 						 hcall_root,
 						 per_cpu(hcall_stats, cpu),
 						 &hcall_inst_seq_fops);

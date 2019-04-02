@@ -111,11 +111,11 @@ BOOT_MEM(pram,pio,vio)
 	be present, and should be the same as PHYS_OFFSET.
 
 	`pio' is the physical address of an 8MB region containing IO for
-	use with the debugging macros in arch/arm/kernel/debug-armv.S.
+	use with the deging macros in arch/arm/kernel/de-armv.S.
 
-	`vio' is the virtual address of the 8MB debugging region.
+	`vio' is the virtual address of the 8MB deging region.
 
-	It is expected that the debugging region will be re-initialised
+	It is expected that the deging region will be re-initialised
 	by the architecture specific code later in the code (via the
 	MAPIO function).
 
@@ -127,7 +127,7 @@ FIXUP(func)
 	initialised.
 
 MAPIO(func)
-	Machine specific function to map IO areas (including the debug
+	Machine specific function to map IO areas (including the de
 	region above).
 
 INITIRQ(func)

@@ -49,8 +49,8 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 
 	printk(KERN_INFO "Node: %d, start_pfn: %lx, end_pfn: %lx\n",
 			nid, start, end);
-	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
-	printk(KERN_DEBUG "  ");
+	printk(KERN_DE "  Setting physnode_map array to node %d for pfns:\n", nid);
+	printk(KERN_DE "  ");
 	start = round_down(start, PAGES_PER_SECTION);
 	end = round_up(end, PAGES_PER_SECTION);
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
@@ -79,13 +79,13 @@ void __init initmem_init(void)
 #endif
 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
 			pages_to_mb(max_low_pfn));
-	printk(KERN_DEBUG "max_low_pfn = %lx, highstart_pfn = %lx\n",
+	printk(KERN_DE "max_low_pfn = %lx, highstart_pfn = %lx\n",
 			max_low_pfn, highstart_pfn);
 
-	printk(KERN_DEBUG "Low memory ends at vaddr %08lx\n",
+	printk(KERN_DE "Low memory ends at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(max_low_pfn));
 
-	printk(KERN_DEBUG "High memory starts at vaddr %08lx\n",
+	printk(KERN_DE "High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 
 	__vmalloc_start_set = true;

@@ -68,7 +68,7 @@
 #include <linux/pci.h>
 #include <linux/poll.h>
 
-#include "mpt3sas_debug.h"
+#include "mpt3sas_de.h"
 #include "mpt3sas_trigger_diag.h"
 
 /* driver versioning info */
@@ -450,7 +450,7 @@ struct MPT3SAS_DEVICE {
 	/* Iopriority Command Handling */
 	u8	ncq_prio_enable;
 	/*
-	 * Bug workaround for SATL handling: the mpt2/3sas firmware
+	 *  workaround for SATL handling: the mpt2/3sas firmware
 	 * doesn't return BUSY or TASK_SET_FULL for subsequent
 	 * commands while a SATL pass through is in operation as the
 	 * spec requires, it simply does nothing with them until the
@@ -983,8 +983,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @pio_chip: physical io register space
  * @chip: memory mapped register space
  * @chip_phys: physical addrss prior to mapping
- * @logging_level: see mpt3sas_debug.h
- * @fwfault_debug: debuging FW timeouts
+ * @logging_level: see mpt3sas_de.h
+ * @fwfault_de: deing FW timeouts
  * @ir_firmware: IR firmware present
  * @bars: bitmask of BAR's that must be configured
  * @mask_interrupts: ignore interrupt
@@ -1147,7 +1147,7 @@ struct MPT3SAS_ADAPTER {
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
 	phys_addr_t	chip_phys;
 	int		logging_level;
-	int		fwfault_debug;
+	int		fwfault_de;
 	u8		ir_firmware;
 	int		bars;
 	u8		mask_interrupts;

@@ -185,7 +185,7 @@ static inline void get_nat_bitmap(struct f2fs_sb_info *sbi, void *addr)
 #ifdef CONFIG_F2FS_CHECK_FS
 	if (memcmp(nm_i->nat_bitmap, nm_i->nat_bitmap_mir,
 						nm_i->bitmap_size))
-		f2fs_bug_on(sbi, 1);
+		f2fs__on(sbi, 1);
 #endif
 	memcpy(addr, nm_i->nat_bitmap, nm_i->bitmap_size);
 }

@@ -15,7 +15,7 @@
 #include "util/parse-events.h"
 #include "util/cache.h"
 #include "util/pmu.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/metricgroup.h"
 #include <subcmd/parse-options.h>
 
@@ -35,8 +35,8 @@ int cmd_list(int argc, const char **argv)
 			    "Print longer event descriptions."),
 		OPT_BOOLEAN(0, "details", &details_flag,
 			    "Print information on the perf event names and expressions used internally by events."),
-		OPT_INCR(0, "debug", &verbose,
-			     "Enable debugging output"),
+		OPT_INCR(0, "de", &verbose,
+			     "Enable deging output"),
 		OPT_END()
 	};
 	const char * const list_usage[] = {

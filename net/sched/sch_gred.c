@@ -9,7 +9,7 @@
  *
  * Authors:    J Hadi Salim (hadi@cyberus.ca) 1998-2002
  *
- *             991129: -  Bug fix with grio mode
+ *             991129: -   fix with grio mode
  *		       - a better sing. AvgQ mode with Grio(WRED)
  *		       - A finer grained VQ dequeue based on sugestion
  *		         from Ren Liu
@@ -691,7 +691,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 			if (table->tab[table->def])
 				def_prio = table->tab[table->def]->prio;
 
-			printk(KERN_DEBUG "GRED: DP %u does not have a prio "
+			printk(KERN_DE "GRED: DP %u does not have a prio "
 			       "setting default to %d\n", ctl->DP, def_prio);
 
 			prio = def_prio;

@@ -31,13 +31,13 @@
 #include "qedi_gbl.h"
 #include "qedi_iscsi.h"
 
-static uint qedi_fw_debug;
-module_param(qedi_fw_debug, uint, 0644);
-MODULE_PARM_DESC(qedi_fw_debug, " Firmware debug level 0(default) to 3");
+static uint qedi_fw_de;
+module_param(qedi_fw_de, uint, 0644);
+MODULE_PARM_DESC(qedi_fw_de, " Firmware de level 0(default) to 3");
 
 uint qedi_dbg_log = QEDI_LOG_WARN | QEDI_LOG_SCSI_TM;
 module_param(qedi_dbg_log, uint, 0644);
-MODULE_PARM_DESC(qedi_dbg_log, " Default debug level");
+MODULE_PARM_DESC(qedi_dbg_log, " Default de level");
 
 uint qedi_io_tracing;
 module_param(qedi_io_tracing, uint, 0644);
@@ -864,7 +864,7 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	qedi->pf_params.iscsi_pf_params.num_r2tq_pages_in_ring = num_sq_pages;
 	qedi->pf_params.iscsi_pf_params.num_uhq_pages_in_ring = num_sq_pages;
 	qedi->pf_params.iscsi_pf_params.num_queues = qedi->num_queues;
-	qedi->pf_params.iscsi_pf_params.debug_mode = qedi_fw_debug;
+	qedi->pf_params.iscsi_pf_params.de_mode = qedi_fw_de;
 	qedi->pf_params.iscsi_pf_params.two_msl_timer = 4000;
 	qedi->pf_params.iscsi_pf_params.max_fin_rt = 2;
 
@@ -2328,7 +2328,7 @@ static void __qedi_remove(struct pci_dev *pdev, int mode)
 		qedi->offload_thread = NULL;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedi_dbg_host_exit(&qedi->dbg_ctx);
 #endif
 	if (!test_bit(QEDI_IN_OFFLINE, &qedi->flags))
@@ -2544,8 +2544,8 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 		atomic_set(&qedi->link_state, QEDI_LINK_DOWN);
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	qedi_dbg_host_init(&qedi->dbg_ctx, qedi_debugfs_ops,
+#ifdef CONFIG_DE_FS
+	qedi_dbg_host_init(&qedi->dbg_ctx, qedi_defs_ops,
 			   qedi_dbg_fops);
 #endif
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
@@ -2638,7 +2638,7 @@ free_cid_que:
 free_uio:
 	qedi_free_uio(qedi->udev);
 remove_host:
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedi_dbg_host_exit(&qedi->dbg_ctx);
 #endif
 	iscsi_host_remove(qedi->shost);
@@ -2693,7 +2693,7 @@ static int __init qedi_init(void)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedi_dbg_init("qedi");
 #endif
 
@@ -2730,7 +2730,7 @@ exit_qedi_hp:
 exit_qedi_init_2:
 	iscsi_unregister_transport(&qedi_iscsi_transport);
 exit_qedi_init_1:
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedi_dbg_exit();
 #endif
 	qed_put_iscsi_ops();
@@ -2743,7 +2743,7 @@ static void __exit qedi_cleanup(void)
 	cpuhp_remove_state(qedi_cpuhp_state);
 	iscsi_unregister_transport(&qedi_iscsi_transport);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qedi_dbg_exit();
 #endif
 	qed_put_iscsi_ops();

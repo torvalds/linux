@@ -687,8 +687,8 @@
 #define MC_SEQ_RESERVE_M                                0x2a08
 #define MC_PMG_CMD_EMRS                                 0x2a0c
 
-#define MC_SEQ_IO_DEBUG_INDEX           		0x2a44
-#define MC_SEQ_IO_DEBUG_DATA           			0x2a48
+#define MC_SEQ_IO_DE_INDEX           		0x2a44
+#define MC_SEQ_IO_DE_DATA           			0x2a48
 
 #define MC_SEQ_MISC5                                    0x2a54
 #define MC_SEQ_MISC6                                    0x2a58
@@ -1181,7 +1181,7 @@
 #define	MTYPE_CACHED					0
 #define	MTYPE_NONCACHED					3
 
-#define	SX_DEBUG_1					0x9060
+#define	SX_DE_1					0x9060
 
 #define	SPI_CONFIG_CNTL					0x9100
 
@@ -1191,9 +1191,9 @@
 
 #define	TA_CNTL_AUX					0x9508
 
-#define DB_DEBUG					0x9830
-#define DB_DEBUG2					0x9834
-#define DB_DEBUG3					0x9838
+#define DB_DE					0x9830
+#define DB_DE2					0x9834
+#define DB_DE3					0x9838
 
 #define CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)     			((x) << 16)
@@ -1350,7 +1350,7 @@
 #define CP_MEM_SLP_CNTL                                 0xC1E4
 #       define CP_MEM_LS_EN                             (1 << 0)
 
-#define CP_CPF_DEBUG                                    0xC200
+#define CP_CPF_DE                                    0xC200
 
 #define CP_PQ_WPTR_POLL_CNTL                            0xC20C
 #define		WPTR_POLL_EN      			(1 << 31)

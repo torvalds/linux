@@ -63,9 +63,9 @@ static int verbose = 1;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose,"be verbose (default: on)");
 
-static int debug = 0;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,"enable/disable debug messages, also prints more "
+static int de = 0;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de,"enable/disable de messages, also prints more "
 		 "detailed sense codes on scsi errors (default: off)");
 
 static int dt_id[CH_DT_MAX] = { [ 0 ... (CH_DT_MAX-1) ] = -1 };
@@ -89,8 +89,8 @@ static const char * vendor_labels[CH_TYPES-4] = {
 
 #define DPRINTK(fmt, arg...)						\
 do {									\
-	if (debug)							\
-		ch_printk(KERN_DEBUG, ch, fmt, ##arg);			\
+	if (de)							\
+		ch_printk(KERN_DE, ch, fmt, ##arg);			\
 } while (0)
 #define VPRINTK(level, fmt, arg...)					\
 do {									\
@@ -200,7 +200,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 				  MAX_RETRIES, NULL);
 
 	if (driver_byte(result) == DRIVER_SENSE) {
-		if (debug)
+		if (de)
 			scsi_print_sense_hdr(ch->device, ch->name, &sshdr);
 		errno = ch_find_errno(&sshdr);
 

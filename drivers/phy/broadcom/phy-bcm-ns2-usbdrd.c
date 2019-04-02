@@ -254,16 +254,16 @@ static void extcon_work(struct work_struct *work)
 
 	if (!id && vbus) { /* Host connected */
 		extcon_set_state_sync(driver->edev, EXTCON_USB_HOST, true);
-		pr_debug("Host cable connected\n");
+		pr_de("Host cable connected\n");
 		driver->data->new_state = EVT_HOST;
 		connect_change(driver);
 	} else if (id && !vbus) { /* Disconnected */
 		extcon_set_state_sync(driver->edev, EXTCON_USB_HOST, false);
 		extcon_set_state_sync(driver->edev, EXTCON_USB, false);
-		pr_debug("Cable disconnected\n");
+		pr_de("Cable disconnected\n");
 	} else if (id && vbus) { /* Device connected */
 		extcon_set_state_sync(driver->edev, EXTCON_USB, true);
-		pr_debug("Device cable connected\n");
+		pr_de("Device cable connected\n");
 		driver->data->new_state = EVT_DEVICE;
 		connect_change(driver);
 	}

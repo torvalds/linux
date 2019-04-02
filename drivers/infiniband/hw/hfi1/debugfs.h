@@ -1,5 +1,5 @@
-#ifndef _HFI1_DEBUGFS_H
-#define _HFI1_DEBUGFS_H
+#ifndef _HFI1_DEFS_H
+#define _HFI1_DEFS_H
 /*
  * Copyright(c) 2015, 2016, 2018 Intel Corporation.
  *
@@ -49,7 +49,7 @@
 
 struct hfi1_ibdev;
 
-#define DEBUGFS_SEQ_FILE_OPS(name) \
+#define DEFS_SEQ_FILE_OPS(name) \
 static const struct seq_operations _##name##_seq_ops = { \
 	.start = _##name##_seq_start, \
 	.next  = _##name##_seq_next, \
@@ -57,7 +57,7 @@ static const struct seq_operations _##name##_seq_ops = { \
 	.show  = _##name##_seq_show \
 }
 
-#define DEBUGFS_SEQ_FILE_OPEN(name) \
+#define DEFS_SEQ_FILE_OPEN(name) \
 static int _##name##_open(struct inode *inode, struct file *s) \
 { \
 	struct seq_file *seq; \
@@ -70,7 +70,7 @@ static int _##name##_open(struct inode *inode, struct file *s) \
 	return 0; \
 }
 
-#define DEBUGFS_FILE_OPS(name) \
+#define DEFS_FILE_OPS(name) \
 static const struct file_operations _##name##_file_ops = { \
 	.owner   = THIS_MODULE, \
 	.open    = _##name##_open, \
@@ -84,7 +84,7 @@ ssize_t hfi1_seq_read(struct file *file, char __user *buf, size_t size,
 		      loff_t *ppos);
 loff_t hfi1_seq_lseek(struct file *file, loff_t offset, int whence);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd);
 void hfi1_dbg_ibdev_exit(struct hfi1_ibdev *ibd);
 void hfi1_dbg_init(void);
@@ -108,4 +108,4 @@ static inline void hfi1_dbg_exit(void)
 }
 #endif
 
-#endif                          /* _HFI1_DEBUGFS_H */
+#endif                          /* _HFI1_DEFS_H */

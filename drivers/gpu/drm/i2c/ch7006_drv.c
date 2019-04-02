@@ -524,9 +524,9 @@ static void __exit ch7006_exit(void)
 	drm_i2c_encoder_unregister(&ch7006_driver);
 }
 
-int ch7006_debug;
-module_param_named(debug, ch7006_debug, int, 0600);
-MODULE_PARM_DESC(debug, "Enable debug output.");
+int ch7006_de;
+module_param_named(de, ch7006_de, int, 0600);
+MODULE_PARM_DESC(de, "Enable de output.");
 
 char *ch7006_tv_norm;
 module_param_named(tv_norm, ch7006_tv_norm, charp, 0600);

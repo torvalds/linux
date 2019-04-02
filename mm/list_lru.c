@@ -260,7 +260,7 @@ restart:
 			assert_spin_locked(&nlru->lock);
 			goto restart;
 		default:
-			BUG();
+			();
 		}
 	}
 	return isolated;
@@ -405,7 +405,7 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
 {
 	struct list_lru_memcg *old, *new;
 
-	BUG_ON(old_size > new_size);
+	_ON(old_size > new_size);
 
 	old = rcu_dereference_protected(nlru->memcg_lrus,
 					lockdep_is_held(&list_lrus_mutex));

@@ -495,7 +495,7 @@ enum wmi_cmd_id {
 	WMI_SET_BTCOEX_A2DP_CONFIG_CMDID,
 	WMI_SET_BTCOEX_ACLCOEX_CONFIG_CMDID,
 	WMI_SET_BTCOEX_BTINQUIRY_PAGE_CONFIG_CMDID,
-	WMI_SET_BTCOEX_DEBUG_CMDID,
+	WMI_SET_BTCOEX_DE_CMDID,
 	WMI_SET_BTCOEX_BT_OPERATING_STATUS_CMDID,
 	WMI_GET_BTCOEX_STATS_CMDID,
 	WMI_GET_BTCOEX_CONFIG_CMDID,
@@ -1429,7 +1429,7 @@ enum wmi_event_id {
 	WMI_DFS_RESET_ARQ_EVENTID,
 	WMI_DFS_SET_DUR_MULTIPLIER_EVENTID,
 	WMI_DFS_SET_BANGRADAR_EVENTID,
-	WMI_DFS_SET_DEBUGLEVEL_EVENTID,
+	WMI_DFS_SET_DELEVEL_EVENTID,
 	WMI_DFS_PHYERR_EVENTID,
 
 	/* CCX Evants */
@@ -2606,7 +2606,7 @@ int ath6kl_wmi_set_lpreamble_cmd(struct wmi *wmi, u8 if_idx, u8 status,
 				 u8 preamble_policy);
 
 int ath6kl_wmi_get_challenge_resp_cmd(struct wmi *wmi, u32 cookie, u32 source);
-int ath6kl_wmi_config_debug_module_cmd(struct wmi *wmi, u32 valid, u32 config);
+int ath6kl_wmi_config_de_module_cmd(struct wmi *wmi, u32 valid, u32 config);
 
 int ath6kl_wmi_get_stats_cmd(struct wmi *wmi, u8 if_idx);
 int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,

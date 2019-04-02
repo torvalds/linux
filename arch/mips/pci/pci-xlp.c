@@ -70,7 +70,7 @@ static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
 	if (cpu_is_xlp9xx()) {
 		/* be very careful on SoC buses */
 		if (bus->number == 0) {
-			/* Scan only existing nodes - uboot bug? */
+			/* Scan only existing nodes - uboot ? */
 			if (PCI_SLOT(devfn) != 0 ||
 					   !nlm_node_present(PCI_FUNC(devfn)))
 				return 0xffffffff;

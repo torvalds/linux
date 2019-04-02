@@ -17,7 +17,7 @@
 #include <linux/elfcore.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
 #include <asm/mca.h>
 

@@ -195,17 +195,17 @@ static void set_dp_phy_pattern_d102(
 	/* Disable PHY Bypass mode to setup the test pattern */
 	enable_phy_bypass_mode(enc110, false);
 
-	/* For 10-bit PRBS or debug symbols
+	/* For 10-bit PRBS or de symbols
 	 * please use the following sequence: */
 
-	/* Enable debug symbols on the lanes */
+	/* Enable de symbols on the lanes */
 
 	disable_prbs_symbols(enc110, true);
 
 	/* Disable PRBS mode */
 	disable_prbs_mode(enc110);
 
-	/* Program debug symbols to be output */
+	/* Program de symbols to be output */
 	{
 		uint16_t pattern_symbols[8] = {
 			0x2AA, 0x2AA, 0x2AA, 0x2AA,
@@ -331,7 +331,7 @@ static void set_dp_phy_pattern_80bit_custom(
 	/* Disable PHY Bypass mode to setup the test pattern */
 	enable_phy_bypass_mode(enc110, false);
 
-	/* Enable debug symbols on the lanes */
+	/* Enable de symbols on the lanes */
 
 	disable_prbs_symbols(enc110, true);
 
@@ -652,7 +652,7 @@ static bool dce110_link_encoder_validate_hdmi_output(
 	if (!enc110->base.features.flags.bits.HDMI_6GB_EN &&
 		adjusted_pix_clk_khz >= 300000)
 		return false;
-	if (enc110->base.ctx->dc->debug.hdmi20_disable &&
+	if (enc110->base.ctx->dc->de.hdmi20_disable &&
 		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 	return true;
@@ -771,7 +771,7 @@ void dce110_link_encoder_construct(
 				__func__,
 				result);
 	}
-	if (enc110->base.ctx->dc->debug.hdmi20_disable) {
+	if (enc110->base.ctx->dc->de.hdmi20_disable) {
 		enc110->base.features.flags.bits.HDMI_6GB_EN = 0;
 	}
 }
@@ -843,7 +843,7 @@ void dce110_link_encoder_hw_init(
 	if (result != BP_RESULT_OK) {
 		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -942,7 +942,7 @@ void dce110_link_encoder_enable_tmds_output(
 	if (result != BP_RESULT_OK) {
 		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 }
 
@@ -974,7 +974,7 @@ void dce110_link_encoder_enable_lvds_output(
 	if (result != BP_RESULT_OK) {
 		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 }
 
@@ -1013,7 +1013,7 @@ void dce110_link_encoder_enable_dp_output(
 	if (result != BP_RESULT_OK) {
 		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 }
 
@@ -1052,7 +1052,7 @@ void dce110_link_encoder_enable_dp_mst_output(
 	if (result != BP_RESULT_OK) {
 		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 	}
 }
 /*
@@ -1093,7 +1093,7 @@ void dce110_link_encoder_disable_output(
 	if (result != BP_RESULT_OK) {
 		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
 			__func__);
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 
@@ -1112,7 +1112,7 @@ void dce110_link_encoder_dp_set_lane_settings(
 	struct bp_transmitter_control cntl = { 0 };
 
 	if (!link_settings) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 

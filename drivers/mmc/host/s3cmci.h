@@ -68,10 +68,10 @@ struct s3cmci_host {
 	unsigned int		ccnt, dcnt;
 	struct tasklet_struct	pio_tasklet;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry		*debug_root;
-	struct dentry		*debug_state;
-	struct dentry		*debug_regs;
+#ifdef CONFIG_DE_FS
+	struct dentry		*de_root;
+	struct dentry		*de_state;
+	struct dentry		*de_regs;
 #endif
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ

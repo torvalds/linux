@@ -45,7 +45,7 @@ int direct2indirect(struct reiserfs_transaction_handle *th, struct inode *inode,
 	/* Handle on an unformatted node that will be inserted in the tree. */
 	unp_t unfm_ptr;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	REISERFS_SB(sb)->s_direct2indirect++;
 
@@ -168,13 +168,13 @@ void reiserfs_unmap_buffer(struct buffer_head *bh)
 {
 	lock_buffer(bh);
 	if (buffer_journaled(bh) || buffer_journal_dirty(bh)) {
-		BUG();
+		();
 	}
 	clear_buffer_dirty(bh);
 	/*
 	 * Remove the buffer from whatever list it belongs to. We are mostly
 	 * interested in removing it from per-sb j_dirty_buffers list, to avoid
-	 * BUG() on attempt to write not mapped buffer
+	 * () on attempt to write not mapped buffer
 	 */
 	if ((!list_empty(&bh->b_assoc_buffers) || bh->b_private) && bh->b_page) {
 		struct inode *inode = bh->b_page->mapping->host;
@@ -216,7 +216,7 @@ int indirect2direct(struct reiserfs_transaction_handle *th,
 	loff_t pos, pos1;	/* position of first byte of the tail */
 	struct cpu_key key;
 
-	BUG_ON(!th->t_trans_id);
+	_ON(!th->t_trans_id);
 
 	REISERFS_SB(sb)->s_indirect2direct++;
 

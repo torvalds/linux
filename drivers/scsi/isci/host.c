@@ -998,7 +998,7 @@ static enum sci_status sci_controller_start(struct isci_host *ihost,
 	}
 
 	/* Build the TCi free pool */
-	BUILD_BUG_ON(SCI_MAX_IO_REQUESTS > 1 << sizeof(ihost->tci_pool[0]) * 8);
+	BUILD__ON(SCI_MAX_IO_REQUESTS > 1 << sizeof(ihost->tci_pool[0]) * 8);
 	ihost->tci_head = 0;
 	ihost->tci_tail = 0;
 	for (index = 0; index < ihost->task_context_entries; index++)
@@ -1814,7 +1814,7 @@ done:
 void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 					       struct isci_phy *iphy)
 {
-	BUG_ON(iphy == NULL);
+	_ON(iphy == NULL);
 
 	if (ihost->power_control.phys_granted_power < max_spin_up(ihost)) {
 		ihost->power_control.phys_granted_power++;
@@ -1866,7 +1866,7 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 void sci_controller_power_control_queue_remove(struct isci_host *ihost,
 					       struct isci_phy *iphy)
 {
-	BUG_ON(iphy == NULL);
+	_ON(iphy == NULL);
 
 	if (ihost->power_control.requesters[iphy->phy_index])
 		ihost->power_control.phys_waiting--;

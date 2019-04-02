@@ -56,7 +56,7 @@ bool acpi_parking_protocol_valid(int cpu)
 
 static int acpi_parking_protocol_cpu_init(unsigned int cpu)
 {
-	pr_debug("%s: ACPI parked addr=%llx\n", __func__,
+	pr_de("%s: ACPI parked addr=%llx\n", __func__,
 		  cpu_mailbox_entries[cpu].mailbox_addr);
 
 	return 0;

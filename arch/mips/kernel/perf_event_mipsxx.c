@@ -346,7 +346,7 @@ static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 #ifdef CONFIG_MIPS_MT_SMP
 	if (range > V) {
 		/* The counter is processor wide. Set it up to count all TCs. */
-		pr_debug("Enabling perf counter for all TCs\n");
+		pr_de("Enabling perf counter for all TCs\n");
 		cpuc->saved_ctrl[idx] |= M_TC_EN_ALL;
 	} else
 #endif /* CONFIG_MIPS_MT_SMP */
@@ -363,7 +363,7 @@ static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 		ctrl = M_PERFCTL_VPEID(cpu_vpe_id(&cpu_data[cpu]));
 		ctrl |= M_TC_EN_VPE;
 		cpuc->saved_ctrl[idx] |= ctrl;
-		pr_debug("Enabling perf counter for CPU%d\n", cpu);
+		pr_de("Enabling perf counter for CPU%d\n", cpu);
 	}
 #endif /* CONFIG_CPU_BMIPS5000 */
 	/*

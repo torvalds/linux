@@ -106,11 +106,11 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
 	struct ivtv_user_dma *dma = &itv->udma;
 	int i, err;
 
-	IVTV_DEBUG_DMA("ivtv_udma_setup, dst: 0x%08x\n", (unsigned int)ivtv_dest_addr);
+	IVTV_DE_DMA("ivtv_udma_setup, dst: 0x%08x\n", (unsigned int)ivtv_dest_addr);
 
 	/* Still in USE */
 	if (dma->SG_length || dma->page_count) {
-		IVTV_DEBUG_WARN("ivtv_udma_setup: SG_length %d page_count %d still full?\n",
+		IVTV_DE_WARN("ivtv_udma_setup: SG_length %d page_count %d still full?\n",
 			   dma->SG_length, dma->page_count);
 		return -EBUSY;
 	}
@@ -118,7 +118,7 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
 	ivtv_udma_get_page_info(&user_dma, (unsigned long)userbuf, size_in_bytes);
 
 	if (user_dma.page_count <= 0) {
-		IVTV_DEBUG_WARN("ivtv_udma_setup: Error %d page_count from %d bytes %d offset\n",
+		IVTV_DE_WARN("ivtv_udma_setup: Error %d page_count from %d bytes %d offset\n",
 			   user_dma.page_count, size_in_bytes, user_dma.offset);
 		return -EINVAL;
 	}
@@ -128,7 +128,7 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
 			dma->map, FOLL_FORCE);
 
 	if (user_dma.page_count != err) {
-		IVTV_DEBUG_WARN("failed to map user pages, returned %d instead of %d\n",
+		IVTV_DE_WARN("failed to map user pages, returned %d instead of %d\n",
 			   err, user_dma.page_count);
 		if (err >= 0) {
 			for (i = 0; i < err; i++)
@@ -167,7 +167,7 @@ void ivtv_udma_unmap(struct ivtv *itv)
 	struct ivtv_user_dma *dma = &itv->udma;
 	int i;
 
-	IVTV_DEBUG_INFO("ivtv_unmap_user_dma\n");
+	IVTV_DE_INFO("ivtv_unmap_user_dma\n");
 
 	/* Nothing to free */
 	if (dma->page_count == 0)
@@ -211,7 +211,7 @@ void ivtv_udma_free(struct ivtv *itv)
 
 void ivtv_udma_start(struct ivtv *itv)
 {
-	IVTV_DEBUG_DMA("start UDMA\n");
+	IVTV_DE_DMA("start UDMA\n");
 	write_reg(itv->udma.SG_handle, IVTV_REG_DECDMAADDR);
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x01, IVTV_REG_DMAXFER);
 	set_bit(IVTV_F_I_DMA, &itv->i_flags);

@@ -40,11 +40,11 @@ struct rc_map_opera_table {
 	u32 event;
 };
 
-static int dvb_usb_opera1_debug;
-module_param_named(debug, dvb_usb_opera1_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "set debugging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64 (or-able))."
-		 DVB_USB_DEBUG_STATUS);
+static int dvb_usb_opera1_de;
+module_param_named(de, dvb_usb_opera1_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "set deging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64 (or-able))."
+		 DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -150,7 +150,7 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 					)) != msg[i].len) {
 			break;
 		}
-		if (dvb_usb_opera1_debug & 0x10)
+		if (dvb_usb_opera1_de & 0x10)
 			info("sending i2c message %d %d", tmp, msg[i].len);
 	}
 	mutex_unlock(&d->i2c_mutex);
@@ -287,7 +287,7 @@ static int opera1_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	u8 val = onoff ? 0x01 : 0x00;
 
-	if (dvb_usb_opera1_debug)
+	if (dvb_usb_opera1_de)
 		info("power %s", onoff ? "on" : "off");
 	return opera1_xilinx_rw(d->udev, 0xb7, val,
 				&val, 1, OPERA_WRITE_MSG);
@@ -300,7 +300,7 @@ static int opera1_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	struct i2c_msg start_tuner[] = {
 		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = onoff ? buf_start : buf_stop,.len = 2},
 	};
-	if (dvb_usb_opera1_debug)
+	if (dvb_usb_opera1_de)
 		info("streaming %s", onoff ? "on" : "off");
 	i2c_transfer(&adap->dev->i2c_adap, start_tuner, 1);
 	return 0;
@@ -313,7 +313,7 @@ static int opera1_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 	struct i2c_msg msg[] = {
 		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = b_pid,.len = 3},
 	};
-	if (dvb_usb_opera1_debug)
+	if (dvb_usb_opera1_de)
 		info("pidfilter index: %d pid: %d %s", index, pid,
 			onoff ? "on" : "off");
 	b_pid[0] = (2 * index) + 4;
@@ -330,7 +330,7 @@ static int opera1_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 	struct i2c_msg msg[] = {
 		{.addr = ADDR_B1A6_STREAM_CTRL,.buf = b_pid,.len = 3},
 	};
-	if (dvb_usb_opera1_debug)
+	if (dvb_usb_opera1_de)
 		info("%s hw-pidfilter", onoff ? "enable" : "disable");
 	for (; u < 0x7e; u += 2) {
 		b_pid[0] = u;

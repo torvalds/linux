@@ -10,10 +10,10 @@ fi
 
 #
 # PERF_BUILDID_DIR environment variable set by perf
-# path to buildid directory, default to $HOME/.debug
+# path to buildid directory, default to $HOME/.de
 #
 if [ -z $PERF_BUILDID_DIR ]; then
-	PERF_BUILDID_DIR=~/.debug/
+	PERF_BUILDID_DIR=~/.de/
 else
         # append / to make substitutions work
         PERF_BUILDID_DIR=$PERF_BUILDID_DIR/
@@ -43,6 +43,6 @@ done
 tar cjf $PERF_DATA.tar.bz2 -C $PERF_BUILDID_DIR -T $MANIFEST
 rm $MANIFEST $BUILDIDS || true
 echo -e "Now please run:\n"
-echo -e "$ tar xvf $PERF_DATA.tar.bz2 -C ~/.debug\n"
+echo -e "$ tar xvf $PERF_DATA.tar.bz2 -C ~/.de\n"
 echo "wherever you need to run 'perf report' on."
 exit 0

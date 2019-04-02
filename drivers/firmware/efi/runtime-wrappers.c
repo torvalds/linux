@@ -25,7 +25,7 @@
 
 #define pr_fmt(fmt)	"efi: " fmt
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/efi.h>
 #include <linux/irqflags.h>
 #include <linux/mutex.h>
@@ -113,7 +113,7 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
 		return;
 
 	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_NOW_UNRELIABLE);
-	pr_err_ratelimited(FW_BUG "IRQ flags corrupted (0x%08lx=>0x%08lx) by EFI %s\n",
+	pr_err_ratelimited(FW_ "IRQ flags corrupted (0x%08lx=>0x%08lx) by EFI %s\n",
 			   flags, cur_flags, call);
 	arch_efi_restore_flags(flags);
 }

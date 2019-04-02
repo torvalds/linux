@@ -1,5 +1,5 @@
 /*
- * Kernel Debugger Architecture Independent Console I/O handler
+ * Kernel Deger Architecture Independent Console I/O handler
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -175,7 +175,7 @@ static int kdb_read_get_key(char *buffer, size_t bufsize)
  *
  *	This function reads a string of characters, terminated by
  *	a newline, or by reaching the end of the supplied buffer,
- *	from the current kernel debugger console device.
+ *	from the current kernel deger console device.
  * Parameters:
  *	buffer	- Address of character buffer to receive input characters.
  *	bufsize - size, in bytes, of the character buffer
@@ -186,7 +186,7 @@ static int kdb_read_get_key(char *buffer, size_t bufsize)
  * Locking:
  *	No locks are required to be held upon entry to this
  *	function.  It is not reentrant - it relies on the fact
- *	that while kdb is running on only one "master debug" cpu.
+ *	that while kdb is running on only one "master de" cpu.
  * Remarks:
  *
  * The buffer size must be >= 2.  A buffer size of 2 means that the caller only

@@ -631,8 +631,8 @@ extern int irq_chip_set_type_parent(struct irq_data *data, unsigned int type);
 extern void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret);
 
 
-/* Enable/disable irq debugging output: */
-extern int noirqdebug_setup(char *str);
+/* Enable/disable irq deging output: */
+extern int noirqde_setup(char *str);
 
 /* Checks whether the interrupt can be requested by request_irq(): */
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
@@ -1087,7 +1087,7 @@ int __irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 #define irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,	\
 				       handler,	clr, set, flags)	\
 ({									\
-	MAYBE_BUILD_BUG_ON(irqs_per_chip > 32);				\
+	MAYBE_BUILD__ON(irqs_per_chip > 32);				\
 	__irq_alloc_domain_generic_chips(d, irqs_per_chip, num_ct, name,\
 					 handler, clr, set, flags);	\
 })
@@ -1176,7 +1176,7 @@ void irq_matrix_assign(struct irq_matrix *m, unsigned int bit);
 unsigned int irq_matrix_available(struct irq_matrix *m, bool cpudown);
 unsigned int irq_matrix_allocated(struct irq_matrix *m);
 unsigned int irq_matrix_reserved(struct irq_matrix *m);
-void irq_matrix_debug_show(struct seq_file *sf, struct irq_matrix *m, int ind);
+void irq_matrix_de_show(struct seq_file *sf, struct irq_matrix *m, int ind);
 
 /* Contrary to Linux irqs, for hardware irqs the irq number 0 is valid */
 #define INVALID_HWIRQ	(~0UL)

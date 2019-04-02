@@ -15,7 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <net/caif/caif_spi.h>
 
 #ifndef CONFIG_CAIF_SPI_SYNC
@@ -43,17 +43,17 @@ int spi_up_tail_align   = 1 << 0;
 int spi_down_head_align = 1 << 2;
 int spi_down_tail_align = 1 << 1;
 
-#ifdef CONFIG_DEBUG_FS
-static inline void debugfs_store_prev(struct cfspi *cfspi)
+#ifdef CONFIG_DE_FS
+static inline void defs_store_prev(struct cfspi *cfspi)
 {
-	/* Store previous command for debugging reasons.*/
+	/* Store previous command for deging reasons.*/
 	cfspi->pcmd = cfspi->cmd;
 	/* Store previous transfer. */
 	cfspi->tx_ppck_len = cfspi->tx_cpck_len;
 	cfspi->rx_ppck_len = cfspi->rx_cpck_len;
 }
 #else
-static inline void debugfs_store_prev(struct cfspi *cfspi)
+static inline void defs_store_prev(struct cfspi *cfspi)
 {
 }
 #endif
@@ -82,7 +82,7 @@ void cfspi_xfer(struct work_struct *work)
 			return;
 
 #if CFSPI_DBG_PREFILL
-		/* Prefill buffers for easier debugging. */
+		/* Prefill buffers for easier deging. */
 		memset(cfspi->xfer.va_tx, 0xFF, SPI_DMA_BUF_LEN);
 		memset(cfspi->xfer.va_rx, 0xFF, SPI_DMA_BUF_LEN);
 #endif	/* CFSPI_DBG_PREFILL */
@@ -216,7 +216,7 @@ void cfspi_xfer(struct work_struct *work)
 		WARN_ON(cfspi->rx_npck_len > SPI_DMA_BUF_LEN);
 		WARN_ON(cfspi->cmd > SPI_CMD_EOT);
 
-		debugfs_store_prev(cfspi);
+		defs_store_prev(cfspi);
 
 		/* Check whether the master issued an EOT command. */
 		if (cfspi->cmd == SPI_CMD_EOT) {

@@ -100,7 +100,7 @@ struct mmal_msg_version {
 struct mmal_msg_component_create {
 	u32 client_component; /* component context */
 	char name[128];
-	u32 pid;                /* For debug */
+	u32 pid;                /* For de */
 };
 
 /* reply from VC to component creation request */

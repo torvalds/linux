@@ -2,7 +2,7 @@
 libertas-y += cfg.o
 libertas-y += cmd.o
 libertas-y += cmdresp.o
-libertas-y += debugfs.o
+libertas-y += defs.o
 libertas-y += ethtool.o
 libertas-y += main.o
 libertas-y += rx.o

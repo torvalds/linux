@@ -185,7 +185,7 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))
 		return addr;
-	VM_BUG_ON(addr != -ENOMEM);
+	VM__ON(addr != -ENOMEM);
 
 	/*
 	 * A failed mmap() very likely causes application failure,

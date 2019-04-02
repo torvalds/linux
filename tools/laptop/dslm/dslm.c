@@ -15,7 +15,7 @@
 #include <sys/ioctl.h>
 #include <linux/hdreg.h>
 
-#ifdef DEBUG
+#ifdef DE
 #define D(x) x
 #else
 #define D(x)

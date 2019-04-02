@@ -38,7 +38,7 @@
 #define ADP_SZ				64 /* hardware-provided max. */
 #define UV_CPUS_PER_AS			32 /* hardware-provided max. */
 #define ITEMS_PER_DESC			8
-/* the 'throttle' to prevent the hardware stay-busy bug */
+/* the 'throttle' to prevent the hardware stay-busy  */
 #define MAX_BAU_CONCURRENT		3
 #define UV_ACT_STATUS_MASK		0x3
 #define UV_ACT_STATUS_SIZE		2
@@ -551,7 +551,7 @@ struct ptc_stats {
 	unsigned long	s_giveuplimit;		/* disables, over giveup limit*/
 	unsigned long	s_enters;		/* entries to the driver */
 	unsigned long	s_ipifordisabled;	/* fall back to IPI; disabled */
-	unsigned long	s_plugged;		/* plugged by h/w bug*/
+	unsigned long	s_plugged;		/* plugged by h/w */
 	unsigned long	s_congested;		/* giveup on long wait */
 	/* destination statistics */
 	unsigned long	d_alltlb;		/* times all tlb's on this

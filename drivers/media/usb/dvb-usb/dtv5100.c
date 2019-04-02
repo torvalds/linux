@@ -21,10 +21,10 @@
 #include "zl10353.h"
 #include "qt1010.h"
 
-/* debug */
-static int dvb_usb_dtv5100_debug;
-module_param_named(debug, dvb_usb_dtv5100_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_dtv5100_de;
+module_param_named(de, dvb_usb_dtv5100_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level" DVB_USB_DE_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct dtv5100_state {

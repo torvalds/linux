@@ -59,9 +59,9 @@
 #define SDRSP3 0x1c /* SD card response (127:96)       - 32 R   */
 #define SDHSTS 0x20 /* SD host status                  - 11 R/W */
 #define SDVDD  0x30 /* SD card power control           -  1 R/W */
-#define SDEDM  0x34 /* Emergency Debug Mode            - 13 R/W */
+#define SDEDM  0x34 /* Emergency De Mode            - 13 R/W */
 #define SDHCFG 0x38 /* Host configuration              -  2 R/W */
-#define SDHBCT 0x3c /* Host byte count (debug)         - 32 R/W */
+#define SDHBCT 0x3c /* Host byte count (de)         - 32 R/W */
 #define SDDATA 0x40 /* Data to/from SD card            - 32 R/W */
 #define SDHBLC 0x50 /* Host block count (SDIO/SDHC)    -  9 R/W */
 
@@ -253,7 +253,7 @@ static void bcm2835_reset_internal(struct bcm2835_host *host)
 	writel(0, host->ioaddr + SDHBCT);
 	writel(0, host->ioaddr + SDHBLC);
 
-	/* Limit fifo usage due to silicon bug */
+	/* Limit fifo usage due to silicon  */
 	temp = readl(host->ioaddr + SDEDM);
 	temp &= ~((SDEDM_THRESHOLD_MASK << SDEDM_READ_THRESHOLD_SHIFT) |
 		  (SDEDM_THRESHOLD_MASK << SDEDM_WRITE_THRESHOLD_SHIFT));

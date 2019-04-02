@@ -183,7 +183,7 @@ nvkm_object_fini(struct nvkm_object *object, bool suspend)
 	s64 time;
 	int ret;
 
-	nvif_debug(object, "%s children...\n", action);
+	nvif_de(object, "%s children...\n", action);
 	time = ktime_to_us(ktime_get());
 	list_for_each_entry(child, &object->tree, head) {
 		ret = nvkm_object_fini(child, suspend);
@@ -191,7 +191,7 @@ nvkm_object_fini(struct nvkm_object *object, bool suspend)
 			goto fail_child;
 	}
 
-	nvif_debug(object, "%s running...\n", action);
+	nvif_de(object, "%s running...\n", action);
 	if (object->func->fini) {
 		ret = object->func->fini(object, suspend);
 		if (ret) {
@@ -202,7 +202,7 @@ nvkm_object_fini(struct nvkm_object *object, bool suspend)
 	}
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvif_debug(object, "%s completed in %lldus\n", action, time);
+	nvif_de(object, "%s completed in %lldus\n", action, time);
 	return 0;
 
 fail:
@@ -225,7 +225,7 @@ nvkm_object_init(struct nvkm_object *object)
 	s64 time;
 	int ret;
 
-	nvif_debug(object, "init running...\n");
+	nvif_de(object, "init running...\n");
 	time = ktime_to_us(ktime_get());
 	if (object->func->init) {
 		ret = object->func->init(object);
@@ -233,7 +233,7 @@ nvkm_object_init(struct nvkm_object *object)
 			goto fail;
 	}
 
-	nvif_debug(object, "init children...\n");
+	nvif_de(object, "init children...\n");
 	list_for_each_entry(child, &object->tree, head) {
 		ret = nvkm_object_init(child);
 		if (ret)
@@ -241,7 +241,7 @@ nvkm_object_init(struct nvkm_object *object)
 	}
 
 	time = ktime_to_us(ktime_get()) - time;
-	nvif_debug(object, "init completed in %lldus\n", time);
+	nvif_de(object, "init completed in %lldus\n", time);
 	return 0;
 
 fail_child:
@@ -261,19 +261,19 @@ nvkm_object_dtor(struct nvkm_object *object)
 	void *data = object;
 	s64 time;
 
-	nvif_debug(object, "destroy children...\n");
+	nvif_de(object, "destroy children...\n");
 	time = ktime_to_us(ktime_get());
 	list_for_each_entry_safe(child, ctemp, &object->tree, head) {
 		nvkm_object_del(&child);
 	}
 
-	nvif_debug(object, "destroy running...\n");
+	nvif_de(object, "destroy running...\n");
 	nvkm_object_unmap(object);
 	if (object->func->dtor)
 		data = object->func->dtor(object);
 	nvkm_engine_unref(&object->engine);
 	time = ktime_to_us(ktime_get()) - time;
-	nvif_debug(object, "destroy completed in %lldus...\n", time);
+	nvif_de(object, "destroy completed in %lldus...\n", time);
 	return data;
 }
 

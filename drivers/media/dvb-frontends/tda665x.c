@@ -88,7 +88,7 @@ static int tda665x_get_status(struct dvb_frontend *fe, u32 *status)
 		goto exit;
 
 	if ((result >> 6) & 0x01) {
-		printk(KERN_DEBUG "%s: Tuner Phase Locked\n", __func__);
+		printk(KERN_DE "%s: Tuner Phase Locked\n", __func__);
 		*status = 1;
 	}
 
@@ -166,7 +166,7 @@ static int tda665x_set_frequency(struct dvb_frontend *fe,
 		goto exit;
 
 	/* sleep for some time */
-	printk(KERN_DEBUG "%s: Waiting to Phase LOCK\n", __func__);
+	printk(KERN_DE "%s: Waiting to Phase LOCK\n", __func__);
 	msleep(20);
 	/* check status */
 	err = tda665x_get_status(fe, &status);
@@ -174,7 +174,7 @@ static int tda665x_set_frequency(struct dvb_frontend *fe,
 		goto exit;
 
 	if (status == 1) {
-		printk(KERN_DEBUG "%s: Tuner Phase locked: status=%d\n",
+		printk(KERN_DE "%s: Tuner Phase locked: status=%d\n",
 		       __func__, status);
 		state->frequency = frequency; /* cache successful state */
 	} else {
@@ -235,7 +235,7 @@ struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 	info->frequency_max_hz	= config->frequency_max;
 	info->frequency_step_hz	= config->frequency_offst;
 
-	printk(KERN_DEBUG "%s: Attaching TDA665x (%s) tuner\n", __func__, info->name);
+	printk(KERN_DE "%s: Attaching TDA665x (%s) tuner\n", __func__, info->name);
 
 	return fe;
 }

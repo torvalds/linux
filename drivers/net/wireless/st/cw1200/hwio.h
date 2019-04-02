@@ -50,8 +50,8 @@ struct download_cntl_t {
 	u32 get;
 	/* r0, boot losader status, host init to pending, device updates */
 	u32 status;
-	/* Extra debug info, r1 to r14 if status=r0=DOWNLOAD_EXCEPTION */
-	u32 debug_data[DOWNLOAD_CTRL_DATA_DWORDS];
+	/* Extra de info, r1 to r14 if status=r0=DOWNLOAD_EXCEPTION */
+	u32 de_data[DOWNLOAD_CTRL_DATA_DWORDS];
 };
 
 #define	DOWNLOAD_IMAGE_SIZE_REG		\
@@ -66,9 +66,9 @@ struct download_cntl_t {
 	(DOWNLOAD_CTRL_OFFSET + offsetof(struct download_cntl_t, get))
 #define	DOWNLOAD_STATUS_REG		\
 	(DOWNLOAD_CTRL_OFFSET + offsetof(struct download_cntl_t, status))
-#define DOWNLOAD_DEBUG_DATA_REG		\
-	(DOWNLOAD_CTRL_OFFSET + offsetof(struct download_cntl_t, debug_data))
-#define DOWNLOAD_DEBUG_DATA_LEN		(108)
+#define DOWNLOAD_DE_DATA_REG		\
+	(DOWNLOAD_CTRL_OFFSET + offsetof(struct download_cntl_t, de_data))
+#define DOWNLOAD_DE_DATA_LEN		(108)
 
 #define DOWNLOAD_BLOCK_SIZE		(1024)
 

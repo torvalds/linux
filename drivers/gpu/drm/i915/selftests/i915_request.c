@@ -286,7 +286,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 	int err = 0;
 
 	/*
-	 * A very simple test to catch the most egregious of list handling bugs.
+	 * A very simple test to catch the most egregious of list handling s.
 	 *
 	 * At its heart, we simply create oodles of requests running across
 	 * multiple kthreads and enable signaling on them, for the sole purpose
@@ -375,7 +375,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 			       rq->fence.context, rq->fence.seqno,
 			       t->engine->name);
 			i915_gem_set_wedged(t->engine->i915);
-			GEM_BUG_ON(!i915_request_completed(rq));
+			GEM__ON(!i915_request_completed(rq));
 			i915_sw_fence_wait(wait);
 			err = -EIO;
 		}
@@ -430,7 +430,7 @@ static int mock_breadcrumbs_smoketest(void *arg)
 
 	/*
 	 * Smoketest our breadcrumb/signal handling for requests across multiple
-	 * threads. A very simple test to only catch the most egregious of bugs.
+	 * threads. A very simple test to only catch the most egregious of s.
 	 * See __igt_breadcrumbs_smoketest();
 	 */
 
@@ -872,7 +872,7 @@ static int live_all_engines(void *arg)
 					    batch->node.start,
 					    batch->node.size,
 					    0);
-		GEM_BUG_ON(err);
+		GEM__ON(err);
 		request[id]->batch = batch;
 
 		if (!i915_gem_object_has_active_reference(batch->obj)) {
@@ -881,7 +881,7 @@ static int live_all_engines(void *arg)
 		}
 
 		err = i915_vma_move_to_active(batch, request[id], 0);
-		GEM_BUG_ON(err);
+		GEM__ON(err);
 
 		i915_request_get(request[id]);
 		i915_request_add(request[id]);
@@ -915,7 +915,7 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		GEM_BUG_ON(!i915_request_completed(request[id]));
+		GEM__ON(!i915_request_completed(request[id]));
 		i915_request_put(request[id]);
 		request[id] = NULL;
 	}
@@ -992,11 +992,11 @@ static int live_sequential_engines(void *arg)
 					    batch->node.start,
 					    batch->node.size,
 					    0);
-		GEM_BUG_ON(err);
+		GEM__ON(err);
 		request[id]->batch = batch;
 
 		err = i915_vma_move_to_active(batch, request[id], 0);
-		GEM_BUG_ON(err);
+		GEM__ON(err);
 
 		i915_gem_object_set_active_reference(batch->obj);
 		i915_vma_get(batch);
@@ -1034,7 +1034,7 @@ static int live_sequential_engines(void *arg)
 			goto out_request;
 		}
 
-		GEM_BUG_ON(!i915_request_completed(request[id]));
+		GEM__ON(!i915_request_completed(request[id]));
 	}
 
 	err = igt_live_test_end(&t);
@@ -1118,7 +1118,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 
 	/*
 	 * Smoketest our breadcrumb/signal handling for requests across multiple
-	 * threads. A very simple test to only catch the most egregious of bugs.
+	 * threads. A very simple test to only catch the most egregious of s.
 	 * See __igt_breadcrumbs_smoketest();
 	 *
 	 * On real hardware this time.
@@ -1175,7 +1175,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 		}
 		/* One ring interleaved between requests from all cpus */
 		t[id].max_batch /= num_online_cpus() + 1;
-		pr_debug("Limiting batches to %d requests on %s\n",
+		pr_de("Limiting batches to %d requests on %s\n",
 			 t[id].max_batch, engine->name);
 
 		for (n = 0; n < ncpus; n++) {

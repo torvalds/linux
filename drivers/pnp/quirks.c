@@ -320,7 +320,7 @@ static void quirk_amd_mmconfig_area(struct pnp_dev *dev)
 		    (res->start == mmconfig->start && res->end == mmconfig->end))
 			continue;
 
-		dev_info(&dev->dev, FW_BUG
+		dev_info(&dev->dev, FW_
 			 "%pR covers only part of AMD MMCONFIG area %pR; adding more reservations\n",
 			 res, mmconfig);
 		if (mmconfig->start < res->start) {
@@ -404,7 +404,7 @@ static void quirk_intel_mch(struct pnp_dev *dev)
 		if (res->start == mch.start && res->end == mch.end)
 			continue;	/* exact match */
 
-		dev_info(&dev->dev, FW_BUG "PNP resource %pR covers only part of %s Intel MCH; extending to %pR\n",
+		dev_info(&dev->dev, FW_ "PNP resource %pR covers only part of %s Intel MCH; extending to %pR\n",
 			 res, pci_name(host), &mch);
 		res->start = mch.start;
 		res->end = mch.end;

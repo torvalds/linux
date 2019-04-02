@@ -1,5 +1,5 @@
 /*
- * debug.c - NTFS kernel debug support. Part of the Linux-NTFS project.
+ * de.c - NTFS kernel de support. Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001-2004 Anton Altaparmakov
  *
@@ -19,7 +19,7 @@
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-#include "debug.h"
+#include "de.h"
 
 /**
  * __ntfs_warning - output a warning to the syslog
@@ -37,7 +37,7 @@
  * @function is the name of the function from which __ntfs_warning is being
  * called.
  *
- * Note, you should be using debug.h::ntfs_warning(@sb, @fmt, @...) instead
+ * Note, you should be using de.h::ntfs_warning(@sb, @fmt, @...) instead
  * as this provides the @function parameter automatically.
  */
 void __ntfs_warning(const char *function, const struct super_block *sb,
@@ -47,7 +47,7 @@ void __ntfs_warning(const char *function, const struct super_block *sb,
 	va_list args;
 	int flen = 0;
 
-#ifndef DEBUG
+#ifndef DE
 	if (!printk_ratelimit())
 		return;
 #endif
@@ -80,7 +80,7 @@ void __ntfs_warning(const char *function, const struct super_block *sb,
  * @function is the name of the function from which __ntfs_error is being
  * called.
  *
- * Note, you should be using debug.h::ntfs_error(@sb, @fmt, @...) instead
+ * Note, you should be using de.h::ntfs_error(@sb, @fmt, @...) instead
  * as this provides the @function parameter automatically.
  */
 void __ntfs_error(const char *function, const struct super_block *sb,
@@ -90,7 +90,7 @@ void __ntfs_error(const char *function, const struct super_block *sb,
 	va_list args;
 	int flen = 0;
 
-#ifndef DEBUG
+#ifndef DE
 	if (!printk_ratelimit())
 		return;
 #endif
@@ -107,44 +107,44 @@ void __ntfs_error(const char *function, const struct super_block *sb,
 	va_end(args);
 }
 
-#ifdef DEBUG
+#ifdef DE
 
-/* If 1, output debug messages, and if 0, don't. */
-int debug_msgs = 0;
+/* If 1, output de messages, and if 0, don't. */
+int de_msgs = 0;
 
-void __ntfs_debug(const char *file, int line, const char *function,
+void __ntfs_de(const char *file, int line, const char *function,
 		const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 	int flen = 0;
 
-	if (!debug_msgs)
+	if (!de_msgs)
 		return;
 	if (function)
 		flen = strlen(function);
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	pr_debug("(%s, %d): %s(): %pV", file, line, flen ? function : "", &vaf);
+	pr_de("(%s, %d): %s(): %pV", file, line, flen ? function : "", &vaf);
 	va_end(args);
 }
 
 /* Dump a runlist. Caller has to provide synchronisation for @rl. */
-void ntfs_debug_dump_runlist(const runlist_element *rl)
+void ntfs_de_dump_runlist(const runlist_element *rl)
 {
 	int i;
 	const char *lcn_str[5] = { "LCN_HOLE         ", "LCN_RL_NOT_MAPPED",
 				   "LCN_ENOENT       ", "LCN_unknown      " };
 
-	if (!debug_msgs)
+	if (!de_msgs)
 		return;
-	pr_debug("Dumping runlist (values in hex):\n");
+	pr_de("Dumping runlist (values in hex):\n");
 	if (!rl) {
-		pr_debug("Run list not present.\n");
+		pr_de("Run list not present.\n");
 		return;
 	}
-	pr_debug("VCN              LCN               Run length\n");
+	pr_de("VCN              LCN               Run length\n");
 	for (i = 0; ; i++) {
 		LCN lcn = (rl + i)->lcn;
 
@@ -153,13 +153,13 @@ void ntfs_debug_dump_runlist(const runlist_element *rl)
 
 			if (index > -LCN_ENOENT - 1)
 				index = 3;
-			pr_debug("%-16Lx %s %-16Lx%s\n",
+			pr_de("%-16Lx %s %-16Lx%s\n",
 					(long long)(rl + i)->vcn, lcn_str[index],
 					(long long)(rl + i)->length,
 					(rl + i)->length ? "" :
 						" (runlist end)");
 		} else
-			pr_debug("%-16Lx %-16Lx  %-16Lx%s\n",
+			pr_de("%-16Lx %-16Lx  %-16Lx%s\n",
 					(long long)(rl + i)->vcn,
 					(long long)(rl + i)->lcn,
 					(long long)(rl + i)->length,

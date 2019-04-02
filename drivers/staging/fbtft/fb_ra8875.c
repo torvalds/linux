@@ -23,7 +23,7 @@ static int write_spi(struct fbtft_par *par, void *buf, size_t len)
 	};
 	struct spi_message m;
 
-	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
+	fbtft_par_dbg_hex(DE_WRITE, par, par->info->device, u8, buf, len,
 			  "%s(len=%d): ", __func__, len);
 
 	if (!par->spi) {
@@ -41,9 +41,9 @@ static int init_display(struct fbtft_par *par)
 {
 	gpiod_set_value(par->gpio.dc, 1);
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+	fbtft_par_dbg(DE_INIT_DISPLAY, par,
 		      "%s()\n", __func__);
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
+	fbtft_par_dbg(DE_INIT_DISPLAY, par,
 		      "display size %dx%d\n",
 		par->info->var.xres,
 		par->info->var.yres);
@@ -196,12 +196,12 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	/* slow down spi-speed for writing registers */
 	par->fbtftops.write = write_spi;
 
-	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
+	if (unlikely(par->de & DE_WRITE_REGISTER)) {
 		va_start(args, len);
 		for (i = 0; i < len; i++)
 			buf[i] = (u8)va_arg(args, unsigned int);
 		va_end(args);
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device,
+		fbtft_par_dbg_hex(DE_WRITE_REGISTER, par, par->info->device,
 				  u8, buf, len, "%s: ", __func__);
 	}
 
@@ -252,7 +252,7 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	int ret = 0;
 	size_t startbyte_size = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
+	fbtft_par_dbg(DE_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
 		      __func__, offset, len);
 
 	remain = len / 2;

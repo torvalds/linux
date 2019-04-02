@@ -142,9 +142,9 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 					     res.start + OHCI_HCCTRL_OFFSET,
 					     OHCI_HCCTRL_LEN);
 		else
-			pr_debug("%s: no ohci offset in fdt\n", __FILE__);
+			pr_de("%s: no ohci offset in fdt\n", __FILE__);
 		if (!ehci->ohci_hcctrl_reg) {
-			pr_debug("%s: ioremap for ohci hcctrl failed\n", __FILE__);
+			pr_de("%s: ioremap for ohci hcctrl failed\n", __FILE__);
 		} else {
 			ehci->has_amcc_usb23 = 1;
 		}
@@ -210,7 +210,7 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 				else
 					release_mem_region(res.start, 0x4);
 			else
-				pr_debug("%s: no ohci offset in fdt\n", __FILE__);
+				pr_de("%s: no ohci offset in fdt\n", __FILE__);
 			of_node_put(np);
 		}
 	}

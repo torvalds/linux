@@ -51,12 +51,12 @@ struct stv0288_state {
 #define STATUS_BER 0
 #define STATUS_UCBLOCKS 1
 
-static int debug;
-static int debug_legacy_dish_switch;
+static int de;
+static int de_legacy_dish_switch;
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "stv0288: " args); \
+		if (de) \
+			printk(KERN_DE "stv0288: " args); \
 	} while (0)
 
 
@@ -605,12 +605,12 @@ error:
 }
 EXPORT_SYMBOL(stv0288_attach);
 
-module_param(debug_legacy_dish_switch, int, 0444);
-MODULE_PARM_DESC(debug_legacy_dish_switch,
+module_param(de_legacy_dish_switch, int, 0444);
+MODULE_PARM_DESC(de_legacy_dish_switch,
 		"Enable timing analysis for Dish Network legacy switches");
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("ST STV0288 DVB Demodulator driver");
 MODULE_AUTHOR("Georg Acher, Bob Liu, Igor liplianin");

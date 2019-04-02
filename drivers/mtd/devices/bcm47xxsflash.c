@@ -230,7 +230,7 @@ static int bcm47xxsflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 			written = bcm47xxsflash_write_at(mtd, to, len, buf);
 			break;
 		default:
-			BUG_ON(1);
+			_ON(1);
 		}
 		if (written < 0) {
 			pr_err("Error writing at offset 0x%llX\n", to);

@@ -197,7 +197,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 
 	/*
 	 * The table is large, starting with order 4 and can go as high as
-	 * order 7 in case lock debugging is turned on.
+	 * order 7 in case lock deging is turned on.
 	 *
 	 * Try harder to allocate and fallback to vmalloc to lower the chance
 	 * of a failing mount.
@@ -371,7 +371,7 @@ static void __remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 			if (!list_empty(&rbio->hash_list)) {
 				list_del_init(&rbio->hash_list);
 				refcount_dec(&rbio->refs);
-				BUG_ON(!list_empty(&rbio->plug_list));
+				_ON(!list_empty(&rbio->plug_list));
 			}
 		}
 	}
@@ -519,7 +519,7 @@ static int rbio_is_full(struct btrfs_raid_bio *rbio)
 	spin_lock_irqsave(&rbio->bio_list_lock, flags);
 	if (size != rbio->nr_data * rbio->stripe_len)
 		ret = 0;
-	BUG_ON(size > rbio->nr_data * rbio->stripe_len);
+	_ON(size > rbio->nr_data * rbio->stripe_len);
 	spin_unlock_irqrestore(&rbio->bio_list_lock, flags);
 
 	return ret;
@@ -765,7 +765,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 		    test_bit(RBIO_CACHE_BIT, &rbio->flags)) {
 			keep_cache = 1;
 			clear_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
-			BUG_ON(!bio_list_empty(&rbio->bio_list));
+			_ON(!bio_list_empty(&rbio->bio_list));
 			goto done;
 		}
 
@@ -1016,7 +1016,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	else if (bbio->map_type & BTRFS_BLOCK_GROUP_RAID6)
 		nr_data = real_stripes - 2;
 	else
-		BUG();
+		();
 
 	rbio->nr_data = nr_data;
 	return rbio;
@@ -1124,7 +1124,7 @@ static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
 static void validate_rbio_for_rmw(struct btrfs_raid_bio *rbio)
 {
 	if (rbio->faila >= 0 || rbio->failb >= 0) {
-		BUG_ON(rbio->faila == rbio->real_stripes - 1);
+		_ON(rbio->faila == rbio->real_stripes - 1);
 		__raid56_parity_recover(rbio);
 	} else {
 		finish_rmw(rbio);
@@ -1196,7 +1196,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 		p_stripe = rbio->real_stripes - 2;
 		q_stripe = rbio->real_stripes - 1;
 	} else {
-		BUG();
+		();
 	}
 
 	/* at this point we either have a full stripe,
@@ -1314,7 +1314,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 
 write_data:
 	atomic_set(&rbio->stripes_pending, bio_list_size(&bio_list));
-	BUG_ON(atomic_read(&rbio->stripes_pending) == 0);
+	_ON(atomic_read(&rbio->stripes_pending) == 0);
 
 	while (1) {
 		bio = bio_list_pop(&bio_list);
@@ -1691,7 +1691,7 @@ static void run_plug(struct btrfs_plug_cb *plug)
 
 			/* we have a full stripe, send it down */
 			ret = full_stripe_write(cur);
-			BUG_ON(ret);
+			_ON(ret);
 			continue;
 		}
 		if (last) {
@@ -1908,7 +1908,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			void *p;
 
 			/* rebuild from P stripe here (raid5 or raid6) */
-			BUG_ON(failb != -1);
+			_ON(failb != -1);
 pstripe:
 			/* Copy parity block into failed block to start with */
 			copy_page(pointers[faila], pointers[rbio->nr_data]);
@@ -1998,7 +1998,7 @@ cleanup_io:
 		else if (rbio->operation == BTRFS_RBIO_PARITY_SCRUB)
 			finish_parity_scrub(rbio, 0);
 		else
-			BUG();
+			();
 	} else {
 		rbio_orig_end_io(rbio, err);
 	}
@@ -2358,7 +2358,7 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 		p_stripe = rbio->real_stripes - 2;
 		q_stripe = rbio->real_stripes - 1;
 	} else {
-		BUG();
+		();
 	}
 
 	if (bbio->num_tgtdevs && bbio->tgtdev_map[rbio->scrubp]) {
@@ -2725,7 +2725,7 @@ raid56_alloc_missing_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
-		BUG();
+		();
 		kfree(rbio);
 		return NULL;
 	}

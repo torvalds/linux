@@ -115,8 +115,8 @@
 #define mmTHM_TMON0_RDIR15_DATA_BASE_IDX                                                               0
 #define mmTHM_TMON0_INT_DATA                                                                           0x002d
 #define mmTHM_TMON0_INT_DATA_BASE_IDX                                                                  0
-#define mmTHM_TMON0_DEBUG                                                                              0x0030
-#define mmTHM_TMON0_DEBUG_BASE_IDX                                                                     0
+#define mmTHM_TMON0_DE                                                                              0x0030
+#define mmTHM_TMON0_DE_BASE_IDX                                                                     0
 #define mmTHM_TMON1_RDIL0_DATA                                                                         0x0031
 #define mmTHM_TMON1_RDIL0_DATA_BASE_IDX                                                                0
 #define mmTHM_TMON1_RDIL1_DATA                                                                         0x0032
@@ -183,8 +183,8 @@
 #define mmTHM_TMON1_RDIR15_DATA_BASE_IDX                                                               0
 #define mmTHM_TMON1_INT_DATA                                                                           0x0051
 #define mmTHM_TMON1_INT_DATA_BASE_IDX                                                                  0
-#define mmTHM_TMON1_DEBUG                                                                              0x0054
-#define mmTHM_TMON1_DEBUG_BASE_IDX                                                                     0
+#define mmTHM_TMON1_DE                                                                              0x0054
+#define mmTHM_TMON1_DE_BASE_IDX                                                                     0
 #define mmTHM_DIE1_TEMP                                                                                0x0055
 #define mmTHM_DIE1_TEMP_BASE_IDX                                                                       0
 #define mmTHM_DIE2_TEMP                                                                                0x0056

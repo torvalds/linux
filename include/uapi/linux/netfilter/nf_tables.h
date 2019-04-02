@@ -1121,7 +1121,7 @@ enum nft_log_attributes {
  * @NFT_LOGLEVEL_WARNING: warning conditions
  * @NFT_LOGLEVEL_NOTICE: normal but significant condition
  * @NFT_LOGLEVEL_INFO: informational
- * @NFT_LOGLEVEL_DEBUG: debug-level messages
+ * @NFT_LOGLEVEL_DE: de-level messages
  * @NFT_LOGLEVEL_AUDIT: enabling audit logging
  */
 enum nft_log_level {
@@ -1132,7 +1132,7 @@ enum nft_log_level {
 	NFT_LOGLEVEL_WARNING,
 	NFT_LOGLEVEL_NOTICE,
 	NFT_LOGLEVEL_INFO,
-	NFT_LOGLEVEL_DEBUG,
+	NFT_LOGLEVEL_DE,
 	NFT_LOGLEVEL_AUDIT,
 	__NFT_LOGLEVEL_MAX
 };

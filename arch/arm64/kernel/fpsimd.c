@@ -19,7 +19,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/bottom_half.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cache.h>
 #include <linux/compat.h>
 #include <linux/cpu.h>
@@ -280,7 +280,7 @@ static unsigned int bit_to_vq(unsigned int bit)
 /*
  * All vector length selection from userspace comes through here.
  * We're on a slow path, so some sanity-checks are included.
- * If things go wrong there's a bug somewhere, but try to fall back to a
+ * If things go wrong there's a  somewhere, but try to fall back to a
  * safe choice.
  */
 static unsigned int find_supported_vector_length(unsigned int vl)
@@ -444,7 +444,7 @@ void sve_alloc(struct task_struct *task)
 	 * If future SVE revisions can have larger vectors though,
 	 * this may cease to be true:
 	 */
-	BUG_ON(!task->thread.sve_state);
+	_ON(!task->thread.sve_state);
 }
 
 
@@ -910,7 +910,7 @@ void fpsimd_flush_thread(void)
 		 * By the time the first call to this function is made, all
 		 * early hardware probing is complete, so sve_default_vl
 		 * should be valid.
-		 * If a bug causes this to go wrong, we make some noise and
+		 * If a  causes this to go wrong, we make some noise and
 		 * try to fudge thread.sve_vl to a safe value here.
 		 */
 		vl = current->thread.sve_vl_onexec ?
@@ -1082,7 +1082,7 @@ void kernel_neon_begin(void)
 	if (WARN_ON(!system_supports_fpsimd()))
 		return;
 
-	BUG_ON(!may_use_simd());
+	_ON(!may_use_simd());
 
 	local_bh_disable();
 

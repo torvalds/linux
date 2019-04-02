@@ -36,14 +36,14 @@
 
 
 /* insmod options */
-static unsigned int debug;
+static unsigned int de;
 static unsigned int xtal;
 static unsigned int mmbs;
 static unsigned int plvl;
 static unsigned int bufblocks = 100;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 module_param(xtal, int, 0);
 MODULE_PARM_DESC(xtal, "select oscillator frequency (0..3), default 0");
 module_param(mmbs, int, 0);
@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
 
 #define UNSET       (-1U)
 #define PREFIX      "saa6588: "
-#define dprintk     if (debug) printk
+#define dprintk     if (de) printk
 
 struct saa6588 {
 	struct v4l2_subdev sd;
@@ -155,12 +155,12 @@ static bool block_from_buf(struct saa6588 *s, unsigned char *buf)
 	int i;
 
 	if (s->rd_index == s->wr_index) {
-		if (debug > 2)
+		if (de > 2)
 			dprintk(PREFIX "Read: buffer empty.\n");
 		return false;
 	}
 
-	if (debug > 2) {
+	if (de > 2) {
 		dprintk(PREFIX "Read: ");
 		for (i = s->rd_index; i < s->rd_index + 3; i++)
 			dprintk("0x%02x ", s->buffer[i]);
@@ -173,7 +173,7 @@ static bool block_from_buf(struct saa6588 *s, unsigned char *buf)
 		s->rd_index = 0;
 	s->block_count--;
 
-	if (debug > 2)
+	if (de > 2)
 		dprintk("%d blocks total.\n", s->block_count);
 
 	return true;
@@ -233,11 +233,11 @@ static void block_to_buf(struct saa6588 *s, unsigned char *blockbuf)
 {
 	unsigned int i;
 
-	if (debug > 3)
+	if (de > 3)
 		dprintk(PREFIX "New block: ");
 
 	for (i = 0; i < 3; ++i) {
-		if (debug > 3)
+		if (de > 3)
 			dprintk("0x%02x ", blockbuf[i]);
 		s->buffer[s->wr_index] = blockbuf[i];
 		s->wr_index++;
@@ -253,7 +253,7 @@ static void block_to_buf(struct saa6588 *s, unsigned char *blockbuf)
 	} else
 		s->block_count++;
 
-	if (debug > 3)
+	if (de > 3)
 		dprintk("%d blocks total.\n", s->block_count);
 }
 
@@ -268,7 +268,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	/* Although we only need 3 bytes, we have to read at least 6.
 	   SAA6588 returns garbage otherwise. */
 	if (6 != i2c_master_recv(client, &tmpbuf[0], 6)) {
-		if (debug > 1)
+		if (de > 1)
 			dprintk(PREFIX "read error!\n");
 		return;
 	}
@@ -278,7 +278,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 		return;
 	blocknum = tmpbuf[0] >> 5;
 	if (blocknum == s->last_blocknum) {
-		if (debug > 3)
+		if (de > 3)
 			dprintk("Saw block %d again.\n", blocknum);
 		return;
 	}

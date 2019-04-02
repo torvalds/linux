@@ -162,14 +162,14 @@ void __init omap2xxx_check_revision(void)
 	dev_type = (prod_id >> 16) & 0x0f;
 	omap_get_die_id(&odi);
 
-	pr_debug("OMAP_TAP_IDCODE 0x%08x REV %i HAWKEYE 0x%04x MANF %03x\n",
+	pr_de("OMAP_TAP_IDCODE 0x%08x REV %i HAWKEYE 0x%04x MANF %03x\n",
 		 idcode, rev, hawkeye, (idcode >> 1) & 0x7ff);
-	pr_debug("OMAP_TAP_DIE_ID_0: 0x%08x\n", odi.id_0);
-	pr_debug("OMAP_TAP_DIE_ID_1: 0x%08x DEV_REV: %i\n",
+	pr_de("OMAP_TAP_DIE_ID_0: 0x%08x\n", odi.id_0);
+	pr_de("OMAP_TAP_DIE_ID_1: 0x%08x DEV_REV: %i\n",
 		 odi.id_1, (odi.id_1 >> 28) & 0xf);
-	pr_debug("OMAP_TAP_DIE_ID_2: 0x%08x\n", odi.id_2);
-	pr_debug("OMAP_TAP_DIE_ID_3: 0x%08x\n", odi.id_3);
-	pr_debug("OMAP_TAP_PROD_ID_0: 0x%08x DEV_TYPE: %i\n",
+	pr_de("OMAP_TAP_DIE_ID_2: 0x%08x\n", odi.id_2);
+	pr_de("OMAP_TAP_DIE_ID_3: 0x%08x\n", odi.id_3);
+	pr_de("OMAP_TAP_PROD_ID_0: 0x%08x DEV_TYPE: %i\n",
 		 prod_id, dev_type);
 
 	/* Check hawkeye ids */
@@ -624,7 +624,7 @@ void __init omap5xxx_check_revision(void)
 		switch (rev) {
 		case 0:
 			/* No support for ES1.0 Test chip */
-			BUG();
+			();
 		case 1:
 		default:
 			omap_revision = OMAP5430_REV_ES2_0;
@@ -635,7 +635,7 @@ void __init omap5xxx_check_revision(void)
 		switch (rev) {
 		case 0:
 			/* No support for ES1.0 Test chip */
-			BUG();
+			();
 		case 1:
 		default:
 			omap_revision = OMAP5432_REV_ES2_0;

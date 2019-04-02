@@ -1867,7 +1867,7 @@ int nilfs_btree_convert_and_insert(struct nilfs_bmap *btree,
 	} else {
 		di = NULL;
 		ni = NULL;
-		BUG();
+		();
 	}
 
 	ret = nilfs_btree_prepare_convert_and_insert(btree, key, di, ni, &bh,

@@ -60,9 +60,9 @@ static irqreturn_t mailbox_interrupt(int irq, void *dev_id)
 	 * Make sure the function array initialization remains
 	 * correct.
 	 */
-	BUILD_BUG_ON(SMP_RESCHEDULE_YOURSELF != (1 << 0));
-	BUILD_BUG_ON(SMP_CALL_FUNCTION       != (1 << 1));
-	BUILD_BUG_ON(SMP_ICACHE_FLUSH        != (1 << 2));
+	BUILD__ON(SMP_RESCHEDULE_YOURSELF != (1 << 0));
+	BUILD__ON(SMP_CALL_FUNCTION       != (1 << 1));
+	BUILD__ON(SMP_ICACHE_FLUSH        != (1 << 2));
 
 	/*
 	 * Load the mailbox register to figure out what we're supposed

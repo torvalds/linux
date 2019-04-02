@@ -264,7 +264,7 @@ void devprop_gpiochip_set_names(struct gpio_chip *chip,
 	pr_info("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
 		 ##__VA_ARGS__)
 #define gpiod_dbg(desc, fmt, ...)					       \
-	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
+	pr_de("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
 		 ##__VA_ARGS__)
 
 /* With chip prefix */

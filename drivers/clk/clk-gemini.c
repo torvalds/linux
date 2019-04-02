@@ -438,7 +438,7 @@ static void __init gemini_cc_init(struct device_node *np)
 	else
 		freq = 60000000;
 	hw = clk_hw_register_fixed_rate(NULL, "xtal", NULL, 0, freq);
-	pr_debug("main crystal @%lu MHz\n", freq / 1000000);
+	pr_de("main crystal @%lu MHz\n", freq / 1000000);
 
 	/* VCO clock derived from the crystal */
 	mult = 13 + ((val >> AHBSPEED_SHIFT) & AHBSPEED_MASK);

@@ -386,13 +386,13 @@ static struct key_vector *tnode_new(t_key key, int pos, int bits)
 	struct tnode *tnode;
 
 	/* verify bits and pos their msb bits clear and values are valid */
-	BUG_ON(!bits || (shift > KEYLENGTH));
+	_ON(!bits || (shift > KEYLENGTH));
 
 	tnode = tnode_alloc(bits);
 	if (!tnode)
 		return NULL;
 
-	pr_debug("AT %p s=%zu %zu\n", tnode, TNODE_SIZE(0),
+	pr_de("AT %p s=%zu %zu\n", tnode, TNODE_SIZE(0),
 		 sizeof(struct key_vector *) << bits);
 
 	if (bits == KEYLENGTH)
@@ -426,7 +426,7 @@ static void put_child(struct key_vector *tn, unsigned long i,
 	struct key_vector *chi = get_child(tn, i);
 	int isfull, wasfull;
 
-	BUG_ON(i >= child_length(tn));
+	_ON(i >= child_length(tn));
 
 	/* update emptyChildren, overflow into fullChildren */
 	if (!n && chi)
@@ -546,7 +546,7 @@ static struct key_vector *inflate(struct trie *t,
 	unsigned long i;
 	t_key m;
 
-	pr_debug("In inflate\n");
+	pr_de("In inflate\n");
 
 	tn = tnode_new(oldtnode->key, oldtnode->pos - 1, oldtnode->bits + 1);
 	if (!tn)
@@ -641,7 +641,7 @@ static struct key_vector *halve(struct trie *t,
 	struct key_vector *tn;
 	unsigned long i;
 
-	pr_debug("In halve\n");
+	pr_de("In halve\n");
 
 	tn = tnode_new(oldtnode->key, oldtnode->pos + 1, oldtnode->bits - 1);
 	if (!tn)
@@ -859,14 +859,14 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	unsigned long cindex = get_index(tn->key, tp);
 	int max_work = MAX_WORK;
 
-	pr_debug("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
+	pr_de("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
 		 tn, inflate_threshold, halve_threshold);
 
 	/* track the tnode via the pointer from the parent instead of
 	 * doing it ourselves.  This way we can let RCU fully do its
 	 * thing without us interfering
 	 */
-	BUG_ON(tn != get_child(tp, cindex));
+	_ON(tn != get_child(tp, cindex));
 
 	/* Double as long as the resulting node has a number of
 	 * nonempty nodes that are above the threshold.
@@ -1141,7 +1141,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	if (!fib_valid_key_len(key, plen, extack))
 		return -EINVAL;
 
-	pr_debug("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
+	pr_de("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
 
 	fi = fib_create_info(cfg, extack);
 	if (IS_ERR(fi)) {
@@ -1566,7 +1566,7 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 	if (!fa)
 		return -ESRCH;
 
-	pr_debug("Deleting %08x/%d tos=%d t=%p\n", key, plen, tos, t);
+	pr_de("Deleting %08x/%d tos=%d t=%p\n", key, plen, tos, t);
 
 	fa_to_delete = NULL;
 	hlist_for_each_entry_from(fa, fa_list) {
@@ -1938,7 +1938,7 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 		}
 	}
 
-	pr_debug("trie_flush found=%d\n", found);
+	pr_de("trie_flush found=%d\n", found);
 	return found;
 }
 
@@ -2166,7 +2166,7 @@ static struct key_vector *fib_trie_get_next(struct fib_trie_iter *iter)
 	struct key_vector *pn = iter->tnode;
 	t_key pkey;
 
-	pr_debug("get_next iter={node=%p index=%d depth=%d}\n",
+	pr_de("get_next iter={node=%p index=%d depth=%d}\n",
 		 iter->tnode, iter->index, iter->depth);
 
 	while (!IS_TRIE(pn)) {

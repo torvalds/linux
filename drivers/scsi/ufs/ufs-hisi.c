@@ -419,7 +419,7 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 		 * Boston platform need to set SaveConfigTime to 0x13,
 		 * and change sync length to maximum value
 		 */
-		/* VS_DebugSaveConfigTime */
+		/* VS_DeSaveConfigTime */
 		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0xD0A0), 0x13);
 		/* g1 sync length */
 		ufshcd_dme_set(hba, UIC_ARG_MIB((u32)0x1552), 0x4f);
@@ -434,9 +434,9 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 		ufshcd_dme_set(hba, UIC_ARG_MIB_SEL(0xd085, 0x0), 0x01);
 	}
 
-	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME) {
-		pr_info("ufs flash device must set VS_DebugSaveConfigTime 0x10\n");
-		/* VS_DebugSaveConfigTime */
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_VS_DESAVECONFIGTIME) {
+		pr_info("ufs flash device must set VS_DeSaveConfigTime 0x10\n");
+		/* VS_DeSaveConfigTime */
 		ufshcd_dme_set(hba, UIC_ARG_MIB(0xD0A0), 0x10);
 		/* sync length */
 		ufshcd_dme_set(hba, UIC_ARG_MIB(0x1556), 0x48);

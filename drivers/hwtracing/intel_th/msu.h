@@ -41,7 +41,7 @@ enum {
 	MSC_MODE_SINGLE	= 0,
 	MSC_MODE_MULTI,
 	MSC_MODE_EXI,
-	MSC_MODE_DEBUG,
+	MSC_MODE_DE,
 };
 
 /* MSCnSTS bits */

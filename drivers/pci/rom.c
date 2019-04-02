@@ -37,7 +37,7 @@ int pci_enable_rom(struct pci_dev *pdev)
 	/*
 	 * Ideally pci_update_resource() would update the ROM BAR address,
 	 * and we would only set the enable bit here.  But apparently some
-	 * devices have buggy ROM BARs that read as zero when disabled.
+	 * devices have gy ROM BARs that read as zero when disabled.
 	 */
 	pcibios_resource_to_bus(pdev->bus, &region, res);
 	pci_read_config_dword(pdev, pdev->rom_base_reg, &rom_addr);

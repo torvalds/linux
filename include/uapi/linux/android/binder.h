@@ -196,12 +196,12 @@ struct binder_version {
 #endif
 
 /*
- * Use with BINDER_GET_NODE_DEBUG_INFO, driver reads ptr, writes to all fields.
+ * Use with BINDER_GET_NODE_DE_INFO, driver reads ptr, writes to all fields.
  * Set ptr to NULL for the first call to get the info for the first node, and
  * then repeat the call passing the previously returned value to get the next
  * nodes.  ptr will be 0 when there are no more nodes.
  */
-struct binder_node_debug_info {
+struct binder_node_de_info {
 	binder_uintptr_t ptr;
 	binder_uintptr_t cookie;
 	__u32            has_strong_ref;
@@ -224,7 +224,7 @@ struct binder_node_info_for_ref {
 #define BINDER_SET_CONTEXT_MGR		_IOW('b', 7, __s32)
 #define BINDER_THREAD_EXIT		_IOW('b', 8, __s32)
 #define BINDER_VERSION			_IOWR('b', 9, struct binder_version)
-#define BINDER_GET_NODE_DEBUG_INFO	_IOWR('b', 11, struct binder_node_debug_info)
+#define BINDER_GET_NODE_DE_INFO	_IOWR('b', 11, struct binder_node_de_info)
 #define BINDER_GET_NODE_INFO_FOR_REF	_IOWR('b', 12, struct binder_node_info_for_ref)
 #define BINDER_SET_CONTEXT_MGR_EXT	_IOW('b', 13, struct flat_binder_object)
 

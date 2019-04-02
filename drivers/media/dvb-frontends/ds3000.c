@@ -30,11 +30,11 @@
 #include "ts2020.h"
 #include "ds3000.h"
 
-static int debug;
+static int de;
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
+		if (de) \
 			printk(args); \
 	} while (0)
 
@@ -1133,8 +1133,8 @@ static const struct dvb_frontend_ops ds3000_ops = {
 	.tune = ds3000_tune,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activates frontend deging (default:0)");
 
 MODULE_DESCRIPTION("DVB Frontend module for Montage Technology DS3000 hardware");
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");

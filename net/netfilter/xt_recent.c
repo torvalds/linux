@@ -734,7 +734,7 @@ static int __init recent_mt_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(XT_RECENT_MAX_NSTAMPS);
+	BUILD__ON_NOT_POWER_OF_2(XT_RECENT_MAX_NSTAMPS);
 
 	if (!ip_list_tot || ip_pkt_list_tot >= XT_RECENT_MAX_NSTAMPS)
 		return -EINVAL;

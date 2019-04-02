@@ -125,14 +125,14 @@ struct tiocp{
 
     u64		_pad_000640[24];		/* 0x000{640,,,6F8} */
 
-    /* 0x000700-0x000737 -- Debug Registers */
-    u64		cp_ct_debug_ctl;		/* 0x000700 */
-    u64		cp_br_debug_ctl;		/* 0x000708 */
-    u64		cp_mux3_debug_ctl;		/* 0x000710 */
-    u64		cp_mux4_debug_ctl;		/* 0x000718 */
-    u64		cp_mux5_debug_ctl;		/* 0x000720 */
-    u64		cp_mux6_debug_ctl;		/* 0x000728 */
-    u64		cp_mux7_debug_ctl;		/* 0x000730 */
+    /* 0x000700-0x000737 -- De Registers */
+    u64		cp_ct_de_ctl;		/* 0x000700 */
+    u64		cp_br_de_ctl;		/* 0x000708 */
+    u64		cp_mux3_de_ctl;		/* 0x000710 */
+    u64		cp_mux4_de_ctl;		/* 0x000718 */
+    u64		cp_mux5_de_ctl;		/* 0x000720 */
+    u64		cp_mux6_de_ctl;		/* 0x000728 */
+    u64		cp_mux7_de_ctl;		/* 0x000730 */
 
     u64		_pad_000738[89];		/* 0x000{738,,,9F8} */
 

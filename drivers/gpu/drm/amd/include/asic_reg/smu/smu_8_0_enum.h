@@ -24,7 +24,7 @@
 #ifndef SMU_8_0_ENUM_H
 #define SMU_8_0_ENUM_H
 
-typedef enum DebugBlockId {
+typedef enum DeBlockId {
 	DBG_BLOCK_ID_RESERVED                            = 0x0,
 	DBG_BLOCK_ID_DBG                                 = 0x1,
 	DBG_BLOCK_ID_VMC                                 = 0x2,
@@ -280,8 +280,8 @@ typedef enum DebugBlockId {
 	DBG_BLOCK_ID_UNUSED44                            = 0xfc,
 	DBG_BLOCK_ID_UNUSED45                            = 0xfd,
 	DBG_BLOCK_ID_UNUSED46                            = 0xfe,
-} DebugBlockId;
-typedef enum DebugBlockId_BY2 {
+} DeBlockId;
+typedef enum DeBlockId_BY2 {
 	DBG_BLOCK_ID_RESERVED_BY2                        = 0x0,
 	DBG_BLOCK_ID_VMC_BY2                             = 0x1,
 	DBG_BLOCK_ID_UNUSED0_BY2                         = 0x2,
@@ -402,8 +402,8 @@ typedef enum DebugBlockId_BY2 {
 	DBG_BLOCK_ID_LDS1A_BY2                           = 0x75,
 	DBG_BLOCK_ID_UNUSED40_BY2                        = 0x76,
 	DBG_BLOCK_ID_UNUSED42_BY2                        = 0x77,
-} DebugBlockId_BY2;
-typedef enum DebugBlockId_BY4 {
+} DeBlockId_BY2;
+typedef enum DeBlockId_BY4 {
 	DBG_BLOCK_ID_RESERVED_BY4                        = 0x0,
 	DBG_BLOCK_ID_UNUSED0_BY4                         = 0x1,
 	DBG_BLOCK_ID_CSC_BY4                             = 0x2,
@@ -464,8 +464,8 @@ typedef enum DebugBlockId_BY4 {
 	DBG_BLOCK_ID_LDS14_BY4                           = 0x39,
 	DBG_BLOCK_ID_LDS18_BY4                           = 0x3a,
 	DBG_BLOCK_ID_UNUSED40_BY4                        = 0x3b,
-} DebugBlockId_BY4;
-typedef enum DebugBlockId_BY8 {
+} DeBlockId_BY4;
+typedef enum DeBlockId_BY8 {
 	DBG_BLOCK_ID_RESERVED_BY8                        = 0x0,
 	DBG_BLOCK_ID_CSC_BY8                             = 0x1,
 	DBG_BLOCK_ID_SDMA0_BY8                           = 0x2,
@@ -496,8 +496,8 @@ typedef enum DebugBlockId_BY8 {
 	DBG_BLOCK_ID_LDS08_BY8                           = 0x1b,
 	DBG_BLOCK_ID_LDS10_BY8                           = 0x1c,
 	DBG_BLOCK_ID_LDS18_BY8                           = 0x1d,
-} DebugBlockId_BY8;
-typedef enum DebugBlockId_BY16 {
+} DeBlockId_BY8;
+typedef enum DeBlockId_BY16 {
 	DBG_BLOCK_ID_RESERVED_BY16                       = 0x0,
 	DBG_BLOCK_ID_SDMA0_BY16                          = 0x1,
 	DBG_BLOCK_ID_SXM_BY16                            = 0x2,
@@ -513,7 +513,7 @@ typedef enum DebugBlockId_BY16 {
 	DBG_BLOCK_ID_TD10_BY16                           = 0xc,
 	DBG_BLOCK_ID_LDS_BY16                            = 0xd,
 	DBG_BLOCK_ID_LDS10_BY16                          = 0xe,
-} DebugBlockId_BY16;
+} DeBlockId_BY16;
 typedef enum SurfaceEndian {
 	ENDIAN_NONE                                      = 0x0,
 	ENDIAN_8IN16                                     = 0x1,

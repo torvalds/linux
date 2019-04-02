@@ -5,7 +5,7 @@
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
 #include <linux/hardirq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
@@ -258,14 +258,14 @@ void __init early_trap_init(void)
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 		  int error_code, int si_code)
 {
-	tsk->thread.trap_no = ENTRY_DEBUG_RELATED;
+	tsk->thread.trap_no = ENTRY_DE_RELATED;
 	tsk->thread.error_code = error_code;
 
 	force_sig_fault(SIGTRAP, si_code,
 			(void __user *)instruction_pointer(regs), tsk);
 }
 
-void do_debug_trap(unsigned long entry, unsigned long addr,
+void do_de_trap(unsigned long entry, unsigned long addr,
 		   unsigned long type, struct pt_regs *regs)
 {
 	if (notify_die(DIE_OOPS, "Oops", regs, addr, type, SIGTRAP)
@@ -374,7 +374,7 @@ void do_dispatch_general(unsigned long entry, unsigned long addr,
 #endif
 		unhandled_exceptions(entry, addr, type, regs);
 	} else if (type == ETYPE_TRAP && swid == SWID_RAISE_INTERRUPT_LEVEL) {
-		/* trap, used on v3 EDM target debugging workaround */
+		/* trap, used on v3 EDM target deging workaround */
 		/*
 		 * DIPC(OIPC) is passed as parameter before
 		 * interrupt is enabled, so the DIPC will not be corrupted
@@ -389,12 +389,12 @@ void do_dispatch_general(unsigned long entry, unsigned long addr,
 		regs->ipc = oipc;
 		if (regs->pipsw & PSW_mskDEX) {
 			pr_emerg
-			    ("Nested Debug exception is possibly happened\n");
+			    ("Nested De exception is possibly happened\n");
 			pr_emerg("ipc:%08x pipc:%08x\n",
 				 (unsigned int)regs->ipc,
 				 (unsigned int)regs->pipc);
 		}
-		do_debug_trap(entry, addr, itype, regs);
+		do_de_trap(entry, addr, itype, regs);
 		regs->ipsw &= ~PSW_mskDEX;
 	} else
 		unhandled_exceptions(entry, addr, type, regs);

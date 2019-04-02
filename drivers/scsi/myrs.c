@@ -1861,7 +1861,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 				const char *name;
 
 				name = myrs_devstate_name(ldev_info->dev_state);
-				sdev_printk(KERN_DEBUG, sdev,
+				sdev_printk(KERN_DE, sdev,
 					    "logical device in state %s\n",
 					    name ? name : "Invalid");
 			}

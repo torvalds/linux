@@ -83,11 +83,11 @@ void check_bus_watcher(void)
 
 #if defined(CONFIG_SIBYTE_BCM112X) || defined(CONFIG_SIBYTE_SB1250)
 	/* Use non-destructive register */
-	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS_DEBUG));
+	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS_DE));
 #elif defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
 	/* Use non-destructive register */
-	/* Same as 1250 except BUS_ERR_STATUS_DEBUG is in a different place. */
-	status = csr_in32(IOADDR(A_BCM1480_BUS_ERR_STATUS_DEBUG));
+	/* Same as 1250 except BUS_ERR_STATUS_DE is in a different place. */
+	status = csr_in32(IOADDR(A_BCM1480_BUS_ERR_STATUS_DE));
 #else
 #error bus watcher being built for unknown Sibyte SOC!
 #endif

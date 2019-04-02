@@ -17,7 +17,7 @@
  */
 
 #include <stdarg.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
@@ -503,7 +503,7 @@ char *number(char *buf, char *end, unsigned long long num,
 	/* zero or space padding */
 	if (!(spec.flags & LEFT)) {
 		char c = ' ' + (spec.flags & ZEROPAD);
-		BUILD_BUG_ON(' ' + ZEROPAD != '0');
+		BUILD__ON(' ' + ZEROPAD != '0');
 		while (--field_width >= 0) {
 			if (buf < end)
 				*buf = c;
@@ -629,15 +629,15 @@ char *pointer_string(char *buf, char *end, const void *ptr,
 }
 
 /* Make pointers available for printing early in the boot sequence. */
-static int debug_boot_weak_hash __ro_after_init;
+static int de_boot_weak_hash __ro_after_init;
 
-static int __init debug_boot_weak_hash_enable(char *str)
+static int __init de_boot_weak_hash_enable(char *str)
 {
-	debug_boot_weak_hash = 1;
-	pr_info("debug_boot_weak_hash enabled\n");
+	de_boot_weak_hash = 1;
+	pr_info("de_boot_weak_hash enabled\n");
 	return 0;
 }
-early_param("debug_boot_weak_hash", debug_boot_weak_hash_enable);
+early_param("de_boot_weak_hash", de_boot_weak_hash_enable);
 
 static DEFINE_STATIC_KEY_TRUE(not_filled_random_ptr_key);
 static siphash_key_t ptr_key __read_mostly;
@@ -692,8 +692,8 @@ static char *ptr_to_id(char *buf, char *end, const void *ptr,
 	const char *str = sizeof(ptr) == 8 ? "(____ptrval____)" : "(ptrval)";
 	unsigned long hashval;
 
-	/* When debugging early boot use non-cryptographically secure hash. */
-	if (unlikely(debug_boot_weak_hash)) {
+	/* When deging early boot use non-cryptographically secure hash. */
+	if (unlikely(de_boot_weak_hash)) {
 		hashval = hash_long((unsigned long)ptr, 32);
 		return pointer_string(buf, end, (const void *)hashval, spec);
 	}
@@ -2257,20 +2257,20 @@ qualifier:
 	if (qualifier == 'L')
 		spec->type = FORMAT_TYPE_LONG_LONG;
 	else if (qualifier == 'l') {
-		BUILD_BUG_ON(FORMAT_TYPE_ULONG + SIGN != FORMAT_TYPE_LONG);
+		BUILD__ON(FORMAT_TYPE_ULONG + SIGN != FORMAT_TYPE_LONG);
 		spec->type = FORMAT_TYPE_ULONG + (spec->flags & SIGN);
 	} else if (qualifier == 'z') {
 		spec->type = FORMAT_TYPE_SIZE_T;
 	} else if (qualifier == 't') {
 		spec->type = FORMAT_TYPE_PTRDIFF;
 	} else if (qualifier == 'H') {
-		BUILD_BUG_ON(FORMAT_TYPE_UBYTE + SIGN != FORMAT_TYPE_BYTE);
+		BUILD__ON(FORMAT_TYPE_UBYTE + SIGN != FORMAT_TYPE_BYTE);
 		spec->type = FORMAT_TYPE_UBYTE + (spec->flags & SIGN);
 	} else if (qualifier == 'h') {
-		BUILD_BUG_ON(FORMAT_TYPE_USHORT + SIGN != FORMAT_TYPE_SHORT);
+		BUILD__ON(FORMAT_TYPE_USHORT + SIGN != FORMAT_TYPE_SHORT);
 		spec->type = FORMAT_TYPE_USHORT + (spec->flags & SIGN);
 	} else {
-		BUILD_BUG_ON(FORMAT_TYPE_UINT + SIGN != FORMAT_TYPE_INT);
+		BUILD__ON(FORMAT_TYPE_UINT + SIGN != FORMAT_TYPE_INT);
 		spec->type = FORMAT_TYPE_UINT + (spec->flags & SIGN);
 	}
 

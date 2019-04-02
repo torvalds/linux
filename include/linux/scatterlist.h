@@ -4,7 +4,7 @@
 
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm.h>
 #include <asm/io.h>
 
@@ -92,9 +92,9 @@ static inline void sg_assign_page(struct scatterlist *sg, struct page *page)
 	 * In order for the low bit stealing approach to work, pages
 	 * must be aligned at a 32-bit boundary as a minimum.
 	 */
-	BUG_ON((unsigned long) page & (SG_CHAIN | SG_END));
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg_is_chain(sg));
+	_ON((unsigned long) page & (SG_CHAIN | SG_END));
+#ifdef CONFIG_DE_SG
+	_ON(sg_is_chain(sg));
 #endif
 	sg->page_link = page_link | (unsigned long) page;
 }
@@ -123,8 +123,8 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page,
 
 static inline struct page *sg_page(struct scatterlist *sg)
 {
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(sg_is_chain(sg));
+#ifdef CONFIG_DE_SG
+	_ON(sg_is_chain(sg));
 #endif
 	return (struct page *)((sg)->page_link & ~(SG_CHAIN | SG_END));
 }
@@ -139,8 +139,8 @@ static inline struct page *sg_page(struct scatterlist *sg)
 static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 			      unsigned int buflen)
 {
-#ifdef CONFIG_DEBUG_SG
-	BUG_ON(!virt_addr_valid(buf));
+#ifdef CONFIG_DE_SG
+	_ON(!virt_addr_valid(buf));
 #endif
 	sg_set_page(sg, virt_to_page(buf), buflen, offset_in_page(buf));
 }

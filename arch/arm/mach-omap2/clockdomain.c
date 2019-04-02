@@ -11,7 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -96,7 +96,7 @@ static int _clkdm_register(struct clockdomain *clkdm)
 
 	pwrdm_add_clkdm(pwrdm, clkdm);
 
-	pr_debug("clockdomain: registered %s\n", clkdm->name);
+	pr_de("clockdomain: registered %s\n", clkdm->name);
 
 	return 0;
 }
@@ -209,14 +209,14 @@ static int _clkdm_add_wkdep(struct clockdomain *clkdm1,
 		ret = -EINVAL;
 
 	if (ret) {
-		pr_debug("clockdomain: hardware cannot set/clear wake up of %s when %s wakes up\n",
+		pr_de("clockdomain: hardware cannot set/clear wake up of %s when %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 		return ret;
 	}
 
 	cd->wkdep_usecount++;
 	if (cd->wkdep_usecount == 1) {
-		pr_debug("clockdomain: hardware will wake up %s when %s wakes up\n",
+		pr_de("clockdomain: hardware will wake up %s when %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 
 		ret = arch_clkdm->clkdm_add_wkdep(clkdm1, clkdm2);
@@ -252,14 +252,14 @@ static int _clkdm_del_wkdep(struct clockdomain *clkdm1,
 		ret = -EINVAL;
 
 	if (ret) {
-		pr_debug("clockdomain: hardware cannot set/clear wake up of %s when %s wakes up\n",
+		pr_de("clockdomain: hardware cannot set/clear wake up of %s when %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 		return ret;
 	}
 
 	cd->wkdep_usecount--;
 	if (cd->wkdep_usecount == 0) {
-		pr_debug("clockdomain: hardware will no longer wake up %s after %s wakes up\n",
+		pr_de("clockdomain: hardware will no longer wake up %s after %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 
 		ret = arch_clkdm->clkdm_del_wkdep(clkdm1, clkdm2);
@@ -297,14 +297,14 @@ static int _clkdm_add_sleepdep(struct clockdomain *clkdm1,
 		ret = -EINVAL;
 
 	if (ret) {
-		pr_debug("clockdomain: hardware cannot set/clear sleep dependency affecting %s from %s\n",
+		pr_de("clockdomain: hardware cannot set/clear sleep dependency affecting %s from %s\n",
 			 clkdm1->name, clkdm2->name);
 		return ret;
 	}
 
 	cd->sleepdep_usecount++;
 	if (cd->sleepdep_usecount == 1) {
-		pr_debug("clockdomain: will prevent %s from sleeping if %s is active\n",
+		pr_de("clockdomain: will prevent %s from sleeping if %s is active\n",
 			 clkdm1->name, clkdm2->name);
 
 		ret = arch_clkdm->clkdm_add_sleepdep(clkdm1, clkdm2);
@@ -342,14 +342,14 @@ static int _clkdm_del_sleepdep(struct clockdomain *clkdm1,
 		ret = -EINVAL;
 
 	if (ret) {
-		pr_debug("clockdomain: hardware cannot set/clear sleep dependency affecting %s from %s\n",
+		pr_de("clockdomain: hardware cannot set/clear sleep dependency affecting %s from %s\n",
 			 clkdm1->name, clkdm2->name);
 		return ret;
 	}
 
 	cd->sleepdep_usecount--;
 	if (cd->sleepdep_usecount == 0) {
-		pr_debug("clockdomain: will no longer prevent %s from sleeping if %s is active\n",
+		pr_de("clockdomain: will no longer prevent %s from sleeping if %s is active\n",
 			 clkdm1->name, clkdm2->name);
 
 		ret = arch_clkdm->clkdm_del_sleepdep(clkdm1, clkdm2);
@@ -671,7 +671,7 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		ret = -EINVAL;
 
 	if (ret) {
-		pr_debug("clockdomain: hardware cannot set/clear wake up of %s when %s wakes up\n",
+		pr_de("clockdomain: hardware cannot set/clear wake up of %s when %s wakes up\n",
 			 clkdm1->name, clkdm2->name);
 		return ret;
 	}
@@ -795,7 +795,7 @@ int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		ret = -EINVAL;
 
 	if (ret) {
-		pr_debug("clockdomain: hardware cannot set/clear sleep dependency affecting %s from %s\n",
+		pr_de("clockdomain: hardware cannot set/clear sleep dependency affecting %s from %s\n",
 			 clkdm1->name, clkdm2->name);
 		return ret;
 	}
@@ -842,7 +842,7 @@ int clkdm_sleep_nolock(struct clockdomain *clkdm)
 		return -EINVAL;
 
 	if (!(clkdm->flags & CLKDM_CAN_FORCE_SLEEP)) {
-		pr_debug("clockdomain: %s does not support forcing sleep via software\n",
+		pr_de("clockdomain: %s does not support forcing sleep via software\n",
 			 clkdm->name);
 		return -EINVAL;
 	}
@@ -850,7 +850,7 @@ int clkdm_sleep_nolock(struct clockdomain *clkdm)
 	if (!arch_clkdm || !arch_clkdm->clkdm_sleep)
 		return -EINVAL;
 
-	pr_debug("clockdomain: forcing sleep on %s\n", clkdm->name);
+	pr_de("clockdomain: forcing sleep on %s\n", clkdm->name);
 
 	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
 	ret = arch_clkdm->clkdm_sleep(clkdm);
@@ -896,7 +896,7 @@ int clkdm_wakeup_nolock(struct clockdomain *clkdm)
 		return -EINVAL;
 
 	if (!(clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)) {
-		pr_debug("clockdomain: %s does not support forcing wakeup via software\n",
+		pr_de("clockdomain: %s does not support forcing wakeup via software\n",
 			 clkdm->name);
 		return -EINVAL;
 	}
@@ -904,7 +904,7 @@ int clkdm_wakeup_nolock(struct clockdomain *clkdm)
 	if (!arch_clkdm || !arch_clkdm->clkdm_wakeup)
 		return -EINVAL;
 
-	pr_debug("clockdomain: forcing wakeup on %s\n", clkdm->name);
+	pr_de("clockdomain: forcing wakeup on %s\n", clkdm->name);
 
 	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
 	ret = arch_clkdm->clkdm_wakeup(clkdm);
@@ -967,7 +967,7 @@ void clkdm_allow_idle_nolock(struct clockdomain *clkdm)
 	if (!arch_clkdm || !arch_clkdm->clkdm_allow_idle)
 		return;
 
-	pr_debug("clockdomain: enabling automatic idle transitions for %s\n",
+	pr_de("clockdomain: enabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
 	clkdm->_flags |= _CLKDM_FLAG_HWSUP_ENABLED;
@@ -1022,7 +1022,7 @@ void clkdm_deny_idle_nolock(struct clockdomain *clkdm)
 	if (!arch_clkdm || !arch_clkdm->clkdm_deny_idle)
 		return;
 
-	pr_debug("clockdomain: disabling automatic idle transitions for %s\n",
+	pr_de("clockdomain: disabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
 	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
@@ -1110,7 +1110,7 @@ void clkdm_add_autodeps(struct clockdomain *clkdm)
 		if (IS_ERR(autodep->clkdm.ptr))
 			continue;
 
-		pr_debug("clockdomain: %s: adding %s sleepdep/wkdep\n",
+		pr_de("clockdomain: %s: adding %s sleepdep/wkdep\n",
 			 clkdm->name, autodep->clkdm.ptr->name);
 
 		_clkdm_add_sleepdep(clkdm, autodep->clkdm.ptr);
@@ -1140,7 +1140,7 @@ void clkdm_del_autodeps(struct clockdomain *clkdm)
 		if (IS_ERR(autodep->clkdm.ptr))
 			continue;
 
-		pr_debug("clockdomain: %s: removing %s sleepdep/wkdep\n",
+		pr_de("clockdomain: %s: removing %s sleepdep/wkdep\n",
 			 clkdm->name, autodep->clkdm.ptr->name);
 
 		_clkdm_del_sleepdep(clkdm, autodep->clkdm.ptr);
@@ -1172,7 +1172,7 @@ static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
 	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
 	pwrdm_unlock(clkdm->pwrdm.ptr);
 
-	pr_debug("clockdomain: %s: enabled\n", clkdm->name);
+	pr_de("clockdomain: %s: enabled\n", clkdm->name);
 
 	return 0;
 }
@@ -1195,7 +1195,7 @@ int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 {
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
-	 * downstream clocks for debugging purposes?
+	 * downstream clocks for deging purposes?
 	 */
 
 	if (!clk)
@@ -1243,7 +1243,7 @@ int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 	arch_clkdm->clkdm_clk_disable(clkdm);
 	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
 
-	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
+	pr_de("clockdomain: %s: disabled\n", clkdm->name);
 
 ccd_exit:
 	pwrdm_unlock(clkdm->pwrdm.ptr);
@@ -1274,7 +1274,7 @@ int clkdm_hwmod_enable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
-	 * downstream hwmods for debugging purposes?
+	 * downstream hwmods for deging purposes?
 	 */
 
 	if (!oh)
@@ -1305,7 +1305,7 @@ int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
-	 * downstream hwmods for debugging purposes?
+	 * downstream hwmods for deging purposes?
 	 */
 
 	if (!clkdm || !oh || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
@@ -1329,7 +1329,7 @@ int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh)
 	pwrdm_state_switch_nolock(clkdm->pwrdm.ptr);
 	pwrdm_unlock(clkdm->pwrdm.ptr);
 
-	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
+	pr_de("clockdomain: %s: disabled\n", clkdm->name);
 
 	return 0;
 }

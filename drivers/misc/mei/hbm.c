@@ -452,7 +452,7 @@ static int mei_hbm_fw_add_cl_req(struct mei_device *dev,
 	int ret;
 	u8 status = MEI_HBMS_SUCCESS;
 
-	BUILD_BUG_ON(sizeof(struct hbm_add_client_request) !=
+	BUILD__ON(sizeof(struct hbm_add_client_request) !=
 			sizeof(struct hbm_props_response));
 
 	ret = mei_hbm_me_cl_add(dev, (struct hbm_props_response *)req);
@@ -1103,7 +1103,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	struct hbm_flow_control *fctrl;
 
 	/* read the message to our buffer */
-	BUG_ON(hdr->length >= sizeof(dev->rd_msg_buf));
+	_ON(hdr->length >= sizeof(dev->rd_msg_buf));
 	mei_read_slots(dev, dev->rd_msg_buf, hdr->length);
 	mei_msg = (struct mei_bus_message *)dev->rd_msg_buf;
 	cl_cmd  = (struct mei_hbm_cl_cmd *)mei_msg;
@@ -1280,7 +1280,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev->init_clients_timer = 0;
 
 		enum_res = (struct hbm_host_enum_response *) mei_msg;
-		BUILD_BUG_ON(sizeof(dev->me_clients_map)
+		BUILD__ON(sizeof(dev->me_clients_map)
 				< sizeof(enum_res->valid_addresses));
 		memcpy(dev->me_clients_map, enum_res->valid_addresses,
 				sizeof(enum_res->valid_addresses));

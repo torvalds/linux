@@ -253,7 +253,7 @@ struct vega20_smc_state_table {
 	uint8_t         therm_out_mode;
 	PPTable_t       pp_table;
 	Watermarks_t    water_marks_table;
-	AvfsDebugTable_t avfs_debug_table;
+	AvfsDeTable_t avfs_de_table;
 	AvfsFuseOverride_t avfs_fuse_override_table;
 	SmuMetrics_t    smu_metrics;
 	DriverSmuConfig_t driver_smu_config;
@@ -329,7 +329,7 @@ struct vega20_registry_data {
 	uint8_t   vr0hot;
 	uint8_t   vr1hot;
 	uint8_t   disable_auto_wattman;
-	uint32_t  auto_wattman_debug;
+	uint32_t  auto_wattman_de;
 	uint32_t  auto_wattman_sample_period;
 	uint32_t  fclk_gfxclk_ratio;
 	uint8_t   auto_wattman_threshold;
@@ -471,7 +471,7 @@ struct vega20_hwmgr {
 
 	/* ---- Vega20 Dyn Register Settings ---- */
 
-	uint32_t                       debug_settings;
+	uint32_t                       de_settings;
 	uint32_t                       lowest_uclk_reserved_for_ulv;
 	uint32_t                       gfxclk_average_alpha;
 	uint32_t                       socclk_average_alpha;

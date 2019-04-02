@@ -148,7 +148,7 @@ static int rs5c_get_regs(struct rs5c372 *rs5c)
 	 * to 0x0f ... so we read extra registers, and skip the first one.
 	 *
 	 * The first method doesn't work with the iop3xx adapter driver, on at
-	 * least 80219 chips; this works around that bug.
+	 * least 80219 chips; this works around that .
 	 *
 	 * The third method on the other hand doesn't work for the SMBus-only
 	 * configurations, so we use the the first method there, stripping off

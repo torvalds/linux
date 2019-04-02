@@ -122,7 +122,7 @@ struct hv_enlightened_vmcs {
 	u64 virtual_apic_page_addr;
 	u64 vmcs_link_pointer;
 
-	u64 guest_ia32_debugctl;
+	u64 guest_ia32_dectl;
 	u64 guest_ia32_pat;
 	u64 guest_ia32_efer;
 
@@ -336,8 +336,8 @@ static inline int evmcs_vmread(uint64_t encoding, uint64_t *value)
 	case VMCS_LINK_POINTER:
 		*value = current_evmcs->vmcs_link_pointer;
 		break;
-	case GUEST_IA32_DEBUGCTL:
-		*value = current_evmcs->guest_ia32_debugctl;
+	case GUEST_IA32_DECTL:
+		*value = current_evmcs->guest_ia32_dectl;
 		break;
 	case GUEST_IA32_PAT:
 		*value = current_evmcs->guest_ia32_pat;
@@ -723,8 +723,8 @@ static inline int evmcs_vmwrite(uint64_t encoding, uint64_t value)
 	case VMCS_LINK_POINTER:
 		current_evmcs->vmcs_link_pointer = value;
 		break;
-	case GUEST_IA32_DEBUGCTL:
-		current_evmcs->guest_ia32_debugctl = value;
+	case GUEST_IA32_DECTL:
+		current_evmcs->guest_ia32_dectl = value;
 		break;
 	case GUEST_IA32_PAT:
 		current_evmcs->guest_ia32_pat = value;

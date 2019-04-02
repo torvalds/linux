@@ -34,7 +34,7 @@
 #include <net/fq.h>
 #include "key.h"
 #include "sta_info.h"
-#include "debug.h"
+#include "de.h"
 
 extern const struct cfg80211_ops mac80211_config_ops;
 
@@ -978,13 +978,13 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_nan nan;
 	} u;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	struct {
 		struct dentry *subdir_stations;
 		struct dentry *default_unicast_key;
 		struct dentry *default_multicast_key;
 		struct dentry *default_mgmt_key;
-	} debugfs;
+	} defs;
 #endif
 
 	/* must be last, dynamically sized area in this! */
@@ -1316,7 +1316,7 @@ struct ieee80211_local {
 	struct tpt_led_trigger *tpt_led_trigger;
 #endif
 
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+#ifdef CONFIG_MAC80211_DE_COUNTERS
 	/* SNMP counters */
 	/* dot11CountersTable */
 	u32 dot11TransmittedFragmentCount;
@@ -1344,10 +1344,10 @@ struct ieee80211_local {
 	unsigned int rx_expand_skb_head_defrag;
 	unsigned int rx_handlers_fragments;
 	unsigned int tx_status_drop;
-#define I802_DEBUG_INC(c) (c)++
-#else /* CONFIG_MAC80211_DEBUG_COUNTERS */
-#define I802_DEBUG_INC(c) do { } while (0)
-#endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
+#define I802_DE_INC(c) (c)++
+#else /* CONFIG_MAC80211_DE_COUNTERS */
+#define I802_DE_INC(c) do { } while (0)
+#endif /* CONFIG_MAC80211_DE_COUNTERS */
 
 
 	int total_ps_buffered; /* total number of all buffered unicast and
@@ -1379,11 +1379,11 @@ struct ieee80211_local {
 
 	struct work_struct restart_work;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct local_debugfsdentries {
+#ifdef CONFIG_MAC80211_DEFS
+	struct local_defsdentries {
 		struct dentry *rcdir;
 		struct dentry *keys;
-	} debugfs;
+	} defs;
 #endif
 
 	/*
@@ -2226,9 +2226,9 @@ void ieee80211_tdls_chsw_work(struct work_struct *wk);
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 
 #ifdef CONFIG_MAC80211_NOINLINE
-#define debug_noinline noinline
+#define de_noinline noinline
 #else
-#define debug_noinline
+#define de_noinline
 #endif
 
 #endif /* IEEE80211_I_H */

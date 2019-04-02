@@ -47,7 +47,7 @@ int snd_device_new(struct snd_card *card, enum snd_device_type type,
 	struct snd_device *dev;
 	struct list_head *p;
 
-	if (snd_BUG_ON(!card || !device_data || !ops))
+	if (snd__ON(!card || !device_data || !ops))
 		return -ENXIO;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -122,7 +122,7 @@ void snd_device_disconnect(struct snd_card *card, void *device_data)
 {
 	struct snd_device *dev;
 
-	if (snd_BUG_ON(!card || !device_data))
+	if (snd__ON(!card || !device_data))
 		return;
 	dev = look_for_dev(card, device_data);
 	if (dev)
@@ -146,7 +146,7 @@ void snd_device_free(struct snd_card *card, void *device_data)
 {
 	struct snd_device *dev;
 	
-	if (snd_BUG_ON(!card || !device_data))
+	if (snd__ON(!card || !device_data))
 		return;
 	dev = look_for_dev(card, device_data);
 	if (dev)
@@ -187,12 +187,12 @@ int snd_device_register(struct snd_card *card, void *device_data)
 {
 	struct snd_device *dev;
 
-	if (snd_BUG_ON(!card || !device_data))
+	if (snd__ON(!card || !device_data))
 		return -ENXIO;
 	dev = look_for_dev(card, device_data);
 	if (dev)
 		return __snd_device_register(dev);
-	snd_BUG();
+	snd_();
 	return -ENXIO;
 }
 EXPORT_SYMBOL(snd_device_register);
@@ -206,7 +206,7 @@ int snd_device_register_all(struct snd_card *card)
 	struct snd_device *dev;
 	int err;
 	
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 	list_for_each_entry(dev, &card->devices, list) {
 		err = __snd_device_register(dev);
@@ -224,7 +224,7 @@ void snd_device_disconnect_all(struct snd_card *card)
 {
 	struct snd_device *dev;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return;
 	list_for_each_entry_reverse(dev, &card->devices, list)
 		__snd_device_disconnect(dev);
@@ -238,7 +238,7 @@ void snd_device_free_all(struct snd_card *card)
 {
 	struct snd_device *dev, *next;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return;
 	list_for_each_entry_safe_reverse(dev, next, &card->devices, list) {
 		/* exception: free ctl and lowlevel stuff later */

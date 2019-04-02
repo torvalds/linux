@@ -55,17 +55,17 @@
 
 #define UNW_STATS	0	/* WARNING: this disabled interrupts for long time-spans!! */
 
-#ifdef UNW_DEBUG
-  static unsigned int unw_debug_level = UNW_DEBUG;
-#  define UNW_DEBUG_ON(n)	unw_debug_level >= n
-   /* Do not code a printk level, not all debug lines end in newline */
-#  define UNW_DPRINT(n, ...)  if (UNW_DEBUG_ON(n)) printk(__VA_ARGS__)
+#ifdef UNW_DE
+  static unsigned int unw_de_level = UNW_DE;
+#  define UNW_DE_ON(n)	unw_de_level >= n
+   /* Do not code a printk level, not all de lines end in newline */
+#  define UNW_DPRINT(n, ...)  if (UNW_DE_ON(n)) printk(__VA_ARGS__)
 #  undef inline
 #  define inline
-#else /* !UNW_DEBUG */
-#  define UNW_DEBUG_ON(n)  0
+#else /* !UNW_DE */
+#  define UNW_DE_ON(n)  0
 #  define UNW_DPRINT(n, ...)
-#endif /* UNW_DEBUG */
+#endif /* UNW_DE */
 
 #if UNW_STATS
 # define STAT(x...)	x
@@ -116,7 +116,7 @@ static struct {
 	/* script cache: */
 	struct unw_script cache[UNW_CACHE_SIZE];
 
-# ifdef UNW_DEBUG
+# ifdef UNW_DE
 	const char *preg_name[UNW_NUM_REGS];
 # endif
 # if UNW_STATS
@@ -226,7 +226,7 @@ static struct {
 		offsetof(struct pt_regs, r31),
 	},
 	.hash = { [0 ... UNW_HASH_SIZE - 1] = -1 },
-#ifdef UNW_DEBUG
+#ifdef UNW_DE
 	.preg_name = {
 		"pri_unat_gr", "pri_unat_mem", "bsp", "bspstore", "ar.pfs", "ar.rnat", "psp", "rp",
 		"r4", "r5", "r6", "r7",
@@ -1228,8 +1228,8 @@ script_lookup (struct unw_frame_info *info)
 	unsigned short index;
 	unsigned long ip, pr;
 
-	if (UNW_DEBUG_ON(0))
-		return NULL;	/* Always regenerate scripts in debug mode */
+	if (UNW_DE_ON(0))
+		return NULL;	/* Always regenerate scripts in de mode */
 
 	STAT(++unw.stat.cache.lookups);
 
@@ -1637,7 +1637,7 @@ build_script (struct unw_frame_info *info)
 			   sr.curr.reg[UNW_REG_RP].val);
 	}
 
-#ifdef UNW_DEBUG
+#ifdef UNW_DE
 	UNW_DPRINT(1, "unwind.%s: state record for func 0x%lx, t=%u:\n",
 		__func__, table->segment_base + e->start_offset, sr.when_target);
 	for (r = sr.curr.reg; r < sr.curr.reg + UNW_NUM_REGS; ++r) {
@@ -1801,7 +1801,7 @@ run_script (struct unw_script *script, struct unw_frame_info *state)
 			break;
 
 		      case UNW_INSN_LOAD:
-#ifdef UNW_DEBUG
+#ifdef UNW_DE
 			if ((s[val] & (local_cpu_data->unimpl_va_mask | 0x7)) != 0
 			    || s[val] < TASK_SIZE)
 			{

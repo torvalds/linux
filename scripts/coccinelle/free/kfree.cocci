@@ -105,9 +105,9 @@ position free.p1!=loop.ok,p2!={print.p,sz.p};
 |
  &subE
 |
- BUG(...)
+ (...)
 |
- BUG_ON(...)
+ _ON(...)
 |
  return_VALUE(...)
 |

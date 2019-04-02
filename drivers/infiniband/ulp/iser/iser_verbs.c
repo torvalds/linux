@@ -425,7 +425,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	int			ret = -ENOMEM;
 	int index, min_index = 0;
 
-	BUG_ON(ib_conn->device == NULL);
+	_ON(ib_conn->device == NULL);
 
 	device = ib_conn->device;
 	ib_dev = device->ib_device;

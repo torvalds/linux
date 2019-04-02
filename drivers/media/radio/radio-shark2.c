@@ -40,9 +40,9 @@ MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Griffin radioSHARK2, USB radio receiver driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 #define SHARK_IN_EP		0x83
 #define SHARK_OUT_EP		0x05
@@ -82,7 +82,7 @@ static int shark_write_reg(struct radio_tea5777 *tea, u64 reg)
 	for (i = 0; i < 6; i++)
 		shark->transfer_buffer[i + 1] = (reg >> (40 - i * 8)) & 0xff;
 
-	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-write: %*ph\n",
+	v4l2_dbg(1, de, tea->v4l2_dev, "shark2-write: %*ph\n",
 		 7, shark->transfer_buffer);
 
 	res = usb_interrupt_msg(shark->usbdev,
@@ -126,7 +126,7 @@ static int shark_read_reg(struct radio_tea5777 *tea, u32 *reg_ret)
 	for (i = 0; i < 3; i++)
 		reg |= shark->transfer_buffer[i] << (16 - i * 8);
 
-	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-read: %*ph\n",
+	v4l2_dbg(1, de, tea->v4l2_dev, "shark2-read: %*ph\n",
 		 3, shark->transfer_buffer);
 
 	*reg_ret = reg;

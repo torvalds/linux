@@ -484,7 +484,7 @@ static void snoop_urb(struct usb_device *udev,
 
 	data_len = min(data_len, usbfs_snoop_max);
 	if (data && data_len > 0) {
-		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
+		print_hex_dump(KERN_DE, "data: ", DUMP_PREFIX_NONE, 32, 1,
 			data, data_len, 1);
 	}
 }
@@ -498,14 +498,14 @@ static void snoop_urb_data(struct urb *urb, unsigned len)
 		return;
 
 	if (urb->num_sgs == 0) {
-		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
+		print_hex_dump(KERN_DE, "data: ", DUMP_PREFIX_NONE, 32, 1,
 			urb->transfer_buffer, len, 1);
 		return;
 	}
 
 	for (i = 0; i < urb->num_sgs && len; i++) {
 		size = (len > USB_SG_SIZE) ? USB_SG_SIZE : len;
-		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
+		print_hex_dump(KERN_DE, "data: ", DUMP_PREFIX_NONE, 32, 1,
 			sg_virt(&urb->sg[i]), size, 1);
 		len -= size;
 	}
@@ -1134,7 +1134,7 @@ static int proc_control(struct usb_dev_state *ps, void __user *arg)
 		snoop_urb(dev, NULL, pipe, max(i, 0), min(i, 0), COMPLETE, NULL, 0);
 	}
 	if (i < 0 && i != -EPIPE) {
-		dev_printk(KERN_DEBUG, &dev->dev, "usbfs: USBDEVFS_CONTROL "
+		dev_printk(KERN_DE, &dev->dev, "usbfs: USBDEVFS_CONTROL "
 			   "failed cmd %s rqt %u rq %u len %u ret %d\n",
 			   current->comm, ctrl.bRequestType, ctrl.bRequest,
 			   ctrl.wLength, i);
@@ -1779,7 +1779,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	}
 
 	if (ret) {
-		dev_printk(KERN_DEBUG, &ps->dev->dev,
+		dev_printk(KERN_DE, &ps->dev->dev,
 			   "usbfs: usb_submit_urb returned %d\n", ret);
 		snoop_urb(ps->dev, as->userurb, as->urb->pipe,
 				0, ret, COMPLETE, NULL, 0);

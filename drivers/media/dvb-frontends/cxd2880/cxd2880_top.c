@@ -531,7 +531,7 @@ static int cxd2880_init(struct dvb_frontend *fe)
 	}
 	mutex_unlock(priv->spi_mutex);
 
-	pr_debug("OK.\n");
+	pr_de("OK.\n");
 
 	return ret;
 }
@@ -552,7 +552,7 @@ static int cxd2880_sleep(struct dvb_frontend *fe)
 	ret = cxd2880_tnrdmd_sleep(&priv->tnrdmd);
 	mutex_unlock(priv->spi_mutex);
 
-	pr_debug("tnrdmd_sleep ret %d\n", ret);
+	pr_de("tnrdmd_sleep ret %d\n", ret);
 
 	return ret;
 }
@@ -578,7 +578,7 @@ static int cxd2880_read_signal_strength(struct dvb_frontend *fe,
 	    c->delivery_system == SYS_DVBT2) {
 		ret = cxd2880_tnrdmd_mon_rf_lvl(&priv->tnrdmd, &level);
 	} else {
-		pr_debug("invalid system\n");
+		pr_de("invalid system\n");
 		mutex_unlock(priv->spi_mutex);
 		return -EINVAL;
 	}
@@ -595,7 +595,7 @@ static int cxd2880_read_signal_strength(struct dvb_frontend *fe,
 	*strength = ((level + 840) * 0xffff) / (-240 + 840);
 
 	if (ret)
-		pr_debug("ret = %d\n", ret);
+		pr_de("ret = %d\n", ret);
 
 	return ret;
 }
@@ -634,7 +634,7 @@ static int cxd2880_read_snr(struct dvb_frontend *fe, u16 *snr)
 	*snr = snrvalue;
 
 	if (ret)
-		pr_debug("ret = %d\n", ret);
+		pr_de("ret = %d\n", ret);
 
 	return ret;
 }
@@ -668,7 +668,7 @@ static int cxd2880_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	mutex_unlock(priv->spi_mutex);
 
 	if (ret)
-		pr_debug("ret = %d\n", ret);
+		pr_de("ret = %d\n", ret);
 
 	return ret;
 }
@@ -1183,7 +1183,7 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 			c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 			c->pre_bit_count.len = 1;
 			c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-			pr_debug("pre_bit_error_t failed %d\n", ret);
+			pr_de("pre_bit_error_t failed %d\n", ret);
 		}
 	}
 
@@ -1220,7 +1220,7 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 			c->post_bit_count.len = 1;
 			c->post_bit_count.stat[0].scale =
 							FE_SCALE_NOT_AVAILABLE;
-			pr_debug("post_bit_err_t %d\n", ret);
+			pr_de("post_bit_err_t %d\n", ret);
 		}
 	}
 
@@ -1254,7 +1254,7 @@ static int cxd2880_get_stats(struct dvb_frontend *fe,
 			c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 			c->block_count.len = 1;
 			c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-			pr_debug("read_block_err_t  %d\n", ret);
+			pr_de("read_block_err_t  %d\n", ret);
 		}
 	}
 
@@ -1352,7 +1352,7 @@ static int cxd2880_read_status(struct dvb_frontend *fe,
 				   FE_HAS_LOCK;
 	}
 
-	pr_debug("status %d\n", *status);
+	pr_de("status %d\n", *status);
 
 	if (priv->s == 0 && (*status & FE_HAS_LOCK) &&
 	    (*status & FE_HAS_CARRIER)) {
@@ -1437,7 +1437,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->transmission_mode = TRANSMISSION_MODE_2K;
-			pr_debug("transmission mode is invalid %d\n", mode);
+			pr_de("transmission mode is invalid %d\n", mode);
 			break;
 		}
 		switch (guard) {
@@ -1455,14 +1455,14 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->guard_interval = GUARD_INTERVAL_1_32;
-			pr_debug("guard interval is invalid %d\n",
+			pr_de("guard interval is invalid %d\n",
 				 guard);
 			break;
 		}
 	} else {
 		c->transmission_mode = TRANSMISSION_MODE_2K;
 		c->guard_interval = GUARD_INTERVAL_1_32;
-		pr_debug("ModeGuard err %d\n", ret);
+		pr_de("ModeGuard err %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1484,7 +1484,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->hierarchy = HIERARCHY_NONE;
-			pr_debug("TPSInfo hierarchy is invalid %d\n",
+			pr_de("TPSInfo hierarchy is invalid %d\n",
 				 tps.hierarchy);
 			break;
 		}
@@ -1507,7 +1507,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->code_rate_HP = FEC_NONE;
-			pr_debug("TPSInfo rateHP is invalid %d\n",
+			pr_de("TPSInfo rateHP is invalid %d\n",
 				 tps.rate_hp);
 			break;
 		}
@@ -1529,7 +1529,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->code_rate_LP = FEC_NONE;
-			pr_debug("TPSInfo rateLP is invalid %d\n",
+			pr_de("TPSInfo rateLP is invalid %d\n",
 				 tps.rate_lp);
 			break;
 		}
@@ -1545,7 +1545,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->modulation = QPSK;
-			pr_debug("TPSInfo constellation is invalid %d\n",
+			pr_de("TPSInfo constellation is invalid %d\n",
 				 tps.constellation);
 			break;
 		}
@@ -1554,7 +1554,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 		c->code_rate_HP = FEC_NONE;
 		c->code_rate_LP = FEC_NONE;
 		c->modulation = QPSK;
-		pr_debug("TPS info err %d\n", ret);
+		pr_de("TPS info err %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1570,12 +1570,12 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 			break;
 		default:
 			c->inversion = INVERSION_OFF;
-			pr_debug("spectrum sense is invalid %d\n", sense);
+			pr_de("spectrum sense is invalid %d\n", sense);
 			break;
 		}
 	} else {
 		c->inversion = INVERSION_OFF;
-		pr_debug("spectrum_sense %d\n", ret);
+		pr_de("spectrum_sense %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1588,7 +1588,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 	} else {
 		c->strength.len = 1;
 		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		pr_debug("mon_rf_lvl %d\n", ret);
+		pr_de("mon_rf_lvl %d\n", ret);
 	}
 
 	ret = cxd2880_read_snr(fe, &snr);
@@ -1599,7 +1599,7 @@ static int cxd2880_get_frontend_t(struct dvb_frontend *fe,
 	} else {
 		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		pr_debug("read_snr %d\n", ret);
+		pr_de("read_snr %d\n", ret);
 	}
 
 	return 0;
@@ -1649,7 +1649,7 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 			break;
 		default:
 			c->transmission_mode = TRANSMISSION_MODE_2K;
-			pr_debug("L1Pre fft_mode is invalid %d\n",
+			pr_de("L1Pre fft_mode is invalid %d\n",
 				 l1pre.fft_mode);
 			break;
 		}
@@ -1677,14 +1677,14 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 			break;
 		default:
 			c->guard_interval = GUARD_INTERVAL_1_32;
-			pr_debug("L1Pre guard interval is invalid %d\n",
+			pr_de("L1Pre guard interval is invalid %d\n",
 				 l1pre.gi);
 			break;
 		}
 	} else {
 		c->transmission_mode = TRANSMISSION_MODE_2K;
 		c->guard_interval = GUARD_INTERVAL_1_32;
-		pr_debug("L1Pre err %d\n", ret);
+		pr_de("L1Pre err %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1714,12 +1714,12 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 			break;
 		default:
 			c->fec_inner = FEC_NONE;
-			pr_debug("CodeRate is invalid %d\n", coderate);
+			pr_de("CodeRate is invalid %d\n", coderate);
 			break;
 		}
 	} else {
 		c->fec_inner = FEC_NONE;
-		pr_debug("CodeRate %d\n", ret);
+		pr_de("CodeRate %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1743,12 +1743,12 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 			break;
 		default:
 			c->modulation = QPSK;
-			pr_debug("QAM is invalid %d\n", qam);
+			pr_de("QAM is invalid %d\n", qam);
 			break;
 		}
 	} else {
 		c->modulation = QPSK;
-		pr_debug("QAM %d\n", ret);
+		pr_de("QAM %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1764,12 +1764,12 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 			break;
 		default:
 			c->inversion = INVERSION_OFF;
-			pr_debug("spectrum sense is invalid %d\n", sense);
+			pr_de("spectrum sense is invalid %d\n", sense);
 			break;
 		}
 	} else {
 		c->inversion = INVERSION_OFF;
-		pr_debug("SpectrumSense %d\n", ret);
+		pr_de("SpectrumSense %d\n", ret);
 	}
 
 	mutex_lock(priv->spi_mutex);
@@ -1782,7 +1782,7 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 	} else {
 		c->strength.len = 1;
 		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		pr_debug("mon_rf_lvl %d\n", ret);
+		pr_de("mon_rf_lvl %d\n", ret);
 	}
 
 	ret = cxd2880_read_snr(fe, &snr);
@@ -1793,7 +1793,7 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 	} else {
 		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		pr_debug("read_snr %d\n", ret);
+		pr_de("read_snr %d\n", ret);
 	}
 
 	return 0;
@@ -1809,7 +1809,7 @@ static int cxd2880_get_frontend(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	pr_debug("system=%d\n", fe->dtv_property_cache.delivery_system);
+	pr_de("system=%d\n", fe->dtv_property_cache.delivery_system);
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBT:
 		ret = cxd2880_get_frontend_t(fe, props);

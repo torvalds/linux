@@ -13,7 +13,7 @@
 #include <asm/nmi.h>
 
 #include <linux/cpumask.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
 #include <linux/nmi.h>

@@ -16,16 +16,16 @@
 		      ~~~~~~~~~~~~~~~~~~
 
 I've been working at making the machines I have able to STR, and almost
-always it's a driver that is buggy. Thank God for the suspend/resume
-debugging - the thing that Chuck tried to disable. That's often the _only_
-way to debug these things, and it's actually pretty powerful (but
+always it's a driver that is gy. Thank God for the suspend/resume
+deging - the thing that Chuck tried to disable. That's often the _only_
+way to de these things, and it's actually pretty powerful (but
 time-consuming - having to insert TRACE_RESUME() markers into the device
 driver that doesn't resume and recompile and reboot).
 
-Anyway, the way to debug this for people who are interested (have a
+Anyway, the way to de this for people who are interested (have a
 machine that doesn't boot) is:
 
- - enable PM_DEBUG, and PM_TRACE
+ - enable PM_DE, and PM_TRACE
 
  - use a script like this:
 
@@ -71,7 +71,7 @@ survive a reboot.
 
 pm_trace is not compatible with asynchronous suspend, so it turns
 asynchronous suspend off (which may work around timing or
-ordering-sensitive bugs).
+ordering-sensitive s).
 
 Consequence is that after a resume (even if it is successful) your system
 clock will have a value corresponding to the magic number instead of the

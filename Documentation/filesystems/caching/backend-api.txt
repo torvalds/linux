@@ -124,7 +124,7 @@ RELEVANT DATA STRUCTURES
  (*) In-cache object representation:
 
 	struct fscache_object {
-		int				debug_id;
+		int				de_id;
 		enum {
 			FSCACHE_OBJECT_RECYCLING,
 			...
@@ -140,7 +140,7 @@ RELEVANT DATA STRUCTURES
      the case of CacheFS, they're embedded in CacheFS's internal object
      structures.
 
-     The debug_id is a simple integer that can be used in debugging messages
+     The de_id is a simple integer that can be used in deging messages
      that refer to a particular object.  In such a case it should be printed
      using "OBJ%x" to be consistent with FS-Cache.
 
@@ -722,5 +722,5 @@ FS-Cache provides some utilities that a cache backend may make use of:
 
 	const char *fscache_object_states[];
 
-     For debugging purposes, this may be used to turn the state that an object
+     For deging purposes, this may be used to turn the state that an object
      is in into a text string for display purposes.

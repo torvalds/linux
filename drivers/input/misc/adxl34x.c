@@ -1,7 +1,7 @@
 /*
  * ADXL345/346 Three-Axis Digital Accelerometers
  *
- * Enter bugs at http://blackfin.uclinux.org/
+ * Enter s at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2009 Michael Hennerich, Analog Devices Inc.
  * Licensed under the GPL-2 or later.
@@ -172,7 +172,7 @@
 #define ADXL346_3D_TOP			1	/* +Z */
 #define ADXL346_3D_BOTTOM		6	/* -Z */
 
-#undef ADXL_DEBUG
+#undef ADXL_DE
 
 #define ADXL_X_AXIS			0
 #define ADXL_Y_AXIS			1
@@ -616,7 +616,7 @@ static ssize_t adxl34x_position_show(struct device *dev,
 
 static DEVICE_ATTR(position, S_IRUGO, adxl34x_position_show, NULL);
 
-#ifdef ADXL_DEBUG
+#ifdef ADXL_DE
 static ssize_t adxl34x_write_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
@@ -626,7 +626,7 @@ static ssize_t adxl34x_write_store(struct device *dev,
 	int error;
 
 	/*
-	 * This allows basic ADXL register write access for debug purposes.
+	 * This allows basic ADXL register write access for de purposes.
 	 */
 	error = kstrtouint(buf, 16, &val);
 	if (error)
@@ -648,7 +648,7 @@ static struct attribute *adxl34x_attributes[] = {
 	&dev_attr_rate.attr,
 	&dev_attr_autosleep.attr,
 	&dev_attr_position.attr,
-#ifdef ADXL_DEBUG
+#ifdef ADXL_DE
 	&dev_attr_write.attr,
 #endif
 	NULL

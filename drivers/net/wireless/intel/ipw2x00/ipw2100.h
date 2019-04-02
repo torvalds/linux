@@ -57,9 +57,9 @@ struct ipw2100_rx_packet;
 #define IPW_DL_ALL       0x7FFFFFFF
 
 /*
- * To use the debug system;
+ * To use the de system;
  *
- * If you are defining a new debug classification, simply add it to the #define
+ * If you are defining a new de classification, simply add it to the #define
  * list here in the form of:
  *
  * #define IPW_DL_xxxx VALUE
@@ -67,18 +67,18 @@ struct ipw2100_rx_packet;
  * shifting value to the left one bit from the previous entry.  xxxx should be
  * the name of the classification (for example, WEP)
  *
- * You then need to either add a IPW2100_xxxx_DEBUG() macro definition for your
- * classification, or use IPW_DEBUG(IPW_DL_xxxx, ...) whenever you want
+ * You then need to either add a IPW2100_xxxx_DE() macro definition for your
+ * classification, or use IPW_DE(IPW_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
- * To add your debug level to the list of levels seen when you perform
+ * To add your de level to the list of levels seen when you perform
  *
- * % cat /proc/net/ipw2100/debug_level
+ * % cat /proc/net/ipw2100/de_level
  *
- * you simply need to add your entry to the ipw2100_debug_levels array.
+ * you simply need to add your entry to the ipw2100_de_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw2100 then you do not have
- * CONFIG_IPW2100_DEBUG defined in your kernel configuration
+ * If you do not see de_level in /proc/net/ipw2100 then you do not have
+ * CONFIG_IPW2100_DE defined in your kernel configuration
  *
  */
 
@@ -108,27 +108,27 @@ struct ipw2100_rx_packet;
 #define IPW_DL_IO            (1<<26)
 #define IPW_DL_TRACE         (1<<28)
 
-#define IPW_DEBUG_ERROR(f, a...) printk(KERN_ERR DRV_NAME ": " f, ## a)
-#define IPW_DEBUG_WARNING(f, a...) printk(KERN_WARNING DRV_NAME ": " f, ## a)
-#define IPW_DEBUG_INFO(f...)    IPW_DEBUG(IPW_DL_INFO, ## f)
-#define IPW_DEBUG_WX(f...)     IPW_DEBUG(IPW_DL_WX, ## f)
-#define IPW_DEBUG_SCAN(f...)   IPW_DEBUG(IPW_DL_SCAN, ## f)
-#define IPW_DEBUG_NOTIF(f...) IPW_DEBUG(IPW_DL_NOTIF, ## f)
-#define IPW_DEBUG_TRACE(f...)  IPW_DEBUG(IPW_DL_TRACE, ## f)
-#define IPW_DEBUG_RX(f...)     IPW_DEBUG(IPW_DL_RX, ## f)
-#define IPW_DEBUG_TX(f...)     IPW_DEBUG(IPW_DL_TX, ## f)
-#define IPW_DEBUG_ISR(f...)    IPW_DEBUG(IPW_DL_ISR, ## f)
-#define IPW_DEBUG_MANAGEMENT(f...) IPW_DEBUG(IPW_DL_MANAGE, ## f)
-#define IPW_DEBUG_WEP(f...)    IPW_DEBUG(IPW_DL_WEP, ## f)
-#define IPW_DEBUG_HC(f...) IPW_DEBUG(IPW_DL_HC, ## f)
-#define IPW_DEBUG_FRAG(f...) IPW_DEBUG(IPW_DL_FRAG, ## f)
-#define IPW_DEBUG_FW(f...) IPW_DEBUG(IPW_DL_FW, ## f)
-#define IPW_DEBUG_RF_KILL(f...) IPW_DEBUG(IPW_DL_RF_KILL, ## f)
-#define IPW_DEBUG_DROP(f...) IPW_DEBUG(IPW_DL_DROP, ## f)
-#define IPW_DEBUG_IO(f...) IPW_DEBUG(IPW_DL_IO, ## f)
-#define IPW_DEBUG_IOCTL(f...) IPW_DEBUG(IPW_DL_IOCTL, ## f)
-#define IPW_DEBUG_STATE(f, a...) IPW_DEBUG(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
-#define IPW_DEBUG_ASSOC(f, a...) IPW_DEBUG(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
+#define IPW_DE_ERROR(f, a...) printk(KERN_ERR DRV_NAME ": " f, ## a)
+#define IPW_DE_WARNING(f, a...) printk(KERN_WARNING DRV_NAME ": " f, ## a)
+#define IPW_DE_INFO(f...)    IPW_DE(IPW_DL_INFO, ## f)
+#define IPW_DE_WX(f...)     IPW_DE(IPW_DL_WX, ## f)
+#define IPW_DE_SCAN(f...)   IPW_DE(IPW_DL_SCAN, ## f)
+#define IPW_DE_NOTIF(f...) IPW_DE(IPW_DL_NOTIF, ## f)
+#define IPW_DE_TRACE(f...)  IPW_DE(IPW_DL_TRACE, ## f)
+#define IPW_DE_RX(f...)     IPW_DE(IPW_DL_RX, ## f)
+#define IPW_DE_TX(f...)     IPW_DE(IPW_DL_TX, ## f)
+#define IPW_DE_ISR(f...)    IPW_DE(IPW_DL_ISR, ## f)
+#define IPW_DE_MANAGEMENT(f...) IPW_DE(IPW_DL_MANAGE, ## f)
+#define IPW_DE_WEP(f...)    IPW_DE(IPW_DL_WEP, ## f)
+#define IPW_DE_HC(f...) IPW_DE(IPW_DL_HC, ## f)
+#define IPW_DE_FRAG(f...) IPW_DE(IPW_DL_FRAG, ## f)
+#define IPW_DE_FW(f...) IPW_DE(IPW_DL_FW, ## f)
+#define IPW_DE_RF_KILL(f...) IPW_DE(IPW_DL_RF_KILL, ## f)
+#define IPW_DE_DROP(f...) IPW_DE(IPW_DL_DROP, ## f)
+#define IPW_DE_IO(f...) IPW_DE(IPW_DL_IO, ## f)
+#define IPW_DE_IOCTL(f...) IPW_DE(IPW_DL_IOCTL, ## f)
+#define IPW_DE_STATE(f, a...) IPW_DE(IPW_DL_STATE | IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
+#define IPW_DE_ASSOC(f, a...) IPW_DE(IPW_DL_ASSOC | IPW_DL_INFO, f, ## a)
 
 enum {
 	IPW_HW_STATE_DISABLED = 1,
@@ -759,10 +759,10 @@ struct ipw2100_priv {
 #define IPW2100_COMMAND_PHY_ON		0x0
 #define IPW2100_COMMAND_PHY_OFF		0x1
 
-/* in DEBUG_AREA, values of memory always 0xd55555d5 */
-#define IPW_REG_DOA_DEBUG_AREA_START    IPW_REG_DOMAIN_0_OFFSET + 0x0090
-#define IPW_REG_DOA_DEBUG_AREA_END      IPW_REG_DOMAIN_0_OFFSET + 0x00FF
-#define IPW_DATA_DOA_DEBUG_VALUE        0xd55555d5
+/* in DE_AREA, values of memory always 0xd55555d5 */
+#define IPW_REG_DOA_DE_AREA_START    IPW_REG_DOMAIN_0_OFFSET + 0x0090
+#define IPW_REG_DOA_DE_AREA_END      IPW_REG_DOMAIN_0_OFFSET + 0x00FF
+#define IPW_DATA_DOA_DE_VALUE        0xd55555d5
 
 #define IPW_INTERNAL_REGISTER_HALT_AND_RESET	0x003000e0
 
@@ -1105,7 +1105,7 @@ typedef enum _ORDINAL_TABLE_2 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_FW_VER_NUM = 1012,	// 14 bytes: fw version ID string as in (a.bb.ccc; "0.08.011")
 	IPW_ORD_STAT_FW_DATE = 1013,	// 14 bytes: fw date string (mmm dd yyyy; "Mar 13 2002")
 	IPW_ORD_STAT_ASSN_AP_BSSID = 1014,	// 6 bytes: MAC address of associated AP
-	IPW_ORD_STAT_DEBUG = 1015,	//NS // ? bytes:
+	IPW_ORD_STAT_DE = 1015,	//NS // ? bytes:
 	IPW_ORD_STAT_NIC_BPA_NUM = 1016,	// 11 bytes: NIC BPA number in ASCII
 	IPW_ORD_STAT_UCODE_DATE = 1017,	// 5 bytes: uCode date
 	IPW_ORD_SECURITY_NGOTIATION_RESULT = 1018,

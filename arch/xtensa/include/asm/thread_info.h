@@ -50,7 +50,7 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	unsigned long		status;		/* thread-synchronous flags */
 	__u32			cpu;		/* current CPU */
-	__s32			preempt_count;	/* 0 => preemptable,< 0 => BUG*/
+	__s32			preempt_count;	/* 0 => preemptable,< 0 => */
 
 	mm_segment_t		addr_limit;	/* thread address space */
 
@@ -110,7 +110,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_MEMDIE		5	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	6	/* restore signal mask in do_signal() */
 #define TIF_NOTIFY_RESUME	7	/* callback before returning to user */
-#define TIF_DB_DISABLED		8	/* debug trap disabled for syscall */
+#define TIF_DB_DISABLED		8	/* de trap disabled for syscall */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)

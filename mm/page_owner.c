@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -243,7 +243,7 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
 	/*
 	 * We don't clear the bit on the oldpage as it's going to be freed
 	 * after migration. Until then, the info can be useful in case of
-	 * a bug, and the overal stats will be off a bit only temporarily.
+	 * a , and the overal stats will be off a bit only temporarily.
 	 * Also, migrate_misplaced_transhuge_page() can still fail the
 	 * migration and then we want the oldpage to retain the info. But
 	 * in that case we also don't need to explicitly clear the info from
@@ -630,7 +630,7 @@ static int __init pageowner_init(void)
 		return 0;
 	}
 
-	debugfs_create_file("page_owner", 0400, NULL, NULL,
+	defs_create_file("page_owner", 0400, NULL, NULL,
 			    &proc_page_owner_operations);
 
 	return 0;

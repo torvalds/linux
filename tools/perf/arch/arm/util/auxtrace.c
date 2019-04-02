@@ -37,7 +37,7 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 
 		arm_spe_pmus[*nr_spes] = perf_pmu__find(arm_spe_pmu_name);
 		if (arm_spe_pmus[*nr_spes]) {
-			pr_debug2("%s %d: arm_spe_pmu %d type %d name %s\n",
+			pr_de2("%s %d: arm_spe_pmu %d type %d name %s\n",
 				 __func__, __LINE__, *nr_spes,
 				 arm_spe_pmus[*nr_spes]->type,
 				 arm_spe_pmus[*nr_spes]->name);

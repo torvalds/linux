@@ -7,7 +7,7 @@
  *
  *  See linux/MAINTAINERS for address of current maintainer.
  *
- *  This file provides support for disabling the buggy read-ahead
+ *  This file provides support for disabling the gy read-ahead
  *  mode of the RZ1000 IDE chipset, commonly used on Intel motherboards.
  *
  *  Dunno if this fixes both ports, or only the primary port (?).
@@ -29,11 +29,11 @@ static int rz1000_disable_readahead(struct pci_dev *dev)
 	if (!pci_read_config_word (dev, 0x40, &reg) &&
 	    !pci_write_config_word(dev, 0x40, reg & 0xdfff)) {
 		printk(KERN_INFO "%s: disabled chipset read-ahead "
-			"(buggy RZ1000/RZ1001)\n", pci_name(dev));
+			"(gy RZ1000/RZ1001)\n", pci_name(dev));
 		return 0;
 	} else {
 		printk(KERN_INFO "%s: serialized, disabled unmasking "
-			"(buggy RZ1000/RZ1001)\n", pci_name(dev));
+			"(gy RZ1000/RZ1001)\n", pci_name(dev));
 		return 1;
 	}
 }

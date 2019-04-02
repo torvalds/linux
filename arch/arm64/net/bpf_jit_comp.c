@@ -25,7 +25,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/cacheflush.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/set_memory.h>
 
 #include "bpf_jit.h"
@@ -937,7 +937,7 @@ skip_init_ctx:
 
 	if (!prog->is_func || extra_pass) {
 		if (extra_pass && ctx.idx != jit_data->ctx.idx) {
-			pr_err_once("multi-func JIT bug %d != %d\n",
+			pr_err_once("multi-func JIT  %d != %d\n",
 				    ctx.idx, jit_data->ctx.idx);
 			bpf_jit_binary_free(header);
 			prog->bpf_func = NULL;

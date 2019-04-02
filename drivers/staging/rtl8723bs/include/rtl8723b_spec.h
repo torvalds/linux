@@ -83,7 +83,7 @@
 #define	REG_MDIO_WDATA_8723B		0x0354	/*  MDIO for Write PCIE PHY */
 #define	REG_MDIO_RDATA_8723B			0x0356	/*  MDIO for Reads PCIE PHY */
 #define	REG_MDIO_CTL_8723B			0x0358	/*  MDIO for Control */
-#define	REG_DBG_SEL_8723B				0x0360	/*  Debug Selection Register */
+#define	REG_DBG_SEL_8723B				0x0360	/*  De Selection Register */
 #define	REG_PCIE_HRPWM_8723B			0x0361	/* PCIe RPWM */
 #define	REG_PCIE_HCPWM_8723B			0x0363	/* PCIe CPWM */
 #define	REG_PCIE_MULTIFET_CTRL_8723B	0x036A	/* PCIE Multi-Fethc Control */

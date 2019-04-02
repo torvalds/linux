@@ -260,8 +260,8 @@ void efi_sync_low_kernel_mappings(void)
 	 * only span a single PGD entry and that the entry also maps
 	 * other important kernel regions.
 	 */
-	MAYBE_BUILD_BUG_ON(pgd_index(EFI_VA_END) != pgd_index(MODULES_END));
-	MAYBE_BUILD_BUG_ON((EFI_VA_START & PGDIR_MASK) !=
+	MAYBE_BUILD__ON(pgd_index(EFI_VA_END) != pgd_index(MODULES_END));
+	MAYBE_BUILD__ON((EFI_VA_START & PGDIR_MASK) !=
 			(EFI_VA_END & PGDIR_MASK));
 
 	pgd_efi = efi_pgd + pgd_index(PAGE_OFFSET);
@@ -274,8 +274,8 @@ void efi_sync_low_kernel_mappings(void)
 	 * As with PGDs, we share all P4D entries apart from the one entry
 	 * that covers the EFI runtime mapping space.
 	 */
-	BUILD_BUG_ON(p4d_index(EFI_VA_END) != p4d_index(MODULES_END));
-	BUILD_BUG_ON((EFI_VA_START & P4D_MASK) != (EFI_VA_END & P4D_MASK));
+	BUILD__ON(p4d_index(EFI_VA_END) != p4d_index(MODULES_END));
+	BUILD__ON((EFI_VA_START & P4D_MASK) != (EFI_VA_END & P4D_MASK));
 
 	pgd_efi = efi_pgd + pgd_index(EFI_VA_END);
 	pgd_k = pgd_offset_k(EFI_VA_END);
@@ -289,8 +289,8 @@ void efi_sync_low_kernel_mappings(void)
 	 * We share all the PUD entries apart from those that map the
 	 * EFI regions. Copy around them.
 	 */
-	BUILD_BUG_ON((EFI_VA_START & ~PUD_MASK) != 0);
-	BUILD_BUG_ON((EFI_VA_END & ~PUD_MASK) != 0);
+	BUILD__ON((EFI_VA_START & ~PUD_MASK) != 0);
+	BUILD__ON((EFI_VA_END & ~PUD_MASK) != 0);
 
 	p4d_efi = p4d_offset(pgd_efi, EFI_VA_END);
 	p4d_k = p4d_offset(pgd_k, EFI_VA_END);
@@ -575,7 +575,7 @@ void __init efi_runtime_update_mappings(void)
 	 * EFI_MEMORY_ATTRIBUTES_TABLE is intended to replace
 	 * EFI_PROPERTIES_TABLE. So, use EFI_PROPERTIES_TABLE to update
 	 * permissions only if EFI_MEMORY_ATTRIBUTES_TABLE is not
-	 * published by the firmware. Even if we find a buggy implementation of
+	 * published by the firmware. Even if we find a gy implementation of
 	 * EFI_MEMORY_ATTRIBUTES_TABLE, don't fall back to
 	 * EFI_PROPERTIES_TABLE, because of the same reason.
 	 */

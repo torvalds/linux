@@ -26,64 +26,64 @@
 #define REG_READ_D(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
-void ath9k_debug_sync_cause(struct ath_softc *sc, u32 sync_cause)
+void ath9k_de_sync_cause(struct ath_softc *sc, u32 sync_cause)
 {
 	if (sync_cause)
-		sc->debug.stats.istats.sync_cause_all++;
+		sc->de.stats.istats.sync_cause_all++;
 	if (sync_cause & AR_INTR_SYNC_RTC_IRQ)
-		sc->debug.stats.istats.sync_rtc_irq++;
+		sc->de.stats.istats.sync_rtc_irq++;
 	if (sync_cause & AR_INTR_SYNC_MAC_IRQ)
-		sc->debug.stats.istats.sync_mac_irq++;
+		sc->de.stats.istats.sync_mac_irq++;
 	if (sync_cause & AR_INTR_SYNC_EEPROM_ILLEGAL_ACCESS)
-		sc->debug.stats.istats.eeprom_illegal_access++;
+		sc->de.stats.istats.eeprom_illegal_access++;
 	if (sync_cause & AR_INTR_SYNC_APB_TIMEOUT)
-		sc->debug.stats.istats.apb_timeout++;
+		sc->de.stats.istats.apb_timeout++;
 	if (sync_cause & AR_INTR_SYNC_PCI_MODE_CONFLICT)
-		sc->debug.stats.istats.pci_mode_conflict++;
+		sc->de.stats.istats.pci_mode_conflict++;
 	if (sync_cause & AR_INTR_SYNC_HOST1_FATAL)
-		sc->debug.stats.istats.host1_fatal++;
+		sc->de.stats.istats.host1_fatal++;
 	if (sync_cause & AR_INTR_SYNC_HOST1_PERR)
-		sc->debug.stats.istats.host1_perr++;
+		sc->de.stats.istats.host1_perr++;
 	if (sync_cause & AR_INTR_SYNC_TRCV_FIFO_PERR)
-		sc->debug.stats.istats.trcv_fifo_perr++;
+		sc->de.stats.istats.trcv_fifo_perr++;
 	if (sync_cause & AR_INTR_SYNC_RADM_CPL_EP)
-		sc->debug.stats.istats.radm_cpl_ep++;
+		sc->de.stats.istats.radm_cpl_ep++;
 	if (sync_cause & AR_INTR_SYNC_RADM_CPL_DLLP_ABORT)
-		sc->debug.stats.istats.radm_cpl_dllp_abort++;
+		sc->de.stats.istats.radm_cpl_dllp_abort++;
 	if (sync_cause & AR_INTR_SYNC_RADM_CPL_TLP_ABORT)
-		sc->debug.stats.istats.radm_cpl_tlp_abort++;
+		sc->de.stats.istats.radm_cpl_tlp_abort++;
 	if (sync_cause & AR_INTR_SYNC_RADM_CPL_ECRC_ERR)
-		sc->debug.stats.istats.radm_cpl_ecrc_err++;
+		sc->de.stats.istats.radm_cpl_ecrc_err++;
 	if (sync_cause & AR_INTR_SYNC_RADM_CPL_TIMEOUT)
-		sc->debug.stats.istats.radm_cpl_timeout++;
+		sc->de.stats.istats.radm_cpl_timeout++;
 	if (sync_cause & AR_INTR_SYNC_LOCAL_TIMEOUT)
-		sc->debug.stats.istats.local_timeout++;
+		sc->de.stats.istats.local_timeout++;
 	if (sync_cause & AR_INTR_SYNC_PM_ACCESS)
-		sc->debug.stats.istats.pm_access++;
+		sc->de.stats.istats.pm_access++;
 	if (sync_cause & AR_INTR_SYNC_MAC_AWAKE)
-		sc->debug.stats.istats.mac_awake++;
+		sc->de.stats.istats.mac_awake++;
 	if (sync_cause & AR_INTR_SYNC_MAC_ASLEEP)
-		sc->debug.stats.istats.mac_asleep++;
+		sc->de.stats.istats.mac_asleep++;
 	if (sync_cause & AR_INTR_SYNC_MAC_SLEEP_ACCESS)
-		sc->debug.stats.istats.mac_sleep_access++;
+		sc->de.stats.istats.mac_sleep_access++;
 }
 
-static ssize_t ath9k_debugfs_read_buf(struct file *file, char __user *user_buf,
+static ssize_t ath9k_defs_read_buf(struct file *file, char __user *user_buf,
 				      size_t count, loff_t *ppos)
 {
 	u8 *buf = file->private_data;
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
 
-static int ath9k_debugfs_release_buf(struct inode *inode, struct file *file)
+static int ath9k_defs_release_buf(struct inode *inode, struct file *file)
 {
 	vfree(file->private_data);
 	return 0;
 }
 
-#ifdef CONFIG_ATH_DEBUG
+#ifdef CONFIG_ATH_DE
 
-static ssize_t read_file_debug(struct file *file, char __user *user_buf,
+static ssize_t read_file_de(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
@@ -91,11 +91,11 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", common->debug_mask);
+	len = sprintf(buf, "0x%08x\n", common->de_mask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
+static ssize_t write_file_de(struct file *file, const char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
@@ -112,13 +112,13 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 	if (kstrtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	common->debug_mask = mask;
+	common->de_mask = mask;
 	return count;
 }
 
-static const struct file_operations fops_debug = {
-	.read = read_file_debug,
-	.write = write_file_debug,
+static const struct file_operations fops_de = {
+	.read = read_file_de,
+	.write = write_file_de,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -282,12 +282,12 @@ static const struct file_operations fops_bt_ant_diversity = {
 
 #endif
 
-void ath9k_debug_stat_ant(struct ath_softc *sc,
+void ath9k_de_stat_ant(struct ath_softc *sc,
 			  struct ath_hw_antcomb_conf *div_ant_conf,
 			  int main_rssi_avg, int alt_rssi_avg)
 {
-	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
-	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+	struct ath_antenna_stats *as_main = &sc->de.stats.ant_stats[ANT_MAIN];
+	struct ath_antenna_stats *as_alt = &sc->de.stats.ant_stats[ANT_ALT];
 
 	as_main->lna_attempt_cnt[div_ant_conf->main_lna_conf]++;
 	as_alt->lna_attempt_cnt[div_ant_conf->alt_lna_conf]++;
@@ -303,8 +303,8 @@ static ssize_t read_file_antenna_diversity(struct file *file,
 	struct ath_softc *sc = file->private_data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
-	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
-	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+	struct ath_antenna_stats *as_main = &sc->de.stats.ant_stats[ANT_MAIN];
+	struct ath_antenna_stats *as_alt = &sc->de.stats.ant_stats[ANT_ALT];
 	struct ath_hw_antcomb_conf div_ant_conf;
 	unsigned int len = 0;
 	const unsigned int size = 1024;
@@ -406,7 +406,7 @@ static int read_file_dma(struct seq_file *file, void *data)
 	struct ieee80211_hw *hw = dev_get_drvdata(file->private);
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
-	u32 val[ATH9K_NUM_DMA_DEBUG_REGS];
+	u32 val[ATH9K_NUM_DMA_DE_REGS];
 	int i, qcuOffset = 0, dcuOffset = 0;
 	u32 *qcuBase = &val[0], *dcuBase = &val[4];
 
@@ -417,9 +417,9 @@ static int read_file_dma(struct seq_file *file, void *data)
 		   (AR_MACMISC_MISC_OBS_BUS_1 <<
 		    AR_MACMISC_MISC_OBS_BUS_MSB_S)));
 
-	seq_puts(file, "Raw DMA Debug values:\n");
+	seq_puts(file, "Raw DMA De values:\n");
 
-	for (i = 0; i < ATH9K_NUM_DMA_DEBUG_REGS; i++) {
+	for (i = 0; i < ATH9K_NUM_DMA_DE_REGS; i++) {
 		if (i % 4 == 0)
 			seq_puts(file, "\n");
 
@@ -471,57 +471,57 @@ static int read_file_dma(struct seq_file *file, void *data)
 	return 0;
 }
 
-void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
+void ath_de_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 {
 	if (status)
-		sc->debug.stats.istats.total++;
+		sc->de.stats.istats.total++;
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		if (status & ATH9K_INT_RXLP)
-			sc->debug.stats.istats.rxlp++;
+			sc->de.stats.istats.rxlp++;
 		if (status & ATH9K_INT_RXHP)
-			sc->debug.stats.istats.rxhp++;
+			sc->de.stats.istats.rxhp++;
 		if (status & ATH9K_INT_BB_WATCHDOG)
-			sc->debug.stats.istats.bb_watchdog++;
+			sc->de.stats.istats.bb_watchdog++;
 	} else {
 		if (status & ATH9K_INT_RX)
-			sc->debug.stats.istats.rxok++;
+			sc->de.stats.istats.rxok++;
 	}
 	if (status & ATH9K_INT_RXEOL)
-		sc->debug.stats.istats.rxeol++;
+		sc->de.stats.istats.rxeol++;
 	if (status & ATH9K_INT_RXORN)
-		sc->debug.stats.istats.rxorn++;
+		sc->de.stats.istats.rxorn++;
 	if (status & ATH9K_INT_TX)
-		sc->debug.stats.istats.txok++;
+		sc->de.stats.istats.txok++;
 	if (status & ATH9K_INT_TXURN)
-		sc->debug.stats.istats.txurn++;
+		sc->de.stats.istats.txurn++;
 	if (status & ATH9K_INT_RXPHY)
-		sc->debug.stats.istats.rxphyerr++;
+		sc->de.stats.istats.rxphyerr++;
 	if (status & ATH9K_INT_RXKCM)
-		sc->debug.stats.istats.rx_keycache_miss++;
+		sc->de.stats.istats.rx_keycache_miss++;
 	if (status & ATH9K_INT_SWBA)
-		sc->debug.stats.istats.swba++;
+		sc->de.stats.istats.swba++;
 	if (status & ATH9K_INT_BMISS)
-		sc->debug.stats.istats.bmiss++;
+		sc->de.stats.istats.bmiss++;
 	if (status & ATH9K_INT_BNR)
-		sc->debug.stats.istats.bnr++;
+		sc->de.stats.istats.bnr++;
 	if (status & ATH9K_INT_CST)
-		sc->debug.stats.istats.cst++;
+		sc->de.stats.istats.cst++;
 	if (status & ATH9K_INT_GTT)
-		sc->debug.stats.istats.gtt++;
+		sc->de.stats.istats.gtt++;
 	if (status & ATH9K_INT_TIM)
-		sc->debug.stats.istats.tim++;
+		sc->de.stats.istats.tim++;
 	if (status & ATH9K_INT_CABEND)
-		sc->debug.stats.istats.cabend++;
+		sc->de.stats.istats.cabend++;
 	if (status & ATH9K_INT_DTIMSYNC)
-		sc->debug.stats.istats.dtimsync++;
+		sc->de.stats.istats.dtimsync++;
 	if (status & ATH9K_INT_DTIM)
-		sc->debug.stats.istats.dtim++;
+		sc->de.stats.istats.dtim++;
 	if (status & ATH9K_INT_TSFOOR)
-		sc->debug.stats.istats.tsfoor++;
+		sc->de.stats.istats.tsfoor++;
 	if (status & ATH9K_INT_MCI)
-		sc->debug.stats.istats.mci++;
+		sc->de.stats.istats.mci++;
 	if (status & ATH9K_INT_GENTIMER)
-		sc->debug.stats.istats.gen_timer++;
+		sc->de.stats.istats.gen_timer++;
 }
 
 static int read_file_interrupt(struct seq_file *file, void *data)
@@ -532,7 +532,7 @@ static int read_file_interrupt(struct seq_file *file, void *data)
 #define PR_IS(a, s)						\
 	do {							\
 		seq_printf(file, "%21s: %10u\n", a,		\
-			   sc->debug.stats.istats.s);		\
+			   sc->de.stats.istats.s);		\
 	} while (0)
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
@@ -773,20 +773,20 @@ static int read_file_reset(struct seq_file *file, void *data)
 		    continue;
 
 		seq_printf(file, "%17s: %2d\n", reset_cause[i],
-			   sc->debug.stats.reset[i]);
+			   sc->de.stats.reset[i]);
 	}
 
 	return 0;
 }
 
-void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
+void ath_de_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
 		       unsigned int flags)
 {
 	int qnum = txq->axq_qnum;
 
 	TX_STAT_INC(sc, qnum, tx_pkts_all);
-	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
+	sc->de.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
 		if (flags & ATH_TX_ERROR)
@@ -816,9 +816,9 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		TX_STAT_INC(sc, qnum, delim_underrun);
 }
 
-void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
+void ath_de_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
-	ath9k_cmn_debug_stat_rx(&sc->debug.stats.rxstats, rs);
+	ath9k_cmn_de_stat_rx(&sc->de.stats.rxstats, rs);
 }
 
 static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
@@ -828,7 +828,7 @@ static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = sprintf(buf, "0x%08x\n", sc->debug.regidx);
+	len = sprintf(buf, "0x%08x\n", sc->de.regidx);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -848,7 +848,7 @@ static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
 	if (kstrtoul(buf, 0, &regidx))
 		return -EINVAL;
 
-	sc->debug.regidx = regidx;
+	sc->de.regidx = regidx;
 	return count;
 }
 
@@ -870,7 +870,7 @@ static ssize_t read_file_regval(struct file *file, char __user *user_buf,
 	u32 regval;
 
 	ath9k_ps_wakeup(sc);
-	regval = REG_READ_D(ah, sc->debug.regidx);
+	regval = REG_READ_D(ah, sc->de.regidx);
 	ath9k_ps_restore(sc);
 	len = sprintf(buf, "0x%08x\n", regval);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -894,7 +894,7 @@ static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	ath9k_ps_wakeup(sc);
-	REG_WRITE_D(ah, sc->debug.regidx, regval);
+	REG_WRITE_D(ah, sc->de.regidx, regval);
 	ath9k_ps_restore(sc);
 	return count;
 }
@@ -955,8 +955,8 @@ static int open_file_regdump(struct inode *inode, struct file *file)
 
 static const struct file_operations fops_regdump = {
 	.open = open_file_regdump,
-	.read = ath9k_debugfs_read_buf,
-	.release = ath9k_debugfs_release_buf,
+	.read = ath9k_defs_read_buf,
+	.release = ath9k_defs_release_buf,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,/* read accesses f_pos */
 };
@@ -1295,15 +1295,15 @@ int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
 
 #define AWDATA(elem)							\
 	do {								\
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].elem; \
+		data[i++] = sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem; \
+		data[i++] = sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].elem; \
+		data[i++] = sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].elem; \
+		data[i++] = sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].elem; \
 	} while (0)
 
 #define AWDATA_RX(elem)						\
 	do {							\
-		data[i++] = sc->debug.stats.rxstats.elem;	\
+		data[i++] = sc->de.stats.rxstats.elem;	\
 	} while (0)
 
 void ath9k_get_et_stats(struct ieee80211_hw *hw,
@@ -1313,14 +1313,14 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	int i = 0;
 
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_pkts_all);
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_bytes_all);
+	data[i++] = (sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_pkts_all +
+		     sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_pkts_all +
+		     sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_pkts_all +
+		     sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_pkts_all);
+	data[i++] = (sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_bytes_all +
+		     sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_bytes_all +
+		     sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_bytes_all +
+		     sc->de.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_bytes_all);
 	AWDATA_RX(rx_pkts_all);
 	AWDATA_RX(rx_bytes_all);
 
@@ -1356,95 +1356,95 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	WARN_ON(i != ATH9K_SSTATS_LEN);
 }
 
-void ath9k_deinit_debug(struct ath_softc *sc)
+void ath9k_deinit_de(struct ath_softc *sc)
 {
-	ath9k_cmn_spectral_deinit_debug(&sc->spec_priv);
+	ath9k_cmn_spectral_deinit_de(&sc->spec_priv);
 }
 
-int ath9k_init_debug(struct ath_hw *ah)
+int ath9k_init_de(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	sc->debug.debugfs_phy = debugfs_create_dir("ath9k",
-						   sc->hw->wiphy->debugfsdir);
-	if (!sc->debug.debugfs_phy)
+	sc->de.defs_phy = defs_create_dir("ath9k",
+						   sc->hw->wiphy->defsdir);
+	if (!sc->de.defs_phy)
 		return -ENOMEM;
 
-#ifdef CONFIG_ATH_DEBUG
-	debugfs_create_file("debug", 0600, sc->debug.debugfs_phy,
-			    sc, &fops_debug);
+#ifdef CONFIG_ATH_DE
+	defs_create_file("de", 0600, sc->de.defs_phy,
+			    sc, &fops_de);
 #endif
 
-	ath9k_dfs_init_debug(sc);
-	ath9k_tx99_init_debug(sc);
-	ath9k_cmn_spectral_init_debug(&sc->spec_priv, sc->debug.debugfs_phy);
+	ath9k_dfs_init_de(sc);
+	ath9k_tx99_init_de(sc);
+	ath9k_cmn_spectral_init_de(&sc->spec_priv, sc->de.defs_phy);
 
-	debugfs_create_devm_seqfile(sc->dev, "dma", sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "dma", sc->de.defs_phy,
 				    read_file_dma);
-	debugfs_create_devm_seqfile(sc->dev, "interrupt", sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "interrupt", sc->de.defs_phy,
 				    read_file_interrupt);
-	debugfs_create_devm_seqfile(sc->dev, "xmit", sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "xmit", sc->de.defs_phy,
 				    read_file_xmit);
-	debugfs_create_devm_seqfile(sc->dev, "queues", sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "queues", sc->de.defs_phy,
 				    read_file_queues);
-	debugfs_create_devm_seqfile(sc->dev, "misc", sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "misc", sc->de.defs_phy,
 				    read_file_misc);
-	debugfs_create_devm_seqfile(sc->dev, "reset", sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "reset", sc->de.defs_phy,
 				    read_file_reset);
 
-	ath9k_cmn_debug_recv(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
-	ath9k_cmn_debug_phy_err(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
+	ath9k_cmn_de_recv(sc->de.defs_phy, &sc->de.stats.rxstats);
+	ath9k_cmn_de_phy_err(sc->de.defs_phy, &sc->de.stats.rxstats);
 
-	debugfs_create_u8("rx_chainmask", 0400, sc->debug.debugfs_phy,
+	defs_create_u8("rx_chainmask", 0400, sc->de.defs_phy,
 			  &ah->rxchainmask);
-	debugfs_create_u8("tx_chainmask", 0400, sc->debug.debugfs_phy,
+	defs_create_u8("tx_chainmask", 0400, sc->de.defs_phy,
 			  &ah->txchainmask);
-	debugfs_create_file("ani", 0600,
-			    sc->debug.debugfs_phy, sc, &fops_ani);
-	debugfs_create_bool("paprd", 0600, sc->debug.debugfs_phy,
+	defs_create_file("ani", 0600,
+			    sc->de.defs_phy, sc, &fops_ani);
+	defs_create_bool("paprd", 0600, sc->de.defs_phy,
 			    &sc->sc_ah->config.enable_paprd);
-	debugfs_create_file("regidx", 0600, sc->debug.debugfs_phy,
+	defs_create_file("regidx", 0600, sc->de.defs_phy,
 			    sc, &fops_regidx);
-	debugfs_create_file("regval", 0600, sc->debug.debugfs_phy,
+	defs_create_file("regval", 0600, sc->de.defs_phy,
 			    sc, &fops_regval);
-	debugfs_create_bool("ignore_extcca", 0600,
-			    sc->debug.debugfs_phy,
+	defs_create_bool("ignore_extcca", 0600,
+			    sc->de.defs_phy,
 			    &ah->config.cwm_ignore_extcca);
-	debugfs_create_file("regdump", 0400, sc->debug.debugfs_phy, sc,
+	defs_create_file("regdump", 0400, sc->de.defs_phy, sc,
 			    &fops_regdump);
-	debugfs_create_devm_seqfile(sc->dev, "dump_nfcal",
-				    sc->debug.debugfs_phy,
+	defs_create_devm_seqfile(sc->dev, "dump_nfcal",
+				    sc->de.defs_phy,
 				    read_file_dump_nfcal);
 
-	ath9k_cmn_debug_base_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
-	ath9k_cmn_debug_modal_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
+	ath9k_cmn_de_base_eeprom(sc->de.defs_phy, sc->sc_ah);
+	ath9k_cmn_de_modal_eeprom(sc->de.defs_phy, sc->sc_ah);
 
-	debugfs_create_u32("gpio_mask", 0600,
-			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
-	debugfs_create_u32("gpio_val", 0600,
-			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
-	debugfs_create_file("antenna_diversity", 0400,
-			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
+	defs_create_u32("gpio_mask", 0600,
+			   sc->de.defs_phy, &sc->sc_ah->gpio_mask);
+	defs_create_u32("gpio_val", 0600,
+			   sc->de.defs_phy, &sc->sc_ah->gpio_val);
+	defs_create_file("antenna_diversity", 0400,
+			    sc->de.defs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
-	debugfs_create_file("bt_ant_diversity", 0600,
-			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
-	debugfs_create_file("btcoex", 0400, sc->debug.debugfs_phy, sc,
+	defs_create_file("bt_ant_diversity", 0600,
+			    sc->de.defs_phy, sc, &fops_bt_ant_diversity);
+	defs_create_file("btcoex", 0400, sc->de.defs_phy, sc,
 			    &fops_btcoex);
 #endif
 
 #ifdef CONFIG_ATH9K_WOW
-	debugfs_create_file("wow", 0600, sc->debug.debugfs_phy, sc, &fops_wow);
+	defs_create_file("wow", 0600, sc->de.defs_phy, sc, &fops_wow);
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", 0400, sc->debug.debugfs_phy,
+	defs_create_file("ack_to", 0400, sc->de.defs_phy,
 			    sc, &fops_ackto);
 #endif
-	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
+	defs_create_file("tpc", 0600, sc->de.defs_phy, sc, &fops_tpc);
 
-	debugfs_create_file("nf_override", 0600,
-			    sc->debug.debugfs_phy, sc, &fops_nf_override);
+	defs_create_file("nf_override", 0600,
+			    sc->de.defs_phy, sc, &fops_nf_override);
 
 	return 0;
 }

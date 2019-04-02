@@ -83,7 +83,7 @@ static inline bool check_lvds_chip(int device_id_subaddr, int device_id)
 
 void viafb_init_lcd_size(void)
 {
-	DEBUG_MSG(KERN_INFO "viafb_init_lcd_size()\n");
+	DE_MSG(KERN_INFO "viafb_init_lcd_size()\n");
 
 	fp_id_to_vindex(viafb_lcd_panel_id);
 	viaparinfo->lvds_setting_info2->lcd_panel_hres =
@@ -105,12 +105,12 @@ static bool lvds_identify_integratedlvds(void)
 		if (viaparinfo->chip_info->lvds_chip_info.lvds_chip_name) {
 			viaparinfo->chip_info->lvds_chip_info2.lvds_chip_name =
 			    INTEGRATED_LVDS;
-			DEBUG_MSG(KERN_INFO "Support two dual channel LVDS! "
+			DE_MSG(KERN_INFO "Support two dual channel LVDS! "
 				  "(Internal LVDS + External LVDS)\n");
 		} else {
 			viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 			    INTEGRATED_LVDS;
-			DEBUG_MSG(KERN_INFO "Not found external LVDS, "
+			DE_MSG(KERN_INFO "Not found external LVDS, "
 				  "so can't support two dual channel LVDS!\n");
 		}
 	} else if (viafb_display_hardware_layout == HW_LAYOUT_LCD1_LCD2) {
@@ -119,7 +119,7 @@ static bool lvds_identify_integratedlvds(void)
 		INTEGRATED_LVDS;
 		viaparinfo->chip_info->lvds_chip_info2.lvds_chip_name =
 			INTEGRATED_LVDS;
-		DEBUG_MSG(KERN_INFO "Support two single channel LVDS! "
+		DE_MSG(KERN_INFO "Support two single channel LVDS! "
 			  "(Internal LVDS + Internal LVDS)\n");
 	} else if (viafb_display_hardware_layout != HW_LAYOUT_DVI_ONLY) {
 		/* If we have found external LVDS, just use it,
@@ -127,12 +127,12 @@ static bool lvds_identify_integratedlvds(void)
 		if (!viaparinfo->chip_info->lvds_chip_info.lvds_chip_name) {
 			viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 			    INTEGRATED_LVDS;
-			DEBUG_MSG(KERN_INFO "Found Integrated LVDS!\n");
+			DE_MSG(KERN_INFO "Found Integrated LVDS!\n");
 		}
 	} else {
 		viaparinfo->chip_info->lvds_chip_info.lvds_chip_name =
 			NON_LVDS_TRANSMITTER;
-		DEBUG_MSG(KERN_INFO "Do not support LVDS!\n");
+		DE_MSG(KERN_INFO "Do not support LVDS!\n");
 		return false;
 	}
 
@@ -143,13 +143,13 @@ bool viafb_lvds_trasmitter_identify(void)
 {
 	if (viafb_lvds_identify_vt1636(VIA_PORT_31)) {
 		viaparinfo->chip_info->lvds_chip_info.i2c_port = VIA_PORT_31;
-		DEBUG_MSG(KERN_INFO
+		DE_MSG(KERN_INFO
 			  "Found VIA VT1636 LVDS on port i2c 0x31\n");
 	} else {
 		if (viafb_lvds_identify_vt1636(VIA_PORT_2C)) {
 			viaparinfo->chip_info->lvds_chip_info.i2c_port =
 				VIA_PORT_2C;
-			DEBUG_MSG(KERN_INFO
+			DE_MSG(KERN_INFO
 				  "Found VIA VT1636 LVDS on port gpio 0x2c\n");
 		}
 	}
@@ -165,10 +165,10 @@ bool viafb_lvds_trasmitter_identify(void)
 		VT1631_LVDS_I2C_ADDR;
 
 	if (check_lvds_chip(VT1631_DEVICE_ID_REG, VT1631_DEVICE_ID)) {
-		DEBUG_MSG(KERN_INFO "\n VT1631 LVDS ! \n");
-		DEBUG_MSG(KERN_INFO "\n %2d",
+		DE_MSG(KERN_INFO "\n VT1631 LVDS ! \n");
+		DE_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->lvds_chip_info.lvds_chip_name);
-		DEBUG_MSG(KERN_INFO "\n %2d",
+		DE_MSG(KERN_INFO "\n %2d",
 			  viaparinfo->chip_info->lvds_chip_info.lvds_chip_name);
 		return true;
 	}
@@ -182,7 +182,7 @@ bool viafb_lvds_trasmitter_identify(void)
 
 static void fp_id_to_vindex(int panel_id)
 {
-	DEBUG_MSG(KERN_INFO "fp_get_panel_id()\n");
+	DE_MSG(KERN_INFO "fp_get_panel_id()\n");
 
 	if (panel_id > LCD_PANEL_ID_MAXIMUM)
 		viafb_lcd_panel_id = panel_id =
@@ -353,7 +353,7 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 	int viafb_load_reg_num;
 	struct io_register *reg = NULL;
 
-	DEBUG_MSG(KERN_INFO "load_lcd_scaling()!!\n");
+	DE_MSG(KERN_INFO "load_lcd_scaling()!!\n");
 
 	/* LCD Scaling Enable */
 	viafb_write_reg_mask(CR79, VIACR, 0x07, BIT0 + BIT1 + BIT2);
@@ -396,7 +396,7 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 			break;
 		}
 
-		DEBUG_MSG(KERN_INFO "Horizontal Scaling value = %d", reg_value);
+		DE_MSG(KERN_INFO "Horizontal Scaling value = %d", reg_value);
 	} else {
 		/* Horizontal scaling disabled */
 		viafb_write_reg_mask(CRA2, VIACR, 0x00, BIT7);
@@ -440,7 +440,7 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 			break;
 		}
 
-		DEBUG_MSG(KERN_INFO "Vertical Scaling value = %d", reg_value);
+		DE_MSG(KERN_INFO "Vertical Scaling value = %d", reg_value);
 	} else {
 		/* Vertical scaling disabled */
 		viafb_write_reg_mask(CRA2, VIACR, 0x00, BIT3);
@@ -520,7 +520,7 @@ static void lcd_patch_skew_dvp1(struct lvds_setting_information
 static void lcd_patch_skew(struct lvds_setting_information
 	*plvds_setting_info, struct lvds_chip_information *plvds_chip_info)
 {
-	DEBUG_MSG(KERN_INFO "lcd_patch_skew\n");
+	DE_MSG(KERN_INFO "lcd_patch_skew\n");
 	switch (plvds_chip_info->output_interface) {
 	case INTERFACE_DVP0:
 		lcd_patch_skew_dvp0(plvds_setting_info, plvds_chip_info);
@@ -553,13 +553,13 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	struct fb_var_screeninfo panel_var;
 	const struct fb_videomode *mode_crt_table, *panel_crt_table;
 
-	DEBUG_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
+	DE_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
 	/* Get mode table */
 	mode_crt_table = viafb_get_best_mode(set_hres, set_vres, 60);
 	/* Get panel table Pointer */
 	panel_crt_table = viafb_get_best_mode(panel_hres, panel_vres, 60);
 	viafb_fill_var_timing_info(&panel_var, panel_crt_table);
-	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
+	DE_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
 		viafb_init_lvds_vt1636(plvds_setting_info, plvds_chip_info);
 	clock = PICOS2KHZ(panel_crt_table->pixclock) * 1000;
@@ -660,7 +660,7 @@ static void integrated_lvds_enable(struct lvds_setting_information
 			    *plvds_setting_info,
 			    struct lvds_chip_information *plvds_chip_info)
 {
-	DEBUG_MSG(KERN_INFO "integrated_lvds_enable, out_interface:%d\n",
+	DE_MSG(KERN_INFO "integrated_lvds_enable, out_interface:%d\n",
 		  plvds_chip_info->output_interface);
 	if (plvds_setting_info->lcd_mode == LCD_SPWG)
 		viafb_write_reg_mask(CRD2, VIACR, 0x00, BIT0 + BIT1);
@@ -909,7 +909,7 @@ static void check_diport_of_integrated_lvds(
 		}
 	}
 
-	DEBUG_MSG(KERN_INFO
+	DE_MSG(KERN_INFO
 		  "Display Hardware Layout: 0x%x, LCD DI Port: 0x%x\n",
 		  viafb_display_hardware_layout,
 		  plvds_chip_info->output_interface);

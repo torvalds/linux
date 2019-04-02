@@ -7,7 +7,7 @@
 #define _RECV_OSDEP_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/jiffies.h>
 
 void rtw_os_free_recvframe(union recv_frame *precvframe)

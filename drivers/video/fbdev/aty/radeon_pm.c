@@ -29,7 +29,7 @@
 #include "ati_ids.h"
 
 /*
- * Workarounds for bugs in PC laptops:
+ * Workarounds for s in PC laptops:
  * - enable D2 sleep in some IBM Thinkpads
  * - special case for Samsung P35
  *
@@ -48,7 +48,7 @@ struct radeon_device_id {
 	const reinit_function_ptr new_reinit_func;   /* changed reinit_func */
 };
 
-#define BUGFIX(model, sv, sd, pm, fn) { \
+#define FIX(model, sv, sd, pm, fn) { \
 	.ident = model, \
 	.subsystem_vendor = sv, \
 	.subsystem_device = sd, \
@@ -57,40 +57,40 @@ struct radeon_device_id {
 }
 
 static struct radeon_device_id radeon_workaround_list[] = {
-	BUGFIX("IBM Thinkpad R32",
+	FIX("IBM Thinkpad R32",
 	       PCI_VENDOR_ID_IBM, 0x1905,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad R40",
+	FIX("IBM Thinkpad R40",
 	       PCI_VENDOR_ID_IBM, 0x0526,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad R40",
+	FIX("IBM Thinkpad R40",
 	       PCI_VENDOR_ID_IBM, 0x0527,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad R50/R51/T40/T41",
+	FIX("IBM Thinkpad R50/R51/T40/T41",
 	       PCI_VENDOR_ID_IBM, 0x0531,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad R51/T40/T41/T42",
+	FIX("IBM Thinkpad R51/T40/T41/T42",
 	       PCI_VENDOR_ID_IBM, 0x0530,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad T30",
+	FIX("IBM Thinkpad T30",
 	       PCI_VENDOR_ID_IBM, 0x0517,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad T40p",
+	FIX("IBM Thinkpad T40p",
 	       PCI_VENDOR_ID_IBM, 0x054d,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad T42",
+	FIX("IBM Thinkpad T42",
 	       PCI_VENDOR_ID_IBM, 0x0550,
 	       radeon_pm_d2, NULL),
-	BUGFIX("IBM Thinkpad X31/X32",
+	FIX("IBM Thinkpad X31/X32",
 	       PCI_VENDOR_ID_IBM, 0x052f,
 	       radeon_pm_d2, NULL),
-	BUGFIX("Samsung P35",
+	FIX("Samsung P35",
 	       PCI_VENDOR_ID_SAMSUNG, 0xc00c,
 	       radeon_pm_off, radeon_reinitialize_M10),
-	BUGFIX("Acer Aspire 2010",
+	FIX("Acer Aspire 2010",
 	       PCI_VENDOR_ID_AI, 0x0061,
 	       radeon_pm_off, radeon_reinitialize_M10),
-	BUGFIX("Acer Travelmate 290D/292LMi",
+	FIX("Acer Travelmate 290D/292LMi",
 	       PCI_VENDOR_ID_AI, 0x005a,
 	       radeon_pm_off, radeon_reinitialize_M10),
 	{ .ident = NULL }
@@ -105,7 +105,7 @@ static int radeon_apply_workarounds(struct radeonfb_info *rinfo)
 		    (id->subsystem_device == rinfo->pdev->subsystem_device )) {
 
 			/* we found a device that requires workaround */
-			printk(KERN_DEBUG "radeonfb: %s detected"
+			printk(KERN_DE "radeonfb: %s detected"
 			       ", enabling workaround\n", id->ident);
 
 			rinfo->pm_mode |= id->pm_mode_modifier;
@@ -625,7 +625,7 @@ static void radeon_pm_save_regs(struct radeonfb_info *rinfo, int saving_for_d3)
 		rinfo->save_regs[50] = INREG(MC_READ_CNTL_AB);
 		rinfo->save_regs[51] = INREG(MC_IOPAD_CNTL);
 		rinfo->save_regs[52] = INREG(MC_CHIP_IO_OE_CNTL_AB);
-		rinfo->save_regs[53] = INREG(MC_DEBUG);
+		rinfo->save_regs[53] = INREG(MC_DE);
 	}
 	rinfo->save_regs[54] = INREG(PAMAC0_DLY_CNTL);
 	rinfo->save_regs[55] = INREG(PAMAC1_DLY_CNTL);
@@ -644,7 +644,7 @@ static void radeon_pm_save_regs(struct radeonfb_info *rinfo, int saving_for_d3)
 		rinfo->save_regs[66] = INMC(rinfo, ixR300_MC_CHP_IO_CNTL_A1);
 		rinfo->save_regs[67] = INMC(rinfo, ixR300_MC_CHP_IO_CNTL_B0);
 		rinfo->save_regs[68] = INMC(rinfo, ixR300_MC_CHP_IO_CNTL_B1);
-		rinfo->save_regs[69] = INMC(rinfo, ixR300_MC_DEBUG_CNTL);
+		rinfo->save_regs[69] = INMC(rinfo, ixR300_MC_DE_CNTL);
 		rinfo->save_regs[70] = INMC(rinfo, ixR300_MC_DLL_CNTL);
 		rinfo->save_regs[71] = INMC(rinfo, ixR300_MC_IMP_CNTL_0);
 		rinfo->save_regs[72] = INMC(rinfo, ixR300_MC_ELPIDA_CNTL);
@@ -672,14 +672,14 @@ static void radeon_pm_save_regs(struct radeonfb_info *rinfo, int saving_for_d3)
 	rinfo->save_regs[84] = INREG(TMDS_CNTL);
 	rinfo->save_regs[85] = INREG(TMDS_TRANSMITTER_CNTL);
 	rinfo->save_regs[86] = INREG(DISP_OUTPUT_CNTL);
-	rinfo->save_regs[87] = INREG(DISP_HW_DEBUG);
+	rinfo->save_regs[87] = INREG(DISP_HW_DE);
 	rinfo->save_regs[88] = INREG(TV_MASTER_CNTL);
 	rinfo->save_regs[89] = INPLL(pllP2PLL_REF_DIV);
 	rinfo->save_regs[92] = INPLL(pllPPLL_DIV_0);
 	rinfo->save_regs[93] = INPLL(pllPPLL_CNTL);
 	rinfo->save_regs[94] = INREG(GRPH_BUFFER_CNTL);
 	rinfo->save_regs[95] = INREG(GRPH2_BUFFER_CNTL);
-	rinfo->save_regs[96] = INREG(HDP_DEBUG);
+	rinfo->save_regs[96] = INREG(HDP_DE);
 	rinfo->save_regs[97] = INPLL(pllMDLL_CKO);
 	rinfo->save_regs[98] = INPLL(pllMDLL_RDCKA);
 	rinfo->save_regs[99] = INPLL(pllMDLL_RDCKB);
@@ -936,7 +936,7 @@ static void radeon_pm_setup_for_suspend(struct radeonfb_info *rinfo)
 				CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN|
 				CLK_PWRMGT_CNTL__ENGINE_DYNCLK_MODE|
 				CLK_PWRMGT_CNTL__ACTIVE_HILO_LAT_MASK|
-				CLK_PWRMGT_CNTL__CG_NO1_DEBUG_MASK
+				CLK_PWRMGT_CNTL__CG_NO1_DE_MASK
 			);
 						
 	clk_pwrmgt_cntl |= CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN
@@ -1700,7 +1700,7 @@ static void radeon_pm_m10_reconfigure_mc(struct radeonfb_info *rinfo)
 	OUTREG(MC_READ_CNTL_AB, rinfo->save_regs[50]);
 	OUTREG(MC_CHIP_IO_OE_CNTL_AB, rinfo->save_regs[52]);
 	OUTREG(MC_IOPAD_CNTL, rinfo->save_regs[51]);
-	OUTREG(MC_DEBUG, rinfo->save_regs[53]);
+	OUTREG(MC_DE, rinfo->save_regs[53]);
 
 	OUTMC(rinfo, ixR300_MC_MC_INIT_WR_LAT_TIMER, rinfo->save_regs[58]);
 	OUTMC(rinfo, ixR300_MC_IMP_CNTL, rinfo->save_regs[59]);
@@ -1713,7 +1713,7 @@ static void radeon_pm_m10_reconfigure_mc(struct radeonfb_info *rinfo)
 	OUTMC(rinfo, ixR300_MC_CHP_IO_CNTL_A1, rinfo->save_regs[66]);
 	OUTMC(rinfo, ixR300_MC_CHP_IO_CNTL_B0, rinfo->save_regs[67]);
 	OUTMC(rinfo, ixR300_MC_CHP_IO_CNTL_B1, rinfo->save_regs[68]);
-	OUTMC(rinfo, ixR300_MC_DEBUG_CNTL, rinfo->save_regs[69]);
+	OUTMC(rinfo, ixR300_MC_DE_CNTL, rinfo->save_regs[69]);
 	OUTMC(rinfo, ixR300_MC_DLL_CNTL, rinfo->save_regs[70]);
 	OUTMC(rinfo, ixR300_MC_IMP_CNTL_0, rinfo->save_regs[71]);
 	OUTMC(rinfo, ixR300_MC_ELPIDA_CNTL, rinfo->save_regs[72]);
@@ -1781,7 +1781,7 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo)
 
 	OUTREG(PAD_CTLR_MISC, rinfo->save_regs[56]);
 	OUTREG(FW_CNTL, rinfo->save_regs[57]);
-	OUTREG(HDP_DEBUG, rinfo->save_regs[96]);
+	OUTREG(HDP_DE, rinfo->save_regs[96]);
 	OUTREG(PAMAC0_DLY_CNTL, rinfo->save_regs[54]);
 	OUTREG(PAMAC1_DLY_CNTL, rinfo->save_regs[55]);
 	OUTREG(PAMAC2_DLY_CNTL, rinfo->save_regs[79]);
@@ -1960,7 +1960,7 @@ static void radeon_pm_m9p_reconfigure_mc(struct radeonfb_info *rinfo)
 	OUTREG(MC_READ_CNTL_AB, rinfo->save_regs[50]);
 	OUTREG(MEM_REFRESH_CNTL, rinfo->save_regs[42]);
 	OUTREG(MC_IOPAD_CNTL, rinfo->save_regs[51]);
-	OUTREG(MC_DEBUG, rinfo->save_regs[53]);
+	OUTREG(MC_DE, rinfo->save_regs[53]);
 	OUTREG(MC_CHIP_IO_OE_CNTL_AB, rinfo->save_regs[52]);
 
 	OUTMC(rinfo, ixMC_IMP_CNTL, rinfo->save_regs[59] /*0x00f460d6*/);
@@ -2234,7 +2234,7 @@ static void radeon_reinitialize_QW(struct radeonfb_info *rinfo)
 		INREG(PAD_CTLR_STRENGTH);
 	}
 
-	OUTREG(DISP_TEST_DEBUG_CNTL, INREG(DISP_TEST_DEBUG_CNTL) | 0x10000000);
+	OUTREG(DISP_TEST_DE_CNTL, INREG(DISP_TEST_DE_CNTL) | 0x10000000);
 	OUTREG(OV0_FLAG_CNTRL, INREG(OV0_FLAG_CNTRL) | 0x100);
 	OUTREG(CRTC_GEN_CNTL, INREG(CRTC_GEN_CNTL));
 	OUTREG(DAC_CNTL, 0xff00410a);
@@ -2364,7 +2364,7 @@ static void radeon_reinitialize_QW(struct radeonfb_info *rinfo)
 	OUTREG(MEM_IO_CNTL_A1, 0x0aac0aac);
 	OUTREG(MEM_INIT_LATENCY_TIMER, 0x34444444);
 	OUTREG(MEM_REFRESH_CNTL, 0x1f1f7218);	/* XXX or save_regs[42]? */
-	OUTREG(MC_DEBUG, 0);
+	OUTREG(MC_DE, 0);
 	OUTREG(MEM_IO_OE_CNTL, 0x04300430);
 
 	OUTMC(rinfo, ixMC_IMP_CNTL, 0x00f460d6);
@@ -2549,7 +2549,7 @@ static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 	 * including PCI config registers, clocks, AGP conf, ...)
 	 */
 	if (suspend) {
-		printk(KERN_DEBUG "radeonfb (%s): switching to D2 state...\n",
+		printk(KERN_DE "radeonfb (%s): switching to D2 state...\n",
 		       pci_name(rinfo->pdev));
 
 		/* Disable dynamic power management of clocks for the
@@ -2595,7 +2595,7 @@ static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 		radeonfb_whack_power_state(rinfo, PCI_D2);
 		__pci_complete_power_transition(rinfo->pdev, PCI_D2);
 	} else {
-		printk(KERN_DEBUG "radeonfb (%s): switching to D0 state...\n",
+		printk(KERN_DE "radeonfb (%s): switching to D0 state...\n",
 		       pci_name(rinfo->pdev));
 
 		if (rinfo->family <= CHIP_FAMILY_RV250) {
@@ -2621,7 +2621,7 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	if (mesg.event == pdev->dev.power.power_state.event)
 		return 0;
 
-	printk(KERN_DEBUG "radeonfb (%s): suspending for event: %d...\n",
+	printk(KERN_DE "radeonfb (%s): suspending for event: %d...\n",
 	       pci_name(pdev), mesg.event);
 
 	/* For suspend-to-disk, we cheat here. We don't suspend anything and
@@ -2729,7 +2729,7 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 	} else
 		console_lock();
 
-	printk(KERN_DEBUG "radeonfb (%s): resuming from state: %d...\n",
+	printk(KERN_DE "radeonfb (%s): resuming from state: %d...\n",
 	       pci_name(pdev), pdev->dev.power.power_state.event);
 
 	/* PCI state will have been restored by the core, so
@@ -2871,7 +2871,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
        * others we now rely on the PCI core restoring the config space for us, which
        * isn't the case with that hack, and that code path causes various things to
        * be called with interrupts off while they shouldn't. I'm leaving the code in
-       * as it can be useful for debugging purposes
+       * as it can be useful for deging purposes
        */
 			pmac_set_early_video_resume(radeonfb_early_resume, rinfo);
 #endif
@@ -2889,13 +2889,13 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 #endif /* defined(CONFIG_PM) */
 
 	if (ignore_devlist)
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "radeonfb: skipping test for device workarounds\n");
 	else
 		radeon_apply_workarounds(rinfo);
 
 	if (force_sleep) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "radeonfb: forcefully enabling D2 sleep mode\n");
 		rinfo->pm_mode |= radeon_pm_d2;
 	}

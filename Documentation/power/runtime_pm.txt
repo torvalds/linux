@@ -794,7 +794,7 @@ Subsystems can tell the PM core about these devices by calling
 pm_runtime_no_callbacks().  This should be done after the device structure is
 initialized and before it is registered (although after device registration is
 also okay).  The routine will set the device's power.no_callbacks flag and
-prevent the non-debugging runtime PM sysfs attributes from being created.
+prevent the non-deging runtime PM sysfs attributes from being created.
 
 When power.no_callbacks is set, the PM core will not invoke the
 ->runtime_idle(), ->runtime_suspend(), or ->runtime_resume() callbacks.

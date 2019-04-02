@@ -2,7 +2,7 @@
 #include "tests/tests.h"
 #include "perf.h"
 #include "cloexec.h"
-#include "debug.h"
+#include "de.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "arch-tests.h"
@@ -52,20 +52,20 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("perf_evlist__new failed\n");
+		pr_de("perf_evlist__new failed\n");
 		return TEST_FAIL;
 	}
 
 	ret = parse_events(evlist, "intel_cqm/llc_occupancy/", NULL);
 	if (ret) {
-		pr_debug("parse_events failed, is \"intel_cqm/llc_occupancy/\" available?\n");
+		pr_de("parse_events failed, is \"intel_cqm/llc_occupancy/\" available?\n");
 		err = TEST_SKIP;
 		goto out;
 	}
 
 	evsel = perf_evlist__first(evlist);
 	if (!evsel) {
-		pr_debug("perf_evlist__first failed\n");
+		pr_de("perf_evlist__first failed\n");
 		goto out;
 	}
 
@@ -83,7 +83,7 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	fd[0] = sys_perf_event_open(&pe, pid, -1, -1, flag);
 	if (fd[0] < 0) {
-		pr_debug("failed to open event\n");
+		pr_de("failed to open event\n");
 		goto out;
 	}
 
@@ -95,7 +95,7 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	fd[1] = sys_perf_event_open(&pe, pid, -1, fd[0], flag);
 	if (fd[1] < 0) {
-		pr_debug("failed to open event\n");
+		pr_de("failed to open event\n");
 		goto out;
 	}
 
@@ -107,7 +107,7 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	event = mmap(NULL, mmap_len, PROT_READ, MAP_SHARED, fd[0], 0);
 	if (event == (void *)(-1)) {
-		pr_debug("failed to mmap %d\n", errno);
+		pr_de("failed to mmap %d\n", errno);
 		goto out;
 	}
 

@@ -1,7 +1,7 @@
-#ifndef _QIB_DEBUGFS_H
-#define _QIB_DEBUGFS_H
+#ifndef _QIB_DEFS_H
+#define _QIB_DEFS_H
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
  * Copyright (c) 2013 Intel Corporation.  All rights reserved.
  *
@@ -42,4 +42,4 @@ void qib_dbg_exit(void);
 
 #endif
 
-#endif                          /* _QIB_DEBUGFS_H */
+#endif                          /* _QIB_DEFS_H */

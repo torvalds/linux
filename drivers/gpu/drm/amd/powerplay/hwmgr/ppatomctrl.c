@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -644,7 +644,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 		uint16_t virtual_voltage_Id,
 		uint16_t *voltage,
 		uint16_t dpm_level,
-		bool debug)
+		bool de)
 {
 	ATOM_ASIC_PROFILING_INFO_V3_4 *getASICProfilingInfo;
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -1135,7 +1135,7 @@ int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 	}
 
 	if (entry_id >= hwmgr->dyn_state.vddc_dependency_on_sclk->count) {
-	        pr_debug("Can't find requested voltage id in vddc_dependency_on_sclk table!\n");
+	        pr_de("Can't find requested voltage id in vddc_dependency_on_sclk table!\n");
 	        return -EINVAL;
 	}
 

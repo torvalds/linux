@@ -95,7 +95,7 @@ static int amdgpu_atombios_i2c_process_i2c_ch(struct amdgpu_i2c_chan *chan,
 
 	/* error */
 	if (args.ucStatus != HW_ASSISTED_I2C_STATUS_SUCCESS) {
-		DRM_DEBUG_KMS("hw_i2c error\n");
+		DRM_DE_KMS("hw_i2c error\n");
 		r = -EIO;
 		goto done;
 	}

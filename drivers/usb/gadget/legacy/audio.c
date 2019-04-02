@@ -6,7 +6,7 @@
  * Copyright (C) 2008 Analog Devices, Inc
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/kernel.h>
 #include <linux/module.h>

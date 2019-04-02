@@ -124,7 +124,7 @@ static inline bool stage_session(__be16 sid)
 
 static inline struct pppoe_net *pppoe_pernet(struct net *net)
 {
-	BUG_ON(!net);
+	_ON(!net);
 
 	return net_generic(net, pppoe_net_id);
 }
@@ -326,7 +326,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 			 * change from underneath us.
 			 */
 
-			BUG_ON(pppoe_pernet(dev_net(dev)) == NULL);
+			_ON(pppoe_pernet(dev_net(dev)) == NULL);
 			write_lock_bh(&pn->hash_lock);
 			po = pn->hash_table[i];
 		}

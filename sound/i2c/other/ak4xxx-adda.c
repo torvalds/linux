@@ -328,7 +328,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		ak->total_regs = 0x08;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return;
 	}
 
@@ -405,7 +405,7 @@ static int put_ak_reg(struct snd_kcontrol *kcontrol, int addr,
 		nval = mask - nval;
 	if (AK_GET_NEEDSMSB(kcontrol->private_value))
 		nval |= 0x80;
-	/* printk(KERN_DEBUG "DEBUG - AK writing reg: chip %x addr %x,
+	/* printk(KERN_DE "DE - AK writing reg: chip %x addr %x,
 	   nval %x\n", chip, addr, nval); */
 	snd_akm4xxx_write(ak, chip, addr, nval);
 	return 1;

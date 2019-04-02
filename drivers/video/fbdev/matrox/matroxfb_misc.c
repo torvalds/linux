@@ -21,7 +21,7 @@
  *
  *               "Bibek Sahu" <scorpio@dodds.net>
  *                     Access device through readb|w|l and write b|w|l
- *                     Extensive debugging stuff
+ *                     Extensive deging stuff
  *
  *               "Daniel Haun" <haund@usa.net>
  *                     Testing, hardware cursor fixes
@@ -34,7 +34,7 @@
  *
  *               "Kelly French" <targon@hazmat.com>
  *               "Fernando Herrera" <fherrera@eurielec.etsit.upm.es>
- *                     Betatesting, bug reporting
+ *                     Betatesting,  reporting
  *
  *               "Pablo Bianucci" <pbian@pccp.com.ar>
  *                     Fixes, ideas, betatesting
@@ -137,7 +137,7 @@ int matroxfb_PLL_calcclock(const struct matrox_pll_features* pll, unsigned int f
 
 	fwant = freq;
 
-#ifdef DEBUG
+#ifdef DE
 	printk(KERN_ERR "post_shift_max: %d\n", pll->post_shift_max);
 	printk(KERN_ERR "ref_freq: %d\n", pll->ref_freq);
 	printk(KERN_ERR "freq: %d\n", freq);
@@ -755,7 +755,7 @@ static int matroxfb_set_limits(struct matrox_fb_info *minfo,
 		case 5:
 			return parse_pins5(minfo, bd);
 		default:
-			printk(KERN_DEBUG "matroxfb: Powerup info version %u is not yet supported\n", pins_version);
+			printk(KERN_DE "matroxfb: Powerup info version %u is not yet supported\n", pins_version);
 			return -1;
 	}
 }

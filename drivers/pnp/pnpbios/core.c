@@ -121,9 +121,9 @@ static int pnp_dock_event(int dock, struct pnp_docking_station_info *info)
 	envp[i++] = "HOME=/";
 	envp[i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
 
-#ifdef	DEBUG
-	/* hint that policy agent should enter no-stdout debug mode */
-	envp[i++] = "DEBUG=kernel";
+#ifdef	DE
+	/* hint that policy agent should enter no-stdout de mode */
+	envp[i++] = "DE=kernel";
 #endif
 	/* extensible set of named bus-specific parameters,
 	 * supporting multiple driver selection algorithms.
@@ -370,7 +370,7 @@ static void __init build_devlist(void)
 	for (nodenum = 0; nodenum < 0xff;) {
 		u8 thisnodenum = nodenum;
 		/* eventually we will want to use PNPMODE_STATIC here but for now
-		 * dynamic will help us catch buggy bioses to add to the blacklist.
+		 * dynamic will help us catch gy bioses to add to the blacklist.
 		 */
 		if (!pnpbios_dont_use_current_config) {
 			if (pnp_bios_get_dev_node

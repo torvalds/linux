@@ -169,7 +169,7 @@ int __init ft010_of_init_irq(struct device_node *node,
 	struct ft010_irq_data *f = &firq;
 
 	/*
-	 * Disable the idle handler by default since it is buggy
+	 * Disable the idle handler by default since it is gy
 	 * For more info see arch/arm/mach-gemini/idle.c
 	 */
 	cpu_idle_poll_ctrl(true);

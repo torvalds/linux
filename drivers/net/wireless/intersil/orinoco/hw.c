@@ -16,8 +16,8 @@
 
 #define SYMBOL_MAX_VER_LEN	(14)
 
-/* Symbol firmware has a bug allocating buffers larger than this */
-#define TX_NICBUF_SIZE_BUG	1585
+/* Symbol firmware has a  allocating buffers larger than this */
+#define TX_NICBUF_SIZE_	1585
 
 /********************************************************************/
 /* Data tables                                                      */
@@ -414,12 +414,12 @@ int orinoco_hw_allocate_fid(struct orinoco_private *priv)
 	int err;
 
 	err = hw->ops->allocate(hw, priv->nicbuf_size, &priv->txfid);
-	if (err == -EIO && priv->nicbuf_size > TX_NICBUF_SIZE_BUG) {
-		/* Try workaround for old Symbol firmware bug */
-		priv->nicbuf_size = TX_NICBUF_SIZE_BUG;
+	if (err == -EIO && priv->nicbuf_size > TX_NICBUF_SIZE_) {
+		/* Try workaround for old Symbol firmware  */
+		priv->nicbuf_size = TX_NICBUF_SIZE_;
 		err = hw->ops->allocate(hw, priv->nicbuf_size, &priv->txfid);
 
-		dev_warn(dev, "Firmware ALLOC bug detected "
+		dev_warn(dev, "Firmware ALLOC  detected "
 			 "(old Symbol firmware?). Work around %s\n",
 			 err ? "failed!" : "ok.");
 	}
@@ -448,7 +448,7 @@ int orinoco_get_bitratemode(int bitrate, int automatic)
 
 void orinoco_get_ratemode_cfg(int ratemode, int *bitrate, int *automatic)
 {
-	BUG_ON((ratemode < 0) || (ratemode >= BITRATE_TABLE_SIZE));
+	_ON((ratemode < 0) || (ratemode >= BITRATE_TABLE_SIZE));
 
 	*bitrate = bitrate_table[ratemode].bitrate * 100000;
 	*automatic = bitrate_table[ratemode].automatic;
@@ -711,7 +711,7 @@ int __orinoco_hw_set_bitrate(struct orinoco_private *priv)
 	int err = 0;
 
 	if (ratemode >= BITRATE_TABLE_SIZE) {
-		printk(KERN_ERR "%s: BUG: Invalid bitrate mode %d\n",
+		printk(KERN_ERR "%s: : Invalid bitrate mode %d\n",
 		       priv->ndev->name, ratemode);
 		return -EINVAL;
 	}
@@ -729,7 +729,7 @@ int __orinoco_hw_set_bitrate(struct orinoco_private *priv)
 				bitrate_table[ratemode].intersil_txratectrl);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return err;
@@ -775,7 +775,7 @@ int orinoco_hw_get_act_bitrate(struct orinoco_private *priv, int *bitrate)
 
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return err;
@@ -858,11 +858,11 @@ int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv)
 			int keylen;
 
 			/* Force uniform key length to work around
-			 * firmware bugs */
+			 * firmware s */
 			keylen = priv->keys[priv->tx_key].key_len;
 
 			if (keylen > LARGE_KEY_SIZE) {
-				printk(KERN_ERR "%s: BUG: Key %d has oversize length %d.\n",
+				printk(KERN_ERR "%s: : Key %d has oversize length %d.\n",
 				       priv->ndev->name, priv->tx_key, keylen);
 				return -E2BIG;
 			} else if (keylen > SMALL_KEY_SIZE)
@@ -1152,7 +1152,7 @@ int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 	}
 
 	len = le16_to_cpu(essidbuf.len);
-	BUG_ON(len > IW_ESSID_MAX_SIZE);
+	_ON(len > IW_ESSID_MAX_SIZE);
 
 	memset(buf, 0, IW_ESSID_MAX_SIZE);
 	memcpy(buf, p, len);

@@ -25,7 +25,7 @@
 /* Bluetooth HCI connection handling. */
 
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -127,7 +127,7 @@ static void hci_conn_cleanup(struct hci_conn *conn)
 
 	hci_conn_del_sysfs(conn);
 
-	debugfs_remove_recursive(conn->debugfs);
+	defs_remove_recursive(conn->defs);
 
 	hci_dev_put(hdev);
 

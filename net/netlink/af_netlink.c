@@ -788,7 +788,7 @@ static int netlink_release(struct socket *sock)
 
 	if (netlink_is_kernel(sk)) {
 		netlink_table_grab();
-		BUG_ON(nl_table[sk->sk_protocol].registered == 0);
+		_ON(nl_table[sk->sk_protocol].registered == 0);
 		if (--nl_table[sk->sk_protocol].registered == 0) {
 			struct listeners *old;
 
@@ -1357,7 +1357,7 @@ int netlink_has_listeners(struct sock *sk, unsigned int group)
 	int res = 0;
 	struct listeners *listeners;
 
-	BUG_ON(!netlink_is_kernel(sk));
+	_ON(!netlink_is_kernel(sk));
 
 	rcu_read_lock();
 	listeners = rcu_dereference(nl_table[sk->sk_protocol].listeners);
@@ -2020,7 +2020,7 @@ out:
 
 static void netlink_data_ready(struct sock *sk)
 {
-	BUG();
+	();
 }
 
 /*
@@ -2040,7 +2040,7 @@ __netlink_kernel_create(struct net *net, int unit, struct module *module,
 	struct mutex *cb_mutex = cfg ? cfg->cb_mutex : NULL;
 	unsigned int groups;
 
-	BUG_ON(!nl_table);
+	_ON(!nl_table);
 
 	if (unit < 0 || unit >= MAX_LINKS)
 		return NULL;
@@ -2772,7 +2772,7 @@ static int __init netlink_proto_init(void)
 	if (err != 0)
 		goto out;
 
-	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD__ON(sizeof(struct netlink_skb_parms) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
 	if (!nl_table)

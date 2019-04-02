@@ -5,7 +5,7 @@
     Copyright (C) 2006-2007 Georg Acher
     Copyright (C) 2007-2008 Darron Broad
 	March 2007
-	    Fixed some bugs.
+	    Fixed some s.
 	    Added diseqc support.
 	    Added corrected signal strength support.
 	August 2007
@@ -44,13 +44,13 @@
 #include <media/dvb_frontend.h>
 #include "cx24116.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activates frontend deging (default:0)");
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
+		if (de) \
 			printk(KERN_INFO "cx24116: " args); \
 	} while (0)
 
@@ -203,7 +203,7 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 		.flags = 0, .buf = buf, .len = 2 };
 	int err;
 
-	if (debug > 1)
+	if (de > 1)
 		printk("cx24116: %s: write reg 0x%02x, value 0x%02x\n",
 			__func__, reg, data);
 
@@ -237,7 +237,7 @@ static int cx24116_writeregN(struct cx24116_state *state, int reg,
 	msg.buf = buf;
 	msg.len = len + 1;
 
-	if (debug > 1)
+	if (de > 1)
 		printk(KERN_INFO "cx24116: %s:  write regN 0x%02x, len = %d\n",
 			__func__, reg, len);
 
@@ -273,7 +273,7 @@ static int cx24116_readreg(struct cx24116_state *state, u8 reg)
 		return ret;
 	}
 
-	if (debug > 1)
+	if (de > 1)
 		printk(KERN_INFO "cx24116: read reg 0x%02x, value 0x%02x\n",
 			reg, b1[0]);
 
@@ -966,7 +966,7 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 		return -EINVAL;
 
 	/* Dump DiSEqC message */
-	if (debug) {
+	if (de) {
 		printk(KERN_INFO "cx24116: %s(", __func__);
 		for (i = 0 ; i < d->msg_len ;) {
 			printk(KERN_INFO "0x%02x", d->msg[i]);
@@ -1018,7 +1018,7 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 		if (d->msg_len >= 4 && d->msg[2] == 0x38)
 			state->dsec_cmd.args[CX24116_DISEQC_BURST] =
 				((d->msg[3] & 4) >> 2);
-		if (debug)
+		if (de)
 			dprintk("%s burst=%d\n", __func__,
 				state->dsec_cmd.args[CX24116_DISEQC_BURST]);
 	}

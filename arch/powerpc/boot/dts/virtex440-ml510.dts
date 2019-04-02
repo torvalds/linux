@@ -3,8 +3,8 @@
  * Xilinx ML510 Reference Design support
  *
  * This DTS file was created for the ml510_bsb1_pcores_ppc440 reference design.
- * The reference design contains a bug which prevent PCI DMA from working
- * properly.  A description of the bug is given in the plbv46_pci section. It
+ * The reference design contains a  which prevent PCI DMA from working
+ * properly.  A description of the  is given in the plbv46_pci section. It
  * needs to be fixed by the user until Xilinx updates their reference design.
  *
  * Copyright 2009, Roderick Colenbrander

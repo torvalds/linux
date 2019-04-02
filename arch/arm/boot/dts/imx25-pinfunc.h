@@ -424,7 +424,7 @@
  * Removing the SION bit from MX25_PAD_*__ESDHCn_CMD breaks detecting an SD
  * card. According to the i.MX25 reference manual (e.g. Figure 23-2 in IMX25RM
  * Rev. 2 from 01/2011) this pin is bidirectional. So it seems to be a silicon
- * bug that configuring the ESDHCn_CMD function doesn't enable the input path
+ *  that configuring the ESDHCn_CMD function doesn't enable the input path
  * for this pin.
  * This might have side effects for other hardware units that are connected to
  * that pin and use the respective function as input.

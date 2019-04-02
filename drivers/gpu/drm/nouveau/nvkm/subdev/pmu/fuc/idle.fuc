@@ -52,7 +52,7 @@ idle:
 	// set our "no interrupt has occurred during our execution" flag
 	bset $flags $p0
 
-	// count IDLE invocations for debugging purposes
+	// count IDLE invocations for deging purposes
 	nv_iord($r1, NV_PPWR_DSCRATCH(1))
 	add b32 $r1 1
 	nv_iowr(NV_PPWR_DSCRATCH(1), $r1)

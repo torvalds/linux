@@ -513,7 +513,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 				slave->mtd.erasesize = regions[i].erasesize;
 			}
 		}
-		BUG_ON(slave->mtd.erasesize == 0);
+		_ON(slave->mtd.erasesize == 0);
 	} else {
 		/* Single erase size */
 		slave->mtd.erasesize = parent->erasesize;
@@ -849,7 +849,7 @@ static int mtd_part_do_parse(struct mtd_part_parser *parser,
 	int ret;
 
 	ret = (*parser->parse_fn)(master, &pparts->parts, data);
-	pr_debug("%s: parser %s: %i\n", master->name, parser->name, ret);
+	pr_de("%s: parser %s: %i\n", master->name, parser->name, ret);
 	if (ret <= 0)
 		return ret;
 
@@ -991,12 +991,12 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		if (!strcmp(*types, "ofpart")) {
 			ret = mtd_part_of_parse(master, &pparts);
 		} else {
-			pr_debug("%s: parsing partitions %s\n", master->name,
+			pr_de("%s: parsing partitions %s\n", master->name,
 				 *types);
 			parser = mtd_part_parser_get(*types);
 			if (!parser && !request_module("%s", *types))
 				parser = mtd_part_parser_get(*types);
-			pr_debug("%s: got parser %s\n", master->name,
+			pr_de("%s: got parser %s\n", master->name,
 				parser ? parser->name : NULL);
 			if (!parser)
 				continue;

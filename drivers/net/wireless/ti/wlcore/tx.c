@@ -28,7 +28,7 @@
 #include <linux/spinlock.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "io.h"
 #include "ps.h"
 #include "tx.h"
@@ -56,7 +56,7 @@ static int wl1271_set_default_wep_key(struct wl1271 *wl,
 	if (ret < 0)
 		return ret;
 
-	wl1271_debug(DEBUG_CRYPT, "default wep key idx: %d", (int)id);
+	wl1271_de(DE_CRYPT, "default wep key idx: %d", (int)id);
 	return 0;
 }
 
@@ -183,7 +183,7 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	control = IEEE80211_SKB_CB(skb);
 	if (control->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
-		wl1271_debug(DEBUG_TX, "tx offchannel");
+		wl1271_de(DE_TX, "tx offchannel");
 		return wlvif->dev_hlid;
 	}
 
@@ -251,7 +251,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		ret = 0;
 
-		wl1271_debug(DEBUG_TX,
+		wl1271_de(DE_TX,
 			     "tx_allocate: size: %d, blocks: %d, id: %d",
 			     total_len, total_blocks, id);
 	} else {
@@ -971,7 +971,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 		skb_pull(skb, WL1271_EXTRA_SPACE_TKIP);
 	}
 
-	wl1271_debug(DEBUG_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
+	wl1271_de(DE_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
 		     " status 0x%x",
 		     result->id, skb, result->ack_failures,
 		     result->rate_class_index, result->status);
@@ -1006,7 +1006,7 @@ int wlcore_tx_complete(struct wl1271 *wl)
 		goto out;
 
 	count = fw_counter - wl->tx_results_count;
-	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
+	wl1271_de(DE_TX, "tx_complete received, packets: %d", count);
 
 	/* verify that the result buffer is not getting overrun */
 	if (unlikely(count > TX_HW_RESULT_QUEUE_LEN))
@@ -1041,7 +1041,7 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		total[i] = 0;
 		while ((skb = skb_dequeue(&lnk->tx_queue[i]))) {
-			wl1271_debug(DEBUG_TX, "link freeing skb 0x%p", skb);
+			wl1271_de(DE_TX, "link freeing skb 0x%p", skb);
 
 			if (!wl12xx_is_dummy_packet(wl, skb)) {
 				info = IEEE80211_SKB_CB(skb);
@@ -1115,7 +1115,7 @@ void wl12xx_tx_reset(struct wl1271 *wl)
 
 		skb = wl->tx_frames[i];
 		wl1271_free_tx_id(wl, i);
-		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
+		wl1271_de(DE_TX, "freeing skb 0x%p", skb);
 
 		if (!wl12xx_is_dummy_packet(wl, skb)) {
 			/*
@@ -1164,7 +1164,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_FLUSH);
 
 	while (!time_after(jiffies, timeout)) {
-		wl1271_debug(DEBUG_MAC80211, "flushing tx buffer: %d %d",
+		wl1271_de(DE_MAC80211, "flushing tx buffer: %d %d",
 			     wl->tx_frames_cnt,
 			     wl1271_tx_total_queue_count(wl));
 
@@ -1177,7 +1177,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 
 		if ((wl->tx_frames_cnt == 0) &&
 		    (wl1271_tx_total_queue_count(wl) == 0)) {
-			wl1271_debug(DEBUG_MAC80211, "tx flush took %d ms",
+			wl1271_de(DE_MAC80211, "tx flush took %d ms",
 				     jiffies_to_msecs(jiffies - start_time));
 			goto out_wake;
 		}

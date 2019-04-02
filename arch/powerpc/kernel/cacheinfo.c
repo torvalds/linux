@@ -163,7 +163,7 @@ static struct cache *new_cache(int type, int level, struct device_node *ofnode)
 	return cache;
 }
 
-static void release_cache_debugcheck(struct cache *cache)
+static void release_cache_decheck(struct cache *cache)
 {
 	struct cache *iter;
 
@@ -181,10 +181,10 @@ static void release_cache(struct cache *cache)
 	if (!cache)
 		return;
 
-	pr_debug("freeing L%d %s cache for %pOF\n", cache->level,
+	pr_de("freeing L%d %s cache for %pOF\n", cache->level,
 		 cache_type_string(cache), cache->ofnode);
 
-	release_cache_debugcheck(cache);
+	release_cache_decheck(cache);
 	list_del(&cache->list);
 	of_node_put(cache->ofnode);
 	kfree(cache);
@@ -357,7 +357,7 @@ static int cache_is_unified_d(const struct device_node *np)
  */
 static struct cache *cache_do_one_devnode_unified(struct device_node *node, int level)
 {
-	pr_debug("creating L%d ucache for %pOF\n", level, node);
+	pr_de("creating L%d ucache for %pOF\n", level, node);
 
 	return new_cache(cache_is_unified_d(node), level, node);
 }
@@ -367,7 +367,7 @@ static struct cache *cache_do_one_devnode_split(struct device_node *node,
 {
 	struct cache *dcache, *icache;
 
-	pr_debug("creating L%d dcache and icache for %pOF\n", level,
+	pr_de("creating L%d dcache and icache for %pOF\n", level,
 		 node);
 
 	dcache = new_cache(CACHE_TYPE_DATA, level, node);
@@ -425,7 +425,7 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 	smaller->next_local = bigger;
 }
 
-static void do_subsidiary_caches_debugcheck(struct cache *cache)
+static void do_subsidiary_caches_decheck(struct cache *cache)
 {
 	WARN_ON_ONCE(cache->level != 1);
 	WARN_ON_ONCE(!of_node_is_type(cache->ofnode, "cpu"));
@@ -436,7 +436,7 @@ static void do_subsidiary_caches(struct cache *cache)
 	struct device_node *subcache_node;
 	int level = cache->level;
 
-	do_subsidiary_caches_debugcheck(cache);
+	do_subsidiary_caches_decheck(cache);
 
 	while ((subcache_node = of_find_next_cache_node(cache->ofnode))) {
 		struct cache *subcache;
@@ -457,7 +457,7 @@ static struct cache *cache_chain_instantiate(unsigned int cpu_id)
 	struct device_node *cpu_node;
 	struct cache *cpu_cache = NULL;
 
-	pr_debug("creating cache object(s) for CPU %i\n", cpu_id);
+	pr_de("creating cache object(s) for CPU %i\n", cpu_id);
 
 	cpu_node = of_get_cpu_node(cpu_id, NULL);
 	WARN_ONCE(!cpu_node, "no OF node found for CPU %i\n", cpu_id);
@@ -514,7 +514,7 @@ static void cache_index_release(struct kobject *kobj)
 
 	index = kobj_to_cache_index_dir(kobj);
 
-	pr_debug("freeing index directory for L%d %s cache\n",
+	pr_de("freeing index directory for L%d %s cache\n",
 		 index->cache->level, cache_type_string(index->cache));
 
 	kfree(index);
@@ -737,14 +737,14 @@ static void cacheinfo_create_index_opt_attrs(struct cache_index_dir *dir)
 
 		rc = attr->show(&dir->kobj, attr, buf);
 		if (rc <= 0) {
-			pr_debug("not creating %s attribute for "
+			pr_de("not creating %s attribute for "
 				 "%pOF(%s) (rc = %zd)\n",
 				 attr->attr.name, cache->ofnode,
 				 cache_type, rc);
 			continue;
 		}
 		if (sysfs_create_file(&dir->kobj, &attr->attr))
-			pr_debug("could not create %s attribute for %pOF(%s)\n",
+			pr_de("could not create %s attribute for %pOF(%s)\n",
 				 attr->attr.name, cache->ofnode, cache_type);
 	}
 

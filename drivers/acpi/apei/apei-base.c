@@ -35,7 +35,7 @@
 #include <linux/kref.h>
 #include <linux/rculist.h>
 #include <linux/interrupt.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <asm/unaligned.h>
 
 #include "apei-internal.h"
@@ -587,7 +587,7 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 	space_id = reg->space_id;
 	*paddr = get_unaligned(&reg->address);
 	if (!*paddr) {
-		pr_warning(FW_BUG APEI_PFX
+		pr_warning(FW_ APEI_PFX
 			   "Invalid physical address in GAR [0x%llx/%u/%u/%u/%u]\n",
 			   *paddr, bit_width, bit_offset, access_size_code,
 			   space_id);
@@ -595,7 +595,7 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 	}
 
 	if (access_size_code < 1 || access_size_code > 4) {
-		pr_warning(FW_BUG APEI_PFX
+		pr_warning(FW_ APEI_PFX
 			   "Invalid access size code in GAR [0x%llx/%u/%u/%u/%u]\n",
 			   *paddr, bit_width, bit_offset, access_size_code,
 			   space_id);
@@ -603,7 +603,7 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 	}
 	*access_bit_width = 1UL << (access_size_code + 2);
 
-	/* Fixup common BIOS bug */
+	/* Fixup common BIOS  */
 	if (bit_width == 32 && bit_offset == 0 && (*paddr & 0x03) == 0 &&
 	    *access_bit_width < 32)
 		*access_bit_width = 32;
@@ -612,7 +612,7 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 		*access_bit_width = 64;
 
 	if ((bit_width + bit_offset) > *access_bit_width) {
-		pr_warning(FW_BUG APEI_PFX
+		pr_warning(FW_ APEI_PFX
 			   "Invalid bit width + offset in GAR [0x%llx/%u/%u/%u/%u]\n",
 			   *paddr, bit_width, bit_offset, access_size_code,
 			   space_id);
@@ -621,7 +621,7 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 
 	if (space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY &&
 	    space_id != ACPI_ADR_SPACE_SYSTEM_IO) {
-		pr_warning(FW_BUG APEI_PFX
+		pr_warning(FW_ APEI_PFX
 			   "Invalid address space type in GAR [0x%llx/%u/%u/%u/%u]\n",
 			   *paddr, bit_width, bit_offset, access_size_code,
 			   space_id);
@@ -752,16 +752,16 @@ int apei_exec_collect_resources(struct apei_exec_context *ctx,
 }
 EXPORT_SYMBOL_GPL(apei_exec_collect_resources);
 
-struct dentry *apei_get_debugfs_dir(void)
+struct dentry *apei_get_defs_dir(void)
 {
 	static struct dentry *dapei;
 
 	if (!dapei)
-		dapei = debugfs_create_dir("apei", NULL);
+		dapei = defs_create_dir("apei", NULL);
 
 	return dapei;
 }
-EXPORT_SYMBOL_GPL(apei_get_debugfs_dir);
+EXPORT_SYMBOL_GPL(apei_get_defs_dir);
 
 int __weak arch_apei_enable_cmcff(struct acpi_hest_header *hest_hdr,
 				  void *data)

@@ -45,7 +45,7 @@
  * produce command buffers which are send to the kernel and
  * put in IBs for execution by the requested ring.
  */
-static int amdgpu_debugfs_sa_init(struct amdgpu_device *adev);
+static int amdgpu_defs_sa_init(struct amdgpu_device *adev);
 
 /**
  * amdgpu_ib_get - request an IB (Indirect Buffer)
@@ -289,8 +289,8 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 	}
 
 	adev->ib_pool_ready = true;
-	if (amdgpu_debugfs_sa_init(adev)) {
-		dev_err(adev->dev, "failed to register debugfs file for SA\n");
+	if (amdgpu_defs_sa_init(adev)) {
+		dev_err(adev->dev, "failed to register defs file for SA\n");
 	}
 	return 0;
 }
@@ -369,7 +369,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 		r = amdgpu_ring_test_ib(ring, tmo);
 		if (!r) {
-			DRM_DEV_DEBUG(adev->dev, "ib test on %s succeeded\n",
+			DRM_DEV_DE(adev->dev, "ib test on %s succeeded\n",
 				      ring->name);
 			continue;
 		}
@@ -391,32 +391,32 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-static int amdgpu_debugfs_sa_info(struct seq_file *m, void *data)
+static int amdgpu_defs_sa_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
-	amdgpu_sa_bo_dump_debug_info(&adev->ring_tmp_bo, m);
+	amdgpu_sa_bo_dump_de_info(&adev->ring_tmp_bo, m);
 
 	return 0;
 
 }
 
-static const struct drm_info_list amdgpu_debugfs_sa_list[] = {
-	{"amdgpu_sa_info", &amdgpu_debugfs_sa_info, 0, NULL},
+static const struct drm_info_list amdgpu_defs_sa_list[] = {
+	{"amdgpu_sa_info", &amdgpu_defs_sa_info, 0, NULL},
 };
 
 #endif
 
-static int amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
+static int amdgpu_defs_sa_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_sa_list, 1);
+#if defined(CONFIG_DE_FS)
+	return amdgpu_defs_add_files(adev, amdgpu_defs_sa_list, 1);
 #else
 	return 0;
 #endif

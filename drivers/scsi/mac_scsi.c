@@ -179,16 +179,16 @@ static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))
 			return 0;
 
-		dsprintk(NDEBUG_PSEUDO_DMA, hostdata->host,
+		dsprintk(NDE_PSEUDO_DMA, hostdata->host,
 		         "%s: bus error (%d/%d)\n", __func__, transferred, len);
-		NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
+		NCR5380_dprint(NDE_PSEUDO_DMA, hostdata->host);
 		d = dst + transferred;
 		n = len - transferred;
 	}
 
 	scmd_printk(KERN_ERR, hostdata->connected,
 	            "%s: phase mismatch or !DRQ\n", __func__);
-	NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
+	NCR5380_dprint(NDE_PSEUDO_DMA, hostdata->host);
 	return -1;
 }
 
@@ -287,16 +287,16 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 			return 0;
 		}
 
-		dsprintk(NDEBUG_PSEUDO_DMA, hostdata->host,
+		dsprintk(NDE_PSEUDO_DMA, hostdata->host,
 		         "%s: bus error (%d/%d)\n", __func__, transferred, len);
-		NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
+		NCR5380_dprint(NDE_PSEUDO_DMA, hostdata->host);
 		s = src + transferred;
 		n = len - transferred;
 	}
 
 	scmd_printk(KERN_ERR, hostdata->connected,
 	            "%s: phase mismatch or !DRQ\n", __func__);
-	NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
+	NCR5380_dprint(NDE_PSEUDO_DMA, hostdata->host);
 
 	return -1;
 }

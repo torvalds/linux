@@ -1249,7 +1249,7 @@ static int aic31xx_set_bias_level(struct snd_soc_component *component,
 			aic31xx_clk_off(component);
 			break;
 		default:
-			BUG();
+			();
 		}
 		break;
 	case SND_SOC_BIAS_OFF:

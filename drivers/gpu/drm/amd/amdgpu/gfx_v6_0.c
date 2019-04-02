@@ -314,7 +314,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	const struct gfx_firmware_header_v1_0 *cp_hdr;
 	const struct rlc_firmware_header_v1_0 *rlc_hdr;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_TAHITI:
@@ -332,7 +332,7 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_HAINAN:
 		chip_name = "hainan";
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
@@ -1556,7 +1556,7 @@ static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config = 0;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
-	u32 sx_debug_1;
+	u32 sx_de_1;
 	u32 hdp_host_path_cntl;
 	u32 tmp;
 
@@ -1647,7 +1647,7 @@ static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 		gb_addr_config = HAINAN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -1717,8 +1717,8 @@ static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 	WREG32(mmCP_MEQ_THRESHOLDS, (0x30 << CP_MEQ_THRESHOLDS__MEQ1_START__SHIFT) |
 				    (0x60 << CP_MEQ_THRESHOLDS__MEQ2_START__SHIFT));
 
-	sx_debug_1 = RREG32(mmSX_DEBUG_1);
-	WREG32(mmSX_DEBUG_1, sx_debug_1);
+	sx_de_1 = RREG32(mmSX_DE_1);
+	WREG32(mmSX_DE_1, sx_de_1);
 
 	WREG32(mmSPI_CONFIG_CNTL_1, (4 << SPI_CONFIG_CNTL_1__VTX_DONE_DELAY__SHIFT));
 
@@ -2080,7 +2080,7 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* Set the write pointer delay */
 	WREG32(mmCP_RB_WPTR_DELAY, 0);
 
-	WREG32(mmCP_DEBUG, 0);
+	WREG32(mmCP_DE, 0);
 	WREG32(mmSCRATCH_ADDR, 0);
 
 	/* ring 0 - compute and gfx */
@@ -2136,7 +2136,7 @@ static u64 gfx_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 	else if (ring == &adev->gfx.compute_ring[1])
 		return RREG32(mmCP_RB2_WPTR);
 	else
-		BUG();
+		();
 }
 
 static void gfx_v6_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
@@ -2158,7 +2158,7 @@ static void gfx_v6_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 		WREG32(mmCP_RB2_WPTR, lower_32_bits(ring->wptr));
 		(void)RREG32(mmCP_RB2_WPTR);
 	} else {
-		BUG();
+		();
 	}
 
 }
@@ -3267,7 +3267,7 @@ static void gfx_v6_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev,
 		}
 
 	default:
-		BUG();
+		();
 		break;
 
 	}

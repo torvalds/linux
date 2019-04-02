@@ -64,7 +64,7 @@
 #include "platform.h"
 #include "aspm.h"
 #include "affinity.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "fault.h"
 
 uint kdeth_qp;
@@ -10998,9 +10998,9 @@ static void init_vl_arb_caches(struct hfi1_pportdata *ppd)
 {
 	int i;
 
-	BUILD_BUG_ON(VL_ARB_TABLE_SIZE !=
+	BUILD__ON(VL_ARB_TABLE_SIZE !=
 			VL_ARB_LOW_PRIO_TABLE_SIZE);
-	BUILD_BUG_ON(VL_ARB_TABLE_SIZE !=
+	BUILD__ON(VL_ARB_TABLE_SIZE !=
 			VL_ARB_HIGH_PRIO_TABLE_SIZE);
 
 	/*

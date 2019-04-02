@@ -24,7 +24,7 @@
 
 #include <linux/ptrace.h>		/* for linux pt_regs struct */
 #include <linux/kgdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <asm/inst.h>
@@ -292,8 +292,8 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 }
 
 /*
- * Calls linux_debug_hook before the kernel dies. If KGDB is enabled,
- * then try to fall into the debugger
+ * Calls linux_de_hook before the kernel dies. If KGDB is enabled,
+ * then try to fall into the deger
  */
 static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 			    void *ptr)

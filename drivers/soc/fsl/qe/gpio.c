@@ -171,7 +171,7 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 
 	qe_pin = kzalloc(sizeof(*qe_pin), GFP_KERNEL);
 	if (!qe_pin) {
-		pr_debug("%s: can't allocate memory\n", __func__);
+		pr_de("%s: can't allocate memory\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -183,7 +183,7 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 		goto err0;
 
 	if (!of_device_is_compatible(gc->of_node, "fsl,mpc8323-qe-pario-bank")) {
-		pr_debug("%s: tried to get a non-qe pin\n", __func__);
+		pr_de("%s: tried to get a non-qe pin\n", __func__);
 		err = -EINVAL;
 		goto err0;
 	}
@@ -208,7 +208,7 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 		return qe_pin;
 err0:
 	kfree(qe_pin);
-	pr_debug("%s failed with status %d\n", __func__, err);
+	pr_de("%s failed with status %d\n", __func__, err);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(qe_pin_request);

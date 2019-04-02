@@ -193,8 +193,8 @@ u32 cbe_read_pm(u32 cpu, enum pm_reg_name reg)
 		READ_SHADOW_REG(val, group_control);
 		break;
 
-	case debug_bus_control:
-		READ_SHADOW_REG(val, debug_bus_control);
+	case de_bus_control:
+		READ_SHADOW_REG(val, de_bus_control);
 		break;
 
 	case trace_address:
@@ -233,8 +233,8 @@ void cbe_write_pm(u32 cpu, enum pm_reg_name reg, u32 val)
 		WRITE_WO_MMIO(group_control, val);
 		break;
 
-	case debug_bus_control:
-		WRITE_WO_MMIO(debug_bus_control, val);
+	case de_bus_control:
+		WRITE_WO_MMIO(de_bus_control, val);
 		break;
 
 	case trace_address:

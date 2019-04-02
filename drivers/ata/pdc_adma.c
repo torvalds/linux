@@ -372,7 +372,7 @@ static void adma_qc_prep(struct ata_queued_cmd *qc)
 	i = adma_fill_sg(qc);
 	wmb();	/* flush PRDs and pkt to memory */
 #if 0
-	/* dump out CPB + PRDs for debug */
+	/* dump out CPB + PRDs for de */
 	{
 		int j, len = 0;
 		static char obuf[2048];
@@ -411,7 +411,7 @@ static unsigned int adma_qc_issue(struct ata_queued_cmd *qc)
 		return 0;
 
 	case ATAPI_PROT_DMA:
-		BUG();
+		();
 		break;
 
 	default:

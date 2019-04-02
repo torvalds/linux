@@ -806,11 +806,11 @@ config NET_ACT_PEDIT
 	  module will be called act_pedit.
 
 config NET_ACT_SIMP
-        tristate "Simple Example (Debug)"
+        tristate "Simple Example (De)"
         depends on NET_CLS_ACT
         ---help---
 	  Say Y here to add a simple action for demonstration purposes.
-	  It is meant as an example and for debugging purposes. It will
+	  It is meant as an example and for deging purposes. It will
 	  print a configured policy string followed by the packet count
 	  to the console for every packet that passes by.
 

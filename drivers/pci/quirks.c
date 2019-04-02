@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This file contains work-arounds for many known PCI hardware bugs.
+ * This file contains work-arounds for many known PCI hardware s.
  * Devices present only on certain architectures (host bridges et cetera)
  * should be handled in arch-specific code.
  *
@@ -29,19 +29,19 @@
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pm_runtime.h>
 #include <linux/switchtec.h>
-#include <asm/dma.h>	/* isa_dma_bridge_buggy */
+#include <asm/dma.h>	/* isa_dma_bridge_gy */
 #include "pci.h"
 
-static ktime_t fixup_debug_start(struct pci_dev *dev,
+static ktime_t fixup_de_start(struct pci_dev *dev,
 				 void (*fn)(struct pci_dev *dev))
 {
-	if (initcall_debug)
+	if (initcall_de)
 		pci_info(dev, "calling  %pF @ %i\n", fn, task_pid_nr(current));
 
 	return ktime_get();
 }
 
-static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
+static void fixup_de_report(struct pci_dev *dev, ktime_t calltime,
 			       void (*fn)(struct pci_dev *dev))
 {
 	ktime_t delta, rettime;
@@ -50,7 +50,7 @@ static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	if (initcall_debug || duration > 10000)
+	if (initcall_de || duration > 10000)
 		pci_info(dev, "%pF took %lld usecs\n", fn, duration);
 }
 
@@ -72,9 +72,9 @@ static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 #else
 			hook = f->hook;
 #endif
-			calltime = fixup_debug_start(dev, hook);
+			calltime = fixup_de_start(dev, hook);
 			hook(dev);
-			fixup_debug_report(dev, calltime, hook);
+			fixup_de_report(dev, calltime, hook);
 		}
 }
 
@@ -159,7 +159,7 @@ static int __init pci_apply_final_quirks(void)
 	u8 tmp;
 
 	if (pci_cache_line_size)
-		printk(KERN_DEBUG "PCI: CLS %u bytes\n",
+		printk(KERN_DE "PCI: CLS %u bytes\n",
 		       pci_cache_line_size << 2);
 
 	pci_apply_fixup_final_quirks = true;
@@ -177,7 +177,7 @@ static int __init pci_apply_final_quirks(void)
 			if (!tmp || cls == tmp)
 				continue;
 
-			printk(KERN_DEBUG "PCI: CLS mismatch (%u != %u), using %u bytes\n",
+			printk(KERN_DE "PCI: CLS mismatch (%u != %u), using %u bytes\n",
 			       cls << 2, tmp << 2,
 			       pci_dfl_cache_line_size << 2);
 			pci_cache_line_size = pci_dfl_cache_line_size;
@@ -185,7 +185,7 @@ static int __init pci_apply_final_quirks(void)
 	}
 
 	if (!pci_cache_line_size) {
-		printk(KERN_DEBUG "PCI: CLS %u bytes, default %u\n",
+		printk(KERN_DE "PCI: CLS %u bytes, default %u\n",
 		       cls << 2, pci_dfl_cache_line_size << 2);
 		pci_cache_line_size = cls ? cls : pci_dfl_cache_line_size;
 	}
@@ -254,8 +254,8 @@ DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82441,	quirk_p
  */
 static void quirk_isa_dma_hangs(struct pci_dev *dev)
 {
-	if (!isa_dma_bridge_buggy) {
-		isa_dma_bridge_buggy = 1;
+	if (!isa_dma_bridge_gy) {
+		isa_dma_bridge_gy = 1;
 		pci_info(dev, "Activating ISA DMA hang workarounds\n");
 	}
 }
@@ -285,7 +285,7 @@ static void quirk_tigerpoint_bm_sts(struct pci_dev *dev)
 	pm1a = inw(pmbase);
 
 	if (pm1a & 0x10) {
-		pci_info(dev, FW_BUG "TigerPoint LPC.BM_STS cleared\n");
+		pci_info(dev, FW_ "TigerPoint LPC.BM_STS cleared\n");
 		outw(0x10, pmbase);
 	}
 }
@@ -344,7 +344,7 @@ static void quirk_vialatency(struct pci_dev *dev)
 
 	/*
 	 * Ok, we have a potential problem chipset here. Now see if we have
-	 * a buggy southbridge.
+	 * a gy southbridge.
 	 */
 	p = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686, NULL);
 	if (p != NULL) {
@@ -352,7 +352,7 @@ static void quirk_vialatency(struct pci_dev *dev)
 		/*
 		 * 0x40 - 0x4f == 686B, 0x10 - 0x2f == 686A;
 		 * thanks Dan Hollis.
-		 * Check for buggy part revisions
+		 * Check for gy part revisions
 		 */
 		if (p->revision < 0x40 || p->revision > 0x42)
 			goto exit;
@@ -361,14 +361,14 @@ static void quirk_vialatency(struct pci_dev *dev)
 		if (p == NULL)	/* No problem parts */
 			goto exit;
 
-		/* Check for buggy part revisions */
+		/* Check for gy part revisions */
 		if (p->revision < 0x10 || p->revision > 0x12)
 			goto exit;
 	}
 
 	/*
 	 * Ok we have the problem. Now set the PCI master grant to occur
-	 * every master grant. The apparent bug is that under high PCI load
+	 * every master grant. The apparent  is that under high PCI load
 	 * (quite common in Linux of course) you can get data loss when the
 	 * CPU is held off the bus for 3 bus master requests.  This happens
 	 * to include the IDE controllers....
@@ -530,7 +530,7 @@ static void quirk_io(struct pci_dev *dev, int pos, unsigned size,
 	bus_region.end = region + size - 1;
 	pcibios_bus_to_resource(dev->bus, res, &bus_region);
 
-	pci_info(dev, FW_BUG "%s quirk: reg 0x%x: %pR\n",
+	pci_info(dev, FW_ "%s quirk: reg 0x%x: %pR\n",
 		 name, PCI_BASE_ADDRESS_0 + (pos << 2), res);
 }
 
@@ -541,7 +541,7 @@ static void quirk_io(struct pci_dev *dev, int pos, unsigned size,
  * (which conflicts w/ BAR1's memory range).
  *
  * CS553x's ISA PCI BARs may also be read-only (ref:
- * https://bugzilla.kernel.org/show_bug.cgi?id=85991 - Comment #4 forward).
+ * https://zilla.kernel.org/show_.cgi?id=85991 - Comment #4 forward).
  */
 static void quirk_cs5536_vsa(struct pci_dev *dev)
 {
@@ -551,7 +551,7 @@ static void quirk_cs5536_vsa(struct pci_dev *dev)
 		quirk_io(dev, 0,   8, name);	/* SMB */
 		quirk_io(dev, 1, 256, name);	/* GPIO */
 		quirk_io(dev, 2,  64, name);	/* MFGPT */
-		pci_info(dev, "%s bug detected (incorrect header); workaround applied\n",
+		pci_info(dev, "%s  detected (incorrect header); workaround applied\n",
 			 name);
 	}
 }
@@ -839,7 +839,7 @@ static void ich6_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
 
 	/*
 	 * Just print it out for now. We should reserve it after more
-	 * debugging.
+	 * deging.
 	 */
 	pci_info(dev, "%s PIO at %04x-%04x\n", name, base, base+size-1);
 }
@@ -875,7 +875,7 @@ static void ich7_lpc_generic_decode(struct pci_dev *dev, unsigned reg,
 
 	/*
 	 * Just print it out for now. We should reserve it after more
-	 * debugging.
+	 * deging.
 	 */
 	pci_info(dev, "%s PIO at %04x (mask %04x)\n", name, base, mask);
 }
@@ -1017,7 +1017,7 @@ DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_8237,		quirk
 
 /*
  * The AMD IO-APIC can hang the box when an APIC IRQ is masked.
- * We check all revs >= B0 (yet not in the pre production!) as the bug
+ * We check all revs >= B0 (yet not in the pre production!) as the 
  * is currently marked NoFix
  *
  * We have multiple reports of hangs with this chipset that went away with
@@ -2097,7 +2097,7 @@ static void quirk_plx_pci9050(struct pci_dev *dev)
 		if (pci_resource_len(dev, bar) == 0x80 &&
 		    (pci_resource_start(dev, bar) & 0x80)) {
 			struct resource *r = &dev->resource[bar];
-			pci_info(dev, "Re-allocating PLX PCI 9050 BAR %u to length 256 to avoid bit 7 bug\n",
+			pci_info(dev, "Re-allocating PLX PCI 9050 BAR %u to length 256 to avoid bit 7 \n",
 				 bar);
 			r->flags |= IORESOURCE_UNSET;
 			r->start = 0;
@@ -2818,12 +2818,12 @@ static void nv_msi_ht_cap_quirk_leaf(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID, nv_msi_ht_cap_quirk_leaf);
 
-static void quirk_msi_intx_disable_bug(struct pci_dev *dev)
+static void quirk_msi_intx_disable_(struct pci_dev *dev)
 {
-	dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG;
+	dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_;
 }
 
-static void quirk_msi_intx_disable_ati_bug(struct pci_dev *dev)
+static void quirk_msi_intx_disable_ati_(struct pci_dev *dev)
 {
 	struct pci_dev *p;
 
@@ -2838,77 +2838,77 @@ static void quirk_msi_intx_disable_ati_bug(struct pci_dev *dev)
 		return;
 
 	if ((p->revision < 0x3B) && (p->revision >= 0x30))
-		dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG;
+		dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_;
 	pci_dev_put(p);
 }
 
-static void quirk_msi_intx_disable_qca_bug(struct pci_dev *dev)
+static void quirk_msi_intx_disable_qca_(struct pci_dev *dev)
 {
 	/* AR816X/AR817X/E210X MSI is fixed at HW level from revision 0x18 */
 	if (dev->revision < 0x18) {
-		pci_info(dev, "set MSI_INTX_DISABLE_BUG flag\n");
-		dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG;
+		pci_info(dev, "set MSI_INTX_DISABLE_ flag\n");
+		dev->dev_flags |= PCI_DEV_FLAGS_MSI_INTX_DISABLE_;
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_TIGON3_5780,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_TIGON3_5780S,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_TIGON3_5714,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_TIGON3_5714S,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_TIGON3_5715,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_TIGON3_5715S,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4390,
-			quirk_msi_intx_disable_ati_bug);
+			quirk_msi_intx_disable_ati_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4391,
-			quirk_msi_intx_disable_ati_bug);
+			quirk_msi_intx_disable_ati_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4392,
-			quirk_msi_intx_disable_ati_bug);
+			quirk_msi_intx_disable_ati_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4393,
-			quirk_msi_intx_disable_ati_bug);
+			quirk_msi_intx_disable_ati_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4394,
-			quirk_msi_intx_disable_ati_bug);
+			quirk_msi_intx_disable_ati_);
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4373,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4374,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1062,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1063,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x2060,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x2062,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1073,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1083,
-			quirk_msi_intx_disable_bug);
+			quirk_msi_intx_disable_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1090,
-			quirk_msi_intx_disable_qca_bug);
+			quirk_msi_intx_disable_qca_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x1091,
-			quirk_msi_intx_disable_qca_bug);
+			quirk_msi_intx_disable_qca_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x10a0,
-			quirk_msi_intx_disable_qca_bug);
+			quirk_msi_intx_disable_qca_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0x10a1,
-			quirk_msi_intx_disable_qca_bug);
+			quirk_msi_intx_disable_qca_);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, 0xe091,
-			quirk_msi_intx_disable_qca_bug);
+			quirk_msi_intx_disable_qca_);
 #endif /* CONFIG_PCI_MSI */
 
 /*
@@ -3849,7 +3849,7 @@ static void quirk_dma_func0_alias(struct pci_dev *dev)
 }
 
 /*
- * https://bugzilla.redhat.com/show_bug.cgi?id=605888
+ * https://zilla.redhat.com/show_.cgi?id=605888
  *
  * Some Ricoh devices use function 0 as the PCIe requester ID for DMA.
  */
@@ -3866,7 +3866,7 @@ static void quirk_dma_func1_alias(struct pci_dev *dev)
  * Marvell 88SE9123 uses function 1 as the requester ID for DMA.  In some
  * SKUs function 1 is present and is a legacy IDE controller, in other
  * SKUs this function is not present, making this a ghost requester.
- * https://bugzilla.kernel.org/show_bug.cgi?id=42679
+ * https://zilla.kernel.org/show_.cgi?id=42679
  */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9120,
 			 quirk_dma_func1_alias);
@@ -3874,39 +3874,39 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9123,
 			 quirk_dma_func1_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9128,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c14 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c14 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9130,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c47 + c57 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c47 + c57 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9172,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c59 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c59 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x917a,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c78 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c78 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9182,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c134 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c134 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9183,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c46 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c46 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x91a0,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c127 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c127 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9220,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c49 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c49 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL_EXT, 0x9230,
 			 quirk_dma_func1_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TTI, 0x0642,
 			 quirk_dma_func1_alias);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TTI, 0x0645,
 			 quirk_dma_func1_alias);
-/* https://bugs.gentoo.org/show_bug.cgi?id=497630 */
+/* https://s.gentoo.org/show_.cgi?id=497630 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_JMICRON,
 			 PCI_DEVICE_ID_JMICRON_JMB388_ESD,
 			 quirk_dma_func1_alias);
-/* https://bugzilla.kernel.org/show_bug.cgi?id=42679#c117 */
+/* https://zilla.kernel.org/show_.cgi?id=42679#c117 */
 DECLARE_PCI_FIXUP_HEADER(0x1c28, /* Lite-On */
 			 0x0122, /* Plextor M6E (Marvell 88SS9183)*/
 			 quirk_dma_func1_alias);
@@ -3964,16 +3964,16 @@ static void quirk_use_pcie_bridge_dma_alias(struct pci_dev *pdev)
 	    pci_pcie_type(pdev->bus->self) != PCI_EXP_TYPE_PCI_BRIDGE)
 		pdev->dev_flags |= PCI_DEV_FLAG_PCIE_BRIDGE_ALIAS;
 }
-/* ASM1083/1085, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c46 */
+/* ASM1083/1085, https://zilla.kernel.org/show_.cgi?id=44881#c46 */
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ASMEDIA, 0x1080,
 			 quirk_use_pcie_bridge_dma_alias);
-/* Tundra 8113, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c43 */
+/* Tundra 8113, https://zilla.kernel.org/show_.cgi?id=44881#c43 */
 DECLARE_PCI_FIXUP_HEADER(0x10e3, 0x8113, quirk_use_pcie_bridge_dma_alias);
-/* ITE 8892, https://bugzilla.kernel.org/show_bug.cgi?id=73551 */
+/* ITE 8892, https://zilla.kernel.org/show_.cgi?id=73551 */
 DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8892, quirk_use_pcie_bridge_dma_alias);
 /* ITE 8893 has the same problem as the 8892 */
 DECLARE_PCI_FIXUP_HEADER(0x1283, 0x8893, quirk_use_pcie_bridge_dma_alias);
-/* Intel 82801, https://bugzilla.kernel.org/show_bug.cgi?id=44881#c49 */
+/* Intel 82801, https://zilla.kernel.org/show_.cgi?id=44881#c49 */
 DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
 
 /*
@@ -4101,7 +4101,7 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, 0x2f0e, PCI_CLASS_NOT_DEFINED
 			      quirk_relaxedordering_disable);
 
 /*
- * The AMD ARM A1100 (aka "SEATTLE") SoC has a bug in its PCIe Root Complex
+ * The AMD ARM A1100 (aka "SEATTLE") SoC has a  in its PCIe Root Complex
  * where Upstream Transaction Layer Packets with the Relaxed Ordering
  * Attribute clear are allowed to bypass earlier TLPs with Relaxed Ordering
  * set.  This is a violation of the PCIe 3.0 Transaction Ordering Rules
@@ -4193,7 +4193,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
  * 1002:4384 SBx00 PCI to PCI Bridge
  * 1002:4399 SB7x0/SB8x0/SB9x0 USB OHCI2 Controller
  *
- * https://bugzilla.kernel.org/show_bug.cgi?id=81841#c15
+ * https://zilla.kernel.org/show_.cgi?id=81841#c15
  *
  * 1022:780f [AMD] FCH PCI Bridge
  * 1022:7809 [AMD] FCH USB OHCI Controller
@@ -4269,7 +4269,7 @@ static int pci_quirk_xgene_acs(struct pci_dev *dev, u16 acs_flags)
  * Many Intel PCH root ports do provide ACS-like features to disable peer
  * transactions and validate bus numbers in requests, but do not provide an
  * actual PCIe ACS capability.  This is the list of device IDs known to fall
- * into that category as provided by Intel in Red Hat bugzilla 1037684.
+ * into that category as provided by Intel in Red Hat zilla 1037684.
  */
 static const u16 pci_quirk_intel_pch_acs_ids[] = {
 	/* Ibexpeak PCH */
@@ -4364,7 +4364,7 @@ static int pci_quirk_qcom_rp_acs(struct pci_dev *dev, u16 acs_flags)
  *
  * The 100 series chipset specification update includes this as errata #23[3].
  *
- * The 200 series chipset (Union Point) has the same bug according to the
+ * The 200 series chipset (Union Point) has the same  according to the
  * specification update (Intel 200 Series Chipset Family Platform Controller
  * Hub, Specification Update, January 2017, Revision 001, Document# 335194-001,
  * Errata 22)[4].  Per the datasheet[5], root port PCI Device IDs for this
@@ -4793,7 +4793,7 @@ static void quirk_intel_qat_vf_cap(struct pci_dev *pdev)
 	u16 reg16, *cap;
 	struct pci_cap_saved_state *state;
 
-	/* Bail if the hardware bug is fixed */
+	/* Bail if the hardware  is fixed */
 	if (pdev->pcie_cap || pci_find_capability(pdev, PCI_CAP_ID_EXP))
 		return;
 
@@ -4816,7 +4816,7 @@ static void quirk_intel_qat_vf_cap(struct pci_dev *pdev)
 	 * Capability Id and Next Capability pointer is as expected.
 	 * Open-code some of set_pcie_port_type() and pci_cfg_space_size_ext()
 	 * to correctly set kernel data structures which have already been
-	 * set incorrectly due to the hardware bug.
+	 * set incorrectly due to the hardware .
 	 */
 	pos = 0x50;
 	pci_read_config_word(pdev, pos, &reg16);

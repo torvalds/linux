@@ -320,7 +320,7 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 	if (deep_sleep) {
 		if (priv->is_deep_sleep != 1) {
 			lbs_deb_cmd("deep sleep: sleep\n");
-			BUG_ON(!priv->enter_deep_sleep);
+			_ON(!priv->enter_deep_sleep);
 			ret = priv->enter_deep_sleep(priv);
 			if (!ret) {
 				netif_stop_queue(priv->dev);
@@ -332,7 +332,7 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 	} else {
 		if (priv->is_deep_sleep) {
 			lbs_deb_cmd("deep sleep: wakeup\n");
-			BUG_ON(!priv->exit_deep_sleep);
+			_ON(!priv->exit_deep_sleep);
 			ret = priv->exit_deep_sleep(priv);
 			if (!ret) {
 				ret = lbs_wait_for_ds_awake(priv);
@@ -632,7 +632,7 @@ int lbs_update_channel(struct lbs_private *priv)
 int lbs_set_channel(struct lbs_private *priv, u8 channel)
 {
 	struct cmd_ds_802_11_rf_channel cmd;
-#ifdef DEBUG
+#ifdef DE
 	u8 old_channel = priv->channel;
 #endif
 	int ret = 0;
@@ -668,8 +668,8 @@ int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
 	struct cmd_ds_802_11_rssi cmd;
 	int ret = 0;
 
-	BUG_ON(rssi == NULL);
-	BUG_ON(nf == NULL);
+	_ON(rssi == NULL);
+	_ON(nf == NULL);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
@@ -824,7 +824,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	struct cmd_ds_reg_access cmd;
 	int ret = 0;
 
-	BUG_ON(value == NULL);
+	_ON(value == NULL);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
@@ -1232,7 +1232,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	unsigned long flags;
 	int ret = 0;
 
-	/* Debug group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
+	/* De group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
 	 * only caller to us is lbs_thread() and we get even when a
 	 * data packet is received */
 	spin_lock_irqsave(&priv->driver_lock, flags);

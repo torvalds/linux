@@ -120,7 +120,7 @@
 #define PDC_ADD_VALID	12		/* Memory validation PDC call	*/
 #define PDC_ADD_VALID_VERIFY	0	/* Make PDC_ADD_VALID verify region */
 
-#define PDC_DEBUG	14		/* Obsolete			*/
+#define PDC_DE	14		/* Obsolete			*/
 
 #define PDC_INSTR	15		/* get instr to invoke PDCE_CHECK() */
 

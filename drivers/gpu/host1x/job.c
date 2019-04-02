@@ -590,7 +590,7 @@ void host1x_job_unpin(struct host1x_job *job)
 EXPORT_SYMBOL(host1x_job_unpin);
 
 /*
- * Debug routine used to dump job entries
+ * De routine used to dump job entries
  */
 void host1x_job_dump(struct device *dev, struct host1x_job *job)
 {

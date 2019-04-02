@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: nsdump - table dumping routines for debug
+ * Module Name: nsdump - table dumping routines for de
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -24,7 +24,7 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 			u32 level, void *context, void **return_value);
 #endif
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 
 static acpi_status
 acpi_ns_dump_one_object_path(acpi_handle obj_handle,
@@ -53,15 +53,15 @@ void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
 
 	ACPI_FUNCTION_NAME(ns_print_pathname);
 
-	/* Check if debug output enabled */
+	/* Check if de output enabled */
 
-	if (!ACPI_IS_DEBUG_ENABLED(ACPI_LV_NAMES, ACPI_NAMESPACE)) {
+	if (!ACPI_IS_DE_ENABLED(ACPI_LV_NAMES, ACPI_NAMESPACE)) {
 		return;
 	}
 
 	/* Print the entire name */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "["));
+	ACPI_DE_PRINT((ACPI_DB_NAMES, "["));
 
 	while (num_segments) {
 		for (i = 0; i < 4; i++) {
@@ -89,7 +89,7 @@ void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
  *
  * PARAMETERS:  handle              - Object
  *              msg                 - Prefix message
- *              level               - Desired debug level
+ *              level               - Desired de level
  *              component           - Caller's component ID
  *
  * RETURN:      None
@@ -106,9 +106,9 @@ acpi_ns_dump_pathname(acpi_handle handle,
 
 	ACPI_FUNCTION_TRACE(ns_dump_pathname);
 
-	/* Do this only if the requested debug level and component are enabled */
+	/* Do this only if the requested de level and component are enabled */
 
-	if (!ACPI_IS_DEBUG_ENABLED(level, component)) {
+	if (!ACPI_IS_DE_ENABLED(level, component)) {
 		return_VOID;
 	}
 
@@ -153,18 +153,18 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 	/* Is output enabled? */
 
-	if (!(acpi_dbg_level & info->debug_level)) {
+	if (!(acpi_dbg_level & info->de_level)) {
 		return (AE_OK);
 	}
 
 	if (!obj_handle) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Null object handle\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Null object handle\n"));
 		return (AE_OK);
 	}
 
 	this_node = acpi_ns_validate_handle(obj_handle);
 	if (!this_node) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
 				  obj_handle));
 		return (AE_OK);
 	}
@@ -474,7 +474,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		break;
 	}
 
-	/* If debug turned off, done */
+	/* If de turned off, done */
 
 	if (!(acpi_dbg_level & ACPI_LV_VALUES)) {
 		return (AE_OK);
@@ -641,7 +641,7 @@ acpi_ns_dump_objects(acpi_object_type type,
 	}
 
 	info.count = 0;
-	info.debug_level = ACPI_LV_TABLES;
+	info.de_level = ACPI_LV_TABLES;
 	info.owner_id = owner_id;
 	info.display_type = display_type;
 
@@ -788,7 +788,7 @@ acpi_ns_dump_object_paths(acpi_object_type type,
  * FUNCTION:    acpi_ns_dump_entry
  *
  * PARAMETERS:  handle              - Node to be dumped
- *              debug_level         - Output level
+ *              de_level         - Output level
  *
  * RETURN:      None
  *
@@ -796,13 +796,13 @@ acpi_ns_dump_object_paths(acpi_object_type type,
  *
  ******************************************************************************/
 
-void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level)
+void acpi_ns_dump_entry(acpi_handle handle, u32 de_level)
 {
 	struct acpi_walk_info info;
 
 	ACPI_FUNCTION_ENTRY();
 
-	info.debug_level = debug_level;
+	info.de_level = de_level;
 	info.owner_id = ACPI_OWNER_ID_MAX;
 	info.display_type = ACPI_DISPLAY_SUMMARY;
 
@@ -836,7 +836,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 		 * If the name space has not been initialized,
 		 * there is nothing to dump.
 		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+		ACPI_DE_PRINT((ACPI_DB_TABLES,
 				  "namespace not initialized!\n"));
 		return_VOID;
 	}
@@ -846,7 +846,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 		/* Entire namespace */
 
 		search_handle = acpi_gbl_root_node;
-		ACPI_DEBUG_PRINT((ACPI_DB_TABLES, "\\\n"));
+		ACPI_DE_PRINT((ACPI_DB_TABLES, "\\\n"));
 	}
 
 	acpi_ns_dump_objects(ACPI_TYPE_ANY, ACPI_DISPLAY_OBJECTS, max_depth,

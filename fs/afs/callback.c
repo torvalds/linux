@@ -221,7 +221,7 @@ void __afs_break_callback(struct afs_vnode *vnode)
 
 		spin_lock(&vnode->lock);
 
-		_debug("break callback");
+		_de("break callback");
 
 		if (list_empty(&vnode->granted_locks) &&
 		    !list_empty(&vnode->pending_locks))
@@ -313,7 +313,7 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 	/* TODO: Sort the callback break list by volume ID */
 
 	for (; count > 0; callbacks++, count--) {
-		_debug("- Fid { vl=%08llx n=%llu u=%u }",
+		_de("- Fid { vl=%08llx n=%llu u=%u }",
 		       callbacks->fid.vid,
 		       callbacks->fid.vnode,
 		       callbacks->fid.unique);

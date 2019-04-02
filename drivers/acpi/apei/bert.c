@@ -45,7 +45,7 @@ static void __init bert_print_all(struct acpi_bert_region *region,
 	while (remain >= sizeof(struct acpi_bert_region)) {
 		estatus_len = cper_estatus_len(estatus);
 		if (remain < estatus_len) {
-			pr_err(FW_BUG "Truncated status block (length: %u).\n",
+			pr_err(FW_ "Truncated status block (length: %u).\n",
 			       estatus_len);
 			return;
 		}
@@ -55,7 +55,7 @@ static void __init bert_print_all(struct acpi_bert_region *region,
 			return;
 
 		if (cper_estatus_check(estatus)) {
-			pr_err(FW_BUG "Invalid error record.\n");
+			pr_err(FW_ "Invalid error record.\n");
 			return;
 		}
 
@@ -120,7 +120,7 @@ static int __init bert_init(void)
 
 	rc = bert_check_table(bert_tab);
 	if (rc) {
-		pr_err(FW_BUG "table invalid.\n");
+		pr_err(FW_ "table invalid.\n");
 		return rc;
 	}
 

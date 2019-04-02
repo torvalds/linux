@@ -12,7 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
@@ -93,7 +93,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	save_access_regs(&p->thread.acrs[0]);
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
-	/* Don't copy debug registers */
+	/* Don't copy de registers */
 	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
 	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);

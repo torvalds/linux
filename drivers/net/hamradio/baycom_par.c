@@ -90,7 +90,7 @@
 
 /* --------------------------------------------------------------------- */
 
-#define BAYCOM_DEBUG
+#define BAYCOM_DE
 
 /*
  * modem options; bit mask
@@ -143,35 +143,35 @@ struct baycom_state {
 		} par96;
 	} modem;
 
-#ifdef BAYCOM_DEBUG
-	struct debug_vals {
+#ifdef BAYCOM_DE
+	struct de_vals {
 		unsigned long last_jiffies;
 		unsigned cur_intcnt;
 		unsigned last_intcnt;
 		int cur_pllcorr;
 		int last_pllcorr;
-	} debug_vals;
-#endif /* BAYCOM_DEBUG */
+	} de_vals;
+#endif /* BAYCOM_DE */
 };
 
 /* --------------------------------------------------------------------- */
 
 static inline void baycom_int_freq(struct baycom_state *bc)
 {
-#ifdef BAYCOM_DEBUG
+#ifdef BAYCOM_DE
 	unsigned long cur_jiffies = jiffies;
 	/*
 	 * measure the interrupt frequency
 	 */
-	bc->debug_vals.cur_intcnt++;
-	if (time_after_eq(cur_jiffies, bc->debug_vals.last_jiffies + HZ)) {
-		bc->debug_vals.last_jiffies = cur_jiffies;
-		bc->debug_vals.last_intcnt = bc->debug_vals.cur_intcnt;
-		bc->debug_vals.cur_intcnt = 0;
-		bc->debug_vals.last_pllcorr = bc->debug_vals.cur_pllcorr;
-		bc->debug_vals.cur_pllcorr = 0;
+	bc->de_vals.cur_intcnt++;
+	if (time_after_eq(cur_jiffies, bc->de_vals.last_jiffies + HZ)) {
+		bc->de_vals.last_jiffies = cur_jiffies;
+		bc->de_vals.last_intcnt = bc->de_vals.cur_intcnt;
+		bc->de_vals.cur_intcnt = 0;
+		bc->de_vals.last_pllcorr = bc->de_vals.cur_pllcorr;
+		bc->de_vals.cur_pllcorr = 0;
 	}
-#endif /* BAYCOM_DEBUG */
+#endif /* BAYCOM_DE */
 }
 
 /* --------------------------------------------------------------------- */
@@ -301,9 +301,9 @@ static void par96_wakeup(void *handle)
         struct net_device *dev = (struct net_device *)handle;
 	struct baycom_state *bc = netdev_priv(dev);
 
-	printk(KERN_DEBUG "baycom_par: %s: why am I being woken up?\n", dev->name);
+	printk(KERN_DE "baycom_par: %s: why am I being woken up?\n", dev->name);
 	if (!parport_claim(bc->pdev))
-		printk(KERN_DEBUG "baycom_par: %s: I'm broken.\n", dev->name);
+		printk(KERN_DE "baycom_par: %s: I'm broken.\n", dev->name);
 }
 
 /* --------------------------------------------------------------------- */
@@ -434,7 +434,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 		return -EINVAL;
 
 	bc = netdev_priv(dev);
-	BUG_ON(bc->hdrv.magic != HDLCDRV_MAGIC);
+	_ON(bc->hdrv.magic != HDLCDRV_MAGIC);
 
 	if (cmd != SIOCDEVPRIVATE)
 		return -ENOIOCTLCMD;
@@ -471,13 +471,13 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 	default:
 		return -ENOIOCTLCMD;
 
-#ifdef BAYCOM_DEBUG
-	case BAYCOMCTL_GETDEBUG:
-		bi.data.dbg.debug1 = bc->hdrv.ptt_keyed;
-		bi.data.dbg.debug2 = bc->debug_vals.last_intcnt;
-		bi.data.dbg.debug3 = bc->debug_vals.last_pllcorr;
+#ifdef BAYCOM_DE
+	case BAYCOMCTL_GETDE:
+		bi.data.dbg.de1 = bc->hdrv.ptt_keyed;
+		bi.data.dbg.de2 = bc->de_vals.last_intcnt;
+		bi.data.dbg.de3 = bc->de_vals.last_pllcorr;
 		break;
-#endif /* BAYCOM_DEBUG */
+#endif /* BAYCOM_DE */
 
 	}
 	if (copy_to_user(ifr->ifr_data, &bi, sizeof(bi)))

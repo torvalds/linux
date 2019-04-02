@@ -276,12 +276,12 @@ int tu102_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 
 #define VMM_PRINT(l,v,p,f,a...) do {                                           \
 	struct nvkm_vmm *_vmm = (v);                                           \
-	if (CONFIG_NOUVEAU_DEBUG >= (l) && _vmm->debug >= (l)) {               \
+	if (CONFIG_NOUVEAU_DE >= (l) && _vmm->de >= (l)) {               \
 		nvkm_printk_(&_vmm->mmu->subdev, 0, p, "%s: "f"\n",            \
 			     _vmm->name, ##a);                                 \
 	}                                                                      \
 } while(0)
-#define VMM_DEBUG(v,f,a...) VMM_PRINT(NV_DBG_DEBUG, (v), info, f, ##a)
+#define VMM_DE(v,f,a...) VMM_PRINT(NV_DBG_DE, (v), info, f, ##a)
 #define VMM_TRACE(v,f,a...) VMM_PRINT(NV_DBG_TRACE, (v), info, f, ##a)
 #define VMM_SPAM(v,f,a...)  VMM_PRINT(NV_DBG_SPAM , (v),  dbg, f, ##a)
 

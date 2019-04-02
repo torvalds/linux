@@ -631,14 +631,14 @@ static void nfs_proc_write_setup(struct nfs_pgio_header *hdr,
 
 static void nfs_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
 {
-	BUG();
+	();
 }
 
 static void
 nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
 			struct rpc_clnt **clnt)
 {
-	BUG();
+	();
 }
 
 static int

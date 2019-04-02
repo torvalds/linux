@@ -120,48 +120,48 @@ static int btf_parse_hdr(struct btf *btf)
 	__u32 meta_left;
 
 	if (btf->data_size < sizeof(struct btf_header)) {
-		pr_debug("BTF header not found\n");
+		pr_de("BTF header not found\n");
 		return -EINVAL;
 	}
 
 	if (hdr->magic != BTF_MAGIC) {
-		pr_debug("Invalid BTF magic:%x\n", hdr->magic);
+		pr_de("Invalid BTF magic:%x\n", hdr->magic);
 		return -EINVAL;
 	}
 
 	if (hdr->version != BTF_VERSION) {
-		pr_debug("Unsupported BTF version:%u\n", hdr->version);
+		pr_de("Unsupported BTF version:%u\n", hdr->version);
 		return -ENOTSUP;
 	}
 
 	if (hdr->flags) {
-		pr_debug("Unsupported BTF flags:%x\n", hdr->flags);
+		pr_de("Unsupported BTF flags:%x\n", hdr->flags);
 		return -ENOTSUP;
 	}
 
 	meta_left = btf->data_size - sizeof(*hdr);
 	if (!meta_left) {
-		pr_debug("BTF has no data\n");
+		pr_de("BTF has no data\n");
 		return -EINVAL;
 	}
 
 	if (meta_left < hdr->type_off) {
-		pr_debug("Invalid BTF type section offset:%u\n", hdr->type_off);
+		pr_de("Invalid BTF type section offset:%u\n", hdr->type_off);
 		return -EINVAL;
 	}
 
 	if (meta_left < hdr->str_off) {
-		pr_debug("Invalid BTF string section offset:%u\n", hdr->str_off);
+		pr_de("Invalid BTF string section offset:%u\n", hdr->str_off);
 		return -EINVAL;
 	}
 
 	if (hdr->type_off >= hdr->str_off) {
-		pr_debug("BTF type section offset >= string section offset. No type?\n");
+		pr_de("BTF type section offset >= string section offset. No type?\n");
 		return -EINVAL;
 	}
 
 	if (hdr->type_off & 0x02) {
-		pr_debug("BTF type section is not aligned to 4 bytes\n");
+		pr_de("BTF type section is not aligned to 4 bytes\n");
 		return -EINVAL;
 	}
 
@@ -178,7 +178,7 @@ static int btf_parse_str_sec(struct btf *btf)
 
 	if (!hdr->str_len || hdr->str_len - 1 > BTF_MAX_STR_OFFSET ||
 	    start[0] || end[-1]) {
-		pr_debug("Invalid BTF string section\n");
+		pr_de("Invalid BTF string section\n");
 		return -EINVAL;
 	}
 
@@ -213,7 +213,7 @@ static int btf_type_size(struct btf_type *t)
 	case BTF_KIND_FUNC_PROTO:
 		return base_size + vlen * sizeof(struct btf_param);
 	default:
-		pr_debug("Unsupported BTF_KIND:%u\n", BTF_INFO_KIND(t->info));
+		pr_de("Unsupported BTF_KIND:%u\n", BTF_INFO_KIND(t->info));
 		return -EINVAL;
 	}
 }
@@ -541,7 +541,7 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 	container_id = btf__find_by_name(btf, container_name);
 	if (container_id < 0) {
-		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
+		pr_de("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
 			 map_name, container_name);
 		return container_id;
 	}
@@ -611,7 +611,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 	void *info;
 
 	if (ext_sec->off & 0x03) {
-		pr_debug(".BTF.ext %s section is not aligned to 4 bytes\n",
+		pr_de(".BTF.ext %s section is not aligned to 4 bytes\n",
 		     ext_sec->desc);
 		return -EINVAL;
 	}
@@ -620,14 +620,14 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 	info_left = ext_sec->len;
 
 	if (btf_ext->data + btf_ext->data_size < info + ext_sec->len) {
-		pr_debug("%s section (off:%u len:%u) is beyond the end of the ELF section .BTF.ext\n",
+		pr_de("%s section (off:%u len:%u) is beyond the end of the ELF section .BTF.ext\n",
 			 ext_sec->desc, ext_sec->off, ext_sec->len);
 		return -EINVAL;
 	}
 
 	/* At least a record size */
 	if (info_left < sizeof(__u32)) {
-		pr_debug(".BTF.ext %s record size not found\n", ext_sec->desc);
+		pr_de(".BTF.ext %s record size not found\n", ext_sec->desc);
 		return -EINVAL;
 	}
 
@@ -635,7 +635,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 	record_size = *(__u32 *)info;
 	if (record_size < ext_sec->min_rec_size ||
 	    record_size & 0x03) {
-		pr_debug("%s section in .BTF.ext has invalid record size %u\n",
+		pr_de("%s section in .BTF.ext has invalid record size %u\n",
 			 ext_sec->desc, record_size);
 		return -EINVAL;
 	}
@@ -645,7 +645,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 
 	/* If no records, return failure now so .BTF.ext won't be used. */
 	if (!info_left) {
-		pr_debug("%s section in .BTF.ext has no records", ext_sec->desc);
+		pr_de("%s section in .BTF.ext has no records", ext_sec->desc);
 		return -EINVAL;
 	}
 
@@ -655,14 +655,14 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 		__u32 num_records;
 
 		if (info_left < sec_hdrlen) {
-			pr_debug("%s section header is not found in .BTF.ext\n",
+			pr_de("%s section header is not found in .BTF.ext\n",
 			     ext_sec->desc);
 			return -EINVAL;
 		}
 
 		num_records = sinfo->num_info;
 		if (num_records == 0) {
-			pr_debug("%s section has incorrect num_records in .BTF.ext\n",
+			pr_de("%s section has incorrect num_records in .BTF.ext\n",
 			     ext_sec->desc);
 			return -EINVAL;
 		}
@@ -670,7 +670,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 		total_record_size = sec_hdrlen +
 				    (__u64)num_records * record_size;
 		if (info_left < total_record_size) {
-			pr_debug("%s section has incorrect num_records in .BTF.ext\n",
+			pr_de("%s section has incorrect num_records in .BTF.ext\n",
 			     ext_sec->desc);
 			return -EINVAL;
 		}
@@ -719,27 +719,27 @@ static int btf_ext_parse_hdr(__u8 *data, __u32 data_size)
 
 	if (data_size < offsetof(struct btf_ext_header, func_info_off) ||
 	    data_size < hdr->hdr_len) {
-		pr_debug("BTF.ext header not found");
+		pr_de("BTF.ext header not found");
 		return -EINVAL;
 	}
 
 	if (hdr->magic != BTF_MAGIC) {
-		pr_debug("Invalid BTF.ext magic:%x\n", hdr->magic);
+		pr_de("Invalid BTF.ext magic:%x\n", hdr->magic);
 		return -EINVAL;
 	}
 
 	if (hdr->version != BTF_VERSION) {
-		pr_debug("Unsupported BTF.ext version:%u\n", hdr->version);
+		pr_de("Unsupported BTF.ext version:%u\n", hdr->version);
 		return -ENOTSUP;
 	}
 
 	if (hdr->flags) {
-		pr_debug("Unsupported BTF.ext flags:%x\n", hdr->flags);
+		pr_de("Unsupported BTF.ext flags:%x\n", hdr->flags);
 		return -ENOTSUP;
 	}
 
 	if (data_size == hdr->hdr_len) {
-		pr_debug("BTF.ext has no data\n");
+		pr_de("BTF.ext has no data\n");
 		return -EINVAL;
 	}
 
@@ -1030,38 +1030,38 @@ int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
 	int err;
 
 	if (IS_ERR(d)) {
-		pr_debug("btf_dedup_new failed: %ld", PTR_ERR(d));
+		pr_de("btf_dedup_new failed: %ld", PTR_ERR(d));
 		return -EINVAL;
 	}
 
 	err = btf_dedup_strings(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_strings failed:%d\n", err);
+		pr_de("btf_dedup_strings failed:%d\n", err);
 		goto done;
 	}
 	err = btf_dedup_prim_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_prim_types failed:%d\n", err);
+		pr_de("btf_dedup_prim_types failed:%d\n", err);
 		goto done;
 	}
 	err = btf_dedup_struct_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_struct_types failed:%d\n", err);
+		pr_de("btf_dedup_struct_types failed:%d\n", err);
 		goto done;
 	}
 	err = btf_dedup_ref_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_ref_types failed:%d\n", err);
+		pr_de("btf_dedup_ref_types failed:%d\n", err);
 		goto done;
 	}
 	err = btf_dedup_compact_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_compact_types failed:%d\n", err);
+		pr_de("btf_dedup_compact_types failed:%d\n", err);
 		goto done;
 	}
 	err = btf_dedup_remap_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_remap_types failed:%d\n", err);
+		pr_de("btf_dedup_remap_types failed:%d\n", err);
 		goto done;
 	}
 

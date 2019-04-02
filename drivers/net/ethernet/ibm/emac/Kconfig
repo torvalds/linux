@@ -28,8 +28,8 @@ config IBM_EMAC_RX_COPY_THRESHOLD
 	depends on IBM_EMAC
 	default "256"
 
-config IBM_EMAC_DEBUG
-	bool "Debugging"
+config IBM_EMAC_DE
+	bool "Deging"
 	depends on IBM_EMAC
 	default n
 

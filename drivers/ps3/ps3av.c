@@ -302,15 +302,15 @@ int ps3av_do_pkt(u32 cid, u16 send_len, size_t usr_buf_size,
 	int res = 0;
 	u32 *table;
 
-	BUG_ON(!ps3av);
+	_ON(!ps3av);
 
 	mutex_lock(&ps3av->mutex);
 
 	table = ps3av_search_cmd_table(cid, PS3AV_CID_MASK);
-	BUG_ON(!table);
-	BUG_ON(send_len < PS3AV_HDR_SIZE);
-	BUG_ON(usr_buf_size < send_len);
-	BUG_ON(usr_buf_size > PS3AV_BUF_SIZE);
+	_ON(!table);
+	_ON(send_len < PS3AV_HDR_SIZE);
+	_ON(usr_buf_size < send_len);
+	_ON(usr_buf_size > PS3AV_BUF_SIZE);
 
 	/* create header */
 	ps3av_set_hdr(cid, send_len, buf);
@@ -614,11 +614,11 @@ static enum ps3av_mode_num ps3av_resbit2id(u32 res_50, u32 res_60,
 	 * We mask off the resolution bits we care about and combine the
 	 * results in one bitfield, so make sure there's no overlap
 	 */
-	BUILD_BUG_ON(PS3AV_RES_MASK_50 << SHIFT_50 &
+	BUILD__ON(PS3AV_RES_MASK_50 << SHIFT_50 &
 		     PS3AV_RES_MASK_60 << SHIFT_60);
-	BUILD_BUG_ON(PS3AV_RES_MASK_50 << SHIFT_50 &
+	BUILD__ON(PS3AV_RES_MASK_50 << SHIFT_50 &
 		     PS3AV_RES_MASK_VESA << SHIFT_VESA);
-	BUILD_BUG_ON(PS3AV_RES_MASK_60 << SHIFT_60 &
+	BUILD__ON(PS3AV_RES_MASK_60 << SHIFT_60 &
 		     PS3AV_RES_MASK_VESA << SHIFT_VESA);
 	res_all = (res_50 & PS3AV_RES_MASK_50) << SHIFT_50 |
 		  (res_60 & PS3AV_RES_MASK_60) << SHIFT_60 |
@@ -645,7 +645,7 @@ static enum ps3av_mode_num ps3av_hdmi_get_id(struct ps3av_info_monitor *info)
 	id = ps3av_resbit2id(info->res_50.native, info->res_60.native,
 			     info->res_vesa.native);
 	if (id) {
-		pr_debug("%s: Using native mode %d\n", __func__, id);
+		pr_de("%s: Using native mode %d\n", __func__, id);
 		return id;
 	}
 
@@ -653,7 +653,7 @@ static enum ps3av_mode_num ps3av_hdmi_get_id(struct ps3av_info_monitor *info)
 	id = ps3av_resbit2id(info->res_50.res_bits, info->res_60.res_bits,
 			     info->res_vesa.res_bits);
 	if (id) {
-		pr_debug("%s: Using supported mode %d\n", __func__, id);
+		pr_de("%s: Using supported mode %d\n", __func__, id);
 		return id;
 	}
 
@@ -661,7 +661,7 @@ static enum ps3av_mode_num ps3av_hdmi_get_id(struct ps3av_info_monitor *info)
 		id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_60;
 	else
 		id = PS3AV_DEFAULT_HDMI_MODE_ID_REG_50;
-	pr_debug("%s: Using default mode %d\n", __func__, id);
+	pr_de("%s: Using default mode %d\n", __func__, id);
 	return id;
 }
 
@@ -673,50 +673,50 @@ static void ps3av_monitor_info_dump(
 	char id[sizeof(info->monitor_id)*3+1];
 	int i;
 
-	pr_debug("Monitor Info: size %u\n", monitor_info->send_hdr.size);
+	pr_de("Monitor Info: size %u\n", monitor_info->send_hdr.size);
 
-	pr_debug("avport: %02x\n", info->avport);
+	pr_de("avport: %02x\n", info->avport);
 	for (i = 0; i < sizeof(info->monitor_id); i++)
 		sprintf(&id[i*3], " %02x", info->monitor_id[i]);
-	pr_debug("monitor_id: %s\n", id);
-	pr_debug("monitor_type: %02x\n", info->monitor_type);
-	pr_debug("monitor_name: %.*s\n", (int)sizeof(info->monitor_name),
+	pr_de("monitor_id: %s\n", id);
+	pr_de("monitor_type: %02x\n", info->monitor_type);
+	pr_de("monitor_name: %.*s\n", (int)sizeof(info->monitor_name),
 		 info->monitor_name);
 
 	/* resolution */
-	pr_debug("resolution_60: bits: %08x native: %08x\n",
+	pr_de("resolution_60: bits: %08x native: %08x\n",
 		 info->res_60.res_bits, info->res_60.native);
-	pr_debug("resolution_50: bits: %08x native: %08x\n",
+	pr_de("resolution_50: bits: %08x native: %08x\n",
 		 info->res_50.res_bits, info->res_50.native);
-	pr_debug("resolution_other: bits: %08x native: %08x\n",
+	pr_de("resolution_other: bits: %08x native: %08x\n",
 		 info->res_other.res_bits, info->res_other.native);
-	pr_debug("resolution_vesa: bits: %08x native: %08x\n",
+	pr_de("resolution_vesa: bits: %08x native: %08x\n",
 		 info->res_vesa.res_bits, info->res_vesa.native);
 
 	/* color space */
-	pr_debug("color space    rgb: %02x\n", info->cs.rgb);
-	pr_debug("color space yuv444: %02x\n", info->cs.yuv444);
-	pr_debug("color space yuv422: %02x\n", info->cs.yuv422);
+	pr_de("color space    rgb: %02x\n", info->cs.rgb);
+	pr_de("color space yuv444: %02x\n", info->cs.yuv444);
+	pr_de("color space yuv422: %02x\n", info->cs.yuv422);
 
 	/* color info */
-	pr_debug("color info   red: X %04x Y %04x\n", info->color.red_x,
+	pr_de("color info   red: X %04x Y %04x\n", info->color.red_x,
 		 info->color.red_y);
-	pr_debug("color info green: X %04x Y %04x\n", info->color.green_x,
+	pr_de("color info green: X %04x Y %04x\n", info->color.green_x,
 		 info->color.green_y);
-	pr_debug("color info  blue: X %04x Y %04x\n", info->color.blue_x,
+	pr_de("color info  blue: X %04x Y %04x\n", info->color.blue_x,
 		 info->color.blue_y);
-	pr_debug("color info white: X %04x Y %04x\n", info->color.white_x,
+	pr_de("color info white: X %04x Y %04x\n", info->color.white_x,
 		 info->color.white_y);
-	pr_debug("color info gamma:  %08x\n", info->color.gamma);
+	pr_de("color info gamma:  %08x\n", info->color.gamma);
 
 	/* other info */
-	pr_debug("supported_AI: %02x\n", info->supported_ai);
-	pr_debug("speaker_info: %02x\n", info->speaker_info);
-	pr_debug("num of audio: %02x\n", info->num_of_audio_block);
+	pr_de("supported_AI: %02x\n", info->supported_ai);
+	pr_de("speaker_info: %02x\n", info->speaker_info);
+	pr_de("num of audio: %02x\n", info->num_of_audio_block);
 
 	/* audio block */
 	for (i = 0; i < info->num_of_audio_block; i++) {
-		pr_debug(
+		pr_de(
 			"audio[%d] type: %02x max_ch: %02x fs: %02x sbit: %02x\n",
 			 i, audio->type, audio->max_num_of_ch, audio->fs,
 			 audio->sbit);
@@ -796,7 +796,7 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf)
 			id = PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_50;
 		if (ps3av->region & PS3AV_REGION_RGB)
 			rgb = PS3AV_MODE_RGB;
-		pr_debug("%s: Using avmulti mode %d\n", __func__, id);
+		pr_de("%s: Using avmulti mode %d\n", __func__, id);
 	}
 
 	return id | dvi | rgb;
@@ -813,9 +813,9 @@ static int ps3av_get_hw_conf(struct ps3av *ps3av)
 		return -1;
 
 	hw_conf = &ps3av->av_hw_conf;
-	pr_debug("av_h_conf: num of hdmi: %u\n", hw_conf->num_of_hdmi);
-	pr_debug("av_h_conf: num of avmulti: %u\n", hw_conf->num_of_avmulti);
-	pr_debug("av_h_conf: num of spdif: %u\n", hw_conf->num_of_spdif);
+	pr_de("av_h_conf: num of hdmi: %u\n", hw_conf->num_of_hdmi);
+	pr_de("av_h_conf: num of avmulti: %u\n", hw_conf->num_of_avmulti);
+	pr_de("av_h_conf: num of spdif: %u\n", hw_conf->num_of_spdif);
 
 	for (i = 0; i < PS3AV_HEAD_MAX; i++)
 		ps3av->head[i] = PS3AV_CMD_VIDEO_HEAD_A + i;
@@ -1043,7 +1043,7 @@ static int __init ps3av_module_init(void)
 	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
 		return -ENODEV;
 
-	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+	pr_de(" -> %s:%d\n", __func__, __LINE__);
 
 	error = ps3_vuart_port_driver_register(&ps3av_driver);
 	if (error) {
@@ -1053,15 +1053,15 @@ static int __init ps3av_module_init(void)
 		return error;
 	}
 
-	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	pr_de(" <- %s:%d\n", __func__, __LINE__);
 	return error;
 }
 
 static void __exit ps3av_module_exit(void)
 {
-	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+	pr_de(" -> %s:%d\n", __func__, __LINE__);
 	ps3_vuart_port_driver_unregister(&ps3av_driver);
-	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	pr_de(" <- %s:%d\n", __func__, __LINE__);
 }
 
 subsys_initcall(ps3av_module_init);

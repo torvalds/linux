@@ -12,9 +12,9 @@
 #include "orangefs-kernel.h"
 #include "orangefs-dev-proto.h"
 #include "orangefs-bufmap.h"
-#include "orangefs-debugfs.h"
+#include "orangefs-defs.h"
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 
 /* this file implements the /dev/pvfs2-req device node */
@@ -135,7 +135,7 @@ static int orangefs_devreq_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	ret = -EACCES;
-	gossip_debug(GOSSIP_DEV_DEBUG, "client-core: opening device\n");
+	gossip_de(GOSSIP_DEV_DE, "client-core: opening device\n");
 	mutex_lock(&devreq_mutex);
 
 	if (open_access_count == 0) {
@@ -148,7 +148,7 @@ static int orangefs_devreq_open(struct inode *inode, struct file *file)
 
 out:
 
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "pvfs2-client-core: open device complete (ret = %d)\n",
 		     ret);
 	return ret;
@@ -204,7 +204,7 @@ restart:
 			/* Skip ops whose filesystem needs to be mounted. */
 			ret = fs_mount_pending(fsid);
 			if (ret == 1) {
-				gossip_debug(GOSSIP_DEV_DEBUG,
+				gossip_de(GOSSIP_DEV_DE,
 				    "%s: mount pending, skipping op tag "
 				    "%llu %s\n",
 				    __func__,
@@ -227,7 +227,7 @@ restart:
 					ORANGEFS_VFS_OP_GETATTR ||
 				     op->upcall.type ==
 					ORANGEFS_VFS_OP_FS_UMOUNT)) {
-				gossip_debug(GOSSIP_DEV_DEBUG,
+				gossip_de(GOSSIP_DEV_DE,
 				    "orangefs: skipping op tag %llu %s\n",
 				    llu(op->tag), get_opname_string(op));
 				gossip_err(
@@ -255,7 +255,7 @@ restart:
 		return -EAGAIN;
 	}
 
-	gossip_debug(GOSSIP_DEV_DEBUG, "%s: reading op tag %llu %s\n",
+	gossip_de(GOSSIP_DEV_DE, "%s: reading op tag %llu %s\n",
 		     __func__,
 		     llu(cur_op->tag),
 		     get_opname_string(cur_op));
@@ -309,7 +309,7 @@ restart:
 	 * it has been sent to the client.
 	 */
 	set_op_state_inprogress(cur_op);
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "%s: 1 op:%s: op_state:%d: process:%s:\n",
 		     __func__,
 		     get_opname_string(cur_op),
@@ -332,7 +332,7 @@ error:
 	spin_lock(&cur_op->lock);
 	if (likely(!op_state_given_up(cur_op))) {
 		set_op_state_waiting(cur_op);
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: 2 op:%s: op_state:%d: process:%s:\n",
 			     __func__,
 			     get_opname_string(cur_op),
@@ -372,7 +372,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	int downcall_size = sizeof(struct orangefs_downcall_s);
 	int head_size = sizeof(head);
 
-	gossip_debug(GOSSIP_DEV_DEBUG, "%s: total:%d: ret:%zd:\n",
+	gossip_de(GOSSIP_DEV_DE, "%s: total:%d: ret:%zd:\n",
 		     __func__,
 		     total,
 		     ret);
@@ -414,7 +414,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	/* remove the op from the in progress hash table */
 	op = orangefs_devreq_remove_op(head.tag);
 	if (!op) {
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: No one's waiting for tag %llu\n",
 			     __func__, llu(head.tag));
 		return ret;
@@ -491,7 +491,7 @@ wakeup:
 		complete(&op->waitq);
 	} else {
 		set_op_state_serviced(op);
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: op:%s: op_state:%d: process:%s:\n",
 			     __func__,
 			     get_opname_string(op),
@@ -524,7 +524,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 {
 	int unmounted = 0;
 
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "%s:pvfs2-client-core: exiting, closing device\n",
 		     __func__);
 
@@ -534,7 +534,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 	open_access_count = -1;
 
 	unmounted = mark_all_pending_mounts();
-	gossip_debug(GOSSIP_DEV_DEBUG, "ORANGEFS Device Close: Filesystem(s) %s\n",
+	gossip_de(GOSSIP_DEV_DE, "ORANGEFS Device Close: Filesystem(s) %s\n",
 		     (unmounted ? "UNMOUNTED" : "MOUNTED"));
 
 	purge_waiting_ops();
@@ -542,7 +542,7 @@ static int orangefs_devreq_release(struct inode *inode, struct file *file)
 
 	orangefs_bufmap_run_down();
 
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "pvfs2-client-core: device close complete\n");
 	open_access_count = 0;
 	orangefs_userspace_version = 0;
@@ -623,7 +623,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		/* WTF -EIO and not -EFAULT? */
 		return ret ? -EIO : orangefs_bufmap_initialize(&user_desc);
 	case ORANGEFS_DEV_REMOUNT_ALL:
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: got ORANGEFS_DEV_REMOUNT_ALL\n",
 			     __func__);
 
@@ -639,7 +639,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		ret = mutex_lock_interruptible(&orangefs_request_mutex);
 		if (ret < 0)
 			return ret;
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: priority remount in progress\n",
 			     __func__);
 		spin_lock(&orangefs_superblocks_lock);
@@ -652,7 +652,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			 */
 			if (!orangefs_sb->list.prev)
 				continue;
-			gossip_debug(GOSSIP_DEV_DEBUG,
+			gossip_de(GOSSIP_DEV_DE,
 				     "%s: Remounting SB %p\n",
 				     __func__,
 				     orangefs_sb);
@@ -661,14 +661,14 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			ret = orangefs_remount(orangefs_sb);
 			spin_lock(&orangefs_superblocks_lock);
 			if (ret) {
-				gossip_debug(GOSSIP_DEV_DEBUG,
+				gossip_de(GOSSIP_DEV_DE,
 					     "SB %p remount failed\n",
 					     orangefs_sb);
 				break;
 			}
 		}
 		spin_unlock(&orangefs_superblocks_lock);
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "%s: priority remount complete\n",
 			     __func__);
 		mutex_unlock(&orangefs_request_mutex);
@@ -685,11 +685,11 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 			return ret;
 
 	case ORANGEFS_DEV_CLIENT_MASK:
-		return orangefs_debugfs_new_client_mask((void __user *)arg);
+		return orangefs_defs_new_client_mask((void __user *)arg);
 	case ORANGEFS_DEV_CLIENT_STRING:
-		return orangefs_debugfs_new_client_string((void __user *)arg);
-	case ORANGEFS_DEV_DEBUG:
-		return orangefs_debugfs_new_debug((void __user *)arg);
+		return orangefs_defs_new_client_string((void __user *)arg);
+	case ORANGEFS_DEV_DE:
+		return orangefs_defs_new_de((void __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -791,16 +791,16 @@ int orangefs_dev_init(void)
 					  ORANGEFS_REQDEVICE_NAME,
 					  &orangefs_devreq_file_operations);
 	if (orangefs_dev_major < 0) {
-		gossip_debug(GOSSIP_DEV_DEBUG,
+		gossip_de(GOSSIP_DEV_DE,
 			     "Failed to register /dev/%s (error %d)\n",
 			     ORANGEFS_REQDEVICE_NAME, orangefs_dev_major);
 		return orangefs_dev_major;
 	}
 
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "*** /dev/%s character device registered ***\n",
 		     ORANGEFS_REQDEVICE_NAME);
-	gossip_debug(GOSSIP_DEV_DEBUG, "'mknod /dev/%s c %d 0'.\n",
+	gossip_de(GOSSIP_DEV_DE, "'mknod /dev/%s c %d 0'.\n",
 		     ORANGEFS_REQDEVICE_NAME, orangefs_dev_major);
 	return 0;
 }
@@ -808,7 +808,7 @@ int orangefs_dev_init(void)
 void orangefs_dev_cleanup(void)
 {
 	unregister_chrdev(orangefs_dev_major, ORANGEFS_REQDEVICE_NAME);
-	gossip_debug(GOSSIP_DEV_DEBUG,
+	gossip_de(GOSSIP_DEV_DE,
 		     "*** /dev/%s character device unregistered ***\n",
 		     ORANGEFS_REQDEVICE_NAME);
 }

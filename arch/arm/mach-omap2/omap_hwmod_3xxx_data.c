@@ -116,18 +116,18 @@ static struct omap_hwmod omap3xxx_iva_hwmod = {
 };
 
 /*
- * 'debugss' class
- * debug and emulation sub system
+ * 'dess' class
+ * de and emulation sub system
  */
 
-static struct omap_hwmod_class omap3xxx_debugss_hwmod_class = {
-	.name	= "debugss",
+static struct omap_hwmod_class omap3xxx_dess_hwmod_class = {
+	.name	= "dess",
 };
 
-/* debugss */
-static struct omap_hwmod omap3xxx_debugss_hwmod = {
-	.name		= "debugss",
-	.class		= &omap3xxx_debugss_hwmod_class,
+/* dess */
+static struct omap_hwmod omap3xxx_dess_hwmod = {
+	.name		= "dess",
+	.class		= &omap3xxx_dess_hwmod_class,
 	.clkdm_name	= "emu_clkdm",
 	.main_clk	= "emu_src_ck",
 	.flags		= HWMOD_NO_IDLEST,
@@ -381,7 +381,7 @@ static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
 	},
 	/*
 	 * XXX: Use software supervised mode, HW supervised smartidle seems to
-	 * block CORE power domain idle transitions. Maybe a HW bug in wdt2?
+	 * block CORE power domain idle transitions. Maybe a HW  in wdt2?
 	 */
 	.flags		= HWMOD_SWSUP_SIDLE,
 };
@@ -390,7 +390,7 @@ static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
 static struct omap_hwmod omap3xxx_uart1_hwmod = {
 	.name		= "uart1",
 	.main_clk	= "uart1_fck",
-	.flags		= DEBUG_TI81XXUART1_FLAGS | HWMOD_SWSUP_SIDLE,
+	.flags		= DE_TI81XXUART1_FLAGS | HWMOD_SWSUP_SIDLE,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -405,7 +405,7 @@ static struct omap_hwmod omap3xxx_uart1_hwmod = {
 static struct omap_hwmod omap3xxx_uart2_hwmod = {
 	.name		= "uart2",
 	.main_clk	= "uart2_fck",
-	.flags		= DEBUG_TI81XXUART2_FLAGS | HWMOD_SWSUP_SIDLE,
+	.flags		= DE_TI81XXUART2_FLAGS | HWMOD_SWSUP_SIDLE,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -420,7 +420,7 @@ static struct omap_hwmod omap3xxx_uart2_hwmod = {
 static struct omap_hwmod omap3xxx_uart3_hwmod = {
 	.name		= "uart3",
 	.main_clk	= "uart3_fck",
-	.flags		= DEBUG_OMAP3UART3_FLAGS | DEBUG_TI81XXUART3_FLAGS |
+	.flags		= DE_OMAP3UART3_FLAGS | DE_TI81XXUART3_FLAGS |
 				HWMOD_SWSUP_SIDLE,
 	.prcm		= {
 		.omap2 = {
@@ -438,7 +438,7 @@ static struct omap_hwmod omap3xxx_uart3_hwmod = {
 static struct omap_hwmod omap36xx_uart4_hwmod = {
 	.name		= "uart4",
 	.main_clk	= "uart4_fck",
-	.flags		= DEBUG_OMAP3UART4_FLAGS | HWMOD_SWSUP_SIDLE,
+	.flags		= DE_OMAP3UART4_FLAGS | HWMOD_SWSUP_SIDLE,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = OMAP3430_PER_MOD,
@@ -1630,8 +1630,8 @@ static struct omap_hwmod omap3xxx_gpmc_hwmod = {
 	.class		= &omap3xxx_gpmc_hwmod_class,
 	.clkdm_name	= "core_l3_clkdm",
 	.main_clk	= "gpmc_fck",
-	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= HWMOD_NO_IDLEST | DEBUG_OMAP_GPMC_HWMOD_FLAGS,
+	/* Skip reset for CONFIG_OMAP_GPMC_DE for bootloader timings */
+	.flags		= HWMOD_NO_IDLEST | DE_OMAP_GPMC_HWMOD_FLAGS,
 };
 
 /*
@@ -1661,10 +1661,10 @@ static struct omap_hwmod_ocp_if omap3xxx_mpu__l3_main = {
 };
 
 
-/* l3 -> debugss */
-static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_debugss = {
+/* l3 -> dess */
+static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_dess = {
 	.master		= &omap3xxx_l3_main_hwmod,
-	.slave		= &omap3xxx_debugss_hwmod,
+	.slave		= &omap3xxx_dess_hwmod,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2607,7 +2607,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
 	&omap3xxx_mpu__l3_main,
-	&omap3xxx_l3_main__l4_debugss,
+	&omap3xxx_l3_main__l4_dess,
 	&omap3xxx_l4_core__l4_wkup,
 	&omap3xxx_l4_core__mmc3,
 	&omap3_l4_core__uart1,

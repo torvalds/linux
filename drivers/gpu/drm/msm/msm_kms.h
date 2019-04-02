@@ -69,9 +69,9 @@ struct msm_kms_funcs {
 				 bool cmd_mode);
 	/* cleanup: */
 	void (*destroy)(struct msm_kms *kms);
-#ifdef CONFIG_DEBUG_FS
-	/* debugfs: */
-	int (*debugfs_init)(struct msm_kms *kms, struct drm_minor *minor);
+#ifdef CONFIG_DE_FS
+	/* defs: */
+	int (*defs_init)(struct msm_kms *kms, struct drm_minor *minor);
 #endif
 };
 

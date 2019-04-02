@@ -2055,7 +2055,7 @@ done:
 		}
 cqe_out:
 		/* clear out in production version only, till beta keep opcode
-		 * field intact, will be helpful in debugging (context dump)
+		 * field intact, will be helpful in deging (context dump)
 		 * nopin->op_code = 0;
 		 */
 		cqe_cnt++;

@@ -217,7 +217,7 @@ void _c4iw_free_wr_wait(struct kref *kref);
 
 static inline void c4iw_put_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
-	pr_debug("wr_wait %p ref before put %u\n", wr_waitp,
+	pr_de("wr_wait %p ref before put %u\n", wr_waitp,
 		 kref_read(&wr_waitp->kref));
 	WARN_ON(kref_read(&wr_waitp->kref) == 0);
 	kref_put(&wr_waitp->kref, _c4iw_free_wr_wait);
@@ -225,7 +225,7 @@ static inline void c4iw_put_wr_wait(struct c4iw_wr_wait *wr_waitp)
 
 static inline void c4iw_get_wr_wait(struct c4iw_wr_wait *wr_waitp)
 {
-	pr_debug("wr_wait %p ref before get %u\n", wr_waitp,
+	pr_de("wr_wait %p ref before get %u\n", wr_waitp,
 		 kref_read(&wr_waitp->kref));
 	WARN_ON(kref_read(&wr_waitp->kref) == 0);
 	kref_get(&wr_waitp->kref);
@@ -277,7 +277,7 @@ static inline int c4iw_wait_for_reply(struct c4iw_rdev *rdev,
 		goto out;
 	}
 	if (wr_waitp->ret)
-		pr_debug("%s: FW reply %d tid %u qpid %u\n",
+		pr_de("%s: FW reply %d tid %u qpid %u\n",
 			 pci_name(rdev->lldi.pdev), wr_waitp->ret, hwtid, qpid);
 out:
 	return wr_waitp->ret;
@@ -293,7 +293,7 @@ static inline int c4iw_ref_send_wait(struct c4iw_rdev *rdev,
 {
 	int ret;
 
-	pr_debug("%s wr_wait %p hwtid %u qpid %u\n", func, wr_waitp, hwtid,
+	pr_de("%s wr_wait %p hwtid %u qpid %u\n", func, wr_waitp, hwtid,
 		 qpid);
 	c4iw_get_wr_wait(wr_waitp);
 	ret = c4iw_ofld_send(rdev, skb);
@@ -320,7 +320,7 @@ struct c4iw_dev {
 	struct idr mmidr;
 	spinlock_t lock;
 	struct mutex db_mutex;
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	enum db_state db_state;
 	struct idr hwtid_idr;
 	struct idr atid_idr;
@@ -617,7 +617,7 @@ static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
 		if (mm->key == key && mm->len == len) {
 			list_del_init(&mm->entry);
 			spin_unlock(&ucontext->mmap_lock);
-			pr_debug("key 0x%x addr 0x%llx len %d\n", key,
+			pr_de("key 0x%x addr 0x%llx len %d\n", key,
 				 (unsigned long long)mm->addr, mm->len);
 			return mm;
 		}
@@ -630,7 +630,7 @@ static inline void insert_mmap(struct c4iw_ucontext *ucontext,
 			       struct c4iw_mm_entry *mm)
 {
 	spin_lock(&ucontext->mmap_lock);
-	pr_debug("key 0x%x addr 0x%llx len %d\n",
+	pr_de("key 0x%x addr 0x%llx len %d\n",
 		 mm->key, (unsigned long long)mm->addr, mm->len);
 	list_add_tail(&mm->entry, &ucontext->mmaps);
 	spin_unlock(&ucontext->mmap_lock);
@@ -748,14 +748,14 @@ enum c4iw_mmid_state {
 #define MPA_V2_IRD_ORD_MASK             0x3FFF
 
 #define c4iw_put_ep(ep) {						\
-	pr_debug("put_ep ep %p refcnt %d\n",		\
+	pr_de("put_ep ep %p refcnt %d\n",		\
 		 ep, kref_read(&((ep)->kref)));				\
 	WARN_ON(kref_read(&((ep)->kref)) < 1);				\
 	kref_put(&((ep)->kref), _c4iw_free_ep);				\
 }
 
 #define c4iw_get_ep(ep) {						\
-	pr_debug("get_ep ep %p, refcnt %d\n",		\
+	pr_de("get_ep ep %p, refcnt %d\n",		\
 		 ep, kref_read(&((ep)->kref)));				\
 	kref_get(&((ep)->kref));					\
 }

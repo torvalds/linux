@@ -55,7 +55,7 @@ extern pgtable_t pte_alloc_one(struct mm_struct *);
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
-	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
+	_ON((unsigned long)pte & (PAGE_SIZE-1));
 	free_page((unsigned long)pte);
 }
 
@@ -118,7 +118,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
 
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
-	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
+	_ON((unsigned long)pmd & (PAGE_SIZE-1));
 	pgtable_pmd_page_dtor(virt_to_page(pmd));
 	free_page((unsigned long)pmd);
 }
@@ -171,7 +171,7 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 
 static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
-	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
+	_ON((unsigned long)pud & (PAGE_SIZE-1));
 	free_page((unsigned long)pud);
 }
 
@@ -214,7 +214,7 @@ static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
 	if (!pgtable_l5_enabled())
 		return;
 
-	BUG_ON((unsigned long)p4d & (PAGE_SIZE-1));
+	_ON((unsigned long)p4d & (PAGE_SIZE-1));
 	free_page((unsigned long)p4d);
 }
 

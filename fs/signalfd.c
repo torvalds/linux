@@ -83,7 +83,7 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 {
 	struct signalfd_siginfo new;
 
-	BUILD_BUG_ON(sizeof(struct signalfd_siginfo) != 128);
+	BUILD__ON(sizeof(struct signalfd_siginfo) != 128);
 
 	/*
 	 * Unused members should be zero ...
@@ -264,8 +264,8 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 	struct signalfd_ctx *ctx;
 
 	/* Check the SFD_* constants for consistency.  */
-	BUILD_BUG_ON(SFD_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(SFD_NONBLOCK != O_NONBLOCK);
+	BUILD__ON(SFD_CLOEXEC != O_CLOEXEC);
+	BUILD__ON(SFD_NONBLOCK != O_NONBLOCK);
 
 	if (flags & ~(SFD_CLOEXEC | SFD_NONBLOCK))
 		return -EINVAL;

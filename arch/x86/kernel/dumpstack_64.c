@@ -3,17 +3,17 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
  */
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/kexec.h>
 #include <linux/sysfs.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/nmi.h>
 
 #include <asm/stacktrace.h>
@@ -21,18 +21,18 @@
 static char *exception_stack_names[N_EXCEPTION_STACKS] = {
 		[ DOUBLEFAULT_STACK-1	]	= "#DF",
 		[ NMI_STACK-1		]	= "NMI",
-		[ DEBUG_STACK-1		]	= "#DB",
+		[ DE_STACK-1		]	= "#DB",
 		[ MCE_STACK-1		]	= "#MC",
 };
 
 static unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
 	[0 ... N_EXCEPTION_STACKS - 1]		= EXCEPTION_STKSZ,
-	[DEBUG_STACK - 1]			= DEBUG_STKSZ
+	[DE_STACK - 1]			= DE_STKSZ
 };
 
 const char *stack_type_name(enum stack_type type)
 {
-	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
+	BUILD__ON(N_EXCEPTION_STACKS != 4);
 
 	if (type == STACK_TYPE_IRQ)
 		return "IRQ";
@@ -58,7 +58,7 @@ static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 	struct pt_regs *regs;
 	unsigned k;
 
-	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
+	BUILD__ON(N_EXCEPTION_STACKS != 4);
 
 	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
 		end   = (unsigned long *)raw_cpu_ptr(&orig_ist)->ist[k];

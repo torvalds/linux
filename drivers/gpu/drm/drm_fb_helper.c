@@ -309,10 +309,10 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 }
 
 /**
- * drm_fb_helper_debug_enter - implementation for &fb_ops.fb_debug_enter
+ * drm_fb_helper_de_enter - implementation for &fb_ops.fb_de_enter
  * @info: fbdev registered by the helper
  */
-int drm_fb_helper_debug_enter(struct fb_info *info)
+int drm_fb_helper_de_enter(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
 	const struct drm_crtc_helper_funcs *funcs;
@@ -343,13 +343,13 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_fb_helper_debug_enter);
+EXPORT_SYMBOL(drm_fb_helper_de_enter);
 
 /**
- * drm_fb_helper_debug_leave - implementation for &fb_ops.fb_debug_leave
+ * drm_fb_helper_de_leave - implementation for &fb_ops.fb_de_leave
  * @info: fbdev registered by the helper
  */
-int drm_fb_helper_debug_leave(struct fb_info *info)
+int drm_fb_helper_de_leave(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
 	struct drm_crtc *crtc;
@@ -385,7 +385,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_fb_helper_debug_leave);
+EXPORT_SYMBOL(drm_fb_helper_de_leave);
 
 static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool active)
 {
@@ -1694,7 +1694,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 
 	if (var->pixclock != 0) {
-		DRM_DEBUG("fbdev emulation doesn't support changing the pixel clock, value of pixclock is ignored\n");
+		DRM_DE("fbdev emulation doesn't support changing the pixel clock, value of pixclock is ignored\n");
 		var->pixclock = 0;
 	}
 
@@ -1709,7 +1709,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	if (var->bits_per_pixel != fb->format->cpp[0] * 8 ||
 	    var->xres > fb->width || var->yres > fb->height ||
 	    var->xres_virtual > fb->width || var->yres_virtual > fb->height) {
-		DRM_DEBUG("fb requested width/height/bpp can't fit in current fb "
+		DRM_DE("fb requested width/height/bpp can't fit in current fb "
 			  "request %dx%d-%d (virtual %dx%d) > %dx%d-%d\n",
 			  var->xres, var->yres, var->bits_per_pixel,
 			  var->xres_virtual, var->yres_virtual,
@@ -1736,7 +1736,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	 * so reject all pixel format changing requests.
 	 */
 	if (!drm_fb_pixel_format_equal(var, &info->var)) {
-		DRM_DEBUG("fbdev emulation doesn't support changing the pixel format\n");
+		DRM_DE("fbdev emulation doesn't support changing the pixel format\n");
 		return -EINVAL;
 	}
 
@@ -1931,7 +1931,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		struct drm_plane *plane = crtc->primary;
 		int j;
 
-		DRM_DEBUG("test CRTC %d primary plane\n", i);
+		DRM_DE("test CRTC %d primary plane\n", i);
 
 		for (j = 0; j < plane->format_count; j++) {
 			const struct drm_format_info *fmt;
@@ -2216,7 +2216,7 @@ static void drm_enable_connectors(struct drm_fb_helper *fb_helper,
 	drm_fb_helper_for_each_connector(fb_helper, i) {
 		connector = fb_helper->connector_info[i]->connector;
 		enabled[i] = drm_connector_enabled(connector, true);
-		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
+		DRM_DE_KMS("connector %d enabled? %s\n", connector->base.id,
 			      connector->display_info.non_desktop ? "non desktop" : enabled[i] ? "yes" : "no");
 
 		any_enabled |= enabled[i];
@@ -2279,7 +2279,7 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 	}
 
 	if (can_clone) {
-		DRM_DEBUG_KMS("can clone using command line\n");
+		DRM_DE_KMS("can clone using command line\n");
 		return true;
 	}
 
@@ -2305,7 +2305,7 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 	}
 
 	if (can_clone) {
-		DRM_DEBUG_KMS("can clone using 1024x768\n");
+		DRM_DE_KMS("can clone using 1024x768\n");
 		return true;
 	}
 	DRM_INFO("kms: can't enable cloning when we probably wanted to.\n");
@@ -2328,7 +2328,7 @@ static int drm_get_tile_offsets(struct drm_fb_helper *fb_helper,
 			continue;
 
 		if (!modes[i] && (h_idx || v_idx)) {
-			DRM_DEBUG_KMS("no modes for connector tiled %d %d\n", i,
+			DRM_DE_KMS("no modes for connector tiled %d %d\n", i,
 				      fb_helper_conn->connector->base.id);
 			continue;
 		}
@@ -2340,7 +2340,7 @@ static int drm_get_tile_offsets(struct drm_fb_helper *fb_helper,
 	}
 	offsets[idx].x = hoffset;
 	offsets[idx].y = voffset;
-	DRM_DEBUG_KMS("returned %d %d for %d %d\n", hoffset, voffset, h_idx, v_idx);
+	DRM_DE_KMS("returned %d %d for %d %d\n", hoffset, voffset, h_idx, v_idx);
 	return 0;
 }
 
@@ -2389,13 +2389,13 @@ retry:
 			drm_get_tile_offsets(fb_helper, modes, offsets,
 					     i, fb_helper_conn->connector->tile_h_loc, fb_helper_conn->connector->tile_v_loc);
 		}
-		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
+		DRM_DE_KMS("looking for cmdline mode on connector %d\n",
 			      fb_helper_conn->connector->base.id);
 
 		/* got for command line mode first */
 		modes[i] = drm_pick_cmdline_mode(fb_helper_conn);
 		if (!modes[i]) {
-			DRM_DEBUG_KMS("looking for preferred mode on connector %d %d\n",
+			DRM_DE_KMS("looking for preferred mode on connector %d %d\n",
 				      fb_helper_conn->connector->base.id, fb_helper_conn->connector->tile_group ? fb_helper_conn->connector->tile_group->id : 0);
 			modes[i] = drm_has_preferred_mode(fb_helper_conn, width, height);
 		}
@@ -2404,7 +2404,7 @@ retry:
 			list_for_each_entry(modes[i], &fb_helper_conn->connector->modes, head)
 				break;
 		}
-		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
+		DRM_DE_KMS("found mode %s\n", modes[i] ? modes[i]->name :
 			  "none");
 		conn_configured |= BIT_ULL(i);
 	}
@@ -2571,7 +2571,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 	bool *enabled;
 	int i;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	/* prevent concurrent modification of connector_count by hotplug */
 	lockdep_assert_held(&fb_helper->lock);
 
@@ -2590,7 +2590,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 
 	mutex_lock(&fb_helper->dev->mode_config.mutex);
 	if (drm_fb_helper_probe_connector_modes(fb_helper, width, height) == 0)
-		DRM_DEBUG_KMS("No connectors reported connected with modes\n");
+		DRM_DE_KMS("No connectors reported connected with modes\n");
 	drm_enable_connectors(fb_helper, enabled);
 
 	if (!(fb_helper->funcs->initial_config &&
@@ -2607,7 +2607,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 					  enabled, width, height))
 			DRM_ERROR("Unable to find initial modes\n");
 
-		DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n",
+		DRM_DE_KMS("picking CRTCs for %dx%d config\n",
 			      width, height);
 
 		drm_pick_crtcs(fb_helper, crtcs, modes, 0, width, height);
@@ -2631,7 +2631,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			struct drm_connector *connector =
 				fb_helper->connector_info[i]->connector;
 
-			DRM_DEBUG_KMS("desired mode %s set on crtc %d (%d,%d)\n",
+			DRM_DE_KMS("desired mode %s set on crtc %d (%d,%d)\n",
 				      mode->name, fb_crtc->mode_set.crtc->base.id, offset->x, offset->y);
 
 			fb_crtc->desired_mode = mode;
@@ -2784,7 +2784,7 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
  * drm_fb_helper_fill_fix() are provided as helpers to setup simple default
  * values for the fbdev info structure.
  *
- * HANG DEBUGGING:
+ * HANG DEGING:
  *
  * When you have fbcon support built-in or already loaded, this function will do
  * a full modeset to setup the fbdev console. Due to locking misdesign in the
@@ -2795,14 +2795,14 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
  * with no further output. Any kind of printk() you place within your own driver
  * or in the drm core modeset code will also never show up.
  *
- * Standard debug practice is to run the fbcon setup without taking the
+ * Standard de practice is to run the fbcon setup without taking the
  * console_lock as a hack, to be able to see backtraces and crashes on the
  * serial line. This can be done by setting the fb.lockless_register_fb=1 kernel
  * cmdline option.
  *
  * The other option is to just disable fbdev emulation since very likely the
  * first modeset from userspace will crash in the same way, and is even easier
- * to debug. This can be done by setting the drm_kms_helper.fbdev_emulation=0
+ * to de. This can be done by setting the drm_kms_helper.fbdev_emulation=0
  * kernel cmdline option.
  *
  * RETURNS:
@@ -2863,7 +2863,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 		return err;
 	}
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	drm_setup_crtcs(fb_helper, fb_helper->fb->width, fb_helper->fb->height);
 	drm_setup_crtcs_fb(fb_helper);
@@ -3131,7 +3131,7 @@ int drm_fb_helper_generic_probe(struct drm_fb_helper *fb_helper,
 	struct fb_info *fbi;
 	u32 format;
 
-	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d)\n",
+	DRM_DE_KMS("surface width(%d), height(%d) and bpp(%d)\n",
 		      sizes->surface_width, sizes->surface_height,
 		      sizes->surface_bpp);
 
@@ -3229,7 +3229,7 @@ static int drm_fbdev_client_hotplug(struct drm_client_dev *client)
 		return drm_fb_helper_hotplug_event(dev->fb_helper);
 
 	if (!dev->mode_config.num_connector) {
-		DRM_DEV_DEBUG(dev->dev, "No connectors found, will not create framebuffer!\n");
+		DRM_DEV_DE(dev->dev, "No connectors found, will not create framebuffer!\n");
 		return 0;
 	}
 
@@ -3327,7 +3327,7 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 
 	ret = drm_fbdev_client_hotplug(&fb_helper->client);
 	if (ret)
-		DRM_DEV_DEBUG(dev->dev, "client hotplug ret=%d\n", ret);
+		DRM_DEV_DE(dev->dev, "client hotplug ret=%d\n", ret);
 
 	return 0;
 }

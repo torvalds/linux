@@ -204,7 +204,7 @@ void set_firmware_width(void)
  */
 void pdc_emergency_unlock(void)
 {
- 	/* Spinlock DEBUG code freaks out if we unconditionally unlock */
+ 	/* Spinlock DE code freaks out if we unconditionally unlock */
         if (spin_is_locked(&pdc_lock))
 		spin_unlock(&pdc_lock);
 }
@@ -929,7 +929,7 @@ int pdc_pci_irt(unsigned long num_entries, unsigned long hpa, void *tbl)
 	int retval;
 	unsigned long flags;
 
-	BUG_ON((unsigned long)tbl & 0x7);
+	_ON((unsigned long)tbl & 0x7);
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	pdc_result[0] = num_entries;

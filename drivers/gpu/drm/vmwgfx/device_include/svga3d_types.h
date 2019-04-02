@@ -1322,7 +1322,7 @@ typedef enum {
    /*
     * SVGA3D_PRIMITIVE_INVALID is a valid primitive type.
     *
-    * List MIN second so debuggers will think INVALID is
+    * List MIN second so degers will think INVALID is
     * the correct name.
     */
    SVGA3D_PRIMITIVE_INVALID                     = 0,

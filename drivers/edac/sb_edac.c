@@ -39,7 +39,7 @@ static LIST_HEAD(sbridge_edac_list);
 #define EDAC_MOD_STR	    "sb_edac"
 
 /*
- * Debug macros
+ * De macros
  */
 #define sbridge_printk(level, fmt, arg...)			\
 	edac_printk(level, "sbridge", fmt, ##arg)
@@ -2342,7 +2342,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	u8 bus = 0;
 	int i = 0;
 
-	sbridge_printk(KERN_DEBUG,
+	sbridge_printk(KERN_DE,
 		"Seeking for: PCI ID %04x:%04x\n",
 		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
@@ -3172,16 +3172,16 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 	else
 		type = "Event";
 
-	sbridge_mc_printk(mci, KERN_DEBUG, "HANDLING MCE MEMORY ERROR\n");
+	sbridge_mc_printk(mci, KERN_DE, "HANDLING MCE MEMORY ERROR\n");
 
-	sbridge_mc_printk(mci, KERN_DEBUG, "CPU %d: Machine Check %s: %Lx "
+	sbridge_mc_printk(mci, KERN_DE, "CPU %d: Machine Check %s: %Lx "
 			  "Bank %d: %016Lx\n", mce->extcpu, type,
 			  mce->mcgstatus, mce->bank, mce->status);
-	sbridge_mc_printk(mci, KERN_DEBUG, "TSC %llx ", mce->tsc);
-	sbridge_mc_printk(mci, KERN_DEBUG, "ADDR %llx ", mce->addr);
-	sbridge_mc_printk(mci, KERN_DEBUG, "MISC %llx ", mce->misc);
+	sbridge_mc_printk(mci, KERN_DE, "TSC %llx ", mce->tsc);
+	sbridge_mc_printk(mci, KERN_DE, "ADDR %llx ", mce->addr);
+	sbridge_mc_printk(mci, KERN_DE, "MISC %llx ", mce->misc);
 
-	sbridge_mc_printk(mci, KERN_DEBUG, "PROCESSOR %u:%x TIME %llu SOCKET "
+	sbridge_mc_printk(mci, KERN_DE, "PROCESSOR %u:%x TIME %llu SOCKET "
 			  "%u APIC %x\n", mce->cpuvendor, mce->cpuid,
 			  mce->time, mce->socketid, mce->apicid);
 

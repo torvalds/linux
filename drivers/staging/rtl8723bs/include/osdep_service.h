@@ -125,7 +125,7 @@ __inline static void flush_signals_thread(void)
 
 #define rtw_warn_on(condition) WARN_ON(condition)
 
-__inline static int rtw_bug_check(void *parg1, void *parg2, void *parg3, void *parg4)
+__inline static int rtw__check(void *parg1, void *parg2, void *parg3, void *parg4)
 {
 	int ret = true;
 

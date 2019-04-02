@@ -50,7 +50,7 @@ static unsigned long alloc_xen_mmio(unsigned long len)
 
 	addr = platform_mmio + platform_mmio_alloc;
 	platform_mmio_alloc += len;
-	BUG_ON(platform_mmio_alloc > platform_mmiolen);
+	_ON(platform_mmio_alloc > platform_mmiolen);
 
 	return addr;
 }

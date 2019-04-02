@@ -701,7 +701,7 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 		break;
 	default:
 		printk(KERN_ERR "iBFT has unknown structure type (%d). " \
-				"Report this bug to %.6s!\n", hdr->id,
+				"Report this  to %.6s!\n", hdr->id,
 				header->header.oem_id);
 		rc = 1;
 		break;

@@ -17,7 +17,7 @@ config IPW2100
 
           See <file:Documentation/networking/device_drivers/intel/ipw2100.txt>
 	  for information on the capabilities currently enabled in this driver
-	  and for tips for debugging issues and problems.
+	  and for tips for deging issues and problems.
 
 	  In order to use this driver, you will need a firmware image for it.
           You can obtain the firmware from
@@ -46,21 +46,21 @@ config IPW2100_MONITOR
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW2100_DEBUG
-	bool "Enable full debugging output in IPW2100 module."
+config IPW2100_DE
+	bool "Enable full deging output in IPW2100 module."
 	depends on IPW2100
 	---help---
-	  This option will enable debug tracing output for the IPW2100.  
+	  This option will enable de tracing output for the IPW2100.  
 
 	  This will result in the kernel module being ~60k larger.  You can 
-	  control which debug output is sent to the kernel log by setting the 
+	  control which de output is sent to the kernel log by setting the 
 	  value in 
 
-	  /sys/bus/pci/drivers/ipw2100/debug_level
+	  /sys/bus/pci/drivers/ipw2100/de_level
 
 	  This entry will only exist if this option is enabled.
 
-	  If you are not trying to debug or develop the IPW2100 driver, you 
+	  If you are not trying to de or develop the IPW2100 driver, you 
 	  most likely want to say N here.
 
 config IPW2200
@@ -79,7 +79,7 @@ config IPW2200
 
           See <file:Documentation/networking/device_drivers/intel/ipw2200.txt>
 	  for information on the capabilities currently enabled in this
-	  driver and for tips for debugging issues and problems.
+	  driver and for tips for deging issues and problems.
 
 	  In order to use this driver, you will need a firmware image for it.
           You can obtain the firmware from
@@ -140,16 +140,16 @@ config IPW2200_QOS
         bool "Enable QoS support"
         depends on IPW2200
 
-config IPW2200_DEBUG
-	bool "Enable full debugging output in IPW2200 module."
+config IPW2200_DE
+	bool "Enable full deging output in IPW2200 module."
 	depends on IPW2200
 	---help---
-	  This option will enable low level debug tracing output for IPW2200.
+	  This option will enable low level de tracing output for IPW2200.
 
-	  Note, normal debug code is already compiled in. This low level
-	  debug option enables debug on hot paths (e.g Tx, Rx, ISR) and
+	  Note, normal de code is already compiled in. This low level
+	  de option enables de on hot paths (e.g Tx, Rx, ISR) and
 	  will result in the kernel module being ~70 larger.  Most users
-	  will typically not need this high verbosity debug information.
+	  will typically not need this high verbosity de information.
 
 	  If you are not sure, say N here.
 
@@ -174,25 +174,25 @@ config LIBIPW
 	networking stack.  This component is deprecated in favor of the
 	mac80211 component.
 
-config LIBIPW_DEBUG
-	bool "Full debugging output for the LIBIPW component"
+config LIBIPW_DE
+	bool "Full deging output for the LIBIPW component"
 	depends on LIBIPW
 	---help---
-	  This option will enable debug tracing output for the
+	  This option will enable de tracing output for the
 	  libipw component.
 
 	  This will result in the kernel module being ~70k larger.  You
-	  can control which debug output is sent to the kernel log by
+	  can control which de output is sent to the kernel log by
 	  setting the value in
 
-	  /proc/net/ieee80211/debug_level
+	  /proc/net/ieee80211/de_level
 
 	  For example:
 
-	  % echo 0x00000FFO > /proc/net/ieee80211/debug_level
+	  % echo 0x00000FFO > /proc/net/ieee80211/de_level
 
-	  For a list of values you can assign to debug_level, you
+	  For a list of values you can assign to de_level, you
 	  can look at the bit mask values in ieee80211.h
 
-	  If you are not trying to debug or develop the libipw
+	  If you are not trying to de or develop the libipw
 	  component, you most likely want to say N here.

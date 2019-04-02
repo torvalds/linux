@@ -10,7 +10,7 @@
 
 #include "core.h"
 #include "bmi.h"
-#include "debug.h"
+#include "de.h"
 
 static int ath10k_swap_code_seg_fill(struct ath10k *ar,
 				     struct ath10k_swap_code_seg_info *seg_info,

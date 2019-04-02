@@ -497,7 +497,7 @@ static int hw_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 {
 	int rc;
 
-	BUILD_BUG_ON(HL_QUEUE_SIZE_IN_BYTES > HL_PAGE_SIZE);
+	BUILD__ON(HL_QUEUE_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
 	q->hw_queue_id = hw_queue_id;
 

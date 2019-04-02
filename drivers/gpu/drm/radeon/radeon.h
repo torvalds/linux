@@ -127,7 +127,7 @@ extern int radeon_cik_support;
 #define RADEON_USEC_IB_TEST_TIMEOUT		1000000 /* 1s */
 /* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE			16
-#define RADEON_DEBUGFS_MAX_COMPONENTS		32
+#define RADEON_DEFS_MAX_COMPONENTS		32
 #define RADEONFB_CONN_LIMIT			4
 #define RADEON_BIOS_NUM_SCRATCH			8
 
@@ -410,7 +410,7 @@ static inline struct radeon_fence *radeon_fence_later(struct radeon_fence *a,
 		return a;
 	}
 
-	BUG_ON(a->ring != b->ring);
+	_ON(a->ring != b->ring);
 
 	if (a->seq > b->seq) {
 		return a;
@@ -430,7 +430,7 @@ static inline bool radeon_fence_is_earlier(struct radeon_fence *a,
 		return true;
 	}
 
-	BUG_ON(a->ring != b->ring);
+	_ON(a->ring != b->ring);
 
 	return a->seq < b->seq;
 }
@@ -451,7 +451,7 @@ struct radeon_mman {
 	struct ttm_bo_device		bdev;
 	bool				initialized;
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	struct dentry			*vram;
 	struct dentry			*gtt;
 #endif
@@ -515,7 +515,7 @@ struct radeon_bo {
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
-int radeon_gem_debugfs_init(struct radeon_device *rdev);
+int radeon_gem_defs_init(struct radeon_device *rdev);
 
 /* sub-allocation manager, it has to be protected by another lock.
  * By conception this is an helper for other part of the driver
@@ -1793,17 +1793,17 @@ static inline void radeon_mn_unregister(struct radeon_bo *bo) {}
 #endif
 
 /*
- * Debugfs
+ * Defs
  */
-struct radeon_debugfs {
+struct radeon_defs {
 	struct drm_info_list	*files;
 	unsigned		num_files;
 };
 
-int radeon_debugfs_add_files(struct radeon_device *rdev,
+int radeon_defs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles);
-int radeon_debugfs_fence_init(struct radeon_device *rdev);
+int radeon_defs_fence_init(struct radeon_device *rdev);
 
 /*
  * ASIC ring specific functions.
@@ -1977,7 +1977,7 @@ struct radeon_asic {
 		u32 (*get_sclk)(struct radeon_device *rdev, bool low);
 		u32 (*get_mclk)(struct radeon_device *rdev, bool low);
 		void (*print_power_state)(struct radeon_device *rdev, struct radeon_ps *ps);
-		void (*debugfs_print_current_performance_level)(struct radeon_device *rdev, struct seq_file *m);
+		void (*defs_print_current_performance_level)(struct radeon_device *rdev, struct seq_file *m);
 		int (*force_performance_level)(struct radeon_device *rdev, enum radeon_dpm_forced_level level);
 		bool (*vblank_too_short)(struct radeon_device *rdev);
 		void (*powergate_uvd)(struct radeon_device *rdev, bool gate);
@@ -2242,7 +2242,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
-/* VRAM scratch page for HDP bug, default vram page */
+/* VRAM scratch page for HDP , default vram page */
 struct r600_vram_scratch {
 	struct radeon_bo		*robj;
 	volatile uint32_t		*ptr;
@@ -2424,9 +2424,9 @@ struct radeon_device {
 	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
-	/* debugfs */
-	struct radeon_debugfs	debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
-	unsigned 		debugfs_count;
+	/* defs */
+	struct radeon_defs	defs[RADEON_DEFS_MAX_COMPONENTS];
+	unsigned 		defs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;
@@ -2785,7 +2785,7 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_dpm_get_sclk(rdev, l) rdev->asic->dpm.get_sclk((rdev), (l))
 #define radeon_dpm_get_mclk(rdev, l) rdev->asic->dpm.get_mclk((rdev), (l))
 #define radeon_dpm_print_power_state(rdev, ps) rdev->asic->dpm.print_power_state((rdev), (ps))
-#define radeon_dpm_debugfs_print_current_performance_level(rdev, m) rdev->asic->dpm.debugfs_print_current_performance_level((rdev), (m))
+#define radeon_dpm_defs_print_current_performance_level(rdev, m) rdev->asic->dpm.defs_print_current_performance_level((rdev), (m))
 #define radeon_dpm_force_performance_level(rdev, l) rdev->asic->dpm.force_performance_level((rdev), (l))
 #define radeon_dpm_vblank_too_short(rdev) rdev->asic->dpm.vblank_too_short((rdev))
 #define radeon_dpm_powergate_uvd(rdev, g) rdev->asic->dpm.powergate_uvd((rdev), (g))

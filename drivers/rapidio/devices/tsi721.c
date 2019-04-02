@@ -36,10 +36,10 @@
 
 #include "tsi721.h"
 
-#ifdef DEBUG
+#ifdef DE
 u32 tsi_dbg_level;
 module_param_named(dbg_level, tsi_dbg_level, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
+MODULE_PARM_DESC(dbg_level, "Deging output level (default 0 = none)");
 #endif
 
 static int pcie_mrrs = -1;
@@ -161,7 +161,7 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 							& TSI721_DMAC_STS_RUN) {
 		udelay(1);
 		if (++i >= 5000000) {
-			tsi_debug(MAINT, &priv->pdev->dev,
+			tsi_de(MAINT, &priv->pdev->dev,
 				"DMA[%d] read timeout ch_status=%x",
 				priv->mdma.ch_id, ch_stat);
 			if (!do_wr)
@@ -175,9 +175,9 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 		/* If DMA operation aborted due to error,
 		 * reinitialize DMA channel
 		 */
-		tsi_debug(MAINT, &priv->pdev->dev, "DMA ABORT ch_stat=%x",
+		tsi_de(MAINT, &priv->pdev->dev, "DMA ABORT ch_stat=%x",
 			  ch_stat);
-		tsi_debug(MAINT, &priv->pdev->dev,
+		tsi_de(MAINT, &priv->pdev->dev,
 			  "OP=%d : destid=%x hc=%x off=%x",
 			  do_wr ? MAINT_WR : MAINT_RD,
 			  destid, hopcount, offset);
@@ -360,7 +360,7 @@ static int tsi721_dsend(struct rio_mport *mport, int index,
 	offset = (((mport->sys_size) ? RIO_TT_CODE_16 : RIO_TT_CODE_8) << 18) |
 		 (destid << 2);
 
-	tsi_debug(DBELL, &priv->pdev->dev,
+	tsi_de(DBELL, &priv->pdev->dev,
 		  "Send Doorbell 0x%04x to destID 0x%x", data, destid);
 	iowrite16be(data, priv->odb_base + offset);
 
@@ -435,7 +435,7 @@ static void tsi721_db_dpc(struct work_struct *work)
 			dbell->dinb(mport, dbell->dev_id, DBELL_SID(idb.bytes),
 				    DBELL_TID(idb.bytes), DBELL_INF(idb.bytes));
 		} else {
-			tsi_debug(DBELL, &priv->pdev->dev,
+			tsi_de(DBELL, &priv->pdev->dev,
 				  "spurious IDB sid %2.2x tid %2.2x info %4.4x",
 				  DBELL_SID(idb.bytes), DBELL_TID(idb.bytes),
 				  DBELL_INF(idb.bytes));
@@ -557,7 +557,7 @@ static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 		int ch;
 
 		if (dev_ch_int & TSI721_INT_BDMA_CHAN_M) {
-			tsi_debug(DMA, &priv->pdev->dev,
+			tsi_de(DMA, &priv->pdev->dev,
 				  "IRQ from DMA channel 0x%08x", dev_ch_int);
 
 			for (ch = 0; ch < TSI721_DMA_MAXCH; ch++) {
@@ -942,7 +942,7 @@ static int tsi721_map_outb_win(struct rio_mport *mport, u16 destid, u64 rstart,
 	u32 zsize;
 	int ret = -ENOMEM;
 
-	tsi_debug(OBW, &priv->pdev->dev,
+	tsi_de(OBW, &priv->pdev->dev,
 		  "did=%d ra=0x%llx sz=0x%x", destid, rstart, size);
 
 	if (!is_power_of_2(size) || (size < 0x8000) || (rstart & (size - 1)))
@@ -967,7 +967,7 @@ static int tsi721_map_outb_win(struct rio_mport *mport, u16 destid, u64 rstart,
 	ob_win = &priv->ob_win[obw];
 	ob_win->destid = destid;
 	ob_win->rstart = rstart;
-	tsi_debug(OBW, &priv->pdev->dev,
+	tsi_de(OBW, &priv->pdev->dev,
 		  "allocated OBW%d @%llx", obw, ob_win->base);
 
 	/*
@@ -1019,14 +1019,14 @@ static void tsi721_unmap_outb_win(struct rio_mport *mport,
 	struct tsi721_ob_win *ob_win;
 	int i;
 
-	tsi_debug(OBW, &priv->pdev->dev, "did=%d ra=0x%llx", destid, rstart);
+	tsi_de(OBW, &priv->pdev->dev, "did=%d ra=0x%llx", destid, rstart);
 
 	for (i = 0; i < TSI721_OBWIN_NUM; i++) {
 		ob_win = &priv->ob_win[i];
 
 		if (ob_win->active &&
 		    ob_win->destid == destid && ob_win->rstart == rstart) {
-			tsi_debug(OBW, &priv->pdev->dev,
+			tsi_de(OBW, &priv->pdev->dev,
 				  "free OBW%d @%llx", i, ob_win->base);
 			ob_win->active = false;
 			iowrite32(0, priv->regs + TSI721_OBWINLB(i));
@@ -1120,7 +1120,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 		ibw_size = roundup_pow_of_two(size);
 		ibw_start = lstart & ~(ibw_size - 1);
 
-		tsi_debug(IBW, &priv->pdev->dev,
+		tsi_de(IBW, &priv->pdev->dev,
 			"Direct (RIO_0x%llx -> PCIe_%pad), size=0x%llx, ibw_start = 0x%llx",
 			rstart, &lstart, size, ibw_start);
 
@@ -1139,7 +1139,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 			return -ENOMEM;
 
 	} else {
-		tsi_debug(IBW, &priv->pdev->dev,
+		tsi_de(IBW, &priv->pdev->dev,
 			"Translated (RIO_0x%llx -> PCIe_%pad), size=0x%llx",
 			rstart, &lstart, size);
 
@@ -1234,7 +1234,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 
 	priv->ibwin_cnt--;
 
-	tsi_debug(IBW, &priv->pdev->dev,
+	tsi_de(IBW, &priv->pdev->dev,
 		"Configured IBWIN%d (RIO_0x%llx -> PCIe_%pad), size=0x%llx",
 		i, ibw_start, &loc_start, ibw_size);
 
@@ -1256,7 +1256,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 	struct tsi721_ib_win *ib_win;
 	int i;
 
-	tsi_debug(IBW, &priv->pdev->dev,
+	tsi_de(IBW, &priv->pdev->dev,
 		"Unmap IBW mapped to PCIe_%pad", &lstart);
 
 	/* Search for matching active inbound translation window */
@@ -1292,7 +1292,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 					break;
 			}
 
-			tsi_debug(IBW, &priv->pdev->dev, "Disable IBWIN_%d", i);
+			tsi_de(IBW, &priv->pdev->dev, "Disable IBWIN_%d", i);
 			iowrite32(0, priv->regs + TSI721_IBWIN_LB(i));
 			ib_win->active = false;
 			priv->ibwin_cnt++;
@@ -1301,7 +1301,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 	}
 
 	if (i == TSI721_IBWIN_NUM)
-		tsi_debug(IBW, &priv->pdev->dev,
+		tsi_de(IBW, &priv->pdev->dev,
 			"IB window mapped to %pad not found", &lstart);
 }
 
@@ -1388,7 +1388,7 @@ static int tsi721_doorbell_init(struct tsi721_device *priv)
 	if (!priv->idb_base)
 		return -ENOMEM;
 
-	tsi_debug(DBELL, &priv->pdev->dev,
+	tsi_de(DBELL, &priv->pdev->dev,
 		  "Allocated IDB buffer @ %p (phys = %pad)",
 		  priv->idb_base, &priv->idb_dma);
 
@@ -1436,7 +1436,7 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	int		bd_num = 2;
 	void __iomem	*regs;
 
-	tsi_debug(MAINT, &priv->pdev->dev,
+	tsi_de(MAINT, &priv->pdev->dev,
 		  "Init BDMA_%d Maintenance requests", TSI721_DMACH_MAINT);
 
 	/*
@@ -1457,7 +1457,7 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	priv->mdma.bd_phys = bd_phys;
 	priv->mdma.bd_base = bd_ptr;
 
-	tsi_debug(MAINT, &priv->pdev->dev, "DMA descriptors @ %p (phys = %pad)",
+	tsi_de(MAINT, &priv->pdev->dev, "DMA descriptors @ %p (phys = %pad)",
 		  bd_ptr, &bd_phys);
 
 	/* Allocate space for descriptor status FIFO */
@@ -1480,7 +1480,7 @@ static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 	priv->mdma.sts_base = sts_ptr;
 	priv->mdma.sts_size = sts_size;
 
-	tsi_debug(MAINT, &priv->pdev->dev,
+	tsi_de(MAINT, &priv->pdev->dev,
 		"desc status FIFO @ %p (phys = %pad) size=0x%x",
 		sts_ptr, &sts_phys, sts_size);
 
@@ -1814,7 +1814,7 @@ static void tsi721_omsg_handler(struct tsi721_device *priv, int ch)
 		}
 
 		if (tx_slot >= priv->omsg_ring[ch].size)
-			tsi_debug(OMSG, &priv->pdev->dev,
+			tsi_de(OMSG, &priv->pdev->dev,
 				  "OB_MSG tx_slot=%x > size=%x",
 				  tx_slot, priv->omsg_ring[ch].size);
 		WARN_ON(tx_slot >= priv->omsg_ring[ch].size);
@@ -1836,7 +1836,7 @@ no_sts_update:
 		* reinitialize OB MSG channel
 		*/
 
-		tsi_debug(OMSG, &priv->pdev->dev, "OB MSG ABORT ch_stat=%x",
+		tsi_de(OMSG, &priv->pdev->dev, "OB MSG ABORT ch_stat=%x",
 			  ioread32(priv->regs + TSI721_OBDMAC_STS(ch)));
 
 		iowrite32(TSI721_OBDMAC_INT_ERROR,
@@ -1916,7 +1916,7 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				&priv->omsg_ring[mbox].omq_phys[i],
 				GFP_KERNEL);
 		if (priv->omsg_ring[mbox].omq_base[i] == NULL) {
-			tsi_debug(OMSG, &priv->pdev->dev,
+			tsi_de(OMSG, &priv->pdev->dev,
 				  "ENOMEM for OB_MSG_%d data buffer", mbox);
 			rc = -ENOMEM;
 			goto out_buf;
@@ -1929,7 +1929,7 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				(entries + 1) * sizeof(struct tsi721_omsg_desc),
 				&priv->omsg_ring[mbox].omd_phys, GFP_KERNEL);
 	if (priv->omsg_ring[mbox].omd_base == NULL) {
-		tsi_debug(OMSG, &priv->pdev->dev,
+		tsi_de(OMSG, &priv->pdev->dev,
 			"ENOMEM for OB_MSG_%d descriptor memory", mbox);
 		rc = -ENOMEM;
 		goto out_buf;
@@ -1944,7 +1944,7 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 							    &priv->omsg_ring[mbox].sts_phys,
 							    GFP_KERNEL);
 	if (priv->omsg_ring[mbox].sts_base == NULL) {
-		tsi_debug(OMSG, &priv->pdev->dev,
+		tsi_de(OMSG, &priv->pdev->dev,
 			"ENOMEM for OB_MSG_%d status FIFO", mbox);
 		rc = -ENOMEM;
 		goto out_desc;
@@ -1981,7 +1981,7 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc) {
-			tsi_debug(OMSG, &priv->pdev->dev,
+			tsi_de(OMSG, &priv->pdev->dev,
 				"Unable to get MSI-X IRQ for OBOX%d-DONE",
 				mbox);
 			goto out_stat;
@@ -1992,7 +1992,7 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc)	{
-			tsi_debug(OMSG, &priv->pdev->dev,
+			tsi_de(OMSG, &priv->pdev->dev,
 				"Unable to get MSI-X IRQ for MBOX%d-INT", mbox);
 			idx = TSI721_VECT_OMB0_DONE + mbox;
 			free_irq(priv->msix[idx].vector, (void *)priv);
@@ -2296,7 +2296,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc) {
-			tsi_debug(IMSG, &priv->pdev->dev,
+			tsi_de(IMSG, &priv->pdev->dev,
 				"Unable to get MSI-X IRQ for IBOX%d-DONE",
 				mbox);
 			goto out_desc;
@@ -2307,7 +2307,7 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				 priv->msix[idx].irq_name, (void *)priv);
 
 		if (rc)	{
-			tsi_debug(IMSG, &priv->pdev->dev,
+			tsi_de(IMSG, &priv->pdev->dev,
 				"Unable to get MSI-X IRQ for IBOX%d-INT", mbox);
 			free_irq(
 				priv->msix[TSI721_VECT_IMB0_RCV + mbox].vector,
@@ -2658,7 +2658,7 @@ static void tsi721_mport_release(struct device *dev)
 {
 	struct rio_mport *mport = to_rio_mport(dev);
 
-	tsi_debug(EXIT, dev, "%s id=%d", mport->name, mport->id);
+	tsi_de(EXIT, dev, "%s id=%d", mport->name, mport->id);
 }
 
 /**
@@ -2702,7 +2702,7 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	else if (!pci_enable_msi(pdev))
 		priv->flags |= TSI721_USING_MSI;
 	else
-		tsi_debug(MPORT, &pdev->dev,
+		tsi_de(MPORT, &pdev->dev,
 			 "MSI/MSI-X is not available. Using legacy INTx.");
 #endif /* CONFIG_PCI_MSI */
 
@@ -2764,12 +2764,12 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	priv->pdev = pdev;
 
-#ifdef DEBUG
+#ifdef DE
 	{
 		int i;
 
 		for (i = 0; i <= PCI_STD_RESOURCE_END; i++) {
-			tsi_debug(INIT, &pdev->dev, "res%d %pR",
+			tsi_de(INIT, &pdev->dev, "res%d %pR",
 				  i, &pdev->resource[i]);
 		}
 	}
@@ -2808,7 +2808,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_2) & IORESOURCE_PREFETCH)
-			tsi_debug(INIT, &pdev->dev,
+			tsi_de(INIT, &pdev->dev,
 				 "Prefetchable OBW BAR2 will not be used");
 		else {
 			priv->p2r_bar[0].base = pci_resource_start(pdev, BAR_2);
@@ -2818,7 +2818,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 
 	if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_MEM_64) {
 		if (pci_resource_flags(pdev, BAR_4) & IORESOURCE_PREFETCH)
-			tsi_debug(INIT, &pdev->dev,
+			tsi_de(INIT, &pdev->dev,
 				 "Prefetchable OBW BAR4 will not be used");
 		else {
 			priv->p2r_bar[1].base = pci_resource_start(pdev, BAR_4);
@@ -2864,7 +2864,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 			tsi_info(&pdev->dev, "Unable to set consistent DMA mask");
 	}
 
-	BUG_ON(!pci_is_pcie(pdev));
+	_ON(!pci_is_pcie(pdev));
 
 	/* Clear "no snoop" and "relaxed ordering" bits. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
@@ -2950,7 +2950,7 @@ static void tsi721_remove(struct pci_dev *pdev)
 {
 	struct tsi721_device *priv = pci_get_drvdata(pdev);
 
-	tsi_debug(EXIT, &pdev->dev, "enter");
+	tsi_de(EXIT, &pdev->dev, "enter");
 
 	tsi721_disable_ints(priv);
 	tsi721_free_irq(priv);
@@ -2978,14 +2978,14 @@ static void tsi721_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	kfree(priv);
-	tsi_debug(EXIT, &pdev->dev, "exit");
+	tsi_de(EXIT, &pdev->dev, "exit");
 }
 
 static void tsi721_shutdown(struct pci_dev *pdev)
 {
 	struct tsi721_device *priv = pci_get_drvdata(pdev);
 
-	tsi_debug(EXIT, &pdev->dev, "enter");
+	tsi_de(EXIT, &pdev->dev, "enter");
 
 	tsi721_disable_ints(priv);
 	tsi721_dma_stop_all(priv);

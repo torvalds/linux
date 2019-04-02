@@ -499,7 +499,7 @@ I motivo per usare le goto sono:
 		return result;
 	}
 
-Un baco abbastanza comune di cui bisogna prendere nota è il ``one err bugs``
+Un baco abbastanza comune di cui bisogna prendere nota è il ``one err s``
 che assomiglia a questo:
 
 .. code-block:: c
@@ -772,7 +772,7 @@ Cose da evitare quando si usano le macro:
 	#define FOO(x)					\
 		do {					\
 			if (blah(x) < 0)		\
-				return -EBUGGERED;	\
+				return -EGERED;	\
 		} while (0)
 
 sono **proprio** una pessima idea.  Sembra una chiamata a funzione ma termina
@@ -840,19 +840,19 @@ dev_warn(), dev_info(), e così via.  Per messaggi che non sono associati ad
 alcun dispositivo, <linux/printk.h> definisce pr_info(), pr_warn(), pr_err(),
 eccetera.
 
-Tirar fuori un buon messaggio di debug può essere una vera sfida; e quando
+Tirar fuori un buon messaggio di de può essere una vera sfida; e quando
 l'avete può essere d'enorme aiuto per risolvere problemi da remoto.
-Tuttavia, i messaggi di debug sono gestiti differentemente rispetto agli
-altri.  Le funzioni pr_XXX() stampano incondizionatamente ma pr_debug() no;
+Tuttavia, i messaggi di de sono gestiti differentemente rispetto agli
+altri.  Le funzioni pr_XXX() stampano incondizionatamente ma pr_de() no;
 essa non viene compilata nella configurazione predefinita, a meno che
-DEBUG o CONFIG_DYNAMIC_DEBUG non vengono impostati.  Questo vale anche per
-dev_dbg() e in aggiunta VERBOSE_DEBUG per aggiungere i messaggi dev_vdbg().
+DE o CONFIG_DYNAMIC_DE non vengono impostati.  Questo vale anche per
+dev_dbg() e in aggiunta VERBOSE_DE per aggiungere i messaggi dev_vdbg().
 
-Molti sottosistemi hanno delle opzioni di debug in Kconfig che aggiungono
--DDEBUG nei corrispettivi Makefile, e in altri casi aggiungono #define DEBUG
-in specifici file.  Infine, quando un messaggio di debug dev'essere stampato
-incondizionatamente, per esempio perché siete già in una sezione di debug
-racchiusa in #ifdef, potete usare printk(KERN_DEBUG ...).
+Molti sottosistemi hanno delle opzioni di de in Kconfig che aggiungono
+-DDE nei corrispettivi Makefile, e in altri casi aggiungono #define DE
+in specifici file.  Infine, quando un messaggio di de dev'essere stampato
+incondizionatamente, per esempio perché siete già in una sezione di de
+racchiusa in #ifdef, potete usare printk(KERN_DE ...).
 
 14) Assegnare memoria
 ---------------------
@@ -1023,7 +1023,7 @@ O come queste:
 
 	/*
 	Local Variables:
-	compile-command: "gcc -DMAGIC_DEBUG_FLAG foo.c"
+	compile-command: "gcc -DMAGIC_DE_FLAG foo.c"
 	End:
 	*/
 

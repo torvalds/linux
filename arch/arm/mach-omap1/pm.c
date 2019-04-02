@@ -37,7 +37,7 @@
 
 #include <linux/suspend.h>
 #include <linux/sched.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/sysfs.h>
@@ -409,11 +409,11 @@ void omap1_pm_suspend(void)
 		omap_rev());
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
- * Read system PM registers for debugging
+ * Read system PM registers for deging
  */
-static int omap_pm_debug_show(struct seq_file *m, void *v)
+static int omap_pm_de_show(struct seq_file *m, void *v)
 {
 	ARM_SAVE(ARM_CKCTL);
 	ARM_SAVE(ARM_IDLECT1);
@@ -532,21 +532,21 @@ static int omap_pm_debug_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(omap_pm_debug);
+DEFINE_SHOW_ATTRIBUTE(omap_pm_de);
 
-static void omap_pm_init_debugfs(void)
+static void omap_pm_init_defs(void)
 {
 	struct dentry *d;
 
-	d = debugfs_create_dir("pm_debug", NULL);
+	d = defs_create_dir("pm_de", NULL);
 	if (!d)
 		return;
 
-	(void) debugfs_create_file("omap_pm", S_IWUSR | S_IRUGO,
-					d, NULL, &omap_pm_debug_fops);
+	(void) defs_create_file("omap_pm", S_IWUSR | S_IRUGO,
+					d, NULL, &omap_pm_de_fops);
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 /*
  *	omap_pm_prepare - Do preliminary suspend work.
@@ -679,8 +679,8 @@ static int __init omap_pm_init(void)
 
 	suspend_set_ops(&omap_pm_ops);
 
-#ifdef CONFIG_DEBUG_FS
-	omap_pm_init_debugfs();
+#ifdef CONFIG_DE_FS
+	omap_pm_init_defs();
 #endif
 
 	error = sysfs_create_file(power_kobj, &sleep_while_idle_attr.attr);

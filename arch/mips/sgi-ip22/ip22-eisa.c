@@ -13,10 +13,10 @@
  * but forget about your favorite SCSI card...
  *
  * TODO :
- * - Fix bugs...
+ * - Fix s...
  * - Add ISA support
  * - Add DMA (yeah, right...).
- * - Fix more bugs.
+ * - Fix more s.
  */
 
 #include <linux/eisa.h>

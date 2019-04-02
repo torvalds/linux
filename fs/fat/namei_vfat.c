@@ -4,7 +4,7 @@
  *  Written 1992,1993 by Werner Almesberger
  *
  *  Windows95/Windows NT compatible extended MSDOS filesystem
- *    by Gordon Chaffee Copyright (C) 1995.  Send bug reports for the
+ *    by Gordon Chaffee Copyright (C) 1995.  Send  reports for the
  *    VFAT filesystem to <chaffee@cs.berkeley.edu>.  Specify
  *    what file operation caused you trouble and if you can duplicate
  *    the problem, send a script that demonstrates it.
@@ -460,7 +460,7 @@ static int vfat_create_shortname(struct inode *dir, struct nls_table *nls,
 			}
 			return 0;
 		} else {
-			BUG();
+			();
 		}
 	}
 

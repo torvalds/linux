@@ -30,7 +30,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 		return 1;
 
 _bad_access:
-	pr_debug("Bad access attempt: pid[%d] addr[%08lx] size[0x%lx]\n",
+	pr_de("Bad access attempt: pid[%d] addr[%08lx] size[0x%lx]\n",
 		 current->pid, addr, size);
 	return 0;
 }

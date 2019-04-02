@@ -125,7 +125,7 @@ struct qbman_swp {
 		u32 next_idx;
 		u32 valid_bit;
 		u8 dqrr_size;
-		int reset_bug; /* indicates dqrr reset workaround is needed */
+		int reset_; /* indicates dqrr reset workaround is needed */
 	} dqrr;
 };
 

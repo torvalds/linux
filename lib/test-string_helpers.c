@@ -329,8 +329,8 @@ out:
 #define string_get_size_maxbuf 16
 #define test_string_get_size_one(size, blk_size, exp_result10, exp_result2)    \
 	do {                                                                   \
-		BUILD_BUG_ON(sizeof(exp_result10) >= string_get_size_maxbuf);  \
-		BUILD_BUG_ON(sizeof(exp_result2) >= string_get_size_maxbuf);   \
+		BUILD__ON(sizeof(exp_result10) >= string_get_size_maxbuf);  \
+		BUILD__ON(sizeof(exp_result2) >= string_get_size_maxbuf);   \
 		__test_string_get_size((size), (blk_size), (exp_result10),     \
 				       (exp_result2));                         \
 	} while (0)

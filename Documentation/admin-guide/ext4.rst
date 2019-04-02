@@ -185,11 +185,11 @@ When mounting an ext4 filesystem, the following option are accepted:
   minixdf
         Make 'df' act like Minix.
 
-  debug
-        Extra debugging information is sent to syslog.
+  de
+        Extra deging information is sent to syslog.
 
   abort
-        Simulate the effects of calling ext4_abort() for debugging purposes.
+        Simulate the effects of calling ext4_abort() for deging purposes.
         This is normally used while remounting a filesystem which is already
         mounted.
 
@@ -321,7 +321,7 @@ When mounting an ext4 filesystem, the following option are accepted:
   block_validity(*), noblock_validity
         These options enable or disable the in-kernel facility for tracking
         filesystem metadata blocks within internal data structures.  This
-        allows multi- block allocator and other routines to notice bugs or
+        allows multi- block allocator and other routines to notice s or
         corrupted allocation bitmaps which cause blocks to be allocated which
         overlap with filesystem metadata blocks.
 
@@ -418,7 +418,7 @@ Files in /sys/fs/ext4/<devname>:
   inode_goal
         Tuning parameter which (if non-zero) controls the goal inode used by
         the inode allocator in preference to all other allocation heuristics.
-        This is intended for debugging use only, and should be 0 on production
+        This is intended for deging use only, and should be 0 on production
         systems.
 
   inode_readahead_blks

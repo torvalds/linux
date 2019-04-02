@@ -60,7 +60,7 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are paranoid about modifying text, as if a  was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
@@ -342,13 +342,13 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 
 	/* New trampoline -- read where this goes */
 	if (probe_kernel_read(&op, (void *)tramp, sizeof(int))) {
-		pr_debug("Fetching opcode failed.\n");
+		pr_de("Fetching opcode failed.\n");
 		return -1;
 	}
 
 	/* Is this a 24 bit branch? */
 	if (!is_b_op(op)) {
-		pr_debug("Trampoline is not a long branch tramp.\n");
+		pr_de("Trampoline is not a long branch tramp.\n");
 		return -1;
 	}
 
@@ -356,7 +356,7 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	ptr = find_bl_target(tramp, op);
 
 	if (ptr != ppc_global_function_entry((void *)_mcount)) {
-		pr_debug("Trampoline target %p is not _mcount\n", (void *)ptr);
+		pr_de("Trampoline target %p is not _mcount\n", (void *)ptr);
 		return -1;
 	}
 
@@ -367,18 +367,18 @@ static int setup_mcount_compiler_tramp(unsigned long tramp)
 	ptr = ppc_global_function_entry((void *)ftrace_caller);
 #endif
 	if (!create_branch((void *)tramp, ptr, 0)) {
-		pr_debug("%ps is not reachable from existing mcount tramp\n",
+		pr_de("%ps is not reachable from existing mcount tramp\n",
 				(void *)ptr);
 		return -1;
 	}
 
 	if (patch_branch((unsigned int *)tramp, ptr, 0)) {
-		pr_debug("REL24 out of range!\n");
+		pr_de("REL24 out of range!\n");
 		return -1;
 	}
 
 	if (add_ftrace_tramp(tramp)) {
-		pr_debug("No tramp locations left\n");
+		pr_de("No tramp locations left\n");
 		return -1;
 	}
 

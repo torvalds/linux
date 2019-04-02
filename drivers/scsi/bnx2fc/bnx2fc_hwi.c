@@ -856,7 +856,7 @@ ret_err_rqe:
 
 		if (err_warn == FCOE_ERROR_CODE_REC_TOV_TIMER_EXPIRATION)
 			/* REC_TOV is not a warning code */
-			BUG_ON(1);
+			_ON(1);
 		else
 			BNX2FC_TGT_DBG(tgt, "Unsolicited warning\n");
 ret_warn_rqe:

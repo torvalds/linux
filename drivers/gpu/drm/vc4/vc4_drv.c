@@ -106,7 +106,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = true;
 		break;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		DRM_DE("Unknown parameter %d\n", args->param);
 		return -EINVAL;
 	}
 
@@ -188,8 +188,8 @@ static struct drm_driver vc4_drm_driver = {
 	.get_scanout_position = vc4_crtc_get_scanoutpos,
 	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = vc4_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = vc4_defs_init,
 #endif
 
 	.gem_create_object = vc4_create_object,

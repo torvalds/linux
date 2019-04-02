@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-static int debug_pci;
+static int de_pci;
 
 #define CONFIG_CMD(bus, devfn, where)	\
 	(0x80000000 | (bus->number << 16) | (devfn << 8) | (where & ~3))
@@ -72,7 +72,7 @@ struct pci_ops pci_puv3_ops = {
 
 void pci_puv3_preinit(void)
 {
-	printk(KERN_DEBUG "PCI: PKUnity PCI Controller Initializing ...\n");
+	printk(KERN_DE "PCI: PKUnity PCI Controller Initializing ...\n");
 	/* config PCI bridge base */
 	writel(io_v2p(PKUNITY_PCIBRI_BASE), PCICFG_BRIBASE);
 
@@ -301,8 +301,8 @@ subsys_initcall(pci_common_init);
 
 char * __init pcibios_setup(char *str)
 {
-	if (!strcmp(str, "debug")) {
-		debug_pci = 1;
+	if (!strcmp(str, "de")) {
+		de_pci = 1;
 		return NULL;
 	}
 	return str;

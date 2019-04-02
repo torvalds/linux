@@ -42,7 +42,7 @@
 #include <linux/kvm_host.h>
 #include <linux/vfio.h>
 #include <linux/mdev.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <linux/nospec.h>
 
@@ -95,7 +95,7 @@ struct kvmgt_guest_info {
 #define NR_BKT (1 << 18)
 	struct hlist_head ptable[NR_BKT];
 #undef NR_BKT
-	struct dentry *debugfs_cache_entries;
+	struct dentry *defs_cache_entries;
 };
 
 struct gvt_dma {
@@ -1794,19 +1794,19 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 	info->track_node.track_flush_slot = kvmgt_page_track_flush_slot;
 	kvm_page_track_register_notifier(kvm, &info->track_node);
 
-	info->debugfs_cache_entries = debugfs_create_ulong(
+	info->defs_cache_entries = defs_create_ulong(
 						"kvmgt_nr_cache_entries",
-						0444, vgpu->debugfs,
+						0444, vgpu->defs,
 						&vgpu->vdev.nr_cache_entries);
-	if (!info->debugfs_cache_entries)
-		gvt_vgpu_err("Cannot create kvmgt debugfs entry\n");
+	if (!info->defs_cache_entries)
+		gvt_vgpu_err("Cannot create kvmgt defs entry\n");
 
 	return 0;
 }
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
-	debugfs_remove(info->debugfs_cache_entries);
+	defs_remove(info->defs_cache_entries);
 
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
 	kvm_put_kvm(info->kvm);

@@ -33,7 +33,7 @@ static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
 	struct node *node_dev = to_node(dev);
 
 	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
-	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
+	BUILD__ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
 
 	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
 		return 0;
@@ -223,7 +223,7 @@ static ssize_t node_read_distance(struct device *dev,
 	 * buf is currently PAGE_SIZE in length and each node needs 4 chars
 	 * at the most (distance + space or newline).
 	 */
-	BUILD_BUG_ON(MAX_NUMNODES * 4 > PAGE_SIZE);
+	BUILD__ON(MAX_NUMNODES * 4 > PAGE_SIZE);
 
 	for_each_online_node(i)
 		len += sprintf(buf + len, "%s%d", i ? " " : "", node_distance(nid, i));
@@ -662,8 +662,8 @@ static int __init register_node_type(void)
 {
 	int ret;
 
- 	BUILD_BUG_ON(ARRAY_SIZE(node_state_attr) != NR_NODE_STATES);
- 	BUILD_BUG_ON(ARRAY_SIZE(node_state_attrs)-1 != NR_NODE_STATES);
+ 	BUILD__ON(ARRAY_SIZE(node_state_attr) != NR_NODE_STATES);
+ 	BUILD__ON(ARRAY_SIZE(node_state_attrs)-1 != NR_NODE_STATES);
 
 	ret = subsys_system_register(&node_subsys, cpu_root_attr_groups);
 	if (!ret) {

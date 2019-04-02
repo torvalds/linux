@@ -136,12 +136,12 @@ static void ppc47x_pin_tlb(unsigned int virt, unsigned int phys)
 
 	/* Look for a bolted entry slot */
 	bolted = ppc47x_find_free_bolted();
-	BUG_ON(bolted < 0);
+	_ON(bolted < 0);
 
 	/* Insert bolted slot number */
 	rA |= bolted << 24;
 
-	pr_debug("256M TLB entry for 0x%08x->0x%08x in bolt slot %d\n",
+	pr_de("256M TLB entry for 0x%08x->0x%08x in bolt slot %d\n",
 		 virt, phys, bolted);
 
 	mtspr(SPRN_MMUCR, 0);
@@ -187,18 +187,18 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
 		ppc47x_update_boltmap();
 
-#ifdef DEBUG
+#ifdef DE
 		{
 			int i;
 
-			printk(KERN_DEBUG "bolted entries: ");
+			printk(KERN_DE "bolted entries: ");
 			for (i = 0; i < 255; i++) {
 				if (test_bit(i, tlb_47x_boltmap))
 					printk("%d ", i);
 			}
 			printk("\n");
 		}
-#endif /* DEBUG */
+#endif /* DE */
 	}
 	return total_lowmem;
 }
@@ -212,7 +212,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
 	 */
-	BUG_ON(first_memblock_base != 0);
+	_ON(first_memblock_base != 0);
 #endif
 
 	/* 44x has a 256M TLB entry pinned at boot */

@@ -247,7 +247,7 @@ enum {
 	PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_MSK = 0xf<<4,
 	PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_BASE = 4,
 
-	PSM_CONFIG_REG4_DEBUG_TIMER	    = 1<<1, /* Debug Timer */
+	PSM_CONFIG_REG4_DE_TIMER	    = 1<<1, /* De Timer */
 	PSM_CONFIG_REG4_RST_PHY_LINK_DETECT = 1<<0, /* Reset GPHY Link Detect */
 };
 
@@ -518,8 +518,8 @@ enum {
 
 /* 	B2_GPIO */
 enum {
-	GLB_GPIO_CLK_DEB_ENA = 1<<31,	/* Clock Debug Enable */
-	GLB_GPIO_CLK_DBG_MSK = 0xf<<26, /* Clock Debug */
+	GLB_GPIO_CLK_DEB_ENA = 1<<31,	/* Clock De Enable */
+	GLB_GPIO_CLK_DBG_MSK = 0xf<<26, /* Clock De */
 
 	GLB_GPIO_INT_RST_D3_DIS = 1<<15, /* Disable Internal Reset After D3 to D0 */
 	GLB_GPIO_LED_PAD_SPEED_UP = 1<<14, /* LED PAD Speed Up */
@@ -647,7 +647,7 @@ enum {
 /*	Y2_PEX_PHY_ADDR/DATA		PEX PHY address and data reg  (Yukon-2 only) */
 enum {
 	PEX_RD_ACCESS	= 1<<31, /* Access Mode Read = 1, Write = 0 */
-	PEX_DB_ACCESS	= 1<<30, /* Access to debug register */
+	PEX_DB_ACCESS	= 1<<30, /* Access to de register */
 };
 
 /*	B3_RAM_ADDR		32 bit	RAM Address, to read or write */
@@ -1031,11 +1031,11 @@ enum {
 	CPU_WDOG	 = 0x0e48, /* 32 bit	Watchdog Register  */
 	CPU_CNTR	 = 0x0e4C, /* 32 bit	Counter Register  */
 	CPU_TIM		 = 0x0e50,/* 32 bit	Timer Compare Register  */
-	CPU_AHB_ADDR	 = 0x0e54, /* 32 bit	CPU AHB Debug  Register  */
-	CPU_AHB_WDATA	 = 0x0e58, /* 32 bit	CPU AHB Debug  Register  */
-	CPU_AHB_RDATA	 = 0x0e5C, /* 32 bit	CPU AHB Debug  Register  */
+	CPU_AHB_ADDR	 = 0x0e54, /* 32 bit	CPU AHB De  Register  */
+	CPU_AHB_WDATA	 = 0x0e58, /* 32 bit	CPU AHB De  Register  */
+	CPU_AHB_RDATA	 = 0x0e5C, /* 32 bit	CPU AHB De  Register  */
 	HCU_MAP_BASE	 = 0x0e60, /* 32 bit	Reset Mapping Base */
-	CPU_AHB_CTRL	 = 0x0e64, /* 32 bit	CPU AHB Debug  Register  */
+	CPU_AHB_CTRL	 = 0x0e64, /* 32 bit	CPU AHB De  Register  */
 	HCU_CCSR	 = 0x0e68, /* 32 bit	CPU Control and Status Register */
 	HCU_HCSR	 = 0x0e6C, /* 32 bit	Host Control and Status Register */
 };
@@ -2231,7 +2231,7 @@ struct sky2_port {
 	u16		     tx_ring_size;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
-	u16		     tx_next;		/* debug only */
+	u16		     tx_next;		/* de only */
 
 	u16		     tx_pending;
 	u16		     tx_last_mss;
@@ -2271,8 +2271,8 @@ struct sky2_port {
  	enum flow_control    flow_mode;
  	enum flow_control    flow_status;
 
-#ifdef CONFIG_SKY2_DEBUG
-	struct dentry	     *debugfs;
+#ifdef CONFIG_SKY2_DE
+	struct dentry	     *defs;
 #endif
 };
 

@@ -26,11 +26,11 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
- * Or submit a bug report through the following website:
+ * Or submit a  report through the following website:
  *    http://www.sf.net/projects/lksctp
  *
  * Written or modified by:
@@ -47,7 +47,7 @@
  *    Inaky Perez-Gonzalez     <inaky.gonzalez@intel.com>
  *    Vlad Yasevich            <vladislav.yasevich@hp.com>
  *
- * Any bugs reported given to us we will try to fix... any fixes shared will
+ * Any s reported given to us we will try to fix... any fixes shared will
  * be incorporated into the next SCTP release.
  */
 

@@ -373,7 +373,7 @@ struct drm_display_mode {
 	/**
 	 * @vrefresh:
 	 *
-	 * Vertical refresh rate, for debug output in human readable form. Not
+	 * Vertical refresh rate, for de output in human readable form. Not
 	 * used in a functional way.
 	 *
 	 * This value is in Hz.
@@ -383,7 +383,7 @@ struct drm_display_mode {
 	/**
 	 * @hsync:
 	 *
-	 * Horizontal refresh rate, for debug output in human readable form. Not
+	 * Horizontal refresh rate, for de output in human readable form. Not
 	 * used in a functional way.
 	 *
 	 * This value is in kHz.
@@ -452,7 +452,7 @@ int drm_mode_convert_umode(struct drm_device *dev,
 			   struct drm_display_mode *out,
 			   const struct drm_mode_modeinfo *in);
 void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
-void drm_mode_debug_printmodeline(const struct drm_display_mode *mode);
+void drm_mode_de_printmodeline(const struct drm_display_mode *mode);
 bool drm_mode_is_420_only(const struct drm_display_info *display,
 			  const struct drm_display_mode *mode);
 bool drm_mode_is_420_also(const struct drm_display_info *display,

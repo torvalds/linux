@@ -23,6 +23,6 @@ b43-y				+= rfkill.o
 b43-y				+= ppr.o
 b43-$(CONFIG_B43_LEDS)		+= leds.o
 b43-$(CONFIG_B43_SDIO)		+= sdio.o
-b43-$(CONFIG_B43_DEBUG)		+= debugfs.o
+b43-$(CONFIG_B43_DE)		+= defs.o
 
 obj-$(CONFIG_B43)		+= b43.o

@@ -813,7 +813,7 @@ static bool joydev_dev_is_absolute_mouse(struct input_dev *dev)
 {
 	DECLARE_BITMAP(jd_scratch, KEY_CNT);
 
-	BUILD_BUG_ON(ABS_CNT > KEY_CNT || EV_CNT > KEY_CNT);
+	BUILD__ON(ABS_CNT > KEY_CNT || EV_CNT > KEY_CNT);
 
 	/*
 	 * Virtualization (VMware, etc) and remote management (HP

@@ -66,7 +66,7 @@ static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 
-	pr_debug("%s(sch %p,[qdisc %p],new %p,old %p)\n",
+	pr_de("%s(sch %p,[qdisc %p],new %p,old %p)\n",
 		 __func__, sch, p, new, old);
 
 	if (new == NULL) {
@@ -94,7 +94,7 @@ static unsigned long dsmark_find(struct Qdisc *sch, u32 classid)
 static unsigned long dsmark_bind_filter(struct Qdisc *sch,
 					unsigned long parent, u32 classid)
 {
-	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n",
+	pr_de("%s(sch %p,[qdisc %p],classid %x)\n",
 		 __func__, sch, qdisc_priv(sch), classid);
 
 	return dsmark_find(sch, classid);
@@ -121,7 +121,7 @@ static int dsmark_change(struct Qdisc *sch, u32 classid, u32 parent,
 	struct nlattr *tb[TCA_DSMARK_MAX + 1];
 	int err = -EINVAL;
 
-	pr_debug("%s(sch %p,[qdisc %p],classid %x,parent %x), arg 0x%lx\n",
+	pr_de("%s(sch %p,[qdisc %p],classid %x,parent %x), arg 0x%lx\n",
 		 __func__, sch, p, classid, parent, *arg);
 
 	if (!dsmark_valid_index(p, *arg)) {
@@ -166,7 +166,7 @@ static void dsmark_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	int i;
 
-	pr_debug("%s(sch %p,[qdisc %p],walker %p)\n",
+	pr_de("%s(sch %p,[qdisc %p],walker %p)\n",
 		 __func__, sch, p, walker);
 
 	if (walker->stop)
@@ -203,7 +203,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	int err;
 
-	pr_debug("%s(skb %p,sch %p,[qdisc %p])\n", __func__, skb, sch, p);
+	pr_de("%s(skb %p,sch %p,[qdisc %p])\n", __func__, skb, sch, p);
 
 	if (p->set_tc_index) {
 		int wlen = skb_network_offset(skb);
@@ -241,7 +241,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		struct tcf_proto *fl = rcu_dereference_bh(p->filter_list);
 		int result = tcf_classify(skb, fl, &res, false);
 
-		pr_debug("result %d class 0x%04x\n", result, res.classid);
+		pr_de("result %d class 0x%04x\n", result, res.classid);
 
 		switch (result) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -288,7 +288,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 	struct sk_buff *skb;
 	u32 index;
 
-	pr_debug("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
+	pr_de("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
 
 	skb = qdisc_dequeue_peeked(p->q);
 	if (skb == NULL)
@@ -299,7 +299,7 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 	sch->q.qlen--;
 
 	index = skb->tc_index & (p->indices - 1);
-	pr_debug("index %d->%d\n", skb->tc_index, index);
+	pr_de("index %d->%d\n", skb->tc_index, index);
 
 	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
@@ -329,7 +329,7 @@ static struct sk_buff *dsmark_peek(struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 
-	pr_debug("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
+	pr_de("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
 
 	return p->q->ops->peek(p->q);
 }
@@ -344,7 +344,7 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt,
 	u16 indices;
 	int i;
 
-	pr_debug("%s(sch %p,[qdisc %p],opt %p)\n", __func__, sch, p, opt);
+	pr_de("%s(sch %p,[qdisc %p],opt %p)\n", __func__, sch, p, opt);
 
 	if (!opt)
 		goto errout;
@@ -389,7 +389,7 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt,
 	else
 		qdisc_hash_add(p->q, true);
 
-	pr_debug("%s: qdisc %p\n", __func__, p->q);
+	pr_de("%s: qdisc %p\n", __func__, p->q);
 
 	err = 0;
 errout:
@@ -400,7 +400,7 @@ static void dsmark_reset(struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 
-	pr_debug("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
+	pr_de("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
 	qdisc_reset(p->q);
 	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
@@ -410,7 +410,7 @@ static void dsmark_destroy(struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 
-	pr_debug("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
+	pr_de("%s(sch %p,[qdisc %p])\n", __func__, sch, p);
 
 	tcf_block_put(p->block);
 	qdisc_put(p->q);
@@ -424,7 +424,7 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	struct nlattr *opts = NULL;
 
-	pr_debug("%s(sch %p,[qdisc %p],class %ld\n", __func__, sch, p, cl);
+	pr_de("%s(sch %p,[qdisc %p],class %ld\n", __func__, sch, p, cl);
 
 	if (!dsmark_valid_index(p, cl))
 		return -EINVAL;

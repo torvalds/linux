@@ -633,8 +633,8 @@
 
 // addressBlock: gc_shsdec
 // base address: 0x9000
-#define mmSX_DEBUG_1                                                                                   0x0419
-#define mmSX_DEBUG_1_BASE_IDX                                                                          0
+#define mmSX_DE_1                                                                                   0x0419
+#define mmSX_DE_1_BASE_IDX                                                                          0
 #define mmSPI_PS_MAX_WAVE_ID                                                                           0x043a
 #define mmSPI_PS_MAX_WAVE_ID_BASE_IDX                                                                  0
 #define mmSPI_START_PHASE                                                                              0x043b
@@ -819,14 +819,14 @@
 
 // addressBlock: gc_rbdec
 // base address: 0x9800
-#define mmDB_DEBUG                                                                                     0x060c
-#define mmDB_DEBUG_BASE_IDX                                                                            0
-#define mmDB_DEBUG2                                                                                    0x060d
-#define mmDB_DEBUG2_BASE_IDX                                                                           0
-#define mmDB_DEBUG3                                                                                    0x060e
-#define mmDB_DEBUG3_BASE_IDX                                                                           0
-#define mmDB_DEBUG4                                                                                    0x060f
-#define mmDB_DEBUG4_BASE_IDX                                                                           0
+#define mmDB_DE                                                                                     0x060c
+#define mmDB_DE_BASE_IDX                                                                            0
+#define mmDB_DE2                                                                                    0x060d
+#define mmDB_DE2_BASE_IDX                                                                           0
+#define mmDB_DE3                                                                                    0x060e
+#define mmDB_DE3_BASE_IDX                                                                           0
+#define mmDB_DE4                                                                                    0x060f
+#define mmDB_DE4_BASE_IDX                                                                           0
 #define mmDB_CREDIT_LIMIT                                                                              0x0614
 #define mmDB_CREDIT_LIMIT_BASE_IDX                                                                     0
 #define mmDB_WATERMARKS                                                                                0x0615
@@ -6735,8 +6735,8 @@
 #define mmCGTT_SPI_PS_CLK_CTRL_BASE_IDX                                                                1
 #define mmCGTT_SPIS_CLK_CTRL                                                                           0x507e
 #define mmCGTT_SPIS_CLK_CTRL_BASE_IDX                                                                  1
-#define mmCGTX_SPI_DEBUG_CLK_CTRL                                                                      0x507f
-#define mmCGTX_SPI_DEBUG_CLK_CTRL_BASE_IDX                                                             1
+#define mmCGTX_SPI_DE_CLK_CTRL                                                                      0x507f
+#define mmCGTX_SPI_DE_CLK_CTRL_BASE_IDX                                                             1
 #define mmCGTT_SPI_CLK_CTRL                                                                            0x5080
 #define mmCGTT_SPI_CLK_CTRL_BASE_IDX                                                                   1
 #define mmCGTT_PC_CLK_CTRL                                                                             0x5081

@@ -323,7 +323,7 @@ static int __init cfag12864b_init(void)
 			"ks0108 is not initialized\n");
 		goto none;
 	}
-	BUILD_BUG_ON(PAGE_SIZE < CFAG12864B_SIZE);
+	BUILD__ON(PAGE_SIZE < CFAG12864B_SIZE);
 
 	cfag12864b_buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
 	if (cfag12864b_buffer == NULL) {

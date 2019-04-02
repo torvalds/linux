@@ -4,7 +4,7 @@
  *                   Cirrus Logic, Inc.
  *  Routines for control of Cirrus Logic CS461x chips
  *
- *  KNOWN BUGS:
+ *  KNOWN S:
  *    - Sometimes the SPDIF input DSP tasks get's unsynchronized
  *      and the SPDIF get somewhat "distorcionated", or/and left right channel
  *      are swapped. To get around this problem when it happens, mute and unmute 
@@ -93,7 +93,7 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 	unsigned short result,tmp;
 	u32 offset = 0;
 
-	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+	if (snd__ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
 		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
 		return 0xffff;
 
@@ -219,7 +219,7 @@ static unsigned short snd_cs46xx_ac97_read(struct snd_ac97 * ac97,
 	unsigned short val;
 	int codec_index = ac97->num;
 
-	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+	if (snd__ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
 		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
 		return 0xffff;
 
@@ -236,7 +236,7 @@ static void snd_cs46xx_codec_write(struct snd_cs46xx *chip,
 {
 	int count;
 
-	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+	if (snd__ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
 		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
 		return;
 
@@ -303,7 +303,7 @@ static void snd_cs46xx_ac97_write(struct snd_ac97 *ac97,
 	struct snd_cs46xx *chip = ac97->private_data;
 	int codec_index = ac97->num;
 
-	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+	if (snd__ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
 		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
 		return;
 
@@ -324,7 +324,7 @@ int snd_cs46xx_download(struct snd_cs46xx *chip,
 	unsigned int bank = offset >> 16;
 	offset = offset & 0xffff;
 
-	if (snd_BUG_ON((offset & 3) || (len & 3)))
+	if (snd__ON((offset & 3) || (len & 3)))
 		return -EINVAL;
 	dst = chip->region.idx[bank+1].remap_addr + offset;
 	len /= sizeof(u32);
@@ -487,7 +487,7 @@ int snd_cs46xx_clear_BA1(struct snd_cs46xx *chip,
 	unsigned int bank = offset >> 16;
 	offset = offset & 0xffff;
 
-	if (snd_BUG_ON((offset & 3) || (len & 3)))
+	if (snd__ON((offset & 3) || (len & 3)))
 		return -EINVAL;
 	dst = chip->region.idx[bank+1].remap_addr + offset;
 	len /= sizeof(u32);
@@ -913,7 +913,7 @@ static snd_pcm_uframes_t snd_cs46xx_playback_direct_pointer(struct snd_pcm_subst
 	size_t ptr;
 	struct snd_cs46xx_pcm *cpcm = substream->runtime->private_data;
 
-	if (snd_BUG_ON(!cpcm->pcm_channel))
+	if (snd__ON(!cpcm->pcm_channel))
 		return -ENXIO;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -932,7 +932,7 @@ static snd_pcm_uframes_t snd_cs46xx_playback_indirect_pointer(struct snd_pcm_sub
 	struct snd_cs46xx_pcm *cpcm = substream->runtime->private_data;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	if (snd_BUG_ON(!cpcm->pcm_channel))
+	if (snd__ON(!cpcm->pcm_channel))
 		return -ENXIO;
 	ptr = snd_cs46xx_peek(chip, (cpcm->pcm_channel->pcm_reader_scb->address + 2) << 2);
 #else
@@ -1103,7 +1103,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 	cpcm = runtime->private_data;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	if (snd_BUG_ON(!sample_rate))
+	if (snd__ON(!sample_rate))
 		return -ENXIO;
 
 	mutex_lock(&chip->spos_mutex);
@@ -1113,7 +1113,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		return -ENXIO;
 	}
 
-	snd_BUG_ON(!cpcm->pcm_channel);
+	snd__ON(!cpcm->pcm_channel);
 	if (!cpcm->pcm_channel) {
 		mutex_unlock(&chip->spos_mutex);
 		return -ENXIO;
@@ -1149,7 +1149,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		} else if (cpcm->pcm_channel_id == DSP_IEC958_CHANNEL) {
 			substream->ops = &snd_cs46xx_playback_iec958_ops;
 		} else {
-			snd_BUG();
+			snd_();
 		}
 #else
 		substream->ops = &snd_cs46xx_playback_ops;
@@ -1178,7 +1178,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		} else if (cpcm->pcm_channel_id == DSP_IEC958_CHANNEL) {
 			substream->ops = &snd_cs46xx_playback_indirect_iec958_ops;
 		} else {
-			snd_BUG();
+			snd_();
 		}
 #else
 		substream->ops = &snd_cs46xx_playback_indirect_ops;
@@ -1226,7 +1226,7 @@ static int snd_cs46xx_playback_prepare(struct snd_pcm_substream *substream)
 	cpcm = runtime->private_data;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	if (snd_BUG_ON(!cpcm->pcm_channel))
+	if (snd__ON(!cpcm->pcm_channel))
 		return -ENXIO;
 
 	pfie = snd_cs46xx_peek(chip, (cpcm->pcm_channel->pcm_reader_scb->address + 1) << 2 );
@@ -1889,7 +1889,7 @@ static void snd_cs46xx_mixer_free_ac97(struct snd_ac97 *ac97)
 {
 	struct snd_cs46xx *chip = ac97->private_data;
 
-	if (snd_BUG_ON(ac97 != chip->ac97[CS46XX_PRIMARY_CODEC_INDEX] &&
+	if (snd__ON(ac97 != chip->ac97[CS46XX_PRIMARY_CODEC_INDEX] &&
 		       ac97 != chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]))
 		return;
 
@@ -2039,7 +2039,7 @@ static int snd_cs46xx_iec958_put(struct snd_kcontrol *kcontrol,
 		break;
 	default:
 		res = -EINVAL;
-		snd_BUG(); /* should never happen ... */
+		snd_(); /* should never happen ... */
 	}
 
 	return res;
@@ -2411,7 +2411,7 @@ static void snd_cs46xx_codec_reset (struct snd_ac97 * ac97)
 		dev_dbg(ac97->bus->card->dev, "CODEC2 mode %04x\n", 0x3);
 		snd_cs46xx_ac97_write(ac97, AC97_CSR_ACMODE, 0x3);
 	} else {
-		snd_BUG(); /* should never happen ... */
+		snd_(); /* should never happen ... */
 	}
 
 	udelay(50);
@@ -2726,7 +2726,7 @@ static void snd_cs46xx_gameport_trigger(struct gameport *gameport)
 {
 	struct snd_cs46xx *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return;
 	snd_cs46xx_pokeBA0(chip, BA0_JSPT, 0xFF);  //outb(gameport->io, 0xFF);
 }
@@ -2735,7 +2735,7 @@ static unsigned char snd_cs46xx_gameport_read(struct gameport *gameport)
 {
 	struct snd_cs46xx *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 	return snd_cs46xx_peekBA0(chip, BA0_JSPT); //inb(gameport->io);
 }
@@ -2745,7 +2745,7 @@ static int snd_cs46xx_gameport_cooked_read(struct gameport *gameport, int *axes,
 	struct snd_cs46xx *chip = gameport_get_port_data(gameport);
 	unsigned js1, js2, jst;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 
 	js1 = snd_cs46xx_peekBA0(chip, BA0_JSC1);
@@ -2926,7 +2926,7 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 {
 	int idx;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return -EINVAL;
 
 	if (chip->active_ctrl)
@@ -3124,7 +3124,7 @@ static int snd_cs46xx_chip_init(struct snd_cs46xx *chip)
 	dev_err(chip->card->dev,
 		"create - never read codec ready from AC'97\n");
 	dev_err(chip->card->dev,
-		"it is not probably bug, try to use CS4236 driver\n");
+		"it is not probably , try to use CS4236 driver\n");
 	return -EIO;
  ok1:
 #ifdef CONFIG_SND_CS46XX_NEW_DSP

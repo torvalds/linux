@@ -411,7 +411,7 @@ static void hdm_write_completion(struct urb *urb)
  * -ENOENT		URB was synchronously unlinked by usb_unlink_urb
  *
  * -EINPROGRESS		URB still pending, no results yet
- *			(That is, if drivers see this it's a bug.)
+ *			(That is, if drivers see this it's a .)
  *
  * -EPROTO (*, **)	a) bitstuff error
  *			b) no response packet received within the
@@ -745,7 +745,7 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel,
 {
 	struct most_dev *mdev;
 
-	BUG_ON(!iface);
+	_ON(!iface);
 	mdev = to_mdev(iface);
 	mdev->on_netinfo = on_netinfo;
 	if (!on_netinfo)

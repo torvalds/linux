@@ -50,7 +50,7 @@ static int snd_i2c_bus_free(struct snd_i2c_bus *bus)
 	struct snd_i2c_bus *slave;
 	struct snd_i2c_device *device;
 
-	if (snd_BUG_ON(!bus))
+	if (snd__ON(!bus))
 		return -EINVAL;
 	while (!list_empty(&bus->devices)) {
 		device = snd_i2c_device(bus->devices.next);
@@ -116,7 +116,7 @@ int snd_i2c_device_create(struct snd_i2c_bus *bus, const char *name,
 	struct snd_i2c_device *device;
 
 	*rdevice = NULL;
-	if (snd_BUG_ON(!bus))
+	if (snd__ON(!bus))
 		return -EINVAL;
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL)

@@ -157,7 +157,7 @@ mcp77_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_de(subdev, "unknown clock source %d %08x\n", src, mast);
 	return 0;
 }
 
@@ -270,27 +270,27 @@ mcp77_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	}
 
 	/* Print strategy! */
-	nvkm_debug(subdev, "nvpll: %08x %08x %08x\n",
+	nvkm_de(subdev, "nvpll: %08x %08x %08x\n",
 		   clk->ccoef, clk->cpost, clk->cctrl);
-	nvkm_debug(subdev, " spll: %08x %08x %08x\n",
+	nvkm_de(subdev, " spll: %08x %08x %08x\n",
 		   clk->scoef, clk->spost, clk->sctrl);
-	nvkm_debug(subdev, " vdiv: %08x\n", clk->vdiv);
+	nvkm_de(subdev, " vdiv: %08x\n", clk->vdiv);
 	if (clk->csrc == nv_clk_src_hclkm4)
-		nvkm_debug(subdev, "core: hrefm4\n");
+		nvkm_de(subdev, "core: hrefm4\n");
 	else
-		nvkm_debug(subdev, "core: nvpll\n");
+		nvkm_de(subdev, "core: nvpll\n");
 
 	if (clk->ssrc == nv_clk_src_hclkm4)
-		nvkm_debug(subdev, "shader: hrefm4\n");
+		nvkm_de(subdev, "shader: hrefm4\n");
 	else if (clk->ssrc == nv_clk_src_core)
-		nvkm_debug(subdev, "shader: nvpll\n");
+		nvkm_de(subdev, "shader: nvpll\n");
 	else
-		nvkm_debug(subdev, "shader: spll\n");
+		nvkm_de(subdev, "shader: spll\n");
 
 	if (clk->vsrc == nv_clk_src_hclkm4)
-		nvkm_debug(subdev, "vdec: 500MHz\n");
+		nvkm_de(subdev, "vdec: 500MHz\n");
 	else
-		nvkm_debug(subdev, "vdec: core\n");
+		nvkm_de(subdev, "vdec: core\n");
 
 	return 0;
 }

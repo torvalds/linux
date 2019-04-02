@@ -32,7 +32,7 @@ xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 	/* otherwise we have to do a (slower) full page-table walk */
 
 	pte = lookup_address(address, &level);
-	BUG_ON(pte == NULL);
+	_ON(pte == NULL);
 	offset = address & ~PAGE_MASK;
 	return XMADDR(((phys_addr_t)pte_mfn(*pte) << PAGE_SHIFT) + offset);
 }

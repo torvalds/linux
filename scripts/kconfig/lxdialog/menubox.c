@@ -11,7 +11,7 @@
  *
  *  [ 1998-06-13 ]
  *
- *    *)  A bugfix for the Page-Down problem
+ *    *)  A fix for the Page-Down problem
  *
  *    *)  Formerly when I used Page Down and Page Up, the cursor would be set
  *        to the first position in the menu box.  Now lxdialog is a bit
@@ -38,7 +38,7 @@
  *
  * 02 January 1999, Michael Elizabeth Chastain (mec@shout.net)
  * Reset 'scroll' to 0 if the value from lxdialog.scrltmp is bogus.
- * This fixes a bug in Menuconfig where using ' ' to descend into menus
+ * This fixes a  in Menuconfig where using ' ' to descend into menus
  * would leave mis-synchronized lxdialog.scrltmp files lying around,
  * fscanf would read in 'scroll', and eventually that value would get used.
  */

@@ -12,7 +12,7 @@ typedef unsigned long dma_addr_t;
 
 #define unlikely
 
-#define BUG_ON(x) assert(!(x))
+#define _ON(x) assert(!(x))
 
 #define WARN_ON(condition) ({                                           \
 	int __ret_warn_on = !!(condition);                              \

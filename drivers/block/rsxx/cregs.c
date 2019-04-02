@@ -375,7 +375,7 @@ static void creg_cmd_done_cb(struct rsxx_cardinfo *card,
 	struct creg_completion *cmd_completion;
 
 	cmd_completion = cmd->cb_private;
-	BUG_ON(!cmd_completion);
+	_ON(!cmd_completion);
 
 	cmd_completion->st = st;
 	cmd_completion->creg_status = cmd->status;

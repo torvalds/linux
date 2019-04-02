@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "symbol.h"
 
 #include "demangle-java.h"

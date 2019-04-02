@@ -37,7 +37,7 @@ static void usb2_clock_sel_enable_extal_only(struct usb2_clock_sel_priv *priv)
 {
 	u16 val = readw(priv->base + USB20_CLKSET0);
 
-	pr_debug("%s: enter %d %d %x\n", __func__,
+	pr_de("%s: enter %d %d %x\n", __func__,
 		 priv->extal, priv->xtal, val);
 
 	if (priv->extal && !priv->xtal && val != CLKSET0_EXTAL_ONLY)

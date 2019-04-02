@@ -24,12 +24,12 @@
 #include "mbox_defs.h"
 
 /*
- * console messages debug levels
+ * console messages de levels
  */
 #define	CL_ANN		0	/* print unconditionally, announcements */
-#define CL_DLEVEL1	1	/* debug level 1, informative */
-#define CL_DLEVEL2	2	/* debug level 2, verbose */
-#define CL_DLEVEL3	3	/* debug level 3, very verbose */
+#define CL_DLEVEL1	1	/* de level 1, informative */
+#define CL_DLEVEL2	2	/* de level 2, verbose */
+#define CL_DLEVEL3	3	/* de level 3, very verbose */
 
 /**
  * con_log() - console log routine
@@ -37,7 +37,7 @@
  * @fmt			: format string
  *
  * con_log displays the error messages on the console based on the current
- * debug level. Also it attaches the appropriate kernel severity level with
+ * de level. Also it attaches the appropriate kernel severity level with
  * the message.
  */
 #define	con_log(level, fmt) if (LSI_DBGLVL >= level) printk fmt;

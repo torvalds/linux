@@ -327,7 +327,7 @@ static void ed_deschedule (struct ohci_hcd *ohci, struct ed *ed)
 	 * the HC is reading the ED queues (while we modify them).
 	 *
 	 * For now, ed_schedule() is "later".  It might be good paranoia
-	 * to scrub those registers in finish_unlinks(), in case of bugs
+	 * to scrub those registers in finish_unlinks(), in case of s
 	 * that make the HC try to use them.
 	 */
 	switch (ed->type) {

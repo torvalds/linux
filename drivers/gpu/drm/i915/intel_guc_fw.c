@@ -56,7 +56,7 @@ static void guc_fw_select(struct intel_uc_fw *guc_fw)
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
+	GEM__ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
 	if (!HAS_GUC(dev_priv))
 		return;
@@ -178,7 +178,7 @@ static int guc_wait_ucode(struct intel_guc *guc)
 	 * attempt the ucode load again if this happens.)
 	 */
 	ret = wait_for(guc_ready(guc, &status), 100);
-	DRM_DEBUG_DRIVER("GuC status %#x\n", status);
+	DRM_DE_DRIVER("GuC status %#x\n", status);
 
 	if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
 		DRM_ERROR("GuC firmware signature verification failed\n");
@@ -239,7 +239,7 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	int ret;
 
-	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
+	GEM__ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 

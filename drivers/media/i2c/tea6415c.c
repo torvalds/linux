@@ -39,10 +39,10 @@ MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("tea6415c driver");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* makes a connection between the input-pin 'i' and the output-pin 'o' */
@@ -53,7 +53,7 @@ static int tea6415c_s_routing(struct v4l2_subdev *sd,
 	u8 byte = 0;
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "i=%d, o=%d\n", i, o);
+	v4l2_dbg(1, de, sd, "i=%d, o=%d\n", i, o);
 
 	/* check if the pins are valid */
 	if (0 == ((1 == i ||  3 == i ||  5 == i ||  6 == i ||  8 == i || 10 == i || 20 == i || 11 == i)
@@ -111,7 +111,7 @@ static int tea6415c_s_routing(struct v4l2_subdev *sd,
 
 	ret = i2c_smbus_write_byte(client, byte);
 	if (ret) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"i2c_smbus_write_byte() failed, ret:%d\n", ret);
 		return -EIO;
 	}

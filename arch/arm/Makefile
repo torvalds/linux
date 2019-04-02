@@ -55,7 +55,7 @@ endif
 # The Scalar Replacement of Aggregates (SRA) optimization pass in GCC 4.9 and
 # later may result in code being generated that handles signed short and signed
 # char struct members incorrectly. So disable it.
-# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65932)
+# (https://gcc.gnu.org/zilla/show_.cgi?id=65932)
 #
 KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
 
@@ -119,7 +119,7 @@ ifeq ($(CONFIG_THUMB2_KERNEL),y)
 AFLAGS_AUTOIT	:=$(call as-option,-Wa$(comma)-mimplicit-it=always,-Wa$(comma)-mauto-it)
 CFLAGS_ISA	:=-mthumb $(AFLAGS_AUTOIT) $(AFLAGS_NOWARN)
 AFLAGS_ISA	:=$(CFLAGS_ISA) -Wa$(comma)-mthumb
-# Work around buggy relocation from gas if requested:
+# Work around gy relocation from gas if requested:
 ifeq ($(CONFIG_THUMB2_AVOID_R_ARM_THM_JUMP11),y)
 KBUILD_CFLAGS_MODULE	+=-fno-optimize-sibling-calls
 endif
@@ -142,7 +142,7 @@ head-y		:= arch/arm/kernel/head$(MMUEXT).o
 textofs-y	:= 0x00008000
 # We don't want the htc bootloader to corrupt kernel during resume
 textofs-$(CONFIG_PM_H1940)      := 0x00108000
-# SA1111 DMA bug: we don't want the kernel to live in precious DMA-able memory
+# SA1111 DMA : we don't want the kernel to live in precious DMA-able memory
 ifeq ($(CONFIG_ARCH_SA1100),y)
 textofs-$(CONFIG_SA1111) := 0x00208000
 endif

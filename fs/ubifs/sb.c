@@ -148,7 +148,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	orph_lebs = UBIFS_MIN_ORPH_LEBS;
 	if (c->leb_cnt - min_leb_cnt > 1)
 		/*
-		 * For debugging purposes it is better to have at least 2
+		 * For deging purposes it is better to have at least 2
 		 * orphan LEBs, because the orphan subsystem would need to do
 		 * consolidations and would be stressed more.
 		 */

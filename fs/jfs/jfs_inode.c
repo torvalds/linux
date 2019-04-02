@@ -23,7 +23,7 @@
 #include "jfs_filsys.h"
 #include "jfs_imap.h"
 #include "jfs_dinode.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 
 void jfs_set_inode_flags(struct inode *inode)

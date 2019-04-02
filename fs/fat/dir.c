@@ -1212,7 +1212,7 @@ static int fat_add_new_entries(struct inode *dir, void *slots, int nr_slots,
 	 */
 	size = nr_slots * sizeof(struct msdos_dir_entry);
 	*nr_cluster = (size + (sbi->cluster_size - 1)) >> sbi->cluster_bits;
-	BUG_ON(*nr_cluster > 2);
+	_ON(*nr_cluster > 2);
 
 	err = fat_alloc_clusters(dir, cluster, *nr_cluster);
 	if (err)

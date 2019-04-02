@@ -6,11 +6,11 @@
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
 /*
- * #define DEBUG
+ * #define DE
  *
  * you can also add below in
  * ${LINUX}/drivers/base/regmap/regmap.c
- * for regmap debug
+ * for regmap de
  *
  * #define LOG_DEVICE "xxxx.rcar_sound"
  */

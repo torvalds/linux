@@ -1872,7 +1872,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 
 	/* I2C write to register offset 0x0B to set ADC LRCLK polarity */
 	/* invert bit, interface format to I2S, word length to 24-bit, */
-	/* enable ADC high pass filter. Fixes bug 5323?		*/
+	/* enable ADC high pass filter. Fixes  5323?		*/
 	hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_IC, 0x26),
 			 MAKE_WM8775_DATA(0x26));
 

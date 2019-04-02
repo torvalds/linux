@@ -99,7 +99,7 @@ struct pnv_phb {
 	int			initialized;
 	spinlock_t		lock;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	int			has_dbgfs;
 	struct dentry		*dbgfs;
 #endif

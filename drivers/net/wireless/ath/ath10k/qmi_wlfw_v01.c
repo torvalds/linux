@@ -643,7 +643,7 @@ struct qmi_elem_info wlfw_wlan_mode_req_msg_v01_ei[] = {
 		.array_type     = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         = offsetof(struct wlfw_wlan_mode_req_msg_v01,
-					   hw_debug_valid),
+					   hw_de_valid),
 	},
 	{
 		.data_type      = QMI_UNSIGNED_1_BYTE,
@@ -652,7 +652,7 @@ struct qmi_elem_info wlfw_wlan_mode_req_msg_v01_ei[] = {
 		.array_type     = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         = offsetof(struct wlfw_wlan_mode_req_msg_v01,
-					   hw_debug),
+					   hw_de),
 	},
 	{}
 };

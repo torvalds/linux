@@ -7,16 +7,16 @@
 #include <scsi/scsi.h>
 #include <asm/unaligned.h>
 
-#ifndef DEBUG
-#undef VERBOSE_DEBUG
+#ifndef DE
+#undef VERBOSE_DE
 #undef DUMP_MSGS
-#endif /* !DEBUG */
+#endif /* !DE */
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 #define VLDBG	LDBG
 #else
 #define VLDBG(lun, fmt, args...) do { } while (0)
-#endif /* VERBOSE_DEBUG */
+#endif /* VERBOSE_DE */
 
 #define _LMSG(func, lun, fmt, args...)					\
 	do {								\
@@ -27,7 +27,7 @@
 			func("%s: " fmt, (lun)->name, ## args);		\
 	} while (0)
 
-#define LDBG(lun, fmt, args...)		_LMSG(pr_debug, lun, fmt, ## args)
+#define LDBG(lun, fmt, args...)		_LMSG(pr_de, lun, fmt, ## args)
 #define LERROR(lun, fmt, args...)	_LMSG(pr_err, lun, fmt, ## args)
 #define LWARN(lun, fmt, args...)	_LMSG(pr_warn, lun, fmt, ## args)
 #define LINFO(lun, fmt, args...)	_LMSG(pr_info, lun, fmt, ## args)
@@ -40,7 +40,7 @@
 do {									\
 	if (length < 512) {						\
 		DBG(fsg, "%s, length %u:\n", label, length);		\
-		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,	\
+		print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET,	\
 			       16, 1, buf, length, 0);			\
 	}								\
 } while (0)
@@ -52,17 +52,17 @@ do {									\
 #  define dump_msg(fsg, /* const char * */ label, \
 		   /* const u8 * */ buf, /* unsigned */ length) do { } while (0)
 
-#  ifdef VERBOSE_DEBUG
+#  ifdef VERBOSE_DE
 
 #    define dump_cdb(fsg)						\
-	print_hex_dump(KERN_DEBUG, "SCSI CDB: ", DUMP_PREFIX_NONE,	\
+	print_hex_dump(KERN_DE, "SCSI CDB: ", DUMP_PREFIX_NONE,	\
 		       16, 1, (fsg)->cmnd, (fsg)->cmnd_size, 0)		\
 
 #  else
 
 #    define dump_cdb(fsg) do { } while (0)
 
-#  endif /* VERBOSE_DEBUG */
+#  endif /* VERBOSE_DE */
 
 #endif /* DUMP_MSGS */
 

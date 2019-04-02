@@ -209,7 +209,7 @@ void __init sched_clock_init(void)
 	 * Set __gtod_offset such that once we mark sched_clock_running,
 	 * sched_clock_tick() continues where sched_clock() left off.
 	 *
-	 * Even if TSC is buggered, we're still UP at this point so it
+	 * Even if TSC is gered, we're still UP at this point so it
 	 * can't really be out of sync.
 	 */
 	local_irq_disable();

@@ -233,7 +233,7 @@ static struct clk_hw *_ti_omap4_clkctrl_xlate(struct of_phandle_args *clkspec,
 	if (clkspec->args_count != 2)
 		return ERR_PTR(-EINVAL);
 
-	pr_debug("%s: looking for %x:%x\n", __func__,
+	pr_de("%s: looking for %x:%x\n", __func__,
 		 clkspec->args[0], clkspec->args[1]);
 
 	list_for_each_entry(entry, &provider->clocks, node) {

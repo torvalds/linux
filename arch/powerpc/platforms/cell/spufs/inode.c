@@ -43,7 +43,7 @@
 #include "spufs.h"
 
 struct spufs_sb_info {
-	int debug;
+	int de;
 };
 
 static struct kmem_cache *spufs_inode_cache;
@@ -284,8 +284,8 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	else
 		ret = spufs_fill_dir(dentry, spufs_dir_contents, mode, ctx);
 
-	if (!ret && spufs_get_sb_info(dir->i_sb)->debug)
-		ret = spufs_fill_dir(dentry, spufs_dir_debug_contents,
+	if (!ret && spufs_get_sb_info(dir->i_sb)->de)
+		ret = spufs_fill_dir(dentry, spufs_dir_de_contents,
 				mode, ctx);
 
 	if (ret)
@@ -594,14 +594,14 @@ long spufs_create(struct path *path, struct dentry *dentry,
 
 /* File system initialization */
 enum {
-	Opt_uid, Opt_gid, Opt_mode, Opt_debug, Opt_err,
+	Opt_uid, Opt_gid, Opt_mode, Opt_de, Opt_err,
 };
 
 static const match_table_t spufs_tokens = {
 	{ Opt_uid,   "uid=%d" },
 	{ Opt_gid,   "gid=%d" },
 	{ Opt_mode,  "mode=%o" },
-	{ Opt_debug, "debug" },
+	{ Opt_de, "de" },
 	{ Opt_err,    NULL  },
 };
 
@@ -618,8 +618,8 @@ static int spufs_show_options(struct seq_file *m, struct dentry *root)
 			   from_kgid_munged(&init_user_ns, inode->i_gid));
 	if ((inode->i_mode & S_IALLUGO) != 0775)
 		seq_printf(m, ",mode=%o", inode->i_mode);
-	if (sbi->debug)
-		seq_puts(m, ",debug");
+	if (sbi->de)
+		seq_puts(m, ",de");
 	return 0;
 }
 
@@ -656,8 +656,8 @@ spufs_parse_options(struct super_block *sb, char *options, struct inode *root)
 				return 0;
 			root->i_mode = option | S_IFDIR;
 			break;
-		case Opt_debug:
-			spufs_get_sb_info(sb)->debug = 1;
+		case Opt_de:
+			spufs_get_sb_info(sb)->de = 1;
 			break;
 		default:
 			return 0;

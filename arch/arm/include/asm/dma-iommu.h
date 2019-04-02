@@ -6,7 +6,7 @@
 
 #include <linux/mm_types.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 #include <linux/kref.h>
 
 struct dma_iommu_mapping {

@@ -842,14 +842,14 @@ static void decode_rxts(struct dp83640_private *dp83640,
 
 	overflow = (phy_rxts->ns_hi >> 14) & 0x3;
 	if (overflow)
-		pr_debug("rx timestamp queue overflow, count %d\n", overflow);
+		pr_de("rx timestamp queue overflow, count %d\n", overflow);
 
 	spin_lock_irqsave(&dp83640->rx_lock, flags);
 
 	prune_rx_ts(dp83640);
 
 	if (list_empty(&dp83640->rxpool)) {
-		pr_debug("rx timestamp pool is empty\n");
+		pr_de("rx timestamp pool is empty\n");
 		goto out;
 	}
 	rxts = list_first_entry(&dp83640->rxpool, struct rxts, list);
@@ -894,13 +894,13 @@ static void decode_txts(struct dp83640_private *dp83640,
 again:
 	skb = skb_dequeue(&dp83640->tx_queue);
 	if (!skb) {
-		pr_debug("have timestamp but tx_queue empty\n");
+		pr_de("have timestamp but tx_queue empty\n");
 		return;
 	}
 
 	overflow = (phy_txts->ns_hi >> 14) & 0x3;
 	if (overflow) {
-		pr_debug("tx timestamp queue overflow, count %d\n", overflow);
+		pr_de("tx timestamp queue overflow, count %d\n", overflow);
 		while (skb) {
 			kfree_skb(skb);
 			skb = skb_dequeue(&dp83640->tx_queue);
@@ -1006,7 +1006,7 @@ static void dp83640_free_clocks(void)
 		clock = list_entry(this, struct dp83640_clock, list);
 		if (!list_empty(&clock->phylist)) {
 			pr_warn("phy list non-empty while unloading\n");
-			BUG();
+			();
 		}
 		list_del(&clock->list);
 		mutex_destroy(&clock->extreg_lock);

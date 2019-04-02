@@ -109,7 +109,7 @@ int fman_sp_build_buffer_struct(struct fman_sp_int_context_data_copy *
 	 * 1. prsResult/timestamp/hashResult selection (in fact 8 options,
 	 * but for simplicity we'll
 	 * relate to it as 1).
-	 * 2. All IC context (from AD) not including debug.
+	 * 2. All IC context (from AD) not including de.
 	 */
 
 	/* This case covers the options under 1 */

@@ -342,13 +342,13 @@ static int rx_copybreak = 200;
 
 static struct {
 	u32 msg_enable;
-} debug = { -1 };
+} de = { -1 };
 
 MODULE_DESCRIPTION("SiS sis190/191 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
-module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+module_param_named(de, de.msg_enable, int, 0);
+MODULE_PARM_DESC(de, "De verbosity level (0=none, ..., 16=all)");
 MODULE_AUTHOR("K.M. Liu <kmliu@sis.com>, Ueimor <romieu@fr.zoreil.com>");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
@@ -1193,7 +1193,7 @@ static netdev_tx_t sis190_start_xmit(struct sk_buff *skb,
 	if (unlikely(le32_to_cpu(desc->status) & OWNbit)) {
 		netif_stop_queue(dev);
 		netif_err(tp, tx_err, dev,
-			  "BUG! Tx Ring full when queue awake!\n");
+			  "! Tx Ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1466,7 +1466,7 @@ static struct net_device *sis190_init_board(struct pci_dev *pdev)
 
 	tp = netdev_priv(dev);
 	tp->dev = dev;
-	tp->msg_enable = netif_msg_init(debug.msg_enable, SIS190_MSG_DEFAULT);
+	tp->msg_enable = netif_msg_init(de.msg_enable, SIS190_MSG_DEFAULT);
 
 	rc = pci_enable_device(pdev);
 	if (rc < 0) {
@@ -1852,7 +1852,7 @@ static int sis190_init_one(struct pci_dev *pdev,
 	int rc;
 
 	if (!printed_version) {
-		if (netif_msg_drv(&debug))
+		if (netif_msg_drv(&de))
 			pr_info(SIS190_DRIVER_NAME " loaded\n");
 		printed_version = 1;
 	}

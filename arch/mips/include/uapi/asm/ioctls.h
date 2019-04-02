@@ -109,7 +109,7 @@
 #define TIOCSERSWILD	0x548a
 #define TIOCGLCKTRMIOS	0x548b
 #define TIOCSLCKTRMIOS	0x548c
-#define TIOCSERGSTRUCT	0x548d /* For debugging only */
+#define TIOCSERGSTRUCT	0x548d /* For deging only */
 #define TIOCSERGETLSR	0x548e /* Get line status register */
 #define TIOCSERGETMULTI 0x548f /* Get multiport config	*/
 #define TIOCSERSETMULTI 0x5490 /* Set multiport config */

@@ -80,7 +80,7 @@ void *msic_generic_platform_data(void *info, enum intel_msic_block block)
 {
 	struct sfi_device_table_entry *entry = info;
 
-	BUG_ON(block < 0 || block >= INTEL_MSIC_BLOCK_LAST);
+	_ON(block < 0 || block >= INTEL_MSIC_BLOCK_LAST);
 	msic_pdata.irq[block] = entry->irq;
 
 	return NULL;

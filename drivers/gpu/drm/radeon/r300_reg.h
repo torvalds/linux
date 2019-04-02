@@ -321,7 +321,7 @@
 /* Sometimes, END_OF_PKT and 0x2284=0 are the only commands sent between
  * rendering commands and overwriting vertex program parameters.
  * Therefore, I suspect writing zero to 0x2284 synchronizes the engine and
- * avoids bugs caused by still running shaders reading bad data from memory.
+ * avoids s caused by still running shaders reading bad data from memory.
  */
 #define R300_VAP_PVS_STATE_FLUSH_REG        0x2284
 

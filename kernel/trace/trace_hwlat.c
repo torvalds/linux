@@ -9,7 +9,7 @@
  *
  * The classical example usage of this tracer is in detecting the presence of
  * SMIs or System Management Interrupts on Intel and AMD systems. An SMI is a
- * somewhat special form of hardware interrupt spawned from earlier CPU debug
+ * somewhat special form of hardware interrupt spawned from earlier CPU de
  * modes in which the (BIOS/EFI/etc.) firmware arranges for the South Bridge
  * LPC (or other device) to generate a special interrupt under certain
  * circumstances, for example, upon expiration of a special SMI timer device,

@@ -115,7 +115,7 @@ struct fscache_operation {
 
 	enum fscache_operation_state state;
 	atomic_t		usage;
-	unsigned		debug_id;	/* debugging ID */
+	unsigned		de_id;	/* deging ID */
 
 	/* operation processor callback
 	 * - can be NULL if FSCACHE_OP_WAITING is going to be used to perform
@@ -129,7 +129,7 @@ struct fscache_operation {
 	fscache_operation_release_t release;
 };
 
-extern atomic_t fscache_op_debug_id;
+extern atomic_t fscache_op_de_id;
 extern void fscache_op_work_func(struct work_struct *work);
 
 extern void fscache_enqueue_operation(struct fscache_operation *);
@@ -350,7 +350,7 @@ struct fscache_state {
 struct fscache_object {
 	const struct fscache_state *state;	/* Object state machine state */
 	const struct fscache_transition *oob_table; /* OOB state transition table */
-	int			debug_id;	/* debugging ID */
+	int			de_id;	/* deging ID */
 	int			n_children;	/* number of child objects */
 	int			n_ops;		/* number of extant ops on object */
 	int			n_obj_ops;	/* number of object ops outstanding on object */

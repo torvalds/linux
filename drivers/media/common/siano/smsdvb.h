@@ -15,17 +15,17 @@
  *
  ***********************************************************************/
 
-struct smsdvb_debugfs;
+struct smsdvb_defs;
 struct smsdvb_client_t;
 
-typedef void (*sms_prt_dvb_stats_t)(struct smsdvb_debugfs *debug_data,
+typedef void (*sms_prt_dvb_stats_t)(struct smsdvb_defs *de_data,
 				    struct sms_stats *p);
 
-typedef void (*sms_prt_isdb_stats_t)(struct smsdvb_debugfs *debug_data,
+typedef void (*sms_prt_isdb_stats_t)(struct smsdvb_defs *de_data,
 				     struct sms_isdbt_stats *p);
 
 typedef void (*sms_prt_isdb_stats_ex_t)
-			(struct smsdvb_debugfs *debug_data,
+			(struct smsdvb_defs *de_data,
 			 struct sms_isdbt_stats_ex *p);
 
 
@@ -57,10 +57,10 @@ struct smsdvb_client_t {
 	int			feed_users;
 	bool			has_tuned;
 
-	/* stats debugfs data */
-	struct dentry		*debugfs;
+	/* stats defs data */
+	struct dentry		*defs;
 
-	struct smsdvb_debugfs	*debug_data;
+	struct smsdvb_defs	*de_data;
 
 	sms_prt_dvb_stats_t	prt_dvb_stats;
 	sms_prt_isdb_stats_t	prt_isdb_stats;
@@ -102,26 +102,26 @@ struct RECEPTION_STATISTICS_PER_SLICES_S {
 	s32 MRC_RSSI;		/* dBm */
 };
 
-/* From smsdvb-debugfs.c */
-#ifdef CONFIG_SMS_SIANO_DEBUGFS
+/* From smsdvb-defs.c */
+#ifdef CONFIG_SMS_SIANO_DEFS
 
-int smsdvb_debugfs_create(struct smsdvb_client_t *client);
-void smsdvb_debugfs_release(struct smsdvb_client_t *client);
-void smsdvb_debugfs_register(void);
-void smsdvb_debugfs_unregister(void);
+int smsdvb_defs_create(struct smsdvb_client_t *client);
+void smsdvb_defs_release(struct smsdvb_client_t *client);
+void smsdvb_defs_register(void);
+void smsdvb_defs_unregister(void);
 
 #else
 
-static inline int smsdvb_debugfs_create(struct smsdvb_client_t *client)
+static inline int smsdvb_defs_create(struct smsdvb_client_t *client)
 {
 	return 0;
 }
 
-static inline void smsdvb_debugfs_release(struct smsdvb_client_t *client) {}
+static inline void smsdvb_defs_release(struct smsdvb_client_t *client) {}
 
-static inline void smsdvb_debugfs_register(void) {}
+static inline void smsdvb_defs_register(void) {}
 
-static inline void smsdvb_debugfs_unregister(void) {};
+static inline void smsdvb_defs_unregister(void) {};
 
 #endif
 

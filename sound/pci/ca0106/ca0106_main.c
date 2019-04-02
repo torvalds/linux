@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) 2004 James Courtier-Dutton <James@super.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
  *  Version: 0.0.25
  *
@@ -76,7 +76,7 @@
  *    Add 4 capture channels. (SPDIF only comes in on channel 0. )
  *    Add SPDIF capture using optional digital I/O module for SB Live 24bit. (Analog capture does not yet work.)
  *  0.0.22
- *    Add support for MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97. From kiksen, bug #901
+ *    Add support for MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97. From kiksen,  #901
  *  0.0.23
  *    Implement support for Line-in capture on SB Live 24bit.
  *  0.0.24
@@ -84,7 +84,7 @@
  *  0.0.25
  *    Powerdown SPI DAC channels when not in use
  *
- *  BUGS:
+ *  S:
  *    Some stability problems when unloading the snd-ca0106 kernel module.
  *    --
  *
@@ -148,7 +148,7 @@
 #include <sound/ac97_codec.h>
 #include <sound/info.h>
 
-MODULE_AUTHOR("James Courtier-Dutton <James@superbug.demon.co.uk>");
+MODULE_AUTHOR("James Courtier-Dutton <James@super.demon.co.uk>");
 MODULE_DESCRIPTION("CA0106");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Creative,SB CA0106 chip}}");
@@ -174,7 +174,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	 /* Sound Blaster X-Fi Extreme Audio. This does not have an AC97. 53SB079000000 */
 	 /* It is really just a normal SB Live 24bit. */
 	 /* Tested:
-	  * See ALSA bug#3251
+	  * See ALSA #3251
 	  */
 	 { .serial = 0x10131102,
 	   .name   = "X-Fi Extreme Audio [SBxxxx]",
@@ -276,7 +276,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	 /* Shuttle XPC SD31P which has an onboard Creative Labs
 	  * Sound Blaster Live! 24-bit EAX
 	  * high-definition 7.1 audio processor".
-	  * Added using info from andrewvegan in alsa bug #1298
+	  * Added using info from andrewvegan in alsa  #1298
 	  */
 	 { .serial = 0x30381297,
 	   .name   = "Shuttle XPC SD31P [SD31P]",
@@ -285,7 +285,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	/* Shuttle XPC SD11G5 which has an onboard Creative Labs
 	 * Sound Blaster Live! 24-bit EAX
 	 * high-definition 7.1 audio processor".
-	 * Fixes ALSA bug#1600
+	 * Fixes ALSA #1600
          */
 	{ .serial = 0x30411297,
 	  .name = "Shuttle XPC SD11G5 [SD11G5]",
@@ -770,7 +770,7 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	u32 reg71;
 	int i;
 	
-#if 0 /* debug */
+#if 0 /* de */
 	dev_dbg(emu->card->dev,
 		   "prepare:channel_number=%d, rate=%d, format=0x%x, "
 		   "channels=%d, buffer_size=%ld, period_size=%ld, "
@@ -785,7 +785,7 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	dev_dbg(emu->card->dev,
 		"dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
 		   emu->buffer.addr, emu->buffer.area, emu->buffer.bytes);
-#endif /* debug */
+#endif /* de */
 	/* Rate can be set per channel. */
 	/* reg40 control host to fifo */
 	/* reg71 controls DAC rate. */
@@ -877,7 +877,7 @@ static int snd_ca0106_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	u32 reg71_set = 0;
 	u32 reg71;
 	
-#if 0 /* debug */
+#if 0 /* de */
 	dev_dbg(emu->card->dev,
 		   "prepare:channel_number=%d, rate=%d, format=0x%x, "
 		   "channels=%d, buffer_size=%ld, period_size=%ld, "
@@ -892,7 +892,7 @@ static int snd_ca0106_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	dev_dbg(emu->card->dev,
 		"dma_addr=%x, dma_area=%p, dma_bytes(size)=%x\n",
 		   emu->buffer.addr, emu->buffer.area, emu->buffer.bytes);
-#endif /* debug */
+#endif /* de */
 	/* reg71 controls ADC rate. */
 	switch (runtime->rate) {
 	case 44100:

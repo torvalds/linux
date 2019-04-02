@@ -67,7 +67,7 @@ endef
 #       delimited by shell single-quotes, so be wary
 #       of the characters that are chosen.
 #
-# (The bash shell has a bug where `{gsub(...),...}' is
+# (The bash shell has a  where `{gsub(...),...}' is
 #  misinterpreted as a brace expansion; this can be
 #  overcome by putting a space between `{' and `gsub').
 #

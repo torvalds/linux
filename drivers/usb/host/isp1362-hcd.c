@@ -38,7 +38,7 @@
  * recovery time (MSCx = 0x7f8c) with a memory clock of 99.53 MHz.
  */
 
-#undef ISP1362_DEBUG
+#undef ISP1362_DE
 
 /*
  * The PXA255 UDC apparently doesn't handle GET_STATUS, GET_CONFIG and
@@ -48,7 +48,7 @@
  * unlikely to occur (and makes usbtest happy running with a PXA255 target
  * device).
  */
-#undef BUGGY_PXA2XX_UDC_USBTEST
+#undef GY_PXA2XX_UDC_USBTEST
 
 #undef PTD_TRACE
 #undef URB_TRACE
@@ -78,7 +78,7 @@
 #include <linux/io.h>
 #include <linux/bitmap.h>
 #include <linux/prefetch.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <asm/irq.h>
@@ -86,7 +86,7 @@
 #include <asm/unaligned.h>
 
 static int dbg_level;
-#ifdef ISP1362_DEBUG
+#ifdef ISP1362_DE
 module_param(dbg_level, int, 0644);
 #else
 module_param(dbg_level, int, 0);
@@ -190,7 +190,7 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 	int num_ptds = ((len + PTD_HEADER_SIZE - 1) / epq->blk_size) + 1;
 	int found;
 
-	BUG_ON(len > epq->buf_size);
+	_ON(len > epq->buf_size);
 
 	if (!epq->buf_avail)
 		return -ENOMEM;
@@ -198,7 +198,7 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 	if (ep->num_ptds)
 		pr_err("%s: %s len %d/%d num_ptds %d buf_map %08lx skip_map %08lx\n", __func__,
 		    epq->name, len, epq->blk_size, num_ptds, epq->buf_map, epq->skip_map);
-	BUG_ON(ep->num_ptds != 0);
+	_ON(ep->num_ptds != 0);
 
 	found = bitmap_find_next_zero_area(&epq->buf_map, epq->buf_count, 0,
 						num_ptds, 0);
@@ -212,7 +212,7 @@ static int claim_ptd_buffers(struct isp1362_ep_queue *epq,
 	ep->ptd_offset = ptd_offset;
 	ep->num_ptds += num_ptds;
 	epq->buf_avail -= num_ptds;
-	BUG_ON(epq->buf_avail > epq->buf_count);
+	_ON(epq->buf_avail > epq->buf_count);
 	ep->ptd_index = found;
 	bitmap_set(&epq->buf_map, found, num_ptds);
 	DBG(1, "%s: Done %s PTD[%d] $%04x, avail %d count %d claimed %d %08lx:%08lx\n",
@@ -231,15 +231,15 @@ static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1
 		    __func__, ep, ep->num_req, ep->length, epq->name, ep->ptd_index,
 		    ep->ptd_offset, ep->num_ptds, epq->buf_count, epq->buf_avail,
 		    epq->buf_map, epq->skip_map);
-	BUG_ON(last > epq->buf_count);
+	_ON(last > epq->buf_count);
 
 	bitmap_clear(&epq->buf_map, ep->ptd_index, ep->num_ptds);
 	bitmap_set(&epq->skip_map, ep->ptd_index, ep->num_ptds);
 	epq->buf_avail += ep->num_ptds;
 	epq->ptd_count--;
 
-	BUG_ON(epq->buf_avail > epq->buf_count);
-	BUG_ON(epq->ptd_count > epq->buf_count);
+	_ON(epq->buf_avail > epq->buf_count);
+	_ON(epq->ptd_count > epq->buf_count);
 
 	DBG(1, "%s: Done %s PTDs $%04x released %d avail %d count %d\n",
 	    __func__, epq->name,
@@ -319,7 +319,7 @@ static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 	default:
 		toggle = dir = len = 0;
 		pr_err("%s@%d: ep->nextpid %02x\n", __func__, __LINE__, ep->nextpid);
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	ep->length = len;
@@ -365,7 +365,7 @@ static void isp1362_read_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep 
 	int act_len;
 
 	WARN_ON(list_empty(&ep->active));
-	BUG_ON(ep->ptd_offset < 0);
+	_ON(ep->ptd_offset < 0);
 
 	list_del_init(&ep->active);
 	DBG(1, "%s: ep %p removed from active list %p\n", __func__, ep, &epq->active);
@@ -379,7 +379,7 @@ static void isp1362_read_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep 
 	if (act_len > ep->length)
 		pr_err("%s: ep %p PTD $%04x act_len %d ep->length %d\n", __func__, ep,
 			 ep->ptd_offset, act_len, ep->length);
-	BUG_ON(act_len > ep->length);
+	_ON(act_len > ep->length);
 	/* Only transfer the amount of data that has actually been overwritten
 	 * in the chip buffer. We don't want any data that doesn't belong to the
 	 * transfer to leak out of the chip to the callers transfer buffer!
@@ -402,10 +402,10 @@ static void remove_ptd(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 	struct isp1362_ep_queue *epq;
 
 	DBG(1, "%s: ep %p PTD[%d] $%04x\n", __func__, ep, ep->ptd_index, ep->ptd_offset);
-	BUG_ON(ep->ptd_offset < 0);
+	_ON(ep->ptd_offset < 0);
 
 	epq = get_ptd_queue(isp1362_hcd, ep->ptd_offset);
-	BUG_ON(!epq);
+	_ON(!epq);
 
 	/* put ep in remove_list for cleanup */
 	WARN_ON(!list_empty(&ep->remove_list));
@@ -545,7 +545,7 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 			urb->actual_length += PTD_GET_COUNT(ptd);
 			if (usb_pipecontrol(urb->pipe)) {
 				ep->nextpid = USB_PID_ACK;
-				BUG_ON(urb->actual_length > urb->transfer_buffer_length);
+				_ON(urb->actual_length > urb->transfer_buffer_length);
 
 				if (urb->status == -EINPROGRESS)
 					urb->status = cc_to_error[PTD_DATAUNDERRUN];
@@ -573,9 +573,9 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 		if (PTD_GET_COUNT(ptd) != ep->length)
 			pr_err("%s: count=%d len=%d\n", __func__,
 			   PTD_GET_COUNT(ptd), ep->length);
-		BUG_ON(PTD_GET_COUNT(ptd) != ep->length);
+		_ON(PTD_GET_COUNT(ptd) != ep->length);
 		urb->actual_length += ep->length;
-		BUG_ON(urb->actual_length > urb->transfer_buffer_length);
+		_ON(urb->actual_length > urb->transfer_buffer_length);
 		usb_settoggle(udev, ep->epnum, 1, PTD_GET_TOGGLE(ptd));
 		if (urb->actual_length == urb->transfer_buffer_length) {
 			DBG(3, "%s: req %d xfer complete %d/%d status %d -> 0\n", __func__,
@@ -598,9 +598,9 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 		break;
 	case USB_PID_IN:
 		len = PTD_GET_COUNT(ptd);
-		BUG_ON(len > ep->length);
+		_ON(len > ep->length);
 		urb->actual_length += len;
-		BUG_ON(urb->actual_length > urb->transfer_buffer_length);
+		_ON(urb->actual_length > urb->transfer_buffer_length);
 		usb_settoggle(udev, ep->epnum, 0, PTD_GET_TOGGLE(ptd));
 		/* if transfer completed or (allowed) data underrun */
 		if ((urb->transfer_buffer_length == urb->actual_length) ||
@@ -639,7 +639,7 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 		ep->nextpid = 0;
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 
  out:
@@ -660,10 +660,10 @@ static void finish_unlinks(struct isp1362_hcd *isp1362_hcd)
 			get_ptd_queue(isp1362_hcd, ep->ptd_offset);
 		int index = ep->ptd_index;
 
-		BUG_ON(epq == NULL);
+		_ON(epq == NULL);
 		if (index >= 0) {
 			DBG(1, "%s: remove PTD[%d] $%04x\n", __func__, index, ep->ptd_offset);
-			BUG_ON(ep->num_ptds == 0);
+			_ON(ep->num_ptds == 0);
 			release_ptd_buffers(epq, ep);
 		}
 		if (!list_empty(&ep->hep->urb_list)) {
@@ -727,7 +727,7 @@ static int submit_req(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 		    epq->buf_map, epq->skip_map);
 		return index;
 	} else
-		BUG_ON(index < 0);
+		_ON(index < 0);
 	list_add_tail(&ep->active, &epq->active);
 	DBG(1, "%s: ep %p req %d len %d added to active list %p\n", __func__,
 	    ep, ep->num_req, ep->length, &epq->active);
@@ -771,7 +771,7 @@ static void start_atl_transfers(struct isp1362_hcd *isp1362_hcd)
 			defer = 1;
 			continue;
 		}
-#ifdef BUGGY_PXA2XX_UDC_USBTEST
+#ifdef GY_PXA2XX_UDC_USBTEST
 		defer = ep->nextpid == USB_PID_SETUP;
 #endif
 		ptd_count++;
@@ -954,11 +954,11 @@ static void finish_transfers(struct isp1362_hcd *isp1362_hcd, unsigned long done
 		DBG(1, "%s: Checking %s PTD[%02x] $%04x\n", __func__, epq->name,
 		    index, ep->ptd_offset);
 
-		BUG_ON(index < 0);
+		_ON(index < 0);
 		if (__test_and_clear_bit(index, &done_map)) {
 			isp1362_read_ptd(isp1362_hcd, ep, epq);
 			epq->free_ptd = index;
-			BUG_ON(ep->num_ptds == 0);
+			_ON(ep->num_ptds == 0);
 			release_ptd_buffers(epq, ep);
 
 			DBG(1, "%s: ep %p req %d removed from active list\n", __func__,
@@ -1013,7 +1013,7 @@ static irqreturn_t isp1362_irq(struct usb_hcd *hcd)
 
 	spin_lock(&isp1362_hcd->lock);
 
-	BUG_ON(isp1362_hcd->irq_active++);
+	_ON(isp1362_hcd->irq_active++);
 
 	isp1362_write_reg16(isp1362_hcd, HCuPINTENB, 0);
 
@@ -1380,7 +1380,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 		start_iso_transfers(isp1362_hcd);
 		break;
 	default:
-		BUG();
+		();
 	}
  fail:
 	if (retval)
@@ -1507,7 +1507,7 @@ static int isp1362_hub_status_data(struct usb_hcd *hcd, char *buf)
 		return 0;
 
 	ports = isp1362_hcd->rhdesca & RH_A_NDP;
-	BUG_ON(ports > 2);
+	_ON(ports > 2);
 
 	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 	/* init status */
@@ -2162,17 +2162,17 @@ static int isp1362_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(isp1362);
 
 /* expect just one isp1362_hcd per system */
-static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
+static void create_de_file(struct isp1362_hcd *isp1362_hcd)
 {
-	isp1362_hcd->debug_file = debugfs_create_file("isp1362", S_IRUGO,
-						      usb_debug_root,
+	isp1362_hcd->de_file = defs_create_file("isp1362", S_IRUGO,
+						      usb_de_root,
 						      isp1362_hcd,
 						      &isp1362_fops);
 }
 
-static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
+static void remove_de_file(struct isp1362_hcd *isp1362_hcd)
 {
-	debugfs_remove(isp1362_hcd->debug_file);
+	defs_remove(isp1362_hcd->de_file);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2220,7 +2220,7 @@ static int isp1362_mem_config(struct usb_hcd *hcd)
 	WARN_ON(atl_blksize < PTD_HEADER_SIZE);
 	WARN_ON(intl_blksize < PTD_HEADER_SIZE);
 
-	BUG_ON((unsigned)ISP1362_INTL_BUFFERS > 32);
+	_ON((unsigned)ISP1362_INTL_BUFFERS > 32);
 	if (atl_buffers > 32)
 		atl_buffers = 32;
 	atl_size = atl_buffers * atl_blksize;
@@ -2320,7 +2320,7 @@ static int isp1362_hc_reset(struct usb_hcd *hcd)
 	unsigned long flags;
 	int clkrdy = 0;
 
-	pr_debug("%s:\n", __func__);
+	pr_de("%s:\n", __func__);
 
 	if (isp1362_hcd->board && isp1362_hcd->board->reset) {
 		isp1362_hcd->board->reset(hcd->self.controller, 1);
@@ -2357,7 +2357,7 @@ static void isp1362_hc_stop(struct usb_hcd *hcd)
 	unsigned long flags;
 	u32 tmp;
 
-	pr_debug("%s:\n", __func__);
+	pr_de("%s:\n", __func__);
 
 	del_timer_sync(&hcd->rh_timer);
 
@@ -2485,7 +2485,7 @@ static int isp1362_hc_start(struct usb_hcd *hcd)
 	u16 chipid;
 	unsigned long flags;
 
-	pr_debug("%s:\n", __func__);
+	pr_de("%s:\n", __func__);
 
 	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 	chipid = isp1362_read_reg16(isp1362_hcd, HCCHIPID);
@@ -2613,7 +2613,7 @@ static int isp1362_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct isp1362_hcd *isp1362_hcd = hcd_to_isp1362_hcd(hcd);
 
-	remove_debug_file(isp1362_hcd);
+	remove_de_file(isp1362_hcd);
 	DBG(0, "%s: Removing HCD\n", __func__);
 	usb_remove_hcd(hcd);
 	DBG(0, "%s: put_hcd\n", __func__);
@@ -2707,7 +2707,7 @@ static int isp1362_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s, irq %d\n", hcd->product_desc, irq);
 
-	create_debug_file(isp1362_hcd);
+	create_de_file(isp1362_hcd);
 
 	return 0;
 

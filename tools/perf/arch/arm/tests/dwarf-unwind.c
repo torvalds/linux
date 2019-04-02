@@ -5,7 +5,7 @@
 #include "map.h"
 #include "map_groups.h"
 #include "event.h"
-#include "debug.h"
+#include "de.h"
 #include "tests/tests.h"
 
 #define STACK_SIZE 8192
@@ -20,7 +20,7 @@ static int sample_ustack(struct perf_sample *sample,
 
 	buf = malloc(STACK_SIZE);
 	if (!buf) {
-		pr_debug("failed to allocate sample uregs data\n");
+		pr_de("failed to allocate sample uregs data\n");
 		return -1;
 	}
 
@@ -28,7 +28,7 @@ static int sample_ustack(struct perf_sample *sample,
 
 	map = map_groups__find(thread->mg, (u64)sp);
 	if (!map) {
-		pr_debug("failed to get stack map\n");
+		pr_de("failed to get stack map\n");
 		free(buf);
 		return -1;
 	}
@@ -50,7 +50,7 @@ int test__arch_unwind_sample(struct perf_sample *sample,
 
 	buf = calloc(1, sizeof(u64) * PERF_REGS_MAX);
 	if (!buf) {
-		pr_debug("failed to allocate sample uregs data\n");
+		pr_de("failed to allocate sample uregs data\n");
 		return -1;
 	}
 

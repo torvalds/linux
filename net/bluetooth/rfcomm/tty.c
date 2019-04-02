@@ -279,7 +279,7 @@ static struct rfcomm_dev *__rfcomm_dev_add(struct rfcomm_dev_req *req,
 		struct sock *sk = dlc->owner;
 		struct sk_buff *skb;
 
-		BUG_ON(!sk);
+		_ON(!sk);
 
 		rfcomm_dlc_throttle(dlc);
 

@@ -29,7 +29,7 @@
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int de = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    Typical is a 64 element hash table based on the Ethernet CRC.  */
 static const int multicast_filter_limit = 32;
@@ -110,11 +110,11 @@ MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("Sundance Alta Ethernet driver");
 MODULE_LICENSE("GPL");
 
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param_array(media, charp, NULL, 0);
 module_param(flowctrl, int, 0);
-MODULE_PARM_DESC(debug, "Sundance Alta debug level (0-5)");
+MODULE_PARM_DESC(de, "Sundance Alta de level (0-5)");
 MODULE_PARM_DESC(rx_copybreak, "Sundance Alta copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(flowctrl, "Sundance Alta flow control [0|1]");
 
@@ -194,7 +194,7 @@ IVc. Errata
 
 */
 
-/* Work-around for Kendin chip bugs. */
+/* Work-around for Kendin chip s. */
 #ifndef CONFIG_SUNDANCE_MMIO
 #define USE_IO_OPS 1
 #endif
@@ -248,8 +248,8 @@ enum alta_offsets {
 	TxDMAPollPeriod = 0x0a,
 	RxDMAStatus = 0x0c,
 	RxListPtr = 0x10,
-	DebugCtrl0 = 0x1a,
-	DebugCtrl1 = 0x1c,
+	DeCtrl0 = 0x1a,
+	DeCtrl1 = 0x1c,
 	RxDMABurstThresh = 0x14,
 	RxDMAUrgentThresh = 0x15,
 	RxDMAPollPeriod = 0x16,
@@ -549,7 +549,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 	np->base = ioaddr;
 	np->pci_dev = pdev;
 	np->chip_id = chip_idx;
-	np->msg_enable = (1 << debug) - 1;
+	np->msg_enable = (1 << de) - 1;
 	spin_lock_init(&np->lock);
 	spin_lock_init(&np->statlock);
 	tasklet_init(&np->rx_tasklet, rx_poll, (unsigned long)dev);
@@ -860,7 +860,7 @@ static int netdev_open(struct net_device *dev)
 		return i;
 
 	if (netif_msg_ifup(np))
-		printk(KERN_DEBUG "%s: netdev_open() irq %d\n", dev->name, irq);
+		printk(KERN_DE "%s: netdev_open() irq %d\n", dev->name, irq);
 
 	init_ring(dev);
 
@@ -892,7 +892,7 @@ static int netdev_open(struct net_device *dev)
 	iowrite8(127, ioaddr + TxDMAPollPeriod);
 	/* Fix DFE-580TX packet drop issue */
 	if (np->pci_dev->revision >= 0x14)
-		iowrite8(0x01, ioaddr + DebugCtrl1);
+		iowrite8(0x01, ioaddr + DeCtrl1);
 	netif_start_queue(dev);
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -906,7 +906,7 @@ static int netdev_open(struct net_device *dev)
 	np->wol_enabled = 0;
 
 	if (netif_msg_ifup(np))
-		printk(KERN_DEBUG "%s: Done netdev_open(), status: Rx %x Tx %x "
+		printk(KERN_DE "%s: Done netdev_open(), status: Rx %x Tx %x "
 			   "MAC Control %x, %4.4x %4.4x.\n",
 			   dev->name, ioread32(ioaddr + RxStatus), ioread8(ioaddr + TxStatus),
 			   ioread32(ioaddr + MACCtrl0),
@@ -959,7 +959,7 @@ static void netdev_timer(struct timer_list *t)
 	int next_tick = 10*HZ;
 
 	if (netif_msg_timer(np)) {
-		printk(KERN_DEBUG "%s: Media selection timer tick, intr status %4.4x, "
+		printk(KERN_DE "%s: Media selection timer tick, intr status %4.4x, "
 			   "Tx %x Rx %x.\n",
 			   dev->name, ioread16(ioaddr + IntrEnable),
 			   ioread8(ioaddr + TxStatus), ioread32(ioaddr + RxStatus));
@@ -986,7 +986,7 @@ static void tx_timeout(struct net_device *dev)
 	{
 		int i;
 		for (i=0; i<TX_RING_SIZE; i++) {
-			printk(KERN_DEBUG "%02x %08llx %08x %08x(%02x) %08x %08x\n", i,
+			printk(KERN_DE "%02x %08llx %08x %08x(%02x) %08x %08x\n", i,
 				(unsigned long long)(np->tx_ring_dma + i*sizeof(*np->tx_ring)),
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
@@ -994,14 +994,14 @@ static void tx_timeout(struct net_device *dev)
 				le32_to_cpu(np->tx_ring[i].frag[0].addr),
 				le32_to_cpu(np->tx_ring[i].frag[0].length));
 		}
-		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n",
+		printk(KERN_DE "TxListPtr=%08x netif_queue_stopped=%d\n",
 			ioread32(np->base + TxListPtr),
 			netif_queue_stopped(dev));
-		printk(KERN_DEBUG "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n",
+		printk(KERN_DE "cur_tx=%d(%02x) dirty_tx=%d(%02x)\n",
 			np->cur_tx, np->cur_tx % TX_RING_SIZE,
 			np->dirty_tx, np->dirty_tx % TX_RING_SIZE);
-		printk(KERN_DEBUG "cur_rx=%d dirty_rx=%d\n", np->cur_rx, np->dirty_rx);
-		printk(KERN_DEBUG "cur_task=%d\n", np->cur_task);
+		printk(KERN_DE "cur_rx=%d dirty_rx=%d\n", np->cur_rx, np->dirty_rx);
+		printk(KERN_DE "cur_task=%d\n", np->cur_task);
 	}
 	spin_lock_irqsave(&np->lock, flag);
 
@@ -1130,7 +1130,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue (dev);
 	}
 	if (netif_msg_tx_queued(np)) {
-		printk (KERN_DEBUG
+		printk (KERN_DE
 			"%s: Transmit frame #%d queued in slot %d.\n",
 			dev->name, np->cur_tx, entry);
 	}
@@ -1198,7 +1198,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		iowrite16(intr_status, ioaddr + IntrStatus);
 
 		if (netif_msg_intr(np))
-			printk(KERN_DEBUG "%s: Interrupt, status %4.4x.\n",
+			printk(KERN_DE "%s: Interrupt, status %4.4x.\n",
 				   dev->name, intr_status);
 
 		if (!(intr_status & DEFAULT_INTR))
@@ -1252,7 +1252,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 						mdelay(1);
 					} while (--i);
 				}
-				/* Yup, this is a documentation bug.  It cost me *hours*. */
+				/* Yup, this is a documentation .  It cost me *hours*. */
 				iowrite16 (0, ioaddr + TxStatus);
 				if (tx_cnt < 0) {
 					iowrite32(5000, ioaddr + DownCounter);
@@ -1322,7 +1322,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			netdev_error(dev, intr_status);
 	} while (0);
 	if (netif_msg_intr(np))
-		printk(KERN_DEBUG "%s: exiting interrupt, status=%#4.4x.\n",
+		printk(KERN_DE "%s: exiting interrupt, status=%#4.4x.\n",
 			   dev->name, ioread16(ioaddr + IntrStatus));
 	return IRQ_RETVAL(handled);
 }
@@ -1349,12 +1349,12 @@ static void rx_poll(unsigned long data)
 			break;
 		pkt_len = frame_status & 0x1fff;	/* Chip omits the CRC. */
 		if (netif_msg_rx_status(np))
-			printk(KERN_DEBUG "  netdev_rx() status was %8.8x.\n",
+			printk(KERN_DE "  netdev_rx() status was %8.8x.\n",
 				   frame_status);
 		if (frame_status & 0x001f4000) {
 			/* There was a error. */
 			if (netif_msg_rx_err(np))
-				printk(KERN_DEBUG "  netdev_rx() Rx error was %8.8x.\n",
+				printk(KERN_DE "  netdev_rx() Rx error was %8.8x.\n",
 					   frame_status);
 			dev->stats.rx_errors++;
 			if (frame_status & 0x00100000)
@@ -1374,7 +1374,7 @@ static void rx_poll(unsigned long data)
 			struct sk_buff *skb;
 #ifndef final_version
 			if (netif_msg_rx_status(np))
-				printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d"
+				printk(KERN_DE "  netdev_rx() normal Rx pkt length %d"
 					   ", bogus_cnt %d.\n",
 					   pkt_len, boguscnt);
 #endif
@@ -1845,11 +1845,11 @@ static int netdev_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	if (netif_msg_ifdown(np)) {
-		printk(KERN_DEBUG "%s: Shutting down ethercard, status was Tx %2.2x "
+		printk(KERN_DE "%s: Shutting down ethercard, status was Tx %2.2x "
 			   "Rx %4.4x Int %2.2x.\n",
 			   dev->name, ioread8(ioaddr + TxStatus),
 			   ioread32(ioaddr + RxStatus), ioread16(ioaddr + IntrStatus));
-		printk(KERN_DEBUG "%s: Queue pointers were Tx %d / %d,  Rx %d / %d.\n",
+		printk(KERN_DE "%s: Queue pointers were Tx %d / %d,  Rx %d / %d.\n",
 			   dev->name, np->cur_tx, np->dirty_tx, np->cur_rx, np->dirty_rx);
 	}
 
@@ -1879,21 +1879,21 @@ static int netdev_close(struct net_device *dev)
 
 #ifdef __i386__
 	if (netif_msg_hw(np)) {
-		printk(KERN_DEBUG "  Tx ring at %8.8x:\n",
+		printk(KERN_DE "  Tx ring at %8.8x:\n",
 			   (int)(np->tx_ring_dma));
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(KERN_DEBUG " #%d desc. %4.4x %8.8x %8.8x.\n",
+			printk(KERN_DE " #%d desc. %4.4x %8.8x %8.8x.\n",
 				   i, np->tx_ring[i].status, np->tx_ring[i].frag[0].addr,
 				   np->tx_ring[i].frag[0].length);
-		printk(KERN_DEBUG "  Rx ring %8.8x:\n",
+		printk(KERN_DE "  Rx ring %8.8x:\n",
 			   (int)(np->rx_ring_dma));
 		for (i = 0; i < /*RX_RING_SIZE*/4 ; i++) {
-			printk(KERN_DEBUG " #%d desc. %4.4x %4.4x %8.8x\n",
+			printk(KERN_DE " #%d desc. %4.4x %4.4x %8.8x\n",
 				   i, np->rx_ring[i].status, np->rx_ring[i].frag[0].addr,
 				   np->rx_ring[i].frag[0].length);
 		}
 	}
-#endif /* __i386__ debugging only */
+#endif /* __i386__ deging only */
 
 	free_irq(np->pci_dev->irq, dev);
 

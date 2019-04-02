@@ -148,7 +148,7 @@ int sta2x11_mfd_get_regs_data(struct platform_device *dev,
 		return -ENODEV;
 	*regs = mfd->regs[index];
 	*lock = &mfd->lock[index];
-	pr_debug("%s %d *regs = %p\n", __func__, __LINE__, *regs);
+	pr_de("%s %d *regs = %p\n", __func__, __LINE__, *regs);
 	return *regs ? 0 : -ENODEV;
 }
 EXPORT_SYMBOL(sta2x11_mfd_get_regs_data);

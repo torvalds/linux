@@ -1633,7 +1633,7 @@ static int bnx2x_complete_vlan_mac(struct bnx2x *bp,
 
 	spin_unlock_bh(&o->exe_queue.lock);
 
-	/* If ramrod failed this is most likely a SW bug */
+	/* If ramrod failed this is most likely a SW  */
 	if (cqe->message.error)
 		return -EINVAL;
 
@@ -2206,7 +2206,7 @@ void bnx2x_init_vlan_obj(struct bnx2x *bp,
 
 	if (CHIP_IS_E1x(bp)) {
 		BNX2X_ERR("Do not support chips others than E2 and newer\n");
-		BUG();
+		();
 	} else {
 		vlan_obj->set_one_rule      = bnx2x_set_one_vlan_e2;
 		vlan_obj->check_del         = bnx2x_check_vlan_del;
@@ -2254,7 +2254,7 @@ void bnx2x_init_vlan_mac_obj(struct bnx2x *bp,
 
 	if (CHIP_IS_E1(bp)) {
 		BNX2X_ERR("Do not support chips others than E2\n");
-		BUG();
+		();
 	} else if (CHIP_IS_E1H(bp)) {
 		vlan_mac_obj->set_one_rule      = bnx2x_set_one_vlan_mac_e1h;
 		vlan_mac_obj->check_del         = bnx2x_check_vlan_mac_del;
@@ -4442,14 +4442,14 @@ void bnx2x_init_vlan_credit_pool(struct bnx2x *bp,
 
 /****************** RSS Configuration ******************/
 /**
- * bnx2x_debug_print_ind_table - prints the indirection table configuration.
+ * bnx2x_de_print_ind_table - prints the indirection table configuration.
  *
  * @bp:		driver handle
  * @p:		pointer to rss configuration
  *
- * Prints it when NETIF_MSG_IFUP debug level is configured.
+ * Prints it when NETIF_MSG_IFUP de level is configured.
  */
-static inline void bnx2x_debug_print_ind_table(struct bnx2x *bp,
+static inline void bnx2x_de_print_ind_table(struct bnx2x *bp,
 					struct bnx2x_config_rss_params *p)
 {
 	int i;
@@ -4569,7 +4569,7 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 
 	/* Print the indirection table */
 	if (netif_msg_ifup(bp))
-		bnx2x_debug_print_ind_table(bp, p);
+		bnx2x_de_print_ind_table(bp, p);
 
 	/* No need for an explicit memory barrier here as long as we
 	 * ensure the ordering of writing to the SPQ element
@@ -5665,7 +5665,7 @@ void bnx2x_init_queue_obj(struct bnx2x *bp,
 	memset(obj, 0, sizeof(*obj));
 
 	/* We support only BNX2X_MULTI_TX_COS Tx CoS at the moment */
-	BUG_ON(BNX2X_MULTI_TX_COS < cid_cnt);
+	_ON(BNX2X_MULTI_TX_COS < cid_cnt);
 
 	memcpy(obj->cids, cids, sizeof(obj->cids[0]) * cid_cnt);
 	obj->max_cos = cid_cnt;

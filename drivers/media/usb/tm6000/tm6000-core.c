@@ -41,8 +41,8 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 		memcpy(data, buf, len);
 	}
 
-	if (tm6000_debug & V4L2_DEBUG_I2C) {
-		printk(KERN_DEBUG "(dev %p, pipe %08x): ", dev->udev, pipe);
+	if (tm6000_de & V4L2_DE_I2C) {
+		printk(KERN_DE "(dev %p, pipe %08x): ", dev->udev, pipe);
 
 		printk(KERN_CONT "%s: %02x %02x %02x %02x %02x %02x %02x %02x ",
 			(req_type & USB_DIR_IN) ? " IN" : "OUT",
@@ -63,10 +63,10 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	if (req_type &  USB_DIR_IN)
 		memcpy(buf, data, len);
 
-	if (tm6000_debug & V4L2_DEBUG_I2C) {
+	if (tm6000_de & V4L2_DE_I2C) {
 		if (ret < 0) {
 			if (req_type &  USB_DIR_IN)
-				printk(KERN_DEBUG "<<< (len=%d)\n", len);
+				printk(KERN_DE "<<< (len=%d)\n", len);
 
 			printk(KERN_CONT "%s: Error #%d\n", __func__, ret);
 		} else if (req_type &  USB_DIR_IN) {
@@ -317,7 +317,7 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	 * FIXME: This is a hack! xc3028 "sleeps" when no channel is detected
 	 * for more than a few seconds. Not sure why, as this behavior does
 	 * not happen on other devices with xc3028. So, I suspect that it
-	 * is yet another bug at tm6000. After start sleeping, decoding
+	 * is yet another  at tm6000. After start sleeping, decoding
 	 * doesn't start automatically. Instead, it requires some
 	 * I2C commands to wake it up. As we want to have image at the
 	 * beginning, we needed to add this hack. The better would be to

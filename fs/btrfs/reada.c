@@ -15,7 +15,7 @@
 #include "transaction.h"
 #include "dev-replace.h"
 
-#undef DEBUG
+#undef DE
 
 /*
  * This is the implementation for the generic read ahead framework.
@@ -153,9 +153,9 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 			 * prefetch for this branch, starting again from root.
 			 * FIXME: move the generation check out of this loop
 			 */
-#ifdef DEBUG
+#ifdef DE
 			if (rec->generation != generation) {
-				btrfs_debug(fs_info,
+				btrfs_de(fs_info,
 					    "generation mismatch for (%llu,%d,%llu) %llu != %llu",
 					    key.objectid, key.type, key.offset,
 					    rec->generation, generation);
@@ -433,7 +433,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		if (ret) {
 			while (--nzones >= 0) {
 				dev = re->zones[nzones]->device;
-				BUG_ON(dev == NULL);
+				_ON(dev == NULL);
 				/* ignore whether the entry was inserted */
 				radix_tree_delete(&dev->reada_extents, index);
 			}
@@ -784,7 +784,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 	rmw = kzalloc(sizeof(*rmw), GFP_KERNEL);
 	if (!rmw) {
 		/* FIXME we cannot handle this properly right now */
-		BUG();
+		();
 	}
 	btrfs_init_work(&rmw->work, btrfs_readahead_helper,
 			reada_start_machine_worker, NULL, NULL);
@@ -794,7 +794,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 	atomic_inc(&fs_info->reada_works_cnt);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 {
 	struct btrfs_device *device;
@@ -807,7 +807,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 
 	spin_lock(&fs_info->reada_lock);
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
-		btrfs_debug(fs_info, "dev %lld has %d in flight", device->devid,
+		btrfs_de(fs_info, "dev %lld has %d in flight", device->devid,
 			atomic_read(&device->reada_in_flight));
 		index = 0;
 		while (1) {
@@ -816,7 +816,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 						     (void **)&zone, index, 1);
 			if (ret == 0)
 				break;
-			pr_debug("  zone %llu-%llu elems %llu locked %d devs",
+			pr_de("  zone %llu-%llu elems %llu locked %d devs",
 				    zone->start, zone->end, zone->elems,
 				    zone->locked);
 			for (j = 0; j < zone->ndevs; ++j) {
@@ -838,7 +838,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 						     (void **)&re, index, 1);
 			if (ret == 0)
 				break;
-			pr_debug("  re: logical %llu size %u empty %d scheduled %d",
+			pr_de("  re: logical %llu size %u empty %d scheduled %d",
 				re->logical, fs_info->nodesize,
 				list_empty(&re->extctl), re->scheduled);
 
@@ -871,7 +871,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			index = (re->logical >> PAGE_SHIFT) + 1;
 			continue;
 		}
-		pr_debug("re: logical %llu size %u list empty %d scheduled %d",
+		pr_de("re: logical %llu size %u list empty %d scheduled %d",
 			re->logical, fs_info->nodesize,
 			list_empty(&re->extctl), re->scheduled);
 		for (i = 0; i < re->nzones; ++i) {
@@ -935,7 +935,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	return rc;
 }
 
-#ifdef DEBUG
+#ifdef DE
 int btrfs_reada_wait(void *handle)
 {
 	struct reada_control *rc = handle;

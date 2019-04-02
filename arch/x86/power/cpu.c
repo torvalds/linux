@@ -21,7 +21,7 @@
 #include <asm/mce.h>
 #include <asm/suspend.h>
 #include <asm/fpu/internal.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/cpu.h>
 #include <asm/mmu_context.h>
 #include <linux/dmi.h>
@@ -265,7 +265,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	tsc_verify_tsc_adjust(true);
 	x86_platform.restore_sched_clock_state();
 	mtrr_bp_restore();
-	perf_restore_debug_store();
+	perf_restore_de_store();
 	msr_restore_context(ctxt);
 }
 
@@ -332,7 +332,7 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 	case PM_HIBERNATION_PREPARE:
 		ret = bsp_check();
 		break;
-#ifdef CONFIG_DEBUG_HOTPLUG_CPU0
+#ifdef CONFIG_DE_HOTPLUG_CPU0
 	case PM_RESTORE_PREPARE:
 		/*
 		 * When system resumes from hibernation, online CPU0 because
@@ -340,7 +340,7 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 		 * 2. the CPU was online before hibernation
 		 */
 		if (!cpu_online(0))
-			_debug_hotplug_cpu(0, 1);
+			_de_hotplug_cpu(0, 1);
 		break;
 	case PM_POST_RESTORE:
 		/*
@@ -348,10 +348,10 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 		 *
 		 * This code is called only when user space hibernation software
 		 * prepares for snapshot device during boot time. So we just
-		 * call _debug_hotplug_cpu() to restore to CPU0's state prior to
+		 * call _de_hotplug_cpu() to restore to CPU0's state prior to
 		 * preparing the snapshot device.
 		 *
-		 * This works for normal boot case in our CPU0 hotplug debug
+		 * This works for normal boot case in our CPU0 hotplug de
 		 * mode, i.e. CPU0 is offline and user mode hibernation
 		 * software initializes during boot time.
 		 *
@@ -359,14 +359,14 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 		 * device after boot time, this will offline CPU0 and user may
 		 * see different CPU0 state before and after accessing
 		 * the snapshot device. But hopefully this is not a case when
-		 * user debugging CPU0 hotplug. Even if users hit this case,
+		 * user deging CPU0 hotplug. Even if users hit this case,
 		 * they can easily online CPU0 back.
 		 *
-		 * To simplify this debug code, we only consider normal boot
+		 * To simplify this de code, we only consider normal boot
 		 * case. Otherwise we need to remember CPU0's state and restore
 		 * to that state and resolve racy conditions etc.
 		 */
-		_debug_hotplug_cpu(0, 0);
+		_de_hotplug_cpu(0, 0);
 		break;
 #endif
 	default:

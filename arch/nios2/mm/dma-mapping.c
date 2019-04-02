@@ -38,7 +38,7 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 			(unsigned long)(vaddr + size));
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -56,7 +56,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 	case DMA_TO_DEVICE:
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

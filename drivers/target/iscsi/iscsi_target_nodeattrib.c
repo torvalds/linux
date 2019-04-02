@@ -67,7 +67,7 @@ int iscsit_na_dataout_timeout(
 	}
 
 	a->dataout_timeout = dataout_timeout;
-	pr_debug("Set DataOut Timeout to %u for Initiator Node"
+	pr_de("Set DataOut Timeout to %u for Initiator Node"
 		" %s\n", a->dataout_timeout, iscsit_na_get_initiatorname(acl));
 
 	return 0;
@@ -92,7 +92,7 @@ int iscsit_na_dataout_timeout_retries(
 	}
 
 	a->dataout_timeout_retries = dataout_timeout_retries;
-	pr_debug("Set DataOut Timeout Retries to %u for"
+	pr_de("Set DataOut Timeout Retries to %u for"
 		" Initiator Node %s\n", a->dataout_timeout_retries,
 		iscsit_na_get_initiatorname(acl));
 
@@ -123,7 +123,7 @@ int iscsit_na_nopin_timeout(
 	}
 
 	a->nopin_timeout = nopin_timeout;
-	pr_debug("Set NopIn Timeout to %u for Initiator"
+	pr_de("Set NopIn Timeout to %u for Initiator"
 		" Node %s\n", a->nopin_timeout,
 		iscsit_na_get_initiatorname(acl));
 	/*
@@ -173,7 +173,7 @@ int iscsit_na_nopin_response_timeout(
 	}
 
 	a->nopin_response_timeout = nopin_response_timeout;
-	pr_debug("Set NopIn Response Timeout to %u for"
+	pr_de("Set NopIn Response Timeout to %u for"
 		" Initiator Node %s\n", a->nopin_timeout,
 		iscsit_na_get_initiatorname(acl));
 
@@ -193,7 +193,7 @@ int iscsit_na_random_datain_pdu_offsets(
 	}
 
 	a->random_datain_pdu_offsets = random_datain_pdu_offsets;
-	pr_debug("Set Random DataIN PDU Offsets to %u for"
+	pr_de("Set Random DataIN PDU Offsets to %u for"
 		" Initiator Node %s\n", a->random_datain_pdu_offsets,
 		iscsit_na_get_initiatorname(acl));
 
@@ -213,7 +213,7 @@ int iscsit_na_random_datain_seq_offsets(
 	}
 
 	a->random_datain_seq_offsets = random_datain_seq_offsets;
-	pr_debug("Set Random DataIN Sequence Offsets to %u for"
+	pr_de("Set Random DataIN Sequence Offsets to %u for"
 		" Initiator Node %s\n", a->random_datain_seq_offsets,
 		iscsit_na_get_initiatorname(acl));
 
@@ -233,7 +233,7 @@ int iscsit_na_random_r2t_offsets(
 	}
 
 	a->random_r2t_offsets = random_r2t_offsets;
-	pr_debug("Set Random R2T Offsets to %u for"
+	pr_de("Set Random R2T Offsets to %u for"
 		" Initiator Node %s\n", a->random_r2t_offsets,
 		iscsit_na_get_initiatorname(acl));
 
@@ -253,7 +253,7 @@ int iscsit_na_default_erl(
 	}
 
 	a->default_erl = default_erl;
-	pr_debug("Set use ERL0 flag to %u for Initiator"
+	pr_de("Set use ERL0 flag to %u for Initiator"
 		" Node %s\n", a->default_erl,
 		iscsit_na_get_initiatorname(acl));
 

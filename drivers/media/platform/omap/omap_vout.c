@@ -71,7 +71,7 @@ static u32 video1_bufsize = OMAP_VOUT_MAX_BUF_SIZE;
 static u32 video2_bufsize = OMAP_VOUT_MAX_BUF_SIZE;
 static bool vid1_static_vrfb_alloc;
 static bool vid2_static_vrfb_alloc;
-static bool debug;
+static bool de;
 
 /* Module parameters */
 module_param(video1_numbuffers, uint, S_IRUGO);
@@ -98,8 +98,8 @@ module_param(vid2_static_vrfb_alloc, bool, S_IRUGO);
 MODULE_PARM_DESC(vid2_static_vrfb_alloc,
 	"Static allocation of the VRFB buffer for video2 device");
 
-module_param(debug, bool, S_IRUGO);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+module_param(de, bool, S_IRUGO);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 /* list of image formats supported by OMAP2 video pipelines */
 static const struct v4l2_fmtdesc omap_formats[] = {
@@ -302,7 +302,7 @@ static int omap_vout_calculate_offset(struct omap_vout_device *vout)
 			crop->top + crop->left * ps;
 	}
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "%s Offset:%x\n",
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev, "%s Offset:%x\n",
 			__func__, vout->cropped_offset);
 
 	return 0;
@@ -405,7 +405,7 @@ static int omapvid_setup_overlay(struct omap_vout_device *vout,
 		info.screen_width = 2048;
 	}
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev,
 		"%s enable=%d addr=%pad width=%d\n height=%d color_mode=%d\n"
 		"rotation=%d mirror=%d posx=%d posy=%d out_width = %d \n"
 		"out_height=%d rotation_type=%d screen_width=%d\n", __func__,
@@ -851,7 +851,7 @@ static void omap_vout_vm_open(struct vm_area_struct *vma)
 {
 	struct omap_vout_device *vout = vma->vm_private_data;
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev,
 		"vm_open [vma=%08lx-%08lx]\n", vma->vm_start, vma->vm_end);
 	vout->mmap_count++;
 }
@@ -860,7 +860,7 @@ static void omap_vout_vm_close(struct vm_area_struct *vma)
 {
 	struct omap_vout_device *vout = vma->vm_private_data;
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev,
 		"vm_close [vma=%08lx-%08lx]\n", vma->vm_start, vma->vm_end);
 	vout->mmap_count--;
 }
@@ -879,7 +879,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 	struct omap_vout_device *vout = file->private_data;
 	struct videobuf_queue *q = &vout->vbq;
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev,
 			" %s pgoff=0x%lx, start=0x%lx, end=0x%lx\n", __func__,
 			vma->vm_pgoff, vma->vm_start, vma->vm_end);
 
@@ -894,7 +894,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (VIDEO_MAX_FRAME == i) {
-		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
+		v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev,
 				"offset invalid [offset=0x%lx]\n",
 				(vma->vm_pgoff << PAGE_SHIFT));
 		return -EINVAL;
@@ -925,7 +925,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 		size -= PAGE_SIZE;
 	}
 	vout->mmap_count++;
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 
 	return 0;
 }
@@ -937,7 +937,7 @@ static int omap_vout_release(struct file *file)
 	struct omapvideo_info *ovid;
 	struct omap_vout_device *vout = file->private_data;
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 	ovid = &vout->vid_info;
 
 	if (!vout)
@@ -993,7 +993,7 @@ static int omap_vout_release(struct file *file)
 	if (vout->buffer_allocated)
 		videobuf_mmap_free(q);
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return ret;
 }
 
@@ -1007,7 +1007,7 @@ static int omap_vout_open(struct file *file)
 	if (vout == NULL)
 		return -ENODEV;
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev, "Entering %s\n", __func__);
 
 	/* for now, we only support single open */
 	if (vout->opened)
@@ -1029,7 +1029,7 @@ static int omap_vout_open(struct file *file)
 			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
 			sizeof(struct videobuf_buffer), vout, NULL);
 
-	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
+	v4l2_dbg(1, de, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return 0;
 }
 

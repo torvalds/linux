@@ -522,7 +522,7 @@ static int trace_uprobe_create(int argc, const char **argv)
 	tu = alloc_trace_uprobe(group, event, argc, is_return);
 	if (IS_ERR(tu)) {
 		ret = PTR_ERR(tu);
-		/* This must return -ENOMEM otherwise there is a bug */
+		/* This must return -ENOMEM otherwise there is a  */
 		WARN_ON_ONCE(ret != -ENOMEM);
 		goto fail_address_parse;
 	}
@@ -727,7 +727,7 @@ static int uprobe_buffer_enable(void)
 {
 	int ret = 0;
 
-	BUG_ON(!mutex_is_locked(&event_mutex));
+	_ON(!mutex_is_locked(&event_mutex));
 
 	if (uprobe_buffer_refcnt++ == 0) {
 		ret = uprobe_buffer_init();
@@ -742,7 +742,7 @@ static void uprobe_buffer_disable(void)
 {
 	int cpu;
 
-	BUG_ON(!mutex_is_locked(&event_mutex));
+	_ON(!mutex_is_locked(&event_mutex));
 
 	if (--uprobe_buffer_refcnt == 0) {
 		for_each_possible_cpu(cpu)

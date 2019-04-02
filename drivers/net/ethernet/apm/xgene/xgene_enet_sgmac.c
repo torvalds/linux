@@ -236,7 +236,7 @@ static void xgene_sgmii_reset(struct xgene_enet_pdata *p)
 
 static void xgene_sgmac_set_speed(struct xgene_enet_pdata *p)
 {
-	u32 icm0_addr, icm2_addr, debug_addr;
+	u32 icm0_addr, icm2_addr, de_addr;
 	u32 icm0, icm2, intf_ctl;
 	u32 mc2, value;
 
@@ -245,11 +245,11 @@ static void xgene_sgmac_set_speed(struct xgene_enet_pdata *p)
 	if (p->enet_id == XGENE_ENET1) {
 		icm0_addr = ICM_CONFIG0_REG_0_ADDR + p->port_id * OFFSET_8;
 		icm2_addr = ICM_CONFIG2_REG_0_ADDR + p->port_id * OFFSET_4;
-		debug_addr = DEBUG_REG_ADDR;
+		de_addr = DE_REG_ADDR;
 	} else {
 		icm0_addr = XG_MCX_ICM_CONFIG0_REG_0_ADDR;
 		icm2_addr = XG_MCX_ICM_CONFIG2_REG_0_ADDR;
-		debug_addr = XG_DEBUG_REG_ADDR;
+		de_addr = XG_DE_REG_ADDR;
 	}
 
 	icm0 = xgene_enet_rd_mcx_csr(p, icm0_addr);
@@ -277,9 +277,9 @@ static void xgene_sgmac_set_speed(struct xgene_enet_pdata *p)
 		intf_ctl |= ENET_GHD_MODE;
 		CFG_MACMODE_SET(&icm0, 2);
 		CFG_WAITASYNCRD_SET(&icm2, 16);
-		value = xgene_enet_rd_csr(p, debug_addr);
+		value = xgene_enet_rd_csr(p, de_addr);
 		value |= CFG_BYPASS_UNISEC_TX | CFG_BYPASS_UNISEC_RX;
-		xgene_enet_wr_csr(p, debug_addr, value);
+		xgene_enet_wr_csr(p, de_addr, value);
 		break;
 	}
 

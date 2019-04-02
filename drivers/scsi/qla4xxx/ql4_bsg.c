@@ -457,7 +457,7 @@ static void ql4xxx_execute_diag_cmd(struct bsg_job *bsg_job)
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 	int status = QLA_ERROR;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
+	DE2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
 
 	if (test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
 		ql4_printk(KERN_INFO, ha, "%s: Adapter reset in progress. Invalid Request\n",
@@ -470,7 +470,7 @@ static void ql4xxx_execute_diag_cmd(struct bsg_job *bsg_job)
 	memcpy(mbox_cmd, &bsg_req->rqst_data.h_vendor.vendor_cmd[1],
 	       sizeof(uint32_t) * MBOX_REG_COUNT);
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: mbox_cmd: %08X %08X %08X %08X %08X %08X %08X %08X\n",
 			  __func__, mbox_cmd[0], mbox_cmd[1], mbox_cmd[2],
 			  mbox_cmd[3], mbox_cmd[4], mbox_cmd[5], mbox_cmd[6],
@@ -479,7 +479,7 @@ static void ql4xxx_execute_diag_cmd(struct bsg_job *bsg_job)
 	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 8, &mbox_cmd[0],
 					 &mbox_sts[0]);
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: mbox_sts: %08X %08X %08X %08X %08X %08X %08X %08X\n",
 			  __func__, mbox_sts[0], mbox_sts[1], mbox_sts[2],
 			  mbox_sts[3], mbox_sts[4], mbox_sts[5], mbox_sts[6],
@@ -496,7 +496,7 @@ static void ql4xxx_execute_diag_cmd(struct bsg_job *bsg_job)
 	memcpy(rsp_ptr, mbox_sts, sizeof(mbox_sts));
 
 exit_diag_mem_test:
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: bsg_reply->result = x%x, status = %s\n",
 			  __func__, bsg_reply->result, STATUS(status)));
 
@@ -522,13 +522,13 @@ static int qla4_83xx_wait_for_loopback_config_comp(struct scsi_qla_host *ha,
 				status = QLA_ERROR;
 				goto exit_wait;
 			} else {
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "%s: IDC Complete notification received\n",
 						  __func__));
 			}
 		}
 	} else {
-		DEBUG2(ql4_printk(KERN_INFO, ha,
+		DE2(ql4_printk(KERN_INFO, ha,
 				  "%s: IDC Complete notification received\n",
 				  __func__));
 	}
@@ -543,7 +543,7 @@ static int qla4_83xx_wait_for_loopback_config_comp(struct scsi_qla_host *ha,
 			status = QLA_ERROR;
 			goto exit_wait;
 		} else {
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "%s: LINK UP notification received\n",
 					  __func__));
 		}
@@ -560,13 +560,13 @@ static int qla4_83xx_pre_loopback_config(struct scsi_qla_host *ha,
 	uint32_t config = 0;
 	int status = QLA_SUCCESS;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
+	DE2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
 
 	status = qla4_83xx_get_port_config(ha, &config);
 	if (status != QLA_SUCCESS)
 		goto exit_pre_loopback_config;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Default port config=%08X\n",
+	DE2(ql4_printk(KERN_INFO, ha, "%s: Default port config=%08X\n",
 			  __func__, config));
 
 	if ((config & ENABLE_INTERNAL_LOOPBACK) ||
@@ -584,7 +584,7 @@ static int qla4_83xx_pre_loopback_config(struct scsi_qla_host *ha,
 
 	config &= ~ENABLE_DCBX;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: New port config=%08X\n",
+	DE2(ql4_printk(KERN_INFO, ha, "%s: New port config=%08X\n",
 			  __func__, config));
 
 	ha->notify_idc_comp = 1;
@@ -600,7 +600,7 @@ static int qla4_83xx_pre_loopback_config(struct scsi_qla_host *ha,
 		goto exit_pre_loopback_config;
 	}
 exit_pre_loopback_config:
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: status = %s\n", __func__,
+	DE2(ql4_printk(KERN_INFO, ha, "%s: status = %s\n", __func__,
 			  STATUS(status)));
 	return status;
 }
@@ -611,13 +611,13 @@ static int qla4_83xx_post_loopback_config(struct scsi_qla_host *ha,
 	int status = QLA_SUCCESS;
 	uint32_t config = 0;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
+	DE2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
 
 	status = qla4_83xx_get_port_config(ha, &config);
 	if (status != QLA_SUCCESS)
 		goto exit_post_loopback_config;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: port config=%08X\n", __func__,
+	DE2(ql4_printk(KERN_INFO, ha, "%s: port config=%08X\n", __func__,
 			  config));
 
 	if (mbox_cmd[1] == QL_DIAG_CMD_TEST_INT_LOOPBACK)
@@ -627,7 +627,7 @@ static int qla4_83xx_post_loopback_config(struct scsi_qla_host *ha,
 
 	config |= ENABLE_DCBX;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: Restore default port config=%08X\n", __func__,
 			  config));
 
@@ -645,7 +645,7 @@ static int qla4_83xx_post_loopback_config(struct scsi_qla_host *ha,
 	}
 
 exit_post_loopback_config:
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: status = %s\n", __func__,
+	DE2(ql4_printk(KERN_INFO, ha, "%s: status = %s\n", __func__,
 			  STATUS(status)));
 	return status;
 }
@@ -662,7 +662,7 @@ static void qla4xxx_execute_diag_loopback_cmd(struct bsg_job *bsg_job)
 	int wait_for_link = 1;
 	int status = QLA_ERROR;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
+	DE2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
 
 	bsg_reply->reply_payload_rcv_len = 0;
 
@@ -698,7 +698,7 @@ static void qla4xxx_execute_diag_loopback_cmd(struct bsg_job *bsg_job)
 		}
 	}
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: mbox_cmd: %08X %08X %08X %08X %08X %08X %08X %08X\n",
 			  __func__, mbox_cmd[0], mbox_cmd[1], mbox_cmd[2],
 			  mbox_cmd[3], mbox_cmd[4], mbox_cmd[5], mbox_cmd[6],
@@ -712,7 +712,7 @@ static void qla4xxx_execute_diag_loopback_cmd(struct bsg_job *bsg_job)
 	else
 		bsg_reply->result = DID_ERROR << 16;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: mbox_sts: %08X %08X %08X %08X %08X %08X %08X %08X\n",
 			  __func__, mbox_sts[0], mbox_sts[1], mbox_sts[2],
 			  mbox_sts[3], mbox_sts[4], mbox_sts[5], mbox_sts[6],
@@ -743,7 +743,7 @@ restore:
 		}
 	}
 exit_loopback_cmd:
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: bsg_reply->result = x%x, status = %s\n",
 			  __func__, bsg_reply->result, STATUS(status)));
 	bsg_job_done(bsg_job, bsg_reply->result,
@@ -758,7 +758,7 @@ static int qla4xxx_execute_diag_test(struct bsg_job *bsg_job)
 	uint32_t diag_cmd;
 	int rval = -EINVAL;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
+	DE2(ql4_printk(KERN_INFO, ha, "%s: in\n", __func__));
 
 	diag_cmd = bsg_req->rqst_data.h_vendor.vendor_cmd[1];
 	if (diag_cmd == MBOX_CMD_DIAG_TEST) {

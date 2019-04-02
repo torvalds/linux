@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "pp_debug.h"
+#include "pp_de.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -699,7 +699,7 @@ static int smu8_update_sclk_limit(struct pp_hwmgr *hwmgr)
 
 	clock = hwmgr->display_config->min_core_set_clock;
 	if (clock == 0)
-		pr_debug("min_core_set_clock not set\n");
+		pr_de("min_core_set_clock not set\n");
 
 	if (data->sclk_dpm.hard_min_clk != clock) {
 		data->sclk_dpm.hard_min_clk = clock;

@@ -63,7 +63,7 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 	"__(start|stop)___kcrctab(|_gpl|_unused|_unused_gpl|_gpl_future)|"
 	"__(start|stop)___param|"
 	"__(start|stop)___modver|"
-	"__(start|stop)___bug_table|"
+	"__(start|stop)____table|"
 	"__tracedata_(start|end)|"
 	"__(start|stop)_notes|"
 	"__end_rodata|"
@@ -1060,7 +1060,7 @@ static void emit_relocs(int as_text, int use_real_mode)
 }
 
 /*
- * As an aid to debugging problems with different linkers
+ * As an aid to deging problems with different linkers
  * print summary information about the relocs.
  * Since different linkers tend to emit the sections in
  * different orders we use the section names in the output.

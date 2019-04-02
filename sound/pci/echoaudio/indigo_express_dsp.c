@@ -79,7 +79,7 @@ static int set_vmixer_gain(struct echoaudio *chip, u16 output, u16 pipe,
 {
 	int index;
 
-	if (snd_BUG_ON(pipe >= num_pipes_out(chip) ||
+	if (snd__ON(pipe >= num_pipes_out(chip) ||
 		       output >= num_busses_out(chip)))
 		return -EINVAL;
 

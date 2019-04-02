@@ -281,7 +281,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			}
 		}
 		if (!found) {
-			DRM_DEBUG_KMS("unknown crtc id %d\n", *value);
+			DRM_DE_KMS("unknown crtc id %d\n", *value);
 			return -EINVAL;
 		}
 		break;
@@ -313,7 +313,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		else if (rdev->family >= CHIP_R600)
 			*value = rdev->config.r600.tile_config;
 		else {
-			DRM_DEBUG_KMS("tiling config is r6xx+ only!\n");
+			DRM_DE_KMS("tiling config is r6xx+ only!\n");
 			return -EINVAL;
 		}
 		break;
@@ -329,7 +329,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			return -EFAULT;
 		}
 		if (*value >= 2) {
-			DRM_DEBUG_KMS("WANT_HYPERZ: invalid value %d\n", *value);
+			DRM_DE_KMS("WANT_HYPERZ: invalid value %d\n", *value);
 			return -EINVAL;
 		}
 		radeon_set_filp_rights(dev, &rdev->hyperz_filp, filp, value);
@@ -341,7 +341,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			return -EFAULT;
 		}
 		if (*value >= 2) {
-			DRM_DEBUG_KMS("WANT_CMASK: invalid value %d\n", *value);
+			DRM_DE_KMS("WANT_CMASK: invalid value %d\n", *value);
 			return -EINVAL;
 		}
 		radeon_set_filp_rights(dev, &rdev->cmask_filp, filp, value);
@@ -441,7 +441,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		break;
 	case RADEON_INFO_TIMESTAMP:
 		if (rdev->family < CHIP_R600) {
-			DRM_DEBUG_KMS("timestamp is r6xx+ only!\n");
+			DRM_DE_KMS("timestamp is r6xx+ only!\n");
 			return -EINVAL;
 		}
 		value = (uint32_t*)&value64;
@@ -503,7 +503,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			value = rdev->config.si.tile_mode_array;
 			value_size = sizeof(uint32_t)*32;
 		} else {
-			DRM_DEBUG_KMS("tile mode array is si+ only!\n");
+			DRM_DE_KMS("tile mode array is si+ only!\n");
 			return -EINVAL;
 		}
 		break;
@@ -512,7 +512,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			value = rdev->config.cik.macrotile_mode_array;
 			value_size = sizeof(uint32_t)*16;
 		} else {
-			DRM_DEBUG_KMS("macrotile mode array is cik+ only!\n");
+			DRM_DE_KMS("macrotile mode array is cik+ only!\n");
 			return -EINVAL;
 		}
 		break;
@@ -525,7 +525,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		} else if (rdev->family >= CHIP_TAHITI) {
 			*value = rdev->config.si.backend_enable_mask;
 		} else {
-			DRM_DEBUG_KMS("BACKEND_ENABLED_MASK is si+ only!\n");
+			DRM_DE_KMS("BACKEND_ENABLED_MASK is si+ only!\n");
 		}
 		break;
 	case RADEON_INFO_MAX_SCLK:
@@ -608,7 +608,7 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		*value = atomic_read(&rdev->gpu_reset_counter);
 		break;
 	default:
-		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
+		DRM_DE_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
 	if (copy_to_user(value_ptr, (char*)value, value_size)) {
@@ -802,10 +802,10 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 
 		if (((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
 		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE))) {
-			DRM_DEBUG_VBL("Query failed! stat %d\n", stat);
+			DRM_DE_VBL("Query failed! stat %d\n", stat);
 		}
 		else {
-			DRM_DEBUG_VBL("crtc %u: dist from vblank start %d\n",
+			DRM_DE_VBL("crtc %u: dist from vblank start %d\n",
 				      pipe, vpos);
 
 			/* Bump counter if we are at >= leading edge of vblank,
@@ -819,7 +819,7 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 	else {
 	    /* Fallback to use value as is. */
 	    count = radeon_get_vblank_counter(rdev, pipe);
-	    DRM_DEBUG_VBL("NULL mode info! Returned count may be wrong.\n");
+	    DRM_DE_VBL("NULL mode info! Returned count may be wrong.\n");
 	}
 
 	return count;

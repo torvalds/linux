@@ -147,7 +147,7 @@ static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch (command) {
 	case CDROMMULTISESSION:
-		pr_debug(PFX "Multisession CDs not supported\n");
+		pr_de(PFX "Multisession CDs not supported\n");
 		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
 			if (put_user(0, (char __user *)(argument + i)))
 				return -EFAULT;
@@ -161,7 +161,7 @@ static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
 		return -EINVAL;
 
 	default:
-		pr_debug(PFX "ioctl %08x not supported\n", command);
+		pr_de(PFX "ioctl %08x not supported\n", command);
 		return -EINVAL;
 	}
 }

@@ -12,7 +12,7 @@
 #include <linux/regulator/consumer.h>
 
 #include "ce.h"
-#include "debug.h"
+#include "de.h"
 #include "hif.h"
 #include "htc.h"
 #include "snoc.h"
@@ -1003,7 +1003,7 @@ static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 
 	/* If both ATH10K_FLAG_CRASH_FLUSH and ATH10K_SNOC_FLAG_RECOVERY
 	 * flags are not set, it means that the driver has restarted
-	 * due to a crash inject via debugfs. In this case, the driver
+	 * due to a crash inject via defs. In this case, the driver
 	 * needs to restart the firmware and hence send qmi wlan disable,
 	 * during the driver restart sequence.
 	 */

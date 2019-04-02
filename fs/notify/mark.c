@@ -616,7 +616,7 @@ restart:
 		}
 	}
 
-	BUG_ON(last == NULL);
+	_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
 	hlist_add_behind_rcu(&mark->obj_list, &last->obj_list);
 added:
@@ -639,7 +639,7 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	struct fsnotify_group *group = mark->group;
 	int ret = 0;
 
-	BUG_ON(!mutex_is_locked(&group->mark_mutex));
+	_ON(!mutex_is_locked(&group->mark_mutex));
 
 	/*
 	 * LOCKING ORDER!!!!

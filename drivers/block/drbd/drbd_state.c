@@ -714,7 +714,7 @@ _drbd_request_state_holding_state_mutex(struct drbd_device *device, union drbd_s
 {
 	enum drbd_state_rv rv;
 
-	BUG_ON(f & CS_SERIALIZE);
+	_ON(f & CS_SERIALIZE);
 
 	wait_event_cmd(device->state_wait,
 		       (rv = drbd_req_state(device, mask, val, f)) != SS_IN_TRANSIENT_STATE,
@@ -2240,7 +2240,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 			ns.disk = os.disk;
 
 		rv = _drbd_set_state(device, ns, flags, NULL);
-		BUG_ON(rv < SS_SUCCESS);
+		_ON(rv < SS_SUCCESS);
 		ns.i = device->state.i;
 		ns_max.role = max_role(ns.role, ns_max.role);
 		ns_max.peer = max_role(ns.peer, ns_max.peer);

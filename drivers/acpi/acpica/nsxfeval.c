@@ -207,10 +207,10 @@ acpi_evaluate_object(acpi_handle handle,
 		 * an error.
 		 */
 		if (!pathname) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Both Handle and Pathname are NULL"));
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Null Handle with relative pathname [%s]",
 					  pathname));
 		}
@@ -404,7 +404,7 @@ acpi_evaluate_object(acpi_handle handle,
 			 * Caller's buffer is too small or a new one can't
 			 * be allocated
 			 */
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Needed buffer size %X, %s\n",
 					  (u32)buffer_space_needed,
 					  acpi_format_exception(status)));

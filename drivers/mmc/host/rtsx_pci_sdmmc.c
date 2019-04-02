@@ -70,7 +70,7 @@ static inline void sd_clear_error(struct realtek_pci_sdmmc *host)
 			SD_STOP | SD_CLR_ERR, SD_STOP | SD_CLR_ERR);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void dump_reg_range(struct realtek_pci_sdmmc *host, u16 start, u16 end)
 {
 	u16 len = end - start + 1;
@@ -90,14 +90,14 @@ static void dump_reg_range(struct realtek_pci_sdmmc *host, u16 start, u16 end)
 	}
 }
 
-static void sd_print_debug_regs(struct realtek_pci_sdmmc *host)
+static void sd_print_de_regs(struct realtek_pci_sdmmc *host)
 {
 	dump_reg_range(host, 0xFDA0, 0xFDB3);
 	dump_reg_range(host, 0xFD52, 0xFD69);
 }
 #else
-#define sd_print_debug_regs(host)
-#endif /* DEBUG */
+#define sd_print_de_regs(host)
+#endif /* DE */
 
 static inline int sd_get_cd_int(struct realtek_pci_sdmmc *host)
 {
@@ -278,7 +278,7 @@ static void sd_send_cmd_get_rsp(struct realtek_pci_sdmmc *host,
 
 	err = rtsx_pci_send_cmd(pcr, timeout);
 	if (err < 0) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 		sd_clear_error(host);
 		dev_dbg(sdmmc_dev(host),
 			"rtsx_pci_send_cmd error (err = %d)\n", err);
@@ -371,7 +371,7 @@ static int sd_read_data(struct realtek_pci_sdmmc *host, struct mmc_command *cmd,
 
 	err = rtsx_pci_send_cmd(pcr, timeout);
 	if (err < 0) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 		dev_dbg(sdmmc_dev(host),
 			"rtsx_pci_send_cmd fail (err = %d)\n", err);
 		return err;
@@ -427,7 +427,7 @@ static int sd_write_data(struct realtek_pci_sdmmc *host,
 
 	err = rtsx_pci_send_cmd(pcr, timeout);
 	if (err < 0) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 		dev_dbg(sdmmc_dev(host),
 			"rtsx_pci_send_cmd fail (err = %d)\n", err);
 		return err;
@@ -486,7 +486,7 @@ static int sd_read_long_data(struct realtek_pci_sdmmc *host,
 
 	err = rtsx_pci_dma_transfer(pcr, data->sg, host->sg_count, 1, 10000);
 	if (err < 0) {
-		sd_print_debug_regs(host);
+		sd_print_de_regs(host);
 		sd_clear_error(host);
 		return err;
 	}

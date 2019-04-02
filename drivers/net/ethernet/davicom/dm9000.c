@@ -46,7 +46,7 @@
 
 #include "dm9000.h"
 
-/* Board/System/Debug information/definition ---------------- */
+/* Board/System/De information/definition ---------------- */
 
 #define DM9000_PHY		0x40	/* PHY address 0x01 */
 
@@ -61,11 +61,11 @@ module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
 /*
- * Debug messages level
+ * De messages level
  */
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "dm9000 debug level (0-6)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "dm9000 de level (0-6)");
 
 /* DM9000 register address locking.
  *
@@ -106,7 +106,7 @@ struct board_info {
 	u16		queue_pkt_len;
 	u16		queue_start_addr;
 	u16		queue_ip_summed;
-	u16		dbug_cnt;
+	u16		d_cnt;
 	u8		io_mode;		/* 0:word, 2:byte */
 	u8		phy_addr;
 	u8		imr_all;
@@ -145,10 +145,10 @@ struct board_info {
 	int		ip_summed;
 };
 
-/* debug code */
+/* de code */
 
 #define dm9000_dbg(db, lev, msg...) do {		\
-	if ((lev) < debug) {				\
+	if ((lev) < de) {				\
 		dev_dbg(db->dev, msg);			\
 	}						\
 } while (0)
@@ -1330,7 +1330,7 @@ dm9000_open(struct net_device *dev)
 	dm9000_unmask_interrupts(db);
 
 	/* Init driver variable */
-	db->dbug_cnt = 0;
+	db->d_cnt = 0;
 
 	mii_check_media(&db->mii, netif_msg_link(db), 1);
 	netif_start_queue(dev);

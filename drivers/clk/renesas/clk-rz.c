@@ -38,7 +38,7 @@ static u16 __init rz_cpg_read_mode_pins(void)
 
 	ppr0 = ioremap_nocache(PPR0, 2);
 	pibc0 = ioremap_nocache(PIBC0, 2);
-	BUG_ON(!ppr0 || !pibc0);
+	_ON(!ppr0 || !pibc0);
 	iowrite16(4, pibc0);	/* enable input buffer */
 	modes = ioread16(ppr0);
 	iounmap(ppr0);
@@ -95,7 +95,7 @@ static void __init rz_cpg_clocks_init(struct device_node *np)
 
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
 	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
-	BUG_ON(!cpg || !clks);
+	_ON(!cpg || !clks);
 
 	cpg->data.clks = clks;
 	cpg->data.clk_num = num_clks;

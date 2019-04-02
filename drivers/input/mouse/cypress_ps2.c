@@ -27,7 +27,7 @@
 
 #include "cypress_ps2.h"
 
-#undef CYTP_DEBUG_VERBOSE  /* define this and DEBUG for more verbose dump */
+#undef CYTP_DE_VERBOSE  /* define this and DE for more verbose dump */
 
 static void cypress_set_packet_size(struct psmouse *psmouse, unsigned int n)
 {
@@ -52,7 +52,7 @@ static int cypress_ps2_sendbyte(struct psmouse *psmouse, int value)
 			return CYTP_PS2_ERROR;
 	}
 
-#ifdef CYTP_DEBUG_VERBOSE
+#ifdef CYTP_DE_VERBOSE
 	psmouse_dbg(psmouse, "sending command 0x%02x succeeded, resp 0xfa\n",
 			value & 0xff);
 #endif
@@ -288,7 +288,7 @@ static int cypress_read_tp_metrics(struct psmouse *psmouse)
 	cytp->tp_res_x = cytp->tp_max_abs_x / cytp->tp_width;
 	cytp->tp_res_y = cytp->tp_max_abs_y / cytp->tp_high;
 
-#ifdef CYTP_DEBUG_VERBOSE
+#ifdef CYTP_DE_VERBOSE
 	psmouse_dbg(psmouse, "Dump trackpad hardware configuration as below:\n");
 	psmouse_dbg(psmouse, "cytp->tp_width = %d\n", cytp->tp_width);
 	psmouse_dbg(psmouse, "cytp->tp_high = %d\n", cytp->tp_high);
@@ -490,7 +490,7 @@ static int cypress_parse_packet(struct psmouse *psmouse,
 	if (report_data->tap)
 		report_data->left = 0;
 
-#ifdef CYTP_DEBUG_VERBOSE
+#ifdef CYTP_DE_VERBOSE
 	{
 		int i;
 		int n = report_data->contact_cnt;

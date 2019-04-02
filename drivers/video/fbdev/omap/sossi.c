@@ -316,7 +316,7 @@ static void set_cycles(unsigned int len)
 {
 	unsigned long nr_cycles = len / (sossi.bus_pick_width / 8);
 
-	BUG_ON((nr_cycles - 1) & ~0x3ffff);
+	_ON((nr_cycles - 1) & ~0x3ffff);
 
 	sossi_clear_bits(SOSSI_INIT1_REG, 0x3ffff);
 	sossi_set_bits(SOSSI_INIT1_REG, (nr_cycles - 1) & 0x3ffff);
@@ -348,7 +348,7 @@ static int sossi_convert_timings(struct extif_timings *t)
 
 static void sossi_set_timings(const struct extif_timings *t)
 {
-	BUG_ON(!t->converted);
+	_ON(!t->converted);
 
 	sossi.clk_tw0[RD_ACCESS] = t->tim[0];
 	sossi.clk_tw1[RD_ACCESS] = t->tim[1];
@@ -384,7 +384,7 @@ static void sossi_set_bits_per_cycle(int bpc)
 		bus_pick_width = 16;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 	sossi.bus_pick_width = bus_pick_width;
@@ -488,7 +488,7 @@ static void sossi_write_data(const void *data, unsigned int len)
 static void sossi_transfer_area(int width, int height,
 				void (callback)(void *data), void *data)
 {
-	BUG_ON(callback == NULL);
+	_ON(callback == NULL);
 
 	sossi.lcdc_callback = callback;
 	sossi.lcdc_callback_data = data;

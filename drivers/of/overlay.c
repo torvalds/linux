@@ -483,7 +483,7 @@ static int build_changeset_next_level(struct overlay_changeset *ovcs,
 	for_each_property_of_node(overlay_node, prop) {
 		ret = add_changeset_property(ovcs, target, prop, 0);
 		if (ret) {
-			pr_debug("Failed to apply prop @%pOF/%s, err=%d\n",
+			pr_de("Failed to apply prop @%pOF/%s, err=%d\n",
 				 target->np, prop->name, ret);
 			return ret;
 		}
@@ -492,7 +492,7 @@ static int build_changeset_next_level(struct overlay_changeset *ovcs,
 	for_each_child_of_node(overlay_node, child) {
 		ret = add_changeset_node(ovcs, target, child);
 		if (ret) {
-			pr_debug("Failed to apply node @%pOF/%pOFn, err=%d\n",
+			pr_de("Failed to apply node @%pOF/%pOFn, err=%d\n",
 				 target->np, child, ret);
 			of_node_put(child);
 			return ret;
@@ -515,7 +515,7 @@ static int build_changeset_symbols_node(struct overlay_changeset *ovcs,
 	for_each_property_of_node(overlay_symbols_node, prop) {
 		ret = add_changeset_property(ovcs, target, prop, 1);
 		if (ret) {
-			pr_debug("Failed to apply symbols prop @%pOF/%s, err=%d\n",
+			pr_de("Failed to apply symbols prop @%pOF/%s, err=%d\n",
 				 target->np, prop->name, ret);
 			return ret;
 		}
@@ -651,7 +651,7 @@ static int build_changeset(struct overlay_changeset *ovcs)
 		ret = build_changeset_next_level(ovcs, &target,
 						 fragment->overlay);
 		if (ret) {
-			pr_debug("fragment apply failed '%pOF'\n",
+			pr_de("fragment apply failed '%pOF'\n",
 				 fragment->target);
 			return ret;
 		}
@@ -665,7 +665,7 @@ static int build_changeset(struct overlay_changeset *ovcs)
 		ret = build_changeset_symbols_node(ovcs, &target,
 						   fragment->overlay);
 		if (ret) {
-			pr_debug("symbols fragment apply failed '%pOF'\n",
+			pr_de("symbols fragment apply failed '%pOF'\n",
 				 fragment->target);
 			return ret;
 		}
@@ -737,13 +737,13 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 	 * of_unittest_apply_overlay() is fixed to pass these checks.
 	 */
 	if (!of_node_check_flag(tree, OF_DYNAMIC))
-		pr_debug("%s() tree is not dynamic\n", __func__);
+		pr_de("%s() tree is not dynamic\n", __func__);
 
 	if (!of_node_check_flag(tree, OF_DETACHED))
-		pr_debug("%s() tree is not detached\n", __func__);
+		pr_de("%s() tree is not detached\n", __func__);
 
 	if (!of_node_is_root(tree))
-		pr_debug("%s() tree is not root\n", __func__);
+		pr_de("%s() tree is not root\n", __func__);
 
 	ovcs->overlay_tree = tree;
 	ovcs->fdt = fdt;
@@ -964,7 +964,7 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 	ret = __of_changeset_apply_entries(&ovcs->cset, &ret_revert);
 	if (ret) {
 		if (ret_revert) {
-			pr_debug("overlay changeset revert error %d\n",
+			pr_de("overlay changeset revert error %d\n",
 				 ret_revert);
 			devicetree_state_flags |= DTSF_APPLY_FAIL;
 		}
@@ -1003,7 +1003,7 @@ out_unlock:
 	of_overlay_mutex_unlock();
 
 out:
-	pr_debug("%s() err=%d\n", __func__, ret);
+	pr_de("%s() err=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -1253,7 +1253,7 @@ out_unlock:
 	mutex_unlock(&of_mutex);
 
 out:
-	pr_debug("%s() err=%d\n", __func__, ret);
+	pr_de("%s() err=%d\n", __func__, ret);
 
 	return ret;
 }

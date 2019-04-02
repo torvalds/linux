@@ -1626,7 +1626,7 @@ doorbell:
 	return 1;
 
 append_fail:
-	/* Use original PCI dev for debug log */
+	/* Use original PCI dev for de log */
 	nic = nic->pnicvf;
 	netdev_dbg(nic->netdev, "Not enough SQ descriptors to xmit pkt\n");
 	return 0;

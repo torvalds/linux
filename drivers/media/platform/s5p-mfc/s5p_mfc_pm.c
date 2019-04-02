@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include "s5p_mfc_common.h"
-#include "s5p_mfc_debug.h"
+#include "s5p_mfc_de.h"
 #include "s5p_mfc_pm.h"
 
 static struct s5p_mfc_pm *pm;
@@ -60,7 +60,7 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 int s5p_mfc_clock_on(void)
 {
 	atomic_inc(&clk_ref);
-	mfc_debug(3, "+ %d\n", atomic_read(&clk_ref));
+	mfc_de(3, "+ %d\n", atomic_read(&clk_ref));
 
 	return clk_enable(pm->clock_gate);
 }
@@ -68,7 +68,7 @@ int s5p_mfc_clock_on(void)
 void s5p_mfc_clock_off(void)
 {
 	atomic_dec(&clk_ref);
-	mfc_debug(3, "- %d\n", atomic_read(&clk_ref));
+	mfc_de(3, "- %d\n", atomic_read(&clk_ref));
 
 	clk_disable(pm->clock_gate);
 }

@@ -53,8 +53,8 @@ POSSIBLE PROBLEMS
 See next section, if you have any.
 
 
-BUG REPORTS
+ REPORTS
 ===========
 
-Any ufs bug report you can send to daniel.pirkl@email.cz or
-to dushistov@mail.ru (do not send partition tables bug reports).
+Any ufs  report you can send to daniel.pirkl@email.cz or
+to dushistov@mail.ru (do not send partition tables  reports).

@@ -56,7 +56,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 			skb = priv->data_low_tx[index];
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING,
+			DE(SHOW_TRACING,
 			      "cleanup skb %p skb->data %p skb->len %u truesize %u\n",
 			      skb, skb->data, skb->len, skb->truesize);
 #endif
@@ -89,7 +89,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	u32 curr_frag;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_transmit\n");
+	DE(SHOW_FUNCTION_CALLS, "islpci_eth_transmit\n");
 #endif
 
 	/* lock the driver code */
@@ -121,7 +121,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			unsigned char *src = skb->data;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING, "skb offset %i wds %i\n", offset,
+			DE(SHOW_TRACING, "skb offset %i wds %i\n", offset,
 			      init_wds);
 #endif
 
@@ -130,7 +130,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			if (init_wds) {
 				/* wds requires an additional address field of 6 bytes */
 				skb_put(skb, 6);
-#ifdef ISLPCI_ETH_DEBUG
+#ifdef ISLPCI_ETH_DE
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif
 				memmove(skb->data + 6, src, skb->len);
@@ -140,7 +140,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			}
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING, "memmove %p %p %i\n", skb->data,
+			DE(SHOW_TRACING, "memmove %p %p %i\n", skb->data,
 			      src, skb->len);
 #endif
 		} else {
@@ -163,7 +163,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 							  newskb->data + 6,
 							  skb->len);
 				skb_copy_to_linear_data(newskb, wds_mac, 6);
-#ifdef ISLPCI_ETH_DEBUG
+#ifdef ISLPCI_ETH_DE
 				printk("islpci_eth_transmit:wds_mac\n");
 #endif
 			} else
@@ -171,7 +171,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 							  skb->len);
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING, "memcpy %p %p %i wds %i\n",
+			DE(SHOW_TRACING, "memcpy %p %p %i wds %i\n",
 			      newskb->data, skb->data, skb->len, init_wds);
 #endif
 
@@ -180,9 +180,9 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			skb = newskb;
 		}
 	}
-	/* display the buffer contents for debugging */
+	/* display the buffer contents for deging */
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_BUFFER_CONTENTS, "\ntx %p ", skb->data);
+	DE(SHOW_BUFFER_CONTENTS, "\ntx %p ", skb->data);
 	display_buffer((char *) skb->data, skb->len);
 #endif
 
@@ -314,7 +314,7 @@ islpci_eth_receive(islpci_private *priv)
 	int discard = 0;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_receive\n");
+	DE(SHOW_FUNCTION_CALLS, "islpci_eth_receive\n");
 #endif
 
 	/* the device has written an Ethernet frame in the data area
@@ -327,7 +327,7 @@ islpci_eth_receive(islpci_private *priv)
 		  (unsigned long) skb->data) & 3;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_TRACING,
+	DE(SHOW_TRACING,
 	      "frq->addr %x skb->data %p skb->len %u offset %u truesize %u\n",
 	      control_block->rx_data_low[priv->free_data_rx].address, skb->data,
 	      skb->len, offset, skb->truesize);
@@ -346,8 +346,8 @@ islpci_eth_receive(islpci_private *priv)
 		skb_put(skb, 2);
 	}
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	/* display the buffer contents for debugging */
-	DEBUG(SHOW_BUFFER_CONTENTS, "\nrx %p ", skb->data);
+	/* display the buffer contents for deging */
+	DE(SHOW_BUFFER_CONTENTS, "\nrx %p ", skb->data);
 	display_buffer((char *) skb->data, skb->len);
 #endif
 
@@ -360,11 +360,11 @@ islpci_eth_receive(islpci_private *priv)
 		skb_trim(skb, skb->len - 6);
 	}
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_TRACING, "Fragment size %i in skb at %p\n", size, skb);
-	DEBUG(SHOW_TRACING, "Skb data at %p, length %i\n", skb->data, skb->len);
+	DE(SHOW_TRACING, "Fragment size %i in skb at %p\n", size, skb);
+	DE(SHOW_TRACING, "Skb data at %p, length %i\n", skb->data, skb->len);
 
-	/* display the buffer contents for debugging */
-	DEBUG(SHOW_BUFFER_CONTENTS, "\nrx %p ", skb->data);
+	/* display the buffer contents for deging */
+	DE(SHOW_BUFFER_CONTENTS, "\nrx %p ", skb->data);
 	display_buffer((char *) skb->data, skb->len);
 #endif
 	/* take care of monitor mode and spy monitoring. */
@@ -401,7 +401,7 @@ islpci_eth_receive(islpci_private *priv)
 	ndev->stats.rx_bytes += size;
 
 	/* deliver the skb to the network layer */
-#ifdef ISLPCI_ETH_DEBUG
+#ifdef ISLPCI_ETH_DE
 	printk
 	    ("islpci_eth_receive:netif_rx %2.2X %2.2X %2.2X %2.2X %2.2X %2.2X\n",
 	     skb->data[0], skb->data[1], skb->data[2], skb->data[3],
@@ -426,7 +426,7 @@ islpci_eth_receive(islpci_private *priv)
 		skb = dev_alloc_skb(MAX_FRAGMENT_SIZE_RX + 2);
 		if (unlikely(skb == NULL)) {
 			/* error allocating an sk_buff structure elements */
-			DEBUG(SHOW_ERROR_MESSAGES, "Error allocating skb\n");
+			DE(SHOW_ERROR_MESSAGES, "Error allocating skb\n");
 			break;
 		}
 		skb_reserve(skb, (4 - (long) skb->data) & 0x03);
@@ -435,7 +435,7 @@ islpci_eth_receive(islpci_private *priv)
 		priv->data_low_rx[index] = skb;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-		DEBUG(SHOW_TRACING,
+		DE(SHOW_TRACING,
 		      "new alloc skb %p skb->data %p skb->len %u index %u truesize %u\n",
 		      skb, skb->data, skb->len, index, skb->truesize);
 #endif
@@ -448,7 +448,7 @@ islpci_eth_receive(islpci_private *priv)
 		if (pci_dma_mapping_error(priv->pdev,
 					  priv->pci_map_rx_address[index])) {
 			/* error mapping the buffer to device accessible memory address */
-			DEBUG(SHOW_ERROR_MESSAGES,
+			DE(SHOW_ERROR_MESSAGES,
 			      "Error mapping DMA address\n");
 
 			/* free the skbuf structure before aborting */

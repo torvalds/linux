@@ -20,7 +20,7 @@ interrupt handlers for shared IRQs that device drivers implementing them were
 not prepared for interrupts triggering after their devices had been suspended.
 In some cases they would attempt to access, for example, memory address spaces
 of suspended devices and cause unpredictable behavior to ensue as a result.
-Unfortunately, such problems are very difficult to debug and the introduction
+Unfortunately, such problems are very difficult to de and the introduction
 of suspend_device_irqs(), along with the "noirq" phase of device suspend and
 resume, was the only practical way to mitigate them.
 

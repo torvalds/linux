@@ -129,11 +129,11 @@
 #define TDA10048_CONF_TS2          0xE0
 #define TDA10048_CONF_TS1          0xE1
 
-static unsigned int debug;
+static unsigned int de;
 
 #define dprintk(level, fmt, arg...)\
-	do { if (debug >= level)\
-		printk(KERN_DEBUG "tda10048: " fmt, ## arg);\
+	do { if (de >= level)\
+		printk(KERN_DE "tda10048: " fmt, ## arg);\
 	} while (0)
 
 struct tda10048_state {
@@ -1179,8 +1179,8 @@ static const struct dvb_frontend_ops tda10048_ops = {
 	.read_ucblocks = tda10048_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable verbose de messages");
 
 MODULE_DESCRIPTION("NXP TDA10048HN DVB-T Demodulator driver");
 MODULE_AUTHOR("Steven Toth");

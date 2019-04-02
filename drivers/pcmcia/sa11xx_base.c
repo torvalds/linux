@@ -101,7 +101,7 @@ sa1100_pcmcia_set_mecr(struct soc_pcmcia_socket *skt, unsigned int cpu_clock)
 
 	local_irq_restore(flags);
 
-	debug(skt, 2, "FAST %X  BSM %X  BSA %X  BSIO %X\n",
+	de(skt, 2, "FAST %X  BSM %X  BSA %X  BSIO %X\n",
 	      MECR_FAST_GET(mecr, skt->nr),
 	      MECR_BSM_GET(mecr, skt->nr), MECR_BSA_GET(mecr, skt->nr),
 	      MECR_BSIO_GET(mecr, skt->nr));

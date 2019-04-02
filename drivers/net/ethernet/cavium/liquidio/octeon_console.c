@@ -695,7 +695,7 @@ int octeon_add_console(struct octeon_device *oct, u32 console_num,
 		delay = OCTEON_CONSOLE_POLL_INTERVAL_MS;
 		schedule_delayed_work(work, msecs_to_jiffies(delay));
 
-		/* an empty string means use default debug console enablement */
+		/* an empty string means use default de console enablement */
 		if (dbg_enb && !dbg_enb[0])
 			dbg_enb = "setenv pci_console_active 1";
 		if (dbg_enb)
@@ -898,7 +898,7 @@ int octeon_download_firmware(struct octeon_device *oct, const u8 *data,
 	 * firmware and periodically update the host time to NIC firmware.
 	 * This is to make NIC firmware use the same time reference as Host,
 	 * so that it is easy to correlate logs from firmware and host for
-	 * debugging.
+	 * deging.
 	 *
 	 * Octeon always uses UTC time. so timezone information is not sent.
 	 */

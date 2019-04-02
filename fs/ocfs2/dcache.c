@@ -43,7 +43,7 @@ void ocfs2_dentry_attach_gen(struct dentry *dentry)
 {
 	unsigned long gen =
 		OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
-	BUG_ON(d_inode(dentry));
+	_ON(d_inode(dentry));
 	dentry->d_fsdata = (void *)gen;
 }
 
@@ -81,7 +81,7 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 		goto valid;
 	}
 
-	BUG_ON(!osb);
+	_ON(!osb);
 
 	if (inode == osb->root_inode || is_bad_inode(inode))
 		goto bail;
@@ -250,7 +250,7 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	}
 
 	if (dl) {
-		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
+		mlog__on_msg(dl->dl_parent_blkno != parent_blkno,
 				" \"%pd\": old parent: %llu, new: %llu\n",
 				dentry,
 				(unsigned long long)parent_blkno,
@@ -272,11 +272,11 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 		 * since we have it pinned, so our reference is safe.
 		 */
 		dl = alias->d_fsdata;
-		mlog_bug_on_msg(!dl, "parent %llu, ino %llu\n",
+		mlog__on_msg(!dl, "parent %llu, ino %llu\n",
 				(unsigned long long)parent_blkno,
 				(unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
+		mlog__on_msg(dl->dl_parent_blkno != parent_blkno,
 				" \"%pd\": old parent: %llu, new: %llu\n",
 				dentry,
 				(unsigned long long)parent_blkno,
@@ -332,7 +332,7 @@ out_attach:
 	 */
 	if (ret < 0 && !alias) {
 		ocfs2_lock_res_free(&dl->dl_lockres);
-		BUG_ON(dl->dl_count != 1);
+		_ON(dl->dl_count != 1);
 		spin_lock(&dentry_attach_lock);
 		dentry->d_fsdata = NULL;
 		spin_unlock(&dentry_attach_lock);
@@ -380,7 +380,7 @@ void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
 {
 	int unlock = 0;
 
-	BUG_ON(dl->dl_count == 0);
+	_ON(dl->dl_count == 0);
 
 	spin_lock(&dentry_attach_lock);
 	dl->dl_count--;
@@ -413,7 +413,7 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 		goto out;
 	}
 
-	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %pd, count: %u\n",
+	mlog__on_msg(dl->dl_count == 0, "dentry: %pd, count: %u\n",
 			dentry, dl->dl_count);
 
 	ocfs2_dentry_lock_put(OCFS2_SB(dentry->d_sb), dl);

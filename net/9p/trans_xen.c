@@ -443,7 +443,7 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 	for (i = 0; i < priv->num_rings; i++) {
 		char str[16];
 
-		BUILD_BUG_ON(XEN_9PFS_NUM_RINGS > 9);
+		BUILD__ON(XEN_9PFS_NUM_RINGS > 9);
 		sprintf(str, "ring-ref%u", i);
 		ret = xenbus_printf(xbt, dev->nodename, str, "%d",
 				    priv->rings[i].ref);

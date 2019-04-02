@@ -716,7 +716,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 
-	/* reset the data toggle on the bulk endpoints to work around bug in
+	/* reset the data toggle on the bulk endpoints to work around  in
 	 * host controllers where things get out of sync some times */
 	usb_clear_halt(dev, port->write_urb->pipe);
 	usb_clear_halt(dev, port->read_urb->pipe);
@@ -1222,7 +1222,7 @@ static void ti_bulk_in_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length) {
-		usb_serial_debug_data(dev, __func__, urb->actual_length,
+		usb_serial_de_data(dev, __func__, urb->actual_length,
 				      urb->transfer_buffer);
 
 		if (!tport->tp_is_open)
@@ -1318,7 +1318,7 @@ static void ti_send(struct ti_port *tport)
 
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
-	usb_serial_debug_data(&port->dev, __func__, count,
+	usb_serial_de_data(&port->dev, __func__, count,
 			      port->write_urb->transfer_buffer);
 
 	usb_fill_bulk_urb(port->write_urb, port->serial->dev,

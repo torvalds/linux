@@ -37,7 +37,7 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
 		*vec = present;
 	walk->private = vec;
 #else
-	BUG();
+	();
 #endif
 	return 0;
 }

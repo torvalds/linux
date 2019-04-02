@@ -154,7 +154,7 @@ static void dn_rehash_zone(struct dn_zone *dz)
 		new_hashmask = 0xFF;
 		break;
 	default:
-		printk(KERN_DEBUG "DECnet: dn_rehash_zone: BUG! %d\n",
+		printk(KERN_DE "DECnet: dn_rehash_zone: ! %d\n",
 		       old_divisor);
 		/* fall through */
 	case 256:
@@ -393,7 +393,7 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
 			       f->fn_type, f->fn_scope, &f->fn_key, z,
 			       DN_FIB_INFO(f), 0);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in dn_fib_nlmsg_size() */
+		/* -EMSGSIZE implies  in dn_fib_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -857,7 +857,7 @@ struct dn_fib_table *dn_fib_get_table(u32 n, int create)
 		return NULL;
 
 	if (in_interrupt()) {
-		net_dbg_ratelimited("DECnet: BUG! Attempt to create routing table from interrupt\n");
+		net_dbg_ratelimited("DECnet: ! Attempt to create routing table from interrupt\n");
 		return NULL;
 	}
 

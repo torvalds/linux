@@ -32,8 +32,8 @@ nv04_timer_time(struct nvkm_timer *tmr, u64 time)
 	u32 hi = upper_32_bits(time);
 	u32 lo = lower_32_bits(time);
 
-	nvkm_debug(subdev, "time low        : %08x\n", lo);
-	nvkm_debug(subdev, "time high       : %08x\n", hi);
+	nvkm_de(subdev, "time low        : %08x\n", lo);
+	nvkm_de(subdev, "time high       : %08x\n", hi);
 
 	nvkm_wr32(device, NV04_PTIMER_TIME_1, hi);
 	nvkm_wr32(device, NV04_PTIMER_TIME_0, lo);
@@ -125,10 +125,10 @@ nv04_timer_init(struct nvkm_timer *tmr)
 		d >>= 1;
 	}
 
-	nvkm_debug(subdev, "input frequency : %dHz\n", f);
-	nvkm_debug(subdev, "numerator       : %08x\n", n);
-	nvkm_debug(subdev, "denominator     : %08x\n", d);
-	nvkm_debug(subdev, "timer frequency : %dHz\n", f * d / n);
+	nvkm_de(subdev, "input frequency : %dHz\n", f);
+	nvkm_de(subdev, "numerator       : %08x\n", n);
+	nvkm_de(subdev, "denominator     : %08x\n", d);
+	nvkm_de(subdev, "timer frequency : %dHz\n", f * d / n);
 
 	nvkm_wr32(device, NV04_PTIMER_NUMERATOR, n);
 	nvkm_wr32(device, NV04_PTIMER_DENOMINATOR, d);

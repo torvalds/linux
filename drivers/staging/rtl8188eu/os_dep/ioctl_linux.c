@@ -11,7 +11,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <wlan_bssdef.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <wifi.h>
 #include <rtw_mlme.h>
 #include <rtw_mlme_ext.h>
@@ -1930,7 +1930,7 @@ static int rtw_wx_get_nick(struct net_device *dev,
 		memcpy(extra, "<WIFI@REALTEK>", 14);
 	}
 
-	/* dump debug info here */
+	/* dump de info here */
 	return 0;
 }
 

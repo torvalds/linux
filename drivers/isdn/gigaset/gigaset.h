@@ -60,53 +60,53 @@
 
 #define MAXACT 3
 
-extern int gigaset_debuglevel;	/* "needs" cast to (enum debuglevel) */
+extern int gigaset_delevel;	/* "needs" cast to (enum delevel) */
 
-/* debug flags, combine by adding/bitwise OR */
-enum debuglevel {
-	DEBUG_INTR	  = 0x00008, /* interrupt processing */
-	DEBUG_CMD	  = 0x00020, /* sent/received LL commands */
-	DEBUG_STREAM	  = 0x00040, /* application data stream I/O events */
-	DEBUG_STREAM_DUMP = 0x00080, /* application data stream content */
-	DEBUG_LLDATA	  = 0x00100, /* sent/received LL data */
-	DEBUG_EVENT	  = 0x00200, /* event processing */
-	DEBUG_HDLC	  = 0x00800, /* M10x HDLC processing */
-	DEBUG_CHANNEL	  = 0x01000, /* channel allocation/deallocation */
-	DEBUG_TRANSCMD	  = 0x02000, /* AT-COMMANDS+RESPONSES */
-	DEBUG_MCMD	  = 0x04000, /* COMMANDS THAT ARE SENT VERY OFTEN */
-	DEBUG_INIT	  = 0x08000, /* (de)allocation+initialization of data
+/* de flags, combine by adding/bitwise OR */
+enum delevel {
+	DE_INTR	  = 0x00008, /* interrupt processing */
+	DE_CMD	  = 0x00020, /* sent/received LL commands */
+	DE_STREAM	  = 0x00040, /* application data stream I/O events */
+	DE_STREAM_DUMP = 0x00080, /* application data stream content */
+	DE_LLDATA	  = 0x00100, /* sent/received LL data */
+	DE_EVENT	  = 0x00200, /* event processing */
+	DE_HDLC	  = 0x00800, /* M10x HDLC processing */
+	DE_CHANNEL	  = 0x01000, /* channel allocation/deallocation */
+	DE_TRANSCMD	  = 0x02000, /* AT-COMMANDS+RESPONSES */
+	DE_MCMD	  = 0x04000, /* COMMANDS THAT ARE SENT VERY OFTEN */
+	DE_INIT	  = 0x08000, /* (de)allocation+initialization of data
 					structures */
-	DEBUG_SUSPEND	  = 0x10000, /* suspend/resume processing */
-	DEBUG_OUTPUT	  = 0x20000, /* output to device */
-	DEBUG_ISO	  = 0x40000, /* isochronous transfers */
-	DEBUG_IF	  = 0x80000, /* character device operations */
-	DEBUG_USBREQ	  = 0x100000, /* USB communication (except payload
+	DE_SUSPEND	  = 0x10000, /* suspend/resume processing */
+	DE_OUTPUT	  = 0x20000, /* output to device */
+	DE_ISO	  = 0x40000, /* isochronous transfers */
+	DE_IF	  = 0x80000, /* character device operations */
+	DE_USBREQ	  = 0x100000, /* USB communication (except payload
 					 data) */
-	DEBUG_LOCKCMD	  = 0x200000, /* AT commands and responses when
+	DE_LOCKCMD	  = 0x200000, /* AT commands and responses when
 					 MS_LOCKED */
 
-	DEBUG_ANY	  = 0x3fffff, /* print message if any of the others is
+	DE_ANY	  = 0x3fffff, /* print message if any of the others is
 					 activated */
 };
 
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 
 #define gig_dbg(level, format, arg...)					\
 	do {								\
-		if (unlikely(((enum debuglevel)gigaset_debuglevel) & (level))) \
-			printk(KERN_DEBUG KBUILD_MODNAME ": " format "\n", \
+		if (unlikely(((enum delevel)gigaset_delevel) & (level))) \
+			printk(KERN_DE KBUILD_MODNAME ": " format "\n", \
 			       ## arg);					\
 	} while (0)
-#define DEBUG_DEFAULT (DEBUG_TRANSCMD | DEBUG_CMD | DEBUG_USBREQ)
+#define DE_DEFAULT (DE_TRANSCMD | DE_CMD | DE_USBREQ)
 
 #else
 
 #define gig_dbg(level, format, arg...) do {} while (0)
-#define DEBUG_DEFAULT 0
+#define DE_DEFAULT 0
 
 #endif
 
-void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
+void gigaset_dbg_buffer(enum delevel level, const unsigned char *msg,
 			size_t len, const unsigned char *buf);
 
 /* connection state */
@@ -362,7 +362,7 @@ struct bc_state {
 	struct sk_buff *tx_skb;		/* Current transfer buffer to modem */
 	struct sk_buff_head squeue;	/* B-Channel send Queue */
 
-	/* Variables for debugging .. */
+	/* Variables for deging .. */
 	int corrupted;			/* Counter for corrupted packages */
 	int trans_down;			/* Counter of packages (downstream) */
 	int trans_up;			/* Counter of packages (upstream) */
@@ -384,7 +384,7 @@ struct bc_state {
 	unsigned proto2;		/* layer 2 protocol (L2_*) */
 	char *commands[AT_NUM];		/* see AT_XXXX */
 
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 	int emptycount;
 #endif
 	int busy;

@@ -451,7 +451,7 @@ struct qede_fastpath {
 	char	name[VEC_NAME_SIZE];
 };
 
-/* Debug print definitions */
+/* De print definitions */
 #define DP_NAME(edev) ((edev)->ndev->name)
 
 #define XMIT_PLAIN		0
@@ -537,7 +537,7 @@ int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 void qede_set_dcbnl_ops(struct net_device *ndev);
 #endif
 
-void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
+void qede_config_de(uint de, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,
 		 struct qede_reload_args *args, bool is_locked);

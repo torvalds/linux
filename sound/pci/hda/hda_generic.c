@@ -1234,7 +1234,7 @@ static const char *get_line_out_pfx(struct hda_codec *codec, int ch,
 		return "Line Out";
 
 	if (ch >= ARRAY_SIZE(channel_name)) {
-		snd_BUG();
+		snd_();
 		return "PCM";
 	}
 
@@ -1880,17 +1880,17 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	return badness;
 }
 
-#define DEBUG_BADNESS
+#define DE_BADNESS
 
-#ifdef DEBUG_BADNESS
-#define debug_badness(fmt, ...)						\
+#ifdef DE_BADNESS
+#define de_badness(fmt, ...)						\
 	codec_dbg(codec, fmt, ##__VA_ARGS__)
 #else
-#define debug_badness(fmt, ...)						\
+#define de_badness(fmt, ...)						\
 	do { if (0) codec_dbg(codec, fmt, ##__VA_ARGS__); } while (0)
 #endif
 
-#ifdef DEBUG_BADNESS
+#ifdef DE_BADNESS
 static inline void print_nid_path_idx(struct hda_codec *codec,
 				      const char *pfx, int idx)
 {
@@ -1901,14 +1901,14 @@ static inline void print_nid_path_idx(struct hda_codec *codec,
 		print_nid_path(codec, pfx, path);
 }
 
-static void debug_show_configs(struct hda_codec *codec,
+static void de_show_configs(struct hda_codec *codec,
 			       struct auto_pin_cfg *cfg)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	static const char * const lo_type[3] = { "LO", "SP", "HP" };
 	int i;
 
-	debug_badness("multi_outs = %x/%x/%x/%x : %x/%x/%x/%x (type %s)\n",
+	de_badness("multi_outs = %x/%x/%x/%x : %x/%x/%x/%x (type %s)\n",
 		      cfg->line_out_pins[0], cfg->line_out_pins[1],
 		      cfg->line_out_pins[2], cfg->line_out_pins[3],
 		      spec->multiout.dac_nids[0],
@@ -1919,7 +1919,7 @@ static void debug_show_configs(struct hda_codec *codec,
 	for (i = 0; i < cfg->line_outs; i++)
 		print_nid_path_idx(codec, "  out", spec->out_paths[i]);
 	if (spec->multi_ios > 0)
-		debug_badness("multi_ios(%d) = %x/%x : %x/%x\n",
+		de_badness("multi_ios(%d) = %x/%x : %x/%x\n",
 			      spec->multi_ios,
 			      spec->multi_io[0].pin, spec->multi_io[1].pin,
 			      spec->multi_io[0].dac, spec->multi_io[1].dac);
@@ -1927,7 +1927,7 @@ static void debug_show_configs(struct hda_codec *codec,
 		print_nid_path_idx(codec, "  mio",
 				   spec->out_paths[cfg->line_outs + i]);
 	if (cfg->hp_outs)
-		debug_badness("hp_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
+		de_badness("hp_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
 		      cfg->hp_pins[0], cfg->hp_pins[1],
 		      cfg->hp_pins[2], cfg->hp_pins[3],
 		      spec->multiout.hp_out_nid[0],
@@ -1937,7 +1937,7 @@ static void debug_show_configs(struct hda_codec *codec,
 	for (i = 0; i < cfg->hp_outs; i++)
 		print_nid_path_idx(codec, "  hp ", spec->hp_paths[i]);
 	if (cfg->speaker_outs)
-		debug_badness("spk_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
+		de_badness("spk_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
 		      cfg->speaker_pins[0], cfg->speaker_pins[1],
 		      cfg->speaker_pins[2], cfg->speaker_pins[3],
 		      spec->multiout.extra_out_nid[0],
@@ -1950,7 +1950,7 @@ static void debug_show_configs(struct hda_codec *codec,
 		print_nid_path_idx(codec, "  mix", spec->aamix_out_paths[i]);
 }
 #else
-#define debug_show_configs(codec, cfg) /* NOP */
+#define de_show_configs(codec, cfg) /* NOP */
 #endif
 
 /* find all available DACs of the codec */
@@ -1996,10 +1996,10 @@ static int parse_output_paths(struct hda_codec *codec)
 			kfree(best_cfg);
 			return badness;
 		}
-		debug_badness("==> lo_type=%d, wired=%d, mio=%d, badness=0x%x\n",
+		de_badness("==> lo_type=%d, wired=%d, mio=%d, badness=0x%x\n",
 			      cfg->line_out_type, fill_hardwired, fill_mio_first,
 			      badness);
-		debug_show_configs(codec, cfg);
+		de_show_configs(codec, cfg);
 		if (badness < best_badness) {
 			best_badness = badness;
 			*best_cfg = *cfg;
@@ -2049,13 +2049,13 @@ static int parse_output_paths(struct hda_codec *codec)
 	}
 
 	if (badness) {
-		debug_badness("==> restoring best_cfg\n");
+		de_badness("==> restoring best_cfg\n");
 		*cfg = *best_cfg;
 		fill_and_eval_dacs(codec, best_wired, best_mio);
 	}
-	debug_badness("==> Best config: lo_type=%d, wired=%d, mio=%d\n",
+	de_badness("==> Best config: lo_type=%d, wired=%d, mio=%d\n",
 		      cfg->line_out_type, best_wired, best_mio);
-	debug_show_configs(codec, cfg);
+	de_show_configs(codec, cfg);
 
 	if (cfg->line_out_pins[0]) {
 		struct nid_path *path;
@@ -3393,13 +3393,13 @@ static struct nid_path *get_input_path(struct hda_codec *codec, int adc_idx, int
 {
 	struct hda_gen_spec *spec = codec->spec;
 	if (imux_idx < 0 || imux_idx >= HDA_MAX_NUM_INPUTS) {
-		snd_BUG();
+		snd_();
 		return NULL;
 	}
 	if (spec->dyn_adc_switch)
 		adc_idx = spec->dyn_adc_idx[imux_idx];
 	if (adc_idx < 0 || adc_idx >= AUTO_CFG_MAX_INS) {
-		snd_BUG();
+		snd_();
 		return NULL;
 	}
 	return snd_hda_get_path_from_idx(codec, spec->input_paths[imux_idx][adc_idx]);

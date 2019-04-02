@@ -15,7 +15,7 @@
  * published by the Free Software Foundation.
  */
 
-#undef PARPORT_DEBUG_SHARING		/* undef for production */
+#undef PARPORT_DE_SHARING		/* undef for production */
 
 #include <linux/module.h>
 #include <linux/string.h>
@@ -700,7 +700,7 @@ parport_register_device(struct parport *port, const char *name,
 
 	if (port->physport->flags & PARPORT_FLAG_EXCL) {
 		/* An exclusive device is registered. */
-		printk(KERN_DEBUG "%s: no more devices allowed\n",
+		printk(KERN_DE "%s: no more devices allowed\n",
 			port->name);
 		return NULL;
 	}
@@ -768,7 +768,7 @@ parport_register_device(struct parport *port, const char *name,
 	if (flags & PARPORT_DEV_EXCL) {
 		if (port->physport->devices) {
 			spin_unlock(&port->physport->pardevice_lock);
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"%s: cannot grant exclusive access for device %s\n",
 				port->name, name);
 			goto out_free_all;
@@ -910,7 +910,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 	if (par_dev_cb->flags & PARPORT_DEV_EXCL) {
 		if (port->physport->devices) {
 			spin_unlock(&port->physport->pardevice_lock);
-			pr_debug("%s: cannot grant exclusive access for device %s\n",
+			pr_de("%s: cannot grant exclusive access for device %s\n",
 				 port->name, name);
 			device_unregister(&par_dev->dev);
 			goto err_put_port;
@@ -988,7 +988,7 @@ void parport_unregister_device(struct pardevice *dev)
 	}
 
 	if (port->cad == dev) {
-		printk(KERN_DEBUG "%s: %s forgot to release port\n",
+		printk(KERN_DE "%s: %s forgot to release port\n",
 		       port->name, dev->name);
 		parport_release(dev);
 	}
@@ -1237,8 +1237,8 @@ int parport_claim_or_block(struct pardevice *dev)
 	/* Try to claim the port.  If this fails, we need to sleep.  */
 	r = parport_claim(dev);
 	if (r == -EAGAIN) {
-#ifdef PARPORT_DEBUG_SHARING
-		printk(KERN_DEBUG "%s: parport_claim() returned -EAGAIN\n", dev->name);
+#ifdef PARPORT_DE_SHARING
+		printk(KERN_DE "%s: parport_claim() returned -EAGAIN\n", dev->name);
 #endif
 		/*
 		 * FIXME!!! Use the proper locking for dev->waiting,
@@ -1261,15 +1261,15 @@ int parport_claim_or_block(struct pardevice *dev)
 			r = 1;
 		} else {
 			r = 0;
-#ifdef PARPORT_DEBUG_SHARING
-			printk(KERN_DEBUG "%s: didn't sleep in parport_claim_or_block()\n",
+#ifdef PARPORT_DE_SHARING
+			printk(KERN_DE "%s: didn't sleep in parport_claim_or_block()\n",
 			       dev->name);
 #endif
 		}
 
-#ifdef PARPORT_DEBUG_SHARING
+#ifdef PARPORT_DE_SHARING
 		if (dev->port->physport->cad != dev)
-			printk(KERN_DEBUG "%s: exiting parport_claim_or_block but %s owns port!\n",
+			printk(KERN_DE "%s: exiting parport_claim_or_block but %s owns port!\n",
 			       dev->name, dev->port->physport->cad ?
 			       dev->port->physport->cad->name:"nobody");
 #endif

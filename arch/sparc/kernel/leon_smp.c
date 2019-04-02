@@ -140,7 +140,7 @@ static void leon_smp_setbroadcast(unsigned int mask)
 		prom_printf("######## !!!! The irqmp-ctrl must have broadcast enabled, smp wont work !!!!! ####### nr cpus: %d\n",
 		     leon_smp_nrcpus());
 		if (leon_smp_nrcpus() > 1) {
-			BUG();
+			();
 		} else {
 			prom_printf("continue anyway\n");
 			return;

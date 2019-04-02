@@ -55,11 +55,11 @@
  *         is only incorrect by 30-60mS (vs. 1S previously) (Gabor J. Toth
  *         <jtoth@princeton.edu>); improve interaction between
  *         screen-blanking and gpm (Stephen Rothwell); Linux 1.99.4
- *    1.2a:Simple change to stop mysterious bug reports with SMP also added
+ *    1.2a:Simple change to stop mysterious  reports with SMP also added
  *	   levels to the printk calls. APM is not defined for SMP machines.
  *         The new replacement for it is, but Linux doesn't yet support this.
  *         Alan Cox Linux 2.1.55
- *    1.3: Set up a valid data descriptor 0x40 for buggy BIOS's
+ *    1.3: Set up a valid data descriptor 0x40 for gy BIOS's
  *    1.4: Upgraded to support APM 1.2. Integrated ThinkPad suspend patch by
  *         Dean Gaudet <dgaudet@arctic.org>.
  *         C. Scott Ananian <cananian@alumni.princeton.edu> Linux 2.1.87
@@ -106,7 +106,7 @@
  *         Allow more inititialisation on SMP.
  *         Remove CONFIG_APM_POWER_OFF and make it boot time
  *         configurable (default on).
- *         Make debug only a boot time parameter (remove APM_DEBUG).
+ *         Make de only a boot time parameter (remove APM_DE).
  *         Try to blank all devices on any error.
  *   1.11: Remove APM dependencies in drivers/char/console.c
  *         Check nr_running to detect if we are idle (from
@@ -157,7 +157,7 @@
  *         (Crutcher Dunnavant <crutcher+kernel@datastacks.com>).
  *         Make CONFIG_APM_REAL_MODE_POWER_OFF run time configurable.
  *         (Arjan van de Ven <arjanv@redhat.com>) modified by sfr.
- *         Work around byte swap bug in one of the Vaio's BIOS's
+ *         Work around byte swap  in one of the Vaio's BIOS's
  *         (Marc Boucher <marc@mbsi.ca>).
  *         Exposed the disable flag to dmi so that we can handle known
  *         broken APM (Alan Cox <alan@lxorguk.ukuu.org.uk>).
@@ -179,7 +179,7 @@
  *         idle_threshold (sfr).
  *         Change name of kernel apm daemon (as it no longer idles) (sfr).
  *   1.16ac: Fix up SMP support somewhat. You can now force SMP on and we
- *	   make _all_ APM calls on the CPU#0. Fix unsafe sign bug.
+ *	   make _all_ APM calls on the CPU#0. Fix unsafe sign .
  *	   TODO: determine if its "boot CPU" or "CPU0" we want to lock to.
  *
  * APM 1.1 Reference:
@@ -260,7 +260,7 @@ extern int (*console_blank_hook)(int);
  *	    [no-]broken[-_]psr		BIOS has a broken GetPowerStatus call
  *	    [no-]realmode[-_]power[-_]off	switch to real mode before
  *	    					powering off
- *	    [no-]debug			log some debugging messages
+ *	    [no-]de			log some deging messages
  *	    [no-]power[-_]off		power off on shutdown
  *	    [no-]smp			Use apm even on an SMP box
  *	    bounce[-_]interval=<n>	number of ticks to ignore suspend
@@ -406,7 +406,7 @@ static int ignore_sys_suspend;
 static int ignore_normal_resume;
 static int bounce_interval __read_mostly = DEFAULT_BOUNCE_INTERVAL;
 
-static bool debug __read_mostly;
+static bool de __read_mostly;
 static bool smp __read_mostly;
 static int apm_disabled = -1;
 #ifdef CONFIG_SMP
@@ -431,7 +431,7 @@ static DEFINE_MUTEX(apm_mutex);
 /*
  * Set up a segment that references the real mode segment 0x40
  * that extends up to the end of page zero (that we have reserved).
- * This is for buggy BIOS's that refer to (real mode) segment 0x40
+ * This is for gy BIOS's that refer to (real mode) segment 0x40
  * even though they are called in protected mode.
  */
 static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092,
@@ -609,7 +609,7 @@ static long __apm_bios_call(void *_call)
 	struct apm_bios_call	*call = _call;
 
 	cpu = get_cpu();
-	BUG_ON(cpu != 0);
+	_ON(cpu != 0);
 	gdt = get_cpu_gdt_rw(cpu);
 	save_desc_40 = gdt[0x40 / 8];
 	gdt[0x40 / 8] = bad_bios_desc;
@@ -687,7 +687,7 @@ static long __apm_bios_call_simple(void *_call)
 	struct apm_bios_call	*call = _call;
 
 	cpu = get_cpu();
-	BUG_ON(cpu != 0);
+	_ON(cpu != 0);
 	gdt = get_cpu_gdt_rw(cpu);
 	save_desc_40 = gdt[0x40 / 8];
 	gdt[0x40 / 8] = bad_bios_desc;
@@ -863,7 +863,7 @@ static int apm_do_idle(void)
 		 * Only report the failure the first 5 times.
 		 */
 		if (++t < 5) {
-			printk(KERN_DEBUG "apm_do_idle failed (%d)\n", err);
+			printk(KERN_DE "apm_do_idle failed (%d)\n", err);
 			t = jiffies;
 		}
 		return -1;
@@ -981,7 +981,7 @@ recalc:
  *
  *	Handle the power off sequence. This is the one piece of code we
  *	will execute even on SMP machines. In order to deal with BIOS
- *	bugs we support real mode APM BIOS power off calls. We also make
+ *	s we support real mode APM BIOS power off calls. We also make
  *	the SMP call on CPU0 as some systems will only honour this call
  *	on their first cpu.
  */
@@ -1333,12 +1333,12 @@ static void check_events(void)
 	static int ignore_bounce;
 
 	while ((event = get_event()) != 0) {
-		if (debug) {
+		if (de) {
 			if (event <= NR_APM_EVENT_NAME)
-				printk(KERN_DEBUG "apm: received %s notify\n",
+				printk(KERN_DE "apm: received %s notify\n",
 				       apm_event_name[event - 1]);
 			else
-				printk(KERN_DEBUG "apm: received unknown "
+				printk(KERN_DE "apm: received unknown "
 				       "event 0x%02x\n", event);
 		}
 		if (ignore_bounce
@@ -1424,8 +1424,8 @@ static void apm_event_handler(void)
 		if ((apm_info.connection_version > 0x100) &&
 		    (pending_count-- <= 0)) {
 			pending_count = 4;
-			if (debug)
-				printk(KERN_DEBUG "apm: setting state busy\n");
+			if (de)
+				printk(KERN_DE "apm: setting state busy\n");
 			err = set_system_power_state(APM_STATE_BUSY);
 			if (err)
 				apm_error("busy", err);
@@ -1738,7 +1738,7 @@ static int apm(void *unused)
 	 * Method suggested by Ingo Molnar.
 	 */
 	set_cpus_allowed_ptr(current, cpumask_of(0));
-	BUG_ON(smp_processor_id() != 0);
+	_ON(smp_processor_id() != 0);
 
 	if (apm_info.connection_version == 0) {
 		apm_info.connection_version = apm_info.bios.version;
@@ -1757,7 +1757,7 @@ static int apm(void *unused)
 		}
 	}
 
-	if (debug)
+	if (de)
 		printk(KERN_INFO "apm: Connection version %d.%d\n",
 			(apm_info.connection_version >> 8) & 0xff,
 			apm_info.connection_version & 0xff);
@@ -1786,7 +1786,7 @@ static int apm(void *unused)
 		}
 	}
 
-	if (debug && (num_online_cpus() == 1 || smp)) {
+	if (de && (num_online_cpus() == 1 || smp)) {
 		error = apm_get_power_status(&bx, &cx, &dx);
 		if (error)
 			printk(KERN_INFO "apm: power status not available\n");
@@ -1883,8 +1883,8 @@ static int __init apm_setup(char *str)
 			(strncmp(str, "no_", 3) == 0);
 		if (invert)
 			str += 3;
-		if (strncmp(str, "debug", 5) == 0)
-			debug = !invert;
+		if (strncmp(str, "de", 5) == 0)
+			de = !invert;
 		if ((strncmp(str, "power-off", 9) == 0) ||
 		    (strncmp(str, "power_off", 9) == 0))
 			power_off = !invert;
@@ -1941,7 +1941,7 @@ static int __init print_if_true(const struct dmi_system_id *d)
  */
 static int __init broken_ps2_resume(const struct dmi_system_id *d)
 {
-	printk(KERN_INFO "%s machine detected. Mousepad Resume Bug "
+	printk(KERN_INFO "%s machine detected. Mousepad Resume  "
 	       "workaround hopefully not needed.\n", d->ident);
 	return 0;
 }
@@ -1985,7 +1985,7 @@ static int __init apm_is_horked_d850md(const struct dmi_system_id *d)
 		apm_info.disabled = 1;
 		printk(KERN_INFO "%s machine detected. "
 		       "Disabling APM.\n", d->ident);
-		printk(KERN_INFO "This bug is fixed in bios P15 which is available for\n");
+		printk(KERN_INFO "This  is fixed in bios P15 which is available for\n");
 		printk(KERN_INFO "download from support.intel.com\n");
 	}
 	return 0;
@@ -2020,7 +2020,7 @@ static int __init apm_likes_to_melt(const struct dmi_system_id *d)
 static int __init broken_apm_power(const struct dmi_system_id *d)
 {
 	apm_info.get_power_status_broken = 1;
-	printk(KERN_WARNING "BIOS strings suggest APM bugs, "
+	printk(KERN_WARNING "BIOS strings suggest APM s, "
 	       "disabling power status reporting.\n");
 	return 0;
 }
@@ -2301,7 +2301,7 @@ static int __init apm_init(void)
 	if (apm_info.bios.version < 0x102)
 		apm_info.bios.cseg_16_len = 0; /* 64k */
 
-	if (debug) {
+	if (de) {
 		printk(KERN_INFO "apm: entry %x:%x cseg16 %x dseg %x",
 			apm_info.bios.cseg, apm_info.bios.offset,
 			apm_info.bios.cseg_16, apm_info.bios.dseg);
@@ -2421,8 +2421,8 @@ module_exit(apm_exit);
 MODULE_AUTHOR("Stephen Rothwell");
 MODULE_DESCRIPTION("Advanced Power Management");
 MODULE_LICENSE("GPL");
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Enable debug mode");
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "Enable de mode");
 module_param(power_off, bool, 0444);
 MODULE_PARM_DESC(power_off, "Enable power off");
 module_param(bounce_interval, int, 0444);

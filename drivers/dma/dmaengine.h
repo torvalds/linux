@@ -6,7 +6,7 @@
 #ifndef DMAENGINE_H
 #define DMAENGINE_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/dmaengine.h>
 
 /**
@@ -51,7 +51,7 @@ static inline dma_cookie_t dma_cookie_assign(struct dma_async_tx_descriptor *tx)
  */
 static inline void dma_cookie_complete(struct dma_async_tx_descriptor *tx)
 {
-	BUG_ON(tx->cookie < DMA_MIN_COOKIE);
+	_ON(tx->cookie < DMA_MIN_COOKIE);
 	tx->chan->completed_cookie = tx->cookie;
 	tx->cookie = 0;
 }

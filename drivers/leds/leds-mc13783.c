@@ -102,7 +102,7 @@ static int mc13xxx_led_set(struct led_classdev *led_cdev,
 		shift = 3 + (led->id - MC34708_LED_R) * 12;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return mc13xxx_reg_rmw(leds->master, leds->devtype->ledctrl_base + reg,

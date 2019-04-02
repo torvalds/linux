@@ -229,7 +229,7 @@ void radeon_encoder_set_active_device(struct drm_encoder *encoder)
 		if (connector->encoder == encoder) {
 			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 			radeon_encoder->active_device = radeon_encoder->devices & radeon_connector->devices;
-			DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
+			DRM_DE_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
 				  radeon_encoder->active_device, radeon_encoder->devices,
 				  radeon_connector->devices, encoder->encoder_type);
 		}

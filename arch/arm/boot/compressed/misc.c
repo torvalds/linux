@@ -28,7 +28,7 @@ static void putstr(const char *ptr);
 
 #include CONFIG_UNCOMPRESS_INCLUDE
 
-#ifdef CONFIG_DEBUG_ICEDCC
+#ifdef CONFIG_DE_ICEDCC
 
 #if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 

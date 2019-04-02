@@ -22,18 +22,18 @@
 #define LIBUNWIND__ARCH_REG_SP PERF_REG_ARM64_SP
 
 #include "unwind.h"
-#include "debug.h"
+#include "de.h"
 #include "libunwind-aarch64.h"
 #include <../../../../arch/arm64/include/uapi/asm/perf_regs.h>
 #include "../../arch/arm64/util/unwind-libunwind.c"
 
-/* NO_LIBUNWIND_DEBUG_FRAME is a feature flag for local libunwind,
- * assign NO_LIBUNWIND_DEBUG_FRAME_AARCH64 to it for compiling arm64
+/* NO_LIBUNWIND_DE_FRAME is a feature flag for local libunwind,
+ * assign NO_LIBUNWIND_DE_FRAME_AARCH64 to it for compiling arm64
  * unwind methods.
  */
-#undef NO_LIBUNWIND_DEBUG_FRAME
-#ifdef NO_LIBUNWIND_DEBUG_FRAME_AARCH64
-#define NO_LIBUNWIND_DEBUG_FRAME
+#undef NO_LIBUNWIND_DE_FRAME
+#ifdef NO_LIBUNWIND_DE_FRAME_AARCH64
+#define NO_LIBUNWIND_DE_FRAME
 #endif
 #include "util/unwind-libunwind-local.c"
 

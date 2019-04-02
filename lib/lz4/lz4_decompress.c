@@ -44,7 +44,7 @@
  *	Decompression functions
  *******************************/
 
-#define DEBUGLOG(l, ...) {}	/* disabled */
+#define DELOG(l, ...) {}	/* disabled */
 
 #ifndef assert
 #define assert(condition) ((void)0)
@@ -100,7 +100,7 @@ static FORCE_INLINE int LZ4_decompress_generic(
 	const BYTE *const shortoend = oend -
 		(endOnInput ? 14 : 8) /*maxLL*/ - 18 /*maxML*/;
 
-	DEBUGLOG(5, "%s (srcSize:%i, dstSize:%i)", __func__,
+	DELOG(5, "%s (srcSize:%i, dstSize:%i)", __func__,
 		 srcSize, outputSize);
 
 	/* Special cases */

@@ -18,7 +18,7 @@
  * Copyright (c) 2014 Oracle Co., Daniel Kiper
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/string.h>
@@ -47,7 +47,7 @@ efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 		return EFI_UNSUPPORTED;
 
 	if (tm) {
-		BUILD_BUG_ON(sizeof(*tm) != sizeof(efi_data(op).u.get_time.time));
+		BUILD__ON(sizeof(*tm) != sizeof(efi_data(op).u.get_time.time));
 		memcpy(tm, &efi_data(op).u.get_time.time, sizeof(*tm));
 	}
 
@@ -66,7 +66,7 @@ efi_status_t xen_efi_set_time(efi_time_t *tm)
 {
 	struct xen_platform_op op = INIT_EFI_OP(set_time);
 
-	BUILD_BUG_ON(sizeof(*tm) != sizeof(efi_data(op).u.set_time));
+	BUILD__ON(sizeof(*tm) != sizeof(efi_data(op).u.set_time));
 	memcpy(&efi_data(op).u.set_time, tm, sizeof(*tm));
 
 	if (HYPERVISOR_platform_op(&op) < 0)
@@ -85,7 +85,7 @@ efi_status_t xen_efi_get_wakeup_time(efi_bool_t *enabled, efi_bool_t *pending,
 		return EFI_UNSUPPORTED;
 
 	if (tm) {
-		BUILD_BUG_ON(sizeof(*tm) != sizeof(efi_data(op).u.get_wakeup_time));
+		BUILD__ON(sizeof(*tm) != sizeof(efi_data(op).u.get_wakeup_time));
 		memcpy(tm, &efi_data(op).u.get_wakeup_time, sizeof(*tm));
 	}
 
@@ -103,7 +103,7 @@ efi_status_t xen_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 {
 	struct xen_platform_op op = INIT_EFI_OP(set_wakeup_time);
 
-	BUILD_BUG_ON(sizeof(*tm) != sizeof(efi_data(op).u.set_wakeup_time));
+	BUILD__ON(sizeof(*tm) != sizeof(efi_data(op).u.set_wakeup_time));
 	if (enabled)
 		efi_data(op).misc = XEN_EFI_SET_WAKEUP_TIME_ENABLE;
 	if (tm)
@@ -125,7 +125,7 @@ efi_status_t xen_efi_get_variable(efi_char16_t *name, efi_guid_t *vendor,
 	struct xen_platform_op op = INIT_EFI_OP(get_variable);
 
 	set_xen_guest_handle(efi_data(op).u.get_variable.name, name);
-	BUILD_BUG_ON(sizeof(*vendor) !=
+	BUILD__ON(sizeof(*vendor) !=
 		     sizeof(efi_data(op).u.get_variable.vendor_guid));
 	memcpy(&efi_data(op).u.get_variable.vendor_guid, vendor, sizeof(*vendor));
 	efi_data(op).u.get_variable.size = *data_size;
@@ -150,7 +150,7 @@ efi_status_t xen_efi_get_next_variable(unsigned long *name_size,
 
 	efi_data(op).u.get_next_variable_name.size = *name_size;
 	set_xen_guest_handle(efi_data(op).u.get_next_variable_name.name, name);
-	BUILD_BUG_ON(sizeof(*vendor) !=
+	BUILD__ON(sizeof(*vendor) !=
 		     sizeof(efi_data(op).u.get_next_variable_name.vendor_guid));
 	memcpy(&efi_data(op).u.get_next_variable_name.vendor_guid, vendor,
 	       sizeof(*vendor));
@@ -174,7 +174,7 @@ efi_status_t xen_efi_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 
 	set_xen_guest_handle(efi_data(op).u.set_variable.name, name);
 	efi_data(op).misc = attr;
-	BUILD_BUG_ON(sizeof(*vendor) !=
+	BUILD__ON(sizeof(*vendor) !=
 		     sizeof(efi_data(op).u.set_variable.vendor_guid));
 	memcpy(&efi_data(op).u.set_variable.vendor_guid, vendor, sizeof(*vendor));
 	efi_data(op).u.set_variable.size = data_size;
@@ -277,7 +277,7 @@ void xen_efi_reset_system(int reset_type, efi_status_t status,
 		xen_reboot(SHUTDOWN_poweroff);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL_GPL(xen_efi_reset_system);

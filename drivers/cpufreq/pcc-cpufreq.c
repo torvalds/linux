@@ -148,7 +148,7 @@ static unsigned int pcc_get_freq(unsigned int cpu)
 
 	spin_lock(&pcc_lock);
 
-	pr_debug("get: get_freq for CPU %d\n", cpu);
+	pr_de("get: get_freq for CPU %d\n", cpu);
 	pcc_cpu_data = per_cpu_ptr(pcc_cpu_info, cpu);
 
 	input_buffer = 0x1;
@@ -166,7 +166,7 @@ static unsigned int pcc_get_freq(unsigned int cpu)
 
 	status = ioread16(&pcch_hdr->status);
 	if (status != CMD_COMPLETE) {
-		pr_debug("get: FAILED: for CPU %d, status is %d\n",
+		pr_de("get: FAILED: for CPU %d, status is %d\n",
 			cpu, status);
 		goto cmd_incomplete;
 	}
@@ -174,14 +174,14 @@ static unsigned int pcc_get_freq(unsigned int cpu)
 	curr_freq = (((ioread32(&pcch_hdr->nominal) * (output_buffer & 0xff))
 			/ 100) * 1000);
 
-	pr_debug("get: SUCCESS: (virtual) output_offset for cpu %d is "
+	pr_de("get: SUCCESS: (virtual) output_offset for cpu %d is "
 		"0x%p, contains a value of: 0x%x. Speed is: %d MHz\n",
 		cpu, (pcch_virt_addr + pcc_cpu_data->output_offset),
 		output_buffer, curr_freq);
 
 	freq_limit = (output_buffer >> 8) & 0xff;
 	if (freq_limit != 0xff) {
-		pr_debug("get: frequency for cpu %d is being temporarily"
+		pr_de("get: frequency for cpu %d is being temporarily"
 			" capped at %d\n", cpu, curr_freq);
 	}
 
@@ -207,7 +207,7 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	cpu = policy->cpu;
 	pcc_cpu_data = per_cpu_ptr(pcc_cpu_info, cpu);
 
-	pr_debug("target: CPU %d should go to target freq: %d "
+	pr_de("target: CPU %d should go to target freq: %d "
 		"(virtual) input_offset is 0x%p\n",
 		cpu, target_freq,
 		(pcch_virt_addr + pcc_cpu_data->input_offset));
@@ -235,12 +235,12 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	spin_unlock(&pcc_lock);
 
 	if (status != CMD_COMPLETE) {
-		pr_debug("target: FAILED for cpu %d, with status: 0x%x\n",
+		pr_de("target: FAILED for cpu %d, with status: 0x%x\n",
 			cpu, status);
 		return -EINVAL;
 	}
 
-	pr_debug("target: was SUCCESSFUL for cpu %d\n", cpu);
+	pr_de("target: was SUCCESSFUL for cpu %d\n", cpu);
 
 	return 0;
 }
@@ -289,7 +289,7 @@ static int pcc_get_offset(int cpu)
 	memset_io((pcch_virt_addr + pcc_cpu_data->input_offset), 0, BUF_SZ);
 	memset_io((pcch_virt_addr + pcc_cpu_data->output_offset), 0, BUF_SZ);
 
-	pr_debug("pcc_get_offset: for CPU %d: pcc_cpu_data "
+	pr_de("pcc_get_offset: for CPU %d: pcc_cpu_data "
 		"input_offset: 0x%x, pcc_cpu_data output_offset: 0x%x\n",
 		cpu, pcc_cpu_data->input_offset, pcc_cpu_data->output_offset);
 out_free:
@@ -405,7 +405,7 @@ static int __init pcc_cpufreq_probe(void)
 	if (ACPI_SUCCESS(status)) {
 		ret = pcc_cpufreq_do_osc(&osc_handle);
 		if (ret)
-			pr_debug("probe: _OSC evaluation did not succeed\n");
+			pr_de("probe: _OSC evaluation did not succeed\n");
 		/* Firmware's use of _OSC is optional */
 		ret = 0;
 	}
@@ -428,7 +428,7 @@ static int __init pcc_cpufreq_probe(void)
 
 	mem_resource = (struct pcc_memory_resource *)member->buffer.pointer;
 
-	pr_debug("probe: mem_resource descriptor: 0x%x,"
+	pr_de("probe: mem_resource descriptor: 0x%x,"
 		" length: %d, space_id: %d, resource_usage: %d,"
 		" type_specific: %d, granularity: 0x%llx,"
 		" minimum: 0x%llx, maximum: 0x%llx,"
@@ -448,14 +448,14 @@ static int __init pcc_cpufreq_probe(void)
 	pcch_virt_addr = ioremap_nocache(mem_resource->minimum,
 					mem_resource->address_length);
 	if (pcch_virt_addr == NULL) {
-		pr_debug("probe: could not map shared mem region\n");
+		pr_de("probe: could not map shared mem region\n");
 		ret = -ENOMEM;
 		goto out_free;
 	}
 	pcch_hdr = pcch_virt_addr;
 
-	pr_debug("probe: PCCH header (virtual) addr: 0x%p\n", pcch_hdr);
-	pr_debug("probe: PCCH header is at physical address: 0x%llx,"
+	pr_de("probe: PCCH header (virtual) addr: 0x%p\n", pcch_hdr);
+	pr_de("probe: PCCH header is at physical address: 0x%llx,"
 		" signature: 0x%x, length: %d bytes, major: %d, minor: %d,"
 		" supported features: 0x%x, command field: 0x%x,"
 		" status field: 0x%x, nominal latency: %d us\n",
@@ -465,7 +465,7 @@ static int __init pcc_cpufreq_probe(void)
 		ioread16(&pcch_hdr->command), ioread16(&pcch_hdr->status),
 		ioread32(&pcch_hdr->latency));
 
-	pr_debug("probe: min time between commands: %d us,"
+	pr_de("probe: min time between commands: %d us,"
 		" max time between commands: %d us,"
 		" nominal CPU frequency: %d MHz,"
 		" minimum CPU frequency: %d MHz,"
@@ -490,7 +490,7 @@ static int __init pcc_cpufreq_probe(void)
 	doorbell.access_width = 4;
 	doorbell.address = reg_resource->address;
 
-	pr_debug("probe: doorbell: space_id is %d, bit_width is %d, "
+	pr_de("probe: doorbell: space_id is %d, bit_width is %d, "
 		"bit_offset is %d, access_width is %d, address is 0x%llx\n",
 		doorbell.space_id, doorbell.bit_width, doorbell.bit_offset,
 		doorbell.access_width, reg_resource->address);
@@ -511,7 +511,7 @@ static int __init pcc_cpufreq_probe(void)
 
 	doorbell_write = member->integer.value;
 
-	pr_debug("probe: doorbell_preserve: 0x%llx,"
+	pr_de("probe: doorbell_preserve: 0x%llx,"
 		" doorbell_write: 0x%llx\n",
 		doorbell_preserve, doorbell_write);
 
@@ -521,7 +521,7 @@ static int __init pcc_cpufreq_probe(void)
 		goto pcch_free;
 	}
 
-	printk(KERN_DEBUG "pcc-cpufreq: (v%s) driver loaded with frequency"
+	printk(KERN_DE "pcc-cpufreq: (v%s) driver loaded with frequency"
 	       " limits: %d MHz, %d MHz\n", PCC_VERSION,
 	       ioread32(&pcch_hdr->minimum_frequency),
 	       ioread32(&pcch_hdr->nominal));
@@ -546,7 +546,7 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	result = pcc_get_offset(cpu);
 	if (result) {
-		pr_debug("init: PCCP evaluation failed\n");
+		pr_de("init: PCCP evaluation failed\n");
 		goto out;
 	}
 
@@ -555,7 +555,7 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->min = policy->cpuinfo.min_freq =
 		ioread32(&pcch_hdr->minimum_frequency) * 1000;
 
-	pr_debug("init: policy->max is %d, policy->min is %d\n",
+	pr_de("init: policy->max is %d, policy->min is %d\n",
 		policy->max, policy->min);
 out:
 	return result;
@@ -589,7 +589,7 @@ static int __init pcc_cpufreq_init(void)
 
 	ret = pcc_cpufreq_probe();
 	if (ret) {
-		pr_debug("pcc_cpufreq_init: PCCH evaluation failed\n");
+		pr_de("pcc_cpufreq_init: PCCH evaluation failed\n");
 		return ret;
 	}
 

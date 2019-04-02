@@ -1,5 +1,5 @@
 /*
- * Sync File validation framework and debug infomation
+ * Sync File validation framework and de infomation
  *
  * Copyright (C) 2012 Google, Inc.
  *
@@ -24,7 +24,7 @@
 /**
  * struct sync_timeline - sync object
  * @kref:		reference count on fence.
- * @name:		name of the sync_timeline. Useful for debugging
+ * @name:		name of the sync_timeline. Useful for deging
  * @lock:		lock protecting @pt_list and @value
  * @pt_tree:		rbtree of active (unsignaled/errored) sync_pts
  * @pt_list:		list of active (unsignaled/errored) sync_pts
@@ -62,12 +62,12 @@ struct sync_pt {
 	struct rb_node node;
 };
 
-extern const struct file_operations sw_sync_debugfs_fops;
+extern const struct file_operations sw_sync_defs_fops;
 
-void sync_timeline_debug_add(struct sync_timeline *obj);
-void sync_timeline_debug_remove(struct sync_timeline *obj);
-void sync_file_debug_add(struct sync_file *fence);
-void sync_file_debug_remove(struct sync_file *fence);
+void sync_timeline_de_add(struct sync_timeline *obj);
+void sync_timeline_de_remove(struct sync_timeline *obj);
+void sync_file_de_add(struct sync_file *fence);
+void sync_file_de_remove(struct sync_file *fence);
 void sync_dump(void);
 
 #endif /* _LINUX_SYNC_H */

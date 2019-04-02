@@ -43,7 +43,7 @@ static void __init twr_p1025_pic_init(void)
 			MPIC_SINGLE_DEST_CPU,
 			0, 256, " OpenPIC  ");
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	mpic_init(mpic);
 
 #ifdef CONFIG_QUICC_ENGINE

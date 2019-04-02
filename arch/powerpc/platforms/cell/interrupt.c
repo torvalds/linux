@@ -84,7 +84,7 @@ static void iic_eoi(struct irq_data *d)
 {
 	struct iic *iic = this_cpu_ptr(&cpu_iic);
 	out_be64(&iic->regs->prio, iic->eoi_stack[--iic->eoi_ptr]);
-	BUG_ON(iic->eoi_ptr < 0);
+	_ON(iic->eoi_ptr < 0);
 }
 
 static struct irq_chip iic_chip = {
@@ -158,7 +158,7 @@ static unsigned int iic_get_irq(void)
 	if (!virq)
 		return 0;
 	iic->eoi_stack[++iic->eoi_ptr] = pending.prio;
-	BUG_ON(iic->eoi_ptr > 15);
+	_ON(iic->eoi_ptr > 15);
 	return virq;
 }
 
@@ -296,7 +296,7 @@ static void __init init_one_iic(unsigned int hw_cpu, unsigned long addr,
 	struct iic *iic = &per_cpu(cpu_iic, hw_cpu);
 
 	iic->regs = ioremap(addr, sizeof(struct cbe_iic_thread_regs));
-	BUG_ON(iic->regs == NULL);
+	_ON(iic->regs == NULL);
 
 	iic->target_id = ((hw_cpu & 2) << 3) | ((hw_cpu & 1) ? 0xf : 0xe);
 	iic->eoi_stack[0] = 0xff;
@@ -375,7 +375,7 @@ void __init iic_init_IRQ(void)
 	/* Setup an irq host data structure */
 	iic_host = irq_domain_add_linear(NULL, IIC_SOURCE_COUNT, &iic_host_ops,
 					 NULL);
-	BUG_ON(iic_host == NULL);
+	_ON(iic_host == NULL);
 	irq_set_default_host(iic_host);
 
 	/* Discover and initialize iics */

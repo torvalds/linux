@@ -19,16 +19,16 @@
 
 /* ----- global defines ----------------------------------------------- */
 
-#ifdef DEBUG
+#ifdef DE
 #define bit_dbg(level, dev, format, args...) \
 	do { \
-		if (i2c_debug >= level) \
+		if (i2c_de >= level) \
 			dev_dbg(dev, format, ##args); \
 	} while (0)
 #else
 #define bit_dbg(level, dev, format, args...) \
 	do {} while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
 /* ----- global variables ---------------------------------------------	*/
 
@@ -36,11 +36,11 @@ static int bit_test;	/* see if the line-setting functions work	*/
 module_param(bit_test, int, S_IRUGO);
 MODULE_PARM_DESC(bit_test, "lines testing - 0 off; 1 report; 2 fail if stuck");
 
-#ifdef DEBUG
-static int i2c_debug = 1;
-module_param(i2c_debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(i2c_debug,
-		 "debug level - 0 off; 1 normal; 2 verbose; 3 very verbose");
+#ifdef DE
+static int i2c_de = 1;
+module_param(i2c_de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(i2c_de,
+		 "de level - 0 off; 1 normal; 2 verbose; 3 very verbose");
 #endif
 
 /* --- setting states on the bus with the right timing: ---------------	*/
@@ -99,9 +99,9 @@ static int sclhi(struct i2c_algo_bit_data *adap)
 		}
 		cpu_relax();
 	}
-#ifdef DEBUG
-	if (jiffies != start && i2c_debug >= 3)
-		pr_debug("i2c-algo-bit: needed %ld jiffies for SCL to go high\n",
+#ifdef DE
+	if (jiffies != start && i2c_de >= 3)
+		pr_de("i2c-algo-bit: needed %ld jiffies for SCL to go high\n",
 			 jiffies - start);
 #endif
 
@@ -647,7 +647,7 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 
 	/*
 	 * We tried forcing SCL/SDA to an initial state here. But that caused a
-	 * regression, sadly. Check Bugzilla #200045 for details.
+	 * regression, sadly. Check zilla #200045 for details.
 	 */
 
 	ret = add_adapter(adap);

@@ -2066,7 +2066,7 @@
 #define BIT_WL_HWPDN_SL BIT(1)
 #define BIT_WL_HWPDN_EN BIT(0)
 
-/* 2 REG_SDM_DEBUG				(Offset 0x006C) */
+/* 2 REG_SDM_DE				(Offset 0x006C) */
 
 #define BIT_SHIFT_WLCLK_PHASE 0
 #define BIT_MASK_WLCLK_PHASE 0x1f
@@ -2817,10 +2817,10 @@
 
 /* 2 REG_DBG_PORT_SEL			(Offset 0x00C0) */
 
-#define BIT_SHIFT_DEBUG_ST 0
-#define BIT_MASK_DEBUG_ST 0xffffffffL
-#define BIT_DEBUG_ST(x) (((x) & BIT_MASK_DEBUG_ST) << BIT_SHIFT_DEBUG_ST)
-#define BIT_GET_DEBUG_ST(x) (((x) >> BIT_SHIFT_DEBUG_ST) & BIT_MASK_DEBUG_ST)
+#define BIT_SHIFT_DE_ST 0
+#define BIT_MASK_DE_ST 0xffffffffL
+#define BIT_DE_ST(x) (((x) & BIT_MASK_DE_ST) << BIT_SHIFT_DE_ST)
+#define BIT_GET_DE_ST(x) (((x) >> BIT_SHIFT_DE_ST) & BIT_MASK_DE_ST)
 
 /* 2 REG_SDIO_ERR_RPT			(Offset 0x102500C0) */
 
@@ -4985,10 +4985,10 @@
 
 /* 2 REG_RXDMA_DPR				(Offset 0x028C) */
 
-#define BIT_SHIFT_RDE_DEBUG 0
-#define BIT_MASK_RDE_DEBUG 0xffffffffL
-#define BIT_RDE_DEBUG(x) (((x) & BIT_MASK_RDE_DEBUG) << BIT_SHIFT_RDE_DEBUG)
-#define BIT_GET_RDE_DEBUG(x) (((x) >> BIT_SHIFT_RDE_DEBUG) & BIT_MASK_RDE_DEBUG)
+#define BIT_SHIFT_RDE_DE 0
+#define BIT_MASK_RDE_DE 0xffffffffL
+#define BIT_RDE_DE(x) (((x) & BIT_MASK_RDE_DE) << BIT_SHIFT_RDE_DE)
+#define BIT_GET_RDE_DE(x) (((x) >> BIT_SHIFT_RDE_DE) & BIT_MASK_RDE_DE)
 
 /* 2 REG_RXDMA_MODE				(Offset 0x0290) */
 
@@ -10842,12 +10842,12 @@
 
 /* 2 REG_TXCMD_INFO_FOR_RSP_PKT		(Offset 0x07E4) */
 
-#define BIT_SHIFT_R_MAC_DEBUG (32 & CPU_OPT_WIDTH)
-#define BIT_MASK_R_MAC_DEBUG 0xffffffffL
-#define BIT_R_MAC_DEBUG(x)                                                     \
-	(((x) & BIT_MASK_R_MAC_DEBUG) << BIT_SHIFT_R_MAC_DEBUG)
-#define BIT_GET_R_MAC_DEBUG(x)                                                 \
-	(((x) >> BIT_SHIFT_R_MAC_DEBUG) & BIT_MASK_R_MAC_DEBUG)
+#define BIT_SHIFT_R_MAC_DE (32 & CPU_OPT_WIDTH)
+#define BIT_MASK_R_MAC_DE 0xffffffffL
+#define BIT_R_MAC_DE(x)                                                     \
+	(((x) & BIT_MASK_R_MAC_DE) << BIT_SHIFT_R_MAC_DE)
+#define BIT_GET_R_MAC_DE(x)                                                 \
+	(((x) >> BIT_SHIFT_R_MAC_DE) & BIT_MASK_R_MAC_DE)
 
 /* 2 REG_TXCMD_INFO_FOR_RSP_PKT		(Offset 0x07E4) */
 

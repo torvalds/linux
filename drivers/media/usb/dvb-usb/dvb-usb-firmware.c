@@ -107,7 +107,7 @@ int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_device_pro
 			if (props->download_firmware)
 				ret = props->download_firmware(udev,fw);
 			else {
-				err("BUG: driver didn't specified a download_firmware-callback, although it claims to have a DEVICE_SPECIFIC one.");
+				err(": driver didn't specified a download_firmware-callback, although it claims to have a DEVICE_SPECIFIC one.");
 				ret = -EINVAL;
 			}
 			break;

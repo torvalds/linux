@@ -1117,7 +1117,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 			newnp->flow_label = 0;
 
 		/*
-		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
+		 * No need to charge this sock to the relevant IPv6 refcnt de socks count
 		 * here, tcp_create_openreq_child now does this for us, see the comment in
 		 * that function for the gory details. -acme
 		 */
@@ -1147,7 +1147,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		goto out_nonewsk;
 
 	/*
-	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
+	 * No need to charge this sock to the relevant IPv6 refcnt de socks
 	 * count here, tcp_create_openreq_child now does this for us, see the
 	 * comment in that function for the gory details. -acme
 	 */

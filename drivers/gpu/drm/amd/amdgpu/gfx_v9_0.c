@@ -97,8 +97,8 @@ MODULE_FIRMWARE("amdgpu/raven2_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0x80000000, 0x80000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DE2, 0xf00fffff, 0x00000400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DE3, 0x80000000, 0x80000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
@@ -116,7 +116,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_GS_MAX_WAVE_ID, 0x00000fff, 0x000003ff),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC1_F32_INT_DIS, 0x00000000, 0x00000800),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC2_F32_INT_DIS, 0x00000000, 0x00000800),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DE, 0x00000000, 0x00008000)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_0_vg10[] =
@@ -148,7 +148,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_0_vg20[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_3, 0x30000000, 0x10000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xf3e777ff, 0x22014042),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG_READ, 0xf3e777ff, 0x22014042),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0x00003e00, 0x00000400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DE2, 0x00003e00, 0x00000400),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_1, 0xff840000, 0x04040000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRMI_UTCL1_CNTL2, 0x00030000, 0x00030000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0xffff010f, 0x01000107),
@@ -162,7 +162,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPC_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPF_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCPG_UTCL1_CNTL, 0x08000000, 0x08000080),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000420),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DE2, 0xf00fffff, 0x00000420),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmIA_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
@@ -181,7 +181,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x08000000, 0x08000080),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC1_F32_INT_DIS, 0x00000000, 0x00000800),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC2_F32_INT_DIS, 0x00000000, 0x00000800),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DE, 0x00000000, 0x00008000)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_1_rv1[] =
@@ -227,7 +227,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_x_common[] =
 
 static const struct soc15_reg_golden golden_settings_gc_9_2_1[] =
 {
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000420),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DE2, 0xf00fffff, 0x00000420),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
@@ -259,7 +259,7 @@ static const struct soc15_reg_golden golden_settings_gc_9_2_1_vg12[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x01000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC1_F32_INT_DIS, 0x00000000, 0x00000800),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC2_F32_INT_DIS, 0x00000000, 0x00000800),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DE, 0x00000000, 0x00008000)
 };
 
 static const u32 GFX_RLC_SRM_INDEX_CNTL_ADDR_OFFSETS[] =
@@ -381,7 +381,7 @@ static void gfx_v9_0_wait_reg_mem(struct amdgpu_ring *ring, int eng_sel,
 				 WAIT_REG_MEM_ENGINE(eng_sel)));
 
 	if (mem_space)
-		BUG_ON(addr0 & 0x3); /* Dword align */
+		_ON(addr0 & 0x3); /* Dword align */
 	amdgpu_ring_write(ring, addr0);
 	amdgpu_ring_write(ring, addr1);
 	amdgpu_ring_write(ring, ref);
@@ -590,7 +590,7 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	uint16_t version_major;
 	uint16_t version_minor;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
@@ -611,7 +611,7 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 			chip_name = "raven";
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
@@ -1336,7 +1336,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 			gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -1870,7 +1870,7 @@ static void gfx_v9_0_constants_init(struct amdgpu_device *adev)
 
 	gfx_v9_0_setup_rb(adev);
 	gfx_v9_0_get_cu_info(adev, &adev->gfx.cu_info);
-	adev->gfx.config.db_debug2 = RREG32_SOC15(GC, 0, mmDB_DEBUG2);
+	adev->gfx.config.db_de2 = RREG32_SOC15(GC, 0, mmDB_DE2);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
@@ -2009,7 +2009,7 @@ static void gfx_v9_1_parse_ind_reg_list(int *register_list_format,
 					break;
 			}
 
-			BUG_ON(idx >= unique_indirect_reg_count);
+			_ON(idx >= unique_indirect_reg_count);
 
 			if (!unique_indirect_regs[idx])
 				unique_indirect_regs[idx] = register_list_format[indirect_offset];
@@ -2087,7 +2087,7 @@ static int gfx_v9_1_init_rlc_save_restore_list(struct amdgpu_device *adev)
 			}
 		}
 
-		BUG_ON(j >= unique_indirect_reg_count);
+		_ON(j >= unique_indirect_reg_count);
 
 		i++;
 	}
@@ -2336,7 +2336,7 @@ static void gfx_v9_0_rlc_reset(struct amdgpu_device *adev)
 
 static void gfx_v9_0_rlc_start(struct amdgpu_device *adev)
 {
-#ifdef AMDGPU_RLC_DEBUG_RETRY
+#ifdef AMDGPU_RLC_DE_RETRY
 	u32 rlc_ucode_ver;
 #endif
 
@@ -2349,11 +2349,11 @@ static void gfx_v9_0_rlc_start(struct amdgpu_device *adev)
 		udelay(50);
 	}
 
-#ifdef AMDGPU_RLC_DEBUG_RETRY
+#ifdef AMDGPU_RLC_DE_RETRY
 	/* RLC_GPM_GENERAL_6 : RLC Ucode version */
 	rlc_ucode_ver = RREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_6);
 	if(rlc_ucode_ver == 0x108) {
-		DRM_INFO("Using rlc debug ucode. mmRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i \n",
+		DRM_INFO("Using rlc de ucode. mmRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i \n",
 				rlc_ucode_ver, adev->gfx.rlc_fw_version);
 		/* RLC_GPM_TIMER_INT_3 : Timer interval in RefCLK cycles,
 		 * default is 0x9C4 to create a 100us interval */
@@ -3044,7 +3044,7 @@ static int gfx_v9_0_kiq_fini_register(struct amdgpu_ring *ring)
 		}
 
 		if (j == AMDGPU_MAX_USEC_TIMEOUT) {
-			DRM_DEBUG("KIQ dequeue request failed.\n");
+			DRM_DE("KIQ dequeue request failed.\n");
 
 			/* Manual disable if dequeue request times out */
 			WREG32_SOC15(GC, 0, mmCP_HQD_ACTIVE, 0);
@@ -3993,7 +3993,7 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	}
 
 	amdgpu_ring_write(ring, header);
-	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
+	_ON(ib->gpu_addr & 0x3); /* Dword align */
 	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
 		(2 << 0) |
@@ -4016,7 +4016,7 @@ static void gfx_v9_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 	 * different wave IDs than the GDS expects. This situation happens
 	 * randomly when at least 5 compute pipes use GDS ordered append.
 	 * The wave IDs generated by ME are also wrong after suspend/resume.
-	 * Those are probably bugs somewhere else in the kernel driver.
+	 * Those are probably s somewhere else in the kernel driver.
 	 *
 	 * Writing GDS_COMPUTE_MAX_WAVE_ID resets wave ID counters in ME and
 	 * GDS to 0 for this ring (me/pipe).
@@ -4028,7 +4028,7 @@ static void gfx_v9_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 	}
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
-	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
+	_ON(ib->gpu_addr & 0x3); /* Dword align */
 	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
 				(2 << 0) |
@@ -4062,9 +4062,9 @@ static void gfx_v9_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 	 * aligned if only send 32bit data low (discard data high)
 	 */
 	if (write64bit)
-		BUG_ON(addr & 0x7);
+		_ON(addr & 0x7);
 	else
-		BUG_ON(addr & 0x3);
+		_ON(addr & 0x3);
 	amdgpu_ring_write(ring, lower_32_bits(addr));
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
@@ -4109,7 +4109,7 @@ static u64 gfx_v9_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
 	if (ring->use_doorbell)
 		wptr = atomic64_read((atomic64_t *)&ring->adev->wb.wb[ring->wptr_offs]);
 	else
-		BUG();
+		();
 	return wptr;
 }
 
@@ -4221,7 +4221,7 @@ static void gfx_v9_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 		atomic64_set((atomic64_t*)&adev->wb.wb[ring->wptr_offs], ring->wptr);
 		WDOORBELL64(ring->doorbell_index, ring->wptr);
 	} else{
-		BUG(); /* only DOORBELL method supported on gfx9 now */
+		(); /* only DOORBELL method supported on gfx9 now */
 	}
 }
 
@@ -4231,7 +4231,7 @@ static void gfx_v9_0_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 	struct amdgpu_device *adev = ring->adev;
 
 	/* we only allocate 32bit for each seq wb address */
-	BUG_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
+	_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
 
 	/* write fence seq to the "addr" */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
@@ -4354,8 +4354,8 @@ static unsigned gfx_v9_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring)
 static void gfx_v9_0_ring_emit_patch_cond_exec(struct amdgpu_ring *ring, unsigned offset)
 {
 	unsigned cur;
-	BUG_ON(offset > ring->buf_mask);
-	BUG_ON(ring->ring[offset] != 0x55aa55aa);
+	_ON(offset > ring->buf_mask);
+	_ON(ring->ring[offset] != 0x55aa55aa);
 
 	cur = (ring->wptr & ring->buf_mask) - 1;
 	if (likely(cur > offset))
@@ -4480,11 +4480,11 @@ static void gfx_v9_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev,
 			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, 0, mmCP_ME1_PIPE3_INT_CNTL);
 			break;
 		default:
-			DRM_DEBUG("invalid pipe %d\n", pipe);
+			DRM_DE("invalid pipe %d\n", pipe);
 			return;
 		}
 	} else {
-		DRM_DEBUG("invalid me %d\n", me);
+		DRM_DE("invalid me %d\n", me);
 		return;
 	}
 
@@ -4590,7 +4590,7 @@ static int gfx_v9_0_eop_irq(struct amdgpu_device *adev,
 	u8 me_id, pipe_id, queue_id;
 	struct amdgpu_ring *ring;
 
-	DRM_DEBUG("IH: CP EOP\n");
+	DRM_DE("IH: CP EOP\n");
 	me_id = (entry->ring_id & 0x0c) >> 2;
 	pipe_id = (entry->ring_id & 0x03) >> 0;
 	queue_id = (entry->ring_id & 0x70) >> 4;

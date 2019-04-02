@@ -1,6 +1,6 @@
 generic-y += barrier.h
 generic-y += bpf_perf_event.h
-generic-y += bug.h
+generic-y += .h
 generic-y += compat.h
 generic-y += current.h
 generic-y += delay.h
@@ -13,7 +13,7 @@ generic-y += futex.h
 generic-y += hw_irq.h
 generic-y += irq_regs.h
 generic-y += irq_work.h
-generic-y += kdebug.h
+generic-y += kde.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
 generic-y += param.h

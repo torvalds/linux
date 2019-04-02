@@ -118,7 +118,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = 1;
 		return 0;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		DRM_DE("Unknown parameter %d\n", args->param);
 		return -EINVAL;
 	}
 }
@@ -203,8 +203,8 @@ static struct drm_driver v3d_drm_driver = {
 	.open = v3d_open,
 	.postclose = v3d_postclose,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = v3d_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = v3d_defs_init,
 #endif
 
 	.gem_free_object_unlocked = v3d_free_object,

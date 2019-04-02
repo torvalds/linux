@@ -367,7 +367,7 @@ static unsigned short snd_fm801_rate_bits(unsigned int rate)
 	for (idx = 0; idx < ARRAY_SIZE(rates); idx++)
 		if (rates[idx] == rate)
 			return idx;
-	snd_BUG();
+	snd_();
 	return ARRAY_SIZE(rates) - 1;
 }
 
@@ -402,7 +402,7 @@ static int snd_fm801_playback_trigger(struct snd_pcm_substream *substream,
 		break;
 	default:
 		spin_unlock(&chip->reg_lock);
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	fm801_writew(chip, PLY_CTRL, chip->ply_ctrl);
@@ -437,7 +437,7 @@ static int snd_fm801_capture_trigger(struct snd_pcm_substream *substream,
 		break;
 	default:
 		spin_unlock(&chip->reg_lock);
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	fm801_writew(chip, CAP_CTRL, chip->cap_ctrl);

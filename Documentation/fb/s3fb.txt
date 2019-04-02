@@ -71,7 +71,7 @@ Missing Features
 	* better values for some magic registers (performance issues)
 
 
-Known bugs
+Known s
 ==========
 
 	* cursor disable in text mode doesn't work

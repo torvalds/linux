@@ -233,7 +233,7 @@ struct keyspan_usa49_globalControlMessage
 	----------			--------------------
 	0x00,0x01,0x02,0x03	portStatusMessage
 	0x80				globalStatusMessage
-	0x81				globalDebugMessage
+	0x81				globalDeMessage
 */
 
 struct keyspan_usa49_portStatusMessage	// one for each port
@@ -264,9 +264,9 @@ struct keyspan_usa49_globalStatusMessage
 		resetStatusCount;	// as in request
 };
 
-struct keyspan_usa49_globalDebugMessage
+struct keyspan_usa49_globalDeMessage
 {
-	u8	portNumber,			// 0x81=globalDebugMessage
+	u8	portNumber,			// 0x81=globalDeMessage
 		n,					// typically a count/status byte
 		b;					// typically a data byte
 };

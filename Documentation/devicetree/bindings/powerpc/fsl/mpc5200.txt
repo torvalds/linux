@@ -21,7 +21,7 @@ else; the 5200 compatible properties will contain only one item;
 "fsl,mpc5200-<device>".
 
 The 5200B is almost the same as the 5200, but not quite.  It fixes
-silicon bugs and it adds a small number of enhancements.  Most of the
+silicon s and it adds a small number of enhancements.  Most of the
 devices either provide exactly the same interface as on the 5200.  A few
 devices have extra functions but still have a backwards compatible mode.
 To express this information as completely as possible, 5200B device trees

@@ -43,7 +43,7 @@
  *	- Jan 1995	Bjorn Ekwall
  *			Use ip_fast_csum from ip.h
  *	- July 1995	Christos A. Polyzols
- *			Spotted bug in tcp option checking
+ *			Spotted  in tcp option checking
  *
  *
  *	This module is a difficult issue. It's clearly inet code but it's also clearly
@@ -700,39 +700,39 @@ slhc_toss(struct slcompress *comp)
 int
 slhc_toss(struct slcompress *comp)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_toss");
+  printk(KERN_DE "Called IP function on non IP-system: slhc_toss");
   return -EINVAL;
 }
 int
 slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_uncompress");
+  printk(KERN_DE "Called IP function on non IP-system: slhc_uncompress");
   return -EINVAL;
 }
 int
 slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 	unsigned char *ocp, unsigned char **cpp, int compress_cid)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_compress");
+  printk(KERN_DE "Called IP function on non IP-system: slhc_compress");
   return -EINVAL;
 }
 
 int
 slhc_remember(struct slcompress *comp, unsigned char *icp, int isize)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_remember");
+  printk(KERN_DE "Called IP function on non IP-system: slhc_remember");
   return -EINVAL;
 }
 
 void
 slhc_free(struct slcompress *comp)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_free");
+  printk(KERN_DE "Called IP function on non IP-system: slhc_free");
 }
 struct slcompress *
 slhc_init(int rslots, int tslots)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_init");
+  printk(KERN_DE "Called IP function on non IP-system: slhc_init");
   return NULL;
 }
 

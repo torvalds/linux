@@ -302,7 +302,7 @@ static int tcmu_fail_netlink_cmd(struct tcmu_nl_cmd *nl_cmd)
 	}
 
 	if (nl_cmd->cmd != TCMU_CMD_UNSPEC) {
-		pr_debug("Aborting nl cmd %d on %s\n", nl_cmd->cmd, udev->name);
+		pr_de("Aborting nl cmd %d on %s\n", nl_cmd->cmd, udev->name);
 		nl_cmd->status = -EINTR;
 		list_del(&nl_cmd->nl_list);
 		complete(&nl_cmd->complete);
@@ -392,7 +392,7 @@ static int tcmu_genl_cmd_done(struct genl_info *info, int completed_cmd)
 	}
 	list_del(&nl_cmd->nl_list);
 
-	pr_debug("%s genl cmd done got id %d curr %d done %d rc %d stat %d\n",
+	pr_de("%s genl cmd done got id %d curr %d done %d rc %d stat %d\n",
 		 udev->name, dev_id, nl_cmd->cmd, completed_cmd, rc,
 		 nl_cmd->status);
 
@@ -563,7 +563,7 @@ static inline size_t tcmu_cmd_get_data_length(struct tcmu_cmd *tcmu_cmd)
 	size_t data_length = round_up(se_cmd->data_length, DATA_BLOCK_SIZE);
 
 	if (se_cmd->se_cmd_flags & SCF_BIDI) {
-		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
+		_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
 		data_length += round_up(se_cmd->t_bidi_data_sg->length,
 				DATA_BLOCK_SIZE);
 	}
@@ -846,7 +846,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 
 	space = spc_free(cmd_head, udev->cmdr_last_cleaned, udev->cmdr_size);
 	if (space < cmd_needed) {
-		pr_debug("no cmd space: %u %u %u\n", cmd_head,
+		pr_de("no cmd space: %u %u %u\n", cmd_head,
 		       udev->cmdr_last_cleaned, udev->cmdr_size);
 		return false;
 	}
@@ -858,7 +858,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 				(udev->max_blocks - udev->dbi_thresh) + space;
 
 		if (blocks_left < blocks_needed) {
-			pr_debug("no data space: only %lu available, but ask for %zu\n",
+			pr_de("no data space: only %lu available, but ask for %zu\n",
 					blocks_left * DATA_BLOCK_SIZE,
 					data_needed);
 			return false;
@@ -909,7 +909,7 @@ static int tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd, unsigned int tmo,
 	}
 	tcmu_cmd->cmd_id = cmd_id;
 
-	pr_debug("allocated cmd %u for dev %s tmo %lu\n", tcmu_cmd->cmd_id,
+	pr_de("allocated cmd %u for dev %s tmo %lu\n", tcmu_cmd->cmd_id,
 		 udev->name, tmo / MSEC_PER_SEC);
 
 setup_timer:
@@ -947,7 +947,7 @@ static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 		return ret;
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->qfull_queue);
-	pr_debug("adding cmd %u on dev %s to ring space wait queue\n",
+	pr_de("adding cmd %u on dev %s to ring space wait queue\n",
 		 tcmu_cmd->cmd_id, udev->name);
 	return 0;
 }
@@ -1191,7 +1191,7 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 
 done:
 	if (read_len_valid) {
-		pr_debug("read_len = %d\n", read_len);
+		pr_de("read_len = %d\n", read_len);
 		target_complete_cmd_with_length(cmd->se_cmd,
 					entry->rsp.scsi_status, read_len);
 	} else
@@ -1325,7 +1325,7 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 		scsi_status = SAM_STAT_TASK_SET_FULL;
 	}
 
-	pr_debug("Timing out cmd %u on dev %s that is %s.\n",
+	pr_de("Timing out cmd %u on dev %s that is %s.\n",
 		 id, udev->name, is_running ? "inflight" : "queued");
 
 	target_complete_cmd(se_cmd, scsi_status);
@@ -1346,7 +1346,7 @@ static void tcmu_cmd_timedout(struct timer_list *t)
 {
 	struct tcmu_dev *udev = from_timer(udev, t, cmd_timer);
 
-	pr_debug("%s cmd timeout has expired\n", udev->name);
+	pr_de("%s cmd timeout has expired\n", udev->name);
 	tcmu_device_timedout(udev);
 }
 
@@ -1354,7 +1354,7 @@ static void tcmu_qfull_timedout(struct timer_list *t)
 {
 	struct tcmu_dev *udev = from_timer(udev, t, qfull_timer);
 
-	pr_debug("%s qfull timeout has expired\n", udev->name);
+	pr_de("%s qfull timeout has expired\n", udev->name);
 	tcmu_device_timedout(udev);
 }
 
@@ -1425,14 +1425,14 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 	if (list_empty(&udev->qfull_queue))
 		return true;
 
-	pr_debug("running %s's cmdr queue forcefail %d\n", udev->name, fail);
+	pr_de("running %s's cmdr queue forcefail %d\n", udev->name, fail);
 
 	list_splice_init(&udev->qfull_queue, &cmds);
 
 	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, &cmds, queue_entry) {
 		list_del_init(&tcmu_cmd->queue_entry);
 
-	        pr_debug("removing cmd %u on dev %s from queue\n",
+	        pr_de("removing cmd %u on dev %s from queue\n",
 		         tcmu_cmd->cmd_id, udev->name);
 
 		if (fail) {
@@ -1451,7 +1451,7 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 
 		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
 		if (ret < 0) {
-		        pr_debug("cmd %u on dev %s failed with %u\n",
+		        pr_de("cmd %u on dev %s failed with %u\n",
 			         tcmu_cmd->cmd_id, udev->name, scsi_ret);
 
 			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
@@ -1463,7 +1463,7 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 					    SAM_STAT_CHECK_CONDITION);
 			tcmu_free_cmd(tcmu_cmd);
 		} else if (ret > 0) {
-			pr_debug("ran out of space during cmdr queue run\n");
+			pr_de("ran out of space during cmdr queue run\n");
 			/*
 			 * cmd was requeued, so just put all cmds back in
 			 * the queue
@@ -1598,7 +1598,7 @@ static int tcmu_open(struct uio_info *info, struct inode *inode)
 	udev->inode = inode;
 	kref_get(&udev->kref);
 
-	pr_debug("open\n");
+	pr_de("open\n");
 
 	return 0;
 }
@@ -1675,7 +1675,7 @@ static int tcmu_release(struct uio_info *info, struct inode *inode)
 
 	clear_bit(TCMU_DEV_BIT_OPEN, &udev->flags);
 
-	pr_debug("close\n");
+	pr_de("close\n");
 	/* release ref from open */
 	kref_put(&udev->kref, tcmu_dev_kref_release);
 	return 0;
@@ -1730,7 +1730,7 @@ static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
 	if (udev->nl_reply_supported <= 0)
 		return 0;
 
-	pr_debug("sleeping for nl reply\n");
+	pr_de("sleeping for nl reply\n");
 	wait_for_completion(&nl_cmd->complete);
 
 	mutex_lock(&tcmu_nl_cmd_mutex);
@@ -2029,7 +2029,7 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 		if (!test_bit(TCMU_CMD_BIT_INFLIGHT, &cmd->flags))
 			continue;
 
-		pr_debug("removing cmd %u on dev %s from ring (is expired %d)\n",
+		pr_de("removing cmd %u on dev %s from ring (is expired %d)\n",
 			  cmd->cmd_id, udev->name,
 			  test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags));
 
@@ -2054,7 +2054,7 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 
 	mb = udev->mb_addr;
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
-	pr_debug("mb last %u head %u tail %u\n", udev->cmdr_last_cleaned,
+	pr_de("mb last %u head %u tail %u\n", udev->cmdr_last_cleaned,
 		 mb->cmd_tail, mb->cmd_head);
 
 	udev->cmdr_last_cleaned = 0;
@@ -2163,7 +2163,7 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 				ret = -EINVAL;
 				break;
 			}
-			pr_debug("TCMU: Referencing Path: %s\n", udev->dev_config);
+			pr_de("TCMU: Referencing Path: %s\n", udev->dev_config);
 			break;
 		case Opt_dev_size:
 			ret = match_u64(&args[0], &udev->dev_size);
@@ -2673,7 +2673,7 @@ static void find_free_blocks(void)
 		mutex_unlock(&udev->cmdr_lock);
 
 		total_freed += end - start;
-		pr_debug("Freed %u blocks (total %u) from %s.\n", end - start,
+		pr_de("Freed %u blocks (total %u) from %s.\n", end - start,
 			 total_freed, udev->name);
 	}
 	mutex_unlock(&root_udev_mutex);
@@ -2718,7 +2718,7 @@ static int __init tcmu_module_init(void)
 {
 	int ret, i, k, len = 0;
 
-	BUILD_BUG_ON((sizeof(struct tcmu_cmd_entry) % TCMU_OP_ALIGN_SIZE) != 0);
+	BUILD__ON((sizeof(struct tcmu_cmd_entry) % TCMU_OP_ALIGN_SIZE) != 0);
 
 	INIT_DELAYED_WORK(&tcmu_unmap_work, tcmu_unmap_work_fn);
 

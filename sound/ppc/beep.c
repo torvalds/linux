@@ -185,7 +185,7 @@ static int snd_pmac_get_beep(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
-	if (snd_BUG_ON(!chip->beep))
+	if (snd__ON(!chip->beep))
 		return -ENXIO;
 	ucontrol->value.integer.value[0] = chip->beep->volume;
 	return 0;
@@ -196,7 +196,7 @@ static int snd_pmac_put_beep(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int oval, nval;
-	if (snd_BUG_ON(!chip->beep))
+	if (snd__ON(!chip->beep))
 		return -ENXIO;
 	oval = chip->beep->volume;
 	nval = ucontrol->value.integer.value[0];

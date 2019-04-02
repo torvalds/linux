@@ -20,5 +20,5 @@ config DVB_B2C2_FLEXCOP
 	select DVB_TUNER_CX24113 if MEDIA_SUBDRV_AUTOSELECT
 
 # Selected via the PCI or USB flexcop drivers
-config DVB_B2C2_FLEXCOP_DEBUG
+config DVB_B2C2_FLEXCOP_DE
 	bool

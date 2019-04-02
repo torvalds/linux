@@ -7,7 +7,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -139,7 +139,7 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 	 * functions stepping on it.
 	 */
 	addr = __pa(page_address(area->pages)) + (PAGE_SIZE >> 1);
-	printk(KERN_DEBUG "%s: enabling PTCAL on node %d address=0x%016lx\n",
+	printk(KERN_DE "%s: enabling PTCAL on node %d address=0x%016lx\n",
 			__func__, area->nid, addr);
 
 	ret = -EIO;
@@ -179,7 +179,7 @@ static int __init cbe_ptcal_enable(void)
 		return -ENODEV;
 	}
 
-	pr_debug("%s: enabling PTCAL, size = 0x%x\n", __func__, *size);
+	pr_de("%s: enabling PTCAL, size = 0x%x\n", __func__, *size);
 	order = get_order(*size);
 	of_node_put(np);
 
@@ -212,7 +212,7 @@ static int cbe_ptcal_disable(void)
 	struct ptcal_area *area, *tmp;
 	int ret = 0;
 
-	pr_debug("%s: disabling PTCAL\n", __func__);
+	pr_de("%s: disabling PTCAL\n", __func__);
 
 	list_for_each_entry_safe(area, tmp, &ptcal_list, list) {
 		/* disable ptcal on this node */

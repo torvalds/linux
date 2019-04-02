@@ -33,7 +33,7 @@
 
 #include <linux/hid.h>
 #include <linux/hiddev.h>
-#include <linux/hid-debug.h>
+#include <linux/hid-de.h>
 #include <linux/hidraw.h>
 
 #include "hid-ids.h"
@@ -44,10 +44,10 @@
 
 #define DRIVER_DESC "HID core driver"
 
-int hid_debug = 0;
-module_param_named(debug, hid_debug, int, 0600);
-MODULE_PARM_DESC(debug, "toggle HID debugging messages");
-EXPORT_SYMBOL_GPL(hid_debug);
+int hid_de = 0;
+module_param_named(de, hid_de, int, 0600);
+MODULE_PARM_DESC(de, "toggle HID deging messages");
+EXPORT_SYMBOL_GPL(hid_de);
 
 static int hid_ignore_special_drivers = 0;
 module_param_named(ignore_special_drivers, hid_ignore_special_drivers, int, 0600);
@@ -1434,7 +1434,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field,
 	struct hid_driver *hdrv = hid->driver;
 	int ret;
 
-	if (!list_empty(&hid->debug_list))
+	if (!list_empty(&hid->de_list))
 		hid_dump_input(hid, usage, value);
 
 	if (hdrv && hdrv->event && hid_match_usage(hid, usage)) {
@@ -1746,8 +1746,8 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, u32 size, int i
 		goto unlock;
 	}
 
-	/* Avoid unnecessary overhead if debugfs is disabled */
-	if (!list_empty(&hid->debug_list))
+	/* Avoid unnecessary overhead if defs is disabled */
+	if (!list_empty(&hid->de_list))
 		hid_dump_report(hid, type, data, size);
 
 	report = hid_get_report(report_enum, data);
@@ -2349,12 +2349,12 @@ int hid_add_device(struct hid_device *hdev)
 	dev_set_name(&hdev->dev, "%04X:%04X:%04X.%04X", hdev->bus,
 		     hdev->vendor, hdev->product, atomic_inc_return(&id));
 
-	hid_debug_register(hdev, dev_name(&hdev->dev));
+	hid_de_register(hdev, dev_name(&hdev->dev));
 	ret = device_add(&hdev->dev);
 	if (!ret)
 		hdev->status |= HID_STAT_ADDED;
 	else
-		hid_debug_unregister(hdev);
+		hid_de_unregister(hdev);
 
 	return ret;
 }
@@ -2385,9 +2385,9 @@ struct hid_device *hid_allocate_device(void)
 
 	hid_close_report(hdev);
 
-	init_waitqueue_head(&hdev->debug_wait);
-	INIT_LIST_HEAD(&hdev->debug_list);
-	spin_lock_init(&hdev->debug_list_lock);
+	init_waitqueue_head(&hdev->de_wait);
+	INIT_LIST_HEAD(&hdev->de_list);
+	spin_lock_init(&hdev->de_list_lock);
 	sema_init(&hdev->driver_input_lock, 1);
 	mutex_init(&hdev->ll_open_lock);
 
@@ -2399,7 +2399,7 @@ static void hid_remove_device(struct hid_device *hdev)
 {
 	if (hdev->status & HID_STAT_ADDED) {
 		device_del(&hdev->dev);
-		hid_debug_unregister(hdev);
+		hid_de_unregister(hdev);
 		hdev->status &= ~HID_STAT_ADDED;
 	}
 	kfree(hdev->dev_rdesc);
@@ -2508,9 +2508,9 @@ static int __init hid_init(void)
 {
 	int ret;
 
-	if (hid_debug)
-		pr_warn("hid_debug is now used solely for parser and driver debugging.\n"
-			"debugfs is now used for inspecting the device (report descriptor, reports)\n");
+	if (hid_de)
+		pr_warn("hid_de is now used solely for parser and driver deging.\n"
+			"defs is now used for inspecting the device (report descriptor, reports)\n");
 
 	ret = bus_register(&hid_bus_type);
 	if (ret) {
@@ -2522,7 +2522,7 @@ static int __init hid_init(void)
 	if (ret)
 		goto err_bus;
 
-	hid_debug_init();
+	hid_de_init();
 
 	return 0;
 err_bus:
@@ -2533,7 +2533,7 @@ err:
 
 static void __exit hid_exit(void)
 {
-	hid_debug_exit();
+	hid_de_exit();
 	hidraw_exit();
 	bus_unregister(&hid_bus_type);
 	hid_quirks_exit(HID_BUS_ANY);

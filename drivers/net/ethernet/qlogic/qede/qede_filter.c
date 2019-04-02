@@ -1004,7 +1004,7 @@ void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
 
 		if (!rc) {
 			edev->vxlan_dst_port = t_port;
-			DP_VERBOSE(edev, QED_MSG_DEBUG, "Added vxlan port=%d\n",
+			DP_VERBOSE(edev, QED_MSG_DE, "Added vxlan port=%d\n",
 				   t_port);
 		} else {
 			DP_NOTICE(edev, "Failed to add vxlan UDP port=%d\n",
@@ -1028,7 +1028,7 @@ void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti)
 
 		if (!rc) {
 			edev->geneve_dst_port = t_port;
-			DP_VERBOSE(edev, QED_MSG_DEBUG,
+			DP_VERBOSE(edev, QED_MSG_DE,
 				   "Added geneve port=%d\n", t_port);
 		} else {
 			DP_NOTICE(edev, "Failed to add geneve UDP port=%d\n",
@@ -1064,7 +1064,7 @@ void qede_udp_tunnel_del(struct net_device *dev,
 
 		edev->vxlan_dst_port = 0;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted vxlan port=%d\n",
+		DP_VERBOSE(edev, QED_MSG_DE, "Deleted vxlan port=%d\n",
 			   t_port);
 
 		break;
@@ -1081,7 +1081,7 @@ void qede_udp_tunnel_del(struct net_device *dev,
 
 		edev->geneve_dst_port = 0;
 
-		DP_VERBOSE(edev, QED_MSG_DEBUG, "Deleted geneve port=%d\n",
+		DP_VERBOSE(edev, QED_MSG_DE, "Deleted geneve port=%d\n",
 			   t_port);
 		break;
 	default:

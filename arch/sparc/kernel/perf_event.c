@@ -17,7 +17,7 @@
 #include <linux/kprobes.h>
 #include <linux/ftrace.h>
 #include <linux/kernel.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/mutex.h>
 
 #include <asm/stacktrace.h>
@@ -1070,7 +1070,7 @@ static int active_event_index(struct cpu_hw_events *cpuc,
 		if (cpuc->event[i] == event)
 			break;
 	}
-	BUG_ON(i == cpuc->n_events);
+	_ON(i == cpuc->n_events);
 	return cpuc->current_idx[i];
 }
 
@@ -1173,7 +1173,7 @@ static void perf_event_grab_pmc(void)
 	if (atomic_read(&active_events) == 0) {
 		if (atomic_read(&nmi_active) > 0) {
 			on_each_cpu(perf_stop_nmi_watchdog, NULL, 1);
-			BUG_ON(atomic_read(&nmi_active) != 0);
+			_ON(atomic_read(&nmi_active) != 0);
 		}
 		atomic_inc(&active_events);
 	}
@@ -1264,7 +1264,7 @@ static int sparc_check_constraints(struct perf_event **evts,
 			idx0 = 1;
 		goto success;
 	}
-	BUG_ON(n_ev != 2);
+	_ON(n_ev != 2);
 	msk1 = perf_event_get_msk(events[1]);
 
 	/* If both events can go on any counter, OK.  */
@@ -1583,7 +1583,7 @@ static struct pmu pmu = {
 	.commit_txn	= sparc_pmu_commit_txn,
 };
 
-void perf_event_print_debug(void)
+void perf_event_print_de(void)
 {
 	unsigned long flags;
 	int cpu, i;

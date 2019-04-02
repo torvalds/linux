@@ -39,7 +39,7 @@ static struct inode *fat_dget(struct super_block *sb, int i_logstart)
 	head = sbi->dir_hashtable + fat_dir_hash(i_logstart);
 	spin_lock(&sbi->dir_hash_lock);
 	hlist_for_each_entry(i, head, i_dir_hash) {
-		BUG_ON(i->vfs_inode.i_sb != sb);
+		_ON(i->vfs_inode.i_sb != sb);
 		if (i->i_logstart != i_logstart)
 			continue;
 		inode = igrab(&i->vfs_inode);

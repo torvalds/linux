@@ -17,13 +17,13 @@
 #include <linux/mutex.h>
 #include <linux/export.h>
 #include <linux/moduleparam.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <scsi/sg.h>
 #include "aoe.h"
 
 static DEFINE_MUTEX(aoeblk_mutex);
 static struct kmem_cache *buf_pool_cache;
-static struct dentry *aoe_debugfs_dir;
+static struct dentry *aoe_defs_dir;
 
 /* GPFS needs a larger value than the default. */
 static int aoe_maxsectors;
@@ -110,7 +110,7 @@ static ssize_t aoedisk_show_payload(struct device *dev,
 	return snprintf(page, PAGE_SIZE, "%lu\n", d->maxbcnt);
 }
 
-static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
+static int aoedisk_defs_show(struct seq_file *s, void *ignored)
 {
 	struct aoedev *d;
 	struct aoetgt **t, **te;
@@ -154,9 +154,9 @@ static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
 	return 0;
 }
 
-static int aoe_debugfs_open(struct inode *inode, struct file *file)
+static int aoe_defs_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, aoedisk_debugfs_show, inode->i_private);
+	return single_open(file, aoedisk_defs_show, inode->i_private);
 }
 
 static DEVICE_ATTR(state, 0444, aoedisk_show_state, NULL);
@@ -186,42 +186,42 @@ static const struct attribute_group *aoe_attr_groups[] = {
 	NULL,
 };
 
-static const struct file_operations aoe_debugfs_fops = {
-	.open = aoe_debugfs_open,
+static const struct file_operations aoe_defs_fops = {
+	.open = aoe_defs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static void
-aoedisk_add_debugfs(struct aoedev *d)
+aoedisk_add_defs(struct aoedev *d)
 {
 	struct dentry *entry;
 	char *p;
 
-	if (aoe_debugfs_dir == NULL)
+	if (aoe_defs_dir == NULL)
 		return;
 	p = strchr(d->gd->disk_name, '/');
 	if (p == NULL)
 		p = d->gd->disk_name;
 	else
 		p++;
-	BUG_ON(*p == '\0');
-	entry = debugfs_create_file(p, 0444, aoe_debugfs_dir, d,
-				    &aoe_debugfs_fops);
+	_ON(*p == '\0');
+	entry = defs_create_file(p, 0444, aoe_defs_dir, d,
+				    &aoe_defs_fops);
 	if (IS_ERR_OR_NULL(entry)) {
-		pr_info("aoe: cannot create debugfs file for %s\n",
+		pr_info("aoe: cannot create defs file for %s\n",
 			d->gd->disk_name);
 		return;
 	}
-	BUG_ON(d->debugfs);
-	d->debugfs = entry;
+	_ON(d->defs);
+	d->defs = entry;
 }
 void
-aoedisk_rm_debugfs(struct aoedev *d)
+aoedisk_rm_defs(struct aoedev *d)
 {
-	debugfs_remove(d->debugfs);
-	d->debugfs = NULL;
+	defs_remove(d->defs);
+	d->defs = NULL;
 }
 
 static int
@@ -436,7 +436,7 @@ aoeblk_gdalloc(void *vp)
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	device_add_disk(NULL, gd, aoe_attr_groups);
-	aoedisk_add_debugfs(d);
+	aoedisk_add_defs(d);
 
 	spin_lock_irqsave(&d->lock, flags);
 	WARN_ON(!(d->flags & DEVFL_GD_NOW));
@@ -458,8 +458,8 @@ err:
 void
 aoeblk_exit(void)
 {
-	debugfs_remove_recursive(aoe_debugfs_dir);
-	aoe_debugfs_dir = NULL;
+	defs_remove_recursive(aoe_defs_dir);
+	aoe_defs_dir = NULL;
 	kmem_cache_destroy(buf_pool_cache);
 }
 
@@ -471,10 +471,10 @@ aoeblk_init(void)
 					   0, 0, NULL);
 	if (buf_pool_cache == NULL)
 		return -ENOMEM;
-	aoe_debugfs_dir = debugfs_create_dir("aoe", NULL);
-	if (IS_ERR_OR_NULL(aoe_debugfs_dir)) {
-		pr_info("aoe: cannot create debugfs directory\n");
-		aoe_debugfs_dir = NULL;
+	aoe_defs_dir = defs_create_dir("aoe", NULL);
+	if (IS_ERR_OR_NULL(aoe_defs_dir)) {
+		pr_info("aoe: cannot create defs directory\n");
+		aoe_defs_dir = NULL;
 	}
 	return 0;
 }

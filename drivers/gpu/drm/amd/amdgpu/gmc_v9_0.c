@@ -571,7 +571,7 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 	if (!(*flags & AMDGPU_PDE_PTE) && !(*flags & AMDGPU_PTE_SYSTEM))
 		*addr = adev->vm_manager.vram_base_offset + *addr -
 			adev->gmc.vram_start;
-	BUG_ON(*addr & 0xFFFF00000000003FULL);
+	_ON(*addr & 0xFFFF00000000003FULL);
 
 	if (!adev->gmc.translate_further)
 		return;
@@ -629,18 +629,18 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 	uint32_t fv2;
 	size_t lost_sheep;
 
-	DRM_DEBUG("ecc: gmc_v9_0_ecc_available()\n");
+	DRM_DE("ecc: gmc_v9_0_ecc_available()\n");
 
 	lost_sheep = 0;
 	for (i = 0; i < ARRAY_SIZE(ecc_umclocalcap_addrs); ++i) {
 		reg_addr = ecc_umclocalcap_addrs[i];
-		DRM_DEBUG("ecc: "
+		DRM_DE("ecc: "
 			  "UMCCH_UmcLocalCap[%zu]: reg_addr: 0x%08x\n",
 			  i, reg_addr);
 		reg_val = RREG32(reg_addr);
 		field_val = REG_GET_FIELD(reg_val, UMCCH0_0_UmcLocalCap,
 					  EccDis);
-		DRM_DEBUG("ecc: "
+		DRM_DE("ecc: "
 			  "reg_val: 0x%08x, "
 			  "EccDis: 0x%08x, ",
 			  reg_val, field_val);
@@ -652,13 +652,13 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(ecc_umcch_umc_config_addrs); ++i) {
 		reg_addr = ecc_umcch_umc_config_addrs[i];
-		DRM_DEBUG("ecc: "
+		DRM_DE("ecc: "
 			  "UMCCH0_0_UMC_CONFIG[%zu]: reg_addr: 0x%08x",
 			  i, reg_addr);
 		reg_val = RREG32(reg_addr);
 		field_val = REG_GET_FIELD(reg_val, UMCCH0_0_UMC_CONFIG,
 					  DramReady);
-		DRM_DEBUG("ecc: "
+		DRM_DE("ecc: "
 			  "reg_val: 0x%08x, "
 			  "DramReady: 0x%08x\n",
 			  reg_val, field_val);
@@ -671,7 +671,7 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(ecc_umcch_eccctrl_addrs); ++i) {
 		reg_addr = ecc_umcch_eccctrl_addrs[i];
-		DRM_DEBUG("ecc: "
+		DRM_DE("ecc: "
 			  "UMCCH_EccCtrl[%zu]: reg_addr: 0x%08x, ",
 			  i, reg_addr);
 		reg_val = RREG32(reg_addr);
@@ -679,23 +679,23 @@ static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
 					  WrEccEn);
 		fv2 = REG_GET_FIELD(reg_val, UMCCH0_0_EccCtrl,
 				    RdEccEn);
-		DRM_DEBUG("ecc: "
+		DRM_DE("ecc: "
 			  "reg_val: 0x%08x, "
 			  "WrEccEn: 0x%08x, "
 			  "RdEccEn: 0x%08x\n",
 			  reg_val, field_val, fv2);
 
 		if (!field_val) {
-			DRM_DEBUG("ecc: WrEccEn is not set\n");
+			DRM_DE("ecc: WrEccEn is not set\n");
 			++lost_sheep;
 		}
 		if (!fv2) {
-			DRM_DEBUG("ecc: RdEccEn is not set\n");
+			DRM_DE("ecc: RdEccEn is not set\n");
 			++lost_sheep;
 		}
 	}
 
-	DRM_DEBUG("ecc: lost_sheep: %zu\n", lost_sheep);
+	DRM_DE("ecc: lost_sheep: %zu\n", lost_sheep);
 	return lost_sheep == 0;
 }
 
@@ -704,7 +704,7 @@ static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 
 	/*
 	 * TODO:
-	 * Currently there is a bug where some memory client outside
+	 * Currently there is a  where some memory client outside
 	 * of the driver writes to first 8M of VRAM on S3 resume,
 	 * this overrides GART which by default gets placed in first 8M and
 	 * causes VM_FAULTS once GTT is accessed.
@@ -1194,7 +1194,7 @@ static int gmc_v9_0_hw_fini(void *handle)
 
 	if (amdgpu_sriov_vf(adev)) {
 		/* full access mode, so don't touch any GMC register */
-		DRM_DEBUG("For SRIOV client, shouldn't do anything.\n");
+		DRM_DE("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
 

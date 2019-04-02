@@ -81,7 +81,7 @@ unsigned int kmem_cache_size(struct kmem_cache *s)
 }
 EXPORT_SYMBOL(kmem_cache_size);
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 static int kmem_cache_sanity_check(const char *name, unsigned int size)
 {
 	if (!name || in_interrupt() || size < sizeof(void *) ||
@@ -796,7 +796,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 		 * The cgroup is about to be freed and therefore has no charges
 		 * left. Hence, all its caches must be empty by now.
 		 */
-		BUG_ON(shutdown_cache(s));
+		_ON(shutdown_cache(s));
 	}
 	mutex_unlock(&slab_mutex);
 
@@ -811,7 +811,7 @@ static int shutdown_memcg_caches(struct kmem_cache *s)
 	LIST_HEAD(busy);
 	int i;
 
-	BUG_ON(!is_root_cache(s));
+	_ON(!is_root_cache(s));
 
 	/*
 	 * First, shutdown active caches, i.e. caches that belong to online
@@ -938,7 +938,7 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  * @cachep: The cache to shrink.
  *
  * Releases as many slabs as possible for a cache.
- * To help debugging, a zero exit status indicates all slabs were released.
+ * To help deging, a zero exit status indicates all slabs were released.
  *
  * Return: %0 if all slabs were released, non-zero otherwise
  */
@@ -1067,7 +1067,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 }
 
 /*
- * kmalloc_info[] is to make slub_debug=,kmalloc-xx option work at boot time.
+ * kmalloc_info[] is to make slub_de=,kmalloc-xx option work at boot time.
  * kmalloc_index() supports up to 2^26=64MB, so the final entry of the table is
  * kmalloc-67108864.
  */
@@ -1103,7 +1103,7 @@ void __init setup_kmalloc_cache_index_table(void)
 {
 	unsigned int i;
 
-	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
+	BUILD__ON(KMALLOC_MIN_SIZE > 256 ||
 		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
 
 	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
@@ -1159,7 +1159,7 @@ new_kmalloc_cache(int idx, int type, slab_flags_t flags)
 		flags |= SLAB_RECLAIM_ACCOUNT;
 		name = kmalloc_cache_name("kmalloc-rcl",
 						kmalloc_info[idx].size);
-		BUG_ON(!name);
+		_ON(!name);
 	} else {
 		name = kmalloc_info[idx].name;
 	}
@@ -1208,7 +1208,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 			unsigned int size = kmalloc_size(i);
 			const char *n = kmalloc_cache_name("dma-kmalloc", size);
 
-			BUG_ON(!n);
+			_ON(!n);
 			kmalloc_caches[KMALLOC_DMA][i] = create_kmalloc_cache(
 				n, size, SLAB_CACHE_DMA | flags, 0, 0);
 		}
@@ -1294,7 +1294,7 @@ void cache_random_seq_destroy(struct kmem_cache *cachep)
 }
 #endif /* CONFIG_SLAB_FREELIST_RANDOM */
 
-#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DE)
 #ifdef CONFIG_SLAB
 #define SLABINFO_RIGHTS (0600)
 #else
@@ -1307,7 +1307,7 @@ static void print_slabinfo_header(struct seq_file *m)
 	 * Output format version, so at least we can change it
 	 * without _too_ many complaints.
 	 */
-#ifdef CONFIG_DEBUG_SLAB
+#ifdef CONFIG_DE_SLAB
 	seq_puts(m, "slabinfo - version: 2.1 (statistics)\n");
 #else
 	seq_puts(m, "slabinfo - version: 2.1\n");
@@ -1315,7 +1315,7 @@ static void print_slabinfo_header(struct seq_file *m)
 	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
-#ifdef CONFIG_DEBUG_SLAB
+#ifdef CONFIG_DE_SLAB
 	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
@@ -1498,7 +1498,7 @@ static int __init slab_proc_init(void)
 	return 0;
 }
 module_init(slab_proc_init);
-#endif /* CONFIG_SLAB || CONFIG_SLUB_DEBUG */
+#endif /* CONFIG_SLAB || CONFIG_SLUB_DE */
 
 static __always_inline void *__do_krealloc(const void *p, size_t new_size,
 					   gfp_t flags)

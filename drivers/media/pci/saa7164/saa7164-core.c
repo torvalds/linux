@@ -44,13 +44,13 @@ MODULE_LICENSE("GPL");
  * 32 bus
  */
 
-unsigned int saa_debug;
-module_param_named(debug, saa_debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+unsigned int saa_de;
+module_param_named(de, saa_de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
-static unsigned int fw_debug;
-module_param(fw_debug, int, 0644);
-MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
+static unsigned int fw_de;
+module_param(fw_de, int, 0644);
+MODULE_PARM_DESC(fw_de, "Firmware de level def:2");
 
 unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);
@@ -588,7 +588,7 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 	/* Find the current write point from the hardware */
 	wp = saa7164_readl(port->bufcounter);
 	if (wp > (port->hwcfg.buffercount - 1))
-		BUG();
+		();
 
 	/* Find the previous buffer to the current write point */
 	if (wp == 0)
@@ -601,7 +601,7 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 	list_for_each_safe(c, n, &port->dmaqueue.list) {
 		buf = list_entry(c, struct saa7164_buffer, list);
 		if (i++ > port->hwcfg.buffercount)
-			BUG();
+			();
 
 		if (buf->idx == rp) {
 			/* Found the buffer, deal with it */
@@ -756,7 +756,7 @@ u32 saa7164_getcurrentfirmwareversion(struct saa7164_dev *dev)
 	return reg;
 }
 
-/* TODO: Debugging func, remove */
+/* TODO: Deging func, remove */
 void saa7164_dumpregs(struct saa7164_dev *dev, u32 addr)
 {
 	int i;
@@ -830,8 +830,8 @@ static void saa7164_dump_intfdesc(struct saa7164_dev *dev)
 	dprintk(1, " .bInterfaceId = 0x%x\n", dev->intfdesc.bInterfaceId);
 	dprintk(1, " .bBaseInterface = 0x%x\n", dev->intfdesc.bBaseInterface);
 	dprintk(1, " .bInterruptId = 0x%x\n", dev->intfdesc.bInterruptId);
-	dprintk(1, " .bDebugInterruptId = 0x%x\n",
-		dev->intfdesc.bDebugInterruptId);
+	dprintk(1, " .bDeInterruptId = 0x%x\n",
+		dev->intfdesc.bDeInterruptId);
 
 	dprintk(1, " .BARLocation = 0x%x\n", dev->intfdesc.BARLocation);
 }
@@ -907,7 +907,7 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 	struct saa7164_port *port = NULL;
 
 	if ((portnr < 0) || (portnr >= SAA7164_MAX_PORTS))
-		BUG();
+		();
 
 	port = &dev->ports[portnr];
 
@@ -928,7 +928,7 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 		/* We need a deferred interrupt handler for cmd handling */
 		INIT_WORK(&port->workenc, saa7164_work_vbihandler);
 	} else
-		BUG();
+		();
 
 	/* Init all the critical resources */
 	mutex_init(&port->dvb.lock);
@@ -1152,10 +1152,10 @@ static int saa7164_thread_function(void *data)
 
 		dprintk(DBGLVL_THR, "thread running\n");
 
-		/* Dump the firmware debug message to console */
+		/* Dump the firmware de message to console */
 		/* Polling this costs us 1-2% of the arm CPU */
 		/* convert this into a respnde to interrupt 0x7a */
-		saa7164_api_collect_debug(dev);
+		saa7164_api_collect_de(dev);
 
 		/* Monitor CPU load every 1 second */
 		if ((last_poll_time + 1000 /* ms */) < jiffies_to_msecs(jiffies)) {
@@ -1371,14 +1371,14 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 				       __func__);
 			}
 		}
-		saa7164_api_set_debug(dev, fw_debug);
+		saa7164_api_set_de(dev, fw_de);
 
-		if (fw_debug) {
+		if (fw_de) {
 			dev->kthread = kthread_run(saa7164_thread_function, dev,
-				"saa7164 debug");
+				"saa7164 de");
 			if (IS_ERR(dev->kthread)) {
 				dev->kthread = NULL;
-				printk(KERN_ERR "%s() Failed to create debug kernel thread\n",
+				printk(KERN_ERR "%s() Failed to create de kernel thread\n",
 				       __func__);
 			}
 		}
@@ -1388,7 +1388,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		printk(KERN_ERR "%s() Unsupported board detected, registering without firmware\n",
 		       __func__);
 
-	dprintk(1, "%s() parameter debug = %d\n", __func__, saa_debug);
+	dprintk(1, "%s() parameter de = %d\n", __func__, saa_de);
 	dprintk(1, "%s() parameter waitsecs = %d\n", __func__, waitsecs);
 
 fail_fw:
@@ -1412,12 +1412,12 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 	struct saa7164_dev *dev = pci_get_drvdata(pci_dev);
 
 	if (dev->board != SAA7164_BOARD_UNKNOWN) {
-		if (fw_debug && dev->kthread) {
+		if (fw_de && dev->kthread) {
 			kthread_stop(dev->kthread);
 			dev->kthread = NULL;
 		}
 		if (dev->firmwareloaded)
-			saa7164_api_set_debug(dev, 0x00);
+			saa7164_api_set_de(dev, 0x00);
 	}
 
 	saa7164_histogram_print(&dev->ports[SAA7164_PORT_ENC1],

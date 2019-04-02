@@ -102,7 +102,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	}
 
 	ha->flags.mbox_busy = 1;
-	/* Save mailbox command for debug */
+	/* Save mailbox command for de */
 	ha->mcp32 = mcp;
 
 	ql_dbg(ql_dbg_mbx, vha, 0x1178,

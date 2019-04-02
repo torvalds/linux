@@ -401,7 +401,7 @@ bool i915_active_acquire(struct i915_active *ref);
 
 static inline void i915_active_cancel(struct i915_active *ref)
 {
-	GEM_BUG_ON(ref->count != 1);
+	GEM__ON(ref->count != 1);
 	ref->count = 0;
 }
 
@@ -413,7 +413,7 @@ i915_active_is_idle(const struct i915_active *ref)
 	return !ref->count;
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_GEM)
 void i915_active_fini(struct i915_active *ref);
 #else
 static inline void i915_active_fini(struct i915_active *ref) { }

@@ -13,10 +13,10 @@
  *  for more details.
  */
 
-#undef DEBUG
-#undef DEBUG_IPI
-#undef DEBUG_IRQ
-#undef DEBUG_LOW
+#undef DE
+#undef DE_IPI
+#undef DE_IRQ
+#undef DE_LOW
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -41,7 +41,7 @@
 
 #include "mpic.h"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) printk(fmt)
 #else
 #define DBG(fmt...)
@@ -316,7 +316,7 @@ static void _mpic_map_mmio(struct mpic *mpic, phys_addr_t phys_addr,
 			   unsigned int size)
 {
 	rb->base = ioremap(phys_addr + offset, size);
-	BUG_ON(rb->base == NULL);
+	_ON(rb->base == NULL);
 }
 
 #ifdef CONFIG_PPC_DCR
@@ -325,7 +325,7 @@ static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
 {
 	phys_addr_t phys_addr = dcr_resource_start(mpic->node, 0);
 	rb->dhost = dcr_map(mpic->node, phys_addr + offset, size);
-	BUG_ON(!DCR_MAP_OK(rb->dhost));
+	_ON(!DCR_MAP_OK(rb->dhost));
 }
 
 static inline void mpic_map(struct mpic *mpic,
@@ -472,7 +472,7 @@ static void __init mpic_scan_ht_msi(struct mpic *mpic, u8 __iomem *devbase,
 		addr = addr | ((u64)readl(base + HT_MSI_ADDR_HI) << 32);
 	}
 
-	printk(KERN_DEBUG "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%llx\n",
+	printk(KERN_DE "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%llx\n",
 		PCI_SLOT(devfn), PCI_FUNC(devfn),
 		flags & HT_MSI_FLAGS_ENABLE ? "enabled" : "disabled", addr);
 
@@ -545,7 +545,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 
 	/* Allocate fixups array */
 	mpic->fixups = kcalloc(128, sizeof(*mpic->fixups), GFP_KERNEL);
-	BUG_ON(mpic->fixups == NULL);
+	_ON(mpic->fixups == NULL);
 
 	/* Init spinlock */
 	raw_spin_lock_init(&mpic->fixup_lock);
@@ -554,7 +554,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 	 * so we only need to map 64kB.
 	 */
 	cfgspace = ioremap(0xf2000000, 0x10000);
-	BUG_ON(cfgspace == NULL);
+	_ON(cfgspace == NULL);
 
 	/* Now we scan all slots. We do a very quick scan, we read the header
 	 * type, vendor ID and device ID only, that's plenty enough
@@ -709,7 +709,7 @@ void mpic_end_irq(struct irq_data *d)
 {
 	struct mpic *mpic = mpic_from_irq_data(d);
 
-#ifdef DEBUG_IRQ
+#ifdef DE_IRQ
 	DBG("%s: end_irq: %d\n", mpic->name, d->irq);
 #endif
 	/* We always EOI on end_irq() even for edge interrupts since that
@@ -758,7 +758,7 @@ static void mpic_end_ht_irq(struct irq_data *d)
 	struct mpic *mpic = mpic_from_irq_data(d);
 	unsigned int src = irqd_to_hwirq(d);
 
-#ifdef DEBUG_IRQ
+#ifdef DE_IRQ
 	DBG("%s: end_irq: %d\n", mpic->name, d->irq);
 #endif
 	/* We always EOI on end_irq() even for edge interrupts since that
@@ -1130,7 +1130,7 @@ static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 			*out_hwirq = mpic->timer_vecs[intspec[0]];
 			break;
 		default:
-			pr_debug("%s: unknown irq type %u\n",
+			pr_de("%s: unknown irq type %u\n",
 				 __func__, intspec[2]);
 			return -EINVAL;
 		}
@@ -1168,7 +1168,7 @@ static void mpic_cascade(struct irq_desc *desc)
 	struct mpic *mpic = irq_desc_get_handler_data(desc);
 	unsigned int virq;
 
-	BUG_ON(!(mpic->flags & MPIC_SECONDARY));
+	_ON(!(mpic->flags & MPIC_SECONDARY));
 
 	virq = mpic_get_one_irq(mpic);
 	if (virq)
@@ -1325,7 +1325,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		/* Allocate a bitmap with one bit per interrupt */
 		unsigned int mapsize = BITS_TO_LONGS(intvec_top + 1);
 		mpic->protected = kcalloc(mapsize, sizeof(long), GFP_KERNEL);
-		BUG_ON(mpic->protected == NULL);
+		_ON(mpic->protected == NULL);
 		for (i = 0; i < psize/sizeof(u32); i++) {
 			if (psrc[i] > intvec_top)
 				continue;
@@ -1351,7 +1351,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	if (mpic->flags & MPIC_USES_DCR)
 		mpic->reg_type = mpic_access_dcr;
 #else
-	BUG_ON(mpic->flags & MPIC_USES_DCR);
+	_ON(mpic->flags & MPIC_USES_DCR);
 #endif
 
 	/* Map the global registers */
@@ -1416,7 +1416,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 * is allowed to reset.
 	 */
 	if (!(mpic->flags & MPIC_NO_RESET)) {
-		printk(KERN_DEBUG "mpic: Resetting\n");
+		printk(KERN_DE "mpic: Resetting\n");
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
 			   | MPIC_GREG_GCONF_RESET);
@@ -1440,7 +1440,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 * The MPIC driver will crash if there are more cores than we
 	 * can initialize, so we may as well catch that problem here.
 	 */
-	BUG_ON(num_possible_cpus() > MPIC_MAX_CPUS);
+	_ON(num_possible_cpus() > MPIC_MAX_CPUS);
 
 	/* Map the per-CPU registers */
 	for_each_possible_cpu(i) {
@@ -1459,7 +1459,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	/*
 	 * By default, the last source number comes from the MPIC, but the
-	 * device-tree and board support code can override it on buggy hw.
+	 * device-tree and board support code can override it on gy hw.
 	 * If we get passed an isu_size (multi-isu MPIC) then we use that
 	 * as a default instead of the value read from the HW.
 	 */
@@ -1536,7 +1536,7 @@ void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,
 {
 	unsigned int isu_first = isu_num * mpic->isu_size;
 
-	BUG_ON(isu_num >= MPIC_MAX_ISU);
+	_ON(isu_num >= MPIC_MAX_ISU);
 
 	mpic_map(mpic,
 		 paddr, &mpic->isus[isu_num], 0,
@@ -1551,7 +1551,7 @@ void __init mpic_init(struct mpic *mpic)
 	int i, cpu;
 	int num_timers = 4;
 
-	BUG_ON(mpic->num_sources == 0);
+	_ON(mpic->num_sources == 0);
 
 	printk(KERN_INFO "mpic: Initializing for %d sources\n", mpic->num_sources);
 
@@ -1642,7 +1642,7 @@ void __init mpic_init(struct mpic *mpic)
 	mpic->save_data = kmalloc_array(mpic->num_sources,
 				        sizeof(*mpic->save_data),
 				        GFP_KERNEL);
-	BUG_ON(mpic->save_data == NULL);
+	_ON(mpic->save_data == NULL);
 #endif
 
 	/* Check if this MPIC is chained from a parent interrupt controller */
@@ -1699,7 +1699,7 @@ void mpic_setup_this_cpu(void)
 	u32 msk = 1 << hard_smp_processor_id();
 	unsigned int i;
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	DBG("%s: setup_this_cpu(%d)\n", mpic->name, hard_smp_processor_id());
 
@@ -1745,7 +1745,7 @@ void mpic_teardown_this_cpu(int secondary)
 	u32 msk = 1 << hard_smp_processor_id();
 	unsigned int i;
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	DBG("%s: teardown_this_cpu(%d)\n", mpic->name, hard_smp_processor_id());
 	raw_spin_lock_irqsave(&mpic_lock, flags);
@@ -1771,7 +1771,7 @@ static unsigned int _mpic_get_one_irq(struct mpic *mpic, int reg)
 	u32 src;
 
 	src = mpic_cpu_read(reg) & MPIC_INFO(VECPRI_VECTOR_MASK);
-#ifdef DEBUG_LOW
+#ifdef DE_LOW
 	DBG("%s: get_one_irq(reg 0x%x): %d\n", mpic->name, reg, src);
 #endif
 	if (unlikely(src == mpic->spurious_vec)) {
@@ -1798,7 +1798,7 @@ unsigned int mpic_get_irq(void)
 {
 	struct mpic *mpic = mpic_primary;
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	return mpic_get_one_irq(mpic);
 }
@@ -1809,7 +1809,7 @@ unsigned int mpic_get_coreint_irq(void)
 	struct mpic *mpic = mpic_primary;
 	u32 src;
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	src = mfspr(SPRN_EPR);
 
@@ -1834,7 +1834,7 @@ unsigned int mpic_get_mcirq(void)
 {
 	struct mpic *mpic = mpic_primary;
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	return _mpic_get_one_irq(mpic, MPIC_INFO(CPU_MCACK));
 }
@@ -1844,7 +1844,7 @@ void mpic_request_ipis(void)
 {
 	struct mpic *mpic = mpic_primary;
 	int i;
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	printk(KERN_INFO "mpic: requesting IPIs...\n");
 
@@ -1864,7 +1864,7 @@ void smp_mpic_message_pass(int cpu, int msg)
 	struct mpic *mpic = mpic_primary;
 	u32 physmask;
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	/* make sure we're sending something that translates to an IPI */
 	if ((unsigned int)msg > 3) {
@@ -1873,7 +1873,7 @@ void smp_mpic_message_pass(int cpu, int msg)
 		return;
 	}
 
-#ifdef DEBUG_IPI
+#ifdef DE_IPI
 	DBG("%s: send_ipi(ipi_no: %d)\n", mpic->name, msg);
 #endif
 

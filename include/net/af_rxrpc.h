@@ -21,9 +21,9 @@ struct socket;
 struct rxrpc_call;
 
 /*
- * Debug ID counter for tracing.
+ * De ID counter for tracing.
  */
-extern atomic_t rxrpc_debug_id;
+extern atomic_t rxrpc_de_id;
 
 typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
 				  unsigned long);

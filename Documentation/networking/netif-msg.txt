@@ -6,13 +6,13 @@ The design of the network interface message level setting.
 
 History
 
- The design of the debugging message interface was guided and
+ The design of the deging message interface was guided and
  constrained by backwards compatibility previous practice.  It is useful
  to understand the history and evolution in order to understand current
  practice and relate it to older driver source code.
 
  From the beginning of Linux, each network device driver has had a local
- integer variable that controls the debug message level.  The message
+ integer variable that controls the de message level.  The message
  level ranged from 0 to 7, and monotonically increased in verbosity.
 
  The message level was not precisely defined past level 3, but were
@@ -28,9 +28,9 @@ History
     7  Initial contents of Tx and Rx packets
 
  Initially this message level variable was uniquely named in each driver
- e.g. "lance_debug", so that a kernel symbolic debugger could locate and
+ e.g. "lance_de", so that a kernel symbolic deger could locate and
  modify the setting.  When kernel modules became common, the variables
- were consistently renamed to "debug" and allowed to be set as a module
+ were consistently renamed to "de" and allowed to be set as a module
  parameter.
 
  This approach worked well.  However there is always a demand for
@@ -44,21 +44,21 @@ History
  complexity and code size increase.
 
  The recommendation is the following points
-    Retaining the per-driver integer variable "debug" as a module
+    Retaining the per-driver integer variable "de" as a module
     parameter with a default level of '1'.
 
     Adding a per-interface private variable named "msg_enable".  The
     variable is a bit map rather than a level, and is initialized as
-       1 << debug
+       1 << de
     Or more precisely
-        debug < 0 ? 0 : 1 << min(sizeof(int)-1, debug)
+        de < 0 ? 0 : 1 << min(sizeof(int)-1, de)
 
     Messages should changes from
-      if (debug > 1)
-           printk(MSG_DEBUG "%s: ...
+      if (de > 1)
+           printk(MSG_DE "%s: ...
     to
       if (np->msg_enable & NETIF_MSG_LINK)
-           printk(MSG_DEBUG "%s: ...
+           printk(MSG_DE "%s: ...
 
 
 The set of message levels is named

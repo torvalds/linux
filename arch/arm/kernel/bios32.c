@@ -17,7 +17,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/pci.h>
 
-static int debug_pci;
+static int de_pci;
 
 /*
  * We can't use pci_get_device() here since we are
@@ -67,14 +67,14 @@ void pcibios_report_status(u_int status_mask, int warn)
 /*
  * We don't use this to fix the device, but initialisation of it.
  * It's not the correct use for this, but it works.
- * Note that the arbiter/ISA bridge appears to be buggy, specifically in
+ * Note that the arbiter/ISA bridge appears to be gy, specifically in
  * the following area:
  * 1. park on CPU
  * 2. ISA bridge ping-pong
  * 3. ISA bridge master handling of target RETRY
  *
- * Bug 3 is responsible for the sound DMA grinding to a halt.  We now
- * live with bug 2.
+ *  3 is responsible for the sound DMA grinding to a halt.  We now
+ * live with  2.
  */
 static void pci_fixup_83c553(struct pci_dev *dev)
 {
@@ -108,7 +108,7 @@ static void pci_fixup_83c553(struct pci_dev *dev)
 	 * We used to set the arbiter to "park on last master" (bit
 	 * 1 set), but unfortunately the CyberPro does not park the
 	 * bus.  We must therefore park on CPU.  Unfortunately, this
-	 * may trigger yet another bug in the 553.
+	 * may trigger yet another  in the 553.
 	 */
 	pci_write_config_byte(dev, 0x83, 0x02);
 
@@ -386,7 +386,7 @@ static u8 pcibios_swizzle(struct pci_dev *dev, u8 *pin)
 	else
 		slot = pci_common_swizzle(dev, pin);
 
-	if (debug_pci)
+	if (de_pci)
 		printk("PCI: %s swizzling pin %d => pin %d slot %d\n",
 			pci_name(dev), oldpin, *pin, slot);
 
@@ -404,7 +404,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	if (sys->map_irq)
 		irq = sys->map_irq(dev, slot, pin);
 
-	if (debug_pci)
+	if (de_pci)
 		printk("PCI: %s mapping slot %d pin %d => irq %d\n",
 			pci_name(dev), slot, pin, irq);
 
@@ -567,8 +567,8 @@ void pcibios_set_master(struct pci_dev *dev)
 
 char * __init pcibios_setup(char *str)
 {
-	if (!strcmp(str, "debug")) {
-		debug_pci = 1;
+	if (!strcmp(str, "de")) {
+		de_pci = 1;
 		return NULL;
 	}
 	return str;

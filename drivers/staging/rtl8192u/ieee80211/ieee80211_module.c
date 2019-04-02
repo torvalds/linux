@@ -100,7 +100,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	struct net_device *dev;
 	int i, err;
 
-	IEEE80211_DEBUG_INFO("Initializing...\n");
+	IEEE80211_DE_INFO("Initializing...\n");
 
 	dev = alloc_etherdev(sizeof(struct ieee80211_device) + sizeof_priv);
 	if (!dev) {
@@ -156,7 +156,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
 	if (ieee->pHTInfo == NULL) {
-		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
+		IEEE80211_DE(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
 
 		/* By this point in code ieee80211_networks_allocate() has been
 		 * successfully called so the memory allocated should be freed
@@ -217,10 +217,10 @@ void free_ieee80211(struct net_device *dev)
 	free_netdev(dev);
 }
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_IEEE80211_DE
 
-u32 ieee80211_debug_level;
-static int debug = //	    IEEE80211_DL_INFO	|
+u32 ieee80211_de_level;
+static int de = //	    IEEE80211_DL_INFO	|
 	//		    IEEE80211_DL_WX	|
 	//		    IEEE80211_DL_SCAN	|
 	//		    IEEE80211_DL_STATE	|
@@ -241,14 +241,14 @@ static int debug = //	    IEEE80211_DL_INFO	|
 			    ;
 static struct proc_dir_entry *ieee80211_proc;
 
-static int show_debug_level(struct seq_file *m, void *v)
+static int show_de_level(struct seq_file *m, void *v)
 {
-	seq_printf(m, "0x%08X\n", ieee80211_debug_level);
+	seq_printf(m, "0x%08X\n", ieee80211_de_level);
 
 	return 0;
 }
 
-static ssize_t write_debug_level(struct file *file, const char __user *buffer,
+static ssize_t write_de_level(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
 	unsigned long val;
@@ -256,28 +256,28 @@ static ssize_t write_debug_level(struct file *file, const char __user *buffer,
 
 	if (err)
 		return err;
-	ieee80211_debug_level = val;
+	ieee80211_de_level = val;
 	return count;
 }
 
-static int open_debug_level(struct inode *inode, struct file *file)
+static int open_de_level(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_debug_level, NULL);
+	return single_open(file, show_de_level, NULL);
 }
 
 static const struct file_operations fops = {
-	.open = open_debug_level,
+	.open = open_de_level,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.write = write_debug_level,
+	.write = write_de_level,
 	.release = single_release,
 };
 
-int __init ieee80211_debug_init(void)
+int __init ieee80211_de_init(void)
 {
 	struct proc_dir_entry *e;
 
-	ieee80211_debug_level = debug;
+	ieee80211_de_level = de;
 
 	ieee80211_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
 	if (!ieee80211_proc) {
@@ -285,7 +285,7 @@ int __init ieee80211_debug_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", 0644, ieee80211_proc, &fops);
+	e = proc_create("de_level", 0644, ieee80211_proc, &fops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;
@@ -294,15 +294,15 @@ int __init ieee80211_debug_init(void)
 	return 0;
 }
 
-void __exit ieee80211_debug_exit(void)
+void __exit ieee80211_de_exit(void)
 {
 	if (ieee80211_proc) {
-		remove_proc_entry("debug_level", ieee80211_proc);
+		remove_proc_entry("de_level", ieee80211_proc);
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;
 	}
 }
 
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "debug output mask");
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "de output mask");
 #endif

@@ -151,7 +151,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 	mp->num_clk = 0;
 	num_clk = of_property_count_strings(pdev->dev.of_node, "clock-names");
 	if (num_clk <= 0) {
-		pr_debug("clocks are not defined\n");
+		pr_de("clocks are not defined\n");
 		return 0;
 	}
 

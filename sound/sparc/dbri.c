@@ -89,7 +89,7 @@ MODULE_PARM_DESC(id, "ID string for Sun DBRI soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Sun DBRI soundcard.");
 
-#undef DBRI_DEBUG
+#undef DBRI_DE
 
 #define D_INT	(1<<0)
 #define D_GEN	(1<<1)
@@ -98,22 +98,22 @@ MODULE_PARM_DESC(enable, "Enable Sun DBRI soundcard.");
 #define D_USR	(1<<4)
 #define D_DESC	(1<<5)
 
-static int dbri_debug;
-module_param(dbri_debug, int, 0644);
-MODULE_PARM_DESC(dbri_debug, "Debug value for Sun DBRI soundcard.");
+static int dbri_de;
+module_param(dbri_de, int, 0644);
+MODULE_PARM_DESC(dbri_de, "De value for Sun DBRI soundcard.");
 
-#ifdef DBRI_DEBUG
+#ifdef DBRI_DE
 static char *cmds[] = {
 	"WAIT", "PAUSE", "JUMP", "IIQ", "REX", "SDP", "CDP", "DTS",
 	"SSP", "CHI", "NT", "TE", "CDEC", "TEST", "CDM", "RESRV"
 };
 
-#define dprintk(a, x...) if (dbri_debug & a) printk(KERN_DEBUG x)
+#define dprintk(a, x...) if (dbri_de & a) printk(KERN_DE x)
 
 #else
 #define dprintk(a, x...) do { } while (0)
 
-#endif				/* DBRI_DEBUG */
+#endif				/* DBRI_DE */
 
 #define DBRI_CMD(cmd, intr, value) ((cmd << 28) |	\
 				    (intr << 27) |	\
@@ -696,7 +696,7 @@ static void dbri_cmdsend(struct snd_dbri *dbri, s32 *cmd, int len)
 	*(dbri->cmdptr+1) = addr;
 	*(dbri->cmdptr) = DBRI_CMD(D_JUMP, 0, 0);
 
-#ifdef DBRI_DEBUG
+#ifdef DBRI_DE
 	if (cmd > dbri->cmdptr) {
 		s32 *ptr;
 
@@ -1202,7 +1202,7 @@ static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 	dbri->pipes[info->pipe].first_desc = first_desc;
 	dbri->pipes[info->pipe].desc = first_desc;
 
-#ifdef DBRI_DEBUG
+#ifdef DBRI_DE
 	for (desc = first_desc; desc != -1;) {
 		dprintk(D_DESC, "DESC %d: %08x %08x %08x %08x\n",
 			desc,
@@ -1839,7 +1839,7 @@ static void dbri_process_one_interrupt(struct snd_dbri *dbri, int x)
 	int channel = D_INTR_GETCHAN(x);
 	int command = D_INTR_GETCMD(x);
 	int code = D_INTR_GETCODE(x);
-#ifdef DBRI_DEBUG
+#ifdef DBRI_DE
 	int rval = D_INTR_GETRVAL(x);
 #endif
 
@@ -2272,7 +2272,7 @@ static int snd_cs4215_get_volume(struct snd_kcontrol *kcontrol,
 	struct snd_dbri *dbri = snd_kcontrol_chip(kcontrol);
 	struct dbri_streaminfo *info;
 
-	if (snd_BUG_ON(!dbri))
+	if (snd__ON(!dbri))
 		return -EINVAL;
 	info = &dbri->stream_info[kcontrol->private_value];
 
@@ -2341,7 +2341,7 @@ static int snd_cs4215_get_single(struct snd_kcontrol *kcontrol,
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 1;
 
-	if (snd_BUG_ON(!dbri))
+	if (snd__ON(!dbri))
 		return -EINVAL;
 
 	if (elem < 4)
@@ -2368,7 +2368,7 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
 	int changed = 0;
 	unsigned short val;
 
-	if (snd_BUG_ON(!dbri))
+	if (snd__ON(!dbri))
 		return -EINVAL;
 
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -2445,7 +2445,7 @@ static int snd_dbri_mixer(struct snd_card *card)
 	int idx, err;
 	struct snd_dbri *dbri;
 
-	if (snd_BUG_ON(!card || !card->private_data))
+	if (snd__ON(!card || !card->private_data))
 		return -EINVAL;
 	dbri = card->private_data;
 
@@ -2480,13 +2480,13 @@ static void dbri_regs_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "REG9: 0x%x\n", sbus_readl(dbri->regs + REG9));
 }
 
-#ifdef DBRI_DEBUG
-static void dbri_debug_read(struct snd_info_entry *entry,
+#ifdef DBRI_DE
+static void dbri_de_read(struct snd_info_entry *entry,
 			    struct snd_info_buffer *buffer)
 {
 	struct snd_dbri *dbri = entry->private_data;
 	int pipe;
-	snd_iprintf(buffer, "debug=%d\n", dbri_debug);
+	snd_iprintf(buffer, "de=%d\n", dbri_de);
 
 	for (pipe = 0; pipe < 32; pipe++) {
 		if (pipe_active(dbri, pipe)) {
@@ -2509,8 +2509,8 @@ static void snd_dbri_proc(struct snd_card *card)
 	struct snd_dbri *dbri = card->private_data;
 
 	snd_card_ro_proc_new(card, "regs", dbri, dbri_regs_read);
-#ifdef DBRI_DEBUG
-	snd_card_ro_proc_new(card, "debug", dbri, dbri_debug_read);
+#ifdef DBRI_DE
+	snd_card_ro_proc_new(card, "de", dbri, dbri_de_read);
 #endif
 }
 

@@ -33,17 +33,17 @@
 #include "altera-exprt.h"
 #include "altera-jtag.h"
 
-static int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debugging information");
+static int de = 1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable deging information");
 
 MODULE_DESCRIPTION("altera FPGA kernel module");
 MODULE_AUTHOR("Igor M. Liplianin  <liplianin@netup.ru>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(args...) \
-	if (debug) { \
-		printk(KERN_DEBUG args); \
+	if (de) { \
+		printk(KERN_DE args); \
 	}
 
 enum altera_fpga_opcode {
@@ -233,7 +233,7 @@ static int altera_execute(struct altera_state *astate,
 	u32 sym_table = 0L;
 	u32 data_sect = 0L;
 	u32 code_sect = 0L;
-	u32 debug_sect = 0L;
+	u32 de_sect = 0L;
 	u32 action_count = 0L;
 	u32 proc_count = 0L;
 	u32 sym_count = 0L;
@@ -289,7 +289,7 @@ static int altera_execute(struct altera_state *astate,
 		sym_table  = get_unaligned_be32(&p[16 + delta]);
 		data_sect  = get_unaligned_be32(&p[20 + delta]);
 		code_sect  = get_unaligned_be32(&p[24 + delta]);
-		debug_sect = get_unaligned_be32(&p[28 + delta]);
+		de_sect = get_unaligned_be32(&p[28 + delta]);
 		action_count  = get_unaligned_be32(&p[40 + delta]);
 		proc_count    = get_unaligned_be32(&p[44 + delta]);
 		sym_count  = get_unaligned_be32(&p[48 + (2 * delta)]);
@@ -509,7 +509,7 @@ exit_done:
 				pc = code_sect +
 					get_unaligned_be32(&p[proc_table +
 								(13 * i) + 9]);
-				if ((pc < code_sect) || (pc >= debug_sect))
+				if ((pc < code_sect) || (pc >= de_sect))
 					status = -ERANGE;
 			} else
 				/* there are no procedures to execute! */
@@ -525,7 +525,7 @@ exit_done:
 		opcode_address = pc;
 		++pc;
 
-		if (debug > 1)
+		if (de > 1)
 			printk("opcode: %02x\n", opcode);
 
 		arg_count = (opcode >> 6) & 3;
@@ -665,7 +665,7 @@ exit_done:
 								&p[proc_table +
 								(13 * i) + 9]);
 					if ((pc < code_sect) ||
-					    (pc >= debug_sect))
+					    (pc >= de_sect))
 						status = -ERANGE;
 				}
 
@@ -673,7 +673,7 @@ exit_done:
 				if (altera_check_stack(stack_ptr, 1, &status)) {
 					pc = stack[--stack_ptr] + code_sect;
 					if ((pc <= code_sect) ||
-					    (pc >= debug_sect))
+					    (pc >= de_sect))
 						status = -ERANGE;
 
 				}
@@ -716,7 +716,7 @@ exit_done:
 			break;
 		case OP_PRNT:
 			/* PRINT finish */
-			if (debug)
+			if (de)
 				printk(msg_buff, "\n");
 
 			msg_buff[0] = '\0';
@@ -1002,13 +1002,13 @@ exit_done:
 			break;
 		case OP_JMP:
 			pc = args[0] + code_sect;
-			if ((pc < code_sect) || (pc >= debug_sect))
+			if ((pc < code_sect) || (pc >= de_sect))
 				status = -ERANGE;
 			break;
 		case OP_CALL:
 			stack[stack_ptr++] = pc;
 			pc = args[0] + code_sect;
-			if ((pc < code_sect) || (pc >= debug_sect))
+			if ((pc < code_sect) || (pc >= de_sect))
 				status = -ERANGE;
 			break;
 		case OP_NEXT:
@@ -1038,7 +1038,7 @@ exit_done:
 					vars[args[0]] = iterator + step;
 					pc = top + code_sect;
 					if ((pc < code_sect) ||
-					    (pc >= debug_sect))
+					    (pc >= de_sect))
 						status = -ERANGE;
 				}
 			}
@@ -1312,7 +1312,7 @@ exit_done:
 				if (stack[--stack_ptr] == 0) {
 					pc = args[0] + code_sect;
 					if ((pc < code_sect) ||
-					    (pc >= debug_sect))
+					    (pc >= de_sect))
 						status = -ERANGE;
 				}
 			}
@@ -2268,7 +2268,7 @@ static int altera_check_crc(u8 *p, s32 program_size)
 
 	}
 
-	if (debug || status) {
+	if (de || status) {
 		switch (status) {
 		case 0:
 			printk(KERN_INFO "%s: CRC matched: %04x\n", __func__,
@@ -2456,7 +2456,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 
 	altera_check_crc((u8 *)fw->data, fw->size);
 
-	if (debug) {
+	if (de) {
 		altera_get_file_info((u8 *)fw->data, fw->size, &format_version,
 					&action_count, &procedure_count);
 		printk(KERN_INFO "%s: File format is %s ByteCode format\n",
@@ -2468,7 +2468,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 					__func__, key, value);
 	}
 
-	if (debug && (format_version == 2) && (action_count > 0)) {
+	if (de && (format_version == 2) && (action_count > 0)) {
 		printk(KERN_INFO "%s: Actions available:\n", __func__);
 		for (index = 0; index < action_count; ++index) {
 			altera_get_act_info((u8 *)fw->data, fw->size,

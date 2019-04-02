@@ -59,11 +59,11 @@ struct lgs8gl5_state {
 };
 
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "lgs8gl5: " args); \
+		if (de) \
+			printk(KERN_DE "lgs8gl5: " args); \
 	} while (0)
 
 
@@ -445,8 +445,8 @@ static const struct dvb_frontend_ops lgs8gl5_ops = {
 };
 
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Legend Silicon LGS-8GL5 DMB-TH Demodulator driver");
 MODULE_AUTHOR("Timothy Lee");

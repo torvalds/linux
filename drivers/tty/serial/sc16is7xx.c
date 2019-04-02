@@ -412,7 +412,7 @@ static int sc16is7xx_alloc_line(void)
 {
 	int i;
 
-	BUILD_BUG_ON(SC16IS7XX_MAX_DEVS > BITS_PER_LONG);
+	BUILD__ON(SC16IS7XX_MAX_DEVS > BITS_PER_LONG);
 
 	for (i = 0; i < SC16IS7XX_MAX_DEVS; i++)
 		if (!test_and_set_bit(i, &sc16is7xx_lines))

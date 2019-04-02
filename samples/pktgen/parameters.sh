@@ -16,7 +16,7 @@ function usage() {
     echo "  -n : (\$COUNT)     num messages to send per thread, 0 means indefinitely"
     echo "  -b : (\$BURST)     HW level bursting of SKBs"
     echo "  -v : (\$VERBOSE)   verbose"
-    echo "  -x : (\$DEBUG)     debug"
+    echo "  -x : (\$DE)     de"
     echo "  -6 : (\$IP6)       IPv6"
     echo ""
 }
@@ -66,8 +66,8 @@ while getopts "s:i:d:m:f:t:c:n:b:vxh6" option; do
           info "Verbose mode: VERBOSE=$VERBOSE"
           ;;
         x)
-          export DEBUG=yes
-          info "Debug mode: DEBUG=$DEBUG"
+          export DE=yes
+          info "De mode: DE=$DE"
           ;;
 	6)
 	  export IP6=6

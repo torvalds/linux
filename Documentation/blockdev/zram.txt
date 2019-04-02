@@ -170,7 +170,7 @@ writeback_limit_enable  RW	show and set writeback_limit feature
 max_comp_streams  	RW	the number of possible concurrent compress operations
 comp_algorithm    	RW	show and change the compression algorithm
 compact           	WO	trigger memory compaction
-debug_stat        	RO	this file is used for zram debugging purposes
+de_stat        	RO	this file is used for zram deging purposes
 backing_dev	  	RW	set up backend storage for zram to write out
 idle		  	WO	mark allocated slot as idle
 
@@ -304,7 +304,7 @@ like below.
 		/sys/block/zram0/writeback_limit.
 	$ echo 1 > /sys/block/zram0/writeback_limit_enable
 
-If admin want to allow further write again once the bugdet is exausted,
+If admin want to allow further write again once the det is exausted,
 he could do it like below
 
 	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
@@ -332,7 +332,7 @@ With CONFIG_ZRAM_MEMORY_TRACKING, user can know information of the
 zram block. It could be useful to catch cold or incompressible
 pages of the process with*pagemap.
 If you enable the feature, you could see block state via
-/sys/kernel/debug/zram/zram0/block_state". The output is as follows,
+/sys/kernel/de/zram/zram0/block_state". The output is as follows,
 
 	  300    75.033841 .wh.
 	  301    63.806904 s...
@@ -348,7 +348,7 @@ i: idle page)
 
 First line of above example says 300th block is accessed at 75.033841sec
 and the block's state is huge so it is written back to the backing
-storage. It's a debugging feature so anyone shouldn't rely on it to work
+storage. It's a deging feature so anyone shouldn't rely on it to work
 properly.
 
 Nitin Gupta

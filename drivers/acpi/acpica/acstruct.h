@@ -195,7 +195,7 @@ struct acpi_device_walk_info {
 /* TBD: [Restructure] Merge with struct above */
 
 struct acpi_walk_info {
-	u32 debug_level;
+	u32 de_level;
 	u32 count;
 	acpi_owner_id owner_id;
 	u8 display_type;

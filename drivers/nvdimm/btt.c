@@ -12,7 +12,7 @@
  * more details.
  */
 #include <linux/highmem.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -219,9 +219,9 @@ static int btt_log_group_read(struct arena_info *arena, u32 lane,
 			LOG_GRP_SIZE, 0);
 }
 
-static struct dentry *debugfs_root;
+static struct dentry *defs_root;
 
-static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
+static void arena_defs_init(struct arena_info *a, struct dentry *parent,
 				int idx)
 {
 	char dirname[32];
@@ -232,46 +232,46 @@ static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
 		return;
 
 	snprintf(dirname, 32, "arena%d", idx);
-	d = debugfs_create_dir(dirname, parent);
+	d = defs_create_dir(dirname, parent);
 	if (IS_ERR_OR_NULL(d))
 		return;
-	a->debugfs_dir = d;
+	a->defs_dir = d;
 
-	debugfs_create_x64("size", S_IRUGO, d, &a->size);
-	debugfs_create_x64("external_lba_start", S_IRUGO, d,
+	defs_create_x64("size", S_IRUGO, d, &a->size);
+	defs_create_x64("external_lba_start", S_IRUGO, d,
 				&a->external_lba_start);
-	debugfs_create_x32("internal_nlba", S_IRUGO, d, &a->internal_nlba);
-	debugfs_create_u32("internal_lbasize", S_IRUGO, d,
+	defs_create_x32("internal_nlba", S_IRUGO, d, &a->internal_nlba);
+	defs_create_u32("internal_lbasize", S_IRUGO, d,
 				&a->internal_lbasize);
-	debugfs_create_x32("external_nlba", S_IRUGO, d, &a->external_nlba);
-	debugfs_create_u32("external_lbasize", S_IRUGO, d,
+	defs_create_x32("external_nlba", S_IRUGO, d, &a->external_nlba);
+	defs_create_u32("external_lbasize", S_IRUGO, d,
 				&a->external_lbasize);
-	debugfs_create_u32("nfree", S_IRUGO, d, &a->nfree);
-	debugfs_create_u16("version_major", S_IRUGO, d, &a->version_major);
-	debugfs_create_u16("version_minor", S_IRUGO, d, &a->version_minor);
-	debugfs_create_x64("nextoff", S_IRUGO, d, &a->nextoff);
-	debugfs_create_x64("infooff", S_IRUGO, d, &a->infooff);
-	debugfs_create_x64("dataoff", S_IRUGO, d, &a->dataoff);
-	debugfs_create_x64("mapoff", S_IRUGO, d, &a->mapoff);
-	debugfs_create_x64("logoff", S_IRUGO, d, &a->logoff);
-	debugfs_create_x64("info2off", S_IRUGO, d, &a->info2off);
-	debugfs_create_x32("flags", S_IRUGO, d, &a->flags);
-	debugfs_create_u32("log_index_0", S_IRUGO, d, &a->log_index[0]);
-	debugfs_create_u32("log_index_1", S_IRUGO, d, &a->log_index[1]);
+	defs_create_u32("nfree", S_IRUGO, d, &a->nfree);
+	defs_create_u16("version_major", S_IRUGO, d, &a->version_major);
+	defs_create_u16("version_minor", S_IRUGO, d, &a->version_minor);
+	defs_create_x64("nextoff", S_IRUGO, d, &a->nextoff);
+	defs_create_x64("infooff", S_IRUGO, d, &a->infooff);
+	defs_create_x64("dataoff", S_IRUGO, d, &a->dataoff);
+	defs_create_x64("mapoff", S_IRUGO, d, &a->mapoff);
+	defs_create_x64("logoff", S_IRUGO, d, &a->logoff);
+	defs_create_x64("info2off", S_IRUGO, d, &a->info2off);
+	defs_create_x32("flags", S_IRUGO, d, &a->flags);
+	defs_create_u32("log_index_0", S_IRUGO, d, &a->log_index[0]);
+	defs_create_u32("log_index_1", S_IRUGO, d, &a->log_index[1]);
 }
 
-static void btt_debugfs_init(struct btt *btt)
+static void btt_defs_init(struct btt *btt)
 {
 	int i = 0;
 	struct arena_info *arena;
 
-	btt->debugfs_dir = debugfs_create_dir(dev_name(&btt->nd_btt->dev),
-						debugfs_root);
-	if (IS_ERR_OR_NULL(btt->debugfs_dir))
+	btt->defs_dir = defs_create_dir(dev_name(&btt->nd_btt->dev),
+						defs_root);
+	if (IS_ERR_OR_NULL(btt->defs_dir))
 		return;
 
 	list_for_each_entry(arena, &btt->arena_list, list) {
-		arena_debugfs_init(arena, btt->debugfs_dir, i);
+		arena_defs_init(arena, btt->defs_dir, i);
 		i++;
 	}
 }
@@ -816,7 +816,7 @@ static void free_arenas(struct btt *btt)
 		kfree(arena->rtt);
 		kfree(arena->map_locks);
 		kfree(arena->freelist);
-		debugfs_remove_recursive(arena->debugfs_dir);
+		defs_remove_recursive(arena->defs_dir);
 		kfree(arena);
 	}
 }
@@ -1653,7 +1653,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 		return NULL;
 	}
 
-	btt_debugfs_init(btt);
+	btt_defs_init(btt);
 
 	return btt;
 }
@@ -1672,7 +1672,7 @@ static void btt_fini(struct btt *btt)
 	if (btt) {
 		btt_blk_cleanup(btt);
 		free_arenas(btt);
-		debugfs_remove_recursive(btt->debugfs_dir);
+		defs_remove_recursive(btt->defs_dir);
 	}
 }
 
@@ -1734,8 +1734,8 @@ static int __init nd_btt_init(void)
 {
 	int rc = 0;
 
-	debugfs_root = debugfs_create_dir("btt", NULL);
-	if (IS_ERR_OR_NULL(debugfs_root))
+	defs_root = defs_create_dir("btt", NULL);
+	if (IS_ERR_OR_NULL(defs_root))
 		rc = -ENXIO;
 
 	return rc;
@@ -1743,7 +1743,7 @@ static int __init nd_btt_init(void)
 
 static void __exit nd_btt_exit(void)
 {
-	debugfs_remove_recursive(debugfs_root);
+	defs_remove_recursive(defs_root);
 }
 
 MODULE_ALIAS_ND_DEVICE(ND_DEVICE_BTT);

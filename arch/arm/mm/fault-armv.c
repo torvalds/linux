@@ -17,7 +17,7 @@
 #include <linux/pagemap.h>
 #include <linux/gfp.h>
 
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
 #include <asm/pgtable.h>
@@ -229,7 +229,7 @@ static int __init check_writebuffer(unsigned long *p1, unsigned long *p2)
 	return val != zero;
 }
 
-void __init check_writebuffer_bugs(void)
+void __init check_writebuffer_s(void)
 {
 	struct page *page;
 	const char *reason;

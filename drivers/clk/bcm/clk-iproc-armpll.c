@@ -85,7 +85,7 @@ static unsigned int __get_fid(struct iproc_arm_pll *pll)
 		policy = 0;
 
 	/* something is seriously wrong */
-	BUG_ON(policy > IPROC_CLK_MAX_FREQ_POLICY);
+	_ON(policy > IPROC_CLK_MAX_FREQ_POLICY);
 
 	val = readl(pll->base + IPROC_CLK_POLICY_FREQ_OFFSET);
 	fid = (val >> (IPROC_CLK_POLICY_FREQ_POLICY_FREQ_SHIFT * policy)) &
@@ -95,12 +95,12 @@ static unsigned int __get_fid(struct iproc_arm_pll *pll)
 	active_fid = IPROC_CLK_POLICY_DBG_ACT_FREQ_MASK &
 		(val >> IPROC_CLK_POLICY_DBG_ACT_FREQ_SHIFT);
 	if (fid != active_fid) {
-		pr_debug("%s: fid override %u->%u\n", __func__,	fid,
+		pr_de("%s: fid override %u->%u\n", __func__,	fid,
 				active_fid);
 		fid = active_fid;
 	}
 
-	pr_debug("%s: active fid: %u\n", __func__, fid);
+	pr_de("%s: active fid: %u\n", __func__, fid);
 
 	return fid;
 }
@@ -229,9 +229,9 @@ static unsigned long iproc_arm_pll_recalc_rate(struct clk_hw *hw,
 	pll->rate = (ndiv * parent_rate) >> 20;
 	pll->rate = (pll->rate / pdiv) / mdiv;
 
-	pr_debug("%s: ARM PLL rate: %lu. parent rate: %lu\n", __func__,
+	pr_de("%s: ARM PLL rate: %lu. parent rate: %lu\n", __func__,
 		 pll->rate, parent_rate);
-	pr_debug("%s: ndiv_int: %u, pdiv: %u, mdiv: %d\n", __func__,
+	pr_de("%s: ndiv_int: %u, pdiv: %u, mdiv: %d\n", __func__,
 		 (unsigned int)(ndiv >> 20), pdiv, mdiv);
 
 	return pll->rate;

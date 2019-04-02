@@ -18,7 +18,7 @@
  *	Release 0.10.
  *
  *	Fixes
- *		Dave Gregorich	:	Modularisation and minor bugs
+ *		Dave Gregorich	:	Modularisation and minor s
  *		Alan Cox	:	Added the watchdog ioctl() stuff
  *		Alan Cox	:	Fixed the reboot problem (as noted by
  *					Matt Crocker).

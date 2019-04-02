@@ -193,7 +193,7 @@ void rv770_stop_dpm(struct radeon_device *rdev)
 	result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_TwoLevelsDisabled);
 
 	if (result != PPSMC_Result_OK)
-		DRM_DEBUG("Could not force DPM to low.\n");
+		DRM_DE("Could not force DPM to low.\n");
 
 	WREG32_P(GENERAL_PWRMGT, 0, ~GLOBAL_PWRMGT_EN);
 
@@ -1418,7 +1418,7 @@ int rv770_resume_smc(struct radeon_device *rdev)
 int rv770_set_sw_state(struct radeon_device *rdev)
 {
 	if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_SwitchToSwState) != PPSMC_Result_OK)
-		DRM_DEBUG("rv770_set_sw_state failed\n");
+		DRM_DE("rv770_set_sw_state failed\n");
 	return 0;
 }
 
@@ -1990,7 +1990,7 @@ int rv770_dpm_late_enable(struct radeon_device *rdev)
 		result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
 
 		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
+			DRM_DE_KMS("Could not enable thermal interrupts.\n");
 	}
 
 	return 0;
@@ -2463,7 +2463,7 @@ void rv770_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
-void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void rv770_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m)
 {
 	struct radeon_ps *rps = rdev->pm.dpm.current_ps;

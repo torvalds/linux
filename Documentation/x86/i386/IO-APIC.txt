@@ -8,7 +8,7 @@ Linux supports all variants of compliant SMP boards, including ones with
 multiple IO-APICs. Multiple IO-APICs are used in high-end servers to
 distribute IRQ load further.
 
-There are (a few) known breakages in certain older boards, such bugs are
+There are (a few) known breakages in certain older boards, such s are
 usually worked around by the kernel. If your MP-compliant SMP board does
 not boot Linux, then consult the linux-smp mailing list archives first.
 

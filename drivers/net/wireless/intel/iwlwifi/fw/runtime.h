@@ -63,7 +63,7 @@
 #include "iwl-config.h"
 #include "iwl-trans.h"
 #include "img.h"
-#include "fw/api/debug.h"
+#include "fw/api/de.h"
 #include "fw/api/dbg-tlv.h"
 #include "fw/api/paging.h"
 #include "iwl-eeprom-parse.h"
@@ -73,7 +73,7 @@ struct iwl_fw_runtime_ops {
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
 	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
-	bool (*d3_debug_enable)(void *ctx);
+	bool (*d3_de_enable)(void *ctx);
 };
 
 #define MAX_NUM_LMAC 2
@@ -107,7 +107,7 @@ enum iwl_fw_runtime_status {
  * @smem_cfg: saved firmware SMEM configuration
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
- * @dump: debug dump data
+ * @dump: de dump data
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -129,7 +129,7 @@ struct iwl_fw_runtime {
 	/* memory configuration */
 	struct iwl_fwrt_shared_mem_cfg smem_cfg;
 
-	/* debug */
+	/* de */
 	struct {
 		const struct iwl_fw_dump_desc *desc;
 		bool monitor_only;
@@ -139,20 +139,20 @@ struct iwl_fw_runtime {
 
 		/* ts of the beginning of a non-collect fw dbg data period */
 		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM];
-		u32 *d3_debug_data;
+		u32 *d3_de_data;
 		struct iwl_fw_ini_region_cfg *active_regs[IWL_FW_INI_MAX_REGION_ID];
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;
 		void *fifo_iter;
 	} dump;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	struct {
 		struct delayed_work wk;
 		u32 delay;
 		u64 seq;
 	} timestamp;
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_IWLWIFI_DEFS */
 };
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
@@ -164,8 +164,8 @@ static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
 {
 	int i;
 
-	kfree(fwrt->dump.d3_debug_data);
-	fwrt->dump.d3_debug_data = NULL;
+	kfree(fwrt->dump.d3_de_data);
+	fwrt->dump.d3_de_data = NULL;
 
 	for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++) {
 		struct iwl_fw_ini_active_triggers *active =

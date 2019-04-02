@@ -41,11 +41,11 @@ config OMAP_MUX
 	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
 	  say Y.
 
-config OMAP_MUX_DEBUG
-	bool "Multiplexing debug output"
+config OMAP_MUX_DE
+	bool "Multiplexing de output"
 	depends on OMAP_MUX
 	help
-	  Makes the multiplexing functions print out a lot of debug info.
+	  Makes the multiplexing functions print out a lot of de info.
 	  This is useful if you want to find out the correct values of the
 	  multiplexing registers.
 

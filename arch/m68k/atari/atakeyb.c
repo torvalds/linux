@@ -149,7 +149,7 @@ repeat:
 	if (acia_stat & ACIA_OVRN) {
 		/* a very fast typist or a slow system, give a warning */
 		/* ...happens often if interrupts were disabled for too long */
-		pr_debug("Keyboard overrun\n");
+		pr_de("Keyboard overrun\n");
 		scancode = acia.key_data;
 		if (ikbd_self_test)
 			/* During self test, don't do resyncing, just process the code */

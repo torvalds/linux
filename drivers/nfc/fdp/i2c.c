@@ -41,7 +41,7 @@
 #define FDP_POWER_ON		1
 
 #define fdp_nci_i2c_dump_skb(dev, prefix, skb)				\
-	print_hex_dump(KERN_DEBUG, prefix": ", DUMP_PREFIX_OFFSET,	\
+	print_hex_dump(KERN_DE, prefix": ", DUMP_PREFIX_OFFSET,	\
 		       16, 1, (skb)->data, (skb)->len, 0)
 
 static void fdp_nci_i2c_reset(struct fdp_i2c_phy *phy)

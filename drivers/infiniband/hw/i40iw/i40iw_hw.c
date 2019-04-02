@@ -300,7 +300,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			break;
 
 		aeqcnt++;
-		i40iw_debug(dev, I40IW_DEBUG_AEQ,
+		i40iw_de(dev, I40IW_DE_AEQ,
 			    "%s ae_id = 0x%x bool qp=%d qp_id = %d\n",
 			    __func__, info->ae_id, info->qp, info->qp_cq_id);
 		if (info->qp) {
@@ -308,7 +308,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			iwqp = iwdev->qp_table[info->qp_cq_id];
 			if (!iwqp) {
 				spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
-				i40iw_debug(dev, I40IW_DEBUG_AEQ,
+				i40iw_de(dev, I40IW_DE_AEQ,
 					    "%s qp_id %d is already freed\n",
 					    __func__, info->qp_cq_id);
 				continue;
@@ -638,13 +638,13 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 	}
 
 	if (info->ipv4_valid)
-		i40iw_debug(dev, I40IW_DEBUG_CM,
+		i40iw_de(dev, I40IW_DE_CM,
 			    "%s:%s IP=%pI4, port=%d, mac=%pM, vlan_id=%d\n",
 			    __func__, (!mtype) ? "DELETE" : "ADD",
 			    info->dest_ip,
 			    info->dest_port, info->mac_addr, cminfo->vlan_id);
 	else
-		i40iw_debug(dev, I40IW_DEBUG_CM,
+		i40iw_de(dev, I40IW_DE_CM,
 			    "%s:%s IP=%pI6, port=%d, mac=%pM, vlan_id=%d\n",
 			    __func__, (!mtype) ? "DELETE" : "ADD",
 			    info->dest_ip,

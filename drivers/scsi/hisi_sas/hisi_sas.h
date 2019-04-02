@@ -14,7 +14,7 @@
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dmapool.h>
 #include <linux/iopoll.h>
 #include <linux/lcm.h>
@@ -239,15 +239,15 @@ struct hisi_sas_slot {
 	u16	idx;
 };
 
-#define HISI_SAS_DEBUGFS_REG(x) {#x, x}
+#define HISI_SAS_DEFS_REG(x) {#x, x}
 
-struct hisi_sas_debugfs_reg_lu {
+struct hisi_sas_defs_reg_lu {
 	char *name;
 	int off;
 };
 
-struct hisi_sas_debugfs_reg {
-	const struct hisi_sas_debugfs_reg_lu *lu;
+struct hisi_sas_defs_reg {
+	const struct hisi_sas_defs_reg_lu *lu;
 	int count;
 	int base_off;
 	union {
@@ -304,8 +304,8 @@ struct hisi_sas_hw {
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
 
-	const struct hisi_sas_debugfs_reg *debugfs_reg_global;
-	const struct hisi_sas_debugfs_reg *debugfs_reg_port;
+	const struct hisi_sas_defs_reg *defs_reg_global;
+	const struct hisi_sas_defs_reg *defs_reg_port;
 };
 
 struct hisi_hba {
@@ -371,7 +371,7 @@ struct hisi_hba {
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
-	struct work_struct debugfs_work;
+	struct work_struct defs_work;
 	u32 phy_state;
 	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
 	u32 intr_coal_count;	/* Interrupt count to coalesce */
@@ -379,17 +379,17 @@ struct hisi_hba {
 	int cq_nvecs;
 	unsigned int *reply_map;
 
-	/* debugfs memories */
-	u32 *debugfs_global_reg;
-	u32 *debugfs_port_reg[HISI_SAS_MAX_PHYS];
-	void *debugfs_complete_hdr[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_cmd_hdr	*debugfs_cmd_hdr[HISI_SAS_MAX_QUEUES];
-	struct hisi_sas_iost *debugfs_iost;
-	struct hisi_sas_itct *debugfs_itct;
+	/* defs memories */
+	u32 *defs_global_reg;
+	u32 *defs_port_reg[HISI_SAS_MAX_PHYS];
+	void *defs_complete_hdr[HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_cmd_hdr	*defs_cmd_hdr[HISI_SAS_MAX_QUEUES];
+	struct hisi_sas_iost *defs_iost;
+	struct hisi_sas_itct *defs_itct;
 
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_dump_dentry;
-	bool debugfs_snapshot;
+	struct dentry *defs_dir;
+	struct dentry *defs_dump_dentry;
+	bool defs_snapshot;
 };
 
 /* Generic HW DMA host memory structures */
@@ -530,8 +530,8 @@ struct hisi_sas_slot_dif_buf_table {
 
 extern struct scsi_transport_template *hisi_sas_stt;
 
-extern bool hisi_sas_debugfs_enable;
-extern struct dentry *hisi_sas_debugfs_dir;
+extern bool hisi_sas_defs_enable;
+extern struct dentry *hisi_sas_defs_dir;
 
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba);
@@ -566,7 +566,7 @@ extern void hisi_sas_release_tasks(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_prog_phy_linkrate_mask(enum sas_linkrate max);
 extern void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba);
 extern void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba);
-extern void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
-extern void hisi_sas_debugfs_exit(struct hisi_hba *hisi_hba);
-extern void hisi_sas_debugfs_work_handler(struct work_struct *work);
+extern void hisi_sas_defs_init(struct hisi_hba *hisi_hba);
+extern void hisi_sas_defs_exit(struct hisi_hba *hisi_hba);
+extern void hisi_sas_defs_work_handler(struct work_struct *work);
 #endif

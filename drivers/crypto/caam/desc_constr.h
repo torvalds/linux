@@ -17,8 +17,8 @@
 #define CAAM_DESC_BYTES_MAX (CAAM_CMD_SZ * MAX_CAAM_DESCSIZE)
 #define DESC_JOB_IO_LEN (CAAM_CMD_SZ * 5 + CAAM_PTR_SZ * 3)
 
-#ifdef DEBUG
-#define PRINT_POS do { printk(KERN_DEBUG "%02d: %s\n", desc_len(desc),\
+#ifdef DE
+#define PRINT_POS do { printk(KERN_DE "%02d: %s\n", desc_len(desc),\
 			      &__func__[sizeof("append")]); } while (0)
 #else
 #define PRINT_POS

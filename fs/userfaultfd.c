@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/file.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/anon_inodes.h>
 #include <linux/syscalls.h>
 #include <linux/userfaultfd_k.h>
@@ -154,14 +154,14 @@ static void userfaultfd_ctx_get(struct userfaultfd_ctx *ctx)
 static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
 {
 	if (refcount_dec_and_test(&ctx->refcount)) {
-		VM_BUG_ON(spin_is_locked(&ctx->fault_pending_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->fault_pending_wqh));
-		VM_BUG_ON(spin_is_locked(&ctx->fault_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->fault_wqh));
-		VM_BUG_ON(spin_is_locked(&ctx->event_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->event_wqh));
-		VM_BUG_ON(spin_is_locked(&ctx->fd_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->fd_wqh));
+		VM__ON(spin_is_locked(&ctx->fault_pending_wqh.lock));
+		VM__ON(waitqueue_active(&ctx->fault_pending_wqh));
+		VM__ON(spin_is_locked(&ctx->fault_wqh.lock));
+		VM__ON(waitqueue_active(&ctx->fault_wqh));
+		VM__ON(spin_is_locked(&ctx->event_wqh.lock));
+		VM__ON(waitqueue_active(&ctx->event_wqh));
+		VM__ON(spin_is_locked(&ctx->fd_wqh.lock));
+		VM__ON(waitqueue_active(&ctx->fd_wqh));
 		mmdrop(ctx->mm);
 		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
 	}
@@ -169,7 +169,7 @@ static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
 
 static inline void msg_init(struct uffd_msg *msg)
 {
-	BUILD_BUG_ON(sizeof(struct uffd_msg) != 32);
+	BUILD__ON(sizeof(struct uffd_msg) != 32);
 	/*
 	 * Must use memset to zero out the paddings or kernel data is
 	 * leaked to userland.
@@ -224,7 +224,7 @@ static inline bool userfaultfd_huge_must_wait(struct userfaultfd_ctx *ctx,
 	pte_t *ptep, pte;
 	bool ret = true;
 
-	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+	VM__ON(!rwsem_is_locked(&mm->mmap_sem));
 
 	ptep = huge_pte_offset(mm, address, vma_mmu_pagesize(vma));
 
@@ -276,7 +276,7 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
 	pte_t *pte;
 	bool ret = true;
 
-	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
+	VM__ON(!rwsem_is_locked(&mm->mmap_sem));
 
 	pgd = pgd_offset(mm, address);
 	if (!pgd_present(*pgd))
@@ -372,10 +372,10 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	if (!ctx)
 		goto out;
 
-	BUG_ON(ctx->mm != mm);
+	_ON(ctx->mm != mm);
 
-	VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
-	VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
+	VM__ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+	VM__ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
 
 	if (ctx->features & UFFD_FEATURE_SIGBUS)
 		goto out;
@@ -422,8 +422,8 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 		 * to be sure not to return SIGBUS erroneously on
 		 * nowait invocations.
 		 */
-		BUG_ON(vmf->flags & FAULT_FLAG_RETRY_NOWAIT);
-#ifdef CONFIG_DEBUG_VM
+		_ON(vmf->flags & FAULT_FLAG_RETRY_NOWAIT);
+#ifdef CONFIG_DE_VM
 		if (printk_ratelimit()) {
 			printk(KERN_WARNING
 			       "FAULT_FLAG_ALLOW_RETRY missing %x\n",
@@ -521,7 +521,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 			 * If we got a SIGSTOP or SIGCONT and this is
 			 * a normal userland page fault, just let
 			 * userland return so the signal will be
-			 * handled and gdb debugging works.  The page
+			 * handled and gdb deging works.  The page
 			 * fault code immediately after we return from
 			 * this function is going to release the
 			 * mmap_sem and it's not depending on it
@@ -886,7 +886,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 	prev = NULL;
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		cond_resched();
-		BUG_ON(!!vma->vm_userfaultfd_ctx.ctx ^
+		_ON(!!vma->vm_userfaultfd_ctx.ctx ^
 		       !!(vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
 		if (vma->vm_userfaultfd_ctx.ctx != ctx) {
 			prev = vma;
@@ -1361,7 +1361,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	for (cur = vma; cur && cur->vm_start < end; cur = cur->vm_next) {
 		cond_resched();
 
-		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
+		_ON(!!cur->vm_userfaultfd_ctx.ctx ^
 		       !!(cur->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
 
 		/* check not compatible vmas */
@@ -1414,7 +1414,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 
 		found = true;
 	}
-	BUG_ON(!found);
+	_ON(!found);
 
 	if (vma->vm_start < start)
 		prev = vma;
@@ -1423,8 +1423,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	do {
 		cond_resched();
 
-		BUG_ON(!vma_can_userfault(vma));
-		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
+		_ON(!vma_can_userfault(vma));
+		_ON(vma->vm_userfaultfd_ctx.ctx &&
 		       vma->vm_userfaultfd_ctx.ctx != ctx);
 		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
 
@@ -1548,7 +1548,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	for (cur = vma; cur && cur->vm_start < end; cur = cur->vm_next) {
 		cond_resched();
 
-		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
+		_ON(!!cur->vm_userfaultfd_ctx.ctx ^
 		       !!(cur->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP)));
 
 		/*
@@ -1563,7 +1563,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 
 		found = true;
 	}
-	BUG_ON(!found);
+	_ON(!found);
 
 	if (vma->vm_start < start)
 		prev = vma;
@@ -1572,7 +1572,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	do {
 		cond_resched();
 
-		BUG_ON(!vma_can_userfault(vma));
+		_ON(!vma_can_userfault(vma));
 
 		/*
 		 * Nothing to do: this vma is already registered into this
@@ -1667,7 +1667,7 @@ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
 	 * len == 0 means wake all and we don't want to wake all here,
 	 * so check it again to be sure.
 	 */
-	VM_BUG_ON(!range.len);
+	VM__ON(!range.len);
 
 	wake_userfault(ctx, &range);
 	ret = 0;
@@ -1720,7 +1720,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
 		return -EFAULT;
 	if (ret < 0)
 		goto out;
-	BUG_ON(!ret);
+	_ON(!ret);
 	/* len == 0 would wake all */
 	range.len = ret;
 	if (!(uffdio_copy.mode & UFFDIO_COPY_MODE_DONTWAKE)) {
@@ -1773,7 +1773,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
 	if (ret < 0)
 		goto out;
 	/* len == 0 would wake all */
-	BUG_ON(!ret);
+	_ON(!ret);
 	range.len = ret;
 	if (!(uffdio_zeropage.mode & UFFDIO_ZEROPAGE_MODE_DONTWAKE)) {
 		range.start = uffdio_zeropage.range.start;
@@ -1921,11 +1921,11 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
 	struct userfaultfd_ctx *ctx;
 	int fd;
 
-	BUG_ON(!current->mm);
+	_ON(!current->mm);
 
 	/* Check the UFFD_* constants for consistency.  */
-	BUILD_BUG_ON(UFFD_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(UFFD_NONBLOCK != O_NONBLOCK);
+	BUILD__ON(UFFD_CLOEXEC != O_CLOEXEC);
+	BUILD__ON(UFFD_NONBLOCK != O_NONBLOCK);
 
 	if (flags & ~UFFD_SHARED_FCNTL_FLAGS)
 		return -EINVAL;

@@ -17,7 +17,7 @@
 #include <linux/user_namespace.h>
 
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 

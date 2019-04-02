@@ -53,7 +53,7 @@ individual chipset drivers, and the source files aren't quite so packed with
 Avery, because I didn't want to completely rewrite it.
 
 The previous release resulted from many months of on-and-off effort from me
-(Avery Pennarun), many bug reports/fixes and suggestions from others, and in
+(Avery Pennarun), many  reports/fixes and suggestions from others, and in
 particular a lot of input and coding from Tomasz Motylewski.  Starting with
 ARCnet 2.10 ALPHA, Tomasz's all-new-and-improved RFC1051 support has been
 included and seems to be working fine!
@@ -340,7 +340,7 @@ The ARCnet driver v2.10 ALPHA supports three protocols, each on its own
 		than RFC1201 by about 25%, for the same reason as arc0e.
 		
 		The arc0s support was contributed by Tomasz Motylewski
-		and modified somewhat by me.  Bugs are probably my fault.
+		and modified somewhat by me.  s are probably my fault.
 
 You can choose not to compile arc0e and arc0s into the driver if you want -
 this will save you a bit of memory and avoid confusion when eg. trying to
@@ -508,7 +508,7 @@ with "arcnet:" and has shown up since the last reboot) in your mail.
 
 If you want to try fixing it yourself (I strongly recommend that you mail me
 about the problem first, since it might already have been solved) you may
-want to try some of the debug levels available.  For heavy testing on
+want to try some of the de levels available.  For heavy testing on
 D_DURING or more, it would be a REALLY good idea to kill your klogd daemon
 first!  D_DURING displays 4-5 lines for each packet sent or received.  D_TX,
 D_RX, and D_SKB actually DISPLAY each packet as it is sent or received,
@@ -516,7 +516,7 @@ which is obviously quite big.
 
 Starting with v2.40 ALPHA, the autoprobe routines have changed
 significantly.  In particular, they won't tell you why the card was not
-found unless you turn on the D_INIT_REASONS debugging flag.
+found unless you turn on the D_INIT_REASONS deging flag.
 
 Once the driver is running, you can run the arcdump shell script (available
 from me or in the full ARCnet package, if you have it) as root to list the
@@ -528,23 +528,23 @@ script.
 Buffers 0 and 1 are used for receiving, and Buffers 2 and 3 are for sending. 
 Ping-pong buffers are implemented both ways.
 
-If your debug level includes D_DURING and you did NOT define SLOW_XMIT_COPY,
+If your de level includes D_DURING and you did NOT define SLOW_XMIT_COPY,
 the buffers are cleared to a constant value of 0x42 every time the card is
 reset (which should only happen when you do an ifconfig up, or when Linux
 decides that the driver is broken).  During a transmit, unused parts of the
 buffer will be cleared to 0x42 as well.  This is to make it easier to figure
 out which bytes are being used by a packet.
 
-You can change the debug level without recompiling the kernel by typing:
+You can change the de level without recompiling the kernel by typing:
 	ifconfig arc0 down metric 1xxx
 	/etc/rc.d/rc.inet1
-where "xxx" is the debug level you want.  For example, "metric 1015" would put
-you at debug level 15.  Debug level 7 is currently the default.
+where "xxx" is the de level you want.  For example, "metric 1015" would put
+you at de level 15.  De level 7 is currently the default.
 
-Note that the debug level is (starting with v1.90 ALPHA) a binary
-combination of different debug flags; so debug level 7 is really 1+2+4 or
+Note that the de level is (starting with v1.90 ALPHA) a binary
+combination of different de flags; so de level 7 is really 1+2+4 or
 D_NORMAL+D_EXTRA+D_INIT.  To include D_DURING, you would add 16 to this,
-resulting in debug level 23.
+resulting in de level 23.
 
 If you don't understand that, you probably don't want to know anyway. 
 E-mail me about your problem.

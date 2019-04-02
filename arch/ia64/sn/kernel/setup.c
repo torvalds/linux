@@ -147,7 +147,7 @@ static int __init pxm_to_nasid(int pxm)
 /**
  * early_sn_setup - early setup routine for SN platforms
  *
- * Sets up an initial console to aid debugging.  Intended primarily
+ * Sets up an initial console to aid deging.  Intended primarily
  * for bringup.  See start_kernel() in init/main.c.
  */
 
@@ -299,7 +299,7 @@ struct pcdp_vga_device {
 
 /* from pcdp_device_desc.type */
 #define PCDP_CONSOLE_INOUT	0x0
-#define PCDP_CONSOLE_DEBUG	0x1
+#define PCDP_CONSOLE_DE	0x1
 #define PCDP_CONSOLE_OUT	0x2
 #define PCDP_CONSOLE_IN		0x3
 #define PCDP_CONSOLE_TYPE_VGA	0x8
@@ -428,7 +428,7 @@ void __init sn_setup(char **cmdline_p)
 		if (!strstr(*cmdline_p, "console="))
 			add_preferred_console("tty", 0, NULL);
 	} else {
-		printk(KERN_DEBUG "SGI: Disabling VGA console\n");
+		printk(KERN_DE "SGI: Disabling VGA console\n");
 		if (!strstr(*cmdline_p, "console="))
 			add_preferred_console("ttySG", 0, NULL);
 #ifdef CONFIG_DUMMY_CONSOLE
@@ -597,7 +597,7 @@ void sn_cpu_init(void)
 				&sn_system_size, &sn_sharing_domain_size,
 				&sn_partition_id, &sn_coherency_id,
 				&sn_region_size))
-		BUG();
+		();
 	sn_hub_info->as_shift = sn_hub_info->nasid_shift - 2;
 
 	/*
@@ -628,7 +628,7 @@ void sn_cpu_init(void)
 	cpuphyid = get_sapicid();
 
 	if (ia64_sn_get_sapic_info(cpuphyid, &nasid, &subnode, &slice))
-		BUG();
+		();
 
 	for (i=0; i < MAX_NUMNODES; i++) {
 		if (nodepdaindr[i]) {
@@ -743,7 +743,7 @@ void __init build_cnode_tables(void)
 		kl_config_hdr_t *klgraph_header;
 		nasid = cnodeid_to_nasid(node);
 		klgraph_header = ia64_sn_get_klconfig_addr(nasid);
-		BUG_ON(klgraph_header == NULL);
+		_ON(klgraph_header == NULL);
 		brd = NODE_OFFSET_TO_LBOARD(nasid, klgraph_header->ch_board_info);
 		while (brd) {
 			if (board_needs_cnode(brd->brd_type) && physical_node_map[brd->brd_nasid] < 0) {

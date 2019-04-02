@@ -54,7 +54,7 @@ static int __op_panel_update_display(void)
 	token = opal_async_get_token_interruptible();
 	if (token < 0) {
 		if (token != -ERESTARTSYS)
-			pr_debug("Couldn't get OPAL async token [token=%d]\n",
+			pr_de("Couldn't get OPAL async token [token=%d]\n",
 				token);
 		return token;
 	}
@@ -64,20 +64,20 @@ static int __op_panel_update_display(void)
 	case OPAL_ASYNC_COMPLETION:
 		rc = opal_async_wait_response(token, &msg);
 		if (rc) {
-			pr_debug("Failed to wait for async response [rc=%d]\n",
+			pr_de("Failed to wait for async response [rc=%d]\n",
 				rc);
 			break;
 		}
 		rc = opal_get_async_rc(msg);
 		if (rc != OPAL_SUCCESS) {
-			pr_debug("OPAL async call returned failed [rc=%d]\n",
+			pr_de("OPAL async call returned failed [rc=%d]\n",
 				rc);
 			break;
 		}
 	case OPAL_SUCCESS:
 		break;
 	default:
-		pr_debug("OPAL write op-panel call failed [rc=%d]\n", rc);
+		pr_de("OPAL write op-panel call failed [rc=%d]\n", rc);
 	}
 
 	opal_async_release_token(token);
@@ -113,7 +113,7 @@ static ssize_t oppanel_write(struct file *filp, const char __user *userbuf,
 static int oppanel_open(struct inode *inode, struct file *filp)
 {
 	if (!mutex_trylock(&oppanel_mutex)) {
-		pr_debug("Device Busy\n");
+		pr_de("Device Busy\n");
 		return -EBUSY;
 	}
 	return 0;

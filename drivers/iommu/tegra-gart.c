@@ -60,7 +60,7 @@ struct gart_device {
 
 static struct gart_device *gart_handle; /* unique for a system */
 
-static bool gart_debug;
+static bool gart_de;
 
 /*
  * Any interaction between any block on PPSB and a block on APB or AHB
@@ -179,7 +179,7 @@ static void gart_iommu_domain_free(struct iommu_domain *domain)
 static inline int __gart_iommu_map(struct gart_device *gart, unsigned long iova,
 				   unsigned long pa)
 {
-	if (unlikely(gart_debug && gart_pte_valid(gart, iova))) {
+	if (unlikely(gart_de && gart_pte_valid(gart, iova))) {
 		dev_err(gart->dev, "Page entry is in-use\n");
 		return -EINVAL;
 	}
@@ -208,7 +208,7 @@ static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
 static inline int __gart_iommu_unmap(struct gart_device *gart,
 				     unsigned long iova)
 {
-	if (unlikely(gart_debug && !gart_pte_valid(gart, iova))) {
+	if (unlikely(gart_de && !gart_pte_valid(gart, iova))) {
 		dev_err(gart->dev, "Page entry is invalid\n");
 		return -EINVAL;
 	}
@@ -340,7 +340,7 @@ struct gart_device *tegra_gart_probe(struct device *dev, struct tegra_mc *mc)
 	struct resource *res;
 	int err;
 
-	BUILD_BUG_ON(PAGE_SHIFT != GART_PAGE_SHIFT);
+	BUILD__ON(PAGE_SHIFT != GART_PAGE_SHIFT);
 
 	/* the GART memory aperture is required */
 	res = platform_get_resource(to_platform_device(dev), IORESOURCE_MEM, 1);
@@ -394,5 +394,5 @@ free_gart:
 	return ERR_PTR(err);
 }
 
-module_param(gart_debug, bool, 0644);
-MODULE_PARM_DESC(gart_debug, "Enable GART debugging");
+module_param(gart_de, bool, 0644);
+MODULE_PARM_DESC(gart_de, "Enable GART deging");

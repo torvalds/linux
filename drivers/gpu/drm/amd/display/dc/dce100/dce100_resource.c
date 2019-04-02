@@ -504,7 +504,7 @@ static struct mem_input *dce100_mem_input_create(
 					       GFP_KERNEL);
 
 	if (!dce_mi) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -540,7 +540,7 @@ static struct input_pixel_processor *dce100_ipp_create(
 	struct dce_ipp *ipp = kzalloc(sizeof(struct dce_ipp), GFP_KERNEL);
 
 	if (!ipp) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return NULL;
 	}
 
@@ -658,7 +658,7 @@ struct clock_source *dce100_clock_source_create(
 		return &clk_src->base;
 	}
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 
@@ -897,14 +897,14 @@ static bool construct(
 
 	if (pool->base.dp_clock_source == NULL) {
 		dm_error("DC: failed to create dp clock source!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			goto res_create_fail;
 		}
 	}
@@ -915,7 +915,7 @@ static bool construct(
 			&disp_clk_mask);
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -925,7 +925,7 @@ static bool construct(
 			&dmcu_mask);
 	if (pool->base.dmcu == NULL) {
 		dm_error("DC: failed to create dmcu!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -935,7 +935,7 @@ static bool construct(
 				&abm_mask);
 	if (pool->base.abm == NULL) {
 		dm_error("DC: failed to create abm!\n");
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		goto res_create_fail;
 	}
 
@@ -965,14 +965,14 @@ static bool construct(
 				i,
 				&dce100_tg_offsets[i]);
 		if (pool->base.timing_generators[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error("DC: failed to create tg!\n");
 			goto res_create_fail;
 		}
 
 		pool->base.mis[i] = dce100_mem_input_create(ctx, i);
 		if (pool->base.mis[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto res_create_fail;
@@ -980,7 +980,7 @@ static bool construct(
 
 		pool->base.ipps[i] = dce100_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto res_create_fail;
@@ -988,7 +988,7 @@ static bool construct(
 
 		pool->base.transforms[i] = dce100_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create transform!\n");
 			goto res_create_fail;
@@ -996,7 +996,7 @@ static bool construct(
 
 		pool->base.opps[i] = dce100_opp_create(ctx, i);
 		if (pool->base.opps[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 			goto res_create_fail;
@@ -1006,14 +1006,14 @@ static bool construct(
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		pool->base.engines[i] = dce100_aux_engine_create(ctx, i);
 		if (pool->base.engines[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create aux engine!!\n");
 			goto res_create_fail;
 		}
 		pool->base.hw_i2cs[i] = dce100_i2c_hw_create(ctx, i);
 		if (pool->base.hw_i2cs[i] == NULL) {
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			dm_error(
 				"DC:failed to create i2c engine!!\n");
 			goto res_create_fail;
@@ -1050,7 +1050,7 @@ struct resource_pool *dce100_create_resource_pool(
 	if (construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 	return NULL;
 }
 

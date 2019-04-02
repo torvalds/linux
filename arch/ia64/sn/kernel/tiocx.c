@@ -30,9 +30,9 @@
 #define CX_DEV_NONE 0
 #define DEVICE_NAME "tiocx"
 #define WIDGET_ID 0
-#define TIOCX_DEBUG 0
+#define TIOCX_DE 0
 
-#if TIOCX_DEBUG
+#if TIOCX_DE
 #define DBG(fmt...)    printk(KERN_ALERT fmt)
 #else
 #define DBG(fmt...)

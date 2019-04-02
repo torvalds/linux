@@ -36,7 +36,7 @@
 #define IPROC_CLK_PLL_HAS_NDIV_FRAC BIT(2)
 
 /*
- * Some of the iProc PLL/clocks may have an ASIC bug that requires read back
+ * Some of the iProc PLL/clocks may have an ASIC  that requires read back
  * of the same register following the write to flush the write transaction into
  * the intended register
  */

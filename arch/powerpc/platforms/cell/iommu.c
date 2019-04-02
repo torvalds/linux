@@ -20,7 +20,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -44,7 +44,7 @@
 
 /* Define CELL_IOMMU_REAL_UNMAP to actually unmap non-used pages
  * instead of leaving them mapped to some dummy page. This can be
- * enabled once the appropriate workarounds for spider bugs have
+ * enabled once the appropriate workarounds for spider s have
  * been enabled
  */
 #define CELL_IOMMU_REAL_UNMAP
@@ -205,7 +205,7 @@ static int tce_build_cell(struct iommu_table *tbl, long index, long npages,
 
 	invalidate_tce_cache(window->iommu, io_pte, npages);
 
-	pr_debug("tce_build_cell(index=%lx,n=%lx,dir=%d,base_pte=%lx)\n",
+	pr_de("tce_build_cell(index=%lx,n=%lx,dir=%d,base_pte=%lx)\n",
 		 index, npages, direction, base_pte);
 	return 0;
 }
@@ -218,7 +218,7 @@ static void tce_free_cell(struct iommu_table *tbl, long index, long npages)
 	struct iommu_window *window =
 		container_of(tbl, struct iommu_window, table);
 
-	pr_debug("tce_free_cell(index=%lx,n=%lx)\n", index, npages);
+	pr_de("tce_free_cell(index=%lx,n=%lx)\n", index, npages);
 
 #ifdef CELL_IOMMU_REAL_UNMAP
 	pte = 0;
@@ -315,13 +315,13 @@ static void cell_iommu_setup_stab(struct cbe_iommu *iommu,
 
 	segments = max(dbase + dsize, fbase + fsize) >> IO_SEGMENT_SHIFT;
 
-	pr_debug("%s: iommu[%d]: segments: %lu\n",
+	pr_de("%s: iommu[%d]: segments: %lu\n",
 			__func__, iommu->nid, segments);
 
 	/* set up the segment table */
 	stab_size = segments * sizeof(unsigned long);
 	page = alloc_pages_node(iommu->nid, GFP_KERNEL, get_order(stab_size));
-	BUG_ON(!page);
+	_ON(!page);
 	iommu->stab = page_address(page);
 	memset(iommu->stab, 0, stab_size);
 }
@@ -343,10 +343,10 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 				(1 << 12) / sizeof(unsigned long));
 
 	ptab_size = segments * pages_per_segment * sizeof(unsigned long);
-	pr_debug("%s: iommu[%d]: ptab_size: %lu, order: %d\n", __func__,
+	pr_de("%s: iommu[%d]: ptab_size: %lu, order: %d\n", __func__,
 			iommu->nid, ptab_size, get_order(ptab_size));
 	page = alloc_pages_node(iommu->nid, GFP_KERNEL, get_order(ptab_size));
-	BUG_ON(!page);
+	_ON(!page);
 
 	ptab = page_address(page);
 	memset(ptab, 0, ptab_size);
@@ -354,7 +354,7 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 	/* number of 4K pages needed for a page table */
 	n_pte_pages = (pages_per_segment * sizeof(unsigned long)) >> 12;
 
-	pr_debug("%s: iommu[%d]: stab at %p, ptab at %p, n_pte_pages: %lu\n",
+	pr_de("%s: iommu[%d]: stab at %p, ptab at %p, n_pte_pages: %lu\n",
 			__func__, iommu->nid, iommu->stab, ptab,
 			n_pte_pages);
 
@@ -366,21 +366,21 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 	case 16: reg |= IOSTE_PS_64K; break;
 	case 20: reg |= IOSTE_PS_1M;  break;
 	case 24: reg |= IOSTE_PS_16M; break;
-	default: BUG();
+	default: ();
 	}
 
 	gap_base = gap_base >> IO_SEGMENT_SHIFT;
 	gap_size = gap_size >> IO_SEGMENT_SHIFT;
 
-	pr_debug("Setting up IOMMU stab:\n");
+	pr_de("Setting up IOMMU stab:\n");
 	for (i = start_seg; i < (start_seg + segments); i++) {
 		if (i >= gap_base && i < (gap_base + gap_size)) {
-			pr_debug("\toverlap at %d, skipping\n", i);
+			pr_de("\toverlap at %d, skipping\n", i);
 			continue;
 		}
 		iommu->stab[i] = reg | (__pa(ptab) + (n_pte_pages << 12) *
 					(i - start_seg));
-		pr_debug("\t[%d] 0x%016lx\n", i, iommu->stab[i]);
+		pr_de("\t[%d] 0x%016lx\n", i, iommu->stab[i]);
 	}
 
 	return ptab;
@@ -411,10 +411,10 @@ static void cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 
 	virq = irq_create_mapping(NULL,
 			IIC_IRQ_IOEX_ATI | (iommu->nid << IIC_IRQ_NODE_SHIFT));
-	BUG_ON(!virq);
+	_ON(!virq);
 
 	ret = request_irq(virq, ioc_interrupt, 0, iommu->name, iommu);
-	BUG_ON(ret);
+	_ON(ret);
 
 	/* set the IOC segment table origin register (and turn on the iommu) */
 	reg = IOC_IOST_Origin_E | __pa(iommu->stab) | IOC_IOST_Origin_HW;
@@ -483,7 +483,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	ioid = cell_iommu_get_ioid(np);
 
 	window = kzalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
-	BUG_ON(window == NULL);
+	_ON(window == NULL);
 
 	window->offset = offset;
 	window->size = size;
@@ -501,11 +501,11 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	iommu_init_table(&window->table, iommu->nid);
 
-	pr_debug("\tioid      %d\n", window->ioid);
-	pr_debug("\tblocksize %ld\n", window->table.it_blocksize);
-	pr_debug("\tbase      0x%016lx\n", window->table.it_base);
-	pr_debug("\toffset    0x%lx\n", window->table.it_offset);
-	pr_debug("\tsize      %ld\n", window->table.it_size);
+	pr_de("\tioid      %d\n", window->ioid);
+	pr_de("\tblocksize %ld\n", window->table.it_blocksize);
+	pr_de("\tbase      0x%016lx\n", window->table.it_base);
+	pr_de("\toffset    0x%lx\n", window->table.it_offset);
+	pr_de("\tsize      %ld\n", window->table.it_size);
 
 	list_add(&window->list, &iommu->windows);
 
@@ -520,7 +520,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	 * which is the case on all spider based blades.
 	 */
 	page = alloc_pages_node(iommu->nid, GFP_KERNEL, 0);
-	BUG_ON(!page);
+	_ON(!page);
 	iommu->pad_page = page_address(page);
 	clear_page(iommu->pad_page);
 
@@ -639,7 +639,7 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 		       np);
 		return NULL;
 	}
-	pr_debug("iommu: setting up iommu for node %d (%pOF)\n",
+	pr_de("iommu: setting up iommu for node %d (%pOF)\n",
 		 nid, np);
 
 	/* XXX todo: If we can have multiple windows on the same IOMMU, which
@@ -680,7 +680,7 @@ static void __init cell_iommu_init_one(struct device_node *np,
 	/* Obtain a window for it */
 	cell_iommu_get_window(np, &base, &size);
 
-	pr_debug("\ttranslating window 0x%lx...0x%lx\n",
+	pr_de("\ttranslating window 0x%lx...0x%lx\n",
 		 base, base + size - 1);
 
 	/* Initialize the hardware */
@@ -706,7 +706,7 @@ static void __init cell_disable_iommus(void)
 			continue;
 		cregs = xregs + IOC_IOCmd_Offset;
 
-		pr_debug("iommu: cleaning up iommu on node %d\n", node);
+		pr_de("iommu: cleaning up iommu on node %d\n", node);
 
 		out_be64(xregs + IOC_IOST_Origin, 0);
 		(void)in_be64(xregs + IOC_IOST_Origin);
@@ -879,7 +879,7 @@ static void insert_16M_pte(unsigned long addr, unsigned long *ptab,
 	offset = (addr >> 24) - (segment << IO_PAGENO_BITS(24));
 	ptab = ptab + (segment * (1 << 12) / sizeof(unsigned long));
 
-	pr_debug("iommu: addr %lx ptab %p segment %lx offset %lx\n",
+	pr_de("iommu: addr %lx ptab %p segment %lx offset %lx\n",
 		  addr, ptab, segment, offset);
 
 	ptab[offset] = base_pte | (__pa(addr) & CBE_IOPTE_RPN_Mask);
@@ -895,7 +895,7 @@ static void cell_iommu_setup_fixed_ptab(struct cbe_iommu *iommu,
 
 	dma_iommu_fixed_base = fbase;
 
-	pr_debug("iommu: mapping 0x%lx pages from 0x%lx\n", fsize, fbase);
+	pr_de("iommu: mapping 0x%lx pages from 0x%lx\n", fsize, fbase);
 
 	base_pte = CBE_IOPTE_PP_W | CBE_IOPTE_PP_R | CBE_IOPTE_M |
 		(cell_iommu_get_ioid(np) & CBE_IOPTE_IOID_Mask);
@@ -911,7 +911,7 @@ static void cell_iommu_setup_fixed_ptab(struct cbe_iommu *iommu,
 		/* Don't touch the dynamic region */
 		ioaddr = uaddr + fbase;
 		if (ioaddr >= dbase && ioaddr < (dbase + dsize)) {
-			pr_debug("iommu: fixed/dynamic overlap, skipping\n");
+			pr_de("iommu: fixed/dynamic overlap, skipping\n");
 			continue;
 		}
 
@@ -932,7 +932,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	of_node_put(np);
 
 	if (!np) {
-		pr_debug("iommu: fixed mapping disabled, no axons found\n");
+		pr_de("iommu: fixed mapping disabled, no axons found\n");
 		return -1;
 	}
 
@@ -941,7 +941,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	of_node_put(np);
 
 	if (!np) {
-		pr_debug("iommu: no dma-ranges found, no fixed mapping\n");
+		pr_de("iommu: no dma-ranges found, no fixed mapping\n");
 		return -1;
 	}
 
@@ -969,7 +969,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 		 * need a fixed mapping for that area.
 		 */
 		if (!htab_address) {
-			pr_debug("iommu: htab is NULL, on LPAR? Huh?\n");
+			pr_de("iommu: htab is NULL, on LPAR? Huh?\n");
 			return -1;
 		}
 		hbase = __pa(htab_address);
@@ -978,7 +978,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 		/* The window must start and end on a segment boundary */
 		if ((hbase != _ALIGN_UP(hbase, 1 << IO_SEGMENT_SHIFT)) ||
 		    (hend != _ALIGN_UP(hend, 1 << IO_SEGMENT_SHIFT))) {
-			pr_debug("iommu: hash window not segment aligned\n");
+			pr_de("iommu: hash window not segment aligned\n");
 			return -1;
 		}
 
@@ -987,7 +987,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 			cell_iommu_get_window(np, &dbase, &dsize);
 
 			if (hbase < dbase || (hend > (dbase + dsize))) {
-				pr_debug("iommu: hash window doesn't fit in"
+				pr_de("iommu: hash window doesn't fit in"
 					 "real DMA window\n");
 				return -1;
 			}
@@ -999,7 +999,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	/* Setup the dynamic regions */
 	for_each_node_by_name(np, "axon") {
 		iommu = cell_iommu_alloc(np);
-		BUG_ON(!iommu);
+		_ON(!iommu);
 
 		if (hbase == 0)
 			cell_iommu_get_window(np, &dbase, &dsize);
@@ -1008,7 +1008,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 			dsize = htab_size_bytes;
 		}
 
-		printk(KERN_DEBUG "iommu: node %d, dynamic window 0x%lx-0x%lx "
+		printk(KERN_DE "iommu: node %d, dynamic window 0x%lx-0x%lx "
 			"fixed window 0x%lx-0x%lx\n", iommu->nid, dbase,
 			 dbase + dsize, fbase, fbase + fsize);
 

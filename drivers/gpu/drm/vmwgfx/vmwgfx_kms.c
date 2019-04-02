@@ -1347,7 +1347,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 		ret = vmw_kms_new_framebuffer_bo(dev_priv, bo, &vfb,
 						 mode_cmd);
 	} else {
-		BUG();
+		();
 	}
 
 	if (ret)
@@ -2104,7 +2104,7 @@ int vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 	int i;
 
 	for (i = 0; i < size; i++) {
-		DRM_DEBUG("%d r/g/b = 0x%04x / 0x%04x / 0x%04x\n", i,
+		DRM_DE("%d r/g/b = 0x%04x / 0x%04x / 0x%04x\n", i,
 			  r[i], g[i], b[i]);
 		vmw_write(dev_priv, SVGA_PALETTE_BASE + i * 3 + 0, r[i] >> 8);
 		vmw_write(dev_priv, SVGA_PALETTE_BASE + i * 3 + 1, g[i] >> 8);

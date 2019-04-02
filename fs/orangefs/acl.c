@@ -38,7 +38,7 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	if (!value)
 		return ERR_PTR(-ENOMEM);
 
-	gossip_debug(GOSSIP_ACL_DEBUG,
+	gossip_de(GOSSIP_ACL_DE,
 		     "inode %pU, key %s, type %d\n",
 		     get_khandle_from_ino(inode),
 		     key,
@@ -81,7 +81,7 @@ static int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl,
 		return -EINVAL;
 	}
 
-	gossip_debug(GOSSIP_ACL_DEBUG,
+	gossip_de(GOSSIP_ACL_DE,
 		     "%s: inode %pU, key %s type %d\n",
 		     __func__, get_khandle_from_ino(inode),
 		     name,
@@ -98,7 +98,7 @@ static int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl,
 			goto out;
 	}
 
-	gossip_debug(GOSSIP_ACL_DEBUG,
+	gossip_de(GOSSIP_ACL_DE,
 		     "%s: name %s, value %p, size %zd, acl %p\n",
 		     __func__, name, value, size, acl);
 	/*

@@ -417,7 +417,7 @@ int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
 	int r = 0;
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
-	pr_debug("dep event: %d\n", event);
+	pr_de("dep event: %d\n", event);
 
 	switch (event) {
 	case ST21NFCA_EVT_CARD_ACTIVATED:

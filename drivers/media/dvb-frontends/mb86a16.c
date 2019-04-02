@@ -50,7 +50,7 @@ struct mb86a16_state {
 #define MB86A16_ERROR		0
 #define MB86A16_NOTICE		1
 #define MB86A16_INFO		2
-#define MB86A16_DEBUG		3
+#define MB86A16_DE		3
 
 #define dprintk(x, y, z, format, arg...) do {						\
 	if (z) {									\
@@ -60,16 +60,16 @@ struct mb86a16_state {
 			printk(KERN_NOTICE "%s: " format "\n", __func__, ##arg);	\
 		else if ((x > MB86A16_INFO) && (x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__, ##arg);		\
-		else if ((x > MB86A16_DEBUG) && (x > y))				\
-			printk(KERN_DEBUG "%s: " format "\n", __func__, ##arg);		\
+		else if ((x > MB86A16_DE) && (x > y))				\
+			printk(KERN_DE "%s: " format "\n", __func__, ##arg);		\
 	} else {									\
 		if (x > y)								\
 			printk(format, ##arg);						\
 	}										\
 } while (0)
 
-#define TRACE_IN	dprintk(verbose, MB86A16_DEBUG, 1, "-->()")
-#define TRACE_OUT	dprintk(verbose, MB86A16_DEBUG, 1, "()-->")
+#define TRACE_IN	dprintk(verbose, MB86A16_DE, 1, "-->()")
+#define TRACE_OUT	dprintk(verbose, MB86A16_DE, 1, "()-->")
 
 static int mb86a16_write(struct mb86a16_state *state, u8 reg, u8 val)
 {
@@ -83,7 +83,7 @@ static int mb86a16_write(struct mb86a16_state *state, u8 reg, u8 val)
 		.len = 2
 	};
 
-	dprintk(verbose, MB86A16_DEBUG, 1,
+	dprintk(verbose, MB86A16_DE, 1,
 		"writing to [0x%02x],Reg[0x%02x],Data[0x%02x]",
 		state->config->demod_address, buf[0], buf[1]);
 
@@ -1206,7 +1206,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 				}
 			}
 			if ((signal_dupl == 0) && (swp_freq > 0) && (abs(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
-				dprintk(verbose, MB86A16_DEBUG, 1, "------ Signal detect ------ [swp_freq=[%07d, srate=%05d]]", swp_freq, state->srate);
+				dprintk(verbose, MB86A16_DE, 1, "------ Signal detect ------ [swp_freq=[%07d, srate=%05d]]", swp_freq, state->srate);
 				prev_swp_freq[prev_freq_num] = swp_freq;
 				prev_freq_num++;
 				swp_info_get2(state, state->srate, R, swp_freq,
@@ -1667,7 +1667,7 @@ static int mb86a16_read_ber(struct dvb_frontend *fe, u32 *ber)
 	if (ber_mon & 0x04) {
 		/* coarse, fast calculation	*/
 		*ber = ber_tab & 0x1f;
-		dprintk(verbose, MB86A16_DEBUG, 1, "BER coarse=[0x%02x]", *ber);
+		dprintk(verbose, MB86A16_DE, 1, "BER coarse=[0x%02x]", *ber);
 		if (ber_mon & 0x01) {
 			/*
 			 * BER_SEL = 1, The monitored BER is the estimated
@@ -1687,7 +1687,7 @@ static int mb86a16_read_ber(struct dvb_frontend *fe, u32 *ber)
 				timer = 100000000;
 
 			*ber /= timer;
-			dprintk(verbose, MB86A16_DEBUG, 1, "BER fine=[0x%02x]", *ber);
+			dprintk(verbose, MB86A16_DE, 1, "BER fine=[0x%02x]", *ber);
 		} else {
 			/*
 			 * BER_SEL = 0, The monitored BER is the estimated
@@ -1703,7 +1703,7 @@ static int mb86a16_read_ber(struct dvb_frontend *fe, u32 *ber)
 				timer = 24;
 
 			*ber /= 2 ^ timer;
-			dprintk(verbose, MB86A16_DEBUG, 1, "BER fine=[0x%02x]", *ber);
+			dprintk(verbose, MB86A16_DE, 1, "BER fine=[0x%02x]", *ber);
 		}
 	}
 	return 0;
@@ -1724,7 +1724,7 @@ static int mb86a16_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	}
 
 	*strength = ((0xff - agcm) * 100) / 256;
-	dprintk(verbose, MB86A16_DEBUG, 1, "Signal strength=[%d %%]", (u8) *strength);
+	dprintk(verbose, MB86A16_DE, 1, "Signal strength=[%d %%]", (u8) *strength);
 	*strength = (0xffff - 0xff) + agcm;
 
 	return 0;

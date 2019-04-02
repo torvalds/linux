@@ -27,7 +27,7 @@
 #include <linux/via-core.h>
 #include "via_modesetting.h"
 #include "share.h"
-#include "debug.h"
+#include "de.h"
 
 
 void via_set_primary_timing(const struct via_display_timing *timing)
@@ -135,7 +135,7 @@ void via_set_secondary_timing(const struct via_display_timing *timing)
 
 void via_set_primary_address(u32 addr)
 {
-	DEBUG_MSG(KERN_DEBUG "via_set_primary_address(0x%08X)\n", addr);
+	DE_MSG(KERN_DE "via_set_primary_address(0x%08X)\n", addr);
 	via_write_reg(VIACR, 0x0D, addr & 0xFF);
 	via_write_reg(VIACR, 0x0C, (addr >> 8) & 0xFF);
 	via_write_reg(VIACR, 0x34, (addr >> 16) & 0xFF);
@@ -144,7 +144,7 @@ void via_set_primary_address(u32 addr)
 
 void via_set_secondary_address(u32 addr)
 {
-	DEBUG_MSG(KERN_DEBUG "via_set_secondary_address(0x%08X)\n", addr);
+	DE_MSG(KERN_DE "via_set_secondary_address(0x%08X)\n", addr);
 	/* secondary display supports only quadword aligned memory */
 	via_write_reg_mask(VIACR, 0x62, (addr >> 2) & 0xFE, 0xFE);
 	via_write_reg(VIACR, 0x63, (addr >> 10) & 0xFF);
@@ -154,7 +154,7 @@ void via_set_secondary_address(u32 addr)
 
 void via_set_primary_pitch(u32 pitch)
 {
-	DEBUG_MSG(KERN_DEBUG "via_set_primary_pitch(0x%08X)\n", pitch);
+	DE_MSG(KERN_DE "via_set_primary_pitch(0x%08X)\n", pitch);
 	/* spec does not say that first adapter skips 3 bits but old
 	 * code did it and seems to be reasonable in analogy to 2nd adapter
 	 */
@@ -165,7 +165,7 @@ void via_set_primary_pitch(u32 pitch)
 
 void via_set_secondary_pitch(u32 pitch)
 {
-	DEBUG_MSG(KERN_DEBUG "via_set_secondary_pitch(0x%08X)\n", pitch);
+	DE_MSG(KERN_DE "via_set_secondary_pitch(0x%08X)\n", pitch);
 	pitch = pitch >> 3;
 	via_write_reg(VIACR, 0x66, pitch & 0xFF);
 	via_write_reg_mask(VIACR, 0x67, (pitch >> 8) & 0x03, 0x03);
@@ -176,7 +176,7 @@ void via_set_primary_color_depth(u8 depth)
 {
 	u8 value;
 
-	DEBUG_MSG(KERN_DEBUG "via_set_primary_color_depth(%d)\n", depth);
+	DE_MSG(KERN_DE "via_set_primary_color_depth(%d)\n", depth);
 	switch (depth) {
 	case 8:
 		value = 0x00;
@@ -206,7 +206,7 @@ void via_set_secondary_color_depth(u8 depth)
 {
 	u8 value;
 
-	DEBUG_MSG(KERN_DEBUG "via_set_secondary_color_depth(%d)\n", depth);
+	DE_MSG(KERN_DE "via_set_secondary_color_depth(%d)\n", depth);
 	switch (depth) {
 	case 8:
 		value = 0x00;

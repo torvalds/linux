@@ -85,7 +85,7 @@ static void klp_complete_transition(void)
 	struct task_struct *g, *task;
 	unsigned int cpu;
 
-	pr_debug("'%s': completing %s transition\n",
+	pr_de("'%s': completing %s transition\n",
 		 klp_transition_patch->mod->name,
 		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
@@ -158,7 +158,7 @@ void klp_cancel_transition(void)
 	if (WARN_ON_ONCE(klp_target_state != KLP_PATCHED))
 		return;
 
-	pr_debug("'%s': canceling patching transition, going to unpatch\n",
+	pr_de("'%s': canceling patching transition, going to unpatch\n",
 		 klp_transition_patch->mod->name);
 
 	klp_target_state = KLP_UNPATCHED;
@@ -336,12 +336,12 @@ done:
 	task_rq_unlock(rq, task, &flags);
 
 	/*
-	 * Due to console deadlock issues, pr_debug() can't be used while
+	 * Due to console deadlock issues, pr_de() can't be used while
 	 * holding the task rq lock.  Instead we have to use a temporary buffer
-	 * and print the debug message after releasing the lock.
+	 * and print the de message after releasing the lock.
 	 */
 	if (err_buf[0] != '\0')
-		pr_debug("%s", err_buf);
+		pr_de("%s", err_buf);
 
 	return success;
 
@@ -530,7 +530,7 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	 */
 	klp_target_state = state;
 
-	pr_debug("'%s': initializing %s transition\n", patch->mod->name,
+	pr_de("'%s': initializing %s transition\n", patch->mod->name,
 		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
 
 	/*
@@ -591,7 +591,7 @@ void klp_reverse_transition(void)
 	unsigned int cpu;
 	struct task_struct *g, *task;
 
-	pr_debug("'%s': reversing transition from %s\n",
+	pr_de("'%s': reversing transition from %s\n",
 		 klp_transition_patch->mod->name,
 		 klp_target_state == KLP_PATCHED ? "patching to unpatching" :
 						   "unpatching to patching");

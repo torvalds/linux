@@ -64,7 +64,7 @@
  * 1. Why we need to implement extent status tree?
  *
  * Without extent status tree, ext4 identifies a delayed extent by looking
- * up page cache, this has several deficiencies - complicated, buggy,
+ * up page cache, this has several deficiencies - complicated, gy,
  * and inefficient code.
  *
  * FIEMAP, SEEK_HOLE/DATA, bigalloc, and writeout all need to know if a
@@ -174,24 +174,24 @@ void ext4_es_init_tree(struct ext4_es_tree *tree)
 	tree->cache_es = NULL;
 }
 
-#ifdef ES_DEBUG__
+#ifdef ES_DE__
 static void ext4_es_print_tree(struct inode *inode)
 {
 	struct ext4_es_tree *tree;
 	struct rb_node *node;
 
-	printk(KERN_DEBUG "status extents for inode %lu:", inode->i_ino);
+	printk(KERN_DE "status extents for inode %lu:", inode->i_ino);
 	tree = &EXT4_I(inode)->i_es_tree;
 	node = rb_first(&tree->root);
 	while (node) {
 		struct extent_status *es;
 		es = rb_entry(node, struct extent_status, rb_node);
-		printk(KERN_DEBUG " [%u/%u) %llu %x",
+		printk(KERN_DE " [%u/%u) %llu %x",
 		       es->es_lblk, es->es_len,
 		       ext4_es_pblock(es), ext4_es_status(es));
 		node = rb_next(node);
 	}
-	printk(KERN_DEBUG "\n");
+	printk(KERN_DE "\n");
 }
 #else
 #define ext4_es_print_tree(inode)
@@ -199,7 +199,7 @@ static void ext4_es_print_tree(struct inode *inode)
 
 static inline ext4_lblk_t ext4_es_end(struct extent_status *es)
 {
-	BUG_ON(es->es_lblk + es->es_len < es->es_lblk);
+	_ON(es->es_lblk + es->es_len < es->es_lblk);
 	return es->es_lblk + es->es_len - 1;
 }
 
@@ -272,7 +272,7 @@ static void __es_find_extent_range(struct inode *inode,
 	if (tree->cache_es) {
 		es1 = tree->cache_es;
 		if (in_range(lblk, es1->es_lblk, es1->es_len)) {
-			es_debug("%u cached by [%u/%u) %llu %x\n",
+			es_de("%u cached by [%u/%u) %llu %x\n",
 				 lblk, es1->es_lblk, es1->es_len,
 				 ext4_es_pblock(es1), ext4_es_status(es1));
 			goto out;
@@ -476,7 +476,7 @@ static void ext4_es_free_extent(struct inode *inode, struct extent_status *es)
 
 	/* Decrease the shrink counter when this es is not delayed */
 	if (!ext4_es_is_delayed(es)) {
-		BUG_ON(EXT4_I(inode)->i_es_shk_nr == 0);
+		_ON(EXT4_I(inode)->i_es_shk_nr == 0);
 		if (!--EXT4_I(inode)->i_es_shk_nr)
 			ext4_es_list_del(inode);
 		percpu_counter_dec(&EXT4_SB(inode->i_sb)->
@@ -711,7 +711,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 			 * We don't need to check unwritten extent because
 			 * indirect-based file doesn't have it.
 			 */
-			BUG_ON(1);
+			_ON(1);
 		}
 	} else if (retval == 0) {
 		if (ext4_es_is_written(es)) {
@@ -732,7 +732,7 @@ static inline void ext4_es_insert_extent_check(struct inode *inode,
 	 * We don't need to worry about the race condition because
 	 * caller takes i_data_sem locking.
 	 */
-	BUG_ON(!rwsem_is_locked(&EXT4_I(inode)->i_data_sem));
+	_ON(!rwsem_is_locked(&EXT4_I(inode)->i_data_sem));
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 		ext4_es_insert_extent_ext_check(inode, es);
 	else
@@ -780,7 +780,7 @@ static int __es_insert_extent(struct inode *inode, struct extent_status *newes)
 			}
 			p = &(*p)->rb_right;
 		} else {
-			BUG_ON(1);
+			_ON(1);
 			return -EINVAL;
 		}
 	}
@@ -812,13 +812,13 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	int err = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
-	es_debug("add [%u/%u) %llu %x to extent status tree of inode %lu\n",
+	es_de("add [%u/%u) %llu %x to extent status tree of inode %lu\n",
 		 lblk, len, pblk, status, inode->i_ino);
 
 	if (!len)
 		return 0;
 
-	BUG_ON(end < lblk);
+	_ON(end < lblk);
 
 	if ((status & EXTENT_STATUS_DELAYED) &&
 	    (status & EXTENT_STATUS_WRITTEN)) {
@@ -881,7 +881,7 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (!len)
 		return;
 
-	BUG_ON(end < lblk);
+	_ON(end < lblk);
 
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
@@ -908,7 +908,7 @@ int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 	int found = 0;
 
 	trace_ext4_es_lookup_extent_enter(inode, lblk);
-	es_debug("lookup extent in block %u\n", lblk);
+	es_de("lookup extent in block %u\n", lblk);
 
 	tree = &EXT4_I(inode)->i_es_tree;
 	read_lock(&EXT4_I(inode)->i_es_lock);
@@ -918,7 +918,7 @@ int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (tree->cache_es) {
 		es1 = tree->cache_es;
 		if (in_range(lblk, es1->es_lblk, es1->es_len)) {
-			es_debug("%u cached by [%u/%u)\n",
+			es_de("%u cached by [%u/%u)\n",
 				 lblk, es1->es_lblk, es1->es_len);
 			found = 1;
 			goto out;
@@ -941,7 +941,7 @@ int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 out:
 	stats = &EXT4_SB(inode->i_sb)->s_es_stats;
 	if (found) {
-		BUG_ON(!es1);
+		_ON(!es1);
 		es->es_lblk = es1->es_lblk;
 		es->es_len = es1->es_len;
 		es->es_pblk = es1->es_pblk;
@@ -1070,14 +1070,14 @@ int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	int err = 0;
 
 	trace_ext4_es_remove_extent(inode, lblk, len);
-	es_debug("remove [%u/%u) from extent status tree of inode %lu\n",
+	es_de("remove [%u/%u) from extent status tree of inode %lu\n",
 		 lblk, len, inode->i_ino);
 
 	if (!len)
 		return err;
 
 	end = lblk + len - 1;
-	BUG_ON(end < lblk);
+	_ON(end < lblk);
 
 	/*
 	 * ext4_clear_inode() depends on us taking i_es_lock unconditionally
@@ -1259,7 +1259,7 @@ int ext4_es_register_shrinker(struct ext4_sb_info *sbi)
 	int err;
 
 	/* Make sure we have enough bits for physical block number */
-	BUILD_BUG_ON(ES_SHIFT < 48);
+	BUILD__ON(ES_SHIFT < 48);
 	INIT_LIST_HEAD(&sbi->s_es_list);
 	sbi->s_es_nr_inode = 0;
 	spin_lock_init(&sbi->s_es_lock);
@@ -1375,22 +1375,22 @@ static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan)
 	return nr_shrunk;
 }
 
-#ifdef ES_DEBUG__
+#ifdef ES_DE__
 static void ext4_print_pending_tree(struct inode *inode)
 {
 	struct ext4_pending_tree *tree;
 	struct rb_node *node;
 	struct pending_reservation *pr;
 
-	printk(KERN_DEBUG "pending reservations for inode %lu:", inode->i_ino);
+	printk(KERN_DE "pending reservations for inode %lu:", inode->i_ino);
 	tree = &EXT4_I(inode)->i_pending_tree;
 	node = rb_first(&tree->root);
 	while (node) {
 		pr = rb_entry(node, struct pending_reservation, rb_node);
-		printk(KERN_DEBUG " %u", pr->lclu);
+		printk(KERN_DE " %u", pr->lclu);
 		node = rb_next(node);
 	}
-	printk(KERN_DEBUG "\n");
+	printk(KERN_DE "\n");
 }
 #else
 #define ext4_print_pending_tree(inode)
@@ -1579,7 +1579,7 @@ int ext4_es_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk,
 	struct extent_status newes;
 	int err = 0;
 
-	es_debug("add [%u/1) delayed to extent status tree of inode %lu\n",
+	es_de("add [%u/1) delayed to extent status tree of inode %lu\n",
 		 lblk, inode->i_ino);
 
 	newes.es_lblk = lblk;

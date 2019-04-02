@@ -116,7 +116,7 @@ test_reqs()
 		exit $ksft_skip
 	fi
 
-	# kmod 19 has a bad bug where it returns 0 when modprobe
+	# kmod 19 has a bad  where it returns 0 when modprobe
 	# gets called *even* if the module was not loaded due to
 	# some bad heuristics. For details see:
 	#
@@ -125,7 +125,7 @@ test_reqs()
 	KMOD_VERSION=$(kmod --version | awk '{print $3}')
 	if [[ $KMOD_VERSION  -le 19 ]]; then
 		echo "$0: You need at least kmod 20" >&2
-		echo "kmod <= 19 is buggy, for details see:" >&2
+		echo "kmod <= 19 is gy, for details see:" >&2
 		echo "http://git.kernel.org/cgit/utils/kernel/kmod/kmod.git/commit/libkmod/libkmod-module.c?id=fd44a98ae2eb5eb32161088954ab21e58e19dfc4" >&2
 		exit $ksft_skip
 	fi

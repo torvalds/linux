@@ -22,7 +22,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include "asm/bug.h"
+#include "asm/.h"
 #include "callchain.h"
 #include "cgroup.h"
 #include "event.h"
@@ -33,7 +33,7 @@
 #include "thread_map.h"
 #include "target.h"
 #include "perf_regs.h"
-#include "debug.h"
+#include "de.h"
 #include "trace-event.h"
 #include "stat.h"
 #include "memswap.h"
@@ -1525,12 +1525,12 @@ static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
 
 	/*
 	 * Leader must be already processed/open,
-	 * if not it's a bug.
+	 * if not it's a .
 	 */
-	BUG_ON(!leader->fd);
+	_ON(!leader->fd);
 
 	fd = FD(leader, cpu, thread);
-	BUG_ON(fd == -1);
+	_ON(fd == -1);
 
 	return fd;
 }
@@ -1768,7 +1768,7 @@ static int perf_event_open(struct perf_evsel *evsel,
 	int fd;
 
 	while (1) {
-		pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
+		pr_de2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 			  pid, cpu, group_fd, flags);
 
 		fd = sys_perf_event_open(&evsel->attr, pid, cpu, group_fd, flags);
@@ -1794,9 +1794,9 @@ static int perf_event_open(struct perf_evsel *evsel,
 			break;
 		}
 
-		pr_debug2("\nsys_perf_event_open failed, error %d\n", -ENOTSUP);
+		pr_de2("\nsys_perf_event_open failed, error %d\n", -ENOTSUP);
 		evsel->attr.precise_ip--;
-		pr_debug2("decreasing precise_ip by one (%d)\n", evsel->attr.precise_ip);
+		pr_de2("decreasing precise_ip by one (%d)\n", evsel->attr.precise_ip);
 		display_attr(&evsel->attr);
 	}
 
@@ -1914,12 +1914,12 @@ retry_open:
 					continue;
 				}
 
-				pr_debug2("\nsys_perf_event_open failed, error %d\n",
+				pr_de2("\nsys_perf_event_open failed, error %d\n",
 					  err);
 				goto try_fallback;
 			}
 
-			pr_debug2(" = %d\n", fd);
+			pr_de2(" = %d\n", fd);
 
 			if (evsel->bpf_fd >= 0) {
 				int evt_fd = fd;
@@ -1987,54 +1987,54 @@ try_fallback:
 	 */
 	if (!perf_missing_features.bpf_event && evsel->attr.bpf_event) {
 		perf_missing_features.bpf_event = true;
-		pr_debug2("switching off bpf_event\n");
+		pr_de2("switching off bpf_event\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.ksymbol && evsel->attr.ksymbol) {
 		perf_missing_features.ksymbol = true;
-		pr_debug2("switching off ksymbol\n");
+		pr_de2("switching off ksymbol\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.write_backward && evsel->attr.write_backward) {
 		perf_missing_features.write_backward = true;
-		pr_debug2("switching off write_backward\n");
+		pr_de2("switching off write_backward\n");
 		goto out_close;
 	} else if (!perf_missing_features.clockid_wrong && evsel->attr.use_clockid) {
 		perf_missing_features.clockid_wrong = true;
-		pr_debug2("switching off clockid\n");
+		pr_de2("switching off clockid\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.clockid && evsel->attr.use_clockid) {
 		perf_missing_features.clockid = true;
-		pr_debug2("switching off use_clockid\n");
+		pr_de2("switching off use_clockid\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.cloexec && (flags & PERF_FLAG_FD_CLOEXEC)) {
 		perf_missing_features.cloexec = true;
-		pr_debug2("switching off cloexec flag\n");
+		pr_de2("switching off cloexec flag\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.mmap2 && evsel->attr.mmap2) {
 		perf_missing_features.mmap2 = true;
-		pr_debug2("switching off mmap2\n");
+		pr_de2("switching off mmap2\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.exclude_guest &&
 		   (evsel->attr.exclude_guest || evsel->attr.exclude_host)) {
 		perf_missing_features.exclude_guest = true;
-		pr_debug2("switching off exclude_guest, exclude_host\n");
+		pr_de2("switching off exclude_guest, exclude_host\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.sample_id_all) {
 		perf_missing_features.sample_id_all = true;
-		pr_debug2("switching off sample_id_all\n");
+		pr_de2("switching off sample_id_all\n");
 		goto retry_sample_id;
 	} else if (!perf_missing_features.lbr_flags &&
 			(evsel->attr.branch_sample_type &
 			 (PERF_SAMPLE_BRANCH_NO_CYCLES |
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
-		pr_debug2("switching off branch sample type no (cycles/flags)\n");
+		pr_de2("switching off branch sample type no (cycles/flags)\n");
 		goto fallback_missing_features;
 	} else if (!perf_missing_features.group_read &&
 		    evsel->attr.inherit &&
 		   (evsel->attr.read_format & PERF_FORMAT_GROUP) &&
 		   perf_evsel__is_group_leader(evsel)) {
 		perf_missing_features.group_read = true;
-		pr_debug2("switching off group read\n");
+		pr_de2("switching off group read\n");
 		goto fallback_missing_features;
 	}
 out_close:

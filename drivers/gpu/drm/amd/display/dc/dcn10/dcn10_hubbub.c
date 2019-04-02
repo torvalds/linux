@@ -131,7 +131,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 
-	unsigned int debug_data;
+	unsigned int de_data;
 	unsigned int i;
 
 	if (forced_pstate_allow) {
@@ -146,7 +146,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 	}
 
 	/* RV2:
-	 * dchubbubdebugind, at: 0xB
+	 * dchubbubdeind, at: 0xB
 	 * description
 	 * 0:     Pipe0 Plane0 Allow Pstate Change
 	 * 1:     Pipe0 Plane1 Allow Pstate Change
@@ -182,7 +182,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 31:    SOC pstate change request"
 	 *
 	 * RV1:
-	 * dchubbubdebugind, at: 0x7
+	 * dchubbubdeind, at: 0x7
 	 * description "3-0:   Pipe0 cursor0 QOS
 	 * 7-4:   Pipe1 cursor0 QOS
 	 * 11-8:  Pipe2 cursor0 QOS
@@ -205,12 +205,12 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 31:    SOC pstate change request
 	 */
 
-	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, hubbub1->debug_test_index_pstate);
+	REG_WRITE(DCHUBBUB_TEST_DE_INDEX, hubbub1->de_test_index_pstate);
 
 	for (i = 0; i < pstate_wait_timeout_us; i++) {
-		debug_data = REG_READ(DCHUBBUB_TEST_DEBUG_DATA);
+		de_data = REG_READ(DCHUBBUB_TEST_DE_DATA);
 
-		if (debug_data & (1 << 30)) {
+		if (de_data & (1 << 30)) {
 
 			if (i > pstate_wait_expected_timeout_us)
 				DC_LOG_WARNING("pstate took longer than expected ~%dus\n",
@@ -225,15 +225,15 @@ bool hubbub1_verify_allow_pstate_change_high(
 	}
 
 	/* force pstate allow to prevent system hang
-	 * and break to debugger to investigate
+	 * and break to deger to investigate
 	 */
 	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
 		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 1,
 		     DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 1);
 	forced_pstate_allow = true;
 
-	DC_LOG_WARNING("pstate TEST_DEBUG_DATA: 0x%X\n",
-			debug_data);
+	DC_LOG_WARNING("pstate TEST_DE_DATA: 0x%X\n",
+			de_data);
 
 	return false;
 }
@@ -542,7 +542,7 @@ void hubbub1_program_watermarks(
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
 			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 68);
 
-	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
+	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->de.disable_stutter);
 
 #if 0
 	REG_UPDATE_2(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
@@ -789,7 +789,7 @@ static bool hubbub1_get_dcc_compression_cap(struct hubbub *hubbub,
 
 	memset(output, 0, sizeof(*output));
 
-	if (dc->debug.disable_dcc == DCC_DISABLE)
+	if (dc->de.disable_dcc == DCC_DISABLE)
 		return false;
 
 	if (!hubbub1->base.funcs->dcc_support_pixel_format(input->format, &bpe))
@@ -832,7 +832,7 @@ static bool hubbub1_get_dcc_compression_cap(struct hubbub *hubbub,
 			dcc_control = dcc_control__128_128_xxx;
 	}
 
-	if (dc->debug.disable_dcc == DCC_HALF_REQ_DISALBE &&
+	if (dc->de.disable_dcc == DCC_HALF_REQ_DISALBE &&
 		dcc_control != dcc_control__256_256_xxx)
 		return false;
 
@@ -884,10 +884,10 @@ void hubbub1_construct(struct hubbub *hubbub,
 	hubbub1->shifts = hubbub_shift;
 	hubbub1->masks = hubbub_mask;
 
-	hubbub1->debug_test_index_pstate = 0x7;
+	hubbub1->de_test_index_pstate = 0x7;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 	if (ctx->dce_version == DCN_VERSION_1_01)
-		hubbub1->debug_test_index_pstate = 0xB;
+		hubbub1->de_test_index_pstate = 0xB;
 #endif
 }
 

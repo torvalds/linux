@@ -51,9 +51,9 @@
 #include <linux/spinlock_types.h>
 #include "adf_transport.h"
 
-struct adf_etr_ring_debug_entry {
+struct adf_etr_ring_de_entry {
 	char ring_name[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	struct dentry *debug;
+	struct dentry *de;
 };
 
 struct adf_etr_ring_data {
@@ -69,7 +69,7 @@ struct adf_etr_ring_data {
 	uint8_t ring_size;
 	uint8_t msg_size;
 	uint8_t reserved;
-	struct adf_etr_ring_debug_entry *ring_debug;
+	struct adf_etr_ring_de_entry *ring_de;
 } __packed;
 
 struct adf_etr_bank_data {
@@ -81,37 +81,37 @@ struct adf_etr_bank_data {
 	uint16_t ring_mask;
 	uint16_t irq_mask;
 	spinlock_t lock;	/* protects bank data struct */
-	struct dentry *bank_debug_dir;
-	struct dentry *bank_debug_cfg;
+	struct dentry *bank_de_dir;
+	struct dentry *bank_de_cfg;
 	uint32_t bank_number;
 } __packed;
 
 struct adf_etr_data {
 	struct adf_etr_bank_data *banks;
-	struct dentry *debug;
+	struct dentry *de;
 };
 
 void adf_response_handler(uintptr_t bank_addr);
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
-int adf_bank_debugfs_add(struct adf_etr_bank_data *bank);
-void adf_bank_debugfs_rm(struct adf_etr_bank_data *bank);
-int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name);
-void adf_ring_debugfs_rm(struct adf_etr_ring_data *ring);
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
+int adf_bank_defs_add(struct adf_etr_bank_data *bank);
+void adf_bank_defs_rm(struct adf_etr_bank_data *bank);
+int adf_ring_defs_add(struct adf_etr_ring_data *ring, const char *name);
+void adf_ring_defs_rm(struct adf_etr_ring_data *ring);
 #else
-static inline int adf_bank_debugfs_add(struct adf_etr_bank_data *bank)
+static inline int adf_bank_defs_add(struct adf_etr_bank_data *bank)
 {
 	return 0;
 }
 
-#define adf_bank_debugfs_rm(bank) do {} while (0)
+#define adf_bank_defs_rm(bank) do {} while (0)
 
-static inline int adf_ring_debugfs_add(struct adf_etr_ring_data *ring,
+static inline int adf_ring_defs_add(struct adf_etr_ring_data *ring,
 				       const char *name)
 {
 	return 0;
 }
 
-#define adf_ring_debugfs_rm(ring) do {} while (0)
+#define adf_ring_defs_rm(ring) do {} while (0)
 #endif
 #endif

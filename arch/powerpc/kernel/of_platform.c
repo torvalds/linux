@@ -10,7 +10,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/string.h>
 #include <linux/kernel.h>

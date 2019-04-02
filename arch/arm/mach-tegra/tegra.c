@@ -55,18 +55,18 @@
 #include "sleep.h"
 
 /*
- * Storage for debug-macro.S's state.
+ * Storage for de-macro.S's state.
  *
  * This must be in .data not .bss so that it gets initialized each time the
- * kernel is loaded. The data is declared here rather than debug-macro.S so
- * that multiple inclusions of debug-macro.S point at the same data.
+ * kernel is loaded. The data is declared here rather than de-macro.S so
+ * that multiple inclusions of de-macro.S point at the same data.
  */
 u32 tegra_uart_config[3] = {
-	/* Debug UART initialization required */
+	/* De UART initialization required */
 	1,
-	/* Debug UART physical address */
+	/* De UART physical address */
 	0,
-	/* Debug UART virtual address */
+	/* De UART virtual address */
 	0,
 };
 

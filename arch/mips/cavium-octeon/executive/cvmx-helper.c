@@ -30,7 +30,7 @@
  * Helper functions for common, but complicated tasks.
  *
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/octeon/octeon.h>
 
 #include <asm/octeon/cvmx-config.h>
@@ -1012,7 +1012,7 @@ int cvmx_helper_initialize_packet_io_global(void)
 	const int num_interfaces = cvmx_helper_get_number_of_interfaces();
 
 	/*
-	 * CN52XX pass 1: Due to a bug in 2nd order CDR, it needs to
+	 * CN52XX pass 1: Due to a  in 2nd order CDR, it needs to
 	 * be disabled.
 	 */
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_0))

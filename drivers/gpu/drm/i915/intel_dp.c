@@ -476,7 +476,7 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		    !intel_dp_can_link_train_fallback_for_edp(intel_dp,
 							      intel_dp->common_rates[index - 1],
 							      lane_count)) {
-			DRM_DEBUG_KMS("Retrying Link training for eDP with same parameters\n");
+			DRM_DE_KMS("Retrying Link training for eDP with same parameters\n");
 			return 0;
 		}
 		intel_dp->max_link_rate = intel_dp->common_rates[index - 1];
@@ -486,7 +486,7 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		    !intel_dp_can_link_train_fallback_for_edp(intel_dp,
 							      intel_dp_max_common_rate(intel_dp),
 							      lane_count >> 1)) {
-			DRM_DEBUG_KMS("Retrying Link training for eDP with same parameters\n");
+			DRM_DE_KMS("Retrying Link training for eDP with same parameters\n");
 			return 0;
 		}
 		intel_dp->max_link_rate = intel_dp_max_common_rate(intel_dp);
@@ -650,7 +650,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		 pipe_name(pipe), port_name(intel_dig_port->base.port)))
 		return;
 
-	DRM_DEBUG_KMS("kicking pipe %c power sequencer for port %c\n",
+	DRM_DE_KMS("kicking pipe %c power sequencer for port %c\n",
 		      pipe_name(pipe), port_name(intel_dig_port->base.port));
 
 	/* Preserve the BIOS-computed detected bit. This is
@@ -769,7 +769,7 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	vlv_steal_power_sequencer(dev_priv, pipe);
 	intel_dp->pps_pipe = pipe;
 
-	DRM_DEBUG_KMS("picked pipe %c power sequencer for port %c\n",
+	DRM_DE_KMS("picked pipe %c power sequencer for port %c\n",
 		      pipe_name(intel_dp->pps_pipe),
 		      port_name(intel_dig_port->base.port));
 
@@ -879,12 +879,12 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 
 	/* didn't find one? just let vlv_power_sequencer_pipe() pick one when needed */
 	if (intel_dp->pps_pipe == INVALID_PIPE) {
-		DRM_DEBUG_KMS("no initial power sequencer for port %c\n",
+		DRM_DE_KMS("no initial power sequencer for port %c\n",
 			      port_name(port));
 		return;
 	}
 
-	DRM_DEBUG_KMS("initial power sequencer for port %c: pipe %c\n",
+	DRM_DE_KMS("initial power sequencer for port %c: pipe %c\n",
 		      port_name(port), pipe_name(intel_dp->pps_pipe));
 
 	intel_dp_init_panel_power_sequencer(intel_dp);
@@ -1044,7 +1044,7 @@ intel_dp_check_edp(struct intel_dp *intel_dp)
 
 	if (!edp_have_panel_power(intel_dp) && !edp_have_panel_vdd(intel_dp)) {
 		WARN(1, "eDP powered off while attempting aux channel communication.\n");
-		DRM_DEBUG_KMS("Status 0x%08x Control 0x%08x\n",
+		DRM_DE_KMS("Status 0x%08x Control 0x%08x\n",
 			      I915_READ(_pp_stat_reg(intel_dp)),
 			      I915_READ(_pp_ctrl_reg(intel_dp)));
 	}
@@ -1317,7 +1317,7 @@ done:
 	/* Timeouts occur when the device isn't connected, so they're
 	 * "normal" -- don't fill the kernel log with these */
 	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
-		DRM_DEBUG_KMS("dp_aux_ch timeout status 0x%08x\n", status);
+		DRM_DE_KMS("dp_aux_ch timeout status 0x%08x\n", status);
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -1332,7 +1332,7 @@ done:
 	 * drm layer takes care for the necessary retries.
 	 */
 	if (recv_bytes == 0 || recv_bytes > 20) {
-		DRM_DEBUG_KMS("Forbidden recv_bytes = %d on aux transaction\n",
+		DRM_DE_KMS("Forbidden recv_bytes = %d on aux transaction\n",
 			      recv_bytes);
 		ret = -EBUSY;
 		goto out;
@@ -1667,20 +1667,20 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 {
 	char str[128]; /* FIXME: too big for stack? */
 
-	if ((drm_debug & DRM_UT_KMS) == 0)
+	if ((drm_de & DRM_UT_KMS) == 0)
 		return;
 
 	snprintf_int_array(str, sizeof(str),
 			   intel_dp->source_rates, intel_dp->num_source_rates);
-	DRM_DEBUG_KMS("source rates: %s\n", str);
+	DRM_DE_KMS("source rates: %s\n", str);
 
 	snprintf_int_array(str, sizeof(str),
 			   intel_dp->sink_rates, intel_dp->num_sink_rates);
-	DRM_DEBUG_KMS("sink rates: %s\n", str);
+	DRM_DE_KMS("sink rates: %s\n", str);
 
 	snprintf_int_array(str, sizeof(str),
 			   intel_dp->common_rates, intel_dp->num_common_rates);
-	DRM_DEBUG_KMS("common rates: %s\n", str);
+	DRM_DE_KMS("common rates: %s\n", str);
 }
 
 int
@@ -1778,7 +1778,7 @@ static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
 		/* Get bpp from vbt only for panels that dont have bpp in edid */
 		if (intel_connector->base.display_info.bpc == 0 &&
 		    dev_priv->vbt.edp.bpp && dev_priv->vbt.edp.bpp < bpp) {
-			DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
+			DRM_DE_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
 				      dev_priv->vbt.edp.bpp);
 			bpp = dev_priv->vbt.edp.bpp;
 		}
@@ -1800,7 +1800,7 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 		limits->min_bpp = limits->max_bpp = bpp;
 		pipe_config->dither_force_disable = bpp == 6 * 3;
 
-		DRM_DEBUG_KMS("Setting pipe_bpp to %d\n", bpp);
+		DRM_DE_KMS("Setting pipe_bpp to %d\n", bpp);
 	}
 
 	/* Use values requested by Compliance Test Request */
@@ -1930,7 +1930,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 
 	pipe_bpp = intel_dp_dsc_compute_bpp(intel_dp, dsc_max_bpc);
 	if (pipe_bpp < DP_DSC_MIN_SUPPORTED_BPC * 3) {
-		DRM_DEBUG_KMS("No DSC support for less than 8bpc\n");
+		DRM_DE_KMS("No DSC support for less than 8bpc\n");
 		return -EINVAL;
 	}
 
@@ -1964,7 +1964,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 						     adjusted_mode->crtc_clock,
 						     adjusted_mode->crtc_hdisplay);
 		if (!dsc_max_output_bpp || !dsc_dp_slice_count) {
-			DRM_DEBUG_KMS("Compressed BPP/Slice Count not supported\n");
+			DRM_DE_KMS("Compressed BPP/Slice Count not supported\n");
 			return -EINVAL;
 		}
 		pipe_config->dsc_params.compressed_bpp = min_t(u16,
@@ -1981,14 +1981,14 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		if (pipe_config->dsc_params.slice_count > 1) {
 			pipe_config->dsc_params.dsc_split = true;
 		} else {
-			DRM_DEBUG_KMS("Cannot split stream to use 2 VDSC instances\n");
+			DRM_DE_KMS("Cannot split stream to use 2 VDSC instances\n");
 			return -EINVAL;
 		}
 	}
 
 	ret = intel_dp_compute_dsc_params(intel_dp, pipe_config);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
+		DRM_DE_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
 			      "Compressed BPP = %d\n",
 			      pipe_config->pipe_bpp,
 			      pipe_config->dsc_params.compressed_bpp);
@@ -1996,7 +1996,7 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	}
 
 	pipe_config->dsc_params.compression_enable = true;
-	DRM_DEBUG_KMS("DP DSC computed with Input Bpp = %d "
+	DRM_DE_KMS("DP DSC computed with Input Bpp = %d "
 		      "Compressed Bpp = %d Slice Count = %d\n",
 		      pipe_config->pipe_bpp,
 		      pipe_config->dsc_params.compressed_bpp,
@@ -2047,7 +2047,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 
 	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
 
-	DRM_DEBUG_KMS("DP link computation with max lane count %i "
+	DRM_DE_KMS("DP link computation with max lane count %i "
 		      "max rate %d max bpp %d pixel clock %iKHz\n",
 		      limits.max_lane_count,
 		      intel_dp->common_rates[limits.max_clock],
@@ -2071,7 +2071,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 							&limits);
 
 	/* enable compression if the mode doesn't fit available BW */
-	DRM_DEBUG_KMS("Force DSC en = %d\n", intel_dp->force_dsc_en);
+	DRM_DE_KMS("Force DSC en = %d\n", intel_dp->force_dsc_en);
 	if (ret || intel_dp->force_dsc_en) {
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
 						  conn_state, &limits);
@@ -2080,22 +2080,22 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	}
 
 	if (pipe_config->dsc_params.compression_enable) {
-		DRM_DEBUG_KMS("DP lane count %d clock %d Input bpp %d Compressed bpp %d\n",
+		DRM_DE_KMS("DP lane count %d clock %d Input bpp %d Compressed bpp %d\n",
 			      pipe_config->lane_count, pipe_config->port_clock,
 			      pipe_config->pipe_bpp,
 			      pipe_config->dsc_params.compressed_bpp);
 
-		DRM_DEBUG_KMS("DP link rate required %i available %i\n",
+		DRM_DE_KMS("DP link rate required %i available %i\n",
 			      intel_dp_link_required(adjusted_mode->crtc_clock,
 						     pipe_config->dsc_params.compressed_bpp),
 			      intel_dp_max_data_rate(pipe_config->port_clock,
 						     pipe_config->lane_count));
 	} else {
-		DRM_DEBUG_KMS("DP lane count %d clock %d bpp %d\n",
+		DRM_DE_KMS("DP lane count %d clock %d bpp %d\n",
 			      pipe_config->lane_count, pipe_config->port_clock,
 			      pipe_config->pipe_bpp);
 
-		DRM_DEBUG_KMS("DP link rate required %i available %i\n",
+		DRM_DE_KMS("DP link rate required %i available %i\n",
 			      intel_dp_link_required(adjusted_mode->crtc_clock,
 						     pipe_config->pipe_bpp),
 			      intel_dp_max_data_rate(pipe_config->port_clock,
@@ -2340,7 +2340,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 	pp_stat_reg = _pp_stat_reg(intel_dp);
 	pp_ctrl_reg = _pp_ctrl_reg(intel_dp);
 
-	DRM_DEBUG_KMS("mask %08x value %08x status %08x control %08x\n",
+	DRM_DE_KMS("mask %08x value %08x status %08x control %08x\n",
 			mask, value,
 			I915_READ(pp_stat_reg),
 			I915_READ(pp_ctrl_reg));
@@ -2352,18 +2352,18 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 				I915_READ(pp_stat_reg),
 				I915_READ(pp_ctrl_reg));
 
-	DRM_DEBUG_KMS("Wait complete\n");
+	DRM_DE_KMS("Wait complete\n");
 }
 
 static void wait_panel_on(struct intel_dp *intel_dp)
 {
-	DRM_DEBUG_KMS("Wait for panel power on\n");
+	DRM_DE_KMS("Wait for panel power on\n");
 	wait_panel_status(intel_dp, IDLE_ON_MASK, IDLE_ON_VALUE);
 }
 
 static void wait_panel_off(struct intel_dp *intel_dp)
 {
-	DRM_DEBUG_KMS("Wait for panel power off time\n");
+	DRM_DE_KMS("Wait for panel power off time\n");
 	wait_panel_status(intel_dp, IDLE_OFF_MASK, IDLE_OFF_VALUE);
 }
 
@@ -2372,7 +2372,7 @@ static void wait_panel_power_cycle(struct intel_dp *intel_dp)
 	ktime_t panel_power_on_time;
 	s64 panel_power_off_duration;
 
-	DRM_DEBUG_KMS("Wait for panel power cycle\n");
+	DRM_DE_KMS("Wait for panel power cycle\n");
 
 	/* take the difference of currrent time and panel power off time
 	 * and then make panel wait for t11_t12 if needed. */
@@ -2447,7 +2447,7 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	intel_display_power_get(dev_priv,
 				intel_aux_power_domain(intel_dig_port));
 
-	DRM_DEBUG_KMS("Turning eDP port %c VDD on\n",
+	DRM_DE_KMS("Turning eDP port %c VDD on\n",
 		      port_name(intel_dig_port->base.port));
 
 	if (!edp_have_panel_power(intel_dp))
@@ -2461,13 +2461,13 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 
 	I915_WRITE(pp_ctrl_reg, pp);
 	POSTING_READ(pp_ctrl_reg);
-	DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
+	DRM_DE_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 			I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 	/*
 	 * If the panel wasn't on, delay before accessing aux channel
 	 */
 	if (!edp_have_panel_power(intel_dp)) {
-		DRM_DEBUG_KMS("eDP port %c panel power wasn't enabled\n",
+		DRM_DE_KMS("eDP port %c panel power wasn't enabled\n",
 			      port_name(intel_dig_port->base.port));
 		msleep(intel_dp->panel_power_up_delay);
 	}
@@ -2512,7 +2512,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	if (!edp_have_panel_vdd(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turning eDP port %c VDD off\n",
+	DRM_DE_KMS("Turning eDP port %c VDD off\n",
 		      port_name(intel_dig_port->base.port));
 
 	pp = ironlake_get_pp_control(intel_dp);
@@ -2525,7 +2525,7 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	POSTING_READ(pp_ctrl_reg);
 
 	/* Make sure sequencer is idle before allowing subsequent activity */
-	DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
+	DRM_DE_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 	I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 
 	if ((pp & PANEL_POWER_ON) == 0)
@@ -2597,7 +2597,7 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turn eDP port %c panel power on\n",
+	DRM_DE_KMS("Turn eDP port %c panel power on\n",
 		      port_name(dp_to_dig_port(intel_dp)->base.port));
 
 	if (WARN(edp_have_panel_power(intel_dp),
@@ -2657,7 +2657,7 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turn eDP port %c panel power off\n",
+	DRM_DE_KMS("Turn eDP port %c panel power off\n",
 		      port_name(dig_port->base.port));
 
 	WARN(!intel_dp->want_panel_vdd, "Need eDP port %c VDD to turn off panel\n",
@@ -2729,7 +2729,7 @@ void intel_edp_backlight_on(const struct intel_crtc_state *crtc_state,
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	intel_panel_enable_backlight(crtc_state, conn_state);
 	_intel_edp_backlight_on(intel_dp);
@@ -2767,7 +2767,7 @@ void intel_edp_backlight_off(const struct drm_connector_state *old_conn_state)
 	if (!intel_dp_is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	_intel_edp_backlight_off(intel_dp);
 	intel_panel_disable_backlight(old_conn_state);
@@ -2790,7 +2790,7 @@ static void intel_edp_backlight_power(struct intel_connector *connector,
 	if (is_enabled == enable)
 		return;
 
-	DRM_DEBUG_KMS("panel power control backlight %s\n",
+	DRM_DE_KMS("panel power control backlight %s\n",
 		      enable ? "enable" : "disable");
 
 	if (enable)
@@ -2833,7 +2833,7 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp,
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_disabled(dev_priv);
 
-	DRM_DEBUG_KMS("enabling eDP PLL for clock %d\n",
+	DRM_DE_KMS("enabling eDP PLL for clock %d\n",
 		      pipe_config->port_clock);
 
 	intel_dp->DP &= ~DP_PLL_FREQ_MASK;
@@ -2873,7 +2873,7 @@ static void ironlake_edp_pll_off(struct intel_dp *intel_dp,
 	assert_dp_port_disabled(intel_dp);
 	assert_edp_pll_enabled(dev_priv);
 
-	DRM_DEBUG_KMS("disabling eDP PLL\n");
+	DRM_DE_KMS("disabling eDP PLL\n");
 
 	intel_dp->DP &= ~DP_PLL_ENABLE;
 
@@ -2909,7 +2909,7 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 	ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_DSC_ENABLE,
 				 enable ? DP_DECOMPRESSION_EN : 0);
 	if (ret < 0)
-		DRM_DEBUG_KMS("Failed to %s sink decompression state\n",
+		DRM_DE_KMS("Failed to %s sink decompression state\n",
 			      enable ? "enable" : "disable");
 }
 
@@ -2948,7 +2948,7 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 	}
 
 	if (ret != 1)
-		DRM_DEBUG_KMS("failed to %s sink power state\n",
+		DRM_DE_KMS("failed to %s sink power state\n",
 			      mode == DRM_MODE_DPMS_ON ? "enable" : "disable");
 }
 
@@ -2966,7 +2966,7 @@ static bool cpt_dp_port_selected(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	DRM_DEBUG_KMS("No pipe for DP port %c found\n", port_name(port));
+	DRM_DE_KMS("No pipe for DP port %c found\n", port_name(port));
 
 	/* must initialize pipe to something for the asserts */
 	*pipe = PIPE_A;
@@ -3097,7 +3097,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		 * up by the BIOS, and thus we can't get the mode at module
 		 * load.
 		 */
-		DRM_DEBUG_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+		DRM_DE_KMS("pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
 			      pipe_config->pipe_bpp, dev_priv->vbt.edp.bpp);
 		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
 	}
@@ -3191,7 +3191,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 	u8 train_pat_mask = drm_dp_training_pattern_mask(intel_dp->dpcd);
 
 	if (dp_train_pat & train_pat_mask)
-		DRM_DEBUG_KMS("Using DP training pattern TPS%d\n",
+		DRM_DE_KMS("Using DP training pattern TPS%d\n",
 			      dp_train_pat & train_pat_mask);
 
 	if (HAS_DDI(dev_priv)) {
@@ -3238,7 +3238,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
+			DRM_DE_KMS("TPS3 not supported, using TPS2 instead\n");
 			*DP |= DP_LINK_TRAIN_PAT_2_CPT;
 			break;
 		}
@@ -3257,7 +3257,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
+			DRM_DE_KMS("TPS3 not supported, using TPS2 instead\n");
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		}
@@ -3327,7 +3327,7 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 	intel_dp_stop_link_train(intel_dp);
 
 	if (pipe_config->has_audio) {
-		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
+		DRM_DE_DRIVER("Enabling DP audio on pipe %c\n",
 				 pipe_name(pipe));
 		intel_audio_codec_enable(encoder, pipe_config, conn_state);
 	}
@@ -3385,7 +3385,7 @@ static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
 	 * port select always when logically disconnecting a power sequencer
 	 * from a port.
 	 */
-	DRM_DEBUG_KMS("detaching pipe %c power sequencer from port %c\n",
+	DRM_DE_KMS("detaching pipe %c power sequencer from port %c\n",
 		      pipe_name(pipe), port_name(intel_dig_port->base.port));
 	I915_WRITE(pp_on_reg, 0);
 	POSTING_READ(pp_on_reg);
@@ -3411,7 +3411,7 @@ static void vlv_steal_power_sequencer(struct drm_i915_private *dev_priv,
 		if (intel_dp->pps_pipe != pipe)
 			continue;
 
-		DRM_DEBUG_KMS("stealing pipe %c power sequencer from port %c\n",
+		DRM_DE_KMS("stealing pipe %c power sequencer from port %c\n",
 			      pipe_name(pipe), port_name(port));
 
 		/* make sure vdd is off before we steal it */
@@ -3454,7 +3454,7 @@ static void vlv_init_panel_power_sequencer(struct intel_encoder *encoder,
 	/* now it's all ours */
 	intel_dp->pps_pipe = crtc->pipe;
 
-	DRM_DEBUG_KMS("initializing pipe %c power sequencer for port %c\n",
+	DRM_DE_KMS("initializing pipe %c power sequencer for port %c\n",
 		      pipe_name(intel_dp->pps_pipe), port_name(encoder->port));
 
 	/* init power sequencer on this pipe and port */
@@ -3814,7 +3814,7 @@ snb_cpu_edp_signal_levels(u8 train_set)
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
 		return EDP_LINK_TRAIN_800_1200MV_0DB_SNB_B;
 	default:
-		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
+		DRM_DE_KMS("Unsupported voltage swing/pre-emphasis level:"
 			      "0x%x\n", signal_levels);
 		return EDP_LINK_TRAIN_400_600MV_0DB_SNB_B;
 	}
@@ -3845,7 +3845,7 @@ ivb_cpu_edp_signal_levels(u8 train_set)
 		return EDP_LINK_TRAIN_800MV_3_5DB_IVB;
 
 	default:
-		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
+		DRM_DE_KMS("Unsupported voltage swing/pre-emphasis level:"
 			      "0x%x\n", signal_levels);
 		return EDP_LINK_TRAIN_500MV_0DB_IVB;
 	}
@@ -3881,11 +3881,11 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	}
 
 	if (mask)
-		DRM_DEBUG_KMS("Using signal levels %08x\n", signal_levels);
+		DRM_DE_KMS("Using signal levels %08x\n", signal_levels);
 
-	DRM_DEBUG_KMS("Using vswing level %d\n",
+	DRM_DE_KMS("Using vswing level %d\n",
 		train_set & DP_TRAIN_VOLTAGE_SWING_MASK);
-	DRM_DEBUG_KMS("Using pre-emphasis level %d\n",
+	DRM_DE_KMS("Using pre-emphasis level %d\n",
 		(train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
 			DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
@@ -3957,7 +3957,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	if (WARN_ON((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0))
 		return;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
@@ -4038,14 +4038,14 @@ intel_dp_extended_receiver_capabilities(struct intel_dp *intel_dp)
 	}
 
 	if (intel_dp->dpcd[DP_DPCD_REV] > dpcd_ext[DP_DPCD_REV]) {
-		DRM_DEBUG_KMS("DPCD extended DPCD rev less than base DPCD rev\n");
+		DRM_DE_KMS("DPCD extended DPCD rev less than base DPCD rev\n");
 		return;
 	}
 
 	if (!memcmp(intel_dp->dpcd, dpcd_ext, sizeof(dpcd_ext)))
 		return;
 
-	DRM_DEBUG_KMS("Base DPCD: %*ph\n",
+	DRM_DE_KMS("Base DPCD: %*ph\n",
 		      (int)sizeof(intel_dp->dpcd), intel_dp->dpcd);
 
 	memcpy(intel_dp->dpcd, dpcd_ext, sizeof(dpcd_ext));
@@ -4060,7 +4060,7 @@ intel_dp_read_dpcd(struct intel_dp *intel_dp)
 
 	intel_dp_extended_receiver_capabilities(intel_dp);
 
-	DRM_DEBUG_KMS("DPCD: %*ph\n", (int) sizeof(intel_dp->dpcd), intel_dp->dpcd);
+	DRM_DE_KMS("DPCD: %*ph\n", (int) sizeof(intel_dp->dpcd), intel_dp->dpcd);
 
 	return intel_dp->dpcd[DP_DPCD_REV] != 0;
 }
@@ -4085,7 +4085,7 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 			DRM_ERROR("Failed to read DPCD register 0x%x\n",
 				  DP_DSC_SUPPORT);
 
-		DRM_DEBUG_KMS("DSC DPCD: %*ph\n",
+		DRM_DE_KMS("DSC DPCD: %*ph\n",
 			      (int)sizeof(intel_dp->dsc_dpcd),
 			      intel_dp->dsc_dpcd);
 
@@ -4095,7 +4095,7 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 				      &intel_dp->fec_capable) < 0)
 			DRM_ERROR("Failed to read FEC DPCD register\n");
 
-		DRM_DEBUG_KMS("FEC CAPABILITY: %x\n", intel_dp->fec_capable);
+		DRM_DE_KMS("FEC CAPABILITY: %x\n", intel_dp->fec_capable);
 	}
 }
 
@@ -4122,7 +4122,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	 * Read the eDP display control registers.
 	 *
 	 * Do this independent of DP_DPCD_DISPLAY_CONTROL_CAPABLE bit in
-	 * DP_EDP_CONFIGURATION_CAP, because some buggy displays do not have it
+	 * DP_EDP_CONFIGURATION_CAP, because some gy displays do not have it
 	 * set, but require eDP 1.4+ detection (e.g. for supported link rates
 	 * method). The display control registers should read zero if they're
 	 * not supported anyway.
@@ -4130,7 +4130,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_DPCD_REV,
 			     intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd)) ==
 			     sizeof(intel_dp->edp_dpcd))
-		DRM_DEBUG_KMS("eDP DPCD: %*ph\n", (int) sizeof(intel_dp->edp_dpcd),
+		DRM_DE_KMS("eDP DPCD: %*ph\n", (int) sizeof(intel_dp->edp_dpcd),
 			      intel_dp->edp_dpcd);
 
 	/*
@@ -4268,7 +4268,7 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 		&dp_to_dig_port(intel_dp)->base;
 	bool sink_can_mst = intel_dp_sink_can_mst(intel_dp);
 
-	DRM_DEBUG_KMS("MST support? port %c: %s, sink: %s, modparam: %s\n",
+	DRM_DE_KMS("MST support? port %c: %s, sink: %s, modparam: %s\n",
 		      port_name(encoder->port), yesno(intel_dp->can_mst),
 		      yesno(sink_can_mst), yesno(i915_modparams.enable_dp_mst));
 
@@ -4318,7 +4318,7 @@ u16 intel_dp_dsc_get_output_bpp(int link_clock, u8 lane_count,
 
 	/* Error out if the max bpp is less than smallest allowed valid bpp */
 	if (bits_per_pixel < valid_dsc_bpp[0]) {
-		DRM_DEBUG_KMS("Unsupported BPP %d\n", bits_per_pixel);
+		DRM_DE_KMS("Unsupported BPP %d\n", bits_per_pixel);
 		return 0;
 	}
 
@@ -4352,7 +4352,7 @@ u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 
 	max_slice_width = drm_dp_dsc_sink_max_slice_width(intel_dp->dsc_dpcd);
 	if (max_slice_width < DP_DSC_MIN_SLICE_WIDTH_VALUE) {
-		DRM_DEBUG_KMS("Unsupported slice width %d by DP DSC Sink device\n",
+		DRM_DE_KMS("Unsupported slice width %d by DP DSC Sink device\n",
 			      max_slice_width);
 		return 0;
 	}
@@ -4371,7 +4371,7 @@ u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 			return valid_dsc_slicecount[i];
 	}
 
-	DRM_DEBUG_KMS("Unsupported Slice Count %d\n", min_slice_count);
+	DRM_DE_KMS("Unsupported Slice Count %d\n", min_slice_count);
 	return 0;
 }
 
@@ -4388,7 +4388,7 @@ static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 				   &test_lane_count);
 
 	if (status <= 0) {
-		DRM_DEBUG_KMS("Lane count read failed\n");
+		DRM_DE_KMS("Lane count read failed\n");
 		return DP_TEST_NAK;
 	}
 	test_lane_count &= DP_MAX_LANE_COUNT_MASK;
@@ -4396,7 +4396,7 @@ static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_LINK_RATE,
 				   &test_link_bw);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("Link Rate read failed\n");
+		DRM_DE_KMS("Link Rate read failed\n");
 		return DP_TEST_NAK;
 	}
 	test_link_rate = drm_dp_bw_code_to_link_rate(test_link_bw);
@@ -4423,7 +4423,7 @@ static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_PATTERN,
 				   &test_pattern);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("Test pattern read failed\n");
+		DRM_DE_KMS("Test pattern read failed\n");
 		return DP_TEST_NAK;
 	}
 	if (test_pattern != DP_COLOR_RAMP)
@@ -4432,21 +4432,21 @@ static u8 intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_H_WIDTH_HI,
 				  &h_width, 2);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("H Width read failed\n");
+		DRM_DE_KMS("H Width read failed\n");
 		return DP_TEST_NAK;
 	}
 
 	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_V_HEIGHT_HI,
 				  &v_height, 2);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("V Height read failed\n");
+		DRM_DE_KMS("V Height read failed\n");
 		return DP_TEST_NAK;
 	}
 
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_MISC0,
 				   &test_misc);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("TEST MISC read failed\n");
+		DRM_DE_KMS("TEST MISC read failed\n");
 		return DP_TEST_NAK;
 	}
 	if ((test_misc & DP_TEST_COLOR_FORMAT_MASK) != DP_COLOR_FORMAT_RGB)
@@ -4491,7 +4491,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 		 */
 		if (intel_dp->aux.i2c_nack_count > 0 ||
 			intel_dp->aux.i2c_defer_count > 0)
-			DRM_DEBUG_KMS("EDID read had %d NACKs, %d DEFERs\n",
+			DRM_DE_KMS("EDID read had %d NACKs, %d DEFERs\n",
 				      intel_dp->aux.i2c_nack_count,
 				      intel_dp->aux.i2c_defer_count);
 		intel_dp->compliance.test_data.edid = INTEL_DP_RESOLUTION_FAILSAFE;
@@ -4505,7 +4505,7 @@ static u8 intel_dp_autotest_edid(struct intel_dp *intel_dp)
 
 		if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_EDID_CHECKSUM,
 				       block->checksum) <= 0)
-			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
+			DRM_DE_KMS("Failed to write EDID checksum\n");
 
 		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
 		intel_dp->compliance.test_data.edid = INTEL_DP_RESOLUTION_PREFERRED;
@@ -4531,29 +4531,29 @@ static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 
 	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_REQUEST, &request);
 	if (status <= 0) {
-		DRM_DEBUG_KMS("Could not read test request from sink\n");
+		DRM_DE_KMS("Could not read test request from sink\n");
 		goto update_status;
 	}
 
 	switch (request) {
 	case DP_TEST_LINK_TRAINING:
-		DRM_DEBUG_KMS("LINK_TRAINING test requested\n");
+		DRM_DE_KMS("LINK_TRAINING test requested\n");
 		response = intel_dp_autotest_link_training(intel_dp);
 		break;
 	case DP_TEST_LINK_VIDEO_PATTERN:
-		DRM_DEBUG_KMS("TEST_PATTERN test requested\n");
+		DRM_DE_KMS("TEST_PATTERN test requested\n");
 		response = intel_dp_autotest_video_pattern(intel_dp);
 		break;
 	case DP_TEST_LINK_EDID_READ:
-		DRM_DEBUG_KMS("EDID test requested\n");
+		DRM_DE_KMS("EDID test requested\n");
 		response = intel_dp_autotest_edid(intel_dp);
 		break;
 	case DP_TEST_LINK_PHY_TEST_PATTERN:
-		DRM_DEBUG_KMS("PHY_PATTERN test requested\n");
+		DRM_DE_KMS("PHY_PATTERN test requested\n");
 		response = intel_dp_autotest_phy_pattern(intel_dp);
 		break;
 	default:
-		DRM_DEBUG_KMS("Invalid test request '%02x'\n", request);
+		DRM_DE_KMS("Invalid test request '%02x'\n", request);
 		break;
 	}
 
@@ -4563,7 +4563,7 @@ static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 update_status:
 	status = drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_RESPONSE, response);
 	if (status <= 0)
-		DRM_DEBUG_KMS("Could not write test response to sink\n");
+		DRM_DE_KMS("Could not write test response to sink\n");
 }
 
 static int
@@ -4585,12 +4585,12 @@ go_again:
 			/* check link status - esi[10] = 0x200c */
 			if (intel_dp->active_mst_links > 0 &&
 			    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
-				DRM_DEBUG_KMS("channel EQ not ok, retraining\n");
+				DRM_DE_KMS("channel EQ not ok, retraining\n");
 				intel_dp_start_link_train(intel_dp);
 				intel_dp_stop_link_train(intel_dp);
 			}
 
-			DRM_DEBUG_KMS("got esi %3ph\n", esi);
+			DRM_DE_KMS("got esi %3ph\n", esi);
 			ret = drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, &handled);
 
 			if (handled) {
@@ -4606,7 +4606,7 @@ go_again:
 
 				bret = intel_dp_get_sink_irq_esi(intel_dp, esi);
 				if (bret == true) {
-					DRM_DEBUG_KMS("got esi2 %3ph\n", esi);
+					DRM_DE_KMS("got esi2 %3ph\n", esi);
 					goto go_again;
 				}
 			} else
@@ -4614,7 +4614,7 @@ go_again:
 
 			return ret;
 		} else {
-			DRM_DEBUG_KMS("failed to get ESI - device may have failed\n");
+			DRM_DE_KMS("failed to get ESI - device may have failed\n");
 			intel_dp->is_mst = false;
 			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
 							intel_dp->is_mst);
@@ -4783,7 +4783,7 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
 		intel_hdcp_check_link(intel_dp->attached_connector);
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
-		DRM_DEBUG_DRIVER("Sink specific irq unhandled\n");
+		DRM_DE_DRIVER("Sink specific irq unhandled\n");
 }
 
 /*
@@ -4837,7 +4837,7 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 	intel_psr_short_pulse(intel_dp);
 
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
-		DRM_DEBUG_KMS("Link Training Compliance Test requested\n");
+		DRM_DE_KMS("Link Training Compliance Test requested\n");
 		/* Send a Hotplug Uevent to userspace to start modeset */
 		drm_kms_helper_hotplug_event(&dev_priv->drm);
 	}
@@ -4896,7 +4896,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	}
 
 	/* Anything else is out of spec, warn and ignore */
-	DRM_DEBUG_KMS("Broken DP branch device, ignoring\n");
+	DRM_DE_KMS("Broken DP branch device, ignoring\n");
 	return connector_status_disconnected;
 }
 
@@ -5126,7 +5126,7 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 		old_type != intel_dig_port->tc_type);
 
 	if (old_type != intel_dig_port->tc_type)
-		DRM_DEBUG_KMS("Port %c has TC type %s\n", port_name(port),
+		DRM_DE_KMS("Port %c has TC type %s\n", port_name(port),
 			      tc_type_name(intel_dig_port->tc_type));
 }
 
@@ -5163,7 +5163,7 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(PORT_TX_DFLEXDPPMS);
 	if (!(val & DP_PHY_MODE_STATUS_COMPLETED(tc_port))) {
-		DRM_DEBUG_KMS("DP PHY for TC port %d not ready\n", tc_port);
+		DRM_DE_KMS("DP PHY for TC port %d not ready\n", tc_port);
 		WARN_ON(dig_port->tc_legacy_port);
 		return false;
 	}
@@ -5184,7 +5184,7 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
 	 */
 	if (dig_port->tc_type == TC_PORT_TYPEC &&
 	    !(I915_READ(PORT_TX_DFLEXDPSP) & TC_LIVE_STATE_TC(tc_port))) {
-		DRM_DEBUG_KMS("TC PHY %d sudden disconnect.\n", tc_port);
+		DRM_DE_KMS("TC PHY %d sudden disconnect.\n", tc_port);
 		icl_tc_phy_disconnect(dev_priv, dig_port);
 		return false;
 	}
@@ -5217,7 +5217,7 @@ void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
 		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
 	}
 
-	DRM_DEBUG_KMS("Port %c TC type %s disconnected\n",
+	DRM_DE_KMS("Port %c TC type %s disconnected\n",
 		      port_name(dig_port->base.port),
 		      tc_type_name(dig_port->tc_type));
 
@@ -5387,7 +5387,7 @@ intel_dp_detect(struct drm_connector *connector,
 		intel_aux_power_domain(dig_port);
 	intel_wakeref_t wakeref;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
 
@@ -5406,7 +5406,7 @@ intel_dp_detect(struct drm_connector *connector,
 		memset(intel_dp->dsc_dpcd, 0, sizeof(intel_dp->dsc_dpcd));
 
 		if (intel_dp->is_mst) {
-			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
+			DRM_DE_KMS("MST device may have disappeared %d vs %d\n",
 				      intel_dp->is_mst,
 				      intel_dp->mst_mgr.mst_state);
 			intel_dp->is_mst = false;
@@ -5496,7 +5496,7 @@ intel_dp_force(struct drm_connector *connector)
 		intel_aux_power_domain(dig_port);
 	intel_wakeref_t wakeref;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 	intel_dp_unset_edid(intel_dp);
 
@@ -5549,9 +5549,9 @@ intel_dp_connector_register(struct drm_connector *connector)
 	if (ret)
 		return ret;
 
-	i915_debugfs_connector_add(connector);
+	i915_defs_connector_add(connector);
 
-	DRM_DEBUG_KMS("registering %s bus for %s\n",
+	DRM_DE_KMS("registering %s bus for %s\n",
 		      intel_dp->aux.name, connector->kdev->kobj.name);
 
 	intel_dp->aux.dev = connector->kdev;
@@ -5641,7 +5641,7 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 	dpcd_ret = drm_dp_dpcd_write(&intel_dig_port->dp.aux, DP_AUX_HDCP_AN,
 				     an, DRM_HDCP_AN_LEN);
 	if (dpcd_ret != DRM_HDCP_AN_LEN) {
-		DRM_DEBUG_KMS("Failed to write An over DP/AUX (%zd)\n",
+		DRM_DE_KMS("Failed to write An over DP/AUX (%zd)\n",
 			      dpcd_ret);
 		return dpcd_ret >= 0 ? -EIO : dpcd_ret;
 	}
@@ -5658,16 +5658,16 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				rxbuf, sizeof(rxbuf),
 				DP_AUX_CH_CTL_AUX_AKSV_SELECT);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("Write Aksv over DP/AUX failed (%d)\n", ret);
+		DRM_DE_KMS("Write Aksv over DP/AUX failed (%d)\n", ret);
 		return ret;
 	} else if (ret == 0) {
-		DRM_DEBUG_KMS("Aksv write over DP/AUX was empty\n");
+		DRM_DE_KMS("Aksv write over DP/AUX was empty\n");
 		return -EIO;
 	}
 
 	reply = (rxbuf[0] >> 4) & DP_AUX_NATIVE_REPLY_MASK;
 	if (reply != DP_AUX_NATIVE_REPLY_ACK) {
-		DRM_DEBUG_KMS("Aksv write: no DP_AUX_NATIVE_REPLY_ACK %x\n",
+		DRM_DE_KMS("Aksv write: no DP_AUX_NATIVE_REPLY_ACK %x\n",
 			      reply);
 		return -EIO;
 	}
@@ -5681,7 +5681,7 @@ static int intel_dp_hdcp_read_bksv(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BKSV, bksv,
 			       DRM_HDCP_KSV_LEN);
 	if (ret != DRM_HDCP_KSV_LEN) {
-		DRM_DEBUG_KMS("Read Bksv from DP/AUX failed (%zd)\n", ret);
+		DRM_DE_KMS("Read Bksv from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5699,7 +5699,7 @@ static int intel_dp_hdcp_read_bstatus(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BINFO,
 			       bstatus, DRM_HDCP_BSTATUS_LEN);
 	if (ret != DRM_HDCP_BSTATUS_LEN) {
-		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		DRM_DE_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5714,7 +5714,7 @@ int intel_dp_hdcp_read_bcaps(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BCAPS,
 			       bcaps, 1);
 	if (ret != 1) {
-		DRM_DEBUG_KMS("Read bcaps from DP/AUX failed (%zd)\n", ret);
+		DRM_DE_KMS("Read bcaps from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 
@@ -5744,7 +5744,7 @@ int intel_dp_hdcp_read_ri_prime(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_RI_PRIME,
 			       ri_prime, DRM_HDCP_RI_LEN);
 	if (ret != DRM_HDCP_RI_LEN) {
-		DRM_DEBUG_KMS("Read Ri' from DP/AUX failed (%zd)\n", ret);
+		DRM_DE_KMS("Read Ri' from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5759,7 +5759,7 @@ int intel_dp_hdcp_read_ksv_ready(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BSTATUS,
 			       &bstatus, 1);
 	if (ret != 1) {
-		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		DRM_DE_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	*ksv_ready = bstatus & DP_BSTATUS_READY;
@@ -5781,7 +5781,7 @@ int intel_dp_hdcp_read_ksv_fifo(struct intel_digital_port *intel_dig_port,
 				       ksv_fifo + i * DRM_HDCP_KSV_LEN,
 				       len);
 		if (ret != len) {
-			DRM_DEBUG_KMS("Read ksv[%d] from DP/AUX failed (%zd)\n",
+			DRM_DE_KMS("Read ksv[%d] from DP/AUX failed (%zd)\n",
 				      i, ret);
 			return ret >= 0 ? -EIO : ret;
 		}
@@ -5802,7 +5802,7 @@ int intel_dp_hdcp_read_v_prime_part(struct intel_digital_port *intel_dig_port,
 			       DP_AUX_HDCP_V_PRIME(i), part,
 			       DRM_HDCP_V_PRIME_PART_LEN);
 	if (ret != DRM_HDCP_V_PRIME_PART_LEN) {
-		DRM_DEBUG_KMS("Read v'[%d] from DP/AUX failed (%zd)\n", i, ret);
+		DRM_DE_KMS("Read v'[%d] from DP/AUX failed (%zd)\n", i, ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5825,7 +5825,7 @@ bool intel_dp_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BSTATUS,
 			       &bstatus, 1);
 	if (ret != 1) {
-		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		DRM_DE_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
 		return false;
 	}
 
@@ -5877,7 +5877,7 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	 * schedule a vdd off, so we don't hold on to the reference
 	 * indefinitely.
 	 */
-	DRM_DEBUG_KMS("VDD left on by BIOS, adjusting state tracking\n");
+	DRM_DE_KMS("VDD left on by BIOS, adjusting state tracking\n");
 	intel_display_power_get(dev_priv, intel_aux_power_domain(dig_port));
 
 	edp_panel_vdd_schedule_off(intel_dp);
@@ -5965,12 +5965,12 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		 * would end up in an endless cycle of
 		 * "vdd off -> long hpd -> vdd on -> detect -> vdd off -> ..."
 		 */
-		DRM_DEBUG_KMS("ignoring long hpd on eDP port %c\n",
+		DRM_DE_KMS("ignoring long hpd on eDP port %c\n",
 			      port_name(intel_dig_port->base.port));
 		return IRQ_HANDLED;
 	}
 
-	DRM_DEBUG_KMS("got hpd irq on port %c - %s\n",
+	DRM_DE_KMS("got hpd irq on port %c - %s\n",
 		      port_name(intel_dig_port->base.port),
 		      long_hpd ? "long" : "short");
 
@@ -5988,7 +5988,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			 * If we were in MST mode, and device is not
 			 * there, get out of MST mode
 			 */
-			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
+			DRM_DE_KMS("MST device may have disappeared %d vs %d\n",
 				      intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
 			intel_dp->is_mst = false;
 			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
@@ -6115,7 +6115,7 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 static void
 intel_pps_dump_state(const char *state_name, const struct edp_power_seq *seq)
 {
-	DRM_DEBUG_KMS("%s t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
+	DRM_DE_KMS("%s t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
 		      state_name,
 		      seq->t1_t3, seq->t8, seq->t9, seq->t10, seq->t11_t12);
 }
@@ -6161,7 +6161,7 @@ intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	 */
 	if (dev_priv->quirks & QUIRK_INCREASE_T12_DELAY) {
 		vbt.t11_t12 = max_t(u16, vbt.t11_t12, 1300 * 10);
-		DRM_DEBUG_KMS("Increasing T12 panel delay as per the quirk to %d\n",
+		DRM_DE_KMS("Increasing T12 panel delay as per the quirk to %d\n",
 			      vbt.t11_t12);
 	}
 	/* T11_T12 delay is special and actually in units of 100ms, but zero
@@ -6204,11 +6204,11 @@ intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	intel_dp->panel_power_cycle_delay = get_delay(t11_t12);
 #undef get_delay
 
-	DRM_DEBUG_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
+	DRM_DE_KMS("panel power up delay %d, power down delay %d, power cycle delay %d\n",
 		      intel_dp->panel_power_up_delay, intel_dp->panel_power_down_delay,
 		      intel_dp->panel_power_cycle_delay);
 
-	DRM_DEBUG_KMS("backlight on delay %d, off delay %d\n",
+	DRM_DE_KMS("backlight on delay %d, off delay %d\n",
 		      intel_dp->backlight_on_delay, intel_dp->backlight_off_delay);
 
 	/*
@@ -6261,7 +6261,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 		WARN(pp & PANEL_POWER_ON, "Panel power already on\n");
 
 		if (pp & EDP_FORCE_VDD)
-			DRM_DEBUG_KMS("VDD already on, disabling first\n");
+			DRM_DE_KMS("VDD already on, disabling first\n");
 
 		pp &= ~EDP_FORCE_VDD;
 
@@ -6317,7 +6317,7 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 	else
 		I915_WRITE(regs.pp_div, pp_div);
 
-	DRM_DEBUG_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
+	DRM_DE_KMS("panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
 		      I915_READ(regs.pp_on),
 		      I915_READ(regs.pp_off),
 		      (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv)  ||
@@ -6362,12 +6362,12 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;
 
 	if (refresh_rate <= 0) {
-		DRM_DEBUG_KMS("Refresh rate should be positive non-zero.\n");
+		DRM_DE_KMS("Refresh rate should be positive non-zero.\n");
 		return;
 	}
 
 	if (intel_dp == NULL) {
-		DRM_DEBUG_KMS("DRRS not supported.\n");
+		DRM_DE_KMS("DRRS not supported.\n");
 		return;
 	}
 
@@ -6375,12 +6375,12 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 	encoder = &dig_port->base;
 
 	if (!intel_crtc) {
-		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
+		DRM_DE_KMS("DRRS: intel_crtc not initialized\n");
 		return;
 	}
 
 	if (dev_priv->drrs.type < SEAMLESS_DRRS_SUPPORT) {
-		DRM_DEBUG_KMS("Only Seamless DRRS supported.\n");
+		DRM_DE_KMS("Only Seamless DRRS supported.\n");
 		return;
 	}
 
@@ -6389,13 +6389,13 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 		index = DRRS_LOW_RR;
 
 	if (index == dev_priv->drrs.refresh_rate_type) {
-		DRM_DEBUG_KMS(
+		DRM_DE_KMS(
 			"DRRS requested for previously set RR...ignoring\n");
 		return;
 	}
 
 	if (!crtc_state->base.active) {
-		DRM_DEBUG_KMS("eDP encoder disabled. CRTC not Active\n");
+		DRM_DE_KMS("eDP encoder disabled. CRTC not Active\n");
 		return;
 	}
 
@@ -6432,7 +6432,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 
 	dev_priv->drrs.refresh_rate_type = index;
 
-	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
+	DRM_DE_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
 }
 
 /**
@@ -6448,18 +6448,18 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
 	if (!crtc_state->has_drrs) {
-		DRM_DEBUG_KMS("Panel doesn't support DRRS\n");
+		DRM_DE_KMS("Panel doesn't support DRRS\n");
 		return;
 	}
 
 	if (dev_priv->psr.enabled) {
-		DRM_DEBUG_KMS("PSR enabled. Not enabling DRRS.\n");
+		DRM_DE_KMS("PSR enabled. Not enabling DRRS.\n");
 		return;
 	}
 
 	mutex_lock(&dev_priv->drrs.mutex);
 	if (dev_priv->drrs.dp) {
-		DRM_DEBUG_KMS("DRRS already enabled\n");
+		DRM_DE_KMS("DRRS already enabled\n");
 		goto unlock;
 	}
 
@@ -6685,12 +6685,12 @@ intel_dp_drrs_init(struct intel_connector *connector,
 	mutex_init(&dev_priv->drrs.mutex);
 
 	if (INTEL_GEN(dev_priv) <= 6) {
-		DRM_DEBUG_KMS("DRRS supported for Gen7 and above\n");
+		DRM_DE_KMS("DRRS supported for Gen7 and above\n");
 		return NULL;
 	}
 
 	if (dev_priv->vbt.drrs_type != SEAMLESS_DRRS_SUPPORT) {
-		DRM_DEBUG_KMS("VBT doesn't support DRRS\n");
+		DRM_DE_KMS("VBT doesn't support DRRS\n");
 		return NULL;
 	}
 
@@ -6698,14 +6698,14 @@ intel_dp_drrs_init(struct intel_connector *connector,
 						    &connector->base);
 
 	if (!downclock_mode) {
-		DRM_DEBUG_KMS("Downclock mode is not found. DRRS not supported\n");
+		DRM_DE_KMS("Downclock mode is not found. DRRS not supported\n");
 		return NULL;
 	}
 
 	dev_priv->drrs.type = dev_priv->vbt.drrs_type;
 
 	dev_priv->drrs.refresh_rate_type = DRRS_HIGH_RR;
-	DRM_DEBUG_KMS("seamless DRRS supported for eDP panel.\n");
+	DRM_DE_KMS("seamless DRRS supported for eDP panel.\n");
 	return downclock_mode;
 }
 
@@ -6810,7 +6810,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		if (pipe != PIPE_A && pipe != PIPE_B)
 			pipe = PIPE_A;
 
-		DRM_DEBUG_KMS("using pipe %c for initial backlight setup\n",
+		DRM_DE_KMS("using pipe %c for initial backlight setup\n",
 			      pipe_name(pipe));
 	}
 
@@ -6844,7 +6844,7 @@ static void intel_dp_modeset_retry_work_fn(struct work_struct *work)
 	intel_connector = container_of(work, typeof(*intel_connector),
 				       modeset_retry_work);
 	connector = &intel_connector->base;
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 		      connector->name);
 
 	/* Grab the locks before changing connector property*/
@@ -6916,7 +6916,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		    port != PORT_B && port != PORT_C))
 		return false;
 
-	DRM_DEBUG_KMS("Adding %s connector on port %c\n",
+	DRM_DE_KMS("Adding %s connector on port %c\n",
 			type == DRM_MODE_CONNECTOR_eDP ? "eDP" : "DP",
 			port_name(port));
 
@@ -6956,7 +6956,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	if (is_hdcp_supported(dev_priv, port) && !intel_dp_is_edp(intel_dp)) {
 		int ret = intel_hdcp_init(intel_connector, &intel_dp_hdcp_shim);
 		if (ret)
-			DRM_DEBUG_KMS("HDCP init failed, skipping.\n");
+			DRM_DE_KMS("HDCP init failed, skipping.\n");
 	}
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written

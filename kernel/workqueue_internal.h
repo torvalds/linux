@@ -47,7 +47,7 @@ struct worker {
 
 	/*
 	 * Opaque string set with work_set_desc().  Printed out with task
-	 * dump for debugging - WARN, BUG, panic or sysrq.
+	 * dump for deging - WARN, , panic or sysrq.
 	 */
 	char			desc[WORKER_DESC_LEN];
 

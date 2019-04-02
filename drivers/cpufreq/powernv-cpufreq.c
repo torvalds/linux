@@ -316,7 +316,7 @@ next:
 	}
 
 	powernv_pstate_info.nr_pstates = nr_pstates;
-	pr_debug("NR PStates %d\n", nr_pstates);
+	pr_de("NR PStates %d\n", nr_pstates);
 
 	for (i = 0; i < nr_pstates; i++) {
 		u32 id = be32_to_cpu(pstate_ids[i]);
@@ -324,7 +324,7 @@ next:
 		struct pstate_idx_revmap_data *revmap_data;
 		unsigned int key;
 
-		pr_debug("PState id %d freq %d MHz\n", id, freq);
+		pr_de("PState id %d freq %d MHz\n", id, freq);
 		powernv_freqs[i].frequency = freq * 1000; /* kHz */
 		powernv_freqs[i].driver_data = id & 0xFF;
 
@@ -454,7 +454,7 @@ static inline unsigned long get_pmspr(unsigned long sprn)
 	case SPRN_PMSR:
 		return mfspr(SPRN_PMSR);
 	}
-	BUG();
+	();
 }
 
 static inline void set_pmspr(unsigned long sprn, unsigned long val)
@@ -468,7 +468,7 @@ static inline void set_pmspr(unsigned long sprn, unsigned long val)
 		mtspr(SPRN_PMICR, val);
 		return;
 	}
-	BUG();
+	();
 }
 
 /*
@@ -501,7 +501,7 @@ static void powernv_read_cpu_freq(void *arg)
 	freq_data->pstate_id = extract_local_pstate(pmspr_val);
 	freq_data->freq = pstate_id_to_freq(freq_data->pstate_id);
 
-	pr_debug("cpu %d pmsr %016lX pstate_id 0x%x frequency %d kHz\n",
+	pr_de("cpu %d pmsr %016lX pstate_id 0x%x frequency %d kHz\n",
 		 raw_smp_processor_id(), pmspr_val, freq_data->pstate_id,
 		 freq_data->freq);
 }
@@ -546,7 +546,7 @@ static void set_pstate(void *data)
 	/* Set both global(bits 56..63) and local(bits 48..55) PStates */
 	val = val | (gpstate_ul << 56) | (pstate_ul << 48);
 
-	pr_debug("Setting cpu %d pmcr to %016lX\n",
+	pr_de("Setting cpu %d pmcr to %016lX\n",
 			raw_smp_processor_id(), val);
 	set_pmspr(SPRN_PMCR, val);
 }

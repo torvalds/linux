@@ -40,14 +40,14 @@
 #define FCOE_MIN_XID		0x0000	/* the min xid supported by fcoe_sw */
 #define FCOE_MAX_XID		0x0FFF	/* the max xid supported by fcoe_sw */
 
-extern unsigned int fcoe_debug_logging;
+extern unsigned int fcoe_de_logging;
 
 #define FCOE_LOGGING	    0x01 /* General logging, not categorized */
 #define FCOE_NETDEV_LOGGING 0x02 /* Netdevice logging */
 
 #define FCOE_CHECK_LOGGING(LEVEL, CMD)					\
 do {                                                            	\
-	if (unlikely(fcoe_debug_logging & LEVEL))			\
+	if (unlikely(fcoe_de_logging & LEVEL))			\
 		do {							\
 			CMD;						\
 		} while (0);						\

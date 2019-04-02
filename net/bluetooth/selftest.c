@@ -21,7 +21,7 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -248,7 +248,7 @@ done:
 	else
 		snprintf(test_ecdh_buffer, sizeof(test_ecdh_buffer), "FAIL\n");
 
-	debugfs_create_file("selftest_ecdh", 0444, bt_debugfs, NULL,
+	defs_create_file("selftest_ecdh", 0444, bt_defs, NULL,
 			    &test_ecdh_fops);
 
 	return err;

@@ -382,7 +382,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 		} else if (op2 == 0x0b || op2 == 0xb9) {
 
 			/* ud2 */
-			*type = INSN_BUG;
+			*type = INSN_;
 
 		} else if (op2 == 0x0d || op2 == 0x1f) {
 

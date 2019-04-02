@@ -87,7 +87,7 @@ As an example, here is how the 4.16 development cycle went (all dates in
 
 How do the developers decide when to close the development cycle and create
 the stable release?  The most significant metric used is the list of
-regressions from previous releases.  No bugs are welcome, but those which
+regressions from previous releases.  No s are welcome, but those which
 break systems which worked in the past are considered to be especially
 serious.  For this reason, patches which cause regressions are looked upon
 unfavorably and are quite likely to be reverted during the stabilization
@@ -106,7 +106,7 @@ Once a stable release is made, its ongoing maintenance is passed off to the
 "stable team," currently consisting of Greg Kroah-Hartman.  The stable team
 will release occasional updates to the stable release using the 4.x.y
 numbering scheme.  To be considered for an update release, a patch must (1)
-fix a significant bug, and (2) already be merged into the mainline for the
+fix a significant , and (2) already be merged into the mainline for the
 next development kernel.  Kernels will typically receive stable updates for
 a little more than one development cycle past their initial release.  So,
 for example, the 4.13 kernel's history looked like:
@@ -277,7 +277,7 @@ The answer comes in the form of -next trees, where subsystem trees are
 collected for testing and review.  The older of these trees, maintained by
 Andrew Morton, is called "-mm" (for memory management, which is how it got
 started).  The -mm tree integrates patches from a long list of subsystem
-trees; it also has some patches aimed at helping with debugging.
+trees; it also has some patches aimed at helping with deging.
 
 Beyond that, -mm contains a significant collection of patches which have
 been selected by Andrew directly.  These patches may have been posted on a
@@ -495,7 +495,7 @@ Andrew Morton gives this advice for aspiring kernel developers
 (http://lwn.net/Articles/283982/).
 
 In the absence of obvious problems to fix, developers are advised to look
-at the current lists of regressions and open bugs in general.  There is
+at the current lists of regressions and open s in general.  There is
 never any shortage of issues in need of fixing; by addressing these issues,
 developers will gain experience with the process while, at the same time,
 building respect with the rest of the development community.

@@ -16,7 +16,7 @@ vsoc.c, uapi/vsoc_shm.h
    region. This will cause false wakeups in regions with a large number of
    waiting threads. We should eventually use multiple queues and select the
    queue based on the region.
- - Add debugfs support for examining the permissions of regions.
+ - Add defs support for examining the permissions of regions.
  - Remove VSOC_WAIT_FOR_INCOMING_INTERRUPT ioctl. This functionality has been
    superseded by the futex and is there for legacy reasons.
 

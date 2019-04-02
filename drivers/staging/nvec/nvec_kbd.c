@@ -44,7 +44,7 @@ static void nvec_kbd_toggle_led(void)
 	keys_dev.caps_lock = !keys_dev.caps_lock;
 
 	if (keys_dev.caps_lock)
-		/* should be BIT(0) only, firmware bug? */
+		/* should be BIT(0) only, firmware ? */
 		buf[2] = BIT(0) | BIT(1) | BIT(2);
 
 	nvec_write_async(keys_dev.nvec, buf, sizeof(buf));

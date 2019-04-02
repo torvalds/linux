@@ -72,7 +72,7 @@ MODULE_PARM_DESC(iic_force_fast, "Force fast mode (400 kHz)");
 #endif
 
 #if DBG_LEVEL > 0
-#  define DBG(f,x...)	printk(KERN_DEBUG "ibm-iic" f, ##x)
+#  define DBG(f,x...)	printk(KERN_DE "ibm-iic" f, ##x)
 #else
 #  define DBG(f,x...)	((void)0)
 #endif
@@ -85,8 +85,8 @@ MODULE_PARM_DESC(iic_force_fast, "Force fast mode (400 kHz)");
 static void dump_iic_regs(const char* header, struct ibm_iic_private* dev)
 {
 	volatile struct iic_regs __iomem *iic = dev->vaddr;
-	printk(KERN_DEBUG "ibm-iic%d: %s\n", dev->idx, header);
-	printk(KERN_DEBUG
+	printk(KERN_DE "ibm-iic%d: %s\n", dev->idx, header);
+	printk(KERN_DE
 	       "  cntl     = 0x%02x, mdcntl = 0x%02x\n"
 	       "  sts      = 0x%02x, extsts = 0x%02x\n"
 	       "  clkdiv   = 0x%02x, xfrcnt = 0x%02x\n"

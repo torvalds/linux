@@ -82,7 +82,7 @@ static void micro_battery_work(struct work_struct *work)
 	mb->flag = msg_battery.rx_data[4];
 
 	if (msg_battery.rx_len == 9)
-		pr_debug("second battery ignored\n");
+		pr_de("second battery ignored\n");
 
 	/* Then read the sensor */
 	ipaq_micro_tx_msg_sync(mb->micro, &msg_sensor);

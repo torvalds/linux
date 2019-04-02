@@ -45,7 +45,7 @@
 #include "sym_nvram.h"
 
 #if 0
-#define SYM_DEBUG_GENERIC_SUPPORT
+#define SYM_DE_GENERIC_SUPPORT
 #endif
 
 /*
@@ -554,7 +554,7 @@ sym_getsync(struct sym_hcb *np, u_char dt, u_char sfac, u_char *divp, u_char *fa
 	}
 
 	/*
-	 *  Check against our hardware limits, or bugs :).
+	 *  Check against our hardware limits, or s :).
 	 */
 	if (fak > 2) {
 		fak = 2;
@@ -1200,7 +1200,7 @@ static struct sym_chip sym_dev_table[] = {
  {PCI_DEVICE_ID_NCR_53C810, 0x0f, "810", 4, 8, 4, 64,
  FE_ERL}
  ,
-#ifdef SYM_DEBUG_GENERIC_SUPPORT
+#ifdef SYM_DE_GENERIC_SUPPORT
  {PCI_DEVICE_ID_NCR_53C810, 0xff, "810a", 4,  8, 4, 1,
  FE_BOF}
  ,
@@ -1237,7 +1237,7 @@ static struct sym_chip sym_dev_table[] = {
  FE_WIDE|FE_ULTRA|FE_DBLR|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_DIFF|FE_VARCLK}
  ,
-#ifdef SYM_DEBUG_GENERIC_SUPPORT
+#ifdef SYM_DE_GENERIC_SUPPORT
  {PCI_DEVICE_ID_NCR_53C895, 0xff, "895", 6, 31, 7, 2,
  FE_WIDE|FE_ULTRA2|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFS|
  FE_RAM|FE_LCKFRQ}
@@ -1427,7 +1427,7 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 	sym_check_goals(np, starget, goal);
 
 	/*
-	 * Many devices implement PPR in a buggy way, so only use it if we
+	 * Many devices implement PPR in a gy way, so only use it if we
 	 * really want to.
 	 */
 	if (goal->renego == NS_PPR || (goal->offset &&
@@ -1463,7 +1463,7 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 
 	if (nego) {
 		tp->nego_cp = cp; /* Keep track a nego will be performed */
-		if (DEBUG_FLAGS & DEBUG_NEGO) {
+		if (DE_FLAGS & DE_NEGO) {
 			sym_print_nego_msg(np, cp->target, 
 					  nego == NS_SYNC ? "sync msgout" :
 					  nego == NS_WIDE ? "wide msgout" :
@@ -1521,8 +1521,8 @@ void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 
 	np->squeueput = qidx;
 
-	if (DEBUG_FLAGS & DEBUG_QUEUE)
-		scmd_printk(KERN_DEBUG, cp->cmd, "queuepos=%d\n",
+	if (DE_FLAGS & DE_QUEUE)
+		scmd_printk(KERN_DE, cp->cmd, "queuepos=%d\n",
 							np->squeueput);
 
 	/*
@@ -2238,7 +2238,7 @@ static void sym_int_sto (struct sym_hcb *np)
 {
 	u32 dsp	= INL(np, nc_dsp);
 
-	if (DEBUG_FLAGS & DEBUG_TINY) printf ("T");
+	if (DE_FLAGS & DE_TINY) printf ("T");
 
 	if (dsp == SCRIPTA_BA(np, wf_sel_done) + 8)
 		sym_recover_scsi_int(np, HS_SEL_TIMEOUT);
@@ -2484,7 +2484,7 @@ static void sym_int_ma (struct sym_hcb *np)
 	/*
 	 *  log the information
 	 */
-	if (DEBUG_FLAGS & (DEBUG_TINY|DEBUG_PHASE))
+	if (DE_FLAGS & (DE_TINY|DE_PHASE))
 		printf ("P%x%x RL=%d D=%d ", cmd&7, INB(np, nc_sbcl)&7,
 			(unsigned) rest, (unsigned) delta);
 
@@ -2508,7 +2508,7 @@ static void sym_int_ma (struct sym_hcb *np)
 	/*
 	 *  log the information
 	 */
-	if (DEBUG_FLAGS & DEBUG_PHASE) {
+	if (DE_FLAGS & DE_PHASE) {
 		printf ("\nCP=%p DSP=%x NXT=%x VDSP=%p CMD=%x ",
 			cp, (unsigned)dsp, (unsigned)nxtdsp, vdsp, cmd);
 	}
@@ -2539,7 +2539,7 @@ static void sym_int_ma (struct sym_hcb *np)
 		olen = scr_to_cpu(vdsp[0]) & 0xffffff;
 	}
 
-	if (DEBUG_FLAGS & DEBUG_PHASE) {
+	if (DE_FLAGS & DE_PHASE) {
 		printf ("OCMD=%x\nTBLP=%p OLEN=%x OADR=%x\n",
 			(unsigned) (scr_to_cpu(vdsp[0]) >> 24),
 			tblp,
@@ -2649,7 +2649,7 @@ static void sym_int_ma (struct sym_hcb *np)
 		nxtdsp = SCRIPTB_BA(np, wsr_ma_helper);
 	}
 
-	if (DEBUG_FLAGS & DEBUG_PHASE) {
+	if (DE_FLAGS & DE_PHASE) {
 		sym_print_addr(cp->cmd, "PM %x %x %x / %x %x %x.\n",
 			hflags0, hflags, newcmd,
 			(unsigned)scr_to_cpu(pm->sg.addr),
@@ -2833,7 +2833,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	if (istat & INTF) {
 		OUTB(np, nc_istat, (istat & SIGP) | INTF | np->istat_sem);
 		istat |= INB(np, nc_istat);		/* DUMMY READ */
-		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F ");
+		if (DE_FLAGS & DE_TINY) printf ("F ");
 		sym_wakeup_done(np);
 	}
 
@@ -2874,7 +2874,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 		}
 	} while (istatc & (SIP|DIP));
 
-	if (DEBUG_FLAGS & DEBUG_TINY)
+	if (DE_FLAGS & DE_TINY)
 		printf ("<%d|%x:%x|%x:%x>",
 			(int)INB(np, nc_scr0),
 			dstat,sist,
@@ -3959,7 +3959,7 @@ sym_sync_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	int target = cp->target;
 	u_char	chg, ofs, per, fak, div;
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_nego_msg(np, target, "sync msgin", np->msgin);
 	}
 
@@ -3990,7 +3990,7 @@ sym_sync_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	if (ofs && sym_getsync(np, 0, per, &div, &fak) < 0)
 		goto reject_it;
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_addr(cp->cmd,
 				"sdtr: ofs=%d per=%d div=%d fak=%d chg=%d.\n",
 				ofs, per, div, fak, chg);
@@ -4019,7 +4019,7 @@ sym_sync_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	 */
 	spi_populate_sync_msg(np->msgout, per, ofs);
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_nego_msg(np, target, "sync msgout", np->msgout);
 	}
 
@@ -4080,7 +4080,7 @@ sym_ppr_nego_check(struct sym_hcb *np, int req, int target)
 	unsigned char wide = np->msgin[6];
 	unsigned char opts = np->msgin[7] & PPR_OPT_MASK;
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_nego_msg(np, target, "ppr msgin", np->msgin);
 	}
 
@@ -4145,7 +4145,7 @@ sym_ppr_nego_check(struct sym_hcb *np, int req, int target)
 	 */
 	spi_populate_ppr_msg(np->msgout, per, ofs, wide, opts);
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_nego_msg(np, target, "ppr msgout", np->msgout);
 	}
 
@@ -4211,7 +4211,7 @@ sym_wide_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	int target = cp->target;
 	u_char	chg, wide;
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_nego_msg(np, target, "wide msgin", np->msgin);
 	}
 
@@ -4229,7 +4229,7 @@ sym_wide_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 		wide = np->maxwide;
 	}
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_addr(cp->cmd, "wdtr: wide=%d chg=%d.\n",
 				wide, chg);
 	}
@@ -4259,7 +4259,7 @@ sym_wide_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 
 	np->msgin [0] = M_NOOP;
 
-	if (DEBUG_FLAGS & DEBUG_NEGO) {
+	if (DE_FLAGS & DE_NEGO) {
 		sym_print_nego_msg(np, target, "wide msgout", np->msgout);
 	}
 
@@ -4303,7 +4303,7 @@ static void sym_wide_nego(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 			spi_populate_sync_msg(np->msgout, tp->tgoal.period,
 					tp->tgoal.offset);
 
-			if (DEBUG_FLAGS & DEBUG_NEGO) {
+			if (DE_FLAGS & DE_NEGO) {
 				sym_print_nego_msg(np, cp->target,
 				                   "sync msgout", np->msgout);
 			}
@@ -4389,7 +4389,7 @@ static void sym_int_sir(struct sym_hcb *np)
 	struct sym_tcb *tp	= &np->target[target];
 	int	tmp;
 
-	if (DEBUG_FLAGS & DEBUG_TINY) printf ("I#%d", num);
+	if (DE_FLAGS & DE_TINY) printf ("I#%d", num);
 
 	switch (num) {
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 2
@@ -4564,7 +4564,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		case M_EXTENDED:
 			switch (np->msgin [2]) {
 			case M_X_MODIFY_DP:
-				if (DEBUG_FLAGS & DEBUG_POINTER)
+				if (DE_FLAGS & DE_POINTER)
 					sym_print_msg(cp, "extended msg ",
 						      np->msgin);
 				tmp = (np->msgin[3]<<24) + (np->msgin[4]<<16) + 
@@ -4592,7 +4592,7 @@ static void sym_int_sir(struct sym_hcb *np)
 		 *  WIDE RESIDUE messages are aliased as MODIFY DP (-1).
 		 */
 		case M_IGN_RESIDUE:
-			if (DEBUG_FLAGS & DEBUG_POINTER)
+			if (DE_FLAGS & DE_POINTER)
 				sym_print_msg(cp, "1 or 2 byte ", np->msgin);
 			if (cp->host_flags & HF_SENSE)
 				OUTL_DSP(np, SCRIPTA_BA(np, clrack));
@@ -4679,7 +4679,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 		 */
 		if (tag_order) {
 			/*
-			 *  Debugging purpose.
+			 *  Deging purpose.
 			 */
 #ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
 			if (lp->busy_itl != 0)
@@ -4725,7 +4725,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 		 */
 		else {
 			/*
-			 *  Debugging purpose.
+			 *  Deging purpose.
 			 */
 #ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
 			if (lp->busy_itl != 0 || lp->busy_itlq != 0)
@@ -4766,7 +4766,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 	cp->target = tn;
 	cp->lun    = ln;
 
-	if (DEBUG_FLAGS & DEBUG_TAGS) {
+	if (DE_FLAGS & DE_TAGS) {
 		sym_print_addr(cmd, "ccb @%p using tag %d.\n", cp, tag);
 	}
 
@@ -4785,7 +4785,7 @@ void sym_free_ccb (struct sym_hcb *np, struct sym_ccb *cp)
 	struct sym_tcb *tp = &np->target[cp->target];
 	struct sym_lcb *lp = sym_lp(tp, cp->lun);
 
-	if (DEBUG_FLAGS & DEBUG_TAGS) {
+	if (DE_FLAGS & DE_TAGS) {
 		sym_print_addr(cp->cmd, "ccb @%p freeing tag %d.\n",
 				cp, cp->tag);
 	}
@@ -5195,7 +5195,7 @@ int sym_queue_scsiio(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *
 			lp->tags_si = !(lp->tags_si);
 			if (lp->tags_sum[lp->tags_si]) {
 				order = M_ORDERED_TAG;
-				if ((DEBUG_FLAGS & DEBUG_TAGS)||sym_verbose>1) {
+				if ((DE_FLAGS & DE_TAGS)||sym_verbose>1) {
 					sym_print_addr(cmd,
 						"ordered tag forced.\n");
 				}
@@ -5376,7 +5376,7 @@ void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
 
 	cmd = cp->cmd;
 	sdev = cmd->device;
-	if (DEBUG_FLAGS & (DEBUG_TINY|DEBUG_RESULT)) {
+	if (DE_FLAGS & (DE_TINY|DE_RESULT)) {
 		dev_info(&sdev->sdev_gendev, "CCB=%p STAT=%x/%x/%x\n", cp,
 			cp->host_status, cp->ssss_status, cp->host_flags);
 	}
@@ -5406,7 +5406,7 @@ void sym_complete_error(struct sym_hcb *np, struct sym_ccb *cp)
 		resid  = 0;		 /* throw them away. :)		    */
 		cp->sv_resid = 0;
 	}
-#ifdef DEBUG_2_0_X
+#ifdef DE_2_0_X
 if (resid)
 	printf("XXXX RESID= %d - 0x%x\n", resid, resid);
 #endif
@@ -5530,7 +5530,7 @@ void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 	 */
 	if (!SYM_SETUP_RESIDUAL_SUPPORT)
 		resid  = 0;
-#ifdef DEBUG_2_0_X
+#ifdef DE_2_0_X
 if (resid)
 	printf("XXXX RESID= %d - 0x%x\n", resid, resid);
 #endif

@@ -302,7 +302,7 @@ static void uniphier_sd_internal_dma_request(struct tmio_mmc_host *host,
 	struct uniphier_sd_priv *priv = uniphier_sd_priv(host);
 
 	/*
-	 * Due to a hardware bug, Pro5 cannot use DMA for RX.
+	 * Due to a hardware , Pro5 cannot use DMA for RX.
 	 * We can still use DMA for TX, but PIO for RX.
 	 */
 	if (!(priv->caps & UNIPHIER_SD_CAP_BROKEN_DMA_RX))

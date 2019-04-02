@@ -24,7 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/mm.h>
@@ -1216,7 +1216,7 @@ static void brcmnand_send_cmd(struct brcmnand_host *host, int cmd)
 
 	dev_dbg(ctrl->dev, "send native cmd %d addr_lo 0x%x\n", cmd,
 		brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS));
-	BUG_ON(ctrl->cmd_pending != 0);
+	_ON(ctrl->cmd_pending != 0);
 	ctrl->cmd_pending = cmd;
 
 	ret = bcmnand_ctrl_poll_status(ctrl, NAND_CTRL_RDY, NAND_CTRL_RDY, 0);
@@ -1492,7 +1492,7 @@ static void brcmnand_write_buf(struct nand_chip *chip, const uint8_t *buf,
 						  (i + 1) == len);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }

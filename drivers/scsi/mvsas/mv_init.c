@@ -171,7 +171,7 @@ static void mvs_tasklet(unsigned long opaque)
 	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
 
 	if (unlikely(!mvi))
-		BUG_ON(1);
+		_ON(1);
 
 	stat = MVS_CHIP_DISP->isr_status(mvi, mvi->pdev->irq);
 	if (!stat)
@@ -296,7 +296,7 @@ static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 	mvi->dma_pool = dma_pool_create(pool_name, &mvi->pdev->dev,
 					MVS_SLOT_BUF_SZ, 16, 0);
 	if (!mvi->dma_pool) {
-			printk(KERN_DEBUG "failed to create dma pool %s.\n", pool_name);
+			printk(KERN_DE "failed to create dma pool %s.\n", pool_name);
 			goto err_out;
 	}
 	mvi->tags_num = slot_nr;

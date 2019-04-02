@@ -254,7 +254,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		/* This name is actually a control method invocation */
 
 		method_desc = acpi_ns_get_attached_object(node);
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "Control Method invocation %4.4s - %p Desc %p Path=%p\n",
 				  node->name.ascii, node, method_desc, path));
 
@@ -280,7 +280,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "Control Method - %p Args %X\n",
 				  node, method_desc->method.param_count));
 
@@ -712,7 +712,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_next_arg, parser_state);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "Expected argument type ARGP: %s (%2.2X)\n",
 			  acpi_ut_get_argument_type_name(arg_type), arg_type));
 
@@ -796,7 +796,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_SIMPLENAME:
 	case ARGP_NAME_OR_REF:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "**** SimpleName/NameOrRef: %s (%2.2X)\n",
 				  acpi_ut_get_argument_type_name(arg_type),
 				  arg_type));
@@ -830,7 +830,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_TARGET:
 	case ARGP_SUPERNAME:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "**** Target/Supername: %s (%2.2X)\n",
 				  acpi_ut_get_argument_type_name(arg_type),
 				  arg_type));
@@ -874,7 +874,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	case ARGP_DATAOBJ:
 	case ARGP_TERMARG:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "**** TermArg/DataObj: %s (%2.2X)\n",
 				  acpi_ut_get_argument_type_name(arg_type),
 				  arg_type));

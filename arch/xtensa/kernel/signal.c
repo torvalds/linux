@@ -397,7 +397,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	regs->areg[8] = (unsigned long) &frame->uc;
 	regs->threadptr = tp;
 
-	pr_debug("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08lx\n",
+	pr_de("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08lx\n",
 		 current->comm, current->pid, sig, frame, regs->pc);
 
 	return 0;

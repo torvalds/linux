@@ -443,8 +443,8 @@ struct device_private {
 	/* The index of the channel to use for the next crypto request */
 	atomic_t next_chan;
 
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_stats;
+	struct dentry *defs_dir;
+	struct dentry *defs_stats;
 
 	/* Number of request bytes processed and result bytes returned */
 	atomic64_t bytes_in;

@@ -47,9 +47,9 @@ config GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN
 	bool
 
-config DEBUG_GPIO
-	bool "Debug GPIO calls"
-	depends on DEBUG_KERNEL
+config DE_GPIO
+	bool "De GPIO calls"
+	depends on DE_KERNEL
 	help
 	  Say Y here to add some extra checks and diagnostics to GPIO calls.
 	  These checks help ensure that GPIOs have been properly initialized
@@ -71,7 +71,7 @@ config GPIO_SYSFS
 	  a given GPIO from the kernel, if no kernel driver requested it.
 
 	  Kernel drivers may also request that a particular GPIO be
-	  exported to userspace; this can be useful when debugging.
+	  exported to userspace; this can be useful when deging.
 
 config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
@@ -338,7 +338,7 @@ config GPIO_MOCKUP
 	select IRQ_SIM
 	help
 	  This enables GPIO Testing driver, which provides a way to test GPIO
-	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
+	  subsystem through sysfs(or char device) and defs. GPIO_SYSFS
 	  must be selected for this test.
 	  User could use it through the script in
 	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in

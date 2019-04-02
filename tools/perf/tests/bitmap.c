@@ -3,7 +3,7 @@
 #include <linux/bitmap.h>
 #include "tests.h"
 #include "cpumap.h"
-#include "debug.h"
+#include "de.h"
 
 #define NBITS 100
 
@@ -32,7 +32,7 @@ static int test_bitmap(const char *str)
 	int ret;
 
 	bitmap_scnprintf(bm, NBITS, buf, sizeof(buf));
-	pr_debug("bitmap: %s\n", buf);
+	pr_de("bitmap: %s\n", buf);
 
 	ret = !strcmp(buf, str);
 	free(bm);

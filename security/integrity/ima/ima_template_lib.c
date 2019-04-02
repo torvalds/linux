@@ -333,7 +333,7 @@ static int ima_eventname_init_common(struct ima_event_data *event_data,
 	const char *cur_filename = NULL;
 	u32 cur_filename_len = 0;
 
-	BUG_ON(event_data->filename == NULL && event_data->file == NULL);
+	_ON(event_data->filename == NULL && event_data->file == NULL);
 
 	if (event_data->filename) {
 		cur_filename = event_data->filename;

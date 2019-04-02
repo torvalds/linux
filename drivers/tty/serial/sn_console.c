@@ -92,10 +92,10 @@ static struct miscdevice misc;	/* used with misc_register for dynamic */
 
 extern void early_sn_setup(void);
 
-#undef DEBUG
-#ifdef DEBUG
-static int sn_debug_printf(const char *fmt, ...);
-#define DPRINTF(x...) sn_debug_printf(x)
+#undef DE
+#ifdef DE
+static int sn_de_printf(const char *fmt, ...);
+#define DPRINTF(x...) sn_de_printf(x)
 #else
 #define DPRINTF(x...) do { } while (0)
 #endif
@@ -382,17 +382,17 @@ static const struct uart_ops sn_console_ops = {
 
 /* End of uart struct functions and defines */
 
-#ifdef DEBUG
+#ifdef DE
 
 /**
- * sn_debug_printf - close to hardware debugging printf
+ * sn_de_printf - close to hardware deging printf
  * @fmt: printf format
  *
  * This is as "close to the metal" as we can get, used when the driver
  * itself may be broken.
  *
  */
-static int sn_debug_printf(const char *fmt, ...)
+static int sn_de_printf(const char *fmt, ...)
 {
 	static char printk_buf[1024];
 	int printed_len;
@@ -410,7 +410,7 @@ static int sn_debug_printf(const char *fmt, ...)
 	va_end(args);
 	return printed_len;
 }
-#endif				/* DEBUG */
+#endif				/* DE */
 
 /*
  * Interrupt handling routines.
@@ -516,7 +516,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 	if (!port)
 		return;
 
-	BUG_ON(!port->sc_is_asynch);
+	_ON(!port->sc_is_asynch);
 
 	if (port->sc_port.state) {
 		/* We're initialized, using serial core infrastructure */
@@ -555,7 +555,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 			else
 				result =
 				    port->sc_ops->sal_puts(start, xmit_count);
-#ifdef DEBUG
+#ifdef DE
 			if (!result)
 				DPRINTF("`");
 #endif
@@ -579,7 +579,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 
 /**
  * sn_sal_interrupt - Handle console interrupts
- * @irq: irq #, useful for debug statements
+ * @irq: irq #, useful for de statements
  * @dev_id: our pointer to our port (sn_cons_port which contains the uart port)
  *
  */
@@ -875,7 +875,7 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 	struct sn_cons_port *port = &sal_console_port;
 	static int stole_lock = 0;
 
-	BUG_ON(!port->sc_is_asynch);
+	_ON(!port->sc_is_asynch);
 
 	/* We can't look at the xmit buffer if we're not registered with serial core
 	 *  yet.  So only do the fancy recovery after registering

@@ -367,7 +367,7 @@
 #define IMX_SC_R_SC_MU_1A		351
 #define IMX_SC_R_SYSCNT_RD		352
 #define IMX_SC_R_SYSCNT_CMP		353
-#define IMX_SC_R_DEBUG			354
+#define IMX_SC_R_DE			354
 #define IMX_SC_R_SYSTEM			355
 #define IMX_SC_R_SNVS			356
 #define IMX_SC_R_OTP			357

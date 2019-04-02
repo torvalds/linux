@@ -304,7 +304,7 @@ int __init e820__update_table(struct e820_table *table)
 	if (table->nr_entries < 2)
 		return -1;
 
-	BUG_ON(table->nr_entries > max_nr_entries);
+	_ON(table->nr_entries > max_nr_entries);
 
 	/* Bail out if we find any unreasonable addresses in the map: */
 	for (i = 0; i < table->nr_entries; i++) {
@@ -438,13 +438,13 @@ __e820__range_update(struct e820_table *table, u64 start, u64 size, enum e820_ty
 	unsigned int i;
 	u64 real_updated_size = 0;
 
-	BUG_ON(old_type == new_type);
+	_ON(old_type == new_type);
 
 	if (size > (ULLONG_MAX - start))
 		size = ULLONG_MAX - start;
 
 	end = start + size;
-	printk(KERN_DEBUG "e820: update [mem %#010Lx-%#010Lx] ", start, end - 1);
+	printk(KERN_DE "e820: update [mem %#010Lx-%#010Lx] ", start, end - 1);
 	e820_print_type(old_type);
 	pr_cont(" ==> ");
 	e820_print_type(new_type);
@@ -520,7 +520,7 @@ u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 		size = ULLONG_MAX - start;
 
 	end = start + size;
-	printk(KERN_DEBUG "e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
+	printk(KERN_DE "e820: remove [mem %#010Lx-%#010Lx] ", start, end - 1);
 	if (check_type)
 		e820_print_type(old_type);
 	pr_cont("\n");
@@ -673,17 +673,17 @@ __init void e820__reallocate_tables(void)
 
 	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry)*e820_table->nr_entries;
 	n = kmemdup(e820_table, size, GFP_KERNEL);
-	BUG_ON(!n);
+	_ON(!n);
 	e820_table = n;
 
 	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry)*e820_table_kexec->nr_entries;
 	n = kmemdup(e820_table_kexec, size, GFP_KERNEL);
-	BUG_ON(!n);
+	_ON(!n);
 	e820_table_kexec = n;
 
 	size = offsetof(struct e820_table, entries) + sizeof(struct e820_entry)*e820_table_firmware->nr_entries;
 	n = kmemdup(e820_table_firmware, size, GFP_KERNEL);
-	BUG_ON(!n);
+	_ON(!n);
 	e820_table_firmware = n;
 }
 
@@ -1187,7 +1187,7 @@ void __init e820__reserve_resources_late(void)
 		if (start >= end)
 			continue;
 
-		printk(KERN_DEBUG "e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
+		printk(KERN_DE "e820: reserve RAM buffer [mem %#010llx-%#010llx]\n", start, end);
 		reserve_region_with_split(&iomem_resource, start, end, "RAM buffer");
 	}
 }
@@ -1238,7 +1238,7 @@ void __init e820__memory_setup(void)
 	char *who;
 
 	/* This is a firmware interface ABI - make sure we don't break it: */
-	BUILD_BUG_ON(sizeof(struct boot_e820_entry) != 20);
+	BUILD__ON(sizeof(struct boot_e820_entry) != 20);
 
 	who = x86_init.resources.memory_setup();
 

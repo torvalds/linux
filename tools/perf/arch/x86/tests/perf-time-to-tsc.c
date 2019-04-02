@@ -18,14 +18,14 @@
 
 #define CHECK__(x) {				\
 	while ((x) < 0) {			\
-		pr_debug(#x " failed!\n");	\
+		pr_de(#x " failed!\n");	\
 		goto out_err;			\
 	}					\
 }
 
 #define CHECK_NOT_NULL__(x) {			\
 	while ((x) == NULL) {			\
-		pr_debug(#x " failed!\n");	\
+		pr_de(#x " failed!\n");	\
 		goto out_err;			\
 	}					\
 }
@@ -145,11 +145,11 @@ next_event:
 	comm1_tsc = perf_time_to_tsc(comm1_time, &tc);
 	comm2_tsc = perf_time_to_tsc(comm2_time, &tc);
 
-	pr_debug("1st event perf time %"PRIu64" tsc %"PRIu64"\n",
+	pr_de("1st event perf time %"PRIu64" tsc %"PRIu64"\n",
 		 comm1_time, comm1_tsc);
-	pr_debug("rdtsc          time %"PRIu64" tsc %"PRIu64"\n",
+	pr_de("rdtsc          time %"PRIu64" tsc %"PRIu64"\n",
 		 test_time, test_tsc);
-	pr_debug("2nd event perf time %"PRIu64" tsc %"PRIu64"\n",
+	pr_de("2nd event perf time %"PRIu64" tsc %"PRIu64"\n",
 		 comm2_time, comm2_tsc);
 
 	if (test_time <= comm1_time ||

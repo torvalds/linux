@@ -24,7 +24,7 @@
 #include <net/llc_pdu.h>
 
 #if 0
-#define dprintk(args...) printk(KERN_DEBUG args)
+#define dprintk(args...) printk(KERN_DE args)
 #else
 #define dprintk(args...)
 #endif
@@ -861,8 +861,8 @@ drop_unlock:
 	goto out;
 }
 
-#undef LLC_REFCNT_DEBUG
-#ifdef LLC_REFCNT_DEBUG
+#undef LLC_REFCNT_DE
+#ifdef LLC_REFCNT_DE
 static atomic_t llc_sock_nr;
 #endif
 
@@ -953,9 +953,9 @@ struct sock *llc_sk_alloc(struct net *net, int family, gfp_t priority, struct pr
 		goto out;
 	llc_sk_init(sk);
 	sock_init_data(NULL, sk);
-#ifdef LLC_REFCNT_DEBUG
+#ifdef LLC_REFCNT_DE
 	atomic_inc(&llc_sock_nr);
-	printk(KERN_DEBUG "LLC socket %p created in %s, now we have %d alive\n", sk,
+	printk(KERN_DE "LLC socket %p created in %s, now we have %d alive\n", sk,
 		__func__, atomic_read(&llc_sock_nr));
 #endif
 out:
@@ -995,7 +995,7 @@ void llc_sk_free(struct sock *sk)
 	llc->state = LLC_CONN_OUT_OF_SVC;
 	/* Stop all (possibly) running timers */
 	llc_sk_stop_all_timers(sk, true);
-#ifdef DEBUG_LLC_CONN_ALLOC
+#ifdef DE_LLC_CONN_ALLOC
 	printk(KERN_INFO "%s: unackq=%d, txq=%d\n", __func__,
 		skb_queue_len(&llc->pdu_unack_q),
 		skb_queue_len(&sk->sk_write_queue));
@@ -1003,15 +1003,15 @@ void llc_sk_free(struct sock *sk)
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
 	skb_queue_purge(&llc->pdu_unack_q);
-#ifdef LLC_REFCNT_DEBUG
+#ifdef LLC_REFCNT_DE
 	if (refcount_read(&sk->sk_refcnt) != 1) {
-		printk(KERN_DEBUG "Destruction of LLC sock %p delayed in %s, cnt=%d\n",
+		printk(KERN_DE "Destruction of LLC sock %p delayed in %s, cnt=%d\n",
 			sk, __func__, refcount_read(&sk->sk_refcnt));
-		printk(KERN_DEBUG "%d LLC sockets are still alive\n",
+		printk(KERN_DE "%d LLC sockets are still alive\n",
 			atomic_read(&llc_sock_nr));
 	} else {
 		atomic_dec(&llc_sock_nr);
-		printk(KERN_DEBUG "LLC socket %p released in %s, %d are still alive\n", sk,
+		printk(KERN_DE "LLC socket %p released in %s, %d are still alive\n", sk,
 			__func__, atomic_read(&llc_sock_nr));
 	}
 #endif

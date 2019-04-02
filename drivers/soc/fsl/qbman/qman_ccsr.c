@@ -380,7 +380,7 @@ static int qm_init_pfdr(struct device *dev, u32 pfdr_start, u32 num)
 	/* Write the MCR command params then the verb */
 	qm_ccsr_out(REG_MCP(0), pfdr_start);
 	/*
-	 * TODO: remove this - it's a workaround for a model bug that is
+	 * TODO: remove this - it's a workaround for a model  that is
 	 * corrected in more recent versions. We use the workaround until
 	 * everyone has upgraded.
 	 */

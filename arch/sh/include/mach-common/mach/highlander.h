@@ -31,7 +31,7 @@
 #define PA_TPCTLCLR     (PA_BCR+0x0104) /* Touch Panel Access control */
 #define PA_TPXPOS       (PA_BCR+0x0106) /* Touch Panel X position control */
 #define PA_TPYPOS       (PA_BCR+0x0108) /* Touch Panel Y position control */
-#define PA_DBSW         (PA_BCR+0x0200) /* Debug Board Switch control */
+#define PA_DBSW         (PA_BCR+0x0200) /* De Board Switch control */
 #define PA_CFCTL        (PA_BCR+0x0300) /* CF Timing control */
 #define PA_CFPOW        (PA_BCR+0x0302) /* CF Power control */
 #define PA_CFCDINTCLR   (PA_BCR+0x0304) /* CF Insert Interrupt clear */
@@ -96,9 +96,9 @@
 #define PA_TPCTLCLR	(PA_BCR+0x0104)	/* Touch Panel Access control */
 #define PA_TPXPOS	(PA_BCR+0x0106)	/* Touch Panel X position control */
 #define PA_TPYPOS	(PA_BCR+0x0108)	/* Touch Panel Y position control */
-#define PA_DBDET	(PA_BCR+0x0200)	/* Debug Board detect control */
-#define PA_DBDISPCTL	(PA_BCR+0x0202)	/* Debug Board Dot timing control */
-#define PA_DBSW		(PA_BCR+0x0204)	/* Debug Board Switch control */
+#define PA_DBDET	(PA_BCR+0x0200)	/* De Board detect control */
+#define PA_DBDISPCTL	(PA_BCR+0x0202)	/* De Board Dot timing control */
+#define PA_DBSW		(PA_BCR+0x0204)	/* De Board Switch control */
 #define PA_CFCTL	(PA_BCR+0x0300)	/* CF Timing control */
 #define PA_CFPOW	(PA_BCR+0x0302)	/* CF Power control */
 #define PA_CFCDINTCLR	(PA_BCR+0x0304)	/* CF Insert Interrupt clear */

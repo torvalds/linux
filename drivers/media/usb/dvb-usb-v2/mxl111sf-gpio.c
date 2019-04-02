@@ -33,7 +33,7 @@ static int mxl111sf_set_gpo_state(struct mxl111sf_state *state, u8 pin, u8 val)
 	int ret;
 	u8 tmp;
 
-	mxl_debug_adv("(%d, %d)", pin, val);
+	mxl_de_adv("(%d, %d)", pin, val);
 
 	if ((pin > 0) && (pin < 8)) {
 		ret = mxl111sf_read_reg(state, 0x19, &tmp);
@@ -66,7 +66,7 @@ static int mxl111sf_get_gpi_state(struct mxl111sf_state *state, u8 pin, u8 *val)
 	int ret;
 	u8 tmp;
 
-	mxl_debug("(0x%02x)", pin);
+	mxl_de("(0x%02x)", pin);
 
 	*val = 0;
 
@@ -116,7 +116,7 @@ static int mxl111sf_config_gpio_pins(struct mxl111sf_state *state,
 	int ret;
 	u8 tmp;
 
-	mxl_debug_adv("(%d, %d)", gpio_cfg->pin, gpio_cfg->dir);
+	mxl_de_adv("(%d, %d)", gpio_cfg->pin, gpio_cfg->dir);
 
 	switch (gpio_cfg->pin) {
 	case 0:
@@ -180,7 +180,7 @@ static int mxl111sf_hw_do_set_gpio(struct mxl111sf_state *state,
 		.val = val,
 	};
 
-	mxl_debug("(%d, %d, %d)", gpio, direction, val);
+	mxl_de("(%d, %d, %d)", gpio, direction, val);
 
 	return mxl111sf_config_gpio_pins(state, &gpio_config);
 }
@@ -213,7 +213,7 @@ int mxl111sf_config_pin_mux_modes(struct mxl111sf_state *state,
 	u8 r12, r15, r17, r18, r3D, r82, r84, r89;
 	int ret;
 
-	mxl_debug("(%d)", pin_mux_config);
+	mxl_de("(%d)", pin_mux_config);
 
 	ret = mxl111sf_read_reg(state, 0x17, &r17);
 	if (mxl_fail(ret))
@@ -564,7 +564,7 @@ static int mxl111sf_hw_gpio_initialize(struct mxl111sf_state *state)
 	u8 gpioval = 0x07; /* write protect enabled, signal LEDs off */
 	int i, ret;
 
-	mxl_debug("()");
+	mxl_de("()");
 
 	for (i = 3; i < 8; i++) {
 		ret = mxl111sf_hw_set_gpio(state, i, (gpioval >> i) & 0x01);
@@ -587,7 +587,7 @@ static int pca9534_set_gpio(struct mxl111sf_state *state, int gpio, int val)
 		  .flags = I2C_M_RD, .buf = &r, .len = 1 },
 	};
 
-	mxl_debug("(%d, %d)", gpio, val);
+	mxl_de("(%d, %d)", gpio, val);
 
 	/* read current GPIO levels from flip-flop */
 	i2c_transfer(&state->d->i2c_adap, msg, 2);
@@ -620,7 +620,7 @@ static int pca9534_init_port_expander(struct mxl111sf_state *state)
 		.flags = 0, .buf = w, .len = 2
 	};
 
-	mxl_debug("()");
+	mxl_de("()");
 
 	i2c_transfer(&state->d->i2c_adap, &msg, 1);
 
@@ -635,7 +635,7 @@ static int pca9534_init_port_expander(struct mxl111sf_state *state)
 
 int mxl111sf_set_gpio(struct mxl111sf_state *state, int gpio, int val)
 {
-	mxl_debug("(%d, %d)", gpio, val);
+	mxl_de("(%d, %d)", gpio, val);
 
 	switch (state->gpio_port_expander) {
 	default:
@@ -659,7 +659,7 @@ static int mxl111sf_probe_port_expander(struct mxl111sf_state *state)
 		{ .flags = I2C_M_RD, .buf = &r, .len = 1 },
 	};
 
-	mxl_debug("()");
+	mxl_de("()");
 
 	msg[0].addr = 0x70 >> 1;
 	msg[1].addr = 0x70 >> 1;
@@ -669,7 +669,7 @@ static int mxl111sf_probe_port_expander(struct mxl111sf_state *state)
 	if (ret == 2) {
 		state->port_expander_addr = msg[0].addr;
 		state->gpio_port_expander = mxl111sf_PCA9534;
-		mxl_debug("found port expander at 0x%02x",
+		mxl_de("found port expander at 0x%02x",
 			  state->port_expander_addr);
 		return 0;
 	}
@@ -681,19 +681,19 @@ static int mxl111sf_probe_port_expander(struct mxl111sf_state *state)
 	if (ret == 2) {
 		state->port_expander_addr = msg[0].addr;
 		state->gpio_port_expander = mxl111sf_PCA9534;
-		mxl_debug("found port expander at 0x%02x",
+		mxl_de("found port expander at 0x%02x",
 			  state->port_expander_addr);
 		return 0;
 	}
 	state->port_expander_addr = 0xff;
 	state->gpio_port_expander = mxl111sf_gpio_hw;
-	mxl_debug("using hardware gpio");
+	mxl_de("using hardware gpio");
 	return 0;
 }
 
 int mxl111sf_init_port_expander(struct mxl111sf_state *state)
 {
-	mxl_debug("()");
+	mxl_de("()");
 
 	if (0x00 == state->port_expander_addr)
 		mxl111sf_probe_port_expander(state);
@@ -721,7 +721,7 @@ int mxl111sf_gpio_mode_switch(struct mxl111sf_state *state, unsigned int mode)
  *	6 - MH_RESET#  | 1 = MH enable, 0 = MH Reset               | default 0
  *	7 - MH_EN      | 1 = MH power enable, 0 = MH power off     | default 0
  */
-	mxl_debug("(%d)", mode);
+	mxl_de("(%d)", mode);
 
 	switch (mode) {
 	case MXL111SF_GPIO_MOD_MH:

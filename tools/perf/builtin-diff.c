@@ -7,7 +7,7 @@
  */
 #include "builtin.h"
 
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/event.h"
 #include "util/hist.h"
 #include "util/evsel.h"
@@ -173,7 +173,7 @@ static int setup_compute_opt_wdiff(char *opt)
 	if (!compute_wdiff_w1 || !compute_wdiff_w2)
 		goto out;
 
-	pr_debug("compute wdiff w1(%" PRId64 ") w2(%" PRId64 ")\n",
+	pr_de("compute wdiff w1(%" PRId64 ") w2(%" PRId64 ")\n",
 		  compute_wdiff_w1, compute_wdiff_w2);
 
 	ret = 0;
@@ -329,7 +329,7 @@ static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
 	case COMPUTE_WEIGHTED_DIFF:
 		return formula_wdiff(he, pair, buf, size);
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	return -1;
@@ -510,7 +510,7 @@ static void hists__precompute(struct hists *hists)
 				compute_wdiff(he, pair);
 				break;
 			default:
-				BUG_ON(1);
+				_ON(1);
 			}
 		}
 	}
@@ -560,7 +560,7 @@ __hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 		return r - l;
 	}
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	return 0;
@@ -1076,7 +1076,7 @@ static int __hpp__color_compare(struct perf_hpp_fmt *fmt,
 				get_percent_color(wdiff),
 				pfmt, wdiff);
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 dummy_print:
 	return scnprintf(hpp->buf, hpp->size, "%*s",
@@ -1177,7 +1177,7 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 	};
 }
 
@@ -1223,7 +1223,7 @@ static int hpp__header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	struct diff_hpp_fmt *dfmt =
 		container_of(fmt, struct diff_hpp_fmt, fmt);
 
-	BUG_ON(!dfmt->header);
+	_ON(!dfmt->header);
 	return scnprintf(hpp->buf, hpp->size, dfmt->header);
 }
 
@@ -1234,7 +1234,7 @@ static int hpp__width(struct perf_hpp_fmt *fmt,
 	struct diff_hpp_fmt *dfmt =
 		container_of(fmt, struct diff_hpp_fmt, fmt);
 
-	BUG_ON(dfmt->header_width <= 0);
+	_ON(dfmt->header_width <= 0);
 	return dfmt->header_width;
 }
 
@@ -1246,12 +1246,12 @@ static void init_header(struct data__file *d, struct diff_hpp_fmt *dfmt)
 	const char *header = NULL;
 	int width = 0;
 
-	BUG_ON(dfmt->idx >= PERF_HPP_DIFF__MAX_INDEX);
+	_ON(dfmt->idx >= PERF_HPP_DIFF__MAX_INDEX);
 	header = columns[dfmt->idx].name;
 	width  = columns[dfmt->idx].width;
 
 	/* Only our defined HPP fmts should appear here. */
-	BUG_ON(!header);
+	_ON(!header);
 
 	if (data__files_cnt > 2)
 		scnprintf(buf, MAX_HEADER_NAME, "%s/%d", header, d->idx);
@@ -1386,7 +1386,7 @@ static int ui_init(void)
 		fmt->sort = hist_entry__cmp_delta_abs_idx;
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	perf_hpp__prepend_sort_field(fmt);

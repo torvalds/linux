@@ -478,7 +478,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	 * been failed with a non-zero SCSI status.
 	 */
 	if (cmd->scsi_status) {
-		pr_debug("compare_and_write_callback: non zero scsi_status:"
+		pr_de("compare_and_write_callback: non zero scsi_status:"
 			" 0x%02x\n", cmd->scsi_status);
 		*post_ret = 1;
 		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
@@ -769,7 +769,7 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 	if (protect)
 		cmd->data_length = sectors * dev->dev_attrib.block_size;
 
-	pr_debug("%s: prot_type=%d, data_length=%d, prot_length=%d "
+	pr_de("%s: prot_type=%d, data_length=%d, prot_length=%d "
 		 "prot_op=%d prot_checks=%d\n",
 		 __func__, cmd->prot_type, cmd->data_length, cmd->prot_length,
 		 cmd->prot_op, cmd->prot_checks);
@@ -1195,13 +1195,13 @@ sbc_execute_unmap(struct se_cmd *cmd)
 
 	/* First UNMAP block descriptor starts at 8 byte offset */
 	ptr = &buf[8];
-	pr_debug("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
+	pr_de("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
 		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
 
 	while (size >= 16) {
 		lba = get_unaligned_be64(&ptr[0]);
 		range = get_unaligned_be32(&ptr[8]);
-		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
+		pr_de("UNMAP: Using lba: %llu and range: %u\n",
 				 (unsigned long long)lba, range);
 
 		if (range > dev->dev_attrib.max_unmap_lba_count) {
@@ -1284,7 +1284,7 @@ sbc_dif_generate(struct se_cmd *cmd)
 				sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
 			sdt->app_tag = 0;
 
-			pr_debug("DIF %s INSERT sector: %llu guard_tag: 0x%04x"
+			pr_de("DIF %s INSERT sector: %llu guard_tag: 0x%04x"
 				 " app_tag: 0x%04x ref_tag: %u\n",
 				 (cmd->data_direction == DMA_TO_DEVICE) ?
 				 "WRITE" : "READ", (unsigned long long)sector,
@@ -1422,7 +1422,7 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 
 			sdt = paddr + i;
 
-			pr_debug("DIF READ sector: %llu guard_tag: 0x%04x"
+			pr_de("DIF READ sector: %llu guard_tag: 0x%04x"
 				 " app_tag: 0x%04x ref_tag: %u\n",
 				 (unsigned long long)sector, sdt->guard_tag,
 				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));

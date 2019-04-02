@@ -736,7 +736,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		wake_up_interruptible_all(&async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
-			"BUG: (?) %s called with async=NULL\n", __func__);
+			": (?) %s called with async=NULL\n", __func__);
 		s->busy = NULL;
 	}
 }
@@ -2676,7 +2676,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	int rc;
 
 	if (!dev) {
-		pr_debug("invalid minor number\n");
+		pr_de("invalid minor number\n");
 		return -ENODEV;
 	}
 

@@ -16,9 +16,9 @@
 #include <linux/if_ether.h>
 
 #undef ASSERT
-#define ASSERT(x)	BUG_ON(!(x))
+#define ASSERT(x)	_ON(!(x))
 
-#define ENTER() pr_debug("%s\n", __func__);
+#define ENTER() pr_de("%s\n", __func__);
 
 #define IXGB_WRITE_REG(a, reg, value) ( \
 	writel((value), ((a)->hw_addr + IXGB_##reg)))

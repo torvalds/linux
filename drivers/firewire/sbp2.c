@@ -29,7 +29,7 @@
  */
 
 #include <linux/blkdev.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -86,8 +86,8 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
  *
  * - fix capacity
  *   Tell sd_mod to correct the last sector number reported by read_capacity.
- *   Avoids access beyond actual disk limits on devices with an off-by-one bug.
- *   Don't use this with devices which don't have this bug.
+ *   Avoids access beyond actual disk limits on devices with an off-by-one .
+ *   Don't use this with devices which don't have this .
  *
  * - delay inquiry
  *   Wait extra SBP2_INQUIRY_DELAY seconds after login before SCSI inquiry.
@@ -113,7 +113,7 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
 
 static int sbp2_param_workarounds;
 module_param_named(workarounds, sbp2_param_workarounds, int, 0644);
-MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
+MODULE_PARM_DESC(workarounds, "Work around device s (default = 0"
 	", 128kB max transfer = " __stringify(SBP2_WORKAROUND_128K_MAX_TRANS)
 	", 36 byte inquiry = "    __stringify(SBP2_WORKAROUND_INQUIRY_36)
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
@@ -332,7 +332,7 @@ struct sbp2_command_orb {
 #define SBP2_ROM_VALUE_MISSING  0xff000000 /* not present in the unit dir. */
 
 /*
- * List of devices with known bugs.
+ * List of devices with known s.
  *
  * The firmware_revision field, masked with 0xffff00, is the best
  * indicator for the type of bridge chip of a device.  It yields a few

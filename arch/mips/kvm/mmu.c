@@ -30,7 +30,7 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 {
 	void *page;
 
-	BUG_ON(max > KVM_NR_MEM_OBJS);
+	_ON(max > KVM_NR_MEM_OBJS);
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < max) {
@@ -52,7 +52,7 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 {
 	void *p;
 
-	BUG_ON(!mc || !mc->nobjs);
+	_ON(!mc || !mc->nobjs);
 	p = mc->objects[--mc->nobjs];
 	return p;
 }
@@ -142,7 +142,7 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 	pgd += pgd_index(addr);
 	if (pgd_none(*pgd)) {
 		/* Not used on MIPS yet */
-		BUG();
+		();
 		return NULL;
 	}
 	pud = pud_offset(pgd, addr);
@@ -1088,7 +1088,7 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	/* Invalidate this entry in the TLB, current guest mode ASID only */
 	kvm_mips_host_tlb_inv(vcpu, gva, !kernel, kernel);
 
-	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
+	kvm_de("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
 		  tlb->tlb_lo[0], tlb->tlb_lo[1]);
 
 	return 0;
@@ -1137,13 +1137,13 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	unsigned long flags;
 
-	kvm_debug("%s: vcpu %p, cpu: %d\n", __func__, vcpu, cpu);
+	kvm_de("%s: vcpu %p, cpu: %d\n", __func__, vcpu, cpu);
 
 	local_irq_save(flags);
 
 	vcpu->cpu = cpu;
 	if (vcpu->arch.last_sched_cpu != cpu) {
-		kvm_debug("[%d->%d]KVM VCPU[%d] switch\n",
+		kvm_de("[%d->%d]KVM VCPU[%d] switch\n",
 			  vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
 		/*
 		 * Migrate the timer interrupt to the current CPU so that it

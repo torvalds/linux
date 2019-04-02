@@ -1,5 +1,5 @@
 ===================================================================
-Debug Control and Status Register (DCSR) Binding
+De Control and Status Register (DCSR) Binding
 Copyright 2011 Freescale Semiconductor Inc.
 
 NOTE: The bindings described in this document are preliminary and subject
@@ -8,13 +8,13 @@ may turn out to be inappropriate, or need additional properties to describe
 the integration of the block with the rest of the chip.
 
 =====================================================================
-Debug Control and Status Register Memory Map
+De Control and Status Register Memory Map
 
 Description
 
 This node defines the base address and range for the
 defined DCSR Memory Map. Child nodes will describe the individual
-debug blocks defined within this memory space.
+de blocks defined within this memory space.
 
 PROPERTIES
 
@@ -77,7 +77,7 @@ PROPERTIES
 	Counter Interrupt Status Register (EPCPUISR).
 
 	The EPU unit can also be configured to assert either or both of
-	two interrupt signals based on debug event sources within the SoC.
+	two interrupt signals based on de event sources within the SoC.
 	The interrupt signals are epu_xt_int0 and epu_xt_int1.
 	Which event source asserted the interrupt is captured in an EPU
 	Interrupt Status Register (EPISR0,EPISR1).
@@ -163,10 +163,10 @@ EXAMPLE
 			reg = <0x2000 0x1000>;
 		};
 =======================================================================
-CoreNet Debug Controller
+CoreNet De Controller
 
 This node represents the region of DCSR space allocated to
-the CoreNet Debug controller.
+the CoreNet De controller.
 
 PROPERTIES
 
@@ -181,14 +181,14 @@ PROPERTIES
 	Definition: A standard property.  Specifies the physical address
 	offset and length of the DCSR space registers of the device
 	configuration block.
-	The CoreNet Debug controller occupies two regions in the DCSR space
+	The CoreNet De controller occupies two regions in the DCSR space
 	with distinct functionality.
 
-	The first register range describes the CoreNet Debug Controller
+	The first register range describes the CoreNet De Controller
 	functionalty to perform transaction and transaction attribute matches.
 
-	The second register range describes the CoreNet Debug Controller
-	functionalty to trigger event notifications and debug traces.
+	The second register range describes the CoreNet De Controller
+	functionalty to trigger event notifications and de traces.
 
 EXAMPLE
 		dcsr-corenet {
@@ -197,10 +197,10 @@ EXAMPLE
 		};
 
 =======================================================================
-Data Path Debug controller
+Data Path De controller
 
 This node represents the region of DCSR space allocated to
-the DPAA Debug Controller. This controller controls debug configuration
+the DPAA De Controller. This controller controls de configuration
 for the QMAN and FMAN blocks.
 
 PROPERTIES
@@ -209,7 +209,7 @@ PROPERTIES
 	Usage: required
 	Value type: <string>
 	Definition: Must include both an identifier specific to the SoC
-	or Debug IP of the form "fsl,<soc>-dcsr-dpaa" in addition to the
+	or De IP of the form "fsl,<soc>-dcsr-dpaa" in addition to the
 	generic compatible string "fsl,dcsr-dpaa".
 
 	- reg
@@ -226,10 +226,10 @@ EXAMPLE
 		};
 
 =======================================================================
-OCeaN Debug controller
+OCeaN De controller
 
 This node represents the region of DCSR space allocated to
-the OCN Debug Controller.
+the OCN De Controller.
 
 PROPERTIES
 
@@ -237,7 +237,7 @@ PROPERTIES
 	Usage: required
 	Value type: <string>
 	Definition: Must include both an identifier specific to the SoC
-	or Debug IP of the form "fsl,<soc>-dcsr-ocn" in addition to the
+	or De IP of the form "fsl,<soc>-dcsr-ocn" in addition to the
 	generic compatible string "fsl,dcsr-ocn".
 
 	- reg
@@ -254,10 +254,10 @@ EXAMPLE
 		};
 
 =======================================================================
-DDR Controller Debug controller
+DDR Controller De controller
 
 This node represents the region of DCSR space allocated to
-the OCN Debug Controller.
+the OCN De Controller.
 
 PROPERTIES
 
@@ -268,7 +268,7 @@ PROPERTIES
 
 	- dev-handle
 	Usage: required
-	Definition: A phandle to associate this debug node with its
+	Definition: A phandle to associate this de node with its
 	component controller.
 
 	- reg
@@ -297,7 +297,7 @@ PROPERTIES
 	Usage: required
 	Value type: <string>
 	Definition: Must include both an identifier specific to the SoC
-	or Debug IP of the form "fsl,<soc>-dcsr-nal" in addition to the
+	or De IP of the form "fsl,<soc>-dcsr-nal" in addition to the
 	generic compatible string "fsl,dcsr-nal".
 
 	- reg
@@ -318,8 +318,8 @@ EXAMPLE
 Run Control and Power Management
 
 This node represents the region of DCSR space allocated to
-the RCPM Debug Controller. This functionlity is limited to the
-control the debug operations of the SoC and cores.
+the RCPM De Controller. This functionlity is limited to the
+control the de operations of the SoC and cores.
 
 PROPERTIES
 
@@ -327,7 +327,7 @@ PROPERTIES
 	Usage: required
 	Value type: <string>
 	Definition: Must include both an identifier specific to the SoC
-	or Debug IP of the form "fsl,<soc>-dcsr-rcpm" in addition to the
+	or De IP of the form "fsl,<soc>-dcsr-rcpm" in addition to the
 	generic compatible string "fsl,dcsr-rcpm".
 
 	- reg
@@ -349,7 +349,7 @@ Core Service Bridge Proxy
 This node represents the region of DCSR space allocated to
 the Core Service Bridge Proxies.
 There is one Core Service Bridge Proxy device for each CPU in the system.
-This functionlity provides access to the debug operations of the CPU.
+This functionlity provides access to the de operations of the CPU.
 
 PROPERTIES
 
@@ -362,7 +362,7 @@ PROPERTIES
 
 	- cpu-handle
 	Usage: required
-	Definition: A phandle to associate this debug node with its cpu.
+	Definition: A phandle to associate this de node with its cpu.
 
 	- reg
 	Usage: required

@@ -77,13 +77,13 @@ static void enable_watchpoint(void)
 		if (waitpid(parent, &status, 0) != parent)
 			err(1, "waitpid for child");
 
-		if (ptrace(PTRACE_POKEUSER, parent, (void *)offsetof(struct user, u_debugreg[0]), dr0) != 0)
+		if (ptrace(PTRACE_POKEUSER, parent, (void *)offsetof(struct user, u_dereg[0]), dr0) != 0)
 			err(1, "PTRACE_POKEUSER DR0");
 
-		if (ptrace(PTRACE_POKEUSER, parent, (void *)offsetof(struct user, u_debugreg[1]), dr1) != 0)
+		if (ptrace(PTRACE_POKEUSER, parent, (void *)offsetof(struct user, u_dereg[1]), dr1) != 0)
 			err(1, "PTRACE_POKEUSER DR1");
 
-		if (ptrace(PTRACE_POKEUSER, parent, (void *)offsetof(struct user, u_debugreg[7]), dr7) != 0)
+		if (ptrace(PTRACE_POKEUSER, parent, (void *)offsetof(struct user, u_dereg[7]), dr7) != 0)
 			err(1, "PTRACE_POKEUSER DR7");
 
 		printf("\tDR0 = %lx, DR1 = %lx, DR7 = %lx\n", dr0, dr1, dr7);

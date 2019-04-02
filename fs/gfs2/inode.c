@@ -728,7 +728,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
-	BUG_ON(test_and_set_bit(GLF_INODE_CREATING, &io_gl->gl_flags));
+	_ON(test_and_set_bit(GLF_INODE_CREATING, &io_gl->gl_flags));
 
 	error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT, &ip->i_iopen_gh);
 	if (error)
@@ -1254,7 +1254,7 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 		return 0;
 	}
 
-	BUG_ON(d != NULL);
+	_ON(d != NULL);
 
 skip_lookup:
 	if (!(flags & O_CREAT))

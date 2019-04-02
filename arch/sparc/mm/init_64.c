@@ -77,7 +77,7 @@ static unsigned long page_cache4v_flag;
  * MDESC is initialized.
  */
 
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 /* A special kernel TSB for 4MB, 256MB, 2GB and 16GB linear mappings.
  * Space is allocated for this right after the trap table in
  * arch/sparc64/kernel/head.S
@@ -188,7 +188,7 @@ unsigned long sparc64_kern_sec_context __read_mostly;
 
 int num_kernel_image_mappings;
 
-#ifdef CONFIG_DEBUG_DCFLUSH
+#ifdef CONFIG_DE_DCFLUSH
 atomic_t dcpage_flushes = ATOMIC_INIT(0);
 #ifdef CONFIG_SMP
 atomic_t dcpage_flushes_xcall = ATOMIC_INIT(0);
@@ -197,8 +197,8 @@ atomic_t dcpage_flushes_xcall = ATOMIC_INIT(0);
 
 inline void flush_dcache_page_impl(struct page *page)
 {
-	BUG_ON(tlb_type == hypervisor);
-#ifdef CONFIG_DEBUG_DCFLUSH
+	_ON(tlb_type == hypervisor);
+#ifdef CONFIG_DE_DCFLUSH
 	atomic_inc(&dcpage_flushes);
 #endif
 
@@ -572,14 +572,14 @@ void mmu_info(struct seq_file *m)
 	}
 	seq_putc(m, '\n');
 
-#ifdef CONFIG_DEBUG_DCFLUSH
+#ifdef CONFIG_DE_DCFLUSH
 	seq_printf(m, "DCPageFlushes\t: %d\n",
 		   atomic_read(&dcpage_flushes));
 #ifdef CONFIG_SMP
 	seq_printf(m, "DCPageFlushesXC\t: %d\n",
 		   atomic_read(&dcpage_flushes_xcall));
 #endif /* CONFIG_SMP */
-#endif /* CONFIG_DEBUG_DCFLUSH */
+#endif /* CONFIG_DE_DCFLUSH */
 }
 
 struct linux_prom_translation prom_trans[512] __read_mostly;
@@ -864,7 +864,7 @@ out:
 }
 
 static int numa_enabled = 1;
-static int numa_debug;
+static int numa_de;
 
 static int __init early_numa(char *p)
 {
@@ -874,15 +874,15 @@ static int __init early_numa(char *p)
 	if (strstr(p, "off"))
 		numa_enabled = 0;
 
-	if (strstr(p, "debug"))
-		numa_debug = 1;
+	if (strstr(p, "de"))
+		numa_de = 1;
 
 	return 0;
 }
 early_param("numa", early_numa);
 
 #define numadbg(f, a...) \
-do {	if (numa_debug) \
+do {	if (numa_de) \
 		printk(KERN_INFO f, ## a); \
 } while (0)
 
@@ -1464,7 +1464,7 @@ static int __init numa_parse_mdesc_group(struct mdesc_handle *md, u64 grp,
 		numa_cpu_lookup_table[cpu] = index;
 	cpumask_copy(&numa_cpumask_lookup_table[index], &mask);
 
-	if (numa_debug) {
+	if (numa_de) {
 		printk(KERN_INFO "NUMA GROUP[%d]: cpus [ ", index);
 		for_each_cpu(cpu, &mask)
 			printk("%d ", cpu);
@@ -1877,7 +1877,7 @@ static void __init flush_all_kernel_tsbs(void)
 
 		ent->tag = (1UL << TSB_TAG_INVALID_BIT);
 	}
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	for (i = 0; i < KERNEL_TSB4M_NENTRIES; i++) {
 		struct tsb *ent = &swapper_4m_tsb[i];
 
@@ -1893,7 +1893,7 @@ static void __init kernel_physical_mapping_init(void)
 	unsigned long i, mem_alloced = 0UL;
 	bool use_huge = true;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 	use_huge = false;
 #endif
 	for (i = 0; i < pall_ents; i++) {
@@ -1917,7 +1917,7 @@ static void __init kernel_physical_mapping_init(void)
 	__flush_tlb_all();
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long phys_start = page_to_pfn(page) << PAGE_SHIFT;
@@ -2070,7 +2070,7 @@ static void __init tsb_phys_patch(void)
 }
 
 /* Don't mark as init, we give this to the Hypervisor.  */
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 #define NUM_KTSB_DESCR	2
 #else
 #define NUM_KTSB_DESCR	1
@@ -2125,7 +2125,7 @@ static void ktsb_phys_patch(void)
 	ktsb_pa = kern_base + ((unsigned long)&swapper_tsb[0] - KERNBASE);
 	patch_one_ktsb_phys(&__swapper_tsb_phys_patch,
 			    &__swapper_tsb_phys_patch_end, ktsb_pa);
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	{
 	extern unsigned int __swapper_4m_tsb_phys_patch;
 	extern unsigned int __swapper_4m_tsb_phys_patch_end;
@@ -2173,7 +2173,7 @@ static void __init sun4v_ktsb_init(void)
 	ktsb_descr[0].tsb_base = ktsb_pa;
 	ktsb_descr[0].resv = 0;
 
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	/* Second KTSB for 4MB/256MB/2GB/16GB mappings.  */
 	ktsb_pa = (kern_base +
 		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
@@ -2208,7 +2208,7 @@ void sun4v_ktsb_register(void)
 
 static void __init sun4u_linear_pte_xor_finalize(void)
 {
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	/* This is where we would add Panther support for
 	 * 32MB and 256MB pages.
 	 */
@@ -2232,7 +2232,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 		pagecv_flag = _PAGE_CV_4V;
 		break;
 	}
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	if (cpu_pgsz_mask & HV_PGSZ_MASK_256MB) {
 		kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZ256MB_4V) ^
 			PAGE_OFFSET;
@@ -2344,24 +2344,24 @@ void __init paging_init(void)
 	 * Page flags must not reach into upper 32 bits that are used
 	 * for the cpu number
 	 */
-	BUILD_BUG_ON(NR_PAGEFLAGS > 32);
+	BUILD__ON(NR_PAGEFLAGS > 32);
 
 	/*
 	 * The bit fields placed in the high range must not reach below
 	 * the 32 bit boundary. Otherwise we cannot place the cpu field
 	 * at the 32 bit boundary.
 	 */
-	BUILD_BUG_ON(SECTIONS_WIDTH + NODES_WIDTH + ZONES_WIDTH +
+	BUILD__ON(SECTIONS_WIDTH + NODES_WIDTH + ZONES_WIDTH +
 		ilog2(roundup_pow_of_two(NR_CPUS)) > 32);
 
-	BUILD_BUG_ON(NR_CPUS > 4096);
+	BUILD__ON(NR_CPUS > 4096);
 
 	kern_base = (prom_boot_mapping_phys_low >> ILOG2_4MB) << ILOG2_4MB;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	/* Invalidate both kernel TSBs.  */
 	memset(swapper_tsb, 0x40, sizeof(swapper_tsb));
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	memset(swapper_4m_tsb, 0x40, sizeof(swapper_4m_tsb));
 #endif
 
@@ -2402,7 +2402,7 @@ void __init paging_init(void)
 
 	/* Find available physical memory...
 	 *
-	 * Read it twice in order to work around a bug in openfirmware.
+	 * Read it twice in order to work around a  in openfirmware.
 	 * The call to grab this table itself can cause openfirmware to
 	 * allocate memory, which in turn can take away some space from
 	 * the list of available memory.  Reading it twice makes sure
@@ -2489,7 +2489,7 @@ void __init paging_init(void)
 	 * pte XOR settings are realized for all mappings.
 	 */
 	__flush_tlb_all();
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifndef CONFIG_DE_PAGEALLOC
 	memset(swapper_4m_tsb, 0x40, sizeof(swapper_4m_tsb));
 #endif
 	__flush_tlb_all();
@@ -2738,7 +2738,7 @@ static void __init sun4u_pgprot_init(void)
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4U | __DIRTY_BITS_4U |
 		     __ACCESS_BITS_4U | _PAGE_E_4U);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 	kern_linear_pte_xor[0] = _PAGE_VALID ^ PAGE_OFFSET;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
@@ -2785,7 +2785,7 @@ static void __init sun4v_pgprot_init(void)
 	_PAGE_E = _PAGE_E_4V;
 	_PAGE_CACHE = page_cache4v_flag;
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DE_PAGEALLOC
 	kern_linear_pte_xor[0] = _PAGE_VALID ^ PAGE_OFFSET;
 #else
 	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^

@@ -68,7 +68,7 @@ struct thread_info {
 	unsigned long		flags; /* low level flags */
 	unsigned long		status; /* thread-synchronous flags */
 	__u32			cpu; /* current CPU */
-	__s32			preempt_count; /* 0 => preemptable,< 0 => BUG*/
+	__s32			preempt_count; /* 0 => preemptable,< 0 => */
 	mm_segment_t		addr_limit; /* thread address space */
 
 	struct cpu_context	cpu_context;

@@ -112,7 +112,7 @@ static inline void kvm_sched_clock_init(bool stable)
 	pr_info("kvm-clock: using sched offset of %llu cycles",
 		kvm_sched_clock_offset);
 
-	BUILD_BUG_ON(sizeof(kvm_sched_clock_offset) >
+	BUILD__ON(sizeof(kvm_sched_clock_offset) >
 		sizeof(((struct pvclock_vcpu_time_info *)NULL)->system_time));
 }
 

@@ -94,9 +94,9 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
  * inside the pgd, so has no extra memory associated with it.
  */
 
-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
+#define pmd_alloc_one(mm, addr)		({ (); ((pmd_t *)2); })
 #define pmd_free(mm, x)			do { } while (0)
-#define pgd_populate(mm, pmd, pte)	BUG()
+#define pgd_populate(mm, pmd, pte)	()
 
 #endif
 

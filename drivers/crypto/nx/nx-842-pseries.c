@@ -42,13 +42,13 @@ static struct nx842_constraints nx842_pseries_constraints = {
 static int check_constraints(unsigned long buf, unsigned int *len, bool in)
 {
 	if (!IS_ALIGNED(buf, nx842_pseries_constraints.alignment)) {
-		pr_debug("%s buffer 0x%lx not aligned to 0x%x\n",
+		pr_de("%s buffer 0x%lx not aligned to 0x%x\n",
 			 in ? "input" : "output", buf,
 			 nx842_pseries_constraints.alignment);
 		return -EINVAL;
 	}
 	if (*len % nx842_pseries_constraints.multiple) {
-		pr_debug("%s buffer len 0x%x not multiple of 0x%x\n",
+		pr_de("%s buffer len 0x%x not multiple of 0x%x\n",
 			 in ? "input" : "output", *len,
 			 nx842_pseries_constraints.multiple);
 		if (in)
@@ -56,13 +56,13 @@ static int check_constraints(unsigned long buf, unsigned int *len, bool in)
 		*len = round_down(*len, nx842_pseries_constraints.multiple);
 	}
 	if (*len < nx842_pseries_constraints.minimum) {
-		pr_debug("%s buffer len 0x%x under minimum 0x%x\n",
+		pr_de("%s buffer len 0x%x under minimum 0x%x\n",
 			 in ? "input" : "output", *len,
 			 nx842_pseries_constraints.minimum);
 		return -EINVAL;
 	}
 	if (*len > nx842_pseries_constraints.maximum) {
-		pr_debug("%s buffer len 0x%x over maximum 0x%x\n",
+		pr_de("%s buffer len 0x%x over maximum 0x%x\n",
 			 in ? "input" : "output", *len,
 			 nx842_pseries_constraints.maximum);
 		if (in)

@@ -88,14 +88,14 @@ static void replace_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, unsig
 
 static void flush_tlb_one_pid(unsigned long addr, unsigned long mmu_pid)
 {
-	pr_debug("Flush tlb-entry for vaddr=%#lx\n", addr);
+	pr_de("Flush tlb-entry for vaddr=%#lx\n", addr);
 
 	replace_tlb_one_pid(addr, mmu_pid, 0);
 }
 
 static void reload_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, pte_t pte)
 {
-	pr_debug("Reload tlb-entry for vaddr=%#lx\n", addr);
+	pr_de("Reload tlb-entry for vaddr=%#lx\n", addr);
 
 	replace_tlb_one_pid(addr, mmu_pid, pte_val(pte));
 }
@@ -127,7 +127,7 @@ static void flush_tlb_one(unsigned long addr)
 	unsigned int way;
 	unsigned long org_misc, pid_misc;
 
-	pr_debug("Flush tlb-entry for vaddr=%#lx\n", addr);
+	pr_de("Flush tlb-entry for vaddr=%#lx\n", addr);
 
 	/* remember pid/way until we return. */
 	get_misc_and_pid(&org_misc, &pid_misc);
@@ -145,7 +145,7 @@ static void flush_tlb_one(unsigned long addr)
 		if (((pteaddr >> 2) & 0xfffff) != (addr >> PAGE_SHIFT))
 			continue;
 
-		pr_debug("Flush entry by writing way=%dl pid=%ld\n",
+		pr_de("Flush entry by writing way=%dl pid=%ld\n",
 			 way, (pid_misc >> TLBMISC_PID_SHIFT));
 
 		tlbmisc = TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
@@ -170,7 +170,7 @@ void dump_tlb_line(unsigned long line)
 	unsigned int way;
 	unsigned long org_misc;
 
-	pr_debug("dump tlb-entries for line=%#lx (addr %08lx)\n", line,
+	pr_de("dump tlb-entries for line=%#lx (addr %08lx)\n", line,
 		line << (PAGE_SHIFT + cpuinfo.tlb_num_ways_log2));
 
 	/* remember pid/way until we return */
@@ -189,7 +189,7 @@ void dump_tlb_line(unsigned long line)
 		tlbacc = RDCTL(CTL_TLBACC);
 
 		if ((tlbacc << PAGE_SHIFT) != 0) {
-			pr_debug("-- way:%02x vpn:0x%08lx phys:0x%08lx pid:0x%02lx flags:%c%c%c%c%c\n",
+			pr_de("-- way:%02x vpn:0x%08lx phys:0x%08lx pid:0x%02lx flags:%c%c%c%c%c\n",
 				way,
 				(pteaddr << (PAGE_SHIFT-2)),
 				(tlbacc << PAGE_SHIFT),

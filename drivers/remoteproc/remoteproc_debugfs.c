@@ -25,19 +25,19 @@
 #define pr_fmt(fmt)    "%s: " fmt, __func__
 
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/remoteproc.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
 
 #include "remoteproc_internal.h"
 
-/* remoteproc debugfs parent dir */
+/* remoteproc defs parent dir */
 static struct dentry *rproc_dbg;
 
 /*
  * Some remote processors may support dumping trace logs into a shared
- * memory buffer. We expose this trace buffer using debugfs, so users
+ * memory buffer. We expose this trace buffer using defs, so users
  * can easily tell what's going on remotely.
  *
  * We will most probably improve the rproc tracing facilities later on,
@@ -47,7 +47,7 @@ static struct dentry *rproc_dbg;
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
-	struct rproc_debug_trace *data = filp->private_data;
+	struct rproc_de_trace *data = filp->private_data;
 	struct rproc_mem_entry *trace = &data->trace_mem;
 	void *va;
 	char buf[100];
@@ -72,7 +72,7 @@ static const struct file_operations trace_rproc_ops = {
 	.llseek	= generic_file_llseek,
 };
 
-/* expose the name of the remote processor via debugfs */
+/* expose the name of the remote processor via defs */
 static ssize_t rproc_name_read(struct file *filp, char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
@@ -92,7 +92,7 @@ static const struct file_operations rproc_name_ops = {
 	.llseek	= generic_file_llseek,
 };
 
-/* expose recovery flag via debugfs */
+/* expose recovery flag via defs */
 static ssize_t rproc_recovery_read(struct file *filp, char __user *userbuf,
 				   size_t count, loff_t *ppos)
 {
@@ -103,10 +103,10 @@ static ssize_t rproc_recovery_read(struct file *filp, char __user *userbuf,
 }
 
 /*
- * By writing to the 'recovery' debugfs entry, we control the behavior of the
+ * By writing to the 'recovery' defs entry, we control the behavior of the
  * recovery mechanism dynamically. The default value of this entry is "enabled".
  *
- * The 'recovery' debugfs entry supports these commands:
+ * The 'recovery' defs entry supports these commands:
  *
  * enabled:	When enabled, the remote processor will be automatically
  *		recovered whenever it crashes. Moreover, if the remote
@@ -114,15 +114,15 @@ static ssize_t rproc_recovery_read(struct file *filp, char __user *userbuf,
  *		be automatically recovered too as soon as recovery is enabled.
  *
  * disabled:	When disabled, a remote processor will remain in a crashed
- *		state if it crashes. This is useful for debugging purposes;
- *		without it, debugging a crash is substantially harder.
+ *		state if it crashes. This is useful for deging purposes;
+ *		without it, deging a crash is substantially harder.
  *
  * recover:	This function will trigger an immediate recovery if the
  *		remote processor is in a crashed state, without changing
  *		or checking the recovery state (enabled/disabled).
- *		This is useful during debugging sessions, when one expects
+ *		This is useful during deging sessions, when one expects
  *		additional crashes to happen after enabling recovery. In this
- *		case, enabling recovery will make it hard to debug subsequent
+ *		case, enabling recovery will make it hard to de subsequent
  *		crashes, so it's recommended to keep recovery disabled, and
  *		instead use the "recover" command as needed.
  */
@@ -168,7 +168,7 @@ static const struct file_operations rproc_recovery_ops = {
 	.llseek = generic_file_llseek,
 };
 
-/* expose the crash trigger via debugfs */
+/* expose the crash trigger via defs */
 static ssize_t
 rproc_crash_write(struct file *filp, const char __user *user_buf,
 		  size_t count, loff_t *ppos)
@@ -192,7 +192,7 @@ static const struct file_operations rproc_crash_ops = {
 	.llseek = generic_file_llseek,
 };
 
-/* Expose resource table content via debugfs */
+/* Expose resource table content via defs */
 static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 {
 	static const char * const types[] = {"carveout", "devmem", "trace", "vdev"};
@@ -289,7 +289,7 @@ static const struct file_operations rproc_rsc_table_ops = {
 	.release	= single_release,
 };
 
-/* Expose carveout content via debugfs */
+/* Expose carveout content via defs */
 static int rproc_carveouts_show(struct seq_file *seq, void *p)
 {
 	struct rproc *rproc = seq->private;
@@ -321,65 +321,65 @@ static const struct file_operations rproc_carveouts_ops = {
 
 void rproc_remove_trace_file(struct dentry *tfile)
 {
-	debugfs_remove(tfile);
+	defs_remove(tfile);
 }
 
 struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
-				       struct rproc_debug_trace *trace)
+				       struct rproc_de_trace *trace)
 {
 	struct dentry *tfile;
 
-	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir, trace,
+	tfile = defs_create_file(name, 0400, rproc->dbg_dir, trace,
 				    &trace_rproc_ops);
 	if (!tfile) {
-		dev_err(&rproc->dev, "failed to create debugfs trace entry\n");
+		dev_err(&rproc->dev, "failed to create defs trace entry\n");
 		return NULL;
 	}
 
 	return tfile;
 }
 
-void rproc_delete_debug_dir(struct rproc *rproc)
+void rproc_delete_de_dir(struct rproc *rproc)
 {
 	if (!rproc->dbg_dir)
 		return;
 
-	debugfs_remove_recursive(rproc->dbg_dir);
+	defs_remove_recursive(rproc->dbg_dir);
 }
 
-void rproc_create_debug_dir(struct rproc *rproc)
+void rproc_create_de_dir(struct rproc *rproc)
 {
 	struct device *dev = &rproc->dev;
 
 	if (!rproc_dbg)
 		return;
 
-	rproc->dbg_dir = debugfs_create_dir(dev_name(dev), rproc_dbg);
+	rproc->dbg_dir = defs_create_dir(dev_name(dev), rproc_dbg);
 	if (!rproc->dbg_dir)
 		return;
 
-	debugfs_create_file("name", 0400, rproc->dbg_dir,
+	defs_create_file("name", 0400, rproc->dbg_dir,
 			    rproc, &rproc_name_ops);
-	debugfs_create_file("recovery", 0400, rproc->dbg_dir,
+	defs_create_file("recovery", 0400, rproc->dbg_dir,
 			    rproc, &rproc_recovery_ops);
-	debugfs_create_file("crash", 0200, rproc->dbg_dir,
+	defs_create_file("crash", 0200, rproc->dbg_dir,
 			    rproc, &rproc_crash_ops);
-	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
+	defs_create_file("resource_table", 0400, rproc->dbg_dir,
 			    rproc, &rproc_rsc_table_ops);
-	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,
+	defs_create_file("carveout_memories", 0400, rproc->dbg_dir,
 			    rproc, &rproc_carveouts_ops);
 }
 
-void __init rproc_init_debugfs(void)
+void __init rproc_init_defs(void)
 {
-	if (debugfs_initialized()) {
-		rproc_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized()) {
+		rproc_dbg = defs_create_dir(KBUILD_MODNAME, NULL);
 		if (!rproc_dbg)
-			pr_err("can't create debugfs dir\n");
+			pr_err("can't create defs dir\n");
 	}
 }
 
-void __exit rproc_exit_debugfs(void)
+void __exit rproc_exit_defs(void)
 {
-	debugfs_remove(rproc_dbg);
+	defs_remove(rproc_dbg);
 }

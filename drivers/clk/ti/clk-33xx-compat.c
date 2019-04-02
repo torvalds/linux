@@ -144,7 +144,7 @@ static const char * const am3_dbg_clka_ck_parents[] __initconst = {
 	NULL,
 };
 
-static const struct omap_clkctrl_bit_data am3_debugss_bit_data[] __initconst = {
+static const struct omap_clkctrl_bit_data am3_dess_bit_data[] __initconst = {
 	{ 19, TI_CLK_GATE, am3_dbg_sysclk_ck_parents, NULL },
 	{ 20, TI_CLK_MUX, am3_trace_pmd_clk_mux_ck_parents, NULL },
 	{ 22, TI_CLK_MUX, am3_trace_pmd_clk_mux_ck_parents, NULL },
@@ -158,7 +158,7 @@ static const struct omap_clkctrl_reg_data am3_l4_wkup_clkctrl_regs[] __initconst
 	{ AM3_CONTROL_CLKCTRL, NULL, CLKF_SW_SUP, "dpll_core_m4_div2_ck" },
 	{ AM3_GPIO1_CLKCTRL, am3_gpio1_bit_data, CLKF_SW_SUP, "dpll_core_m4_div2_ck" },
 	{ AM3_L4_WKUP_CLKCTRL, NULL, CLKF_SW_SUP, "dpll_core_m4_div2_ck" },
-	{ AM3_DEBUGSS_CLKCTRL, am3_debugss_bit_data, CLKF_SW_SUP, "l4_wkup_cm:clk:0010:24", "l3_aon_clkdm" },
+	{ AM3_DESS_CLKCTRL, am3_dess_bit_data, CLKF_SW_SUP, "l4_wkup_cm:clk:0010:24", "l3_aon_clkdm" },
 	{ AM3_WKUP_M3_CLKCTRL, NULL, CLKF_NO_IDLEST, "dpll_core_m4_div2_ck", "l4_wkup_aon_clkdm" },
 	{ AM3_UART1_CLKCTRL, NULL, CLKF_SW_SUP, "dpll_per_m2_div4_wkupdm_ck" },
 	{ AM3_I2C1_CLKCTRL, NULL, CLKF_SW_SUP, "dpll_per_m2_div4_wkupdm_ck" },

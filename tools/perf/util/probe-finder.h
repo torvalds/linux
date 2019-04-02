@@ -24,37 +24,37 @@ static inline int is_c_varname(const char *name)
 
 #include "dwarf-aux.h"
 
-/* TODO: export debuginfo data structure even if no dwarf support */
+/* TODO: export deinfo data structure even if no dwarf support */
 
-/* debug information structure */
-struct debuginfo {
+/* de information structure */
+struct deinfo {
 	Dwarf		*dbg;
 	Dwfl_Module	*mod;
 	Dwfl		*dwfl;
 	Dwarf_Addr	bias;
 };
 
-/* This also tries to open distro debuginfo */
-struct debuginfo *debuginfo__new(const char *path);
-void debuginfo__delete(struct debuginfo *dbg);
+/* This also tries to open distro deinfo */
+struct deinfo *deinfo__new(const char *path);
+void deinfo__delete(struct deinfo *dbg);
 
-/* Find probe_trace_events specified by perf_probe_event from debuginfo */
-int debuginfo__find_trace_events(struct debuginfo *dbg,
+/* Find probe_trace_events specified by perf_probe_event from deinfo */
+int deinfo__find_trace_events(struct deinfo *dbg,
 				 struct perf_probe_event *pev,
 				 struct probe_trace_event **tevs);
 
-/* Find a perf_probe_point from debuginfo */
-int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
+/* Find a perf_probe_point from deinfo */
+int deinfo__find_probe_point(struct deinfo *dbg, unsigned long addr,
 				struct perf_probe_point *ppt);
 
-int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
+int deinfo__get_text_offset(struct deinfo *dbg, Dwarf_Addr *offs,
 			       bool adjust_offset);
 
 /* Find a line range */
-int debuginfo__find_line_range(struct debuginfo *dbg, struct line_range *lr);
+int deinfo__find_line_range(struct deinfo *dbg, struct line_range *lr);
 
 /* Find available variables */
-int debuginfo__find_available_vars_at(struct debuginfo *dbg,
+int deinfo__find_available_vars_at(struct deinfo *dbg,
 				      struct perf_probe_event *pev,
 				      struct variable_list **vls);
 
@@ -80,7 +80,7 @@ struct probe_finder {
 #if _ELFUTILS_PREREQ(0, 142)
 	/* Call Frame Information from .eh_frame */
 	Dwarf_CFI		*cfi_eh;
-	/* Call Frame Information from .debug_frame */
+	/* Call Frame Information from .de_frame */
 	Dwarf_CFI		*cfi_dbg;
 #endif
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */

@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/string.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinmux.h>
@@ -393,7 +393,7 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
 	if (ret) {
 		const char *gname;
 
-		/* errors only affect debug data, so just warn */
+		/* errors only affect de data, so just warn */
 		gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 		dev_warn(pctldev->dev,
@@ -472,7 +472,7 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 	if (ret) {
 		const char *gname;
 
-		/* errors only affect debug data, so just warn */
+		/* errors only affect de data, so just warn */
 		gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 		dev_warn(pctldev->dev,
@@ -506,7 +506,7 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 /* Called from pincontrol core */
 static int pinmux_functions_show(struct seq_file *s, void *what)
@@ -647,16 +647,16 @@ void pinmux_show_setting(struct seq_file *s,
 DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
 DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
-void pinmux_init_device_debugfs(struct dentry *devroot,
+void pinmux_init_device_defs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
 {
-	debugfs_create_file("pinmux-functions", S_IFREG | S_IRUGO,
+	defs_create_file("pinmux-functions", S_IFREG | S_IRUGO,
 			    devroot, pctldev, &pinmux_functions_fops);
-	debugfs_create_file("pinmux-pins", S_IFREG | S_IRUGO,
+	defs_create_file("pinmux-pins", S_IFREG | S_IRUGO,
 			    devroot, pctldev, &pinmux_pins_fops);
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 #ifdef CONFIG_GENERIC_PINMUX_FUNCTIONS
 

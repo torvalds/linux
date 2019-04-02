@@ -66,7 +66,7 @@ static int apanel_probe(struct i2c_client *, const struct i2c_device_id *);
 
 static void report_key(struct input_dev *input, unsigned keycode)
 {
-	pr_debug(APANEL ": report key %#x\n", keycode);
+	pr_de(APANEL ": report key %#x\n", keycode);
 	input_report_key(input, keycode, 1);
 	input_sync(input);
 

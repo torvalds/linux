@@ -92,9 +92,9 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 	int err;
 	struct snd_sf_callback sf_cb;
 
-	if (snd_BUG_ON(!emu->hw || emu->max_voices <= 0))
+	if (snd__ON(!emu->hw || emu->max_voices <= 0))
 		return -EINVAL;
-	if (snd_BUG_ON(!card || !name))
+	if (snd__ON(!card || !name))
 		return -EINVAL;
 
 	emu->card = card;

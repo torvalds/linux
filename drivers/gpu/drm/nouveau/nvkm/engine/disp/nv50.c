@@ -89,12 +89,12 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 
 	if (func->wndw.cnt) {
 		disp->wndw.nr = func->wndw.cnt(&disp->base, &disp->wndw.mask);
-		nvkm_debug(subdev, "Window(s): %d (%08lx)\n",
+		nvkm_de(subdev, "Window(s): %d (%08lx)\n",
 			   disp->wndw.nr, disp->wndw.mask);
 	}
 
 	disp->head.nr = func->head.cnt(&disp->base, &disp->head.mask);
-	nvkm_debug(subdev, "  Head(s): %d (%02lx)\n",
+	nvkm_de(subdev, "  Head(s): %d (%02lx)\n",
 		   disp->head.nr, disp->head.mask);
 	for_each_set_bit(i, &disp->head.mask, disp->head.nr) {
 		ret = func->head.new(&disp->base, i);
@@ -104,7 +104,7 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 
 	if (func->dac.cnt) {
 		disp->dac.nr = func->dac.cnt(&disp->base, &disp->dac.mask);
-		nvkm_debug(subdev, "   DAC(s): %d (%02lx)\n",
+		nvkm_de(subdev, "   DAC(s): %d (%02lx)\n",
 			   disp->dac.nr, disp->dac.mask);
 		for_each_set_bit(i, &disp->dac.mask, disp->dac.nr) {
 			ret = func->dac.new(&disp->base, i);
@@ -115,7 +115,7 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 
 	if (func->pior.cnt) {
 		disp->pior.nr = func->pior.cnt(&disp->base, &disp->pior.mask);
-		nvkm_debug(subdev, "  PIOR(s): %d (%02lx)\n",
+		nvkm_de(subdev, "  PIOR(s): %d (%02lx)\n",
 			   disp->pior.nr, disp->pior.mask);
 		for_each_set_bit(i, &disp->pior.mask, disp->pior.nr) {
 			ret = func->pior.new(&disp->base, i);
@@ -125,7 +125,7 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 	}
 
 	disp->sor.nr = func->sor.cnt(&disp->base, &disp->sor.mask);
-	nvkm_debug(subdev, "   SOR(s): %d (%02lx)\n",
+	nvkm_de(subdev, "   SOR(s): %d (%02lx)\n",
 		   disp->sor.nr, disp->sor.mask);
 	for_each_set_bit(i, &disp->sor.mask, disp->sor.nr) {
 		ret = func->sor.new(&disp->base, i);
@@ -550,10 +550,10 @@ nv50_disp_super(struct work_struct *work)
 	struct nvkm_head *head;
 	u32 super = nvkm_rd32(device, 0x610030);
 
-	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super, super);
+	nvkm_de(subdev, "supervisor %08x %08x\n", disp->super, super);
 
 	if (disp->super & 0x00000010) {
-		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
+		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DE);
 		nv50_disp_super_1(disp);
 		list_for_each_entry(head, &disp->base.head, head) {
 			if (!(super & (0x00000020 << head->id)))

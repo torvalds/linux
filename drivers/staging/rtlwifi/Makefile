@@ -4,7 +4,7 @@ r8822be-objs	:=		\
 		base.o		\
 		cam.o		\
 		core.o		\
-		debug.o		\
+		de.o		\
 		efuse.o		\
 		ps.o		\
 		rc.o		\
@@ -36,7 +36,7 @@ r8822be-objs	:=		\
 	        halmac/halmac_88xx/halmac_8822b/halmac_8822b_pwr_seq.o	\
 	        halmac/halmac_88xx/halmac_8822b/halmac_api_8822b_usb.o	\
 	        halmac/rtl_halmac.o					\
-		phydm/phydm_debug.o	\
+		phydm/phydm_de.o	\
 		phydm/phydm_antdiv.o\
 		phydm/phydm_interface.o\
 		phydm/phydm_hwconfig.o\

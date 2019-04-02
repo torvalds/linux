@@ -46,14 +46,14 @@ struct m88rs2000_state {
 	int errmode;
 };
 
-static int m88rs2000_debug;
+static int m88rs2000_de;
 
-module_param_named(debug, m88rs2000_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
+module_param_named(de, m88rs2000_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info (or-able)).");
 
 #define dprintk(level, args...) do { \
-	if (level & m88rs2000_debug) \
-		printk(KERN_DEBUG "m88rs2000-fe: " args); \
+	if (level & m88rs2000_de) \
+		printk(KERN_DE "m88rs2000-fe: " args); \
 } while (0)
 
 #define deb_info(args...)  dprintk(0x01, args)

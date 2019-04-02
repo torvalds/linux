@@ -31,7 +31,7 @@ static __initdata const void *mach_match_data;
 void __init prom_init(void)
 {
 	plat_get_fdt();
-	BUG_ON(!fdt);
+	_ON(!fdt);
 }
 
 void __init *plat_get_fdt(void)
@@ -80,7 +80,7 @@ void __init *plat_get_fdt(void)
 		 * If we don't recognise the machine then we can't continue, so
 		 * die here.
 		 */
-		BUG_ON(!mach);
+		_ON(!mach);
 
 		/* Retrieve the machine's FDT */
 		fdt = mach->fdt;

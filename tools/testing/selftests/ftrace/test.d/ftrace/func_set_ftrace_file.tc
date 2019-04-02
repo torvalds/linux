@@ -4,7 +4,7 @@
 #
 # The set_ftrace_filter file of ftrace is used to list functions as well as
 # triggers (probes) attached to functions. The code to read this file is not
-# straight forward and has had various bugs in the past. This test is designed
+# straight forward and has had various s in the past. This test is designed
 # to add functions and triggers to that file in various ways and read that
 # file in various ways (cat vs dd).
 #

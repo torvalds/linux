@@ -4,8 +4,8 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  ******************************************************************************/
-#ifndef __RTW_DEBUG_H__
-#define __RTW_DEBUG_H__
+#ifndef __RTW_DE_H__
+#define __RTW_DE_H__
 
 #include <linux/trace_seq.h>
 
@@ -18,7 +18,7 @@
 #define _drv_notice_		7
 #define _drv_info_			8
 #define _drv_dump_			9
-#define	_drv_debug_			10
+#define	_drv_de_			10
 
 
 #define _module_rtl871x_xmit_c_		BIT(0)
@@ -141,9 +141,9 @@
 
 #undef _dbgdump
 
-#ifndef _RTL871X_DEBUG_C_
-	extern u32 GlobalDebugLevel;
-	extern u64 GlobalDebugComponents;
+#ifndef _RTL871X_DE_C_
+	extern u32 GlobalDeLevel;
+	extern u64 GlobalDeComponents;
 #endif
 
 #define _dbgdump printk
@@ -156,7 +156,7 @@
 #undef DBG_871X_LEVEL
 #define DBG_871X_LEVEL(level, fmt, arg...)     \
 	do {\
-		if (level <= GlobalDebugLevel) {\
+		if (level <= GlobalDeLevel) {\
 			if (level <= _drv_err_ && level > _drv_always_) \
 				_dbgdump(DRIVER_PREFIX"ERROR " fmt, ##arg);\
 			else \
@@ -168,7 +168,7 @@
 #undef _DBG_871X_LEVEL
 #define _DBG_871X_LEVEL(level, fmt, arg...)	   \
 	do {\
-		if (level <= GlobalDebugLevel) {\
+		if (level <= GlobalDeLevel) {\
 			if (level <= _drv_err_ && level > _drv_always_) \
 				_dbgdump("ERROR " fmt, ##arg);\
 			else \
@@ -198,7 +198,7 @@
 
 #endif /* defined(_dbgdump) */
 
-#ifdef DEBUG
+#ifdef DE
 #if	defined(_dbgdump)
 	#undef DBG_871X
 	#define DBG_871X(...)     do {\
@@ -215,16 +215,16 @@
 		_dbgdump(DRIVER_PREFIX __VA_ARGS__);\
 	}while (0)
 #endif /* defined(_dbgdump) */
-#endif /* DEBUG */
+#endif /* DE */
 
-#ifdef DEBUG_RTL871X
+#ifdef DE_RTL871X
 
 #if	defined(_dbgdump) && defined(_MODULE_DEFINE_)
 
 	#undef RT_TRACE
 	#define RT_TRACE(_Comp, _Level, Fmt)\
 	do {\
-		if ((_Comp & GlobalDebugComponents) && (_Level <= GlobalDebugLevel)) {\
+		if ((_Comp & GlobalDeComponents) && (_Level <= GlobalDeLevel)) {\
 			_dbgdump("%s [0x%08x,%d]", DRIVER_PREFIX, (unsigned int)_Comp, _Level);\
 			_dbgdump Fmt;\
 		}\
@@ -236,7 +236,7 @@
 #if	defined(_dbgdump)
 	#undef RT_PRINT_DATA
 	#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen)			\
-		if (((_Comp) & GlobalDebugComponents) && (_Level <= GlobalDebugLevel))	\
+		if (((_Comp) & GlobalDeComponents) && (_Level <= GlobalDeLevel))	\
 		{									\
 			int __i;								\
 			u8 *ptr = (u8 *)_HexData;				\
@@ -250,7 +250,7 @@
 			_dbgdump("\n");							\
 		}
 #endif /* defined(_dbgdump) */
-#endif /* DEBUG_RTL871X */
+#endif /* DE_RTL871X */
 
 #ifdef CONFIG_DBG_COUNTER
 #define DBG_COUNTER(counter) counter++
@@ -267,7 +267,7 @@ void mac_reg_dump(void *sel, struct adapter *adapter);
 void bb_reg_dump(void *sel, struct adapter *adapter);
 void rf_reg_dump(void *sel, struct adapter *adapter);
 
-#ifdef PROC_DEBUG
+#ifdef PROC_DE
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 int proc_get_read_reg(struct seq_file *m, void *v);
 ssize_t proc_set_read_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
@@ -342,6 +342,6 @@ int proc_get_tx_logs(struct seq_file *m, void *v);
 int proc_get_int_logs(struct seq_file *m, void *v);
 #endif
 
-#endif /* PROC_DEBUG */
+#endif /* PROC_DE */
 
-#endif	/* __RTW_DEBUG_H__ */
+#endif	/* __RTW_DE_H__ */

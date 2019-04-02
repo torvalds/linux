@@ -468,7 +468,7 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 
 	if (order_code == SIGP_EXTERNAL_CALL) {
 		dest_vcpu = kvm_get_vcpu_by_id(vcpu->kvm, cpu_addr);
-		BUG_ON(dest_vcpu == NULL);
+		_ON(dest_vcpu == NULL);
 
 		kvm_s390_vcpu_wakeup(dest_vcpu);
 		kvm_s390_set_psw_cc(vcpu, SIGP_CC_ORDER_CODE_ACCEPTED);

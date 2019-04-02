@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-1.0+
 /*
  * zcore module to export memory content and register sets for creating system
- * dumps on SCSI disks (zfcpdump). The "zcore/mem" debugfs file shows the same
+ * dumps on SCSI disks (zfcpdump). The "zcore/mem" defs file shows the same
  * dump format as s390 standalone dumps.
  *
  * For more information please refer to Documentation/s390/zfcpdump.txt
@@ -15,7 +15,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/memblock.h>
 
 #include <asm/asm-offsets.h>
@@ -23,7 +23,7 @@
 #include <asm/sclp.h>
 #include <asm/setup.h>
 #include <linux/uaccess.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/processor.h>
 #include <asm/irqflags.h>
 #include <asm/checksum.h>
@@ -31,7 +31,7 @@
 #include <asm/switch_to.h>
 #include "sclp.h"
 
-#define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)
+#define TRACE(x...) de_sprintf_event(zcore_dbf, 1, x)
 
 #define CHUNK_INFO_SIZE	34 /* 2 16-byte char, each followed by blank */
 
@@ -45,7 +45,7 @@ struct ipib_info {
 	u32		checksum;
 }  __attribute__((packed));
 
-static struct debug_info *zcore_dbf;
+static struct de_info *zcore_dbf;
 static int hsa_available;
 static struct dentry *zcore_dir;
 static struct dentry *zcore_memmap_file;
@@ -291,9 +291,9 @@ static int __init zcore_init(void)
 	if (OLDMEM_BASE)
 		return -ENODATA;
 
-	zcore_dbf = debug_register("zcore", 4, 1, 4 * sizeof(long));
-	debug_register_view(zcore_dbf, &debug_sprintf_view);
-	debug_set_level(zcore_dbf, 6);
+	zcore_dbf = de_register("zcore", 4, 1, 4 * sizeof(long));
+	de_register_view(zcore_dbf, &de_sprintf_view);
+	de_set_level(zcore_dbf, 6);
 
 	TRACE("devno:  %x\n", ipl_info.data.fcp.dev_id.devno);
 	TRACE("wwpn:   %llx\n", (unsigned long long) ipl_info.data.fcp.wwpn);
@@ -328,24 +328,24 @@ static int __init zcore_init(void)
 	if (rc)
 		goto fail;
 
-	zcore_dir = debugfs_create_dir("zcore" , NULL);
+	zcore_dir = defs_create_dir("zcore" , NULL);
 	if (!zcore_dir) {
 		rc = -ENOMEM;
 		goto fail;
 	}
-	zcore_memmap_file = debugfs_create_file("memmap", S_IRUSR, zcore_dir,
+	zcore_memmap_file = defs_create_file("memmap", S_IRUSR, zcore_dir,
 						NULL, &zcore_memmap_fops);
 	if (!zcore_memmap_file) {
 		rc = -ENOMEM;
 		goto fail_dir;
 	}
-	zcore_reipl_file = debugfs_create_file("reipl", S_IRUSR, zcore_dir,
+	zcore_reipl_file = defs_create_file("reipl", S_IRUSR, zcore_dir,
 						NULL, &zcore_reipl_fops);
 	if (!zcore_reipl_file) {
 		rc = -ENOMEM;
 		goto fail_memmap_file;
 	}
-	zcore_hsa_file = debugfs_create_file("hsa", S_IRUSR|S_IWUSR, zcore_dir,
+	zcore_hsa_file = defs_create_file("hsa", S_IRUSR|S_IWUSR, zcore_dir,
 					     NULL, &zcore_hsa_fops);
 	if (!zcore_hsa_file) {
 		rc = -ENOMEM;
@@ -354,11 +354,11 @@ static int __init zcore_init(void)
 	return 0;
 
 fail_reipl_file:
-	debugfs_remove(zcore_reipl_file);
+	defs_remove(zcore_reipl_file);
 fail_memmap_file:
-	debugfs_remove(zcore_memmap_file);
+	defs_remove(zcore_memmap_file);
 fail_dir:
-	debugfs_remove(zcore_dir);
+	defs_remove(zcore_dir);
 fail:
 	diag308(DIAG308_REL_HSA, NULL);
 	return rc;

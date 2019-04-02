@@ -408,7 +408,7 @@ config RC_LOOPBACK
 	---help---
 	   Say Y here if you want support for the remote control loopback
 	   driver which allows TX data to be sent back as RX data.
-	   This is mostly useful for debugging purposes.
+	   This is mostly useful for deging purposes.
 
 	   If you're not sure, select N here.
 

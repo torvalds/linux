@@ -31,7 +31,7 @@
 enum mci_gpm_coex_query_type {
 	MCI_GPM_COEX_QUERY_BT_ALL_INFO      = BIT(0),
 	MCI_GPM_COEX_QUERY_BT_TOPOLOGY      = BIT(1),
-	MCI_GPM_COEX_QUERY_BT_DEBUG         = BIT(2),
+	MCI_GPM_COEX_QUERY_BT_DE         = BIT(2),
 };
 
 enum mci_gpm_coex_halt_bt_gpm {
@@ -51,7 +51,7 @@ enum mci_gpm_coex_bt_update_flags_op {
 #define MCI_BT_MCI_FLAGS_UPDATE_HDR           0x00000004
 #define MCI_BT_MCI_FLAGS_UPDATE_PLD           0x00000008
 #define MCI_BT_MCI_FLAGS_LNA_CTRL             0x00000010
-#define MCI_BT_MCI_FLAGS_DEBUG                0x00000020
+#define MCI_BT_MCI_FLAGS_DE                0x00000020
 #define MCI_BT_MCI_FLAGS_SCHED_MSG            0x00000040
 #define MCI_BT_MCI_FLAGS_CONT_MSG             0x00000080
 #define MCI_BT_MCI_FLAGS_COEX_GPM             0x00000100
@@ -137,7 +137,7 @@ enum mci_message_header {		/* length of payload */
 	MCI_LNA_TRANS    = 0x9c,
 	MCI_SYS_SLEEPING = 0xa0,        /* len = 0 */
 	MCI_REQ_WAKE     = 0xc0,        /* len = 0 */
-	MCI_DEBUG_16     = 0xfe,        /* len = 2 */
+	MCI_DE_16     = 0xfe,        /* len = 2 */
 	MCI_REMOTE_RESET = 0xff         /* len = 16 */
 };
 
@@ -200,7 +200,7 @@ enum mci_gpm_subtype {
 	MCI_GPM_COEX_AGENT      = 0x0c,
 	MCI_GPM_RSVD_PATTERN    = 0xfe,
 	MCI_GPM_RSVD_PATTERN32  = 0xfefefefe,
-	MCI_GPM_BT_DEBUG        = 0xff
+	MCI_GPM_BT_DE        = 0xff
 };
 
 enum mci_bt_state {
@@ -243,7 +243,7 @@ enum mci_state_type {
 	MCI_STATE_RECOVER_RX,
 	MCI_STATE_NEED_FTP_STOMP,
 	MCI_STATE_NEED_TUNING,
-	MCI_STATE_NEED_STAT_DEBUG,
+	MCI_STATE_NEED_STAT_DE,
 	MCI_STATE_SHARED_CHAIN_CONCUR_TX,
 	MCI_STATE_AIC_CAL,
 	MCI_STATE_AIC_START,
@@ -255,8 +255,8 @@ enum mci_state_type {
 	MCI_STATE_WLAN_WEAK_SIGNAL,
 	MCI_STATE_SET_WLAN_PS_STATE,
 	MCI_STATE_GET_WLAN_PS_STATE,
-	MCI_STATE_DEBUG,
-	MCI_STATE_STAT_DEBUG,
+	MCI_STATE_DE,
+	MCI_STATE_STAT_DE,
 	MCI_STATE_ALLOW_FCS,
 	MCI_STATE_SET_2G_CONTENTION,
 	MCI_STATE_MAX

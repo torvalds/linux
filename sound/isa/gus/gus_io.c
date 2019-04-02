@@ -268,7 +268,7 @@ void snd_gf1_i_write_addr(struct snd_gus_card * gus, unsigned char reg,
 
 #endif  /*  0  */
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 static unsigned int snd_gf1_i_read_addr(struct snd_gus_card * gus,
 					unsigned char reg, short w_16bit)
 {
@@ -340,9 +340,9 @@ void snd_gf1_pokew(struct snd_gus_card * gus, unsigned int addr, unsigned short 
 {
 	unsigned long flags;
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (!gus->interwave)
-		snd_printk(KERN_DEBUG "snd_gf1_pokew - GF1!!!\n");
+		snd_printk(KERN_DE "snd_gf1_pokew - GF1!!!\n");
 #endif
 	spin_lock_irqsave(&gus->reg_lock, flags);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
@@ -364,9 +364,9 @@ unsigned short snd_gf1_peekw(struct snd_gus_card * gus, unsigned int addr)
 	unsigned long flags;
 	unsigned short res;
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (!gus->interwave)
-		snd_printk(KERN_DEBUG "snd_gf1_peekw - GF1!!!\n");
+		snd_printk(KERN_DE "snd_gf1_peekw - GF1!!!\n");
 #endif
 	spin_lock_irqsave(&gus->reg_lock, flags);
 	outb(SNDRV_GF1_GW_DRAM_IO_LOW, gus->gf1.reg_regsel);
@@ -390,9 +390,9 @@ void snd_gf1_dram_setmem(struct snd_gus_card * gus, unsigned int addr,
 	unsigned long port;
 	unsigned long flags;
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (!gus->interwave)
-		snd_printk(KERN_DEBUG "snd_gf1_dram_setmem - GF1!!!\n");
+		snd_printk(KERN_DE "snd_gf1_dram_setmem - GF1!!!\n");
 #endif
 	addr &= ~1;
 	count >>= 1;
@@ -440,7 +440,7 @@ void snd_gf1_select_active_voices(struct snd_gus_card * gus)
 	}
 }
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 
 void snd_gf1_print_voice_registers(struct snd_gus_card * gus)
 {

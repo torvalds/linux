@@ -39,18 +39,18 @@ static const struct sti_compositor_data stih407_compositor_data = {
 	},
 };
 
-int sti_compositor_debugfs_init(struct sti_compositor *compo,
+int sti_compositor_defs_init(struct sti_compositor *compo,
 				struct drm_minor *minor)
 {
 	unsigned int i;
 
 	for (i = 0; i < STI_MAX_VID; i++)
 		if (compo->vid[i])
-			vid_debugfs_init(compo->vid[i], minor);
+			vid_defs_init(compo->vid[i], minor);
 
 	for (i = 0; i < STI_MAX_MIXER; i++)
 		if (compo->mixer[i])
-			sti_mixer_debugfs_init(compo->mixer[i], minor);
+			sti_mixer_defs_init(compo->mixer[i], minor);
 
 	return 0;
 }
@@ -190,7 +190,7 @@ static int sti_compositor_probe(struct platform_device *pdev)
 		compo->vtg_vblank_nb[i].notifier_call = sti_crtc_vblank_cb;
 
 	/* populate data structure depending on compatibility */
-	BUG_ON(!of_match_node(compositor_of_match, np)->data);
+	_ON(!of_match_node(compositor_of_match, np)->data);
 
 	memcpy(&compo->data, of_match_node(compositor_of_match, np)->data,
 	       sizeof(struct sti_compositor_data));

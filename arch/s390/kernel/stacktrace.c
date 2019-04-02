@@ -7,7 +7,7 @@
  */
 
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <linux/export.h>

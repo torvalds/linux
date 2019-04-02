@@ -1420,7 +1420,7 @@ replay:
 				    portid, RTM_GETACTION, extack);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return ret;

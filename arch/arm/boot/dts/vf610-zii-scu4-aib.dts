@@ -20,11 +20,11 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = <&pinctrl_leds_debug>;
+		pinctrl-0 = <&pinctrl_leds_de>;
 		pinctrl-names = "default";
 
-		debug {
-			label = "zii:green:debug1";
+		de {
+			label = "zii:green:de1";
 			gpios = <&gpio3 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -794,7 +794,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_de: pinctrl-leds-de {
 		fsl,pins = <
 			 VF610_PAD_PTB26__GPIO_96		0x31c2
 		   >;

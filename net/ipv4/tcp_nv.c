@@ -482,7 +482,7 @@ static struct tcp_congestion_ops tcpnv __read_mostly = {
 
 static int __init tcpnv_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct tcpnv) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct tcpnv) > ICSK_CA_PRIV_SIZE);
 
 	return tcp_register_congestion_control(&tcpnv);
 }

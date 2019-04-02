@@ -119,8 +119,8 @@ enum {
 	IDEUDMASTS_NDI			= (1 << 25),
 	IDEUDMASTS_N4X			= (1 << 26),
 
-	/* UDMA Debug Status Register */
-	IDEUDMADEBUG			= 0x2c,
+	/* UDMA De Status Register */
+	IDEUDMADE			= 0x2c,
 };
 
 struct ep93xx_pata_data {
@@ -152,7 +152,7 @@ static void ep93xx_pata_clear_regs(void __iomem *base)
 	writel(0, base + IDEMDMADATAIN);
 	writel(0, base + IDEUDMADATAOUT);
 	writel(0, base + IDEUDMADATAIN);
-	writel(0, base + IDEUDMADEBUG);
+	writel(0, base + IDEUDMADE);
 }
 
 static bool ep93xx_pata_check_iordy(void __iomem *base)
@@ -854,7 +854,7 @@ static void ep93xx_pata_drain_fifo(struct ata_queued_cmd *qc)
 		     && count < 65536; count += 2)
 		ep93xx_pata_read_reg(drv_data, IDECTRL_ADDR_DATA);
 
-	/* Can become DEBUG later */
+	/* Can become DE later */
 	if (count)
 		ata_port_dbg(ap, "drained %d bytes to clear DRQ.\n", count);
 

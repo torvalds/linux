@@ -90,7 +90,7 @@ void r420_pipes_init(struct radeon_device *rdev)
 	/* GA_ENHANCE workaround TCL deadlock issue */
 	WREG32(R300_GA_ENHANCE, R300_GA_DEADLOCK_CNTL | R300_GA_FASTSYNC_CNTL |
 	       (1 << 2) | (1 << 3));
-	/* add idle wait as per freedesktop.org bug 24041 */
+	/* add idle wait as per freedesktop.org  24041 */
 	if (r100_gui_wait_for_idle(rdev)) {
 		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
@@ -179,13 +179,13 @@ void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
-static void r420_debugfs(struct radeon_device *rdev)
+static void r420_defs(struct radeon_device *rdev)
 {
-	if (r100_debugfs_rbbm_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
+	if (r100_defs_rbbm_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for RBBM !\n");
 	}
-	if (r420_debugfs_pipes_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for pipes !\n");
+	if (r420_defs_pipes_info_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for pipes !\n");
 	}
 }
 
@@ -422,7 +422,7 @@ int r420_init(struct radeon_device *rdev)
 	}
 	/* initialize memory controller */
 	r300_mc_init(rdev);
-	r420_debugfs(rdev);
+	r420_defs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r) {
@@ -471,10 +471,10 @@ int r420_init(struct radeon_device *rdev)
 }
 
 /*
- * Debugfs info
+ * Defs info
  */
-#if defined(CONFIG_DEBUG_FS)
-static int r420_debugfs_pipes_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int r420_defs_pipes_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -491,14 +491,14 @@ static int r420_debugfs_pipes_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list r420_pipes_info_list[] = {
-	{"r420_pipes_info", r420_debugfs_pipes_info, 0, NULL},
+	{"r420_pipes_info", r420_defs_pipes_info, 0, NULL},
 };
 #endif
 
-int r420_debugfs_pipes_info_init(struct radeon_device *rdev)
+int r420_defs_pipes_info_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, r420_pipes_info_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, r420_pipes_info_list, 1);
 #else
 	return 0;
 #endif

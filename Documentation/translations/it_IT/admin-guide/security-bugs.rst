@@ -1,8 +1,8 @@
 .. include:: ../disclaimer-ita.rst
 
-:Original: :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+:Original: :ref:`Documentation/admin-guide/security-s.rst <securitys>`
 
-.. _it_securitybugs:
+.. _it_securitys:
 
 Bachi di sicurezza
 ==================

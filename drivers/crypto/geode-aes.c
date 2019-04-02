@@ -103,7 +103,7 @@ geode_aes_crypt(struct geode_aes_op *op)
 	}
 
 	ret = do_crypt(op->src, op->dst, op->len, flags);
-	BUG_ON(ret);
+	_ON(ret);
 
 	if (op->mode == AES_MODE_CBC)
 		_readfield(AES_WRITEIV0_REG, op->iv);

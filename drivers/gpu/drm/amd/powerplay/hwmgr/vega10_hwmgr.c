@@ -43,7 +43,7 @@
 #include "vega10_processpptables.h"
 #include "vega10_pptable.h"
 #include "vega10_thermal.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "amd_pcie_helpers.h"
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
@@ -3913,7 +3913,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
 		}
 	} else {
-		pr_debug("Cannot find requested DCEFCLK!");
+		pr_de("Cannot find requested DCEFCLK!");
 	}
 
 	if (min_clocks.memoryClock != 0) {
@@ -4411,8 +4411,8 @@ static int vega10_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 	features_to_enable =
 		~features_enabled & new_ppfeature_masks;
 
-	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
-	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
+	pr_de("features_to_disable 0x%llx\n", features_to_disable);
+	pr_de("features_to_enable 0x%llx\n", features_to_enable);
 
 	if (features_to_disable) {
 		ret = vega10_enable_smc_features(hwmgr, false, features_to_disable);

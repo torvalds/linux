@@ -3275,7 +3275,7 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 		goto err_netdev_reg;
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	dpaa2_dbg_add(priv);
 #endif
 
@@ -3322,7 +3322,7 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 	net_dev = dev_get_drvdata(dev);
 	priv = netdev_priv(net_dev);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	dpaa2_dbg_remove(priv);
 #endif
 	unregister_netdev(net_dev);

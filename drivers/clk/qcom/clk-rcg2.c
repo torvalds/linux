@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/export.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -91,7 +91,7 @@ static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 			return i;
 
 err:
-	pr_debug("%s: Clock %s has invalid parent, using default.\n",
+	pr_de("%s: Clock %s has invalid parent, using default.\n",
 		 __func__, clk_hw_get_name(hw));
 	return 0;
 }
@@ -1105,7 +1105,7 @@ static int clk_rcg2_enable_dfs(const struct clk_rcg_dfs_data *data,
 
 	rcg->freq_tbl = NULL;
 
-	pr_debug("DFS registered for clk %s\n", init->name);
+	pr_de("DFS registered for clk %s\n", init->name);
 
 	return 0;
 }

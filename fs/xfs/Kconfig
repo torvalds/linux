@@ -105,39 +105,39 @@ config XFS_ONLINE_REPAIR
 
 config XFS_WARN
 	bool "XFS Verbose Warnings"
-	depends on XFS_FS && !XFS_DEBUG
+	depends on XFS_FS && !XFS_DE
 	help
 	  Say Y here to get an XFS build with many additional warnings.
 	  It converts ASSERT checks to WARN, so will log any out-of-bounds
 	  conditions that occur that would otherwise be missed. It is much
-	  lighter weight than XFS_DEBUG and does not modify algorithms and will
+	  lighter weight than XFS_DE and does not modify algorithms and will
 	  not cause the kernel to panic on non-fatal errors.
 
-	  However, similar to XFS_DEBUG, it is only advisable to use this if you
-	  are debugging a particular problem.
+	  However, similar to XFS_DE, it is only advisable to use this if you
+	  are deging a particular problem.
 
-config XFS_DEBUG
-	bool "XFS Debugging support"
+config XFS_DE
+	bool "XFS Deging support"
 	depends on XFS_FS
 	help
-	  Say Y here to get an XFS build with many debugging features,
+	  Say Y here to get an XFS build with many deging features,
 	  including ASSERT checks, function wrappers around macros,
 	  and extra sanity-checking functions in various code paths.
 
 	  Note that the resulting code will be HUGE and SLOW, and probably
-	  not useful unless you are debugging a particular problem.
+	  not useful unless you are deging a particular problem.
 
 	  Say N unless you are an XFS developer, or you play one on TV.
 
 config XFS_ASSERT_FATAL
 	bool "XFS fatal asserts"
 	default y
-	depends on XFS_FS && XFS_DEBUG
+	depends on XFS_FS && XFS_DE
 	help
-	  Set the default DEBUG mode ASSERT failure behavior.
+	  Set the default DE mode ASSERT failure behavior.
 
-	  Say Y here to cause DEBUG mode ASSERT failures to result in fatal
-	  errors that BUG() the kernel by default. If you say N, ASSERT failures
+	  Say Y here to cause DE mode ASSERT failures to result in fatal
+	  errors that () the kernel by default. If you say N, ASSERT failures
 	  result in warnings.
 
 	  This behavior can be modified at runtime via sysfs.

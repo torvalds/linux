@@ -30,8 +30,8 @@
 #include "stv0900_priv.h"
 #include "stv0900_init.h"
 
-int stvdebug = 1;
-module_param_named(debug, stvdebug, int, 0644);
+int stvde = 1;
+module_param_named(de, stvde, int, 0644);
 
 /* internal params node */
 struct stv0900_inode {
@@ -1536,7 +1536,7 @@ static int stv0900_status(struct stv0900_internal *intp,
 
 	dprintk("%s: locked = %d\n", __func__, locked);
 
-	if (stvdebug) {
+	if (stvde) {
 		/* Print TS bitrate */
 		tsbitrate0_val = stv0900_read_reg(intp, TSBITRATE0);
 		tsbitrate1_val = stv0900_read_reg(intp, TSBITRATE1);
@@ -1969,7 +1969,7 @@ error:
 }
 EXPORT_SYMBOL(stv0900_attach);
 
-MODULE_PARM_DESC(debug, "Set debug");
+MODULE_PARM_DESC(de, "Set de");
 
 MODULE_AUTHOR("Igor M. Liplianin");
 MODULE_DESCRIPTION("ST STV0900 frontend");

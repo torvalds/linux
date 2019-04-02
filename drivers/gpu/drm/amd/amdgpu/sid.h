@@ -564,8 +564,8 @@
 #define MC_SEQ_RESERVE_M                                0xA82
 #define MC_PMG_CMD_EMRS                                 0xA83
 
-#define MC_SEQ_IO_DEBUG_INDEX           		0xA91
-#define MC_SEQ_IO_DEBUG_DATA           			0xA92
+#define MC_SEQ_IO_DE_INDEX           		0xA91
+#define MC_SEQ_IO_DE_DATA           			0xA92
 
 #define MC_SEQ_MISC5                                    0xA95
 #define MC_SEQ_MISC6                                    0xA96
@@ -642,7 +642,7 @@
 #define	HDP_NONSURFACE_INFO				0xB02
 #define	HDP_NONSURFACE_SIZE				0xB03
 
-#define HDP_DEBUG0  					0xBCC
+#define HDP_DE0  					0xBCC
 
 #define HDP_ADDR_CONFIG  				0xBD2
 #define HDP_MISC_CNTL					0xBD3
@@ -1120,7 +1120,7 @@
 #define		LTI_RATIO_MASK				(0xf << 27)
 #define		LTI_RATIO_SHIFT				27
 
-#define	SX_DEBUG_1					0x2418
+#define	SX_DE_1					0x2418
 
 #define	SPI_STATIC_THREAD_MGMT_1			0x2438
 #define	SPI_STATIC_THREAD_MGMT_2			0x2439
@@ -1324,7 +1324,7 @@
 #define	CP_MEM_SLP_CNTL					0x3079
 #       define CP_MEM_LS_EN                             (1 << 0)
 
-#define	CP_DEBUG					0x307F
+#define	CP_DE					0x307F
 
 #define RLC_CNTL                                          0x30C0
 #       define RLC_ENABLE                                 (1 << 0)

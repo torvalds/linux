@@ -30,7 +30,7 @@
  * [2:1] cntl_clk
  *  - 0 = Disable clk (Power-off mode)
  *  - 1 = Enable gated clock (Normal mode)
- *  - 2 = Enable free-run clk (Debug mode)
+ *  - 2 = Enable free-run clk (De mode)
  */
 #define CEC_GEN_CNTL_REG		0x00
 
@@ -155,8 +155,8 @@
 #define CEC_NOMSMPACKPOINT_0MS45	0x58
 #define CEC_ACK0NOML2H_1MS5_BIT7_0	0x5A
 #define CEC_ACK0NOML2H_1MS5_BIT8	0x5B
-#define CEC_BUGFIX_DISABLE_0		0x60
-#define CEC_BUGFIX_DISABLE_1		0x61
+#define CEC_FIX_DISABLE_0		0x60
+#define CEC_FIX_DISABLE_1		0x61
 #define CEC_RX_MSG_0_HEADER		0x80
 #define CEC_RX_MSG_1_OPCODE		0x81
 #define CEC_RX_MSG_2_OP1		0x82

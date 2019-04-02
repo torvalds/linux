@@ -7,7 +7,7 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "extents.h"
 
 #include <trace/events/bcache.h>
@@ -47,7 +47,7 @@ static int journal_read_bucket(struct cache *ca, struct list_head *list,
 
 	closure_init_stack(&cl);
 
-	pr_debug("reading %u", bucket_index);
+	pr_de("reading %u", bucket_index);
 
 	while (offset < ca->sb.bucket_size) {
 reread:		left = ca->sb.bucket_size - offset;
@@ -78,7 +78,7 @@ reread:		left = ca->sb.bucket_size - offset;
 			size_t blocks, bytes = set_bytes(j);
 
 			if (j->magic != jset_magic(&ca->sb)) {
-				pr_debug("%u: bad magic", bucket_index);
+				pr_de("%u: bad magic", bucket_index);
 				return ret;
 			}
 
@@ -164,7 +164,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		uint64_t seq;
 
 		bitmap_zero(bitmap, SB_JOURNAL_BUCKETS);
-		pr_debug("%u journal buckets", ca->sb.njournal_buckets);
+		pr_de("%u journal buckets", ca->sb.njournal_buckets);
 
 		/*
 		 * Read journal buckets ordered by golden ratio hash to quickly
@@ -189,7 +189,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		 * If that fails, check all the buckets we haven't checked
 		 * already
 		 */
-		pr_debug("falling back to linear search");
+		pr_de("falling back to linear search");
 
 		for (l = find_first_zero_bit(bitmap, ca->sb.njournal_buckets);
 		     l < ca->sb.njournal_buckets;
@@ -202,12 +202,12 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		if (l == ca->sb.njournal_buckets)
 			continue;
 bsearch:
-		BUG_ON(list_empty(list));
+		_ON(list_empty(list));
 
 		/* Binary search */
 		m = l;
 		r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
-		pr_debug("starting binary search, l %u r %u", l, r);
+		pr_de("starting binary search, l %u r %u", l, r);
 
 		while (l + 1 < r) {
 			seq = list_entry(list->prev, struct journal_replay,
@@ -227,7 +227,7 @@ bsearch:
 		 * Read buckets in reverse order until we stop finding more
 		 * journal entries
 		 */
-		pr_debug("finishing up: m %u njournal_buckets %u",
+		pr_de("finishing up: m %u njournal_buckets %u",
 			 m, ca->sb.njournal_buckets);
 		l = m;
 
@@ -283,11 +283,11 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 	 * journal.pin should never fill up - we never write a journal
 	 * entry when it would fill up. But if for some reason it does, we
 	 * iterate over the list in reverse order so that we can just skip that
-	 * refcount instead of bugging.
+	 * refcount instead of ging.
 	 */
 
 	list_for_each_entry_reverse(i, list, list) {
-		BUG_ON(last < i->j.seq);
+		_ON(last < i->j.seq);
 		i->pin = NULL;
 
 		while (last-- != i->j.seq)
@@ -328,7 +328,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 	struct keylist keylist;
 
 	list_for_each_entry(i, list, list) {
-		BUG_ON(i->pin && atomic_read(i->pin) != 1);
+		_ON(i->pin && atomic_read(i->pin) != 1);
 
 		cache_set_err_on(n != i->j.seq, s,
 "bcache: journal entries %llu-%llu missing! (replaying %llu-%llu)",
@@ -345,7 +345,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 			if (ret)
 				goto err;
 
-			BUG_ON(!bch_keylist_empty(&keylist));
+			_ON(!bch_keylist_empty(&keylist));
 			keys++;
 
 			cond_resched();
@@ -562,7 +562,7 @@ void bch_journal_next(struct journal *j)
 	 * The fifo_push() needs to happen at the same time as j->seq is
 	 * incremented for last_seq() to be calculated correctly
 	 */
-	BUG_ON(!fifo_push(&j->pin, p));
+	_ON(!fifo_push(&j->pin, p));
 	atomic_set(&fifo_back(&j->pin), 1);
 
 	j->cur->data->seq	= ++j->seq;
@@ -571,7 +571,7 @@ void bch_journal_next(struct journal *j)
 	j->cur->data->keys	= 0;
 
 	if (fifo_full(&j->pin))
-		pr_debug("journal_pin full (%zu)", fifo_used(&j->pin));
+		pr_de("journal_pin full (%zu)", fifo_used(&j->pin));
 }
 
 static void journal_write_endio(struct bio *bio)
@@ -671,7 +671,7 @@ static void journal_write_unlocked(struct closure *cl)
 		ca->journal.seq[ca->journal.cur_idx] = w->data->seq;
 	}
 
-	atomic_dec_bug(&fifo_back(&c->journal.pin));
+	atomic_dec_(&fifo_back(&c->journal.pin));
 	bch_journal_next(&c->journal);
 	journal_reclaim(c);
 
@@ -743,7 +743,7 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 			 * deadlock. For now, handle this in
 			 * bch_keylist_realloc() - but something to think about.
 			 */
-			BUG_ON(!w->data->keys);
+			_ON(!w->data->keys);
 
 			journal_try_write(c); /* unlocks */
 		} else {
@@ -823,7 +823,7 @@ void bch_journal_meta(struct cache_set *c, struct closure *cl)
 
 	ref = bch_journal(c, &keys, cl);
 	if (ref)
-		atomic_dec_bug(ref);
+		atomic_dec_(ref);
 }
 
 void bch_journal_free(struct cache_set *c)

@@ -26,7 +26,7 @@ across the sample scripts.  Usage example is printed on errors::
   -n : ($COUNT)     num messages to send per thread, 0 means indefinitely
   -b : ($BURST)     HW level bursting of SKBs
   -v : ($VERBOSE)   verbose
-  -x : ($DEBUG)     debug
+  -x : ($DE)     de
 
 The global variable being set is also listed.  E.g. the required
 interface/device parameter "-i" sets variable $DEV.

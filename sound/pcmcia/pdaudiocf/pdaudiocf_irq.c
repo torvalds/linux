@@ -270,7 +270,7 @@ irqreturn_t pdacf_threaded_irq(int irq, void *dev)
 
 	rdp = inw(chip->port + PDAUDIOCF_REG_RDP);
 	wdp = inw(chip->port + PDAUDIOCF_REG_WDP);
-	/* printk(KERN_DEBUG "TASKLET: rdp = %x, wdp = %x\n", rdp, wdp); */
+	/* printk(KERN_DE "TASKLET: rdp = %x, wdp = %x\n", rdp, wdp); */
 	size = wdp - rdp;
 	if (size < 0)
 		size += 0x10000;

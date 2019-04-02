@@ -110,9 +110,9 @@ void
 xfs_da_state_free(xfs_da_state_t *state)
 {
 	xfs_da_state_kill_altpath(state);
-#ifdef DEBUG
+#ifdef DE
 	memset((char *)state, 0, sizeof(*state));
-#endif /* DEBUG */
+#endif /* DE */
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
@@ -647,7 +647,7 @@ xfs_da3_root_split(
 	nodehdr.count = 2;
 	dp->d_ops->node_hdr_to_disk(node, &nodehdr);
 
-#ifdef DEBUG
+#ifdef DE
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
 		ASSERT(blk1->blkno >= args->geo->leafblk &&
@@ -1047,7 +1047,7 @@ xfs_da3_join(
 	return error;
 }
 
-#ifdef	DEBUG
+#ifdef	DE
 static void
 xfs_da_blkinfo_onlychild_validate(struct xfs_da_blkinfo *blkinfo, __u16 level)
 {
@@ -1065,9 +1065,9 @@ xfs_da_blkinfo_onlychild_validate(struct xfs_da_blkinfo *blkinfo, __u16 level)
 	ASSERT(!blkinfo->forw);
 	ASSERT(!blkinfo->back);
 }
-#else	/* !DEBUG */
+#else	/* !DE */
 #define	xfs_da_blkinfo_onlychild_validate(blkinfo, level)
-#endif	/* !DEBUG */
+#endif	/* !DE */
 
 /*
  * We have only one entry in the root.  Copy the only remaining child of

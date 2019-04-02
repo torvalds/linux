@@ -2689,8 +2689,8 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 			tmp = p->rdev->config.evergreen.tile_config;
 			track->reg_safe_bm = evergreen_reg_safe_bm;
 		}
-		BUILD_BUG_ON(ARRAY_SIZE(cayman_reg_safe_bm) != REG_SAFE_BM_SIZE);
-		BUILD_BUG_ON(ARRAY_SIZE(evergreen_reg_safe_bm) != REG_SAFE_BM_SIZE);
+		BUILD__ON(ARRAY_SIZE(cayman_reg_safe_bm) != REG_SAFE_BM_SIZE);
+		BUILD__ON(ARRAY_SIZE(evergreen_reg_safe_bm) != REG_SAFE_BM_SIZE);
 		switch (tmp & 0xf) {
 		case 0:
 			track->npipes = 1;
@@ -3269,10 +3269,10 @@ static bool evergreen_vm_reg_valid(u32 reg)
 	case SPI_CONFIG_CNTL:
 	case SPI_CONFIG_CNTL_1:
 	case TA_CNTL_AUX:
-	case DB_DEBUG:
-	case DB_DEBUG2:
-	case DB_DEBUG3:
-	case DB_DEBUG4:
+	case DB_DE:
+	case DB_DE2:
+	case DB_DE3:
+	case DB_DE4:
 	case DB_WATERMARKS:
 	case TD_PS_BORDER_COLOR_INDEX:
 	case TD_PS_BORDER_COLOR_RED:

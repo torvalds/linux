@@ -41,7 +41,7 @@
 #define TASK_UNMAPPED_BASE	(current->thread.map_base)
 
 #define IA64_THREAD_FPH_VALID	(__IA64_UL(1) << 0)	/* floating-point high state valid? */
-#define IA64_THREAD_DBG_VALID	(__IA64_UL(1) << 1)	/* debug registers valid? */
+#define IA64_THREAD_DBG_VALID	(__IA64_UL(1) << 1)	/* de registers valid? */
 #define IA64_THREAD_PM_VALID	(__IA64_UL(1) << 2)	/* performance registers valid? */
 #define IA64_THREAD_UAC_NOPRINT	(__IA64_UL(1) << 3)	/* don't log unaligned accesses */
 #define IA64_THREAD_UAC_SIGBUS	(__IA64_UL(1) << 4)	/* generate SIGBUS on unaligned acc. */
@@ -184,7 +184,7 @@ union  ia64_rr {
 };
 
 /*
- * CPU type, hardware bug flags, and per-CPU state.  Frequently used
+ * CPU type, hardware  flags, and per-CPU state.  Frequently used
  * state comes earlier:
  */
 struct cpuinfo_ia64 {
@@ -420,8 +420,8 @@ extern void ia64_setreg_unknown_kr (void);
 extern void __ia64_init_fpu (void);
 extern void __ia64_save_fpu (struct ia64_fpreg *fph);
 extern void __ia64_load_fpu (struct ia64_fpreg *fph);
-extern void ia64_save_debug_regs (unsigned long *save_area);
-extern void ia64_load_debug_regs (unsigned long *save_area);
+extern void ia64_save_de_regs (unsigned long *save_area);
+extern void ia64_load_de_regs (unsigned long *save_area);
 
 #define ia64_fph_enable()	do { ia64_rsm(IA64_PSR_DFH); ia64_srlz_d(); } while (0)
 #define ia64_fph_disable()	do { ia64_ssm(IA64_PSR_DFH); ia64_srlz_d(); } while (0)

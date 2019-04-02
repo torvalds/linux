@@ -5,7 +5,7 @@
  * Copyright (C) 2017 Cogent Embedded Inc.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 
 #include <dt-bindings/power/r8a77970-sysc.h>

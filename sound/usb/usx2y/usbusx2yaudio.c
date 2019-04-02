@@ -46,7 +46,7 @@
 					  1 to 4 have been tested ok on uhci.
 					  To use 3 on ohci, you'd need a patch:
 					  look for "0000425-linux-2.6.9-rc4-mm1_ohci-hcd.patch.gz" on
-					  "https://bugtrack.alsa-project.org/alsa-bug/bug_view_page.php?bug_id=0000425"
+					  "https://track.alsa-project.org/alsa-/_view_page.php?_id=0000425"
 					  .
 					  1, 2 and 4 work out of the box on ohci, if I recall correctly.
 					  Bigger is safer operation,

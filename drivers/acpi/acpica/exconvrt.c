@@ -146,7 +146,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "Converted value: %8.8X%8.8X\n",
 			  ACPI_FORMAT_UINT64(result)));
 
 	/* Save the Result */
@@ -604,7 +604,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			/* No conversion allowed for these types */
 
 			if (destination_type != source_desc->common.type) {
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 						  "Explicit operator, will store (%s) over existing type (%s)\n",
 						  acpi_ut_get_object_type_name
 						  (source_desc),

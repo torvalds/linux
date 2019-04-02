@@ -20,13 +20,13 @@
  * included with this package.                                     *
  *******************************************************************/
 
-#ifndef _H_LPFC_DEBUG_FS
-#define _H_LPFC_DEBUG_FS
+#ifndef _H_LPFC_DE_FS
+#define _H_LPFC_DE_FS
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 
 /* size of output line, for discovery_trace and slow_ring_trace */
-#define LPFC_DEBUG_TRC_ENTRY_SIZE 100
+#define LPFC_DE_TRC_ENTRY_SIZE 100
 
 /* nodelist output buffer size */
 #define LPFC_NODELIST_SIZE 8192
@@ -53,10 +53,10 @@
 /* scsistat output buffer size */
 #define LPFC_SCSISTAT_SIZE 8192
 
-#define LPFC_DEBUG_OUT_LINE_SZ	80
+#define LPFC_DE_OUT_LINE_SZ	80
 
 /*
- * For SLI4 iDiag debugfs diagnostics tool
+ * For SLI4 iDiag defs diagnostics tool
  */
 
 /* pciConf */
@@ -205,10 +205,10 @@
 #define lpfc_nvmeio_data(phba, fmt, arg...) \
 	{ \
 	if (phba->nvmeio_trc_on) \
-		lpfc_debugfs_nvme_trc(phba, fmt, ##arg); \
+		lpfc_defs_nvme_trc(phba, fmt, ##arg); \
 	}
 
-struct lpfc_debug {
+struct lpfc_de {
 	char *i_private;
 	char op;
 #define LPFC_IDIAG_OP_RD 1
@@ -217,7 +217,7 @@ struct lpfc_debug {
 	int  len;
 };
 
-struct lpfc_debugfs_trc {
+struct lpfc_defs_trc {
 	char *fmt;
 	uint32_t data1;
 	uint32_t data2;
@@ -226,7 +226,7 @@ struct lpfc_debugfs_trc {
 	unsigned long jif;
 };
 
-struct lpfc_debugfs_nvmeio_trc {
+struct lpfc_defs_nvmeio_trc {
 	char *fmt;
 	uint16_t data1;
 	uint16_t data2;
@@ -313,17 +313,17 @@ enum {
 
 #define LPFC_DISC_TRC_DISCOVERY		0xef    /* common mask for general
 						 * discovery */
-#endif /* H_LPFC_DEBUG_FS */
+#endif /* H_LPFC_DE_FS */
 
 
 /*
- * Driver debug utility routines outside of debugfs. The debug utility
+ * Driver de utility routines outside of defs. The de utility
  * routines implemented here is intended to be used in the instrumented
- * debug driver for debugging host or port issues.
+ * de driver for deging host or port issues.
  */
 
 /**
- * lpfc_debug_dump_qe - dump an specific entry from a queue
+ * lpfc_de_dump_qe - dump an specific entry from a queue
  * @q: Pointer to the queue descriptor.
  * @idx: Index to the entry on the queue.
  *
@@ -331,7 +331,7 @@ enum {
  * queue descriptor @q.
  **/
 static inline void
-lpfc_debug_dump_qe(struct lpfc_queue *q, uint32_t idx)
+lpfc_de_dump_qe(struct lpfc_queue *q, uint32_t idx)
 {
 	char line_buf[LPFC_LBUF_SZ];
 	int i, esize, qe_word_cnt, len;
@@ -372,14 +372,14 @@ lpfc_debug_dump_qe(struct lpfc_queue *q, uint32_t idx)
 }
 
 /**
- * lpfc_debug_dump_q - dump all entries from an specific queue
+ * lpfc_de_dump_q - dump all entries from an specific queue
  * @q: Pointer to the queue descriptor.
  *
  * This function dumps all entries from a queue specified by the queue
  * descriptor @q.
  **/
 static inline void
-lpfc_debug_dump_q(struct lpfc_queue *q)
+lpfc_de_dump_q(struct lpfc_queue *q)
 {
 	int idx, entry_count;
 
@@ -397,12 +397,12 @@ lpfc_debug_dump_q(struct lpfc_queue *q)
 		q->host_index, q->hba_index);
 	entry_count = q->entry_count;
 	for (idx = 0; idx < entry_count; idx++)
-		lpfc_debug_dump_qe(q, idx);
+		lpfc_de_dump_qe(q, idx);
 	printk(KERN_ERR "\n");
 }
 
 /**
- * lpfc_debug_dump_wq - dump all entries from the fcp or nvme work queue
+ * lpfc_de_dump_wq - dump all entries from the fcp or nvme work queue
  * @phba: Pointer to HBA context object.
  * @wqidx: Index to a FCP or NVME work queue.
  *
@@ -410,7 +410,7 @@ lpfc_debug_dump_q(struct lpfc_queue *q)
  * by the wqidx.
  **/
 static inline void
-lpfc_debug_dump_wq(struct lpfc_hba *phba, int qtype, int wqidx)
+lpfc_de_dump_wq(struct lpfc_hba *phba, int qtype, int wqidx)
 {
 	struct lpfc_queue *wq;
 	char *qtypestr;
@@ -440,11 +440,11 @@ lpfc_debug_dump_wq(struct lpfc_hba *phba, int qtype, int wqidx)
 		pr_err("%s WQ: WQ[Qid:%d]\n",
 			qtypestr, wq->queue_id);
 
-	lpfc_debug_dump_q(wq);
+	lpfc_de_dump_q(wq);
 }
 
 /**
- * lpfc_debug_dump_cq - dump all entries from a fcp or nvme work queue's
+ * lpfc_de_dump_cq - dump all entries from a fcp or nvme work queue's
  * cmpl queue
  * @phba: Pointer to HBA context object.
  * @wqidx: Index to a FCP work queue.
@@ -453,7 +453,7 @@ lpfc_debug_dump_wq(struct lpfc_hba *phba, int qtype, int wqidx)
  * which is associated to the work queue specified by the @wqidx.
  **/
 static inline void
-lpfc_debug_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
+lpfc_de_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
 {
 	struct lpfc_queue *wq, *cq, *eq;
 	char *qtypestr;
@@ -507,11 +507,11 @@ lpfc_debug_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
 			qtypestr, wq->queue_id, cq->queue_id,
 			eqidx, eq->queue_id);
 
-	lpfc_debug_dump_q(cq);
+	lpfc_de_dump_q(cq);
 }
 
 /**
- * lpfc_debug_dump_hba_eq - dump all entries from a fcp work queue's evt queue
+ * lpfc_de_dump_hba_eq - dump all entries from a fcp work queue's evt queue
  * @phba: Pointer to HBA context object.
  * @fcp_wqidx: Index to a FCP work queue.
  *
@@ -519,7 +519,7 @@ lpfc_debug_dump_cq(struct lpfc_hba *phba, int qtype, int wqidx)
  * associated to the FCP work queue specified by the @fcp_wqidx.
  **/
 static inline void
-lpfc_debug_dump_hba_eq(struct lpfc_hba *phba, int qidx)
+lpfc_de_dump_hba_eq(struct lpfc_hba *phba, int qidx)
 {
 	struct lpfc_queue *qp;
 
@@ -527,39 +527,39 @@ lpfc_debug_dump_hba_eq(struct lpfc_hba *phba, int qidx)
 
 	pr_err("EQ[Idx:%d|Qid:%d]\n", qidx, qp->queue_id);
 
-	lpfc_debug_dump_q(qp);
+	lpfc_de_dump_q(qp);
 }
 
 /**
- * lpfc_debug_dump_dat_rq - dump all entries from the receive data queue
+ * lpfc_de_dump_dat_rq - dump all entries from the receive data queue
  * @phba: Pointer to HBA context object.
  *
  * This function dumps all entries from the receive data queue.
  **/
 static inline void
-lpfc_debug_dump_dat_rq(struct lpfc_hba *phba)
+lpfc_de_dump_dat_rq(struct lpfc_hba *phba)
 {
 	printk(KERN_ERR "DAT RQ: RQ[Qid:%d]\n",
 		phba->sli4_hba.dat_rq->queue_id);
-	lpfc_debug_dump_q(phba->sli4_hba.dat_rq);
+	lpfc_de_dump_q(phba->sli4_hba.dat_rq);
 }
 
 /**
- * lpfc_debug_dump_hdr_rq - dump all entries from the receive header queue
+ * lpfc_de_dump_hdr_rq - dump all entries from the receive header queue
  * @phba: Pointer to HBA context object.
  *
  * This function dumps all entries from the receive header queue.
  **/
 static inline void
-lpfc_debug_dump_hdr_rq(struct lpfc_hba *phba)
+lpfc_de_dump_hdr_rq(struct lpfc_hba *phba)
 {
 	printk(KERN_ERR "HDR RQ: RQ[Qid:%d]\n",
 		phba->sli4_hba.hdr_rq->queue_id);
-	lpfc_debug_dump_q(phba->sli4_hba.hdr_rq);
+	lpfc_de_dump_q(phba->sli4_hba.hdr_rq);
 }
 
 /**
- * lpfc_debug_dump_wq_by_id - dump all entries from a work queue by queue id
+ * lpfc_de_dump_wq_by_id - dump all entries from a work queue by queue id
  * @phba: Pointer to HBA context object.
  * @qid: Work queue identifier.
  *
@@ -567,7 +567,7 @@ lpfc_debug_dump_hdr_rq(struct lpfc_hba *phba)
  * identifier.
  **/
 static inline void
-lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
+lpfc_de_dump_wq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int wq_idx;
 
@@ -576,7 +576,7 @@ lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
 			break;
 	if (wq_idx < phba->cfg_hdw_queue) {
 		pr_err("FCP WQ[Idx:%d|Qid:%d]\n", wq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hdwq[wq_idx].fcp_wq);
+		lpfc_de_dump_q(phba->sli4_hba.hdwq[wq_idx].fcp_wq);
 		return;
 	}
 
@@ -585,24 +585,24 @@ lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
 			break;
 	if (wq_idx < phba->cfg_hdw_queue) {
 		pr_err("NVME WQ[Idx:%d|Qid:%d]\n", wq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hdwq[wq_idx].nvme_wq);
+		lpfc_de_dump_q(phba->sli4_hba.hdwq[wq_idx].nvme_wq);
 		return;
 	}
 
 	if (phba->sli4_hba.els_wq->queue_id == qid) {
 		pr_err("ELS WQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.els_wq);
+		lpfc_de_dump_q(phba->sli4_hba.els_wq);
 		return;
 	}
 
 	if (phba->sli4_hba.nvmels_wq->queue_id == qid) {
 		pr_err("NVME LS WQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.nvmels_wq);
+		lpfc_de_dump_q(phba->sli4_hba.nvmels_wq);
 	}
 }
 
 /**
- * lpfc_debug_dump_mq_by_id - dump all entries from a mbox queue by queue id
+ * lpfc_de_dump_mq_by_id - dump all entries from a mbox queue by queue id
  * @phba: Pointer to HBA context object.
  * @qid: Mbox work queue identifier.
  *
@@ -610,16 +610,16 @@ lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
  * queue identifier.
  **/
 static inline void
-lpfc_debug_dump_mq_by_id(struct lpfc_hba *phba, int qid)
+lpfc_de_dump_mq_by_id(struct lpfc_hba *phba, int qid)
 {
 	if (phba->sli4_hba.mbx_wq->queue_id == qid) {
 		printk(KERN_ERR "MBX WQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.mbx_wq);
+		lpfc_de_dump_q(phba->sli4_hba.mbx_wq);
 	}
 }
 
 /**
- * lpfc_debug_dump_rq_by_id - dump all entries from a receive queue by queue id
+ * lpfc_de_dump_rq_by_id - dump all entries from a receive queue by queue id
  * @phba: Pointer to HBA context object.
  * @qid: Receive queue identifier.
  *
@@ -627,21 +627,21 @@ lpfc_debug_dump_mq_by_id(struct lpfc_hba *phba, int qid)
  * queue identifier.
  **/
 static inline void
-lpfc_debug_dump_rq_by_id(struct lpfc_hba *phba, int qid)
+lpfc_de_dump_rq_by_id(struct lpfc_hba *phba, int qid)
 {
 	if (phba->sli4_hba.hdr_rq->queue_id == qid) {
 		printk(KERN_ERR "HDR RQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hdr_rq);
+		lpfc_de_dump_q(phba->sli4_hba.hdr_rq);
 		return;
 	}
 	if (phba->sli4_hba.dat_rq->queue_id == qid) {
 		printk(KERN_ERR "DAT RQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.dat_rq);
+		lpfc_de_dump_q(phba->sli4_hba.dat_rq);
 	}
 }
 
 /**
- * lpfc_debug_dump_cq_by_id - dump all entries from a cmpl queue by queue id
+ * lpfc_de_dump_cq_by_id - dump all entries from a cmpl queue by queue id
  * @phba: Pointer to HBA context object.
  * @qid: Complete queue identifier.
  *
@@ -649,7 +649,7 @@ lpfc_debug_dump_rq_by_id(struct lpfc_hba *phba, int qid)
  * queue identifier.
  **/
 static inline void
-lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
+lpfc_de_dump_cq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int cq_idx;
 
@@ -659,7 +659,7 @@ lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
 
 	if (cq_idx < phba->cfg_hdw_queue) {
 		pr_err("FCP CQ[Idx:%d|Qid:%d]\n", cq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hdwq[cq_idx].fcp_cq);
+		lpfc_de_dump_q(phba->sli4_hba.hdwq[cq_idx].fcp_cq);
 		return;
 	}
 
@@ -669,30 +669,30 @@ lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
 
 	if (cq_idx < phba->cfg_hdw_queue) {
 		pr_err("NVME CQ[Idx:%d|Qid:%d]\n", cq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hdwq[cq_idx].nvme_cq);
+		lpfc_de_dump_q(phba->sli4_hba.hdwq[cq_idx].nvme_cq);
 		return;
 	}
 
 	if (phba->sli4_hba.els_cq->queue_id == qid) {
 		pr_err("ELS CQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.els_cq);
+		lpfc_de_dump_q(phba->sli4_hba.els_cq);
 		return;
 	}
 
 	if (phba->sli4_hba.nvmels_cq->queue_id == qid) {
 		pr_err("NVME LS CQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.nvmels_cq);
+		lpfc_de_dump_q(phba->sli4_hba.nvmels_cq);
 		return;
 	}
 
 	if (phba->sli4_hba.mbx_cq->queue_id == qid) {
 		pr_err("MBX CQ[Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.mbx_cq);
+		lpfc_de_dump_q(phba->sli4_hba.mbx_cq);
 	}
 }
 
 /**
- * lpfc_debug_dump_eq_by_id - dump all entries from an event queue by queue id
+ * lpfc_de_dump_eq_by_id - dump all entries from an event queue by queue id
  * @phba: Pointer to HBA context object.
  * @qid: Complete queue identifier.
  *
@@ -700,7 +700,7 @@ lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
  * queue identifier.
  **/
 static inline void
-lpfc_debug_dump_eq_by_id(struct lpfc_hba *phba, int qid)
+lpfc_de_dump_eq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int eq_idx;
 
@@ -710,9 +710,9 @@ lpfc_debug_dump_eq_by_id(struct lpfc_hba *phba, int qid)
 
 	if (eq_idx < phba->cfg_hdw_queue) {
 		printk(KERN_ERR "FCP EQ[Idx:%d|Qid:%d]\n", eq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.hdwq[eq_idx].hba_eq);
+		lpfc_de_dump_q(phba->sli4_hba.hdwq[eq_idx].hba_eq);
 		return;
 	}
 }
 
-void lpfc_debug_dump_all_queues(struct lpfc_hba *);
+void lpfc_de_dump_all_queues(struct lpfc_hba *);

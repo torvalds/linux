@@ -9,19 +9,19 @@
 #ifndef __MATROXFB_H__
 #define __MATROXFB_H__
 
-/* general, but fairly heavy, debugging */
-#undef MATROXFB_DEBUG
+/* general, but fairly heavy, deging */
+#undef MATROXFB_DE
 
-/* heavy debugging: */
+/* heavy deging: */
 /* -- logs putc[s], so every time a char is displayed, it's logged */
-#undef MATROXFB_DEBUG_HEAVY
+#undef MATROXFB_DE_HEAVY
 
 /* This one _could_ cause infinite loops */
 /* It _does_ cause lots and lots of messages during idle loops */
-#undef MATROXFB_DEBUG_LOOP
+#undef MATROXFB_DE_LOOP
 
-/* Debug register calls, too? */
-#undef MATROXFB_DEBUG_REG
+/* De register calls, too? */
+#undef MATROXFB_DE_REG
 
 /* Guard accelerator accesses with spin_lock_irqsave... */
 #undef MATROXFB_USE_SPINLOCKS
@@ -51,39 +51,39 @@
 #include "../macmodes.h"
 #endif
 
-#ifdef MATROXFB_DEBUG
+#ifdef MATROXFB_DE
 
-#define DEBUG
-#define DBG(x)		printk(KERN_DEBUG "matroxfb: %s\n", (x));
+#define DE
+#define DBG(x)		printk(KERN_DE "matroxfb: %s\n", (x));
 
-#ifdef MATROXFB_DEBUG_HEAVY
+#ifdef MATROXFB_DE_HEAVY
 #define DBG_HEAVY(x)	DBG(x)
-#else /* MATROXFB_DEBUG_HEAVY */
+#else /* MATROXFB_DE_HEAVY */
 #define DBG_HEAVY(x)	/* DBG_HEAVY */
-#endif /* MATROXFB_DEBUG_HEAVY */
+#endif /* MATROXFB_DE_HEAVY */
 
-#ifdef MATROXFB_DEBUG_LOOP
+#ifdef MATROXFB_DE_LOOP
 #define DBG_LOOP(x)	DBG(x)
-#else /* MATROXFB_DEBUG_LOOP */
+#else /* MATROXFB_DE_LOOP */
 #define DBG_LOOP(x)	/* DBG_LOOP */
-#endif /* MATROXFB_DEBUG_LOOP */
+#endif /* MATROXFB_DE_LOOP */
 
-#ifdef MATROXFB_DEBUG_REG
+#ifdef MATROXFB_DE_REG
 #define DBG_REG(x)	DBG(x)
-#else /* MATROXFB_DEBUG_REG */
+#else /* MATROXFB_DE_REG */
 #define DBG_REG(x)	/* DBG_REG */
-#endif /* MATROXFB_DEBUG_REG */
+#endif /* MATROXFB_DE_REG */
 
-#else /* MATROXFB_DEBUG */
+#else /* MATROXFB_DE */
 
 #define DBG(x)		/* DBG */
 #define DBG_HEAVY(x)	/* DBG_HEAVY */
 #define DBG_REG(x)	/* DBG_REG */
 #define DBG_LOOP(x)	/* DBG_LOOP */
 
-#endif /* MATROXFB_DEBUG */
+#endif /* MATROXFB_DE */
 
-#ifdef DEBUG
+#ifdef DE
 #define dprintk(X...)	printk(X)
 #else
 #define dprintk(X...)

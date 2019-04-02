@@ -135,7 +135,7 @@
 	- Do not call qla1280_check_for_dead_scsi_bus() on every I/O request
 	  sent to the card - this command pauses the firmware!!!
     Rev  3.23.15 Beta March 19, 2002, Jes Sorensen
-	- Clean up qla1280.h - remove obsolete QL_DEBUG_LEVEL_x definitions
+	- Clean up qla1280.h - remove obsolete QL_DE_LEVEL_x definitions
 	- Remove a pile of pointless and confusing (srb_t **) and
 	  (scsi_lu_t *) typecasts
 	- Explicit mark that we do not use the new error handling (for now)
@@ -148,14 +148,14 @@
 	- Enable interrupts early (before any mailbox access) in preparation
 	  for cleaning up the mailbox handling
     Rev  3.23.14 Beta March 14, 2002, Jes Sorensen
-	- Further cleanups. Remove all trace of QL_DEBUG_LEVEL_x and replace
+	- Further cleanups. Remove all trace of QL_DE_LEVEL_x and replace
 	  it with proper use of dprintk().
 	- Make qla1280_print_scsi_cmd() and qla1280_dump_buffer() both take
-	  a debug level argument to determine if data is to be printed
+	  a de level argument to determine if data is to be printed
 	- Add KERN_* info to printk()
     Rev  3.23.13 Beta March 14, 2002, Jes Sorensen
 	- Significant cosmetic cleanups
-	- Change debug code to use dprintk() and remove #if mess
+	- Change de code to use dprintk() and remove #if mess
     Rev  3.23.12 Beta March 13, 2002, Jes Sorensen
 	- More cosmetic cleanups, fix places treating return as function
 	- use cpu_relax() in qla1280_debounce_register()
@@ -176,8 +176,8 @@
 	- Only compile module parsing code #ifdef MODULE - should be
 	  changed to use individual MODULE_PARM's later
 	- Remove dummy_buffer that was never modified nor printed
-	- ENTER()/LEAVE() are noops unless QL_DEBUG_LEVEL_3, hence remove
-	  #ifdef QL_DEBUG_LEVEL_3/#endif around ENTER()/LEAVE() calls
+	- ENTER()/LEAVE() are noops unless QL_DE_LEVEL_3, hence remove
+	  #ifdef QL_DE_LEVEL_3/#endif around ENTER()/LEAVE() calls
 	- Remove \r from print statements, this is Linux, not DOS
 	- Remove obsolete QLA1280_{SCSILU,INTR,RING}_{LOCK,UNLOCK}
 	  dummy macros
@@ -220,7 +220,7 @@
         - clean up 64 bit DMA setting to use 2.4 API (provide backwards compat)
         - Fix MMIO access to use readl/writel instead of directly
           dereferencing pointers
-        - Nuke MSDOS debugging code
+        - Nuke MSDOS deging code
         - Change true/false data types to int from uint8_t
         - Use int for counters instead of uint8_t etc.
         - Clean up size & byte order conversion macro usage
@@ -287,7 +287,7 @@
     Rev. 3.10    June 23, 2000   BN Qlogic
         - Added filtering of AMI SubSys Vendor ID devices
     Rev. 3.9
-        - DEBUG_QLA1280 undefined and  new version  BN Qlogic
+        - DE_QLA1280 undefined and  new version  BN Qlogic
     Rev. 3.08b      May 9, 2000    MD Dell
         - Added logic to check against AMI subsystem vendor ID
 	Rev. 3.08       May 4, 2000    DG  Qlogic
@@ -375,9 +375,9 @@
  * Compile time Options:
  *            0 - Disable and 1 - Enable
  */
-#define  DEBUG_QLA1280_INTR	0
-#define  DEBUG_PRINT_NVRAM	0
-#define  DEBUG_QLA1280		0
+#define  DE_QLA1280_INTR	0
+#define  DE_PRINT_NVRAM	0
+#define  DE_QLA1280		0
 
 #define	MEMORY_MAPPED_IO	1
 
@@ -466,7 +466,7 @@ qla1280_data_direction(struct scsi_cmnd *cmnd)
 	case DMA_BIDIRECTIONAL:
 		return BIT_5 | BIT_6;
 	/*
-	 * We could BUG() on default here if one of the four cases aren't
+	 * We could () on default here if one of the four cases aren't
 	 * met, but then again if we receive something like that from the
 	 * SCSI layer we have more serious problems. This shuts up GCC.
 	 */
@@ -476,7 +476,7 @@ qla1280_data_direction(struct scsi_cmnd *cmnd)
 	}
 }
 		
-#if DEBUG_QLA1280
+#if DE_QLA1280
 static void __qla1280_print_scsi_cmd(struct scsi_cmnd * cmd);
 static void __qla1280_dump_buffer(char *, int);
 #endif
@@ -572,16 +572,16 @@ static struct qla_boards ql1280_board_tbl[] = {
 
 static int qla1280_verbose = 1;
 
-#if DEBUG_QLA1280
-static int ql_debug_level = 1;
+#if DE_QLA1280
+static int ql_de_level = 1;
 #define dprintk(level, format, a...)	\
-	do { if (ql_debug_level >= level) printk(KERN_ERR format, ##a); } while(0)
+	do { if (ql_de_level >= level) printk(KERN_ERR format, ##a); } while(0)
 #define qla1280_dump_buffer(level, buf, size)	\
-	if (ql_debug_level >= level) __qla1280_dump_buffer(buf, size)
+	if (ql_de_level >= level) __qla1280_dump_buffer(buf, size)
 #define qla1280_print_scsi_cmd(level, cmd)	\
-	if (ql_debug_level >= level) __qla1280_print_scsi_cmd(cmd)
+	if (ql_de_level >= level) __qla1280_print_scsi_cmd(cmd)
 #else
-#define ql_debug_level			0
+#define ql_de_level			0
 #define dprintk(level, format, a...)	do{}while(0)
 #define qla1280_dump_buffer(a, b, c)	do{}while(0)
 #define qla1280_print_scsi_cmd(a, b)	do{}while(0)
@@ -1315,7 +1315,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 	uint16_t state_flags = le16_to_cpu(sts->state_flags);
 	uint32_t residual_length = le32_to_cpu(sts->residual_length);
 	uint16_t scsi_status = le16_to_cpu(sts->scsi_status);
-#if DEBUG_QLA1280_INTR
+#if DE_QLA1280_INTR
 	static char *reason[] = {
 		"DID_OK",
 		"DID_NO_CONNECT",
@@ -1328,11 +1328,11 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 		"DID_RESET",
 		"DID_BAD_INTR"
 	};
-#endif				/* DEBUG_QLA1280_INTR */
+#endif				/* DE_QLA1280_INTR */
 
 	ENTER("qla1280_return_status");
 
-#if DEBUG_QLA1280_INTR
+#if DE_QLA1280_INTR
 	/*
 	  dprintk(1, "qla1280_return_status: compl status = 0x%04x\n",
 	  comp_status);
@@ -1396,7 +1396,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
 		break;
 	}
 
-#if DEBUG_QLA1280_INTR
+#if DE_QLA1280_INTR
 	dprintk(1, "qla1280 ISP status: host status (%s) scsi status %x\n",
 		reason[host_status], scsi_status);
 #endif
@@ -1726,7 +1726,7 @@ qla1280_load_firmware_pio(struct scsi_qla_host *ha)
 	return err;
 }
 
-#define DUMP_IT_BACK 0		/* for debug of RISC loading */
+#define DUMP_IT_BACK 0		/* for de of RISC loading */
 static int
 qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 {
@@ -3486,7 +3486,7 @@ qla1280_isr(struct scsi_qla_host *ha, struct list_head *done_q)
 			index = mailbox[6] & BIT_0;
 			ha->bus_settings[index].reset_marker = 1;
 
-			printk(KERN_DEBUG "qla1280_isr(): index %i "
+			printk(KERN_DE "qla1280_isr(): index %i "
 			       "asynchronous BUS_RESET\n", index);
 			break;
 
@@ -3982,16 +3982,16 @@ qla1280_get_target_parameters(struct scsi_qla_host *ha,
 }
 
 
-#if DEBUG_QLA1280
+#if DE_QLA1280
 static void
 __qla1280_dump_buffer(char *b, int size)
 {
 	int cnt;
 	u8 c;
 
-	printk(KERN_DEBUG " 0   1   2   3   4   5   6   7   8   9   Ah  "
+	printk(KERN_DE " 0   1   2   3   4   5   6   7   8   9   Ah  "
 	       "Bh  Ch  Dh  Eh  Fh\n");
-	printk(KERN_DEBUG "---------------------------------------------"
+	printk(KERN_DE "---------------------------------------------"
 	       "------------------\n");
 
 	for (cnt = 0; cnt < size;) {
@@ -4060,7 +4060,7 @@ ql1280_dump_device(struct scsi_qla_host *ha)
 	struct srb *sp;
 	int i;
 
-	printk(KERN_DEBUG "Outstanding Commands on controller:\n");
+	printk(KERN_DE "Outstanding Commands on controller:\n");
 
 	for (i = 0; i < MAX_OUTSTANDING_COMMANDS; i++) {
 		if ((sp = ha->outstanding_cmds[i]) == NULL)
@@ -4079,7 +4079,7 @@ enum tokens {
 	TOKEN_WIDE,
 	TOKEN_PPR,
 	TOKEN_VERBOSE,
-	TOKEN_DEBUG,
+	TOKEN_DE,
 };
 
 struct setup_tokens {
@@ -4094,7 +4094,7 @@ static struct setup_tokens setup_token[] __initdata =
 	{ "wide", TOKEN_WIDE },
 	{ "ppr", TOKEN_PPR },
 	{ "verbose", TOKEN_VERBOSE },
-	{ "debug", TOKEN_DEBUG },
+	{ "de", TOKEN_DE },
 };
 
 

@@ -88,7 +88,7 @@ int mpic_map_error_int(struct mpic *mpic, unsigned int virq, irq_hw_number_t  hw
 	     hw <= mpic->err_int_vecs[MPIC_MAX_ERR - 1])) {
 		WARN_ON(mpic->flags & MPIC_SECONDARY);
 
-		pr_debug("mpic: mapping as Error Interrupt\n");
+		pr_de("mpic: mapping as Error Interrupt\n");
 		irq_set_chip_data(virq, mpic);
 		irq_set_chip_and_handler(virq, &mpic->hc_err,
 					 handle_level_irq);

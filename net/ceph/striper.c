@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/math64.h>
 #include <linux/slab.h>
@@ -255,7 +255,7 @@ int ceph_extent_to_file(struct ceph_file_layout *l,
 		i++;
 	}
 
-	BUG_ON(i != *num_file_extents);
+	_ON(i != *num_file_extents);
 	return 0;
 }
 EXPORT_SYMBOL(ceph_extent_to_file);

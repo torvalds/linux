@@ -39,7 +39,7 @@ static int rtw_smart_ps = 2;
 module_param(rtw_ips_mode, int, 0644);
 MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
-static int rtw_debug = 1;
+static int rtw_de = 1;
 
 static int rtw_acm_method;/*  0:By SW 1:By HW. */
 
@@ -126,8 +126,8 @@ MODULE_PARM_DESC(rtw_80211d, "Enable 802.11d mechanism");
 static uint rtw_notch_filter = RTW_NOTCH_FILTER;
 module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
-module_param_named(debug, rtw_debug, int, 0444);
-MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
+module_param_named(de, rtw_de, int, 0444);
+MODULE_PARM_DESC(de, "Set de level (1-9) (default 1)");
 
 static bool rtw_monitor_enable;
 module_param_named(monitor_enable, rtw_monitor_enable, bool, 0444);
@@ -139,7 +139,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 {
 	struct registry_priv *registry_par = &padapter->registrypriv;
 
-	GlobalDebugLevel = rtw_debug;
+	GlobalDeLevel = rtw_de;
 
 	memcpy(registry_par->ssid.ssid, "ANY", 3);
 	registry_par->ssid.ssid_length = 3;

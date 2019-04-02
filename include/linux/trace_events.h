@@ -233,7 +233,7 @@ enum {
  *  FILTERED	  - The event has a filter attached
  *  CAP_ANY	  - Any user can enable for perf
  *  NO_SET_FILTER - Set when filter has error and is to be ignored
- *  IGNORE_ENABLE - For trace internal events, do not enable with debugfs file
+ *  IGNORE_ENABLE - For trace internal events, do not enable with defs file
  *  TRACEPOINT    - Event is a tracepoint
  *  KPROBE        - Event is a kprobe
  *  UPROBE        - Event is a uprobe

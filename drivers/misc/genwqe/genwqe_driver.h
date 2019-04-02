@@ -70,7 +70,7 @@ static inline void genwqe_hexdump(struct pci_dev *pci_dev,
 	scnprintf(prefix, sizeof(prefix), "%s %s: ",
 		  GENWQE_DEVNAME, pci_name(pci_dev));
 
-	print_hex_dump_debug(prefix, DUMP_PREFIX_OFFSET, 16, 1, buff,
+	print_hex_dump_de(prefix, DUMP_PREFIX_OFFSET, 16, 1, buff,
 			     size, true);
 }
 

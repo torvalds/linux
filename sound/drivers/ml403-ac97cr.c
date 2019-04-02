@@ -86,8 +86,8 @@ MODULE_PARM_DESC(enable, "Enable this ML403 AC97 Controller Reference.");
 /*#define CODEC_WRITE_CHECK_RAF*/ /* don't return after a write to a codec
 				   * register, while RAF bit is not set
 				   */
-/* Debug options for code which may be removed completely in a final version */
-#ifdef CONFIG_SND_DEBUG
+/* De options for code which may be removed completely in a final version */
+#ifdef CONFIG_SND_DE
 /*#define CODEC_STAT*/            /* turn on some minimal "statistics"
 				   * about codec register usage
 				   */
@@ -101,9 +101,9 @@ MODULE_PARM_DESC(enable, "Enable this ML403 AC97 Controller Reference.");
 /* Definition of a "level/facility dependent" printk(); may be removed
  * completely in a final version
  */
-#undef PDEBUG
-#ifdef CONFIG_SND_DEBUG
-/* "facilities" for PDEBUG */
+#undef PDE
+#ifdef CONFIG_SND_DE
+/* "facilities" for PDE */
 #define UNKNOWN       (1<<0)
 #define CODEC_SUCCESS (1<<1)
 #define CODEC_FAKE    (1<<2)
@@ -112,15 +112,15 @@ MODULE_PARM_DESC(enable, "Enable this ML403 AC97 Controller Reference.");
 #define WORK_INFO     (1<<5)
 #define WORK_FAILURE  (1<<6)
 
-#define PDEBUG_FACILITIES (UNKNOWN | INIT_FAILURE | WORK_FAILURE)
+#define PDE_FACILITIES (UNKNOWN | INIT_FAILURE | WORK_FAILURE)
 
-#define PDEBUG(fac, fmt, args...) do { \
-		if (fac & PDEBUG_FACILITIES) \
-			snd_printd(KERN_DEBUG SND_ML403_AC97CR_DRIVER ": " \
+#define PDE(fac, fmt, args...) do { \
+		if (fac & PDE_FACILITIES) \
+			snd_printd(KERN_DE SND_ML403_AC97CR_DRIVER ": " \
 				   fmt, ##args); \
 	} while (0)
 #else
-#define PDEBUG(fac, fmt, args...) /* nothing */
+#define PDE(fac, fmt, args...) /* nothing */
 #endif
 
 
@@ -285,7 +285,7 @@ static void lm4550_regfile_write_values_after_init(struct snd_ac97 *ac97)
 	for (i = 0; i < 64; i++)
 		if ((lm4550_regfile[i].flag & LM4550_REG_FAKEPROBE) &&
 		    (lm4550_regfile[i].value != lm4550_regfile[i].def)) {
-			PDEBUG(CODEC_FAKE, "lm4550_regfile_write_values_after_"
+			PDE(CODEC_FAKE, "lm4550_regfile_write_values_after_"
 			       "init(): reg=0x%x value=0x%x / %d is different "
 			       "from def=0x%x / %d\n",
 			       i, lm4550_regfile[i].value,
@@ -549,7 +549,7 @@ snd_ml403_ac97cr_pcm_playback_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		PDEBUG(WORK_INFO, "trigger(playback): START\n");
+		PDE(WORK_INFO, "trigger(playback): START\n");
 		ml403_ac97cr->ind_rec.hw_ready = 1;
 
 		/* clear play FIFO */
@@ -560,7 +560,7 @@ snd_ml403_ac97cr_pcm_playback_trigger(struct snd_pcm_substream *substream,
 		enable_irq(ml403_ac97cr->irq);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		PDEBUG(WORK_INFO, "trigger(playback): STOP\n");
+		PDE(WORK_INFO, "trigger(playback): STOP\n");
 		ml403_ac97cr->ind_rec.hw_ready = 0;
 #ifdef SND_PCM_INDIRECT2_STAT
 		snd_pcm_indirect2_stat(substream, &ml403_ac97cr->ind_rec);
@@ -573,7 +573,7 @@ snd_ml403_ac97cr_pcm_playback_trigger(struct snd_pcm_substream *substream,
 		err = -EINVAL;
 		break;
 	}
-	PDEBUG(WORK_INFO, "trigger(playback): (done)\n");
+	PDE(WORK_INFO, "trigger(playback): (done)\n");
 	return err;
 }
 
@@ -588,7 +588,7 @@ snd_ml403_ac97cr_pcm_capture_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		PDEBUG(WORK_INFO, "trigger(capture): START\n");
+		PDE(WORK_INFO, "trigger(capture): START\n");
 		ml403_ac97cr->capture_ind2_rec.hw_ready = 0;
 
 		/* clear record FIFO */
@@ -599,7 +599,7 @@ snd_ml403_ac97cr_pcm_capture_trigger(struct snd_pcm_substream *substream,
 		enable_irq(ml403_ac97cr->capture_irq);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		PDEBUG(WORK_INFO, "trigger(capture): STOP\n");
+		PDE(WORK_INFO, "trigger(capture): STOP\n");
 		ml403_ac97cr->capture_ind2_rec.hw_ready = 0;
 #ifdef SND_PCM_INDIRECT2_STAT
 		snd_pcm_indirect2_stat(substream,
@@ -613,7 +613,7 @@ snd_ml403_ac97cr_pcm_capture_trigger(struct snd_pcm_substream *substream,
 		err = -EINVAL;
 		break;
 	}
-	PDEBUG(WORK_INFO, "trigger(capture): (done)\n");
+	PDE(WORK_INFO, "trigger(capture): (done)\n");
 	return err;
 }
 
@@ -626,14 +626,14 @@ snd_ml403_ac97cr_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	ml403_ac97cr = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
 
-	PDEBUG(WORK_INFO,
+	PDE(WORK_INFO,
 	       "prepare(): period_bytes=%d, minperiod_bytes=%d\n",
 	       snd_pcm_lib_period_bytes(substream), CR_FIFO_SIZE / 2);
 
 	/* set sampling rate */
 	snd_ac97_set_rate(ml403_ac97cr->ac97, AC97_PCM_FRONT_DAC_RATE,
 			  runtime->rate);
-	PDEBUG(WORK_INFO, "prepare(): rate=%d\n", runtime->rate);
+	PDE(WORK_INFO, "prepare(): rate=%d\n", runtime->rate);
 
 	/* init struct for intermediate buffer */
 	memset(&ml403_ac97cr->ind_rec, 0,
@@ -644,7 +644,7 @@ snd_ml403_ac97cr_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	ml403_ac97cr->ind_rec.min_periods = -1;
 	ml403_ac97cr->ind_rec.min_multiple =
 		snd_pcm_lib_period_bytes(substream) / (CR_FIFO_SIZE / 2);
-	PDEBUG(WORK_INFO, "prepare(): hw_buffer_size=%d, "
+	PDE(WORK_INFO, "prepare(): hw_buffer_size=%d, "
 	       "sw_buffer_size=%d, min_multiple=%d\n",
 	       CR_FIFO_SIZE, ml403_ac97cr->ind_rec.sw_buffer_size,
 	       ml403_ac97cr->ind_rec.min_multiple);
@@ -660,14 +660,14 @@ snd_ml403_ac97cr_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	ml403_ac97cr = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
 
-	PDEBUG(WORK_INFO,
+	PDE(WORK_INFO,
 	       "prepare(capture): period_bytes=%d, minperiod_bytes=%d\n",
 	       snd_pcm_lib_period_bytes(substream), CR_FIFO_SIZE / 2);
 
 	/* set sampling rate */
 	snd_ac97_set_rate(ml403_ac97cr->ac97, AC97_PCM_LR_ADC_RATE,
 			  runtime->rate);
-	PDEBUG(WORK_INFO, "prepare(capture): rate=%d\n", runtime->rate);
+	PDE(WORK_INFO, "prepare(capture): rate=%d\n", runtime->rate);
 
 	/* init struct for intermediate buffer */
 	memset(&ml403_ac97cr->capture_ind2_rec, 0,
@@ -677,7 +677,7 @@ snd_ml403_ac97cr_pcm_capture_prepare(struct snd_pcm_substream *substream)
 		snd_pcm_lib_buffer_bytes(substream);
 	ml403_ac97cr->capture_ind2_rec.min_multiple =
 		snd_pcm_lib_period_bytes(substream) / (CR_FIFO_SIZE / 2);
-	PDEBUG(WORK_INFO, "prepare(capture): hw_buffer_size=%d, "
+	PDE(WORK_INFO, "prepare(capture): hw_buffer_size=%d, "
 	       "sw_buffer_size=%d, min_multiple=%d\n", CR_FIFO_SIZE,
 	       ml403_ac97cr->capture_ind2_rec.sw_buffer_size,
 	       ml403_ac97cr->capture_ind2_rec.min_multiple);
@@ -686,7 +686,7 @@ snd_ml403_ac97cr_pcm_capture_prepare(struct snd_pcm_substream *substream)
 
 static int snd_ml403_ac97cr_hw_free(struct snd_pcm_substream *substream)
 {
-	PDEBUG(WORK_INFO, "hw_free()\n");
+	PDE(WORK_INFO, "hw_free()\n");
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -694,7 +694,7 @@ static int
 snd_ml403_ac97cr_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *hw_params)
 {
-	PDEBUG(WORK_INFO, "hw_params(): desired buffer bytes=%d, desired "
+	PDE(WORK_INFO, "hw_params(): desired buffer bytes=%d, desired "
 	       "period bytes=%d\n",
 	       params_buffer_bytes(hw_params), params_period_bytes(hw_params));
 	return snd_pcm_lib_malloc_pages(substream,
@@ -709,7 +709,7 @@ static int snd_ml403_ac97cr_playback_open(struct snd_pcm_substream *substream)
 	ml403_ac97cr = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
 
-	PDEBUG(WORK_INFO, "open(playback)\n");
+	PDE(WORK_INFO, "open(playback)\n");
 	ml403_ac97cr->playback_substream = substream;
 	runtime->hw = snd_ml403_ac97cr_playback;
 
@@ -727,7 +727,7 @@ static int snd_ml403_ac97cr_capture_open(struct snd_pcm_substream *substream)
 	ml403_ac97cr = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
 
-	PDEBUG(WORK_INFO, "open(capture)\n");
+	PDE(WORK_INFO, "open(capture)\n");
 	ml403_ac97cr->capture_substream = substream;
 	runtime->hw = snd_ml403_ac97cr_capture;
 
@@ -743,7 +743,7 @@ static int snd_ml403_ac97cr_playback_close(struct snd_pcm_substream *substream)
 
 	ml403_ac97cr = snd_pcm_substream_chip(substream);
 
-	PDEBUG(WORK_INFO, "close(playback)\n");
+	PDE(WORK_INFO, "close(playback)\n");
 	ml403_ac97cr->playback_substream = NULL;
 	return 0;
 }
@@ -754,7 +754,7 @@ static int snd_ml403_ac97cr_capture_close(struct snd_pcm_substream *substream)
 
 	ml403_ac97cr = snd_pcm_substream_chip(substream);
 
-	PDEBUG(WORK_INFO, "close(capture)\n");
+	PDE(WORK_INFO, "close(capture)\n");
 	ml403_ac97cr->capture_substream = NULL;
 	return 0;
 }
@@ -822,7 +822,7 @@ static irqreturn_t snd_ml403_ac97cr_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 
 __disable_irq:
-	PDEBUG(INIT_INFO, "irq(): irq %d is meant to be disabled! So, now try "
+	PDE(INIT_INFO, "irq(): irq %d is meant to be disabled! So, now try "
 	       "to disable it _really_!\n", irq);
 	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
@@ -850,7 +850,7 @@ snd_ml403_ac97cr_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 	     (LM4550_REG_DONEREAD | LM4550_REG_ALLFAKE)) &&
 	    !(lm4550_regfile[reg / 2].flag & LM4550_REG_NOSHADOW)) {
 		if (lm4550_regfile[reg / 2].flag & LM4550_REG_FAKEREAD) {
-			PDEBUG(CODEC_FAKE, "codec_read(): faking read from "
+			PDE(CODEC_FAKE, "codec_read(): faking read from "
 			       "reg=0x%x, val=0x%x / %d\n",
 			       reg, lm4550_regfile[reg / 2].def,
 			       lm4550_regfile[reg / 2].def);
@@ -858,14 +858,14 @@ snd_ml403_ac97cr_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 		} else if ((lm4550_regfile[reg / 2].flag &
 			    LM4550_REG_FAKEPROBE) &&
 			   ml403_ac97cr->ac97_fake) {
-			PDEBUG(CODEC_FAKE, "codec_read(): faking read from "
+			PDE(CODEC_FAKE, "codec_read(): faking read from "
 			       "reg=0x%x, val=0x%x / %d (probe)\n",
 			       reg, lm4550_regfile[reg / 2].value,
 			       lm4550_regfile[reg / 2].value);
 			return lm4550_regfile[reg / 2].value;
 		} else {
 #ifdef CODEC_STAT
-			PDEBUG(CODEC_FAKE, "codec_read(): read access "
+			PDE(CODEC_FAKE, "codec_read(): read access "
 			       "answered by shadow register 0x%x (value=0x%x "
 			       "/ %d) (cw=%d cr=%d)\n",
 			       reg, lm4550_regfile[reg / 2].value,
@@ -873,7 +873,7 @@ snd_ml403_ac97cr_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 			       ml403_ac97cr->ac97_write,
 			       ml403_ac97cr->ac97_read);
 #else
-			PDEBUG(CODEC_FAKE, "codec_read(): read access "
+			PDE(CODEC_FAKE, "codec_read(): read access "
 			       "answered by shadow register 0x%x (value=0x%x "
 			       "/ %d)\n",
 			       reg, lm4550_regfile[reg / 2].value,
@@ -901,7 +901,7 @@ snd_ml403_ac97cr_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 		if ((stat & CR_RAF) == CR_RAF) {
 			value = CR_CODEC_DATAREAD(
 				in_be32(CR_REG(ml403_ac97cr, CODEC_DATAREAD)));
-			PDEBUG(CODEC_SUCCESS, "codec_read(): (done) reg=0x%x, "
+			PDE(CODEC_SUCCESS, "codec_read(): (done) reg=0x%x, "
 			       "value=0x%x / %d (STATUS=0x%x)\n",
 			       reg, value, value, stat);
 #else
@@ -909,7 +909,7 @@ snd_ml403_ac97cr_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 		     CR_RAF) == CR_RAF) {
 			value = CR_CODEC_DATAREAD(
 				in_be32(CR_REG(ml403_ac97cr, CODEC_DATAREAD)));
-			PDEBUG(CODEC_SUCCESS, "codec_read(): (done) "
+			PDE(CODEC_SUCCESS, "codec_read(): (done) "
 			       "reg=0x%x, value=0x%x / %d\n",
 			       reg, value, value);
 #endif
@@ -940,7 +940,7 @@ snd_ml403_ac97cr_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 		   "(reg=0x%x, DATAREAD=0x%x / %d)\n",
 		   reg, value, value);
 #endif
-	/* BUG: This is PURE speculation! But after _most_ read timeouts the
+	/* : This is PURE speculation! But after _most_ read timeouts the
 	 * value in the register is ok!
 	 */
 	lm4550_regfile[reg / 2].value = value;
@@ -985,7 +985,7 @@ snd_ml403_ac97cr_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 	if (((lm4550_regfile[reg / 2].flag & LM4550_REG_FAKEPROBE) &&
 	     ml403_ac97cr->ac97_fake) &&
 	    !(lm4550_regfile[reg / 2].flag & LM4550_REG_NOSHADOW)) {
-		PDEBUG(CODEC_FAKE, "codec_write(): faking write to reg=0x%x, "
+		PDE(CODEC_FAKE, "codec_write(): faking write to reg=0x%x, "
 		       "val=0x%x / %d\n", reg, val, val);
 		lm4550_regfile[reg / 2].value = (val &
 						lm4550_regfile[reg / 2].wmask);
@@ -1017,7 +1017,7 @@ snd_ml403_ac97cr_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 		if ((in_be32(CR_REG(ml403_ac97cr, STATUS)) &
 		     CR_RAF) == CR_RAF) {
 #endif
-			PDEBUG(CODEC_SUCCESS, "codec_write(): (done) "
+			PDE(CODEC_SUCCESS, "codec_write(): (done) "
 			       "reg=0x%x, value=%d / 0x%x\n",
 			       reg, val, val);
 			if (!(lm4550_regfile[reg / 2].flag &
@@ -1055,7 +1055,7 @@ snd_ml403_ac97cr_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 	 */
 	schedule_timeout_uninterruptible(HZ / CODEC_WAIT_AFTER_WRITE);
 #endif
-	PDEBUG(CODEC_SUCCESS, "codec_write(): (done) "
+	PDE(CODEC_SUCCESS, "codec_write(): (done) "
 	       "reg=0x%x, value=%d / 0x%x (no RAF check)\n",
 	       reg, val, val);
 #endif
@@ -1067,14 +1067,14 @@ static int
 snd_ml403_ac97cr_chip_init(struct snd_ml403_ac97cr *ml403_ac97cr)
 {
 	unsigned long end_time;
-	PDEBUG(INIT_INFO, "chip_init():\n");
+	PDE(INIT_INFO, "chip_init():\n");
 	end_time = jiffies + HZ / CODEC_TIMEOUT_ON_INIT;
 	do {
 		if (in_be32(CR_REG(ml403_ac97cr, STATUS)) & CR_CODECREADY) {
 			/* clear both hardware FIFOs */
 			out_be32(CR_REG(ml403_ac97cr, RESETFIFO),
 				 CR_RECRESET | CR_PLAYRESET);
-			PDEBUG(INIT_INFO, "chip_init(): (done)\n");
+			PDE(INIT_INFO, "chip_init(): (done)\n");
 			return 0;
 		}
 		schedule_timeout_uninterruptible(1);
@@ -1087,7 +1087,7 @@ snd_ml403_ac97cr_chip_init(struct snd_ml403_ac97cr *ml403_ac97cr)
 
 static int snd_ml403_ac97cr_free(struct snd_ml403_ac97cr *ml403_ac97cr)
 {
-	PDEBUG(INIT_INFO, "free():\n");
+	PDE(INIT_INFO, "free():\n");
 	/* irq release */
 	if (ml403_ac97cr->irq >= 0)
 		free_irq(ml403_ac97cr->irq, ml403_ac97cr);
@@ -1096,14 +1096,14 @@ static int snd_ml403_ac97cr_free(struct snd_ml403_ac97cr *ml403_ac97cr)
 	/* give back "port" */
 	iounmap(ml403_ac97cr->port);
 	kfree(ml403_ac97cr);
-	PDEBUG(INIT_INFO, "free(): (done)\n");
+	PDE(INIT_INFO, "free(): (done)\n");
 	return 0;
 }
 
 static int snd_ml403_ac97cr_dev_free(struct snd_device *snddev)
 {
 	struct snd_ml403_ac97cr *ml403_ac97cr = snddev->device_data;
-	PDEBUG(INIT_INFO, "dev_free():\n");
+	PDE(INIT_INFO, "dev_free():\n");
 	return snd_ml403_ac97cr_free(ml403_ac97cr);
 }
 
@@ -1134,7 +1134,7 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 	ml403_ac97cr->port = NULL;
 	ml403_ac97cr->res_port = NULL;
 
-	PDEBUG(INIT_INFO, "Trying to reserve resources now ...\n");
+	PDE(INIT_INFO, "Trying to reserve resources now ...\n");
 	resource = platform_get_resource(pfdev, IORESOURCE_MEM, 0);
 	/* get "port" */
 	ml403_ac97cr->port = ioremap_nocache(resource->start,
@@ -1186,7 +1186,7 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ml403_ac97cr, &ops);
 	if (err < 0) {
-		PDEBUG(INIT_FAILURE, "probe(): snd_device_new() failed!\n");
+		PDE(INIT_FAILURE, "probe(): snd_device_new() failed!\n");
 		snd_ml403_ac97cr_free(ml403_ac97cr);
 		return err;
 	}
@@ -1198,9 +1198,9 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 static void snd_ml403_ac97cr_mixer_free(struct snd_ac97 *ac97)
 {
 	struct snd_ml403_ac97cr *ml403_ac97cr = ac97->private_data;
-	PDEBUG(INIT_INFO, "mixer_free():\n");
+	PDE(INIT_INFO, "mixer_free():\n");
 	ml403_ac97cr->ac97 = NULL;
-	PDEBUG(INIT_INFO, "mixer_free(): (done)\n");
+	PDE(INIT_INFO, "mixer_free(): (done)\n");
 }
 
 static int
@@ -1213,7 +1213,7 @@ snd_ml403_ac97cr_mixer(struct snd_ml403_ac97cr *ml403_ac97cr)
 		.write = snd_ml403_ac97cr_codec_write,
 		.read = snd_ml403_ac97cr_codec_read,
 	};
-	PDEBUG(INIT_INFO, "mixer():\n");
+	PDE(INIT_INFO, "mixer():\n");
 	err = snd_ac97_bus(ml403_ac97cr->card, 0, &ops, NULL, &bus);
 	if (err < 0)
 		return err;
@@ -1232,7 +1232,7 @@ snd_ml403_ac97cr_mixer(struct snd_ml403_ac97cr *ml403_ac97cr)
 	err = snd_ac97_mixer(bus, &ac97, &ml403_ac97cr->ac97);
 	ml403_ac97cr->ac97_fake = 0;
 	lm4550_regfile_write_values_after_init(ml403_ac97cr->ac97);
-	PDEBUG(INIT_INFO, "mixer(): (done) snd_ac97_mixer()=%d\n", err);
+	PDE(INIT_INFO, "mixer(): (done) snd_ac97_mixer()=%d\n", err);
 	return err;
 }
 
@@ -1280,24 +1280,24 @@ static int snd_ml403_ac97cr_probe(struct platform_device *pfdev)
 		return err;
 	err = snd_ml403_ac97cr_create(card, pfdev, &ml403_ac97cr);
 	if (err < 0) {
-		PDEBUG(INIT_FAILURE, "probe(): create failed!\n");
+		PDE(INIT_FAILURE, "probe(): create failed!\n");
 		snd_card_free(card);
 		return err;
 	}
-	PDEBUG(INIT_INFO, "probe(): create done\n");
+	PDE(INIT_INFO, "probe(): create done\n");
 	card->private_data = ml403_ac97cr;
 	err = snd_ml403_ac97cr_mixer(ml403_ac97cr);
 	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	PDEBUG(INIT_INFO, "probe(): mixer done\n");
+	PDE(INIT_INFO, "probe(): mixer done\n");
 	err = snd_ml403_ac97cr_pcm(ml403_ac97cr, 0);
 	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	PDEBUG(INIT_INFO, "probe(): PCM done\n");
+	PDE(INIT_INFO, "probe(): PCM done\n");
 	strcpy(card->driver, SND_ML403_AC97CR_DRIVER);
 	strcpy(card->shortname, "ML403 AC97 Controller Reference");
 	sprintf(card->longname, "%s %s at 0x%lx, irq %i & %i, device %i",
@@ -1311,7 +1311,7 @@ static int snd_ml403_ac97cr_probe(struct platform_device *pfdev)
 		return err;
 	}
 	platform_set_drvdata(pfdev, card);
-	PDEBUG(INIT_INFO, "probe(): (done)\n");
+	PDE(INIT_INFO, "probe(): (done)\n");
 	return 0;
 }
 

@@ -13,7 +13,7 @@
 
    Thanks to Eric Youngdale and Dave Hinds for loadable module and PCMCIA
    help respectively, and for suffering through my foolishness during the
-   debugging process.
+   deging process.
 
    Reference Qlogic FAS408 Technical Manual, 53408-510-00A, May 10, 1994
    (you can reference it, but it is incomplete and inaccurate in places)

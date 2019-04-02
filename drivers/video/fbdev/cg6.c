@@ -680,7 +680,7 @@ static void cg6_chip_init(struct fb_info *info)
 	sbus_writel(0, &tec->tec_clip);
 	sbus_writel(0, &tec->tec_vdc);
 
-	/* Take care of bugs in old revisions. */
+	/* Take care of s in old revisions. */
 	rev = (sbus_readl(par->fhc) >> CG6_FHC_REV_SHIFT) & CG6_FHC_REV_MASK;
 	if (rev < 5) {
 		conf = (sbus_readl(par->fhc) & CG6_FHC_RES_MASK) |

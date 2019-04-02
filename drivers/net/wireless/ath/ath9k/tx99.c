@@ -271,15 +271,15 @@ static const struct file_operations fops_tx99_power = {
 	.llseek = default_llseek,
 };
 
-void ath9k_tx99_init_debug(struct ath_softc *sc)
+void ath9k_tx99_init_de(struct ath_softc *sc)
 {
 	if (!AR_SREV_9280_20_OR_LATER(sc->sc_ah))
 		return;
 
-	debugfs_create_file("tx99", 0600,
-			    sc->debug.debugfs_phy, sc,
+	defs_create_file("tx99", 0600,
+			    sc->de.defs_phy, sc,
 			    &fops_tx99);
-	debugfs_create_file("tx99_power", 0600,
-			    sc->debug.debugfs_phy, sc,
+	defs_create_file("tx99_power", 0600,
+			    sc->de.defs_phy, sc,
 			    &fops_tx99_power);
 }

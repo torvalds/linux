@@ -418,7 +418,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 			    fa->fa_type, key, dst_len,
 			    fa->fa_tos, fa->fa_info, nlm_flags);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in fib_nlmsg_size() */
+		/* -EMSGSIZE implies  in fib_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -1529,7 +1529,7 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 		struct fib_info *fi = nh->nh_parent;
 		int dead;
 
-		BUG_ON(!fi->fib_nhs);
+		_ON(!fi->fib_nhs);
 		if (nh->nh_dev != dev || fi == prev_fi)
 			continue;
 		prev_fi = fi;
@@ -1685,7 +1685,7 @@ int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
 		struct fib_info *fi = nh->nh_parent;
 		int alive;
 
-		BUG_ON(!fi->fib_nhs);
+		_ON(!fi->fib_nhs);
 		if (nh->nh_dev != dev || fi == prev_fi)
 			continue;
 

@@ -34,31 +34,31 @@ typedef void (*I40E_ADMINQ_CALLBACK)(struct iavf_hw *, struct i40e_aq_desc *);
 #define IAVF_QTX_CTL_VM_QUEUE	0x1
 #define IAVF_QTX_CTL_PF_QUEUE	0x2
 
-/* debug masks - set these bits in hw->debug_mask to control output */
-enum iavf_debug_mask {
-	IAVF_DEBUG_INIT			= 0x00000001,
-	IAVF_DEBUG_RELEASE		= 0x00000002,
+/* de masks - set these bits in hw->de_mask to control output */
+enum iavf_de_mask {
+	IAVF_DE_INIT			= 0x00000001,
+	IAVF_DE_RELEASE		= 0x00000002,
 
-	IAVF_DEBUG_LINK			= 0x00000010,
-	IAVF_DEBUG_PHY			= 0x00000020,
-	IAVF_DEBUG_HMC			= 0x00000040,
-	IAVF_DEBUG_NVM			= 0x00000080,
-	IAVF_DEBUG_LAN			= 0x00000100,
-	IAVF_DEBUG_FLOW			= 0x00000200,
-	IAVF_DEBUG_DCB			= 0x00000400,
-	IAVF_DEBUG_DIAG			= 0x00000800,
-	IAVF_DEBUG_FD			= 0x00001000,
-	IAVF_DEBUG_PACKAGE		= 0x00002000,
+	IAVF_DE_LINK			= 0x00000010,
+	IAVF_DE_PHY			= 0x00000020,
+	IAVF_DE_HMC			= 0x00000040,
+	IAVF_DE_NVM			= 0x00000080,
+	IAVF_DE_LAN			= 0x00000100,
+	IAVF_DE_FLOW			= 0x00000200,
+	IAVF_DE_DCB			= 0x00000400,
+	IAVF_DE_DIAG			= 0x00000800,
+	IAVF_DE_FD			= 0x00001000,
+	IAVF_DE_PACKAGE		= 0x00002000,
 
-	IAVF_DEBUG_AQ_MESSAGE		= 0x01000000,
-	IAVF_DEBUG_AQ_DESCRIPTOR	= 0x02000000,
-	IAVF_DEBUG_AQ_DESC_BUFFER	= 0x04000000,
-	IAVF_DEBUG_AQ_COMMAND		= 0x06000000,
-	IAVF_DEBUG_AQ			= 0x0F000000,
+	IAVF_DE_AQ_MESSAGE		= 0x01000000,
+	IAVF_DE_AQ_DESCRIPTOR	= 0x02000000,
+	IAVF_DE_AQ_DESC_BUFFER	= 0x04000000,
+	IAVF_DE_AQ_COMMAND		= 0x06000000,
+	IAVF_DE_AQ			= 0x0F000000,
 
-	IAVF_DEBUG_USER			= 0xF0000000,
+	IAVF_DE_USER			= 0xF0000000,
 
-	IAVF_DEBUG_ALL			= 0xFFFFFFFF
+	IAVF_DE_ALL			= 0xFFFFFFFF
 };
 
 /* These are structs for managing the hardware information and the operations.
@@ -187,8 +187,8 @@ struct iavf_hw {
 	/* Admin Queue info */
 	struct iavf_adminq_info aq;
 
-	/* debug mask */
-	u32 debug_mask;
+	/* de mask */
+	u32 de_mask;
 	char err_str[16];
 };
 

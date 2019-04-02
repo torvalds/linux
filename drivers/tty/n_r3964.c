@@ -27,7 +27,7 @@
  * Updated to newly registered tty-ldisc number 9
  *
  * Revision 1.5  1998/09/04 21:57:36  dwmw2
- * Signal handling bug fixes, port to 2.1.x.
+ * Signal handling  fixes, port to 2.1.x.
  *
  * Revision 1.4  1998/04/02 20:26:59  lhaag
  * select, blocking, ...
@@ -65,44 +65,44 @@
 #include <linux/init.h>
 #include <linux/uaccess.h>
 
-/*#define DEBUG_QUEUE*/
+/*#define DE_QUEUE*/
 
 /* Log successful handshake and protocol operations  */
-/*#define DEBUG_PROTO_S*/
+/*#define DE_PROTO_S*/
 
 /* Log handshake and protocol errors: */
-/*#define DEBUG_PROTO_E*/
+/*#define DE_PROTO_E*/
 
 /* Log Linediscipline operations (open, close, read, write...): */
-/*#define DEBUG_LDISC*/
+/*#define DE_LDISC*/
 
 /* Log module and memory operations (init, cleanup; kmalloc, kfree): */
-/*#define DEBUG_MODUL*/
+/*#define DE_MODUL*/
 
-/* Macro helpers for debug output: */
+/* Macro helpers for de output: */
 #define TRACE(format, args...) printk("r3964: " format "\n" , ## args)
 
-#ifdef DEBUG_MODUL
+#ifdef DE_MODUL
 #define TRACE_M(format, args...) printk("r3964: " format "\n" , ## args)
 #else
 #define TRACE_M(fmt, arg...) do {} while (0)
 #endif
-#ifdef DEBUG_PROTO_S
+#ifdef DE_PROTO_S
 #define TRACE_PS(format, args...) printk("r3964: " format "\n" , ## args)
 #else
 #define TRACE_PS(fmt, arg...) do {} while (0)
 #endif
-#ifdef DEBUG_PROTO_E
+#ifdef DE_PROTO_E
 #define TRACE_PE(format, args...) printk("r3964: " format "\n" , ## args)
 #else
 #define TRACE_PE(fmt, arg...) do {} while (0)
 #endif
-#ifdef DEBUG_LDISC
+#ifdef DE_LDISC
 #define TRACE_L(format, args...) printk("r3964: " format "\n" , ## args)
 #else
 #define TRACE_L(fmt, arg...) do {} while (0)
 #endif
-#ifdef DEBUG_QUEUE
+#ifdef DE_QUEUE
 #define TRACE_Q(format, args...) printk("r3964: " format "\n" , ## args)
 #else
 #define TRACE_Q(fmt, arg...) do {} while (0)
@@ -256,7 +256,7 @@ static void remove_from_tx_queue(struct r3964_info *pInfo, int error_code)
 {
 	struct r3964_block_header *pHeader;
 	unsigned long flags;
-#ifdef DEBUG_QUEUE
+#ifdef DE_QUEUE
 	struct r3964_block_header *pDump;
 #endif
 
@@ -265,7 +265,7 @@ static void remove_from_tx_queue(struct r3964_info *pInfo, int error_code)
 	if (pHeader == NULL)
 		return;
 
-#ifdef DEBUG_QUEUE
+#ifdef DE_QUEUE
 	printk("r3964: remove_from_tx_queue: %p, length %u - ",
 		pHeader, pHeader->length);
 	for (pDump = pHeader; pDump; pDump = pDump->next)
@@ -994,7 +994,7 @@ static int r3964_open(struct tty_struct *tty)
 	pInfo->blocks_in_rx_queue = 0;
 	pInfo->firstClient = NULL;
 	pInfo->state = R3964_IDLE;
-	pInfo->flags = R3964_DEBUG;
+	pInfo->flags = R3964_DE;
 	pInfo->nRetry = 0;
 
 	tty->disc_data = pInfo;
@@ -1144,7 +1144,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
  * Ensure that the caller does not wish to send too much.
  */
 	if (count > R3964_MTU) {
-		if (pInfo->flags & R3964_DEBUG) {
+		if (pInfo->flags & R3964_DE) {
 			TRACE_L(KERN_WARNING "r3964_write: truncating user "
 				"packet from %u to mtu %d", count, R3964_MTU);
 		}
@@ -1157,7 +1157,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 			GFP_KERNEL);
 	TRACE_M("r3964_write - kmalloc %p", new_data);
 	if (new_data == NULL) {
-		if (pInfo->flags & R3964_DEBUG) {
+		if (pInfo->flags & R3964_DE) {
 			printk(KERN_ERR "r3964_write: no memory\n");
 		}
 		return -ENOSPC;
@@ -1176,7 +1176,7 @@ static ssize_t r3964_write(struct tty_struct *tty, struct file *file,
 
 	memcpy(pHeader->data, data, count);	/* We already verified this */
 
-	if (pInfo->flags & R3964_DEBUG) {
+	if (pInfo->flags & R3964_DE) {
 		dump_block(pHeader->data, count);
 	}
 

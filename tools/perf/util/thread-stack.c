@@ -22,7 +22,7 @@
 #include "machine.h"
 #include "env.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "symbol.h"
 #include "comm.h"
 #include "call-path.h"

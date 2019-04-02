@@ -273,7 +273,7 @@ static unsigned long change_protection_range(struct vm_area_struct *vma,
 	unsigned long start = addr;
 	unsigned long pages = 0;
 
-	BUG_ON(addr >= end);
+	_ON(addr >= end);
 	pgd = pgd_offset(mm, addr);
 	flush_cache_range(vma, addr, end);
 	inc_tlb_flush_pending(mm);

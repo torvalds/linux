@@ -221,7 +221,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_partner_advt		= 0x0616,
 	i40e_aqc_opc_set_lb_modes		= 0x0618,
 	i40e_aqc_opc_get_phy_wol_caps		= 0x0621,
-	i40e_aqc_opc_set_phy_debug		= 0x0622,
+	i40e_aqc_opc_set_phy_de		= 0x0622,
 	i40e_aqc_opc_upload_ext_phy_fm		= 0x0625,
 	i40e_aqc_opc_run_phy_activity		= 0x0626,
 	i40e_aqc_opc_set_phy_register		= 0x0628,
@@ -279,11 +279,11 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_oem_ocsd_initialize	= 0xFE02,
 	i40e_aqc_opc_oem_ocbb_initialize	= 0xFE03,
 
-	/* debug commands */
-	i40e_aqc_opc_debug_read_reg		= 0xFF03,
-	i40e_aqc_opc_debug_write_reg		= 0xFF04,
-	i40e_aqc_opc_debug_modify_reg		= 0xFF07,
-	i40e_aqc_opc_debug_dump_internals	= 0xFF08,
+	/* de commands */
+	i40e_aqc_opc_de_read_reg		= 0xFF03,
+	i40e_aqc_opc_de_write_reg		= 0xFF04,
+	i40e_aqc_opc_de_modify_reg		= 0xFF07,
+	i40e_aqc_opc_de_dump_internals	= 0xFF08,
 };
 
 /* command structures and indirect data structures */
@@ -2189,24 +2189,24 @@ struct i40e_aqc_set_lb_mode {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_set_lb_mode);
 
-/* Set PHY Debug command (0x0622) */
-struct i40e_aqc_set_phy_debug {
+/* Set PHY De command (0x0622) */
+struct i40e_aqc_set_phy_de {
 	u8	command_flags;
-#define I40E_AQ_PHY_DEBUG_RESET_INTERNAL	0x02
-#define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_SHIFT	2
-#define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_MASK	(0x03 << \
-					I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_SHIFT)
-#define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_NONE	0x00
-#define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_HARD	0x01
-#define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_SOFT	0x02
+#define I40E_AQ_PHY_DE_RESET_INTERNAL	0x02
+#define I40E_AQ_PHY_DE_RESET_EXTERNAL_SHIFT	2
+#define I40E_AQ_PHY_DE_RESET_EXTERNAL_MASK	(0x03 << \
+					I40E_AQ_PHY_DE_RESET_EXTERNAL_SHIFT)
+#define I40E_AQ_PHY_DE_RESET_EXTERNAL_NONE	0x00
+#define I40E_AQ_PHY_DE_RESET_EXTERNAL_HARD	0x01
+#define I40E_AQ_PHY_DE_RESET_EXTERNAL_SOFT	0x02
 /* Disable link manageability on a single port */
-#define I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW	0x10
+#define I40E_AQ_PHY_DE_DISABLE_LINK_FW	0x10
 /* Disable link manageability on all ports */
-#define I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW	0x20
+#define I40E_AQ_PHY_DE_DISABLE_ALL_LINK_FW	0x20
 	u8	reserved[15];
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_set_phy_debug);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_set_phy_de);
 
 enum i40e_aq_phy_reg_type {
 	I40E_AQC_PHY_REG_INTERNAL	= 0x1,
@@ -2784,7 +2784,7 @@ struct i40e_aqc_opc_oem_ocbb_initialize {
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_opc_oem_ocbb_initialize);
 
-/* debug commands */
+/* de commands */
 
 /* get device id (0xFF00) uses the generic structure */
 
@@ -2807,37 +2807,37 @@ struct i40e_acq_set_test_mode {
 
 I40E_CHECK_CMD_LENGTH(i40e_acq_set_test_mode);
 
-/* Debug Read Register command (0xFF03)
- * Debug Write Register command (0xFF04)
+/* De Read Register command (0xFF03)
+ * De Write Register command (0xFF04)
  */
-struct i40e_aqc_debug_reg_read_write {
+struct i40e_aqc_de_reg_read_write {
 	__le32 reserved;
 	__le32 address;
 	__le32 value_high;
 	__le32 value_low;
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_reg_read_write);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_de_reg_read_write);
 
 /* Scatter/gather Reg Read  (indirect 0xFF05)
  * Scatter/gather Reg Write (indirect 0xFF06)
  */
 
 /* i40e_aq_desc is used for the command */
-struct i40e_aqc_debug_reg_sg_element_data {
+struct i40e_aqc_de_reg_sg_element_data {
 	__le32 address;
 	__le32 value;
 };
 
-/* Debug Modify register (direct 0xFF07) */
-struct i40e_aqc_debug_modify_reg {
+/* De Modify register (direct 0xFF07) */
+struct i40e_aqc_de_modify_reg {
 	__le32 address;
 	__le32 value;
 	__le32 clear_mask;
 	__le32 set_mask;
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_modify_reg);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_de_modify_reg);
 
 /* dump internal data (0xFF08, indirect) */
 
@@ -2854,7 +2854,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_modify_reg);
 #define I40E_AQ_CLUSTER_ID_PKT_BUF	10
 #define I40E_AQ_CLUSTER_ID_ALTRAM	11
 
-struct i40e_aqc_debug_dump_internals {
+struct i40e_aqc_de_dump_internals {
 	u8	cluster_id;
 	u8	table_id;
 	__le16	data_size;
@@ -2863,15 +2863,15 @@ struct i40e_aqc_debug_dump_internals {
 	__le32	address_low;
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_dump_internals);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_de_dump_internals);
 
-struct i40e_aqc_debug_modify_internals {
+struct i40e_aqc_de_modify_internals {
 	u8	cluster_id;
 	u8	cluster_specific_params[7];
 	__le32	address_high;
 	__le32	address_low;
 };
 
-I40E_CHECK_CMD_LENGTH(i40e_aqc_debug_modify_internals);
+I40E_CHECK_CMD_LENGTH(i40e_aqc_de_modify_internals);
 
 #endif /* _I40E_ADMINQ_CMD_H_ */

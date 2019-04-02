@@ -18,18 +18,18 @@ config JBD2
 	  called jbd2.  If you are compiling ext4 or OCFS2 into the kernel,
 	  you cannot compile this code as a module.
 
-config JBD2_DEBUG
-	bool "JBD2 (ext4) debugging support"
+config JBD2_DE
+	bool "JBD2 (ext4) deging support"
 	depends on JBD2
 	help
 	  If you are using the ext4 journaled file system (or
 	  potentially any other filesystem/device using JBD2), this option
-	  allows you to enable debugging output while the system is running,
+	  allows you to enable deging output while the system is running,
 	  in order to help track down any problems you are having.
-	  By default, the debugging output will be turned off.
+	  By default, the deging output will be turned off.
 
-	  If you select Y here, then you will be able to turn on debugging
-	  with "echo N > /sys/module/jbd2/parameters/jbd2_debug", where N is a
-	  number between 1 and 5. The higher the number, the more debugging
-	  output is generated.  To turn debugging off again, do
-	  "echo 0 > /sys/module/jbd2/parameters/jbd2_debug".
+	  If you select Y here, then you will be able to turn on deging
+	  with "echo N > /sys/module/jbd2/parameters/jbd2_de", where N is a
+	  number between 1 and 5. The higher the number, the more deging
+	  output is generated.  To turn deging off again, do
+	  "echo 0 > /sys/module/jbd2/parameters/jbd2_de".

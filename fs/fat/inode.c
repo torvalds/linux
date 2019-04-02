@@ -166,7 +166,7 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 		return -EIO;
 	}
 
-	BUG_ON(*max_blocks != mapped_blocks);
+	_ON(*max_blocks != mapped_blocks);
 	set_buffer_new(bh_result);
 	map_bh(bh_result, sb, phys);
 
@@ -295,7 +295,7 @@ static int fat_get_block_bmap(struct inode *inode, sector_t iblock,
 	sector_t bmap;
 	unsigned long mapped_blocks;
 
-	BUG_ON(create != 0);
+	_ON(create != 0);
 
 	err = fat_bmap(inode, iblock, &bmap, &mapped_blocks, create, true);
 	if (err)
@@ -449,7 +449,7 @@ struct inode *fat_iget(struct super_block *sb, loff_t i_pos)
 
 	spin_lock(&sbi->inode_hash_lock);
 	hlist_for_each_entry(i, head, i_fat_hash) {
-		BUG_ON(i->vfs_inode.i_sb != sb);
+		_ON(i->vfs_inode.i_sb != sb);
 		if (i->i_pos != i_pos)
 			continue;
 		inode = igrab(&i->vfs_inode);
@@ -1025,7 +1025,7 @@ static int fat_show_options(struct seq_file *m, struct dentry *root)
 enum {
 	Opt_check_n, Opt_check_r, Opt_check_s, Opt_uid, Opt_gid,
 	Opt_umask, Opt_dmask, Opt_fmask, Opt_allow_utime, Opt_codepage,
-	Opt_usefree, Opt_nocase, Opt_quiet, Opt_showexec, Opt_debug,
+	Opt_usefree, Opt_nocase, Opt_quiet, Opt_showexec, Opt_de,
 	Opt_immutable, Opt_dots, Opt_nodots,
 	Opt_charset, Opt_shortname_lower, Opt_shortname_win95,
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
@@ -1053,7 +1053,7 @@ static const match_table_t fat_tokens = {
 	{Opt_nocase, "nocase"},
 	{Opt_quiet, "quiet"},
 	{Opt_showexec, "showexec"},
-	{Opt_debug, "debug"},
+	{Opt_de, "de"},
 	{Opt_immutable, "sys_immutable"},
 	{Opt_flush, "flush"},
 	{Opt_tz_utc, "tz=UTC"},
@@ -1118,7 +1118,7 @@ static const match_table_t vfat_tokens = {
 };
 
 static int parse_options(struct super_block *sb, char *options, int is_vfat,
-			 int silent, int *debug, struct fat_mount_options *opts)
+			 int silent, int *de, struct fat_mount_options *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -1148,7 +1148,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	opts->tz_set = 0;
 	opts->nfs = 0;
 	opts->errors = FAT_ERRORS_RO;
-	*debug = 0;
+	*de = 0;
 
 	opts->utf8 = IS_ENABLED(CONFIG_FAT_DEFAULT_UTF8) && is_vfat;
 
@@ -1195,8 +1195,8 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 		case Opt_showexec:
 			opts->showexec = 1;
 			break;
-		case Opt_debug:
-			*debug = 1;
+		case Opt_de:
+			*de = 1;
 			break;
 		case Opt_immutable:
 			opts->sys_immutable = 1;
@@ -1607,7 +1607,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	struct msdos_sb_info *sbi;
 	u16 logical_sector_size;
 	u32 total_sectors, total_clusters, fat_clusters, rootdir_sectors;
-	int debug;
+	int de;
 	long error;
 	char buf[50];
 
@@ -1635,7 +1635,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
 
-	error = parse_options(sb, data, isvfat, silent, &debug, &sbi->options);
+	error = parse_options(sb, data, isvfat, silent, &de, &sbi->options);
 	if (error)
 		goto out_fail;
 

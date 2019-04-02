@@ -67,7 +67,7 @@ void amdgpu_encoder_set_active_device(struct drm_encoder *encoder)
 		if (connector->encoder == encoder) {
 			struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 			amdgpu_encoder->active_device = amdgpu_encoder->devices & amdgpu_connector->devices;
-			DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
+			DRM_DE_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
 				  amdgpu_encoder->active_device, amdgpu_encoder->devices,
 				  amdgpu_connector->devices, encoder->encoder_type);
 		}

@@ -55,7 +55,7 @@ static inline void set_fs(mm_segment_t fs)
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions
  * which read from user space (*get_*) need to take care not to leak
- * kernel data even if the calling code is buggy and fails to check
+ * kernel data even if the calling code is gy and fails to check
  * the return value.  This means zeroing out the destination variable
  * or buffer on error.  Normally this is done out of line by the
  * fixup code, but there are a few places where it intrudes on the
@@ -115,7 +115,7 @@ do {									\
 		__get_user_asm_dword(__gu_val, (ptr), (err));		\
 		break;							\
 	default:							\
-		BUILD_BUG(); 						\
+		BUILD_(); 						\
 		break;							\
 	}								\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
@@ -210,7 +210,7 @@ do {									\
 		__put_user_asm_dword(__pu_val, (ptr), (err));		\
 		break;							\
 	default:							\
-		BUILD_BUG(); 						\
+		BUILD_(); 						\
 		break;							\
 	}								\
 } while (0)

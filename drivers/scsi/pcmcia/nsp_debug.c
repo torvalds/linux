@@ -1,12 +1,12 @@
 /*========================================================================
-    Debug routines for nsp_cs
+    De routines for nsp_cs
       By: YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 
     This software may be used and distributed according to the terms of
     the GNU General Public License.
 =========================================================================*/
 
-/* $Id: nsp_debug.c,v 1.3 2003/07/26 14:21:09 elca Exp $ */
+/* $Id: nsp_de.c,v 1.3 2003/07/26 14:21:09 elca Exp $ */
 
 /*
  * Show the command data of a command
@@ -88,9 +88,9 @@ static void print_opcodek(unsigned char opcode)
 static void print_commandk (unsigned char *command)
 {
 	int i, s;
-	printk(KERN_DEBUG);
+	printk(KERN_DE);
 	print_opcodek(command[0]);
-	/*printk(KERN_DEBUG "%s ", __func__);*/
+	/*printk(KERN_DE "%s ", __func__);*/
 	if ((command[0] >> 5) == 6 ||
 	    (command[0] >> 5) == 7 ) {
 		s = 12; /* vender specific */
@@ -162,11 +162,11 @@ static void show_phase(struct scsi_cmnd *SCpnt)
 	};
 
 	if ( i < PH_UNDETERMINED || i > PH_RESELECT ) {
-		printk(KERN_DEBUG "scsi phase: unknown(%d)\n", i);
+		printk(KERN_DE "scsi phase: unknown(%d)\n", i);
 		return;
 	}
 
-	printk(KERN_DEBUG "scsi phase: %s\n", ph[i]);
+	printk(KERN_DE "scsi phase: %s\n", ph[i]);
 
 	return;
 }
@@ -175,28 +175,28 @@ static void show_busphase(unsigned char stat)
 {
 	switch(stat) {
 	case BUSPHASE_COMMAND:
-		printk(KERN_DEBUG "BUSPHASE_COMMAND\n");
+		printk(KERN_DE "BUSPHASE_COMMAND\n");
 		break;
 	case BUSPHASE_MESSAGE_IN:
-		printk(KERN_DEBUG "BUSPHASE_MESSAGE_IN\n");
+		printk(KERN_DE "BUSPHASE_MESSAGE_IN\n");
 		break;
 	case BUSPHASE_MESSAGE_OUT:
-		printk(KERN_DEBUG "BUSPHASE_MESSAGE_OUT\n");
+		printk(KERN_DE "BUSPHASE_MESSAGE_OUT\n");
 		break;
 	case BUSPHASE_DATA_IN:
-		printk(KERN_DEBUG "BUSPHASE_DATA_IN\n");
+		printk(KERN_DE "BUSPHASE_DATA_IN\n");
 		break;
 	case BUSPHASE_DATA_OUT:
-		printk(KERN_DEBUG "BUSPHASE_DATA_OUT\n");
+		printk(KERN_DE "BUSPHASE_DATA_OUT\n");
 		break;
 	case BUSPHASE_STATUS:
-		printk(KERN_DEBUG "BUSPHASE_STATUS\n");
+		printk(KERN_DE "BUSPHASE_STATUS\n");
 		break;
 	case BUSPHASE_SELECT:
-		printk(KERN_DEBUG "BUSPHASE_SELECT\n");
+		printk(KERN_DE "BUSPHASE_SELECT\n");
 		break;
 	default:
-		printk(KERN_DEBUG "BUSPHASE_other\n");
+		printk(KERN_DE "BUSPHASE_other\n");
 		break;
 	}
 }
@@ -205,7 +205,7 @@ static void show_message(nsp_hw_data *data)
 {
 	int i;
 
-	printk(KERN_DEBUG "msg:");
+	printk(KERN_DE "msg:");
 	for(i=0; i < data->MsgLen; i++) {
 		printk(" %02x", data->MsgBuffer[i]);
 	}

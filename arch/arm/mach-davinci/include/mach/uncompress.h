@@ -54,7 +54,7 @@ static inline void set_uart_info(u32 phys)
 	uart = (u32 *)phys;
 }
 
-#define _DEBUG_LL_ENTRY(machine, phys)				\
+#define _DE_LL_ENTRY(machine, phys)				\
 	{							\
 		if (machine_is_##machine()) {			\
 			set_uart_info(phys);			\
@@ -62,11 +62,11 @@ static inline void set_uart_info(u32 phys)
 		}						\
 	}
 
-#define DEBUG_LL_DAVINCI(machine, port)				\
-	_DEBUG_LL_ENTRY(machine, DAVINCI_UART##port##_BASE)
+#define DE_LL_DAVINCI(machine, port)				\
+	_DE_LL_ENTRY(machine, DAVINCI_UART##port##_BASE)
 
-#define DEBUG_LL_DA8XX(machine, port)				\
-	_DEBUG_LL_ENTRY(machine, DA8XX_UART##port##_BASE)
+#define DE_LL_DA8XX(machine, port)				\
+	_DE_LL_ENTRY(machine, DA8XX_UART##port##_BASE)
 
 static inline void __arch_decomp_setup(unsigned long arch_id)
 {
@@ -78,19 +78,19 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 	 */
 	do {
 		/* Davinci boards */
-		DEBUG_LL_DAVINCI(davinci_evm,		0);
-		DEBUG_LL_DAVINCI(sffsdr,		0);
-		DEBUG_LL_DAVINCI(neuros_osd2,		0);
-		DEBUG_LL_DAVINCI(davinci_dm355_evm,	0);
-		DEBUG_LL_DAVINCI(dm355_leopard,		0);
-		DEBUG_LL_DAVINCI(davinci_dm6467_evm,	0);
-		DEBUG_LL_DAVINCI(davinci_dm365_evm,	0);
+		DE_LL_DAVINCI(davinci_evm,		0);
+		DE_LL_DAVINCI(sffsdr,		0);
+		DE_LL_DAVINCI(neuros_osd2,		0);
+		DE_LL_DAVINCI(davinci_dm355_evm,	0);
+		DE_LL_DAVINCI(dm355_leopard,		0);
+		DE_LL_DAVINCI(davinci_dm6467_evm,	0);
+		DE_LL_DAVINCI(davinci_dm365_evm,	0);
 
 		/* DA8xx boards */
-		DEBUG_LL_DA8XX(davinci_da830_evm,	2);
-		DEBUG_LL_DA8XX(davinci_da850_evm,	2);
-		DEBUG_LL_DA8XX(mityomapl138,		1);
-		DEBUG_LL_DA8XX(omapl138_hawkboard,	2);
+		DE_LL_DA8XX(davinci_da830_evm,	2);
+		DE_LL_DA8XX(davinci_da850_evm,	2);
+		DE_LL_DA8XX(mityomapl138,		1);
+		DE_LL_DA8XX(omapl138_hawkboard,	2);
 	} while (0);
 }
 

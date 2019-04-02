@@ -1122,8 +1122,8 @@ static const struct bcm_qspi_irq qspi_irq_tab[] = {
 		.irq_handler = bcm_qspi_bspi_lr_l2_isr,
 		.mask = INTR_BSPI_LR_SESSION_DONE_MASK,
 	},
-#ifdef QSPI_INT_DEBUG
-	/* this interrupt is for debug purposes only, dont request irq */
+#ifdef QSPI_INT_DE
+	/* this interrupt is for de purposes only, dont request irq */
 	{
 		.irq_name = "spi_lr_overread",
 		.irq_handler = bcm_qspi_bspi_lr_err_l2_isr,

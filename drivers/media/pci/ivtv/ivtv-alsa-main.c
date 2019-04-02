@@ -25,19 +25,19 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 
-int ivtv_alsa_debug;
+int ivtv_alsa_de;
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 
-#define IVTV_DEBUG_ALSA_INFO(__fmt, __arg...) \
+#define IVTV_DE_ALSA_INFO(__fmt, __arg...) \
 	do { \
-		if (ivtv_alsa_debug & 2) \
+		if (ivtv_alsa_de & 2) \
 			printk(KERN_INFO pr_fmt("%s: alsa:" __fmt),	\
 			       __func__, ##__arg);			\
 	} while (0)
 
-module_param_named(debug, ivtv_alsa_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "Debug level (bitmask). Default: 0\n"
+module_param_named(de, ivtv_alsa_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "De level (bitmask). Default: 0\n"
 		 "\t\t\t  1/0x0001: warning\n"
 		 "\t\t\t  2/0x0002: info\n");
 
@@ -213,7 +213,7 @@ static int ivtv_alsa_load(struct ivtv *itv)
 
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_PCM];
 	if (s->vdev.v4l2_dev == NULL) {
-		IVTV_DEBUG_ALSA_INFO("PCM stream for card is disabled - skipping\n");
+		IVTV_DE_ALSA_INFO("PCM stream for card is disabled - skipping\n");
 		return 0;
 	}
 
@@ -227,7 +227,7 @@ static int ivtv_alsa_load(struct ivtv *itv)
 		IVTV_ALSA_ERR("%s: failed to create struct snd_ivtv_card\n",
 			      __func__);
 	} else {
-		IVTV_DEBUG_ALSA_INFO("created ivtv ALSA interface instance\n");
+		IVTV_DE_ALSA_INFO("created ivtv ALSA interface instance\n");
 	}
 	return 0;
 }

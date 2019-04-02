@@ -1282,7 +1282,7 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin,
 		if (pcm)
 			hdac_hdmi_jack_report(pcm, port, true);
 
-		print_hex_dump_debug("ELD: ", DUMP_PREFIX_OFFSET, 16, 1,
+		print_hex_dump_de("ELD: ", DUMP_PREFIX_OFFSET, 16, 1,
 			  port->eld.eld_buffer, port->eld.eld_size, false);
 
 	}

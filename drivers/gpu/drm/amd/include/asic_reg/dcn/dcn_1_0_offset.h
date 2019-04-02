@@ -2283,10 +2283,10 @@
 #define mmDCHUBBUB_VLINE_SNAPSHOT_BASE_IDX                                                             2
 #define mmDCHUBBUB_SPARE                                                                               0x0534
 #define mmDCHUBBUB_SPARE_BASE_IDX                                                                      2
-#define mmDCHUBBUB_TEST_DEBUG_INDEX                                                                    0x053a
-#define mmDCHUBBUB_TEST_DEBUG_INDEX_BASE_IDX                                                           2
-#define mmDCHUBBUB_TEST_DEBUG_DATA                                                                     0x053b
-#define mmDCHUBBUB_TEST_DEBUG_DATA_BASE_IDX                                                            2
+#define mmDCHUBBUB_TEST_DE_INDEX                                                                    0x053a
+#define mmDCHUBBUB_TEST_DE_INDEX_BASE_IDX                                                           2
+#define mmDCHUBBUB_TEST_DE_DATA                                                                     0x053b
+#define mmDCHUBBUB_TEST_DE_DATA_BASE_IDX                                                            2
 
 
 // addressBlock: dce_dc_dchubbub_dchubbub_dcperfmon_dc_perfmon_dispdec
@@ -2345,8 +2345,8 @@
 #define mmHUBP0_HUBP_CLK_CNTL_BASE_IDX                                                                 2
 #define mmHUBP0_DCHUBP_VMPG_CONFIG                                                                     0x0568
 #define mmHUBP0_DCHUBP_VMPG_CONFIG_BASE_IDX                                                            2
-#define mmHUBP0_HUBPREQ_DEBUG_DB                                                                       0x0569
-#define mmHUBP0_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
+#define mmHUBP0_HUBPREQ_DE_DB                                                                       0x0569
+#define mmHUBP0_HUBPREQ_DE_DB_BASE_IDX                                                              2
 #define mmHUBP0_HUBP_MEASURE_WIN_CTRL_DCFCLK                                                           0x056e
 #define mmHUBP0_HUBP_MEASURE_WIN_CTRL_DCFCLK_BASE_IDX                                                  2
 #define mmHUBP0_HUBP_MEASURE_WIN_CTRL_DPPCLK                                                           0x056f
@@ -2629,8 +2629,8 @@
 #define mmHUBP1_HUBP_CLK_CNTL_BASE_IDX                                                                 2
 #define mmHUBP1_DCHUBP_VMPG_CONFIG                                                                     0x062c
 #define mmHUBP1_DCHUBP_VMPG_CONFIG_BASE_IDX                                                            2
-#define mmHUBP1_HUBPREQ_DEBUG_DB                                                                       0x062d
-#define mmHUBP1_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
+#define mmHUBP1_HUBPREQ_DE_DB                                                                       0x062d
+#define mmHUBP1_HUBPREQ_DE_DB_BASE_IDX                                                              2
 #define mmHUBP1_HUBP_MEASURE_WIN_CTRL_DCFCLK                                                           0x0632
 #define mmHUBP1_HUBP_MEASURE_WIN_CTRL_DCFCLK_BASE_IDX                                                  2
 #define mmHUBP1_HUBP_MEASURE_WIN_CTRL_DPPCLK                                                           0x0633
@@ -2913,8 +2913,8 @@
 #define mmHUBP2_HUBP_CLK_CNTL_BASE_IDX                                                                 2
 #define mmHUBP2_DCHUBP_VMPG_CONFIG                                                                     0x06f0
 #define mmHUBP2_DCHUBP_VMPG_CONFIG_BASE_IDX                                                            2
-#define mmHUBP2_HUBPREQ_DEBUG_DB                                                                       0x06f1
-#define mmHUBP2_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
+#define mmHUBP2_HUBPREQ_DE_DB                                                                       0x06f1
+#define mmHUBP2_HUBPREQ_DE_DB_BASE_IDX                                                              2
 #define mmHUBP2_HUBP_MEASURE_WIN_CTRL_DCFCLK                                                           0x06f6
 #define mmHUBP2_HUBP_MEASURE_WIN_CTRL_DCFCLK_BASE_IDX                                                  2
 #define mmHUBP2_HUBP_MEASURE_WIN_CTRL_DPPCLK                                                           0x06f7
@@ -3197,8 +3197,8 @@
 #define mmHUBP3_HUBP_CLK_CNTL_BASE_IDX                                                                 2
 #define mmHUBP3_DCHUBP_VMPG_CONFIG                                                                     0x07b4
 #define mmHUBP3_DCHUBP_VMPG_CONFIG_BASE_IDX                                                            2
-#define mmHUBP3_HUBPREQ_DEBUG_DB                                                                       0x07b5
-#define mmHUBP3_HUBPREQ_DEBUG_DB_BASE_IDX                                                              2
+#define mmHUBP3_HUBPREQ_DE_DB                                                                       0x07b5
+#define mmHUBP3_HUBPREQ_DE_DB_BASE_IDX                                                              2
 #define mmHUBP3_HUBP_MEASURE_WIN_CTRL_DCFCLK                                                           0x07ba
 #define mmHUBP3_HUBP_MEASURE_WIN_CTRL_DCFCLK_BASE_IDX                                                  2
 #define mmHUBP3_HUBP_MEASURE_WIN_CTRL_DPPCLK                                                           0x07bb
@@ -3895,10 +3895,10 @@
 #define mmCM0_CM_MEM_PWR_CTRL_BASE_IDX                                                                 2
 #define mmCM0_CM_MEM_PWR_STATUS                                                                        0x0d33
 #define mmCM0_CM_MEM_PWR_STATUS_BASE_IDX                                                               2
-#define mmCM0_CM_TEST_DEBUG_INDEX                                                                      0x0d35
-#define mmCM0_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
-#define mmCM0_CM_TEST_DEBUG_DATA                                                                       0x0d36
-#define mmCM0_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
+#define mmCM0_CM_TEST_DE_INDEX                                                                      0x0d35
+#define mmCM0_CM_TEST_DE_INDEX_BASE_IDX                                                             2
+#define mmCM0_CM_TEST_DE_DATA                                                                       0x0d36
+#define mmCM0_CM_TEST_DE_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp0_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
@@ -4371,10 +4371,10 @@
 #define mmCM1_CM_MEM_PWR_CTRL_BASE_IDX                                                                 2
 #define mmCM1_CM_MEM_PWR_STATUS                                                                        0x0e4e
 #define mmCM1_CM_MEM_PWR_STATUS_BASE_IDX                                                               2
-#define mmCM1_CM_TEST_DEBUG_INDEX                                                                      0x0e50
-#define mmCM1_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
-#define mmCM1_CM_TEST_DEBUG_DATA                                                                       0x0e51
-#define mmCM1_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
+#define mmCM1_CM_TEST_DE_INDEX                                                                      0x0e50
+#define mmCM1_CM_TEST_DE_INDEX_BASE_IDX                                                             2
+#define mmCM1_CM_TEST_DE_DATA                                                                       0x0e51
+#define mmCM1_CM_TEST_DE_DATA_BASE_IDX                                                              2
 
 // addressBlock: dce_dc_dpp1_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
 // base address: 0x399c
@@ -4846,10 +4846,10 @@
 #define mmCM2_CM_MEM_PWR_CTRL_BASE_IDX                                                                 2
 #define mmCM2_CM_MEM_PWR_STATUS                                                                        0x0f69
 #define mmCM2_CM_MEM_PWR_STATUS_BASE_IDX                                                               2
-#define mmCM2_CM_TEST_DEBUG_INDEX                                                                      0x0f6b
-#define mmCM2_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
-#define mmCM2_CM_TEST_DEBUG_DATA                                                                       0x0f6c
-#define mmCM2_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
+#define mmCM2_CM_TEST_DE_INDEX                                                                      0x0f6b
+#define mmCM2_CM_TEST_DE_INDEX_BASE_IDX                                                             2
+#define mmCM2_CM_TEST_DE_DATA                                                                       0x0f6c
+#define mmCM2_CM_TEST_DE_DATA_BASE_IDX                                                              2
 
 // addressBlock: dce_dc_dpp2_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
 // base address: 0x3e08
@@ -5321,10 +5321,10 @@
 #define mmCM3_CM_MEM_PWR_CTRL_BASE_IDX                                                                 2
 #define mmCM3_CM_MEM_PWR_STATUS                                                                        0x1084
 #define mmCM3_CM_MEM_PWR_STATUS_BASE_IDX                                                               2
-#define mmCM3_CM_TEST_DEBUG_INDEX                                                                      0x1086
-#define mmCM3_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
-#define mmCM3_CM_TEST_DEBUG_DATA                                                                       0x1087
-#define mmCM3_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
+#define mmCM3_CM_TEST_DE_INDEX                                                                      0x1086
+#define mmCM3_CM_TEST_DE_INDEX_BASE_IDX                                                             2
+#define mmCM3_CM_TEST_DE_DATA                                                                       0x1087
+#define mmCM3_CM_TEST_DE_DATA_BASE_IDX                                                              2
 
 // addressBlock: dce_dc_dpp3_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
 // base address: 0x4274
@@ -10346,8 +10346,8 @@
 #define mmDC_GENERICB_BASE_IDX                                                                         2
 #define mmDC_REF_CLK_CNTL                                                                              0x286b
 #define mmDC_REF_CLK_CNTL_BASE_IDX                                                                     2
-#define mmDC_GPIO_DEBUG                                                                                0x286c
-#define mmDC_GPIO_DEBUG_BASE_IDX                                                                       2
+#define mmDC_GPIO_DE                                                                                0x286c
+#define mmDC_GPIO_DE_BASE_IDX                                                                       2
 #define mmUNIPHYA_LINK_CNTL                                                                            0x286d
 #define mmUNIPHYA_LINK_CNTL_BASE_IDX                                                                   2
 #define mmUNIPHYA_CHANNEL_XBAR_CNTL                                                                    0x286e

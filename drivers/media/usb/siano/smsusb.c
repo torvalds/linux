@@ -136,7 +136,7 @@ static void smsusb_onresponse(struct urb *urb)
 			} else
 				surb->cb->offset = 0;
 
-			pr_debug("received %s(%d) size: %d\n",
+			pr_de("received %s(%d) size: %d\n",
 				  smscore_translate_msg(phdr->msg_type),
 				  phdr->msg_type, phdr->msg_length);
 
@@ -221,7 +221,7 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	int dummy, ret;
 
 	if (dev->state != SMSUSB_ACTIVE) {
-		pr_debug("Device not active yet\n");
+		pr_de("Device not active yet\n");
 		return -ENOENT;
 	}
 
@@ -229,7 +229,7 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	if (!phdr)
 		return -ENOMEM;
 
-	pr_debug("sending %s(%d) size: %d\n",
+	pr_de("sending %s(%d) size: %d\n",
 		  smscore_translate_msg(phdr->msg_type), phdr->msg_type,
 		  phdr->msg_length);
 
@@ -295,14 +295,14 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 		rc = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 2),
 				  fw_buffer, fw->size, &dummy, 1000);
 
-		pr_debug("sent %zu(%d) bytes, rc %d\n", fw->size, dummy, rc);
+		pr_de("sent %zu(%d) bytes, rc %d\n", fw->size, dummy, rc);
 
 		kfree(fw_buffer);
 	} else {
 		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;
 	}
-	pr_debug("read FW %s, size=%zu\n", fw_filename, fw->size);
+	pr_de("read FW %s, size=%zu\n", fw_filename, fw->size);
 
 	release_firmware(fw);
 
@@ -328,7 +328,7 @@ static void smsusb1_detectmode(void *context, int *mode)
 	else if (strstr(product_string, "TDMB"))
 		*mode = 2;
 
-	pr_debug("%d \"%s\"\n", *mode, product_string);
+	pr_de("%d \"%s\"\n", *mode, product_string);
 }
 
 static int smsusb1_setmode(void *context, int mode)
@@ -357,7 +357,7 @@ static void smsusb_term_device(struct usb_interface *intf)
 		if (dev->coredev)
 			smscore_unregister_device(dev->coredev);
 
-		pr_debug("device 0x%p destroyed\n", dev);
+		pr_de("device 0x%p destroyed\n", dev);
 		kfree(dev);
 	}
 
@@ -440,7 +440,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 			dev->out_ep = intf->cur_altsetting->endpoint[i].desc.bEndpointAddress;
 	}
 
-	pr_debug("in_ep = %02x, out_ep = %02x\n",
+	pr_de("in_ep = %02x, out_ep = %02x\n",
 		dev->in_ep, dev->out_ep);
 
 	params.device = &dev->udev->dev;
@@ -475,7 +475,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		usb_init_urb(&dev->surbs[i].urb);
 	}
 
-	pr_debug("smsusb_start_streaming(...).\n");
+	pr_de("smsusb_start_streaming(...).\n");
 	rc = smsusb_start_streaming(dev);
 	if (rc < 0) {
 		pr_err("smsusb_start_streaming(...) failed\n");
@@ -492,7 +492,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 		return rc;
 	}
 
-	pr_debug("device 0x%p created\n", dev);
+	pr_de("device 0x%p created\n", dev);
 
 	return rc;
 }
@@ -510,7 +510,7 @@ static int smsusb_probe(struct usb_interface *intf,
 
 	if (sms_get_board(id->driver_info)->intf_num !=
 	    intf->cur_altsetting->desc.bInterfaceNumber) {
-		pr_debug("interface %d won't be used. Expecting interface %d to popup\n",
+		pr_de("interface %d won't be used. Expecting interface %d to popup\n",
 			intf->cur_altsetting->desc.bInterfaceNumber,
 			sms_get_board(id->driver_info)->intf_num);
 		return -ENODEV;
@@ -526,10 +526,10 @@ static int smsusb_probe(struct usb_interface *intf,
 		}
 	}
 
-	pr_debug("smsusb_probe %d\n",
+	pr_de("smsusb_probe %d\n",
 	       intf->cur_altsetting->desc.bInterfaceNumber);
 	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
-		pr_debug("endpoint %d %02x %02x %d\n", i,
+		pr_de("endpoint %d %02x %02x %d\n", i,
 		       intf->cur_altsetting->endpoint[i].desc.bEndpointAddress,
 		       intf->cur_altsetting->endpoint[i].desc.bmAttributes,
 		       intf->cur_altsetting->endpoint[i].desc.wMaxPacketSize);
@@ -543,7 +543,7 @@ static int smsusb_probe(struct usb_interface *intf,
 	}
 	if ((udev->actconfig->desc.bNumInterfaces == 2) &&
 	    (intf->cur_altsetting->desc.bInterfaceNumber == 0)) {
-		pr_debug("rom interface 0 is not used\n");
+		pr_de("rom interface 0 is not used\n");
 		return -ENODEV;
 	}
 

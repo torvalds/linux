@@ -98,7 +98,7 @@
 
 /* set to differentiate zynq from zynqmp, 0=zynqmp, 1=zynq */
 #define ZYNQ_GPIO_QUIRK_IS_ZYNQ	BIT(0)
-#define GPIO_QUIRK_DATA_RO_BUG	BIT(1)
+#define GPIO_QUIRK_DATA_RO_	BIT(1)
 
 struct gpio_regs {
 	u32 datamsw[ZYNQMP_GPIO_MAX_BANK];
@@ -163,14 +163,14 @@ static int zynq_gpio_is_zynq(struct zynq_gpio *gpio)
 }
 
 /**
- * gpio_data_ro_bug - test if HW bug exists or not
+ * gpio_data_ro_ - test if HW  exists or not
  * @gpio:       Pointer to driver data struct
  *
- * Return: 0 if bug doesnot exist, 1 if bug exists.
+ * Return: 0 if  doesnot exist, 1 if  exists.
  */
-static int gpio_data_ro_bug(struct zynq_gpio *gpio)
+static int gpio_data_ro_(struct zynq_gpio *gpio)
 {
-	return !!(gpio->p_data->quirks & GPIO_QUIRK_DATA_RO_BUG);
+	return !!(gpio->p_data->quirks & GPIO_QUIRK_DATA_RO_);
 }
 
 /**
@@ -225,7 +225,7 @@ static int zynq_gpio_get_value(struct gpio_chip *chip, unsigned int pin)
 
 	zynq_gpio_get_bank_pin(pin, &bank_num, &bank_pin_num, gpio);
 
-	if (gpio_data_ro_bug(gpio)) {
+	if (gpio_data_ro_(gpio)) {
 		if (zynq_gpio_is_zynq(gpio)) {
 			if (bank_num <= 1) {
 				data = readl_relaxed(gpio->base_addr +
@@ -630,7 +630,7 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
  * gpio pin number which has triggered an interrupt. It then acks the triggered
  * interrupt and calls the pin specific handler set by the higher layer
  * application for that pin.
- * Note: A bug is reported if no handler is set for the gpio pin.
+ * Note: A  is reported if no handler is set for the gpio pin.
  */
 static void zynq_gpio_irqhandler(struct irq_desc *desc)
 {
@@ -779,7 +779,7 @@ static const struct dev_pm_ops zynq_gpio_dev_pm_ops = {
 
 static const struct zynq_platform_data zynqmp_gpio_def = {
 	.label = "zynqmp_gpio",
-	.quirks = GPIO_QUIRK_DATA_RO_BUG,
+	.quirks = GPIO_QUIRK_DATA_RO_,
 	.ngpio = ZYNQMP_GPIO_NR_GPIOS,
 	.max_bank = ZYNQMP_GPIO_MAX_BANK,
 	.bank_min[0] = ZYNQ_GPIO_BANK0_PIN_MIN(MP),
@@ -798,7 +798,7 @@ static const struct zynq_platform_data zynqmp_gpio_def = {
 
 static const struct zynq_platform_data zynq_gpio_def = {
 	.label = "zynq_gpio",
-	.quirks = ZYNQ_GPIO_QUIRK_IS_ZYNQ | GPIO_QUIRK_DATA_RO_BUG,
+	.quirks = ZYNQ_GPIO_QUIRK_IS_ZYNQ | GPIO_QUIRK_DATA_RO_,
 	.ngpio = ZYNQ_GPIO_NR_GPIOS,
 	.max_bank = ZYNQ_GPIO_MAX_BANK,
 	.bank_min[0] = ZYNQ_GPIO_BANK0_PIN_MIN(),
@@ -893,7 +893,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm_dis;
 
-	/* report a bug if gpio chip registration fails */
+	/* report a  if gpio chip registration fails */
 	ret = gpiochip_add_data(chip, gpio);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add gpio chip\n");

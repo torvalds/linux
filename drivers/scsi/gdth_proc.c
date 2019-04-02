@@ -114,7 +114,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
     if (wb_mode) {
 	unsigned long flags;
 
-	BUILD_BUG_ON(sizeof(gdth_cpar_str) > GDTH_SCRATCH);
+	BUILD__ON(sizeof(gdth_cpar_str) > GDTH_SCRATCH);
 
 	spin_lock_irqsave(&ha->smp_lock, flags);
 	if (ha->scratch_busy) {

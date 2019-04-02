@@ -22,7 +22,7 @@
 #define MB              (1024*KB)
 #define GB              (1024*MB)
 
-#define SMC_DEBUG   0
+#define SMC_DE   0
 
 /* File:	smcc669_def.h
  *
@@ -2472,7 +2472,7 @@ void __init SMC669_Init ( int index )
 
     local_irq_save(flags);
     if ( ( SMC_base = SMC37c669_detect( index ) ) != NULL ) {
-#if SMC_DEBUG
+#if SMC_DE
 	SMC37c669_config_mode( TRUE );
 	SMC37c669_dump_registers( );
 	SMC37c669_config_mode( FALSE );
@@ -2519,7 +2519,7 @@ void __init SMC669_Init ( int index )
 
         SMC37c669_disable_device( IDE_0 );
 
-#if SMC_DEBUG
+#if SMC_DE
 	SMC37c669_config_mode( TRUE );
 	SMC37c669_dump_registers( );
 	SMC37c669_config_mode( FALSE );
@@ -2531,7 +2531,7 @@ void __init SMC669_Init ( int index )
     }
     else {
 	local_irq_restore(flags);
-#if SMC_DEBUG
+#if SMC_DE
         printk( "No SMC37c669 Super I/O Controller found\n" );
 #endif
     }

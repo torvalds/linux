@@ -161,7 +161,7 @@ int qxl_device_init(struct qxl_device *qdev,
 		}
 	}
 
-	DRM_DEBUG_KMS("qxl: vram %llx-%llx(%dM %dk), surface %llx-%llx(%dM %dk, %s)\n",
+	DRM_DE_KMS("qxl: vram %llx-%llx(%dM %dk), surface %llx-%llx(%dM %dk, %s)\n",
 		 (unsigned long long)qdev->vram_base,
 		 (unsigned long long)pci_resource_end(pdev, 0),
 		 (int)pci_resource_len(pdev, 0) / 1024 / 1024,

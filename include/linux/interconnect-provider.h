@@ -57,7 +57,7 @@ struct icc_provider {
  * struct icc_node - entity that is part of the interconnect topology
  *
  * @id: platform specific node id
- * @name: node name used in debugfs
+ * @name: node name used in defs
  * @links: a list of targets pointing to where we can go next when traversing
  * @num_links: number of links to other interconnect nodes
  * @provider: points to the interconnect provider of this node

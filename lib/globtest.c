@@ -25,7 +25,7 @@ static bool __pure __init test(char const *pat, char const *str, bool expected)
 	static char const msg_error[] __initconst =
 		KERN_ERR "glob: \"%s\" vs. \"%s\": %s *** ERROR ***\n";
 	static char const msg_ok[] __initconst =
-		KERN_DEBUG "glob: \"%s\" vs. \"%s\": %s OK\n";
+		KERN_DE "glob: \"%s\" vs. \"%s\": %s OK\n";
 	static char const mismatch[] __initconst = "mismatch";
 	char const *message;
 
@@ -153,7 +153,7 @@ static int __init glob_init(void)
 	n -= successes;
 	printk(message, successes, n);
 
-	/* What's the errno for "kernel bug detected"?  Guess... */
+	/* What's the errno for "kernel  detected"?  Guess... */
 	return n ? -ECANCELED : 0;
 }
 

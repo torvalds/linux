@@ -1529,7 +1529,7 @@ static void omap_gpio_unidle(struct gpio_bank *bank)
 	 * Check if any of the non-wakeup interrupt GPIOs have changed
 	 * state.  If so, generate an IRQ by software.  This is
 	 * horribly racy, but it's the best we can do to work around
-	 * this silicon bug.
+	 * this silicon .
 	 */
 	l ^= bank->saved_datain;
 	l &= bank->enabled_non_wakeup_gpios;

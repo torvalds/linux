@@ -46,7 +46,7 @@
 #define CMM_DRIVER_VERSION	"1.0.0"
 #define CMM_DEFAULT_DELAY	1
 #define CMM_HOTPLUG_DELAY	5
-#define CMM_DEBUG			0
+#define CMM_DE			0
 #define CMM_DISABLE		0
 #define CMM_OOM_KB		1024
 #define CMM_MIN_MEM_MB		256
@@ -62,7 +62,7 @@
 static unsigned int delay = CMM_DEFAULT_DELAY;
 static unsigned int hotplug_delay = CMM_HOTPLUG_DELAY;
 static unsigned int oom_kb = CMM_OOM_KB;
-static unsigned int cmm_debug = CMM_DEBUG;
+static unsigned int cmm_de = CMM_DE;
 static unsigned int cmm_disabled = CMM_DISABLE;
 static unsigned long min_mem_mb = CMM_MIN_MEM_MB;
 static struct device cmm_dev;
@@ -85,13 +85,13 @@ MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
 module_param_named(min_mem_mb, min_mem_mb, ulong, 0644);
 MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to not balloon. "
 		 "[Default=" __stringify(CMM_MIN_MEM_MB) "]");
-module_param_named(debug, cmm_debug, uint, 0644);
-MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
-		 "[Default=" __stringify(CMM_DEBUG) "]");
+module_param_named(de, cmm_de, uint, 0644);
+MODULE_PARM_DESC(de, "Enable module deging logging. Set to 1 to enable. "
+		 "[Default=" __stringify(CMM_DE) "]");
 
 #define CMM_NR_PAGES ((PAGE_SIZE - sizeof(void *) - sizeof(unsigned long)) / sizeof(unsigned long))
 
-#define cmm_dbg(...) if (cmm_debug) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
+#define cmm_dbg(...) if (cmm_de) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
 
 struct cmm_page_array {
 	struct cmm_page_array *next;

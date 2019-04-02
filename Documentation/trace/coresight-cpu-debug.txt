@@ -1,4 +1,4 @@
-		Coresight CPU Debug Module
+		Coresight CPU De Module
 		==========================
 
    Author:   Leo Yan <leo.yan@linaro.org>
@@ -7,18 +7,18 @@
 Introduction
 ------------
 
-Coresight CPU debug module is defined in ARMv8-a architecture reference manual
-(ARM DDI 0487A.k) Chapter 'Part H: External debug', the CPU can integrate
-debug module and it is mainly used for two modes: self-hosted debug and
-external debug. Usually the external debug mode is well known as the external
-debugger connects with SoC from JTAG port; on the other hand the program can
-explore debugging method which rely on self-hosted debug mode, this document
+Coresight CPU de module is defined in ARMv8-a architecture reference manual
+(ARM DDI 0487A.k) Chapter 'Part H: External de', the CPU can integrate
+de module and it is mainly used for two modes: self-hosted de and
+external de. Usually the external de mode is well known as the external
+deger connects with SoC from JTAG port; on the other hand the program can
+explore deging method which rely on self-hosted de mode, this document
 is to focus on this part.
 
-The debug module provides sample-based profiling extension, which can be used
+The de module provides sample-based profiling extension, which can be used
 to sample CPU program counter, secure state and exception level, etc; usually
-every CPU has one dedicated debug module to be connected. Based on self-hosted
-debug mechanism, Linux kernel can access these related registers from mmio
+every CPU has one dedicated de module to be connected. Based on self-hosted
+de mechanism, Linux kernel can access these related registers from mmio
 region when the kernel panic happens. The callback notifier for kernel panic
 will dump related registers for every CPU; finally this is good for assistant
 analysis for panic.
@@ -32,7 +32,7 @@ Implementation
   platforms this hardware feature is fully or partially implemented; and if
   this feature is not supported then registration will fail.
 
-- At the time this documentation was written, the debug driver mainly relies on
+- At the time this documentation was written, the de driver mainly relies on
   information gathered by the kernel panic callback notifier from three
   sampling registers: EDPCSR, EDVIDSR and EDCIDSR: from EDPCSR we can get
   program counter; EDVIDSR has information for secure state, exception level,
@@ -65,9 +65,9 @@ Implementation
 Clock and power domain
 ----------------------
 
-Before accessing debug registers, we should ensure the clock and power domain
+Before accessing de registers, we should ensure the clock and power domain
 have been enabled properly. In ARMv8-a ARM (ARM DDI 0487A.k) chapter 'H9.1
-Debug registers', the debug registers are spread into two domains: the debug
+De registers', the de registers are spread into two domains: the de
 domain and the CPU domain.
 
                                 +---------------+
@@ -75,20 +75,20 @@ domain and the CPU domain.
                                 |               |
                      +----------+--+            |
         dbg_clock -->|          |**|            |<-- cpu_clock
-                     |    Debug |**|   CPU      |
+                     |    De |**|   CPU      |
  dbg_power_domain -->|          |**|            |<-- cpu_power_domain
                      +----------+--+            |
                                 |               |
                                 |               |
                                 +---------------+
 
-For debug domain, the user uses DT binding "clocks" and "power-domains" to
-specify the corresponding clock source and power supply for the debug logic.
+For de domain, the user uses DT binding "clocks" and "power-domains" to
+specify the corresponding clock source and power supply for the de logic.
 The driver calls the pm_runtime_{put|get} operations as needed to handle the
-debug power domain.
+de power domain.
 
 For CPU domain, the different SoC designs have different power management
-schemes and finally this heavily impacts external debug module. So we can
+schemes and finally this heavily impacts external de module. So we can
 divide into below cases:
 
 - On systems with a sane power controller which can behave correctly with
@@ -96,17 +96,17 @@ divide into below cases:
   register EDPRCR in driver. The driver firstly writes bit EDPRCR.COREPURQ
   to power up the CPU, and then writes bit EDPRCR.CORENPDRQ for emulation
   of CPU power down. As result, this can ensure the CPU power domain is
-  powered on properly during the period when access debug related registers;
+  powered on properly during the period when access de related registers;
 
 - Some designs will power down an entire cluster if all CPUs on the cluster
-  are powered down - including the parts of the debug registers that should
-  remain powered in the debug power domain. The bits in EDPRCR are not
-  respected in these cases, so these designs do not support debug over
-  power down in the way that the CoreSight / Debug designers anticipated.
+  are powered down - including the parts of the de registers that should
+  remain powered in the de power domain. The bits in EDPRCR are not
+  respected in these cases, so these designs do not support de over
+  power down in the way that the CoreSight / De designers anticipated.
   This means that even checking EDPRSR has the potential to cause a bus hang
   if the target register is unpowered.
 
-  In this case, accessing to the debug registers while they are not powered
+  In this case, accessing to the de registers while they are not powered
   is a recipe for disaster; so we need preventing CPU low power states at boot
   time or when user enable module at the run time. Please see chapter
   "How to use the module" for detailed usage info for this.
@@ -115,34 +115,34 @@ divide into below cases:
 Device Tree Bindings
 --------------------
 
-See Documentation/devicetree/bindings/arm/coresight-cpu-debug.txt for details.
+See Documentation/devicetree/bindings/arm/coresight-cpu-de.txt for details.
 
 
 How to use the module
 ---------------------
 
-If you want to enable debugging functionality at boot time, you can add
-"coresight_cpu_debug.enable=1" to the kernel command line parameter.
+If you want to enable deging functionality at boot time, you can add
+"coresight_cpu_de.enable=1" to the kernel command line parameter.
 
-The driver also can work as module, so can enable the debugging when insmod
+The driver also can work as module, so can enable the deging when insmod
 module:
-# insmod coresight_cpu_debug.ko debug=1
+# insmod coresight_cpu_de.ko de=1
 
-When boot time or insmod module you have not enabled the debugging, the driver
-uses the debugfs file system to provide a knob to dynamically enable or disable
-debugging:
+When boot time or insmod module you have not enabled the deging, the driver
+uses the defs file system to provide a knob to dynamically enable or disable
+deging:
 
-To enable it, write a '1' into /sys/kernel/debug/coresight_cpu_debug/enable:
-# echo 1 > /sys/kernel/debug/coresight_cpu_debug/enable
+To enable it, write a '1' into /sys/kernel/de/coresight_cpu_de/enable:
+# echo 1 > /sys/kernel/de/coresight_cpu_de/enable
 
-To disable it, write a '0' into /sys/kernel/debug/coresight_cpu_debug/enable:
-# echo 0 > /sys/kernel/debug/coresight_cpu_debug/enable
+To disable it, write a '0' into /sys/kernel/de/coresight_cpu_de/enable:
+# echo 0 > /sys/kernel/de/coresight_cpu_de/enable
 
 As explained in chapter "Clock and power domain", if you are working on one
-platform which has idle states to power off debug logic and the power
+platform which has idle states to power off de logic and the power
 controller cannot work well for the request from EDPRCR, then you should
-firstly constraint CPU idle states before enable CPU debugging feature; so can
-ensure the accessing to debug logic.
+firstly constraint CPU idle states before enable CPU deging feature; so can
+ensure the accessing to de logic.
 
 If you want to limit idle states at boot time, you can use "nohlt" or
 "cpuidle.off=1" in the kernel command line.
@@ -172,16 +172,16 @@ Documentation/admin-guide/pm/cpuidle.rst):
 Output format
 -------------
 
-Here is an example of the debugging output format:
+Here is an example of the deging output format:
 
-ARM external debug module:
-coresight-cpu-debug 850000.debug: CPU[0]:
-coresight-cpu-debug 850000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
-coresight-cpu-debug 850000.debug:  EDPCSR:  handle_IPI+0x174/0x1d8
-coresight-cpu-debug 850000.debug:  EDCIDSR: 00000000
-coresight-cpu-debug 850000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
-coresight-cpu-debug 852000.debug: CPU[1]:
-coresight-cpu-debug 852000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
-coresight-cpu-debug 852000.debug:  EDPCSR:  debug_notifier_call+0x23c/0x358
-coresight-cpu-debug 852000.debug:  EDCIDSR: 00000000
-coresight-cpu-debug 852000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
+ARM external de module:
+coresight-cpu-de 850000.de: CPU[0]:
+coresight-cpu-de 850000.de:  EDPRSR:  00000001 (Power:On DLK:Unlock)
+coresight-cpu-de 850000.de:  EDPCSR:  handle_IPI+0x174/0x1d8
+coresight-cpu-de 850000.de:  EDCIDSR: 00000000
+coresight-cpu-de 850000.de:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
+coresight-cpu-de 852000.de: CPU[1]:
+coresight-cpu-de 852000.de:  EDPRSR:  00000001 (Power:On DLK:Unlock)
+coresight-cpu-de 852000.de:  EDPCSR:  de_notifier_call+0x23c/0x358
+coresight-cpu-de 852000.de:  EDCIDSR: 00000000
+coresight-cpu-de 852000.de:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * debug.h - DesignWare USB3 DRD Controller Debug Header
+ * de.h - DesignWare USB3 DRD Controller De Header
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
  *
@@ -8,8 +8,8 @@
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  */
 
-#ifndef __DWC3_DEBUG_H
-#define __DWC3_DEBUG_H
+#ifndef __DWC3_DE_H
+#define __DWC3_DE_H
 
 #include "core.h"
 
@@ -369,8 +369,8 @@ static inline void dwc3_decode_get_set_descriptor(__u8 t, __u8 b, __u16 v,
 			case USB_DT_OTG:
 				s = "OTG";
 				break;
-			case USB_DT_DEBUG:
-				s = "Debug";
+			case USB_DT_DE:
+				s = "De";
 				break;
 			case USB_DT_INTERFACE_ASSOCIATION:
 				s = "Interface Association";
@@ -666,13 +666,13 @@ static inline const char *dwc3_gadget_generic_cmd_status_string(int status)
 }
 
 
-#ifdef CONFIG_DEBUG_FS
-extern void dwc3_debugfs_init(struct dwc3 *);
-extern void dwc3_debugfs_exit(struct dwc3 *);
+#ifdef CONFIG_DE_FS
+extern void dwc3_defs_init(struct dwc3 *);
+extern void dwc3_defs_exit(struct dwc3 *);
 #else
-static inline void dwc3_debugfs_init(struct dwc3 *d)
+static inline void dwc3_defs_init(struct dwc3 *d)
 {  }
-static inline void dwc3_debugfs_exit(struct dwc3 *d)
+static inline void dwc3_defs_exit(struct dwc3 *d)
 {  }
 #endif
-#endif /* __DWC3_DEBUG_H */
+#endif /* __DWC3_DE_H */

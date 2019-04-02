@@ -1124,7 +1124,7 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 			 * up, but the IB link changes state at the "wrong"
 			 * time. The IB logic then complains that the packet
 			 * isn't valid.  We don't want to confuse people, so
-			 * we just don't print them, except at debug
+			 * we just don't print them, except at de
 			 */
 			ignore_this_time = errs & E_SUM_LINK_PKTERRS;
 		}
@@ -1135,7 +1135,7 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 		 * up, but the IB link changes state at the "wrong" time.
 		 * The IB logic then complains that the packet isn't
 		 * valid.  We don't want to confuse people, so we just
-		 * don't print them, except at debug
+		 * don't print them, except at de
 		 */
 		ignore_this_time = errs & E_SUM_LINK_PKTERRS;
 	}
@@ -2548,7 +2548,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		 * Update our housekeeping variables, and set IBC max
 		 * size, same as init code; max IBC is max we allow in
 		 * buffer, less the qword pbc, plus 1 for ICRC, in dwords
-		 * Set even if it's unchanged, print debug message only
+		 * Set even if it's unchanged, print de message only
 		 * on changes.
 		 */
 		val = (ppd->ibmaxlen >> 2) + 1;

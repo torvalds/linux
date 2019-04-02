@@ -311,13 +311,13 @@ int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name)
 }
 EXPORT_SYMBOL_GPL(btintel_load_ddc_config);
 
-int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
+int btintel_set_event_mask(struct hci_dev *hdev, bool de)
 {
 	u8 mask[8] = { 0x87, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	struct sk_buff *skb;
 	int err;
 
-	if (debug)
+	if (de)
 		mask[1] |= 0x62;
 
 	skb = __hci_cmd_sync(hdev, 0xfc52, 8, mask, HCI_INIT_TIMEOUT);
@@ -332,7 +332,7 @@ int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
 }
 EXPORT_SYMBOL_GPL(btintel_set_event_mask);
 
-int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
+int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool de)
 {
 	int err, ret;
 
@@ -340,7 +340,7 @@ int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
 	if (err)
 		return err;
 
-	ret = btintel_set_event_mask(hdev, debug);
+	ret = btintel_set_event_mask(hdev, de);
 
 	err = btintel_exit_mfg(hdev, false, false);
 	if (err)
@@ -630,8 +630,8 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 	bt_dev_info(hdev, "API lock is %s",
 		    params->api_lock ? "enabled" : "disabled");
 
-	bt_dev_info(hdev, "Debug lock is %s",
-		    params->debug_lock ? "enabled" : "disabled");
+	bt_dev_info(hdev, "De lock is %s",
+		    params->de_lock ? "enabled" : "disabled");
 
 	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
 		    params->min_fw_build_nn, params->min_fw_build_cw,

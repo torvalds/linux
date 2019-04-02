@@ -729,7 +729,7 @@ static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
 	/* This is harmlessly racy, we want to approximately detect a hang */
 	if (unlikely(++graph_hang_thresh > GRAPH_MAX_FUNC_TEST)) {
 		ftrace_graph_stop();
-		printk(KERN_WARNING "BUG: Function graph tracer hang!\n");
+		printk(KERN_WARNING ": Function graph tracer hang!\n");
 		if (ftrace_dump_on_oops) {
 			ftrace_dump(DUMP_ALL);
 			/* ftrace_dump() disables tracing */

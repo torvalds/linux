@@ -27,7 +27,7 @@
  * Mark Gross <mgross@linux.intel.com>
  */
 
-/*#define DEBUG*/
+/*#define DE*/
 
 #include <linux/pm_qos.h>
 #include <linux/sched.h>
@@ -41,7 +41,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <linux/uaccess.h>
@@ -169,7 +169,7 @@ static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 
 	default:
 		/* runtime check for not using enum */
-		BUG();
+		();
 		return PM_QOS_DEFAULT_VALUE;
 	}
 }
@@ -184,7 +184,7 @@ static inline void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 	c->target_value = value;
 }
 
-static int pm_qos_debug_show(struct seq_file *s, void *unused)
+static int pm_qos_de_show(struct seq_file *s, void *unused)
 {
 	struct pm_qos_object *qos = (struct pm_qos_object *)s->private;
 	struct pm_qos_constraints *c;
@@ -245,7 +245,7 @@ out:
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(pm_qos_debug);
+DEFINE_SHOW_ATTRIBUTE(pm_qos_de);
 
 /**
  * pm_qos_update_target - manages the constraints list and calls the notifiers
@@ -582,8 +582,8 @@ static int register_pm_qos_misc(struct pm_qos_object *qos, struct dentry *d)
 	qos->pm_qos_power_miscdev.name = qos->name;
 	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
 
-	debugfs_create_file(qos->name, S_IRUGO, d, (void *)qos,
-			    &pm_qos_debug_fops);
+	defs_create_file(qos->name, S_IRUGO, d, (void *)qos,
+			    &pm_qos_de_fops);
 
 	return misc_register(&qos->pm_qos_power_miscdev);
 }
@@ -680,9 +680,9 @@ static int __init pm_qos_power_init(void)
 	int i;
 	struct dentry *d;
 
-	BUILD_BUG_ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
+	BUILD__ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
 
-	d = debugfs_create_dir("pm_qos", NULL);
+	d = defs_create_dir("pm_qos", NULL);
 
 	for (i = PM_QOS_CPU_DMA_LATENCY; i < PM_QOS_NUM_CLASSES; i++) {
 		ret = register_pm_qos_misc(pm_qos_array[i], d);

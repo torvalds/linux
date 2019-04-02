@@ -160,7 +160,7 @@ static struct shdma_desc *shdma_get_desc(struct shdma_chan *schan)
 
 	list_for_each_entry(sdesc, &schan->ld_free, node)
 		if (sdesc->mark != DESC_PREPARED) {
-			BUG_ON(sdesc->mark != DESC_IDLE);
+			_ON(sdesc->mark != DESC_IDLE);
 			list_del(&sdesc->node);
 			return sdesc;
 		}
@@ -336,8 +336,8 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 	list_for_each_entry_safe(desc, _desc, &schan->ld_queue, node) {
 		struct dma_async_tx_descriptor *tx = &desc->async_tx;
 
-		BUG_ON(tx->cookie > 0 && tx->cookie != desc->cookie);
-		BUG_ON(desc->mark != DESC_SUBMITTED &&
+		_ON(tx->cookie > 0 && tx->cookie != desc->cookie);
+		_ON(desc->mark != DESC_SUBMITTED &&
 		       desc->mark != DESC_COMPLETED &&
 		       desc->mark != DESC_WAITING);
 
@@ -369,13 +369,13 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 			callback = tx->callback;
 			dev_dbg(schan->dev, "descriptor #%d@%p on %d callback\n",
 				tx->cookie, tx, schan->id);
-			BUG_ON(desc->chunks != 1);
+			_ON(desc->chunks != 1);
 			break;
 		}
 
 		if (tx->cookie > 0 || tx->cookie == -EBUSY) {
 			if (desc->mark == DESC_COMPLETED) {
-				BUG_ON(tx->cookie < 0);
+				_ON(tx->cookie < 0);
 				desc->mark = DESC_WAITING;
 			}
 			head_acked = async_tx_test_ack(tx);
@@ -646,7 +646,7 @@ static struct dma_async_tx_descriptor *shdma_prep_memcpy(
 	if (!chan || !len)
 		return NULL;
 
-	BUG_ON(!schan->desc_num);
+	_ON(!schan->desc_num);
 
 	sg_init_table(&sg, 1);
 	sg_set_page(&sg, pfn_to_page(PFN_DOWN(dma_src)), len,
@@ -671,7 +671,7 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 	if (!chan)
 		return NULL;
 
-	BUG_ON(!schan->desc_num);
+	_ON(!schan->desc_num);
 
 	/* Someone calling slave DMA on a generic channel? */
 	if (slave_id < 0 || !sg_len) {
@@ -706,7 +706,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	if (!chan)
 		return NULL;
 
-	BUG_ON(!schan->desc_num);
+	_ON(!schan->desc_num);
 
 	if (sg_len > SHDMA_MAX_SG_LEN) {
 		dev_err(schan->dev, "sg length %d exceds limit %d",

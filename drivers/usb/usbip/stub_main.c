@@ -183,7 +183,7 @@ static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 		if (add_match_busid(busid) < 0)
 			return -ENOMEM;
 
-		pr_debug("add busid %s\n", busid);
+		pr_de("add busid %s\n", busid);
 		return count;
 	}
 
@@ -191,7 +191,7 @@ static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 		if (del_match_busid(busid) < 0)
 			return -ENODEV;
 
-		pr_debug("del busid %s\n", busid);
+		pr_de("del busid %s\n", busid);
 		return count;
 	}
 

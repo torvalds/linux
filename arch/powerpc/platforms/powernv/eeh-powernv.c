@@ -12,7 +12,7 @@
  */
 
 #include <linux/atomic.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/init.h>
@@ -123,7 +123,7 @@ static irqreturn_t pnv_eeh_event(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static ssize_t pnv_eeh_ei_write(struct file *filp,
 				const char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -203,7 +203,7 @@ PNV_EEH_DBGFS_ENTRY(outb, 0xD10);
 PNV_EEH_DBGFS_ENTRY(inbA, 0xD90);
 PNV_EEH_DBGFS_ENTRY(inbB, 0xE10);
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 /**
  * pnv_eeh_post_init - EEH platform dependent post initialization
@@ -256,26 +256,26 @@ int pnv_eeh_post_init(void)
 		else
 			phb->flags &= ~PNV_PHB_FLAG_EEH;
 
-		/* Create debugfs entries */
-#ifdef CONFIG_DEBUG_FS
+		/* Create defs entries */
+#ifdef CONFIG_DE_FS
 		if (phb->has_dbgfs || !phb->dbgfs)
 			continue;
 
 		phb->has_dbgfs = 1;
-		debugfs_create_file("err_injct", 0200,
+		defs_create_file("err_injct", 0200,
 				    phb->dbgfs, hose,
 				    &pnv_eeh_ei_fops);
 
-		debugfs_create_file("err_injct_outbound", 0600,
+		defs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
 				    &pnv_eeh_dbgfs_ops_outb);
-		debugfs_create_file("err_injct_inboundA", 0600,
+		defs_create_file("err_injct_inboundA", 0600,
 				    phb->dbgfs, hose,
 				    &pnv_eeh_dbgfs_ops_inbA);
-		debugfs_create_file("err_injct_inboundB", 0600,
+		defs_create_file("err_injct_inboundB", 0600,
 				    phb->dbgfs, hose,
 				    &pnv_eeh_dbgfs_ops_inbB);
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 	}
 
 	return ret;
@@ -759,7 +759,7 @@ int pnv_eeh_phb_reset(struct pci_controller *hose, int option)
 	struct pnv_phb *phb = hose->private_data;
 	s64 rc = OPAL_HARDWARE;
 
-	pr_debug("%s: Reset PHB#%x, option=%d\n",
+	pr_de("%s: Reset PHB#%x, option=%d\n",
 		 __func__, hose->global_number, option);
 
 	/* Issue PHB complete reset request */
@@ -801,7 +801,7 @@ static int pnv_eeh_root_reset(struct pci_controller *hose, int option)
 	struct pnv_phb *phb = hose->private_data;
 	s64 rc = OPAL_HARDWARE;
 
-	pr_debug("%s: Reset PHB#%x, option=%d\n",
+	pr_de("%s: Reset PHB#%x, option=%d\n",
 		 __func__, hose->global_number, option);
 
 	/*
@@ -843,7 +843,7 @@ static int __pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 	int aer = edev ? edev->aer_cap : 0;
 	u32 ctrl;
 
-	pr_debug("%s: Reset PCI bus %04x:%02x with option %d\n",
+	pr_de("%s: Reset PCI bus %04x:%02x with option %d\n",
 		 __func__, pci_domain_nr(dev->bus),
 		 dev->bus->number, option);
 

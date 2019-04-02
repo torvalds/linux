@@ -356,7 +356,7 @@ static int quota_getstate(struct super_block *sb, struct fs_quota_stat *fqs)
 	for (type = 0; type < MAXQUOTAS; type++)
 		if (state.s_state[type].flags & QCI_ACCT_ENABLED)
 			break;
-	BUG_ON(type == MAXQUOTAS);
+	_ON(type == MAXQUOTAS);
 	fqs->qs_btimelimit = state.s_state[type].spc_timelimit;
 	fqs->qs_itimelimit = state.s_state[type].ino_timelimit;
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
@@ -429,7 +429,7 @@ static int quota_getstatev(struct super_block *sb, struct fs_quota_statv *fqs)
 	for (type = 0; type < MAXQUOTAS; type++)
 		if (state.s_state[type].flags & QCI_ACCT_ENABLED)
 			break;
-	BUG_ON(type == MAXQUOTAS);
+	_ON(type == MAXQUOTAS);
 	fqs->qs_btimelimit = state.s_state[type].spc_timelimit;
 	fqs->qs_itimelimit = state.s_state[type].ino_timelimit;
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;

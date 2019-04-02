@@ -163,7 +163,7 @@ void __init octeon_pci_dma_init(void)
 		octeon_pci_dma_ops = &octeon_small_ops;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 #endif /* CONFIG_PCI */

@@ -1430,8 +1430,8 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 					   prrs->seq_num,
 					   rx_page_desc[que].rx_nxseq);
 				rx_page_desc[que].rx_nxseq++;
-				/* just for debug use */
-				AT_WRITE_REG(&adapter->hw, REG_DEBUG_DATA0,
+				/* just for de use */
+				AT_WRITE_REG(&adapter->hw, REG_DE_DATA0,
 					     (((u32)prrs->seq_num) << 16) |
 					     rx_page_desc[que].rx_nxseq);
 				goto fatal_err;
@@ -1532,7 +1532,7 @@ quit_polling:
 		napi_complete_done(napi, work_done);
 		imr_data = AT_READ_REG(&adapter->hw, REG_IMR);
 		AT_WRITE_REG(&adapter->hw, REG_IMR, imr_data | ISR_RX_EVENT);
-		/* test debug */
+		/* test de */
 		if (test_bit(__AT_DOWN, &adapter->flags)) {
 			atomic_dec(&adapter->irq_sem);
 			netdev_err(adapter->netdev,
@@ -1796,7 +1796,7 @@ static int atl1e_tx_map(struct atl1e_adapter *adapter,
 			memcpy(use_tpd, tpd, sizeof(struct atl1e_tpd_desc));
 
 			tx_buffer = atl1e_get_tx_buffer(adapter, use_tpd);
-			BUG_ON(tx_buffer->skb);
+			_ON(tx_buffer->skb);
 
 			tx_buffer->skb = NULL;
 			tx_buffer->length =

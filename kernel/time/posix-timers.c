@@ -4,7 +4,7 @@
  *                           by George Anzinger george@mvista.com
  *			     Copyright (C) 2002 2003 by MontaVista Software.
  *
- * 2004-06-01  Fix CLOCK_REALTIME clock/timer TIMER_ABSTIME bug.
+ * 2004-06-01  Fix CLOCK_REALTIME clock/timer TIMER_ABSTIME .
  *			     Copyright (C) 2004 Boris Hu
  *
  * These are all the functions necessary to implement POSIX clocks & timers

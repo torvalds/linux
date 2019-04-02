@@ -156,7 +156,7 @@
 /*--- Configure Commands --------------------------*/
 #define		HFA384x_CMDCODE_DOWNLD		((u16)0x22)
 
-/*--- Debugging Commands -----------------------------*/
+/*--- Deging Commands -----------------------------*/
 #define		HFA384x_CMDCODE_MONITOR		((u16)(0x38))
 #define		HFA384x_MONITOR_ENABLE		((u16)(0x0b))
 #define		HFA384x_MONITOR_DISABLE		((u16)(0x0f))

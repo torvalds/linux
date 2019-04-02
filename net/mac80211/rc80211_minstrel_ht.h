@@ -108,7 +108,7 @@ struct minstrel_ht_sta_priv {
 	bool is_ht;
 };
 
-void minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
+void minstrel_ht_add_sta_defs(void *priv, void *priv_sta, struct dentry *dir);
 int minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 			   int prob_ewma);
 

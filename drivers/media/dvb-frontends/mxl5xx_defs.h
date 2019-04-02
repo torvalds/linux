@@ -77,7 +77,7 @@ enum MXL_HYDRA_HOST_CMD_ID_E {
 	MXL_HYDRA_DISEQC_COPY_MSG_TO_MAILBOX = 21,
 	MXL_HYDRA_DISEQC_CFG_MSG_CMD = 22,
 
-	/* --- FFT Debug Command IDs-- */
+	/* --- FFT De Command IDs-- */
 	MXL_HYDRA_REQ_FFT_SPECTRUM_CMD = 23,
 
 	/* -- Demod scramblle code */

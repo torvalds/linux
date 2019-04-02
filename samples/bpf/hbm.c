@@ -12,7 +12,7 @@
  *
  * USAGE: hbm [-d] [-l] [-n <id>] [-r <rate>] [-s] [-t <secs>] [-w] [-h] [prog]
  *   Where:
- *    -d	Print BPF trace debug buffer
+ *    -d	Print BPF trace de buffer
  *    -l	Also limit flows doing loopback
  *    -n <#>	To create cgroup \"/hbm#\" and attach prog
  *		Default is /hbm1
@@ -57,14 +57,14 @@ int rate = 1000;		/* can grow if rate conserving is enabled */
 int dur = 1;
 bool stats_flag;
 bool loopback_flag;
-bool debugFlag;
+bool deFlag;
 bool work_conserving_flag;
 
 static void Usage(void);
 static void read_trace_pipe2(void);
 static void do_error(char *msg, bool errno_flag);
 
-#define DEBUGFS "/sys/kernel/debug/tracing/"
+#define DEFS "/sys/kernel/de/tracing/"
 
 struct bpf_object *obj;
 int bpfprog_fd;
@@ -76,7 +76,7 @@ static void read_trace_pipe2(void)
 	FILE *outf;
 	char *outFname = "hbm_out.log";
 
-	trace_fd = open(DEBUGFS "trace_pipe", O_RDONLY, 0);
+	trace_fd = open(DEFS "trace_pipe", O_RDONLY, 0);
 	if (trace_fd < 0) {
 		printf("Error opening trace_pipe\n");
 		return;
@@ -349,7 +349,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 		fclose(fout);
 	}
 
-	if (debugFlag)
+	if (deFlag)
 		read_trace_pipe2();
 	return rc;
 err:
@@ -370,7 +370,7 @@ static void Usage(void)
 	       "           [-t <secs>] [-w] [-h] [prog]\n"
 	       "  Where:\n"
 	       "    -o         indicates egress direction (default)\n"
-	       "    -d         print BPF trace debug buffer\n"
+	       "    -d         print BPF trace de buffer\n"
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
@@ -399,7 +399,7 @@ int main(int argc, char **argv)
 		case'o':
 			break;
 		case 'd':
-			debugFlag = true;
+			deFlag = true;
 			break;
 		case 'l':
 			loopback_flag = true;

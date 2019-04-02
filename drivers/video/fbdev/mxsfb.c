@@ -77,8 +77,8 @@
 #define LCDC_DVICTRL4			0x100
 #define LCDC_V4_DATA			0x180
 #define LCDC_V3_DATA			0x1b0
-#define LCDC_V4_DEBUG0			0x1d0
-#define LCDC_V3_DEBUG0			0x1f0
+#define LCDC_V4_DE0			0x1d0
+#define LCDC_V3_DE0			0x1f0
 
 #define CTRL_SFTRST			(1 << 31)
 #define CTRL_CLKGATE			(1 << 30)
@@ -133,8 +133,8 @@
 #define VDCTRL4_SYNC_SIGNALS_ON		(1 << 18)
 #define SET_DOTCLK_H_VALID_DATA_CNT(x)	((x) & 0x3ffff)
 
-#define DEBUG0_HSYNC			(1 < 26)
-#define DEBUG0_VSYNC			(1 < 25)
+#define DE0_HSYNC			(1 < 26)
+#define DE0_VSYNC			(1 < 25)
 
 #define MIN_XRES			120
 #define MIN_YRES			120
@@ -162,7 +162,7 @@ struct mxsfb_devdata {
 	unsigned transfer_count;
 	unsigned cur_buf;
 	unsigned next_buf;
-	unsigned debug0;
+	unsigned de0;
 	unsigned hs_wdth_mask;
 	unsigned hs_wdth_shift;
 	unsigned ipversion;
@@ -191,7 +191,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.transfer_count = LCDC_V3_TRANSFER_COUNT,
 		.cur_buf = LCDC_V3_CUR_BUF,
 		.next_buf = LCDC_V3_NEXT_BUF,
-		.debug0 = LCDC_V3_DEBUG0,
+		.de0 = LCDC_V3_DE0,
 		.hs_wdth_mask = 0xff,
 		.hs_wdth_shift = 24,
 		.ipversion = 3,
@@ -200,7 +200,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.transfer_count = LCDC_V4_TRANSFER_COUNT,
 		.cur_buf = LCDC_V4_CUR_BUF,
 		.next_buf = LCDC_V4_NEXT_BUF,
-		.debug0 = LCDC_V4_DEBUG0,
+		.de0 = LCDC_V4_DE0,
 		.hs_wdth_mask = 0x3fff,
 		.hs_wdth_shift = 18,
 		.ipversion = 4,
@@ -286,7 +286,7 @@ static int mxsfb_check_var(struct fb_var_screeninfo *var,
 	case 32:
 		switch (host->ld_intf_width) {
 		case STMLCDIF_8BIT:
-			pr_debug("Unsupported LCD bus width mapping\n");
+			pr_de("Unsupported LCD bus width mapping\n");
 			break;
 		case STMLCDIF_16BIT:
 		case STMLCDIF_18BIT:
@@ -682,12 +682,12 @@ static int mxsfb_restore_mode(struct fb_info *fb_info,
 	if (vdctrl0 & VDCTRL0_VSYNC_ACT_HIGH)
 		vmode->sync |= FB_SYNC_VERT_HIGH_ACT;
 
-	pr_debug("Reconstructed video mode:\n");
-	pr_debug("%dx%d, hsync: %u left: %u, right: %u, vsync: %u, upper: %u, lower: %u\n",
+	pr_de("Reconstructed video mode:\n");
+	pr_de("%dx%d, hsync: %u left: %u, right: %u, vsync: %u, upper: %u, lower: %u\n",
 		vmode->xres, vmode->yres, vmode->hsync_len, vmode->left_margin,
 		vmode->right_margin, vmode->vsync_len, vmode->upper_margin,
 		vmode->lower_margin);
-	pr_debug("pixclk: %ldkHz\n", PICOS2KHZ(vmode->pixclock));
+	pr_de("pixclk: %ldkHz\n", PICOS2KHZ(vmode->pixclock));
 
 	host->ld_intf_width = CTRL_GET_BUS_WIDTH(ctrl);
 	host->dotclk_delay = VDCTRL4_GET_DOTCLK_DLY(vdctrl4);

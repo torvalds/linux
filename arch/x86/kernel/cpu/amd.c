@@ -15,7 +15,7 @@
 #include <asm/smp.h>
 #include <asm/pci-direct.h>
 #include <asm/delay.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/mmconfig.h>
@@ -69,16 +69,16 @@ static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
 }
 
 /*
- *	B step AMD K6 before B 9730xxxx have hardware bugs that can cause
+ *	B step AMD K6 before B 9730xxxx have hardware s that can cause
  *	misexecution of code under Linux. Owners of such processors should
  *	contact AMD for precise details and a CPU swap.
  *
- *	See	http://www.multimania.com/poulot/k6bug.html
+ *	See	http://www.multimania.com/poulot/k6.html
  *	and	section 2.6.2 of "AMD-K6 Processor Revision Guide - Model 6"
  *		(Publication # 21266  Issue Date: August 1998)
  *
  *	The following test is erm.. interesting. AMD neglected to up
- *	the chip setting when fixing the bug but they also tweaked some
+ *	the chip setting when fixing the  but they also tweaked some
  *	performance at the same time..
  */
 
@@ -123,7 +123,7 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 	}
 
 	if (c->x86_model == 6 && c->x86_stepping == 1) {
-		const int K6_BUG_LOOP = 1000000;
+		const int K6__LOOP = 1000000;
 		int n;
 		void (*f_vide)(void);
 		u64 d, d2;
@@ -131,11 +131,11 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		pr_info("AMD K6 stepping B detected - ");
 
 		/*
-		 * It looks like AMD fixed the 2.6.2 bug and improved indirect
+		 * It looks like AMD fixed the 2.6.2  and improved indirect
 		 * calls at the same time.
 		 */
 
-		n = K6_BUG_LOOP;
+		n = K6__LOOP;
 		f_vide = vide;
 		OPTIMIZER_HIDE_VAR(f_vide);
 		d = rdtsc();
@@ -144,7 +144,7 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		d2 = rdtsc();
 		d = d2-d;
 
-		if (d > 20*K6_BUG_LOOP)
+		if (d > 20*K6__LOOP)
 			pr_cont("system stability may be impaired when more than 32 MB are used.\n");
 		else
 			pr_cont("probably OK (after B9730xxxx).\n");
@@ -499,7 +499,7 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
 			unsigned long pfn = tseg >> PAGE_SHIFT;
 
-			pr_debug("tseg: %010llx\n", tseg);
+			pr_de("tseg: %010llx\n", tseg);
 			if (pfn_range_is_mapped(pfn, pfn + 1))
 				set_memory_4k((unsigned long)__va(tseg), 1);
 		}
@@ -514,7 +514,7 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 
 			rdmsrl(MSR_K7_HWCR, val);
 			if (!(val & BIT(24)))
-				pr_warn(FW_BUG "TSC doesn't count with P0 frequency!\n");
+				pr_warn(FW_ "TSC doesn't count with P0 frequency!\n");
 		}
 	}
 
@@ -691,10 +691,10 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	 * Check whether the machine is affected by erratum 400. This is
 	 * used to select the proper idle routine and to enable the check
 	 * whether the machine is affected in arch_post_acpi_init(), which
-	 * sets the X86_BUG_AMD_APIC_C1E bug depending on the MSR check.
+	 * sets the X86__AMD_APIC_C1E  depending on the MSR check.
 	 */
 	if (cpu_has_amd_erratum(c, amd_erratum_400))
-		set_cpu_bug(c, X86_BUG_AMD_E400);
+		set_cpu_(c, X86__AMD_E400);
 
 	early_detect_mem_encrypt(c);
 
@@ -751,7 +751,7 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 	 */
 	msr_set_bit(MSR_K7_HWCR, 6);
 #endif
-	set_cpu_bug(c, X86_BUG_SWAPGS_FENCE);
+	set_cpu_(c, X86__SWAPGS_FENCE);
 }
 
 static void init_amd_gh(struct cpuinfo_x86 *c)
@@ -770,7 +770,7 @@ static void init_amd_gh(struct cpuinfo_x86 *c)
 	 * MCE support built in. BIOS should disable GartTlbWlk Errors already.
 	 * If it doesn't, we do it here as suggested by the BKDG.
 	 *
-	 * Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=33012
+	 * Fixes: https://zilla.kernel.org/show_.cgi?id=33012
 	 */
 	msr_set_bit(MSR_AMD64_MCx_MASK(4), 10);
 
@@ -786,7 +786,7 @@ static void init_amd_gh(struct cpuinfo_x86 *c)
 	msr_clear_bit(MSR_AMD64_BU_CFG2, 24);
 
 	if (cpu_has_amd_erratum(c, amd_erratum_383))
-		set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
+		set_cpu_(c, X86__AMD_TLB_MMATCH);
 }
 
 #define MSR_AMD64_DE_CFG	0xC0011029
@@ -861,7 +861,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 	 * without a XSaveErPtr feature
 	 */
 	if ((c->x86 >= 6) && (!cpu_has(c, X86_FEATURE_XSAVEERPTR)))
-		set_cpu_bug(c, X86_BUG_FXSAVE_LEAK);
+		set_cpu_(c, X86__FXSAVE_LEAK);
 
 	cpu_detect_cache_sizes(c);
 
@@ -914,7 +914,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	/* AMD CPUs don't reset SS attributes on SYSRET, Xen does. */
 	if (!cpu_has(c, X86_FEATURE_XENPV))
-		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+		set_cpu_(c, X86__SYSRET_SS_ATTRS);
 }
 
 #ifdef CONFIG_X86_32

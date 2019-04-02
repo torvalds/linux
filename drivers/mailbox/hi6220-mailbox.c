@@ -122,7 +122,7 @@ static bool hi6220_mbox_last_tx_done(struct mbox_chan *chan)
 	u32 state;
 
 	/* Only set idle state for polling mode */
-	BUG_ON(mbox->tx_irq_mode);
+	_ON(mbox->tx_irq_mode);
 
 	state = readl(mbox->base + MBOX_MODE_REG(mchan->slot));
 	return ((state & MBOX_STATE_MASK) == MBOX_STATE_IDLE);

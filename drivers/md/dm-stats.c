@@ -131,7 +131,7 @@ static void free_shared_memory(size_t alloc_size)
 
 	if (WARN_ON_ONCE(shared_memory_amount < alloc_size)) {
 		spin_unlock_irqrestore(&shared_memory_lock, flags);
-		DMCRIT("Memory usage accounting bug.");
+		DMCRIT("Memory usage accounting .");
 		return;
 	}
 

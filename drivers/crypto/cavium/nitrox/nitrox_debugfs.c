@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "nitrox_csr.h"
 #include "nitrox_dev.h"
@@ -49,20 +49,20 @@ static int stats_show(struct seq_file *s, void *v)
 
 DEFINE_SHOW_ATTRIBUTE(stats);
 
-void nitrox_debugfs_exit(struct nitrox_device *ndev)
+void nitrox_defs_exit(struct nitrox_device *ndev)
 {
-	debugfs_remove_recursive(ndev->debugfs_dir);
-	ndev->debugfs_dir = NULL;
+	defs_remove_recursive(ndev->defs_dir);
+	ndev->defs_dir = NULL;
 }
 
-void nitrox_debugfs_init(struct nitrox_device *ndev)
+void nitrox_defs_init(struct nitrox_device *ndev)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	dir = defs_create_dir(KBUILD_MODNAME, NULL);
 
-	ndev->debugfs_dir = dir;
-	debugfs_create_file("firmware", 0400, dir, ndev, &firmware_fops);
-	debugfs_create_file("device", 0400, dir, ndev, &device_fops);
-	debugfs_create_file("stats", 0400, dir, ndev, &stats_fops);
+	ndev->defs_dir = dir;
+	defs_create_file("firmware", 0400, dir, ndev, &firmware_fops);
+	defs_create_file("device", 0400, dir, ndev, &device_fops);
+	defs_create_file("stats", 0400, dir, ndev, &stats_fops);
 }

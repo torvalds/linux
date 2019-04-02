@@ -133,7 +133,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 		orangefs_new_tag(new_op);
 		new_op->upcall.type = type;
 		new_op->attempts = 0;
-		gossip_debug(GOSSIP_CACHE_DEBUG,
+		gossip_de(GOSSIP_CACHE_DE,
 			     "Alloced OP (%p: %llu %s)\n",
 			     new_op,
 			     llu(new_op->tag),
@@ -153,7 +153,7 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 void op_release(struct orangefs_kernel_op_s *orangefs_op)
 {
 	if (orangefs_op) {
-		gossip_debug(GOSSIP_CACHE_DEBUG,
+		gossip_de(GOSSIP_CACHE_DE,
 			     "Releasing OP (%p: %llu)\n",
 			     orangefs_op,
 			     llu(orangefs_op->tag));

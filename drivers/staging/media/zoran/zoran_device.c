@@ -163,7 +163,7 @@ post_office_read (struct zoran *zr,
 static void
 dump_guests (struct zoran *zr)
 {
-	if (zr36067_debug > 2) {
+	if (zr36067_de > 2) {
 		int i, guest[8];
 
 		for (i = 1; i < 8; i++) {	// Don't read jpeg codec here
@@ -233,13 +233,13 @@ jpeg_codec_sleep (struct zoran *zr,
 	GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_SLEEP], !sleep);
 	if (!sleep) {
 		dprintk(3,
-			KERN_DEBUG
+			KERN_DE
 			"%s: jpeg_codec_sleep() - wake GPIO=0x%08x\n",
 			ZR_DEVNAME(zr), btread(ZR36057_GPPGCR1));
 		udelay(500);
 	} else {
 		dprintk(3,
-			KERN_DEBUG
+			KERN_DE
 			"%s: jpeg_codec_sleep() - sleep GPIO=0x%08x\n",
 			ZR_DEVNAME(zr), btread(ZR36057_GPPGCR1));
 		udelay(2);
@@ -941,7 +941,7 @@ jpeg_start (struct zoran *zr)
 
 	set_frame(zr, 1);	// /FRAME
 
-	dprintk(3, KERN_DEBUG "%s: jpeg_start\n", ZR_DEVNAME(zr));
+	dprintk(3, KERN_DE "%s: jpeg_start\n", ZR_DEVNAME(zr));
 }
 
 void
@@ -1258,7 +1258,7 @@ error_handler (struct zoran *zr,
 	zr->num_errors++;
 
 	/* Report error */
-	if (zr36067_debug > 1 && zr->num_errors <= 8) {
+	if (zr36067_de > 1 && zr->num_errors <= 8) {
 		long frame;
 		int j;
 
@@ -1359,7 +1359,7 @@ zoran_irq (int             irq,
 			break;
 		}
 		dprintk(4,
-			KERN_DEBUG
+			KERN_DE
 			"zoran_irq: astat: 0x%08x, mask: 0x%08x\n",
 			astat, btread(ZR36057_ICR));
 		if (astat & zr->card.vsync_int) {	// SW
@@ -1439,7 +1439,7 @@ zoran_irq (int             irq,
 #if (IRQ_MASK & ZR36057_ISR_CodRepIRQ)
 		if (astat & ZR36057_ISR_CodRepIRQ) {
 			zr->intr_counter_CodRepIRQ++;
-			IDEBUG(printk(KERN_DEBUG "%s: ZR36057_ISR_CodRepIRQ\n",
+			IDE(printk(KERN_DE "%s: ZR36057_ISR_CodRepIRQ\n",
 				ZR_DEVNAME(zr)));
 			btand(~ZR36057_ICR_CodRepIRQ, ZR36057_ICR);
 		}
@@ -1449,7 +1449,7 @@ zoran_irq (int             irq,
 		if ((astat & ZR36057_ISR_JPEGRepIRQ) &&
 		    (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
 		     zr->codec_mode == BUZ_MODE_MOTION_COMPRESS)) {
-			if (zr36067_debug > 1 && (!zr->frame_num || zr->JPEG_error)) {
+			if (zr36067_de > 1 && (!zr->frame_num || zr->JPEG_error)) {
 				char sv[BUZ_NUM_STAT_COM + 1];
 				int i;
 
@@ -1478,7 +1478,7 @@ zoran_irq (int             irq,
 					zr->JPEG_min_missed = zr->JPEG_missed;
 			}
 
-			if (zr36067_debug > 2 && zr->frame_num < 6) {
+			if (zr36067_de > 2 && zr->frame_num < 6) {
 				int i;
 
 				printk(KERN_INFO "%s: seq=%ld stat_com:",

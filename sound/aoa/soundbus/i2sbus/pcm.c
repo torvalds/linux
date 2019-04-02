@@ -910,12 +910,12 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	 * sysclock/busclock stuff above to depend on which is usable */
 	list_for_each_entry(cii, &dev->codec_list, list) {
 		if (cii->codec->sysclock_factor != ci->sysclock_factor) {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "cannot yet handle multiple different sysclocks!\n");
 			return -EINVAL;
 		}
 		if (cii->codec->bus_factor != ci->bus_factor) {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "cannot yet handle multiple different bus clocks!\n");
 			return -EINVAL;
 		}
@@ -932,7 +932,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 
 	cii = kzalloc(sizeof(struct codec_info_item), GFP_KERNEL);
 	if (!cii) {
-		printk(KERN_DEBUG "i2sbus: failed to allocate cii\n");
+		printk(KERN_DE "i2sbus: failed to allocate cii\n");
 		return -ENOMEM;
 	}
 
@@ -942,20 +942,20 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 	cii->codec_data = data;
 
 	if (!cii->sdev) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "i2sbus: failed to get soundbus dev reference\n");
 		err = -ENODEV;
 		goto out_free_cii;
 	}
 
 	if (!try_module_get(THIS_MODULE)) {
-		printk(KERN_DEBUG "i2sbus: failed to get module reference!\n");
+		printk(KERN_DE "i2sbus: failed to get module reference!\n");
 		err = -EBUSY;
 		goto out_put_sdev;
 	}
 
 	if (!try_module_get(ci->owner)) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "i2sbus: failed to get module reference to codec owner!\n");
 		err = -EBUSY;
 		goto out_put_this_module;
@@ -965,7 +965,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		err = snd_pcm_new(card, dev->pcmname, dev->pcmid, 0, 0,
 				  &dev->pcm);
 		if (err) {
-			printk(KERN_DEBUG "i2sbus: failed to create pcm\n");
+			printk(KERN_DE "i2sbus: failed to create pcm\n");
 			goto out_put_ci_module;
 		}
 	}

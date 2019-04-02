@@ -18,7 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <media/dvb_math.h>
 
 static const unsigned short logtable[256] = {

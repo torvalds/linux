@@ -64,7 +64,7 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	 * nothing can be done here.
 	 */
 	if (!chip || !chip->irq_set_affinity) {
-		pr_debug("IRQ %u: Unable to migrate away\n", d->irq);
+		pr_de("IRQ %u: Unable to migrate away\n", d->irq);
 		return false;
 	}
 

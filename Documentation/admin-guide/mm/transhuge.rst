@@ -95,7 +95,7 @@ Global THP controls
 -------------------
 
 Transparent Hugepage Support for anonymous memory can be entirely disabled
-(mostly for debugging purposes) or only enabled inside MADV_HUGEPAGE
+(mostly for deging purposes) or only enabled inside MADV_HUGEPAGE
 regions (to avoid the risk of consuming more memory resources) or enabled
 system wide. This can be achieved with one of::
 

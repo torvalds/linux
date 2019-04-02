@@ -422,8 +422,8 @@ static int setup_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	}
 
 	/* If these change we need to know - assignments to seta relies on these sizes */
-	BUILD_BUG_ON(_NSIG_WORDS != 1);
-	BUILD_BUG_ON(_COMPAT_NSIG_WORDS != 2);
+	BUILD__ON(_NSIG_WORDS != 1);
+	BUILD__ON(_COMPAT_NSIG_WORDS != 2);
 	seta.sig[1] = (oldset->sig[0] >> 32);
 	seta.sig[0] = oldset->sig[0];
 

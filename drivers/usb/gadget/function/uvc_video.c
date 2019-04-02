@@ -252,7 +252,7 @@ uvc_video_alloc_requests(struct uvc_video *video)
 	unsigned int i;
 	int ret = -ENOMEM;
 
-	BUG_ON(video->req_size);
+	_ON(video->req_size);
 
 	req_size = video->ep->maxpacket
 		 * max_t(unsigned int, video->ep->maxburst, 1)

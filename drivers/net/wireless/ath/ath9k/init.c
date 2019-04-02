@@ -40,9 +40,9 @@ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
-module_param_named(debug, ath9k_debug, uint, 0);
-MODULE_PARM_DESC(debug, "Debugging mask");
+static unsigned int ath9k_de = ATH_DBG_DEFAULT;
+module_param_named(de, ath9k_de, uint, 0);
+MODULE_PARM_DESC(de, "Deging mask");
 
 int ath9k_modparam_nohwcrypt;
 module_param_named(nohwcrypt, ath9k_modparam_nohwcrypt, int, 0444);
@@ -301,7 +301,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	/* ath_desc must be a multiple of DWORDs */
 	if ((desc_len % 4) != 0) {
 		ath_err(common, "ath_desc not DWORD aligned\n");
-		BUG_ON((desc_len % 4) != 0);
+		_ON((desc_len % 4) != 0);
 		return -ENOMEM;
 	}
 
@@ -357,7 +357,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 				 * descriptor fetch.
 				 */
 				while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
-					BUG_ON((caddr_t) bf->bf_desc >=
+					_ON((caddr_t) bf->bf_desc >=
 						   ((caddr_t) dd->dd_desc +
 						dd->dd_desc_len));
 
@@ -388,7 +388,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 				 * descriptor fetch.
 				 */
 				while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
-					BUG_ON((caddr_t) bf->bf_desc >=
+					_ON((caddr_t) bf->bf_desc >=
 						   ((caddr_t) dd->dd_desc +
 						dd->dd_desc_len));
 
@@ -691,7 +691,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	common->ah = ah;
 	common->hw = sc->hw;
 	common->priv = sc;
-	common->debug_mask = ath9k_debug;
+	common->de_mask = ath9k_de;
 	common->btcoex_enabled = ath9k_btcoex_enable == 1;
 	common->disable_ani = false;
 
@@ -1064,9 +1064,9 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	if (error)
 		goto rx_cleanup;
 
-	error = ath9k_init_debug(ah);
+	error = ath9k_init_de(ah);
 	if (error) {
-		ath_err(common, "Unable to create debugfs files\n");
+		ath_err(common, "Unable to create defs files\n");
 		goto unregister;
 	}
 
@@ -1074,7 +1074,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
 		if (error)
-			goto debug_cleanup;
+			goto de_cleanup;
 	}
 
 	ath_init_leds(sc);
@@ -1082,8 +1082,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 
 	return 0;
 
-debug_cleanup:
-	ath9k_deinit_debug(sc);
+de_cleanup:
+	ath9k_deinit_de(sc);
 unregister:
 	ieee80211_unregister_hw(hw);
 rx_cleanup:
@@ -1127,7 +1127,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 
 	ath9k_ps_restore(sc);
 
-	ath9k_deinit_debug(sc);
+	ath9k_deinit_de(sc);
 	ath9k_deinit_wow(hw);
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);

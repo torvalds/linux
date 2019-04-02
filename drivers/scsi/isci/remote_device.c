@@ -324,7 +324,7 @@ static void rnc_destruct_done(void *_dev)
 {
 	struct isci_remote_device *idev = _dev;
 
-	BUG_ON(idev->started_request_count != 0);
+	_ON(idev->started_request_count != 0);
 	sci_change_state(&idev->sm, SCI_DEV_STOPPED);
 }
 
@@ -352,7 +352,7 @@ enum sci_status sci_remote_device_stop(struct isci_remote_device *idev,
 		return SCI_SUCCESS;
 	case SCI_DEV_STARTING:
 		/* device not started so there had better be no requests */
-		BUG_ON(idev->started_request_count != 0);
+		_ON(idev->started_request_count != 0);
 		sci_remote_node_context_destruct(&idev->rnc,
 						      rnc_destruct_done, idev);
 		/* Transition to the stopping state and wait for the
@@ -1047,7 +1047,7 @@ static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_
 	 * here should go through isci_remote_device_nuke_requests.
 	 * If we hit this condition, we will need a way to complete
 	 * io requests in process */
-	BUG_ON(idev->started_request_count > 0);
+	_ON(idev->started_request_count > 0);
 
 	sci_remote_device_destruct(idev);
 	list_del_init(&idev->node);
@@ -1150,7 +1150,7 @@ static void sci_stp_remote_device_ready_cmd_substate_enter(struct sci_base_state
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 
-	BUG_ON(idev->working_request == NULL);
+	_ON(idev->working_request == NULL);
 
 	isci_remote_device_not_ready(ihost, idev,
 				     SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
@@ -1179,7 +1179,7 @@ static void sci_smp_remote_device_ready_cmd_substate_enter(struct sci_base_state
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 
-	BUG_ON(idev->working_request == NULL);
+	_ON(idev->working_request == NULL);
 
 	isci_remote_device_not_ready(ihost, idev,
 				     SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED);

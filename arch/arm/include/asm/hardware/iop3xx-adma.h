@@ -191,7 +191,7 @@ union iop3xx_desc {
 static inline int
 iop_chan_pq_slot_count(size_t len, int src_cnt, int *slots_per_op)
 {
-	BUG();
+	();
 	return 0;
 }
 
@@ -199,26 +199,26 @@ static inline void
 iop_desc_init_pq(struct iop_adma_desc_slot *desc, int src_cnt,
 		  unsigned long flags)
 {
-	BUG();
+	();
 }
 
 static inline void
 iop_desc_set_pq_addr(struct iop_adma_desc_slot *desc, dma_addr_t *addr)
 {
-	BUG();
+	();
 }
 
 static inline void
 iop_desc_set_pq_src_addr(struct iop_adma_desc_slot *desc, int src_idx,
 			 dma_addr_t addr, unsigned char coef)
 {
-	BUG();
+	();
 }
 
 static inline int
 iop_chan_pq_zero_sum_slot_count(size_t len, int src_cnt, int *slots_per_op)
 {
-	BUG();
+	();
 	return 0;
 }
 
@@ -226,13 +226,13 @@ static inline void
 iop_desc_init_pq_zero_sum(struct iop_adma_desc_slot *desc, int src_cnt,
 			  unsigned long flags)
 {
-	BUG();
+	();
 }
 
 static inline void
 iop_desc_set_pq_zero_sum_byte_count(struct iop_adma_desc_slot *desc, u32 len)
 {
-	BUG();
+	();
 }
 
 #define iop_desc_set_pq_zero_sum_src_addr iop_desc_set_pq_src_addr
@@ -241,7 +241,7 @@ static inline void
 iop_desc_set_pq_zero_sum_addr(struct iop_adma_desc_slot *desc, int pq_idx,
 			      dma_addr_t *src)
 {
-	BUG();
+	();
 }
 
 static inline int iop_adma_get_max_xor(void)
@@ -251,7 +251,7 @@ static inline int iop_adma_get_max_xor(void)
 
 static inline int iop_adma_get_max_pq(void)
 {
-	BUG();
+	();
 	return 0;
 }
 
@@ -266,7 +266,7 @@ static inline u32 iop_chan_get_current_descriptor(struct iop_adma_chan *chan)
 	case AAU_ID:
 		return __raw_readl(AAU_ADAR(chan));
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -347,7 +347,7 @@ iop_chan_interrupt_slot_count(int *slots_per_op, struct iop_adma_chan *chan)
 	case AAU_ID:
 		return iop3xx_aau_xor_slot_count(0, 2, slots_per_op);
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -405,7 +405,7 @@ static inline u32 iop_desc_get_byte_count(struct iop_adma_desc_slot *desc,
 	case AAU_ID:
 		return hw_desc.aau->byte_count;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }
@@ -439,7 +439,7 @@ static inline u32 iop_desc_get_src_addr(struct iop_adma_desc_slot *desc,
 	case AAU_ID:
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (src_idx < 4)
@@ -658,7 +658,7 @@ static inline void iop_desc_set_byte_count(struct iop_adma_desc_slot *desc,
 		hw_desc.aau->byte_count = byte_count;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -684,7 +684,7 @@ iop_desc_init_interrupt(struct iop_adma_desc_slot *desc,
 		hw_desc.aau->src[1] = 0;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -725,7 +725,7 @@ static inline void iop_desc_set_dest_addr(struct iop_adma_desc_slot *desc,
 		hw_desc.aau->dest_addr = addr;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -864,7 +864,7 @@ static inline void iop_adma_device_clear_err_status(struct iop_adma_chan *chan)
 		status &= (1 << 5);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	__raw_writel(status, DMA_CSR(chan));

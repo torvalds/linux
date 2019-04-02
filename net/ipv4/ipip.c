@@ -7,7 +7,7 @@
  *	Fixes:
  *		Alan Cox	:	Merged and made usable non modular (its so tiny its silly as
  *					a module taking up 2 pages).
- *		Alan Cox	: 	Fixed bug with 1.3.18 and IPIP not working (now needs to set skb->h.iph)
+ *		Alan Cox	: 	Fixed  with 1.3.18 and IPIP not working (now needs to set skb->h.iph)
  *					to keep ip_forward happy.
  *		Alan Cox	:	More fixes for 1.3.21, and firewall fix. Maybe this will work soon 8).
  *		Kai Schulte	:	Fixed #defines for IP_FIREWALL->FIREWALL

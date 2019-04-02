@@ -489,7 +489,7 @@ static int snd_pcm_ioctl_sync_ptr_compat(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t boundary;
 	int err;
 
-	if (snd_BUG_ON(!runtime))
+	if (snd__ON(!runtime))
 		return -EINVAL;
 
 	if (get_user(sflags, &src->flags) ||
@@ -578,7 +578,7 @@ static int snd_pcm_ioctl_sync_ptr_x32(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t boundary;
 	int err;
 
-	if (snd_BUG_ON(!runtime))
+	if (snd__ON(!runtime))
 		return -EINVAL;
 
 	if (get_user(sflags, &src->flags) ||

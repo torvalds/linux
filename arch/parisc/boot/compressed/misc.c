@@ -249,7 +249,7 @@ static void parse_elf(void *output)
 		return;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	printf("Parsing ELF... ");
 #endif
 
@@ -330,7 +330,7 @@ unsigned long decompress_kernel(unsigned int started_wide,
 	if (free_mem_ptr >= free_mem_end_ptr)
 		error("Kernel too big for machine.");
 
-#ifdef DEBUG
+#ifdef DE
 	printf("\n");
 	printf("startcode_end = %x\n", &_startcode_end);
 	printf("commandline   = %x\n", command_line);

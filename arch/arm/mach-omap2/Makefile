@@ -89,7 +89,7 @@ obj-$(CONFIG_SOC_OMAP5)			+= $(omap-4-5-pm-common)
 obj-$(CONFIG_SOC_DRA7XX)		+= $(omap-4-5-pm-common)
 obj-$(CONFIG_SOC_AM33XX)		+= pm33xx-core.o sleep33xx.o
 obj-$(CONFIG_SOC_AM43XX)		+= pm33xx-core.o sleep43xx.o
-obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
+obj-$(CONFIG_PM_DE)			+= pm-de.o
 
 obj-$(CONFIG_POWER_AVS_OMAP)		+= sr_device.o
 obj-$(CONFIG_POWER_AVS_OMAP_CLASS3)    += smartreflex-class3.o

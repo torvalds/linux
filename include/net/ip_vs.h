@@ -17,7 +17,7 @@
 
 #include <linux/compiler.h>
 #include <linux/timer.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <net/checksum.h>
 #include <linux/netfilter.h>		/* for union nf_inet_addr */
@@ -183,10 +183,10 @@ static inline int ip_vs_addr_equal(int af, const union nf_inet_addr *a,
 	return a->ip == b->ip;
 }
 
-#ifdef CONFIG_IP_VS_DEBUG
+#ifdef CONFIG_IP_VS_DE
 #include <linux/net.h>
 
-int ip_vs_get_debug_level(void);
+int ip_vs_get_de_level(void);
 
 static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 					 const union nf_inet_addr *addr,
@@ -203,7 +203,7 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 			       &addr->ip) + 1;
 
 	*idx += len;
-	BUG_ON(*idx > buf_len + 1);
+	_ON(*idx > buf_len + 1);
 	return &buf[*idx - len];
 }
 
@@ -211,8 +211,8 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 	do {								\
 		char ip_vs_dbg_buf[160];				\
 		int ip_vs_dbg_idx = 0;					\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
+		if (level <= ip_vs_get_de_level())			\
+			printk(KERN_DE pr_fmt(msg), ##__VA_ARGS__);	\
 	} while (0)
 #define IP_VS_ERR_BUF(msg...)						\
 	do {								\
@@ -229,26 +229,26 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 
 #define IP_VS_DBG(level, msg, ...)					\
 	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
+		if (level <= ip_vs_get_de_level())			\
+			printk(KERN_DE pr_fmt(msg), ##__VA_ARGS__);	\
 	} while (0)
 #define IP_VS_DBG_RL(msg, ...)						\
 	do {								\
 		if (net_ratelimit())					\
-			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
+			printk(KERN_DE pr_fmt(msg), ##__VA_ARGS__);	\
 	} while (0)
 #define IP_VS_DBG_PKT(level, af, pp, skb, ofs, msg)			\
 	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			pp->debug_packet(af, pp, skb, ofs, msg);	\
+		if (level <= ip_vs_get_de_level())			\
+			pp->de_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
 #define IP_VS_DBG_RL_PKT(level, af, pp, skb, ofs, msg)			\
 	do {								\
-		if (level <= ip_vs_get_debug_level() &&			\
+		if (level <= ip_vs_get_de_level() &&			\
 		    net_ratelimit())					\
-			pp->debug_packet(af, pp, skb, ofs, msg);	\
+			pp->de_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
-#else	/* NO DEBUGGING at ALL */
+#else	/* NO DEGING at ALL */
 #define IP_VS_DBG_BUF(level, msg...)  do {} while (0)
 #define IP_VS_ERR_BUF(msg...)  do {} while (0)
 #define IP_VS_DBG(level, msg...)  do {} while (0)
@@ -257,25 +257,25 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 #define IP_VS_DBG_RL_PKT(level, af, pp, skb, ofs, msg)	do {} while (0)
 #endif
 
-#define IP_VS_BUG() BUG()
+#define IP_VS_() ()
 #define IP_VS_ERR_RL(msg, ...)						\
 	do {								\
 		if (net_ratelimit())					\
 			pr_err(msg, ##__VA_ARGS__);			\
 	} while (0)
 
-#ifdef CONFIG_IP_VS_DEBUG
+#ifdef CONFIG_IP_VS_DE
 #define EnterFunction(level)						\
 	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG				\
+		if (level <= ip_vs_get_de_level())			\
+			printk(KERN_DE				\
 			       pr_fmt("Enter: %s, %s line %i\n"),	\
 			       __func__, __FILE__, __LINE__);		\
 	} while (0)
 #define LeaveFunction(level)						\
 	do {								\
-		if (level <= ip_vs_get_debug_level())			\
-			printk(KERN_DEBUG				\
+		if (level <= ip_vs_get_de_level())			\
+			printk(KERN_DE				\
 			       pr_fmt("Leave: %s, %s line %i\n"),	\
 			       __func__, __FILE__, __LINE__);		\
 	} while (0)
@@ -465,7 +465,7 @@ struct ip_vs_protocol {
 
 	int (*app_conn_bind)(struct ip_vs_conn *cp);
 
-	void (*debug_packet)(int af, struct ip_vs_protocol *pp,
+	void (*de_packet)(int af, struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
 			     const char *msg);
@@ -1254,7 +1254,7 @@ static inline void ip_vs_control_del(struct ip_vs_conn *cp)
 
 	cp->control = NULL;
 	if (atomic_read(&ctl_cp->n_control) == 0) {
-		IP_VS_ERR_BUF("BUG control DEL with n=0 : "
+		IP_VS_ERR_BUF(" control DEL with n=0 : "
 			      "%s:%d to %s:%d\n",
 			      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
 			      ntohs(cp->cport),
@@ -1354,7 +1354,7 @@ int ip_vs_protocol_init(void);
 void ip_vs_protocol_cleanup(void);
 void ip_vs_protocol_timeout_change(struct netns_ipvs *ipvs, int flags);
 int *ip_vs_create_timeout_table(int *table, int size);
-void ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
+void ip_vs_tcpudp_de_packet(int af, struct ip_vs_protocol *pp,
 			       const struct sk_buff *skb, int offset,
 			       const char *msg);
 

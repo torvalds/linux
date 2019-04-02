@@ -1664,7 +1664,7 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 	/*
 	 * Are there devices with volume range more than 255? I use a bit more
 	 * to be sure. 384 is a resolution magic number found on Logitech
-	 * devices. It will definitively catch all buggy Logitech devices.
+	 * devices. It will definitively catch all gy Logitech devices.
 	 */
 	if (range > 384) {
 		usb_audio_warn(mixer->chip,
@@ -2513,7 +2513,7 @@ static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol,
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
 	const char **itemlist = (const char **)kcontrol->private_value;
 
-	if (snd_BUG_ON(!itemlist))
+	if (snd__ON(!itemlist))
 		return -EINVAL;
 	return snd_ctl_enum_info(uinfo, 1, cval->max, itemlist);
 }

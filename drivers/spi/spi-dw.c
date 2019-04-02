@@ -23,8 +23,8 @@
 
 #include "spi-dw.h"
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #endif
 
 /* Slave spi_dev related */
@@ -39,7 +39,7 @@ struct chip_data {
 	void (*cs_control)(u32 command);
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #define SPI_REGS_BUFSIZE	1024
 static ssize_t dw_spi_show_regs(struct file *file, char __user *user_buf,
 		size_t count, loff_t *ppos)
@@ -102,35 +102,35 @@ static const struct file_operations dw_spi_regs_ops = {
 	.llseek		= default_llseek,
 };
 
-static int dw_spi_debugfs_init(struct dw_spi *dws)
+static int dw_spi_defs_init(struct dw_spi *dws)
 {
 	char name[32];
 
 	snprintf(name, 32, "dw_spi%d", dws->master->bus_num);
-	dws->debugfs = debugfs_create_dir(name, NULL);
-	if (!dws->debugfs)
+	dws->defs = defs_create_dir(name, NULL);
+	if (!dws->defs)
 		return -ENOMEM;
 
-	debugfs_create_file("registers", S_IFREG | S_IRUGO,
-		dws->debugfs, (void *)dws, &dw_spi_regs_ops);
+	defs_create_file("registers", S_IFREG | S_IRUGO,
+		dws->defs, (void *)dws, &dw_spi_regs_ops);
 	return 0;
 }
 
-static void dw_spi_debugfs_remove(struct dw_spi *dws)
+static void dw_spi_defs_remove(struct dw_spi *dws)
 {
-	debugfs_remove_recursive(dws->debugfs);
+	defs_remove_recursive(dws->defs);
 }
 
 #else
-static inline int dw_spi_debugfs_init(struct dw_spi *dws)
+static inline int dw_spi_defs_init(struct dw_spi *dws)
 {
 	return 0;
 }
 
-static inline void dw_spi_debugfs_remove(struct dw_spi *dws)
+static inline void dw_spi_defs_remove(struct dw_spi *dws)
 {
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 void dw_spi_set_cs(struct spi_device *spi, bool enable)
 {
@@ -467,7 +467,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	struct spi_controller *master;
 	int ret;
 
-	BUG_ON(dws == NULL);
+	_ON(dws == NULL);
 
 	master = spi_alloc_master(dev, 0);
 	if (!master)
@@ -524,7 +524,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		goto err_dma_exit;
 	}
 
-	dw_spi_debugfs_init(dws);
+	dw_spi_defs_init(dws);
 	return 0;
 
 err_dma_exit:
@@ -540,7 +540,7 @@ EXPORT_SYMBOL_GPL(dw_spi_add_host);
 
 void dw_spi_remove_host(struct dw_spi *dws)
 {
-	dw_spi_debugfs_remove(dws);
+	dw_spi_defs_remove(dws);
 
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
 		dws->dma_ops->dma_exit(dws);

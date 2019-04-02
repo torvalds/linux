@@ -214,7 +214,7 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 		/* Free the packet buffer since it wasn't added to the ring */
 		kfree(raw_packet);
 		return -EOPNOTSUPP;
-	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
+	} else if (I40E_DE_FD & pf->hw.de_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev,
 				 "Filter OK for PCTYPE %d loc = %d\n",
@@ -288,7 +288,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 		/* Free the packet buffer since it wasn't added to the ring */
 		kfree(raw_packet);
 		return -EOPNOTSUPP;
-	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
+	} else if (I40E_DE_FD & pf->hw.de_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d loc = %d)\n",
 				 fd_data->pctype, fd_data->fd_id);
@@ -301,7 +301,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	if (add) {
 		pf->fd_tcp4_filter_cnt++;
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-		    I40E_DEBUG_FD & pf->hw.debug_mask)
+		    I40E_DE_FD & pf->hw.de_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
 		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 	} else {
@@ -366,7 +366,7 @@ static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
 		/* Free the packet buffer since it wasn't added to the ring */
 		kfree(raw_packet);
 		return -EOPNOTSUPP;
-	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
+	} else if (I40E_DE_FD & pf->hw.de_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev,
 				 "Filter OK for PCTYPE %d loc = %d\n",
@@ -439,7 +439,7 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 			 */
 			kfree(raw_packet);
 			return -EOPNOTSUPP;
-		} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
+		} else if (I40E_DE_FD & pf->hw.de_mask) {
 			if (add)
 				dev_info(&pf->pdev->dev,
 					 "Filter OK for PCTYPE %d loc = %d\n",
@@ -543,7 +543,7 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 	if (error == BIT(I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
 		pf->fd_inv = le32_to_cpu(rx_desc->wb.qword0.hi_dword.fd_id);
 		if ((rx_desc->wb.qword0.hi_dword.fd_id != 0) ||
-		    (I40E_DEBUG_FD & pf->hw.debug_mask))
+		    (I40E_DE_FD & pf->hw.de_mask))
 			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
 				 pf->fd_inv);
 
@@ -583,11 +583,11 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 			    !test_and_set_bit(__I40E_FD_SB_AUTO_DISABLED,
 					      pf->state))
-				if (I40E_DEBUG_FD & pf->hw.debug_mask)
+				if (I40E_DE_FD & pf->hw.de_mask)
 					dev_warn(&pdev->dev, "FD filter space full, new ntuple rules will not be added\n");
 		}
 	} else if (error == BIT(I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
-		if (I40E_DEBUG_FD & pf->hw.debug_mask)
+		if (I40E_DE_FD & pf->hw.de_mask)
 			dev_info(&pdev->dev, "ntuple filter fd_id = %d, could not be removed\n",
 				 rx_desc->wb.qword0.hi_dword.fd_id);
 	}

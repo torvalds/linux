@@ -135,7 +135,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_srat_cpu_affinity *p =
 			    (struct acpi_srat_cpu_affinity *)header;
-			pr_debug("SRAT Processor (id[0x%02x] eid[0x%02x]) in proximity domain %d %s\n",
+			pr_de("SRAT Processor (id[0x%02x] eid[0x%02x]) in proximity domain %d %s\n",
 				 p->apic_id, p->local_sapic_eid,
 				 p->proximity_domain_lo,
 				 (p->flags & ACPI_SRAT_CPU_ENABLED) ?
@@ -147,7 +147,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_srat_mem_affinity *p =
 			    (struct acpi_srat_mem_affinity *)header;
-			pr_debug("SRAT Memory (0x%llx length 0x%llx) in proximity domain %d %s%s%s\n",
+			pr_de("SRAT Memory (0x%llx length 0x%llx) in proximity domain %d %s%s%s\n",
 				 (unsigned long long)p->base_address,
 				 (unsigned long long)p->length,
 				 p->proximity_domain,
@@ -164,7 +164,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_srat_x2apic_cpu_affinity *p =
 			    (struct acpi_srat_x2apic_cpu_affinity *)header;
-			pr_debug("SRAT Processor (x2apicid[0x%08x]) in proximity domain %d %s\n",
+			pr_de("SRAT Processor (x2apicid[0x%08x]) in proximity domain %d %s\n",
 				 p->apic_id,
 				 p->proximity_domain,
 				 (p->flags & ACPI_SRAT_CPU_ENABLED) ?
@@ -176,7 +176,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_srat_gicc_affinity *p =
 			    (struct acpi_srat_gicc_affinity *)header;
-			pr_debug("SRAT Processor (acpi id[0x%04x]) in proximity domain %d %s\n",
+			pr_de("SRAT Processor (acpi id[0x%04x]) in proximity domain %d %s\n",
 				 p->acpi_processor_uid,
 				 p->proximity_domain,
 				 (p->flags & ACPI_SRAT_GICC_ENABLED) ?

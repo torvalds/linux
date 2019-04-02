@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_X86_KDEBUG_H
-#define _ASM_X86_KDEBUG_H
+#ifndef _ASM_X86_KDE_H
+#define _ASM_X86_KDE_H
 
 #include <linux/notifier.h>
 
@@ -10,11 +10,11 @@ struct pt_regs;
 enum die_val {
 	DIE_OOPS = 1,
 	DIE_INT3,
-	DIE_DEBUG,
+	DIE_DE,
 	DIE_PANIC,
 	DIE_NMI,
 	DIE_DIE,
-	DIE_KERNELDEBUG,
+	DIE_KERNELDE,
 	DIE_TRAP,
 	DIE_GPF,
 	DIE_CALL,
@@ -40,4 +40,4 @@ extern void show_iret_regs(struct pt_regs *regs);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long, struct pt_regs *, int signr);
 
-#endif /* _ASM_X86_KDEBUG_H */
+#endif /* _ASM_X86_KDE_H */

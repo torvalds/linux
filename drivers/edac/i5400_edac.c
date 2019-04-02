@@ -950,7 +950,7 @@ static void handle_channel(struct i5400_pvt *pvt, int dimm, int channel,
 /*
  *	calculate_dimm_size
  *
- *	also will output a DIMM matrix map, if debug is enabled, for viewing
+ *	also will output a DIMM matrix map, if de is enabled, for viewing
  *	how the DIMMs are populated
  */
 static void calculate_dimm_size(struct i5400_pvt *pvt)
@@ -961,7 +961,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	int space, n;
 	int channel, branch;
 
-	/* ================= Generate some debug output ================= */
+	/* ================= Generate some de output ================= */
 	space = PAGE_SIZE;
 	mem_buffer = p = kmalloc(space, GFP_KERNEL);
 	if (p == NULL) {

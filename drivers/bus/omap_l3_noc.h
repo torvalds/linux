@@ -25,7 +25,7 @@
 #define STANDARD_ERROR			0x0
 #define INBAND_ERROR			0x0
 #define L3_APPLICATION_ERROR		0x0
-#define L3_DEBUG_ERROR			0x1
+#define L3_DE_ERROR			0x1
 
 /* L3 TARG register offsets */
 #define L3_TARG_STDERRLOG_MAIN		0x48
@@ -84,7 +84,7 @@ struct l3_target_data {
  *		L3_TARGET_NOT_SUPPORTED
  * @num_targ_data: number of entries in target data
  * @mask_app_bits: ignore these from raw application irq status
- * @mask_dbg_bits: ignore these from raw debug irq status
+ * @mask_dbg_bits: ignore these from raw de irq status
  */
 struct l3_flagmux_data {
 	u32 offset;
@@ -109,7 +109,7 @@ struct l3_flagmux_data {
  *		offset for the master.
  * @num_master: number of masters
  * @mst_addr_mask: Mask representing MSTADDR information of NTTP packet
- * @debug_irq:	irq number of the debug interrupt (populated runtime)
+ * @de_irq:	irq number of the de interrupt (populated runtime)
  * @app_irq:	irq number of the application interrupt (populated runtime)
  */
 struct omap_l3 {
@@ -123,7 +123,7 @@ struct omap_l3 {
 	int num_masters;
 	u32 mst_addr_mask;
 
-	int debug_irq;
+	int de_irq;
 	int app_irq;
 };
 
@@ -176,7 +176,7 @@ static struct l3_flagmux_data omap_l3_flagmux_clk2 = {
 
 
 static struct l3_target_data omap4_l3_target_data_clk3[] = {
-	{0x0100, "DEBUGSS",},
+	{0x0100, "DESS",},
 };
 
 static struct l3_flagmux_data omap4_l3_flagmux_clk3 = {
@@ -231,7 +231,7 @@ static const struct omap_l3 omap4_l3_data = {
 /* OMAP5 data */
 static struct l3_target_data omap5_l3_target_data_clk3[] = {
 	{0x0100, "L3INSTR",},
-	{0x0300, "DEBUGSS",},
+	{0x0300, "DESS",},
 	{0x0,	 "HOSTCLK3",},
 };
 
@@ -331,7 +331,7 @@ static struct l3_flagmux_data dra_l3_flagmux_clk2 = {
 
 static struct l3_target_data dra_l3_target_data_clk3[] = {
 	{0x0100, "L3_INSTR"},
-	{0x0300, "DEBUGSS_CT_TBR"},
+	{0x0300, "DESS_CT_TBR"},
 	{0x0,	 "HOST CLK3"},
 };
 
@@ -416,7 +416,7 @@ static struct l3_target_data am4372_l3_target_data_200f[] = {
 	{0x800,  "TPTC1",},
 	{0x900,  "TPTC2"},
 	{0xb00,  "TPCC",},
-	{0xd00,  "DEBUGSS",},
+	{0xd00,  "DESS",},
 	{0xdead, L3_TARGET_NOT_SUPPORTED,},
 	{0x200,  "SHA",},
 	{0xc00,  "SGX530",},

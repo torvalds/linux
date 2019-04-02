@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: cpufrequtils 004\n"
-"Report-Msgid-Bugs-To: \n"
+"Report-Msgid-s-To: \n"
 "POT-Creation-Date: 2011-03-08 17:03+0100\n"
 "PO-Revision-Date: 2008-06-14 22:16-0400\n"
 "Last-Translator: Claudio Eduardo <claudioeddy@gmail.com>\n"
@@ -209,8 +209,8 @@ msgstr ""
 
 #: utils/cpupower.c:91
 #, c-format
-msgid "Report errors and bugs to %s, please.\n"
-msgstr "Reporte erros e bugs para %s, por favor.\n"
+msgid "Report errors and s to %s, please.\n"
+msgstr "Reporte erros e s para %s, por favor.\n"
 
 #: utils/cpupower.c:114
 #, c-format
@@ -375,8 +375,8 @@ msgstr "Opções:\n"
 
 #: utils/cpufreq-info.c:474
 #, fuzzy, c-format
-msgid "  -e, --debug          Prints out debug information [default]\n"
-msgstr "  -e, --debug          Mostra informação de debug\n"
+msgid "  -e, --de          Prints out de information [default]\n"
+msgstr "  -e, --de          Mostra informação de de\n"
 
 #: utils/cpufreq-info.c:475
 #, c-format
@@ -491,12 +491,12 @@ msgstr " -h, --help           Imprime essa tela\n"
 #: utils/cpufreq-info.c:495
 #, c-format
 msgid ""
-"If no argument or only the -c, --cpu parameter is given, debug output about\n"
-"cpufreq is printed which is useful e.g. for reporting bugs.\n"
+"If no argument or only the -c, --cpu parameter is given, de output about\n"
+"cpufreq is printed which is useful e.g. for reporting s.\n"
 msgstr ""
 "Se nenhum argumento ou somente o parâmetro -c, --cpu é dado, informação de "
-"debug sobre\n"
-"o cpufreq é mostrada, o que é útil por exemplo para reportar bugs.\n"
+"de sobre\n"
+"o cpufreq é mostrada, o que é útil por exemplo para reportar s.\n"
 
 #: utils/cpufreq-info.c:497
 #, c-format
@@ -922,7 +922,7 @@ msgstr "Uso: cpufreq-info [opções]\n"
 #: utils/cpuidle-info.c:149
 #, fuzzy, c-format
 msgid "  -s, --silent         Only show general C-state information\n"
-msgstr "  -e, --debug          Mostra informação de debug\n"
+msgstr "  -e, --de          Mostra informação de de\n"
 
 #: utils/cpuidle-info.c:150
 #, fuzzy, c-format

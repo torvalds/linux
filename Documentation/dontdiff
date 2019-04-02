@@ -169,7 +169,7 @@ mconf
 miboot*
 mk_elfconfig
 mkboot
-mkbugboot
+mkboot
 mkcpustr
 mkdep
 mkprep

@@ -36,7 +36,7 @@
 /* EEPROM data and command registers */
 #define PP_EECMD 0x0040		/*  NVR Interface Command register */
 #define PP_EEData 0x0042	/*  NVR Interface Data Register */
-#define PP_DebugReg 0x0044	/*  Debug Register */
+#define PP_DeReg 0x0044	/*  De Register */
 
 #define PP_RxCFG 0x0102		/*  Rx Bus config */
 #define PP_RxCTL 0x0104		/*  Receive Control Register */
@@ -353,8 +353,8 @@
 
 /*  for bios scan */
 /*  */
-#ifdef CSDEBUG
-/*  use these values for debugging bios scan */
+#ifdef CSDE
+/*  use these values for deging bios scan */
 #define BIOS_START_SEG 0x00000
 #define BIOS_OFFSET_INC 0x0010
 #else

@@ -12,7 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
@@ -50,8 +50,8 @@ do {								\
 	atomic##bit##_set(&v, v0);				\
 	r = v0;							\
 	r c_op val;						\
-	BUG_ON(atomic##bit##_##op(val, &v) != r);		\
-	BUG_ON(atomic##bit##_read(&v) != r);			\
+	_ON(atomic##bit##_##op(val, &v) != r);		\
+	_ON(atomic##bit##_read(&v) != r);			\
 } while (0)
 
 #define TEST_FETCH(bit, op, c_op, val)				\
@@ -59,8 +59,8 @@ do {								\
 	atomic##bit##_set(&v, v0);				\
 	r = v0;							\
 	r c_op val;						\
-	BUG_ON(atomic##bit##_##op(val, &v) != v0);		\
-	BUG_ON(atomic##bit##_read(&v) != r);			\
+	_ON(atomic##bit##_##op(val, &v) != v0);		\
+	_ON(atomic##bit##_read(&v) != r);			\
 } while (0)
 
 #define RETURN_FAMILY_TEST(bit, op, c_op, val)			\
@@ -76,8 +76,8 @@ do {								\
 #define TEST_ARGS(bit, op, init, ret, expect, args...)		\
 do {								\
 	atomic##bit##_set(&v, init);				\
-	BUG_ON(atomic##bit##_##op(&v, ##args) != ret);		\
-	BUG_ON(atomic##bit##_read(&v) != expect);		\
+	_ON(atomic##bit##_##op(&v, ##args) != ret);		\
+	_ON(atomic##bit##_read(&v) != expect);		\
 } while (0)
 
 #define XCHG_FAMILY_TEST(bit, init, new)				\
@@ -160,12 +160,12 @@ static __init void test_atomic64(void)
 
 	atomic64_t v = ATOMIC64_INIT(v0);
 	long long r = v0;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	atomic64_set(&v, v1);
 	r = v1;
-	BUG_ON(v.counter != r);
-	BUG_ON(atomic64_read(&v) != r);
+	_ON(v.counter != r);
+	_ON(atomic64_read(&v) != r);
 
 	TEST(64, add, +=, onestwos);
 	TEST(64, add, +=, -one);
@@ -194,12 +194,12 @@ static __init void test_atomic64(void)
 	INIT(v0);
 	atomic64_inc(&v);
 	r += one;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	INIT(v0);
 	atomic64_dec(&v);
 	r -= one;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	INC_RETURN_FAMILY_TEST(64, v0);
 	DEC_RETURN_FAMILY_TEST(64, v0);
@@ -208,45 +208,45 @@ static __init void test_atomic64(void)
 	CMPXCHG_FAMILY_TEST(64, v0, v1, v2);
 
 	INIT(v0);
-	BUG_ON(atomic64_add_unless(&v, one, v0));
-	BUG_ON(v.counter != r);
+	_ON(atomic64_add_unless(&v, one, v0));
+	_ON(v.counter != r);
 
 	INIT(v0);
-	BUG_ON(!atomic64_add_unless(&v, one, v1));
+	_ON(!atomic64_add_unless(&v, one, v1));
 	r += one;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	INIT(onestwos);
-	BUG_ON(atomic64_dec_if_positive(&v) != (onestwos - 1));
+	_ON(atomic64_dec_if_positive(&v) != (onestwos - 1));
 	r -= one;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	INIT(0);
-	BUG_ON(atomic64_dec_if_positive(&v) != -one);
-	BUG_ON(v.counter != r);
+	_ON(atomic64_dec_if_positive(&v) != -one);
+	_ON(v.counter != r);
 
 	INIT(-one);
-	BUG_ON(atomic64_dec_if_positive(&v) != (-one - one));
-	BUG_ON(v.counter != r);
+	_ON(atomic64_dec_if_positive(&v) != (-one - one));
+	_ON(v.counter != r);
 
 	INIT(onestwos);
-	BUG_ON(!atomic64_inc_not_zero(&v));
+	_ON(!atomic64_inc_not_zero(&v));
 	r += one;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	INIT(0);
-	BUG_ON(atomic64_inc_not_zero(&v));
-	BUG_ON(v.counter != r);
+	_ON(atomic64_inc_not_zero(&v));
+	_ON(v.counter != r);
 
 	INIT(-one);
-	BUG_ON(!atomic64_inc_not_zero(&v));
+	_ON(!atomic64_inc_not_zero(&v));
 	r += one;
-	BUG_ON(v.counter != r);
+	_ON(v.counter != r);
 
 	/* Confirm the return value fits in an int, even if the value doesn't */
 	INIT(v3);
 	r_int = atomic64_inc_not_zero(&v);
-	BUG_ON(!r_int);
+	_ON(!r_int);
 }
 
 static __init int test_atomics_init(void)

@@ -60,7 +60,7 @@
 #define NUM_THREADS 2         /* number of physical threads in
 			       * physical processor
 			       */
-#define NUM_DEBUG_BUS_WORDS 4
+#define NUM_DE_BUS_WORDS 4
 #define NUM_INPUT_BUS_WORDS 2
 
 #define MAX_SPU_COUNT 0xFFFFFF	/* maximum 24 bit LFSR value */
@@ -125,7 +125,7 @@ struct pm_cntrl {
 
 static struct {
 	u32 group_control;
-	u32 debug_bus_control;
+	u32 de_bus_control;
 	struct pm_cntrl pm_cntrl;
 	u32 pm07_cntrl[NR_PHYS_CTRS];
 } pm_regs;
@@ -142,7 +142,7 @@ static unsigned long spu_pm_cnt[MAX_NUMNODES * NUM_SPUS_PER_NODE];
 static struct pmc_cntrl_data pmc_cntrl[NUM_THREADS][NR_PHYS_CTRS];
 
 /*
- * The CELL profiling code makes rtas calls to setup the debug bus to
+ * The CELL profiling code makes rtas calls to setup the de bus to
  * route the performance signals.  Additionally, SPU profiling requires
  * a second rtas call to setup the hardware to capture the SPU PCs.
  * The EIO error value is returned if the token lookups or the rtas
@@ -151,7 +151,7 @@ static struct pmc_cntrl_data pmc_cntrl[NUM_THREADS][NR_PHYS_CTRS];
  * by returning EIO and printing additional information to dmsg the user
  * will know that OProfile did not start and dmesg will tell them why.
  * OProfile does not support returning errors on Stop.	Not a huge issue
- * since failure to reset the debug bus or stop the SPU PC collection is
+ * since failure to reset the de bus or stop the SPU PC collection is
  * not a fatel issue.  Chances are if the Stop failed, Start doesn't work
  * either.
  */
@@ -176,7 +176,7 @@ static struct timer_list timer_spu_event_swap;
  * is available.
  */
 static struct pm_signal pm_signal[NR_PHYS_CTRS];
-static int pm_rtas_token;    /* token for debug bus setup call */
+static int pm_rtas_token;    /* token for de bus setup call */
 static int spu_rtas_token;   /* token for SPU cycle profiling */
 
 static u32 reset_value[NR_PHYS_CTRS];
@@ -207,7 +207,7 @@ static void pm_rtas_reset_signals(u32 node)
 	struct pm_signal pm_signal_local;
 
 	/*
-	 * The debug bus is being set to the passthru disable state.
+	 * The de bus is being set to the passthru disable state.
 	 * However, the FW still expects at least one legal signal routing
 	 * entry or it will return an error on the arguments.	If we don't
 	 * supply a valid entry, we must ignore all return values.  Ignoring
@@ -243,10 +243,10 @@ static int pm_rtas_activate_signals(u32 node, u32 count)
 	struct pm_signal pm_signal_local[NR_PHYS_CTRS];
 
 	/*
-	 * There is no debug setup required for the cycles event.
+	 * There is no de setup required for the cycles event.
 	 * Note that only events in the same group can be used.
 	 * Otherwise, there will be conflicts in correctly routing
-	 * the signals on the debug bus.  It is the responsibility
+	 * the signals on the de bus.  It is the responsibility
 	 * of the OProfile user tool to check the events are in
 	 * the same group.
 	 */
@@ -323,7 +323,7 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 
 	/*
 	 * Some of the islands signal selection is based on 64 bit words.
-	 * The debug bus words are 32 bits, the input words to the performance
+	 * The de bus words are 32 bits, the input words to the performance
 	 * counters are defined as 32 bits.  Need to convert the 64 bit island
 	 * specification to the appropriate 32 input bit and bus word for the
 	 * performance counter event selection.	 See the CELL Performance
@@ -350,9 +350,9 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 		p->bit = signal_bit;
 	}
 
-	for (i = 0; i < NUM_DEBUG_BUS_WORDS; i++) {
+	for (i = 0; i < NUM_DE_BUS_WORDS; i++) {
 		if (bus_word & (1 << i)) {
-			pm_regs.debug_bus_control |=
+			pm_regs.de_bus_control |=
 				(bus_type << (30 - (2 * i)));
 
 			for (j = 0; j < NUM_INPUT_BUS_WORDS; j++) {
@@ -471,7 +471,7 @@ static void cell_virtual_cntr(struct timer_list *unused)
 	next_hdw_thread = hdw_thread;
 
 	pm_regs.group_control = 0;
-	pm_regs.debug_bus_control = 0;
+	pm_regs.de_bus_control = 0;
 
 	for (i = 0; i < NUM_INPUT_BUS_WORDS; i++)
 		input_bus[i] = 0xff;
@@ -648,9 +648,9 @@ static void spu_evnt_swap(struct timer_list *unused)
 
 		pm_rtas_reset_signals(cbe_cpu_to_node(cpu));
 
-		/* setup the debug bus measure the one event and
+		/* setup the de bus measure the one event and
 		 * the two events to route the next SPU's PC on
-		 * the debug bus
+		 * the de bus
 		 */
 		ret = pm_rtas_activate_signals(cbe_cpu_to_node(cpu), 3);
 		if (ret)
@@ -692,7 +692,7 @@ static int cell_reg_setup_spu_events(struct op_counter_config *ctr,
 	spu_evnt_phys_spu_indx = 0;
 	/*
 	 * For all events except PPU CYCLEs, each node will need to make
-	 * the rtas cbe-perftools call to setup and reset the debug bus.
+	 * the rtas cbe-perftools call to setup and reset the de bus.
 	 * Make the token lookup call once and store it in the global
 	 * variable pm_rtas_token.
 	 */
@@ -717,10 +717,10 @@ static int cell_reg_setup_spu_events(struct op_counter_config *ctr,
 	 */
 	pm_regs.pm_cntrl.trace_mode = 2;
 
-	pm_regs.pm_cntrl.spu_addr_trace = 0x1;  /* using debug bus
+	pm_regs.pm_cntrl.spu_addr_trace = 0x1;  /* using de bus
 						   event 2 & 3 */
 
-	/* setup the debug bus event array with the SPU PC routing events.
+	/* setup the de bus event array with the SPU PC routing events.
 	*  Note, pm_signal[0] will be filled in by set_pm_event() call below.
 	*/
 	pm_signal[1].signal_group = SPU_PROFILE_EVENT_ADDR / 100;
@@ -845,7 +845,7 @@ static int cell_reg_setup(struct op_counter_config *ctr,
 	 * doing spu event profiling.
 	 */
 	pm_regs.group_control = 0;
-	pm_regs.debug_bus_control = 0;
+	pm_regs.de_bus_control = 0;
 	pm_regs.pm_cntrl.stop_at_max = 1;
 	pm_regs.pm_cntrl.trace_mode = 0;
 	pm_regs.pm_cntrl.freeze = 1;
@@ -854,7 +854,7 @@ static int cell_reg_setup(struct op_counter_config *ctr,
 
 	/*
 	 * For all events except PPU CYCLEs, each node will need to make
-	 * the rtas cbe-perftools call to setup and reset the debug bus.
+	 * the rtas cbe-perftools call to setup and reset the de bus.
 	 * Make the token lookup call once and store it in the global
 	 * variable pm_rtas_token.
 	 */
@@ -919,7 +919,7 @@ static int cell_cpu_setup(struct op_counter_config *cntr)
 
 	cbe_write_pm(cpu, pm_start_stop, 0);
 	cbe_write_pm(cpu, group_control, pm_regs.group_control);
-	cbe_write_pm(cpu, debug_bus_control, pm_regs.debug_bus_control);
+	cbe_write_pm(cpu, de_bus_control, pm_regs.de_bus_control);
 	write_pm_cntrl(cpu);
 
 	for (i = 0; i < num_counters; ++i) {
@@ -939,7 +939,7 @@ static int cell_cpu_setup(struct op_counter_config *cntr)
 		 */
 		ret = pm_rtas_activate_signals(cbe_cpu_to_node(cpu),
 					       num_enabled+2);
-		/* store PC from debug bus to Trace buffer as often
+		/* store PC from de bus to Trace buffer as often
 		 * as possible (every 10 cycles)
 		 */
 		cbe_write_pm(cpu, pm_interval, NUM_INTERVAL_CYC);
@@ -1083,7 +1083,7 @@ static int pm_rtas_activate_spu_profiling(u32 node)
 	struct pm_signal pm_signal_local[NUM_SPUS_PER_NODE];
 
 	/*
-	 * Set up the rtas call to configure the debug bus to
+	 * Set up the rtas call to configure the de bus to
 	 * route the SPU PCs.  Setup the pm_signal for each SPU
 	 */
 	for (i = 0; i < ARRAY_SIZE(pm_signal_local); i++) {
@@ -1130,9 +1130,9 @@ static struct notifier_block cpu_freq_notifier_block = {
 /*
  * Note the generic OProfile stop calls do not support returning
  * an error on stop.  Hence, will not return an error if the FW
- * calls fail on stop.	Failure to reset the debug bus is not an issue.
+ * calls fail on stop.	Failure to reset the de bus is not an issue.
  * Failure to disable the SPU profiling is not an issue.  The FW calls
- * to enable the performance counters and debug bus will work even if
+ * to enable the performance counters and de bus will work even if
  * the hardware was not cleanly reset.
  */
 static void cell_global_stop_spu_cycles(void)
@@ -1295,7 +1295,7 @@ static int cell_global_start_spu_cycles(struct op_counter_config *ctr)
 						* register location
 						*/
 
-		/* debug bus setup */
+		/* de bus setup */
 		ret = pm_rtas_activate_spu_profiling(cbe_cpu_to_node(cpu));
 
 		if (unlikely(ret)) {
@@ -1327,7 +1327,7 @@ static int cell_global_start_spu_cycles(struct op_counter_config *ctr)
 	return 0;
 
 out_stop:
-	cell_global_stop_spu_cycles();	/* clean up the PMU/debug bus */
+	cell_global_stop_spu_cycles();	/* clean up the PMU/de bus */
 out:
 	return rtas_error;
 }
@@ -1344,9 +1344,9 @@ static int cell_global_start_spu_events(struct op_counter_config *ctr)
 	 * an interrupt.  The hardware is setup to store the SPU program
 	 * counter into the trace array.  The occurrence mode is used to
 	 * enable storing data to the trace buffer.  The bits are set
-	 * to send/store the SPU address in the trace buffer.  The debug
+	 * to send/store the SPU address in the trace buffer.  The de
 	 * bus must be setup to route the SPU program counter onto the
-	 * debug bus.  The occurrence data in the trace buffer is not used.
+	 * de bus.  The occurrence data in the trace buffer is not used.
 	 */
 
 	/* This routine gets called once for the system.
@@ -1456,9 +1456,9 @@ static int cell_global_start(struct op_counter_config *ctr)
  *
  * SPU event profiling works as follows:
  * The pm_signal[0] holds the one SPU event to be measured.  It is routed on
- * the debug bus using word 0 or 1.  The value of pm_signal[1] and
+ * the de bus using word 0 or 1.  The value of pm_signal[1] and
  * pm_signal[2] contain the necessary events to route the SPU program
- * counter for the selected SPU onto the debug bus using words 2 and 3.
+ * counter for the selected SPU onto the de bus using words 2 and 3.
  * The pm_interval register is setup to write the SPU PC value into the
  * trace buffer at the maximum rate possible.  The trace buffer is configured
  * to store the PCs, wrapping when it is full.  The performance counter is

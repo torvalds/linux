@@ -97,7 +97,7 @@ repeat:
 		ccode = stcrw(&crw[chain]);
 		if (ccode != 0)
 			break;
-		printk(KERN_DEBUG "crw_info : CRW reports slct=%d, oflw=%d, "
+		printk(KERN_DE "crw_info : CRW reports slct=%d, oflw=%d, "
 		       "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
 		       crw[chain].slct, crw[chain].oflw, crw[chain].chn,
 		       crw[chain].rsc, crw[chain].anc, crw[chain].erc,
@@ -106,7 +106,7 @@ repeat:
 		if (crw[chain].oflw) {
 			int i;
 
-			pr_debug("%s: crw overflow detected!\n", __func__);
+			pr_de("%s: crw overflow detected!\n", __func__);
 			mutex_lock(&crw_handler_mutex);
 			for (i = 0; i < NR_RSCS; i++) {
 				if (crw_handlers[i])

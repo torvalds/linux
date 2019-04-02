@@ -20,7 +20,7 @@
 
 #ifdef __KERNEL__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <asm/cpu-features.h>
@@ -55,7 +55,7 @@ extern void *kmap_atomic(struct page *page);
 extern void __kunmap_atomic(void *kvaddr);
 extern void *kmap_atomic_pfn(unsigned long pfn);
 
-#define flush_cache_kmaps()	BUG_ON(cpu_has_dc_aliases)
+#define flush_cache_kmaps()	_ON(cpu_has_dc_aliases)
 
 extern void kmap_init(void);
 

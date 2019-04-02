@@ -47,7 +47,7 @@ hypertas_fw_features_table[] = {
 	{FW_FEATURE_DABR,		"hcall-dabr"},
 	{FW_FEATURE_COPY,		"hcall-copy"},
 	{FW_FEATURE_ASR,		"hcall-asr"},
-	{FW_FEATURE_DEBUG,		"hcall-debug"},
+	{FW_FEATURE_DE,		"hcall-de"},
 	{FW_FEATURE_PERF,		"hcall-perf"},
 	{FW_FEATURE_DUMP,		"hcall-dump"},
 	{FW_FEATURE_INTERRUPT,		"hcall-interrupt"},
@@ -79,7 +79,7 @@ static void __init fw_hypertas_feature_init(const char *hypertas,
 	const char *s;
 	int i;
 
-	pr_debug(" -> fw_hypertas_feature_init()\n");
+	pr_de(" -> fw_hypertas_feature_init()\n");
 
 	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
 		for (i = 0; i < ARRAY_SIZE(hypertas_fw_features_table); i++) {
@@ -104,7 +104,7 @@ static void __init fw_hypertas_feature_init(const char *hypertas,
 		}
 	}
 
-	pr_debug(" <- fw_hypertas_feature_init()\n");
+	pr_de(" <- fw_hypertas_feature_init()\n");
 }
 
 struct vec5_fw_feature {
@@ -125,7 +125,7 @@ static void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
 	unsigned int index, feat;
 	int i;
 
-	pr_debug(" -> fw_vec5_feature_init()\n");
+	pr_de(" -> fw_vec5_feature_init()\n");
 
 	for (i = 0; i < ARRAY_SIZE(vec5_fw_features_table); i++) {
 		index = OV5_INDX(vec5_fw_features_table[i].feature);
@@ -136,7 +136,7 @@ static void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
 				vec5_fw_features_table[i].val;
 	}
 
-	pr_debug(" <- fw_vec5_feature_init()\n");
+	pr_de(" <- fw_vec5_feature_init()\n");
 }
 
 /*

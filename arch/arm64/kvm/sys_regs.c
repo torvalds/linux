@@ -28,7 +28,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_coproc.h>
@@ -220,7 +220,7 @@ static bool access_vm_reg(struct kvm_vcpu *vcpu,
 	u64 val;
 	int reg = r->reg;
 
-	BUG_ON(!p->is_write);
+	_ON(!p->is_write);
 
 	/* See the 32bit mapping in kvm_host.h */
 	if (p->is_aarch32)
@@ -367,20 +367,20 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
  * We want to avoid world-switching all the DBG registers all the
  * time:
  * 
- * - If we've touched any debug register, it is likely that we're
+ * - If we've touched any de register, it is likely that we're
  *   going to touch more of them. It then makes sense to disable the
  *   traps and start doing the save/restore dance
- * - If debug is active (DBG_MDSCR_KDE or DBG_MDSCR_MDE set), it is
+ * - If de is active (DBG_MDSCR_KDE or DBG_MDSCR_MDE set), it is
  *   then mandatory to save/restore the registers, as the guest
  *   depends on them.
  * 
  * For this, we use a DIRTY bit, indicating the guest has modified the
- * debug registers, used as follow:
+ * de registers, used as follow:
  *
  * On guest entry:
  * - If the dirty bit is set (because we're coming back from trapping),
  *   disable the traps, save host registers, restore guest registers.
- * - If debug is actively in use (DBG_MDSCR_KDE or DBG_MDSCR_MDE set),
+ * - If de is actively in use (DBG_MDSCR_KDE or DBG_MDSCR_MDE set),
  *   set the dirty bit, disable the traps, save host registers,
  *   restore guest registers.
  * - Otherwise, enable the traps
@@ -388,15 +388,15 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
  * On guest exit:
  * - If the dirty bit is set, save guest registers, restore host
  *   registers and clear the dirty bit. This ensure that the host can
- *   now use the debug registers.
+ *   now use the de registers.
  */
-static bool trap_debug_regs(struct kvm_vcpu *vcpu,
+static bool trap_de_regs(struct kvm_vcpu *vcpu,
 			    struct sys_reg_params *p,
 			    const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
 		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DE_DIRTY;
 	} else {
 		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
 	}
@@ -409,10 +409,10 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 /*
  * reg_to_dbg/dbg_to_reg
  *
- * A 32 bit write to a debug register leave top bits alone
- * A 32 bit read from a debug register only returns the bottom bits
+ * A 32 bit write to a de register leave top bits alone
+ * A 32 bit read from a de register only returns the bottom bits
  *
- * All writes will set the KVM_ARM64_DEBUG_DIRTY flag to ensure the
+ * All writes will set the KVM_ARM64_DE_DIRTY flag to ensure the
  * hyp.S code switches between host and guest values in future.
  */
 static void reg_to_dbg(struct kvm_vcpu *vcpu,
@@ -427,7 +427,7 @@ static void reg_to_dbg(struct kvm_vcpu *vcpu,
 	}
 
 	*dbg_reg = val;
-	vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
+	vcpu->arch.flags |= KVM_ARM64_DE_DIRTY;
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
@@ -443,7 +443,7 @@ static bool trap_bvr(struct kvm_vcpu *vcpu,
 		     struct sys_reg_params *p,
 		     const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+	u64 *dbg_reg = &vcpu->arch.vcpu_de_state.dbg_bvr[rd->reg];
 
 	if (p->is_write)
 		reg_to_dbg(vcpu, p, dbg_reg);
@@ -458,7 +458,7 @@ static bool trap_bvr(struct kvm_vcpu *vcpu,
 static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 		const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_bvr[rd->reg];
 
 	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -468,7 +468,7 @@ static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_bvr[rd->reg];
 
 	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -478,14 +478,14 @@ static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static void reset_bvr(struct kvm_vcpu *vcpu,
 		      const struct sys_reg_desc *rd)
 {
-	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg] = rd->val;
+	vcpu->arch.vcpu_de_state.dbg_bvr[rd->reg] = rd->val;
 }
 
 static bool trap_bcr(struct kvm_vcpu *vcpu,
 		     struct sys_reg_params *p,
 		     const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
+	u64 *dbg_reg = &vcpu->arch.vcpu_de_state.dbg_bcr[rd->reg];
 
 	if (p->is_write)
 		reg_to_dbg(vcpu, p, dbg_reg);
@@ -500,7 +500,7 @@ static bool trap_bcr(struct kvm_vcpu *vcpu,
 static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 		const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_bcr[rd->reg];
 
 	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -511,7 +511,7 @@ static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_bcr[rd->reg];
 
 	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -521,14 +521,14 @@ static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static void reset_bcr(struct kvm_vcpu *vcpu,
 		      const struct sys_reg_desc *rd)
 {
-	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg] = rd->val;
+	vcpu->arch.vcpu_de_state.dbg_bcr[rd->reg] = rd->val;
 }
 
 static bool trap_wvr(struct kvm_vcpu *vcpu,
 		     struct sys_reg_params *p,
 		     const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
+	u64 *dbg_reg = &vcpu->arch.vcpu_de_state.dbg_wvr[rd->reg];
 
 	if (p->is_write)
 		reg_to_dbg(vcpu, p, dbg_reg);
@@ -536,7 +536,7 @@ static bool trap_wvr(struct kvm_vcpu *vcpu,
 		dbg_to_reg(vcpu, p, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write,
-		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg]);
+		vcpu->arch.vcpu_de_state.dbg_wvr[rd->reg]);
 
 	return true;
 }
@@ -544,7 +544,7 @@ static bool trap_wvr(struct kvm_vcpu *vcpu,
 static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 		const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_wvr[rd->reg];
 
 	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -554,7 +554,7 @@ static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_wvr[rd->reg];
 
 	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -564,14 +564,14 @@ static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static void reset_wvr(struct kvm_vcpu *vcpu,
 		      const struct sys_reg_desc *rd)
 {
-	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg] = rd->val;
+	vcpu->arch.vcpu_de_state.dbg_wvr[rd->reg] = rd->val;
 }
 
 static bool trap_wcr(struct kvm_vcpu *vcpu,
 		     struct sys_reg_params *p,
 		     const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
+	u64 *dbg_reg = &vcpu->arch.vcpu_de_state.dbg_wcr[rd->reg];
 
 	if (p->is_write)
 		reg_to_dbg(vcpu, p, dbg_reg);
@@ -586,7 +586,7 @@ static bool trap_wcr(struct kvm_vcpu *vcpu,
 static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 		const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_wcr[rd->reg];
 
 	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -596,7 +596,7 @@ static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 	const struct kvm_one_reg *reg, void __user *uaddr)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
+	__u64 *r = &vcpu->arch.vcpu_de_state.dbg_wcr[rd->reg];
 
 	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
 		return -EFAULT;
@@ -606,7 +606,7 @@ static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
 static void reset_wcr(struct kvm_vcpu *vcpu,
 		      const struct sys_reg_desc *rd)
 {
-	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg] = rd->val;
+	vcpu->arch.vcpu_de_state.dbg_wcr[rd->reg] = rd->val;
 }
 
 static void reset_amair_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
@@ -732,7 +732,7 @@ static bool access_pmceid(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (!kvm_arm_pmu_v3_ready(vcpu))
 		return trap_raz_wi(vcpu, p, r);
 
-	BUG_ON(p->is_write);
+	_ON(p->is_write);
 
 	if (pmu_access_el0_disabled(vcpu))
 		return false;
@@ -841,7 +841,7 @@ static bool access_pmu_evtyper(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			/* PMEVTYPERn_EL0 */
 			reg = PMEVTYPER0_EL0 + idx;
 	} else {
-		BUG();
+		();
 	}
 
 	if (!pmu_counter_idx_valid(vcpu, idx))
@@ -1032,7 +1032,7 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 		treg = TIMER_REG_CVAL;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (p->is_write)
@@ -1052,7 +1052,7 @@ static u64 read_id_reg(struct sys_reg_desc const *r, bool raz)
 
 	if (id == SYS_ID_AA64PFR0_EL1) {
 		if (val & (0xfUL << ID_AA64PFR0_SVE_SHIFT))
-			kvm_debug("SVE unsupported for guests, suppressing\n");
+			kvm_de("SVE unsupported for guests, suppressing\n");
 
 		val &= ~(0xfUL << ID_AA64PFR0_SVE_SHIFT);
 	} else if (id == SYS_ID_AA64ISAR1_EL1) {
@@ -1061,7 +1061,7 @@ static u64 read_id_reg(struct sys_reg_desc const *r, bool raz)
 					 (0xfUL << ID_AA64ISAR1_GPA_SHIFT) |
 					 (0xfUL << ID_AA64ISAR1_GPI_SHIFT);
 		if (val & ptrauth_mask)
-			kvm_debug("ptrauth unsupported for guests, suppressing\n");
+			kvm_de("ptrauth unsupported for guests, suppressing\n");
 		val &= ~ptrauth_mask;
 	}
 
@@ -1252,10 +1252,10 @@ static bool access_ccsidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
  *
- * Debug handling: We do trap most, if not all debug related system
+ * De handling: We do trap most, if not all de related system
  * registers. The implementation is good enough to ensure that a guest
  * can use these with minimal performance degradation. The drawback is
- * that we don't implement any of the external debug, none of the
+ * that we don't implement any of the external de, none of the
  * OSlock protocol. This should be revisited if we ever encounter a
  * more demanding guest...
  */
@@ -1266,8 +1266,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	DBG_BCR_BVR_WCR_WVR_EL1(0),
 	DBG_BCR_BVR_WCR_WVR_EL1(1),
-	{ SYS_DESC(SYS_MDCCINT_EL1), trap_debug_regs, reset_val, MDCCINT_EL1, 0 },
-	{ SYS_DESC(SYS_MDSCR_EL1), trap_debug_regs, reset_val, MDSCR_EL1, 0 },
+	{ SYS_DESC(SYS_MDCCINT_EL1), trap_de_regs, reset_val, MDCCINT_EL1, 0 },
+	{ SYS_DESC(SYS_MDSCR_EL1), trap_de_regs, reset_val, MDSCR_EL1, 0 },
 	DBG_BCR_BVR_WCR_WVR_EL1(2),
 	DBG_BCR_BVR_WCR_WVR_EL1(3),
 	DBG_BCR_BVR_WCR_WVR_EL1(4),
@@ -1557,13 +1557,13 @@ static bool trap_dbgidr(struct kvm_vcpu *vcpu,
 	}
 }
 
-static bool trap_debug32(struct kvm_vcpu *vcpu,
+static bool trap_de32(struct kvm_vcpu *vcpu,
 			 struct sys_reg_params *p,
 			 const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
 		vcpu_cp14(vcpu, r->reg) = p->regval;
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DE_DIRTY;
 	} else {
 		p->regval = vcpu_cp14(vcpu, r->reg);
 	}
@@ -1571,7 +1571,7 @@ static bool trap_debug32(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-/* AArch32 debug register mappings
+/* AArch32 de register mappings
  *
  * AArch32 DBGBVRn is mapped to DBGBVRn_EL1[31:0]
  * AArch32 DBGBXVRn is mapped to DBGBVRn_EL1[63:32]
@@ -1586,7 +1586,7 @@ static bool trap_xvr(struct kvm_vcpu *vcpu,
 		     struct sys_reg_params *p,
 		     const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
+	u64 *dbg_reg = &vcpu->arch.vcpu_de_state.dbg_bvr[rd->reg];
 
 	if (p->is_write) {
 		u64 val = *dbg_reg;
@@ -1595,7 +1595,7 @@ static bool trap_xvr(struct kvm_vcpu *vcpu,
 		val |= p->regval << 32;
 		*dbg_reg = val;
 
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DE_DIRTY;
 	} else {
 		p->regval = *dbg_reg >> 32;
 	}
@@ -1620,7 +1620,7 @@ static bool trap_xvr(struct kvm_vcpu *vcpu,
 
 /*
  * Trapped cp14 registers. We generally ignore most of the external
- * debug, on the principle that they don't really make sense to a
+ * de, on the principle that they don't really make sense to a
  * guest. Revisit this one day, would this principle change.
  */
 static const struct sys_reg_desc cp14_regs[] = {
@@ -1634,9 +1634,9 @@ static const struct sys_reg_desc cp14_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 1), Op2( 0), trap_raz_wi },
 	DBG_BCR_BVR_WCR_WVR(1),
 	/* DBGDCCINT */
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_debug32 },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_de32 },
 	/* DBGDSCRext */
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_debug32 },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_de32 },
 	DBG_BCR_BVR_WCR_WVR(2),
 	/* DBGDTR[RT]Xint */
 	{ Op1( 0), CRn( 0), CRm( 3), Op2( 0), trap_raz_wi },
@@ -1651,7 +1651,7 @@ static const struct sys_reg_desc cp14_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 6), Op2( 2), trap_raz_wi },
 	DBG_BCR_BVR_WCR_WVR(6),
 	/* DBGVCR */
-	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_debug32 },
+	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_de32 },
 	DBG_BCR_BVR_WCR_WVR(7),
 	DBG_BCR_BVR_WCR_WVR(8),
 	DBG_BCR_BVR_WCR_WVR(9),
@@ -1927,9 +1927,9 @@ static void perform_access(struct kvm_vcpu *vcpu,
 	/*
 	 * Not having an accessor means that we have configured a trap
 	 * that we don't know how to handle. This certainly qualifies
-	 * as a gross bug that should be fixed right away.
+	 * as a gross  that should be fixed right away.
 	 */
-	BUG_ON(!r->access);
+	_ON(!r->access);
 
 	/* Skip instruction if instructed so */
 	if (likely(r->access(vcpu, params, r)))
@@ -2544,7 +2544,7 @@ static int walk_sys_regs(struct kvm_vcpu *vcpu, u64 __user *uind)
 	i2 = sys_reg_descs;
 	end2 = sys_reg_descs + ARRAY_SIZE(sys_reg_descs);
 
-	BUG_ON(i1 == end1 || i2 == end2);
+	_ON(i1 == end1 || i2 == end2);
 
 	/* Walk carefully, as both tables may refer to the same register. */
 	while (i1 || i2) {
@@ -2613,12 +2613,12 @@ void kvm_sys_reg_table_init(void)
 	struct sys_reg_desc clidr;
 
 	/* Make sure tables are unique and in order. */
-	BUG_ON(check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs)));
-	BUG_ON(check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs)));
-	BUG_ON(check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs)));
-	BUG_ON(check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
-	BUG_ON(check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs)));
-	BUG_ON(check_sysreg_table(invariant_sys_regs, ARRAY_SIZE(invariant_sys_regs)));
+	_ON(check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs)));
+	_ON(check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs)));
+	_ON(check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs)));
+	_ON(check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs)));
+	_ON(check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs)));
+	_ON(check_sysreg_table(invariant_sys_regs, ARRAY_SIZE(invariant_sys_regs)));
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++)

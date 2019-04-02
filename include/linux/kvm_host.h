@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm.h>
 #include <linux/mmu_notifier.h>
 #include <linux/preempt.h>
@@ -151,7 +151,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQUEST_ARCH_BASE     8
 
 #define KVM_ARCH_REQ_FLAGS(nr, flags) ({ \
-	BUILD_BUG_ON((unsigned)(nr) >= (FIELD_SIZEOF(struct kvm_vcpu, requests) * 8) - KVM_REQUEST_ARCH_BASE); \
+	BUILD__ON((unsigned)(nr) >= (FIELD_SIZEOF(struct kvm_vcpu, requests) * 8) - KVM_REQUEST_ARCH_BASE); \
 	(unsigned)(((nr) + KVM_REQUEST_ARCH_BASE) | (flags)); \
 })
 #define KVM_ARCH_REQ(nr)           KVM_ARCH_REQ_FLAGS(nr, 0)
@@ -246,7 +246,7 @@ struct kvm_vcpu {
 	int srcu_idx;
 	int mode;
 	u64 requests;
-	unsigned long guest_debug;
+	unsigned long guest_de;
 
 	int pre_pcpu;
 	struct list_head blocked_vcpu_list;
@@ -295,7 +295,7 @@ struct kvm_vcpu {
 #endif
 	bool preempted;
 	struct kvm_vcpu_arch arch;
-	struct dentry *debugfs_dentry;
+	struct dentry *defs_dentry;
 };
 
 static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
@@ -471,8 +471,8 @@ struct kvm {
 	long tlbs_dirty;
 	struct list_head devices;
 	bool manual_dirty_log_protect;
-	struct dentry *debugfs_dentry;
-	struct kvm_stat_data **debugfs_stat_data;
+	struct dentry *defs_dentry;
+	struct kvm_stat_data **defs_stat_data;
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
 	pid_t userspace_pid;
@@ -482,10 +482,10 @@ struct kvm {
 	pr_err("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
 #define kvm_info(fmt, ...) \
 	pr_info("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
-#define kvm_debug(fmt, ...) \
-	pr_debug("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
-#define kvm_debug_ratelimited(fmt, ...) \
-	pr_debug_ratelimited("kvm [%i]: " fmt, task_pid_nr(current), \
+#define kvm_de(fmt, ...) \
+	pr_de("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_de_ratelimited(fmt, ...) \
+	pr_de_ratelimited("kvm [%i]: " fmt, task_pid_nr(current), \
 			     ## __VA_ARGS__)
 #define kvm_pr_unimpl(fmt, ...) \
 	pr_err_ratelimited("kvm [%i]: " fmt, \
@@ -496,10 +496,10 @@ struct kvm {
 	kvm_pr_unimpl("vcpu%i, guest rIP: 0x%lx " fmt,			\
 			(vcpu)->vcpu_id, kvm_rip_read(vcpu), ## __VA_ARGS__)
 
-#define vcpu_debug(vcpu, fmt, ...)					\
-	kvm_debug("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
-#define vcpu_debug_ratelimited(vcpu, fmt, ...)				\
-	kvm_debug_ratelimited("vcpu%i " fmt, (vcpu)->vcpu_id,           \
+#define vcpu_de(vcpu, fmt, ...)					\
+	kvm_de("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
+#define vcpu_de_ratelimited(vcpu, fmt, ...)				\
+	kvm_de_ratelimited("vcpu%i " fmt, (vcpu)->vcpu_id,           \
 			      ## __VA_ARGS__)
 #define vcpu_err(vcpu, fmt, ...)					\
 	kvm_err("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
@@ -552,7 +552,7 @@ static inline int kvm_vcpu_get_idx(struct kvm_vcpu *vcpu)
 	kvm_for_each_vcpu(idx, tmp, vcpu->kvm)
 		if (tmp == vcpu)
 			return idx;
-	BUG();
+	();
 }
 
 #define kvm_for_each_memslot(memslot, slots)	\
@@ -813,8 +813,8 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state);
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state);
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-					struct kvm_guest_debug *dbg);
+int kvm_arch_vcpu_ioctl_set_guest_de(struct kvm_vcpu *vcpu,
+					struct kvm_guest_de *dbg);
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 
 int kvm_arch_init(void *opaque);
@@ -833,8 +833,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu);
 
-bool kvm_arch_has_vcpu_debugfs(void);
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu);
+bool kvm_arch_has_vcpu_defs(void);
+int kvm_arch_create_vcpu_defs(struct kvm_vcpu *vcpu);
 
 int kvm_arch_hardware_enable(void);
 void kvm_arch_hardware_disable(void);
@@ -1062,13 +1062,13 @@ struct kvm_stat_data {
 	struct kvm *kvm;
 };
 
-struct kvm_stats_debugfs_item {
+struct kvm_stats_defs_item {
 	const char *name;
 	int offset;
 	enum kvm_stat_kind kind;
 };
-extern struct kvm_stats_debugfs_item debugfs_entries[];
-extern struct dentry *kvm_debugfs_dir;
+extern struct kvm_stats_defs_item defs_entries[];
+extern struct dentry *kvm_defs_dir;
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)

@@ -300,7 +300,7 @@ struct acpi_object_addr_handler {
 
 /*
  * The Reference object is used for these opcodes:
- * Arg[0-6], Local[0-7], index_op, name_op, ref_of_op, load_op, load_table_op, debug_op
+ * Arg[0-6], Local[0-7], index_op, name_op, ref_of_op, load_op, load_table_op, de_op
  * The Reference.Class differentiates these types.
  */
 struct acpi_object_reference {
@@ -324,7 +324,7 @@ typedef enum {
 	ACPI_REFCLASS_INDEX = 3,	/* Result of Index() */
 	ACPI_REFCLASS_TABLE = 4,	/* ddb_handle - Load(), load_table() */
 	ACPI_REFCLASS_NAME = 5,	/* Reference to a named object */
-	ACPI_REFCLASS_DEBUG = 6,	/* Debug object */
+	ACPI_REFCLASS_DE = 6,	/* De object */
 
 	ACPI_REFCLASS_MAX = 6
 } ACPI_REFERENCE_CLASSES;

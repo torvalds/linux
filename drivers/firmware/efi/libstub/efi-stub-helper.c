@@ -16,7 +16,7 @@
  * Some firmware implementations have problems reading files in one go.
  * A read chunk size of 1MB seems to work for most platforms.
  *
- * Unfortunately, reading files in chunks triggers *other* bugs on some
+ * Unfortunately, reading files in chunks triggers *other* s on some
  * platforms, so we provide a way to disable this workaround, which can
  * be done by passing "efi=nochunk" on the EFI boot stub command line.
  *

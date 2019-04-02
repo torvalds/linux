@@ -192,7 +192,7 @@ static int ux500_dma_channel_program(struct dma_channel *channel,
 {
 	int ret;
 
-	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
+	_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
 	channel->status = MUSB_DMA_STATUS_BUSY;

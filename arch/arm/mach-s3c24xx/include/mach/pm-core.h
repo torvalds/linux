@@ -13,7 +13,7 @@
 #include "regs-clock.h"
 #include "regs-irq.h"
 
-static inline void s3c_pm_debug_init_uart(void)
+static inline void s3c_pm_de_init_uart(void)
 {
 	unsigned long tmp = __raw_readl(S3C2410_CLKCON);
 

@@ -217,7 +217,7 @@ int fs_parse(struct fs_context *fc,
 	case fs_param_is_path:
 		goto okay;
 	default:
-		BUG();
+		();
 	}
 
 maybe_okay:

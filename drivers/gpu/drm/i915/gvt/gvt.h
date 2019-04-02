@@ -33,7 +33,7 @@
 #ifndef _GVT_H_
 #define _GVT_H_
 
-#include "debug.h"
+#include "de.h"
 #include "hypercall.h"
 #include "mmio.h"
 #include "reg.h"
@@ -197,7 +197,7 @@ struct intel_vgpu {
 	struct radix_tree_root page_track_tree;
 	u32 hws_pga[I915_NUM_ENGINES];
 
-	struct dentry *debugfs;
+	struct dentry *defs;
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
@@ -339,7 +339,7 @@ struct intel_gvt {
 		int ctx_mmio_count[I915_NUM_ENGINES];
 	} engine_mmio_list;
 
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 };
 
 static inline struct intel_gvt *to_gvt(struct drm_i915_private *i915)
@@ -689,10 +689,10 @@ static inline void intel_gvt_mmio_set_in_ctx(
 	gvt->mmio.mmio_attribute[offset >> 2] |= F_IN_CTX;
 }
 
-int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);
-void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);
-int intel_gvt_debugfs_init(struct intel_gvt *gvt);
-void intel_gvt_debugfs_clean(struct intel_gvt *gvt);
+int intel_gvt_defs_add_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_defs_remove_vgpu(struct intel_vgpu *vgpu);
+int intel_gvt_defs_init(struct intel_gvt *gvt);
+void intel_gvt_defs_clean(struct intel_gvt *gvt);
 
 
 #include "trace.h"

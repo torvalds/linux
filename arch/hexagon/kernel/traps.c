@@ -20,11 +20,11 @@
 
 #include <linux/init.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
 #include <linux/tracehook.h>
@@ -39,19 +39,19 @@
 #endif
 
 #define TRAP_SYSCALL	1
-#define TRAP_DEBUG	0xdb
+#define TRAP_DE	0xdb
 
 void __init trap_init(void)
 {
 }
 
-#ifdef CONFIG_GENERIC_BUG
+#ifdef CONFIG_GENERIC_
 /* Maybe should resemble arch/sh/kernel/traps.c ?? */
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	return 1;
 }
-#endif /* CONFIG_GENERIC_BUG */
+#endif /* CONFIG_GENERIC_ */
 
 static const char *ex_name(int ex)
 {
@@ -84,7 +84,7 @@ static const char *ex_name(int ex)
 		return "Cache error";
 
 	case 0xdb:
-		return "Debugger trap";
+		return "Deger trap";
 
 	default:
 		return "Unrecognized exception";
@@ -409,8 +409,8 @@ void do_trap0(struct pt_regs *regs)
 			tracehook_report_syscall_exit(regs, 0);
 
 		break;
-	case TRAP_DEBUG:
-		/* Trap0 0xdb is debug breakpoint */
+	case TRAP_DE:
+		/* Trap0 0xdb is de breakpoint */
 		if (user_mode(regs)) {
 			/*
 			 * Some architecures add some per-thread state
@@ -445,9 +445,9 @@ void do_machcheck(struct pt_regs *regs)
  * Treat this like the old 0xdb trap.
  */
 
-void do_debug_exception(struct pt_regs *regs)
+void do_de_exception(struct pt_regs *regs)
 {
 	regs->hvmer.vmest &= ~HVM_VMEST_CAUSE_MSK;
-	regs->hvmer.vmest |= (TRAP_DEBUG << HVM_VMEST_CAUSE_SFT);
+	regs->hvmer.vmest |= (TRAP_DE << HVM_VMEST_CAUSE_SFT);
 	do_trap0(regs);
 }

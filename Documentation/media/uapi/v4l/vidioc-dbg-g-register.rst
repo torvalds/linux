@@ -47,14 +47,14 @@ Description
     This is an :ref:`experimental` interface and may
     change in the future.
 
-For driver debugging purposes these ioctls allow test applications to
+For driver deging purposes these ioctls allow test applications to
 access hardware registers directly. Regular applications must not use
 them.
 
 Since writing or even reading registers can jeopardize the system
 security, its stability and damage the hardware, both ioctls require
 superuser privileges. Additionally the Linux kernel must be compiled
-with the ``CONFIG_VIDEO_ADV_DEBUG`` option to enable these ioctls.
+with the ``CONFIG_VIDEO_ADV_DE`` option to enable these ioctls.
 
 To write a register applications must initialize all fields of a struct
 :c:type:`v4l2_dbg_register` except for ``size`` and

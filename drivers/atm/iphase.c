@@ -23,7 +23,7 @@
       in terms of PHY type, the size of control memory and the size of 
       packet memory. The following are the change log and history:
      
-          Bugfix the Mona's UBR driver.
+          fix the Mona's UBR driver.
           Modify the basic memory allocation and dma logic.
           Port the driver to the latest kernel from 2.0.46.
           Complete the ABR logic of the driver, and added the ABR work-
@@ -79,14 +79,14 @@ static void ia_led_timer(struct timer_list *unused);
 static DEFINE_TIMER(ia_timer, ia_led_timer);
 static int IA_TX_BUF = DFL_TX_BUFFERS, IA_TX_BUF_SZ = DFL_TX_BUF_SZ;
 static int IA_RX_BUF = DFL_RX_BUFFERS, IA_RX_BUF_SZ = DFL_RX_BUF_SZ;
-static uint IADebugFlag = /* IF_IADBG_ERR | IF_IADBG_CBR| IF_IADBG_INIT_ADAPTER
+static uint IADeFlag = /* IF_IADBG_ERR | IF_IADBG_CBR| IF_IADBG_INIT_ADAPTER
             |IF_IADBG_ABR | IF_IADBG_EVENT*/ 0; 
 
 module_param(IA_TX_BUF, int, 0);
 module_param(IA_TX_BUF_SZ, int, 0);
 module_param(IA_RX_BUF, int, 0);
 module_param(IA_RX_BUF_SZ, int, 0);
-module_param(IADebugFlag, uint, 0644);
+module_param(IADeFlag, uint, 0644);
 
 MODULE_LICENSE("GPL");
 
@@ -973,7 +973,7 @@ static void ia_suni_pm7345_init(struct iadev_priv *iadev)
 
 /***************************** IA_LIB END *****************************/
     
-#ifdef CONFIG_ATM_IA_DEBUG
+#ifdef CONFIG_ATM_IA_DE
 static int tcnter = 0;
 static void xdump( u_char*  cp, int  length, char*  prefix )
 {
@@ -1006,7 +1006,7 @@ static void xdump( u_char*  cp, int  length, char*  prefix )
     }
 
 }  /* close xdump(... */
-#endif /* CONFIG_ATM_IA_DEBUG */
+#endif /* CONFIG_ATM_IA_DE */
 
   
 static struct atm_dev *ia_boards = NULL;  
@@ -2865,8 +2865,8 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
 	    if (!capable(CAP_NET_ADMIN)) return -EPERM;
          {  
              ia_cmds.status = 0; 
-             IADebugFlag = ia_cmds.maddr;
-             printk("New debug option loaded\n");
+             IADeFlag = ia_cmds.maddr;
+             printk("New de option loaded\n");
          }
              break;
          default:
@@ -3024,7 +3024,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
 	/* wr_ptr->bytes = swap_byte_order(total_len); didn't seem to affect?? */
 	wr_ptr->bytes = skb->len;  
 
-        /* hw bug - DLEs of 0x2d, 0x2e, 0x2f cause DMA lockup */
+        /* hw  - DLEs of 0x2d, 0x2e, 0x2f cause DMA lockup */
         if ((wr_ptr->bytes >> 2) == 0xb)
            wr_ptr->bytes = 0x30;
 

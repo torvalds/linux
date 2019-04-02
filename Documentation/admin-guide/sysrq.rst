@@ -26,7 +26,7 @@ to 1. Here is the list of possible values in /proc/sys/kernel/sysrq:
 
           2 =   0x2 - enable control of console logging level
           4 =   0x4 - enable control of keyboard (SAK, unraw)
-          8 =   0x8 - enable debugging dumps of processes etc.
+          8 =   0x8 - enable deging dumps of processes etc.
          16 =  0x10 - enable sync command
          32 =  0x20 - enable remount read-only
          64 =  0x40 - enable signalling of processes (term, kill, oom-kill)
@@ -96,7 +96,7 @@ Command	    Function
 ``f``	    Will call the oom killer to kill a memory hog process, but do not
 	    panic if nothing can be killed.
 
-``g``	    Used by kgdb (kernel debugger)
+``g``	    Used by kgdb (kernel deger)
 
 ``h``	    Will display help (actually any other key than those listed
             here will display help. but ``h`` is easy to remember :-)

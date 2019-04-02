@@ -7,7 +7,7 @@
  *  Version 0.04	Added second channel tuning
  *  Version 0.05	Enhanced tuning ; added qd6500 support
  *  Version 0.06	Added dos driver's list
- *  Version 0.07	Second channel bug fix 
+ *  Version 0.07	Second channel  fix 
  *
  * QDI QD6500/QD6580 EIDE controller fast support
  *
@@ -162,7 +162,7 @@ static int qd_find_disk_type (ide_drive_t *drive,
 
 	for (p = qd65xx_timing ; p->offset != -1 ; p++) {
 		if (!strncmp(p->model, model+p->offset, 4)) {
-			printk(KERN_DEBUG "%s: listed !\n", drive->name);
+			printk(KERN_DE "%s: listed !\n", drive->name);
 			*active_time = p->active;
 			*recovery_time = p->recovery;
 			return 1;
@@ -185,7 +185,7 @@ static void qd_set_timing (ide_drive_t *drive, u8 timing)
 	data |= timing;
 	ide_set_drivedata(drive, (void *)data);
 
-	printk(KERN_DEBUG "%s: %#x\n", drive->name, timing);
+	printk(KERN_DE "%s: %#x\n", drive->name, timing);
 }
 
 static void qd6500_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
@@ -378,7 +378,7 @@ static int __init qd_probe(int base)
 		}
 
 		printk(KERN_NOTICE "qd6500 at %#x\n", base);
-		printk(KERN_DEBUG "qd6500: config=%#x, ID3=%u\n",
+		printk(KERN_DE "qd6500: config=%#x, ID3=%u\n",
 			config, QD_ID3);
 
 		d.port_ops = &qd6500_port_ops;
@@ -392,7 +392,7 @@ static int __init qd_probe(int base)
 		control = inb(QD_CONTROL_PORT);
 
 		printk(KERN_NOTICE "qd6580 at %#x\n", base);
-		printk(KERN_DEBUG "qd6580: config=%#x, control=%#x, ID3=%u\n",
+		printk(KERN_DE "qd6580: config=%#x, control=%#x, ID3=%u\n",
 			config, control, QD_ID3);
 
 		outb(QD_DEF_CONTR, QD_CONTROL_PORT);

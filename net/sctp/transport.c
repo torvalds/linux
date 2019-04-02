@@ -27,7 +27,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -346,7 +346,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 {
 	if (unlikely(!tp->rto_pending))
 		/* We should not be doing any RTO updates unless rto_pending is set.  */
-		pr_debug("%s: rto_pending not set on transport %p!\n", __func__, tp);
+		pr_de("%s: rto_pending not set on transport %p!\n", __func__, tp);
 
 	if (tp->rttvar || tp->srtt) {
 		struct net *net = sock_net(tp->asoc->base.sk);
@@ -402,7 +402,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	 */
 	tp->rto_pending = 0;
 
-	pr_debug("%s: transport:%p, rtt:%d, srtt:%d rttvar:%d, rto:%ld\n",
+	pr_de("%s: transport:%p, rtt:%d, srtt:%d rttvar:%d, rto:%ld\n",
 		 __func__, tp, rtt, tp->srtt, tp->rttvar, tp->rto);
 }
 
@@ -458,7 +458,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 		else
 			cwnd += bytes_acked;
 
-		pr_debug("%s: slow start: transport:%p, bytes_acked:%d, "
+		pr_de("%s: slow start: transport:%p, bytes_acked:%d, "
 			 "cwnd:%d, ssthresh:%d, flight_size:%d, pba:%d\n",
 			 __func__, transport, bytes_acked, cwnd, ssthresh,
 			 flight_size, pba);
@@ -493,7 +493,7 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			cwnd += pmtu;
 		}
 
-		pr_debug("%s: congestion avoidance: transport:%p, "
+		pr_de("%s: congestion avoidance: transport:%p, "
 			 "bytes_acked:%d, cwnd:%d, ssthresh:%d, "
 			 "flight_size:%d, pba:%d\n", __func__,
 			 transport, bytes_acked, cwnd, ssthresh,
@@ -594,7 +594,7 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 
 	transport->partial_bytes_acked = 0;
 
-	pr_debug("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d\n",
+	pr_de("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d\n",
 		 __func__, transport, reason, transport->cwnd,
 		 transport->ssthresh);
 }

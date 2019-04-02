@@ -103,8 +103,8 @@ struct external_scnhdr {
 /* XCOFF uses a special .loader section with type STYP_LOADER.  */
 #define STYP_LOADER 0x1000
 
-/* XCOFF uses a special .debug section with type STYP_DEBUG.  */
-#define STYP_DEBUG 0x2000
+/* XCOFF uses a special .de section with type STYP_DE.  */
+#define STYP_DE 0x2000
 
 /* XCOFF handles line number or relocation overflow by creating
    another section header with STYP_OVRFLO set.  */
@@ -219,7 +219,7 @@ union external_auxent {
 #define	AUXENT	union external_auxent
 #define	AUXESZ	18
 #define DBXMASK 0x80		/* for dbx storage mask */
-#define SYMNAME_IN_DEBUG(symptr) ((symptr)->n_sclass & DBXMASK)
+#define SYMNAME_IN_DE(symptr) ((symptr)->n_sclass & DBXMASK)
 
 
 

@@ -130,7 +130,7 @@ void afs_fs_exit(void)
 	if (atomic_read(&afs_count_active_inodes) != 0) {
 		printk("kAFS: %d active inode objects still present\n",
 		       atomic_read(&afs_count_active_inodes));
-		BUG();
+		();
 	}
 
 	/*
@@ -264,7 +264,7 @@ static int afs_parse_source(struct fs_context *fc, struct fs_parameter *param)
 	ctx->volnamesz = suffix ?
 		suffix - ctx->volname : strlen(ctx->volname);
 
-	_debug("cell %*.*s [%p]",
+	_de("cell %*.*s [%p]",
 	       cellnamesz, cellnamesz, cellname ?: "", ctx->cell);
 
 	/* lookup the cell record */
@@ -280,7 +280,7 @@ static int afs_parse_source(struct fs_context *fc, struct fs_parameter *param)
 		ctx->cell = cell;
 	}
 
-	_debug("CELL:%s [%p] VOLUME:%*.*s SUFFIX:%s TYPE:%d%s",
+	_de("CELL:%s [%p] VOLUME:%*.*s SUFFIX:%s TYPE:%d%s",
 	       ctx->cell->name, ctx->cell,
 	       ctx->volnamesz, ctx->volnamesz, ctx->volname,
 	       suffix ?: "-", ctx->type, ctx->force ? " FORCE" : "");
@@ -539,13 +539,13 @@ static int afs_get_tree(struct fs_context *fc)
 
 	if (!sb->s_root) {
 		/* initial superblock/root creation */
-		_debug("create");
+		_de("create");
 		ret = afs_fill_super(sb, ctx);
 		if (ret < 0)
 			goto error_sb;
 		sb->s_flags |= SB_ACTIVE;
 	} else {
-		_debug("reuse");
+		_de("reuse");
 		ASSERTCMP(sb->s_flags, &, SB_ACTIVE);
 	}
 
@@ -676,7 +676,7 @@ static void afs_destroy_inode(struct inode *inode)
 
 	_enter("%p{%llx:%llu}", inode, vnode->fid.vid, vnode->fid.vnode);
 
-	_debug("DESTROY INODE %p", inode);
+	_de("DESTROY INODE %p", inode);
 
 	ASSERTCMP(vnode->cb_interest, ==, NULL);
 

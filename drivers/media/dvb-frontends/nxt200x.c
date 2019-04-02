@@ -62,8 +62,8 @@ struct nxt200x_state {
 	u8 initialised:1;
 };
 
-static int debug;
-#define dprintk(args...)	do { if (debug) pr_debug(args); } while (0)
+static int de;
+#define dprintk(args...)	do { if (de) pr_de(args); } while (0)
 
 static int i2c_writebytes (struct nxt200x_state* state, u8 addr, u8 *buf, u8 len)
 {
@@ -882,11 +882,11 @@ static int nxt2002_init(struct dvb_frontend* fe)
 	u8 buf[2];
 
 	/* request the firmware, this will block until someone uploads it */
-	pr_debug("%s: Waiting for firmware upload (%s)...\n",
+	pr_de("%s: Waiting for firmware upload (%s)...\n",
 		 __func__, NXT2002_DEFAULT_FIRMWARE);
 	ret = request_firmware(&fw, NXT2002_DEFAULT_FIRMWARE,
 			       state->i2c->dev.parent);
-	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
+	pr_de("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
 		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
 		       __func__);
@@ -949,11 +949,11 @@ static int nxt2004_init(struct dvb_frontend* fe)
 	nxt200x_writebytes(state, 0x1E, buf, 1);
 
 	/* request the firmware, this will block until someone uploads it */
-	pr_debug("%s: Waiting for firmware upload (%s)...\n",
+	pr_de("%s: Waiting for firmware upload (%s)...\n",
 		 __func__, NXT2004_DEFAULT_FIRMWARE);
 	ret = request_firmware(&fw, NXT2004_DEFAULT_FIRMWARE,
 			       state->i2c->dev.parent);
-	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
+	pr_de("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
 		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
 		       __func__);
@@ -1235,8 +1235,8 @@ static const struct dvb_frontend_ops nxt200x_ops = {
 	.read_ucblocks = nxt200x_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("NXT200X (ATSC 8VSB & ITU-T J.83 AnnexB 64/256 QAM) Demodulator Driver");
 MODULE_AUTHOR("Kirk Lapray, Michael Krufky, Jean-Francois Thibert, and Taylor Jacob");

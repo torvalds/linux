@@ -24,19 +24,19 @@
  */
 
 /*
- * Debugfs
+ * Defs
  */
-struct amdgpu_debugfs {
+struct amdgpu_defs {
 	const struct drm_info_list	*files;
 	unsigned		num_files;
 };
 
-int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
-int amdgpu_debugfs_init(struct amdgpu_device *adev);
-int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
+int amdgpu_defs_regs_init(struct amdgpu_device *adev);
+void amdgpu_defs_regs_cleanup(struct amdgpu_device *adev);
+int amdgpu_defs_init(struct amdgpu_device *adev);
+int amdgpu_defs_add_files(struct amdgpu_device *adev,
 			     const struct drm_info_list *files,
 			     unsigned nfiles);
-int amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
-int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
-int amdgpu_debugfs_gem_init(struct amdgpu_device *adev);
+int amdgpu_defs_fence_init(struct amdgpu_device *adev);
+int amdgpu_defs_firmware_init(struct amdgpu_device *adev);
+int amdgpu_defs_gem_init(struct amdgpu_device *adev);

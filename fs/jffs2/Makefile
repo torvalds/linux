@@ -9,7 +9,7 @@ obj-$(CONFIG_JFFS2_FS) += jffs2.o
 jffs2-y	:= compr.o dir.o file.o ioctl.o nodelist.o malloc.o
 jffs2-y	+= read.o nodemgmt.o readinode.o write.o scan.o gc.o
 jffs2-y	+= symlink.o build.o erase.o background.o fs.o writev.o
-jffs2-y	+= super.o debug.o
+jffs2-y	+= super.o de.o
 
 jffs2-$(CONFIG_JFFS2_FS_WRITEBUFFER)	+= wbuf.o
 jffs2-$(CONFIG_JFFS2_FS_XATTR)		+= xattr.o xattr_trusted.o xattr_user.o

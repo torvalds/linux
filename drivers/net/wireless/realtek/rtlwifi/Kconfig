@@ -127,12 +127,12 @@ config RTLWIFI_PCI
 config RTLWIFI_USB
 	tristate
 
-config RTLWIFI_DEBUG
-	bool "Debugging output for rtlwifi driver family"
+config RTLWIFI_DE
+	bool "Deging output for rtlwifi driver family"
 	depends on RTLWIFI
 	default y
 	---help---
-	To use the module option that sets the dynamic-debugging level for,
+	To use the module option that sets the dynamic-deging level for,
 	the front-end driver, this parameter must be "Y". For memory-limited
 	systems, choose "N". If in doubt, choose "Y".
 

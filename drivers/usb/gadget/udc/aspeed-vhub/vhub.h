@@ -441,7 +441,7 @@ enum std_req_rc {
 #define DVDBG(d, fmt, ...)	do { } while(0)
 #endif
 
-#ifdef CONFIG_USB_GADGET_DEBUG
+#ifdef CONFIG_USB_GADGET_DE
 #define UDCDBG(u, fmt...)	dev_dbg(&(u)->pdev->dev, fmt)
 
 #define EPDBG(ep, fmt, ...)	do {			\

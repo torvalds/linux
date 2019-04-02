@@ -52,7 +52,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
-#include "lpfc_debugfs.h"
+#include "lpfc_defs.h"
 
 /* NVME initiator-based functions */
 
@@ -855,7 +855,7 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 	sgl->sge_len = cpu_to_le32(nCmd->rsplen);
 }
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 static void
 lpfc_nvme_ktime(struct lpfc_hba *phba,
 		struct lpfc_io_buf *lpfc_ncmd)
@@ -1130,7 +1130,7 @@ out_err:
 	 * no need for dma unprep because the nvme_transport
 	 * owns the dma address.
 	 */
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (lpfc_ncmd->ts_cmd_start) {
 		lpfc_ncmd->ts_isr_cmpl = pwqeIn->isr_timestamp;
 		lpfc_ncmd->ts_data_nvme = ktime_get_ns();
@@ -1441,7 +1441,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_qhandle *lpfc_queue_info;
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	struct nvme_common_command *sqe;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint64_t start = 0;
 #endif
 
@@ -1488,7 +1488,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		goto out_fail;
 	}
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (phba->ktime_on)
 		start = ktime_get_ns();
 #endif
@@ -1572,7 +1572,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		ret = -EBUSY;
 		goto out_fail;
 	}
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (start) {
 		lpfc_ncmd->ts_cmd_start = start;
 		lpfc_ncmd->ts_last_cmd = phba->ktime_last_cmd;
@@ -1633,7 +1633,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	if (phba->cfg_xri_rebalancing)
 		lpfc_keep_pvt_pool_above_lowwm(phba, lpfc_ncmd->hdwq_no);
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (lpfc_ncmd->ts_cmd_start)
 		lpfc_ncmd->ts_cmd_wqput = ktime_get_ns();
 

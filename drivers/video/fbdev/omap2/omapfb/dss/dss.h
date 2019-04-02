@@ -36,7 +36,7 @@
 #endif
 
 #define DSSDBG(format, ...) \
-	pr_debug(format, ## __VA_ARGS__)
+	pr_de(format, ## __VA_ARGS__)
 
 #ifdef DSS_SUBSYS_NAME
 #define DSSERR(format, ...) \
@@ -214,7 +214,7 @@ struct platform_device *dss_get_core_pdev(void);
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
 void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
-void dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
+void dss_defs_create_file(const char *name, void (*write)(struct seq_file *));
 
 /* display */
 int dss_suspend_all_devices(void);
@@ -289,8 +289,8 @@ void dss_video_pll_uninit(struct dss_pll *pll);
 struct device_node *dss_of_port_get_parent_device(struct device_node *port);
 u32 dss_of_port_get_port_number(struct device_node *port);
 
-#if defined(CONFIG_FB_OMAP2_DSS_DEBUGFS)
-void dss_debug_dump_clocks(struct seq_file *s);
+#if defined(CONFIG_FB_OMAP2_DSS_DEFS)
+void dss_de_dump_clocks(struct seq_file *s);
 #endif
 
 void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);

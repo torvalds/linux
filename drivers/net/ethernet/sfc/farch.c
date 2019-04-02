@@ -237,13 +237,13 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 	if (efx_nic_alloc_buffer(efx, &buffer->buf, len, GFP_KERNEL))
 		return -ENOMEM;
 	buffer->entries = len / EFX_BUF_SIZE;
-	BUG_ON(buffer->buf.dma_addr & (EFX_BUF_SIZE - 1));
+	_ON(buffer->buf.dma_addr & (EFX_BUF_SIZE - 1));
 
 	/* Select new buffer ID */
 	buffer->index = efx->next_buffer_table;
 	efx->next_buffer_table += buffer->entries;
 #ifdef CONFIG_SFC_SRIOV
-	BUG_ON(efx_siena_sriov_enabled(efx) &&
+	_ON(efx_siena_sriov_enabled(efx) &&
 	       nic_data->vf_buftbl_base < efx->next_buffer_table);
 #endif
 
@@ -299,8 +299,8 @@ static inline void efx_farch_push_tx_desc(struct efx_tx_queue *tx_queue,
 	unsigned write_ptr;
 	efx_oword_t reg;
 
-	BUILD_BUG_ON(FRF_AZ_TX_DESC_LBN != 0);
-	BUILD_BUG_ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
+	BUILD__ON(FRF_AZ_TX_DESC_LBN != 0);
+	BUILD__ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
 
 	write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
 	EFX_POPULATE_OWORD_2(reg, FRF_AZ_TX_DESC_PUSH_CMD, true,
@@ -335,7 +335,7 @@ void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 		EFX_WARN_ON_ONCE_PARANOID(buffer->flags & EFX_TX_BUF_OPTION);
 
 		/* Create TX descriptor ring entry */
-		BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
+		BUILD__ON(EFX_TX_BUF_CONT != 1);
 		EFX_POPULATE_QWORD_4(*txd,
 				     FSF_AZ_TX_KER_CONT,
 				     buffer->flags & EFX_TX_BUF_CONT,
@@ -793,7 +793,7 @@ void efx_farch_generate_event(struct efx_nic *efx, unsigned int evq,
 {
 	efx_oword_t drv_ev_reg;
 
-	BUILD_BUG_ON(FRF_AZ_DRV_EV_DATA_LBN != 0 ||
+	BUILD__ON(FRF_AZ_DRV_EV_DATA_LBN != 0 ||
 		     FRF_AZ_DRV_EV_DATA_WIDTH != 64);
 	drv_ev_reg.u32[0] = event->u32[0];
 	drv_ev_reg.u32[1] = event->u32[1];
@@ -904,7 +904,7 @@ static u16 efx_farch_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	 * error message.  FRM_TRUNC indicates RXDP dropped the packet due
 	 * to a FIFO overflow.
 	 */
-#ifdef DEBUG
+#ifdef DE
 	if (rx_ev_other_err && net_ratelimit()) {
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "
@@ -1559,7 +1559,7 @@ irqreturn_t efx_farch_legacy_interrupt(int irq, void *dev_id)
 	} else {
 		efx_qword_t *event;
 
-		/* Legacy ISR read can return zero once (SF bug 15783) */
+		/* Legacy ISR read can return zero once (SF  15783) */
 
 		/* We can't return IRQ_HANDLED more than once on seeing ISR=0
 		 * because this might be a shared interrupt. */
@@ -1630,7 +1630,7 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
+	BUILD__ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
 
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
@@ -1647,7 +1647,7 @@ void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
+	BUILD__ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
 
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
@@ -1737,14 +1737,14 @@ void efx_farch_init_common(struct efx_nic *efx)
 	efx_writeo(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
 
 	/* Set TX descriptor cache size. */
-	BUILD_BUG_ON(TX_DC_ENTRIES != (8 << TX_DC_ENTRIES_ORDER));
+	BUILD__ON(TX_DC_ENTRIES != (8 << TX_DC_ENTRIES_ORDER));
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_TX_DC_SIZE, TX_DC_ENTRIES_ORDER);
 	efx_writeo(efx, &temp, FR_AZ_TX_DC_CFG);
 
 	/* Set RX descriptor cache size.  Set low watermark to size-8, as
 	 * this allows most efficient prefetching.
 	 */
-	BUILD_BUG_ON(RX_DC_ENTRIES != (8 << RX_DC_ENTRIES_ORDER));
+	BUILD__ON(RX_DC_ENTRIES != (8 << RX_DC_ENTRIES_ORDER));
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_SIZE, RX_DC_ENTRIES_ORDER);
 	efx_writeo(efx, &temp, FR_AZ_RX_DC_CFG);
 	EFX_POPULATE_OWORD_1(temp, FRF_AZ_RX_DC_PF_LWM, RX_DC_ENTRIES - 8);
@@ -1913,19 +1913,19 @@ static u16 efx_farch_filter_increment(u32 key)
 static enum efx_farch_filter_table_id
 efx_farch_filter_spec_table_id(const struct efx_farch_filter_spec *spec)
 {
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
 		     (EFX_FARCH_FILTER_TCP_FULL >> 2));
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
 		     (EFX_FARCH_FILTER_TCP_WILD >> 2));
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
 		     (EFX_FARCH_FILTER_UDP_FULL >> 2));
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_RX_IP !=
 		     (EFX_FARCH_FILTER_UDP_WILD >> 2));
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_RX_MAC !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_RX_MAC !=
 		     (EFX_FARCH_FILTER_MAC_FULL >> 2));
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_RX_MAC !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_RX_MAC !=
 		     (EFX_FARCH_FILTER_MAC_WILD >> 2));
-	BUILD_BUG_ON(EFX_FARCH_FILTER_TABLE_TX_MAC !=
+	BUILD__ON(EFX_FARCH_FILTER_TABLE_TX_MAC !=
 		     EFX_FARCH_FILTER_TABLE_RX_MAC + 2);
 	return (spec->type >> 2) + ((spec->flags & EFX_FILTER_FLAG_TX) ? 2 : 0);
 }
@@ -2282,7 +2282,7 @@ static u32 efx_farch_filter_build(efx_oword_t *filter,
 	}
 
 	default:
-		BUG();
+		();
 	}
 
 	return spec->data[0] ^ spec->data[1] ^ spec->data[2] ^ data3;
@@ -2412,8 +2412,8 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 
 	if (table->id == EFX_FARCH_FILTER_TABLE_RX_DEF) {
 		/* One filter spec per type */
-		BUILD_BUG_ON(EFX_FARCH_FILTER_INDEX_UC_DEF != 0);
-		BUILD_BUG_ON(EFX_FARCH_FILTER_INDEX_MC_DEF !=
+		BUILD__ON(EFX_FARCH_FILTER_INDEX_UC_DEF != 0);
+		BUILD__ON(EFX_FARCH_FILTER_INDEX_MC_DEF !=
 			     EFX_FARCH_FILTER_MC_DEF - EFX_FARCH_FILTER_UC_DEF);
 		rep_index = spec.type - EFX_FARCH_FILTER_UC_DEF;
 		ins_index = rep_index;
@@ -2542,7 +2542,7 @@ efx_farch_filter_table_clear_entry(struct efx_nic *efx,
 	static efx_oword_t filter;
 
 	EFX_WARN_ON_PARANOID(!test_bit(filter_idx, table->used_bitmap));
-	BUG_ON(table->offset == 0); /* can't clear MAC default filters */
+	_ON(table->offset == 0); /* can't clear MAC default filters */
 
 	__clear_bit(filter_idx, table->used_bitmap);
 	--table->used;

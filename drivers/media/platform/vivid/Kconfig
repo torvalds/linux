@@ -21,7 +21,7 @@ config VIDEO_VIVID
 	  Error injection is supported to test rare errors that are hard
 	  to reproduce in real hardware.
 
-	  Say Y here if you want to test video apps or debug V4L devices.
+	  Say Y here if you want to test video apps or de V4L devices.
 	  When in doubt, say N.
 
 config VIDEO_VIVID_CEC

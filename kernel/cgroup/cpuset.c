@@ -931,7 +931,7 @@ restart:
 		}
 		nslot++;
 	}
-	BUG_ON(nslot != ndoms);
+	_ON(nslot != ndoms);
 
 done:
 	kfree(csa);
@@ -2431,7 +2431,7 @@ static u64 cpuset_read_u64(struct cgroup_subsys_state *css, struct cftype *cft)
 	case FILE_SPREAD_SLAB:
 		return is_spread_slab(cs);
 	default:
-		BUG();
+		();
 	}
 
 	/* Unreachable but makes gcc happy */
@@ -2446,7 +2446,7 @@ static s64 cpuset_read_s64(struct cgroup_subsys_state *css, struct cftype *cft)
 	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
 		return cs->relax_domain_level;
 	default:
-		BUG();
+		();
 	}
 
 	/* Unrechable but makes gcc happy */
@@ -2655,7 +2655,7 @@ static struct cftype dfl_files[] = {
 		.name = "cpus.subpartitions",
 		.seq_show = cpuset_common_seq_show,
 		.private = FILE_SUBPARTS_CPULIST,
-		.flags = CFTYPE_DEBUG,
+		.flags = CFTYPE_DE,
 	},
 
 	{ }	/* terminate */
@@ -2861,9 +2861,9 @@ int __init cpuset_init(void)
 {
 	int err = 0;
 
-	BUG_ON(!alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_KERNEL));
-	BUG_ON(!alloc_cpumask_var(&top_cpuset.effective_cpus, GFP_KERNEL));
-	BUG_ON(!zalloc_cpumask_var(&top_cpuset.subparts_cpus, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&top_cpuset.effective_cpus, GFP_KERNEL));
+	_ON(!zalloc_cpumask_var(&top_cpuset.subparts_cpus, GFP_KERNEL));
 
 	cpumask_setall(top_cpuset.cpus_allowed);
 	nodes_setall(top_cpuset.mems_allowed);
@@ -2878,7 +2878,7 @@ int __init cpuset_init(void)
 	if (err < 0)
 		return err;
 
-	BUG_ON(!alloc_cpumask_var(&cpus_attach, GFP_KERNEL));
+	_ON(!alloc_cpumask_var(&cpus_attach, GFP_KERNEL));
 
 	return 0;
 }
@@ -3230,7 +3230,7 @@ void __init cpuset_init_smp(void)
 	register_hotmemory_notifier(&cpuset_track_online_nodes_nb);
 
 	cpuset_migrate_mm_wq = alloc_ordered_workqueue("cpuset_migrate_mm", 0);
-	BUG_ON(!cpuset_migrate_mm_wq);
+	_ON(!cpuset_migrate_mm_wq);
 }
 
 /**

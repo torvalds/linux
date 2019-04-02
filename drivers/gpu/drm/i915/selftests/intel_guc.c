@@ -141,7 +141,7 @@ static int igt_guc_clients(void *args)
 	struct intel_guc *guc;
 	int err = 0;
 
-	GEM_BUG_ON(!HAS_GUC(dev_priv));
+	GEM__ON(!HAS_GUC(dev_priv));
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(dev_priv);
 
@@ -173,12 +173,12 @@ static int igt_guc_clients(void *args)
 		pr_err("Failed to create clients\n");
 		goto unlock;
 	}
-	GEM_BUG_ON(!guc->execbuf_client);
+	GEM__ON(!guc->execbuf_client);
 
 	err = validate_client(guc->execbuf_client,
 			      GUC_CLIENT_PRIORITY_KMD_NORMAL, false);
 	if (err) {
-		pr_err("execbug client validation failed\n");
+		pr_err("exec client validation failed\n");
 		goto out;
 	}
 
@@ -244,7 +244,7 @@ static int igt_guc_doorbells(void *arg)
 	int i, err = 0;
 	u16 db_id;
 
-	GEM_BUG_ON(!HAS_GUC(dev_priv));
+	GEM__ON(!HAS_GUC(dev_priv));
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(dev_priv);
 

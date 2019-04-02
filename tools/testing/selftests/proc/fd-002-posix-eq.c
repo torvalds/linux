@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 // Test that open(/proc/*/fd/*) opens the same file.
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>

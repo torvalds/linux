@@ -61,13 +61,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_fw_api_debug_h__
-#define __iwl_fw_api_debug_h__
+#ifndef __iwl_fw_api_de_h__
+#define __iwl_fw_api_de_h__
 
 /**
- * enum iwl_debug_cmds - debug commands
+ * enum iwl_de_cmds - de commands
  */
-enum iwl_debug_cmds {
+enum iwl_de_cmds {
 	/**
 	 * @LMAC_RD_WR:
 	 * LMAC memory read/write, using &struct iwl_dbg_mem_access_cmd and
@@ -140,7 +140,7 @@ struct iwl_error_resp {
  *	8000 HW set to 0x0 as not accessible)
  * @txfifo_size: size of TXF0 ... TXF7
  * @rxfifo_size: RXF1, RXF2 sizes. If there is no RXF2, it'll have a value of 0
- * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
+ * @page_buff_addr: used by UMAC and performance de (page miss analysis),
  *	when paging is not supported this should be 0
  * @page_buff_size: size of %page_buff_addr
  * @rxfifo_addr: Start address of rxFifo
@@ -190,7 +190,7 @@ struct iwl_shared_mem_lmac_cfg {
  * @sample_buff_size: internal sample buff size
  * @rxfifo2_addr: start addr of RXF2
  * @rxfifo2_size: size of RXF2
- * @page_buff_addr: used by UMAC and performance debug (page miss analysis),
+ * @page_buff_addr: used by UMAC and performance de (page miss analysis),
  *	when paging is not supported this should be 0
  * @page_buff_size: size of %page_buff_addr
  * @lmac_num: number of LMACs (1 or 2)
@@ -291,18 +291,18 @@ struct iwl_mvm_marker_rsp {
 	__le32 gp2;
 } __packed;
 
-/* Operation types for the debug mem access */
+/* Operation types for the de mem access */
 enum {
-	DEBUG_MEM_OP_READ = 0,
-	DEBUG_MEM_OP_WRITE = 1,
-	DEBUG_MEM_OP_WRITE_BYTES = 2,
+	DE_MEM_OP_READ = 0,
+	DE_MEM_OP_WRITE = 1,
+	DE_MEM_OP_WRITE_BYTES = 2,
 };
 
-#define DEBUG_MEM_MAX_SIZE_DWORDS 32
+#define DE_MEM_MAX_SIZE_DWORDS 32
 
 /**
  * struct iwl_dbg_mem_access_cmd - Request the device to read/write memory
- * @op: DEBUG_MEM_OP_*
+ * @op: DE_MEM_OP_*
  * @addr: address to read/write from/to
  * @len: in dwords, to read/write
  * @data: for write opeations, contains the source buffer
@@ -312,20 +312,20 @@ struct iwl_dbg_mem_access_cmd {
 	__le32 addr;
 	__le32 len;
 	__le32 data[];
-} __packed; /* DEBUG_(U|L)MAC_RD_WR_CMD_API_S_VER_1 */
+} __packed; /* DE_(U|L)MAC_RD_WR_CMD_API_S_VER_1 */
 
-/* Status responses for the debug mem access */
+/* Status responses for the de mem access */
 enum {
-	DEBUG_MEM_STATUS_SUCCESS = 0x0,
-	DEBUG_MEM_STATUS_FAILED = 0x1,
-	DEBUG_MEM_STATUS_LOCKED = 0x2,
-	DEBUG_MEM_STATUS_HIDDEN = 0x3,
-	DEBUG_MEM_STATUS_LENGTH = 0x4,
+	DE_MEM_STATUS_SUCCESS = 0x0,
+	DE_MEM_STATUS_FAILED = 0x1,
+	DE_MEM_STATUS_LOCKED = 0x2,
+	DE_MEM_STATUS_HIDDEN = 0x3,
+	DE_MEM_STATUS_LENGTH = 0x4,
 };
 
 /**
- * struct iwl_dbg_mem_access_rsp - Response to debug mem commands
- * @status: DEBUG_MEM_STATUS_*
+ * struct iwl_dbg_mem_access_rsp - Response to de mem commands
+ * @status: DE_MEM_STATUS_*
  * @len: read dwords (0 for write operations)
  * @data: contains the read DWs
  */
@@ -333,12 +333,12 @@ struct iwl_dbg_mem_access_rsp {
 	__le32 status;
 	__le32 len;
 	__le32 data[];
-} __packed; /* DEBUG_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
+} __packed; /* DE_(U|L)MAC_RD_WR_RSP_API_S_VER_1 */
 
 #define LDBG_CFG_COMMAND_SIZE	80
 #define BUFFER_ALLOCATION	0x27
-#define START_DEBUG_RECORDING	0x29
-#define STOP_DEBUG_RECORDING	0x2A
+#define START_DE_RECORDING	0x29
+#define STOP_DE_RECORDING	0x2A
 
 /* maximum fragments to be allocated per target of allocationId */
 #define IWL_BUFFER_LOCATION_MAX_FRAGS	2
@@ -380,4 +380,4 @@ struct iwl_ldbg_config_cmd {
 	}; /* LDBG_CFG_BODY_API_U_VER_2 (partially) */
 } __packed; /* LDBG_CFG_CMD_API_S_VER_2 */
 
-#endif /* __iwl_fw_api_debug_h__ */
+#endif /* __iwl_fw_api_de_h__ */

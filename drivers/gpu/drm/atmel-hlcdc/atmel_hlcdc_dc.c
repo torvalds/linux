@@ -536,7 +536,7 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 		goto err_free;
 
 	/* We have our own synchronization through the commit lock. */
-	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
+	_ON(drm_atomic_helper_swap_state(state, false) < 0);
 
 	/* Swap state succeeded, this is the point of no return. */
 	drm_atomic_state_get(state);

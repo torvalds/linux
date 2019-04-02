@@ -445,7 +445,7 @@ struct chip_data {
  */
 static void null_cs_control(u32 command)
 {
-	pr_debug("pl022: dummy chip select control, CS=0x%x\n", command);
+	pr_de("pl022: dummy chip select control, CS=0x%x\n", command);
 }
 
 /**
@@ -817,9 +817,9 @@ static void dma_callback(void *data)
 	struct pl022 *pl022 = data;
 	struct spi_message *msg = pl022->cur_msg;
 
-	BUG_ON(!pl022->sgt_rx.sgl);
+	_ON(!pl022->sgt_rx.sgl);
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 	/*
 	 * Optionally dump out buffers to inspect contents, this is
 	 * good if you want to convince yourself that the loopback
@@ -916,7 +916,7 @@ static void setup_dma_scatter(struct pl022 *pl022,
 
 		}
 	}
-	BUG_ON(bytesleft);
+	_ON(bytesleft);
 }
 
 /**
@@ -1032,7 +1032,7 @@ static int configure_dma(struct pl022 *pl022)
 		rx_conf.src_addr_width = tx_conf.dst_addr_width;
 	if (tx_conf.dst_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
 		tx_conf.dst_addr_width = rx_conf.src_addr_width;
-	BUG_ON(rx_conf.src_addr_width != tx_conf.dst_addr_width);
+	_ON(rx_conf.src_addr_width != tx_conf.dst_addr_width);
 
 	dmaengine_slave_config(rxchan, &rx_conf);
 	dmaengine_slave_config(txchan, &tx_conf);

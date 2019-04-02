@@ -58,18 +58,18 @@ static unsigned int ir_samplerate = 4;
 module_param(ir_samplerate, uint, 0444);
 MODULE_PARM_DESC(ir_samplerate, "IR samplerate in kHz, 1 - 20, default 4");
 
-static int ir_debug;
-module_param(ir_debug, int, 0644);	/* debug level [IR] */
-MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
+static int ir_de;
+module_param(ir_de, int, 0644);	/* de level [IR] */
+MODULE_PARM_DESC(ir_de, "enable de messages [IR]");
 
 #define ir_dprintk(fmt, arg...)	do {					\
-	if (ir_debug)							\
-		printk(KERN_DEBUG "%s IR: " fmt, ir->core->name, ##arg);\
+	if (ir_de)							\
+		printk(KERN_DE "%s IR: " fmt, ir->core->name, ##arg);\
 } while (0)
 
 #define dprintk(fmt, arg...) do {					\
-	if (ir_debug)							\
-		printk(KERN_DEBUG "cx88 IR: " fmt, ##arg);		\
+	if (ir_de)							\
+		printk(KERN_DE "cx88 IR: " fmt, ##arg);		\
 } while (0)
 
 /* ---------------------------------------------------------------------- */

@@ -205,7 +205,7 @@ struct dc_clocks {
 	int dramclk_khz;
 };
 
-struct dc_debug_options {
+struct dc_de_options {
 	enum visual_confirm visual_confirm;
 	bool sanity_checks;
 	bool max_disp_clk;
@@ -259,7 +259,7 @@ struct dc_debug_options {
 	unsigned int force_fclk_khz;
 };
 
-struct dc_debug_data {
+struct dc_de_data {
 	uint32_t ltFailCount;
 	uint32_t i2cErrorCount;
 	uint32_t auxErrorCount;
@@ -273,7 +273,7 @@ struct dc {
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
-	struct dc_debug_options debug;
+	struct dc_de_options de;
 	struct dc_context *ctx;
 
 	uint8_t link_count;
@@ -303,7 +303,7 @@ struct dc {
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
 
-	struct dc_debug_data debug_data;
+	struct dc_de_data de_data;
 
 	const char *build_id;
 };

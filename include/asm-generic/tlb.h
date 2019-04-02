@@ -203,10 +203,10 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 {
 	/*
 	 * We don't care about page size change, just update
-	 * mmu_gather page size here so that debug checks
+	 * mmu_gather page size here so that de checks
 	 * doesn't throw false warning.
 	 */
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	tlb->page_size = page_size;
 #endif
 }

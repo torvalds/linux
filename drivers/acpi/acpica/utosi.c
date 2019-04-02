@@ -444,7 +444,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 		}
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INFO,
 			      "ACPI: BIOS _OSI(\"%s\") is %ssupported\n",
 			      string_desc->string.pointer,
 			      return_value == 0 ? "not " : ""));

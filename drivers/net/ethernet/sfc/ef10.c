@@ -233,7 +233,7 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_CAPABILITIES_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_CAPABILITIES_IN_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_CAPABILITIES, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -365,18 +365,18 @@ static int efx_ef10_get_timer_workarounds(struct efx_nic *efx)
 		/* Firmware without GET_WORKAROUNDS - not a problem. */
 		rc = 0;
 	} else if (rc == 0) {
-		/* Bug61265 workaround is always enabled if implemented. */
-		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG61265)
+		/* 61265 workaround is always enabled if implemented. */
+		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_61265)
 			nic_data->workaround_61265 = true;
 
-		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG35388) {
+		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_35388) {
 			nic_data->workaround_35388 = true;
-		} else if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG35388) {
+		} else if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_35388) {
 			/* Workaround is implemented but not enabled.
 			 * Try to enable it.
 			 */
 			rc = efx_mcdi_set_workaround(efx,
-						     MC_CMD_WORKAROUND_BUG35388,
+						     MC_CMD_WORKAROUND_35388,
 						     true, NULL);
 			if (rc == 0)
 				nic_data->workaround_35388 = true;
@@ -386,10 +386,10 @@ static int efx_ef10_get_timer_workarounds(struct efx_nic *efx)
 	}
 
 	netif_dbg(efx, probe, efx->net_dev,
-		  "workaround for bug 35388 is %sabled\n",
+		  "workaround for  35388 is %sabled\n",
 		  nic_data->workaround_35388 ? "en" : "dis");
 	netif_dbg(efx, probe, efx->net_dev,
-		  "workaround for bug 61265 is %sabled\n",
+		  "workaround for  61265 is %sabled\n",
 		  nic_data->workaround_61265 ? "en" : "dis");
 
 	return rc;
@@ -407,9 +407,9 @@ static void efx_ef10_process_timer_config(struct efx_nic *efx,
 			GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_MAX_NS);
 	} else if (EFX_EF10_WORKAROUND_35388(efx)) {
 		efx->timer_quantum_ns = MCDI_DWORD(data,
-			GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_NS_PER_COUNT);
+			GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_NS_PER_COUNT);
 		max_count = MCDI_DWORD(data,
-			GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT);
+			GET_EVQ_TMR_PROPERTIES_OUT_35388_TMR_MAX_COUNT);
 		efx->timer_max_ns = max_count * efx->timer_quantum_ns;
 	} else {
 		efx->timer_quantum_ns = MCDI_DWORD(data,
@@ -465,7 +465,7 @@ static int efx_ef10_get_mac_address_pf(struct efx_nic *efx, u8 *mac_address)
 	size_t outlen;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_GET_MAC_ADDRESSES_IN_LEN != 0);
+	BUILD__ON(MC_CMD_GET_MAC_ADDRESSES_IN_LEN != 0);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_MAC_ADDRESSES, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
@@ -671,7 +671,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	efx->nic_data = nic_data;
 
 	/* we assume later that we can copy from this buffer in dwords */
-	BUILD_BUG_ON(MCDI_CTL_SDU_LEN_MAX_V2 % 4);
+	BUILD__ON(MCDI_CTL_SDU_LEN_MAX_V2 % 4);
 
 	rc = efx_nic_alloc_buffer(efx, &nic_data->mcdi_buf,
 				  8 + MCDI_CTL_SDU_LEN_MAX_V2, GFP_KERNEL);
@@ -859,7 +859,7 @@ static void efx_ef10_free_piobufs(struct efx_nic *efx)
 	unsigned int i;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_FREE_PIOBUF_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_FREE_PIOBUF_OUT_LEN != 0);
 
 	for (i = 0; i < nic_data->n_piobufs; i++) {
 		MCDI_SET_DWORD(inbuf, FREE_PIOBUF_IN_PIOBUF_HANDLE,
@@ -880,7 +880,7 @@ static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
 	size_t outlen;
 	int rc = 0;
 
-	BUILD_BUG_ON(MC_CMD_ALLOC_PIOBUF_IN_LEN != 0);
+	BUILD__ON(MC_CMD_ALLOC_PIOBUF_IN_LEN != 0);
 
 	for (i = 0; i < n; i++) {
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_ALLOC_PIOBUF, NULL, 0,
@@ -920,8 +920,8 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 	unsigned int offset, index;
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_LINK_PIOBUF_OUT_LEN != 0);
-	BUILD_BUG_ON(MC_CMD_UNLINK_PIOBUF_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_LINK_PIOBUF_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_UNLINK_PIOBUF_OUT_LEN != 0);
 
 	/* Link a buffer to each VI in the write-combining mapping */
 	for (index = 0; index < nic_data->n_piobufs; ++index) {
@@ -968,7 +968,7 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 			 * can only link one buffer to each VI.
 			 */
 			if (tx_queue->queue == nic_data->pio_write_vi_base) {
-				BUG_ON(index != 0);
+				_ON(index != 0);
 				rc = 0;
 			} else {
 				MCDI_SET_DWORD(inbuf,
@@ -1010,7 +1010,7 @@ fail:
 	/* inbuf was defined for MC_CMD_LINK_PIOBUF.  We can use the same
 	 * buffer for MC_CMD_UNLINK_PIOBUF because it's shorter.
 	 */
-	BUILD_BUG_ON(MC_CMD_LINK_PIOBUF_IN_LEN < MC_CMD_UNLINK_PIOBUF_IN_LEN);
+	BUILD__ON(MC_CMD_LINK_PIOBUF_IN_LEN < MC_CMD_UNLINK_PIOBUF_IN_LEN);
 	while (index--) {
 		MCDI_SET_DWORD(inbuf, UNLINK_PIOBUF_IN_TXQ_INSTANCE,
 			       nic_data->pio_write_vi_base + index);
@@ -1849,11 +1849,11 @@ static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
 		raw_mask[1] |= EF10_CTPIO_STAT_MASK;
 
 #if BITS_PER_LONG == 64
-	BUILD_BUG_ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 2);
+	BUILD__ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 2);
 	mask[0] = raw_mask[0];
 	mask[1] = raw_mask[1];
 #else
-	BUILD_BUG_ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 3);
+	BUILD__ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 3);
 	mask[0] = raw_mask[0] & 0xffffffff;
 	mask[1] = raw_mask[0] >> 32;
 	mask[2] = raw_mask[1] & 0xffffffff;
@@ -2287,11 +2287,11 @@ static int efx_ef10_irq_test_generate(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_TRIGGER_INTERRUPT_IN_LEN);
 
-	if (efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG41750, true,
+	if (efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_41750, true,
 				    NULL) == 0)
 		return -ENOTSUPP;
 
-	BUILD_BUG_ON(MC_CMD_TRIGGER_INTERRUPT_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_TRIGGER_INTERRUPT_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, TRIGGER_INTERRUPT_IN_INTR_LEVEL, efx->irq_level);
 	return efx_mcdi_rpc(efx, MC_CMD_TRIGGER_INTERRUPT,
@@ -2421,7 +2421,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	efx_qword_t *txd;
 	int rc;
 	int i;
-	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
 	/* Only attempt to enable TX timestamping if we have the license for it,
 	 * otherwise TXQ init will fail
@@ -2582,7 +2582,7 @@ static unsigned int efx_ef10_tx_limit_len(struct efx_tx_queue *tx_queue,
 		 */
 		dma_addr_t end = dma_addr + EFX_EF10_MAX_TX_DESCRIPTOR_LEN;
 
-		BUILD_BUG_ON(EFX_EF10_MAX_TX_DESCRIPTOR_LEN < EFX_PAGE_SIZE);
+		BUILD__ON(EFX_EF10_MAX_TX_DESCRIPTOR_LEN < EFX_PAGE_SIZE);
 		len = (end & (~(EFX_PAGE_SIZE - 1))) - dma_addr;
 	}
 
@@ -2614,7 +2614,7 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 				tx_queue->packet_write_count = tx_queue->write_count;
 		} else {
 			tx_queue->packet_write_count = tx_queue->write_count;
-			BUILD_BUG_ON(EFX_TX_BUF_CONT != 1);
+			BUILD__ON(EFX_TX_BUF_CONT != 1);
 			EFX_POPULATE_QWORD_3(
 				*txd,
 				ESF_DZ_TX_KER_CONT,
@@ -2653,17 +2653,17 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 
 static int efx_ef10_get_rss_flags(struct efx_nic *efx, u32 context, u32 *flags)
 {
-	/* Firmware had a bug (sfc bug 61952) where it would not actually
+	/* Firmware had a  (sfc  61952) where it would not actually
 	 * fill in the flags field in the response to MC_CMD_RSS_CONTEXT_GET_FLAGS.
 	 * This meant that it would always contain whatever was previously
 	 * in the MCDI buffer.  Fortunately, all firmware versions with
-	 * this bug have the same default flags value for a newly-allocated
+	 * this  have the same default flags value for a newly-allocated
 	 * RSS context, and the only time we want to get the flags is just
 	 * after allocating.  Moreover, the response has a 32-bit hole
 	 * where the context ID would be in the request, so we can use an
 	 * overlength buffer in the request and pre-fill the flags field
 	 * with what we believe the default to be.  Thus if the firmware
-	 * has the bug, it will leave our pre-filled value in the flags
+	 * has the , it will leave our pre-filled value in the flags
 	 * field of the response, and we will get the right answer.
 	 *
 	 * However, this does mean that this function should NOT be used if
@@ -2676,7 +2676,7 @@ static int efx_ef10_get_rss_flags(struct efx_nic *efx, u32 context, u32 *flags)
 	int rc;
 
 	/* Check we have a hole for the context ID */
-	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_GET_FLAGS_IN_LEN != MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_FLAGS_OFST);
+	BUILD__ON(MC_CMD_RSS_CONTEXT_GET_FLAGS_IN_LEN != MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_FLAGS_OFST);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_FLAGS_IN_RSS_CONTEXT_ID, context);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_FLAGS_OUT_FLAGS,
 		       RSS_CONTEXT_FLAGS_DEFAULT);
@@ -2703,7 +2703,7 @@ static void efx_ef10_set_rss_flags(struct efx_nic *efx,
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN);
 	u32 flags;
 
-	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN != 0);
 
 	if (efx_ef10_get_rss_flags(efx, ctx->context_id, &flags) != 0)
 		return;
@@ -2790,7 +2790,7 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 
 	MCDI_SET_DWORD(tablebuf, RSS_CONTEXT_SET_TABLE_IN_RSS_CONTEXT_ID,
 		       context);
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
+	BUILD__ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     MC_CMD_RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE_LEN);
 
 	/* This iterates over the length of efx->rss_context.rx_indir_table, but
@@ -2810,7 +2810,7 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 
 	MCDI_SET_DWORD(keybuf, RSS_CONTEXT_SET_KEY_IN_RSS_CONTEXT_ID,
 		       context);
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_hash_key) !=
+	BUILD__ON(ARRAY_SIZE(efx->rss_context.rx_hash_key) !=
 		     MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
 	for (i = 0; i < ARRAY_SIZE(efx->rss_context.rx_hash_key); ++i)
 		MCDI_PTR(keybuf, RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY)[i] = key[i];
@@ -2932,7 +2932,7 @@ static int efx_ef10_rx_pull_rss_context_config(struct efx_nic *efx,
 
 	WARN_ON(!mutex_is_locked(&efx->rss_lock));
 
-	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN !=
+	BUILD__ON(MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN !=
 		     MC_CMD_RSS_CONTEXT_GET_KEY_IN_LEN);
 
 	if (ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID)
@@ -2940,7 +2940,7 @@ static int efx_ef10_rx_pull_rss_context_config(struct efx_nic *efx,
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_TABLE_IN_RSS_CONTEXT_ID,
 		       ctx->context_id);
-	BUILD_BUG_ON(ARRAY_SIZE(ctx->rx_indir_table) !=
+	BUILD__ON(ARRAY_SIZE(ctx->rx_indir_table) !=
 		     MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE_LEN);
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_GET_TABLE, inbuf, sizeof(inbuf),
 			  tablebuf, sizeof(tablebuf), &outlen);
@@ -2956,7 +2956,7 @@ static int efx_ef10_rx_pull_rss_context_config(struct efx_nic *efx,
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_KEY_IN_RSS_CONTEXT_ID,
 		       ctx->context_id);
-	BUILD_BUG_ON(ARRAY_SIZE(ctx->rx_hash_key) !=
+	BUILD__ON(ARRAY_SIZE(ctx->rx_hash_key) !=
 		     MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_GET_KEY, inbuf, sizeof(inbuf),
 			  keybuf, sizeof(keybuf), &outlen);
@@ -3093,7 +3093,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	dma_addr_t dma_addr;
 	int rc;
 	int i;
-	BUILD_BUG_ON(MC_CMD_INIT_RXQ_OUT_LEN != 0);
+	BUILD__ON(MC_CMD_INIT_RXQ_OUT_LEN != 0);
 
 	rx_queue->scatter_n = 0;
 	rx_queue->scatter_len = 0;
@@ -3345,14 +3345,14 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 		goto fail;
 	} else {
 		nic_data->workaround_26807 =
-			!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807);
+			!!(enabled & MC_CMD_GET_WORKAROUNDS_OUT_26807);
 
-		if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 &&
+		if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_26807 &&
 		    !nic_data->workaround_26807) {
 			unsigned int flags;
 
 			rc = efx_mcdi_set_workaround(efx,
-						     MC_CMD_WORKAROUND_BUG26807,
+						     MC_CMD_WORKAROUND_26807,
 						     true, &flags);
 
 			if (!rc) {
@@ -3888,9 +3888,9 @@ static void efx_ef10_ev_read_ack(struct efx_channel *channel)
 	efx_dword_t rptr;
 
 	if (EFX_EF10_WORKAROUND_35388(efx)) {
-		BUILD_BUG_ON(EFX_MIN_EVQ_SIZE <
+		BUILD__ON(EFX_MIN_EVQ_SIZE <
 			     (1 << ERF_DD_EVQ_IND_RPTR_WIDTH));
-		BUILD_BUG_ON(EFX_MAX_EVQ_SIZE >
+		BUILD__ON(EFX_MAX_EVQ_SIZE >
 			     (1 << 2 * ERF_DD_EVQ_IND_RPTR_WIDTH));
 
 		EFX_POPULATE_DWORD_2(rptr, ERF_DD_EVQ_IND_RPTR_FLAGS,
@@ -4070,7 +4070,7 @@ efx_ef10_filter_push_prep_set_match_fields(struct efx_nic *efx,
 		match_fields |=					     \
 			1 << MC_CMD_FILTER_OP_IN_MATCH_ ##	     \
 			mcdi_field ## _LBN;			     \
-		BUILD_BUG_ON(					     \
+		BUILD__ON(					     \
 			MC_CMD_FILTER_OP_IN_ ## mcdi_field ## _LEN < \
 			sizeof(value));				     \
 		memcpy(MCDI_PTR(inbuf, FILTER_OP_IN_ ##	mcdi_field), \
@@ -5404,7 +5404,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 
 		/* unprivileged functions can't insert mismatch filters
 		 * for encapsulated or unicast traffic, so downgrade
-		 * those warnings to debug.
+		 * those warnings to de.
 		 */
 		netif_cond_dbg(efx, drv, efx->net_dev,
 			       rc == -EPERM && (encap_type || !multicast), warn,
@@ -5426,7 +5426,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 		};
 
 		/* quick bounds check (BCAST result impossible) */
-		BUILD_BUG_ON(EFX_EF10_BCAST != 0);
+		BUILD__ON(EFX_EF10_BCAST != 0);
 		if (encap_type >= ARRAY_SIZE(map) || map[encap_type] == 0) {
 			WARN_ON(1);
 			return -EINVAL;
@@ -5480,7 +5480,7 @@ static int efx_ef10_filter_insert_def(struct efx_nic *efx,
 		};
 
 		/* quick bounds check (BCAST result impossible) */
-		BUILD_BUG_ON(EFX_EF10_BCAST != 0);
+		BUILD__ON(EFX_EF10_BCAST != 0);
 		if (encap_type >= ARRAY_SIZE(map) || map[encap_type] == 0) {
 			WARN_ON(1);
 			return -EINVAL;
@@ -6133,7 +6133,7 @@ static int efx_ef10_mtd_probe(struct efx_nic *efx)
 
 	ASSERT_RTNL();
 
-	BUILD_BUG_ON(MC_CMD_NVRAM_PARTITIONS_IN_LEN != 0);
+	BUILD__ON(MC_CMD_NVRAM_PARTITIONS_IN_LEN != 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_PARTITIONS, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
@@ -6358,7 +6358,7 @@ static int efx_ef10_set_udp_tnl_ports(struct efx_nic *efx, bool unloading)
 		return 0;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(nic_data->udp_tunnels) >
+	BUILD__ON(ARRAY_SIZE(nic_data->udp_tunnels) >
 		     MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_MAXNUM);
 
 	for (i = 0; i < ARRAY_SIZE(nic_data->udp_tunnels); ++i) {
@@ -6377,10 +6377,10 @@ static int efx_ef10_set_udp_tnl_ports(struct efx_nic *efx, bool unloading)
 		}
 	}
 
-	BUILD_BUG_ON((MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_NUM_ENTRIES_OFST -
+	BUILD__ON((MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_NUM_ENTRIES_OFST -
 		      MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_FLAGS_OFST) * 8 !=
 		     EFX_WORD_1_LBN);
-	BUILD_BUG_ON(MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_NUM_ENTRIES_LEN * 8 !=
+	BUILD__ON(MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_NUM_ENTRIES_LEN * 8 !=
 		     EFX_WORD_1_WIDTH);
 	EFX_POPULATE_DWORD_2(flags_and_num_entries,
 			     MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_UNLOADING,

@@ -11,7 +11,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DEBUG
+#define DE
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -481,7 +481,7 @@ static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
 }
 
 /**
- * ks8851_dbg_dumpkkt - dump initial packet contents to debug
+ * ks8851_dbg_dumpkkt - dump initial packet contents to de
  * @ks: The device state
  * @rxpkt: The data for the received packet
  *

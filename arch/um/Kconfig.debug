@@ -2,7 +2,7 @@
 
 config GPROF
 	bool "Enable gprof support"
-	depends on DEBUG_INFO && FRAME_POINTER
+	depends on DE_INFO && FRAME_POINTER
 	help
 	  This allows profiling of a User-Mode Linux kernel with the gprof
 	  utility.
@@ -15,7 +15,7 @@ config GPROF
 
 config GCOV
 	bool "Enable gcov support"
-	depends on DEBUG_INFO
+	depends on DE_INFO
 	depends on !KCOV
 	help
 	  This option allows developers to retrieve coverage data from a UML
@@ -33,5 +33,5 @@ config EARLY_PRINTK
 	---help---
 	  Write kernel log output directly to stdout.
 
-	  This is useful for kernel debugging when your machine crashes very
+	  This is useful for kernel deging when your machine crashes very
 	  early before the console code is initialized.

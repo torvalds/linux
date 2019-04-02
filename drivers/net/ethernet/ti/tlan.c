@@ -69,12 +69,12 @@ MODULE_AUTHOR("Maintainer: Samuel Chessman <chessman@tux.org>");
 MODULE_DESCRIPTION("Driver for TI ThunderLAN based ethernet PCI adapters");
 MODULE_LICENSE("GPL");
 
-/* Turn on debugging.
+/* Turn on deging.
  * See Documentation/networking/device_drivers/ti/tlan.txt for details
  */
-static  int		debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "ThunderLAN debug mask");
+static  int		de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "ThunderLAN de mask");
 
 static	const char tlan_signature[] = "TLAN";
 static  const char tlan_banner[] = "ThunderLAN driver v1.17\n";
@@ -403,7 +403,7 @@ static int __init tlan_probe(void)
 
 	pr_info("%s", tlan_banner);
 
-	TLAN_DBG(TLAN_DEBUG_PROBE, "Starting PCI Probe....\n");
+	TLAN_DBG(TLAN_DE_PROBE, "Starting PCI Probe....\n");
 
 	/* Use new style PCI probing. Now the kernel will
 	   do most of this for us */
@@ -414,7 +414,7 @@ static int __init tlan_probe(void)
 		goto err_out_pci_free;
 	}
 
-	TLAN_DBG(TLAN_DEBUG_PROBE, "Starting EISA Probe....\n");
+	TLAN_DBG(TLAN_DE_PROBE, "Starting EISA Probe....\n");
 	tlan_eisa_probe();
 
 	pr_info("%d device%s installed, PCI: %d  EISA: %d\n",
@@ -510,7 +510,7 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 		for (reg = 0; reg <= 5; reg++) {
 			if (pci_resource_flags(pdev, reg) & IORESOURCE_IO) {
 				pci_io_base = pci_resource_start(pdev, reg);
-				TLAN_DBG(TLAN_DEBUG_GNRL,
+				TLAN_DBG(TLAN_DE_GNRL,
 					 "IO mapping is available at %x.\n",
 					 pci_io_base);
 				break;
@@ -556,12 +556,12 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 		else if (priv->speed == 0x2)
 			priv->speed = TLAN_SPEED_100;
 
-		debug = priv->debug = dev->mem_end;
+		de = priv->de = dev->mem_end;
 	} else {
 		priv->aui    = aui[boards_found];
 		priv->speed  = speed[boards_found];
 		priv->duplex = duplex[boards_found];
-		priv->debug = debug;
+		priv->de = de;
 	}
 
 	/* This will be used when we get an adapter error from
@@ -678,20 +678,20 @@ static void  __init tlan_eisa_probe(void)
 	u16	device_id;
 
 	if (!EISA_bus) {
-		TLAN_DBG(TLAN_DEBUG_PROBE, "No EISA bus present\n");
+		TLAN_DBG(TLAN_DE_PROBE, "No EISA bus present\n");
 		return;
 	}
 
 	/* Loop through all slots of the EISA bus */
 	for (ioaddr = 0x1000; ioaddr < 0x9000; ioaddr += 0x1000) {
 
-		TLAN_DBG(TLAN_DEBUG_PROBE, "EISA_ID 0x%4x: 0x%4x\n",
+		TLAN_DBG(TLAN_DE_PROBE, "EISA_ID 0x%4x: 0x%4x\n",
 			 (int) ioaddr + 0xc80, inw(ioaddr + EISA_ID));
-		TLAN_DBG(TLAN_DEBUG_PROBE, "EISA_ID 0x%4x: 0x%4x\n",
+		TLAN_DBG(TLAN_DE_PROBE, "EISA_ID 0x%4x: 0x%4x\n",
 			 (int) ioaddr + 0xc82, inw(ioaddr + EISA_ID2));
 
 
-		TLAN_DBG(TLAN_DEBUG_PROBE,
+		TLAN_DBG(TLAN_DE_PROBE,
 			 "Probing for EISA adapter at IO: 0x%4x : ",
 			 (int) ioaddr);
 		if (request_region(ioaddr, 0x10, tlan_signature) == NULL)
@@ -714,7 +714,7 @@ static void  __init tlan_eisa_probe(void)
 			goto out2;
 		}
 
-		if (debug == 0x10)
+		if (de == 0x10)
 			pr_info("Found one\n");
 
 
@@ -743,12 +743,12 @@ static void  __init tlan_eisa_probe(void)
 		continue;
 
 out:
-		if (debug == 0x10)
+		if (de == 0x10)
 			pr_info("None found\n");
 		continue;
 
 out2:
-		if (debug == 0x10)
+		if (de == 0x10)
 			pr_info("Card found but it is not enabled, skipping\n");
 		continue;
 
@@ -932,7 +932,7 @@ static int tlan_open(struct net_device *dev)
 
 	tlan_start(dev);
 
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Opened.  TLAN Chip Rev: %x\n",
+	TLAN_DBG(TLAN_DE_GNRL, "%s: Opened.  TLAN Chip Rev: %x\n",
 		 dev->name, priv->tlan_rev);
 
 	return 0;
@@ -1001,7 +1001,7 @@ static int tlan_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static void tlan_tx_timeout(struct net_device *dev)
 {
 
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Transmit timed out.\n", dev->name);
+	TLAN_DBG(TLAN_DE_GNRL, "%s: Transmit timed out.\n", dev->name);
 
 	/* Ok so we timed out, lets see what we can do about it...*/
 	tlan_free_lists(dev);
@@ -1064,7 +1064,7 @@ static netdev_tx_t tlan_start_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned int    txlen;
 
 	if (!priv->phy_online) {
-		TLAN_DBG(TLAN_DEBUG_TX, "TRANSMIT:  %s PHY is not ready\n",
+		TLAN_DBG(TLAN_DE_TX, "TRANSMIT:  %s PHY is not ready\n",
 			 dev->name);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -1079,7 +1079,7 @@ static netdev_tx_t tlan_start_tx(struct sk_buff *skb, struct net_device *dev)
 		priv->tx_list_dma + sizeof(struct tlan_list)*priv->tx_tail;
 
 	if (tail_list->c_stat != TLAN_CSTAT_UNUSED) {
-		TLAN_DBG(TLAN_DEBUG_TX,
+		TLAN_DBG(TLAN_DE_TX,
 			 "TRANSMIT:  %s is busy (Head=%d Tail=%d)\n",
 			 dev->name, priv->tx_head, priv->tx_tail);
 		netif_stop_queue(dev);
@@ -1103,13 +1103,13 @@ static netdev_tx_t tlan_start_tx(struct sk_buff *skb, struct net_device *dev)
 	tail_list->c_stat = TLAN_CSTAT_READY;
 	if (!priv->tx_in_progress) {
 		priv->tx_in_progress = 1;
-		TLAN_DBG(TLAN_DEBUG_TX,
+		TLAN_DBG(TLAN_DE_TX,
 			 "TRANSMIT:  Starting TX on buffer %d\n",
 			 priv->tx_tail);
 		outl(tail_list_phys, dev->base_addr + TLAN_CH_PARM);
 		outl(TLAN_HC_GO, dev->base_addr + TLAN_HOST_CMD);
 	} else {
-		TLAN_DBG(TLAN_DEBUG_TX,
+		TLAN_DBG(TLAN_DE_TX,
 			 "TRANSMIT:  Adding buffer %d to TX channel\n",
 			 priv->tx_tail);
 		if (priv->tx_tail == 0) {
@@ -1204,7 +1204,7 @@ static int tlan_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 	tlan_free_lists(dev);
-	TLAN_DBG(TLAN_DEBUG_GNRL, "Device %s closed.\n", dev->name);
+	TLAN_DBG(TLAN_DE_GNRL, "Device %s closed.\n", dev->name);
 
 	return 0;
 
@@ -1236,15 +1236,15 @@ static struct net_device_stats *tlan_get_stats(struct net_device *dev)
 	/* Should only read stats if open ? */
 	tlan_read_and_clear_stats(dev, TLAN_RECORD);
 
-	TLAN_DBG(TLAN_DEBUG_RX, "RECEIVE:  %s EOC count = %d\n", dev->name,
+	TLAN_DBG(TLAN_DE_RX, "RECEIVE:  %s EOC count = %d\n", dev->name,
 		 priv->rx_eoc_count);
-	TLAN_DBG(TLAN_DEBUG_TX, "TRANSMIT:  %s Busy count = %d\n", dev->name,
+	TLAN_DBG(TLAN_DE_TX, "TRANSMIT:  %s Busy count = %d\n", dev->name,
 		 priv->tx_busy_count);
-	if (debug & TLAN_DEBUG_GNRL) {
+	if (de & TLAN_DE_GNRL) {
 		tlan_print_dio(dev->base_addr);
 		tlan_phy_print(dev);
 	}
-	if (debug & TLAN_DEBUG_LIST) {
+	if (de & TLAN_DE_LIST) {
 		for (i = 0; i < TLAN_NUM_RX_LISTS; i++)
 			tlan_print_list(priv->rx_list + i, "RX", i);
 		for (i = 0; i < TLAN_NUM_TX_LISTS; i++)
@@ -1375,7 +1375,7 @@ static u32 tlan_handle_tx_eof(struct net_device *dev, u16 host_int)
 	u32		ack = 0;
 	u16		tmp_c_stat;
 
-	TLAN_DBG(TLAN_DEBUG_TX,
+	TLAN_DBG(TLAN_DE_TX,
 		 "TRANSMIT:  Handling TX EOF (Head=%d Tail=%d)\n",
 		 priv->tx_head, priv->tx_tail);
 	head_list = priv->tx_list + priv->tx_head;
@@ -1409,7 +1409,7 @@ static u32 tlan_handle_tx_eof(struct net_device *dev, u16 host_int)
 			    "Received interrupt for uncompleted TX frame\n");
 
 	if (eoc) {
-		TLAN_DBG(TLAN_DEBUG_TX,
+		TLAN_DBG(TLAN_DE_TX,
 			 "TRANSMIT:  handling TX EOC (Head=%d Tail=%d)\n",
 			 priv->tx_head, priv->tx_tail);
 		head_list = priv->tx_list + priv->tx_head;
@@ -1509,7 +1509,7 @@ static u32 tlan_handle_rx_eof(struct net_device *dev, u16 host_int)
 	u16		tmp_c_stat;
 	dma_addr_t	head_list_phys;
 
-	TLAN_DBG(TLAN_DEBUG_RX, "RECEIVE:  handling RX EOF (Head=%d Tail=%d)\n",
+	TLAN_DBG(TLAN_DE_RX, "RECEIVE:  handling RX EOF (Head=%d Tail=%d)\n",
 		 priv->rx_head, priv->rx_tail);
 	head_list = priv->rx_list + priv->rx_head;
 	head_list_phys =
@@ -1564,7 +1564,7 @@ drop_and_reuse:
 
 
 	if (eoc) {
-		TLAN_DBG(TLAN_DEBUG_RX,
+		TLAN_DBG(TLAN_DE_RX,
 			 "RECEIVE:  handling RX EOC (Head=%d Tail=%d)\n",
 			 priv->rx_head, priv->rx_tail);
 		head_list = priv->rx_list + priv->rx_head;
@@ -1651,7 +1651,7 @@ static u32 tlan_handle_tx_eoc(struct net_device *dev, u16 host_int)
 	u32			ack = 1;
 
 	if (priv->tlan_rev < 0x30) {
-		TLAN_DBG(TLAN_DEBUG_TX,
+		TLAN_DBG(TLAN_DE_TX,
 			 "TRANSMIT:  handling TX EOC (Head=%d Tail=%d) -- IRQ\n",
 			 priv->tx_head, priv->tx_tail);
 		head_list = priv->tx_list + priv->tx_head;
@@ -1717,13 +1717,13 @@ static u32 tlan_handle_status_check(struct net_device *dev, u16 host_int)
 		netif_wake_queue(dev);
 		ack = 0;
 	} else {
-		TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Status Check\n", dev->name);
+		TLAN_DBG(TLAN_DE_GNRL, "%s: Status Check\n", dev->name);
 		phy = priv->phy[priv->phy_num];
 
 		net_sts = tlan_dio_read8(dev->base_addr, TLAN_NET_STS);
 		if (net_sts) {
 			tlan_dio_write8(dev->base_addr, TLAN_NET_STS, net_sts);
-			TLAN_DBG(TLAN_DEBUG_GNRL, "%s:    Net_Sts = %x\n",
+			TLAN_DBG(TLAN_DE_GNRL, "%s:    Net_Sts = %x\n",
 				 dev->name, (unsigned) net_sts);
 		}
 		if ((net_sts & TLAN_NET_STS_MIRQ) &&  (priv->phy_num == 0)) {
@@ -1741,7 +1741,7 @@ static u32 tlan_handle_status_check(struct net_device *dev, u16 host_int)
 						   tlphy_ctl);
 			}
 
-			if (debug)
+			if (de)
 				tlan_phy_print(dev);
 		}
 	}
@@ -1780,7 +1780,7 @@ static u32 tlan_handle_rx_eoc(struct net_device *dev, u16 host_int)
 	u32		ack = 1;
 
 	if (priv->tlan_rev < 0x30) {
-		TLAN_DBG(TLAN_DEBUG_RX,
+		TLAN_DBG(TLAN_DE_RX,
 			 "RECEIVE:  Handling RX EOC (head=%d tail=%d) -- IRQ\n",
 			 priv->rx_head, priv->rx_tail);
 		head_list_phys = priv->rx_list_dma
@@ -2334,7 +2334,7 @@ tlan_finish_reset(struct net_device *dev)
 		tlan_set_mac(dev, 0, dev->dev_addr);
 		priv->phy_online = 1;
 		outb((TLAN_HC_INT_ON >> 8), dev->base_addr + TLAN_HOST_CMD + 1);
-		if (debug >= 1 && debug != TLAN_DEBUG_PROBE)
+		if (de >= 1 && de != TLAN_DE_PROBE)
 			outb((TLAN_HC_REQ_INT >> 8),
 			     dev->base_addr + TLAN_HOST_CMD + 1);
 		outl(priv->rx_list_dma, dev->base_addr + TLAN_CH_PARM);
@@ -2491,7 +2491,7 @@ static void tlan_phy_detect(struct net_device *dev)
 		tlan_mii_read_reg(dev, phy, MII_GEN_ID_LO, &lo);
 		if ((control != 0xffff) ||
 		    (hi != 0xffff) || (lo != 0xffff)) {
-			TLAN_DBG(TLAN_DEBUG_GNRL,
+			TLAN_DBG(TLAN_DE_GNRL,
 				 "PHY found at %02x %04x %04x %04x\n",
 				 phy, control, hi, lo);
 			if ((priv->phy[1] == TLAN_PHY_NONE) &&
@@ -2518,7 +2518,7 @@ static void tlan_phy_power_down(struct net_device *dev)
 	struct tlan_priv	*priv = netdev_priv(dev);
 	u16		value;
 
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Powering down PHY(s).\n", dev->name);
+	TLAN_DBG(TLAN_DE_GNRL, "%s: Powering down PHY(s).\n", dev->name);
 	value = MII_GC_PDOWN | MII_GC_LOOPBK | MII_GC_ISOLATE;
 	tlan_mii_sync(dev->base_addr);
 	tlan_mii_write_reg(dev, priv->phy[priv->phy_num], MII_GEN_CTL, value);
@@ -2546,7 +2546,7 @@ static void tlan_phy_power_up(struct net_device *dev)
 	struct tlan_priv	*priv = netdev_priv(dev);
 	u16		value;
 
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Powering up PHY.\n", dev->name);
+	TLAN_DBG(TLAN_DE_GNRL, "%s: Powering up PHY.\n", dev->name);
 	tlan_mii_sync(dev->base_addr);
 	value = MII_GC_LOOPBK;
 	tlan_mii_write_reg(dev, priv->phy[priv->phy_num], MII_GEN_CTL, value);
@@ -2571,7 +2571,7 @@ static void tlan_phy_reset(struct net_device *dev)
 
 	phy = priv->phy[priv->phy_num];
 
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Resetting PHY.\n", dev->name);
+	TLAN_DBG(TLAN_DE_GNRL, "%s: Resetting PHY.\n", dev->name);
 	tlan_mii_sync(dev->base_addr);
 	value = MII_GC_LOOPBK | MII_GC_RESET;
 	tlan_mii_write_reg(dev, phy, MII_GEN_CTL, value);
@@ -2605,7 +2605,7 @@ static void tlan_phy_start_link(struct net_device *dev)
 	u16		tctl;
 
 	phy = priv->phy[priv->phy_num];
-	TLAN_DBG(TLAN_DEBUG_GNRL, "%s: Trying to activate link.\n", dev->name);
+	TLAN_DBG(TLAN_DE_GNRL, "%s: Trying to activate link.\n", dev->name);
 	tlan_mii_read_reg(dev, phy, MII_GEN_STS, &status);
 	tlan_mii_read_reg(dev, phy, MII_GEN_STS, &ability);
 
@@ -2775,7 +2775,7 @@ static void tlan_phy_monitor(struct timer_list *t)
 	/* Check if link has been lost */
 	if (!(phy_status & MII_GS_LINK)) {
 		if (netif_carrier_ok(dev)) {
-			printk(KERN_DEBUG "TLAN: %s has lost link\n",
+			printk(KERN_DE "TLAN: %s has lost link\n",
 			       dev->name);
 			tlan_dio_write8(dev->base_addr, TLAN_LED_REG, 0);
 			netif_carrier_off(dev);
@@ -2800,7 +2800,7 @@ static void tlan_phy_monitor(struct timer_list *t)
 	/* Link restablished? */
 	if ((phy_status & MII_GS_LINK) && !netif_carrier_ok(dev)) {
 		tlan_dio_write8(dev->base_addr, TLAN_LED_REG, TLAN_LED_LINK);
-		printk(KERN_DEBUG "TLAN: %s has reestablished link\n",
+		printk(KERN_DE "TLAN: %s has reestablished link\n",
 		       dev->name);
 		netif_carrier_on(dev);
 	}

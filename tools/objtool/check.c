@@ -161,7 +161,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"complete_and_exit",
 		"kvm_spurious_fault",
 		"__reiserfs_panic",
-		"lbug_with_loc",
+		"l_with_loc",
 		"fortify_panic",
 		"usercopy_abort",
 		"machine_real_restart",
@@ -342,7 +342,7 @@ static int add_dead_ends(struct objtool_file *file)
 	 * GCC 7 inserts it for certain divide-by-zero cases.
 	 */
 	for_each_insn(file, insn)
-		if (insn->type == INSN_BUG)
+		if (insn->type == INSN_)
 			insn->dead_end = true;
 
 	/*
@@ -975,7 +975,7 @@ static struct rela *find_switch_table(struct objtool_file *file,
 		if (rodata_rela) {
 			/*
 			 * Use of RIP-relative switch jumps is quite rare, and
-			 * indicates a rare GCC quirk/bug which can leave dead
+			 * indicates a rare GCC quirk/ which can leave dead
 			 * code behind.
 			 */
 			if (text_rela->type == R_X86_64_PC32)
@@ -1834,7 +1834,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		func = insn->func ? insn->func->pfunc : NULL;
 
 		if (func && insn->ignore) {
-			WARN_FUNC("BUG: why am I validating an ignored function?",
+			WARN_FUNC(": why am I validating an ignored function?",
 				  sec, insn->offset);
 			return 1;
 		}

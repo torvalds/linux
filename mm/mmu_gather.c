@@ -1,7 +1,7 @@
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/mm_types.h>
 #include <linux/pagemap.h>
 #include <linux/rcupdate.h>
@@ -120,7 +120,7 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 {
 	struct mmu_gather_batch *batch;
 
-	VM_BUG_ON(!tlb->end);
+	VM__ON(!tlb->end);
 	VM_WARN_ON(tlb->page_size != page_size);
 
 	batch = tlb->active;
@@ -134,7 +134,7 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 			return true;
 		batch = tlb->active;
 	}
-	VM_BUG_ON_PAGE(batch->nr > batch->max, page);
+	VM__ON_PAGE(batch->nr > batch->max, page);
 
 	return false;
 }

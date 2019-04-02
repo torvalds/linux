@@ -13,7 +13,7 @@
 #include <linux/sched.h>
 #include "queue.h"
 #include "cw1200.h"
-#include "debug.h"
+#include "de.h"
 
 /* private */ struct cw1200_queue_item
 {
@@ -30,7 +30,7 @@ static inline void __cw1200_queue_lock(struct cw1200_queue *queue)
 {
 	struct cw1200_queue_stats *stats = queue->stats;
 	if (queue->tx_locked_cnt++ == 0) {
-		pr_debug("[TX] Queue %d is locked.\n",
+		pr_de("[TX] Queue %d is locked.\n",
 			 queue->queue_id);
 		ieee80211_stop_queue(stats->priv->hw, queue->queue_id);
 	}
@@ -39,9 +39,9 @@ static inline void __cw1200_queue_lock(struct cw1200_queue *queue)
 static inline void __cw1200_queue_unlock(struct cw1200_queue *queue)
 {
 	struct cw1200_queue_stats *stats = queue->stats;
-	BUG_ON(!queue->tx_locked_cnt);
+	_ON(!queue->tx_locked_cnt);
 	if (--queue->tx_locked_cnt == 0) {
-		pr_debug("[TX] Queue %d is unlocked.\n",
+		pr_de("[TX] Queue %d is unlocked.\n",
 			 queue->queue_id);
 		ieee80211_wake_queue(stats->priv->hw, queue->queue_id);
 	}
@@ -84,7 +84,7 @@ static void cw1200_queue_register_post_gc(struct list_head *gc_list,
 	struct cw1200_queue_item *gc_item;
 	gc_item = kmalloc(sizeof(struct cw1200_queue_item),
 			GFP_ATOMIC);
-	BUG_ON(!gc_item);
+	_ON(!gc_item);
 	memcpy(gc_item, item, sizeof(struct cw1200_queue_item));
 	list_add_tail(&gc_item->head, gc_list);
 }
@@ -107,7 +107,7 @@ static void __cw1200_queue_gc(struct cw1200_queue *queue,
 		if (!--stats->link_map_cache[item->txpriv.link_id])
 			wakeup_stats = true;
 		spin_unlock_bh(&stats->lock);
-		cw1200_debug_tx_ttl(stats->priv);
+		cw1200_de_tx_ttl(stats->priv);
 		cw1200_queue_register_post_gc(head, item);
 		item->skb = NULL;
 		list_move_tail(&item->head, &queue->free_pool);
@@ -292,7 +292,7 @@ int cw1200_queue_put(struct cw1200_queue *queue,
 	if (!WARN_ON(list_empty(&queue->free_pool))) {
 		struct cw1200_queue_item *item = list_first_entry(
 			&queue->free_pool, struct cw1200_queue_item, head);
-		BUG_ON(item->skb);
+		_ON(item->skb);
 
 		list_move_tail(&item->head, &queue->queue);
 		item->skb = skb;
@@ -383,7 +383,7 @@ int cw1200_queue_requeue(struct cw1200_queue *queue, u32 packet_id)
 	item = &queue->pool[item_id];
 
 	spin_lock_bh(&queue->lock);
-	BUG_ON(queue_id != queue->queue_id);
+	_ON(queue_id != queue->queue_id);
 	if (queue_generation != queue->generation) {
 		ret = -ENOENT;
 	} else if (item_id >= (unsigned) queue->capacity) {
@@ -454,7 +454,7 @@ int cw1200_queue_remove(struct cw1200_queue *queue, u32 packet_id)
 	item = &queue->pool[item_id];
 
 	spin_lock_bh(&queue->lock);
-	BUG_ON(queue_id != queue->queue_id);
+	_ON(queue_id != queue->queue_id);
 	if (queue_generation != queue->generation) {
 		ret = -ENOENT;
 	} else if (item_id >= (unsigned) queue->capacity) {
@@ -503,7 +503,7 @@ int cw1200_queue_get_skb(struct cw1200_queue *queue, u32 packet_id,
 	item = &queue->pool[item_id];
 
 	spin_lock_bh(&queue->lock);
-	BUG_ON(queue_id != queue->queue_id);
+	_ON(queue_id != queue->queue_id);
 	if (queue_generation != queue->generation) {
 		ret = -ENOENT;
 	} else if (item_id >= (unsigned) queue->capacity) {

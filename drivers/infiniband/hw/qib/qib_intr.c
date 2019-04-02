@@ -221,7 +221,7 @@ void qib_bad_intrstatus(struct qib_devdata *dd)
 
 	/*
 	 * We print the message and disable interrupts, in hope of
-	 * having a better chance of debugging the problem.
+	 * having a better chance of deging the problem.
 	 */
 	qib_dev_err(dd,
 		"Read of chip interrupt status failed disabling interrupts\n");

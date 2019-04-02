@@ -27,14 +27,14 @@
 #include "txrx.h"
 #include "dxe.h"
 #include "pmc.h"
-#include "debug.h"
+#include "de.h"
 
 #define WLAN_NV_FILE               "wlan/prima/WCNSS_qcom_wlan_nv.bin"
 #define WCN36XX_AGGR_BUFFER_SIZE 64
 
 extern unsigned int wcn36xx_dbg_mask;
 
-enum wcn36xx_debug_mask {
+enum wcn36xx_de_mask {
 	WCN36XX_DBG_DXE		= 0x00000001,
 	WCN36XX_DBG_DXE_DUMP	= 0x00000002,
 	WCN36XX_DBG_SMD		= 0x00000004,
@@ -66,12 +66,12 @@ enum wcn36xx_debug_mask {
 
 #define wcn36xx_dbg(mask, fmt, arg...) do {			\
 	if (wcn36xx_dbg_mask & mask)					\
-		printk(KERN_DEBUG pr_fmt(fmt), ##arg);	\
+		printk(KERN_DE pr_fmt(fmt), ##arg);	\
 } while (0)
 
 #define wcn36xx_dbg_dump(mask, prefix_str, buf, len) do {	\
 	if (wcn36xx_dbg_mask & mask)					\
-		print_hex_dump(KERN_DEBUG, pr_fmt(prefix_str),	\
+		print_hex_dump(KERN_DE, pr_fmt(prefix_str),	\
 			       DUMP_PREFIX_OFFSET, 32, 1,	\
 			       buf, len, false);		\
 } while (0)
@@ -249,10 +249,10 @@ struct wcn36xx {
 	/* RF module */
 	unsigned		rf_id;
 
-#ifdef CONFIG_WCN36XX_DEBUGFS
-	/* Debug file system entry */
+#ifdef CONFIG_WCN36XX_DEFS
+	/* De file system entry */
 	struct wcn36xx_dfs_entry    dfs;
-#endif /* CONFIG_WCN36XX_DEBUGFS */
+#endif /* CONFIG_WCN36XX_DEFS */
 
 };
 

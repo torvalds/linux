@@ -9,7 +9,7 @@
 //
 // Parts based on arch/arm/mach-pxa/pm.c
 //
-// Thanks to Dimitry Andric for debugging
+// Thanks to Dimitry Andric for deging
 
 #include <linux/init.h>
 #include <linux/suspend.h>

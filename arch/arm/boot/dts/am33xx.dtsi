@@ -136,7 +136,7 @@
 		compatible = "arm,cortex-a8-pmu";
 		interrupts = <3>;
 		reg = <0x4b000000 0x1000000>;
-		ti,hwmods = "debugss";
+		ti,hwmods = "dess";
 	};
 
 	/*

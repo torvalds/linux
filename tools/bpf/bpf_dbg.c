@@ -1,7 +1,7 @@
 /*
- * Minimal BPF debugger
+ * Minimal BPF deger
  *
- * Minimal BPF debugger that mimics the kernel's engine (w/o extensions)
+ * Minimal BPF deger that mimics the kernel's engine (w/o extensions)
  * and allows for single stepping through selected packets from a pcap
  * with a provided user filter in order to facilitate verification of a
  * BPF program. Besides others, this is useful to verify BPF programs
@@ -12,7 +12,7 @@
  * for making a verdict when multiple simple BPF programs are combined
  * into one in order to prevent parsing same headers multiple times.
  *
- * More on how to debug BPF opcodes see Documentation/networking/filter.txt
+ * More on how to de BPF opcodes see Documentation/networking/filter.txt
  * which is the main document on BPF. Mini howto for getting started:
  *
  *  1) `./bpf_dbg` to enter the shell (shell cmds denoted with '>'):

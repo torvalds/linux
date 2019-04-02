@@ -54,7 +54,7 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 		fail("stripped input is too short\n");
 
 	if (!dyn)
-		fail("input has no PT_DYNAMIC section -- your toolchain is buggy\n");
+		fail("input has no PT_DYNAMIC section -- your toolchain is gy\n");
 
 	/* Walk the dynamic table */
 	for (i = 0; dyn + i < dyn_end &&

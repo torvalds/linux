@@ -22,7 +22,7 @@
 #include <net/ieee80211_radiotap.h>
 #include "ieee80211_i.h"
 #include "sta_info.h"
-#include "debugfs_netdev.h"
+#include "defs_netdev.h"
 #include "mesh.h"
 #include "led.h"
 #include "driver-ops.h"
@@ -1116,7 +1116,7 @@ static void ieee80211_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 	/* free extra data */
 	ieee80211_free_keys(sdata, false);
 
-	ieee80211_debugfs_remove_netdev(sdata);
+	ieee80211_defs_remove_netdev(sdata);
 
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		__skb_queue_purge(&sdata->fragments[i].skb_list);
@@ -1482,7 +1482,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	ieee80211_debugfs_add_netdev(sdata);
+	ieee80211_defs_add_netdev(sdata);
 }
 
 static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
@@ -1988,7 +1988,7 @@ static int netdev_notify(struct notifier_block *nb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	memcpy(sdata->name, dev->name, IFNAMSIZ);
-	ieee80211_debugfs_rename_netdev(sdata);
+	ieee80211_defs_rename_netdev(sdata);
 
 	return NOTIFY_OK;
 }

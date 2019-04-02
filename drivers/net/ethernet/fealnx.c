@@ -28,7 +28,7 @@
 #define DRV_VERSION	"2.52"
 #define DRV_RELDATE	"Sep-11-2006"
 
-static int debug;		/* 1-> print debug message */
+static int de;		/* 1-> print de message */
 static int max_interrupt_work = 20;
 
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast). */
@@ -111,13 +111,13 @@ MODULE_AUTHOR("Myson or whoever");
 MODULE_DESCRIPTION("Myson MTD-8xx 100/10M Ethernet PCI Adapter Driver");
 MODULE_LICENSE("GPL");
 module_param(max_interrupt_work, int, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(multicast_filter_limit, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 MODULE_PARM_DESC(max_interrupt_work, "fealnx maximum events handled per interrupt");
-MODULE_PARM_DESC(debug, "fealnx enable debugging (0-1)");
+MODULE_PARM_DESC(de, "fealnx enable deging (0-1)");
 MODULE_PARM_DESC(rx_copybreak, "fealnx copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(multicast_filter_limit, "fealnx maximum number of filtered multicast addresses");
 MODULE_PARM_DESC(options, "fealnx: Bits 0-3: media type, bit 17: full duplex");
@@ -905,8 +905,8 @@ static int netdev_open(struct net_device *dev)
 	iowrite32(FBE | TUNF | CNTOVF | RBU | TI | RI, ioaddr + ISR);
 	iowrite32(np->imrvalue, ioaddr + IMR);
 
-	if (debug)
-		printk(KERN_DEBUG "%s: Done netdev_open().\n", dev->name);
+	if (de)
+		printk(KERN_DE "%s: Done netdev_open().\n", dev->name);
 
 	/* Set the timer to check for link beat. */
 	timer_setup(&np->timer, netdev_timer, 0);
@@ -1087,8 +1087,8 @@ static void netdev_timer(struct timer_list *t)
 	unsigned int old_linkok = np->linkok;
 	unsigned long flags;
 
-	if (debug)
-		printk(KERN_DEBUG "%s: Media selection timer tick, status %8.8x "
+	if (de)
+		printk(KERN_DE "%s: Media selection timer tick, status %8.8x "
 		       "config %8.8x.\n", dev->name, ioread32(ioaddr + ISR),
 		       ioread32(ioaddr + TCRRCR));
 
@@ -1203,12 +1203,12 @@ static void fealnx_tx_timeout(struct net_device *dev)
 	       dev->name, ioread32(ioaddr + ISR));
 
 	{
-		printk(KERN_DEBUG "  Rx ring %p: ", np->rx_ring);
+		printk(KERN_DE "  Rx ring %p: ", np->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			printk(KERN_CONT " %8.8x",
 			       (unsigned int) np->rx_ring[i].status);
 		printk(KERN_CONT "\n");
-		printk(KERN_DEBUG "  Tx ring %p: ", np->tx_ring);
+		printk(KERN_DE "  Tx ring %p: ", np->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_CONT " %4.4x", np->tx_ring[i].status);
 		printk(KERN_CONT "\n");
@@ -1444,8 +1444,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		/* Acknowledge all of the current interrupt sources ASAP. */
 		iowrite32(intr_status, ioaddr + ISR);
 
-		if (debug)
-			printk(KERN_DEBUG "%s: Interrupt, status %4.4x.\n", dev->name,
+		if (de)
+			printk(KERN_DE "%s: Interrupt, status %4.4x.\n", dev->name,
 			       intr_status);
 
 		if (!(intr_status & np->imrvalue))
@@ -1590,8 +1590,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	dev->stats.rx_crc_errors +=
 		(ioread32(ioaddr + TALLY) & 0x7fff0000) >> 16;
 
-	if (debug)
-		printk(KERN_DEBUG "%s: exiting interrupt, status=%#4.4x.\n",
+	if (de)
+		printk(KERN_DE "%s: exiting interrupt, status=%#4.4x.\n",
 		       dev->name, ioread32(ioaddr + ISR));
 
 	iowrite32(np->imrvalue, ioaddr + IMR);
@@ -1616,14 +1616,14 @@ static int netdev_rx(struct net_device *dev)
 		if (np->really_rx_count == 0)
 			break;
 
-		if (debug)
-			printk(KERN_DEBUG "  netdev_rx() status was %8.8x.\n", rx_status);
+		if (de)
+			printk(KERN_DE "  netdev_rx() status was %8.8x.\n", rx_status);
 
 		if ((!((rx_status & RXFSD) && (rx_status & RXLSD))) ||
 		    (rx_status & ErrorSummary)) {
 			if (rx_status & ErrorSummary) {	/* there was a fatal error */
-				if (debug)
-					printk(KERN_DEBUG
+				if (de)
+					printk(KERN_DE
 					       "%s: Receive error, Rx status %8.8x.\n",
 					       dev->name, rx_status);
 
@@ -1664,7 +1664,7 @@ static int netdev_rx(struct net_device *dev)
 					/* free all rx descriptors related this long pkt */
 					for (i = 0; i < desno; ++i) {
 						if (!np->cur_rx->skbuff) {
-							printk(KERN_DEBUG
+							printk(KERN_DE
 								"%s: I'm scared\n", dev->name);
 							break;
 						}
@@ -1686,8 +1686,8 @@ static int netdev_rx(struct net_device *dev)
 			short pkt_len = ((rx_status & FLNGMASK) >> FLNGShift) - 4;
 
 #ifndef final_version
-			if (debug)
-				printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d"
+			if (de)
+				printk(KERN_DE "  netdev_rx() normal Rx pkt length %d"
 				       " status %x.\n", pkt_len, rx_status);
 #endif
 
@@ -1852,12 +1852,12 @@ static u32 netdev_get_link(struct net_device *dev)
 
 static u32 netdev_get_msglevel(struct net_device *dev)
 {
-	return debug;
+	return de;
 }
 
 static void netdev_set_msglevel(struct net_device *dev, u32 value)
 {
-	debug = value;
+	de = value;
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {

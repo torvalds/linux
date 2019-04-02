@@ -24,7 +24,7 @@
  *
  * 2002/03/18   Implemented n_tty_wakeup to send SIGIO POLL_OUTs to
  *		waiting writing processes-Sapan Bhatia <sapan@corewars.org>.
- *		Also fixed a bug in BLOCKING mode where n_tty_write returns
+ *		Also fixed a  in BLOCKING mode where n_tty_write returns
  *		EAGAIN
  */
 

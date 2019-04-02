@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "perf.h"
 #include "util/util.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-branch-options.h"
 

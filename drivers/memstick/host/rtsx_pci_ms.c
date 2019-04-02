@@ -53,9 +53,9 @@ static inline void ms_clear_error(struct realtek_pci_ms *host)
 			MS_STOP | MS_CLR_ERR, MS_STOP | MS_CLR_ERR);
 }
 
-#ifdef DEBUG
+#ifdef DE
 
-static void ms_print_debug_regs(struct realtek_pci_ms *host)
+static void ms_print_de_regs(struct realtek_pci_ms *host)
 {
 	struct rtsx_pcr *pcr = host->pcr;
 	u16 i;
@@ -78,7 +78,7 @@ static void ms_print_debug_regs(struct realtek_pci_ms *host)
 
 #else
 
-#define ms_print_debug_regs(host)
+#define ms_print_de_regs(host)
 
 #endif
 
@@ -251,7 +251,7 @@ static int ms_write_bytes(struct realtek_pci_ms *host, u8 tpc,
 		if (int_reg)
 			*int_reg = val & 0x0F;
 
-		ms_print_debug_regs(host);
+		ms_print_de_regs(host);
 
 		ms_clear_error(host);
 
@@ -320,7 +320,7 @@ static int ms_read_bytes(struct realtek_pci_ms *host, u8 tpc,
 		if (int_reg)
 			*int_reg = val & 0x0F;
 
-		ms_print_debug_regs(host);
+		ms_print_de_regs(host);
 
 		ms_clear_error(host);
 

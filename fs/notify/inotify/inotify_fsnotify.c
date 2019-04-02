@@ -93,7 +93,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 		alloc_len += len + 1;
 	}
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
+	pr_de("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
 		 mask);
 
 	i_mark = container_of(inode_mark, struct inotify_inode_mark,
@@ -175,7 +175,7 @@ static int idr_callback(int id, void *p, void *data)
 	 * I'm taking the liberty of assuming that the mark in question is a
 	 * valid address and I'm dereferencing it.  This might help to figure
 	 * out why we got here and the panic is no worse than the original
-	 * BUG() that was here.
+	 * () that was here.
 	 */
 	if (fsn_mark)
 		printk(KERN_WARNING "fsn_mark->group=%p wd=%d\n",
@@ -185,7 +185,7 @@ static int idr_callback(int id, void *p, void *data)
 
 static void inotify_free_group_priv(struct fsnotify_group *group)
 {
-	/* ideally the idr is empty and we won't hit the BUG in the callback */
+	/* ideally the idr is empty and we won't hit the  in the callback */
 	idr_for_each(&group->inotify_data.idr, idr_callback, group);
 	idr_destroy(&group->inotify_data.idr);
 	if (group->inotify_data.ucounts)

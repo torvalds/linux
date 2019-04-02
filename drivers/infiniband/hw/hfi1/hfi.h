@@ -139,7 +139,7 @@ extern unsigned long hfi1_cap_mask;
  * summed over all of the devices and ports.
  * They are described by name via ipathfs filesystem, so layout
  * and number of elements can change without breaking compatibility.
- * If members are added or deleted hfi1_statnames[] in debugfs.c must
+ * If members are added or deleted hfi1_statnames[] in defs.c must
  * change to match.
  */
 struct hfi1_ib_stats {

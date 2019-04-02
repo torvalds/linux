@@ -716,7 +716,7 @@ static void hpt370_irq_timeout(ide_drive_t *drive)
 	u8  dma_cmd;
 
 	pci_read_config_word(dev, hwif->select_data + 2, &bfifo);
-	printk(KERN_DEBUG "%s: %d bytes in FIFO\n", drive->name, bfifo & 0x1ff);
+	printk(KERN_DE "%s: %d bytes in FIFO\n", drive->name, bfifo & 0x1ff);
 
 	/* get DMA command mode */
 	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);

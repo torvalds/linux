@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _TOOLS_ASM_BUG_H
-#define _TOOLS_ASM_BUG_H
+#ifndef _TOOLS_ASM__H
+#define _TOOLS_ASM__H
 
 #include <linux/compiler.h>
 
@@ -42,4 +42,4 @@
 	unlikely(__ret_warn_once);		\
 })
 
-#endif /* _TOOLS_ASM_BUG_H */
+#endif /* _TOOLS_ASM__H */

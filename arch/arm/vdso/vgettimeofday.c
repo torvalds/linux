@@ -20,7 +20,7 @@
 #include <linux/time.h>
 #include <asm/arch_timer.h>
 #include <asm/barrier.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/page.h>
 #include <asm/unistd.h>
 #include <asm/vdso_datapage.h>

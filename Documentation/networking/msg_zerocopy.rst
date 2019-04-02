@@ -27,7 +27,7 @@ Page pinning also changes system call semantics. It temporarily shares
 the buffer between process and network stack. Unlike with copying, the
 process cannot immediately overwrite the buffer after system call
 return without possibly modifying the data in flight. Kernel integrity
-is not affected, but a buggy program can possibly corrupt its own data
+is not affected, but a gy program can possibly corrupt its own data
 stream.
 
 The kernel returns a notification when it is safe to modify data.

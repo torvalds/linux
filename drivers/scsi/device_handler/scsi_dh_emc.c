@@ -273,7 +273,7 @@ static int send_trespass_cmd(struct scsi_device *sdev,
 		cdb[0] = MODE_SELECT_10;
 		cdb[8] = len;
 	}
-	BUG_ON((len > CLARIION_BUFFER_SIZE));
+	_ON((len > CLARIION_BUFFER_SIZE));
 	memcpy(csdev->buffer, page22, len);
 
 	err = scsi_execute(sdev, cdb, DMA_TO_DEVICE, csdev->buffer, len, NULL,

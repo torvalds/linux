@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/oom.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/smpboot.h>
 #include <linux/sched/isolation.h>
 #include <uapi/linux/sched/types.h>
@@ -86,16 +86,16 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tBoot-time adjustment of scheduler-enlistment delay to %ld jiffies.\n", jiffies_till_sched_qs);
 	if (rcu_kick_kthreads)
 		pr_info("\tKick kthreads if too-long grace period.\n");
-	if (IS_ENABLED(CONFIG_DEBUG_OBJECTS_RCU_HEAD))
-		pr_info("\tRCU callback double-/use-after-free debug enabled.\n");
+	if (IS_ENABLED(CONFIG_DE_OBJECTS_RCU_HEAD))
+		pr_info("\tRCU callback double-/use-after-free de enabled.\n");
 	if (gp_preinit_delay)
-		pr_info("\tRCU debug GP pre-init slowdown %d jiffies.\n", gp_preinit_delay);
+		pr_info("\tRCU de GP pre-init slowdown %d jiffies.\n", gp_preinit_delay);
 	if (gp_init_delay)
-		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
+		pr_info("\tRCU de GP init slowdown %d jiffies.\n", gp_init_delay);
 	if (gp_cleanup_delay)
-		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_cleanup_delay);
-	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))
-		pr_info("\tRCU debug extended QS entry/exit.\n");
+		pr_info("\tRCU de GP init slowdown %d jiffies.\n", gp_cleanup_delay);
+	if (IS_ENABLED(CONFIG_RCU_EQS_DE))
+		pr_info("\tRCU de extended QS entry/exit.\n");
 	rcupdate_announce_bootup_oddness();
 }
 
@@ -738,7 +738,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 
 /*
  * Check that the list of blocked tasks for the newly completed grace
- * period is in fact empty.  It is a serious bug to complete a grace
+ * period is in fact empty.  It is a serious  to complete a grace
  * period that still has RCU readers blocked!  This function must be
  * invoked -before- updating this rnp's ->gp_seq, and the rnp's ->lock
  * must be held by the caller.
@@ -805,7 +805,7 @@ static void rcu_flavor_sched_clock_irq(int user)
 /*
  * Check for a task exiting while in a preemptible-RCU read-side
  * critical section, clean up if so.  No need to issue warnings,
- * as debug_check_no_locks_held() already does this if lockdep
+ * as de_check_no_locks_held() already does this if lockdep
  * is enabled.
  */
 void exit_rcu(void)
@@ -2232,7 +2232,7 @@ static int rcu_nocb_kthread(void *arg)
 						    TPS("WokeQueue"));
 				next = list->next;
 			}
-			debug_rcu_head_unqueue(list);
+			de_rcu_head_unqueue(list);
 			local_bh_disable();
 			if (__rcu_reclaim(rcu_state.name, list))
 				cl++;

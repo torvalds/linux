@@ -116,7 +116,7 @@ static void privcmd_buf_vma_close(struct vm_area_struct *vma)
 
 static vm_fault_t privcmd_buf_vma_fault(struct vm_fault *vmf)
 {
-	pr_debug("fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
+	pr_de("fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
 		 vmf->vma, vmf->vma->vm_start, vmf->vma->vm_end,
 		 vmf->pgoff, (void *)vmf->address);
 

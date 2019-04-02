@@ -23,7 +23,7 @@
 #include "../cdma.h"
 #include "../channel.h"
 #include "../dev.h"
-#include "../debug.h"
+#include "../de.h"
 
 /*
  * Put the restart at the end of pushbuffer memory
@@ -266,7 +266,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 	host1x = cdma_to_host1x(cdma);
 	ch = cdma_to_channel(cdma);
 
-	host1x_debug_dump(cdma_to_host1x(cdma));
+	host1x_de_dump(cdma_to_host1x(cdma));
 
 	mutex_lock(&cdma->lock);
 

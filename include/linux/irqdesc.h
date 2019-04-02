@@ -50,7 +50,7 @@ struct pt_regs;
  * @kobj:		kobject used to represent this struct in sysfs
  * @request_mutex:	mutex to protect request/free before locking desc->lock
  * @dir:		/proc/irq/ procfs entry
- * @debugfs_file:	dentry for the debugfs file
+ * @defs_file:	dentry for the defs file
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
@@ -94,8 +94,8 @@ struct irq_desc {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
 #endif
-#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-	struct dentry		*debugfs_file;
+#ifdef CONFIG_GENERIC_IRQ_DEFS
+	struct dentry		*defs_file;
 	const char		*dev_name;
 #endif
 #ifdef CONFIG_SPARSE_IRQ

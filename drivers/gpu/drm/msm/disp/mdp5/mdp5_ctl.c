@@ -132,7 +132,7 @@ static void set_display_intf(struct mdp5_kms *mdp5_kms,
 		intf_sel |= MDP5_DISP_INTF_SEL_INTF3(intf->type);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

@@ -96,7 +96,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct iwl_lmac_debug_addrs {
+struct iwl_lmac_de_addrs {
 	__le32 error_event_table_ptr;	/* SRAM address for error log */
 	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
 	__le32 cpu_register_ptr;
@@ -105,7 +105,7 @@ struct iwl_lmac_debug_addrs {
 	__le32 scd_base_ptr;		/* SRAM address for SCD */
 	__le32 st_fwrd_addr;		/* pointer to Store and forward */
 	__le32 st_fwrd_size;
-} __packed; /* UCODE_DEBUG_ADDRS_API_S_VER_2 */
+} __packed; /* UCODE_DE_ADDRS_API_S_VER_2 */
 
 struct iwl_lmac_alive {
 	__le32 ucode_major;
@@ -115,18 +115,18 @@ struct iwl_lmac_alive {
 	u8 mac;
 	u8 opt;
 	__le32 timestamp;
-	struct iwl_lmac_debug_addrs dbg_ptrs;
+	struct iwl_lmac_de_addrs dbg_ptrs;
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
 
-struct iwl_umac_debug_addrs {
+struct iwl_umac_de_addrs {
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
-} __packed; /* UMAC_DEBUG_ADDRS_API_S_VER_1 */
+} __packed; /* UMAC_DE_ADDRS_API_S_VER_1 */
 
 struct iwl_umac_alive {
 	__le32 umac_major;		/* UMAC version: major */
 	__le32 umac_minor;		/* UMAC version: minor */
-	struct iwl_umac_debug_addrs dbg_ptrs;
+	struct iwl_umac_de_addrs dbg_ptrs;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
 struct mvm_alive_resp_v3 {
@@ -146,12 +146,12 @@ struct mvm_alive_resp {
 /**
  * enum iwl_extended_cfg_flag - commands driver may send before
  *	finishing init flow
- * @IWL_INIT_DEBUG_CFG: driver is going to send debug config command
+ * @IWL_INIT_DE_CFG: driver is going to send de config command
  * @IWL_INIT_NVM: driver is going to send NVM_ACCESS commands
  * @IWL_INIT_PHY: driver is going to send PHY_DB commands
  */
 enum iwl_extended_cfg_flags {
-	IWL_INIT_DEBUG_CFG,
+	IWL_INIT_DE_CFG,
 	IWL_INIT_NVM,
 	IWL_INIT_PHY,
 };

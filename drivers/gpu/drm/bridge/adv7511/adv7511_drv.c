@@ -697,7 +697,7 @@ static void adv7511_mode_set(struct adv7511 *adv7511,
 		vsync_len = adj_mode->crtc_vsync_end -
 			    adj_mode->crtc_vsync_start;
 
-		/* The hardware vsync generator has a off-by-one bug */
+		/* The hardware vsync generator has a off-by-one  */
 		vsync_offset += 1;
 
 		regmap_write(adv7511->regmap, ADV7511_REG_HSYNC_PLACEMENT_MSB,

@@ -154,11 +154,11 @@ struct hva_stream {
 #define to_hva_stream(vb) \
 	container_of(vb, struct hva_stream, vbuf)
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 /**
- * struct hva_ctx_dbg - instance context debug info
+ * struct hva_ctx_dbg - instance context de info
  *
- * @debugfs_entry:      debugfs entry
+ * @defs_entry:      defs entry
  * @is_valid_period:    true if the sequence is valid for performance
  * @begin:              start time of last HW task
  * @total_duration:     total HW processing durations in 0.1ms
@@ -183,7 +183,7 @@ struct hva_stream {
  * @avg_bitrate:        average bitrate in kbps
  */
 struct hva_ctx_dbg {
-	struct dentry	*debugfs_entry;
+	struct dentry	*defs_entry;
 	bool		is_valid_period;
 	ktime_t		begin;
 	u32		total_duration;
@@ -221,7 +221,7 @@ struct hva_enc;
  * @ctrls:           hva controls set
  * @id:              instance identifier
  * @aborting:        true if current job aborted
- * @name:            instance name (debug purpose)
+ * @name:            instance name (de purpose)
  * @run_work:        encode work
  * @lock:            mutex used to lock access of this context
  * @flags:           validity of streaminfo and frameinfo fields
@@ -242,7 +242,7 @@ struct hva_enc;
  * @sys_errors:      number of system errors (memory, resource, pm...)
  * @encode_errors:   number of encoding errors (hw/driver errors)
  * @frame_errors:    number of frame errors (format, size, header...)
- * @dbg:             context debug info
+ * @dbg:             context de info
  */
 struct hva_ctx {
 	struct hva_dev			*hva_dev;
@@ -272,7 +272,7 @@ struct hva_ctx {
 	u32				sys_errors;
 	u32				encode_errors;
 	u32				frame_errors;
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 	struct hva_ctx_dbg		dbg;
 #endif
 };
@@ -280,15 +280,15 @@ struct hva_ctx {
 #define HVA_FLAG_STREAMINFO	0x0001
 #define HVA_FLAG_FRAMEINFO	0x0002
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 /**
- * struct hva_dev_dbg - device debug info
+ * struct hva_dev_dbg - device de info
  *
- * @debugfs_entry: debugfs entry
- * @last_ctx:      debug information about last running instance context
+ * @defs_entry: defs entry
+ * @last_ctx:      de information about last running instance context
  */
 struct hva_dev_dbg {
-	struct dentry	*debugfs_entry;
+	struct dentry	*defs_entry;
 	struct hva_ctx	last_ctx;
 };
 #endif
@@ -309,7 +309,7 @@ struct hva_dev_dbg {
  * @m2m_dev:             memory-to-memory V4L2 device information
  * @instances:           opened instances
  * @nb_of_instances:     number of opened instances
- * @instance_id:         rolling counter identifying an instance (debug purpose)
+ * @instance_id:         rolling counter identifying an instance (de purpose)
  * @regs:                register io memory access
  * @esram_addr:          esram address
  * @esram_size:          esram size
@@ -331,7 +331,7 @@ struct hva_dev_dbg {
  * @lmi_err_reg:         local memory interface error register value
  * @emi_err_reg:         external memory interface error register value
  * @hec_mif_err_reg:     HEC memory interface error register value
- * @dbg:                 device debug info
+ * @dbg:                 device de info
  */
 struct hva_dev {
 	struct v4l2_device	v4l2_dev;
@@ -366,7 +366,7 @@ struct hva_dev {
 	u32			lmi_err_reg;
 	u32			emi_err_reg;
 	u32			hec_mif_err_reg;
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
 	struct hva_dev_dbg	dbg;
 #endif
 };
@@ -397,9 +397,9 @@ struct hva_enc {
 				  struct hva_stream *stream);
 };
 
-#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
-void hva_debugfs_create(struct hva_dev *hva);
-void hva_debugfs_remove(struct hva_dev *hva);
+#ifdef CONFIG_VIDEO_STI_HVA_DEFS
+void hva_defs_create(struct hva_dev *hva);
+void hva_defs_remove(struct hva_dev *hva);
 void hva_dbg_ctx_create(struct hva_ctx *ctx);
 void hva_dbg_ctx_remove(struct hva_ctx *ctx);
 void hva_dbg_perf_begin(struct hva_ctx *ctx);

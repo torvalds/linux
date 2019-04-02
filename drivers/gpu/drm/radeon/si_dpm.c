@@ -3210,8 +3210,8 @@ static bool si_is_special_1gb_platform(struct radeon_device *rdev)
 	is_special = (MC_SEQ_MISC0_REV_ID_VALUE == ((tmp & MC_SEQ_MISC0_REV_ID_MASK) >> MC_SEQ_MISC0_REV_ID_SHIFT))
 		& (MC_SEQ_MISC0_VEN_ID_VALUE == ((tmp & MC_SEQ_MISC0_VEN_ID_MASK) >> MC_SEQ_MISC0_VEN_ID_SHIFT));
 
-	WREG32(MC_SEQ_IO_DEBUG_INDEX, 0xb);
-	width = ((RREG32(MC_SEQ_IO_DEBUG_DATA) >> 1) & 1) ? 16 : 32;
+	WREG32(MC_SEQ_IO_DE_INDEX, 0xb);
+	width = ((RREG32(MC_SEQ_IO_DE_DATA) >> 1) & 1) ? 16 : 32;
 
 	tmp = RREG32(MC_ARB_RAMCFG);
 	row = ((tmp & NOOFROWS_MASK) >> NOOFROWS_SHIFT) + 10;
@@ -5965,7 +5965,7 @@ static int si_thermal_enable_alert(struct radeon_device *rdev,
 		rdev->irq.dpm_thermal = false;
 		result = si_send_msg_to_smc(rdev, PPSMC_MSG_EnableThermalInterrupt);
 		if (result != PPSMC_Result_OK) {
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
+			DRM_DE_KMS("Could not enable thermal interrupts.\n");
 			return -EINVAL;
 		}
 	} else {
@@ -7086,7 +7086,7 @@ void si_dpm_fini(struct radeon_device *rdev)
 	r600_free_extended_power_table(rdev);
 }
 
-void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void si_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);

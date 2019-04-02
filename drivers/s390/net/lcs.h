@@ -10,19 +10,19 @@
 
 #define LCS_DBF_TEXT(level, name, text) \
 	do { \
-		debug_text_event(lcs_dbf_##name, level, text); \
+		de_text_event(lcs_dbf_##name, level, text); \
 	} while (0)
 
 #define LCS_DBF_HEX(level,name,addr,len) \
 do { \
-	debug_event(lcs_dbf_##name,level,(void*)(addr),len); \
+	de_event(lcs_dbf_##name,level,(void*)(addr),len); \
 } while (0)
 
 #define LCS_DBF_TEXT_(level,name,text...) \
 	do { \
-		if (debug_level_enabled(lcs_dbf_##name, level)) { \
-			sprintf(debug_buffer, text); \
-			debug_text_event(lcs_dbf_##name, level, debug_buffer); \
+		if (de_level_enabled(lcs_dbf_##name, level)) { \
+			sprintf(de_buffer, text); \
+			de_text_event(lcs_dbf_##name, level, de_buffer); \
 		} \
 	} while (0)
 

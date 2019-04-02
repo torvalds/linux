@@ -184,7 +184,7 @@ static int xilly_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * Some (old and buggy?) hardware drops 64-bit addressed PCIe packets,
+	 * Some (old and gy?) hardware drops 64-bit addressed PCIe packets,
 	 * even when the PCIe driver claims that a 64-bit mask is OK. On the
 	 * other hand, on some architectures, 64-bit addressing is mandatory.
 	 * So go for the 64-bit mask only when failing is the other option.

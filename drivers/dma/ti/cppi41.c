@@ -264,7 +264,7 @@ static struct cppi41_channel *desc_to_chan(struct cppi41_dd *cdd, u32 desc)
 	}
 
 	desc_num = (desc - cdd->descs_phys) / sizeof(struct cppi41_desc);
-	BUG_ON(desc_num >= ALLOC_DECS_NUM);
+	_ON(desc_num >= ALLOC_DECS_NUM);
 	c = cdd->chan_busy[desc_num];
 	cdd->chan_busy[desc_num] = NULL;
 
@@ -834,10 +834,10 @@ static int init_descs(struct device *dev, struct cppi41_dd *cdd)
 	u32 reg;
 	u32 idx;
 
-	BUILD_BUG_ON(sizeof(struct cppi41_desc) &
+	BUILD__ON(sizeof(struct cppi41_desc) &
 			(sizeof(struct cppi41_desc) - 1));
-	BUILD_BUG_ON(sizeof(struct cppi41_desc) < 32);
-	BUILD_BUG_ON(ALLOC_DECS_NUM < 32);
+	BUILD__ON(sizeof(struct cppi41_desc) < 32);
+	BUILD__ON(ALLOC_DECS_NUM < 32);
 
 	desc_size = sizeof(struct cppi41_desc);
 	mem_decs = ALLOC_DECS_NUM * desc_size;
@@ -849,7 +849,7 @@ static int init_descs(struct device *dev, struct cppi41_dd *cdd)
 		reg |= (ilog2(desc_size) - 5) << QMGR_MEMCTRL_DESC_SH;
 		reg |= ilog2(ALLOC_DECS_NUM) - 5;
 
-		BUILD_BUG_ON(DESCS_AREAS != 1);
+		BUILD__ON(DESCS_AREAS != 1);
 		cdd->cd = dma_alloc_coherent(dev, mem_decs,
 				&cdd->descs_phys, GFP_KERNEL);
 		if (!cdd->cd)
@@ -890,7 +890,7 @@ static int init_cppi41(struct device *dev, struct cppi41_dd *cdd)
 {
 	int ret;
 
-	BUILD_BUG_ON(QMGR_SCRATCH_SIZE > ((1 << 14) - 1));
+	BUILD__ON(QMGR_SCRATCH_SIZE > ((1 << 14) - 1));
 	cdd->qmgr_scratch = dma_alloc_coherent(dev, QMGR_SCRATCH_SIZE,
 			&cdd->scratch_phys, GFP_KERNEL);
 	if (!cdd->qmgr_scratch)
@@ -946,7 +946,7 @@ static bool cpp41_dma_filter_fn(struct dma_chan *chan, void *param)
 	else
 		queues = cdd->queues_rx;
 
-	BUILD_BUG_ON(ARRAY_SIZE(am335x_usb_queues_rx) !=
+	BUILD__ON(ARRAY_SIZE(am335x_usb_queues_rx) !=
 		     ARRAY_SIZE(am335x_usb_queues_tx));
 	if (WARN_ON(cchan->port_num >= ARRAY_SIZE(am335x_usb_queues_rx)))
 		return false;

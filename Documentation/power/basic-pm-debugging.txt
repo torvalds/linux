@@ -1,4 +1,4 @@
-Debugging hibernation and suspend
+Deging hibernation and suspend
 	(C) 2007 Rafael J. Wysocki <rjw@sisk.pl>, GPL
 
 1. Testing hibernation (aka suspend to disk or STD)
@@ -39,7 +39,7 @@ identify what goes wrong.
 a) Test modes of hibernation
 
 To find out why hibernation fails on your system, you can use a special testing
-facility available if the kernel is compiled with CONFIG_PM_DEBUG set.  Then,
+facility available if the kernel is compiled with CONFIG_PM_DE set.  Then,
 there is the file /sys/power/pm_test that can be used to make the hibernation
 core run in a test mode.  There are 5 test modes available:
 
@@ -189,16 +189,16 @@ kernel address space randomization, it also can be used to check if failures
 to resume may be related to the differences between the restore and image
 kernels.
 
-d) Advanced debugging
+d) Advanced deging
 
 In case that hibernation does not work on your system even in the minimal
 configuration and compiling more drivers as modules is not practical or some
-modules cannot be unloaded, you can use one of the more advanced debugging
+modules cannot be unloaded, you can use one of the more advanced deging
 techniques to find the problem.  First, if there is a serial port in your box,
 you can boot the kernel with the 'no_console_suspend' parameter and try to log
 kernel messages using the serial console.  This may provide you with some
 information about the reasons of the suspend (resume) failure.  Alternatively,
-it may be possible to use a FireWire port for debugging with firescope
+it may be possible to use a FireWire port for deging with firescope
 (http://v3.sk/~lkundrak/firescope/).  On x86 it is also possible to
 use the PM_TRACE mechanism documented in Documentation/power/s2ram.txt .
 
@@ -210,7 +210,7 @@ http://en.opensuse.org/SDB:Suspend_to_RAM (S2RAM_LINK).
 
 Namely, after writing "freezer", "devices", "platform", "processors", or "core"
 into /sys/power/pm_test (available if the kernel is compiled with
-CONFIG_PM_DEBUG set) the suspend code will work in the test mode corresponding
+CONFIG_PM_DE set) the suspend code will work in the test mode corresponding
 to given string.  The STR test modes are defined in the same way as for
 hibernation, so please refer to Section 1 for more information about them.  In
 particular, the "core" test allows you to test everything except for the actual
@@ -229,10 +229,10 @@ analogous to the one described in section 1.  If you find some failing drivers,
 you will have to unload them every time before an STR transition (ie. before
 you run s2ram), and please report the problems with them.
 
-There is a debugfs entry which shows the suspend to RAM statistics. Here is an
+There is a defs entry which shows the suspend to RAM statistics. Here is an
 example of its output.
-	# mount -t debugfs none /sys/kernel/debug
-	# cat /sys/kernel/debug/suspend_stats
+	# mount -t defs none /sys/kernel/de
+	# cat /sys/kernel/de/suspend_stats
 	success: 20
 	fail: 5
 	failed_freeze: 0

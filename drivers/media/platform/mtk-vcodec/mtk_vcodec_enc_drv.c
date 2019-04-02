@@ -74,7 +74,7 @@ static irqreturn_t mtk_vcodec_enc_irq_handler(int irq, void *priv)
 	ctx = dev->curr_ctx;
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
-	mtk_v4l2_debug(1, "id=%d", ctx->id);
+	mtk_v4l2_de(1, "id=%d", ctx->id);
 	addr = dev->reg_base[VENC_SYS] + MTK_VENC_IRQ_ACK_OFFSET;
 
 	ctx->irq_status = readl(dev->reg_base[VENC_SYS] +
@@ -97,7 +97,7 @@ static irqreturn_t mtk_vcodec_enc_lt_irq_handler(int irq, void *priv)
 	ctx = dev->curr_ctx;
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 
-	mtk_v4l2_debug(1, "id=%d", ctx->id);
+	mtk_v4l2_de(1, "id=%d", ctx->id);
 	ctx->irq_status = readl(dev->reg_base[VENC_LT_SYS] +
 				(MTK_VENC_IRQ_STATUS_OFFSET));
 
@@ -114,12 +114,12 @@ static void mtk_vcodec_enc_reset_handler(void *priv)
 	struct mtk_vcodec_dev *dev = priv;
 	struct mtk_vcodec_ctx *ctx;
 
-	mtk_v4l2_debug(0, "Watchdog timeout!!");
+	mtk_v4l2_de(0, "Watchdog timeout!!");
 
 	mutex_lock(&dev->dev_mutex);
 	list_for_each_entry(ctx, &dev->ctx_list, list) {
 		ctx->state = MTK_STATE_ABORT;
-		mtk_v4l2_debug(0, "[%d] Change to state MTK_STATE_ABORT",
+		mtk_v4l2_de(0, "[%d] Change to state MTK_STATE_ABORT",
 				ctx->id);
 	}
 	mutex_unlock(&dev->dev_mutex);
@@ -182,16 +182,16 @@ static int fops_vcodec_open(struct file *file)
 
 		dev->enc_capability =
 			vpu_get_venc_hw_capa(dev->vpu_plat_dev);
-		mtk_v4l2_debug(0, "encoder capability %x", dev->enc_capability);
+		mtk_v4l2_de(0, "encoder capability %x", dev->enc_capability);
 	}
 
-	mtk_v4l2_debug(2, "Create instance [%d]@%p m2m_ctx=%p ",
+	mtk_v4l2_de(2, "Create instance [%d]@%p m2m_ctx=%p ",
 			ctx->id, ctx, ctx->m2m_ctx);
 
 	list_add(&ctx->list, &dev->ctx_list);
 
 	mutex_unlock(&dev->dev_mutex);
-	mtk_v4l2_debug(0, "%s encoder [%d]", dev_name(&dev->plat_dev->dev),
+	mtk_v4l2_de(0, "%s encoder [%d]", dev_name(&dev->plat_dev->dev),
 			ctx->id);
 	return ret;
 
@@ -214,7 +214,7 @@ static int fops_vcodec_release(struct file *file)
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_ctx *ctx = fh_to_ctx(file->private_data);
 
-	mtk_v4l2_debug(1, "[%d] encoder", ctx->id);
+	mtk_v4l2_de(1, "[%d] encoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);
 
 	mtk_vcodec_enc_release(ctx);
@@ -274,7 +274,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 			ret = PTR_ERR((__force void *)dev->reg_base[i]);
 			goto err_res;
 		}
-		mtk_v4l2_debug(2, "reg[%d] base=0x%p", i, dev->reg_base[i]);
+		mtk_v4l2_de(2, "reg[%d] base=0x%p", i, dev->reg_base[i]);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -370,7 +370,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		goto err_enc_reg;
 	}
 
-	mtk_v4l2_debug(0, "encoder registered as /dev/video%d",
+	mtk_v4l2_de(0, "encoder registered as /dev/video%d",
 			vfd_enc->num);
 
 	return 0;
@@ -398,7 +398,7 @@ static int mtk_vcodec_enc_remove(struct platform_device *pdev)
 {
 	struct mtk_vcodec_dev *dev = platform_get_drvdata(pdev);
 
-	mtk_v4l2_debug_enter();
+	mtk_v4l2_de_enter();
 	flush_workqueue(dev->encode_workqueue);
 	destroy_workqueue(dev->encode_workqueue);
 	if (dev->m2m_dev_enc)

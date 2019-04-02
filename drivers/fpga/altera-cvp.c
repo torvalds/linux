@@ -58,7 +58,7 @@
 #define DRV_NAME		"altera-cvp"
 #define ALTERA_CVP_MGR_NAME	"Altera CvP FPGA Manager"
 
-/* Optional CvP config error status check for debugging */
+/* Optional CvP config error status check for deging */
 static bool altera_cvp_chkcfg;
 
 struct altera_cvp_conf {

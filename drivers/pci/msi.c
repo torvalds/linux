@@ -268,7 +268,7 @@ void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
 	struct pci_dev *dev = msi_desc_to_pci_dev(entry);
 
-	BUG_ON(dev->current_state != PCI_D0);
+	_ON(dev->current_state != PCI_D0);
 
 	if (entry->msi_attrib.is_msix) {
 		void __iomem *base = pci_msix_desc_addr(entry);
@@ -349,7 +349,7 @@ static void free_msi_irqs(struct pci_dev *dev)
 	for_each_pci_msi_entry(entry, dev)
 		if (entry->irq)
 			for (i = 0; i < entry->nvec_used; i++)
-				BUG_ON(irq_has_action(entry->irq + i));
+				_ON(irq_has_action(entry->irq + i));
 
 	pci_msi_teardown_msi_irqs(dev);
 
@@ -382,7 +382,7 @@ static void free_msi_irqs(struct pci_dev *dev)
 
 static void pci_intx_for_msi(struct pci_dev *dev, int enable)
 {
-	if (!(dev->dev_flags & PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG))
+	if (!(dev->dev_flags & PCI_DEV_FLAGS_MSI_INTX_DISABLE_))
 		pci_intx(dev, enable);
 }
 
@@ -414,7 +414,7 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 
 	if (!dev->msix_enabled)
 		return;
-	BUG_ON(list_empty(dev_to_msi_list(&dev->dev)));
+	_ON(list_empty(dev_to_msi_list(&dev->dev)));
 
 	/* route the table */
 	pci_intx_for_msi(dev, 0);
@@ -884,7 +884,7 @@ static void pci_msi_shutdown(struct pci_dev *dev)
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
 
-	BUG_ON(list_empty(dev_to_msi_list(&dev->dev)));
+	_ON(list_empty(dev_to_msi_list(&dev->dev)));
 	desc = first_pci_msi_entry(dev);
 
 	pci_msi_set_enable(dev, 0);
@@ -1421,7 +1421,7 @@ static void pci_msi_domain_update_chip_ops(struct msi_domain_info *info)
 {
 	struct irq_chip *chip = info->chip;
 
-	BUG_ON(!chip);
+	_ON(!chip);
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = pci_msi_domain_write_msg;
 	if (!chip->irq_mask)

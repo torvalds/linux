@@ -25,7 +25,7 @@
 #define SOURCEFILE_NAME "hpicmn.c"
 
 #include "hpi_internal.h"
-#include "hpidebug.h"
+#include "hpide.h"
 #include "hpimsginit.h"
 
 #include "hpicmn.h"
@@ -46,18 +46,18 @@ static struct hpi_adapters_list adapters;
 u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr)
 {
 	if (phr->type != HPI_TYPE_RESPONSE) {
-		HPI_DEBUG_LOG(ERROR, "header type %d invalid\n", phr->type);
+		HPI_DE_LOG(ERROR, "header type %d invalid\n", phr->type);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
 
 	if (phr->object != phm->object) {
-		HPI_DEBUG_LOG(ERROR, "header object %d invalid\n",
+		HPI_DE_LOG(ERROR, "header object %d invalid\n",
 			phr->object);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
 
 	if (phr->function != phm->function) {
-		HPI_DEBUG_LOG(ERROR, "header function %d invalid\n",
+		HPI_DE_LOG(ERROR, "header function %d invalid\n",
 			phr->function);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
@@ -81,7 +81,7 @@ u16 hpi_add_adapter(struct hpi_adapter_obj *pao)
 		int a;
 		for (a = HPI_MAX_ADAPTERS - 1; a >= 0; a--) {
 			if (!adapters.adapter[a].type) {
-				HPI_DEBUG_LOG(WARNING,
+				HPI_DE_LOG(WARNING,
 					"ASI%X duplicate index %d moved to %d\n",
 					pao->type, pao->index, a);
 				pao->index = a;
@@ -105,7 +105,7 @@ unlock:
 void hpi_delete_adapter(struct hpi_adapter_obj *pao)
 {
 	if (!pao->type) {
-		HPI_DEBUG_LOG(ERROR, "removing null adapter?\n");
+		HPI_DE_LOG(ERROR, "removing null adapter?\n");
 		return;
 	}
 
@@ -126,7 +126,7 @@ struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 	struct hpi_adapter_obj *pao = NULL;
 
 	if (adapter_index >= HPI_MAX_ADAPTERS) {
-		HPI_DEBUG_LOG(VERBOSE, "find_adapter invalid index %d\n",
+		HPI_DE_LOG(VERBOSE, "find_adapter invalid index %d\n",
 			adapter_index);
 		return NULL;
 	}
@@ -134,13 +134,13 @@ struct hpi_adapter_obj *hpi_find_adapter(u16 adapter_index)
 	pao = &adapters.adapter[adapter_index];
 	if (pao->type != 0) {
 		/*
-		   HPI_DEBUG_LOG(VERBOSE, "Found adapter index %d\n",
+		   HPI_DE_LOG(VERBOSE, "Found adapter index %d\n",
 		   wAdapterIndex);
 		 */
 		return pao;
 	} else {
 		/*
-		   HPI_DEBUG_LOG(VERBOSE, "No adapter index %d\n",
+		   HPI_DE_LOG(VERBOSE, "No adapter index %d\n",
 		   wAdapterIndex);
 		 */
 		return NULL;
@@ -200,7 +200,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 		unsigned int byte_count = 0;
 
 		p_master_cache = (char *)pC->p_cache;
-		HPI_DEBUG_LOG(DEBUG, "check %d controls\n",
+		HPI_DE_LOG(DE, "check %d controls\n",
 			pC->control_count);
 		for (i = 0; i < pC->control_count; i++) {
 			struct hpi_control_cache_info *info =
@@ -209,7 +209,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 			u16 control_index = info->control_index;
 
 			if (control_index >= pC->control_count) {
-				HPI_DEBUG_LOG(INFO,
+				HPI_DE_LOG(INFO,
 					"adap %d control index %d out of range, cache not ready?\n",
 					pC->adap_idx, control_index);
 				return 0;
@@ -217,7 +217,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 
 			if (!info->size_in32bit_words) {
 				if (!i) {
-					HPI_DEBUG_LOG(INFO,
+					HPI_DE_LOG(INFO,
 						"adap %d cache not ready?\n",
 						pC->adap_idx);
 					return 0;
@@ -226,7 +226,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 				 * Minimum valid entry size is
 				 * sizeof(struct hpi_control_cache_info)
 				 */
-				HPI_DEBUG_LOG(ERROR,
+				HPI_DE_LOG(ERROR,
 					"adap %d zero size cache entry %d\n",
 					pC->adap_idx, i);
 				break;
@@ -241,7 +241,7 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 
 			byte_count += info->size_in32bit_words * 4;
 
-			HPI_DEBUG_LOG(VERBOSE,
+			HPI_DE_LOG(VERBOSE,
 				"cached %d, pinfo %p index %d type %d size %d\n",
 				cached, pC->p_info[info->control_index],
 				info->control_index, info->control_type,
@@ -259,12 +259,12 @@ static unsigned int control_cache_alloc_check(struct hpi_control_cache *pC)
 		}
 
 		if (byte_count != pC->cache_size_in_bytes)
-			HPI_DEBUG_LOG(WARNING,
+			HPI_DE_LOG(WARNING,
 				"adap %d bytecount %d != cache size %d\n",
 				pC->adap_idx, byte_count,
 				pC->cache_size_in_bytes);
 		else
-			HPI_DEBUG_LOG(DEBUG,
+			HPI_DE_LOG(DE,
 				"adap %d cache good, bytecount == cache size = %d\n",
 				pC->adap_idx, byte_count);
 
@@ -279,7 +279,7 @@ static short find_control(u16 control_index,
 	struct hpi_control_cache *p_cache, struct hpi_control_cache_info **pI)
 {
 	if (!control_cache_alloc_check(p_cache)) {
-		HPI_DEBUG_LOG(VERBOSE,
+		HPI_DE_LOG(VERBOSE,
 			"control_cache_alloc_check() failed %d\n",
 			control_index);
 		return 0;
@@ -287,11 +287,11 @@ static short find_control(u16 control_index,
 
 	*pI = p_cache->p_info[control_index];
 	if (!*pI) {
-		HPI_DEBUG_LOG(VERBOSE, "Uncached Control %d\n",
+		HPI_DE_LOG(VERBOSE, "Uncached Control %d\n",
 			control_index);
 		return 0;
 	} else {
-		HPI_DEBUG_LOG(VERBOSE, "find_control() type %d\n",
+		HPI_DE_LOG(VERBOSE, "find_control() type %d\n",
 			(*pI)->control_type);
 	}
 	return 1;
@@ -520,7 +520,7 @@ short hpi_check_control_cache_single(struct hpi_control_cache_single *pC,
 		break;
 	}
 
-	HPI_DEBUG_LOG(VERBOSE, "%s Adap %d, Ctl %d, Type %d, Attr %d\n",
+	HPI_DE_LOG(VERBOSE, "%s Adap %d, Ctl %d, Type %d, Attr %d\n",
 		found ? "Cached" : "Uncached", phm->adapter_index,
 		pC->u.i.control_index, pC->u.i.control_type,
 		phm->u.c.attribute);
@@ -541,7 +541,7 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 	struct hpi_control_cache_info *pI;
 
 	if (!find_control(phm->obj_index, p_cache, &pI)) {
-		HPI_DEBUG_LOG(VERBOSE,
+		HPI_DE_LOG(VERBOSE,
 			"HPICMN find_control() failed for adap %d\n",
 			phm->adapter_index);
 		return 0;
@@ -629,7 +629,7 @@ void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *p_cache,
 		return;
 
 	if (!find_control(phm->obj_index, p_cache, &pI)) {
-		HPI_DEBUG_LOG(VERBOSE,
+		HPI_DE_LOG(VERBOSE,
 			"HPICMN find_control() failed for adap %d\n",
 			phm->adapter_index);
 		return;

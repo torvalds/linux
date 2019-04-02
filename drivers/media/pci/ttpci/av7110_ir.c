@@ -41,7 +41,7 @@
 #define UP_TIMEOUT	(HZ*7/25)
 
 
-/* Note: enable ir debugging by or'ing debug with 16 */
+/* Note: enable ir deging by or'ing de with 16 */
 
 static int ir_protocol[AV_CNT] = { IR_RCMM, IR_RCMM, IR_RCMM, IR_RCMM};
 module_param_array(ir_protocol, int, NULL, 0644);

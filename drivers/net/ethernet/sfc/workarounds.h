@@ -12,7 +12,7 @@
 
 /*
  * Hardware workarounds.
- * Bug numbers are from Solarflare's Bugzilla.
+ *  numbers are from Solarflare's zilla.
  */
 
 #define EFX_WORKAROUND_SIENA(efx) (efx_nic_rev(efx) == EFX_REV_SIENA_A0)

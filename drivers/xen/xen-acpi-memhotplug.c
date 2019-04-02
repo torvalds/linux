@@ -224,7 +224,7 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 
 static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 {
-	pr_debug(PREFIX "Xen does not support memory hotremove\n");
+	pr_de(PREFIX "Xen does not support memory hotremove\n");
 
 	return -ENOSYS;
 }
@@ -237,12 +237,12 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 			"\nReceived BUS CHECK notification for device\n"));
 		/* Fall Through */
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		if (event == ACPI_NOTIFY_DEVICE_CHECK)
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 			"\nReceived DEVICE CHECK notification for device\n"));
 
 		if (acpi_memory_get_device(handle, &mem_device)) {
@@ -254,7 +254,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 			"\nReceived EJECT REQUEST notification for device\n"));
 
 		acpi_scan_lock_acquire();
@@ -279,7 +279,7 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		/* non-hotplug event; possibly handled by other handler */
 		return;

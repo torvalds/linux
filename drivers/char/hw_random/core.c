@@ -87,7 +87,7 @@ static int set_current_rng(struct hwrng *rng)
 {
 	int err;
 
-	BUG_ON(!mutex_is_locked(&rng_mutex));
+	_ON(!mutex_is_locked(&rng_mutex));
 
 	err = hwrng_init(rng);
 	if (err)
@@ -101,7 +101,7 @@ static int set_current_rng(struct hwrng *rng)
 
 static void drop_current_rng(void)
 {
-	BUG_ON(!mutex_is_locked(&rng_mutex));
+	_ON(!mutex_is_locked(&rng_mutex));
 	if (!current_rng)
 		return;
 
@@ -183,7 +183,7 @@ static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
 			int wait) {
 	int present;
 
-	BUG_ON(!mutex_is_locked(&reading_mutex));
+	_ON(!mutex_is_locked(&reading_mutex));
 	if (rng->read)
 		return rng->read(rng, (void *)buffer, size, wait);
 
@@ -296,7 +296,7 @@ static int enable_best_rng(void)
 {
 	int ret = -ENODEV;
 
-	BUG_ON(!mutex_is_locked(&rng_mutex));
+	_ON(!mutex_is_locked(&rng_mutex));
 
 	/* rng_list is sorted by quality, use the best (=first) one */
 	if (!list_empty(&rng_list)) {
@@ -609,7 +609,7 @@ static int __init hwrng_modinit(void)
 static void __exit hwrng_modexit(void)
 {
 	mutex_lock(&rng_mutex);
-	BUG_ON(current_rng);
+	_ON(current_rng);
 	kfree(rng_buffer);
 	kfree(rng_fillbuf);
 	mutex_unlock(&rng_mutex);

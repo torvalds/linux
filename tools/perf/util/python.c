@@ -50,7 +50,7 @@ int parse_callchain_record(const char *arg __maybe_unused,
 }
 
 /*
- * Support debug printing even though util/debug.c is not linked.  That means
+ * Support de printing even though util/de.c is not linked.  That means
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;

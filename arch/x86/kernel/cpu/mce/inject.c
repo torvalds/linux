@@ -24,7 +24,7 @@
  */
 
 #include <linux/cpu.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
@@ -625,7 +625,7 @@ static const char readme_msg[] =
 "\t    format only. Safe to use.\n"
 "\t  - \"hw\": Hardware error injection. Causes the #MC exception handler to \n"
 "\t    handle the error. Be warned: might cause system panic if MCi_STATUS[PCC] \n"
-"\t    is set. Therefore, consider setting (debugfs_mountpoint)/mce/fake_panic \n"
+"\t    is set. Therefore, consider setting (defs_mountpoint)/mce/fake_panic \n"
 "\t    before injecting.\n"
 "\t  - \"df\": Trigger APIC interrupt for Deferred error. Causes deferred \n"
 "\t    error APIC interrupt handler to handle the error if the feature is \n"
@@ -662,7 +662,7 @@ static struct dfs_node {
 	{ .name = "README",	.fops = &readme_fops, .perm = S_IRUSR | S_IRGRP | S_IROTH },
 };
 
-static int __init debugfs_init(void)
+static int __init defs_init(void)
 {
 	unsigned int i;
 	u64 cap;
@@ -670,12 +670,12 @@ static int __init debugfs_init(void)
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	n_banks = cap & MCG_BANKCNT_MASK;
 
-	dfs_inj = debugfs_create_dir("mce-inject", NULL);
+	dfs_inj = defs_create_dir("mce-inject", NULL);
 	if (!dfs_inj)
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(dfs_fls); i++) {
-		dfs_fls[i].d = debugfs_create_file(dfs_fls[i].name,
+		dfs_fls[i].d = defs_create_file(dfs_fls[i].name,
 						    dfs_fls[i].perm,
 						    dfs_inj,
 						    &i_mce,
@@ -689,9 +689,9 @@ static int __init debugfs_init(void)
 
 err_dfs_add:
 	while (i-- > 0)
-		debugfs_remove(dfs_fls[i].d);
+		defs_remove(dfs_fls[i].d);
 
-	debugfs_remove(dfs_inj);
+	defs_remove(dfs_inj);
 	dfs_inj = NULL;
 
 	return -ENODEV;
@@ -704,7 +704,7 @@ static int __init inject_init(void)
 	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
 		return -ENOMEM;
 
-	err = debugfs_init();
+	err = defs_init();
 	if (err) {
 		free_cpumask_var(mce_inject_cpumask);
 		return err;
@@ -726,7 +726,7 @@ static void __exit inject_exit(void)
 	mce_unregister_injector_chain(&inject_nb);
 	unregister_nmi_handler(NMI_LOCAL, "mce_notify");
 
-	debugfs_remove_recursive(dfs_inj);
+	defs_remove_recursive(dfs_inj);
 	dfs_inj = NULL;
 
 	memset(&dfs_fls, 0, sizeof(dfs_fls));

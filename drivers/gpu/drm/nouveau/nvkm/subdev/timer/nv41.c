@@ -57,11 +57,11 @@ nv41_timer_init(struct nvkm_timer *tmr)
 		d >>= 1;
 	}
 
-	nvkm_debug(subdev, "input frequency : %dHz\n", f);
-	nvkm_debug(subdev, "input multiplier: %d\n", m);
-	nvkm_debug(subdev, "numerator       : %08x\n", n);
-	nvkm_debug(subdev, "denominator     : %08x\n", d);
-	nvkm_debug(subdev, "timer frequency : %dHz\n", (f * m) * d / n);
+	nvkm_de(subdev, "input frequency : %dHz\n", f);
+	nvkm_de(subdev, "input multiplier: %d\n", m);
+	nvkm_de(subdev, "numerator       : %08x\n", n);
+	nvkm_de(subdev, "denominator     : %08x\n", d);
+	nvkm_de(subdev, "timer frequency : %dHz\n", (f * m) * d / n);
 
 	nvkm_wr32(device, 0x009220, m - 1);
 	nvkm_wr32(device, NV04_PTIMER_NUMERATOR, n);

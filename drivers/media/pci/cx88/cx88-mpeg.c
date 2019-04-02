@@ -37,13 +37,13 @@ MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages [mpeg]");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages [mpeg]");
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (debug + 1 > level)						\
-		printk(KERN_DEBUG pr_fmt("%s: mpeg:" fmt),		\
+	if (de + 1 > level)						\
+		printk(KERN_DE pr_fmt("%s: mpeg:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 
@@ -320,7 +320,7 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 
 	cx_write(MO_TS_INTSTAT, status);
 
-	if (debug || (status & mask & ~0xff))
+	if (de || (status & mask & ~0xff))
 		cx88_print_irqbits("irq mpeg ",
 				   cx88_mpeg_irqs, ARRAY_SIZE(cx88_mpeg_irqs),
 				   status, mask);

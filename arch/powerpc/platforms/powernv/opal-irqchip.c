@@ -223,7 +223,7 @@ int __init opal_event_init(void)
 	if (!opal_irq_count)
 		goto out;
 
-	pr_debug("OPAL: Found %d interrupts reserved for OPAL using %s scheme\n",
+	pr_de("OPAL: Found %d interrupts reserved for OPAL using %s scheme\n",
 		 opal_irq_count, old_style ? "old" : "new");
 
 	/* Allocate an IRQ resources array */

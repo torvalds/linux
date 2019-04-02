@@ -14,10 +14,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -120,38 +120,38 @@ DO_ERROR_INFO(do_trap_ecall_m,
 
 asmlinkage void do_trap_break(struct pt_regs *regs)
 {
-#ifdef CONFIG_GENERIC_BUG
+#ifdef CONFIG_GENERIC_
 	if (!user_mode(regs)) {
-		enum bug_trap_type type;
+		enum _trap_type type;
 
-		type = report_bug(regs->sepc, regs);
+		type = report_(regs->sepc, regs);
 		switch (type) {
-		case BUG_TRAP_TYPE_NONE:
+		case _TRAP_TYPE_NONE:
 			break;
-		case BUG_TRAP_TYPE_WARN:
-			regs->sepc += sizeof(bug_insn_t);
+		case _TRAP_TYPE_WARN:
+			regs->sepc += sizeof(_insn_t);
 			return;
-		case BUG_TRAP_TYPE_BUG:
-			die(regs, "Kernel BUG");
+		case _TRAP_TYPE_:
+			die(regs, "Kernel ");
 		}
 	}
-#endif /* CONFIG_GENERIC_BUG */
+#endif /* CONFIG_GENERIC_ */
 
 	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)(regs->sepc), current);
 }
 
-#ifdef CONFIG_GENERIC_BUG
-int is_valid_bugaddr(unsigned long pc)
+#ifdef CONFIG_GENERIC_
+int is_valid_addr(unsigned long pc)
 {
-	bug_insn_t insn;
+	_insn_t insn;
 
 	if (pc < PAGE_OFFSET)
 		return 0;
-	if (probe_kernel_address((bug_insn_t *)pc, insn))
+	if (probe_kernel_address((_insn_t *)pc, insn))
 		return 0;
-	return (insn == __BUG_INSN);
+	return (insn == ___INSN);
 }
-#endif /* CONFIG_GENERIC_BUG */
+#endif /* CONFIG_GENERIC_ */
 
 void __init trap_init(void)
 {

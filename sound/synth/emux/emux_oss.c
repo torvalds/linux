@@ -114,7 +114,7 @@ snd_emux_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 	char tmpname[64];
 
 	emu = closure;
-	if (snd_BUG_ON(!arg || !emu))
+	if (snd__ON(!arg || !emu))
 		return -ENXIO;
 
 	if (!snd_emux_inc_count(emu))
@@ -177,14 +177,14 @@ snd_emux_close_seq_oss(struct snd_seq_oss_arg *arg)
 	struct snd_emux *emu;
 	struct snd_emux_port *p;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	p = arg->private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -ENXIO;
 
 	emu = p->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 
 	snd_emux_sounds_off_all(p);
@@ -207,14 +207,14 @@ snd_emux_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 	struct snd_emux_port *p;
 	int rc;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	p = arg->private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -ENXIO;
 
 	emu = p->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 
 	if (format == GUS_PATCH)
@@ -250,14 +250,14 @@ snd_emux_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd, unsigned l
 	struct snd_emux_port *p;
 	struct snd_emux *emu;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	p = arg->private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -ENXIO;
 
 	emu = p->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 
 	switch (cmd) {
@@ -283,10 +283,10 @@ snd_emux_reset_seq_oss(struct snd_seq_oss_arg *arg)
 {
 	struct snd_emux_port *p;
 
-	if (snd_BUG_ON(!arg))
+	if (snd__ON(!arg))
 		return -ENXIO;
 	p = arg->private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -ENXIO;
 	snd_emux_reset_port(p);
 	return 0;
@@ -305,10 +305,10 @@ snd_emux_event_oss_input(struct snd_seq_event *ev, int direct, void *private_dat
 	unsigned char cmd, *data;
 
 	p = private_data;
-	if (snd_BUG_ON(!p))
+	if (snd__ON(!p))
 		return -EINVAL;
 	emu = p->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -EINVAL;
 	if (ev->type != SNDRV_SEQ_EVENT_OSS)
 		return snd_emux_event_input(ev, direct, private_data, atomic, hop);
@@ -408,7 +408,7 @@ emuspec_control(struct snd_emux *emu, struct snd_emux_port *port, int cmd,
 		if (p1 < EMUX_MD_END)
 			port->ctrls[p1] = p2;
 		break;
-	case _EMUX_OSS_DEBUG_MODE:
+	case _EMUX_OSS_DE_MODE:
 		break;
 
 	default:

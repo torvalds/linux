@@ -519,7 +519,7 @@ static const struct dvb_frontend_ops tda10021_ops = {
 };
 
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "print AFC offset after tuning for debugging the PWM setting");
+MODULE_PARM_DESC(verbose, "print AFC offset after tuning for deging the PWM setting");
 
 MODULE_DESCRIPTION("Philips TDA10021 DVB-C demodulator driver");
 MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Markus Schulz");

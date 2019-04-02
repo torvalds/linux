@@ -717,7 +717,7 @@ static int mt9t112_init_camera(const struct i2c_client *client)
  *			v4l2_subdev_core_ops
  ***********************************************************************/
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int mt9t112_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
@@ -781,7 +781,7 @@ static int mt9t112_s_power(struct v4l2_subdev *sd, int on)
 }
 
 static const struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register	= mt9t112_g_register,
 	.s_register	= mt9t112_s_register,
 #endif

@@ -2,8 +2,8 @@
 #
 # USB peripheral controller drivers
 #
-subdir-ccflags-$(CONFIG_USB_GADGET_DEBUG)	:= -DDEBUG
-subdir-ccflags-$(CONFIG_USB_GADGET_VERBOSE)	+= -DVERBOSE_DEBUG
+subdir-ccflags-$(CONFIG_USB_GADGET_DE)	:= -DDE
+subdir-ccflags-$(CONFIG_USB_GADGET_VERBOSE)	+= -DVERBOSE_DE
 ccflags-y				+= -I$(srctree)/drivers/usb/gadget/udc
 
 obj-$(CONFIG_USB_LIBCOMPOSITE)	+= libcomposite.o

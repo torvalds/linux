@@ -198,7 +198,7 @@ static void vop_reg_set(struct vop *vop, const struct vop_reg *reg,
 	int offset, mask, shift;
 
 	if (!reg || !reg->mask) {
-		DRM_DEV_DEBUG(vop->dev, "Warning: not support %s\n", reg_name);
+		DRM_DEV_DE(vop->dev, "Warning: not support %s\n", reg_name);
 		return;
 	}
 

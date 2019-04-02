@@ -1357,7 +1357,7 @@ static void push_to_pool(struct work_struct *work)
 {
 	struct entropy_store *r = container_of(work, struct entropy_store,
 					      push_work);
-	BUG_ON(!r);
+	_ON(!r);
 	_xfer_secondary_pool(r, random_read_wakeup_bits/8);
 	trace_push_to_pool(r->name, r->entropy_count >> ENTROPY_SHIFT,
 			   r->pull->entropy_count >> ENTROPY_SHIFT);
@@ -1373,7 +1373,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 	int entropy_count, orig, have_bytes;
 	size_t ibytes, nfrac;
 
-	BUG_ON(r->entropy_count > r->poolinfo->poolfracbits);
+	_ON(r->entropy_count > r->poolinfo->poolfracbits);
 
 	/* Can we pull enough? */
 retry:

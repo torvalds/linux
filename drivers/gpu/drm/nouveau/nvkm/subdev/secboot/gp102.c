@@ -57,7 +57,7 @@ gp102_run_secure_scrub(struct nvkm_secboot *sb)
 	void *scrub_data;
 	int ret;
 
-	nvkm_debug(subdev, "running VPR scrubber binary on NVDEC...\n");
+	nvkm_de(subdev, "running VPR scrubber binary on NVDEC...\n");
 
 	engine = nvkm_engine_ref(&device->nvdec[0]->engine);
 	if (IS_ERR(engine))
@@ -109,7 +109,7 @@ gp102_run_secure_scrub(struct nvkm_secboot *sb)
 		goto end;
 	}
 
-	nvkm_debug(subdev, "VPR scrub successfully completed\n");
+	nvkm_de(subdev, "VPR scrub successfully completed\n");
 
 end:
 	nvkm_falcon_put(falcon, &sb->subdev);

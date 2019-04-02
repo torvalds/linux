@@ -11,11 +11,11 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ieee80211.h>
 #include "ieee80211_i.h"
-#include "debugfs.h"
-#include "debugfs_sta.h"
+#include "defs.h"
+#include "defs_sta.h"
 #include "sta_info.h"
 #include "driver-ops.h"
 
@@ -92,7 +92,7 @@ static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 	struct sta_info *sta = file->private_data;
 	unsigned int flg;
 
-	BUILD_BUG_ON(ARRAY_SIZE(sta_flag_names) != NUM_WLAN_STA_FLAGS);
+	BUILD__ON(ARRAY_SIZE(sta_flag_names) != NUM_WLAN_STA_FLAGS);
 
 	for (flg = 0; flg < NUM_WLAN_STA_FLAGS; flg++) {
 		if (test_sta_flag(sta, flg))
@@ -926,23 +926,23 @@ out:
 }
 STA_OPS(he_capa);
 
-#define DEBUGFS_ADD(name) \
-	debugfs_create_file(#name, 0400, \
-		sta->debugfs_dir, sta, &sta_ ##name## _ops);
+#define DEFS_ADD(name) \
+	defs_create_file(#name, 0400, \
+		sta->defs_dir, sta, &sta_ ##name## _ops);
 
-#define DEBUGFS_ADD_COUNTER(name, field)				\
+#define DEFS_ADD_COUNTER(name, field)				\
 	if (sizeof(sta->field) == sizeof(u32))				\
-		debugfs_create_u32(#name, 0400, sta->debugfs_dir,	\
+		defs_create_u32(#name, 0400, sta->defs_dir,	\
 			(u32 *) &sta->field);				\
 	else								\
-		debugfs_create_u64(#name, 0400, sta->debugfs_dir,	\
+		defs_create_u64(#name, 0400, sta->defs_dir,	\
 			(u64 *) &sta->field);
 
-void ieee80211_sta_debugfs_add(struct sta_info *sta)
+void ieee80211_sta_defs_add(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct dentry *stations_dir = sta->sdata->debugfs.subdir_stations;
+	struct dentry *stations_dir = sta->sdata->defs.subdir_stations;
 	u8 mac[3*ETH_ALEN];
 
 	if (!stations_dir)
@@ -952,51 +952,51 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	/*
 	 * This might fail due to a race condition:
-	 * When mac80211 unlinks a station, the debugfs entries
+	 * When mac80211 unlinks a station, the defs entries
 	 * remain, but it is already possible to link a new
 	 * station with the same address which triggers adding
-	 * it to debugfs; therefore, if the old station isn't
-	 * destroyed quickly enough the old station's debugfs
+	 * it to defs; therefore, if the old station isn't
+	 * destroyed quickly enough the old station's defs
 	 * dir might still be around.
 	 */
-	sta->debugfs_dir = debugfs_create_dir(mac, stations_dir);
-	if (!sta->debugfs_dir)
+	sta->defs_dir = defs_create_dir(mac, stations_dir);
+	if (!sta->defs_dir)
 		return;
 
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(aid);
-	DEBUGFS_ADD(num_ps_buf_frames);
-	DEBUGFS_ADD(last_seq_ctrl);
-	DEBUGFS_ADD(agg_status);
-	DEBUGFS_ADD(ht_capa);
-	DEBUGFS_ADD(vht_capa);
-	DEBUGFS_ADD(he_capa);
+	DEFS_ADD(flags);
+	DEFS_ADD(aid);
+	DEFS_ADD(num_ps_buf_frames);
+	DEFS_ADD(last_seq_ctrl);
+	DEFS_ADD(agg_status);
+	DEFS_ADD(ht_capa);
+	DEFS_ADD(vht_capa);
+	DEFS_ADD(he_capa);
 
-	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
-	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
-	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
+	DEFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
+	DEFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
+	DEFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
 
 	if (local->ops->wake_tx_queue)
-		DEBUGFS_ADD(aqm);
+		DEFS_ADD(aqm);
 
 	if (wiphy_ext_feature_isset(local->hw.wiphy,
 				    NL80211_EXT_FEATURE_AIRTIME_FAIRNESS))
-		DEBUGFS_ADD(airtime);
+		DEFS_ADD(airtime);
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
-		debugfs_create_x32("driver_buffered_tids", 0400,
-				   sta->debugfs_dir,
+		defs_create_x32("driver_buffered_tids", 0400,
+				   sta->defs_dir,
 				   (u32 *)&sta->driver_buffered_tids);
 	else
-		debugfs_create_x64("driver_buffered_tids", 0400,
-				   sta->debugfs_dir,
+		defs_create_x64("driver_buffered_tids", 0400,
+				   sta->defs_dir,
 				   (u64 *)&sta->driver_buffered_tids);
 
-	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs_dir);
+	drv_sta_add_defs(local, sdata, &sta->sta, sta->defs_dir);
 }
 
-void ieee80211_sta_debugfs_remove(struct sta_info *sta)
+void ieee80211_sta_defs_remove(struct sta_info *sta)
 {
-	debugfs_remove_recursive(sta->debugfs_dir);
-	sta->debugfs_dir = NULL;
+	defs_remove_recursive(sta->defs_dir);
+	sta->defs_dir = NULL;
 }

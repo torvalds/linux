@@ -773,7 +773,7 @@ static int dpu_hw_intr_irqidx_lookup(enum dpu_intr_type intr_type,
 			return i;
 	}
 
-	pr_debug("IRQ lookup fail!! intr_type=%d, instance_idx=%d\n",
+	pr_de("IRQ lookup fail!! intr_type=%d, instance_idx=%d\n",
 			intr_type, instance_idx);
 	return -EINVAL;
 }
@@ -887,7 +887,7 @@ static int dpu_hw_intr_enable_irq(struct dpu_hw_intr *intr, int irq_idx)
 	}
 	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 
-	pr_debug("%s MASK:0x%.8x, CACHE-MASK:0x%.8x\n", dbgstr,
+	pr_de("%s MASK:0x%.8x, CACHE-MASK:0x%.8x\n", dbgstr,
 			irq->irq_mask, cache_irq_mask);
 
 	return 0;
@@ -931,7 +931,7 @@ static int dpu_hw_intr_disable_irq_nolock(struct dpu_hw_intr *intr, int irq_idx)
 		intr->cache_irq_mask[reg_idx] = cache_irq_mask;
 	}
 
-	pr_debug("%s MASK:0x%.8x, CACHE-MASK:0x%.8x\n", dbgstr,
+	pr_de("%s MASK:0x%.8x, CACHE-MASK:0x%.8x\n", dbgstr,
 			irq->irq_mask, cache_irq_mask);
 
 	return 0;

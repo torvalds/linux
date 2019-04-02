@@ -51,7 +51,7 @@ static uint8_t encoder_action_to_atom(enum bp_encoder_control_action action)
 		atom_action = ATOM_ENCODER_INIT;
 		break;
 	default:
-		BREAK_TO_DEBUGGER(); /* Unhandle action in driver.!! */
+		BREAK_TO_DEGER(); /* Unhandle action in driver.!! */
 		break;
 	}
 
@@ -137,7 +137,7 @@ static bool clock_source_id_to_atom(
 			*atom_pll_id = ATOM_PPLL_INVALID;
 			break;
 		case CLOCK_SOURCE_ID_UNDEFINED:
-			BREAK_TO_DEBUGGER(); /* check when this will happen! */
+			BREAK_TO_DEGER(); /* check when this will happen! */
 			*atom_pll_id = ATOM_PPLL_INVALID;
 			result = false;
 			break;
@@ -319,7 +319,7 @@ static uint8_t disp_power_gating_action_to_atom(
 		atom_pipe_action = ATOM_INIT;
 		break;
 	default:
-		BREAK_TO_DEBUGGER(); /* Unhandle action in driver! */
+		BREAK_TO_DEGER(); /* Unhandle action in driver! */
 		break;
 	}
 

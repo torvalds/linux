@@ -86,8 +86,8 @@ void vc4_hvs_dump_state(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_hvs_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;

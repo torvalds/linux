@@ -45,7 +45,7 @@ static int sca_ext_call_pending(struct kvm_vcpu *vcpu, int *src_id)
 	if (!kvm_s390_test_cpuflags(vcpu, CPUSTAT_ECALL_PEND))
 		return 0;
 
-	BUG_ON(!kvm_s390_use_sca_entries());
+	_ON(!kvm_s390_use_sca_entries());
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -74,7 +74,7 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 {
 	int expect, rc;
 
-	BUG_ON(!kvm_s390_use_sca_entries());
+	_ON(!kvm_s390_use_sca_entries());
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
@@ -2379,7 +2379,7 @@ static int kvm_s390_adapter_map(struct kvm *kvm, unsigned int id, __u64 addr)
 	ret = get_user_pages_fast(map->addr, 1, 1, &map->page);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret != 1);
+	_ON(ret != 1);
 	down_write(&adapter->maps_lock);
 	if (atomic_inc_return(&adapter->nr_maps) < MAX_S390_ADAPTER_MAPS) {
 		list_add_tail(&map->list, &adapter->maps);

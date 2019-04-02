@@ -658,10 +658,10 @@ static unsigned int leftmatch_fb(struct aa_dfa *dfa, unsigned int start,
 	u16 *check = CHECK_TABLE(dfa);
 	unsigned int state = start, pos;
 
-	AA_BUG(!dfa);
-	AA_BUG(!str);
-	AA_BUG(!wb);
-	AA_BUG(!count);
+	AA_(!dfa);
+	AA_(!str);
+	AA_(!wb);
+	AA_(!count);
 
 	*count = 0;
 	if (state == 0)

@@ -70,7 +70,7 @@ leds {
 	};
 
 	led2 {
-		label = "davinci:red:debug1";
+		label = "davinci:red:de1";
 		gpios = <&gpio 11 GPIO_ACTIVE_HIGH>;
 		...
 	};

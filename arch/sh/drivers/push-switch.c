@@ -57,7 +57,7 @@ static int switch_drv_probe(struct platform_device *pdev)
 	}
 
 	psw_info = pdev->dev.platform_data;
-	BUG_ON(!psw_info);
+	_ON(!psw_info);
 
 	ret = request_irq(irq, psw_info->irq_handler,
 			  psw_info->irq_flags,

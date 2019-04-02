@@ -322,14 +322,14 @@ struct slic_mojave_eeprom {
 	__le16 dev_id;		/* 05 Device ID */
 	u8 rev_id;		/* 06 Revision ID */
 	u8 class_code[3];	/* 07 Class Code */
-	u8 irqpin_dbg;		/* 08 Debug Interrupt pin */
+	u8 irqpin_dbg;		/* 08 De Interrupt pin */
 	u8 irqpin;		/*    Network Interrupt Pin */
 	u8 min_grant;		/* 09 Minimum grant */
 	u8 max_lat;		/*    Maximum Latency */
 	__le16 pci_stat;	/* 10 PCI Status */
 	__le16 sub_vendor_id;	/* 11 Subsystem Vendor Id */
 	__le16 sub_id;		/* 12 Subsystem ID */
-	__le16 dev_id_dbg;	/* 13 Debug Device Id */
+	__le16 dev_id_dbg;	/* 13 De Device Id */
 	__le16 ramrom;		/* 14 Dram/Rom function */
 	__le16 dram_size2pci;	/* 15 DRAM size to PCI (bytes * 64K) */
 	__le16 rom_size2pci;	/* 16 ROM extension size to PCI (bytes * 4k) */

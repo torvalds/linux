@@ -92,7 +92,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	int aligned_x;
 	int log_bpp;
 
-	BUG_ON(!is_power_of_2(fb->base.format->cpp[0]));
+	_ON(!is_power_of_2(fb->base.format->cpp[0]));
 	log_bpp = __ffs(fb->base.format->cpp[0]);
 
 	if (!fb->active_16)
@@ -178,7 +178,7 @@ static int udl_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	pos = (unsigned long)info->fix.smem_start + offset;
 
-	pr_debug("mmap() framebuffer addr:%lu size:%lu\n",
+	pr_de("mmap() framebuffer addr:%lu size:%lu\n",
 		  pos, size);
 
 	/* We don't want the framebuffer to be mapped encrypted */
@@ -236,7 +236,7 @@ static int udl_fb_open(struct fb_info *info, int user)
 	}
 #endif
 
-	pr_debug("open /dev/fb%d user=%d fb_info=%p count=%d\n",
+	pr_de("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 		  info->node, user, info, ufbdev->fb_count);
 
 	return 0;
@@ -261,7 +261,7 @@ static int udl_fb_release(struct fb_info *info, int user)
 	}
 #endif
 
-	pr_debug("released /dev/fb%d user=%d count=%d\n",
+	pr_de("released /dev/fb%d user=%d count=%d\n",
 		info->node, user, ufbdev->fb_count);
 
 	return 0;
@@ -412,7 +412,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &ufbdev->helper, sizes->fb_width, sizes->fb_height);
 
-	DRM_DEBUG_KMS("allocated %dx%d vmal %p\n",
+	DRM_DE_KMS("allocated %dx%d vmal %p\n",
 		      fb->width, fb->height,
 		      ufbdev->ufb.obj->vmapping);
 

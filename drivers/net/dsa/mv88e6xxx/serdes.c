@@ -172,7 +172,7 @@ int mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
 	if (!mv88e6352_port_has_serdes(chip, port))
 		return 0;
 
-	BUILD_BUG_ON(ARRAY_SIZE(mv88e6352_serdes_hw_stats) >
+	BUILD__ON(ARRAY_SIZE(mv88e6352_serdes_hw_stats) >
 		     ARRAY_SIZE(mv88e6xxx_port->serdes_stats));
 
 	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {

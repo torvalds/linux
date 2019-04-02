@@ -49,7 +49,7 @@ static u8 clk_super_get_parent(struct clk_hw *hw)
 
 	state = val & SUPER_STATE_MASK;
 
-	BUG_ON((state != super_state(SUPER_STATE_RUN)) &&
+	_ON((state != super_state(SUPER_STATE_RUN)) &&
 	       (state != super_state(SUPER_STATE_IDLE)));
 	shift = (state == super_state(SUPER_STATE_IDLE)) ?
 		super_state_to_src_shift(mux, SUPER_STATE_IDLE) :
@@ -81,7 +81,7 @@ static int clk_super_set_parent(struct clk_hw *hw, u8 index)
 
 	val = readl_relaxed(mux->reg);
 	state = val & SUPER_STATE_MASK;
-	BUG_ON((state != super_state(SUPER_STATE_RUN)) &&
+	_ON((state != super_state(SUPER_STATE_RUN)) &&
 	       (state != super_state(SUPER_STATE_IDLE)));
 	shift = (state == super_state(SUPER_STATE_IDLE)) ?
 		super_state_to_src_shift(mux, SUPER_STATE_IDLE) :

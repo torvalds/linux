@@ -1202,9 +1202,9 @@ static void set_dac_range_bits(struct comedi_device *dev,
 	unsigned int code = board->ao_range_code[range];
 
 	if (channel > 1)
-		dev_err(dev->class_dev, "bug! bad channel?\n");
+		dev_err(dev->class_dev, "! bad channel?\n");
 	if (code & ~0x3)
-		dev_err(dev->class_dev, "bug! bad range code?\n");
+		dev_err(dev->class_dev, "! bad range code?\n");
 
 	*bits &= ~(0x3 << (2 * channel));
 	*bits |= code << (2 * channel);
@@ -2309,7 +2309,7 @@ static u32 ai_convert_counter_4020(struct comedi_device *dev,
 		divisor = devpriv->ext_clock.divisor;
 		break;
 	default:		/* should never happen */
-		dev_err(dev->class_dev, "bug! failed to set ai pacing!\n");
+		dev_err(dev->class_dev, "! failed to set ai pacing!\n");
 		divisor = 1000;
 		break;
 	}
@@ -2713,7 +2713,7 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 			num_samples = write_index - read_index;
 		if (num_samples < 0) {
 			dev_err(dev->class_dev,
-				"cb_pcidas64: bug! num_samples < 0\n");
+				"cb_pcidas64: ! num_samples < 0\n");
 			break;
 		}
 
@@ -3182,7 +3182,7 @@ static void set_dac_select_reg(struct comedi_device *dev,
 	last_channel = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
 	if (last_channel < first_channel)
 		dev_err(dev->class_dev,
-			"bug! last ao channel < first ao channel\n");
+			"! last ao channel < first ao channel\n");
 
 	bits = (first_channel & 0x7) | (last_channel & 0x7) << 3;
 
@@ -3205,7 +3205,7 @@ static void set_dac_interval_regs(struct comedi_device *dev,
 
 	divisor = get_ao_divisor(cmd->scan_begin_arg, cmd->flags);
 	if (divisor > max_counter_value) {
-		dev_err(dev->class_dev, "bug! ao divisor too big\n");
+		dev_err(dev->class_dev, "! ao divisor too big\n");
 		divisor = max_counter_value;
 	}
 	writew(divisor & 0xffff,

@@ -80,7 +80,7 @@ ndo_start_xmit:
 	Return codes: 
 	o NETDEV_TX_OK everything ok. 
 	o NETDEV_TX_BUSY Cannot transmit packet, try later 
-	  Usually a bug, means queue start/stop flow control is broken in
+	  Usually a , means queue start/stop flow control is broken in
 	  the driver. Note: the driver must NOT put the skb in its DMA ring.
 
 ndo_tx_timeout:

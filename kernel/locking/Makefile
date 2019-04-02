@@ -8,11 +8,11 @@ obj-y += mutex.o semaphore.o rwsem.o percpu-rwsem.o
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_lockdep.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_lockdep_proc.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_mutex-debug.o = $(CC_FLAGS_FTRACE)
-CFLAGS_REMOVE_rtmutex-debug.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_mutex-de.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_rtmutex-de.o = $(CC_FLAGS_FTRACE)
 endif
 
-obj-$(CONFIG_DEBUG_MUTEXES) += mutex-debug.o
+obj-$(CONFIG_DE_MUTEXES) += mutex-de.o
 obj-$(CONFIG_LOCKDEP) += lockdep.o
 ifeq ($(CONFIG_PROC_FS),y)
 obj-$(CONFIG_LOCKDEP) += lockdep_proc.o
@@ -22,9 +22,9 @@ obj-$(CONFIG_LOCK_SPIN_ON_OWNER) += osq_lock.o
 obj-$(CONFIG_PROVE_LOCKING) += spinlock.o
 obj-$(CONFIG_QUEUED_SPINLOCKS) += qspinlock.o
 obj-$(CONFIG_RT_MUTEXES) += rtmutex.o
-obj-$(CONFIG_DEBUG_RT_MUTEXES) += rtmutex-debug.o
-obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
-obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock_debug.o
+obj-$(CONFIG_DE_RT_MUTEXES) += rtmutex-de.o
+obj-$(CONFIG_DE_SPINLOCK) += spinlock.o
+obj-$(CONFIG_DE_SPINLOCK) += spinlock_de.o
 obj-$(CONFIG_RWSEM_GENERIC_SPINLOCK) += rwsem-spinlock.o
 obj-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += rwsem-xadd.o
 obj-$(CONFIG_QUEUED_RWLOCKS) += qrwlock.o

@@ -3,7 +3,7 @@
  *  (c) 2000-2001 Vojtech Pavlik	<vojtech@ucw.cz>
  *  (c) 2007-2009 Jiri Kosina
  *
- *  HID debugging support
+ *  HID deging support
  */
 
 /*
@@ -28,7 +28,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/kfifo.h>
 #include <linux/sched/signal.h>
@@ -38,9 +38,9 @@
 #include <linux/poll.h>
 
 #include <linux/hid.h>
-#include <linux/hid-debug.h>
+#include <linux/hid-de.h>
 
-static struct dentry *hid_debug_root;
+static struct dentry *hid_de_root;
 
 struct hid_usage_entry {
 	unsigned  page;
@@ -458,7 +458,7 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 	char *buf = NULL;
 
 	if (!f) {
-		buf = kzalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+		buf = kzalloc(HID_DE_BUFSIZE, GFP_ATOMIC);
 		if (!buf)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -466,7 +466,7 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 	for (p = hid_usage_table; p->description; p++)
 		if (p->page == page) {
 			if (!f) {
-				snprintf(buf, HID_DEBUG_BUFSIZE, "%s",
+				snprintf(buf, HID_DE_BUFSIZE, "%s",
 						p->description);
 				return buf;
 			}
@@ -476,7 +476,7 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 			}
 		}
 	if (!f)
-		snprintf(buf, HID_DEBUG_BUFSIZE, "%04x", page);
+		snprintf(buf, HID_DE_BUFSIZE, "%04x", page);
 	else
 		seq_printf(f, "%04x", page);
 	return buf;
@@ -489,14 +489,14 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 
 	buf = resolv_usage_page(usage >> 16, f);
 	if (IS_ERR(buf)) {
-		pr_err("error allocating HID debug buffer\n");
+		pr_err("error allocating HID de buffer\n");
 		return NULL;
 	}
 
 
 	if (!f) {
 		len = strlen(buf);
-		snprintf(buf+len, max(0, HID_DEBUG_BUFSIZE - len), ".");
+		snprintf(buf+len, max(0, HID_DE_BUFSIZE - len), ".");
 		len++;
 	}
 	else {
@@ -508,7 +508,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 				if (p->usage == (usage & 0xffff)) {
 					if (!f)
 						snprintf(buf + len,
-							max(0,HID_DEBUG_BUFSIZE - len - 1),
+							max(0,HID_DE_BUFSIZE - len - 1),
 							"%s", p->description);
 					else
 						seq_printf(f,
@@ -519,7 +519,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 			break;
 		}
 	if (!f)
-		snprintf(buf + len, max(0, HID_DEBUG_BUFSIZE - len - 1),
+		snprintf(buf + len, max(0, HID_DE_BUFSIZE - len - 1),
 				"%04x", usage & 0xffff);
 	else
 		seq_printf(f, "%04x", usage & 0xffff);
@@ -660,19 +660,19 @@ void hid_dump_device(struct hid_device *device, struct seq_file *f)
 EXPORT_SYMBOL_GPL(hid_dump_device);
 
 /* enqueue string to 'events' ring buffer */
-void hid_debug_event(struct hid_device *hdev, char *buf)
+void hid_de_event(struct hid_device *hdev, char *buf)
 {
-	struct hid_debug_list *list;
+	struct hid_de_list *list;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hdev->debug_list_lock, flags);
-	list_for_each_entry(list, &hdev->debug_list, node)
-		kfifo_in(&list->hid_debug_fifo, buf, strlen(buf));
-	spin_unlock_irqrestore(&hdev->debug_list_lock, flags);
+	spin_lock_irqsave(&hdev->de_list_lock, flags);
+	list_for_each_entry(list, &hdev->de_list, node)
+		kfifo_in(&list->hid_de_fifo, buf, strlen(buf));
+	spin_unlock_irqrestore(&hdev->de_list_lock, flags);
 
-	wake_up_interruptible(&hdev->debug_wait);
+	wake_up_interruptible(&hdev->de_wait);
 }
-EXPORT_SYMBOL_GPL(hid_debug_event);
+EXPORT_SYMBOL_GPL(hid_de_event);
 
 void hid_dump_report(struct hid_device *hid, int type, u8 *data,
 		int size)
@@ -681,7 +681,7 @@ void hid_dump_report(struct hid_device *hid, int type, u8 *data,
 	char *buf;
 	unsigned int i;
 
-	buf = kmalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+	buf = kmalloc(HID_DE_BUFSIZE, GFP_ATOMIC);
 
 	if (!buf)
 		return;
@@ -689,17 +689,17 @@ void hid_dump_report(struct hid_device *hid, int type, u8 *data,
 	report_enum = hid->report_enum + type;
 
 	/* dump the report */
-	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+	snprintf(buf, HID_DE_BUFSIZE - 1,
 			"\nreport (size %u) (%snumbered) = ", size,
 			report_enum->numbered ? "" : "un");
-	hid_debug_event(hid, buf);
+	hid_de_event(hid, buf);
 
 	for (i = 0; i < size; i++) {
-		snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+		snprintf(buf, HID_DE_BUFSIZE - 1,
 				" %02x", data[i]);
-		hid_debug_event(hid, buf);
+		hid_de_event(hid, buf);
 	}
-	hid_debug_event(hid, "\n");
+	hid_de_event(hid, "\n");
 	kfree(buf);
 }
 EXPORT_SYMBOL_GPL(hid_dump_report);
@@ -713,12 +713,12 @@ void hid_dump_input(struct hid_device *hdev, struct hid_usage *usage, __s32 valu
 	if (!buf)
 		return;
 	len = strlen(buf);
-	snprintf(buf + len, HID_DEBUG_BUFSIZE - len - 1, " = %d\n", value);
+	snprintf(buf + len, HID_DE_BUFSIZE - len - 1, " = %d\n", value);
 
-	hid_debug_event(hdev, buf);
+	hid_de_event(hdev, buf);
 
 	kfree(buf);
-	wake_up_interruptible(&hdev->debug_wait);
+	wake_up_interruptible(&hdev->de_wait);
 }
 EXPORT_SYMBOL_GPL(hid_dump_input);
 
@@ -1042,7 +1042,7 @@ static void hid_dump_input_mapping(struct hid_device *hid, struct seq_file *f)
 
 }
 
-static int hid_debug_rdesc_show(struct seq_file *f, void *p)
+static int hid_de_rdesc_show(struct seq_file *f, void *p)
 {
 	struct hid_device *hdev = f->private;
 	const __u8 *rdesc = hdev->rdesc;
@@ -1067,18 +1067,18 @@ static int hid_debug_rdesc_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int hid_debug_events_open(struct inode *inode, struct file *file)
+static int hid_de_events_open(struct inode *inode, struct file *file)
 {
 	int err = 0;
-	struct hid_debug_list *list;
+	struct hid_de_list *list;
 	unsigned long flags;
 
-	if (!(list = kzalloc(sizeof(struct hid_debug_list), GFP_KERNEL))) {
+	if (!(list = kzalloc(sizeof(struct hid_de_list), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	err = kfifo_alloc(&list->hid_debug_fifo, HID_DEBUG_FIFOSIZE, GFP_KERNEL);
+	err = kfifo_alloc(&list->hid_de_fifo, HID_DE_FIFOSIZE, GFP_KERNEL);
 	if (err) {
 		kfree(list);
 		goto out;
@@ -1087,27 +1087,27 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
-	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
-	list_add_tail(&list->node, &list->hdev->debug_list);
-	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
+	spin_lock_irqsave(&list->hdev->de_list_lock, flags);
+	list_add_tail(&list->node, &list->hdev->de_list);
+	spin_unlock_irqrestore(&list->hdev->de_list_lock, flags);
 
 out:
 	return err;
 }
 
-static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
+static ssize_t hid_de_events_read(struct file *file, char __user *buffer,
 		size_t count, loff_t *ppos)
 {
-	struct hid_debug_list *list = file->private_data;
+	struct hid_de_list *list = file->private_data;
 	int ret = 0, copied;
 	DECLARE_WAITQUEUE(wait, current);
 
 	mutex_lock(&list->read_mutex);
-	if (kfifo_is_empty(&list->hid_debug_fifo)) {
-		add_wait_queue(&list->hdev->debug_wait, &wait);
+	if (kfifo_is_empty(&list->hid_de_fifo)) {
+		add_wait_queue(&list->hdev->de_wait, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		while (kfifo_is_empty(&list->hid_debug_fifo)) {
+		while (kfifo_is_empty(&list->hid_de_fifo)) {
 			if (file->f_flags & O_NONBLOCK) {
 				ret = -EAGAIN;
 				break;
@@ -1119,11 +1119,11 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 			}
 
 			/* if list->hdev is NULL we cannot remove_wait_queue().
-			 * if list->hdev->debug is 0 then hid_debug_unregister()
+			 * if list->hdev->de is 0 then hid_de_unregister()
 			 * was already called and list->hdev is being destroyed.
 			 * if we add remove_wait_queue() here we can hit a race.
 			 */
-			if (!list->hdev || !list->hdev->debug) {
+			if (!list->hdev || !list->hdev->de) {
 				ret = -EIO;
 				set_current_state(TASK_RUNNING);
 				goto out;
@@ -1137,7 +1137,7 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 		}
 
 		__set_current_state(TASK_RUNNING);
-		remove_wait_queue(&list->hdev->debug_wait, &wait);
+		remove_wait_queue(&list->hdev->de_wait, &wait);
 
 		if (ret)
 			goto out;
@@ -1146,7 +1146,7 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 	/* pass the fifo content to userspace, locking is not needed with only
 	 * one concurrent reader and one concurrent writer
 	 */
-	ret = kfifo_to_user(&list->hid_debug_fifo, buffer, count, &copied);
+	ret = kfifo_to_user(&list->hid_de_fifo, buffer, count, &copied);
 	if (ret)
 		goto out;
 	ret = copied;
@@ -1155,69 +1155,69 @@ out:
 	return ret;
 }
 
-static __poll_t hid_debug_events_poll(struct file *file, poll_table *wait)
+static __poll_t hid_de_events_poll(struct file *file, poll_table *wait)
 {
-	struct hid_debug_list *list = file->private_data;
+	struct hid_de_list *list = file->private_data;
 
-	poll_wait(file, &list->hdev->debug_wait, wait);
-	if (!kfifo_is_empty(&list->hid_debug_fifo))
+	poll_wait(file, &list->hdev->de_wait, wait);
+	if (!kfifo_is_empty(&list->hid_de_fifo))
 		return EPOLLIN | EPOLLRDNORM;
-	if (!list->hdev->debug)
+	if (!list->hdev->de)
 		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 
-static int hid_debug_events_release(struct inode *inode, struct file *file)
+static int hid_de_events_release(struct inode *inode, struct file *file)
 {
-	struct hid_debug_list *list = file->private_data;
+	struct hid_de_list *list = file->private_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
+	spin_lock_irqsave(&list->hdev->de_list_lock, flags);
 	list_del(&list->node);
-	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
-	kfifo_free(&list->hid_debug_fifo);
+	spin_unlock_irqrestore(&list->hdev->de_list_lock, flags);
+	kfifo_free(&list->hid_de_fifo);
 	kfree(list);
 
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(hid_debug_rdesc);
+DEFINE_SHOW_ATTRIBUTE(hid_de_rdesc);
 
-static const struct file_operations hid_debug_events_fops = {
+static const struct file_operations hid_de_events_fops = {
 	.owner =        THIS_MODULE,
-	.open           = hid_debug_events_open,
-	.read           = hid_debug_events_read,
-	.poll		= hid_debug_events_poll,
-	.release        = hid_debug_events_release,
+	.open           = hid_de_events_open,
+	.read           = hid_de_events_read,
+	.poll		= hid_de_events_poll,
+	.release        = hid_de_events_release,
 	.llseek		= noop_llseek,
 };
 
 
-void hid_debug_register(struct hid_device *hdev, const char *name)
+void hid_de_register(struct hid_device *hdev, const char *name)
 {
-	hdev->debug_dir = debugfs_create_dir(name, hid_debug_root);
-	hdev->debug_rdesc = debugfs_create_file("rdesc", 0400,
-			hdev->debug_dir, hdev, &hid_debug_rdesc_fops);
-	hdev->debug_events = debugfs_create_file("events", 0400,
-			hdev->debug_dir, hdev, &hid_debug_events_fops);
-	hdev->debug = 1;
+	hdev->de_dir = defs_create_dir(name, hid_de_root);
+	hdev->de_rdesc = defs_create_file("rdesc", 0400,
+			hdev->de_dir, hdev, &hid_de_rdesc_fops);
+	hdev->de_events = defs_create_file("events", 0400,
+			hdev->de_dir, hdev, &hid_de_events_fops);
+	hdev->de = 1;
 }
 
-void hid_debug_unregister(struct hid_device *hdev)
+void hid_de_unregister(struct hid_device *hdev)
 {
-	hdev->debug = 0;
-	wake_up_interruptible(&hdev->debug_wait);
-	debugfs_remove(hdev->debug_rdesc);
-	debugfs_remove(hdev->debug_events);
-	debugfs_remove(hdev->debug_dir);
+	hdev->de = 0;
+	wake_up_interruptible(&hdev->de_wait);
+	defs_remove(hdev->de_rdesc);
+	defs_remove(hdev->de_events);
+	defs_remove(hdev->de_dir);
 }
 
-void hid_debug_init(void)
+void hid_de_init(void)
 {
-	hid_debug_root = debugfs_create_dir("hid", NULL);
+	hid_de_root = defs_create_dir("hid", NULL);
 }
 
-void hid_debug_exit(void)
+void hid_de_exit(void)
 {
-	debugfs_remove_recursive(hid_debug_root);
+	defs_remove_recursive(hid_de_root);
 }

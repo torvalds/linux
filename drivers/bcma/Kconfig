@@ -108,10 +108,10 @@ config BCMA_DRIVER_GPIO
 
 	  If unsure, say N
 
-config BCMA_DEBUG
-	bool "BCMA debugging"
+config BCMA_DE
+	bool "BCMA deging"
 	help
-	  This turns on additional debugging messages.
+	  This turns on additional deging messages.
 
 	  If unsure, say N
 

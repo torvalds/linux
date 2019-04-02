@@ -338,7 +338,7 @@ static int __init cc770_isa_init(void)
 				platform_device_put(cc770_isa_devs[idx]);
 				goto exit_free_devices;
 			}
-			pr_debug("platform device %d: port=%#lx, mem=%#lx, "
+			pr_de("platform device %d: port=%#lx, mem=%#lx, "
 				 "irq=%d\n",
 				 idx, port[idx], mem[idx], irq[idx]);
 		} else if (idx == 0 || port[idx] || mem[idx]) {

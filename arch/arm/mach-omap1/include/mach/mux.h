@@ -36,7 +36,7 @@
 #define PU_PD_SEL_NA		0	/* No pu_pd reg available */
 #define PULL_DWN_CTRL_NA	0	/* No pull-down control needed */
 
-#ifdef	CONFIG_OMAP_MUX_DEBUG
+#ifdef	CONFIG_OMAP_MUX_DE
 #define MUX_REG(reg, mode_offset, mode) .mux_reg_name = "FUNC_MUX_CTRL_"#reg, \
 					.mux_reg = FUNC_MUX_CTRL_##reg, \
 					.mask_offset = mode_offset, \
@@ -83,14 +83,14 @@
 					.pull_bit = bit, \
 					.pull_val = status,
 
-#endif /* CONFIG_OMAP_MUX_DEBUG */
+#endif /* CONFIG_OMAP_MUX_DE */
 
 #define MUX_CFG(desc, mux_reg, mode_offset, mode,	\
 		pull_reg, pull_bit, pull_status,	\
-		pu_pd_reg, pu_pd_status, debug_status)	\
+		pu_pd_reg, pu_pd_status, de_status)	\
 {							\
 	.name =	 desc,					\
-	.debug = debug_status,				\
+	.de = de_status,				\
 	MUX_REG(mux_reg, mode_offset, mode)		\
 	PULL_REG(pull_reg, pull_bit, pull_status)	\
 	PU_PD_REG(pu_pd_reg, pu_pd_status)		\
@@ -105,10 +105,10 @@
  *   as mux config
  */
 #define MUX_CFG_7XX(desc, mux_reg, mode_offset, mode,	\
-		   pull_bit, pull_status, debug_status)\
+		   pull_bit, pull_status, de_status)\
 {							\
 	.name =	 desc,					\
-	.debug = debug_status,				\
+	.de = de_status,				\
 	MUX_REG_7XX(mux_reg, mode_offset, mode)		\
 	PULL_REG_7XX(mux_reg, pull_bit, pull_status)	\
 	PU_PD_REG(NA, 0)		\
@@ -117,7 +117,7 @@
 struct pin_config {
 	char 			*name;
 	const unsigned int 	mux_reg;
-	unsigned char		debug;
+	unsigned char		de;
 
 	const unsigned char mask_offset;
 	const unsigned char mask;
@@ -131,7 +131,7 @@ struct pin_config {
 	const unsigned int pu_pd_reg;
 	const unsigned char pu_pd_val;
 
-#if	defined(CONFIG_OMAP_MUX_DEBUG) || defined(CONFIG_OMAP_MUX_WARNINGS)
+#if	defined(CONFIG_OMAP_MUX_DE) || defined(CONFIG_OMAP_MUX_WARNINGS)
 	const char *mux_reg_name;
 #endif
 

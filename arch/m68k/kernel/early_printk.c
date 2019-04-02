@@ -15,9 +15,9 @@
 extern void mvme16x_cons_write(struct console *co,
 			       const char *str, unsigned count);
 
-asmlinkage void __init debug_cons_nputs(const char *s, unsigned n);
+asmlinkage void __init de_cons_nputs(const char *s, unsigned n);
 
-static void __ref debug_cons_write(struct console *c,
+static void __ref de_cons_write(struct console *c,
 				   const char *s, unsigned n)
 {
 #if !(defined(CONFIG_SUN3) || defined(CONFIG_M68000) || \
@@ -25,13 +25,13 @@ static void __ref debug_cons_write(struct console *c,
 	if (MACH_IS_MVME16x)
 		mvme16x_cons_write(c, s, n);
 	else
-		debug_cons_nputs(s, n);
+		de_cons_nputs(s, n);
 #endif
 }
 
 static struct console early_console_instance = {
-	.name  = "debug",
-	.write = debug_cons_write,
+	.name  = "de",
+	.write = de_cons_write,
 	.flags = CON_PRINTBUFFER | CON_BOOT,
 	.index = -1
 };
@@ -49,7 +49,7 @@ static int __init setup_early_printk(char *buf)
 early_param("earlyprintk", setup_early_printk);
 
 /*
- * debug_cons_nputs() defined in arch/m68k/kernel/head.S cannot be called
+ * de_cons_nputs() defined in arch/m68k/kernel/head.S cannot be called
  * after init sections are discarded (for platforms that use it).
  */
 #if !(defined(CONFIG_SUN3) || defined(CONFIG_M68000) || \

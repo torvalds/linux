@@ -145,7 +145,7 @@ static int imm_show_info(struct seq_file *m, struct Scsi_Host *host)
 	return 0;
 }
 
-#if IMM_DEBUG > 0
+#if IMM_DE > 0
 #define imm_fail(x,y) printk("imm: imm_fail(%i) from %s at line %d\n",\
 	   y, __func__, __LINE__); imm_fail_func(x,y);
 static inline void
@@ -387,7 +387,7 @@ static int imm_out(imm_struct *dev, char *buffer, int len)
 		break;
 
 	default:
-		printk("IMM: bug in imm_out()\n");
+		printk("IMM:  in imm_out()\n");
 		r = 0;
 	}
 	return r;
@@ -441,7 +441,7 @@ static int imm_in(imm_struct *dev, char *buffer, int len)
 		break;
 
 	default:
-		printk("IMM: bug in imm_ins()\n");
+		printk("IMM:  in imm_ins()\n");
 		r = 0;
 		break;
 	}
@@ -727,7 +727,7 @@ static void imm_interrupt(struct work_struct *work)
 		return;
 	}
 	/* Command must of completed hence it is safe to let go... */
-#if IMM_DEBUG > 0
+#if IMM_DE > 0
 	switch ((cmd->result >> 16) & 0xff) {
 	case DID_OK:
 		break;
@@ -915,7 +915,7 @@ static int imm_queuecommand_lck(struct scsi_cmnd *cmd,
 	imm_struct *dev = imm_dev(cmd->device->host);
 
 	if (dev->cur_cmd) {
-		printk("IMM: bug in imm_queuecommand\n");
+		printk("IMM:  in imm_queuecommand\n");
 		return 0;
 	}
 	dev->failed = 0;

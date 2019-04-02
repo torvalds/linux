@@ -86,7 +86,7 @@ void __ecryptfs_printk(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	if (fmt[1] == '7') { /* KERN_DEBUG */
+	if (fmt[1] == '7') { /* KERN_DE */
 		if (ecryptfs_verbosity >= 1)
 			vprintk(fmt, args);
 	} else
@@ -240,7 +240,7 @@ static void ecryptfs_init_mount_crypt_stat(
  * @check_ruid: set to 1 if device uid should be checked against the ruid
  *
  * Parse mount options:
- * debug=N 	   - ecryptfs_verbosity level for debug output
+ * de=N 	   - ecryptfs_verbosity level for de output
  * sig=XXX	   - description(signature) of the key to use
  *
  * Returns the dentry object of the lower-level (lower/interposed)
@@ -406,7 +406,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 	if (!cipher_name_set) {
 		int cipher_name_len = strlen(ECRYPTFS_DEFAULT_CIPHER);
 
-		BUG_ON(cipher_name_len > ECRYPTFS_MAX_CIPHER_NAME_SIZE);
+		_ON(cipher_name_len > ECRYPTFS_MAX_CIPHER_NAME_SIZE);
 		strcpy(mount_crypt_stat->global_default_cipher_name,
 		       ECRYPTFS_DEFAULT_CIPHER);
 	}

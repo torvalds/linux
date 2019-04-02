@@ -18,7 +18,7 @@
 #include "core.h"
 #include "hif-ops.h"
 #include "target.h"
-#include "debug.h"
+#include "de.h"
 
 int ath6kl_bmi_done(struct ath6kl *ar)
 {

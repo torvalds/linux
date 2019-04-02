@@ -21,7 +21,7 @@
 
 #include "hid-ids.h"
 
-/* The original buggy USB descriptor */
+/* The original gy USB descriptor */
 static u8 maltron_rdesc_o[] = {
 	0x05, 0x01,        /* Usage Page (Generic Desktop Ctrls) */
 	0x09, 0x80,        /* Usage (Sys Control)                */

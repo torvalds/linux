@@ -297,7 +297,7 @@ ahc_release_untagged_queues(struct ahc_softc *ahc)
 
 /************************* Sequencer Execution Control ************************/
 /*
- * Work around any chip bugs related to halting sequencer execution.
+ * Work around any chip s related to halting sequencer execution.
  * On Ultra2 controllers, we must clear the CIOBUS stretch signal by
  * reading a register that will set this signal and deassert it.
  * Without this workaround, if the chip is paused, by an interrupt or
@@ -305,7 +305,7 @@ ahc_release_untagged_queues(struct ahc_softc *ahc)
  * will hang the system (infinite pci retries).
  */
 static void
-ahc_pause_bug_fix(struct ahc_softc *ahc)
+ahc_pause__fix(struct ahc_softc *ahc)
 {
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		(void)ahc_inb(ahc, CCSCBCTL);
@@ -340,7 +340,7 @@ ahc_pause(struct ahc_softc *ahc)
 	while (ahc_is_paused(ahc) == 0)
 		;
 
-	ahc_pause_bug_fix(ahc);
+	ahc_pause__fix(ahc);
 }
 
 /*
@@ -789,7 +789,7 @@ ahc_intr(struct ahc_softc *ahc)
 		ahc_handle_brkadrint(ahc);
 	} else if ((intstat & (SEQINT|SCSIINT)) != 0) {
 
-		ahc_pause_bug_fix(ahc);
+		ahc_pause__fix(ahc);
 
 		if ((intstat & SEQINT) != 0)
 			ahc_handle_seqint(ahc, intstat);
@@ -1053,8 +1053,8 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			struct ahc_initiator_tinfo *targ_info;
 			struct ahc_tmode_tstate *tstate;
 			struct ahc_transinfo *tinfo;
-#ifdef AHC_DEBUG
-			if (ahc_debug & AHC_SHOW_SENSE) {
+#ifdef AHC_DE
+			if (ahc_de & AHC_SHOW_SENSE) {
 				ahc_print_path(ahc, scb);
 				printk("SCB %d: requests Check Status\n",
 				       scb->hscb->tag);
@@ -1076,8 +1076,8 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			 * Save off the residual if there is one.
 			 */
 			ahc_update_residual(ahc, scb);
-#ifdef AHC_DEBUG
-			if (ahc_debug & AHC_SHOW_SENSE) {
+#ifdef AHC_DE
+			if (ahc_de & AHC_SHOW_SENSE) {
 				ahc_print_path(ahc, scb);
 				printk("Sending Sense\n");
 			}
@@ -1581,8 +1581,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		ahc_outb(ahc, CLRSINT0, CLRIOERR);
 		/*
 		 * When transitioning to SE mode, the reset line
-		 * glitches, triggering an arbitration bug in some
-		 * Ultra2 controllers.  This bug is cleared when we
+		 * glitches, triggering an arbitration  in some
+		 * Ultra2 controllers.  This  is cleared when we
 		 * assert the reset line.  Since a reset glitch has
 		 * already occurred with this transition and a
 		 * transceiver state change is handled just like
@@ -1745,8 +1745,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 			ahc_dump_card_state(ahc);
 		} else {
 			struct ahc_devinfo devinfo;
-#ifdef AHC_DEBUG
-			if ((ahc_debug & AHC_SHOW_SELTO) != 0) {
+#ifdef AHC_DE
+			if ((ahc_de & AHC_SHOW_SELTO) != 0) {
 				ahc_print_path(ahc, scb);
 				printk("Saw Selection Timeout for SCB 0x%x\n",
 				       scb_index);
@@ -2084,9 +2084,9 @@ ahc_clear_intstat(struct ahc_softc *ahc)
 	ahc_flush_device_writes(ahc);
 }
 
-/**************************** Debugging Routines ******************************/
-#ifdef AHC_DEBUG
-uint32_t ahc_debug = AHC_DEBUG_OPTS;
+/**************************** Deging Routines ******************************/
+#ifdef AHC_DE
+uint32_t ahc_de = AHC_DE_OPTS;
 #endif
 
 #if 0 /* unused */
@@ -3246,16 +3246,16 @@ reswitch:
 		if (ahc->msgout_len == 0)
 			panic("HOST_MSG_LOOP interrupt with no active message");
 
-#ifdef AHC_DEBUG
-		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+#ifdef AHC_DE
+		if ((ahc_de & AHC_SHOW_MESSAGES) != 0) {
 			ahc_print_devinfo(ahc, &devinfo);
 			printk("INITIATOR_MSG_OUT");
 		}
 #endif
 		phasemis = bus_phase != P_MESGOUT;
 		if (phasemis) {
-#ifdef AHC_DEBUG
-			if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+#ifdef AHC_DE
+			if ((ahc_de & AHC_SHOW_MESSAGES) != 0) {
 				printk(" PHASEMIS %s\n",
 				       ahc_lookup_phase_entry(bus_phase)
 							     ->phasemsg);
@@ -3281,8 +3281,8 @@ reswitch:
 		if (ahc->send_msg_perror) {
 			ahc_outb(ahc, CLRSINT1, CLRATNO);
 			ahc_outb(ahc, CLRSINT1, CLRREQINIT);
-#ifdef AHC_DEBUG
-			if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+#ifdef AHC_DE
+			if ((ahc_de & AHC_SHOW_MESSAGES) != 0)
 				printk(" byte 0x%x\n", ahc->send_msg_perror);
 #endif
 			ahc_outb(ahc, SCSIDATL, MSG_PARITY_ERROR);
@@ -3311,8 +3311,8 @@ reswitch:
 		 * the next byte on the bus.
 		 */
 		ahc_outb(ahc, CLRSINT1, CLRREQINIT);
-#ifdef AHC_DEBUG
-		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+#ifdef AHC_DE
+		if ((ahc_de & AHC_SHOW_MESSAGES) != 0)
 			printk(" byte 0x%x\n",
 			       ahc->msgout_buf[ahc->msgout_index]);
 #endif
@@ -3324,16 +3324,16 @@ reswitch:
 		int phasemis;
 		int message_done;
 
-#ifdef AHC_DEBUG
-		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+#ifdef AHC_DE
+		if ((ahc_de & AHC_SHOW_MESSAGES) != 0) {
 			ahc_print_devinfo(ahc, &devinfo);
 			printk("INITIATOR_MSG_IN");
 		}
 #endif
 		phasemis = bus_phase != P_MESGIN;
 		if (phasemis) {
-#ifdef AHC_DEBUG
-			if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+#ifdef AHC_DE
+			if ((ahc_de & AHC_SHOW_MESSAGES) != 0) {
 				printk(" PHASEMIS %s\n",
 				       ahc_lookup_phase_entry(bus_phase)
 							     ->phasemsg);
@@ -3353,8 +3353,8 @@ reswitch:
 
 		/* Pull the byte in without acking it */
 		ahc->msgin_buf[ahc->msgin_index] = ahc_inb(ahc, SCSIBUSL);
-#ifdef AHC_DEBUG
-		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+#ifdef AHC_DE
+		if ((ahc_de & AHC_SHOW_MESSAGES) != 0)
 			printk(" byte 0x%x\n",
 			       ahc->msgin_buf[ahc->msgin_index]);
 #endif
@@ -3374,8 +3374,8 @@ reswitch:
 			 * message out phase.
 			 */
 			if (ahc->msgout_len != 0) {
-#ifdef AHC_DEBUG
-				if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+#ifdef AHC_DE
+				if ((ahc_de & AHC_SHOW_MESSAGES) != 0) {
 					ahc_print_devinfo(ahc, &devinfo);
 					printk("Asserting ATN for response\n");
 				}
@@ -4427,7 +4427,7 @@ ahc_alloc(void *platform_arg, char *name)
 	ahc->channel_b = 'B';
 	ahc->chip = AHC_NONE;
 	ahc->features = AHC_FENONE;
-	ahc->bugs = AHC_BUGNONE;
+	ahc->s = AHC_NONE;
 	ahc->flags = AHC_FNONE;
 	/*
 	 * Default to all error reporting enabled with the
@@ -4722,7 +4722,7 @@ ahc_build_free_scb_list(struct ahc_softc *ahc)
 
 		/*
 		 * Touch all SCB bytes to avoid parity errors
-		 * should one of our debugging routines read
+		 * should one of our deging routines read
 		 * an otherwise uninitiatlized byte.
 		 */
 		for (j = 0; j < scbsize; j++)
@@ -5256,9 +5256,9 @@ ahc_init(struct ahc_softc *ahc)
 	u_int	 tagenable;
 	size_t	 driver_data_size;
 
-#ifdef AHC_DEBUG
-	if ((ahc_debug & AHC_DEBUG_SEQUENCER) != 0)
-		ahc->flags |= AHC_SEQUENCER_DEBUG;
+#ifdef AHC_DE
+	if ((ahc_de & AHC_DE_SEQUENCER) != 0)
+		ahc->flags |= AHC_SEQUENCER_DE;
 #endif
 
 #ifdef AHC_PRINT_SRAM
@@ -5313,12 +5313,12 @@ ahc_init(struct ahc_softc *ahc)
 	 * The qinfifo and qoutfifo are composed of 256 1 byte elements. 
 	 * When providing for the target mode role, we must additionally
 	 * provide space for the incoming target command fifo and an extra
-	 * byte to deal with a dma bug in some chip versions.
+	 * byte to deal with a dma  in some chip versions.
 	 */
 	driver_data_size = 2 * 256 * sizeof(uint8_t);
 	if ((ahc->features & AHC_TARGETMODE) != 0)
 		driver_data_size += AHC_TMODE_CMDS * sizeof(struct target_cmd)
-				 + /*DMA WideOdd Bug Buffer*/1;
+				 + /*DMA WideOdd  Buffer*/1;
 	if (ahc_dma_tag_create(ahc, ahc->parent_dmat, /*alignment*/1,
 			       /*boundary*/BUS_SPACE_MAXADDR_32BIT + 1,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
@@ -5350,7 +5350,7 @@ ahc_init(struct ahc_softc *ahc)
 	if ((ahc->features & AHC_TARGETMODE) != 0) {
 		ahc->targetcmds = (struct target_cmd *)ahc->qoutfifo;
 		ahc->qoutfifo = (uint8_t *)&ahc->targetcmds[AHC_TMODE_CMDS];
-		ahc->dma_bug_buf = ahc->shared_data_busaddr
+		ahc->dma__buf = ahc->shared_data_busaddr
 				 + driver_data_size - 1;
 		/* All target command blocks start out invalid. */
 		for (i = 0; i < AHC_TMODE_CMDS; i++)
@@ -5392,8 +5392,8 @@ ahc_init(struct ahc_softc *ahc)
 		ahc->flags &= ~AHC_PAGESCBS;
 	}
 
-#ifdef AHC_DEBUG
-	if (ahc_debug & AHC_SHOW_MISC) {
+#ifdef AHC_DE
+	if (ahc_de & AHC_SHOW_MISC) {
 		printk("%s: hardware scb %u bytes; kernel scb %u bytes; "
 		       "ahc_dma %u bytes\n",
 			ahc_name(ahc),
@@ -5401,7 +5401,7 @@ ahc_init(struct ahc_softc *ahc)
 			(u_int)sizeof(struct scb),
 			(u_int)sizeof(struct ahc_dma_seg));
 	}
-#endif /* AHC_DEBUG */
+#endif /* AHC_DE */
 
 	/*
 	 * Look at the information that board initialization or
@@ -6685,8 +6685,8 @@ ahc_calc_residual(struct ahc_softc *ahc, struct scb *scb)
 	else
 		ahc_set_sense_residual(scb, resid);
 
-#ifdef AHC_DEBUG
-	if ((ahc_debug & AHC_SHOW_MISC) != 0) {
+#ifdef AHC_DE
+	if ((ahc_de & AHC_SHOW_MISC) != 0) {
 		ahc_print_path(ahc, scb);
 		printk("Handled %sResidual of %d bytes\n",
 		       (scb->flags & SCB_SENSE) ? "Sense " : "", resid);
@@ -6910,8 +6910,8 @@ ahc_loadseq(struct ahc_softc *ahc)
 
 	if (bootverbose) {
 		printk(" %d instructions downloaded\n", downloaded);
-		printk("%s: Features 0x%x, Bugs 0x%x, Flags 0x%x\n",
-		       ahc_name(ahc), ahc->features, ahc->bugs, ahc->flags);
+		printk("%s: Features 0x%x, s 0x%x, Flags 0x%x\n",
+		       ahc_name(ahc), ahc->features, ahc->s, ahc->flags);
 	}
 	return (0);
 }

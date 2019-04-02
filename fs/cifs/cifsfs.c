@@ -21,7 +21,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-/* Note that BB means BUGBUG (ie something to fix eventually) */
+/* Note that BB means  (ie something to fix eventually) */
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -45,7 +45,7 @@
 #define DECLARE_GLOBALS_HERE
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include <linux/mm.h>
 #include <linux/key-type.h>
@@ -723,7 +723,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 
 	/*
 	 * Prints in Kernel / CIFS log the attempted mount operation
-	 *	If CIFS_DEBUG && cifs_FYI
+	 *	If CIFS_DE && cifs_FYI
 	 */
 	if (cifsFYI)
 		cifs_dbg(FYI, "Devname: %s flags: %d\n", dev_name, flags);
@@ -1352,10 +1352,10 @@ cifs_init_request_bufs(void)
 	almost all handle based requests (but not write response, nor is it
 	sufficient for path based requests).  A smaller size would have
 	been more efficient (compacting multiple slab items on one 4k page)
-	for the case in which debug was on, but this larger size allows
+	for the case in which de was on, but this larger size allows
 	more SMBs to use small buffer alloc and is still much more
 	efficient to alloc 1 per page off the slab compared to 17K (5page)
-	alloc of large cifs buffers even when page debugging is on */
+	alloc of large cifs buffers even when page deging is on */
 	cifs_sm_req_cachep = kmem_cache_create_usercopy("cifs_small_rq",
 			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN,
 			0, MAX_CIFS_SMALL_BUFFER_SIZE, NULL);

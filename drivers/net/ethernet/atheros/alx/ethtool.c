@@ -116,11 +116,11 @@ static u32 alx_get_supported_speeds(struct alx_hw *hw)
 	if (alx_hw_giga(hw))
 		supported |= SUPPORTED_1000baseT_Full;
 
-	BUILD_BUG_ON(SUPPORTED_10baseT_Half != ADVERTISED_10baseT_Half);
-	BUILD_BUG_ON(SUPPORTED_10baseT_Full != ADVERTISED_10baseT_Full);
-	BUILD_BUG_ON(SUPPORTED_100baseT_Half != ADVERTISED_100baseT_Half);
-	BUILD_BUG_ON(SUPPORTED_100baseT_Full != ADVERTISED_100baseT_Full);
-	BUILD_BUG_ON(SUPPORTED_1000baseT_Full != ADVERTISED_1000baseT_Full);
+	BUILD__ON(SUPPORTED_10baseT_Half != ADVERTISED_10baseT_Half);
+	BUILD__ON(SUPPORTED_10baseT_Full != ADVERTISED_10baseT_Full);
+	BUILD__ON(SUPPORTED_100baseT_Half != ADVERTISED_100baseT_Half);
+	BUILD__ON(SUPPORTED_100baseT_Full != ADVERTISED_100baseT_Full);
+	BUILD__ON(SUPPORTED_1000baseT_Full != ADVERTISED_1000baseT_Full);
 
 	return supported;
 }
@@ -281,7 +281,7 @@ static void alx_get_ethtool_stats(struct net_device *netdev,
 	spin_lock(&alx->stats_lock);
 
 	alx_update_hw_stats(hw);
-	BUILD_BUG_ON(sizeof(hw->stats) - offsetof(struct alx_hw_stats, rx_ok) <
+	BUILD__ON(sizeof(hw->stats) - offsetof(struct alx_hw_stats, rx_ok) <
 		     ALX_NUM_STATS * sizeof(u64));
 	memcpy(data, &hw->stats.rx_ok, ALX_NUM_STATS * sizeof(u64));
 

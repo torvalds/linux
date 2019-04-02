@@ -395,8 +395,8 @@ struct SMU74_Discrete_FanTable {
 
 typedef struct SMU74_Discrete_FanTable SMU74_Discrete_FanTable;
 
-#define SMU7_DISCRETE_GPIO_SCLK_DEBUG             4
-#define SMU7_DISCRETE_GPIO_SCLK_DEBUG_BIT         (0x1 << SMU7_DISCRETE_GPIO_SCLK_DEBUG)
+#define SMU7_DISCRETE_GPIO_SCLK_DE             4
+#define SMU7_DISCRETE_GPIO_SCLK_DE_BIT         (0x1 << SMU7_DISCRETE_GPIO_SCLK_DE)
 
 
 struct SMU7_MclkDpmScoreboard {

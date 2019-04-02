@@ -63,7 +63,7 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 			    ".index field should be zero");
 
 		/*
-		 * If needed for debug:
+		 * If needed for de:
 		 * fprintf(stdout,
 		 *	"CPUID%lx EAX=0x%lx EBX=0x%lx ECX=0x%lx EDX=0x%lx\n",
 		 *	entry->function, entry->eax, entry->ebx, entry->ecx,

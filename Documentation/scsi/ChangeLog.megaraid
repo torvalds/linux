@@ -18,7 +18,7 @@ Release Date	: Fri May 19 09:31:45 EST 2006 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.9 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 
-1.	Fixed a bug in megaraid_init_mbox().
+1.	Fixed a  in megaraid_init_mbox().
 	Customer reported "garbage in file on x86_64 platform".
 	Root Cause: the driver registered controllers as 64-bit DMA capable
 	for those which are not support it.
@@ -141,7 +141,7 @@ Release Date	: Mon Apr 11 12:27:22 EST 2006 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.7 (scsi module), 2.20.2.6 (cmm module)
 
-1.	Fixed a bug in megaraid_reset_handler().
+1.	Fixed a  in megaraid_reset_handler().
 	Customer reported "Unable to handle kernel NULL pointer dereference
 	at virtual address 00000000" when system goes to reset condition
 	for some reason. It happened randomly.
@@ -241,16 +241,16 @@ Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)
 	overcautious programming will kill your kernel ;)
 	ever thought about checking a spin_lock or even
 	asserting that it must be held (maybe just for
-	spinlock debugging?) ...
+	spinlock deging?) ...
 
 	there are several checks present in the kernel
 	where somebody does a variation on the following:
 
-	  BUG_ON(!spin_is_locked(&some_lock));
+	  _ON(!spin_is_locked(&some_lock));
 
 	so what's wrong about that? nothing, unless you
-	compile the code with CONFIG_DEBUG_SPINLOCK but 
-	without CONFIG_SMP ... in which case the BUG()
+	compile the code with CONFIG_DE_SPINLOCK but 
+	without CONFIG_SMP ... in which case the ()
 	will kill your kernel ...
 
 	maybe it's not advised to make such assertions, 
@@ -370,7 +370,7 @@ Release Date	: Thu Dec  9 19:02:14 EST 2004 - Sreenivas Bagalkote <sreenib@lsil.
 Current Version	: 2.20.4.1 (scsi module), 2.20.2.3 (cmm module)
 Older Version	: 2.20.4.1 (scsi module), 2.20.2.2 (cmm module)
 
-i.	Fix a bug in kioc's dma buffer deallocation
+i.	Fix a  in kioc's dma buffer deallocation
 
 Release Date	: Thu Nov  4 18:24:56 EST 2004 - Sreenivas Bagalkote <sreenib@lsil.com>
 
@@ -514,7 +514,7 @@ iv.	Remove yield() while mailbox handshake in synchronous commands
 
 v.	Remove redundant __megaraid_busywait_mbox routine
 
-vi.	Fix bug in the management module, which causes a system lockup when the
+vi.	Fix  in the management module, which causes a system lockup when the
 	IO module is loaded and then unloaded, followed by executing any
 	management utility. The current version of management module does not
 	handle the adapter unregister properly.

@@ -31,12 +31,12 @@ config PNPBIOS_PROC_FS
 	  allocation, ESCD, and other PNPBIOS services.  Using this
 	  interface is potentially dangerous because the PNPBIOS driver will
 	  not be notified of any resource changes made by writing directly.
-	  Also some buggy systems will fault when accessing certain features
+	  Also some gy systems will fault when accessing certain features
 	  in the PNPBIOS /proc interface (e.g. "boot" configs).
 
 	  See the latest pcmcia-cs (stand-alone package) for a nice set of
 	  PNPBIOS /proc interface tools (lspnp and setpnp).
 
-	  Unless you are debugging or have other specific reasons, it is
+	  Unless you are deging or have other specific reasons, it is
 	  recommended that you say N here.
 

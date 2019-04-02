@@ -17,7 +17,7 @@
 
 /* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
- * over and over (plus this helps to avoid typo bugs).
+ * over and over (plus this helps to avoid typo s).
  */
 
 #define IXGB_PARAM_INIT { [0 ... IXGB_MAX_NIC] = OPTION_UNSET }
@@ -54,7 +54,7 @@ IXGB_PARAM(RxDescriptors, "Number of receive descriptors");
  *  - 2 - Tx only, generate PAUSE frames but ignore them on receive
  *  - 3 - Full Flow Control Support
  *
- * Default Value: 2 - Tx only (silicon bug avoidance)
+ * Default Value: 2 - Tx only (silicon  avoidance)
  */
 
 IXGB_PARAM(FlowControl, "Flow Control setting");
@@ -214,7 +214,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 	}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	pr_info("Invalid %s specified (%i) %s\n", opt->name, *value, opt->err);

@@ -33,7 +33,7 @@
  *
  *      The idea of lazy evaluation of matches is due to Jan-Mark Wams, and
  *      I found it in 'freeze' written by Leonid Broukhis.
- *      Thanks to many people for bug reports and testing.
+ *      Thanks to many people for  reports and testing.
  *
  *  REFERENCES
  *
@@ -76,7 +76,7 @@ static void flush_pending  (z_streamp strm);
 static int read_buf        (z_streamp strm, Byte *buf, unsigned size);
 static uInt longest_match  (deflate_state *s, IPos cur_match);
 
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
 static  void check_match (deflate_state *s, IPos start, IPos match,
                          int length);
 #endif
@@ -445,7 +445,7 @@ int zlib_deflate(
 	    }
         }
     }
-    Assert(strm->avail_out > 0, "bug2");
+    Assert(strm->avail_out > 0, "2");
 
     if (flush != Z_FINISH) return Z_OK;
     if (s->noheader) return Z_STREAM_END;
@@ -690,7 +690,7 @@ static uInt longest_match(
     return s->lookahead;
 }
 
-#ifdef DEBUG_ZLIB
+#ifdef DE_ZLIB
 /* ===========================================================================
  * Check that the match at match_start is indeed a match.
  */
@@ -1126,7 +1126,7 @@ int zlib_deflate_workspacesize(int windowBits, int memLevel)
         windowBits = -windowBits;
 
     /* Since the return value is typically passed to vmalloc() unchecked... */
-    BUG_ON(memLevel < 1 || memLevel > MAX_MEM_LEVEL || windowBits < 9 ||
+    _ON(memLevel < 1 || memLevel > MAX_MEM_LEVEL || windowBits < 9 ||
 							windowBits > 15);
 
     return sizeof(deflate_workspace)

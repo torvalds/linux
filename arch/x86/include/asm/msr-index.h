@@ -185,25 +185,25 @@
 
 #define MSR_IA32_CR_PAT			0x00000277
 
-#define MSR_IA32_DEBUGCTLMSR		0x000001d9
+#define MSR_IA32_DECTLMSR		0x000001d9
 #define MSR_IA32_LASTBRANCHFROMIP	0x000001db
 #define MSR_IA32_LASTBRANCHTOIP		0x000001dc
 #define MSR_IA32_LASTINTFROMIP		0x000001dd
 #define MSR_IA32_LASTINTTOIP		0x000001de
 
-/* DEBUGCTLMSR bits (others vary by model): */
-#define DEBUGCTLMSR_LBR			(1UL <<  0) /* last branch recording */
-#define DEBUGCTLMSR_BTF_SHIFT		1
-#define DEBUGCTLMSR_BTF			(1UL <<  1) /* single-step on branches */
-#define DEBUGCTLMSR_TR			(1UL <<  6)
-#define DEBUGCTLMSR_BTS			(1UL <<  7)
-#define DEBUGCTLMSR_BTINT		(1UL <<  8)
-#define DEBUGCTLMSR_BTS_OFF_OS		(1UL <<  9)
-#define DEBUGCTLMSR_BTS_OFF_USR		(1UL << 10)
-#define DEBUGCTLMSR_FREEZE_LBRS_ON_PMI	(1UL << 11)
-#define DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI	(1UL << 12)
-#define DEBUGCTLMSR_FREEZE_IN_SMM_BIT	14
-#define DEBUGCTLMSR_FREEZE_IN_SMM	(1UL << DEBUGCTLMSR_FREEZE_IN_SMM_BIT)
+/* DECTLMSR bits (others vary by model): */
+#define DECTLMSR_LBR			(1UL <<  0) /* last branch recording */
+#define DECTLMSR_BTF_SHIFT		1
+#define DECTLMSR_BTF			(1UL <<  1) /* single-step on branches */
+#define DECTLMSR_TR			(1UL <<  6)
+#define DECTLMSR_BTS			(1UL <<  7)
+#define DECTLMSR_BTINT		(1UL <<  8)
+#define DECTLMSR_BTS_OFF_OS		(1UL <<  9)
+#define DECTLMSR_BTS_OFF_USR		(1UL << 10)
+#define DECTLMSR_FREEZE_LBRS_ON_PMI	(1UL << 11)
+#define DECTLMSR_FREEZE_PERFMON_ON_PMI	(1UL << 12)
+#define DECTLMSR_FREEZE_IN_SMM_BIT	14
+#define DECTLMSR_FREEZE_IN_SMM	(1UL << DECTLMSR_FREEZE_IN_SMM_BIT)
 
 #define MSR_PEBS_FRONTEND		0x000003f7
 

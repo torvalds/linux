@@ -344,9 +344,9 @@ static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
 		 * the temporary mappings we use during restore.
 		 */
 		set_pte(dst_ptep, pte_mkwrite(pte));
-	} else if (debug_pagealloc_enabled() && !pte_none(pte)) {
+	} else if (de_pagealloc_enabled() && !pte_none(pte)) {
 		/*
-		 * debug_pagealloc will removed the PTE_VALID bit if
+		 * de_pagealloc will removed the PTE_VALID bit if
 		 * the page isn't in use by the resume kernel. It may have
 		 * been in use by the original kernel, in which case we need
 		 * to put it back in our copy to do the restore.
@@ -354,7 +354,7 @@ static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
 		 * Before marking this entry valid, check the pfn should
 		 * be mapped.
 		 */
-		BUG_ON(!pfn_valid(pte_pfn(pte)));
+		_ON(!pfn_valid(pte_pfn(pte)));
 
 		set_pte(dst_ptep, pte_mkpresent(pte_mkwrite(pte)));
 	}

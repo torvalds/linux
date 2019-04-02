@@ -84,7 +84,7 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
 unsigned int sysctl_sched_wakeup_granularity			= 1000000UL;
 static unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
 
-const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
+const_de unsigned int sysctl_sched_migration_cost	= 500000UL;
 
 #ifdef CONFIG_SMP
 /*
@@ -598,7 +598,7 @@ static struct sched_entity *__pick_next_entity(struct sched_entity *se)
 	return rb_entry(next, struct sched_entity, run_node);
 }
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline.rb_root);
@@ -2306,7 +2306,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
 	if (!join)
 		return;
 
-	BUG_ON(irqs_disabled());
+	_ON(irqs_disabled());
 	double_lock_irq(&my_grp->lock, &grp->lock);
 
 	for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++) {
@@ -3785,7 +3785,7 @@ static inline void update_misfit_status(struct task_struct *p, struct rq *rq) {}
 
 static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	s64 d = se->vruntime - cfs_rq->min_vruntime;
 
 	if (d < 0)
@@ -6908,7 +6908,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 
 	find_matching_se(&se, &pse);
 	update_curr(cfs_rq_of(se));
-	BUG_ON(!pse);
+	_ON(!pse);
 	if (wakeup_preempt_entity(se, pse) == 1) {
 		/*
 		 * Bias pick_next to pick the sched entity that is
@@ -7626,7 +7626,7 @@ static void attach_task(struct rq *rq, struct task_struct *p)
 {
 	lockdep_assert_held(&rq->lock);
 
-	BUG_ON(task_rq(p) != rq);
+	_ON(task_rq(p) != rq);
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	check_preempt_curr(rq, p, 0);
@@ -9046,7 +9046,7 @@ redo:
 		goto out_balanced;
 	}
 
-	BUG_ON(busiest == env.dst_rq);
+	_ON(busiest == env.dst_rq);
 
 	schedstat_add(sd->lb_imbalance[idle], env.imbalance);
 
@@ -9341,7 +9341,7 @@ static int active_load_balance_cpu_stop(void *data)
 	 * we need to fix it. Originally reported by
 	 * Bjorn Helgaas on a 128-CPU setup.
 	 */
-	BUG_ON(busiest_rq == target_rq);
+	_ON(busiest_rq == target_rq);
 
 	/* Search for an sd spanning us and the target CPU. */
 	rcu_read_lock();
@@ -10662,7 +10662,7 @@ const struct sched_class fair_sched_class = {
 #endif
 };
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 void print_cfs_stats(struct seq_file *m, int cpu)
 {
 	struct cfs_rq *cfs_rq, *pos;
@@ -10692,7 +10692,7 @@ void show_numa_stats(struct task_struct *p, struct seq_file *m)
 	}
 }
 #endif /* CONFIG_NUMA_BALANCING */
-#endif /* CONFIG_SCHED_DEBUG */
+#endif /* CONFIG_SCHED_DE */
 
 __init void init_sched_fair_class(void)
 {

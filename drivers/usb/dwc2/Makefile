@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-$(CONFIG_USB_DWC2_DEBUG)	+= -DDEBUG
-ccflags-$(CONFIG_USB_DWC2_VERBOSE)	+= -DVERBOSE_DEBUG
+ccflags-$(CONFIG_USB_DWC2_DE)	+= -DDE
+ccflags-$(CONFIG_USB_DWC2_VERBOSE)	+= -DVERBOSE_DE
 
 obj-$(CONFIG_USB_DWC2)			+= dwc2.o
 dwc2-y					:= core.o core_intr.o platform.o
@@ -15,8 +15,8 @@ ifneq ($(filter y,$(CONFIG_USB_DWC2_PERIPHERAL) $(CONFIG_USB_DWC2_DUAL_ROLE)),)
 	dwc2-y       			+= gadget.o
 endif
 
-ifneq ($(CONFIG_DEBUG_FS),)
-	dwc2-y				+= debugfs.o
+ifneq ($(CONFIG_DE_FS),)
+	dwc2-y				+= defs.o
 endif
 
 # NOTE: The previous s3c-hsotg peripheral mode only driver has been moved to

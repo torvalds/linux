@@ -9,9 +9,9 @@
 
 #define pr_fmt(fmt) "cma: " fmt
 
-#ifdef CONFIG_CMA_DEBUG
-#ifndef DEBUG
-#  define DEBUG
+#ifdef CONFIG_CMA_DE
+#ifndef DE
+#  define DE
 #endif
 #endif
 
@@ -111,7 +111,7 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	phys_addr_t selected_limit = limit;
 	bool fixed = false;
 
-	pr_debug("%s(limit %08lx)\n", __func__, (unsigned long)limit);
+	pr_de("%s(limit %08lx)\n", __func__, (unsigned long)limit);
 
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
@@ -132,7 +132,7 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	}
 
 	if (selected_size && !dma_contiguous_default_area) {
-		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+		pr_de("%s: reserving %ld MiB for global area\n", __func__,
 			 (unsigned long)selected_size / SZ_1M);
 
 		dma_contiguous_reserve_area(selected_size, selected_base,

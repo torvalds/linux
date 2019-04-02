@@ -309,7 +309,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 	if (flags & IWL_TLC_NOTIF_FLAG_RATE) {
 		lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
-		IWL_DEBUG_RATE(mvm, "new rate_n_flags: 0x%X\n",
+		IWL_DE_RATE(mvm, "new rate_n_flags: 0x%X\n",
 			       lq_sta->last_rate_n_flags);
 	}
 
@@ -336,7 +336,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 				sta->max_tid_amsdu_len[i] = 1;
 		}
 
-		IWL_DEBUG_RATE(mvm,
+		IWL_DE_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
 			       le32_to_cpu(notif->amsdu_size), size,
 			       mvmsta->amsdu_enabled);
@@ -367,7 +367,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
 	sband = hw->wiphy->bands[band];
@@ -382,7 +382,7 @@ int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable)
 {
 	/* TODO: need to introduce a new FW cmd since LQ cmd is not relevant */
-	IWL_DEBUG_RATE(mvm, "tx protection - not implemented yet.\n");
+	IWL_DE_RATE(mvm, "tx protection - not implemented yet.\n");
 	return 0;
 }
 
@@ -390,7 +390,7 @@ void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta)
 {
 	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
 
-	IWL_DEBUG_RATE(mvm, "create station rate scale window\n");
+	IWL_DE_RATE(mvm, "create station rate scale window\n");
 
 	lq_sta->pers.drv = mvm;
 	lq_sta->pers.sta_id = mvmsta->sta_id;
@@ -399,7 +399,7 @@ void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta)
 	lq_sta->pers.last_rssi = S8_MIN;
 	lq_sta->last_rate_n_flags = 0;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	lq_sta->pers.dbg_fixed_rate = 0;
 #endif
 }

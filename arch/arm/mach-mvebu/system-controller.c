@@ -147,8 +147,8 @@ static void mvebu_armada375_smp_wa_init(void)
 
 void mvebu_system_controller_set_cpu_boot_addr(void *boot_addr)
 {
-	BUG_ON(system_controller_base == NULL);
-	BUG_ON(mvebu_sc->resume_boot_addr == 0);
+	_ON(system_controller_base == NULL);
+	_ON(mvebu_sc->resume_boot_addr == 0);
 
 	if (of_machine_is_compatible("marvell,armada375"))
 		mvebu_armada375_smp_wa_init();

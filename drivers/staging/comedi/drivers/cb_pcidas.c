@@ -1184,7 +1184,7 @@ static unsigned int cb_pcidas_ai_interrupt(struct comedi_device *dev,
 		irq_clr |= PCIDAS_CTRL_EOAI;
 
 		dev_err(dev->class_dev,
-			"bug! encountered end of acquisition interrupt?\n");
+			"! encountered end of acquisition interrupt?\n");
 	}
 
 	/* check for fifo overflow */

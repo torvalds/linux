@@ -28,7 +28,7 @@
 
 #include "css.h"
 #include "cio.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "ioasm.h"
 #include "chp.h"
 #include "chsc.h"

@@ -25,7 +25,7 @@
 #include <brcm_hw_ids.h>
 #include <brcmu_utils.h>
 #include <chipcommon.h>
-#include "debug.h"
+#include "de.h"
 #include "chip.h"
 
 /* SOC Interconnect types (aka chip types) */

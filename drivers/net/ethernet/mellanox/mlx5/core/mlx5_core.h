@@ -45,7 +45,7 @@
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "5.0-0"
 
-extern uint mlx5_core_debug_mask;
+extern uint mlx5_core_de_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
 	dev_dbg(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,		\
@@ -59,7 +59,7 @@ extern uint mlx5_core_debug_mask;
 
 #define mlx5_core_dbg_mask(__dev, mask, format, ...)			\
 do {									\
-	if ((mask) & mlx5_core_debug_mask)				\
+	if ((mask) & mlx5_core_de_mask)				\
 		mlx5_core_dbg(__dev, format, ##__VA_ARGS__);		\
 } while (0)
 
@@ -127,8 +127,8 @@ u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
 
 void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev);
 void mlx5_cmd_flush(struct mlx5_core_dev *dev);
-int mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
-void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
+int mlx5_cq_defs_init(struct mlx5_core_dev *dev);
+void mlx5_cq_defs_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam, u8 feature_group,
 			u8 access_reg_group);

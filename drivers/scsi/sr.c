@@ -325,7 +325,7 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 	long error_sector;
 	struct scsi_cd *cd = scsi_cd(SCpnt->request->rq_disk);
 
-#ifdef DEBUG
+#ifdef DE
 	scmd_printk(KERN_INFO, SCpnt, "done: %x\n", result);
 #endif
 
@@ -760,7 +760,7 @@ static int sr_probe(struct device *dev)
 	disk->flags |= GENHD_FL_REMOVABLE;
 	device_add_disk(&sdev->sdev_gendev, disk, NULL);
 
-	sdev_printk(KERN_DEBUG, sdev,
+	sdev_printk(KERN_DE, sdev,
 		    "Attached scsi CD-ROM %s\n", cd->cdi.name);
 	scsi_autopm_put_device(cd->device);
 
@@ -812,7 +812,7 @@ static void get_sectorsize(struct scsi_cd *cd)
 		 * certain UDF media.  If last_written is larger, use
 		 * it instead.
 		 *
-		 * http://bugzilla.kernel.org/show_bug.cgi?id=9668
+		 * http://zilla.kernel.org/show_.cgi?id=9668
 		 */
 		if (!cdrom_get_last_written(&cd->cdi, &last_written))
 			cd->capacity = max_t(long, cd->capacity, last_written);

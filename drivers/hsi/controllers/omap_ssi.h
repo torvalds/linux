@@ -113,7 +113,7 @@ struct omap_ssi_port {
 	struct omap_ssm_ctx	ssr;
 	u32			loss_count;
 	u32			port_id;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dir;
 #endif
 };
@@ -145,7 +145,7 @@ struct gdd_trn {
  * @gdd_gcr: SSI GDD saved context
  * @get_loss: Pointer to omap_pm_get_dev_context_loss_count, if any
  * @port: Array of pointers of the ports of the controller
- * @dir: Debugfs SSI root directory
+ * @dir: Defs SSI root directory
  */
 struct omap_ssi_controller {
 	struct device		*dev;
@@ -164,7 +164,7 @@ struct omap_ssi_controller {
 	u32			gdd_gcr;
 	int			(*get_loss)(struct device *dev);
 	struct omap_ssi_port	**port;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dir;
 #endif
 };

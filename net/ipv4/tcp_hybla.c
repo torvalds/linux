@@ -176,7 +176,7 @@ static struct tcp_congestion_ops tcp_hybla __read_mostly = {
 
 static int __init hybla_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct hybla) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct hybla) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&tcp_hybla);
 }
 

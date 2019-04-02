@@ -167,9 +167,9 @@ struct hw_pairwise_ta_entry {
 
 /*
  * Since NULL frame won't be that long (256 byte),
- * We steal 16 tail bytes to save debugging settings.
+ * We steal 16 tail bytes to save deging settings.
  */
-#define HW_DEBUG_SETTING_BASE		0x2bf0
+#define HW_DE_SETTING_BASE		0x2bf0
 
 /*
  * On-chip BEACON frame space.
@@ -914,7 +914,7 @@ struct hw_pairwise_ta_entry {
 #define LOAD_TX_RING_CSR_LOAD_TXD_MGMT	FIELD32(0x00000010)
 
 /*
- * Several read-only registers, for debugging.
+ * Several read-only registers, for deging.
  */
 #define AC0_TXPTR_CSR			0x3438
 #define AC1_TXPTR_CSR			0x343c
@@ -945,7 +945,7 @@ struct hw_pairwise_ta_entry {
 #define RX_CNTL_CSR_LOAD_RXD		FIELD32(0x00000002)
 
 /*
- * RXPTR_CSR: Read-only, for debugging.
+ * RXPTR_CSR: Read-only, for deging.
  */
 #define RXPTR_CSR			0x345c
 

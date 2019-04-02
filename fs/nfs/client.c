@@ -476,7 +476,7 @@ void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_exponential = 1;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_init_timeout_values);

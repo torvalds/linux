@@ -182,8 +182,8 @@ void gameport_start_polling(struct gameport *gameport)
 	spin_lock(&gameport->timer_lock);
 
 	if (!gameport->poll_cnt++) {
-		BUG_ON(!gameport->poll_handler);
-		BUG_ON(!gameport->poll_interval);
+		_ON(!gameport->poll_handler);
+		_ON(!gameport->poll_interval);
 		mod_timer(&gameport->poll_timer, jiffies + msecs_to_jiffies(gameport->poll_interval));
 	}
 

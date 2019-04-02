@@ -90,7 +90,7 @@ static int rx_buf_sizes[NP]  = {128,  256,  512, 1024, 2048, 4096, 16384, 65520}
 #if 0
 static int rx_pool_sizes[NP] = {1024, 1024, 512, 256,  128,  64,   32,    32};
 #else
-/* debug */
+/* de */
 static int rx_pool_sizes[NP] = {128,  128,  128, 64,   64,   64,   32,    32};
 #endif
 /* log2:                 10    10    9    8     7     6     5      5  */
@@ -284,17 +284,17 @@ static struct reginit_item PHY_NTC_INIT[] = {
 #undef FS_POLL_FREQ // 100
 
 /* 
-   This driver can spew a whole lot of debugging output at you. If you
-   need maximum performance, you should disable the DEBUG define. To
-   aid in debugging in the field, I'm leaving the compile-time debug
+   This driver can spew a whole lot of deging output at you. If you
+   need maximum performance, you should disable the DE define. To
+   aid in deging in the field, I'm leaving the compile-time de
    features enabled, and disable them "runtime". That allows me to
-   instruct people with problems to enable debugging without requiring
+   instruct people with problems to enable deging without requiring
    them to recompile... -- REW
 */
-#define DEBUG
+#define DE
 
-#ifdef DEBUG
-#define fs_dprintk(f, str...) if (fs_debug & f) printk (str)
+#ifdef DE
+#define fs_dprintk(f, str...) if (fs_de & f) printk (str)
 #else
 #define fs_dprintk(f, str...) /* nothing */
 #endif
@@ -302,17 +302,17 @@ static struct reginit_item PHY_NTC_INIT[] = {
 
 static int fs_keystream = 0;
 
-#ifdef DEBUG
+#ifdef DE
 /* I didn't forget to set this to zero before shipping. Hit me with a stick 
-   if you get this with the debug default not set to zero again. -- REW */
-static int fs_debug = 0;
+   if you get this with the de default not set to zero again. -- REW */
+static int fs_de = 0;
 #else
-#define fs_debug 0
+#define fs_de 0
 #endif
 
 #ifdef MODULE
-#ifdef DEBUG 
-module_param(fs_debug, int, 0644);
+#ifdef DE 
+module_param(fs_de, int, 0644);
 #endif
 module_param(loopback, int, 0);
 module_param(num, int, 0);
@@ -321,28 +321,28 @@ module_param(fs_keystream, int, 0);
 #endif
 
 
-#define FS_DEBUG_FLOW    0x00000001
-#define FS_DEBUG_OPEN    0x00000002
-#define FS_DEBUG_QUEUE   0x00000004
-#define FS_DEBUG_IRQ     0x00000008
-#define FS_DEBUG_INIT    0x00000010
-#define FS_DEBUG_SEND    0x00000020
-#define FS_DEBUG_PHY     0x00000040
-#define FS_DEBUG_CLEANUP 0x00000080
-#define FS_DEBUG_QOS     0x00000100
-#define FS_DEBUG_TXQ     0x00000200
-#define FS_DEBUG_ALLOC   0x00000400
-#define FS_DEBUG_TXMEM   0x00000800
-#define FS_DEBUG_QSIZE   0x00001000
+#define FS_DE_FLOW    0x00000001
+#define FS_DE_OPEN    0x00000002
+#define FS_DE_QUEUE   0x00000004
+#define FS_DE_IRQ     0x00000008
+#define FS_DE_INIT    0x00000010
+#define FS_DE_SEND    0x00000020
+#define FS_DE_PHY     0x00000040
+#define FS_DE_CLEANUP 0x00000080
+#define FS_DE_QOS     0x00000100
+#define FS_DE_TXQ     0x00000200
+#define FS_DE_ALLOC   0x00000400
+#define FS_DE_TXMEM   0x00000800
+#define FS_DE_QSIZE   0x00001000
 
 
-#define func_enter() fs_dprintk(FS_DEBUG_FLOW, "fs: enter %s\n", __func__)
-#define func_exit()  fs_dprintk(FS_DEBUG_FLOW, "fs: exit  %s\n", __func__)
+#define func_enter() fs_dprintk(FS_DE_FLOW, "fs: enter %s\n", __func__)
+#define func_exit()  fs_dprintk(FS_DE_FLOW, "fs: exit  %s\n", __func__)
 
 
 static struct fs_dev *fs_boards = NULL;
 
-#ifdef DEBUG
+#ifdef DE
 
 static void my_hd (void *addr, int len)
 {
@@ -366,9 +366,9 @@ static void my_hd (void *addr, int len)
 		len -= 16;
 	}
 }
-#else /* DEBUG */
+#else /* DE */
 static void my_hd (void *addr, int len){}
-#endif /* DEBUG */
+#endif /* DE */
 
 /********** free an skb (as per ATM device driver documentation) **********/
 
@@ -454,7 +454,7 @@ static int make_rate(unsigned int rate, int r,
 	unsigned char exp = -1; /* hush gcc */
 	unsigned int man = -1;  /* hush gcc */
   
-	fs_dprintk (FS_DEBUG_QOS, "make_rate %u", rate);
+	fs_dprintk (FS_DE_QOS, "make_rate %u", rate);
   
 	/* rates in cells per second, ITU format (nasty 16-bit floating-point)
 	   given 5-bit e and 9-bit m:
@@ -468,7 +468,7 @@ static int make_rate(unsigned int rate, int r,
 	   find position of top bit, this gives e
 	   remove top bit and shift (rounding if feeling clever) by 9-e
 	*/
-	/* Ambassador ucode bug: please don't set bit 14! so 0 rate not
+	/* Ambassador ucode : please don't set bit 14! so 0 rate not
 	   representable. // This should move into the ambassador driver
 	   when properly merged. -- REW */
   
@@ -556,7 +556,7 @@ static int make_rate(unsigned int rate, int r,
 		}
 	}
   
-	fs_dprintk (FS_DEBUG_QOS, "rate: man=%u, exp=%hu", man, exp);
+	fs_dprintk (FS_DE_QOS, "rate: man=%u, exp=%hu", man, exp);
   
 	if (bits)
 		*bits = /* (1<<14) | */ (exp<<9) | man;
@@ -573,7 +573,7 @@ static int make_rate(unsigned int rate, int r,
 
 
 /* FireStream access routines */
-/* For DEEP-DOWN debugging these can be rigged to intercept accesses to
+/* For DEEP-DOWN deging these can be rigged to intercept accesses to
    certain registers or to just log all accesses. */
 
 static inline void write_fs (struct fs_dev *dev, int offset, u32 val)
@@ -604,7 +604,7 @@ static void submit_qentry (struct fs_dev *dev, struct queue *q, struct FS_QENTRY
 	   still the same as the value passed as qe... -- REW */
 	/*  udelay (5); */
 	while ((wp = read_fs (dev, Q_WP (q->offset))) & Q_FULL) {
-		fs_dprintk (FS_DEBUG_TXQ, "Found queue at %x full. Waiting.\n", 
+		fs_dprintk (FS_DE_TXQ, "Found queue at %x full. Waiting.\n", 
 			    q->offset);
 		schedule ();
 	}
@@ -612,7 +612,7 @@ static void submit_qentry (struct fs_dev *dev, struct queue *q, struct FS_QENTRY
 	wp &= ~0xf;
 	cqe = bus_to_virt (wp);
 	if (qe != cqe) {
-		fs_dprintk (FS_DEBUG_TXQ, "q mismatch! %p %p\n", qe, cqe);
+		fs_dprintk (FS_DE_TXQ, "q mismatch! %p %p\n", qe, cqe);
 	}
 
 	write_fs (dev, Q_WP(q->offset), Q_INCWRAP);
@@ -624,13 +624,13 @@ static void submit_qentry (struct fs_dev *dev, struct queue *q, struct FS_QENTRY
 				int rp, wp;
 				rp =  read_fs (dev, Q_RP(q->offset));
 				wp =  read_fs (dev, Q_WP(q->offset));
-				fs_dprintk (FS_DEBUG_TXQ, "q at %d: %x-%x: %x entries.\n", 
+				fs_dprintk (FS_DE_TXQ, "q at %d: %x-%x: %x entries.\n", 
 					    q->offset, rp, wp, wp-rp);
 			}
 	}
 }
 
-#ifdef DEBUG_EXTRA
+#ifdef DE_EXTRA
 static struct FS_QENTRY pq[60];
 static int qp;
 
@@ -651,7 +651,7 @@ static void submit_queue (struct fs_dev *dev, struct queue *q,
 	qe->p2 = p3;
 	submit_qentry (dev,  q, qe);
 
-#ifdef DEBUG_EXTRA
+#ifdef DE_EXTRA
 	pq[qp].cmd = cmd;
 	pq[qp].p0 = p1;
 	pq[qp].p1 = p2;
@@ -685,16 +685,16 @@ static void process_return_queue (struct fs_dev *dev, struct queue *q)
 	void *tc;
   
 	while (!((rq = read_fs (dev, Q_RP(q->offset))) & Q_EMPTY)) {
-		fs_dprintk (FS_DEBUG_QUEUE, "reaping return queue entry at %lx\n", rq); 
+		fs_dprintk (FS_DE_QUEUE, "reaping return queue entry at %lx\n", rq); 
 		qe = bus_to_virt (rq);
     
-		fs_dprintk (FS_DEBUG_QUEUE, "queue entry: %08x %08x %08x %08x. (%d)\n", 
+		fs_dprintk (FS_DE_QUEUE, "queue entry: %08x %08x %08x %08x. (%d)\n", 
 			    qe->cmd, qe->p0, qe->p1, qe->p2, STATUS_CODE (qe));
 
 		switch (STATUS_CODE (qe)) {
 		case 5:
 			tc = bus_to_virt (qe->p0);
-			fs_dprintk (FS_DEBUG_ALLOC, "Free tc: %p\n", tc);
+			fs_dprintk (FS_DE_ALLOC, "Free tc: %p\n", tc);
 			kfree (tc);
 			break;
 		}
@@ -713,14 +713,14 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 	struct FS_BPENTRY *td;
 
 	while (!((rq = read_fs (dev, Q_RP(q->offset))) & Q_EMPTY)) {
-		fs_dprintk (FS_DEBUG_QUEUE, "reaping txdone entry at %lx\n", rq); 
+		fs_dprintk (FS_DE_QUEUE, "reaping txdone entry at %lx\n", rq); 
 		qe = bus_to_virt (rq);
     
-		fs_dprintk (FS_DEBUG_QUEUE, "queue entry: %08x %08x %08x %08x: %d\n", 
+		fs_dprintk (FS_DE_QUEUE, "queue entry: %08x %08x %08x %08x: %d\n", 
 			    qe->cmd, qe->p0, qe->p1, qe->p2, STATUS_CODE (qe));
 
 		if (STATUS_CODE (qe) != 2)
-			fs_dprintk (FS_DEBUG_TXMEM, "queue entry: %08x %08x %08x %08x: %d\n", 
+			fs_dprintk (FS_DE_TXMEM, "queue entry: %08x %08x %08x %08x: %d\n", 
 				    qe->cmd, qe->p0, qe->p1, qe->p2, STATUS_CODE (qe));
 
 
@@ -735,7 +735,7 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 			tmp &= ~0x0f;
 			td = bus_to_virt (tmp);
 
-			fs_dprintk (FS_DEBUG_QUEUE, "Pool entry: %08x %08x %08x %08x %p.\n", 
+			fs_dprintk (FS_DE_QUEUE, "Pool entry: %08x %08x %08x %08x %p.\n", 
 				    td->flags, td->next, td->bsa, td->aal_bufsize, td->skb );
       
 			skb = td->skb;
@@ -749,17 +749,17 @@ static void process_txdone_queue (struct fs_dev *dev, struct queue *q)
 				static int c=0;
 	
 				if (!(c++ % 100)) {
-					fs_dprintk (FS_DEBUG_QSIZE, "[%d]", td->dev->ntxpckts);
+					fs_dprintk (FS_DE_QSIZE, "[%d]", td->dev->ntxpckts);
 				}
 			}
 
 			atomic_inc(&ATM_SKB(skb)->vcc->stats->tx);
 
-			fs_dprintk (FS_DEBUG_TXMEM, "i");
-			fs_dprintk (FS_DEBUG_ALLOC, "Free t-skb: %p\n", skb);
+			fs_dprintk (FS_DE_TXMEM, "i");
+			fs_dprintk (FS_DE_ALLOC, "Free t-skb: %p\n", skb);
 			fs_kfree_skb (skb);
 
-			fs_dprintk (FS_DEBUG_ALLOC, "Free trans-d: %p\n", td); 
+			fs_dprintk (FS_DE_ALLOC, "Free trans-d: %p\n", td); 
 			memset (td, ATM_POISON_FREE, sizeof(struct FS_BPENTRY));
 			kfree (td);
 			break;
@@ -784,18 +784,18 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 	struct atm_vcc *atm_vcc;
 
 	while (!((rq = read_fs (dev, Q_RP(q->offset))) & Q_EMPTY)) {
-		fs_dprintk (FS_DEBUG_QUEUE, "reaping incoming queue entry at %lx\n", rq); 
+		fs_dprintk (FS_DE_QUEUE, "reaping incoming queue entry at %lx\n", rq); 
 		qe = bus_to_virt (rq);
     
-		fs_dprintk (FS_DEBUG_QUEUE, "queue entry: %08x %08x %08x %08x.  ", 
+		fs_dprintk (FS_DE_QUEUE, "queue entry: %08x %08x %08x %08x.  ", 
 			    qe->cmd, qe->p0, qe->p1, qe->p2);
 
-		fs_dprintk (FS_DEBUG_QUEUE, "-> %x: %s\n", 
+		fs_dprintk (FS_DE_QUEUE, "-> %x: %s\n", 
 			    STATUS_CODE (qe), 
 			    res_strings[STATUS_CODE(qe)]);
 
 		pe = bus_to_virt (qe->p0);
-		fs_dprintk (FS_DEBUG_QUEUE, "Pool entry: %08x %08x %08x %08x %p %p.\n", 
+		fs_dprintk (FS_DE_QUEUE, "Pool entry: %08x %08x %08x %08x %p %p.\n", 
 			    pe->flags, pe->next, pe->bsa, pe->aal_bufsize, 
 			    pe->skb, pe->fp);
       
@@ -815,16 +815,16 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 				skb = pe->skb;
 				pe->fp->n--;
 #if 0
-				fs_dprintk (FS_DEBUG_QUEUE, "Got skb: %p\n", skb);
-				if (FS_DEBUG_QUEUE & fs_debug) my_hd (bus_to_virt (pe->bsa), 0x20);
+				fs_dprintk (FS_DE_QUEUE, "Got skb: %p\n", skb);
+				if (FS_DE_QUEUE & fs_de) my_hd (bus_to_virt (pe->bsa), 0x20);
 #endif
 				skb_put (skb, qe->p1 & 0xffff); 
 				ATM_SKB(skb)->vcc = atm_vcc;
 				atomic_inc(&atm_vcc->stats->rx);
 				__net_timestamp(skb);
-				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-skb: %p (pushed)\n", skb);
+				fs_dprintk (FS_DE_ALLOC, "Free rec-skb: %p (pushed)\n", skb);
 				atm_vcc->push (atm_vcc, skb);
-				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-d: %p\n", pe);
+				fs_dprintk (FS_DE_ALLOC, "Free rec-d: %p\n", pe);
 				kfree (pe);
 			} else {
 				printk (KERN_ERR "Got a receive on a non-open channel %d.\n", channo);
@@ -835,9 +835,9 @@ static void process_incoming (struct fs_dev *dev, struct queue *q)
 			if (qe->p1 & 0xffff) {
 				pe = bus_to_virt (qe->p0);
 				pe->fp->n--;
-				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-skb: %p\n", pe->skb);
+				fs_dprintk (FS_DE_ALLOC, "Free rec-skb: %p\n", pe->skb);
 				dev_kfree_skb_any (pe->skb);
-				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-d: %p\n", pe);
+				fs_dprintk (FS_DE_ALLOC, "Free rec-d: %p\n", pe);
 				kfree (pe);
 			}
 			if (atm_vcc)
@@ -879,7 +879,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 	func_enter ();
 
 	dev = FS_DEV(atm_vcc->dev);
-	fs_dprintk (FS_DEBUG_OPEN, "fs: open on dev: %p, vcc at %p\n", 
+	fs_dprintk (FS_DE_OPEN, "fs: open on dev: %p, vcc at %p\n", 
 		    dev, atm_vcc);
 
 	if (vci != ATM_VPI_UNSPEC && vpi != ATM_VCI_UNSPEC)
@@ -889,13 +889,13 @@ static int fs_open(struct atm_vcc *atm_vcc)
 	    (atm_vcc->qos.aal != ATM_AAL2))
 	  return -EINVAL; /* XXX AAL0 */
 
-	fs_dprintk (FS_DEBUG_OPEN, "fs: (itf %d): open %d.%d\n", 
+	fs_dprintk (FS_DE_OPEN, "fs: (itf %d): open %d.%d\n", 
 		    atm_vcc->dev->number, atm_vcc->vpi, atm_vcc->vci);	
 
 	/* XXX handle qos parameters (rate limiting) ? */
 
 	vcc = kmalloc(sizeof(struct fs_vcc), GFP_KERNEL);
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc VCC: %p(%zd)\n", vcc, sizeof(struct fs_vcc));
+	fs_dprintk (FS_DE_ALLOC, "Alloc VCC: %p(%zd)\n", vcc, sizeof(struct fs_vcc));
 	if (!vcc) {
 		clear_bit(ATM_VF_ADDR, &atm_vcc->flags);
 		return -ENOMEM;
@@ -940,16 +940,16 @@ static int fs_open(struct atm_vcc *atm_vcc)
 				return -EBUSY;
 			}
 		}
-		fs_dprintk (FS_DEBUG_OPEN, "OK. Allocated channel %x(%d).\n", 
+		fs_dprintk (FS_DE_OPEN, "OK. Allocated channel %x(%d).\n", 
 			    vcc->channo, vcc->channo);
 	}
 
 	if (DO_DIRECTION (txtp)) {
 		tc = kmalloc (sizeof (struct fs_transmit_config), GFP_KERNEL);
-		fs_dprintk (FS_DEBUG_ALLOC, "Alloc tc: %p(%zd)\n",
+		fs_dprintk (FS_DE_ALLOC, "Alloc tc: %p(%zd)\n",
 			    tc, sizeof (struct fs_transmit_config));
 		if (!tc) {
-			fs_dprintk (FS_DEBUG_OPEN, "fs: can't alloc transmit_config.\n");
+			fs_dprintk (FS_DE_OPEN, "fs: can't alloc transmit_config.\n");
 			return -ENOMEM;
 		}
 
@@ -987,7 +987,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		{
 			int pcr = atm_pcr_goal (txtp);
 
-			fs_dprintk (FS_DEBUG_OPEN, "pcr = %d.\n", pcr);
+			fs_dprintk (FS_DE_OPEN, "pcr = %d.\n", pcr);
 
 			/* XXX Hmm. officially we're only allowed to do this if rounding 
 			   is round_down -- REW */
@@ -1013,7 +1013,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 					return error;
 				}
 			}
-			fs_dprintk (FS_DEBUG_OPEN, "pcr = %d.\n", pcr);
+			fs_dprintk (FS_DE_OPEN, "pcr = %d.\n", pcr);
 		}
       
 		tc->TMC[0] = tmc0 | 0x4000;
@@ -1027,8 +1027,8 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		tc->rtag[1] = 0;
 		tc->rtag[2] = 0;
 
-		if (fs_debug & FS_DEBUG_OPEN) {
-			fs_dprintk (FS_DEBUG_OPEN, "TX config record:\n");
+		if (fs_de & FS_DE_OPEN) {
+			fs_dprintk (FS_DE_OPEN, "TX config record:\n");
 			my_hd (tc, sizeof (*tc));
 		}
 
@@ -1059,7 +1059,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		for (bfp = 0;bfp < FS_NR_FREE_POOLS; bfp++)
 			if (atm_vcc->qos.rxtp.max_sdu <= dev->rx_fp[bfp].bufsize) break;
 		if (bfp >= FS_NR_FREE_POOLS) {
-			fs_dprintk (FS_DEBUG_OPEN, "No free pool fits sdu: %d.\n", 
+			fs_dprintk (FS_DE_OPEN, "No free pool fits sdu: %d.\n", 
 				    atm_vcc->qos.rxtp.max_sdu);
 			/* XXX Cleanup? -- Would just calling fs_close work??? -- REW */
 
@@ -1116,9 +1116,9 @@ static void fs_close(struct atm_vcc *atm_vcc)
 
 	clear_bit(ATM_VF_READY, &atm_vcc->flags);
 
-	fs_dprintk (FS_DEBUG_QSIZE, "--==**[%d]**==--", dev->ntxpckts);
+	fs_dprintk (FS_DE_QSIZE, "--==**[%d]**==--", dev->ntxpckts);
 	if (vcc->last_skb) {
-		fs_dprintk (FS_DEBUG_QUEUE, "Waiting for skb %p to be sent.\n", 
+		fs_dprintk (FS_DE_QUEUE, "Waiting for skb %p to be sent.\n", 
 			    vcc->last_skb);
 		/* We're going to wait for the last packet to get sent on this VC. It would
 		   be impolite not to send them don't you think? 
@@ -1159,7 +1159,7 @@ static void fs_close(struct atm_vcc *atm_vcc)
 		}
 	}
 
-	fs_dprintk (FS_DEBUG_ALLOC, "Free vcc: %p\n", vcc);
+	fs_dprintk (FS_DE_ALLOC, "Free vcc: %p\n", vcc);
 	kfree (vcc);
 
 	func_exit ();
@@ -1174,24 +1174,24 @@ static int fs_send (struct atm_vcc *atm_vcc, struct sk_buff *skb)
 
 	func_enter ();
 
-	fs_dprintk (FS_DEBUG_TXMEM, "I");
-	fs_dprintk (FS_DEBUG_SEND, "Send: atm_vcc %p skb %p vcc %p dev %p\n", 
+	fs_dprintk (FS_DE_TXMEM, "I");
+	fs_dprintk (FS_DE_SEND, "Send: atm_vcc %p skb %p vcc %p dev %p\n", 
 		    atm_vcc, skb, vcc, dev);
 
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc t-skb: %p (atm_send)\n", skb);
+	fs_dprintk (FS_DE_ALLOC, "Alloc t-skb: %p (atm_send)\n", skb);
 
 	ATM_SKB(skb)->vcc = atm_vcc;
 
 	vcc->last_skb = skb;
 
 	td = kmalloc (sizeof (struct FS_BPENTRY), GFP_ATOMIC);
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc transd: %p(%zd)\n", td, sizeof (struct FS_BPENTRY));
+	fs_dprintk (FS_DE_ALLOC, "Alloc transd: %p(%zd)\n", td, sizeof (struct FS_BPENTRY));
 	if (!td) {
 		/* Oops out of mem */
 		return -ENOMEM;
 	}
 
-	fs_dprintk (FS_DEBUG_SEND, "first word in buffer: %x\n", 
+	fs_dprintk (FS_DE_SEND, "first word in buffer: %x\n", 
 		    *(int *) skb->data);
 
 	td->flags =  TD_EPI | TD_DATA | skb->len;
@@ -1201,7 +1201,7 @@ static int fs_send (struct atm_vcc *atm_vcc, struct sk_buff *skb)
 	td->dev = dev;
 	dev->ntxpckts++;
 
-#ifdef DEBUG_EXTRA
+#ifdef DE_EXTRA
 	da[qd] = td;
 	dq[qd].flags = td->flags;
 	dq[qd].next  = td->next;
@@ -1217,7 +1217,7 @@ static int fs_send (struct atm_vcc *atm_vcc, struct sk_buff *skb)
 		      virt_to_bus (td), 0, 
 		      virt_to_bus (td));
 
-	fs_dprintk (FS_DEBUG_QUEUE, "in send: txq %d txrq %d\n", 
+	fs_dprintk (FS_DE_QUEUE, "in send: txq %d txrq %d\n", 
 		    read_fs (dev, Q_EA (dev->hp_txq.offset)) -
 		    read_fs (dev, Q_SA (dev->hp_txq.offset)),
 		    read_fs (dev, Q_EA (dev->tx_relq.offset)) -
@@ -1410,11 +1410,11 @@ static int init_q(struct fs_dev *dev, struct queue *txq, int queue,
 
 	func_enter ();
 
-	fs_dprintk (FS_DEBUG_INIT, "Initializing queue at %x: %d entries:\n",
+	fs_dprintk (FS_DE_INIT, "Initializing queue at %x: %d entries:\n",
 		    queue, nentries);
 
 	p = aligned_kmalloc (sz, GFP_KERNEL, 0x10);
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc queue: %p(%d)\n", p, sz);
+	fs_dprintk (FS_DE_ALLOC, "Alloc queue: %p(%d)\n", p, sz);
 
 	if (!p) return 0;
 
@@ -1443,7 +1443,7 @@ static int init_fp(struct fs_dev *dev, struct freepool *fp, int queue,
 {
 	func_enter ();
 
-	fs_dprintk (FS_DEBUG_INIT, "Initializing free pool at %x:\n", queue);
+	fs_dprintk (FS_DE_INIT, "Initializing free pool at %x:\n", queue);
 
 	write_fs (dev, FP_CNF(queue), (bufsize * RBFP_RBS) | RBFP_RBSVAL | RBFP_CME);
 	write_fs (dev, FP_SA(queue),  0);
@@ -1483,23 +1483,23 @@ static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
 	int n = 0;
 	u32 qe_tmp;
 
-	fs_dprintk (FS_DEBUG_QUEUE, "Topping off queue at %x (%d-%d/%d)\n", 
+	fs_dprintk (FS_DE_QUEUE, "Topping off queue at %x (%d-%d/%d)\n", 
 		    fp->offset, read_fs (dev, FP_CNT (fp->offset)), fp->n, 
 		    fp->nr_buffers);
 	while (nr_buffers_in_freepool(dev, fp) < fp->nr_buffers) {
 
 		skb = alloc_skb (fp->bufsize, gfp_flags);
-		fs_dprintk (FS_DEBUG_ALLOC, "Alloc rec-skb: %p(%d)\n", skb, fp->bufsize);
+		fs_dprintk (FS_DE_ALLOC, "Alloc rec-skb: %p(%d)\n", skb, fp->bufsize);
 		if (!skb) break;
 		ne = kmalloc (sizeof (struct FS_BPENTRY), gfp_flags);
-		fs_dprintk (FS_DEBUG_ALLOC, "Alloc rec-d: %p(%zd)\n", ne, sizeof (struct FS_BPENTRY));
+		fs_dprintk (FS_DE_ALLOC, "Alloc rec-d: %p(%zd)\n", ne, sizeof (struct FS_BPENTRY));
 		if (!ne) {
-			fs_dprintk (FS_DEBUG_ALLOC, "Free rec-skb: %p\n", skb);
+			fs_dprintk (FS_DE_ALLOC, "Free rec-skb: %p\n", skb);
 			dev_kfree_skb_any (skb);
 			break;
 		}
 
-		fs_dprintk (FS_DEBUG_QUEUE, "Adding skb %p desc %p -> %p(%p) ", 
+		fs_dprintk (FS_DE_QUEUE, "Adding skb %p desc %p -> %p(%p) ", 
 			    skb, ne, skb->data, skb->head);
 		n++;
 		ne->flags = FP_FLAGS_EPI | fp->bufsize;
@@ -1516,7 +1516,7 @@ static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
 		 */
 
 		qe_tmp = read_fs (dev, FP_EA(fp->offset));
-		fs_dprintk (FS_DEBUG_QUEUE, "link at %x\n", qe_tmp);
+		fs_dprintk (FS_DE_QUEUE, "link at %x\n", qe_tmp);
 		if (qe_tmp) {
 			qe = bus_to_virt ((long) qe_tmp);
 			qe->next = virt_to_bus(ne);
@@ -1529,7 +1529,7 @@ static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
 		write_fs (dev, FP_CTU(fp->offset), 1);
 	}
 
-	fs_dprintk (FS_DEBUG_QUEUE, "Added %d entries. \n", n);
+	fs_dprintk (FS_DE_QUEUE, "Added %d entries. \n", n);
 }
 
 static void free_queue(struct fs_dev *dev, struct queue *txq)
@@ -1542,7 +1542,7 @@ static void free_queue(struct fs_dev *dev, struct queue *txq)
 	write_fs (dev, Q_WP(txq->offset), 0);
 	/* Configuration ? */
 
-	fs_dprintk (FS_DEBUG_ALLOC, "Free queue: %p\n", txq->sa);
+	fs_dprintk (FS_DE_ALLOC, "Free queue: %p\n", txq->sa);
 	kfree (txq->sa);
 
 	func_exit ();
@@ -1594,25 +1594,25 @@ static irqreturn_t fs_irq (int irq, void *dev_id)
 		}
 	}
 #endif
-	fs_dprintk (FS_DEBUG_QUEUE, "in intr: txq %d txrq %d\n", 
+	fs_dprintk (FS_DE_QUEUE, "in intr: txq %d txrq %d\n", 
 		    read_fs (dev, Q_EA (dev->hp_txq.offset)) -
 		    read_fs (dev, Q_SA (dev->hp_txq.offset)),
 		    read_fs (dev, Q_EA (dev->tx_relq.offset)) -
 		    read_fs (dev, Q_SA (dev->tx_relq.offset)));
 
 	/* print the bits in the ISR register. */
-	if (fs_debug & FS_DEBUG_IRQ) {
-		/* The FS_DEBUG things are unnecessary here. But this way it is
-		   clear for grep that these are debug prints. */
-		fs_dprintk (FS_DEBUG_IRQ,  "IRQ status:");
+	if (fs_de & FS_DE_IRQ) {
+		/* The FS_DE things are unnecessary here. But this way it is
+		   clear for grep that these are de prints. */
+		fs_dprintk (FS_DE_IRQ,  "IRQ status:");
 		for (i=0;i<27;i++) 
 			if (status & (1 << i)) 
-				fs_dprintk (FS_DEBUG_IRQ, " %s", irq_bitname[i]);
-		fs_dprintk (FS_DEBUG_IRQ, "\n");
+				fs_dprintk (FS_DE_IRQ, " %s", irq_bitname[i]);
+		fs_dprintk (FS_DE_IRQ, "\n");
 	}
   
 	if (status & ISR_RBRQ0_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Iiiin-coming (0)!!!!\n");
+		fs_dprintk (FS_DE_IRQ, "Iiiin-coming (0)!!!!\n");
 		process_incoming (dev, &dev->rx_rq[0]);
 		/* items mentioned on RBRQ0 are from FP 0 or 1. */
 		top_off_fp (dev, &dev->rx_fp[0], GFP_ATOMIC);
@@ -1620,33 +1620,33 @@ static irqreturn_t fs_irq (int irq, void *dev_id)
 	}
 
 	if (status & ISR_RBRQ1_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Iiiin-coming (1)!!!!\n");
+		fs_dprintk (FS_DE_IRQ, "Iiiin-coming (1)!!!!\n");
 		process_incoming (dev, &dev->rx_rq[1]);
 		top_off_fp (dev, &dev->rx_fp[2], GFP_ATOMIC);
 		top_off_fp (dev, &dev->rx_fp[3], GFP_ATOMIC);
 	}
 
 	if (status & ISR_RBRQ2_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Iiiin-coming (2)!!!!\n");
+		fs_dprintk (FS_DE_IRQ, "Iiiin-coming (2)!!!!\n");
 		process_incoming (dev, &dev->rx_rq[2]);
 		top_off_fp (dev, &dev->rx_fp[4], GFP_ATOMIC);
 		top_off_fp (dev, &dev->rx_fp[5], GFP_ATOMIC);
 	}
 
 	if (status & ISR_RBRQ3_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Iiiin-coming (3)!!!!\n");
+		fs_dprintk (FS_DE_IRQ, "Iiiin-coming (3)!!!!\n");
 		process_incoming (dev, &dev->rx_rq[3]);
 		top_off_fp (dev, &dev->rx_fp[6], GFP_ATOMIC);
 		top_off_fp (dev, &dev->rx_fp[7], GFP_ATOMIC);
 	}
 
 	if (status & ISR_CSQ_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Command executed ok!\n");
+		fs_dprintk (FS_DE_IRQ, "Command executed ok!\n");
 		process_return_queue (dev, &dev->st_q);
 	}
 
 	if (status & ISR_TBRQ_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Data tramsitted!\n");
+		fs_dprintk (FS_DE_IRQ, "Data tramsitted!\n");
 		process_txdone_queue (dev, &dev->tx_relq);
 	}
 
@@ -1680,7 +1680,7 @@ static int fs_init(struct fs_dev *dev)
 		(unsigned long long)pci_resource_start(pci_dev, 0),
 		dev->pci_dev->irq);
 
-	if (fs_debug & FS_DEBUG_INIT)
+	if (fs_de & FS_DE_INIT)
 		my_hd ((unsigned char *) dev, sizeof (*dev));
 
 	undocumented_pci_fix (pci_dev);
@@ -1719,7 +1719,7 @@ static int fs_init(struct fs_dev *dev)
 			goto unmap;
 		}
 		if (isr & ISR_INIT) {
-			fs_dprintk (FS_DEBUG_INIT, "Ha! Initialized OK!\n");
+			fs_dprintk (FS_DE_INIT, "Ha! Initialized OK!\n");
 			break;
 		}
 
@@ -1803,7 +1803,7 @@ static int fs_init(struct fs_dev *dev)
 	}
 	dev->atm_vccs = kcalloc (dev->nchannels, sizeof (struct atm_vcc *),
 				 GFP_KERNEL);
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc atmvccs: %p(%zd)\n",
+	fs_dprintk (FS_DE_ALLOC, "Alloc atmvccs: %p(%zd)\n",
 		    dev->atm_vccs, dev->nchannels * sizeof (struct atm_vcc *));
 
 	if (!dev->atm_vccs) {
@@ -1813,7 +1813,7 @@ static int fs_init(struct fs_dev *dev)
 	}
 
 	dev->tx_inuse = kzalloc (dev->nchannels / 8 /* bits/byte */ , GFP_KERNEL);
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc tx_inuse: %p(%d)\n", 
+	fs_dprintk (FS_DE_ALLOC, "Alloc tx_inuse: %p(%d)\n", 
 		    dev->atm_vccs, dev->nchannels / 8);
 
 	if (!dev->tx_inuse) {
@@ -1848,7 +1848,7 @@ static int fs_init(struct fs_dev *dev)
 		/* XXX undo all previous stuff... */
 		goto unmap;
 	}
-	fs_dprintk (FS_DEBUG_INIT, "Grabbed irq %d for dev at %p.\n", dev->irq, dev);
+	fs_dprintk (FS_DE_INIT, "Grabbed irq %d for dev at %p.\n", dev->irq, dev);
   
 	/* We want to be notified of most things. Just the statistics count
 	   overflows are not interesting */
@@ -1909,7 +1909,7 @@ static int firestream_init_one(struct pci_dev *pci_dev,
 		goto err_out;
 
 	fs_dev = kzalloc (sizeof (struct fs_dev), GFP_KERNEL);
-	fs_dprintk (FS_DEBUG_ALLOC, "Alloc fs-dev: %p(%zd)\n",
+	fs_dprintk (FS_DE_ALLOC, "Alloc fs-dev: %p(%zd)\n",
 		    fs_dev, sizeof (struct fs_dev));
 	if (!fs_dev)
 		goto err_out;
@@ -1964,7 +1964,7 @@ static void firestream_remove_one(struct pci_dev *pdev)
 #endif
 
 	for (dev = fs_boards;dev != NULL;dev=nxtdev) {
-		fs_dprintk (FS_DEBUG_CLEANUP, "Releasing resources for dev at %p.\n", dev);
+		fs_dprintk (FS_DE_CLEANUP, "Releasing resources for dev at %p.\n", dev);
 
 		/* XXX Hit all the tx channels too! */
 
@@ -1984,15 +1984,15 @@ static void firestream_remove_one(struct pci_dev *pdev)
 		for (i=0;i < FS_NR_FREE_POOLS;i++) {
 			for (fp=bus_to_virt (read_fs (dev, FP_SA(dev->rx_fp[i].offset)));
 			     !(fp->flags & FP_FLAGS_EPI);fp = nxt) {
-				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-skb: %p\n", fp->skb);
+				fs_dprintk (FS_DE_ALLOC, "Free rec-skb: %p\n", fp->skb);
 				dev_kfree_skb_any (fp->skb);
 				nxt = bus_to_virt (fp->next);
-				fs_dprintk (FS_DEBUG_ALLOC, "Free rec-d: %p\n", fp);
+				fs_dprintk (FS_DE_ALLOC, "Free rec-d: %p\n", fp);
 				kfree (fp);
 			}
-			fs_dprintk (FS_DEBUG_ALLOC, "Free rec-skb: %p\n", fp->skb);
+			fs_dprintk (FS_DE_ALLOC, "Free rec-skb: %p\n", fp->skb);
 			dev_kfree_skb_any (fp->skb);
-			fs_dprintk (FS_DEBUG_ALLOC, "Free rec-d: %p\n", fp);
+			fs_dprintk (FS_DE_ALLOC, "Free rec-d: %p\n", fp);
 			kfree (fp);
 		}
 
@@ -2000,7 +2000,7 @@ static void firestream_remove_one(struct pci_dev *pdev)
 		   no longer ours. */
 		reset_chip (dev);
 
-		fs_dprintk (FS_DEBUG_CLEANUP, "Freeing irq%d.\n", dev->irq);
+		fs_dprintk (FS_DE_CLEANUP, "Freeing irq%d.\n", dev->irq);
 		free_irq (dev->irq, dev);
 		del_timer_sync (&dev->timer);
 
@@ -2010,7 +2010,7 @@ static void firestream_remove_one(struct pci_dev *pdev)
 		free_queue (dev, &dev->tx_relq);
 		free_queue (dev, &dev->st_q);
 
-		fs_dprintk (FS_DEBUG_ALLOC, "Free atmvccs: %p\n", dev->atm_vccs);
+		fs_dprintk (FS_DE_ALLOC, "Free atmvccs: %p\n", dev->atm_vccs);
 		kfree (dev->atm_vccs);
 
 		for (i=0;i< FS_NR_FREE_POOLS;i++)
@@ -2020,7 +2020,7 @@ static void firestream_remove_one(struct pci_dev *pdev)
 			free_queue (dev, &dev->rx_rq[i]);
 
 		iounmap(dev->base);
-		fs_dprintk (FS_DEBUG_ALLOC, "Free fs-dev: %p\n", dev);
+		fs_dprintk (FS_DE_ALLOC, "Free fs-dev: %p\n", dev);
 		nxtdev = dev->next;
 		kfree (dev);
 	}

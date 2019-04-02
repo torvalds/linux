@@ -19,7 +19,7 @@ int efs_get_block(struct inode *inode, sector_t iblock,
 	if (create)
 		return error;
 	if (iblock >= inode->i_blocks) {
-#ifdef DEBUG
+#ifdef DE
 		/*
 		 * i have no idea why this happens as often as it does
 		 */
@@ -43,7 +43,7 @@ int efs_bmap(struct inode *inode, efs_block_t block) {
 
 	/* are we about to read past the end of a file ? */
 	if (!(block < inode->i_blocks)) {
-#ifdef DEBUG
+#ifdef DE
 		/*
 		 * i have no idea why this happens as often as it does
 		 */

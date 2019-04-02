@@ -13,7 +13,7 @@
  *              Alexey Kuznetsov : SMP locking changes
  *              Steve Whitehouse : Rewrote it... Well to be more correct, I
  *                                 copied most of it from the ipv4 fib code.
- *              Steve Whitehouse : Updated it in style and fixed a few bugs
+ *              Steve Whitehouse : Updated it in style and fixed a few s
  *                                 which were fixed in the ipv4 code since
  *                                 this code was copied from it.
  *
@@ -87,7 +87,7 @@ static int dn_fib_sync_up(struct net_device *dev);
 void dn_fib_free_info(struct dn_fib_info *fi)
 {
 	if (fi->fib_dead == 0) {
-		printk(KERN_DEBUG "DECnet: BUG! Attempt to free alive dn_fib_info\n");
+		printk(KERN_DE "DECnet: ! Attempt to free alive dn_fib_info\n");
 		return;
 	}
 

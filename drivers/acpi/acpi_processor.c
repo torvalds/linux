@@ -54,19 +54,19 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 
 	switch (dev->revision) {
 	case 0:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4 A-step\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found PIIX4 A-step\n"));
 		break;
 	case 1:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4 B-step\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found PIIX4 B-step\n"));
 		break;
 	case 2:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4E\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found PIIX4E\n"));
 		break;
 	case 3:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4M\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found PIIX4M\n"));
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found unknown PIIX4\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Found unknown PIIX4\n"));
 		break;
 	}
 
@@ -132,10 +132,10 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 	}
 
 	if (errata.piix4.bmisx)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Bus master activity detection (BM-IDE) erratum enabled\n"));
 	if (errata.piix4.fdma)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Type-F DMA livelock erratum (C3 disabled)\n"));
 
 	return 0;
@@ -247,10 +247,10 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 */
 	if (acpi_gbl_FADT.pm2_control_block && acpi_gbl_FADT.pm2_control_length) {
 		pr->flags.bm_control = 1;
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Bus mastering arbitration control present\n"));
 	} else
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "No bus mastering arbitration control\n"));
 
 	if (!strcmp(acpi_device_hid(device), ACPI_PROCESSOR_OBJECT_HID)) {
@@ -291,7 +291,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	pr->phys_id = acpi_get_phys_id(pr->handle, device_declaration,
 					pr->acpi_id);
 	if (invalid_phys_cpuid(pr->phys_id))
-		acpi_handle_debug(pr->handle, "failed to get CPU physical ID.\n");
+		acpi_handle_de(pr->handle, "failed to get CPU physical ID.\n");
 
 	pr->id = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
 	if (!cpu0_initialized && !acpi_has_cpu_in_madt()) {
@@ -328,11 +328,11 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 * CPU+CPU ID.
 	 */
 	sprintf(acpi_device_bid(device), "CPU%X", pr->id);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Processor [%d:%d]\n", pr->id,
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Processor [%d:%d]\n", pr->id,
 			  pr->acpi_id));
 
 	if (!object.processor.pblk_address)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No PBLK (NULL address)\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "No PBLK (NULL address)\n"));
 	else if (object.processor.pblk_length != 6)
 		dev_err(&device->dev, "Invalid PBLK length [%d]\n",
 			    object.processor.pblk_length);
@@ -389,10 +389,10 @@ static int acpi_processor_add(struct acpi_device *device,
 	if (result) /* Processor is not physically present or unavailable */
 		return 0;
 
-	BUG_ON(pr->id >= nr_cpu_ids);
+	_ON(pr->id >= nr_cpu_ids);
 
 	/*
-	 * Buggy BIOS check.
+	 * gy BIOS check.
 	 * ACPI id of processors can be reported wrongly by the BIOS.
 	 * Don't trust it blindly
 	 */
@@ -405,7 +405,7 @@ static int acpi_processor_add(struct acpi_device *device,
 		goto err;
 	}
 	/*
-	 * processor_device_array is not cleared on errors to allow buggy BIOS
+	 * processor_device_array is not cleared on errors to allow gy BIOS
 	 * checks.
 	 */
 	per_cpu(processor_device_array, pr->id) = device;

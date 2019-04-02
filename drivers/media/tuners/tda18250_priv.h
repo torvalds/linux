@@ -111,7 +111,7 @@
 #define R59_AGC2_UP2	0x59
 #define R5A_H3H5	0x5a
 #define R5B_AGC_AUTO	0x5b
-#define R5C_AGC_DEBUG	0x5c
+#define R5C_AGC_DE	0x5c
 
 #define TDA18250_NUM_REGS 93
 

@@ -51,7 +51,7 @@
  */
 #define MAX_LOGICAL_DMA_CH_COUNT		32
 
-#undef DEBUG
+#undef DE
 
 #ifndef CONFIG_ARCH_OMAP1
 enum { DMA_CH_ALLOC_DONE, DMA_CH_PARAMS_SET_DONE, DMA_CH_STARTED,
@@ -193,7 +193,7 @@ void omap_set_dma_priority(int lch, int dst_port, int priority)
 			reg = OMAP_TC_EMIFS_PRIOR;
 			break;
 		default:
-			BUG();
+			();
 			return;
 		}
 		l = omap_readl(reg);
@@ -404,7 +404,7 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 		 * fall through
 		 */
 	default:
-		BUG();
+		();
 	}
 
 	l |= (burst << 7);
@@ -484,7 +484,7 @@ void omap_set_dma_dest_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 		 */
 	default:
 		printk(KERN_ERR "Invalid DMA burst mode\n");
-		BUG();
+		();
 		return;
 	}
 	l |= (burst << 14);
@@ -1070,7 +1070,7 @@ void omap_dma_link_lch(int lch_head, int lch_queue)
 			return;
 		}
 		printk(KERN_ERR "DMA linking is not supported in 1510 mode\n");
-		BUG();
+		();
 		return;
 	}
 
@@ -1275,7 +1275,7 @@ void omap_dma_global_context_restore(void)
 	p->dma_write(omap_dma_global_context.dma_irqenable_l1,
 		IRQENABLE_L1, 0);
 
-	if (IS_DMA_ERRATA(DMA_ROMCODE_BUG))
+	if (IS_DMA_ERRATA(DMA_ROMCODE_))
 		p->dma_write(0x3 , IRQSTATUS_L0, 0);
 
 	for (ch = 0; ch < dma_chan_count; ch++)

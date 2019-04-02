@@ -318,7 +318,7 @@ attribute_container_add_attrs(struct device *classdev)
 	struct device_attribute **attrs = cont->attrs;
 	int i, error;
 
-	BUG_ON(attrs && cont->grp);
+	_ON(attrs && cont->grp);
 
 	if (!attrs && !cont->grp)
 		return 0;

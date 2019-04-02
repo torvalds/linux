@@ -125,7 +125,7 @@ static void __init nuc900_clockevents_init(void)
 	unsigned int rate;
 	struct clk *clk = clk_get(NULL, "timer0");
 
-	BUG_ON(IS_ERR(clk));
+	_ON(IS_ERR(clk));
 
 	__raw_writel(0x00, REG_TCSR0);
 
@@ -149,7 +149,7 @@ static void __init nuc900_clocksource_init(void)
 	unsigned int rate;
 	struct clk *clk = clk_get(NULL, "timer1");
 
-	BUG_ON(IS_ERR(clk));
+	_ON(IS_ERR(clk));
 
 	__raw_writel(0x00, REG_TCSR1);
 

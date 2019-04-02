@@ -7,7 +7,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/host1x.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -64,7 +64,7 @@ struct tegra_dsi {
 	struct clk *clk_lp;
 	struct clk *clk;
 
-	struct drm_info_list *debugfs_files;
+	struct drm_info_list *defs_files;
 
 	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
@@ -120,80 +120,80 @@ static inline void tegra_dsi_writel(struct tegra_dsi *dsi, u32 value,
 	writel(value, dsi->regs + (offset << 2));
 }
 
-#define DEBUGFS_REG32(_name) { .name = #_name, .offset = _name }
+#define DEFS_REG32(_name) { .name = #_name, .offset = _name }
 
-static const struct debugfs_reg32 tegra_dsi_regs[] = {
-	DEBUGFS_REG32(DSI_INCR_SYNCPT),
-	DEBUGFS_REG32(DSI_INCR_SYNCPT_CONTROL),
-	DEBUGFS_REG32(DSI_INCR_SYNCPT_ERROR),
-	DEBUGFS_REG32(DSI_CTXSW),
-	DEBUGFS_REG32(DSI_RD_DATA),
-	DEBUGFS_REG32(DSI_WR_DATA),
-	DEBUGFS_REG32(DSI_POWER_CONTROL),
-	DEBUGFS_REG32(DSI_INT_ENABLE),
-	DEBUGFS_REG32(DSI_INT_STATUS),
-	DEBUGFS_REG32(DSI_INT_MASK),
-	DEBUGFS_REG32(DSI_HOST_CONTROL),
-	DEBUGFS_REG32(DSI_CONTROL),
-	DEBUGFS_REG32(DSI_SOL_DELAY),
-	DEBUGFS_REG32(DSI_MAX_THRESHOLD),
-	DEBUGFS_REG32(DSI_TRIGGER),
-	DEBUGFS_REG32(DSI_TX_CRC),
-	DEBUGFS_REG32(DSI_STATUS),
-	DEBUGFS_REG32(DSI_INIT_SEQ_CONTROL),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_0),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_1),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_2),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_3),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_4),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_5),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_6),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_7),
-	DEBUGFS_REG32(DSI_PKT_SEQ_0_LO),
-	DEBUGFS_REG32(DSI_PKT_SEQ_0_HI),
-	DEBUGFS_REG32(DSI_PKT_SEQ_1_LO),
-	DEBUGFS_REG32(DSI_PKT_SEQ_1_HI),
-	DEBUGFS_REG32(DSI_PKT_SEQ_2_LO),
-	DEBUGFS_REG32(DSI_PKT_SEQ_2_HI),
-	DEBUGFS_REG32(DSI_PKT_SEQ_3_LO),
-	DEBUGFS_REG32(DSI_PKT_SEQ_3_HI),
-	DEBUGFS_REG32(DSI_PKT_SEQ_4_LO),
-	DEBUGFS_REG32(DSI_PKT_SEQ_4_HI),
-	DEBUGFS_REG32(DSI_PKT_SEQ_5_LO),
-	DEBUGFS_REG32(DSI_PKT_SEQ_5_HI),
-	DEBUGFS_REG32(DSI_DCS_CMDS),
-	DEBUGFS_REG32(DSI_PKT_LEN_0_1),
-	DEBUGFS_REG32(DSI_PKT_LEN_2_3),
-	DEBUGFS_REG32(DSI_PKT_LEN_4_5),
-	DEBUGFS_REG32(DSI_PKT_LEN_6_7),
-	DEBUGFS_REG32(DSI_PHY_TIMING_0),
-	DEBUGFS_REG32(DSI_PHY_TIMING_1),
-	DEBUGFS_REG32(DSI_PHY_TIMING_2),
-	DEBUGFS_REG32(DSI_BTA_TIMING),
-	DEBUGFS_REG32(DSI_TIMEOUT_0),
-	DEBUGFS_REG32(DSI_TIMEOUT_1),
-	DEBUGFS_REG32(DSI_TO_TALLY),
-	DEBUGFS_REG32(DSI_PAD_CONTROL_0),
-	DEBUGFS_REG32(DSI_PAD_CONTROL_CD),
-	DEBUGFS_REG32(DSI_PAD_CD_STATUS),
-	DEBUGFS_REG32(DSI_VIDEO_MODE_CONTROL),
-	DEBUGFS_REG32(DSI_PAD_CONTROL_1),
-	DEBUGFS_REG32(DSI_PAD_CONTROL_2),
-	DEBUGFS_REG32(DSI_PAD_CONTROL_3),
-	DEBUGFS_REG32(DSI_PAD_CONTROL_4),
-	DEBUGFS_REG32(DSI_GANGED_MODE_CONTROL),
-	DEBUGFS_REG32(DSI_GANGED_MODE_START),
-	DEBUGFS_REG32(DSI_GANGED_MODE_SIZE),
-	DEBUGFS_REG32(DSI_RAW_DATA_BYTE_COUNT),
-	DEBUGFS_REG32(DSI_ULTRA_LOW_POWER_CONTROL),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_8),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_9),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_10),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_11),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_12),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_13),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_14),
-	DEBUGFS_REG32(DSI_INIT_SEQ_DATA_15),
+static const struct defs_reg32 tegra_dsi_regs[] = {
+	DEFS_REG32(DSI_INCR_SYNCPT),
+	DEFS_REG32(DSI_INCR_SYNCPT_CONTROL),
+	DEFS_REG32(DSI_INCR_SYNCPT_ERROR),
+	DEFS_REG32(DSI_CTXSW),
+	DEFS_REG32(DSI_RD_DATA),
+	DEFS_REG32(DSI_WR_DATA),
+	DEFS_REG32(DSI_POWER_CONTROL),
+	DEFS_REG32(DSI_INT_ENABLE),
+	DEFS_REG32(DSI_INT_STATUS),
+	DEFS_REG32(DSI_INT_MASK),
+	DEFS_REG32(DSI_HOST_CONTROL),
+	DEFS_REG32(DSI_CONTROL),
+	DEFS_REG32(DSI_SOL_DELAY),
+	DEFS_REG32(DSI_MAX_THRESHOLD),
+	DEFS_REG32(DSI_TRIGGER),
+	DEFS_REG32(DSI_TX_CRC),
+	DEFS_REG32(DSI_STATUS),
+	DEFS_REG32(DSI_INIT_SEQ_CONTROL),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_0),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_1),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_2),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_3),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_4),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_5),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_6),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_7),
+	DEFS_REG32(DSI_PKT_SEQ_0_LO),
+	DEFS_REG32(DSI_PKT_SEQ_0_HI),
+	DEFS_REG32(DSI_PKT_SEQ_1_LO),
+	DEFS_REG32(DSI_PKT_SEQ_1_HI),
+	DEFS_REG32(DSI_PKT_SEQ_2_LO),
+	DEFS_REG32(DSI_PKT_SEQ_2_HI),
+	DEFS_REG32(DSI_PKT_SEQ_3_LO),
+	DEFS_REG32(DSI_PKT_SEQ_3_HI),
+	DEFS_REG32(DSI_PKT_SEQ_4_LO),
+	DEFS_REG32(DSI_PKT_SEQ_4_HI),
+	DEFS_REG32(DSI_PKT_SEQ_5_LO),
+	DEFS_REG32(DSI_PKT_SEQ_5_HI),
+	DEFS_REG32(DSI_DCS_CMDS),
+	DEFS_REG32(DSI_PKT_LEN_0_1),
+	DEFS_REG32(DSI_PKT_LEN_2_3),
+	DEFS_REG32(DSI_PKT_LEN_4_5),
+	DEFS_REG32(DSI_PKT_LEN_6_7),
+	DEFS_REG32(DSI_PHY_TIMING_0),
+	DEFS_REG32(DSI_PHY_TIMING_1),
+	DEFS_REG32(DSI_PHY_TIMING_2),
+	DEFS_REG32(DSI_BTA_TIMING),
+	DEFS_REG32(DSI_TIMEOUT_0),
+	DEFS_REG32(DSI_TIMEOUT_1),
+	DEFS_REG32(DSI_TO_TALLY),
+	DEFS_REG32(DSI_PAD_CONTROL_0),
+	DEFS_REG32(DSI_PAD_CONTROL_CD),
+	DEFS_REG32(DSI_PAD_CD_STATUS),
+	DEFS_REG32(DSI_VIDEO_MODE_CONTROL),
+	DEFS_REG32(DSI_PAD_CONTROL_1),
+	DEFS_REG32(DSI_PAD_CONTROL_2),
+	DEFS_REG32(DSI_PAD_CONTROL_3),
+	DEFS_REG32(DSI_PAD_CONTROL_4),
+	DEFS_REG32(DSI_GANGED_MODE_CONTROL),
+	DEFS_REG32(DSI_GANGED_MODE_START),
+	DEFS_REG32(DSI_GANGED_MODE_SIZE),
+	DEFS_REG32(DSI_RAW_DATA_BYTE_COUNT),
+	DEFS_REG32(DSI_ULTRA_LOW_POWER_CONTROL),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_8),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_9),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_10),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_11),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_12),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_13),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_14),
+	DEFS_REG32(DSI_INIT_SEQ_DATA_15),
 };
 
 static int tegra_dsi_show_regs(struct seq_file *s, void *data)
@@ -224,36 +224,36 @@ unlock:
 	return err;
 }
 
-static struct drm_info_list debugfs_files[] = {
+static struct drm_info_list defs_files[] = {
 	{ "regs", tegra_dsi_show_regs, 0, NULL },
 };
 
 static int tegra_dsi_late_register(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	unsigned int i, count = ARRAY_SIZE(debugfs_files);
+	unsigned int i, count = ARRAY_SIZE(defs_files);
 	struct drm_minor *minor = connector->dev->primary;
-	struct dentry *root = connector->debugfs_entry;
+	struct dentry *root = connector->defs_entry;
 	struct tegra_dsi *dsi = to_dsi(output);
 	int err;
 
-	dsi->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
+	dsi->defs_files = kmemdup(defs_files, sizeof(defs_files),
 				     GFP_KERNEL);
-	if (!dsi->debugfs_files)
+	if (!dsi->defs_files)
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++)
-		dsi->debugfs_files[i].data = dsi;
+		dsi->defs_files[i].data = dsi;
 
-	err = drm_debugfs_create_files(dsi->debugfs_files, count, root, minor);
+	err = drm_defs_create_files(dsi->defs_files, count, root, minor);
 	if (err < 0)
 		goto free;
 
 	return 0;
 
 free:
-	kfree(dsi->debugfs_files);
-	dsi->debugfs_files = NULL;
+	kfree(dsi->defs_files);
+	dsi->defs_files = NULL;
 
 	return err;
 }
@@ -261,13 +261,13 @@ free:
 static void tegra_dsi_early_unregister(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	unsigned int count = ARRAY_SIZE(debugfs_files);
+	unsigned int count = ARRAY_SIZE(defs_files);
 	struct tegra_dsi *dsi = to_dsi(output);
 
-	drm_debugfs_remove_files(dsi->debugfs_files, count,
+	drm_defs_remove_files(dsi->defs_files, count,
 				 connector->dev->primary);
-	kfree(dsi->debugfs_files);
-	dsi->debugfs_files = NULL;
+	kfree(dsi->defs_files);
+	dsi->defs_files = NULL;
 }
 
 #define PKT_ID0(id)	((((id) & 0x3f) <<  3) | (1 <<  9))
@@ -502,13 +502,13 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 	div = state->div;
 
 	if (dsi->flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE) {
-		DRM_DEBUG_KMS("Non-burst video mode with sync pulses\n");
+		DRM_DE_KMS("Non-burst video mode with sync pulses\n");
 		pkt_seq = pkt_seq_video_non_burst_sync_pulses;
 	} else if (dsi->flags & MIPI_DSI_MODE_VIDEO) {
-		DRM_DEBUG_KMS("Non-burst video mode with sync events\n");
+		DRM_DE_KMS("Non-burst video mode with sync events\n");
 		pkt_seq = pkt_seq_video_non_burst_sync_events;
 	} else {
-		DRM_DEBUG_KMS("Command mode\n");
+		DRM_DE_KMS("Command mode\n");
 		pkt_seq = pkt_seq_command_mode;
 	}
 
@@ -972,11 +972,11 @@ tegra_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	/* compute byte clock */
 	state->bclk = (state->pclk * state->mul) / (state->div * state->lanes);
 
-	DRM_DEBUG_KMS("mul: %u, div: %u, lanes: %u\n", state->mul, state->div,
+	DRM_DE_KMS("mul: %u, div: %u, lanes: %u\n", state->mul, state->div,
 		      state->lanes);
-	DRM_DEBUG_KMS("format: %u, vrefresh: %u\n", state->format,
+	DRM_DE_KMS("format: %u, vrefresh: %u\n", state->format,
 		      state->vrefresh);
-	DRM_DEBUG_KMS("bclk: %lu\n", state->bclk);
+	DRM_DE_KMS("bclk: %lu\n", state->bclk);
 
 	/*
 	 * Compute bit clock and round up to the next MHz.
@@ -1195,7 +1195,7 @@ static int tegra_dsi_transmit(struct tegra_dsi *dsi, unsigned long timeout)
 		usleep_range(1000, 2000);
 	}
 
-	DRM_DEBUG_KMS("timeout waiting for transmission to complete\n");
+	DRM_DE_KMS("timeout waiting for transmission to complete\n");
 	return -ETIMEDOUT;
 }
 
@@ -1214,7 +1214,7 @@ static int tegra_dsi_wait_for_response(struct tegra_dsi *dsi,
 		usleep_range(1000, 2000);
 	}
 
-	DRM_DEBUG_KMS("peripheral returned no data\n");
+	DRM_DE_KMS("peripheral returned no data\n");
 	return -ETIMEDOUT;
 }
 

@@ -544,7 +544,7 @@ static void program_input_csc(
 			break;
 		}
 	if (regval == NULL) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 

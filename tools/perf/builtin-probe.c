@@ -37,7 +37,7 @@
 #include "util/strlist.h"
 #include "util/strfilter.h"
 #include "util/symbol.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include <subcmd/parse-options.h>
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
@@ -68,7 +68,7 @@ static int parse_probe_event(const char *str)
 	struct perf_probe_event *pev = &params.events[params.nevents];
 	int ret;
 
-	pr_debug("probe-definition(%d): %s\n", params.nevents, str);
+	pr_de("probe-definition(%d): %s\n", params.nevents, str);
 	if (++params.nevents == MAX_PROBES) {
 		pr_err("Too many probes (> %d) were specified.", MAX_PROBES);
 		return -1;
@@ -86,7 +86,7 @@ static int parse_probe_event(const char *str)
 
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
-	pr_debug("%d arguments\n", pev->nargs);
+	pr_de("%d arguments\n", pev->nargs);
 
 	return ret;
 }
@@ -96,7 +96,7 @@ static int params_add_filter(const char *str)
 	const char *err = NULL;
 	int ret = 0;
 
-	pr_debug2("Add filter: %s\n", str);
+	pr_de2("Add filter: %s\n", str);
 	if (!params.filter) {
 		params.filter = strfilter__new(str, &err);
 		if (!params.filter)
@@ -340,7 +340,7 @@ static void pr_err_with_code(const char *msg, int err)
 	char sbuf[STRERR_BUFSIZE];
 
 	pr_err("%s", msg);
-	pr_debug(" Reason: %s (Code: %d)",
+	pr_de(" Reason: %s (Code: %d)",
 		 str_error_r(-err, sbuf, sizeof(sbuf)), err);
 	pr_err("\n");
 }
@@ -411,7 +411,7 @@ static int del_perf_probe_caches(struct strfilter *filter)
 	bidlist = build_id_cache__list_all(false);
 	if (!bidlist) {
 		ret = -errno;
-		pr_debug("Failed to get buildids: %d\n", ret);
+		pr_de("Failed to get buildids: %d\n", ret);
 		return ret ?: -ENOMEM;
 	}
 
@@ -437,7 +437,7 @@ static int perf_del_probe_events(struct strfilter *filter)
 	if (!str)
 		return -EINVAL;
 
-	pr_debug("Delete filter: \'%s\'\n", str);
+	pr_de("Delete filter: \'%s\'\n", str);
 
 	if (probe_conf.cache)
 		return del_perf_probe_caches(filter);

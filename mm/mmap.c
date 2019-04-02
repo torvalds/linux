@@ -32,7 +32,7 @@
 #include <linux/mempolicy.h>
 #include <linux/rmap.h>
 #include <linux/mmu_notifier.h>
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/perf_event.h>
 #include <linux/audit.h>
 #include <linux/khugepaged.h>
@@ -320,11 +320,11 @@ static long vma_compute_subtree_gap(struct vm_area_struct *vma)
 	return max;
 }
 
-#ifdef CONFIG_DEBUG_VM_RB
+#ifdef CONFIG_DE_VM_RB
 static int browse_rb(struct mm_struct *mm)
 {
 	struct rb_root *root = &mm->mm_rb;
-	int i = 0, j, bug = 0;
+	int i = 0, j,  = 0;
 	struct rb_node *nd, *pn = NULL;
 	unsigned long prev = 0, pend = 0;
 
@@ -334,24 +334,24 @@ static int browse_rb(struct mm_struct *mm)
 		if (vma->vm_start < prev) {
 			pr_emerg("vm_start %lx < prev %lx\n",
 				  vma->vm_start, prev);
-			bug = 1;
+			 = 1;
 		}
 		if (vma->vm_start < pend) {
 			pr_emerg("vm_start %lx < pend %lx\n",
 				  vma->vm_start, pend);
-			bug = 1;
+			 = 1;
 		}
 		if (vma->vm_start > vma->vm_end) {
 			pr_emerg("vm_start %lx > vm_end %lx\n",
 				  vma->vm_start, vma->vm_end);
-			bug = 1;
+			 = 1;
 		}
 		spin_lock(&mm->page_table_lock);
 		if (vma->rb_subtree_gap != vma_compute_subtree_gap(vma)) {
 			pr_emerg("free gap %lx, correct %lx\n",
 			       vma->rb_subtree_gap,
 			       vma_compute_subtree_gap(vma));
-			bug = 1;
+			 = 1;
 		}
 		spin_unlock(&mm->page_table_lock);
 		i++;
@@ -364,9 +364,9 @@ static int browse_rb(struct mm_struct *mm)
 		j++;
 	if (i != j) {
 		pr_emerg("backwards %d, forwards %d\n", j, i);
-		bug = 1;
+		 = 1;
 	}
-	return bug ? -1 : i;
+	return  ? -1 : i;
 }
 
 static void validate_mm_rb(struct rb_root *root, struct vm_area_struct *ignore)
@@ -376,7 +376,7 @@ static void validate_mm_rb(struct rb_root *root, struct vm_area_struct *ignore)
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
 		struct vm_area_struct *vma;
 		vma = rb_entry(nd, struct vm_area_struct, vm_rb);
-		VM_BUG_ON_VMA(vma != ignore &&
+		VM__ON_VMA(vma != ignore &&
 			vma->rb_subtree_gap != vma_compute_subtree_gap(vma),
 			vma);
 	}
@@ -384,7 +384,7 @@ static void validate_mm_rb(struct rb_root *root, struct vm_area_struct *ignore)
 
 static void validate_mm(struct mm_struct *mm)
 {
-	int bug = 0;
+	int  = 0;
 	int i = 0;
 	unsigned long highest_address = 0;
 	struct vm_area_struct *vma = mm->mmap;
@@ -406,20 +406,20 @@ static void validate_mm(struct mm_struct *mm)
 	}
 	if (i != mm->map_count) {
 		pr_emerg("map_count %d vm_next %d\n", mm->map_count, i);
-		bug = 1;
+		 = 1;
 	}
 	if (highest_address != mm->highest_vm_end) {
 		pr_emerg("mm->highest_vm_end %lx, found %lx\n",
 			  mm->highest_vm_end, highest_address);
-		bug = 1;
+		 = 1;
 	}
 	i = browse_rb(mm);
 	if (i != mm->map_count) {
 		if (i != -1)
 			pr_emerg("map_count %d rb %d\n", mm->map_count, i);
-		bug = 1;
+		 = 1;
 	}
-	VM_BUG_ON_MM(bug, mm);
+	VM__ON_MM(, mm);
 }
 #else
 #define validate_mm_rb(root, ignore) do { } while (0)
@@ -666,7 +666,7 @@ static void __insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 
 	if (find_vma_links(mm, vma->vm_start, vma->vm_end,
 			   &prev, &rb_link, &rb_parent))
-		BUG();
+		();
 	__vma_link(mm, vma, prev, rb_link, rb_parent);
 	mm->map_count++;
 }
@@ -1360,7 +1360,7 @@ static inline u64 file_mmap_size_max(struct file *file, struct inode *inode)
 	if (file->f_mode & FMODE_UNSIGNED_OFFSET)
 		return 0;
 
-	/* Yes, random drivers might want more. But I'm tired of buggy drivers */
+	/* Yes, random drivers might want more. But I'm tired of gy drivers */
 	return ULONG_MAX;
 }
 
@@ -1791,7 +1791,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		 *
 		 * Answer: Yes, several device drivers can do it in their
 		 *         f_op->mmap method. -DaveM
-		 * Bug: If addr is changed, prev, rb_link, rb_parent should
+		 * : If addr is changed, prev, rb_link, rb_parent should
 		 *      be updated for vma_link()
 		 */
 		WARN_ON_ONCE(addr != vma->vm_start);
@@ -1950,7 +1950,7 @@ check_current:
 check_highest:
 	/* Check highest gap, which does not precede any rbtree node */
 	gap_start = mm->highest_vm_end;
-	gap_end = ULONG_MAX;  /* Only for VM_BUG_ON below */
+	gap_end = ULONG_MAX;  /* Only for VM__ON below */
 	if (gap_start > high_limit)
 		return -ENOMEM;
 
@@ -1962,8 +1962,8 @@ found:
 	/* Adjust gap address to the desired alignment */
 	gap_start += (info->align_offset - gap_start) & info->align_mask;
 
-	VM_BUG_ON(gap_start + info->length > info->high_limit);
-	VM_BUG_ON(gap_start + info->length > gap_end);
+	VM__ON(gap_start + info->length > info->high_limit);
+	VM__ON(gap_start + info->length > gap_end);
 	return gap_start;
 }
 
@@ -2061,8 +2061,8 @@ found_highest:
 	gap_end -= info->length;
 	gap_end -= (gap_end - info->align_offset) & info->align_mask;
 
-	VM_BUG_ON(gap_end < info->low_limit);
-	VM_BUG_ON(gap_end < gap_start);
+	VM__ON(gap_end < info->low_limit);
+	VM__ON(gap_end < gap_start);
 	return gap_end;
 }
 
@@ -2166,7 +2166,7 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 	 * allocations.
 	 */
 	if (offset_in_page(addr)) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM__ON(addr != -ENOMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = mmap_end;
@@ -3180,7 +3180,7 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
 	 * Similarly in do_mmap_pgoff and in do_brk.
 	 */
 	if (vma_is_anonymous(vma)) {
-		BUG_ON(vma->anon_vma);
+		_ON(vma->anon_vma);
 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
 	}
 
@@ -3235,7 +3235,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			 * safe. It is only safe to keep the vm_pgoff
 			 * linear if there are no pages mapped yet.
 			 */
-			VM_BUG_ON_VMA(faulted_in_anon_vma, new_vma);
+			VM__ON_VMA(faulted_in_anon_vma, new_vma);
 			*vmap = vma = new_vma;
 		}
 		*need_rmap_locks = (new_vma->vm_pgoff <= vma->vm_pgoff);
@@ -3472,7 +3472,7 @@ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
 		 */
 		if (__test_and_set_bit(0, (unsigned long *)
 				       &anon_vma->root->rb_root.rb_root.rb_node))
-			BUG();
+			();
 	}
 }
 
@@ -3489,7 +3489,7 @@ static void vm_lock_mapping(struct mm_struct *mm, struct address_space *mapping)
 		 * changing other bitflags in parallel to us.
 		 */
 		if (test_and_set_bit(AS_MM_ALL_LOCKS, &mapping->flags))
-			BUG();
+			();
 		down_write_nest_lock(&mapping->i_mmap_rwsem, &mm->mmap_sem);
 	}
 }
@@ -3536,7 +3536,7 @@ int mm_take_all_locks(struct mm_struct *mm)
 	struct vm_area_struct *vma;
 	struct anon_vma_chain *avc;
 
-	BUG_ON(down_read_trylock(&mm->mmap_sem));
+	_ON(down_read_trylock(&mm->mmap_sem));
 
 	mutex_lock(&mm_all_locks_mutex);
 
@@ -3588,7 +3588,7 @@ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
 		 */
 		if (!__test_and_clear_bit(0, (unsigned long *)
 					  &anon_vma->root->rb_root.rb_root.rb_node))
-			BUG();
+			();
 		anon_vma_unlock_write(anon_vma);
 	}
 }
@@ -3603,7 +3603,7 @@ static void vm_unlock_mapping(struct address_space *mapping)
 		i_mmap_unlock_write(mapping);
 		if (!test_and_clear_bit(AS_MM_ALL_LOCKS,
 					&mapping->flags))
-			BUG();
+			();
 	}
 }
 
@@ -3616,8 +3616,8 @@ void mm_drop_all_locks(struct mm_struct *mm)
 	struct vm_area_struct *vma;
 	struct anon_vma_chain *avc;
 
-	BUG_ON(down_read_trylock(&mm->mmap_sem));
-	BUG_ON(!mutex_is_locked(&mm_all_locks_mutex));
+	_ON(down_read_trylock(&mm->mmap_sem));
+	_ON(!mutex_is_locked(&mm_all_locks_mutex));
 
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->anon_vma)
@@ -3638,7 +3638,7 @@ void __init mmap_init(void)
 	int ret;
 
 	ret = percpu_counter_init(&vm_committed_as, 0, GFP_KERNEL);
-	VM_BUG_ON(ret);
+	VM__ON(ret);
 }
 
 /*

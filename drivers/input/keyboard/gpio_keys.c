@@ -104,7 +104,7 @@ struct gpio_keys_drvdata {
  */
 static int get_n_events_by_type(int type)
 {
-	BUG_ON(type != EV_SW && type != EV_KEY);
+	_ON(type != EV_SW && type != EV_KEY);
 
 	return (type == EV_KEY) ? KEY_CNT : SW_CNT;
 }
@@ -120,7 +120,7 @@ static int get_n_events_by_type(int type)
 static const unsigned long *get_bm_events_by_type(struct input_dev *dev,
 						  int type)
 {
-	BUG_ON(type != EV_SW && type != EV_KEY);
+	_ON(type != EV_SW && type != EV_KEY);
 
 	return (type == EV_KEY) ? dev->keybit : dev->swbit;
 }
@@ -397,7 +397,7 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 {
 	struct gpio_button_data *bdata = dev_id;
 
-	BUG_ON(irq != bdata->irq);
+	_ON(irq != bdata->irq);
 
 	if (bdata->button->wakeup) {
 		const struct gpio_keys_button *button = bdata->button;
@@ -442,7 +442,7 @@ static irqreturn_t gpio_keys_irq_isr(int irq, void *dev_id)
 	struct input_dev *input = bdata->input;
 	unsigned long flags;
 
-	BUG_ON(irq != bdata->irq);
+	_ON(irq != bdata->irq);
 
 	spin_lock_irqsave(&bdata->lock, flags);
 

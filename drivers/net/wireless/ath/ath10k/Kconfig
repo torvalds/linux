@@ -49,29 +49,29 @@ config ATH10K_SNOC
 	  This module adds support for integrated WCN3990 chip connected
 	  to system NOC(SNOC).
 
-config ATH10K_DEBUG
-	bool "Atheros ath10k debugging"
+config ATH10K_DE
+	bool "Atheros ath10k deging"
 	depends on ATH10K
 	---help---
-	  Enables debug support
+	  Enables de support
 
-	  If unsure, say Y to make it easier to debug problems.
+	  If unsure, say Y to make it easier to de problems.
 
-config ATH10K_DEBUGFS
-	bool "Atheros ath10k debugfs support"
-	depends on ATH10K && DEBUG_FS
+config ATH10K_DEFS
+	bool "Atheros ath10k defs support"
+	depends on ATH10K && DE_FS
 	---help---
-	  Enabled debugfs support
+	  Enabled defs support
 
-	  If unsure, say Y to make it easier to debug problems.
+	  If unsure, say Y to make it easier to de problems.
 
 config ATH10K_SPECTRAL
 	bool "Atheros ath10k spectral scan support"
-	depends on ATH10K_DEBUGFS
+	depends on ATH10K_DEFS
 	select RELAY
 	default n
 	---help---
-	  Say Y to enable access to the FFT/spectral data via debugfs.
+	  Say Y to enable access to the FFT/spectral data via defs.
 
 config ATH10K_TRACING
 	bool "Atheros ath10k tracing support"

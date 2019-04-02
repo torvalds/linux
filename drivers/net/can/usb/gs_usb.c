@@ -307,7 +307,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	BUG_ON(!usbcan);
+	_ON(!usbcan);
 
 	switch (urb->status) {
 	case 0: /* success */

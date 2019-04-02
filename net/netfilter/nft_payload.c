@@ -102,7 +102,7 @@ void nft_payload_eval(const struct nft_expr *expr,
 		offset = pkt->xt.thoff;
 		break;
 	default:
-		BUG();
+		();
 	}
 	offset += priv->offset;
 
@@ -291,7 +291,7 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 		offset = pkt->xt.thoff;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	csum_offset = offset + priv->csum_offset;

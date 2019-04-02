@@ -153,7 +153,7 @@ static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
 	struct sas_ha_struct *ha = phy->ha;
 	int ret;
 
-	BUG_ON(event >= PORT_NUM_EVENTS);
+	_ON(event >= PORT_NUM_EVENTS);
 
 	ev = sas_alloc_event(phy);
 	if (!ev)
@@ -174,7 +174,7 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 	struct sas_ha_struct *ha = phy->ha;
 	int ret;
 
-	BUG_ON(event >= PHY_NUM_EVENTS);
+	_ON(event >= PHY_NUM_EVENTS);
 
 	ev = sas_alloc_event(phy);
 	if (!ev)

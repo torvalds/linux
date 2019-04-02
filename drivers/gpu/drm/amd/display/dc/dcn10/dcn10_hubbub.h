@@ -50,8 +50,8 @@
 	SR(DCHUBBUB_ARB_SAT_LEVEL),\
 	SR(DCHUBBUB_ARB_DF_REQ_OUTSTAND),\
 	SR(DCHUBBUB_GLOBAL_TIMER_CNTL), \
-	SR(DCHUBBUB_TEST_DEBUG_INDEX), \
-	SR(DCHUBBUB_TEST_DEBUG_DATA),\
+	SR(DCHUBBUB_TEST_DE_INDEX), \
+	SR(DCHUBBUB_TEST_DE_DATA),\
 	SR(DCHUBBUB_SOFT_RESET)
 
 #define HUBBUB_SR_WATERMARK_REG_LIST()\
@@ -100,8 +100,8 @@ struct dcn_hubbub_registers {
 	uint32_t DCHUBBUB_ARB_DF_REQ_OUTSTAND;
 	uint32_t DCHUBBUB_GLOBAL_TIMER_CNTL;
 	uint32_t DCHUBBUB_ARB_DRAM_STATE_CNTL;
-	uint32_t DCHUBBUB_TEST_DEBUG_INDEX;
-	uint32_t DCHUBBUB_TEST_DEBUG_DATA;
+	uint32_t DCHUBBUB_TEST_DE_INDEX;
+	uint32_t DCHUBBUB_TEST_DE_DATA;
 	uint32_t DCHUBBUB_SDPIF_FB_TOP;
 	uint32_t DCHUBBUB_SDPIF_FB_BASE;
 	uint32_t DCHUBBUB_SDPIF_FB_OFFSET;
@@ -185,7 +185,7 @@ struct dcn10_hubbub {
 	const struct dcn_hubbub_registers *regs;
 	const struct dcn_hubbub_shift *shifts;
 	const struct dcn_hubbub_mask *masks;
-	unsigned int debug_test_index_pstate;
+	unsigned int de_test_index_pstate;
 	struct dcn_watermark_set watermarks;
 };
 

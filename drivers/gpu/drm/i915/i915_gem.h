@@ -25,41 +25,41 @@
 #ifndef __I915_GEM_H__
 #define __I915_GEM_H__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/interrupt.h>
 
 struct drm_i915_private;
 
-#ifdef CONFIG_DRM_I915_DEBUG_GEM
+#ifdef CONFIG_DRM_I915_DE_GEM
 
-#define GEM_SHOW_DEBUG() (drm_debug & DRM_UT_DRIVER)
+#define GEM_SHOW_DE() (drm_de & DRM_UT_DRIVER)
 
-#define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
-		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
+#define GEM__ON(condition) do { if (unlikely((condition))) {	\
+		pr_err("%s:%d GEM__ON(%s)\n", \
 		       __func__, __LINE__, __stringify(condition)); \
-		GEM_TRACE("%s:%d GEM_BUG_ON(%s)\n", \
+		GEM_TRACE("%s:%d GEM__ON(%s)\n", \
 			  __func__, __LINE__, __stringify(condition)); \
-		BUG(); \
+		(); \
 		} \
 	} while(0)
 #define GEM_WARN_ON(expr) WARN_ON(expr)
 
-#define GEM_DEBUG_DECL(var) var
-#define GEM_DEBUG_EXEC(expr) expr
-#define GEM_DEBUG_BUG_ON(expr) GEM_BUG_ON(expr)
-#define GEM_DEBUG_WARN_ON(expr) GEM_WARN_ON(expr)
+#define GEM_DE_DECL(var) var
+#define GEM_DE_EXEC(expr) expr
+#define GEM_DE__ON(expr) GEM__ON(expr)
+#define GEM_DE_WARN_ON(expr) GEM_WARN_ON(expr)
 
 #else
 
-#define GEM_SHOW_DEBUG() (0)
+#define GEM_SHOW_DE() (0)
 
-#define GEM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
+#define GEM__ON(expr) BUILD__ON_INVALID(expr)
 #define GEM_WARN_ON(expr) ({ unlikely(!!(expr)); })
 
-#define GEM_DEBUG_DECL(var)
-#define GEM_DEBUG_EXEC(expr) do { } while (0)
-#define GEM_DEBUG_BUG_ON(expr)
-#define GEM_DEBUG_WARN_ON(expr) ({ BUILD_BUG_ON_INVALID(expr); 0; })
+#define GEM_DE_DECL(var)
+#define GEM_DE_EXEC(expr) do { } while (0)
+#define GEM_DE__ON(expr)
+#define GEM_DE_WARN_ON(expr) ({ BUILD__ON_INVALID(expr); 0; })
 #endif
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
@@ -70,7 +70,7 @@ struct drm_i915_private;
 #else
 #define GEM_TRACE(...) do { } while (0)
 #define GEM_TRACE_DUMP() do { } while (0)
-#define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
+#define GEM_TRACE_DUMP_ON(expr) BUILD__ON_INVALID(expr)
 #endif
 
 #define I915_NUM_ENGINES 8

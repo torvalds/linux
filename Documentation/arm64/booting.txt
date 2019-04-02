@@ -145,7 +145,7 @@ Before jumping into the kernel, the following conditions must be met:
 
 - Quiesce all DMA capable devices so that memory does not get
   corrupted by bogus network packets or disk data.  This will save
-  you many hours of debug.
+  you many hours of de.
 
 - Primary CPU general-purpose register settings
   x0 = physical address of device tree blob (dtb) in system RAM.
@@ -154,7 +154,7 @@ Before jumping into the kernel, the following conditions must be met:
   x3 = 0 (reserved for future use)
 
 - CPU mode
-  All forms of interrupts must be masked in PSTATE.DAIF (Debug, SError,
+  All forms of interrupts must be masked in PSTATE.DAIF (De, SError,
   IRQ and FIQ).
   The CPU must be in either EL2 (RECOMMENDED in order to have access to
   the virtualisation extensions) or non-secure EL1.

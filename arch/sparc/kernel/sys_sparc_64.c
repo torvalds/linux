@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -38,7 +38,7 @@
 #include "kernel.h"
 #include "systbls.h"
 
-/* #define DEBUG_UNIMP_SYSCALL */
+/* #define DE_UNIMP_SYSCALL */
 
 SYSCALL_DEFINE0(getpagesize)
 {
@@ -135,7 +135,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	addr = vm_unmapped_area(&info);
 
 	if ((addr & ~PAGE_MASK) && task_size > VA_EXCLUDE_END) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM__ON(addr != -ENOMEM);
 		info.low_limit = VA_EXCLUDE_END;
 		info.high_limit = task_size;
 		addr = vm_unmapped_area(&info);
@@ -157,7 +157,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	struct vm_unmapped_area_info info;
 
 	/* This should only ever run for 32-bit processes.  */
-	BUG_ON(!test_thread_flag(TIF_32BIT));
+	_ON(!test_thread_flag(TIF_32BIT));
 
 	if (flags & MAP_FIXED) {
 		/* We do not accept a shared mapping if it would violate
@@ -204,7 +204,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM__ON(addr != -ENOMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = STACK_TOP32;
@@ -491,14 +491,14 @@ SYSCALL_DEFINE0(nis_syscall)
 		return -ENOSYS;
 
 	printk ("Unimplemented SPARC system call %ld\n",regs->u_regs[1]);
-#ifdef DEBUG_UNIMP_SYSCALL	
+#ifdef DE_UNIMP_SYSCALL	
 	show_regs (regs);
 #endif
 
 	return -ENOSYS;
 }
 
-/* #define DEBUG_SPARC_BREAKPOINT */
+/* #define DE_SPARC_BREAKPOINT */
 
 asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 {
@@ -508,11 +508,11 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 		regs->tpc &= 0xffffffff;
 		regs->tnpc &= 0xffffffff;
 	}
-#ifdef DEBUG_SPARC_BREAKPOINT
+#ifdef DE_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%lx, nPC=%lx\n", regs->tpc, regs->tnpc);
 #endif
 	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->tpc, 0, current);
-#ifdef DEBUG_SPARC_BREAKPOINT
+#ifdef DE_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%lx nPC=%lx\n", regs->tpc, regs->tnpc);
 #endif
 	exception_exit(prev_state);

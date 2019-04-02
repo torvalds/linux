@@ -2247,7 +2247,7 @@ static void uvc_ctrl_init_ctrl(struct uvc_device *dev, struct uvc_control *ctrl)
 		mapping + ARRAY_SIZE(uvc_ctrl_mappings);
 
 	/* XU controls initialization requires querying the device for control
-	 * information. As some buggy UVC devices will crash when queried
+	 * information. As some gy UVC devices will crash when queried
 	 * repeatedly in a tight loop, delay XU controls initialization until
 	 * first use.
 	 */

@@ -42,7 +42,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ethtool.h>
 #include <linux/mdio.h>
 
@@ -125,7 +125,7 @@ enum {
  * ====================
  */
 
-static struct dentry *cxgb4vf_debugfs_root;
+static struct dentry *cxgb4vf_defs_root;
 
 /*
  * OS "Callback" functions.
@@ -543,7 +543,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		 * really refers to one of our TX Ethernet Egress Queues which
 		 * is active and matches the queue's ID.  None of these error
 		 * conditions should ever happen so we may want to either make
-		 * them fatal and/or conditionalized under DEBUG.
+		 * them fatal and/or conditionalized under DE.
 		 */
 		eq_idx = EQ_IDX(s, qid);
 		if (unlikely(eq_idx >= MAX_EGRQ)) {
@@ -676,7 +676,7 @@ static int setup_sge_queues(struct adapter *adapter)
 			 * (including Free Lists) have Relative Queue IDs
 			 * which are computed as Absolute - Base Queue ID, we
 			 * can synthesize the Absolute Queue IDs for the Free
-			 * Lists.  This is useful for debugging purposes when
+			 * Lists.  This is useful for deging purposes when
 			 * we want to dump Queue Contexts via the PF Driver.
 			 */
 			rxq->fl.abs_id = rxq->fl.cntxt_id + s->egr_base;
@@ -785,7 +785,7 @@ static int adapter_up(struct adapter *adapter)
 	/*
 	 * Acquire our interrupt resources.  We only support MSI-X and MSI.
 	 */
-	BUG_ON((adapter->flags &
+	_ON((adapter->flags &
 	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
 	if (adapter->flags & CXGB4VF_USING_MSIX)
 		err = request_msix_queue_irqs(adapter);
@@ -1958,7 +1958,7 @@ static const struct ethtool_ops cxgb4vf_ethtool_ops = {
 };
 
 /*
- * /sys/kernel/debug/cxgb4vf support code and data.
+ * /sys/kernel/de/cxgb4vf support code and data.
  * ================================================
  */
 
@@ -2206,7 +2206,7 @@ static int sge_qinfo_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static const struct file_operations sge_qinfo_debugfs_fops = {
+static const struct file_operations sge_qinfo_defs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = sge_qinfo_open,
 	.read    = seq_read,
@@ -2459,17 +2459,17 @@ static const struct file_operations interfaces_proc_fops = {
 };
 
 /*
- * /sys/kernel/debugfs/cxgb4vf/ files list.
+ * /sys/kernel/defs/cxgb4vf/ files list.
  */
-struct cxgb4vf_debugfs_entry {
-	const char *name;		/* name of debugfs node */
+struct cxgb4vf_defs_entry {
+	const char *name;		/* name of defs node */
 	umode_t mode;			/* file system mode */
 	const struct file_operations *fops;
 };
 
-static struct cxgb4vf_debugfs_entry debugfs_files[] = {
+static struct cxgb4vf_defs_entry defs_files[] = {
 	{ "mboxlog",    0444, &mboxlog_fops },
-	{ "sge_qinfo",  0444, &sge_qinfo_debugfs_fops },
+	{ "sge_qinfo",  0444, &sge_qinfo_defs_fops },
 	{ "sge_qstats", 0444, &sge_qstats_proc_fops },
 	{ "resources",  0444, &resources_fops },
 	{ "interfaces", 0444, &interfaces_proc_fops },
@@ -2481,40 +2481,40 @@ static struct cxgb4vf_debugfs_entry debugfs_files[] = {
  */
 
 /*
- * Set up out /sys/kernel/debug/cxgb4vf sub-nodes.  We assume that the
- * directory (debugfs_root) has already been set up.
+ * Set up out /sys/kernel/de/cxgb4vf sub-nodes.  We assume that the
+ * directory (defs_root) has already been set up.
  */
-static int setup_debugfs(struct adapter *adapter)
+static int setup_defs(struct adapter *adapter)
 {
 	int i;
 
-	BUG_ON(IS_ERR_OR_NULL(adapter->debugfs_root));
+	_ON(IS_ERR_OR_NULL(adapter->defs_root));
 
 	/*
-	 * Debugfs support is best effort.
+	 * Defs support is best effort.
 	 */
-	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
-		(void)debugfs_create_file(debugfs_files[i].name,
-				  debugfs_files[i].mode,
-				  adapter->debugfs_root,
+	for (i = 0; i < ARRAY_SIZE(defs_files); i++)
+		(void)defs_create_file(defs_files[i].name,
+				  defs_files[i].mode,
+				  adapter->defs_root,
 				  (void *)adapter,
-				  debugfs_files[i].fops);
+				  defs_files[i].fops);
 
 	return 0;
 }
 
 /*
- * Tear down the /sys/kernel/debug/cxgb4vf sub-nodes created above.  We leave
- * it to our caller to tear down the directory (debugfs_root).
+ * Tear down the /sys/kernel/de/cxgb4vf sub-nodes created above.  We leave
+ * it to our caller to tear down the directory (defs_root).
  */
-static void cleanup_debugfs(struct adapter *adapter)
+static void cleanup_defs(struct adapter *adapter)
 {
-	BUG_ON(IS_ERR_OR_NULL(adapter->debugfs_root));
+	_ON(IS_ERR_OR_NULL(adapter->defs_root));
 
 	/*
 	 * Unlike our sister routine cleanup_proc(), we don't need to remove
 	 * individual entries because a call will be made to
-	 * debugfs_remove_recursive().  We just need to clean up any ancillary
+	 * defs_remove_recursive().  We just need to clean up any ancillary
 	 * persistent state.
 	 */
 	/* nothing to do */
@@ -2756,7 +2756,7 @@ static void cfg_queues(struct adapter *adapter)
 	 * support.  In particular, this means that we need to know what kind
 	 * of interrupts we'll be using ...
 	 */
-	BUG_ON((adapter->flags &
+	_ON((adapter->flags &
 	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
 
 	/*
@@ -2850,7 +2850,7 @@ static void reduce_ethqs(struct adapter *adapter, int n)
 	 * While we have too many active Ether Queue Sets, interate across the
 	 * "ports" and reduce their individual Queue Set allocations.
 	 */
-	BUG_ON(n < adapter->params.nports);
+	_ON(n < adapter->params.nports);
 	while (n < adapter->sge.ethqsets)
 		for_each_port(adapter, i) {
 			pi = adap2pinfo(adapter, i);
@@ -3088,7 +3088,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	err = adap_init0(adapter);
 	if (err)
 		dev_err(&pdev->dev,
-			"Adapter initialization failed, error %d. Continuing in debug mode\n",
+			"Adapter initialization failed, error %d. Continuing in de mode\n",
 			err);
 
 	/* Initialize hash mac addr list */
@@ -3267,17 +3267,17 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * Set up our debugfs entries.
+	 * Set up our defs entries.
 	 */
-	if (!IS_ERR_OR_NULL(cxgb4vf_debugfs_root)) {
-		adapter->debugfs_root =
-			debugfs_create_dir(pci_name(pdev),
-					   cxgb4vf_debugfs_root);
-		if (IS_ERR_OR_NULL(adapter->debugfs_root))
-			dev_warn(&pdev->dev, "could not create debugfs"
+	if (!IS_ERR_OR_NULL(cxgb4vf_defs_root)) {
+		adapter->defs_root =
+			defs_create_dir(pci_name(pdev),
+					   cxgb4vf_defs_root);
+		if (IS_ERR_OR_NULL(adapter->defs_root))
+			dev_warn(&pdev->dev, "could not create defs"
 				 " directory");
 		else
-			setup_debugfs(adapter);
+			setup_defs(adapter);
 	}
 
 	/*
@@ -3375,11 +3375,11 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 		}
 
 		/*
-		 * Tear down our debugfs entries.
+		 * Tear down our defs entries.
 		 */
-		if (!IS_ERR_OR_NULL(adapter->debugfs_root)) {
-			cleanup_debugfs(adapter);
-			debugfs_remove_recursive(adapter->debugfs_root);
+		if (!IS_ERR_OR_NULL(adapter->defs_root)) {
+			cleanup_defs(adapter);
+			defs_remove_recursive(adapter->defs_root);
 		}
 
 		/*
@@ -3502,14 +3502,14 @@ static int __init cxgb4vf_module_init(void)
 		return -EINVAL;
 	}
 
-	/* Debugfs support is optional, just warn if this fails */
-	cxgb4vf_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
-		pr_warn("could not create debugfs entry, continuing\n");
+	/* Defs support is optional, just warn if this fails */
+	cxgb4vf_defs_root = defs_create_dir(KBUILD_MODNAME, NULL);
+	if (IS_ERR_OR_NULL(cxgb4vf_defs_root))
+		pr_warn("could not create defs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4vf_driver);
-	if (ret < 0 && !IS_ERR_OR_NULL(cxgb4vf_debugfs_root))
-		debugfs_remove(cxgb4vf_debugfs_root);
+	if (ret < 0 && !IS_ERR_OR_NULL(cxgb4vf_defs_root))
+		defs_remove(cxgb4vf_defs_root);
 	return ret;
 }
 
@@ -3519,7 +3519,7 @@ static int __init cxgb4vf_module_init(void)
 static void __exit cxgb4vf_module_exit(void)
 {
 	pci_unregister_driver(&cxgb4vf_driver);
-	debugfs_remove(cxgb4vf_debugfs_root);
+	defs_remove(cxgb4vf_defs_root);
 }
 
 module_init(cxgb4vf_module_init);

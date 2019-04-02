@@ -158,7 +158,7 @@ snd_emu8000_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	struct snd_emu8000 *emu;
 
 	emu = rec->hw;
-	if (snd_BUG_ON(!sp))
+	if (snd__ON(!sp))
 		return -EINVAL;
 
 	if (sp->v.size == 0)

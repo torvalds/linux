@@ -56,13 +56,13 @@ static inline void flush_tlb_pgtables(struct mm_struct *mm,
 
 #else /* CONFIG_MMU */
 
-#define flush_tlb()				BUG()
-#define flush_tlb_all()				BUG()
-#define flush_tlb_mm(mm)			BUG()
-#define flush_tlb_page(vma, addr)		BUG()
-#define flush_tlb_range(mm, start, end)		BUG()
-#define flush_tlb_pgtables(mm, start, end)	BUG()
-#define flush_tlb_kernel_range(start, end)	BUG()
+#define flush_tlb()				()
+#define flush_tlb_all()				()
+#define flush_tlb_mm(mm)			()
+#define flush_tlb_page(vma, addr)		()
+#define flush_tlb_range(mm, start, end)		()
+#define flush_tlb_pgtables(mm, start, end)	()
+#define flush_tlb_kernel_range(start, end)	()
 
 #endif /* CONFIG_MMU */
 

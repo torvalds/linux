@@ -72,7 +72,7 @@ static int run_selftests(struct drm_selftest *st,
 		if (!st->enabled)
 			continue;
 
-		pr_debug("drm: Running %s\n", st->name);
+		pr_de("drm: Running %s\n", st->name);
 		err = st->func(data);
 		if (err)
 			break;
@@ -96,7 +96,7 @@ __drm_subtests(const char *caller,
 	int err;
 
 	for (; count--; st++) {
-		pr_debug("Running %s/%s\n", caller, st->name);
+		pr_de("Running %s/%s\n", caller, st->name);
 		err = st->func(data);
 		if (err) {
 			pr_err("%s: %s failed with error %d\n",

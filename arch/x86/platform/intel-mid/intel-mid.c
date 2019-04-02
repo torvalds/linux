@@ -144,7 +144,7 @@ out:
 /*
  * Moorestown does not have external NMI source nor port 0x61 to report
  * NMI status. The possible NMI sources are from pmu as a result of NMI
- * watchdog or lock debug. Reading io port 0x61 results in 0xff which
+ * watchdog or lock de. Reading io port 0x61 results in 0xff which
  * misled NMI handler.
  */
 static unsigned char intel_mid_get_nmi_reason(void)

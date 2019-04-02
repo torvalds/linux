@@ -1063,7 +1063,7 @@ enum il_ctrl_stats {
 };
 
 struct traffic_stats {
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 	u32 mgmt[MANAGEMENT_MAX];
 	u32 ctrl[CONTROL_MAX];
 	u32 data_cnt;
@@ -1122,7 +1122,7 @@ struct il_rxon_context {
 struct il_power_mgr {
 	struct il_powertable_cmd sleep_cmd;
 	struct il_powertable_cmd sleep_cmd_next;
-	int debug_sleep_level_override;
+	int de_sleep_level_override;
 	bool pci_pm;
 	bool ps_disabled;
 };
@@ -1134,8 +1134,8 @@ struct il_priv {
 
 	struct il_cfg *cfg;
 	const struct il_ops *ops;
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	const struct il_debugfs_ops *debugfs_ops;
+#ifdef CONFIG_IWLEGACY_DEFS
+	const struct il_defs_ops *defs_ops;
 #endif
 
 	/* temporary frame storage list */
@@ -1330,7 +1330,7 @@ struct il_priv {
 			struct delayed_work rfkill_poll;
 
 			struct il3945_notif_stats stats;
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 			struct il3945_notif_stats accum_stats;
 			struct il3945_notif_stats delta_stats;
 			struct il3945_notif_stats max_delta;
@@ -1372,7 +1372,7 @@ struct il_priv {
 			struct il_wep_key wep_keys[WEP_KEYS_MAX];
 
 			struct il_notif_stats stats;
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 			struct il_notif_stats accum_stats;
 			struct il_notif_stats delta_stats;
 			struct il_notif_stats max_delta;
@@ -1409,21 +1409,21 @@ struct il_priv {
 	s8 tx_power_device_lmt;
 	s8 tx_power_next;
 
-#ifdef CONFIG_IWLEGACY_DEBUG
-	/* debugging info */
-	u32 debug_level;	/* per device debugging will override global
-				   il_debug_level if set */
-#endif				/* CONFIG_IWLEGACY_DEBUG */
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	/* debugfs */
+#ifdef CONFIG_IWLEGACY_DE
+	/* deging info */
+	u32 de_level;	/* per device deging will override global
+				   il_de_level if set */
+#endif				/* CONFIG_IWLEGACY_DE */
+#ifdef CONFIG_IWLEGACY_DEFS
+	/* defs */
 	u16 tx_traffic_idx;
 	u16 rx_traffic_idx;
 	u8 *tx_traffic;
 	u8 *rx_traffic;
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_ht40;
-#endif				/* CONFIG_IWLEGACY_DEBUGFS */
+#endif				/* CONFIG_IWLEGACY_DEFS */
 
 	struct work_struct txpower_work;
 	bool disable_sens_cal;
@@ -1531,8 +1531,8 @@ il_free_pages(struct il_priv *il, unsigned long page)
 #define IL_RX_BUF_SIZE_4K (4 * 1024)
 #define IL_RX_BUF_SIZE_8K (8 * 1024)
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-struct il_debugfs_ops {
+#ifdef CONFIG_IWLEGACY_DEFS
+struct il_defs_ops {
 	ssize_t(*rx_stats_read) (struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos);
 	ssize_t(*tx_stats_read) (struct file *file, char __user *user_buf,
@@ -1729,7 +1729,7 @@ void il_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int il_alloc_txq_mem(struct il_priv *il);
 void il_free_txq_mem(struct il_priv *il);
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len);
 #else
 static inline void
@@ -1742,7 +1742,7 @@ il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len)
  * Handlers
  ***************************************************/
 void il_hdl_pm_sleep(struct il_priv *il, struct il_rx_buf *rxb);
-void il_hdl_pm_debug_stats(struct il_priv *il, struct il_rx_buf *rxb);
+void il_hdl_pm_de_stats(struct il_priv *il, struct il_rx_buf *rxb);
 void il_hdl_error(struct il_priv *il, struct il_rx_buf *rxb);
 void il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb);
 
@@ -1849,10 +1849,10 @@ extern const struct dev_pm_ops il_pm_ops;
 #endif /* !CONFIG_PM_SLEEP */
 
 /*****************************************************
-*  Error Handling Debugging
+*  Error Handling Deging
 ******************************************************/
 void il4965_dump_nic_error_log(struct il_priv *il);
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 void il_print_rx_config_cmd(struct il_priv *il);
 #else
 static inline void
@@ -2269,8 +2269,8 @@ il_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
 static inline void
 il_set_swq_id(struct il_tx_queue *txq, u8 ac, u8 hwq)
 {
-	BUG_ON(ac > 3);		/* only have 2 bits */
-	BUG_ON(hwq > 31);	/* only use 5 bits */
+	_ON(ac > 3);		/* only have 2 bits */
+	_ON(hwq > 31);	/* only use 5 bits */
 
 	txq->swq_id = (hwq << 2) | ac;
 }
@@ -2828,7 +2828,7 @@ struct il_lq_sta {
 	struct il_scale_tbl_info lq_info[LQ_SIZE];	/* "active", "search" */
 	struct il_traffic_load load[TID_MAX_LOAD_COUNT];
 	u8 tx_agg_tid_en;
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
 	struct dentry *rs_sta_dbgfs_rate_scale_data_file;
@@ -2918,29 +2918,29 @@ void il3945_rate_control_unregister(void);
 int il_power_update_mode(struct il_priv *il, bool force);
 void il_power_initialize(struct il_priv *il);
 
-extern u32 il_debug_level;
+extern u32 il_de_level;
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 /*
- * il_get_debug_level: Return active debug level for device
+ * il_get_de_level: Return active de level for device
  *
- * Using sysfs it is possible to set per device debug level. This debug
- * level will be used if set, otherwise the global debug level which can be
+ * Using sysfs it is possible to set per device de level. This de
+ * level will be used if set, otherwise the global de level which can be
  * set via module parameter is used.
  */
 static inline u32
-il_get_debug_level(struct il_priv *il)
+il_get_de_level(struct il_priv *il)
 {
-	if (il->debug_level)
-		return il->debug_level;
+	if (il->de_level)
+		return il->de_level;
 	else
-		return il_debug_level;
+		return il_de_level;
 }
 #else
 static inline u32
-il_get_debug_level(struct il_priv *il)
+il_get_de_level(struct il_priv *il)
 {
-	return il_debug_level;
+	return il_de_level;
 }
 #endif
 
@@ -2950,18 +2950,18 @@ do {									\
 		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
 } while (0)
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 #define IL_DBG(level, fmt, args...)					\
 do {									\
-	if (il_get_debug_level(il) & level)				\
+	if (il_get_de_level(il) & level)				\
 		dev_err(&il->hw->wiphy->dev, "%c %s " fmt,		\
 			in_interrupt() ? 'I' : 'U', __func__ , ##args); \
 } while (0)
 
 #define il_print_hex_dump(il, level, p, len)				\
 do {									\
-	if (il_get_debug_level(il) & level)				\
-		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
+	if (il_get_de_level(il) & level)				\
+		print_hex_dump(KERN_DE, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
 
@@ -2971,9 +2971,9 @@ static inline void
 il_print_hex_dump(struct il_priv *il, int level, const void *p, u32 len)
 {
 }
-#endif /* CONFIG_IWLEGACY_DEBUG */
+#endif /* CONFIG_IWLEGACY_DE */
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 void il_dbgfs_register(struct il_priv *il, const char *name);
 void il_dbgfs_unregister(struct il_priv *il);
 #else
@@ -2985,29 +2985,29 @@ static inline void
 il_dbgfs_unregister(struct il_priv *il)
 {
 }
-#endif /* CONFIG_IWLEGACY_DEBUGFS */
+#endif /* CONFIG_IWLEGACY_DEFS */
 
 /*
- * To use the debug system:
+ * To use the de system:
  *
- * If you are defining a new debug classification, simply add it to the #define
+ * If you are defining a new de classification, simply add it to the #define
  * list here in the form of
  *
  * #define IL_DL_xxxx VALUE
  *
  * where xxxx should be the name of the classification (for example, WEP).
  *
- * You then need to either add a IL_xxxx_DEBUG() macro definition for your
+ * You then need to either add a IL_xxxx_DE() macro definition for your
  * classification, or use IL_DBG(IL_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
- * The active debug levels can be accessed via files
+ * The active de levels can be accessed via files
  *
- *	/sys/module/iwl4965/parameters/debug
- *	/sys/module/iwl3945/parameters/debug
- *	/sys/class/net/wlan0/device/debug_level
+ *	/sys/module/iwl4965/parameters/de
+ *	/sys/module/iwl3945/parameters/de
+ *	/sys/class/net/wlan0/device/de_level
  *
- * when CONFIG_IWLEGACY_DEBUG=y.
+ * when CONFIG_IWLEGACY_DE=y.
  */
 
 /* 0x0000000F - 0x00000001 */

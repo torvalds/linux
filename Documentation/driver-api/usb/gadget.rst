@@ -166,7 +166,7 @@ to choose hardware endpoints and initialize their descriptors. A
 potential example of particular interest is code implementing standard
 USB-IF protocols for HID, networking, storage, or audio classes. Some
 developers are interested in KDB or KGDB hooks, to let target hardware
-be remotely debugged. Most such USB protocol code doesn't need to be
+be remotely deged. Most such USB protocol code doesn't need to be
 hardware-specific, any more than network protocols like X11, HTTP, or
 NFS are. Such gadget-side interface drivers should eventually be
 combined, to implement composite devices.
@@ -387,7 +387,7 @@ driver on a normal PC, without any special hardware, and perhaps with
 the assistance of tools such as GDB running with User Mode Linux. At
 least one person has expressed interest in adapting that approach,
 hooking it up to a simulator for a microcontroller. Such simulators can
-help debug subsystems where the runtime hardware is unfriendly to
+help de subsystems where the runtime hardware is unfriendly to
 software development, or is not yet available.
 
 Support for other controllers is expected to be developed and
@@ -421,7 +421,7 @@ making it much simpler to network with Windows.
 There is also support for user mode gadget drivers, using ``gadgetfs``.
 This provides a *User Mode API* that presents each endpoint as a single
 file descriptor. I/O is done using normal ``read()`` and ``read()`` calls.
-Familiar tools like GDB and pthreads can be used to develop and debug
+Familiar tools like GDB and pthreads can be used to develop and de
 user mode drivers, so that once a robust controller driver is available
 many applications for it won't require new kernel mode software. Linux
 2.6 *Async I/O (AIO)* support is available, so that user mode software
@@ -494,7 +494,7 @@ support OTG can also benefit non-OTG products.
    and where it's usually unrealistic to expect traditional
    PC/workstation/server kinds of support model to work. For example,
    it's often impractical to change device firmware once the product has
-   been distributed, so driver bugs can't normally be fixed if they're
+   been distributed, so driver s can't normally be fixed if they're
    found after shipment.
 
 Additional changes are needed below those hardware-neutral :c:type:`usb_bus`

@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2001
  *
  * i/o controls for the dasd driver.
@@ -534,7 +534,7 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		argp = (void __user *)arg;
 
 	if ((_IOC_DIR(cmd) != _IOC_NONE) && !arg) {
-		PRINT_DEBUG("empty data ptr");
+		PRINT_DE("empty data ptr");
 		return -EINVAL;
 	}
 

@@ -188,7 +188,7 @@ config MEMORY_HOTREMOVE
 # Default to 4 for wider testing, though 8 might be more appropriate.
 # ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
 # PA-RISC 7xxx's spinlock_t would enlarge struct page from 32 to 44 bytes.
-# DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
+# DE_SPINLOCK and DE_LOCK_ALLOC spinlock_t also enlarge struct page.
 #
 config SPLIT_PTLOCK_CPUS
 	int
@@ -310,7 +310,7 @@ config DEFAULT_MMAP_MIN_ADDR
         help
 	  This is the portion of low virtual memory which should be protected
 	  from userspace allocation.  Keeping a user from writing to low pages
-	  can help reduce the impact of kernel NULL pointer bugs.
+	  can help reduce the impact of kernel NULL pointer s.
 
 	  For most ia64, ppc64 and x86 users with lots of address space
 	  a value of 65536 is reasonable and should cause no problems.
@@ -339,7 +339,7 @@ config MEMORY_FAILURE
 
 config HWPOISON_INJECT
 	tristate "HWPoison pages injector"
-	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
+	depends on MEMORY_FAILURE && DE_KERNEL && PROC_FS
 	select PROC_PAGE_MONITOR
 
 config NOMMU_INITIAL_TRIM_EXCESS
@@ -489,20 +489,20 @@ config CMA
 
 	  If unsure, say "n".
 
-config CMA_DEBUG
-	bool "CMA debug messages (DEVELOPMENT)"
-	depends on DEBUG_KERNEL && CMA
+config CMA_DE
+	bool "CMA de messages (DEVELOPMENT)"
+	depends on DE_KERNEL && CMA
 	help
-	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+	  Turns on de messages in CMA.  This produces KERN_DE
 	  messages for every CMA call as well as various messages while
 	  processing calls such as dma_alloc_from_contiguous().
 	  This option does not affect warning and error messages.
 
-config CMA_DEBUGFS
-	bool "CMA debugfs interface"
-	depends on CMA && DEBUG_FS
+config CMA_DEFS
+	bool "CMA defs interface"
+	depends on CMA && DE_FS
 	help
-	  Turns on the DebugFS interface for CMA.
+	  Turns on the DeFS interface for CMA.
 
 config CMA_AREAS
 	int "Maximum count of the CMA areas"
@@ -602,11 +602,11 @@ config PGTABLE_MAPPING
 config ZSMALLOC_STAT
 	bool "Export zsmalloc statistics"
 	depends on ZSMALLOC
-	select DEBUG_FS
+	select DE_FS
 	help
 	  This option enables code in the zsmalloc to collect various
 	  statistics about whats happening in zsmalloc and exports that
-	  information to userspace via debugfs.
+	  information to userspace via defs.
 	  If unsure, say N.
 
 config GENERIC_EARLY_IOREMAP
@@ -742,7 +742,7 @@ config PERCPU_STATS
 	bool "Collect percpu memory statistics"
 	default n
 	help
-	  This feature collects and exposes statistics via debugfs. The
+	  This feature collects and exposes statistics via defs. The
 	  information includes global and per chunk statistics, which can
 	  be used to help understand percpu memory usage.
 
@@ -750,7 +750,7 @@ config GUP_BENCHMARK
 	bool "Enable infrastructure for get_user_pages_fast() benchmarking"
 	default n
 	help
-	  Provides /sys/kernel/debug/gup_benchmark that helps with testing
+	  Provides /sys/kernel/de/gup_benchmark that helps with testing
 	  performance of get_user_pages_fast().
 
 	  See tools/testing/selftests/vm/gup_benchmark.c

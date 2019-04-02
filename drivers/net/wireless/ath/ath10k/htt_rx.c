@@ -9,7 +9,7 @@
 #include "htc.h"
 #include "htt.h"
 #include "txrx.h"
-#include "debug.h"
+#include "de.h"
 #include "trace.h"
 #include "mac.h"
 
@@ -139,7 +139,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	 * To keep things simple make sure ring is always half empty. This
 	 * guarantees there'll be no replenishment overruns possible.
 	 */
-	BUILD_BUG_ON(HTT_RX_RING_FILL_LEVEL >= HTT_RX_RING_SIZE / 2);
+	BUILD__ON(HTT_RX_RING_FILL_LEVEL >= HTT_RX_RING_SIZE / 2);
 
 	idx = __le32_to_cpu(*htt->rx_ring.alloc_idx.vaddr);
 	while (num > 0) {
@@ -3148,7 +3148,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		ieee80211_tx_rate_update(ar->hw, sta, &arsta->tx_info);
 	}
 
-	if (ath10k_debug_is_extd_tx_stats_enabled(ar))
+	if (ath10k_de_is_extd_tx_stats_enabled(ar))
 		ath10k_accumulate_per_peer_tx_stats(ar, arsta, peer_stats,
 						    rate_idx);
 }
@@ -3381,7 +3381,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		/* Firmware can return tx frames if it's unable to fully
 		 * process them and suspects host may be able to fix it. ath10k
 		 * sends all tx frames as already inspected so this shouldn't
-		 * happen unless fw has a bug.
+		 * happen unless fw has a .
 		 */
 		ath10k_warn(ar, "received an unexpected htt tx inspect event\n");
 		break;

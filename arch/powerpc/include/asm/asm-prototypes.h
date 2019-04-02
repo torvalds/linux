@@ -82,7 +82,7 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 		    struct ucontext __user *new_ctx,
 		    long ctx_size);
 #ifdef CONFIG_PPC32
-long sys_debug_setcontext(struct ucontext __user *ctx,
+long sys_de_setcontext(struct ucontext __user *ctx,
 			  int ndbg, struct sig_dbg_op __user *dbg);
 int
 ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp);

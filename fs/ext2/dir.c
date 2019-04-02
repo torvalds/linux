@@ -52,7 +52,7 @@ static inline __le16 ext2_rec_len_to_disk(unsigned len)
 	if (len == (1 << 16))
 		return cpu_to_le16(EXT2_MAX_REC_LEN);
 	else
-		BUG_ON(len > (1 << 16));
+		_ON(len > (1 << 16));
 #endif
 	return cpu_to_le16(len);
 }
@@ -444,7 +444,7 @@ void ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
 
 	lock_page(page);
 	err = ext2_prepare_chunk(page, pos, len);
-	BUG_ON(err);
+	_ON(err);
 	de->inode = cpu_to_le32(inode->i_ino);
 	ext2_set_de_type(de, inode);
 	err = ext2_commit_chunk(page, pos, len);
@@ -520,7 +520,7 @@ int ext2_add_link (struct dentry *dentry, struct inode *inode)
 		unlock_page(page);
 		ext2_put_page(page);
 	}
-	BUG();
+	();
 	return -EINVAL;
 
 got_it:
@@ -584,7 +584,7 @@ int ext2_delete_entry (struct ext2_dir_entry_2 * dir, struct page * page )
 	pos = page_offset(page) + from;
 	lock_page(page);
 	err = ext2_prepare_chunk(page, pos, to - from);
-	BUG_ON(err);
+	_ON(err);
 	if (pde)
 		pde->rec_len = ext2_rec_len_to_disk(to - from);
 	dir->inode = 0;

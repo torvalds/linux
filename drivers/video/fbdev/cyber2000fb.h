@@ -18,8 +18,8 @@
 
 #define NR_PALETTE	256
 
-#if defined(DEBUG) && defined(CONFIG_DEBUG_LL)
-static void debug_printf(char *fmt, ...)
+#if defined(DE) && defined(CONFIG_DE_LL)
+static void de_printf(char *fmt, ...)
 {
 	extern void printascii(const char *);
 	char buffer[128];
@@ -32,7 +32,7 @@ static void debug_printf(char *fmt, ...)
 	printascii(buffer);
 }
 #else
-#define debug_printf(x...) do { } while (0)
+#define de_printf(x...) do { } while (0)
 #endif
 
 #define RAMDAC_RAMPWRDN		0x01

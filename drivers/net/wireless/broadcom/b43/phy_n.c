@@ -2097,7 +2097,7 @@ static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
 		regs_to_store = regs_to_store_rev3;
 		regs_amount = ARRAY_SIZE(regs_to_store_rev3);
 	}
-	BUG_ON(regs_amount > ARRAY_SIZE(saved_regs_phy));
+	_ON(regs_amount > ARRAY_SIZE(saved_regs_phy));
 
 	class = b43_nphy_classifier(dev, 0, 0);
 	b43_nphy_classifier(dev, 7, 4);
@@ -5649,7 +5649,7 @@ static void b43_nphy_reapply_tx_cal_coeffs(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalRxIqRev2 */
 static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
-			struct nphy_txgains target, u8 type, bool debug)
+			struct nphy_txgains target, u8 type, bool de)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 	int i, j, index;
@@ -5829,22 +5829,22 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 }
 
 static int b43_nphy_rev3_cal_rx_iq(struct b43_wldev *dev,
-			struct nphy_txgains target, u8 type, bool debug)
+			struct nphy_txgains target, u8 type, bool de)
 {
 	return -1;
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalRxIq */
 static int b43_nphy_cal_rx_iq(struct b43_wldev *dev,
-			struct nphy_txgains target, u8 type, bool debug)
+			struct nphy_txgains target, u8 type, bool de)
 {
 	if (dev->phy.rev >= 7)
 		type = 0;
 
 	if (dev->phy.rev >= 3)
-		return b43_nphy_rev3_cal_rx_iq(dev, target, type, debug);
+		return b43_nphy_rev3_cal_rx_iq(dev, target, type, de);
 	else
-		return b43_nphy_rev2_cal_rx_iq(dev, target, type, debug);
+		return b43_nphy_rev2_cal_rx_iq(dev, target, type, de);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCoreSetState */
@@ -5911,7 +5911,7 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	if (phy->desired_txpower)
 		max = min_t(u8, max, INT_TO_Q52(phy->desired_txpower));
 	b43_ppr_apply_max(dev, ppr, max);
-	if (b43_debug(dev, B43_DBG_XMITPOWER))
+	if (b43_de(dev, B43_DBG_XMITPOWER))
 		b43dbg(dev->wl, "Calculated TX power: " Q52_FMT "\n",
 		       Q52_ARG(b43_ppr_get_max(dev, ppr)));
 
@@ -6554,7 +6554,7 @@ static int b43_nphy_op_init(struct b43_wldev *dev)
 
 static inline void check_phyreg(struct b43_wldev *dev, u16 offset)
 {
-#if B43_DEBUG
+#if B43_DE
 	if ((offset & B43_PHYROUTE) == B43_PHYROUTE_OFDM_GPHY) {
 		/* OFDM registers are onnly available on A/G-PHYs */
 		b43err(dev->wl, "Invalid OFDM PHY access at "
@@ -6567,7 +6567,7 @@ static inline void check_phyreg(struct b43_wldev *dev, u16 offset)
 		       "0x%04X on N-PHY\n", offset);
 		dump_stack();
 	}
-#endif /* B43_DEBUG */
+#endif /* B43_DE */
 }
 
 static void b43_nphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,

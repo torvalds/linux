@@ -39,7 +39,7 @@
  * V2.3 
  *   Changes:
  *      Added Raptor Support
- *      Fixed bug causing system to hang under extreme load with 
+ *      Fixed  causing system to hang under extreme load with 
  *         management utilities running (removed GFP_DMA from kmalloc flags)
  *
  *
@@ -51,7 +51,7 @@
  *         Added checking underflow conditions 
  *         Added DATAPROTECT checking
  *         Changed error return codes
- *         Fixed pointer bug in bus reset routine
+ *         Fixed pointer  in bus reset routine
  *      Enabled hba reset from ioctls (allows a FW flash to reboot and use the new
  *         FW without having to reboot)
  *      Changed proc output

@@ -51,7 +51,7 @@
  * present for a given platform.
  */
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 
 #include <linux/sort.h>
 
@@ -91,7 +91,7 @@ static void init_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
 {
 	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 
-	spin_lock_init(&rpm->debug.lock);
+	spin_lock_init(&rpm->de.lock);
 }
 
 static noinline depot_stack_handle_t
@@ -111,22 +111,22 @@ track_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
 	if (!stack)
 		return -1;
 
-	spin_lock_irqsave(&rpm->debug.lock, flags);
+	spin_lock_irqsave(&rpm->de.lock, flags);
 
-	if (!rpm->debug.count)
-		rpm->debug.last_acquire = stack;
+	if (!rpm->de.count)
+		rpm->de.last_acquire = stack;
 
-	stacks = krealloc(rpm->debug.owners,
-			  (rpm->debug.count + 1) * sizeof(*stacks),
+	stacks = krealloc(rpm->de.owners,
+			  (rpm->de.count + 1) * sizeof(*stacks),
 			  GFP_NOWAIT | __GFP_NOWARN);
 	if (stacks) {
-		stacks[rpm->debug.count++] = stack;
-		rpm->debug.owners = stacks;
+		stacks[rpm->de.count++] = stack;
+		rpm->de.owners = stacks;
 	} else {
 		stack = -1;
 	}
 
-	spin_unlock_irqrestore(&rpm->debug.lock, flags);
+	spin_unlock_irqrestore(&rpm->de.lock, flags);
 
 	return stack;
 }
@@ -141,21 +141,21 @@ static void cancel_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
 	if (unlikely(stack == -1))
 		return;
 
-	spin_lock_irqsave(&rpm->debug.lock, flags);
-	for (n = rpm->debug.count; n--; ) {
-		if (rpm->debug.owners[n] == stack) {
-			memmove(rpm->debug.owners + n,
-				rpm->debug.owners + n + 1,
-				(--rpm->debug.count - n) * sizeof(stack));
+	spin_lock_irqsave(&rpm->de.lock, flags);
+	for (n = rpm->de.count; n--; ) {
+		if (rpm->de.owners[n] == stack) {
+			memmove(rpm->de.owners + n,
+				rpm->de.owners + n + 1,
+				(--rpm->de.count - n) * sizeof(stack));
 			found = true;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&rpm->debug.lock, flags);
+	spin_unlock_irqrestore(&rpm->de.lock, flags);
 
 	if (WARN(!found,
 		 "Unmatched wakeref (tracking %lu), count %u\n",
-		 rpm->debug.count, atomic_read(&rpm->wakeref_count))) {
+		 rpm->de.count, atomic_read(&rpm->wakeref_count))) {
 		char *buf;
 
 		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -163,12 +163,12 @@ static void cancel_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
 			return;
 
 		__print_depot_stack(stack, buf, PAGE_SIZE, 2);
-		DRM_DEBUG_DRIVER("wakeref %x from\n%s", stack, buf);
+		DRM_DE_DRIVER("wakeref %x from\n%s", stack, buf);
 
-		stack = READ_ONCE(rpm->debug.last_release);
+		stack = READ_ONCE(rpm->de.last_release);
 		if (stack) {
 			__print_depot_stack(stack, buf, PAGE_SIZE, 2);
-			DRM_DEBUG_DRIVER("wakeref last released at\n%s", buf);
+			DRM_DE_DRIVER("wakeref last released at\n%s", buf);
 		}
 
 		kfree(buf);
@@ -189,7 +189,7 @@ static int cmphandle(const void *_a, const void *_b)
 
 static void
 __print_intel_runtime_pm_wakeref(struct drm_printer *p,
-				 const struct intel_runtime_pm_debug *dbg)
+				 const struct intel_runtime_pm_de *dbg)
 {
 	unsigned long i;
 	char *buf;
@@ -230,26 +230,26 @@ static noinline void
 untrack_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
 {
 	struct i915_runtime_pm *rpm = &i915->runtime_pm;
-	struct intel_runtime_pm_debug dbg = {};
+	struct intel_runtime_pm_de dbg = {};
 	struct drm_printer p;
 	unsigned long flags;
 
 	assert_rpm_wakelock_held(i915);
 	if (atomic_dec_and_lock_irqsave(&rpm->wakeref_count,
-					&rpm->debug.lock,
+					&rpm->de.lock,
 					flags)) {
-		dbg = rpm->debug;
+		dbg = rpm->de;
 
-		rpm->debug.owners = NULL;
-		rpm->debug.count = 0;
-		rpm->debug.last_release = __save_depot_stack();
+		rpm->de.owners = NULL;
+		rpm->de.count = 0;
+		rpm->de.last_release = __save_depot_stack();
 
-		spin_unlock_irqrestore(&rpm->debug.lock, flags);
+		spin_unlock_irqrestore(&rpm->de.lock, flags);
 	}
 	if (!dbg.count)
 		return;
 
-	p = drm_debug_printer("i915");
+	p = drm_de_printer("i915");
 	__print_intel_runtime_pm_wakeref(&p, &dbg);
 
 	kfree(dbg.owners);
@@ -258,23 +258,23 @@ untrack_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
 void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
 				    struct drm_printer *p)
 {
-	struct intel_runtime_pm_debug dbg = {};
+	struct intel_runtime_pm_de dbg = {};
 
 	do {
 		struct i915_runtime_pm *rpm = &i915->runtime_pm;
 		unsigned long alloc = dbg.count;
 		depot_stack_handle_t *s;
 
-		spin_lock_irq(&rpm->debug.lock);
-		dbg.count = rpm->debug.count;
+		spin_lock_irq(&rpm->de.lock);
+		dbg.count = rpm->de.count;
 		if (dbg.count <= alloc) {
 			memcpy(dbg.owners,
-			       rpm->debug.owners,
+			       rpm->de.owners,
 			       dbg.count * sizeof(*s));
 		}
-		dbg.last_acquire = rpm->debug.last_acquire;
-		dbg.last_release = rpm->debug.last_release;
-		spin_unlock_irq(&rpm->debug.lock);
+		dbg.last_acquire = rpm->de.last_acquire;
+		dbg.last_release = rpm->de.last_release;
+		spin_unlock_irq(&rpm->de.lock);
 		if (dbg.count <= alloc)
 			break;
 
@@ -421,7 +421,7 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 static void intel_power_well_enable(struct drm_i915_private *dev_priv,
 				    struct i915_power_well *power_well)
 {
-	DRM_DEBUG_KMS("enabling %s\n", power_well->desc->name);
+	DRM_DE_KMS("enabling %s\n", power_well->desc->name);
 	power_well->desc->ops->enable(dev_priv, power_well);
 	power_well->hw_enabled = true;
 }
@@ -429,7 +429,7 @@ static void intel_power_well_enable(struct drm_i915_private *dev_priv,
 static void intel_power_well_disable(struct drm_i915_private *dev_priv,
 				     struct i915_power_well *power_well)
 {
-	DRM_DEBUG_KMS("disabling %s\n", power_well->desc->name);
+	DRM_DE_KMS("disabling %s\n", power_well->desc->name);
 	power_well->hw_enabled = false;
 	power_well->desc->ops->disable(dev_priv, power_well);
 }
@@ -583,7 +583,7 @@ static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
 	ret |= I915_READ(regs->driver) & req_mask ? 2 : 0;
 	if (regs->kvmr.reg)
 		ret |= I915_READ(regs->kvmr) & req_mask ? 4 : 0;
-	ret |= I915_READ(regs->debug) & req_mask ? 8 : 0;
+	ret |= I915_READ(regs->de) & req_mask ? 8 : 0;
 
 	return ret;
 }
@@ -601,7 +601,7 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 	 * this for paranoia. The known cases where a PW will be forced on:
 	 * - a KVMR request on any power well via the KVMR request register
 	 * - a DMC request on PW1 and MISC_IO power wells via the BIOS and
-	 *   DEBUG request registers
+	 *   DE request registers
 	 * Skip the wait in case any of the request bits are set and print a
 	 * diagnostic message.
 	 */
@@ -611,7 +611,7 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 	if (disabled)
 		return;
 
-	DRM_DEBUG_KMS("%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
+	DRM_DE_KMS("%s forced on (bios:%d driver:%d kvmr:%d de:%d)\n",
 		      power_well->desc->name,
 		      !!(reqs & 1), !!(reqs & 2), !!(reqs & 4), !!(reqs & 8));
 }
@@ -768,7 +768,7 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 	val = I915_READ(regs->driver);
 
 	/*
-	 * On GEN9 big core due to a DMC bug the driver's request bits for PW1
+	 * On GEN9 big core due to a DMC  the driver's request bits for PW1
 	 * and the MISC_IO PW will be not restored, so check instead for the
 	 * BIOS's own request bits, which are forced-on for these power wells
 	 * when exiting DC5/6.
@@ -850,7 +850,7 @@ static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
 
 	/* Most of the times we need one retry, avoid spam */
 	if (rewrites > 1)
-		DRM_DEBUG_KMS("Rewrote dc state to 0x%x %d times\n",
+		DRM_DE_KMS("Rewrote dc state to 0x%x %d times\n",
 			      state, rewrites);
 }
 
@@ -875,7 +875,7 @@ void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv)
 
 	val = I915_READ(DC_STATE_EN) & gen9_dc_mask(dev_priv);
 
-	DRM_DEBUG_KMS("Resetting DC state tracking from %02x to %02x\n",
+	DRM_DE_KMS("Resetting DC state tracking from %02x to %02x\n",
 		      dev_priv->csr.dc_state, val);
 	dev_priv->csr.dc_state = val;
 }
@@ -913,7 +913,7 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 
 	val = I915_READ(DC_STATE_EN);
 	mask = gen9_dc_mask(dev_priv);
-	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
+	DRM_DE_KMS("Setting DC state from %02x to %02x\n",
 		      val & mask, state);
 
 	/* Check if DMC is ignoring our DC state requests */
@@ -933,7 +933,7 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc9(dev_priv);
 
-	DRM_DEBUG_KMS("Enabling DC9\n");
+	DRM_DE_KMS("Enabling DC9\n");
 	/*
 	 * Power sequencer reset is not needed on
 	 * platforms with South Display Engine on PCH,
@@ -948,7 +948,7 @@ void bxt_disable_dc9(struct drm_i915_private *dev_priv)
 {
 	assert_can_disable_dc9(dev_priv);
 
-	DRM_DEBUG_KMS("Disabling DC9\n");
+	DRM_DE_KMS("Disabling DC9\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -1002,7 +1002,7 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc5(dev_priv);
 
-	DRM_DEBUG_KMS("Enabling DC5\n");
+	DRM_DE_KMS("Enabling DC5\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv))
@@ -1026,7 +1026,7 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
 
-	DRM_DEBUG_KMS("Enabling DC6\n");
+	DRM_DE_KMS("Enabling DC6\n");
 
 	/* Wa Display #1183: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv))
@@ -1591,7 +1591,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+	DRM_DE_KMS("Enabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
 		      phy, dev_priv->chv_phy_control);
 
 	assert_chv_phy_status(dev_priv);
@@ -1619,7 +1619,7 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 
 	vlv_set_power_well(dev_priv, power_well, false);
 
-	DRM_DEBUG_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
+	DRM_DE_KMS("Disabled DPIO PHY%d (PHY_CONTROL=0x%08x)\n",
 		      phy, dev_priv->chv_phy_control);
 
 	/* PHY is fully reset now, so we can enable the PHY state asserts */
@@ -1710,7 +1710,7 @@ bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
+	DRM_DE_KMS("Power gating DPIO PHY%d CH%d (DPIO_PHY_CONTROL=0x%08x)\n",
 		      phy, ch, dev_priv->chv_phy_control);
 
 	assert_chv_phy_status(dev_priv);
@@ -1741,7 +1741,7 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
+	DRM_DE_KMS("Power gating DPIO PHY%d CH%d lanes 0x%x (PHY_CONTROL=0x%08x)\n",
 		      phy, ch, mask, dev_priv->chv_phy_control);
 
 	assert_chv_phy_status(dev_priv);
@@ -1950,7 +1950,7 @@ void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
 	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain,
 			     intel_wakeref_t wakeref)
@@ -2440,7 +2440,7 @@ static const struct i915_power_well_regs hsw_power_well_regs = {
 	.bios	= HSW_PWR_WELL_CTL1,
 	.driver	= HSW_PWR_WELL_CTL2,
 	.kvmr	= HSW_PWR_WELL_CTL3,
-	.debug	= HSW_PWR_WELL_CTL4,
+	.de	= HSW_PWR_WELL_CTL4,
 };
 
 static const struct i915_power_well_desc hsw_power_wells[] = {
@@ -3076,13 +3076,13 @@ static const struct i915_power_well_ops icl_tc_phy_aux_power_well_ops = {
 static const struct i915_power_well_regs icl_aux_power_well_regs = {
 	.bios	= ICL_PWR_WELL_CTL_AUX1,
 	.driver	= ICL_PWR_WELL_CTL_AUX2,
-	.debug	= ICL_PWR_WELL_CTL_AUX4,
+	.de	= ICL_PWR_WELL_CTL_AUX4,
 };
 
 static const struct i915_power_well_regs icl_ddi_power_well_regs = {
 	.bios	= ICL_PWR_WELL_CTL_DDI1,
 	.driver	= ICL_PWR_WELL_CTL_DDI2,
-	.debug	= ICL_PWR_WELL_CTL_DDI4,
+	.de	= ICL_PWR_WELL_CTL_DDI4,
 };
 
 static const struct i915_power_well_desc icl_power_wells[] = {
@@ -3362,7 +3362,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	} else if (enable_dc == -1) {
 		requested_dc = max_dc;
 	} else if (enable_dc > max_dc && enable_dc <= 2) {
-		DRM_DEBUG_KMS("Adjusting requested max DC state (%d->%d)\n",
+		DRM_DE_KMS("Adjusting requested max DC state (%d->%d)\n",
 			      enable_dc, max_dc);
 		requested_dc = max_dc;
 	} else {
@@ -3375,7 +3375,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	if (requested_dc > 0)
 		mask |= DC_STATE_EN_UPTO_DC5;
 
-	DRM_DEBUG_KMS("Allowed DC state mask %02x\n", mask);
+	DRM_DE_KMS("Allowed DC state mask %02x\n", mask);
 
 	return mask;
 }
@@ -3434,7 +3434,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	dev_priv->csr.allowed_dc_mask =
 		get_allowed_dc_mask(dev_priv, i915_modparams.enable_dc);
 
-	BUILD_BUG_ON(POWER_DOMAIN_NUM > 64);
+	BUILD__ON(POWER_DOMAIN_NUM > 64);
 
 	mutex_init(&power_domains->lock);
 
@@ -3961,7 +3961,7 @@ static void chv_phy_control_init(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
 
-	DRM_DEBUG_KMS("Initial PHY_CONTROL=0x%08x\n",
+	DRM_DE_KMS("Initial PHY_CONTROL=0x%08x\n",
 		      dev_priv->chv_phy_control);
 }
 
@@ -3978,7 +3978,7 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	    I915_READ(DPIO_CTL) & DPIO_CMNRST)
 		return;
 
-	DRM_DEBUG_KMS("toggling display PHY side reset\n");
+	DRM_DE_KMS("toggling display PHY side reset\n");
 
 	/* cmnlane needs DPLL registers */
 	disp2d->desc->ops->enable(dev_priv, disp2d);
@@ -4200,7 +4200,7 @@ void intel_power_domains_resume(struct drm_i915_private *i915)
 	intel_power_domains_verify_state(i915);
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 
 static void intel_power_domains_dump_info(struct drm_i915_private *i915)
 {
@@ -4210,11 +4210,11 @@ static void intel_power_domains_dump_info(struct drm_i915_private *i915)
 	for_each_power_well(i915, power_well) {
 		enum intel_display_power_domain domain;
 
-		DRM_DEBUG_DRIVER("%-25s %d\n",
+		DRM_DE_DRIVER("%-25s %d\n",
 				 power_well->desc->name, power_well->count);
 
 		for_each_power_domain(domain, power_well->desc->domains)
-			DRM_DEBUG_DRIVER("  %-23s %d\n",
+			DRM_DE_DRIVER("  %-23s %d\n",
 					 intel_display_power_domain_str(domain),
 					 power_domains->domain_use_count[domain]);
 	}
@@ -4390,7 +4390,7 @@ void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915)
 	pm_runtime_put_autosuspend(kdev);
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+#if IS_ENABLED(CONFIG_DRM_I915_DE_RUNTIME_PM)
 void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
 {
 	cancel_intel_runtime_pm_wakeref(i915, wref);

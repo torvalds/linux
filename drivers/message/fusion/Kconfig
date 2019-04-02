@@ -110,14 +110,14 @@ config FUSION_LAN
 config FUSION_LOGGING
 	bool "Fusion MPT logging facility"
 	---help---
-	  This turns on a logging facility that can be used to debug a number
+	  This turns on a logging facility that can be used to de a number
 	  of Fusion MPT related problems.
 
-	  The debug level can be programmed on the fly via SysFS (hex values)
+	  The de level can be programmed on the fly via SysFS (hex values)
 
-	  echo [level] > /sys/class/scsi_host/host#/debug_level
+	  echo [level] > /sys/class/scsi_host/host#/de_level
 
-	  There are various debug levels that can be found in the source:
-	  file:drivers/message/fusion/mptdebug.h
+	  There are various de levels that can be found in the source:
+	  file:drivers/message/fusion/mptde.h
 
 endif # FUSION

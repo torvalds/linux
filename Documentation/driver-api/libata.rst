@@ -684,7 +684,7 @@ during issuing or execution any ATA/ATAPI command.
 
 In these cases, HSM is violated and not much information regarding the
 error can be acquired from STATUS or ERROR register. IOW, this error can
-be anything - driver bug, faulty device, controller and/or cable.
+be anything - driver , faulty device, controller and/or cable.
 
 As HSM is violated, reset is necessary to restore known state.
 Reconfiguring transport for lower speed might be helpful too as

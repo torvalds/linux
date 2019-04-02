@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Dump R3000 TLB for debugging purposes.
+ * Dump R3000 TLB for deging purposes.
  *
  * Copyright (C) 1994, 1995 by Waldorf Electronics, written by Ralf Baechle.
  * Copyright (C) 1999 by Silicon Graphics, Inc.
@@ -13,7 +13,7 @@
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/tlbdebug.h>
+#include <asm/tlbde.h>
 
 extern int r3k_have_wired_reg;
 

@@ -31,7 +31,7 @@
  */
 
 /*
- *  The PDC console is a simple console, which can be used for debugging 
+ *  The PDC console is a simple console, which can be used for deging 
  *  boot related problems on HP PA-RISC machines. It is also useful when no
  *  other console works.
  *
@@ -39,9 +39,9 @@
  *  from and to PDC's boot path.
  */
 
-/* Define EARLY_BOOTUP_DEBUG to debug kernel related boot problems. 
- * On production kernels EARLY_BOOTUP_DEBUG should be undefined. */
-#define EARLY_BOOTUP_DEBUG
+/* Define EARLY_BOOTUP_DE to de kernel related boot problems. 
+ * On production kernels EARLY_BOOTUP_DE should be undefined. */
+#define EARLY_BOOTUP_DE
 
 
 #include <linux/kernel.h>
@@ -245,11 +245,11 @@ static void pdc_console_init_force(void)
 
 void __init pdc_console_init(void)
 {
-#if defined(EARLY_BOOTUP_DEBUG) || defined(CONFIG_PDC_CONSOLE)
+#if defined(EARLY_BOOTUP_DE) || defined(CONFIG_PDC_CONSOLE)
 	pdc_console_init_force();
 #endif
-#ifdef EARLY_BOOTUP_DEBUG
-	printk(KERN_INFO "Initialized PDC Console for debugging.\n");
+#ifdef EARLY_BOOTUP_DE
+	printk(KERN_INFO "Initialized PDC Console for deging.\n");
 #endif
 }
 

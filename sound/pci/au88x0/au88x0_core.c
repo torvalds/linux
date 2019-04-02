@@ -35,7 +35,7 @@
  take a look at the AU88X0 assembly and check if this matches.
  Functions tested ok so far are (they show the desired effect
  at least):
-   vortex_routes(); (1 bug fixed).
+   vortex_routes(); (1  fixed).
    vortex_adb_addroute();
    vortex_adb_addroutes();
    vortex_connect_codecplay();
@@ -55,8 +55,8 @@
  History:
 
  01-03-2003 First revision.
- 01-21-2003 Some bug fixes.
- 17-02-2003 many bugfixes after a big versioning mess.
+ 01-21-2003 Some  fixes.
+ 17-02-2003 many fixes after a big versioning mess.
  18-02-2003 JAAAAAHHHUUUUUU!!!! The mixer works !! I'm just so happy !
 			 (2 hours later...) I cant believe it! Im really lucky today.
 			 Now the SRC is working too! Yeah! XMMS works !
@@ -66,13 +66,13 @@
  12-03-2003 ALSA driver starts working (2 channels).
  16-03-2003 More srcblock_setupchannel discoveries.
  12-04-2003 AU8830 playback support. Recording in the works.
- 17-04-2003 vortex_route() and vortex_routes() bug fixes. AU8830 recording
+ 17-04-2003 vortex_route() and vortex_routes()  fixes. AU8830 recording
  			works now, but chipn' dale effect is still there.
  16-05-2003 SrcSetupChannel cleanup. Moved the Src setup stuff entirely
             into au88x0_pcm.c .
- 06-06-2003 Buffer shifter bugfix. Mixer volume fix.
+ 06-06-2003 Buffer shifter fix. Mixer volume fix.
  07-12-2003 A3D routing finally fixed. Believed to be OK.
- 25-03-2004 Many thanks to Claudia, for such valuable bug reports.
+ 25-03-2004 Many thanks to Claudia, for such valuable  reports.
  
 */
 
@@ -1140,7 +1140,7 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 		break;
 	}
 	/*
-	pr_debug( "vortex: cfg0 = 0x%x\nvortex: cfg1=0x%x\n",
+	pr_de( "vortex: cfg0 = 0x%x\nvortex: cfg1=0x%x\n",
 	       dma->cfg0, dma->cfg1);
 	*/
 	hwwrite(vortex->mmio, VORTEX_ADBDMA_BUFCFG0 + (adbdma << 3), dma->cfg0);
@@ -1974,7 +1974,7 @@ vortex_connect_codecplay(vortex_t * vortex, int en, unsigned char mixers[])
 					  ADB_CODECOUT(0 + 4));
 		vortex_connection_mix_adb(vortex, en, 0x11, mixers[3],
 					  ADB_CODECOUT(1 + 4));
-		/* pr_debug( "SDAC detected "); */
+		/* pr_de( "SDAC detected "); */
 	}
 #else
 	// Use plain direct output to codec.
@@ -2029,7 +2029,7 @@ vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
 				else
 					vortex->dma_adb[i].resources[restype] |= (1 << i);
 				/*
-				pr_debug(
+				pr_de(
 				       "vortex: ResManager: type %d out %d\n",
 				       restype, i);
 				*/
@@ -2044,7 +2044,7 @@ vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
 			if (resmap[restype] & (1 << i)) {
 				resmap[restype] &= ~(1 << i);
 				/*
-				pr_debug(
+				pr_de(
 				       "vortex: ResManager: type %d in %d\n",
 				       restype, i);
 				*/

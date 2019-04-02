@@ -373,7 +373,7 @@ static int wil_ring_alloc_desc_ring(struct wil6210_priv *wil,
 
 	wil_dbg_misc(wil, "alloc_desc_ring:\n");
 
-	BUILD_BUG_ON(sizeof(ring->va[0]) != 32);
+	BUILD__ON(sizeof(ring->va[0]) != 32);
 
 	ring->swhead = 0;
 	ring->swtail = 0;
@@ -625,7 +625,7 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 
 	wil_rx_buf_len_init_edma(wil);
 
-	/* Use debugfs dbg_num_rx_srings if set, reserve one sring for TX */
+	/* Use defs dbg_num_rx_srings if set, reserve one sring for TX */
 	if (wil->num_rx_status_rings > WIL6210_MAX_STATUS_RINGS - 1)
 		wil->num_rx_status_rings = WIL6210_MAX_STATUS_RINGS - 1;
 
@@ -880,7 +880,7 @@ static struct sk_buff *wil_sring_reap_rx_edma(struct wil6210_priv *wil,
 	struct wil_rx_status_extended *s;
 	u16 sring_idx = sring - wil->srings;
 
-	BUILD_BUG_ON(sizeof(struct wil_rx_status_extended) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct wil_rx_status_extended) > sizeof(skb->cb));
 
 again:
 	wil_get_next_rx_status_msg(sring, msg);

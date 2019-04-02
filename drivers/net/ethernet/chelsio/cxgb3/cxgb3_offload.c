@@ -628,7 +628,7 @@ void cxgb3_remove_tid(struct t3cdev *tdev, void *ctx, unsigned int tid)
 {
 	struct tid_info *t = &(T3C_DATA(tdev))->tid_maps;
 
-	BUG_ON(tid >= t->ntids);
+	_ON(tid >= t->ntids);
 	if (tdev->type == T3A)
 		(void)cmpxchg(&t->tid_tab[tid].ctx, ctx, NULL);
 	else {
@@ -830,7 +830,7 @@ static struct sk_buff *cxgb3_get_cpl_reply_skb(struct sk_buff *skb, size_t len,
 					       gfp_t gfp)
 {
 	if (likely(!skb_cloned(skb))) {
-		BUG_ON(skb->len < len);
+		_ON(skb->len < len);
 		__skb_trim(skb, len);
 		skb_get(skb);
 	} else {
@@ -1080,7 +1080,7 @@ static void cxgb_neigh_update(struct neighbour *neigh)
 	if (dev && (is_offloading(dev))) {
 		struct t3cdev *tdev = dev2t3cdev(dev);
 
-		BUG_ON(!tdev);
+		_ON(!tdev);
 		t3_l2t_update(tdev, neigh);
 	}
 }
@@ -1124,7 +1124,7 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new,
 	if (!is_offloading(dev))
 		return;
 	tdev = dev2t3cdev(dev);
-	BUG_ON(!tdev);
+	_ON(!tdev);
 
 	/* Add new L2T entry */
 	e = t3_l2t_get(tdev, new, dev, daddr);
@@ -1137,7 +1137,7 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new,
 	ti = &(T3C_DATA(tdev))->tid_maps;
 	for (tid = 0; tid < ti->ntids; tid++) {
 		te = lookup_tid(ti, tid);
-		BUG_ON(!te);
+		_ON(!te);
 		if (te && te->ctx && te->client && te->client->redirect) {
 			update_tcb = te->client->redirect(te->ctx, old, new, e);
 			if (update_tcb) {

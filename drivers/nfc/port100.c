@@ -650,7 +650,7 @@ static void port100_recv_response(struct urb *urb)
 		goto sched_wq;
 	}
 
-	print_hex_dump_debug("PORT100 RX: ", DUMP_PREFIX_NONE, 16, 1, in_frame,
+	print_hex_dump_de("PORT100 RX: ", DUMP_PREFIX_NONE, 16, 1, in_frame,
 			     port100_rx_frame_size(in_frame), false);
 
 	if (!port100_rx_frame_is_cmd_response(dev, in_frame)) {
@@ -783,7 +783,7 @@ static int port100_send_frame_async(struct port100 *dev, struct sk_buff *out,
 	dev->in_urb->transfer_buffer = in->data;
 	dev->in_urb->transfer_buffer_length = in_len;
 
-	print_hex_dump_debug("PORT100 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_de("PORT100 TX: ", DUMP_PREFIX_NONE, 16, 1,
 			     out->data, out->len, false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);

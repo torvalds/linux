@@ -245,7 +245,7 @@ efw_response(struct fw_card *card, struct fw_request *request,
 	if (seqnum > SND_EFW_TRANSACTION_USER_SEQNUM_MAX + 1) {
 		handle_resp_for_kernel(card, generation, source,
 				       data, length, &rcode, seqnum);
-		if (snd_efw_resp_buf_debug)
+		if (snd_efw_resp_buf_de)
 			handle_resp_for_user(card, generation, source,
 					     data, length, &dummy);
 	} else {

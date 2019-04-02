@@ -22,16 +22,16 @@
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
 #include <linux/hw_random.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/cdev.h>
 #include <linux/ctype.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/zcrypt.h>
 
 #include "zcrypt_api.h"
-#include "zcrypt_debug.h"
+#include "zcrypt_de.h"
 
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_msgtype50.h"
@@ -66,8 +66,8 @@ EXPORT_SYMBOL(zcrypt_rescan_req);
 
 static LIST_HEAD(zcrypt_ops_list);
 
-/* Zcrypt related debug feature stuff. */
-debug_info_t *zcrypt_dbf_info;
+/* Zcrypt related de feature stuff. */
+de_info_t *zcrypt_dbf_info;
 
 /**
  * Process a rescan of the transport layer.
@@ -1288,7 +1288,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_rsa_modexpo(perms, &mex);
 			} while (rc == -EAGAIN);
 		if (rc) {
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSAMODEXPO rc=%d\n", rc);
+			ZCRYPT_DBF(DBF_DE, "ioctl ICARSAMODEXPO rc=%d\n", rc);
 			return rc;
 		}
 		return put_user(mex.outputdatalength, &umex->outputdatalength);
@@ -1308,7 +1308,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_rsa_crt(perms, &crt);
 			} while (rc == -EAGAIN);
 		if (rc) {
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ICARSACRT rc=%d\n", rc);
+			ZCRYPT_DBF(DBF_DE, "ioctl ICARSACRT rc=%d\n", rc);
 			return rc;
 		}
 		return put_user(crt.outputdatalength, &ucrt->outputdatalength);
@@ -1328,7 +1328,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = _zcrypt_send_cprb(perms, &xcRB);
 			} while (rc == -EAGAIN);
 		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d status=0x%x\n",
+			ZCRYPT_DBF(DBF_DE, "ioctl ZSENDCPRB rc=%d status=0x%x\n",
 				   rc, xcRB.status);
 		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
 			return -EFAULT;
@@ -1349,7 +1349,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = zcrypt_send_ep11_cprb(perms, &xcrb);
 			} while (rc == -EAGAIN);
 		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
+			ZCRYPT_DBF(DBF_DE, "ioctl ZSENDEP11CPRB rc=%d\n", rc);
 		if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 			return -EFAULT;
 		return rc;
@@ -1454,7 +1454,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	/* unknown ioctl number */
 	default:
-		ZCRYPT_DBF(DBF_DEBUG, "unknown ioctl 0x%08x\n", cmd);
+		ZCRYPT_DBF(DBF_DE, "unknown ioctl 0x%08x\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 }
@@ -1732,19 +1732,19 @@ void zcrypt_rng_device_remove(void)
 	mutex_unlock(&zcrypt_rng_mutex);
 }
 
-int __init zcrypt_debug_init(void)
+int __init zcrypt_de_init(void)
 {
-	zcrypt_dbf_info = debug_register("zcrypt", 1, 1,
+	zcrypt_dbf_info = de_register("zcrypt", 1, 1,
 					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
-	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
-	debug_set_level(zcrypt_dbf_info, DBF_ERR);
+	de_register_view(zcrypt_dbf_info, &de_sprintf_view);
+	de_set_level(zcrypt_dbf_info, DBF_ERR);
 
 	return 0;
 }
 
-void zcrypt_debug_exit(void)
+void zcrypt_de_exit(void)
 {
-	debug_unregister(zcrypt_dbf_info);
+	de_unregister(zcrypt_dbf_info);
 }
 
 #ifdef CONFIG_ZCRYPT_MULTIDEVNODES
@@ -1817,7 +1817,7 @@ int __init zcrypt_api_init(void)
 {
 	int rc;
 
-	rc = zcrypt_debug_init();
+	rc = zcrypt_de_init();
 	if (rc)
 		goto out;
 
@@ -1841,7 +1841,7 @@ out_misc_register_failed:
 #ifdef CONFIG_ZCRYPT_MULTIDEVNODES
 	zcdn_exit();
 #endif
-	zcrypt_debug_exit();
+	zcrypt_de_exit();
 out:
 	return rc;
 }
@@ -1859,7 +1859,7 @@ void __exit zcrypt_api_exit(void)
 	misc_deregister(&zcrypt_misc_device);
 	zcrypt_msgtype6_exit();
 	zcrypt_msgtype50_exit();
-	zcrypt_debug_exit();
+	zcrypt_de_exit();
 }
 
 module_init(zcrypt_api_init);

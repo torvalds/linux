@@ -22,7 +22,7 @@
 	dev_get_drvdata(csdev->dev.parent)
 
 /* Verbose output for CATU table contents */
-#ifdef CATU_DEBUG
+#ifdef CATU_DE
 #define catu_dbg(x, ...) dev_dbg(x, __VA_ARGS__)
 #else
 #define catu_dbg(x, ...) do {} while (0)
@@ -135,7 +135,7 @@ static inline cate_t *catu_get_table(struct tmc_sg_table *catu_table,
 	return (cate_t *)((unsigned long)ptr + pg_offset);
 }
 
-#ifdef CATU_DEBUG
+#ifdef CATU_DE
 static void catu_dump_table(struct tmc_sg_table *catu_table)
 {
 	int i;

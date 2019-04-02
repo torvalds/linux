@@ -11,7 +11,7 @@
  * that is iMac G5 and latest single CPU desktop.
  */
 
-#undef DEBUG
+#undef DE
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -28,7 +28,7 @@
 #include <linux/time.h>
 #include <linux/of_device.h>
 
-#define DBG(fmt...) pr_debug(fmt)
+#define DBG(fmt...) pr_de(fmt)
 
 /* see 970FX user manual */
 

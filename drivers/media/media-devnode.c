@@ -68,7 +68,7 @@ static void media_devnode_release(struct device *cd)
 		devnode->release(devnode);
 
 	kfree(devnode);
-	pr_debug("%s: Media Devnode Deallocated\n", __func__);
+	pr_de("%s: Media Devnode Deallocated\n", __func__);
 }
 
 static struct bus_type media_bus_type = {
@@ -198,7 +198,7 @@ static int media_release(struct inode *inode, struct file *filp)
 	   return value is ignored. */
 	put_device(&devnode->dev);
 
-	pr_debug("%s: Media Release\n", __func__);
+	pr_de("%s: Media Release\n", __func__);
 	return 0;
 }
 

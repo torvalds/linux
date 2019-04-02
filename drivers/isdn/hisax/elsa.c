@@ -299,7 +299,7 @@ elsa_interrupt(int intno, void *dev_id)
 	if (cs->hw.elsa.MFlag) {
 		val = serial_inp(cs, UART_IIR);
 		if (!(val & UART_IIR_NO_INT)) {
-			debugl1(cs, "IIR %02x", val);
+			del1(cs, "IIR %02x", val);
 			rs_interrupt_elsa(cs);
 		}
 	}
@@ -316,15 +316,15 @@ Start_ISAC:
 	}
 	val = readreg(cs->hw.elsa.ale, cs->hw.elsa.hscx, HSCX_ISTA + 0x40);
 	if (val && icnt) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "HSCX IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "HSCX IntStat after IntRoutine");
 		icnt--;
 		goto Start_HSCX;
 	}
 	val = readreg(cs->hw.elsa.ale, cs->hw.elsa.isac, ISAC_ISTA);
 	if (val && icnt) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		icnt--;
 		goto Start_ISAC;
 	}
@@ -379,15 +379,15 @@ elsa_interrupt_ipac(int intno, void *dev_id)
 	if (cs->hw.elsa.MFlag) {
 		val = serial_inp(cs, UART_IIR);
 		if (!(val & UART_IIR_NO_INT)) {
-			debugl1(cs, "IIR %02x", val);
+			del1(cs, "IIR %02x", val);
 			rs_interrupt_elsa(cs);
 		}
 	}
 #endif
 	ista = readreg(cs->hw.elsa.ale, cs->hw.elsa.isac, IPAC_ISTA);
 Start_IPAC:
-	if (cs->debug & L1_DEB_IPAC)
-		debugl1(cs, "IPAC ISTA %02X", ista);
+	if (cs->de & L1_DEB_IPAC)
+		del1(cs, "IPAC ISTA %02X", ista);
 	if (ista & 0x0f) {
 		val = readreg(cs->hw.elsa.ale, cs->hw.elsa.hscx, HSCX_ISTA + 0x40);
 		if (ista & 0x01)
@@ -523,8 +523,8 @@ check_arcofi(struct IsdnCardState *cs)
 
 	if (!cs->dc.isac.mon_tx)
 		if (!(cs->dc.isac.mon_tx = kmalloc(MAX_MON_FRAME, GFP_ATOMIC))) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "ISAC MON TX out of buffers!");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "ISAC MON TX out of buffers!");
 			return (0);
 		}
 	cs->dc.isac.arcofi_bc = 0;
@@ -532,35 +532,35 @@ check_arcofi(struct IsdnCardState *cs)
 	wait_event_interruptible(cs->dc.isac.arcofi_wait,
 				 cs->dc.isac.arcofi_state == ARCOFI_NOP);
 	if (!test_and_clear_bit(FLG_ARCOFI_ERROR, &cs->HW_Flags)) {
-		debugl1(cs, "Arcofi response received %d bytes", cs->dc.isac.mon_rxp);
+		del1(cs, "Arcofi response received %d bytes", cs->dc.isac.mon_rxp);
 		p = cs->dc.isac.mon_rx;
 		t = tmp;
 		t += sprintf(tmp, "Arcofi data");
 		QuickHex(t, p, cs->dc.isac.mon_rxp);
-		debugl1(cs, "%s", tmp);
+		del1(cs, "%s", tmp);
 		if ((cs->dc.isac.mon_rxp == 2) && (cs->dc.isac.mon_rx[0] == 0xa0)) {
 			switch (cs->dc.isac.mon_rx[1]) {
 			case 0x80:
-				debugl1(cs, "Arcofi 2160 detected");
+				del1(cs, "Arcofi 2160 detected");
 				arcofi_present = 1;
 				break;
 			case 0x82:
-				debugl1(cs, "Arcofi 2165 detected");
+				del1(cs, "Arcofi 2165 detected");
 				arcofi_present = 2;
 				break;
 			case 0x84:
-				debugl1(cs, "Arcofi 2163 detected");
+				del1(cs, "Arcofi 2163 detected");
 				arcofi_present = 3;
 				break;
 			default:
-				debugl1(cs, "unknown Arcofi response");
+				del1(cs, "unknown Arcofi response");
 				break;
 			}
 		} else
-			debugl1(cs, "undefined Monitor response");
+			del1(cs, "undefined Monitor response");
 		cs->dc.isac.mon_rxp = 0;
 	} else if (cs->dc.isac.mon_tx) {
-		debugl1(cs, "Arcofi not detected");
+		del1(cs, "Arcofi not detected");
 	}
 	if (arcofi_present) {
 		if (cs->subtyp == ELSA_QS1000) {
@@ -663,7 +663,7 @@ Elsa_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 		return (0);
 	case CARD_INIT:
 		spin_lock_irqsave(&cs->lock, flags);
-		cs->debug |= L1_DEB_IPAC;
+		cs->de |= L1_DEB_IPAC;
 		reset_elsa(cs);
 		inithscxisac(cs, 1);
 		if ((cs->subtyp == ELSA_QS1000) ||

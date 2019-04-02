@@ -259,7 +259,7 @@ static int dpu_hw_ctl_reset_control(struct dpu_hw_ctl *ctx)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
 
-	pr_debug("issuing hw ctl reset for ctl:%d\n", ctx->idx);
+	pr_de("issuing hw ctl reset for ctl:%d\n", ctx->idx);
 	DPU_REG_WRITE(c, CTL_SW_RESET, 0x1);
 	if (dpu_hw_ctl_poll_reset_status(ctx, DPU_REG_RESET_TIMEOUT_US))
 		return -EINVAL;
@@ -277,7 +277,7 @@ static int dpu_hw_ctl_wait_reset_status(struct dpu_hw_ctl *ctx)
 	if (!status)
 		return 0;
 
-	pr_debug("hw ctl reset is set for ctl:%d\n", ctx->idx);
+	pr_de("hw ctl reset is set for ctl:%d\n", ctx->idx);
 	if (dpu_hw_ctl_poll_reset_status(ctx, DPU_REG_RESET_TIMEOUT_US)) {
 		pr_err("hw recovery is not complete for ctl:%d\n", ctx->idx);
 		return -EINVAL;

@@ -401,7 +401,7 @@ static void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port,
 	if (port >= DSAF_GE_NUM)
 		return;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+	if (!HNS_DSAF_IS_DE(dsaf_dev)) {
 		reg_val_1  = 0x1 << port;
 		port_rst_off = dsaf_dev->mac_cb[port]->port_rst_off;
 		/* there is difference between V1 and V2 in register.*/
@@ -483,7 +483,7 @@ static void hns_ppe_com_srst(struct dsaf_device *dsaf_dev, bool dereset)
 	if (!(dev_of_node(dsaf_dev->dev)))
 		return;
 
-	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
+	if (!HNS_DSAF_IS_DE(dsaf_dev)) {
 		reg_val = RESET_REQ_OR_DREQ;
 		if (!dereset)
 			reg_addr = DSAF_SUB_SC_RCB_PPE_COM_RESET_REQ_REG;
@@ -516,7 +516,7 @@ static phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 	phy_interface_t phy_if;
 
 	if (is_ver1) {
-		if (HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev))
+		if (HNS_DSAF_IS_DE(mac_cb->dsaf_dev))
 			return PHY_INTERFACE_MODE_SGMII;
 
 		if (mac_id >= 0 && mac_id <= 3)
@@ -524,7 +524,7 @@ static phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb)
 		else
 			reg = HNS_MAC_HILINK3_REG;
 	} else{
-		if (!HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev) && mac_id <= 3)
+		if (!HNS_DSAF_IS_DE(mac_cb->dsaf_dev) && mac_id <= 3)
 			reg = HNS_MAC_HILINK4V2_REG;
 		else
 			reg = HNS_MAC_HILINK3V2_REG;
@@ -653,7 +653,7 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 			 * xge u adaptor. There is a hilink access sel cfg
 			 * register to select which one to be configed
 			 */
-			if ((!HNS_DSAF_IS_DEBUG(mac_cb->dsaf_dev)) &&
+			if ((!HNS_DSAF_IS_DE(mac_cb->dsaf_dev)) &&
 			    (mac_cb->mac_id <= 3))
 				dsaf_write_syscon(mac_cb->serdes_ctrl,
 						  HILINK_ACCESS_SEL_CFG, 0);

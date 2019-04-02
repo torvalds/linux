@@ -33,8 +33,8 @@
  *	BSS_SECTION(0, 0, 0)
  *	_end = .;
  *
- *	STABS_DEBUG
- *	DWARF_DEBUG
+ *	STABS_DE
+ *	DWARF_DE
  *
  *	DISCARDS		// must be the last
  * }
@@ -261,7 +261,7 @@
 	__end_once = .;							\
 	STRUCT_ALIGN();							\
 	*(__tracepoints)						\
-	/* implement dynamic printk debug */				\
+	/* implement dynamic printk de */				\
 	. = ALIGN(8);							\
 	__start___verbose = .;						\
 	KEEP(*(__verbose))                                              \
@@ -663,48 +663,48 @@
 	}
 
 /*
- * DWARF debug sections.
- * Symbols in the DWARF debugging sections are relative to
+ * DWARF de sections.
+ * Symbols in the DWARF deging sections are relative to
  * the beginning of the section so we begin them at 0.
  */
-#define DWARF_DEBUG							\
+#define DWARF_DE							\
 		/* DWARF 1 */						\
-		.debug          0 : { *(.debug) }			\
+		.de          0 : { *(.de) }			\
 		.line           0 : { *(.line) }			\
 		/* GNU DWARF 1 extensions */				\
-		.debug_srcinfo  0 : { *(.debug_srcinfo) }		\
-		.debug_sfnames  0 : { *(.debug_sfnames) }		\
+		.de_srcinfo  0 : { *(.de_srcinfo) }		\
+		.de_sfnames  0 : { *(.de_sfnames) }		\
 		/* DWARF 1.1 and DWARF 2 */				\
-		.debug_aranges  0 : { *(.debug_aranges) }		\
-		.debug_pubnames 0 : { *(.debug_pubnames) }		\
+		.de_aranges  0 : { *(.de_aranges) }		\
+		.de_pubnames 0 : { *(.de_pubnames) }		\
 		/* DWARF 2 */						\
-		.debug_info     0 : { *(.debug_info			\
+		.de_info     0 : { *(.de_info			\
 				.gnu.linkonce.wi.*) }			\
-		.debug_abbrev   0 : { *(.debug_abbrev) }		\
-		.debug_line     0 : { *(.debug_line) }			\
-		.debug_frame    0 : { *(.debug_frame) }			\
-		.debug_str      0 : { *(.debug_str) }			\
-		.debug_loc      0 : { *(.debug_loc) }			\
-		.debug_macinfo  0 : { *(.debug_macinfo) }		\
-		.debug_pubtypes 0 : { *(.debug_pubtypes) }		\
+		.de_abbrev   0 : { *(.de_abbrev) }		\
+		.de_line     0 : { *(.de_line) }			\
+		.de_frame    0 : { *(.de_frame) }			\
+		.de_str      0 : { *(.de_str) }			\
+		.de_loc      0 : { *(.de_loc) }			\
+		.de_macinfo  0 : { *(.de_macinfo) }		\
+		.de_pubtypes 0 : { *(.de_pubtypes) }		\
 		/* DWARF 3 */						\
-		.debug_ranges	0 : { *(.debug_ranges) }		\
+		.de_ranges	0 : { *(.de_ranges) }		\
 		/* SGI/MIPS DWARF 2 extensions */			\
-		.debug_weaknames 0 : { *(.debug_weaknames) }		\
-		.debug_funcnames 0 : { *(.debug_funcnames) }		\
-		.debug_typenames 0 : { *(.debug_typenames) }		\
-		.debug_varnames  0 : { *(.debug_varnames) }		\
+		.de_weaknames 0 : { *(.de_weaknames) }		\
+		.de_funcnames 0 : { *(.de_funcnames) }		\
+		.de_typenames 0 : { *(.de_typenames) }		\
+		.de_varnames  0 : { *(.de_varnames) }		\
 		/* GNU DWARF 2 extensions */				\
-		.debug_gnu_pubnames 0 : { *(.debug_gnu_pubnames) }	\
-		.debug_gnu_pubtypes 0 : { *(.debug_gnu_pubtypes) }	\
+		.de_gnu_pubnames 0 : { *(.de_gnu_pubnames) }	\
+		.de_gnu_pubtypes 0 : { *(.de_gnu_pubtypes) }	\
 		/* DWARF 4 */						\
-		.debug_types	0 : { *(.debug_types) }			\
+		.de_types	0 : { *(.de_types) }			\
 		/* DWARF 5 */						\
-		.debug_macro	0 : { *(.debug_macro) }			\
-		.debug_addr	0 : { *(.debug_addr) }
+		.de_macro	0 : { *(.de_macro) }			\
+		.de_addr	0 : { *(.de_addr) }
 
-		/* Stabs debugging sections.  */
-#define STABS_DEBUG							\
+		/* Stabs deging sections.  */
+#define STABS_DE							\
 		.stab 0 : { *(.stab) }					\
 		.stabstr 0 : { *(.stabstr) }				\
 		.stab.excl 0 : { *(.stab.excl) }			\
@@ -713,16 +713,16 @@
 		.stab.indexstr 0 : { *(.stab.indexstr) }		\
 		.comment 0 : { *(.comment) }
 
-#ifdef CONFIG_GENERIC_BUG
-#define BUG_TABLE							\
+#ifdef CONFIG_GENERIC_
+#define _TABLE							\
 	. = ALIGN(8);							\
-	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
-		__start___bug_table = .;				\
-		KEEP(*(__bug_table))					\
-		__stop___bug_table = .;					\
+	___table : AT(ADDR(___table) - LOAD_OFFSET) {		\
+		__start____table = .;				\
+		KEEP(*(___table))					\
+		__stop____table = .;					\
 	}
 #else
-#define BUG_TABLE
+#define _TABLE
 #endif
 
 #ifdef CONFIG_UNWINDER_ORC
@@ -833,7 +833,7 @@
  *
  * Some archs want to discard exit text/data at runtime rather than
  * link time due to cross-section references such as alt instructions,
- * bug table, eh_frame, etc.  DISCARDS must be the last of output
+ *  table, eh_frame, etc.  DISCARDS must be the last of output
  * section definitions so that such archs put those in earlier section
  * definitions.
  */
@@ -949,7 +949,7 @@
 		DATA_DATA						\
 		CONSTRUCTORS						\
 	}								\
-	BUG_TABLE							\
+	_TABLE							\
 
 #define INIT_TEXT_SECTION(inittext_align)				\
 	. = ALIGN(inittext_align);					\

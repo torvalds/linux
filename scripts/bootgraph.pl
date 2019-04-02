@@ -31,7 +31,7 @@
 #
 # For this script to work, the kernel needs to be compiled with the
 # CONFIG_PRINTK_TIME configuration option enabled, and with
-# "initcall_debug" passed on the kernel command line.
+# "initcall_de" passed on the kernel command line.
 #
 # usage:
 # 	dmesg | perl scripts/bootgraph.pl > output.svg
@@ -141,7 +141,7 @@ while (<>) {
 if ($count == 0) {
     print STDERR <<END;
 No data found in the dmesg. Make sure that 'printk.time=1' and
-'initcall_debug' are passed on the kernel command line.
+'initcall_de' are passed on the kernel command line.
 END
 	help(1);
     exit 1;

@@ -159,7 +159,7 @@ static struct sms_board sms_boards[] = {
 
 struct sms_board *sms_get_board(unsigned id)
 {
-	BUG_ON(id >= ARRAY_SIZE(sms_boards));
+	_ON(id >= ARRAY_SIZE(sms_boards));
 
 	return &sms_boards[id];
 }
@@ -334,7 +334,7 @@ int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
 	int board_id = smscore_get_board_id(coredev);
 	struct sms_board *board = sms_get_board(board_id);
 
-	pr_debug("%s: LNA %s\n", __func__, onoff ? "enabled" : "disabled");
+	pr_de("%s: LNA %s\n", __func__, onoff ? "enabled" : "disabled");
 
 	switch (board_id) {
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:

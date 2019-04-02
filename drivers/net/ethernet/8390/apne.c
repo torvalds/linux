@@ -118,7 +118,7 @@ static int apne_owned;	/* signal if card already owned */
 
 static u32 apne_msg_enable;
 module_param_named(msg_enable, apne_msg_enable, uint, 0444);
-MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
+MODULE_PARM_DESC(msg_enable, "De message level (see linux/netdevice.h for bitmap)");
 
 struct net_device * __init apne_probe(int unit)
 {
@@ -546,7 +546,7 @@ static irqreturn_t apne_interrupt(int irq, void *dev_id)
         return IRQ_NONE;
     }
     if (apne_msg_enable & NETIF_MSG_INTR)
-	pr_debug("pcmcia intreq = %x\n", pcmcia_intreq);
+	pr_de("pcmcia intreq = %x\n", pcmcia_intreq);
     pcmcia_disable_irq();			/* to get rid of the sti() within ei_interrupt */
     ei_interrupt(irq, dev_id);
     pcmcia_ack_int(pcmcia_get_intreq());

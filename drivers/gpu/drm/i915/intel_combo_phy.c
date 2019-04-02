@@ -97,7 +97,7 @@ static bool check_phy_reg(struct drm_i915_private *dev_priv,
 	u32 val = I915_READ(reg);
 
 	if ((val & mask) != expected_val) {
-		DRM_DEBUG_DRIVER("Port %c combo PHY reg %08x state mismatch: "
+		DRM_DE_DRIVER("Port %c combo PHY reg %08x state mismatch: "
 				 "current %08x mask %08x expected %08x\n",
 				 port_name(port),
 				 reg.reg, val, mask, expected_val);
@@ -211,7 +211,7 @@ void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		u32 val;
 
 		if (icl_combo_phy_verify_state(dev_priv, port)) {
-			DRM_DEBUG_DRIVER("Port %c combo PHY already enabled, won't reprogram it.\n",
+			DRM_DE_DRIVER("Port %c combo PHY already enabled, won't reprogram it.\n",
 					 port_name(port));
 			continue;
 		}

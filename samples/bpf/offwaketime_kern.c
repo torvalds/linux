@@ -103,7 +103,7 @@ static inline int update_counts(void *ctx, u32 pid, u64 delta)
 }
 
 #if 1
-/* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */
+/* taken from /sys/kernel/de/tracing/events/sched/sched_switch/format */
 struct sched_switch_args {
 	unsigned long long pad;
 	char prev_comm[16];

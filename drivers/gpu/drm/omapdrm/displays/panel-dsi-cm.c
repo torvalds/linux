@@ -9,7 +9,7 @@
  * the Free Software Foundation.
  */
 
-/* #define DEBUG */
+/* #define DE */
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
@@ -981,7 +981,7 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 	if (!ddata->ext_te_gpio)
 		src->ops->dsi.enable_te(src, enable);
 
-	/* possible panel bug */
+	/* possible panel  */
 	msleep(100);
 
 	return r;

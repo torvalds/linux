@@ -521,8 +521,8 @@ bool aa_policy_init(struct aa_policy *policy, const char *prefix,
  */
 void aa_policy_destroy(struct aa_policy *policy)
 {
-	AA_BUG(on_list_rcu(&policy->profiles));
-	AA_BUG(on_list_rcu(&policy->list));
+	AA_(on_list_rcu(&policy->profiles));
+	AA_(on_list_rcu(&policy->list));
 
 	/* don't free name as its a subset of hname */
 	aa_put_str(policy->hname);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/kasan.h>
@@ -286,7 +286,7 @@ static int pt_dump_init(void)
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;
-	debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
+	defs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);
 	return 0;
 }
 device_initcall(pt_dump_init);

@@ -195,7 +195,7 @@ static void asd_move_swb(struct asd_ha_struct *asd_ha, u32 reg)
 static void __asd_write_reg_byte(struct asd_ha_struct *asd_ha, u32 reg, u8 val)
 {
 	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0];
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
+	_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
 	if (io_handle->swa_base <= reg
 	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)
 		asd_write_swa_byte (asd_ha, reg,val);
@@ -217,7 +217,7 @@ void asd_write_reg_##ord (struct asd_ha_struct *asd_ha, u32 reg, type val)\
 {                                                                 \
 	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0]; \
 	unsigned long flags;                                      \
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
+	_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
 	spin_lock_irqsave(&asd_ha->iolock, flags);                \
 	if (io_handle->swa_base <= reg                            \
 	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)        \
@@ -244,7 +244,7 @@ static u8 __asd_read_reg_byte(struct asd_ha_struct *asd_ha, u32 reg)
 {
 	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0];
 	u8 val;
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
+	_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
 	if (io_handle->swa_base <= reg
 	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)
 		val = asd_read_swa_byte (asd_ha, reg);
@@ -268,7 +268,7 @@ type asd_read_reg_##ord (struct asd_ha_struct *asd_ha, u32 reg)   \
 	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0]; \
 	type val;                                                 \
 	unsigned long flags;                                      \
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
+	_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
 	spin_lock_irqsave(&asd_ha->iolock, flags);                \
 	if (io_handle->swa_base <= reg                            \
 	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)        \

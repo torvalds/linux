@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/bitmap.h>
-#include "asm/bug.h"
+#include "asm/.h"
 
 #include "sane_ctype.h"
 
@@ -541,7 +541,7 @@ int cpu__max_present_cpu(void)
 int cpu__get_node(int cpu)
 {
 	if (unlikely(cpunode_map == NULL)) {
-		pr_debug("cpu_map not initialized\n");
+		pr_de("cpu_map not initialized\n");
 		return -1;
 	}
 
@@ -681,7 +681,7 @@ size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
 
 #undef COMMA
 
-	pr_debug2("cpumask list: %s\n", buf);
+	pr_de2("cpumask list: %s\n", buf);
 	return ret;
 }
 

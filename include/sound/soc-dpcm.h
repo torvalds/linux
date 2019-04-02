@@ -80,8 +80,8 @@ struct snd_soc_dpcm {
 
 	/* hw params for this link - may be different for each link */
 	struct snd_pcm_hw_params hw_params;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_state;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_state;
 #endif
 };
 
@@ -142,7 +142,7 @@ void snd_soc_dpcm_be_set_state(struct snd_soc_pcm_runtime *be, int stream,
 
 /* internal use only */
 int soc_dpcm_be_digital_mute(struct snd_soc_pcm_runtime *fe, int mute);
-void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd);
+void soc_dpcm_defs_add(struct snd_soc_pcm_runtime *rtd);
 int soc_dpcm_runtime_update(struct snd_soc_card *);
 
 int dpcm_path_get(struct snd_soc_pcm_runtime *fe,

@@ -253,7 +253,7 @@ static struct tcp_congestion_ops dctcp_reno __read_mostly = {
 
 static int __init dctcp_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct dctcp) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct dctcp) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&dctcp);
 }
 

@@ -21,7 +21,7 @@
 
 #include <asm/addrspace.h>
 #include <asm/barrier.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/byteorder.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
@@ -367,7 +367,7 @@ static inline void pfx##write##bwlq(type val,				\
 		if (irq)						\
 			local_irq_restore(__flags);			\
 	} else								\
-		BUG();							\
+		();							\
 }									\
 									\
 static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
@@ -400,7 +400,7 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 			local_irq_restore(__flags);			\
 	} else {							\
 		__val = 0;						\
-		BUG();							\
+		();							\
 	}								\
 									\
 	/* prevent prefetching of coherent DMA data prematurely */	\
@@ -426,7 +426,7 @@ static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
 	__val = pfx##ioswab##bwlq(__addr, val);				\
 									\
 	/* Really, we want this to be atomic */				\
-	BUILD_BUG_ON(sizeof(type) > sizeof(unsigned long));		\
+	BUILD__ON(sizeof(type) > sizeof(unsigned long));		\
 									\
 	*__addr = __val;						\
 }									\
@@ -438,7 +438,7 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 									\
 	__addr = (void *)__swizzle_addr_##bwlq(mips_io_port_base + port); \
 									\
-	BUILD_BUG_ON(sizeof(type) > sizeof(unsigned long));		\
+	BUILD__ON(sizeof(type) > sizeof(unsigned long));		\
 									\
 	if (barrier)							\
 		iobarrier_rw();						\

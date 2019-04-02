@@ -99,7 +99,7 @@ int smack_cipso_mapped = SMACK_CIPSO_MAPPED_DEFAULT;
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 /*
  * Allow one label to be unconfined. This is for
- * debugging and application bring-up purposes only.
+ * deging and application bring-up purposes only.
  * It is bad and wrong, but everyone seems to expect
  * to have it.
  */

@@ -21,7 +21,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/err.h>
@@ -343,11 +343,11 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		       atomic_read(&bat_priv->hop_penalty)))
 		goto nla_put_failure;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 	if (nla_put_u32(msg, BATADV_ATTR_LOG_LEVEL,
 			atomic_read(&bat_priv->log_level)))
 		goto nla_put_failure;
-#endif /* CONFIG_BATMAN_ADV_DEBUG */
+#endif /* CONFIG_BATMAN_ADV_DE */
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	if (nla_put_u8(msg, BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED,
@@ -577,14 +577,14 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&bat_priv->hop_penalty, nla_get_u8(attr));
 	}
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 	if (info->attrs[BATADV_ATTR_LOG_LEVEL]) {
 		attr = info->attrs[BATADV_ATTR_LOG_LEVEL];
 
 		atomic_set(&bat_priv->log_level,
 			   nla_get_u32(attr) & BATADV_DBG_ALL);
 	}
-#endif /* CONFIG_BATMAN_ADV_DEBUG */
+#endif /* CONFIG_BATMAN_ADV_DE */
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	if (info->attrs[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED]) {

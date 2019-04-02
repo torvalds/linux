@@ -65,7 +65,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/nospec.h>
 #include <linux/uaccess.h>
@@ -81,10 +81,10 @@
 
 #define pkt_dbg(level, pd, fmt, ...)					\
 do {									\
-	if (level == 2 && PACKET_DEBUG >= 2)				\
+	if (level == 2 && PACKET_DE >= 2)				\
 		pr_notice("%s: %s():" fmt,				\
 			  pd->name, __func__, ##__VA_ARGS__);		\
-	else if (level == 1 && PACKET_DEBUG >= 1)			\
+	else if (level == 1 && PACKET_DE >= 1)			\
 		pr_notice("%s: " fmt, pd->name, ##__VA_ARGS__);		\
 } while (0)
 
@@ -101,7 +101,7 @@ static mempool_t psd_pool;
 static struct bio_set pkt_bio_set;
 
 static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
-static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
+static struct dentry	*pkt_defs_root = NULL; /* /sys/kernel/de/pktcdvd */
 
 /* forward declaration */
 static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev);
@@ -445,62 +445,62 @@ static void pkt_sysfs_cleanup(void)
 }
 
 /********************************************************************
-  entries in debugfs
+  entries in defs
 
-  /sys/kernel/debug/pktcdvd[0-7]/
+  /sys/kernel/de/pktcdvd[0-7]/
 			info
 
  *******************************************************************/
 
-static int pkt_debugfs_seq_show(struct seq_file *m, void *p)
+static int pkt_defs_seq_show(struct seq_file *m, void *p)
 {
 	return pkt_seq_show(m, p);
 }
 
-static int pkt_debugfs_fops_open(struct inode *inode, struct file *file)
+static int pkt_defs_fops_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pkt_debugfs_seq_show, inode->i_private);
+	return single_open(file, pkt_defs_seq_show, inode->i_private);
 }
 
-static const struct file_operations debug_fops = {
-	.open		= pkt_debugfs_fops_open,
+static const struct file_operations de_fops = {
+	.open		= pkt_defs_fops_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 	.owner		= THIS_MODULE,
 };
 
-static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
+static void pkt_defs_dev_new(struct pktcdvd_device *pd)
 {
-	if (!pkt_debugfs_root)
+	if (!pkt_defs_root)
 		return;
-	pd->dfs_d_root = debugfs_create_dir(pd->name, pkt_debugfs_root);
+	pd->dfs_d_root = defs_create_dir(pd->name, pkt_defs_root);
 	if (!pd->dfs_d_root)
 		return;
 
-	pd->dfs_f_info = debugfs_create_file("info", 0444,
-					     pd->dfs_d_root, pd, &debug_fops);
+	pd->dfs_f_info = defs_create_file("info", 0444,
+					     pd->dfs_d_root, pd, &de_fops);
 }
 
-static void pkt_debugfs_dev_remove(struct pktcdvd_device *pd)
+static void pkt_defs_dev_remove(struct pktcdvd_device *pd)
 {
-	if (!pkt_debugfs_root)
+	if (!pkt_defs_root)
 		return;
-	debugfs_remove(pd->dfs_f_info);
-	debugfs_remove(pd->dfs_d_root);
+	defs_remove(pd->dfs_f_info);
+	defs_remove(pd->dfs_d_root);
 	pd->dfs_f_info = NULL;
 	pd->dfs_d_root = NULL;
 }
 
-static void pkt_debugfs_init(void)
+static void pkt_defs_init(void)
 {
-	pkt_debugfs_root = debugfs_create_dir(DRIVER_NAME, NULL);
+	pkt_defs_root = defs_create_dir(DRIVER_NAME, NULL);
 }
 
-static void pkt_debugfs_cleanup(void)
+static void pkt_defs_cleanup(void)
 {
-	debugfs_remove(pkt_debugfs_root);
-	pkt_debugfs_root = NULL;
+	defs_remove(pkt_defs_root);
+	pkt_defs_root = NULL;
 }
 
 /* ----------------------------------------------------------*/
@@ -508,7 +508,7 @@ static void pkt_debugfs_cleanup(void)
 
 static void pkt_bio_finished(struct pktcdvd_device *pd)
 {
-	BUG_ON(atomic_read(&pd->cdrw.pending_bios) <= 0);
+	_ON(atomic_read(&pd->cdrw.pending_bios) <= 0);
 	if (atomic_dec_and_test(&pd->cdrw.pending_bios)) {
 		pkt_dbg(2, pd, "queue empty\n");
 		atomic_set(&pd->iosched.attention, 1);
@@ -592,7 +592,7 @@ static void pkt_shrink_pktlist(struct pktcdvd_device *pd)
 {
 	struct packet_data *pkt, *next;
 
-	BUG_ON(!list_empty(&pd->cdrw.pkt_active_list));
+	_ON(!list_empty(&pd->cdrw.pkt_active_list));
 
 	list_for_each_entry_safe(pkt, next, &pd->cdrw.pkt_free_list, list) {
 		pkt_free_packet_data(pkt);
@@ -604,7 +604,7 @@ static int pkt_grow_pktlist(struct pktcdvd_device *pd, int nr_packets)
 {
 	struct packet_data *pkt;
 
-	BUG_ON(!list_empty(&pd->cdrw.pkt_free_list));
+	_ON(!list_empty(&pd->cdrw.pkt_free_list));
 
 	while (nr_packets > 0) {
 		pkt = pkt_alloc_packet_data(pd->settings.size >> 2);
@@ -633,7 +633,7 @@ static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node
 	rb_erase(&node->rb_node, &pd->bio_queue);
 	mempool_free(node, &pd->rb_pool);
 	pd->bio_queue_size--;
-	BUG_ON(pd->bio_queue_size < 0);
+	_ON(pd->bio_queue_size < 0);
 }
 
 /*
@@ -646,7 +646,7 @@ static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s
 	struct pkt_rb_node *tmp;
 
 	if (!n) {
-		BUG_ON(pd->bio_queue_size > 0);
+		_ON(pd->bio_queue_size > 0);
 		return NULL;
 	}
 
@@ -666,7 +666,7 @@ static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s
 		if (!tmp)
 			return NULL;
 	}
-	BUG_ON(s > tmp->bio->bi_iter.bi_sector);
+	_ON(s > tmp->bio->bi_iter.bi_sector);
 	return tmp;
 }
 
@@ -948,7 +948,7 @@ static void pkt_end_io_read(struct bio *bio)
 {
 	struct packet_data *pkt = bio->bi_private;
 	struct pktcdvd_device *pd = pkt->pd;
-	BUG_ON(!pd);
+	_ON(!pd);
 
 	pkt_dbg(2, pd, "bio=%p sec0=%llx sec=%llx err=%d\n",
 		bio, (unsigned long long)pkt->sector,
@@ -967,7 +967,7 @@ static void pkt_end_io_packet_write(struct bio *bio)
 {
 	struct packet_data *pkt = bio->bi_private;
 	struct pktcdvd_device *pd = pkt->pd;
-	BUG_ON(!pd);
+	_ON(!pd);
 
 	pkt_dbg(2, pd, "id=%d, err=%d\n", pkt->id, bio->bi_status);
 
@@ -989,7 +989,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 	int f;
 	char written[PACKET_MAX_SIZE];
 
-	BUG_ON(bio_list_empty(&pkt->orig_bios));
+	_ON(bio_list_empty(&pkt->orig_bios));
 
 	atomic_set(&pkt->io_wait, 0);
 	atomic_set(&pkt->io_errors, 0);
@@ -1004,8 +1004,8 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 			(CD_FRAMESIZE >> 9);
 		int num_frames = bio->bi_iter.bi_size / CD_FRAMESIZE;
 		pd->stats.secs_w += num_frames * (CD_FRAMESIZE >> 9);
-		BUG_ON(first_frame < 0);
-		BUG_ON(first_frame + num_frames > pkt->frames);
+		_ON(first_frame < 0);
+		_ON(first_frame + num_frames > pkt->frames);
 		for (f = first_frame; f < first_frame + num_frames; f++)
 			written[f] = 1;
 	}
@@ -1038,7 +1038,7 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 		pkt_dbg(2, pd, "Adding frame %d, page:%p offs:%d\n",
 			f, pkt->pages[p], offset);
 		if (!bio_add_page(bio, pkt->pages[p], CD_FRAMESIZE, offset))
-			BUG();
+			();
 
 		atomic_inc(&pkt->io_wait);
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
@@ -1069,7 +1069,7 @@ static struct packet_data *pkt_get_packet_data(struct pktcdvd_device *pd, int zo
 			return pkt;
 		}
 	}
-	BUG();
+	();
 	return NULL;
 }
 
@@ -1143,7 +1143,7 @@ out:
 
 static inline void pkt_set_state(struct packet_data *pkt, enum packet_data_state state)
 {
-#if PACKET_DEBUG > 1
+#if PACKET_DE > 1
 	static const char *state_name[] = {
 		"IDLE", "WAITING", "READ_WAIT", "WRITE_WAIT", "RECOVERY", "FINISHED"
 	};
@@ -1216,7 +1216,7 @@ try_next_bio:
 
 	pd->current_sector = zone + pd->settings.size;
 	pkt->sector = zone;
-	BUG_ON(pkt->frames != pd->settings.size >> 2);
+	_ON(pkt->frames != pd->settings.size >> 2);
 	pkt->write_size = 0;
 
 	/*
@@ -1278,7 +1278,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 		unsigned offset = (f * CD_FRAMESIZE) % PAGE_SIZE;
 
 		if (!bio_add_page(pkt->w_bio, page, CD_FRAMESIZE, offset))
-			BUG();
+			();
 	}
 	pkt_dbg(2, pd, "vcnt=%d\n", pkt->w_bio->bi_vcnt);
 
@@ -1370,7 +1370,7 @@ static void pkt_run_state_machine(struct pktcdvd_device *pd, struct packet_data 
 			return;
 
 		default:
-			BUG();
+			();
 			break;
 		}
 	}
@@ -1458,7 +1458,7 @@ static int kcdrwd(void *foobar)
 				goto work_to_do;
 
 			/* Otherwise, go to sleep */
-			if (PACKET_DEBUG > 1) {
+			if (PACKET_DE > 1) {
 				int states[PACKET_NUM_STATES];
 				pkt_count_states(pd, states);
 				pkt_dbg(2, pd, "i:%d ow:%d rw:%d ww:%d rec:%d fin:%d\n",
@@ -2269,7 +2269,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 		ret = -ENODEV;
 		goto out;
 	}
-	BUG_ON(pd->refcnt < 0);
+	_ON(pd->refcnt < 0);
 
 	pd->refcnt++;
 	if (pd->refcnt > 1) {
@@ -2308,7 +2308,7 @@ static void pkt_close(struct gendisk *disk, fmode_t mode)
 	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
 	pd->refcnt--;
-	BUG_ON(pd->refcnt < 0);
+	_ON(pd->refcnt < 0);
 	if (pd->refcnt == 0) {
 		int flush = test_bit(PACKET_WRITABLE, &pd->flags);
 		pkt_release_dev(pd, flush);
@@ -2407,7 +2407,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	node = mempool_alloc(&pd->rb_pool, GFP_NOIO);
 	node->bio = bio;
 	spin_lock(&pd->lock);
-	BUG_ON(pd->bio_queue_size < 0);
+	_ON(pd->bio_queue_size < 0);
 	was_empty = (pd->bio_queue_size == 0);
 	pkt_rbtree_insert(pd, node);
 	spin_unlock(&pd->lock);
@@ -2470,7 +2470,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 		sector_t last_zone = get_zone(bio_end_sector(bio) - 1, pd);
 
 		if (last_zone != zone) {
-			BUG_ON(last_zone != zone + pd->settings.size);
+			_ON(last_zone != zone + pd->settings.size);
 
 			split = bio_split(bio, last_zone -
 					  bio->bi_iter.bi_sector,
@@ -2766,7 +2766,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	add_disk(disk);
 
 	pkt_sysfs_dev_new(pd);
-	pkt_debugfs_dev_new(pd);
+	pkt_defs_dev_new(pd);
 
 	pkt_devs[idx] = pd;
 	if (pkt_dev)
@@ -2803,7 +2803,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 			break;
 	}
 	if (idx == MAX_WRITERS) {
-		pr_debug("dev not setup\n");
+		pr_de("dev not setup\n");
 		ret = -ENXIO;
 		goto out;
 	}
@@ -2817,7 +2817,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 
 	pkt_devs[idx] = NULL;
 
-	pkt_debugfs_dev_remove(pd);
+	pkt_defs_dev_remove(pd);
 	pkt_sysfs_dev_remove(pd);
 
 	blkdev_put(pd->bdev, FMODE_READ | FMODE_NDELAY);
@@ -2948,7 +2948,7 @@ static int __init pkt_init(void)
 	if (ret)
 		goto out;
 
-	pkt_debugfs_init();
+	pkt_defs_init();
 
 	ret = misc_register(&pkt_misc);
 	if (ret) {
@@ -2961,7 +2961,7 @@ static int __init pkt_init(void)
 	return 0;
 
 out_misc:
-	pkt_debugfs_cleanup();
+	pkt_defs_cleanup();
 	pkt_sysfs_cleanup();
 out:
 	unregister_blkdev(pktdev_major, DRIVER_NAME);
@@ -2976,7 +2976,7 @@ static void __exit pkt_exit(void)
 	remove_proc_entry("driver/"DRIVER_NAME, NULL);
 	misc_deregister(&pkt_misc);
 
-	pkt_debugfs_cleanup();
+	pkt_defs_cleanup();
 	pkt_sysfs_cleanup();
 
 	unregister_blkdev(pktdev_major, DRIVER_NAME);

@@ -63,7 +63,7 @@
             verbose     This parameter controls the amount of logging
                         that the driver will do.  Set it to 0 for
                         normal operation, 1 to see autoprobe progress
-                        messages, or 2 to see additional debugging
+                        messages, or 2 to see additional deging
                         output.  (default 0)
   
             nice        This parameter controls the driver's use of
@@ -92,7 +92,7 @@
 			        standard for clearing error status.
 				Use spinlocks. Eliminate sti().
 	1.03    GRG 1998.06.16  Eliminated an Ugh
-	1.04	GRG 1998.08.15  Added extra debugging, improvements to
+	1.04	GRG 1998.08.15  Added extra deging, improvements to
 				pcd_completion, use HZ in loop timing
 	1.05	GRG 1998.08.16	Conformed to "Uniform CD-ROM" standard
 	1.06    GRG 1998.08.19  Added audio ioctl support

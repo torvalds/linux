@@ -41,7 +41,7 @@ wm-FPU-emu does not implement all of the behaviour of the 80486 FPU,
 but is very close.  See "Limitations" later in this file for a list of
 some differences.
 
-Please report bugs, etc to me at:
+Please report s, etc to me at:
        billm@melbpc.org.au
 or     b.metzenthen@medoto.unimelb.edu.au
 
@@ -99,7 +99,7 @@ form of re-entrancy which is required by the Linux kernel.
 ----------------------- Limitations of wm-FPU-emu -----------------------
 
 There are a number of differences between the current wm-FPU-emu
-(version 2.01) and the 80486 FPU (apart from bugs).  The differences
+(version 2.01) and the 80486 FPU (apart from s).  The differences
 are fewer than those which applied to the 1.xx series of the emulator.
 Some of the more important differences are listed below:
 
@@ -395,7 +395,7 @@ Total arguments tested:
 ------------------------- Contributors -------------------------------
 
 A number of people have contributed to the development of the
-emulator, often by just reporting bugs, sometimes with suggested
+emulator, often by just reporting s, sometimes with suggested
 fixes, and a few kind people have provided me with access in one way
 or another to an 80486 machine. Contributors include (to those people
 who I may have forgotten, please forgive me):

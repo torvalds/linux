@@ -87,9 +87,9 @@ MODULE_DESCRIPTION("RealTek RTL-8139C+ series 10/100 PCI Ethernet driver");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 
-static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC (debug, "8139cp: bitmapped message enable number");
+static int de = -1;
+module_param(de, int, 0);
+MODULE_PARM_DESC (de, "8139cp: bitmapped message enable number");
 
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC.  */
@@ -477,7 +477,7 @@ static int cp_rx_poll(struct napi_struct *napi, int budget)
 		const unsigned buflen = cp->rx_buf_sz;
 
 		skb = cp->rx_skb[rx_tail];
-		BUG_ON(!skb);
+		_ON(!skb);
 
 		desc = &cp->rx_ring[rx_tail];
 		status = le32_to_cpu(desc->opts1);
@@ -662,7 +662,7 @@ static void cp_tx (struct cp_private *cp)
 			break;
 
 		skb = cp->tx_skb[tx_tail];
-		BUG_ON(!skb);
+		_ON(!skb);
 
 		dma_unmap_single(&cp->pdev->dev, le64_to_cpu(txd->addr),
 				 cp->tx_opts[tx_tail] & 0xffff,
@@ -744,7 +744,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	if (TX_BUFFS_AVAIL(cp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&cp->lock, intr_flags);
-		netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
+		netdev_err(dev, "! Tx Ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -753,7 +753,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 	mss = skb_shinfo(skb)->gso_size;
 
 	if (mss > MSSMask) {
-		netdev_WARN_ONCE(dev, "Net bug: GSO size %d too large for 8139CP\n",
+		netdev_WARN_ONCE(dev, "Net : GSO size %d too large for 8139CP\n",
 				 mss);
 		goto out_dma_error;
 	}
@@ -770,7 +770,7 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 			opts1 |= IPCS | UDPCS;
 		else {
 			WARN_ONCE(1,
-				  "Net bug: asked to checksum invalid Legacy IP packet\n");
+				  "Net : asked to checksum invalid Legacy IP packet\n");
 			goto out_dma_error;
 		}
 	}
@@ -1528,7 +1528,7 @@ static void cp_get_strings (struct net_device *dev, u32 stringset, u8 *buf)
 		memcpy(buf, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 }
@@ -1575,7 +1575,7 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 	tmp_stats[i++] = le16_to_cpu(nic_stats->tx_abort);
 	tmp_stats[i++] = le16_to_cpu(nic_stats->tx_underrun);
 	tmp_stats[i++] = cp->cp_stats.rx_frags;
-	BUG_ON(i != CP_NUM_STATS);
+	_ON(i != CP_NUM_STATS);
 
 	dma_free_coherent(&cp->pdev->dev, sizeof(*nic_stats), nic_stats, dma);
 }
@@ -1908,7 +1908,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	cp = netdev_priv(dev);
 	cp->pdev = pdev;
 	cp->dev = dev;
-	cp->msg_enable = (debug < 0 ? CP_DEF_MSG_ENABLE : debug);
+	cp->msg_enable = (de < 0 ? CP_DEF_MSG_ENABLE : de);
 	spin_lock_init (&cp->lock);
 	cp->mii_if.dev = dev;
 	cp->mii_if.mdio_read = mdio_read;

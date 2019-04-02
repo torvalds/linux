@@ -77,7 +77,7 @@
 #include "jfs_metapage.h"
 #include "jfs_superblock.h"
 #include "jfs_txnmgr.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 
 /*
@@ -1608,7 +1608,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	}
 	assert(list_empty(&log->cqueue));
 
-#ifdef CONFIG_JFS_DEBUG
+#ifdef CONFIG_JFS_DE
 	if (!list_empty(&log->synclist)) {
 		struct logsyncblk *lp;
 
@@ -1998,7 +1998,7 @@ static int lbmRead(struct jfs_log * log, int pn, struct lbuf ** bpp)
 	bio_set_dev(bio, log->bdev);
 
 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
-	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
+	_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;
@@ -2142,7 +2142,7 @@ static void lbmStartIO(struct lbuf * bp)
 	bio_set_dev(bio, log->bdev);
 
 	bio_add_page(bio, bp->l_page, LOGPSIZE, bp->l_offset);
-	BUG_ON(bio->bi_iter.bi_size != LOGPSIZE);
+	_ON(bio->bi_iter.bi_size != LOGPSIZE);
 
 	bio->bi_end_io = lbmIODone;
 	bio->bi_private = bp;

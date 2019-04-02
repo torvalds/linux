@@ -262,7 +262,7 @@ static void __init nslu2_init(void)
 
 	/*
 	 * This is only useful on a modified machine, but it is valuable
-	 * to have it first in order to see debug messages, and so that
+	 * to have it first in order to see de messages, and so that
 	 * it does *not* get removed if platform_add_devices fails!
 	 */
 	(void)platform_device_register(&nslu2_uart);
@@ -274,14 +274,14 @@ static void __init nslu2_init(void)
 	if (request_irq(gpio_to_irq(NSLU2_RB_GPIO), &nslu2_reset_handler,
 		IRQF_TRIGGER_LOW, "NSLU2 reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DE "Reset Button IRQ %d not available\n",
 			gpio_to_irq(NSLU2_RB_GPIO));
 	}
 
 	if (request_irq(gpio_to_irq(NSLU2_PB_GPIO), &nslu2_power_handler,
 		IRQF_TRIGGER_HIGH, "NSLU2 power button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
+		printk(KERN_DE "Power Button IRQ %d not available\n",
 			gpio_to_irq(NSLU2_PB_GPIO));
 	}
 

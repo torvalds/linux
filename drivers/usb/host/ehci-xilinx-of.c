@@ -174,7 +174,7 @@ static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 		hcd->has_tt = 0;
 	}
 
-	/* Debug registers are at the first 0x100 region
+	/* De registers are at the first 0x100 region
 	 */
 	ehci->caps = hcd->regs + 0x100;
 

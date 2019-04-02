@@ -642,19 +642,19 @@ static int hwahc_security_create(struct hwahc *hwahc)
 			le16_to_cpu(usb_dev->actconfig->desc.wTotalLength),
 			USB_DT_SECURITY, (void **) &secd, sizeof(*secd));
 	if (result == -1) {
-		dev_warn(dev, "BUG? WUSB host has no security descriptors\n");
+		dev_warn(dev, "? WUSB host has no security descriptors\n");
 		return 0;
 	}
 	needed = sizeof(*secd);
 	if (top - (void *)secd < needed) {
-		dev_err(dev, "BUG? Not enough data to process security "
+		dev_err(dev, "? Not enough data to process security "
 			"descriptor header (%zu bytes left vs %zu needed)\n",
 			top - (void *) secd, needed);
 		return 0;
 	}
 	needed = le16_to_cpu(secd->wTotalLength);
 	if (top - (void *)secd < needed) {
-		dev_err(dev, "BUG? Not enough data to process security "
+		dev_err(dev, "? Not enough data to process security "
 			"descriptors (%zu bytes left vs %zu needed)\n",
 			top - (void *) secd, needed);
 		return 0;
@@ -667,13 +667,13 @@ static int hwahc_security_create(struct hwahc *hwahc)
 	while (itr < top) {
 		etd = itr;
 		if (top - itr < sizeof(*etd)) {
-			dev_err(dev, "BUG: bad host security descriptor; "
+			dev_err(dev, ": bad host security descriptor; "
 				"not enough data (%zu vs %zu left)\n",
 				top - itr, sizeof(*etd));
 			break;
 		}
 		if (etd->bLength < sizeof(*etd)) {
-			dev_err(dev, "BUG: bad host encryption descriptor; "
+			dev_err(dev, ": bad host encryption descriptor; "
 				"descriptor is too short "
 				"(%zu vs %zu needed)\n",
 				(size_t)etd->bLength, sizeof(*etd));

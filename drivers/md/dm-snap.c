@@ -983,7 +983,7 @@ static void snapshot_merge_next_chunks(struct dm_snapshot *s)
 	sector_t io_size;
 	uint64_t previous_count;
 
-	BUG_ON(!test_bit(RUNNING_MERGE, &s->state_bits));
+	_ON(!test_bit(RUNNING_MERGE, &s->state_bits));
 	if (unlikely(test_bit(SHUTDOWN_MERGE, &s->state_bits)))
 		goto shut;
 
@@ -1347,7 +1347,7 @@ static void __handover_exceptions(struct dm_snapshot *snap_src,
 
 static void snapshot_dtr(struct dm_target *ti)
 {
-#ifdef CONFIG_DM_DEBUG
+#ifdef CONFIG_DM_DE
 	int i;
 #endif
 	struct dm_snapshot *s = ti->private;
@@ -1379,9 +1379,9 @@ static void snapshot_dtr(struct dm_target *ti)
 	 */
 	smp_mb();
 
-#ifdef CONFIG_DM_DEBUG
+#ifdef CONFIG_DM_DE
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
-		BUG_ON(!hlist_empty(&s->tracked_chunk_hash[i]));
+		_ON(!hlist_empty(&s->tracked_chunk_hash[i]));
 #endif
 
 	__free_exceptions(s);
@@ -1584,7 +1584,7 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 			pe2 = rb_entry(*p, struct dm_snap_pending_exception, out_of_order_node);
 			parent = *p;
 
-			BUG_ON(pe->exception_sequence == pe2->exception_sequence);
+			_ON(pe->exception_sequence == pe2->exception_sequence);
 			if (pe->exception_sequence < pe2->exception_sequence)
 				p = &((*p)->rb_left);
 			else

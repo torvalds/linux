@@ -29,7 +29,7 @@ struct rt_mutex_waiter {
 	struct rb_node          pi_tree_entry;
 	struct task_struct	*task;
 	struct rt_mutex		*lock;
-#ifdef CONFIG_DEBUG_RT_MUTEXES
+#ifdef CONFIG_DE_RT_MUTEXES
 	unsigned long		ip;
 	struct pid		*deadlock_task_pid;
 	struct rt_mutex		*deadlock_lock;
@@ -57,7 +57,7 @@ rt_mutex_top_waiter(struct rt_mutex *lock)
 
 	if (leftmost) {
 		w = rb_entry(leftmost, struct rt_mutex_waiter, tree_entry);
-		BUG_ON(w->lock != lock);
+		_ON(w->lock != lock);
 	}
 	return w;
 }
@@ -157,8 +157,8 @@ extern bool __rt_mutex_futex_unlock(struct rt_mutex *lock,
 
 extern void rt_mutex_postunlock(struct wake_q_head *wake_q);
 
-#ifdef CONFIG_DEBUG_RT_MUTEXES
-# include "rtmutex-debug.h"
+#ifdef CONFIG_DE_RT_MUTEXES
+# include "rtmutex-de.h"
 #else
 # include "rtmutex.h"
 #endif

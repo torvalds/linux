@@ -78,7 +78,7 @@
 #define SDIO_IRQ_MODE_ASYNC_4BIT_IRQ            BIT(0)
 #define SDIO_IRQ_MODE_ASYNC_4BIT_IRQ_SDIO3      BIT(1)
 
-#define ATH10K_SDIO_TARGET_DEBUG_INTR_MASK      0x01
+#define ATH10K_SDIO_TARGET_DE_INTR_MASK      0x01
 
 /* The theoretical maximum number of RX messages that can be fetched
  * from the mbox interrupt handler in one loop is derived in the following

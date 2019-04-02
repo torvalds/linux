@@ -243,7 +243,7 @@ static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
 
 	memcpy(buf, udl->mode_buf, udl->mode_buf_len);
 	retval = udl_submit_urb(dev, urb, udl->mode_buf_len);
-	DRM_DEBUG("write mode info %d\n", udl->mode_buf_len);
+	DRM_DE("write mode info %d\n", udl->mode_buf_len);
 	return retval;
 }
 

@@ -414,7 +414,7 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 	int				error = is_journal_aborted(journal);
 	struct ext4_journal_cb_entry	*jce;
 
-	BUG_ON(txn->t_state == T_FINISHED);
+	_ON(txn->t_state == T_FINISHED);
 
 	ext4_process_freed_data(sb, txn->t_tid);
 
@@ -1013,7 +1013,7 @@ static void ext4_put_super(struct super_block *sb)
 		kfree(get_qf_name(sb, sbi, i));
 #endif
 
-	/* Debugging code just in case the in-memory inode orphan list
+	/* Deging code just in case the in-memory inode orphan list
 	 * isn't empty.  The on-disk one can be non-empty if we've
 	 * detected an error and taken the fs readonly, but the
 	 * in-memory list had better be clean by this point. */
@@ -1432,7 +1432,7 @@ static const struct export_operations ext4_export_ops = {
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nouid32, Opt_debug, Opt_removed,
+	Opt_nouid32, Opt_de, Opt_removed,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_auto_da_alloc, Opt_noauto_da_alloc, Opt_noload,
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time, Opt_journal_dev,
@@ -1445,7 +1445,7 @@ enum {
 	Opt_usrquota, Opt_grpquota, Opt_prjquota, Opt_i_version, Opt_dax,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_warn_on_error,
 	Opt_nowarn_on_error, Opt_mblk_io_submit,
-	Opt_lazytime, Opt_nolazytime, Opt_debug_want_extra_isize,
+	Opt_lazytime, Opt_nolazytime, Opt_de_want_extra_isize,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
 	Opt_dioread_nolock, Opt_dioread_lock,
@@ -1467,7 +1467,7 @@ static const match_table_t tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_nouid32, "nouid32"},
-	{Opt_debug, "debug"},
+	{Opt_de, "de"},
 	{Opt_removed, "oldalloc"},
 	{Opt_removed, "orlov"},
 	{Opt_user_xattr, "user_xattr"},
@@ -1515,7 +1515,7 @@ static const match_table_t tokens = {
 	{Opt_nowarn_on_error, "nowarn_on_error"},
 	{Opt_lazytime, "lazytime"},
 	{Opt_nolazytime, "nolazytime"},
-	{Opt_debug_want_extra_isize, "debug_want_extra_isize=%u"},
+	{Opt_de_want_extra_isize, "de_want_extra_isize=%u"},
 	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_removed, "mblk_io_submit"},
 	{Opt_removed, "nomblk_io_submit"},
@@ -1725,8 +1725,8 @@ static const struct mount_opts {
 	{Opt_noacl, 0, MOPT_NOSUPPORT},
 #endif
 	{Opt_nouid32, EXT4_MOUNT_NO_UID32, MOPT_SET},
-	{Opt_debug, EXT4_MOUNT_DEBUG, MOPT_SET},
-	{Opt_debug_want_extra_isize, 0, MOPT_GTE0},
+	{Opt_de, EXT4_MOUNT_DE, MOPT_SET},
+	{Opt_de_want_extra_isize, 0, MOPT_GTE0},
 	{Opt_quota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA, MOPT_SET | MOPT_Q},
 	{Opt_usrquota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA,
 							MOPT_SET | MOPT_Q},
@@ -1841,7 +1841,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		if (arg == 0)
 			arg = JBD2_DEFAULT_MAX_COMMIT_AGE;
 		sbi->s_commit_interval = HZ * arg;
-	} else if (token == Opt_debug_want_extra_isize) {
+	} else if (token == Opt_de_want_extra_isize) {
 		sbi->s_want_extra_isize = arg;
 	} else if (token == Opt_max_batch_time) {
 		sbi->s_max_batch_time = arg;
@@ -1989,7 +1989,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			arg = !arg;
 		else if (unlikely(!(m->flags & MOPT_SET))) {
 			ext4_msg(sb, KERN_WARNING,
-				 "buggy handling of option %s", opt);
+				 "gy handling of option %s", opt);
 			WARN_ON(1);
 			return -1;
 		}
@@ -2264,7 +2264,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 
 	err = ext4_commit_super(sb, 1);
 done:
-	if (test_opt(sb, DEBUG))
+	if (test_opt(sb, DE))
 		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%u, "
 				"bpg=%lu, ipg=%lu, mo=%04x, mo2=%04x]\n",
 			sb->s_blocksize,
@@ -2425,7 +2425,7 @@ static int ext4_check_descriptors(struct super_block *sb,
 	if (ext4_has_feature_flex_bg(sb))
 		flexbg_flag = 1;
 
-	ext4_debug("Checking group descriptors");
+	ext4_de("Checking group descriptors");
 
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, i, NULL);
@@ -2554,7 +2554,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 	int i;
 #endif
 	if (!es->s_last_orphan) {
-		jbd_debug(4, "no orphan inodes to clean up\n");
+		jbd_de(4, "no orphan inodes to clean up\n");
 		return;
 	}
 
@@ -2578,7 +2578,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 				  "clearing orphan list.\n");
 			es->s_last_orphan = 0;
 		}
-		jbd_debug(1, "Skipping orphan recovery on fs with errors.\n");
+		jbd_de(1, "Skipping orphan recovery on fs with errors.\n");
 		return;
 	}
 
@@ -2627,7 +2627,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		 * so, skip the rest.
 		 */
 		if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
-			jbd_debug(1, "Skipping orphan recovery on fs with errors.\n");
+			jbd_de(1, "Skipping orphan recovery on fs with errors.\n");
 			es->s_last_orphan = 0;
 			break;
 		}
@@ -2641,11 +2641,11 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		list_add(&EXT4_I(inode)->i_orphan, &EXT4_SB(sb)->s_orphan);
 		dquot_initialize(inode);
 		if (inode->i_nlink) {
-			if (test_opt(sb, DEBUG))
-				ext4_msg(sb, KERN_DEBUG,
+			if (test_opt(sb, DE))
+				ext4_msg(sb, KERN_DE,
 					"%s: truncating inode %lu to %lld bytes",
 					__func__, inode->i_ino, inode->i_size);
-			jbd_debug(2, "truncating inode %lu to %lld bytes\n",
+			jbd_de(2, "truncating inode %lu to %lld bytes\n",
 				  inode->i_ino, inode->i_size);
 			inode_lock(inode);
 			truncate_inode_pages(inode->i_mapping, inode->i_size);
@@ -2655,11 +2655,11 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 			inode_unlock(inode);
 			nr_truncates++;
 		} else {
-			if (test_opt(sb, DEBUG))
-				ext4_msg(sb, KERN_DEBUG,
+			if (test_opt(sb, DE))
+				ext4_msg(sb, KERN_DE,
 					"%s: deleting unreferenced inode %lu",
 					__func__, inode->i_ino);
-			jbd_debug(2, "deleting unreferenced inode %lu\n",
+			jbd_de(2, "deleting unreferenced inode %lu\n",
 				  inode->i_ino);
 			nr_orphans++;
 		}
@@ -3071,7 +3071,7 @@ static int ext4_lazyinit_thread(void *arg)
 	struct ext4_li_request *elr;
 	unsigned long next_wakeup, cur;
 
-	BUG_ON(NULL == eli);
+	_ON(NULL == eli);
 
 cont_thread:
 	while (true) {
@@ -3664,8 +3664,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	/* Set defaults before we parse the mount options */
 	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
 	set_opt(sb, INIT_INODE_TABLE);
-	if (def_mount_opts & EXT4_DEFM_DEBUG)
-		set_opt(sb, DEBUG);
+	if (def_mount_opts & EXT4_DEFM_DE)
+		set_opt(sb, DE);
 	if (def_mount_opts & EXT4_DEFM_BSDGROUPS)
 		set_opt(sb, GRPID);
 	if (def_mount_opts & EXT4_DEFM_UID16)
@@ -4641,7 +4641,7 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
 		return NULL;
 	}
 
-	jbd_debug(2, "Journal inode found at %p: %lld bytes\n",
+	jbd_de(2, "Journal inode found at %p: %lld bytes\n",
 		  journal_inode, journal_inode->i_size);
 	if (!S_ISREG(journal_inode->i_mode)) {
 		ext4_msg(sb, KERN_ERR, "invalid journal inode");
@@ -4657,7 +4657,7 @@ static journal_t *ext4_get_journal(struct super_block *sb,
 	struct inode *journal_inode;
 	journal_t *journal;
 
-	BUG_ON(!ext4_has_feature_journal(sb));
+	_ON(!ext4_has_feature_journal(sb));
 
 	journal_inode = ext4_get_journal_inode(sb, journal_inum);
 	if (!journal_inode)
@@ -4687,7 +4687,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	struct ext4_super_block *es;
 	struct block_device *bdev;
 
-	BUG_ON(!ext4_has_feature_journal(sb));
+	_ON(!ext4_has_feature_journal(sb));
 
 	bdev = ext4_blkdev_get(j_dev, sb);
 	if (bdev == NULL)
@@ -4779,7 +4779,7 @@ static int ext4_load_journal(struct super_block *sb,
 	int err = 0;
 	int really_read_only;
 
-	BUG_ON(!ext4_has_feature_journal(sb));
+	_ON(!ext4_has_feature_journal(sb));
 
 	if (journal_devnum &&
 	    journal_devnum != le32_to_cpu(es->s_journal_dev)) {
@@ -4884,7 +4884,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	 * write time when we are mounting the root file system
 	 * read/only but we need to replay the journal; at that point,
 	 * for people who are east of GMT and who make their clock
-	 * tick in localtime for Windows bug-for-bug compatibility,
+	 * tick in localtime for Windows -for- compatibility,
 	 * the clock is set in the future, and this will cause e2fsck
 	 * to complain and force a full file system check.
 	 */
@@ -4951,7 +4951,7 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	journal_t *journal = EXT4_SB(sb)->s_journal;
 
 	if (!ext4_has_feature_journal(sb)) {
-		BUG_ON(journal != NULL);
+		_ON(journal != NULL);
 		return;
 	}
 	jbd2_journal_lock_updates(journal);
@@ -4979,7 +4979,7 @@ static void ext4_clear_journal_err(struct super_block *sb,
 	int j_errno;
 	const char *errstr;
 
-	BUG_ON(!ext4_has_feature_journal(sb));
+	_ON(!ext4_has_feature_journal(sb));
 
 	journal = EXT4_SB(sb)->s_journal;
 
@@ -5706,7 +5706,7 @@ static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_prj_quota_inum)
 	};
 
-	BUG_ON(!ext4_has_feature_quota(sb));
+	_ON(!ext4_has_feature_quota(sb));
 
 	if (!qf_inums[type])
 		return -EPERM;

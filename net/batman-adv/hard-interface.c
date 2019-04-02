@@ -41,7 +41,7 @@
 
 #include "bat_v.h"
 #include "bridge_loop_avoidance.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "log.h"
@@ -932,7 +932,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface->soft_iface = NULL;
 	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 
-	ret = batadv_debugfs_add_hardif(hard_iface);
+	ret = batadv_defs_add_hardif(hard_iface);
 	if (ret)
 		goto free_sysfs;
 
@@ -979,7 +979,7 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 		return;
 
 	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
-	batadv_debugfs_del_hardif(hard_iface);
+	batadv_defs_del_hardif(hard_iface);
 	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 	batadv_hardif_put(hard_iface);
 }
@@ -1020,7 +1020,7 @@ static int batadv_hard_if_event_softif(unsigned long event,
 		batadv_softif_create_vlan(bat_priv, BATADV_NO_FLAGS);
 		break;
 	case NETDEV_CHANGENAME:
-		batadv_debugfs_rename_meshif(net_dev);
+		batadv_defs_rename_meshif(net_dev);
 		break;
 	}
 
@@ -1087,7 +1087,7 @@ static int batadv_hard_if_event(struct notifier_block *this,
 			hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
 		break;
 	case NETDEV_CHANGENAME:
-		batadv_debugfs_rename_hardif(hard_iface);
+		batadv_defs_rename_hardif(hard_iface);
 		break;
 	default:
 		break;

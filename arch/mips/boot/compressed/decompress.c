@@ -28,8 +28,8 @@ unsigned long free_mem_end_ptr;
 /* The linker tells us where the image is. */
 extern unsigned char __image_begin, __image_end;
 
-/* debug interfaces  */
-#ifdef CONFIG_DEBUG_ZBOOT
+/* de interfaces  */
+#ifdef CONFIG_DE_ZBOOT
 extern void puts(const char *s);
 extern void puthex(unsigned long long val);
 #else

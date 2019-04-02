@@ -286,7 +286,7 @@ void __init plat_irq_setup_pins(int mode)
 		register_intc_controller(&intc_desc_irq);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

@@ -26,13 +26,13 @@
 #include <linux/dma-mapping.h>
 #include <xen/xen.h>
 
-#ifdef DEBUG
+#ifdef DE
 /* For development, we want to crash whenever the ring is screwed. */
 #define BAD_RING(_vq, fmt, args...)				\
 	do {							\
 		dev_err(&(_vq)->vq.vdev->dev,			\
 			"%s:"fmt, (_vq)->vq.name, ##args);	\
-		BUG();						\
+		();						\
 	} while (0)
 /* Caller is supposed to guarantee no reentry. */
 #define START_USE(_vq)						\
@@ -43,7 +43,7 @@
 		(_vq)->in_use = __LINE__;			\
 	} while (0)
 #define END_USE(_vq) \
-	do { BUG_ON(!(_vq)->in_use); (_vq)->in_use = 0; } while(0)
+	do { _ON(!(_vq)->in_use); (_vq)->in_use = 0; } while(0)
 #define LAST_ADD_TIME_UPDATE(_vq)				\
 	do {							\
 		ktime_t now = ktime_get();			\
@@ -196,7 +196,7 @@ struct vring_virtqueue {
 	/* DMA, allocation, and size information */
 	bool we_own_ring;
 
-#ifdef DEBUG
+#ifdef DE
 	/* They're supposed to lock for us. */
 	unsigned int in_use;
 
@@ -258,7 +258,7 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 
 	/* Otherwise, we are left to guess. */
 	/*
-	 * In theory, it's possible to have a buggy QEMU-supposed
+	 * In theory, it's possible to have a gy QEMU-supposed
 	 * emulated Q35 IOMMU and Xen enabled at the same time.  On
 	 * such a configuration, virtio has never worked and will
 	 * not work without an even larger kludge.  Instead, enable
@@ -443,8 +443,8 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 
 	START_USE(vq);
 
-	BUG_ON(data == NULL);
-	BUG_ON(ctx && vq->indirect);
+	_ON(data == NULL);
+	_ON(ctx && vq->indirect);
 
 	if (unlikely(vq->broken)) {
 		END_USE(vq);
@@ -453,7 +453,7 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 
 	LAST_ADD_TIME_UPDATE(vq);
 
-	BUG_ON(total_sg == 0);
+	_ON(total_sg == 0);
 
 	head = vq->free_head;
 
@@ -478,7 +478,7 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 	}
 
 	if (vq->vq.num_free < descs_used) {
-		pr_debug("Can't add buf len %i - avail = %i\n",
+		pr_de("Can't add buf len %i - avail = %i\n",
 			 descs_used, vq->vq.num_free);
 		/* FIXME: for historical reasons, we force a notify here if
 		 * there are outgoing parts to the buffer.  Presumably the
@@ -567,7 +567,7 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 						vq->split.avail_idx_shadow);
 	vq->num_added++;
 
-	pr_debug("Added buffer head %i to %p\n", head, vq);
+	pr_de("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
 	/* This is very unlikely, but theoretically possible.  Kick
@@ -664,9 +664,9 @@ static void detach_buf_split(struct vring_virtqueue *vq, unsigned int head,
 		len = virtio32_to_cpu(vq->vq.vdev,
 				vq->split.vring.desc[head].len);
 
-		BUG_ON(!(vq->split.vring.desc[head].flags &
+		_ON(!(vq->split.vring.desc[head].flags &
 			 cpu_to_virtio16(vq->vq.vdev, VRING_DESC_F_INDIRECT)));
-		BUG_ON(len == 0 || len % sizeof(struct vring_desc));
+		_ON(len == 0 || len % sizeof(struct vring_desc));
 
 		for (j = 0; j < len / sizeof(struct vring_desc); j++)
 			vring_unmap_one_split(vq, &indir_desc[j]);
@@ -701,7 +701,7 @@ static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
 	}
 
 	if (!more_used_split(vq)) {
-		pr_debug("No more buffers in queue\n");
+		pr_de("No more buffers in queue\n");
 		END_USE(vq);
 		return NULL;
 	}
@@ -845,7 +845,7 @@ static void *virtqueue_detach_unused_buf_split(struct virtqueue *_vq)
 		return buf;
 	}
 	/* That should have freed everything. */
-	BUG_ON(vq->vq.num_free != vq->split.vring.num);
+	_ON(vq->vq.num_free != vq->split.vring.num);
 
 	END_USE(vq);
 	return NULL;
@@ -1001,14 +1001,14 @@ static int virtqueue_add_indirect_packed(struct vring_virtqueue *vq,
 	desc = alloc_indirect_packed(total_sg, gfp);
 
 	if (unlikely(vq->vq.num_free < 1)) {
-		pr_debug("Can't add buf len 1 - avail = 0\n");
+		pr_de("Can't add buf len 1 - avail = 0\n");
 		END_USE(vq);
 		return -ENOSPC;
 	}
 
 	i = 0;
 	id = vq->free_head;
-	BUG_ON(id == vq->packed.vring.num);
+	_ON(id == vq->packed.vring.num);
 
 	for (n = 0; n < out_sgs + in_sgs; n++) {
 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
@@ -1077,7 +1077,7 @@ static int virtqueue_add_indirect_packed(struct vring_virtqueue *vq,
 
 	vq->num_added += 1;
 
-	pr_debug("Added buffer head %i to %p\n", head, vq);
+	pr_de("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
 	return 0;
@@ -1112,8 +1112,8 @@ static inline int virtqueue_add_packed(struct virtqueue *_vq,
 
 	START_USE(vq);
 
-	BUG_ON(data == NULL);
-	BUG_ON(ctx && vq->indirect);
+	_ON(data == NULL);
+	_ON(ctx && vq->indirect);
 
 	if (unlikely(vq->broken)) {
 		END_USE(vq);
@@ -1122,7 +1122,7 @@ static inline int virtqueue_add_packed(struct virtqueue *_vq,
 
 	LAST_ADD_TIME_UPDATE(vq);
 
-	BUG_ON(total_sg == 0);
+	_ON(total_sg == 0);
 
 	if (virtqueue_use_indirect(_vq, total_sg))
 		return virtqueue_add_indirect_packed(vq, sgs, total_sg,
@@ -1138,14 +1138,14 @@ static inline int virtqueue_add_packed(struct virtqueue *_vq,
 	descs_used = total_sg;
 
 	if (unlikely(vq->vq.num_free < descs_used)) {
-		pr_debug("Can't add buf len %i - avail = %i\n",
+		pr_de("Can't add buf len %i - avail = %i\n",
 			 descs_used, vq->vq.num_free);
 		END_USE(vq);
 		return -ENOSPC;
 	}
 
 	id = vq->free_head;
-	BUG_ON(id == vq->packed.vring.num);
+	_ON(id == vq->packed.vring.num);
 
 	curr = id;
 	c = 0;
@@ -1211,7 +1211,7 @@ static inline int virtqueue_add_packed(struct virtqueue *_vq,
 	vq->packed.vring.desc[head].flags = head_flags;
 	vq->num_added += descs_used;
 
-	pr_debug("Added buffer head %i to %p\n", head, vq);
+	pr_de("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
 	return 0;
@@ -1365,7 +1365,7 @@ static void *virtqueue_get_buf_ctx_packed(struct virtqueue *_vq,
 	}
 
 	if (!more_used_packed(vq)) {
-		pr_debug("No more buffers in queue\n");
+		pr_de("No more buffers in queue\n");
 		END_USE(vq);
 		return NULL;
 	}
@@ -1551,7 +1551,7 @@ static void *virtqueue_detach_unused_buf_packed(struct virtqueue *_vq)
 		return buf;
 	}
 	/* That should have freed everything. */
-	BUG_ON(vq->vq.num_free != vq->packed.vring.num);
+	_ON(vq->vq.num_free != vq->packed.vring.num);
 
 	END_USE(vq);
 	return NULL;
@@ -1616,7 +1616,7 @@ static struct virtqueue *vring_create_virtqueue_packed(
 	vq->packed_ring = true;
 	vq->use_dma_api = vring_use_dma_api(vdev);
 	list_add_tail(&vq->vq.list, &vdev->vqs);
-#ifdef DEBUG
+#ifdef DE
 	vq->in_use = false;
 	vq->last_add_time_valid = false;
 #endif
@@ -2040,14 +2040,14 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	if (!more_used(vq)) {
-		pr_debug("virtqueue interrupt with no work for %p\n", vq);
+		pr_de("virtqueue interrupt with no work for %p\n", vq);
 		return IRQ_NONE;
 	}
 
 	if (unlikely(vq->broken))
 		return IRQ_HANDLED;
 
-	pr_debug("virtqueue callback for %p (%p)\n", vq, vq->vq.callback);
+	pr_de("virtqueue callback for %p (%p)\n", vq, vq->vq.callback);
 	if (vq->vq.callback)
 		vq->vq.callback(&vq->vq);
 
@@ -2089,7 +2089,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 	vq->num_added = 0;
 	vq->use_dma_api = vring_use_dma_api(vdev);
 	list_add_tail(&vq->vq.list, &vdev->vqs);
-#ifdef DEBUG
+#ifdef DE
 	vq->in_use = false;
 	vq->last_add_time_valid = false;
 #endif
@@ -2288,7 +2288,7 @@ dma_addr_t virtqueue_get_desc_addr(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	BUG_ON(!vq->we_own_ring);
+	_ON(!vq->we_own_ring);
 
 	if (vq->packed_ring)
 		return vq->packed.ring_dma_addr;
@@ -2301,7 +2301,7 @@ dma_addr_t virtqueue_get_avail_addr(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	BUG_ON(!vq->we_own_ring);
+	_ON(!vq->we_own_ring);
 
 	if (vq->packed_ring)
 		return vq->packed.driver_event_dma_addr;
@@ -2315,7 +2315,7 @@ dma_addr_t virtqueue_get_used_addr(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	BUG_ON(!vq->we_own_ring);
+	_ON(!vq->we_own_ring);
 
 	if (vq->packed_ring)
 		return vq->packed.device_event_dma_addr;

@@ -13,7 +13,7 @@
 #include <asm/bootinfo.h>
 #include <asm/dec/prom.h>
 
-#undef PROM_DEBUG
+#undef PROM_DE
 
 void __init prom_init_cmdline(s32 argc, s32 *argv, u32 magic)
 {
@@ -34,7 +34,7 @@ void __init prom_init_cmdline(s32 argc, s32 *argv, u32 magic)
 			strcat(arcs_cmdline, " ");
 	}
 
-#ifdef PROM_DEBUG
+#ifdef PROM_DE
 	printk("arcs_cmdline: %s\n", &(arcs_cmdline[0]));
 #endif
 }

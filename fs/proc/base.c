@@ -91,7 +91,7 @@
 #include <linux/sched/autogroup.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/coredump.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/stat.h>
 #include <linux/posix-timers.h>
 #include <trace/events/oom.h>
@@ -340,7 +340,7 @@ static ssize_t proc_pid_cmdline_read(struct file *file, char __user *buf,
 	struct task_struct *tsk;
 	ssize_t ret;
 
-	BUG_ON(*pos < 0);
+	_ON(*pos < 0);
 
 	tsk = get_proc_task(file_inode(file));
 	if (!tsk)
@@ -414,7 +414,7 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 	/*
 	 * The ability to racily run the kernel stack unwinder on a running task
 	 * and then observe the unwinder output is scary; while it is useful for
-	 * debugging kernel issues, it can also allow an attacker to leak kernel
+	 * deging kernel issues, it can also allow an attacker to leak kernel
 	 * stack contents.
 	 * Doing this in a manner that is at least safe from races would require
 	 * some work to ensure that the remote task can not be scheduled; and
@@ -1393,7 +1393,7 @@ static const struct file_operations proc_fail_nth_operations = {
 #endif
 
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 /*
  * Print out various scheduling related per-task fields:
  */
@@ -2976,7 +2976,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	ONE("status",     S_IRUGO, proc_pid_status),
 	ONE("personality", S_IRUSR, proc_pid_personality),
 	ONE("limits",	  S_IRUGO, proc_pid_limits),
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	REG("sched",      S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
 #ifdef CONFIG_SCHED_AUTOGROUP
@@ -3373,7 +3373,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	ONE("status",    S_IRUGO, proc_pid_status),
 	ONE("personality", S_IRUSR, proc_pid_personality),
 	ONE("limits",	 S_IRUGO, proc_pid_limits),
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	REG("sched",     S_IRUGO|S_IWUSR, proc_pid_sched_operations),
 #endif
 	NOD("comm",      S_IFREG|S_IRUGO|S_IWUSR,

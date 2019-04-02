@@ -121,7 +121,7 @@ static int __nci_request(struct nci_dev *ndev,
 		wait_for_completion_interruptible_timeout(&ndev->req_completion,
 							  timeout);
 
-	pr_debug("wait_for_completion return %ld\n", completion_rc);
+	pr_de("wait_for_completion return %ld\n", completion_rc);
 
 	if (completion_rc > 0) {
 		switch (ndev->req_status) {
@@ -227,7 +227,7 @@ static void nci_set_config_req(struct nci_dev *ndev, unsigned long opt)
 	struct nci_set_config_param *param = (struct nci_set_config_param *)opt;
 	struct nci_core_set_config_cmd cmd;
 
-	BUG_ON(param->len > NCI_MAX_PARAM_LEN);
+	_ON(param->len > NCI_MAX_PARAM_LEN);
 
 	cmd.num_params = 1;
 	cmd.param.id = param->id;
@@ -808,7 +808,7 @@ static int nci_start_poll(struct nfc_dev *nfc_dev,
 
 	if ((atomic_read(&ndev->state) == NCI_W4_HOST_SELECT) ||
 	    (atomic_read(&ndev->state) == NCI_POLL_ACTIVE)) {
-		pr_debug("target active or w4 select, implicitly deactivate\n");
+		pr_de("target active or w4 select, implicitly deactivate\n");
 
 		rc = nci_request(ndev, nci_rf_deactivate_req,
 				 NCI_DEACTIVATE_TYPE_IDLE_MODE,
@@ -865,7 +865,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 	int i;
 	int rc = 0;
 
-	pr_debug("target_idx %d, protocol 0x%x\n", target->idx, protocol);
+	pr_de("target_idx %d, protocol 0x%x\n", target->idx, protocol);
 
 	if ((atomic_read(&ndev->state) != NCI_W4_HOST_SELECT) &&
 	    (atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
@@ -929,7 +929,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	u8 nci_mode = NCI_DEACTIVATE_TYPE_IDLE_MODE;
 
-	pr_debug("entry\n");
+	pr_de("entry\n");
 
 	if (!ndev->target_active_prot) {
 		pr_err("unable to deactivate target, no active target\n");
@@ -956,7 +956,7 @@ static int nci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
 
-	pr_debug("target_idx %d, comm_mode %d\n", target->idx, comm_mode);
+	pr_de("target_idx %d, comm_mode %d\n", target->idx, comm_mode);
 
 	rc = nci_activate_target(nfc_dev, target, NFC_PROTO_NFC_DEP);
 	if (rc)
@@ -976,7 +976,7 @@ static int nci_dep_link_down(struct nfc_dev *nfc_dev)
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
 
-	pr_debug("entry\n");
+	pr_de("entry\n");
 
 	if (nfc_dev->rf_mode == NFC_RF_INITIATOR) {
 		nci_deactivate_target(nfc_dev, NULL, NCI_DEACTIVATE_TYPE_IDLE_MODE);
@@ -1008,7 +1008,7 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	if (!conn_info)
 		return -EPROTO;
 
-	pr_debug("target_idx %d, len %d\n", target->idx, skb->len);
+	pr_de("target_idx %d, len %d\n", target->idx, skb->len);
 
 	if (!ndev->target_active_prot) {
 		pr_err("unable to exchange data, no active target\n");
@@ -1131,7 +1131,7 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 {
 	struct nci_dev *ndev;
 
-	pr_debug("supported_protocols 0x%x\n", supported_protocols);
+	pr_de("supported_protocols 0x%x\n", supported_protocols);
 
 	if (!ops->open || !ops->close || !ops->send)
 		return NULL;
@@ -1287,7 +1287,7 @@ EXPORT_SYMBOL(nci_unregister_device);
  */
 int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	pr_debug("len %d\n", skb->len);
+	pr_de("len %d\n", skb->len);
 
 	if (!ndev || (!test_bit(NCI_UP, &ndev->flags) &&
 	    !test_bit(NCI_INIT, &ndev->flags))) {
@@ -1305,7 +1305,7 @@ EXPORT_SYMBOL(nci_recv_frame);
 
 int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	pr_debug("len %d\n", skb->len);
+	pr_de("len %d\n", skb->len);
 
 	if (!ndev) {
 		kfree_skb(skb);
@@ -1329,7 +1329,7 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 	struct nci_ctrl_hdr *hdr;
 	struct sk_buff *skb;
 
-	pr_debug("opcode 0x%x, plen %d\n", opcode, plen);
+	pr_de("opcode 0x%x, plen %d\n", opcode, plen);
 
 	skb = nci_skb_alloc(ndev, (NCI_CTRL_HDR_SIZE + plen), GFP_KERNEL);
 	if (!skb) {
@@ -1441,7 +1441,7 @@ static void nci_tx_work(struct work_struct *work)
 	if (!conn_info)
 		return;
 
-	pr_debug("credits_cnt %d\n", atomic_read(&conn_info->credits_cnt));
+	pr_de("credits_cnt %d\n", atomic_read(&conn_info->credits_cnt));
 
 	/* Send queued tx data */
 	while (atomic_read(&conn_info->credits_cnt)) {
@@ -1454,7 +1454,7 @@ static void nci_tx_work(struct work_struct *work)
 		    NCI_DATA_FLOW_CONTROL_NOT_USED)
 			atomic_dec(&conn_info->credits_cnt);
 
-		pr_debug("NCI TX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
+		pr_de("NCI TX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
 			 nci_pbf(skb->data),
 			 nci_conn_id(skb->data),
 			 nci_plen(skb->data));
@@ -1519,7 +1519,7 @@ static void nci_cmd_work(struct work_struct *work)
 	struct nci_dev *ndev = container_of(work, struct nci_dev, cmd_work);
 	struct sk_buff *skb;
 
-	pr_debug("cmd_cnt %d\n", atomic_read(&ndev->cmd_cnt));
+	pr_de("cmd_cnt %d\n", atomic_read(&ndev->cmd_cnt));
 
 	/* Send queued command */
 	if (atomic_read(&ndev->cmd_cnt)) {
@@ -1529,7 +1529,7 @@ static void nci_cmd_work(struct work_struct *work)
 
 		atomic_dec(&ndev->cmd_cnt);
 
-		pr_debug("NCI TX: MT=cmd, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
+		pr_de("NCI TX: MT=cmd, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
 			 nci_pbf(skb->data),
 			 nci_opcode_gid(nci_opcode(skb->data)),
 			 nci_opcode_oid(nci_opcode(skb->data)),

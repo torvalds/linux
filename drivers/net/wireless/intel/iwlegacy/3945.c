@@ -111,7 +111,7 @@ il3945_get_prev_ieee_rate(u8 rate_idx)
  * Disable an event by writing "1"s into "disable"
  *   bitmap in SRAM.  Bit position corresponds to Event # (id/type).
  *   Default values of 0 enable uCode events to be logged.
- * Use for only special debugging.  This function is just a placeholder as-is,
+ * Use for only special deging.  This function is just a placeholder as-is,
  *   you'll need to provide the special bits! ...
  *   ... and set IL_EVT_DISABLE to 1. */
 void
@@ -207,7 +207,7 @@ il3945_hwrate_to_plcp_idx(u8 plcp)
 	return -1;
 }
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_IWLEGACY_DE
 #define TX_STATUS_ENTRY(x) case TX_3945_STATUS_FAIL_ ## x: return #x
 
 static const char *
@@ -290,7 +290,7 @@ il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 	struct il_queue *q = &txq->q;
 	struct sk_buff *skb;
 
-	BUG_ON(txq_id == IL39_CMD_QUEUE_NUM);
+	_ON(txq_id == IL39_CMD_QUEUE_NUM);
 
 	for (idx = il_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
@@ -380,7 +380,7 @@ il3945_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
  *  RX handler implementations
  *
  *****************************************************************************/
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 static void
 il3945_accumulative_stats(struct il_priv *il, __le32 * stats)
 {
@@ -423,7 +423,7 @@ il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	D_RX("Statistics notification received (%d vs %d).\n",
 	     (int)sizeof(struct il3945_notif_stats),
 	     le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK);
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 	il3945_accumulative_stats(il, (__le32 *) &pkt->u.raw);
 #endif
 
@@ -437,7 +437,7 @@ il3945_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	__le32 *flag = (__le32 *) &pkt->u.raw;
 
 	if (le32_to_cpu(*flag) & UCODE_STATS_CLEAR_MSK) {
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_IWLEGACY_DEFS
 		memset(&il->_3945.accum_stats, 0,
 		       sizeof(struct il3945_notif_stats));
 		memset(&il->_3945.delta_stats, 0,
@@ -2442,7 +2442,7 @@ il3945_hw_get_beacon_cmd(struct il_priv *il, struct il3945_frame *frame,
 	    il3945_fill_beacon_frame(il, tx_beacon_cmd->frame,
 				     sizeof(frame->u) - sizeof(*tx_beacon_cmd));
 
-	BUG_ON(frame_size > MAX_MPDU_SIZE);
+	_ON(frame_size > MAX_MPDU_SIZE);
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16) frame_size);
 
 	tx_beacon_cmd->tx.rate = rate;

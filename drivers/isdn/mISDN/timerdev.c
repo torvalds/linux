@@ -30,7 +30,7 @@
 #include "core.h"
 
 static DEFINE_MUTEX(mISDN_mutex);
-static u_int	*debug;
+static u_int	*de;
 
 
 struct mISDNtimerdev {
@@ -54,8 +54,8 @@ mISDN_open(struct inode *ino, struct file *filep)
 {
 	struct mISDNtimerdev	*dev;
 
-	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
+	if (*de & DE_TIMER)
+		printk(KERN_DE "%s(%p,%p)\n", __func__, ino, filep);
 	dev = kmalloc(sizeof(struct mISDNtimerdev) , GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
@@ -76,8 +76,8 @@ mISDN_close(struct inode *ino, struct file *filep)
 	struct list_head	*list = &dev->pending;
 	struct mISDNtimer	*timer, *next;
 
-	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
+	if (*de & DE_TIMER)
+		printk(KERN_DE "%s(%p,%p)\n", __func__, ino, filep);
 
 	spin_lock_irq(&dev->lock);
 	while (!list_empty(list)) {
@@ -106,8 +106,8 @@ mISDN_read(struct file *filep, char __user *buf, size_t count, loff_t *off)
 	struct mISDNtimer	*timer;
 	int	ret = 0;
 
-	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p, %p, %d, %p)\n", __func__,
+	if (*de & DE_TIMER)
+		printk(KERN_DE "%s(%p, %p, %d, %p)\n", __func__,
 		       filep, buf, (int)count, off);
 
 	if (count < sizeof(int))
@@ -147,15 +147,15 @@ mISDN_poll(struct file *filep, poll_table *wait)
 	struct mISDNtimerdev	*dev = filep->private_data;
 	__poll_t		mask = EPOLLERR;
 
-	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p, %p)\n", __func__, filep, wait);
+	if (*de & DE_TIMER)
+		printk(KERN_DE "%s(%p, %p)\n", __func__, filep, wait);
 	if (dev) {
 		poll_wait(filep, &dev->wait, wait);
 		mask = 0;
 		if (dev->work || !list_empty(&dev->expired))
 			mask |= (EPOLLIN | EPOLLRDNORM);
-		if (*debug & DEBUG_TIMER)
-			printk(KERN_DEBUG "%s work(%d) empty(%d)\n", __func__,
+		if (*de & DE_TIMER)
+			printk(KERN_DE "%s work(%d) empty(%d)\n", __func__,
 			       dev->work, list_empty(&dev->expired));
 	}
 	return mask;
@@ -229,8 +229,8 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	int			id, tout, ret = 0;
 
 
-	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s(%p, %x, %lx)\n", __func__,
+	if (*de & DE_TIMER)
+		printk(KERN_DE "%s(%p, %x, %lx)\n", __func__,
 		       filep, cmd, arg);
 	mutex_lock(&mISDN_mutex);
 	switch (cmd) {
@@ -240,8 +240,8 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		id = misdn_add_timer(dev, tout);
-		if (*debug & DEBUG_TIMER)
-			printk(KERN_DEBUG "%s add %d id %d\n", __func__,
+		if (*de & DE_TIMER)
+			printk(KERN_DE "%s add %d id %d\n", __func__,
 			       tout, id);
 		if (id < 0) {
 			ret = id;
@@ -255,8 +255,8 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-		if (*debug & DEBUG_TIMER)
-			printk(KERN_DEBUG "%s del id %d\n", __func__, id);
+		if (*de & DE_TIMER)
+			printk(KERN_DE "%s del id %d\n", __func__, id);
 		id = misdn_del_timer(dev, id);
 		if (put_user(id, (int __user *)arg))
 			ret = -EFAULT;
@@ -289,7 +289,7 @@ mISDN_inittimer(u_int *deb)
 {
 	int	err;
 
-	debug = deb;
+	de = deb;
 	err = misc_register(&mISDNtimer);
 	if (err)
 		printk(KERN_WARNING "mISDN: Could not register timer device\n");

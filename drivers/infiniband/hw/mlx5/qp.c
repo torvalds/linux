@@ -659,7 +659,7 @@ static int alloc_bfreg(struct mlx5_ib_dev *dev,
 	}
 
 	if (bfregn < 0) {
-		BUILD_BUG_ON(NUM_NON_BLUE_FLAME_BFREGS != 1);
+		BUILD__ON(NUM_NON_BLUE_FLAME_BFREGS != 1);
 		bfregn = 0;
 		bfregi->count[bfregn]++;
 	}
@@ -4729,15 +4729,15 @@ static void dump_wqe(struct mlx5_ib_qp *qp, u32 idx, int size_16)
 	u32 tidx = idx;
 	int i, j;
 
-	pr_debug("dump WQE index %u:\n", idx);
+	pr_de("dump WQE index %u:\n", idx);
 	for (i = 0, j = 0; i < size_16 * 4; i += 4, j += 4) {
 		if ((i & 0xf) == 0) {
 			tidx = (tidx + 1) & (qp->sq.wqe_cnt - 1);
 			p = mlx5_frag_buf_get_wqe(&qp->sq.fbc, tidx);
-			pr_debug("WQBB at %p:\n", (void *)p);
+			pr_de("WQBB at %p:\n", (void *)p);
 			j = 0;
 		}
-		pr_debug("%08x %08x %08x %08x\n", be32_to_cpu(p[j]),
+		pr_de("%08x %08x %08x %08x\n", be32_to_cpu(p[j]),
 			 be32_to_cpu(p[j + 1]), be32_to_cpu(p[j + 2]),
 			 be32_to_cpu(p[j + 3]));
 	}
@@ -5374,7 +5374,7 @@ static int sqrq_state_to_qp_state(u8 sq_state, u8 rq_state,
 	*qp_state = sqrq_trans[rq_state][sq_state];
 
 	if (*qp_state == MLX5_QP_STATE_BAD) {
-		WARN(1, "Buggy Raw Packet QP state, SQ 0x%x state: 0x%x, RQ 0x%x state: 0x%x",
+		WARN(1, "gy Raw Packet QP state, SQ 0x%x state: 0x%x, RQ 0x%x state: 0x%x",
 		     qp->raw_packet_qp.sq.base.mqp.qpn, sq_state,
 		     qp->raw_packet_qp.rq.base.mqp.qpn, rq_state);
 		return -EINVAL;

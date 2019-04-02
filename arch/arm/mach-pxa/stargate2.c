@@ -116,7 +116,7 @@ static unsigned long sg2_im2_unified_pin_config[] __initdata = {
 	GPIO44_BTUART_CTS,
 	GPIO45_BTUART_RTS,
 
-	/* STUART  - IM2 via debug board not sure on SG2*/
+	/* STUART  - IM2 via de board not sure on SG2*/
 	GPIO46_STUART_RXD,
 	GPIO47_STUART_TXD,
 

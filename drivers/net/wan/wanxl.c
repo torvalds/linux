@@ -39,8 +39,8 @@ static const char* version = "wanXL serial card driver version: 0.48";
 
 #define PLX_CTL_RESET   0x40000000 /* adapter reset */
 
-#undef DEBUG_PKT
-#undef DEBUG_PCI
+#undef DE_PKT
+#undef DE_PCI
 
 /* MAILBOX #1 - PUTS COMMANDS */
 #define MBX1_CMD_ABORTJ 0x85000000 /* Abort and Jump */
@@ -98,8 +98,8 @@ static inline port_status_t *get_status(struct port *port)
 }
 
 
-#ifdef DEBUG_PCI
-static inline dma_addr_t pci_map_single_debug(struct pci_dev *pdev, void *ptr,
+#ifdef DE_PCI
+static inline dma_addr_t pci_map_single_de(struct pci_dev *pdev, void *ptr,
 					      size_t size, int direction)
 {
 	dma_addr_t addr = pci_map_single(pdev, ptr, size, direction);
@@ -110,7 +110,7 @@ static inline dma_addr_t pci_map_single_debug(struct pci_dev *pdev, void *ptr,
 }
 
 #undef pci_map_single
-#define pci_map_single pci_map_single_debug
+#define pci_map_single pci_map_single_de
 #endif
 
 
@@ -215,10 +215,10 @@ static inline void wanxl_rx_intr(struct card *card)
 						 PCI_DMA_FROMDEVICE);
 				skb_put(skb, desc->length);
 
-#ifdef DEBUG_PKT
-				printk(KERN_DEBUG "%s RX(%i):", dev->name,
+#ifdef DE_PKT
+				printk(KERN_DE "%s RX(%i):", dev->name,
 				       skb->len);
-				debug_frame(skb);
+				de_frame(skb);
 #endif
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;
@@ -280,17 +280,17 @@ static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc = &get_status(port)->tx_descs[port->tx_out];
         if (desc->stat != PACKET_EMPTY) {
                 /* should never happen - previous xmit should stop queue */
-#ifdef DEBUG_PKT
-                printk(KERN_DEBUG "%s: transmitter buffer full\n", dev->name);
+#ifdef DE_PKT
+                printk(KERN_DE "%s: transmitter buffer full\n", dev->name);
 #endif
 		netif_stop_queue(dev);
 		spin_unlock(&port->lock);
 		return NETDEV_TX_BUSY;       /* request packet to be queued */
 	}
 
-#ifdef DEBUG_PKT
-	printk(KERN_DEBUG "%s TX(%i):", dev->name, skb->len);
-	debug_frame(skb);
+#ifdef DE_PKT
+	printk(KERN_DE "%s TX(%i):", dev->name, skb->len);
+	de_frame(skb);
 #endif
 
 	port->tx_skbs[port->tx_out] = skb;
@@ -305,8 +305,8 @@ static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (get_status(port)->tx_descs[port->tx_out].stat != PACKET_EMPTY) {
 		netif_stop_queue(dev);
-#ifdef DEBUG_PKT
-		printk(KERN_DEBUG "%s: transmitter buffer full\n", dev->name);
+#ifdef DE_PKT
+		printk(KERN_DE "%s: transmitter buffer full\n", dev->name);
 #endif
 	}
 
@@ -619,8 +619,8 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		return -ENOBUFS;
 	}
 
-#ifdef DEBUG_PCI
-	printk(KERN_DEBUG "wanXL %s: pci_alloc_consistent() returned memory"
+#ifdef DE_PCI
+	printk(KERN_DE "wanXL %s: pci_alloc_consistent() returned memory"
 	       " at 0x%LX\n", pci_name(pdev),
 	       (unsigned long long)card->status_address);
 #endif

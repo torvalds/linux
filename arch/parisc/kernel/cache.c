@@ -262,7 +262,7 @@ void __init disable_sr_hashing(void)
 
 	switch (boot_cpu_data.cpu_type) {
 	case pcx: /* We shouldn't get this far.  setup.c should prevent it. */
-		BUG();
+		();
 		return;
 
 	case pcxs:
@@ -394,7 +394,7 @@ void __init parisc_setup_cache_timing(void)
 	flush_kernel_dcache_range((unsigned long)_text, size);
 	rangetime = mfctl(16) - rangetime;
 
-	printk(KERN_DEBUG "Whole cache flush %lu cycles, flushing %lu bytes %lu cycles\n",
+	printk(KERN_DE "Whole cache flush %lu cycles, flushing %lu bytes %lu cycles\n",
 		alltime, size, rangetime);
 
 	threshold = L1_CACHE_ALIGN(size * alltime / rangetime);

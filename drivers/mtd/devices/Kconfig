@@ -20,21 +20,21 @@ config MTD_PMC551
 	  particularly useful on the 2.2 kernels on PPC architectures as there
 	  was limited kernel space to deal with.
 
-config MTD_PMC551_BUGFIX
-	bool "PMC551 256M DRAM Bugfix"
+config MTD_PMC551_FIX
+	bool "PMC551 256M DRAM fix"
 	depends on MTD_PMC551
 	help
 	  Some of Ramix's PMC551 boards with 256M configurations have invalid
 	  column and row mux values.  This option will fix them, but will
 	  break other memory configurations.  If unsure say N.
 
-config MTD_PMC551_DEBUG
-	bool "PMC551 Debugging"
+config MTD_PMC551_DE
+	bool "PMC551 Deging"
 	depends on MTD_PMC551
 	help
 	  This option makes the PMC551 more verbose during its operation and
 	  is only really useful if you are developing on this driver or
-	  suspect a possible hardware or driver bug.  If unsure say N.
+	  suspect a possible hardware or driver .  If unsure say N.
 
 config MTD_MS02NV
 	tristate "DEC MS02-NV NVRAM module support"

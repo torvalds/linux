@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -28,7 +28,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/fixmap.h>
 #include <asm/insn.h>
 #include <asm/kprobes.h>
@@ -102,7 +102,7 @@ static void __kprobes *patch_map(void *addr, int fixmap)
 	else
 		return addr;
 
-	BUG_ON(!page);
+	_ON(!page);
 	return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
 			(uintaddr & ~PAGE_MASK));
 }
@@ -1294,7 +1294,7 @@ s32 aarch64_get_branch_offset(u32 insn)
 	}
 
 	/* Unhandled instruction */
-	BUG();
+	();
 }
 
 /*
@@ -1317,18 +1317,18 @@ u32 aarch64_set_branch_offset(u32 insn, s32 offset)
 						     offset >> 2);
 
 	/* Unhandled instruction */
-	BUG();
+	();
 }
 
 s32 aarch64_insn_adrp_get_offset(u32 insn)
 {
-	BUG_ON(!aarch64_insn_is_adrp(insn));
+	_ON(!aarch64_insn_is_adrp(insn));
 	return aarch64_insn_decode_immediate(AARCH64_INSN_IMM_ADR, insn) << 12;
 }
 
 u32 aarch64_insn_adrp_set_offset(u32 insn, s32 offset)
 {
-	BUG_ON(!aarch64_insn_is_adrp(insn));
+	_ON(!aarch64_insn_is_adrp(insn));
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_ADR, insn,
 						offset >> 12);
 }

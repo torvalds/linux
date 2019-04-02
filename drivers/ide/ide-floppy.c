@@ -67,7 +67,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 	struct request *rq = pc->rq;
 	int uptodate = pc->error ? 0 : 1;
 
-	ide_debug_log(IDE_DBG_FUNC, "enter");
+	ide_de_log(IDE_DBG_FUNC, "enter");
 
 	if (drive->failed_pc == pc)
 		drive->failed_pc = NULL;
@@ -87,10 +87,10 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 				(u16)get_unaligned((u16 *)&buf[16]) : 0x10000;
 
 			if (drive->failed_pc)
-				ide_debug_log(IDE_DBG_PC, "pc = %x",
+				ide_de_log(IDE_DBG_PC, "pc = %x",
 					      drive->failed_pc->c[0]);
 
-			ide_debug_log(IDE_DBG_SENSE, "sense key = %x, asc = %x,"
+			ide_de_log(IDE_DBG_SENSE, "sense key = %x, asc = %x,"
 				      "ascq = %x", floppy->sense_key,
 				      floppy->asc, floppy->ascq);
 		} else
@@ -148,7 +148,7 @@ static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
 		return ide_stopped;
 	}
 
-	ide_debug_log(IDE_DBG_FUNC, "retry #%d", pc->retries);
+	ide_de_log(IDE_DBG_FUNC, "retry #%d", pc->retries);
 
 	pc->retries++;
 
@@ -197,7 +197,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	int blocks = blk_rq_sectors(rq) / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
 
-	ide_debug_log(IDE_DBG_FUNC, "block: %d, blocks: %d", block, blocks);
+	ide_de_log(IDE_DBG_FUNC, "block: %d, blocks: %d", block, blocks);
 
 	ide_init_pc(pc);
 	pc->c[0] = cmd == READ ? GPCMD_READ_10 : GPCMD_WRITE_10;
@@ -233,9 +233,9 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	struct ide_cmd cmd;
 	struct ide_atapi_pc *pc;
 
-	ide_debug_log(IDE_DBG_FUNC, "enter, cmd: 0x%x\n", rq->cmd[0]);
+	ide_de_log(IDE_DBG_FUNC, "enter, cmd: 0x%x\n", rq->cmd[0]);
 
-	if (drive->debug_mask & IDE_DBG_RQ)
+	if (drive->de_mask & IDE_DBG_RQ)
 		blk_dump_rq_flags(rq, (rq->rq_disk
 					? rq->rq_disk->disk_name
 					: "dev?"));
@@ -279,7 +279,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			pc = (struct ide_atapi_pc *)ide_req(rq)->special;
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -384,7 +384,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	u8 pc_buf[256], header_len, desc_cnt;
 	int i, rc = 1, blocks, length;
 
-	ide_debug_log(IDE_DBG_FUNC, "enter");
+	ide_de_log(IDE_DBG_FUNC, "enter");
 
 	drive->bios_cyl = 0;
 	drive->bios_head = drive->bios_sect = 0;
@@ -407,7 +407,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		blocks = be32_to_cpup((__be32 *)&pc_buf[desc_start]);
 		length = be16_to_cpup((__be16 *)&pc_buf[desc_start + 6]);
 
-		ide_debug_log(IDE_DBG_PROBE, "Descriptor %d: %dkB, %d blocks, "
+		ide_de_log(IDE_DBG_PROBE, "Descriptor %d: %dkB, %d blocks, "
 					     "%d sector size",
 					     i, blocks * length / 1024,
 					     blocks, length);
@@ -467,7 +467,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 				"in drive\n", drive->name);
 			break;
 		}
-		ide_debug_log(IDE_DBG_PROBE, "Descriptor 0 Code: %d",
+		ide_de_log(IDE_DBG_PROBE, "Descriptor 0 Code: %d",
 					     pc_buf[desc_start + 4] & 0x03);
 	}
 
@@ -489,8 +489,8 @@ static void ide_floppy_setup(ide_drive_t *drive)
 	 * We used to check revisions here. At this point however I'm giving up.
 	 * Just assume they are all broken, its easier.
 	 *
-	 * The actual reason for the workarounds was likely a driver bug after
-	 * all rather than a firmware bug, and the workaround below used to hide
+	 * The actual reason for the workarounds was likely a driver  after
+	 * all rather than a firmware , and the workaround below used to hide
 	 * it. It should be fixed as of version 1.9, but to be on the safe side
 	 * we'll leave the limitation below for the 2.2.x tree.
 	 */

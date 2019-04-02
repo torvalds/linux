@@ -250,7 +250,7 @@ typedef struct _SYSTEM_PARAMETER_BLOCK {
 	USHORT			ver;		/* ARCS firmware version */
 	USHORT			rev;		/* ARCS firmware revision */
 	_PLONG			rs_block;	/* Restart block. */
-	_PLONG			dbg_block;	/* Debug block. */
+	_PLONG			dbg_block;	/* De block. */
 	_PLONG			gevect;		/* XXX General vector??? */
 	_PLONG			utlbvect;	/* XXX UTLB vector??? */
 	ULONG			rveclen;	/* Size of romvec struct. */
@@ -348,8 +348,8 @@ struct sgi_bsector {
 	struct sgi_bparm_block info;
 };
 
-/* Debugging block used with SGI symmon symbolic debugger. */
-#define SMB_DEBUG_MAGIC	  0xfeeddead
+/* Deging block used with SGI symmon symbolic deger. */
+#define SMB_DE_MAGIC	  0xfeeddead
 struct linux_smonblock {
 	unsigned long	magic;
 	void		(*handler)(void);  /* Breakpoint routine. */

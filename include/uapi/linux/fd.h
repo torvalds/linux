@@ -160,7 +160,7 @@ struct floppy_drive_params {
 
 #define FTD_MSG 0x10
 #define FD_BROKEN_DCL 0x20
-#define FD_DEBUG 0x02
+#define FD_DE 0x02
 #define FD_SILENT_DCL_CLEAR 0x4
 #define FD_INVERTED_DCL 0x80 /* must be 0x80, because of hardware 
 				considerations */

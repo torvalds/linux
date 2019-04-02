@@ -186,12 +186,12 @@ struct rsxx_cardinfo {
 	int			n_targets;
 	struct rsxx_dma_ctrl	*ctrl;
 
-	struct dentry		*debugfs_dir;
+	struct dentry		*defs_dir;
 };
 
 enum rsxx_pci_regmap {
 	HWID		= 0x00,	/* Hardware Identification Register */
-	SCRATCH		= 0x04, /* Scratch/Debug Register */
+	SCRATCH		= 0x04, /* Scratch/De Register */
 	RESET		= 0x08, /* Reset Register */
 	ISR		= 0x10, /* Interrupt Status Register */
 	IER		= 0x14, /* Interrupt Enable Register */
@@ -218,14 +218,14 @@ enum rsxx_pci_regmap {
 	CREG_DATA7	= 0x6c,
 	INTR_COAL	= 0x70, /* Interrupt Coalescing Register */
 	HW_ERROR	= 0x74, /* Card Error Register */
-	PCI_DEBUG0	= 0x78, /* PCI Debug Registers */
-	PCI_DEBUG1	= 0x7C,
-	PCI_DEBUG2	= 0x80,
-	PCI_DEBUG3	= 0x84,
-	PCI_DEBUG4	= 0x88,
-	PCI_DEBUG5	= 0x8C,
-	PCI_DEBUG6	= 0x90,
-	PCI_DEBUG7	= 0x94,
+	PCI_DE0	= 0x78, /* PCI De Registers */
+	PCI_DE1	= 0x7C,
+	PCI_DE2	= 0x80,
+	PCI_DE3	= 0x84,
+	PCI_DE4	= 0x88,
+	PCI_DE5	= 0x8C,
+	PCI_DE6	= 0x90,
+	PCI_DE7	= 0x94,
 	PCI_POWER_THROTTLE = 0x98,
 	PERF_CTRL	= 0x9c,
 	PERF_TIMER_LO	= 0xa0,

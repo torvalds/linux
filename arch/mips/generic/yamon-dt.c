@@ -10,7 +10,7 @@
 
 #define pr_fmt(fmt) "yamon-dt: " fmt
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/libfdt.h>

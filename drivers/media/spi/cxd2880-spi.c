@@ -356,7 +356,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 		}
 		dvb_spi->all_pid_feed_count++;
 
-		pr_debug("all PID feed (count = %d)\n",
+		pr_de("all PID feed (count = %d)\n",
 			 dvb_spi->all_pid_feed_count);
 	} else {
 		struct cxd2880_pid_filter_config cfgtmp;
@@ -367,7 +367,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 			if (cfgtmp.pid_config[i].is_enable == 0) {
 				cfgtmp.pid_config[i].is_enable = 1;
 				cfgtmp.pid_config[i].pid = feed->pid;
-				pr_debug("store PID %d to #%d\n",
+				pr_de("store PID %d to #%d\n",
 					 feed->pid, i);
 				break;
 			}
@@ -413,7 +413,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 
 	dvb_spi->feed_count++;
 
-	pr_debug("start feed (count %d)\n", dvb_spi->feed_count);
+	pr_de("start feed (count %d)\n", dvb_spi->feed_count);
 	return 0;
 }
 
@@ -462,7 +462,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 			    cfgtmp.pid_config[i].is_enable != 0) {
 				cfgtmp.pid_config[i].is_enable = 0;
 				cfgtmp.pid_config[i].pid = 0;
-				pr_debug("removed PID %d from #%d\n",
+				pr_de("removed PID %d from #%d\n",
 					 feed->pid, i);
 				break;
 			}
@@ -492,7 +492,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 		dvb_spi->ts_buf = NULL;
 	}
 
-	pr_debug("stop feed ok.(count %d)\n", dvb_spi->feed_count);
+	pr_de("stop feed ok.(count %d)\n", dvb_spi->feed_count);
 
 	return ret;
 }

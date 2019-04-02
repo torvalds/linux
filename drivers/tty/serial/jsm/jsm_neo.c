@@ -307,9 +307,9 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		total = readb(&ch->ch_neo_uart->rfifo);
 
 		/*
-		 * EXAR chip bug - RX FIFO COUNT - Fudge factor.
+		 * EXAR chip  - RX FIFO COUNT - Fudge factor.
 		 *
-		 * This resolves a problem/bug with the Exar chip that sometimes
+		 * This resolves a problem/ with the Exar chip that sometimes
 		 * returns a bogus value in the rfifo register.
 		 * The count can be any where from 0-3 bytes "off".
 		 * Bizarre, but true.
@@ -513,7 +513,7 @@ static void neo_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 	}
 
 	/*
-	 * We have to do it this way, because of the EXAR TXFIFO count bug.
+	 * We have to do it this way, because of the EXAR TXFIFO count .
 	 */
 	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
 		return;

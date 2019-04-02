@@ -28,9 +28,9 @@
 #define _BUSCLK_40M			(4 << 2)
 
 struct CFG_DBG_MSG_STRUCT {
-	u32 DebugLevel;
-	u32 DebugComponent_H32;
-	u32 DebugComponent_L32;
+	u32 DeLevel;
+	u32 DeComponent_H32;
+	u32 DeComponent_L32;
 };
 
 struct mp_rw_reg {

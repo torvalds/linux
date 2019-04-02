@@ -129,7 +129,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		i++;
 	}
 
-	BUG_ON(i != lds->num_active);
+	_ON(i != lds->num_active);
 
 	lds->last_num_active = lds->num_active;
 
@@ -146,7 +146,7 @@ static int vmw_ldu_del_active(struct vmw_private *vmw_priv,
 	/* Must init otherwise list_empty(&ldu->active) will not work. */
 	list_del_init(&ldu->active);
 	if (--(ld->num_active) == 0) {
-		BUG_ON(!ld->fb);
+		_ON(!ld->fb);
 		if (ld->fb->unpin)
 			ld->fb->unpin(ld->fb);
 		ld->fb = NULL;
@@ -163,7 +163,7 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 	struct vmw_legacy_display_unit *entry;
 	struct list_head *at;
 
-	BUG_ON(!ld->num_active && ld->fb);
+	_ON(!ld->num_active && ld->fb);
 	if (vfb != ld->fb) {
 		if (ld->fb && ld->fb->unpin)
 			ld->fb->unpin(ld->fb);
@@ -531,7 +531,7 @@ int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 	if (!dev_priv->ldu_priv)
 		return -ENOSYS;
 
-	BUG_ON(!list_empty(&dev_priv->ldu_priv->active));
+	_ON(!list_empty(&dev_priv->ldu_priv->active));
 
 	kfree(dev_priv->ldu_priv);
 

@@ -13,7 +13,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/clk.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -107,7 +107,7 @@ struct idmac_desc {
 /* Each descriptor can transfer up to 4KB of data in chained mode */
 #define DW_MCI_DESC_DATA_LENGTH	0x1000
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
 {
 	struct dw_mci_slot *slot = s->private;
@@ -168,37 +168,37 @@ static int dw_mci_regs_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(dw_mci_regs);
 
-static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
+static void dw_mci_init_defs(struct dw_mci_slot *slot)
 {
 	struct mmc_host	*mmc = slot->mmc;
 	struct dw_mci *host = slot->host;
 	struct dentry *root;
 	struct dentry *node;
 
-	root = mmc->debugfs_root;
+	root = mmc->defs_root;
 	if (!root)
 		return;
 
-	node = debugfs_create_file("regs", S_IRUSR, root, host,
+	node = defs_create_file("regs", S_IRUSR, root, host,
 				   &dw_mci_regs_fops);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_file("req", S_IRUSR, root, slot,
+	node = defs_create_file("req", S_IRUSR, root, slot,
 				   &dw_mci_req_fops);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
+	node = defs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_x32("pending_events", S_IRUSR, root,
+	node = defs_create_x32("pending_events", S_IRUSR, root,
 				  (u32 *)&host->pending_events);
 	if (!node)
 		goto err;
 
-	node = debugfs_create_x32("completed_events", S_IRUSR, root,
+	node = defs_create_x32("completed_events", S_IRUSR, root,
 				  (u32 *)&host->completed_events);
 	if (!node)
 		goto err;
@@ -206,9 +206,9 @@ static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
 	return;
 
 err:
-	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
+	dev_err(&mmc->class_dev, "failed to initialize defs for slot\n");
 }
-#endif /* defined(CONFIG_DEBUG_FS) */
+#endif /* defined(CONFIG_DE_FS) */
 
 static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
 {
@@ -2882,8 +2882,8 @@ static int dw_mci_init_slot(struct dw_mci *host)
 	if (ret)
 		goto err_host_allocated;
 
-#if defined(CONFIG_DEBUG_FS)
-	dw_mci_init_debugfs(slot);
+#if defined(CONFIG_DE_FS)
+	dw_mci_init_defs(slot);
 #endif
 
 	return 0;
@@ -2895,7 +2895,7 @@ err_host_allocated:
 
 static void dw_mci_cleanup_slot(struct dw_mci_slot *slot)
 {
-	/* Debugfs stuff is cleaned up by mmc core */
+	/* Defs stuff is cleaned up by mmc core */
 	mmc_remove_host(slot->mmc);
 	slot->host->slot = NULL;
 	mmc_free_host(slot->mmc);

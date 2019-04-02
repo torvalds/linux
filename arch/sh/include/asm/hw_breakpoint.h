@@ -6,7 +6,7 @@
 
 #define __ARCH_HW_BREAKPOINT_H
 
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/types.h>
 
 struct arch_hw_breakpoint {

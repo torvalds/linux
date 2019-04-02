@@ -216,7 +216,7 @@ static int __init badge4_init(void)
 
 	/* CPLD sdram type inputs; set up by blob */
 	//GPDR |= (BADGE4_GPIO_SDTYP1 | BADGE4_GPIO_SDTYP0);
-	printk(KERN_DEBUG __FILE__ ": SDRAM CPLD typ1=%d typ0=%d\n",
+	printk(KERN_DE __FILE__ ": SDRAM CPLD typ1=%d typ0=%d\n",
 		!!(GPLR & BADGE4_GPIO_SDTYP1),
 		!!(GPLR & BADGE4_GPIO_SDTYP0));
 

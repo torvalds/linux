@@ -24,10 +24,10 @@
 #include "i915_drv.h"
 #include "intel_guc_ct.h"
 
-#ifdef CONFIG_DRM_I915_DEBUG_GUC
-#define CT_DEBUG_DRIVER(...)	DRM_DEBUG_DRIVER(__VA_ARGS__)
+#ifdef CONFIG_DRM_I915_DE_GUC
+#define CT_DE_DRIVER(...)	DRM_DE_DRIVER(__VA_ARGS__)
 #else
-#define CT_DEBUG_DRIVER(...)	do { } while (0)
+#define CT_DE_DRIVER(...)	do { } while (0)
 #endif
 
 struct ct_request {
@@ -84,7 +84,7 @@ static inline const char *guc_ct_buffer_type_to_str(u32 type)
 static void guc_ct_buffer_desc_init(struct guc_ct_buffer_desc *desc,
 				    u32 cmds_addr, u32 size, u32 owner)
 {
-	CT_DEBUG_DRIVER("CT: desc %p init addr=%#x size=%u owner=%u\n",
+	CT_DE_DRIVER("CT: desc %p init addr=%#x size=%u owner=%u\n",
 			desc, cmds_addr, size, owner);
 	memset(desc, 0, sizeof(*desc));
 	desc->addr = cmds_addr;
@@ -94,7 +94,7 @@ static void guc_ct_buffer_desc_init(struct guc_ct_buffer_desc *desc,
 
 static void guc_ct_buffer_desc_reset(struct guc_ct_buffer_desc *desc)
 {
-	CT_DEBUG_DRIVER("CT: desc %p reset head=%u tail=%u\n",
+	CT_DE_DRIVER("CT: desc %p reset head=%u tail=%u\n",
 			desc, desc->head, desc->tail);
 	desc->head = 0;
 	desc->tail = 0;
@@ -153,7 +153,7 @@ static int ctch_init(struct intel_guc *guc,
 	int err;
 	int i;
 
-	GEM_BUG_ON(ctch->vma);
+	GEM__ON(ctch->vma);
 
 	/* We allocate 1 page to hold both descriptors and both buffers.
 	 *       ___________.....................
@@ -191,12 +191,12 @@ static int ctch_init(struct intel_guc *guc,
 		err = PTR_ERR(blob);
 		goto err_vma;
 	}
-	CT_DEBUG_DRIVER("CT: vma base=%#x\n",
+	CT_DE_DRIVER("CT: vma base=%#x\n",
 			intel_guc_ggtt_offset(guc, ctch->vma));
 
 	/* store pointers to desc and cmds */
 	for (i = 0; i < ARRAY_SIZE(ctch->ctbs); i++) {
-		GEM_BUG_ON((i != CTB_SEND) && (i != CTB_RECV));
+		GEM__ON((i != CTB_SEND) && (i != CTB_RECV));
 		ctch->ctbs[i].desc = blob + PAGE_SIZE/4 * i;
 		ctch->ctbs[i].cmds = blob + PAGE_SIZE/4 * i + PAGE_SIZE/2;
 	}
@@ -206,7 +206,7 @@ static int ctch_init(struct intel_guc *guc,
 err_vma:
 	i915_vma_unpin_and_release(&ctch->vma, 0);
 err_out:
-	CT_DEBUG_DRIVER("CT: channel %d initialization failed; err=%d\n",
+	CT_DE_DRIVER("CT: channel %d initialization failed; err=%d\n",
 			ctch->owner, err);
 	return err;
 }
@@ -224,14 +224,14 @@ static int ctch_open(struct intel_guc *guc,
 	int err;
 	int i;
 
-	CT_DEBUG_DRIVER("CT: channel %d reopen=%s\n",
+	CT_DE_DRIVER("CT: channel %d reopen=%s\n",
 			ctch->owner, yesno(ctch_is_open(ctch)));
 
 	if (!ctch->vma) {
 		err = ctch_init(guc, ctch);
 		if (unlikely(err))
 			goto err_out;
-		GEM_BUG_ON(!ctch->vma);
+		GEM__ON(!ctch->vma);
 	}
 
 	/* vma should be already allocated and map'ed */
@@ -241,7 +241,7 @@ static int ctch_open(struct intel_guc *guc,
 	 * cmds buffers are in the second half of the blob page
 	 */
 	for (i = 0; i < ARRAY_SIZE(ctch->ctbs); i++) {
-		GEM_BUG_ON((i != CTB_SEND) && (i != CTB_RECV));
+		GEM__ON((i != CTB_SEND) && (i != CTB_RECV));
 		guc_ct_buffer_desc_init(ctch->ctbs[i].desc,
 					base + PAGE_SIZE/4 * i + PAGE_SIZE/2,
 					PAGE_SIZE/4,
@@ -279,7 +279,7 @@ err_out:
 static void ctch_close(struct intel_guc *guc,
 		       struct intel_guc_ct_channel *ctch)
 {
-	GEM_BUG_ON(!ctch_is_open(ctch));
+	GEM__ON(!ctch_is_open(ctch));
 
 	guc_action_deregister_ct_buffer(guc,
 					ctch->owner,
@@ -329,10 +329,10 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 	u32 *cmds = ctb->cmds;
 	unsigned int i;
 
-	GEM_BUG_ON(desc->size % 4);
-	GEM_BUG_ON(desc->head % 4);
-	GEM_BUG_ON(desc->tail % 4);
-	GEM_BUG_ON(tail >= size);
+	GEM__ON(desc->size % 4);
+	GEM__ON(desc->head % 4);
+	GEM__ON(desc->tail % 4);
+	GEM__ON(tail >= size);
 
 	/*
 	 * tail == head condition indicates empty. GuC FW does not support
@@ -358,7 +358,7 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 		 (want_response ? GUC_CT_MSG_SEND_STATUS : 0) |
 		 (action[0] << GUC_CT_MSG_ACTION_SHIFT);
 
-	CT_DEBUG_DRIVER("CT: writing %*ph %*ph %*ph\n",
+	CT_DE_DRIVER("CT: writing %*ph %*ph %*ph\n",
 			4, &header, 4, &fence,
 			4 * (len - 1), &action[1]);
 
@@ -375,7 +375,7 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 
 	/* now update desc tail (back in bytes) */
 	desc->tail = tail * 4;
-	GEM_BUG_ON(desc->tail > desc->size);
+	GEM__ON(desc->tail > desc->size);
 
 	return 0;
 }
@@ -481,10 +481,10 @@ static int ctch_send(struct intel_guc_ct *ct,
 	u32 fence;
 	int err;
 
-	GEM_BUG_ON(!ctch_is_open(ctch));
-	GEM_BUG_ON(!len);
-	GEM_BUG_ON(len & ~GUC_CT_MSG_LEN_MASK);
-	GEM_BUG_ON(!response_buf && response_buf_size);
+	GEM__ON(!ctch_is_open(ctch));
+	GEM__ON(!len);
+	GEM__ON(len & ~GUC_CT_MSG_LEN_MASK);
+	GEM__ON(!response_buf && response_buf_size);
 
 	fence = ctch_get_next_fence(ctch);
 	request.fence = fence;
@@ -553,7 +553,7 @@ static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
 		DRM_ERROR("CT: send action %#X failed; err=%d status=%#X\n",
 			  action[0], ret, status);
 	} else if (unlikely(ret)) {
-		CT_DEBUG_DRIVER("CT: send action %#x returned %d (%#x)\n",
+		CT_DE_DRIVER("CT: send action %#x returned %d (%#x)\n",
 				action[0], ret, ret);
 	}
 
@@ -587,11 +587,11 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 	unsigned int len;
 	unsigned int i;
 
-	GEM_BUG_ON(desc->size % 4);
-	GEM_BUG_ON(desc->head % 4);
-	GEM_BUG_ON(desc->tail % 4);
-	GEM_BUG_ON(tail >= size);
-	GEM_BUG_ON(head >= size);
+	GEM__ON(desc->size % 4);
+	GEM__ON(desc->head % 4);
+	GEM__ON(desc->tail % 4);
+	GEM__ON(tail >= size);
+	GEM__ON(head >= size);
 
 	/* tail == head condition indicates empty */
 	available = tail - head;
@@ -601,8 +601,8 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 	/* beware of buffer wrap case */
 	if (unlikely(available < 0))
 		available += size;
-	CT_DEBUG_DRIVER("CT: available %d (%u:%u)\n", available, head, tail);
-	GEM_BUG_ON(available < 0);
+	CT_DE_DRIVER("CT: available %d (%u:%u)\n", available, head, tail);
+	GEM__ON(available < 0);
 
 	data[0] = cmds[head];
 	head = (head + 1) % size;
@@ -623,7 +623,7 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 		data[i] = cmds[head];
 		head = (head + 1) % size;
 	}
-	CT_DEBUG_DRIVER("CT: received %*ph\n", 4 * len, data);
+	CT_DE_DRIVER("CT: received %*ph\n", 4 * len, data);
 
 	desc->head = head * 4;
 	return 0;
@@ -658,8 +658,8 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 	struct ct_request *req;
 	bool found = false;
 
-	GEM_BUG_ON(!ct_header_is_response(header));
-	GEM_BUG_ON(!in_irq());
+	GEM__ON(!ct_header_is_response(header));
+	GEM__ON(!in_irq());
 
 	/* Response payload shall at least include fence and status */
 	if (unlikely(len < 2)) {
@@ -677,12 +677,12 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 		return -EPROTO;
 	}
 
-	CT_DEBUG_DRIVER("CT: response fence %u status %#x\n", fence, status);
+	CT_DE_DRIVER("CT: response fence %u status %#x\n", fence, status);
 
 	spin_lock(&ct->lock);
 	list_for_each_entry(req, &ct->pending_requests, link) {
 		if (unlikely(fence != req->fence)) {
-			CT_DEBUG_DRIVER("CT: request %u awaits response\n",
+			CT_DE_DRIVER("CT: request %u awaits response\n",
 					req->fence);
 			continue;
 		}
@@ -710,7 +710,7 @@ static void ct_process_request(struct intel_guc_ct *ct,
 {
 	struct intel_guc *guc = ct_to_guc(ct);
 
-	CT_DEBUG_DRIVER("CT: request %x %*ph\n", action, 4 * len, payload);
+	CT_DE_DRIVER("CT: request %x %*ph\n", action, 4 * len, payload);
 
 	switch (action) {
 	case INTEL_GUC_ACTION_DEFAULT:
@@ -793,7 +793,7 @@ static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
 	struct ct_incoming_request *request;
 	unsigned long flags;
 
-	GEM_BUG_ON(ct_header_is_response(header));
+	GEM__ON(ct_header_is_response(header));
 
 	request = kmalloc(sizeof(*request) + 4 * msglen, GFP_ATOMIC);
 	if (unlikely(!request)) {
@@ -863,7 +863,7 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
 	int err;
 
-	GEM_BUG_ON(!HAS_GUC_CT(i915));
+	GEM__ON(!HAS_GUC_CT(i915));
 
 	err = ctch_open(guc, ctch);
 	if (unlikely(err))
@@ -888,7 +888,7 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
 
-	GEM_BUG_ON(!HAS_GUC_CT(i915));
+	GEM__ON(!HAS_GUC_CT(i915));
 
 	if (!ctch_is_open(ctch))
 		return;

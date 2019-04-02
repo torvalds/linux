@@ -65,7 +65,7 @@
 unsigned int bttv_num;			/* number of Bt848s in use */
 struct bttv *bttvs[BTTV_MAX];
 
-unsigned int bttv_debug;
+unsigned int bttv_de;
 unsigned int bttv_verbose = 1;
 unsigned int bttv_gpio;
 
@@ -76,7 +76,7 @@ static unsigned int bigendian=1;
 static unsigned int bigendian;
 #endif
 static unsigned int radio[BTTV_MAX];
-static unsigned int irq_debug;
+static unsigned int irq_de;
 static unsigned int gbuffers = 8;
 static unsigned int gbufsize = 0x208000;
 static unsigned int reset_crop = 1;
@@ -84,7 +84,7 @@ static unsigned int reset_crop = 1;
 static int video_nr[BTTV_MAX] = { [0 ... (BTTV_MAX-1)] = -1 };
 static int radio_nr[BTTV_MAX] = { [0 ... (BTTV_MAX-1)] = -1 };
 static int vbi_nr[BTTV_MAX] = { [0 ... (BTTV_MAX-1)] = -1 };
-static int debug_latency;
+static int de_latency;
 static int disable_ir;
 
 static unsigned int fdsr;
@@ -109,9 +109,9 @@ static unsigned int v4l2        = 1;
 /* insmod args */
 module_param(bttv_verbose,      int, 0644);
 module_param(bttv_gpio,         int, 0644);
-module_param(bttv_debug,        int, 0644);
-module_param(irq_debug,         int, 0644);
-module_param(debug_latency,     int, 0644);
+module_param(bttv_de,        int, 0644);
+module_param(irq_de,         int, 0644);
+module_param(de_latency,     int, 0644);
 module_param(disable_ir,        int, 0444);
 
 module_param(fdsr,              int, 0444);
@@ -143,8 +143,8 @@ MODULE_PARM_DESC(radio, "The TV card supports radio, default is 0 (no)");
 MODULE_PARM_DESC(bigendian, "byte order of the framebuffer, default is native endian");
 MODULE_PARM_DESC(bttv_verbose, "verbose startup messages, default is 1 (yes)");
 MODULE_PARM_DESC(bttv_gpio, "log gpio changes, default is 0 (no)");
-MODULE_PARM_DESC(bttv_debug, "debug messages, default is 0 (no)");
-MODULE_PARM_DESC(irq_debug, "irq handler debug messages, default is 0 (no)");
+MODULE_PARM_DESC(bttv_de, "de messages, default is 0 (no)");
+MODULE_PARM_DESC(irq_de, "irq handler de messages, default is 0 (no)");
 MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
 MODULE_PARM_DESC(gbuffers, "number of capture buffers. range 2-32, default 8");
 MODULE_PARM_DESC(gbufsize, "size of the capture buffers, default is 0x208000");
@@ -773,7 +773,7 @@ void free_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bits)
 {
 	if ((fh->resources & bits) != bits) {
 		/* trying to free resources not allocated by us ... */
-		pr_err("BUG! (btres)\n");
+		pr_err("! (btres)\n");
 	}
 	fh->resources  &= ~bits;
 	btv->resources &= ~bits;
@@ -910,7 +910,7 @@ static void bt848_bright(struct bttv *btv, int bright)
 {
 	int value;
 
-	// printk("set bright: %d\n", bright); // DEBUG
+	// printk("set bright: %d\n", bright); // DE
 	btv->bright = bright;
 
 	/* We want -128 to 127 we get 0-65535 */
@@ -1119,7 +1119,7 @@ bttv_crop_calc_limits(struct bttv_crop *c)
 	   48 x 32. Scaled width must be a multiple of 4. */
 
 	if (1) {
-		/* For bug compatibility with VIDIOCGCAP and image
+		/* For  compatibility with VIDIOCGCAP and image
 		   size checks in earlier driver versions. */
 		c->min_scaled_width = 48;
 		c->min_scaled_height = 32;
@@ -1148,8 +1148,8 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 	const struct bttv_tvnorm *tvnorm;
 	v4l2_std_id id;
 
-	BUG_ON(norm >= BTTV_TVNORMS);
-	BUG_ON(btv->tvnorm >= BTTV_TVNORMS);
+	_ON(norm >= BTTV_TVNORMS);
+	_ON(btv->tvnorm >= BTTV_TVNORMS);
 
 	tvnorm = &bttv_tvnorms[norm];
 
@@ -1486,7 +1486,7 @@ void bttv_gpio_tracking(struct bttv *btv, char *comment)
 	unsigned int outbits, data;
 	outbits = btread(BT848_GPIO_OUT_EN);
 	data    = btread(BT848_GPIO_DATA);
-	pr_debug("%d: gpio: en=%08x, out=%08x in=%08x [%s]\n",
+	pr_de("%d: gpio: en=%08x, out=%08x in=%08x [%s]\n",
 		 btv->c.nr, outbits, data & outbits, data & ~outbits, comment);
 }
 
@@ -1893,7 +1893,7 @@ static int bttv_log_status(struct file *file, void *f)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int bttv_g_register(struct file *file, void *f,
 					struct v4l2_dbg_register *reg)
 {
@@ -1990,7 +1990,7 @@ limit_scaled_size_lock       (struct bttv_fh *               fh,
 	__s32 max_height;
 	int rc;
 
-	BUG_ON((int) width_mask >= 0 ||
+	_ON((int) width_mask >= 0 ||
 	       width_bias >= (unsigned int) -width_mask);
 
 	/* Make sure tvnorm, vbi_end and the current cropping parameters
@@ -2135,7 +2135,7 @@ verify_window_lock(struct bttv_fh *fh, struct v4l2_window *win,
 	case 32:
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	win->w.width -= win->w.left & ~width_mask;
@@ -2199,7 +2199,7 @@ static int setup_window_lock(struct bttv_fh *fh, struct bttv *btv,
 		/* no alignment fixups needed */
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	kfree(fh->ov.clips);
@@ -2241,7 +2241,7 @@ static struct videobuf_queue* bttv_queue(struct bttv_fh *fh)
 		q = &fh->vbi;
 		break;
 	default:
-		BUG();
+		();
 	}
 	return q;
 }
@@ -2258,7 +2258,7 @@ static int bttv_resource(struct bttv_fh *fh)
 		res = RESOURCE_VBI;
 		break;
 	default:
-		BUG();
+		();
 	}
 	return res;
 }
@@ -2947,7 +2947,7 @@ static ssize_t bttv_read(struct file *file, char __user *data,
 					      file->f_flags & O_NONBLOCK);
 		break;
 	default:
-		BUG();
+		();
 	}
 	return retval;
 }
@@ -3186,7 +3186,7 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_querystd		= bttv_querystd,
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register		= bttv_g_register,
 	.vidioc_s_register		= bttv_s_register,
 #endif
@@ -3376,7 +3376,7 @@ static struct video_device radio_template = {
 };
 
 /* ----------------------------------------------------------------------- */
-/* some debug code                                                         */
+/* some de code                                                         */
 
 static int bttv_risc_decode(u32 risc)
 {
@@ -3492,7 +3492,7 @@ static void bttv_print_irqbits(u32 print, u32 mark)
 	}
 }
 
-static void bttv_irq_debug_low_latency(struct bttv *btv, u32 rc)
+static void bttv_irq_de_low_latency(struct bttv *btv, u32 rc)
 {
 	pr_warn("%d: irq: skipped frame [main=%lx,o_vbi=%lx,o_field=%lx,rc=%lx]\n",
 		btv->c.nr,
@@ -3604,8 +3604,8 @@ bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 
 	if (wakeup->top == wakeup->bottom) {
 		if (NULL != wakeup->top && curr->top != wakeup->top) {
-			if (irq_debug > 1)
-				pr_debug("%d: wakeup: both=%p\n",
+			if (irq_de > 1)
+				pr_de("%d: wakeup: both=%p\n",
 					 btv->c.nr, wakeup->top);
 			wakeup->top->vb.ts = ts;
 			wakeup->top->vb.field_count = btv->field_count;
@@ -3614,8 +3614,8 @@ bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 		}
 	} else {
 		if (NULL != wakeup->top && curr->top != wakeup->top) {
-			if (irq_debug > 1)
-				pr_debug("%d: wakeup: top=%p\n",
+			if (irq_de > 1)
+				pr_de("%d: wakeup: top=%p\n",
 					 btv->c.nr, wakeup->top);
 			wakeup->top->vb.ts = ts;
 			wakeup->top->vb.field_count = btv->field_count;
@@ -3623,8 +3623,8 @@ bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 			wake_up(&wakeup->top->vb.done);
 		}
 		if (NULL != wakeup->bottom && curr->bottom != wakeup->bottom) {
-			if (irq_debug > 1)
-				pr_debug("%d: wakeup: bottom=%p\n",
+			if (irq_de > 1)
+				pr_de("%d: wakeup: bottom=%p\n",
 					 btv->c.nr, wakeup->bottom);
 			wakeup->bottom->vb.ts = ts;
 			wakeup->bottom->vb.field_count = btv->field_count;
@@ -3742,8 +3742,8 @@ bttv_irq_switch_video(struct bttv *btv)
 	if ((btv->curr.top    && is_active(&btv->curr.top->top,       rc)) ||
 	    (btv->curr.bottom && is_active(&btv->curr.bottom->bottom, rc))) {
 		btv->framedrop++;
-		if (debug_latency)
-			bttv_irq_debug_low_latency(btv, rc);
+		if (de_latency)
+			bttv_irq_de_low_latency(btv, rc);
 		spin_unlock(&btv->s_lock);
 		return;
 	}
@@ -3783,8 +3783,8 @@ bttv_irq_switch_vbi(struct bttv *btv)
 	if (NULL != old && (is_active(&old->top,    rc) ||
 			    is_active(&old->bottom, rc))) {
 		btv->framedrop++;
-		if (debug_latency)
-			bttv_irq_debug_low_latency(btv, rc);
+		if (de_latency)
+			bttv_irq_de_low_latency(btv, rc);
 		spin_unlock(&btv->s_lock);
 		return;
 	}
@@ -3822,8 +3822,8 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 		/* get device status bits */
 		dstat=btread(BT848_DSTATUS);
 
-		if (irq_debug) {
-			pr_debug("%d: irq loop=%d fc=%d riscs=%x, riscc=%08x, ",
+		if (irq_de) {
+			pr_de("%d: irq loop=%d fc=%d riscs=%x, riscc=%08x, ",
 				 btv->c.nr, count, btv->field_count,
 				 stat>>28, btread(BT848_RISC_COUNT));
 			bttv_print_irqbits(stat,astat);
@@ -3875,13 +3875,13 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 				btread(BT848_RISC_COUNT));
 			bttv_print_irqbits(stat,astat);
 			pr_cont("\n");
-			if (bttv_debug)
+			if (bttv_de)
 				bttv_print_riscaddr(btv);
 		}
 		if (fdsr && astat & BT848_INT_FDSR) {
 			pr_info("%d: FDSR @ %08x\n",
 				btv->c.nr, btread(BT848_RISC_COUNT));
-			if (bttv_debug)
+			if (bttv_de)
 				bttv_print_riscaddr(btv);
 		}
 

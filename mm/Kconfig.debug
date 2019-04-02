@@ -2,23 +2,23 @@ config PAGE_EXTENSION
 	bool "Extend memmap on extra space for more information on page"
 	---help---
 	  Extend memmap on extra space for more information on page. This
-	  could be used for debugging features that need to insert extra
+	  could be used for deging features that need to insert extra
 	  field for every page. This extension enables us to save memory
 	  by not allocating this extra memory according to boottime
 	  configuration.
 
-config DEBUG_PAGEALLOC
-	bool "Debug page memory allocations"
-	depends on DEBUG_KERNEL
-	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
+config DE_PAGEALLOC
+	bool "De page memory allocations"
+	depends on DE_KERNEL
+	depends on !HIBERNATION || ARCH_SUPPORTS_DE_PAGEALLOC && !PPC && !SPARC
 	select PAGE_EXTENSION
-	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	select PAGE_POISONING if !ARCH_SUPPORTS_DE_PAGEALLOC
 	---help---
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  Depending on runtime enablement, this results in a small or large
 	  slowdown, but helps to find certain types of memory corruption.
 
-	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
+	  For architectures which don't enable ARCH_SUPPORTS_DE_PAGEALLOC,
 	  fill the pages with poison patterns after free_pages() and verify
 	  the patterns before alloc_pages().  Additionally,
 	  this option cannot be enabled in combination with hibernation as
@@ -27,22 +27,22 @@ config DEBUG_PAGEALLOC
 
 	  By default this option will have a small overhead, e.g. by not
 	  allowing the kernel mapping to be backed by large pages on some
-	  architectures. Even bigger overhead comes when the debugging is
-	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
+	  architectures. Even bigger overhead comes when the deging is
+	  enabled by DE_PAGEALLOC_ENABLE_DEFAULT or the de_pagealloc
 	  command line parameter.
 
-config DEBUG_PAGEALLOC_ENABLE_DEFAULT
-	bool "Enable debug page memory allocations by default?"
+config DE_PAGEALLOC_ENABLE_DEFAULT
+	bool "Enable de page memory allocations by default?"
 	default n
-	depends on DEBUG_PAGEALLOC
+	depends on DE_PAGEALLOC
 	---help---
-	  Enable debug page memory allocations by default? This value
-	  can be overridden by debug_pagealloc=off|on.
+	  Enable de page memory allocations by default? This value
+	  can be overridden by de_pagealloc=off|on.
 
 config PAGE_OWNER
 	bool "Track page owner"
-	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
-	select DEBUG_FS
+	depends on DE_KERNEL && STACKTRACE_SUPPORT
+	select DE_FS
 	select STACKTRACE
 	select STACKDEPOT
 	select PAGE_EXTENSION
@@ -83,7 +83,7 @@ config PAGE_POISONING_NO_SANITY
 	   say N.
 
 config PAGE_POISONING_ZERO
-	bool "Use zero for poisoning instead of debugging value"
+	bool "Use zero for poisoning instead of deging value"
 	depends on PAGE_POISONING
 	---help---
 	   Instead of using the existing poison value, fill the pages with
@@ -94,9 +94,9 @@ config PAGE_POISONING_ZERO
 
 	   If unsure, say N
 
-config DEBUG_PAGE_REF
+config DE_PAGE_REF
 	bool "Enable tracepoint to track down page reference manipulation"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	depends on TRACEPOINTS
 	---help---
 	  This is a feature to add tracepoint for tracking down page reference
@@ -106,7 +106,7 @@ config DEBUG_PAGE_REF
 	  kernel code.  However the runtime performance overhead is virtually
 	  nil until the tracepoints are actually enabled.
 
-config DEBUG_RODATA_TEST
+config DE_RODATA_TEST
     bool "Testcase for the marking rodata read-only"
     depends on STRICT_KERNEL_RWX
     ---help---

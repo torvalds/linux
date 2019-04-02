@@ -125,21 +125,21 @@ static int cursor_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list cursor_debugfs_files[] = {
+static struct drm_info_list cursor_defs_files[] = {
 	{ "cursor", cursor_dbg_show, 0, NULL },
 };
 
-static int cursor_debugfs_init(struct sti_cursor *cursor,
+static int cursor_defs_init(struct sti_cursor *cursor,
 			       struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(cursor_debugfs_files); i++)
-		cursor_debugfs_files[i].data = cursor;
+	for (i = 0; i < ARRAY_SIZE(cursor_defs_files); i++)
+		cursor_defs_files[i].data = cursor;
 
-	return drm_debugfs_create_files(cursor_debugfs_files,
-					ARRAY_SIZE(cursor_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(cursor_defs_files,
+					ARRAY_SIZE(cursor_defs_files),
+					minor->defs_root, minor);
 }
 
 static void sti_cursor_argb8888_to_clut8(struct sti_cursor *cursor, u32 *src)
@@ -241,10 +241,10 @@ static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
+	DRM_DE_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
 		      crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)),
 		      drm_plane->base.id, sti_plane_to_str(plane));
-	DRM_DEBUG_KMS("(%dx%d)@(%d,%d)\n", dst_w, dst_h, dst_x, dst_y);
+	DRM_DE_KMS("(%dx%d)@(%d,%d)\n", dst_w, dst_h, dst_x, dst_y);
 
 	return 0;
 }
@@ -309,12 +309,12 @@ static void sti_cursor_atomic_disable(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
-		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
+		DRM_DE_DRIVER("drm plane:%d not enabled\n",
 				 drm_plane->base.id);
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
+	DRM_DE_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
 			 oldstate->crtc->base.id,
 			 sti_mixer_to_str(to_sti_mixer(oldstate->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
@@ -330,7 +330,7 @@ static const struct drm_plane_helper_funcs sti_cursor_helpers_funcs = {
 
 static void sti_cursor_destroy(struct drm_plane *drm_plane)
 {
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	drm_plane_cleanup(drm_plane);
 }
@@ -340,7 +340,7 @@ static int sti_cursor_late_register(struct drm_plane *drm_plane)
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_cursor *cursor = to_sti_cursor(plane);
 
-	return cursor_debugfs_init(cursor, drm_plane->dev->primary);
+	return cursor_defs_init(cursor, drm_plane->dev->primary);
 }
 
 static const struct drm_plane_funcs sti_cursor_plane_helpers_funcs = {

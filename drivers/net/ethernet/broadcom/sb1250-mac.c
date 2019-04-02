@@ -23,7 +23,7 @@
  * by Maciej W. Rozycki.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -62,9 +62,9 @@ MODULE_DESCRIPTION("Broadcom SiByte SOC GB Ethernet driver");
    module is loaded. */
 
 /* 1 normal messages, 0 quiet .. 7 verbose. */
-static int debug = 1;
-module_param(debug, int, 0444);
-MODULE_PARM_DESC(debug, "Debug messages");
+static int de = 1;
+module_param(de, int, 0444);
+MODULE_PARM_DESC(de, "De messages");
 
 #ifdef CONFIG_SBMAC_COALESCE
 static int int_pktcnt_tx = 255;
@@ -2286,8 +2286,8 @@ static int sbmac_open(struct net_device *dev)
 	struct sbmac_softc *sc = netdev_priv(dev);
 	int err;
 
-	if (debug > 1)
-		pr_debug("%s: sbmac_open() irq %d.\n", dev->name, dev->irq);
+	if (de > 1)
+		pr_de("%s: sbmac_open() irq %d.\n", dev->name, dev->irq);
 
 	/*
 	 * map/route interrupt (clear status first, in case something
@@ -2421,8 +2421,8 @@ static void sbmac_mii_poll(struct net_device *dev)
 		/*
 		 * something changed, restart the channel
 		 */
-		if (debug > 1)
-			pr_debug("%s: restarting channel "
+		if (de > 1)
+			pr_de("%s: restarting channel "
 				 "because PHY state changed\n", dev->name);
 		sbmac_channel_stop(sc);
 		sbmac_channel_start(sc);
@@ -2501,8 +2501,8 @@ static int sbmac_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	if (debug > 1)
-		pr_debug("%s: Shutting down ethercard\n", dev->name);
+	if (de > 1)
+		pr_de("%s: Shutting down ethercard\n", dev->name);
 
 	phy_disconnect(sc->phy_dev);
 	sc->phy_dev = NULL;
@@ -2549,7 +2549,7 @@ static int sbmac_probe(struct platform_device *pldev)
 	int err;
 
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
-	BUG_ON(!res);
+	_ON(!res);
 	sbm_base = ioremap_nocache(res->start, resource_size(res));
 	if (!sbm_base) {
 		printk(KERN_ERR "%s: unable to map device registers\n",
@@ -2564,7 +2564,7 @@ static int sbmac_probe(struct platform_device *pldev)
 	 * If we find a zero, skip this MAC.
 	 */
 	sbmac_orig_hwaddr = __raw_readq(sbm_base + R_MAC_ETHERNET_ADDR);
-	pr_debug("%s: %sconfiguring MAC at 0x%08Lx\n", dev_name(&pldev->dev),
+	pr_de("%s: %sconfiguring MAC at 0x%08Lx\n", dev_name(&pldev->dev),
 		 sbmac_orig_hwaddr ? "" : "not ", (long long)res->start);
 	if (sbmac_orig_hwaddr == 0) {
 		err = 0;

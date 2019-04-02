@@ -88,7 +88,7 @@ nvkm_voltgpio_init(struct nvkm_volt *volt)
 			if (ret) {
 				if (ret != -ENOENT)
 					return ret;
-				nvkm_debug(subdev, "VID bit %d has no GPIO\n", i);
+				nvkm_de(subdev, "VID bit %d has no GPIO\n", i);
 				volt->vid_mask &= ~(1 << i);
 			}
 		}

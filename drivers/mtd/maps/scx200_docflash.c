@@ -80,7 +80,7 @@ static int __init init_scx200_docflash(void)
 	unsigned pmr;
 	struct pci_dev *bridge;
 
-	printk(KERN_DEBUG NAME ": NatSemi SCx200 DOCCS Flash Driver\n");
+	printk(KERN_DE NAME ": NatSemi SCx200 DOCCS Flash Driver\n");
 
 	if ((bridge = pci_get_device(PCI_VENDOR_ID_NS,
 				      PCI_DEVICE_ID_NS_SCx200_BRIDGE,

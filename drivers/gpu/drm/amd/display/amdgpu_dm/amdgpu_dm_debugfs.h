@@ -23,13 +23,13 @@
  *
  */
 
-#ifndef __AMDGPU_DM_DEBUGFS_H__
-#define __AMDGPU_DM_DEBUGFS_H__
+#ifndef __AMDGPU_DM_DEFS_H__
+#define __AMDGPU_DM_DEFS_H__
 
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 
-int connector_debugfs_init(struct amdgpu_dm_connector *connector);
-int dtn_debugfs_init(struct amdgpu_device *adev);
+int connector_defs_init(struct amdgpu_dm_connector *connector);
+int dtn_defs_init(struct amdgpu_device *adev);
 
 #endif

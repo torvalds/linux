@@ -71,7 +71,7 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 
 	D1(if(je32_to_cpu(ri->hdr_crc) != crc32(0, ri, sizeof(struct jffs2_unknown_node)-4)) {
 		pr_crit("Eep. CRC not correct in jffs2_write_dnode()\n");
-		BUG();
+		();
 	}
 	   );
 	vecs[0].iov_base = ri;
@@ -98,7 +98,7 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	jffs2_dbg_prewrite_paranoia_check(c, flash_ofs, vecs[0].iov_len + vecs[1].iov_len);
 
 	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(ri->version) < f->highest_version)) {
-		BUG_ON(!retried);
+		_ON(!retried);
 		jffs2_dbg(1, "%s(): dnode_version %d, highest version %d -> updating dnode\n",
 			  __func__,
 			  je32_to_cpu(ri->version), f->highest_version);
@@ -220,7 +220,7 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 
 	D1(if(je32_to_cpu(rd->hdr_crc) != crc32(0, rd, sizeof(struct jffs2_unknown_node)-4)) {
 		pr_crit("Eep. CRC not correct in jffs2_write_dirent()\n");
-		BUG();
+		();
 	   });
 
 	if (strnlen(name, namelen) != namelen) {
@@ -256,7 +256,7 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	jffs2_dbg_prewrite_paranoia_check(c, flash_ofs, vecs[0].iov_len + vecs[1].iov_len);
 
 	if ((alloc_mode!=ALLOC_GC) && (je32_to_cpu(rd->version) < f->highest_version)) {
-		BUG_ON(!retried);
+		_ON(!retried);
 		jffs2_dbg(1, "%s(): dirent_version %d, highest version %d -> updating dirent\n",
 			  __func__,
 			  je32_to_cpu(rd->version), f->highest_version);

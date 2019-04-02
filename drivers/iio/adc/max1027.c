@@ -305,7 +305,7 @@ static int max1027_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int max1027_debugfs_reg_access(struct iio_dev *indio_dev,
+static int max1027_defs_reg_access(struct iio_dev *indio_dev,
 				      unsigned reg, unsigned writeval,
 				      unsigned *readval)
 {
@@ -368,7 +368,7 @@ static irqreturn_t max1027_trigger_handler(int irq, void *private)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1027_state *st = iio_priv(indio_dev);
 
-	pr_debug("%s(irq=%d, private=0x%p)\n", __func__, irq, private);
+	pr_de("%s(irq=%d, private=0x%p)\n", __func__, irq, private);
 
 	/* fill buffer with all channel */
 	spi_read(st->spi, st->buffer, indio_dev->masklength * 2);
@@ -388,7 +388,7 @@ static const struct iio_trigger_ops max1027_trigger_ops = {
 static const struct iio_info max1027_info = {
 	.read_raw = &max1027_read_raw,
 	.validate_trigger = &max1027_validate_trigger,
-	.debugfs_reg_access = &max1027_debugfs_reg_access,
+	.defs_reg_access = &max1027_defs_reg_access,
 };
 
 static int max1027_probe(struct spi_device *spi)
@@ -397,7 +397,7 @@ static int max1027_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	struct max1027_state *st;
 
-	pr_debug("%s: probe(spi = 0x%p)\n", __func__, spi);
+	pr_de("%s: probe(spi = 0x%p)\n", __func__, spi);
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
@@ -487,7 +487,7 @@ static int max1027_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
-	pr_debug("%s: remove(spi = 0x%p)\n", __func__, spi);
+	pr_de("%s: remove(spi = 0x%p)\n", __func__, spi);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);

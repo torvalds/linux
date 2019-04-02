@@ -32,9 +32,9 @@
 
 #define DRV_NAME "pdc202xx_new"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt, args...) printk("%s: " fmt, __func__, ## args)
 #else
 #define DBG(fmt, args...)
@@ -344,7 +344,7 @@ static int init_chipset_pdcnew(struct pci_dev *dev)
 		goto out;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	DBG("pll_output is %ld Hz\n", pll_output);
 
 	/* Show the current clock value of PLL control register
@@ -405,7 +405,7 @@ static int init_chipset_pdcnew(struct pci_dev *dev)
 	/* Wait the PLL circuit to be stable */
 	mdelay(30);
 
-#ifdef DEBUG
+#ifdef DE
 	/*
 	 *  Show the current clock value of PLL control register
 	 */

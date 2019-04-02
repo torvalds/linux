@@ -35,7 +35,7 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-/*#define DEBUG*/
+/*#define DE*/
 
 #include <linux/module.h>
 #include <linux/stddef.h>
@@ -58,10 +58,10 @@
 
 #include "ariadne.h"
 
-#ifdef ARIADNE_DEBUG
-int ariadne_debug = ARIADNE_DEBUG;
+#ifdef ARIADNE_DE
+int ariadne_de = ARIADNE_DE;
 #else
-int ariadne_debug = 1;
+int ariadne_de = 1;
 #endif
 
 /* Macros to Fix Endianness problems */
@@ -256,8 +256,8 @@ static irqreturn_t ariadne_interrupt(int irq, void *data)
 		/* Acknowledge all of the current interrupt sources ASAP */
 		lance->RDP = csr0 & ~(INEA | TDMD | STOP | STRT | INIT);
 
-#ifdef DEBUG
-		if (ariadne_debug > 5) {
+#ifdef DE
+		if (ariadne_de > 5) {
 			netdev_dbg(dev, "interrupt  csr0=%#02x new csr=%#02x [",
 				   csr0, lance->RDP);
 			if (csr0 & INTR)
@@ -382,7 +382,7 @@ static irqreturn_t ariadne_interrupt(int irq, void *data)
 	lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
 	lance->RDP = INEA | BABL | CERR | MISS | MERR | IDON;
 
-	if (ariadne_debug > 4)
+	if (ariadne_de > 4)
 		netdev_dbg(dev, "exiting interrupt, csr%d=%#04x\n",
 			   lance->RAP, lance->RDP);
 
@@ -504,7 +504,7 @@ static int ariadne_close(struct net_device *dev)
 	dev->stats.rx_missed_errors = swapw(lance->RDP);
 	lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
 
-	if (ariadne_debug > 1) {
+	if (ariadne_de > 1) {
 		netdev_dbg(dev, "Shutting down ethercard, status was %02x\n",
 			   lance->RDP);
 		netdev_dbg(dev, "%lu packets missed\n",
@@ -550,7 +550,7 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
 	int len = skb->len;
 
 #if 0
-	if (ariadne_debug > 3) {
+	if (ariadne_de > 3) {
 		lance->RAP = CSR0;	/* PCnet-ISA Controller Status */
 		netdev_dbg(dev, "%s: csr0 %04x\n", __func__, lance->RDP);
 		lance->RDP = 0x0000;
@@ -582,8 +582,8 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
 	priv->tx_ring[entry]->TMD3 = 0x0000;
 	memcpyw(priv->tx_buff[entry], (u_short *)skb->data, len);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_DEBUG, "tx_buff: ", DUMP_PREFIX_OFFSET, 16, 1,
+#ifdef DE
+	print_hex_dump(KERN_DE, "tx_buff: ", DUMP_PREFIX_OFFSET, 16, 1,
 		       (void *)priv->tx_buff[entry],
 		       skb->len > 64 ? 64 : skb->len, true);
 #endif

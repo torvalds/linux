@@ -142,7 +142,7 @@ int jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			jffs2_erase_block(c, jeb);
 
 		} else {
-			BUG();
+			();
 		}
 
 		/* Be nice */
@@ -254,16 +254,16 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 	D2({
 		int i=0;
 		struct jffs2_raw_node_ref *this;
-		printk(KERN_DEBUG "After remove_node_refs_from_ino_list: \n");
+		printk(KERN_DE "After remove_node_refs_from_ino_list: \n");
 
 		this = ic->nodes;
 
-		printk(KERN_DEBUG);
+		printk(KERN_DE);
 		while(this) {
 			pr_cont("0x%08x(%d)->",
 			       ref_offset(this), ref_flags(this));
 			if (++i == 5) {
-				printk(KERN_DEBUG);
+				printk(KERN_DE);
 				i=0;
 			}
 			this = this->next_in_ino;

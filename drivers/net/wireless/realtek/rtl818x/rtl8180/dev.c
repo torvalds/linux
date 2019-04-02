@@ -24,7 +24,7 @@
  * sitting in front of my laptop at evening, week-end, night...
  *
  * A special thanks goes to Antonio Cuni, who helped me with
- * some python userspace stuff I used to debug RTL8187SE code, and who
+ * some python userspace stuff I used to de RTL8187SE code, and who
  * bought a laptop with an unsupported Wi-Fi card some years ago...
  *
  * Thanks to Larry Finger for writing some code for rtl8187se and for
@@ -1479,7 +1479,7 @@ static void rtl8180_conf_erp(struct ieee80211_hw *dev,
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE)
 		rtl818x_iowrite8(priv, &priv->map->EIFS_8187SE, hw_eifs);
 	else if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
-		/* rtl8187/rtl8185 HW bug. After EIFS is elapsed,
+		/* rtl8187/rtl8185 HW . After EIFS is elapsed,
 		 * the HW still wait for DIFS.
 		 * HW uses 4uS units for EIFS.
 		 */
@@ -1791,8 +1791,8 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		goto err_free_dev;
 	}
 
-	BUILD_BUG_ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
-	BUILD_BUG_ON(sizeof(priv->rates) != sizeof(rtl818x_rates));
+	BUILD__ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
+	BUILD__ON(sizeof(priv->rates) != sizeof(rtl818x_rates));
 
 	memcpy(priv->channels, rtl818x_channels, sizeof(rtl818x_channels));
 	memcpy(priv->rates, rtl818x_rates, sizeof(rtl818x_rates));

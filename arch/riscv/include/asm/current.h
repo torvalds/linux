@@ -18,7 +18,7 @@
 #ifndef __ASM_CURRENT_H
 #define __ASM_CURRENT_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 
 #ifndef __ASSEMBLY__

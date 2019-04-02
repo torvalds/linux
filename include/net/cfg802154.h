@@ -20,7 +20,7 @@
 #include <linux/ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include <net/nl802154.h>
 
@@ -397,7 +397,7 @@ int wpan_phy_for_each(int (*fn)(struct wpan_phy *phy, void *data), void *data);
 
 static inline void *wpan_phy_priv(struct wpan_phy *phy)
 {
-	BUG_ON(!phy);
+	_ON(!phy);
 	return &phy->priv;
 }
 

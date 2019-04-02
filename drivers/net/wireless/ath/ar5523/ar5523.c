@@ -796,7 +796,7 @@ static void ar5523_tx_work_locked(struct ar5523 *ar)
 	u32 txqid;
 	unsigned long flags;
 
-	BUILD_BUG_ON(sizeof(struct ar5523_tx_data) >
+	BUILD__ON(sizeof(struct ar5523_tx_data) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 
 	ar5523_dbg(ar, "%s\n", __func__);
@@ -1199,7 +1199,7 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 
 	band = ar->hw->wiphy->bands[ar->hw->conf.chandef.chan->band];
 	for (bit = 0; bit < band->n_bitrates; bit++) {
-		BUG_ON(i >= AR5523_MAX_NRATES);
+		_ON(i >= AR5523_MAX_NRATES);
 		ar5523_dbg(ar, "Considering rate %d : %d\n",
 			   band->bitrates[bit].hw_value, sta_rate_set & 1);
 		if (sta_rate_set & 1) {
@@ -1460,8 +1460,8 @@ static const struct ieee80211_channel ar5523_channels[] = {
 
 static int ar5523_init_modes(struct ar5523 *ar)
 {
-	BUILD_BUG_ON(sizeof(ar->channels) != sizeof(ar5523_channels));
-	BUILD_BUG_ON(sizeof(ar->rates) != sizeof(ar5523_rates));
+	BUILD__ON(sizeof(ar->channels) != sizeof(ar5523_channels));
+	BUILD__ON(sizeof(ar->rates) != sizeof(ar5523_rates));
 
 	memcpy(ar->channels, ar5523_channels, sizeof(ar5523_channels));
 	memcpy(ar->rates, ar5523_rates, sizeof(ar5523_rates));

@@ -470,7 +470,7 @@ struct ipu3_uapi_4a_config {
 } __packed;
 
 /**
- * struct ipu3_uapi_bubble_info - Bubble info for host side debugging
+ * struct ipu3_uapi_bubble_info - Bubble info for host side deging
  *
  * @num_of_stripes: A single frame is divided into several parts called stripes
  *		    due to limitation on line buffer memory.

@@ -445,12 +445,12 @@ static bool break_on_load;
  */
 static int ttymajor=0;
 
-static int debug_level = 0;
+static int de_level = 0;
 static int maxframe[MAX_DEVICE_COUNT] = {0,};
 
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
-module_param(debug_level, int, 0);
+module_param(de_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
 
 MODULE_LICENSE("GPL");
@@ -474,9 +474,9 @@ static void mgslpc_detach(struct pcmcia_device *p_dev);
 
 /*
  * 1st function defined in .text section. Calling this function in
- * init_module() followed by a breakpoint allows a remote debugger
+ * init_module() followed by a breakpoint allows a remote deger
  * (gdb) to get the .text address for the add-symbol-file command.
- * This allows remote debugging of dynamically loadable modules.
+ * This allows remote deging of dynamically loadable modules.
  */
 static void* mgslpc_get_text_ptr(void)
 {
@@ -516,7 +516,7 @@ static int mgslpc_probe(struct pcmcia_device *link)
 	MGSLPC_INFO *info;
 	int ret;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("mgslpc_attach\n");
 
 	info = kzalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
@@ -578,7 +578,7 @@ static int mgslpc_config(struct pcmcia_device *link)
 	MGSLPC_INFO *info = link->priv;
 	int ret;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("mgslpc_config(0x%p)\n", link);
 
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
@@ -614,7 +614,7 @@ static void mgslpc_release(u_long arg)
 {
 	struct pcmcia_device *link = (struct pcmcia_device *)arg;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("mgslpc_release(0x%p)\n", link);
 
 	pcmcia_disable_device(link);
@@ -622,7 +622,7 @@ static void mgslpc_release(u_long arg)
 
 static void mgslpc_detach(struct pcmcia_device *link)
 {
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("mgslpc_detach(0x%p)\n", link);
 
 	((MGSLPC_INFO *)link->priv)->stop = 1;
@@ -708,7 +708,7 @@ static void tx_pause(struct tty_struct *tty)
 
 	if (mgslpc_paranoia_check(info, tty->name, "tx_pause"))
 		return;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("tx_pause(%s)\n", info->device_name);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -724,7 +724,7 @@ static void tx_release(struct tty_struct *tty)
 
 	if (mgslpc_paranoia_check(info, tty->name, "tx_release"))
 		return;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("tx_release(%s)\n", info->device_name);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -771,7 +771,7 @@ static void bh_handler(struct work_struct *work)
 	struct tty_struct *tty;
 	int action;
 
-	if (debug_level >= DEBUG_LEVEL_BH)
+	if (de_level >= DE_LEVEL_BH)
 		printk("%s(%d):bh_handler(%s) entry\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -781,7 +781,7 @@ static void bh_handler(struct work_struct *work)
 	while((action = bh_action(info)) != 0) {
 
 		/* Process work item */
-		if (debug_level >= DEBUG_LEVEL_BH)
+		if (de_level >= DE_LEVEL_BH)
 			printk("%s(%d):bh_handler() work item action=%d\n",
 				__FILE__,__LINE__,action);
 
@@ -804,14 +804,14 @@ static void bh_handler(struct work_struct *work)
 	}
 
 	tty_kref_put(tty);
-	if (debug_level >= DEBUG_LEVEL_BH)
+	if (de_level >= DE_LEVEL_BH)
 		printk("%s(%d):bh_handler(%s) exit\n",
 			__FILE__,__LINE__,info->device_name);
 }
 
 static void bh_transmit(MGSLPC_INFO *info, struct tty_struct *tty)
 {
-	if (debug_level >= DEBUG_LEVEL_BH)
+	if (de_level >= DE_LEVEL_BH)
 		printk("bh_transmit() entry on %s\n", info->device_name);
 
 	if (tty)
@@ -833,7 +833,7 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 	unsigned char fifo_count, read_count, i;
 	RXBUF *buf = (RXBUF*)(info->rx_buf + (info->rx_put * info->rx_buf_size));
 
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):rx_ready_hdlc(eom=%d)\n", __FILE__, __LINE__, eom);
 
 	if (!info->rx_enabled)
@@ -945,7 +945,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 	}
 	issue_command(info, CHA, CMD_RXFIFO);
 
-	if (debug_level >= DEBUG_LEVEL_ISR) {
+	if (de_level >= DE_LEVEL_ISR) {
 		printk("%s(%d):rx_ready_async",
 			__FILE__,__LINE__);
 		printk("%s(%d):rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
@@ -1000,7 +1000,7 @@ static void tx_ready(MGSLPC_INFO *info, struct tty_struct *tty)
 	unsigned char fifo_count = 32;
 	int c;
 
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):tx_ready(%s)\n", __FILE__, __LINE__, info->device_name);
 
 	if (info->params.mode == MGSL_MODE_HDLC) {
@@ -1060,7 +1060,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 	if (tty && tty_port_cts_enabled(&info->port)) {
 		if (tty->hw_stopped) {
 			if (info->serial_signals & SerialSignal_CTS) {
-				if (debug_level >= DEBUG_LEVEL_ISR)
+				if (de_level >= DE_LEVEL_ISR)
 					printk("CTS tx start...");
 				tty->hw_stopped = 0;
 				tx_start(info, tty);
@@ -1069,7 +1069,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 			}
 		} else {
 			if (!(info->serial_signals & SerialSignal_CTS)) {
-				if (debug_level >= DEBUG_LEVEL_ISR)
+				if (de_level >= DE_LEVEL_ISR)
 					printk("CTS tx stop...");
 				tty->hw_stopped = 1;
 				tx_stop(info);
@@ -1102,13 +1102,13 @@ static void dcd_change(MGSLPC_INFO *info, struct tty_struct *tty)
 	wake_up_interruptible(&info->event_wait_q);
 
 	if (tty_port_check_carrier(&info->port)) {
-		if (debug_level >= DEBUG_LEVEL_ISR)
+		if (de_level >= DE_LEVEL_ISR)
 			printk("%s CD now %s...", info->device_name,
 			       (info->serial_signals & SerialSignal_DCD) ? "on" : "off");
 		if (info->serial_signals & SerialSignal_DCD)
 			wake_up_interruptible(&info->port.open_wait);
 		else {
-			if (debug_level >= DEBUG_LEVEL_ISR)
+			if (de_level >= DE_LEVEL_ISR)
 				printk("doing serial hangup...");
 			if (tty)
 				tty_hangup(tty);
@@ -1162,7 +1162,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 	unsigned char gis, pis;
 	int count=0;
 
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("mgslpc_isr(%d) entry.\n", info->irq_level);
 
 	if (!(info->p_dev->_locked))
@@ -1173,7 +1173,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 	spin_lock(&info->lock);
 
 	while ((gis = read_reg(info, CHA + GIS))) {
-		if (debug_level >= DEBUG_LEVEL_ISR)
+		if (de_level >= DE_LEVEL_ISR)
 			printk("mgslpc_isr %s gis=%04X\n", info->device_name,gis);
 
 		if ((gis & 0x70) || count > 1000) {
@@ -1246,7 +1246,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 	 */
 
 	if (info->pending_bh && !info->bh_running && !info->bh_requested) {
-		if (debug_level >= DEBUG_LEVEL_ISR)
+		if (de_level >= DE_LEVEL_ISR)
 			printk("%s(%d):%s queueing bh task.\n",
 				__FILE__,__LINE__,info->device_name);
 		schedule_work(&info->task);
@@ -1256,7 +1256,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 	spin_unlock(&info->lock);
 	tty_kref_put(tty);
 
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):mgslpc_isr(%d)exit.\n",
 		       __FILE__, __LINE__, info->irq_level);
 
@@ -1269,7 +1269,7 @@ static int startup(MGSLPC_INFO * info, struct tty_struct *tty)
 {
 	int retval = 0;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):startup(%s)\n", __FILE__, __LINE__, info->device_name);
 
 	if (tty_port_initialized(&info->port))
@@ -1325,7 +1325,7 @@ static void shutdown(MGSLPC_INFO * info, struct tty_struct *tty)
 	if (!tty_port_initialized(&info->port))
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_shutdown(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -1406,7 +1406,7 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 	if (!tty)
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_change_params(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -1487,7 +1487,7 @@ static int mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO) {
+	if (de_level >= DE_LEVEL_INFO) {
 		printk("%s(%d):mgslpc_put_char(%d) on %s\n",
 			__FILE__, __LINE__, ch, info->device_name);
 	}
@@ -1520,7 +1520,7 @@ static void mgslpc_flush_chars(struct tty_struct *tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_flush_chars() entry on %s tx_count=%d\n",
 			__FILE__, __LINE__, info->device_name, info->tx_count);
 
@@ -1531,7 +1531,7 @@ static void mgslpc_flush_chars(struct tty_struct *tty)
 	    tty->hw_stopped || !info->tx_buf)
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_flush_chars() entry on %s starting transmitter\n",
 			__FILE__, __LINE__, info->device_name);
 
@@ -1558,7 +1558,7 @@ static int mgslpc_write(struct tty_struct * tty,
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_write(%s) count=%d\n",
 			__FILE__, __LINE__, info->device_name, count);
 
@@ -1603,7 +1603,7 @@ start:
 		spin_unlock_irqrestore(&info->lock, flags);
 	}
 cleanup:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_write(%s) returning=%d\n",
 			__FILE__, __LINE__, info->device_name, ret);
 	return ret;
@@ -1631,7 +1631,7 @@ static int mgslpc_write_room(struct tty_struct *tty)
 			ret = 0;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_write_room(%s)=%d\n",
 			 __FILE__, __LINE__, info->device_name, ret);
 	return ret;
@@ -1644,7 +1644,7 @@ static int mgslpc_chars_in_buffer(struct tty_struct *tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	int rc;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_chars_in_buffer(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -1656,7 +1656,7 @@ static int mgslpc_chars_in_buffer(struct tty_struct *tty)
 	else
 		rc = info->tx_count;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_chars_in_buffer(%s)=%d\n",
 			 __FILE__, __LINE__, info->device_name, rc);
 
@@ -1670,7 +1670,7 @@ static void mgslpc_flush_buffer(struct tty_struct *tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_flush_buffer(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -1693,7 +1693,7 @@ static void mgslpc_send_xchar(struct tty_struct *tty, char ch)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_send_xchar(%s,%d)\n",
 			 __FILE__, __LINE__, info->device_name, ch);
 
@@ -1716,7 +1716,7 @@ static void mgslpc_throttle(struct tty_struct * tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_throttle(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -1741,7 +1741,7 @@ static void mgslpc_unthrottle(struct tty_struct * tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_unthrottle(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -1768,7 +1768,7 @@ static void mgslpc_unthrottle(struct tty_struct * tty)
 static int get_stats(MGSLPC_INFO * info, struct mgsl_icount __user *user_icount)
 {
 	int err;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("get_params(%s)\n", info->device_name);
 	if (!user_icount) {
 		memset(&info->icount, 0, sizeof(info->icount));
@@ -1785,7 +1785,7 @@ static int get_stats(MGSLPC_INFO * info, struct mgsl_icount __user *user_icount)
 static int get_params(MGSLPC_INFO * info, MGSL_PARAMS __user *user_params)
 {
 	int err;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("get_params(%s)\n", info->device_name);
 	COPY_TO_USER(err,user_params, &info->params, sizeof(MGSL_PARAMS));
 	if (err)
@@ -1808,12 +1808,12 @@ static int set_params(MGSLPC_INFO * info, MGSL_PARAMS __user *new_params, struct
 	MGSL_PARAMS tmp_params;
 	int err;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):set_params %s\n", __FILE__,__LINE__,
 			info->device_name);
 	COPY_FROM_USER(err,&tmp_params, new_params, sizeof(MGSL_PARAMS));
 	if (err) {
-		if (debug_level >= DEBUG_LEVEL_INFO)
+		if (de_level >= DE_LEVEL_INFO)
 			printk("%s(%d):set_params(%s) user buffer copy failed\n",
 				__FILE__, __LINE__, info->device_name);
 		return -EFAULT;
@@ -1831,7 +1831,7 @@ static int set_params(MGSLPC_INFO * info, MGSL_PARAMS __user *new_params, struct
 static int get_txidle(MGSLPC_INFO * info, int __user *idle_mode)
 {
 	int err;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("get_txidle(%s)=%d\n", info->device_name, info->idle_mode);
 	COPY_TO_USER(err,idle_mode, &info->idle_mode, sizeof(int));
 	if (err)
@@ -1842,7 +1842,7 @@ static int get_txidle(MGSLPC_INFO * info, int __user *idle_mode)
 static int set_txidle(MGSLPC_INFO * info, int idle_mode)
 {
 	unsigned long flags;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("set_txidle(%s,%d)\n", info->device_name, idle_mode);
 	spin_lock_irqsave(&info->lock, flags);
 	info->idle_mode = idle_mode;
@@ -1854,7 +1854,7 @@ static int set_txidle(MGSLPC_INFO * info, int idle_mode)
 static int get_interface(MGSLPC_INFO * info, int __user *if_mode)
 {
 	int err;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("get_interface(%s)=%d\n", info->device_name, info->if_mode);
 	COPY_TO_USER(err,if_mode, &info->if_mode, sizeof(int));
 	if (err)
@@ -1866,7 +1866,7 @@ static int set_interface(MGSLPC_INFO * info, int if_mode)
 {
 	unsigned long flags;
 	unsigned char val;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("set_interface(%s,%d)\n", info->device_name, if_mode);
 	spin_lock_irqsave(&info->lock, flags);
 	info->if_mode = if_mode;
@@ -1888,7 +1888,7 @@ static int set_txenable(MGSLPC_INFO * info, int enable, struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("set_txenable(%s,%d)\n", info->device_name, enable);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -1907,7 +1907,7 @@ static int tx_abort(MGSLPC_INFO * info)
 {
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("tx_abort(%s)\n", info->device_name);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -1927,7 +1927,7 @@ static int set_rxenable(MGSLPC_INFO * info, int enable)
 {
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("set_rxenable(%s,%d)\n", info->device_name, enable);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -1965,7 +1965,7 @@ static int wait_events(MGSLPC_INFO * info, int __user *mask_ptr)
 	if (rc)
 		return  -EFAULT;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("wait_events(%s,%d)\n", info->device_name, mask);
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -2128,7 +2128,7 @@ static int tiocmget(struct tty_struct *tty)
 		((info->serial_signals & SerialSignal_DSR) ? TIOCM_DSR:0) +
 		((info->serial_signals & SerialSignal_CTS) ? TIOCM_CTS:0);
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tiocmget() value=%08X\n",
 			 __FILE__, __LINE__, info->device_name, result);
 	return result;
@@ -2142,7 +2142,7 @@ static int tiocmset(struct tty_struct *tty,
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tiocmset(%x,%x)\n",
 			__FILE__, __LINE__, info->device_name, set, clear);
 
@@ -2172,7 +2172,7 @@ static int mgslpc_break(struct tty_struct *tty, int break_state)
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_break(%s,%d)\n",
 			 __FILE__, __LINE__, info->device_name, break_state);
 
@@ -2230,7 +2230,7 @@ static int mgslpc_ioctl(struct tty_struct *tty,
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 	void __user *argp = (void __user *)arg;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_ioctl %s cmd=%08X\n", __FILE__, __LINE__,
 			info->device_name, cmd);
 
@@ -2285,7 +2285,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_set_termios %s\n", __FILE__, __LINE__,
 			tty->driver->name);
 
@@ -2330,7 +2330,7 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_close"))
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_close(%s) entry, count=%d\n",
 			 __FILE__, __LINE__, info->device_name, port->count);
 
@@ -2348,7 +2348,7 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
 	tty_port_close_end(port, tty);
 	tty_port_tty_set(port, NULL);
 cleanup:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_close(%s) exit, count=%d\n", __FILE__, __LINE__,
 			tty->driver->name, port->count);
 }
@@ -2363,7 +2363,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (!info)
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_wait_until_sent(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -2411,7 +2411,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 
 exit:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_wait_until_sent(%s) exit\n",
 			 __FILE__, __LINE__, info->device_name);
 }
@@ -2423,7 +2423,7 @@ static void mgslpc_hangup(struct tty_struct *tty)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_hangup(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -2490,7 +2490,7 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 	tty->driver_data = info;
 	tty_port_tty_set(port, tty);
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_open(%s), old ref count = %d\n",
 			 __FILE__, __LINE__, tty->driver->name, port->count);
 
@@ -2516,13 +2516,13 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 
 	retval = tty_port_block_til_ready(&info->port, tty, filp);
 	if (retval) {
-		if (debug_level >= DEBUG_LEVEL_INFO)
+		if (de_level >= DE_LEVEL_INFO)
 			printk("%s(%d):block_til_ready(%s) returned %d\n",
 				 __FILE__, __LINE__, info->device_name, retval);
 		goto cleanup;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):mgslpc_open(%s) success\n",
 			 __FILE__, __LINE__, info->device_name);
 	retval = 0;
@@ -2666,7 +2666,7 @@ static int claim_resources(MGSLPC_INFO *info)
 
 static void release_resources(MGSLPC_INFO *info)
 {
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("release_resources(%s)\n", info->device_name);
 	rx_free_buffers(info);
 }
@@ -3237,7 +3237,7 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	 * to complete even if no data clocks are present.
 	 *
 	 * Disable master clock mode for normal communications because
-	 * V3.2 of the ESCC2 has a bug that prevents the transmit all sent
+	 * V3.2 of the ESCC2 has a  that prevents the transmit all sent
 	 * IRQ when in master clock mode.
 	 *
 	 * Leave master clock mode enabled for IRQ test because the
@@ -3254,7 +3254,7 @@ static void hdlc_mode(MGSLPC_INFO *info)
 
 static void rx_stop(MGSLPC_INFO *info)
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):rx_stop(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -3267,7 +3267,7 @@ static void rx_stop(MGSLPC_INFO *info)
 
 static void rx_start(MGSLPC_INFO *info)
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):rx_start(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -3283,7 +3283,7 @@ static void rx_start(MGSLPC_INFO *info)
 
 static void tx_start(MGSLPC_INFO *info, struct tty_struct *tty)
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):tx_start(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -3321,7 +3321,7 @@ static void tx_start(MGSLPC_INFO *info, struct tty_struct *tty)
 
 static void tx_stop(MGSLPC_INFO *info)
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):tx_stop(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
@@ -3673,11 +3673,11 @@ static bool rx_get_frame(MGSLPC_INFO *info, struct tty_struct *tty)
 	if (return_frame)
 		framesize = buf->count;
 
-	if (debug_level >= DEBUG_LEVEL_BH)
+	if (de_level >= DE_LEVEL_BH)
 		printk("%s(%d):rx_get_frame(%s) status=%04X size=%d\n",
 			__FILE__, __LINE__, info->device_name, status, framesize);
 
-	if (debug_level >= DEBUG_LEVEL_DATA)
+	if (de_level >= DE_LEVEL_DATA)
 		trace_block(info, buf->data, framesize, 0);
 
 	if (framesize) {
@@ -3791,7 +3791,7 @@ static int adapter_test(MGSLPC_INFO *info)
 		return -ENODEV;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):device %s passed diagnostics\n",
 			__FILE__, __LINE__, info->device_name);
 	return 0;
@@ -3837,7 +3837,7 @@ static void tx_timeout(struct timer_list *t)
 	MGSLPC_INFO *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):tx_timeout(%s)\n",
 			__FILE__, __LINE__, info->device_name);
 	if (info->tx_active &&
@@ -3929,7 +3929,7 @@ static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
 	MGSLPC_INFO *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk(KERN_INFO "%s:hdlc_xmit(%s)\n", __FILE__, dev->name);
 
 	/* stop sending until this frame completes */
@@ -3977,7 +3977,7 @@ static int hdlcdev_open(struct net_device *dev)
 	int rc;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_open(%s)\n", __FILE__, dev->name);
 
 	/* generic HDLC layer open processing */
@@ -4039,7 +4039,7 @@ static int hdlcdev_close(struct net_device *dev)
 	struct tty_struct *tty = tty_port_tty_get(&info->port);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_close(%s)\n", __FILE__, dev->name);
 
 	netif_stop_queue(dev);
@@ -4073,7 +4073,7 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	MGSLPC_INFO *info = dev_to_port(dev);
 	unsigned int flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_ioctl(%s)\n", __FILE__, dev->name);
 
 	/* return error if TTY interface open */
@@ -4174,7 +4174,7 @@ static void hdlcdev_tx_timeout(struct net_device *dev)
 	MGSLPC_INFO *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("hdlcdev_tx_timeout(%s)\n", dev->name);
 
 	dev->stats.tx_errors++;
@@ -4212,7 +4212,7 @@ static void hdlcdev_rx(MGSLPC_INFO *info, char *buf, int size)
 	struct sk_buff *skb = dev_alloc_skb(size);
 	struct net_device *dev = info->netdev;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("hdlcdev_rx(%s)\n", dev->name);
 
 	if (skb == NULL) {

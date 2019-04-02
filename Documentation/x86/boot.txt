@@ -972,7 +972,7 @@ kernel.  This means that if you loaded your real-mode kernel code at
 At entry, ds = es = ss should point to the start of the real-mode
 kernel code (0x9000 if the code is loaded at 0x90000), sp should be
 set up properly, normally pointing to the top of the heap, and
-interrupts should be disabled.  Furthermore, to guard against bugs in
+interrupts should be disabled.  Furthermore, to guard against s in
 the kernel, it is recommended that the boot loader sets fs = gs = ds =
 es = ss.
 

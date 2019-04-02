@@ -135,7 +135,7 @@
 #include <linux/psi.h>
 #include "sched.h"
 
-static int psi_bug __read_mostly;
+static int psi_ __read_mostly;
 
 DEFINE_STATIC_KEY_FALSE(psi_disabled);
 
@@ -466,12 +466,12 @@ static void psi_group_change(struct psi_group *group, int cpu,
 	for (t = 0, m = clear; m; m &= ~(1 << t), t++) {
 		if (!(m & (1 << t)))
 			continue;
-		if (groupc->tasks[t] == 0 && !psi_bug) {
+		if (groupc->tasks[t] == 0 && !psi_) {
 			printk_deferred(KERN_ERR "psi: task underflow! cpu=%d t=%d tasks=[%u %u %u] clear=%x set=%x\n",
 					cpu, t, groupc->tasks[0],
 					groupc->tasks[1], groupc->tasks[2],
 					clear, set);
-			psi_bug = 1;
+			psi_ = 1;
 		}
 		groupc->tasks[t]--;
 	}
@@ -519,11 +519,11 @@ void psi_task_change(struct task_struct *task, int clear, int set)
 
 	if (((task->psi_flags & set) ||
 	     (task->psi_flags & clear) != clear) &&
-	    !psi_bug) {
+	    !psi_) {
 		printk_deferred(KERN_ERR "psi: inconsistent task state! task=%d:%s cpu=%d psi_flags=%x clear=%x set=%x\n",
 				task->pid, task->comm, cpu,
 				task->psi_flags, clear, set);
-		psi_bug = 1;
+		psi_ = 1;
 	}
 
 	task->psi_flags &= ~clear;

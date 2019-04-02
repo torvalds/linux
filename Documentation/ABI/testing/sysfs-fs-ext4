@@ -87,7 +87,7 @@ Description:
 		Tuning parameter which (if non-zero) controls the goal
 		inode used by the inode allocator in preference to
 		all other allocation heuristics.  This is intended for
-		debugging use only, and should be 0 on production
+		deging use only, and should be 0 on production
 		systems.
 
 What:		/sys/fs/ext4/<disk>/max_writeback_mb_bump

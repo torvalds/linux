@@ -162,7 +162,7 @@ tsi57x_em_init(struct rio_dev *rdev)
 	u32 regval;
 	int portnum;
 
-	pr_debug("TSI578 %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
+	pr_de("TSI578 %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
 
 	for (portnum = 0;
 	     portnum < RIO_GET_TOTAL_PORTS(rdev->swpinfo); portnum++) {
@@ -271,7 +271,7 @@ tsi57x_em_handler(struct rio_dev *rdev, u8 portnum)
 exit_es:
 	/* Clear implementation specific error status bits */
 	rio_read_config_32(rdev, TSI578_SP_INT_STATUS(portnum), &intstat);
-	pr_debug("TSI578[%x:%x] SP%d_INT_STATUS=0x%08x\n",
+	pr_de("TSI578[%x:%x] SP%d_INT_STATUS=0x%08x\n",
 		 rdev->destid, rdev->hopcount, portnum, intstat);
 
 	if (intstat & 0x10000) {
@@ -279,7 +279,7 @@ exit_es:
 				TSI578_SP_LUT_PEINF(portnum), &regval);
 		regval = (mport->sys_size) ? (regval >> 16) : (regval >> 24);
 		route_port = rdev->rswitch->route_table[regval];
-		pr_debug("RIO: TSI578[%s] P%d LUT Parity Error (destID=%d)\n",
+		pr_de("RIO: TSI578[%s] P%d LUT Parity Error (destID=%d)\n",
 			rio_name(rdev), portnum, regval);
 		tsi57x_route_add_entry(mport, rdev->destid, rdev->hopcount,
 				RIO_GLOBAL_TABLE, regval, route_port);
@@ -304,7 +304,7 @@ static struct rio_switch_ops tsi57x_switch_ops = {
 
 static int tsi57x_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 
 	spin_lock(&rdev->rswitch->lock);
 
@@ -326,7 +326,7 @@ static int tsi57x_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 
 static void tsi57x_remove(struct rio_dev *rdev)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 	spin_lock(&rdev->rswitch->lock);
 	if (rdev->rswitch->ops != &tsi57x_switch_ops) {
 		spin_unlock(&rdev->rswitch->lock);

@@ -27,7 +27,7 @@
 #include <linux/mm.h>
 
 #include "aops.h"
-#include "debug.h"
+#include "de.h"
 #include "endian.h"
 #include "time.h"
 #include "types.h"
@@ -46,7 +46,7 @@
  */
 bool ntfs_stamp_usnjrnl(ntfs_volume *vol)
 {
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	if (likely(!NVolUsnJrnlStamped(vol))) {
 		sle64 stamp;
 		struct page *page;
@@ -60,7 +60,7 @@ bool ntfs_stamp_usnjrnl(ntfs_volume *vol)
 		}
 		uh = (USN_HEADER*)page_address(page);
 		stamp = get_current_ntfs_time();
-		ntfs_debug("Stamping transaction log ($UsnJrnl): old "
+		ntfs_de("Stamping transaction log ($UsnJrnl): old "
 				"journal_id 0x%llx, old lowest_valid_usn "
 				"0x%llx, new journal_id 0x%llx, new "
 				"lowest_valid_usn 0x%llx.",
@@ -77,7 +77,7 @@ bool ntfs_stamp_usnjrnl(ntfs_volume *vol)
 		/* Set the flag so we do not have to do it again on remount. */
 		NVolSetUsnJrnlStamped(vol);
 	}
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 }
 

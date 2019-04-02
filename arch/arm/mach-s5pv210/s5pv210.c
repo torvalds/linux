@@ -43,7 +43,7 @@ static int __init s5pv210_fdt_map_sys(unsigned long node, const char *uname,
 
 static void __init s5pv210_dt_map_io(void)
 {
-	debug_ll_io_init();
+	de_ll_io_init();
 
 	of_scan_flat_dt(s5pv210_fdt_map_sys, NULL);
 }

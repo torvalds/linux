@@ -238,7 +238,7 @@ static __inline__ void mga_g200_emit_pipe(drm_mga_private_t *dev_priv)
 		  MGA_WR34, 0x00000000,
 		  MGA_WR42, 0x0000ffff, MGA_WR60, 0x0000ffff);
 
-	/* Padding required due to hardware bug.
+	/* Padding required due to hardware .
 	 */
 	DMA_BLOCK(MGA_DMAPAD, 0xffffffff,
 		  MGA_DMAPAD, 0xffffffff,
@@ -316,7 +316,7 @@ static __inline__ void mga_g400_emit_pipe(drm_mga_private_t *dev_priv)
 		  MGA_WR52, MGA_G400_WR_MAGIC,	/* tex1 width        */
 		  MGA_WR60, MGA_G400_WR_MAGIC);	/* tex1 height       */
 
-	/* Padding required due to hardware bug */
+	/* Padding required due to hardware  */
 	DMA_BLOCK(MGA_DMAPAD, 0xffffffff,
 		  MGA_DMAPAD, 0xffffffff,
 		  MGA_DMAPAD, 0xffffffff,
@@ -488,7 +488,7 @@ static void mga_dma_dispatch_clear(struct drm_device *dev, drm_mga_clear_t *clea
 	int nbox = sarea_priv->nbox;
 	int i;
 	DMA_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_DMA(1);
 
@@ -502,7 +502,7 @@ static void mga_dma_dispatch_clear(struct drm_device *dev, drm_mga_clear_t *clea
 		struct drm_clip_rect *box = &pbox[i];
 		u32 height = box->y2 - box->y1;
 
-		DRM_DEBUG("   from=%d,%d to=%d,%d\n",
+		DRM_DE("   from=%d,%d to=%d,%d\n",
 			  box->x1, box->y1, box->x2, box->y2);
 
 		if (clear->flags & MGA_FRONT) {
@@ -576,7 +576,7 @@ static void mga_dma_dispatch_swap(struct drm_device *dev)
 	int nbox = sarea_priv->nbox;
 	int i;
 	DMA_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	sarea_priv->last_frame.head = dev_priv->prim.tail;
 	sarea_priv->last_frame.wrap = dev_priv->prim.last_wrap;
@@ -601,7 +601,7 @@ static void mga_dma_dispatch_swap(struct drm_device *dev)
 		u32 height = box->y2 - box->y1;
 		u32 start = box->y1 * dev_priv->front_pitch;
 
-		DRM_DEBUG("   from=%d,%d to=%d,%d\n",
+		DRM_DE("   from=%d,%d to=%d,%d\n",
 			  box->x1, box->y1, box->x2, box->y2);
 
 		DMA_BLOCK(MGA_AR0, start + box->x2 - 1,
@@ -618,7 +618,7 @@ static void mga_dma_dispatch_swap(struct drm_device *dev)
 
 	FLUSH_DMA();
 
-	DRM_DEBUG("... done.\n");
+	DRM_DE("... done.\n");
 }
 
 static void mga_dma_dispatch_vertex(struct drm_device *dev, struct drm_buf *buf)
@@ -630,7 +630,7 @@ static void mga_dma_dispatch_vertex(struct drm_device *dev, struct drm_buf *buf)
 	u32 length = (u32) buf->used;
 	int i = 0;
 	DMA_LOCALS;
-	DRM_DEBUG("buf=%d used=%d\n", buf->idx, buf->used);
+	DRM_DE("buf=%d used=%d\n", buf->idx, buf->used);
 
 	if (buf->used) {
 		buf_priv->dispatched = 1;
@@ -677,7 +677,7 @@ static void mga_dma_dispatch_indices(struct drm_device *dev, struct drm_buf *buf
 	u32 address = (u32) buf->bus_address;
 	int i = 0;
 	DMA_LOCALS;
-	DRM_DEBUG("buf=%d start=%d end=%d\n", buf->idx, start, end);
+	DRM_DE("buf=%d start=%d end=%d\n", buf->idx, start, end);
 
 	if (start != end) {
 		buf_priv->dispatched = 1;
@@ -727,7 +727,7 @@ static void mga_dma_dispatch_iload(struct drm_device *dev, struct drm_buf *buf,
 	    buf->bus_address | dev_priv->dma_access | MGA_SRCMAP_SYSMEM;
 	u32 y2;
 	DMA_LOCALS;
-	DRM_DEBUG("buf=%d used=%d\n", buf->idx, buf->used);
+	DRM_DE("buf=%d used=%d\n", buf->idx, buf->used);
 
 	y2 = length / 64;
 
@@ -774,7 +774,7 @@ static void mga_dma_dispatch_blit(struct drm_device *dev, drm_mga_blit_t *blit)
 	int nbox = sarea_priv->nbox;
 	u32 scandir = 0, i;
 	DMA_LOCALS;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	BEGIN_DMA(4 + nbox);
 
@@ -946,13 +946,13 @@ static int mga_dma_iload(struct drm_device *dev, void *data, struct drm_file *fi
 	struct drm_buf *buf;
 	drm_mga_buf_priv_t *buf_priv;
 	drm_mga_iload_t *iload = data;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 #if 0
 	if (mga_do_wait_for_idle(dev_priv) < 0) {
-		if (MGA_DMA_DEBUG)
+		if (MGA_DMA_DE)
 			DRM_INFO("-EBUSY\n");
 		return -EBUSY;
 	}
@@ -984,7 +984,7 @@ static int mga_dma_blit(struct drm_device *dev, void *data, struct drm_file *fil
 	drm_mga_private_t *dev_priv = dev->dev_private;
 	drm_mga_sarea_t *sarea_priv = dev_priv->sarea_priv;
 	drm_mga_blit_t *blit = data;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -1016,7 +1016,7 @@ int mga_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		return -EINVAL;
 	}
 
-	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+	DRM_DE("pid=%d\n", DRM_CURRENTPID);
 
 	switch (param->param) {
 	case MGA_PARAM_IRQ_NR:
@@ -1048,7 +1048,7 @@ static int mga_set_fence(struct drm_device *dev, void *data, struct drm_file *fi
 		return -EINVAL;
 	}
 
-	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+	DRM_DE("pid=%d\n", DRM_CURRENTPID);
 
 	/* I would normal do this assignment in the declaration of fence,
 	 * but dev_priv may be NULL.
@@ -1077,7 +1077,7 @@ file_priv)
 		return -EINVAL;
 	}
 
-	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+	DRM_DE("pid=%d\n", DRM_CURRENTPID);
 
 	mga_driver_fence_wait(dev, fence);
 	return 0;

@@ -327,7 +327,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		ret = drm_bridge_mode_fixup(encoder->bridge,
 			mode, adjusted_mode);
 		if (!ret) {
-			DRM_DEBUG_KMS("Bridge fixup failed\n");
+			DRM_DE_KMS("Bridge fixup failed\n");
 			goto done;
 		}
 
@@ -335,7 +335,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder_funcs->mode_fixup) {
 			if (!(ret = encoder_funcs->mode_fixup(encoder, mode,
 							      adjusted_mode))) {
-				DRM_DEBUG_KMS("Encoder fixup failed\n");
+				DRM_DE_KMS("Encoder fixup failed\n");
 				goto done;
 			}
 		}
@@ -344,11 +344,11 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	if (crtc_funcs->mode_fixup) {
 		if (!(ret = crtc_funcs->mode_fixup(crtc, mode,
 						adjusted_mode))) {
-			DRM_DEBUG_KMS("CRTC fixup failed\n");
+			DRM_DE_KMS("CRTC fixup failed\n");
 			goto done;
 		}
 	}
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	DRM_DE_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	crtc->hwmode = *adjusted_mode;
 
@@ -391,7 +391,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (!encoder_funcs)
 			continue;
 
-		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%s]\n",
+		DRM_DE_KMS("[ENCODER:%d:%s] set [MODE:%s]\n",
 			encoder->base.id, encoder->name, mode->name);
 		if (encoder_funcs->mode_set)
 			encoder_funcs->mode_set(encoder, mode, adjusted_mode);
@@ -532,15 +532,15 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	int ret;
 	int i;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
-	BUG_ON(!set);
-	BUG_ON(!set->crtc);
-	BUG_ON(!set->crtc->helper_private);
+	_ON(!set);
+	_ON(!set->crtc);
+	_ON(!set->crtc->helper_private);
 
 	/* Enforce sane interface api - has been abused by the fb helper. */
-	BUG_ON(!set->mode && set->fb);
-	BUG_ON(set->fb && set->num_connectors == 0);
+	_ON(!set->mode && set->fb);
+	_ON(set->fb && set->num_connectors == 0);
 
 	crtc_funcs = set->crtc->helper_private;
 
@@ -551,12 +551,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		set->fb = NULL;
 
 	if (set->fb) {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] [FB:%d] #connectors=%d (x y) (%i %i)\n",
+		DRM_DE_KMS("[CRTC:%d:%s] [FB:%d] #connectors=%d (x y) (%i %i)\n",
 			      set->crtc->base.id, set->crtc->name,
 			      set->fb->base.id,
 			      (int)set->num_connectors, set->x, set->y);
 	} else {
-		DRM_DEBUG_KMS("[CRTC:%d:%s] [NOFB]\n",
+		DRM_DE_KMS("[CRTC:%d:%s] [NOFB]\n",
 			      set->crtc->base.id, set->crtc->name);
 		drm_crtc_helper_disable(set->crtc);
 		return 0;
@@ -607,7 +607,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	if (set->crtc->primary->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->primary->fb == NULL) {
-			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
+			DRM_DE_KMS("crtc has no fb, full mode set\n");
 			mode_changed = true;
 		} else if (set->fb->format != set->crtc->primary->fb->format) {
 			mode_changed = true;
@@ -619,9 +619,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		fb_changed = true;
 
 	if (!drm_mode_equal(set->mode, &set->crtc->mode)) {
-		DRM_DEBUG_KMS("modes are different, full mode set\n");
-		drm_mode_debug_printmodeline(&set->crtc->mode);
-		drm_mode_debug_printmodeline(set->mode);
+		DRM_DE_KMS("modes are different, full mode set\n");
+		drm_mode_de_printmodeline(&set->crtc->mode);
+		drm_mode_de_printmodeline(set->mode);
 		mode_changed = true;
 	}
 
@@ -651,7 +651,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 					fail = 1;
 
 				if (connector->dpms != DRM_MODE_DPMS_ON) {
-					DRM_DEBUG_KMS("connector dpms not on, full mode switch\n");
+					DRM_DE_KMS("connector dpms not on, full mode switch\n");
 					mode_changed = true;
 				}
 
@@ -660,7 +660,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		}
 
 		if (new_encoder != connector->encoder) {
-			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
+			DRM_DE_KMS("encoder changed, full mode switch\n");
 			mode_changed = true;
 			/* If the encoder is reused for another connector, then
 			 * the appropriate crtc will be set later.
@@ -701,16 +701,16 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 			goto fail;
 		}
 		if (new_crtc != connector->encoder->crtc) {
-			DRM_DEBUG_KMS("crtc changed, full mode switch\n");
+			DRM_DE_KMS("crtc changed, full mode switch\n");
 			mode_changed = true;
 			connector->encoder->crtc = new_crtc;
 		}
 		if (new_crtc) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d:%s]\n",
+			DRM_DE_KMS("[CONNECTOR:%d:%s] to [CRTC:%d:%s]\n",
 				      connector->base.id, connector->name,
 				      new_crtc->base.id, new_crtc->name);
 		} else {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
+			DRM_DE_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
 				      connector->base.id, connector->name);
 		}
 	}
@@ -722,9 +722,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 
 	if (mode_changed) {
 		if (drm_helper_crtc_in_use(set->crtc)) {
-			DRM_DEBUG_KMS("attempting to set mode from"
+			DRM_DE_KMS("attempting to set mode from"
 					" userspace\n");
-			drm_mode_debug_printmodeline(set->mode);
+			drm_mode_de_printmodeline(set->mode);
 			set->crtc->primary->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
@@ -735,9 +735,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 				ret = -EINVAL;
 				goto fail;
 			}
-			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
+			DRM_DE_KMS("Setting connector DPMS state to on\n");
 			for (i = 0; i < set->num_connectors; i++) {
-				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
+				DRM_DE_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
 					      set->connectors[i]->name);
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}

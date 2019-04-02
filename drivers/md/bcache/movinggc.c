@@ -7,7 +7,7 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "request.h"
 
 #include <trace/events/bcache.h>

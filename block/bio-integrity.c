@@ -420,7 +420,7 @@ int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 	struct bio_integrity_payload *bip_src = bio_integrity(bio_src);
 	struct bio_integrity_payload *bip;
 
-	BUG_ON(bip_src == NULL);
+	_ON(bip_src == NULL);
 
 	bip = bio_integrity_alloc(bio, gfp_mask, bip_src->bip_vcnt);
 	if (IS_ERR(bip))

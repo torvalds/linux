@@ -231,9 +231,9 @@ struct atp {
 };
 
 #define dbg_dump(msg, tab) \
-	if (debug > 1) {						\
+	if (de > 1) {						\
 		int __i;						\
-		printk(KERN_DEBUG "appletouch: %s", msg);		\
+		printk(KERN_DE "appletouch: %s", msg);		\
 		for (__i = 0; __i < ATP_XSENSORS + ATP_YSENSORS; __i++)	\
 			printk(" %02x", tab[__i]);			\
 		printk("\n");						\
@@ -241,8 +241,8 @@ struct atp {
 
 #define dprintk(format, a...)						\
 	do {								\
-		if (debug)						\
-			printk(KERN_DEBUG format, ##a);			\
+		if (de)						\
+			printk(KERN_DE format, ##a);			\
 	} while (0)
 
 MODULE_AUTHOR("Johannes Berg");
@@ -262,9 +262,9 @@ MODULE_PARM_DESC(threshold, "Discard any change in data from a sensor"
 			    " (the trackpad has many of these sensors)"
 			    " less than this value.");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activate debugging output");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Activate deging output");
 
 /*
  * By default newer Geyser devices send standard USB HID mouse
@@ -622,8 +622,8 @@ static void atp_complete_geyser_1_2(struct urb *urb)
 			dev->x_old = x;
 			dev->y_old = y;
 
-			if (debug > 1)
-				printk(KERN_DEBUG "appletouch: "
+			if (de > 1)
+				printk(KERN_DE "appletouch: "
 					"X: %3d Y: %3d Xz: %3d Yz: %3d\n",
 					x, y, x_z, y_z);
 
@@ -742,8 +742,8 @@ static void atp_complete_geyser_3_4(struct urb *urb)
 			dev->x_old = x;
 			dev->y_old = y;
 
-			if (debug > 1)
-				printk(KERN_DEBUG "appletouch: X: %3d Y: %3d "
+			if (de > 1)
+				printk(KERN_DE "appletouch: X: %3d Y: %3d "
 				       "Xz: %3d Yz: %3d\n",
 				       x, y, x_z, y_z);
 

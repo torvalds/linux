@@ -79,22 +79,22 @@
 **   - fix for shared IRQ
 **
 ** 1.52 -> 1.53
-**   - fixed bug in multicast support
+**   - fixed  in multicast support
 **
 */
 
 #define HP100_DEFAULT_PRIORITY_TX 0
 
-#undef HP100_DEBUG
-#undef HP100_DEBUG_B		/* Trace  */
-#undef HP100_DEBUG_BM		/* Debug busmaster code (PDL stuff) */
+#undef HP100_DE
+#undef HP100_DE_B		/* Trace  */
+#undef HP100_DE_BM		/* De busmaster code (PDL stuff) */
 
-#undef HP100_DEBUG_TRAINING	/* Debug login-to-hub procedure */
-#undef HP100_DEBUG_TX
-#undef HP100_DEBUG_IRQ
-#undef HP100_DEBUG_RX
+#undef HP100_DE_TRAINING	/* De login-to-hub procedure */
+#undef HP100_DE_TX
+#undef HP100_DE_IRQ
+#undef HP100_DE_RX
 
-#undef HP100_MULTICAST_FILTER	/* Need to be debugged... */
+#undef HP100_MULTICAST_FILTER	/* Need to be deged... */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -266,7 +266,7 @@ static int hp100_init_txpdl(struct net_device *dev,
 static void hp100_rxfill(struct net_device *dev);
 static void hp100_hwinit(struct net_device *dev);
 static void hp100_clean_txring(struct net_device *dev);
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 static void hp100_RegisterDump(struct net_device *dev);
 #endif
 
@@ -400,7 +400,7 @@ struct net_device * __init hp100_probe(int unit)
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4200, TRACE);
 	printk("hp100: %s: probe\n", dev->name);
 #endif
@@ -456,7 +456,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	void __iomem *mem_ptr_virt;
 	struct hp100_private *lp;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4201, TRACE);
 	printk("hp100: %s: probe1\n", dev->name);
 #endif
@@ -469,7 +469,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 		goto out2;
 
 	chip = hp100_inw(PAGING) & HP100_CHIPID_MASK;
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	if (chip == HP100_CHIPID_SHASTA)
 		printk("hp100: %s: Shasta Chip detected. (This is a pre 802.12 chip)\n", dev->name);
 	else if (chip == HP100_CHIPID_RAINIER)
@@ -536,7 +536,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	local_mode = hp100_mode;
 	if (local_mode < 1 || local_mode > 4)
 		local_mode = 1;	/* default */
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	printk("hp100: %s: original LSW = 0x%x\n", dev->name,
 	       hp100_inw(OPTION_LSW));
 #endif
@@ -565,7 +565,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 
 		if ((lsw & HP100_IO_EN) && (~lsw & HP100_MEM_EN) &&
 		    (~lsw & (HP100_BM_WRITE | HP100_BM_READ))) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: IO_EN bit is set on card.\n", dev->name);
 #endif
 			local_mode = 3;
@@ -585,7 +585,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 			hp100_outw(HP100_MEM_EN | HP100_IO_EN | HP100_RESET_LB, OPTION_LSW);
 		} else {
 		busmasterfail:
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: Card not configured for BM or BM not supported with this card.\n", dev->name);
 			printk("hp100: %s: Trying shared memory mode.\n", dev->name);
 #endif
@@ -595,7 +595,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 			/* hp100_outw(HP100_IO_EN|HP100_RESET_LB, OPTION_LSW); */
 		}
 	}
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	printk("hp100: %s: new LSW = 0x%x\n", dev->name, hp100_inw(OPTION_LSW));
 #endif
 
@@ -625,11 +625,11 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 			/* We try with smaller memory sizes, if ioremap fails */
 			for (virt_memory_size = memory_size; virt_memory_size > 16383; virt_memory_size >>= 1) {
 				if ((mem_ptr_virt = ioremap((u_long) mem_ptr_phys, virt_memory_size)) == NULL) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 					printk("hp100: %s: ioremap for 0x%x bytes high PCI memory at 0x%lx failed\n", dev->name, virt_memory_size, mem_ptr_phys);
 #endif
 				} else {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 					printk("hp100: %s: remapped 0x%x bytes high PCI memory at 0x%lx to %p.\n", dev->name, virt_memory_size, mem_ptr_phys, mem_ptr_virt);
 #endif
 					break;
@@ -724,7 +724,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 		}
 		lp->whatever_offset = ((u_long) page_baddr) - ((u_long) lp->page_vaddr_algn);
 
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		printk("hp100: %s: Reserved DMA memory from 0x%x to 0x%x\n", dev->name, (u_int) lp->page_vaddr_algn, (u_int) lp->page_vaddr_algn + MAX_RINGSIZE);
 #endif
 		lp->rxrcommit = lp->txrcommit = 0;
@@ -811,7 +811,7 @@ static void hp100_hwinit(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4202, TRACE);
 	printk("hp100: %s: hwinit\n", dev->name);
 #endif
@@ -845,7 +845,7 @@ static void hp100_hwinit(struct net_device *dev)
 	hp100_cascade_reset(dev, 1);
 
 	/* Set Option Registers to a safe state  */
-	hp100_outw(HP100_DEBUG_EN |
+	hp100_outw(HP100_DE_EN |
 		   HP100_RX_HDR |
 		   HP100_EE_EN |
 		   HP100_BM_WRITE |
@@ -906,12 +906,12 @@ static void hp100_mmuinit(struct net_device *dev)
 	struct hp100_private *lp = netdev_priv(dev);
 	int i;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4203, TRACE);
 	printk("hp100: %s: mmuinit\n", dev->name);
 #endif
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	if (0 != (hp100_inw(OPTION_LSW) & HP100_HW_RST)) {
 		printk("hp100: %s: Not in reset when entering mmuinit. Fix me.\n", dev->name);
 		return;
@@ -925,12 +925,12 @@ static void hp100_mmuinit(struct net_device *dev)
 
 	/*
 	 * Enable Hardware
-	 * - Clear Debug En, Rx Hdr Pipe, EE En, I/O En, Fake Int and Intr En
+	 * - Clear De En, Rx Hdr Pipe, EE En, I/O En, Fake Int and Intr En
 	 * - Set Tri-State Int, Bus Master Rd/Wr, and Mem Map Disable
 	 * - Clear Priority, Advance Pkt and Xmit Cmd
 	 */
 
-	hp100_outw(HP100_DEBUG_EN |
+	hp100_outw(HP100_DE_EN |
 		   HP100_RX_HDR |
 		   HP100_EE_EN | HP100_RESET_HB |
 		   HP100_IO_EN |
@@ -1005,7 +1005,7 @@ static void hp100_mmuinit(struct net_device *dev)
 			xmit_stop = (pdl_stop - 508 * (MAX_RX_PDL) - 16) & ~(0x03ff);
 			recv_stop = (xmit_stop * (lp->rx_ratio) / 100) & ~(0x03ff);
 			hp100_outw((pdl_stop >> 4) - 1, PDL_MEM_STOP);
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 			printk("hp100: %s: PDL_STOP = 0x%x\n", dev->name, pdl_stop);
 #endif
 		} else {
@@ -1016,7 +1016,7 @@ static void hp100_mmuinit(struct net_device *dev)
 
 		hp100_outw(xmit_stop >> 4, TX_MEM_STOP);
 		hp100_outw(recv_stop >> 4, RX_MEM_STOP);
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		printk("hp100: %s: TX_STOP  = 0x%x\n", dev->name, xmit_stop >> 4);
 		printk("hp100: %s: RX_STOP  = 0x%x\n", dev->name, recv_stop >> 4);
 #endif
@@ -1024,7 +1024,7 @@ static void hp100_mmuinit(struct net_device *dev)
 		/* Slave modes (memory mapped and programmed io)  */
 		hp100_outw((((lp->memory_size * lp->rx_ratio) / 100) >> 4), RX_MEM_STOP);
 		hp100_outw(((lp->memory_size - 1) >> 4), TX_MEM_STOP);
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: TX_MEM_STOP: 0x%x\n", dev->name, hp100_inw(TX_MEM_STOP));
 		printk("hp100: %s: RX_MEM_STOP: 0x%x\n", dev->name, hp100_inw(RX_MEM_STOP));
 #endif
@@ -1053,7 +1053,7 @@ static void hp100_mmuinit(struct net_device *dev)
 
 	hp100_outb(0x00, MAC_CFG_2);
 
-	/* Zero the frame format bit. This works around a training bug in the */
+	/* Zero the frame format bit. This works around a training  in the */
 	/* new hubs. */
 	hp100_outb(0x00, VG_LAN_CFG_2);	/* (use 802.3) */
 
@@ -1082,11 +1082,11 @@ static void hp100_mmuinit(struct net_device *dev)
 static int hp100_open(struct net_device *dev)
 {
 	struct hp100_private *lp = netdev_priv(dev);
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	int ioaddr = dev->base_addr;
 #endif
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4204, TRACE);
 	printk("hp100: %s: open\n", dev->name);
 #endif
@@ -1123,7 +1123,7 @@ static int hp100_close(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4205, TRACE);
 	printk("hp100: %s: close\n", dev->name);
 #endif
@@ -1140,7 +1140,7 @@ static int hp100_close(struct net_device *dev)
 
 	free_irq(dev->irq, dev);
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	printk("hp100: %s: close LSW = 0x%x\n", dev->name,
 	       hp100_inw(OPTION_LSW));
 #endif
@@ -1159,11 +1159,11 @@ static void hp100_init_pdls(struct net_device *dev)
 	u_int *pageptr;		/* Warning : increment by 4 - Jean II */
 	int i;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	int ioaddr = dev->base_addr;
 #endif
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4206, TRACE);
 	printk("hp100: %s: init pdls\n", dev->name);
 #endif
@@ -1255,14 +1255,14 @@ static int hp100_init_txpdl(struct net_device *dev,
 static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 			      struct net_device *dev)
 {
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	int ioaddr = dev->base_addr;
 #endif
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 	u_int *p;
 #endif
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4207, TRACE);
 	printk("hp100: %s: build rx pdl\n", dev->name);
 #endif
@@ -1290,7 +1290,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 		 * part. Those 4 bytes will be stored in the DMA memory region
 		 * directly before the PDL.
 		 */
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		printk("hp100: %s: build_rx_pdl: PDH@0x%x, skb->data (len %d) at 0x%x\n",
 				     dev->name, (u_int) ringptr->pdl,
 				     roundup(MAX_ETHER_SIZE + 2, 4),
@@ -1304,7 +1304,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 					       ringptr->skb->data);
 		ringptr->pdl[4] = MAX_ETHER_SIZE;	/* Length of Data */
 
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		for (p = (ringptr->pdl); p < (ringptr->pdl + 5); p++)
 			printk("hp100: %s: Adr 0x%.8x = 0x%.8x\n", dev->name, (u_int) p, (u_int) * p);
 #endif
@@ -1315,7 +1315,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 	 * fragment into PDL memory. make PDL safe by clearing msgptr and
 	 * making the PDL only 1 fragment (i.e. the 4 byte packet status)
 	 */
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 	printk("hp100: %s: build_rx_pdl: PDH@0x%x, No space for skb.\n", dev->name, (u_int) ringptr->pdl);
 #endif
 
@@ -1341,7 +1341,7 @@ static void hp100_rxfill(struct net_device *dev)
 	struct hp100_private *lp = netdev_priv(dev);
 	hp100_ring_t *ringptr;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4208, TRACE);
 	printk("hp100: %s: rxfill\n", dev->name);
 #endif
@@ -1359,7 +1359,7 @@ static void hp100_rxfill(struct net_device *dev)
 
 		/* Hand this PDL over to the card */
 		/* Note: This needs performance page selected! */
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		printk("hp100: %s: rxfill: Hand to card: pdl #%d @0x%x phys:0x%x, buffer: 0x%x\n",
 				     dev->name, lp->rxrcommit, (u_int) ringptr->pdl,
 				     (u_int) ringptr->pdl_paddr, (u_int) ringptr->pdl[3]);
@@ -1382,7 +1382,7 @@ static void hp100_BM_shutdown(struct net_device *dev)
 	struct hp100_private *lp = netdev_priv(dev);
 	unsigned long time;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4209, TRACE);
 	printk("hp100: %s: bm shutdown\n", dev->name);
 #endif
@@ -1490,7 +1490,7 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 	struct hp100_private *lp = netdev_priv(dev);
 	hp100_ring_t *ringptr;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4210, TRACE);
 	printk("hp100: %s: start_xmit_bm\n", dev->name);
 #endif
@@ -1503,7 +1503,7 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 	/* Get Tx ring tail pointer */
 	if (lp->txrtail->next == lp->txrhead) {
 		/* No memory. */
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: start_xmit_bm: No TX PDL available.\n", dev->name);
 #endif
 		/* not waited long enough since last tx? */
@@ -1603,7 +1603,7 @@ static void hp100_clean_txring(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	int donecount;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4211, TRACE);
 	printk("hp100: %s: clean txring\n", dev->name);
 #endif
@@ -1611,13 +1611,13 @@ static void hp100_clean_txring(struct net_device *dev)
 	/* How many PDLs have been transmitted? */
 	donecount = (lp->txrcommit) - hp100_inb(TX_PDL);
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	if (donecount > MAX_TX_PDL)
 		printk("hp100: %s: Warning: More PDLs transmitted than committed to card???\n", dev->name);
 #endif
 
 	for (; 0 != donecount; donecount--) {
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		printk("hp100: %s: Free skb: data @0x%.8x txrcommit=0x%x TXPDL=0x%x, done=0x%x\n",
 				dev->name, (u_int) lp->txrhead->skb->data,
 				lp->txrcommit, hp100_inb(TX_PDL), donecount);
@@ -1641,7 +1641,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	u_short val;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4212, TRACE);
 	printk("hp100: %s: start_xmit\n", dev->name);
 #endif
@@ -1654,12 +1654,12 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	/* If there is not enough free memory on the card... */
 	i = hp100_inl(TX_MEM_FREE) & 0x7fffffff;
 	if (!(((i / 2) - 539) > (skb->len + 16) && (hp100_inb(TX_PKT_CNT) < 255))) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: start_xmit: tx free mem = 0x%x\n", dev->name, i);
 #endif
 		/* not waited long enough since last failed tx try? */
 		if (time_before(jiffies, dev_trans_start(dev) + HZ)) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: trans_start timing problem\n",
 			       dev->name);
 #endif
@@ -1700,7 +1700,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	}
 
 	for (i = 0; i < 6000 && (hp100_inb(OPTION_MSW) & HP100_TX_CMD); i++) {
-#ifdef HP100_DEBUG_TX
+#ifdef HP100_DE_TX
 		printk("hp100: %s: start_xmit: busy\n", dev->name);
 #endif
 	}
@@ -1711,7 +1711,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	/* Ack / clear the interrupt TX_COMPLETE interrupt - this interrupt is set
 	 * when the current packet being transmitted on the wire is completed. */
 	hp100_outw(HP100_TX_COMPLETE, IRQ_STATUS);
-#ifdef HP100_DEBUG_TX
+#ifdef HP100_DE_TX
 	printk("hp100: %s: start_xmit: irq_status=0x%.4x, irqmask=0x%.4x, len=%d\n",
 			dev->name, val, hp100_inw(IRQ_MASK), (int) skb->len);
 #endif
@@ -1744,7 +1744,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 
 	dev_consume_skb_any(skb);
 
-#ifdef HP100_DEBUG_TX
+#ifdef HP100_DE_TX
 	printk("hp100: %s: start_xmit: end\n", dev->name);
 #endif
 
@@ -1774,7 +1774,7 @@ static void hp100_rx(struct net_device *dev)
 	u_int header;
 	struct sk_buff *skb;
 
-#ifdef DEBUG_B
+#ifdef DE_B
 	hp100_outw(0x4213, TRACE);
 	printk("hp100: %s: rx\n", dev->name);
 #endif
@@ -1783,7 +1783,7 @@ static void hp100_rx(struct net_device *dev)
 	/* RX_PKT_CND indicates the number of packets which have been fully */
 	/* received onto the card but have not been fully transferred of the card */
 	packets = hp100_inb(RX_PKT_CNT);
-#ifdef HP100_DEBUG_RX
+#ifdef HP100_DE_RX
 	if (packets > 1)
 		printk("hp100: %s: rx: waiting packets = %d\n", dev->name, packets);
 #endif
@@ -1792,7 +1792,7 @@ static void hp100_rx(struct net_device *dev)
 		/* If ADV_NXT_PKT is still set, we have to wait until the card has */
 		/* really advanced to the next packet. */
 		for (pkt_len = 0; pkt_len < 6000 && (hp100_inb(OPTION_MSW) & HP100_ADV_NXT_PKT); pkt_len++) {
-#ifdef HP100_DEBUG_RX
+#ifdef HP100_DE_RX
 			printk ("hp100: %s: rx: busy, remaining packets = %d\n", dev->name, packets);
 #endif
 		}
@@ -1806,7 +1806,7 @@ static void hp100_rx(struct net_device *dev)
 
 		pkt_len = ((header & HP100_PKT_LEN_MASK) + 3) & ~3;
 
-#ifdef HP100_DEBUG_RX
+#ifdef HP100_DE_RX
 		printk("hp100: %s: rx: new packet - length=%d, errors=0x%x, dest=0x%x\n",
 				     dev->name, header & HP100_PKT_LEN_MASK,
 				     (header >> 16) & 0xfff8, (header >> 16) & 7);
@@ -1815,7 +1815,7 @@ static void hp100_rx(struct net_device *dev)
 		/* Now we allocate the skb and transfer the data into it. */
 		skb = netdev_alloc_skb(dev, pkt_len + 2);
 		if (skb == NULL) {	/* Not enough memory->drop packet */
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: rx: couldn't allocate a sk_buff of size %d\n",
 					     dev->name, pkt_len);
 #endif
@@ -1838,7 +1838,7 @@ static void hp100_rx(struct net_device *dev)
 
 			skb->protocol = eth_type_trans(skb, dev);
 
-#ifdef HP100_DEBUG_RX
+#ifdef HP100_DE_RX
 			printk("hp100: %s: rx: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 					dev->name, ptr[0], ptr[1], ptr[2], ptr[3],
 		 			ptr[4], ptr[5], ptr[6], ptr[7], ptr[8],
@@ -1859,7 +1859,7 @@ static void hp100_rx(struct net_device *dev)
 			break;
 		}
 	}			/* end of while(there are packets) loop */
-#ifdef HP100_DEBUG_RX
+#ifdef HP100_DE_RX
 	printk("hp100_rx: %s: end\n", dev->name);
 #endif
 }
@@ -1875,12 +1875,12 @@ static void hp100_rx_bm(struct net_device *dev)
 	u_int header;
 	int pkt_len;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4214, TRACE);
 	printk("hp100: %s: rx_bm\n", dev->name);
 #endif
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	if (0 == lp->rxrcommit) {
 		printk("hp100: %s: rx_bm called although no PDLs were committed to adapter?\n", dev->name);
 		return;
@@ -1912,7 +1912,7 @@ static void hp100_rx_bm(struct net_device *dev)
 		/* Conversion to new PCI API : NOP */
 		pci_unmap_single(lp->pci_dev, (dma_addr_t) ptr->pdl[3], MAX_ETHER_SIZE, PCI_DMA_FROMDEVICE);
 
-#ifdef HP100_DEBUG_BM
+#ifdef HP100_DE_BM
 		printk("hp100: %s: rx_bm: header@0x%x=0x%x length=%d, errors=0x%x, dest=0x%x\n",
 				dev->name, (u_int) (ptr->pdl - 1), (u_int) header,
 				pkt_len, (header >> 16) & 0xfff8, (header >> 16) & 7);
@@ -1946,7 +1946,7 @@ static void hp100_rx_bm(struct net_device *dev)
 				break;
 			}
 		} else {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: rx_bm: Received bad packet (length=%d)\n", dev->name, pkt_len);
 #endif
 			if (ptr->skb != NULL)
@@ -1959,7 +1959,7 @@ static void hp100_rx_bm(struct net_device *dev)
 		/* Allocate a new rx PDL (so lp->rxrcommit stays the same) */
 		if (0 == hp100_build_rx_pdl(lp->rxrtail, dev)) {
 			/* No space for skb, header can still be received. */
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: rx_bm: No space for new PDL.\n", dev->name);
 #endif
 			return;
@@ -1980,7 +1980,7 @@ static struct net_device_stats *hp100_get_stats(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4215, TRACE);
 #endif
 
@@ -1997,7 +1997,7 @@ static void hp100_update_stats(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	u_short val;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4216, TRACE);
 	printk("hp100: %s: update-stats\n", dev->name);
 #endif
@@ -2018,11 +2018,11 @@ static void hp100_update_stats(struct net_device *dev)
 
 static void hp100_misc_interrupt(struct net_device *dev)
 {
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	int ioaddr = dev->base_addr;
 #endif
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	int ioaddr = dev->base_addr;
 	hp100_outw(0x4216, TRACE);
 	printk("hp100: %s: misc_interrupt\n", dev->name);
@@ -2037,7 +2037,7 @@ static void hp100_clear_stats(struct hp100_private *lp, int ioaddr)
 {
 	unsigned long flags;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4217, TRACE);
 	printk("hp100: %s: clear_stats\n", dev->name);
 #endif
@@ -2066,7 +2066,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4218, TRACE);
 	printk("hp100: %s: set_mc_list\n", dev->name);
 #endif
@@ -2093,13 +2093,13 @@ static void hp100_set_multicast_list(struct net_device *dev)
 			struct netdev_hw_addr *ha;
 
 			memset(&lp->hash_bytes, 0x00, 8);
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: computing hash filter - mc_count = %i\n",
 			       dev->name, netdev_mc_count(dev));
 #endif
 			netdev_for_each_mc_addr(ha, dev) {
 				addrs = ha->addr;
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 				printk("hp100: %s: multicast = %pM, ",
 					     dev->name, addrs);
 #endif
@@ -2107,7 +2107,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 					idx ^= *addrs++ & 0x3f;
 					printk(":%02x:", idx);
 				}
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 				printk("idx = %i\n", idx);
 #endif
 				lp->hash_bytes[idx >> 3] |= (1 << (idx & 7));
@@ -2133,7 +2133,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		hp100_page(MAC_ADDRESS);
 		for (i = 0; i < 8; i++)
 			hp100_outb(lp->hash_bytes[i], HASH_BYTE0 + i);
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: mac1 = 0x%x, mac2 = 0x%x, multicast hash = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
 				     dev->name, lp->mac1_mode, lp->mac2_mode,
 				     lp->hash_bytes[0], lp->hash_bytes[1],
@@ -2143,7 +2143,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 #endif
 
 		if (lp->lan_type == HP100_LAN_100) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: 100VG MAC settings have changed - relogin.\n", dev->name);
 #endif
 			lp->hub_status = hp100_login_to_vg_hub(dev, 1);	/* force a relogin to the hub */
@@ -2158,7 +2158,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		if (memcmp(old_hash_bytes, &lp->hash_bytes, 8)) {
 			for (i = 0; i < 8; i++)
 				hp100_outb(lp->hash_bytes[i], HASH_BYTE0 + i);
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 			printk("hp100: %s: multicast hash = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
 					dev->name, lp->hash_bytes[0],
 					lp->hash_bytes[1], lp->hash_bytes[2],
@@ -2168,7 +2168,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 #endif
 
 			if (lp->lan_type == HP100_LAN_100) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 				printk("hp100: %s: 100VG MAC settings have changed - relogin.\n", dev->name);
 #endif
 				lp->hub_status = hp100_login_to_vg_hub(dev, 1);	/* force a relogin to the hub */
@@ -2205,13 +2205,13 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 
 	hp100_ints_off();
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4219, TRACE);
 #endif
 
 	/*  hp100_page( PERFORMANCE ); */
 	val = hp100_inw(IRQ_STATUS);
-#ifdef HP100_DEBUG_IRQ
+#ifdef HP100_DE_IRQ
 	printk("hp100: %s: mode=%x,IRQ_STAT=0x%.4x,RXPKTCNT=0x%.2x RXPDL=0x%.2x TXPKTCNT=0x%.2x TXPDL=0x%.2x\n",
 			     dev->name, lp->mode, (u_int) val, hp100_inb(RX_PKT_CNT),
 			     hp100_inb(RX_PDL), hp100_inb(TX_PKT_CNT), hp100_inb(TX_PDL));
@@ -2270,7 +2270,7 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 	 * only in the 802.3 MAC and happens when 16 collisions occur during a TX
 	 */
 	if (val & (HP100_TX_ERROR | HP100_RX_ERROR)) {
-#ifdef HP100_DEBUG_IRQ
+#ifdef HP100_DE_IRQ
 		printk("hp100: %s: TX/RX Error IRQ\n", dev->name);
 #endif
 		hp100_update_stats(dev);
@@ -2298,7 +2298,7 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 	 * bus error occurs.
 	 */
 	if (val & HP100_MISC_ERROR) {	/* New for J2585B */
-#ifdef HP100_DEBUG_IRQ
+#ifdef HP100_DE_IRQ
 		printk
 		    ("hp100: %s: Misc. Error Interrupt - Check cabling.\n",
 		     dev->name);
@@ -2325,7 +2325,7 @@ static void hp100_start_interface(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4220, TRACE);
 	printk("hp100: %s: hp100_start_interface\n", dev->name);
 #endif
@@ -2386,7 +2386,7 @@ static void hp100_stop_interface(struct net_device *dev)
 	int ioaddr = dev->base_addr;
 	u_int val;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	printk("hp100: %s: hp100_stop_interface\n", dev->name);
 	hp100_outw(0x4221, TRACE);
 #endif
@@ -2421,7 +2421,7 @@ static void hp100_load_eeprom(struct net_device *dev, u_short probe_ioaddr)
 	int i;
 	int ioaddr = probe_ioaddr > 0 ? probe_ioaddr : dev->base_addr;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4222, TRACE);
 #endif
 
@@ -2445,7 +2445,7 @@ static int hp100_sense_lan(struct net_device *dev)
 	u_short val_VG, val_10;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4223, TRACE);
 #endif
 
@@ -2453,7 +2453,7 @@ static int hp100_sense_lan(struct net_device *dev)
 	val_10 = hp100_inb(10_LAN_CFG_1);
 	val_VG = hp100_inb(VG_LAN_CFG_1);
 	hp100_page(PERFORMANCE);
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	printk("hp100: %s: sense_lan: val_VG = 0x%04x, val_10 = 0x%04x\n",
 	       dev->name, val_VG, val_10);
 #endif
@@ -2494,7 +2494,7 @@ static int hp100_down_vg_link(struct net_device *dev)
 	unsigned long time;
 	long savelan, newlan;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4224, TRACE);
 	printk("hp100: %s: down_vg_link\n", dev->name);
 #endif
@@ -2525,7 +2525,7 @@ static int hp100_down_vg_link(struct net_device *dev)
 			schedule_timeout_interruptible(1);
 	} while (time_after(time, jiffies));
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	if (time_after_eq(jiffies, time))
 		printk("hp100: %s: down_vg_link: Link does not go down?\n", dev->name);
 #endif
@@ -2577,7 +2577,7 @@ static int hp100_down_vg_link(struct net_device *dev)
 	} while (time_after(time, jiffies));
 
 	if (time_before_eq(time, jiffies)) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: down_vg_link: timeout\n", dev->name);
 #endif
 		return -EIO;
@@ -2600,7 +2600,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 	unsigned long time;
 	int startst;
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4225, TRACE);
 	printk("hp100: %s: login_to_vg_hub\n", dev->name);
 #endif
@@ -2612,7 +2612,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 	hp100_page(MAC_CTRL);
 	startst = hp100_inb(VG_LAN_CFG_1);
 	if ((force_relogin == 1) || (hp100_inb(MAC_CFG_4) & HP100_MAC_SEL_ST)) {
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 		printk("hp100: %s: Start training\n", dev->name);
 #endif
 
@@ -2627,7 +2627,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		/* Drop the VG link by zeroing Link Up Command and Load Address  */
 		hp100_andb(~(HP100_LINK_CMD /* |HP100_LOAD_ADDR */ ), VG_LAN_CFG_1);
 
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 		printk("hp100: %s: Bring down the link\n", dev->name);
 #endif
 
@@ -2677,11 +2677,11 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		} while (time_before(jiffies, time));
 
 		if (time_after_eq(jiffies, time)) {
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 			printk("hp100: %s: Link cable status not ok? Training aborted.\n", dev->name);
 #endif
 		} else {
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 			printk
 			    ("hp100: %s: HUB tones detected. Trying to train.\n",
 			     dev->name);
@@ -2691,7 +2691,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 			do {
 				val = hp100_inb(VG_LAN_CFG_1);
 				if ((val & (HP100_LINK_UP_ST))) {
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 					printk("hp100: %s: Passed training.\n", dev->name);
 #endif
 					break;
@@ -2703,7 +2703,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 
 		/* If LINK_UP_ST is set, then we are logged into the hub. */
 		if (time_before_eq(jiffies, time) && (val & HP100_LINK_UP_ST)) {
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 			printk("hp100: %s: Successfully logged into the HUB.\n", dev->name);
 			if (lp->chip == HP100_CHIPID_LASSEN) {
 				val = hp100_inw(TRAIN_ALLOW);
@@ -2719,7 +2719,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 			if (lp->chip == HP100_CHIPID_LASSEN) {
 				/* Check allowed Register to find out why there is a problem. */
 				val = hp100_inw(TRAIN_ALLOW);	/* won't work on non-ETR card */
-#ifdef HP100_DEBUG_TRAINING
+#ifdef HP100_DE_TRAINING
 				printk("hp100: %s: MAC Configuration requested: 0x%04x, HUB allowed: 0x%04x\n", dev->name, hp100_inw(TRAIN_REQUEST), val);
 #endif
 				if (val & HP100_MALLOW_ACCDENIED)
@@ -2762,7 +2762,7 @@ static void hp100_cascade_reset(struct net_device *dev, u_short enable)
 	int ioaddr = dev->base_addr;
 	struct hp100_private *lp = netdev_priv(dev);
 
-#ifdef HP100_DEBUG_B
+#ifdef HP100_DE_B
 	hp100_outw(0x4226, TRACE);
 	printk("hp100: %s: cascade_reset\n", dev->name);
 #endif
@@ -2788,7 +2788,7 @@ static void hp100_cascade_reset(struct net_device *dev, u_short enable)
 	}
 }
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 void hp100_RegisterDump(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
@@ -2851,7 +2851,7 @@ static int hp100_eisa_probe(struct device *gendev)
 	if (err)
 		goto out1;
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	printk("hp100: %s: EISA adapter found at 0x%x\n", dev->name,
 	       dev->base_addr);
 #endif
@@ -2899,7 +2899,7 @@ static int hp100_pci_probe(struct pci_dev *pdev,
 
 	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
 	if (!(pci_command & PCI_COMMAND_IO)) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: PCI I/O Bit has not been set. Setting...\n", dev->name);
 #endif
 		pci_command |= PCI_COMMAND_IO;
@@ -2907,7 +2907,7 @@ static int hp100_pci_probe(struct pci_dev *pdev,
 	}
 
 	if (!(pci_command & PCI_COMMAND_MASTER)) {
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 		printk("hp100: %s: PCI Master Bit has not been set. Setting...\n", dev->name);
 #endif
 		pci_command |= PCI_COMMAND_MASTER;
@@ -2919,7 +2919,7 @@ static int hp100_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto out1;
 
-#ifdef HP100_DEBUG
+#ifdef HP100_DE
 	printk("hp100: %s: PCI adapter found at 0x%x\n", dev->name, ioaddr);
 #endif
 	pci_set_drvdata(pdev, dev);

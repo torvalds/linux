@@ -429,7 +429,7 @@ static int dln2_spi_write_one(struct dln2_spi *dln2, const u8 *data,
 	} __packed *tx = dln2->buf;
 	unsigned tx_len;
 
-	BUILD_BUG_ON(sizeof(*tx) > DLN2_SPI_BUF_SIZE);
+	BUILD__ON(sizeof(*tx) > DLN2_SPI_BUF_SIZE);
 
 	if (data_len > DLN2_SPI_MAX_XFER_SIZE)
 		return -EINVAL;
@@ -462,7 +462,7 @@ static int dln2_spi_read_one(struct dln2_spi *dln2, u8 *data,
 	} __packed *rx = dln2->buf;
 	unsigned rx_len = sizeof(*rx);
 
-	BUILD_BUG_ON(sizeof(*rx) > DLN2_SPI_BUF_SIZE);
+	BUILD__ON(sizeof(*rx) > DLN2_SPI_BUF_SIZE);
 
 	if (data_len > DLN2_SPI_MAX_XFER_SIZE)
 		return -EINVAL;
@@ -504,7 +504,7 @@ static int dln2_spi_read_write_one(struct dln2_spi *dln2, const u8 *tx_data,
 	} __packed *rx;
 	unsigned tx_len, rx_len;
 
-	BUILD_BUG_ON(sizeof(*tx) > DLN2_SPI_BUF_SIZE ||
+	BUILD__ON(sizeof(*tx) > DLN2_SPI_BUF_SIZE ||
 		     sizeof(*rx) > DLN2_SPI_BUF_SIZE);
 
 	if (data_len > DLN2_SPI_MAX_XFER_SIZE)

@@ -561,7 +561,7 @@ static int __init mtk_cpufreq_driver_init(void)
 	match = of_match_node(mtk_cpufreq_machines, np);
 	of_node_put(np);
 	if (!match) {
-		pr_debug("Machine is not compatible with mtk-cpufreq\n");
+		pr_de("Machine is not compatible with mtk-cpufreq\n");
 		return -ENODEV;
 	}
 

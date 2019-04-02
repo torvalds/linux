@@ -45,7 +45,7 @@ static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 	const u32 *k = data;
 	const u32 key = *k;
 
-	BUILD_BUG_ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
+	BUILD__ON(FIELD_SIZEOF(struct xdp_mem_allocator, mem.id)
 		     != sizeof(u32));
 
 	/* Use cyclic increasing ID as direct hash key */
@@ -100,7 +100,7 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 	int id = xdp_rxq->mem.id;
 
 	if (xdp_rxq->reg_state != REG_STATE_REGISTERED) {
-		WARN(1, "Missing register, driver bug");
+		WARN(1, "Missing register, driver ");
 		return;
 	}
 
@@ -128,7 +128,7 @@ void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 	if (xdp_rxq->reg_state == REG_STATE_UNUSED)
 		return;
 
-	WARN(!(xdp_rxq->reg_state == REG_STATE_REGISTERED), "Driver BUG");
+	WARN(!(xdp_rxq->reg_state == REG_STATE_REGISTERED), "Driver ");
 
 	xdp_rxq_info_unreg_mem_model(xdp_rxq);
 
@@ -258,7 +258,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	void *ptr;
 
 	if (xdp_rxq->reg_state != REG_STATE_REGISTERED) {
-		WARN(1, "Missing register, driver bug");
+		WARN(1, "Missing register, driver ");
 		return -EFAULT;
 	}
 

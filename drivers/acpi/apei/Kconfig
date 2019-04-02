@@ -54,17 +54,17 @@ config ACPI_APEI_MEMORY_FAILURE
 
 config ACPI_APEI_EINJ
 	tristate "APEI Error INJection (EINJ)"
-	depends on ACPI_APEI && DEBUG_FS
+	depends on ACPI_APEI && DE_FS
 	help
 	  EINJ provides a hardware error injection mechanism, it is
-	  mainly used for debugging and testing the other parts of
+	  mainly used for deging and testing the other parts of
 	  APEI and some other RAS features.
 
-config ACPI_APEI_ERST_DEBUG
-	tristate "APEI Error Record Serialization Table (ERST) Debug Support"
+config ACPI_APEI_ERST_DE
+	tristate "APEI Error Record Serialization Table (ERST) De Support"
 	depends on ACPI_APEI
 	help
 	  ERST is a way provided by APEI to save and retrieve hardware
 	  error information to and from a persistent store. Enable this
-	  if you want to debugging and testing the ERST kernel support
+	  if you want to deging and testing the ERST kernel support
 	  and firmware implementation.

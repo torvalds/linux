@@ -1029,18 +1029,18 @@ int comedi_auto_config(struct device *hardware_device,
 	int ret;
 
 	if (!hardware_device) {
-		pr_warn("BUG! %s called with NULL hardware_device\n", __func__);
+		pr_warn("! %s called with NULL hardware_device\n", __func__);
 		return -EINVAL;
 	}
 	if (!driver) {
 		dev_warn(hardware_device,
-			 "BUG! %s called with NULL comedi driver\n", __func__);
+			 "! %s called with NULL comedi driver\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!driver->auto_attach) {
 		dev_warn(hardware_device,
-			 "BUG! comedi driver '%s' has no auto_attach handler\n",
+			 "! comedi driver '%s' has no auto_attach handler\n",
 			 driver->driver_name);
 		return -EINVAL;
 	}
@@ -1164,7 +1164,7 @@ void comedi_driver_unregister(struct comedi_driver *driver)
 		if (dev->attached && dev->driver == driver) {
 			if (dev->use_count)
 				dev_warn(dev->class_dev,
-					 "BUG! detaching device with use_count=%d\n",
+					 "! detaching device with use_count=%d\n",
 					 dev->use_count);
 			comedi_device_detach(dev);
 		}

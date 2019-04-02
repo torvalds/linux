@@ -249,8 +249,8 @@ static int dccp_v4_err(struct sk_buff *skb, u32 info)
 	 * 4 bytes in dccp header.
 	 * Our caller (icmp_socket_deliver()) already pulled 8 bytes for us.
 	 */
-	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_sport) > 8);
-	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_dport) > 8);
+	BUILD__ON(offsetofend(struct dccp_hdr, dccph_sport) > 8);
+	BUILD__ON(offsetofend(struct dccp_hdr, dccph_dport) > 8);
 	dh = (struct dccp_hdr *)(skb->data + offset);
 
 	sk = __inet_lookup_established(net, &dccp_hashinfo,
@@ -796,7 +796,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 	DCCP_SKB_CB(skb)->dccpd_seq  = dccp_hdr_seq(dh);
 	DCCP_SKB_CB(skb)->dccpd_type = dh->dccph_type;
 
-	dccp_pr_debug("%8.8s src=%pI4@%-5d dst=%pI4@%-5d seq=%llu",
+	dccp_pr_de("%8.8s src=%pI4@%-5d dst=%pI4@%-5d seq=%llu",
 		      dccp_packet_name(dh->dccph_type),
 		      &iph->saddr, ntohs(dh->dccph_sport),
 		      &iph->daddr, ntohs(dh->dccph_dport),
@@ -804,10 +804,10 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	if (dccp_packet_without_ack(skb)) {
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = DCCP_PKT_WITHOUT_ACK_SEQ;
-		dccp_pr_debug_cat("\n");
+		dccp_pr_de_cat("\n");
 	} else {
 		DCCP_SKB_CB(skb)->dccpd_ack_seq = dccp_hdr_ack_seq(skb);
-		dccp_pr_debug_cat(", ack=%llu\n", (unsigned long long)
+		dccp_pr_de_cat(", ack=%llu\n", (unsigned long long)
 				  DCCP_SKB_CB(skb)->dccpd_ack_seq);
 	}
 
@@ -815,7 +815,7 @@ lookup:
 	sk = __inet_lookup_skb(&dccp_hashinfo, skb, __dccp_hdr_len(dh),
 			       dh->dccph_sport, dh->dccph_dport, 0, &refcounted);
 	if (!sk) {
-		dccp_pr_debug("failed to look up flow ID in table and "
+		dccp_pr_de("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
 		goto no_dccp_socket;
 	}
@@ -827,7 +827,7 @@ lookup:
 	 *		Drop packet and return
 	 */
 	if (sk->sk_state == DCCP_TIME_WAIT) {
-		dccp_pr_debug("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
+		dccp_pr_de("sk->sk_state == DCCP_TIME_WAIT: do_time_wait\n");
 		inet_twsk_put(inet_twsk(sk));
 		goto no_dccp_socket;
 	}
@@ -865,7 +865,7 @@ lookup:
 	 */
 	min_cov = dccp_sk(sk)->dccps_pcrlen;
 	if (dh->dccph_cscov && (min_cov == 0 || dh->dccph_cscov < min_cov))  {
-		dccp_pr_debug("Packet CsCov %d does not satisfy MinCsCov %d\n",
+		dccp_pr_de("Packet CsCov %d does not satisfy MinCsCov %d\n",
 			      dh->dccph_cscov, min_cov);
 		/* FIXME: "Such packets SHOULD be reported using Data Dropped
 		 *         options (Section 11.7) with Drop Code 0, Protocol

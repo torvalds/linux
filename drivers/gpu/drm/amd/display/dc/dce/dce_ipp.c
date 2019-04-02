@@ -89,7 +89,7 @@ static void dce_ipp_cursor_set_attributes(
 		mode = 3;
 		break;
 	default:
-		BREAK_TO_DEBUGGER(); /* unsupported */
+		BREAK_TO_DEGER(); /* unsupported */
 		mode = 0;
 	}
 

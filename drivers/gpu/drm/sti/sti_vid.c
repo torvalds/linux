@@ -118,20 +118,20 @@ static int vid_dbg_show(struct seq_file *s, void *arg)
 	return 0;
 }
 
-static struct drm_info_list vid_debugfs_files[] = {
+static struct drm_info_list vid_defs_files[] = {
 	{ "vid", vid_dbg_show, 0, NULL },
 };
 
-int vid_debugfs_init(struct sti_vid *vid, struct drm_minor *minor)
+int vid_defs_init(struct sti_vid *vid, struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(vid_debugfs_files); i++)
-		vid_debugfs_files[i].data = vid;
+	for (i = 0; i < ARRAY_SIZE(vid_defs_files); i++)
+		vid_defs_files[i].data = vid;
 
-	return drm_debugfs_create_files(vid_debugfs_files,
-					ARRAY_SIZE(vid_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(vid_defs_files,
+					ARRAY_SIZE(vid_defs_files),
+					minor->defs_root, minor);
 }
 
 void sti_vid_commit(struct sti_vid *vid,

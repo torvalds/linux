@@ -26,13 +26,13 @@ static unsigned int vbibufs = 4;
 module_param(vbibufs, int, 0644);
 MODULE_PARM_DESC(vbibufs, "number of vbi buffers, range 2-32");
 
-static unsigned int vbi_debug;
-module_param(vbi_debug, int, 0644);
-MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
+static unsigned int vbi_de;
+module_param(vbi_de, int, 0644);
+MODULE_PARM_DESC(vbi_de, "enable de messages [vbi]");
 
 #define dprintk(level, fmt, arg...)\
-	do { if (vbi_debug >= level)\
-		printk(KERN_DEBUG pr_fmt("%s: vbi:" fmt), \
+	do { if (vbi_de >= level)\
+		printk(KERN_DE pr_fmt("%s: vbi:" fmt), \
 			__func__, ##arg); \
 	} while (0)
 

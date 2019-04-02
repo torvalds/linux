@@ -14,9 +14,9 @@ obj-$(CONFIG_ARM_MPU)		+= pmsa-v7.o pmsa-v8.o
 endif
 
 obj-$(CONFIG_ARM_PTDUMP_CORE)	+= dump.o
-obj-$(CONFIG_ARM_PTDUMP_DEBUGFS)	+= ptdump_debugfs.o
+obj-$(CONFIG_ARM_PTDUMP_DEFS)	+= ptdump_defs.o
 obj-$(CONFIG_MODULES)		+= proc-syms.o
-obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
+obj-$(CONFIG_DE_VIRTUAL)	+= physaddr.o
 
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
@@ -97,7 +97,7 @@ obj-$(CONFIG_CPU_MOHAWK)	+= proc-mohawk.o
 obj-$(CONFIG_CPU_FEROCEON)	+= proc-feroceon.o
 obj-$(CONFIG_CPU_V6)		+= proc-v6.o
 obj-$(CONFIG_CPU_V6K)		+= proc-v6.o
-obj-$(CONFIG_CPU_V7)		+= proc-v7.o proc-v7-bugs.o
+obj-$(CONFIG_CPU_V7)		+= proc-v7.o proc-v7-s.o
 obj-$(CONFIG_CPU_V7M)		+= proc-v7m.o
 
 AFLAGS_proc-v6.o	:=-Wa,-march=armv6

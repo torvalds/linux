@@ -153,7 +153,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 	if (madt->address) {
 		acpi_lapic_addr = (u64) madt->address;
 
-		printk(KERN_DEBUG PREFIX "Local APIC address 0x%08x\n",
+		printk(KERN_DE PREFIX "Local APIC address 0x%08x\n",
 		       madt->address);
 	}
 
@@ -971,24 +971,24 @@ late_initcall(hpet_insert_resource);
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
 	if (!(acpi_gbl_FADT.boot_flags & ACPI_FADT_LEGACY_DEVICES)) {
-		pr_debug("ACPI: no legacy devices present\n");
+		pr_de("ACPI: no legacy devices present\n");
 		x86_platform.legacy.devices.pnpbios = 0;
 	}
 
 	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
 	    !(acpi_gbl_FADT.boot_flags & ACPI_FADT_8042) &&
 	    x86_platform.legacy.i8042 != X86_LEGACY_I8042_PLATFORM_ABSENT) {
-		pr_debug("ACPI: i8042 controller is absent\n");
+		pr_de("ACPI: i8042 controller is absent\n");
 		x86_platform.legacy.i8042 = X86_LEGACY_I8042_FIRMWARE_ABSENT;
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
-		pr_debug("ACPI: not registering RTC platform device\n");
+		pr_de("ACPI: not registering RTC platform device\n");
 		x86_platform.legacy.rtc = 0;
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_VGA) {
-		pr_debug("ACPI: probing for VGA not safe\n");
+		pr_de("ACPI: probing for VGA not safe\n");
 		x86_platform.legacy.no_vga = 1;
 	}
 
@@ -1117,7 +1117,7 @@ static void __init mp_config_acpi_legacy_irqs(void)
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
 #endif
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
-	pr_debug("Bus #%d is ISA (nIRQs: %d)\n", MP_ISA_BUS, nr_legacy_irqs());
+	pr_de("Bus #%d is ISA (nIRQs: %d)\n", MP_ISA_BUS, nr_legacy_irqs());
 
 	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
@@ -1155,7 +1155,7 @@ static void __init mp_config_acpi_legacy_irqs(void)
 		}
 
 		if (idx != mp_irq_entries) {
-			printk(KERN_DEBUG "ACPI: IRQ%d used by override.\n", i);
+			printk(KERN_DE "ACPI: IRQ%d used by override.\n", i);
 			continue;	/* IRQ already used */
 		}
 
@@ -1440,7 +1440,7 @@ static const struct dmi_system_id acpi_dmi_table[] __initconst = {
 		/*
 		 * Latest BIOS for IBM 600E (1.16) has bad pcinum
 		 * for LPC bridge, which is needed for the PCI
-		 * interrupt links to work. DSDT fix is in bug 5966.
+		 * interrupt links to work. DSDT fix is in  5966.
 		 * 2645, 2646 model numbers are shared with 600/600E/600X
 		 */
 	 .callback = disable_acpi_irq,
@@ -1461,7 +1461,7 @@ static const struct dmi_system_id acpi_dmi_table[] __initconst = {
 	/*
 	 * Boxes that need ACPI PCI IRQ routing and PCI scan disabled
 	 */
-	{			/* _BBN 0 bug */
+	{			/* _BBN 0  */
 	 .callback = disable_acpi_pci,
 	 .ident = "ASUS PR-DLS",
 	 .matches = {

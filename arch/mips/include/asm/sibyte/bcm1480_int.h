@@ -262,7 +262,7 @@
 #define K_BCM1480_INT_MAP_I4	4
 #define K_BCM1480_INT_MAP_I5	5
 #define K_BCM1480_INT_MAP_NMI	6		/* nonmaskable */
-#define K_BCM1480_INT_MAP_DINT	7		/* debug interrupt */
+#define K_BCM1480_INT_MAP_DINT	7		/* de interrupt */
 
 /*
  * Interrupt LDT Set Register (Table 19)

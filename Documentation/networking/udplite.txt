@@ -108,8 +108,8 @@
 
   IV) KERNEL BEHAVIOUR WITH REGARD TO THE VARIOUS SOCKET OPTIONS
 
-  To enable debugging messages, the log level need to be set to 8, as most
-  messages use the KERN_DEBUG level (7).
+  To enable deging messages, the log level need to be set to 8, as most
+  messages use the KERN_DE level (7).
 
   1) Sender Socket Options
 
@@ -225,7 +225,7 @@
 
   V) UDP-LITE RUNTIME STATISTICS AND THEIR MEANING
 
-  Exceptional and error conditions are logged to syslog at the KERN_DEBUG
+  Exceptional and error conditions are logged to syslog at the KERN_DE
   level.  Live statistics about UDP-Lite are available in /proc/net/snmp
   and can (with newer versions of netstat) be viewed using
 

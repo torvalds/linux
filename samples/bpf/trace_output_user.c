@@ -46,7 +46,7 @@ static int print_bpf_output(void *data, int size)
 	} *e = data;
 
 	if (e->cookie != 0x12345678) {
-		printf("BUG pid %llx cookie %llx sized %d\n",
+		printf(" pid %llx cookie %llx sized %d\n",
 		       e->pid, e->cookie, size);
 		return LIBBPF_PERF_EVENT_ERROR;
 	}

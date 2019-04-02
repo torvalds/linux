@@ -58,12 +58,12 @@ static DEFINE_MUTEX(__ip_vs_mutex);
 
 /* sysctl variables */
 
-#ifdef CONFIG_IP_VS_DEBUG
-static int sysctl_ip_vs_debug_level = 0;
+#ifdef CONFIG_IP_VS_DE
+static int sysctl_ip_vs_de_level = 0;
 
-int ip_vs_get_debug_level(void)
+int ip_vs_get_de_level(void)
 {
-	return sysctl_ip_vs_debug_level;
+	return sysctl_ip_vs_de_level;
 }
 #endif
 
@@ -817,7 +817,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	int conn_flags;
 
 	/* We cannot modify an address and change the address family */
-	BUG_ON(!add && udest->af != dest->af);
+	_ON(!add && udest->af != dest->af);
 
 	if (add && udest->af != svc->af)
 		ipvs->mixed_address_family_dests++;
@@ -1903,10 +1903,10 @@ static struct ctl_table vs_vars[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-#ifdef CONFIG_IP_VS_DEBUG
+#ifdef CONFIG_IP_VS_DE
 	{
-		.procname	= "debug_level",
-		.data		= &sysctl_ip_vs_debug_level,
+		.procname	= "de_level",
+		.data		= &sysctl_ip_vs_de_level,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -2348,7 +2348,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	struct ip_vs_dest_user_kern udest;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	BUILD_BUG_ON(sizeof(arg) > 255);
+	BUILD__ON(sizeof(arg) > 255);
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
@@ -2670,8 +2670,8 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	struct net *net = sock_net(sk);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	BUG_ON(!net);
-	BUILD_BUG_ON(sizeof(arg) > 255);
+	_ON(!net);
+	BUILD__ON(sizeof(arg) > 255);
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 

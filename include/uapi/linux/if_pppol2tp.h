@@ -75,7 +75,7 @@ struct pppol2tpv3in6_addr {
 };
 
 /* Socket options:
- * DEBUG	- bitmask of debug message categories
+ * DE	- bitmask of de message categories
  * SENDSEQ	- 0 => don't send packets with sequence numbers
  *		  1 => send packets with sequence numbers
  * RECVSEQ	- 0 => receive packet sequence numbers are optional
@@ -85,16 +85,16 @@ struct pppol2tpv3in6_addr {
  * REORDERTO	- reorder timeout (in millisecs). If 0, don't try to reorder.
  */
 enum {
-	PPPOL2TP_SO_DEBUG	= 1,
+	PPPOL2TP_SO_DE	= 1,
 	PPPOL2TP_SO_RECVSEQ	= 2,
 	PPPOL2TP_SO_SENDSEQ	= 3,
 	PPPOL2TP_SO_LNSMODE	= 4,
 	PPPOL2TP_SO_REORDERTO	= 5,
 };
 
-/* Debug message categories for the DEBUG socket option (deprecated) */
+/* De message categories for the DE socket option (deprecated) */
 enum {
-	PPPOL2TP_MSG_DEBUG	= L2TP_MSG_DEBUG,
+	PPPOL2TP_MSG_DE	= L2TP_MSG_DE,
 	PPPOL2TP_MSG_CONTROL	= L2TP_MSG_CONTROL,
 	PPPOL2TP_MSG_SEQ	= L2TP_MSG_SEQ,
 	PPPOL2TP_MSG_DATA	= L2TP_MSG_DATA,

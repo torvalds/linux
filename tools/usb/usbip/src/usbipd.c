@@ -77,8 +77,8 @@ static const char usbipd_help_string[] =
 	"	-D, --daemon\n"
 	"		Run as a daemon process.\n"
 	"\n"
-	"	-d, --debug\n"
-	"		Print debugging information.\n"
+	"	-d, --de\n"
+	"		Print deging information.\n"
 	"\n"
 	"	-PFILE, --pid FILE\n"
 	"		Write process id to FILE.\n"
@@ -602,7 +602,7 @@ int main(int argc, char *argv[])
 		{ "ipv6",     no_argument,       NULL, '6' },
 		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "daemon",   no_argument,       NULL, 'D' },
-		{ "debug",    no_argument,       NULL, 'd' },
+		{ "de",    no_argument,       NULL, 'd' },
 		{ "device",   no_argument,       NULL, 'e' },
 		{ "pid",      optional_argument, NULL, 'P' },
 		{ "tcp-port", required_argument, NULL, 't' },
@@ -648,7 +648,7 @@ int main(int argc, char *argv[])
 			daemonize = 1;
 			break;
 		case 'd':
-			usbip_use_debug = 1;
+			usbip_use_de = 1;
 			break;
 		case 'h':
 			cmd = cmd_help;

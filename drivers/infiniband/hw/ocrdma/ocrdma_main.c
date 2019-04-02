@@ -194,7 +194,7 @@ static const struct ib_device_ops ocrdma_dev_srq_ops = {
 static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
-	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
+	BUILD__ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
@@ -448,7 +448,7 @@ static int __init ocrdma_init_module(void)
 {
 	int status;
 
-	ocrdma_init_debugfs();
+	ocrdma_init_defs();
 
 	status = be_roce_register_driver(&ocrdma_drv);
 	if (status)
@@ -464,7 +464,7 @@ err_be_reg:
 static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
-	ocrdma_rem_debugfs();
+	ocrdma_rem_defs();
 	idr_destroy(&ocrdma_dev_id);
 }
 

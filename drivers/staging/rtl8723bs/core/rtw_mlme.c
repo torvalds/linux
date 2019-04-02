@@ -8,7 +8,7 @@
 
 #include <linux/etherdevice.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/jiffies.h>
 
 extern u8 rtw_do_join(struct adapter *padapter);
@@ -441,7 +441,7 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst, u8 fea
 	u16 s_cap, d_cap;
 	__le16 tmps, tmpd;
 
-	if (rtw_bug_check(dst, src, &s_cap, &d_cap) == false)
+	if (rtw__check(dst, src, &s_cap, &d_cap) == false)
 			return false;
 
 	memcpy((u8 *)&tmps, rtw_get_capability_from_ie(src->IEs), 2);
@@ -584,7 +584,7 @@ static void update_current_network(struct adapter *adapter, struct wlan_bssid_ex
 {
 	struct	mlme_priv *pmlmepriv = &(adapter->mlmepriv);
 
-	rtw_bug_check(&(pmlmepriv->cur_network.network),
+	rtw__check(&(pmlmepriv->cur_network.network),
 		&(pmlmepriv->cur_network.network),
 		&(pmlmepriv->cur_network.network),
 		&(pmlmepriv->cur_network.network));
@@ -629,7 +629,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
 
-		rtw_bug_check(pnetwork, pnetwork, pnetwork, pnetwork);
+		rtw__check(pnetwork, pnetwork, pnetwork, pnetwork);
 
 		if (is_same_network(&(pnetwork->network), target, feature)) {
 			target_find = 1;
@@ -1017,7 +1017,7 @@ static void free_scanqueue(struct	mlme_priv *pmlmepriv)
 	spin_unlock_bh(&scan_queue->lock);
 }
 
-static void rtw_reset_rx_info(struct debug_priv *pdbgpriv)
+static void rtw_reset_rx_info(struct de_priv *pdbgpriv)
 {
 	pdbgpriv->dbg_rx_ampdu_drop_count = 0;
 	pdbgpriv->dbg_rx_ampdu_forced_indicate_count = 0;
@@ -1053,7 +1053,7 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
 	struct	sta_priv *pstapriv = &adapter->stapriv;
 	struct dvobj_priv *psdpriv = adapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+rtw_free_assoc_resources\n"));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("tgt_network->network.MacAddress ="MAC_FMT" ssid =%s\n",
@@ -2504,7 +2504,7 @@ sint rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in
 	} else if ((authmode == _WPA_IE_ID_) || (authmode == _WPA2_IE_ID_)) {
 		/* copy RSN or SSN */
 		memcpy(&out_ie[ielength], &psecuritypriv->supplicant_ie[0], psecuritypriv->supplicant_ie[1]+2);
-		/* debug for CONFIG_IEEE80211W
+		/* de for CONFIG_IEEE80211W
 		{
 			int jj;
 			printk("supplicant_ie_length =%d &&&&&&&&&&&&&&&&&&&\n", psecuritypriv->supplicant_ie[1]+2);

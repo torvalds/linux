@@ -407,7 +407,7 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 		priv->power_base = &rtl8188r_power_base;
 	}
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
+	if (rtl8xxxu_de & RTL8XXXU_DE_EFUSE) {
 		unsigned char *raw = priv->efuse_wifi.raw;
 
 		dev_info(&priv->udev->dev,

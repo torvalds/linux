@@ -21,7 +21,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 
-#undef DEBUG_HARD_HEADER
+#undef DE_HARD_HEADER
 
 #define CISCO_MULTICAST		0x8F	/* Cisco multicast address */
 #define CISCO_UNICAST		0x0F	/* Cisco unicast address */
@@ -77,8 +77,8 @@ static int cisco_hard_header(struct sk_buff *skb, struct net_device *dev,
 			     unsigned int len)
 {
 	struct hdlc_header *data;
-#ifdef DEBUG_HARD_HEADER
-	printk(KERN_DEBUG "%s: cisco_hard_header called\n", dev->name);
+#ifdef DE_HARD_HEADER
+	printk(KERN_DE "%s: cisco_hard_header called\n", dev->name);
 #endif
 
 	skb_push(skb, sizeof(struct hdlc_header));

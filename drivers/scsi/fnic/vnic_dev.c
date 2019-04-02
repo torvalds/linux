@@ -584,7 +584,7 @@ int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
 		*(u64 *)value = a0;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

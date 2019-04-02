@@ -385,7 +385,7 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 		switch (entry->type) {
 		case UWB_EST_16:  type_size = sizeof(__le16); break;
 		case UWB_EST_8:   type_size = sizeof(u8);     break;
-		default: 	 BUG();
+		default: 	 ();
 		}
 		if (offset + type_size > rceb_size) {
 			dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
@@ -399,7 +399,7 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 		switch (entry->type) {
 		case UWB_EST_16:  size += le16_to_cpu(*(__le16 *)ptr); break;
 		case UWB_EST_8:   size += *(u8 *)ptr;                  break;
-		default: 	 BUG();
+		default: 	 ();
 		}
 	}
 out:

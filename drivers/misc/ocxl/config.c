@@ -312,7 +312,7 @@ static int read_afu_name(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	int i, rc;
 	u32 val, *ptr;
 
-	BUILD_BUG_ON(OCXL_AFU_NAME_SZ < OCXL_TEMPL_NAME_LEN);
+	BUILD__ON(OCXL_AFU_NAME_SZ < OCXL_TEMPL_NAME_LEN);
 	for (i = 0; i < OCXL_TEMPL_NAME_LEN; i += 4) {
 		rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_NAME + i, &val);
 		if (rc)

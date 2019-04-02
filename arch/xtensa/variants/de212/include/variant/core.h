@@ -51,7 +51,7 @@
 #define XCHAL_NUM_AREGS			32	/* num of physical addr regs */
 #define XCHAL_NUM_AREGS_LOG2		5	/* log2(XCHAL_NUM_AREGS) */
 #define XCHAL_MAX_INSTRUCTION_SIZE	3	/* max instr bytes (3..8) */
-#define XCHAL_HAVE_DEBUG		1	/* debug option */
+#define XCHAL_HAVE_DE		1	/* de option */
 #define XCHAL_HAVE_DENSITY		1	/* 16-bit instructions */
 #define XCHAL_HAVE_LOOPS		1	/* zero-overhead loops */
 #define XCHAL_LOOP_BUFFER_SIZE		0	/* zero-ov. loop instr buffer size */
@@ -87,7 +87,7 @@
 #define XCHAL_HAVE_MP_INTERRUPTS	0	/* interrupt distributor port */
 #define XCHAL_HAVE_MP_RUNSTALL		0	/* core RunStall control port */
 #define XCHAL_HAVE_PSO			0	/* Power Shut-Off */
-#define XCHAL_HAVE_PSO_CDM		0	/* core/debug/mem pwr domains */
+#define XCHAL_HAVE_PSO_CDM		0	/* core/de/mem pwr domains */
 #define XCHAL_HAVE_PSO_FULL_RETENTION	0	/* all regs preserved on PSO */
 #define XCHAL_HAVE_THREADPTR		0	/* THREADPTR register */
 #define XCHAL_HAVE_BOOLEANS		0	/* boolean registers */
@@ -367,8 +367,8 @@
 #define XCHAL_INT19_LEVEL		1
 #define XCHAL_INT20_LEVEL		1
 #define XCHAL_INT21_LEVEL		3
-#define XCHAL_DEBUGLEVEL		6	/* debug interrupt level */
-#define XCHAL_HAVE_DEBUG_EXTERN_INT	1	/* OCD external db interrupt */
+#define XCHAL_DELEVEL		6	/* de interrupt level */
+#define XCHAL_HAVE_DE_EXTERN_INT	1	/* OCD external db interrupt */
 #define XCHAL_NMILEVEL			7	/* NMI "level" (for use with
 						   EXCSAVE/EPS/EPC_n, RFI n) */
 
@@ -527,9 +527,9 @@
 #define XCHAL_INTLEVEL6_VECOFS		0x00000280
 #define XCHAL_INTLEVEL6_VECTOR_VADDR	0x60000280
 #define XCHAL_INTLEVEL6_VECTOR_PADDR	0x60000280
-#define XCHAL_DEBUG_VECOFS		XCHAL_INTLEVEL6_VECOFS
-#define XCHAL_DEBUG_VECTOR_VADDR	XCHAL_INTLEVEL6_VECTOR_VADDR
-#define XCHAL_DEBUG_VECTOR_PADDR	XCHAL_INTLEVEL6_VECTOR_PADDR
+#define XCHAL_DE_VECOFS		XCHAL_INTLEVEL6_VECOFS
+#define XCHAL_DE_VECTOR_VADDR	XCHAL_INTLEVEL6_VECTOR_VADDR
+#define XCHAL_DE_VECTOR_PADDR	XCHAL_INTLEVEL6_VECTOR_PADDR
 #define XCHAL_NMI_VECOFS		0x000002C0
 #define XCHAL_NMI_VECTOR_VADDR		0x600002C0
 #define XCHAL_NMI_VECTOR_PADDR		0x600002C0
@@ -539,23 +539,23 @@
 
 
 /*----------------------------------------------------------------------
-				DEBUG MODULE
+				DE MODULE
   ----------------------------------------------------------------------*/
 
 /*  Misc  */
-#define XCHAL_HAVE_DEBUG_ERI		1	/* ERI to debug module */
-#define XCHAL_HAVE_DEBUG_APB		0	/* APB to debug module */
-#define XCHAL_HAVE_DEBUG_JTAG		1	/* JTAG to debug module */
+#define XCHAL_HAVE_DE_ERI		1	/* ERI to de module */
+#define XCHAL_HAVE_DE_APB		0	/* APB to de module */
+#define XCHAL_HAVE_DE_JTAG		1	/* JTAG to de module */
 
-/*  On-Chip Debug (OCD)  */
-#define XCHAL_HAVE_OCD			1	/* OnChipDebug option */
+/*  On-Chip De (OCD)  */
+#define XCHAL_HAVE_OCD			1	/* OnChipDe option */
 #define XCHAL_NUM_IBREAK		2	/* number of IBREAKn regs */
 #define XCHAL_NUM_DBREAK		2	/* number of DBREAKn regs */
 #define XCHAL_HAVE_OCD_DIR_ARRAY	0	/* faster OCD option (to LX4) */
 #define XCHAL_HAVE_OCD_LS32DDR		1	/* L32DDR/S32DDR (faster OCD) */
 
 /*  TRAX (in core)  */
-#define XCHAL_HAVE_TRAX			1	/* TRAX in debug module */
+#define XCHAL_HAVE_TRAX			1	/* TRAX in de module */
 #define XCHAL_TRAX_MEM_SIZE		262144	/* TRAX memory size in bytes */
 #define XCHAL_TRAX_MEM_SHAREABLE	0	/* start/end regs; ready sig. */
 #define XCHAL_TRAX_ATB_WIDTH		0	/* ATB width (bits), 0=no ATB */

@@ -85,7 +85,7 @@ struct dbc_dbc {
 	#define DBC_DBC_PATH_L2			(0x1UL << 24)
 	#define DBC_DBC_PATH_ENGINE		(0x2UL << 24)
 	#define DBC_DBC_PATH_LAST		DBC_DBC_PATH_ENGINE
-	#define DBC_DBC_DEBUG_TRACE		0x8000000UL
+	#define DBC_DBC_DE_TRACE		0x8000000UL
 	#define DBC_DBC_TYPE_MASK		0xf0000000UL
 	#define DBC_DBC_TYPE_SFT		28
 	#define DBC_DBC_TYPE_SQ			(0x0UL << 28)

@@ -31,8 +31,8 @@ volatile u8 *uart_base;
 int uart_shift;
 
 /*
- * Store the DEBUG_LL uart number into memory.
- * See also debug-macro.S, and serial.c for related code.
+ * Store the DE_LL uart number into memory.
+ * See also de-macro.S, and serial.c for related code.
  */
 static void set_omap_uart_info(unsigned char port)
 {
@@ -64,9 +64,9 @@ static inline void flush(void)
 }
 
 /*
- * Macros to configure UART1 and debug UART
+ * Macros to configure UART1 and de UART
  */
-#define _DEBUG_LL_ENTRY(mach, dbg_uart, dbg_shft, dbg_id)		\
+#define _DE_LL_ENTRY(mach, dbg_uart, dbg_shft, dbg_id)		\
 	if (machine_is_##mach()) {					\
 		uart_base = (volatile u8 *)(dbg_uart);			\
 		uart_shift = (dbg_shft);				\
@@ -75,12 +75,12 @@ static inline void flush(void)
 		break;							\
 	}
 
-#define DEBUG_LL_OMAP7XX(p, mach)					\
-	_DEBUG_LL_ENTRY(mach, OMAP1_UART##p##_BASE, OMAP7XX_PORT_SHIFT,	\
+#define DE_LL_OMAP7XX(p, mach)					\
+	_DE_LL_ENTRY(mach, OMAP1_UART##p##_BASE, OMAP7XX_PORT_SHIFT,	\
 		OMAP1UART##p)
 
-#define DEBUG_LL_OMAP1(p, mach)						\
-	_DEBUG_LL_ENTRY(mach, OMAP1_UART##p##_BASE, OMAP_PORT_SHIFT,	\
+#define DE_LL_OMAP1(p, mach)						\
+	_DE_LL_ENTRY(mach, OMAP1_UART##p##_BASE, OMAP_PORT_SHIFT,	\
 		OMAP1UART##p)
 
 static inline void arch_decomp_setup(void)
@@ -95,23 +95,23 @@ static inline void arch_decomp_setup(void)
 	 */
 	do {
 		/* omap7xx/8xx based boards using UART1 with shift 0 */
-		DEBUG_LL_OMAP7XX(1, herald);
-		DEBUG_LL_OMAP7XX(1, omap_perseus2);
+		DE_LL_OMAP7XX(1, herald);
+		DE_LL_OMAP7XX(1, omap_perseus2);
 
 		/* omap15xx/16xx based boards using UART1 */
-		DEBUG_LL_OMAP1(1, ams_delta);
-		DEBUG_LL_OMAP1(1, nokia770);
-		DEBUG_LL_OMAP1(1, omap_h2);
-		DEBUG_LL_OMAP1(1, omap_h3);
-		DEBUG_LL_OMAP1(1, omap_innovator);
-		DEBUG_LL_OMAP1(1, omap_osk);
-		DEBUG_LL_OMAP1(1, omap_palmte);
-		DEBUG_LL_OMAP1(1, omap_palmz71);
+		DE_LL_OMAP1(1, ams_delta);
+		DE_LL_OMAP1(1, nokia770);
+		DE_LL_OMAP1(1, omap_h2);
+		DE_LL_OMAP1(1, omap_h3);
+		DE_LL_OMAP1(1, omap_innovator);
+		DE_LL_OMAP1(1, omap_osk);
+		DE_LL_OMAP1(1, omap_palmte);
+		DE_LL_OMAP1(1, omap_palmz71);
 
 		/* omap15xx/16xx based boards using UART2 */
-		DEBUG_LL_OMAP1(2, omap_palmtt);
+		DE_LL_OMAP1(2, omap_palmtt);
 
 		/* omap15xx/16xx based boards using UART3 */
-		DEBUG_LL_OMAP1(3, sx1);
+		DE_LL_OMAP1(3, sx1);
 	} while (0);
 }

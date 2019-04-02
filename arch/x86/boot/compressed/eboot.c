@@ -124,7 +124,7 @@ free_struct:
  * because any analysis (and printing of error messages) needs to be
  * done directly at the EFI function call-site.
  *
- * For example, EFI_INVALID_PARAMETER could indicate a bug or maybe we
+ * For example, EFI_INVALID_PARAMETER could indicate a  or maybe we
  * just didn't find any PCI devices, but there's no way to tell outside
  * the context of the call.
  */

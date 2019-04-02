@@ -4,7 +4,7 @@
 #include <inttypes.h>
 #include <regex.h>
 #include "callchain.h"
-#include "debug.h"
+#include "de.h"
 #include "event.h"
 #include "evsel.h"
 #include "hist.h"
@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include "unwind.h"
 #include "linux/hash.h"
-#include "asm/bug.h"
+#include "asm/.h"
 #include "bpf-event.h"
 
 #include "sane_ctype.h"
@@ -973,7 +973,7 @@ int machine__create_extra_kernel_map(struct machine *machine,
 
 	map_groups__insert(&machine->kmaps, map);
 
-	pr_debug2("Added extra kernel map %s %" PRIx64 "-%" PRIx64 "\n",
+	pr_de2("Added extra kernel map %s %" PRIx64 "-%" PRIx64 "\n",
 		  kmap->name, map->start, map->end);
 
 	map__put(map);
@@ -1147,7 +1147,7 @@ int machines__create_guest_kernel_maps(struct machines *machines)
 			if ((*endp != '\0') ||
 			    (endp == namelist[i]->d_name) ||
 			    (errno == ERANGE)) {
-				pr_debug("invalid directory (%s). Skipping.\n",
+				pr_de("invalid directory (%s). Skipping.\n",
 					 namelist[i]->d_name);
 				continue;
 			}
@@ -1156,7 +1156,7 @@ int machines__create_guest_kernel_maps(struct machines *machines)
 				namelist[i]->d_name);
 			ret = access(path, R_OK);
 			if (ret) {
-				pr_debug("Can't access file %s\n", path);
+				pr_de("Can't access file %s\n", path);
 				goto failure;
 			}
 			machines__create_kernel_maps(machines, pid);
@@ -1291,7 +1291,7 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 	int ret = 0;
 
 	if (!dir) {
-		pr_debug("%s: cannot open %s dir\n", __func__, dir_name);
+		pr_de("%s: cannot open %s dir\n", __func__, dir_name);
 		return -1;
 	}
 
@@ -1403,7 +1403,7 @@ static int machine__create_modules(struct machine *machine)
 	if (!machine__set_modules_path(machine))
 		return 0;
 
-	pr_debug("Problems setting modules path maps, continuing anyway...\n");
+	pr_de("Problems setting modules path maps, continuing anyway...\n");
 
 	return 0;
 }
@@ -1452,10 +1452,10 @@ int machine__create_kernel_maps(struct machine *machine)
 
 	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {
 		if (machine__is_host(machine))
-			pr_debug("Problems creating module maps, "
+			pr_de("Problems creating module maps, "
 				 "continuing anyway...\n");
 		else
-			pr_debug("Problems creating module maps for guest %d, "
+			pr_de("Problems creating module maps for guest %d, "
 				 "continuing anyway...\n", machine->pid);
 	}
 
@@ -1475,7 +1475,7 @@ int machine__create_kernel_maps(struct machine *machine)
 	}
 
 	if (machine__create_extra_kernel_maps(machine, kernel))
-		pr_debug("Problems creating extra kernel maps, continuing anyway...\n");
+		pr_de("Problems creating extra kernel maps, continuing anyway...\n");
 
 	/* update end address of the kernel map using adjacent module address */
 	map = map__next(machine__kernel_map(machine));
@@ -1748,7 +1748,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	if (threads->last_match == th)
 		threads__set_last_match(threads, NULL);
 
-	BUG_ON(refcount_read(&th->refcnt) == 0);
+	_ON(refcount_read(&th->refcnt) == 0);
 	if (lock)
 		down_write(&threads->lock);
 	rb_erase_cached(&th->rb_node, &threads->entries);
@@ -2016,7 +2016,7 @@ static int add_callchain_ip(struct thread *thread,
 				*cpumode = PERF_RECORD_MISC_USER;
 				break;
 			default:
-				pr_debug("invalid callchain context: "
+				pr_de("invalid callchain context: "
 					 "%"PRId64"\n", (s64) ip);
 				/*
 				 * It seems the callchain is corrupted.
@@ -2102,7 +2102,7 @@ static int remove_loops(struct branch_entry *l, int nr,
 
 	memset(chash, NO_ENTRY, sizeof(chash));
 
-	BUG_ON(PERF_MAX_BRANCH_DEPTH > 255);
+	_ON(PERF_MAX_BRANCH_DEPTH > 255);
 
 	for (i = 0; i < nr; i++) {
 		int h = hash_64(l[i].from, CHASHBITS) % CHASHSZ;
@@ -2280,7 +2280,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 	/*
-	 * Based on DWARF debug information, some architectures skip
+	 * Based on DWARF de information, some architectures skip
 	 * a callchain entry saved by the kernel.
 	 */
 	skip_idx = arch_skip_callchain_idx(thread, chain);

@@ -232,7 +232,7 @@ get_unmapped_area:
 	addr = vm_unmapped_area(&info);
 	if (!(addr & ~PAGE_MASK))
 		return addr;
-	VM_BUG_ON(addr != -ENOMEM);
+	VM__ON(addr != -ENOMEM);
 
 bottomup:
 	/*

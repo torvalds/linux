@@ -87,7 +87,7 @@ int cobalt_flash_probe(struct cobalt *cobalt)
 	struct map_info *map = &cobalt_flash_map;
 	struct mtd_info *mtd;
 
-	BUG_ON(!map_bankwidth_supported(map->bankwidth));
+	_ON(!map_bankwidth_supported(map->bankwidth));
 	map->virt = cobalt->bar1;
 	map->read = flash_read16;
 	map->write = flash_write16;

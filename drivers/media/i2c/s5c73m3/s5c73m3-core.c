@@ -41,7 +41,7 @@
 #include "s5c73m3.h"
 
 int s5c73m3_dbg;
-module_param_named(debug, s5c73m3_dbg, int, 0644);
+module_param_named(de, s5c73m3_dbg, int, 0644);
 
 static int boot_from_rom = 1;
 module_param(boot_from_rom, int, 0644);

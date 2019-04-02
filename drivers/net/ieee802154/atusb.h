@@ -27,7 +27,7 @@ enum atusb_requests {
 	ATUSB_ID			= 0x00,	/* system status/control grp */
 	ATUSB_BUILD,
 	ATUSB_RESET,
-	ATUSB_RF_RESET			= 0x10,	/* debug/test group */
+	ATUSB_RF_RESET			= 0x10,	/* de/test group */
 	ATUSB_POLL_INT,
 	ATUSB_TEST,			/* atusb-sil only */
 	ATUSB_TIMER,

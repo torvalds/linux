@@ -235,7 +235,7 @@ static bool drm_dp_decode_sideband_msg_hdr(struct drm_dp_sideband_msg_hdr *hdr,
 	crc4 = drm_dp_msg_header_crc4(buf, (len * 2) - 1);
 
 	if ((crc4 & 0xf) != (buf[len - 1] & 0xf)) {
-		DRM_DEBUG_KMS("crc4 mismatch 0x%x 0x%x\n", crc4, buf[len - 1]);
+		DRM_DE_KMS("crc4 mismatch 0x%x 0x%x\n", crc4, buf[len - 1]);
 		return false;
 	}
 
@@ -393,7 +393,7 @@ static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
 		struct drm_dp_sideband_msg_hdr recv_hdr;
 		ret = drm_dp_decode_sideband_msg_hdr(&recv_hdr, replybuf, replybuflen, &hdrlen);
 		if (ret == false) {
-			print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16, 1, replybuf, replybuflen, false);
+			print_hex_dump(KERN_DE, "failed hdr", DUMP_PREFIX_NONE, 16, 1, replybuf, replybuflen, false);
 			return false;
 		}
 
@@ -485,7 +485,7 @@ static bool drm_dp_sideband_parse_link_address(struct drm_dp_sideband_msg_rx *ra
 
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("link address reply parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("link address reply parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -505,7 +505,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_read(struct drm_dp_sideband_msg_rx
 	memcpy(repmsg->u.remote_dpcd_read_ack.bytes, &raw->msg[idx], repmsg->u.remote_dpcd_read_ack.num_bytes);
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("link address reply parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("link address reply parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -519,7 +519,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_write(struct drm_dp_sideband_msg_r
 		goto fail_len;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -538,7 +538,7 @@ static bool drm_dp_sideband_parse_remote_i2c_read_ack(struct drm_dp_sideband_msg
 	memcpy(repmsg->u.remote_i2c_read_ack.bytes, &raw->msg[idx], repmsg->u.remote_i2c_read_ack.num_bytes);
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("remote i2c reply parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("remote i2c reply parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -560,7 +560,7 @@ static bool drm_dp_sideband_parse_enum_path_resources_ack(struct drm_dp_sideband
 		goto fail_len;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("enum resource parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("enum resource parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -582,7 +582,7 @@ static bool drm_dp_sideband_parse_allocate_payload_ack(struct drm_dp_sideband_ms
 		goto fail_len;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("allocate payload parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("allocate payload parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -600,7 +600,7 @@ static bool drm_dp_sideband_parse_query_payload_ack(struct drm_dp_sideband_msg_r
 		goto fail_len;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("query payload parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("query payload parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -612,7 +612,7 @@ static bool drm_dp_sideband_parse_power_updown_phy_ack(struct drm_dp_sideband_ms
 	repmsg->u.port_number.port_number = (raw->msg[idx] >> 4) & 0xf;
 	idx++;
 	if (idx > raw->curlen) {
-		DRM_DEBUG_KMS("power up/down phy parse length fail %d %d\n",
+		DRM_DE_KMS("power up/down phy parse length fail %d %d\n",
 			      idx, raw->curlen);
 		return false;
 	}
@@ -681,7 +681,7 @@ static bool drm_dp_sideband_parse_connection_status_notify(struct drm_dp_sideban
 	idx++;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("connection status reply parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("connection status reply parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -704,7 +704,7 @@ static bool drm_dp_sideband_parse_resource_status_notify(struct drm_dp_sideband_
 	idx++;
 	return true;
 fail_len:
-	DRM_DEBUG_KMS("resource status reply parse length fail %d %d\n", idx, raw->curlen);
+	DRM_DE_KMS("resource status reply parse length fail %d %d\n", idx, raw->curlen);
 	return false;
 }
 
@@ -804,14 +804,14 @@ static int drm_dp_mst_assign_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 	ret = find_first_zero_bit(&mgr->payload_mask, mgr->max_payloads + 1);
 	if (ret > mgr->max_payloads) {
 		ret = -EINVAL;
-		DRM_DEBUG_KMS("out of payload ids %d\n", ret);
+		DRM_DE_KMS("out of payload ids %d\n", ret);
 		goto out_unlock;
 	}
 
 	vcpi_ret = find_first_zero_bit(&mgr->vcpi_mask, mgr->max_payloads + 1);
 	if (vcpi_ret > mgr->max_payloads) {
 		ret = -EINVAL;
-		DRM_DEBUG_KMS("out of vcpi ids %d\n", ret);
+		DRM_DE_KMS("out of vcpi ids %d\n", ret);
 		goto out_unlock;
 	}
 
@@ -832,7 +832,7 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 		return;
 
 	mutex_lock(&mgr->payload_lock);
-	DRM_DEBUG_KMS("putting payload %d\n", vcpi);
+	DRM_DE_KMS("putting payload %d\n", vcpi);
 	clear_bit(vcpi - 1, &mgr->vcpi_mask);
 
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -876,7 +876,7 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 			goto out;
 		}
 	} else {
-		DRM_DEBUG_KMS("timedout msg send %p %d %d\n", txmsg, txmsg->state, txmsg->seqno);
+		DRM_DE_KMS("timedout msg send %p %d %d\n", txmsg, txmsg->state, txmsg->seqno);
 
 		/* dump some state */
 		ret = -EIO;
@@ -1029,7 +1029,7 @@ static void
 drm_dp_mst_get_mstb_malloc(struct drm_dp_mst_branch *mstb)
 {
 	kref_get(&mstb->malloc_kref);
-	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref));
+	DRM_DE("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref));
 }
 
 /**
@@ -1046,7 +1046,7 @@ drm_dp_mst_get_mstb_malloc(struct drm_dp_mst_branch *mstb)
 static void
 drm_dp_mst_put_mstb_malloc(struct drm_dp_mst_branch *mstb)
 {
-	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref) - 1);
+	DRM_DE("mstb %p (%d)\n", mstb, kref_read(&mstb->malloc_kref) - 1);
 	kref_put(&mstb->malloc_kref, drm_dp_free_mst_branch_device);
 }
 
@@ -1080,7 +1080,7 @@ void
 drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port)
 {
 	kref_get(&port->malloc_kref);
-	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->malloc_kref));
+	DRM_DE("port %p (%d)\n", port, kref_read(&port->malloc_kref));
 }
 EXPORT_SYMBOL(drm_dp_mst_get_port_malloc);
 
@@ -1097,7 +1097,7 @@ EXPORT_SYMBOL(drm_dp_mst_get_port_malloc);
 void
 drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port)
 {
-	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->malloc_kref) - 1);
+	DRM_DE("port %p (%d)\n", port, kref_read(&port->malloc_kref) - 1);
 	kref_put(&port->malloc_kref, drm_dp_free_mst_port);
 }
 EXPORT_SYMBOL(drm_dp_mst_put_port_malloc);
@@ -1165,7 +1165,7 @@ drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
 	int ret = kref_get_unless_zero(&mstb->topology_kref);
 
 	if (ret)
-		DRM_DEBUG("mstb %p (%d)\n", mstb,
+		DRM_DE("mstb %p (%d)\n", mstb,
 			  kref_read(&mstb->topology_kref));
 
 	return ret;
@@ -1189,7 +1189,7 @@ static void drm_dp_mst_topology_get_mstb(struct drm_dp_mst_branch *mstb)
 {
 	WARN_ON(kref_read(&mstb->topology_kref) == 0);
 	kref_get(&mstb->topology_kref);
-	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
+	DRM_DE("mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
 }
 
 /**
@@ -1207,7 +1207,7 @@ static void drm_dp_mst_topology_get_mstb(struct drm_dp_mst_branch *mstb)
 static void
 drm_dp_mst_topology_put_mstb(struct drm_dp_mst_branch *mstb)
 {
-	DRM_DEBUG("mstb %p (%d)\n",
+	DRM_DE("mstb %p (%d)\n",
 		  mstb, kref_read(&mstb->topology_kref) - 1);
 	kref_put(&mstb->topology_kref, drm_dp_destroy_mst_branch_device);
 }
@@ -1291,7 +1291,7 @@ drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
 	int ret = kref_get_unless_zero(&port->topology_kref);
 
 	if (ret)
-		DRM_DEBUG("port %p (%d)\n", port,
+		DRM_DE("port %p (%d)\n", port,
 			  kref_read(&port->topology_kref));
 
 	return ret;
@@ -1314,7 +1314,7 @@ static void drm_dp_mst_topology_get_port(struct drm_dp_mst_port *port)
 {
 	WARN_ON(kref_read(&port->topology_kref) == 0);
 	kref_get(&port->topology_kref);
-	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->topology_kref));
+	DRM_DE("port %p (%d)\n", port, kref_read(&port->topology_kref));
 }
 
 /**
@@ -1330,7 +1330,7 @@ static void drm_dp_mst_topology_get_port(struct drm_dp_mst_port *port)
  */
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port)
 {
-	DRM_DEBUG("port %p (%d)\n",
+	DRM_DE("port %p (%d)\n",
 		  port, kref_read(&port->topology_kref) - 1);
 	kref_put(&port->topology_kref, drm_dp_destroy_port);
 }
@@ -1852,7 +1852,7 @@ retry:
 				retries++;
 				goto retry;
 			}
-			DRM_DEBUG_KMS("failed to dpcd write %d %d\n", tosend, ret);
+			DRM_DE_KMS("failed to dpcd write %d %d\n", tosend, ret);
 
 			return -EIO;
 		}
@@ -1871,7 +1871,7 @@ static int set_hdr_from_dst_qlock(struct drm_dp_sideband_msg_hdr *hdr,
 	/* both msg slots are full */
 	if (txmsg->seqno == -1) {
 		if (mstb->tx_slots[0] && mstb->tx_slots[1]) {
-			DRM_DEBUG_KMS("%s: failed to find slot\n", __func__);
+			DRM_DE_KMS("%s: failed to find slot\n", __func__);
 			return -EAGAIN;
 		}
 		if (mstb->tx_slots[0] == NULL && mstb->tx_slots[1] == NULL) {
@@ -1945,7 +1945,7 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_send_sideband_msg(mgr, up, chunk, idx);
 	if (ret) {
-		DRM_DEBUG_KMS("sideband msg failed to send\n");
+		DRM_DE_KMS("sideband msg failed to send\n");
 		return ret;
 	}
 
@@ -1974,7 +1974,7 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 		/* txmsg is sent it should be in the slots now */
 		list_del(&txmsg->next);
 	} else if (ret) {
-		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
+		DRM_DE_KMS("failed to send msg in q %d\n", ret);
 		list_del(&txmsg->next);
 		if (txmsg->seqno != -1)
 			txmsg->dst->tx_slots[txmsg->seqno] = NULL;
@@ -1993,7 +1993,7 @@ static void process_single_up_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	ret = process_single_tx_qlock(mgr, txmsg, true);
 
 	if (ret != 1)
-		DRM_DEBUG_KMS("failed to send msg in q %d\n", ret);
+		DRM_DE_KMS("failed to send msg in q %d\n", ret);
 
 	txmsg->dst->tx_slots[txmsg->seqno] = NULL;
 }
@@ -2030,11 +2030,11 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 		int i;
 
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
-			DRM_DEBUG_KMS("link address nak received\n");
+			DRM_DE_KMS("link address nak received\n");
 		} else {
-			DRM_DEBUG_KMS("link address reply: %d\n", txmsg->reply.u.link_addr.nports);
+			DRM_DE_KMS("link address reply: %d\n", txmsg->reply.u.link_addr.nports);
 			for (i = 0; i < txmsg->reply.u.link_addr.nports; i++) {
-				DRM_DEBUG_KMS("port %d: input %d, pdt: %d, pn: %d, dpcd_rev: %02x, mcs: %d, ddps: %d, ldps %d, sdp %d/%d\n", i,
+				DRM_DE_KMS("port %d: input %d, pdt: %d, pn: %d, dpcd_rev: %02x, mcs: %d, ddps: %d, ldps %d, sdp %d/%d\n", i,
 				       txmsg->reply.u.link_addr.ports[i].input_port,
 				       txmsg->reply.u.link_addr.ports[i].peer_device_type,
 				       txmsg->reply.u.link_addr.ports[i].port_number,
@@ -2055,7 +2055,7 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 		}
 	} else {
 		mstb->link_address_sent = false;
-		DRM_DEBUG_KMS("link address failed %d\n", ret);
+		DRM_DE_KMS("link address failed %d\n", ret);
 	}
 
 	kfree(txmsg);
@@ -2081,11 +2081,11 @@ static int drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
 	if (ret > 0) {
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK) {
-			DRM_DEBUG_KMS("enum path resources nak received\n");
+			DRM_DE_KMS("enum path resources nak received\n");
 		} else {
 			if (port->port_num != txmsg->reply.u.path_resources.port_number)
 				DRM_ERROR("got incorrect port in response\n");
-			DRM_DEBUG_KMS("enum path resources %d: %d %d\n", txmsg->reply.u.path_resources.port_number, txmsg->reply.u.path_resources.full_payload_bw_number,
+			DRM_DE_KMS("enum path resources %d: %d %d\n", txmsg->reply.u.path_resources.port_number, txmsg->reply.u.path_resources.full_payload_bw_number,
 			       txmsg->reply.u.path_resources.avail_payload_bw_number);
 			port->available_pbn = txmsg->reply.u.path_resources.avail_payload_bw_number;
 		}
@@ -2270,7 +2270,7 @@ static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
 					int id,
 					struct drm_dp_payload *payload)
 {
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	/* it's okay for these to fail */
 	if (port) {
 		drm_dp_payload_send_msg(mgr, port, id, 0);
@@ -2374,7 +2374,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 		if (mgr->payloads[i].payload_state != DP_PAYLOAD_DELETE_LOCAL)
 			continue;
 
-		DRM_DEBUG_KMS("removing payload %d\n", i);
+		DRM_DE_KMS("removing payload %d\n", i);
 		for (j = i; j < mgr->max_payloads - 1; j++) {
 			mgr->payloads[j] = mgr->payloads[j + 1];
 			mgr->proposed_vcpis[j] = mgr->proposed_vcpis[j + 1];
@@ -2420,7 +2420,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 
 		port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
 
-		DRM_DEBUG_KMS("payload %d %d\n", i, mgr->payloads[i].payload_state);
+		DRM_DE_KMS("payload %d %d\n", i, mgr->payloads[i].payload_state);
 		if (mgr->payloads[i].payload_state == DP_PAYLOAD_LOCAL) {
 			ret = drm_dp_create_payload_step2(mgr, port, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
 		} else if (mgr->payloads[i].payload_state == DP_PAYLOAD_DELETE_LOCAL) {
@@ -2534,7 +2534,7 @@ static bool drm_dp_get_vc_payload_bw(int dp_link_bw,
 {
 	switch (dp_link_bw) {
 	default:
-		DRM_DEBUG_KMS("invalid link bandwidth in DPCD: %x (link count: %d)\n",
+		DRM_DE_KMS("invalid link bandwidth in DPCD: %x (link count: %d)\n",
 			      dp_link_bw, dp_link_count);
 		return false;
 
@@ -2579,7 +2579,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		/* get dpcd info */
 		ret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd, DP_RECEIVER_CAP_SIZE);
 		if (ret != DP_RECEIVER_CAP_SIZE) {
-			DRM_DEBUG_KMS("failed to read DPCD\n");
+			DRM_DE_KMS("failed to read DPCD\n");
 			goto out_unlock;
 		}
 
@@ -2680,7 +2680,7 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 
 		sret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd, DP_RECEIVER_CAP_SIZE);
 		if (sret != DP_RECEIVER_CAP_SIZE) {
-			DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
+			DRM_DE_KMS("dpcd read failed - undocked during suspend?\n");
 			ret = -1;
 			goto out_unlock;
 		}
@@ -2688,7 +2688,7 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 		ret = drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
 					 DP_MST_EN | DP_UP_REQ_EN | DP_UPSTREAM_IS_SRC);
 		if (ret < 0) {
-			DRM_DEBUG_KMS("mst write failed - undocked during suspend?\n");
+			DRM_DE_KMS("mst write failed - undocked during suspend?\n");
 			ret = -1;
 			goto out_unlock;
 		}
@@ -2696,7 +2696,7 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 		/* Some hubs forget their guids after they resume */
 		sret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
 		if (sret != 16) {
-			DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
+			DRM_DE_KMS("dpcd read failed - undocked during suspend?\n");
 			ret = -1;
 			goto out_unlock;
 		}
@@ -2726,12 +2726,12 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 	ret = drm_dp_dpcd_read(mgr->aux, basereg,
 			       replyblock, len);
 	if (ret != len) {
-		DRM_DEBUG_KMS("failed to read DPCD down rep %d %d\n", len, ret);
+		DRM_DE_KMS("failed to read DPCD down rep %d %d\n", len, ret);
 		return false;
 	}
 	ret = drm_dp_sideband_msg_build(msg, replyblock, len, true);
 	if (!ret) {
-		DRM_DEBUG_KMS("sideband msg build failed %d\n", replyblock[0]);
+		DRM_DE_KMS("sideband msg build failed %d\n", replyblock[0]);
 		return false;
 	}
 	replylen = msg->curchunk_len + msg->curchunk_hdrlen;
@@ -2744,14 +2744,14 @@ static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 		ret = drm_dp_dpcd_read(mgr->aux, basereg + curreply,
 				    replyblock, len);
 		if (ret != len) {
-			DRM_DEBUG_KMS("failed to read a chunk (len %d, ret %d)\n",
+			DRM_DE_KMS("failed to read a chunk (len %d, ret %d)\n",
 				      len, ret);
 			return false;
 		}
 
 		ret = drm_dp_sideband_msg_build(msg, replyblock, len, false);
 		if (!ret) {
-			DRM_DEBUG_KMS("failed to build sideband msg\n");
+			DRM_DE_KMS("failed to build sideband msg\n");
 			return false;
 		}
 
@@ -2780,7 +2780,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 						    mgr->down_rep_recv.initial_hdr.rad);
 
 		if (!mstb) {
-			DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->down_rep_recv.initial_hdr.lct);
+			DRM_DE_KMS("Got MST reply from unknown device %d\n", mgr->down_rep_recv.initial_hdr.lct);
 			memset(&mgr->down_rep_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 			return 0;
 		}
@@ -2793,7 +2793,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		mutex_unlock(&mgr->qlock);
 
 		if (!txmsg) {
-			DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
+			DRM_DE_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
 			       mstb,
 			       mgr->down_rep_recv.initial_hdr.seqno,
 			       mgr->down_rep_recv.initial_hdr.lct,
@@ -2807,7 +2807,7 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		drm_dp_sideband_parse_reply(&mgr->down_rep_recv, &txmsg->reply);
 
 		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-			DRM_DEBUG_KMS("Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
+			DRM_DE_KMS("Got NAK reply: req 0x%02x (%s), reason 0x%02x (%s), nak data 0x%02x\n",
 				      txmsg->reply.req_type,
 				      drm_dp_mst_req_type_str(txmsg->reply.req_type),
 				      txmsg->reply.u.nak.reason,
@@ -2847,7 +2847,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 							    mgr->up_req_recv.initial_hdr.lct,
 							    mgr->up_req_recv.initial_hdr.rad);
 			if (!mstb) {
-				DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
+				DRM_DE_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
 				memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 				return 0;
 			}
@@ -2863,14 +2863,14 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 				mstb = drm_dp_get_mst_branch_device_by_guid(mgr, msg.u.conn_stat.guid);
 
 			if (!mstb) {
-				DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
+				DRM_DE_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
 				memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 				return 0;
 			}
 
 			drm_dp_update_port(mstb, &msg.u.conn_stat);
 
-			DRM_DEBUG_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n", msg.u.conn_stat.port_number, msg.u.conn_stat.legacy_device_plug_status, msg.u.conn_stat.displayport_device_plug_status, msg.u.conn_stat.message_capability_status, msg.u.conn_stat.input_port, msg.u.conn_stat.peer_device_type);
+			DRM_DE_KMS("Got CSN: pn: %d ldps:%d ddps: %d mcs: %d ip: %d pdt: %d\n", msg.u.conn_stat.port_number, msg.u.conn_stat.legacy_device_plug_status, msg.u.conn_stat.displayport_device_plug_status, msg.u.conn_stat.message_capability_status, msg.u.conn_stat.input_port, msg.u.conn_stat.peer_device_type);
 			drm_kms_helper_hotplug_event(mgr->dev);
 
 		} else if (msg.req_type == DP_RESOURCE_STATUS_NOTIFY) {
@@ -2879,12 +2879,12 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 				mstb = drm_dp_get_mst_branch_device_by_guid(mgr, msg.u.resource_stat.guid);
 
 			if (!mstb) {
-				DRM_DEBUG_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
+				DRM_DE_KMS("Got MST reply from unknown device %d\n", mgr->up_req_recv.initial_hdr.lct);
 				memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 				return 0;
 			}
 
-			DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
+			DRM_DE_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
 		}
 
 		if (mstb)
@@ -3142,7 +3142,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 
 	req_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
 
-	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
+	DRM_DE_ATOMIC("[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
 			 port->connector->base.id, port->connector->name,
 			 port, prev_slots, req_slots);
 
@@ -3213,7 +3213,7 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_ATOMIC("[MST PORT:%p] VCPI %d -> 0\n", port, pos->vcpi);
+	DRM_DE_ATOMIC("[MST PORT:%p] VCPI %d -> 0\n", port, pos->vcpi);
 	if (pos->vcpi) {
 		drm_dp_mst_put_port_malloc(port);
 		pos->vcpi = 0;
@@ -3243,7 +3243,7 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 		return false;
 
 	if (port->vcpi.vcpi > 0) {
-		DRM_DEBUG_KMS("payload: vcpi %d already allocated for pbn %d - requested pbn %d\n",
+		DRM_DE_KMS("payload: vcpi %d already allocated for pbn %d - requested pbn %d\n",
 			      port->vcpi.vcpi, port->vcpi.pbn, pbn);
 		if (pbn == port->vcpi.pbn) {
 			drm_dp_mst_topology_put_port(port);
@@ -3253,11 +3253,11 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_init_vcpi(mgr, &port->vcpi, pbn, slots);
 	if (ret) {
-		DRM_DEBUG_KMS("failed to init vcpi slots=%d max=63 ret=%d\n",
+		DRM_DE_KMS("failed to init vcpi slots=%d max=63 ret=%d\n",
 			      DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
 		goto out;
 	}
-	DRM_DEBUG_KMS("initing vcpi for pbn=%d slots=%d\n",
+	DRM_DE_KMS("initing vcpi for pbn=%d slots=%d\n",
 		      pbn, port->vcpi.num_slots);
 
 	/* Keep port allocated until its payload has been removed */
@@ -3339,14 +3339,14 @@ static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_dpcd_write(mgr->aux, DP_PAYLOAD_ALLOCATE_SET, payload_alloc, 3);
 	if (ret != 3) {
-		DRM_DEBUG_KMS("failed to write payload allocation %d\n", ret);
+		DRM_DE_KMS("failed to write payload allocation %d\n", ret);
 		goto fail;
 	}
 
 retry:
 	ret = drm_dp_dpcd_readb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
 	if (ret < 0) {
-		DRM_DEBUG_KMS("failed to read payload table status %d\n", ret);
+		DRM_DE_KMS("failed to read payload table status %d\n", ret);
 		goto fail;
 	}
 
@@ -3356,7 +3356,7 @@ retry:
 			usleep_range(10000, 20000);
 			goto retry;
 		}
-		DRM_DEBUG_KMS("status not set after read payload table status %d\n", status);
+		DRM_DE_KMS("status not set after read payload table status %d\n", status);
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -3382,7 +3382,7 @@ int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr)
 		ret = drm_dp_dpcd_readb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
 
 		if (ret < 0) {
-			DRM_DEBUG_KMS("failed to read payload table status %d\n", ret);
+			DRM_DE_KMS("failed to read payload table status %d\n", ret);
 			goto fail;
 		}
 
@@ -3394,7 +3394,7 @@ int drm_dp_check_act_status(struct drm_dp_mst_topology_mgr *mgr)
 	} while (count < 30);
 
 	if (!(status & DP_PAYLOAD_ACT_HANDLED)) {
-		DRM_DEBUG_KMS("failed to get ACT bit %d after %d retries\n", status, count);
+		DRM_DE_KMS("failed to get ACT bit %d after %d retries\n", status, count);
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -3522,7 +3522,7 @@ static void fetch_monitor_name(struct drm_dp_mst_topology_mgr *mgr,
  * @m: seq_file to dump output to
  * @mgr: manager to dump current topology for.
  *
- * helper to dump MST topology to a seq file for debugfs.
+ * helper to dump MST topology to a seq file for defs.
  */
 void drm_dp_mst_dump_topology(struct seq_file *m,
 			      struct drm_dp_mst_topology_mgr *mgr)
@@ -3704,29 +3704,29 @@ drm_dp_mst_atomic_check_topology_state(struct drm_dp_mst_topology_mgr *mgr,
 	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
 		/* Releasing VCPI is always OK-even if the port is gone */
 		if (!vcpi->vcpi) {
-			DRM_DEBUG_ATOMIC("[MST PORT:%p] releases all VCPI slots\n",
+			DRM_DE_ATOMIC("[MST PORT:%p] releases all VCPI slots\n",
 					 vcpi->port);
 			continue;
 		}
 
-		DRM_DEBUG_ATOMIC("[MST PORT:%p] requires %d vcpi slots\n",
+		DRM_DE_ATOMIC("[MST PORT:%p] requires %d vcpi slots\n",
 				 vcpi->port, vcpi->vcpi);
 
 		avail_slots -= vcpi->vcpi;
 		if (avail_slots < 0) {
-			DRM_DEBUG_ATOMIC("[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
+			DRM_DE_ATOMIC("[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
 					 vcpi->port, mst_state,
 					 avail_slots + vcpi->vcpi);
 			return -ENOSPC;
 		}
 
 		if (++payload_count > mgr->max_payloads) {
-			DRM_DEBUG_ATOMIC("[MST MGR:%p] state %p has too many payloads (max=%d)\n",
+			DRM_DE_ATOMIC("[MST MGR:%p] state %p has too many payloads (max=%d)\n",
 					 mgr, mst_state, mgr->max_payloads);
 			return -EINVAL;
 		}
 	}
-	DRM_DEBUG_ATOMIC("[MST MGR:%p] mst state %p VCPI avail=%d used=%d\n",
+	DRM_DE_ATOMIC("[MST MGR:%p] mst state %p VCPI avail=%d used=%d\n",
 			 mgr, mst_state, avail_slots,
 			 63 - avail_slots);
 
@@ -3919,7 +3919,7 @@ static int drm_dp_mst_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs
 		return -EREMOTEIO;
 
 	if (!remote_i2c_read_ok(msgs, num)) {
-		DRM_DEBUG_KMS("Unsupported I2C transaction for MST device\n");
+		DRM_DE_KMS("Unsupported I2C transaction for MST device\n");
 		ret = -EIO;
 		goto out;
 	}

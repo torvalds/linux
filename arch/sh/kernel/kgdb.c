@@ -7,7 +7,7 @@
  * Single stepping taken from the old stub by Henry Bell and Jeremy Siegel.
  */
 #include <linux/kgdb.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sched.h>
@@ -298,7 +298,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 }
 
 /*
- * The primary entry points for the kgdb debug trap table entries.
+ * The primary entry points for the kgdb de trap table entries.
  */
 BUILD_TRAP_HANDLER(singlestep)
 {

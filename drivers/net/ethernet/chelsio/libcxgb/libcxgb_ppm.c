@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
@@ -71,7 +71,7 @@ int cxgbi_ppm_find_page_index(struct cxgbi_ppm *ppm, unsigned long pgsz)
 	for (i = 0; i < DDP_PGIDX_MAX; i++) {
 		if (pgsz == 1UL << (DDP_PGSZ_BASE_SHIFT +
 					 tformat->pgsz_order[i])) {
-			pr_debug("%s: %s ppm, pgsz %lu -> idx %d.\n",
+			pr_de("%s: %s ppm, pgsz %lu -> idx %d.\n",
 				 __func__, ppm->ndev->name, pgsz, i);
 			return i;
 		}
@@ -142,7 +142,7 @@ static int ppm_get_cpu_entries(struct cxgbi_ppm *ppm, unsigned int count,
 
 	spin_unlock_bh(&pool->lock);
 
-	pr_debug("%s: cpu %u, idx %d + %d (%d), next %u.\n",
+	pr_de("%s: cpu %u, idx %d + %d (%d), next %u.\n",
 		 __func__, cpu, i, count, i + cpu * ppm->pool_index_max,
 		pool->next);
 
@@ -163,7 +163,7 @@ static int ppm_get_entries(struct cxgbi_ppm *ppm, unsigned int count,
 	if (i < 0) {
 		ppm->next = 0;
 		spin_unlock_bh(&ppm->map_lock);
-		pr_debug("ippm: NO suitable entries %u available.\n",
+		pr_de("ippm: NO suitable entries %u available.\n",
 			 count);
 		return -ENOSPC;
 	}
@@ -174,7 +174,7 @@ static int ppm_get_entries(struct cxgbi_ppm *ppm, unsigned int count,
 
 	spin_unlock_bh(&ppm->map_lock);
 
-	pr_debug("%s: idx %d + %d (%d), next %u, caller_data 0x%lx.\n",
+	pr_de("%s: idx %d + %d (%d), next %u, caller_data 0x%lx.\n",
 		 __func__, i, count, i + ppm->pool_rsvd, ppm->next,
 		 caller_data);
 
@@ -186,7 +186,7 @@ static int ppm_get_entries(struct cxgbi_ppm *ppm, unsigned int count,
 
 static void ppm_unmark_entries(struct cxgbi_ppm *ppm, int i, int count)
 {
-	pr_debug("%s: idx %d + %d.\n", __func__, i, count);
+	pr_de("%s: idx %d + %d.\n", __func__, i, count);
 
 	if (i < ppm->pool_rsvd) {
 		unsigned int cpu;
@@ -203,7 +203,7 @@ static void ppm_unmark_entries(struct cxgbi_ppm *ppm, int i, int count)
 			pool->next = i;
 		spin_unlock_bh(&pool->lock);
 
-		pr_debug("%s: cpu %u, idx %d, next %u.\n",
+		pr_de("%s: cpu %u, idx %d, next %u.\n",
 			 __func__, cpu, i, pool->next);
 	} else {
 		spin_lock_bh(&ppm->map_lock);
@@ -215,7 +215,7 @@ static void ppm_unmark_entries(struct cxgbi_ppm *ppm, int i, int count)
 			ppm->next = i;
 		spin_unlock_bh(&ppm->map_lock);
 
-		pr_debug("%s: idx %d, next %u.\n", __func__, i, ppm->next);
+		pr_de("%s: idx %d, next %u.\n", __func__, i, ppm->next);
 	}
 }
 
@@ -234,7 +234,7 @@ void cxgbi_ppm_ppod_release(struct cxgbi_ppm *ppm, u32 idx)
 		return;
 	}
 
-	pr_debug("release idx %u, npods %u.\n", idx, pdata->npods);
+	pr_de("release idx %u, npods %u.\n", idx, pdata->npods);
 	ppm_unmark_entries(ppm, idx, pdata->npods);
 }
 EXPORT_SYMBOL(cxgbi_ppm_ppod_release);
@@ -262,7 +262,7 @@ int cxgbi_ppm_ppods_reserve(struct cxgbi_ppm *ppm, unsigned short nr_pages,
 	if (idx < 0)
 		idx = ppm_get_entries(ppm, npods, caller_data);
 	if (idx < 0) {
-		pr_debug("ippm: pages %u, nospc %u, nxt %u, 0x%lx.\n",
+		pr_de("ippm: pages %u, nospc %u, nxt %u, 0x%lx.\n",
 			 nr_pages, npods, ppm->next, caller_data);
 		return idx;
 	}
@@ -278,7 +278,7 @@ int cxgbi_ppm_ppods_reserve(struct cxgbi_ppm *ppm, unsigned short nr_pages,
 	*ppod_idx = idx;
 	*ddp_tag = tag;
 
-	pr_debug("ippm: sg %u, tag 0x%x(%u,%u), data 0x%lx.\n",
+	pr_de("ippm: sg %u, tag 0x%x(%u,%u), data 0x%lx.\n",
 		 nr_pages, tag, idx, npods, caller_data);
 
 	return npods;
@@ -302,7 +302,7 @@ void cxgbi_ppm_make_ppod_hdr(struct cxgbi_ppm *ppm, u32 tag,
 	hdr->max_offset = htonl(length);
 	hdr->page_offset = htonl(offset);
 
-	pr_debug("ippm: tag 0x%x, tid 0x%x, xfer %u, off %u.\n",
+	pr_de("ippm: tag 0x%x, tid 0x%x, xfer %u, off %u.\n",
 		 tag, tid, length, offset);
 }
 EXPORT_SYMBOL(cxgbi_ppm_make_ppod_hdr);
@@ -403,7 +403,7 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 		ppmax_pool = ppmax / reserve_factor;
 		pool = ppm_alloc_cpu_pool(&ppmax_pool, &pool_index_max);
 
-		pr_debug("%s: ppmax %u, cpu total %u, per cpu %u.\n",
+		pr_de("%s: ppmax %u, cpu total %u, per cpu %u.\n",
 			 ndev->name, ppmax, ppmax_pool, pool_index_max);
 	}
 

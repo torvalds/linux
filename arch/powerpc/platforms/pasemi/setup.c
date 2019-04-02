@@ -39,7 +39,7 @@
 #include <asm/smp.h>
 #include <asm/time.h>
 #include <asm/mmu.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
@@ -180,7 +180,7 @@ static int __init pas_setup_mce_regs(void)
 	dev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa00a, NULL);
 	while (dev && reg < MAX_MCE_REGS) {
 		mce_regs[reg].name = kasprintf(GFP_KERNEL,
-						"mc%d_mcdebug_errsta", reg);
+						"mc%d_mcde_errsta", reg);
 		mce_regs[reg].addr = pasemi_pci_getcfgaddr(dev, 0x730);
 		dev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa00a, dev);
 		reg++;
@@ -292,7 +292,7 @@ static __init void pas_init_IRQ(void)
 		return;
 	}
 	openpic_addr = of_read_number(opprop, naddr);
-	pr_debug("OpenPIC addr: %lx\n", openpic_addr);
+	pr_de("OpenPIC addr: %lx\n", openpic_addr);
 
 	mpic_flags = MPIC_LARGE_VECTORS | MPIC_NO_BIAS | MPIC_NO_RESET;
 
@@ -302,7 +302,7 @@ static __init void pas_init_IRQ(void)
 
 	mpic = mpic_alloc(mpic_node, openpic_addr,
 			  mpic_flags, 0, 0, "PASEMI-OPIC");
-	BUG_ON(!mpic);
+	_ON(!mpic);
 
 	mpic_assign_isu(mpic, 0, mpic->paddr + 0x10000);
 	mpic_init(mpic);
@@ -338,7 +338,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 
 	if (nmi_virq && mpic_get_mcirq() == nmi_virq) {
 		pr_err("NMI delivered\n");
-		debugger(regs);
+		deger(regs);
 		mpic_end_irq(irq_get_irq_data(nmi_virq));
 		goto out;
 	}
@@ -388,7 +388,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	if (num_mce_regs == 0)
 		pr_err("No MCE registers mapped yet, can't dump\n");
 	else
-		pr_err("SoC debug registers:\n");
+		pr_err("SoC de registers:\n");
 
 	for (i = 0; i < num_mce_regs; i++)
 		pr_err("%s: 0x%08x\n", mce_regs[i].name,

@@ -578,7 +578,7 @@ static void usb_dmac_isr_transfer_end(struct usb_dmac_chan *chan)
 {
 	struct usb_dmac_desc *desc = chan->desc;
 
-	BUG_ON(!desc);
+	_ON(!desc);
 
 	if (++desc->sg_index < desc->sg_len) {
 		usb_dmac_chan_start_sg(chan, desc->sg_index);

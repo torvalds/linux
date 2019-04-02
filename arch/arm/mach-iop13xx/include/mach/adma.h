@@ -517,7 +517,7 @@ iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 	struct iop13xx_adma_byte_count byte_count = hw_desc->byte_count_field;
 	enum sum_check_flags flags;
 
-	BUG_ON(!(byte_count.tx_complete && desc_ctrl.zero_result));
+	_ON(!(byte_count.tx_complete && desc_ctrl.zero_result));
 
 	flags = byte_count.zero_result_err_q << SUM_CHECK_Q;
 	flags |= byte_count.zero_result_err << SUM_CHECK_P;

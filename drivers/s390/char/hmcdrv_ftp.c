@@ -90,13 +90,13 @@ static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len)
 
 	crc = crc16(crc, cmd, len);
 	pdesc = ftpcmds + (crc % ARRAY_SIZE(ftpcmds));
-	pr_debug("FTP command '%s' has CRC 0x%04x, at table pos. %lu\n",
+	pr_de("FTP command '%s' has CRC 0x%04x, at table pos. %lu\n",
 		 cmd, crc, (crc % ARRAY_SIZE(ftpcmds)));
 
 	if (!pdesc->str || strncmp(pdesc->str, cmd, len))
 		return HMCDRV_FTP_NOOP;
 
-	pr_debug("FTP command '%s' found, with ID %d\n",
+	pr_de("FTP command '%s' found, with ID %d\n",
 		 pdesc->str, pdesc->cmd);
 
 	return pdesc->cmd;
@@ -165,7 +165,7 @@ ssize_t hmcdrv_ftp_do(const struct hmcdrv_ftp_cmdspec *ftp)
 	mutex_lock(&hmcdrv_ftp_mutex);
 
 	if (hmcdrv_ftp_funcs && hmcdrv_ftp_refcnt) {
-		pr_debug("starting transfer, cmd %d for '%s' at %lld with %zd bytes\n",
+		pr_de("starting transfer, cmd %d for '%s' at %lld with %zd bytes\n",
 			 ftp->id, ftp->fname, (long long) ftp->ofs, ftp->len);
 		len = hmcdrv_cache_cmd(ftp, hmcdrv_ftp_funcs->transfer);
 	} else {

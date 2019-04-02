@@ -75,12 +75,12 @@ static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
 	unsigned int idx;
 	u32 cfg, cfg_mask, val;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+	DRM_DE_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
 	if (!state->fb || WARN_ON(!state->crtc))
 		return;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
+	DRM_DE_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
 		plane->base.id, plane->name,
 		state->crtc->base.id, state->crtc->name,
 		state->fb->base.id,
@@ -219,12 +219,12 @@ static void armada_drm_overlay_plane_atomic_disable(struct drm_plane *plane,
 	struct armada_regs *regs;
 	unsigned int idx = 0;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+	DRM_DE_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
 	if (!old_state->crtc)
 		return;
 
-	DRM_DEBUG_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
+	DRM_DE_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
 		plane->base.id, plane->name,
 		old_state->crtc->base.id, old_state->crtc->name,
 		old_state->fb->base.id);

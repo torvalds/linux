@@ -1487,7 +1487,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	if (ret)
 		goto done;
 
-	vmm->debug = subdev->debug;
+	vmm->de = subdev->de;
 
 	ret = nvkm_vmm_join(vmm, inst);
 	if (ret)

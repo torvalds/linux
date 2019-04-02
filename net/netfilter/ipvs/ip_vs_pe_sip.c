@@ -8,7 +8,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
 
-#ifdef CONFIG_IP_VS_DEBUG
+#ifdef CONFIG_IP_VS_DE
 static const char *ip_vs_dbg_callid(char *buf, size_t buf_len,
 				    const char *callid, size_t callid_len,
 				    int *idx)
@@ -21,7 +21,7 @@ static const char *ip_vs_dbg_callid(char *buf, size_t buf_len,
 	return buf + *idx - len;
 }
 
-#define IP_VS_DEBUG_CALLID(callid, len)					\
+#define IP_VS_DE_CALLID(callid, len)					\
 	ip_vs_dbg_callid(ip_vs_dbg_buf, sizeof(ip_vs_dbg_buf),		\
 			 callid, len, &ip_vs_dbg_idx)
 #endif
@@ -57,7 +57,7 @@ static int get_callid(const char *dptr, unsigned int dataoff,
 		return -EINVAL;
 
 	IP_VS_DBG_BUF(9, "SIP callid %s (%d bytes)\n",
-		      IP_VS_DEBUG_CALLID(dptr + *matchoff, *matchlen),
+		      IP_VS_DE_CALLID(dptr + *matchoff, *matchlen),
 		      *matchlen);
 	return 0;
 }
@@ -124,7 +124,7 @@ static bool ip_vs_sip_ct_match(const struct ip_vs_conn_param *p,
 
 	IP_VS_DBG_BUF(9, "SIP template match %s %s->%s:%d %s\n",
 		      ip_vs_proto_name(p->protocol),
-		      IP_VS_DEBUG_CALLID(p->pe_data, p->pe_data_len),
+		      IP_VS_DE_CALLID(p->pe_data, p->pe_data_len),
 		      IP_VS_DBG_ADDR(p->af, p->vaddr), ntohs(p->vport),
 		      ret ? "hit" : "not hit");
 

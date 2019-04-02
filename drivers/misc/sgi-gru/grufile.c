@@ -342,7 +342,7 @@ static unsigned long gru_chiplet_cpu_to_mmr(int chiplet, int cpu, int *corep)
 		mmr = UVH_GR1_TLB_INT0_CONFIG +
 		    core * (UVH_GR1_TLB_INT1_CONFIG - UVH_GR1_TLB_INT0_CONFIG);
 	} else {
-		BUG();
+		();
 	}
 
 	*corep = core;
@@ -614,7 +614,7 @@ module_init(gru_init);
 module_exit(gru_exit);
 
 module_param(gru_options, ulong, 0644);
-MODULE_PARM_DESC(gru_options, "Various debug options");
+MODULE_PARM_DESC(gru_options, "Various de options");
 
 MODULE_AUTHOR("Silicon Graphics, Inc.");
 MODULE_LICENSE("GPL");

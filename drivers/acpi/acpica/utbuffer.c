@@ -143,7 +143,7 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_debug_dump_buffer
+ * FUNCTION:    acpi_ut_de_dump_buffer
  *
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
@@ -161,7 +161,7 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
  ******************************************************************************/
 
 void
-acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
+acpi_ut_de_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
 {
 
 	/* Only dump the buffer if tracing is enabled */

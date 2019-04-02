@@ -30,7 +30,7 @@
 
 
 #if 0
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
+#define DPRINTK(format,args...) printk(KERN_DE format,##args)
 #else
 #define DPRINTK(format,args...)
 #endif
@@ -328,7 +328,7 @@ static int suni_start(struct atm_dev *dev)
 		timer_setup(&poll_timer, suni_hz, 0);
 		poll_timer.expires = jiffies+HZ;
 #if 0
-printk(KERN_DEBUG "[u] p=0x%lx,n=0x%lx\n",(unsigned long) poll_timer.list.prev,
+printk(KERN_DE "[u] p=0x%lx,n=0x%lx\n",(unsigned long) poll_timer.list.prev,
     (unsigned long) poll_timer.list.next);
 #endif
 		add_timer(&poll_timer);

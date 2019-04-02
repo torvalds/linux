@@ -111,7 +111,7 @@ static void print_stacks(void)
 	}
 	printf("\n");
 	if (!sys_read_seen || !sys_write_seen) {
-		printf("BUG kernel stack doesn't contain sys_read() and sys_write()\n");
+		printf(" kernel stack doesn't contain sys_read() and sys_write()\n");
 		int_exit(0);
 	}
 

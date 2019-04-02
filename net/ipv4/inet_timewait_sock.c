@@ -66,8 +66,8 @@ void inet_twsk_free(struct inet_timewait_sock *tw)
 {
 	struct module *owner = tw->tw_prot->owner;
 	twsk_destructor((struct sock *)tw);
-#ifdef SOCK_REFCNT_DEBUG
-	pr_debug("%s timewait_sock %p released\n", tw->tw_prot->name, tw);
+#ifdef SOCK_REFCNT_DE
+	pr_de("%s timewait_sock %p released\n", tw->tw_prot->name, tw);
 #endif
 	kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
 	module_put(owner);
@@ -245,7 +245,7 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 
 	tw->tw_kill = timeo <= 4*HZ;
 	if (!rearm) {
-		BUG_ON(mod_timer(&tw->tw_timer, jiffies + timeo));
+		_ON(mod_timer(&tw->tw_timer, jiffies + timeo));
 		atomic_inc(&tw->tw_dr->tw_count);
 	} else {
 		mod_timer_pending(&tw->tw_timer, jiffies + timeo);

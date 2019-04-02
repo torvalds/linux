@@ -408,9 +408,9 @@ static void do_send_fragment(struct ipw_hardware *hw, unsigned char *data,
 	unsigned long flags;
 
 	start_timing();
-	BUG_ON(length > hw->ll_mtu);
+	_ON(length > hw->ll_mtu);
 
-	if (ipwireless_debug)
+	if (ipwireless_de)
 		dump_data_bytes("send", data, length);
 
 	spin_lock_irqsave(&hw->lock, flags);
@@ -903,7 +903,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 
 	swap_packet_bitfield_from_le(pkt);
 
-	if (ipwireless_debug)
+	if (ipwireless_de)
 		dump_data_bytes("recv", pkt, len);
 
 	handle_received_packet(hw, (union nl_packet *) pkt, len);
@@ -1165,7 +1165,7 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 			 */
 			if (memtx_serial != 0) {
 				hw->serial_number_detected = 1;
-				printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
+				printk(KERN_DE IPWIRELESS_PCCARD_NAME
 					": memreg_tx serial num detected\n");
 
 				spin_lock_irqsave(&hw->lock, flags);
@@ -1547,7 +1547,7 @@ static void handle_received_SETUP_packet(struct ipw_hardware *hw,
 		break;
 
 	case TL_SETUP_SIGNO_OPEN_MSG:
-		if (ipwireless_debug) {
+		if (ipwireless_de) {
 			unsigned int channel_idx = rx_msg->open_msg.port_no - 1;
 
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
@@ -1557,19 +1557,19 @@ static void handle_received_SETUP_packet(struct ipw_hardware *hw,
 		break;
 
 	case TL_SETUP_SIGNO_INFO_MSG_ACK:
-		if (ipwireless_debug)
-			printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
+		if (ipwireless_de)
+			printk(KERN_DE IPWIRELESS_PCCARD_NAME
 			       ": card successfully configured as NDISWAN\n");
 		break;
 
 	case TL_SETUP_SIGNO_REBOOT_MSG:
 		if (hw->to_setup)
-			printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
+			printk(KERN_DE IPWIRELESS_PCCARD_NAME
 			       ": Setup not completed - ignoring reboot msg\n");
 		else {
 			struct ipw_setup_reboot_msg_ack *packet;
 
-			printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
+			printk(KERN_DE IPWIRELESS_PCCARD_NAME
 			       ": Acknowledging REBOOT message\n");
 			packet = alloc_ctrl_packet(
 					sizeof(struct ipw_setup_reboot_msg_ack),

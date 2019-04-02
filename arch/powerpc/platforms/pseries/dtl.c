@@ -26,7 +26,7 @@
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <asm/lppaca.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/machdep.h>
 
@@ -338,7 +338,7 @@ static int dtl_setup_file(struct dtl *dtl)
 
 	sprintf(name, "cpu-%d", dtl->cpu);
 
-	dtl->file = debugfs_create_file(name, 0400, dtl_dir, dtl, &dtl_fops);
+	dtl->file = defs_create_file(name, 0400, dtl_dir, dtl, &dtl_fops);
 	if (!dtl->file)
 		return -ENOMEM;
 
@@ -353,19 +353,19 @@ static int dtl_init(void)
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -ENODEV;
 
-	/* set up common debugfs structure */
+	/* set up common defs structure */
 
 	rc = -ENOMEM;
-	dtl_dir = debugfs_create_dir("dtl", powerpc_debugfs_root);
+	dtl_dir = defs_create_dir("dtl", powerpc_defs_root);
 	if (!dtl_dir) {
 		printk(KERN_WARNING "%s: can't create dtl root dir\n",
 				__func__);
 		goto err;
 	}
 
-	event_mask_file = debugfs_create_x8("dtl_event_mask", 0600,
+	event_mask_file = defs_create_x8("dtl_event_mask", 0600,
 				dtl_dir, &dtl_event_mask);
-	buf_entries_file = debugfs_create_u32("dtl_buf_entries", 0400,
+	buf_entries_file = defs_create_u32("dtl_buf_entries", 0400,
 				dtl_dir, &dtl_buf_entries);
 
 	if (!event_mask_file || !buf_entries_file) {
@@ -387,7 +387,7 @@ static int dtl_init(void)
 	return 0;
 
 err_remove_dir:
-	debugfs_remove_recursive(dtl_dir);
+	defs_remove_recursive(dtl_dir);
 err:
 	return rc;
 }

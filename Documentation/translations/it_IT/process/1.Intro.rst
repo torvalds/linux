@@ -222,7 +222,7 @@ distribuzione binaria di codice kernel. Questo include che:
   esclusivamente da un giudice. Ma l'incertezza che perseguita quei moduli
   è lì comunque.
 
-- I moduli binari aumentano di molto la difficoltà di fare debugging del
+- I moduli binari aumentano di molto la difficoltà di fare deging del
   kernel, al punto che la maggior parte degli sviluppatori del kernel non
   vorranno nemmeno tentare.  Quindi la diffusione di moduli esclusivamente
   binari renderà difficile ai vostri utilizzatori trovare un supporto dalla

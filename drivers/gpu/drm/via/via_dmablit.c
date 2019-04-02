@@ -252,7 +252,7 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 		return -EINVAL;
 	}
 	vsg->state = dr_via_pages_locked;
-	DRM_DEBUG("DMA pages locked\n");
+	DRM_DE("DMA pages locked\n");
 	return 0;
 }
 
@@ -280,7 +280,7 @@ via_alloc_desc_pages(drm_via_sg_info_t *vsg)
 			     (drm_via_descriptor_t *) __get_free_page(GFP_KERNEL)))
 			return -ENOMEM;
 	}
-	DRM_DEBUG("Allocated %d pages for %d descriptors.\n", vsg->num_desc_pages,
+	DRM_DE("Allocated %d pages for %d descriptors.\n", vsg->num_desc_pages,
 		  vsg->num_desc);
 	return 0;
 }
@@ -320,7 +320,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 	unsigned long irqsave = 0;
 	uint32_t status = 0;
 
-	DRM_DEBUG("DMA blit handler called. engine = %d, from_irq = %d, blitq = 0x%lx\n",
+	DRM_DE("DMA blit handler called. engine = %d, from_irq = %d, blitq = 0x%lx\n",
 		  engine, from_irq, (unsigned long) blitq);
 
 	if (from_irq)
@@ -438,7 +438,7 @@ via_dmablit_sync(struct drm_device *dev, uint32_t handle, int engine)
 		DRM_WAIT_ON(ret, *queue, 3 * HZ,
 			    !via_dmablit_active(blitq, engine, handle, NULL));
 	}
-	DRM_DEBUG("DMA blit sync handle 0x%x engine %d returned %d\n",
+	DRM_DE("DMA blit sync handle 0x%x engine %d returned %d\n",
 		  handle, engine, ret);
 
 	return ret;
@@ -463,7 +463,7 @@ via_dmablit_timer(struct timer_list *t)
 	int engine = (int)
 		(blitq - ((drm_via_private_t *)dev->dev_private)->blit_queues);
 
-	DRM_DEBUG("Polling timer called for engine %d, jiffies %lu\n", engine,
+	DRM_DE("Polling timer called for engine %d, jiffies %lu\n", engine,
 		  (unsigned long) jiffies);
 
 	via_dmablit_handler(dev, engine, 0);
@@ -501,7 +501,7 @@ via_dmablit_workqueue(struct work_struct *work)
 	int cur_released;
 
 
-	DRM_DEBUG("Workqueue task called for blit engine %ld\n", (unsigned long)
+	DRM_DE("Workqueue task called for blit engine %ld\n", (unsigned long)
 		  (blitq - ((drm_via_private_t *)dev->dev_private)->blit_queues));
 
 	spin_lock_irqsave(&blitq->blit_lock, irqsave);
@@ -510,7 +510,7 @@ via_dmablit_workqueue(struct work_struct *work)
 
 		cur_released = blitq->serviced++;
 
-		DRM_DEBUG("Releasing blit slot %d\n", cur_released);
+		DRM_DE("Releasing blit slot %d\n", cur_released);
 
 		if (blitq->serviced >= VIA_NUM_BLIT_SLOTS)
 			blitq->serviced = 0;
@@ -631,12 +631,12 @@ via_build_sg_info(struct drm_device *dev, drm_via_sg_info_t *vsg, drm_via_dmabli
 	}
 
 	/*
-	 * A hardware bug seems to be worked around if system memory addresses start on
+	 * A hardware  seems to be worked around if system memory addresses start on
 	 * 16 byte boundaries. This seems a bit restrictive however. VIA is contacted
 	 * about this. Meanwhile, impose the following restrictions:
 	 */
 
-#ifdef VIA_BUGFREE
+#ifdef VIA_FREE
 	if ((((unsigned long)xfer->mem_addr & 3) != ((unsigned long)xfer->fb_addr & 3)) ||
 	    ((xfer->num_lines > 1) && ((xfer->mem_stride & 3) != (xfer->fb_stride & 3)))) {
 		DRM_ERROR("Invalid DRM bitblt alignment.\n");
@@ -681,7 +681,7 @@ via_dmablit_grab_slot(drm_via_blitq_t *blitq, int engine)
 	int ret = 0;
 	unsigned long irqsave;
 
-	DRM_DEBUG("Num free is %d\n", blitq->num_free);
+	DRM_DE("Num free is %d\n", blitq->num_free);
 	spin_lock_irqsave(&blitq->blit_lock, irqsave);
 	while (blitq->num_free == 0) {
 		spin_unlock_irqrestore(&blitq->blit_lock, irqsave);

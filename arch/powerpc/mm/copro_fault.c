@@ -86,7 +86,7 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 			ret = -EFAULT;
 			goto out_unlock;
 		}
-		BUG();
+		();
 	}
 
 	if (*flt & VM_FAULT_MAJOR)
@@ -133,7 +133,7 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 		vsidkey = SLB_VSID_KERNEL;
 		break;
 	default:
-		pr_debug("%s: invalid region access at %016llx\n", __func__, ea);
+		pr_de("%s: invalid region access at %016llx\n", __func__, ea);
 		return 1;
 	}
 	/* Bad address */

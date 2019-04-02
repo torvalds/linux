@@ -202,7 +202,7 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
  out:
 	if (err && link && index != -1) {
-		BUG_ON(index < dev->limits.num_mgms);
+		_ON(index < dev->limits.num_mgms);
 		mthca_free(&dev->mcg_table.alloc, index);
 	}
 	mutex_unlock(&dev->mcg_table.mutex);
@@ -282,7 +282,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			goto out;
 		}
 		if (amgm_index_to_free) {
-			BUG_ON(amgm_index_to_free < dev->limits.num_mgms);
+			_ON(amgm_index_to_free < dev->limits.num_mgms);
 			mthca_free(&dev->mcg_table.alloc, amgm_index_to_free);
 		}
 	} else {
@@ -301,7 +301,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 			mthca_err(dev, "WRITE_MGM returned %d\n", err);
 			goto out;
 		}
-		BUG_ON(index < dev->limits.num_mgms);
+		_ON(index < dev->limits.num_mgms);
 		mthca_free(&dev->mcg_table.alloc, index);
 	}
 

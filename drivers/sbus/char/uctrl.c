@@ -24,8 +24,8 @@
 
 #define UCTRL_MINOR	174
 
-#define DEBUG 1
-#ifdef DEBUG
+#define DE 1
+#ifdef DE
 #define dprintk(x) printk x
 #else
 #define dprintk(x)

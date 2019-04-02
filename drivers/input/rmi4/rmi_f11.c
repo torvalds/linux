@@ -1053,7 +1053,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	u8 buf;
 	int mask_size;
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Initializing F11 values.\n");
+	rmi_dbg(RMI_DE_FN, &fn->dev, "Initializing F11 values.\n");
 
 	mask_size = BITS_TO_LONGS(drvdata->irq_count) * sizeof(unsigned long);
 
@@ -1307,7 +1307,7 @@ static int rmi_f11_resume(struct rmi_function *fn)
 	struct f11_data *f11 = dev_get_drvdata(&fn->dev);
 	int error;
 
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "Resuming...\n");
+	rmi_dbg(RMI_DE_FN, &fn->dev, "Resuming...\n");
 	if (!f11->rezero_wait_ms)
 		return 0;
 

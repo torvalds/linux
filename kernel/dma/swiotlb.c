@@ -34,8 +34,8 @@
 #include <linux/scatterlist.h>
 #include <linux/mem_encrypt.h>
 #include <linux/set_memory.h>
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 #endif
 
 #include <asm/io.h>
@@ -483,7 +483,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 	else
 		stride = 1;
 
-	BUG_ON(!nslots);
+	_ON(!nslots);
 
 	/*
 	 * Find suitable number of IO TLB entries size that will fit this
@@ -627,17 +627,17 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
 			swiotlb_bounce(orig_addr, tlb_addr,
 				       size, DMA_FROM_DEVICE);
 		else
-			BUG_ON(dir != DMA_TO_DEVICE);
+			_ON(dir != DMA_TO_DEVICE);
 		break;
 	case SYNC_FOR_DEVICE:
 		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
 			swiotlb_bounce(orig_addr, tlb_addr,
 				       size, DMA_TO_DEVICE);
 		else
-			BUG_ON(dir != DMA_FROM_DEVICE);
+			_ON(dir != DMA_FROM_DEVICE);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -687,24 +687,24 @@ bool is_swiotlb_active(void)
 	return io_tlb_end != 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-static int __init swiotlb_create_debugfs(void)
+static int __init swiotlb_create_defs(void)
 {
 	struct dentry *d_swiotlb_usage;
 	struct dentry *ent;
 
-	d_swiotlb_usage = debugfs_create_dir("swiotlb", NULL);
+	d_swiotlb_usage = defs_create_dir("swiotlb", NULL);
 
 	if (!d_swiotlb_usage)
 		return -ENOMEM;
 
-	ent = debugfs_create_ulong("io_tlb_nslabs", 0400,
+	ent = defs_create_ulong("io_tlb_nslabs", 0400,
 				   d_swiotlb_usage, &io_tlb_nslabs);
 	if (!ent)
 		goto fail;
 
-	ent = debugfs_create_ulong("io_tlb_used", 0400,
+	ent = defs_create_ulong("io_tlb_used", 0400,
 				   d_swiotlb_usage, &io_tlb_used);
 	if (!ent)
 		goto fail;
@@ -712,10 +712,10 @@ static int __init swiotlb_create_debugfs(void)
 	return 0;
 
 fail:
-	debugfs_remove_recursive(d_swiotlb_usage);
+	defs_remove_recursive(d_swiotlb_usage);
 	return -ENOMEM;
 }
 
-late_initcall(swiotlb_create_debugfs);
+late_initcall(swiotlb_create_defs);
 
 #endif

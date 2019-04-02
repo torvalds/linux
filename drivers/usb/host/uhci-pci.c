@@ -72,7 +72,7 @@ static int uhci_pci_resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 		return 1;
 
 	case PCI_VENDOR_ID_INTEL:
-		/* Some of Intel's USB controllers have a bug that causes
+		/* Some of Intel's USB controllers have a  that causes
 		 * resume-detect interrupts if any port has an over-current
 		 * condition.  To make matters worse, some motherboards
 		 * hardwire unused USB ports' over-current inputs active!
@@ -95,7 +95,7 @@ static int uhci_pci_global_suspend_mode_is_broken(struct uhci_hcd *uhci)
 	const char *sys_info;
 	static const char bad_Asus_board[] = "A7V8X";
 
-	/* One of Asus's motherboards has a bug which causes it to
+	/* One of Asus's motherboards has a  which causes it to
 	 * wake up immediately from suspend-to-RAM if any of the ports
 	 * are connected.  In such cases we will not set EGSM.
 	 */

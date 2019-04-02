@@ -133,7 +133,7 @@ static void qmi_recv_ctrl_pkt(struct qmi_handle *qmi,
 	const struct qrtr_ctrl_pkt *pkt = buf;
 
 	if (len < sizeof(struct qrtr_ctrl_pkt)) {
-		pr_debug("ignoring short control packet\n");
+		pr_de("ignoring short control packet\n");
 		return;
 	}
 

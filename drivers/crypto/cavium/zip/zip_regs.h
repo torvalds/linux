@@ -516,7 +516,7 @@ union zip_ctl_cfg {
  * union zip_dbg_corex_inst - Represents the registers that reflect the status
  * of the current instruction that the ZIP core is executing or has executed.
  *
- * These registers are only for debug use.
+ * These registers are only for de use.
  */
 union zip_dbg_corex_inst {
 	u64 u_reg64;
@@ -547,7 +547,7 @@ static inline u64 ZIP_DBG_COREX_INST(u64 param1)
  * union zip_dbg_corex_sta - Represents registers that reflect the status of
  * the zip cores.
  *
- * They are for debug use only.
+ * They are for de use only.
  */
 union zip_dbg_corex_sta {
 	u64 u_reg64;
@@ -578,7 +578,7 @@ static inline u64 ZIP_DBG_COREX_STA(u64 param1)
  * union zip_dbg_quex_sta - Represets registers that reflect status of the zip
  * instruction queues.
  *
- * They are for debug use only.
+ * They are for de use only.
  */
 union zip_dbg_quex_sta {
 	u64 u_reg64;
@@ -609,7 +609,7 @@ static inline u64 ZIP_DBG_QUEX_STA(u64 param1)
  * union zip_ecc_ctl - Represents the register that enables ECC for each
  * individual internal memory that requires ECC.
  *
- * For debug purpose, it can also flip one or two bits in the ECC data.
+ * For de purpose, it can also flip one or two bits in the ECC data.
  */
 union zip_ecc_ctl {
 	u64 u_reg64;
@@ -1158,7 +1158,7 @@ static inline u64 ZIP_QUEX_ERR_INT_W1S(u64 param1)
 
 /**
  * union zip_quex_gcfg - Represents the registers that reflect status of the
- * zip instruction queues,debug use only.
+ * zip instruction queues,de use only.
  */
 union zip_quex_gcfg {
 	u64 u_reg64;

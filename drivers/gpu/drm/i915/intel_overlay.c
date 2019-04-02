@@ -216,7 +216,7 @@ static void intel_overlay_submit_request(struct intel_overlay *overlay,
 					 struct i915_request *rq,
 					 i915_active_retire_fn retire)
 {
-	GEM_BUG_ON(i915_active_request_peek(&overlay->last_flip,
+	GEM__ON(i915_active_request_peek(&overlay->last_flip,
 					    &overlay->i915->drm.struct_mutex));
 	i915_active_request_set_retire_fn(&overlay->last_flip, retire,
 					  &overlay->i915->drm.struct_mutex);
@@ -313,7 +313,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	/* check for underruns */
 	tmp = I915_READ(DOVSTA);
 	if (tmp & (1 << 17))
-		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
+		DRM_DE("overlay underrun, DOVSTA: %x\n", tmp);
 
 	rq = alloc_request(overlay);
 	if (IS_ERR(rq))
@@ -1066,7 +1066,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->overlay;
 	if (!overlay) {
-		DRM_DEBUG("userspace bug: no overlay\n");
+		DRM_DE("userspace : no overlay\n");
 		return -ENODEV;
 	}
 
@@ -1095,7 +1095,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 
 	if (i915_gem_object_is_tiled(new_bo)) {
-		DRM_DEBUG_KMS("buffer used for overlay image can not be tiled\n");
+		DRM_DE_KMS("buffer used for overlay image can not be tiled\n");
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1232,7 +1232,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 
 	overlay = dev_priv->overlay;
 	if (!overlay) {
-		DRM_DEBUG("userspace bug: no overlay\n");
+		DRM_DE("userspace : no overlay\n");
 		return -ENODEV;
 	}
 

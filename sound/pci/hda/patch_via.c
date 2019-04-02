@@ -26,7 +26,7 @@
 /* 2006-03-03  Lydia Wang  Create the basic patch to support VT1708 codec    */
 /* 2006-03-14  Lydia Wang  Modify hard code for some pin widget nid	     */
 /* 2006-08-02  Lydia Wang  Add support to VT1709 codec			     */
-/* 2006-09-08  Lydia Wang  Fix internal loopback recording source select bug */
+/* 2006-09-08  Lydia Wang  Fix internal loopback recording source select  */
 /* 2007-09-12  Lydia Wang  Add EAPD enable during driver initialization	     */
 /* 2007-09-17  Lydia Wang  Add VT1708B codec support			    */
 /* 2007-11-14  Lydia Wang  Add VT1708A codec HP and CD pin connect config    */

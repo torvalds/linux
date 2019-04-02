@@ -81,12 +81,12 @@ VLAN filter before the new VLAN filter is added. For example::
     ip link set eth0 vf 0 vlan 0	// Delete vlan 100
     ip link set eth0 vf 0 vlan 200	// set a new vlan 200 for VF 0
 
-Debug
+De
 -----
 :Valid Range: 0-16 (0=none,...,16=all)
 :Default Value: 0
 
-This parameter adjusts the level debug messages displayed in the system logs.
+This parameter adjusts the level de messages displayed in the system logs.
 
 
 Additional Features and Configurations

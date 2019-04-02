@@ -152,7 +152,7 @@ void tlb_wire_entry(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 	unsigned long long entry;
 	unsigned long paddr, flags;
 
-	BUG_ON(dtlb_entry == ARRAY_SIZE(dtlb_entries));
+	_ON(dtlb_entry == ARRAY_SIZE(dtlb_entries));
 
 	local_irq_save(flags);
 
@@ -172,7 +172,7 @@ void tlb_unwire_entry(void)
 	unsigned long long entry;
 	unsigned long flags;
 
-	BUG_ON(!dtlb_entry);
+	_ON(!dtlb_entry);
 
 	local_irq_save(flags);
 	entry = dtlb_entries[dtlb_entry--];

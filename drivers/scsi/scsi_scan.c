@@ -311,7 +311,7 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	unsigned long flags;
 
-	BUG_ON(starget->state == STARGET_DEL);
+	_ON(starget->state == STARGET_DEL);
 	starget->state = STARGET_DEL;
 	transport_destroy_device(dev);
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -511,7 +511,7 @@ void scsi_target_reap(struct scsi_target *starget)
 	 * the reap_ref drops to zero, so we're trying to do another final put
 	 * on an already released kref
 	 */
-	BUG_ON(starget->state == STARGET_DEL);
+	_ON(starget->state == STARGET_DEL);
 	scsi_target_reap_ref_put(starget);
 }
 
@@ -604,7 +604,7 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 			 * not-ready to ready transition [asc/ascq=0x28/0x0]
 			 * or power-on, reset [asc/ascq=0x29/0x0], continue.
 			 * INQUIRY should not yield UNIT_ATTENTION
-			 * but many buggy devices do so anyway. 
+			 * but many gy devices do so anyway. 
 			 */
 			if (driver_byte(result) == DRIVER_SENSE &&
 			    scsi_sense_valid(&sshdr)) {
@@ -1218,7 +1218,7 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 
 	/*
 	 * If less than SCSI_1_CCS, and no special lun scanning, stop
-	 * scanning; this matches 2.4 behaviour, but could just be a bug
+	 * scanning; this matches 2.4 behaviour, but could just be a 
 	 * (to continue scanning a SCSI_1_CCS device).
 	 *
 	 * This test is broken.  We might not have any device on lun0 for
@@ -1721,7 +1721,7 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 		return NULL;
 
 	if (shost->async_scan) {
-		shost_printk(KERN_DEBUG, shost, "%s called twice\n", __func__);
+		shost_printk(KERN_DE, shost, "%s called twice\n", __func__);
 		return NULL;
 	}
 
@@ -1925,7 +1925,7 @@ EXPORT_SYMBOL(scsi_get_host_dev);
  */
 void scsi_free_host_dev(struct scsi_device *sdev)
 {
-	BUG_ON(sdev->id != sdev->host->this_id);
+	_ON(sdev->id != sdev->host->this_id);
 
 	__scsi_remove_device(sdev);
 }

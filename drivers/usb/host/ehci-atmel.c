@@ -96,7 +96,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_debug("Initializing Atmel-SoC USB Host Controller\n");
+	pr_de("Initializing Atmel-SoC USB Host Controller\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {

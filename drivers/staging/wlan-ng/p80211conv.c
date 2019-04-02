@@ -119,12 +119,12 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 	memcpy(&e_hdr, skb->data, sizeof(e_hdr));
 
 	if (skb->len <= 0) {
-		pr_debug("zero-length skb!\n");
+		pr_de("zero-length skb!\n");
 		return 1;
 	}
 
 	if (ethconv == WLAN_ETHCONV_ENCAP) {	/* simplest case */
-		pr_debug("ENCAP len: %d\n", skb->len);
+		pr_de("ENCAP len: %d\n", skb->len);
 		/* here, we don't care what kind of ether frm. Just stick it */
 		/*  in the 80211 payload */
 		/* which is to say, leave the skb alone. */
@@ -132,7 +132,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 		/* step 1: classify ether frame, DIX or 802.3? */
 		proto = ntohs(e_hdr.type);
 		if (proto <= ETH_DATA_LEN) {
-			pr_debug("802.3 len: %d\n", skb->len);
+			pr_de("802.3 len: %d\n", skb->len);
 			/* codes <= 1500 reserved for 802.3 lengths */
 			/* it's 802.3, pass ether payload unchanged,  */
 
@@ -142,7 +142,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			/*   leave off any PAD octets.  */
 			skb_trim(skb, proto);
 		} else {
-			pr_debug("DIXII len: %d\n", skb->len);
+			pr_de("DIXII len: %d\n", skb->len);
 			/* it's DIXII, time for some conversion */
 
 			/* trim off ethernet header */
@@ -333,7 +333,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 				  payload_length - 4);
 		if (foo) {
 			/* de-wep failed, drop skb. */
-			pr_debug("Host de-WEP failed, dropping frame (%d).\n",
+			pr_de("Host de-WEP failed, dropping frame (%d).\n",
 				 foo);
 			wlandev->rx.decrypt_err++;
 			return 2;
@@ -361,7 +361,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 	    (e_llc->dsap != 0xaa || e_llc->ssap != 0xaa) &&
 	    ((!ether_addr_equal_unaligned(daddr, e_hdr->daddr)) ||
 	     (!ether_addr_equal_unaligned(saddr, e_hdr->saddr)))) {
-		pr_debug("802.3 ENCAP len: %d\n", payload_length);
+		pr_de("802.3 ENCAP len: %d\n", payload_length);
 		/* 802.3 Encapsulated */
 		/* Test for an overlength frame */
 		if (payload_length > (netdev->mtu + ETH_HLEN)) {
@@ -388,7 +388,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		   (p80211_stt_findproto(be16_to_cpu(e_snap->type)))) ||
 		   (memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) !=
 			0))) {
-		pr_debug("SNAP+RFC1042 len: %d\n", payload_length);
+		pr_de("SNAP+RFC1042 len: %d\n", payload_length);
 		/* it's a SNAP + RFC1042 frame && protocol is in STT */
 		/* build 802.3 + RFC1042 */
 
@@ -418,7 +418,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		(e_llc->dsap == 0xaa) &&
 		(e_llc->ssap == 0xaa) &&
 		(e_llc->ctl == 0x03)) {
-		pr_debug("802.1h/RFC1042 len: %d\n", payload_length);
+		pr_de("802.1h/RFC1042 len: %d\n", payload_length);
 		/* it's an 802.1h frame || (an RFC1042 && protocol not in STT)
 		 * build a DIXII + RFC894
 		 */
@@ -454,7 +454,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		/* chop off the 802.11 CRC */
 		skb_trim(skb, skb->len - WLAN_CRC_LEN);
 	} else {
-		pr_debug("NON-ENCAP len: %d\n", payload_length);
+		pr_de("NON-ENCAP len: %d\n", payload_length);
 		/* any NON-ENCAP */
 		/* it's a generic 80211+LLC or IPX 'Raw 802.3' */
 		/*  build an 802.3 frame */
@@ -560,17 +560,17 @@ void p80211skb_rxmeta_detach(struct sk_buff *skb)
 
 	/* Sanity checks */
 	if (!skb) {	/* bad skb */
-		pr_debug("Called w/ null skb.\n");
+		pr_de("Called w/ null skb.\n");
 		return;
 	}
 	frmmeta = p80211skb_frmmeta(skb);
 	if (!frmmeta) {	/* no magic */
-		pr_debug("Called w/ bad frmmeta magic.\n");
+		pr_de("Called w/ bad frmmeta magic.\n");
 		return;
 	}
 	rxmeta = frmmeta->rx;
 	if (!rxmeta) {	/* bad meta ptr */
-		pr_debug("Called w/ bad rxmeta ptr.\n");
+		pr_de("Called w/ bad rxmeta ptr.\n");
 		return;
 	}
 

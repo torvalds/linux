@@ -29,7 +29,7 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 				   &proto, &frag_off);
 
 	if ((tcphoff < 0) || (tcphoff > oldskb->len)) {
-		pr_debug("Cannot get TCP header.\n");
+		pr_de("Cannot get TCP header.\n");
 		return NULL;
 	}
 
@@ -37,7 +37,7 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 
 	/* IP header checks: fragment, too short. */
 	if (proto != IPPROTO_TCP || *otcplen < sizeof(struct tcphdr)) {
-		pr_debug("proto(%d) != IPPROTO_TCP or too short (len = %d)\n",
+		pr_de("proto(%d) != IPPROTO_TCP or too short (len = %d)\n",
 			 proto, *otcplen);
 		return NULL;
 	}
@@ -49,13 +49,13 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 
 	/* No RST for RST. */
 	if (otcph->rst) {
-		pr_debug("RST is set\n");
+		pr_de("RST is set\n");
 		return NULL;
 	}
 
 	/* Check checksum. */
 	if (nf_ip6_checksum(oldskb, hook, tcphoff, IPPROTO_TCP)) {
-		pr_debug("TCP checksum is invalid\n");
+		pr_de("TCP checksum is invalid\n");
 		return NULL;
 	}
 
@@ -143,7 +143,7 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 
 	if ((!(ipv6_addr_type(&oip6h->saddr) & IPV6_ADDR_UNICAST)) ||
 	    (!(ipv6_addr_type(&oip6h->daddr) & IPV6_ADDR_UNICAST))) {
-		pr_debug("addr is not unicast.\n");
+		pr_de("addr is not unicast.\n");
 		return;
 	}
 

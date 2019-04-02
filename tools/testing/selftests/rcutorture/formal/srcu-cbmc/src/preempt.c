@@ -57,7 +57,7 @@ __thread int preempt_disable_count;
 
 void preempt_disable(void)
 {
-	BUG_ON(preempt_disable_count < 0 || preempt_disable_count == INT_MAX);
+	_ON(preempt_disable_count < 0 || preempt_disable_count == INT_MAX);
 
 	if (preempt_disable_count++)
 		return;
@@ -70,7 +70,7 @@ void preempt_disable(void)
 
 void preempt_enable(void)
 {
-	BUG_ON(preempt_disable_count < 1);
+	_ON(preempt_disable_count < 1);
 
 	if (--preempt_disable_count)
 		return;

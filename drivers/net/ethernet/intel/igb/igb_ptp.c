@@ -706,7 +706,7 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 	ns = timecounter_read(&igb->tc);
 
 	ts = ns_to_timespec64(ns);
-	pr_debug("igb overflow check at %lld.%09lu\n",
+	pr_de("igb overflow check at %lld.%09lu\n",
 		 (long long) ts.tv_sec, ts.tv_nsec);
 
 	schedule_delayed_work(&igb->ptp_overflow_work,

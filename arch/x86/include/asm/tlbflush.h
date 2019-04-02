@@ -81,7 +81,7 @@ static inline u16 kern_pcid(u16 asid)
 	 * Make sure that the dynamic ASID space does not confict with the
 	 * bit we are using to switch between user and kernel ASIDs.
 	 */
-	BUILD_BUG_ON(TLB_NR_DYN_ASIDS >= (1 << X86_CR3_PTI_PCID_USER_BIT));
+	BUILD__ON(TLB_NR_DYN_ASIDS >= (1 << X86_CR3_PTI_PCID_USER_BIT));
 
 	/*
 	 * The ASID being passed in here should have respected the
@@ -99,7 +99,7 @@ static inline u16 kern_pcid(u16 asid)
 	 * situation in which PCID-unaware code saves CR3, loads some other
 	 * value (with PCID == 0), and then restores CR3, thus corrupting
 	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
-	 * that any bugs involving loading a PCID-enabled CR3 with
+	 * that any s involving loading a PCID-enabled CR3 with
 	 * CR4.PCIDE off will trigger deterministically.
 	 */
 	return asid + 1;
@@ -417,7 +417,7 @@ static inline void __native_flush_tlb_global(void)
 	/*
 	 * Read-modify-write to CR4 - protect it from preemption and
 	 * from interrupts. (Use the raw variant because this code can
-	 * be called from deep inside debugging code.)
+	 * be called from deep inside deging code.)
 	 */
 	raw_local_irq_save(flags);
 

@@ -13,7 +13,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/fixes to esc.storagedev@microsemi.com
  *
  */
 #ifndef HPSA_H
@@ -293,7 +293,7 @@ struct ctlr_info {
 	struct list_head offline_device_list;
 	int	acciopath_status;
 	int	drv_req_rescan;
-	int	raid_offload_debug;
+	int	raid_offload_de;
 	int     discovery_polling;
 	int     legacy_board;
 	struct  ReportLUNdata *lastlogicals;
@@ -527,7 +527,7 @@ static unsigned long SA5_completed(struct ctlr_info *h,
 	if (register_value != FIFO_EMPTY)
 		atomic_dec(&h->commands_outstanding);
 
-#ifdef HPSA_DEBUG
+#ifdef HPSA_DE
 	if (register_value != FIFO_EMPTY)
 		dev_dbg(&h->pdev->dev, "Read %lx back from board\n",
 			register_value);
@@ -587,7 +587,7 @@ static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 	u64 register_value;
 	struct reply_queue_buffer *rq = &h->reply_queue[q];
 
-	BUG_ON(q >= h->nreply_queues);
+	_ON(q >= h->nreply_queues);
 
 	register_value = rq->head[rq->current_entry];
 	if (register_value != IOACCEL_MODE1_REPLY_UNUSED) {

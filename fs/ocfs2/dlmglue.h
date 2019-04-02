@@ -206,8 +206,8 @@ void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
 /* for the downconvert thread */
 void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb);
 
-struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void);
-void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
+struct ocfs2_dlm_de *ocfs2_new_dlm_de(void);
+void ocfs2_put_dlm_de(struct ocfs2_dlm_de *dlm_de);
 
 /* To set the locking protocol on module initialization */
 void ocfs2_set_locking_protocol(void);

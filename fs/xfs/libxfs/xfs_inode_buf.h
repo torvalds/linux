@@ -64,11 +64,11 @@ void	xfs_log_dinode_to_disk(struct xfs_log_dinode *from,
 
 bool	xfs_dinode_good_version(struct xfs_mount *mp, __u8 version);
 
-#if defined(DEBUG)
+#if defined(DE)
 void	xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 #else
 #define	xfs_inobp_check(mp, bp)
-#endif /* DEBUG */
+#endif /* DE */
 
 xfs_failaddr_t xfs_dinode_verify(struct xfs_mount *mp, xfs_ino_t ino,
 			   struct xfs_dinode *dip);

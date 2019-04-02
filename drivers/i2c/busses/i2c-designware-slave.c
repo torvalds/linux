@@ -114,7 +114,7 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
 	 * equals to,
 	 *   stat = dw_readl(IC_RAW_INTR_STAT) & dw_readl(IC_INTR_MASK);
 	 *
-	 * The raw version might be useful for debugging purposes.
+	 * The raw version might be useful for deging purposes.
 	 */
 	stat = dw_readl(dev, DW_IC_INTR_STAT);
 

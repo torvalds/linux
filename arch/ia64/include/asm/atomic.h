@@ -33,10 +33,10 @@ static __inline__ int							\
 ia64_atomic_##op (int i, atomic_t *v)					\
 {									\
 	__s32 old, new;							\
-	CMPXCHG_BUGCHECK_DECL						\
+	CMPXCHG_CHECK_DECL						\
 									\
 	do {								\
-		CMPXCHG_BUGCHECK(v);					\
+		CMPXCHG_CHECK(v);					\
 		old = atomic_read(v);					\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic_t)) != old); \
@@ -48,10 +48,10 @@ static __inline__ int							\
 ia64_atomic_fetch_##op (int i, atomic_t *v)				\
 {									\
 	__s32 old, new;							\
-	CMPXCHG_BUGCHECK_DECL						\
+	CMPXCHG_CHECK_DECL						\
 									\
 	do {								\
-		CMPXCHG_BUGCHECK(v);					\
+		CMPXCHG_CHECK(v);					\
 		old = atomic_read(v);					\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic_t)) != old); \
@@ -128,10 +128,10 @@ static __inline__ long							\
 ia64_atomic64_##op (__s64 i, atomic64_t *v)				\
 {									\
 	__s64 old, new;							\
-	CMPXCHG_BUGCHECK_DECL						\
+	CMPXCHG_CHECK_DECL						\
 									\
 	do {								\
-		CMPXCHG_BUGCHECK(v);					\
+		CMPXCHG_CHECK(v);					\
 		old = atomic64_read(v);					\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old); \
@@ -143,10 +143,10 @@ static __inline__ long							\
 ia64_atomic64_fetch_##op (__s64 i, atomic64_t *v)			\
 {									\
 	__s64 old, new;							\
-	CMPXCHG_BUGCHECK_DECL						\
+	CMPXCHG_CHECK_DECL						\
 									\
 	do {								\
-		CMPXCHG_BUGCHECK(v);					\
+		CMPXCHG_CHECK(v);					\
 		old = atomic64_read(v);					\
 		new = old c_op i;					\
 	} while (ia64_cmpxchg(acq, v, old, new, sizeof(atomic64_t)) != old); \

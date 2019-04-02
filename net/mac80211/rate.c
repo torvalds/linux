@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include "rate.h"
 #include "ieee80211_i.h"
-#include "debugfs.h"
+#include "defs.h"
 
 struct rate_control_alg {
 	struct list_head list;
@@ -206,7 +206,7 @@ ieee80211_rate_control_ops_get(const char *name)
 	return ops;
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_MAC80211_DEFS
 static ssize_t rcname_read(struct file *file, char __user *userbuf,
 			   size_t count, loff_t *ppos)
 {
@@ -227,7 +227,7 @@ static const struct file_operations rcname_ops = {
 static struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local)
 {
-	struct dentry *debugfsdir = NULL;
+	struct dentry *defsdir = NULL;
 	struct rate_control_ref *ref;
 
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
@@ -237,13 +237,13 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	if (!ref->ops)
 		goto free;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
-	local->debugfs.rcdir = debugfsdir;
-	debugfs_create_file("name", 0400, debugfsdir, ref, &rcname_ops);
+#ifdef CONFIG_MAC80211_DEFS
+	defsdir = defs_create_dir("rc", local->hw.wiphy->defsdir);
+	local->defs.rcdir = defsdir;
+	defs_create_file("name", 0400, defsdir, ref, &rcname_ops);
 #endif
 
-	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
+	ref->priv = ref->ops->alloc(&local->hw, defsdir);
 	if (!ref->priv)
 		goto free;
 	return ref;
@@ -258,9 +258,9 @@ static void rate_control_free(struct ieee80211_local *local,
 {
 	ctrl_ref->ops->free(ctrl_ref->priv);
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfs_remove_recursive(local->debugfs.rcdir);
-	local->debugfs.rcdir = NULL;
+#ifdef CONFIG_MAC80211_DEFS
+	defs_remove_recursive(local->defs.rcdir);
+	local->defs.rcdir = NULL;
 #endif
 
 	kfree(ctrl_ref);
@@ -975,7 +975,7 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 	WARN_ON(local->rate_ctrl);
 	local->rate_ctrl = ref;
 
-	wiphy_debug(local->hw.wiphy, "Selected rate control algorithm '%s'\n",
+	wiphy_de(local->hw.wiphy, "Selected rate control algorithm '%s'\n",
 		    ref->ops->name);
 
 	return 0;

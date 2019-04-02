@@ -170,13 +170,13 @@ MODULE_FIRMWARE(FIRMWARE_D101M);
 MODULE_FIRMWARE(FIRMWARE_D101S);
 MODULE_FIRMWARE(FIRMWARE_D102E);
 
-static int debug = 3;
+static int de = 3;
 static int eeprom_bad_csum_allow = 0;
 static int use_io = 0;
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(eeprom_bad_csum_allow, int, 0);
 module_param(use_io, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(de, "De level (0=none,...,16=all)");
 MODULE_PARM_DESC(eeprom_bad_csum_allow, "Allow bad eeprom checksums");
 MODULE_PARM_DESC(use_io, "Force use of i/o access mode");
 
@@ -948,7 +948,7 @@ static u16 mdio_ctrl_hw(struct nic *nic, u32 addr, u32 dir, u32 reg, u16 data)
 			break;
 	}
 	spin_unlock_irqrestore(&nic->mdio_lock, flags);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, hw, KERN_DE, nic->netdev,
 		     "%s:addr=%d, reg=%d, data_in=0x%04X, data_out=0x%04X\n",
 		     dir == mdi_read ? "READ" : "WRITE",
 		     addr, reg, data, data_out);
@@ -1011,7 +1011,7 @@ static u16 mdio_ctrl_phy_mii_emulated(struct nic *nic,
 			return	ADVERTISE_10HALF |
 				ADVERTISE_10FULL;
 		default:
-			netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
+			netif_printk(nic, hw, KERN_DE, nic->netdev,
 				     "%s:addr=%d, reg=%d, data=0x%04X: unimplemented emulation!\n",
 				     dir == mdi_read ? "READ" : "WRITE",
 				     addr, reg, data);
@@ -1020,7 +1020,7 @@ static u16 mdio_ctrl_phy_mii_emulated(struct nic *nic,
 	} else {
 		switch (reg) {
 		default:
-			netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
+			netif_printk(nic, hw, KERN_DE, nic->netdev,
 				     "%s:addr=%d, reg=%d, data=0x%04X: unimplemented emulation!\n",
 				     dir == mdi_read ? "READ" : "WRITE",
 				     addr, reg, data);
@@ -1150,11 +1150,11 @@ static int e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		config->rx_discard_short_frames = 0x0;  /* 1=discard, 0=save */
 	}
 
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[00-07]=%8ph\n",
+	netif_printk(nic, hw, KERN_DE, nic->netdev, "[00-07]=%8ph\n",
 		     c + 0);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[08-15]=%8ph\n",
+	netif_printk(nic, hw, KERN_DE, nic->netdev, "[08-15]=%8ph\n",
 		     c + 8);
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev, "[16-23]=%8ph\n",
+	netif_printk(nic, hw, KERN_DE, nic->netdev, "[16-23]=%8ph\n",
 		     c + 16);
 	return 0;
 }
@@ -1236,7 +1236,7 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	 * Based on comments in the source code for the FreeBSD fxp
 	 * driver, the FIRMWARE_D102E ucode includes both CPUSaver and
 	 *
-	 *    "fixes for bugs in the B-step hardware (specifically, bugs
+	 *    "fixes for s in the B-step hardware (specifically, s
 	 *     with Inline Receive)."
 	 *
 	 * So we must fail if it cannot be loaded.
@@ -1463,14 +1463,14 @@ static int e100_phy_init(struct nic *nic)
 			return -EAGAIN;
 		}
 	} else
-		netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
+		netif_printk(nic, hw, KERN_DE, nic->netdev,
 			     "phy_addr = %d\n", nic->mii.phy_id);
 
 	/* Get phy ID */
 	id_lo = mdio_read(netdev, nic->mii.phy_id, MII_PHYSID1);
 	id_hi = mdio_read(netdev, nic->mii.phy_id, MII_PHYSID2);
 	nic->phy = (u32)id_hi << 16 | (u32)id_lo;
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, hw, KERN_DE, nic->netdev,
 		     "phy ID = 0x%08X\n", nic->phy);
 
 	/* Select the phy and isolate the rest */
@@ -1582,7 +1582,7 @@ static void e100_set_multicast_list(struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
 
-	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, hw, KERN_DE, nic->netdev,
 		     "mc_count=%d, flags=0x%04X\n",
 		     netdev_mc_count(netdev), netdev->flags);
 
@@ -1659,7 +1659,7 @@ static void e100_update_stats(struct nic *nic)
 
 
 	if (e100_exec_cmd(nic, cuc_dump_reset, 0))
-		netif_printk(nic, tx_err, KERN_DEBUG, nic->netdev,
+		netif_printk(nic, tx_err, KERN_DE, nic->netdev,
 			     "exec cuc_dump_reset failed\n");
 }
 
@@ -1691,7 +1691,7 @@ static void e100_watchdog(struct timer_list *t)
 	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 	u32 speed;
 
-	netif_printk(nic, timer, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, timer, KERN_DE, nic->netdev,
 		     "right now = %ld\n", jiffies);
 
 	/* mii library handles link maintenance tasks */
@@ -1784,7 +1784,7 @@ static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
 		   Issue a NOP command followed by a 1us delay before
 		   issuing the Tx command. */
 		if (e100_exec_cmd(nic, cuc_nop, 0))
-			netif_printk(nic, tx_err, KERN_DEBUG, nic->netdev,
+			netif_printk(nic, tx_err, KERN_DE, nic->netdev,
 				     "exec cuc_nop failed\n");
 		udelay(1);
 	}
@@ -1794,13 +1794,13 @@ static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
 	switch (err) {
 	case -ENOSPC:
 		/* We queued the skb, but now we're out of space. */
-		netif_printk(nic, tx_err, KERN_DEBUG, nic->netdev,
+		netif_printk(nic, tx_err, KERN_DE, nic->netdev,
 			     "No space for CB\n");
 		netif_stop_queue(netdev);
 		break;
 	case -ENOMEM:
 		/* This is a hard error - log it. */
-		netif_printk(nic, tx_err, KERN_DEBUG, nic->netdev,
+		netif_printk(nic, tx_err, KERN_DE, nic->netdev,
 			     "Out of Tx resources, returning skb\n");
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
@@ -1822,7 +1822,7 @@ static int e100_tx_clean(struct nic *nic)
 	    cb->status & cpu_to_le16(cb_complete);
 	    cb = nic->cb_to_clean = cb->next) {
 		dma_rmb(); /* read skb after status */
-		netif_printk(nic, tx_done, KERN_DEBUG, nic->netdev,
+		netif_printk(nic, tx_done, KERN_DE, nic->netdev,
 			     "cb[%d]->status = 0x%04X\n",
 			     (int)(((void*)cb - (void*)nic->cbs)/sizeof(struct cb)),
 			     cb->status);
@@ -1968,7 +1968,7 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 		sizeof(struct rfd), PCI_DMA_BIDIRECTIONAL);
 	rfd_status = le16_to_cpu(rfd->status);
 
-	netif_printk(nic, rx_status, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, rx_status, KERN_DE, nic->netdev,
 		     "status=0x%04X\n", rfd_status);
 	dma_rmb(); /* read size after status bit */
 
@@ -2195,7 +2195,7 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 	struct nic *nic = netdev_priv(netdev);
 	u8 stat_ack = ioread8(&nic->csr->scb.stat_ack);
 
-	netif_printk(nic, intr, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, intr, KERN_DE, nic->netdev,
 		     "stat_ack = 0x%02X\n", stat_ack);
 
 	if (stat_ack == stat_ack_not_ours ||	/* Not our interrupt */
@@ -2330,7 +2330,7 @@ static void e100_tx_timeout_task(struct work_struct *work)
 	struct nic *nic = container_of(work, struct nic, tx_timeout_task);
 	struct net_device *netdev = nic->netdev;
 
-	netif_printk(nic, tx_err, KERN_DEBUG, nic->netdev,
+	netif_printk(nic, tx_err, KERN_DE, nic->netdev,
 		     "scb.status=0x%02X\n", ioread8(&nic->csr->scb.status));
 
 	rtnl_lock();
@@ -2837,7 +2837,7 @@ static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_napi_add(netdev, &nic->napi, e100_poll, E100_NAPI_WEIGHT);
 	nic->netdev = netdev;
 	nic->pdev = pdev;
-	nic->msg_enable = (1 << debug) - 1;
+	nic->msg_enable = (1 << de) - 1;
 	nic->mdio_ctrl = mdio_ctrl_hw;
 	pci_set_drvdata(pdev, netdev);
 
@@ -3166,7 +3166,7 @@ static struct pci_driver e100_driver = {
 
 static int __init e100_init_module(void)
 {
-	if (((1 << debug) - 1) & NETIF_MSG_DRV) {
+	if (((1 << de) - 1) & NETIF_MSG_DRV) {
 		pr_info("%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 		pr_info("%s\n", DRV_COPYRIGHT);
 	}

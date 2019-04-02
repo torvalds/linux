@@ -417,7 +417,7 @@ void propagate_mount_unlock(struct mount *mnt)
 	struct mount *parent = mnt->mnt_parent;
 	struct mount *m, *child;
 
-	BUG_ON(parent == mnt);
+	_ON(parent == mnt);
 
 	for (m = propagation_next(parent, parent); m;
 			m = propagation_next(m, parent)) {

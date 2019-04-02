@@ -55,7 +55,7 @@ static void huc_fw_select(struct intel_uc_fw *huc_fw)
 	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 
-	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
+	GEM__ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
 	if (!HAS_HUC(dev_priv))
 		return;
@@ -110,7 +110,7 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	u32 size;
 	int ret;
 
-	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
+	GEM__ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
@@ -135,7 +135,7 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	/* Wait for DMA to finish */
 	ret = intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0, 100);
 
-	DRM_DEBUG_DRIVER("HuC DMA transfer wait over with ret %d\n", ret);
+	DRM_DE_DRIVER("HuC DMA transfer wait over with ret %d\n", ret);
 
 	/* Disable the bits once DMA is over */
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_DISABLE(HUC_UKERNEL));

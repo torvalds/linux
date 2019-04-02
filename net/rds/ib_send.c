@@ -234,7 +234,7 @@ static void rds_ib_sub_signaled(struct rds_ib_connection *ic, int nr)
 	if ((atomic_sub_return(nr, &ic->i_signaled_sends) == 0) &&
 	    waitqueue_active(&rds_ib_ring_empty_wait))
 		wake_up(&rds_ib_ring_empty_wait);
-	BUG_ON(atomic_read(&ic->i_signaled_sends) < 0);
+	_ON(atomic_read(&ic->i_signaled_sends) < 0);
 }
 
 /*
@@ -254,7 +254,7 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 	int nr_sig = 0;
 
 
-	rdsdebug("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
+	rdsde("wc wr_id 0x%llx status %u (%s) byte_len %u imm_data %u\n",
 		 (unsigned long long)wc->wr_id, wc->status,
 		 ib_wc_status_msg(wc->status), wc->byte_len,
 		 be32_to_cpu(wc->ex.imm_data));
@@ -372,7 +372,7 @@ try_again:
 	posted = IB_GET_POST_CREDITS(oldval);
 	avail = IB_GET_SEND_CREDITS(oldval);
 
-	rdsdebug("wanted=%u credits=%u posted=%u\n",
+	rdsde("wanted=%u credits=%u posted=%u\n",
 			wanted, avail, posted);
 
 	/* The last credit must be used to send a credit update. */
@@ -416,7 +416,7 @@ void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits)
 	if (credits == 0)
 		return;
 
-	rdsdebug("credits=%u current=%u%s\n",
+	rdsde("credits=%u current=%u%s\n",
 			credits,
 			IB_GET_SEND_CREDITS(atomic_read(&ic->i_credits)),
 			test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ? ", ll_send_full" : "");
@@ -507,8 +507,8 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	int flow_controlled = 0;
 	int nr_sig = 0;
 
-	BUG_ON(off % RDS_FRAG_SIZE);
-	BUG_ON(hdr_off != 0 && hdr_off != sizeof(struct rds_header));
+	_ON(off % RDS_FRAG_SIZE);
+	_ON(hdr_off != 0 && hdr_off != sizeof(struct rds_header));
 
 	/* Do not send cong updates to IB loopback */
 	if (conn->c_loopback
@@ -556,7 +556,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 							  rm->data.op_sg,
 							  rm->data.op_nents,
 							  DMA_TO_DEVICE);
-			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.op_count);
+			rdsde("ic %p mapping rm %p: %d\n", ic, rm, rm->data.op_count);
 			if (rm->data.op_count == 0) {
 				rds_ib_stats_inc(s_ib_tx_sg_mapping_failure);
 				rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
@@ -606,7 +606,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		if (ic->i_flowctl) {
 			rds_ib_send_grab_credits(ic, 0, &posted, 1, RDS_MAX_ADV_CREDIT - adv_credits);
 			adv_credits += posted;
-			BUG_ON(adv_credits > 255);
+			_ON(adv_credits > 255);
 		}
 	}
 
@@ -675,7 +675,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		if (send->s_wr.send_flags & IB_SEND_SIGNALED)
 			nr_sig++;
 
-		rdsdebug("send %p wr %p num_sge %u next %p\n", send,
+		rdsde("send %p wr %p num_sge %u next %p\n", send,
 			 &send->s_wr, send->s_wr.num_sge, send->s_wr.next);
 
 		if (ic->i_flowctl && adv_credits) {
@@ -727,9 +727,9 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	/* XXX need to worry about failed_wr and partial sends. */
 	failed_wr = &first->s_wr;
 	ret = ib_post_send(ic->i_cm_id->qp, &first->s_wr, &failed_wr);
-	rdsdebug("ic %p first %p (wr %p) ret %d wr %p\n", ic,
+	rdsde("ic %p first %p (wr %p) ret %d wr %p\n", ic,
 		 first, &first->s_wr, ret, failed_wr);
-	BUG_ON(failed_wr != &first->s_wr);
+	_ON(failed_wr != &first->s_wr);
 	if (ret) {
 		printk(KERN_WARNING "RDS/IB: ib_post_send to %pI6c "
 		       "returned %d\n", &conn->c_faddr, ret);
@@ -746,7 +746,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 	ret = bytes_sent;
 out:
-	BUG_ON(adv_credits);
+	_ON(adv_credits);
 	return ret;
 }
 
@@ -800,7 +800,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 
 	/* map 8 byte retval buffer to the device */
 	ret = ib_dma_map_sg(ic->i_cm_id->device, op->op_sg, 1, DMA_FROM_DEVICE);
-	rdsdebug("ic %p mapping atomic op %p. mapped %d pg\n", ic, op, ret);
+	rdsde("ic %p mapping atomic op %p. mapped %d pg\n", ic, op, ret);
 	if (ret != 1) {
 		rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 		rds_ib_stats_inc(s_ib_tx_sg_mapping_failure);
@@ -813,7 +813,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	send->s_sge[0].length = sg_dma_len(op->op_sg);
 	send->s_sge[0].lkey = ic->i_pd->local_dma_lkey;
 
-	rdsdebug("rva %Lx rpa %Lx len %u\n", op->op_remote_addr,
+	rdsde("rva %Lx rpa %Lx len %u\n", op->op_remote_addr,
 		 send->s_sge[0].addr, send->s_sge[0].length);
 
 	if (nr_sig)
@@ -821,9 +821,9 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 
 	failed_wr = &send->s_atomic_wr.wr;
 	ret = ib_post_send(ic->i_cm_id->qp, &send->s_atomic_wr.wr, &failed_wr);
-	rdsdebug("ic %p send %p (wr %p) ret %d wr %p\n", ic,
+	rdsde("ic %p send %p (wr %p) ret %d wr %p\n", ic,
 		 send, &send->s_atomic_wr, ret, failed_wr);
-	BUG_ON(failed_wr != &send->s_atomic_wr.wr);
+	_ON(failed_wr != &send->s_atomic_wr.wr);
 	if (ret) {
 		printk(KERN_WARNING "RDS/IB: atomic ib_post_send to %pI6c "
 		       "returned %d\n", &conn->c_faddr, ret);
@@ -834,7 +834,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 
 	if (unlikely(failed_wr != &send->s_atomic_wr.wr)) {
 		printk(KERN_WARNING "RDS/IB: atomic ib_post_send() rc=%d, but failed_wqe updated!\n", ret);
-		BUG_ON(failed_wr != &send->s_atomic_wr.wr);
+		_ON(failed_wr != &send->s_atomic_wr.wr);
 	}
 
 out:
@@ -866,7 +866,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		op->op_count = ib_dma_map_sg(ic->i_cm_id->device,
 					     op->op_sg, op->op_nents, (op->op_write) ?
 					     DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		rdsdebug("ic %p mapping op %p: %d\n", ic, op, op->op_count);
+		rdsde("ic %p mapping op %p: %d\n", ic, op, op->op_count);
 		if (op->op_count == 0) {
 			rds_ib_stats_inc(s_ib_tx_sg_mapping_failure);
 			ret = -ENOMEM; /* XXX ? */
@@ -928,13 +928,13 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 			send->s_sge[j].lkey = ic->i_pd->local_dma_lkey;
 
 			sent += len;
-			rdsdebug("ic %p sent %d remote_addr %llu\n", ic, sent, remote_addr);
+			rdsde("ic %p sent %d remote_addr %llu\n", ic, sent, remote_addr);
 
 			remote_addr += len;
 			scat++;
 		}
 
-		rdsdebug("send %p wr %p num_sge %u next %p\n", send,
+		rdsde("send %p wr %p num_sge %u next %p\n", send,
 			&send->s_rdma_wr.wr,
 			send->s_rdma_wr.wr.num_sge,
 			send->s_rdma_wr.wr.next);
@@ -960,9 +960,9 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 
 	failed_wr = &first->s_rdma_wr.wr;
 	ret = ib_post_send(ic->i_cm_id->qp, &first->s_rdma_wr.wr, &failed_wr);
-	rdsdebug("ic %p first %p (wr %p) ret %d wr %p\n", ic,
+	rdsde("ic %p first %p (wr %p) ret %d wr %p\n", ic,
 		 first, &first->s_rdma_wr.wr, ret, failed_wr);
-	BUG_ON(failed_wr != &first->s_rdma_wr.wr);
+	_ON(failed_wr != &first->s_rdma_wr.wr);
 	if (ret) {
 		printk(KERN_WARNING "RDS/IB: rdma ib_post_send to %pI6c "
 		       "returned %d\n", &conn->c_faddr, ret);
@@ -973,7 +973,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 
 	if (unlikely(failed_wr != &first->s_rdma_wr.wr)) {
 		printk(KERN_WARNING "RDS/IB: ib_post_send() rc=%d, but failed_wqe updated!\n", ret);
-		BUG_ON(failed_wr != &first->s_rdma_wr.wr);
+		_ON(failed_wr != &first->s_rdma_wr.wr);
 	}
 
 

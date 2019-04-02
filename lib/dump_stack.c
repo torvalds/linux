@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/smp.h>
 #include <linux/atomic.h>
 #include <linux/kexec.h>
@@ -36,11 +36,11 @@ void __init dump_stack_set_arch_desc(const char *fmt, ...)
 }
 
 /**
- * dump_stack_print_info - print generic debug info for dump_stack()
+ * dump_stack_print_info - print generic de info for dump_stack()
  * @log_lvl: log level
  *
  * Arch-specific dump_stack() implementations can use this function to
- * print out the same debug information as the generic dump_stack().
+ * print out the same de information as the generic dump_stack().
  */
 void dump_stack_print_info(const char *log_lvl)
 {
@@ -60,11 +60,11 @@ void dump_stack_print_info(const char *log_lvl)
 }
 
 /**
- * show_regs_print_info - print generic debug info for show_regs()
+ * show_regs_print_info - print generic de info for show_regs()
  * @log_lvl: log level
  *
  * show_regs() implementations can use this function to print out generic
- * debug information.
+ * de information.
  */
 void show_regs_print_info(const char *log_lvl)
 {

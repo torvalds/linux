@@ -201,7 +201,7 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		c++;
 	}
 
-	BUG_ON(c >= AMDGPU_BO_MAX_PLACEMENTS);
+	_ON(c >= AMDGPU_BO_MAX_PLACEMENTS);
 
 	placement->num_placement = c;
 	placement->placement = places;
@@ -406,7 +406,7 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	return true;
 
 fail:
-	DRM_DEBUG("BO size %lu > total memory in domain: %llu\n", size,
+	DRM_DE("BO size %lu > total memory in domain: %llu\n", size,
 		  man->size << PAGE_SHIFT);
 	return false;
 }
@@ -466,13 +466,13 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 
 #ifdef CONFIG_X86_32
 	/* XXX: Write-combined CPU mappings of GTT seem broken on 32-bit
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
+	 * See https://s.freedesktop.org/show_.cgi?id=84627
 	 */
 	bo->flags &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 #elif defined(CONFIG_X86) && !defined(CONFIG_X86_PAT)
 	/* Don't try to enable write-combining when it can't work, or things
 	 * may be slow
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=88758
+	 * See https://s.freedesktop.org/show_.cgi?id=88758
 	 */
 
 #ifndef CONFIG_COMPILE_TEST
@@ -1313,7 +1313,7 @@ int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr)
  * @bo:	amdgpu object for which we query the offset
  *
  * Note: object should either be pinned or reserved when calling this
- * function, it might be useful to add check for this for debugging.
+ * function, it might be useful to add check for this for deging.
  *
  * Returns:
  * current GPU offset of the object.

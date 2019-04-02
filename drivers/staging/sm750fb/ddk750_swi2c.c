@@ -82,7 +82,7 @@ static unsigned long sw_i2c_data_gpio_data_dir_reg = GPIO_DATA_DIRECTION;
  */
 static void sw_i2c_wait(void)
 {
-	/* find a bug:
+	/* find a :
 	 * peekIO method works well before suspend/resume
 	 * but after suspend, peekIO(0x3ce,0x61) & 0x10
 	 * always be non-zero,which makes the while loop

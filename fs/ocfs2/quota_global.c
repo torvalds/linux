@@ -138,7 +138,7 @@ int ocfs2_validate_quota_block(struct super_block *sb, struct buffer_head *bh)
 
 	trace_ocfs2_validate_quota_block((unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise

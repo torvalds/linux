@@ -1120,7 +1120,7 @@ static void hdsp_set_dds_value(struct hdsp *hdsp, int rate)
 	n = DDS_NUMERATOR;
 	n = div_u64(n, rate);
 	/* n should be less than 2^32 for being written to FREQ register */
-	snd_BUG_ON(n >> 32);
+	snd__ON(n >> 32);
 	/* HDSP_freqReg and HDSP_resetPointer are the same, so keep the DDS
 	   value to write it after a reset */
 	hdsp->dds_value = n;
@@ -2803,7 +2803,7 @@ static int snd_hdsp_get_adat_sync_check(struct snd_kcontrol *kcontrol, struct sn
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
 
 	offset = ucontrol->id.index - 1;
-	if (snd_BUG_ON(offset < 0))
+	if (snd__ON(offset < 0))
 		return -EINVAL;
 
 	switch (hdsp->io_type) {
@@ -3895,7 +3895,7 @@ static char *hdsp_channel_buffer_location(struct hdsp *hdsp,
 {
 	int mapped_channel;
 
-        if (snd_BUG_ON(channel < 0 || channel >= hdsp->max_channels))
+        if (snd__ON(channel < 0 || channel >= hdsp->max_channels))
 		return NULL;
 
 	if ((mapped_channel = hdsp->channel_map[channel]) < 0)
@@ -3914,11 +3914,11 @@ static int snd_hdsp_playback_copy(struct snd_pcm_substream *substream,
 	struct hdsp *hdsp = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	if (snd_BUG_ON(pos + count > HDSP_CHANNEL_BUFFER_BYTES))
+	if (snd__ON(pos + count > HDSP_CHANNEL_BUFFER_BYTES))
 		return -EINVAL;
 
 	channel_buf = hdsp_channel_buffer_location (hdsp, substream->pstr->stream, channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	if (copy_from_user(channel_buf + pos, src, count))
 		return -EFAULT;
@@ -3933,7 +3933,7 @@ static int snd_hdsp_playback_copy_kernel(struct snd_pcm_substream *substream,
 	char *channel_buf;
 
 	channel_buf = hdsp_channel_buffer_location(hdsp, substream->pstr->stream, channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	memcpy(channel_buf + pos, src, count);
 	return 0;
@@ -3946,11 +3946,11 @@ static int snd_hdsp_capture_copy(struct snd_pcm_substream *substream,
 	struct hdsp *hdsp = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	if (snd_BUG_ON(pos + count > HDSP_CHANNEL_BUFFER_BYTES))
+	if (snd__ON(pos + count > HDSP_CHANNEL_BUFFER_BYTES))
 		return -EINVAL;
 
 	channel_buf = hdsp_channel_buffer_location (hdsp, substream->pstr->stream, channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	if (copy_to_user(dst, channel_buf + pos, count))
 		return -EFAULT;
@@ -3965,7 +3965,7 @@ static int snd_hdsp_capture_copy_kernel(struct snd_pcm_substream *substream,
 	char *channel_buf;
 
 	channel_buf = hdsp_channel_buffer_location(hdsp, substream->pstr->stream, channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	memcpy(dst, channel_buf + pos, count);
 	return 0;
@@ -3979,7 +3979,7 @@ static int snd_hdsp_hw_silence(struct snd_pcm_substream *substream,
 	char *channel_buf;
 
 	channel_buf = hdsp_channel_buffer_location (hdsp, substream->pstr->stream, channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	memset(channel_buf + pos, 0, count);
 	return 0;
@@ -4092,7 +4092,7 @@ static int snd_hdsp_channel_info(struct snd_pcm_substream *substream,
 	struct hdsp *hdsp = snd_pcm_substream_chip(substream);
 	unsigned int channel = info->channel;
 
-	if (snd_BUG_ON(channel >= hdsp->max_channels))
+	if (snd__ON(channel >= hdsp->max_channels))
 		return -EINVAL;
 	channel = array_index_nospec(channel, hdsp->max_channels);
 
@@ -4142,7 +4142,7 @@ static int snd_hdsp_trigger(struct snd_pcm_substream *substream, int cmd)
 		running &= ~(1 << substream->stream);
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		spin_unlock(&hdsp->lock);
 		return -EINVAL;
 	}

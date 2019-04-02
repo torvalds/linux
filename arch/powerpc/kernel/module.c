@@ -20,14 +20,14 @@
 #include <linux/moduleloader.h>
 #include <linux/err.h>
 #include <linux/vmalloc.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/module.h>
 #include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
 
-static LIST_HEAD(module_bug_list);
+static LIST_HEAD(module__list);
 
 static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
 				    const Elf_Shdr *sechdrs,

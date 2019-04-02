@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <api/fd/array.h>
 #include <poll.h>
-#include "util/debug.h"
+#include "util/de.h"
 #include "tests/tests.h"
 
 static void fdarray__init_revents(struct fdarray *fda, short revents)
@@ -33,14 +33,14 @@ int test__fdarray__filter(struct test *test __maybe_unused, int subtest __maybe_
 	struct fdarray *fda = fdarray__new(5, 5);
 
 	if (fda == NULL) {
-		pr_debug("\nfdarray__new() failed!");
+		pr_de("\nfdarray__new() failed!");
 		goto out;
 	}
 
 	fdarray__init_revents(fda, POLLIN);
 	nr_fds = fdarray__filter(fda, POLLHUP, NULL, NULL);
 	if (nr_fds != fda->nr_alloc) {
-		pr_debug("\nfdarray__filter()=%d != %d shouldn't have filtered anything",
+		pr_de("\nfdarray__filter()=%d != %d shouldn't have filtered anything",
 			 nr_fds, fda->nr_alloc);
 		goto out_delete;
 	}
@@ -48,7 +48,7 @@ int test__fdarray__filter(struct test *test __maybe_unused, int subtest __maybe_
 	fdarray__init_revents(fda, POLLHUP);
 	nr_fds = fdarray__filter(fda, POLLHUP, NULL, NULL);
 	if (nr_fds != 0) {
-		pr_debug("\nfdarray__filter()=%d != %d, should have filtered all fds",
+		pr_de("\nfdarray__filter()=%d != %d, should have filtered all fds",
 			 nr_fds, fda->nr_alloc);
 		goto out_delete;
 	}
@@ -57,17 +57,17 @@ int test__fdarray__filter(struct test *test __maybe_unused, int subtest __maybe_
 	fda->entries[2].revents = POLLIN;
 	expected_fd[0] = fda->entries[2].fd;
 
-	pr_debug("\nfiltering all but fda->entries[2]:");
+	pr_de("\nfiltering all but fda->entries[2]:");
 	fdarray__fprintf_prefix(fda, "before", stderr);
 	nr_fds = fdarray__filter(fda, POLLHUP, NULL, NULL);
 	fdarray__fprintf_prefix(fda, " after", stderr);
 	if (nr_fds != 1) {
-		pr_debug("\nfdarray__filter()=%d != 1, should have left just one event", nr_fds);
+		pr_de("\nfdarray__filter()=%d != 1, should have left just one event", nr_fds);
 		goto out_delete;
 	}
 
 	if (fda->entries[0].fd != expected_fd[0]) {
-		pr_debug("\nfda->entries[0].fd=%d != %d\n",
+		pr_de("\nfda->entries[0].fd=%d != %d\n",
 			 fda->entries[0].fd, expected_fd[0]);
 		goto out_delete;
 	}
@@ -78,25 +78,25 @@ int test__fdarray__filter(struct test *test __maybe_unused, int subtest __maybe_
 	fda->entries[3].revents = POLLIN;
 	expected_fd[1] = fda->entries[3].fd;
 
-	pr_debug("\nfiltering all but (fda->entries[0], fda->entries[3]):");
+	pr_de("\nfiltering all but (fda->entries[0], fda->entries[3]):");
 	fdarray__fprintf_prefix(fda, "before", stderr);
 	nr_fds = fdarray__filter(fda, POLLHUP, NULL, NULL);
 	fdarray__fprintf_prefix(fda, " after", stderr);
 	if (nr_fds != 2) {
-		pr_debug("\nfdarray__filter()=%d != 2, should have left just two events",
+		pr_de("\nfdarray__filter()=%d != 2, should have left just two events",
 			 nr_fds);
 		goto out_delete;
 	}
 
 	for (fd = 0; fd < 2; ++fd) {
 		if (fda->entries[fd].fd != expected_fd[fd]) {
-			pr_debug("\nfda->entries[%d].fd=%d != %d\n", fd,
+			pr_de("\nfda->entries[%d].fd=%d != %d\n", fd,
 				 fda->entries[fd].fd, expected_fd[fd]);
 			goto out_delete;
 		}
 	}
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	err = 0;
 out_delete:
@@ -111,30 +111,30 @@ int test__fdarray__add(struct test *test __maybe_unused, int subtest __maybe_unu
 	struct fdarray *fda = fdarray__new(2, 2);
 
 	if (fda == NULL) {
-		pr_debug("\nfdarray__new() failed!");
+		pr_de("\nfdarray__new() failed!");
 		goto out;
 	}
 
 #define FDA_CHECK(_idx, _fd, _revents)					   \
 	if (fda->entries[_idx].fd != _fd) {				   \
-		pr_debug("\n%d: fda->entries[%d](%d) != %d!",		   \
+		pr_de("\n%d: fda->entries[%d](%d) != %d!",		   \
 			 __LINE__, _idx, fda->entries[1].fd, _fd);	   \
 		goto out_delete;					   \
 	}								   \
 	if (fda->entries[_idx].events != (_revents)) {			   \
-		pr_debug("\n%d: fda->entries[%d].revents(%d) != %d!",	   \
+		pr_de("\n%d: fda->entries[%d].revents(%d) != %d!",	   \
 			 __LINE__, _idx, fda->entries[_idx].fd, _revents); \
 		goto out_delete;					   \
 	}
 
 #define FDA_ADD(_idx, _fd, _revents, _nr)				   \
 	if (fdarray__add(fda, _fd, _revents) < 0) {			   \
-		pr_debug("\n%d: fdarray__add(fda, %d, %d) failed!",	   \
+		pr_de("\n%d: fdarray__add(fda, %d, %d) failed!",	   \
 			 __LINE__,_fd, _revents);			   \
 		goto out_delete;					   \
 	}								   \
 	if (fda->nr != _nr) {						   \
-		pr_debug("\n%d: fdarray__add(fda, %d, %d)=%d != %d",	   \
+		pr_de("\n%d: fdarray__add(fda, %d, %d)=%d != %d",	   \
 			 __LINE__,_fd, _revents, fda->nr, _nr);		   \
 		goto out_delete;					   \
 	}								   \
@@ -148,7 +148,7 @@ int test__fdarray__add(struct test *test __maybe_unused, int subtest __maybe_unu
 	FDA_ADD(2, 35, POLLHUP, 3);
 
 	if (fda->entries == NULL) {
-		pr_debug("\nfdarray__add(fda, 35, POLLHUP) should have allocated fda->pollfd!");
+		pr_de("\nfdarray__add(fda, 35, POLLHUP) should have allocated fda->pollfd!");
 		goto out_delete;
 	}
 
@@ -166,7 +166,7 @@ int test__fdarray__add(struct test *test __maybe_unused, int subtest __maybe_unu
 #undef FDA_ADD
 #undef FDA_CHECK
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	err = 0;
 out_delete:

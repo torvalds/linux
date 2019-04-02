@@ -26,33 +26,33 @@ void nvme_fault_inject_init(struct nvme_ns *ns)
 	if (fail_request)
 		setup_fault_attr(&fail_default_attr, fail_request);
 
-	/* create debugfs directory and attribute */
-	parent = debugfs_create_dir(name, NULL);
+	/* create defs directory and attribute */
+	parent = defs_create_dir(name, NULL);
 	if (!parent) {
-		pr_warn("%s: failed to create debugfs directory\n", name);
+		pr_warn("%s: failed to create defs directory\n", name);
 		return;
 	}
 
 	*attr = fail_default_attr;
-	dir = fault_create_debugfs_attr("fault_inject", parent, attr);
+	dir = fault_create_defs_attr("fault_inject", parent, attr);
 	if (IS_ERR(dir)) {
-		pr_warn("%s: failed to create debugfs attr\n", name);
-		debugfs_remove_recursive(parent);
+		pr_warn("%s: failed to create defs attr\n", name);
+		defs_remove_recursive(parent);
 		return;
 	}
 	ns->fault_inject.parent = parent;
 
-	/* create debugfs for status code and dont_retry */
+	/* create defs for status code and dont_retry */
 	fault_inj->status = NVME_SC_INVALID_OPCODE;
 	fault_inj->dont_retry = true;
-	debugfs_create_x16("status", 0600, dir,	&fault_inj->status);
-	debugfs_create_bool("dont_retry", 0600, dir, &fault_inj->dont_retry);
+	defs_create_x16("status", 0600, dir,	&fault_inj->status);
+	defs_create_bool("dont_retry", 0600, dir, &fault_inj->dont_retry);
 }
 
 void nvme_fault_inject_fini(struct nvme_ns *ns)
 {
-	/* remove debugfs directories */
-	debugfs_remove_recursive(ns->fault_inject.parent);
+	/* remove defs directories */
+	defs_remove_recursive(ns->fault_inject.parent);
 }
 
 void nvme_should_fail(struct request *req)

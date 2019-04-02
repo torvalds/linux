@@ -8,7 +8,7 @@
 #include "evsel.h"
 #include "thread_map.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include <errno.h>
 
 #ifndef O_DIRECTORY
@@ -38,13 +38,13 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 	char sbuf[STRERR_BUFSIZE];
 
 	if (evlist == NULL) {
-		pr_debug("%s: perf_evlist__new\n", __func__);
+		pr_de("%s: perf_evlist__new\n", __func__);
 		goto out;
 	}
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
-		pr_debug("%s: perf_evsel__newtp\n", __func__);
+		pr_de("%s: perf_evsel__newtp\n", __func__);
 		goto out_delete_evlist;
 	}
 
@@ -52,7 +52,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("%s: perf_evlist__create_maps\n", __func__);
+		pr_de("%s: perf_evlist__create_maps\n", __func__);
 		goto out_delete_evlist;
 	}
 
@@ -62,14 +62,14 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("perf_evlist__open: %s\n",
+		pr_de("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	err = perf_evlist__mmap(evlist, UINT_MAX);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_de("perf_evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
@@ -106,14 +106,14 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 				err = perf_evsel__parse_sample(evsel, event, &sample);
 				if (err) {
-					pr_debug("Can't parse sample, err = %d\n", err);
+					pr_de("Can't parse sample, err = %d\n", err);
 					goto out_delete_evlist;
 				}
 
 				tp_flags = perf_evsel__intval(evsel, &sample, "flags");
 
 				if (flags != tp_flags) {
-					pr_debug("%s: Expected flags=%#x, got %#x\n",
+					pr_de("%s: Expected flags=%#x, got %#x\n",
 						 __func__, flags, tp_flags);
 					goto out_delete_evlist;
 				}
@@ -127,7 +127,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 			perf_evlist__poll(evlist, 10);
 
 		if (++nr_polls > 5) {
-			pr_debug("%s: no events!\n", __func__);
+			pr_de("%s: no events!\n", __func__);
 			goto out_delete_evlist;
 		}
 	}

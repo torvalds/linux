@@ -27,7 +27,7 @@
 #include <linux/interrupt.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "wl12xx_80211.h"
 #include "io.h"
 #include "tx.h"
@@ -142,13 +142,13 @@ int wlcore_set_partition(struct wl1271 *wl,
 	/* copy partition info */
 	memcpy(&wl->curr_part, p, sizeof(*p));
 
-	wl1271_debug(DEBUG_IO, "mem_start %08X mem_size %08X",
+	wl1271_de(DE_IO, "mem_start %08X mem_size %08X",
 		     p->mem.start, p->mem.size);
-	wl1271_debug(DEBUG_IO, "reg_start %08X reg_size %08X",
+	wl1271_de(DE_IO, "reg_start %08X reg_size %08X",
 		     p->reg.start, p->reg.size);
-	wl1271_debug(DEBUG_IO, "mem2_start %08X mem2_size %08X",
+	wl1271_de(DE_IO, "mem2_start %08X mem2_size %08X",
 		     p->mem2.start, p->mem2.size);
-	wl1271_debug(DEBUG_IO, "mem3_start %08X mem3_size %08X",
+	wl1271_de(DE_IO, "mem3_start %08X mem3_size %08X",
 		     p->mem3.start, p->mem3.size);
 
 	ret = wlcore_raw_write32(wl, HW_PART0_START_ADDR, p->mem.start);

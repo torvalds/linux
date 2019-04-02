@@ -342,7 +342,7 @@ static void txx9dmac_dostart(struct txx9dmac_chan *dc,
 	/* ASSERT:  channel is idle */
 	if (channel_readl(dc, CSR) & TXX9_DMA_CSR_XFACT) {
 		dev_err(chan2dev(&dc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			": Attempted to start non-idle channel\n");
 		txx9dmac_dump_regs(dc);
 		/* The tasklet will hopefully advance the queue... */
 		return;
@@ -431,7 +431,7 @@ static void txx9dmac_dequeue(struct txx9dmac_chan *dc, struct list_head *list)
 	struct txx9dmac_desc *desc;
 	struct txx9dmac_desc *prev = NULL;
 
-	BUG_ON(!list_empty(list));
+	_ON(!list_empty(list));
 	do {
 		desc = txx9dmac_first_queued(dc);
 		if (prev) {
@@ -594,7 +594,7 @@ scan_done:
 	}
 
 	dev_err(chan2dev(&dc->chan),
-		"BUG: All descriptors done, but channel not idle!\n");
+		": All descriptors done, but channel not idle!\n");
 
 	/* Try to continue after resetting the channel... */
 	txx9dmac_reset_chan(dc);
@@ -818,11 +818,11 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	dev_vdbg(chan2dev(chan), "prep_dma_slave\n");
 
-	BUG_ON(!ds || !ds->reg_width);
+	_ON(!ds || !ds->reg_width);
 	if (ds->tx_reg)
-		BUG_ON(direction != DMA_MEM_TO_DEV);
+		_ON(direction != DMA_MEM_TO_DEV);
 	else
-		BUG_ON(direction != DMA_DEV_TO_MEM);
+		_ON(direction != DMA_DEV_TO_MEM);
 	if (unlikely(!sg_len))
 		return NULL;
 
@@ -1056,9 +1056,9 @@ static void txx9dmac_free_chan_resources(struct dma_chan *chan)
 			dc->descs_allocated);
 
 	/* ASSERT:  channel is idle */
-	BUG_ON(!list_empty(&dc->active_list));
-	BUG_ON(!list_empty(&dc->queue));
-	BUG_ON(channel_readl(dc, CSR) & TXX9_DMA_CSR_XFACT);
+	_ON(!list_empty(&dc->active_list));
+	_ON(!list_empty(&dc->queue));
+	_ON(channel_readl(dc, CSR) & TXX9_DMA_CSR_XFACT);
 
 	spin_lock_bh(&dc->lock);
 	list_splice_init(&dc->free_list, &list);

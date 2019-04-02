@@ -30,7 +30,7 @@
 #include <linux/highmem.h>
 #include <linux/extable.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/perf_event.h>
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
@@ -43,7 +43,7 @@
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/siginfo.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 static inline bool notify_page_fault(struct pt_regs *regs)
 {
@@ -59,7 +59,7 @@ static inline bool notify_page_fault(struct pt_regs *regs)
 	}
 #endif /* CONFIG_KPROBES */
 
-	if (unlikely(debugger_fault_handler(regs)))
+	if (unlikely(deger_fault_handler(regs)))
 		ret = true;
 
 	return ret;
@@ -217,7 +217,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr,
 		else if (fault & VM_FAULT_SIGSEGV)
 			return bad_area_nosemaphore(regs, addr);
 		else
-			BUG();
+			();
 	}
 	return 0;
 }
@@ -653,21 +653,21 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 	case 0x300:
 	case 0x380:
 	case 0xe00:
-		pr_alert("BUG: %s at 0x%08lx\n",
+		pr_alert(": %s at 0x%08lx\n",
 			 regs->dar < PAGE_SIZE ? "Kernel NULL pointer dereference" :
 			 "Unable to handle kernel data access", regs->dar);
 		break;
 	case 0x400:
 	case 0x480:
-		pr_alert("BUG: Unable to handle kernel instruction fetch%s",
+		pr_alert(": Unable to handle kernel instruction fetch%s",
 			 regs->nip < PAGE_SIZE ? " (NULL pointer?)\n" : "\n");
 		break;
 	case 0x600:
-		pr_alert("BUG: Unable to handle kernel unaligned access at 0x%08lx\n",
+		pr_alert(": Unable to handle kernel unaligned access at 0x%08lx\n",
 			 regs->dar);
 		break;
 	default:
-		pr_alert("BUG: Unable to handle unknown paging fault at 0x%08lx\n",
+		pr_alert(": Unable to handle unknown paging fault at 0x%08lx\n",
 			 regs->dar);
 		break;
 	}

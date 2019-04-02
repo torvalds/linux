@@ -71,7 +71,7 @@ EXPORT_SYMBOL(rtas_flash_term_hook);
 /* RTAS use home made raw locking instead of spin_lock_irqsave
  * because those can be called from within really nasty contexts
  * such as having the timebase stopped which would lockup with
- * normal locks and spinlock debugging enabled
+ * normal locks and spinlock deging enabled
  */
 static unsigned long lock_rtas(void)
 {
@@ -92,7 +92,7 @@ static void unlock_rtas(unsigned long flags)
 
 /*
  * call_rtas_display_status and call_rtas_display_status_delay
- * are designed only for very early low-level debugging, which
+ * are designed only for very early low-level deging, which
  * is why the token is hard-coded to 10.
  */
 static void call_rtas_display_status(unsigned char c)
@@ -752,14 +752,14 @@ static int __rtas_suspend_last_cpu(struct rtas_suspend_me_data *data, int wake_w
 	int cpu;
 
 	slb_set_size(SLB_MIN_SIZE);
-	printk(KERN_DEBUG "calling ibm,suspend-me on cpu %i\n", smp_processor_id());
+	printk(KERN_DE "calling ibm,suspend-me on cpu %i\n", smp_processor_id());
 
 	while (rc == H_MULTI_THREADS_ACTIVE && !atomic_read(&data->done) &&
 	       !atomic_read(&data->error))
 		rc = rtas_call(data->token, 0, 1, NULL);
 
 	if (rc || atomic_read(&data->error)) {
-		printk(KERN_DEBUG "ibm,suspend-me returned %d\n", rc);
+		printk(KERN_DE "ibm,suspend-me returned %d\n", rc);
 		slb_set_size(slb_size);
 	}
 
@@ -884,7 +884,7 @@ static int rtas_cpu_state_change_mask(enum rtas_cpu_state state,
 			break;
 		}
 		if (cpuret) {
-			pr_debug("%s: cpu_%s for cpu#%d returned %d.\n",
+			pr_de("%s: cpu_%s for cpu#%d returned %d.\n",
 					__func__,
 					((state == UP) ? "up" : "down"),
 					cpu, cpuret);

@@ -19,7 +19,7 @@
 /* Allow this file to be included directly into e2fsprogs */
 #ifndef __KERNEL__
 #include "jfs_compat.h"
-#define JBD2_DEBUG
+#define JBD2_DE
 #else
 
 #include <linux/types.h>
@@ -36,10 +36,10 @@
 #define journal_oom_retry 1
 
 /*
- * Define JBD2_PARANIOD_IOFAIL to cause a kernel BUG() if ext4 finds
+ * Define JBD2_PARANIOD_IOFAIL to cause a kernel () if ext4 finds
  * certain classes of error which can occur due to failed IOs.  Under
  * normal use we want ext4 to continue after such errors, because
- * hardware _can_ fail, but for debugging purposes when running tests on
+ * hardware _can_ fail, but for deging purposes when running tests on
  * known-good hardware we may want to trap these errors.
  */
 #undef JBD2_PARANOID_IOFAIL
@@ -49,21 +49,21 @@
  */
 #define JBD2_DEFAULT_MAX_COMMIT_AGE 5
 
-#ifdef CONFIG_JBD2_DEBUG
+#ifdef CONFIG_JBD2_DE
 /*
  * Define JBD2_EXPENSIVE_CHECKING to enable more expensive internal
  * consistency checks.  By default we don't do this unless
- * CONFIG_JBD2_DEBUG is on.
+ * CONFIG_JBD2_DE is on.
  */
 #define JBD2_EXPENSIVE_CHECKING
-extern ushort jbd2_journal_enable_debug;
-void __jbd2_debug(int level, const char *file, const char *func,
+extern ushort jbd2_journal_enable_de;
+void __jbd2_de(int level, const char *file, const char *func,
 		  unsigned int line, const char *fmt, ...);
 
-#define jbd_debug(n, fmt, a...) \
-	__jbd2_debug((n), __FILE__, __func__, __LINE__, (fmt), ##a)
+#define jbd_de(n, fmt, a...) \
+	__jbd2_de((n), __FILE__, __func__, __LINE__, (fmt), ##a)
 #else
-#define jbd_debug(n, fmt, a...)    /**/
+#define jbd_de(n, fmt, a...)    /**/
 #endif
 
 extern void *jbd2_alloc(size_t size, gfp_t flags);
@@ -311,7 +311,7 @@ typedef struct journal_superblock_s
 enum jbd_state_bits {
 	BH_JBD			/* Has an attached ext3 journal_head */
 	  = BH_PrivateStart,
-	BH_JWrite,		/* Being written to log (@@@ DEBUGGING) */
+	BH_JWrite,		/* Being written to log (@@@ DEGING) */
 	BH_Freed,		/* Has been freed (truncated) */
 	BH_Revoked,		/* Has been revoked from the log */
 	BH_RevokeValid,		/* Revoked flag is valid */
@@ -375,7 +375,7 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 	bit_spin_unlock(BH_JournalHead, &bh->b_state);
 }
 
-#define J_ASSERT(assert)	BUG_ON(!(assert))
+#define J_ASSERT(assert)	_ON(!(assert))
 
 #define J_ASSERT_BH(bh, expr)	J_ASSERT(expr)
 #define J_ASSERT_JH(jh, expr)	J_ASSERT(expr)
@@ -1139,7 +1139,7 @@ struct journal_s
 	 */
 	__u32 j_csum_seed;
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	/**
 	 * @j_trans_commit_map:
 	 *
@@ -1602,7 +1602,7 @@ static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 	} desc;
 	int err;
 
-	BUG_ON(crypto_shash_descsize(journal->j_chksum_driver) >
+	_ON(crypto_shash_descsize(journal->j_chksum_driver) >
 		JBD_MAX_CHECKSUM_SIZE);
 
 	desc.shash.tfm = journal->j_chksum_driver;
@@ -1610,7 +1610,7 @@ static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 	*(u32 *)desc.ctx = crc;
 
 	err = crypto_shash_update(&desc.shash, address, length);
-	BUG_ON(err);
+	_ON(err);
 
 	return *(u32 *)desc.ctx;
 }

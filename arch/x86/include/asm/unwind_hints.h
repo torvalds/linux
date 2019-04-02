@@ -10,7 +10,7 @@
  * the rest.  The normal callable functions can be called by other code, and
  * don't do anything unusual with the stack.  Such normal callable functions
  * are annotated with the ENTRY/ENDPROC macros.  Most asm code falls in this
- * category.  In this case, no special debugging annotations are needed because
+ * category.  In this case, no special deging annotations are needed because
  * objtool can automatically generate the ORC data for the ORC unwinder to read
  * at runtime.
  *
@@ -23,7 +23,7 @@
  * These macros provide hints to objtool about the state of the stack at each
  * instruction.  Objtool starts from the hints and follows the code flow,
  * making automatic CFI adjustments when it sees pushes and pops, filling out
- * the debuginfo as necessary.  It will also warn if it sees any
+ * the deinfo as necessary.  It will also warn if it sees any
  * inconsistencies.
  */
 .macro UNWIND_HINT sp_reg=ORC_REG_SP sp_offset=0 type=ORC_TYPE_CALL end=0

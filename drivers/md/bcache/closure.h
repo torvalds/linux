@@ -105,7 +105,7 @@
 struct closure;
 struct closure_syncer;
 typedef void (closure_fn) (struct closure *);
-extern struct dentry *bcache_debug;
+extern struct dentry *bcache_de;
 
 struct closure_waitlist {
 	struct llist_head	list;
@@ -117,7 +117,7 @@ enum closure_state {
 	 * the thread that owns the closure, and cleared by the thread that's
 	 * waking up the closure.
 	 *
-	 * The rest are for debugging and don't affect behaviour:
+	 * The rest are for deging and don't affect behaviour:
 	 *
 	 * CLOSURE_RUNNING: Set when a closure is running (i.e. by
 	 * closure_init() and when closure_put() runs then next function), and
@@ -155,7 +155,7 @@ struct closure {
 
 	atomic_t		remaining;
 
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_BCACHE_CLOSURES_DE
 #define CLOSURE_MAGIC_DEAD	0xc054dead
 #define CLOSURE_MAGIC_ALIVE	0xc054a11e
 
@@ -184,37 +184,37 @@ static inline void closure_sync(struct closure *cl)
 		__closure_sync(cl);
 }
 
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_BCACHE_CLOSURES_DE
 
-void closure_debug_init(void);
-void closure_debug_create(struct closure *cl);
-void closure_debug_destroy(struct closure *cl);
+void closure_de_init(void);
+void closure_de_create(struct closure *cl);
+void closure_de_destroy(struct closure *cl);
 
 #else
 
-static inline void closure_debug_init(void) {}
-static inline void closure_debug_create(struct closure *cl) {}
-static inline void closure_debug_destroy(struct closure *cl) {}
+static inline void closure_de_init(void) {}
+static inline void closure_de_create(struct closure *cl) {}
+static inline void closure_de_destroy(struct closure *cl) {}
 
 #endif
 
 static inline void closure_set_ip(struct closure *cl)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_BCACHE_CLOSURES_DE
 	cl->ip = _THIS_IP_;
 #endif
 }
 
 static inline void closure_set_ret_ip(struct closure *cl)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_BCACHE_CLOSURES_DE
 	cl->ip = _RET_IP_;
 #endif
 }
 
 static inline void closure_set_waiting(struct closure *cl, unsigned long f)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
+#ifdef CONFIG_BCACHE_CLOSURES_DE
 	cl->waiting_on = f;
 #endif
 }
@@ -241,11 +241,11 @@ static inline void closure_queue(struct closure *cl)
 	 * Changes made to closure, work_struct, or a couple of other structs
 	 * may cause work.func not pointing to the right location.
 	 */
-	BUILD_BUG_ON(offsetof(struct closure, fn)
+	BUILD__ON(offsetof(struct closure, fn)
 		     != offsetof(struct work_struct, func));
 	if (wq) {
 		INIT_WORK(&cl->work, cl->work.func);
-		BUG_ON(!queue_work(wq, &cl->work));
+		_ON(!queue_work(wq, &cl->work));
 	} else
 		cl->fn(cl);
 }
@@ -255,8 +255,8 @@ static inline void closure_queue(struct closure *cl)
  */
 static inline void closure_get(struct closure *cl)
 {
-#ifdef CONFIG_BCACHE_CLOSURES_DEBUG
-	BUG_ON((atomic_inc_return(&cl->remaining) &
+#ifdef CONFIG_BCACHE_CLOSURES_DE
+	_ON((atomic_inc_return(&cl->remaining) &
 		CLOSURE_REMAINING_MASK) <= 1);
 #else
 	atomic_inc(&cl->remaining);
@@ -278,7 +278,7 @@ static inline void closure_init(struct closure *cl, struct closure *parent)
 
 	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
 
-	closure_debug_create(cl);
+	closure_de_create(cl);
 	closure_set_ip(cl);
 }
 

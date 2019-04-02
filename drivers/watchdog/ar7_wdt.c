@@ -144,14 +144,14 @@ static void ar7_wdt_update_margin(int new_margin)
 
 static void ar7_wdt_enable_wdt(void)
 {
-	pr_debug("enabling watchdog timer\n");
+	pr_de("enabling watchdog timer\n");
 	ar7_wdt_disable(1);
 	ar7_wdt_kick(1);
 }
 
 static void ar7_wdt_disable_wdt(void)
 {
-	pr_debug("disabling watchdog timer\n");
+	pr_de("disabling watchdog timer\n");
 	ar7_wdt_disable(0);
 }
 

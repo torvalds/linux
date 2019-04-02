@@ -29,9 +29,9 @@ static inline int copy_SCp_to_sg(struct scatterlist *sg, struct scsi_pointer *SC
 	int bufs = SCp->buffers_residual;
 
 	/* FIXME: It should be easy for drivers to loop on copy_SCp_to_sg().
-	 * and to remove this BUG_ON. Use min() in-its-place
+	 * and to remove this _ON. Use min() in-its-place
 	 */
-	BUG_ON(bufs + 1 > max);
+	_ON(bufs + 1 > max);
 
 	sg_set_buf(sg, SCp->ptr, SCp->this_residual);
 

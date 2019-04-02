@@ -190,7 +190,7 @@ static int __init spu_map_interrupts(struct spu *spu, struct device_node *np)
 	return 0;
 
 err:
-	pr_debug("failed to map irq %x for spu %s\n", i, spu->name);
+	pr_de("failed to map irq %x for spu %s\n", i, spu->name);
 	for (; i >= 0; i--) {
 		if (spu->irqs[i])
 			irq_dispose_mapping(spu->irqs[i]);
@@ -230,20 +230,20 @@ static int __init spu_map_device(struct spu *spu)
 	ret = spu_map_resource(spu, 0, (void __iomem**)&spu->local_store,
 			       &spu->local_store_phys);
 	if (ret) {
-		pr_debug("spu_new: failed to map %pOF resource 0\n",
+		pr_de("spu_new: failed to map %pOF resource 0\n",
 			 np);
 		goto out;
 	}
 	ret = spu_map_resource(spu, 1, (void __iomem**)&spu->problem,
 			       &spu->problem_phys);
 	if (ret) {
-		pr_debug("spu_new: failed to map %pOF resource 1\n",
+		pr_de("spu_new: failed to map %pOF resource 1\n",
 			 np);
 		goto out_unmap;
 	}
 	ret = spu_map_resource(spu, 2, (void __iomem**)&spu->priv2, NULL);
 	if (ret) {
-		pr_debug("spu_new: failed to map %pOF resource 2\n",
+		pr_de("spu_new: failed to map %pOF resource 2\n",
 			 np);
 		goto out_unmap;
 	}
@@ -251,24 +251,24 @@ static int __init spu_map_device(struct spu *spu)
 		ret = spu_map_resource(spu, 3,
 			       (void __iomem**)&spu->priv1, NULL);
 	if (ret) {
-		pr_debug("spu_new: failed to map %pOF resource 3\n",
+		pr_de("spu_new: failed to map %pOF resource 3\n",
 			 np);
 		goto out_unmap;
 	}
-	pr_debug("spu_new: %pOF maps:\n", np);
-	pr_debug("  local store   : 0x%016lx -> 0x%p\n",
+	pr_de("spu_new: %pOF maps:\n", np);
+	pr_de("  local store   : 0x%016lx -> 0x%p\n",
 		 spu->local_store_phys, spu->local_store);
-	pr_debug("  problem state : 0x%016lx -> 0x%p\n",
+	pr_de("  problem state : 0x%016lx -> 0x%p\n",
 		 spu->problem_phys, spu->problem);
-	pr_debug("  priv2         :                       0x%p\n", spu->priv2);
-	pr_debug("  priv1         :                       0x%p\n", spu->priv1);
+	pr_de("  priv2         :                       0x%p\n", spu->priv2);
+	pr_de("  priv1         :                       0x%p\n", spu->priv1);
 
 	return 0;
 
 out_unmap:
 	spu_unmap(spu);
 out:
-	pr_debug("failed to map spe %s: %d\n", spu->name, ret);
+	pr_de("failed to map spe %s: %d\n", spu->name, ret);
 	return ret;
 }
 
@@ -340,7 +340,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		}
 	}
 
-	pr_debug("Using SPE %s %p %p %p %p %d\n", spu->name,
+	pr_de("Using SPE %s %p %p %p %p %d\n", spu->name,
 		spu->local_store, spu->problem, spu->priv1,
 		spu->priv2, spu->number);
 	goto out;

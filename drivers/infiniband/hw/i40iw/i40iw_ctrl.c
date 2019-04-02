@@ -487,7 +487,7 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPTAIL, 0);
 	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPDB, 0);
 
-	i40iw_debug(cqp->dev, I40IW_DEBUG_WQE,
+	i40iw_de(cqp->dev, I40IW_DE_WQE,
 		    "%s: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%llxh] cqp[%p] polarity[x%04X]\n",
 		    __func__, cqp->sq_size, cqp->hw_sq_size,
 		    cqp->sq_base, cqp->sq_pa, cqp, cqp->polarity);
@@ -533,7 +533,7 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 	set_64bit_val(cqp->host_ctx, 48, 0);
 	set_64bit_val(cqp->host_ctx, 56, 0);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CQP_HOST_CTX",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CQP_HOST_CTX",
 			cqp->host_ctx, I40IW_CQP_CTX_SIZE * 8);
 
 	p1 = RS_32_1(cqp->host_ctx_pa, 32);
@@ -586,8 +586,8 @@ void i40iw_sc_cqp_post_sq(struct i40iw_sc_cqp *cqp)
 	else
 		i40iw_wr32(cqp->dev->hw, I40E_VFPE_CQPDB1, I40IW_RING_GETCURRENT_HEAD(cqp->sq_ring));
 
-	i40iw_debug(cqp->dev,
-		    I40IW_DEBUG_WQE,
+	i40iw_de(cqp->dev,
+		    I40IW_DE_WQE,
 		    "%s: HEAD_TAIL[%04d,%04d,%04d]\n",
 		    __func__,
 		    cqp->sq_ring.head,
@@ -608,8 +608,8 @@ static u64 *i40iw_sc_cqp_get_next_send_wqe_idx(struct i40iw_sc_cqp *cqp,
 	enum i40iw_status_code ret_code;
 
 	if (I40IW_RING_FULL_ERR(cqp->sq_ring)) {
-		i40iw_debug(cqp->dev,
-			    I40IW_DEBUG_WQE,
+		i40iw_de(cqp->dev,
+			    I40IW_DE_WQE,
 			    "%s: ring is full head %x tail %x size %x\n",
 			    __func__,
 			    cqp->sq_ring.head,
@@ -804,7 +804,7 @@ static enum i40iw_status_code i40iw_sc_poll_for_cqp_op_done(
 		}
 		/* check if opcode is cq create */
 		if (op_code != info.op_code) {
-			i40iw_debug(cqp->dev, I40IW_DEBUG_WQE,
+			i40iw_de(cqp->dev, I40IW_DE_WQE,
 				    "%s: opcode mismatch for my op code 0x%x, returned opcode %x\n",
 				    __func__, op_code, info.op_code);
 		}
@@ -851,7 +851,7 @@ static enum i40iw_status_code i40iw_sc_manage_push_page(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "MANAGE_PUSH_PAGES WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "MANAGE_PUSH_PAGES WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -889,7 +889,7 @@ static enum i40iw_status_code i40iw_sc_manage_hmc_pm_func_table(
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "MANAGE_HMC_PM_FUNC_TABLE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "MANAGE_HMC_PM_FUNC_TABLE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 	if (post_sq)
 		i40iw_sc_cqp_post_sq(cqp);
@@ -930,7 +930,7 @@ static enum i40iw_status_code i40iw_sc_set_hmc_resource_profile(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "MANAGE_HMC_PM_FUNC_TABLE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "MANAGE_HMC_PM_FUNC_TABLE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	i40iw_get_cqp_reg_info(cqp, &val, &tail, &error);
@@ -1002,7 +1002,7 @@ static enum i40iw_status_code i40iw_sc_commit_fpm_values(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "COMMIT_FPM_VALUES WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "COMMIT_FPM_VALUES WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	i40iw_get_cqp_reg_info(cqp, &val, &tail, &error);
@@ -1064,7 +1064,7 @@ static enum i40iw_status_code i40iw_sc_query_fpm_values(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QUERY_FPM WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "QUERY_FPM WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	/* read the tail from CQP_TAIL register */
@@ -1122,7 +1122,7 @@ static enum i40iw_status_code i40iw_sc_add_arp_cache_entry(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "ARP_CACHE_ENTRY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "ARP_CACHE_ENTRY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1155,7 +1155,7 @@ static enum i40iw_status_code i40iw_sc_del_arp_cache_entry(
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "ARP_CACHE_DEL_ENTRY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "ARP_CACHE_DEL_ENTRY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1190,7 +1190,7 @@ static enum i40iw_status_code i40iw_sc_query_arp_cache_entry(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QUERY_ARP_CACHE_ENTRY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "QUERY_ARP_CACHE_ENTRY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1226,7 +1226,7 @@ static enum i40iw_status_code i40iw_sc_manage_apbvt_entry(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "MANAGE_APBVT WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "MANAGE_APBVT WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1324,7 +1324,7 @@ static enum i40iw_status_code i40iw_sc_manage_qhash_table_entry(
 
 	i40iw_insert_wqe_hdr(wqe, temp);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "MANAGE_QHASH WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "MANAGE_QHASH WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1353,7 +1353,7 @@ static enum i40iw_status_code i40iw_sc_alloc_local_mac_ipaddr_entry(
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "ALLOCATE_LOCAL_MAC_IPADDR WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "ALLOCATE_LOCAL_MAC_IPADDR WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 	if (post_sq)
 		i40iw_sc_cqp_post_sq(cqp);
@@ -1394,7 +1394,7 @@ static enum i40iw_status_code i40iw_sc_add_local_mac_ipaddr_entry(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "ADD_LOCAL_MAC_IPADDR WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "ADD_LOCAL_MAC_IPADDR WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1431,7 +1431,7 @@ static enum i40iw_status_code i40iw_sc_del_local_mac_ipaddr_entry(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "DEL_LOCAL_MAC_IPADDR WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "DEL_LOCAL_MAC_IPADDR WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1458,7 +1458,7 @@ static enum i40iw_status_code i40iw_sc_cqp_nop(struct i40iw_sc_cqp *cqp,
 	header = LS_64(I40IW_CQP_OP_NOP, I40IW_CQPSQ_OPCODE) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "NOP WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "NOP WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1541,7 +1541,7 @@ static enum i40iw_status_code i40iw_sc_ceq_create(struct i40iw_sc_ceq *ceq,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CEQ_CREATE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CEQ_CREATE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1616,7 +1616,7 @@ static enum i40iw_status_code i40iw_sc_ceq_destroy(struct i40iw_sc_ceq *ceq,
 		 LS_64(ceq->tph_en, I40IW_CQPSQ_TPHEN) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CEQ_DESTROY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CEQ_DESTROY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -1722,7 +1722,7 @@ static enum i40iw_status_code i40iw_sc_aeq_create(struct i40iw_sc_aeq *aeq,
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "AEQ_CREATE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "AEQ_CREATE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 	if (post_sq)
 		i40iw_sc_cqp_post_sq(cqp);
@@ -1755,7 +1755,7 @@ static enum i40iw_status_code i40iw_sc_aeq_destroy(struct i40iw_sc_aeq *aeq,
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "AEQ_DESTROY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "AEQ_DESTROY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 	if (post_sq)
 		i40iw_sc_cqp_post_sq(cqp);
@@ -1784,7 +1784,7 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 	if (aeq->polarity != polarity)
 		return I40IW_ERR_QUEUE_EMPTY;
 
-	i40iw_debug_buf(aeq->dev, I40IW_DEBUG_WQE, "AEQ_ENTRY", aeqe, 16);
+	i40iw_de_buf(aeq->dev, I40IW_DE_WQE, "AEQ_ENTRY", aeqe, 16);
 
 	ae_src = (u8)RS_64(temp, I40IW_AEQE_AESRC);
 	wqe_idx = (u16)RS_64(temp, I40IW_AEQE_WQDESCIDX);
@@ -2035,7 +2035,7 @@ static enum i40iw_status_code i40iw_sc_ccq_create(struct i40iw_sc_cq *ccq,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CCQ_CREATE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CCQ_CREATE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq) {
@@ -2084,7 +2084,7 @@ static enum i40iw_status_code i40iw_sc_ccq_destroy(struct i40iw_sc_cq *ccq,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CCQ_DESTROY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CCQ_DESTROY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	i40iw_get_cqp_reg_info(cqp, &val, &tail, &error);
@@ -2200,7 +2200,7 @@ static enum i40iw_status_code i40iw_sc_cq_create(struct i40iw_sc_cq *cq,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CQ_CREATE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CQ_CREATE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2244,7 +2244,7 @@ static enum i40iw_status_code i40iw_sc_cq_destroy(struct i40iw_sc_cq *cq,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CQ_DESTROY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CQ_DESTROY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2339,7 +2339,7 @@ static enum i40iw_status_code i40iw_sc_cq_modify(struct i40iw_sc_cq *cq,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "CQ_MODIFY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "CQ_MODIFY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2395,7 +2395,7 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 
 	qp->hw_sq_size = i40iw_get_encoded_wqe_size(qp->qp_uk.sq_ring.size,
 						    false);
-	i40iw_debug(qp->dev, I40IW_DEBUG_WQE, "%s: hw_sq_size[%04d] sq_ring.size[%04d]\n",
+	i40iw_de(qp->dev, I40IW_DE_WQE, "%s: hw_sq_size[%04d] sq_ring.size[%04d]\n",
 		    __func__, qp->hw_sq_size, qp->qp_uk.sq_ring.size);
 
 	switch (qp->pd->abi_ver) {
@@ -2414,7 +2414,7 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 	}
 	qp->hw_rq_size = i40iw_get_encoded_wqe_size(qp->qp_uk.rq_size *
 				(wqe_size / I40IW_QP_WQE_MIN_SIZE), false);
-	i40iw_debug(qp->dev, I40IW_DEBUG_WQE,
+	i40iw_de(qp->dev, I40IW_DE_WQE,
 		    "%s: hw_rq_size[%04d] qp_uk.rq_size[%04d] wqe_size[%04d]\n",
 		    __func__, qp->hw_rq_size, qp->qp_uk.rq_size, wqe_size);
 	qp->sq_tph_val = info->sq_tph_val;
@@ -2470,7 +2470,7 @@ static enum i40iw_status_code i40iw_sc_qp_create(
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QP_CREATE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "QP_CREATE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2536,7 +2536,7 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QP_MODIFY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "QP_MODIFY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2579,7 +2579,7 @@ static enum i40iw_status_code i40iw_sc_qp_destroy(
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
 	i40iw_insert_wqe_hdr(wqe, header);
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QP_DESTROY WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "QP_DESTROY WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2648,7 +2648,7 @@ static enum i40iw_status_code i40iw_sc_qp_flush_wqes(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "QP_FLUSH WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "QP_FLUSH WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2691,7 +2691,7 @@ static enum i40iw_status_code i40iw_sc_gen_ae(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "GEN_AE WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "GEN_AE WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2731,7 +2731,7 @@ static enum i40iw_status_code i40iw_sc_qp_upload_context(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "QP_UPLOAD_CTX WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "QP_UPLOAD_CTX WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -2763,7 +2763,7 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 	if (info->add_to_qoslist) {
 		qp->user_pri = info->user_pri;
 		i40iw_qp_add_qos(qp);
-		i40iw_debug(qp->dev, I40IW_DEBUG_DCB, "%s qp[%d] UP[%d] qset[%d]\n",
+		i40iw_de(qp->dev, I40IW_DE_DCB, "%s qp[%d] UP[%d] qset[%d]\n",
 			    __func__, qp->qp_uk.qp_id, qp->user_pri, qp->qs_handle);
 	}
 	qw0 = LS_64(qp->qp_uk.rq_wqe_size, I40IWQPC_RQWQESIZE) |
@@ -2922,7 +2922,7 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 	set_64bit_val(qp_ctx, 24, qw3);
 	set_64bit_val(qp_ctx, 56, qw7);
 
-	i40iw_debug_buf(qp->dev, I40IW_DEBUG_WQE, "QP_HOST)CTX WQE",
+	i40iw_de_buf(qp->dev, I40IW_DE_WQE, "QP_HOST)CTX WQE",
 			qp_ctx, I40IW_QP_CTX_SIZE);
 	return 0;
 }
@@ -2973,7 +2973,7 @@ static enum i40iw_status_code i40iw_sc_alloc_stag(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "ALLOC_STAG WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "ALLOC_STAG WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -3056,7 +3056,7 @@ static enum i40iw_status_code i40iw_sc_mr_reg_non_shared(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "MR_REG_NS WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "MR_REG_NS WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -3119,7 +3119,7 @@ static enum i40iw_status_code i40iw_sc_mr_reg_shared(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "MR_REG_SHARED WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "MR_REG_SHARED WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -3161,7 +3161,7 @@ static enum i40iw_status_code i40iw_sc_dealloc_stag(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "DEALLOC_STAG WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "DEALLOC_STAG WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -3198,7 +3198,7 @@ static enum i40iw_status_code i40iw_sc_query_stag(struct i40iw_sc_dev *dev,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "QUERY_STAG WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "QUERY_STAG WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -3239,7 +3239,7 @@ static enum i40iw_status_code i40iw_sc_mw_alloc(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_WQE, "MW_ALLOC WQE",
+	i40iw_de_buf(dev, I40IW_DE_WQE, "MW_ALLOC WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	if (post_sq)
@@ -3269,7 +3269,7 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(
 	if (!wqe)
 		return I40IW_ERR_QP_TOOMANY_WRS_POSTED;
 
-	i40iw_debug(qp->dev, I40IW_DEBUG_MR, "%s: wr_id[%llxh] wqe_idx[%04d] location[%p]\n",
+	i40iw_de(qp->dev, I40IW_DE_MR, "%s: wr_id[%llxh] wqe_idx[%04d] location[%p]\n",
 		    __func__, info->wr_id, wqe_idx,
 		    &qp->qp_uk.sq_wrtrk_array[wqe_idx].wrid);
 	temp = (info->addr_type == I40IW_ADDR_TYPE_VA_BASED) ? (uintptr_t)info->va : info->fbo;
@@ -3300,7 +3300,7 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(qp->dev, I40IW_DEBUG_WQE, "FAST_REG WQE",
+	i40iw_de_buf(qp->dev, I40IW_DE_WQE, "FAST_REG WQE",
 			wqe, I40IW_QP_WQE_MIN_SIZE);
 
 	if (post_sq)
@@ -3340,7 +3340,7 @@ static void i40iw_sc_send_lsmm(struct i40iw_sc_qp *qp,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(qp->dev, I40IW_DEBUG_QP, "SEND_LSMM WQE",
+	i40iw_de_buf(qp->dev, I40IW_DE_QP, "SEND_LSMM WQE",
 			wqe, I40IW_QP_WQE_MIN_SIZE);
 }
 
@@ -3374,7 +3374,7 @@ static void i40iw_sc_send_lsmm_nostag(struct i40iw_sc_qp *qp,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(qp->dev, I40IW_DEBUG_WQE, "SEND_LSMM_NOSTAG WQE",
+	i40iw_de_buf(qp->dev, I40IW_DE_WQE, "SEND_LSMM_NOSTAG WQE",
 			wqe, I40IW_QP_WQE_MIN_SIZE);
 }
 
@@ -3407,7 +3407,7 @@ static void i40iw_sc_send_rtt(struct i40iw_sc_qp *qp, bool read)
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(qp->dev, I40IW_DEBUG_WQE, "RTR WQE",
+	i40iw_de_buf(qp->dev, I40IW_DE_WQE, "RTR WQE",
 			wqe, I40IW_QP_WQE_MIN_SIZE);
 }
 
@@ -3449,7 +3449,7 @@ static enum i40iw_status_code i40iw_sc_post_wqe0(struct i40iw_sc_qp *qp, u8 opco
 		i40iw_insert_wqe_hdr(wqe, header);
 		break;
 	default:
-		i40iw_debug(qp->dev, I40IW_DEBUG_QP, "%s: Invalid WQE zero opcode\n",
+		i40iw_de(qp->dev, I40IW_DE_QP, "%s: Invalid WQE zero opcode\n",
 			    __func__);
 		break;
 	}
@@ -3477,7 +3477,7 @@ enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev, u8 hmc_fn_
 	    (dev->hmc_fn_id != hmc_fn_id && hmc_fn_id < I40IW_FIRST_VF_FPM_ID))
 		return I40IW_ERR_INVALID_HMCFN_ID;
 
-	i40iw_debug(dev, I40IW_DEBUG_HMC, "hmc_fn_id %u, dev->hmc_fn_id %u\n", hmc_fn_id,
+	i40iw_de(dev, I40IW_DE_HMC, "hmc_fn_id %u, dev->hmc_fn_id %u\n", hmc_fn_id,
 		    dev->hmc_fn_id);
 	if (hmc_fn_id == dev->hmc_fn_id) {
 		hmc_info = dev->hmc_info;
@@ -3490,7 +3490,7 @@ enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev, u8 hmc_fn_
 
 		hmc_info = &vf_dev->hmc_info;
 		iw_vf_idx = vf_dev->iw_vf_idx;
-		i40iw_debug(dev, I40IW_DEBUG_HMC, "vf_dev %p, hmc_info %p, hmc_obj %p\n", vf_dev,
+		i40iw_de(dev, I40IW_DE_HMC, "vf_dev %p, hmc_info %p, hmc_obj %p\n", vf_dev,
 			    hmc_info, hmc_info->hmc_obj);
 		if (!vf_dev->fpm_query_buf) {
 			if (!dev->vf_fpm_query_buf[iw_vf_idx].va) {
@@ -3540,7 +3540,7 @@ enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev, u8 hmc_fn_
 					     &dev->hmc_fpm_misc);
 	if (ret_code)
 		return ret_code;
-	i40iw_debug_buf(dev, I40IW_DEBUG_HMC, "QUERY FPM BUFFER",
+	i40iw_de_buf(dev, I40IW_DE_HMC, "QUERY FPM BUFFER",
 			query_fpm_mem.va, I40IW_QUERY_FPM_BUF_SIZE);
 
 	if (hmc_fn_id != dev->hmc_fn_id) {
@@ -3618,7 +3618,7 @@ static enum i40iw_status_code i40iw_sc_configure_iw_fpm(struct i40iw_sc_dev *dev
 							 hmc_info->hmc_obj,
 							 &hmc_info->sd_table.sd_cnt);
 
-	i40iw_debug_buf(dev, I40IW_DEBUG_HMC, "COMMIT FPM BUFFER",
+	i40iw_de_buf(dev, I40IW_DE_HMC, "COMMIT FPM BUFFER",
 			commit_fpm_mem.va, I40IW_COMMIT_FPM_BUF_SIZE);
 
 	return ret_code;
@@ -3693,7 +3693,7 @@ static enum i40iw_status_code cqp_sds_wqe_fill(struct i40iw_sc_cqp *cqp,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "UPDATE_PE_SDS WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "UPDATE_PE_SDS WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 	return 0;
 }
@@ -3765,7 +3765,7 @@ enum i40iw_status_code i40iw_sc_suspend_qp(struct i40iw_sc_cqp *cqp,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "SUSPEND_QP WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "SUSPEND_QP WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	i40iw_sc_cqp_post_sq(cqp);
@@ -3798,7 +3798,7 @@ enum i40iw_status_code i40iw_sc_resume_qp(struct i40iw_sc_cqp *cqp,
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "RESUME_QP WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "RESUME_QP WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 
 	i40iw_sc_cqp_post_sq(cqp);
@@ -3837,7 +3837,7 @@ enum i40iw_status_code i40iw_sc_static_hmc_pages_allocated(
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
-	i40iw_debug_buf(cqp->dev, I40IW_DEBUG_WQE, "SHMC_PAGES_ALLOCATED WQE",
+	i40iw_de_buf(cqp->dev, I40IW_DE_WQE, "SHMC_PAGES_ALLOCATED WQE",
 			wqe, I40IW_CQP_WQE_SIZE * 8);
 	i40iw_get_cqp_reg_info(cqp, &val, &tail, &error);
 	if (error) {
@@ -3923,7 +3923,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 
 	ret_code = i40iw_sc_init_iw_hmc(dev, dev->hmc_fn_id);
 	if (ret_code) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
+		i40iw_de(dev, I40IW_DE_HMC,
 			    "i40iw_sc_init_iw_hmc returned error_code = %d\n",
 			    ret_code);
 		return ret_code;
@@ -3932,10 +3932,10 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 	for (i = I40IW_HMC_IW_QP; i < I40IW_HMC_IW_MAX; i++)
 		hmc_info->hmc_obj[i].cnt = hmc_info->hmc_obj[i].max_cnt;
 	sd_needed = i40iw_est_sd(dev, hmc_info);
-	i40iw_debug(dev, I40IW_DEBUG_HMC,
+	i40iw_de(dev, I40IW_DE_HMC,
 		    "%s: FW initial max sd_count[%08lld] first_sd_index[%04d]\n",
 		    __func__, sd_needed, hmc_info->first_sd_index);
-	i40iw_debug(dev, I40IW_DEBUG_HMC,
+	i40iw_de(dev, I40IW_DE_HMC,
 		    "%s: sd count %d where max sd is %d\n",
 		    __func__, hmc_info->sd_table.sd_cnt,
 		    hmc_fpm_misc->max_sds);
@@ -3945,7 +3945,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 	mrwanted = hmc_info->hmc_obj[I40IW_HMC_IW_MR].max_cnt;
 	pblewanted = hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].max_cnt;
 
-	i40iw_debug(dev, I40IW_DEBUG_HMC,
+	i40iw_de(dev, I40IW_DE_HMC,
 		    "req_qp=%d max_sd=%d, max_qp = %d, max_cq=%d, max_mr=%d, max_pble=%d\n",
 		    qp_count, hmc_fpm_misc->max_sds,
 		    hmc_info->hmc_obj[I40IW_HMC_IW_QP].max_cnt,
@@ -3996,7 +3996,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 			pblewanted -= FPM_MULTIPLIER * 1000;
 	} while (sd_needed > hmc_fpm_misc->max_sds && loop_count < 2000);
 
-	i40iw_debug(dev, I40IW_DEBUG_HMC,
+	i40iw_de(dev, I40IW_DE_HMC,
 		    "loop_cnt=%d, sd_needed=%lld, qpcnt = %d, cqcnt=%d, mrcnt=%d, pblecnt=%d\n",
 		    loop_count, sd_needed,
 		    hmc_info->hmc_obj[I40IW_HMC_IW_QP].cnt,
@@ -4006,7 +4006,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 
 	ret_code = i40iw_sc_configure_iw_fpm(dev, dev->hmc_fn_id);
 	if (ret_code) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
+		i40iw_de(dev, I40IW_DE_HMC,
 			    "configure_iw_fpm returned error_code[x%08X]\n",
 			    i40iw_rd32(dev->hw, dev->is_pf ? I40E_PFPE_CQPERRCODES : I40E_VFPE_CQPERRCODES1));
 		return ret_code;
@@ -4016,7 +4016,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 		   (hmc_info->sd_table.sd_cnt + hmc_info->first_sd_index + 1);
 	ret_code = i40iw_allocate_virt_mem(dev->hw, &virt_mem, mem_size);
 	if (ret_code) {
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
+		i40iw_de(dev, I40IW_DE_HMC,
 			    "%s: failed to allocate memory for sd_entry buffer\n",
 			    __func__);
 		return ret_code;
@@ -4651,7 +4651,7 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
 		vsi->qos[i].qs_handle = info->params->qs_handle_list[i];
-		i40iw_debug(vsi->dev, I40IW_DEBUG_DCB, "qset[%d]: %d\n", i,
+		i40iw_de(vsi->dev, I40IW_DE_DCB, "qset[%d]: %d\n", i,
 			    vsi->qos[i].qs_handle);
 		spin_lock_init(&vsi->qos[i].lock);
 		INIT_LIST_HEAD(&vsi->qos[i].qplist);
@@ -5127,7 +5127,7 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 
 	i40iw_device_init_uk(&dev->dev_uk);
 
-	dev->debug_mask = info->debug_mask;
+	dev->de_mask = info->de_mask;
 
 	dev->hmc_fn_id = info->hmc_fn_id;
 	dev->is_pf = info->is_pf;
@@ -5149,7 +5149,7 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 		db_size = (u8)RS_32(val, I40E_GLPCI_LBARCTRL_PE_DB_SIZE);
 		if ((db_size != I40IW_PE_DB_SIZE_4M) &&
 		    (db_size != I40IW_PE_DB_SIZE_8M)) {
-			i40iw_debug(dev, I40IW_DEBUG_DEV,
+			i40iw_de(dev, I40IW_DE_DEV,
 				    "%s: PE doorbell is not enabled in CSR val 0x%x\n",
 				    __func__, val);
 			ret_code = I40IW_ERR_PE_DOORBELL_NOT_ENABLED;
@@ -5180,12 +5180,12 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 		dev->vchnl_if.vchnl_recv = i40iw_vchnl_recv_vf;
 		ret_code = i40iw_vchnl_vf_get_ver(dev, &vchnl_ver);
 		if (!ret_code) {
-			i40iw_debug(dev, I40IW_DEBUG_DEV,
+			i40iw_de(dev, I40IW_DE_DEV,
 				    "%s: Get Channel version rc = 0x%0x, version is %u\n",
 				__func__, ret_code, vchnl_ver);
 			ret_code = i40iw_vchnl_vf_get_hmc_fcn(dev, &hmc_fcn);
 			if (!ret_code) {
-				i40iw_debug(dev, I40IW_DEBUG_DEV,
+				i40iw_de(dev, I40IW_DE_DEV,
 					    "%s Get HMC function rc = 0x%0x, hmc fcn is %u\n",
 					    __func__, ret_code, hmc_fcn);
 				dev->hmc_fn_id = (u8)hmc_fcn;

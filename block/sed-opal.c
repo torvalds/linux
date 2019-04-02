@@ -264,9 +264,9 @@ static const char *opal_error_to_human(int error)
 
 static void print_buffer(const u8 *ptr, u32 length)
 {
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump_bytes("OPAL: ", DUMP_PREFIX_OFFSET, ptr, length);
-	pr_debug("\n");
+	pr_de("\n");
 #endif
 }
 
@@ -276,7 +276,7 @@ static bool check_tper(const void *data)
 	u8 flags = tper->supported_features;
 
 	if (!(flags & TPER_SYNC_SUPPORTED)) {
-		pr_debug("TPer sync not supported. flags = %d\n",
+		pr_de("TPer sync not supported. flags = %d\n",
 			 tper->supported_features);
 		return false;
 	}
@@ -298,11 +298,11 @@ static bool check_sum(const void *data)
 	u32 nlo = be32_to_cpu(sum->num_locking_objects);
 
 	if (nlo == 0) {
-		pr_debug("Need at least one locking object.\n");
+		pr_de("Need at least one locking object.\n");
 		return false;
 	}
 
-	pr_debug("Number of locking objects: %d\n", nlo);
+	pr_de("Number of locking objects: %d\n", nlo);
 
 	return true;
 }
@@ -343,7 +343,7 @@ static int opal_recv_check(struct opal_dev *dev)
 	int ret;
 
 	do {
-		pr_debug("Sent OPAL command: outstanding=%d, minTransfer=%d\n",
+		pr_de("Sent OPAL command: outstanding=%d, minTransfer=%d\n",
 			 hdr->cp.outstandingData,
 			 hdr->cp.minTransfer);
 
@@ -394,7 +394,7 @@ static int next(struct opal_dev *dev)
 
 		error = step->fn(dev, step->data);
 		if (error) {
-			pr_debug("Error on step function: %d with error %d: %s\n",
+			pr_de("Error on step function: %d with error %d: %s\n",
 				 state, error,
 				 opal_error_to_human(error));
 
@@ -429,7 +429,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 	dev->mbr_enabled = false;
 
 	if (hlen > IO_BUFFER_LENGTH - sizeof(*hdr)) {
-		pr_debug("Discovery length overflows buffer (%zu+%u)/%u\n",
+		pr_de("Discovery length overflows buffer (%zu+%u)/%u\n",
 			 sizeof(*hdr), hlen, IO_BUFFER_LENGTH);
 		return -EFAULT;
 	}
@@ -457,7 +457,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 		case FC_ENTERPRISE:
 		case FC_DATASTORE:
 			/* some ignored properties */
-			pr_debug("Found OPAL feature description: %d\n",
+			pr_de("Found OPAL feature description: %d\n",
 				 be16_to_cpu(body->code));
 			break;
 		case FC_OPALV100:
@@ -472,7 +472,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 			/* vendor specific, just ignore */
 			break;
 		default:
-			pr_debug("OPAL Unknown feature: %d\n",
+			pr_de("OPAL Unknown feature: %d\n",
 				 be16_to_cpu(body->code));
 
 		}
@@ -480,16 +480,16 @@ static int opal_discovery0_end(struct opal_dev *dev)
 	}
 
 	if (!supported) {
-		pr_debug("This device is not Opal enabled. Not Supported!\n");
+		pr_de("This device is not Opal enabled. Not Supported!\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (!single_user)
-		pr_debug("Device doesn't support single user mode\n");
+		pr_de("Device doesn't support single user mode\n");
 
 
 	if (!found_com_id) {
-		pr_debug("Could not find OPAL comid for device. Returning early\n");
+		pr_de("Could not find OPAL comid for device. Returning early\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -515,7 +515,7 @@ static void add_token_u8(int *err, struct opal_dev *cmd, u8 tok)
 	if (*err)
 		return;
 	if (cmd->pos >= IO_BUFFER_LENGTH - 1) {
-		pr_debug("Error adding u8: end of buffer.\n");
+		pr_de("Error adding u8: end of buffer.\n");
 		*err = -ERANGE;
 		return;
 	}
@@ -564,7 +564,7 @@ static void add_token_u64(int *err, struct opal_dev *cmd, u64 number)
 	len = DIV_ROUND_UP(msb, 8);
 
 	if (cmd->pos >= IO_BUFFER_LENGTH - len - 1) {
-		pr_debug("Error adding u64: end of buffer.\n");
+		pr_de("Error adding u64: end of buffer.\n");
 		*err = -ERANGE;
 		return;
 	}
@@ -588,7 +588,7 @@ static void add_token_bytestring(int *err, struct opal_dev *cmd,
 	}
 
 	if (len >= IO_BUFFER_LENGTH - cmd->pos - header_len) {
-		pr_debug("Error adding bytestring: end of buffer.\n");
+		pr_de("Error adding bytestring: end of buffer.\n");
 		*err = -ERANGE;
 		return;
 	}
@@ -606,7 +606,7 @@ static void add_token_bytestring(int *err, struct opal_dev *cmd,
 static int build_locking_range(u8 *buffer, size_t length, u8 lr)
 {
 	if (length > OPAL_UID_LENGTH) {
-		pr_debug("Can't build locking range. Length OOB\n");
+		pr_de("Can't build locking range. Length OOB\n");
 		return -ERANGE;
 	}
 
@@ -623,7 +623,7 @@ static int build_locking_range(u8 *buffer, size_t length, u8 lr)
 static int build_locking_user(u8 *buffer, size_t length, u8 lr)
 {
 	if (length > OPAL_UID_LENGTH) {
-		pr_debug("Can't build locking range user, Length OOB\n");
+		pr_de("Can't build locking range user, Length OOB\n");
 		return -ERANGE;
 	}
 
@@ -657,7 +657,7 @@ static int cmd_finalize(struct opal_dev *cmd, u32 hsn, u32 tsn)
 	add_token_u8(&err, cmd, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error finalizing command.\n");
+		pr_de("Error finalizing command.\n");
 		return -EFAULT;
 	}
 
@@ -669,7 +669,7 @@ static int cmd_finalize(struct opal_dev *cmd, u32 hsn, u32 tsn)
 	hdr->subpkt.length = cpu_to_be32(cmd->pos - sizeof(*hdr));
 	while (cmd->pos % 4) {
 		if (cmd->pos >= IO_BUFFER_LENGTH) {
-			pr_debug("Error: Buffer overrun\n");
+			pr_de("Error: Buffer overrun\n");
 			return -ERANGE;
 		}
 		cmd->cmd[cmd->pos++] = 0;
@@ -688,14 +688,14 @@ static const struct opal_resp_tok *response_get_token(
 	const struct opal_resp_tok *tok;
 
 	if (n >= resp->num) {
-		pr_debug("Token number doesn't exist: %d, resp: %d\n",
+		pr_de("Token number doesn't exist: %d, resp: %d\n",
 			 n, resp->num);
 		return ERR_PTR(-EINVAL);
 	}
 
 	tok = &resp->toks[n];
 	if (tok->len == 0) {
-		pr_debug("Token length must be non-zero\n");
+		pr_de("Token length must be non-zero\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -736,7 +736,7 @@ static ssize_t response_parse_short(struct opal_resp_tok *tok,
 
 		tok->type = OPAL_DTA_TOKENID_UINT;
 		if (tok->len > 9) {
-			pr_debug("uint64 with more than 8 bytes\n");
+			pr_de("uint64 with more than 8 bytes\n");
 			return -EINVAL;
 		}
 		for (i = tok->len - 1; i > 0; i--) {
@@ -818,12 +818,12 @@ static int response_parse(const u8 *buf, size_t length,
 	clen = be32_to_cpu(hdr->cp.length);
 	plen = be32_to_cpu(hdr->pkt.length);
 	slen = be32_to_cpu(hdr->subpkt.length);
-	pr_debug("Response size: cp: %u, pkt: %u, subpkt: %u\n",
+	pr_de("Response size: cp: %u, pkt: %u, subpkt: %u\n",
 		 clen, plen, slen);
 
 	if (clen == 0 || plen == 0 || slen == 0 ||
 	    slen > IO_BUFFER_LENGTH - sizeof(*hdr)) {
-		pr_debug("Bad header length. cp: %u, pkt: %u, subpkt: %u\n",
+		pr_de("Bad header length. cp: %u, pkt: %u, subpkt: %u\n",
 			 clen, plen, slen);
 		print_buffer(pos, sizeof(*hdr));
 		return -EINVAL;
@@ -857,7 +857,7 @@ static int response_parse(const u8 *buf, size_t length,
 	}
 
 	if (num_entries == 0) {
-		pr_debug("Couldn't parse response.\n");
+		pr_de("Couldn't parse response.\n");
 		return -EINVAL;
 	}
 	resp->num = num_entries;
@@ -873,19 +873,19 @@ static size_t response_get_string(const struct parsed_resp *resp, int n,
 
 	*store = NULL;
 	if (!resp) {
-		pr_debug("Response is NULL\n");
+		pr_de("Response is NULL\n");
 		return 0;
 	}
 
 	if (n >= resp->num) {
-		pr_debug("Response has %d tokens. Can't access %d\n",
+		pr_de("Response has %d tokens. Can't access %d\n",
 			 resp->num, n);
 		return 0;
 	}
 
 	token = &resp->toks[n];
 	if (token->type != OPAL_DTA_TOKENID_BYTESTRING) {
-		pr_debug("Token is not a byte string!\n");
+		pr_de("Token is not a byte string!\n");
 		return 0;
 	}
 
@@ -901,7 +901,7 @@ static size_t response_get_string(const struct parsed_resp *resp, int n,
 		skip = 4;
 		break;
 	default:
-		pr_debug("Token has invalid width!\n");
+		pr_de("Token has invalid width!\n");
 		return 0;
 	}
 
@@ -912,25 +912,25 @@ static size_t response_get_string(const struct parsed_resp *resp, int n,
 static u64 response_get_u64(const struct parsed_resp *resp, int n)
 {
 	if (!resp) {
-		pr_debug("Response is NULL\n");
+		pr_de("Response is NULL\n");
 		return 0;
 	}
 
 	if (n >= resp->num) {
-		pr_debug("Response has %d tokens. Can't access %d\n",
+		pr_de("Response has %d tokens. Can't access %d\n",
 			 resp->num, n);
 		return 0;
 	}
 
 	if (resp->toks[n].type != OPAL_DTA_TOKENID_UINT) {
-		pr_debug("Token is not unsigned it: %d\n",
+		pr_de("Token is not unsigned it: %d\n",
 			 resp->toks[n].type);
 		return 0;
 	}
 
 	if (!(resp->toks[n].width == OPAL_WIDTH_TINY ||
 	      resp->toks[n].width == OPAL_WIDTH_SHORT)) {
-		pr_debug("Atom is not short or tiny: %d\n",
+		pr_de("Atom is not short or tiny: %d\n",
 			 resp->toks[n].width);
 		return 0;
 	}
@@ -978,7 +978,7 @@ static int parse_and_check_status(struct opal_dev *dev)
 
 	error = response_parse(dev->resp, IO_BUFFER_LENGTH, &dev->parsed);
 	if (error) {
-		pr_debug("Couldn't parse response.\n");
+		pr_de("Couldn't parse response.\n");
 		return error;
 	}
 
@@ -1004,7 +1004,7 @@ static int start_opal_session_cont(struct opal_dev *dev)
 	tsn = response_get_u64(&dev->parsed, 5);
 
 	if (hsn == 0 && tsn == 0) {
-		pr_debug("Couldn't authenticate session\n");
+		pr_de("Couldn't authenticate session\n");
 		return -EPERM;
 	}
 
@@ -1041,7 +1041,7 @@ static int finalize_and_send(struct opal_dev *dev, cont_fn cont)
 
 	ret = cmd_finalize(dev, dev->hsn, dev->tsn);
 	if (ret) {
-		pr_debug("Error finalizing command buffer: %d\n", ret);
+		pr_de("Error finalizing command buffer: %d\n", ret);
 		return ret;
 	}
 
@@ -1070,7 +1070,7 @@ static int gen_key(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building gen key command\n");
+		pr_de("Error building gen key command\n");
 		return err;
 
 	}
@@ -1088,7 +1088,7 @@ static int get_active_key_cont(struct opal_dev *dev)
 		return error;
 	keylen = response_get_string(&dev->parsed, 4, &activekey);
 	if (!activekey) {
-		pr_debug("%s: Couldn't extract the Activekey from the response\n",
+		pr_de("%s: Couldn't extract the Activekey from the response\n",
 			 __func__);
 		return OPAL_INVAL_PARAM;
 	}
@@ -1132,7 +1132,7 @@ static int get_active_key(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	if (err) {
-		pr_debug("Error building get active key command\n");
+		pr_de("Error building get active key command\n");
 		return err;
 	}
 
@@ -1188,7 +1188,7 @@ static inline int enable_global_lr(struct opal_dev *dev, u8 *uid,
 	err = generic_lr_enable_disable(dev, uid, !!setup->RLE, !!setup->WLE,
 					0, 0);
 	if (err)
-		pr_debug("Failed to create enable global lr command\n");
+		pr_de("Failed to create enable global lr command\n");
 	return err;
 }
 
@@ -1246,7 +1246,7 @@ static int setup_locking_range(struct opal_dev *dev, void *data)
 
 	}
 	if (err) {
-		pr_debug("Error building Setup Locking range command.\n");
+		pr_de("Error building Setup Locking range command.\n");
 		return err;
 
 	}
@@ -1299,12 +1299,12 @@ static int start_generic_opal_session(struct opal_dev *dev,
 		add_token_u8(&err, dev, OPAL_ENDLIST);
 		break;
 	default:
-		pr_debug("Cannot start Admin SP session with auth %d\n", auth);
+		pr_de("Cannot start Admin SP session with auth %d\n", auth);
 		return OPAL_INVAL_PARAM;
 	}
 
 	if (err) {
-		pr_debug("Error building start adminsp session command.\n");
+		pr_de("Error building start adminsp session command.\n");
 		return err;
 	}
 
@@ -1395,7 +1395,7 @@ static int start_auth_opal_session(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building STARTSESSION command.\n");
+		pr_de("Error building STARTSESSION command.\n");
 		return err;
 	}
 
@@ -1417,7 +1417,7 @@ static int revert_tper(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 	if (err) {
-		pr_debug("Error building REVERT TPER command.\n");
+		pr_de("Error building REVERT TPER command.\n");
 		return err;
 	}
 
@@ -1452,7 +1452,7 @@ static int internal_activate_user(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building Activate UserN command.\n");
+		pr_de("Error building Activate UserN command.\n");
 		return err;
 	}
 
@@ -1479,7 +1479,7 @@ static int erase_locking_range(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building Erase Locking Range Command.\n");
+		pr_de("Error building Erase Locking Range Command.\n");
 		return err;
 	}
 	return finalize_and_send(dev, parse_and_check_status);
@@ -1510,7 +1510,7 @@ static int set_mbr_done(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error Building set MBR Done command\n");
+		pr_de("Error Building set MBR Done command\n");
 		return err;
 	}
 
@@ -1542,7 +1542,7 @@ static int set_mbr_enable_disable(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error Building set MBR done command\n");
+		pr_de("Error Building set MBR done command\n");
 		return err;
 	}
 
@@ -1593,7 +1593,7 @@ static int set_new_pw(struct opal_dev *dev, void *data)
 
 	if (generic_pw_cmd(usr->opal_key.key, usr->opal_key.key_len,
 			   cpin_uid, dev)) {
-		pr_debug("Error building set password command.\n");
+		pr_de("Error building set password command.\n");
 		return -ERANGE;
 	}
 
@@ -1608,7 +1608,7 @@ static int set_sid_cpin_pin(struct opal_dev *dev, void *data)
 	memcpy(cpin_uid, opaluid[OPAL_C_PIN_SID], OPAL_UID_LENGTH);
 
 	if (generic_pw_cmd(key->key, key->key_len, cpin_uid, dev)) {
-		pr_debug("Error building Set SID cpin\n");
+		pr_de("Error building Set SID cpin\n");
 		return -ERANGE;
 	}
 	return finalize_and_send(dev, parse_and_check_status);
@@ -1683,7 +1683,7 @@ static int add_user_to_lr(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building add user to locking range command.\n");
+		pr_de("Error building add user to locking range command.\n");
 		return err;
 	}
 
@@ -1717,7 +1717,7 @@ static int lock_unlock_locking_range(struct opal_dev *dev, void *data)
 		/* vars are initalized to locked */
 		break;
 	default:
-		pr_debug("Tried to set an invalid locking state... returning to uland\n");
+		pr_de("Tried to set an invalid locking state... returning to uland\n");
 		return OPAL_INVAL_PARAM;
 	}
 
@@ -1744,7 +1744,7 @@ static int lock_unlock_locking_range(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building SET command.\n");
+		pr_de("Error building SET command.\n");
 		return err;
 	}
 	return finalize_and_send(dev, parse_and_check_status);
@@ -1778,14 +1778,14 @@ static int lock_unlock_locking_range_sum(struct opal_dev *dev, void *data)
 		/* vars are initalized to locked */
 		break;
 	default:
-		pr_debug("Tried to set an invalid locking state.\n");
+		pr_de("Tried to set an invalid locking state.\n");
 		return OPAL_INVAL_PARAM;
 	}
 	ret = generic_lr_enable_disable(dev, lr_buffer, 1, 1,
 					read_locked, write_locked);
 
 	if (ret < 0) {
-		pr_debug("Error building SET command.\n");
+		pr_de("Error building SET command.\n");
 		return ret;
 	}
 	return finalize_and_send(dev, parse_and_check_status);
@@ -1837,7 +1837,7 @@ static int activate_lsp(struct opal_dev *dev, void *data)
 	}
 
 	if (err) {
-		pr_debug("Error building Activate LockingSP command.\n");
+		pr_de("Error building Activate LockingSP command.\n");
 		return err;
 	}
 
@@ -1857,7 +1857,7 @@ static int get_lsp_lifecycle_cont(struct opal_dev *dev)
 	/* 0x08 is Manufacured Inactive */
 	/* 0x09 is Manufactured */
 	if (lc_status != OPAL_MANUFACTURED_INACTIVE) {
-		pr_debug("Couldn't determine the status of the Lifecycle state\n");
+		pr_de("Couldn't determine the status of the Lifecycle state\n");
 		return -ENODEV;
 	}
 
@@ -1894,7 +1894,7 @@ static int get_lsp_lifecycle(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error Building GET Lifecycle Status command\n");
+		pr_de("Error Building GET Lifecycle Status command\n");
 		return err;
 	}
 
@@ -1913,7 +1913,7 @@ static int get_msid_cpin_pin_cont(struct opal_dev *dev)
 
 	strlen = response_get_string(&dev->parsed, 4, &msid_pin);
 	if (!msid_pin) {
-		pr_debug("%s: Couldn't extract PIN from response\n", __func__);
+		pr_de("%s: Couldn't extract PIN from response\n", __func__);
 		return OPAL_INVAL_PARAM;
 	}
 
@@ -1955,7 +1955,7 @@ static int get_msid_cpin_pin(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_ENDLIST);
 
 	if (err) {
-		pr_debug("Error building Get MSID CPIN PIN command.\n");
+		pr_de("Error building Get MSID CPIN PIN command.\n");
 		return err;
 	}
 
@@ -2045,7 +2045,7 @@ struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 	dev->data = data;
 	dev->send_recv = send_recv;
 	if (check_opal_support(dev) != 0) {
-		pr_debug("Opal is not supported on this device\n");
+		pr_de("Opal is not supported on this device\n");
 		kfree(dev);
 		return NULL;
 	}
@@ -2150,17 +2150,17 @@ static int opal_add_user_to_lr(struct opal_dev *dev,
 
 	if (lk_unlk->l_state != OPAL_RO &&
 	    lk_unlk->l_state != OPAL_RW) {
-		pr_debug("Locking state was not RO or RW\n");
+		pr_de("Locking state was not RO or RW\n");
 		return -EINVAL;
 	}
 	if (lk_unlk->session.who < OPAL_USER1 ||
 	    lk_unlk->session.who > OPAL_USER9) {
-		pr_debug("Authority was not within the range of users: %d\n",
+		pr_de("Authority was not within the range of users: %d\n",
 			 lk_unlk->session.who);
 		return -EINVAL;
 	}
 	if (lk_unlk->session.sum) {
-		pr_debug("%s not supported in sum. Use setup locking range\n",
+		pr_de("%s not supported in sum. Use setup locking range\n",
 			 __func__);
 		return -EINVAL;
 	}
@@ -2353,7 +2353,7 @@ static int opal_activate_user(struct opal_dev *dev,
 	/* We can't activate Admin1 it's active as manufactured */
 	if (opal_session->who < OPAL_USER1 ||
 	    opal_session->who > OPAL_USER9) {
-		pr_debug("Who was not a valid user: %d\n", opal_session->who);
+		pr_de("Who was not a valid user: %d\n", opal_session->who);
 		return -EINVAL;
 	}
 
@@ -2384,7 +2384,7 @@ bool opal_unlock_from_suspend(struct opal_dev *dev)
 
 		ret = __opal_lock_unlock(dev, &suspend->unlk);
 		if (ret) {
-			pr_debug("Failed to unlock LR %hhu with sum %d\n",
+			pr_de("Failed to unlock LR %hhu with sum %d\n",
 				 suspend->unlk.session.opal_key.lr,
 				 suspend->unlk.session.sum);
 			was_failure = true;
@@ -2392,7 +2392,7 @@ bool opal_unlock_from_suspend(struct opal_dev *dev)
 		if (dev->mbr_enabled) {
 			ret = __opal_set_mbr_done(dev, &suspend->unlk.session.opal_key);
 			if (ret)
-				pr_debug("Failed to set MBR Done in S3 resume\n");
+				pr_de("Failed to set MBR Done in S3 resume\n");
 		}
 	}
 	mutex_unlock(&dev->dev_lock);

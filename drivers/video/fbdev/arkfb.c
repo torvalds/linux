@@ -774,7 +774,7 @@ static int arkfb_set_par(struct fb_info *info)
 		hmul = 2;
 		break;
 	default:
-		fb_err(info, "unsupported mode - bug\n");
+		fb_err(info, "unsupported mode - \n");
 		return -EINVAL;
 	}
 
@@ -1178,7 +1178,7 @@ static struct pci_driver arkfb_pci_driver = {
 
 static void __exit arkfb_cleanup(void)
 {
-	pr_debug("arkfb: cleaning up\n");
+	pr_de("arkfb: cleaning up\n");
 	pci_unregister_driver(&arkfb_pci_driver);
 }
 
@@ -1197,7 +1197,7 @@ static int __init arkfb_init(void)
 		mode_option = option;
 #endif
 
-	pr_debug("arkfb: initializing\n");
+	pr_de("arkfb: initializing\n");
 	return pci_register_driver(&arkfb_pci_driver);
 }
 

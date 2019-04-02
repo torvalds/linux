@@ -472,7 +472,7 @@ xfs_scrub_metadata(
 	bool				already_fixed = false;
 	int				error = 0;
 
-	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
+	BUILD__ON(sizeof(meta_scrub_ops) !=
 		(sizeof(struct xchk_meta_ops) * XFS_SCRUB_TYPE_NR));
 
 	trace_xchk_start(ip, sm, error);
@@ -522,7 +522,7 @@ retry_op:
 	if ((sc.sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) && !already_fixed) {
 		bool needs_fix;
 
-		/* Let debug users force us into the repair routines. */
+		/* Let de users force us into the repair routines. */
 		if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
 			sc.sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 

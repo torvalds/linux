@@ -135,6 +135,6 @@ struct drm_client_buffer *
 drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format);
 void drm_client_framebuffer_delete(struct drm_client_buffer *buffer);
 
-int drm_client_debugfs_init(struct drm_minor *minor);
+int drm_client_defs_init(struct drm_minor *minor);
 
 #endif

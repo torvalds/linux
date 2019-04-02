@@ -26,7 +26,7 @@
  * driver so on those systems we skip WDAT driver and prefer iTCO_wdt
  * instead.
  *
- * See also https://bugzilla.kernel.org/show_bug.cgi?id=199033.
+ * See also https://zilla.kernel.org/show_.cgi?id=199033.
  */
 static bool acpi_watchdog_uses_rtc(const struct acpi_table_wdat *wdat)
 {

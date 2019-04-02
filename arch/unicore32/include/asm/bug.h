@@ -1,5 +1,5 @@
 /*
- * Bug handling for PKUnity SoC and UniCore ISA
+ *  handling for PKUnity SoC and UniCore ISA
  *
  * Copyright (C) 2001-2012 GUAN Xue-tao
  *
@@ -7,10 +7,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __UNICORE_BUG_H__
-#define __UNICORE_BUG_H__
+#ifndef __UNICORE__H__
+#define __UNICORE__H__
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
 struct pt_regs;
 struct siginfo;
@@ -20,4 +20,4 @@ extern void uc32_notify_die(const char *str, struct pt_regs *regs,
 		int sig, int code, void __user *addr,
 		unsigned long err, unsigned long trap);
 
-#endif /* __UNICORE_BUG_H__ */
+#endif /* __UNICORE__H__ */

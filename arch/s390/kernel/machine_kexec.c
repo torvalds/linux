@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/suspend.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
@@ -291,7 +291,7 @@ static void __machine_kexec(void *data)
 	__arch_local_irq_stosm(0x04); /* enable DAT */
 	pfault_fini();
 	tracing_off();
-	debug_locks_off();
+	de_locks_off();
 #ifdef CONFIG_CRASH_DUMP
 	if (((struct kimage *) data)->type == KEXEC_TYPE_CRASH)
 		__machine_kdump(data);

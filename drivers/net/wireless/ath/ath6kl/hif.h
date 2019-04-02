@@ -64,7 +64,7 @@
 /* HTC runs over mailbox 0 */
 #define HTC_MAILBOX	0
 
-#define ATH6KL_TARGET_DEBUG_INTR_MASK     0x01
+#define ATH6KL_TARGET_DE_INTR_MASK     0x01
 
 /* FIXME: are these duplicates with MAX_SCATTER_ values in hif.h? */
 #define ATH6KL_SCATTER_ENTRIES_PER_REQ            16

@@ -39,7 +39,7 @@
 #define machine_is_olpc(x) 0
 #endif
 
-#include "debug.h"
+#include "de.h"
 
 #include "viafbdev.h"
 #include "chip.h"

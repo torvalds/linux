@@ -144,7 +144,7 @@ void * __init prom_early_alloc(unsigned long size)
 		if (!res)
 			panic("%s: Failed to allocate %zu bytes\n", __func__,
 			      chunk_size);
-		BUG_ON(!res);
+		_ON(!res);
 		prom_early_allocated += chunk_size;
 		memset(res, 0, chunk_size);
 		free_mem = chunk_size;

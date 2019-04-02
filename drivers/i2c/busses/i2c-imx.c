@@ -498,12 +498,12 @@ static void i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
 	 * There dummy delay is calculated.
 	 * It should be about one I2C clock period long.
 	 * This delay is used in I2C bus disable function
-	 * to fix chip hardware bug.
+	 * to fix chip hardware .
 	 */
 	i2c_imx->disable_delay = (500000U * i2c_clk_div[i].div
 		+ (i2c_clk_rate / 2) - 1) / (i2c_clk_rate / 2);
 
-#ifdef CONFIG_I2C_DEBUG_BUS
+#ifdef CONFIG_I2C_DE_BUS
 	dev_dbg(&i2c_imx->adapter.dev, "I2C_CLK=%d, REQ DIV=%d\n",
 		i2c_clk_rate, div);
 	dev_dbg(&i2c_imx->adapter.dev, "IFDR[IC]=0x%x, REAL DIV=%d\n",
@@ -569,7 +569,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 	}
 	if (is_imx1_i2c(i2c_imx)) {
 		/*
-		 * This delay caused by an i.MXL hardware bug.
+		 * This delay caused by an i.MXL hardware .
 		 * If no (or too short) delay, no "STOP" bit will be generated.
 		 */
 		udelay(i2c_imx->disable_delay);
@@ -929,7 +929,7 @@ static int i2c_imx_xfer(struct i2c_adapter *adapter,
 		dev_dbg(&i2c_imx->adapter.dev,
 			"<%s> transfer message: %d\n", __func__, i);
 		/* write/read data */
-#ifdef CONFIG_I2C_DEBUG_BUS
+#ifdef CONFIG_I2C_DE_BUS
 		temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
 		dev_dbg(&i2c_imx->adapter.dev,
 			"<%s> CONTROL: IEN=%d, IIEN=%d, MSTA=%d, MTX=%d, TXAK=%d, RSTA=%d\n",

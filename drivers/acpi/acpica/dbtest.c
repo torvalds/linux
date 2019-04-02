@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbtest - Various debug-related tests
+ * Module Name: dbtest - Various de-related tests
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acnamesp.h"
 #include "acpredef.h"
 #include "acinterp.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbtest")
 
 /* Local prototypes */
@@ -67,7 +67,7 @@ static struct acpi_db_argument_info acpi_db_test_types[] = {
 #define BUFFER_FILL_VALUE       0xFF
 
 /*
- * Support for the special debugger read/write control methods.
+ * Support for the special deger read/write control methods.
  * These methods are installed into the current namespace and are
  * used to read and write the various namespace objects. The point
  * is to force the AML interpreter do all of the work.
@@ -78,17 +78,17 @@ static struct acpi_db_argument_info acpi_db_test_types[] = {
 static acpi_handle read_handle = NULL;
 static acpi_handle write_handle = NULL;
 
-/* ASL Definitions of the debugger read/write control methods. AML below. */
+/* ASL Definitions of the deger read/write control methods. AML below. */
 
 #if 0
-definition_block("ssdt.aml", "SSDT", 2, "Intel", "DEBUG", 0x00000001)
+definition_block("ssdt.aml", "SSDT", 2, "Intel", "DE", 0x00000001)
 {
 	method(_T98, 1, not_serialized) {	/* Read */
 		return (de_ref_of(arg0))
 	}
 }
 
-definition_block("ssdt2.aml", "SSDT", 2, "Intel", "DEBUG", 0x00000001)
+definition_block("ssdt2.aml", "SSDT", 2, "Intel", "DE", 0x00000001)
 {
 	method(_T99, 2, not_serialized) {	/* Write */
 		store(arg1, arg0)
@@ -99,7 +99,7 @@ definition_block("ssdt2.aml", "SSDT", 2, "Intel", "DEBUG", 0x00000001)
 static unsigned char read_method_code[] = {
 	0x53, 0x53, 0x44, 0x54, 0x2E, 0x00, 0x00, 0x00,	/* 00000000    "SSDT...." */
 	0x02, 0xC9, 0x49, 0x6E, 0x74, 0x65, 0x6C, 0x00,	/* 00000008    "..Intel." */
-	0x44, 0x45, 0x42, 0x55, 0x47, 0x00, 0x00, 0x00,	/* 00000010    "DEBUG..." */
+	0x44, 0x45, 0x42, 0x55, 0x47, 0x00, 0x00, 0x00,	/* 00000010    "DE..." */
 	0x01, 0x00, 0x00, 0x00, 0x49, 0x4E, 0x54, 0x4C,	/* 00000018    "....INTL" */
 	0x18, 0x12, 0x13, 0x20, 0x14, 0x09, 0x5F, 0x54,	/* 00000020    "... .._T" */
 	0x39, 0x38, 0x01, 0xA4, 0x83, 0x68	/* 00000028    "98...h"   */
@@ -108,7 +108,7 @@ static unsigned char read_method_code[] = {
 static unsigned char write_method_code[] = {
 	0x53, 0x53, 0x44, 0x54, 0x2E, 0x00, 0x00, 0x00,	/* 00000000    "SSDT...." */
 	0x02, 0x15, 0x49, 0x6E, 0x74, 0x65, 0x6C, 0x00,	/* 00000008    "..Intel." */
-	0x44, 0x45, 0x42, 0x55, 0x47, 0x00, 0x00, 0x00,	/* 00000010    "DEBUG..." */
+	0x44, 0x45, 0x42, 0x55, 0x47, 0x00, 0x00, 0x00,	/* 00000010    "DE..." */
 	0x01, 0x00, 0x00, 0x00, 0x49, 0x4E, 0x54, 0x4C,	/* 00000018    "....INTL" */
 	0x18, 0x12, 0x13, 0x20, 0x14, 0x09, 0x5F, 0x54,	/* 00000020    "... .._T" */
 	0x39, 0x39, 0x02, 0x70, 0x69, 0x68	/* 00000028    "99.pih"   */
@@ -122,7 +122,7 @@ static unsigned char write_method_code[] = {
  *
  * RETURN:      None
  *
- * DESCRIPTION: Execute various debug tests.
+ * DESCRIPTION: Execute various de tests.
  *
  * Note: Code is prepared for future expansion of the TEST command.
  *
@@ -173,13 +173,13 @@ static void acpi_db_test_all_objects(void)
 {
 	acpi_status status;
 
-	/* Install the debugger read-object control method if necessary */
+	/* Install the deger read-object control method if necessary */
 
 	if (!read_handle) {
 		status = acpi_install_method(read_method_code);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("%s, Could not install debugger read method\n",
+			    ("%s, Could not install deger read method\n",
 			     acpi_format_exception(status));
 			return;
 		}
@@ -188,19 +188,19 @@ static void acpi_db_test_all_objects(void)
 		    acpi_get_handle(NULL, ACPI_DB_READ_METHOD, &read_handle);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not obtain handle for debug method %s\n",
+			    ("Could not obtain handle for de method %s\n",
 			     ACPI_DB_READ_METHOD);
 			return;
 		}
 	}
 
-	/* Install the debugger write-object control method if necessary */
+	/* Install the deger write-object control method if necessary */
 
 	if (!write_handle) {
 		status = acpi_install_method(write_method_code);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("%s, Could not install debugger write method\n",
+			    ("%s, Could not install deger write method\n",
 			     acpi_format_exception(status));
 			return;
 		}
@@ -209,7 +209,7 @@ static void acpi_db_test_all_objects(void)
 		    acpi_get_handle(NULL, ACPI_DB_WRITE_METHOD, &write_handle);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf
-			    ("Could not obtain handle for debug method %s\n",
+			    ("Could not obtain handle for de method %s\n",
 			     ACPI_DB_WRITE_METHOD);
 			return;
 		}
@@ -407,7 +407,7 @@ acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
 		return (status);
 	}
 
-	acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT " %8.8X%8.8X",
+	acpi_os_printf(ACPI_DE_LENGTH_FORMAT " %8.8X%8.8X",
 		       bit_length, ACPI_ROUND_BITS_UP_TO_BYTES(bit_length),
 		       ACPI_FORMAT_UINT64(temp1->integer.value));
 
@@ -521,7 +521,7 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 
 	/* Emit a few bytes of the buffer */
 
-	acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT, bit_length,
+	acpi_os_printf(ACPI_DE_LENGTH_FORMAT, bit_length,
 		       temp1->buffer.length);
 	for (i = 0; ((i < 8) && (i < byte_length)); i++) {
 		acpi_os_printf(" %2.2X", temp1->buffer.pointer[i]);
@@ -618,7 +618,7 @@ acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
 	union acpi_object *temp1 = NULL;
 	union acpi_object *temp2 = NULL;
 	union acpi_object *temp3 = NULL;
-	char *value_to_write = "Test String from AML Debugger";
+	char *value_to_write = "Test String from AML Deger";
 	union acpi_object write_value;
 	acpi_status status;
 
@@ -629,7 +629,7 @@ acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
 		return (status);
 	}
 
-	acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT " \"%s\"",
+	acpi_os_printf(ACPI_DE_LENGTH_FORMAT " \"%s\"",
 		       (temp1->string.length * 8), temp1->string.length,
 		       temp1->string.pointer);
 
@@ -771,7 +771,7 @@ acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc)
 		bit_length = obj_desc->common_field.bit_length;
 		byte_length = ACPI_ROUND_BITS_UP_TO_BYTES(bit_length);
 
-		acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT " [%s]", bit_length,
+		acpi_os_printf(ACPI_DE_LENGTH_FORMAT " [%s]", bit_length,
 			       byte_length,
 			       acpi_ut_get_region_name(region_obj->region.
 						       space_id));
@@ -798,7 +798,7 @@ acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc)
  * RETURN:      Status
  *
  * DESCRIPTION: Performs a read from the specified object by invoking the
- *              special debugger control method that reads the object. Thus,
+ *              special deger control method that reads the object. Thus,
  *              the AML interpreter is doing all of the work, increasing the
  *              validity of the test.
  *
@@ -882,7 +882,7 @@ acpi_db_read_from_object(struct acpi_namespace_node *node,
  * RETURN:      Status
  *
  * DESCRIPTION: Performs a write to the specified object by invoking the
- *              special debugger control method that writes the object. Thus,
+ *              special deger control method that writes the object. Thus,
  *              the AML interpreter is doing all of the work, increasing the
  *              validity of the test.
  *

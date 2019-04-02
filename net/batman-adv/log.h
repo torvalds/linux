@@ -25,19 +25,19 @@
 #include <linux/compiler.h>
 #include <linux/printk.h>
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 
-int batadv_debug_log_setup(struct batadv_priv *bat_priv);
-void batadv_debug_log_cleanup(struct batadv_priv *bat_priv);
+int batadv_de_log_setup(struct batadv_priv *bat_priv);
+void batadv_de_log_cleanup(struct batadv_priv *bat_priv);
 
 #else
 
-static inline int batadv_debug_log_setup(struct batadv_priv *bat_priv)
+static inline int batadv_de_log_setup(struct batadv_priv *bat_priv)
 {
 	return 0;
 }
 
-static inline void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
+static inline void batadv_de_log_cleanup(struct batadv_priv *bat_priv)
 {
 }
 
@@ -75,13 +75,13 @@ enum batadv_dbg_level {
 	BATADV_DBG_ALL		= 255,
 };
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
-int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
+#ifdef CONFIG_BATMAN_ADV_DE
+int batadv_de_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
 /**
- * _batadv_dbg() - Store debug output with(out) ratelimiting
- * @type: type of debug message
+ * _batadv_dbg() - Store de output with(out) ratelimiting
+ * @type: type of de message
  * @bat_priv: the bat priv with all the soft interface information
  * @ratelimited: whether output should be rate limited
  * @fmt: format string
@@ -92,10 +92,10 @@ __printf(2, 3);
 		struct batadv_priv *__batpriv = (bat_priv);		\
 		if (atomic_read(&__batpriv->log_level) & (type) &&	\
 		    (!(ratelimited) || net_ratelimit()))		\
-			batadv_debug_log(__batpriv, fmt, ## arg);	\
+			batadv_de_log(__batpriv, fmt, ## arg);	\
 	}								\
 	while (0)
-#else /* !CONFIG_BATMAN_ADV_DEBUG */
+#else /* !CONFIG_BATMAN_ADV_DE */
 __printf(4, 5)
 static inline void _batadv_dbg(int type __always_unused,
 			       struct batadv_priv *bat_priv __always_unused,
@@ -106,8 +106,8 @@ static inline void _batadv_dbg(int type __always_unused,
 #endif
 
 /**
- * batadv_dbg() - Store debug output without ratelimiting
- * @type: type of debug message
+ * batadv_dbg() - Store de output without ratelimiting
+ * @type: type of de message
  * @bat_priv: the bat priv with all the soft interface information
  * @arg...: format string and variable arguments
  */
@@ -115,8 +115,8 @@ static inline void _batadv_dbg(int type __always_unused,
 	_batadv_dbg(type, bat_priv, 0, ## arg)
 
 /**
- * batadv_dbg_ratelimited() - Store debug output with ratelimiting
- * @type: type of debug message
+ * batadv_dbg_ratelimited() - Store de output with ratelimiting
+ * @type: type of de message
  * @bat_priv: the bat priv with all the soft interface information
  * @arg...: format string and variable arguments
  */
@@ -124,7 +124,7 @@ static inline void _batadv_dbg(int type __always_unused,
 	_batadv_dbg(type, bat_priv, 1, ## arg)
 
 /**
- * batadv_info() - Store message in debug buffer and print it to kmsg buffer
+ * batadv_info() - Store message in de buffer and print it to kmsg buffer
  * @net_dev: the soft interface net device
  * @fmt: format string
  * @arg...: variable arguments
@@ -138,7 +138,7 @@ static inline void _batadv_dbg(int type __always_unused,
 	} while (0)
 
 /**
- * batadv_err() - Store error in debug buffer and print it to kmsg buffer
+ * batadv_err() - Store error in de buffer and print it to kmsg buffer
  * @net_dev: the soft interface net device
  * @fmt: format string
  * @arg...: variable arguments

@@ -60,9 +60,9 @@
  * new drivers should use.
  *
  */
-#ifdef DEBUG
+#ifdef DE
 #define stk1160_dbg(fmt, args...) \
-	printk(KERN_DEBUG "stk1160: " fmt,  ## args)
+	printk(KERN_DE "stk1160: " fmt,  ## args)
 #else
 #define stk1160_dbg(fmt, args...)
 #endif

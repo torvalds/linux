@@ -153,7 +153,7 @@ int m5mols_start_capture(struct m5mols_info *info)
 			ret = m5mols_capture_info(info);
 		}
 		size = captured ? info->cap.main : 0;
-		v4l2_dbg(1, m5mols_debug, sd, "%s: size: %d, thumb.: %d B\n",
+		v4l2_dbg(1, m5mols_de, sd, "%s: size: %d, thumb.: %d B\n",
 			 __func__, size, info->cap.thumb);
 
 		v4l2_subdev_notify(sd, S5P_FIMC_TX_END_NOTIFY, &size);

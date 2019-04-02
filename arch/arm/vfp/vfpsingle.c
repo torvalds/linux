@@ -47,7 +47,7 @@ static struct vfp_single vfp_single_default_qnan = {
 
 static void vfp_single_dump(const char *str, struct vfp_single *s)
 {
-	pr_debug("VFP: %s: sign=%d exponent=%d significand=%08x\n",
+	pr_de("VFP: %s: sign=%d exponent=%d significand=%08x\n",
 		 str, s->sign != 0, s->exponent, s->significand);
 }
 
@@ -65,7 +65,7 @@ static void vfp_single_normalise_denormal(struct vfp_single *vs)
 	vfp_single_dump("normalise_denormal: out", vs);
 }
 
-#ifndef DEBUG
+#ifndef DE
 #define vfp_single_normaliseround(sd,vsd,fpscr,except,func) __vfp_single_normaliseround(sd,vsd,fpscr,except)
 u32 __vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions)
 #else
@@ -105,7 +105,7 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 		significand <<= shift;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	vs->exponent = exponent;
 	vs->significand = significand;
 	vfp_single_dump("pack: normalised", vs);
@@ -118,7 +118,7 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 	if (underflow) {
 		significand = vfp_shiftright32jamming(significand, -exponent);
 		exponent = 0;
-#ifdef DEBUG
+#ifdef DE
 		vs->exponent = exponent;
 		vs->significand = significand;
 		vfp_single_dump("pack: tiny number", vs);
@@ -142,7 +142,7 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 	} else if ((rmode == FPSCR_ROUND_PLUSINF) ^ (vs->sign != 0))
 		incr = (1 << (VFP_SINGLE_LOW_BITS + 1)) - 1;
 
-	pr_debug("VFP: rounding increment = 0x%08x\n", incr);
+	pr_de("VFP: rounding increment = 0x%08x\n", incr);
 
 	/*
 	 * Is our rounding going to overflow?
@@ -151,7 +151,7 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 		exponent += 1;
 		significand = (significand >> 1) | (significand & 1);
 		incr >>= 1;
-#ifdef DEBUG
+#ifdef DE
 		vs->exponent = exponent;
 		vs->significand = significand;
 		vfp_single_dump("pack: overflow", vs);
@@ -197,8 +197,8 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 	vfp_single_dump("pack: final", vs);
 	{
 		s32 d = vfp_single_pack(vs);
-#ifdef DEBUG
-		pr_debug("VFP: %s: d(s%d)=%08x exceptions=%08x\n", func,
+#ifdef DE
+		pr_de("VFP: %s: d(s%d)=%08x exceptions=%08x\n", func,
 			 sd, d, exceptions);
 #endif
 		vfp_put_float(d, sd);
@@ -380,7 +380,7 @@ static u32 vfp_single_fsqrt(int sd, int unused, s32 m, u32 fpscr)
 			term = (u64)vsd.significand * vsd.significand;
 			rem = ((u64)vsm.significand << 32) - term;
 
-			pr_debug("VFP: term=%016llx rem=%016llx\n", term, rem);
+			pr_de("VFP: term=%016llx rem=%016llx\n", term, rem);
 
 			while (rem < 0) {
 				vsd.significand -= 1;
@@ -612,7 +612,7 @@ static u32 vfp_single_ftoui(int sd, int unused, s32 m, u32 fpscr)
 		}
 	}
 
-	pr_debug("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
+	pr_de("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
 	vfp_put_float(d, sd);
 
@@ -691,7 +691,7 @@ static u32 vfp_single_ftosi(int sd, int unused, s32 m, u32 fpscr)
 		}
 	}
 
-	pr_debug("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
+	pr_de("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
 	vfp_put_float((s32)d, sd);
 
@@ -846,7 +846,7 @@ vfp_single_multiply(struct vfp_single *vsd, struct vfp_single *vsn, struct vfp_s
 		struct vfp_single *t = vsn;
 		vsn = vsm;
 		vsm = t;
-		pr_debug("VFP: swapping M <-> N\n");
+		pr_de("VFP: swapping M <-> N\n");
 	}
 
 	vsd->sign = vsn->sign ^ vsm->sign;
@@ -899,7 +899,7 @@ vfp_single_multiply_accumulate(int sd, int sn, s32 m, u32 fpscr, u32 negate, cha
 	s32 v;
 
 	v = vfp_get_float(sn);
-	pr_debug("VFP: s%u = %08x\n", sn, v);
+	pr_de("VFP: s%u = %08x\n", sn, v);
 	vfp_single_unpack(&vsn, v);
 	if (vsn.exponent == 0 && vsn.significand)
 		vfp_single_normalise_denormal(&vsn);
@@ -913,7 +913,7 @@ vfp_single_multiply_accumulate(int sd, int sn, s32 m, u32 fpscr, u32 negate, cha
 		vsp.sign = vfp_sign_negate(vsp.sign);
 
 	v = vfp_get_float(sd);
-	pr_debug("VFP: s%u = %08x\n", sd, v);
+	pr_de("VFP: s%u = %08x\n", sd, v);
 	vfp_single_unpack(&vsn, v);
 	if (vsn.exponent == 0 && vsn.significand)
 		vfp_single_normalise_denormal(&vsn);
@@ -970,7 +970,7 @@ static u32 vfp_single_fmul(int sd, int sn, s32 m, u32 fpscr)
 	u32 exceptions;
 	s32 n = vfp_get_float(sn);
 
-	pr_debug("VFP: s%u = %08x\n", sn, n);
+	pr_de("VFP: s%u = %08x\n", sn, n);
 
 	vfp_single_unpack(&vsn, n);
 	if (vsn.exponent == 0 && vsn.significand)
@@ -993,7 +993,7 @@ static u32 vfp_single_fnmul(int sd, int sn, s32 m, u32 fpscr)
 	u32 exceptions;
 	s32 n = vfp_get_float(sn);
 
-	pr_debug("VFP: s%u = %08x\n", sn, n);
+	pr_de("VFP: s%u = %08x\n", sn, n);
 
 	vfp_single_unpack(&vsn, n);
 	if (vsn.exponent == 0 && vsn.significand)
@@ -1017,7 +1017,7 @@ static u32 vfp_single_fadd(int sd, int sn, s32 m, u32 fpscr)
 	u32 exceptions;
 	s32 n = vfp_get_float(sn);
 
-	pr_debug("VFP: s%u = %08x\n", sn, n);
+	pr_de("VFP: s%u = %08x\n", sn, n);
 
 	/*
 	 * Unpack and normalise denormals.
@@ -1056,7 +1056,7 @@ static u32 vfp_single_fdiv(int sd, int sn, s32 m, u32 fpscr)
 	s32 n = vfp_get_float(sn);
 	int tm, tn;
 
-	pr_debug("VFP: s%u = %08x\n", sn, n);
+	pr_de("VFP: s%u = %08x\n", sn, n);
 
 	vfp_single_unpack(&vsn, n);
 	vfp_single_unpack(&vsm, m);
@@ -1203,7 +1203,7 @@ u32 vfp_single_cpdo(u32 inst, u32 fpscr)
 	else
 		veclen = fpscr & FPSCR_LENGTH_MASK;
 
-	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
+	pr_de("VFP: vecstride=%u veclen=%u\n", vecstride,
 		 (veclen >> FPSCR_LENGTH_BIT) + 1);
 
 	if (!fop->fn)
@@ -1216,16 +1216,16 @@ u32 vfp_single_cpdo(u32 inst, u32 fpscr)
 
 		type = fop->flags & OP_DD ? 'd' : 's';
 		if (op == FOP_EXT)
-			pr_debug("VFP: itr%d (%c%u) = op[%u] (s%u=%08x)\n",
+			pr_de("VFP: itr%d (%c%u) = op[%u] (s%u=%08x)\n",
 				 vecitr >> FPSCR_LENGTH_BIT, type, dest, sn,
 				 sm, m);
 		else
-			pr_debug("VFP: itr%d (%c%u) = (s%u) op[%u] (s%u=%08x)\n",
+			pr_de("VFP: itr%d (%c%u) = (s%u) op[%u] (s%u=%08x)\n",
 				 vecitr >> FPSCR_LENGTH_BIT, type, dest, sn,
 				 FOP_TO_IDX(op), sm, m);
 
 		except = fop->fn(dest, sn, m, fpscr);
-		pr_debug("VFP: itr%d: exceptions=%08x\n",
+		pr_de("VFP: itr%d: exceptions=%08x\n",
 			 vecitr >> FPSCR_LENGTH_BIT, except);
 
 		exceptions |= except;

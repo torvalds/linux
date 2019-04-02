@@ -16,8 +16,8 @@
 ** with 4 digit model numbers - eg C3000 (and A400...sigh).
 **
 ** LBA driver isn't as simple as the Dino driver because:
-**   (a) this chip has substantial bug fixes between revisions
-**       (Only one Dino bug has a software workaround :^(  )
+**   (a) this chip has substantial  fixes between revisions
+**       (Only one Dino  has a software workaround :^(  )
 **   (b) has more options which we don't (yet) support (DMA hints, OLARD)
 **   (c) IRQ support lives in the I/O SAPIC driver (not with PCI driver)
 **   (d) play nicely with both PAT and "Legacy" PA-RISC firmware (PDC).
@@ -51,33 +51,33 @@
 
 #include "iommu.h"
 
-#undef DEBUG_LBA	/* general stuff */
-#undef DEBUG_LBA_PORT	/* debug I/O Port access */
-#undef DEBUG_LBA_CFG	/* debug Config Space Access (ie PCI Bus walk) */
-#undef DEBUG_LBA_PAT	/* debug PCI Resource Mgt code - PDC PAT only */
+#undef DE_LBA	/* general stuff */
+#undef DE_LBA_PORT	/* de I/O Port access */
+#undef DE_LBA_CFG	/* de Config Space Access (ie PCI Bus walk) */
+#undef DE_LBA_PAT	/* de PCI Resource Mgt code - PDC PAT only */
 
 #undef FBB_SUPPORT	/* Fast Back-Back xfers - NOT READY YET */
 
 
-#ifdef DEBUG_LBA
+#ifdef DE_LBA
 #define DBG(x...)	printk(x)
 #else
 #define DBG(x...)
 #endif
 
-#ifdef DEBUG_LBA_PORT
+#ifdef DE_LBA_PORT
 #define DBG_PORT(x...)	printk(x)
 #else
 #define DBG_PORT(x...)
 #endif
 
-#ifdef DEBUG_LBA_CFG
+#ifdef DE_LBA_CFG
 #define DBG_CFG(x...)	printk(x)
 #else
 #define DBG_CFG(x...)
 #endif
 
-#ifdef DEBUG_LBA_PAT
+#ifdef DE_LBA_PAT
 #define DBG_PAT(x...)	printk(x)
 #else
 #define DBG_PAT(x...)
@@ -166,9 +166,9 @@ lba_dump_res(struct resource *r, int d)
 	if (NULL == r)
 		return;
 
-	printk(KERN_DEBUG "(%p)", r->parent);
+	printk(KERN_DE "(%p)", r->parent);
 	for (i = d; i ; --i) printk(" ");
-	printk(KERN_DEBUG "%p [%lx,%lx]/%lx\n", r,
+	printk(KERN_DE "%p [%lx,%lx]/%lx\n", r,
 		(long)r->start, (long)r->end, r->flags);
 	lba_dump_res(r->child, d+2);
 	lba_dump_res(r->sibling, d);
@@ -476,7 +476,7 @@ static struct pci_ops elroy_cfg_ops = {
 
 /*
  * The mercury_cfg_ops are slightly misnamed; they're also used for Elroy
- * TR4.0 as no additional bugs were found in this areea between Elroy and
+ * TR4.0 as no additional s were found in this areea between Elroy and
  * Mercury
  */
 
@@ -630,23 +630,23 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 	if (boot_cpu_data.cpu_type < mako)
 		return end;
 
-	pr_debug("LMMIO mismatch: PAT length = 0x%lx, MASK register = 0x%lx\n",
+	pr_de("LMMIO mismatch: PAT length = 0x%lx, MASK register = 0x%lx\n",
 		end - start, lba_len);
 
 	lba_len = min(lba_len+1, 256UL*1024*1024); /* limit to 256 MB */
 
-	pr_debug("LBA: lmmio_space [0x%lx-0x%lx] - original\n", start, end);
+	pr_de("LBA: lmmio_space [0x%lx-0x%lx] - original\n", start, end);
 
 
 	end += lba_len;
 	if (end < start) /* fix overflow */
 		end = -1ULL;
 
-	pr_debug("LBA: lmmio_space [0x%lx-0x%lx] - current\n", start, end);
+	pr_de("LBA: lmmio_space [0x%lx-0x%lx] - current\n", start, end);
 
 	/* first overlap */
 	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
-		pr_debug("LBA: testing %pR\n", tmp);
+		pr_de("LBA: testing %pR\n", tmp);
 		if (tmp->start == start)
 			continue; /* ignore ourself */
 		if (tmp->end < start)
@@ -750,7 +750,7 @@ lba_fixup_bus(struct pci_bus *bus)
 		err = request_resource(&ioport_resource, &(ldev->hba.io_space));
 		if (err < 0) {
 			lba_dump_res(&ioport_resource, 2);
-			BUG();
+			();
 		}
 
 		if (ldev->hba.elmmio_space.flags) {
@@ -764,7 +764,7 @@ lba_fixup_bus(struct pci_bus *bus)
 						(long)ldev->hba.elmmio_space.end);
 
 				/* lba_dump_res(&iomem_resource, 2); */
-				/* BUG(); */
+				/* (); */
 			}
 		}
 
@@ -788,7 +788,7 @@ lba_fixup_bus(struct pci_bus *bus)
 					(long)ldev->hba.gmmio_space.start,
 					(long)ldev->hba.gmmio_space.end);
 				lba_dump_res(&iomem_resource, 2);
-				BUG();
+				();
 			}
 		}
 #endif
@@ -903,7 +903,7 @@ LBA_PORT_IN(32, 0)
 
 
 /*
-** BUG X4107:  Ordering broken - DMA RD return can bypass PIO WR
+**  X4107:  Ordering broken - DMA RD return can bypass PIO WR
 **
 ** Fixed in Elroy 2.2. The READ_U32(..., LBA_FUNC_ID) below is
 ** guarantee non-postable completion semantics - not avoid X4107.
@@ -911,20 +911,20 @@ LBA_PORT_IN(32, 0)
 ** out to the PCI bus. We can't read stuff from I/O port space
 ** since we don't know what has side-effects. Attempting to read
 ** from configuration space would be suicidal given the number of
-** bugs in that elroy functionality.
+** s in that elroy functionality.
 **
 **      Description:
 **          DMA read results can improperly pass PIO writes (X4107).  The
-**          result of this bug is that if a processor modifies a location in
+**          result of this  is that if a processor modifies a location in
 **          memory after having issued PIO writes, the PIO writes are not
 **          guaranteed to be completed before a PCI device is allowed to see
 **          the modified data in a DMA read.
 **
-**          Note that IKE bug X3719 in TR1 IKEs will result in the same
+**          Note that IKE  X3719 in TR1 IKEs will result in the same
 **          symptom.
 **
 **      Workaround:
-**          The workaround for this bug is to always follow a PIO write with
+**          The workaround for this  is to always follow a PIO write with
 **          a PIO read to the same bus before starting DMA on that PCI bus.
 **
 */
@@ -1358,29 +1358,29 @@ static int __init
 lba_hw_init(struct lba_device *d)
 {
 	u32 stat;
-	u32 bus_reset;	/* PDC_PAT_BUG */
+	u32 bus_reset;	/* PDC_PAT_ */
 
 #if 0
-	printk(KERN_DEBUG "LBA %lx  STAT_CTL %Lx  ERROR_CFG %Lx  STATUS %Lx DMA_CTL %Lx\n",
+	printk(KERN_DE "LBA %lx  STAT_CTL %Lx  ERROR_CFG %Lx  STATUS %Lx DMA_CTL %Lx\n",
 		d->hba.base_addr,
 		READ_REG64(d->hba.base_addr + LBA_STAT_CTL),
 		READ_REG64(d->hba.base_addr + LBA_ERROR_CONFIG),
 		READ_REG64(d->hba.base_addr + LBA_ERROR_STATUS),
 		READ_REG64(d->hba.base_addr + LBA_DMA_CTL) );
-	printk(KERN_DEBUG "	ARB mask %Lx  pri %Lx  mode %Lx  mtlt %Lx\n",
+	printk(KERN_DE "	ARB mask %Lx  pri %Lx  mode %Lx  mtlt %Lx\n",
 		READ_REG64(d->hba.base_addr + LBA_ARB_MASK),
 		READ_REG64(d->hba.base_addr + LBA_ARB_PRI),
 		READ_REG64(d->hba.base_addr + LBA_ARB_MODE),
 		READ_REG64(d->hba.base_addr + LBA_ARB_MTLT) );
-	printk(KERN_DEBUG "	HINT cfg 0x%Lx\n",
+	printk(KERN_DE "	HINT cfg 0x%Lx\n",
 		READ_REG64(d->hba.base_addr + LBA_HINT_CFG));
-	printk(KERN_DEBUG "	HINT reg ");
+	printk(KERN_DE "	HINT reg ");
 	{ int i;
 	for (i=LBA_HINT_BASE; i< (14*8 + LBA_HINT_BASE); i+=8)
 		printk(" %Lx", READ_REG64(d->hba.base_addr + i));
 	}
 	printk("\n");
-#endif	/* DEBUG_LBA_PAT */
+#endif	/* DE_LBA_PAT */
 
 #ifdef CONFIG_64BIT
 /*
@@ -1390,15 +1390,15 @@ lba_hw_init(struct lba_device *d)
  */
 #endif
 
-	/* PDC_PAT_BUG: exhibited in rev 40.48  on L2000 */
+	/* PDC_PAT_: exhibited in rev 40.48  on L2000 */
 	bus_reset = READ_REG32(d->hba.base_addr + LBA_STAT_CTL + 4) & 1;
 	if (bus_reset) {
-		printk(KERN_DEBUG "NOTICE: PCI bus reset still asserted! (clearing)\n");
+		printk(KERN_DE "NOTICE: PCI bus reset still asserted! (clearing)\n");
 	}
 
 	stat = READ_REG32(d->hba.base_addr + LBA_ERROR_CONFIG);
 	if (stat & LBA_SMART_MODE) {
-		printk(KERN_DEBUG "NOTICE: LBA in SMART mode! (cleared)\n");
+		printk(KERN_DE "NOTICE: LBA in SMART mode! (cleared)\n");
 		stat &= ~LBA_SMART_MODE;
 		WRITE_REG32(stat, d->hba.base_addr + LBA_ERROR_CONFIG);
 	}
@@ -1435,7 +1435,7 @@ lba_hw_init(struct lba_device *d)
 
 	if (0 == READ_REG32(d->hba.base_addr + LBA_ARB_MASK)) {
 		/*
-		** PDC_PAT_BUG: PDC rev 40.48 on L2000.
+		** PDC_PAT_: PDC rev 40.48 on L2000.
 		** B2000/C3600/J6000 also have this problem?
 		** 
 		** Elroys with hot pluggable slots don't get configured
@@ -1443,7 +1443,7 @@ lba_hw_init(struct lba_device *d)
 		** and we can't master transactions on the bus if it's
 		** not at least one. 0x3 enables elroy and first slot.
 		*/
-		printk(KERN_DEBUG "NOTICE: Enabling PCI Arbitration\n");
+		printk(KERN_DE "NOTICE: Enabling PCI Arbitration\n");
 		WRITE_REG32(0x3, d->hba.base_addr + LBA_ARB_MASK);
 	}
 
@@ -1643,7 +1643,7 @@ lba_driver_probe(struct parisc_device *dev)
 		DBG_PAT("LBA pci_bus_assign_resources()\n");
 		pci_bus_assign_resources(lba_bus);
 
-#ifdef DEBUG_LBA_PAT
+#ifdef DE_LBA_PAT
 		DBG_PAT("\nLBA PIOP resource tree\n");
 		lba_dump_res(&lba_dev->hba.io_space, 2);
 		DBG_PAT("\nLBA LMMIO resource tree\n");

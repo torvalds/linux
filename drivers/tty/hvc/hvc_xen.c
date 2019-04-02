@@ -86,7 +86,7 @@ static int __write_console(struct xencons_info *xencons,
 	cons = intf->out_cons;
 	prod = intf->out_prod;
 	mb();			/* update queue values before going on */
-	BUG_ON((prod - cons) > sizeof(intf->out));
+	_ON((prod - cons) > sizeof(intf->out));
 
 	while ((sent < len) && ((prod - cons) < sizeof(intf->out)))
 		intf->out[MASK_XENCONS_IDX(prod++, intf->out)] = data[sent++];
@@ -138,7 +138,7 @@ static int domU_read_console(uint32_t vtermno, char *buf, int len)
 	cons = intf->in_cons;
 	prod = intf->in_prod;
 	mb();			/* get pointers before reading ring */
-	BUG_ON((prod - cons) > sizeof(intf->in));
+	_ON((prod - cons) > sizeof(intf->in));
 
 	while (cons != prod && recv < len)
 		buf[recv++] = intf->in[MASK_XENCONS_IDX(cons++, intf->in)];
@@ -165,7 +165,7 @@ static int dom0_read_console(uint32_t vtermno, char *buf, int len)
 
 /*
  * Either for a dom0 to write to the system console, or a domU with a
- * debug version of Xen
+ * de version of Xen
  */
 static int dom0_write_console(uint32_t vtermno, const char *str, int len)
 {

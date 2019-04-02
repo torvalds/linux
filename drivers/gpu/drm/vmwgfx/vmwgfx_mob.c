@@ -119,7 +119,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	struct vmw_piter iter;
 	int ret;
 
-	BUG_ON(otable->page_table != NULL);
+	_ON(otable->page_table != NULL);
 
 	vsgt = vmw_bo_sg_table(otable_bo);
 	vmw_piter_start(&iter, vsgt, offset >> PAGE_SHIFT);
@@ -164,10 +164,10 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 
 	/*
 	 * The device doesn't support this, But the otable size is
-	 * determined at compile-time, so this BUG shouldn't trigger
+	 * determined at compile-time, so this  shouldn't trigger
 	 * randomly.
 	 */
-	BUG_ON(mob->pt_level == VMW_MOBFMT_PTDEPTH_2);
+	_ON(mob->pt_level == VMW_MOBFMT_PTDEPTH_2);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	otable->page_table = mob;
@@ -223,7 +223,7 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 		int ret;
 
 		ret = ttm_bo_reserve(bo, false, true, NULL);
-		BUG_ON(ret != 0);
+		_ON(ret != 0);
 
 		vmw_bo_fence_single(bo, NULL);
 		ttm_bo_unreserve(bo);
@@ -266,7 +266,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 		goto out_no_bo;
 
 	ret = ttm_bo_reserve(batch->otable_bo, false, true, NULL);
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 	ret = vmw_bo_driver.ttm_tt_populate(batch->otable_bo->ttm, &ctx);
 	if (unlikely(ret != 0))
 		goto out_unreserve;
@@ -361,7 +361,7 @@ static void vmw_otable_batch_takedown(struct vmw_private *dev_priv,
 						 &batch->otables[i]);
 
 	ret = ttm_bo_reserve(bo, false, true, NULL);
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 
 	vmw_bo_fence_single(bo, NULL);
 	ttm_bo_unreserve(bo);
@@ -440,7 +440,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 		.no_wait_gpu = false
 	};
 
-	BUG_ON(mob->pt_bo != NULL);
+	_ON(mob->pt_bo != NULL);
 
 	ret = ttm_bo_create(&dev_priv->bdev, mob->num_pages * PAGE_SIZE,
 			    ttm_bo_type_device,
@@ -451,7 +451,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 
 	ret = ttm_bo_reserve(mob->pt_bo, false, true, NULL);
 
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 	ret = vmw_bo_driver.ttm_tt_populate(mob->pt_bo->ttm, &ctx);
 	if (unlikely(ret != 0))
 		goto out_unreserve;
@@ -556,15 +556,15 @@ static void vmw_mob_pt_setup(struct vmw_mob *mob,
 	int ret;
 
 	ret = ttm_bo_reserve(bo, false, true, NULL);
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 
 	vsgt = vmw_bo_sg_table(bo);
 	vmw_piter_start(&pt_iter, vsgt, 0);
-	BUG_ON(!vmw_piter_next(&pt_iter));
+	_ON(!vmw_piter_next(&pt_iter));
 	mob->pt_level = 0;
 	while (likely(num_data_pages > 1)) {
 		++mob->pt_level;
-		BUG_ON(mob->pt_level > 2);
+		_ON(mob->pt_level > 2);
 		save_pt_iter = pt_iter;
 		num_pt_pages = vmw_mob_build_pt(&data_iter, num_data_pages,
 						&pt_iter);
@@ -611,7 +611,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 		/*
 		 * Noone else should be using this buffer.
 		 */
-		BUG_ON(ret != 0);
+		_ON(ret != 0);
 	}
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));

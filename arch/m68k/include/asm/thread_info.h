@@ -28,7 +28,7 @@ struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	unsigned long		flags;
 	mm_segment_t		addr_limit;	/* thread address space */
-	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
+	int			preempt_count;	/* 0 => preemptable, <0 =>  */
 	__u32			cpu;		/* should always be 0 on m68k */
 	unsigned long		tp_value;	/* thread pointer */
 };

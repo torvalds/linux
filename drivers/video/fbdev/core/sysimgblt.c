@@ -15,10 +15,10 @@
 #include <linux/fb.h>
 #include <asm/types.h>
 
-#define DEBUG
+#define DE
 
-#ifdef DEBUG
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt,__func__,## args)
+#ifdef DE
+#define DPRINTK(fmt, args...) printk(KERN_DE "%s: " fmt,__func__,## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif

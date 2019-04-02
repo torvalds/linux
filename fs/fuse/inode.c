@@ -278,7 +278,7 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 		init_special_inode(inode, inode->i_mode,
 				   new_decode_dev(attr->rdev));
 	} else
-		BUG();
+		();
 }
 
 int fuse_inode_eq(struct inode *inode, void *_nodeidp)
@@ -1434,7 +1434,7 @@ static int __init fuse_init(void)
 
 static void __exit fuse_exit(void)
 {
-	printk(KERN_DEBUG "fuse exit\n");
+	printk(KERN_DE "fuse exit\n");
 
 	fuse_ctl_cleanup();
 	fuse_sysfs_cleanup();

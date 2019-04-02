@@ -15,7 +15,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -58,13 +58,13 @@
 #include <asm/paca.h>
 #endif
 #include <asm/vdso.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/kexec.h>
 #include <asm/asm-prototypes.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/ftrace.h>
 
-#ifdef DEBUG
+#ifdef DE
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
@@ -207,7 +207,7 @@ static irq_handler_t smp_ipi_action[] = {
 /*
  * The NMI IPI is a fallback and not truly non-maskable. It is simpler
  * than going through the call function infrastructure, and strongly
- * serialized, so it is more appropriate for debugging.
+ * serialized, so it is more appropriate for deging.
  */
 const char *smp_ipi_name[] = {
 	[PPC_MSG_CALL_FUNCTION] =  "ipi call function",
@@ -357,7 +357,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
  * "NMI IPI" system.
  *
  * NMI IPIs may not be recoverable, so should not be used as ongoing part of
- * a running system. They can be used for crash, debug, halt/reboot, etc.
+ * a running system. They can be used for crash, de, halt/reboot, etc.
  *
  * The IPI call waits with interrupts disabled until all targets enter the
  * NMI handler, then returns. Subsequent IPIs can be issued before targets
@@ -470,8 +470,8 @@ static int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *),
 	int me = raw_smp_processor_id();
 	int ret = 1;
 
-	BUG_ON(cpu == me);
-	BUG_ON(cpu < 0 && cpu != NMI_IPI_ALL_OTHERS);
+	_ON(cpu == me);
+	_ON(cpu < 0 && cpu != NMI_IPI_ALL_OTHERS);
 
 	if (unlikely(!smp_ops))
 		return 0;
@@ -549,15 +549,15 @@ void tick_broadcast(const struct cpumask *mask)
 }
 #endif
 
-#ifdef CONFIG_DEBUGGER
-void debugger_ipi_callback(struct pt_regs *regs)
+#ifdef CONFIG_DEGER
+void deger_ipi_callback(struct pt_regs *regs)
 {
-	debugger_ipi(regs);
+	deger_ipi(regs);
 }
 
-void smp_send_debugger_break(void)
+void smp_send_deger_break(void)
 {
-	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, debugger_ipi_callback, 1000000);
+	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, deger_ipi_callback, 1000000);
 }
 #endif
 
@@ -851,7 +851,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * setup_cpu may need to be called on the boot cpu. We havent
 	 * spun any cpus up but lets be paranoid.
 	 */
-	BUG_ON(boot_cpuid != smp_processor_id());
+	_ON(boot_cpuid != smp_processor_id());
 
 	/* Fixup boot cpu */
 	smp_store_cpu_info(boot_cpuid);
@@ -891,7 +891,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 void smp_prepare_boot_cpu(void)
 {
-	BUG_ON(smp_processor_id() != boot_cpuid);
+	_ON(smp_processor_id() != boot_cpuid);
 #ifdef CONFIG_PPC64
 	paca_ptrs[boot_cpuid]->__current = current;
 #endif
@@ -1286,7 +1286,7 @@ void start_secondary(void *unused)
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 
-	BUG();
+	();
 }
 
 int setup_profiling_timer(unsigned int multiplier)

@@ -181,22 +181,22 @@ static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 	return count;
 }
 
-static const struct file_operations altr_sdr_mc_debug_inject_fops = {
+static const struct file_operations altr_sdr_mc_de_inject_fops = {
 	.open = simple_open,
 	.write = altr_sdr_mc_err_inject_write,
 	.llseek = generic_file_llseek,
 };
 
-static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
+static void altr_sdr_mc_create_defs_nodes(struct mem_ctl_info *mci)
 {
-	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
+	if (!IS_ENABLED(CONFIG_EDAC_DE))
 		return;
 
-	if (!mci->debugfs)
+	if (!mci->defs)
 		return;
 
-	edac_debugfs_create_file("altr_trigger", S_IWUSR, mci->debugfs, mci,
-				 &altr_sdr_mc_debug_inject_fops);
+	edac_defs_create_file("altr_trigger", S_IWUSR, mci->defs, mci,
+				 &altr_sdr_mc_de_inject_fops);
 }
 
 /* Get total memory size from Open Firmware DTB */
@@ -440,7 +440,7 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	altr_sdr_mc_create_debugfs_nodes(mci);
+	altr_sdr_mc_create_defs_nodes(mci);
 
 	devres_close_group(&pdev->dev, NULL);
 
@@ -732,17 +732,17 @@ static void altr_create_edacdev_dbgfs(struct edac_device_ctl_info *edac_dci,
 {
 	struct altr_edac_device_dev *drvdata = edac_dci->pvt_info;
 
-	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
+	if (!IS_ENABLED(CONFIG_EDAC_DE))
 		return;
 
-	drvdata->debugfs_dir = edac_debugfs_create_dir(drvdata->edac_dev_name);
-	if (!drvdata->debugfs_dir)
+	drvdata->defs_dir = edac_defs_create_dir(drvdata->edac_dev_name);
+	if (!drvdata->defs_dir)
 		return;
 
-	if (!edac_debugfs_create_file("altr_trigger", S_IWUSR,
-				      drvdata->debugfs_dir, edac_dci,
+	if (!edac_defs_create_file("altr_trigger", S_IWUSR,
+				      drvdata->defs_dir, edac_dci,
 				      priv->inject_fops))
-		debugfs_remove_recursive(drvdata->debugfs_dir);
+		defs_remove_recursive(drvdata->defs_dir);
 }
 
 static const struct of_device_id altr_edac_device_of_match[] = {
@@ -870,7 +870,7 @@ static int altr_edac_device_remove(struct platform_device *pdev)
 	struct edac_device_ctl_info *dci = platform_get_drvdata(pdev);
 	struct altr_edac_device_dev *drvdata = dci->pvt_info;
 
-	debugfs_remove_recursive(drvdata->debugfs_dir);
+	defs_remove_recursive(drvdata->defs_dir);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(dci);
 

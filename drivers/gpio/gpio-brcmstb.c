@@ -298,7 +298,7 @@ static void brcmstb_gpio_irq_handler(struct irq_desc *desc)
 	struct brcmstb_gpio_bank *bank;
 
 	/* Interrupts weren't properly cleared during probe */
-	BUG_ON(!priv || !chip);
+	_ON(!priv || !chip);
 
 	chained_irq_enter(chip, desc);
 	list_for_each_entry(bank, &priv->bank_list, node)

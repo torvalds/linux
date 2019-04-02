@@ -16,7 +16,7 @@
 #include <linux/sched/rt.h>
 #include <linux/sched/deadline.h>
 #include <linux/sched/wake_q.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/timer.h>
 
 #include "rtmutex_common.h"
@@ -136,10 +136,10 @@ static void fixup_rt_mutex_waiters(struct rt_mutex *lock)
 }
 
 /*
- * We can speed up the acquire/release, if there's no debugging state to be
+ * We can speed up the acquire/release, if there's no deging state to be
  * set up.
  */
-#ifndef CONFIG_DEBUG_RT_MUTEXES
+#ifndef CONFIG_DE_RT_MUTEXES
 # define rt_mutex_cmpxchg_relaxed(l,c,n) (cmpxchg_relaxed(&l->owner, c, n) == c)
 # define rt_mutex_cmpxchg_acquire(l,c,n) (cmpxchg_acquire(&l->owner, c, n) == c)
 # define rt_mutex_cmpxchg_release(l,c,n) (cmpxchg_release(&l->owner, c, n) == c)
@@ -349,10 +349,10 @@ static void rt_mutex_adjust_prio(struct task_struct *p)
 /*
  * Deadlock detection is conditional:
  *
- * If CONFIG_DEBUG_RT_MUTEXES=n, deadlock detection is only conducted
+ * If CONFIG_DE_RT_MUTEXES=n, deadlock detection is only conducted
  * if the detect argument is == RT_MUTEX_FULL_CHAINWALK.
  *
- * If CONFIG_DEBUG_RT_MUTEXES=y, deadlock detection is always
+ * If CONFIG_DE_RT_MUTEXES=y, deadlock detection is always
  * conducted independent of the detect argument.
  *
  * If the waiter argument is NULL this indicates the deboost path and
@@ -364,12 +364,12 @@ static bool rt_mutex_cond_detect_deadlock(struct rt_mutex_waiter *waiter,
 {
 	/*
 	 * This is just a wrapper function for the following call,
-	 * because debug_rt_mutex_detect_deadlock() smells like a magic
-	 * debug feature and I wanted to keep the cond function in the
+	 * because de_rt_mutex_detect_deadlock() smells like a magic
+	 * de feature and I wanted to keep the cond function in the
 	 * main source file along with the comments instead of having
 	 * two of the same in the headers.
 	 */
-	return debug_rt_mutex_detect_deadlock(waiter, chwalk);
+	return de_rt_mutex_detect_deadlock(waiter, chwalk);
 }
 
 /*
@@ -598,7 +598,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	 * walk, we detected a deadlock.
 	 */
 	if (lock == orig_lock || rt_mutex_owner(lock) == top_task) {
-		debug_rt_mutex_deadlock(chwalk, orig_waiter, lock);
+		de_rt_mutex_deadlock(chwalk, orig_waiter, lock);
 		raw_spin_unlock(&lock->wait_lock);
 		ret = -EDEADLK;
 		goto out_unlock_pi;
@@ -908,7 +908,7 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
 
 takeit:
 	/* We got the lock. */
-	debug_rt_mutex_lock(lock);
+	de_rt_mutex_lock(lock);
 
 	/*
 	 * This either preserves the RT_MUTEX_HAS_WAITERS bit if there
@@ -1148,7 +1148,7 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 
 void rt_mutex_init_waiter(struct rt_mutex_waiter *waiter)
 {
-	debug_rt_mutex_init_waiter(waiter);
+	de_rt_mutex_init_waiter(waiter);
 	RB_CLEAR_NODE(&waiter->pi_tree_entry);
 	RB_CLEAR_NODE(&waiter->tree_entry);
 	waiter->task = NULL;
@@ -1192,7 +1192,7 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 
 		raw_spin_unlock_irq(&lock->wait_lock);
 
-		debug_rt_mutex_print_deadlock(waiter);
+		de_rt_mutex_print_deadlock(waiter);
 
 		schedule();
 
@@ -1241,7 +1241,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	/*
 	 * Technically we could use raw_spin_[un]lock_irq() here, but this can
 	 * be called in early boot if the cmpxchg() fast path is disabled
-	 * (debug, no architecture support). In this case we will acquire the
+	 * (de, no architecture support). In this case we will acquire the
 	 * rtmutex with lock->wait_lock held. But we cannot unconditionally
 	 * enable interrupts in that early boot case. So we need to use the
 	 * irqsave/restore variants.
@@ -1284,7 +1284,7 @@ rt_mutex_slowlock(struct rt_mutex *lock, int state,
 	if (unlikely(timeout))
 		hrtimer_cancel(&timeout->timer);
 
-	debug_rt_mutex_free_waiter(&waiter);
+	de_rt_mutex_free_waiter(&waiter);
 
 	return ret;
 }
@@ -1344,7 +1344,7 @@ static bool __sched rt_mutex_slowunlock(struct rt_mutex *lock,
 	/* irqsave required to support early boot calls */
 	raw_spin_lock_irqsave(&lock->wait_lock, flags);
 
-	debug_rt_mutex_unlock(lock);
+	de_rt_mutex_unlock(lock);
 
 	/*
 	 * We must be careful here if the fast path is enabled. If we
@@ -1398,10 +1398,10 @@ static bool __sched rt_mutex_slowunlock(struct rt_mutex *lock,
 }
 
 /*
- * debug aware fast / slowpath lock,trylock,unlock
+ * de aware fast / slowpath lock,trylock,unlock
  *
  * The atomic acquire/release ops are compiled away, when either the
- * architecture does not support cmpxchg or when debugging is enabled.
+ * architecture does not support cmpxchg or when deging is enabled.
  */
 static inline int
 rt_mutex_fastlock(struct rt_mutex *lock, int state,
@@ -1473,7 +1473,7 @@ static inline void __rt_mutex_lock(struct rt_mutex *lock, unsigned int subclass)
 	rt_mutex_fastlock(lock, TASK_UNINTERRUPTIBLE, rt_mutex_slowlock);
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 /**
  * rt_mutex_lock_nested - lock a rt_mutex
  *
@@ -1486,7 +1486,7 @@ void __sched rt_mutex_lock_nested(struct rt_mutex *lock, unsigned int subclass)
 }
 EXPORT_SYMBOL_GPL(rt_mutex_lock_nested);
 
-#else /* !CONFIG_DEBUG_LOCK_ALLOC */
+#else /* !CONFIG_DE_LOCK_ALLOC */
 
 /**
  * rt_mutex_lock - lock a rt_mutex
@@ -1615,7 +1615,7 @@ bool __sched __rt_mutex_futex_unlock(struct rt_mutex *lock,
 {
 	lockdep_assert_held(&lock->wait_lock);
 
-	debug_rt_mutex_unlock(lock);
+	de_rt_mutex_unlock(lock);
 
 	if (!rt_mutex_has_waiters(lock)) {
 		lock->owner = NULL;
@@ -1658,7 +1658,7 @@ void __sched rt_mutex_futex_unlock(struct rt_mutex *lock)
 void rt_mutex_destroy(struct rt_mutex *lock)
 {
 	WARN_ON(rt_mutex_is_locked(lock));
-#ifdef CONFIG_DEBUG_RT_MUTEXES
+#ifdef CONFIG_DE_RT_MUTEXES
 	lock->magic = NULL;
 #endif
 }
@@ -1681,7 +1681,7 @@ void __rt_mutex_init(struct rt_mutex *lock, const char *name,
 	lock->waiters = RB_ROOT_CACHED;
 
 	if (name && key)
-		debug_rt_mutex_init(lock, name, key);
+		de_rt_mutex_init(lock, name, key);
 }
 EXPORT_SYMBOL_GPL(__rt_mutex_init);
 
@@ -1703,7 +1703,7 @@ void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
 				struct task_struct *proxy_owner)
 {
 	__rt_mutex_init(lock, NULL, NULL);
-	debug_rt_mutex_proxy_lock(lock, proxy_owner);
+	de_rt_mutex_proxy_lock(lock, proxy_owner);
 	rt_mutex_set_owner(lock, proxy_owner);
 }
 
@@ -1715,14 +1715,14 @@ void rt_mutex_init_proxy_locked(struct rt_mutex *lock,
  * No locking. Caller has to do serializing itself
  *
  * Special API call for PI-futex support. This merrily cleans up the rtmutex
- * (debugging) state. Concurrent operations on this rt_mutex are not
+ * (deging) state. Concurrent operations on this rt_mutex are not
  * possible because it belongs to the pi_state which is about to be freed
  * and it is not longer visible to other tasks.
  */
 void rt_mutex_proxy_unlock(struct rt_mutex *lock,
 			   struct task_struct *proxy_owner)
 {
-	debug_rt_mutex_proxy_unlock(lock);
+	de_rt_mutex_proxy_unlock(lock);
 	rt_mutex_set_owner(lock, NULL);
 }
 
@@ -1770,7 +1770,7 @@ int __rt_mutex_start_proxy_lock(struct rt_mutex *lock,
 		ret = 0;
 	}
 
-	debug_rt_mutex_print_deadlock(waiter);
+	de_rt_mutex_print_deadlock(waiter);
 
 	return ret;
 }

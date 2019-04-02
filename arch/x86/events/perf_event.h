@@ -198,9 +198,9 @@ struct cpu_hw_events {
 	int			is_fake;
 
 	/*
-	 * Intel DebugStore bits
+	 * Intel DeStore bits
 	 */
-	struct debug_store	*ds;
+	struct de_store	*ds;
 	void			*ds_pebs_vaddr;
 	void			*ds_bts_vaddr;
 	u64			pebs_enabled;
@@ -604,7 +604,7 @@ struct x86_pmu {
 	union perf_capabilities intel_cap;
 
 	/*
-	 * Intel DebugStore bits
+	 * Intel DeStore bits
 	 */
 	unsigned int	bts			:1,
 			bts_active		:1,
@@ -901,9 +901,9 @@ extern void intel_cpuc_finish(struct cpu_hw_events *cpuc);
 
 int intel_pmu_init(void);
 
-void init_debug_store_on_cpu(int cpu);
+void init_de_store_on_cpu(int cpu);
 
-void fini_debug_store_on_cpu(int cpu);
+void fini_de_store_on_cpu(int cpu);
 
 void release_ds_buffers(void);
 

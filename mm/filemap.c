@@ -127,9 +127,9 @@ static void page_cache_delete(struct address_space *mapping,
 		nr = 1U << compound_order(page);
 	}
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(nr != 1 && shadow, page);
 
 	xas_store(&xas, shadow);
 	xas_init_marks(&xas);
@@ -165,12 +165,12 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 	else
 		cleancache_invalidate_page(mapping, page);
 
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(page_mapped(page), page);
-	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
+	VM__ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(page_mapped(page), page);
+	if (!IS_ENABLED(CONFIG_DE_VM) && unlikely(page_mapped(page))) {
 		int mapcount;
 
-		pr_alert("BUG: Bad page cache in process %s  pfn:%05lx\n",
+		pr_alert(": Bad page cache in process %s  pfn:%05lx\n",
 			 current->comm, page_to_pfn(page));
 		dump_page(page, "still mapped when deleted");
 		dump_stack();
@@ -202,12 +202,12 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 		if (PageTransHuge(page))
 			__dec_node_page_state(page, NR_SHMEM_THPS);
 	} else {
-		VM_BUG_ON_PAGE(PageTransHuge(page), page);
+		VM__ON_PAGE(PageTransHuge(page), page);
 	}
 
 	/*
 	 * At this point page must be either written or cleaned by
-	 * truncate.  Dirty page here signals a bug and loss of
+	 * truncate.  Dirty page here signals a  and loss of
 	 * unwritten data.
 	 *
 	 * This fixes dirty accounting after removing the page entirely
@@ -245,7 +245,7 @@ static void page_cache_free_page(struct address_space *mapping,
 
 	if (PageTransHuge(page) && !PageHuge(page)) {
 		page_ref_sub(page, HPAGE_PMD_NR);
-		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
+		VM__ON_PAGE(page_count(page) <= 0, page);
 	} else {
 		put_page(page);
 	}
@@ -264,7 +264,7 @@ void delete_from_page_cache(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 	unsigned long flags;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	xa_lock_irqsave(&mapping->i_pages, flags);
 	__delete_from_page_cache(page, NULL);
 	xa_unlock_irqrestore(&mapping->i_pages, flags);
@@ -308,7 +308,7 @@ static void page_cache_delete_batch(struct address_space *mapping,
 			 * being removed.
 			 */
 			if (page != pvec->pages[i]) {
-				VM_BUG_ON_PAGE(page->index >
+				VM__ON_PAGE(page->index >
 						pvec->pages[i]->index, page);
 				continue;
 			}
@@ -322,7 +322,7 @@ static void page_cache_delete_batch(struct address_space *mapping,
 			 */
 			i++;
 		} else {
-			VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
+			VM__ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
 					!= pvec->pages[i]->index, page);
 			tail_pages--;
 		}
@@ -609,7 +609,7 @@ int filemap_write_and_wait(struct address_space *mapping)
 		 * Even if the above returned error, the pages may be
 		 * written partially (e.g. -ENOSPC), so we wait for it.
 		 * But the -EIO is special case, it may indicate the worst
-		 * thing (e.g. bug) happened, so we avoid waiting for it.
+		 * thing (e.g. ) happened, so we avoid waiting for it.
 		 */
 		if (err != -EIO) {
 			int err2 = filemap_fdatawait(mapping);
@@ -783,9 +783,9 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 	XA_STATE(xas, &mapping->i_pages, offset);
 	unsigned long flags;
 
-	VM_BUG_ON_PAGE(!PageLocked(old), old);
-	VM_BUG_ON_PAGE(!PageLocked(new), new);
-	VM_BUG_ON_PAGE(new->mapping, new);
+	VM__ON_PAGE(!PageLocked(old), old);
+	VM__ON_PAGE(!PageLocked(new), new);
+	VM__ON_PAGE(new->mapping, new);
 
 	get_page(new);
 	new->mapping = mapping;
@@ -825,8 +825,8 @@ static int __add_to_page_cache_locked(struct page *page,
 	int error;
 	void *old;
 
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(PageSwapBacked(page), page);
 	mapping_set_update(&xas, mapping);
 
 	if (!huge) {
@@ -1269,16 +1269,16 @@ static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem
  * But that's OK - sleepers in wait_on_page_writeback() just go back to sleep.
  *
  * Note that this depends on PG_waiters being the sign bit in the byte
- * that contains PG_locked - thus the BUILD_BUG_ON(). That allows us to
+ * that contains PG_locked - thus the BUILD__ON(). That allows us to
  * clear the PG_locked bit and test PG_waiters at the same time fairly
  * portably (architectures that do LL/SC can test any bit, while x86 can
  * test the sign bit).
  */
 void unlock_page(struct page *page)
 {
-	BUILD_BUG_ON(PG_waiters != 7);
+	BUILD__ON(PG_waiters != 7);
 	page = compound_head(page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	VM__ON_PAGE(!PageLocked(page), page);
 	if (clear_bit_unlock_is_negative_byte(PG_locked, &page->flags))
 		wake_up_page_bit(page, PG_locked);
 }
@@ -1303,7 +1303,7 @@ void end_page_writeback(struct page *page)
 	}
 
 	if (!test_clear_page_writeback(page))
-		BUG();
+		();
 
 	smp_mb__after_atomic();
 	wake_up_page(page, PG_writeback);
@@ -1562,7 +1562,7 @@ repeat:
 			put_page(page);
 			goto repeat;
 		}
-		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
+		VM__ON_PAGE(page_to_pgoff(page) != offset, page);
 	}
 	return page;
 }
@@ -1626,7 +1626,7 @@ repeat:
 			put_page(page);
 			goto repeat;
 		}
-		VM_BUG_ON_PAGE(page->index != offset, page);
+		VM__ON_PAGE(page->index != offset, page);
 	}
 
 	if (fgp_flags & FGP_ACCESSED)
@@ -2610,7 +2610,7 @@ retry_find:
 		put_page(page);
 		goto retry_find;
 	}
-	VM_BUG_ON_PAGE(page->index != offset, page);
+	VM__ON_PAGE(page->index != offset, page);
 
 	/*
 	 * We have a locked page in the page cache, now we need to check
@@ -3487,7 +3487,7 @@ int try_to_release_page(struct page *page, gfp_t gfp_mask)
 {
 	struct address_space * const mapping = page->mapping;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	if (PageWriteback(page))
 		return 0;
 

@@ -190,7 +190,7 @@ nvkm_wrvgaowner(struct nvkm_device *device, u8 select)
 	if (device->card_type < NV_50) {
 		u8 owner = (select == 1) ? 3 : select;
 		if (device->chipset == 0x11) {
-			/* workaround hw lockup bug */
+			/* workaround hw lockup  */
 			nvkm_rdvgac(device, 0, 0x1f);
 			nvkm_rdvgac(device, 1, 0x1f);
 		}

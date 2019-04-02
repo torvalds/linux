@@ -129,7 +129,7 @@ struct rseq {
 	 * This field should only be updated by the thread which
 	 * registered this data structure. Read by the kernel.
 	 * Mainly used for single-stepping through rseq critical sections
-	 * with debuggers.
+	 * with degers.
 	 *
 	 * - RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT
 	 *     Inhibit instruction sequence block restart on preemption

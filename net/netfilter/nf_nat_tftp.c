@@ -43,7 +43,7 @@ static void __exit nf_nat_tftp_fini(void)
 
 static int __init nf_nat_tftp_init(void)
 {
-	BUG_ON(nf_nat_tftp_hook != NULL);
+	_ON(nf_nat_tftp_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_tftp_hook, help);
 	return 0;
 }

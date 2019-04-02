@@ -70,7 +70,7 @@ extern u16 __read_mostly tlb_lld_4m[NR_INFO];
 extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
+ *  CPU type and hardware  flags. Kept separately for each CPU.
  *  Members of this structure are referenced in head_32.S, so think twice
  *  before touching them. [mj]
  */
@@ -93,7 +93,7 @@ struct cpuinfo_x86 {
 	__u32			extended_cpuid_level;
 	/* Maximum supported CPUID level, -1=no CPUID: */
 	int			cpuid_level;
-	__u32			x86_capability[NCAPINTS + NBUGINTS];
+	__u32			x86_capability[NCAPINTS + NINTS];
 	char			x86_vendor_id[16];
 	char			x86_model_id[64];
 	/* in KB - valid for CPUS which support this call: */
@@ -155,8 +155,8 @@ extern struct cpuinfo_x86	boot_cpu_data;
 extern struct cpuinfo_x86	new_cpu_data;
 
 extern struct x86_hw_tss	doublefault_tss;
-extern __u32			cpu_caps_cleared[NCAPINTS + NBUGINTS];
-extern __u32			cpu_caps_set[NCAPINTS + NBUGINTS];
+extern __u32			cpu_caps_cleared[NCAPINTS + NINTS];
+extern __u32			cpu_caps_set[NCAPINTS + NINTS];
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
@@ -375,7 +375,7 @@ DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
 #endif
 
 /*
- * Save the original ist values for checking stack pointers during debugging
+ * Save the original ist values for checking stack pointers during deging
  */
 struct orig_ist {
 	unsigned long		ist[7];
@@ -477,8 +477,8 @@ struct thread_struct {
 
 	/* Save middle states of ptrace breakpoints */
 	struct perf_event	*ptrace_bps[HBP_NUM];
-	/* Debug status used for traps, single steps, etc... */
-	unsigned long           debugreg6;
+	/* De status used for traps, single steps, etc... */
+	unsigned long           dereg6;
 	/* Keep track of the exact dr7 value set by the user */
 	unsigned long           ptrace_dr7;
 	/* Fault info: */
@@ -752,26 +752,26 @@ extern void load_fixmap_gdt(int);
 extern void load_percpu_segment(int);
 extern void cpu_init(void);
 
-static inline unsigned long get_debugctlmsr(void)
+static inline unsigned long get_dectlmsr(void)
 {
-	unsigned long debugctlmsr = 0;
+	unsigned long dectlmsr = 0;
 
-#ifndef CONFIG_X86_DEBUGCTLMSR
+#ifndef CONFIG_X86_DECTLMSR
 	if (boot_cpu_data.x86 < 6)
 		return 0;
 #endif
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+	rdmsrl(MSR_IA32_DECTLMSR, dectlmsr);
 
-	return debugctlmsr;
+	return dectlmsr;
 }
 
-static inline void update_debugctlmsr(unsigned long debugctlmsr)
+static inline void update_dectlmsr(unsigned long dectlmsr)
 {
-#ifndef CONFIG_X86_DEBUGCTLMSR
+#ifndef CONFIG_X86_DECTLMSR
 	if (boot_cpu_data.x86 < 6)
 		return;
 #endif
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+	wrmsrl(MSR_IA32_DECTLMSR, dectlmsr);
 }
 
 extern void set_task_blockstep(struct task_struct *task, bool on);
@@ -867,7 +867,7 @@ static inline void spin_lock_prefetch(const void *x)
  * We avoid this particular problem by preventing anything executable
  * from being mapped at the maximum canonical address.
  *
- * On AMD CPUs in the Ryzen family, there's a nasty bug in which the
+ * On AMD CPUs in the Ryzen family, there's a nasty  in which the
  * CPUs malfunction if they execute code from the highest canonical page.
  * They'll speculate right off the end of the canonical space, and
  * bad things happen.  This is worked around in the same way as the
@@ -977,7 +977,7 @@ bool xen_set_default_idle(void);
 #endif
 
 void stop_this_cpu(void *dummy);
-void df_debug(struct pt_regs *regs, long error_code);
+void df_de(struct pt_regs *regs, long error_code);
 void microcode_check(void);
 
 enum l1tf_mitigations {

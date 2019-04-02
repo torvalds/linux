@@ -26,7 +26,7 @@
 #include <sound/sb.h>
 #include <sound/control.h>
 
-#undef IO_DEBUG
+#undef IO_DE
 
 void snd_sbmixer_write(struct snd_sb *chip, unsigned char reg, unsigned char data)
 {
@@ -34,8 +34,8 @@ void snd_sbmixer_write(struct snd_sb *chip, unsigned char reg, unsigned char dat
 	udelay(10);
 	outb(data, SBP(chip, MIXER_DATA));
 	udelay(10);
-#ifdef IO_DEBUG
-	snd_printk(KERN_DEBUG "mixer_write 0x%x 0x%x\n", reg, data);
+#ifdef IO_DE
+	snd_printk(KERN_DE "mixer_write 0x%x 0x%x\n", reg, data);
 #endif
 }
 
@@ -47,8 +47,8 @@ unsigned char snd_sbmixer_read(struct snd_sb *chip, unsigned char reg)
 	udelay(10);
 	result = inb(SBP(chip, MIXER_DATA));
 	udelay(10);
-#ifdef IO_DEBUG
-	snd_printk(KERN_DEBUG "mixer_read 0x%x 0x%x\n", reg, result);
+#ifdef IO_DE
+	snd_printk(KERN_DE "mixer_read 0x%x 0x%x\n", reg, result);
 #endif
 	return result;
 }
@@ -741,7 +741,7 @@ int snd_sbmixer_new(struct snd_sb *chip)
 	struct snd_card *card;
 	int err;
 
-	if (snd_BUG_ON(!chip || !chip->card))
+	if (snd__ON(!chip || !chip->card))
 		return -EINVAL;
 
 	card = chip->card;
@@ -890,7 +890,7 @@ static unsigned char als4000_saved_regs[] = {
 static void save_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
 {
 	unsigned char *val = chip->saved_regs;
-	if (snd_BUG_ON(num_regs > ARRAY_SIZE(chip->saved_regs)))
+	if (snd__ON(num_regs > ARRAY_SIZE(chip->saved_regs)))
 		return;
 	for (; num_regs; num_regs--)
 		*val++ = snd_sbmixer_read(chip, *regs++);
@@ -899,7 +899,7 @@ static void save_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
 static void restore_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
 {
 	unsigned char *val = chip->saved_regs;
-	if (snd_BUG_ON(num_regs > ARRAY_SIZE(chip->saved_regs)))
+	if (snd__ON(num_regs > ARRAY_SIZE(chip->saved_regs)))
 		return;
 	for (; num_regs; num_regs--)
 		snd_sbmixer_write(chip, *regs++, *val++);

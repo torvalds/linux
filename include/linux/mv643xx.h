@@ -180,13 +180,13 @@
 #define MV64340_CPU_ERROR_MASK                                      0x148
 
 /****************************************/
-/*      CPU Interface Debug Registers 	*/
+/*      CPU Interface De Registers 	*/
 /****************************************/
 
-#define MV64340_PUNIT_SLAVE_DEBUG_LOW                               0x360
-#define MV64340_PUNIT_SLAVE_DEBUG_HIGH                              0x368
-#define MV64340_PUNIT_MASTER_DEBUG_LOW                              0x370
-#define MV64340_PUNIT_MASTER_DEBUG_HIGH                             0x378
+#define MV64340_PUNIT_SLAVE_DE_LOW                               0x360
+#define MV64340_PUNIT_SLAVE_DE_HIGH                              0x368
+#define MV64340_PUNIT_MASTER_DE_LOW                              0x370
+#define MV64340_PUNIT_MASTER_DE_HIGH                             0x378
 #define MV64340_PUNIT_MMASK                                         0x3e4
 
 /****************************************/
@@ -249,11 +249,11 @@
 #define MV64340_DFCL_PROBE                                          0x14a0
 
 /******************************************/
-/*   Debug Registers                      */
+/*   De Registers                      */
 /******************************************/
 
-#define MV64340_DUNIT_DEBUG_LOW                                     0x1460
-#define MV64340_DUNIT_DEBUG_HIGH                                    0x1464
+#define MV64340_DUNIT_DE_LOW                                     0x1460
+#define MV64340_DUNIT_DE_HIGH                                    0x1464
 #define MV64340_DUNIT_MMASK                                         0X1b40
 
 /****************************************/
@@ -281,11 +281,11 @@
 #define MV64340_DEVICE_ERROR_PARITY     			    0x4e0
 
 /****************************************/
-/* Device debug registers   		*/
+/* Device de registers   		*/
 /****************************************/
 
-#define MV64340_DEVICE_DEBUG_LOW     				    0x4e4
-#define MV64340_DEVICE_DEBUG_HIGH     				    0x4e8
+#define MV64340_DEVICE_DE_LOW     				    0x4e4
+#define MV64340_DEVICE_DE_HIGH     				    0x4e8
 #define MV64340_RUNIT_MMASK                                         0x4f0
 
 /****************************************/
@@ -479,7 +479,7 @@
 #define MV64340_PCI_1_ERROR_MASK                                    0x1ddc
 
 /****************************************/
-/*   PCI Debug Registers                */
+/*   PCI De Registers                */
 /****************************************/
 
 #define MV64340_PCI_0_MMASK                                         0X1D24
@@ -693,10 +693,10 @@
 #define MV64340_CUNIT_CONFIG_REG                                    0xb40c
 #define MV64340_CUNIT_CRROSBAR_TIMEOUT_REG                          0xf304
 
-        /*  Cunit Debug Registers   */
+        /*  Cunit De Registers   */
 
-#define MV64340_CUNIT_DEBUG_LOW                                     0xf340
-#define MV64340_CUNIT_DEBUG_HIGH                                    0xf344
+#define MV64340_CUNIT_DE_LOW                                     0xf340
+#define MV64340_CUNIT_DE_HIGH                                    0xf344
 #define MV64340_CUNIT_MMASK                                         0xf380
 
         /*  MPSCs Clocks Routing Registers  */
@@ -835,10 +835,10 @@
 #define MV64340_DMA_ERROR_ADDR                                      0x8c8
 #define MV64340_DMA_ERROR_SELECT                                    0x8cc
 
- /*  IDMA Debug Register ( for internal use )    */
+ /*  IDMA De Register ( for internal use )    */
 
-#define MV64340_DMA_DEBUG_LOW                                       0x8e0
-#define MV64340_DMA_DEBUG_HIGH                                      0x8e4
+#define MV64340_DMA_DE_LOW                                       0x8e0
+#define MV64340_DMA_DE_HIGH                                      0x8e4
 #define MV64340_DMA_SPARE                                           0xA8C
 
 /****************************************/

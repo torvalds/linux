@@ -11,7 +11,7 @@
  *
  * Changes:
  *
- *		0.15	Mike Mclagan	Packet freeing, bug in kmalloc call
+ *		0.15	Mike Mclagan	Packet freeing,  in kmalloc call
  *					DLCI_RET handling
  *		0.20	Mike McLagan	More conservative on which packets
  *					are returned for retry and which are

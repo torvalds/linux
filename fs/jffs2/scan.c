@@ -20,7 +20,7 @@
 #include <linux/compiler.h>
 #include "nodelist.h"
 #include "summary.h"
-#include "debug.h"
+#include "de.h"
 
 #define DEFAULT_EMPTY_SCAN_SIZE 256
 
@@ -235,7 +235,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 			break;
 		default:
 			pr_warn("%s(): unknown block state\n", __func__);
-			BUG();
+			();
 		}
 	}
 

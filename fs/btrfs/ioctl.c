@@ -703,11 +703,11 @@ static noinline int create_subvol(struct inode *dir,
 
 	btrfs_i_size_write(BTRFS_I(dir), dir->i_size + namelen * 2);
 	ret = btrfs_update_inode(trans, root, dir);
-	BUG_ON(ret);
+	_ON(ret);
 
 	ret = btrfs_add_root_ref(trans, objectid, root->root_key.objectid,
 				 btrfs_ino(BTRFS_I(dir)), index, name, namelen);
-	BUG_ON(ret);
+	_ON(ret);
 
 	ret = btrfs_uuid_tree_add(trans, root_item->uuid,
 				  BTRFS_UUID_KEY_SUBVOL, objectid);
@@ -903,7 +903,7 @@ static int btrfs_may_delete(struct inode *dir, struct dentry *victim, int isdir)
 	if (d_really_is_negative(victim))
 		return -ENOENT;
 
-	BUG_ON(d_inode(victim->d_parent) != dir);
+	_ON(d_inode(victim->d_parent) != dir);
 	audit_inode_child(dir, victim, AUDIT_TYPE_CHILD_DELETE);
 
 	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
@@ -1481,7 +1481,7 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			break;
 
 		if (btrfs_defrag_cancelled(fs_info)) {
-			btrfs_debug(fs_info, "defrag_file cancelled");
+			btrfs_de(fs_info, "defrag_file cancelled");
 			ret = -EAGAIN;
 			break;
 		}
@@ -3364,7 +3364,7 @@ static void clone_update_extent_map(struct btrfs_inode *inode,
  * already other (non-inline) extents. If a file has an inline extent it can
  * not have any other extents and the (single) inline extent must start at the
  * file offset 0. Failing to respect these rules will lead to file corruption,
- * resulting in EIO errors on read/write operations, hitting BUG_ON's in mm, etc
+ * resulting in EIO errors on read/write operations, hitting _ON's in mm, etc
  *
  * We can have extents that have been already written to disk or we can have
  * dirty ranges still in delalloc, in which case the extent maps and items are
@@ -4684,7 +4684,7 @@ again:
 	}
 
 locked:
-	BUG_ON(!test_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
+	_ON(!test_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
 
 	if (arg) {
 		bargs = memdup_user(arg, sizeof(*bargs));

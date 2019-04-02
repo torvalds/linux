@@ -234,7 +234,7 @@ enum bcsr_whoami_boards {
 #define BCSR_SYSTEM_RESET		0x8000	/* clear to reset */
 #define BCSR_SYSTEM_PWROFF		0x4000	/* set to power off */
 #define BCSR_SYSTEM_VDDI		0x001F	/* PB1xxx boards */
-#define BCSR_SYSTEM_DEBUGCSMASK		0x003F	/* DB1300 */
+#define BCSR_SYSTEM_DECSMASK		0x003F	/* DB1300 */
 #define BCSR_SYSTEM_UDMAMODE		0x0100	/* DB1300 */
 #define BCSR_SYSTEM_WAKEONIRQ		0x0200	/* DB1300 */
 #define BCSR_SYSTEM_VDDI1300		0x3C00	/* DB1300 */

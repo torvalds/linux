@@ -25,7 +25,7 @@
 #include "cifs_uniupr.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 
 int cifs_remap(struct cifs_sb_info *cifs_sb)
 {

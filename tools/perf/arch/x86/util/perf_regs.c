@@ -6,7 +6,7 @@
 #include "../../perf.h"
 #include "../../util/util.h"
 #include "../../util/perf_regs.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
@@ -136,7 +136,7 @@ static int sdt_init_op_regex(void)
 
 	ret = regcomp(&sdt_op_regex, SDT_OP_REGEX, REG_EXTENDED);
 	if (ret < 0) {
-		pr_debug4("Regex compilation error.\n");
+		pr_de4("Regex compilation error.\n");
 		return ret;
 	}
 
@@ -204,7 +204,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	if (strchr(old_op, ',') || strchr(old_op, '$') ||
 	    regexec(&sdt_op_regex, old_op, 6, rm, 0)   ||
 	    rm[4].rm_eo - rm[4].rm_so > SDT_REG_NAME_SIZE) {
-		pr_debug4("Skipping unsupported SDT argument: %s\n", old_op);
+		pr_de4("Skipping unsupported SDT argument: %s\n", old_op);
 		return SDT_ARG_SKIP;
 	}
 

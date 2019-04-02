@@ -600,7 +600,7 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 	 * channel status will be 0 due to starting a new chain. Since
 	 * it's new chain and the first descriptor "fails", there is
 	 * nothing to clean up. We do not want to reap the entire submitted
-	 * chain due to this 0 address value and then BUG.
+	 * chain due to this 0 address value and then .
 	 */
 	if (!phys_complete)
 		return;
@@ -631,7 +631,7 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 
 		/* skip extended descriptors */
 		if (desc_has_ext(desc)) {
-			BUG_ON(i + 1 >= active);
+			_ON(i + 1 >= active);
 			i++;
 		}
 
@@ -646,7 +646,7 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 	smp_mb();
 	ioat_chan->tail = idx + i;
 	/* no active descs have written a completion? */
-	BUG_ON(active && !seen_current);
+	_ON(active && !seen_current);
 	ioat_chan->last_completion = phys_complete;
 
 	if (active - i == 0) {
@@ -836,7 +836,7 @@ static void ioat_eh(struct ioatdma_chan *ioat_chan)
 		dev_err(to_dev(ioat_chan), "Errors not handled:\n");
 		ioat_print_chanerrs(ioat_chan, (chanerr & ~err_handled));
 
-		BUG();
+		();
 	}
 
 	/* cleanup the faulty descriptor since we are continuing */

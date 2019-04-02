@@ -44,7 +44,7 @@
 
 #include "qca_7k.h"
 #include "qca_7k_common.h"
-#include "qca_debug.h"
+#include "qca_de.h"
 #include "qca_spi.h"
 
 #define MAX_DMA_BURST_LEN 5000
@@ -996,7 +996,7 @@ qca_spi_probe(struct spi_device *spi)
 		return -EFAULT;
 	}
 
-	qcaspi_init_device_debugfs(qca);
+	qcaspi_init_device_defs(qca);
 
 	return 0;
 }
@@ -1007,7 +1007,7 @@ qca_spi_remove(struct spi_device *spi)
 	struct net_device *qcaspi_devs = spi_get_drvdata(spi);
 	struct qcaspi *qca = netdev_priv(qcaspi_devs);
 
-	qcaspi_remove_device_debugfs(qca);
+	qcaspi_remove_device_defs(qca);
 
 	unregister_netdev(qcaspi_devs);
 	free_netdev(qcaspi_devs);

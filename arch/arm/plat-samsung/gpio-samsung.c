@@ -501,7 +501,7 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 		con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + GPIOCON_OFF);
 
-	pr_debug("%s: %p: CON now %08lx\n", __func__, base, con);
+	pr_de("%s: %p: CON now %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -529,7 +529,7 @@ static int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
 	__raw_writel(con, base + GPIOCON_OFF);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
-	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+	pr_de("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -573,7 +573,7 @@ static int samsung_gpiolib_4bit2_input(struct gpio_chip *chip,
 	con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, regcon);
 
-	pr_debug("%s: %p: CON %08lx\n", __func__, base, con);
+	pr_de("%s: %p: CON %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -608,7 +608,7 @@ static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
 	__raw_writel(con, regcon);
 	__raw_writel(dat, base + GPIODAT_OFF);
 
-	pr_debug("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+	pr_de("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -704,7 +704,7 @@ static __init void s3c_gpiolib_track(struct samsung_gpio_chip *chip)
 
 	gpn = chip->chip.base;
 	for (i = 0; i < chip->chip.ngpio; i++, gpn++) {
-		BUG_ON(gpn >= ARRAY_SIZE(s3c_gpios));
+		_ON(gpn >= ARRAY_SIZE(s3c_gpios));
 		s3c_gpios[gpn] = chip;
 	}
 }
@@ -725,9 +725,9 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 	struct gpio_chip *gc = &chip->chip;
 	int ret;
 
-	BUG_ON(!chip->base);
-	BUG_ON(!gc->label);
-	BUG_ON(!gc->ngpio);
+	_ON(!chip->base);
+	_ON(!gc->label);
+	_ON(!gc->ngpio);
 
 	spin_lock_init(&chip->lock);
 

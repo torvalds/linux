@@ -31,7 +31,7 @@
 #include "proto.h"
 
 
-#define DEBUG_SIG 0
+#define DE_SIG 0
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -362,7 +362,7 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	regs->r18 = (unsigned long) &frame->sc;	/* a2: sigcontext pointer */
 	wrusp((unsigned long) frame);
 	
-#if DEBUG_SIG
+#if DE_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
 		current->comm, current->pid, frame, regs->pc, regs->r26);
 #endif
@@ -416,7 +416,7 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 	regs->r18 = (unsigned long) &frame->uc;	  /* a2: ucontext pointer */
 	wrusp((unsigned long) frame);
 
-#if DEBUG_SIG
+#if DE_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
 		current->comm, current->pid, frame, regs->pc, regs->r26);
 #endif
@@ -485,7 +485,7 @@ do_signal(struct pt_regs *regs, unsigned long r0, unsigned long r19)
 	unsigned long single_stepping = ptrace_cancel_bpt(current);
 	struct ksignal ksig;
 
-	/* This lets the debugger run, ... */
+	/* This lets the deger run, ... */
 	if (get_signal(&ksig)) {
 		/* ... so re-check the single stepping. */
 		single_stepping |= ptrace_cancel_bpt(current);

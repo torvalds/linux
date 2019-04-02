@@ -51,7 +51,7 @@ Transfer Types
 
 At this writing the driver should comfortably handle all control, bulk,
 and interrupt transfers, including requests to USB 1.1 devices through
-transaction translators (TTs) in USB 2.0 hubs.  But you may find bugs.
+transaction translators (TTs) in USB 2.0 hubs.  But you may find s.
 
 High Speed Isochronous (ISO) transfer support is also functional, but
 at this writing no Linux drivers have been using that support.
@@ -109,7 +109,7 @@ Module parameters (pass to "modprobe") include:
 	the EHCI controller can issue interrupts.
 
 If you're using this driver on a 2.5 kernel, and you've enabled USB
-debugging support, you'll see three files in the "sysfs" directory for
+deging support, you'll see three files in the "sysfs" directory for
 any EHCI controller:
 
 	"async" dumps the asynchronous schedule, used for control

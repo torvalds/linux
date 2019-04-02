@@ -120,7 +120,7 @@ static vm_fault_t __ocfs2_page_mkwrite(struct file *file,
 		goto out;
 	}
 	err = ocfs2_write_end_nolock(mapping, pos, len, len, fsdata);
-	BUG_ON(err != len);
+	_ON(err != len);
 	ret = VM_FAULT_LOCKED;
 out:
 	return ret;

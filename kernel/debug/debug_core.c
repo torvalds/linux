@@ -1,5 +1,5 @@
 /*
- * Kernel Debug Core
+ * Kernel De Core
  *
  * Maintainer: Jason Wessel <jason.wessel@windriver.com>
  *
@@ -61,11 +61,11 @@
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
 
-#include "debug_core.h"
+#include "de_core.h"
 
 static int kgdb_break_asap;
 
-struct debuggerinfo_struct kgdb_info[NR_CPUS];
+struct degerinfo_struct kgdb_info[NR_CPUS];
 
 /**
  * kgdb_connected - Is a host GDB connected to us?
@@ -88,9 +88,9 @@ static int kgdbreboot;
 static int kgdb_con_registered;
 /* determine if kgdb console output should be used */
 static int kgdb_use_con;
-/* Flag for alternate operations for early debugging */
+/* Flag for alternate operations for early deging */
 bool dbg_is_early = true;
-/* Next cpu to become the master debug core */
+/* Next cpu to become the master de core */
 int dbg_switch_cpu;
 
 /* Use kdb or gdbserver mode */
@@ -124,7 +124,7 @@ static DEFINE_RAW_SPINLOCK(dbg_master_lock);
 static DEFINE_RAW_SPINLOCK(dbg_slave_lock);
 
 /*
- * We use NR_CPUs not PERCPU, in case kgdb is used to debug early
+ * We use NR_CPUs not PERCPU, in case kgdb is used to de early
  * bootup code (which might not have percpu set up yet):
  */
 static atomic_t			masters_in_kgdb;
@@ -142,10 +142,10 @@ static pid_t			kgdb_sstep_pid;
 atomic_t			kgdb_cpu_doing_single_step = ATOMIC_INIT(-1);
 
 /*
- * If you are debugging a problem where roundup (the collection of
+ * If you are deging a problem where roundup (the collection of
  * all other CPUs) is a problem [this should be extremely rare],
  * then use the nokgdbroundup option to avoid roundup. In that case
- * the other CPUs might interfere with your debugging context, so
+ * the other CPUs might interfere with your deging context, so
  * use this with care:
  */
 static int kgdb_do_roundup = 1;
@@ -443,12 +443,12 @@ setundefined:
 
 /*
  * Return true if there is a valid kgdb I/O module.  Also if no
- * debugger is attached a message can be printed to the console about
- * waiting for the debugger to attach.
+ * deger is attached a message can be printed to the console about
+ * waiting for the deger to attach.
  *
  * The print_wait argument is only to be true when called from inside
  * the core kgdb_handle_exception, because it will wait for the
- * debugger to attach.
+ * deger to attach.
  */
 static int kgdb_io_ready(int print_wait)
 {
@@ -463,7 +463,7 @@ static int kgdb_io_ready(int print_wait)
 		if (!dbg_kdb_mode)
 			pr_crit("waiting... or $3#33 for KDB\n");
 #else
-		pr_crit("Waiting for remote debugger\n");
+		pr_crit("Waiting for remote deger\n");
 #endif
 	}
 	return 1;
@@ -476,7 +476,7 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	if (atomic_read(&kgdb_active) != raw_smp_processor_id())
 		return 0;
 
-	/* Panic on recursive debugger calls: */
+	/* Panic on recursive deger calls: */
 	exception_level++;
 	addr = kgdb_arch_pc(ks->ex_vector, ks->linux_regs);
 	dbg_deactivate_sw_breakpoints();
@@ -501,16 +501,16 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 
 	if (exception_level > 1) {
 		dump_stack();
-		panic("Recursive entry to debugger");
+		panic("Recursive entry to deger");
 	}
 
 	pr_crit("re-enter exception: ALL breakpoints killed\n");
 #ifdef CONFIG_KGDB_KDB
-	/* Allow kdb to debug itself one level */
+	/* Allow kdb to de itself one level */
 	return 0;
 #endif
 	dump_stack();
-	panic("Recursive entry to debugger");
+	panic("Recursive entry to deger");
 
 	return 1;
 }
@@ -552,7 +552,7 @@ acquirelock:
 	local_irq_save(flags);
 
 	cpu = ks->cpu;
-	kgdb_info[cpu].debuggerinfo = regs;
+	kgdb_info[cpu].degerinfo = regs;
 	kgdb_info[cpu].task = current;
 	kgdb_info[cpu].ret_state = 0;
 	kgdb_info[cpu].irq_depth = hardirq_count() >> HARDIRQ_SHIFT;
@@ -592,7 +592,7 @@ return_normal:
 				arch_kgdb_ops.correct_hw_break();
 			if (trace_on)
 				tracing_on();
-			kgdb_info[cpu].debuggerinfo = NULL;
+			kgdb_info[cpu].degerinfo = NULL;
 			kgdb_info[cpu].task = NULL;
 			kgdb_info[cpu].exception_state &=
 				~(DCPU_WANT_MASTER | DCPU_IS_SLAVE);
@@ -640,7 +640,7 @@ return_normal:
 
 	/*
 	 * Get the passive CPU lock which will hold all the non-primary
-	 * CPU in a spin state while the debugger is active
+	 * CPU in a spin state while the deger is active
 	 */
 	if (!kgdb_single_step)
 		raw_spin_lock(&dbg_slave_lock);
@@ -668,7 +668,7 @@ return_normal:
 
 	/*
 	 * At this point the primary processor is completely
-	 * in the debugger and all secondary CPUs are quiescent
+	 * in the deger and all secondary CPUs are quiescent
 	 */
 	dbg_deactivate_sw_breakpoints();
 	kgdb_single_step = 0;
@@ -708,7 +708,7 @@ cpu_master_loop:
 
 	if (!kgdb_single_step) {
 		raw_spin_unlock(&dbg_slave_lock);
-		/* Wait till all the CPUs have quit from the debugger. */
+		/* Wait till all the CPUs have quit from the deger. */
 		while (kgdb_do_roundup && atomic_read(&slaves_in_kgdb))
 			cpu_relax();
 	}
@@ -726,7 +726,7 @@ kgdb_restore:
 	if (trace_on)
 		tracing_on();
 
-	kgdb_info[cpu].debuggerinfo = NULL;
+	kgdb_info[cpu].degerinfo = NULL;
 	kgdb_info[cpu].task = NULL;
 	kgdb_info[cpu].exception_state &=
 		~(DCPU_WANT_MASTER | DCPU_IS_SLAVE);
@@ -759,7 +759,7 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 	if (arch_kgdb_ops.enable_nmi)
 		arch_kgdb_ops.enable_nmi(0);
 	/*
-	 * Avoid entering the debugger if we were triggered due to an oops
+	 * Avoid entering the deger if we were triggered due to an oops
 	 * but panic_timeout indicates the system should automatically
 	 * reboot on panic. We don't want to get stuck waiting for input
 	 * on such systems, especially if its "just" an oops.
@@ -853,7 +853,7 @@ static void kgdb_console_write(struct console *co, const char *s,
 {
 	unsigned long flags;
 
-	/* If we're debugging, or KGDB has not connected, don't try
+	/* If we're deging, or KGDB has not connected, don't try
 	 * and print. */
 	if (!kgdb_connected || atomic_read(&kgdb_active) != -1 || dbg_kdb_mode)
 		return;
@@ -891,8 +891,8 @@ static void sysrq_handle_dbg(int key)
 
 static struct sysrq_key_op sysrq_dbg_op = {
 	.handler	= sysrq_handle_dbg,
-	.help_msg	= "debug(g)",
-	.action_msg	= "DEBUG",
+	.help_msg	= "de(g)",
+	.action_msg	= "DE",
 };
 #endif
 
@@ -901,7 +901,7 @@ static int kgdb_panic_event(struct notifier_block *self,
 			    void *data)
 {
 	/*
-	 * Avoid entering the debugger if we were triggered due to a panic
+	 * Avoid entering the deger if we were triggered due to a panic
 	 * We don't want to get stuck waiting for input from user in such case.
 	 * panic_timeout indicates the system should automatically
 	 * reboot on panic.
@@ -937,8 +937,8 @@ dbg_notify_reboot(struct notifier_block *this, unsigned long code, void *x)
 {
 	/*
 	 * Take the following action on reboot notify depending on value:
-	 *    1 == Enter debugger
-	 *    0 == [the default] detatch debug client
+	 *    1 == Enter deger
+	 *    0 == [the default] detatch de client
 	 *   -1 == Do nothing... and use this until the board resets
 	 */
 	switch (kgdbreboot) {
@@ -1088,7 +1088,7 @@ EXPORT_SYMBOL_GPL(kgdb_register_io_module);
  */
 void kgdb_unregister_io_module(struct kgdb_io *old_dbg_io_ops)
 {
-	BUG_ON(kgdb_connected);
+	_ON(kgdb_connected);
 
 	/*
 	 * KGDB is no longer able to communicate out, so
@@ -1103,7 +1103,7 @@ void kgdb_unregister_io_module(struct kgdb_io *old_dbg_io_ops)
 
 	spin_unlock(&kgdb_registration_lock);
 
-	pr_info("Unregistered I/O driver %s, debugger disabled\n",
+	pr_info("Unregistered I/O driver %s, deger disabled\n",
 		old_dbg_io_ops->name);
 }
 EXPORT_SYMBOL_GPL(kgdb_unregister_io_module);
@@ -1124,9 +1124,9 @@ int dbg_io_get_char(void)
  * kgdb_breakpoint - generate breakpoint exception
  *
  * This function will generate a breakpoint exception.  It is used at the
- * beginning of a program to sync up with a debugger and can be used
+ * beginning of a program to sync up with a deger and can be used
  * otherwise as a quick means to stop program execution and "break" into
- * the debugger.
+ * the deger.
  */
 noinline void kgdb_breakpoint(void)
 {

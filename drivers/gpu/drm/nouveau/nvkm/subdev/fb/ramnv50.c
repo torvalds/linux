@@ -139,11 +139,11 @@ nv50_ram_timing_calc(struct nv50_ram *ram, u32 *timing)
 		timing[8] |= (T(CL) - 2);
 	}
 
-	nvkm_debug(subdev, " 220: %08x %08x %08x %08x\n",
+	nvkm_de(subdev, " 220: %08x %08x %08x %08x\n",
 		   timing[0], timing[1], timing[2], timing[3]);
-	nvkm_debug(subdev, " 230: %08x %08x %08x %08x\n",
+	nvkm_de(subdev, " 230: %08x %08x %08x %08x\n",
 		   timing[4], timing[5], timing[6], timing[7]);
-	nvkm_debug(subdev, " 240: %08x\n", timing[8]);
+	nvkm_de(subdev, " 240: %08x\n", timing[8]);
 	return 0;
 }
 
@@ -512,7 +512,7 @@ nv50_fb_vram_rblock(struct nvkm_ram *ram)
 	r0 = nvkm_rd32(device, 0x100200);
 	r4 = nvkm_rd32(device, 0x100204);
 	rt = nvkm_rd32(device, 0x100250);
-	nvkm_debug(subdev, "memcfg %08x %08x %08x %08x\n",
+	nvkm_de(subdev, "memcfg %08x %08x %08x %08x\n",
 		   r0, r4, rt, nvkm_rd32(device, 0x001540));
 
 	colbits  =  (r4 & 0x0000f000) >> 12;
@@ -534,7 +534,7 @@ nv50_fb_vram_rblock(struct nvkm_ram *ram)
 	if (rt & 1)
 		rblock_size *= 3;
 
-	nvkm_debug(subdev, "rblock %d bytes\n", rblock_size);
+	nvkm_de(subdev, "rblock %d bytes\n", rblock_size);
 	return rblock_size;
 }
 

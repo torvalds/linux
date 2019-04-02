@@ -34,7 +34,7 @@
 /* Bank AB8500_DEVELOPMENT */
 #define AB8500_BANK12_ACCESS 0x00
 
-/* Bank AB8500_DEBUG */
+/* Bank AB8500_DE */
 #define AB8500_USB_PHY_TUNE1 0x05
 #define AB8500_USB_PHY_TUNE2 0x06
 #define AB8500_USB_PHY_TUNE3 0x07
@@ -238,7 +238,7 @@ static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
 
 static void ab8500_usb_wd_linkstatus(struct ab8500_usb *ab, u8 bit)
 {
-	/* Workaround for v2.0 bug # 31952 */
+	/* Workaround for v2.0  # 31952 */
 	if (is_ab8500_2p0(ab->ab8500)) {
 		abx500_mask_and_set_register_interruptible(ab->dev,
 				AB8500_USB, AB8500_USB_PHY_CTRL_REG,
@@ -773,19 +773,19 @@ static void ab8500_usb_set_ab8500_tuning_values(struct ab8500_usb *ab)
 				err);
 
 	err = abx500_set_register_interruptible(ab->dev,
-			AB8500_DEBUG, AB8500_USB_PHY_TUNE1, 0xC8);
+			AB8500_DE, AB8500_USB_PHY_TUNE1, 0xC8);
 	if (err < 0)
 		dev_err(ab->dev, "Failed to set PHY_TUNE1 register err=%d\n",
 				err);
 
 	err = abx500_set_register_interruptible(ab->dev,
-			AB8500_DEBUG, AB8500_USB_PHY_TUNE2, 0x00);
+			AB8500_DE, AB8500_USB_PHY_TUNE2, 0x00);
 	if (err < 0)
 		dev_err(ab->dev, "Failed to set PHY_TUNE2 register err=%d\n",
 				err);
 
 	err = abx500_set_register_interruptible(ab->dev,
-			AB8500_DEBUG, AB8500_USB_PHY_TUNE3, 0x78);
+			AB8500_DE, AB8500_USB_PHY_TUNE3, 0x78);
 	if (err < 0)
 		dev_err(ab->dev, "Failed to set PHY_TUNE3 register err=%d\n",
 				err);
@@ -811,21 +811,21 @@ static void ab8500_usb_set_ab8505_tuning_values(struct ab8500_usb *ab)
 				err);
 
 	err = abx500_mask_and_set_register_interruptible(ab->dev,
-			AB8500_DEBUG, AB8500_USB_PHY_TUNE1,
+			AB8500_DE, AB8500_USB_PHY_TUNE1,
 			0xC8, 0xC8);
 	if (err < 0)
 		dev_err(ab->dev, "Failed to set PHY_TUNE1 register err=%d\n",
 				err);
 
 	err = abx500_mask_and_set_register_interruptible(ab->dev,
-			AB8500_DEBUG, AB8500_USB_PHY_TUNE2,
+			AB8500_DE, AB8500_USB_PHY_TUNE2,
 			0x60, 0x60);
 	if (err < 0)
 		dev_err(ab->dev, "Failed to set PHY_TUNE2 register err=%d\n",
 				err);
 
 	err = abx500_mask_and_set_register_interruptible(ab->dev,
-			AB8500_DEBUG, AB8500_USB_PHY_TUNE3,
+			AB8500_DE, AB8500_USB_PHY_TUNE3,
 			0xFC, 0x80);
 
 	if (err < 0)

@@ -472,7 +472,7 @@ static inline struct scatterlist *blk_next_sg(struct scatterlist **sg,
 	 * If the driver previously mapped a shorter list, we could see a
 	 * termination bit prematurely unless it fully inits the sg table
 	 * on each mapping. We KNOW that there must be more entries here
-	 * or the driver would be buggy, so force clear the termination bit
+	 * or the driver would be gy, so force clear the termination bit
 	 * to avoid doing a full sg_init_table() in drivers for each command.
 	 */
 	sg_unmark_end(*sg);

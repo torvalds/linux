@@ -60,8 +60,8 @@ static void carl9170_dbg_message(struct ar9170 *ar, const char *buf, u32 len)
 			}
 		}
 
-		if (memcmp(buf, CARL9170_BUG_MAGIC, 3) == 0) {
-			ar->fw.bug_counter++;
+		if (memcmp(buf, CARL9170__MAGIC, 3) == 0) {
+			ar->fw._counter++;
 			restart = true;
 			reason = CARL9170_RR_FATAL_FIRMWARE_ERROR;
 		}
@@ -240,7 +240,7 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 		break;
 
 	case CARL9170_RSP_TEXT:
-		/* firmware debug */
+		/* firmware de */
 		carl9170_dbg_message(ar, (char *)buf + 4, len - 4);
 		break;
 
@@ -293,8 +293,8 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 	struct ieee80211_channel *chan;
 	u8 error, decrypt;
 
-	BUILD_BUG_ON(sizeof(struct ar9170_rx_head) != 12);
-	BUILD_BUG_ON(sizeof(struct ar9170_rx_macstatus) != 4);
+	BUILD__ON(sizeof(struct ar9170_rx_head) != 12);
+	BUILD__ON(sizeof(struct ar9170_rx_macstatus) != 4);
 
 	error = mac->error;
 
@@ -432,7 +432,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 		break;
 
 	default:
-		BUG();
+		();
 		return -ENOSYS;
 	}
 
@@ -444,7 +444,7 @@ static void carl9170_rx_phy_status(struct ar9170 *ar,
 {
 	int i;
 
-	BUILD_BUG_ON(sizeof(struct ar9170_rx_phystatus) != 20);
+	BUILD__ON(sizeof(struct ar9170_rx_phystatus) != 20);
 
 	for (i = 0; i < 3; i++)
 		if (phy->rssi[i] != 0x80)
@@ -795,7 +795,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 		break;
 
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 

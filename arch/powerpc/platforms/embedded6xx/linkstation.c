@@ -83,7 +83,7 @@ static void __init linkstation_init_IRQ(void)
 	struct mpic *mpic;
 
 	mpic = mpic_alloc(NULL, 0, 0, 4, 0, " EPIC     ");
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	/* PCI IRQs */
 	mpic_assign_isu(mpic, 0, mpic->paddr + 0x10200);

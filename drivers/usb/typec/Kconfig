@@ -9,7 +9,7 @@ menuconfig TYPEC
 	  Determination of the host-to-device relationship happens through a
 	  specific Configuration Channel (CC) which goes through the USB Type-C
 	  cable. The Configuration Channel may also be used to detect optional
-	  Accessory Modes - Analog Audio and Debug - and if USB Power Delivery
+	  Accessory Modes - Analog Audio and De - and if USB Power Delivery
 	  is supported, the Alternate Modes, where the connector is used for
 	  something else then USB communication.
 

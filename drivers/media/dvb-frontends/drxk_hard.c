@@ -158,13 +158,13 @@ static bool is_qam(struct drxk_state *state)
 #define DRXK_QAM_SL_SIG_POWER_QAM128      (20992)
 #define DRXK_QAM_SL_SIG_POWER_QAM256      (43520)
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
 #define dprintk(level, fmt, arg...) do {				\
-if (debug >= level)							\
-	printk(KERN_DEBUG KBUILD_MODNAME ": %s " fmt, __func__, ##arg);	\
+if (de >= level)							\
+	printk(KERN_DE KBUILD_MODNAME ": %s " fmt, __func__, ##arg);	\
 } while (0)
 
 
@@ -253,7 +253,7 @@ static int i2c_write(struct drxk_state *state, u8 adr, u8 *data, int len)
 	    .addr = adr, .flags = 0, .buf = data, .len = len };
 
 	dprintk(3, ":");
-	if (debug > 2) {
+	if (de > 2) {
 		int i;
 		for (i = 0; i < len; i++)
 			pr_cont(" %02x", data[i]);
@@ -282,7 +282,7 @@ static int i2c_read(struct drxk_state *state,
 
 	status = drxk_i2c_transfer(state, msgs, 2);
 	if (status != 2) {
-		if (debug > 2)
+		if (de > 2)
 			pr_cont(": ERROR!\n");
 		if (status >= 0)
 			status = -EIO;
@@ -290,7 +290,7 @@ static int i2c_read(struct drxk_state *state,
 		pr_err("i2c read error at addr 0x%02x\n", adr);
 		return status;
 	}
-	if (debug > 2) {
+	if (de > 2) {
 		int i;
 		dprintk(2, ": read from");
 		for (i = 0; i < len; i++)
@@ -464,7 +464,7 @@ static int write_block(struct drxk_state *state, u32 address,
 		}
 		memcpy(&state->chunk[adr_length], p_block, chunk);
 		dprintk(2, "(0x%08x, 0x%02x)\n", address, flags);
-		if (debug > 1) {
+		if (de > 1) {
 			int i;
 			if (p_block)
 				for (i = 0; i < chunk; i++)
@@ -1906,7 +1906,7 @@ static int get_lock_status(struct drxk_state *state, u32 *p_lock_status)
 		status = get_dvbt_lock_status(state, p_lock_status);
 		break;
 	default:
-		pr_debug("Unsupported operation mode %d in %s\n",
+		pr_de("Unsupported operation mode %d in %s\n",
 			state->m_operation_mode, __func__);
 		return 0;
 	}
@@ -6213,8 +6213,8 @@ static int init_drxk(struct drxk_state *state)
 
 		/* m_dvbt_rf_agc_cfg.speed = 3; */
 
-		/* Reset driver debug flags to 0 */
-		status = write16(state, SCU_RAM_DRIVER_DEBUG__A, 0);
+		/* Reset driver de flags to 0 */
+		status = write16(state, SCU_RAM_DRIVER_DE__A, 0);
 		if (status < 0)
 			goto error;
 		/* driver 0.9.0 */
@@ -6409,7 +6409,7 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
-	/* printk(KERN_DEBUG "drxk: %s IF=%d done\n", __func__, IF); */
+	/* printk(KERN_DE "drxk: %s IF=%d done\n", __func__, IF); */
 
 	return 0;
 }

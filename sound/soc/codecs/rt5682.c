@@ -862,7 +862,7 @@ static int rt5682_button_detect(struct snd_soc_component *component)
 	val = snd_soc_component_read32(component, RT5682_4BTN_IL_CMD_1);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5682_4BTN_IL_CMD_1, val);
-	pr_debug("%s btn_type=%x\n", __func__, btn_type);
+	pr_de("%s btn_type=%x\n", __func__, btn_type);
 	snd_soc_component_update_bits(component,
 		RT5682_SAR_IL_CMD_2, 0x10, 0x10);
 

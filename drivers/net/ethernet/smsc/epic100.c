@@ -32,7 +32,7 @@
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
 
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int de = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
 
 /* Used to pass the full-duplex flag, etc. */
 #define MAX_UNITS 8		/* More are supported, limit only on options */
@@ -99,11 +99,11 @@ MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
 MODULE_DESCRIPTION("SMC 83c170 EPIC series Ethernet driver");
 MODULE_LICENSE("GPL");
 
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
-MODULE_PARM_DESC(debug, "EPIC/100 debug level (0-5)");
+MODULE_PARM_DESC(de, "EPIC/100 de level (0-5)");
 MODULE_PARM_DESC(options, "EPIC/100: Bits 0-3: media type, bit 4: full duplex");
 MODULE_PARM_DESC(rx_copybreak, "EPIC/100 copy breakpoint for copy-only-tiny-frames");
 MODULE_PARM_DESC(full_duplex, "EPIC/100 full duplex setting(s) (1)");
@@ -415,7 +415,7 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < 3; i++)
 		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(er16(LAN0 + i*4));
 
-	if (debug > 2) {
+	if (de > 2) {
 		dev_dbg(&pdev->dev, "EEPROM contents:\n");
 		for (i = 0; i < 64; i++)
 			pr_cont(" %4.4x%s", read_eeprom(ep, i),
@@ -609,7 +609,7 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 	for (i = 400; i > 0; i--) {
 		barrier();
 		if ((er32(MIICtrl) & MII_READOP) == 0) {
-			/* Work around read failure bug. */
+			/* Work around read failure . */
 			if (phy_id == 1 && location < 6 &&
 			    er16(MIIData) == 0xffff) {
 				ew32(MIICtrl, read_cmd);
@@ -683,7 +683,7 @@ static int epic_open(struct net_device *dev)
 	ew32(GENCTL, 0x0412 | (RX_FIFO_THRESH << 8));
 #endif
 
-	udelay(20); /* Looks like EPII needs that if you want reliable RX init. FIXME: pci posting bug? */
+	udelay(20); /* Looks like EPII needs that if you want reliable RX init. FIXME: pci posting ? */
 
 	for (i = 0; i < 3; i++)
 		ew32(LAN0 + i*4, le16_to_cpu(((__le16*)dev->dev_addr)[i]));
@@ -695,7 +695,7 @@ static int epic_open(struct net_device *dev)
 		if (ep->mii_phy_cnt)
 			mdio_write(dev, ep->phys[0], MII_BMCR, media2miictl[dev->if_port&15]);
 		if (dev->if_port == 1) {
-			if (debug > 1)
+			if (de > 1)
 				netdev_info(dev, "Using the 10base2 transceiver, MII status %4.4x.\n",
 					    mdio_read(dev, ep->phys[0], MII_BMSR));
 		}
@@ -706,7 +706,7 @@ static int epic_open(struct net_device *dev)
 				ep->mii.full_duplex = 1;
 			else if (! (mii_lpa & LPA_LPACK))
 				mdio_write(dev, ep->phys[0], MII_BMCR, BMCR_ANENABLE|BMCR_ANRESTART);
-			if (debug > 1)
+			if (de > 1)
 				netdev_info(dev, "Setting %s-duplex based on MII xcvr %d register read of %4.4x.\n",
 					    ep->mii.full_duplex ? "full"
 								: "half",
@@ -729,7 +729,7 @@ static int epic_open(struct net_device *dev)
 	     ((ep->chip_flags & TYPE2_INTR) ? PCIBusErr175 : PCIBusErr170) |
 	     TxUnderrun);
 
-	if (debug > 1) {
+	if (de > 1) {
 		netdev_dbg(dev, "epic_open() ioaddr %p IRQ %d status %4.4x %s-duplex.\n",
 			   ioaddr, irq, er32(GENCTL),
 			   ep->mii.full_duplex ? "full" : "half");
@@ -848,7 +848,7 @@ static void epic_timer(struct timer_list *t)
 	void __iomem *ioaddr = ep->ioaddr;
 	int next_tick = 5*HZ;
 
-	if (debug > 3) {
+	if (de > 3) {
 		netdev_dbg(dev, "Media monitor tick, Tx status %8.8x.\n",
 			   er32(TxSTAT));
 		netdev_dbg(dev, "Other registers are IntMask %4.4x IntStatus %4.4x RxStatus %4.4x.\n",
@@ -866,10 +866,10 @@ static void epic_tx_timeout(struct net_device *dev)
 	struct epic_private *ep = netdev_priv(dev);
 	void __iomem *ioaddr = ep->ioaddr;
 
-	if (debug > 0) {
+	if (de > 0) {
 		netdev_warn(dev, "Transmit timeout using MII device, Tx status %4.4x.\n",
 			    er16(TxSTAT));
-		if (debug > 1) {
+		if (de > 1) {
 			netdev_dbg(dev, "Tx indices: dirty_tx %d, cur_tx %d.\n",
 				   ep->dirty_tx, ep->cur_tx);
 		}
@@ -980,7 +980,7 @@ static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Trigger an immediate transmit demand. */
 	ew32(COMMAND, TxQueued);
 
-	if (debug > 4)
+	if (de > 4)
 		netdev_dbg(dev, "Queued Tx packet size %d to slot %d, flag %2.2x Tx status %8.8x.\n",
 			   skb->len, entry, ctrl_word, er32(TxSTAT));
 
@@ -994,7 +994,7 @@ static void epic_tx_error(struct net_device *dev, struct epic_private *ep,
 
 #ifndef final_version
 	/* There was an major error, log it. */
-	if (debug > 1)
+	if (de > 1)
 		netdev_dbg(dev, "Transmit error, Tx status %8.8x.\n",
 			   status);
 #endif
@@ -1070,7 +1070,7 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 	/* Acknowledge all of the current interrupt sources ASAP. */
 	ew32(INTSTAT, status & EpicNormalEvent);
 
-	if (debug > 4) {
+	if (de > 4) {
 		netdev_dbg(dev, "Interrupt, status=%#8.8x new intstat=%#8.8x.\n",
 			   status, er32(INTSTAT));
 	}
@@ -1119,7 +1119,7 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 	}
 
 out:
-	if (debug > 3) {
+	if (de > 3) {
 		netdev_dbg(dev, "exit interrupt, intr_status=%#4.4x.\n",
 			   status);
 	}
@@ -1134,7 +1134,7 @@ static int epic_rx(struct net_device *dev, int budget)
 	int rx_work_limit = ep->dirty_rx + RX_RING_SIZE - ep->cur_rx;
 	int work_done = 0;
 
-	if (debug > 4)
+	if (de > 4)
 		netdev_dbg(dev, " In epic_rx(), entry %d %8.8x.\n", entry,
 			   ep->rx_ring[entry].rxstatus);
 
@@ -1145,13 +1145,13 @@ static int epic_rx(struct net_device *dev, int budget)
 	while ((ep->rx_ring[entry].rxstatus & DescOwn) == 0) {
 		int status = ep->rx_ring[entry].rxstatus;
 
-		if (debug > 4)
+		if (de > 4)
 			netdev_dbg(dev, "  epic_rx() status was %8.8x.\n",
 				   status);
 		if (--rx_work_limit < 0)
 			break;
 		if (status & 0x2006) {
-			if (debug > 2)
+			if (de > 2)
 				netdev_dbg(dev, "epic_rx() error status was %8.8x.\n",
 					   status);
 			if (status & 0x2000) {
@@ -1274,7 +1274,7 @@ static int epic_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&ep->napi);
 
-	if (debug > 1)
+	if (de > 1)
 		netdev_dbg(dev, "Shutting down ethercard, status was %2.2x.\n",
 			   er32(INTSTAT));
 
@@ -1348,7 +1348,7 @@ static void set_rx_mode(struct net_device *dev)
 		/* Unconditionally log net taps. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 	} else if ((!netdev_mc_empty(dev)) || (dev->flags & IFF_ALLMULTI)) {
-		/* There is apparently a chip bug, so the multicast filter
+		/* There is apparently a chip , so the multicast filter
 		   is never enabled. */
 		/* Too many to filter perfectly -- accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
@@ -1422,12 +1422,12 @@ static u32 netdev_get_link(struct net_device *dev)
 
 static u32 netdev_get_msglevel(struct net_device *dev)
 {
-	return debug;
+	return de;
 }
 
 static void netdev_set_msglevel(struct net_device *dev, u32 value)
 {
-	debug = value;
+	de = value;
 }
 
 static int ethtool_begin(struct net_device *dev)

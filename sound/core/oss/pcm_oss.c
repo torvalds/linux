@@ -20,10 +20,10 @@
  */
 
 #if 0
-#define PLUGIN_DEBUG
+#define PLUGIN_DE
 #endif
 #if 0
-#define OSS_DEBUG
+#define OSS_DE
 #endif
 
 #include <linux/init.h>
@@ -1225,7 +1225,7 @@ snd_pcm_sframes_t snd_pcm_oss_write3(struct snd_pcm_substream *substream, const 
 	while (1) {
 		if (runtime->status->state == SNDRV_PCM_STATE_XRUN ||
 		    runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 			pcm_dbg(substream->pcm,
 				"pcm_oss: write: recovering from %s\n",
 				runtime->status->state == SNDRV_PCM_STATE_XRUN ?
@@ -1255,7 +1255,7 @@ snd_pcm_sframes_t snd_pcm_oss_read3(struct snd_pcm_substream *substream, char *p
 	while (1) {
 		if (runtime->status->state == SNDRV_PCM_STATE_XRUN ||
 		    runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 			pcm_dbg(substream->pcm,
 				"pcm_oss: read: recovering from %s\n",
 				runtime->status->state == SNDRV_PCM_STATE_XRUN ?
@@ -1296,7 +1296,7 @@ snd_pcm_sframes_t snd_pcm_oss_writev3(struct snd_pcm_substream *substream, void 
 	while (1) {
 		if (runtime->status->state == SNDRV_PCM_STATE_XRUN ||
 		    runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 			pcm_dbg(substream->pcm,
 				"pcm_oss: writev: recovering from %s\n",
 				runtime->status->state == SNDRV_PCM_STATE_XRUN ?
@@ -1325,7 +1325,7 @@ snd_pcm_sframes_t snd_pcm_oss_readv3(struct snd_pcm_substream *substream, void *
 	while (1) {
 		if (runtime->status->state == SNDRV_PCM_STATE_XRUN ||
 		    runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 			pcm_dbg(substream->pcm,
 				"pcm_oss: readv: recovering from %s\n",
 				runtime->status->state == SNDRV_PCM_STATE_XRUN ?
@@ -1601,7 +1601,7 @@ static int snd_pcm_oss_sync1(struct snd_pcm_substream *substream, size_t size)
 	runtime = substream->runtime;
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&runtime->sleep, &wait);
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 	pcm_dbg(substream->pcm, "sync1: size = %li\n", size);
 #endif
 	while (1) {
@@ -1663,7 +1663,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 		format = snd_pcm_oss_format_from(runtime->oss.format);
 		width = snd_pcm_format_physical_width(format);
 		if (runtime->oss.buffer_used > 0) {
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 			pcm_dbg(substream->pcm, "sync: buffer_used\n");
 #endif
 			size = (8 * (runtime->oss.period_bytes - runtime->oss.buffer_used) + 7) / width;
@@ -1674,7 +1674,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 			if (err < 0)
 				goto unlock;
 		} else if (runtime->oss.period_ptr > 0) {
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 			pcm_dbg(substream->pcm, "sync: period_ptr\n");
 #endif
 			size = runtime->oss.period_bytes - runtime->oss.period_ptr;
@@ -2046,7 +2046,7 @@ static int snd_pcm_oss_set_trigger(struct snd_pcm_oss_file *pcm_oss_file, int tr
 	struct snd_pcm_substream *psubstream = NULL, *csubstream = NULL;
 	int err, cmd;
 
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 	pcm_dbg(substream->pcm, "pcm_oss: trigger = 0x%x\n", trigger);
 #endif
 	
@@ -2211,7 +2211,7 @@ static int snd_pcm_oss_get_ptr(struct snd_pcm_oss_file *pcm_oss_file, int stream
 	} else {
 		delay = snd_pcm_oss_bytes(substream, delay);
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			if (substream->oss.setup.buggyptr)
+			if (substream->oss.setup.gyptr)
 				info.blocks = (runtime->oss.buffer_bytes - delay - fixup) / runtime->oss.period_bytes;
 			else
 				info.blocks = (delay + fixup) / runtime->oss.period_bytes;
@@ -2278,7 +2278,7 @@ static int snd_pcm_oss_get_space(struct snd_pcm_oss_file *pcm_oss_file, int stre
 		info.fragments = info.bytes / runtime->oss.period_bytes;
 	}
 
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 	pcm_dbg(substream->pcm,
 		"pcm_oss: space: bytes = %i, fragments = %i, fragstotal = %i, fragsize = %i\n",
 		info.bytes, info.fragments, info.fragstotal, info.fragsize);
@@ -2291,7 +2291,7 @@ static int snd_pcm_oss_get_space(struct snd_pcm_oss_file *pcm_oss_file, int stre
 static int snd_pcm_oss_get_mapbuf(struct snd_pcm_oss_file *pcm_oss_file, int stream, struct buffmem_desc __user * _info)
 {
 	// it won't be probably implemented
-	// pr_debug("TODO: snd_pcm_oss_get_mapbuf\n");
+	// pr_de("TODO: snd_pcm_oss_get_mapbuf\n");
 	return -EINVAL;
 }
 
@@ -2447,7 +2447,7 @@ static int snd_task_name(struct task_struct *task, char *name, size_t size)
 {
 	unsigned int idx;
 
-	if (snd_BUG_ON(!task || !name || size < 2))
+	if (snd__ON(!task || !name || size < 2))
 		return -EINVAL;
 	for (idx = 0; idx < sizeof(task->comm) && idx + 1 < size; idx++)
 		name[idx] = task->comm[idx];
@@ -2553,7 +2553,7 @@ static int snd_pcm_oss_release(struct inode *inode, struct file *file)
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream == NULL)
 		substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
-	if (snd_BUG_ON(!substream))
+	if (snd__ON(!substream))
 		return -ENXIO;
 	pcm = substream->pcm;
 	if (!pcm->card->shutdown)
@@ -2587,15 +2587,15 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 			if (substream != NULL)
 				break;
 		}
-		if (snd_BUG_ON(idx >= 2))
+		if (snd__ON(idx >= 2))
 			return -ENXIO;
 		return snd_mixer_oss_ioctl_card(substream->pcm->card, cmd, arg);
 	}
 #endif
 	if (((cmd >> 8) & 0xff) != 'P')
 		return -EINVAL;
-#ifdef OSS_DEBUG
-	pr_debug("pcm_oss: ioctl = 0x%x\n", cmd);
+#ifdef OSS_DE
+	pr_de("pcm_oss: ioctl = 0x%x\n", cmd);
 #endif
 	switch (cmd) {
 	case SNDCTL_DSP_RESET:
@@ -2722,7 +2722,7 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 	case SNDCTL_DSP_PROFILE:
 		return 0;	/* silently ignore */
 	default:
-		pr_debug("pcm_oss: unknown command = 0x%x\n", cmd);
+		pr_de("pcm_oss: unknown command = 0x%x\n", cmd);
 	}
 	return -EINVAL;
 }
@@ -2748,7 +2748,7 @@ static ssize_t snd_pcm_oss_read(struct file *file, char __user *buf, size_t coun
 	if (substream == NULL)
 		return -ENXIO;
 	substream->f_flags = file->f_flags & O_NONBLOCK;
-#ifndef OSS_DEBUG
+#ifndef OSS_DE
 	return snd_pcm_oss_read1(substream, buf, count);
 #else
 	{
@@ -2773,7 +2773,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 		return -ENXIO;
 	substream->f_flags = file->f_flags & O_NONBLOCK;
 	result = snd_pcm_oss_write1(substream, buf, count);
-#ifdef OSS_DEBUG
+#ifdef OSS_DE
 	pcm_dbg(substream->pcm, "pcm_oss: write %li bytes (wrote %li bytes)\n",
 	       (long)count, (long)result);
 #endif
@@ -2852,8 +2852,8 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 	struct snd_pcm_runtime *runtime;
 	int err;
 
-#ifdef OSS_DEBUG
-	pr_debug("pcm_oss: mmap begin\n");
+#ifdef OSS_DE
+	pr_de("pcm_oss: mmap begin\n");
 #endif
 	pcm_oss_file = file->private_data;
 	switch ((area->vm_flags & (VM_READ | VM_WRITE))) {
@@ -2907,8 +2907,8 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 	runtime->oss.mmap_bytes = area->vm_end - area->vm_start;
 	runtime->silence_threshold = 0;
 	runtime->silence_size = 0;
-#ifdef OSS_DEBUG
-	pr_debug("pcm_oss: mmap ok, bytes = 0x%x\n",
+#ifdef OSS_DE
+	pr_de("pcm_oss: mmap ok, bytes = 0x%x\n",
 	       runtime->oss.mmap_bytes);
 #endif
 	/* In mmap mode we never stop */
@@ -3004,8 +3004,8 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 				template.partialfrag = 1;
 			} else if (!strcmp(str, "no-silence")) {
 				template.nosilence = 1;
-			} else if (!strcmp(str, "buggy-ptr")) {
-				template.buggyptr = 1;
+			} else if (!strcmp(str, "gy-ptr")) {
+				template.gyptr = 1;
 			}
 		} while (*str);
 		if (setup == NULL) {

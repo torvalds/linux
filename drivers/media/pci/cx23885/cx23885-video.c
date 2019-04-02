@@ -53,21 +53,21 @@ module_param_array(vbi_nr,   int, NULL, 0444);
 MODULE_PARM_DESC(video_nr, "video device numbers");
 MODULE_PARM_DESC(vbi_nr, "vbi device numbers");
 
-static unsigned int video_debug;
-module_param(video_debug, int, 0644);
-MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
+static unsigned int video_de;
+module_param(video_de, int, 0644);
+MODULE_PARM_DESC(video_de, "enable de messages [video]");
 
-static unsigned int irq_debug;
-module_param(irq_debug, int, 0644);
-MODULE_PARM_DESC(irq_debug, "enable debug messages [IRQ handler]");
+static unsigned int irq_de;
+module_param(irq_de, int, 0644);
+MODULE_PARM_DESC(irq_de, "enable de messages [IRQ handler]");
 
 static unsigned int vid_limit = 16;
 module_param(vid_limit, int, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 #define dprintk(level, fmt, arg...)\
-	do { if (video_debug >= level)\
-		printk(KERN_DEBUG pr_fmt("%s: video:" fmt), \
+	do { if (video_de >= level)\
+		printk(KERN_DE pr_fmt("%s: video:" fmt), \
 			__func__, ##arg); \
 	} while (0)
 
@@ -230,7 +230,7 @@ static int cx23885_flatiron_mux(struct cx23885_dev *dev, int input)
 	/* Wake up */
 	cx23885_flatiron_write(dev, CH_PWR_CTRL2, 0);
 
-	if (video_debug)
+	if (video_de)
 		cx23885_flatiron_dump(dev);
 
 	return 0;
@@ -419,7 +419,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 				dev->height >> 1);
 		break;
 	default:
-		BUG();
+		();
 	}
 	dprintk(2, "[%p/%d] buffer_init - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
 		buf, buf->vb.vb2_buf.index,
@@ -734,7 +734,7 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 		[CX23885_VMUX_TELEVISION] = "Television",
 		[CX23885_VMUX_CABLE]      = "Cable TV",
 		[CX23885_VMUX_DVB]        = "DVB",
-		[CX23885_VMUX_DEBUG]      = "for debug only",
+		[CX23885_VMUX_DE]      = "for de only",
 	};
 	unsigned int n;
 	dprintk(1, "%s()\n", __func__);
@@ -1151,7 +1151,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info   = cx23885_g_chip_info,
 	.vidioc_g_register    = cx23885_g_register,
 	.vidioc_s_register    = cx23885_s_register,

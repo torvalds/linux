@@ -68,9 +68,9 @@ struct device_process_node {
  * @uninitialize: Destroys all the device queue manager resources allocated in
  * initialize routine.
  *
- * @create_kernel_queue: Creates kernel queue. Used for debug queue.
+ * @create_kernel_queue: Creates kernel queue. Used for de queue.
  *
- * @destroy_kernel_queue: Destroys kernel queue. Used for debug queue.
+ * @destroy_kernel_queue: Destroys kernel queue. Used for de queue.
  *
  * @set_cache_memory_policy: Sets memory policy (cached/ non cached) for the
  * memory apertures.

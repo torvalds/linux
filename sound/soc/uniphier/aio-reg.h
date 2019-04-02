@@ -362,7 +362,7 @@
 #define   OPORTMXMASK_XCKMSK_MASK          GENMASK(2, 0)
 #define   OPORTMXMASK_XCKMSK_ON            (0x0 << 0)
 #define   OPORTMXMASK_XCKMSK_OFF           (0x7 << 0)
-#define OPORTMXDEBUG(n)                  (0x420fc + 0x400 * (n))
+#define OPORTMXDE(n)                  (0x420fc + 0x400 * (n))
 #define OPORTMXTYVOLPARA1(n, m)          (0x42100 + 0x400 * (n) + 0x20 * (m))
 #define   OPORTMXTYVOLPARA1_SLOPEU_MASK    GENMASK(31, 16)
 #define OPORTMXTYVOLPARA2(n, m)          (0x42104 + 0x400 * (n) + 0x20 * (m))

@@ -168,7 +168,7 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	/* kernel scheduling */
 	AMDGPU_DOORBELL64_KIQ                     = 0x00,
 
-	/* HSA interface queue and debug queue */
+	/* HSA interface queue and de queue */
 	AMDGPU_DOORBELL64_HIQ                     = 0x01,
 	AMDGPU_DOORBELL64_DIQ                     = 0x02,
 

@@ -20,7 +20,7 @@
 #include "symbol.h"
 #include "thread.h"
 #include <linux/kernel.h>
-#include "debug.h"
+#include "de.h"
 #include "session.h"
 #include "tool.h"
 #include "header.h"
@@ -246,14 +246,14 @@ static bool build_id_cache__valid_id(char *sbuild_id)
 }
 
 static const char *build_id_cache__basename(bool is_kallsyms, bool is_vdso,
-					    bool is_debug)
+					    bool is_de)
 {
-	return is_kallsyms ? "kallsyms" : (is_vdso ? "vdso" : (is_debug ?
-	    "debug" : "elf"));
+	return is_kallsyms ? "kallsyms" : (is_vdso ? "vdso" : (is_de ?
+	    "de" : "elf"));
 }
 
 char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
-			     bool is_debug)
+			     bool is_de)
 {
 	bool is_kallsyms = dso__is_kallsyms((struct dso *)dso);
 	bool is_vdso = dso__is_vdso((struct dso *)dso);
@@ -276,7 +276,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 	else
 		ret = asnprintf(&bf, size, "%s/%s", linkname,
 			 build_id_cache__basename(is_kallsyms, is_vdso,
-						  is_debug));
+						  is_de));
 	if (ret < 0 || (!alloc && size < (unsigned int)ret))
 		bf = NULL;
 	free(linkname);
@@ -454,7 +454,7 @@ struct strlist *build_id_cache__list_all(bool validonly)
 
 	toplist = lsdir(topdir, lsdir_bid_head_filter);
 	if (!toplist) {
-		pr_debug("Error in lsdir(%s): %d\n", topdir, errno);
+		pr_de("Error in lsdir(%s): %d\n", topdir, errno);
 		/* If there is no buildid cache, return an empty list */
 		if (errno == ENOENT)
 			goto out;
@@ -467,7 +467,7 @@ struct strlist *build_id_cache__list_all(bool validonly)
 		/* Open the lower-level directory */
 		linklist = lsdir(linkdir, lsdir_bid_tail_filter);
 		if (!linklist) {
-			pr_debug("Error in lsdir(%s): %d\n", linkdir, errno);
+			pr_de("Error in lsdir(%s): %d\n", linkdir, errno);
 			goto err_out;
 		}
 		strlist__for_each_entry(nd2, linklist) {
@@ -600,7 +600,7 @@ static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 	ret = probe_cache__scan_sdt(cache, realname);
 	nsinfo__mountns_exit(&nsc);
 	if (ret >= 0) {
-		pr_debug4("Found %d SDTs in %s\n", ret, realname);
+		pr_de4("Found %d SDTs in %s\n", ret, realname);
 		if (probe_cache__commit(cache) < 0)
 			ret = -1;
 	}
@@ -611,30 +611,30 @@ static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 #define build_id_cache__add_sdt_cache(sbuild_id, realname, nsi) (0)
 #endif
 
-static char *build_id_cache__find_debug(const char *sbuild_id,
+static char *build_id_cache__find_de(const char *sbuild_id,
 					struct nsinfo *nsi)
 {
 	char *realname = NULL;
-	char *debugfile;
+	char *defile;
 	struct nscookie nsc;
 	size_t len = 0;
 
-	debugfile = calloc(1, PATH_MAX);
-	if (!debugfile)
+	defile = calloc(1, PATH_MAX);
+	if (!defile)
 		goto out;
 
-	len = __symbol__join_symfs(debugfile, PATH_MAX,
-				   "/usr/lib/debug/.build-id/");
-	snprintf(debugfile + len, PATH_MAX - len, "%.2s/%s.debug", sbuild_id,
+	len = __symbol__join_symfs(defile, PATH_MAX,
+				   "/usr/lib/de/.build-id/");
+	snprintf(defile + len, PATH_MAX - len, "%.2s/%s.de", sbuild_id,
 		 sbuild_id + 2);
 
 	nsinfo__mountns_enter(nsi, &nsc);
-	realname = realpath(debugfile, NULL);
+	realname = realpath(defile, NULL);
 	if (realname && access(realname, R_OK))
 		zfree(&realname);
 	nsinfo__mountns_exit(&nsc);
 out:
-	free(debugfile);
+	free(defile);
 	return realname;
 }
 
@@ -644,7 +644,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 	const size_t size = PATH_MAX;
 	char *realname = NULL, *filename = NULL, *dir_name = NULL,
 	     *linkname = zalloc(size), *tmp;
-	char *debugfile = NULL;
+	char *defile = NULL;
 	int err = -1;
 
 	if (!is_kallsyms) {
@@ -689,15 +689,15 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			goto out_free;
 	}
 
-	/* Some binaries are stripped, but have .debug files with their symbol
+	/* Some binaries are stripped, but have .de files with their symbol
 	 * table.  Check to see if we can locate one of those, since the elf
 	 * file itself may not be very useful to users of our tools without a
 	 * symtab.
 	 */
 	if (!is_kallsyms && !is_vdso &&
 	    strncmp(".ko", name + strlen(name) - 3, 3)) {
-		debugfile = build_id_cache__find_debug(sbuild_id, nsi);
-		if (debugfile) {
+		defile = build_id_cache__find_de(sbuild_id, nsi);
+		if (defile) {
 			zfree(&filename);
 			if (asprintf(&filename, "%s/%s", dir_name,
 			    build_id_cache__basename(false, false, true)) < 0) {
@@ -706,12 +706,12 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			}
 			if (access(filename, F_OK)) {
 				if (nsi && nsi->need_setns) {
-					if (copyfile_ns(debugfile, filename,
+					if (copyfile_ns(defile, filename,
 							nsi))
 						goto out_free;
-				} else if (link(debugfile, filename) &&
+				} else if (link(defile, filename) &&
 						errno != EEXIST &&
-						copyfile(debugfile, filename))
+						copyfile(defile, filename))
 					goto out_free;
 			}
 		}
@@ -735,13 +735,13 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 	/* Update SDT cache : error is just warned */
 	if (realname &&
 	    build_id_cache__add_sdt_cache(sbuild_id, realname, nsi) < 0)
-		pr_debug4("Failed to update/scan SDT cache for %s\n", realname);
+		pr_de4("Failed to update/scan SDT cache for %s\n", realname);
 
 out_free:
 	if (!is_kallsyms)
 		free(realname);
 	free(filename);
-	free(debugfile);
+	free(defile);
 	free(dir_name);
 	free(linkname);
 	return err;

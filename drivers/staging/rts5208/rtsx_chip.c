@@ -293,7 +293,7 @@ static int rtsx_enable_pcie_intr(struct rtsx_chip *chip)
 		return STATUS_SUCCESS;
 	}
 
-	if (chip->phy_debug_mode) {
+	if (chip->phy_de_mode) {
 		ret = rtsx_write_register(chip, CDRESUMECTL, 0x77, 0);
 		if (ret)
 			return ret;
@@ -654,14 +654,14 @@ static int rts5208_init(struct rtsx_chip *chip)
 		dev_dbg(rtsx_dev(chip), "Value of phy register 0x1C is 0x%x\n",
 			reg);
 		chip->ic_version = (reg >> 4) & 0x07;
-		chip->phy_debug_mode = reg & PHY_DEBUG_MODE ? 1 : 0;
+		chip->phy_de_mode = reg & PHY_DE_MODE ? 1 : 0;
 
 	} else {
 		retval = rtsx_read_register(chip, 0xFE80, &val);
 		if (retval)
 			return retval;
 		chip->ic_version = val;
-		chip->phy_debug_mode = 0;
+		chip->phy_de_mode = 0;
 	}
 
 	retval = rtsx_read_register(chip, PDINFO, &val);
@@ -706,7 +706,7 @@ static int rts5288_init(struct rtsx_chip *chip)
 	chip->asic_code = val == 0 ? 1 : 0;
 
 	chip->ic_version = 0;
-	chip->phy_debug_mode = 0;
+	chip->phy_de_mode = 0;
 
 	retval = rtsx_read_register(chip, PDINFO, &val);
 	if (retval)
@@ -787,7 +787,7 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 	chip->sdio_idle = 0;
 	chip->sdio_counter = 0;
 	chip->cur_card = 0;
-	chip->phy_debug_mode = 0;
+	chip->phy_de_mode = 0;
 	chip->sdio_func_exist = 0;
 	memset(chip->sdio_raw_data, 0, 12);
 
@@ -840,8 +840,8 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 
 	dev_dbg(rtsx_dev(chip), "chip->asic_code = %d\n", chip->asic_code);
 	dev_dbg(rtsx_dev(chip), "chip->ic_version = 0x%x\n", chip->ic_version);
-	dev_dbg(rtsx_dev(chip), "chip->phy_debug_mode = %d\n",
-		chip->phy_debug_mode);
+	dev_dbg(rtsx_dev(chip), "chip->phy_de_mode = %d\n",
+		chip->phy_de_mode);
 	dev_dbg(rtsx_dev(chip), "chip->aux_pwr_exist = %d\n",
 		chip->aux_pwr_exist);
 	dev_dbg(rtsx_dev(chip), "chip->sdio_func_exist = %d\n",
@@ -1778,7 +1778,7 @@ void rtsx_enter_ss(struct rtsx_chip *chip)
 	if (chip->auto_delink_en) {
 		rtsx_write_register(chip, HOST_SLEEP_STATE, 0x01, 0x01);
 	} else {
-		if (!chip->phy_debug_mode) {
+		if (!chip->phy_de_mode) {
 			u32 tmp;
 
 			tmp = rtsx_readl(chip, RTSX_BIER);

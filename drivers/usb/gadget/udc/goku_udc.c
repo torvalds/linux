@@ -17,7 +17,7 @@
  *  - DMA works with ep1 (OUT transfers) and ep2 (IN transfers).
  */
 
-// #define	VERBOSE		/* extra debug messages (success too) */
+// #define	VERBOSE		/* extra de messages (success too) */
 // #define	USB_TRACE	/* packet-level success messages */
 
 #include <linux/kernel.h>
@@ -1045,7 +1045,7 @@ static inline const char *dmastr(void)
 		return "(dma IN)";
 }
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 
 static const char proc_node_name [] = "driver/udc";
 
@@ -1241,7 +1241,7 @@ done:
 	local_irq_restore(flags);
 	return 0;
 }
-#endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
+#endif	/* CONFIG_USB_GADGET_DE_FILES */
 
 /*-------------------------------------------------------------------------*/
 
@@ -1711,9 +1711,9 @@ static void goku_remove(struct pci_dev *pdev)
 
 	usb_del_gadget_udc(&dev->gadget);
 
-	BUG_ON(dev->driver);
+	_ON(dev->driver);
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 	remove_proc_entry(proc_node_name, NULL);
 #endif
 	if (dev->regs)
@@ -1809,7 +1809,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_set_master(pdev);
 
 
-#ifdef CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef CONFIG_USB_GADGET_DE_FILES
 	proc_create_single_data(proc_node_name, 0, NULL, udc_proc_read, dev);
 #endif
 

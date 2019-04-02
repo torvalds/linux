@@ -407,7 +407,7 @@ static int davinci_musb_init(struct musb *musb)
 	msleep(5);
 
 	/* NOTE:  irqs are in mixed mode, not bypass to pure-musb */
-	pr_debug("DaVinci OTG revision %08x phy %03x control %02x\n",
+	pr_de("DaVinci OTG revision %08x phy %03x control %02x\n",
 		revision, __raw_readl(USB_PHY_CTRL),
 		musb_readb(tibase, DAVINCI_USB_CTRL_REG));
 

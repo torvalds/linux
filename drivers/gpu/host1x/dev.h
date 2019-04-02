@@ -60,8 +60,8 @@ struct host1x_pushbuffer_ops {
 	void (*init)(struct push_buffer *pb);
 };
 
-struct host1x_debug_ops {
-	void (*debug_init)(struct dentry *de);
+struct host1x_de_ops {
+	void (*de_init)(struct dentry *de);
 	void (*show_channel_cdma)(struct host1x *host,
 				  struct host1x_channel *ch,
 				  struct output *o);
@@ -137,7 +137,7 @@ struct host1x {
 	const struct host1x_channel_ops *channel_op;
 	const struct host1x_cdma_ops *cdma_op;
 	const struct host1x_pushbuffer_ops *cdma_pb_op;
-	const struct host1x_debug_ops *debug_op;
+	const struct host1x_de_ops *de_op;
 
 	struct host1x_syncpt *nop_sp;
 
@@ -145,7 +145,7 @@ struct host1x {
 
 	struct host1x_channel_list channel_list;
 
-	struct dentry *debugfs;
+	struct dentry *defs;
 
 	struct mutex devices_lock;
 	struct list_head devices;
@@ -309,29 +309,29 @@ static inline void host1x_hw_pushbuffer_init(struct host1x *host,
 	host->cdma_pb_op->init(pb);
 }
 
-static inline void host1x_hw_debug_init(struct host1x *host, struct dentry *de)
+static inline void host1x_hw_de_init(struct host1x *host, struct dentry *de)
 {
-	if (host->debug_op && host->debug_op->debug_init)
-		host->debug_op->debug_init(de);
+	if (host->de_op && host->de_op->de_init)
+		host->de_op->de_init(de);
 }
 
 static inline void host1x_hw_show_channel_cdma(struct host1x *host,
 					       struct host1x_channel *channel,
 					       struct output *o)
 {
-	host->debug_op->show_channel_cdma(host, channel, o);
+	host->de_op->show_channel_cdma(host, channel, o);
 }
 
 static inline void host1x_hw_show_channel_fifo(struct host1x *host,
 					       struct host1x_channel *channel,
 					       struct output *o)
 {
-	host->debug_op->show_channel_fifo(host, channel, o);
+	host->de_op->show_channel_fifo(host, channel, o);
 }
 
 static inline void host1x_hw_show_mlocks(struct host1x *host, struct output *o)
 {
-	host->debug_op->show_mlocks(host, o);
+	host->de_op->show_mlocks(host, o);
 }
 
 extern struct platform_driver tegra_mipi_driver;

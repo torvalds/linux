@@ -40,7 +40,7 @@
 
 #include "pcm_local.h"
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 #define CREATE_TRACE_POINTS
 #include "pcm_param_trace.h"
 #else
@@ -2609,7 +2609,7 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 
 	pcm_file = file->private_data;
 	substream = pcm_file->substream;
-	if (snd_BUG_ON(!substream))
+	if (snd__ON(!substream))
 		return -ENXIO;
 	pcm = substream->pcm;
 	mutex_lock(&pcm->open_mutex);

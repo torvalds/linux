@@ -49,17 +49,17 @@
 #define DRIVER_DESC     "Conexant cx231xx based USB video device driver"
 
 #define cx231xx_videodbg(fmt, arg...) do {\
-	if (video_debug) \
+	if (video_de) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-static unsigned int isoc_debug;
-module_param(isoc_debug, int, 0644);
-MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
+static unsigned int isoc_de;
+module_param(isoc_de, int, 0644);
+MODULE_PARM_DESC(isoc_de, "enable de messages [isoc transfers]");
 
 #define cx231xx_isocdbg(fmt, arg...) \
 do {\
-	if (isoc_debug) { \
+	if (isoc_de) { \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); \
 	} \
@@ -85,9 +85,9 @@ MODULE_PARM_DESC(video_nr, "video device numbers");
 MODULE_PARM_DESC(vbi_nr, "vbi device numbers");
 MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
-static unsigned int video_debug;
-module_param(video_debug, int, 0644);
-MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
+static unsigned int video_de;
+module_param(video_de, int, 0644);
+MODULE_PARM_DESC(video_de, "enable de messages [video]");
 
 /* supported video standards */
 static struct cx231xx_fmt format[] = {
@@ -747,7 +747,7 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	struct cx231xx *dev = fh->dev;
 	unsigned long flags = 0;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 
 	/* We used to wait for the buffer to finish here, but this didn't work
 	   because, as we were keeping the state as VIDEOBUF_QUEUED,
@@ -1345,7 +1345,7 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	return rc;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 
 int cx231xx_g_chip_info(struct file *file, void *fh,
 			struct v4l2_dbg_chip_info *chip)
@@ -2128,7 +2128,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner                = cx231xx_s_tuner,
 	.vidioc_g_frequency            = cx231xx_g_frequency,
 	.vidioc_s_frequency            = cx231xx_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info            = cx231xx_g_chip_info,
 	.vidioc_g_register             = cx231xx_g_register,
 	.vidioc_s_register             = cx231xx_s_register,
@@ -2160,7 +2160,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner     = radio_s_tuner,
 	.vidioc_g_frequency = cx231xx_g_frequency,
 	.vidioc_s_frequency = cx231xx_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info = cx231xx_g_chip_info,
 	.vidioc_g_register  = cx231xx_g_register,
 	.vidioc_s_register  = cx231xx_s_register,

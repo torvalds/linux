@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * MUSB OTG driver debugfs support
+ * MUSB OTG driver defs support
  *
  * Copyright 2010 Nokia Corporation
  * Contact: Felipe Balbi <felipe.balbi@nokia.com>
@@ -9,13 +9,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 
 #include <linux/uaccess.h>
 
 #include "musb_core.h"
-#include "musb_debug.h"
+#include "musb_de.h"
 
 struct musb_register_map {
 	char			*name;
@@ -321,21 +321,21 @@ static const struct file_operations musb_softconnect_fops = {
 	.release		= single_release,
 };
 
-void musb_init_debugfs(struct musb *musb)
+void musb_init_defs(struct musb *musb)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(dev_name(musb->controller), NULL);
-	musb->debugfs_root = root;
+	root = defs_create_dir(dev_name(musb->controller), NULL);
+	musb->defs_root = root;
 
-	debugfs_create_file("regdump", S_IRUGO, root, musb, &musb_regdump_fops);
-	debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root, musb,
+	defs_create_file("regdump", S_IRUGO, root, musb, &musb_regdump_fops);
+	defs_create_file("testmode", S_IRUGO | S_IWUSR, root, musb,
 			    &musb_test_mode_fops);
-	debugfs_create_file("softconnect", S_IRUGO | S_IWUSR, root, musb,
+	defs_create_file("softconnect", S_IRUGO | S_IWUSR, root, musb,
 			    &musb_softconnect_fops);
 }
 
-void /* __init_or_exit */ musb_exit_debugfs(struct musb *musb)
+void /* __init_or_exit */ musb_exit_defs(struct musb *musb)
 {
-	debugfs_remove_recursive(musb->debugfs_root);
+	defs_remove_recursive(musb->defs_root);
 }

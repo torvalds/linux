@@ -71,7 +71,7 @@ config TULIP_MMIO
 	---help---
 	  Use PCI shared memory for the NIC registers, rather than going through
 	  the Tulip's PIO (programmed I/O ports).  Faster, but could produce
-	  obscure bugs if your mainboard has memory controller timing issues.
+	  obscure s if your mainboard has memory controller timing issues.
 	  If in doubt, say N.
 
 config TULIP_NAPI

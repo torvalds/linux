@@ -14,7 +14,7 @@
 #include <sys/mount.h>
 
 #include "fs.h"
-#include "debug-internal.h"
+#include "de-internal.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -27,8 +27,8 @@
 #define PROC_SUPER_MAGIC       0x9fa0
 #endif
 
-#ifndef DEBUGFS_MAGIC
-#define DEBUGFS_MAGIC          0x64626720
+#ifndef DEFS_MAGIC
+#define DEFS_MAGIC          0x64626720
 #endif
 
 #ifndef TRACEFS_MAGIC
@@ -53,13 +53,13 @@ static const char * const procfs__known_mountpoints[] = {
 	0,
 };
 
-#ifndef DEBUGFS_DEFAULT_PATH
-#define DEBUGFS_DEFAULT_PATH "/sys/kernel/debug"
+#ifndef DEFS_DEFAULT_PATH
+#define DEFS_DEFAULT_PATH "/sys/kernel/de"
 #endif
 
-static const char * const debugfs__known_mountpoints[] = {
-	DEBUGFS_DEFAULT_PATH,
-	"/debug",
+static const char * const defs__known_mountpoints[] = {
+	DEFS_DEFAULT_PATH,
+	"/de",
 	0,
 };
 
@@ -70,7 +70,7 @@ static const char * const debugfs__known_mountpoints[] = {
 
 static const char * const tracefs__known_mountpoints[] = {
 	TRACEFS_DEFAULT_PATH,
-	"/sys/kernel/debug/tracing",
+	"/sys/kernel/de/tracing",
 	"/tracing",
 	"/trace",
 	0,
@@ -96,7 +96,7 @@ struct fs {
 enum {
 	FS__SYSFS   = 0,
 	FS__PROCFS  = 1,
-	FS__DEBUGFS = 2,
+	FS__DEFS = 2,
 	FS__TRACEFS = 3,
 	FS__HUGETLBFS = 4,
 	FS__BPF_FS = 5,
@@ -117,10 +117,10 @@ static struct fs fs__entries[] = {
 		.mounts	= procfs__known_mountpoints,
 		.magic	= PROC_SUPER_MAGIC,
 	},
-	[FS__DEBUGFS] = {
-		.name	= "debugfs",
-		.mounts	= debugfs__known_mountpoints,
-		.magic	= DEBUGFS_MAGIC,
+	[FS__DEFS] = {
+		.name	= "defs",
+		.mounts	= defs__known_mountpoints,
+		.magic	= DEFS_MAGIC,
 	},
 	[FS__TRACEFS] = {
 		.name	= "tracefs",
@@ -293,7 +293,7 @@ bool name##__configured(void)			\
 
 FS(sysfs,   FS__SYSFS);
 FS(procfs,  FS__PROCFS);
-FS(debugfs, FS__DEBUGFS);
+FS(defs, FS__DEFS);
 FS(tracefs, FS__TRACEFS);
 FS(hugetlbfs, FS__HUGETLBFS);
 FS(bpf_fs, FS__BPF_FS);

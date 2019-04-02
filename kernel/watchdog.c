@@ -20,7 +20,7 @@
 #include <linux/sysctl.h>
 #include <linux/tick.h>
 #include <linux/sched/clock.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/isolation.h>
 #include <linux/stop_machine.h>
 
@@ -345,7 +345,7 @@ static DEFINE_PER_CPU(struct cpu_stop_work, softlockup_stop_work);
  *
  * It only runs once every sample_period seconds (4 seconds by
  * default) to reset the softlockup timestamp. If this gets delayed
- * for more than 2*watchdog_thresh seconds then the debug-printout
+ * for more than 2*watchdog_thresh seconds then the de-printout
  * triggers in watchdog_timer_fn().
  */
 static int softlockup_fn(void *data)
@@ -444,7 +444,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 			}
 		}
 
-		pr_emerg("BUG: soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
+		pr_emerg(": soft lockup - CPU#%d stuck for %us! [%s:%d]\n",
 			smp_processor_id(), duration,
 			current->comm, task_pid_nr(current));
 		__this_cpu_write(softlockup_task_ptr_saved, current);

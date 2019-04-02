@@ -204,12 +204,12 @@ module_param(irq_adapt_high_thresh, uint, 0644);
 MODULE_PARM_DESC(irq_adapt_high_thresh,
 		 "Threshold score for increasing IRQ moderation");
 
-static unsigned debug = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
+static unsigned de = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 			 NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 			 NETIF_MSG_IFUP | NETIF_MSG_RX_ERR |
 			 NETIF_MSG_TX_ERR | NETIF_MSG_HW);
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
+module_param(de, uint, 0);
+MODULE_PARM_DESC(de, "Bitmapped deging message enable value");
 
 /**************************************************************************
  *
@@ -660,8 +660,8 @@ static void efx_start_datapath(struct efx_nic *efx)
 		efx->rx_scatter = efx->type->always_rx_scatter;
 		efx->rx_buffer_order = 0;
 	} else if (efx->type->can_rx_scatter) {
-		BUILD_BUG_ON(EFX_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
-		BUILD_BUG_ON(sizeof(struct efx_rx_page_state) +
+		BUILD__ON(EFX_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
+		BUILD__ON(sizeof(struct efx_rx_page_state) +
 			     2 * ALIGN(NET_IP_ALIGN + EFX_RX_USR_BUF_SIZE,
 				       EFX_RX_BUF_ALIGNMENT) >
 			     PAGE_SIZE);
@@ -740,7 +740,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 	int rc;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
-	BUG_ON(efx->port_enabled);
+	_ON(efx->port_enabled);
 
 	efx_ptp_stop_datapath(efx);
 
@@ -957,7 +957,7 @@ void efx_link_status_changed(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
 
-	/* SFC Bug 5356: A net_dev notifier is registered, so we must ensure
+	/* SFC  5356: A net_dev notifier is registered, so we must ensure
 	 * that no events are triggered between unregister_netdev() and the
 	 * driver unloading. A more general condition is that NETDEV_CHANGE
 	 * can only be generated between NETDEV_UP and NETDEV_DOWN */
@@ -1147,7 +1147,7 @@ fail1:
 static void efx_start_port(struct efx_nic *efx)
 {
 	netif_dbg(efx, ifup, efx->net_dev, "start port\n");
-	BUG_ON(efx->port_enabled);
+	_ON(efx->port_enabled);
 
 	mutex_lock(&efx->mac_lock);
 	efx->port_enabled = true;
@@ -1599,7 +1599,7 @@ static int efx_soft_enable_interrupts(struct efx_nic *efx)
 	struct efx_channel *channel, *end_channel;
 	int rc;
 
-	BUG_ON(efx->state == STATE_DISABLED);
+	_ON(efx->state == STATE_DISABLED);
 
 	efx->irq_soft_enabled = true;
 	smp_wmb();
@@ -1662,7 +1662,7 @@ static int efx_enable_interrupts(struct efx_nic *efx)
 	struct efx_channel *channel, *end_channel;
 	int rc;
 
-	BUG_ON(efx->state == STATE_DISABLED);
+	_ON(efx->state == STATE_DISABLED);
 
 	if (efx->eeh_disabled_legacy_irq) {
 		enable_irq(efx->legacy_irq);
@@ -1906,7 +1906,7 @@ static int efx_probe_all(struct efx_nic *efx)
 		goto fail2;
 	}
 
-	BUILD_BUG_ON(EFX_DEFAULT_DMAQ_SIZE < EFX_RXQ_MIN_ENT);
+	BUILD__ON(EFX_DEFAULT_DMAQ_SIZE < EFX_RXQ_MIN_ENT);
 	if (WARN_ON(EFX_DEFAULT_DMAQ_SIZE < EFX_TXQ_MIN_ENT(efx))) {
 		rc = -EINVAL;
 		goto fail3;
@@ -1958,7 +1958,7 @@ static int efx_probe_all(struct efx_nic *efx)
 static void efx_start_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
-	BUG_ON(efx->state == STATE_DISABLED);
+	_ON(efx->state == STATE_DISABLED);
 
 	/* Check that it is appropriate to restart the interface. All
 	 * of these flags are safe to read under just the rtnl lock */
@@ -2125,7 +2125,7 @@ static void efx_monitor(struct work_struct *data)
 	netif_vdbg(efx, timer, efx->net_dev,
 		   "hardware monitor executing on CPU %d\n",
 		   raw_smp_processor_id());
-	BUG_ON(efx->type->monitor == NULL);
+	_ON(efx->type->monitor == NULL);
 
 	/* If the mac_lock is already held then it is likely a port
 	 * reconfiguration is already in place, which will likely do
@@ -2637,7 +2637,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	if (!efx->net_dev)
 		return;
 
-	BUG_ON(netdev_priv(efx->net_dev) != efx);
+	_ON(netdev_priv(efx->net_dev) != efx);
 
 	if (efx_dev_registered(efx)) {
 		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
@@ -3018,7 +3018,7 @@ static int efx_init_struct(struct efx_nic *efx,
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
 	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
 	efx->pci_dev = pci_dev;
-	efx->msg_enable = debug;
+	efx->msg_enable = de;
 	efx->state = STATE_UNINIT;
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
@@ -3035,7 +3035,7 @@ static int efx_init_struct(struct efx_nic *efx,
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
-	BUILD_BUG_ON(MC_CMD_MAC_NSTATS - 1 != MC_CMD_MAC_GENERATION_END);
+	BUILD__ON(MC_CMD_MAC_NSTATS - 1 != MC_CMD_MAC_GENERATION_END);
 	mutex_init(&efx->mac_lock);
 #ifdef CONFIG_RFS_ACCEL
 	mutex_init(&efx->rps_mutex);
@@ -3127,7 +3127,7 @@ bool efx_filter_spec_equal(const struct efx_filter_spec *left,
 
 u32 efx_filter_spec_hash(const struct efx_filter_spec *spec)
 {
-	BUILD_BUG_ON(offsetof(struct efx_filter_spec, outer_vid) & 3);
+	BUILD__ON(offsetof(struct efx_filter_spec, outer_vid) & 3);
 	return jhash2((const u32 *)&spec->outer_vid,
 		      (sizeof(struct efx_filter_spec) -
 		       offsetof(struct efx_filter_spec, outer_vid)) / 4,
@@ -3317,7 +3317,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	/* Flush reset_work. It can no longer be scheduled since we
 	 * are not READY.
 	 */
-	BUG_ON(efx->state == STATE_READY);
+	_ON(efx->state == STATE_READY);
 	cancel_work_sync(&efx->reset_work);
 
 	efx_disable_interrupts(efx);

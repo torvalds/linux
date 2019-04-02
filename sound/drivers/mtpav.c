@@ -42,7 +42,7 @@
  *
  * ChangeLog
  * Jun 11 2001	Takashi Iwai <tiwai@suse.de>
- *      - Recoded & debugged
+ *      - Recoded & deged
  *      - Added timer interrupt for midi outputs
  *      - hwports is between 1 and 8, which specifies the number of hardware ports.
  *        The three global ports, computer, adat and broadcast ports, are created
@@ -98,7 +98,7 @@ static struct platform_device *device;
 /*
  *      defines
  */
-//#define USE_FAKE_MTP //       don't actually read/write to MTP device (for debugging without an actual unit) (does not work yet)
+//#define USE_FAKE_MTP //       don't actually read/write to MTP device (for deging without an actual unit) (does not work yet)
 
 // parallel port usage masks
 #define SIGS_BYTE 0x08
@@ -303,7 +303,7 @@ static void snd_mtpav_output_port_write(struct mtpav *mtp_card,
 		snd_mtpav_send_byte(mtp_card, 0xf5);
 		snd_mtpav_send_byte(mtp_card, portp->hwport);
 		/*
-		snd_printk(KERN_DEBUG "new outport: 0x%x\n",
+		snd_printk(KERN_DE "new outport: 0x%x\n",
 			   (unsigned int) portp->hwport);
 		*/
 		if (!(outbyte & 0x80) && portp->running_status)
@@ -539,7 +539,7 @@ static void snd_mtpav_read_bytes(struct mtpav *mcrd)
 
 	u8 sbyt = snd_mtpav_getreg(mcrd, SREG);
 
-	/* printk(KERN_DEBUG "snd_mtpav_read_bytes() sbyt: 0x%x\n", sbyt); */
+	/* printk(KERN_DE "snd_mtpav_read_bytes() sbyt: 0x%x\n", sbyt); */
 
 	if (!(sbyt & SIGS_BYTE))
 		return;

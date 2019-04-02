@@ -407,7 +407,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 
 #ifdef CONFIG_ACPI_NUMA
 
-#undef SLIT_DEBUG
+#undef SLIT_DE
 
 #define PXM_FLAG_LEN ((MAX_PXM_DOMAINS + 1)/32)
 
@@ -597,7 +597,7 @@ void __init acpi_numa_fixup(void)
 		}
 	}
 
-#ifdef SLIT_DEBUG
+#ifdef SLIT_DE
 	printk("ACPI 2.0 SLIT locality table:\n");
 	for_each_online_node(i) {
 		for_each_online_node(j)

@@ -60,7 +60,7 @@ void __init paging_init(void)
 	unsigned long start_mem = PAGE_ALIGN(memory_start);
 	unsigned long end_mem   = memory_end & PAGE_MASK;
 
-	pr_debug("start_mem is %#lx\nvirtual_end is %#lx\n",
+	pr_de("start_mem is %#lx\nvirtual_end is %#lx\n",
 		 start_mem, end_mem);
 
 	/*
@@ -77,9 +77,9 @@ void __init paging_init(void)
 	 */
 	set_fs(USER_DS);
 
-	pr_debug("before free_area_init\n");
+	pr_de("before free_area_init\n");
 
-	pr_debug("free_area_init -> start_mem is %#lx\nvirtual_end is %#lx\n",
+	pr_de("free_area_init -> start_mem is %#lx\nvirtual_end is %#lx\n",
 		 start_mem, end_mem);
 
 	{

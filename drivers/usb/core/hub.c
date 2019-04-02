@@ -2094,7 +2094,7 @@ static void choose_devnum(struct usb_device *udev)
 	mutex_lock(&bus->devnum_next_mutex);
 	if (udev->wusb) {
 		devnum = udev->portnum + 1;
-		BUG_ON(test_bit(devnum, bus->devmap.devicemap));
+		_ON(test_bit(devnum, bus->devmap.devicemap));
 	} else {
 		/* Try to allocate the next devnum beginning at
 		 * bus->devnum_next. */
@@ -3277,7 +3277,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	 * into suspend a few ms after the root hub stops sending packets.
 	 * The USB 2.0 spec calls this "global suspend".
 	 *
-	 * However, many USB hubs have a bug: They don't relay wakeup requests
+	 * However, many USB hubs have a : They don't relay wakeup requests
 	 * from a downstream port if the port's suspend feature isn't on.
 	 * Therefore we will turn on the suspend feature if udev or any of its
 	 * descendants is enabled for remote wakeup.
@@ -3427,7 +3427,7 @@ static int finish_port_resume(struct usb_device *udev)
  * XHCI specs 4.19.4 says that when Link training is successful, port
  * sets CCS bit to 1. So if SW reads port status before successful link
  * training, then it will not find device to be present.
- * USB Analyzer log with such buggy devices show that in some cases
+ * USB Analyzer log with such gy devices show that in some cases
  * device switch on the RX termination after long delay of host enabling
  * the VBUS. In few other cases it has been seen that device fails to
  * negotiate link training in first attempt. It has been
@@ -4522,7 +4522,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	}
 
 	/* Some low speed devices have problems with the quick delay, so */
-	/*  be a bit pessimistic with those devices. RHbug #23670 */
+	/*  be a bit pessimistic with those devices. RH #23670 */
 	if (oldspeed == USB_SPEED_LOW)
 		delay = HUB_LONG_RESET_TIME;
 
@@ -4612,7 +4612,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	}
 
 	/* Why interleave GET_DESCRIPTOR and SET_ADDRESS this way?
-	 * Because device hardware and firmware is sometimes buggy in
+	 * Because device hardware and firmware is sometimes gy in
 	 * this area, and this is how Linux has done it for ages.
 	 * Change it cautiously.
 	 *

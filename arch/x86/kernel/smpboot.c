@@ -24,11 +24,11 @@
  *	Matthias Sattler	:	Changes for 2.1 kernel map.
  *	Michel Lespinasse	:	Changes for 2.1 kernel map.
  *	Michael Chastain	:	Change trampoline.S to gnu as.
- *		Alan Cox	:	Dumb bug: 'B' step PPro's are fine
+ *		Alan Cox	:	Dumb : 'B' step PPro's are fine
  *		Ingo Molnar	:	Added APIC timers, based on code
  *					from Jose Renau
  *		Ingo Molnar	:	various cleanups and rewrites
- *		Tigran Aivazian	:	fixed "0.00 in /proc/uptime on SMP" bug.
+ *		Tigran Aivazian	:	fixed "0.00 in /proc/uptime on SMP" .
  *	Maciej W. Rozycki	:	Bits for genuine 82489DX APICs
  *	Andi Kleen		:	Changed for SMP boot into long mode.
  *		Martin J. Bligh	: 	Added support for multi-quad systems
@@ -188,7 +188,7 @@ static void smp_callin(void)
 	 */
 	calibrate_delay();
 	cpu_data(cpuid).loops_per_jiffy = loops_per_jiffy;
-	pr_debug("Stack at about %p\n", &cpuid);
+	pr_de("Stack at about %p\n", &cpuid);
 
 	wmb();
 
@@ -592,7 +592,7 @@ static void impress_friends(void)
 	/*
 	 * Allow the user to impress friends.
 	 */
-	pr_debug("Before bogomips\n");
+	pr_de("Before bogomips\n");
 	for_each_possible_cpu(cpu)
 		if (cpumask_test_cpu(cpu, cpu_callout_mask))
 			bogosum += cpu_data(cpu).loops_per_jiffy;
@@ -601,7 +601,7 @@ static void impress_friends(void)
 		bogosum/(500000/HZ),
 		(bogosum/(5000/HZ))%100);
 
-	pr_debug("Before bogocount - setting activated=1\n");
+	pr_de("Before bogocount - setting activated=1\n");
 }
 
 void __inquire_remote_apic(int apicid)
@@ -697,7 +697,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 	/* Kick the second */
 	apic_icr_write(APIC_DM_NMI | apic->dest_logical, apicid);
 
-	pr_debug("Waiting for send to finish...\n");
+	pr_de("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
 	/*
@@ -710,7 +710,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 			apic_write(APIC_ESR, 0);
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
 	}
-	pr_debug("NMI sent\n");
+	pr_de("NMI sent\n");
 
 	if (send_status)
 		pr_err("APIC never delivered???\n");
@@ -737,7 +737,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		apic_read(APIC_ESR);
 	}
 
-	pr_debug("Asserting INIT\n");
+	pr_de("Asserting INIT\n");
 
 	/*
 	 * Turn INIT on target chip
@@ -748,18 +748,18 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
 		       phys_apicid);
 
-	pr_debug("Waiting for send to finish...\n");
+	pr_de("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
 	udelay(init_udelay);
 
-	pr_debug("Deasserting INIT\n");
+	pr_de("Deasserting INIT\n");
 
 	/* Target chip */
 	/* Send IPI */
 	apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, phys_apicid);
 
-	pr_debug("Waiting for send to finish...\n");
+	pr_de("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
 	mb();
@@ -778,14 +778,14 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Run STARTUP IPI loop.
 	 */
-	pr_debug("#startup loops: %d\n", num_starts);
+	pr_de("#startup loops: %d\n", num_starts);
 
 	for (j = 1; j <= num_starts; j++) {
-		pr_debug("Sending STARTUP #%d\n", j);
+		pr_de("Sending STARTUP #%d\n", j);
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		apic_read(APIC_ESR);
-		pr_debug("After apic_write\n");
+		pr_de("After apic_write\n");
 
 		/*
 		 * STARTUP IPI
@@ -805,9 +805,9 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		else
 			udelay(300);
 
-		pr_debug("Startup point 1\n");
+		pr_de("Startup point 1\n");
 
-		pr_debug("Waiting for send to finish...\n");
+		pr_de("Waiting for send to finish...\n");
 		send_status = safe_apic_wait_icr_idle();
 
 		/*
@@ -824,7 +824,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		if (send_status || accept_status)
 			break;
 	}
-	pr_debug("After Startup\n");
+	pr_de("After Startup\n");
 
 	if (send_status)
 		pr_err("APIC never delivered???\n");
@@ -986,7 +986,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 
 	if (x86_platform.legacy.warm_reset) {
 
-		pr_debug("Setting warm reset code and vector.\n");
+		pr_de("Setting warm reset code and vector.\n");
 
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*
@@ -1075,7 +1075,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	lockdep_assert_irqs_enabled();
 
-	pr_debug("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
+	pr_de("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
 
 	if (apicid == BAD_APICID ||
 	    !physid_isset(apicid, phys_cpu_present_map) ||
@@ -1088,7 +1088,7 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * Already booted CPU?
 	 */
 	if (cpumask_test_cpu(cpu, cpu_callin_mask)) {
-		pr_debug("do_boot_cpu %d Already started\n", cpu);
+		pr_de("do_boot_cpu %d Already started\n", cpu);
 		return -ENOSYS;
 	}
 
@@ -1349,7 +1349,7 @@ void __init calculate_max_logical_packages(void)
 
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
-	pr_debug("Boot done\n");
+	pr_de("Boot done\n");
 
 	calculate_max_logical_packages();
 
@@ -1686,12 +1686,12 @@ int native_cpu_disable(void)
 void native_cpu_die(unsigned int cpu)
 {
 	/* We said "no" in __cpu_disable */
-	BUG();
+	();
 }
 
 void native_play_dead(void)
 {
-	BUG();
+	();
 }
 
 #endif

@@ -45,18 +45,18 @@ with the HID driver, which, if not told otherwise, will find the standard
 HID mouse and keyboard, and claim the whole device. To remedy, the usb
 product id must be listed in the mouse_ignore list of the hid driver.
 
-Debug output
+De output
 ------------
 
 To ease the development for new hardware version, verbose packet output can
-be switched on with the debug kernel module parameter. The range [1-9]
+be switched on with the de kernel module parameter. The range [1-9]
 yields different levels of verbosity. Example (as root)::
 
-    echo -n 9 > /sys/module/bcm5974/parameters/debug
+    echo -n 9 > /sys/module/bcm5974/parameters/de
 
-    tail -f /var/log/debug
+    tail -f /var/log/de
 
-    echo -n 0 > /sys/module/bcm5974/parameters/debug
+    echo -n 0 > /sys/module/bcm5974/parameters/de
 
 Trivia
 ------

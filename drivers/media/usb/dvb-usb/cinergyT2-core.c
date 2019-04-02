@@ -26,11 +26,11 @@
 #include "cinergyT2.h"
 
 
-/* debug */
-int dvb_usb_cinergyt2_debug;
+/* de */
+int dvb_usb_cinergyt2_de;
 
-module_param_named(debug, dvb_usb_cinergyt2_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info, xfer=2, rc=4 (or-able)).");
+module_param_named(de, dvb_usb_cinergyt2_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info, xfer=2, rc=4 (or-able)).");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 

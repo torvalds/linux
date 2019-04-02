@@ -46,15 +46,15 @@
 #include "si2168.h"
 #include "si2157.h"
 
-/* debug */
-static int dvb_usb_cxusb_debug;
-module_param_named(debug, dvb_usb_cxusb_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_cxusb_de;
+module_param_named(de, dvb_usb_cxusb_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=rc (or-able))." DVB_USB_DE_STATUS);
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define deb_info(args...)   dprintk(dvb_usb_cxusb_debug, 0x03, args)
-#define deb_i2c(args...)    dprintk(dvb_usb_cxusb_debug, 0x02, args)
+#define deb_info(args...)   dprintk(dvb_usb_cxusb_de, 0x03, args)
+#define deb_i2c(args...)    dprintk(dvb_usb_cxusb_de, 0x02, args)
 
 static int cxusb_ctrl_msg(struct dvb_usb_device *d,
 			  u8 cmd, const u8 *wbuf, int wlen, u8 *rbuf, int rlen)

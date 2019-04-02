@@ -50,7 +50,7 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 				      sizeof(*item));
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret); /* Can't happen */
+	_ON(ret); /* Can't happen */
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0],
 			      struct btrfs_file_extent_item);
@@ -450,7 +450,7 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 
 		if (!ordered) {
 			ordered = btrfs_lookup_ordered_extent(inode, offset);
-			BUG_ON(!ordered); /* Logic error */
+			_ON(!ordered); /* Logic error */
 		}
 
 		data = kmap_atomic(bvec.bv_page);
@@ -474,7 +474,7 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 
 				sums = kzalloc(btrfs_ordered_sum_size(fs_info, bytes_left),
 					       GFP_NOFS);
-				BUG_ON(!sums); /* -ENOMEM */
+				_ON(!sums); /* -ENOMEM */
 				sums->len = bytes_left;
 				ordered = btrfs_lookup_ordered_extent(inode,
 								offset);
@@ -561,7 +561,7 @@ static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 		key->offset = end_byte;
 		btrfs_set_item_key_safe(fs_info, path, key);
 	} else {
-		BUG();
+		();
 	}
 }
 

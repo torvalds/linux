@@ -5,7 +5,7 @@
 #include <linux/kallsyms.h>
 
 
-#define DEBUG 1
+#define DE 1
 
 static struct iommu_table_entry * __init
 find_dependents_of(struct iommu_table_entry *start,
@@ -46,7 +46,7 @@ again:
 
 }
 
-#ifdef DEBUG
+#ifdef DE
 void __init check_iommu_entries(struct iommu_table_entry *start,
 				struct iommu_table_entry *finish)
 {

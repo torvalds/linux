@@ -20,7 +20,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/errno.h>
 #include <linux/sched/signal.h>
@@ -112,7 +112,7 @@ void __spu_update_sched_info(struct spu_context *ctx)
 	 * assert that the context is not on the runqueue, so it is safe
 	 * to change its scheduling parameters.
 	 */
-	BUG_ON(!list_empty(&ctx->rq));
+	_ON(!list_empty(&ctx->rq));
 
 	/*
 	 * 32-Bit assignments are atomic on powerpc, and we don't care about
@@ -263,7 +263,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
  */
 static inline int sched_spu(struct spu *spu)
 {
-	BUG_ON(!mutex_is_locked(&cbe_spu_info[spu->node].list_mutex));
+	_ON(!mutex_is_locked(&cbe_spu_info[spu->node].list_mutex));
 
 	return (!spu->ctx || !(spu->ctx->flags & SPU_CREATE_NOSCHED));
 }
@@ -385,7 +385,7 @@ static struct spu *ctx_location(struct spu *ref, int offset, int node)
 	spu = NULL;
 	if (offset >= 0) {
 		list_for_each_entry(spu, ref->aff_list.prev, aff_list) {
-			BUG_ON(spu->node != node);
+			_ON(spu->node != node);
 			if (offset == 0)
 				break;
 			if (sched_spu(spu))
@@ -393,7 +393,7 @@ static struct spu *ctx_location(struct spu *ref, int offset, int node)
 		}
 	} else {
 		list_for_each_entry_reverse(spu, ref->aff_list.next, aff_list) {
-			BUG_ON(spu->node != node);
+			_ON(spu->node != node);
 			if (offset == 0)
 				break;
 			if (sched_spu(spu))
@@ -551,7 +551,7 @@ static void spu_prio_wait(struct spu_context *ctx)
 	 * if the nosched flag is set.  If NOSCHED is not set, the caller
 	 * queues the context and waits for an spu event or error.
 	 */
-	BUG_ON(!(ctx->flags & SPU_CREATE_NOSCHED));
+	_ON(!(ctx->flags & SPU_CREATE_NOSCHED));
 
 	spin_lock(&spu_prio->runq_lock);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
@@ -923,7 +923,7 @@ static noinline void spusched_tick(struct spu_context *ctx)
 	struct spu *spu = NULL;
 
 	if (spu_acquire(ctx))
-		BUG();	/* a kernel thread never has signals pending */
+		();	/* a kernel thread never has signals pending */
 
 	if (ctx->state != SPU_STATE_RUNNABLE)
 		goto out;
@@ -1124,7 +1124,7 @@ int __init spu_sched_init(void)
 	if (!entry)
 		goto out_stop_kthread;
 
-	pr_debug("spusched: tick: %d, min ticks: %d, default ticks: %d\n",
+	pr_de("spusched: tick: %d, min ticks: %d, default ticks: %d\n",
 			SPUSCHED_TICK, MIN_SPU_TIMESLICE, DEF_SPU_TIMESLICE);
 	return 0;
 

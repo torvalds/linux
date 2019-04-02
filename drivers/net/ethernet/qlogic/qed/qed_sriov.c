@@ -409,7 +409,7 @@ static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
 	/* Some sanity checks */
 	if (iov->num_vfs > NUM_OF_VFS(cdev) ||
 	    iov->total_vfs > NUM_OF_VFS(cdev)) {
-		/* This can happen only due to a bug. In this case we set
+		/* This can happen only due to a . In this case we set
 		 * num_vfs to zero to avoid memory corruption in the code that
 		 * assumes max number of vfs
 		 */

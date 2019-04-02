@@ -79,7 +79,7 @@ static int init_inode_xattrs(struct inode *inode)
 		goto out_unlock;
 	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
 		if (unlikely(vi->xattr_isize)) {
-			DBG_BUGON(1);
+			DBG_ON(1);
 			ret = -EIO;
 			goto out_unlock;	/* xattr ondisk layout error */
 		}
@@ -119,7 +119,7 @@ static int init_inode_xattrs(struct inode *inode)
 	for (i = 0; i < vi->xattr_shared_count; ++i) {
 		if (unlikely(it.ofs >= EROFS_BLKSIZ)) {
 			/* cannot be unaligned */
-			BUG_ON(it.ofs != EROFS_BLKSIZ);
+			_ON(it.ofs != EROFS_BLKSIZ);
 			xattr_iter_end(&it, atomic_map);
 
 			it.page = erofs_get_meta_page(sb,
@@ -195,7 +195,7 @@ static int inline_xattr_iter_begin(struct xattr_iter *it,
 
 	xattr_header_sz = inlinexattr_header_size(inode);
 	if (unlikely(xattr_header_sz >= vi->xattr_isize)) {
-		BUG_ON(xattr_header_sz > vi->xattr_isize);
+		_ON(xattr_header_sz > vi->xattr_isize);
 		return -ENOATTR;
 	}
 
@@ -237,7 +237,7 @@ static int xattr_foreach(struct xattr_iter *it,
 	if (tlimit != NULL) {
 		unsigned int entry_sz = EROFS_XATTR_ENTRY_SIZE(&entry);
 
-		BUG_ON(*tlimit < entry_sz);
+		_ON(*tlimit < entry_sz);
 		*tlimit -= entry_sz;
 	}
 
@@ -256,7 +256,7 @@ static int xattr_foreach(struct xattr_iter *it,
 
 	while (processed < entry.e_name_len) {
 		if (it->ofs >= EROFS_BLKSIZ) {
-			BUG_ON(it->ofs > EROFS_BLKSIZ);
+			_ON(it->ofs > EROFS_BLKSIZ);
 
 			err = xattr_iter_fixup(it);
 			if (err)
@@ -291,7 +291,7 @@ static int xattr_foreach(struct xattr_iter *it,
 
 	while (processed < value_sz) {
 		if (it->ofs >= EROFS_BLKSIZ) {
-			BUG_ON(it->ofs > EROFS_BLKSIZ);
+			_ON(it->ofs > EROFS_BLKSIZ);
 
 			err = xattr_iter_fixup(it);
 			if (err)

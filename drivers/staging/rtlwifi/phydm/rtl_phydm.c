@@ -155,7 +155,7 @@ static int _rtl_phydm_init_com_info(struct rtl_priv *rtlpriv,
 		odm_cmn_info_ptr_array_hook(dm, ODM_CMNINFO_STA_STATUS, i,
 					    NULL);
 
-	phydm_init_debug_setting(dm);
+	phydm_init_de_setting(dm);
 
 	odm_cmn_info_init(dm, ODM_CMNINFO_FAB_VER, params->fab_ver);
 	odm_cmn_info_init(dm, ODM_CMNINFO_CUT_VER, params->cut_ver);
@@ -733,7 +733,7 @@ static u32 rtl_phydm_query_counter(struct rtl_priv *rtlpriv,
 	return 0xDEADDEAD;
 }
 
-static bool rtl_phydm_debug_cmd(struct rtl_priv *rtlpriv, char *in, u32 in_len,
+static bool rtl_phydm_de_cmd(struct rtl_priv *rtlpriv, char *in, u32 in_len,
 				char *out, u32 out_len)
 {
 	struct phy_dm_struct *dm = rtlpriv_to_phydm(rtlpriv);
@@ -795,8 +795,8 @@ static struct rtl_phydm_ops rtl_phydm_operation = {
 	.phydm_modify_ra_pcr_threshold = rtl_phydm_modify_ra_pcr_threshold,
 	.phydm_query_counter = rtl_phydm_query_counter,
 
-	/* debug */
-	.phydm_debug_cmd = rtl_phydm_debug_cmd,
+	/* de */
+	.phydm_de_cmd = rtl_phydm_de_cmd,
 };
 
 struct rtl_phydm_ops *rtl_phydm_get_ops_pointer(void)

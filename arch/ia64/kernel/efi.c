@@ -43,7 +43,7 @@
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
 
-#define EFI_DEBUG	0
+#define EFI_DE	0
 
 static __initdata unsigned long palo_phys;
 
@@ -397,7 +397,7 @@ efi_get_pal_addr (void)
 		if (efi_md_size(md) > IA64_GRANULE_SIZE)
 			panic("Whoa!  PAL code size bigger than a granule!");
 
-#if EFI_DEBUG
+#if EFI_DE
 		mask  = ~((1 << IA64_GRANULE_SHIFT) - 1);
 
 		printk(KERN_INFO "CPU %d: mapping PAL code "
@@ -555,7 +555,7 @@ efi_init (void)
 	efi_map_end   = efi_map_start + ia64_boot_param->efi_memmap_size;
 	efi_desc_size = ia64_boot_param->efi_memdesc_size;
 
-#if EFI_DEBUG
+#if EFI_DE
 	/* print EFI memory map: */
 	{
 		efi_memory_desc_t *md;

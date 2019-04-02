@@ -319,7 +319,7 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
 							state->crtc);
 	if (!crtc_state) {
-		DRM_DEBUG_KMS("Invalid crtc state\n");
+		DRM_DE_KMS("Invalid crtc state\n");
 		return -EINVAL;
 	}
 
@@ -695,7 +695,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		}
 
 		if (param > SCALER_TILE_HEIGHT_MASK) {
-			DRM_DEBUG_KMS("SAND height too large (%d)\n", param);
+			DRM_DE_KMS("SAND height too large (%d)\n", param);
 			return -EINVAL;
 		}
 
@@ -721,7 +721,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	}
 
 	default:
-		DRM_DEBUG_KMS("Unsupported FB tiling flag 0x%16llx",
+		DRM_DE_KMS("Unsupported FB tiling flag 0x%16llx",
 			      (long long)fb->modifier);
 		return -EINVAL;
 	}

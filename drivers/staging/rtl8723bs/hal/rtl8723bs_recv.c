@@ -7,7 +7,7 @@
 #define _RTL8723BS_RECV_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtl8723b_hal.h>
 
 static s32 initrecvbuf(struct recv_buf *precvbuf, struct adapter *padapter)

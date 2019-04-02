@@ -221,7 +221,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_partner_advt		= 0x0616,
 	i40e_aqc_opc_set_lb_modes		= 0x0618,
 	i40e_aqc_opc_get_phy_wol_caps		= 0x0621,
-	i40e_aqc_opc_set_phy_debug		= 0x0622,
+	i40e_aqc_opc_set_phy_de		= 0x0622,
 	i40e_aqc_opc_upload_ext_phy_fm		= 0x0625,
 	i40e_aqc_opc_run_phy_activity		= 0x0626,
 	i40e_aqc_opc_set_phy_register		= 0x0628,
@@ -276,11 +276,11 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_oem_ocsd_initialize	= 0xFE02,
 	i40e_aqc_opc_oem_ocbb_initialize	= 0xFE03,
 
-	/* debug commands */
-	i40e_aqc_opc_debug_read_reg		= 0xFF03,
-	i40e_aqc_opc_debug_write_reg		= 0xFF04,
-	i40e_aqc_opc_debug_modify_reg		= 0xFF07,
-	i40e_aqc_opc_debug_dump_internals	= 0xFF08,
+	/* de commands */
+	i40e_aqc_opc_de_read_reg		= 0xFF03,
+	i40e_aqc_opc_de_write_reg		= 0xFF04,
+	i40e_aqc_opc_de_modify_reg		= 0xFF07,
+	i40e_aqc_opc_de_dump_internals	= 0xFF08,
 };
 
 /* command structures and indirect data structures */

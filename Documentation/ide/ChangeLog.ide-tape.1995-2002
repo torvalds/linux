@@ -54,7 +54,7 @@
  *                       Use of new general features which are provided by
  *                        ide.c for use with atapi devices.
  *                        (Programming done by Mark Lord)
- *                       Few potential bug fixes (Again, suggested by Mark)
+ *                       Few potential  fixes (Again, suggested by Mark)
  *                       Single character device data transfers are now
  *                        not limited in size, as they were before.
  *                       We are asking the tape about its recommended
@@ -103,7 +103,7 @@
  *                       The recommended user block size is returned by
  *                        the MTIOCGET ioctl.
  *                       Additional minor changes.
- * Ver 1.3   Feb  9 96   Fixed pipelined read mode bug which prevented the
+ * Ver 1.3   Feb  9 96   Fixed pipelined read mode  which prevented the
  *                        use of some block sizes during a restore procedure.
  *                       The character device interface will now present a
  *                        continuous view of the media - any mix of block sizes
@@ -123,9 +123,9 @@
  * Ver 1.4   Mar 13 96   Fixed serialize support.
  * Ver 1.5   Apr 12 96   Fixed shared interface operation, broken in 1.3.85.
  *                       Fixed pipelined read mode inefficiency.
- *                       Fixed nasty null dereferencing bug.
+ *                       Fixed nasty null dereferencing .
  * Ver 1.6   Aug 16 96   Fixed FPU usage in the driver.
- *                       Fixed end of media bug.
+ *                       Fixed end of media .
  * Ver 1.7   Sep 10 96   Minor changes for the CONNER CTT8000-A model.
  * Ver 1.8   Sep 26 96   Attempt to find a better balance between good
  *                        interactive response and high system throughput.
@@ -134,7 +134,7 @@
  *                       Abort pending requests at end of media.
  *                       MTTELL was sometimes returning incorrect results.
  *                       Return the real block size in the MTIOCGET ioctl.
- *                       Some error recovery bug fixes.
+ *                       Some error recovery  fixes.
  * Ver 1.10  Nov  5 96   Major reorganization.
  *                       Reduced CPU overhead a bit by eliminating internal
  *                        bounce buffers.
@@ -145,7 +145,7 @@
  *                       Some portability fixes.
  *                       Removed ide-tape.h.
  *                       Additional minor changes.
- * Ver 1.11  Dec  2 96   Bug fix in previous DSC timeout handling.
+ * Ver 1.11  Dec  2 96    fix in previous DSC timeout handling.
  *                       Use ide_stall_queue() for DSC overlap.
  *                       Use the maximum speed rather than the current speed
  *                        to compute the request service time.
@@ -173,15 +173,15 @@
  *				according to Gadi's email
  *                   AJN-1) Minor fix asc == 11 should be asc == 0x11
  *                               in idetape_issue_packet_command (did effect
- *                               debugging output only)
- *                   AJN-2) Added more debugging output, and
+ *                               deging output only)
+ *                   AJN-2) Added more deging output, and
  *                              added ide-tape: where missing. I would also
  *				like to add tape->name where possible
- *                   AJN-3) Added different debug_level's
+ *                   AJN-3) Added different de_level's
  *                              via /proc/ide/hdc/settings
- *				"debug_level" determines amount of debugging output;
+ *				"de_level" determines amount of deging output;
  *				can be changed using /proc/ide/hdx/settings
- *				0 : almost no debugging output
+ *				0 : almost no deging output
  *				1 : 0+output errors only
  *				2 : 1+output all sensekey/asc
  *				3 : 2+follow all chrdev related procedures
@@ -251,7 +251,7 @@
  *			Small code optimization for MTBSF and MTBSFM ioctls.
  *			Don't try to unlock the door during device close if is
  *			 already unlocked!
- *			Cosmetic fixes to miscellaneous debugging output messages.
+ *			Cosmetic fixes to miscellaneous deging output messages.
  *			Set the minimum /proc/ide/hd?/settings values for "pipeline",
  *			 "pipeline_min", and "pipeline_max" to 1.
  */

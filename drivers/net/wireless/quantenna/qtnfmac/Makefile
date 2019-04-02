@@ -27,4 +27,4 @@ qtnfmac_pcie-objs += \
 	pcie/pearl_pcie.o \
 	pcie/topaz_pcie.o
 
-qtnfmac_pcie-$(CONFIG_DEBUG_FS) += debug.o
+qtnfmac_pcie-$(CONFIG_DE_FS) += de.o

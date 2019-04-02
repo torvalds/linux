@@ -69,7 +69,7 @@ static struct cbe_regs_map *cbe_find_map(struct device_node *np)
 	do {
 		tmp_np = tmp_np->parent;
 		/* on a correct devicetree we wont get up to root */
-		BUG_ON(!tmp_np);
+		_ON(!tmp_np);
 	} while (!of_node_is_type(tmp_np, "cpu") ||
 		 !of_node_is_type(tmp_np, "be"));
 

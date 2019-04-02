@@ -112,7 +112,7 @@ static void __exit xfrm6_transport_exit(void)
 	int err;
 
 	err = xfrm_unregister_mode(&xfrm6_transport_mode, AF_INET6);
-	BUG_ON(err);
+	_ON(err);
 }
 
 module_init(xfrm6_transport_init);

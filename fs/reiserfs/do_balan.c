@@ -256,7 +256,7 @@ static int balance_leaf_when_delete(struct tree_balance *tb, int flag)
 
 	/* Delete or truncate the item */
 
-	BUG_ON(flag != M_DELETE && flag != M_CUT);
+	_ON(flag != M_DELETE && flag != M_CUT);
 	if (flag == M_DELETE)
 		balance_leaf_when_delete_del(tb);
 	else /* M_CUT */
@@ -611,7 +611,7 @@ static unsigned int balance_leaf_left(struct tree_balance *tb,
 
 	/* new item or it part falls to L[0], shift it too */
 	if (tb->item_pos < tb->lnum[0]) {
-		BUG_ON(flag != M_INSERT && flag != M_PASTE);
+		_ON(flag != M_INSERT && flag != M_PASTE);
 
 		if (flag == M_INSERT)
 			return balance_leaf_insert_left(tb, ih, body);
@@ -917,7 +917,7 @@ static void balance_leaf_right(struct tree_balance *tb,
 	if (tb->rnum[0] <= 0)
 		return;
 
-	BUG_ON(flag != M_INSERT && flag != M_PASTE);
+	_ON(flag != M_INSERT && flag != M_PASTE);
 
 	if (flag == M_INSERT)
 		balance_leaf_insert_right(tb, ih, body);
@@ -1237,7 +1237,7 @@ static void balance_leaf_new_nodes(struct tree_balance *tb,
 {
 	int i;
 	for (i = tb->blknum[0] - 2; i >= 0; i--) {
-		BUG_ON(flag != M_INSERT && flag != M_PASTE);
+		_ON(flag != M_INSERT && flag != M_PASTE);
 
 		RFALSE(!tb->snum[i],
 		       "PAP-12200: snum[%d] == %d. Must be > 0", i,

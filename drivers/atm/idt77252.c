@@ -64,13 +64,13 @@ static unsigned int vpibits = 1;
 
 
 /*
- * Debug HACKs.
+ * De HACKs.
  */
-#define DEBUG_MODULE 1
+#define DE_MODULE 1
 #undef HAVE_EEPROM	/* does not work, yet. */
 
-#ifdef CONFIG_ATM_IDT77252_DEBUG
-static unsigned long debug = DBG_GENERAL;
+#ifdef CONFIG_ATM_IDT77252_DE
+static unsigned long de = DBG_GENERAL;
 #endif
 
 
@@ -527,7 +527,7 @@ idt77252_eeprom_init(struct idt77252_dev *card)
 #endif /* HAVE_EEPROM */
 
 
-#ifdef CONFIG_ATM_IDT77252_DEBUG
+#ifdef CONFIG_ATM_IDT77252_DE
 static void
 dump_tct(struct idt77252_dev *card, int index)
 {
@@ -777,7 +777,7 @@ out:
 	if (time_after(jiffies, scq->trans_start + HZ)) {
 		printk("%s: Error pushing TBD for %d.%d\n",
 		       card->name, vc->tx_vcc->vpi, vc->tx_vcc->vci);
-#ifdef CONFIG_ATM_IDT77252_DEBUG
+#ifdef CONFIG_ATM_IDT77252_DE
 		idt77252_tx_dump(card);
 #endif
 		scq->trans_start = jiffies;
@@ -1266,8 +1266,8 @@ idt77252_rx_raw(struct idt77252_dev *card)
 		vpi = (header & ATM_HDR_VPI_MASK) >> ATM_HDR_VPI_SHIFT;
 		vci = (header & ATM_HDR_VCI_MASK) >> ATM_HDR_VCI_SHIFT;
 
-#ifdef CONFIG_ATM_IDT77252_DEBUG
-		if (debug & DBG_RAW_CELL) {
+#ifdef CONFIG_ATM_IDT77252_DE
+		if (de & DBG_RAW_CELL) {
 			int i;
 
 			printk("%s: raw cell %x.%02x.%04x.%x.%x\n",
@@ -2734,7 +2734,7 @@ idt77252_interrupt(int irq, void *dev_id)
 	if (stat & SAR_STAT_TXICP) {	/* Incomplete CS-PDU has  */
 		INTPRINTK("%s: TXICP\n", card->name);
 		card->irqstat[14]++;
-#ifdef CONFIG_ATM_IDT77252_DEBUG
+#ifdef CONFIG_ATM_IDT77252_DE
 		idt77252_tx_dump(card);
 #endif
 	}
@@ -3785,9 +3785,9 @@ MODULE_LICENSE("GPL");
 
 module_param(vpibits, uint, 0);
 MODULE_PARM_DESC(vpibits, "number of VPI bits supported (0, 1, or 2)");
-#ifdef CONFIG_ATM_IDT77252_DEBUG
-module_param(debug, ulong, 0644);
-MODULE_PARM_DESC(debug,   "debug bitmap, see drivers/atm/idt77252.h");
+#ifdef CONFIG_ATM_IDT77252_DE
+module_param(de, ulong, 0644);
+MODULE_PARM_DESC(de,   "de bitmap, see drivers/atm/idt77252.h");
 #endif
 
 MODULE_AUTHOR("Eddie C. Dost <ecd@atecom.com>");

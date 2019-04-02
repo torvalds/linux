@@ -98,7 +98,7 @@
 #endif
 
 
-/* Board/System/Debug information/definition ---------------- */
+/* Board/System/De information/definition ---------------- */
 #define PCI_DM9132_ID   0x91321282      /* Davicom DM9132 ID */
 #define PCI_DM9102_ID   0x91021282      /* Davicom DM9102 ID */
 #define PCI_DM9100_ID   0x91001282      /* Davicom DM9100 ID */
@@ -156,9 +156,9 @@
 #define dr16(reg)	ioread16(ioaddr + (reg))
 #define dr8(reg)	ioread8(ioaddr + (reg))
 
-#define DMFE_DBUG(dbug_now, msg, value)			\
+#define DMFE_D(d_now, msg, value)			\
 	do {						\
-		if (dmfe_debug || (dbug_now))		\
+		if (dmfe_de || (d_now))		\
 			pr_err("%s %lx\n",		\
 			       (msg), (long) (value));	\
 	} while (0)
@@ -243,7 +243,7 @@ struct dmfe_board_info {
 
 	u16 HPNA_command;		/* For HPNA register 16 */
 	u16 HPNA_timer;			/* For HPNA remote device check */
-	u16 dbug_cnt;
+	u16 d_cnt;
 	u16 NIC_capability;		/* NIC media capability */
 	u16 PHY_reg4;			/* Saved Phyxcer register 4 value */
 
@@ -292,12 +292,12 @@ static int printed_version;
 static const char version[] =
 	"Davicom DM9xxx net driver, version " DRV_VERSION " (" DRV_RELDATE ")";
 
-static int dmfe_debug;
+static int dmfe_de;
 static unsigned char dmfe_media_mode = DMFE_AUTO;
 static u32 dmfe_cr6_user_set;
 
 /* For module input parameter */
-static int debug;
+static int de;
 static u32 cr6set;
 static unsigned char mode = 8;
 static u8 chkmode = 1;
@@ -370,7 +370,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 pci_pmr;
 	int i, err;
 
-	DMFE_DBUG(0, "dmfe_init_one()", 0);
+	DMFE_D(0, "dmfe_init_one()", 0);
 
 	if (!printed_version++)
 		pr_info("%s\n", version);
@@ -530,7 +530,7 @@ static void dmfe_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct dmfe_board_info *db = netdev_priv(dev);
 
-	DMFE_DBUG(0, "dmfe_remove_one()", 0);
+	DMFE_D(0, "dmfe_remove_one()", 0);
 
  	if (dev) {
 
@@ -545,7 +545,7 @@ static void dmfe_remove_one(struct pci_dev *pdev)
 		free_netdev(dev);	/* free board information */
 	}
 
-	DMFE_DBUG(0, "dmfe_remove_one() exit", 0);
+	DMFE_D(0, "dmfe_remove_one() exit", 0);
 }
 
 
@@ -560,7 +560,7 @@ static int dmfe_open(struct net_device *dev)
 	const int irq = db->pdev->irq;
 	int ret;
 
-	DMFE_DBUG(0, "dmfe_open", 0);
+	DMFE_D(0, "dmfe_open", 0);
 
 	ret = request_irq(irq, dmfe_interrupt, IRQF_SHARED, dev->name, dev);
 	if (ret)
@@ -616,7 +616,7 @@ static void dmfe_init_dm910x(struct net_device *dev)
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
 
-	DMFE_DBUG(0, "dmfe_init_dm910x()", 0);
+	DMFE_D(0, "dmfe_init_dm910x()", 0);
 
 	/* Reset DM910x MAC controller */
 	dw32(DCR0, DM910X_RESET);	/* RESET MAC */
@@ -685,7 +685,7 @@ static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
 	struct tx_desc *txptr;
 	unsigned long flags;
 
-	DMFE_DBUG(0, "dmfe_start_xmit", 0);
+	DMFE_D(0, "dmfe_start_xmit", 0);
 
 	/* Too large packet check */
 	if (skb->len > MAX_PACKET_SIZE) {
@@ -753,7 +753,7 @@ static int dmfe_stop(struct net_device *dev)
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
 
-	DMFE_DBUG(0, "dmfe_stop", 0);
+	DMFE_D(0, "dmfe_stop", 0);
 
 	/* disable system */
 	netif_stop_queue(dev);
@@ -797,7 +797,7 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 	void __iomem *ioaddr = db->ioaddr;
 	unsigned long flags;
 
-	DMFE_DBUG(0, "dmfe_interrupt()", 0);
+	DMFE_D(0, "dmfe_interrupt()", 0);
 
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -815,7 +815,7 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 	/* Check system status */
 	if (db->cr5_data & 0x2000) {
 		/* system bus error happen */
-		DMFE_DBUG(1, "System bus error happen. CR5=", db->cr5_data);
+		DMFE_D(1, "System bus error happen. CR5=", db->cr5_data);
 		db->reset_fatal++;
 		db->wait_reset = 1;	/* Need to RESET */
 		spin_unlock_irqrestore(&db->lock, flags);
@@ -978,7 +978,7 @@ static void dmfe_rx_packet(struct net_device *dev, struct dmfe_board_info *db)
 		if ( (rdes0 & 0x300) != 0x300) {
 			/* A packet without First/Last flag */
 			/* reuse this SKB */
-			DMFE_DBUG(0, "Reuse SK buffer, rdes0", rdes0);
+			DMFE_D(0, "Reuse SK buffer, rdes0", rdes0);
 			dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 		} else {
 			/* A packet with First/Last flag */
@@ -1031,7 +1031,7 @@ static void dmfe_rx_packet(struct net_device *dev, struct dmfe_board_info *db)
 				}
 			} else {
 				/* Reuse SKB buffer when the packet is error */
-				DMFE_DBUG(0, "Reuse SK buffer, rdes0", rdes0);
+				DMFE_D(0, "Reuse SK buffer, rdes0", rdes0);
 				dmfe_reuse_skb(db, rxptr->rx_skb_ptr);
 			}
 		}
@@ -1052,11 +1052,11 @@ static void dmfe_set_filter_mode(struct net_device *dev)
 	unsigned long flags;
 	int mc_count = netdev_mc_count(dev);
 
-	DMFE_DBUG(0, "dmfe_set_filter_mode()", 0);
+	DMFE_D(0, "dmfe_set_filter_mode()", 0);
 	spin_lock_irqsave(&db->lock, flags);
 
 	if (dev->flags & IFF_PROMISC) {
-		DMFE_DBUG(0, "Enable PROM Mode", 0);
+		DMFE_D(0, "Enable PROM Mode", 0);
 		db->cr6_data |= CR6_PM | CR6_PBF;
 		update_cr6(db->cr6_data, db->ioaddr);
 		spin_unlock_irqrestore(&db->lock, flags);
@@ -1064,14 +1064,14 @@ static void dmfe_set_filter_mode(struct net_device *dev)
 	}
 
 	if (dev->flags & IFF_ALLMULTI || mc_count > DMFE_MAX_MULTICAST) {
-		DMFE_DBUG(0, "Pass all multicast address", mc_count);
+		DMFE_D(0, "Pass all multicast address", mc_count);
 		db->cr6_data &= ~(CR6_PM | CR6_PBF);
 		db->cr6_data |= CR6_PAM;
 		spin_unlock_irqrestore(&db->lock, flags);
 		return;
 	}
 
-	DMFE_DBUG(0, "Set multicast address", mc_count);
+	DMFE_D(0, "Set multicast address", mc_count);
 	if (db->chip_id == PCI_DM9132_ID)
 		dm9132_id_table(dev);	/* DM9132 */
 	else
@@ -1139,7 +1139,7 @@ static void dmfe_timer(struct timer_list *t)
 
 	int link_ok, link_ok_phy;
 
-	DMFE_DBUG(0, "dmfe_timer()", 0);
+	DMFE_D(0, "dmfe_timer()", 0);
 	spin_lock_irqsave(&db->lock, flags);
 
 	/* Media mode process when Link OK before enter this route */
@@ -1186,7 +1186,7 @@ static void dmfe_timer(struct timer_list *t)
 	}
 
 	if (db->wait_reset) {
-		DMFE_DBUG(0, "Dynamic Reset device", db->tx_packet_cnt);
+		DMFE_D(0, "Dynamic Reset device", db->tx_packet_cnt);
 		db->reset_count++;
 		dmfe_dynamic_reset(dev);
 		db->first_in_callback = 0;
@@ -1229,13 +1229,13 @@ static void dmfe_timer(struct timer_list *t)
 				      db->phy_addr, 1, db->chip_id) & 0x4) ? 1 : 0;
 
 	if (link_ok_phy != link_ok) {
-		DMFE_DBUG (0, "PHY and chip report different link status", 0);
+		DMFE_D (0, "PHY and chip report different link status", 0);
 		link_ok = link_ok | link_ok_phy;
  	}
 
 	if ( !link_ok && netif_carrier_ok(dev)) {
 		/* Link Failed */
-		DMFE_DBUG(0, "Link Failed", tmp_cr12);
+		DMFE_D(0, "Link Failed", tmp_cr12);
 		netif_carrier_off(dev);
 
 		/* For Force 10/100M Half/Full mode: Enable Auto-Nego mode */
@@ -1253,7 +1253,7 @@ static void dmfe_timer(struct timer_list *t)
 		}
 	} else if (!netif_carrier_ok(dev)) {
 
-		DMFE_DBUG(0, "Link link OK", tmp_cr12);
+		DMFE_D(0, "Link link OK", tmp_cr12);
 
 		/* Auto Sense Speed */
 		if ( !(db->media_mode & DMFE_AUTO) || !dmfe_sense_speed(db)) {
@@ -1291,7 +1291,7 @@ static void dmfe_dynamic_reset(struct net_device *dev)
 	struct dmfe_board_info *db = netdev_priv(dev);
 	void __iomem *ioaddr = db->ioaddr;
 
-	DMFE_DBUG(0, "dmfe_dynamic_reset()", 0);
+	DMFE_D(0, "dmfe_dynamic_reset()", 0);
 
 	/* Sopt MAC controller */
 	db->cr6_data &= ~(CR6_RXSC | CR6_TXSC);	/* Disable Tx/Rx */
@@ -1326,7 +1326,7 @@ static void dmfe_dynamic_reset(struct net_device *dev)
 
 static void dmfe_free_rxbuffer(struct dmfe_board_info * db)
 {
-	DMFE_DBUG(0, "dmfe_free_rxbuffer()", 0);
+	DMFE_D(0, "dmfe_free_rxbuffer()", 0);
 
 	/* free allocated rx buffer */
 	while (db->rx_avail_cnt) {
@@ -1354,7 +1354,7 @@ static void dmfe_reuse_skb(struct dmfe_board_info *db, struct sk_buff * skb)
 		db->rx_avail_cnt++;
 		db->rx_insert_ptr = rxptr->next_rx_desc;
 	} else
-		DMFE_DBUG(0, "SK Buffer reuse method error", db->rx_avail_cnt);
+		DMFE_D(0, "SK Buffer reuse method error", db->rx_avail_cnt);
 }
 
 
@@ -1374,7 +1374,7 @@ static void dmfe_descriptor_init(struct net_device *dev)
 	dma_addr_t tmp_buf_dma;
 	int i;
 
-	DMFE_DBUG(0, "dmfe_descriptor_init()", 0);
+	DMFE_D(0, "dmfe_descriptor_init()", 0);
 
 	/* tx descriptor start pointer */
 	db->tx_insert_ptr = db->first_tx_desc;
@@ -1495,7 +1495,7 @@ static void send_filter_frame(struct net_device *dev)
 	u32 * suptr;
 	int i;
 
-	DMFE_DBUG(0, "send_filter_frame()", 0);
+	DMFE_D(0, "send_filter_frame()", 0);
 
 	txptr = db->tx_insert_ptr;
 	suptr = (u32 *) txptr->tx_buf_ptr;
@@ -1664,7 +1664,7 @@ static u8 dmfe_sense_speed(struct dmfe_board_info *db)
 		}
 	} else {
 		db->op_mode = DMFE_10MHF;
-		DMFE_DBUG(0, "Link Failed :", phy_mode);
+		DMFE_D(0, "Link Failed :", phy_mode);
 		ErrFlag = 1;
 	}
 
@@ -1918,7 +1918,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 	char * srom = db->srom;
 	int dmfe_mode, tmp_reg;
 
-	DMFE_DBUG(0, "dmfe_parse_srom() ", 0);
+	DMFE_D(0, "dmfe_parse_srom() ", 0);
 
 	/* Init CR15 */
 	db->cr15_data = CR15_DEFAULT;
@@ -2187,7 +2187,7 @@ MODULE_DESCRIPTION("Davicom DM910X fast ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(mode, byte, 0);
 module_param(cr6set, int, 0);
 module_param(chkmode, byte, 0);
@@ -2196,7 +2196,7 @@ module_param(HPNA_rx_cmd, byte, 0);
 module_param(HPNA_tx_cmd, byte, 0);
 module_param(HPNA_NoiseFloor, byte, 0);
 module_param(SF_mode, byte, 0);
-MODULE_PARM_DESC(debug, "Davicom DM9xxx enable debugging (0-1)");
+MODULE_PARM_DESC(de, "Davicom DM9xxx enable deging (0-1)");
 MODULE_PARM_DESC(mode, "Davicom DM9xxx: "
 		"Bit 0: 10/100Mbps, bit 2: duplex, bit 8: HomePNA");
 
@@ -2215,10 +2215,10 @@ static int __init dmfe_init_module(void)
 	pr_info("%s\n", version);
 	printed_version = 1;
 
-	DMFE_DBUG(0, "init_module() ", debug);
+	DMFE_D(0, "init_module() ", de);
 
-	if (debug)
-		dmfe_debug = debug;	/* set debug flag */
+	if (de)
+		dmfe_de = de;	/* set de flag */
 	if (cr6set)
 		dmfe_cr6_user_set = cr6set;
 
@@ -2259,7 +2259,7 @@ static int __init dmfe_init_module(void)
 
 static void __exit dmfe_cleanup_module(void)
 {
-	DMFE_DBUG(0, "dmfe_cleanup_module() ", debug);
+	DMFE_D(0, "dmfe_cleanup_module() ", de);
 	pci_unregister_driver(&dmfe_driver);
 }
 

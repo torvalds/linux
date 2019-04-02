@@ -123,7 +123,7 @@ ecryptfs_miscdev_release(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&daemon->mux);
-	BUG_ON(!(daemon->flags & ECRYPTFS_DAEMON_MISCDEV_OPEN));
+	_ON(!(daemon->flags & ECRYPTFS_DAEMON_MISCDEV_OPEN));
 	daemon->flags &= ~ECRYPTFS_DAEMON_MISCDEV_OPEN;
 	atomic_dec(&ecryptfs_num_miscdev_opens);
 	mutex_unlock(&daemon->mux);
@@ -134,8 +134,8 @@ ecryptfs_miscdev_release(struct inode *inode, struct file *file)
 	if (rc) {
 		printk(KERN_CRIT "%s: Fatal error whilst attempting to "
 		       "shut down daemon; rc = [%d]. Please report this "
-		       "bug.\n", __func__, rc);
-		BUG();
+		       ".\n", __func__, rc);
+		();
 	}
 	return rc;
 }
@@ -267,7 +267,7 @@ check_list:
 	}
 	msg_ctx = list_first_entry(&daemon->msg_ctx_out_queue,
 				   struct ecryptfs_msg_ctx, daemon_out_list);
-	BUG_ON(!msg_ctx);
+	_ON(!msg_ctx);
 	mutex_lock(&msg_ctx->mux);
 	if (msg_ctx->msg) {
 		rc = ecryptfs_write_packet_length(packet_length,
@@ -502,6 +502,6 @@ int __init ecryptfs_init_ecryptfs_miscdev(void)
  */
 void ecryptfs_destroy_ecryptfs_miscdev(void)
 {
-	BUG_ON(atomic_read(&ecryptfs_num_miscdev_opens) != 0);
+	_ON(atomic_read(&ecryptfs_num_miscdev_opens) != 0);
 	misc_deregister(&ecryptfs_miscdev);
 }

@@ -29,11 +29,11 @@ config USB_PWC
 	  To compile this driver as a module, choose M here: the
 	  module will be called pwc.
 
-config USB_PWC_DEBUG
-	bool "USB Philips Cameras verbose debug"
+config USB_PWC_DE
+	bool "USB Philips Cameras verbose de"
 	depends on USB_PWC
 	help
-	  Say Y here in order to have the pwc driver generate verbose debugging
+	  Say Y here in order to have the pwc driver generate verbose deging
 	  messages.
 	  A special module options 'trace' is used to control the verbosity.
 

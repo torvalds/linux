@@ -228,7 +228,7 @@
 #define CK_MCO1		211
 #define CK_MCO2		212
 
-/* TRACE & DEBUG clocks */
+/* TRACE & DE clocks */
 #define CK_DBG		214
 #define CK_TRACE	215
 

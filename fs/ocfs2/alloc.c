@@ -188,7 +188,7 @@ static void ocfs2_dinode_set_last_eb_blk(struct ocfs2_extent_tree *et,
 {
 	struct ocfs2_dinode *di = et->et_object;
 
-	BUG_ON(et->et_ops != &ocfs2_dinode_et_ops);
+	_ON(et->et_ops != &ocfs2_dinode_et_ops);
 	di->i_last_eb_blk = cpu_to_le64(blkno);
 }
 
@@ -196,7 +196,7 @@ static u64 ocfs2_dinode_get_last_eb_blk(struct ocfs2_extent_tree *et)
 {
 	struct ocfs2_dinode *di = et->et_object;
 
-	BUG_ON(et->et_ops != &ocfs2_dinode_et_ops);
+	_ON(et->et_ops != &ocfs2_dinode_et_ops);
 	return le64_to_cpu(di->i_last_eb_blk);
 }
 
@@ -234,8 +234,8 @@ static int ocfs2_dinode_insert_check(struct ocfs2_extent_tree *et,
 	struct ocfs2_inode_info *oi = cache_info_to_inode(et->et_ci);
 	struct ocfs2_super *osb = OCFS2_SB(oi->vfs_inode.i_sb);
 
-	BUG_ON(oi->ip_dyn_features & OCFS2_INLINE_DATA_FL);
-	mlog_bug_on_msg(!ocfs2_sparse_alloc(osb) &&
+	_ON(oi->ip_dyn_features & OCFS2_INLINE_DATA_FL);
+	mlog__on_msg(!ocfs2_sparse_alloc(osb) &&
 			(oi->ip_clusters != le32_to_cpu(rec->e_cpos)),
 			"Device %s, asking for sparse allocation: inode %llu, "
 			"cpos %u, clusters %u\n",
@@ -250,8 +250,8 @@ static int ocfs2_dinode_sanity_check(struct ocfs2_extent_tree *et)
 {
 	struct ocfs2_dinode *di = et->et_object;
 
-	BUG_ON(et->et_ops != &ocfs2_dinode_et_ops);
-	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+	_ON(et->et_ops != &ocfs2_dinode_et_ops);
+	_ON(!OCFS2_IS_VALID_DINODE(di));
 
 	return 0;
 }
@@ -375,7 +375,7 @@ static int ocfs2_dx_root_sanity_check(struct ocfs2_extent_tree *et)
 {
 	struct ocfs2_dx_root_block *dx_root = et->et_object;
 
-	BUG_ON(!OCFS2_IS_VALID_DX_ROOT(dx_root));
+	_ON(!OCFS2_IS_VALID_DX_ROOT(dx_root));
 
 	return 0;
 }
@@ -634,9 +634,9 @@ static void ocfs2_cp_path(struct ocfs2_path *dest, struct ocfs2_path *src)
 {
 	int i;
 
-	BUG_ON(path_root_bh(dest) != path_root_bh(src));
-	BUG_ON(path_root_el(dest) != path_root_el(src));
-	BUG_ON(path_root_access(dest) != path_root_access(src));
+	_ON(path_root_bh(dest) != path_root_bh(src));
+	_ON(path_root_el(dest) != path_root_el(src));
+	_ON(path_root_access(dest) != path_root_access(src));
 
 	ocfs2_reinit_path(dest, 1);
 
@@ -657,8 +657,8 @@ static void ocfs2_mv_path(struct ocfs2_path *dest, struct ocfs2_path *src)
 {
 	int i;
 
-	BUG_ON(path_root_bh(dest) != path_root_bh(src));
-	BUG_ON(path_root_access(dest) != path_root_access(src));
+	_ON(path_root_bh(dest) != path_root_bh(src));
+	_ON(path_root_access(dest) != path_root_access(src));
 
 	for(i = 1; i < OCFS2_MAX_PATH_DEPTH; i++) {
 		brelse(dest->p_node[i].bh);
@@ -687,7 +687,7 @@ static inline void ocfs2_path_insert_eb(struct ocfs2_path *path, int index,
 	 * safely removed if we ever need to insert extent block
 	 * structures at the root.
 	 */
-	BUG_ON(index == 0);
+	_ON(index == 0);
 
 	path->p_node[index].bh = eb_bh;
 	path->p_node[index].el = &eb->h_list;
@@ -699,7 +699,7 @@ static struct ocfs2_path *ocfs2_new_path(struct buffer_head *root_bh,
 {
 	struct ocfs2_path *path;
 
-	BUG_ON(le16_to_cpu(root_el->l_tree_depth) >= OCFS2_MAX_PATH_DEPTH);
+	_ON(le16_to_cpu(root_el->l_tree_depth) >= OCFS2_MAX_PATH_DEPTH);
 
 	path = kzalloc(sizeof(*path), GFP_NOFS);
 	if (path) {
@@ -898,7 +898,7 @@ static int ocfs2_validate_extent_block(struct super_block *sb,
 
 	trace_ocfs2_validate_extent_block((unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
@@ -983,7 +983,7 @@ int ocfs2_num_free_extents(struct ocfs2_extent_tree *et)
 		el = &eb->h_list;
 	}
 
-	BUG_ON(el->l_tree_depth != 0);
+	_ON(el->l_tree_depth != 0);
 
 	retval = le16_to_cpu(el->l_count) - le16_to_cpu(el->l_next_free_rec);
 bail:
@@ -1173,7 +1173,7 @@ static int ocfs2_add_branch(handle_t *handle,
 	struct ocfs2_extent_list  *el;
 	u32 new_cpos, root_end;
 
-	BUG_ON(!last_eb_bh || !*last_eb_bh);
+	_ON(!last_eb_bh || !*last_eb_bh);
 
 	if (eb_bh) {
 		eb = (struct ocfs2_extent_block *) eb_bh->b_data;
@@ -1182,7 +1182,7 @@ static int ocfs2_add_branch(handle_t *handle,
 		el = et->et_root_el;
 
 	/* we never add a branch to a leaf. */
-	BUG_ON(!el->l_tree_depth);
+	_ON(!el->l_tree_depth);
 
 	new_blocks = le16_to_cpu(el->l_tree_depth);
 
@@ -1232,10 +1232,10 @@ static int ocfs2_add_branch(handle_t *handle,
 		}
 	}
 
-	BUG_ON(block_given > new_blocks);
+	_ON(block_given > new_blocks);
 
 	if (block_given < new_blocks) {
-		BUG_ON(!meta_ac);
+		_ON(!meta_ac);
 		status = ocfs2_create_new_meta_bhs(handle, et,
 						   new_blocks - block_given,
 						   meta_ac,
@@ -1258,7 +1258,7 @@ static int ocfs2_add_branch(handle_t *handle,
 		bh = new_eb_bhs[i];
 		eb = (struct ocfs2_extent_block *) bh->b_data;
 		/* ocfs2_create_new_meta_bhs() should create it right! */
-		BUG_ON(!OCFS2_IS_VALID_EXTENT_BLOCK(eb));
+		_ON(!OCFS2_IS_VALID_EXTENT_BLOCK(eb));
 		eb_el = &eb->h_list;
 
 		status = ocfs2_journal_access_eb(handle, et->et_ci, bh,
@@ -1382,7 +1382,7 @@ static int ocfs2_shift_tree_depth(handle_t *handle,
 						   &new_eb_bh);
 
 	} else {
-		BUG();
+		();
 	}
 
 	if (status < 0) {
@@ -1392,7 +1392,7 @@ static int ocfs2_shift_tree_depth(handle_t *handle,
 
 	eb = (struct ocfs2_extent_block *) new_eb_bh->b_data;
 	/* ocfs2_create_new_meta_bhs() should create it right! */
-	BUG_ON(!OCFS2_IS_VALID_EXTENT_BLOCK(eb));
+	_ON(!OCFS2_IS_VALID_EXTENT_BLOCK(eb));
 
 	eb_el = &eb->h_list;
 	root_el = et->et_root_el;
@@ -1545,7 +1545,7 @@ static int ocfs2_grow_tree(handle_t *handle, struct ocfs2_extent_tree *et,
 	int depth = le16_to_cpu(el->l_tree_depth);
 	struct buffer_head *bh = NULL;
 
-	BUG_ON(meta_ac == NULL && ocfs2_is_dealloc_empty(et));
+	_ON(meta_ac == NULL && ocfs2_is_dealloc_empty(et));
 
 	shift = ocfs2_find_branch_target(et, &bh);
 	if (shift < 0) {
@@ -1558,7 +1558,7 @@ static int ocfs2_grow_tree(handle_t *handle, struct ocfs2_extent_tree *et,
 	 * and didn't find room for any more extents - we need to add
 	 * another tree level */
 	if (shift) {
-		BUG_ON(bh);
+		_ON(bh);
 		trace_ocfs2_grow_tree(
 			(unsigned long long)
 			ocfs2_metadata_cache_owner(et->et_ci),
@@ -1583,7 +1583,7 @@ static int ocfs2_grow_tree(handle_t *handle, struct ocfs2_extent_tree *et,
 			 * zero, it should always be null so there's
 			 * no reason to brelse.
 			 */
-			BUG_ON(*last_eb_bh);
+			_ON(*last_eb_bh);
 			get_bh(bh);
 			*last_eb_bh = bh;
 			goto out;
@@ -1613,9 +1613,9 @@ static void ocfs2_shift_records_right(struct ocfs2_extent_list *el)
 	int count = le16_to_cpu(el->l_count);
 	unsigned int num_bytes;
 
-	BUG_ON(!next_free);
+	_ON(!next_free);
 	/* This will cause us to go off the end of our extent list. */
-	BUG_ON(next_free >= count);
+	_ON(next_free >= count);
 
 	num_bytes = sizeof(struct ocfs2_extent_rec) * next_free;
 
@@ -1632,10 +1632,10 @@ static void ocfs2_rotate_leaf(struct ocfs2_extent_list *el,
 	next_free = le16_to_cpu(el->l_next_free_rec);
 	has_empty = ocfs2_is_empty_extent(&el->l_recs[0]);
 
-	BUG_ON(!next_free);
+	_ON(!next_free);
 
 	/* The tree code before us didn't allow enough room in the leaf. */
-	BUG_ON(el->l_next_free_rec == el->l_count && !has_empty);
+	_ON(el->l_next_free_rec == el->l_count && !has_empty);
 
 	/*
 	 * The easiest way to approach this is to just remove the
@@ -1668,15 +1668,15 @@ static void ocfs2_rotate_leaf(struct ocfs2_extent_list *el,
 				has_empty, next_free,
 				le16_to_cpu(el->l_count));
 
-	BUG_ON(insert_index < 0);
-	BUG_ON(insert_index >= le16_to_cpu(el->l_count));
-	BUG_ON(insert_index > next_free);
+	_ON(insert_index < 0);
+	_ON(insert_index >= le16_to_cpu(el->l_count));
+	_ON(insert_index > next_free);
 
 	/*
 	 * No need to memmove if we're just adding to the tail.
 	 */
 	if (insert_index != next_free) {
-		BUG_ON(next_free >= le16_to_cpu(el->l_count));
+		_ON(next_free >= le16_to_cpu(el->l_count));
 
 		num_bytes = next_free - insert_index;
 		num_bytes *= sizeof(struct ocfs2_extent_rec);
@@ -1695,7 +1695,7 @@ static void ocfs2_rotate_leaf(struct ocfs2_extent_list *el,
 	/*
 	 * Make sure none of the math above just messed up our tree.
 	 */
-	BUG_ON(le16_to_cpu(el->l_next_free_rec) > le16_to_cpu(el->l_count));
+	_ON(le16_to_cpu(el->l_next_free_rec) > le16_to_cpu(el->l_count));
 
 	el->l_recs[insert_index] = *insert_rec;
 
@@ -1705,7 +1705,7 @@ static void ocfs2_remove_empty_extent(struct ocfs2_extent_list *el)
 {
 	int size, num_recs = le16_to_cpu(el->l_next_free_rec);
 
-	BUG_ON(num_recs == 0);
+	_ON(num_recs == 0);
 
 	if (ocfs2_is_empty_extent(&el->l_recs[0])) {
 		num_recs--;
@@ -1728,7 +1728,7 @@ static void ocfs2_create_empty_extent(struct ocfs2_extent_list *el)
 {
 	int next_free = le16_to_cpu(el->l_next_free_rec);
 
-	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
+	_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	if (next_free == 0)
 		goto set_and_inc;
@@ -1736,7 +1736,7 @@ static void ocfs2_create_empty_extent(struct ocfs2_extent_list *el)
 	if (ocfs2_is_empty_extent(&el->l_recs[0]))
 		return;
 
-	mlog_bug_on_msg(el->l_count == el->l_next_free_rec,
+	mlog__on_msg(el->l_count == el->l_next_free_rec,
 			"Asked to create an empty extent in a full list:\n"
 			"count = %u, tree depth = %u",
 			le16_to_cpu(el->l_count),
@@ -1770,7 +1770,7 @@ int ocfs2_find_subtree_root(struct ocfs2_extent_tree *et,
 	/*
 	 * Check that the caller passed in two paths from the same tree.
 	 */
-	BUG_ON(path_root_bh(left) != path_root_bh(right));
+	_ON(path_root_bh(left) != path_root_bh(right));
 
 	do {
 		i++;
@@ -1778,7 +1778,7 @@ int ocfs2_find_subtree_root(struct ocfs2_extent_tree *et,
 		/*
 		 * The caller didn't pass two adjacent paths.
 		 */
-		mlog_bug_on_msg(i > left->p_tree_depth,
+		mlog__on_msg(i > left->p_tree_depth,
 				"Owner %llu, left depth %u, right depth %u\n"
 				"left leaf blk %llu, right leaf blk %llu\n",
 				(unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
@@ -1984,8 +1984,8 @@ static void ocfs2_adjust_adjacent_records(struct ocfs2_extent_rec *left_rec,
 	 */
 	left_clusters = le32_to_cpu(right_child_el->l_recs[0].e_cpos);
 	if (!ocfs2_rec_clusters(right_child_el, &right_child_el->l_recs[0])) {
-		BUG_ON(right_child_el->l_tree_depth);
-		BUG_ON(le16_to_cpu(right_child_el->l_next_free_rec) <= 1);
+		_ON(right_child_el->l_tree_depth);
+		_ON(le16_to_cpu(right_child_el->l_next_free_rec) <= 1);
 		left_clusters = le32_to_cpu(right_child_el->l_recs[1].e_cpos);
 	}
 	left_clusters -= le32_to_cpu(left_rec->e_cpos);
@@ -2018,7 +2018,7 @@ static void ocfs2_adjust_root_records(struct ocfs2_extent_list *root_el,
 {
 	int i;
 
-	BUG_ON(le16_to_cpu(root_el->l_tree_depth) <=
+	_ON(le16_to_cpu(root_el->l_tree_depth) <=
 	       le16_to_cpu(left_el->l_tree_depth));
 
 	for(i = 0; i < le16_to_cpu(root_el->l_next_free_rec) - 1; i++) {
@@ -2030,7 +2030,7 @@ static void ocfs2_adjust_root_records(struct ocfs2_extent_list *root_el,
 	 * The path walking code should have never returned a root and
 	 * two paths which are not adjacent.
 	 */
-	BUG_ON(i >= (le16_to_cpu(root_el->l_next_free_rec) - 1));
+	_ON(i >= (le16_to_cpu(root_el->l_next_free_rec) - 1));
 
 	ocfs2_adjust_adjacent_records(&root_el->l_recs[i],
 				      &root_el->l_recs[i + 1], right_el);
@@ -2152,7 +2152,7 @@ static int ocfs2_rotate_subtree_right(handle_t *handle,
 		return 0;
 
 	root_bh = left_path->p_node[subtree_index].bh;
-	BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
+	_ON(root_bh != right_path->p_node[subtree_index].bh);
 
 	ret = ocfs2_path_bh_journal_access(handle, et->et_ci, right_path,
 					   subtree_index);
@@ -2181,7 +2181,7 @@ static int ocfs2_rotate_subtree_right(handle_t *handle,
 	right_el = path_leaf_el(right_path);
 
 	/* This is a code error, not a disk corruption. */
-	mlog_bug_on_msg(!right_el->l_next_free_rec, "Inode %llu: Rotate fails "
+	mlog__on_msg(!right_el->l_next_free_rec, "Inode %llu: Rotate fails "
 			"because rightmost leaf block %llu is empty\n",
 			(unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 			(unsigned long long)right_leaf_bh->b_blocknr);
@@ -2229,7 +2229,7 @@ int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
 	u64 blkno;
 	struct ocfs2_extent_list *el;
 
-	BUG_ON(path->p_tree_depth == 0);
+	_ON(path->p_tree_depth == 0);
 
 	*cpos = 0;
 
@@ -2443,7 +2443,7 @@ static int ocfs2_rotate_tree_right(handle_t *handle,
 			goto out;
 		}
 
-		mlog_bug_on_msg(path_leaf_bh(left_path) ==
+		mlog__on_msg(path_leaf_bh(left_path) ==
 				path_leaf_bh(right_path),
 				"Owner %llu: error during insert of %u "
 				"(left path cpos %u) results in two identical "
@@ -2553,10 +2553,10 @@ static int ocfs2_update_edge_lengths(handle_t *handle,
 
 	/* Path should always be rightmost. */
 	eb = (struct ocfs2_extent_block *)path_leaf_bh(path)->b_data;
-	BUG_ON(eb->h_next_leaf_blk != 0ULL);
+	_ON(eb->h_next_leaf_blk != 0ULL);
 
 	el = &eb->h_list;
-	BUG_ON(le16_to_cpu(el->l_next_free_rec) == 0);
+	_ON(le16_to_cpu(el->l_next_free_rec) == 0);
 	idx = le16_to_cpu(el->l_next_free_rec) - 1;
 	rec = &el->l_recs[idx];
 	range = le32_to_cpu(rec->e_cpos) + ocfs2_rec_clusters(el, rec);
@@ -2638,7 +2638,7 @@ static void ocfs2_unlink_subtree(handle_t *handle,
 		if (root_el->l_recs[i].e_blkno == eb->h_blkno)
 			break;
 
-	BUG_ON(i >= le16_to_cpu(root_el->l_next_free_rec));
+	_ON(i >= le16_to_cpu(root_el->l_next_free_rec));
 
 	memset(&root_el->l_recs[i], 0, sizeof(struct ocfs2_extent_rec));
 	le16_add_cpu(&root_el->l_next_free_rec, -1);
@@ -2671,7 +2671,7 @@ static int ocfs2_rotate_subtree_left(handle_t *handle,
 	right_leaf_el = path_leaf_el(right_path);
 	left_leaf_el = path_leaf_el(left_path);
 	root_bh = left_path->p_node[subtree_index].bh;
-	BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
+	_ON(root_bh != right_path->p_node[subtree_index].bh);
 
 	if (!ocfs2_is_empty_extent(&left_leaf_el->l_recs[0]))
 		return 0;
@@ -2728,7 +2728,7 @@ static int ocfs2_rotate_subtree_left(handle_t *handle,
 	 * Getting here with an empty extent in the right path implies
 	 * that it's the rightmost path and will be deleted.
 	 */
-	BUG_ON(right_has_empty && !del_right_subtree);
+	_ON(right_has_empty && !del_right_subtree);
 
 	ret = ocfs2_path_bh_journal_access(handle, et->et_ci, right_path,
 					   subtree_index);
@@ -3286,7 +3286,7 @@ static void ocfs2_cleanup_merge(struct ocfs2_extent_list *el,
 		 * ones.
 		 */
 		if (index > 0) {
-			BUG_ON(ocfs2_is_empty_extent(&el->l_recs[0]));
+			_ON(ocfs2_is_empty_extent(&el->l_recs[0]));
 			size = index * sizeof(struct ocfs2_extent_rec);
 			memmove(&el->l_recs[1], &el->l_recs[0], size);
 		}
@@ -3312,10 +3312,10 @@ static int ocfs2_get_right_path(struct ocfs2_extent_tree *et,
 	*ret_right_path = NULL;
 
 	/* This function shouldn't be called for non-trees. */
-	BUG_ON(left_path->p_tree_depth == 0);
+	_ON(left_path->p_tree_depth == 0);
 
 	left_el = path_leaf_el(left_path);
-	BUG_ON(left_el->l_next_free_rec != left_el->l_count);
+	_ON(left_el->l_next_free_rec != left_el->l_count);
 
 	ret = ocfs2_find_cpos_for_right_leaf(ocfs2_metadata_cache_get_super(et->et_ci),
 					     left_path, &right_cpos);
@@ -3325,7 +3325,7 @@ static int ocfs2_get_right_path(struct ocfs2_extent_tree *et,
 	}
 
 	/* This function shouldn't be called for the rightmost leaf. */
-	BUG_ON(right_cpos == 0);
+	_ON(right_cpos == 0);
 
 	right_path = ocfs2_new_path_from_path(left_path);
 	if (!right_path) {
@@ -3371,7 +3371,7 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 	struct buffer_head *bh = path_leaf_bh(left_path);
 	struct buffer_head *root_bh = NULL;
 
-	BUG_ON(index >= le16_to_cpu(el->l_next_free_rec));
+	_ON(index >= le16_to_cpu(el->l_next_free_rec));
 	left_rec = &el->l_recs[index];
 
 	if (index == le16_to_cpu(el->l_next_free_rec) - 1 &&
@@ -3385,14 +3385,14 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 
 		right_el = path_leaf_el(right_path);
 		next_free = le16_to_cpu(right_el->l_next_free_rec);
-		BUG_ON(next_free <= 0);
+		_ON(next_free <= 0);
 		right_rec = &right_el->l_recs[0];
 		if (ocfs2_is_empty_extent(right_rec)) {
-			BUG_ON(next_free <= 1);
+			_ON(next_free <= 1);
 			right_rec = &right_el->l_recs[1];
 		}
 
-		BUG_ON(le32_to_cpu(left_rec->e_cpos) +
+		_ON(le32_to_cpu(left_rec->e_cpos) +
 		       le16_to_cpu(left_rec->e_leaf_clusters) !=
 		       le32_to_cpu(right_rec->e_cpos));
 
@@ -3408,7 +3408,7 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 		}
 
 		root_bh = left_path->p_node[subtree_index].bh;
-		BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
+		_ON(root_bh != right_path->p_node[subtree_index].bh);
 
 		ret = ocfs2_path_bh_journal_access(handle, et->et_ci, right_path,
 						   subtree_index);
@@ -3435,7 +3435,7 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 		}
 
 	} else {
-		BUG_ON(index == le16_to_cpu(el->l_next_free_rec) - 1);
+		_ON(index == le16_to_cpu(el->l_next_free_rec) - 1);
 		right_rec = &el->l_recs[index + 1];
 	}
 
@@ -3478,7 +3478,7 @@ static int ocfs2_get_left_path(struct ocfs2_extent_tree *et,
 	*ret_left_path = NULL;
 
 	/* This function shouldn't be called for non-trees. */
-	BUG_ON(right_path->p_tree_depth == 0);
+	_ON(right_path->p_tree_depth == 0);
 
 	ret = ocfs2_find_cpos_for_left_leaf(ocfs2_metadata_cache_get_super(et->et_ci),
 					    right_path, &left_cpos);
@@ -3488,7 +3488,7 @@ static int ocfs2_get_left_path(struct ocfs2_extent_tree *et,
 	}
 
 	/* This function shouldn't be called for the leftmost leaf. */
-	BUG_ON(left_cpos == 0);
+	_ON(left_cpos == 0);
 
 	left_path = ocfs2_new_path_from_path(right_path);
 	if (!left_path) {
@@ -3537,7 +3537,7 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 	struct ocfs2_path *left_path = NULL;
 	struct ocfs2_extent_list *left_el;
 
-	BUG_ON(index < 0);
+	_ON(index < 0);
 
 	right_rec = &el->l_recs[index];
 	if (index == 0) {
@@ -3549,12 +3549,12 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		}
 
 		left_el = path_leaf_el(left_path);
-		BUG_ON(le16_to_cpu(left_el->l_next_free_rec) !=
+		_ON(le16_to_cpu(left_el->l_next_free_rec) !=
 		       le16_to_cpu(left_el->l_count));
 
 		left_rec = &left_el->l_recs[
 				le16_to_cpu(left_el->l_next_free_rec) - 1];
-		BUG_ON(le32_to_cpu(left_rec->e_cpos) +
+		_ON(le32_to_cpu(left_rec->e_cpos) +
 		       le16_to_cpu(left_rec->e_leaf_clusters) !=
 		       le32_to_cpu(split_rec->e_cpos));
 
@@ -3570,7 +3570,7 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 		}
 
 		root_bh = left_path->p_node[subtree_index].bh;
-		BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
+		_ON(root_bh != right_path->p_node[subtree_index].bh);
 
 		ret = ocfs2_path_bh_journal_access(handle, et->et_ci, right_path,
 						   subtree_index);
@@ -3678,7 +3678,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 	struct ocfs2_extent_list *el = path_leaf_el(path);
 	struct ocfs2_extent_rec *rec = &el->l_recs[split_index];
 
-	BUG_ON(ctxt->c_contig_type == CONTIG_NONE);
+	_ON(ctxt->c_contig_type == CONTIG_NONE);
 
 	if (ctxt->c_split_covers_rec && ctxt->c_has_empty_extent) {
 		/* extend credit for ocfs2_remove_rightmost_path */
@@ -3709,7 +3709,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		/*
 		 * Left-right contig implies this.
 		 */
-		BUG_ON(!ctxt->c_split_covers_rec);
+		_ON(!ctxt->c_split_covers_rec);
 
 		/*
 		 * Since the leftright insert always covers the entire
@@ -3735,7 +3735,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		/*
 		 * We can only get this from logic error above.
 		 */
-		BUG_ON(!ocfs2_is_empty_extent(&el->l_recs[0]));
+		_ON(!ocfs2_is_empty_extent(&el->l_recs[0]));
 
 		/* extend credit for ocfs2_remove_rightmost_path */
 		ret = ocfs2_extend_rotate_transaction(handle, 0,
@@ -3881,11 +3881,11 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_tree *et,
 	unsigned int range;
 	struct ocfs2_extent_rec *rec;
 
-	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
+	_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	if (insert->ins_split != SPLIT_NONE) {
 		i = ocfs2_search_extent_list(el, le32_to_cpu(insert_rec->e_cpos));
-		BUG_ON(i == -1);
+		_ON(i == -1);
 		rec = &el->l_recs[i];
 		ocfs2_subtract_from_rec(ocfs2_metadata_cache_get_super(et->et_ci),
 					insert->ins_split, rec,
@@ -3926,9 +3926,9 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_tree *et,
 		rec = &el->l_recs[i];
 		range = le32_to_cpu(rec->e_cpos)
 			+ le16_to_cpu(rec->e_leaf_clusters);
-		BUG_ON(le32_to_cpu(insert_rec->e_cpos) < range);
+		_ON(le32_to_cpu(insert_rec->e_cpos) < range);
 
-		mlog_bug_on_msg(le16_to_cpu(el->l_next_free_rec) >=
+		mlog__on_msg(le16_to_cpu(el->l_next_free_rec) >=
 				le16_to_cpu(el->l_count),
 				"owner %llu, depth %u, count %u, next free %u, "
 				"rec.cpos %u, rec.clusters %u, "
@@ -4014,7 +4014,7 @@ static int ocfs2_append_rec_to_path(handle_t *handle,
 	 * This shouldn't happen for non-trees. The extent rec cluster
 	 * count manipulation below only works for interior nodes.
 	 */
-	BUG_ON(right_path->p_tree_depth == 0);
+	_ON(right_path->p_tree_depth == 0);
 
 	/*
 	 * If our appending insert is at the leftmost edge of a leaf,
@@ -4103,7 +4103,7 @@ static void ocfs2_split_record(struct ocfs2_extent_tree *et,
 	index = ocfs2_search_extent_list(el, cpos);
 	if (index != -1) {
 		if (index == 0 && left_path) {
-			BUG_ON(ocfs2_is_empty_extent(&el->l_recs[0]));
+			_ON(ocfs2_is_empty_extent(&el->l_recs[0]));
 
 			/*
 			 * This typically means that the record
@@ -4139,12 +4139,12 @@ static void ocfs2_split_record(struct ocfs2_extent_tree *et,
 
 				memset(tmprec, 0, sizeof(*tmprec));
 				index = ocfs2_search_extent_list(left_el, cpos);
-				BUG_ON(index == -1);
+				_ON(index == -1);
 			}
 		}
 	} else {
-		BUG_ON(!left_path);
-		BUG_ON(!ocfs2_is_empty_extent(&left_el->l_recs[0]));
+		_ON(!left_path);
+		_ON(!ocfs2_is_empty_extent(&left_el->l_recs[0]));
 		/*
 		 * Left path is easy - we can just allow the insert to
 		 * happen.
@@ -4152,7 +4152,7 @@ static void ocfs2_split_record(struct ocfs2_extent_tree *et,
 		el = left_el;
 		insert_el = left_el;
 		index = ocfs2_search_extent_list(el, cpos);
-		BUG_ON(index == -1);
+		_ON(index == -1);
 	}
 
 	rec = &el->l_recs[index];
@@ -4498,7 +4498,7 @@ static void ocfs2_figure_contig_type(struct ocfs2_extent_tree *et,
 	int i;
 	enum ocfs2_contig_type contig_type = CONTIG_NONE;
 
-	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
+	_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
 		contig_type = ocfs2_et_extent_contig(et, &el->l_recs[i],
@@ -4546,7 +4546,7 @@ static void ocfs2_figure_appending_type(struct ocfs2_insert_type *insert,
 
 	insert->ins_appending = APPEND_NONE;
 
-	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
+	_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	if (!el->l_next_free_rec)
 		goto set_tail_append;
@@ -4802,7 +4802,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 	struct ocfs2_super *osb =
 		OCFS2_SB(ocfs2_metadata_cache_get_super(et->et_ci));
 
-	BUG_ON(!clusters_to_add);
+	_ON(!clusters_to_add);
 
 	if (mark_unwritten)
 		flags = OCFS2_EXT_UNWRITTEN;
@@ -4841,7 +4841,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 		goto leave;
 	}
 
-	BUG_ON(num_bits > clusters_to_add);
+	_ON(num_bits > clusters_to_add);
 
 	/* reserve our write early -- insert_extent may update the tree root */
 	status = ocfs2_et_root_journal_access(handle, et,
@@ -4943,7 +4943,7 @@ leftright:
 
 	depth = le16_to_cpu(rightmost_el->l_tree_depth);
 	if (depth) {
-		BUG_ON(!(*last_eb_bh));
+		_ON(!(*last_eb_bh));
 		eb = (struct ocfs2_extent_block *) (*last_eb_bh)->b_data;
 		rightmost_el = &eb->h_list;
 	}
@@ -4984,7 +4984,7 @@ leftright:
 
 		split_rec = tmprec;
 
-		BUG_ON(do_leftright);
+		_ON(do_leftright);
 		do_leftright = 1;
 	}
 
@@ -5496,7 +5496,7 @@ static int ocfs2_truncate_rec(handle_t *handle,
 		     (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
 		     le32_to_cpu(rec->e_cpos),
 		     le16_to_cpu(rec->e_leaf_clusters), cpos, len);
-		BUG();
+		();
 	}
 
 	if (left_path) {
@@ -5580,7 +5580,7 @@ int ocfs2_remove_extent(handle_t *handle,
 	rec_range = le32_to_cpu(rec->e_cpos) + ocfs2_rec_clusters(el, rec);
 	trunc_range = cpos + len;
 
-	BUG_ON(cpos < le32_to_cpu(rec->e_cpos) || trunc_range > rec_range);
+	_ON(cpos < le32_to_cpu(rec->e_cpos) || trunc_range > rec_range);
 
 	trace_ocfs2_remove_extent(
 		(unsigned long long)ocfs2_metadata_cache_owner(et->et_ci),
@@ -5719,7 +5719,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 	struct ocfs2_refcount_tree *ref_tree = NULL;
 
 	if ((flags & OCFS2_EXT_REFCOUNTED) && len) {
-		BUG_ON(!ocfs2_is_refcount_inode(inode));
+		_ON(!ocfs2_is_refcount_inode(inode));
 
 		if (!refcount_tree_locked) {
 			ret = ocfs2_lock_refcount_tree(osb, refcount_loc, 1,
@@ -5826,7 +5826,7 @@ int ocfs2_truncate_log_needs_flush(struct ocfs2_super *osb)
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
 	tl = &di->id2.i_dealloc;
 
-	mlog_bug_on_msg(le16_to_cpu(tl->tl_used) > le16_to_cpu(tl->tl_count),
+	mlog__on_msg(le16_to_cpu(tl->tl_used) > le16_to_cpu(tl->tl_count),
 			"slot %d, invalid truncate log parameters: used = "
 			"%u, count = %u\n", osb->slot_num,
 			le16_to_cpu(tl->tl_used), le16_to_cpu(tl->tl_count));
@@ -5862,7 +5862,7 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
 
-	BUG_ON(inode_trylock(tl_inode));
+	_ON(inode_trylock(tl_inode));
 
 	start_cluster = ocfs2_blocks_to_clusters(osb->sb, start_blk);
 
@@ -5870,12 +5870,12 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 
 	/* tl_bh is loaded from ocfs2_truncate_log_init().  It's validated
 	 * by the underlying call to ocfs2_read_inode_block(), so any
-	 * corruption is a code bug */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+	 * corruption is a code  */
+	_ON(!OCFS2_IS_VALID_DINODE(di));
 
 	tl = &di->id2.i_dealloc;
 	tl_count = le16_to_cpu(tl->tl_count);
-	mlog_bug_on_msg(tl_count > ocfs2_truncate_recs_per_inode(osb->sb) ||
+	mlog__on_msg(tl_count > ocfs2_truncate_recs_per_inode(osb->sb) ||
 			tl_count == 0,
 			"Truncate record count on #%llu invalid "
 			"wanted %u, actual %u\n",
@@ -6008,14 +6008,14 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
 
-	BUG_ON(inode_trylock(tl_inode));
+	_ON(inode_trylock(tl_inode));
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
 
 	/* tl_bh is loaded from ocfs2_truncate_log_init().  It's validated
 	 * by the underlying call to ocfs2_read_inode_block(), so any
-	 * corruption is a code bug */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+	 * corruption is a code  */
+	_ON(!OCFS2_IS_VALID_DINODE(di));
 
 	tl = &di->id2.i_dealloc;
 	num_to_flush = le16_to_cpu(tl->tl_used);
@@ -6198,8 +6198,8 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 
 	/* tl_bh is loaded from ocfs2_get_truncate_log_info().  It's
 	 * validated by the underlying call to ocfs2_read_inode_block(),
-	 * so any corruption is a code bug */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(di));
+	 * so any corruption is a code  */
+	_ON(!OCFS2_IS_VALID_DINODE(di));
 
 	tl = &di->id2.i_dealloc;
 	if (le16_to_cpu(tl->tl_used)) {
@@ -6845,7 +6845,7 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
 	unsigned int from, to = PAGE_SIZE;
 	struct super_block *sb = inode->i_sb;
 
-	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
+	_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
 
 	if (numpages == 0)
 		goto out;
@@ -6858,8 +6858,8 @@ static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
 		if ((end >> PAGE_SHIFT) == page->index)
 			to = end & (PAGE_SIZE - 1);
 
-		BUG_ON(from > PAGE_SIZE);
-		BUG_ON(to > PAGE_SIZE);
+		_ON(from > PAGE_SIZE);
+		_ON(to > PAGE_SIZE);
 
 		ocfs2_map_and_dirty_page(inode, handle, from, to, page, 1,
 					 &phys);
@@ -6879,7 +6879,7 @@ int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
 	unsigned long index;
 	loff_t last_page_bytes;
 
-	BUG_ON(start > end);
+	_ON(start > end);
 
 	numpages = 0;
 	last_page_bytes = PAGE_ALIGN(end);
@@ -6913,7 +6913,7 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t start, loff_t end,
 {
 	struct super_block *sb = inode->i_sb;
 
-	BUG_ON(start >> OCFS2_SB(sb)->s_clustersize_bits !=
+	_ON(start >> OCFS2_SB(sb)->s_clustersize_bits !=
 	       (end - 1) >> OCFS2_SB(sb)->s_clustersize_bits);
 
 	return ocfs2_grab_pages(inode, start, end, pages, num);
@@ -7402,7 +7402,7 @@ int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 	if (end > i_size_read(inode))
 		end = i_size_read(inode);
 
-	BUG_ON(start > end);
+	_ON(start > end);
 
 	if (!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) ||
 	    !(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL) ||

@@ -46,9 +46,9 @@ struct i40e_virt_mem {
 #define i40e_allocate_virt_mem(h, m, s) i40e_allocate_virt_mem_d(h, m, s)
 #define i40e_free_virt_mem(h, m) i40e_free_virt_mem_d(h, m)
 
-#define i40e_debug(h, m, s, ...)				\
+#define i40e_de(h, m, s, ...)				\
 do {								\
-	if (((m) & (h)->debug_mask))				\
+	if (((m) & (h)->de_mask))				\
 		pr_info("i40e %02x:%02x.%x " s,			\
 			(h)->bus.bus_id, (h)->bus.device,	\
 			(h)->bus.func, ##__VA_ARGS__);		\

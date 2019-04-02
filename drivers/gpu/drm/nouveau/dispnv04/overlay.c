@@ -95,13 +95,13 @@ verify_scaling(const struct drm_framebuffer *fb, uint8_t shift,
                uint32_t crtc_w, uint32_t crtc_h)
 {
 	if (crtc_w < (src_w >> shift) || crtc_h < (src_h >> shift)) {
-		DRM_DEBUG_KMS("Unsuitable framebuffer scaling: %dx%d -> %dx%d\n",
+		DRM_DE_KMS("Unsuitable framebuffer scaling: %dx%d -> %dx%d\n",
 			      src_w, src_h, crtc_w, crtc_h);
 		return -ERANGE;
 	}
 
 	if (src_x != 0 || src_y != 0) {
-		DRM_DEBUG_KMS("Unsuitable framebuffer offset: %d,%d\n",
+		DRM_DE_KMS("Unsuitable framebuffer offset: %d,%d\n",
                               src_x, src_y);
 		return -ERANGE;
 	}

@@ -111,8 +111,8 @@ struct pv_cpu_ops {
 	void (*io_delay)(void);
 
 #ifdef CONFIG_PARAVIRT_XXL
-	unsigned long (*get_debugreg)(int regno);
-	void (*set_debugreg)(int regno, unsigned long value);
+	unsigned long (*get_dereg)(int regno);
+	void (*set_dereg)(int regno, unsigned long value);
 
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
@@ -504,8 +504,8 @@ int paravirt_disable_iospace(void);
 #define VEXTRA_CLOBBERS	 , "rax", "r8", "r9", "r10", "r11"
 #endif	/* CONFIG_X86_32 */
 
-#ifdef CONFIG_PARAVIRT_DEBUG
-#define PVOP_TEST_NULL(op)	BUG_ON(pv_ops.op == NULL)
+#ifdef CONFIG_PARAVIRT_DE
+#define PVOP_TEST_NULL(op)	_ON(pv_ops.op == NULL)
 #else
 #define PVOP_TEST_NULL(op)	((void)pv_ops.op)
 #endif

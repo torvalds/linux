@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/err.h>
-#include "debug.h"
+#include "de.h"
 #include "llvm-utils.h"
 #include "config.h"
 #include "util.h"
@@ -56,7 +56,7 @@ int perf_llvm_config(const char *var, const char *value)
 	else if (!strcmp(var, "opts"))
 		llvm_param.opts = strdup(value);
 	else {
-		pr_debug("Invalid LLVM config option: %s\n", value);
+		pr_de("Invalid LLVM config option: %s\n", value);
 		return -1;
 	}
 	llvm_param.user_set_param = true;
@@ -196,10 +196,10 @@ force_set_env(const char *var, const char *value)
 {
 	if (value) {
 		setenv(var, value, 1);
-		pr_debug("set env: %s=%s\n", var, value);
+		pr_de("set env: %s=%s\n", var, value);
 	} else {
 		unsetenv(var);
-		pr_debug("unset env: %s\n", var);
+		pr_de("unset env: %s\n", var);
 	}
 }
 
@@ -323,8 +323,8 @@ void llvm__get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 	}
 
 	if (llvm_param.kbuild_dir && !llvm_param.kbuild_dir[0]) {
-		pr_debug("[llvm.kbuild-dir] is set to \"\" deliberately.\n");
-		pr_debug("Skip kbuild options detection.\n");
+		pr_de("[llvm.kbuild-dir] is set to \"\" deliberately.\n");
+		pr_de("Skip kbuild options detection.\n");
 		goto errout;
 	}
 
@@ -338,7 +338,7 @@ void llvm__get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 		goto errout;
 	}
 
-	pr_debug("Kernel build dir is set to %s\n", *kbuild_dir);
+	pr_de("Kernel build dir is set to %s\n", *kbuild_dir);
 	force_set_env("KBUILD_DIR", *kbuild_dir);
 	force_set_env("KBUILD_OPTS", llvm_param.kbuild_opts);
 	err = read_from_pipe(kinc_fetch_script,
@@ -357,7 +357,7 @@ void llvm__get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 		goto errout;
 	}
 
-	pr_debug("include option is set to %s\n", *kbuild_include_opts);
+	pr_de("include option is set to %s\n", *kbuild_include_opts);
 
 	saved_kbuild_dir = strdup(*kbuild_dir);
 	saved_kbuild_include_opts = strdup(*kbuild_include_opts);
@@ -518,7 +518,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	force_set_env("CLANG_SOURCE",
 		      (path[0] == '-') ? path : abspath);
 
-	pr_debug("llvm compiling command template: %s\n", template);
+	pr_de("llvm compiling command template: %s\n", template);
 
 	if (asprintf(&command_echo, "echo -n \"%s\"", template) < 0)
 		goto errout;
@@ -527,7 +527,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	if (err)
 		goto errout;
 
-	pr_debug("llvm compiling command : %s\n", command_out);
+	pr_de("llvm compiling command : %s\n", command_out);
 
 	err = read_from_pipe(template, &obj_buf, &obj_buf_sz);
 	if (err) {

@@ -82,12 +82,12 @@ struct hpi_ioctl_linux {
 */
 #define HPI_IOCTL_LINUX _IOWR('H', 0xFC, struct hpi_ioctl_linux)
 
-#define HPI_DEBUG_FLAG_ERROR   KERN_ERR
-#define HPI_DEBUG_FLAG_WARNING KERN_WARNING
-#define HPI_DEBUG_FLAG_NOTICE  KERN_NOTICE
-#define HPI_DEBUG_FLAG_INFO    KERN_INFO
-#define HPI_DEBUG_FLAG_DEBUG   KERN_DEBUG
-#define HPI_DEBUG_FLAG_VERBOSE KERN_DEBUG	/* kernel has no verbose */
+#define HPI_DE_FLAG_ERROR   KERN_ERR
+#define HPI_DE_FLAG_WARNING KERN_WARNING
+#define HPI_DE_FLAG_NOTICE  KERN_NOTICE
+#define HPI_DE_FLAG_INFO    KERN_INFO
+#define HPI_DE_FLAG_DE   KERN_DE
+#define HPI_DE_FLAG_VERBOSE KERN_DE	/* kernel has no verbose */
 
 #include <linux/spinlock.h>
 
@@ -135,8 +135,8 @@ static inline void cond_unlock(struct hpios_spinlock *l)
 #define hpios_dsplock_lock(obj)    cond_lock(&(obj)->dsp_lock)
 #define hpios_dsplock_unlock(obj)  cond_unlock(&(obj)->dsp_lock)
 
-#ifdef CONFIG_SND_DEBUG
-#define HPI_BUILD_DEBUG
+#ifdef CONFIG_SND_DE
+#define HPI_BUILD_DE
 #endif
 
 #define HPI_ALIST_LOCKING

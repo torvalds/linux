@@ -77,7 +77,7 @@ void snd_seq_prioq_delete(struct snd_seq_prioq **fifo)
 	*fifo = NULL;
 
 	if (f == NULL) {
-		pr_debug("ALSA: seq: snd_seq_prioq_delete() called with NULL prioq\n");
+		pr_de("ALSA: seq: snd_seq_prioq_delete() called with NULL prioq\n");
 		return;
 	}
 
@@ -151,7 +151,7 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 	int count;
 	int prior;
 
-	if (snd_BUG_ON(!f || !cell))
+	if (snd__ON(!f || !cell))
 		return -EINVAL;
 	
 	/* check flags */
@@ -231,7 +231,7 @@ struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f,
 	unsigned long flags;
 
 	if (f == NULL) {
-		pr_debug("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
+		pr_de("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
 		return NULL;
 	}
 	spin_lock_irqsave(&f->lock, flags);
@@ -258,7 +258,7 @@ struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f,
 int snd_seq_prioq_avail(struct snd_seq_prioq * f)
 {
 	if (f == NULL) {
-		pr_debug("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
+		pr_de("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
 		return 0;
 	}
 	return f->cells;
@@ -319,7 +319,7 @@ void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
 			freeprev = cell;
 		} else {
 #if 0
-			pr_debug("ALSA: seq: type = %i, source = %i, dest = %i, "
+			pr_de("ALSA: seq: type = %i, source = %i, dest = %i, "
 			       "client = %i\n",
 				cell->event.type,
 				cell->event.source.client,

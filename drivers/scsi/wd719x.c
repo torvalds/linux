@@ -239,7 +239,7 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	count_sg = scsi_dma_map(cmd);
 	if (count_sg < 0)
 		goto out_unmap_sense;
-	BUG_ON(count_sg > WD719X_SG);
+	_ON(count_sg > WD719X_SG);
 
 	if (count_sg) {
 		struct scatterlist *sg;
@@ -432,7 +432,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 	}
 
 	/* initiate SCAM (does nothing if disabled in BIOS) */
-	/* bug?: we should pass a mask of static IDs which we don't have */
+	/* ?: we should pass a mask of static IDs which we don't have */
 	ret = wd719x_direct_cmd(wd, WD719X_CMD_INIT_SCAM, 0, 0, 0, 0,
 				WD719X_WAIT_FOR_SCSI_RESET);
 	if (ret) {

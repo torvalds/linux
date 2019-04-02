@@ -119,7 +119,7 @@ static struct event_constraint intel_snb_event_constraints[] __read_mostly =
 
 	/*
 	 * When HT is off these events can only run on the bottom 4 counters
-	 * When HT is on, they are impacted by the HT bug and require EXCL access
+	 * When HT is on, they are impacted by the HT  and require EXCL access
 	 */
 	INTEL_EXCLEVT_CONSTRAINT(0xd0, 0xf), /* MEM_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd1, 0xf), /* MEM_LOAD_UOPS_RETIRED.* */
@@ -147,7 +147,7 @@ static struct event_constraint intel_ivb_event_constraints[] __read_mostly =
 
 	/*
 	 * When HT is off these events can only run on the bottom 4 counters
-	 * When HT is on, they are impacted by the HT bug and require EXCL access
+	 * When HT is on, they are impacted by the HT  and require EXCL access
 	 */
 	INTEL_EXCLEVT_CONSTRAINT(0xd0, 0xf), /* MEM_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd1, 0xf), /* MEM_LOAD_UOPS_RETIRED.* */
@@ -311,7 +311,7 @@ static struct event_constraint intel_hsw_event_constraints[] = {
 
 	/*
 	 * When HT is off these events can only run on the bottom 4 counters
-	 * When HT is on, they are impacted by the HT bug and require EXCL access
+	 * When HT is on, they are impacted by the HT  and require EXCL access
 	 */
 	INTEL_EXCLEVT_CONSTRAINT(0xd0, 0xf), /* MEM_UOPS_RETIRED.* */
 	INTEL_EXCLEVT_CONSTRAINT(0xd1, 0xf), /* MEM_LOAD_UOPS_RETIRED.* */
@@ -2035,14 +2035,14 @@ static void intel_tfa_pmu_enable_all(int added)
 
 static void enable_counter_freeze(void)
 {
-	update_debugctlmsr(get_debugctlmsr() |
-			DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI);
+	update_dectlmsr(get_dectlmsr() |
+			DECTLMSR_FREEZE_PERFMON_ON_PMI);
 }
 
 static void disable_counter_freeze(void)
 {
-	update_debugctlmsr(get_debugctlmsr() &
-			~DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI);
+	update_dectlmsr(get_dectlmsr() &
+			~DECTLMSR_FREEZE_PERFMON_ON_PMI);
 }
 
 static inline u64 intel_pmu_get_status(void)
@@ -2214,7 +2214,7 @@ int intel_pmu_save_and_restart(struct perf_event *event)
 
 static void intel_pmu_reset(void)
 {
-	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
+	struct de_store *ds = __this_cpu_read(cpu_hw_events.ds);
 	unsigned long flags;
 	int idx;
 
@@ -2243,8 +2243,8 @@ static void intel_pmu_reset(void)
 
 	/* Reset LBRs and LBR freezing */
 	if (x86_pmu.lbr_nr) {
-		update_debugctlmsr(get_debugctlmsr() &
-			~(DEBUGCTLMSR_FREEZE_LBRS_ON_PMI|DEBUGCTLMSR_LBR));
+		update_dectlmsr(get_dectlmsr() &
+			~(DECTLMSR_FREEZE_LBRS_ON_PMI|DECTLMSR_LBR));
 	}
 
 	local_irq_restore(flags);
@@ -2387,7 +2387,7 @@ again:
 
 		if (!warned) {
 			WARN(1, "perfevents: irq loop stuck!\n");
-			perf_event_print_debug();
+			perf_event_print_de();
 			warned = true;
 		}
 		intel_pmu_reset();
@@ -2472,7 +2472,7 @@ again:
 
 		if (!warned) {
 			WARN(1, "perfevents: irq loop stuck!\n");
-			perf_event_print_debug();
+			perf_event_print_de();
 			warned = true;
 		}
 		intel_pmu_reset();
@@ -3553,11 +3553,11 @@ static void flip_smm_bit(void *data)
 	unsigned long set = *(unsigned long *)data;
 
 	if (set > 0) {
-		msr_set_bit(MSR_IA32_DEBUGCTLMSR,
-			    DEBUGCTLMSR_FREEZE_IN_SMM_BIT);
+		msr_set_bit(MSR_IA32_DECTLMSR,
+			    DECTLMSR_FREEZE_IN_SMM_BIT);
 	} else {
-		msr_clear_bit(MSR_IA32_DEBUGCTLMSR,
-			      DEBUGCTLMSR_FREEZE_IN_SMM_BIT);
+		msr_clear_bit(MSR_IA32_DECTLMSR,
+			      DECTLMSR_FREEZE_IN_SMM_BIT);
 	}
 }
 
@@ -3567,7 +3567,7 @@ static void intel_pmu_cpu_starting(int cpu)
 	int core_id = topology_core_id(cpu);
 	int i;
 
-	init_debug_store_on_cpu(cpu);
+	init_de_store_on_cpu(cpu);
 	/*
 	 * Deal with CPUs that don't clear their LBRs on power-up.
 	 */
@@ -3639,7 +3639,7 @@ static void free_excl_cntrs(struct cpu_hw_events *cpuc)
 
 static void intel_pmu_cpu_dying(int cpu)
 {
-	fini_debug_store_on_cpu(cpu);
+	fini_de_store_on_cpu(cpu);
 
 	if (x86_pmu.counter_freezing)
 		disable_counter_freeze();
@@ -3813,7 +3813,7 @@ static __init void intel_clovertown_quirk(void)
 	 *
 	 *   AJ67  - PEBS may experience CPL leaks
 	 *   AJ68  - PEBS PMI may be delayed by one event
-	 *   AJ69  - GLOBAL_STATUS[62] will only be set when DEBUGCTL[12]
+	 *   AJ69  - GLOBAL_STATUS[62] will only be set when DECTL[12]
 	 *   AJ106 - FREEZE_LBRS_ON_PMI doesn't work in combination with PEBS
 	 *
 	 * AJ67 could be worked around by restricting the OS/USR flags.
@@ -4049,7 +4049,7 @@ static __init void intel_counter_freezing_quirk(void)
  * it is needed in a later initcall phase once we have valid
  * topology information to check if HT is actually enabled
  */
-static __init void intel_ht_bug(void)
+static __init void intel_ht_(void)
 {
 	x86_pmu.flags |= PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED;
 
@@ -4474,7 +4474,7 @@ __init int intel_pmu_init(void)
 	case INTEL_FAM6_SANDYBRIDGE:
 	case INTEL_FAM6_SANDYBRIDGE_X:
 		x86_add_quirk(intel_sandybridge_quirk);
-		x86_add_quirk(intel_ht_bug);
+		x86_add_quirk(intel_ht_);
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, snb_hw_cache_extra_regs,
@@ -4513,7 +4513,7 @@ __init int intel_pmu_init(void)
 
 	case INTEL_FAM6_IVYBRIDGE:
 	case INTEL_FAM6_IVYBRIDGE_X:
-		x86_add_quirk(intel_ht_bug);
+		x86_add_quirk(intel_ht_);
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		/* dTLB-load-misses on IVB is different than SNB */
@@ -4554,7 +4554,7 @@ __init int intel_pmu_init(void)
 	case INTEL_FAM6_HASWELL_X:
 	case INTEL_FAM6_HASWELL_ULT:
 	case INTEL_FAM6_HASWELL_GT3E:
-		x86_add_quirk(intel_ht_bug);
+		x86_add_quirk(intel_ht_);
 		x86_add_quirk(intel_pebs_isolation_quirk);
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, hsw_hw_cache_event_ids, sizeof(hw_cache_event_ids));
@@ -4810,12 +4810,12 @@ __init int intel_pmu_init(void)
 }
 
 /*
- * HT bug: phase 2 init
+ * HT : phase 2 init
  * Called once we have valid topology information to check
  * whether or not HT is enabled
  * If HT is off, then we disable the workaround
  */
-static __init int fixup_ht_bug(void)
+static __init int fixup_ht_(void)
 {
 	int c;
 	/*
@@ -4848,4 +4848,4 @@ static __init int fixup_ht_bug(void)
 	pr_info("PMU erratum BJ122, BV98, HSD29 workaround disabled, HT off\n");
 	return 0;
 }
-subsys_initcall(fixup_ht_bug)
+subsys_initcall(fixup_ht_)

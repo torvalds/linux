@@ -52,7 +52,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 	struct INFTLPartition *ip;
 	size_t retlen;
 
-	pr_debug("INFTL: find_boot_record(inftl=%p)\n", inftl);
+	pr_de("INFTL: find_boot_record(inftl=%p)\n", inftl);
 
         /*
 	 * Assume logical EraseSize == physical erasesize for starting the
@@ -138,7 +138,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		mh->FormatFlags = le32_to_cpu(mh->FormatFlags);
 		mh->PercentUsed = le32_to_cpu(mh->PercentUsed);
 
-		pr_debug("INFTL: Media Header ->\n"
+		pr_de("INFTL: Media Header ->\n"
 			 "    bootRecordID          = %s\n"
 			 "    NoOfBootImageBlocks   = %d\n"
 			 "    NoOfBinaryPartitions  = %d\n"
@@ -195,7 +195,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 			ip->spareUnits = le32_to_cpu(ip->spareUnits);
 			ip->Reserved0 = le32_to_cpu(ip->Reserved0);
 
-			pr_debug("    PARTITION[%d] ->\n"
+			pr_de("    PARTITION[%d] ->\n"
 				 "        virtualUnits    = %d\n"
 				 "        firstUnit       = %d\n"
 				 "        lastUnit        = %d\n"
@@ -386,7 +386,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	struct mtd_info *mtd = inftl->mbd.mtd;
 	int physblock;
 
-	pr_debug("INFTL: INFTL_formatblock(inftl=%p,block=%d)\n", inftl, block);
+	pr_de("INFTL: INFTL_formatblock(inftl=%p,block=%d)\n", inftl, block);
 
 	memset(instr, 0, sizeof(struct erase_info));
 
@@ -476,30 +476,30 @@ void INFTL_dumptables(struct INFTLrecord *s)
 {
 	int i;
 
-	pr_debug("-------------------------------------------"
+	pr_de("-------------------------------------------"
 		"----------------------------------\n");
 
-	pr_debug("VUtable[%d] ->", s->nb_blocks);
+	pr_de("VUtable[%d] ->", s->nb_blocks);
 	for (i = 0; i < s->nb_blocks; i++) {
 		if ((i % 8) == 0)
-			pr_debug("\n%04x: ", i);
-		pr_debug("%04x ", s->VUtable[i]);
+			pr_de("\n%04x: ", i);
+		pr_de("%04x ", s->VUtable[i]);
 	}
 
-	pr_debug("\n-------------------------------------------"
+	pr_de("\n-------------------------------------------"
 		"----------------------------------\n");
 
-	pr_debug("PUtable[%d-%d=%d] ->", s->firstEUN, s->lastEUN, s->nb_blocks);
+	pr_de("PUtable[%d-%d=%d] ->", s->firstEUN, s->lastEUN, s->nb_blocks);
 	for (i = 0; i <= s->lastEUN; i++) {
 		if ((i % 8) == 0)
-			pr_debug("\n%04x: ", i);
-		pr_debug("%04x ", s->PUtable[i]);
+			pr_de("\n%04x: ", i);
+		pr_de("%04x ", s->PUtable[i]);
 	}
 
-	pr_debug("\n-------------------------------------------"
+	pr_de("\n-------------------------------------------"
 		"----------------------------------\n");
 
-	pr_debug("INFTL ->\n"
+	pr_de("INFTL ->\n"
 		"  EraseSize       = %d\n"
 		"  h/s/c           = %d/%d/%d\n"
 		"  numvunits       = %d\n"
@@ -513,7 +513,7 @@ void INFTL_dumptables(struct INFTLrecord *s)
 		s->numvunits, s->firstEUN, s->lastEUN, s->numfreeEUNs,
 		s->LastFreeEUN, s->nb_blocks, s->nb_boot_blocks);
 
-	pr_debug("\n-------------------------------------------"
+	pr_de("\n-------------------------------------------"
 		"----------------------------------\n");
 }
 
@@ -521,25 +521,25 @@ void INFTL_dumpVUchains(struct INFTLrecord *s)
 {
 	int logical, block, i;
 
-	pr_debug("-------------------------------------------"
+	pr_de("-------------------------------------------"
 		"----------------------------------\n");
 
-	pr_debug("INFTL Virtual Unit Chains:\n");
+	pr_de("INFTL Virtual Unit Chains:\n");
 	for (logical = 0; logical < s->nb_blocks; logical++) {
 		block = s->VUtable[logical];
 		if (block >= s->nb_blocks)
 			continue;
-		pr_debug("  LOGICAL %d --> %d ", logical, block);
+		pr_de("  LOGICAL %d --> %d ", logical, block);
 		for (i = 0; i < s->nb_blocks; i++) {
 			if (s->PUtable[block] == BLOCK_NIL)
 				break;
 			block = s->PUtable[block];
-			pr_debug("%d ", block);
+			pr_de("%d ", block);
 		}
-		pr_debug("\n");
+		pr_de("\n");
 	}
 
-	pr_debug("-------------------------------------------"
+	pr_de("-------------------------------------------"
 		"----------------------------------\n");
 }
 
@@ -555,7 +555,7 @@ int INFTL_mount(struct INFTLrecord *s)
 	int i;
 	u8 *ANACtable, ANAC;
 
-	pr_debug("INFTL: INFTL_mount(inftl=%p)\n", s);
+	pr_de("INFTL: INFTL_mount(inftl=%p)\n", s);
 
 	/* Search for INFTL MediaHeader and Spare INFTL Media Header */
 	if (find_boot_record(s) < 0) {
@@ -585,7 +585,7 @@ int INFTL_mount(struct INFTLrecord *s)
 	 * NOTEXPLORED state. Then at the end we will try to format it and
 	 * mark it as free.
 	 */
-	pr_debug("INFTL: pass 1, explore each unit\n");
+	pr_de("INFTL: pass 1, explore each unit\n");
 	for (first_block = s->firstEUN; first_block <= s->lastEUN; first_block++) {
 		if (s->PUtable[first_block] != BLOCK_NOTEXPLORED)
 			continue;
@@ -724,7 +724,7 @@ int INFTL_mount(struct INFTLrecord *s)
 	 * possible because we don't update the previous pointers when
 	 * we fold chains. No big deal, just fix them up in PUtable.
 	 */
-	pr_debug("INFTL: pass 2, validate virtual chains\n");
+	pr_de("INFTL: pass 2, validate virtual chains\n");
 	for (logical_block = 0; logical_block < s->numvunits; logical_block++) {
 		block = s->VUtable[logical_block];
 		last_block = BLOCK_NIL;
@@ -778,7 +778,7 @@ int INFTL_mount(struct INFTLrecord *s)
 	s->numfreeEUNs = 0;
 	s->LastFreeEUN = BLOCK_NIL;
 
-	pr_debug("INFTL: pass 3, format unused blocks\n");
+	pr_de("INFTL: pass 3, format unused blocks\n");
 	for (block = s->firstEUN; block <= s->lastEUN; block++) {
 		if (s->PUtable[block] == BLOCK_NOTEXPLORED) {
 			printk("INFTL: unreferenced block %d, formatting it\n",

@@ -19,7 +19,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -358,18 +358,18 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", IR wake unreliable = "	__stringify(QUIRK_IR_WAKE)
 	")");
 
-#define OHCI_PARAM_DEBUG_AT_AR		1
-#define OHCI_PARAM_DEBUG_SELFIDS	2
-#define OHCI_PARAM_DEBUG_IRQS		4
-#define OHCI_PARAM_DEBUG_BUSRESETS	8 /* only effective before chip init */
+#define OHCI_PARAM_DE_AT_AR		1
+#define OHCI_PARAM_DE_SELFIDS	2
+#define OHCI_PARAM_DE_IRQS		4
+#define OHCI_PARAM_DE_BUSRESETS	8 /* only effective before chip init */
 
-static int param_debug;
-module_param_named(debug, param_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Verbose logging (default = 0"
-	", AT/AR events = "	__stringify(OHCI_PARAM_DEBUG_AT_AR)
-	", self-IDs = "		__stringify(OHCI_PARAM_DEBUG_SELFIDS)
-	", IRQs = "		__stringify(OHCI_PARAM_DEBUG_IRQS)
-	", busReset events = "	__stringify(OHCI_PARAM_DEBUG_BUSRESETS)
+static int param_de;
+module_param_named(de, param_de, int, 0644);
+MODULE_PARM_DESC(de, "Verbose logging (default = 0"
+	", AT/AR events = "	__stringify(OHCI_PARAM_DE_AT_AR)
+	", self-IDs = "		__stringify(OHCI_PARAM_DE_SELFIDS)
+	", IRQs = "		__stringify(OHCI_PARAM_DE_IRQS)
+	", busReset events = "	__stringify(OHCI_PARAM_DE_BUSRESETS)
 	", or a combination, or all = -1)");
 
 static bool param_remote_dma;
@@ -378,11 +378,11 @@ MODULE_PARM_DESC(remote_dma, "Enable unfiltered remote DMA (default = N)");
 
 static void log_irqs(struct fw_ohci *ohci, u32 evt)
 {
-	if (likely(!(param_debug &
-			(OHCI_PARAM_DEBUG_IRQS | OHCI_PARAM_DEBUG_BUSRESETS))))
+	if (likely(!(param_de &
+			(OHCI_PARAM_DE_IRQS | OHCI_PARAM_DE_BUSRESETS))))
 		return;
 
-	if (!(param_debug & OHCI_PARAM_DEBUG_IRQS) &&
+	if (!(param_de & OHCI_PARAM_DE_IRQS) &&
 	    !(evt & OHCI1394_busReset))
 		return;
 
@@ -429,7 +429,7 @@ static void log_selfids(struct fw_ohci *ohci, int generation, int self_id_count)
 {
 	u32 *s;
 
-	if (likely(!(param_debug & OHCI_PARAM_DEBUG_SELFIDS)))
+	if (likely(!(param_de & OHCI_PARAM_DE_SELFIDS)))
 		return;
 
 	ohci_notice(ohci, "%d selfIDs, generation %d, local node ID %04x\n",
@@ -487,7 +487,7 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 	int tcode = header[0] >> 4 & 0xf;
 	char specific[12];
 
-	if (likely(!(param_debug & OHCI_PARAM_DEBUG_AT_AR)))
+	if (likely(!(param_de & OHCI_PARAM_DE_AT_AR)))
 		return;
 
 	if (unlikely(evt >= ARRAY_SIZE(evts)))
@@ -1368,12 +1368,12 @@ static int at_context_queue_packet(struct context *ctx,
 		break;
 
 	default:
-		/* BUG(); */
+		/* (); */
 		packet->ack = RCODE_SEND_ERROR;
 		return -1;
 	}
 
-	BUILD_BUG_ON(sizeof(struct driver_data) > sizeof(struct descriptor));
+	BUILD__ON(sizeof(struct driver_data) > sizeof(struct descriptor));
 	driver_data = (struct driver_data *) &d[3];
 	driver_data->packet = packet;
 	packet->driver_data = driver_data;
@@ -1709,7 +1709,7 @@ static u32 cycle_timer_ticks(u32 cycle_timer)
 }
 
 /*
- * Some controllers exhibit one or more of the following bugs when updating the
+ * Some controllers exhibit one or more of the following s when updating the
  * iso cycle timer register:
  *  - When the lowest six bits are wrapping around to zero, a read that happens
  *    at the same time will return garbage in the lowest ten bits.
@@ -2430,7 +2430,7 @@ static int ohci_enable(struct fw_card *card,
 		OHCI1394_unrecoverableError |
 		OHCI1394_cycleTooLong |
 		OHCI1394_masterIntEnable;
-	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
+	if (param_de & OHCI_PARAM_DE_BUSRESETS)
 		irqs |= OHCI1394_busReset;
 	reg_write(ohci, OHCI1394_IntMaskSet, irqs);
 
@@ -3638,8 +3638,8 @@ static int pci_probe(struct pci_dev *dev,
 	 * we save space by using a common buffer for the AR request/
 	 * response descriptors and the self IDs buffer.
 	 */
-	BUILD_BUG_ON(AR_BUFFERS * sizeof(struct descriptor) > PAGE_SIZE/4);
-	BUILD_BUG_ON(SELF_ID_BUF_SIZE > PAGE_SIZE/2);
+	BUILD__ON(AR_BUFFERS * sizeof(struct descriptor) > PAGE_SIZE/4);
+	BUILD__ON(SELF_ID_BUF_SIZE > PAGE_SIZE/2);
 	ohci->misc_buffer = dma_alloc_coherent(ohci->card.device,
 					       PAGE_SIZE,
 					       &ohci->misc_buffer_bus,

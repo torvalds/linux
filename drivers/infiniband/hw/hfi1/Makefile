@@ -47,10 +47,10 @@ hfi1-y := \
 	vnic_main.o \
 	vnic_sdma.o
 
-ifdef CONFIG_DEBUG_FS
-hfi1-y += debugfs.o
+ifdef CONFIG_DE_FS
+hfi1-y += defs.o
 ifdef CONFIG_FAULT_INJECTION
-ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+ifdef CONFIG_FAULT_INJECTION_DE_FS
 hfi1-y += fault.o
 endif
 endif

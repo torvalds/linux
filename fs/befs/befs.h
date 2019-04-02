@@ -11,7 +11,7 @@
 
 #include "befs_fs_types.h"
 
-/* used in debug.c */
+/* used in de.c */
 #define BEFS_VERSION "0.9.3"
 
 
@@ -25,7 +25,7 @@ struct befs_mount_options {
 	kuid_t uid;
 	int use_gid;
 	int use_uid;
-	int debug;
+	int de;
 	char *iocharset;
 };
 
@@ -89,13 +89,13 @@ enum befs_err {
 
 
 /****************************/
-/* debug.c */
+/* de.c */
 __printf(2, 3)
 void befs_error(const struct super_block *sb, const char *fmt, ...);
 __printf(2, 3)
 void befs_warning(const struct super_block *sb, const char *fmt, ...);
 __printf(2, 3)
-void befs_debug(const struct super_block *sb, const char *fmt, ...);
+void befs_de(const struct super_block *sb, const char *fmt, ...);
 
 void befs_dump_super_block(const struct super_block *sb, befs_super_block *);
 void befs_dump_inode(const struct super_block *sb, befs_inode *);

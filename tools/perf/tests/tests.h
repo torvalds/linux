@@ -7,7 +7,7 @@
 #define TEST_ASSERT_VAL(text, cond)					 \
 do {									 \
 	if (!(cond)) {							 \
-		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
+		pr_de("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
 		return -1;						 \
 	}								 \
 } while (0)
@@ -15,7 +15,7 @@ do {									 \
 #define TEST_ASSERT_EQUAL(text, val, expected)				 \
 do {									 \
 	if (val != expected) {						 \
-		pr_debug("FAILED %s:%d %s (%d != %d)\n",		 \
+		pr_de("FAILED %s:%d %s (%d != %d)\n",		 \
 			 __FILE__, __LINE__, text, val, expected);	 \
 		return -1;						 \
 	}								 \

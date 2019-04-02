@@ -16,13 +16,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include "wcn36xx.h"
-#include "debug.h"
+#include "de.h"
 #include "pmc.h"
 
-#ifdef CONFIG_WCN36XX_DEBUGFS
+#ifdef CONFIG_WCN36XX_DEFS
 
 static ssize_t read_file_bool_bmps(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -139,25 +139,25 @@ static const struct file_operations fops_wcn36xx_dump = {
 #define ADD_FILE(name, mode, fop, priv_data)		\
 	do {							\
 		struct dentry *d;				\
-		d = debugfs_create_file(__stringify(name),	\
+		d = defs_create_file(__stringify(name),	\
 					mode, dfs->rootdir,	\
 					priv_data, fop);	\
 		dfs->file_##name.dentry = d;			\
 		if (IS_ERR(d)) {				\
-			wcn36xx_warn("Create the debugfs entry failed");\
+			wcn36xx_warn("Create the defs entry failed");\
 			dfs->file_##name.dentry = NULL;		\
 		}						\
 	} while (0)
 
 
-void wcn36xx_debugfs_init(struct wcn36xx *wcn)
+void wcn36xx_defs_init(struct wcn36xx *wcn)
 {
 	struct wcn36xx_dfs_entry *dfs = &wcn->dfs;
 
-	dfs->rootdir = debugfs_create_dir(KBUILD_MODNAME,
-					  wcn->hw->wiphy->debugfsdir);
+	dfs->rootdir = defs_create_dir(KBUILD_MODNAME,
+					  wcn->hw->wiphy->defsdir);
 	if (IS_ERR(dfs->rootdir)) {
-		wcn36xx_warn("Create the debugfs failed\n");
+		wcn36xx_warn("Create the defs failed\n");
 		dfs->rootdir = NULL;
 	}
 
@@ -165,10 +165,10 @@ void wcn36xx_debugfs_init(struct wcn36xx *wcn)
 	ADD_FILE(dump, 0200, &fops_wcn36xx_dump, wcn);
 }
 
-void wcn36xx_debugfs_exit(struct wcn36xx *wcn)
+void wcn36xx_defs_exit(struct wcn36xx *wcn)
 {
 	struct wcn36xx_dfs_entry *dfs = &wcn->dfs;
-	debugfs_remove_recursive(dfs->rootdir);
+	defs_remove_recursive(dfs->rootdir);
 }
 
-#endif /* CONFIG_WCN36XX_DEBUGFS */
+#endif /* CONFIG_WCN36XX_DEFS */

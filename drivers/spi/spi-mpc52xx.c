@@ -65,7 +65,7 @@ struct mpc52xx_spi {
 	int irq1;	/* SPIF irq */
 	unsigned int ipb_freq;
 
-	/* Statistics; not used now, but will be reintroduced for debugfs */
+	/* Statistics; not used now, but will be reintroduced for defs */
 	int msg_count;
 	int wcol_count;
 	int wcol_ticks;

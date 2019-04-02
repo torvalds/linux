@@ -8,12 +8,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "dma_fifo.h"
 
-#ifdef DEBUG_TRACING
-#define df_trace(s, args...) pr_debug(s, ##args)
+#ifdef DE_TRACING
+#define df_trace(s, args...) pr_de(s, ##args)
 #else
 #define df_trace(s, args...)
 #endif

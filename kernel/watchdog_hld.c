@@ -15,7 +15,7 @@
 #include <linux/nmi.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 
 #include <asm/irq_regs.h>
 #include <linux/perf_event.h>
@@ -175,7 +175,7 @@ static int hardlockup_detector_event_create(void)
 	evt = perf_event_create_kernel_counter(wd_attr, cpu, NULL,
 					       watchdog_overflow_callback, NULL);
 	if (IS_ERR(evt)) {
-		pr_debug("Perf event create on CPU %d failed with %ld\n", cpu,
+		pr_de("Perf event create on CPU %d failed with %ld\n", cpu,
 			 PTR_ERR(evt));
 		return PTR_ERR(evt);
 	}
@@ -240,7 +240,7 @@ void hardlockup_detector_perf_cleanup(void)
 /**
  * hardlockup_detector_perf_stop - Globally stop watchdog events
  *
- * Special interface for x86 to handle the perf HT bug.
+ * Special interface for x86 to handle the perf HT .
  */
 void __init hardlockup_detector_perf_stop(void)
 {
@@ -259,7 +259,7 @@ void __init hardlockup_detector_perf_stop(void)
 /**
  * hardlockup_detector_perf_restart - Globally restart watchdog events
  *
- * Special interface for x86 to handle the perf HT bug.
+ * Special interface for x86 to handle the perf HT .
  */
 void __init hardlockup_detector_perf_restart(void)
 {

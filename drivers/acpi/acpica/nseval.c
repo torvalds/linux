@@ -88,7 +88,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	info->node_flags = info->node->flags;
 	info->obj_desc = acpi_ns_get_attached_object(info->node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "%s [%p] Value %p\n",
+	ACPI_DE_PRINT((ACPI_DB_NAMES, "%s [%p] Value %p\n",
 			  info->relative_pathname, info->node,
 			  acpi_ns_get_attached_object(info->node)));
 
@@ -106,7 +106,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 
 	/* Optional object evaluation log */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+	ACPI_DE_PRINT_RAW((ACPI_DB_EVALUATION,
 			      "%-26s:  %s (%s)\n", "   Enter evaluation",
 			      &info->full_pathname[1],
 			      acpi_ut_get_type_name(info->node->type)));
@@ -193,7 +193,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 			goto cleanup;
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "**** Execute method [%s] at AML address %p length %X\n",
 				  info->full_pathname,
 				  info->obj_desc->method.aml_start + 1,
@@ -251,7 +251,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 			goto cleanup;
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "Returned object %p [%s]\n",
+		ACPI_DE_PRINT((ACPI_DB_NAMES, "Returned object %p [%s]\n",
 				  info->return_object,
 				  acpi_ut_get_object_type_name(info->
 							       return_object)));
@@ -291,14 +291,14 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_NAMES,
 			  "*** Completed evaluation of object %s ***\n",
 			  info->relative_pathname));
 
 cleanup:
 	/* Optional object evaluation log */
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+	ACPI_DE_PRINT_RAW((ACPI_DB_EVALUATION,
 			      "%-26s:  %s\n", "   Exit evaluation",
 			      &info->full_pathname[1]));
 
@@ -349,7 +349,7 @@ void acpi_ns_exec_module_code_list(void)
 
 	next = acpi_gbl_module_code_list;
 	if (!next) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT_NAMES,
+		ACPI_DE_PRINT((ACPI_DB_INIT_NAMES,
 				  "Legacy MLC block list is empty\n"));
 
 		return_VOID;
@@ -466,7 +466,7 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	status = acpi_ns_evaluate(info);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_INIT_NAMES,
 			  "Executed module-level code at %p\n",
 			  method_obj->method.aml_start));
 

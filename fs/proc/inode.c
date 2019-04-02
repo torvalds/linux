@@ -105,7 +105,7 @@ void __init proc_init_kmemcache(void)
 		"proc_dir_entry", SIZEOF_PDE, 0, SLAB_PANIC,
 		offsetof(struct proc_dir_entry, inline_name),
 		SIZEOF_PDE_INLINE_NAME, NULL);
-	BUILD_BUG_ON(sizeof(struct proc_dir_entry) >= SIZEOF_PDE);
+	BUILD__ON(sizeof(struct proc_dir_entry) >= SIZEOF_PDE);
 }
 
 static int proc_show_options(struct seq_file *seq, struct dentry *root)

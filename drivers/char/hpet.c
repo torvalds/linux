@@ -854,7 +854,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	 * ACPI has also reported, then we catch it here.
 	 */
 	if (hpet_is_known(hdp)) {
-		printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
+		printk(KERN_DE "%s: duplicate HPET ignored\n",
 			__func__);
 		return 0;
 	}

@@ -17,7 +17,7 @@
 
 #include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
@@ -195,7 +195,7 @@ static struct sysrq_key_op sysrq_mountro_op = {
 #ifdef CONFIG_LOCKDEP
 static void sysrq_handle_showlocks(int key)
 {
-	debug_show_all_locks();
+	de_show_all_locks();
 }
 
 static struct sysrq_key_op sysrq_showlocks_op = {
@@ -267,7 +267,7 @@ static void sysrq_handle_showregs(int key)
 		regs = get_irq_regs();
 	if (regs)
 		show_regs(regs);
-	perf_event_print_debug();
+	perf_event_print_de();
 }
 static struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,
@@ -349,7 +349,7 @@ static void send_sig_all(int sig)
 static void sysrq_handle_term(int key)
 {
 	send_sig_all(SIGTERM);
-	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+	console_loglevel = CONSOLE_LOGLEVEL_DE;
 }
 static struct sysrq_key_op sysrq_term_op = {
 	.handler	= sysrq_handle_term,
@@ -404,7 +404,7 @@ static struct sysrq_key_op sysrq_thaw_op = {
 static void sysrq_handle_kill(int key)
 {
 	send_sig_all(SIGKILL);
-	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+	console_loglevel = CONSOLE_LOGLEVEL_DE;
 }
 static struct sysrq_key_op sysrq_kill_op = {
 	.handler	= sysrq_handle_kill,
@@ -449,7 +449,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_showlocks_op,		/* d */
 	&sysrq_term_op,			/* e */
 	&sysrq_moom_op,			/* f */
-	/* g: May be registered for the kernel debugger */
+	/* g: May be registered for the kernel deger */
 	NULL,				/* g */
 	NULL,				/* h - reserved for help */
 	&sysrq_kill_op,			/* i */
@@ -711,7 +711,7 @@ static void sysrq_of_get_keyreset_config(void)
 
 	np = of_find_node_by_path("/chosen/linux,sysrq-reset-seq");
 	if (!np) {
-		pr_debug("No sysrq node found");
+		pr_de("No sysrq node found");
 		return;
 	}
 
@@ -800,7 +800,7 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 		/*
 		 * Pretend that sysrq was never pressed at all. This
 		 * is needed to properly handle KGDB which will try
-		 * to release all keys after exiting debugger. If we
+		 * to release all keys after exiting deger. If we
 		 * do not clear key bit it KGDB will end up sending
 		 * release events for Alt and SysRq, potentially
 		 * triggering print screen function.

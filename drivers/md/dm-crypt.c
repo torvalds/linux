@@ -1077,7 +1077,7 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	uint64_t *sector;
 	int r = 0;
 
-	BUG_ON(cc->integrity_iv_size && cc->integrity_iv_size != cc->iv_size);
+	_ON(cc->integrity_iv_size && cc->integrity_iv_size != cc->iv_size);
 
 	/* Reject unexpected unaligned bio. */
 	if (unlikely(bv_in.bv_len & (cc->sector_size - 1)))
@@ -1450,7 +1450,7 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 	struct bvec_iter_all iter_all;
 
 	bio_for_each_segment_all(bv, clone, i, iter_all) {
-		BUG_ON(!bv->bv_page);
+		_ON(!bv->bv_page);
 		mempool_free(bv->bv_page, &cc->page_pool);
 	}
 }
@@ -1644,7 +1644,7 @@ pop_from_list:
 		cc->write_tree = RB_ROOT;
 		spin_unlock_irq(&cc->write_thread_lock);
 
-		BUG_ON(rb_parent(write_tree.rb_node));
+		_ON(rb_parent(write_tree.rb_node));
 
 		/*
 		 * Note: we cannot walk the tree here with rb_next because
@@ -1677,7 +1677,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 	}
 
 	/* crypt_convert should have filled the clone bio */
-	BUG_ON(io->ctx.iter_out.bi_size);
+	_ON(io->ctx.iter_out.bi_size);
 
 	clone->bi_iter.bi_sector = cc->start + io->sector;
 
@@ -1888,7 +1888,7 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 
 	/*
 	 * dm-crypt performance can vary greatly depending on which crypto
-	 * algorithm implementation is used.  Help people debug performance
+	 * algorithm implementation is used.  Help people de performance
 	 * problems by logging the ->cra_driver_name.
 	 */
 	DMINFO("%s using implementation \"%s\"", ciphermode,

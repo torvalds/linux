@@ -266,7 +266,7 @@ static int pch_gbe_validate_option(int *value,
 	}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	netdev_dbg(adapter->netdev, "Invalid %s value specified (%i) %s\n",
@@ -432,7 +432,7 @@ full_duplex_only:
 		hw->mac.link_duplex = DUPLEX_FULL;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

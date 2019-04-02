@@ -242,13 +242,13 @@ void ib_qp_cap_to_pvrdma(struct pvrdma_qp_cap *dst, const struct ib_qp_cap *src)
 
 void pvrdma_gid_to_ib(union ib_gid *dst, const union pvrdma_gid *src)
 {
-	BUILD_BUG_ON(sizeof(union pvrdma_gid) != sizeof(union ib_gid));
+	BUILD__ON(sizeof(union pvrdma_gid) != sizeof(union ib_gid));
 	memcpy(dst, src, sizeof(*src));
 }
 
 void ib_gid_to_pvrdma(union pvrdma_gid *dst, const union ib_gid *src)
 {
-	BUILD_BUG_ON(sizeof(union pvrdma_gid) != sizeof(union ib_gid));
+	BUILD__ON(sizeof(union pvrdma_gid) != sizeof(union ib_gid));
 	memcpy(dst, src, sizeof(*src));
 }
 

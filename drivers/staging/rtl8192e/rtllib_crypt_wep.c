@@ -43,13 +43,13 @@ static void *prism2_wep_init(int keyidx)
 
 	priv->tx_tfm = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->tx_tfm)) {
-		pr_debug("rtllib_crypt_wep: could not allocate crypto API arc4\n");
+		pr_de("rtllib_crypt_wep: could not allocate crypto API arc4\n");
 		priv->tx_tfm = NULL;
 		goto fail;
 	}
 	priv->rx_tfm = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->rx_tfm)) {
-		pr_debug("rtllib_crypt_wep: could not allocate crypto API arc4\n");
+		pr_de("rtllib_crypt_wep: could not allocate crypto API arc4\n");
 		priv->rx_tfm = NULL;
 		goto fail;
 	}

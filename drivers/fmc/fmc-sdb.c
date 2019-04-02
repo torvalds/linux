@@ -176,7 +176,7 @@ EXPORT_SYMBOL(fmc_reprogram);
 
 void fmc_show_sdb_tree(const struct fmc_device *fmc)
 {
-	pr_err("%s: not supported anymore, use debugfs to dump SDB\n",
+	pr_err("%s: not supported anymore, use defs to dump SDB\n",
 		__func__);
 }
 EXPORT_SYMBOL(fmc_show_sdb_tree);

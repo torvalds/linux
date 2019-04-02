@@ -65,7 +65,7 @@ acpi_ut_add_address_range(acpi_adr_space_type space_id,
 	range_info->next = acpi_gbl_address_range_list[space_id];
 	acpi_gbl_address_range_list[space_id] = range_info;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+	ACPI_DE_PRINT((ACPI_DB_NAMES,
 			  "\nAdded [%4.4s] address range: 0x%8.8X%8.8X-0x%8.8X%8.8X\n",
 			  acpi_ut_get_node_name(range_info->region_node),
 			  ACPI_FORMAT_UINT64(address),
@@ -117,7 +117,7 @@ acpi_ut_remove_address_range(acpi_adr_space_type space_id,
 				prev->next = range_info->next;
 			}
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "\nRemoved [%4.4s] address range: 0x%8.8X%8.8X-0x%8.8X%8.8X\n",
 					  acpi_ut_get_node_name(range_info->
 								region_node),

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __UM_BUGS_H
-#define __UM_BUGS_H
+#ifndef __UM_S_H
+#define __UM_S_H
 
-void check_bugs(void);
+void check_s(void);
 
 #endif

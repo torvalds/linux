@@ -210,7 +210,7 @@ A: This is done to nudge program authors into better interfaces when
 programs need to pass data to user space. Like bpf_perf_event_output()
 can be used to efficiently stream data via perf ring buffer.
 BPF maps can be used for asynchronous data sharing between kernel
-and user space. bpf_trace_printk() should only be used for debugging.
+and user space. bpf_trace_printk() should only be used for deging.
 
 Q: New functionality via kernel modules?
 ----------------------------------------

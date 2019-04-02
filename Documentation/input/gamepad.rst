@@ -77,7 +77,7 @@ user-space yourself. Some of them might also provide module-options that
 change the mappings so you can advise users to set these.
 
 All new gamepads are supposed to comply with this mapping. Please report any
-bugs, if they don't.
+s, if they don't.
 
 There are a lot of less-featured/less-powerful devices out there, which re-use
 the buttons from this protocol. However, they try to do this in a compatible

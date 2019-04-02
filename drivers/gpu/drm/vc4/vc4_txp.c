@@ -78,10 +78,10 @@
 # define TXP_BYTE_ENABLE_SHIFT		16
 # define TXP_BYTE_ENABLE_MASK		GENMASK(19, 16)
 
-/* Debug: Generate VSTART again at EOF. */
+/* De: Generate VSTART again at EOF. */
 # define TXP_VSTART_AT_EOF		BIT(15)
 
-/* Debug: Terminate the current frame immediately.  Stops AXI
+/* De: Terminate the current frame immediately.  Stops AXI
  * writes.
  */
 # define TXP_ABORT			BIT(14)
@@ -172,8 +172,8 @@ static const struct {
 	TXP_REG(TXP_PROGRESS),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_txp_debugfs_regs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_txp_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -262,7 +262,7 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 	fb = conn_state->writeback_job->fb;
 	if (fb->width != crtc_state->mode.hdisplay ||
 	    fb->height != crtc_state->mode.vdisplay) {
-		DRM_DEBUG_KMS("Invalid framebuffer size %ux%u\n",
+		DRM_DE_KMS("Invalid framebuffer size %ux%u\n",
 			      fb->width, fb->height);
 		return -EINVAL;
 	}

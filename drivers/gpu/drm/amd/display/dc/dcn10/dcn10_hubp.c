@@ -121,8 +121,8 @@ void hubp1_vready_workaround(struct hubp *hubp,
 	uint32_t value = 0;
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
-	/* set HBUBREQ_DEBUG_DB[12] = 1 */
-	value = REG_READ(HUBPREQ_DEBUG_DB);
+	/* set HBUBREQ_DE_DB[12] = 1 */
+	value = REG_READ(HUBPREQ_DE_DB);
 
 	/* hack mode disable */
 	value |= 0x100;
@@ -131,11 +131,11 @@ void hubp1_vready_workaround(struct hubp *hubp,
 	if ((pipe_dest->vstartup_start - 2*(pipe_dest->vready_offset+pipe_dest->vupdate_width
 		+ pipe_dest->vupdate_offset) / pipe_dest->htotal) <= pipe_dest->vblank_end) {
 		/* if (eco_fix_needed(otg_global_sync_timing)
-		 * set HBUBREQ_DEBUG_DB[12] = 1 */
+		 * set HBUBREQ_DE_DB[12] = 1 */
 		value |= 0x1000;
 	}
 
-	REG_WRITE(HUBPREQ_DEBUG_DB, value);
+	REG_WRITE(HUBPREQ_DE_DB, value);
 }
 
 void hubp1_program_tiling(
@@ -307,7 +307,7 @@ void hubp1_program_pixel_format(
 				SURFACE_PIXEL_FORMAT, 12);
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 
@@ -478,7 +478,7 @@ bool hubp1_program_surface_flip_and_addr(
 				address->grph_stereo.left_addr.low_part);
 		break;
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		break;
 	}
 

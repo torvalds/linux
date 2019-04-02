@@ -60,15 +60,15 @@
 
 
 #define D_SUBMODULE stack
-#include "debug-levels.h"
+#include "de-levels.h"
 
-static char wimax_debug_params[128];
-module_param_string(debug, wimax_debug_params, sizeof(wimax_debug_params),
+static char wimax_de_params[128];
+module_param_string(de, wimax_de_params, sizeof(wimax_de_params),
 		    0644);
-MODULE_PARM_DESC(debug,
+MODULE_PARM_DESC(de,
 		 "String of space-separated NAME:VALUE pairs, where NAMEs "
-		 "are the different debug submodules and VALUE are the "
-		 "initial debug value to set.");
+		 "are the different de submodules and VALUE are the "
+		 "initial de value to set.");
 
 /*
  * Authoritative source for the RE_STATE_CHANGE attribute policy
@@ -191,7 +191,7 @@ void __check_new_state(enum wimax_st old_state, enum wimax_st new_state,
 		       unsigned int allowed_states_bm)
 {
 	if (WARN_ON(((1 << new_state) & allowed_states_bm) == 0)) {
-		pr_err("SW BUG! Forbidden state change %u -> %u\n",
+		pr_err("SW ! Forbidden state change %u -> %u\n",
 		       old_state, new_state);
 	}
 }
@@ -212,7 +212,7 @@ void __wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 		  wimax_dev, new_state, old_state);
 
 	if (WARN_ON(new_state >= __WIMAX_ST_INVALID)) {
-		dev_err(dev, "SW BUG: requesting invalid state %u\n",
+		dev_err(dev, "SW : requesting invalid state %u\n",
 			new_state);
 		goto out;
 	}
@@ -281,7 +281,7 @@ void __wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 		break;
 	case __WIMAX_ST_INVALID:
 	default:
-		dev_err(dev, "SW BUG: wimax_dev %p is in unknown state %u\n",
+		dev_err(dev, "SW : wimax_dev %p is in unknown state %u\n",
 			wimax_dev, wimax_dev->state);
 		WARN_ON(1);
 		goto out;
@@ -290,7 +290,7 @@ void __wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 	/* Execute the actions of entry to the new state */
 	switch (new_state) {
 	case __WIMAX_ST_NULL:
-		dev_err(dev, "SW BUG: wimax_dev %p entering NULL state "
+		dev_err(dev, "SW : wimax_dev %p entering NULL state "
 			"from %u\n", wimax_dev, wimax_dev->state);
 		WARN_ON(1);		/* Nobody can enter this state */
 		break;
@@ -314,7 +314,7 @@ void __wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 		break;
 	case __WIMAX_ST_INVALID:
 	default:
-		BUG();
+		();
 	}
 	__wimax_state_set(wimax_dev, new_state);
 	if (!IS_ERR(stch_skb))
@@ -474,7 +474,7 @@ size_t wimax_addr_scnprint(char *addr_str, size_t addr_str_size,
  * Note that the parts that will allow interaction with user space are
  * setup at the very end, when the rest is in place, as once that
  * happens, the driver might get user space control requests via
- * netlink or from debugfs that might translate into calls into
+ * netlink or from defs that might translate into calls into
  * wimax_dev->op_*().
  */
 int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
@@ -496,11 +496,11 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	/* Set up user-space interaction */
 	mutex_lock(&wimax_dev->mutex);
 	wimax_id_table_add(wimax_dev);
-	result = wimax_debugfs_add(wimax_dev);
+	result = wimax_defs_add(wimax_dev);
 	if (result < 0) {
-		dev_err(dev, "cannot initialize debugfs: %d\n",
+		dev_err(dev, "cannot initialize defs: %d\n",
 			result);
-		goto error_debugfs_add;
+		goto error_defs_add;
 	}
 
 	__wimax_state_set(wimax_dev, WIMAX_ST_DOWN);
@@ -513,7 +513,7 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	d_fnend(3, dev, "(wimax_dev %p net_dev %p) = 0\n", wimax_dev, net_dev);
 	return 0;
 
-error_debugfs_add:
+error_defs_add:
 	wimax_id_table_rm(wimax_dev);
 	mutex_unlock(&wimax_dev->mutex);
 	wimax_rfkill_rm(wimax_dev);
@@ -536,7 +536,7 @@ EXPORT_SYMBOL_GPL(wimax_dev_add);
  * IMPORTANT! Must call before calling unregister_netdev().
  *
  * After this function returns, you will not get any more user space
- * control requests (via netlink or debugfs) and thus to wimax_dev->ops.
+ * control requests (via netlink or defs) and thus to wimax_dev->ops.
  *
  * Reentrancy control is ensured by setting the state to
  * %__WIMAX_ST_QUIESCING. rfkill operations coming through
@@ -550,7 +550,7 @@ void wimax_dev_rm(struct wimax_dev *wimax_dev)
 
 	mutex_lock(&wimax_dev->mutex);
 	__wimax_state_change(wimax_dev, __WIMAX_ST_QUIESCING);
-	wimax_debugfs_rm(wimax_dev);
+	wimax_defs_rm(wimax_dev);
 	wimax_id_table_rm(wimax_dev);
 	__wimax_state_change(wimax_dev, WIMAX_ST_DOWN);
 	mutex_unlock(&wimax_dev->mutex);
@@ -560,9 +560,9 @@ void wimax_dev_rm(struct wimax_dev *wimax_dev)
 EXPORT_SYMBOL_GPL(wimax_dev_rm);
 
 
-/* Debug framework control of debug levels */
+/* De framework control of de levels */
 struct d_level D_LEVEL[] = {
-	D_SUBMODULE_DEFINE(debugfs),
+	D_SUBMODULE_DEFINE(defs),
 	D_SUBMODULE_DEFINE(id_table),
 	D_SUBMODULE_DEFINE(op_msg),
 	D_SUBMODULE_DEFINE(op_reset),
@@ -598,8 +598,8 @@ int __init wimax_subsys_init(void)
 	int result;
 
 	d_fnstart(4, NULL, "()\n");
-	d_parse_params(D_LEVEL, D_LEVEL_SIZE, wimax_debug_params,
-		       "wimax.debug");
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, wimax_de_params,
+		       "wimax.de");
 
 	result = genl_register_family(&wimax_gnl_family);
 	if (unlikely(result < 0)) {

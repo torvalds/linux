@@ -21,26 +21,26 @@
 #include "match.h"
 
 /*
- * DEBUG remains global (no per profile flag) since it is mostly used in sysctl
+ * DE remains global (no per profile flag) since it is mostly used in sysctl
  * which is not related to profile accesses.
  */
 
-#define DEBUG_ON (aa_g_debug)
-#define dbg_printk(__fmt, __args...) pr_debug(__fmt, ##__args)
-#define AA_DEBUG(fmt, args...)						\
+#define DE_ON (aa_g_de)
+#define dbg_printk(__fmt, __args...) pr_de(__fmt, ##__args)
+#define AA_DE(fmt, args...)						\
 	do {								\
-		if (DEBUG_ON)						\
-			pr_debug_ratelimited("AppArmor: " fmt, ##args);	\
+		if (DE_ON)						\
+			pr_de_ratelimited("AppArmor: " fmt, ##args);	\
 	} while (0)
 
 #define AA_WARN(X) WARN((X), "APPARMOR WARN %s: %s\n", __func__, #X)
 
-#define AA_BUG(X, args...) AA_BUG_FMT((X), "" args)
-#ifdef CONFIG_SECURITY_APPARMOR_DEBUG_ASSERTS
-#define AA_BUG_FMT(X, fmt, args...)					\
+#define AA_(X, args...) AA__FMT((X), "" args)
+#ifdef CONFIG_SECURITY_APPARMOR_DE_ASSERTS
+#define AA__FMT(X, fmt, args...)					\
 	WARN((X), "AppArmor WARN %s: (" #X "): " fmt, __func__, ##args)
 #else
-#define AA_BUG_FMT(X, fmt, args...)
+#define AA__FMT(X, fmt, args...)
 #endif
 
 #define AA_ERROR(fmt, args...)						\
@@ -236,7 +236,7 @@ void aa_policy_destroy(struct aa_policy *policy);
 		__j = 0;						\
 		label_for_each(__i, (L), (P)) {				\
 			__new_ = (FN);					\
-			AA_BUG(!__new_);				\
+			AA_(!__new_);				\
 			if (IS_ERR(__new_))				\
 				goto __cleanup;				\
 			__lvec[__j++] = __new_;				\
@@ -268,7 +268,7 @@ __cleanup:								\
 	}								\
 __done:									\
 	if (!__new_)							\
-		AA_DEBUG("label build failed\n");			\
+		AA_DE("label build failed\n");			\
 	(__new_);							\
 })
 

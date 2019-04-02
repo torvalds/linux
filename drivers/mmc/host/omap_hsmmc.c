@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dmaengine.h>
 #include <linux/seq_file.h>
 #include <linux/sizes.h>
@@ -933,7 +933,7 @@ static void omap_hsmmc_dma_cleanup(struct omap_hsmmc_host *host, int errno)
 /*
  * Readable error output
  */
-#ifdef CONFIG_MMC_DEBUG
+#ifdef CONFIG_MMC_DE
 static void omap_hsmmc_dbg_report_irq(struct omap_hsmmc_host *host, u32 status)
 {
 	/* --- means reserved bit without definition at documentation */
@@ -963,7 +963,7 @@ static inline void omap_hsmmc_dbg_report_irq(struct omap_hsmmc_host *host,
 					     u32 status)
 {
 }
-#endif  /* CONFIG_MMC_DEBUG */
+#endif  /* CONFIG_MMC_DE */
 
 /*
  * MMC controller internal state machines reset
@@ -1266,7 +1266,7 @@ static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 		 */
 		return -EINVAL;
 
-	BUG_ON(host->dma_ch != -1);
+	_ON(host->dma_ch != -1);
 
 	chan = omap_hsmmc_get_dma_chan(host, data);
 
@@ -1430,8 +1430,8 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 	int err;
 
-	BUG_ON(host->req_in_progress);
-	BUG_ON(host->dma_ch != -1);
+	_ON(host->req_in_progress);
+	_ON(host->dma_ch != -1);
 	if (host->reqs_blocked)
 		host->reqs_blocked = 0;
 	WARN_ON(host->mrq != NULL);
@@ -1632,7 +1632,7 @@ static void omap_hsmmc_conf_bus_power(struct omap_hsmmc_host *host)
 static int omap_hsmmc_multi_io_quirk(struct mmc_card *card,
 				     unsigned int direction, int blk_size)
 {
-	/* This controller can't do multiblock reads due to hw bugs */
+	/* This controller can't do multiblock reads due to hw s */
 	if (direction == MMC_DATA_READ)
 		return 1;
 
@@ -1650,7 +1650,7 @@ static struct mmc_host_ops omap_hsmmc_ops = {
 	.enable_sdio_irq = omap_hsmmc_enable_sdio_irq,
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static int mmc_regs_show(struct seq_file *s, void *data)
 {
@@ -1693,16 +1693,16 @@ static int mmc_regs_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(mmc_regs);
 
-static void omap_hsmmc_debugfs(struct mmc_host *mmc)
+static void omap_hsmmc_defs(struct mmc_host *mmc)
 {
-	if (mmc->debugfs_root)
-		debugfs_create_file("regs", S_IRUSR, mmc->debugfs_root,
+	if (mmc->defs_root)
+		defs_create_file("regs", S_IRUSR, mmc->defs_root,
 			mmc, &mmc_regs_fops);
 }
 
 #else
 
-static void omap_hsmmc_debugfs(struct mmc_host *mmc)
+static void omap_hsmmc_defs(struct mmc_host *mmc)
 {
 }
 
@@ -1933,7 +1933,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	 * and the DMA engine device segment size limits.  In reality, with
 	 * 32-bit transfers, the DMA engine can do longer segments than this
 	 * but there is no way to represent that in the DMA model - if we
-	 * increase this figure here, we get warnings from the DMA API debug.
+	 * increase this figure here, we get warnings from the DMA API de.
 	 */
 	mmc->max_seg_size = min3(mmc->max_req_size,
 			dma_get_max_seg_size(host->rx_chan->device->dev),
@@ -1976,7 +1976,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 			goto err_slot_name;
 	}
 
-	omap_hsmmc_debugfs(mmc);
+	omap_hsmmc_defs(mmc);
 	pm_runtime_mark_last_busy(host->dev);
 	pm_runtime_put_autosuspend(host->dev);
 

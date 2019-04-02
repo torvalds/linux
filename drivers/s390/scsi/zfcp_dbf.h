@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * zfcp device driver
- * debug feature declarations
+ * de feature declarations
  *
  * Copyright IBM Corp. 2008, 2017
  */
@@ -277,11 +277,11 @@ struct zfcp_dbf_pay {
  * @scsi_buf: pre-allocated buffer for scsi
  */
 struct zfcp_dbf {
-	debug_info_t			*pay;
-	debug_info_t			*rec;
-	debug_info_t			*hba;
-	debug_info_t			*san;
-	debug_info_t			*scsi;
+	de_info_t			*pay;
+	de_info_t			*rec;
+	de_info_t			*hba;
+	de_info_t			*san;
+	de_info_t			*scsi;
 	spinlock_t			pay_lock;
 	spinlock_t			rec_lock;
 	spinlock_t			hba_lock;
@@ -321,7 +321,7 @@ bool zfcp_dbf_hba_fsf_resp_suppress(struct zfcp_fsf_req *req)
 static inline
 void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 {
-	if (debug_level_enabled(req->adapter->dbf->hba, level))
+	if (de_level_enabled(req->adapter->dbf->hba, level))
 		zfcp_dbf_hba_fsf_res(tag, level, req);
 }
 
@@ -366,7 +366,7 @@ void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *)
 					scmd->device->host->hostdata[0];
 
-	if (debug_level_enabled(adapter->dbf->scsi, level))
+	if (de_level_enabled(adapter->dbf->scsi, level))
 		zfcp_dbf_scsi_common(tag, level, scmd->device, scmd, req);
 }
 
@@ -425,7 +425,7 @@ void zfcp_dbf_scsi_devreset(char *tag, struct scsi_device *sdev, u8 flag,
 	char tmp_tag[ZFCP_DBF_TAG_LEN];
 	static int const level = 1;
 
-	if (unlikely(!debug_level_enabled(adapter->dbf->scsi, level)))
+	if (unlikely(!de_level_enabled(adapter->dbf->scsi, level)))
 		return;
 
 	if (flag == FCP_TMF_TGT_RESET)

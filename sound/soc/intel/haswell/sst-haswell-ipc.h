@@ -282,14 +282,14 @@ struct sst_hsw_ipc_stream_ring {
 	u32 ring_first_pfn;
 } __attribute__((packed));
 
-/* Debug Dump Log Enable Request */
-struct sst_hsw_ipc_debug_log_enable_req {
+/* De Dump Log Enable Request */
+struct sst_hsw_ipc_de_log_enable_req {
 	struct sst_hsw_ipc_stream_ring ringinfo;
 	u32 config[SST_HSW_FW_LOG_CONFIG_DWORDS];
 } __attribute__((packed));
 
-/* Debug Dump Log Reply */
-struct sst_hsw_ipc_debug_log_reply {
+/* De Dump Log Reply */
+struct sst_hsw_ipc_de_log_reply {
 	u32 log_buffer_begining;
 	u32 log_buffer_size;
 } __attribute__((packed));

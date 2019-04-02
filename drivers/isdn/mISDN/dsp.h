@@ -8,15 +8,15 @@
  *
  */
 
-#define DEBUG_DSP_CTRL		0x0001
-#define DEBUG_DSP_CORE		0x0002
-#define DEBUG_DSP_DTMF		0x0004
-#define DEBUG_DSP_CMX		0x0010
-#define DEBUG_DSP_TONE		0x0020
-#define DEBUG_DSP_BLOWFISH	0x0040
-#define DEBUG_DSP_DELAY		0x0100
-#define DEBUG_DSP_CLOCK		0x0200
-#define DEBUG_DSP_DTMFCOEFF	0x8000 /* heavy output */
+#define DE_DSP_CTRL		0x0001
+#define DE_DSP_CORE		0x0002
+#define DE_DSP_DTMF		0x0004
+#define DE_DSP_CMX		0x0010
+#define DE_DSP_TONE		0x0020
+#define DE_DSP_BLOWFISH	0x0040
+#define DE_DSP_DELAY		0x0100
+#define DE_DSP_CLOCK		0x0200
+#define DE_DSP_DTMFCOEFF	0x8000 /* heavy output */
 
 /* options may be:
  *
@@ -33,7 +33,7 @@
 #include "dsp_ecdis.h"
 
 extern int dsp_options;
-extern int dsp_debug;
+extern int dsp_de;
 extern int dsp_poll;
 extern int dsp_tics;
 extern spinlock_t dsp_lock;
@@ -242,7 +242,7 @@ extern void dsp_change_volume(struct sk_buff *skb, int volume);
 
 extern struct list_head dsp_ilist;
 extern struct list_head conf_ilist;
-extern void dsp_cmx_debug(struct dsp *dsp);
+extern void dsp_cmx_de(struct dsp *dsp);
 extern void dsp_cmx_hardware(struct dsp_conf *conf, struct dsp *dsp);
 extern int dsp_cmx_conf(struct dsp *dsp, u32 conf_id);
 extern void dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb);

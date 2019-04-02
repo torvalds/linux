@@ -19,7 +19,7 @@
 
 /*
  * HW_breakpoint: a unified kernel/user-space hardware breakpoint facility,
- * using the CPU's debug registers.
+ * using the CPU's de registers.
  */
 #define pr_fmt(fmt) "hw-breakpoint: " fmt
 
@@ -47,10 +47,10 @@ static DEFINE_PER_CPU(struct perf_event *, wp_on_reg[ARM_MAX_WRP]);
 static int core_num_brps __ro_after_init;
 static int core_num_wrps __ro_after_init;
 
-/* Debug architecture version. */
-static u8 debug_arch __ro_after_init;
+/* De architecture version. */
+static u8 de_arch __ro_after_init;
 
-/* Does debug architecture support OS Save and Restore? */
+/* Does de architecture support OS Save and Restore? */
 static bool has_ossr __ro_after_init;
 
 /* Maximum supported watchpoint length. */
@@ -133,40 +133,40 @@ static void write_wb_reg(int n, u32 val)
 	isb();
 }
 
-/* Determine debug architecture. */
-static u8 get_debug_arch(void)
+/* Determine de architecture. */
+static u8 get_de_arch(void)
 {
 	u32 didr;
 
 	/* Do we implement the extended CPUID interface? */
 	if (((read_cpuid_id() >> 16) & 0xf) != 0xf) {
 		pr_warn_once("CPUID feature registers not supported. "
-			     "Assuming v6 debug is present.\n");
-		return ARM_DEBUG_ARCH_V6;
+			     "Assuming v6 de is present.\n");
+		return ARM_DE_ARCH_V6;
 	}
 
 	ARM_DBG_READ(c0, c0, 0, didr);
 	return (didr >> 16) & 0xf;
 }
 
-u8 arch_get_debug_arch(void)
+u8 arch_get_de_arch(void)
 {
-	return debug_arch;
+	return de_arch;
 }
 
-static int debug_arch_supported(void)
+static int de_arch_supported(void)
 {
-	u8 arch = get_debug_arch();
+	u8 arch = get_de_arch();
 
 	/* We don't support the memory-mapped interface. */
-	return (arch >= ARM_DEBUG_ARCH_V6 && arch <= ARM_DEBUG_ARCH_V7_ECP14) ||
-		arch >= ARM_DEBUG_ARCH_V7_1;
+	return (arch >= ARM_DE_ARCH_V6 && arch <= ARM_DE_ARCH_V7_ECP14) ||
+		arch >= ARM_DE_ARCH_V7_1;
 }
 
 /* Can we determine the watchpoint access type from the fsr? */
-static int debug_exception_updates_fsr(void)
+static int de_exception_updates_fsr(void)
 {
-	return get_debug_arch() >= ARM_DEBUG_ARCH_V8;
+	return get_de_arch() >= ARM_DE_ARCH_V8;
 }
 
 /* Determine number of WRP registers available. */
@@ -188,7 +188,7 @@ static int get_num_brp_resources(void)
 /* Does this core support mismatch breakpoints? */
 static int core_has_mismatch_brps(void)
 {
-	return (get_debug_arch() >= ARM_DEBUG_ARCH_V7_ECP14 &&
+	return (get_de_arch() >= ARM_DE_ARCH_V7_ECP14 &&
 		get_num_brp_resources() > 1);
 }
 
@@ -196,7 +196,7 @@ static int core_has_mismatch_brps(void)
 static int get_num_wrps(void)
 {
 	/*
-	 * On debug architectures prior to 7.1, when a watchpoint fires, the
+	 * On de architectures prior to 7.1, when a watchpoint fires, the
 	 * only way to work out which watchpoint it was is by disassembling
 	 * the faulting instruction and working out the address of the memory
 	 * access.
@@ -213,7 +213,7 @@ static int get_num_wrps(void)
 	 * [the ARM ARM states that the DFAR is UNKNOWN, but experience shows
 	 * that it is set on some implementations].
 	 */
-	if (get_debug_arch() < ARM_DEBUG_ARCH_V7_1)
+	if (get_de_arch() < ARM_DE_ARCH_V7_1)
 		return 1;
 
 	return get_num_wrp_resources();
@@ -228,8 +228,8 @@ static int get_num_brps(void)
 
 /*
  * In order to access the breakpoint/watchpoint control registers,
- * we must be running in debug monitor mode. Unfortunately, we can
- * be put into halting debug mode at any time by an external debugger
+ * we must be running in de monitor mode. Unfortunately, we can
+ * be put into halting de mode at any time by an external deger
  * but there is nothing we can do to prevent that.
  */
 static int monitor_mode_enabled(void)
@@ -249,14 +249,14 @@ static int enable_monitor_mode(void)
 		goto out;
 
 	/* Write to the corresponding DSCR. */
-	switch (get_debug_arch()) {
-	case ARM_DEBUG_ARCH_V6:
-	case ARM_DEBUG_ARCH_V6_1:
+	switch (get_de_arch()) {
+	case ARM_DE_ARCH_V6:
+	case ARM_DE_ARCH_V6_1:
 		ARM_DBG_WRITE(c0, c1, 0, (dscr | ARM_DSCR_MDBGEN));
 		break;
-	case ARM_DEBUG_ARCH_V7_ECP14:
-	case ARM_DEBUG_ARCH_V7_1:
-	case ARM_DEBUG_ARCH_V8:
+	case ARM_DE_ARCH_V7_ECP14:
+	case ARM_DE_ARCH_V7_1:
+	case ARM_DE_ARCH_V8:
 		ARM_DBG_WRITE(c0, c2, 2, (dscr | ARM_DSCR_MDBGEN));
 		isb();
 		break;
@@ -278,7 +278,7 @@ out:
 
 int hw_breakpoint_slots(int type)
 {
-	if (!debug_arch_supported())
+	if (!de_arch_supported())
 		return 0;
 
 	/*
@@ -306,7 +306,7 @@ static u8 get_max_wp_len(void)
 	struct arch_hw_breakpoint_ctrl ctrl;
 	u8 size = 4;
 
-	if (debug_arch < ARM_DEBUG_ARCH_V7_ECP14)
+	if (de_arch < ARM_DE_ARCH_V7_ECP14)
 		goto out;
 
 	memset(&ctrl, 0, sizeof(ctrl));
@@ -597,7 +597,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 	int ret = 0;
 	u32 offset, alignment_mask = 0x3;
 
-	/* Ensure that we are in monitor debug mode. */
+	/* Ensure that we are in monitor de mode. */
 	if (!monitor_mode_enabled())
 		return -ENODEV;
 
@@ -654,7 +654,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 		 * We only support specific access types if the fsr
 		 * reports them.
 		 */
-		if (!debug_exception_updates_fsr() &&
+		if (!de_exception_updates_fsr() &&
 		    (hw->ctrl.type == ARM_BREAKPOINT_LOAD ||
 		     hw->ctrl.type == ARM_BREAKPOINT_STORE))
 			return -EINVAL;
@@ -709,13 +709,13 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 
 		info = counter_arch_bp(wp);
 		/*
-		 * The DFAR is an unknown value on debug architectures prior
+		 * The DFAR is an unknown value on de architectures prior
 		 * to 7.1. Since we only allow a single watchpoint on these
 		 * older CPUs, we can set the trigger to the lowest possible
 		 * faulting address.
 		 */
-		if (debug_arch < ARM_DEBUG_ARCH_V7_1) {
-			BUG_ON(i > 0);
+		if (de_arch < ARM_DE_ARCH_V7_1) {
+			_ON(i > 0);
 			info->trigger = wp->attr.bp_addr;
 		} else {
 			if (info->ctrl.len == ARM_BREAKPOINT_LEN_8)
@@ -735,7 +735,7 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 				goto unlock;
 
 			/* Check that the access type matches. */
-			if (debug_exception_updates_fsr()) {
+			if (de_exception_updates_fsr()) {
 				access = (fsr & ARM_FSR_ACCESS_MASK) ?
 					  HW_BREAKPOINT_W : HW_BREAKPOINT_R;
 				if (!(access & hw_breakpoint_type(wp)))
@@ -746,7 +746,7 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 			info->trigger = addr;
 		}
 
-		pr_debug("watchpoint fired: address = 0x%x\n", info->trigger);
+		pr_de("watchpoint fired: address = 0x%x\n", info->trigger);
 		perf_bp_event(wp, regs);
 
 		/*
@@ -828,7 +828,7 @@ static void breakpoint_handler(unsigned long unknown, struct pt_regs *regs)
 		decode_ctrl_reg(ctrl_reg, &ctrl);
 		if ((1 << (addr & 0x3)) & ctrl.len) {
 			info->trigger = addr;
-			pr_debug("breakpoint fired: address = 0x%x\n", addr);
+			pr_de("breakpoint fired: address = 0x%x\n", addr);
 			perf_bp_event(bp, regs);
 			if (!bp->overflow_handler)
 				enable_single_step(bp, addr);
@@ -871,7 +871,7 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 		breakpoint_handler(addr, regs);
 		break;
 	case ARM_ENTRY_ASYNC_WATCHPOINT:
-		WARN(1, "Asynchronous watchpoint exception taken. Debugging results may be unreliable\n");
+		WARN(1, "Asynchronous watchpoint exception taken. Deging results may be unreliable\n");
 	case ARM_ENTRY_SYNC_WATCHPOINT:
 		watchpoint_handler(addr, fsr, regs);
 		break;
@@ -887,25 +887,25 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 /*
  * One-time initialisation.
  */
-static cpumask_t debug_err_mask;
+static cpumask_t de_err_mask;
 
-static int debug_reg_trap(struct pt_regs *regs, unsigned int instr)
+static int de_reg_trap(struct pt_regs *regs, unsigned int instr)
 {
 	int cpu = smp_processor_id();
 
-	pr_warn("Debug register access (0x%x) caused undefined instruction on CPU %d\n",
+	pr_warn("De register access (0x%x) caused undefined instruction on CPU %d\n",
 		instr, cpu);
 
 	/* Set the error flag for this CPU and skip the faulting instruction. */
-	cpumask_set_cpu(cpu, &debug_err_mask);
+	cpumask_set_cpu(cpu, &de_err_mask);
 	instruction_pointer(regs) += 4;
 	return 0;
 }
 
-static struct undef_hook debug_reg_hook = {
+static struct undef_hook de_reg_hook = {
 	.instr_mask	= 0x0fe80f10,
 	.instr_val	= 0x0e000e10,
-	.fn		= debug_reg_trap,
+	.fn		= de_reg_trap,
 };
 
 /* Does this core support OS Save and Restore? */
@@ -913,10 +913,10 @@ static bool core_has_os_save_restore(void)
 {
 	u32 oslsr;
 
-	switch (get_debug_arch()) {
-	case ARM_DEBUG_ARCH_V7_1:
+	switch (get_de_arch()) {
+	case ARM_DE_ARCH_V7_1:
 		return true;
-	case ARM_DEBUG_ARCH_V7_ECP14:
+	case ARM_DE_ARCH_V7_ECP14:
 		ARM_DBG_READ(c1, c1, 4, oslsr);
 		if (oslsr & ARM_OSLSR_OSLM0)
 			return true;
@@ -931,21 +931,21 @@ static void reset_ctrl_regs(unsigned int cpu)
 	u32 val;
 
 	/*
-	 * v7 debug contains save and restore registers so that debug state
-	 * can be maintained across low-power modes without leaving the debug
+	 * v7 de contains save and restore registers so that de state
+	 * can be maintained across low-power modes without leaving the de
 	 * logic powered up. It is IMPLEMENTATION DEFINED whether we can access
-	 * the debug registers out of reset, so we must unlock the OS Lock
+	 * the de registers out of reset, so we must unlock the OS Lock
 	 * Access Register to avoid taking undefined instruction exceptions
 	 * later on.
 	 */
-	switch (debug_arch) {
-	case ARM_DEBUG_ARCH_V6:
-	case ARM_DEBUG_ARCH_V6_1:
+	switch (de_arch) {
+	case ARM_DE_ARCH_V6:
+	case ARM_DE_ARCH_V6_1:
 		/* ARMv6 cores clear the registers out of reset. */
 		goto out_mdbgen;
-	case ARM_DEBUG_ARCH_V7_ECP14:
+	case ARM_DE_ARCH_V7_ECP14:
 		/*
-		 * Ensure sticky power-down is clear (i.e. debug logic is
+		 * Ensure sticky power-down is clear (i.e. de logic is
 		 * powered up).
 		 */
 		ARM_DBG_READ(c1, c5, 4, val);
@@ -955,7 +955,7 @@ static void reset_ctrl_regs(unsigned int cpu)
 		if (!has_ossr)
 			goto clear_vcr;
 		break;
-	case ARM_DEBUG_ARCH_V7_1:
+	case ARM_DE_ARCH_V7_1:
 		/*
 		 * Ensure the OS double lock is clear.
 		 */
@@ -966,8 +966,8 @@ static void reset_ctrl_regs(unsigned int cpu)
 	}
 
 	if (err) {
-		pr_warn_once("CPU %d debug is powered down!\n", cpu);
-		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
+		pr_warn_once("CPU %d de is powered down!\n", cpu);
+		cpumask_or(&de_err_mask, &de_err_mask, cpumask_of(cpu));
 		return;
 	}
 
@@ -986,14 +986,14 @@ clear_vcr:
 	ARM_DBG_WRITE(c0, c7, 0, 0);
 	isb();
 
-	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
+	if (cpumask_intersects(&de_err_mask, cpumask_of(cpu))) {
 		pr_warn_once("CPU %d failed to disable vector catch\n", cpu);
 		return;
 	}
 
 	/*
 	 * The control/value register pairs are UNKNOWN out of reset so
-	 * clear them to avoid spurious debug events.
+	 * clear them to avoid spurious de events.
 	 */
 	raw_num_brps = get_num_brp_resources();
 	for (i = 0; i < raw_num_brps; ++i) {
@@ -1006,8 +1006,8 @@ clear_vcr:
 		write_wb_reg(ARM_BASE_WVR + i, 0UL);
 	}
 
-	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
-		pr_warn_once("CPU %d failed to clear debug register pairs\n", cpu);
+	if (cpumask_intersects(&de_err_mask, cpumask_of(cpu))) {
+		pr_warn_once("CPU %d failed to clear de register pairs\n", cpu);
 		return;
 	}
 
@@ -1017,7 +1017,7 @@ clear_vcr:
 	 */
 out_mdbgen:
 	if (enable_monitor_mode())
-		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
+		cpumask_or(&de_err_mask, &de_err_mask, cpumask_of(cpu));
 }
 
 static int dbg_reset_online(unsigned int cpu)
@@ -1056,10 +1056,10 @@ static int __init arch_hw_breakpoint_init(void)
 {
 	int ret;
 
-	debug_arch = get_debug_arch();
+	de_arch = get_de_arch();
 
-	if (!debug_arch_supported()) {
-		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
+	if (!de_arch_supported()) {
+		pr_info("de architecture 0x%x unsupported.\n", de_arch);
 		return 0;
 	}
 
@@ -1091,18 +1091,18 @@ static int __init arch_hw_breakpoint_init(void)
 	 * determine that.
 	 */
 	cpus_read_lock();
-	register_undef_hook(&debug_reg_hook);
+	register_undef_hook(&de_reg_hook);
 
 	/*
 	 * Register CPU notifier which resets the breakpoint resources. We
-	 * assume that a halting debugger will leave the world in a nice state
+	 * assume that a halting deger will leave the world in a nice state
 	 * for us.
 	 */
 	ret = cpuhp_setup_state_cpuslocked(CPUHP_AP_ONLINE_DYN,
 					   "arm/hw_breakpoint:online",
 					   dbg_reset_online, NULL);
-	unregister_undef_hook(&debug_reg_hook);
-	if (WARN_ON(ret < 0) || !cpumask_empty(&debug_err_mask)) {
+	unregister_undef_hook(&de_reg_hook);
+	if (WARN_ON(ret < 0) || !cpumask_empty(&de_err_mask)) {
 		core_num_brps = 0;
 		core_num_wrps = 0;
 		if (ret > 0)
@@ -1120,11 +1120,11 @@ static int __init arch_hw_breakpoint_init(void)
 	pr_info("maximum watchpoint size is %u bytes.\n",
 			max_watchpoint_len);
 
-	/* Register debug fault handler. */
-	hook_fault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
-			TRAP_HWBKPT, "watchpoint debug exception");
-	hook_ifault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
-			TRAP_HWBKPT, "breakpoint debug exception");
+	/* Register de fault handler. */
+	hook_fault_code(FAULT_CODE_DE, hw_breakpoint_pending, SIGTRAP,
+			TRAP_HWBKPT, "watchpoint de exception");
+	hook_ifault_code(FAULT_CODE_DE, hw_breakpoint_pending, SIGTRAP,
+			TRAP_HWBKPT, "breakpoint de exception");
 	cpus_read_unlock();
 
 	/* Register PM notifiers. */

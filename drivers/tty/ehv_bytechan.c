@@ -138,7 +138,7 @@ static int find_console_handle(void)
 
 /*************************** EARLY CONSOLE DRIVER ***************************/
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_EHV_BC
+#ifdef CONFIG_PPC_EARLY_DE_EHV_BC
 
 /*
  * send a byte to a byte channel, wait if necessary
@@ -154,7 +154,7 @@ static void byte_channel_spin_send(const char data)
 
 	do {
 		count = 1;
-		ret = ev_byte_channel_send(CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE,
+		ret = ev_byte_channel_send(CONFIG_PPC_EARLY_DE_EHV_BC_HANDLE,
 					   &count, &data);
 	} while (ret == EV_EAGAIN);
 }
@@ -188,7 +188,7 @@ void __init udbg_init_ehv_bc(void)
 	unsigned int ret;
 
 	/* Verify the byte channel handle */
-	ret = ev_byte_channel_poll(CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE,
+	ret = ev_byte_channel_poll(CONFIG_PPC_EARLY_DE_EHV_BC_HANDLE,
 				   &rx_count, &tx_count);
 	if (ret)
 		return;
@@ -197,7 +197,7 @@ void __init udbg_init_ehv_bc(void)
 	register_early_udbg_console();
 
 	udbg_printf("ehv-bc: early console using byte channel handle %u\n",
-		    CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
+		    CONFIG_PPC_EARLY_DE_EHV_BC_HANDLE);
 }
 
 #endif
@@ -295,17 +295,17 @@ static struct console ehv_bc_console = {
 static int __init ehv_bc_console_init(void)
 {
 	if (!find_console_handle()) {
-		pr_debug("ehv-bc: stdout is not a byte channel\n");
+		pr_de("ehv-bc: stdout is not a byte channel\n");
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_EHV_BC
+#ifdef CONFIG_PPC_EARLY_DE_EHV_BC
 	/* Print a friendly warning if the user chose the wrong byte channel
 	 * handle for udbg.
 	 */
-	if (stdout_bc != CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE)
+	if (stdout_bc != CONFIG_PPC_EARLY_DE_EHV_BC_HANDLE)
 		pr_warn("ehv-bc: udbg handle %u is not the stdout handle\n",
-			CONFIG_PPC_EARLY_DEBUG_EHV_BC_HANDLE);
+			CONFIG_PPC_EARLY_DE_EHV_BC_HANDLE);
 #endif
 
 	/* add_preferred_console() must be called before register_console(),

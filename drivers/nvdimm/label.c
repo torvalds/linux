@@ -1102,7 +1102,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 	if (nlabel + nsblk->num_resources > num_labels) {
 		/*
-		 * Bug, we can't end up with more resources than
+		 * , we can't end up with more resources than
 		 * available labels
 		 */
 		WARN_ON_ONCE(1);

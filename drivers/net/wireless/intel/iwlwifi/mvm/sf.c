@@ -191,14 +191,14 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 	}
 
 	if (sta) {
-		BUILD_BUG_ON(sizeof(sf_full_timeout) !=
+		BUILD__ON(sizeof(sf_full_timeout) !=
 			     sizeof(__le32) * SF_NUM_SCENARIO *
 			     SF_NUM_TIMEOUT_TYPES);
 
 		memcpy(sf_cmd->full_on_timeouts, sf_full_timeout,
 		       sizeof(sf_full_timeout));
 	} else {
-		BUILD_BUG_ON(sizeof(sf_full_timeout_def) !=
+		BUILD__ON(sizeof(sf_full_timeout_def) !=
 			     sizeof(__le32) * SF_NUM_SCENARIO *
 			     SF_NUM_TIMEOUT_TYPES);
 

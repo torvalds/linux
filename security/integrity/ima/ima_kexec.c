@@ -64,7 +64,7 @@ static int ima_dump_measurement_list(unsigned long *buffer_size, void **buffer,
 	}
 	memcpy(file.buf, &khdr, sizeof(khdr));
 
-	print_hex_dump(KERN_DEBUG, "ima dump: ", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_DE, "ima dump: ", DUMP_PREFIX_NONE,
 			16, 1, file.buf,
 			file.count < 100 ? file.count : 100, true);
 
@@ -133,7 +133,7 @@ void ima_add_kexec_buffer(struct kimage *image)
 		return;
 	}
 
-	pr_debug("kexec measurement buffer for the loaded kernel at 0x%lx.\n",
+	pr_de("kexec measurement buffer for the loaded kernel at 0x%lx.\n",
 		 kbuf.mem);
 }
 #endif /* IMA_KEXEC */
@@ -159,12 +159,12 @@ void ima_load_kexec_buffer(void)
 		ima_free_kexec_buffer();
 		break;
 	case -ENOTSUPP:
-		pr_debug("Restoring the measurement list not supported\n");
+		pr_de("Restoring the measurement list not supported\n");
 		break;
 	case -ENOENT:
-		pr_debug("No measurement list to restore\n");
+		pr_de("No measurement list to restore\n");
 		break;
 	default:
-		pr_debug("Error restoring the measurement list: %d\n", rc);
+		pr_de("Error restoring the measurement list: %d\n", rc);
 	}
 }

@@ -6,7 +6,7 @@
 #ifndef __NET_GENERIC_H__
 #define __NET_GENERIC_H__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/rcupdate.h>
 
 /*

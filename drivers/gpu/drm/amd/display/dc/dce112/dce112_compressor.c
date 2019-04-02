@@ -401,7 +401,7 @@ void dce112_compressor_enable_fbc(
 		compressor->attached_inst = params->inst;
 		cp110->offsets = reg_offsets[params->inst];
 
-		/*Toggle it as there is bug in HW */
+		/*Toggle it as there is  in HW */
 		set_reg_field_value(value, 0, FBC_CNTL, FBC_GRPH_COMP_EN);
 		dm_write_reg(compressor->ctx, addr, value);
 		set_reg_field_value(value, 1, FBC_CNTL, FBC_GRPH_COMP_EN);

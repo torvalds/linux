@@ -112,7 +112,7 @@
 #define NES_AEQ_EVENT_TIMEOUT         2500
 #define NES_DISCONNECT_EVENT_TIMEOUT  2000
 
-/* debug levels */
+/* de levels */
 /* must match userspace */
 #define NES_DBG_HW          0x00000001
 #define NES_DBG_INIT        0x00000002
@@ -142,16 +142,16 @@
 #define NES_DBG_RSVD4       0x80000000
 #define NES_DBG_ALL         0xffffffff
 
-#ifdef CONFIG_INFINIBAND_NES_DEBUG
-#define nes_debug(level, fmt, args...) \
+#ifdef CONFIG_INFINIBAND_NES_DE
+#define nes_de(level, fmt, args...) \
 do { \
-	if (level & nes_debug_level) \
+	if (level & nes_de_level) \
 		printk(KERN_ERR PFX "%s[%u]: " fmt, __func__, __LINE__, ##args); \
 } while (0)
 
 #define NES_EVENT_TIMEOUT   1200000
 #else
-#define nes_debug(level, fmt, args...) no_printk(fmt, ##args)
+#define nes_de(level, fmt, args...) no_printk(fmt, ##args)
 
 #define NES_EVENT_TIMEOUT   100000
 #endif
@@ -168,7 +168,7 @@ extern int nes_if_count;
 extern int mpa_version;
 extern int disable_mpa_crc;
 extern unsigned int nes_drv_opt;
-extern unsigned int nes_debug_level;
+extern unsigned int nes_de_level;
 extern unsigned int wqm_quanta;
 extern struct list_head nes_adapter_list;
 
@@ -442,7 +442,7 @@ static inline int nes_is_resource_allocated(struct nes_adapter *nesadapter,
 	spin_lock_irqsave(&nesadapter->resource_lock, flags);
 
 	bit_is_set = test_bit(resource_num, resource_array);
-	nes_debug(NES_DBG_HW, "resource_num %u is%s allocated.\n",
+	nes_de(NES_DBG_HW, "resource_num %u is%s allocated.\n",
 			resource_num, (bit_is_set ? "": " not"));
 	spin_unlock_irqrestore(&nesadapter->resource_lock, flags);
 

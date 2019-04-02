@@ -7,7 +7,7 @@
 #define _RTL8723B_CMD_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtl8723b_hal.h>
 #include "hal_com_h2c.h"
 
@@ -1495,7 +1495,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	/*  When we count the first page size, we need to reserve description size for the RSVD */
 	/*  packet, it will be filled in front of the packet in TXPKTBUF. */
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + BeaconLength);
-	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a bug of firmware */
+	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a  of firmware */
 	if (CurtPktPageNum == 1)
 		CurtPktPageNum += 1;
 
@@ -1688,7 +1688,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			rtl8723b_fill_fake_txdesc(padapter,
 				&ReservedPagePacket[BufIndex-TxDescLen],
 				ProbeReqLength, false, false, false);
-#ifdef CONFIG_PNO_SET_DEBUG
+#ifdef CONFIG_PNO_SET_DE
 	{
 			int gj;
 			printk("probe req pkt =>\n");
@@ -1710,7 +1710,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			/* PNO INFO Page */
 			RsvdPageLoc.LocPNOInfo = TotalPageNum;
 			ConstructPnoInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &PNOLength);
-#ifdef CONFIG_PNO_SET_DEBUG
+#ifdef CONFIG_PNO_SET_DE
 	{
 			int gj;
 			printk("PNO pkt =>\n");
@@ -1730,7 +1730,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			/* SSID List Page */
 			RsvdPageLoc.LocSSIDInfo = TotalPageNum;
 			ConstructSSIDList(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &SSIDLegnth);
-#ifdef CONFIG_PNO_SET_DEBUG
+#ifdef CONFIG_PNO_SET_DE
 	{
 			int gj;
 			printk("SSID list pkt =>\n");
@@ -1749,7 +1749,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 			/* Scan Info Page */
 			RsvdPageLoc.LocScanInfo = TotalPageNum;
 			ConstructScanInfo(padapter, &ReservedPagePacket[BufIndex-TxDescLen], &ScanInfoLength);
-#ifdef CONFIG_PNO_SET_DEBUG
+#ifdef CONFIG_PNO_SET_DE
 	{
 			int gj;
 			printk("Scan info pkt =>\n");
@@ -1871,7 +1871,7 @@ static void rtl8723b_set_AP_FwRsvdPagePkt(
 	/*  When we count the first page size, we need to reserve description size for the RSVD */
 	/*  packet, it will be filled in front of the packet in TXPKTBUF. */
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + BeaconLength);
-	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a bug of firmware */
+	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a  of firmware */
 	if (CurtPktPageNum == 1)
 		CurtPktPageNum += 1;
 	TotalPageNum += CurtPktPageNum;
@@ -2191,7 +2191,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 	/*  When we count the first page size, we need to reserve description size for the RSVD */
 	/*  packet, it will be filled in front of the packet in TXPKTBUF. */
 	CurtPktPageNum = (u8)PageNum_128(TxDescLen + BeaconLength);
-	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a bug of firmware */
+	/* If we don't add 1 more page, the WOWLAN function has a problem. Baron thinks it's a  of firmware */
 	if (CurtPktPageNum == 1)
 		CurtPktPageNum += 1;
 	TotalPageNum += CurtPktPageNum;
@@ -2259,12 +2259,12 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	DBG_8192C("+" FUNC_ADPT_FMT ": iface_type =%d fw_state = 0x%08X\n",
 		FUNC_ADPT_ARG(padapter), get_iface_type(padapter), get_fwstate(&padapter->mlmepriv));
 
-#ifdef DEBUG
+#ifdef DE
 	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == false) {
 		DBG_8192C(FUNC_ADPT_FMT ": [WARNING] not in AP mode!!\n",
 			FUNC_ADPT_ARG(padapter));
 	}
-#endif /*  DEBUG */
+#endif /*  DE */
 
 	pHalData = GET_HAL_DATA(padapter);
 	pmlmeext = &padapter->mlmeextpriv;

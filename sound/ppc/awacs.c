@@ -960,7 +960,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 			}
 			break;
 		default:
-			snd_BUG();
+			snd_();
 			break;
 		}
 	}

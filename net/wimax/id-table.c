@@ -48,7 +48,7 @@
 
 
 #define D_SUBMODULE id_table
-#include "debug-levels.h"
+#include "de-levels.h"
 
 
 static DEFINE_SPINLOCK(wimax_id_table_lock);
@@ -124,20 +124,20 @@ void wimax_id_table_rm(struct wimax_dev *wimax_dev)
 /*
  * Release the gennetlink family id / mapping table
  *
- * On debug, verify that the table is empty upon removal. We want the
+ * On de, verify that the table is empty upon removal. We want the
  * code always compiled, to ensure it doesn't bit rot. It will be
- * compiled out if CONFIG_BUG is disabled.
+ * compiled out if CONFIG_ is disabled.
  */
 void wimax_id_table_release(void)
 {
 	struct wimax_dev *wimax_dev;
 
-#ifndef CONFIG_BUG
+#ifndef CONFIG_
 	return;
 #endif
 	spin_lock(&wimax_id_table_lock);
 	list_for_each_entry(wimax_dev, &wimax_id_table, id_table_node) {
-		pr_err("BUG: %s wimax_dev %p ifindex %d not cleared\n",
+		pr_err(": %s wimax_dev %p ifindex %d not cleared\n",
 		       __func__, wimax_dev, wimax_dev->net_dev->ifindex);
 		WARN_ON(1);
 	}

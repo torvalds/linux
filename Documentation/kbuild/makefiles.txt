@@ -300,7 +300,7 @@ more details, with real examples.
 	Example:
 		# drivers/acpi/acpica/Makefile
 		ccflags-y			:= -Os -D_LINUX -DBUILDING_ACPICA
-		ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
+		ccflags-$(CONFIG_ACPI_DE)	+= -DACPI_DE_OUTPUT
 
 	This variable is necessary because the top Makefile owns the
 	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
@@ -339,7 +339,7 @@ more details, with real examples.
 	Example:
 		# drivers/scsi/Makefile
 		CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
-		CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ \
+		CFLAGS_gdth.o    = # -DDE_GDTH=2 -D__SERIAL__ -D__COM2__ \
 				     -DGDTH_STATISTICS
 
 	These two lines specify compilation flags for aha152x.o and gdth.o.
@@ -1342,7 +1342,7 @@ The top Makefile exports the following variables:
 
 	If this variable is specified, it will cause modules to be stripped
 	after they are installed.  If INSTALL_MOD_STRIP is '1', then the
-	default option --strip-debug will be used.  Otherwise, the
+	default option --strip-de will be used.  Otherwise, the
 	INSTALL_MOD_STRIP value will be used as the option(s) to the strip
 	command.
 

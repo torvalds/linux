@@ -68,7 +68,7 @@
 #define MT6380_LDO_CTRL_2                         0x00B0
 #define MT6380_LDO_CTRL_3                         0x00B4
 #define MT6380_LDO_CTRL_4                         0x00B8
-#define MT6380_DEBUG_CTRL_0                       0x00BC
+#define MT6380_DE_CTRL_0                       0x00BC
 #define MT6380_EFU_CTRL_0                         0x0200
 #define MT6380_EFU_CTRL_1                         0x0201
 #define MT6380_EFU_CTRL_2                         0x0202

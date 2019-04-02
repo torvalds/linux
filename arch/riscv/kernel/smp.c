@@ -116,7 +116,7 @@ void riscv_software_interrupt(void)
 			ipi_stop();
 		}
 
-		BUG_ON((ops >> IPI_MAX) != 0);
+		_ON((ops >> IPI_MAX) != 0);
 
 		/* Order data access and bit testing. */
 		mb();

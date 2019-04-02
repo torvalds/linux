@@ -58,21 +58,21 @@ static int rxkad_init_connection_security(struct rxrpc_connection *conn)
 	struct rxrpc_key_token *token;
 	int ret;
 
-	_enter("{%d},{%x}", conn->debug_id, key_serial(conn->params.key));
+	_enter("{%d},{%x}", conn->de_id, key_serial(conn->params.key));
 
 	token = conn->params.key->payload.data[0];
 	conn->security_ix = token->security_index;
 
 	ci = crypto_alloc_sync_skcipher("pcbc(fcrypt)", 0, 0);
 	if (IS_ERR(ci)) {
-		_debug("no cipher");
+		_de("no cipher");
 		ret = PTR_ERR(ci);
 		goto error;
 	}
 
 	if (crypto_sync_skcipher_setkey(ci, token->kad->session_key,
 				   sizeof(token->kad->session_key)) < 0)
-		BUG();
+		();
 
 	switch (conn->params.security_level) {
 	case RXRPC_SECURITY_PLAIN:
@@ -259,7 +259,7 @@ static int rxkad_secure_packet(struct rxrpc_call *call,
 	sp = rxrpc_skb(skb);
 
 	_enter("{%d{%x}},{#%u},%zu,",
-	       call->debug_id, key_serial(call->conn->params.key),
+	       call->de_id, key_serial(call->conn->params.key),
 	       sp->hdr.seq, data_size);
 
 	if (!call->conn->cipher)
@@ -514,7 +514,7 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	u32 x, y;
 
 	_enter("{%d{%x}},{#%u}",
-	       call->debug_id, key_serial(call->conn->params.key), seq);
+	       call->de_id, key_serial(call->conn->params.key), seq);
 
 	if (!call->conn->cipher)
 		return 0;
@@ -572,7 +572,7 @@ static void rxkad_locate_data_1(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxkad_level1_hdr sechdr;
 
 	if (skb_copy_bits(skb, *_offset, &sechdr, sizeof(sechdr)) < 0)
-		BUG();
+		();
 	*_offset += sizeof(sechdr);
 	*_len = ntohl(sechdr.data_size) & 0xffff;
 }
@@ -586,7 +586,7 @@ static void rxkad_locate_data_2(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxkad_level2_hdr sechdr;
 
 	if (skb_copy_bits(skb, *_offset, &sechdr, sizeof(sechdr)) < 0)
-		BUG();
+		();
 	*_offset += sizeof(sechdr);
 	*_len = ntohl(sechdr.data_size) & 0xffff;
 }
@@ -622,7 +622,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 	u32 serial;
 	int ret;
 
-	_enter("{%d,%x}", conn->debug_id, key_serial(conn->params.key));
+	_enter("{%d,%x}", conn->de_id, key_serial(conn->params.key));
 
 	ret = key_validate(conn->params.key);
 	if (ret < 0)
@@ -665,13 +665,13 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
-		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+		trace_rxrpc_tx_fail(conn->de_id, serial, ret,
 				    rxrpc_tx_point_rxkad_challenge);
 		return -EAGAIN;
 	}
 
 	conn->params.peer->last_tx_at = ktime_get_seconds();
-	trace_rxrpc_tx_packet(conn->debug_id, &whdr,
+	trace_rxrpc_tx_packet(conn->de_id, &whdr,
 			      rxrpc_tx_point_rxkad_challenge);
 	_leave(" = 0");
 	return 0;
@@ -723,7 +723,7 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 3, len);
 	if (ret < 0) {
-		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
+		trace_rxrpc_tx_fail(conn->de_id, serial, ret,
 				    rxrpc_tx_point_rxkad_response);
 		return -EAGAIN;
 	}
@@ -786,7 +786,7 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	u32 version, nonce, min_level, abort_code;
 	int ret;
 
-	_enter("{%d,%x}", conn->debug_id, key_serial(conn->params.key));
+	_enter("{%d,%x}", conn->de_id, key_serial(conn->params.key));
 
 	eproto = tracepoint_string("chall_no_key");
 	abort_code = RX_PROTOCOL_ERROR;
@@ -879,7 +879,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	u32 abort_code;
 	u8 *p, *q, *name, *end;
 
-	_enter("{%d},{%x}", conn->debug_id, key_serial(conn->server_key));
+	_enter("{%d},{%x}", conn->de_id, key_serial(conn->server_key));
 
 	*_expiry = 0;
 
@@ -930,21 +930,21 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	})
 
 	/* extract the ticket flags */
-	_debug("KIV FLAGS: %x", *p);
+	_de("KIV FLAGS: %x", *p);
 	little_endian = *p & 1;
 	p++;
 
 	/* extract the authentication name */
 	name = Z(ANAME);
-	_debug("KIV ANAME: %s", name);
+	_de("KIV ANAME: %s", name);
 
 	/* extract the principal's instance */
 	name = Z(INST);
-	_debug("KIV INST : %s", name);
+	_de("KIV INST : %s", name);
 
 	/* extract the principal's authentication domain */
 	name = Z(REALM);
-	_debug("KIV REALM: %s", name);
+	_de("KIV REALM: %s", name);
 
 	eproto = tracepoint_string("rxkad_bad_len");
 	if (end - p < 4 + 8 + 4 + 2)
@@ -953,17 +953,17 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	/* get the IPv4 address of the entity that requested the ticket */
 	memcpy(&addr, p, sizeof(addr));
 	p += 4;
-	_debug("KIV ADDR : %pI4", &addr);
+	_de("KIV ADDR : %pI4", &addr);
 
 	/* get the session key from the ticket */
 	memcpy(&key, p, sizeof(key));
 	p += 8;
-	_debug("KIV KEY  : %08x %08x", ntohl(key.n[0]), ntohl(key.n[1]));
+	_de("KIV KEY  : %08x %08x", ntohl(key.n[0]), ntohl(key.n[1]));
 	memcpy(_session_key, &key, sizeof(key));
 
 	/* get the ticket's lifetime */
 	life = *p++ * 5 * 60;
-	_debug("KIV LIFE : %u", life);
+	_de("KIV LIFE : %u", life);
 
 	/* get the issue time of the ticket */
 	if (little_endian) {
@@ -977,7 +977,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	}
 	p += 4;
 	now = ktime_get_real_seconds();
-	_debug("KIV ISSUE: %llx [%llx]", issue, now);
+	_de("KIV ISSUE: %llx [%llx]", issue, now);
 
 	/* check the ticket is in date */
 	if (issue > now) {
@@ -996,11 +996,11 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 
 	/* get the service name */
 	name = Z(SNAME);
-	_debug("KIV SNAME: %s", name);
+	_de("KIV SNAME: %s", name);
 
 	/* get the service instance name */
 	name = Z(INST);
-	_debug("KIV SINST: %s", name);
+	_de("KIV SINST: %s", name);
 	return 0;
 
 bad_ticket:
@@ -1033,7 +1033,7 @@ static void rxkad_decrypt_response(struct rxrpc_connection *conn,
 	mutex_lock(&rxkad_ci_mutex);
 	if (crypto_sync_skcipher_setkey(rxkad_ci, session_key->x,
 				   sizeof(*session_key)) < 0)
-		BUG();
+		();
 
 	memcpy(&iv, session_key, sizeof(iv));
 
@@ -1067,7 +1067,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	__be32 csum;
 	int ret, i;
 
-	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));
+	_enter("{%d,%x}", conn->de_id, key_serial(conn->server_key));
 
 	ret = -ENOMEM;
 	response = kzalloc(sizeof(struct rxkad_response), GFP_NOFS);
@@ -1080,7 +1080,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 			  response, sizeof(*response)) < 0)
 		goto protocol_error;
 	if (!pskb_pull(skb, sizeof(*response)))
-		BUG();
+		();
 
 	version = ntohl(response->version);
 	ticket_len = ntohl(response->ticket_len);

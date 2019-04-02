@@ -434,7 +434,7 @@ void iounmap(volatile void __iomem *addr)
 
 	/* Finally remove it */
 	o = remove_vm_area((void __force *)addr);
-	BUG_ON(p != o || o == NULL);
+	_ON(p != o || o == NULL);
 	kfree(p);
 }
 EXPORT_SYMBOL(iounmap);
@@ -778,7 +778,7 @@ void __init early_ioremap_init(void)
 	pmd_t *pmd;
 
 #ifdef CONFIG_X86_64
-	BUILD_BUG_ON((fix_to_virt(0) + PAGE_SIZE) & ((1 << PMD_SHIFT) - 1));
+	BUILD__ON((fix_to_virt(0) + PAGE_SIZE) & ((1 << PMD_SHIFT) - 1));
 #else
 	WARN_ON((fix_to_virt(0) + PAGE_SIZE) & ((1 << PMD_SHIFT) - 1));
 #endif
@@ -794,7 +794,7 @@ void __init early_ioremap_init(void)
 	 * we are not prepared:
 	 */
 #define __FIXADDR_TOP (-PAGE_SIZE)
-	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
+	BUILD__ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
 		     != (__fix_to_virt(FIX_BTMAP_END) >> PMD_SHIFT));
 #undef __FIXADDR_TOP
 	if (pmd != early_ioremap_pmd(fix_to_virt(FIX_BTMAP_END))) {
@@ -819,7 +819,7 @@ void __init __early_set_fixmap(enum fixed_addresses idx,
 	pte_t *pte;
 
 	if (idx >= __end_of_fixed_addresses) {
-		BUG();
+		();
 		return;
 	}
 	pte = early_ioremap_pte(addr);

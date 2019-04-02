@@ -54,7 +54,7 @@
 #include <net/tso.h>
 #include <linux/tcp.h>
 
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-csr.h"
 #include "iwl-io.h"
 #include "internal.h"
@@ -132,7 +132,7 @@ void iwl_pcie_gen2_txq_inc_wr_ptr(struct iwl_trans *trans,
 {
 	lockdep_assert_held(&txq->lock);
 
-	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq->id, txq->write_ptr);
+	IWL_DE_TX(trans, "Q:%d WR: 0x%x\n", txq->id, txq->write_ptr);
 
 	/*
 	 * if not in power-save mode, uCode will never sleep when we're
@@ -538,7 +538,7 @@ struct iwl_tfh_tfd *iwl_pcie_gen2_build_tfd(struct iwl_trans *trans,
 	bool amsdu;
 
 	/* There must be data left over for TB1 or this code must be changed */
-	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen2) < IWL_FIRST_TB_SIZE);
+	BUILD__ON(sizeof(struct iwl_tx_cmd_gen2) < IWL_FIRST_TB_SIZE);
 
 	memset(tfd, 0, sizeof(*tfd));
 
@@ -644,7 +644,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (txq->read_ptr == txq->write_ptr) {
 		if (txq->wd_timeout)
 			mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
-		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", txq->id);
+		IWL_DE_RPM(trans, "Q: %d first tx - take ref\n", txq->id);
 		iwl_trans_ref(trans);
 	}
 
@@ -813,7 +813,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		/*
 		 * Otherwise we need at least IWL_FIRST_TB_SIZE copied
 		 * in total (for bi-directional DMA), but copy up to what
-		 * we can fit into the payload for debug dump purposes.
+		 * we can fit into the payload for de dump purposes.
 		 */
 		copy = min_t(int, TFD_MAX_PAYLOAD_SIZE - cmd_pos, cmd->len[i]);
 
@@ -830,7 +830,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		}
 	}
 
-	IWL_DEBUG_HC(trans,
+	IWL_DE_HC(trans,
 		     "Sending command %s (%.2x.%.2x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
 		     iwl_get_cmd_string(trans, cmd->id), group_id,
 		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
@@ -878,7 +878,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 		iwl_pcie_gen2_set_tb(trans, tfd, phys_addr, cmdlen[i]);
 	}
 
-	BUILD_BUG_ON(IWL_TFH_NUM_TBS > sizeof(out_meta->tbs) * BITS_PER_BYTE);
+	BUILD__ON(IWL_TFH_NUM_TBS > sizeof(out_meta->tbs) * BITS_PER_BYTE);
 	out_meta->flags = cmd->flags;
 	if (WARN_ON_ONCE(txq->entries[idx].free_buf))
 		kzfree(txq->entries[idx].free_buf);
@@ -894,7 +894,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	if (!(cmd->flags & CMD_SEND_IN_IDLE) &&
 	    !trans_pcie->ref_cmd_in_flight) {
 		trans_pcie->ref_cmd_in_flight = true;
-		IWL_DEBUG_RPM(trans, "set ref_cmd_in_flight - ref\n");
+		IWL_DE_RPM(trans, "set ref_cmd_in_flight - ref\n");
 		iwl_trans_ref(trans);
 	}
 	/* Increment and update queue's write index */
@@ -921,14 +921,14 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 	int cmd_idx;
 	int ret;
 
-	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n", cmd_str);
+	IWL_DE_INFO(trans, "Attempting to send sync command %s\n", cmd_str);
 
 	if (WARN(test_and_set_bit(STATUS_SYNC_HCMD_ACTIVE,
 				  &trans->status),
 		 "Command %s: a command is already active!\n", cmd_str))
 		return -EIO;
 
-	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n", cmd_str);
+	IWL_DE_INFO(trans, "Setting HCMD_ACTIVE for command %s\n", cmd_str);
 
 	if (pm_runtime_suspended(&trans_pcie->pci_dev->dev)) {
 		ret = wait_event_timeout(trans_pcie->d0i3_waitq,
@@ -961,7 +961,7 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 			txq->read_ptr, txq->write_ptr);
 
 		clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
-		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
+		IWL_DE_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       cmd_str);
 		ret = -ETIMEDOUT;
 
@@ -978,7 +978,7 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
+		IWL_DE_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
 	}
@@ -1015,7 +1015,7 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 {
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
+		IWL_DE_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
 	}
@@ -1050,7 +1050,7 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 	spin_lock_bh(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
-		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
+		IWL_DE_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
 		if (txq_id != trans_pcie->cmd_queue) {
@@ -1070,12 +1070,12 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 			spin_lock_irqsave(&trans_pcie->reg_lock, flags);
 			if (txq_id != trans_pcie->cmd_queue) {
-				IWL_DEBUG_RPM(trans, "Q %d - last tx freed\n",
+				IWL_DE_RPM(trans, "Q %d - last tx freed\n",
 					      txq->id);
 				iwl_trans_unref(trans);
 			} else if (trans_pcie->ref_cmd_in_flight) {
 				trans_pcie->ref_cmd_in_flight = false;
-				IWL_DEBUG_RPM(trans,
+				IWL_DE_RPM(trans,
 					      "clear ref_cmd_in_flight\n");
 				iwl_trans_unref(trans);
 			}
@@ -1231,7 +1231,7 @@ int iwl_trans_pcie_txq_alloc_response(struct iwl_trans *trans,
 	txq->read_ptr = wr_ptr;
 	txq->write_ptr = wr_ptr;
 
-	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
+	IWL_DE_TX_QUEUES(trans, "Activate queue %d\n", qid);
 
 	iwl_free_resp(hcmd);
 	return qid;
@@ -1298,7 +1298,7 @@ void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue)
 
 	iwl_pcie_gen2_txq_unmap(trans, queue);
 
-	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", queue);
+	IWL_DE_TX_QUEUES(trans, "Deactivate queue %d\n", queue);
 }
 
 void iwl_pcie_gen2_tx_free(struct iwl_trans *trans)

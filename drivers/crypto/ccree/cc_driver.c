@@ -18,7 +18,7 @@
 #include "cc_driver.h"
 #include "cc_request_mgr.h"
 #include "cc_buffer_mgr.h"
-#include "cc_debugfs.h"
+#include "cc_defs.h"
 #include "cc_cipher.h"
 #include "cc_aead.h"
 #include "cc_hash.h"
@@ -29,11 +29,11 @@
 
 bool cc_dump_desc;
 module_param_named(dump_desc, cc_dump_desc, bool, 0600);
-MODULE_PARM_DESC(cc_dump_desc, "Dump descriptors to kernel log as debugging aid");
+MODULE_PARM_DESC(cc_dump_desc, "Dump descriptors to kernel log as deging aid");
 
 bool cc_dump_bytes;
 module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
-MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
+MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as deging aid");
 
 struct cc_hw_data {
 	char *name;
@@ -87,7 +87,7 @@ void __dump_byte_array(const char *name, const u8 *buf, size_t len)
 
 	snprintf(prefix, sizeof(prefix), "%s[%zu]: ", name, len);
 
-	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_ADDRESS, 16, 1, buf,
+	print_hex_dump(KERN_DE, prefix, DUMP_PREFIX_ADDRESS, 16, 1, buf,
 		       len, false);
 }
 
@@ -334,16 +334,16 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_clk_err;
 	}
 
-	rc = cc_debugfs_init(new_drvdata);
+	rc = cc_defs_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "Failed registering debugfs interface\n");
+		dev_err(dev, "Failed registering defs interface\n");
 		goto post_regs_err;
 	}
 
 	rc = cc_fips_init(new_drvdata);
 	if (rc) {
 		dev_err(dev, "CC_FIPS_INIT failed 0x%x\n", rc);
-		goto post_debugfs_err;
+		goto post_defs_err;
 	}
 	rc = cc_sram_mgr_init(new_drvdata);
 	if (rc) {
@@ -428,8 +428,8 @@ post_sram_mgr_err:
 	cc_sram_mgr_fini(new_drvdata);
 post_fips_init_err:
 	cc_fips_fini(new_drvdata);
-post_debugfs_err:
-	cc_debugfs_fini(new_drvdata);
+post_defs_err:
+	cc_defs_fini(new_drvdata);
 post_regs_err:
 	fini_cc_regs(new_drvdata);
 post_clk_err:
@@ -457,7 +457,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_req_mgr_fini(drvdata);
 	cc_sram_mgr_fini(drvdata);
 	cc_fips_fini(drvdata);
-	cc_debugfs_fini(drvdata);
+	cc_defs_fini(drvdata);
 	fini_cc_regs(drvdata);
 	cc_clk_off(drvdata);
 }
@@ -540,7 +540,7 @@ static struct platform_driver ccree_driver = {
 static int __init ccree_init(void)
 {
 	cc_hash_global_init();
-	cc_debugfs_global_init();
+	cc_defs_global_init();
 
 	return platform_driver_register(&ccree_driver);
 }
@@ -549,7 +549,7 @@ module_init(ccree_init);
 static void __exit ccree_exit(void)
 {
 	platform_driver_unregister(&ccree_driver);
-	cc_debugfs_global_fini();
+	cc_defs_global_fini();
 }
 module_exit(ccree_exit);
 

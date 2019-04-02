@@ -26,7 +26,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -43,16 +43,16 @@
 #include "drm_internal.h"
 
 /*
- * drm_debug: Enable debug output.
+ * drm_de: Enable de output.
  * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
  */
-unsigned int drm_debug = 0;
-EXPORT_SYMBOL(drm_debug);
+unsigned int drm_de = 0;
+EXPORT_SYMBOL(drm_de);
 
 MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
 MODULE_DESCRIPTION("DRM shared core routines");
 MODULE_LICENSE("GPL and additional rights");
-MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
+MODULE_PARM_DESC(de, "Enable de output, where each bit enables a de category.\n"
 "\t\tBit 0 (0x01)  will enable CORE messages (drm core code)\n"
 "\t\tBit 1 (0x02)  will enable DRIVER messages (drm controller code)\n"
 "\t\tBit 2 (0x04)  will enable KMS messages (modesetting code)\n"
@@ -61,7 +61,7 @@ MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug cat
 "\t\tBit 5 (0x20)  will enable VBL messages (vblank code)\n"
 "\t\tBit 7 (0x80)  will enable LEASE messages (leasing code)\n"
 "\t\tBit 8 (0x100) will enable DP messages (displayport code)");
-module_param_named(debug, drm_debug, int, 0600);
+module_param_named(de, drm_de, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
@@ -75,7 +75,7 @@ static struct idr drm_minors_idr;
  */
 static bool drm_core_init_complete = false;
 
-static struct dentry *drm_debugfs_root;
+static struct dentry *drm_defs_root;
 
 DEFINE_STATIC_SRCU(drm_unplug_srcu);
 
@@ -101,7 +101,7 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 	case DRM_MINOR_RENDER:
 		return &dev->render;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -177,32 +177,32 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	unsigned long flags;
 	int ret;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	minor = *drm_minor_get_slot(dev, type);
 	if (!minor)
 		return 0;
 
-	ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
+	ret = drm_defs_init(minor, minor->index, drm_defs_root);
 	if (ret) {
-		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
-		goto err_debugfs;
+		DRM_ERROR("DRM: Failed to initialize /sys/kernel/de/dri.\n");
+		goto err_defs;
 	}
 
 	ret = device_add(minor->kdev);
 	if (ret)
-		goto err_debugfs;
+		goto err_defs;
 
 	/* replace NULL with @minor so lookups will succeed from now on */
 	spin_lock_irqsave(&drm_minor_lock, flags);
 	idr_replace(&drm_minors_idr, minor, minor->index);
 	spin_unlock_irqrestore(&drm_minor_lock, flags);
 
-	DRM_DEBUG("new minor registered %d\n", minor->index);
+	DRM_DE("new minor registered %d\n", minor->index);
 	return 0;
 
-err_debugfs:
-	drm_debugfs_cleanup(minor);
+err_defs:
+	drm_defs_cleanup(minor);
 	return ret;
 }
 
@@ -222,7 +222,7 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 
 	device_del(minor->kdev);
 	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
-	drm_debugfs_cleanup(minor);
+	drm_defs_cleanup(minor);
 }
 
 /*
@@ -304,7 +304,7 @@ void drm_minor_release(struct drm_minor *minor)
  */
 void drm_put_dev(struct drm_device *dev)
 {
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	if (!dev) {
 		DRM_ERROR("cleanup called no dev\n");
@@ -494,7 +494,7 @@ int drm_dev_init(struct drm_device *dev,
 		return -ENODEV;
 	}
 
-	BUG_ON(!parent);
+	_ON(!parent);
 
 	kref_init(&dev->ref);
 	dev->dev = parent;
@@ -898,7 +898,7 @@ EXPORT_SYMBOL(drm_dev_set_unique);
  *  - DRM major number allocation
  *  - DRM minor management
  *  - DRM sysfs class
- *  - DRM debugfs root
+ *  - DRM defs root
  *
  * Furthermore, the DRM core provides dynamic char-dev lookups. For each
  * interface registered on a DRM device, you can request minor numbers from DRM
@@ -913,7 +913,7 @@ static int drm_stub_open(struct inode *inode, struct file *filp)
 	struct drm_minor *minor;
 	int err;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	mutex_lock(&drm_global_mutex);
 	minor = drm_minor_acquire(iminor(inode));
@@ -950,7 +950,7 @@ static const struct file_operations drm_stub_fops = {
 static void drm_core_exit(void)
 {
 	unregister_chrdev(DRM_MAJOR, "drm");
-	debugfs_remove(drm_debugfs_root);
+	defs_remove(drm_defs_root);
 	drm_sysfs_destroy();
 	idr_destroy(&drm_minors_idr);
 	drm_connector_ida_destroy();
@@ -969,10 +969,10 @@ static int __init drm_core_init(void)
 		goto error;
 	}
 
-	drm_debugfs_root = debugfs_create_dir("dri", NULL);
-	if (!drm_debugfs_root) {
+	drm_defs_root = defs_create_dir("dri", NULL);
+	if (!drm_defs_root) {
 		ret = -ENOMEM;
-		DRM_ERROR("Cannot create debugfs-root: %d\n", ret);
+		DRM_ERROR("Cannot create defs-root: %d\n", ret);
 		goto error;
 	}
 
@@ -982,7 +982,7 @@ static int __init drm_core_init(void)
 
 	drm_core_init_complete = true;
 
-	DRM_DEBUG("Initialized\n");
+	DRM_DE("Initialized\n");
 	return 0;
 
 error:

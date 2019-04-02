@@ -518,18 +518,18 @@ static int au_ide_probe(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	if (res == NULL) {
-		pr_debug("%s %d: no base address\n", DRV_NAME, dev->id);
+		pr_de("%s %d: no base address\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 	if (ahwif->irq < 0) {
-		pr_debug("%s %d: no IRQ\n", DRV_NAME, dev->id);
+		pr_de("%s %d: no IRQ\n", DRV_NAME, dev->id);
 		ret = -ENODEV;
 		goto out;
 	}
 
 	if (!request_mem_region(res->start, resource_size(res), dev->name)) {
-		pr_debug("%s: request_mem_region failed\n", DRV_NAME);
+		pr_de("%s: request_mem_region failed\n", DRV_NAME);
 		ret =  -EBUSY;
 		goto out;
 	}
@@ -542,7 +542,7 @@ static int au_ide_probe(struct platform_device *dev)
 
 	res = platform_get_resource(dev, IORESOURCE_DMA, 0);
 	if (!res) {
-		pr_debug("%s: no DDMA ID resource\n", DRV_NAME);
+		pr_de("%s: no DDMA ID resource\n", DRV_NAME);
 		ret = -ENODEV;
 		goto out;
 	}

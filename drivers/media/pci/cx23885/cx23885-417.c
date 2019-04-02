@@ -49,13 +49,13 @@ module_param(mpeglinesize, int, 0644);
 MODULE_PARM_DESC(mpeglinesize,
 	"number of bytes in each line of an MPEG buffer, range 512-1024");
 
-static unsigned int v4l_debug;
-module_param(v4l_debug, int, 0644);
-MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
+static unsigned int v4l_de;
+module_param(v4l_de, int, 0644);
+MODULE_PARM_DESC(v4l_de, "enable V4L de messages");
 
 #define dprintk(level, fmt, arg...)\
-	do { if (v4l_debug >= level) \
-		printk(KERN_DEBUG pr_fmt("%s: 417:" fmt), \
+	do { if (v4l_de >= level) \
+		printk(KERN_DE pr_fmt("%s: 417:" fmt), \
 			__func__, ##arg); \
 	} while (0)
 
@@ -1449,7 +1449,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
 	.vidioc_log_status	 = vidioc_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_chip_info	 = cx23885_g_chip_info,
 	.vidioc_g_register	 = cx23885_g_register,
 	.vidioc_s_register	 = cx23885_s_register,

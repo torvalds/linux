@@ -27,11 +27,11 @@
 
 #include "stb6000.h"
 
-static int debug;
+static int de;
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "stb6000: " args); \
+		if (de) \
+			printk(KERN_DE "stb6000: " args); \
 	} while (0)
 
 struct stb6000_priv {
@@ -247,8 +247,8 @@ struct dvb_frontend *stb6000_attach(struct dvb_frontend *fe, int addr,
 }
 EXPORT_SYMBOL(stb6000_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("DVB STB6000 driver");
 MODULE_AUTHOR("Igor M. Liplianin <liplianin@me.by>");

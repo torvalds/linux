@@ -1461,7 +1461,7 @@ void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 }
 
 /*
- * Everything below is related to debugging.
+ * Everything below is related to deging.
  */
 
 /**
@@ -1747,7 +1747,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
  *
  * This function returns %0 on success and a negative error code on failure.
  * The @action argument may be one of:
- *   o %0 - LPT debugging checking starts, initialize debugging variables;
+ *   o %0 - LPT deging checking starts, initialize deging variables;
  *   o %1 - wrote an LPT node, increase LPT size by @len bytes;
  *   o %2 - switched to a different LEB and wasted @len bytes;
  *   o %3 - check that we've written the right number of bytes.
@@ -1755,7 +1755,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
  */
 int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 {
-	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_de_info *d = c->dbg;
 	long long chk_lpt_sz, lpt_sz;
 	int err = 0;
 
@@ -1966,12 +1966,12 @@ void ubifs_dump_lpt_lebs(const struct ubifs_info *c)
 }
 
 /**
- * dbg_populate_lsave - debugging version of 'populate_lsave()'
+ * dbg_populate_lsave - deging version of 'populate_lsave()'
  * @c: UBIFS file-system description object
  *
- * This is a debugging version for 'populate_lsave()' which populates lsave
+ * This is a deging version for 'populate_lsave()' which populates lsave
  * with random LEBs instead of useful LEBs, which is good for test coverage.
- * Returns zero if lsave has not been populated (this debugging feature is
+ * Returns zero if lsave has not been populated (this deging feature is
  * disabled) an non-zero if lsave has been populated.
  */
 static int dbg_populate_lsave(struct ubifs_info *c)

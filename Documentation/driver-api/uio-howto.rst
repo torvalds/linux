@@ -28,7 +28,7 @@ for industrial I/O cards.
 To address this situation, the userspace I/O system (UIO) was designed.
 For typical industrial I/O cards, only a very small kernel module is
 needed. The main part of the driver will run in user space. This
-simplifies development and reduces the risk of serious bugs within a
+simplifies development and reduces the risk of serious s within a
 kernel module.
 
 Please note that UIO is not an universal driver interface. Devices that
@@ -66,7 +66,7 @@ If you use UIO for your card's driver, here's what you get:
 -  develop the main part of your driver in user space, with all the
    tools and libraries you're used to.
 
--  bugs in your driver won't crash the kernel.
+-  s in your driver won't crash the kernel.
 
 -  updates of your driver can take place without recompiling the kernel.
 
@@ -625,7 +625,7 @@ Here is some sample userspace driver code using uio_pci_generic::
         command_high &= ~0x4;
 
         for(i = 0;; ++i) {
-            /* Print out a message, for debugging. */
+            /* Print out a message, for deging. */
             if (i == 0)
                 fprintf(stderr, "Started uio test driver.\n");
             else

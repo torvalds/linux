@@ -41,9 +41,9 @@ struct hostap_cs_priv {
 };
 
 
-#ifdef PRISM2_IO_DEBUG
+#ifdef PRISM2_IO_DE
 
-static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
+static inline void hfa384x_outb_de(struct net_device *dev, int a, u8 v)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -52,12 +52,12 @@ static inline void hfa384x_outb_debug(struct net_device *dev, int a, u8 v)
 	iface = netdev_priv(dev);
 	local = iface->local;
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTB, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTB, a, v);
 	outb(v, dev->base_addr + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
+static inline u8 hfa384x_inb_de(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -68,12 +68,12 @@ static inline u8 hfa384x_inb_debug(struct net_device *dev, int a)
 	local = iface->local;
 	spin_lock_irqsave(&local->lock, flags);
 	v = inb(dev->base_addr + a);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INB, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INB, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
 }
 
-static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
+static inline void hfa384x_outw_de(struct net_device *dev, int a, u16 v)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -82,12 +82,12 @@ static inline void hfa384x_outw_debug(struct net_device *dev, int a, u16 v)
 	iface = netdev_priv(dev);
 	local = iface->local;
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTW, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTW, a, v);
 	outw(v, dev->base_addr + a);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
+static inline u16 hfa384x_inw_de(struct net_device *dev, int a)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -98,12 +98,12 @@ static inline u16 hfa384x_inw_debug(struct net_device *dev, int a)
 	local = iface->local;
 	spin_lock_irqsave(&local->lock, flags);
 	v = inw(dev->base_addr + a);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INW, a, v);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INW, a, v);
 	spin_unlock_irqrestore(&local->lock, flags);
 	return v;
 }
 
-static inline void hfa384x_outsw_debug(struct net_device *dev, int a,
+static inline void hfa384x_outsw_de(struct net_device *dev, int a,
 				       u8 *buf, int wc)
 {
 	struct hostap_interface *iface;
@@ -113,12 +113,12 @@ static inline void hfa384x_outsw_debug(struct net_device *dev, int a,
 	iface = netdev_priv(dev);
 	local = iface->local;
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_OUTSW, a, wc);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_OUTSW, a, wc);
 	outsw(dev->base_addr + a, buf, wc);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-static inline void hfa384x_insw_debug(struct net_device *dev, int a,
+static inline void hfa384x_insw_de(struct net_device *dev, int a,
 				      u8 *buf, int wc)
 {
 	struct hostap_interface *iface;
@@ -128,19 +128,19 @@ static inline void hfa384x_insw_debug(struct net_device *dev, int a,
 	iface = netdev_priv(dev);
 	local = iface->local;
 	spin_lock_irqsave(&local->lock, flags);
-	prism2_io_debug_add(dev, PRISM2_IO_DEBUG_CMD_INSW, a, wc);
+	prism2_io_de_add(dev, PRISM2_IO_DE_CMD_INSW, a, wc);
 	insw(dev->base_addr + a, buf, wc);
 	spin_unlock_irqrestore(&local->lock, flags);
 }
 
-#define HFA384X_OUTB(v,a) hfa384x_outb_debug(dev, (a), (v))
-#define HFA384X_INB(a) hfa384x_inb_debug(dev, (a))
-#define HFA384X_OUTW(v,a) hfa384x_outw_debug(dev, (a), (v))
-#define HFA384X_INW(a) hfa384x_inw_debug(dev, (a))
-#define HFA384X_OUTSW(a, buf, wc) hfa384x_outsw_debug(dev, (a), (buf), (wc))
-#define HFA384X_INSW(a, buf, wc) hfa384x_insw_debug(dev, (a), (buf), (wc))
+#define HFA384X_OUTB(v,a) hfa384x_outb_de(dev, (a), (v))
+#define HFA384X_INB(a) hfa384x_inb_de(dev, (a))
+#define HFA384X_OUTW(v,a) hfa384x_outw_de(dev, (a), (v))
+#define HFA384X_INW(a) hfa384x_inw_de(dev, (a))
+#define HFA384X_OUTSW(a, buf, wc) hfa384x_outsw_de(dev, (a), (buf), (wc))
+#define HFA384X_INSW(a, buf, wc) hfa384x_insw_de(dev, (a), (buf), (wc))
 
-#else /* PRISM2_IO_DEBUG */
+#else /* PRISM2_IO_DE */
 
 #define HFA384X_OUTB(v,a) outb((v), dev->base_addr + (a))
 #define HFA384X_INB(a) inb(dev->base_addr + (a))
@@ -149,7 +149,7 @@ static inline void hfa384x_insw_debug(struct net_device *dev, int a,
 #define HFA384X_INSW(a, buf, wc) insw(dev->base_addr + (a), buf, wc)
 #define HFA384X_OUTSW(a, buf, wc) outsw(dev->base_addr + (a), buf, wc)
 
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 
 static int hfa384x_from_bap(struct net_device *dev, u16 bap, void *buf,
@@ -227,7 +227,7 @@ static void sandisk_set_iobase(local_info_t *local)
 	res = pcmcia_write_config_byte(hw_priv->link, 0x10,
 				hw_priv->link->resource[0]->start & 0x00ff);
 	if (res != 0) {
-		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 0 -"
+		printk(KERN_DE "Prism3 SanDisk - failed to set I/O base 0 -"
 		       " res=%d\n", res);
 	}
 	udelay(10);
@@ -235,7 +235,7 @@ static void sandisk_set_iobase(local_info_t *local)
 	res = pcmcia_write_config_byte(hw_priv->link, 0x12,
 				(hw_priv->link->resource[0]->start >> 8) & 0x00ff);
 	if (res != 0) {
-		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 1 -"
+		printk(KERN_DE "Prism3 SanDisk - failed to set I/O base 1 -"
 		       " res=%d\n", res);
 	}
 }
@@ -281,14 +281,14 @@ static int sandisk_enable_wireless(struct net_device *dev)
 		goto done;
 	}
 
-	printk(KERN_DEBUG "%s: Multi-function SanDisk ConnectPlus detected"
+	printk(KERN_DE "%s: Multi-function SanDisk ConnectPlus detected"
 	       " - using vendor-specific initialization\n", dev->name);
 	hw_priv->sandisk_connectplus = 1;
 
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
 				COR_SOFT_RESET);
 	if (res != 0) {
-		printk(KERN_DEBUG "%s: SanDisk - COR sreset failed (%d)\n",
+		printk(KERN_DE "%s: SanDisk - COR sreset failed (%d)\n",
 		       dev->name, res);
 		goto done;
 	}
@@ -302,7 +302,7 @@ static int sandisk_enable_wireless(struct net_device *dev)
 				(COR_LEVEL_REQ | 0x8 | COR_ADDR_DECODE |
 					COR_FUNC_ENA));
 	if (res != 0) {
-		printk(KERN_DEBUG "%s: SanDisk - COR sreset failed (%d)\n",
+		printk(KERN_DE "%s: SanDisk - COR sreset failed (%d)\n",
 		       dev->name, res);
 		goto done;
 	}
@@ -331,17 +331,17 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 
 	res = pcmcia_read_config_byte(hw_priv->link, CISREG_COR, &val);
 	if (res != 0) {
-		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 1 (%d)\n",
+		printk(KERN_DE "prism2_pccard_cor_sreset failed 1 (%d)\n",
 		       res);
 		return;
 	}
-	printk(KERN_DEBUG "prism2_pccard_cor_sreset: original COR %02x\n",
+	printk(KERN_DE "prism2_pccard_cor_sreset: original COR %02x\n",
 		val);
 
 	val |= COR_SOFT_RESET;
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR, val);
 	if (res != 0) {
-		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 2 (%d)\n",
+		printk(KERN_DE "prism2_pccard_cor_sreset failed 2 (%d)\n",
 		       res);
 		return;
 	}
@@ -353,7 +353,7 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 		val |= COR_IREQ_ENA;
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR, val);
 	if (res != 0) {
-		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 3 (%d)\n",
+		printk(KERN_DE "prism2_pccard_cor_sreset failed 3 (%d)\n",
 		       res);
 		return;
 	}
@@ -381,15 +381,15 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 
 	res = pcmcia_read_config_byte(hw_priv->link, CISREG_COR, &old_cor);
 	if (res != 0) {
-		printk(KERN_DEBUG "%s failed 1 (%d)\n", __func__, res);
+		printk(KERN_DE "%s failed 1 (%d)\n", __func__, res);
 		return;
 	}
-	printk(KERN_DEBUG "%s: original COR %02x\n", __func__, old_cor);
+	printk(KERN_DE "%s: original COR %02x\n", __func__, old_cor);
 
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
 				old_cor | COR_SOFT_RESET);
 	if (res != 0) {
-		printk(KERN_DEBUG "%s failed 2 (%d)\n", __func__, res);
+		printk(KERN_DE "%s failed 2 (%d)\n", __func__, res);
 		return;
 	}
 
@@ -398,7 +398,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	/* Setup Genesis mode */
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_CCSR, hcr);
 	if (res != 0) {
-		printk(KERN_DEBUG "%s failed 3 (%d)\n", __func__, res);
+		printk(KERN_DE "%s failed 3 (%d)\n", __func__, res);
 		return;
 	}
 	mdelay(10);
@@ -406,7 +406,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
 				old_cor & ~COR_SOFT_RESET);
 	if (res != 0) {
-		printk(KERN_DEBUG "%s failed 4 (%d)\n", __func__, res);
+		printk(KERN_DE "%s failed 4 (%d)\n", __func__, res);
 		return;
 	}
 
@@ -429,11 +429,11 @@ static int hostap_cs_probe(struct pcmcia_device *p_dev)
 {
 	int ret;
 
-	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
+	PDE(DE_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
 
 	ret = prism2_config(p_dev);
 	if (ret) {
-		PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
+		PDE(DE_EXTRA, "prism2_config() failed\n");
 	}
 
 	return ret;
@@ -442,7 +442,7 @@ static int hostap_cs_probe(struct pcmcia_device *p_dev)
 
 static void prism2_detach(struct pcmcia_device *link)
 {
-	PDEBUG(DEBUG_FLOW, "prism2_detach\n");
+	PDE(DE_FLOW, "prism2_detach\n");
 
 	prism2_release((u_long)link);
 
@@ -477,7 +477,7 @@ static int prism2_config(struct pcmcia_device *link)
 	struct hostap_cs_priv *hw_priv;
 	unsigned long flags;
 
-	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
+	PDE(DE_FLOW, "prism2_config()\n");
 
 	hw_priv = kzalloc(sizeof(*hw_priv), GFP_KERNEL);
 	if (hw_priv == NULL) {
@@ -552,7 +552,7 @@ static void prism2_release(u_long arg)
 {
 	struct pcmcia_device *link = (struct pcmcia_device *)arg;
 
-	PDEBUG(DEBUG_FLOW, "prism2_release\n");
+	PDE(DE_FLOW, "prism2_release\n");
 
 	if (link->priv) {
 		struct net_device *dev = link->priv;
@@ -564,7 +564,7 @@ static void prism2_release(u_long arg)
 	}
 
 	pcmcia_disable_device(link);
-	PDEBUG(DEBUG_FLOW, "release - done\n");
+	PDE(DE_FLOW, "release - done\n");
 }
 
 static int hostap_cs_suspend(struct pcmcia_device *link)
@@ -578,7 +578,7 @@ static int hostap_cs_suspend(struct pcmcia_device *link)
 
 	iface = netdev_priv(dev);
 
-	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
+	PDE(DE_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
 	if (iface && iface->local)
 		dev_open = iface->local->num_dev_open > 0;
 	if (dev_open) {
@@ -601,7 +601,7 @@ static int hostap_cs_resume(struct pcmcia_device *link)
 
 	iface = netdev_priv(dev);
 
-	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
+	PDE(DE_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
 
 	if (iface && iface->local)
 		dev_open = iface->local->num_dev_open > 0;

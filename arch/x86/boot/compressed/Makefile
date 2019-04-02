@@ -10,7 +10,7 @@
 #		vmlinux.bin.(gz|bz2|lzma|...)
 #
 # vmlinux.bin is:
-#	vmlinux stripped of debugging and comments
+#	vmlinux stripped of deging and comments
 # vmlinux.bin.all is:
 #	vmlinux.bin + vmlinux.relocs
 # vmlinux.bin.(gz|bz2|lzma|...) is:

@@ -1,4 +1,4 @@
-generic-y += bugs.h
+generic-y += s.h
 generic-y += checksum.h
 generic-y += compat.h
 generic-y += cputime.h
@@ -15,7 +15,7 @@ generic-y += hash.h
 generic-y += hw_irq.h
 generic-y += irq_regs.h
 generic-y += irq_work.h
-generic-y += kdebug.h
+generic-y += kde.h
 generic-y += kmap_types.h
 generic-y += kvm_para.h
 generic-y += local.h

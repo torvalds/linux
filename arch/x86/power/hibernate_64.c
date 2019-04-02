@@ -12,7 +12,7 @@
 #include <linux/smp.h>
 #include <linux/suspend.h>
 #include <linux/scatterlist.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 
 #include <crypto/hash.h>
 

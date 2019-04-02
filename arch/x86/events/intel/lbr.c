@@ -153,7 +153,7 @@ static void intel_pmu_lbr_filter(struct cpu_hw_events *cpuc);
 static void __intel_pmu_lbr_enable(bool pmi)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	u64 debugctl, lbr_select = 0, orig_debugctl;
+	u64 dectl, lbr_select = 0, orig_dectl;
 
 	/*
 	 * No need to unfreeze manually, as v4 can do that as part
@@ -171,27 +171,27 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	if (!pmi && cpuc->lbr_sel)
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
 
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	orig_debugctl = debugctl;
-	debugctl |= DEBUGCTLMSR_LBR;
+	rdmsrl(MSR_IA32_DECTLMSR, dectl);
+	orig_dectl = dectl;
+	dectl |= DECTLMSR_LBR;
 	/*
 	 * LBR callstack does not work well with FREEZE_LBRS_ON_PMI.
 	 * If FREEZE_LBRS_ON_PMI is set, PMI near call/return instructions
 	 * may cause superfluous increase/decrease of LBR_TOS.
 	 */
 	if (!(lbr_select & LBR_CALL_STACK))
-		debugctl |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
-	if (orig_debugctl != debugctl)
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+		dectl |= DECTLMSR_FREEZE_LBRS_ON_PMI;
+	if (orig_dectl != dectl)
+		wrmsrl(MSR_IA32_DECTLMSR, dectl);
 }
 
 static void __intel_pmu_lbr_disable(void)
 {
-	u64 debugctl;
+	u64 dectl;
 
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
-	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	rdmsrl(MSR_IA32_DECTLMSR, dectl);
+	dectl &= ~(DECTLMSR_LBR | DECTLMSR_FREEZE_LBRS_ON_PMI);
+	wrmsrl(MSR_IA32_DECTLMSR, dectl);
 }
 
 static void intel_pmu_lbr_reset_32(void)

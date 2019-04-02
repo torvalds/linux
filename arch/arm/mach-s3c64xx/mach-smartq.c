@@ -69,7 +69,7 @@ static struct s3c2410_uartcfg smartq_uartcfgs[] __initdata = {
 
 static void smartq_usb_host_powercontrol(int port, int to)
 {
-	pr_debug("%s(%d, %d)\n", __func__, port, to);
+	pr_de("%s(%d, %d)\n", __func__, port, to);
 
 	if (port == 0) {
 		gpio_set_value(S3C64XX_GPL(0), to);
@@ -82,10 +82,10 @@ static irqreturn_t smartq_usb_host_ocirq(int irq, void *pw)
 	struct s3c2410_hcd_info *info = pw;
 
 	if (gpio_get_value(S3C64XX_GPL(10)) == 0) {
-		pr_debug("%s: over-current irq (oc detected)\n", __func__);
+		pr_de("%s: over-current irq (oc detected)\n", __func__);
 		s3c2410_usb_report_oc(info, 3);
 	} else {
-		pr_debug("%s: over-current irq (oc cleared)\n", __func__);
+		pr_de("%s: over-current irq (oc cleared)\n", __func__);
 		s3c2410_usb_report_oc(info, 0);
 	}
 

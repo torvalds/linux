@@ -16,12 +16,12 @@
  * unused ones are here as placeholders; we might encounter them in
  * non-Linux/MIPS object files or make use of them in the future.
  */
-#define BRK_USERBP	0	/* User bp (used by debuggers) */
-#define BRK_SSTEPBP	5	/* User bp (used by debuggers) */
+#define BRK_USERBP	0	/* User bp (used by degers) */
+#define BRK_SSTEPBP	5	/* User bp (used by degers) */
 #define BRK_OVERFLOW	6	/* Overflow check */
 #define BRK_DIVZERO	7	/* Divide by zero check */
 #define BRK_RANGE	8	/* Range error check */
-#define BRK_BUG		12	/* Used by BUG() */
+#define BRK_		12	/* Used by () */
 #define BRK_UPROBE	13	/* See <asm/uprobes.h> */
 #define BRK_UPROBE_XOL	14	/* See <asm/uprobes.h> */
 #define BRK_MEMU	514	/* Used by FPU emulator */

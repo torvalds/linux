@@ -249,9 +249,9 @@ void __init paging_init(void)
 	kmap_prot = PAGE_KERNEL;
 #endif /* CONFIG_HIGHMEM */
 
-	printk(KERN_DEBUG "Top of RAM: 0x%llx, Total RAM: 0x%llx\n",
+	printk(KERN_DE "Top of RAM: 0x%llx, Total RAM: 0x%llx\n",
 	       (unsigned long long)top_of_ram, total_ram);
-	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
+	printk(KERN_DE "Memory hole size: %ldMB\n",
 	       (long int)((top_of_ram - total_ram) >> 20));
 
 #ifdef CONFIG_ZONE_DMA
@@ -273,7 +273,7 @@ void __init mem_init(void)
 	 * book3s is limited to 16 page sizes due to encoding this in
 	 * a 4-bit field for slices.
 	 */
-	BUILD_BUG_ON(MMU_PAGE_COUNT > 16);
+	BUILD__ON(MMU_PAGE_COUNT > 16);
 
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(0);
@@ -399,7 +399,7 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	/*
 	 * We should be able to use the following optimisation, however
 	 * there are two problems.
-	 * Firstly a bug in some versions of binutils meant PLT sections
+	 * Firstly a  in some versions of binutils meant PLT sections
 	 * were not marked executable.
 	 * Secondly the first word in the GOT section is blrl, used
 	 * to establish the GOT address. Until recently the GOT was

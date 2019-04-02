@@ -73,10 +73,10 @@ static DEFINE_MUTEX(devices_mutex);
 static DECLARE_BITMAP(devices_used, SNDRV_CARDS);
 static struct usb_driver bcd2000_driver;
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 static void bcd2000_dump_buffer(const char *prefix, const char *buf, int len)
 {
-	print_hex_dump(KERN_DEBUG, prefix,
+	print_hex_dump(KERN_DE, prefix,
 			DUMP_PREFIX_NONE, 16, 1,
 			buf, len, false);
 }
@@ -137,7 +137,7 @@ static void bcd2000_midi_send(struct bcd2000 *bcd2k)
 	int len, ret;
 	struct snd_rawmidi_substream *midi_out_substream;
 
-	BUILD_BUG_ON(sizeof(device_cmd_prefix) >= BUFSIZE);
+	BUILD__ON(sizeof(device_cmd_prefix) >= BUFSIZE);
 
 	midi_out_substream = READ_ONCE(bcd2k->midi_out_substream);
 	if (!midi_out_substream)

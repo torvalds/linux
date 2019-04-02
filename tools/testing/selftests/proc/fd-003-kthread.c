@@ -15,7 +15,7 @@
  */
 // Test that /proc/$KERNEL_THREAD/fd/ is empty.
 
-#undef NDEBUG
+#undef NDE
 #include <sys/syscall.h>
 #include <assert.h>
 #include <dirent.h>

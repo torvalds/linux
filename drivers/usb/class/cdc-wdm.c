@@ -691,7 +691,7 @@ static int wdm_release(struct inode *inode, struct file *file)
 			desc->manage_power(desc->intf, 0);
 		} else {
 			/* must avoid dev_printk here as desc->intf is invalid */
-			pr_debug(KBUILD_MODNAME " %s: device gone - cleaning up\n", __func__);
+			pr_de(KBUILD_MODNAME " %s: device gone - cleaning up\n", __func__);
 			cleanup(desc);
 		}
 	}

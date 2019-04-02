@@ -27,7 +27,7 @@
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -1161,9 +1161,9 @@ static int flexrm_process_completions(struct flexrm_ring *ring)
 	return count;
 }
 
-/* ====== FlexRM Debugfs callbacks ====== */
+/* ====== FlexRM Defs callbacks ====== */
 
-static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
+static int flexrm_defs_conf_show(struct seq_file *file, void *offset)
 {
 	struct platform_device *pdev = to_platform_device(file->private);
 	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
@@ -1174,7 +1174,7 @@ static int flexrm_debugfs_conf_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int flexrm_debugfs_stats_show(struct seq_file *file, void *offset)
+static int flexrm_defs_stats_show(struct seq_file *file, void *offset)
 {
 	struct platform_device *pdev = to_platform_device(file->private);
 	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
@@ -1618,35 +1618,35 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 		ring->irq = desc->irq;
 	}
 
-	/* Check availability of debugfs */
-	if (!debugfs_initialized())
-		goto skip_debugfs;
+	/* Check availability of defs */
+	if (!defs_initialized())
+		goto skip_defs;
 
-	/* Create debugfs root entry */
-	mbox->root = debugfs_create_dir(dev_name(mbox->dev), NULL);
+	/* Create defs root entry */
+	mbox->root = defs_create_dir(dev_name(mbox->dev), NULL);
 	if (IS_ERR_OR_NULL(mbox->root)) {
 		ret = PTR_ERR_OR_ZERO(mbox->root);
 		goto fail_free_msis;
 	}
 
-	/* Create debugfs config entry */
-	mbox->config = debugfs_create_devm_seqfile(mbox->dev,
+	/* Create defs config entry */
+	mbox->config = defs_create_devm_seqfile(mbox->dev,
 						   "config", mbox->root,
-						   flexrm_debugfs_conf_show);
+						   flexrm_defs_conf_show);
 	if (IS_ERR_OR_NULL(mbox->config)) {
 		ret = PTR_ERR_OR_ZERO(mbox->config);
-		goto fail_free_debugfs_root;
+		goto fail_free_defs_root;
 	}
 
-	/* Create debugfs stats entry */
-	mbox->stats = debugfs_create_devm_seqfile(mbox->dev,
+	/* Create defs stats entry */
+	mbox->stats = defs_create_devm_seqfile(mbox->dev,
 						  "stats", mbox->root,
-						  flexrm_debugfs_stats_show);
+						  flexrm_defs_stats_show);
 	if (IS_ERR_OR_NULL(mbox->stats)) {
 		ret = PTR_ERR_OR_ZERO(mbox->stats);
-		goto fail_free_debugfs_root;
+		goto fail_free_defs_root;
 	}
-skip_debugfs:
+skip_defs:
 
 	/* Initialize mailbox controller */
 	mbox->controller.txdone_irq = false;
@@ -1659,7 +1659,7 @@ skip_debugfs:
 				sizeof(*mbox->controller.chans), GFP_KERNEL);
 	if (!mbox->controller.chans) {
 		ret = -ENOMEM;
-		goto fail_free_debugfs_root;
+		goto fail_free_defs_root;
 	}
 	for (index = 0; index < mbox->num_rings; index++)
 		mbox->controller.chans[index].con_priv = &mbox->rings[index];
@@ -1667,15 +1667,15 @@ skip_debugfs:
 	/* Register mailbox controller */
 	ret = devm_mbox_controller_register(dev, &mbox->controller);
 	if (ret)
-		goto fail_free_debugfs_root;
+		goto fail_free_defs_root;
 
 	dev_info(dev, "registered flexrm mailbox with %d channels\n",
 			mbox->controller.num_chans);
 
 	return 0;
 
-fail_free_debugfs_root:
-	debugfs_remove_recursive(mbox->root);
+fail_free_defs_root:
+	defs_remove_recursive(mbox->root);
 fail_free_msis:
 	platform_msi_domain_free_irqs(dev);
 fail_destroy_cmpl_pool:
@@ -1691,7 +1691,7 @@ static int flexrm_mbox_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
 
-	debugfs_remove_recursive(mbox->root);
+	defs_remove_recursive(mbox->root);
 
 	platform_msi_domain_free_irqs(dev);
 

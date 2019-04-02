@@ -44,7 +44,7 @@ static struct clk_onecell_data clk_data;
 
 static void __init _mx21_clocks_init(unsigned long lref, unsigned long href)
 {
-	BUG_ON(!ccm);
+	_ON(!ccm);
 
 	clk[IMX21_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clk[IMX21_CLK_CKIL] = imx_obtain_fixed_clock("ckil", lref);

@@ -21,7 +21,7 @@ int __node_distance(int a, int b);
 void numa_update_cpu_topology(void);
 
 extern cpumask_t node_to_cpumask_map[MAX_NUMNODES];
-extern int numa_debug_enabled;
+extern int numa_de_enabled;
 
 #else
 

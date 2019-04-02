@@ -745,7 +745,7 @@ static int inno_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	hdmi_writeb(hdmi, HDMI_INTERRUPT_STATUS1, m_INT_EDID_READY);
 
 	for (i = 0; i < num; i++) {
-		DRM_DEV_DEBUG(hdmi->dev,
+		DRM_DEV_DE(hdmi->dev,
 			      "xfer: num: %d/%d, len: %d, flags: %#x\n",
 			      i + 1, num, msgs[i].len, msgs[i].flags);
 

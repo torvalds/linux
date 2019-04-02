@@ -138,7 +138,7 @@ EXPORT_SYMBOL(atm_dev_register);
 
 void atm_dev_deregister(struct atm_dev *dev)
 {
-	BUG_ON(test_bit(ATM_DF_REMOVED, &dev->flags));
+	_ON(test_bit(ATM_DF_REMOVED, &dev->flags));
 	set_bit(ATM_DF_REMOVED, &dev->flags);
 
 	/*

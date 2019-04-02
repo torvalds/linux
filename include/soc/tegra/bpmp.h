@@ -94,8 +94,8 @@ struct tegra_bpmp {
 
 	struct genpd_onecell_data genpd;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_mirror;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_mirror;
 #endif
 };
 
@@ -201,10 +201,10 @@ static inline int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
-int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp);
+#if IS_ENABLED(CONFIG_DE_FS)
+int tegra_bpmp_init_defs(struct tegra_bpmp *bpmp);
 #else
-static inline int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
+static inline int tegra_bpmp_init_defs(struct tegra_bpmp *bpmp)
 {
 	return 0;
 }

@@ -87,8 +87,8 @@ hfc_clear_fifo(struct BCState *bcs)
 	int rcnt, z1, z2;
 	u_char cip, f1, f2;
 
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "hfc_clear_fifo");
+	if ((cs->de & L1_DEB_HSCX) && !(cs->de & L1_DEB_HSCX_FIFO))
+		del1(cs, "hfc_clear_fifo");
 	cip = HFC_CIP | HFC_F1 | HFC_REC | HFC_CHANNEL(bcs->channel);
 	if ((cip & 0xc3) != (cs->hw.hfc.cip & 0xc3)) {
 		cs->BC_Write_Reg(cs, HFC_STATUS, cip, cip);
@@ -103,16 +103,16 @@ hfc_clear_fifo(struct BCState *bcs)
 	z2 = ReadZReg(bcs, HFC_Z2 | HFC_REC | HFC_CHANNEL(bcs->channel));
 	cnt = 32;
 	while (((f1 != f2) || (z1 != z2)) && cnt--) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfc clear %d f1(%d) f2(%d)",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfc clear %d f1(%d) f2(%d)",
 				bcs->channel, f1, f2);
 		rcnt = z1 - z2;
 		if (rcnt < 0)
 			rcnt += cs->hw.hfc.fifosize;
 		if (rcnt)
 			rcnt++;
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfc clear %d z1(%x) z2(%x) cnt(%d)",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfc clear %d z1(%x) z2(%x) cnt(%d)",
 				bcs->channel, z1, z2, rcnt);
 		cip = HFC_CIP | HFC_FIFO_OUT | HFC_REC | HFC_CHANNEL(bcs->channel);
 		idx = 0;
@@ -150,12 +150,12 @@ hfc_empty_fifo(struct BCState *bcs, int count)
 	int chksum;
 	u_char stat, cip;
 
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "hfc_empty_fifo");
+	if ((cs->de & L1_DEB_HSCX) && !(cs->de & L1_DEB_HSCX_FIFO))
+		del1(cs, "hfc_empty_fifo");
 	idx = 0;
 	if (count > HSCX_BUFMAX + 3) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "hfc_empty_fifo: incoming packet too large");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "hfc_empty_fifo: incoming packet too large");
 		cip = HFC_CIP | HFC_FIFO_OUT | HFC_REC | HFC_CHANNEL(bcs->channel);
 		while ((idx++ < count) && WaitNoBusy(cs))
 			cs->BC_Read_Reg(cs, HFC_DATA_NODEB, cip);
@@ -166,8 +166,8 @@ hfc_empty_fifo(struct BCState *bcs, int count)
 		return (NULL);
 	}
 	if ((count < 4) && (bcs->mode != L1_MODE_TRANS)) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "hfc_empty_fifo: incoming packet too small");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "hfc_empty_fifo: incoming packet too small");
 		cip = HFC_CIP | HFC_FIFO_OUT | HFC_REC | HFC_CHANNEL(bcs->channel);
 		while ((idx++ < count) && WaitNoBusy(cs))
 			cs->BC_Read_Reg(cs, HFC_DATA_NODEB, cip);
@@ -195,7 +195,7 @@ hfc_empty_fifo(struct BCState *bcs, int count)
 			idx++;
 		}
 		if (idx != count) {
-			debugl1(cs, "RFIFO BUSY error");
+			del1(cs, "RFIFO BUSY error");
 			printk(KERN_WARNING "HFC FIFO channel %d BUSY Error\n", bcs->channel);
 			dev_kfree_skb_any(skb);
 			if (bcs->mode != L1_MODE_TRANS) {
@@ -213,11 +213,11 @@ hfc_empty_fifo(struct BCState *bcs, int count)
 			chksum += cs->BC_Read_Reg(cs, HFC_DATA, cip);
 			WaitNoBusy(cs);
 			stat = cs->BC_Read_Reg(cs, HFC_DATA, cip);
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "hfc_empty_fifo %d chksum %x stat %x",
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "hfc_empty_fifo %d chksum %x stat %x",
 					bcs->channel, chksum, stat);
 			if (stat) {
-				debugl1(cs, "FIFO CRC error");
+				del1(cs, "FIFO CRC error");
 				dev_kfree_skb_any(skb);
 				skb = NULL;
 #ifdef ERROR_STATISTIC
@@ -259,16 +259,16 @@ hfc_fill_fifo(struct BCState *bcs)
 		WaitNoBusy(cs);
 		bcs->hw.hfc.f2 = cs->BC_Read_Reg(cs, HFC_DATA, cip);
 		bcs->hw.hfc.send[bcs->hw.hfc.f1] = ReadZReg(bcs, HFC_Z1 | HFC_SEND | HFC_CHANNEL(bcs->channel));
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfc_fill_fifo %d f1(%d) f2(%d) z1(%x)",
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfc_fill_fifo %d f1(%d) f2(%d) z1(%x)",
 				bcs->channel, bcs->hw.hfc.f1, bcs->hw.hfc.f2,
 				bcs->hw.hfc.send[bcs->hw.hfc.f1]);
 		fcnt = bcs->hw.hfc.f1 - bcs->hw.hfc.f2;
 		if (fcnt < 0)
 			fcnt += 32;
 		if (fcnt > 30) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "hfc_fill_fifo more as 30 frames");
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "hfc_fill_fifo more as 30 frames");
 			return;
 		}
 		count = GetFreeFifoBytes(bcs);
@@ -281,13 +281,13 @@ hfc_fill_fifo(struct BCState *bcs)
 		if (count < 0)
 			count += cs->hw.hfc.fifosize;
 	} /* L1_MODE_TRANS */
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfc_fill_fifo %d count(%u/%d)",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "hfc_fill_fifo %d count(%u/%d)",
 			bcs->channel, bcs->tx_skb->len,
 			count);
 	if (count < bcs->tx_skb->len) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "hfc_fill_fifo no fifo mem");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "hfc_fill_fifo no fifo mem");
 		return;
 	}
 	cip = HFC_CIP | HFC_FIFO_IN | HFC_SEND | HFC_CHANNEL(bcs->channel);
@@ -295,7 +295,7 @@ hfc_fill_fifo(struct BCState *bcs)
 	while ((idx < bcs->tx_skb->len) && WaitNoBusy(cs))
 		cs->BC_Write_Reg(cs, HFC_DATA_NODEB, cip, bcs->tx_skb->data[idx++]);
 	if (idx != bcs->tx_skb->len) {
-		debugl1(cs, "FIFO Send BUSY error");
+		del1(cs, "FIFO Send BUSY error");
 		printk(KERN_WARNING "HFC S FIFO channel %d BUSY Error\n", bcs->channel);
 	} else {
 		count =  bcs->tx_skb->len;
@@ -346,8 +346,8 @@ Begin:
 		WaitNoBusy(cs);
 		f2 = cs->BC_Read_Reg(cs, HFC_DATA, cip);
 		if (f1 != f2) {
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "hfc rec %d f1(%d) f2(%d)",
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "hfc rec %d f1(%d) f2(%d)",
 					bcs->channel, f1, f2);
 			receive = 1;
 		}
@@ -361,8 +361,8 @@ Begin:
 			rcnt += cs->hw.hfc.fifosize;
 		if ((bcs->mode == L1_MODE_HDLC) || (rcnt)) {
 			rcnt++;
-			if (cs->debug & L1_DEB_HSCX)
-				debugl1(cs, "hfc rec %d z1(%x) z2(%x) cnt(%d)",
+			if (cs->de & L1_DEB_HSCX)
+				del1(cs, "hfc rec %d z1(%x) z2(%x) cnt(%d)",
 					bcs->channel, z1, z2, rcnt);
 			/*              sti(); */
 			if ((skb = hfc_empty_fifo(bcs, rcnt))) {
@@ -400,8 +400,8 @@ mode_hfc(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
 
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "HFC 2BS0 mode %d bchan %d/%d",
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "HFC 2BS0 mode %d bchan %d/%d",
 			mode, bc, bcs->channel);
 	bcs->mode = mode;
 	bcs->channel = bc;

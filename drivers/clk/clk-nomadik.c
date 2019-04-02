@@ -14,7 +14,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/reboot.h>
@@ -277,7 +277,7 @@ pll_clk_register(struct device *dev, const char *name,
 	pll->hw.init = &init;
 	pll->id = id;
 
-	pr_debug("register PLL1 clock \"%s\"\n", name);
+	pr_de("register PLL1 clock \"%s\"\n", name);
 
 	ret = clk_hw_register(dev, &pll->hw);
 	if (ret) {
@@ -371,7 +371,7 @@ src_clk_register(struct device *dev, const char *name,
 	sclk->group1 = (id > 31);
 	sclk->clkbit = BIT(id & 0x1f);
 
-	pr_debug("register clock \"%s\" ID: %d group: %d bits: %08x\n",
+	pr_de("register clock \"%s\" ID: %d group: %d bits: %08x\n",
 		 name, id, sclk->group1, sclk->clkbit);
 
 	ret = clk_hw_register(dev, &sclk->hw);
@@ -383,7 +383,7 @@ src_clk_register(struct device *dev, const char *name,
 	return &sclk->hw;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static u32 src_pcksr0_boot;
 static u32 src_pcksr1_boot;
@@ -455,7 +455,7 @@ static const char * const src_clk_names[] = {
 	"RNGCCLK   ",
 };
 
-static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
+static int nomadik_src_clk_defs_show(struct seq_file *s, void *what)
 {
 	int i;
 	u32 src_pcksr0 = readl(src_base + SRC_PCKSR0);
@@ -479,20 +479,20 @@ static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(nomadik_src_clk_debugfs);
+DEFINE_SHOW_ATTRIBUTE(nomadik_src_clk_defs);
 
-static int __init nomadik_src_clk_init_debugfs(void)
+static int __init nomadik_src_clk_init_defs(void)
 {
 	/* Vital for multiplatform */
 	if (!src_base)
 		return -ENODEV;
 	src_pcksr0_boot = readl(src_base + SRC_PCKSR0);
 	src_pcksr1_boot = readl(src_base + SRC_PCKSR1);
-	debugfs_create_file("nomadik-src-clk", S_IFREG | S_IRUGO,
-			    NULL, NULL, &nomadik_src_clk_debugfs_fops);
+	defs_create_file("nomadik-src-clk", S_IFREG | S_IRUGO,
+			    NULL, NULL, &nomadik_src_clk_defs_fops);
 	return 0;
 }
-device_initcall(nomadik_src_clk_init_debugfs);
+device_initcall(nomadik_src_clk_init_defs);
 
 #endif
 

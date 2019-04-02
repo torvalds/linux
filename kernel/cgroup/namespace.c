@@ -55,7 +55,7 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	struct ucounts *ucounts;
 	struct css_set *cset;
 
-	BUG_ON(!old_ns);
+	_ON(!old_ns);
 
 	if (!(flags & CLONE_NEWCGROUP)) {
 		get_cgroup_ns(old_ns);

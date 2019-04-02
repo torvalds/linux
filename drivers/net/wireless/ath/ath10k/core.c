@@ -19,13 +19,13 @@
 #include "hif.h"
 #include "wmi.h"
 #include "bmi.h"
-#include "debug.h"
+#include "de.h"
 #include "htt.h"
 #include "testmode.h"
 #include "wmi-ops.h"
 #include "coredump.h"
 
-unsigned int ath10k_debug_mask;
+unsigned int ath10k_de_mask;
 static unsigned int ath10k_cryptmode_param;
 static bool uart_print;
 static bool skip_otp;
@@ -35,15 +35,15 @@ unsigned long ath10k_coredump_mask = BIT(ATH10K_FW_CRASH_DUMP_REGISTERS) |
 				     BIT(ATH10K_FW_CRASH_DUMP_CE_DATA);
 
 /* FIXME: most of these should be readonly */
-module_param_named(debug_mask, ath10k_debug_mask, uint, 0644);
+module_param_named(de_mask, ath10k_de_mask, uint, 0644);
 module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 module_param(rawmode, bool, 0644);
 module_param_named(coredump_mask, ath10k_coredump_mask, ulong, 0444);
 
-MODULE_PARM_DESC(debug_mask, "Debugging mask");
-MODULE_PARM_DESC(uart_print, "Uart target debugging");
+MODULE_PARM_DESC(de_mask, "Deging mask");
+MODULE_PARM_DESC(uart_print, "Uart target deging");
 MODULE_PARM_DESC(skip_otp, "Skip otp failure for calibration in testmode");
 MODULE_PARM_DESC(cryptmode, "Crypto mode: 0-hardware, 1-software");
 MODULE_PARM_DESC(rawmode, "Use raw 802.11 frame datapath");
@@ -592,7 +592,7 @@ static unsigned int ath10k_core_get_fw_feature_str(char *buf,
 						   enum ath10k_fw_features feat)
 {
 	/* make sure that ath10k_core_fw_feature_str[] gets updated */
-	BUILD_BUG_ON(ARRAY_SIZE(ath10k_core_fw_feature_str) !=
+	BUILD__ON(ARRAY_SIZE(ath10k_core_fw_feature_str) !=
 		     ATH10K_FW_FEATURE_COUNT);
 
 	if (feat >= ARRAY_SIZE(ath10k_core_fw_feature_str) ||
@@ -2716,7 +2716,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		}
 	}
 
-	status = ath10k_debug_start(ar);
+	status = ath10k_de_start(ar);
 	if (status)
 		goto err_hif_stop;
 
@@ -2761,7 +2761,7 @@ int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt)
 void ath10k_core_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
-	ath10k_debug_stop(ar);
+	ath10k_de_stop(ar);
 
 	/* try to suspend target */
 	if (ar->state != ATH10K_STATE_RESTARTING &&
@@ -2840,12 +2840,12 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_power_down;
 	}
 
-	BUILD_BUG_ON(sizeof(ar->hw->wiphy->fw_version) !=
+	BUILD__ON(sizeof(ar->hw->wiphy->fw_version) !=
 		     sizeof(ar->normal_mode_fw.fw_file.fw_version));
 	memcpy(ar->hw->wiphy->fw_version, ar->normal_mode_fw.fw_file.fw_version,
 	       sizeof(ar->hw->wiphy->fw_version));
 
-	ath10k_debug_print_hwfw_info(ar);
+	ath10k_de_print_hwfw_info(ar);
 
 	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
 		      ar->normal_mode_fw.fw_file.fw_features)) {
@@ -2879,7 +2879,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 			goto err_free_firmware_files;
 		}
 
-		ath10k_debug_print_board_info(ar);
+		ath10k_de_print_board_info(ar);
 	}
 
 	device_get_mac_address(ar->dev, ar->mac_addr, sizeof(ar->mac_addr));
@@ -2911,7 +2911,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_unlock;
 	}
 
-	ath10k_debug_print_boot_info(ar);
+	ath10k_de_print_boot_info(ar);
 	ath10k_core_stop(ar);
 
 	mutex_unlock(&ar->conf_mutex);
@@ -2957,16 +2957,16 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_unregister_mac;
 	}
 
-	status = ath10k_debug_register(ar);
+	status = ath10k_de_register(ar);
 	if (status) {
-		ath10k_err(ar, "unable to initialize debugfs\n");
+		ath10k_err(ar, "unable to initialize defs\n");
 		goto err_unregister_coredump;
 	}
 
 	status = ath10k_spectral_create(ar);
 	if (status) {
 		ath10k_err(ar, "failed to initialize spectral\n");
-		goto err_debug_destroy;
+		goto err_de_destroy;
 	}
 
 	status = ath10k_thermal_register(ar);
@@ -2981,8 +2981,8 @@ static void ath10k_core_register_work(struct work_struct *work)
 
 err_spectral_destroy:
 	ath10k_spectral_destroy(ar);
-err_debug_destroy:
-	ath10k_debug_destroy(ar);
+err_de_destroy:
+	ath10k_de_destroy(ar);
 err_unregister_coredump:
 	ath10k_coredump_unregister(ar);
 err_unregister_mac:
@@ -3016,7 +3016,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 
 	ath10k_thermal_unregister(ar);
 	/* Stop spectral before unregistering from mac80211 to remove the
-	 * relayfs debugfs file cleanly. Otherwise the parent debugfs tree
+	 * relayfs defs file cleanly. Otherwise the parent defs tree
 	 * would be already be free'd recursively, leading to a double free.
 	 */
 	ath10k_spectral_destroy(ar);
@@ -3032,7 +3032,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 	ath10k_core_free_firmware_files(ar);
 	ath10k_core_free_board_files(ar);
 
-	ath10k_debug_unregister(ar);
+	ath10k_de_unregister(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
@@ -3144,7 +3144,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	if (ret)
 		goto err_free_aux_wq;
 
-	ret = ath10k_debug_create(ar);
+	ret = ath10k_de_create(ar);
 	if (ret)
 		goto err_free_coredump;
 
@@ -3173,7 +3173,7 @@ void ath10k_core_destroy(struct ath10k *ar)
 	flush_workqueue(ar->workqueue_aux);
 	destroy_workqueue(ar->workqueue_aux);
 
-	ath10k_debug_destroy(ar);
+	ath10k_de_destroy(ar);
 	ath10k_coredump_destroy(ar);
 	ath10k_htt_tx_destroy(&ar->htt);
 	ath10k_wmi_free_host_mem(ar);

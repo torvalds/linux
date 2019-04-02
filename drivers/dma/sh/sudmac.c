@@ -293,7 +293,7 @@ static void sudmac_chan_remove(struct sudmac_device *su_dev)
 	int i;
 
 	shdma_for_each_chan(schan, &su_dev->shdma_dev, i) {
-		BUG_ON(!schan);
+		_ON(!schan);
 
 		shdma_chan_remove(schan);
 	}

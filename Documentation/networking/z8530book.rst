@@ -230,7 +230,7 @@ for all platforms. Replacing :c:func:`z8530_read_port()` and
 ``z8530_write_port`` is intended to be all that is required to port
 this driver layer.
 
-Known Bugs And Assumptions
+Known s And Assumptions
 ==========================
 
 Interrupt Locking

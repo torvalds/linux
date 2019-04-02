@@ -18,9 +18,9 @@ COMMANDS
 --------
 convert::
 	Converts perf data file into another format (only CTF [1] format is support by now).
-	It's possible to set data-convert debug variable to get debug messages from conversion,
+	It's possible to set data-convert de variable to get de messages from conversion,
 	like:
-	  perf --debug data-convert data convert ...
+	  perf --de data-convert data convert ...
 
 OPTIONS for 'convert'
 ---------------------

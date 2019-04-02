@@ -3,11 +3,11 @@ config ATH9K_HW
 config ATH9K_COMMON
 	tristate
 	select ATH_COMMON
-config ATH9K_COMMON_DEBUG
+config ATH9K_COMMON_DE
 	bool
-config ATH9K_DFS_DEBUGFS
+config ATH9K_DFS_DEFS
 	def_bool y
-	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED
+	depends on ATH9K_DEFS && ATH9K_DFS_CERTIFIED
 
 config ATH9K_BTCOEX_SUPPORT
 	bool "Atheros bluetooth coexistence support"
@@ -56,29 +56,29 @@ config ATH9K_AHB
 	  Say Y, if you have a SoC with a compatible built-in
 	  wireless MAC. Say N if unsure.
 
-config ATH9K_DEBUGFS
-	bool "Atheros ath9k debugging"
-	depends on ATH9K && DEBUG_FS
-	select MAC80211_DEBUGFS
-	select ATH9K_COMMON_DEBUG
+config ATH9K_DEFS
+	bool "Atheros ath9k deging"
+	depends on ATH9K && DE_FS
+	select MAC80211_DEFS
+	select ATH9K_COMMON_DE
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
 	  interrupts, rate control, etc.
 
-	  Also required for changing debug message flags at run time and for
+	  Also required for changing de message flags at run time and for
 	  TX99.
 
 config ATH9K_STATION_STATISTICS
 	bool "Detailed station statistics"
-	depends on ATH9K && ATH9K_DEBUGFS && DEBUG_FS
-	select MAC80211_DEBUGFS
+	depends on ATH9K && ATH9K_DEFS && DE_FS
+	select MAC80211_DEFS
 	default n
 	---help---
 	  This option enables detailed statistics for association stations.
 
 config ATH9K_TX99
 	bool "Atheros ath9k TX99 testing support"
-	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
+	depends on ATH9K_DEFS && CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  Say N. This should only be enabled on systems undergoing
@@ -172,10 +172,10 @@ config ATH9K_HTC
 
 	 The built module will be ath9k_htc.
 
-config ATH9K_HTC_DEBUGFS
-	bool "Atheros ath9k_htc debugging"
-	depends on ATH9K_HTC && DEBUG_FS
-	select ATH9K_COMMON_DEBUG
+config ATH9K_HTC_DEFS
+	bool "Atheros ath9k_htc deging"
+	depends on ATH9K_HTC && DE_FS
+	select ATH9K_COMMON_DE
 	---help---
 	  Say Y, if you need access to ath9k_htc's statistics.
 	  As well as access to the FFT/spectral data.
@@ -193,8 +193,8 @@ config ATH9K_HWRNG
 
 config ATH9K_COMMON_SPECTRAL
 	bool "Atheros ath9k/ath9k_htc spectral scan support"
-	depends on ATH9K_DEBUGFS || ATH9K_HTC_DEBUGFS
+	depends on ATH9K_DEFS || ATH9K_HTC_DEFS
 	select RELAY
 	default n
 	---help---
-	  Say Y to enable access to the FFT/spectral data via debugfs.
+	  Say Y to enable access to the FFT/spectral data via defs.

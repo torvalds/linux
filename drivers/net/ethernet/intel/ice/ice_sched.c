@@ -158,7 +158,7 @@ ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
 	status = ice_aq_query_sched_elems(hw, 1, buf, buf_size, &num_elem_ret,
 					  NULL);
 	if (status || num_elem_ret != 1)
-		ice_debug(hw, ICE_DBG_SCHED, "query element failed\n");
+		ice_de(hw, ICE_DBG_SCHED, "query element failed\n");
 	return status;
 }
 
@@ -189,7 +189,7 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 	parent = ice_sched_find_node_by_teid(pi->root,
 					     le32_to_cpu(info->parent_teid));
 	if (!parent) {
-		ice_debug(hw, ICE_DBG_SCHED,
+		ice_de(hw, ICE_DBG_SCHED,
 			  "Parent Node not found for parent_teid=0x%x\n",
 			  le32_to_cpu(info->parent_teid));
 		return ICE_ERR_PARAM;
@@ -276,7 +276,7 @@ ice_sched_remove_elems(struct ice_hw *hw, struct ice_sched_node *parent,
 	status = ice_aq_delete_sched_elems(hw, 1, buf, buf_size,
 					   &num_groups_removed, NULL);
 	if (status || num_groups_removed != 1)
-		ice_debug(hw, ICE_DBG_SCHED, "remove elements failed\n");
+		ice_de(hw, ICE_DBG_SCHED, "remove elements failed\n");
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
 	return status;
@@ -364,7 +364,7 @@ void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
 
 		status = ice_sched_remove_elems(hw, node->parent, 1, &teid);
 		if (status)
-			ice_debug(hw, ICE_DBG_SCHED,
+			ice_de(hw, ICE_DBG_SCHED,
 				  "remove element failed %d\n", status);
 	}
 	parent = node->parent;
@@ -387,7 +387,7 @@ void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node)
 		 */
 		tc_node = ice_sched_get_tc_node(pi, node->tc_num);
 		if (!tc_node) {
-			ice_debug(hw, ICE_DBG_SCHED,
+			ice_de(hw, ICE_DBG_SCHED,
 				  "Invalid TC number %d\n", node->tc_num);
 			goto err_exit;
 		}
@@ -554,7 +554,7 @@ ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
 						   buf_size, &num_elem_ret,
 						   NULL);
 	if (status || num_elem_ret != num_nodes)
-		ice_debug(hw, ICE_DBG_SCHED, "suspend/resume failed\n");
+		ice_de(hw, ICE_DBG_SCHED, "suspend/resume failed\n");
 
 	devm_kfree(ice_hw_to_dev(hw), buf);
 	return status;
@@ -697,7 +697,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	status = ice_aq_add_sched_elems(hw, 1, buf, buf_size,
 					&num_groups_added, NULL);
 	if (status || num_groups_added != 1) {
-		ice_debug(hw, ICE_DBG_SCHED, "add elements failed\n");
+		ice_de(hw, ICE_DBG_SCHED, "add elements failed\n");
 		devm_kfree(ice_hw_to_dev(hw), buf);
 		return ICE_ERR_CFG;
 	}
@@ -707,7 +707,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	for (i = 0; i < num_nodes; i++) {
 		status = ice_sched_add_node(pi, layer, &buf->generic[i]);
 		if (status) {
-			ice_debug(hw, ICE_DBG_SCHED,
+			ice_de(hw, ICE_DBG_SCHED,
 				  "add nodes in SW DB failed status =%d\n",
 				  status);
 			break;
@@ -716,7 +716,7 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 		teid = le32_to_cpu(buf->generic[i].node_teid);
 		new_node = ice_sched_find_node_by_teid(parent, teid);
 		if (!new_node) {
-			ice_debug(hw, ICE_DBG_SCHED,
+			ice_de(hw, ICE_DBG_SCHED,
 				  "Node is missing for teid =%d\n", teid);
 			break;
 		}
@@ -956,7 +956,7 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 
 	/* num_branches should be between 1-8 */
 	if (num_branches < 1 || num_branches > ICE_TXSCHED_MAX_BRANCHES) {
-		ice_debug(hw, ICE_DBG_SCHED, "num_branches unexpected %d\n",
+		ice_de(hw, ICE_DBG_SCHED, "num_branches unexpected %d\n",
 			  num_branches);
 		status = ICE_ERR_PARAM;
 		goto err_init_port;
@@ -967,7 +967,7 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 
 	/* num_elems should always be between 1-9 */
 	if (num_elems < 1 || num_elems > ICE_AQC_TOPO_MAX_LEVEL_NUM) {
-		ice_debug(hw, ICE_DBG_SCHED, "num_elems unexpected %d\n",
+		ice_de(hw, ICE_DBG_SCHED, "num_elems unexpected %d\n",
 			  num_elems);
 		status = ICE_ERR_PARAM;
 		goto err_init_port;
@@ -1667,7 +1667,7 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 			continue;
 
 		if (ice_sched_is_leaf_node_present(vsi_node)) {
-			ice_debug(pi->hw, ICE_DBG_SCHED,
+			ice_de(pi->hw, ICE_DBG_SCHED,
 				  "VSI has leaf nodes in TC %d\n", i);
 			status = ICE_ERR_IN_USE;
 			goto exit_sched_rm_vsi_cfg;

@@ -47,11 +47,11 @@ struct cx22702_state {
 	u8 prevUCBlocks;
 };
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable verbose de messages");
 
-#define dprintk	if (debug) printk
+#define dprintk	if (de) printk
 
 /* Register values to initialise the demod */
 static const u8 init_tab[] = {

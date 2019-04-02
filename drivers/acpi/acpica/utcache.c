@@ -235,7 +235,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 		cache->current_depth--;
 
 		ACPI_MEM_TRACKING(cache->hits++);
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC,
+		ACPI_DE_PRINT_RAW((ACPI_DB_EXEC,
 				      "%s: Object %p from %s cache\n",
 				      ACPI_GET_FUNCTION_NAME, object,
 				      cache->list_name));

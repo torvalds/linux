@@ -24,7 +24,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -290,14 +290,14 @@ radix_tree_node_alloc(gfp_t gfp_mask, struct radix_tree_node *parent,
 		}
 		/*
 		 * Update the allocation stack trace as this is more useful
-		 * for debugging.
+		 * for deging.
 		 */
 		kmemleak_update_trace(ret);
 		goto out;
 	}
 	ret = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
 out:
-	BUG_ON(radix_tree_is_internal_node(ret));
+	_ON(radix_tree_is_internal_node(ret));
 	if (ret) {
 		ret->shift = shift;
 		ret->offset = offset;
@@ -463,7 +463,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
 			}
 		}
 
-		BUG_ON(shift > BITS_PER_LONG);
+		_ON(shift > BITS_PER_LONG);
 		if (radix_tree_is_internal_node(entry)) {
 			entry_to_node(entry)->parent = node;
 		} else if (xa_is_value(entry)) {
@@ -729,7 +729,7 @@ int radix_tree_insert(struct radix_tree_root *root, unsigned long index,
 	void __rcu **slot;
 	int error;
 
-	BUG_ON(radix_tree_is_internal_node(item));
+	_ON(radix_tree_is_internal_node(item));
 
 	error = __radix_tree_create(root, index, &node, &slot);
 	if (error)
@@ -741,11 +741,11 @@ int radix_tree_insert(struct radix_tree_root *root, unsigned long index,
 
 	if (node) {
 		unsigned offset = get_slot_offset(node, slot);
-		BUG_ON(tag_get(node, 0, offset));
-		BUG_ON(tag_get(node, 1, offset));
-		BUG_ON(tag_get(node, 2, offset));
+		_ON(tag_get(node, 0, offset));
+		_ON(tag_get(node, 1, offset));
+		_ON(tag_get(node, 2, offset));
 	} else {
-		BUG_ON(root_tags_get(root));
+		_ON(root_tags_get(root));
 	}
 
 	return 0;
@@ -983,7 +983,7 @@ static void node_tag_set(struct radix_tree_root *root,
  *	the root all the way down to the leaf node.
  *
  *	Returns the address of the tagged item.  Setting a tag on a not-present
- *	item is a bug.
+ *	item is a .
  */
 void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag)
@@ -992,14 +992,14 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 	unsigned long maxindex;
 
 	radix_tree_load_root(root, &node, &maxindex);
-	BUG_ON(index > maxindex);
+	_ON(index > maxindex);
 
 	while (radix_tree_is_internal_node(node)) {
 		unsigned offset;
 
 		parent = entry_to_node(node);
 		offset = radix_tree_descend(parent, &node, index);
-		BUG_ON(!node);
+		_ON(!node);
 
 		if (!tag_get(parent, tag, offset))
 			tag_set(parent, tag, offset);
@@ -1617,9 +1617,9 @@ void __init radix_tree_init(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
-	BUILD_BUG_ON(ROOT_IS_IDR & ~GFP_ZONEMASK);
-	BUILD_BUG_ON(XA_CHUNK_SIZE > 255);
+	BUILD__ON(RADIX_TREE_MAX_TAGS + __GFP_BITS_SHIFT > 32);
+	BUILD__ON(ROOT_IS_IDR & ~GFP_ZONEMASK);
+	BUILD__ON(XA_CHUNK_SIZE > 255);
 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
 			sizeof(struct radix_tree_node), 0,
 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,

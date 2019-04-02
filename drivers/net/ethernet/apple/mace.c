@@ -275,7 +275,7 @@ static int mace_remove(struct macio_dev *mdev)
 	struct net_device *dev = macio_get_drvdata(mdev);
 	struct mace_data *mp;
 
-	BUG_ON(dev == NULL);
+	_ON(dev == NULL);
 
 	macio_set_drvdata(mdev, NULL);
 
@@ -550,7 +550,7 @@ static netdev_tx_t mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
     /* partially fill in the dma command block */
     len = skb->len;
     if (len > ETH_FRAME_LEN) {
-	printk(KERN_DEBUG "mace: xmit frame too long (%d)\n", len);
+	printk(KERN_DE "mace: xmit frame too long (%d)\n", len);
 	len = ETH_FRAME_LEN;
     }
     mp->tx_bufs[fill] = skb;
@@ -647,10 +647,10 @@ static void mace_handle_misc_intrs(struct mace_data *mp, int intr, struct net_de
 	++dev->stats.tx_heartbeat_errors;
     if (intr & BABBLE)
 	if (mace_babbles++ < 4)
-	    printk(KERN_DEBUG "mace: babbling transmitter\n");
+	    printk(KERN_DE "mace: babbling transmitter\n");
     if (intr & JABBER)
 	if (mace_jabbers++ < 4)
-	    printk(KERN_DEBUG "mace: jabbering transceiver\n");
+	    printk(KERN_DE "mace: jabbering transceiver\n");
 }
 
 static irqreturn_t mace_interrupt(int irq, void *dev_id)
@@ -749,7 +749,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	}
 	/* dma should have finished */
 	if (i == mp->tx_fill) {
-	    printk(KERN_DEBUG "mace: tx ring ran out? (fs=%x xc=%d ds=%x)\n",
+	    printk(KERN_DE "mace: tx ring ran out? (fs=%x xc=%d ds=%x)\n",
 		   fs, xcount, dstat);
 	    continue;
 	}
@@ -894,7 +894,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	    np = mp->rx_cmds + next;
 	    if (next != mp->rx_fill &&
 		(le16_to_cpu(np->xfer_status) & ACTIVE) != 0) {
-		printk(KERN_DEBUG "mace: lost a status word\n");
+		printk(KERN_DE "mace: lost a status word\n");
 		++mace_lost_status;
 	    } else
 		break;

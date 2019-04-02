@@ -49,19 +49,19 @@
 
 #include "ucc_geth.h"
 
-#undef DEBUG
+#undef DE
 
 #define ugeth_printk(level, format, arg...)  \
         printk(level format "\n", ## arg)
 
 #define ugeth_dbg(format, arg...)            \
-        ugeth_printk(KERN_DEBUG , format , ## arg)
+        ugeth_printk(KERN_DE , format , ## arg)
 
-#ifdef UGETH_VERBOSE_DEBUG
+#ifdef UGETH_VERBOSE_DE
 #define ugeth_vdbg ugeth_dbg
 #else
 #define ugeth_vdbg(fmt, args...) do { } while (0)
-#endif				/* UGETH_VERBOSE_DEBUG */
+#endif				/* UGETH_VERBOSE_DE */
 #define UGETH_MSG_DEFAULT	(NETIF_MSG_IFUP << 1 ) - 1
 
 
@@ -69,10 +69,10 @@ static DEFINE_SPINLOCK(ugeth_lock);
 
 static struct {
 	u32 msg_enable;
-} debug = { -1 };
+} de = { -1 };
 
-module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 0xffff=all)");
+module_param_named(de, de.msg_enable, int, 0);
+MODULE_PARM_DESC(de, "De verbosity level (0=none, ..., 0xffff=all)");
 
 static struct ucc_geth_info ugeth_primary_info = {
 	.uf_info = {
@@ -163,7 +163,7 @@ static struct ucc_geth_info ugeth_primary_info = {
 
 static struct ucc_geth_info ugeth_info[8];
 
-#ifdef DEBUG
+#ifdef DE
 static void mem_disp(u8 *addr, int size)
 {
 	u8 *i;
@@ -188,7 +188,7 @@ static void mem_disp(u8 *addr, int size)
 	if (notAlign == 1)
 		printk("\r\n");
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static struct list_head *dequeue(struct list_head *lh)
 {
@@ -338,7 +338,7 @@ static int return_init_enet_entries(struct ucc_geth_private *ugeth,
 	return 0;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static int dump_init_enet_entries(struct ucc_geth_private *ugeth,
 				  u32 __iomem *p_start,
 				  u8 num_entries,
@@ -436,7 +436,7 @@ static void hw_add_addr_in_hash(struct ucc_geth_private *ugeth,
 		     QE_CR_PROTOCOL_ETHERNET, 0);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void get_statistics(struct ucc_geth_private *ugeth,
 			   struct ucc_geth_tx_firmware_statistics *
 			   tx_firmware_statistics,
@@ -1027,7 +1027,7 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 				       ugeth->ug_info->riscRx, 1);
 	}
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static void init_default_reg_vals(u32 __iomem *upsmr_register,
 				  u32 __iomem *maccfg1_register,
@@ -1752,7 +1752,7 @@ static int init_phy(struct net_device *dev)
 
 static void ugeth_dump_regs(struct ucc_geth_private *ugeth)
 {
-#ifdef DEBUG
+#ifdef DE
 	ucc_fast_dump_regs(ugeth->uccf);
 	dump_regs(ugeth);
 	dump_bds(ugeth);
@@ -3111,7 +3111,7 @@ ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		      dma_map_single(ugeth->dev, skb->data,
 			      skb->len, DMA_TO_DEVICE));
 
-	/* printk(KERN_DEBUG"skb->data is 0x%x\n",skb->data); */
+	/* printk(KERN_DE"skb->data is 0x%x\n",skb->data); */
 
 	bd_status = (bd_status & T_W) | T_R | T_I | T_L | skb->len;
 
@@ -3731,7 +3731,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 
 	ug_info = &ugeth_info[ucc_num];
 	if (ug_info == NULL) {
-		if (netif_msg_probe(&debug))
+		if (netif_msg_probe(&de))
 			pr_err("[%d] Missing additional data!\n", ucc_num);
 		return -ENODEV;
 	}
@@ -3858,7 +3858,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;
 	}
 
-	if (netif_msg_probe(&debug))
+	if (netif_msg_probe(&de))
 		pr_info("UCC%1d at 0x%8llx (irq = %d)\n",
 			ug_info->uf_info.ucc_num + 1,
 			(u64)ug_info->uf_info.regs,
@@ -3894,7 +3894,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, 64);
 	dev->mtu = 1500;
 
-	ugeth->msg_enable = netif_msg_init(debug.msg_enable, UGETH_MSG_DEFAULT);
+	ugeth->msg_enable = netif_msg_init(de.msg_enable, UGETH_MSG_DEFAULT);
 	ugeth->phy_interface = phy_interface;
 	ugeth->max_speed = max_speed;
 
@@ -3973,7 +3973,7 @@ static int __init ucc_geth_init(void)
 {
 	int i, ret;
 
-	if (netif_msg_drv(&debug))
+	if (netif_msg_drv(&de))
 		pr_info(DRV_DESC "\n");
 	for (i = 0; i < 8; i++)
 		memcpy(&(ugeth_info[i]), &ugeth_primary_info,

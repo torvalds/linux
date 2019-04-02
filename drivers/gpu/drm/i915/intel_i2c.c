@@ -617,7 +617,7 @@ retry:
 	 * till then let it sleep.
 	 */
 	if (gmbus_wait_idle(dev_priv)) {
-		DRM_DEBUG_KMS("GMBUS [%s] timed out waiting for idle\n",
+		DRM_DE_KMS("GMBUS [%s] timed out waiting for idle\n",
 			 adapter->name);
 		ret = -ETIMEDOUT;
 	}
@@ -641,7 +641,7 @@ clear_err:
 	 */
 	ret = -ENXIO;
 	if (gmbus_wait_idle(dev_priv)) {
-		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
+		DRM_DE_KMS("GMBUS [%s] timed out after NAK\n",
 			      adapter->name);
 		ret = -ETIMEDOUT;
 	}
@@ -654,7 +654,7 @@ clear_err:
 	I915_WRITE_FW(GMBUS1, 0);
 	I915_WRITE_FW(GMBUS0, 0);
 
-	DRM_DEBUG_KMS("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
+	DRM_DE_KMS("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
 			 adapter->name, msgs[i].addr,
 			 (msgs[i].flags & I2C_M_RD) ? 'r' : 'w', msgs[i].len);
 
@@ -665,7 +665,7 @@ clear_err:
 	 * drm_do_probe_ddc_edid, which bails out on the first -ENXIO.
 	 */
 	if (ret == -ENXIO && i == 0 && try++ == 0) {
-		DRM_DEBUG_KMS("GMBUS [%s] NAK on first message, retry\n",
+		DRM_DE_KMS("GMBUS [%s] NAK on first message, retry\n",
 			      adapter->name);
 		goto retry;
 	}
@@ -673,7 +673,7 @@ clear_err:
 	goto out;
 
 timeout:
-	DRM_DEBUG_KMS("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
+	DRM_DE_KMS("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
 		      bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE_FW(GMBUS0, 0);
 
@@ -911,7 +911,7 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	bus->force_bit += force_bit ? 1 : -1;
-	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
+	DRM_DE_KMS("%sabling bit-banging on %s. force bit now %d\n",
 		      force_bit ? "en" : "dis", adapter->name,
 		      bus->force_bit);
 

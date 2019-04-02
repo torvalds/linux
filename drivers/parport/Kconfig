@@ -21,7 +21,7 @@ menuconfig PARPORT
 	  create a mini network by connecting the parallel ports of two local
 	  machines) etc., then you need to say Y here; please read
 	  <file:Documentation/admin-guide/parport.rst> and
-	  <file:drivers/parport/BUGS-parport>.
+	  <file:drivers/parport/S-parport>.
 
 	  For extensive information about drivers for many devices attaching
 	  to the parallel port see <http://www.torque.net/linux-pp.html> on

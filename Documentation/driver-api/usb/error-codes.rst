@@ -37,7 +37,7 @@ USB-specific:
 			is not enabled
 
 ``-ENXIO``		host controller driver does not support queuing of
-			this type of urb.  (treat as a host controller bug.)
+			this type of urb.  (treat as a host controller .)
 
 ``-EINVAL``		a) Invalid transfer type specified (or not supported)
 			b) Invalid or unsupported periodic transfer interval
@@ -101,7 +101,7 @@ may report more status codes.
 				:c:func:`usb_unlink_urb`
 
 ``-EINPROGRESS``		URB still pending, no results yet
-				(That is, if drivers see this it's a bug.)
+				(That is, if drivers see this it's a .)
 
 ``-EPROTO`` [#f1]_, [#f2]_	a) bitstuff error
 				b) no response packet received within the

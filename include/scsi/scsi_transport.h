@@ -22,7 +22,7 @@
 
 #include <linux/transport_class.h>
 #include <linux/blkdev.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 
@@ -69,14 +69,14 @@ struct scsi_transport_template {
 static inline void
 scsi_transport_reserve_target(struct scsi_transport_template * t, int space)
 {
-	BUG_ON(t->target_private_offset != 0);
+	_ON(t->target_private_offset != 0);
 	t->target_private_offset = ALIGN(t->target_size, sizeof(void *));
 	t->target_size = t->target_private_offset + space;
 }
 static inline void
 scsi_transport_reserve_device(struct scsi_transport_template * t, int space)
 {
-	BUG_ON(t->device_private_offset != 0);
+	_ON(t->device_private_offset != 0);
 	t->device_private_offset = ALIGN(t->device_size, sizeof(void *));
 	t->device_size = t->device_private_offset + space;
 }

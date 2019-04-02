@@ -19,11 +19,11 @@
 #include <linux/smp.h>
 #include <linux/signal.h>
 #include <linux/ptrace.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/machdep.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/code-patching.h>
 #include <linux/slab.h>
 
@@ -48,7 +48,7 @@ static struct hard_trap_info
 	{ 0x0900, 0x0e /* SIGALRM */ },		/* decrementer */
 	{ 0x0c00, 0x14 /* SIGCHLD */ },		/* system call */
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
-	{ 0x2002, 0x05 /* SIGTRAP */ },		/* debug */
+	{ 0x2002, 0x05 /* SIGTRAP */ },		/* de */
 #if defined(CONFIG_FSL_BOOKE)
 	{ 0x2010, 0x08 /* SIGFPE */  },		/* spe unavailable */
 	{ 0x2020, 0x08 /* SIGFPE */  },		/* spe unavailable */
@@ -117,7 +117,7 @@ int kgdb_skipexception(int exception, struct pt_regs *regs)
 	return kgdb_isremovedbreak(regs->nip);
 }
 
-static int kgdb_debugger_ipi(struct pt_regs *regs)
+static int kgdb_deger_ipi(struct pt_regs *regs)
 {
 	kgdb_nmicallback(raw_smp_processor_id(), regs);
 	return 0;
@@ -126,12 +126,12 @@ static int kgdb_debugger_ipi(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 void kgdb_roundup_cpus(void)
 {
-	smp_send_debugger_break();
+	smp_send_deger_break();
 }
 #endif
 
 /* KGDB functions to use existing PowerPC64 hooks. */
-static int kgdb_debugger(struct pt_regs *regs)
+static int kgdb_deger(struct pt_regs *regs)
 {
 	return !kgdb_handle_exception(1, computeSignal(TRAP(regs)),
 				      DIE_OOPS, regs);
@@ -229,7 +229,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	PACK64(ptr, regs->ctr);
 	PACK32(ptr, regs->xer);
 
-	BUG_ON((unsigned long)ptr >
+	_ON((unsigned long)ptr >
 	       (unsigned long)(((void *)gdb_regs) + NUMREGBYTES));
 }
 
@@ -398,7 +398,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 		/* set the trace bit if we're stepping */
 		if (remcom_in_buffer[0] == 's') {
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#ifdef CONFIG_PPC_ADV_DE_REGS
 			mtspr(SPRN_DBCR0,
 			      mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
 			linux_regs->msr |= MSR_DE;
@@ -456,42 +456,42 @@ static int kgdb_not_implemented(struct pt_regs *regs)
 	return 0;
 }
 
-static void *old__debugger_ipi;
-static void *old__debugger;
-static void *old__debugger_bpt;
-static void *old__debugger_sstep;
-static void *old__debugger_iabr_match;
-static void *old__debugger_break_match;
-static void *old__debugger_fault_handler;
+static void *old__deger_ipi;
+static void *old__deger;
+static void *old__deger_bpt;
+static void *old__deger_sstep;
+static void *old__deger_iabr_match;
+static void *old__deger_break_match;
+static void *old__deger_fault_handler;
 
 int kgdb_arch_init(void)
 {
-	old__debugger_ipi = __debugger_ipi;
-	old__debugger = __debugger;
-	old__debugger_bpt = __debugger_bpt;
-	old__debugger_sstep = __debugger_sstep;
-	old__debugger_iabr_match = __debugger_iabr_match;
-	old__debugger_break_match = __debugger_break_match;
-	old__debugger_fault_handler = __debugger_fault_handler;
+	old__deger_ipi = __deger_ipi;
+	old__deger = __deger;
+	old__deger_bpt = __deger_bpt;
+	old__deger_sstep = __deger_sstep;
+	old__deger_iabr_match = __deger_iabr_match;
+	old__deger_break_match = __deger_break_match;
+	old__deger_fault_handler = __deger_fault_handler;
 
-	__debugger_ipi = kgdb_debugger_ipi;
-	__debugger = kgdb_debugger;
-	__debugger_bpt = kgdb_handle_breakpoint;
-	__debugger_sstep = kgdb_singlestep;
-	__debugger_iabr_match = kgdb_iabr_match;
-	__debugger_break_match = kgdb_break_match;
-	__debugger_fault_handler = kgdb_not_implemented;
+	__deger_ipi = kgdb_deger_ipi;
+	__deger = kgdb_deger;
+	__deger_bpt = kgdb_handle_breakpoint;
+	__deger_sstep = kgdb_singlestep;
+	__deger_iabr_match = kgdb_iabr_match;
+	__deger_break_match = kgdb_break_match;
+	__deger_fault_handler = kgdb_not_implemented;
 
 	return 0;
 }
 
 void kgdb_arch_exit(void)
 {
-	__debugger_ipi = old__debugger_ipi;
-	__debugger = old__debugger;
-	__debugger_bpt = old__debugger_bpt;
-	__debugger_sstep = old__debugger_sstep;
-	__debugger_iabr_match = old__debugger_iabr_match;
-	__debugger_break_match = old__debugger_break_match;
-	__debugger_fault_handler = old__debugger_fault_handler;
+	__deger_ipi = old__deger_ipi;
+	__deger = old__deger;
+	__deger_bpt = old__deger_bpt;
+	__deger_sstep = old__deger_sstep;
+	__deger_iabr_match = old__deger_iabr_match;
+	__deger_break_match = old__deger_break_match;
+	__deger_fault_handler = old__deger_fault_handler;
 }

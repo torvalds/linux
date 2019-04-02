@@ -38,7 +38,7 @@
 #include <drm/r128_drm.h>
 #include "r128_drv.h"
 
-#define R128_FIFO_DEBUG		0
+#define R128_FIFO_DE		0
 
 #define FIRMWARE_NAME		"r128/r128_cce.bin"
 
@@ -52,7 +52,7 @@ static int R128_READ_PLL(struct drm_device *dev, int addr)
 	return R128_READ(R128_CLOCK_CNTL_DATA);
 }
 
-#if R128_FIFO_DEBUG
+#if R128_FIFO_DE
 static void r128_status(drm_r128_private_t *dev_priv)
 {
 	printk("GUI_STAT           = 0x%08x\n",
@@ -88,7 +88,7 @@ static int r128_do_pixcache_flush(drm_r128_private_t *dev_priv)
 		DRM_UDELAY(1);
 	}
 
-#if R128_FIFO_DEBUG
+#if R128_FIFO_DE
 	DRM_ERROR("failed!\n");
 #endif
 	return -EBUSY;
@@ -105,7 +105,7 @@ static int r128_do_wait_for_fifo(drm_r128_private_t *dev_priv, int entries)
 		DRM_UDELAY(1);
 	}
 
-#if R128_FIFO_DEBUG
+#if R128_FIFO_DE
 	DRM_ERROR("failed!\n");
 #endif
 	return -EBUSY;
@@ -127,7 +127,7 @@ static int r128_do_wait_for_idle(drm_r128_private_t *dev_priv)
 		DRM_UDELAY(1);
 	}
 
-#if R128_FIFO_DEBUG
+#if R128_FIFO_DE
 	DRM_ERROR("failed!\n");
 #endif
 	return -EBUSY;
@@ -145,7 +145,7 @@ static int r128_cce_load_microcode(drm_r128_private_t *dev_priv)
 	const __be32 *fw_data;
 	int rc, i;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	pdev = platform_device_register_simple("r128_cce", 0, NULL, 0);
 	if (IS_ERR(pdev)) {
@@ -214,7 +214,7 @@ int r128_do_cce_idle(drm_r128_private_t *dev_priv)
 		DRM_UDELAY(1);
 	}
 
-#if R128_FIFO_DEBUG
+#if R128_FIFO_DE
 	DRM_ERROR("failed!\n");
 	r128_status(dev_priv);
 #endif
@@ -305,7 +305,7 @@ static void r128_cce_init_ring_buffer(struct drm_device *dev,
 	u32 ring_start;
 	u32 tmp;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	/* The manual (p. 2) says this address is in "VM space".  This
 	 * means it's an offset from the start of AGP space.
@@ -343,10 +343,10 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	drm_r128_private_t *dev_priv;
 	int rc;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	if (dev->dev_private) {
-		DRM_DEBUG("called when already initialized\n");
+		DRM_DE("called when already initialized\n");
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	dev_priv->usec_timeout = init->usec_timeout;
 	if (dev_priv->usec_timeout < 1 ||
 	    dev_priv->usec_timeout > R128_MAX_USEC_TIMEOUT) {
-		DRM_DEBUG("TIMEOUT problem!\n");
+		DRM_DE("TIMEOUT problem!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
@@ -386,7 +386,7 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 	    (init->cce_mode != R128_PM4_128BM_64INDBM) &&
 	    (init->cce_mode != R128_PM4_64BM_128INDBM) &&
 	    (init->cce_mode != R128_PM4_64BM_64VCBM_64INDBM)) {
-		DRM_DEBUG("Bad cce_mode!\n");
+		DRM_DE("Bad cce_mode!\n");
 		dev->dev_private = (void *)dev_priv;
 		r128_do_cleanup_cce(dev);
 		return -EINVAL;
@@ -631,7 +631,7 @@ int r128_cce_init(struct drm_device *dev, void *data, struct drm_file *file_priv
 {
 	drm_r128_init_t *init = data;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -648,14 +648,14 @@ int r128_cce_init(struct drm_device *dev, void *data, struct drm_file *file_priv
 int r128_cce_start(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	if (dev_priv->cce_running || dev_priv->cce_mode == R128_PM4_NONPM4) {
-		DRM_DEBUG("while CCE running\n");
+		DRM_DE("while CCE running\n");
 		return 0;
 	}
 
@@ -672,7 +672,7 @@ int r128_cce_stop(struct drm_device *dev, void *data, struct drm_file *file_priv
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_cce_stop_t *stop = data;
 	int ret;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -710,7 +710,7 @@ int r128_cce_stop(struct drm_device *dev, void *data, struct drm_file *file_priv
 int r128_cce_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -727,7 +727,7 @@ int r128_cce_reset(struct drm_device *dev, void *data, struct drm_file *file_pri
 int r128_cce_idle(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -741,7 +741,7 @@ int r128_cce_idle(struct drm_device *dev, void *data, struct drm_file *file_priv
 
 int r128_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
@@ -841,7 +841,7 @@ static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 		DRM_UDELAY(1);
 	}
 
-	DRM_DEBUG("returning NULL!\n");
+	DRM_DE("returning NULL!\n");
 	return NULL;
 }
 

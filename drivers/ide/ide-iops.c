@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(ide_in_drive_list);
 
 /*
  * Early UDMA66 devices don't set bit14 to 1, only bit13 is valid.
- * Some optical devices with the buggy firmwares have the same problem.
+ * Some optical devices with the gy firmwares have the same problem.
  */
 static const struct drive_list_entry ivb_list[] = {
 	{ "QUANTUM FIREBALLlct10 05"	, "A03.0900"	},
@@ -240,7 +240,7 @@ u8 eighty_ninty_three(ide_drive_t *drive)
 		return 1;
 
 	if (ivb)
-		printk(KERN_DEBUG "%s: skipping word 93 validity check\n",
+		printk(KERN_DE "%s: skipping word 93 validity check\n",
 				  drive->name);
 
 	if (ata_id_is_sata(id) && !ivb)
@@ -451,7 +451,7 @@ void __ide_set_handler(ide_drive_t *drive, ide_handler_t *handler,
 {
 	ide_hwif_t *hwif = drive->hwif;
 
-	BUG_ON(hwif->handler);
+	_ON(hwif->handler);
 	hwif->handler		= handler;
 	hwif->timer.expires	= jiffies + timeout;
 	hwif->req_gen_timer	= hwif->req_gen;

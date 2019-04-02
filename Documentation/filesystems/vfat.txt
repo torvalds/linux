@@ -126,7 +126,7 @@ showexec      -- If set, the execute permission bits of the file will be
 		 allowed only if the extension part of the name is .EXE,
 		 .COM, or .BAT. Not set by default.
 
-debug         -- Can be set, but unused by the current implementation.
+de         -- Can be set, but unused by the current implementation.
 
 sys_immutable -- If set, ATTR_SYS attribute on FAT is handled as
 		 IMMUTABLE flag on Linux. Not set by default.
@@ -206,9 +206,9 @@ POSSIBLE PROBLEMS
   up as an empty file.
 * autoconv option does not work correctly.
 
-BUG REPORTS
+ REPORTS
 ----------------------------------------------------------------------
-If you have trouble with the VFAT filesystem, mail bug reports to
+If you have trouble with the VFAT filesystem, mail  reports to
 chaffee@bmrc.cs.berkeley.edu.  Please specify the filename
 and the operation that gave you trouble.
 

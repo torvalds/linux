@@ -26,11 +26,11 @@
 #ifndef __ZORAN_CARD_H__
 #define __ZORAN_CARD_H__
 
-extern int zr36067_debug;
+extern int zr36067_de;
 
 #define dprintk(num, format, args...) \
 	do { \
-		if (zr36067_debug >= num) \
+		if (zr36067_de >= num) \
 			printk(format, ##args); \
 	} while (0)
 

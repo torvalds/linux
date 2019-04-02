@@ -269,7 +269,7 @@ static int gru_get_cpu_resources(int dsr_bytes, void **cb, void **dsr)
 	struct gru_blade_state *bs;
 	int lcpu;
 
-	BUG_ON(dsr_bytes > GRU_NUM_KERNEL_DSR_BYTES);
+	_ON(dsr_bytes > GRU_NUM_KERNEL_DSR_BYTES);
 	preempt_disable();
 	bs = gru_lock_kernel_context(-1);
 	lcpu = uv_blade_processor_id();
@@ -420,7 +420,7 @@ int gru_get_cb_exception_detail(void *cb,
 			break;
 		kgts = NULL;
 	}
-	BUG_ON(!kgts);
+	_ON(!kgts);
 	cbrnum = thread_cbr_number(kgts, get_cb_number(cb));
 	cbe = get_cbe(GRUBASE(cb), cbrnum);
 	gru_flush_cache(cbe);	/* CBE not coherent */
@@ -636,7 +636,7 @@ static int send_noop_message(void *cb, struct gru_message_queue_desc *mqd,
 			STAT(mesq_noop_page_overflow);
 			/* fall through */
 		default:
-			BUG();
+			();
 		}
 	}
 	*mhdr = save_mhdr;
@@ -794,7 +794,7 @@ static int send_message_failure(void *cb, struct gru_message_queue_desc *mqd,
 		STAT(mesq_page_overflow);
 		/* fall through */
 	default:
-		BUG();
+		();
 	}
 	return ret;
 }
@@ -814,11 +814,11 @@ int gru_send_message_gpa(struct gru_message_queue_desc *mqd, void *mesg,
 	int istatus, clines, ret;
 
 	STAT(mesq_send);
-	BUG_ON(bytes < sizeof(int) || bytes > 2 * GRU_CACHE_LINE_BYTES);
+	_ON(bytes < sizeof(int) || bytes > 2 * GRU_CACHE_LINE_BYTES);
 
 	clines = DIV_ROUND_UP(bytes, GRU_CACHE_LINE_BYTES);
 	if (gru_get_cpu_resources(bytes, &cb, &dsr))
-		return MQE_BUG_NO_RESOURCES;
+		return MQE__NO_RESOURCES;
 	memcpy(dsr, mesg, bytes);
 	mhdr = dsr;
 	mhdr->present = MQS_FULL;
@@ -922,7 +922,7 @@ int gru_read_gpa(unsigned long *value, unsigned long gpa)
 
 	STAT(read_gpa);
 	if (gru_get_cpu_resources(GRU_NUM_KERNEL_DSR_BYTES, &cb, &dsr))
-		return MQE_BUG_NO_RESOURCES;
+		return MQE__NO_RESOURCES;
 	iaa = gpa >> 62;
 	gru_vload_phys(cb, gpa, gru_get_tri(dsr), iaa, IMA);
 	ret = gru_wait(cb);
@@ -946,7 +946,7 @@ int gru_copy_gpa(unsigned long dest_gpa, unsigned long src_gpa,
 
 	STAT(copy_gpa);
 	if (gru_get_cpu_resources(GRU_NUM_KERNEL_DSR_BYTES, &cb, &dsr))
-		return MQE_BUG_NO_RESOURCES;
+		return MQE__NO_RESOURCES;
 	gru_bcopy(cb, src_gpa, dest_gpa, gru_get_tri(dsr),
 		  XTYPE_B, bytes, GRU_NUM_KERNEL_DSR_CL, IMA);
 	ret = gru_wait(cb);
@@ -968,29 +968,29 @@ static int quicktest0(unsigned long arg)
 	int ret = -EIO;
 
 	if (gru_get_cpu_resources(GRU_CACHE_LINE_BYTES, &cb, &dsr))
-		return MQE_BUG_NO_RESOURCES;
+		return MQE__NO_RESOURCES;
 	p = dsr;
 	word0 = MAGIC;
 	word1 = 0;
 
 	gru_vload(cb, uv_gpa(&word0), gru_get_tri(dsr), XTYPE_DW, 1, 1, IMA);
 	if (gru_wait(cb) != CBS_IDLE) {
-		printk(KERN_DEBUG "GRU:%d quicktest0: CBR failure 1\n", smp_processor_id());
+		printk(KERN_DE "GRU:%d quicktest0: CBR failure 1\n", smp_processor_id());
 		goto done;
 	}
 
 	if (*p != MAGIC) {
-		printk(KERN_DEBUG "GRU:%d quicktest0 bad magic 0x%lx\n", smp_processor_id(), *p);
+		printk(KERN_DE "GRU:%d quicktest0 bad magic 0x%lx\n", smp_processor_id(), *p);
 		goto done;
 	}
 	gru_vstore(cb, uv_gpa(&word1), gru_get_tri(dsr), XTYPE_DW, 1, 1, IMA);
 	if (gru_wait(cb) != CBS_IDLE) {
-		printk(KERN_DEBUG "GRU:%d quicktest0: CBR failure 2\n", smp_processor_id());
+		printk(KERN_DE "GRU:%d quicktest0: CBR failure 2\n", smp_processor_id());
 		goto done;
 	}
 
 	if (word0 != word1 || word1 != MAGIC) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "GRU:%d quicktest0 err: found 0x%lx, expected 0x%lx\n",
 		     smp_processor_id(), word1, MAGIC);
 		goto done;
@@ -1028,7 +1028,7 @@ static int quicktest1(unsigned long arg)
 			break;
 	}
 	if (ret != MQE_QUEUE_FULL || i != 4) {
-		printk(KERN_DEBUG "GRU:%d quicktest1: unexpect status %d, i %d\n",
+		printk(KERN_DE "GRU:%d quicktest1: unexpect status %d, i %d\n",
 		       smp_processor_id(), ret, i);
 		goto done;
 	}
@@ -1040,7 +1040,7 @@ static int quicktest1(unsigned long arg)
 		gru_free_message(&mqd, m);
 	}
 	if (i != 4) {
-		printk(KERN_DEBUG "GRU:%d quicktest2: bad message, i %d, m %p, m8 %d\n",
+		printk(KERN_DE "GRU:%d quicktest2: bad message, i %d, m %p, m8 %d\n",
 			smp_processor_id(), i, m, m ? m[8] : -1);
 		goto done;
 	}
@@ -1092,11 +1092,11 @@ static int quicktest2(unsigned long arg)
 		if (i == numcb)
 			continue;
 		if (istatus != CBS_IDLE) {
-			printk(KERN_DEBUG "GRU:%d quicktest2: cb %d, exception\n", smp_processor_id(), i);
+			printk(KERN_DE "GRU:%d quicktest2: cb %d, exception\n", smp_processor_id(), i);
 			ret = -EFAULT;
 		} else if (buf[4 * i] || buf[4 * i + 1] || buf[4 * i + 2] ||
 				buf[4 * i + 3]) {
-			printk(KERN_DEBUG "GRU:%d quicktest2:cb %d,  buf 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
+			printk(KERN_DE "GRU:%d quicktest2:cb %d,  buf 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
 			       smp_processor_id(), i, buf[4 * i], buf[4 * i + 1], buf[4 * i + 2], buf[4 * i + 3]);
 			ret = -EIO;
 		}
@@ -1104,7 +1104,7 @@ static int quicktest2(unsigned long arg)
 		gen = cb;
 		gen->istatus = CBS_CALL_OS; /* don't handle this CBR again */
 	} while (k);
-	BUG_ON(cmp.done);
+	_ON(cmp.done);
 
 	gru_unlock_async_resource(han);
 	gru_release_async_resources(han);
@@ -1123,14 +1123,14 @@ static int quicktest3(unsigned long arg)
 	memset(buf1, get_cycles() & 255, sizeof(buf1));
 	gru_copy_gpa(uv_gpa(buf2), uv_gpa(buf1), BUFSIZE);
 	if (memcmp(buf1, buf2, BUFSIZE)) {
-		printk(KERN_DEBUG "GRU:%d quicktest3 error\n", smp_processor_id());
+		printk(KERN_DE "GRU:%d quicktest3 error\n", smp_processor_id());
 		ret = -EIO;
 	}
 	return ret;
 }
 
 /*
- * Debugging only. User hook for various kernel tests
+ * Deging only. User hook for various kernel tests
  * of driver & gru.
  */
 int gru_ktest(unsigned long arg)
@@ -1166,6 +1166,6 @@ int gru_kservices_init(void)
 void gru_kservices_exit(void)
 {
 	if (gru_free_kernel_contexts())
-		BUG();
+		();
 }
 

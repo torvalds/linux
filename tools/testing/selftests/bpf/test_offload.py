@@ -271,14 +271,14 @@ def str2int(strtab):
                         (len(strtab)))
     return struct.unpack(fmt, ba)[0]
 
-class DebugfsDir:
+class DefsDir:
     """
-    Class for accessing DebugFS directories as a dictionary.
+    Class for accessing DeFS directories as a dictionary.
     """
 
     def __init__(self, path):
         self.path = path
-        self._dict = self._debugfs_dir_read(path)
+        self._dict = self._defs_dir_read(path)
 
     def __len__(self):
         return len(self._dict.keys())
@@ -289,7 +289,7 @@ class DebugfsDir:
         return self._dict[key]
 
     def __setitem__(self, key, value):
-        log("DebugFS set %s = %s" % (key, value), "")
+        log("DeFS set %s = %s" % (key, value), "")
         log_level_inc()
 
         cmd("echo '%s' > %s/%s" % (value, self.path, key))
@@ -298,10 +298,10 @@ class DebugfsDir:
         _, out = cmd('cat %s/%s' % (self.path, key))
         self._dict[key] = out.strip()
 
-    def _debugfs_dir_read(self, path):
+    def _defs_dir_read(self, path):
         dfs = {}
 
-        log("DebugFS state for %s" % (path), "")
+        log("DeFS state for %s" % (path), "")
         log_level_inc(add=2)
 
         _, out = cmd('ls ' + path)
@@ -311,12 +311,12 @@ class DebugfsDir:
                 _, out = cmd('cat %s/%s' % (path, f))
                 dfs[f] = out.strip()
             elif os.path.isdir(p):
-                dfs[f] = DebugfsDir(p)
+                dfs[f] = DefsDir(p)
             else:
                 raise Exception("%s is neither file nor directory" % (p))
 
         log_level_dec()
-        log("DebugFS state", dfs)
+        log("DeFS state", dfs)
         log_level_dec()
 
         return dfs
@@ -334,7 +334,7 @@ class NetdevSim:
 
         self.ns = ""
 
-        self.dfs_dir = '/sys/kernel/debug/netdevsim/%s' % (self.dev['ifname'])
+        self.dfs_dir = '/sys/kernel/de/netdevsim/%s' % (self.dev['ifname'])
         self.sdev_dir = self.dfs_dir + '/sdev/'
         self.dfs_refresh()
 
@@ -359,7 +359,7 @@ class NetdevSim:
         ip("link del dev %s" % (self.dev["ifname"]), ns=self.ns)
 
     def dfs_refresh(self):
-        self.dfs = DebugfsDir(self.dfs_dir)
+        self.dfs = DefsDir(self.dfs_dir)
         return self.dfs
 
     def dfs_read(self, f):
@@ -373,7 +373,7 @@ class NetdevSim:
         return len(progs.split())
 
     def dfs_get_bound_progs(self, expected):
-        progs = DebugfsDir(os.path.join(self.sdev_dir, "bpf_bound_progs"))
+        progs = DefsDir(os.path.join(self.sdev_dir, "bpf_bound_progs"))
         if expected is not None:
             if len(progs) != expected:
                 fail(True, "%d BPF programs bound, expected %d" %
@@ -698,10 +698,10 @@ _, base_maps = bpftool("map")
 ret, out = cmd("modprobe netdevsim", fail=False)
 skip(ret != 0, "netdevsim module could not be loaded")
 
-# Check debugfs
+# Check defs
 _, out = cmd("mount")
-if out.find("/sys/kernel/debug type debugfs") == -1:
-    cmd("mount -t debugfs none /sys/kernel/debug")
+if out.find("/sys/kernel/de type defs") == -1:
+    cmd("mount -t defs none /sys/kernel/de")
 
 # Check samples are compiled
 samples = ["sample_ret0.o", "sample_map_ret0.o"]

@@ -14,7 +14,7 @@ report the "current" state of the lid as either "opened" or "closed".
 
 For most platforms, both the _LID method and the lid notifications are
 reliable. However, there are exceptions. In order to work with these
-exceptional buggy platforms, special restrictions and expections should be
+exceptional gy platforms, special restrictions and expections should be
 taken into account. This document describes the restrictions and the
 expections of the Linux ACPI lid device driver.
 
@@ -22,7 +22,7 @@ expections of the Linux ACPI lid device driver.
 1. Restrictions of the returning value of the _LID control method
 
 The _LID control method is described to return the "current" lid state.
-However the word of "current" has ambiguity, some buggy AML tables return
+However the word of "current" has ambiguity, some gy AML tables return
 the lid state upon the last lid notification instead of returning the lid
 state upon the last _LID evaluation. There won't be difference when the
 _LID control method is evaluated during the runtime, the problem is its
@@ -32,7 +32,7 @@ There are platforms always retun "closed" as initial lid state.
 
 2. Restrictions of the lid state change notifications
 
-There are buggy AML tables never notifying when the lid device state is
+There are gy AML tables never notifying when the lid device state is
 changed to "opened". Thus the "opened" notification is not guaranteed. But
 it is guaranteed that the AML tables always notify "closed" when the lid
 state is changed to "closed". The "closed" notification is normally used to
@@ -52,7 +52,7 @@ to determine the actual lid state.
 The ACPI button driver emits the following input event to the userspace:
   SW_LID
 The ACPI lid device driver is implemented to try to deliver the platform
-triggered events to the userspace. However, given the fact that the buggy
+triggered events to the userspace. However, given the fact that the gy
 firmware cannot make sure "opened"/"closed" events are paired, the ACPI
 button driver uses the following 3 modes in order not to trigger issues.
 
@@ -68,7 +68,7 @@ A. button.lid_init_state=method:
    of the _LID control method is reliable but the initial lid state
    notification is missing.
    This option is the default behavior during the period the userspace
-   isn't ready to handle the buggy AML tables.
+   isn't ready to handle the gy AML tables.
 B. button.lid_init_state=open:
    When this option is specified, the ACPI button driver always reports the
    initial lid state as "opened" and whether the "opened"/"closed" events
@@ -93,4 +93,4 @@ C. button.lid_init_state=ignore:
    firmware, the old userspace programs should still work. Otherwise, the
    new userspace programs are required to work with the ACPI button driver.
    This option will be the default behavior after the userspace is ready to
-   handle the buggy AML tables.
+   handle the gy AML tables.

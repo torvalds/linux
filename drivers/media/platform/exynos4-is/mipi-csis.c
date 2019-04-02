@@ -35,9 +35,9 @@
 
 #include "mipi-csis.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 /* Register map definition */
 
@@ -334,7 +334,7 @@ static void __s5pcsis_set_format(struct csis_state *state)
 	struct v4l2_mbus_framefmt *mf = &state->format;
 	u32 val;
 
-	v4l2_dbg(1, debug, &state->sd, "fmt: %#x, %d x %d\n",
+	v4l2_dbg(1, de, &state->sd, "fmt: %#x, %d x %d\n",
 		 mf->code, mf->width, mf->height);
 
 	/* Color format */
@@ -480,7 +480,7 @@ static void s5pcsis_log_counters(struct csis_state *state, bool non_errors)
 	spin_lock_irqsave(&state->slock, flags);
 
 	for (i--; i >= 0; i--) {
-		if (state->events[i].counter > 0 || debug)
+		if (state->events[i].counter > 0 || de)
 			v4l2_info(&state->sd, "%s events: %d\n",
 				  state->events[i].name,
 				  state->events[i].counter);
@@ -507,7 +507,7 @@ static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: %d, state: 0x%x\n",
+	v4l2_dbg(1, de, sd, "%s: %d, state: 0x%x\n",
 		 __func__, enable, state->flags);
 
 	if (enable) {
@@ -528,7 +528,7 @@ static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 	} else {
 		s5pcsis_stop_stream(state);
 		state->flags &= ~ST_STREAMING;
-		if (debug > 0)
+		if (de > 0)
 			s5pcsis_log_counters(state, true);
 	}
 unlock:
@@ -643,7 +643,7 @@ static int s5pcsis_log_status(struct v4l2_subdev *sd)
 
 	mutex_lock(&state->lock);
 	s5pcsis_log_counters(state, true);
-	if (debug && (state->flags & ST_POWERED))
+	if (de && (state->flags & ST_POWERED))
 		dump_regs(state, __func__);
 	mutex_unlock(&state->lock);
 	return 0;
@@ -696,17 +696,17 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 	}
 
 	/* Update the event/error counters */
-	if ((status & S5PCSIS_INTSRC_ERRORS) || debug) {
+	if ((status & S5PCSIS_INTSRC_ERRORS) || de) {
 		int i;
 		for (i = 0; i < S5PCSIS_NUM_EVENTS; i++) {
 			if (!(status & state->events[i].mask))
 				continue;
 			state->events[i].counter++;
-			v4l2_dbg(2, debug, &state->sd, "%s: %d\n",
+			v4l2_dbg(2, de, &state->sd, "%s: %d\n",
 				 state->events[i].name,
 				 state->events[i].counter);
 		}
-		v4l2_dbg(2, debug, &state->sd, "status: %08x\n", status);
+		v4l2_dbg(2, de, &state->sd, "status: %08x\n", status);
 	}
 	spin_unlock_irqrestore(&state->slock, flags);
 
@@ -895,7 +895,7 @@ static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
+	v4l2_dbg(1, de, sd, "%s: flags: 0x%x\n",
 		 __func__, state->flags);
 
 	mutex_lock(&state->lock);
@@ -924,7 +924,7 @@ static int s5pcsis_pm_resume(struct device *dev, bool runtime)
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
+	v4l2_dbg(1, de, sd, "%s: flags: 0x%x\n",
 		 __func__, state->flags);
 
 	mutex_lock(&state->lock);

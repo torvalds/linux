@@ -359,7 +359,7 @@ static int clk_establish_mapping(struct clk *clk)
 		 */
 		clkp = lookup_root_clock(clk);
 		mapping = clkp->mapping;
-		BUG_ON(!mapping);
+		_ON(!mapping);
 	}
 
 	/*
@@ -528,7 +528,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		if (ret == 0) {
 			if (clk->ops->recalc)
 				clk->rate = clk->ops->recalc(clk);
-			pr_debug("set parent of %p to %p (new rate %ld)\n",
+			pr_de("set parent of %p to %p (new rate %ld)\n",
 				 clk, clk->parent, clk->rate);
 			propagate_rate(clk);
 		}

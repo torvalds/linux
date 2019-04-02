@@ -63,7 +63,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 	/* Enter the pre-defined names in the name table */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Entering predefined entries into namespace\n"));
 
 	for (init_val = acpi_gbl_pre_defined_names; init_val->name; init_val++) {
@@ -288,7 +288,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	/* Get the prefix scope. A null scope means use the root scope */
 
 	if ((!scope_info) || (!scope_info->scope.node)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+		ACPI_DE_PRINT((ACPI_DB_NAMES,
 				  "Null scope prefix, using root node (%p)\n",
 				  acpi_gbl_root_node));
 
@@ -331,7 +331,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		this_node = acpi_gbl_root_node;
 		path = "";
 
-		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+		ACPI_DE_PRINT((ACPI_DB_NAMES,
 				  "Null Pathname (Zero segments), Flags=%X\n",
 				  flags));
 	} else {
@@ -359,13 +359,13 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 			path++;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Path is absolute from root [%p]\n",
 					  this_node));
 		} else {
 			/* Pathname is relative to current scope, start there */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Searching relative to prefix scope [%4.4s] (%p)\n",
 					  acpi_ut_get_node_name(prefix_node),
 					  prefix_node));
@@ -414,7 +414,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			}
 
 			if (search_parent_flag == ACPI_NS_NO_UPSEARCH) {
-				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+				ACPI_DE_PRINT((ACPI_DB_NAMES,
 						  "Search scope is [%4.4s], path has %u carat(s)\n",
 						  acpi_ut_get_node_name
 						  (this_node), num_carats));
@@ -443,7 +443,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			num_segments = 0;
 			type = this_node->type;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Prefix-only Pathname (Zero name segments), Flags=%X\n",
 					  flags));
 			break;
@@ -459,7 +459,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			num_segments = 2;
 			path++;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Dual Pathname (2 segments, Flags=%X)\n",
 					  flags));
 			break;
@@ -476,7 +476,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			num_segments = (u32) (u8) * path;
 			path++;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Multi Pathname (%u Segments, Flags=%X)\n",
 					  num_segments, flags));
 			break;
@@ -488,13 +488,13 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			 */
 			num_segments = 1;
 
-			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			ACPI_DE_PRINT((ACPI_DB_NAMES,
 					  "Simple Pathname (1 segment, Flags=%X)\n",
 					  flags));
 			break;
 		}
 
-		ACPI_DEBUG_EXEC(acpi_ns_print_pathname(num_segments, path));
+		ACPI_DE_EXEC(acpi_ns_print_pathname(num_segments, path));
 	}
 
 	/*
@@ -571,7 +571,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 #endif
 				/* Name not found in ACPI namespace */
 
-				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+				ACPI_DE_PRINT((ACPI_DB_NAMES,
 						  "Name [%4.4s] not found in scope [%4.4s] %p\n",
 						  (char *)&simple_name,
 						  (char *)&current_node->name,

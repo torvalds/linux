@@ -39,7 +39,7 @@
 
 
 #define D_SUBMODULE rfkill
-#include "debug-levels.h"
+#include "de-levels.h"
 
 /*
  * Return true if the i2400m radio is in the requested wimax_rf_state state
@@ -56,7 +56,7 @@ int i2400m_radio_is(struct i2400m *i2400m, enum wimax_rf_state state)
 		return i2400m->state != I2400M_SS_RF_OFF
 			&& i2400m->state != I2400M_SS_RF_SHUTDOWN;
 	else {
-		BUG();
+		();
 		return -EINVAL;	/* shut gcc warnings on certain arches */
 	}
 }
@@ -113,7 +113,7 @@ int i2400m_op_rfkill_sw_toggle(struct wimax_dev *wimax_dev,
 		cmd->sw_rf.status = cpu_to_le32(1);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	ack_skb = i2400m_msg_to_dev(i2400m, cmd, sizeof(*cmd));
@@ -191,7 +191,7 @@ void i2400m_report_tlv_rf_switches_status(
 		wimax_report_rfkill_sw(&i2400m->wimax_dev, WIMAX_RF_OFF);
 		break;
 	default:
-		dev_err(dev, "HW BUG? Unknown RF SW state 0x%x\n", sw);
+		dev_err(dev, "HW ? Unknown RF SW state 0x%x\n", sw);
 	}
 
 	switch (hw) {
@@ -202,7 +202,7 @@ void i2400m_report_tlv_rf_switches_status(
 		wimax_report_rfkill_hw(&i2400m->wimax_dev, WIMAX_RF_OFF);
 		break;
 	default:
-		dev_err(dev, "HW BUG? Unknown RF HW state 0x%x\n", hw);
+		dev_err(dev, "HW ? Unknown RF HW state 0x%x\n", hw);
 	}
 out:
 	d_fnend(3, dev, "(i2400m %p rfss %p [hw %u sw %u]) = void\n",

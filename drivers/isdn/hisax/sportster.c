@@ -115,14 +115,14 @@ Start_ISAC:
 		isac_interrupt(cs, val);
 	val = READHSCX(cs, 1, HSCX_ISTA);
 	if (val) {
-		if (cs->debug & L1_DEB_HSCX)
-			debugl1(cs, "HSCX IntStat after IntRoutine");
+		if (cs->de & L1_DEB_HSCX)
+			del1(cs, "HSCX IntStat after IntRoutine");
 		goto Start_HSCX;
 	}
 	val = ReadISAC(cs, ISAC_ISTA);
 	if (val) {
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC IntStat after IntRoutine");
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC IntStat after IntRoutine");
 		goto Start_ISAC;
 	}
 	/* get a new irq impulse if there any pending */

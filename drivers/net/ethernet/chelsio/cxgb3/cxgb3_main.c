@@ -912,7 +912,7 @@ static int write_smt_entry(struct adapter *adapter, int idx)
 	req = __skb_put(skb, sizeof(*req));
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, idx));
-	req->mtu_idx = NMTUS - 1;	/* should be 0 but there's a T3 bug */
+	req->mtu_idx = NMTUS - 1;	/* should be 0 but there's a T3  */
 	req->iff = idx;
 	memcpy(req->src_mac0, adapter->port[idx]->dev_addr, ETH_ALEN);
 	memcpy(req->src_mac1, pi->iscsic.mac_addr, ETH_ALEN);

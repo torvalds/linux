@@ -35,8 +35,8 @@
 #include <asm/sn/tiocx.h>
 #include "mbcs.h"
 
-#define MBCS_DEBUG 0
-#if MBCS_DEBUG
+#define MBCS_DE 0
+#if MBCS_DE
 #define DBG(fmt...)    printk(KERN_ALERT fmt)
 #else
 #define DBG(fmt...)
@@ -466,9 +466,9 @@ static uint64_t mbcs_pioaddr(struct mbcs_soft *soft, uint64_t offset)
 	return mmr_base;
 }
 
-static void mbcs_debug_pioaddr_set(struct mbcs_soft *soft)
+static void mbcs_de_pioaddr_set(struct mbcs_soft *soft)
 {
-	soft->debug_addr = mbcs_pioaddr(soft, MBCS_DEBUG_START);
+	soft->de_addr = mbcs_pioaddr(soft, MBCS_DE_START);
 }
 
 static void mbcs_gscr_pioaddr_set(struct mbcs_soft *soft)
@@ -660,7 +660,7 @@ static inline int mbcs_hw_init(struct mbcs_soft *soft)
 		     cm_req_timeout.cm_req_timeout_reg);
 
 	mbcs_gscr_pioaddr_set(soft);
-	mbcs_debug_pioaddr_set(soft);
+	mbcs_de_pioaddr_set(soft);
 
 	/* clear errors */
 	err_stat = MBCS_MMR_GET(mmr_base, MBCS_CM_ERR_STAT);
@@ -687,16 +687,16 @@ static ssize_t show_algo(struct device *dev, struct device_attribute *attr, char
 {
 	struct cx_dev *cx_dev = to_cx_dev(dev);
 	struct mbcs_soft *soft = cx_dev->soft;
-	uint64_t debug0;
+	uint64_t de0;
 
 	/*
-	 * By convention, the first debug register contains the
+	 * By convention, the first de register contains the
 	 * algorithm number and revision.
 	 */
-	debug0 = *(uint64_t *) soft->debug_addr;
+	de0 = *(uint64_t *) soft->de_addr;
 
 	return sprintf(buf, "0x%x 0x%x\n",
-		       upper_32_bits(debug0), lower_32_bits(debug0));
+		       upper_32_bits(de0), lower_32_bits(de0));
 }
 
 static ssize_t store_algo(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)

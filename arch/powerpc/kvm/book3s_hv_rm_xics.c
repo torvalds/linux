@@ -26,7 +26,7 @@
 
 #include "book3s_xics.h"
 
-#define DEBUG_PASSUP
+#define DE_PASSUP
 
 int h_ipi_redirect = 1;
 EXPORT_SYMBOL(h_ipi_redirect);
@@ -214,7 +214,7 @@ static inline bool icp_rm_try_update(struct kvmppc_icp *icp,
 	if (new.out_ee)
 		icp_rm_set_vcpu_irq(icp->vcpu, this_vcpu);
 
-	/* Expose the state change for debug purposes */
+	/* Expose the state change for de purposes */
 	this_vcpu->arch.icp->rm_dbgstate = new;
 	this_vcpu->arch.icp->rm_dbgtgt = icp->vcpu;
 

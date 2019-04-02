@@ -41,10 +41,10 @@
 /*
  * These will never work in 32-bit, don't even bother.
  */
-#define P1SEGADDR(a)	({ (void)(a); BUG(); NULL; })
-#define P2SEGADDR(a)	({ (void)(a); BUG(); NULL; })
-#define P3SEGADDR(a)	({ (void)(a); BUG(); NULL; })
-#define P4SEGADDR(a)	({ (void)(a); BUG(); NULL; })
+#define P1SEGADDR(a)	({ (void)(a); (); NULL; })
+#define P2SEGADDR(a)	({ (void)(a); (); NULL; })
+#define P3SEGADDR(a)	({ (void)(a); (); NULL; })
+#define P4SEGADDR(a)	({ (void)(a); (); NULL; })
 #endif
 #endif /* P1SEG */
 

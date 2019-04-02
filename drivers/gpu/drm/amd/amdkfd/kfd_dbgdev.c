@@ -192,7 +192,7 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 		return status;
 	}
 
-	pr_debug("DIQ Created with queue id: %d\n", qid);
+	pr_de("DIQ Created with queue id: %d\n", qid);
 
 	kq = pqm_get_kernel_queue(dbgdev->pqm, qid);
 
@@ -259,10 +259,10 @@ static void dbgdev_address_watch_set_registers(
 	/* for now assume it is an ATC address */
 	cntl->u32All |= ADDRESS_WATCH_REG_CNTL_ATC_BIT;
 
-	pr_debug("\t\t%20s %08x\n", "set reg mask :", cntl->bitfields.mask);
-	pr_debug("\t\t%20s %08x\n", "set reg add high :",
+	pr_de("\t\t%20s %08x\n", "set reg mask :", cntl->bitfields.mask);
+	pr_de("\t\t%20s %08x\n", "set reg add high :",
 			addrHi->bitfields.addr);
-	pr_debug("\t\t%20s %08x\n", "set reg add low :",
+	pr_de("\t\t%20s %08x\n", "set reg add low :",
 			addrLo->bitfields.addr);
 }
 
@@ -302,24 +302,24 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 		dbgdev_address_watch_set_registers(adw_info, &addrHi, &addrLo,
 						&cntl, i, pdd->qpd.vmid);
 
-		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
-		pr_debug("\t\t%20s %08x\n", "register index :", i);
-		pr_debug("\t\t%20s %08x\n", "vmid is :", pdd->qpd.vmid);
-		pr_debug("\t\t%20s %08x\n", "Address Low is :",
+		pr_de("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+		pr_de("\t\t%20s %08x\n", "register index :", i);
+		pr_de("\t\t%20s %08x\n", "vmid is :", pdd->qpd.vmid);
+		pr_de("\t\t%20s %08x\n", "Address Low is :",
 				addrLo.bitfields.addr);
-		pr_debug("\t\t%20s %08x\n", "Address high is :",
+		pr_de("\t\t%20s %08x\n", "Address high is :",
 				addrHi.bitfields.addr);
-		pr_debug("\t\t%20s %08x\n", "Address high is :",
+		pr_de("\t\t%20s %08x\n", "Address high is :",
 				addrHi.bitfields.addr);
-		pr_debug("\t\t%20s %08x\n", "Control Mask is :",
+		pr_de("\t\t%20s %08x\n", "Control Mask is :",
 				cntl.bitfields.mask);
-		pr_debug("\t\t%20s %08x\n", "Control Mode is :",
+		pr_de("\t\t%20s %08x\n", "Control Mode is :",
 				cntl.bitfields.mode);
-		pr_debug("\t\t%20s %08x\n", "Control Vmid is :",
+		pr_de("\t\t%20s %08x\n", "Control Vmid is :",
 				cntl.bitfields.vmid);
-		pr_debug("\t\t%20s %08x\n", "Control atc  is :",
+		pr_de("\t\t%20s %08x\n", "Control atc  is :",
 				cntl.bitfields.atc);
-		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+		pr_de("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
 
 		pdd->dev->kfd2kgd->address_watch_execute(
 						dbgdev->dev->kgd,
@@ -397,26 +397,26 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 						i,
 						vmid);
 
-		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
-		pr_debug("\t\t%20s %08x\n", "register index :", i);
-		pr_debug("\t\t%20s %08x\n", "vmid is :", vmid);
-		pr_debug("\t\t%20s %p\n", "Add ptr is :",
+		pr_de("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+		pr_de("\t\t%20s %08x\n", "register index :", i);
+		pr_de("\t\t%20s %08x\n", "vmid is :", vmid);
+		pr_de("\t\t%20s %p\n", "Add ptr is :",
 				adw_info->watch_address);
-		pr_debug("\t\t%20s %08llx\n", "Add     is :",
+		pr_de("\t\t%20s %08llx\n", "Add     is :",
 				adw_info->watch_address[i]);
-		pr_debug("\t\t%20s %08x\n", "Address Low is :",
+		pr_de("\t\t%20s %08x\n", "Address Low is :",
 				addrLo.bitfields.addr);
-		pr_debug("\t\t%20s %08x\n", "Address high is :",
+		pr_de("\t\t%20s %08x\n", "Address high is :",
 				addrHi.bitfields.addr);
-		pr_debug("\t\t%20s %08x\n", "Control Mask is :",
+		pr_de("\t\t%20s %08x\n", "Control Mask is :",
 				cntl.bitfields.mask);
-		pr_debug("\t\t%20s %08x\n", "Control Mode is :",
+		pr_de("\t\t%20s %08x\n", "Control Mode is :",
 				cntl.bitfields.mode);
-		pr_debug("\t\t%20s %08x\n", "Control Vmid is :",
+		pr_de("\t\t%20s %08x\n", "Control Vmid is :",
 				cntl.bitfields.vmid);
-		pr_debug("\t\t%20s %08x\n", "Control atc  is :",
+		pr_de("\t\t%20s %08x\n", "Control atc  is :",
 				cntl.bitfields.atc);
-		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+		pr_de("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
 
 		aw_reg_add_dword =
 				dbgdev->dev->kfd2kgd->address_watch_get_offset(
@@ -554,8 +554,8 @@ static int dbgdev_wave_control_set_registers(
 		reg_sq_cmd.bits.cmd = SQ_IND_CMD_CMD_KILL;
 		break;
 
-	case HSA_DBG_WAVEOP_DEBUG:
-		reg_sq_cmd.bits.cmd = SQ_IND_CMD_CMD_DEBUG;
+	case HSA_DBG_WAVEOP_DE:
+		reg_sq_cmd.bits.cmd = SQ_IND_CMD_CMD_DE;
 		break;
 
 	case HSA_DBG_WAVEOP_TRAP:
@@ -604,35 +604,35 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	/* we do not control the VMID in DIQ, so reset it to a known value */
 	reg_sq_cmd.bits.vm_id = 0;
 
-	pr_debug("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
+	pr_de("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
 
-	pr_debug("\t\t mode      is: %u\n", wac_info->mode);
-	pr_debug("\t\t operand   is: %u\n", wac_info->operand);
-	pr_debug("\t\t trap id   is: %u\n", wac_info->trapId);
-	pr_debug("\t\t msg value is: %u\n",
+	pr_de("\t\t mode      is: %u\n", wac_info->mode);
+	pr_de("\t\t operand   is: %u\n", wac_info->operand);
+	pr_de("\t\t trap id   is: %u\n", wac_info->trapId);
+	pr_de("\t\t msg value is: %u\n",
 			wac_info->dbgWave_msg.DbgWaveMsg.WaveMsgInfoGen2.Value);
-	pr_debug("\t\t vmid      is: N/A\n");
+	pr_de("\t\t vmid      is: N/A\n");
 
-	pr_debug("\t\t chk_vmid  is : %u\n", reg_sq_cmd.bitfields.check_vmid);
-	pr_debug("\t\t command   is : %u\n", reg_sq_cmd.bitfields.cmd);
-	pr_debug("\t\t queue id  is : %u\n", reg_sq_cmd.bitfields.queue_id);
-	pr_debug("\t\t simd id   is : %u\n", reg_sq_cmd.bitfields.simd_id);
-	pr_debug("\t\t mode      is : %u\n", reg_sq_cmd.bitfields.mode);
-	pr_debug("\t\t vm_id     is : %u\n", reg_sq_cmd.bitfields.vm_id);
-	pr_debug("\t\t wave_id   is : %u\n", reg_sq_cmd.bitfields.wave_id);
+	pr_de("\t\t chk_vmid  is : %u\n", reg_sq_cmd.bitfields.check_vmid);
+	pr_de("\t\t command   is : %u\n", reg_sq_cmd.bitfields.cmd);
+	pr_de("\t\t queue id  is : %u\n", reg_sq_cmd.bitfields.queue_id);
+	pr_de("\t\t simd id   is : %u\n", reg_sq_cmd.bitfields.simd_id);
+	pr_de("\t\t mode      is : %u\n", reg_sq_cmd.bitfields.mode);
+	pr_de("\t\t vm_id     is : %u\n", reg_sq_cmd.bitfields.vm_id);
+	pr_de("\t\t wave_id   is : %u\n", reg_sq_cmd.bitfields.wave_id);
 
-	pr_debug("\t\t ibw       is : %u\n",
+	pr_de("\t\t ibw       is : %u\n",
 			reg_gfx_index.bitfields.instance_broadcast_writes);
-	pr_debug("\t\t ii        is : %u\n",
+	pr_de("\t\t ii        is : %u\n",
 			reg_gfx_index.bitfields.instance_index);
-	pr_debug("\t\t sebw      is : %u\n",
+	pr_de("\t\t sebw      is : %u\n",
 			reg_gfx_index.bitfields.se_broadcast_writes);
-	pr_debug("\t\t se_ind    is : %u\n", reg_gfx_index.bitfields.se_index);
-	pr_debug("\t\t sh_ind    is : %u\n", reg_gfx_index.bitfields.sh_index);
-	pr_debug("\t\t sbw       is : %u\n",
+	pr_de("\t\t se_ind    is : %u\n", reg_gfx_index.bitfields.se_index);
+	pr_de("\t\t sh_ind    is : %u\n", reg_gfx_index.bitfields.sh_index);
+	pr_de("\t\t sbw       is : %u\n",
 			reg_gfx_index.bitfields.sh_broadcast_writes);
 
-	pr_debug("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
+	pr_de("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
 
 	status = kfd_gtt_sa_allocate(dbgdev->dev, ib_size, &mem_obj);
 
@@ -722,35 +722,35 @@ static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
 
 	reg_sq_cmd.bits.vm_id = pdd->qpd.vmid;
 
-	pr_debug("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
+	pr_de("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
 
-	pr_debug("\t\t mode      is: %u\n", wac_info->mode);
-	pr_debug("\t\t operand   is: %u\n", wac_info->operand);
-	pr_debug("\t\t trap id   is: %u\n", wac_info->trapId);
-	pr_debug("\t\t msg value is: %u\n",
+	pr_de("\t\t mode      is: %u\n", wac_info->mode);
+	pr_de("\t\t operand   is: %u\n", wac_info->operand);
+	pr_de("\t\t trap id   is: %u\n", wac_info->trapId);
+	pr_de("\t\t msg value is: %u\n",
 			wac_info->dbgWave_msg.DbgWaveMsg.WaveMsgInfoGen2.Value);
-	pr_debug("\t\t vmid      is: %u\n", pdd->qpd.vmid);
+	pr_de("\t\t vmid      is: %u\n", pdd->qpd.vmid);
 
-	pr_debug("\t\t chk_vmid  is : %u\n", reg_sq_cmd.bitfields.check_vmid);
-	pr_debug("\t\t command   is : %u\n", reg_sq_cmd.bitfields.cmd);
-	pr_debug("\t\t queue id  is : %u\n", reg_sq_cmd.bitfields.queue_id);
-	pr_debug("\t\t simd id   is : %u\n", reg_sq_cmd.bitfields.simd_id);
-	pr_debug("\t\t mode      is : %u\n", reg_sq_cmd.bitfields.mode);
-	pr_debug("\t\t vm_id     is : %u\n", reg_sq_cmd.bitfields.vm_id);
-	pr_debug("\t\t wave_id   is : %u\n", reg_sq_cmd.bitfields.wave_id);
+	pr_de("\t\t chk_vmid  is : %u\n", reg_sq_cmd.bitfields.check_vmid);
+	pr_de("\t\t command   is : %u\n", reg_sq_cmd.bitfields.cmd);
+	pr_de("\t\t queue id  is : %u\n", reg_sq_cmd.bitfields.queue_id);
+	pr_de("\t\t simd id   is : %u\n", reg_sq_cmd.bitfields.simd_id);
+	pr_de("\t\t mode      is : %u\n", reg_sq_cmd.bitfields.mode);
+	pr_de("\t\t vm_id     is : %u\n", reg_sq_cmd.bitfields.vm_id);
+	pr_de("\t\t wave_id   is : %u\n", reg_sq_cmd.bitfields.wave_id);
 
-	pr_debug("\t\t ibw       is : %u\n",
+	pr_de("\t\t ibw       is : %u\n",
 			reg_gfx_index.bitfields.instance_broadcast_writes);
-	pr_debug("\t\t ii        is : %u\n",
+	pr_de("\t\t ii        is : %u\n",
 			reg_gfx_index.bitfields.instance_index);
-	pr_debug("\t\t sebw      is : %u\n",
+	pr_de("\t\t sebw      is : %u\n",
 			reg_gfx_index.bitfields.se_broadcast_writes);
-	pr_debug("\t\t se_ind    is : %u\n", reg_gfx_index.bitfields.se_index);
-	pr_debug("\t\t sh_ind    is : %u\n", reg_gfx_index.bitfields.sh_index);
-	pr_debug("\t\t sbw       is : %u\n",
+	pr_de("\t\t se_ind    is : %u\n", reg_gfx_index.bitfields.se_index);
+	pr_de("\t\t sh_ind    is : %u\n", reg_gfx_index.bitfields.sh_index);
+	pr_de("\t\t sbw       is : %u\n",
 			reg_gfx_index.bitfields.sh_broadcast_writes);
 
-	pr_debug("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
+	pr_de("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
 
 	return dbgdev->dev->kfd2kgd->wave_control_execute(dbgdev->dev->kgd,
 							reg_gfx_index.u32All,
@@ -774,7 +774,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	wac_info.mode = HSA_DBG_WAVEMODE_BROADCAST_PROCESS;
 	wac_info.operand = HSA_DBG_WAVEOP_KILL;
 
-	pr_debug("Killing all process wavefronts\n");
+	pr_de("Killing all process wavefronts\n");
 
 	/* Scan all registers in the range ATC_VMID8_PASID_MAPPING ..
 	 * ATC_VMID15_PASID_MAPPING
@@ -786,7 +786,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 				(dev->kgd, vmid)) {
 			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid
 					(dev->kgd, vmid) == p->pasid) {
-				pr_debug("Killing wave fronts of vmid %d and pasid %d\n",
+				pr_de("Killing wave fronts of vmid %d and pasid %d\n",
 						vmid, p->pasid);
 				break;
 			}

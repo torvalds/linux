@@ -360,7 +360,7 @@ static void free_pasid_states(struct device_state *dev_state)
 	else if (dev_state->pasid_levels == 1)
 		free_pasid_states_level1(dev_state->states);
 	else
-		BUG_ON(dev_state->pasid_levels != 0);
+		_ON(dev_state->pasid_levels != 0);
 
 	free_page((unsigned long)dev_state->states);
 }
@@ -461,7 +461,7 @@ static void handle_fault_error(struct fault *fault)
 		set_pri_tag_status(fault->state, fault->tag, PPR_FAILURE);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

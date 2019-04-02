@@ -1268,7 +1268,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	if (unlikely(!sg_next(*sg)) || !sgnext) {
 		/*
 		 * Last element in scatterlist done, remove from the queue,
-		 * _init for debugging
+		 * _init for deging
 		 */
 		list_del_init(&desc->list);
 		done = true;
@@ -1478,11 +1478,11 @@ static int idmac_terminate_all(struct dma_chan *chan)
 	return ret;
 }
 
-#ifdef DEBUG
+#ifdef DE
 static irqreturn_t ic_sof_irq(int irq, void *dev_id)
 {
 	struct idmac_channel *ichan = dev_id;
-	printk(KERN_DEBUG "Got SOF IRQ %d on Channel %d\n",
+	printk(KERN_DE "Got SOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
 	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
@@ -1491,7 +1491,7 @@ static irqreturn_t ic_sof_irq(int irq, void *dev_id)
 static irqreturn_t ic_eof_irq(int irq, void *dev_id)
 {
 	struct idmac_channel *ichan = dev_id;
-	printk(KERN_DEBUG "Got EOF IRQ %d on Channel %d\n",
+	printk(KERN_DE "Got EOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
 	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
@@ -1507,7 +1507,7 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 	int ret;
 
 	/* dmaengine.c now guarantees to only offer free channels */
-	BUG_ON(chan->client_count > 1);
+	_ON(chan->client_count > 1);
 	WARN_ON(ichan->status != IPU_CHANNEL_FREE);
 
 	dma_cookie_init(chan);
@@ -1533,7 +1533,7 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 	if (ret < 0)
 		goto erirq;
 
-#ifdef DEBUG
+#ifdef DE
 	if (chan->chan_id == IDMAC_IC_7) {
 		ic_sof = ipu_irq_map(69);
 		if (ic_sof > 0) {
@@ -1575,7 +1575,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 	__idmac_terminate_all(chan);
 
 	if (ichan->status > IPU_CHANNEL_FREE) {
-#ifdef DEBUG
+#ifdef DE
 		if (chan->chan_id == IDMAC_IC_7) {
 			if (ic_sof > 0) {
 				free_irq(ic_sof, ichan);

@@ -663,7 +663,7 @@ static void kill_domain_by_device(struct pcistub_device *psdev)
 	int err;
 	char nodename[PCI_NODENAME_MAX];
 
-	BUG_ON(!psdev);
+	_ON(!psdev);
 	snprintf(nodename, PCI_NODENAME_MAX, "/local/domain/0/backend/pci/%d/0",
 		psdev->pdev->xdev->otherend_id);
 
@@ -1094,7 +1094,7 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 	if (!pci_dev_id)
 		return -ENOMEM;
 
-	pr_debug("wants to seize %04x:%02x:%02x.%d\n",
+	pr_de("wants to seize %04x:%02x:%02x.%d\n",
 		 domain, bus, slot, func);
 
 	pcistub_device_id_add_list(pci_dev_id, domain, bus, devfn);
@@ -1122,7 +1122,7 @@ static int pcistub_device_id_remove(int domain, int bus, int slot, int func)
 
 			err = 0;
 
-			pr_debug("removed %04x:%02x:%02x.%d from seize list\n",
+			pr_de("removed %04x:%02x:%02x.%d from seize list\n",
 				 domain, bus, slot, func);
 		}
 	}

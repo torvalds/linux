@@ -54,7 +54,7 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 	if (intel_wait_for_register(dev_priv,
 				    VLV_IOSF_DOORBELL_REQ, IOSF_SB_BUSY, 0,
 				    5)) {
-		DRM_DEBUG_DRIVER("IOSF sideband idle wait (%s) timed out\n",
+		DRM_DE_DRIVER("IOSF sideband idle wait (%s) timed out\n",
 				 is_read ? "read" : "write");
 		return -EAGAIN;
 	}
@@ -66,7 +66,7 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 	if (intel_wait_for_register(dev_priv,
 				    VLV_IOSF_DOORBELL_REQ, IOSF_SB_BUSY, 0,
 				    5)) {
-		DRM_DEBUG_DRIVER("IOSF sideband finish wait (%s) timed out\n",
+		DRM_DE_DRIVER("IOSF sideband finish wait (%s) timed out\n",
 				 is_read ? "read" : "write");
 		return -ETIMEDOUT;
 	}

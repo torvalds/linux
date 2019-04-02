@@ -193,7 +193,7 @@ static int gasket_alloc_dev(struct gasket_internal_desc *internal_desc,
 	struct gasket_cdev_info *dev_info;
 	const char *parent_name = dev_name(parent);
 
-	pr_debug("Allocating a Gasket device, parent %s.\n", parent_name);
+	pr_de("Allocating a Gasket device, parent %s.\n", parent_name);
 
 	*pdev = NULL;
 
@@ -1693,7 +1693,7 @@ int gasket_register_device(const struct gasket_driver_desc *driver_desc)
 	int desc_idx = -1;
 	struct gasket_internal_desc *internal;
 
-	pr_debug("Loading %s driver version %s\n", driver_desc->name,
+	pr_de("Loading %s driver version %s\n", driver_desc->name,
 		 driver_desc->driver_version);
 	/* Check for duplicates and find a free slot. */
 	mutex_lock(&g_mutex);
@@ -1790,7 +1790,7 @@ void gasket_unregister_device(const struct gasket_driver_desc *driver_desc)
 	g_descs[desc_idx].driver_desc = NULL;
 	mutex_unlock(&g_mutex);
 
-	pr_debug("removed %s driver\n", driver_desc->name);
+	pr_de("removed %s driver\n", driver_desc->name);
 }
 EXPORT_SYMBOL(gasket_unregister_device);
 

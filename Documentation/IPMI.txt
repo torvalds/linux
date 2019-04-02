@@ -524,13 +524,13 @@ spaces, so if the name is "This is an I2C chip" you can say
 adapter_name=ThisisanI2cchip.  This is because it's hard to pass in
 spaces in kernel parameters.
 
-The debug flags are bit flags for each BMC found, they are:
+The de flags are bit flags for each BMC found, they are:
 IPMI messages: 1, driver state: 2, timing: 4, I2C probe: 8
 
 The tryxxx parameters can be used to disable detecting interfaces
 from various sources.
 
-Setting dbg_probe to 1 will enable debugging of the probing and
+Setting dbg_probe to 1 will enable deging of the probing and
 detection process for BMCs on the SMBusses.
 
 The slave_addrs specifies the IPMI address of the local BMC.  This is

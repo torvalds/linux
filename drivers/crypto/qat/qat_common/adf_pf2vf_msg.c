@@ -359,7 +359,7 @@ static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	msg = ADF_VF2PF_MSGORIGIN_SYSTEM;
 	msg |= ADF_VF2PF_MSGTYPE_COMPAT_VER_REQ << ADF_VF2PF_MSGTYPE_SHIFT;
 	msg |= ADF_PFVF_COMPATIBILITY_VERSION << ADF_VF2PF_COMPAT_VER_REQ_SHIFT;
-	BUILD_BUG_ON(ADF_PFVF_COMPATIBILITY_VERSION > 255);
+	BUILD__ON(ADF_PFVF_COMPATIBILITY_VERSION > 255);
 
 	/* Send request from VF to PF */
 	ret = adf_iov_putmsg(accel_dev, msg, 0);

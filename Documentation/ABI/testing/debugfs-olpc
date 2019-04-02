@@ -1,4 +1,4 @@
-What:		/sys/kernel/debug/olpc-ec/cmd
+What:		/sys/kernel/de/olpc-ec/cmd
 Date:		Dec 2011
 KernelVersion:	3.4
 Contact:	devel@lists.laptop.org

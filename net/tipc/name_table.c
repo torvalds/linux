@@ -343,7 +343,7 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 	struct publication *p;
 
 	if (scope > TIPC_NODE_SCOPE || lower > upper) {
-		pr_debug("Failed to bind illegal {%u,%u,%u} with scope %u\n",
+		pr_de("Failed to bind illegal {%u,%u,%u} with scope %u\n",
 			 type, lower, upper, scope);
 		return NULL;
 	}

@@ -897,8 +897,8 @@
 #define mmFBC_CSM_REGION_OFFSET_23_BASE_IDX                                                            2
 #define mmFBC_CLIENT_REGION_MASK                                                                       0x007d
 #define mmFBC_CLIENT_REGION_MASK_BASE_IDX                                                              2
-#define mmFBC_DEBUG_COMP                                                                               0x007e
-#define mmFBC_DEBUG_COMP_BASE_IDX                                                                      2
+#define mmFBC_DE_COMP                                                                               0x007e
+#define mmFBC_DE_COMP_BASE_IDX                                                                      2
 #define mmFBC_MISC                                                                                     0x0084
 #define mmFBC_MISC_BASE_IDX                                                                            2
 #define mmFBC_STATUS                                                                                   0x0085
@@ -1809,8 +1809,8 @@
 #define mmDC_PAD_EXTERN_SIG_BASE_IDX                                                                   2
 #define mmDC_REF_CLK_CNTL                                                                              0x2081
 #define mmDC_REF_CLK_CNTL_BASE_IDX                                                                     2
-#define mmDC_GPIO_DEBUG                                                                                0x2082
-#define mmDC_GPIO_DEBUG_BASE_IDX                                                                       2
+#define mmDC_GPIO_DE                                                                                0x2082
+#define mmDC_GPIO_DE_BASE_IDX                                                                       2
 #define mmUNIPHYA_LINK_CNTL                                                                            0x2083
 #define mmUNIPHYA_LINK_CNTL_BASE_IDX                                                                   2
 #define mmUNIPHYA_CHANNEL_XBAR_CNTL                                                                    0x2084

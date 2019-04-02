@@ -190,7 +190,7 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
 
-		BUG_ON(len > PAGE_SIZE);
+		_ON(len > PAGE_SIZE);
 		err = nsblk_do_bvec(nsblk, bip, bvec.bv_page, len,
 				bvec.bv_offset, rw, iter.bi_sector);
 		if (err) {

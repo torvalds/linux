@@ -20,7 +20,7 @@ Introduction
 
 Ftrace is an internal tracer designed to help out developers and
 designers of systems to find what is going on inside the kernel.
-It can be used for debugging or analyzing latencies and
+It can be used for deging or analyzing latencies and
 performance issues that take place outside of user-space.
 
 Although ftrace is typically considered the function tracer, it
@@ -66,15 +66,15 @@ it::
 
 .. attention::
 
-  Before 4.1, all ftrace tracing control files were within the debugfs
-  file system, which is typically located at /sys/kernel/debug/tracing.
-  For backward compatibility, when mounting the debugfs file system,
+  Before 4.1, all ftrace tracing control files were within the defs
+  file system, which is typically located at /sys/kernel/de/tracing.
+  For backward compatibility, when mounting the defs file system,
   the tracefs file system will be automatically mounted at:
 
-  /sys/kernel/debug/tracing
+  /sys/kernel/de/tracing
 
   All files located in the tracefs file system will be located in that
-  debugfs file system directory as well.
+  defs file system directory as well.
 
 .. attention::
 
@@ -293,12 +293,12 @@ of ftrace. Here is a list of some of the key files:
 
   dyn_ftrace_total_info:
 
-	This file is for debugging purposes. The number of functions that
+	This file is for deging purposes. The number of functions that
 	have been converted to nops and are available to be traced.
 
   enabled_functions:
 
-	This file is more for debugging ftrace, but can also be useful
+	This file is more for deging ftrace, but can also be useful
 	in seeing if any function has a callback attached to it.
 	Not only does the trace infrastructure use ftrace function
 	trace utility, but other subsystems might too. This file
@@ -1400,7 +1400,7 @@ Here we traced a 71 microsecond latency. But we also see all the
 functions that were called during that time. Note that by
 enabling function tracing, we incur an added overhead. This
 overhead may extend the latency times. But nevertheless, this
-trace has provided some very helpful debugging information.
+trace has provided some very helpful deging information.
 
 If we prefer function graph output instead of function, we can set
 display-graph option::
@@ -1414,7 +1414,7 @@ display-graph option::
   #    -----------------
   #    | task: bash-1507 (uid:0 nice:0 policy:0 rt_prio:0)
   #    -----------------
-  #  => started at: free_debug_processing
+  #  => started at: free_de_processing
   #  => ended at:   return_to_handler
   #
   #
@@ -1439,7 +1439,7 @@ display-graph option::
        3750 us |   0)   bash-1507    |  d..1 |   0.000 us    |  _raw_spin_unlock_irqrestore();
        3764 us |   0)   bash-1507    |  d..1 |   0.000 us    |  tracer_hardirqs_on();
       bash-1507    0d..1 3792us : <stack trace>
-   => free_debug_processing
+   => free_de_processing
    => __slab_free
    => kmem_cache_free
    => vm_area_free
@@ -2160,7 +2160,7 @@ function
 --------
 
 This tracer is the function tracer. Enabling the function tracer
-can be done from the debug file system. Make sure the
+can be done from the de file system. Make sure the
 ftrace_enabled is set; otherwise this tracer is a nop.
 See the "ftrace_enabled" section below.
 ::
@@ -3003,25 +3003,25 @@ The following commands are supported:
   These commands turn tracing on and off when the specified
   functions are hit. The parameter determines how many times the
   tracing system is turned on and off. If unspecified, there is
-  no limit. For example, to disable tracing when a schedule bug
+  no limit. For example, to disable tracing when a schedule 
   is hit the first 5 times, run::
 
-   echo '__schedule_bug:traceoff:5' > set_ftrace_filter
+   echo '__schedule_:traceoff:5' > set_ftrace_filter
 
-  To always disable tracing when __schedule_bug is hit::
+  To always disable tracing when __schedule_ is hit::
 
-   echo '__schedule_bug:traceoff' > set_ftrace_filter
+   echo '__schedule_:traceoff' > set_ftrace_filter
 
   These commands are cumulative whether or not they are appended
   to set_ftrace_filter. To remove a command, prepend it by '!'
   and drop the parameter::
 
-   echo '!__schedule_bug:traceoff:0' > set_ftrace_filter
+   echo '!__schedule_:traceoff:0' > set_ftrace_filter
 
-  The above removes the traceoff command for __schedule_bug
+  The above removes the traceoff command for __schedule_
   that have a counter. To remove commands without counters::
 
-   echo '!__schedule_bug:traceoff' > set_ftrace_filter
+   echo '!__schedule_:traceoff' > set_ftrace_filter
 
 - snapshot:
   Will cause a snapshot to be triggered when the function is hit.
@@ -3065,7 +3065,7 @@ The following commands are supported:
 
 - dump:
   When the function is hit, it will dump the contents of the ftrace
-  ring buffer to the console. This is useful if you need to debug
+  ring buffer to the console. This is useful if you need to de
   something, and want to dump the trace when a certain function
   is hit. Perhaps it's a function that is called before a triple
   fault happens and does not allow you to get a regular dump.

@@ -294,13 +294,13 @@ static void scsiback_fast_flush_area(struct vscsibk_pend *req)
 		if (invcount < VSCSI_GRANT_BATCH)
 			continue;
 		err = gnttab_unmap_refs(unmap, NULL, pages, invcount);
-		BUG_ON(err);
+		_ON(err);
 		invcount = 0;
 	}
 
 	if (invcount) {
 		err = gnttab_unmap_refs(unmap, NULL, pages, invcount);
-		BUG_ON(err);
+		_ON(err);
 	}
 
 	put_free_pages(req->pages, req->n_grants);
@@ -423,7 +423,7 @@ static int scsiback_gnttab_data_map_batch(struct gnttab_map_grant_ref *map,
 		return 0;
 
 	err = gnttab_map_refs(map, NULL, pg, cnt);
-	BUG_ON(err);
+	_ON(err);
 	for (i = 0; i < cnt; i++) {
 		if (unlikely(map[i].status != GNTST_okay)) {
 			pr_err("invalid buffer -- could not remap it\n");
@@ -491,7 +491,7 @@ static int scsiback_gnttab_data_map(struct vscsiif_request *ring_req,
 		return 0;
 
 	if (nr_segments > VSCSIIF_SG_TABLESIZE) {
-		pr_debug("invalid parameter nr_seg = %d\n",
+		pr_de("invalid parameter nr_seg = %d\n",
 			ring_req->nr_segments);
 		return -EINVAL;
 	}
@@ -515,7 +515,7 @@ static int scsiback_gnttab_data_map(struct vscsiif_request *ring_req,
 			nr_segments += n_segs;
 		}
 		if (nr_segments > SG_ALL) {
-			pr_debug("invalid nr_seg = %d\n", nr_segments);
+			pr_de("invalid nr_seg = %d\n", nr_segments);
 			return -EINVAL;
 		}
 	}
@@ -686,12 +686,12 @@ static struct vscsibk_pend *prepare_pending_reqs(struct vscsibk_info *info,
 		(ring_req->sc_data_direction != DMA_TO_DEVICE) &&
 		(ring_req->sc_data_direction != DMA_FROM_DEVICE) &&
 		(ring_req->sc_data_direction != DMA_NONE)) {
-		pr_debug("invalid parameter data_dir = %d\n",
+		pr_de("invalid parameter data_dir = %d\n",
 			ring_req->sc_data_direction);
 		return ERR_PTR(-EINVAL);
 	}
 	if (ring_req->cmd_len > VSCSIIF_MAX_COMMAND_SIZE) {
-		pr_debug("invalid parameter cmd_len = %d\n",
+		pr_de("invalid parameter cmd_len = %d\n",
 			ring_req->cmd_len);
 		return ERR_PTR(-EINVAL);
 	}
@@ -702,7 +702,7 @@ static struct vscsibk_pend *prepare_pending_reqs(struct vscsibk_info *info,
 
 	v2p = scsiback_do_translation(info, &vir);
 	if (!v2p) {
-		pr_debug("the v2p of (chn:%d, tgt:%d, lun:%d) doesn't exist.\n",
+		pr_de("the v2p of (chn:%d, tgt:%d, lun:%d) doesn't exist.\n",
 			 vir.chn, vir.tgt, vir.lun);
 		return ERR_PTR(-ENODEV);
 	}
@@ -1241,7 +1241,7 @@ static int scsiback_probe(struct xenbus_device *dev,
 	struct vscsibk_info *info = kzalloc(sizeof(struct vscsibk_info),
 					    GFP_KERNEL);
 
-	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
+	pr_de("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (!info) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating backend structure");
@@ -1359,7 +1359,7 @@ check_len:
 	}
 	snprintf(&tport->tport_name[0], VSCSI_NAMELEN, "%s", &name[off]);
 
-	pr_debug("Allocated emulated Target %s Address: %s\n",
+	pr_de("Allocated emulated Target %s Address: %s\n",
 		 scsiback_dump_proto_id(tport), name);
 
 	return &tport->tport_wwn;
@@ -1370,7 +1370,7 @@ static void scsiback_drop_tport(struct se_wwn *wwn)
 	struct scsiback_tport *tport = container_of(wwn,
 				struct scsiback_tport, tport_wwn);
 
-	pr_debug("Deallocating emulated Target %s Address: %s\n",
+	pr_de("Deallocating emulated Target %s Address: %s\n",
 		 scsiback_dump_proto_id(tport), tport->tport_name);
 
 	kfree(tport);
@@ -1515,7 +1515,7 @@ static int scsiback_make_nexus(struct scsiback_tpg *tpg,
 
 	mutex_lock(&tpg->tv_tpg_mutex);
 	if (tpg->tpg_nexus) {
-		pr_debug("tpg->tpg_nexus already exists\n");
+		pr_de("tpg->tpg_nexus already exists\n");
 		ret = -EEXIST;
 		goto out_unlock;
 	}
@@ -1574,7 +1574,7 @@ static int scsiback_drop_nexus(struct scsiback_tpg *tpg)
 		return -EBUSY;
 	}
 
-	pr_debug("Removing I_T Nexus to emulated %s Initiator Port: %s\n",
+	pr_de("Removing I_T Nexus to emulated %s Initiator Port: %s\n",
 		scsiback_dump_proto_id(tpg->tport),
 		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
 
@@ -1853,7 +1853,7 @@ static int __init scsiback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	pr_debug("xen-pvscsi: fabric module %s on %s/%s on "UTS_RELEASE"\n",
+	pr_de("xen-pvscsi: fabric module %s on %s/%s on "UTS_RELEASE"\n",
 		 VSCSI_VERSION, utsname()->sysname, utsname()->machine);
 
 	ret = xenbus_register_backend(&scsiback_driver);
@@ -1879,7 +1879,7 @@ static void __exit scsiback_exit(void)
 
 	while (free_pages_num) {
 		if (get_free_page(&page))
-			BUG();
+			();
 		gnttab_free_pages(1, &page);
 	}
 	target_unregister_template(&scsiback_ops);

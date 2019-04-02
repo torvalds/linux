@@ -147,7 +147,7 @@ struct rtl28xxu_reg_val_mask {
  * memory map
  *
  * 0x0000 DEMOD : demodulator
- * 0x2000 USB   : SIE, USB endpoint, debug, DMA
+ * 0x2000 USB   : SIE, USB endpoint, de, DMA
  * 0x3000 SYS   : system
  * 0xfc00 RC    : remote controller (not RTL2831U)
  */
@@ -204,7 +204,7 @@ struct rtl28xxu_reg_val_mask {
 #define USB_EPA_FIFO_CFG_1 0x2161 /* EP A FIFO configure */
 #define USB_EPA_FIFO_CFG_2 0x2162 /* EP A FIFO configure */
 #define USB_EPA_FIFO_CFG_3 0x2163 /* EP A FIFO configure */
-/* Debug Registers */
+/* De Registers */
 #define USB_PHYTSTDIS      0x2F04 /* PHY test disable */
 #define USB_TOUT_VAL       0x2F08 /* USB time-out time */
 #define USB_VDRCTRL        0x2F10 /* UTMI vendor signal control */
@@ -222,8 +222,8 @@ struct rtl28xxu_reg_val_mask {
 #define USB_SLBBIST        0x2FA0 /* self-loop-back BIST */
 #define USB_CNTTEST        0x2FA4 /* counter test */
 #define USB_PHYTST         0x2FC0 /* USB PHY test */
-#define USB_DBGIDX         0x2FF0 /* select individual block debug signal */
-#define USB_DBGMUX         0x2FF4 /* debug signal module mux */
+#define USB_DBGIDX         0x2FF0 /* select individual block de signal */
+#define USB_DBGMUX         0x2FF4 /* de signal module mux */
 
 /*
  * SYS registers

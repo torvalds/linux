@@ -96,7 +96,7 @@ acpi_status acpi_hw_extended_sleep(u8 sleep_state)
 	 * Note: We only use the first value returned by the \_Sx method
 	 * (acpi_gbl_sleep_type_a) - As per ACPI specification.
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
+	ACPI_DE_PRINT((ACPI_DB_INIT,
 			  "Entering sleep state [S%u]\n", sleep_state));
 
 	sleep_control = ((acpi_gbl_sleep_type_a << ACPI_X_SLEEP_TYPE_POSITION) &

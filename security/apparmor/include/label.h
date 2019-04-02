@@ -426,14 +426,14 @@ static inline struct aa_label *aa_get_newest_label(struct aa_label *l)
 	if (label_is_stale(l)) {
 		struct aa_label *tmp;
 
-		AA_BUG(!l->proxy);
-		AA_BUG(!l->proxy->label);
-		/* BUG: only way this can happen is @l ref count and its
+		AA_(!l->proxy);
+		AA_(!l->proxy->label);
+		/* : only way this can happen is @l ref count and its
 		 * replacement count have gone to 0 and are on their way
 		 * to destruction. ie. we have a refcounting error
 		 */
 		tmp = aa_get_label_rcu(&l->proxy->label);
-		AA_BUG(!tmp);
+		AA_(!tmp);
 
 		return tmp;
 	}

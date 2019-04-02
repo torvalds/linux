@@ -147,7 +147,7 @@ static void __write_sbdshr(struct sbd_port *sport, int reg, u64 value)
 }
 
 /*
- * In bug 1956, we get glitches that can mess up uart registers.  This
+ * In  1956, we get glitches that can mess up uart registers.  This
  * "read-mode-reg after any register access" is an accepted workaround.
  */
 static void __war_sbd1956(struct sbd_port *sport)

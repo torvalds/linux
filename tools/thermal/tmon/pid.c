@@ -82,7 +82,7 @@ int init_thermal_controller(void)
 void controller_reset(void)
 {
 	/* TODO: relax control data when not over thermal limit */
-	syslog(LOG_DEBUG, "TC inactive, relax p-state\n");
+	syslog(LOG_DE, "TC inactive, relax p-state\n");
 	p_param.y_k = 0.0;
 	xk_1 = 0.0;
 	xk_2 = 0.0;
@@ -102,7 +102,7 @@ void controller_handler(const double xk, double *yk)
 
 	ek = p_param.t_target - xk; /* error */
 	if (ek >= 3.0) {
-		syslog(LOG_DEBUG, "PID: %3.1f Below set point %3.1f, stop\n",
+		syslog(LOG_DE, "PID: %3.1f Below set point %3.1f, stop\n",
 			xk, p_param.t_target);
 		controller_reset();
 		*yk = 0.0;

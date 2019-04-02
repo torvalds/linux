@@ -85,7 +85,7 @@ static void hugetlb_cgroup_init(struct hugetlb_cgroup *h_cgroup,
 		limit = round_down(PAGE_COUNTER_MAX,
 				   1 << huge_page_order(&hstates[idx]));
 		ret = page_counter_set_max(counter, limit);
-		VM_BUG_ON(ret);
+		VM__ON(ret);
 	}
 }
 
@@ -279,7 +279,7 @@ static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
 	case RES_FAILCNT:
 		return counter->failcnt;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -421,7 +421,7 @@ void hugetlb_cgroup_migrate(struct page *oldhpage, struct page *newhpage)
 	if (hugetlb_cgroup_disabled())
 		return;
 
-	VM_BUG_ON_PAGE(!PageHuge(oldhpage), oldhpage);
+	VM__ON_PAGE(!PageHuge(oldhpage), oldhpage);
 	spin_lock(&hugetlb_lock);
 	h_cg = hugetlb_cgroup_from_page(oldhpage);
 	set_hugetlb_cgroup(oldhpage, NULL);

@@ -2431,8 +2431,8 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	};
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
-	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
-	BUG_ON(!nfsd_attrs_supported(minorversion, bmval));
+	_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
+	_ON(!nfsd_attrs_supported(minorversion, bmval));
 
 	if (exp->ex_fslocs.migrated) {
 		status = fattr_handle_absent_fs(&bmval0, &bmval1, &bmval2, &rdattr_err);
@@ -3428,7 +3428,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 	/* XXX save filehandle here */
 	return 0;
@@ -4455,7 +4455,7 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	if (op->status && opdesc &&
 			!(opdesc->op_flags & OP_NONTRIVIAL_ERROR_ENCODE))
 		goto status;
-	BUG_ON(op->opnum < 0 || op->opnum >= ARRAY_SIZE(nfsd4_enc_ops) ||
+	_ON(op->opnum < 0 || op->opnum >= ARRAY_SIZE(nfsd4_enc_ops) ||
 	       !nfsd4_enc_ops[op->opnum]);
 	encoder = nfsd4_enc_ops[op->opnum];
 	op->status = encoder(resp, op->status, &op->u);
@@ -4486,7 +4486,7 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 		 * partially encoded.  No op returns anything additional
 		 * in the case of one of these three errors, so we can
 		 * just truncate back to after the status.  But it's a
-		 * bug if we had to do this on a non-idempotent op:
+		 *  if we had to do this on a non-idempotent op:
 		 */
 		warn_on_nonidempotent_op(op);
 		xdr_truncate_encode(xdr, post_err_offset);
@@ -4516,7 +4516,7 @@ nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
 	__be32 *p;
 	struct nfs4_replay *rp = op->replay;
 
-	BUG_ON(!rp);
+	_ON(!rp);
 
 	p = xdr_reserve_space(xdr, 8 + rp->rp_buflen);
 	if (!p) {

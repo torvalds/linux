@@ -616,7 +616,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 	 * won't result in wrapping the SGE's Producer Index around to
 	 * it's Consumer Index thereby indicating an empty Free List ...
 	 */
-	BUG_ON(fl->avail + n > fl->size - FL_PER_EQ_UNIT);
+	_ON(fl->avail + n > fl->size - FL_PER_EQ_UNIT);
 
 	gfp |= __GFP_NOWARN;
 
@@ -765,7 +765,7 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t hwsize,
 	 * If the caller wants a software ring, allocate it and return a
 	 * pointer to it in *swringp.
 	 */
-	BUG_ON((swsize != 0) != (swringp != NULL));
+	_ON((swsize != 0) != (swringp != NULL));
 	if (swsize) {
 		void *swring = kcalloc(nelem, swsize, GFP_KERNEL);
 
@@ -818,7 +818,7 @@ static inline unsigned int sgl_len(unsigned int n)
  */
 static inline unsigned int flits_to_desc(unsigned int flits)
 {
-	BUG_ON(flits > SGE_MAX_WR_LEN / sizeof(__be64));
+	_ON(flits > SGE_MAX_WR_LEN / sizeof(__be64));
 	return DIV_ROUND_UP(flits, TXD_PER_EQ_UNIT);
 }
 
@@ -1194,7 +1194,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	pi = netdev_priv(dev);
 	adapter = pi->adapter;
 	qidx = skb_get_queue_mapping(skb);
-	BUG_ON(qidx >= pi->nqsets);
+	_ON(qidx >= pi->nqsets);
 	txq = &adapter->sge.ethtxq[pi->first_qset + qidx];
 
 	if (pi->vlan_id && !skb_vlan_tag_present(skb))
@@ -1262,7 +1262,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * maximum header size ever exceeds one TX Descriptor, we'll need to
 	 * do something else here.
 	 */
-	BUG_ON(DIV_ROUND_UP(ETHTXQ_MAX_HDR, TXD_PER_EQ_UNIT) > 1);
+	_ON(DIV_ROUND_UP(ETHTXQ_MAX_HDR, TXD_PER_EQ_UNIT) > 1);
 	wr = (void *)&txq->q.desc[txq->q.pidx];
 	wr->equiq_to_len16 = cpu_to_be32(wr_mid);
 	wr->r3[0] = cpu_to_be32(0);
@@ -1805,8 +1805,8 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 			 * Gather packet fragments.
 			 */
 			for (frag = 0, fp = gl.frags; /**/; frag++, fp++) {
-				BUG_ON(frag >= MAX_SKB_FRAGS);
-				BUG_ON(rxq->fl.avail == 0);
+				_ON(frag >= MAX_SKB_FRAGS);
+				_ON(rxq->fl.avail == 0);
 				sdesc = &rxq->fl.sdesc[rxq->fl.cidx];
 				bufsz = get_buf_size(adapter, sdesc);
 				fp->page = sdesc->page;
@@ -1974,7 +1974,7 @@ static unsigned int process_intrq(struct adapter *adapter)
 		 * Ingress Queues which is active and matches the queue's ID.
 		 * None of these error conditions should ever happen so we may
 		 * want to either make them fatal and/or conditionalized under
-		 * DEBUG.
+		 * DE.
 		 */
 		qid = RSPD_QID_G(be32_to_cpu(rc->pldbuflen_qid));
 		iq_idx = IQ_IDX(s, qid);
@@ -2044,7 +2044,7 @@ static irqreturn_t t4vf_intr_msi(int irq, void *cookie)
  */
 irq_handler_t t4vf_intr_handler(struct adapter *adapter)
 {
-	BUG_ON((adapter->flags &
+	_ON((adapter->flags &
 	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
 	if (adapter->flags & CXGB4VF_USING_MSIX)
 		return t4vf_sge_intr_msix;

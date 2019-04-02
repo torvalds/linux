@@ -55,8 +55,8 @@ int prom_argc;
 char **prom_argv, **prom_envp;
 int *prom_vec;
 
-/* debug flag */
-int init_debug = 1;
+/* de flag */
+int init_de = 1;
 
 /* memory blocks */
 struct prom_pmemblock mdesc[PROM_MAX_PMEMBLOCKS];
@@ -153,13 +153,13 @@ int get_ethernet_addr(char *ethaddr_name, char *ethernet_addr)
 		return -1;
 	}
 
-	if (init_debug > 1) {
+	if (init_de > 1) {
 		int i;
-		printk(KERN_DEBUG "get_ethernet_addr: for %s ", ethaddr_name);
+		printk(KERN_DE "get_ethernet_addr: for %s ", ethaddr_name);
 		for (i = 0; i < 5; i++)
-			printk(KERN_DEBUG "%02x:",
+			printk(KERN_DE "%02x:",
 				(unsigned char)*(ethernet_addr+i));
-		printk(KERN_DEBUG "%02x\n", *(ethernet_addr+i));
+		printk(KERN_DE "%02x\n", *(ethernet_addr+i));
 	}
 
 	return 0;

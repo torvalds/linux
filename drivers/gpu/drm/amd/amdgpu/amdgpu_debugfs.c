@@ -25,52 +25,52 @@
 
 #include <linux/kthread.h>
 #include <drm/drmP.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "amdgpu.h"
 
 /**
- * amdgpu_debugfs_add_files - Add simple debugfs entries
+ * amdgpu_defs_add_files - Add simple defs entries
  *
- * @adev:  Device to attach debugfs entries to
+ * @adev:  Device to attach defs entries to
  * @files:  Array of function callbacks that respond to reads
  * @nfiles: Number of callbacks to register
  *
  */
-int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
+int amdgpu_defs_add_files(struct amdgpu_device *adev,
 			     const struct drm_info_list *files,
 			     unsigned nfiles)
 {
 	unsigned i;
 
-	for (i = 0; i < adev->debugfs_count; i++) {
-		if (adev->debugfs[i].files == files) {
+	for (i = 0; i < adev->defs_count; i++) {
+		if (adev->defs[i].files == files) {
 			/* Already registered */
 			return 0;
 		}
 	}
 
-	i = adev->debugfs_count + 1;
-	if (i > AMDGPU_DEBUGFS_MAX_COMPONENTS) {
-		DRM_ERROR("Reached maximum number of debugfs components.\n");
+	i = adev->defs_count + 1;
+	if (i > AMDGPU_DEFS_MAX_COMPONENTS) {
+		DRM_ERROR("Reached maximum number of defs components.\n");
 		DRM_ERROR("Report so we increase "
-			  "AMDGPU_DEBUGFS_MAX_COMPONENTS.\n");
+			  "AMDGPU_DEFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
-	adev->debugfs[adev->debugfs_count].files = files;
-	adev->debugfs[adev->debugfs_count].num_files = nfiles;
-	adev->debugfs_count = i;
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_create_files(files, nfiles,
-				 adev->ddev->primary->debugfs_root,
+	adev->defs[adev->defs_count].files = files;
+	adev->defs[adev->defs_count].num_files = nfiles;
+	adev->defs_count = i;
+#if defined(CONFIG_DE_FS)
+	drm_defs_create_files(files, nfiles,
+				 adev->ddev->primary->defs_root,
 				 adev->ddev->primary);
 #endif
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
 /**
- * amdgpu_debugfs_process_reg_op - Handle MMIO register reads/writes
+ * amdgpu_defs_process_reg_op - Handle MMIO register reads/writes
  *
  * @read: True if reading
  * @f: open file handle
@@ -78,7 +78,7 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
  * @size: Number of bytes to write/read
  * @pos:  Offset to seek to
  *
- * This debugfs entry has special meaning on the offset being sought.
+ * This defs entry has special meaning on the offset being sought.
  * Various bits have different meanings:
  *
  * Bit 62:  Indicates a GRBM bank switch is needed
@@ -96,7 +96,7 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
  * allows reading multiple registers in a single call and having
  * the returned size reflect that.
  */
-static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
+static int  amdgpu_defs_process_reg_op(bool read, struct file *f,
 		char __user *buf, size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -193,26 +193,26 @@ end:
 }
 
 /**
- * amdgpu_debugfs_regs_read - Callback for reading MMIO registers
+ * amdgpu_defs_regs_read - Callback for reading MMIO registers
  */
-static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_regs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	return amdgpu_debugfs_process_reg_op(true, f, buf, size, pos);
+	return amdgpu_defs_process_reg_op(true, f, buf, size, pos);
 }
 
 /**
- * amdgpu_debugfs_regs_write - Callback for writing MMIO registers
+ * amdgpu_defs_regs_write - Callback for writing MMIO registers
  */
-static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
+static ssize_t amdgpu_defs_regs_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
-	return amdgpu_debugfs_process_reg_op(false, f, (char __user *)buf, size, pos);
+	return amdgpu_defs_process_reg_op(false, f, (char __user *)buf, size, pos);
 }
 
 
 /**
- * amdgpu_debugfs_regs_pcie_read - Read from a PCIE register
+ * amdgpu_defs_regs_pcie_read - Read from a PCIE register
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -223,7 +223,7 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
  * allows reading multiple registers in a single call and having
  * the returned size reflect that.
  */
-static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_regs_pcie_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -251,7 +251,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 }
 
 /**
- * amdgpu_debugfs_regs_pcie_write - Write to a PCIE register
+ * amdgpu_defs_regs_pcie_write - Write to a PCIE register
  *
  * @f: open file handle
  * @buf: User buffer to write data from
@@ -262,7 +262,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
  * allows writing multiple registers in a single call and having
  * the returned size reflect that.
  */
-static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user *buf,
+static ssize_t amdgpu_defs_regs_pcie_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -291,7 +291,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 }
 
 /**
- * amdgpu_debugfs_regs_didt_read - Read from a DIDT register
+ * amdgpu_defs_regs_didt_read - Read from a DIDT register
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -302,7 +302,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
  * allows reading multiple registers in a single call and having
  * the returned size reflect that.
  */
-static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_regs_didt_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -330,7 +330,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 }
 
 /**
- * amdgpu_debugfs_regs_didt_write - Write to a DIDT register
+ * amdgpu_defs_regs_didt_write - Write to a DIDT register
  *
  * @f: open file handle
  * @buf: User buffer to write data from
@@ -341,7 +341,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
  * allows writing multiple registers in a single call and having
  * the returned size reflect that.
  */
-static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user *buf,
+static ssize_t amdgpu_defs_regs_didt_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -370,7 +370,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 }
 
 /**
- * amdgpu_debugfs_regs_smc_read - Read from a SMC register
+ * amdgpu_defs_regs_smc_read - Read from a SMC register
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -381,7 +381,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
  * allows reading multiple registers in a single call and having
  * the returned size reflect that.
  */
-static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_regs_smc_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -409,7 +409,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 }
 
 /**
- * amdgpu_debugfs_regs_smc_write - Write to a SMC register
+ * amdgpu_defs_regs_smc_write - Write to a SMC register
  *
  * @f: open file handle
  * @buf: User buffer to write data from
@@ -420,7 +420,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
  * allows writing multiple registers in a single call and having
  * the returned size reflect that.
  */
-static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *buf,
+static ssize_t amdgpu_defs_regs_smc_write(struct file *f, const char __user *buf,
 					 size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -449,7 +449,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 }
 
 /**
- * amdgpu_debugfs_gca_config_read - Read from gfx config data
+ * amdgpu_defs_gca_config_read - Read from gfx config data
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -462,7 +462,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
  * end so that older software can still read the data.
  */
 
-static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_gca_config_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -539,7 +539,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 }
 
 /**
- * amdgpu_debugfs_sensor_read - Read from the powerplay sensors
+ * amdgpu_defs_sensor_read - Read from the powerplay sensors
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -551,7 +551,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
  * 'amd_pp_sensors' enumeration.  For instance to read the UVD VCLK
  * you would use the offset 3 * 4 = 12.
  */
-static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_sensor_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = file_inode(f)->i_private;
@@ -590,7 +590,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	return !r ? outsize : r;
 }
 
-/** amdgpu_debugfs_wave_read - Read WAVE STATUS data
+/** amdgpu_defs_wave_read - Read WAVE STATUS data
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -611,7 +611,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
  * Followed by WAVE STATUS registers relevant to the GFX IP version
  * being used.  See gfx_v8_0_read_wave_data() for an example output.
  */
-static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_wave_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = f->f_inode->i_private;
@@ -661,7 +661,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 	return result;
 }
 
-/** amdgpu_debugfs_gpr_read - Read wave gprs
+/** amdgpu_defs_gpr_read - Read wave gprs
  *
  * @f: open file handle
  * @buf: User buffer to store read data in
@@ -683,7 +683,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
  * The return data comes from the SGPR or VGPR register bank for
  * the selected operational unit.
  */
-static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
+static ssize_t amdgpu_defs_gpr_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = f->f_inode->i_private;
@@ -743,66 +743,66 @@ err:
 	return result;
 }
 
-static const struct file_operations amdgpu_debugfs_regs_fops = {
+static const struct file_operations amdgpu_defs_regs_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_regs_read,
-	.write = amdgpu_debugfs_regs_write,
+	.read = amdgpu_defs_regs_read,
+	.write = amdgpu_defs_regs_write,
 	.llseek = default_llseek
 };
-static const struct file_operations amdgpu_debugfs_regs_didt_fops = {
+static const struct file_operations amdgpu_defs_regs_didt_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_regs_didt_read,
-	.write = amdgpu_debugfs_regs_didt_write,
+	.read = amdgpu_defs_regs_didt_read,
+	.write = amdgpu_defs_regs_didt_write,
 	.llseek = default_llseek
 };
-static const struct file_operations amdgpu_debugfs_regs_pcie_fops = {
+static const struct file_operations amdgpu_defs_regs_pcie_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_regs_pcie_read,
-	.write = amdgpu_debugfs_regs_pcie_write,
+	.read = amdgpu_defs_regs_pcie_read,
+	.write = amdgpu_defs_regs_pcie_write,
 	.llseek = default_llseek
 };
-static const struct file_operations amdgpu_debugfs_regs_smc_fops = {
+static const struct file_operations amdgpu_defs_regs_smc_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_regs_smc_read,
-	.write = amdgpu_debugfs_regs_smc_write,
-	.llseek = default_llseek
-};
-
-static const struct file_operations amdgpu_debugfs_gca_config_fops = {
-	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_gca_config_read,
+	.read = amdgpu_defs_regs_smc_read,
+	.write = amdgpu_defs_regs_smc_write,
 	.llseek = default_llseek
 };
 
-static const struct file_operations amdgpu_debugfs_sensors_fops = {
+static const struct file_operations amdgpu_defs_gca_config_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_sensor_read,
+	.read = amdgpu_defs_gca_config_read,
 	.llseek = default_llseek
 };
 
-static const struct file_operations amdgpu_debugfs_wave_fops = {
+static const struct file_operations amdgpu_defs_sensors_fops = {
 	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_wave_read,
-	.llseek = default_llseek
-};
-static const struct file_operations amdgpu_debugfs_gpr_fops = {
-	.owner = THIS_MODULE,
-	.read = amdgpu_debugfs_gpr_read,
+	.read = amdgpu_defs_sensor_read,
 	.llseek = default_llseek
 };
 
-static const struct file_operations *debugfs_regs[] = {
-	&amdgpu_debugfs_regs_fops,
-	&amdgpu_debugfs_regs_didt_fops,
-	&amdgpu_debugfs_regs_pcie_fops,
-	&amdgpu_debugfs_regs_smc_fops,
-	&amdgpu_debugfs_gca_config_fops,
-	&amdgpu_debugfs_sensors_fops,
-	&amdgpu_debugfs_wave_fops,
-	&amdgpu_debugfs_gpr_fops,
+static const struct file_operations amdgpu_defs_wave_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_defs_wave_read,
+	.llseek = default_llseek
+};
+static const struct file_operations amdgpu_defs_gpr_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_defs_gpr_read,
+	.llseek = default_llseek
 };
 
-static const char *debugfs_regs_names[] = {
+static const struct file_operations *defs_regs[] = {
+	&amdgpu_defs_regs_fops,
+	&amdgpu_defs_regs_didt_fops,
+	&amdgpu_defs_regs_pcie_fops,
+	&amdgpu_defs_regs_smc_fops,
+	&amdgpu_defs_gca_config_fops,
+	&amdgpu_defs_sensors_fops,
+	&amdgpu_defs_wave_fops,
+	&amdgpu_defs_gpr_fops,
+};
+
+static const char *defs_regs_names[] = {
 	"amdgpu_regs",
 	"amdgpu_regs_didt",
 	"amdgpu_regs_pcie",
@@ -814,42 +814,42 @@ static const char *debugfs_regs_names[] = {
 };
 
 /**
- * amdgpu_debugfs_regs_init -	Initialize debugfs entries that provide
+ * amdgpu_defs_regs_init -	Initialize defs entries that provide
  * 								register access.
  *
- * @adev: The device to attach the debugfs entries to
+ * @adev: The device to attach the defs entries to
  */
-int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
+int amdgpu_defs_regs_init(struct amdgpu_device *adev)
 {
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *ent, *root = minor->defs_root;
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
-		ent = debugfs_create_file(debugfs_regs_names[i],
+	for (i = 0; i < ARRAY_SIZE(defs_regs); i++) {
+		ent = defs_create_file(defs_regs_names[i],
 					  S_IFREG | S_IRUGO, root,
-					  adev, debugfs_regs[i]);
+					  adev, defs_regs[i]);
 		if (!i && !IS_ERR_OR_NULL(ent))
 			i_size_write(ent->d_inode, adev->rmmio_size);
-		adev->debugfs_regs[i] = ent;
+		adev->defs_regs[i] = ent;
 	}
 
 	return 0;
 }
 
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev)
+void amdgpu_defs_regs_cleanup(struct amdgpu_device *adev)
 {
 	unsigned i;
 
-	for (i = 0; i < ARRAY_SIZE(debugfs_regs); i++) {
-		if (adev->debugfs_regs[i]) {
-			debugfs_remove(adev->debugfs_regs[i]);
-			adev->debugfs_regs[i] = NULL;
+	for (i = 0; i < ARRAY_SIZE(defs_regs); i++) {
+		if (adev->defs_regs[i]) {
+			defs_remove(adev->defs_regs[i]);
+			adev->defs_regs[i] = NULL;
 		}
 	}
 }
 
-static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
+static int amdgpu_defs_test_ib(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -884,7 +884,7 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
+static int amdgpu_defs_get_vbios_dump(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -894,7 +894,7 @@ static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int amdgpu_debugfs_evict_vram(struct seq_file *m, void *data)
+static int amdgpu_defs_evict_vram(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -904,7 +904,7 @@ static int amdgpu_debugfs_evict_vram(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
+static int amdgpu_defs_evict_gtt(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -914,27 +914,27 @@ static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_debugfs_list[] = {
-	{"amdgpu_vbios", amdgpu_debugfs_get_vbios_dump},
-	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib},
-	{"amdgpu_evict_vram", &amdgpu_debugfs_evict_vram},
-	{"amdgpu_evict_gtt", &amdgpu_debugfs_evict_gtt},
+static const struct drm_info_list amdgpu_defs_list[] = {
+	{"amdgpu_vbios", amdgpu_defs_get_vbios_dump},
+	{"amdgpu_test_ib", &amdgpu_defs_test_ib},
+	{"amdgpu_evict_vram", &amdgpu_defs_evict_vram},
+	{"amdgpu_evict_gtt", &amdgpu_defs_evict_gtt},
 };
 
-int amdgpu_debugfs_init(struct amdgpu_device *adev)
+int amdgpu_defs_init(struct amdgpu_device *adev)
 {
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
-					ARRAY_SIZE(amdgpu_debugfs_list));
+	return amdgpu_defs_add_files(adev, amdgpu_defs_list,
+					ARRAY_SIZE(amdgpu_defs_list));
 }
 
 #else
-int amdgpu_debugfs_init(struct amdgpu_device *adev)
+int amdgpu_defs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
+int amdgpu_defs_regs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
-void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev) { }
+void amdgpu_defs_regs_cleanup(struct amdgpu_device *adev) { }
 #endif

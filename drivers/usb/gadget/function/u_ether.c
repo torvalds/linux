@@ -7,7 +7,7 @@
  * Copyright (C) 2008 Nokia Corporation
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -102,7 +102,7 @@ static inline int qlen(struct usb_gadget *gadget, unsigned qmult)
 /*-------------------------------------------------------------------------*/
 
 /* REVISIT there must be a better way than having two sets
- * of debug calls ...
+ * of de calls ...
  */
 
 #undef DBG
@@ -113,21 +113,21 @@ static inline int qlen(struct usb_gadget *gadget, unsigned qmult)
 #define xprintk(d, level, fmt, args...) \
 	printk(level "%s: " fmt , (d)->net->name , ## args)
 
-#ifdef DEBUG
-#undef DEBUG
+#ifdef DE
+#undef DE
 #define DBG(dev, fmt, args...) \
-	xprintk(dev , KERN_DEBUG , fmt , ## args)
+	xprintk(dev , KERN_DE , fmt , ## args)
 #else
 #define DBG(dev, fmt, args...) \
 	do { } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
-#ifdef VERBOSE_DEBUG
+#ifdef VERBOSE_DE
 #define VDBG	DBG
 #else
 #define VDBG(dev, fmt, args...) \
 	do { } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
 #define ERROR(dev, fmt, args...) \
 	xprintk(dev , KERN_ERR , fmt , ## args)

@@ -196,7 +196,7 @@ static struct ocfs2_live_connection *ocfs2_connection_find(const char *name)
 	size_t len = strlen(name);
 	struct ocfs2_live_connection *c;
 
-	BUG_ON(!mutex_is_locked(&ocfs2_control_lock));
+	_ON(!mutex_is_locked(&ocfs2_control_lock));
 
 	list_for_each_entry(c, &ocfs2_live_connection_list, oc_list) {
 		if ((c->oc_conn->cc_namelen == len) &&
@@ -290,7 +290,7 @@ static void ocfs2_control_send_down(const char *uuid,
 
 	c = ocfs2_connection_find(uuid);
 	if (c) {
-		BUG_ON(c->oc_conn == NULL);
+		_ON(c->oc_conn == NULL);
 		c->oc_conn->cc_recovery_handler(nodenum,
 						c->oc_conn->cc_recovery_data);
 	}
@@ -311,7 +311,7 @@ static int ocfs2_control_install_private(struct file *file)
 	int set_p = 1;
 	struct ocfs2_control_private *p = file->private_data;
 
-	BUG_ON(p->op_state != OCFS2_CONTROL_HANDSHAKE_PROTOCOL);
+	_ON(p->op_state != OCFS2_CONTROL_HANDSHAKE_PROTOCOL);
 
 	mutex_lock(&ocfs2_control_lock);
 
@@ -536,7 +536,7 @@ static ssize_t ocfs2_control_write(struct file *file,
 			break;
 
 		default:
-			BUG();
+			();
 			ret = -EIO;
 			break;
 	}
@@ -994,7 +994,7 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 	struct ocfs2_live_connection *lc;
 	int rc, ops_rv;
 
-	BUG_ON(conn == NULL);
+	_ON(conn == NULL);
 
 	lc = kzalloc(sizeof(struct ocfs2_live_connection), GFP_KERNEL);
 	if (!lc)

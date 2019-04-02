@@ -103,18 +103,18 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 
 	mantis->mantis_int_stat = stat;
 	mantis->mantis_int_mask = mask;
-	dprintk(MANTIS_DEBUG, 0, "\n-- Stat=<%02x> Mask=<%02x> --", stat, mask);
+	dprintk(MANTIS_DE, 0, "\n-- Stat=<%02x> Mask=<%02x> --", stat, mask);
 	if (stat & MANTIS_INT_RISCEN) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[0]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[0]);
 	}
 	if (stat & MANTIS_INT_IRQ0) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[1]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[1]);
 		mantis->gpif_status = rst_stat;
 		wake_up(&ca->hif_write_wq);
 		schedule_work(&ca->hif_evm_work);
 	}
 	if (stat & MANTIS_INT_IRQ1) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[2]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[2]);
 		spin_lock(&mantis->intmask_lock);
 		mmwrite(mmread(MANTIS_INT_MASK) & ~MANTIS_INT_IRQ1,
 			MANTIS_INT_MASK);
@@ -122,27 +122,27 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 		schedule_work(&mantis->uart_work);
 	}
 	if (stat & MANTIS_INT_OCERR) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[3]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[3]);
 	}
 	if (stat & MANTIS_INT_PABORT) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[4]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[4]);
 	}
 	if (stat & MANTIS_INT_RIPERR) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[5]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[5]);
 	}
 	if (stat & MANTIS_INT_PPERR) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[6]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[6]);
 	}
 	if (stat & MANTIS_INT_FTRGT) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[7]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[7]);
 	}
 	if (stat & MANTIS_INT_RISCI) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[8]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[8]);
 		mantis->busy_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
 		tasklet_schedule(&mantis->tasklet);
 	}
 	if (stat & MANTIS_INT_I2CDONE) {
-		dprintk(MANTIS_DEBUG, 0, "<%s>", label[9]);
+		dprintk(MANTIS_DE, 0, "<%s>", label[9]);
 		wake_up(&mantis->i2c_wq);
 	}
 	mmwrite(stat, MANTIS_INT_STAT);
@@ -158,9 +158,9 @@ static irqreturn_t mantis_irq_handler(int irq, void *dev_id)
 		  MANTIS_INT_RISCI);
 
 	if (stat)
-		dprintk(MANTIS_DEBUG, 0, "<Unknown> Stat=<%02x> Mask=<%02x>", stat, mask);
+		dprintk(MANTIS_DE, 0, "<Unknown> Stat=<%02x> Mask=<%02x>", stat, mask);
 
-	dprintk(MANTIS_DEBUG, 0, "\n");
+	dprintk(MANTIS_DE, 0, "\n");
 	return IRQ_HANDLED;
 }
 

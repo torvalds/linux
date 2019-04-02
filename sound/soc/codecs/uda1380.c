@@ -115,14 +115,14 @@ static int uda1380_write(struct snd_soc_component *component, unsigned int reg,
 	 */
 	if (!snd_soc_component_is_active(component) && (reg >= UDA1380_MVOL))
 		return 0;
-	pr_debug("uda1380: hw write %x val %x\n", reg, value);
+	pr_de("uda1380: hw write %x val %x\n", reg, value);
 	if (i2c_master_send(uda1380->i2c, data, 3) == 3) {
 		unsigned int val;
 		i2c_master_send(uda1380->i2c, data, 1);
 		i2c_master_recv(uda1380->i2c, data, 2);
 		val = (data[0]<<8) | data[1];
 		if (val != value) {
-			pr_debug("uda1380: READ BACK VAL %x\n",
+			pr_de("uda1380: READ BACK VAL %x\n",
 					(data[0]<<8) | data[1]);
 			return -EIO;
 		}
@@ -184,7 +184,7 @@ static void uda1380_flush_work(struct work_struct *work)
 
 	for_each_set_bit(bit, &uda1380_cache_dirty, UDA1380_CACHEREGNUM - 0x10) {
 		reg = 0x10 + bit;
-		pr_debug("uda1380: flush reg %x val %x:\n", reg,
+		pr_de("uda1380: flush reg %x val %x:\n", reg,
 				uda1380_read_reg_cache(uda1380_component, reg));
 		uda1380_write(uda1380_component, reg,
 				uda1380_read_reg_cache(uda1380_component, reg));

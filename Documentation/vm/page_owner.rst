@@ -8,7 +8,7 @@ Introduction
 ============
 
 page owner is for the tracking about who allocated each page.
-It can be used to debug memory leak or to find a memory hogger.
+It can be used to de memory leak or to find a memory hogger.
 When allocation happens, information about allocation such as call stack
 and order of pages is stored into certain storage for each page.
 When we need to know about status of all pages, we can get and analyze
@@ -19,7 +19,7 @@ using it for analyzing who allocate each page is rather complex. We need
 to enlarge the trace buffer for preventing overlapping until userspace
 program launched. And, launched program continually dump out the trace
 buffer for later analysis and it would change system behviour with more
-possibility rather than just keeping it in memory, so bad for debugging.
+possibility rather than just keeping it in memory, so bad for deging.
 
 page owner can also be used for various purposes. For example, accurate
 fragmentation statistics can be obtained through gfp flag information of
@@ -52,7 +52,7 @@ size change due to this facility.
 
 Although, roughly, 4 KB code is added in total, page_alloc.o increase by
 230 bytes and only half of it is in hotpath. Building the kernel with
-page owner and turning it on if needed would be great option to debug
+page owner and turning it on if needed would be great option to de
 kernel memory problem.
 
 There is one notice that is caused by implementation detail. page owner
@@ -78,11 +78,11 @@ Usage
 
 2) Enable page owner: add "page_owner=on" to boot cmdline.
 
-3) Do the job what you want to debug
+3) Do the job what you want to de
 
 4) Analyze information from page owner::
 
-	cat /sys/kernel/debug/page_owner > page_owner_full.txt
+	cat /sys/kernel/de/page_owner > page_owner_full.txt
 	grep -v ^PFN page_owner_full.txt > page_owner.txt
 	./page_owner_sort page_owner.txt sorted_page_owner.txt
 

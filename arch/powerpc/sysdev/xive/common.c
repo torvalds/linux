@@ -13,7 +13,7 @@
 #include <linux/threads.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
@@ -36,10 +36,10 @@
 
 #include "xive-internal.h"
 
-#undef DEBUG_FLUSH
-#undef DEBUG_ALL
+#undef DE_FLUSH
+#undef DE_ALL
 
-#ifdef DEBUG_ALL
+#ifdef DE_ALL
 #define DBG_VERBOSE(fmt, ...)	pr_devel("cpu %d - " fmt, \
 					 smp_processor_id(), ## __VA_ARGS__)
 #else
@@ -196,7 +196,7 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 	u64 val;
 
 	/* Handle HW errata */
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
+	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_)
 		offset |= offset << 4;
 
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
@@ -210,7 +210,7 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 {
 	/* Handle HW errata */
-	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
+	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_)
 		offset |= offset << 4;
 
 	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
@@ -1061,7 +1061,7 @@ static int xive_setup_cpu_ipi(unsigned int cpu)
 	struct xive_cpu *xc;
 	int rc;
 
-	pr_debug("Setting up IPI for CPU %d\n", cpu);
+	pr_de("Setting up IPI for CPU %d\n", cpu);
 
 	xc = per_cpu(xive_cpu, cpu);
 
@@ -1335,7 +1335,7 @@ static void xive_flush_cpu_queue(unsigned int cpu, struct xive_cpu *xc)
 		 * stale in the old queue, so re-trigger it in order to make
 		 * it reach is new destination.
 		 */
-#ifdef DEBUG_FLUSH
+#ifdef DE_FLUSH
 		pr_info("CPU %d: Got irq %d while offline, re-sending...\n",
 			cpu, irq);
 #endif

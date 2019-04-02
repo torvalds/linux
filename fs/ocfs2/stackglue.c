@@ -158,8 +158,8 @@ static int ocfs2_stack_driver_get(const char *stack_name)
 static void ocfs2_stack_driver_put(void)
 {
 	spin_lock(&ocfs2_stack_lock);
-	BUG_ON(active_stack == NULL);
-	BUG_ON(active_stack->sp_count == 0);
+	_ON(active_stack == NULL);
+	_ON(active_stack->sp_count == 0);
 
 	active_stack->sp_count--;
 	if (!active_stack->sp_count) {
@@ -199,9 +199,9 @@ void ocfs2_stack_glue_unregister(struct ocfs2_stack_plugin *plugin)
 	spin_lock(&ocfs2_stack_lock);
 	p = ocfs2_stack_lookup(plugin->sp_name);
 	if (p) {
-		BUG_ON(p != plugin);
-		BUG_ON(plugin == active_stack);
-		BUG_ON(plugin->sp_count != 0);
+		_ON(p != plugin);
+		_ON(plugin == active_stack);
+		_ON(plugin->sp_count != 0);
 		list_del_init(&plugin->sp_list);
 		printk(KERN_INFO "ocfs2: Unregistered cluster interface %s\n",
 		       plugin->sp_name);
@@ -220,7 +220,7 @@ void ocfs2_stack_glue_set_max_proto_version(struct ocfs2_protocol_version *max_p
 	spin_lock(&ocfs2_stack_lock);
 	if (memcmp(max_proto, &locking_max_version,
 		   sizeof(struct ocfs2_protocol_version))) {
-		BUG_ON(locking_max_version.pv_major != 0);
+		_ON(locking_max_version.pv_major != 0);
 
 		locking_max_version = *max_proto;
 		list_for_each_entry(p, &ocfs2_stack_list, sp_list) {
@@ -248,7 +248,7 @@ int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 	if (!lksb->lksb_conn)
 		lksb->lksb_conn = conn;
 	else
-		BUG_ON(lksb->lksb_conn != conn);
+		_ON(lksb->lksb_conn != conn);
 	return active_stack->sp_ops->dlm_lock(conn, mode, lksb, flags,
 					      name, namelen);
 }
@@ -258,7 +258,7 @@ int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     struct ocfs2_dlm_lksb *lksb,
 		     u32 flags)
 {
-	BUG_ON(lksb->lksb_conn == NULL);
+	_ON(lksb->lksb_conn == NULL);
 
 	return active_stack->sp_ops->dlm_unlock(conn, lksb, flags);
 }
@@ -322,9 +322,9 @@ int ocfs2_cluster_connect(const char *stack_name,
 	int rc = 0;
 	struct ocfs2_cluster_connection *new_conn;
 
-	BUG_ON(group == NULL);
-	BUG_ON(conn == NULL);
-	BUG_ON(recovery_handler == NULL);
+	_ON(group == NULL);
+	_ON(conn == NULL);
+	_ON(recovery_handler == NULL);
 
 	if (grouplen > GROUP_NAME_MAX) {
 		rc = -EINVAL;
@@ -404,7 +404,7 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 {
 	int ret;
 
-	BUG_ON(conn == NULL);
+	_ON(conn == NULL);
 
 	ret = active_stack->sp_ops->disconnect(conn);
 
@@ -457,8 +457,8 @@ static void ocfs2_leave_group(const char *group)
  */
 void ocfs2_cluster_hangup(const char *group, int grouplen)
 {
-	BUG_ON(group == NULL);
-	BUG_ON(group[grouplen] != '\0');
+	_ON(group == NULL);
+	_ON(group[grouplen] != '\0');
 
 	ocfs2_leave_group(group);
 

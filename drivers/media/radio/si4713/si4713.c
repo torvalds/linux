@@ -32,9 +32,9 @@
 #include "si4713.h"
 
 /* module parameters */
-static int debug;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level (0 - 2)");
+static int de;
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level (0 - 2)");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@nokia.com>");
@@ -97,14 +97,14 @@ MODULE_VERSION("0.0.1");
 /* mute definition */
 #define set_mute(p)	((p & 1) | ((p & 1) << 1));
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG_BUFFER(device, message, buffer, size)			\
 	{								\
 		int i;							\
 		char str[(size)*5];					\
 		for (i = 0; i < size; i++)				\
 			sprintf(str + i * 5, " 0x%02x", buffer[i]);	\
-		v4l2_dbg(2, debug, device, "%s:%s\n", message, str);	\
+		v4l2_dbg(2, de, device, "%s:%s\n", message, str);	\
 	}
 #else
 #define DBG_BUFFER(device, message, buffer, size)
@@ -182,7 +182,7 @@ static irqreturn_t si4713_handler(int irq, void *dev)
 {
 	struct si4713_device *sdev = dev;
 
-	v4l2_dbg(2, debug, &sdev->sd,
+	v4l2_dbg(2, de, &sdev->sd,
 			"%s: sending signal to completion work.\n", __func__);
 	complete(&sdev->work);
 
@@ -288,7 +288,7 @@ static int si4713_read_property(struct si4713_device *sdev, u16 prop, u32 *pv)
 
 	*pv = compose_u16(val[2], val[3]);
 
-	v4l2_dbg(1, debug, &sdev->sd,
+	v4l2_dbg(1, de, &sdev->sd,
 			"%s: property=0x%02x value=0x%02x status=0x%02x\n",
 			__func__, prop, *pv, val[0]);
 
@@ -328,7 +328,7 @@ static int si4713_write_property(struct si4713_device *sdev, u16 prop, u16 val)
 	if (rval < 0)
 		return rval;
 
-	v4l2_dbg(1, debug, &sdev->sd,
+	v4l2_dbg(1, de, &sdev->sd,
 			"%s: property=0x%02x value=0x%02x status=0x%02x\n",
 			__func__, prop, val, resp[0]);
 
@@ -393,9 +393,9 @@ static int si4713_powerup(struct si4713_device *sdev)
 					TIMEOUT_POWER_UP);
 
 	if (!err) {
-		v4l2_dbg(1, debug, &sdev->sd, "Powerup response: 0x%02x\n",
+		v4l2_dbg(1, de, &sdev->sd, "Powerup response: 0x%02x\n",
 				resp[0]);
-		v4l2_dbg(1, debug, &sdev->sd, "Device in power up mode\n");
+		v4l2_dbg(1, de, &sdev->sd, "Device in power up mode\n");
 		sdev->power_state = POWER_ON;
 
 		if (client->irq)
@@ -439,9 +439,9 @@ static int si4713_powerdown(struct si4713_device *sdev)
 					DEFAULT_TIMEOUT);
 
 	if (!err) {
-		v4l2_dbg(1, debug, &sdev->sd, "Power down response: 0x%02x\n",
+		v4l2_dbg(1, de, &sdev->sd, "Power down response: 0x%02x\n",
 				resp[0]);
-		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
+		v4l2_dbg(1, de, &sdev->sd, "Device in reset mode\n");
 		if (sdev->gpio_reset)
 			gpiod_set_value(sdev->gpio_reset, 0);
 
@@ -521,7 +521,7 @@ static int si4713_wait_stc(struct si4713_device *sdev, const int usecs)
 		/* The USB device returns errors when it waits for the
 		 * STC bit to be set. Hence polling */
 		if (err >= 0) {
-			v4l2_dbg(1, debug, &sdev->sd,
+			v4l2_dbg(1, de, &sdev->sd,
 				"%s: status bits: 0x%02x\n", __func__, resp[0]);
 
 			if (resp[0] & SI4713_STC_INT)
@@ -566,7 +566,7 @@ static int si4713_tx_tune_freq(struct si4713_device *sdev, u16 frequency)
 	if (err < 0)
 		return err;
 
-	v4l2_dbg(1, debug, &sdev->sd,
+	v4l2_dbg(1, de, &sdev->sd,
 			"%s: frequency=0x%02x status=0x%02x\n", __func__,
 			frequency, val[0]);
 
@@ -617,7 +617,7 @@ static int si4713_tx_tune_power(struct si4713_device *sdev, u8 power,
 	if (err < 0)
 		return err;
 
-	v4l2_dbg(1, debug, &sdev->sd,
+	v4l2_dbg(1, de, &sdev->sd,
 			"%s: power=0x%02x antcap=0x%02x status=0x%02x\n",
 			__func__, power, antcap, val[0]);
 
@@ -666,7 +666,7 @@ static int si4713_tx_tune_measure(struct si4713_device *sdev, u16 frequency,
 	if (err < 0)
 		return err;
 
-	v4l2_dbg(1, debug, &sdev->sd,
+	v4l2_dbg(1, de, &sdev->sd,
 			"%s: frequency=0x%02x antcap=0x%02x status=0x%02x\n",
 			__func__, frequency, antcap, val[0]);
 
@@ -705,14 +705,14 @@ static int si4713_tx_tune_status(struct si4713_device *sdev, u8 intack,
 				  ARRAY_SIZE(val), DEFAULT_TIMEOUT);
 
 	if (!err) {
-		v4l2_dbg(1, debug, &sdev->sd,
+		v4l2_dbg(1, de, &sdev->sd,
 			"%s: status=0x%02x\n", __func__, val[0]);
 		*frequency = compose_u16(val[2], val[3]);
 		sdev->frequency = *frequency;
 		*power = val[5];
 		*antcap = val[6];
 		*noise = val[7];
-		v4l2_dbg(1, debug, &sdev->sd,
+		v4l2_dbg(1, de, &sdev->sd,
 			 "%s: response: %d x 10 kHz (power %d, antcap %d, rnl %d)\n",
 			 __func__, *frequency, *power, *antcap, *noise);
 	}
@@ -751,10 +751,10 @@ static int si4713_tx_rds_buff(struct si4713_device *sdev, u8 mode, u16 rdsb,
 				  ARRAY_SIZE(val), DEFAULT_TIMEOUT);
 
 	if (!err) {
-		v4l2_dbg(1, debug, &sdev->sd,
+		v4l2_dbg(1, de, &sdev->sd,
 			"%s: status=0x%02x\n", __func__, val[0]);
 		*cbleft = (s8)val[2] - val[3];
-		v4l2_dbg(1, debug, &sdev->sd,
+		v4l2_dbg(1, de, &sdev->sd,
 			 "%s: response: interrupts 0x%02x cb avail: %d cb used %d fifo avail %d fifo used %d\n",
 			 __func__, val[1], val[2], val[3], val[4], val[5]);
 	}
@@ -789,7 +789,7 @@ static int si4713_tx_rds_ps(struct si4713_device *sdev, u8 psid,
 	if (err < 0)
 		return err;
 
-	v4l2_dbg(1, debug, &sdev->sd, "%s: status=0x%02x\n", __func__, val[0]);
+	v4l2_dbg(1, de, &sdev->sd, "%s: status=0x%02x\n", __func__, val[0]);
 
 	return err;
 }
@@ -1589,7 +1589,7 @@ static int si4713_probe(struct i2c_client *client,
 			v4l2_err(&sdev->sd, "Could not request IRQ\n");
 			goto free_ctrls;
 		}
-		v4l2_dbg(1, debug, &sdev->sd, "IRQ requested.\n");
+		v4l2_dbg(1, de, &sdev->sd, "IRQ requested.\n");
 	} else {
 		v4l2_warn(&sdev->sd, "IRQ not configured. Using timeouts.\n");
 	}

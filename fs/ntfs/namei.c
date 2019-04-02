@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 
 #include "attrib.h"
-#include "debug.h"
+#include "de.h"
 #include "dir.h"
 #include "mft.h"
 #include "ntfs.h"
@@ -111,7 +111,7 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	unsigned long dent_ino;
 	int uname_len;
 
-	ntfs_debug("Looking up %pd in directory inode 0x%lx.",
+	ntfs_de("Looking up %pd in directory inode 0x%lx.",
 			dent, dir_ino->i_ino);
 	/* Convert the name of the dentry to Unicode. */
 	uname_len = ntfs_nlstoucs(vol, dent->d_name.name, dent->d_name.len,
@@ -127,7 +127,7 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	kmem_cache_free(ntfs_name_cache, uname);
 	if (!IS_ERR_MREF(mref)) {
 		dent_ino = MREF(mref);
-		ntfs_debug("Found inode 0x%lx. Calling ntfs_iget.", dent_ino);
+		ntfs_de("Found inode 0x%lx. Calling ntfs_iget.", dent_ino);
 		dent_inode = ntfs_iget(vol->sb, dent_ino);
 		if (likely(!IS_ERR(dent_inode))) {
 			/* Consistency check. */
@@ -136,7 +136,7 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 					dent_ino == FILE_MFT) {
 				/* Perfect WIN32/POSIX match. -- Case 1. */
 				if (!name) {
-					ntfs_debug("Done.  (Case 1.)");
+					ntfs_de("Done.  (Case 1.)");
 					return d_splice_alias(dent_inode, dent);
 				}
 				/*
@@ -163,10 +163,10 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	}
 	/* It is guaranteed that @name is no longer allocated at this point. */
 	if (MREF_ERR(mref) == -ENOENT) {
-		ntfs_debug("Entry was not found, adding negative dentry.");
+		ntfs_de("Entry was not found, adding negative dentry.");
 		/* The dcache will handle negative entries. */
 		d_add(dent, NULL);
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 		return NULL;
 	}
 	ntfs_error(vol->sb, "ntfs_lookup_ino_by_name() failed with error "
@@ -183,7 +183,7 @@ handle_name:
 
 	nls_name.name = NULL;
 	if (name->type != FILE_NAME_DOS) {			/* Case 2. */
-		ntfs_debug("Case 2.");
+		ntfs_de("Case 2.");
 		nls_name.len = (unsigned)ntfs_ucstonls(vol,
 				(ntfschar*)&name->name, name->len,
 				(unsigned char**)&nls_name.name, 0);
@@ -191,7 +191,7 @@ handle_name:
 	} else /* if (name->type == FILE_NAME_DOS) */ {		/* Case 3. */
 		FILE_NAME_ATTR *fn;
 
-		ntfs_debug("Case 3.");
+		ntfs_de("Case 3.");
 		kfree(name);
 
 		/* Find the WIN32 name corresponding to the matched DOS name. */
@@ -308,7 +308,7 @@ static struct dentry *ntfs_get_parent(struct dentry *child_dent)
 	unsigned long parent_ino;
 	int err;
 
-	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
+	ntfs_de("Entering for inode 0x%lx.", vi->i_ino);
 	/* Get the mft record of the inode belonging to the child dentry. */
 	mrec = map_mft_record(ni);
 	if (IS_ERR(mrec))

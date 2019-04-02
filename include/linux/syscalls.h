@@ -76,7 +76,7 @@ struct io_uring_params;
 #include <linux/capability.h>
 #include <linux/signal.h>
 #include <linux/list.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/sem.h>
 #include <asm/siginfo.h>
 #include <linux/unistd.h>
@@ -122,7 +122,7 @@ struct io_uring_params;
 #define __SC_LONG(t, a) __typeof(__builtin_choose_expr(__TYPE_IS_LL(t), 0LL, 0L)) a
 #define __SC_CAST(t, a)	(__force t) a
 #define __SC_ARGS(t, a)	a
-#define __SC_TEST(t, a) (void)BUILD_BUG_ON_ZERO(!__TYPE_IS_LL(t) && sizeof(t) > sizeof(long))
+#define __SC_TEST(t, a) (void)BUILD__ON_ZERO(!__TYPE_IS_LL(t) && sizeof(t) > sizeof(long))
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define __SC_STR_ADECL(t, a)	#a

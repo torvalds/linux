@@ -51,8 +51,8 @@ void rcu_segcblist_init(struct rcu_segcblist *rsclp)
 {
 	int i;
 
-	BUILD_BUG_ON(RCU_NEXT_TAIL + 1 != ARRAY_SIZE(rsclp->gp_seq));
-	BUILD_BUG_ON(ARRAY_SIZE(rsclp->tails) != ARRAY_SIZE(rsclp->gp_seq));
+	BUILD__ON(RCU_NEXT_TAIL + 1 != ARRAY_SIZE(rsclp->gp_seq));
+	BUILD__ON(ARRAY_SIZE(rsclp->tails) != ARRAY_SIZE(rsclp->gp_seq));
 	rsclp->head = NULL;
 	for (i = 0; i < RCU_CBLIST_NSEGS; i++)
 		rsclp->tails[i] = &rsclp->head;

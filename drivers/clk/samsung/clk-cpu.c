@@ -13,7 +13,7 @@
  * Exynos platforms. A CPU clock is defined as a clock supplied to a CPU or a
  * group of CPUs. The CPU clock is typically derived from a hierarchy of clock
  * blocks which includes mux and divider blocks. There are a number of other
- * auxiliary clocks supplied to the CPU domain such as the debug blocks and AXI
+ * auxiliary clocks supplied to the CPU domain such as the de blocks and AXI
  * clock for CPU domain. The rates of these auxiliary clocks are related to the
  * CPU clock rate and this relation is usually specified in the hardware manual
  * of the SoC or supplied after the SoC characterization.
@@ -193,7 +193,7 @@ static int exynos_cpuclk_pre_rate_change(struct clk_notifier_data *ndata,
 		alt_div = DIV_ROUND_UP(alt_prate, tmp_rate) - 1;
 		WARN_ON(alt_div >= MAX_DIV);
 
-		if (cpuclk->flags & CLK_CPU_NEEDS_DEBUG_ALT_DIV) {
+		if (cpuclk->flags & CLK_CPU_NEEDS_DE_ALT_DIV) {
 			/*
 			 * In Exynos4210, ATB clock parent is also mout_core. So
 			 * ATB clock also needs to be mantained at safe speed.
@@ -234,7 +234,7 @@ static int exynos_cpuclk_post_rate_change(struct clk_notifier_data *ndata,
 	unsigned long flags;
 
 	/* find out the divider values to use for clock data */
-	if (cpuclk->flags & CLK_CPU_NEEDS_DEBUG_ALT_DIV) {
+	if (cpuclk->flags & CLK_CPU_NEEDS_DE_ALT_DIV) {
 		while ((cfg_data->prate * 1000) != ndata->new_rate) {
 			if (cfg_data->prate == 0)
 				return -EINVAL;
@@ -249,7 +249,7 @@ static int exynos_cpuclk_post_rate_change(struct clk_notifier_data *ndata,
 	writel(mux_reg & ~(1 << 16), base + E4210_SRC_CPU);
 	wait_until_mux_stable(base + E4210_STAT_CPU, 16, 1);
 
-	if (cpuclk->flags & CLK_CPU_NEEDS_DEBUG_ALT_DIV) {
+	if (cpuclk->flags & CLK_CPU_NEEDS_DE_ALT_DIV) {
 		div |= (cfg_data->div0 & E4210_DIV0_ATB_MASK);
 		div_mask |= E4210_DIV0_ATB_MASK;
 	}

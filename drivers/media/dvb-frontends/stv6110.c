@@ -29,7 +29,7 @@
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  64
 
-static int debug;
+static int de;
 
 struct stv6110_priv {
 	int i2c_address;
@@ -43,8 +43,8 @@ struct stv6110_priv {
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG args); \
+		if (de) \
+			printk(KERN_DE args); \
 	} while (0)
 
 static s32 abssub(s32 a, s32 b)
@@ -439,8 +439,8 @@ struct dvb_frontend *stv6110_attach(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL(stv6110_attach);
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("ST STV6110 driver");
 MODULE_AUTHOR("Igor M. Liplianin");

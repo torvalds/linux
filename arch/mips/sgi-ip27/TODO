@@ -10,7 +10,7 @@ in irix?
 6. Investigate why things do not work without the setup_test() call
 being invoked on all nodes in ip27-memory.c.
 8. Too many do_page_faults invoked - investigate.
-9. start_thread must turn off UX64 ... and define tlb_refill_debug.
+9. start_thread must turn off UX64 ... and define tlb_refill_de.
 10. Need a bad pmd table, bad pte table. __bad_pmd_table/__bad_pagetable
 does not agree with pgd_bad/pmd_bad.
 11. All intrs (ip27_do_irq handlers) are targeted at cpu A on the node.

@@ -43,7 +43,7 @@ static DECLARE_RWSEM(rds_trans_sem);
 
 void rds_trans_register(struct rds_transport *trans)
 {
-	BUG_ON(strlen(trans->t_name) + 1 > TRANSNAMSIZ);
+	_ON(strlen(trans->t_name) + 1 > TRANSNAMSIZ);
 
 	down_write(&rds_trans_sem);
 

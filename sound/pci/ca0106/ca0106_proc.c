@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) 2004 James Courtier-Dutton <James@super.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
  *  Version: 0.0.18
  *

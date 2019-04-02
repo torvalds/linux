@@ -36,7 +36,7 @@ void arm64_notify_die(const char *str, struct pt_regs *regs,
 		      int signo, int sicode, void __user *addr,
 		      int err);
 
-void hook_debug_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
+void hook_de_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 					     struct pt_regs *),
 			   int sig, int code, const char *name);
 

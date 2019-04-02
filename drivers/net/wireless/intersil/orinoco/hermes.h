@@ -147,7 +147,7 @@
 #define		HERMES_CMD_READMIF		(0x0030)
 #define		HERMES_CMD_WRITEMIF		(0x0031)
 
-/*--- Debugging Commands -----------------------------*/
+/*--- Deging Commands -----------------------------*/
 #define		HERMES_CMD_TEST			(0x0038)
 
 

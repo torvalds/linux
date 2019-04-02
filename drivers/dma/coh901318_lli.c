@@ -15,12 +15,12 @@
 
 #include "coh901318.h"
 
-#if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_U300_DEBUG))
-#define DEBUGFS_POOL_COUNTER_RESET(pool) (pool->debugfs_pool_counter = 0)
-#define DEBUGFS_POOL_COUNTER_ADD(pool, add) (pool->debugfs_pool_counter += add)
+#if (defined(CONFIG_DE_FS) && defined(CONFIG_U300_DE))
+#define DEFS_POOL_COUNTER_RESET(pool) (pool->defs_pool_counter = 0)
+#define DEFS_POOL_COUNTER_ADD(pool, add) (pool->defs_pool_counter += add)
 #else
-#define DEBUGFS_POOL_COUNTER_RESET(pool)
-#define DEBUGFS_POOL_COUNTER_ADD(pool, add)
+#define DEFS_POOL_COUNTER_RESET(pool)
+#define DEFS_POOL_COUNTER_ADD(pool, add)
 #endif
 
 static struct coh901318_lli *
@@ -40,7 +40,7 @@ int coh901318_pool_create(struct coh901318_pool *pool,
 	pool->dev = dev;
 	pool->dmapool = dma_pool_create("lli_pool", dev, size, align, 0);
 
-	DEBUGFS_POOL_COUNTER_RESET(pool);
+	DEFS_POOL_COUNTER_RESET(pool);
 	return 0;
 }
 
@@ -70,7 +70,7 @@ coh901318_lli_alloc(struct coh901318_pool *pool, unsigned int len)
 	if (head == NULL)
 		goto err;
 
-	DEBUGFS_POOL_COUNTER_ADD(pool, 1);
+	DEFS_POOL_COUNTER_ADD(pool, 1);
 
 	lli = head;
 	lli->phy_this = phy;
@@ -85,7 +85,7 @@ coh901318_lli_alloc(struct coh901318_pool *pool, unsigned int len)
 		if (lli == NULL)
 			goto err_clean_up;
 
-		DEBUGFS_POOL_COUNTER_ADD(pool, 1);
+		DEFS_POOL_COUNTER_ADD(pool, 1);
 		lli->phy_this = phy;
 		lli->link_addr = 0x00000000;
 		lli->virt_link_addr = NULL;
@@ -128,11 +128,11 @@ void coh901318_lli_free(struct coh901318_pool *pool,
 	while (l->link_addr) {
 		next = l->virt_link_addr;
 		dma_pool_free(pool->dmapool, l, l->phy_this);
-		DEBUGFS_POOL_COUNTER_ADD(pool, -1);
+		DEFS_POOL_COUNTER_ADD(pool, -1);
 		l = next;
 	}
 	dma_pool_free(pool->dmapool, l, l->phy_this);
-	DEBUGFS_POOL_COUNTER_ADD(pool, -1);
+	DEFS_POOL_COUNTER_ADD(pool, -1);
 
 	spin_unlock(&pool->lock);
 	*lli = NULL;
@@ -297,7 +297,7 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 			else
 				src += elem_size;
 
-			BUG_ON(lli->link_addr & 3);
+			_ON(lli->link_addr & 3);
 
 			bytes_to_transfer -= elem_size;
 			lli = coh901318_lli_next(lli);

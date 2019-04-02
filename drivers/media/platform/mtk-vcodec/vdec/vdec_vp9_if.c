@@ -250,7 +250,7 @@ static void vp9_add_to_fb_free_list(struct vdec_vp9_inst *inst,
 			list_move_tail(&node->list, &inst->fb_free_list);
 		}
 	} else {
-		mtk_vcodec_debug(inst, "No free fb node");
+		mtk_vcodec_de(inst, "No free fb node");
 	}
 }
 
@@ -386,7 +386,7 @@ static bool vp9_alloc_work_buf(struct vdec_vp9_inst *inst)
 		return false;
 	}
 
-	mtk_vcodec_debug(inst, "BUF CHG(%d): w/h/sb_w/sb_h=%d/%d/%d/%d",
+	mtk_vcodec_de(inst, "BUF CHG(%d): w/h/sb_w/sb_h=%d/%d/%d/%d",
 			vsi->resolution_changed,
 			vsi->pic_w,
 			vsi->pic_h,
@@ -595,10 +595,10 @@ static bool vp9_decode_end_proc(struct vdec_vp9_inst *inst)
 			mtk_vcodec_err(inst, "vp9_dec_vpu_end failed");
 			return false;
 		}
-		mtk_vcodec_debug(inst, "Decode Ok @%d (%d/%d)", vsi->frm_num,
+		mtk_vcodec_de(inst, "Decode Ok @%d (%d/%d)", vsi->frm_num,
 				vsi->pic_w, vsi->pic_h);
 	} else {
-		mtk_vcodec_debug(inst, "Decode Ok @%d (show_existing_frame)",
+		mtk_vcodec_de(inst, "Decode Ok @%d (show_existing_frame)",
 				vsi->frm_num);
 	}
 
@@ -628,10 +628,10 @@ static struct vdec_fb *vp9_rm_from_fb_disp_list(struct vdec_vp9_inst *inst)
 		fb = (struct vdec_fb *)node->fb;
 		fb->status |= FB_ST_DISPLAY;
 		list_move_tail(&node->list, &inst->available_fb_node_list);
-		mtk_vcodec_debug(inst, "[FB] get disp fb %p st=%d",
+		mtk_vcodec_de(inst, "[FB] get disp fb %p st=%d",
 				 node->fb, fb->status);
 	} else
-		mtk_vcodec_debug(inst, "[FB] there is no disp fb");
+		mtk_vcodec_de(inst, "[FB] there is no disp fb");
 
 	return fb;
 }
@@ -642,7 +642,7 @@ static bool vp9_add_to_fb_use_list(struct vdec_vp9_inst *inst,
 	struct vdec_fb_node *node;
 
 	if (!fb) {
-		mtk_vcodec_debug(inst, "fb == NULL");
+		mtk_vcodec_de(inst, "fb == NULL");
 		return false;
 	}
 
@@ -712,9 +712,9 @@ static void get_pic_info(struct vdec_vp9_inst *inst, struct vdec_pic_info *pic)
 	pic->buf_w = inst->vsi->buf_w;
 	pic->buf_h = inst->vsi->buf_h;
 
-	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
+	mtk_vcodec_de(inst, "pic(%d, %d), buf(%d, %d)",
 		 pic->pic_w, pic->pic_h, pic->buf_w, pic->buf_h);
-	mtk_vcodec_debug(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
+	mtk_vcodec_de(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
 		 pic->y_len_sz, pic->c_bs_sz, pic->c_len_sz);
 }
 
@@ -737,10 +737,10 @@ static void get_free_fb(struct vdec_vp9_inst *inst, struct vdec_fb **out_fb)
 		list_move_tail(&node->list, &inst->available_fb_node_list);
 		fb = (struct vdec_fb *)node->fb;
 		fb->status |= FB_ST_FREE;
-		mtk_vcodec_debug(inst, "[FB] get free fb %p st=%d",
+		mtk_vcodec_de(inst, "[FB] get free fb %p st=%d",
 				 node->fb, fb->status);
 	} else {
-		mtk_vcodec_debug(inst, "[FB] there is no free fb");
+		mtk_vcodec_de(inst, "[FB] there is no free fb");
 	}
 
 	*out_fb = fb;
@@ -833,7 +833,7 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 	*res_chg = false;
 
 	if ((bs == NULL) && (fb == NULL)) {
-		mtk_vcodec_debug(inst, "[EOS]");
+		mtk_vcodec_de(inst, "[EOS]");
 		vp9_reset(inst);
 		return ret;
 	}
@@ -843,7 +843,7 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 		return -EINVAL;
 	}
 
-	mtk_vcodec_debug(inst, "Input BS Size = %zu", bs->size);
+	mtk_vcodec_de(inst, "Input BS Size = %zu", bs->size);
 
 	while (1) {
 		struct vdec_fb *cur_fb = NULL;
@@ -915,10 +915,10 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 		if (!vp9_is_sf_ref_fb(inst, inst->cur_fb))
 			vp9_add_to_fb_use_list(inst, inst->cur_fb);
 
-		mtk_vcodec_debug(inst, "[#pic %d]", vsi->frm_num);
+		mtk_vcodec_de(inst, "[#pic %d]", vsi->frm_num);
 
 		if (vsi->show_existing_frame)
-			mtk_vcodec_debug(inst,
+			mtk_vcodec_de(inst,
 				"drv->new_fb_idx=%d, drv->frm_to_show_idx=%d",
 				vsi->new_fb_idx, vsi->frm_to_show_idx);
 
@@ -945,7 +945,7 @@ static int vdec_vp9_decode(unsigned long h_vdec, struct mtk_vcodec_mem *bs,
 
 		if (vsi->resolution_changed) {
 			*res_chg = true;
-			mtk_vcodec_debug(inst, "VDEC_ST_RESOLUTION_CHANGED");
+			mtk_vcodec_de(inst, "VDEC_ST_RESOLUTION_CHANGED");
 
 			ret = 0;
 			goto DECODE_ERROR;
@@ -976,7 +976,7 @@ static void get_crop_info(struct vdec_vp9_inst *inst, struct v4l2_rect *cr)
 	cr->top = 0;
 	cr->width = inst->vsi->pic_w;
 	cr->height = inst->vsi->pic_h;
-	mtk_vcodec_debug(inst, "get crop info l=%d, t=%d, w=%d, h=%d\n",
+	mtk_vcodec_de(inst, "get crop info l=%d, t=%d, w=%d, h=%d\n",
 			 cr->left, cr->top, cr->width, cr->height);
 }
 

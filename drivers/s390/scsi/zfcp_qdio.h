@@ -141,7 +141,7 @@ void zfcp_qdio_req_init(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
  * @len: length of data
  *
  * This is only required for single sbal requests, calling it when
- * wrapping around to the next sbal is a bug.
+ * wrapping around to the next sbal is a .
  */
 static inline
 void zfcp_qdio_fill_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
@@ -149,7 +149,7 @@ void zfcp_qdio_fill_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 {
 	struct qdio_buffer_element *sbale;
 
-	BUG_ON(q_req->sbale_curr == qdio->max_sbale_per_sbal - 1);
+	_ON(q_req->sbale_curr == qdio->max_sbale_per_sbal - 1);
 	q_req->sbale_curr++;
 	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
 	sbale->addr = data;

@@ -73,7 +73,7 @@ static void xen_pcibk_control_isr(struct pci_dev *dev, int reset)
 	if (enable) {
 		/*
 		 * The MSI or MSI-X should not have an IRQ handler. Otherwise
-		 * if the guest terminates we BUG_ON in free_msi_irqs.
+		 * if the guest terminates we _ON in free_msi_irqs.
 		 */
 		if (dev->msi_enabled || dev->msix_enabled)
 			goto out;
@@ -148,7 +148,7 @@ int xen_pcibk_enable_msi(struct xen_pcibk_device *pdev,
 	int status;
 
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: enable MSI\n", pci_name(dev));
+		printk(KERN_DE DRV_NAME ": %s: enable MSI\n", pci_name(dev));
 
 	if (dev->msi_enabled)
 		status = -EALREADY;
@@ -170,7 +170,7 @@ int xen_pcibk_enable_msi(struct xen_pcibk_device *pdev,
 
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: MSI: %d\n", pci_name(dev),
+		printk(KERN_DE DRV_NAME ": %s: MSI: %d\n", pci_name(dev),
 			op->value);
 
 	dev_data = pci_get_drvdata(dev);
@@ -185,7 +185,7 @@ int xen_pcibk_disable_msi(struct xen_pcibk_device *pdev,
 			  struct pci_dev *dev, struct xen_pci_op *op)
 {
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: disable MSI\n",
+		printk(KERN_DE DRV_NAME ": %s: disable MSI\n",
 		       pci_name(dev));
 
 	if (dev->msi_enabled) {
@@ -199,7 +199,7 @@ int xen_pcibk_disable_msi(struct xen_pcibk_device *pdev,
 	}
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: MSI: %d\n", pci_name(dev),
+		printk(KERN_DE DRV_NAME ": %s: MSI: %d\n", pci_name(dev),
 			op->value);
 	return 0;
 }
@@ -214,7 +214,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 	u16 cmd;
 
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: enable MSI-X\n",
+		printk(KERN_DE DRV_NAME ": %s: enable MSI-X\n",
 		       pci_name(dev));
 
 	if (op->value > SH_INFO_MAX_VEC)
@@ -249,7 +249,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 				op->msix_entries[i].vector =
 					xen_pirq_from_irq(entries[i].vector);
 				if (unlikely(verbose_request))
-					printk(KERN_DEBUG DRV_NAME ": %s: " \
+					printk(KERN_DE DRV_NAME ": %s: " \
 						"MSI-X[%d]: %d\n",
 						pci_name(dev), i,
 						op->msix_entries[i].vector);
@@ -274,7 +274,7 @@ int xen_pcibk_disable_msix(struct xen_pcibk_device *pdev,
 			   struct pci_dev *dev, struct xen_pci_op *op)
 {
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: disable MSI-X\n",
+		printk(KERN_DE DRV_NAME ": %s: disable MSI-X\n",
 			pci_name(dev));
 
 	if (dev->msix_enabled) {
@@ -292,7 +292,7 @@ int xen_pcibk_disable_msix(struct xen_pcibk_device *pdev,
 	 */
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: MSI-X: %d\n",
+		printk(KERN_DE DRV_NAME ": %s: MSI-X: %d\n",
 		       pci_name(dev), op->value);
 	return 0;
 }

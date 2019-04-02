@@ -350,7 +350,7 @@ iwl_mvm_get_measurement_dwell(struct iwl_mvm *mvm,
 	}
 
 	if (req->duration_mandatory && req->duration > duration) {
-		IWL_DEBUG_SCAN(mvm,
+		IWL_DE_SCAN(mvm,
 			       "Measurement scan - too long dwell %hu (max out time %u)\n",
 			       req->duration,
 			       duration);
@@ -387,7 +387,7 @@ int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
 {
 	int max_ie_len = iwl_mvm_max_scan_ie_fw_cmd_room(mvm);
 
-	/* TODO: [BUG] This function should return the maximum allowed size of
+	/* TODO: [] This function should return the maximum allowed size of
 	 * scan IEs, however the LMAC scan api contains both 2GHZ and 5GHZ IEs
 	 * in the same command. So the correct implementation of this function
 	 * is just iwl_mvm_max_scan_ie_fw_cmd_room() / 2. Currently the scan
@@ -406,12 +406,12 @@ void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
 
-	IWL_DEBUG_SCAN(mvm,
+	IWL_DE_SCAN(mvm,
 		       "Scan offload iteration complete: status=0x%x scanned channels=%d\n",
 		       notif->status, notif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
-		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
+		IWL_DE_SCAN(mvm, "Pass all scheduled scan results found\n");
 		ieee80211_sched_scan_results(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_ENABLED;
 	}
@@ -420,7 +420,7 @@ void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 void iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb)
 {
-	IWL_DEBUG_SCAN(mvm, "Scheduled scan results\n");
+	IWL_DE_SCAN(mvm, "Scheduled scan results\n");
 	ieee80211_sched_scan_results(mvm->hw);
 }
 
@@ -468,10 +468,10 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_SCHED) {
 		WARN_ON_ONCE(mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR);
 
-		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
+		IWL_DE_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
 			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
-		IWL_DEBUG_SCAN(mvm,
+		IWL_DE_SCAN(mvm,
 			       "Last line %d, Last iteration %d, Time after last iteration %d\n",
 			       scan_notif->last_schedule_line,
 			       scan_notif->last_schedule_iteration,
@@ -479,7 +479,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_SCHED;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR) {
-		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s\n",
+		IWL_DE_SCAN(mvm, "Regular scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
 			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
 
@@ -487,10 +487,10 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	} else if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
 		WARN_ON_ONCE(mvm->scan_status & IWL_MVM_SCAN_REGULAR);
 
-		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
+		IWL_DE_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
 			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
-		IWL_DEBUG_SCAN(mvm,
+		IWL_DE_SCAN(mvm,
 			       "Last line %d, Last iteration %d, Time after last iteration %d (FW)\n",
 			       scan_notif->last_schedule_line,
 			       scan_notif->last_schedule_iteration,
@@ -504,7 +504,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 			.aborted = aborted,
 		};
 
-		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
+		IWL_DE_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
 			       aborted ? "aborted" : "completed",
 			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
 
@@ -643,7 +643,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 		profile->client_bitmap = SCAN_CLIENT_SCHED_SCAN;
 	}
 
-	IWL_DEBUG_SCAN(mvm, "Sending scheduled scan profile config\n");
+	IWL_DE_SCAN(mvm, "Sending scheduled scan profile config\n");
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	kfree(profile_cfg);
@@ -657,14 +657,14 @@ static bool iwl_mvm_scan_pass_all(struct iwl_mvm *mvm,
 				  struct cfg80211_sched_scan_request *req)
 {
 	if (req->n_match_sets && req->match_sets[0].ssid.ssid_len) {
-		IWL_DEBUG_SCAN(mvm,
+		IWL_DE_SCAN(mvm,
 			       "Sending scheduled scan with filtering, n_match_sets %d\n",
 			       req->n_match_sets);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 		return false;
 	}
 
-	IWL_DEBUG_SCAN(mvm, "Sending Scheduled scan without filtering\n");
+	IWL_DE_SCAN(mvm, "Sending Scheduled scan without filtering\n");
 
 	mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_ENABLED;
 	return true;
@@ -690,7 +690,7 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 		 * can occur if we send the scan abort before the
 		 * microcode has notified us that a scan is completed.
 		 */
-		IWL_DEBUG_SCAN(mvm, "SCAN OFFLOAD ABORT ret %d.\n", status);
+		IWL_DE_SCAN(mvm, "SCAN OFFLOAD ABORT ret %d.\n", status);
 		ret = -ENOENT;
 	}
 
@@ -939,7 +939,7 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 	else
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (mvm->scan_iter_notif_enabled)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
 #endif
@@ -1243,7 +1243,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	cmd.len[0] = cmd_size;
 	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
 
-	IWL_DEBUG_SCAN(mvm, "Sending UMAC scan config\n");
+	IWL_DE_SCAN(mvm, "Sending UMAC scan config\n");
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (!ret) {
@@ -1285,7 +1285,7 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 		cmd->v7.adwell_default_n_aps =
 			IWL_SCAN_ADWELL_DEFAULT_N_APS;
 
-		/* if custom max budget was configured with debugfs */
+		/* if custom max budget was configured with defs */
 		if (IWL_MVM_ADWELL_MAX_BUDGET)
 			cmd->v7.adwell_max_budget =
 				cpu_to_le16(IWL_MVM_ADWELL_MAX_BUDGET);
@@ -1415,7 +1415,7 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (params->measurement_dwell)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	if (mvm->scan_iter_notif_enabled)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 #endif
@@ -1744,7 +1744,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return ret;
 	}
 
-	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
+	IWL_DE_SCAN(mvm, "Scan request was sent successfully\n");
 	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
 	mvm->scan_vif = iwl_mvm_vif_from_mac80211(vif);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
@@ -1812,7 +1812,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	 * 16-bit delays), trim it down to 16-bits.
 	 */
 	if (req->delay > U16_MAX) {
-		IWL_DEBUG_SCAN(mvm,
+		IWL_DE_SCAN(mvm,
 			       "delay value is > 16-bits, set to max possible\n");
 		params.delay = U16_MAX;
 	} else {
@@ -1838,7 +1838,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (!ret) {
-		IWL_DEBUG_SCAN(mvm,
+		IWL_DE_SCAN(mvm,
 			       "Sched scan request was sent successfully\n");
 		mvm->scan_status |= type;
 	} else {
@@ -1882,13 +1882,13 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	}
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
-	IWL_DEBUG_SCAN(mvm,
+	IWL_DE_SCAN(mvm,
 		       "Scan completed, uid %u type %u, status %s, EBS status %s\n",
 		       uid, mvm->scan_uid_status[uid],
 		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 				"completed" : "aborted",
 		       iwl_mvm_ebs_status_str(notif->ebs_status));
-	IWL_DEBUG_SCAN(mvm,
+	IWL_DE_SCAN(mvm,
 		       "Last line %d, Last iteration %d, Time from last iteration %d\n",
 		       notif->last_schedule, notif->last_iter,
 		       __le32_to_cpu(notif->time_from_last_iter));
@@ -1910,17 +1910,17 @@ void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 
 	mvm->scan_start = le64_to_cpu(notif->start_tsf);
 
-	IWL_DEBUG_SCAN(mvm,
+	IWL_DE_SCAN(mvm,
 		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d\n",
 		       notif->status, notif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
-		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
+		IWL_DE_SCAN(mvm, "Pass all scheduled scan results found\n");
 		ieee80211_sched_scan_results(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_ENABLED;
 	}
 
-	IWL_DEBUG_SCAN(mvm,
+	IWL_DE_SCAN(mvm,
 		       "UMAC Scan iteration complete: scan started at %llu (TSF)\n",
 		       mvm->scan_start);
 }
@@ -1942,7 +1942,7 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 
 	cmd.uid = cpu_to_le32(uid);
 
-	IWL_DEBUG_SCAN(mvm, "Sending scan abort, uid %u\n", uid);
+	IWL_DE_SCAN(mvm, "Sending scan abort, uid %u\n", uid);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   iwl_cmd_id(SCAN_ABORT_UMAC,
@@ -1968,7 +1968,7 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 				   ARRAY_SIZE(scan_done_notif),
 				   NULL, NULL);
 
-	IWL_DEBUG_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
+	IWL_DE_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		ret = iwl_mvm_umac_scan_abort(mvm, type);
@@ -1976,7 +1976,7 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 		ret = iwl_mvm_lmac_scan_abort(mvm);
 
 	if (ret) {
-		IWL_DEBUG_SCAN(mvm, "couldn't stop scan type %d\n", type);
+		IWL_DE_SCAN(mvm, "couldn't stop scan type %d\n", type);
 		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
 		return ret;
 	}

@@ -15,7 +15,7 @@
  *                                 documentation
  * - Revision 0.1.5 (13 Mar 2000): spinlocks instead of saveflags();cli();etc
  *                                 minor fixes
- * - Revision 0.1.4 (24 Jan 2000): fixed a bug in hga_card_detect() for 
+ * - Revision 0.1.4 (24 Jan 2000): fixed a  in hga_card_detect() for 
  *                                  HGA-only systems
  * - Revision 0.1.3 (22 Jan 2000): modified for the new fb_info structure
  *                                 screen is cleared after rmmod
@@ -45,13 +45,13 @@
 #include <asm/vga.h>
 
 #if 0
-#define DPRINTK(args...) printk(KERN_DEBUG __FILE__": " ##args)
+#define DPRINTK(args...) printk(KERN_DE __FILE__": " ##args)
 #else
 #define DPRINTK(args...)
 #endif
 
 #if 0
-#define CHKINFO(ret) if (info != &fb_info) { printk(KERN_DEBUG __FILE__": This should never happen, line:%d \n", __LINE__); return ret; }
+#define CHKINFO(ret) if (info != &fb_info) { printk(KERN_DE __FILE__": This should never happen, line:%d \n", __LINE__); return ret; }
 #else
 #define CHKINFO(ret)
 #endif

@@ -459,7 +459,7 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.41s\n", efuse->device_name);
 
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
+	if (rtl8xxxu_de & RTL8XXXU_DE_EFUSE) {
 		int i;
 		unsigned char *raw = priv->efuse_wifi.raw;
 

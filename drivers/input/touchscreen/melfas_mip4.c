@@ -108,7 +108,7 @@
 #define MIP4_R1_CTRL_EDGE_CORRECTION		0x1D
 #define MIP4_R1_CTRL_ENTER_GLOVE_MODE		0x1E
 #define MIP4_R1_CTRL_I2C_ON_LPM			0x1F
-#define MIP4_R1_CTRL_GESTURE_DEBUG		0x20
+#define MIP4_R1_CTRL_GESTURE_DE		0x20
 #define MIP4_R1_CTRL_PALM_EVENT			0x22
 #define MIP4_R1_CTRL_PROXIMITY_SENSING		0x23
 
@@ -144,7 +144,7 @@
 #define MIP4_PRESSURE_MAX			255
 
 #define MIP4_FW_NAME			"melfas_mip4.fw"
-#define MIP4_FW_UPDATE_DEBUG		0	/* 0 (default) or 1 */
+#define MIP4_FW_UPDATE_DE		0	/* 0 (default) or 1 */
 
 struct mip4_fw_version {
 	u16 boot;
@@ -1062,13 +1062,13 @@ static int mip4_bl_verify_page(struct mip4_ts *ts, int offset,
 			dev_err(&ts->client->dev,
 				"Failed to validate chunk at %#04x (size %d)\n",
 				buf_offset, MIP4_BL_PACKET_SIZE);
-#if MIP4_FW_UPDATE_DEBUG
-			print_hex_dump(KERN_DEBUG,
+#if MIP4_FW_UPDATE_DE
+			print_hex_dump(KERN_DE,
 				       MIP4_DEVICE_NAME " F/W File: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       data + offset, MIP4_BL_PACKET_SIZE,
 				       false);
-			print_hex_dump(KERN_DEBUG,
+			print_hex_dump(KERN_DE,
 				       MIP4_DEVICE_NAME " F/W Chip: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       read_buf, MIP4_BL_PAGE_SIZE, false);
@@ -1178,7 +1178,7 @@ static int mip4_parse_firmware(struct mip4_ts *ts, const struct firmware *fw,
 
 	fw_info = (const void *)&fw->data[fw->size - MIP4_BIN_TAIL_SIZE];
 
-#if MIP4_FW_UPDATE_DEBUG
+#if MIP4_FW_UPDATE_DE
 	print_hex_dump(KERN_ERR, MIP4_DEVICE_NAME " Bin Info: ",
 		       DUMP_PREFIX_OFFSET, 16, 1, *fw_info, tail_size, false);
 #endif

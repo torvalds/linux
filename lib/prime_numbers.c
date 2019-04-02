@@ -146,7 +146,7 @@ static bool expand_to_next_prime(unsigned long x)
 		new->last = clear_multiples(y, new->primes, p->sz, sz);
 	new->sz = sz;
 
-	BUG_ON(new->last <= x);
+	_ON(new->last <= x);
 
 	rcu_assign_pointer(primes, new);
 	if (p != &small_primes)

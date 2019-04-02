@@ -30,7 +30,7 @@
 
 #include <linux/module.h>
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/crc16.h>
 #include <linux/filter.h>
 
@@ -7653,7 +7653,7 @@ static struct hci_cb l2cap_cb = {
 	.security_cfm	= l2cap_security_cfm,
 };
 
-static int l2cap_debugfs_show(struct seq_file *f, void *p)
+static int l2cap_defs_show(struct seq_file *f, void *p)
 {
 	struct l2cap_chan *c;
 
@@ -7672,9 +7672,9 @@ static int l2cap_debugfs_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(l2cap_debugfs);
+DEFINE_SHOW_ATTRIBUTE(l2cap_defs);
 
-static struct dentry *l2cap_debugfs;
+static struct dentry *l2cap_defs;
 
 int __init l2cap_init(void)
 {
@@ -7686,18 +7686,18 @@ int __init l2cap_init(void)
 
 	hci_register_cb(&l2cap_cb);
 
-	if (IS_ERR_OR_NULL(bt_debugfs))
+	if (IS_ERR_OR_NULL(bt_defs))
 		return 0;
 
-	l2cap_debugfs = debugfs_create_file("l2cap", 0444, bt_debugfs,
-					    NULL, &l2cap_debugfs_fops);
+	l2cap_defs = defs_create_file("l2cap", 0444, bt_defs,
+					    NULL, &l2cap_defs_fops);
 
 	return 0;
 }
 
 void l2cap_exit(void)
 {
-	debugfs_remove(l2cap_debugfs);
+	defs_remove(l2cap_defs);
 	hci_unregister_cb(&l2cap_cb);
 	l2cap_cleanup_sockets();
 }

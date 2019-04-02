@@ -26,7 +26,7 @@
 #include "css.h"
 #include "cio.h"
 #include "blacklist.h"
-#include "cio_debug.h"
+#include "cio_de.h"
 #include "ioasm.h"
 #include "chsc.h"
 #include "device.h"

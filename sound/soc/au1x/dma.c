@@ -151,12 +151,12 @@ static irqreturn_t au1000_dma_interrupt(int irq, void *ptr)
 		enable_dma_buffer1(stream->dma);
 		break;
 	case (DMA_D0 | DMA_D1):
-		pr_debug("DMA %d missed interrupt.\n", stream->dma);
+		pr_de("DMA %d missed interrupt.\n", stream->dma);
 		au1000_dma_stop(stream);
 		au1000_dma_start(stream);
 		break;
 	case (~DMA_D0 & ~DMA_D1):
-		pr_debug("DMA %d empty irq.\n", stream->dma);
+		pr_de("DMA %d empty irq.\n", stream->dma);
 	}
 	snd_pcm_period_elapsed(substream);
 	return IRQ_HANDLED;

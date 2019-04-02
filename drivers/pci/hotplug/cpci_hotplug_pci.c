@@ -19,12 +19,12 @@
 
 #define MY_NAME	"cpci_hotplug"
 
-extern int cpci_debug;
+extern int cpci_de;
 
 #define dbg(format, arg...)					\
 	do {							\
-		if (cpci_debug)					\
-			printk(KERN_DEBUG "%s: " format "\n",	\
+		if (cpci_de)					\
+			printk(KERN_DE "%s: " format "\n",	\
 				MY_NAME, ## arg);		\
 	} while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME, ## arg)

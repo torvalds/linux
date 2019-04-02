@@ -47,7 +47,7 @@
 /* get offset address from aligned page */
 #define aligned_page_offset(page)	((page) << PAGE_SHIFT)
 
-#if PAGE_SIZE == EMUPAGESIZE && !IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
+#if PAGE_SIZE == EMUPAGESIZE && !IS_ENABLED(CONFIG_DYNAMIC_DE)
 /* fill PTB entrie(s) corresponding to page with addr */
 #define set_ptb_entry(emu,page,addr)	__set_ptb_entry(emu,page,addr)
 /* fill PTB entrie(s) corresponding to page with silence pointer */
@@ -316,13 +316,13 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	struct snd_emu10k1_memblk *blk;
 	int page, err, idx;
 
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return NULL;
-	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
+	if (snd__ON(runtime->dma_bytes <= 0 ||
 		       runtime->dma_bytes >= (emu->address_mode ? MAXPAGES1 : MAXPAGES0) * EMUPAGESIZE))
 		return NULL;
 	hdr = emu->memhdr;
-	if (snd_BUG_ON(!hdr))
+	if (snd__ON(!hdr))
 		return NULL;
 
 	idx = runtime->period_size >= runtime->buffer_size ?
@@ -372,7 +372,7 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
  */
 int snd_emu10k1_free_pages(struct snd_emu10k1 *emu, struct snd_util_memblk *blk)
 {
-	if (snd_BUG_ON(!emu || !blk))
+	if (snd__ON(!emu || !blk))
 		return -EINVAL;
 	return snd_emu10k1_synth_free(emu, blk);
 }
@@ -562,7 +562,7 @@ static int synth_free_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *
 static inline void *offset_ptr(struct snd_emu10k1 *emu, int page, int offset)
 {
 	char *ptr;
-	if (snd_BUG_ON(page < 0 || page >= emu->max_cache_pages))
+	if (snd__ON(page < 0 || page >= emu->max_cache_pages))
 		return NULL;
 	ptr = emu->page_ptr_table[page];
 	if (! ptr) {

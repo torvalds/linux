@@ -8,7 +8,7 @@
 
 #include <linux/crc32poly.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 
 static const char *_security_type_str[] = {
 	"N/A",

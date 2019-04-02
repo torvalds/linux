@@ -414,7 +414,7 @@
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x37
 **    		byte 3 			: 0->COMA (term port),
-**    					  1->COMB (debug port)
+**    					  1->COMB (de port)
 **    		byte 4 			: 0/1/2/3/4/5/6/7
 **    			(1200/2400/4800/9600/19200/38400/57600/115200)
 **    		byte 5 			: data bit

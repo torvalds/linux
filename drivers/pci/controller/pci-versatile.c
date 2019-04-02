@@ -182,7 +182,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	writel(PHYS_OFFSET, local_pci_cfg_base + PCI_BASE_ADDRESS_2);
 
 	/*
-	 * For many years the kernel and QEMU were symbiotically buggy
+	 * For many years the kernel and QEMU were symbiotically gy
 	 * in that they both assumed the same broken IRQ mapping.
 	 * QEMU therefore attempts to auto-detect old broken kernels
 	 * so that they still work on newer QEMU as they did on old

@@ -35,7 +35,7 @@ enum ps3_lpar_id {
 #define dump_field(_a, _b) _dump_field(_a, _b, __func__, __LINE__)
 static void _dump_field(const char *hdr, u64 n, const char *func, int line)
 {
-#if defined(DEBUG)
+#if defined(DE)
 	char s[16];
 	const char *const in = (const char *)&n;
 	unsigned int i;
@@ -305,8 +305,8 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 	struct ps3_repository_device tmp = *repo;
 	unsigned int num_dev;
 
-	BUG_ON(repo->bus_index > 10);
-	BUG_ON(repo->dev_index > 10);
+	_ON(repo->bus_index > 10);
+	_ON(repo->dev_index > 10);
 
 	result = ps3_repository_read_bus_num_dev(tmp.bus_index, &num_dev);
 
@@ -1188,7 +1188,7 @@ int ps3_repository_delete_highmem_info(unsigned int region_index)
 
 #endif /* defined(CONFIG_PS3_REPOSITORY_WRITE) */
 
-#if defined(DEBUG)
+#if defined(DE)
 
 int ps3_repository_dump_resource_info(const struct ps3_repository_device *repo)
 {
@@ -1389,4 +1389,4 @@ int ps3_repository_dump_bus_info(void)
 	return result;
 }
 
-#endif /* defined(DEBUG) */
+#endif /* defined(DE) */

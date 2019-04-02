@@ -21,12 +21,12 @@ void xfs_notice(const struct xfs_mount *mp, const char *fmt, ...);
 extern __printf(2, 3)
 void xfs_info(const struct xfs_mount *mp, const char *fmt, ...);
 
-#ifdef DEBUG
+#ifdef DE
 extern __printf(2, 3)
-void xfs_debug(const struct xfs_mount *mp, const char *fmt, ...);
+void xfs_de(const struct xfs_mount *mp, const char *fmt, ...);
 #else
 static inline __printf(2, 3)
-void xfs_debug(const struct xfs_mount *mp, const char *fmt, ...)
+void xfs_de(const struct xfs_mount *mp, const char *fmt, ...)
 {
 }
 #endif
@@ -54,8 +54,8 @@ do {									\
 	xfs_printk_ratelimited(xfs_notice, dev, fmt, ##__VA_ARGS__)
 #define xfs_info_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_info, dev, fmt, ##__VA_ARGS__)
-#define xfs_debug_ratelimited(dev, fmt, ...)				\
-	xfs_printk_ratelimited(xfs_debug, dev, fmt, ##__VA_ARGS__)
+#define xfs_de_ratelimited(dev, fmt, ...)				\
+	xfs_printk_ratelimited(xfs_de, dev, fmt, ##__VA_ARGS__)
 
 extern void assfail(char *expr, char *f, int l);
 extern void asswarn(char *expr, char *f, int l);

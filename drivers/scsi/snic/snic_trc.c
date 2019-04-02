@@ -138,7 +138,7 @@ snic_trc_init(void)
 	trc->buf = (struct snic_trc_data *) tbuf;
 	spin_lock_init(&trc->lock);
 
-	snic_trc_debugfs_init();
+	snic_trc_defs_init();
 
 	trc->max_idx = (tbuf_sz / SNIC_TRC_ENTRY_SZ);
 	trc->rd_idx = trc->wr_idx = 0;
@@ -159,7 +159,7 @@ snic_trc_free(void)
 	struct snic_trc *trc = &snic_glob->trc;
 
 	trc->enable = false;
-	snic_trc_debugfs_term();
+	snic_trc_defs_term();
 
 	if (trc->buf) {
 		vfree(trc->buf);

@@ -1011,7 +1011,7 @@ struct wmi_cmd_map {
 	u32 vdev_set_scan_nac_rssi_cmdid;
 	u32 prog_gpio_band_select_cmdid;
 	u32 config_smart_logging_cmdid;
-	u32 debug_fatal_condition_cmdid;
+	u32 de_fatal_condition_cmdid;
 	u32 get_tsf_timer_cmdid;
 	u32 pdev_get_tpc_table_cmdid;
 	u32 vdev_sifs_trigger_time_cmdid;
@@ -1291,9 +1291,9 @@ enum wmi_event_id {
 	/* Misc events */
 	WMI_ECHO_EVENTID = WMI_EVT_GRP_START_ID(WMI_GRP_MISC),
 	WMI_PDEV_UTF_EVENTID,
-	WMI_DEBUG_MESG_EVENTID,
+	WMI_DE_MESG_EVENTID,
 	WMI_UPDATE_STATS_EVENTID,
-	WMI_DEBUG_PRINT_EVENTID,
+	WMI_DE_PRINT_EVENTID,
 	WMI_DCS_INTERFERENCE_EVENTID,
 	WMI_PDEV_QVIT_EVENTID,
 	WMI_WLAN_PROFILE_DATA_EVENTID,
@@ -1379,7 +1379,7 @@ enum wmi_10x_cmd_id {
 	WMI_10X_STA_POWERSAVE_PARAM_CMDID,
 	WMI_10X_STA_MIMO_PS_MODE_CMDID,
 
-	/* set debug log config */
+	/* set de log config */
 	WMI_10X_DBGLOG_CFG_CMDID,
 
 	/* DFS-specific commands */
@@ -1462,7 +1462,7 @@ enum wmi_10x_event_id {
 	/* Scan specific events */
 	WMI_10X_SCAN_EVENTID = WMI_10X_START_EVENTID,
 	WMI_10X_ECHO_EVENTID,
-	WMI_10X_DEBUG_MESG_EVENTID,
+	WMI_10X_DE_MESG_EVENTID,
 	WMI_10X_UPDATE_STATS_EVENTID,
 
 	/* Instantaneous RSSI event */
@@ -1494,8 +1494,8 @@ enum wmi_10x_event_id {
 	/* matching AP found from list of profiles */
 	WMI_10X_PROFILE_MATCH,
 
-	/* debug print message used for tracing FW code while debugging */
-	WMI_10X_DEBUG_PRINT_EVENTID,
+	/* de print message used for tracing FW code while deging */
+	WMI_10X_DE_PRINT_EVENTID,
 	/* VI spoecific event */
 	WMI_10X_PDEV_QVIT_EVENTID,
 	/* FW code profile data in response to profile request */
@@ -1642,7 +1642,7 @@ enum wmi_10_2_cmd_id {
 enum wmi_10_2_event_id {
 	WMI_10_2_SERVICE_READY_EVENTID = 0x8000,
 	WMI_10_2_READY_EVENTID,
-	WMI_10_2_DEBUG_MESG_EVENTID,
+	WMI_10_2_DE_MESG_EVENTID,
 	WMI_10_2_START_EVENTID = 0x9000,
 	WMI_10_2_END_EVENTID = 0x9FFF,
 	WMI_10_2_SCAN_EVENTID = WMI_10_2_START_EVENTID,
@@ -1661,7 +1661,7 @@ enum wmi_10_2_event_id {
 	WMI_10_2_PHYERR_EVENTID,
 	WMI_10_2_ROAM_EVENTID,
 	WMI_10_2_PROFILE_MATCH,
-	WMI_10_2_DEBUG_PRINT_EVENTID,
+	WMI_10_2_DE_PRINT_EVENTID,
 	WMI_10_2_PDEV_QVIT_EVENTID,
 	WMI_10_2_WLAN_PROFILE_DATA_EVENTID,
 	WMI_10_2_RTT_MEASUREMENT_REPORT_EVENTID,
@@ -1847,7 +1847,7 @@ enum wmi_10_4_cmd_id {
 	WMI_10_4_VDEV_SET_SCAN_NAC_RSSI_CMDID,
 	WMI_10_4_PROG_GPIO_BAND_SELECT_CMDID,
 	WMI_10_4_CONFIG_SMART_LOGGING_CMDID,
-	WMI_10_4_DEBUG_FATAL_CONDITION_CMDID,
+	WMI_10_4_DE_FATAL_CONDITION_CMDID,
 	WMI_10_4_GET_TSF_TIMER_CMDID,
 	WMI_10_4_PDEV_GET_TPC_TABLE_CMDID,
 	WMI_10_4_VDEV_SIFS_TRIGGER_TIME_CMDID,
@@ -1866,7 +1866,7 @@ enum wmi_10_4_cmd_id {
 enum wmi_10_4_event_id {
 	WMI_10_4_SERVICE_READY_EVENTID = 0x8000,
 	WMI_10_4_READY_EVENTID,
-	WMI_10_4_DEBUG_MESG_EVENTID,
+	WMI_10_4_DE_MESG_EVENTID,
 	WMI_10_4_START_EVENTID = 0x9000,
 	WMI_10_4_END_EVENTID = 0x9FFF,
 	WMI_10_4_SCAN_EVENTID = WMI_10_4_START_EVENTID,
@@ -1885,7 +1885,7 @@ enum wmi_10_4_event_id {
 	WMI_10_4_PHYERR_EVENTID,
 	WMI_10_4_ROAM_EVENTID,
 	WMI_10_4_PROFILE_MATCH,
-	WMI_10_4_DEBUG_PRINT_EVENTID,
+	WMI_10_4_DE_PRINT_EVENTID,
 	WMI_10_4_PDEV_QVIT_EVENTID,
 	WMI_10_4_WLAN_PROFILE_DATA_EVENTID,
 	WMI_10_4_RTT_MEASUREMENT_REPORT_EVENTID,
@@ -1930,7 +1930,7 @@ enum wmi_10_4_event_id {
 	WMI_10_4_ATF_PEER_STATS_EVENTID,
 	WMI_10_4_PDEV_GET_RX_FILTER_EVENTID,
 	WMI_10_4_NAC_RSSI_EVENTID,
-	WMI_10_4_DEBUG_FATAL_CONDITION_EVENTID,
+	WMI_10_4_DE_FATAL_CONDITION_EVENTID,
 	WMI_10_4_GET_TSF_TIMER_RESP_EVENTID,
 	WMI_10_4_PDEV_TPC_TABLE_EVENTID,
 	WMI_10_4_PDEV_WDS_ENTRY_LIST_EVENTID,
@@ -4227,11 +4227,11 @@ struct wmi_pdev_chanlist_update_event {
 	struct wmi_channel channel_list[1];
 } __packed;
 
-#define WMI_MAX_DEBUG_MESG (sizeof(u32) * 32)
+#define WMI_MAX_DE_MESG (sizeof(u32) * 32)
 
-struct wmi_debug_mesg_event {
+struct wmi_de_mesg_event {
 	/* message buffer, NULL terminated */
-	char bufp[WMI_MAX_DEBUG_MESG];
+	char bufp[WMI_MAX_DE_MESG];
 } __packed;
 
 enum {
@@ -6259,7 +6259,7 @@ enum wmi_peer_param {
 	WMI_PEER_CHAN_WIDTH = 0x4,
 	WMI_PEER_NSS        = 0x5,
 	WMI_PEER_USE_4ADDR  = 0x6,
-	WMI_PEER_DEBUG      = 0xa,
+	WMI_PEER_DE      = 0xa,
 	WMI_PEER_PHYMODE    = 0xd,
 	WMI_PEER_DUMMY_VAR  = 0xff, /* dummy parameter for STA PS workaround */
 };
@@ -6981,7 +6981,7 @@ enum wmi_wow_wake_reason {
 	WOW_REASON_DFS_PHYERR_RADADR_EVENT,
 	WOW_REASON_BEACON_RECV,
 	WOW_REASON_CLIENT_KICKOUT_EVENT,
-	WOW_REASON_DEBUG_TEST = 0xFF,
+	WOW_REASON_DE_TEST = 0xFF,
 };
 
 static inline const char *wow_reason(enum wmi_wow_wake_reason reason)
@@ -7016,7 +7016,7 @@ static inline const char *wow_reason(enum wmi_wow_wake_reason reason)
 	C2S(WOW_REASON_DFS_PHYERR_RADADR_EVENT);
 	C2S(WOW_REASON_BEACON_RECV);
 	C2S(WOW_REASON_CLIENT_KICKOUT_EVENT);
-	C2S(WOW_REASON_DEBUG_TEST);
+	C2S(WOW_REASON_DE_TEST);
 	default:
 		return NULL;
 	}
@@ -7315,7 +7315,7 @@ int ath10k_wmi_event_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_mgmt_tx_bundle_compl(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb);
-int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb);
+int ath10k_wmi_event_de_mesg(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_update_stats(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_vdev_start_resp(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_vdev_stopped(struct ath10k *ar, struct sk_buff *skb);
@@ -7330,7 +7330,7 @@ void ath10k_wmi_event_spectral_scan(struct ath10k *ar,
 void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_roam(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_profile_match(struct ath10k *ar, struct sk_buff *skb);
-void ath10k_wmi_event_debug_print(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_wmi_event_de_print(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_pdev_qvit(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_wlan_profile_data(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_rtt_measurement_report(struct ath10k *ar,

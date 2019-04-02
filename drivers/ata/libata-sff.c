@@ -190,10 +190,10 @@ void ata_sff_dma_pause(struct ata_port *ap)
 		ata_sff_altstatus(ap);
 		return;
 	}
-	/* There are no DMA controllers without ctl. BUG here to ensure
+	/* There are no DMA controllers without ctl.  here to ensure
 	   we never violate the HDMA1:0 transition timing and risk
 	   corruption. */
-	BUG();
+	();
 }
 EXPORT_SYMBOL_GPL(ata_sff_dma_pause);
 
@@ -767,7 +767,7 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 		break;
 #endif /* CONFIG_ATA_BMDMA */
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1267,7 +1267,7 @@ void ata_sff_flush_pio_task(struct ata_port *ap)
 	 * expect the HSM state to stay stable may get surprised.  For
 	 * example, we may set IDLE in between the time
 	 * __ata_sff_port_intr() checks for HSM_ST_IDLE and before it calls
-	 * ata_sff_hsm_move() causing ata_sff_hsm_move() to BUG().
+	 * ata_sff_hsm_move() causing ata_sff_hsm_move() to ().
 	 */
 	spin_lock_irq(ap->lock);
 	ap->hsm_task_state = HSM_ST_IDLE;
@@ -1290,7 +1290,7 @@ static void ata_sff_pio_task(struct work_struct *work)
 
 	spin_lock_irq(ap->lock);
 
-	BUG_ON(ap->sff_pio_task_link == NULL);
+	_ON(ap->sff_pio_task_link == NULL);
 	/* qc can be NULL if timeout occurred */
 	qc = ata_qc_from_tag(ap, link->active_tag);
 	if (!qc) {
@@ -2118,7 +2118,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 						&& count < 65536; count += 2)
 		ioread16(ap->ioaddr.data_addr);
 
-	/* Can become DEBUG later */
+	/* Can become DE later */
 	if (count)
 		ata_port_dbg(ap, "drained %d bytes to clear DRQ\n", count);
 

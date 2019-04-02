@@ -547,7 +547,7 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	return ret;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int tw9910_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
@@ -878,7 +878,7 @@ done:
 }
 
 static const struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register	= tw9910_g_register,
 	.s_register	= tw9910_s_register,
 #endif

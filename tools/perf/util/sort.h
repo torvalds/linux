@@ -16,7 +16,7 @@
 #include "values.h"
 
 #include "../perf.h"
-#include "debug.h"
+#include "de.h"
 #include "header.h"
 
 #include <subcmd/parse-options.h>

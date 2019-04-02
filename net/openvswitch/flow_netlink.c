@@ -356,7 +356,7 @@ size_t ovs_key_attr_size(void)
 	/* Whenever adding new OVS_KEY_ FIELDS, we should consider
 	 * updating this function.
 	 */
-	BUILD_BUG_ON(OVS_KEY_ATTR_TUNNEL_INFO != 29);
+	BUILD__ON(OVS_KEY_ATTR_TUNNEL_INFO != 29);
 
 	return    nla_total_size(4)   /* OVS_KEY_ATTR_PRIORITY */
 		+ nla_total_size(0)   /* OVS_KEY_ATTR_TUNNEL */
@@ -587,7 +587,7 @@ static int vxlan_tun_opt_from_nlattr(const struct nlattr *attr,
 	unsigned long opt_key_offset;
 	struct vxlan_metadata opts;
 
-	BUILD_BUG_ON(sizeof(opts) > sizeof(match->key->tun_opts));
+	BUILD__ON(sizeof(opts) > sizeof(match->key->tun_opts));
 
 	memset(&opts, 0, sizeof(opts));
 	nla_for_each_nested(a, attr, rem) {
@@ -640,7 +640,7 @@ static int erspan_tun_opt_from_nlattr(const struct nlattr *a,
 {
 	unsigned long opt_key_offset;
 
-	BUILD_BUG_ON(sizeof(struct erspan_metadata) >
+	BUILD__ON(sizeof(struct erspan_metadata) >
 		     sizeof(match->key->tun_opts));
 
 	if (nla_len(a) > sizeof(match->key->tun_opts)) {

@@ -609,7 +609,7 @@ static unsigned int snd_cmipci_rate_freq(unsigned int rate)
 		if (rates[i] == rate)
 			return i;
 	}
-	snd_BUG();
+	snd_();
 	return 0;
 }
 
@@ -837,7 +837,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 		case 88200:  freq_ext = CM_CH0_SRATE_88K; break;
 		case 96000:  freq_ext = CM_CH0_SRATE_96K; break;
 		case 128000: freq_ext = CM_CH0_SRATE_128K; break;
-		default:     snd_BUG(); break;
+		default:     snd_(); break;
 		}
 	else
 		freq = snd_cmipci_rate_freq(runtime->rate);
@@ -1216,7 +1216,7 @@ static void setup_ac3(struct cmipci *cm, struct snd_pcm_substream *subs, int do_
 		} else { /* can_ac3_sw */
 			/* SPD32SEL for 037 & 039, 0x20 */
 			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
-			/* set 176K sample rate to fix 033 HW bug */
+			/* set 176K sample rate to fix 033 HW  */
 			if (cm->chip_version == 33) {
 				if (rate >= 48000) {
 					snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_PLAYBACK_SRATE_176K);
@@ -2371,7 +2371,7 @@ static int snd_cmipci_uswitch_get(struct snd_kcontrol *kcontrol,
 {
 	struct cmipci_switch_args *args;
 	args = (struct cmipci_switch_args *)kcontrol->private_value;
-	if (snd_BUG_ON(!args))
+	if (snd__ON(!args))
 		return -EINVAL;
 	return _snd_cmipci_uswitch_get(kcontrol, ucontrol, args);
 }
@@ -2416,7 +2416,7 @@ static int snd_cmipci_uswitch_put(struct snd_kcontrol *kcontrol,
 {
 	struct cmipci_switch_args *args;
 	args = (struct cmipci_switch_args *)kcontrol->private_value;
-	if (snd_BUG_ON(!args))
+	if (snd__ON(!args))
 		return -EINVAL;
 	return _snd_cmipci_uswitch_put(kcontrol, ucontrol, args);
 }
@@ -2671,7 +2671,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 	unsigned int idx;
 	int err;
 
-	if (snd_BUG_ON(!cm || !cm->card))
+	if (snd__ON(!cm || !cm->card))
 		return -EINVAL;
 
 	card = cm->card;

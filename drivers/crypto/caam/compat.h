@@ -23,7 +23,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/circ_buf.h>
 #include <linux/clk.h>
 #include <net/xfrm.h>

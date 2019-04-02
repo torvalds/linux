@@ -28,7 +28,7 @@
 #include "trace-event.h"
 #include "session.h"
 #include "symbol.h"
-#include "debug.h"
+#include "de.h"
 #include "cpumap.h"
 #include "pmu.h"
 #include "vdso.h"
@@ -36,7 +36,7 @@
 #include "build-id.h"
 #include "data.h"
 #include <api/fs/fs.h>
-#include "asm/bug.h"
+#include "asm/.h"
 #include "tool.h"
 #include "time-utils.h"
 #include "units.h"
@@ -322,7 +322,7 @@ static int write_build_id(struct feat_fd *ff,
 
 	err = perf_session__write_buildid_table(session, ff);
 	if (err < 0) {
-		pr_debug("failed to write buildid table\n");
+		pr_de("failed to write buildid table\n");
 		return err;
 	}
 	perf_session__cache_build_ids(session);
@@ -1244,7 +1244,7 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 
 	dir = opendir(path);
 	if (!dir) {
-		pr_debug2("%s: could't read %s, does this arch have topology information?\n",
+		pr_de2("%s: could't read %s, does this arch have topology information?\n",
 			  __func__, path);
 		return -1;
 	}
@@ -1849,7 +1849,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 
 		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
 				  sbuild_id);
-		pr_debug("build id event received for %s: %s\n",
+		pr_de("build id event received for %s: %s\n",
 			 dso->long_name, sbuild_id);
 		dso__put(dso);
 	}
@@ -1979,7 +1979,7 @@ static int process_tracing_data(struct feat_fd *ff, void *data)
 static int process_build_id(struct feat_fd *ff, void *data __maybe_unused)
 {
 	if (perf_header__read_build_ids(ff->ph, ff->fd, ff->offset, ff->size))
-		pr_debug("Failed to read buildids, continuing...\n");
+		pr_de("Failed to read buildids, continuing...\n");
 	return 0;
 }
 
@@ -2188,7 +2188,7 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 			goto free_cpu;
 
 		if (do_core_id_test && nr != (u32)-1 && nr > (u32)cpu_nr) {
-			pr_debug("socket_id number is too big."
+			pr_de("socket_id number is too big."
 				 "You may need to upgrade the perf tool.\n");
 			goto free_cpu;
 		}
@@ -2262,7 +2262,7 @@ static int process_pmu_mappings(struct feat_fd *ff, void *data __maybe_unused)
 		return -1;
 
 	if (!pmu_num) {
-		pr_debug("pmu mappings not available\n");
+		pr_de("pmu mappings not available\n");
 		return 0;
 	}
 
@@ -2315,7 +2315,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 
 	ff->ph->env.nr_groups = nr_groups;
 	if (!nr_groups) {
-		pr_debug("group desc not available\n");
+		pr_de("group desc not available\n");
 		return 0;
 	}
 
@@ -2353,7 +2353,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 			evsel->nr_members = desc[i].nr_members;
 
 			if (i >= nr_groups || nr > 0) {
-				pr_debug("invalid group desc\n");
+				pr_de("invalid group desc\n");
 				goto out_free;
 			}
 
@@ -2369,7 +2369,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 	}
 
 	if (i != nr_groups || nr != 0) {
-		pr_debug("invalid group desc\n");
+		pr_de("invalid group desc\n");
 		goto out_free;
 	}
 
@@ -2741,7 +2741,7 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 	struct feat_fd ff;
 
 	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
-		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
+		pr_de("Failed to lseek to %" PRIu64 " offset for feature "
 				"%d, continuing...\n", section->offset, feat);
 		return 0;
 	}
@@ -2824,7 +2824,7 @@ static int do_write_feat(struct feat_fd *ff, int type,
 
 		err = feat_ops[type].write(ff, evlist);
 		if (err < 0) {
-			pr_debug("failed to write feature %s\n", feat_ops[type].name);
+			pr_de("failed to write feature %s\n", feat_ops[type].name);
 
 			/* undo anything written */
 			lseek(ff->fd, (*p)->offset, SEEK_SET);
@@ -2878,7 +2878,7 @@ static int perf_header__adds_write(struct perf_header *header,
 	 */
 	err = do_write(&ff, feat_sec, sec_size);
 	if (err < 0)
-		pr_debug("failed to write feature section\n");
+		pr_de("failed to write feature section\n");
 	free(feat_sec);
 	return err;
 }
@@ -2898,7 +2898,7 @@ int perf_header__write_pipe(int fd)
 
 	err = do_write(&ff, &f_header, sizeof(f_header));
 	if (err < 0) {
-		pr_debug("failed to write perf pipe header\n");
+		pr_de("failed to write perf pipe header\n");
 		return err;
 	}
 
@@ -2924,7 +2924,7 @@ int perf_session__write_header(struct perf_session *session,
 		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
 		err = do_write(&ff, evsel->id, evsel->ids * sizeof(u64));
 		if (err < 0) {
-			pr_debug("failed to write perf header\n");
+			pr_de("failed to write perf header\n");
 			return err;
 		}
 	}
@@ -2941,7 +2941,7 @@ int perf_session__write_header(struct perf_session *session,
 		};
 		err = do_write(&ff, &f_attr, sizeof(f_attr));
 		if (err < 0) {
-			pr_debug("failed to write perf header attribute\n");
+			pr_de("failed to write perf header attribute\n");
 			return err;
 		}
 	}
@@ -2976,7 +2976,7 @@ int perf_session__write_header(struct perf_session *session,
 	lseek(fd, 0, SEEK_SET);
 	err = do_write(&ff, &f_header, sizeof(f_header));
 	if (err < 0) {
-		pr_debug("failed to write perf header\n");
+		pr_de("failed to write perf header\n");
 		return err;
 	}
 	lseek(fd, header->data_offset + header->data_size, SEEK_SET);
@@ -3065,7 +3065,7 @@ static int try_all_file_abis(uint64_t hdr_sz, struct perf_header *ph)
 
 			ph->needs_swap = true;
 		}
-		pr_debug("ABI%d perf.data file detected, need_swap=%d\n",
+		pr_de("ABI%d perf.data file detected, need_swap=%d\n",
 			 i,
 			 ph->needs_swap);
 		return 0;
@@ -3101,7 +3101,7 @@ static int try_all_pipe_abis(uint64_t hdr_sz, struct perf_header *ph)
 
 			ph->needs_swap = true;
 		}
-		pr_debug("Pipe ABI%d perf.data file detected\n", i);
+		pr_de("Pipe ABI%d perf.data file detected\n", i);
 		return 0;
 	}
 	return -1;
@@ -3126,7 +3126,7 @@ static int check_magic_endian(u64 magic, uint64_t hdr_sz,
 	ret = memcmp(&magic, __perf_magic1, sizeof(magic));
 	if (ret == 0) {
 		ph->version = PERF_HEADER_VERSION_1;
-		pr_debug("legacy perf.data format\n");
+		pr_de("legacy perf.data format\n");
 		if (is_pipe)
 			return try_all_pipe_abis(hdr_sz, ph);
 
@@ -3165,7 +3165,7 @@ int perf_file_header__read(struct perf_file_header *header,
 
 	if (check_magic_endian(header->magic,
 			       header->attr_size, false, ph) < 0) {
-		pr_debug("magic/endian check failed\n");
+		pr_de("magic/endian check failed\n");
 		return -1;
 	}
 
@@ -3236,13 +3236,13 @@ static int perf_file_section__process(struct perf_file_section *section,
 	};
 
 	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
-		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
+		pr_de("Failed to lseek to %" PRIu64 " offset for feature "
 			  "%d, continuing...\n", section->offset, feat);
 		return 0;
 	}
 
 	if (feat >= HEADER_LAST_FEATURE) {
-		pr_debug("unknown feature %d, continuing...\n", feat);
+		pr_de("unknown feature %d, continuing...\n", feat);
 		return 0;
 	}
 
@@ -3267,7 +3267,7 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 		return -1;
 
 	if (check_magic_endian(header->magic, header->size, true, ph) < 0) {
-		pr_debug("endian/magic failed\n");
+		pr_de("endian/magic failed\n");
 		return -1;
 	}
 
@@ -3288,7 +3288,7 @@ static int perf_header__read_pipe(struct perf_session *session)
 	if (perf_file_header__read_pipe(&f_header, header,
 					perf_data__fd(session->data),
 					session->repipe) < 0) {
-		pr_debug("incompatible file format\n");
+		pr_de("incompatible file format\n");
 		return -EINVAL;
 	}
 
@@ -3308,7 +3308,7 @@ static int read_attr(int fd, struct perf_header *ph,
 	/* read minimal guaranteed structure */
 	ret = readn(fd, attr, PERF_ATTR_SIZE_VER0);
 	if (ret <= 0) {
-		pr_debug("cannot read %d bytes of header attr\n",
+		pr_de("cannot read %d bytes of header attr\n",
 			 PERF_ATTR_SIZE_VER0);
 		return -1;
 	}
@@ -3323,7 +3323,7 @@ static int read_attr(int fd, struct perf_header *ph,
 		/* assume ABI0 */
 		sz =  PERF_ATTR_SIZE_VER0;
 	} else if (sz > our_sz) {
-		pr_debug("file uses a more recent and unsupported ABI"
+		pr_de("file uses a more recent and unsupported ABI"
 			 " (%zu bytes extra)\n", sz - our_sz);
 		return -1;
 	}
@@ -3352,13 +3352,13 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 		return 0;
 
 	if (pevent == NULL) {
-		pr_debug("broken or missing trace data\n");
+		pr_de("broken or missing trace data\n");
 		return -1;
 	}
 
 	event = tep_find_event(pevent, evsel->attr.config);
 	if (event == NULL) {
-		pr_debug("cannot find event format for %d\n", (int)evsel->attr.config);
+		pr_de("cannot find event format for %d\n", (int)evsel->attr.config);
 		return -1;
 	}
 
@@ -3548,7 +3548,7 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 
 	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
 		if (!feat_ops[feat].synthesize) {
-			pr_debug("No record header feature for header :%d\n", feat);
+			pr_de("No record header feature for header :%d\n", feat);
 			continue;
 		}
 
@@ -3556,7 +3556,7 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 
 		ret = feat_ops[feat].write(&ff, evlist);
 		if (ret || ff.offset <= (ssize_t)sizeof(*fe)) {
-			pr_debug("Error writing feature\n");
+			pr_de("Error writing feature\n");
 			continue;
 		}
 		/* ff.buf may have changed due to realloc in do_write() */
@@ -3785,7 +3785,7 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
 						  evsel->id, process);
 		if (err) {
-			pr_debug("failed to create perf header attribute\n");
+			pr_de("failed to create perf header attribute\n");
 			return err;
 		}
 	}

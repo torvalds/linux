@@ -60,7 +60,7 @@ int puv3_pm_enter(suspend_state_t state)
 		puv3_cpu_pm_fns->restore(sleep_save);
 	}
 
-	pr_debug("*** made it back from resume\n");
+	pr_de("*** made it back from resume\n");
 
 	return 0;
 }

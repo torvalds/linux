@@ -1,5 +1,5 @@
 /*
- * Cell Pervasive Monitor and Debug interface and HW structures
+ * Cell Pervasive Monitor and De interface and HW structures
  *
  * (C) Copyright IBM Corporation 2005
  *

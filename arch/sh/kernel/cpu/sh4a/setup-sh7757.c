@@ -1232,7 +1232,7 @@ void __init plat_irq_setup_pins(int mode)
 		register_intc_controller(&intc_desc_irl0123);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

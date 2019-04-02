@@ -274,7 +274,7 @@ struct trace_array {
 	 * needs its own lock.
 	 *
 	 * This is defined as a arch_spinlock_t in order to help
-	 * with performance when lockdep debugging is enabled.
+	 * with performance when lockdep deging is enabled.
 	 *
 	 * It is also used in other places outside the update_max_tr
 	 * so it needs to be defined outside of the

@@ -6,8 +6,8 @@
  * this source tree.
  */
 
-#ifndef _QED_DEBUGFS_H
-#define _QED_DEBUGFS_H
+#ifndef _QED_DEFS_H
+#define _QED_DEFS_H
 
 enum qed_dbg_features {
 	DBG_FEATURE_GRC,
@@ -45,8 +45,8 @@ int qed_dbg_mcp_trace(struct qed_dev *cdev, void *buffer,
 int qed_dbg_mcp_trace_size(struct qed_dev *cdev);
 int qed_dbg_all_data(struct qed_dev *cdev, void *buffer);
 int qed_dbg_all_data_size(struct qed_dev *cdev);
-u8 qed_get_debug_engine(struct qed_dev *cdev);
-void qed_set_debug_engine(struct qed_dev *cdev, int engine_number);
+u8 qed_get_de_engine(struct qed_dev *cdev);
+void qed_set_de_engine(struct qed_dev *cdev, int engine_number);
 int qed_dbg_feature(struct qed_dev *cdev, void *buffer,
 		    enum qed_dbg_features feature, u32 *num_dumped_bytes);
 int qed_dbg_feature_size(struct qed_dev *cdev, enum qed_dbg_features feature);

@@ -227,7 +227,7 @@ out_free_ring:
 
 static void nvme_rdma_qp_event(struct ib_event *event, void *context)
 {
-	pr_debug("QP event %s (%d)\n",
+	pr_de("QP event %s (%d)\n",
 		 ib_event_msg(event->event), event->event);
 
 }
@@ -313,7 +313,7 @@ static int nvme_rdma_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nvme_rdma_ctrl *ctrl = data;
 	struct nvme_rdma_queue *queue = &ctrl->queues[hctx_idx + 1];
 
-	BUG_ON(hctx_idx >= ctrl->ctrl.queue_count);
+	_ON(hctx_idx >= ctrl->ctrl.queue_count);
 
 	hctx->driver_data = queue;
 	return 0;
@@ -325,7 +325,7 @@ static int nvme_rdma_init_admin_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 	struct nvme_rdma_ctrl *ctrl = data;
 	struct nvme_rdma_queue *queue = &ctrl->queues[0];
 
-	BUG_ON(hctx_idx != 0);
+	_ON(hctx_idx != 0);
 
 	hctx->driver_data = queue;
 	return 0;

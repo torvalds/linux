@@ -1,4 +1,4 @@
-/* bnx2fc_debug.c: QLogic Linux FCoE offload driver.
+/* bnx2fc_de.c: QLogic Linux FCoE offload driver.
  * Handles operations such as session offload/upload etc, and manages
  * session resources such as connection id and qp resources.
  *
@@ -19,7 +19,7 @@ void BNX2FC_IO_DBG(const struct bnx2fc_cmd *io_req, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (likely(!(bnx2fc_debug_level & LOG_IO)))
+	if (likely(!(bnx2fc_de_level & LOG_IO)))
 		return;
 
 	va_start(args, fmt);
@@ -43,7 +43,7 @@ void BNX2FC_TGT_DBG(const struct bnx2fc_rport *tgt, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (likely(!(bnx2fc_debug_level & LOG_TGT)))
+	if (likely(!(bnx2fc_de_level & LOG_TGT)))
 		return;
 
 	va_start(args, fmt);
@@ -67,7 +67,7 @@ void BNX2FC_HBA_DBG(const struct fc_lport *lport, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (likely(!(bnx2fc_debug_level & LOG_HBA)))
+	if (likely(!(bnx2fc_de_level & LOG_HBA)))
 		return;
 
 	va_start(args, fmt);

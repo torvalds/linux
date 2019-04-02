@@ -152,7 +152,7 @@ static int sxgbe_platform_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv->dev);
 
-	pr_debug("platform driver registration completed\n");
+	pr_de("platform driver registration completed\n");
 
 	return 0;
 

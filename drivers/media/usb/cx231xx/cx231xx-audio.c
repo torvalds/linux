@@ -34,9 +34,9 @@
 #include <sound/control.h>
 #include <media/v4l2-common.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "activates debug info");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "activates de info");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 

@@ -323,7 +323,7 @@ static int read_edid(u8 *buf, int len)
 	mutex_lock(&hdmi.lock);
 
 	r = hdmi_runtime_get();
-	BUG_ON(r);
+	_ON(r);
 
 	idlemode = REG_GET(hdmi.wp.base, HDMI_WP_SYSCONFIG, 3, 2);
 	/* No-idle mode */
@@ -777,7 +777,7 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
+	dss_defs_create_file("hdmi", hdmi_dump_regs);
 
 	return 0;
 err:

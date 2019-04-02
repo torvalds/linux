@@ -96,13 +96,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		BALLOON_MIGRATE,
 #endif
 #endif
-#ifdef CONFIG_DEBUG_TLBFLUSH
+#ifdef CONFIG_DE_TLBFLUSH
 		NR_TLB_REMOTE_FLUSH,	/* cpu tried to flush others' tlbs */
 		NR_TLB_REMOTE_FLUSH_RECEIVED,/* cpu received ipi for flush */
 		NR_TLB_LOCAL_FLUSH_ALL,
 		NR_TLB_LOCAL_FLUSH_ONE,
-#endif /* CONFIG_DEBUG_TLBFLUSH */
-#ifdef CONFIG_DEBUG_VM_VMACACHE
+#endif /* CONFIG_DE_TLBFLUSH */
+#ifdef CONFIG_DE_VM_VMACACHE
 		VMACACHE_FIND_CALLS,
 		VMACACHE_FIND_HITS,
 #endif
@@ -114,8 +114,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 };
 
 #ifndef CONFIG_TRANSPARENT_HUGEPAGE
-#define THP_FILE_ALLOC ({ BUILD_BUG(); 0; })
-#define THP_FILE_MAPPED ({ BUILD_BUG(); 0; })
+#define THP_FILE_ALLOC ({ BUILD_(); 0; })
+#define THP_FILE_MAPPED ({ BUILD_(); 0; })
 #endif
 
 #endif		/* VM_EVENT_ITEM_H_INCLUDED */

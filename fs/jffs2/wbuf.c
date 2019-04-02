@@ -5,7 +5,7 @@
  * Copyright © 2004 Thomas Gleixner <tglx@linutronix.de>
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
- * Modified debugged and enhanced by Thomas Gleixner <tglx@linutronix.de>
+ * Modified deged and enhanced by Thomas Gleixner <tglx@linutronix.de>
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
@@ -152,7 +152,7 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 			  jeb->offset);
 		list_add(&jeb->list, &c->bad_used_list);
 	} else {
-		BUG_ON(allow_empty == REFILE_NOTEMPTY);
+		_ON(allow_empty == REFILE_NOTEMPTY);
 		/* It has to have had some nodes or we couldn't be here */
 		jffs2_dbg(1, "Refiling block at %08x to erase_pending_list\n",
 			  jeb->offset);
@@ -190,7 +190,7 @@ static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info
 	dbg_noderef("incore_replace_raw: node at %p is {%04x,%04x}\n",
 		    node, je16_to_cpu(node->u.magic), je16_to_cpu(node->u.nodetype));
 
-	BUG_ON(je16_to_cpu(node->u.magic) != 0x1985 &&
+	_ON(je16_to_cpu(node->u.magic) != 0x1985 &&
 	       je16_to_cpu(node->u.magic) != 0);
 
 	switch (je16_to_cpu(node->u.nodetype)) {
@@ -200,11 +200,11 @@ static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info
 			return &f->metadata->raw;
 		}
 		frag = jffs2_lookup_node_frag(&f->fragtree, je32_to_cpu(node->i.offset));
-		BUG_ON(!frag);
+		_ON(!frag);
 		/* Find a frag which refers to the full_dnode we want to modify */
 		while (!frag->node || frag->node->raw != raw) {
 			frag = frag_next(frag);
-			BUG_ON(!frag);
+			_ON(!frag);
 		}
 		dbg_noderef("Will replace ->raw in full_dnode at %p\n", frag->node);
 		return &frag->node->raw;
@@ -216,7 +216,7 @@ static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info
 				return &fd->raw;
 			}
 		}
-		BUG();
+		();
 
 	default:
 		dbg_noderef("Don't care about replacing raw for nodetype %x\n",
@@ -291,7 +291,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		jffs2_block_refile(c, jeb, REFILE_ANYWAY);
 	spin_unlock(&c->erase_completion_lock);
 
-	BUG_ON(!ref_obsolete(jeb->last_node));
+	_ON(!ref_obsolete(jeb->last_node));
 
 	/* Find the first node to be recovered, by skipping over every
 	   node which ends before the wbuf starts, or which is obsolete. */
@@ -475,13 +475,13 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		/* Ick. This XATTR mess should be fixed shortly... */
 		if (ic && ic->class == RAWNODE_CLASS_XATTR_DATUM) {
 			struct jffs2_xattr_datum *xd = (void *)ic;
-			BUG_ON(xd->node != raw);
+			_ON(xd->node != raw);
 			adjust_ref = &xd->node;
 			raw->next_in_ino = NULL;
 			ic = NULL;
 		} else if (ic && ic->class == RAWNODE_CLASS_XATTR_REF) {
 			struct jffs2_xattr_datum *xr = (void *)ic;
-			BUG_ON(xr->node != raw);
+			_ON(xr->node != raw);
 			adjust_ref = &xr->node;
 			raw->next_in_ino = NULL;
 			ic = NULL;
@@ -507,7 +507,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 					/* Should never happen; it _must_ be present */
 					JFFS2_ERROR("Failed to iget() ino #%u, err %ld\n",
 						    ic->ino, PTR_ERR(f));
-					BUG();
+					();
 				}
 				/* We don't lock f->sem. There's a number of ways we could
 				   end up in here with it already being locked, and nobody's
@@ -520,14 +520,14 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 					    ic->state != INO_STATE_CHECKEDABSENT &&
 					    ic->state != INO_STATE_GC)) {
 				JFFS2_ERROR("Inode #%u is in strange state %d!\n", ic->ino, ic->state);
-				BUG();
+				();
 			}
 		}
 
 		new_ref = jffs2_link_node_ref(c, new_jeb, ofs | ref_flags(raw), rawlen, ic);
 
 		if (adjust_ref) {
-			BUG_ON(*adjust_ref != raw);
+			_ON(*adjust_ref != raw);
 			*adjust_ref = new_ref;
 		}
 		if (f)
@@ -539,7 +539,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 			c->dirty_size += rawlen;
 			c->used_size -= rawlen;
 			raw->flash_offset = ref_offset(raw) | REF_OBSOLETE;
-			BUG_ON(raw->next_in_ino);
+			_ON(raw->next_in_ino);
 		}
 		ofs += rawlen;
 	}
@@ -590,7 +590,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 
 	if (!mutex_is_locked(&c->alloc_sem)) {
 		pr_crit("jffs2_flush_wbuf() called with alloc_sem not locked!\n");
-		BUG();
+		();
 	}
 
 	if (!c->wbuf_len)	/* already checked c->wbuf above */
@@ -669,7 +669,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 				c->wbuf_ofs, c->wbuf_len, waste);
 			pr_crit("jffs2_flush_wbuf(): But free_size for block at 0x%08x is only 0x%08x\n",
 				wbuf_jeb->offset, wbuf_jeb->free_size);
-			BUG();
+			();
 		}
 
 		spin_lock(&c->erase_completion_lock);
@@ -689,7 +689,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	spin_unlock(&c->erase_completion_lock);
 
 	memset(c->wbuf,0xff,c->wbuf_pagesize);
-	/* adjust write buffer offset, else we get a non contiguous write bug */
+	/* adjust write buffer offset, else we get a non contiguous write  */
 	c->wbuf_ofs += c->wbuf_pagesize;
 	c->wbuf_len = 0;
 	return 0;
@@ -841,7 +841,7 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 		if (c->wbuf_len)
 			pr_crit("wbuf was previously %08x-%08x\n",
 				c->wbuf_ofs, c->wbuf_ofs + c->wbuf_len);
-		BUG();
+		();
 	}
 
 	/* adjust alignment offset */

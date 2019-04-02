@@ -250,7 +250,7 @@
 #define GCC_SNOC_BUS_TIMEOUT2_AHB_CLK				233
 #define GCC_SPDM_BIMC_CY_CLK					234
 #define GCC_SPDM_CFG_AHB_CLK					235
-#define GCC_SPDM_DEBUG_CY_CLK					236
+#define GCC_SPDM_DE_CY_CLK					236
 #define GCC_SPDM_FF_CLK						237
 #define GCC_SPDM_MSTR_AHB_CLK					238
 #define GCC_SPDM_PNOC_CY_CLK					239

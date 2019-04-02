@@ -168,7 +168,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		pr_debug("No IOMEM resource info for %s.\n", dev->name);
+		pr_de("No IOMEM resource info for %s.\n", dev->name);
 		retval = -ENOMEM;
 		goto err1;
 	}
@@ -180,7 +180,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 	}
 	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
-		pr_debug("ioremap failed");
+		pr_de("ioremap failed");
 		retval = -ENOMEM;
 		goto err2;
 	}
@@ -290,7 +290,7 @@ static int ehci_hcd_msp_drv_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	pr_debug("In ehci_hcd_msp_drv_probe");
+	pr_de("In ehci_hcd_msp_drv_probe");
 
 	if (usb_disabled())
 		return -ENODEV;

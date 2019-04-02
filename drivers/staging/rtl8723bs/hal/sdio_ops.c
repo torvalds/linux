@@ -7,10 +7,10 @@
 #define _SDIO_OPS_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <rtl8723b_hal.h>
 
-/* define SDIO_DEBUG_IO 1 */
+/* define SDIO_DE_IO 1 */
 
 
 /*  */
@@ -187,11 +187,11 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 		(adapter_to_pwrctl(adapter)->bFwCurrentInPSMode)
 	) {
 		err = sd_cmd52_read(intfhdl, ftaddr, 4, (u8 *)&le_tmp);
-#ifdef SDIO_DEBUG_IO
+#ifdef SDIO_DE_IO
 		if (!err) {
 #endif
 			return le32_to_cpu(le_tmp);
-#ifdef SDIO_DEBUG_IO
+#ifdef SDIO_DE_IO
 		}
 
 		DBG_8192C(KERN_ERR "%s: Mac Power off, Read FAIL(%d)! addr = 0x%x\n", __func__, err, addr);

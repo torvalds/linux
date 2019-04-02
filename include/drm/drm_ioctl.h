@@ -133,7 +133,7 @@ enum drm_ioctl_flags {
  * @cmd: ioctl command number, without flags
  * @flags: a bitmask of &enum drm_ioctl_flags
  * @func: handler for this ioctl
- * @name: user-readable name for debug output
+ * @name: user-readable name for de output
  *
  * For convenience it's easier to create these using the DRM_IOCTL_DEF_DRV()
  * macro.

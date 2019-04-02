@@ -19,8 +19,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __DRM_DEBUGFS_CRC_H__
-#define __DRM_DEBUGFS_CRC_H__
+#ifndef __DRM_DEFS_CRC_H__
+#define __DRM_DEFS_CRC_H__
 
 #define DRM_MAX_CRC_NR		10
 
@@ -60,7 +60,7 @@ struct drm_crtc_crc {
 	wait_queue_head_t wq;
 };
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 			   uint32_t frame, uint32_t *crcs);
 #else
@@ -69,6 +69,6 @@ static inline int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 {
 	return -EINVAL;
 }
-#endif /* defined(CONFIG_DEBUG_FS) */
+#endif /* defined(CONFIG_DE_FS) */
 
-#endif /* __DRM_DEBUGFS_CRC_H__ */
+#endif /* __DRM_DEFS_CRC_H__ */

@@ -35,9 +35,9 @@
 
 #include "mpc85xx.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #else
 #define DBG(fmt, args...)
@@ -64,7 +64,7 @@ void __init mpc85xx_rdb_pic_init(void)
 		  0, 256, " OpenPIC  ");
 	}
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	mpic_init(mpic);
 
 #ifdef CONFIG_QUICC_ENGINE

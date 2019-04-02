@@ -348,10 +348,10 @@ config HISAX_ENTERNOW_PCI
 	  This enables HiSax support for the Formula-n enter:now PCI
 	  ISDN card.
 
-config HISAX_DEBUG
-	bool "HiSax debugging"
+config HISAX_DE
+	bool "HiSax deging"
 	help
-	  This enables debugging code in the new-style HiSax drivers, i.e.
+	  This enables deging code in the new-style HiSax drivers, i.e.
 	  the ST5481 USB driver currently. 
 	  If in doubt, say yes.
 

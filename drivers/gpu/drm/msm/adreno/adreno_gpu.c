@@ -481,7 +481,7 @@ int adreno_gpu_state_put(struct msm_gpu_state *state)
 	return kref_put(&state->ref, adreno_gpu_state_kref_destroy);
 }
 
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 
 static char *adreno_gpu_ascii85_encode(u32 *src, size_t len)
 {
@@ -615,7 +615,7 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
  * the hangcheck logs more useful.  The scratch registers seem always
  * safe to read when GPU has hung (unlike some other regs, depending
  * on how the GPU hung), and they are useful to match up to cmdstream
- * dumps when debugging hangs:
+ * dumps when deging hangs:
  */
 void adreno_dump_info(struct msm_gpu *gpu)
 {

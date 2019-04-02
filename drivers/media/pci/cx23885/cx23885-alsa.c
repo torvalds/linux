@@ -41,8 +41,8 @@
 #define AUDIO_SRAM_CHANNEL	SRAM_CH07
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (audio_debug + 1 > level)					\
-		printk(KERN_DEBUG pr_fmt("%s: alsa: " fmt), \
+	if (audio_de + 1 > level)					\
+		printk(KERN_DE pr_fmt("%s: alsa: " fmt), \
 			chip->dev->name, ##arg); \
 } while(0)
 
@@ -54,9 +54,9 @@ static unsigned int disable_analog_audio;
 module_param(disable_analog_audio, int, 0644);
 MODULE_PARM_DESC(disable_analog_audio, "disable analog audio ALSA driver");
 
-static unsigned int audio_debug;
-module_param(audio_debug, int, 0644);
-MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
+static unsigned int audio_de;
+module_param(audio_de, int, 0644);
+MODULE_PARM_DESC(audio_de, "enable de messages [analog audio]");
 
 /****************************************************************************
 			Board specific functions
@@ -200,7 +200,7 @@ static int cx23885_start_audio_dma(struct cx23885_audio_dev *chip)
 	cx_set(DEV_CNTRL2, (1<<5)); /* Enables Risc Processor */
 	cx_set(AUD_INT_DMA_CTL, 0x11); /* audio downstream FIFO and
 					  RISC enable */
-	if (audio_debug)
+	if (audio_de)
 		cx23885_sram_channel_dump(chip->dev, audio_ch);
 
 	return 0;
@@ -222,7 +222,7 @@ static int cx23885_stop_audio_dma(struct cx23885_audio_dev *chip)
 	cx_clear(AUDIO_INT_INT_MSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
 				    AUD_INT_DN_RISCI1);
 
-	if (audio_debug)
+	if (audio_de)
 		cx23885_sram_channel_dump(chip->dev,
 			&dev->sram_channels[AUDIO_SRAM_CHANNEL]);
 
@@ -268,7 +268,7 @@ static int dsp_buffer_free(struct cx23885_audio_dev *chip)
 {
 	struct cx23885_riscmem *risc;
 
-	BUG_ON(!chip->dma_size);
+	_ON(!chip->dma_size);
 
 	dprintk(2, "Freeing buffer\n");
 	cx23885_alsa_dma_unmap(chip);
@@ -323,7 +323,7 @@ static int snd_cx23885_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 
 	if (!chip) {
-		pr_err("BUG: cx23885 can't find device struct. Can't proceed with open\n");
+		pr_err(": cx23885 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
@@ -379,8 +379,8 @@ static int snd_cx23885_hw_params(struct snd_pcm_substream *substream,
 	chip->num_periods = params_periods(hw_params);
 	chip->dma_size = chip->period_size * params_periods(hw_params);
 
-	BUG_ON(!chip->dma_size);
-	BUG_ON(chip->num_periods & (chip->num_periods-1));
+	_ON(!chip->dma_size);
+	_ON(chip->num_periods & (chip->num_periods-1));
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (NULL == buf)

@@ -80,7 +80,7 @@ struct s_smt_hw {
 	u_short	pci_handle ;		/* handle to access the BIOS func */
 	u_long	is_imask ;		/* int maske for the int source reg */
 	u_long	phys_mem_addr ;		/* physical memory address */
-	u_short	mc_dummy ;		/* work around for MC compiler bug */	
+	u_short	mc_dummy ;		/* work around for MC compiler  */	
 	/*
 	 * state of the hardware
 	 */

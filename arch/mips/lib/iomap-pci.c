@@ -19,7 +19,7 @@ void __iomem *__pci_ioport_map(struct pci_dev *dev,
 	struct pci_controller *ctrl = dev->bus->sysdata;
 	unsigned long base = ctrl->io_map_base;
 
-	/* This will eventually become a BUG_ON but for now be gentle */
+	/* This will eventually become a _ON but for now be gentle */
 	if (unlikely(!ctrl->io_map_base)) {
 		struct pci_bus *bus = dev->bus;
 		char name[8];

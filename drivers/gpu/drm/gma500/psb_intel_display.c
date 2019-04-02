@@ -218,7 +218,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (psb_intel_panel_fitter_pipe(dev) == pipe)
 		REG_WRITE(PFIT_CONTROL, 0);
 
-	drm_mode_debug_printmodeline(mode);
+	drm_mode_de_printmodeline(mode);
 
 	if (dpll & DPLL_VCO_ENABLE) {
 		REG_WRITE(map->fp0, fp);
@@ -529,7 +529,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 
 	/* Setup the array of drm_connector pointer array */
 	gma_crtc->mode_set.crtc = &gma_crtc->base;
-	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
+	_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
 	       dev_priv->plane_to_crtc_mapping[gma_crtc->plane] != NULL);
 	dev_priv->plane_to_crtc_mapping[gma_crtc->plane] = &gma_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[gma_crtc->pipe] = &gma_crtc->base;

@@ -125,7 +125,7 @@ static long media_device_enum_entities(struct media_device *mdev, void *arg)
 	entd->links = ent->num_links - ent->num_backlinks;
 
 	/*
-	 * Workaround for a bug at media-ctl <= v1.10 that makes it to
+	 * Workaround for a  at media-ctl <= v1.10 that makes it to
 	 * do the wrong thing if the entity function doesn't belong to
 	 * either MEDIA_ENT_F_OLD_BASE or MEDIA_ENT_F_OLD_SUBDEV_BASE
 	 * Ranges.

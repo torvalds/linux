@@ -139,7 +139,7 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 		 * If we had an OPL4 chip, opl3->hardware would have been set
 		 * by the OPL4 driver; so we can assume OPL3 here.
 		 */
-		if (snd_BUG_ON(!opl3->r_port))
+		if (snd__ON(!opl3->r_port))
 			return -ENODEV;
 		opl3->hardware = OPL3_HW_OPL3;
 	}
@@ -302,7 +302,7 @@ void snd_opl3_interrupt(struct snd_hwdep * hw)
 	opl3 = hw->private_data;
 	status = inb(opl3->l_port);
 #if 0
-	snd_printk(KERN_DEBUG "AdLib IRQ status = 0x%x\n", status);
+	snd_printk(KERN_DE "AdLib IRQ status = 0x%x\n", status);
 #endif
 	if (!(status & 0x80))
 		return;
@@ -325,7 +325,7 @@ EXPORT_SYMBOL(snd_opl3_interrupt);
 
 static int snd_opl3_free(struct snd_opl3 *opl3)
 {
-	if (snd_BUG_ON(!opl3))
+	if (snd__ON(!opl3))
 		return -ENXIO;
 	if (opl3->private_free)
 		opl3->private_free(opl3);

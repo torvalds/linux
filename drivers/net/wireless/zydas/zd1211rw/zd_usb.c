@@ -1259,7 +1259,7 @@ int zd_usb_scnprint_id(struct zd_usb *usb, char *buffer, size_t size)
 	return scnprint_id(udev, buffer, size);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static void print_id(struct usb_device *udev)
 {
 	char buffer[40];
@@ -1554,7 +1554,7 @@ static int __init usb_init(void)
 {
 	int r;
 
-	pr_debug("%s usb_init()\n", driver.name);
+	pr_de("%s usb_init()\n", driver.name);
 
 	zd_workqueue = create_singlethread_workqueue(driver.name);
 	if (zd_workqueue == NULL) {
@@ -1570,13 +1570,13 @@ static int __init usb_init(void)
 		return r;
 	}
 
-	pr_debug("%s initialized\n", driver.name);
+	pr_de("%s initialized\n", driver.name);
 	return 0;
 }
 
 static void __exit usb_exit(void)
 {
-	pr_debug("%s usb_exit()\n", driver.name);
+	pr_de("%s usb_exit()\n", driver.name);
 	usb_deregister(&driver);
 	destroy_workqueue(zd_workqueue);
 }
@@ -1690,7 +1690,7 @@ static int get_results(struct zd_usb *usb, u16 *values,
 
 	r = -EIO;
 
-	/* Read failed because firmware bug? */
+	/* Read failed because firmware ? */
 	*retry = !!intr->read_regs_int_overridden;
 	if (*retry)
 		goto error_unlock;
@@ -1742,9 +1742,9 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 	}
 
 	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
-	BUILD_BUG_ON(sizeof(struct usb_req_read_regs) + USB_MAX_IOREAD16_COUNT *
+	BUILD__ON(sizeof(struct usb_req_read_regs) + USB_MAX_IOREAD16_COUNT *
 		     sizeof(__le16) > sizeof(usb->req_buf));
-	BUG_ON(sizeof(struct usb_req_read_regs) + count * sizeof(__le16) >
+	_ON(sizeof(struct usb_req_read_regs) + count * sizeof(__le16) >
 	       sizeof(usb->req_buf));
 
 	req_len = sizeof(struct usb_req_read_regs) + count * sizeof(__le16);
@@ -2004,14 +2004,14 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 			bits, USB_MAX_RFWRITE_BIT_COUNT);
 		return -EINVAL;
 	}
-#ifdef DEBUG
+#ifdef DE
 	if (value & (~0UL << bits)) {
 		dev_dbg_f(zd_usb_dev(usb),
 			"error: value %#09x has bits >= %d set\n",
 			value, bits);
 		return -EINVAL;
 	}
-#endif /* DEBUG */
+#endif /* DE */
 
 	dev_dbg_f(zd_usb_dev(usb), "value %#09x bits %d\n", value, bits);
 
@@ -2024,10 +2024,10 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	bit_value_template &= ~(RF_IF_LE|RF_CLK|RF_DATA);
 
 	ZD_ASSERT(mutex_is_locked(&zd_usb_to_chip(usb)->mutex));
-	BUILD_BUG_ON(sizeof(struct usb_req_rfwrite) +
+	BUILD__ON(sizeof(struct usb_req_rfwrite) +
 		     USB_MAX_RFWRITE_BIT_COUNT * sizeof(__le16) >
 		     sizeof(usb->req_buf));
-	BUG_ON(sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16) >
+	_ON(sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16) >
 	       sizeof(usb->req_buf));
 
 	req_len = sizeof(struct usb_req_rfwrite) + bits * sizeof(__le16);

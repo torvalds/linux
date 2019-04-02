@@ -47,7 +47,7 @@
 
 #include "b43.h"
 #include "main.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "phy_common.h"
 #include "phy_g.h"
 #include "phy_n.h"
@@ -116,7 +116,7 @@ MODULE_PARM_DESC(btcoex, "Enable Bluetooth coexistence (default on)");
 
 int b43_modparam_verbose = B43_VERBOSITY_DEFAULT;
 module_param_named(verbose, b43_modparam_verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "Log message verbosity: 0=error, 1=warn, 2=info(default), 3=debug");
+MODULE_PARM_DESC(verbose, "Log message verbosity: 0=error, 1=warn, 2=info(default), 3=de");
 
 static int b43_modparam_pio = 0;
 module_param_named(pio, b43_modparam_pio, int, 0644);
@@ -460,7 +460,7 @@ void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
+	if (b43_modparam_verbose < B43_VERBOSITY_DE)
 		return;
 
 	va_start(args, fmt);
@@ -468,7 +468,7 @@ void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "b43-%s debug: %pV",
+	printk(KERN_DE "b43-%s de: %pV",
 	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
 
 	va_end(args);
@@ -932,7 +932,7 @@ static void rx_tkip_phase1_write(struct b43_wldev *dev, u8 index, u32 iv32,
 	index -= pairwise_keys_start;
 	B43_WARN_ON(index >= B43_NR_PAIRWISE_KEYS);
 
-	if (b43_debug(dev, B43_DBG_KEYS)) {
+	if (b43_de(dev, B43_DBG_KEYS)) {
 		b43dbg(dev->wl, "rx_tkip_phase1_write : idx 0x%x, iv32 0x%x\n",
 				index, iv32);
 	}
@@ -1107,7 +1107,7 @@ static void b43_dump_keymemory(struct b43_wldev *dev)
 	u64 hf;
 	struct b43_key *key;
 
-	if (!b43_debug(dev, B43_DBG_KEYS))
+	if (!b43_de(dev, B43_DBG_KEYS))
 		return;
 
 	hf = b43_hf_read(dev);
@@ -1122,7 +1122,7 @@ static void b43_dump_keymemory(struct b43_wldev *dev)
 	}
 	for (index = 0; index < count; index++) {
 		key = &(dev->key[index]);
-		printk(KERN_DEBUG "Key slot %02u: %s",
+		printk(KERN_DE "Key slot %02u: %s",
 		       index, (key->keyconf == NULL) ? " " : "*");
 		offset = dev->ktp + (index * B43_SEC_KEYSIZE);
 		for (i = 0; i < B43_SEC_KEYSIZE; i += 2) {
@@ -1904,7 +1904,7 @@ static void b43_handle_firmware_panic(struct b43_wldev *dev)
 	}
 }
 
-static void handle_irq_ucode_debug(struct b43_wldev *dev)
+static void handle_irq_ucode_de(struct b43_wldev *dev)
 {
 	unsigned int i, cnt;
 	u16 reason, marker_id, marker_line;
@@ -1915,15 +1915,15 @@ static void handle_irq_ucode_debug(struct b43_wldev *dev)
 		return;
 
 	/* Read the register that contains the reason code for this IRQ. */
-	reason = b43_shm_read16(dev, B43_SHM_SCRATCH, B43_DEBUGIRQ_REASON_REG);
+	reason = b43_shm_read16(dev, B43_SHM_SCRATCH, B43_DEIRQ_REASON_REG);
 
 	switch (reason) {
-	case B43_DEBUGIRQ_PANIC:
+	case B43_DEIRQ_PANIC:
 		b43_handle_firmware_panic(dev);
 		break;
-	case B43_DEBUGIRQ_DUMP_SHM:
-		if (!B43_DEBUG)
-			break; /* Only with driver debugging enabled. */
+	case B43_DEIRQ_DUMP_SHM:
+		if (!B43_DE)
+			break; /* Only with driver deging enabled. */
 		buf = kmalloc(4096, GFP_ATOMIC);
 		if (!buf) {
 			b43dbg(dev->wl, "SHM-dump: Failed to allocate memory\n");
@@ -1938,9 +1938,9 @@ static void handle_irq_ucode_debug(struct b43_wldev *dev)
 			       16, 2, buf, 4096, 1);
 		kfree(buf);
 		break;
-	case B43_DEBUGIRQ_DUMP_REGS:
-		if (!B43_DEBUG)
-			break; /* Only with driver debugging enabled. */
+	case B43_DEIRQ_DUMP_REGS:
+		if (!B43_DE)
+			break; /* Only with driver deging enabled. */
 		b43info(dev->wl, "Microcode register dump:\n");
 		for (i = 0, cnt = 0; i < 64; i++) {
 			u16 tmp = b43_shm_read16(dev, B43_SHM_SCRATCH, i);
@@ -1955,9 +1955,9 @@ static void handle_irq_ucode_debug(struct b43_wldev *dev)
 		}
 		printk("\n");
 		break;
-	case B43_DEBUGIRQ_MARKER:
-		if (!B43_DEBUG)
-			break; /* Only with driver debugging enabled. */
+	case B43_DEIRQ_MARKER:
+		if (!B43_DE)
+			break; /* Only with driver deging enabled. */
 		marker_id = b43_shm_read16(dev, B43_SHM_SCRATCH,
 					   B43_MARKER_ID_REG);
 		marker_line = b43_shm_read16(dev, B43_SHM_SCRATCH,
@@ -1967,13 +1967,13 @@ static void handle_irq_ucode_debug(struct b43_wldev *dev)
 			marker_id, marker_line);
 		break;
 	default:
-		b43dbg(dev->wl, "Debug-IRQ triggered for unknown reason: %u\n",
+		b43dbg(dev->wl, "De-IRQ triggered for unknown reason: %u\n",
 		       reason);
 	}
 out:
-	/* Acknowledge the debug-IRQ, so the firmware can continue. */
+	/* Acknowledge the de-IRQ, so the firmware can continue. */
 	b43_shm_write16(dev, B43_SHM_SCRATCH,
-			B43_DEBUGIRQ_REASON_REG, B43_DEBUGIRQ_ACK);
+			B43_DEIRQ_REASON_REG, B43_DEIRQ_ACK);
 }
 
 static void b43_do_interrupt_thread(struct b43_wldev *dev)
@@ -2021,8 +2021,8 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 		return;
 	}
 
-	if (unlikely(reason & B43_IRQ_UCODE_DEBUG))
-		handle_irq_ucode_debug(dev);
+	if (unlikely(reason & B43_IRQ_UCODE_DE))
+		handle_irq_ucode_de(dev);
 	if (reason & B43_IRQ_TBTT_INDI)
 		handle_irq_tbtt_indication(dev);
 	if (reason & B43_IRQ_ATIM_END)
@@ -2038,7 +2038,7 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 
 	/* Check the DMA reason registers for received data. */
 	if (dma_reason[0] & B43_DMAIRQ_RDESC_UFLOW) {
-		if (B43_DEBUG)
+		if (B43_DE)
 			b43warn(dev->wl, "RX descriptor underrun\n");
 		b43_dma_handle_rx_overflow(dev->dma.rx_ring);
 	}
@@ -2060,8 +2060,8 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 	/* Re-enable interrupts on the device by restoring the current interrupt mask. */
 	b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 
-#if B43_DEBUG
-	if (b43_debug(dev, B43_DBG_VERBOSESTATS)) {
+#if B43_DE
+	if (b43_de(dev, B43_DBG_VERBOSESTATS)) {
 		dev->irq_count++;
 		for (i = 0; i < ARRAY_SIZE(dev->irq_bit_count); i++) {
 			if (reason & (1 << i))
@@ -2783,7 +2783,7 @@ static int b43_write_initvals(struct b43_wldev *dev,
 	size_t i;
 	bool bit32;
 
-	BUILD_BUG_ON(sizeof(struct b43_iv) != 6);
+	BUILD__ON(sizeof(struct b43_iv) != 6);
 	iv = ivals;
 	for (i = 0; i < count; i++) {
 		if (array_size < sizeof(iv->offset_size))
@@ -2970,7 +2970,7 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 /* http://bcm-specs.sipsolutions.net/EnableMac */
 void b43_mac_enable(struct b43_wldev *dev)
 {
-	if (b43_debug(dev, B43_DBG_FIRMWARE)) {
+	if (b43_de(dev, B43_DBG_FIRMWARE)) {
 		u16 fwstate;
 
 		fwstate = b43_shm_read16(dev, B43_SHM_SHARED,
@@ -3408,8 +3408,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 	wmb();
 
-#if B43_DEBUG
-	if (b43_debug(dev, B43_DBG_VERBOSESTATS)) {
+#if B43_DE
+	if (b43_de(dev, B43_DBG_VERBOSESTATS)) {
 		unsigned int i;
 
 		b43dbg(dev->wl, "Stats: %7u IRQs/sec, %7u TX/sec, %7u RX/sec\n",
@@ -3458,14 +3458,14 @@ static void b43_periodic_work_handler(struct work_struct *work)
 
 	if (unlikely(b43_status(dev) != B43_STAT_STARTED))
 		goto out;
-	if (b43_debug(dev, B43_DBG_PWORK_STOP))
+	if (b43_de(dev, B43_DBG_PWORK_STOP))
 		goto out_requeue;
 
 	do_periodic_work(dev);
 
 	dev->periodic_state++;
 out_requeue:
-	if (b43_debug(dev, B43_DBG_PWORK_FAST))
+	if (b43_de(dev, B43_DBG_PWORK_FAST))
 		delay = msecs_to_jiffies(50);
 	else
 		delay = round_jiffies_relative(HZ * 15);
@@ -3639,7 +3639,7 @@ static void b43_tx_work(struct work_struct *work)
 			wl->tx_queue_stopped[queue_num] = 0;
 	}
 
-#if B43_DEBUG
+#if B43_DE
 	dev->tx_count++;
 #endif
 	mutex_unlock(&wl->mutex);
@@ -3725,7 +3725,7 @@ static void b43_qos_upload_all(struct b43_wldev *dev)
 	if (!dev->qos_enabled)
 		return;
 
-	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+	BUILD__ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
 		     ARRAY_SIZE(wl->qos_params));
 
 	b43_mac_suspend(dev);
@@ -3744,7 +3744,7 @@ static void b43_qos_clear(struct b43_wl *wl)
 
 	/* Initialize QoS parameters to sane defaults. */
 
-	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+	BUILD__ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
 		     ARRAY_SIZE(wl->qos_params));
 
 	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++) {
@@ -3820,7 +3820,7 @@ static int b43_op_conf_tx(struct ieee80211_hw *hw,
 		 * confuse mac80211. */
 		return 0;
 	}
-	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+	BUILD__ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
 		     ARRAY_SIZE(wl->qos_params));
 
 	mutex_lock(&wl->mutex);
@@ -4676,7 +4676,7 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	/* PHY TX errors counter. */
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 
-#if B43_DEBUG
+#if B43_DE
 	phy->phy_locked = false;
 	phy->radio_locked = false;
 #endif
@@ -4699,7 +4699,7 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	dev->irq_reason = 0;
 	memset(dev->dma_reason, 0, sizeof(dev->dma_reason));
 	dev->irq_mask = B43_IRQ_MASKTEMPLATE;
-	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
+	if (b43_modparam_verbose < B43_VERBOSITY_DE)
 		dev->irq_mask &= ~B43_IRQ_PHY_TXERR;
 
 	dev->mac_suspended = 1;
@@ -5498,7 +5498,7 @@ static void b43_one_core_detach(struct b43_bus_dev *dev)
 	 * See comment in b43_remove(). */
 
 	wldev = b43_bus_get_wldev(dev);
-	b43_debugfs_remove_device(wldev);
+	b43_defs_remove_device(wldev);
 	b43_wireless_core_detach(wldev);
 	list_del(&wldev->list);
 	b43_bus_set_wldev(dev, NULL);
@@ -5526,7 +5526,7 @@ static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl)
 		goto err_kfree_wldev;
 
 	b43_bus_set_wldev(dev, wldev);
-	b43_debugfs_add_device(wldev);
+	b43_defs_add_device(wldev);
 
       out:
 	return err;
@@ -5837,7 +5837,7 @@ static int __init b43_init(void)
 {
 	int err;
 
-	b43_debugfs_init();
+	b43_defs_init();
 	err = b43_sdio_init();
 	if (err)
 		goto err_dfs_exit;
@@ -5864,7 +5864,7 @@ err_sdio_exit:
 #endif
 	b43_sdio_exit();
 err_dfs_exit:
-	b43_debugfs_exit();
+	b43_defs_exit();
 	return err;
 }
 
@@ -5877,7 +5877,7 @@ static void __exit b43_exit(void)
 	bcma_driver_unregister(&b43_bcma_driver);
 #endif
 	b43_sdio_exit();
-	b43_debugfs_exit();
+	b43_defs_exit();
 }
 
 module_init(b43_init)

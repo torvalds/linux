@@ -78,7 +78,7 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 	bool foundplldivides = false;
 	int i;
 
-	DRM_DEBUG_DRIVER("ckpxpll = %dHz\n", ckpxpll);
+	DRM_DE_DRIVER("ckpxpll = %dHz\n", ckpxpll);
 
 	for (i = 0; i < NB_PLL_MODE; i++) {
 		if (ckpxpll >= plldividers[i].min &&
@@ -112,7 +112,7 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 	 * Configure and power up the PHY PLL
 	 */
 	hdmi->event_received = false;
-	DRM_DEBUG_DRIVER("pllctrl = 0x%x\n", pllctrl);
+	DRM_DE_DRIVER("pllctrl = 0x%x\n", pllctrl);
 	hdmi_write(hdmi, (pllctrl | PLL_CFG_EN), HDMI_SRZ_PLL_CFG);
 
 	/* wait PLL interrupt */
@@ -126,7 +126,7 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 		goto err;
 	}
 
-	DRM_DEBUG_DRIVER("got PHY PLL Lock\n");
+	DRM_DE_DRIVER("got PHY PLL Lock\n");
 
 	val = (HDMI_SRZ_CFG_EN |
 	       HDMI_SRZ_CFG_EXTERNAL_DATA |
@@ -154,7 +154,7 @@ static bool sti_hdmi_tx3g4c28phy_start(struct sti_hdmi *hdmi)
 			val = hdmiphy_config[i].config[2];
 			hdmi_write(hdmi, val, HDMI_SRZ_CALCODE_EXT);
 
-			DRM_DEBUG_DRIVER("serializer cfg 0x%x 0x%x 0x%x\n",
+			DRM_DE_DRIVER("serializer cfg 0x%x 0x%x 0x%x\n",
 					 hdmiphy_config[i].config[0],
 					 hdmiphy_config[i].config[1],
 					 hdmiphy_config[i].config[2]);
@@ -185,7 +185,7 @@ static void sti_hdmi_tx3g4c28phy_stop(struct sti_hdmi *hdmi)
 {
 	int val = 0;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	hdmi->event_received = false;
 

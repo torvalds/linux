@@ -30,7 +30,7 @@ dati, come di seguito::
 	};
 
 Per favore, seguite questa direttiva quando aggiungerete migliorie al kernel!
-Mi ha risparmiato un numero illimitato di ore di debug, specialmente nei casi
+Mi ha risparmiato un numero illimitato di ore di de, specialmente nei casi
 più ostici dove si è andati oltre la dimensione di un vettore e la struttura
 dati che lo seguiva in memoria è stata sovrascritta.  Seguendo questa
 direttiva, questi casi vengono identificati velocemente e in sicurezza.

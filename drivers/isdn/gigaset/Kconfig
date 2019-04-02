@@ -61,10 +61,10 @@ config GIGASET_M101
 	  using a Gigaset M101 (Sinus 45 Data 1) RS232 DECT device.
 	  This will build a module called "ser_gigaset".
 
-config GIGASET_DEBUG
-	bool "Gigaset debugging"
+config GIGASET_DE
+	bool "Gigaset deging"
 	help
-	  This enables debugging code in the Gigaset drivers.
+	  This enables deging code in the Gigaset drivers.
 	  If in doubt, say yes.
 
 endif # ISDN_DRV_GIGASET

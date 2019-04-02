@@ -111,7 +111,7 @@ static void wm97xx_bat_update(struct power_supply *bat_ps)
 			POWER_SUPPLY_STATUS_UNKNOWN;
 
 	if (old_status != bat_status) {
-		pr_debug("%s: %i -> %i\n", bat_ps->desc->name, old_status,
+		pr_de("%s: %i -> %i\n", bat_ps->desc->name, old_status,
 					bat_status);
 		power_supply_changed(bat_ps);
 	}

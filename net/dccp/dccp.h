@@ -20,33 +20,33 @@
 #include "ackvec.h"
 
 /*
- * 	DCCP - specific warning and debugging macros.
+ * 	DCCP - specific warning and deging macros.
  */
 #define DCCP_WARN(fmt, ...)						\
 	net_warn_ratelimited("%s: " fmt, __func__, ##__VA_ARGS__)
 #define DCCP_CRIT(fmt, a...) printk(KERN_CRIT fmt " at %s:%d/%s()\n", ##a, \
 					 __FILE__, __LINE__, __func__)
-#define DCCP_BUG(a...)       do { DCCP_CRIT("BUG: " a); dump_stack(); } while(0)
-#define DCCP_BUG_ON(cond)    do { if (unlikely((cond) != 0))		   \
-				     DCCP_BUG("\"%s\" holds (exception!)", \
+#define DCCP_(a...)       do { DCCP_CRIT(": " a); dump_stack(); } while(0)
+#define DCCP__ON(cond)    do { if (unlikely((cond) != 0))		   \
+				     DCCP_("\"%s\" holds (exception!)", \
 					      __stringify(cond));          \
 			     } while (0)
 
 #define DCCP_PRINTK(enable, fmt, args...)	do { if (enable)	     \
 							printk(fmt, ##args); \
 						} while(0)
-#define DCCP_PR_DEBUG(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DEBUG \
+#define DCCP_PR_DE(enable, fmt, a...)	DCCP_PRINTK(enable, KERN_DE \
 						  "%s: " fmt, __func__, ##a)
 
-#ifdef CONFIG_IP_DCCP_DEBUG
-extern bool dccp_debug;
-#define dccp_pr_debug(format, a...)	  DCCP_PR_DEBUG(dccp_debug, format, ##a)
-#define dccp_pr_debug_cat(format, a...)   DCCP_PRINTK(dccp_debug, format, ##a)
-#define dccp_debug(fmt, a...)		  dccp_pr_debug_cat(KERN_DEBUG fmt, ##a)
+#ifdef CONFIG_IP_DCCP_DE
+extern bool dccp_de;
+#define dccp_pr_de(format, a...)	  DCCP_PR_DE(dccp_de, format, ##a)
+#define dccp_pr_de_cat(format, a...)   DCCP_PRINTK(dccp_de, format, ##a)
+#define dccp_de(fmt, a...)		  dccp_pr_de_cat(KERN_DE fmt, ##a)
 #else
-#define dccp_pr_debug(format, a...)
-#define dccp_pr_debug_cat(format, a...)
-#define dccp_debug(format, a...)
+#define dccp_pr_de(format, a...)
+#define dccp_pr_de_cat(format, a...)
+#define dccp_de(format, a...)
 #endif
 
 extern struct inet_hashinfo dccp_hashinfo;

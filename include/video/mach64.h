@@ -108,8 +108,8 @@
 /* General I/O Control */
 #define GP_IO			0x0078	/* Dword offset 0_1E */
 
-/* Test and Debug */
-#define HW_DEBUG		0x007C	/* Dword offset 0_1F */
+/* Test and De */
+#define HW_DE		0x007C	/* Dword offset 0_1F */
 
 /* Scratch Pad and Test */
 #define SCRATCH_REG0		0x0080	/* Dword offset 0_20 */
@@ -180,7 +180,7 @@
 #define HORZ_STRETCHING_LG	0x00C8	/* Dword offset 0_32 (LG) */
 #define VERT_STRETCHING_LG	0x00CC	/* Dword offset 0_33 (LG) */
 
-/* Test and Debug */
+/* Test and De */
 #define GEN_TEST_CNTL		0x00D0	/* Dword offset 0_34 */
 
 /* Custom Macros */
@@ -194,7 +194,7 @@
 #define CNFG_CHIP_ID		0x00E0	/* Dword offset 0_38 */
 #define CNFG_STAT0		0x00E4	/* Dword offset 0_39 */
 
-/* Test and Debug */
+/* Test and De */
 #define CRC_SIG			0x00E8	/* Dword offset 0_3A */
 #define CRC2_SIG		0x00E8	/* Dword offset 0_3A */
 
@@ -460,7 +460,7 @@
 #define OVERLAY_EXCLUSIVE_VERT	0x045C	/* Dword offset 1_17 */
 
 #define VAL_WIDTH		0x0460	/* Dword offset 1_18 */
-#define CAPTURE_DEBUG		0x0464	/* Dword offset 1_19 */
+#define CAPTURE_DE		0x0464	/* Dword offset 1_19 */
 #define VIDEO_SYNC_TEST		0x0468	/* Dword offset 1_1A */
 
 /* GenLocking */
@@ -485,7 +485,7 @@
 #define MPP_DATA		0x04CC	/* Dword offset 1_33 */
 #define TVO_CNTL		0x0500	/* Dword offset 1_40 */
 
-/* Test and Debug */
+/* Test and De */
 #define CRT_HORZ_VERT_LOAD	0x0544	/* Dword offset 1_51 */
 
 /* AGP */
@@ -500,7 +500,7 @@
 #define SCALER_H_COEFF4		0x0564	/* Dword offset 1_59 */
 
 /* Command FIFO */
-#define GUI_CMDFIFO_DEBUG	0x0570	/* Dword offset 1_5C */
+#define GUI_CMDFIFO_DE	0x0570	/* Dword offset 1_5C */
 #define GUI_CMDFIFO_DATA	0x0574	/* Dword offset 1_5D */
 #define GUI_CNTL		0x0578	/* Dword offset 1_5E */
 
@@ -1284,13 +1284,13 @@
 #define TEST_OUTPUTS		0x29
 #define DP1_MEM_ACCESS		0x2A
 #define DP0_MEM_ACCESS		0x2B
-#define DP0_DEBUG_A		0x2C
-#define DP0_DEBUG_B		0x2D
-#define DP1_DEBUG_A		0x2E
-#define DP1_DEBUG_B		0x2F
-#define DPCTRL_DEBUG_A		0x30
-#define DPCTRL_DEBUG_B		0x31
-#define MEMBLK_DEBUG		0x32
+#define DP0_DE_A		0x2C
+#define DP0_DE_B		0x2D
+#define DP1_DE_A		0x2E
+#define DP1_DE_B		0x2F
+#define DPCTRL_DE_A		0x30
+#define DPCTRL_DE_B		0x31
+#define MEMBLK_DE		0x32
 #define APC_LUT_AB		0x33
 #define APC_LUT_CD		0x34
 #define APC_LUT_EF		0x35

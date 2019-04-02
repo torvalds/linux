@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/sort.h>
 #include <linux/slab.h>
@@ -94,7 +94,7 @@ static void __insert_snap_realm(struct rb_root *root,
 		else if (new->ino > r->ino)
 			p = &(*p)->rb_right;
 		else
-			BUG();
+			();
 	}
 
 	rb_link_node(&new->node, parent, p);
@@ -501,7 +501,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		goto update_snapc;
 	}
 
-	BUG_ON(!old_snapc);
+	_ON(!old_snapc);
 
 	/*
 	 * There is no need to send FLUSHSNAP message to MDS if there is
@@ -596,7 +596,7 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 
-	BUG_ON(capsnap->writing);
+	_ON(capsnap->writing);
 	capsnap->size = inode->i_size;
 	capsnap->mtime = inode->i_mtime;
 	capsnap->atime = inode->i_atime;

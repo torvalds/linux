@@ -41,7 +41,7 @@
  *		Alan Cox	:	Fragmentation bogosity removed
  *					(Thanks to Mark.Bush@prg.ox.ac.uk)
  *		Dmitry Gorodchanin :	Send of a raw packet crash fix.
- *		Alan Cox	:	Silly ip bug when an overlength
+ *		Alan Cox	:	Silly ip  when an overlength
  *					fragment turns up. Now frees the
  *					queue.
  *		Linus Torvalds/ :	Memory leakage on fragmentation
@@ -81,15 +81,15 @@
  *		Alan Cox	:	Can disable source routing
  *		Takeshi Sone    :	Masquerading didn't work.
  *	Dave Bonn,Alan Cox	:	Faster IP forwarding whenever possible.
- *		Alan Cox	:	Memory leaks, tramples, misc debugging.
+ *		Alan Cox	:	Memory leaks, tramples, misc deging.
  *		Alan Cox	:	Fixed multicast (by popular demand 8))
  *		Alan Cox	:	Fixed forwarding (by even more popular demand 8))
  *		Alan Cox	:	Fixed SNMP statistics [I think]
  *	Gerhard Koerting	:	IP fragmentation forwarding fix
  *		Alan Cox	:	Device lock against page fault.
  *		Alan Cox	:	IP_HDRINCL facility.
- *	Werner Almesberger	:	Zero fragment bug
- *		Alan Cox	:	RAW IP frame length bug
+ *	Werner Almesberger	:	Zero fragment 
+ *		Alan Cox	:	RAW IP frame length 
  *		Alan Cox	:	Outgoing firewall on build_xmit
  *		A.N.Kuznetsov	:	IP_OPTIONS support throughout the kernel
  *		Alan Cox	:	Multicast routing hooks
@@ -456,9 +456,9 @@ static struct sk_buff *ip_rcv_core(struct sk_buff *skb, struct net *net)
 	if (iph->ihl < 5 || iph->version != 4)
 		goto inhdr_error;
 
-	BUILD_BUG_ON(IPSTATS_MIB_ECT1PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_1);
-	BUILD_BUG_ON(IPSTATS_MIB_ECT0PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_0);
-	BUILD_BUG_ON(IPSTATS_MIB_CEPKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_CE);
+	BUILD__ON(IPSTATS_MIB_ECT1PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_1);
+	BUILD__ON(IPSTATS_MIB_ECT0PKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_ECT_0);
+	BUILD__ON(IPSTATS_MIB_CEPKTS != IPSTATS_MIB_NOECTPKTS + INET_ECN_CE);
 	__IP_ADD_STATS(net,
 		       IPSTATS_MIB_NOECTPKTS + (iph->tos & INET_ECN_MASK),
 		       max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));

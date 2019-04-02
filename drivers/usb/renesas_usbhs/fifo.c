@@ -1107,7 +1107,7 @@ static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pkt->pipe);
 
-	BUG_ON(usbhs_get_dparam(priv, has_usb_dmac));
+	_ON(usbhs_get_dparam(priv, has_usb_dmac));
 
 	return usbhsf_dma_try_pop_with_rx_irq(pkt, is_done);
 }
@@ -1299,7 +1299,7 @@ static int usbhsf_irq_empty(struct usbhs_priv *priv,
 	int i, ret;
 
 	if (!irq_state->bempsts) {
-		dev_err(dev, "debug %s !!\n", __func__);
+		dev_err(dev, "de %s !!\n", __func__);
 		return -EIO;
 	}
 
@@ -1329,7 +1329,7 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 	int i, ret;
 
 	if (!irq_state->brdysts) {
-		dev_err(dev, "debug %s !!\n", __func__);
+		dev_err(dev, "de %s !!\n", __func__);
 		return -EIO;
 	}
 

@@ -16,7 +16,7 @@
 #ifndef __ASM_PGTABLE_H
 #define __ASM_PGTABLE_H
 
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/proc-fns.h>
 
 #include <asm/memory.h>
@@ -42,7 +42,7 @@
 
 #include <asm/cmpxchg.h>
 #include <asm/fixmap.h>
-#include <linux/mmdebug.h>
+#include <linux/mmde.h>
 #include <linux/mm_types.h>
 #include <linux/sched.h>
 
@@ -260,7 +260,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * valid ptes without going through an invalid entry).
 	 */
 	old_pte = READ_ONCE(*ptep);
-	if (IS_ENABLED(CONFIG_DEBUG_VM) && pte_valid(old_pte) && pte_valid(pte) &&
+	if (IS_ENABLED(CONFIG_DE_VM) && pte_valid(old_pte) && pte_valid(pte) &&
 	   (mm == current->active_mm || atomic_read(&mm->mm_users) > 1)) {
 		VM_WARN_ONCE(!pte_young(pte),
 			     "%s: racy access flag clearing: 0x%016llx -> 0x%016llx",
@@ -555,7 +555,7 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
 
 #else
 
-#define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
+#define pud_page_paddr(pud)	({ BUILD_(); 0; })
 
 /* Match pmd_offset folding in <asm/generic/pgtable-nopmd.h> */
 #define pmd_set_fixmap(addr)		NULL
@@ -612,7 +612,7 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 
 #else
 
-#define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
+#define pgd_page_paddr(pgd)	({ BUILD_(); 0;})
 
 /* Match pud_offset folding in <asm/generic/pgtable-nopud.h> */
 #define pud_set_fixmap(addr)		NULL
@@ -807,7 +807,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  * Ensure that there are not more swap files than can be encoded in the kernel
  * PTEs.
  */
-#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
+#define MAX_SWAPFILES_CHECK() BUILD__ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
 extern int kern_addr_valid(unsigned long addr);
 

@@ -249,7 +249,7 @@ static int cyber2000fb_sync(struct fb_info *info)
 
 	while (cyber2000fb_readb(CO_REG_CONTROL, cfb) & CO_CTRL_BUSY) {
 		if (!count--) {
-			debug_printf("accel_wait timed out\n");
+			de_printf("accel_wait timed out\n");
 			cyber2000fb_writeb(0, CO_REG_CONTROL, cfb);
 			break;
 		}
@@ -891,7 +891,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 			hw.extseqmisc	= EXT_SEQ_MISC_16_RGB444;
 			break;
 		default:
-			BUG();
+			();
 		}
 		break;
 
@@ -911,7 +911,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	/*
@@ -925,8 +925,8 @@ static int cyber2000fb_set_par(struct fb_info *info)
 	 * In theory, since NetWinders contain just one VGA card,
 	 * we should never end up hitting this problem.
 	 */
-	BUG_ON(cyber2000fb_decode_clock(&hw, cfb, var) != 0);
-	BUG_ON(cyber2000fb_decode_crtc(&hw, cfb, var) != 0);
+	_ON(cyber2000fb_decode_clock(&hw, cfb, var) != 0);
+	_ON(cyber2000fb_decode_crtc(&hw, cfb, var) != 0);
 
 	hw.width -= 1;
 	hw.fetch = hw.pitch;
@@ -944,7 +944,7 @@ static int cyber2000fb_set_par(struct fb_info *info)
 	 * we should never end up hitting this problem.
 	 */
 	mem = cfb->fb.fix.line_length * var->yres_virtual;
-	BUG_ON(mem > cfb->fb.fix.smem_len);
+	_ON(mem > cfb->fb.fix.smem_len);
 
 	/*
 	 * 8bpp displays are always pseudo colour.  16bpp and above

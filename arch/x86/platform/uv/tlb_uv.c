@@ -8,7 +8,7 @@
  */
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -588,8 +588,8 @@ static unsigned long uv2_3_read_status(unsigned long offset, int rshft, int desc
 
 /*
  * Entered when a bau descriptor has gone into a permanent busy wait because
- * of a hardware bug.
- * Workaround the bug.
+ * of a hardware .
+ * Workaround the .
  */
 static int handle_uv2_busy(struct bau_control *bcp)
 {
@@ -617,7 +617,7 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 	while (descriptor_stat != UV2H_DESC_IDLE) {
 		if (descriptor_stat == UV2H_DESC_SOURCE_TIMEOUT) {
 			/*
-			 * A h/w bug on the destination side may
+			 * A h/w  on the destination side may
 			 * have prevented the message being marked
 			 * pending, thus it doesn't get replied to
 			 * and gets continually nacked until it times
@@ -856,7 +856,7 @@ static void record_send_stats(cycles_t time1, cycles_t time2,
 }
 
 /*
- * Because of a uv1 hardware bug only a limited number of concurrent
+ * Because of a uv1 hardware  only a limited number of concurrent
  * requests can be made.
  */
 static void uv1_throttle(struct bau_control *hmaster, struct ptc_stats *stat)
@@ -1212,7 +1212,7 @@ static struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
 }
 
 /*
- * UV2 needs to work around a bug in which an arriving message has not
+ * UV2 needs to work around a  in which an arriving message has not
  * set a bit in the UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE register.
  * Such a message must be ignored.
  */
@@ -1230,7 +1230,7 @@ static void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
 		/*
 		 * This message was assigned a swack resource, but no
 		 * reserved acknowlegment is pending.
-		 * The bug has prevented this message from setting the MMR.
+		 * The  has prevented this message from setting the MMR.
 		 */
 		/*
 		 * Some message has set the MMR 'pending' bit; it might have
@@ -1362,7 +1362,7 @@ static void __init enable_timeouts(void)
 		mmr_image |= (1L << SOFTACK_MSHIFT);
 		if (is_uv2_hub()) {
 			/* do not touch the legacy mode bit */
-			/* hw bug workaround; do not use extended status */
+			/* hw  workaround; do not use extended status */
 			mmr_image &= ~(1L << UV2_EXT_SHFT);
 		} else if (is_uv3_hub()) {
 			mmr_image &= ~(1L << PREFETCH_HINT_SHFT);
@@ -1464,7 +1464,7 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 }
 
 /*
- * Display the tunables thru debugfs
+ * Display the tunables thru defs
  */
 static ssize_t tunables_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
@@ -1519,16 +1519,16 @@ static ssize_t ptc_proc_write(struct file *file, const char __user *user,
 	}
 
 	if (kstrtol(optstr, 10, &input_arg) < 0) {
-		pr_debug("%s is invalid\n", optstr);
+		pr_de("%s is invalid\n", optstr);
 		return -EINVAL;
 	}
 
 	if (input_arg == 0) {
 		elements = ARRAY_SIZE(stat_description);
-		pr_debug("# cpu:      cpu number\n");
-		pr_debug("Sender statistics:\n");
+		pr_de("# cpu:      cpu number\n");
+		pr_de("Sender statistics:\n");
 		for (i = 0; i < elements; i++)
-			pr_debug("%s\n", stat_description[i]);
+			pr_de("%s\n", stat_description[i]);
 	} else if (input_arg == -1) {
 		for_each_present_cpu(cpu) {
 			stat = &per_cpu(ptcstats, cpu);
@@ -1555,7 +1555,7 @@ static int local_atoi(const char *name)
 }
 
 /*
- * Parse the values written to /sys/kernel/debug/sgi_uv/bau_tunables.
+ * Parse the values written to /sys/kernel/de/sgi_uv/bau_tunables.
  * Zero values reset them to defaults.
  */
 static int parse_tunables_write(struct bau_control *bcp, char *instr,
@@ -1593,7 +1593,7 @@ static int parse_tunables_write(struct bau_control *bcp, char *instr,
 				continue;
 			}
 			if (val < 1 || val > bcp->cpus_in_uvhub) {
-				pr_debug(
+				pr_de(
 				"Error: BAU max concurrent %d is invalid\n",
 				val);
 				return -EINVAL;
@@ -1613,7 +1613,7 @@ static int parse_tunables_write(struct bau_control *bcp, char *instr,
 }
 
 /*
- * Handle a write to debugfs. (/sys/kernel/debug/sgi_uv/bau_tunables)
+ * Handle a write to defs. (/sys/kernel/de/sgi_uv/bau_tunables)
  */
 static ssize_t tunables_write(struct file *file, const char __user *user,
 				size_t count, loff_t *data)
@@ -1701,16 +1701,16 @@ static int __init uv_ptc_init(void)
 		return -EINVAL;
 	}
 
-	tunables_dir = debugfs_create_dir(UV_BAU_TUNABLES_DIR, NULL);
+	tunables_dir = defs_create_dir(UV_BAU_TUNABLES_DIR, NULL);
 	if (!tunables_dir) {
-		pr_err("unable to create debugfs directory %s\n",
+		pr_err("unable to create defs directory %s\n",
 		       UV_BAU_TUNABLES_DIR);
 		return -EINVAL;
 	}
-	tunables_file = debugfs_create_file(UV_BAU_TUNABLES_FILE, 0600,
+	tunables_file = defs_create_file(UV_BAU_TUNABLES_FILE, 0600,
 					tunables_dir, NULL, &tunables_fops);
 	if (!tunables_file) {
-		pr_err("unable to create debugfs file %s\n",
+		pr_err("unable to create defs file %s\n",
 		       UV_BAU_TUNABLES_FILE);
 		return -EINVAL;
 	}
@@ -1741,7 +1741,7 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 	 */
 	dsize = sizeof(struct bau_desc) * ADP_SZ * ITEMS_PER_DESC;
 	bau_desc = kmalloc_node(dsize, GFP_KERNEL, node);
-	BUG_ON(!bau_desc);
+	_ON(!bau_desc);
 
 	gpa = uv_gpa(bau_desc);
 	n = uv_gpa_to_gnode(gpa);
@@ -1818,7 +1818,7 @@ static void pq_init(int node, int pnode)
 	plsize = (DEST_Q_SIZE + 1) * sizeof(struct bau_pq_entry);
 	vp = kmalloc_node(plsize, GFP_KERNEL, node);
 	pqp = (struct bau_pq_entry *)vp;
-	BUG_ON(!pqp);
+	_ON(!pqp);
 
 	cp = (char *)pqp + 31;
 	pqp = (struct bau_pq_entry *)(((unsigned long)cp >> 5) << 5);
@@ -1928,7 +1928,7 @@ static void __init init_per_cpu_tunables(void)
 		if (nobau)
 			bcp->nobau		= true;
 		bcp->statp			= &per_cpu(ptcstats, cpu);
-		/* time interval to catch a hardware stay-busy bug */
+		/* time interval to catch a hardware stay-busy  */
 		bcp->timeout_interval		= usec_2_cycles(2*timeout_us);
 		bcp->max_concurr		= max_concurr;
 		bcp->max_concurr_const		= max_concurr;

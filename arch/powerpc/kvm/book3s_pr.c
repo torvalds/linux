@@ -49,8 +49,8 @@
 #define CREATE_TRACE_POINTS
 #include "trace_pr.h"
 
-/* #define EXIT_DEBUG */
-/* #define DEBUG_EXT */
+/* #define EXIT_DE */
+/* #define DE_EXT */
 
 static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr);
@@ -459,7 +459,7 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	if (vcpu->arch.papr_enabled)
 		msr = (msr & ~MSR_HV) | MSR_ME;
 
-#ifdef EXIT_DEBUG
+#ifdef EXIT_DE
 	printk(KERN_INFO "KVM: Set MSR to 0x%llx\n", msr);
 #endif
 
@@ -799,7 +799,7 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 	if (!msr)
 		return;
 
-#ifdef DEBUG_EXT
+#ifdef DE_EXT
 	printk(KERN_INFO "Giving up ext 0x%lx\n", msr);
 #endif
 
@@ -882,7 +882,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 	if (!msr)
 		return RESUME_GUEST;
 
-#ifdef DEBUG_EXT
+#ifdef DE_EXT
 	printk(KERN_INFO "Loading up ext 0x%lx\n", msr);
 #endif
 
@@ -971,7 +971,7 @@ static void kvmppc_emulate_fac(struct kvm_vcpu *vcpu, ulong fac)
 static int kvmppc_handle_fac(struct kvm_vcpu *vcpu, ulong fac)
 {
 	bool guest_fac_enabled;
-	BUG_ON(!cpu_has_feature(CPU_FTR_ARCH_207S));
+	_ON(!cpu_has_feature(CPU_FTR_ARCH_207S));
 
 	/*
 	 * Not every facility is enabled by FSCR bits, check whether the
@@ -1038,18 +1038,18 @@ void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr)
 }
 #endif
 
-static void kvmppc_setup_debug(struct kvm_vcpu *vcpu)
+static void kvmppc_setup_de(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+	if (vcpu->guest_de & KVM_GUESTDBG_SINGLESTEP) {
 		u64 msr = kvmppc_get_msr(vcpu);
 
 		kvmppc_set_msr(vcpu, msr | MSR_SE);
 	}
 }
 
-static void kvmppc_clear_debug(struct kvm_vcpu *vcpu)
+static void kvmppc_clear_de(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+	if (vcpu->guest_de & KVM_GUESTDBG_SINGLESTEP) {
 		u64 msr = kvmppc_get_msr(vcpu);
 
 		kvmppc_set_msr(vcpu, msr & ~MSR_SE);
@@ -1080,7 +1080,7 @@ static int kvmppc_exit_pr_progint(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		return RESUME_GUEST;
 
 	if (kvmppc_get_msr(vcpu) & MSR_PR) {
-#ifdef EXIT_DEBUG
+#ifdef EXIT_DE
 		pr_info("Userspace triggered 0x700 exception at\n 0x%lx (0x%x)\n",
 			kvmppc_get_pc(vcpu), last_inst);
 #endif
@@ -1113,7 +1113,7 @@ static int kvmppc_exit_pr_progint(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_HOST_NV;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return r;
@@ -1392,8 +1392,8 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_TRACE:
-		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-			run->exit_reason = KVM_EXIT_DEBUG;
+		if (vcpu->guest_de & KVM_GUESTDBG_SINGLESTEP) {
+			run->exit_reason = KVM_EXIT_DE;
 			r = RESUME_HOST;
 		} else {
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
@@ -1407,7 +1407,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		printk(KERN_EMERG "exit_nr=0x%x | pc=0x%lx | msr=0x%lx\n",
 			exit_nr, kvmppc_get_pc(vcpu), shadow_srr1);
 		r = RESUME_HOST;
-		BUG();
+		();
 		break;
 	}
 	}
@@ -1518,7 +1518,7 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	int r = 0;
 
 	switch (id) {
-	case KVM_REG_PPC_DEBUG_INST:
+	case KVM_REG_PPC_DE_INST:
 		*val = get_reg_val(id, KVMPPC_INST_SW_BREAKPOINT);
 		break;
 	case KVM_REG_PPC_HIOR:
@@ -1817,7 +1817,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	kvmppc_setup_debug(vcpu);
+	kvmppc_setup_de(vcpu);
 
 	/*
 	 * Interrupts could be timers for the guest which we have to inject
@@ -1841,7 +1841,7 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
-	kvmppc_clear_debug(vcpu);
+	kvmppc_clear_de(vcpu);
 
 	/* No need for guest_exit. It's done in handle_exit.
 	   We also get here with interrupts enabled. */
@@ -1995,7 +1995,7 @@ static int kvm_vm_ioctl_get_smmu_info_pr(struct kvm *kvm,
 					 struct kvm_ppc_smmu_info *info)
 {
 	/* We should not get called */
-	BUG();
+	();
 }
 #endif /* CONFIG_PPC64 */
 
@@ -2028,7 +2028,7 @@ static void kvmppc_core_destroy_vm_pr(struct kvm *kvm)
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		spin_lock(&kvm_global_user_count_lock);
-		BUG_ON(kvm_global_user_count == 0);
+		_ON(kvm_global_user_count == 0);
 		if (--kvm_global_user_count == 0)
 			pseries_enable_reloc_on_exc();
 		spin_unlock(&kvm_global_user_count_lock);

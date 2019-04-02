@@ -169,7 +169,7 @@ Available follower modes are:
 	capability is set, otherwise the ``EINVAL`` error code is returned.
 	While in pin monitoring mode this file descriptor can receive the
 	``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events to see the
-	low-level CEC pin transitions. This is very useful for debugging.
+	low-level CEC pin transitions. This is very useful for deging.
 	This mode is only allowed if the process has the ``CAP_NET_ADMIN``
 	capability. If that is not set, then the ``EPERM`` error code is returned.
     * .. _`CEC-MODE-MONITOR`:
@@ -182,7 +182,7 @@ Available follower modes are:
 	In monitor mode all messages this CEC
 	device transmits and all messages it receives (both broadcast
 	messages and directed messages for one its logical addresses) will
-	be reported. This is very useful for debugging. This is only
+	be reported. This is very useful for deging. This is only
 	allowed if the process has the ``CAP_NET_ADMIN`` capability. If
 	that is not set, then the ``EPERM`` error code is returned.
     * .. _`CEC-MODE-MONITOR-ALL`:
@@ -194,7 +194,7 @@ Available follower modes are:
 	the ``EINVAL`` error code will be returned. In 'monitor all' mode all messages
 	this CEC device transmits and all messages it receives, including
 	directed messages for other CEC devices will be reported. This is
-	very useful for debugging, but not all devices support this. This
+	very useful for deging, but not all devices support this. This
 	mode requires that the :ref:`CEC_CAP_MONITOR_ALL <CEC-CAP-MONITOR-ALL>` capability is set,
 	otherwise the ``EINVAL`` error code is returned. This is only allowed if
 	the process has the ``CAP_NET_ADMIN`` capability. If that is not

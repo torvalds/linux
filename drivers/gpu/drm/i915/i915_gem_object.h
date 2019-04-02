@@ -299,7 +299,7 @@ static inline struct drm_i915_gem_object *
 to_intel_bo(struct drm_gem_object *gem)
 {
 	/* Assert that to_intel_bo(NULL) == NULL */
-	BUILD_BUG_ON(offsetof(struct drm_i915_gem_object, base));
+	BUILD__ON(offsetof(struct drm_i915_gem_object, base));
 
 	return container_of(gem, struct drm_i915_gem_object, base);
 }
@@ -319,7 +319,7 @@ static inline struct drm_i915_gem_object *
 i915_gem_object_lookup_rcu(struct drm_file *file, u32 handle)
 {
 #ifdef CONFIG_LOCKDEP
-	WARN_ON(debug_locks && !lock_is_held(&rcu_lock_map));
+	WARN_ON(de_locks && !lock_is_held(&rcu_lock_map));
 #endif
 	return idr_find(&file->object_idr, handle);
 }
@@ -458,7 +458,7 @@ i915_gem_object_get_stride(const struct drm_i915_gem_object *obj)
 static inline unsigned int
 i915_gem_tile_height(unsigned int tiling)
 {
-	GEM_BUG_ON(!tiling);
+	GEM__ON(!tiling);
 	return tiling == I915_TILING_Y ? 32 : 8;
 }
 

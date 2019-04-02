@@ -116,7 +116,7 @@ SB+poonceonces.litmus
 SB+rfionceonce-poonceonces.litmus
 	This litmus test demonstrates that LKMM is not fully multicopy
 	atomic.  (Neither is it other multicopy atomic.)  This litmus test
-	also demonstrates the "locations" debugging aid, which designates
+	also demonstrates the "locations" deging aid, which designates
 	additional registers and locations to be printed out in the dump
 	of final states in the herd7 output.  Without the "locations"
 	statement, only those registers and locations mentioned in the

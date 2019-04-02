@@ -17,7 +17,7 @@
 #define TEST_POISON1 0xDEADBEEF
 #define TEST_POISON2 0xA324354C
 
-struct debug_el {
+struct de_el {
 	unsigned int poison1;
 	struct list_head list;
 	unsigned int poison2;
@@ -26,9 +26,9 @@ struct debug_el {
 };
 
 /* Array, containing pointers to all elements in the test list */
-static struct debug_el **elts __initdata;
+static struct de_el **elts __initdata;
 
-static int __init check(struct debug_el *ela, struct debug_el *elb)
+static int __init check(struct de_el *ela, struct de_el *elb)
 {
 	if (ela->serial >= TEST_LIST_LEN) {
 		pr_err("error: incorrect serial %d\n", ela->serial);
@@ -57,10 +57,10 @@ static int __init check(struct debug_el *ela, struct debug_el *elb)
 
 static int __init cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	struct debug_el *ela, *elb;
+	struct de_el *ela, *elb;
 
-	ela = container_of(a, struct debug_el, list);
-	elb = container_of(b, struct debug_el, list);
+	ela = container_of(a, struct de_el, list);
+	elb = container_of(b, struct de_el, list);
 
 	check(ela, elb);
 	return ela->value - elb->value;
@@ -69,11 +69,11 @@ static int __init cmp(void *priv, struct list_head *a, struct list_head *b)
 static int __init list_sort_test(void)
 {
 	int i, count = 1, err = -ENOMEM;
-	struct debug_el *el;
+	struct de_el *el;
 	struct list_head *cur;
 	LIST_HEAD(head);
 
-	pr_debug("start testing list_sort()\n");
+	pr_de("start testing list_sort()\n");
 
 	elts = kcalloc(TEST_LIST_LEN, sizeof(*elts), GFP_KERNEL);
 	if (!elts)
@@ -97,7 +97,7 @@ static int __init list_sort_test(void)
 
 	err = -EINVAL;
 	for (cur = head.next; cur->next != &head; cur = cur->next) {
-		struct debug_el *el1;
+		struct de_el *el1;
 		int cmp_result;
 
 		if (cur->next->prev != cur) {
@@ -111,8 +111,8 @@ static int __init list_sort_test(void)
 			goto exit;
 		}
 
-		el = container_of(cur, struct debug_el, list);
-		el1 = container_of(cur->next, struct debug_el, list);
+		el = container_of(cur, struct de_el, list);
+		el1 = container_of(cur->next, struct de_el, list);
 		if (cmp_result == 0 && el->serial >= el1->serial) {
 			pr_err("error: order of equivalent elements not "
 				"preserved\n");

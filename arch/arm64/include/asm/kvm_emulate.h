@@ -24,7 +24,7 @@
 
 #include <linux/kvm_host.h>
 
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_hyp.h>

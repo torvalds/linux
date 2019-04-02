@@ -68,7 +68,7 @@ struct armada_private {
 	struct drm_property	*brightness_prop;
 	struct drm_property	*contrast_prop;
 	struct drm_property	*saturation_prop;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry		*de;
 #endif
 };
@@ -78,6 +78,6 @@ void armada_fbdev_fini(struct drm_device *);
 
 int armada_overlay_plane_create(struct drm_device *, unsigned long);
 
-int armada_drm_debugfs_init(struct drm_minor *);
+int armada_drm_defs_init(struct drm_minor *);
 
 #endif

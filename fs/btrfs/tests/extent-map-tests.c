@@ -17,7 +17,7 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 		em = rb_entry(node, struct extent_map, rb_node);
 		remove_extent_mapping(em_tree, em);
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 		if (refcount_read(&em->refs) != 1) {
 			test_err(
 "em leak: em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx) refs %d",

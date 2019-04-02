@@ -349,7 +349,7 @@ def hex_dump(d):
     return d
 
 class Client:
-    FLAG_DEBUG = 0x01
+    FLAG_DE = 0x01
     FLAG_SPACE = 0x02
     TPM_IOC_NEW_SPACE = 0xa200
 
@@ -368,7 +368,7 @@ class Client:
         self.tpm.write(cmd)
         rsp = self.tpm.read()
 
-        if (self.flags & Client.FLAG_DEBUG) != 0:
+        if (self.flags & Client.FLAG_DE) != 0:
             sys.stderr.write('cmd' + os.linesep)
             sys.stderr.write(hex_dump(cmd) + os.linesep)
             sys.stderr.write('rsp' + os.linesep)

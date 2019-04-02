@@ -157,7 +157,7 @@ int rl6231_pll_calc(const unsigned int freq_in,
 			m = pll_preset_table[i].m;
 			n = pll_preset_table[i].n;
 			bypass = pll_preset_table[i].m_bp;
-			pr_debug("Use preset PLL parameter table\n");
+			pr_de("Use preset PLL parameter table\n");
 			goto code_find;
 		}
 	}
@@ -210,7 +210,7 @@ int rl6231_pll_calc(const unsigned int freq_in,
 			}
 		}
 	}
-	pr_debug("Only get approximation about PLL\n");
+	pr_de("Only get approximation about PLL\n");
 
 code_find:
 

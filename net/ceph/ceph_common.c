@@ -1,5 +1,5 @@
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 #include <linux/backing-dev.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
@@ -21,7 +21,7 @@
 
 #include <linux/ceph/ceph_features.h>
 #include <linux/ceph/libceph.h>
-#include <linux/ceph/debugfs.h>
+#include <linux/ceph/defs.h>
 #include <linux/ceph/decode.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/auth.h>
@@ -542,7 +542,7 @@ ceph_parse_options(char *options, const char *dev_name,
 			break;
 
 		default:
-			BUG_ON(token);
+			_ON(token);
 		}
 	}
 
@@ -684,7 +684,7 @@ void ceph_destroy_client(struct ceph_client *client)
 	ceph_monc_stop(&client->monc);
 	ceph_messenger_fini(&client->msgr);
 
-	ceph_debugfs_client_cleanup(client);
+	ceph_defs_client_cleanup(client);
 
 	ceph_destroy_options(client->options);
 
@@ -732,7 +732,7 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 
 	pr_info("client%llu fsid %pU\n", ceph_client_gid(client),
 		&client->fsid);
-	ceph_debugfs_client_init(client);
+	ceph_defs_client_init(client);
 
 	return 0;
 }
@@ -775,13 +775,13 @@ static int __init init_ceph_lib(void)
 {
 	int ret = 0;
 
-	ret = ceph_debugfs_init();
+	ret = ceph_defs_init();
 	if (ret < 0)
 		goto out;
 
 	ret = ceph_crypto_init();
 	if (ret < 0)
-		goto out_debugfs;
+		goto out_defs;
 
 	ret = ceph_msgr_init();
 	if (ret < 0)
@@ -800,8 +800,8 @@ out_msgr:
 	ceph_msgr_exit();
 out_crypto:
 	ceph_crypto_shutdown();
-out_debugfs:
-	ceph_debugfs_cleanup();
+out_defs:
+	ceph_defs_cleanup();
 out:
 	return ret;
 }
@@ -814,7 +814,7 @@ static void __exit exit_ceph_lib(void)
 	ceph_osdc_cleanup();
 	ceph_msgr_exit();
 	ceph_crypto_shutdown();
-	ceph_debugfs_cleanup();
+	ceph_defs_cleanup();
 }
 
 module_init(init_ceph_lib);

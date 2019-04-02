@@ -25,12 +25,12 @@
 #include <linux/sysrq.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/nmi.h>
 #include <linux/ctype.h>
 #include <linux/highmem.h>
 
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/ptrace.h>
 #include <asm/smp.h>
 #include <asm/string.h>
@@ -50,7 +50,7 @@
 #include <asm/spu_priv1.h>
 #include <asm/setjmp.h>
 #include <asm/reg.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/xive.h>
 #include <asm/opal.h>
@@ -482,7 +482,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	if (cpumask_test_cpu(cpu, &cpus_in_xmon)) {
 		/*
 		 * We catch SPR read/write faults here because the 0x700, 0xf60
-		 * etc. handlers don't call debugger_fault_handler().
+		 * etc. handlers don't call deger_fault_handler().
 		 */
 		if (catch_spr_faults)
 			longjmp(bus_error_jmp, 1);
@@ -559,11 +559,11 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			 * A system reset (trap == 0x100) can be triggered on
 			 * all CPUs, so when we come in via 0x100 try waiting
 			 * for the other CPUs to come in before we send the
-			 * debugger break (IPI). This is similar to
+			 * deger break (IPI). This is similar to
 			 * crash_kexec_secondary().
 			 */
 			if (TRAP(regs) != 0x100 || !wait_for_other_cpus(ncpus))
-				smp_send_debugger_break();
+				smp_send_deger_break();
 
 			wait_for_other_cpus(ncpus);
 		}
@@ -787,7 +787,7 @@ static inline void force_enable_xmon(void)
 {
 	/* Enable xmon hooks if needed */
 	if (!xmon_on) {
-		printf("xmon: Enabling debugger hooks\n");
+		printf("xmon: Enabling deger hooks\n");
 		xmon_on = 1;
 	}
 }
@@ -1592,10 +1592,10 @@ static void backtrace(struct pt_regs *excp)
 	scannl();
 }
 
-static void print_bug_trap(struct pt_regs *regs)
+static void print__trap(struct pt_regs *regs)
 {
-#ifdef CONFIG_BUG
-	const struct bug_entry *bug;
+#ifdef CONFIG_
+	const struct _entry *;
 	unsigned long addr;
 
 	if (regs->msr & MSR_PR)
@@ -1603,19 +1603,19 @@ static void print_bug_trap(struct pt_regs *regs)
 	addr = regs->nip;	/* address of trap instruction */
 	if (!is_kernel_addr(addr))
 		return;
-	bug = find_bug(regs->nip);
-	if (bug == NULL)
+	 = find_(regs->nip);
+	if ( == NULL)
 		return;
-	if (is_warning_bug(bug))
+	if (is_warning_())
 		return;
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-	printf("kernel BUG at %s:%u!\n",
-	       bug->file, bug->line);
+#ifdef CONFIG_DE_VERBOSE
+	printf("kernel  at %s:%u!\n",
+	       ->file, ->line);
 #else
-	printf("kernel BUG at %px!\n", (void *)bug->bug_addr);
+	printf("kernel  at %px!\n", (void *)->_addr);
 #endif
-#endif /* CONFIG_BUG */
+#endif /* CONFIG_ */
 }
 
 static void excprint(struct pt_regs *fp)
@@ -1654,7 +1654,7 @@ static void excprint(struct pt_regs *fp)
 	}
 
 	if (trap == 0x700)
-		print_bug_trap(fp);
+		print__trap(fp);
 
 	printf(linux_banner);
 }
@@ -3683,13 +3683,13 @@ static void dump_tlb_book3e(void)
 static void xmon_init(int enable)
 {
 	if (enable) {
-		__debugger = xmon;
-		__debugger_ipi = xmon_ipi;
-		__debugger_bpt = xmon_bpt;
-		__debugger_sstep = xmon_sstep;
-		__debugger_iabr_match = xmon_iabr_match;
-		__debugger_break_match = xmon_break_match;
-		__debugger_fault_handler = xmon_fault_handler;
+		__deger = xmon;
+		__deger_ipi = xmon_ipi;
+		__deger_bpt = xmon_bpt;
+		__deger_sstep = xmon_sstep;
+		__deger_iabr_match = xmon_iabr_match;
+		__deger_break_match = xmon_break_match;
+		__deger_fault_handler = xmon_fault_handler;
 
 #ifdef CONFIG_PPC_PSERIES
 		/*
@@ -3699,13 +3699,13 @@ static void xmon_init(int enable)
 		set_indicator_token = rtas_token("set-indicator");
 #endif
 	} else {
-		__debugger = NULL;
-		__debugger_ipi = NULL;
-		__debugger_bpt = NULL;
-		__debugger_sstep = NULL;
-		__debugger_iabr_match = NULL;
-		__debugger_break_match = NULL;
-		__debugger_fault_handler = NULL;
+		__deger = NULL;
+		__deger_ipi = NULL;
+		__deger_bpt = NULL;
+		__deger_sstep = NULL;
+		__deger_iabr_match = NULL;
+		__deger_break_match = NULL;
+		__deger_fault_handler = NULL;
 	}
 }
 
@@ -3714,7 +3714,7 @@ static void sysrq_handle_xmon(int key)
 {
 	/* ensure xmon is enabled */
 	xmon_init(1);
-	debugger(get_irq_regs());
+	deger(get_irq_regs());
 	if (!xmon_on)
 		xmon_init(0);
 }
@@ -3733,7 +3733,7 @@ static int __init setup_xmon_sysrq(void)
 device_initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void clear_all_bpt(void)
 {
 	int i;
@@ -3777,12 +3777,12 @@ DEFINE_SIMPLE_ATTRIBUTE(xmon_dbgfs_ops, xmon_dbgfs_get,
 
 static int __init setup_xmon_dbgfs(void)
 {
-	debugfs_create_file("xmon", 0600, powerpc_debugfs_root, NULL,
+	defs_create_file("xmon", 0600, powerpc_defs_root, NULL,
 				&xmon_dbgfs_ops);
 	return 0;
 }
 device_initcall(setup_xmon_dbgfs);
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static int xmon_early __initdata;
 
@@ -3810,7 +3810,7 @@ void __init xmon_setup(void)
 	if (xmon_on)
 		xmon_init(1);
 	if (xmon_early)
-		debugger(NULL);
+		deger(NULL);
 }
 
 #ifdef CONFIG_SPU_BASE

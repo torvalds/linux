@@ -266,7 +266,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		priv = 0;
 		kind = 0x00;
 	} else {
-		VMM_DEBUG(vmm, "args");
+		VMM_DE(vmm, "args");
 		return ret;
 	}
 
@@ -276,7 +276,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 
 	kindm = vmm->mmu->func->kind(vmm->mmu, &kindn);
 	if (kind >= kindn || kindm[kind] == 0xff) {
-		VMM_DEBUG(vmm, "kind %02x", kind);
+		VMM_DE(vmm, "kind %02x", kind);
 		return -EINVAL;
 	}
 
@@ -284,7 +284,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		u32 comp = (page->shift == 16 && !gm20x) ? 16 : 17;
 		u32 tags = ALIGN(nvkm_memory_size(memory), 1 << 17) >> comp;
 		if (aper != 0 || !(page->type & NVKM_VMM_PAGE_COMP)) {
-			VMM_DEBUG(vmm, "comp %d %02x", aper, page->type);
+			VMM_DE(vmm, "comp %d %02x", aper, page->type);
 			return -EINVAL;
 		}
 
@@ -292,7 +292,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 					   nvkm_ltc_tags_clear,
 					   &map->tags);
 		if (ret) {
-			VMM_DEBUG(vmm, "comp %d", ret);
+			VMM_DE(vmm, "comp %d", ret);
 			return ret;
 		}
 

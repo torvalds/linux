@@ -290,7 +290,7 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 	int r = 0;
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
-	pr_debug("apdu reader gate event: %x\n", event);
+	pr_de("apdu reader gate event: %x\n", event);
 
 	switch (event) {
 	case ST_NCI_EVT_TRANSMIT_DATA:
@@ -325,7 +325,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 	struct device *dev = &ndev->nfc_dev->dev;
 	struct nfc_evt_transaction *transaction;
 
-	pr_debug("connectivity gate event: %x\n", event);
+	pr_de("connectivity gate event: %x\n", event);
 
 	switch (event) {
 	case ST_NCI_EVT_CONNECTIVITY:
@@ -393,7 +393,7 @@ void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 	u8 gate = ndev->hci_dev->pipes[pipe].gate;
 
-	pr_debug("cmd: %x\n", cmd);
+	pr_de("cmd: %x\n", cmd);
 
 	switch (cmd) {
 	case NCI_HCI_ANY_OPEN_PIPE:
@@ -481,7 +481,7 @@ int st_nci_disable_se(struct nci_dev *ndev, u32 se_idx)
 {
 	int r;
 
-	pr_debug("st_nci_disable_se\n");
+	pr_de("st_nci_disable_se\n");
 
 	/*
 	 * According to upper layer, se_idx == NFC_SE_UICC when
@@ -507,7 +507,7 @@ int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 {
 	int r;
 
-	pr_debug("st_nci_enable_se\n");
+	pr_de("st_nci_enable_se\n");
 
 	/*
 	 * According to upper layer, se_idx == NFC_SE_UICC when
@@ -617,7 +617,7 @@ int st_nci_discover_se(struct nci_dev *ndev)
 	int se_count = 0;
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
-	pr_debug("st_nci_discover_se\n");
+	pr_de("st_nci_discover_se\n");
 
 	r = st_nci_hci_network_init(ndev);
 	if (r != 0)
@@ -659,7 +659,7 @@ int st_nci_se_io(struct nci_dev *ndev, u32 se_idx,
 {
 	struct st_nci_info *info = nci_get_drvdata(ndev);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	switch (se_idx) {
 	case ST_NCI_ESE_HOST_ID:
@@ -692,7 +692,7 @@ static void st_nci_se_wt_timeout(struct timer_list *t)
 	u8 param = 0x01;
 	struct st_nci_info *info = from_timer(info, t, se_info.bwi_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	info->se_info.bwi_active = false;
 
@@ -713,7 +713,7 @@ static void st_nci_se_activation_timeout(struct timer_list *t)
 	struct st_nci_info *info = from_timer(info, t,
 					      se_info.se_active_timer);
 
-	pr_debug("\n");
+	pr_de("\n");
 
 	info->se_info.se_active = false;
 

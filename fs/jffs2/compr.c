@@ -257,7 +257,7 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	struct jffs2_compressor *this;
 	int ret;
 
-	/* Older code had a bug where it would write non-zero 'usercompr'
+	/* Older code had a  where it would write non-zero 'usercompr'
 	   fields. Deal with it. */
 	if ((comprtype & 0xff) <= JFFS2_COMPR_ZLIB)
 		comprtype &= 0xff;
@@ -326,7 +326,7 @@ int jffs2_register_compressor(struct jffs2_compressor *comp)
 	list_add_tail(&comp->list, &jffs2_compressor_list);
 out:
 	D2(list_for_each_entry(this, &jffs2_compressor_list, list) {
-		printk(KERN_DEBUG "Compressor \"%s\", prio %d\n", this->name, this->priority);
+		printk(KERN_DE "Compressor \"%s\", prio %d\n", this->name, this->priority);
 	})
 
 	spin_unlock(&jffs2_compressor_list_lock);
@@ -350,7 +350,7 @@ int jffs2_unregister_compressor(struct jffs2_compressor *comp)
 	list_del(&comp->list);
 
 	D2(list_for_each_entry(this, &jffs2_compressor_list, list) {
-		printk(KERN_DEBUG "Compressor \"%s\", prio %d\n", this->name, this->priority);
+		printk(KERN_DE "Compressor \"%s\", prio %d\n", this->name, this->priority);
 	})
 	spin_unlock(&jffs2_compressor_list_lock);
 	return 0;

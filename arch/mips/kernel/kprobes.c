@@ -26,7 +26,7 @@
 #include <linux/kprobes.h>
 #include <linux/preempt.h>
 #include <linux/uaccess.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/slab.h>
 
 #include <asm/ptrace.h>
@@ -343,7 +343,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			/*
 			 * The breakpoint instruction was removed right
 			 * after we hit it.  Another cpu has removed
-			 * either a probepoint or a debugger breakpoint
+			 * either a probepoint or a deger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
 			 */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_KDEBUG_H
-#define _LINUX_KDEBUG_H
+#ifndef _LINUX_KDE_H
+#define _LINUX_KDE_H
 
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 
 struct notifier_block;
 
@@ -20,4 +20,4 @@ int unregister_die_notifier(struct notifier_block *nb);
 int notify_die(enum die_val val, const char *str,
 	       struct pt_regs *regs, long err, int trap, int sig);
 
-#endif /* _LINUX_KDEBUG_H */
+#endif /* _LINUX_KDE_H */

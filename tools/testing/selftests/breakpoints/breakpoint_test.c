@@ -3,7 +3,7 @@
  *
  * Licensed under the terms of the GNU GPL License version 2
  *
- * Selftests for breakpoints (and more generally the do_debug() path) in x86.
+ * Selftests for breakpoints (and more generally the do_de() path) in x86.
  */
 
 
@@ -43,7 +43,7 @@ static void set_breakpoint_addr(void *addr, int n)
 	int ret;
 
 	ret = ptrace(PTRACE_POKEUSER, child_pid,
-		     offsetof(struct user, u_debugreg[n]), addr);
+		     offsetof(struct user, u_dereg[n]), addr);
 	if (ret)
 		ksft_exit_fail_msg("Can't set breakpoint addr: %s\n",
 			strerror(errno));
@@ -85,7 +85,7 @@ static void toggle_breakpoint(int n, int type, int len,
 	}
 
 	dr7 = ptrace(PTRACE_PEEKUSER, child_pid,
-		     offsetof(struct user, u_debugreg[7]), 0);
+		     offsetof(struct user, u_dereg[7]), 0);
 
 	vdr7 = (xlen | xtype) << 16;
 	vdr7 <<= 4 * n;
@@ -105,7 +105,7 @@ static void toggle_breakpoint(int n, int type, int len,
 		dr7 &= ~vdr7;
 
 	ret = ptrace(PTRACE_POKEUSER, child_pid,
-		     offsetof(struct user, u_debugreg[7]), dr7);
+		     offsetof(struct user, u_dereg[7]), dr7);
 	if (ret) {
 		ksft_print_msg("Can't set dr7: %s\n", strerror(errno));
 		exit(-1);

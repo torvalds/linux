@@ -21,16 +21,16 @@
 
 #define VERSION "0.2"
 
-#define DEBUG
-#undef LOTSA_DEBUG
+#define DE
+#undef LOTSA_DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(args...)	printk(args)
 #else
 #define DBG(args...)	do { } while(0)
 #endif
 
-#ifdef LOTSA_DEBUG
+#ifdef LOTSA_DE
 #define DBG_LOTS(args...)	printk(args)
 #else
 #define DBG_LOTS(args...)	do { } while(0)
@@ -269,7 +269,7 @@ static void cpu_fans_tick(void)
 	struct wf_control *ct;
 	struct wf_cpu_pid_state *sp;
 
-	DBG_LOTS(KERN_DEBUG);
+	DBG_LOTS(KERN_DE);
 	for (cpu = 0; cpu < nr_cores; ++cpu) {
 		/* Get CPU core temperature */
 		sr = sens_cpu_temp[cpu];

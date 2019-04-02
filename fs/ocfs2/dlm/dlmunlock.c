@@ -111,9 +111,9 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 	     flags & LKM_VALBLK);
 
 	if (master_node)
-		BUG_ON(res->owner != dlm->node_num);
+		_ON(res->owner != dlm->node_num);
 	else
-		BUG_ON(res->owner == dlm->node_num);
+		_ON(res->owner == dlm->node_num);
 
 	spin_lock(&dlm->ast_lock);
 	/* We want to be sure that we're not freeing a lock
@@ -237,9 +237,9 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 leave:
 	res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 	if (!dlm_lock_on_list(&res->converting, lock))
-		BUG_ON(lock->ml.convert_type != LKM_IVMODE);
+		_ON(lock->ml.convert_type != LKM_IVMODE);
 	else
-		BUG_ON(lock->ml.convert_type == LKM_IVMODE);
+		_ON(lock->ml.convert_type == LKM_IVMODE);
 	spin_unlock(&lock->spinlock);
 	spin_unlock(&res->spinlock);
 	wake_up(&res->wq);
@@ -247,7 +247,7 @@ leave:
 	/* let the caller's final dlm_lock_put handle the actual kfree */
 	if (actions & DLM_UNLOCK_FREE_LOCK) {
 		/* this should always be coupled with list removal */
-		BUG_ON(!(actions & DLM_UNLOCK_REMOVE_LOCK));
+		_ON(!(actions & DLM_UNLOCK_REMOVE_LOCK));
 		mlog(0, "lock %u:%llu should be gone now! refs=%d\n",
 		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
@@ -372,7 +372,7 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 			else
 				ret = DLM_NOLOCKMGR;
 		} else {
-			/* something bad.  this will BUG in ocfs2 */
+			/* something bad.  this will  in ocfs2 */
 			ret = dlm_err_to_dlm_status(tmpret);
 		}
 	}
@@ -423,7 +423,7 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	if (!dlm_grab(dlm))
 		return DLM_FORWARD;
 
-	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
+	mlog__on_msg(!dlm_domain_fully_joined(dlm),
 			"Domain %s not fully joined!\n", dlm->name);
 
 	mlog(0, "lvb: %s\n", flags & LKM_PUT_LVB ? "put lvb" : "none");
@@ -613,11 +613,11 @@ enum dlm_status dlmunlock(struct dlm_ctxt *dlm, struct dlm_lockstatus *lksb,
 	}
 
 	lock = lksb->lockid;
-	BUG_ON(!lock);
+	_ON(!lock);
 	dlm_lock_get(lock);
 
 	res = lock->lockres;
-	BUG_ON(!res);
+	_ON(!res);
 	dlm_lockres_get(res);
 retry:
 	call_ast = 0;

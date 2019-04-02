@@ -108,7 +108,7 @@ Fake drivers
 
 In addition there is a driver available which simulates a real device with
 SoftMAC (fakelb - IEEE 802.15.4 loopback driver) interface. This option
-provides a possibility to test and debug the stack without usage of real hardware.
+provides a possibility to test and de the stack without usage of real hardware.
 
 Device drivers API
 ==================

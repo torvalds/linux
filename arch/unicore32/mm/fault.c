@@ -224,7 +224,7 @@ static int do_pf(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	/*
 	 * As per x86, we may deadlock here.  However, since the kernel only
 	 * validly references user space from well defined areas of the code,
-	 * we can bug out early if this is from code which shouldn't.
+	 * we can  out early if this is from code which shouldn't.
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs)
@@ -239,7 +239,7 @@ retry:
 		 * down_read()
 		 */
 		might_sleep();
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 		if (!user_mode(regs) &&
 		    !search_exception_tables(regs->UCreg_pc))
 			goto no_context;
@@ -444,7 +444,7 @@ void __init hook_fault_code(int nr,
 		int sig, int code, const char *name)
 {
 	if (nr < 0 || nr >= ARRAY_SIZE(fsr_info))
-		BUG();
+		();
 
 	fsr_info[nr].fn   = fn;
 	fsr_info[nr].sig  = sig;

@@ -339,7 +339,7 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 	if (!dev_xmit_complete(ret)) {
 		/* Driver returned NETDEV_TX_BUSY - requeue skb */
 		if (unlikely(ret != NETDEV_TX_BUSY))
-			net_warn_ratelimited("BUG %s code %d qlen %d\n",
+			net_warn_ratelimited(" %s code %d qlen %d\n",
 					     dev->name, ret, q->q.qlen);
 
 		dev_requeue_skb(skb, q);

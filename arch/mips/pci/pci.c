@@ -8,7 +8,7 @@
  * Copyright (C) 2011 Wind River Systems,
  *   written by Ralf Baechle (ralf@linux-mips.org)
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
@@ -38,11 +38,11 @@ static int __init pcibios_set_cache_line_size(void)
 	lsize = cpu_scache_line_size() ? : lsize;
 	lsize = cpu_tcache_line_size() ? : lsize;
 
-	BUG_ON(!lsize);
+	_ON(!lsize);
 
 	pci_dfl_cache_line_size = lsize >> 2;
 
-	pr_debug("PCI: pci_cache_line_size set to %d bytes\n", lsize);
+	pr_de("PCI: pci_cache_line_size set to %d bytes\n", lsize);
 	return 0;
 }
 arch_initcall(pcibios_set_cache_line_size);

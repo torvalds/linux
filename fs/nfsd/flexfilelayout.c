@@ -9,7 +9,7 @@
  */
 #include <linux/slab.h>
 
-#include <linux/nfsd/debug.h>
+#include <linux/nfsd/de.h>
 
 #include <linux/sunrpc/addr.h>
 

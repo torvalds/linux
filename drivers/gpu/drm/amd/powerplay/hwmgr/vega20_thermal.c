@@ -27,7 +27,7 @@
 #include "vega20_ppsmc.h"
 #include "vega20_inc.h"
 #include "soc15_common.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 
 static int vega20_disable_fan_control_feature(struct pp_hwmgr *hwmgr)
 {

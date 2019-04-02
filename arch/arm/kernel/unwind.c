@@ -32,7 +32,7 @@
 #warning    ARM unwind is known to compile only with EABI compilers.
 #warning    Change compiler or disable ARM_UNWIND option.
 #elif (__GNUC__ == 4 && __GNUC_MINOR__ <= 2) && !defined(__clang__)
-#warning Your compiler is too buggy; it is known to not compile ARM unwind support.
+#warning Your compiler is too gy; it is known to not compile ARM unwind support.
 #warning    Change compiler or disable ARM_UNWIND option.
 #endif
 #endif /* __CHECKER__ */
@@ -119,7 +119,7 @@ static const struct unwind_idx *search_index(unsigned long addr,
 {
 	unsigned long addr_prel31;
 
-	pr_debug("%s(%08lx, %p, %p, %p)\n",
+	pr_de("%s(%08lx, %p, %p, %p)\n",
 			__func__, addr, start, origin, stop);
 
 	/*
@@ -165,7 +165,7 @@ static const struct unwind_idx *search_index(unsigned long addr,
 static const struct unwind_idx *unwind_find_origin(
 		const struct unwind_idx *start, const struct unwind_idx *stop)
 {
-	pr_debug("%s(%p, %p)\n", __func__, start, stop);
+	pr_de("%s(%p, %p)\n", __func__, start, stop);
 	while (start < stop) {
 		const struct unwind_idx *mid = start + ((stop - start) >> 1);
 
@@ -176,7 +176,7 @@ static const struct unwind_idx *unwind_find_origin(
 			/* positive offset */
 			stop = mid;
 	}
-	pr_debug("%s -> %p\n", __func__, stop);
+	pr_de("%s -> %p\n", __func__, stop);
 	return stop;
 }
 
@@ -185,7 +185,7 @@ static const struct unwind_idx *unwind_find_idx(unsigned long addr)
 	const struct unwind_idx *idx = NULL;
 	unsigned long flags;
 
-	pr_debug("%s(%08lx)\n", __func__, addr);
+	pr_de("%s(%08lx)\n", __func__, addr);
 
 	if (core_kernel_text(addr)) {
 		if (unlikely(!__origin_unwind_idx))
@@ -216,7 +216,7 @@ static const struct unwind_idx *unwind_find_idx(unsigned long addr)
 		raw_spin_unlock_irqrestore(&unwind_lock, flags);
 	}
 
-	pr_debug("%s: idx = %p\n", __func__, idx);
+	pr_de("%s: idx = %p\n", __func__, idx);
 	return idx;
 }
 
@@ -321,7 +321,7 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 	unsigned long insn = unwind_get_byte(ctrl);
 	int ret = URC_OK;
 
-	pr_debug("%s: insn = %08lx\n", __func__, insn);
+	pr_de("%s: insn = %08lx\n", __func__, insn);
 
 	if ((insn & 0xc0) == 0x00)
 		ctrl->vrs[SP] += ((insn & 0x3f) << 2) + 4;
@@ -374,7 +374,7 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 		return -URC_FAILURE;
 	}
 
-	pr_debug("%s: fp = %08lx sp = %08lx lr = %08lx pc = %08lx\n", __func__,
+	pr_de("%s: fp = %08lx sp = %08lx lr = %08lx pc = %08lx\n", __func__,
 		 ctrl->vrs[FP], ctrl->vrs[SP], ctrl->vrs[LR], ctrl->vrs[PC]);
 
 error:
@@ -395,7 +395,7 @@ int unwind_frame(struct stackframe *frame)
 	low = frame->sp;
 	ctrl.sp_high = ALIGN(low, THREAD_SIZE);
 
-	pr_debug("%s(pc = %08lx lr = %08lx sp = %08lx)\n", __func__,
+	pr_de("%s(pc = %08lx lr = %08lx sp = %08lx)\n", __func__,
 		 frame->pc, frame->lr, frame->sp);
 
 	if (!kernel_text_address(frame->pc))
@@ -472,7 +472,7 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
 	struct stackframe frame;
 
-	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
+	pr_de("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
 
 	if (!tsk)
 		tsk = current;
@@ -517,7 +517,7 @@ struct unwind_table *unwind_table_add(unsigned long start, unsigned long size,
 	unsigned long flags;
 	struct unwind_table *tab = kmalloc(sizeof(*tab), GFP_KERNEL);
 
-	pr_debug("%s(%08lx, %08lx, %08lx, %08lx)\n", __func__, start, size,
+	pr_de("%s(%08lx, %08lx, %08lx, %08lx)\n", __func__, start, size,
 		 text_addr, text_size);
 
 	if (!tab)

@@ -70,11 +70,11 @@ config OMAP_GPMC
 	  interfacing to a variety of asynchronous as well as synchronous
 	  memory drives like NOR, NAND, OneNAND, SRAM.
 
-config OMAP_GPMC_DEBUG
-	bool "Enable GPMC debug output and skip reset of GPMC during init"
+config OMAP_GPMC_DE
+	bool "Enable GPMC de output and skip reset of GPMC during init"
 	depends on OMAP_GPMC
 	help
-	  Enables verbose debugging mostly to decode the bootloader provided
+	  Enables verbose deging mostly to decode the bootloader provided
 	  timings. To preserve the bootloader provided timings, the reset
 	  of GPMC is skipped during init. Enable this during development to
 	  configure devices connected to the GPMC bus.

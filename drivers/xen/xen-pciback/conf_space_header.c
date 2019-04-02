@@ -68,7 +68,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 	dev_data = pci_get_drvdata(dev);
 	if (!pci_is_enabled(dev) && is_enable_cmd(value)) {
 		if (unlikely(verbose_request))
-			printk(KERN_DEBUG DRV_NAME ": %s: enable\n",
+			printk(KERN_DE DRV_NAME ": %s: enable\n",
 			       pci_name(dev));
 		err = pci_enable_device(dev);
 		if (err)
@@ -77,7 +77,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 			dev_data->enable_intx = 1;
 	} else if (pci_is_enabled(dev) && !is_enable_cmd(value)) {
 		if (unlikely(verbose_request))
-			printk(KERN_DEBUG DRV_NAME ": %s: disable\n",
+			printk(KERN_DE DRV_NAME ": %s: disable\n",
 			       pci_name(dev));
 		pci_disable_device(dev);
 		if (dev_data)
@@ -86,12 +86,12 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 
 	if (!dev->is_busmaster && is_master_cmd(value)) {
 		if (unlikely(verbose_request))
-			printk(KERN_DEBUG DRV_NAME ": %s: set bus master\n",
+			printk(KERN_DE DRV_NAME ": %s: set bus master\n",
 			       pci_name(dev));
 		pci_set_master(dev);
 	} else if (dev->is_busmaster && !is_master_cmd(value)) {
 		if (unlikely(verbose_request))
-			printk(KERN_DEBUG DRV_NAME ": %s: clear bus master\n",
+			printk(KERN_DE DRV_NAME ": %s: clear bus master\n",
 			       pci_name(dev));
 		pci_clear_master(dev);
 	}
@@ -99,7 +99,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 	if (!(cmd->val & PCI_COMMAND_INVALIDATE) &&
 	    (value & PCI_COMMAND_INVALIDATE)) {
 		if (unlikely(verbose_request))
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       DRV_NAME ": %s: enable memory-write-invalidate\n",
 			       pci_name(dev));
 		err = pci_set_mwi(dev);
@@ -111,7 +111,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 	} else if ((cmd->val & PCI_COMMAND_INVALIDATE) &&
 		   !(value & PCI_COMMAND_INVALIDATE)) {
 		if (unlikely(verbose_request))
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       DRV_NAME ": %s: disable memory-write-invalidate\n",
 			       pci_name(dev));
 		pci_clear_mwi(dev);

@@ -119,7 +119,7 @@ static irqreturn_t sh7780_pci_err_irq(int irq, void *dev_id)
 	status = __raw_readl(hose->reg_base + SH4_PCIAINT);
 	for (i = cmd = 0; i < ARRAY_SIZE(pci_arbiter_errors); i++) {
 		if (status & pci_arbiter_errors[i].mask) {
-			printk(KERN_DEBUG "PCI: %s, addr=%08lx\n",
+			printk(KERN_DE "PCI: %s, addr=%08lx\n",
 			       pci_arbiter_errors[i].str, addr);
 			cmd |= pci_arbiter_errors[i].mask;
 		}
@@ -132,7 +132,7 @@ static irqreturn_t sh7780_pci_err_irq(int irq, void *dev_id)
 	status = __raw_readl(hose->reg_base + SH4_PCIINT);
 	for (i = cmd = 0; i < ARRAY_SIZE(pci_interrupt_errors); i++) {
 		if (status & pci_interrupt_errors[i].mask) {
-			printk(KERN_DEBUG "PCI: %s, addr=%08lx\n",
+			printk(KERN_DE "PCI: %s, addr=%08lx\n",
 			       pci_interrupt_errors[i].str, addr);
 			cmd |= pci_interrupt_errors[i].mask;
 		}
@@ -146,7 +146,7 @@ static irqreturn_t sh7780_pci_serr_irq(int irq, void *dev_id)
 {
 	struct pci_channel *hose = dev_id;
 
-	printk(KERN_DEBUG "PCI: system error received: ");
+	printk(KERN_DE "PCI: system error received: ");
 	pcibios_report_status(PCI_STATUS_SIG_SYSTEM_ERROR, 1);
 	printk("\n");
 

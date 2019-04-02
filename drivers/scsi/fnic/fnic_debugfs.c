@@ -17,17 +17,17 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/vmalloc.h>
 #include "fnic.h"
 
-static struct dentry *fnic_trace_debugfs_root;
-static struct dentry *fnic_trace_debugfs_file;
+static struct dentry *fnic_trace_defs_root;
+static struct dentry *fnic_trace_defs_file;
 static struct dentry *fnic_trace_enable;
-static struct dentry *fnic_stats_debugfs_root;
+static struct dentry *fnic_stats_defs_root;
 
-static struct dentry *fnic_fc_trace_debugfs_file;
-static struct dentry *fnic_fc_rdata_trace_debugfs_file;
+static struct dentry *fnic_fc_trace_defs_file;
+static struct dentry *fnic_fc_rdata_trace_defs_file;
 static struct dentry *fnic_fc_trace_enable;
 static struct dentry *fnic_fc_trace_clear;
 
@@ -42,21 +42,21 @@ struct fc_trace_flag_type {
 static struct fc_trace_flag_type *fc_trc_flag;
 
 /*
- * fnic_debugfs_init - Initialize debugfs for fnic debug logging
+ * fnic_defs_init - Initialize defs for fnic de logging
  *
  * Description:
- * When Debugfs is configured this routine sets up the fnic debugfs
+ * When Defs is configured this routine sets up the fnic defs
  * file system. If not already created, this routine will create the
  * fnic directory and statistics directory for trace buffer and
  * stats logging.
  */
-int fnic_debugfs_init(void)
+int fnic_defs_init(void)
 {
 	int rc = -1;
-	fnic_trace_debugfs_root = debugfs_create_dir("fnic", NULL);
+	fnic_trace_defs_root = defs_create_dir("fnic", NULL);
 
-	fnic_stats_debugfs_root = debugfs_create_dir("statistics",
-						fnic_trace_debugfs_root);
+	fnic_stats_defs_root = defs_create_dir("statistics",
+						fnic_trace_defs_root);
 
 	/* Allocate memory to structure */
 	fc_trc_flag = (struct fc_trace_flag_type *)
@@ -75,19 +75,19 @@ int fnic_debugfs_init(void)
 }
 
 /*
- * fnic_debugfs_terminate - Tear down debugfs infrastructure
+ * fnic_defs_terminate - Tear down defs infrastructure
  *
  * Description:
- * When Debugfs is configured this routine removes debugfs file system
+ * When Defs is configured this routine removes defs file system
  * elements that are specific to fnic.
  */
-void fnic_debugfs_terminate(void)
+void fnic_defs_terminate(void)
 {
-	debugfs_remove(fnic_stats_debugfs_root);
-	fnic_stats_debugfs_root = NULL;
+	defs_remove(fnic_stats_defs_root);
+	fnic_stats_defs_root = NULL;
 
-	debugfs_remove(fnic_trace_debugfs_root);
-	fnic_trace_debugfs_root = NULL;
+	defs_remove(fnic_trace_defs_root);
+	fnic_trace_defs_root = NULL;
 
 	if (fc_trc_flag)
 		vfree(fc_trc_flag);
@@ -96,7 +96,7 @@ void fnic_debugfs_terminate(void)
 /*
  * fnic_trace_ctrl_read -
  *          Read  trace_enable ,fc_trace_enable
- *              or fc_trace_clear debugfs file
+ *              or fc_trace_clear defs file
  * @filp: The file pointer to read from.
  * @ubuf: The buffer to copy the data to.
  * @cnt: The number of bytes to read.
@@ -128,7 +128,7 @@ static ssize_t fnic_trace_ctrl_read(struct file *filp,
 	else if (*trace_type == fc_trc_flag->fc_clear)
 		len = sprintf(buf, "%u\n", fnic_fc_trace_cleared);
 	else
-		pr_err("fnic: Cannot read to any debugfs file\n");
+		pr_err("fnic: Cannot read to any defs file\n");
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, len);
 }
@@ -136,7 +136,7 @@ static ssize_t fnic_trace_ctrl_read(struct file *filp,
 /*
  * fnic_trace_ctrl_write -
  * Write to trace_enable, fc_trace_enable or
- *         fc_trace_clear debugfs file
+ *         fc_trace_clear defs file
  * @filp: The file pointer to write from.
  * @ubuf: The buffer to copy the data from.
  * @cnt: The number of bytes to write.
@@ -179,7 +179,7 @@ static ssize_t fnic_trace_ctrl_write(struct file *filp,
 	else if (*trace_type == fc_trc_flag->fc_clear)
 		fnic_fc_trace_cleared = val;
 	else
-		pr_err("fnic: cannot write to any debugfs file\n");
+		pr_err("fnic: cannot write to any defs file\n");
 
 	(*ppos)++;
 
@@ -194,12 +194,12 @@ static const struct file_operations fnic_trace_ctrl_fops = {
 };
 
 /*
- * fnic_trace_debugfs_open - Open the fnic trace log
+ * fnic_trace_defs_open - Open the fnic trace log
  * @inode: The inode pointer
  * @file: The file pointer to attach the log output
  *
  * Description:
- * This routine is the entry point for the debugfs open file operation.
+ * This routine is the entry point for the defs open file operation.
  * It allocates the necessary buffer for the log, fills the buffer from
  * the in-memory log and then returns a pointer to that log in
  * the private_data field in @file.
@@ -208,7 +208,7 @@ static const struct file_operations fnic_trace_ctrl_fops = {
  * This function returns zero if successful. On error it will return
  * a negative error value.
  */
-static int fnic_trace_debugfs_open(struct inode *inode,
+static int fnic_trace_defs_open(struct inode *inode,
 				  struct file *file)
 {
 	fnic_dbgfs_t *fnic_dbg_prt;
@@ -247,23 +247,23 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 }
 
 /*
- * fnic_trace_debugfs_lseek - Seek through a debugfs file
+ * fnic_trace_defs_lseek - Seek through a defs file
  * @file: The file pointer to seek through.
  * @offset: The offset to seek to or the amount to seek by.
  * @howto: Indicates how to seek.
  *
  * Description:
- * This routine is the entry point for the debugfs lseek file operation.
+ * This routine is the entry point for the defs lseek file operation.
  * The @howto parameter indicates whether @offset is the offset to directly
  * seek to, or if it is a value to seek forward or reverse by. This function
- * figures out what the new offset of the debugfs file will be and assigns
+ * figures out what the new offset of the defs file will be and assigns
  * that value to the f_pos field of @file.
  *
  * Returns:
  * This function returns the new offset if successful and returns a negative
  * error if unable to process the seek.
  */
-static loff_t fnic_trace_debugfs_lseek(struct file *file,
+static loff_t fnic_trace_defs_lseek(struct file *file,
 					loff_t offset,
 					int howto)
 {
@@ -273,7 +273,7 @@ static loff_t fnic_trace_debugfs_lseek(struct file *file,
 }
 
 /*
- * fnic_trace_debugfs_read - Read a debugfs file
+ * fnic_trace_defs_read - Read a defs file
  * @file: The file pointer to read from.
  * @ubuf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -288,7 +288,7 @@ static loff_t fnic_trace_debugfs_lseek(struct file *file,
  * This function returns the amount of data that was read (this could be
  * less than @nbytes if the end of the file was reached).
  */
-static ssize_t fnic_trace_debugfs_read(struct file *file,
+static ssize_t fnic_trace_defs_read(struct file *file,
 					char __user *ubuf,
 					size_t nbytes,
 					loff_t *pos)
@@ -302,19 +302,19 @@ static ssize_t fnic_trace_debugfs_read(struct file *file,
 }
 
 /*
- * fnic_trace_debugfs_release - Release the buffer used to store
- * debugfs file data
+ * fnic_trace_defs_release - Release the buffer used to store
+ * defs file data
  * @inode: The inode pointer
  * @file: The file pointer that contains the buffer to release
  *
  * Description:
- * This routine frees the buffer that was allocated when the debugfs
+ * This routine frees the buffer that was allocated when the defs
  * file was opened.
  *
  * Returns:
  * This function returns zero.
  */
-static int fnic_trace_debugfs_release(struct inode *inode,
+static int fnic_trace_defs_release(struct inode *inode,
 					  struct file *file)
 {
 	fnic_dbgfs_t *fnic_dbg_prt = file->private_data;
@@ -324,116 +324,116 @@ static int fnic_trace_debugfs_release(struct inode *inode,
 	return 0;
 }
 
-static const struct file_operations fnic_trace_debugfs_fops = {
+static const struct file_operations fnic_trace_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = fnic_trace_debugfs_open,
-	.llseek = fnic_trace_debugfs_lseek,
-	.read = fnic_trace_debugfs_read,
-	.release = fnic_trace_debugfs_release,
+	.open = fnic_trace_defs_open,
+	.llseek = fnic_trace_defs_lseek,
+	.read = fnic_trace_defs_read,
+	.release = fnic_trace_defs_release,
 };
 
 /*
- * fnic_trace_debugfs_init - Initialize debugfs for fnic trace logging
+ * fnic_trace_defs_init - Initialize defs for fnic trace logging
  *
  * Description:
- * When Debugfs is configured this routine sets up the fnic debugfs
+ * When Defs is configured this routine sets up the fnic defs
  * file system. If not already created, this routine will create the
- * create file trace to log fnic trace buffer output into debugfs and
+ * create file trace to log fnic trace buffer output into defs and
  * it will also create file trace_enable to control enable/disable of
  * trace logging into trace buffer.
  */
-void fnic_trace_debugfs_init(void)
+void fnic_trace_defs_init(void)
 {
-	fnic_trace_enable = debugfs_create_file("tracing_enable",
+	fnic_trace_enable = defs_create_file("tracing_enable",
 					S_IFREG|S_IRUGO|S_IWUSR,
-					fnic_trace_debugfs_root,
+					fnic_trace_defs_root,
 					&(fc_trc_flag->fnic_trace),
 					&fnic_trace_ctrl_fops);
 
-	fnic_trace_debugfs_file = debugfs_create_file("trace",
+	fnic_trace_defs_file = defs_create_file("trace",
 					S_IFREG|S_IRUGO|S_IWUSR,
-					fnic_trace_debugfs_root,
+					fnic_trace_defs_root,
 					&(fc_trc_flag->fnic_trace),
-					&fnic_trace_debugfs_fops);
+					&fnic_trace_defs_fops);
 }
 
 /*
- * fnic_trace_debugfs_terminate - Tear down debugfs infrastructure
+ * fnic_trace_defs_terminate - Tear down defs infrastructure
  *
  * Description:
- * When Debugfs is configured this routine removes debugfs file system
+ * When Defs is configured this routine removes defs file system
  * elements that are specific to fnic trace logging.
  */
-void fnic_trace_debugfs_terminate(void)
+void fnic_trace_defs_terminate(void)
 {
-	debugfs_remove(fnic_trace_debugfs_file);
-	fnic_trace_debugfs_file = NULL;
+	defs_remove(fnic_trace_defs_file);
+	fnic_trace_defs_file = NULL;
 
-	debugfs_remove(fnic_trace_enable);
+	defs_remove(fnic_trace_enable);
 	fnic_trace_enable = NULL;
 }
 
 /*
- * fnic_fc_trace_debugfs_init -
- * Initialize debugfs for fnic control frame trace logging
+ * fnic_fc_trace_defs_init -
+ * Initialize defs for fnic control frame trace logging
  *
  * Description:
- * When Debugfs is configured this routine sets up the fnic_fc debugfs
+ * When Defs is configured this routine sets up the fnic_fc defs
  * file system. If not already created, this routine will create the
- * create file trace to log fnic fc trace buffer output into debugfs and
+ * create file trace to log fnic fc trace buffer output into defs and
  * it will also create file fc_trace_enable to control enable/disable of
  * trace logging into trace buffer.
  */
 
-void fnic_fc_trace_debugfs_init(void)
+void fnic_fc_trace_defs_init(void)
 {
-	fnic_fc_trace_enable = debugfs_create_file("fc_trace_enable",
+	fnic_fc_trace_enable = defs_create_file("fc_trace_enable",
 					S_IFREG|S_IRUGO|S_IWUSR,
-					fnic_trace_debugfs_root,
+					fnic_trace_defs_root,
 					&(fc_trc_flag->fc_trace),
 					&fnic_trace_ctrl_fops);
 
-	fnic_fc_trace_clear = debugfs_create_file("fc_trace_clear",
+	fnic_fc_trace_clear = defs_create_file("fc_trace_clear",
 					S_IFREG|S_IRUGO|S_IWUSR,
-					fnic_trace_debugfs_root,
+					fnic_trace_defs_root,
 					&(fc_trc_flag->fc_clear),
 					&fnic_trace_ctrl_fops);
 
-	fnic_fc_rdata_trace_debugfs_file =
-		debugfs_create_file("fc_trace_rdata",
+	fnic_fc_rdata_trace_defs_file =
+		defs_create_file("fc_trace_rdata",
 				    S_IFREG|S_IRUGO|S_IWUSR,
-				    fnic_trace_debugfs_root,
+				    fnic_trace_defs_root,
 				    &(fc_trc_flag->fc_normal_file),
-				    &fnic_trace_debugfs_fops);
+				    &fnic_trace_defs_fops);
 
-	fnic_fc_trace_debugfs_file =
-		debugfs_create_file("fc_trace",
+	fnic_fc_trace_defs_file =
+		defs_create_file("fc_trace",
 				    S_IFREG|S_IRUGO|S_IWUSR,
-				    fnic_trace_debugfs_root,
+				    fnic_trace_defs_root,
 				    &(fc_trc_flag->fc_row_file),
-				    &fnic_trace_debugfs_fops);
+				    &fnic_trace_defs_fops);
 }
 
 /*
- * fnic_fc_trace_debugfs_terminate - Tear down debugfs infrastructure
+ * fnic_fc_trace_defs_terminate - Tear down defs infrastructure
  *
  * Description:
- * When Debugfs is configured this routine removes debugfs file system
+ * When Defs is configured this routine removes defs file system
  * elements that are specific to fnic_fc trace logging.
  */
 
-void fnic_fc_trace_debugfs_terminate(void)
+void fnic_fc_trace_defs_terminate(void)
 {
-	debugfs_remove(fnic_fc_trace_debugfs_file);
-	fnic_fc_trace_debugfs_file = NULL;
+	defs_remove(fnic_fc_trace_defs_file);
+	fnic_fc_trace_defs_file = NULL;
 
-	debugfs_remove(fnic_fc_rdata_trace_debugfs_file);
-	fnic_fc_rdata_trace_debugfs_file = NULL;
+	defs_remove(fnic_fc_rdata_trace_defs_file);
+	fnic_fc_rdata_trace_defs_file = NULL;
 
-	debugfs_remove(fnic_fc_trace_enable);
+	defs_remove(fnic_fc_trace_enable);
 	fnic_fc_trace_enable = NULL;
 
-	debugfs_remove(fnic_fc_trace_clear);
+	defs_remove(fnic_fc_trace_clear);
 	fnic_fc_trace_clear = NULL;
 }
 
@@ -443,8 +443,8 @@ void fnic_fc_trace_debugfs_terminate(void)
  * @file: The file pointer to attach the stats reset flag.
  *
  * Description:
- * This routine opens a debugsfs file reset_stats and stores i_private data
- * to debug structure to retrieve later for while performing other
+ * This routine opens a desfs file reset_stats and stores i_private data
+ * to de structure to retrieve later for while performing other
  * file oprations.
  *
  * Returns:
@@ -452,21 +452,21 @@ void fnic_fc_trace_debugfs_terminate(void)
  */
 static int fnic_reset_stats_open(struct inode *inode, struct file *file)
 {
-	struct stats_debug_info *debug;
+	struct stats_de_info *de;
 
-	debug = kzalloc(sizeof(struct stats_debug_info), GFP_KERNEL);
-	if (!debug)
+	de = kzalloc(sizeof(struct stats_de_info), GFP_KERNEL);
+	if (!de)
 		return -ENOMEM;
 
-	debug->i_private = inode->i_private;
+	de->i_private = inode->i_private;
 
-	file->private_data = debug;
+	file->private_data = de;
 
 	return 0;
 }
 
 /*
- * fnic_reset_stats_read - Read a reset_stats debugfs file
+ * fnic_reset_stats_read - Read a reset_stats defs file
  * @filp: The file pointer to read from.
  * @ubuf: The buffer to copy the data to.
  * @cnt: The number of bytes to read.
@@ -484,8 +484,8 @@ static ssize_t fnic_reset_stats_read(struct file *file,
 					char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
-	struct stats_debug_info *debug = file->private_data;
-	struct fnic *fnic = (struct fnic *)debug->i_private;
+	struct stats_de_info *de = file->private_data;
+	struct fnic *fnic = (struct fnic *)de->i_private;
 	char buf[64];
 	int len;
 
@@ -495,7 +495,7 @@ static ssize_t fnic_reset_stats_read(struct file *file,
 }
 
 /*
- * fnic_reset_stats_write - Write to reset_stats debugfs file
+ * fnic_reset_stats_write - Write to reset_stats defs file
  * @filp: The file pointer to write from.
  * @ubuf: The buffer to copy the data from.
  * @cnt: The number of bytes to write.
@@ -512,8 +512,8 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 					const char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
-	struct stats_debug_info *debug = file->private_data;
-	struct fnic *fnic = (struct fnic *)debug->i_private;
+	struct stats_de_info *de = file->private_data;
+	struct fnic *fnic = (struct fnic *)de->i_private;
 	struct fnic_stats *stats = &fnic->fnic_stats;
 	u64 *io_stats_p = (u64 *)&stats->io_stats;
 	u64 *fw_stats_p = (u64 *)&stats->fw_stats;
@@ -561,12 +561,12 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 
 /*
  * fnic_reset_stats_release - Release the buffer used to store
- * debugfs file data
+ * defs file data
  * @inode: The inode pointer
  * @file: The file pointer that contains the buffer to release
  *
  * Description:
- * This routine frees the buffer that was allocated when the debugfs
+ * This routine frees the buffer that was allocated when the defs
  * file was opened.
  *
  * Returns:
@@ -575,53 +575,53 @@ static ssize_t fnic_reset_stats_write(struct file *file,
 static int fnic_reset_stats_release(struct inode *inode,
 					struct file *file)
 {
-	struct stats_debug_info *debug = file->private_data;
-	kfree(debug);
+	struct stats_de_info *de = file->private_data;
+	kfree(de);
 	return 0;
 }
 
 /*
- * fnic_stats_debugfs_open - Open the stats file for specific host
+ * fnic_stats_defs_open - Open the stats file for specific host
  * and get fnic stats.
  * @inode: The inode pointer.
  * @file: The file pointer to attach the specific host statistics.
  *
  * Description:
- * This routine opens a debugsfs file stats of specific host and print
+ * This routine opens a desfs file stats of specific host and print
  * fnic stats.
  *
  * Returns:
  * This function returns zero if successful.
  */
-static int fnic_stats_debugfs_open(struct inode *inode,
+static int fnic_stats_defs_open(struct inode *inode,
 					struct file *file)
 {
 	struct fnic *fnic = inode->i_private;
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
-	struct stats_debug_info *debug;
+	struct stats_de_info *de;
 	int buf_size = 2 * PAGE_SIZE;
 
-	debug = kzalloc(sizeof(struct stats_debug_info), GFP_KERNEL);
-	if (!debug)
+	de = kzalloc(sizeof(struct stats_de_info), GFP_KERNEL);
+	if (!de)
 		return -ENOMEM;
 
-	debug->debug_buffer = vmalloc(buf_size);
-	if (!debug->debug_buffer) {
-		kfree(debug);
+	de->de_buffer = vmalloc(buf_size);
+	if (!de->de_buffer) {
+		kfree(de);
 		return -ENOMEM;
 	}
 
-	debug->buf_size = buf_size;
-	memset((void *)debug->debug_buffer, 0, buf_size);
-	debug->buffer_len = fnic_get_stats_data(debug, fnic_stats);
+	de->buf_size = buf_size;
+	memset((void *)de->de_buffer, 0, buf_size);
+	de->buffer_len = fnic_get_stats_data(de, fnic_stats);
 
-	file->private_data = debug;
+	file->private_data = de;
 
 	return 0;
 }
 
 /*
- * fnic_stats_debugfs_read - Read a debugfs file
+ * fnic_stats_defs_read - Read a defs file
  * @file: The file pointer to read from.
  * @ubuf: The buffer to copy the data to.
  * @nbytes: The number of bytes to read.
@@ -636,49 +636,49 @@ static int fnic_stats_debugfs_open(struct inode *inode,
  * This function returns the amount of data that was read (this could be
  * less than @nbytes if the end of the file was reached).
  */
-static ssize_t fnic_stats_debugfs_read(struct file *file,
+static ssize_t fnic_stats_defs_read(struct file *file,
 					char __user *ubuf,
 					size_t nbytes,
 					loff_t *pos)
 {
-	struct stats_debug_info *debug = file->private_data;
+	struct stats_de_info *de = file->private_data;
 	int rc = 0;
 	rc = simple_read_from_buffer(ubuf, nbytes, pos,
-					debug->debug_buffer,
-					debug->buffer_len);
+					de->de_buffer,
+					de->buffer_len);
 	return rc;
 }
 
 /*
  * fnic_stats_stats_release - Release the buffer used to store
- * debugfs file data
+ * defs file data
  * @inode: The inode pointer
  * @file: The file pointer that contains the buffer to release
  *
  * Description:
- * This routine frees the buffer that was allocated when the debugfs
+ * This routine frees the buffer that was allocated when the defs
  * file was opened.
  *
  * Returns:
  * This function returns zero.
  */
-static int fnic_stats_debugfs_release(struct inode *inode,
+static int fnic_stats_defs_release(struct inode *inode,
 					struct file *file)
 {
-	struct stats_debug_info *debug = file->private_data;
-	vfree(debug->debug_buffer);
-	kfree(debug);
+	struct stats_de_info *de = file->private_data;
+	vfree(de->de_buffer);
+	kfree(de);
 	return 0;
 }
 
-static const struct file_operations fnic_stats_debugfs_fops = {
+static const struct file_operations fnic_stats_defs_fops = {
 	.owner = THIS_MODULE,
-	.open = fnic_stats_debugfs_open,
-	.read = fnic_stats_debugfs_read,
-	.release = fnic_stats_debugfs_release,
+	.open = fnic_stats_defs_open,
+	.read = fnic_stats_defs_read,
+	.release = fnic_stats_defs_release,
 };
 
-static const struct file_operations fnic_reset_debugfs_fops = {
+static const struct file_operations fnic_reset_defs_fops = {
 	.owner = THIS_MODULE,
 	.open = fnic_reset_stats_open,
 	.read = fnic_reset_stats_read,
@@ -690,50 +690,50 @@ static const struct file_operations fnic_reset_debugfs_fops = {
  * fnic_stats_init - Initialize stats struct and create stats file per fnic
  *
  * Description:
- * When Debugfs is configured this routine sets up the stats file per fnic
+ * When Defs is configured this routine sets up the stats file per fnic
  * It will create file stats and reset_stats under statistics/host# directory
  * to log per fnic stats.
  */
-void fnic_stats_debugfs_init(struct fnic *fnic)
+void fnic_stats_defs_init(struct fnic *fnic)
 {
 	char name[16];
 
 	snprintf(name, sizeof(name), "host%d", fnic->lport->host->host_no);
 
-	fnic->fnic_stats_debugfs_host = debugfs_create_dir(name,
-						fnic_stats_debugfs_root);
+	fnic->fnic_stats_defs_host = defs_create_dir(name,
+						fnic_stats_defs_root);
 
-	fnic->fnic_stats_debugfs_file = debugfs_create_file("stats",
+	fnic->fnic_stats_defs_file = defs_create_file("stats",
 						S_IFREG|S_IRUGO|S_IWUSR,
-						fnic->fnic_stats_debugfs_host,
+						fnic->fnic_stats_defs_host,
 						fnic,
-						&fnic_stats_debugfs_fops);
+						&fnic_stats_defs_fops);
 
-	fnic->fnic_reset_debugfs_file = debugfs_create_file("reset_stats",
+	fnic->fnic_reset_defs_file = defs_create_file("reset_stats",
 						S_IFREG|S_IRUGO|S_IWUSR,
-						fnic->fnic_stats_debugfs_host,
+						fnic->fnic_stats_defs_host,
 						fnic,
-						&fnic_reset_debugfs_fops);
+						&fnic_reset_defs_fops);
 }
 
 /*
- * fnic_stats_debugfs_remove - Tear down debugfs infrastructure of stats
+ * fnic_stats_defs_remove - Tear down defs infrastructure of stats
  *
  * Description:
- * When Debugfs is configured this routine removes debugfs file system
+ * When Defs is configured this routine removes defs file system
  * elements that are specific to fnic stats.
  */
-void fnic_stats_debugfs_remove(struct fnic *fnic)
+void fnic_stats_defs_remove(struct fnic *fnic)
 {
 	if (!fnic)
 		return;
 
-	debugfs_remove(fnic->fnic_stats_debugfs_file);
-	fnic->fnic_stats_debugfs_file = NULL;
+	defs_remove(fnic->fnic_stats_defs_file);
+	fnic->fnic_stats_defs_file = NULL;
 
-	debugfs_remove(fnic->fnic_reset_debugfs_file);
-	fnic->fnic_reset_debugfs_file = NULL;
+	defs_remove(fnic->fnic_reset_defs_file);
+	fnic->fnic_reset_defs_file = NULL;
 
-	debugfs_remove(fnic->fnic_stats_debugfs_host);
-	fnic->fnic_stats_debugfs_host = NULL;
+	defs_remove(fnic->fnic_stats_defs_host);
+	fnic->fnic_stats_defs_host = NULL;
 }

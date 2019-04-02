@@ -54,7 +54,7 @@
 
 #include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
@@ -827,7 +827,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->gw.bandwidth_up, 20);
 	atomic_set(&bat_priv->orig_interval, 1000);
 	atomic_set(&bat_priv->hop_penalty, 30);
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 	atomic_set(&bat_priv->log_level, 0);
 #endif
 	atomic_set(&bat_priv->fragmentation, 1);
@@ -862,18 +862,18 @@ static int batadv_softif_init_late(struct net_device *dev)
 	if (ret < 0)
 		goto free_bat_counters;
 
-	ret = batadv_debugfs_add_meshif(dev);
+	ret = batadv_defs_add_meshif(dev);
 	if (ret < 0)
 		goto free_bat_counters;
 
 	ret = batadv_mesh_init(dev);
 	if (ret < 0)
-		goto unreg_debugfs;
+		goto unreg_defs;
 
 	return 0;
 
-unreg_debugfs:
-	batadv_debugfs_del_meshif(dev);
+unreg_defs:
+	batadv_defs_del_meshif(dev);
 free_bat_counters:
 	free_percpu(bat_priv->bat_counters);
 	bat_priv->bat_counters = NULL;
@@ -1050,7 +1050,7 @@ static const struct ethtool_ops batadv_ethtool_ops = {
  */
 static void batadv_softif_free(struct net_device *dev)
 {
-	batadv_debugfs_del_meshif(dev);
+	batadv_defs_del_meshif(dev);
 	batadv_mesh_free(dev);
 
 	/* some scheduled RCU callbacks need the bat_priv struct to accomplish

@@ -23,7 +23,7 @@
  *
  * It manages to find the drive which is a good start. Writing data during
  * data phase is known to be broken (due to requirements of two byte writes).
- * Removing "Phase" debug messages.
+ * Removing "Phase" de messages.
  *
  * PS: Took four hours of coding after I bought a drive.
  *      ANZAC Day (Aus "War Veterans Holiday")  25Apr98 [ 0.14 ]
@@ -112,7 +112,7 @@ static char *IMM_MODE_STRING[] =
 #define IMM_BURST_SIZE	512	/* data burst size */
 #define IMM_SELECT_TMO  500	/* 500 how long to wait for target ? */
 #define IMM_SPIN_TMO    5000	/* 50000 imm_wait loop limiter */
-#define IMM_DEBUG	0	/* debugging option */
+#define IMM_DE	0	/* deging option */
 #define IN_EPP_MODE(x) (x == IMM_EPP_8 || x == IMM_EPP_16 || x == IMM_EPP_32)
 
 /* args to imm_connect */

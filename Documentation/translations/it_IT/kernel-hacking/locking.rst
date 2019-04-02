@@ -441,7 +441,7 @@ e tutti gli oggetti che contiene. Ecco il codice::
     /* Must be holding cache_lock */
     static void __cache_delete(struct object *obj)
     {
-            BUG_ON(!obj);
+            _ON(!obj);
             list_del(&obj->list);
             kfree(obj);
             cache_num--;
@@ -671,7 +671,7 @@ Ecco il codice::
      {
     @@ -35,6 +65,7 @@
      {
-             BUG_ON(!obj);
+             _ON(!obj);
              list_del(&obj->list);
     +        __object_put(obj);
              cache_num--;
@@ -784,7 +784,7 @@ contatore stesso.
      /* Must be holding cache_lock */
     @@ -65,7 +47,7 @@
      {
-             BUG_ON(!obj);
+             _ON(!obj);
              list_del(&obj->list);
     -        __object_put(obj);
     +        object_put(obj);
@@ -919,7 +919,7 @@ con ``CONFIG_SMP``\ =n. Nonostante ciò, nel secondo caso avrete comunque
 una corruzione dei dati).
 
 Questi casi sono facili da diagnosticare; sui sistemi multi-processore
-il supervisione (*watchdog*) o l'opzione di compilazione ``DEBUG_SPINLOCK``
+il supervisione (*watchdog*) o l'opzione di compilazione ``DE_SPINLOCK``
 (``include/linux/spinlock.h``) permettono di scovare immediatamente quando
 succedono.
 
@@ -1220,7 +1220,7 @@ codice RCU è un po' più ottimizzato di così, ma questa è l'idea di fondo.
      /* Must be holding cache_lock */
      static void __cache_delete(struct object *obj)
      {
-             BUG_ON(!obj);
+             _ON(!obj);
     -        list_del(&obj->list);
     -        object_put(obj);
     +        list_del_rcu(&obj->list);

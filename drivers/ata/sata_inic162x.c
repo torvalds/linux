@@ -13,8 +13,8 @@
  * no support from the vendor.  Do not use this driver in any production
  * environment.
  *
- * http://thread.gmane.org/gmane.linux.debian.devel.bugs.rc/378525/focus=54491
- * https://bugzilla.kernel.org/show_bug.cgi?id=60565
+ * http://thread.gmane.org/gmane.linux.debian.devel.s.rc/378525/focus=54491
+ * https://zilla.kernel.org/show_.cgi?id=60565
  *
  * *****************
  *

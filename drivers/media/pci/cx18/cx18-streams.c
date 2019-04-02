@@ -646,7 +646,7 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 		data[5] = 0xA0E0A0E0;
 	}
 
-	CX18_DEBUG_INFO("Setup VBI h: %d lines %x bpl %d fr %d %x %x\n",
+	CX18_DE_INFO("Setup VBI h: %d lines %x bpl %d fr %d %x %x\n",
 			data[0], data[1], data[2], data[3], data[4], data[5]);
 
 	cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
@@ -784,7 +784,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	if (!cx18_stream_enabled(s))
 		return -EINVAL;
 
-	CX18_DEBUG_INFO("Start encoder stream %s\n", s->name);
+	CX18_DE_INFO("Start encoder stream %s\n", s->name);
 
 	switch (s->type) {
 	case CX18_ENC_STREAM_TYPE_MPG:
@@ -923,7 +923,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
-		CX18_DEBUG_WARN("Error starting capture!\n");
+		CX18_DE_WARN("Error starting capture!\n");
 		/* Ensure we're really not capturing before releasing MDLs */
 		set_bit(CX18_F_S_STOPPING, &s->s_flags);
 		if (s->type == CX18_ENC_STREAM_TYPE_MPG)
@@ -975,7 +975,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	/* This function assumes that you are allowed to stop the capture
 	   and that we are actually capturing */
 
-	CX18_DEBUG_INFO("Stop Capture\n");
+	CX18_DE_INFO("Stop Capture\n");
 
 	if (atomic_read(&cx->tot_capturing) == 0)
 		return 0;

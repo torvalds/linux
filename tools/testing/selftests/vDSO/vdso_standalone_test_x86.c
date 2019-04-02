@@ -23,7 +23,7 @@ extern void vdso_init_from_auxv(void *auxv);
 /* We need a libc functions... */
 int strcmp(const char *a, const char *b)
 {
-	/* This implementation is buggy: it never returns -1. */
+	/* This implementation is gy: it never returns -1. */
 	while (*a || *b) {
 		if (*a != *b)
 			return 1;

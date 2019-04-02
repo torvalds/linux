@@ -161,7 +161,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM__ON(addr != -ENOMEM);
 		info.flags = 0;
 		info.low_limit = mm->mmap_base;
 		info.high_limit = TASK_SIZE;

@@ -173,8 +173,8 @@ static struct s3c64xx_pm_domain *s3c64xx_pm_domains[] = {
 	&s3c64xx_pm_f,
 };
 
-#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-void s3c_pm_debug_smdkled(u32 set, u32 clear)
+#ifdef CONFIG_S3C_PM_DE_LED_SMDK
+void s3c_pm_de_smdkled(u32 set, u32 clear)
 {
 	unsigned long flags;
 	int i;
@@ -224,7 +224,7 @@ void s3c_pm_restore_core(void)
 {
 	__raw_writel(0, S3C64XX_EINT_MASK);
 
-	s3c_pm_debug_smdkled(1 << 2, 0);
+	s3c_pm_de_smdkled(1 << 2, 0);
 
 	s3c_pm_do_restore_core(core_save, ARRAY_SIZE(core_save));
 	s3c_pm_do_restore(misc_save, ARRAY_SIZE(misc_save));
@@ -259,7 +259,7 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 		     S3C64XX_WAKEUP_STAT);
 
 	/* set the LED state to 0110 over sleep */
-	s3c_pm_debug_smdkled(3 << 1, 0xf);
+	s3c_pm_de_smdkled(3 << 1, 0xf);
 
 	/* issue the standby signal into the pm unit. Note, we
 	 * issue a write-buffer drain just in case */
@@ -334,11 +334,11 @@ static __init int s3c64xx_pm_initcall(void)
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
 
-#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-	gpio_request(S3C64XX_GPN(12), "DEBUG_LED0");
-	gpio_request(S3C64XX_GPN(13), "DEBUG_LED1");
-	gpio_request(S3C64XX_GPN(14), "DEBUG_LED2");
-	gpio_request(S3C64XX_GPN(15), "DEBUG_LED3");
+#ifdef CONFIG_S3C_PM_DE_LED_SMDK
+	gpio_request(S3C64XX_GPN(12), "DE_LED0");
+	gpio_request(S3C64XX_GPN(13), "DE_LED1");
+	gpio_request(S3C64XX_GPN(14), "DE_LED2");
+	gpio_request(S3C64XX_GPN(15), "DE_LED3");
 	gpio_direction_output(S3C64XX_GPN(12), 0);
 	gpio_direction_output(S3C64XX_GPN(13), 0);
 	gpio_direction_output(S3C64XX_GPN(14), 0);

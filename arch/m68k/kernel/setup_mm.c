@@ -237,8 +237,8 @@ void __init setup_arch(char **cmdline_p)
 	/* FIXME: m68k_fputype is passed in by Penguin booter, which can
 	 * be confused by software FPU emulation. BEWARE.
 	 * We should really do our own FPU check at startup.
-	 * [what do we do with buggy 68LC040s? if we have problems
-	 *  with them, we should add a test to check_bugs() below] */
+	 * [what do we do with gy 68LC040s? if we have problems
+	 *  with them, we should add a test to check_s() below] */
 #if defined(CONFIG_FPU) && !defined(CONFIG_M68KFPU_EMU_ONLY)
 	/* clear the fpu if we have one */
 	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060|FPU_COLDFIRE)) {
@@ -527,7 +527,7 @@ static int __init proc_hardware_init(void)
 module_init(proc_hardware_init);
 #endif
 
-void check_bugs(void)
+void check_s(void)
 {
 #if defined(CONFIG_FPU) && !defined(CONFIG_M68KFPU_EMU)
 	if (m68k_fputype == 0) {

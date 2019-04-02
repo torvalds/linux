@@ -28,7 +28,7 @@
 #include "soc.h"
 #include "scb.h"
 #include "ampdu.h"
-#include "debug.h"
+#include "de.h"
 #include "brcms_trace_events.h"
 
 /*
@@ -958,7 +958,7 @@ int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 			pktcnt++;
 		}
 
-#ifdef DEBUG
+#ifdef DE
 		if (resid > 0) {
 			uint cur;
 			cur =
@@ -970,7 +970,7 @@ int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 				      "rxin %d rxout %d, hw_curr %d\n",
 				      di->rxin, di->rxout, cur);
 		}
-#endif				/* DEBUG */
+#endif				/* DE */
 
 		if ((di->dma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
 			brcms_dbg_dma(di->core, "%s: bad frame length (%d)\n",
@@ -1374,7 +1374,7 @@ static void dma_update_txavail(struct dma_info *di)
  * !! tx entry routine
  * WARNING: call must check the return value for error.
  *   the error(toss frames) could be fatal and cause many subsequent hard
- *   to debug problems
+ *   to de problems
  */
 int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	       struct sk_buff *p)

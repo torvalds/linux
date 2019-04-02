@@ -110,14 +110,14 @@ static inline u32 buffer_offset(port_t *port, u16 desc, int transmit)
 static inline void sca_set_carrier(port_t *port)
 {
 	if (!(sca_in(get_msci(port) + ST3, port->card) & ST3_DCD)) {
-#ifdef DEBUG_LINK
-		printk(KERN_DEBUG "%s: sca_set_carrier on\n",
+#ifdef DE_LINK
+		printk(KERN_DE "%s: sca_set_carrier on\n",
 		       port->netdev.name);
 #endif
 		netif_carrier_on(port->netdev);
 	} else {
-#ifdef DEBUG_LINK
-		printk(KERN_DEBUG "%s: sca_set_carrier off\n",
+#ifdef DE_LINK
+		printk(KERN_DE "%s: sca_set_carrier off\n",
 		       port->netdev.name);
 #endif
 		netif_carrier_off(port->netdev);
@@ -218,9 +218,9 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc,
 	memcpy_fromio(skb->data, card->rambase + buff, len);
 
 	skb_put(skb, len);
-#ifdef DEBUG_PKT
-	printk(KERN_DEBUG "%s RX(%i):", dev->name, skb->len);
-	debug_frame(skb);
+#ifdef DE_PKT
+	printk(KERN_DE "%s RX(%i):", dev->name, skb->len);
+	de_frame(skb);
 #endif
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
@@ -515,14 +515,14 @@ static int sca_attach(struct net_device *dev, unsigned short encoding,
 }
 
 
-#ifdef DEBUG_RINGS
+#ifdef DE_RINGS
 static void sca_dump_rings(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
 	card_t *card = port->card;
 	u16 cnt;
 
-	printk(KERN_DEBUG "RX ring: CDA=%u EDA=%u DSR=%02X in=%u %sactive",
+	printk(KERN_DE "RX ring: CDA=%u EDA=%u DSR=%02X in=%u %sactive",
 	       sca_inl(get_dmac_rx(port) + CDAL, card),
 	       sca_inl(get_dmac_rx(port) + EDAL, card),
 	       sca_in(DSR_RX(port->chan), card), port->rxin,
@@ -531,7 +531,7 @@ static void sca_dump_rings(struct net_device *dev)
 		pr_cont(" %02X", readb(&(desc_address(port, cnt, 0)->stat)));
 	pr_cont("\n");
 
-	printk(KERN_DEBUG "TX ring: CDA=%u EDA=%u DSR=%02X in=%u "
+	printk(KERN_DE "TX ring: CDA=%u EDA=%u DSR=%02X in=%u "
 	       "last=%u %sactive",
 	       sca_inl(get_dmac_tx(port) + CDAL, card),
 	       sca_inl(get_dmac_tx(port) + EDAL, card),
@@ -542,7 +542,7 @@ static void sca_dump_rings(struct net_device *dev)
 		pr_cont(" %02X", readb(&(desc_address(port, cnt, 1)->stat)));
 	pr_cont("\n");
 
-	printk(KERN_DEBUG "MSCI: MD: %02x %02x %02x,"
+	printk(KERN_DE "MSCI: MD: %02x %02x %02x,"
 	       " ST: %02x %02x %02x %02x %02x, FST: %02x CST: %02x %02x\n",
 	       sca_in(get_msci(port) + MD0, card),
 	       sca_in(get_msci(port) + MD1, card),
@@ -556,10 +556,10 @@ static void sca_dump_rings(struct net_device *dev)
 	       sca_in(get_msci(port) + CST0, card),
 	       sca_in(get_msci(port) + CST1, card));
 
-	printk(KERN_DEBUG "ILAR: %02x ISR: %08x %08x\n", sca_in(ILAR, card),
+	printk(KERN_DE "ILAR: %02x ISR: %08x %08x\n", sca_in(ILAR, card),
 	       sca_inl(ISR0, card), sca_inl(ISR1, card));
 }
-#endif /* DEBUG_RINGS */
+#endif /* DE_RINGS */
 
 
 static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -572,11 +572,11 @@ static netdev_tx_t sca_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irq(&port->lock);
 
 	desc = desc_address(port, port->txin + 1, 1);
-	BUG_ON(readb(&desc->stat)); /* previous xmit should stop queue */
+	_ON(readb(&desc->stat)); /* previous xmit should stop queue */
 
-#ifdef DEBUG_PKT
-	printk(KERN_DEBUG "%s TX(%i):", dev->name, skb->len);
-	debug_frame(skb);
+#ifdef DE_PKT
+	printk(KERN_DE "%s TX(%i):", dev->name, skb->len);
+	de_frame(skb);
 #endif
 
 	desc = desc_address(port, port->txin, 1);

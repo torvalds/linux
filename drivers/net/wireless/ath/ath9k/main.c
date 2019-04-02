@@ -522,7 +522,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * value to insure we only process bits we requested.
 	 */
 	ath9k_hw_getisr(ah, &status, &sync_cause); /* NB: clears ISR too */
-	ath9k_debug_sync_cause(sc, sync_cause);
+	ath9k_de_sync_cause(sc, sync_cause);
 	status &= ah->imask;	/* discard unasked-for bits */
 
 	if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
@@ -580,7 +580,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 chip_reset:
 
-	ath_debug_stat_interrupt(sc, status);
+	ath_de_stat_interrupt(sc, status);
 
 	if (sched) {
 		/* turn off every interrupt */
@@ -620,7 +620,7 @@ int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-#ifdef CONFIG_ATH9K_DEBUGFS
+#ifdef CONFIG_ATH9K_DEFS
 	RESET_STAT_INC(sc, type);
 #endif
 	ath9k_hw_kill_interrupts(sc->sc_ah);
@@ -2691,14 +2691,14 @@ struct ieee80211_ops ath9k_ops = {
 	.set_wakeup	    = ath9k_set_wakeup,
 #endif
 
-#ifdef CONFIG_ATH9K_DEBUGFS
+#ifdef CONFIG_ATH9K_DEFS
 	.get_et_sset_count  = ath9k_get_et_sset_count,
 	.get_et_stats       = ath9k_get_et_stats,
 	.get_et_strings     = ath9k_get_et_strings,
 #endif
 
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_STATION_STATISTICS)
-	.sta_add_debugfs    = ath9k_sta_add_debugfs,
+#if defined(CONFIG_MAC80211_DEFS) && defined(CONFIG_ATH9K_STATION_STATISTICS)
+	.sta_add_defs    = ath9k_sta_add_defs,
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,

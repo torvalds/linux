@@ -86,7 +86,7 @@ void buffer_check_dirty_writeback(struct page *page,
 	*dirty = false;
 	*writeback = false;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (!page_has_buffers(page))
 		return;
@@ -257,7 +257,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	struct page *page;
 	int page_uptodate = 1;
 
-	BUG_ON(!buffer_async_read(bh));
+	_ON(!buffer_async_read(bh));
 
 	page = bh->b_page;
 	if (uptodate) {
@@ -283,7 +283,7 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		if (!buffer_uptodate(tmp))
 			page_uptodate = 0;
 		if (buffer_async_read(tmp)) {
-			BUG_ON(!buffer_locked(tmp));
+			_ON(!buffer_locked(tmp));
 			goto still_busy;
 		}
 		tmp = tmp->b_this_page;
@@ -317,7 +317,7 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 	struct buffer_head *tmp;
 	struct page *page;
 
-	BUG_ON(!buffer_async_write(bh));
+	_ON(!buffer_async_write(bh));
 
 	page = bh->b_page;
 	if (uptodate) {
@@ -338,7 +338,7 @@ void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 	tmp = bh->b_this_page;
 	while (tmp != bh) {
 		if (buffer_async_write(tmp)) {
-			BUG_ON(!buffer_locked(tmp));
+			_ON(!buffer_locked(tmp));
 			goto still_busy;
 		}
 		tmp = tmp->b_this_page;
@@ -428,7 +428,7 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  *
  * FIXME: clear_inode should not call invalidate_inode_buffers().  The
  * filesystems should do that.  invalidate_inode_buffers() should just go
- * BUG_ON(!list_empty).
+ * _ON(!list_empty).
  *
  * FIXME: mark_buffer_dirty_inode() is a data-plane operation.  It should
  * take an address_space, not an inode.  And it should be called
@@ -550,7 +550,7 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 	if (!mapping->private_data) {
 		mapping->private_data = buffer_mapping;
 	} else {
-		BUG_ON(mapping->private_data != buffer_mapping);
+		_ON(mapping->private_data != buffer_mapping);
 	}
 	if (!bh->b_assoc_map) {
 		spin_lock(&buffer_mapping->private_lock);
@@ -947,7 +947,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 
 	page = find_or_create_page(inode->i_mapping, index, gfp_mask);
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (page_has_buffers(page)) {
 		bh = page_buffers(page);
@@ -1215,7 +1215,7 @@ static DEFINE_PER_CPU(struct bh_lru, bh_lrus) = {{ NULL }};
 static inline void check_irqs_on(void)
 {
 #ifdef irqs_disabled
-	BUG_ON(irqs_disabled());
+	_ON(irqs_disabled());
 #endif
 }
 
@@ -1400,7 +1400,7 @@ void set_bh_page(struct buffer_head *bh,
 		struct page *page, unsigned long offset)
 {
 	bh->b_page = page;
-	BUG_ON(offset >= PAGE_SIZE);
+	_ON(offset >= PAGE_SIZE);
 	if (PageHighMem(page))
 		/*
 		 * This catches illegal uses and preserves the offset:
@@ -1461,14 +1461,14 @@ void block_invalidatepage(struct page *page, unsigned int offset,
 	unsigned int curr_off = 0;
 	unsigned int stop = length + offset;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	if (!page_has_buffers(page))
 		goto out;
 
 	/*
 	 * Check for overflow
 	 */
-	BUG_ON(stop > PAGE_SIZE || stop < length);
+	_ON(stop > PAGE_SIZE || stop < length);
 
 	head = page_buffers(page);
 	bh = head;
@@ -1628,7 +1628,7 @@ static inline int block_size_bits(unsigned int blocksize)
 
 static struct buffer_head *create_page_buffers(struct page *page, struct inode *inode, unsigned int b_state)
 {
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << READ_ONCE(inode->i_blkbits),
@@ -1757,7 +1757,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	 * The page and its buffers are protected by PageWriteback(), so we can
 	 * drop the bh refcounts early.
 	 */
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	set_page_writeback(page);
 
 	do {
@@ -1811,7 +1811,7 @@ recover:
 		}
 	} while ((bh = bh->b_this_page) != head);
 	SetPageError(page);
-	BUG_ON(PageWriteback(page));
+	_ON(PageWriteback(page));
 	mapping_set_error(page->mapping, err);
 	set_page_writeback(page);
 	do {
@@ -1839,7 +1839,7 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 	unsigned int block_start, block_end;
 	struct buffer_head *head, *bh;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	if (!page_has_buffers(page))
 		return;
 
@@ -1885,7 +1885,7 @@ iomap_to_bh(struct inode *inode, sector_t block, struct buffer_head *bh,
 	 * current block, then do not map the buffer and let the caller
 	 * handle it.
 	 */
-	BUG_ON(offset >= iomap->offset + iomap->length);
+	_ON(offset >= iomap->offset + iomap->length);
 
 	switch (iomap->type) {
 	case IOMAP_HOLE:
@@ -1938,10 +1938,10 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 	unsigned blocksize, bbits;
 	struct buffer_head *bh, *head, *wait[2], **wait_bh=wait;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(from > PAGE_SIZE);
-	BUG_ON(to > PAGE_SIZE);
-	BUG_ON(from > to);
+	_ON(!PageLocked(page));
+	_ON(from > PAGE_SIZE);
+	_ON(to > PAGE_SIZE);
+	_ON(from > to);
 
 	head = create_page_buffers(page, inode, 0);
 	blocksize = head->b_size;
@@ -2323,7 +2323,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 		goto out;
 
 	err = pagecache_write_end(NULL, mapping, size, 0, 0, page, fsdata);
-	BUG_ON(err > 0);
+	_ON(err > 0);
 
 out:
 	return err;
@@ -2362,7 +2362,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 						page, fsdata);
 		if (err < 0)
 			goto out;
-		BUG_ON(err != len);
+		_ON(err != len);
 		err = 0;
 
 		balance_dirty_pages_ratelimited(mapping);
@@ -2395,7 +2395,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 						page, fsdata);
 		if (err < 0)
 			goto out;
-		BUG_ON(err != len);
+		_ON(err != len);
 		err = 0;
 	}
 out:
@@ -2514,7 +2514,7 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
 {
 	struct buffer_head *bh;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	spin_lock(&page->mapping->private_lock);
 	bh = head;
@@ -2655,7 +2655,7 @@ int nobh_write_begin(struct address_space *mapping,
 	return 0;
 
 failed:
-	BUG_ON(!ret);
+	_ON(!ret);
 	/*
 	 * Error recovery is a bit difficult. We need to zero out blocks that
 	 * were newly allocated, and dirty them to ensure they get written out.
@@ -2682,7 +2682,7 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *head = fsdata;
 	struct buffer_head *bh;
-	BUG_ON(fsdata != NULL && page_has_buffers(page));
+	_ON(fsdata != NULL && page_has_buffers(page));
 
 	if (unlikely(copied < len) && head)
 		attach_nobh_buffers(page, head);
@@ -3053,11 +3053,11 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 {
 	struct bio *bio;
 
-	BUG_ON(!buffer_locked(bh));
-	BUG_ON(!buffer_mapped(bh));
-	BUG_ON(!bh->b_end_io);
-	BUG_ON(buffer_delay(bh));
-	BUG_ON(buffer_unwritten(bh));
+	_ON(!buffer_locked(bh));
+	_ON(!buffer_mapped(bh));
+	_ON(!bh->b_end_io);
+	_ON(buffer_delay(bh));
+	_ON(buffer_unwritten(bh));
 
 	/*
 	 * Only clear out a write error when rewriting
@@ -3076,7 +3076,7 @@ static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 	bio->bi_write_hint = write_hint;
 
 	bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
-	BUG_ON(bio->bi_iter.bi_size != bh->b_size);
+	_ON(bio->bi_iter.bi_size != bh->b_size);
 
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;
@@ -3263,7 +3263,7 @@ int try_to_free_buffers(struct page *page)
 	struct buffer_head *buffers_to_free = NULL;
 	int ret = 0;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	if (PageWriteback(page))
 		return 0;
 
@@ -3382,7 +3382,7 @@ EXPORT_SYMBOL(alloc_buffer_head);
 
 void free_buffer_head(struct buffer_head *bh)
 {
-	BUG_ON(!list_empty(&bh->b_assoc_buffers));
+	_ON(!list_empty(&bh->b_assoc_buffers));
 	kmem_cache_free(bh_cachep, bh);
 	preempt_disable();
 	__this_cpu_dec(bh_accounting.nr);
@@ -3432,7 +3432,7 @@ EXPORT_SYMBOL(bh_uptodate_or_lock);
  */
 int bh_submit_read(struct buffer_head *bh)
 {
-	BUG_ON(!buffer_locked(bh));
+	_ON(!buffer_locked(bh));
 
 	if (buffer_uptodate(bh)) {
 		unlock_buffer(bh);

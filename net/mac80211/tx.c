@@ -209,7 +209,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 }
 
 /* tx handlers */
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_local *local = tx->local;
@@ -258,7 +258,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	 * peer application.
 	 *
 	 * Note: ifmgd->uapsd_queues access is racy here. If the value is
-	 * changed via debugfs, user needs to reassociate manually to have
+	 * changed via defs, user needs to reassociate manually to have
 	 * everything in sync.
 	 */
 	if ((ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED) &&
@@ -286,7 +286,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 {
 
@@ -329,12 +329,12 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	if (likely(tx->flags & IEEE80211_TX_UNICAST)) {
 		if (unlikely(!assoc &&
 			     ieee80211_is_data(hdr->frame_control))) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_DE
 			sdata_info(tx->sdata,
 				   "dropped data frame to not associated station %pM\n",
 				   hdr->addr1);
 #endif
-			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
+			I802_DE_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TX_DROP;
 		}
 	} else if (unlikely(ieee80211_is_data(hdr->frame_control) &&
@@ -559,7 +559,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 {
 	if (unlikely(tx->flags & IEEE80211_TX_PS_BUFFERED))
@@ -571,7 +571,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 		return ieee80211_tx_h_multicast_ps_buf(tx);
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -586,7 +586,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_key *key;
@@ -662,7 +662,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -797,7 +797,7 @@ static __le16 ieee80211_tx_next_seq(struct sta_info *sta, int tid)
 	return ret;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -918,7 +918,7 @@ static int ieee80211_fragment(struct ieee80211_tx_data *tx,
 	return 0;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
@@ -981,7 +981,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 			info->control.rates[1].idx = -1;
 			info->control.rates[2].idx = -1;
 			info->control.rates[3].idx = -1;
-			BUILD_BUG_ON(IEEE80211_TX_MAX_RATES != 4);
+			BUILD__ON(IEEE80211_TX_MAX_RATES != 4);
 			info->flags &= ~IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 		} else {
 			hdr->frame_control &= ~morefrags;
@@ -993,7 +993,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -1012,7 +1012,7 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 {
 	if (!tx->key)
@@ -1047,7 +1047,7 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 	return TX_DROP;
 }
 
-static ieee80211_tx_result debug_noinline
+static ieee80211_tx_result de_noinline
 ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
@@ -1631,7 +1631,7 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		int q = info->hw_queue;
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_DE
 		if (WARN_ON_ONCE(q >= local->hw.queues)) {
 			__skb_unlink(skb, skbs);
 			ieee80211_free_txskb(&local->hw, skb);
@@ -1785,14 +1785,14 @@ static int invoke_tx_handlers_early(struct ieee80211_tx_data *tx)
 
  txh_done:
 	if (unlikely(res == TX_DROP)) {
-		I802_DEBUG_INC(tx->local->tx_handlers_drop);
+		I802_DE_INC(tx->local->tx_handlers_drop);
 		if (tx->skb)
 			ieee80211_free_txskb(&tx->local->hw, tx->skb);
 		else
 			ieee80211_purge_tx_queue(&tx->local->hw, &tx->skbs);
 		return -1;
 	} else if (unlikely(res == TX_QUEUED)) {
-		I802_DEBUG_INC(tx->local->tx_handlers_queued);
+		I802_DE_INC(tx->local->tx_handlers_queued);
 		return -1;
 	}
 
@@ -1826,14 +1826,14 @@ static int invoke_tx_handlers_late(struct ieee80211_tx_data *tx)
 
  txh_done:
 	if (unlikely(res == TX_DROP)) {
-		I802_DEBUG_INC(tx->local->tx_handlers_drop);
+		I802_DE_INC(tx->local->tx_handlers_drop);
 		if (tx->skb)
 			ieee80211_free_txskb(&tx->local->hw, tx->skb);
 		else
 			ieee80211_purge_tx_queue(&tx->local->hw, &tx->skbs);
 		return -1;
 	} else if (unlikely(res == TX_QUEUED)) {
-		I802_DEBUG_INC(tx->local->tx_handlers_queued);
+		I802_DE_INC(tx->local->tx_handlers_queued);
 		return -1;
 	}
 
@@ -1963,14 +1963,14 @@ static int ieee80211_skb_resize(struct ieee80211_sub_if_data *sdata,
 	if (skb_cloned(skb) &&
 	    (!ieee80211_hw_check(&local->hw, SUPPORTS_CLONED_SKBS) ||
 	     !skb_clone_writable(skb, ETH_HLEN) || enc_tailroom))
-		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
+		I802_DE_INC(local->tx_expand_skb_head_cloned);
 	else if (head_need || tail_need)
-		I802_DEBUG_INC(local->tx_expand_skb_head);
+		I802_DE_INC(local->tx_expand_skb_head);
 	else
 		return 0;
 
 	if (pskb_expand_head(skb, head_need, tail_need, GFP_ATOMIC)) {
-		wiphy_debug(local->hw.wiphy,
+		wiphy_de(local->hw.wiphy,
 			    "failed to reallocate TX buffer\n");
 		return -ENOMEM;
 	}
@@ -2694,12 +2694,12 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		     !multicast && !authorized &&
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
 		      !ether_addr_equal(sdata->vif.addr, skb->data + ETH_ALEN)))) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+#ifdef CONFIG_MAC80211_VERBOSE_DE
 		net_info_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
 				    sdata->name, hdr.addr1);
 #endif
 
-		I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);
+		I802_DE_INC(local->tx_handlers_drop_unauth_port);
 
 		ret = -EPERM;
 		goto free;
@@ -3127,10 +3127,10 @@ static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
 					struct sk_buff *skb, int headroom)
 {
 	if (skb_headroom(skb) < headroom) {
-		I802_DEBUG_INC(local->tx_expand_skb_head);
+		I802_DE_INC(local->tx_expand_skb_head);
 
 		if (pskb_expand_head(skb, headroom, 0, GFP_ATOMIC)) {
-			wiphy_debug(local->hw.wiphy,
+			wiphy_de(local->hw.wiphy,
 				    "failed to reallocate TX buffer\n");
 			return false;
 		}
@@ -4742,7 +4742,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 	if (qos) {
 		__le16 qoshdr = cpu_to_le16(7);
 
-		BUILD_BUG_ON((IEEE80211_STYPE_QOS_NULLFUNC |
+		BUILD__ON((IEEE80211_STYPE_QOS_NULLFUNC |
 			      IEEE80211_STYPE_NULLFUNC) !=
 			     IEEE80211_STYPE_QOS_NULLFUNC);
 		nullfunc->frame_control |=

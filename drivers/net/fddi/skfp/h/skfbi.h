@@ -791,7 +791,7 @@
 #define F_ALM_FULL	(1L<<27)	/* Bit 27: (ML)	FIFO almost full      */
 #define F_FIFO_EOF	(1L<<26)	/* Bit 26: (ML)	Fag bit in FIFO       */
 #define F_WM_REACHED	(1L<<25)	/* Bit 25: (ML)	Watermark reached     */
-#define F_UP_DW_USED	(1L<<24)	/* Bit 24: (ML) Upper Dword used (bug)*/
+#define F_UP_DW_USED	(1L<<24)	/* Bit 24: (ML) Upper Dword used ()*/
 					/* Bit 23: 	reserved	      */
 #define F_FIFO_LEVEL	(0x1fL<<16)	/* Bit 16..22:(ML) # of Qwords in FIFO*/
 					/* Bit  8..15: 	reserved	      */
@@ -1085,37 +1085,37 @@
 #define	IN_82c54_TIMER(port)		((inpw(TI_A(port))>>8) & 0xff)
 
 
-#ifdef	DEBUG
-#define	DB_MAC(mac,st) {if (debug_mac & 0x1)\
+#ifdef	DE
+#define	DB_MAC(mac,st) {if (de_mac & 0x1)\
 				printf("M") ;\
-			if (debug_mac & 0x2)\
+			if (de_mac & 0x2)\
 				printf("\tMAC %d status 0x%08lx\n",mac,st) ;\
-			if (debug_mac & 0x4)\
+			if (de_mac & 0x4)\
 				dp_mac(mac,st) ;\
 }
 
-#define	DB_PLC(p,iev) {	if (debug_plc & 0x1)\
+#define	DB_PLC(p,iev) {	if (de_plc & 0x1)\
 				printf("P") ;\
-			if (debug_plc & 0x2)\
+			if (de_plc & 0x2)\
 				printf("\tPLC %s Int 0x%04x\n", \
 					(p == PA) ? "A" : "B", iev) ;\
-			if (debug_plc & 0x4)\
+			if (de_plc & 0x4)\
 				dp_plc(p,iev) ;\
 }
 
-#define	DB_TIMER() {	if (debug_timer & 0x1)\
+#define	DB_TIMER() {	if (de_timer & 0x1)\
 				printf("T") ;\
-			if (debug_timer & 0x2)\
+			if (de_timer & 0x2)\
 				printf("\tTimer ISR\n") ;\
 }
 
-#else	/* no DEBUG */
+#else	/* no DE */
 
 #define	DB_MAC(mac,st)
 #define	DB_PLC(p,iev)
 #define	DB_TIMER()
 
-#endif	/* no DEBUG */
+#endif	/* no DE */
 
 #define	INC_PTR(sp,cp,ep)	if (++cp == ep) cp = sp
 /*

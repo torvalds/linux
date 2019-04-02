@@ -31,11 +31,11 @@
 /********** include/linux/timer.h **********/
 /*
  * Magic number "tsta" to indicate a static timer initializer
- * for the object debugging code.
+ * for the object deging code.
  */
 #define TIMER_ENTRY_STATIC	((void *) 0x300 + POISON_POINTER_DELTA)
 
-/********** mm/debug-pagealloc.c **********/
+/********** mm/de-pagealloc.c **********/
 #ifdef CONFIG_PAGE_POISONING_ZERO
 #define PAGE_POISON 0x00
 #else
@@ -84,8 +84,8 @@
 #define ATM_POISON		0xdeadbeef
 
 /********** kernel/mutexes **********/
-#define MUTEX_DEBUG_INIT	0x11
-#define MUTEX_DEBUG_FREE	0x22
+#define MUTEX_DE_INIT	0x11
+#define MUTEX_DE_FREE	0x22
 
 /********** security/ **********/
 #define KEY_DESTROY		0xbd

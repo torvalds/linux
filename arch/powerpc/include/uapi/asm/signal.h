@@ -117,10 +117,10 @@ typedef struct sigaltstack {
 #ifndef __powerpc64__
 /*
  * These are parameters to dbg_sigreturn syscall.  They enable or
- * disable certain debugging things that can be done from signal
+ * disable certain deging things that can be done from signal
  * handlers.  The dbg_sigreturn syscall *must* be called from a
  * SA_SIGINFO signal so the ucontext can be passed to it.  It takes an
- * array of struct sig_dbg_op, which has the debug operations to
+ * array of struct sig_dbg_op, which has the de operations to
  * perform before returning from the signal.
  */
 struct sig_dbg_op {

@@ -120,7 +120,7 @@ enum {
 extern const char *crush_bucket_alg_name(int alg);
 
 /*
- * although tree was a legacy algorithm, it has been buggy, so
+ * although tree was a legacy algorithm, it has been gy, so
  * exclude it.
  */
 #define CRUSH_LEGACY_ALLOWED_BUCKET_ALGS (	\

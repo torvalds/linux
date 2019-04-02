@@ -30,7 +30,7 @@ static __init pteval_t create_mapping_protection(efi_memory_desc_t *md)
 		return PROT_DEVICE_nGnRE;
 
 	if (WARN_ONCE(!PAGE_ALIGNED(md->phys_addr),
-		      "UEFI Runtime regions are not aligned to 64 KB -- buggy firmware?"))
+		      "UEFI Runtime regions are not aligned to 64 KB -- gy firmware?"))
 		/*
 		 * If the region is not aligned to the page size of the OS, we
 		 * can not use strict permissions, since that would also affect
@@ -103,7 +103,7 @@ static int __init set_permissions(pte_t *ptep, pgtable_t token,
 int __init efi_set_mapping_permissions(struct mm_struct *mm,
 				       efi_memory_desc_t *md)
 {
-	BUG_ON(md->type != EFI_RUNTIME_SERVICES_CODE &&
+	_ON(md->type != EFI_RUNTIME_SERVICES_CODE &&
 	       md->type != EFI_RUNTIME_SERVICES_DATA);
 
 	/*
@@ -129,6 +129,6 @@ bool efi_poweroff_required(void)
 
 asmlinkage efi_status_t efi_handle_corrupted_x18(efi_status_t s, const char *f)
 {
-	pr_err_ratelimited(FW_BUG "register x18 corrupted by EFI %s\n", f);
+	pr_err_ratelimited(FW_ "register x18 corrupted by EFI %s\n", f);
 	return s;
 }

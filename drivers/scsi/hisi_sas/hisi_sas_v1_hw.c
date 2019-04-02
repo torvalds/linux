@@ -1773,7 +1773,7 @@ static int interrupt_openall_v1_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0x17fff);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8000012a);
 
-		/* bypass chip bug mask abnormal intr */
+		/* bypass chip  mask abnormal intr */
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT0_MSK,
 				0x3fffff & ~CHL_INT0_MSK_PHYCTRL_NOTRDY_MSK);
 	}

@@ -170,7 +170,7 @@ static void __booke_wdt_disable(void *data)
 static int booke_wdt_start(struct watchdog_device *wdog)
 {
 	on_each_cpu(__booke_wdt_enable, wdog, 0);
-	pr_debug("watchdog enabled (timeout = %u sec)\n", wdog->timeout);
+	pr_de("watchdog enabled (timeout = %u sec)\n", wdog->timeout);
 
 	return 0;
 }
@@ -178,7 +178,7 @@ static int booke_wdt_start(struct watchdog_device *wdog)
 static int booke_wdt_stop(struct watchdog_device *wdog)
 {
 	on_each_cpu(__booke_wdt_disable, NULL, 0);
-	pr_debug("watchdog disabled\n");
+	pr_de("watchdog disabled\n");
 
 	return 0;
 }

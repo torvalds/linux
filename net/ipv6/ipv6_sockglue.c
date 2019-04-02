@@ -204,10 +204,10 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 			/*
 			 * Sock is moving from IPv6 to IPv4 (sk_prot), so
-			 * remove it from the refcnt debug socks count in the
+			 * remove it from the refcnt de socks count in the
 			 * original family...
 			 */
-			sk_refcnt_debug_dec(sk);
+			sk_refcnt_de_dec(sk);
 
 			if (sk->sk_protocol == IPPROTO_TCP) {
 				struct inet_connection_sock *icsk = inet_csk(sk);
@@ -243,10 +243,10 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			kfree_skb(pktopt);
 
 			/*
-			 * ... and add it to the refcnt debug socks count
+			 * ... and add it to the refcnt de socks count
 			 * in the new family. -acme
 			 */
-			sk_refcnt_debug_inc(sk);
+			sk_refcnt_de_inc(sk);
 			module_put(THIS_MODULE);
 			retv = 0;
 			break;

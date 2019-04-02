@@ -31,7 +31,7 @@ static int __init irq_affinity_setup(char *str)
 	cpulist_parse(str, irq_default_affinity);
 	/*
 	 * Set at least the boot cpu. We don't want to end up with
-	 * bugreports caused by random comandline masks
+	 * reports caused by random comandline masks
 	 */
 	cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
 	return 1;
@@ -425,7 +425,7 @@ static void free_desc(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	irq_remove_debugfs_entry(desc);
+	irq_remove_defs_entry(desc);
 	unregister_irq_proc(irq, desc);
 
 	/*
@@ -483,7 +483,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 			goto err;
 		irq_insert_desc(start + i, desc);
 		irq_sysfs_add(start + i, desc);
-		irq_add_debugfs_entry(start + i, desc);
+		irq_add_defs_entry(start + i, desc);
 	}
 	bitmap_set(allocated_irqs, start, cnt);
 	return start;

@@ -1217,7 +1217,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	err = ubifs_debugging_init(c);
+	err = ubifs_deging_init(c);
 	if (err)
 		return err;
 
@@ -1479,7 +1479,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	err = dbg_debugfs_init_fs(c);
+	err = dbg_defs_init_fs(c);
 	if (err)
 		goto out_infos;
 
@@ -1576,7 +1576,7 @@ out_free:
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
-	ubifs_debugging_exit(c);
+	ubifs_deging_exit(c);
 	return err;
 }
 
@@ -1594,7 +1594,7 @@ static void ubifs_umount(struct ubifs_info *c)
 	dbg_gen("un-mounting UBI device %d, volume %d", c->vi.ubi_num,
 		c->vi.vol_id);
 
-	dbg_debugfs_exit_fs(c);
+	dbg_defs_exit_fs(c);
 	spin_lock(&ubifs_infos_lock);
 	list_del(&c->infos_list);
 	spin_unlock(&ubifs_infos_lock);
@@ -1618,7 +1618,7 @@ static void ubifs_umount(struct ubifs_info *c)
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
-	ubifs_debugging_exit(c);
+	ubifs_deging_exit(c);
 }
 
 /**
@@ -1764,7 +1764,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		ubifs_msg(c, "deferred recovery completed");
 	} else {
 		/*
-		 * Do not run the debugging space check if the were doing
+		 * Do not run the deging space check if the were doing
 		 * recovery, because when we saved the information we had the
 		 * file-system in a state where the TNC and lprops has been
 		 * modified in memory, but all the I/O operations (including a
@@ -2295,44 +2295,44 @@ static int __init ubifs_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ubifs_ch) != 24);
+	BUILD__ON(sizeof(struct ubifs_ch) != 24);
 
 	/* Make sure node sizes are 8-byte aligned */
-	BUILD_BUG_ON(UBIFS_CH_SZ        & 7);
-	BUILD_BUG_ON(UBIFS_INO_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_DENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_XENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_DATA_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_TRUN_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_SB_NODE_SZ   & 7);
-	BUILD_BUG_ON(UBIFS_MST_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_REF_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_CS_NODE_SZ   & 7);
-	BUILD_BUG_ON(UBIFS_ORPH_NODE_SZ & 7);
+	BUILD__ON(UBIFS_CH_SZ        & 7);
+	BUILD__ON(UBIFS_INO_NODE_SZ  & 7);
+	BUILD__ON(UBIFS_DENT_NODE_SZ & 7);
+	BUILD__ON(UBIFS_XENT_NODE_SZ & 7);
+	BUILD__ON(UBIFS_DATA_NODE_SZ & 7);
+	BUILD__ON(UBIFS_TRUN_NODE_SZ & 7);
+	BUILD__ON(UBIFS_SB_NODE_SZ   & 7);
+	BUILD__ON(UBIFS_MST_NODE_SZ  & 7);
+	BUILD__ON(UBIFS_REF_NODE_SZ  & 7);
+	BUILD__ON(UBIFS_CS_NODE_SZ   & 7);
+	BUILD__ON(UBIFS_ORPH_NODE_SZ & 7);
 
-	BUILD_BUG_ON(UBIFS_MAX_DENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_MAX_XENT_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_MAX_DATA_NODE_SZ & 7);
-	BUILD_BUG_ON(UBIFS_MAX_INO_NODE_SZ  & 7);
-	BUILD_BUG_ON(UBIFS_MAX_NODE_SZ      & 7);
-	BUILD_BUG_ON(MIN_WRITE_SZ           & 7);
+	BUILD__ON(UBIFS_MAX_DENT_NODE_SZ & 7);
+	BUILD__ON(UBIFS_MAX_XENT_NODE_SZ & 7);
+	BUILD__ON(UBIFS_MAX_DATA_NODE_SZ & 7);
+	BUILD__ON(UBIFS_MAX_INO_NODE_SZ  & 7);
+	BUILD__ON(UBIFS_MAX_NODE_SZ      & 7);
+	BUILD__ON(MIN_WRITE_SZ           & 7);
 
 	/* Check min. node size */
-	BUILD_BUG_ON(UBIFS_INO_NODE_SZ  < MIN_WRITE_SZ);
-	BUILD_BUG_ON(UBIFS_DENT_NODE_SZ < MIN_WRITE_SZ);
-	BUILD_BUG_ON(UBIFS_XENT_NODE_SZ < MIN_WRITE_SZ);
-	BUILD_BUG_ON(UBIFS_TRUN_NODE_SZ < MIN_WRITE_SZ);
+	BUILD__ON(UBIFS_INO_NODE_SZ  < MIN_WRITE_SZ);
+	BUILD__ON(UBIFS_DENT_NODE_SZ < MIN_WRITE_SZ);
+	BUILD__ON(UBIFS_XENT_NODE_SZ < MIN_WRITE_SZ);
+	BUILD__ON(UBIFS_TRUN_NODE_SZ < MIN_WRITE_SZ);
 
-	BUILD_BUG_ON(UBIFS_MAX_DENT_NODE_SZ > UBIFS_MAX_NODE_SZ);
-	BUILD_BUG_ON(UBIFS_MAX_XENT_NODE_SZ > UBIFS_MAX_NODE_SZ);
-	BUILD_BUG_ON(UBIFS_MAX_DATA_NODE_SZ > UBIFS_MAX_NODE_SZ);
-	BUILD_BUG_ON(UBIFS_MAX_INO_NODE_SZ  > UBIFS_MAX_NODE_SZ);
+	BUILD__ON(UBIFS_MAX_DENT_NODE_SZ > UBIFS_MAX_NODE_SZ);
+	BUILD__ON(UBIFS_MAX_XENT_NODE_SZ > UBIFS_MAX_NODE_SZ);
+	BUILD__ON(UBIFS_MAX_DATA_NODE_SZ > UBIFS_MAX_NODE_SZ);
+	BUILD__ON(UBIFS_MAX_INO_NODE_SZ  > UBIFS_MAX_NODE_SZ);
 
 	/* Defined node sizes */
-	BUILD_BUG_ON(UBIFS_SB_NODE_SZ  != 4096);
-	BUILD_BUG_ON(UBIFS_MST_NODE_SZ != 512);
-	BUILD_BUG_ON(UBIFS_INO_NODE_SZ != 160);
-	BUILD_BUG_ON(UBIFS_REF_NODE_SZ != 64);
+	BUILD__ON(UBIFS_SB_NODE_SZ  != 4096);
+	BUILD__ON(UBIFS_MST_NODE_SZ != 512);
+	BUILD__ON(UBIFS_INO_NODE_SZ != 160);
+	BUILD__ON(UBIFS_REF_NODE_SZ != 64);
 
 	/*
 	 * We use 2 bit wide bit-fields to store compression type, which should
@@ -2340,7 +2340,7 @@ static int __init ubifs_init(void)
 	 * @compr_type in 'struct ubifs_inode', @default_compr in
 	 * 'struct ubifs_info' and @compr_type in 'struct ubifs_mount_opts'.
 	 */
-	BUILD_BUG_ON(UBIFS_COMPR_TYPES_CNT > 4);
+	BUILD__ON(UBIFS_COMPR_TYPES_CNT > 4);
 
 	/*
 	 * We require that PAGE_SIZE is greater-than-or-equal-to
@@ -2367,7 +2367,7 @@ static int __init ubifs_init(void)
 	if (err)
 		goto out_shrinker;
 
-	err = dbg_debugfs_init();
+	err = dbg_defs_init();
 	if (err)
 		goto out_compr;
 
@@ -2380,7 +2380,7 @@ static int __init ubifs_init(void)
 	return 0;
 
 out_dbg:
-	dbg_debugfs_exit();
+	dbg_defs_exit();
 out_compr:
 	ubifs_compressors_exit();
 out_shrinker:
@@ -2397,7 +2397,7 @@ static void __exit ubifs_exit(void)
 	WARN_ON(!list_empty(&ubifs_infos));
 	WARN_ON(atomic_long_read(&ubifs_clean_zn_cnt) != 0);
 
-	dbg_debugfs_exit();
+	dbg_defs_exit();
 	ubifs_compressors_exit();
 	unregister_shrinker(&ubifs_shrinker_info);
 

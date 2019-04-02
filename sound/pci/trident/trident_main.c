@@ -4,7 +4,7 @@
  *  Fri Feb 19 15:55:28 MST 1999
  *  Routines for control of Trident 4DWave (DX and NX) chip
  *
- *  BUGS:
+ *  S:
  *
  *  TODO:
  *    ---
@@ -485,7 +485,7 @@ void snd_trident_write_voice_regs(struct snd_trident * trident,
 			((voice->FMS & 0x0000000f) << 16) | FmcRvolCvol;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return;
 	}
 
@@ -2922,7 +2922,7 @@ static int snd_trident_pcm_mixer_build(struct snd_trident *trident,
 {
 	struct snd_trident_pcm_mixer *tmix;
 
-	if (snd_BUG_ON(!trident || !voice || !substream))
+	if (snd__ON(!trident || !voice || !substream))
 		return -EINVAL;
 	tmix = &trident->pcm_mixer[substream->number];
 	tmix->voice = voice;
@@ -2938,7 +2938,7 @@ static int snd_trident_pcm_mixer_free(struct snd_trident *trident, struct snd_tr
 {
 	struct snd_trident_pcm_mixer *tmix;
 
-	if (snd_BUG_ON(!trident || !substream))
+	if (snd__ON(!trident || !substream))
 		return -EINVAL;
 	tmix = &trident->pcm_mixer[substream->number];
 	tmix->voice = NULL;
@@ -3126,7 +3126,7 @@ static unsigned char snd_trident_gameport_read(struct gameport *gameport)
 {
 	struct snd_trident *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 	return inb(TRID_REG(chip, GAMEPORT_LEGACY));
 }
@@ -3135,7 +3135,7 @@ static void snd_trident_gameport_trigger(struct gameport *gameport)
 {
 	struct snd_trident *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return;
 	outb(0xff, TRID_REG(chip, GAMEPORT_LEGACY));
 }
@@ -3145,7 +3145,7 @@ static int snd_trident_gameport_cooked_read(struct gameport *gameport, int *axes
 	struct snd_trident *chip = gameport_get_port_data(gameport);
 	int i;
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 
 	*buttons = (~inb(TRID_REG(chip, GAMEPORT_LEGACY)) >> 4) & 0xf;
@@ -3162,7 +3162,7 @@ static int snd_trident_gameport_open(struct gameport *gameport, int mode)
 {
 	struct snd_trident *chip = gameport_get_port_data(gameport);
 
-	if (snd_BUG_ON(!chip))
+	if (snd__ON(!chip))
 		return 0;
 
 	switch (mode) {
@@ -3620,7 +3620,7 @@ int snd_trident_create(struct snd_card *card,
 		err = snd_trident_sis_init(trident);
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		break;
 	}
 	if (err < 0) {
@@ -3889,7 +3889,7 @@ static void snd_trident_clear_voices(struct snd_trident * trident, unsigned shor
 {
 	unsigned int i, val, mask[2] = { 0, 0 };
 
-	if (snd_BUG_ON(v_min > 63 || v_max > 63))
+	if (snd__ON(v_min > 63 || v_max > 63))
 		return;
 	for (i = v_min; i <= v_max; i++)
 		mask[i >> 5] |= 1 << (i & 0x1f);

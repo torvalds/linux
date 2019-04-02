@@ -75,7 +75,7 @@
 #define DM814X_CM_ALWON_OCM_0_CLKCTRL		0x1b4
 #define DM814X_CM_ALWON_VCP_CLKCTRL		0x1b8
 #define DM814X_CM_ALWON_MPU_CLKCTRL		0x1dc
-#define DM814X_CM_ALWON_DEBUGSS_CLKCTRL		0x1e0
+#define DM814X_CM_ALWON_DESS_CLKCTRL		0x1e0
 #define DM814X_CM_ALWON_DCAN_0_1_CLKCTRL	0x218
 #define DM814X_CM_ALWON_MMCHS_0_CLKCTRL		0x21c
 #define DM814X_CM_ALWON_MMCHS_1_CLKCTRL		0x220
@@ -293,7 +293,7 @@ static struct omap_hwmod dm81xx_uart1_hwmod = {
 		},
 	},
 	.class		= &uart_class,
-	.flags		= DEBUG_TI81XXUART1_FLAGS,
+	.flags		= DE_TI81XXUART1_FLAGS,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__uart1 = {
@@ -314,7 +314,7 @@ static struct omap_hwmod dm81xx_uart2_hwmod = {
 		},
 	},
 	.class		= &uart_class,
-	.flags		= DEBUG_TI81XXUART2_FLAGS,
+	.flags		= DE_TI81XXUART2_FLAGS,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__uart2 = {
@@ -335,7 +335,7 @@ static struct omap_hwmod dm81xx_uart3_hwmod = {
 		},
 	},
 	.class		= &uart_class,
-	.flags		= DEBUG_TI81XXUART3_FLAGS,
+	.flags		= DE_TI81XXUART3_FLAGS,
 };
 
 static struct omap_hwmod_ocp_if dm81xx_l4_ls__uart3 = {
@@ -611,8 +611,8 @@ static struct omap_hwmod dm81xx_gpmc_hwmod = {
 	.clkdm_name	= "alwon_l3s_clkdm",
 	.class		= &dm81xx_gpmc_hwmod_class,
 	.main_clk	= "sysclk6_ck",
-	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
+	/* Skip reset for CONFIG_OMAP_GPMC_DE for bootloader timings */
+	.flags		= DE_OMAP_GPMC_HWMOD_FLAGS,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = DM81XX_CM_ALWON_GPMC_CLKCTRL,

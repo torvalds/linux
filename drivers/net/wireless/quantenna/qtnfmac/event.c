@@ -48,7 +48,7 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	sta_addr = sta_assoc->sta_addr;
 	frame_control = le16_to_cpu(sta_assoc->frame_control);
 
-	pr_debug("VIF%u.%u: MAC:%pM FC:%x\n", mac->macid, vif->vifid, sta_addr,
+	pr_de("VIF%u.%u: MAC:%pM FC:%x\n", mac->macid, vif->vifid, sta_addr,
 		 frame_control);
 
 	qtnf_sta_list_add(vif, sta_addr);
@@ -130,7 +130,7 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	sta_addr = sta_deauth->sta_addr;
 	reason = le16_to_cpu(sta_deauth->reason);
 
-	pr_debug("VIF%u.%u: MAC:%pM reason:%x\n", mac->macid, vif->vifid,
+	pr_de("VIF%u.%u: MAC:%pM reason:%x\n", mac->macid, vif->vifid,
 		 sta_addr, reason);
 
 	if (qtnf_sta_list_del(vif, sta_addr))
@@ -171,7 +171,7 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	pr_debug("VIF%u.%u: BSSID:%pM status:%u\n",
+	pr_de("VIF%u.%u: BSSID:%pM status:%u\n",
 		 vif->mac->macid, vif->vifid, join_info->bssid, status);
 
 	if (status != WLAN_STATUS_SUCCESS)
@@ -317,7 +317,7 @@ qtnf_event_handle_bss_leave(struct qtnf_vif *vif,
 		return -EPROTO;
 	}
 
-	pr_debug("VIF%u.%u: disconnected\n", vif->mac->macid, vif->vifid);
+	pr_de("VIF%u.%u: disconnected\n", vif->mac->macid, vif->vifid);
 
 	cfg80211_disconnected(vif->netdev, le16_to_cpu(leave_info->reason),
 			      NULL, 0, 0, GFP_KERNEL);
@@ -346,7 +346,7 @@ qtnf_event_handle_mgmt_received(struct qtnf_vif *vif,
 	if (le32_to_cpu(rxmgmt->flags) & QLINK_RXMGMT_FLAG_ANSWERED)
 		flags |= NL80211_RXMGMT_FLAG_ANSWERED;
 
-	pr_debug("%s LEN:%u FC:%.4X SA:%pM\n", vif->netdev->name, frame_len,
+	pr_de("%s LEN:%u FC:%.4X SA:%pM\n", vif->netdev->name, frame_len,
 		 le16_to_cpu(frame->frame_control), frame->addr2);
 
 	cfg80211_rx_mgmt(&vif->wdev, le32_to_cpu(rxmgmt->freq), rxmgmt->sig_dbm,
@@ -487,7 +487,7 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 		return -EINVAL;
 	}
 
-	pr_debug("MAC%d: new channel ieee=%u freq1=%u freq2=%u bw=%u\n",
+	pr_de("MAC%d: new channel ieee=%u freq1=%u freq2=%u bw=%u\n",
 		 mac->macid, chandef.chan->hw_value, chandef.center_freq1,
 		 chandef.center_freq2, chandef.width);
 
@@ -697,7 +697,7 @@ static int qtnf_event_process_skb(struct qtnf_bus *bus,
 
 	mac = qtnf_core_get_mac(bus, event->macid);
 
-	pr_debug("new event id:%x len:%u mac:%u vif:%u\n",
+	pr_de("new event id:%x len:%u mac:%u vif:%u\n",
 		 le16_to_cpu(event->event_id), le16_to_cpu(event->mhdr.len),
 		 event->macid, event->vifid);
 

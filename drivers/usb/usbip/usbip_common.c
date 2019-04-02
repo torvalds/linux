@@ -20,38 +20,38 @@
 #define DRIVER_AUTHOR "Takahiro Hirofuchi <hirofuchi@users.sourceforge.net>"
 #define DRIVER_DESC "USB/IP Core"
 
-#ifdef CONFIG_USBIP_DEBUG
-unsigned long usbip_debug_flag = 0xffffffff;
+#ifdef CONFIG_USBIP_DE
+unsigned long usbip_de_flag = 0xffffffff;
 #else
-unsigned long usbip_debug_flag;
+unsigned long usbip_de_flag;
 #endif
-EXPORT_SYMBOL_GPL(usbip_debug_flag);
-module_param(usbip_debug_flag, ulong, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(usbip_debug_flag, "debug flags (defined in usbip_common.h)");
+EXPORT_SYMBOL_GPL(usbip_de_flag);
+module_param(usbip_de_flag, ulong, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(usbip_de_flag, "de flags (defined in usbip_common.h)");
 
 /* FIXME */
-struct device_attribute dev_attr_usbip_debug;
-EXPORT_SYMBOL_GPL(dev_attr_usbip_debug);
+struct device_attribute dev_attr_usbip_de;
+EXPORT_SYMBOL_GPL(dev_attr_usbip_de);
 
-static ssize_t usbip_debug_show(struct device *dev,
+static ssize_t usbip_de_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lx\n", usbip_debug_flag);
+	return sprintf(buf, "%lx\n", usbip_de_flag);
 }
 
-static ssize_t usbip_debug_store(struct device *dev,
+static ssize_t usbip_de_store(struct device *dev,
 				 struct device_attribute *attr, const char *buf,
 				 size_t count)
 {
-	if (sscanf(buf, "%lx", &usbip_debug_flag) != 1)
+	if (sscanf(buf, "%lx", &usbip_de_flag) != 1)
 		return -EINVAL;
 	return count;
 }
-DEVICE_ATTR_RW(usbip_debug);
+DEVICE_ATTR_RW(usbip_de);
 
 static void usbip_dump_buffer(char *buff, int bufflen)
 {
-	print_hex_dump(KERN_DEBUG, "usbip-core", DUMP_PREFIX_OFFSET, 16, 4,
+	print_hex_dump(KERN_DE, "usbip-core", DUMP_PREFIX_OFFSET, 16, 4,
 		       buff, bufflen, false);
 }
 
@@ -62,23 +62,23 @@ static void usbip_dump_pipe(unsigned int p)
 	unsigned char dev  = usb_pipedevice(p);
 	unsigned char dir  = usb_pipein(p);
 
-	pr_debug("dev(%d) ep(%d) [%s] ", dev, ep, dir ? "IN" : "OUT");
+	pr_de("dev(%d) ep(%d) [%s] ", dev, ep, dir ? "IN" : "OUT");
 
 	switch (type) {
 	case PIPE_ISOCHRONOUS:
-		pr_debug("ISO\n");
+		pr_de("ISO\n");
 		break;
 	case PIPE_INTERRUPT:
-		pr_debug("INT\n");
+		pr_de("INT\n");
 		break;
 	case PIPE_CONTROL:
-		pr_debug("CTRL\n");
+		pr_de("CTRL\n");
 		break;
 	case PIPE_BULK:
-		pr_debug("BULK\n");
+		pr_de("BULK\n");
 		break;
 	default:
-		pr_debug("ERR\n");
+		pr_de("ERR\n");
 		break;
 	}
 }
@@ -91,38 +91,38 @@ static void usbip_dump_usb_device(struct usb_device *udev)
 	dev_dbg(dev, "       devnum(%d) devpath(%s) usb speed(%s)",
 		udev->devnum, udev->devpath, usb_speed_string(udev->speed));
 
-	pr_debug("tt hub ttport %d\n", udev->ttport);
+	pr_de("tt hub ttport %d\n", udev->ttport);
 
 	dev_dbg(dev, "                    ");
 	for (i = 0; i < 16; i++)
-		pr_debug(" %2u", i);
-	pr_debug("\n");
+		pr_de(" %2u", i);
+	pr_de("\n");
 
 	dev_dbg(dev, "       toggle0(IN) :");
 	for (i = 0; i < 16; i++)
-		pr_debug(" %2u", (udev->toggle[0] & (1 << i)) ? 1 : 0);
-	pr_debug("\n");
+		pr_de(" %2u", (udev->toggle[0] & (1 << i)) ? 1 : 0);
+	pr_de("\n");
 
 	dev_dbg(dev, "       toggle1(OUT):");
 	for (i = 0; i < 16; i++)
-		pr_debug(" %2u", (udev->toggle[1] & (1 << i)) ? 1 : 0);
-	pr_debug("\n");
+		pr_de(" %2u", (udev->toggle[1] & (1 << i)) ? 1 : 0);
+	pr_de("\n");
 
 	dev_dbg(dev, "       epmaxp_in   :");
 	for (i = 0; i < 16; i++) {
 		if (udev->ep_in[i])
-			pr_debug(" %2u",
+			pr_de(" %2u",
 			    le16_to_cpu(udev->ep_in[i]->desc.wMaxPacketSize));
 	}
-	pr_debug("\n");
+	pr_de("\n");
 
 	dev_dbg(dev, "       epmaxp_out  :");
 	for (i = 0; i < 16; i++) {
 		if (udev->ep_out[i])
-			pr_debug(" %2u",
+			pr_de(" %2u",
 			    le16_to_cpu(udev->ep_out[i]->desc.wMaxPacketSize));
 	}
-	pr_debug("\n");
+	pr_de("\n");
 
 	dev_dbg(dev, "parent %s, bus %s\n", dev_name(&udev->parent->dev),
 		udev->bus->bus_name);
@@ -137,19 +137,19 @@ static void usbip_dump_request_type(__u8 rt)
 {
 	switch (rt & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		pr_debug("DEVICE");
+		pr_de("DEVICE");
 		break;
 	case USB_RECIP_INTERFACE:
-		pr_debug("INTERF");
+		pr_de("INTERF");
 		break;
 	case USB_RECIP_ENDPOINT:
-		pr_debug("ENDPOI");
+		pr_de("ENDPOI");
 		break;
 	case USB_RECIP_OTHER:
-		pr_debug("OTHER ");
+		pr_de("OTHER ");
 		break;
 	default:
-		pr_debug("------");
+		pr_de("------");
 		break;
 	}
 }
@@ -157,63 +157,63 @@ static void usbip_dump_request_type(__u8 rt)
 static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 {
 	if (!cmd) {
-		pr_debug("       : null pointer\n");
+		pr_de("       : null pointer\n");
 		return;
 	}
 
-	pr_debug("       ");
-	pr_debug("bRequestType(%02X) bRequest(%02X) wValue(%04X) wIndex(%04X) wLength(%04X) ",
+	pr_de("       ");
+	pr_de("bRequestType(%02X) bRequest(%02X) wValue(%04X) wIndex(%04X) wLength(%04X) ",
 		 cmd->bRequestType, cmd->bRequest,
 		 cmd->wValue, cmd->wIndex, cmd->wLength);
-	pr_debug("\n       ");
+	pr_de("\n       ");
 
 	if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
-		pr_debug("STANDARD ");
+		pr_de("STANDARD ");
 		switch (cmd->bRequest) {
 		case USB_REQ_GET_STATUS:
-			pr_debug("GET_STATUS\n");
+			pr_de("GET_STATUS\n");
 			break;
 		case USB_REQ_CLEAR_FEATURE:
-			pr_debug("CLEAR_FEAT\n");
+			pr_de("CLEAR_FEAT\n");
 			break;
 		case USB_REQ_SET_FEATURE:
-			pr_debug("SET_FEAT\n");
+			pr_de("SET_FEAT\n");
 			break;
 		case USB_REQ_SET_ADDRESS:
-			pr_debug("SET_ADDRRS\n");
+			pr_de("SET_ADDRRS\n");
 			break;
 		case USB_REQ_GET_DESCRIPTOR:
-			pr_debug("GET_DESCRI\n");
+			pr_de("GET_DESCRI\n");
 			break;
 		case USB_REQ_SET_DESCRIPTOR:
-			pr_debug("SET_DESCRI\n");
+			pr_de("SET_DESCRI\n");
 			break;
 		case USB_REQ_GET_CONFIGURATION:
-			pr_debug("GET_CONFIG\n");
+			pr_de("GET_CONFIG\n");
 			break;
 		case USB_REQ_SET_CONFIGURATION:
-			pr_debug("SET_CONFIG\n");
+			pr_de("SET_CONFIG\n");
 			break;
 		case USB_REQ_GET_INTERFACE:
-			pr_debug("GET_INTERF\n");
+			pr_de("GET_INTERF\n");
 			break;
 		case USB_REQ_SET_INTERFACE:
-			pr_debug("SET_INTERF\n");
+			pr_de("SET_INTERF\n");
 			break;
 		case USB_REQ_SYNCH_FRAME:
-			pr_debug("SYNC_FRAME\n");
+			pr_de("SYNC_FRAME\n");
 			break;
 		default:
-			pr_debug("REQ(%02X)\n", cmd->bRequest);
+			pr_de("REQ(%02X)\n", cmd->bRequest);
 			break;
 		}
 		usbip_dump_request_type(cmd->bRequestType);
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
-		pr_debug("CLASS\n");
+		pr_de("CLASS\n");
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_VENDOR) {
-		pr_debug("VENDOR\n");
+		pr_de("VENDOR\n");
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_RESERVED) {
-		pr_debug("RESERVED\n");
+		pr_de("RESERVED\n");
 	}
 }
 
@@ -222,12 +222,12 @@ void usbip_dump_urb(struct urb *urb)
 	struct device *dev;
 
 	if (!urb) {
-		pr_debug("urb: null pointer!!\n");
+		pr_de("urb: null pointer!!\n");
 		return;
 	}
 
 	if (!urb->dev) {
-		pr_debug("urb->dev: null pointer!!\n");
+		pr_de("urb->dev: null pointer!!\n");
 		return;
 	}
 
@@ -258,7 +258,7 @@ EXPORT_SYMBOL_GPL(usbip_dump_urb);
 
 void usbip_dump_header(struct usbip_header *pdu)
 {
-	pr_debug("BASE: cmd %u seq %u devid %u dir %u ep %u\n",
+	pr_de("BASE: cmd %u seq %u devid %u dir %u ep %u\n",
 		 pdu->base.command,
 		 pdu->base.seqnum,
 		 pdu->base.devid,
@@ -267,7 +267,7 @@ void usbip_dump_header(struct usbip_header *pdu)
 
 	switch (pdu->base.command) {
 	case USBIP_CMD_SUBMIT:
-		pr_debug("USBIP_CMD_SUBMIT: x_flags %u x_len %u sf %u #p %d iv %d\n",
+		pr_de("USBIP_CMD_SUBMIT: x_flags %u x_len %u sf %u #p %d iv %d\n",
 			 pdu->u.cmd_submit.transfer_flags,
 			 pdu->u.cmd_submit.transfer_buffer_length,
 			 pdu->u.cmd_submit.start_frame,
@@ -275,11 +275,11 @@ void usbip_dump_header(struct usbip_header *pdu)
 			 pdu->u.cmd_submit.interval);
 		break;
 	case USBIP_CMD_UNLINK:
-		pr_debug("USBIP_CMD_UNLINK: seq %u\n",
+		pr_de("USBIP_CMD_UNLINK: seq %u\n",
 			 pdu->u.cmd_unlink.seqnum);
 		break;
 	case USBIP_RET_SUBMIT:
-		pr_debug("USBIP_RET_SUBMIT: st %d al %u sf %d #p %d ec %d\n",
+		pr_de("USBIP_RET_SUBMIT: st %d al %u sf %d #p %d ec %d\n",
 			 pdu->u.ret_submit.status,
 			 pdu->u.ret_submit.actual_length,
 			 pdu->u.ret_submit.start_frame,
@@ -287,7 +287,7 @@ void usbip_dump_header(struct usbip_header *pdu)
 			 pdu->u.ret_submit.error_count);
 		break;
 	case USBIP_RET_UNLINK:
-		pr_debug("USBIP_RET_UNLINK: status %d\n",
+		pr_de("USBIP_RET_UNLINK: status %d\n",
 			 pdu->u.ret_unlink.status);
 		break;
 	default:
@@ -325,13 +325,13 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 
 	if (usbip_dbg_flag_xmit) {
 		if (!in_interrupt())
-			pr_debug("%-10s:", current->comm);
+			pr_de("%-10s:", current->comm);
 		else
-			pr_debug("interrupt  :");
+			pr_de("interrupt  :");
 
-		pr_debug("receiving....\n");
+		pr_de("receiving....\n");
 		usbip_dump_buffer(buf, size);
-		pr_debug("received, osize %d ret %d size %zd total %d\n",
+		pr_de("received, osize %d ret %d size %zd total %d\n",
 			 size, result, msg_data_left(&msg), total);
 	}
 

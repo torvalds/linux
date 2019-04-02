@@ -36,7 +36,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
-#include <linux/bug.h>
+#include <linux/.h>
 
 #include "kasan.h"
 #include "../slab.h"
@@ -159,7 +159,7 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
 		case 16:
 			return memory_is_poisoned_16(addr);
 		default:
-			BUILD_BUG();
+			BUILD_();
 		}
 	}
 

@@ -93,12 +93,12 @@ enum {
  * alternate mode device, the mux for Accessory Modes will be linked with the
  * port device instead.
  *
- * Port drivers can use TYPEC_MODE_AUDIO and TYPEC_MODE_DEBUG as the mode
+ * Port drivers can use TYPEC_MODE_AUDIO and TYPEC_MODE_DE as the mode
  * value for typec_set_mode() when accessory modes are supported.
  */
 enum {
 	TYPEC_MODE_AUDIO = TYPEC_STATE_MODAL,	/* Audio Accessory */
-	TYPEC_MODE_DEBUG,			/* Debug Accessory */
+	TYPEC_MODE_DE,			/* De Accessory */
 };
 
 #define TYPEC_MODAL_STATE(_state_)	((_state_) + TYPEC_STATE_MODAL)

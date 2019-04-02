@@ -249,7 +249,7 @@ static void destruct(struct ddc_service *ddc)
 void dal_ddc_service_destroy(struct ddc_service **ddc)
 {
 	if (!ddc || !*ddc) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return;
 	}
 	destruct(*ddc);

@@ -7,7 +7,7 @@
 #define _OS_INTFS_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <hal_data.h>
 
 MODULE_LICENSE("GPL");
@@ -664,7 +664,7 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	padapter->bLinkInfoDump = 0;
 	padapter->bNotifyChannelChange = 0;
 
-	/* for debug purpose */
+	/* for de purpose */
 	padapter->fix_rate = 0xFF;
 	padapter->driver_ampdu_spacing = 0xFF;
 	padapter->driver_rx_ampdu_factor =  0xFF;
@@ -1186,7 +1186,7 @@ void rtw_dev_unload(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 	struct dvobj_priv *pobjpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &pobjpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &pobjpriv->drv_dbg;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	u8 cnt = 0;
 
@@ -1469,7 +1469,7 @@ static int rtw_suspend_normal(struct adapter *padapter)
 int rtw_suspend_common(struct adapter *padapter)
 {
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
@@ -1554,7 +1554,7 @@ int rtw_resume_process_wow(struct adapter *padapter)
 	struct net_device *pnetdev = padapter->pnetdev;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	struct wowlan_ioctl_param poidparam;
 	struct sta_info *psta = NULL;
 	int ret = _SUCCESS;
@@ -1679,7 +1679,7 @@ int rtw_resume_process_ap_wow(struct adapter *padapter)
 	struct net_device *pnetdev = padapter->pnetdev;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	struct wowlan_ioctl_param poidparam;
 	int ret = _SUCCESS;
 
@@ -1754,7 +1754,7 @@ static int rtw_resume_process_normal(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv;
 	struct mlme_priv *pmlmepriv;
 	struct dvobj_priv *psdpriv;
-	struct debug_priv *pdbgpriv;
+	struct de_priv *pdbgpriv;
 
 	int ret = _SUCCESS;
 

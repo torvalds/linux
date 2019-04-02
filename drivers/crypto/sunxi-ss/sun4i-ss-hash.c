@@ -440,7 +440,7 @@ hash_final:
 	/*
 	 * Wait for SS to finish the hash.
 	 * The timeout could happen only in case of bad overclocking
-	 * or driver bug.
+	 * or driver .
 	 */
 	i = 0;
 	do {

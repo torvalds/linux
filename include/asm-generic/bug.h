@@ -1,33 +1,33 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_GENERIC_BUG_H
-#define _ASM_GENERIC_BUG_H
+#ifndef _ASM_GENERIC__H
+#define _ASM_GENERIC__H
 
 #include <linux/compiler.h>
 
 #define CUT_HERE		"------------[ cut here ]------------\n"
 
-#ifdef CONFIG_GENERIC_BUG
-#define BUGFLAG_WARNING		(1 << 0)
-#define BUGFLAG_ONCE		(1 << 1)
-#define BUGFLAG_DONE		(1 << 2)
-#define BUGFLAG_TAINT(taint)	((taint) << 8)
-#define BUG_GET_TAINT(bug)	((bug)->flags >> 8)
+#ifdef CONFIG_GENERIC_
+#define FLAG_WARNING		(1 << 0)
+#define FLAG_ONCE		(1 << 1)
+#define FLAG_DONE		(1 << 2)
+#define FLAG_TAINT(taint)	((taint) << 8)
+#define _GET_TAINT()	(()->flags >> 8)
 #endif
 
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
 
-#ifdef CONFIG_BUG
+#ifdef CONFIG_
 
-#ifdef CONFIG_GENERIC_BUG
-struct bug_entry {
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-	unsigned long	bug_addr;
+#ifdef CONFIG_GENERIC_
+struct _entry {
+#ifndef CONFIG_GENERIC__RELATIVE_POINTERS
+	unsigned long	_addr;
 #else
-	signed int	bug_addr_disp;
+	signed int	_addr_disp;
 #endif
-#ifdef CONFIG_DEBUG_BUGVERBOSE
-#ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+#ifdef CONFIG_DE_VERBOSE
+#ifndef CONFIG_GENERIC__RELATIVE_POINTERS
 	const char	*file;
 #else
 	signed int	file_disp;
@@ -36,34 +36,34 @@ struct bug_entry {
 #endif
 	unsigned short	flags;
 };
-#endif	/* CONFIG_GENERIC_BUG */
+#endif	/* CONFIG_GENERIC_ */
 
 /*
- * Don't use BUG() or BUG_ON() unless there's really no way out; one
+ * Don't use () or _ON() unless there's really no way out; one
  * example might be detecting data structure corruption in the middle
  * of an operation that can't be backed out of.  If the (sub)system
  * can somehow continue operating, perhaps with reduced functionality,
- * it's probably not BUG-worthy.
+ * it's probably not -worthy.
  *
- * If you're tempted to BUG(), think again:  is completely giving up
+ * If you're tempted to (), think again:  is completely giving up
  * really the *only* solution?  There are usually better options, where
  * users don't need to reboot ASAP and can mostly shut down cleanly.
  */
-#ifndef HAVE_ARCH_BUG
-#define BUG() do { \
-	printk("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
+#ifndef HAVE_ARCH_
+#define () do { \
+	printk(": failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
 	barrier_before_unreachable(); \
-	panic("BUG!"); \
+	panic("!"); \
 } while (0)
 #endif
 
-#ifndef HAVE_ARCH_BUG_ON
-#define BUG_ON(condition) do { if (unlikely(condition)) BUG(); } while (0)
+#ifndef HAVE_ARCH__ON
+#define _ON(condition) do { if (unlikely(condition)) (); } while (0)
 #endif
 
 #ifdef __WARN_FLAGS
-#define __WARN_TAINT(taint)		__WARN_FLAGS(BUGFLAG_TAINT(taint))
-#define __WARN_ONCE_TAINT(taint)	__WARN_FLAGS(BUGFLAG_ONCE|BUGFLAG_TAINT(taint))
+#define __WARN_TAINT(taint)		__WARN_FLAGS(FLAG_TAINT(taint))
+#define __WARN_ONCE_TAINT(taint)	__WARN_FLAGS(FLAG_ONCE|FLAG_TAINT(taint))
 
 #define WARN_ON_ONCE(condition) ({				\
 	int __ret_warn_on = !!(condition);			\
@@ -84,7 +84,7 @@ struct bug_entry {
  * These macros should be used for recoverable kernel issues only.
  * For invalid external inputs, transient conditions, etc use
  * pr_err[_once/_ratelimited]() followed by dump_stack(), if necessary.
- * Do not include "BUG"/"WARNING" in format strings manually to make these
+ * Do not include ""/"WARNING" in format strings manually to make these
  * conditions distinguishable from kernel issues.
  *
  * Use the versions with printk format strings to provide better diagnostics.
@@ -177,13 +177,13 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 	unlikely(__ret_warn_once);				\
 })
 
-#else /* !CONFIG_BUG */
-#ifndef HAVE_ARCH_BUG
-#define BUG() do {} while (1)
+#else /* !CONFIG_ */
+#ifndef HAVE_ARCH_
+#define () do {} while (1)
 #endif
 
-#ifndef HAVE_ARCH_BUG_ON
-#define BUG_ON(condition) do { if (condition) BUG(); } while (0)
+#ifndef HAVE_ARCH__ON
+#define _ON(condition) do { if (condition) (); } while (0)
 #endif
 
 #ifndef HAVE_ARCH_WARN_ON

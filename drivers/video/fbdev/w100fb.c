@@ -947,10 +947,10 @@ static void w100_hw_init(struct w100fb_par *par)
 	writel((u32) 0x2440, remapped_regs + mmRBBM_CNTL);
 
 	/* Set the hardware to 565 colour */
-	temp32 = readl(remapped_regs + mmDISP_DEBUG2);
+	temp32 = readl(remapped_regs + mmDISP_DE2);
 	temp32 &= 0xff7fffff;
 	temp32 |= 0x00800000;
-	writel(temp32, remapped_regs + mmDISP_DEBUG2);
+	writel(temp32, remapped_regs + mmDISP_DE2);
 
 	/* Initialise the GPIO lines */
 	if (gpio) {
@@ -1210,7 +1210,7 @@ static void w100_pwm_setup(struct w100fb_par *par)
 	w100_pwr_state.clk_pin_cntl.f.dont_use_xtalin = 0x0;
 	w100_pwr_state.clk_pin_cntl.f.xtalin_pm_en = 0x0;
 	w100_pwr_state.clk_pin_cntl.f.xtalin_dbl_en = par->mach->xtal_dbl ? 1 : 0;
-	w100_pwr_state.clk_pin_cntl.f.cg_debug = 0x0;
+	w100_pwr_state.clk_pin_cntl.f.cg_de = 0x0;
 	writel((u32) (w100_pwr_state.clk_pin_cntl.val), remapped_regs + mmCLK_PIN_CNTL);
 
 	w100_pwr_state.sclk_cntl.f.sclk_src_sel = CLK_SRC_XTAL;
@@ -1357,9 +1357,9 @@ static void w100_init_lcd(struct w100fb_par *par)
 	writel(0x0000FF00, remapped_regs + mmLCD_BACKGROUND_COLOR);
 
 	/* Hack for overlay in ext memory */
-	temp32 = readl(remapped_regs + mmDISP_DEBUG2);
+	temp32 = readl(remapped_regs + mmDISP_DE2);
 	temp32 |= 0xc0000000;
-	writel(temp32, remapped_regs + mmDISP_DEBUG2);
+	writel(temp32, remapped_regs + mmDISP_DE2);
 }
 
 

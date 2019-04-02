@@ -48,7 +48,7 @@
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
 #include <asm/vdso.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/os_info.h>
 #include <asm/sigp.h>
 #include <asm/idle.h>
@@ -467,7 +467,7 @@ void smp_send_stop(void)
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	trace_hardirqs_off();
 
-	debug_set_critical();
+	de_set_critical();
 
 	if (oops_in_progress)
 		smp_emergency_stop();

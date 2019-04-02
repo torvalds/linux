@@ -40,7 +40,7 @@
 #include <linux/semaphore.h>
 #include <linux/atomic.h>
 #include "vchiq_core.h"
-#include "vchiq_debugfs.h"
+#include "vchiq_defs.h"
 
 enum vc_suspend_status {
 	VC_SUSPEND_FORCE_CANCELED = -3, /* Force suspend canceled, too busy */
@@ -195,8 +195,8 @@ extern VCHIQ_STATUS_T
 vchiq_release_internal(struct vchiq_state *state,
 		       struct vchiq_service *service);
 
-extern struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);
+extern struct vchiq_defs_node *
+vchiq_instance_get_defs_node(VCHIQ_INSTANCE_T instance);
 
 extern int
 vchiq_instance_get_use_count(VCHIQ_INSTANCE_T instance);

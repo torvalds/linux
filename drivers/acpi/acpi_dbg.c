@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  */
 
-/* #define DEBUG */
+/* #define DE */
 #define pr_fmt(fmt) "ACPI: AML: " fmt
 
 #include <linux/kernel.h>
@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/proc_fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/circ_buf.h>
 #include <linux/acpi.h>
 #include "internal.h"
@@ -75,10 +75,10 @@ static inline bool __acpi_aml_running(void)
 static inline bool __acpi_aml_access_ok(unsigned long flag)
 {
 	/*
-	 * The debugger interface is in opened state (OPENED && !CLOSED),
-	 * then it is allowed to access the debugger buffers from either
+	 * The deger interface is in opened state (OPENED && !CLOSED),
+	 * then it is allowed to access the deger buffers from either
 	 * user space or the kernel space.
-	 * In addition, for the kernel space, only the debugger thread
+	 * In addition, for the kernel space, only the deger thread
 	 * (thread ID matched) is allowed to access.
 	 */
 	if (!(acpi_aml_io.flags & ACPI_AML_OPENED) ||
@@ -158,7 +158,7 @@ static bool acpi_aml_used(void)
 
 	/*
 	 * The usage count is prepared to avoid race conditions between the
-	 * starts and the stops of the debugger thread.
+	 * starts and the stops of the deger thread.
 	 */
 	mutex_lock(&acpi_aml_io.lock);
 	ret = __acpi_aml_used();
@@ -300,11 +300,11 @@ static int acpi_aml_readb_kern(void)
 }
 
 /*
- * acpi_aml_write_log() - Capture debugger output
- * @msg: the debugger output
+ * acpi_aml_write_log() - Capture deger output
+ * @msg: the deger output
  *
  * This function should be used to implement acpi_os_printf() to filter out
- * the debugger output and store the output into the debugger interface
+ * the deger output and store the output into the deger interface
  * buffer. Return the size of stored logs or errno.
  */
 static ssize_t acpi_aml_write_log(const char *msg)
@@ -339,13 +339,13 @@ again:
 }
 
 /*
- * acpi_aml_read_cmd() - Capture debugger input
- * @msg: the debugger input
- * @size: the size of the debugger input
+ * acpi_aml_read_cmd() - Capture deger input
+ * @msg: the deger input
+ * @size: the size of the deger input
  *
  * This function should be used to implement acpi_os_get_line() to capture
- * the debugger input commands and store the input commands into the
- * debugger interface buffer. Return the size of stored commands or errno.
+ * the deger input commands and store the input commands into the
+ * deger interface buffer. Return the size of stored commands or errno.
  */
 static ssize_t acpi_aml_read_cmd(char *msg, size_t count)
 {
@@ -353,10 +353,10 @@ static ssize_t acpi_aml_read_cmd(char *msg, size_t count)
 	int size = 0;
 
 	/*
-	 * This is ensured by the running fact of the debugger thread
-	 * unless a bug is introduced.
+	 * This is ensured by the running fact of the deger thread
+	 * unless a  is introduced.
 	 */
-	BUG_ON(!acpi_aml_initialized);
+	_ON(!acpi_aml_initialized);
 	while (count > 0) {
 again:
 		/*
@@ -418,12 +418,12 @@ static int acpi_aml_thread(void *unsed)
 }
 
 /*
- * acpi_aml_create_thread() - Create AML debugger thread
- * @function: the debugger thread callback
- * @context: the context to be passed to the debugger thread
+ * acpi_aml_create_thread() - Create AML deger thread
+ * @function: the deger thread callback
+ * @context: the context to be passed to the deger thread
  *
  * This function should be used to implement acpi_os_execute() which is
- * used by the ACPICA debugger to create the debugger thread.
+ * used by the ACPICA deger to create the deger thread.
  */
 static int acpi_aml_create_thread(acpi_osd_exec_callback function, void *context)
 {
@@ -436,13 +436,13 @@ static int acpi_aml_create_thread(acpi_osd_exec_callback function, void *context
 
 	t = kthread_create(acpi_aml_thread, NULL, "aml");
 	if (IS_ERR(t)) {
-		pr_err("Failed to create AML debugger thread.\n");
+		pr_err("Failed to create AML deger thread.\n");
 		return PTR_ERR(t);
 	}
 
 	mutex_lock(&acpi_aml_io.lock);
 	acpi_aml_io.thread = t;
-	acpi_set_debugger_thread_id((acpi_thread_id)(unsigned long)t);
+	acpi_set_deger_thread_id((acpi_thread_id)(unsigned long)t);
 	wake_up_process(t);
 	mutex_unlock(&acpi_aml_io.lock);
 	return 0;
@@ -454,9 +454,9 @@ static int acpi_aml_wait_command_ready(bool single_step,
 	acpi_status status;
 
 	if (single_step)
-		acpi_os_printf("\n%1c ", ACPI_DEBUGGER_EXECUTE_PROMPT);
+		acpi_os_printf("\n%1c ", ACPI_DEGER_EXECUTE_PROMPT);
 	else
-		acpi_os_printf("\n%1c ", ACPI_DEBUGGER_COMMAND_PROMPT);
+		acpi_os_printf("\n%1c ", ACPI_DEGER_COMMAND_PROMPT);
 
 	status = acpi_os_get_line(buffer, length, NULL);
 	if (ACPI_FAILURE(status))
@@ -476,7 +476,7 @@ static int acpi_aml_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&acpi_aml_io.lock);
 	/*
-	 * The debugger interface is being closed, no new user is allowed
+	 * The deger interface is being closed, no new user is allowed
 	 * during this period.
 	 */
 	if (acpi_aml_io.flags & ACPI_AML_CLOSED) {
@@ -485,19 +485,19 @@ static int acpi_aml_open(struct inode *inode, struct file *file)
 	}
 	if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
 		/*
-		 * Only one reader is allowed to initiate the debugger
+		 * Only one reader is allowed to initiate the deger
 		 * thread.
 		 */
 		if (acpi_aml_active_reader) {
 			ret = -EBUSY;
 			goto err_lock;
 		} else {
-			pr_debug("Opening debugger reader.\n");
+			pr_de("Opening deger reader.\n");
 			acpi_aml_active_reader = file;
 		}
 	} else {
 		/*
-		 * No writer is allowed unless the debugger thread is
+		 * No writer is allowed unless the deger thread is
 		 * ready.
 		 */
 		if (!(acpi_aml_io.flags & ACPI_AML_OPENED)) {
@@ -506,23 +506,23 @@ static int acpi_aml_open(struct inode *inode, struct file *file)
 		}
 	}
 	if (acpi_aml_active_reader == file) {
-		pr_debug("Opening debugger interface.\n");
+		pr_de("Opening deger interface.\n");
 		mutex_unlock(&acpi_aml_io.lock);
 
-		pr_debug("Initializing debugger thread.\n");
-		status = acpi_initialize_debugger();
+		pr_de("Initializing deger thread.\n");
+		status = acpi_initialize_deger();
 		if (ACPI_FAILURE(status)) {
-			pr_err("Failed to initialize debugger.\n");
+			pr_err("Failed to initialize deger.\n");
 			ret = -EINVAL;
 			goto err_exit;
 		}
-		pr_debug("Debugger thread initialized.\n");
+		pr_de("Deger thread initialized.\n");
 
 		mutex_lock(&acpi_aml_io.lock);
 		acpi_aml_io.flags |= ACPI_AML_OPENED;
 		acpi_aml_io.out_crc.head = acpi_aml_io.out_crc.tail = 0;
 		acpi_aml_io.in_crc.head = acpi_aml_io.in_crc.tail = 0;
-		pr_debug("Debugger interface opened.\n");
+		pr_de("Deger interface opened.\n");
 	}
 	acpi_aml_io.users++;
 err_lock:
@@ -540,10 +540,10 @@ static int acpi_aml_release(struct inode *inode, struct file *file)
 	mutex_lock(&acpi_aml_io.lock);
 	acpi_aml_io.users--;
 	if (file == acpi_aml_active_reader) {
-		pr_debug("Closing debugger reader.\n");
+		pr_de("Closing deger reader.\n");
 		acpi_aml_active_reader = NULL;
 
-		pr_debug("Closing debugger interface.\n");
+		pr_de("Closing deger interface.\n");
 		acpi_aml_io.flags |= ACPI_AML_CLOSED;
 
 		/*
@@ -554,25 +554,25 @@ static int acpi_aml_release(struct inode *inode, struct file *file)
 		mutex_unlock(&acpi_aml_io.lock);
 		/*
 		 * Wait all user space/kernel space readers/writers to
-		 * stop so that ACPICA command loop of the debugger thread
+		 * stop so that ACPICA command loop of the deger thread
 		 * should fail all its command line reads after this point.
 		 */
 		wait_event(acpi_aml_io.wait, !acpi_aml_busy());
 
 		/*
-		 * Then we try to terminate the debugger thread if it is
+		 * Then we try to terminate the deger thread if it is
 		 * not terminated.
 		 */
-		pr_debug("Terminating debugger thread.\n");
-		acpi_terminate_debugger();
+		pr_de("Terminating deger thread.\n");
+		acpi_terminate_deger();
 		wait_event(acpi_aml_io.wait, !acpi_aml_used());
-		pr_debug("Debugger thread terminated.\n");
+		pr_de("Deger thread terminated.\n");
 
 		mutex_lock(&acpi_aml_io.lock);
 		acpi_aml_io.flags &= ~ACPI_AML_OPENED;
 	}
 	if (acpi_aml_io.users == 0) {
-		pr_debug("Debugger interface closed.\n");
+		pr_de("Deger interface closed.\n");
 		acpi_aml_io.flags &= ~ACPI_AML_CLOSED;
 	}
 	mutex_unlock(&acpi_aml_io.lock);
@@ -740,7 +740,7 @@ static const struct file_operations acpi_aml_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static const struct acpi_debugger_ops acpi_aml_debugger = {
+static const struct acpi_deger_ops acpi_aml_deger = {
 	.create_thread		 = acpi_aml_create_thread,
 	.read_cmd		 = acpi_aml_read_cmd,
 	.write_log		 = acpi_aml_write_log,
@@ -758,14 +758,14 @@ int __init acpi_aml_init(void)
 	acpi_aml_io.out_crc.buf = acpi_aml_io.out_buf;
 	acpi_aml_io.in_crc.buf = acpi_aml_io.in_buf;
 
-	acpi_aml_dentry = debugfs_create_file("acpidbg",
+	acpi_aml_dentry = defs_create_file("acpidbg",
 					      S_IFREG | S_IRUGO | S_IWUSR,
-					      acpi_debugfs_dir, NULL,
+					      acpi_defs_dir, NULL,
 					      &acpi_aml_operations);
 
-	ret = acpi_register_debugger(THIS_MODULE, &acpi_aml_debugger);
+	ret = acpi_register_deger(THIS_MODULE, &acpi_aml_deger);
 	if (ret) {
-		debugfs_remove(acpi_aml_dentry);
+		defs_remove(acpi_aml_dentry);
 		acpi_aml_dentry = NULL;
 		return ret;
 	}
@@ -777,8 +777,8 @@ int __init acpi_aml_init(void)
 void __exit acpi_aml_exit(void)
 {
 	if (acpi_aml_initialized) {
-		acpi_unregister_debugger(&acpi_aml_debugger);
-		debugfs_remove(acpi_aml_dentry);
+		acpi_unregister_deger(&acpi_aml_deger);
+		defs_remove(acpi_aml_dentry);
 		acpi_aml_dentry = NULL;
 		acpi_aml_initialized = false;
 	}
@@ -788,5 +788,5 @@ module_init(acpi_aml_init);
 module_exit(acpi_aml_exit);
 
 MODULE_AUTHOR("Lv Zheng");
-MODULE_DESCRIPTION("ACPI debugger userspace IO driver");
+MODULE_DESCRIPTION("ACPI deger userspace IO driver");
 MODULE_LICENSE("GPL");

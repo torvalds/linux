@@ -1083,7 +1083,7 @@ WARNING: This version is still in early development stage; the
 resulting device-tree "blobs" have not yet been validated with the
 kernel. The current generated block lacks a useful reserve map (it will
 be fixed to generate an empty one, it's up to the bootloader to fill
-it up) among others. The error handling needs work, bugs are lurking,
+it up) among others. The error handling needs work, s are lurking,
 etc...
 
 dtc basically takes a device-tree in a given format and outputs a

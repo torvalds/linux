@@ -1108,7 +1108,7 @@ void tw686x_video_irq(struct tw686x_dev *dev, unsigned long requests,
 		 * got signal, then this channel needs resetting.
 		 */
 		if (vc->no_signal && !(fifo_status & BIT(ch))) {
-			v4l2_printk(KERN_DEBUG, &dev->v4l2_dev,
+			v4l2_printk(KERN_DE, &dev->v4l2_dev,
 				    "video%d: signal recovered\n", vc->num);
 			vc->no_signal = false;
 			*reset_ch |= BIT(ch);
@@ -1125,7 +1125,7 @@ void tw686x_video_irq(struct tw686x_dev *dev, unsigned long requests,
 			fifo_bad = (fifo_status >> 16) & BIT(ch);
 			if (fifo_ov || fifo_bad) {
 				/* Mark this channel for reset */
-				v4l2_printk(KERN_DEBUG, &dev->v4l2_dev,
+				v4l2_printk(KERN_DE, &dev->v4l2_dev,
 					    "video%d: FIFO error\n", vc->num);
 				*reset_ch |= BIT(ch);
 				vc->pb = 0;
@@ -1136,7 +1136,7 @@ void tw686x_video_irq(struct tw686x_dev *dev, unsigned long requests,
 		pb = !!(pb_status & BIT(ch));
 		if (vc->pb != pb) {
 			/* Mark this channel for reset */
-			v4l2_printk(KERN_DEBUG, &dev->v4l2_dev,
+			v4l2_printk(KERN_DE, &dev->v4l2_dev,
 				    "video%d: unexpected p-b buffer!\n",
 				    vc->num);
 			*reset_ch |= BIT(ch);

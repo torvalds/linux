@@ -31,7 +31,7 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 {
 	int ret = 0;
 
-	wl1251_debug(DEBUG_EVENT, "status: 0x%x, channels: %d",
+	wl1251_de(DE_EVENT, "status: 0x%x, channels: %d",
 		     mbox->scheduled_scan_status,
 		     mbox->scheduled_scan_channels);
 
@@ -41,7 +41,7 @@ static int wl1251_event_scan_complete(struct wl1251 *wl,
 		};
 
 		ieee80211_scan_completed(wl->hw, &info);
-		wl1251_debug(DEBUG_MAC80211, "mac80211 hw scan completed");
+		wl1251_de(DE_MAC80211, "mac80211 hw scan completed");
 		wl->scanning = false;
 		if (wl->hw->conf.flags & IEEE80211_CONF_IDLE)
 			ret = wl1251_ps_set_mode(wl, STATION_IDLE);
@@ -56,11 +56,11 @@ static int wl1251_event_ps_report(struct wl1251 *wl,
 {
 	int ret = 0;
 
-	wl1251_debug(DEBUG_EVENT, "ps status: %x", mbox->ps_status);
+	wl1251_de(DE_EVENT, "ps status: %x", mbox->ps_status);
 
 	switch (mbox->ps_status) {
 	case EVENT_ENTER_POWER_SAVE_FAIL:
-		wl1251_debug(DEBUG_PSM, "PSM entry failed");
+		wl1251_de(DE_PSM, "PSM entry failed");
 
 		if (wl->station_mode != STATION_POWER_SAVE_MODE) {
 			/* remain in active mode */
@@ -89,9 +89,9 @@ static int wl1251_event_ps_report(struct wl1251 *wl,
 
 static void wl1251_event_mbox_dump(struct event_mailbox *mbox)
 {
-	wl1251_debug(DEBUG_EVENT, "MBOX DUMP:");
-	wl1251_debug(DEBUG_EVENT, "\tvector: 0x%x", mbox->events_vector);
-	wl1251_debug(DEBUG_EVENT, "\tmask: 0x%x", mbox->events_mask);
+	wl1251_de(DE_EVENT, "MBOX DUMP:");
+	wl1251_de(DE_EVENT, "\tvector: 0x%x", mbox->events_vector);
+	wl1251_de(DE_EVENT, "\tmask: 0x%x", mbox->events_mask);
 }
 
 static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
@@ -102,7 +102,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 	wl1251_event_mbox_dump(mbox);
 
 	vector = mbox->events_vector & ~(mbox->events_mask);
-	wl1251_debug(DEBUG_EVENT, "vector: 0x%x", vector);
+	wl1251_de(DE_EVENT, "vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {
 		ret = wl1251_event_scan_complete(wl, mbox);
@@ -111,7 +111,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 	}
 
 	if (vector & BSS_LOSE_EVENT_ID) {
-		wl1251_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
+		wl1251_de(DE_EVENT, "BSS_LOSE_EVENT");
 
 		if (wl->psm_requested &&
 		    wl->station_mode != STATION_ACTIVE_MODE) {
@@ -122,14 +122,14 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 	}
 
 	if (vector & PS_REPORT_EVENT_ID) {
-		wl1251_debug(DEBUG_EVENT, "PS_REPORT_EVENT");
+		wl1251_de(DE_EVENT, "PS_REPORT_EVENT");
 		ret = wl1251_event_ps_report(wl, mbox);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (vector & SYNCHRONIZATION_TIMEOUT_EVENT_ID) {
-		wl1251_debug(DEBUG_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
+		wl1251_de(DE_EVENT, "SYNCHRONIZATION_TIMEOUT_EVENT");
 
 		/* indicate to the stack, that beacons have been lost */
 		if (wl->vif && wl->vif->type == NL80211_IFTYPE_STATION)
@@ -146,7 +146,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 
 	if (wl->vif && wl->rssi_thold) {
 		if (vector & ROAMING_TRIGGER_LOW_RSSI_EVENT_ID) {
-			wl1251_debug(DEBUG_EVENT,
+			wl1251_de(DE_EVENT,
 				     "ROAMING_TRIGGER_LOW_RSSI_EVENT");
 			ieee80211_cqm_rssi_notify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
@@ -154,7 +154,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 		}
 
 		if (vector & ROAMING_TRIGGER_REGAINED_RSSI_EVENT_ID) {
-			wl1251_debug(DEBUG_EVENT,
+			wl1251_de(DE_EVENT,
 				     "ROAMING_TRIGGER_REGAINED_RSSI_EVENT");
 			ieee80211_cqm_rssi_notify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
@@ -210,7 +210,7 @@ void wl1251_event_mbox_config(struct wl1251 *wl)
 	wl->mbox_ptr[0] = wl1251_reg_read32(wl, REG_EVENT_MAILBOX_PTR);
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
-	wl1251_debug(DEBUG_EVENT, "MBOX ptrs: 0x%x 0x%x",
+	wl1251_de(DE_EVENT, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 }
 
@@ -219,7 +219,7 @@ int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 	struct event_mailbox mbox;
 	int ret;
 
-	wl1251_debug(DEBUG_EVENT, "EVENT on mbox %d", mbox_num);
+	wl1251_de(DE_EVENT, "EVENT on mbox %d", mbox_num);
 
 	if (mbox_num > 1)
 		return -EINVAL;

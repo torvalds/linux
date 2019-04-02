@@ -29,7 +29,7 @@ obj-$(CONFIG_X86_32)		+= pgtable_32.o iomap_32.o
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_X86_PTDUMP_CORE)	+= dump_pagetables.o
-obj-$(CONFIG_X86_PTDUMP)	+= debug_pagetables.o
+obj-$(CONFIG_X86_PTDUMP)	+= de_pagetables.o
 
 obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
 

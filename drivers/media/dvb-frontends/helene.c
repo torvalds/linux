@@ -284,7 +284,7 @@ terr_params[SONY_HELENE_TERR_TV_SYSTEM_NUM] = {
 	/**< SONY_HELENE_DTV_DTMB      (DTMB) */
 };
 
-static void helene_i2c_debug(struct helene_priv *priv,
+static void helene_i2c_de(struct helene_priv *priv,
 		u8 reg, u8 write, const u8 *data, u32 len)
 {
 	dev_dbg(&priv->i2c->dev, "helene: I2C %s reg 0x%02x size %d\n",
@@ -314,7 +314,7 @@ static int helene_write_regs(struct helene_priv *priv,
 		return -E2BIG;
 	}
 
-	helene_i2c_debug(priv, reg, 1, data, len);
+	helene_i2c_de(priv, reg, 1, data, len);
 	buf[0] = reg;
 	memcpy(&buf[1], data, len);
 	ret = i2c_transfer(priv->i2c, msg, 1);
@@ -331,7 +331,7 @@ static int helene_write_regs(struct helene_priv *priv,
 
 static int helene_write_reg(struct helene_priv *priv, u8 reg, u8 val)
 {
-	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+	u8 tmp = val; /* see gcc.gnu.org/zilla/show_.cgi?id=81715 */
 
 	return helene_write_regs(priv, reg, &tmp, 1);
 }
@@ -372,7 +372,7 @@ static int helene_read_regs(struct helene_priv *priv,
 				KBUILD_MODNAME, ret, priv->i2c_address, reg);
 		return ret;
 	}
-	helene_i2c_debug(priv, reg, 0, val, len);
+	helene_i2c_de(priv, reg, 0, val, len);
 	return 0;
 }
 

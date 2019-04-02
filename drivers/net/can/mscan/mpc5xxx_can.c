@@ -65,7 +65,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	 * the MPC5200 user's manual, the oscillator clock is the better
 	 * choice as it has less jitter. For this reason, it is selected
 	 * by default. Unfortunately, it can not be selected for the old
-	 * MPC5200 Rev. A chips due to a hardware bug (check errata).
+	 * MPC5200 Rev. A chips due to a hardware  (check errata).
 	 */
 	if (clock_name && strcmp(clock_name, "ip") == 0)
 		*mscan_clksrc = MSCAN_CLKSRC_BUS;
@@ -330,7 +330,7 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 
 	clock_name = of_get_property(np, "fsl,mscan-clock-source", NULL);
 
-	BUG_ON(!data);
+	_ON(!data);
 	priv->type = data->type;
 	priv->can.clock.freq = data->get_clock(ofdev, clock_name,
 					       &mscan_clksrc);

@@ -54,7 +54,7 @@ do {								\
 	__i915_sw_fence_init((fence), (fn), NULL, NULL)
 #endif
 
-#ifdef CONFIG_DRM_I915_SW_FENCE_DEBUG_OBJECTS
+#ifdef CONFIG_DRM_I915_SW_FENCE_DE_OBJECTS
 void i915_sw_fence_fini(struct i915_sw_fence *fence);
 #else
 static inline void i915_sw_fence_fini(struct i915_sw_fence *fence) {}

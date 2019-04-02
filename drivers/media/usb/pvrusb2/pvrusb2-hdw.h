@@ -278,7 +278,7 @@ int pvr2_hdw_gpio_chg_dir(struct pvr2_hdw *hdw,u32 msk,u32 val);
 int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val);
 
 /* This data structure is specifically for the next function... */
-struct pvr2_hdw_debug_info {
+struct pvr2_hdw_de_info {
 	int big_lock_held;
 	int ctl_lock_held;
 	int flag_disconnected;
@@ -297,30 +297,30 @@ struct pvr2_hdw_debug_info {
 	int state_pipeline_req;
 	int state_pipeline_pause;
 	int state_pipeline_idle;
-	int cmd_debug_state;
-	int cmd_debug_write_len;
-	int cmd_debug_read_len;
-	int cmd_debug_write_pend;
-	int cmd_debug_read_pend;
-	int cmd_debug_timeout;
-	int cmd_debug_rstatus;
-	int cmd_debug_wstatus;
+	int cmd_de_state;
+	int cmd_de_write_len;
+	int cmd_de_read_len;
+	int cmd_de_write_pend;
+	int cmd_de_read_pend;
+	int cmd_de_timeout;
+	int cmd_de_rstatus;
+	int cmd_de_wstatus;
 	unsigned char cmd_code;
 };
 
 /* Non-intrusively retrieve internal state info - this is useful for
    diagnosing lockups.  Note that this operation is completed without any
    kind of locking and so it is not atomic and may yield inconsistent
-   results.  This is *purely* a debugging aid. */
-void pvr2_hdw_get_debug_info_unlocked(const struct pvr2_hdw *hdw,
-				      struct pvr2_hdw_debug_info *);
+   results.  This is *purely* a deging aid. */
+void pvr2_hdw_get_de_info_unlocked(const struct pvr2_hdw *hdw,
+				      struct pvr2_hdw_de_info *);
 
 /* Intrusively retrieve internal state info - this is useful for
    diagnosing overall driver state.  This operation synchronizes against
    the overall driver mutex - so if there are locking problems this will
-   likely hang!  This is *purely* a debugging aid. */
-void pvr2_hdw_get_debug_info_locked(struct pvr2_hdw *hdw,
-				    struct pvr2_hdw_debug_info *);
+   likely hang!  This is *purely* a deging aid. */
+void pvr2_hdw_get_de_info_locked(struct pvr2_hdw *hdw,
+				    struct pvr2_hdw_de_info *);
 
 /* Report out several lines of text that describes driver internal state.
    Results are written into the passed-in buffer. */
@@ -332,7 +332,7 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw);
 
 /* Cause encoder firmware to be uploaded into the device.  This is normally
    done autonomously, but the interface is exported here because it is also
-   a debugging aid. */
+   a deging aid. */
 int pvr2_upload_firmware2(struct pvr2_hdw *hdw);
 
 #endif /* __PVRUSB2_HDW_H */

@@ -19,11 +19,11 @@ following property is also required:
   - hdmi-phandle - phandle to the HDMI controller, see also cec.txt.
 
 If the CEC line is not associated with an HDMI receiver/transmitter, then
-the following property is optional and can be used for debugging HPD changes:
+the following property is optional and can be used for deging HPD changes:
 
   - hpd-gpios: gpio that the HPD line is connected to.
 
-This property is optional and can be used for debugging changes on the 5V line:
+This property is optional and can be used for deging changes on the 5V line:
 
   - v5-gpios: gpio that the 5V line is connected to.
 

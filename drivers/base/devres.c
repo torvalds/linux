@@ -18,7 +18,7 @@
 struct devres_node {
 	struct list_head		entry;
 	dr_release_t			release;
-#ifdef CONFIG_DEBUG_DEVRES
+#ifdef CONFIG_DE_DEVRES
 	const char			*name;
 	size_t				size;
 #endif
@@ -43,7 +43,7 @@ struct devres_group {
 	/* -- 8 pointers */
 };
 
-#ifdef CONFIG_DEBUG_DEVRES
+#ifdef CONFIG_DE_DEVRES
 static int log_devres = 0;
 module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
 
@@ -61,10 +61,10 @@ static void devres_log(struct device *dev, struct devres_node *node,
 		dev_err(dev, "DEVRES %3s %p %s (%lu bytes)\n",
 			op, node, node->name, (unsigned long)node->size);
 }
-#else /* CONFIG_DEBUG_DEVRES */
+#else /* CONFIG_DE_DEVRES */
 #define set_node_dbginfo(node, n, s)	do {} while (0)
 #define devres_log(dev, node, op)	do {} while (0)
-#endif /* CONFIG_DEBUG_DEVRES */
+#endif /* CONFIG_DE_DEVRES */
 
 /*
  * Release functions for devres group.  These callbacks are used only
@@ -114,11 +114,11 @@ static __always_inline struct devres * alloc_dr(dr_release_t release,
 static void add_dr(struct device *dev, struct devres_node *node)
 {
 	devres_log(dev, node, "ADD");
-	BUG_ON(!list_empty(&node->entry));
+	_ON(!list_empty(&node->entry));
 	list_add_tail(&node->entry, &dev->devres_head);
 }
 
-#ifdef CONFIG_DEBUG_DEVRES
+#ifdef CONFIG_DE_DEVRES
 void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
 		      const char *name)
 {
@@ -211,7 +211,7 @@ void devres_free(void *res)
 	if (res) {
 		struct devres *dr = container_of(res, struct devres, data);
 
-		BUG_ON(!list_empty(&dr->node.entry));
+		_ON(!list_empty(&dr->node.entry));
 		kfree(dr);
 	}
 }
@@ -468,13 +468,13 @@ static int remove_nodes(struct device *dev,
 		cur = cur->next;
 
 		grp = node_to_group(node);
-		BUG_ON(!grp || list_empty(&grp->node[0].entry));
+		_ON(!grp || list_empty(&grp->node[0].entry));
 
 		grp->color++;
 		if (list_empty(&grp->node[1].entry))
 			grp->color++;
 
-		BUG_ON(grp->color <= 0 || grp->color > 2);
+		_ON(grp->color <= 0 || grp->color > 2);
 		if (grp->color == 2) {
 			/* No need to update cur or end.  The removed
 			 * nodes are always before both.

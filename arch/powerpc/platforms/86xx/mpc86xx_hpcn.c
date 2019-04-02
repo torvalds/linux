@@ -35,9 +35,9 @@
 
 #include "mpc86xx.h"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) do { printk(KERN_ERR fmt); } while(0)
 #else
 #define DBG(fmt...) do { } while(0)

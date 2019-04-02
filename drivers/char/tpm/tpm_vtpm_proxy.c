@@ -98,7 +98,7 @@ static ssize_t vtpm_proxy_fops_read(struct file *filp, char __user *buf,
 
 	if (count < len) {
 		mutex_unlock(&proxy_dev->buf_lock);
-		pr_debug("Invalid size in recv: count=%zd, req_len=%zd\n",
+		pr_de("Invalid size in recv: count=%zd, req_len=%zd\n",
 			 count, len);
 		return -EIO;
 	}

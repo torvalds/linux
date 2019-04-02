@@ -114,7 +114,7 @@ static unsigned long __init bios32_service(unsigned long service)
 			printk(KERN_WARNING "bios32_service(0x%lx): not present\n", service);
 			return 0;
 		default: /* Shouldn't happen */
-			printk(KERN_WARNING "bios32_service(0x%lx): returned 0x%x -- BIOS bug!\n",
+			printk(KERN_WARNING "bios32_service(0x%lx): returned 0x%x -- BIOS !\n",
 				service, return_code);
 			return 0;
 	}
@@ -163,7 +163,7 @@ static int __init check_pcibios(void)
 		DBG("PCI: BIOS probe returned s=%02x hw=%02x ver=%02x.%02x l=%02x\n",
 			status, hw_mech, major_ver, minor_ver, pcibios_last_bus);
 		if (status || signature != PCI_SIGNATURE) {
-			printk (KERN_ERR "PCI: BIOS BUG #%x[%08x] found\n",
+			printk (KERN_ERR "PCI: BIOS  #%x[%08x] found\n",
 				status, signature);
 			return 0;
 		}

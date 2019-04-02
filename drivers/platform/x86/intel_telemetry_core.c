@@ -416,7 +416,7 @@ static inline int telemetry_get_iossevtname(enum telemetry_unit telem_unit,
  * @name:	Array of character pointers to contain name
  * @len:	length of array name provided by user
  *
- * Usage by other than telemetry debugfs module is invalid
+ * Usage by other than telemetry defs module is invalid
  *
  * Return: 0 success, < 0 for failure
  */

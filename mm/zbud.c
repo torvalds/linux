@@ -609,7 +609,7 @@ u64 zbud_get_pool_size(struct zbud_pool *pool)
 static int __init init_zbud(void)
 {
 	/* Make sure the zbud header will fit in one chunk */
-	BUILD_BUG_ON(sizeof(struct zbud_header) > ZHDR_SIZE_ALIGNED);
+	BUILD__ON(sizeof(struct zbud_header) > ZHDR_SIZE_ALIGNED);
 	pr_info("loaded\n");
 
 #ifdef CONFIG_ZPOOL

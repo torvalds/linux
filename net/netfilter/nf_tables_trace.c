@@ -66,7 +66,7 @@ static int nf_trace_fill_ll_header(struct sk_buff *nlskb,
 	struct vlan_ethhdr veth;
 	int off;
 
-	BUILD_BUG_ON(sizeof(veth) > NFT_TRACETYPE_LL_HSIZE);
+	BUILD__ON(sizeof(veth) > NFT_TRACETYPE_LL_HSIZE);
 
 	off = skb_mac_header(skb) - skb->data;
 	if (off != -ETH_HLEN)

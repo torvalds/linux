@@ -360,7 +360,7 @@ void st5481_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 
 	switch (pr) {
 	case PH_DATA | REQUEST:
-		BUG_ON(bcs->b_out.tx_skb);
+		_ON(bcs->b_out.tx_skb);
 		bcs->b_out.tx_skb = skb;
 		break;
 	case PH_ACTIVATE | REQUEST:

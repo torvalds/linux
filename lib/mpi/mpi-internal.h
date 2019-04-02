@@ -37,13 +37,13 @@
 #include <linux/mpi.h>
 #include <linux/errno.h>
 
-#define log_debug printk
-#define log_bug printk
+#define log_de printk
+#define log_ printk
 
 #define assert(x) \
 	do { \
 		if (!x) \
-			log_bug("failed assertion\n"); \
+			log_("failed assertion\n"); \
 	} while (0);
 
 /* If KARATSUBA_THRESHOLD is not already defined, define it to a

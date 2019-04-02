@@ -57,9 +57,9 @@
 #include "lowlevel.h"
 #include "remote.h"
 
-int ibmasm_debug = 0;
-module_param(ibmasm_debug, int , S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ibmasm_debug, " Set debug mode on or off");
+int ibmasm_de = 0;
+module_param(ibmasm_de, int , S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ibmasm_de, " Set de mode on or off");
 
 
 static int ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)

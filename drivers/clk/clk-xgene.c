@@ -76,7 +76,7 @@ static int xgene_clk_pll_is_enabled(struct clk_hw *hw)
 	u32 data;
 
 	data = xgene_clk_read(pllclk->reg + pllclk->pll_offset);
-	pr_debug("%s pll %s\n", clk_hw_get_name(hw),
+	pr_de("%s pll %s\n", clk_hw_get_name(hw),
 		data & REGSPEC_RESET_F1_MASK ? "disabled" : "enabled");
 
 	return data & REGSPEC_RESET_F1_MASK ? 0 : 1;
@@ -123,7 +123,7 @@ static unsigned long xgene_clk_pll_recalc_rate(struct clk_hw *hw,
 		nout = SC_OUTDIV2(pll) ? 2 : 3;
 		fvco = parent_rate * SC_N_DIV_RD(pll);
 	}
-	pr_debug("%s pll recalc rate %ld parent %ld version %d\n",
+	pr_de("%s pll recalc rate %ld parent %ld version %d\n",
 		 clk_hw_get_name(hw), fvco / nout, parent_rate,
 		 pllclk->version);
 
@@ -201,7 +201,7 @@ static void xgene_pllclk_init(struct device_node *np, enum xgene_pll_type pll_ty
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 		clk_register_clkdev(clk, clk_name, NULL);
-		pr_debug("Add %s clock PLL\n", clk_name);
+		pr_de("Add %s clock PLL\n", clk_name);
 	}
 }
 
@@ -428,7 +428,7 @@ static void xgene_pmdclk_init(struct device_node *np)
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 		clk_register_clkdev(clk, clk_name, NULL);
-		pr_debug("Add %s clock\n", clk_name);
+		pr_de("Add %s clock\n", clk_name);
 	} else {
 		if (csr_reg)
 			iounmap(csr_reg);
@@ -466,14 +466,14 @@ static int xgene_clk_enable(struct clk_hw *hw)
 		spin_lock_irqsave(pclk->lock, flags);
 
 	if (pclk->param.csr_reg) {
-		pr_debug("%s clock enabled\n", clk_hw_get_name(hw));
+		pr_de("%s clock enabled\n", clk_hw_get_name(hw));
 		/* First enable the clock */
 		data = xgene_clk_read(pclk->param.csr_reg +
 					pclk->param.reg_clk_offset);
 		data |= pclk->param.reg_clk_mask;
 		xgene_clk_write(data, pclk->param.csr_reg +
 					pclk->param.reg_clk_offset);
-		pr_debug("%s clk offset 0x%08X mask 0x%08X value 0x%08X\n",
+		pr_de("%s clk offset 0x%08X mask 0x%08X value 0x%08X\n",
 			clk_hw_get_name(hw),
 			pclk->param.reg_clk_offset, pclk->param.reg_clk_mask,
 			data);
@@ -484,7 +484,7 @@ static int xgene_clk_enable(struct clk_hw *hw)
 		data &= ~pclk->param.reg_csr_mask;
 		xgene_clk_write(data, pclk->param.csr_reg +
 					pclk->param.reg_csr_offset);
-		pr_debug("%s csr offset 0x%08X mask 0x%08X value 0x%08X\n",
+		pr_de("%s csr offset 0x%08X mask 0x%08X value 0x%08X\n",
 			clk_hw_get_name(hw),
 			pclk->param.reg_csr_offset, pclk->param.reg_csr_mask,
 			data);
@@ -506,7 +506,7 @@ static void xgene_clk_disable(struct clk_hw *hw)
 		spin_lock_irqsave(pclk->lock, flags);
 
 	if (pclk->param.csr_reg) {
-		pr_debug("%s clock disabled\n", clk_hw_get_name(hw));
+		pr_de("%s clock disabled\n", clk_hw_get_name(hw));
 		/* First put the CSR in reset */
 		data = xgene_clk_read(pclk->param.csr_reg +
 					pclk->param.reg_csr_offset);
@@ -532,10 +532,10 @@ static int xgene_clk_is_enabled(struct clk_hw *hw)
 	u32 data = 0;
 
 	if (pclk->param.csr_reg) {
-		pr_debug("%s clock checking\n", clk_hw_get_name(hw));
+		pr_de("%s clock checking\n", clk_hw_get_name(hw));
 		data = xgene_clk_read(pclk->param.csr_reg +
 					pclk->param.reg_clk_offset);
-		pr_debug("%s clock is %s\n", clk_hw_get_name(hw),
+		pr_de("%s clock is %s\n", clk_hw_get_name(hw),
 			data & pclk->param.reg_clk_mask ? "enabled" :
 							"disabled");
 	}
@@ -557,13 +557,13 @@ static unsigned long xgene_clk_recalc_rate(struct clk_hw *hw,
 		data >>= pclk->param.reg_divider_shift;
 		data &= (1 << pclk->param.reg_divider_width) - 1;
 
-		pr_debug("%s clock recalc rate %ld parent %ld\n",
+		pr_de("%s clock recalc rate %ld parent %ld\n",
 			clk_hw_get_name(hw),
 			parent_rate / data, parent_rate);
 
 		return parent_rate / data;
 	} else {
-		pr_debug("%s clock recalc rate %ld parent %ld\n",
+		pr_de("%s clock recalc rate %ld parent %ld\n",
 			clk_hw_get_name(hw), parent_rate, parent_rate);
 		return parent_rate;
 	}
@@ -597,7 +597,7 @@ static int xgene_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		data |= divider;
 		xgene_clk_write(data, pclk->param.divider_reg +
 					pclk->param.reg_divider_offset);
-		pr_debug("%s clock set rate %ld\n", clk_hw_get_name(hw),
+		pr_de("%s clock set rate %ld\n", clk_hw_get_name(hw),
 			parent_rate / divider_save);
 	} else {
 		divider_save = 1;
@@ -738,7 +738,7 @@ static void __init xgene_devclk_init(struct device_node *np)
 		of_clk_get_parent_name(np, 0), &parameters, &clk_lock);
 	if (IS_ERR(clk))
 		goto err;
-	pr_debug("Add %s clock\n", clk_name);
+	pr_de("Add %s clock\n", clk_name);
 	rc = of_clk_add_provider(np, of_clk_src_simple_get, clk);
 	if (rc != 0)
 		pr_err("%s: could register provider clk %pOF\n", __func__, np);

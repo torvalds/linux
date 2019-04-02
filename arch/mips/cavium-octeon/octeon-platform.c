@@ -655,7 +655,7 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 	if (eth < 0)
 		return;
 	if (p > max) {
-		pr_debug("Deleting port %x:%x\n", i, p);
+		pr_de("Deleting port %x:%x\n", i, p);
 		octeon_fdt_rm_ethernet(eth);
 		return;
 	}
@@ -803,7 +803,7 @@ int __init octeon_prune_device_tree(void)
 			if (mgmt < 0)
 				continue;
 			if (i >= max_port) {
-				pr_debug("Deleting mix%d\n", i);
+				pr_de("Deleting mix%d\n", i);
 				octeon_fdt_rm_ethernet(mgmt);
 				fdt_nop_property(initial_boot_params, aliases,
 						 name_buffer);
@@ -846,7 +846,7 @@ int __init octeon_prune_device_tree(void)
 			if (i2c < 0)
 				continue;
 			if (i >= max_port) {
-				pr_debug("Deleting twsi%d\n", i);
+				pr_de("Deleting twsi%d\n", i);
 				fdt_nop_node(initial_boot_params, i2c);
 				fdt_nop_property(initial_boot_params, aliases,
 						 name_buffer);
@@ -876,7 +876,7 @@ int __init octeon_prune_device_tree(void)
 			if (i2c < 0)
 				continue;
 			if (i >= max_port) {
-				pr_debug("Deleting smi%d\n", i);
+				pr_de("Deleting smi%d\n", i);
 				fdt_nop_node(initial_boot_params, i2c);
 				fdt_nop_property(initial_boot_params, aliases,
 						 name_buffer);
@@ -910,7 +910,7 @@ int __init octeon_prune_device_tree(void)
 						    &f, sizeof(f));
 				continue;
 			}
-			pr_debug("Deleting uart%d\n", i);
+			pr_de("Deleting uart%d\n", i);
 			fdt_nop_node(initial_boot_params, uart);
 			fdt_nop_property(initial_boot_params, aliases,
 					 name_buffer);
@@ -1085,7 +1085,7 @@ end_led:
 
 		if (uctl >= 0 && (!OCTEON_IS_MODEL(OCTEON_CN6XXX) ||
 				  octeon_bootinfo->board_type == CVMX_BOARD_TYPE_NIC2E)) {
-			pr_debug("Deleting uctl\n");
+			pr_de("Deleting uctl\n");
 			fdt_nop_node(initial_boot_params, uctl);
 			fdt_nop_property(initial_boot_params, aliases, "uctl");
 		} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_NIC10E ||
@@ -1103,7 +1103,7 @@ end_led:
 
 		if (usbn >= 0 && (current_cpu_type() == CPU_CAVIUM_OCTEON2 ||
 				  !octeon_has_feature(OCTEON_FEATURE_USB))) {
-			pr_debug("Deleting usbn\n");
+			pr_de("Deleting usbn\n");
 			fdt_nop_node(initial_boot_params, usbn);
 			fdt_nop_property(initial_boot_params, aliases, "usbn");
 		} else  {

@@ -1959,42 +1959,42 @@ ftrace_find_tramp_ops_any(struct dyn_ftrace *rec);
 static struct ftrace_ops *
 ftrace_find_tramp_ops_next(struct dyn_ftrace *rec, struct ftrace_ops *ops);
 
-enum ftrace_bug_type ftrace_bug_type;
+enum ftrace__type ftrace__type;
 const void *ftrace_expected;
 
-static void print_bug_type(void)
+static void print__type(void)
 {
-	switch (ftrace_bug_type) {
-	case FTRACE_BUG_UNKNOWN:
+	switch (ftrace__type) {
+	case FTRACE__UNKNOWN:
 		break;
-	case FTRACE_BUG_INIT:
+	case FTRACE__INIT:
 		pr_info("Initializing ftrace call sites\n");
 		break;
-	case FTRACE_BUG_NOP:
+	case FTRACE__NOP:
 		pr_info("Setting ftrace call site to NOP\n");
 		break;
-	case FTRACE_BUG_CALL:
+	case FTRACE__CALL:
 		pr_info("Setting ftrace call site to call ftrace function\n");
 		break;
-	case FTRACE_BUG_UPDATE:
+	case FTRACE__UPDATE:
 		pr_info("Updating ftrace call site to call a different ftrace function\n");
 		break;
 	}
 }
 
 /**
- * ftrace_bug - report and shutdown function tracer
+ * ftrace_ - report and shutdown function tracer
  * @failed: The failed type (EFAULT, EINVAL, EPERM)
  * @rec: The record that failed
  *
  * The arch code that enables or disables the function tracing
- * can call ftrace_bug() when it has detected a problem in
+ * can call ftrace_() when it has detected a problem in
  * modifying the code. @failed should be one of either:
  * EFAULT - if the problem happens on reading the @ip address
  * EINVAL - if what is read at @ip is not what was expected
  * EPERM - if the problem happens on writing to the @ip address
  */
-void ftrace_bug(int failed, struct dyn_ftrace *rec)
+void ftrace_(int failed, struct dyn_ftrace *rec)
 {
 	unsigned long ip = rec ? rec->ip : 0;
 
@@ -2025,7 +2025,7 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 		pr_info("ftrace faulted on unknown error ");
 		print_ip_sym(ip);
 	}
-	print_bug_type();
+	print__type();
 	if (rec) {
 		struct ftrace_ops *ops = NULL;
 
@@ -2054,7 +2054,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 {
 	unsigned long flag = 0UL;
 
-	ftrace_bug_type = FTRACE_BUG_UNKNOWN;
+	ftrace__type = FTRACE__UNKNOWN;
 
 	if (rec->flags & FTRACE_FL_DISABLED)
 		return FTRACE_UPDATE_IGNORE;
@@ -2121,11 +2121,11 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 		 *   vice versa, or from a trampoline call.
 		 */
 		if (flag & FTRACE_FL_ENABLED) {
-			ftrace_bug_type = FTRACE_BUG_CALL;
+			ftrace__type = FTRACE__CALL;
 			return FTRACE_UPDATE_MAKE_CALL;
 		}
 
-		ftrace_bug_type = FTRACE_BUG_UPDATE;
+		ftrace__type = FTRACE__UPDATE;
 		return FTRACE_UPDATE_MODIFY_CALL;
 	}
 
@@ -2142,7 +2142,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 					FTRACE_FL_REGS_EN);
 	}
 
-	ftrace_bug_type = FTRACE_BUG_NOP;
+	ftrace__type = FTRACE__NOP;
 	return FTRACE_UPDATE_MAKE_NOP;
 }
 
@@ -2372,26 +2372,26 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_update_record(rec, enable);
 
-	ftrace_bug_type = FTRACE_BUG_UNKNOWN;
+	ftrace__type = FTRACE__UNKNOWN;
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
 	case FTRACE_UPDATE_MAKE_CALL:
-		ftrace_bug_type = FTRACE_BUG_CALL;
+		ftrace__type = FTRACE__CALL;
 		return ftrace_make_call(rec, ftrace_addr);
 
 	case FTRACE_UPDATE_MAKE_NOP:
-		ftrace_bug_type = FTRACE_BUG_NOP;
+		ftrace__type = FTRACE__NOP;
 		return ftrace_make_nop(NULL, rec, ftrace_old_addr);
 
 	case FTRACE_UPDATE_MODIFY_CALL:
-		ftrace_bug_type = FTRACE_BUG_UPDATE;
+		ftrace__type = FTRACE__UPDATE;
 		return ftrace_modify_call(rec, ftrace_old_addr, ftrace_addr);
 	}
 
-	return -1; /* unknown ftrace bug */
+	return -1; /* unknown ftrace  */
 }
 
 void __weak ftrace_replace_code(int mod_flags)
@@ -2412,7 +2412,7 @@ void __weak ftrace_replace_code(int mod_flags)
 
 		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
-			ftrace_bug(failed, rec);
+			ftrace_(failed, rec);
 			/* Stop processing */
 			return;
 		}
@@ -2503,8 +2503,8 @@ ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 
 	ret = ftrace_make_nop(mod, rec, MCOUNT_ADDR);
 	if (ret) {
-		ftrace_bug_type = FTRACE_BUG_INIT;
-		ftrace_bug(ret, rec);
+		ftrace__type = FTRACE__INIT;
+		ftrace_(ret, rec);
 		return 0;
 	}
 	return 1;
@@ -4936,7 +4936,7 @@ static void __init set_ftrace_early_graph(char *buf, int enable)
 		/* we allow only one expression at a time */
 		ret = ftrace_graph_set_hash(hash, func);
 		if (ret)
-			printk(KERN_DEBUG "ftrace: function %s not "
+			printk(KERN_DE "ftrace: function %s not "
 					  "traceable\n", func);
 	}
 
@@ -5828,7 +5828,7 @@ void ftrace_module_enable(struct module *mod)
 		if (ftrace_start_up && cnt) {
 			int failed = __ftrace_replace_code(rec, 1);
 			if (failed) {
-				ftrace_bug(failed, rec);
+				ftrace_(failed, rec);
 				goto out_loop;
 			}
 		}

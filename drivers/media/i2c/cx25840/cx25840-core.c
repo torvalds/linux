@@ -71,11 +71,11 @@ MODULE_LICENSE("GPL");
 #define CX25840_IR_STATS_REG	0x210
 #define CX25840_IR_IRQEN_REG	0x214
 
-static int cx25840_debug;
+static int cx25840_de;
 
-module_param_named(debug,cx25840_debug, int, 0644);
+module_param_named(de,cx25840_de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
+MODULE_PARM_DESC(de, "Deging messages [0=Off (default) 1=On]");
 
 
 /* ----------------------------------------------------------------------- */
@@ -862,12 +862,12 @@ void cx25840_std_setup(struct i2c_client *client)
 		}
 	}
 
-	/* DEBUG: Displays configured PLL frequency */
+	/* DE: Displays configured PLL frequency */
 	if (!is_cx231xx(state)) {
 		pll_int = cx25840_read(client, 0x108);
 		pll_frac = cx25840_read4(client, 0x10c) & 0x1ffffff;
 		pll_post = cx25840_read(client, 0x109);
-		v4l_dbg(1, cx25840_debug, client,
+		v4l_dbg(1, cx25840_de, client,
 			"PLL regs = int: %u, frac: %u, post: %u\n",
 			pll_int, pll_frac, pll_post);
 
@@ -876,22 +876,22 @@ void cx25840_std_setup(struct i2c_client *client)
 			int pll = (28636363L * ((((u64)pll_int) << 25L) + pll_frac)) >> 25L;
 
 			pll /= pll_post;
-			v4l_dbg(1, cx25840_debug, client, "PLL = %d.%06d MHz\n",
+			v4l_dbg(1, cx25840_de, client, "PLL = %d.%06d MHz\n",
 					pll / 1000000, pll % 1000000);
-			v4l_dbg(1, cx25840_debug, client, "PLL/8 = %d.%06d MHz\n",
+			v4l_dbg(1, cx25840_de, client, "PLL/8 = %d.%06d MHz\n",
 					pll / 8000000, (pll / 8) % 1000000);
 
 			fin = ((u64)src_decimation * pll) >> 12;
-			v4l_dbg(1, cx25840_debug, client,
+			v4l_dbg(1, cx25840_de, client,
 					"ADC Sampling freq = %d.%06d MHz\n",
 					fin / 1000000, fin % 1000000);
 
 			fsc = (((u64)sc) * pll) >> 24L;
-			v4l_dbg(1, cx25840_debug, client,
+			v4l_dbg(1, cx25840_de, client,
 					"Chroma sub-carrier freq = %d.%06d MHz\n",
 					fsc / 1000000, fsc % 1000000);
 
-			v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, vblank %i, vactive %i, vblank656 %i, src_dec %i, burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, sc 0x%06x\n",
+			v4l_dbg(1, cx25840_de, client, "hblank %i, hactive %i, vblank %i, vactive %i, vblank656 %i, src_dec %i, burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, sc 0x%06x\n",
 				hblank, hactive, vblank, vactive, vblank656,
 				src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
 		}
@@ -967,7 +967,7 @@ static void input_change(struct i2c_client *client)
 		cx25840_write(client, 0x80b, 0x00);
 	}
 	else if (std & V4L2_STD_525_60) {
-		/* Certain Hauppauge PVR150 models have a hardware bug
+		/* Certain Hauppauge PVR150 models have a hardware 
 		   that causes audio to drop out. For these models the
 		   audio standard must be set explicitly.
 		   To be precise: it affects cards with tuner models
@@ -1032,18 +1032,18 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	u8 reg;
 	u32 val;
 
-	v4l_dbg(1, cx25840_debug, client,
+	v4l_dbg(1, cx25840_de, client,
 		"decoder set video input %d, audio input %d\n",
 		vid_input, aud_input);
 
 	if (vid_input >= CX25840_VIN1_CH1) {
-		v4l_dbg(1, cx25840_debug, client, "vid_input 0x%x\n",
+		v4l_dbg(1, cx25840_de, client, "vid_input 0x%x\n",
 			vid_input);
 		reg = vid_input & 0xff;
 		is_composite = !is_component &&
 			((vid_input & CX25840_SVIDEO_ON) != CX25840_SVIDEO_ON);
 
-		v4l_dbg(1, cx25840_debug, client, "mux cfg 0x%x comp=%d\n",
+		v4l_dbg(1, cx25840_de, client, "mux cfg 0x%x comp=%d\n",
 			reg, is_composite);
 	} else if (is_composite) {
 		reg = 0xf0 + (vid_input - CX25840_COMPOSITE1);
@@ -1306,7 +1306,7 @@ static int set_v4lstd(struct i2c_client *client)
 			fmt = 0xc;
 	}
 
-	v4l_dbg(1, cx25840_debug, client, "changing video std to fmt %i\n",fmt);
+	v4l_dbg(1, cx25840_de, client, "changing video std to fmt %i\n",fmt);
 
 	/* Follow step 9 of section 3.16 in the cx25840 datasheet.
 	   Without this PAL may display a vertical ghosting effect.
@@ -1434,7 +1434,7 @@ static int cx25840_set_fmt(struct v4l2_subdev *sd,
 	else
 		filter = 3;
 
-	v4l_dbg(1, cx25840_debug, client, "decoder set size %dx%d -> scale  %ux%u\n",
+	v4l_dbg(1, cx25840_de, client, "decoder set size %dx%d -> scale  %ux%u\n",
 			fmt->width, fmt->height, HSC, VSC);
 
 	/* HSCALE=HSC */
@@ -1679,7 +1679,7 @@ static int cx25840_load_fw(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int cx25840_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1707,7 +1707,7 @@ static int cx25840_s_audio_stream(struct v4l2_subdev *sd, int enable)
 	if (is_cx2583x(state) || is_cx2388x(state) || is_cx231xx(state))
 		return 0;
 
-	v4l_dbg(1, cx25840_debug, client, "%s audio output\n",
+	v4l_dbg(1, cx25840_de, client, "%s audio output\n",
 			enable ? "enable" : "disable");
 
 	if (enable) {
@@ -1730,7 +1730,7 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 v;
 
-	v4l_dbg(1, cx25840_debug, client, "%s video output\n",
+	v4l_dbg(1, cx25840_de, client, "%s video output\n",
 			enable ? "enable" : "disable");
 
 	/*
@@ -1786,7 +1786,7 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 	u32 fmt = (cx25840_read4(client, 0x40c) >> 8) & 0xf;
 	*std = stds[ fmt ];
 
-	v4l_dbg(1, cx25840_debug, client, "g_std fmt = %x, v4l2_std_id = 0x%x\n",
+	v4l_dbg(1, cx25840_de, client, "g_std fmt = %x, v4l2_std_id = 0x%x\n",
 		fmt, (unsigned int)stds[ fmt ]);
 
 	return 0;
@@ -1977,7 +1977,7 @@ static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 	int ret = 0;
 
 	irq_stat = cx25840_read(c, CX23885_PIN_CTRL_IRQ_REG);
-	v4l_dbg(2, cx25840_debug, c, "AV Core IRQ status (entry): %s %s %s\n",
+	v4l_dbg(2, cx25840_de, c, "AV Core IRQ status (entry): %s %s %s\n",
 		irq_stat & CX23885_PIN_CTRL_IRQ_IR_STAT ? "ir" : "  ",
 		irq_stat & CX23885_PIN_CTRL_IRQ_AUD_STAT ? "aud" : "   ",
 		irq_stat & CX23885_PIN_CTRL_IRQ_VID_STAT ? "vid" : "   ");
@@ -1985,7 +1985,7 @@ static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 	if ((is_cx23885(state) || is_cx23887(state))) {
 		ir_stat = cx25840_read(c, CX25840_IR_STATS_REG);
 		ir_en = cx25840_read(c, CX25840_IR_IRQEN_REG);
-		v4l_dbg(2, cx25840_debug, c,
+		v4l_dbg(2, cx25840_de, c,
 			"AV Core ir IRQ status: %#04x disables: %#04x\n",
 			ir_stat, ir_en);
 		if (irq_stat & CX23885_PIN_CTRL_IRQ_IR_STAT) {
@@ -1999,11 +1999,11 @@ static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 
 	aud_stat = cx25840_read(c, CX25840_AUD_INT_STAT_REG);
 	aud_en = cx25840_read(c, CX25840_AUD_INT_CTRL_REG);
-	v4l_dbg(2, cx25840_debug, c,
+	v4l_dbg(2, cx25840_de, c,
 		"AV Core audio IRQ status: %#04x disables: %#04x\n",
 		aud_stat, aud_en);
 	aud_mc_stat = cx25840_read4(c, CX23885_AUD_MC_INT_MASK_REG);
-	v4l_dbg(2, cx25840_debug, c,
+	v4l_dbg(2, cx25840_de, c,
 		"AV Core audio MC IRQ status: %#06x enables: %#06x\n",
 		aud_mc_stat >> CX23885_AUD_MC_INT_STAT_SHFT,
 		aud_mc_stat & CX23885_AUD_MC_INT_CTRL_BITS);
@@ -2015,7 +2015,7 @@ static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 	}
 
 	vid_stat = cx25840_read4(c, CX25840_VID_INT_STAT_REG);
-	v4l_dbg(2, cx25840_debug, c,
+	v4l_dbg(2, cx25840_de, c,
 		"AV Core video IRQ status: %#06x disables: %#06x\n",
 		vid_stat & CX25840_VID_INT_STAT_BITS,
 		vid_stat >> CX25840_VID_INT_MASK_SHFT);
@@ -2027,7 +2027,7 @@ static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
 	}
 
 	irq_stat = cx25840_read(c, CX23885_PIN_CTRL_IRQ_REG);
-	v4l_dbg(2, cx25840_debug, c, "AV Core IRQ status (exit): %s %s %s\n",
+	v4l_dbg(2, cx25840_de, c, "AV Core IRQ status (exit): %s %s %s\n",
 		irq_stat & CX23885_PIN_CTRL_IRQ_IR_STAT ? "ir" : "  ",
 		irq_stat & CX23885_PIN_CTRL_IRQ_AUD_STAT ? "aud" : "   ",
 		irq_stat & CX23885_PIN_CTRL_IRQ_VID_STAT ? "vid" : "   ");
@@ -2077,7 +2077,7 @@ static void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 	u64 pll_freq;
 	u32 pll_freq_word;
 
-	v4l_dbg(1, cx25840_debug, client, "%s(%d)\n", __func__, ifHz);
+	v4l_dbg(1, cx25840_de, client, "%s(%d)\n", __func__, ifHz);
 
 	/* Assuming TV */
 	/* Calculate the PLL frequency word based on the adjusted ifHz */
@@ -2095,7 +2095,7 @@ static void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 	if (ifHz > 16000000)
 		ifHz = 16000000;
 
-	v4l_dbg(1, cx25840_debug, client, "%s(%d) again\n", __func__, ifHz);
+	v4l_dbg(1, cx25840_de, client, "%s(%d) again\n", __func__, ifHz);
 
 	switch (ifHz) {
 	case 3000000:
@@ -4994,7 +4994,7 @@ static void cx23888_std_setup(struct i2c_client *client)
 	cx25840_write4(client, 0x47c, 0x010a8263);
 
 	if (std & V4L2_STD_525_60) {
-		v4l_dbg(1, cx25840_debug, client, "%s() Selecting NTSC",
+		v4l_dbg(1, cx25840_de, client, "%s() Selecting NTSC",
 			__func__);
 
 		/* Horiz / vert timing */
@@ -5018,7 +5018,7 @@ static void cx23888_std_setup(struct i2c_client *client)
 		ifHz = 5400000;
 
 	} else {
-		v4l_dbg(1, cx25840_debug, client, "%s() Selecting PAL-BG",
+		v4l_dbg(1, cx25840_de, client, "%s() Selecting PAL-BG",
 			__func__);
 
 		/* Horiz / vert timing */
@@ -5061,7 +5061,7 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.reset = cx25840_reset,
 	.load_fw = cx25840_load_fw,
 	.s_io_pin_config = common_s_io_pin_config,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = cx25840_g_register,
 	.s_register = cx25840_s_register,
 #endif
@@ -5166,11 +5166,11 @@ static int cx25840_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
+	v4l_dbg(1, cx25840_de, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
 
 	device_id = cx25840_read(client, 0x101) << 8;
 	device_id |= cx25840_read(client, 0x100);
-	v4l_dbg(1, cx25840_debug, client, "device_id = 0x%04x\n", device_id);
+	v4l_dbg(1, cx25840_de, client, "device_id = 0x%04x\n", device_id);
 
 	/* The high byte of the device ID should be
 	 * 0x83 for the cx2583x and 0x84 for the cx2584x */
@@ -5190,7 +5190,7 @@ static int cx25840_probe(struct i2c_client *client,
 		v4l_err(client, "A method to reset it from the cx25840 driver software is not known at this time\n");
 		return -ENODEV;
 	} else {
-		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
+		v4l_dbg(1, cx25840_de, client, "cx25840 not found\n");
 		return -ENODEV;
 	}
 

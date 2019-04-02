@@ -314,7 +314,7 @@ void ttm_tt_unbind(struct ttm_tt *ttm)
 
 	if (ttm->state == tt_bound) {
 		ret = ttm->func->unbind(ttm);
-		BUG_ON(ret);
+		_ON(ret);
 		ttm->state = tt_unbound;
 	}
 }
@@ -354,7 +354,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	int ret = -ENOMEM;
 
 	swap_storage = ttm->swap_storage;
-	BUG_ON(swap_storage == NULL);
+	_ON(swap_storage == NULL);
 
 	swap_space = swap_storage->f_mapping;
 
@@ -395,8 +395,8 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 	int i;
 	int ret = -ENOMEM;
 
-	BUG_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
-	BUG_ON(ttm->caching_state != tt_cached);
+	_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
+	_ON(ttm->caching_state != tt_cached);
 
 	if (!persistent_swap_storage) {
 		swap_storage = shmem_file_setup("ttm swap",

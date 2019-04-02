@@ -13,7 +13,7 @@
 */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -40,8 +40,8 @@
 #include "camif-core.h"
 #include "camif-regs.h"
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 /* Locking: called with vp->camif->slock spinlock held */
 static void camif_cfg_video_path(struct camif_vp *vp)
@@ -60,7 +60,7 @@ static void camif_prepare_dma_offset(struct camif_vp *vp)
 	f->dma_offset.initial = f->rect.top * f->f_width + f->rect.left;
 	f->dma_offset.line = f->f_width - (f->rect.left + f->rect.width);
 
-	pr_debug("dma_offset: initial: %d, line: %d\n",
+	pr_de("dma_offset: initial: %d, line: %d\n",
 		 f->dma_offset.initial, f->dma_offset.line);
 }
 
@@ -122,7 +122,7 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
 
-	pr_debug("on: %d, power_count: %d, err: %d\n",
+	pr_de("on: %d, power_count: %d, err: %d\n",
 		 on, sensor->power_count, err);
 
 	return err;
@@ -138,7 +138,7 @@ static int sensor_set_streaming(struct camif_dev *camif, int on)
 	if (!err)
 		sensor->stream_count += on ? 1 : -1;
 
-	pr_debug("on: %d, stream_count: %d, err: %d\n",
+	pr_de("on: %d, stream_count: %d, err: %d\n",
 		 on, sensor->stream_count, err);
 
 	return err;
@@ -252,7 +252,7 @@ static int camif_prepare_addr(struct camif_vp *vp, struct vb2_buffer *vb,
 
 	pix_size = frame->rect.width * frame->rect.height;
 
-	pr_debug("colplanes: %d, pix_size: %u\n",
+	pr_de("colplanes: %d, pix_size: %u\n",
 		 vp->out_fmt->colplanes, pix_size);
 
 	paddr->y = vb2_dma_contig_plane_dma_addr(vb, 0);
@@ -282,7 +282,7 @@ static int camif_prepare_addr(struct camif_vp *vp, struct vb2_buffer *vb,
 		return -EINVAL;
 	}
 
-	pr_debug("DMA address: y: %pad  cb: %pad cr: %pad\n",
+	pr_de("DMA address: y: %pad  cb: %pad cr: %pad\n",
 		 &paddr->y, &paddr->cb, &paddr->cr);
 
 	return 0;
@@ -420,7 +420,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 			ret = sensor_set_streaming(camif, 1);
 			if (ret)
 				v4l2_err(&vp->vdev, "Sensor s_stream failed\n");
-			if (debug)
+			if (de)
 				camif_hw_dump_regs(camif, __func__);
 
 			return ret;
@@ -457,7 +457,7 @@ static int queue_setup(struct vb2_queue *vq,
 	*num_planes = 1;
 	sizes[0] = size;
 
-	pr_debug("size: %u\n", sizes[0]);
+	pr_de("size: %u\n", sizes[0]);
 	return 0;
 }
 
@@ -516,7 +516,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 			else
 				v4l2_err(&vp->vdev, "Sensor s_stream failed\n");
 
-			if (debug)
+			if (de)
 				camif_hw_dump_regs(camif, __func__);
 		}
 		return;
@@ -540,7 +540,7 @@ static int s3c_camif_open(struct file *file)
 	struct camif_dev *camif = vp->camif;
 	int ret;
 
-	pr_debug("[vp%d] state: %#x,  owner: %p, pid: %d\n", vp->id,
+	pr_de("[vp%d] state: %#x,  owner: %p, pid: %d\n", vp->id,
 		 vp->state, vp->owner, task_pid_nr(current));
 
 	if (mutex_lock_interruptible(&camif->lock))
@@ -572,7 +572,7 @@ static int s3c_camif_close(struct file *file)
 	struct camif_dev *camif = vp->camif;
 	int ret;
 
-	pr_debug("[vp%d] state: %#x, owner: %p, pid: %d\n", vp->id,
+	pr_de("[vp%d] state: %#x, owner: %p, pid: %d\n", vp->id,
 		 vp->state, vp->owner, task_pid_nr(current));
 
 	mutex_lock(&camif->lock);
@@ -691,7 +691,7 @@ static int s3c_camif_vidioc_enum_fmt(struct file *file, void *priv,
 	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 
-	pr_debug("fmt(%d): %s\n", f->index, f->description);
+	pr_de("fmt(%d): %s\n", f->index, f->description);
 	return 0;
 }
 
@@ -735,7 +735,7 @@ static int __camif_video_try_format(struct camif_vp *vp,
 
 	pix_lim = &camif->variant->vp_pix_limits[vp->id];
 
-	pr_debug("fmt: %ux%u, crop: %ux%u, bytesperline: %u\n",
+	pr_de("fmt: %ux%u, crop: %ux%u, bytesperline: %u\n",
 		 pix->width, pix->height, crop->width, crop->height,
 		 pix->bytesperline);
 	/*
@@ -760,7 +760,7 @@ static int __camif_video_try_format(struct camif_vp *vp,
 	pix->colorspace = V4L2_COLORSPACE_JPEG;
 	pix->field = V4L2_FIELD_NONE;
 
-	pr_debug("%ux%u, wmin: %d, hmin: %d, sc_hrmax: %d, sc_vrmax: %d\n",
+	pr_de("%ux%u, wmin: %d, hmin: %d, sc_hrmax: %d, sc_vrmax: %d\n",
 		 pix->width, pix->height, wmin, hmin, sc_hrmax, sc_vrmax);
 
 	return 0;
@@ -782,7 +782,7 @@ static int s3c_camif_vidioc_s_fmt(struct file *file, void *priv,
 	const struct camif_fmt *fmt = NULL;
 	int ret;
 
-	pr_debug("[vp%d]\n", vp->id);
+	pr_de("[vp%d]\n", vp->id);
 
 	if (vb2_is_busy(&vp->vb_queue))
 		return -EBUSY;
@@ -805,7 +805,7 @@ static int s3c_camif_vidioc_s_fmt(struct file *file, void *priv,
 	if (vp->owner == NULL)
 		vp->owner = priv;
 
-	pr_debug("%ux%u. payload: %u. fmt: %s. %d %d. sizeimage: %d. bpl: %d\n",
+	pr_de("%ux%u. payload: %u. fmt: %s. %d %d. sizeimage: %d. bpl: %d\n",
 		out_frame->f_width, out_frame->f_height, vp->payload, fmt->name,
 		pix->width * pix->height * fmt->depth, fmt->depth,
 		pix->sizeimage, pix->bytesperline);
@@ -847,7 +847,7 @@ static int s3c_camif_streamon(struct file *file, void *priv,
 	struct media_entity *sensor = &camif->sensor.sd->entity;
 	int ret;
 
-	pr_debug("[vp%d]\n", vp->id);
+	pr_de("[vp%d]\n", vp->id);
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -878,7 +878,7 @@ static int s3c_camif_streamoff(struct file *file, void *priv,
 	struct camif_dev *camif = vp->camif;
 	int ret;
 
-	pr_debug("[vp%d]\n", vp->id);
+	pr_de("[vp%d]\n", vp->id);
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -898,7 +898,7 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 	struct camif_vp *vp = video_drvdata(file);
 	int ret;
 
-	pr_debug("[vp%d] rb count: %d, owner: %p, priv: %p\n",
+	pr_de("[vp%d] rb count: %d, owner: %p, priv: %p\n",
 		 vp->id, rb->count, vp->owner, priv);
 
 	if (vp->owner && vp->owner != priv)
@@ -938,7 +938,7 @@ static int s3c_camif_qbuf(struct file *file, void *priv,
 {
 	struct camif_vp *vp = video_drvdata(file);
 
-	pr_debug("[vp%d]\n", vp->id);
+	pr_de("[vp%d]\n", vp->id);
 
 	if (vp->owner && vp->owner != priv)
 		return -EBUSY;
@@ -951,7 +951,7 @@ static int s3c_camif_dqbuf(struct file *file, void *priv,
 {
 	struct camif_vp *vp = video_drvdata(file);
 
-	pr_debug("[vp%d] sequence: %d\n", vp->id, vp->frame_sequence);
+	pr_de("[vp%d] sequence: %d\n", vp->id, vp->frame_sequence);
 
 	if (vp->owner && vp->owner != priv)
 		return -EBUSY;
@@ -1041,7 +1041,7 @@ static int s3c_camif_s_selection(struct file *file, void *priv,
 	vp->state |= ST_VP_CONFIG;
 	spin_unlock_irqrestore(&camif->slock, flags);
 
-	pr_debug("type: %#x, target: %#x, flags: %#x, (%d,%d)/%dx%d\n",
+	pr_de("type: %#x, target: %#x, flags: %#x, (%d,%d)/%dx%d\n",
 		sel->type, sel->target, sel->flags,
 		sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
@@ -1081,7 +1081,7 @@ static int s3c_camif_video_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct camif_dev *camif = vp->camif;
 	unsigned long flags;
 
-	pr_debug("[vp%d] ctrl: %s, value: %d\n", vp->id,
+	pr_de("[vp%d] ctrl: %s, value: %d\n", vp->id,
 		 ctrl->name, ctrl->val);
 
 	spin_lock_irqsave(&camif->slock, flags);
@@ -1283,7 +1283,7 @@ static void __camif_subdev_try_format(struct camif_dev *camif,
 				      0, 0);
 	}
 
-	v4l2_dbg(1, debug, &camif->subdev, "%ux%u\n", mf->width, mf->height);
+	v4l2_dbg(1, de, &camif->subdev, "%ux%u\n", mf->width, mf->height);
 }
 
 static int s3c_camif_subdev_set_fmt(struct v4l2_subdev *sd,
@@ -1295,7 +1295,7 @@ static int s3c_camif_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_rect *crop = &camif->camif_crop;
 	int i;
 
-	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %ux%u\n",
+	v4l2_dbg(1, de, sd, "pad%d: code: 0x%x, %ux%u\n",
 		 fmt->pad, mf->code, mf->width, mf->height);
 
 	mf->field = V4L2_FIELD_NONE;
@@ -1384,7 +1384,7 @@ static int s3c_camif_subdev_get_selection(struct v4l2_subdev *sd,
 
 	mutex_unlock(&camif->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: crop: (%d,%d) %dx%d, size: %ux%u\n",
+	v4l2_dbg(1, de, sd, "%s: crop: (%d,%d) %dx%d, size: %ux%u\n",
 		 __func__, crop->left, crop->top, crop->width,
 		 crop->height, mf->width, mf->height);
 
@@ -1431,12 +1431,12 @@ static void __camif_try_crop(struct camif_dev *camif, struct v4l2_rect *r)
 			if ((or->width > r->width) == (or->height > r->height))
 				continue;
 			*r = camif->camif_crop;
-			pr_debug("Width/height scaling direction limitation\n");
+			pr_de("Width/height scaling direction limitation\n");
 			break;
 		}
 	}
 
-	v4l2_dbg(1, debug, &camif->v4l2_dev, "crop: (%d,%d)/%dx%d, fmt: %ux%u\n",
+	v4l2_dbg(1, de, &camif->v4l2_dev, "crop: (%d,%d)/%dx%d, fmt: %ux%u\n",
 		 r->left, r->top, r->width, r->height, mf->width, mf->height);
 }
 
@@ -1476,7 +1476,7 @@ static int s3c_camif_subdev_set_selection(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&camif->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %u, f_h: %u\n",
+	v4l2_dbg(1, de, sd, "%s: (%d,%d) %dx%d, f_w: %u, f_h: %u\n",
 		 __func__, crop->left, crop->top, crop->width, crop->height,
 		 camif->mbus_fmt.width, camif->mbus_fmt.height);
 
@@ -1633,7 +1633,7 @@ int s3c_camif_set_defaults(struct camif_dev *camif)
 			vp->fmt_flags = FMT_FL_S3C64XX;
 
 		vp->out_fmt = s3c_camif_find_format(vp, NULL, 0);
-		BUG_ON(vp->out_fmt == NULL);
+		_ON(vp->out_fmt == NULL);
 
 		memset(f, 0, sizeof(*f));
 		f->f_width = CAMIF_DEF_WIDTH;

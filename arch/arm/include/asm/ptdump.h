@@ -20,24 +20,24 @@ struct ptdump_info {
 };
 
 void ptdump_walk_pgd(struct seq_file *s, struct ptdump_info *info);
-#ifdef CONFIG_ARM_PTDUMP_DEBUGFS
-int ptdump_debugfs_register(struct ptdump_info *info, const char *name);
+#ifdef CONFIG_ARM_PTDUMP_DEFS
+int ptdump_defs_register(struct ptdump_info *info, const char *name);
 #else
-static inline int ptdump_debugfs_register(struct ptdump_info *info,
+static inline int ptdump_defs_register(struct ptdump_info *info,
 					const char *name)
 {
 	return 0;
 }
-#endif /* CONFIG_ARM_PTDUMP_DEBUGFS */
+#endif /* CONFIG_ARM_PTDUMP_DEFS */
 
 void ptdump_check_wx(void);
 
 #endif /* CONFIG_ARM_PTDUMP_CORE */
 
-#ifdef CONFIG_DEBUG_WX
-#define debug_checkwx() ptdump_check_wx()
+#ifdef CONFIG_DE_WX
+#define de_checkwx() ptdump_check_wx()
 #else
-#define debug_checkwx() do { } while (0)
+#define de_checkwx() do { } while (0)
 #endif
 
 #endif /* __ASM_PTDUMP_H */

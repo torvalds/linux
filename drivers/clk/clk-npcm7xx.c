@@ -78,7 +78,7 @@ npcm7xx_clk_register_pll(void __iomem *pllcon, const char *name,
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
-	pr_debug("%s reg, name=%s, p=%s\n", __func__, name, parent_name);
+	pr_de("%s reg, name=%s, p=%s\n", __func__, name, parent_name);
 
 	init.name = name;
 	init.ops = &npcm7xx_clk_pll_ops;

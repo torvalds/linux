@@ -25,7 +25,7 @@ Description:
 		connected slave. A terminate resets the slave's state machines
 		that control access to the internally connected engines.  In
 		addition the slave freezes its internal error register for
-		debugging purposes.  This command is also needed to abort any
+		deging purposes.  This command is also needed to abort any
 		ongoing operation in case of an expired 'Master Time Out'
 		timer.
 

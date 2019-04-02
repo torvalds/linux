@@ -28,7 +28,7 @@
 #include <linux/inet.h>
 #include "cifsglob.h"
 #include "cifs_spnego.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifsproto.h"
 static const struct cred *spnego_cred;
 
@@ -173,13 +173,13 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo)
 	spnego_key = request_key(&cifs_spnego_key_type, description, "");
 	revert_creds(saved_cred);
 
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	if (cifsFYI && !IS_ERR(spnego_key)) {
 		struct cifs_spnego_msg *msg = spnego_key->payload.data[0];
 		cifs_dump_mem("SPNEGO reply blob:", msg->data, min(1024U,
 				msg->secblob_len + msg->sesskey_len));
 	}
-#endif /* CONFIG_CIFS_DEBUG2 */
+#endif /* CONFIG_CIFS_DE2 */
 
 out:
 	kfree(description);

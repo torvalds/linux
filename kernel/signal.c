@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/user.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/cputime.h>
@@ -276,9 +276,9 @@ static inline void print_dropped_signal(int sig)
  */
 bool task_set_jobctl_pending(struct task_struct *task, unsigned long mask)
 {
-	BUG_ON(mask & ~(JOBCTL_PENDING_MASK | JOBCTL_STOP_CONSUME |
+	_ON(mask & ~(JOBCTL_PENDING_MASK | JOBCTL_STOP_CONSUME |
 			JOBCTL_STOP_SIGMASK | JOBCTL_TRAPPING));
-	BUG_ON((mask & JOBCTL_TRAPPING) && !(mask & JOBCTL_PENDING_MASK));
+	_ON((mask & JOBCTL_TRAPPING) && !(mask & JOBCTL_PENDING_MASK));
 
 	if (unlikely(fatal_signal_pending(task) || (task->flags & PF_EXITING)))
 		return false;
@@ -328,7 +328,7 @@ void task_clear_jobctl_trapping(struct task_struct *task)
  */
 void task_clear_jobctl_pending(struct task_struct *task, unsigned long mask)
 {
-	BUG_ON(mask & ~JOBCTL_PENDING_MASK);
+	_ON(mask & ~JOBCTL_PENDING_MASK);
 
 	if (mask & JOBCTL_STOP_PENDING)
 		mask |= JOBCTL_STOP_CONSUME | JOBCTL_STOP_DEQUEUED;
@@ -1290,7 +1290,7 @@ force_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *t)
 	}
 	/*
 	 * Don't clear SIGNAL_UNKILLABLE for traced tasks, users won't expect
-	 * debugging to leave init killable.
+	 * deging to leave init killable.
 	 */
 	if (action->sa.sa_handler == SIG_DFL && !t->ptrace)
 		t->signal->flags &= ~SIGNAL_UNKILLABLE;
@@ -1732,7 +1732,7 @@ void sigqueue_free(struct sigqueue *q)
 	unsigned long flags;
 	spinlock_t *lock = &current->sighand->siglock;
 
-	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
+	_ON(!(q->flags & SIGQUEUE_PREALLOC));
 	/*
 	 * We must hold ->siglock while testing q->list
 	 * to serialize with collect_signal() or with
@@ -1760,7 +1760,7 @@ int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type)
 	unsigned long flags;
 	int ret, result;
 
-	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
+	_ON(!(q->flags & SIGQUEUE_PREALLOC));
 
 	ret = -1;
 	rcu_read_lock();
@@ -1779,7 +1779,7 @@ int send_sigqueue(struct sigqueue *q, struct pid *pid, enum pid_type type)
 		 * If an SI_TIMER entry is already queue just increment
 		 * the overrun count.
 		 */
-		BUG_ON(q->info.si_code != SI_TIMER);
+		_ON(q->info.si_code != SI_TIMER);
 		q->info.si_overrun++;
 		result = TRACE_SIGNAL_ALREADY_PENDING;
 		goto out;
@@ -1815,12 +1815,12 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 	bool autoreap = false;
 	u64 utime, stime;
 
-	BUG_ON(sig == -1);
+	_ON(sig == -1);
 
  	/* do_notify_parent_cldstop should have been called instead.  */
- 	BUG_ON(task_is_stopped_or_traced(tsk));
+ 	_ON(task_is_stopped_or_traced(tsk));
 
-	BUG_ON(!tsk->ptrace &&
+	_ON(!tsk->ptrace &&
 	       (tsk->group_leader != tsk || !thread_group_empty(tsk)));
 
 	if (sig != SIGCHLD) {
@@ -1954,7 +1954,7 @@ static void do_notify_parent_cldstop(struct task_struct *tsk,
  		info.si_status = tsk->exit_code & 0x7f;
  		break;
  	default:
- 		BUG();
+ 		();
  	}
 
 	sighand = parent->sighand;
@@ -2159,13 +2159,13 @@ static void ptrace_do_notify(int signr, int exit_code, int why)
 	info.si_pid = task_pid_vnr(current);
 	info.si_uid = from_kuid_munged(current_user_ns(), current_uid());
 
-	/* Let the debugger run.  */
+	/* Let the deger run.  */
 	ptrace_stop(exit_code, why, 1, &info);
 }
 
 void ptrace_notify(int exit_code)
 {
-	BUG_ON((exit_code & (0x7f | ~0xffff)) != SIGTRAP);
+	_ON((exit_code & (0x7f | ~0xffff)) != SIGTRAP);
 	if (unlikely(current->task_works))
 		task_work_run();
 
@@ -2336,7 +2336,7 @@ static int ptrace_signal(int signr, kernel_siginfo_t *info)
 {
 	/*
 	 * We do not check sig_kernel_stop(signr) but set this marker
-	 * unconditionally because we do not know whether debugger will
+	 * unconditionally because we do not know whether deger will
 	 * change signr. This flag has no meaning unless we are going
 	 * to stop after return from ptrace_stop(). In this case it will
 	 * be checked in do_signal_stop(), we should only stop if it was
@@ -2346,7 +2346,7 @@ static int ptrace_signal(int signr, kernel_siginfo_t *info)
 	current->jobctl |= JOBCTL_STOP_DEQUEUED;
 	ptrace_stop(signr, CLD_TRAPPED, 0, info);
 
-	/* We're back.  Did the debugger cancel the sig?  */
+	/* We're back.  Did the deger cancel the sig?  */
 	signr = current->exit_code;
 	if (signr == 0)
 		return signr;
@@ -2355,7 +2355,7 @@ static int ptrace_signal(int signr, kernel_siginfo_t *info)
 
 	/*
 	 * Update the siginfo structure if the signal has
-	 * changed.  If the debugger wanted something
+	 * changed.  If the deger wanted something
 	 * specific in the siginfo structure then it should
 	 * have updated *info via PTRACE_SETSIGINFO.
 	 */
@@ -2586,7 +2586,7 @@ relock:
 /**
  * signal_delivered - 
  * @ksig:		kernel signal struct
- * @stepping:		nonzero if debugger single-step or block-step in use
+ * @stepping:		nonzero if deger single-step or block-step in use
  *
  * This function should be called when a signal has successfully been
  * delivered. It updates the blocked signals accordingly (@ksig->ka.sa.sa_mask
@@ -4370,11 +4370,11 @@ __weak const char *arch_vma_name(struct vm_area_struct *vma)
 
 static inline void siginfo_buildtime_checks(void)
 {
-	BUILD_BUG_ON(sizeof(struct siginfo) != SI_MAX_SIZE);
+	BUILD__ON(sizeof(struct siginfo) != SI_MAX_SIZE);
 
 	/* Verify the offsets in the two siginfos match */
 #define CHECK_OFFSET(field) \
-	BUILD_BUG_ON(offsetof(siginfo_t, field) != offsetof(kernel_siginfo_t, field))
+	BUILD__ON(offsetof(siginfo_t, field) != offsetof(kernel_siginfo_t, field))
 
 	/* kill */
 	CHECK_OFFSET(si_pid);

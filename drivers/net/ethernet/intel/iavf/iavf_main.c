@@ -138,24 +138,24 @@ iavf_status iavf_free_virt_mem_d(struct iavf_hw *hw, struct iavf_virt_mem *mem)
 }
 
 /**
- * iavf_debug_d - OS dependent version of debug printing
+ * iavf_de_d - OS dependent version of de printing
  * @hw:  pointer to the HW structure
- * @mask: debug level mask
+ * @mask: de level mask
  * @fmt_str: printf-type format description
  **/
-void iavf_debug_d(void *hw, u32 mask, char *fmt_str, ...)
+void iavf_de_d(void *hw, u32 mask, char *fmt_str, ...)
 {
 	char buf[512];
 	va_list argptr;
 
-	if (!(mask & ((struct iavf_hw *)hw)->debug_mask))
+	if (!(mask & ((struct iavf_hw *)hw)->de_mask))
 		return;
 
 	va_start(argptr, fmt_str);
 	vsnprintf(buf, sizeof(buf), fmt_str, argptr);
 	va_end(argptr);
 
-	/* the debug string is already formatted with a newline */
+	/* the de string is already formatted with a newline */
 	pr_info("%s", buf);
 }
 
@@ -3647,7 +3647,7 @@ static int iavf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw = &adapter->hw;
 	hw->back = adapter;
 
-	adapter->msg_enable = BIT(DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	adapter->msg_enable = BIT(DEFAULT_DE_LEVEL_SHIFT) - 1;
 	adapter->state = __IAVF_STARTUP;
 
 	/* Call save state here because it relies on the adapter struct. */

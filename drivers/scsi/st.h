@@ -179,7 +179,7 @@ struct scsi_tape {
 	int recover_count;     /* From tape opening */
 	int recover_reg;       /* From last status call */
 
-#if DEBUG
+#if DE
 	unsigned char write_pending;
 	int nbr_finished;
 	int nbr_waits;

@@ -378,7 +378,7 @@ typedef struct {
   float    minPsmVoltage[30];
 
   uint32_t MmHubPadding[7]; /* SMU internal use */
-} AvfsDebugTable_t;
+} AvfsDeTable_t;
 
 typedef struct {
   uint8_t  AvfsEn;
@@ -429,7 +429,7 @@ typedef struct {
 #define TABLE_PPTABLE            0
 #define TABLE_WATERMARKS         1
 #define TABLE_AVFS               2
-#define TABLE_AVFS_PSM_DEBUG     3
+#define TABLE_AVFS_PSM_DE     3
 #define TABLE_AVFS_FUSE_OVERRIDE 4
 #define TABLE_PMSTATUSLOG        5
 #define TABLE_COUNT              6

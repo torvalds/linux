@@ -211,7 +211,7 @@ void dce110_compressor_enable_fbc(
 		 */
 		compressor->attached_inst = params->inst + CONTROLLER_ID_D0;
 
-		/* Toggle it as there is bug in HW */
+		/* Toggle it as there is  in HW */
 		set_reg_field_value(value, 0, FBC_CNTL, FBC_GRPH_COMP_EN);
 		dm_write_reg(compressor->ctx, addr, value);
 
@@ -432,7 +432,7 @@ bool dce110_get_required_compressed_surfacesize(struct fbc_input_info fbc_input_
 	}
 	/*
 	 * Maybe to add registry key support with optional size here to override above
-	 * for debugging purposes
+	 * for deging purposes
 	 */
 
 	return result;

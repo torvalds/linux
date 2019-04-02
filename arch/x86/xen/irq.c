@@ -104,7 +104,7 @@ static void xen_safe_halt(void)
 {
 	/* Blocking includes an implicit local_irq_enable(). */
 	if (HYPERVISOR_sched_op(SCHEDOP_block, NULL) != 0)
-		BUG();
+		();
 }
 
 static void xen_halt(void)

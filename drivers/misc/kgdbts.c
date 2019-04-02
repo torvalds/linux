@@ -24,7 +24,7 @@
  * -------------------------------------
  *
  * The kgdb test suite is designed as a KGDB I/O module which
- * simulates the communications that a debugger would have with kgdb.
+ * simulates the communications that a deger would have with kgdb.
  * The tests are broken up in to a line by line and referenced here as
  * a "get" which is kgdb requesting input and "put" which is kgdb
  * sending a response.
@@ -40,7 +40,7 @@
  * test types:
  * A = Run all the core tests silently
  * V1 = Run all the core tests with minimal output
- * V2 = Run all the core tests in debug mode
+ * V2 = Run all the core tests in de mode
  *
  * You can also specify optional tests:
  * N## = Go to sleep with interrupts of for ## seconds
@@ -358,7 +358,7 @@ static int check_single_step(char *put_str, char *arg)
 	if (sstep_thread_id != cont_thread_id) {
 		/*
 		 * Ensure we stopped in the same thread id as before, else the
-		 * debugger should continue until the original thread that was
+		 * deger should continue until the original thread that was
 		 * single stepped is scheduled again, emulating gdb's behavior.
 		 */
 		v2printk("ThrID does not match: %lx\n", cont_thread_id);
@@ -1039,7 +1039,7 @@ static void kgdbts_run_tests(void)
 
 	/* If the do_fork test is run it will be the last test that is
 	 * executed because a kernel thread will be spawned at the very
-	 * end to unregister the debug hooks.
+	 * end to unregister the de hooks.
 	 */
 	if (fork_test) {
 		repeat_test = fork_test;
@@ -1052,7 +1052,7 @@ static void kgdbts_run_tests(void)
 
 	/* If the sys_open test is run it will be the last test that is
 	 * executed because a kernel thread will be spawned at the very
-	 * end to unregister the debug hooks.
+	 * end to unregister the de hooks.
 	 */
 	if (do_sys_open_test) {
 		repeat_test = do_sys_open_test;
@@ -1164,14 +1164,14 @@ static int param_set_kgdbts_var(const char *kmessage,
 
 static void kgdbts_pre_exp_handler(void)
 {
-	/* Increment the module count when the debugger is active */
+	/* Increment the module count when the deger is active */
 	if (!kgdb_connected)
 		try_module_get(THIS_MODULE);
 }
 
 static void kgdbts_post_exp_handler(void)
 {
-	/* decrement the module count when the debugger detaches */
+	/* decrement the module count when the deger detaches */
 	if (!kgdb_connected)
 		module_put(THIS_MODULE);
 }

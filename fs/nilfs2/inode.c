@@ -760,7 +760,7 @@ static void nilfs_clear_inode(struct inode *inode)
 	/*
 	 * Free resources allocated in nilfs_read_inode(), here.
 	 */
-	BUG_ON(!list_empty(&ii->i_dirty));
+	_ON(!list_empty(&ii->i_dirty));
 	brelse(ii->i_bh);
 	ii->i_bh = NULL;
 

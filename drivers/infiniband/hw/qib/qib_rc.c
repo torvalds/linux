@@ -1677,7 +1677,7 @@ static int qib_rc_rcv_error(struct ib_other_headers *ohdr,
 			goto send_ack;
 		}
 		/*
-		 * Try to send a simple ACK to work around a Mellanox bug
+		 * Try to send a simple ACK to work around a Mellanox 
 		 * which doesn't accept a RDMA read response or atomic
 		 * response as an ACK for earlier SENDs or RDMA writes.
 		 */

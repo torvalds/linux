@@ -17,7 +17,7 @@
 #include "perf.h"
 #include "namespaces.h"
 #include "util/cache.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/header.h"
 #include <subcmd/parse-options.h>
 #include "util/strlist.h"
@@ -132,7 +132,7 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 
 	if (!force &&
 	    !build_id_cache__kcore_existing(from_dir, to_dir, sizeof(to_dir))) {
-		pr_debug("same kcore found in %s\n", to_dir);
+		pr_de("same kcore found in %s\n", to_dir);
 		return 0;
 	}
 
@@ -163,7 +163,7 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 		return -1;
 	}
 
-	pr_debug("kcore added to build-id cache directory %s\n", to_dir);
+	pr_de("kcore added to build-id cache directory %s\n", to_dir);
 
 	return 0;
 }
@@ -179,14 +179,14 @@ static int build_id_cache__add_file(const char *filename, struct nsinfo *nsi)
 	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
 	nsinfo__mountns_exit(&nsc);
 	if (err < 0) {
-		pr_debug("Couldn't read a build-id in %s\n", filename);
+		pr_de("Couldn't read a build-id in %s\n", filename);
 		return -1;
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__add_s(sbuild_id, filename, nsi,
 				    false, false);
-	pr_debug("Adding %s %s: %s\n", sbuild_id, filename,
+	pr_de("Adding %s %s: %s\n", sbuild_id, filename,
 		 err ? "FAIL" : "Ok");
 	return err;
 }
@@ -203,13 +203,13 @@ static int build_id_cache__remove_file(const char *filename, struct nsinfo *nsi)
 	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
 	nsinfo__mountns_exit(&nsc);
 	if (err < 0) {
-		pr_debug("Couldn't read a build-id in %s\n", filename);
+		pr_de("Couldn't read a build-id in %s\n", filename);
 		return -1;
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__remove_s(sbuild_id);
-	pr_debug("Removing %s %s: %s\n", sbuild_id, filename,
+	pr_de("Removing %s %s: %s\n", sbuild_id, filename,
 		 err ? "FAIL" : "Ok");
 
 	return err;
@@ -227,7 +227,7 @@ static int build_id_cache__purge_path(const char *pathname, struct nsinfo *nsi)
 
 	strlist__for_each_entry(pos, list) {
 		err = build_id_cache__remove_s(pos->s);
-		pr_debug("Removing %s %s: %s\n", pos->s, pathname,
+		pr_de("Removing %s %s: %s\n", pos->s, pathname,
 			 err ? "FAIL" : "Ok");
 		if (err)
 			break;
@@ -235,7 +235,7 @@ static int build_id_cache__purge_path(const char *pathname, struct nsinfo *nsi)
 	strlist__delete(list);
 
 out:
-	pr_debug("Purging %s: %s\n", pathname, err ? "FAIL" : "Ok");
+	pr_de("Purging %s: %s\n", pathname, err ? "FAIL" : "Ok");
 
 	return err;
 }
@@ -249,14 +249,14 @@ static int build_id_cache__purge_all(void)
 
 	list = build_id_cache__list_all(false);
 	if (!list) {
-		pr_debug("Failed to get buildids: -%d\n", errno);
+		pr_de("Failed to get buildids: -%d\n", errno);
 		return -EINVAL;
 	}
 
 	strlist__for_each_entry(pos, list) {
 		buf = build_id_cache__origname(pos->s);
 		err = build_id_cache__remove_s(pos->s);
-		pr_debug("Removing %s (%s): %s\n", buf, pos->s,
+		pr_de("Removing %s (%s): %s\n", buf, pos->s,
 			 err ? "FAIL" : "Ok");
 		free(buf);
 		if (err)
@@ -264,7 +264,7 @@ static int build_id_cache__purge_all(void)
 	}
 	strlist__delete(list);
 
-	pr_debug("Purged all: %s\n", err ? "FAIL" : "Ok");
+	pr_de("Purged all: %s\n", err ? "FAIL" : "Ok");
 	return err;
 }
 
@@ -307,7 +307,7 @@ static int build_id_cache__update_file(const char *filename, struct nsinfo *nsi)
 	err = filename__read_build_id(filename, &build_id, sizeof(build_id));
 	nsinfo__mountns_exit(&nsc);
 	if (err < 0) {
-		pr_debug("Couldn't read a build-id in %s\n", filename);
+		pr_de("Couldn't read a build-id in %s\n", filename);
 		return -1;
 	}
 	err = 0;
@@ -320,7 +320,7 @@ static int build_id_cache__update_file(const char *filename, struct nsinfo *nsi)
 		err = build_id_cache__add_s(sbuild_id, filename, nsi, false,
 					    false);
 
-	pr_debug("Updating %s %s: %s\n", sbuild_id, filename,
+	pr_de("Updating %s %s: %s\n", sbuild_id, filename,
 		 err ? "FAIL" : "Ok");
 
 	return err;
@@ -334,7 +334,7 @@ static int build_id_cache__show_all(void)
 
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: -%d\n", errno);
+		pr_de("Failed to get buildids: -%d\n", errno);
 		return -1;
 	}
 	strlist__for_each_entry(nd, bidlist) {
@@ -440,7 +440,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__add_file(pos->s, nsi)) {
 					if (errno == EEXIST) {
-						pr_debug("%s already in the cache\n",
+						pr_de("%s already in the cache\n",
 							 pos->s);
 						continue;
 					}
@@ -458,7 +458,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__remove_file(pos->s, nsi)) {
 					if (errno == ENOENT) {
-						pr_debug("%s wasn't in the cache\n",
+						pr_de("%s wasn't in the cache\n",
 							 pos->s);
 						continue;
 					}
@@ -476,7 +476,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__purge_path(pos->s, nsi)) {
 					if (errno == ENOENT) {
-						pr_debug("%s wasn't in the cache\n",
+						pr_de("%s wasn't in the cache\n",
 							 pos->s);
 						continue;
 					}
@@ -504,7 +504,7 @@ int cmd_buildid_cache(int argc, const char **argv)
 			strlist__for_each_entry(pos, list)
 				if (build_id_cache__update_file(pos->s, nsi)) {
 					if (errno == ENOENT) {
-						pr_debug("%s wasn't in the cache\n",
+						pr_de("%s wasn't in the cache\n",
 							 pos->s);
 						continue;
 					}

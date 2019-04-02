@@ -168,7 +168,7 @@ static void __init _register_dpll(void *user,
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_debug("clk-ref missing for %pOFn, retry later\n",
+		pr_de("clk-ref missing for %pOFn, retry later\n",
 			 node);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;
@@ -181,7 +181,7 @@ static void __init _register_dpll(void *user,
 	clk = of_clk_get(node, 1);
 
 	if (IS_ERR(clk)) {
-		pr_debug("clk-bypass missing for %pOFn, retry later\n",
+		pr_de("clk-bypass missing for %pOFn, retry later\n",
 			 node);
 		if (!ti_clk_retry_init(node, hw, _register_dpll))
 			return;

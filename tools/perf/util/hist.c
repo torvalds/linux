@@ -2643,7 +2643,7 @@ int parse_filter_percentage(const struct option *opt __maybe_unused,
 	else if (!strcmp(arg, "absolute"))
 		symbol_conf.filter_relative = false;
 	else {
-		pr_debug("Invalid percentage: %s\n", arg);
+		pr_de("Invalid percentage: %s\n", arg);
 		return -1;
 	}
 

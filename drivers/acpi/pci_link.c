@@ -110,7 +110,7 @@ static acpi_status acpi_pci_link_check_possible(struct acpi_resource *resource,
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
 			if (!p || !p->interrupt_count) {
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 						  "Blank _PRS IRQ resource\n"));
 				return AE_OK;
 			}
@@ -173,11 +173,11 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_debug(link->device->handle, "_PRS not present or invalid");
+		acpi_handle_de(link->device->handle, "_PRS not present or invalid");
 		return 0;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Found %d possible IRQs\n",
 			  link->irq.possible_count));
 
@@ -201,7 +201,7 @@ static acpi_status acpi_pci_link_check_current(struct acpi_resource *resource,
 				 * IRQ descriptors may have no IRQ# bits set,
 				 * particularly those those w/ _STA disabled
 				 */
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 						  "Blank _CRS IRQ resource\n"));
 				return AE_OK;
 			}
@@ -259,7 +259,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 		}
 
 		if (!link->device->status.enabled) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Link disabled\n"));
+			ACPI_DE_PRINT((ACPI_DB_INFO, "Link disabled\n"));
 			return 0;
 		}
 	}
@@ -283,7 +283,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 
 	link->irq.active = irq;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Link at IRQ %d \n", link->irq.active));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Link at IRQ %d \n", link->irq.active));
 
       end:
 	return result;
@@ -370,7 +370,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	}
 	if (!link->device->status.enabled) {
 		printk(KERN_WARNING PREFIX
-			      "%s [%s] disabled and referenced, BIOS bug\n",
+			      "%s [%s] disabled and referenced, BIOS \n",
 			      acpi_device_name(link->device),
 			      acpi_device_bid(link->device));
 	}
@@ -397,7 +397,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 		link->irq.active = irq;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Set IRQ %d\n", link->irq.active));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Set IRQ %d\n", link->irq.active));
 
       end:
 	kfree(resource);
@@ -671,7 +671,7 @@ int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 		*polarity = link->irq.polarity;
 	if (name)
 		*name = acpi_device_bid(link->device);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Link %s is referenced\n",
 			  acpi_device_bid(link->device)));
 	return (link->irq.active);
@@ -717,7 +717,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 	 */
 	link->refcnt--;
 #endif
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Link %s is dereferenced\n",
 			  acpi_device_bid(link->device)));
 

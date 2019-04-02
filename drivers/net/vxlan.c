@@ -345,7 +345,7 @@ static void __vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 
 	err = vxlan_fdb_info(skb, vxlan, fdb, 0, 0, type, 0, rd);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in vxlan_nlmsg_size() */
+		/* -EMSGSIZE implies  in vxlan_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -2363,7 +2363,7 @@ static int encap_bypass_if_local(struct sk_buff *skb, struct net_device *dev,
 	 * RTF_LOCAL is equal to RTCF_LOCAL. So to keep code simple
 	 * we can use RTCF_LOCAL which works for ipv4 and ipv6 route entry.
 	 */
-	BUILD_BUG_ON(RTCF_LOCAL != RTF_LOCAL);
+	BUILD__ON(RTCF_LOCAL != RTF_LOCAL);
 #endif
 	/* Bypass encapsulation if the destination is local */
 	if (rt_flags & RTCF_LOCAL &&

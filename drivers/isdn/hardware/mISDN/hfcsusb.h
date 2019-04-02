@@ -239,7 +239,7 @@ struct iso_urb {
 	__u8 buffer[ISO_BUFFER_SIZE];	/* buffer rx/tx USB URB data */
 	struct usb_fifo *owner_fifo;	/* pointer to owner fifo */
 	__u8 indx; /* Fifos's ISO double buffer 0 or 1 ? */
-#ifdef ISO_FRAME_START_DEBUG
+#ifdef ISO_FRAME_START_DE
 	int start_frames[ISO_FRAME_START_RING_COUNT];
 	__u8 iso_frm_strt_pos; /* index in start_frame[] */
 #endif

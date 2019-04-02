@@ -80,15 +80,15 @@
  * the other protocols.
  */
 
-/* Define this to get the SOCK_DBG debugging facility. */
-#define SOCK_DEBUGGING
-#ifdef SOCK_DEBUGGING
-#define SOCK_DEBUG(sk, msg...) do { if ((sk) && sock_flag((sk), SOCK_DBG)) \
-					printk(KERN_DEBUG msg); } while (0)
+/* Define this to get the SOCK_DBG deging facility. */
+#define SOCK_DEGING
+#ifdef SOCK_DEGING
+#define SOCK_DE(sk, msg...) do { if ((sk) && sock_flag((sk), SOCK_DBG)) \
+					printk(KERN_DE msg); } while (0)
 #else
 /* Validate arguments and do nothing */
 static inline __printf(2, 3)
-void SOCK_DEBUG(const struct sock *sk, const char *msg, ...)
+void SOCK_DE(const struct sock *sk, const char *msg, ...)
 {
 }
 #endif
@@ -107,7 +107,7 @@ typedef struct {
 	 * the slock as a lock variant (in addition to
 	 * the slock itself):
 	 */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif
 } socket_lock_t;
@@ -791,7 +791,7 @@ enum sock_flags {
 	SOCK_TIMESTAMP,
 	SOCK_ZAPPED,
 	SOCK_USE_WRITE_QUEUE, /* whether to call sk->sk_write_space in sock_wfree */
-	SOCK_DBG, /* %SO_DEBUG setting */
+	SOCK_DBG, /* %SO_DE setting */
 	SOCK_RCVTSTAMP, /* %SO_TIMESTAMP setting */
 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
@@ -1168,7 +1168,7 @@ struct proto {
 	char			name[32];
 
 	struct list_head	node;
-#ifdef SOCK_REFCNT_DEBUG
+#ifdef SOCK_REFCNT_DE
 	atomic_t		socks;
 #endif
 	int			(*diag_destroy)(struct sock *sk, int err);
@@ -1178,30 +1178,30 @@ int proto_register(struct proto *prot, int alloc_slab);
 void proto_unregister(struct proto *prot);
 int sock_load_diag_module(int family, int protocol);
 
-#ifdef SOCK_REFCNT_DEBUG
-static inline void sk_refcnt_debug_inc(struct sock *sk)
+#ifdef SOCK_REFCNT_DE
+static inline void sk_refcnt_de_inc(struct sock *sk)
 {
 	atomic_inc(&sk->sk_prot->socks);
 }
 
-static inline void sk_refcnt_debug_dec(struct sock *sk)
+static inline void sk_refcnt_de_dec(struct sock *sk)
 {
 	atomic_dec(&sk->sk_prot->socks);
-	printk(KERN_DEBUG "%s socket %p released, %d are still alive\n",
+	printk(KERN_DE "%s socket %p released, %d are still alive\n",
 	       sk->sk_prot->name, sk, atomic_read(&sk->sk_prot->socks));
 }
 
-static inline void sk_refcnt_debug_release(const struct sock *sk)
+static inline void sk_refcnt_de_release(const struct sock *sk)
 {
 	if (refcount_read(&sk->sk_refcnt) != 1)
-		printk(KERN_DEBUG "Destruction of the %s socket %p delayed, refcnt=%d\n",
+		printk(KERN_DE "Destruction of the %s socket %p delayed, refcnt=%d\n",
 		       sk->sk_prot->name, sk, refcount_read(&sk->sk_refcnt));
 }
-#else /* SOCK_REFCNT_DEBUG */
-#define sk_refcnt_debug_inc(sk) do { } while (0)
-#define sk_refcnt_debug_dec(sk) do { } while (0)
-#define sk_refcnt_debug_release(sk) do { } while (0)
-#endif /* SOCK_REFCNT_DEBUG */
+#else /* SOCK_REFCNT_DE */
+#define sk_refcnt_de_inc(sk) do { } while (0)
+#define sk_refcnt_de_dec(sk) do { } while (0)
+#define sk_refcnt_de_release(sk) do { } while (0)
+#endif /* SOCK_REFCNT_DE */
 
 static inline bool __sk_stream_memory_free(const struct sock *sk, int wake)
 {
@@ -1491,7 +1491,7 @@ do {									\
 	sk->sk_lock.owned = 0;						\
 	init_waitqueue_head(&sk->sk_lock.wq);				\
 	spin_lock_init(&(sk)->sk_lock.slock);				\
-	debug_check_no_locks_freed((void *)&(sk)->sk_lock,		\
+	de_check_no_locks_freed((void *)&(sk)->sk_lock,		\
 			sizeof((sk)->sk_lock));				\
 	lockdep_set_class_and_name(&(sk)->sk_lock.slock,		\
 				(skey), (sname));				\
@@ -1557,7 +1557,7 @@ static inline void unlock_sock_fast(struct sock *sk, bool slow)
 static inline void sock_owned_by_me(const struct sock *sk)
 {
 #ifdef CONFIG_LOCKDEP
-	WARN_ON_ONCE(!lockdep_sock_is_held(sk) && debug_locks);
+	WARN_ON_ONCE(!lockdep_sock_is_held(sk) && de_locks);
 #endif
 }
 
@@ -1788,7 +1788,7 @@ static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 
 static inline wait_queue_head_t *sk_sleep(struct sock *sk)
 {
-	BUILD_BUG_ON(offsetof(struct socket_wq, wait) != 0);
+	BUILD__ON(offsetof(struct socket_wq, wait) != 0);
 	return &rcu_dereference_raw(sk->sk_wq)->wait;
 }
 /* Detach socket from process context.
@@ -2292,7 +2292,7 @@ struct sock_skb_cb {
 			    SOCK_SKB_CB_OFFSET))
 
 #define sock_skb_cb_check_size(size) \
-	BUILD_BUG_ON((size) > SOCK_SKB_CB_OFFSET)
+	BUILD__ON((size) > SOCK_SKB_CB_OFFSET)
 
 static inline void
 sock_skb_set_dropcount(const struct sock *sk, struct sk_buff *skb)

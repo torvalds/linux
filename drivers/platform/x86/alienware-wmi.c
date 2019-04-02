@@ -264,7 +264,7 @@ static int parse_rgb(const char *buf, struct platform_zone *zone)
 		return -EINVAL;
 
 	repackager.package = rgb & 0x0f0f0f0f;
-	pr_debug("alienware-wmi: r: %d g:%d b: %d\n",
+	pr_de("alienware-wmi: r: %d g:%d b: %d\n",
 		 repackager.cp.red, repackager.cp.green, repackager.cp.blue);
 	zone->colors = repackager.cp;
 	return 0;
@@ -276,7 +276,7 @@ static struct platform_zone *match_zone(struct device_attribute *attr)
 
 	for (zone = 0; zone < quirks->num_zones; zone++) {
 		if ((struct device_attribute *)zone_data[zone].attr == attr) {
-			pr_debug("alienware-wmi: matched zone location: %d\n",
+			pr_de("alienware-wmi: matched zone location: %d\n",
 				 zone_data[zone].location);
 			return &zone_data[zone];
 		}
@@ -319,7 +319,7 @@ static int alienware_update_led(struct platform_zone *zone)
 		input.length = (acpi_size) sizeof(legacy_args);
 		input.pointer = &legacy_args;
 	}
-	pr_debug("alienware-wmi: guid %s method %d\n", guid, method_id);
+	pr_de("alienware-wmi: guid %s method %d\n", guid, method_id);
 
 	status = wmi_evaluate_method(guid, 0, method_id, &input, NULL);
 	if (ACPI_FAILURE(status))
@@ -428,7 +428,7 @@ static ssize_t store_control_state(struct device *dev,
 	else
 		val = WMAX_RUNNING;
 	lighting_control_state = val;
-	pr_debug("alienware-wmi: updated control state to %d\n",
+	pr_de("alienware-wmi: updated control state to %d\n",
 		 lighting_control_state);
 	return count;
 }
@@ -604,7 +604,7 @@ static ssize_t toggle_hdmi_source(struct device *dev,
 		args.arg = 2;
 	else
 		args.arg = 3;
-	pr_debug("alienware-wmi: setting hdmi to %d : %s", args.arg, buf);
+	pr_de("alienware-wmi: setting hdmi to %d : %s", args.arg, buf);
 
 	status = alienware_wmax_command(&args, WMAX_METHOD_HDMI_SOURCE, NULL);
 
@@ -743,7 +743,7 @@ static ssize_t toggle_deepsleep(struct device *dev,
 		args.arg = 1;
 	else
 		args.arg = 2;
-	pr_debug("alienware-wmi: setting deep sleep to %d : %s", args.arg, buf);
+	pr_de("alienware-wmi: setting deep sleep to %d : %s", args.arg, buf);
 
 	status = alienware_wmax_command(&args, WMAX_METHOD_DEEP_SLEEP_CONTROL,
 					NULL);

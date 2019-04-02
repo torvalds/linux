@@ -25,7 +25,7 @@
 
 #include "ath5k.h"
 #include "reg.h"
-#include "debug.h"
+#include "de.h"
 
 
 /**

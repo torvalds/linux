@@ -152,7 +152,7 @@ void query_edd(void)
 	if (!do_edd)
 		return;
 
-	/* Bugs in OnBoard or AddOnCards Bios may hang the EDD probe,
+	/* s in OnBoard or AddOnCards Bios may hang the EDD probe,
 	 * so give a hint if this happens.
 	 */
 

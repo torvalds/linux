@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 generic-y += barrier.h
-generic-y += bug.h
-generic-y += bugs.h
+generic-y += .h
+generic-y += s.h
 generic-y += compat.h
 generic-y += current.h
 generic-y += device.h
@@ -16,7 +16,7 @@ generic-y += hw_irq.h
 generic-y += iomap.h
 generic-y += irq_regs.h
 generic-y += irq_work.h
-generic-y += kdebug.h
+generic-y += kde.h
 generic-y += kmap_types.h
 generic-y += kprobes.h
 generic-y += kvm_para.h

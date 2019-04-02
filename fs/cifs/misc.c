@@ -26,7 +26,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "smberr.h"
 #include "nterr.h"
 #include "cifs_unicode.h"
@@ -64,7 +64,7 @@ _free_xid(unsigned int xid)
 {
 	spin_lock(&GlobalMid_Lock);
 	/* if (GlobalTotalActiveXid == 0)
-		BUG(); */
+		(); */
 	GlobalTotalActiveXid--;
 	spin_unlock(&GlobalMid_Lock);
 }
@@ -331,7 +331,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 		} else if ((total_read == sizeof(struct smb_hdr) + 1) &&
 				(smb->WordCount == 0)) {
 			char *tmp = (char *)smb;
-			/* Need to work around a bug in two servers here */
+			/* Need to work around a  in two servers here */
 			/* First, check if the part of bcc they sent was zero */
 			if (tmp[sizeof(struct smb_hdr)] == 0) {
 				/* some servers return only half of bcc
@@ -526,7 +526,7 @@ dump_smb(void *buf, int smb_buf_length)
 	if (traceSMB == 0)
 		return;
 
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_NONE, 8, 2, buf,
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_NONE, 8, 2, buf,
 		       smb_buf_length, true);
 }
 

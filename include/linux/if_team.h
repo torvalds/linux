@@ -233,7 +233,7 @@ struct team {
 static inline int team_dev_queue_xmit(struct team *team, struct team_port *port,
 				      struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
+	BUILD__ON(sizeof(skb->queue_mapping) !=
 		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
 	skb_set_queue_mapping(skb, qdisc_skb_cb(skb)->slave_dev_queue_mapping);
 

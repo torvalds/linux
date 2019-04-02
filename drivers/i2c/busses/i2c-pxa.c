@@ -13,7 +13,7 @@
  *  History:
  *    Apr 2002: Initial version [CS]
  *    Jun 2002: Properly separated algo/adap [FB]
- *    Jan 2003: Fixed several bugs concerning interrupt handling [Kai-Uwe Bloem]
+ *    Jan 2003: Fixed several s concerning interrupt handling [Kai-Uwe Bloem]
  *    Jan 2003: added limited signal handling [Kai-Uwe Bloem]
  *    Sep 2004: Major rework to ensure efficient bus handling [RMK]
  *    Dec 2004: Added support for PXA27x and slave device probing [Liam Girdwood]
@@ -226,7 +226,7 @@ struct pxa_i2c {
  */
 #define I2C_PXA_SLAVE_ADDR      0x1
 
-#ifdef DEBUG
+#ifdef DE
 
 struct bits {
 	u32	mask;
@@ -263,7 +263,7 @@ static const struct bits isr_bits[] = {
 
 static void decode_ISR(unsigned int val)
 {
-	decode_bits(KERN_DEBUG "ISR", isr_bits, ARRAY_SIZE(isr_bits), val);
+	decode_bits(KERN_DE "ISR", isr_bits, ARRAY_SIZE(isr_bits), val);
 	printk("\n");
 }
 
@@ -288,12 +288,12 @@ static const struct bits icr_bits[] = {
 #ifdef CONFIG_I2C_PXA_SLAVE
 static void decode_ICR(unsigned int val)
 {
-	decode_bits(KERN_DEBUG "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
+	decode_bits(KERN_DE "ICR", icr_bits, ARRAY_SIZE(icr_bits), val);
 	printk("\n");
 }
 #endif
 
-static unsigned int i2c_debug = DEBUG;
+static unsigned int i2c_de = DE;
 
 static void i2c_pxa_show_state(struct pxa_i2c *i2c, int lno, const char *fname)
 {
@@ -317,21 +317,21 @@ static void i2c_pxa_scream_blue_murder(struct pxa_i2c *i2c, const char *why)
 		readl(_ISR(i2c)));
 	dev_dbg(dev, "log: ");
 	for (i = 0; i < i2c->irqlogidx; i++)
-		pr_debug("[%08x:%08x] ", i2c->isrlog[i], i2c->icrlog[i]);
+		pr_de("[%08x:%08x] ", i2c->isrlog[i], i2c->icrlog[i]);
 
-	pr_debug("\n");
+	pr_de("\n");
 }
 
-#else /* ifdef DEBUG */
+#else /* ifdef DE */
 
-#define i2c_debug	0
+#define i2c_de	0
 
 #define show_state(i2c) do { } while (0)
 #define decode_ISR(val) do { } while (0)
 #define decode_ICR(val) do { } while (0)
 #define i2c_pxa_scream_blue_murder(i2c, why) do { } while (0)
 
-#endif /* ifdef DEBUG / else */
+#endif /* ifdef DE / else */
 
 static void i2c_pxa_master_complete(struct pxa_i2c *i2c, int ret);
 static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id);
@@ -391,12 +391,12 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 	unsigned long timeout = jiffies + HZ*4;
 
 	while (time_before(jiffies, timeout)) {
-		if (i2c_debug > 1)
+		if (i2c_de > 1)
 			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
 				__func__, (long)jiffies, readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 
 		if (readl(_ISR(i2c)) & ISR_SAD) {
-			if (i2c_debug > 0)
+			if (i2c_de > 0)
 				dev_dbg(&i2c->adap.dev, "%s: Slave detected\n", __func__);
 			goto out;
 		}
@@ -406,7 +406,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 		 * gone high...
 		 */
 		if ((readl(_ISR(i2c)) & (ISR_UB | ISR_IBB)) == 0 && readl(_IBMR(i2c)) == 3) {
-			if (i2c_debug > 0)
+			if (i2c_de > 0)
 				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
 		}
@@ -414,7 +414,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 		msleep(1);
 	}
 
-	if (i2c_debug > 0)
+	if (i2c_de > 0)
 		dev_dbg(&i2c->adap.dev, "%s: did not free\n", __func__);
  out:
 	return 0;
@@ -422,7 +422,7 @@ static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
 
 static int i2c_pxa_set_master(struct pxa_i2c *i2c)
 {
-	if (i2c_debug)
+	if (i2c_de)
 		dev_dbg(&i2c->adap.dev, "setting to bus master\n");
 
 	if ((readl(_ISR(i2c)) & (ISR_UB | ISR_IBB)) != 0) {
@@ -447,14 +447,14 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 	show_state(i2c);
 
 	while (time_before(jiffies, timeout)) {
-		if (i2c_debug > 1)
+		if (i2c_de > 1)
 			dev_dbg(&i2c->adap.dev, "%s: %ld: ISR=%08x, ICR=%08x, IBMR=%02x\n",
 				__func__, (long)jiffies, readl(_ISR(i2c)), readl(_ICR(i2c)), readl(_IBMR(i2c)));
 
 		if ((readl(_ISR(i2c)) & (ISR_UB|ISR_IBB)) == 0 ||
 		    (readl(_ISR(i2c)) & ISR_SAD) != 0 ||
 		    (readl(_ICR(i2c)) & ICR_SCLE) == 0) {
-			if (i2c_debug > 1)
+			if (i2c_de > 1)
 				dev_dbg(&i2c->adap.dev, "%s: done\n", __func__);
 			return 1;
 		}
@@ -462,7 +462,7 @@ static int i2c_pxa_wait_slave(struct pxa_i2c *i2c)
 		msleep(1);
 	}
 
-	if (i2c_debug > 0)
+	if (i2c_de > 0)
 		dev_dbg(&i2c->adap.dev, "%s: did not free\n", __func__);
 	return 0;
 }
@@ -496,7 +496,7 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 	writel(readl(_ICR(i2c)) & ~(ICR_STOP|ICR_ACKNAK|ICR_MA), _ICR(i2c));
 	writel(readl(_ICR(i2c)) & ~ICR_SCLE, _ICR(i2c));
 
-	if (i2c_debug) {
+	if (i2c_de) {
 		dev_dbg(&i2c->adap.dev, "ICR now %08x, ISR %08x\n", readl(_ICR(i2c)), readl(_ISR(i2c)));
 		decode_ICR(readl(_ICR(i2c)));
 	}
@@ -507,7 +507,7 @@ static void i2c_pxa_set_slave(struct pxa_i2c *i2c, int errcode)
 
 static void i2c_pxa_reset(struct pxa_i2c *i2c)
 {
-	pr_debug("Resetting I2C Controller Unit\n");
+	pr_de("Resetting I2C Controller Unit\n");
 
 	/* abort any transfer currently under way */
 	i2c_pxa_abort(i2c);
@@ -571,7 +571,7 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 {
 	int timeout;
 
-	if (i2c_debug > 0)
+	if (i2c_de > 0)
 		dev_dbg(&i2c->adap.dev, "SAD, mode is slave-%cx\n",
 		       (isr & ISR_RWM) ? 'r' : 't');
 
@@ -606,13 +606,13 @@ static void i2c_pxa_slave_start(struct pxa_i2c *i2c, u32 isr)
 
 static void i2c_pxa_slave_stop(struct pxa_i2c *i2c)
 {
-	if (i2c_debug > 2)
+	if (i2c_de > 2)
 		dev_dbg(&i2c->adap.dev, "ISR: SSD (Slave Stop)\n");
 
 	if (i2c->slave != NULL)
 		i2c->slave->event(i2c->slave->data, I2C_SLAVE_EVENT_STOP);
 
-	if (i2c_debug > 2)
+	if (i2c_de > 2)
 		dev_dbg(&i2c->adap.dev, "ISR: SSD (Slave Stop) acked\n");
 
 	/*
@@ -896,7 +896,7 @@ static int i2c_pxa_pio_xfer(struct i2c_adapter *adap,
 		if (ret != I2C_RETRY)
 			goto out;
 
-		if (i2c_debug)
+		if (i2c_de)
 			dev_dbg(&adap->dev, "Retrying transmission\n");
 		udelay(100);
 	}
@@ -1072,7 +1072,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id)
 	if (!(isr & VALID_INT_SOURCE))
 		return IRQ_NONE;
 
-	if (i2c_debug > 2 && 0) {
+	if (i2c_de > 2 && 0) {
 		dev_dbg(&i2c->adap.dev, "%s: ISR=%08x, ICR=%08x, IBMR=%02x\n",
 			__func__, isr, readl(_ICR(i2c)), readl(_IBMR(i2c)));
 		decode_ISR(isr);
@@ -1124,7 +1124,7 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 		if (ret != I2C_RETRY)
 			goto out;
 
-		if (i2c_debug)
+		if (i2c_de)
 			dev_dbg(&adap->dev, "Retrying transmission\n");
 		udelay(100);
 	}

@@ -20,7 +20,7 @@
  */
 
 #include "../wlcore/cmd.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/hw_ops.h"
 
 #include "cmd.h"
@@ -33,7 +33,7 @@ int wl18xx_cmd_channel_switch(struct wl1271 *wl,
 	u32 supported_rates;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "cmd channel switch (count=%d)",
+	wl1271_de(DE_ACX, "cmd channel switch (count=%d)",
 		     ch_switch->count);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -89,7 +89,7 @@ int wl18xx_cmd_smart_config_start(struct wl1271 *wl, u32 group_bitmap)
 	struct wl18xx_cmd_smart_config_start *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd smart config start group_bitmap=0x%x",
+	wl1271_de(DE_CMD, "cmd smart config start group_bitmap=0x%x",
 		     group_bitmap);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -117,7 +117,7 @@ int wl18xx_cmd_smart_config_stop(struct wl1271 *wl)
 	struct wl1271_cmd_header *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd smart config stop");
+	wl1271_de(DE_CMD, "cmd smart config stop");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -143,7 +143,7 @@ int wl18xx_cmd_smart_config_set_group_key(struct wl1271 *wl, u16 group_id,
 	struct wl18xx_cmd_smart_config_set_group_key *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd smart config set group key id=0x%x",
+	wl1271_de(DE_CMD, "cmd smart config set group key id=0x%x",
 		     group_id);
 
 	if (key_len != sizeof(cmd->key)) {
@@ -178,7 +178,7 @@ int wl18xx_cmd_set_cac(struct wl1271 *wl, struct wl12xx_vif *wlvif, bool start)
 	struct wlcore_cmd_cac_start *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd cac (channel %d) %s",
+	wl1271_de(DE_CMD, "cmd cac (channel %d) %s",
 		     wlvif->channel, start ? "start" : "stop");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -204,12 +204,12 @@ out_free:
 	return ret;
 }
 
-int wl18xx_cmd_radar_detection_debug(struct wl1271 *wl, u8 channel)
+int wl18xx_cmd_radar_detection_de(struct wl1271 *wl, u8 channel)
 {
-	struct wl18xx_cmd_dfs_radar_debug *cmd;
+	struct wl18xx_cmd_dfs_radar_de *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd radar detection debug (chan %d)",
+	wl1271_de(DE_CMD, "cmd radar detection de (chan %d)",
 		     channel);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -218,10 +218,10 @@ int wl18xx_cmd_radar_detection_debug(struct wl1271 *wl, u8 channel)
 
 	cmd->channel = channel;
 
-	ret = wl1271_cmd_send(wl, CMD_DFS_RADAR_DETECTION_DEBUG,
+	ret = wl1271_cmd_send(wl, CMD_DFS_RADAR_DETECTION_DE,
 			      cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_error("failed to send radar detection debug command");
+		wl1271_error("failed to send radar detection de command");
 		goto out_free;
 	}
 
@@ -235,7 +235,7 @@ int wl18xx_cmd_dfs_master_restart(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	struct wl18xx_cmd_dfs_master_restart *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd dfs master restart (role %d)",
+	wl1271_de(DE_CMD, "cmd dfs master restart (role %d)",
 		     wlvif->role_id);
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);

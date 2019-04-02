@@ -889,7 +889,7 @@ static int snd_amd7930_mixer(struct snd_amd7930 *amd)
 	struct snd_card *card;
 	int idx, err;
 
-	if (snd_BUG_ON(!amd || !amd->card))
+	if (snd__ON(!amd || !amd->card))
 		return -EINVAL;
 
 	card = amd->card;

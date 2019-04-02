@@ -43,7 +43,7 @@
 
 #include "powernv.h"
 
-#ifdef DEBUG
+#ifdef DE
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else

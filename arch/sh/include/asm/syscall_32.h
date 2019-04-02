@@ -57,7 +57,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	 * extra logic. Presently there are no in-tree users that depend
 	 * on this behaviour.
 	 */
-	BUG_ON(i);
+	_ON(i);
 
 	/* Argument pattern is: R4, R5, R6, R7, R0, R1 */
 	switch (n) {
@@ -70,7 +70,7 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	case 0:
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -80,7 +80,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 					 const unsigned long *args)
 {
 	/* Same note as above applies */
-	BUG_ON(i);
+	_ON(i);
 
 	switch (n) {
 	case 6: regs->regs[1] = args[5];
@@ -91,7 +91,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	case 1: regs->regs[4] = args[0];
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

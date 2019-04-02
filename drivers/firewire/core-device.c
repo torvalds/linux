@@ -18,7 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -562,7 +562,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	 *   - devices with 1394b PHY (unless only connected to 1394a PHYs),
 	 *   - all devices if there are 1394b repeaters.
 	 * Note, we cannot use the bus info block's link_spd as starting point
-	 * because some buggy firmwares set it lower than necessary and because
+	 * because some gy firmwares set it lower than necessary and because
 	 * 1394-1995 nodes do not have the field.
 	 */
 	if ((rom[2] & 0x7) < device->max_speed ||
@@ -614,7 +614,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 		if (end > MAX_CONFIG_ROM_SIZE) {
 			/*
 			 * This block extends outside the config ROM which is
-			 * a firmware bug.  Ignore this whole block, i.e.
+			 * a firmware .  Ignore this whole block, i.e.
 			 * simply set a fake block length of 0.
 			 */
 			fw_err(card, "skipped invalid ROM block %x at %llx\n",
@@ -639,7 +639,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 				continue;
 			/*
 			 * Offset points outside the ROM.  May be a firmware
-			 * bug or an Extended ROM entry (IEEE 1212-2001 clause
+			 *  or an Extended ROM entry (IEEE 1212-2001 clause
 			 * 7.7.18).  Simply overwrite this pointer here by a
 			 * fake immediate entry so that later iterators over
 			 * the ROM don't have to check offsets all the time.
@@ -725,7 +725,7 @@ static void create_units(struct fw_device *device)
 		unit->device.parent = &device->device;
 		dev_set_name(&unit->device, "%s.%d", dev_name(&device->device), i++);
 
-		BUILD_BUG_ON(ARRAY_SIZE(unit->attribute_group.attrs) <
+		BUILD__ON(ARRAY_SIZE(unit->attribute_group.attrs) <
 				ARRAY_SIZE(fw_unit_attributes) +
 				ARRAY_SIZE(config_rom_attributes));
 		init_fw_attribute_group(&unit->device,
@@ -1052,7 +1052,7 @@ static void fw_device_init(struct work_struct *work)
 	device->device.devt = MKDEV(fw_cdev_major, minor);
 	dev_set_name(&device->device, "fw%d", minor);
 
-	BUILD_BUG_ON(ARRAY_SIZE(device->attribute_group.attrs) <
+	BUILD__ON(ARRAY_SIZE(device->attribute_group.attrs) <
 			ARRAY_SIZE(fw_device_attributes) +
 			ARRAY_SIZE(config_rom_attributes));
 	init_fw_attribute_group(&device->device,

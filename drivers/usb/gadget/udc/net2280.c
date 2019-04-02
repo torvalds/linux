@@ -263,7 +263,7 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			writel(BIT(CLEAR_NAK_OUT_PACKETS_MODE),
 				&ep->regs->ep_rsp);
 	} else if (type == USB_ENDPOINT_XFER_BULK) {
-		/* catch some particularly blatant driver bugs */
+		/* catch some particularly blatant driver s */
 		if ((dev->gadget.speed == USB_SPEED_SUPER && max != 1024) ||
 		    (dev->gadget.speed == USB_SPEED_HIGH && max != 512) ||
 		    (dev->gadget.speed == USB_SPEED_FULL && max > 64)) {
@@ -1632,7 +1632,7 @@ static const struct usb_gadget_ops net2280_ops = {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_USB_GADGET_DEBUG_FILES
+#ifdef	CONFIG_USB_GADGET_DE_FILES
 
 /* FIXME move these into procfs, and use seq_file.
  * Sysfs _still_ doesn't behave for arbitrarily sized files,
@@ -2012,7 +2012,7 @@ static void defect7374_enable_data_eps_zero(struct net2280 *dev)
 	writel(tmp, &dev->dep[4].dep_cfg);
 	writel(tmp, &dev->dep[5].dep_cfg);
 
-	/*Implemented for development and debug.
+	/*Implemented for development and de.
 	 * Can be refined/tuned later.*/
 	for (ep_sel = 0; ep_sel <= 21; ep_sel++) {
 		/* Select an endpoint for subsequent operations: */
@@ -2104,7 +2104,7 @@ static void usb_reset_338x(struct net2280 *dev)
 
 	net2280_led_init(dev);
 
-	if (dev->bug7734_patched) {
+	if (dev->7734_patched) {
 		/* disable automatic responses, and irqs */
 		writel(0, &dev->usb->stdrsp);
 		writel(0, &dev->regs->pciirqenb0);
@@ -2127,7 +2127,7 @@ static void usb_reset_338x(struct net2280 *dev)
 
 	writel(~0, &dev->regs->irqstat0), writel(~0, &dev->regs->irqstat1);
 
-	if (dev->bug7734_patched) {
+	if (dev->7734_patched) {
 		/* reset, and enable pci */
 		tmp = readl(&dev->regs->devinit) |
 		    BIT(PCI_ENABLE) |
@@ -2238,7 +2238,7 @@ static void usb_reinit_338x(struct net2280 *dev)
 	dev->ep[0].stopped = 0;
 
 	/* Link layer set up */
-	if (dev->bug7734_patched) {
+	if (dev->7734_patched) {
 		tmp = readl(&dev->usb_ext->usbctl2) &
 		    ~(BIT(U1_ENABLE) | BIT(U2_ENABLE) | BIT(LTM_ENABLE));
 		writel(tmp, &dev->usb_ext->usbctl2);
@@ -2346,7 +2346,7 @@ static void ep0_start_228x(struct net2280 *dev)
 static void ep0_start_338x(struct net2280 *dev)
 {
 
-	if (dev->bug7734_patched)
+	if (dev->7734_patched)
 		writel(BIT(CLEAR_NAK_OUT_PACKETS_MODE) |
 		       BIT(SET_EP_HIDE_STATUS_PHASE),
 		       &dev->epregs[0].ep_rsp);
@@ -2433,7 +2433,7 @@ static int net2280_start(struct usb_gadget *_gadget,
 	 */
 	net2280_led_active(dev, 1);
 
-	if ((dev->quirks & PLX_PCIE) && !dev->bug7734_patched)
+	if ((dev->quirks & PLX_PCIE) && !dev->7734_patched)
 		defect7374_enable_data_eps_zero(dev);
 
 	ep0_start(dev);
@@ -2783,7 +2783,7 @@ static void defect7374_workaround(struct net2280 *dev, struct usb_ctrlrequest r)
 		 * run after the next USB connection.
 		 */
 		scratch |= DEFECT7374_FSM_NON_SS_CONTROL_READ;
-		dev->bug7734_patched = 1;
+		dev->7734_patched = 1;
 		goto restore_data_eps;
 	}
 
@@ -2797,7 +2797,7 @@ static void defect7374_workaround(struct net2280 *dev, struct usb_ctrlrequest r)
 		if ((state >= (ACK_GOOD_NORMAL << STATE)) &&
 			(state <= (ACK_GOOD_MORE_ACKS_TO_COME << STATE))) {
 			scratch |= DEFECT7374_FSM_SS_CONTROL_READ;
-			dev->bug7734_patched = 1;
+			dev->7734_patched = 1;
 			break;
 		}
 
@@ -3157,7 +3157,7 @@ static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 		cpu_to_le32s(&u.raw[0]);
 		cpu_to_le32s(&u.raw[1]);
 
-		if ((dev->quirks & PLX_PCIE) && !dev->bug7734_patched)
+		if ((dev->quirks & PLX_PCIE) && !dev->7734_patched)
 			defect7374_workaround(dev, u.r);
 
 		tmp = 0;
@@ -3566,7 +3566,7 @@ static void net2280_remove(struct pci_dev *pdev)
 
 	usb_del_gadget_udc(&dev->gadget);
 
-	BUG_ON(dev->driver);
+	_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
 	if (dev->requests) {
@@ -3686,10 +3686,10 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					(0xf << DEFECT7374_FSM_FIELD);
 		/* See if firmware needs to set up for workaround: */
 		if (fsmvalue == DEFECT7374_FSM_SS_CONTROL_READ) {
-			dev->bug7734_patched = 1;
+			dev->7734_patched = 1;
 			writel(0, &dev->usb->usbctl);
 		} else
-			dev->bug7734_patched = 0;
+			dev->7734_patched = 0;
 	} else {
 		dev->enhanced_mode = 0;
 		dev->n_ep = 7;

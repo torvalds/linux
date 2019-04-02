@@ -252,7 +252,7 @@ edd_show_raw_data(struct edd_device *edev, char *buf)
 	if (!(info->params.key == 0xBEDD || info->params.key == 0xDDBE))
 		len = info->params.length;
 
-	/* In case of buggy BIOSs */
+	/* In case of gy BIOSs */
 	if (len > (sizeof(info->params)))
 		len = sizeof(info->params);
 

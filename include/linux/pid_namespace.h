@@ -3,7 +3,7 @@
 #define _LINUX_PID_NS_H
 
 #include <linux/sched.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mm.h>
 #include <linux/workqueue.h>
 #include <linux/threads.h>
@@ -87,7 +87,7 @@ static inline void put_pid_ns(struct pid_namespace *ns)
 
 static inline void zap_pid_ns_processes(struct pid_namespace *ns)
 {
-	BUG();
+	();
 }
 
 static inline int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)

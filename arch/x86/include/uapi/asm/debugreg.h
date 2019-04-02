@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _UAPI_ASM_X86_DEBUGREG_H
-#define _UAPI_ASM_X86_DEBUGREG_H
+#ifndef _UAPI_ASM_X86_DEREG_H
+#define _UAPI_ASM_X86_DEREG_H
 
 
 /* Indicate the register numbers for a number of the specific
-   debug registers.  Registers 0-3 contain the addresses we wish to trap on */
-#define DR_FIRSTADDR 0        /* u_debugreg[DR_FIRSTADDR] */
-#define DR_LASTADDR 3         /* u_debugreg[DR_LASTADDR]  */
+   de registers.  Registers 0-3 contain the addresses we wish to trap on */
+#define DR_FIRSTADDR 0        /* u_dereg[DR_FIRSTADDR] */
+#define DR_LASTADDR 3         /* u_dereg[DR_LASTADDR]  */
 
-#define DR_STATUS 6           /* u_debugreg[DR_STATUS]     */
-#define DR_CONTROL 7          /* u_debugreg[DR_CONTROL] */
+#define DR_STATUS 6           /* u_dereg[DR_STATUS]     */
+#define DR_CONTROL 7          /* u_dereg[DR_CONTROL] */
 
 /* Define a few things for the status register.  We can use this to determine
-   which debugging register was responsible for the trap.  The other bits
+   which deging register was responsible for the trap.  The other bits
    are either reserved or not of interest to us. */
 
 /* Define reserved bits in DR6 which are always set to 1 */
@@ -29,7 +29,7 @@
 
 /* Now define a bunch of things for manipulating the control register.
    The top two bytes of the control register consist of 4 fields of 4
-   bits - each field corresponds to one of the four debug registers,
+   bits - each field corresponds to one of the four de registers,
    and indicates what types of access we trap on, and how large the data
    field is that we are looking at */
 
@@ -78,4 +78,4 @@
  * HW breakpoint additions
  */
 
-#endif /* _UAPI_ASM_X86_DEBUGREG_H */
+#endif /* _UAPI_ASM_X86_DEREG_H */

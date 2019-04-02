@@ -134,7 +134,7 @@ static int cdv_lvds_pwm_set_brightness(struct drm_device *dev, int level)
 	max_pwm_blc = cdv_intel_lvds_get_max_backlight(dev);
 
 	/*BLC_PWM_CTL Should be initiated while backlight device init*/
-	BUG_ON((max_pwm_blc & PSB_BLC_MAX_PWM_REG_FREQ) == 0);
+	_ON((max_pwm_blc & PSB_BLC_MAX_PWM_REG_FREQ) == 0);
 
 	blc_pwm_duty_cycle = level * max_pwm_blc / BRIGHTNESS_MAX_LEVEL;
 
@@ -596,7 +596,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+		DRM_DE_KMS("LVDS is not present in VBT\n");
 		return;
 	}
 
@@ -730,7 +730,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
-		DRM_DEBUG
+		DRM_DE
 			("Found no modes on the lvds, ignoring the LVDS\n");
 		goto failed_find;
 	}

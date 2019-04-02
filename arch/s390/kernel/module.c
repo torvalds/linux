@@ -18,15 +18,15 @@
 #include <linux/kernel.h>
 #include <linux/kasan.h>
 #include <linux/moduleloader.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/facility.h>
 
 #if 0
-#define DEBUGP printk
+#define DEP printk
 #else
-#define DEBUGP(fmt , ...)
+#define DEP(fmt , ...)
 #endif
 
 #define PLT_ENTRY_SIZE 20
@@ -422,7 +422,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	unsigned long i, n;
 	int rc;
 
-	DEBUGP("Applying relocate section %u to %u\n",
+	DEP("Applying relocate section %u to %u\n",
 	       relsec, sechdrs[relsec].sh_info);
 	base = sechdrs[sechdrs[relsec].sh_info].sh_addr;
 	symtab = (Elf_Sym *) sechdrs[symindex].sh_addr;

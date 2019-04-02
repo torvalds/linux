@@ -510,7 +510,7 @@ static void dump_cqe(void *cqe)
 {
 	__be32 *buf = cqe;
 
-	pr_debug("CQE contents %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	pr_de("CQE contents %08x %08x %08x %08x %08x %08x %08x %08x\n",
 	       be32_to_cpu(buf[0]), be32_to_cpu(buf[1]), be32_to_cpu(buf[2]),
 	       be32_to_cpu(buf[3]), be32_to_cpu(buf[4]), be32_to_cpu(buf[5]),
 	       be32_to_cpu(buf[6]), be32_to_cpu(buf[7]));
@@ -520,7 +520,7 @@ static void mlx4_ib_handle_error_cqe(struct mlx4_err_cqe *cqe,
 				     struct ib_wc *wc)
 {
 	if (cqe->syndrome == MLX4_CQE_SYNDROME_LOCAL_QP_OP_ERR) {
-		pr_debug("local QP operation err "
+		pr_de("local QP operation err "
 		       "(QPN %06x, WQE index %x, vendor syndrome %02x, "
 		       "opcode = %02x)\n",
 		       be32_to_cpu(cqe->my_qpn), be16_to_cpu(cqe->wqe_index),

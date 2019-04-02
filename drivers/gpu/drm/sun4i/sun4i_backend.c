@@ -49,7 +49,7 @@ static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
 {
 	int i;
 
-	DRM_DEBUG_DRIVER("Applying RGB to YUV color correction\n");
+	DRM_DE_DRIVER("Applying RGB to YUV color correction\n");
 
 	/* Set color correction */
 	regmap_write(engine->regs, SUN4I_BACKEND_OCCTL_REG,
@@ -62,7 +62,7 @@ static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
 
 static void sun4i_backend_disable_color_correction(struct sunxi_engine *engine)
 {
-	DRM_DEBUG_DRIVER("Disabling color correction\n");
+	DRM_DE_DRIVER("Disabling color correction\n");
 
 	/* Disable color correction */
 	regmap_update_bits(engine->regs, SUN4I_BACKEND_OCCTL_REG,
@@ -71,7 +71,7 @@ static void sun4i_backend_disable_color_correction(struct sunxi_engine *engine)
 
 static void sun4i_backend_commit(struct sunxi_engine *engine)
 {
-	DRM_DEBUG_DRIVER("Committing changes\n");
+	DRM_DE_DRIVER("Committing changes\n");
 
 	regmap_write(engine->regs, SUN4I_BACKEND_REGBUFFCTL_REG,
 		     SUN4I_BACKEND_REGBUFFCTL_AUTOLOAD_DIS |
@@ -83,7 +83,7 @@ void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 {
 	u32 val;
 
-	DRM_DEBUG_DRIVER("%sabling layer %d\n", enable ? "En" : "Dis",
+	DRM_DE_DRIVER("%sabling layer %d\n", enable ? "En" : "Dis",
 			 layer);
 
 	if (enable)
@@ -171,10 +171,10 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 {
 	struct drm_plane_state *state = plane->state;
 
-	DRM_DEBUG_DRIVER("Updating layer %d\n", layer);
+	DRM_DE_DRIVER("Updating layer %d\n", layer);
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
-		DRM_DEBUG_DRIVER("Primary layer, updating global size W: %u H: %u\n",
+		DRM_DE_DRIVER("Primary layer, updating global size W: %u H: %u\n",
 				 state->crtc_w, state->crtc_h);
 		regmap_write(backend->engine.regs, SUN4I_BACKEND_DISSIZE_REG,
 			     SUN4I_BACKEND_DISSIZE(state->crtc_w,
@@ -182,14 +182,14 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 	}
 
 	/* Set height and width */
-	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n",
+	DRM_DE_DRIVER("Layer size W: %u H: %u\n",
 			 state->crtc_w, state->crtc_h);
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_LAYSIZE_REG(layer),
 		     SUN4I_BACKEND_LAYSIZE(state->crtc_w,
 					   state->crtc_h));
 
 	/* Set base coordinates */
-	DRM_DEBUG_DRIVER("Layer coordinates X: %d Y: %d\n",
+	DRM_DE_DRIVER("Layer coordinates X: %d Y: %d\n",
 			 state->crtc_x, state->crtc_y);
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_LAYCOOR_REG(layer),
 		     SUN4I_BACKEND_LAYCOOR(state->crtc_x,
@@ -226,7 +226,7 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 	    drm_format_info_is_yuv_sampling_422(format))
 		val |= SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422;
 	else
-		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", fmt);
+		DRM_DE_DRIVER("Unsupported YUV format (0x%x)\n", fmt);
 
 	/*
 	 * Allwinner seems to list the pixel sequence from right to left, while
@@ -246,7 +246,7 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 		val |= SUN4I_BACKEND_IYUVCTL_FBPS_YUYV;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Unsupported YUV pixel sequence (0x%x)\n",
+		DRM_DE_DRIVER("Unsupported YUV pixel sequence (0x%x)\n",
 				 fmt);
 	}
 
@@ -276,7 +276,7 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 			   SUN4I_BACKEND_MODCTL_ITLMOD_EN,
 			   interlaced ? SUN4I_BACKEND_MODCTL_ITLMOD_EN : 0);
 
-	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
+	DRM_DE_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
 	val = SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA(state->alpha >> 8);
@@ -293,7 +293,7 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 
 	ret = sun4i_backend_drm_format_to_layer(fb->format->format, &val);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Invalid format\n");
+		DRM_DE_DRIVER("Invalid format\n");
 		return ret;
 	}
 
@@ -312,7 +312,7 @@ int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
 
 	ret = sun4i_backend_drm_format_to_layer(fmt, &val);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Invalid format\n");
+		DRM_DE_DRIVER("Invalid format\n");
 		return ret;
 	}
 
@@ -333,10 +333,10 @@ static int sun4i_backend_update_yuv_buffer(struct sun4i_backend *backend,
 					   dma_addr_t paddr)
 {
 	/* TODO: Add support for the multi-planar YUV formats */
-	DRM_DEBUG_DRIVER("Setting packed YUV buffer address to %pad\n", &paddr);
+	DRM_DE_DRIVER("Setting packed YUV buffer address to %pad\n", &paddr);
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVADD_REG(0), paddr);
 
-	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
+	DRM_DE_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
 	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVLINEWIDTH_REG(0),
 		     fb->pitches[0] * 8);
 
@@ -352,14 +352,14 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	dma_addr_t paddr;
 
 	/* Set the line width */
-	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
+	DRM_DE_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
 	regmap_write(backend->engine.regs,
 		     SUN4I_BACKEND_LAYLINEWIDTH_REG(layer),
 		     fb->pitches[0] * 8);
 
 	/* Get the start of the displayed memory */
 	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
-	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
+	DRM_DE_DRIVER("Setting buffer address to %pad\n", &paddr);
 
 	/*
 	 * backend DMA accesses DRAM directly, bypassing the system
@@ -373,14 +373,14 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 
 	/* Write the 32 lower bits of the address (in bits) */
 	lo_paddr = paddr << 3;
-	DRM_DEBUG_DRIVER("Setting address lower bits to 0x%x\n", lo_paddr);
+	DRM_DE_DRIVER("Setting address lower bits to 0x%x\n", lo_paddr);
 	regmap_write(backend->engine.regs,
 		     SUN4I_BACKEND_LAYFB_L32ADD_REG(layer),
 		     lo_paddr);
 
 	/* And the upper bits */
 	hi_paddr = paddr >> 29;
-	DRM_DEBUG_DRIVER("Setting address high bits to 0x%x\n", hi_paddr);
+	DRM_DE_DRIVER("Setting address high bits to 0x%x\n", hi_paddr);
 	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_LAYFB_H4ADD_REG,
 			   SUN4I_BACKEND_LAYFB_H4ADD_MSK(layer),
 			   SUN4I_BACKEND_LAYFB_H4ADD(layer, hi_paddr));
@@ -396,7 +396,7 @@ int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend, int layer,
 	unsigned int priority = state->normalized_zpos;
 	unsigned int pipe = p_state->pipe;
 
-	DRM_DEBUG_DRIVER("Setting layer %d's priority to %d and pipe %d\n",
+	DRM_DE_DRIVER("Setting layer %d's priority to %d and pipe %d\n",
 			 layer, priority, pipe);
 	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_ATTCTL_REG0(layer),
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK |
@@ -421,7 +421,7 @@ static bool sun4i_backend_plane_uses_scaler(struct drm_plane_state *state)
 	u16 src_h = state->src_h >> 16;
 	u16 src_w = state->src_w >> 16;
 
-	DRM_DEBUG_DRIVER("Input size %dx%d, output size %dx%d\n",
+	DRM_DE_DRIVER("Input size %dx%d, output size %dx%d\n",
 			 src_w, src_h, state->crtc_w, state->crtc_h);
 
 	if ((state->crtc_h != src_h) || (state->crtc_w != src_w))
@@ -507,7 +507,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	unsigned int current_pipe = 0;
 	unsigned int i;
 
-	DRM_DEBUG_DRIVER("Starting checking our planes\n");
+	DRM_DE_DRIVER("Starting checking our planes\n");
 
 	if (!crtc_state->planes_changed)
 		return 0;
@@ -525,23 +525,23 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 			return -EINVAL;
 
 		if (layer_state->uses_frontend) {
-			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
+			DRM_DE_DRIVER("Using the frontend for plane %d\n",
 					 plane->index);
 			num_frontend_planes++;
 		} else {
 			if (fb->format->is_yuv) {
-				DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
+				DRM_DE_DRIVER("Plane FB format is YUV\n");
 				num_yuv_planes++;
 			}
 		}
 
-		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
+		DRM_DE_DRIVER("Plane FB format is %s\n",
 				 drm_get_format_name(fb->format->format,
 						     &format_name));
 		if (fb->format->has_alpha || (plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE))
 			num_alpha_planes++;
 
-		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
+		DRM_DE_DRIVER("Plane zpos is %d\n",
 				 plane_state->normalized_zpos);
 
 		/* Sort our planes by Zpos */
@@ -575,7 +575,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	 * with alpha at the lowest position of our two pipes.
 	 *
 	 * However, we cannot even do that on every platform, since
-	 * the hardware has a bug where the lowest plane of the lowest
+	 * the hardware has a  where the lowest plane of the lowest
 	 * pipe (pipe 0, priority 0), if it has any alpha, will
 	 * discard the pixel data entirely and just display the pixels
 	 * in the background color (black by default).
@@ -592,7 +592,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		num_alpha_planes_max++;
 
 	if (num_alpha_planes > num_alpha_planes_max) {
-		DRM_DEBUG_DRIVER("Too many planes with alpha, rejecting...\n");
+		DRM_DE_DRIVER("Too many planes with alpha, rejecting...\n");
 		return -EINVAL;
 	}
 
@@ -619,16 +619,16 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 
 	/* We can only have a single YUV plane at a time */
 	if (num_yuv_planes > SUN4I_BACKEND_NUM_YUV_PLANES) {
-		DRM_DEBUG_DRIVER("Too many planes with YUV, rejecting...\n");
+		DRM_DE_DRIVER("Too many planes with YUV, rejecting...\n");
 		return -EINVAL;
 	}
 
 	if (num_frontend_planes > SUN4I_BACKEND_NUM_FRONTEND_LAYERS) {
-		DRM_DEBUG_DRIVER("Too many planes going through the frontend, rejecting\n");
+		DRM_DE_DRIVER("Too many planes going through the frontend, rejecting\n");
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER("State valid with %u planes, %u alpha, %u video, %u YUV\n",
+	DRM_DE_DRIVER("State valid with %u planes, %u alpha, %u video, %u YUV\n",
 			 num_planes, num_alpha_planes, num_frontend_planes,
 			 num_yuv_planes);
 

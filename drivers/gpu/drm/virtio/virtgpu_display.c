@@ -184,7 +184,7 @@ static int virtio_gpu_conn_get_modes(struct drm_connector *connector)
 		height = YRES_DEF;
 		drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
 	} else {
-		DRM_DEBUG("add mode: %dx%d\n", width, height);
+		DRM_DE("add mode: %dx%d\n", width, height);
 		mode = drm_cvt_mode(connector->dev, width, height, 60,
 				    false, false, false);
 		mode->type |= DRM_MODE_TYPE_PREFERRED;
@@ -213,7 +213,7 @@ static enum drm_mode_status virtio_gpu_conn_mode_valid(struct drm_connector *con
 	    mode->vdisplay <= height && mode->vdisplay >= height - 16)
 		return MODE_OK;
 
-	DRM_DEBUG("del mode: %dx%d\n", mode->hdisplay, mode->vdisplay);
+	DRM_DE("del mode: %dx%d\n", mode->hdisplay, mode->vdisplay);
 	return MODE_BAD;
 }
 

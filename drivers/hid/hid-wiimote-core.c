@@ -1763,7 +1763,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 {
 	unsigned long flags;
 
-	wiidebug_deinit(wdata);
+	wiide_deinit(wdata);
 
 	/* prevent init_worker from being scheduled again */
 	spin_lock_irqsave(&wdata->state.lock, flags);
@@ -1830,7 +1830,7 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_ext;
 	}
 
-	ret = wiidebug_init(wdata);
+	ret = wiide_init(wdata);
 	if (ret)
 		goto err_free;
 

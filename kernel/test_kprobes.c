@@ -312,9 +312,9 @@ int init_test_probes(void)
 #endif /* CONFIG_KRETPROBES */
 
 	if (errors)
-		pr_err("BUG: %d out of %d tests failed\n", errors, num_tests);
+		pr_err(": %d out of %d tests failed\n", errors, num_tests);
 	else if (handler_errors)
-		pr_err("BUG: %d error(s) running handlers\n", handler_errors);
+		pr_err(": %d error(s) running handlers\n", handler_errors);
 	else
 		pr_info("passed successfully\n");
 

@@ -27,7 +27,7 @@
 /*#define RAINFO_VERSION	"4.1"*/ /*2016.04.20 Dino, Add new function to
 					  *adjust PCR RA threshold
 					  */
-/*#define RAINFO_VERSION	"4.2"*/ /*2016.05.17 Dino, Add H2C debug cmd */
+/*#define RAINFO_VERSION	"4.2"*/ /*2016.05.17 Dino, Add H2C de cmd */
 #define RAINFO_VERSION "4.3" /*2016.07.11 Dino, Fix RA hang in CCK 1M problem*/
 
 #define FORCED_UPDATE_RAMASK_PERIOD 5
@@ -93,11 +93,11 @@ enum phydm_ra_dbg_para {
 	RADBG_RATE_UP_RTY_RATIO = 8,
 	RADBG_RATE_DOWN_RTY_RATIO = 9, /* u8 */
 
-	RADBG_DEBUG_MONITOR1 = 0xc,
-	RADBG_DEBUG_MONITOR2 = 0xd,
-	RADBG_DEBUG_MONITOR3 = 0xe,
-	RADBG_DEBUG_MONITOR4 = 0xf,
-	RADBG_DEBUG_MONITOR5 = 0x10,
+	RADBG_DE_MONITOR1 = 0xc,
+	RADBG_DE_MONITOR2 = 0xd,
+	RADBG_DE_MONITOR3 = 0xe,
+	RADBG_DE_MONITOR4 = 0xf,
+	RADBG_DE_MONITOR5 = 0x10,
 	NUM_RA_PARA
 };
 
@@ -186,10 +186,10 @@ struct odm_rate_adaptive {
 	bool is_use_ldpc;
 };
 
-void phydm_h2C_debug(void *dm_void, u32 *const dm_value, u32 *_used,
+void phydm_h2C_de(void *dm_void, u32 *const dm_value, u32 *_used,
 		     char *output, u32 *_out_len);
 
-void phydm_RA_debug_PCR(void *dm_void, u32 *const dm_value, u32 *_used,
+void phydm_RA_de_PCR(void *dm_void, u32 *const dm_value, u32 *_used,
 			char *output, u32 *_out_len);
 
 void odm_c2h_ra_para_report_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len);

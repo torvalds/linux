@@ -70,12 +70,12 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	if (src_w != state->crtc_w || src_h != state->crtc_h) {
-		DRM_DEBUG_ATOMIC("scale not support\n");
+		DRM_DE_ATOMIC("scale not support\n");
 		return -EINVAL;
 	}
 
 	if (state->crtc_x < 0 || state->crtc_y < 0) {
-		DRM_DEBUG_ATOMIC("crtc_x/y of drm_plane state is invalid\n");
+		DRM_DE_ATOMIC("crtc_x/y of drm_plane state is invalid\n");
 		return -EINVAL;
 	}
 
@@ -83,7 +83,7 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 	    crtc_state->adjusted_mode.hdisplay ||
 	    state->crtc_y + state->crtc_h >
 	    crtc_state->adjusted_mode.vdisplay) {
-		DRM_DEBUG_ATOMIC("visible portion of plane is invalid\n");
+		DRM_DE_ATOMIC("visible portion of plane is invalid\n");
 		return -EINVAL;
 	}
 

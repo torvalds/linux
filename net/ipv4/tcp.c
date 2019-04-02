@@ -43,7 +43,7 @@
  *		Alan Cox	:	Sets an ignore me flag on an rst
  *					receive otherwise odd bits of prattle
  *					escape still
- *		Alan Cox	:	Fixed another acking RST frame bug.
+ *		Alan Cox	:	Fixed another acking RST frame .
  *					Should stop LAN workplace lockups.
  *		Alan Cox	: 	Some tidyups using the new skb list
  *					facilities
@@ -57,7 +57,7 @@
  *		Alan Cox	:	Added some better commenting, as the
  *					tcp is hard to follow
  *		Alan Cox	:	Removed incorrect check for 20 * psh
- *	Michael O'Reilly	:	ack < copied bug fix.
+ *	Michael O'Reilly	:	ack < copied  fix.
  *	Johannes Stille		:	Misc tcp fixes (not all in yet).
  *		Alan Cox	:	FIN with no memory -> CRASH
  *		Alan Cox	:	Added socket option proto entries.
@@ -85,20 +85,20 @@
  *		Matthew Dillon  :	Reworked TCP machine states as per RFC
  *		Gerhard Koerting:	PC/TCP workarounds
  *		Adam Caldwell	:	Assorted timer/timing errors
- *		Matthew Dillon	:	Fixed another RST bug
+ *		Matthew Dillon	:	Fixed another RST 
  *		Alan Cox	:	Move to kernel side addressing changes.
  *		Alan Cox	:	Beginning work on TCP fastpathing
  *					(not yet usable)
  *		Arnt Gulbrandsen:	Turbocharged tcp_check() routine.
- *		Alan Cox	:	TCP fast path debugging
+ *		Alan Cox	:	TCP fast path deging
  *		Alan Cox	:	Window clamping
- *		Michael Riepe	:	Bug in tcp_check()
- *		Matt Dillon	:	More TCP improvements and RST bug fixes
+ *		Michael Riepe	:	 in tcp_check()
+ *		Matt Dillon	:	More TCP improvements and RST  fixes
  *		Matt Dillon	:	Yet more small nasties remove from the
  *					TCP code (Be very nice to this man if
  *					tcp finally works 100%) 8)
  *		Alan Cox	:	BSD accept semantics.
- *		Alan Cox	:	Reset on closedown bug.
+ *		Alan Cox	:	Reset on closedown .
  *	Peter De Schrijver	:	ENOTCONN check missing in tcp_sendto().
  *		Michael Pall	:	Handle poll() after URG properly in
  *					all cases.
@@ -129,7 +129,7 @@
  *		Alan Cox	:	Small whoops in polling before an
  *					accept.
  *		Alan Cox	:	Kept the state trace facility since
- *					it's handy for debugging.
+ *					it's handy for deging.
  *		Alan Cox	:	More reset handler fixes.
  *		Alan Cox	:	Started rewriting the code based on
  *					the RFC's for other useful protocol
@@ -143,7 +143,7 @@
  *		Linus Torvalds	:	Fixed BSD port reuse to work first syn
  *		Alan Cox	:	Reimplemented timers as per the RFC
  *					and using multiple timers for sanity.
- *		Alan Cox	:	Small bug fixes, and a lot of new
+ *		Alan Cox	:	Small  fixes, and a lot of new
  *					comments.
  *		Alan Cox	:	Fixed dual reader crash by locking
  *					the buffers (much like datagram.c)
@@ -197,7 +197,7 @@
  *	Mike McLagan		:	Routing by source
  *		Keith Owens	:	Do proper merging with partial SKB's in
  *					tcp_do_sendmsg to avoid burstiness.
- *		Eric Schenk	:	Fix fast close down bug with
+ *		Eric Schenk	:	Fix fast close down  with
  *					shutdown() followed by close().
  *		Andi Kleen 	:	Make poll agree with SIGIO
  *	Salvatore Sanfilippo	:	Support SO_LINGER with linger == 1 and
@@ -943,7 +943,7 @@ ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
 	ssize_t copied;
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 
-	if (IS_ENABLED(CONFIG_DEBUG_VM) &&
+	if (IS_ENABLED(CONFIG_DE_VM) &&
 	    WARN_ONCE(PageSlab(page), "page must not be a Slab one"))
 		return -EINVAL;
 
@@ -1537,7 +1537,7 @@ static void tcp_cleanup_rbuf(struct sock *sk, int copied)
 	struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
 
 	WARN(skb && !before(tp->copied_seq, TCP_SKB_CB(skb)->end_seq),
-	     "cleanup rbuf bug: copied %X seq %X rcvnxt %X\n",
+	     "cleanup rbuf : copied %X seq %X rcvnxt %X\n",
 	     tp->copied_seq, TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt);
 
 	if (inet_csk_ack_scheduled(sk)) {
@@ -2035,7 +2035,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 			 * shouldn't happen.
 			 */
 			if (WARN(before(*seq, TCP_SKB_CB(skb)->seq),
-				 "TCP recvmsg seq # bug: copied %X, seq %X, rcvnxt %X, fl %X\n",
+				 "TCP recvmsg seq # : copied %X, seq %X, rcvnxt %X, fl %X\n",
 				 *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt,
 				 flags))
 				break;
@@ -2050,7 +2050,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 			if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 				goto found_fin_ok;
 			WARN(!(flags & MSG_PEEK),
-			     "TCP recvmsg seq # bug 2: copied %X, seq %X, rcvnxt %X, fl %X\n",
+			     "TCP recvmsg seq #  2: copied %X, seq %X, rcvnxt %X, fl %X\n",
 			     *seq, TCP_SKB_CB(skb)->seq, tp->rcv_nxt, flags);
 		}
 
@@ -2109,7 +2109,7 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 
 		if ((flags & MSG_PEEK) &&
 		    (peek_seq - copied - urg_hole != tp->copied_seq)) {
-			net_dbg_ratelimited("TCP(%s:%d): Application bug, race in MSG_PEEK\n",
+			net_dbg_ratelimited("TCP(%s:%d): Application , race in MSG_PEEK\n",
 					    current->comm,
 					    task_pid_nr(current));
 			peek_seq = tp->copied_seq;
@@ -2228,19 +2228,19 @@ void tcp_set_state(struct sock *sk, int state)
 	 * need to remap the internal value to the BPF value before calling
 	 * tcp_call_bpf_2arg.
 	 */
-	BUILD_BUG_ON((int)BPF_TCP_ESTABLISHED != (int)TCP_ESTABLISHED);
-	BUILD_BUG_ON((int)BPF_TCP_SYN_SENT != (int)TCP_SYN_SENT);
-	BUILD_BUG_ON((int)BPF_TCP_SYN_RECV != (int)TCP_SYN_RECV);
-	BUILD_BUG_ON((int)BPF_TCP_FIN_WAIT1 != (int)TCP_FIN_WAIT1);
-	BUILD_BUG_ON((int)BPF_TCP_FIN_WAIT2 != (int)TCP_FIN_WAIT2);
-	BUILD_BUG_ON((int)BPF_TCP_TIME_WAIT != (int)TCP_TIME_WAIT);
-	BUILD_BUG_ON((int)BPF_TCP_CLOSE != (int)TCP_CLOSE);
-	BUILD_BUG_ON((int)BPF_TCP_CLOSE_WAIT != (int)TCP_CLOSE_WAIT);
-	BUILD_BUG_ON((int)BPF_TCP_LAST_ACK != (int)TCP_LAST_ACK);
-	BUILD_BUG_ON((int)BPF_TCP_LISTEN != (int)TCP_LISTEN);
-	BUILD_BUG_ON((int)BPF_TCP_CLOSING != (int)TCP_CLOSING);
-	BUILD_BUG_ON((int)BPF_TCP_NEW_SYN_RECV != (int)TCP_NEW_SYN_RECV);
-	BUILD_BUG_ON((int)BPF_TCP_MAX_STATES != (int)TCP_MAX_STATES);
+	BUILD__ON((int)BPF_TCP_ESTABLISHED != (int)TCP_ESTABLISHED);
+	BUILD__ON((int)BPF_TCP_SYN_SENT != (int)TCP_SYN_SENT);
+	BUILD__ON((int)BPF_TCP_SYN_RECV != (int)TCP_SYN_RECV);
+	BUILD__ON((int)BPF_TCP_FIN_WAIT1 != (int)TCP_FIN_WAIT1);
+	BUILD__ON((int)BPF_TCP_FIN_WAIT2 != (int)TCP_FIN_WAIT2);
+	BUILD__ON((int)BPF_TCP_TIME_WAIT != (int)TCP_TIME_WAIT);
+	BUILD__ON((int)BPF_TCP_CLOSE != (int)TCP_CLOSE);
+	BUILD__ON((int)BPF_TCP_CLOSE_WAIT != (int)TCP_CLOSE_WAIT);
+	BUILD__ON((int)BPF_TCP_LAST_ACK != (int)TCP_LAST_ACK);
+	BUILD__ON((int)BPF_TCP_LISTEN != (int)TCP_LISTEN);
+	BUILD__ON((int)BPF_TCP_CLOSING != (int)TCP_CLOSING);
+	BUILD__ON((int)BPF_TCP_NEW_SYN_RECV != (int)TCP_NEW_SYN_RECV);
+	BUILD__ON((int)BPF_TCP_MAX_STATES != (int)TCP_MAX_STATES);
 
 	if (BPF_SOCK_OPS_TEST_FLAG(tcp_sk(sk), BPF_SOCK_OPS_STATE_CB_FLAG))
 		tcp_call_bpf_2arg(sk, BPF_SOCK_OPS_STATE_CB, oldstate, state);
@@ -3889,7 +3889,7 @@ void __init tcp_init(void)
 	unsigned long limit;
 	unsigned int i;
 
-	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) >
+	BUILD__ON(sizeof(struct tcp_skb_cb) >
 		     FIELD_SIZEOF(struct sk_buff, cb));
 
 	percpu_counter_init(&tcp_sockets_allocated, 0, GFP_KERNEL);
@@ -3962,6 +3962,6 @@ void __init tcp_init(void)
 
 	tcp_v4_init();
 	tcp_metrics_init();
-	BUG_ON(tcp_register_congestion_control(&tcp_reno) != 0);
+	_ON(tcp_register_congestion_control(&tcp_reno) != 0);
 	tcp_tasklet_init();
 }

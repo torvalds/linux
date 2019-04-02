@@ -447,7 +447,7 @@ static int w83627hf_resume(struct device *dev)
 				     data->temp_max_hyst[i]);
 	}
 
-	/* Fixup BIOS bugs */
+	/* Fixup BIOS s */
 	if (data->type == w83627thf || data->type == w83637hf ||
 	    data->type == w83687thf)
 		w83627hf_write_value(data, W83627THF_REG_VRM_OVT_CFG,
@@ -1311,7 +1311,7 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	case 0xff:	/* No device at all */
 		goto exit;
 	default:
-		pr_debug(DRVNAME ": Unsupported chip (DEVID=0x%02x)\n", val);
+		pr_de(DRVNAME ": Unsupported chip (DEVID=0x%02x)\n", val);
 		goto exit;
 	}
 

@@ -51,7 +51,7 @@ static inline bool lockdep_rtnl_is_held(void)
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
 /**
- * rcu_dereference_rtnl - rcu_dereference with debug checking
+ * rcu_dereference_rtnl - rcu_dereference with de checking
  * @p: The pointer to read, prior to dereferencing
  *
  * Do an rcu_dereference(p), but check caller either holds rcu_read_lock()
@@ -61,7 +61,7 @@ static inline bool lockdep_rtnl_is_held(void)
 	rcu_dereference_check(p, lockdep_rtnl_is_held())
 
 /**
- * rcu_dereference_bh_rtnl - rcu_dereference_bh with debug checking
+ * rcu_dereference_bh_rtnl - rcu_dereference_bh with de checking
  * @p: The pointer to read, prior to dereference
  *
  * Do an rcu_dereference_bh(p), but check caller either holds rcu_read_lock_bh()

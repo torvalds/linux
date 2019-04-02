@@ -86,8 +86,8 @@ enum dispc_feature_id {
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
-	/* An unknown HW bug causing the normal FIFO thresholds not to work */
-	FEAT_OMAP3_DSI_FIFO_BUG,
+	/* An unknown HW  causing the normal FIFO thresholds not to work */
+	FEAT_OMAP3_DSI_FIFO_,
 	FEAT_BURST_2D,
 	FEAT_MFLAG,
 };
@@ -160,7 +160,7 @@ struct dispc_features {
 
 	bool has_gamma_table:1;
 
-	bool has_gamma_i734_bug:1;
+	bool has_gamma_i734_:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -171,7 +171,7 @@ struct dispc_device {
 	void __iomem    *base;
 	struct dss_device *dss;
 
-	struct dss_debugfs_entry *debugfs;
+	struct dss_defs_entry *defs;
 
 	int irq;
 	irq_handler_t user_handler;
@@ -415,7 +415,7 @@ static void dispc_get_reg_field(struct dispc_device *dispc,
 				u8 *start, u8 *end)
 {
 	if (id >= dispc->feat->num_reg_fields)
-		BUG();
+		();
 
 	*start = dispc->feat->reg_fields[id].start;
 	*end = dispc->feat->reg_fields[id].end;
@@ -794,7 +794,7 @@ static void dispc_ovl_write_firh2_reg(struct dispc_device *dispc,
 				      enum omap_plane_id plane, int reg,
 				      u32 value)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(dispc, DISPC_OVL_FIR_COEF_H2(plane, reg), value);
 }
@@ -803,7 +803,7 @@ static void dispc_ovl_write_firhv2_reg(struct dispc_device *dispc,
 				       enum omap_plane_id plane, int reg,
 				       u32 value)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(dispc, DISPC_OVL_FIR_COEF_HV2(plane, reg), value);
 }
@@ -812,7 +812,7 @@ static void dispc_ovl_write_firv2_reg(struct dispc_device *dispc,
 				      enum omap_plane_id plane, int reg,
 				      u32 value)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(dispc, DISPC_OVL_FIR_COEF_V2(plane, reg), value);
 }
@@ -998,7 +998,7 @@ static void dispc_ovl_set_output_size(struct dispc_device *dispc,
 {
 	u32 val;
 
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
 
@@ -1104,7 +1104,7 @@ static void dispc_ovl_set_color_mode(struct dispc_device *dispc,
 		case DRM_FORMAT_XRGB1555:
 			m = 0xf; break;
 		default:
-			BUG(); return;
+			(); return;
 		}
 	} else {
 		switch (fourcc) {
@@ -1133,7 +1133,7 @@ static void dispc_ovl_set_color_mode(struct dispc_device *dispc,
 		case DRM_FORMAT_XRGB1555:
 			m = 0xf; break;
 		default:
-			BUG(); return;
+			(); return;
 		}
 	}
 
@@ -1171,7 +1171,7 @@ static void dispc_ovl_set_channel_out(struct dispc_device *dispc,
 		shift = 16;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -1195,7 +1195,7 @@ static void dispc_ovl_set_channel_out(struct dispc_device *dispc,
 				chan = 0;
 				chan2 = 2;
 			} else {
-				BUG();
+				();
 				return;
 			}
 			break;
@@ -1204,7 +1204,7 @@ static void dispc_ovl_set_channel_out(struct dispc_device *dispc,
 			chan2 = 3;
 			break;
 		default:
-			BUG();
+			();
 			return;
 		}
 
@@ -1232,7 +1232,7 @@ static enum omap_channel dispc_ovl_get_channel_out(struct dispc_device *dispc,
 		shift = 16;
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 
@@ -1345,7 +1345,7 @@ static void dispc_ovl_set_vid_color_conv(struct dispc_device *dispc,
 {
 	u32 val;
 
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	val = dispc_read_reg(dispc, DISPC_OVL_ATTRIBUTES(plane));
 	val = FLD_MOD(val, enable, 9, 9);
@@ -1551,7 +1551,7 @@ void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
 	 * combined fifo size
 	 */
 
-	if (manual_update && dispc_has_feature(dispc, FEAT_OMAP3_DSI_FIFO_BUG)) {
+	if (manual_update && dispc_has_feature(dispc, FEAT_OMAP3_DSI_FIFO_)) {
 		*fifo_low = ovl_fifo_size - burst_size * 2;
 		*fifo_high = total_fifo_size - burst_size;
 	} else if (plane == OMAP_DSS_WB) {
@@ -1814,7 +1814,7 @@ static void dispc_ovl_set_accu_uv(struct dispc_device *dispc,
 		accu_table = accu_yuv;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -1947,7 +1947,7 @@ static void dispc_ovl_set_scaling_uv(struct dispc_device *dispc,
 
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -1978,7 +1978,7 @@ static void dispc_ovl_set_scaling(struct dispc_device *dispc,
 				  bool fieldmode, u32 fourcc,
 				  u8 rotation)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_ovl_set_scaling_common(dispc, plane, orig_width, orig_height,
 				     out_width, out_height, ilace, five_taps,
@@ -2086,7 +2086,7 @@ static int color_mode_to_bpp(u32 fourcc)
 	case DRM_FORMAT_RGBX8888:
 		return 32;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 }
@@ -2100,7 +2100,7 @@ static s32 pixinc(int pixels, u8 ps)
 	else if (pixels < 0)
 		return 1 - (-pixels + 1) * ps;
 	else
-		BUG();
+		();
 		return 0;
 }
 
@@ -3012,7 +3012,7 @@ static void dispc_mgr_set_tft_data_lines(struct dispc_device *dispc,
 		code = 3;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -3039,7 +3039,7 @@ static void dispc_mgr_set_io_pad_mode(struct dispc_device *dispc,
 		gpout1 = 1;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -3229,7 +3229,7 @@ static void dispc_mgr_set_timings(struct dispc_device *dispc,
 	DSSDBG("channel %d xres %u yres %u\n", channel, t.hactive, t.vactive);
 
 	if (dispc_mgr_check_timings(dispc, channel, &t)) {
-		BUG();
+		();
 		return;
 	}
 
@@ -3271,8 +3271,8 @@ static void dispc_mgr_set_lcd_divisor(struct dispc_device *dispc,
 				      enum omap_channel channel, u16 lck_div,
 				      u16 pck_div)
 {
-	BUG_ON(lck_div < 1);
-	BUG_ON(pck_div < 1);
+	_ON(lck_div < 1);
+	_ON(pck_div < 1);
 
 	dispc_write_reg(dispc, DISPC_DIVISORo(channel),
 			FLD_VAL(lck_div, 23, 16) | FLD_VAL(pck_div, 7, 0));
@@ -3996,7 +3996,7 @@ static const enum dispc_feature_id omap3_dispc_features_list[] = {
 	FEAT_FIR_COEF_V,
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_OMAP3_DSI_FIFO_,
 };
 
 static const enum dispc_feature_id am43xx_dispc_features_list[] = {
@@ -4445,7 +4445,7 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.supports_double_pixel	=	true,
 	.reverse_ilace_field_order =	true,
 	.has_gamma_table	=	true,
-	.has_gamma_i734_bug	=	true,
+	.has_gamma_i734_	=	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats = {
@@ -4485,7 +4485,7 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.supports_double_pixel	=	true,
 	.reverse_ilace_field_order =	true,
 	.has_gamma_table	=	true,
-	.has_gamma_i734_bug	=	true,
+	.has_gamma_i734_	=	true,
 };
 
 static irqreturn_t dispc_irq_handler(int irq, void *arg)
@@ -4614,7 +4614,7 @@ static struct i734_buf {
 
 static int dispc_errata_i734_wa_init(struct dispc_device *dispc)
 {
-	if (!dispc->feat->has_gamma_i734_bug)
+	if (!dispc->feat->has_gamma_i734_)
 		return 0;
 
 	i734_buf.size = i734.ovli.width * i734.ovli.height *
@@ -4634,7 +4634,7 @@ static int dispc_errata_i734_wa_init(struct dispc_device *dispc)
 
 static void dispc_errata_i734_wa_fini(struct dispc_device *dispc)
 {
-	if (!dispc->feat->has_gamma_i734_bug)
+	if (!dispc->feat->has_gamma_i734_)
 		return;
 
 	dma_free_writecombine(&dispc->pdev->dev, i734_buf.size, i734_buf.vaddr,
@@ -4650,7 +4650,7 @@ static void dispc_errata_i734_wa(struct dispc_device *dispc)
 	u32 gatestate;
 	unsigned int count;
 
-	if (!dispc->feat->has_gamma_i734_bug)
+	if (!dispc->feat->has_gamma_i734_)
 		return;
 
 	gatestate = REG_GET(dispc, DISPC_CONFIG, 8, 4);
@@ -4847,7 +4847,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	dss->dispc = dispc;
 	dss->dispc_ops = &dispc_ops;
 
-	dispc->debugfs = dss_debugfs_create_file(dss, "dispc", dispc_dump_regs,
+	dispc->defs = dss_defs_create_file(dss, "dispc", dispc_dump_regs,
 						 dispc);
 
 	return 0;
@@ -4864,7 +4864,7 @@ static void dispc_unbind(struct device *dev, struct device *master, void *data)
 	struct dispc_device *dispc = dev_get_drvdata(dev);
 	struct dss_device *dss = dispc->dss;
 
-	dss_debugfs_remove_file(dispc->debugfs);
+	dss_defs_remove_file(dispc->defs);
 
 	dss->dispc = NULL;
 	dss->dispc_ops = NULL;

@@ -420,7 +420,7 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned char last_lcr;
 	unsigned char last_msr;
 
-	/* Compensate for a hardware bug: although the Sitecom U232-P25
+	/* Compensate for a hardware : although the Sitecom U232-P25
 	 * device reports a maximum output packet size of 32 bytes,
 	 * it seems to be able to accept only 16 bytes (and that's what
 	 * SniffUSB says too...)
@@ -531,7 +531,7 @@ static void mct_u232_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
+	usb_serial_de_data(&port->dev, __func__, urb->actual_length, data);
 
 	/*
 	 * Work-a-round: handle the 'usual' bulk-in pipe here

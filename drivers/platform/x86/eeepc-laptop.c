@@ -902,7 +902,7 @@ static int eeepc_hotk_thaw(struct device *device)
 		int wlan;
 
 		/*
-		 * Work around bios bug - acpi _PTS turns off the wireless led
+		 * Work around bios  - acpi _PTS turns off the wireless led
 		 * during suspend.  Normally it restores it on resume, but
 		 * we should kick it ourselves in case hibernation is aborted.
 		 */

@@ -3,7 +3,7 @@ tcm_qla2xxx jam_host attribute
 There is now a new module endpoint atribute called jam_host
 attribute: jam_host: boolean=0/1
 This attribute and accompanying code is only included if the
-Kconfig parameter TCM_QLA2XXX_DEBUG is set to Y
+Kconfig parameter TCM_QLA2XXX_DE is set to Y
 By default this jammer code and functionality is disabled
 
 Use this attribute to control the discarding of SCSI commands to a

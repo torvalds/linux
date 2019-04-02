@@ -10,9 +10,9 @@
  *		   support atp876 chip
  *		   enable 32 bit fifo transfer
  *		   support cdrom & remove device run ultra speed
- *		   fix disconnect bug  2000/12/21
+ *		   fix disconnect   2000/12/21
  *		   support atp880 chip lvd u160 2001/05/15
- *		   fix prd table bug 2001/09/12 (7.1)
+ *		   fix prd table  2001/09/12 (7.1)
  *
  * atp885 support add by ACARD Hao Ping Lian 2005/01/05
  */
@@ -271,7 +271,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 		}
 		if ((i == 0x80) || (i == 0x8f)) {
 #ifdef ED_DBGP
-			printk(KERN_DEBUG "Device reselect\n");
+			printk(KERN_DE "Device reselect\n");
 #endif			
 			lun = 0;
 			if (cmdp == 0x44 || i == 0x80)
@@ -331,9 +331,9 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				atp_writeb_io(dev, c, 0x10, 0x45);
 			workreq = dev->id[c][target_id].curr_req;
 #ifdef ED_DBGP			
-			scmd_printk(KERN_DEBUG, workreq, "CDB");
+			scmd_printk(KERN_DE, workreq, "CDB");
 			for (l = 0; l < workreq->cmd_len; l++)
-				printk(KERN_DEBUG " %x",workreq->cmnd[l]);
+				printk(KERN_DE " %x",workreq->cmnd[l]);
 			printk("\n");
 #endif	
 			
@@ -739,7 +739,7 @@ static void send_s870(struct atp_unit *dev,unsigned char c)
 	}
 #ifdef ED_DBGP
 	printk("OK to Send\n");
-	scmd_printk(KERN_DEBUG, workreq, "CDB");
+	scmd_printk(KERN_DE, workreq, "CDB");
 	for(i=0;i<workreq->cmd_len;i++) {
 		printk(" %x",workreq->cmnd[i]);
 	}
@@ -1771,7 +1771,7 @@ static void atp_is(struct atp_unit *dev, unsigned char c, bool wide_chip, unsign
 		atp_writeb_io(dev, c, 0x10, 0x30);
 		if (is885(dev) || is880(dev))
 			atp_writeb_io(dev, c, 0x14, 0x00);
-		else /* result of is870() merge - is this a bug? */
+		else /* result of is870() merge - is this a ? */
 			atp_writeb_io(dev, c, 0x04, 0x00);
 
 phase_cmd:
@@ -1852,7 +1852,7 @@ inq_ok:
 		if (is885(dev) || is880(dev)) {
 			if ((i < 8) && ((dev->global_map[c] & 0x20) == 0))
 				goto not_wide;
-		} else { /* result of is870() merge - is this a bug? */
+		} else { /* result of is870() merge - is this a ? */
 			if ((dev->global_map[c] & 0x20) == 0)
 				goto not_wide;
 		}

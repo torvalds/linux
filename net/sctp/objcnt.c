@@ -3,7 +3,7 @@
  *
  * This file is part of the SCTP kernel implementation
  *
- * Support for memory object debugging.  This allows one to monitor the
+ * Support for memory object deging.  This allows one to monitor the
  * object allocations/deallocations for types instrumented for this
  * via the proc fs.
  *
@@ -23,7 +23,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -54,7 +54,7 @@ SCTP_DBG_OBJCNT(addr);
 SCTP_DBG_OBJCNT(datamsg);
 SCTP_DBG_OBJCNT(keys);
 
-/* An array to make it easy to pretty print the debug information
+/* An array to make it easy to pretty print the de information
  * to the proc fs.
  */
 static struct sctp_dbg_objcnt_entry sctp_dbg_objcnt[] = {

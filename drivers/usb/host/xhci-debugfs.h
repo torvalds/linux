@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * xhci-debugfs.h - xHCI debugfs interface
+ * xhci-defs.h - xHCI defs interface
  *
  * Copyright (C) 2017 Intel Corporation
  *
  * Author: Lu Baolu <baolu.lu@linux.intel.com>
  */
 
-#ifndef __LINUX_XHCI_DEBUGFS_H
-#define __LINUX_XHCI_DEBUGFS_H
+#ifndef __LINUX_XHCI_DEFS_H
+#define __LINUX_XHCI_DEFS_H
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-#define DEBUGFS_NAMELEN 32
+#define DEFS_NAMELEN 32
 
 #define REG_CAPLENGTH					0x00
 #define REG_HCSPARAMS1					0x04
@@ -77,8 +77,8 @@
 }
 
 struct xhci_regset {
-	char			name[DEBUGFS_NAMELEN];
-	struct debugfs_regset32	regset;
+	char			name[DEFS_NAMELEN];
+	struct defs_regset32	regset;
 	size_t			nregs;
 	struct list_head	list;
 };
@@ -89,45 +89,45 @@ struct xhci_file_map {
 };
 
 struct xhci_ep_priv {
-	char			name[DEBUGFS_NAMELEN];
+	char			name[DEFS_NAMELEN];
 	struct dentry		*root;
 };
 
 struct xhci_slot_priv {
-	char			name[DEBUGFS_NAMELEN];
+	char			name[DEFS_NAMELEN];
 	struct dentry		*root;
 	struct xhci_ep_priv	*eps[31];
 	struct xhci_virt_device	*dev;
 };
 
-#ifdef CONFIG_DEBUG_FS
-void xhci_debugfs_init(struct xhci_hcd *xhci);
-void xhci_debugfs_exit(struct xhci_hcd *xhci);
-void __init xhci_debugfs_create_root(void);
-void __exit xhci_debugfs_remove_root(void);
-void xhci_debugfs_create_slot(struct xhci_hcd *xhci, int slot_id);
-void xhci_debugfs_remove_slot(struct xhci_hcd *xhci, int slot_id);
-void xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
+#ifdef CONFIG_DE_FS
+void xhci_defs_init(struct xhci_hcd *xhci);
+void xhci_defs_exit(struct xhci_hcd *xhci);
+void __init xhci_defs_create_root(void);
+void __exit xhci_defs_remove_root(void);
+void xhci_defs_create_slot(struct xhci_hcd *xhci, int slot_id);
+void xhci_defs_remove_slot(struct xhci_hcd *xhci, int slot_id);
+void xhci_defs_create_endpoint(struct xhci_hcd *xhci,
 				  struct xhci_virt_device *virt_dev,
 				  int ep_index);
-void xhci_debugfs_remove_endpoint(struct xhci_hcd *xhci,
+void xhci_defs_remove_endpoint(struct xhci_hcd *xhci,
 				  struct xhci_virt_device *virt_dev,
 				  int ep_index);
 #else
-static inline void xhci_debugfs_init(struct xhci_hcd *xhci) { }
-static inline void xhci_debugfs_exit(struct xhci_hcd *xhci) { }
-static inline void __init xhci_debugfs_create_root(void) { }
-static inline void __exit xhci_debugfs_remove_root(void) { }
-static inline void xhci_debugfs_create_slot(struct xhci_hcd *x, int s) { }
-static inline void xhci_debugfs_remove_slot(struct xhci_hcd *x, int s) { }
+static inline void xhci_defs_init(struct xhci_hcd *xhci) { }
+static inline void xhci_defs_exit(struct xhci_hcd *xhci) { }
+static inline void __init xhci_defs_create_root(void) { }
+static inline void __exit xhci_defs_remove_root(void) { }
+static inline void xhci_defs_create_slot(struct xhci_hcd *x, int s) { }
+static inline void xhci_defs_remove_slot(struct xhci_hcd *x, int s) { }
 static inline void
-xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
+xhci_defs_create_endpoint(struct xhci_hcd *xhci,
 			     struct xhci_virt_device *virt_dev,
 			     int ep_index) { }
 static inline void
-xhci_debugfs_remove_endpoint(struct xhci_hcd *xhci,
+xhci_defs_remove_endpoint(struct xhci_hcd *xhci,
 			     struct xhci_virt_device *virt_dev,
 			     int ep_index) { }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
-#endif /* __LINUX_XHCI_DEBUGFS_H */
+#endif /* __LINUX_XHCI_DEFS_H */

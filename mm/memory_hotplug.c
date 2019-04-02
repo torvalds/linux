@@ -117,7 +117,7 @@ static struct resource *register_memory_resource(u64 start, u64 size)
 			       resource_name, flags);
 
 	if (!res) {
-		pr_debug("Unable to reserve System RAM region: %016llx->%016llx\n",
+		pr_de("Unable to reserve System RAM region: %016llx->%016llx\n",
 				start, start + size);
 		return ERR_PTR(-EEXIST);
 	}
@@ -148,7 +148,7 @@ void put_page_bootmem(struct page *page)
 	unsigned long type;
 
 	type = (unsigned long) page->freelist;
-	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
+	_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
 	       type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE);
 
 	if (page_ref_dec_return(page) == 1) {
@@ -582,8 +582,8 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
 	/*
 	 * We can only remove entire sections
 	 */
-	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
-	BUG_ON(nr_pages % PAGES_PER_SECTION);
+	_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
+	_ON(nr_pages % PAGES_PER_SECTION);
 
 	sections_to_remove = nr_pages / PAGES_PER_SECTION;
 	for (i = 0; i < sections_to_remove; i++) {
@@ -936,7 +936,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	return 0;
 
 failed_addition:
-	pr_debug("online_pages [mem %#010llx-%#010llx] failed\n",
+	pr_de("online_pages [mem %#010llx-%#010llx] failed\n",
 		 (unsigned long long) pfn << PAGE_SHIFT,
 		 (((unsigned long long) pfn + nr_pages) << PAGE_SHIFT) - 1);
 	memory_notify(MEM_CANCEL_ONLINE, &arg);
@@ -1046,7 +1046,7 @@ static int __try_online_node(int nid, u64 start, bool set_node_online)
 	if (set_node_online) {
 		node_set_online(nid);
 		ret = register_one_node(nid);
-		BUG_ON(ret);
+		_ON(ret);
 	}
 out:
 	return ret;
@@ -1130,17 +1130,17 @@ int __ref add_memory_resource(int nid, struct resource *res)
 	if (new_node) {
 		/* If sysfs file of new node can't be created, cpu on the node
 		 * can't be hot-added. There is no rollback way now.
-		 * So, check by BUG_ON() to catch it reluctantly..
+		 * So, check by _ON() to catch it reluctantly..
 		 * We online node here. We can't roll back from here.
 		 */
 		node_set_online(nid);
 		ret = __register_one_node(nid);
-		BUG_ON(ret);
+		_ON(ret);
 	}
 
 	/* link memory sections under this node.*/
 	ret = link_mem_sections(nid, PFN_DOWN(start), PFN_UP(start + size - 1));
-	BUG_ON(ret);
+	_ON(ret);
 
 	/* create new memmap entry */
 	firmware_map_add_hotplug(start, start + size, "System RAM");
@@ -1210,7 +1210,7 @@ static unsigned long next_active_pageblock(unsigned long pfn)
 	struct page *page = pfn_to_page(pfn);
 
 	/* Ensure the starting page is pageblock-aligned */
-	BUG_ON(pfn & (pageblock_nr_pages - 1));
+	_ON(pfn & (pageblock_nr_pages - 1));
 
 	/* If the entire pageblock is free, move to the end of free page */
 	if (pageblock_free(page)) {
@@ -1701,7 +1701,7 @@ failed_removal_isolated:
 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
 	memory_notify(MEM_CANCEL_OFFLINE, &arg);
 failed_removal:
-	pr_debug("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
+	pr_de("memory offlining [mem %#010llx-%#010llx] failed due to %s\n",
 		 (unsigned long long) start_pfn << PAGE_SHIFT,
 		 ((unsigned long long) end_pfn << PAGE_SHIFT) - 1,
 		 reason);
@@ -1856,19 +1856,19 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
 {
 	int ret;
 
-	BUG_ON(check_hotplug_memory_range(start, size));
+	_ON(check_hotplug_memory_range(start, size));
 
 	mem_hotplug_begin();
 
 	/*
 	 * All memory blocks must be offlined before removing memory.  Check
-	 * whether all memory blocks in question are offline and trigger a BUG()
+	 * whether all memory blocks in question are offline and trigger a ()
 	 * if this is not the case.
 	 */
 	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
 				check_memblock_offlined_cb);
 	if (ret)
-		BUG();
+		();
 
 	/* remove memmap entry */
 	firmware_map_remove(start, start + size, "System RAM");

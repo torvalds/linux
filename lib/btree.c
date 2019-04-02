@@ -405,10 +405,10 @@ static unsigned long *find_level(struct btree_head *head, struct btree_geo *geo,
 			i--;
 			setkey(geo, node, i, key);
 		}
-		BUG_ON(i < 0);
+		_ON(i < 0);
 		node = bval(geo, node, i);
 	}
-	BUG_ON(!node);
+	_ON(!node);
 	return node;
 }
 
@@ -441,7 +441,7 @@ static void btree_shrink(struct btree_head *head, struct btree_geo *geo)
 
 	node = head->node;
 	fill = getfill(geo, node, 0);
-	BUG_ON(fill > 1);
+	_ON(fill > 1);
 	head->node = bval(geo, node, 0);
 	head->height--;
 	mempool_free(node, head->mempool);
@@ -454,7 +454,7 @@ static int btree_insert_level(struct btree_head *head, struct btree_geo *geo,
 	unsigned long *node;
 	int i, pos, fill, err;
 
-	BUG_ON(!val);
+	_ON(!val);
 	if (head->height < level) {
 		err = btree_grow(head, geo, gfp);
 		if (err)
@@ -466,7 +466,7 @@ retry:
 	pos = getpos(geo, node, key);
 	fill = getfill(geo, node, pos);
 	/* two identical keys are not allowed */
-	BUG_ON(pos < fill && keycmp(geo, node, pos, key) == 0);
+	_ON(pos < fill && keycmp(geo, node, pos, key) == 0);
 
 	if (fill == geo->no_pairs) {
 		/* need to split node */
@@ -496,7 +496,7 @@ retry:
 		}
 		goto retry;
 	}
-	BUG_ON(fill >= geo->no_pairs);
+	_ON(fill >= geo->no_pairs);
 
 	/* shift and insert */
 	for (i = fill; i > pos; i--) {
@@ -512,7 +512,7 @@ retry:
 int btree_insert(struct btree_head *head, struct btree_geo *geo,
 		unsigned long *key, void *val, gfp_t gfp)
 {
-	BUG_ON(!val);
+	_ON(!val);
 	return btree_insert_level(head, geo, key, val, 1, gfp);
 }
 EXPORT_SYMBOL_GPL(btree_insert);
@@ -557,7 +557,7 @@ static void rebalance(struct btree_head *head, struct btree_geo *geo,
 
 	parent = find_level(head, geo, key, level + 1);
 	i = getpos(geo, parent, key);
-	BUG_ON(bval(geo, parent, i) != child);
+	_ON(bval(geo, parent, i) != child);
 
 	if (i > 0) {
 		left = bval(geo, parent, i - 1);
@@ -646,7 +646,7 @@ int btree_merge(struct btree_head *target, struct btree_head *victim,
 	void *val;
 	int err;
 
-	BUG_ON(target == victim);
+	_ON(target == victim);
 
 	if (!(target->node)) {
 		/* target is empty, just copy fields over */

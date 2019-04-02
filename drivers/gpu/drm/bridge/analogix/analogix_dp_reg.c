@@ -156,7 +156,7 @@ void analogix_dp_reset(struct analogix_dp_device *dp)
 	writel(0x5e, dp->reg_base + ANALOGIX_DP_HPD_DEGLITCH_L);
 	writel(0x1a, dp->reg_base + ANALOGIX_DP_HPD_DEGLITCH_H);
 
-	writel(0x10, dp->reg_base + ANALOGIX_DP_LINK_DEBUG_CTL);
+	writel(0x10, dp->reg_base + ANALOGIX_DP_LINK_DE_CTL);
 
 	writel(0x0, dp->reg_base + ANALOGIX_DP_PHY_TEST);
 
@@ -225,7 +225,7 @@ enum pll_status analogix_dp_get_pll_lock_status(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	reg = readl(dp->reg_base + ANALOGIX_DP_DEBUG_CTL);
+	reg = readl(dp->reg_base + ANALOGIX_DP_DE_CTL);
 	if (reg & PLL_LOCK)
 		return PLL_LOCKED;
 	else
@@ -367,9 +367,9 @@ int analogix_dp_init_analog_func(struct analogix_dp_device *dp)
 	reg = PLL_LOCK_CHG;
 	writel(reg, dp->reg_base + ANALOGIX_DP_COMMON_INT_STA_1);
 
-	reg = readl(dp->reg_base + ANALOGIX_DP_DEBUG_CTL);
+	reg = readl(dp->reg_base + ANALOGIX_DP_DE_CTL);
 	reg &= ~(F_PLL_LOCK | PLL_LOCK_CTRL);
-	writel(reg, dp->reg_base + ANALOGIX_DP_DEBUG_CTL);
+	writel(reg, dp->reg_base + ANALOGIX_DP_DE_CTL);
 
 	/* Power up PLL */
 	if (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {

@@ -5,7 +5,7 @@
 
 #include <asm/mce.h>
 
-#include "debugfs.h"
+#include "defs.h"
 
 /*
  * RAS Correctable Errors Collector
@@ -368,7 +368,7 @@ static int pfn_set(void *data, u64 val)
 	return cec_add_elem(val);
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(pfn_ops, u64_get, pfn_set, "0x%llx\n");
+DEFINE_DEFS_ATTRIBUTE(pfn_ops, u64_get, pfn_set, "0x%llx\n");
 
 static int decay_interval_set(void *data, u64 val)
 {
@@ -385,7 +385,7 @@ static int decay_interval_set(void *data, u64 val)
 	cec_mod_timer(&cec_timer, timer_interval);
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(decay_interval_ops, u64_get, decay_interval_set, "%lld\n");
+DEFINE_DEFS_ATTRIBUTE(decay_interval_ops, u64_get, decay_interval_set, "%lld\n");
 
 static int count_threshold_set(void *data, u64 val)
 {
@@ -398,7 +398,7 @@ static int count_threshold_set(void *data, u64 val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(count_threshold_ops, u64_get, count_threshold_set, "%lld\n");
+DEFINE_DEFS_ATTRIBUTE(count_threshold_ops, u64_get, count_threshold_set, "%lld\n");
 
 static int array_dump(struct seq_file *m, void *v)
 {
@@ -449,39 +449,39 @@ static const struct file_operations array_ops = {
 	.release = single_release,
 };
 
-static int __init create_debugfs_nodes(void)
+static int __init create_defs_nodes(void)
 {
 	struct dentry *d, *pfn, *decay, *count, *array;
 
-	d = debugfs_create_dir("cec", ras_debugfs_dir);
+	d = defs_create_dir("cec", ras_defs_dir);
 	if (!d) {
-		pr_warn("Error creating cec debugfs node!\n");
+		pr_warn("Error creating cec defs node!\n");
 		return -1;
 	}
 
-	pfn = debugfs_create_file("pfn", S_IRUSR | S_IWUSR, d, &dfs_pfn, &pfn_ops);
+	pfn = defs_create_file("pfn", S_IRUSR | S_IWUSR, d, &dfs_pfn, &pfn_ops);
 	if (!pfn) {
-		pr_warn("Error creating pfn debugfs node!\n");
+		pr_warn("Error creating pfn defs node!\n");
 		goto err;
 	}
 
-	array = debugfs_create_file("array", S_IRUSR, d, NULL, &array_ops);
+	array = defs_create_file("array", S_IRUSR, d, NULL, &array_ops);
 	if (!array) {
-		pr_warn("Error creating array debugfs node!\n");
+		pr_warn("Error creating array defs node!\n");
 		goto err;
 	}
 
-	decay = debugfs_create_file("decay_interval", S_IRUSR | S_IWUSR, d,
+	decay = defs_create_file("decay_interval", S_IRUSR | S_IWUSR, d,
 				    &timer_interval, &decay_interval_ops);
 	if (!decay) {
-		pr_warn("Error creating decay_interval debugfs node!\n");
+		pr_warn("Error creating decay_interval defs node!\n");
 		goto err;
 	}
 
-	count = debugfs_create_file("count_threshold", S_IRUSR | S_IWUSR, d,
+	count = defs_create_file("count_threshold", S_IRUSR | S_IWUSR, d,
 				    &count_threshold, &count_threshold_ops);
 	if (!count) {
-		pr_warn("Error creating count_threshold debugfs node!\n");
+		pr_warn("Error creating count_threshold defs node!\n");
 		goto err;
 	}
 
@@ -489,7 +489,7 @@ static int __init create_debugfs_nodes(void)
 	return 0;
 
 err:
-	debugfs_remove_recursive(d);
+	defs_remove_recursive(d);
 
 	return 1;
 }
@@ -505,7 +505,7 @@ void __init cec_init(void)
 		return;
 	}
 
-	if (create_debugfs_nodes())
+	if (create_defs_nodes())
 		return;
 
 	timer_setup(&cec_timer, cec_timer_fn, 0);

@@ -8,14 +8,14 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef _DEBUG_CORE_H_
-#define _DEBUG_CORE_H_
+#ifndef _DE_CORE_H_
+#define _DE_CORE_H_
 /*
  * These are the private implementation headers between the kernel
- * debugger core and the debugger front end code.
+ * deger core and the deger front end code.
  */
 
-/* kernel debug core data structures */
+/* kernel de core data structures */
 struct kgdb_state {
 	int			ex_vector;
 	int			signo;
@@ -35,8 +35,8 @@ struct kgdb_state {
 #define DCPU_IS_SLAVE    0x4 /* Slave cpu enter exception */
 #define DCPU_SSTEP       0x8 /* CPU is single stepping */
 
-struct debuggerinfo_struct {
-	void			*debuggerinfo;
+struct degerinfo_struct {
+	void			*degerinfo;
 	struct task_struct	*task;
 	int			exception_state;
 	int			ret_state;
@@ -45,9 +45,9 @@ struct debuggerinfo_struct {
 	bool			rounding_up;
 };
 
-extern struct debuggerinfo_struct kgdb_info[];
+extern struct degerinfo_struct kgdb_info[];
 
-/* kernel debug core break point routines */
+/* kernel de core break point routines */
 extern int dbg_remove_all_break(void);
 extern int dbg_set_sw_break(unsigned long addr);
 extern int dbg_remove_sw_break(unsigned long addr);
@@ -83,4 +83,4 @@ static inline int kdb_stub(struct kgdb_state *ks)
 }
 #endif /* CONFIG_KGDB_KDB */
 
-#endif /* _DEBUG_CORE_H_ */
+#endif /* _DE_CORE_H_ */

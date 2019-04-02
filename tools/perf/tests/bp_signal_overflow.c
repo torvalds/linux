@@ -23,7 +23,7 @@
 #include <linux/hw_breakpoint.h>
 
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "perf.h"
 #include "cloexec.h"
 
@@ -48,7 +48,7 @@ static long long bp_count(int fd)
 
 	ret = read(fd, &count, sizeof(long long));
 	if (ret != sizeof(long long)) {
-		pr_debug("failed to read: %d\n", ret);
+		pr_de("failed to read: %d\n", ret);
 		return TEST_FAIL;
 	}
 
@@ -71,7 +71,7 @@ int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __may
 	sa.sa_flags = SA_SIGINFO;
 
 	if (sigaction(SIGIO, &sa, NULL) < 0) {
-		pr_debug("failed setting up signal handler\n");
+		pr_de("failed setting up signal handler\n");
 		return TEST_FAIL;
 	}
 
@@ -95,7 +95,7 @@ int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __may
 	fd = sys_perf_event_open(&pe, 0, -1, -1,
 				 perf_event_open_cloexec_flag());
 	if (fd < 0) {
-		pr_debug("failed opening event %llx\n", pe.config);
+		pr_de("failed opening event %llx\n", pe.config);
 		return TEST_FAIL;
 	}
 
@@ -115,17 +115,17 @@ int test__bp_signal_overflow(struct test *test __maybe_unused, int subtest __may
 
 	close(fd);
 
-	pr_debug("count %lld, overflow %d\n",
+	pr_de("count %lld, overflow %d\n",
 		 count, overflows);
 
 	if (count != EXECUTIONS) {
-		pr_debug("\tWrong number of executions %lld != %d\n",
+		pr_de("\tWrong number of executions %lld != %d\n",
 		count, EXECUTIONS);
 		fails++;
 	}
 
 	if (overflows != EXECUTIONS / THRESHOLD) {
-		pr_debug("\tWrong number of overflows %d != %d\n",
+		pr_de("\tWrong number of overflows %d != %d\n",
 		overflows, EXECUTIONS / THRESHOLD);
 		fails++;
 	}

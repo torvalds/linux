@@ -79,7 +79,7 @@ static inline void l2_clean_pa_range(unsigned long start, unsigned long end)
 	 * L2 is PIPT and range operations only do a TLB lookup on
 	 * the start address.
 	 */
-	BUG_ON((start ^ end) >> PAGE_SHIFT);
+	_ON((start ^ end) >> PAGE_SHIFT);
 
 	va_start = l2_get_va(start);
 	va_end = va_start + (end - start);
@@ -110,7 +110,7 @@ static inline void l2_inv_pa_range(unsigned long start, unsigned long end)
 	 * L2 is PIPT and range operations only do a TLB lookup on
 	 * the start address.
 	 */
-	BUG_ON((start ^ end) >> PAGE_SHIFT);
+	_ON((start ^ end) >> PAGE_SHIFT);
 
 	va_start = l2_get_va(start);
 	va_end = va_start + (end - start);
@@ -143,8 +143,8 @@ static unsigned long calc_range_end(unsigned long start, unsigned long end)
 {
 	unsigned long range_end;
 
-	BUG_ON(start & (CACHE_LINE_SIZE - 1));
-	BUG_ON(end & (CACHE_LINE_SIZE - 1));
+	_ON(start & (CACHE_LINE_SIZE - 1));
+	_ON(end & (CACHE_LINE_SIZE - 1));
 
 	/*
 	 * Try to process all cache lines between 'start' and 'end'.
@@ -337,7 +337,7 @@ static void __init enable_l2(void)
 		if (d)
 			enable_dcache();
 	} else
-		pr_err(FW_BUG
+		pr_err(FW_
 		       "Feroceon L2: bootloader left the L2 cache on!\n");
 }
 

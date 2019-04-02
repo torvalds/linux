@@ -21,7 +21,7 @@ struct task_struct;
  * different address spaces, schedule() has already taken care of
  * switching to the new address space by calling switch_mm().
  *
- * Disabling access to the fph partition and the debug-register
+ * Disabling access to the fph partition and the de-register
  * context switch MUST be done before calling ia64_switch_to() since a
  * newly created thread returns directly to
  * ia64_ret_from_syscall_clear_r8.

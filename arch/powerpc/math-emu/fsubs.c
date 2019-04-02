@@ -16,14 +16,14 @@ fsubs(void *frD, void *frA, void *frB)
 	FP_DECL_D(R);
 	FP_DECL_EX;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: %p %p %p\n", __func__, frD, frA, frB);
 #endif
 
 	FP_UNPACK_DP(A, frA);
 	FP_UNPACK_DP(B, frB);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("A: %ld %lu %lu %ld (%ld)\n", A_s, A_f1, A_f0, A_e, A_c);
 	printk("B: %ld %lu %lu %ld (%ld)\n", B_s, B_f1, B_f0, B_e, B_c);
 #endif
@@ -36,7 +36,7 @@ fsubs(void *frD, void *frA, void *frB)
 
 	FP_ADD_D(R, A, B);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("D: %ld %lu %lu %ld (%ld)\n", R_s, R_f1, R_f0, R_e, R_c);
 #endif
 

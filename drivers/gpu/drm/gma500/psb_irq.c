@@ -43,7 +43,7 @@ psb_pipestat(int pipe)
 		return PIPEBSTAT;
 	if (pipe == 2)
 		return PIPECSTAT;
-	BUG();
+	();
 }
 
 static inline u32
@@ -55,7 +55,7 @@ mid_pipe_event(int pipe)
 		return _MDFLD_PIPEB_EVENT_FLAG;
 	if (pipe == 2)
 		return _MDFLD_PIPEC_EVENT_FLAG;
-	BUG();
+	();
 }
 
 static inline u32
@@ -67,7 +67,7 @@ mid_pipe_vsync(int pipe)
 		return _PSB_VSYNC_PIPEB_FLAG;
 	if (pipe == 2)
 		return _MDFLD_PIPEC_VBLANK_FLAG;
-	BUG();
+	();
 }
 
 static inline u32
@@ -79,7 +79,7 @@ mid_pipeconf(int pipe)
 		return PIPEBCONF;
 	if (pipe == 2)
 		return PIPECCONF;
-	BUG();
+	();
 }
 
 void

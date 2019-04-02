@@ -159,7 +159,7 @@ static int __init dm_parse_table(struct dm_device *dev, char *str)
 	char *table_entry = str;
 
 	while (table_entry) {
-		DMDEBUG("parsing table \"%s\"", str);
+		DMDE("parsing table \"%s\"", str);
 		if (++dev->dmi.target_count >= DM_MAX_TARGETS) {
 			DMERR("too many targets %u > %d",
 			      dev->dmi.target_count, DM_MAX_TARGETS);
@@ -235,7 +235,7 @@ static int __init dm_parse_devices(struct list_head *devices, char *str)
 	struct dm_device *dev;
 	char *device = str;
 
-	DMDEBUG("parsing \"%s\"", str);
+	DMDE("parsing \"%s\"", str);
 	while (device) {
 		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 		if (!dev)

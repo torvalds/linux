@@ -17,7 +17,7 @@
 #include <stdbool.h>
 
 #include "../../util/header.h"
-#include "../../util/debug.h"
+#include "../../util/de.h"
 #include "../../util/pmu.h"
 #include "../../util/auxtrace.h"
 #include "../../util/intel-pt.h"

@@ -150,7 +150,7 @@ static int wm831x_set_config(struct gpio_chip *chip, unsigned int offset,
 	return -ENOTSUPP;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	struct wm831x_gpio *wm831x_gpio = gpiochip_get_data(chip);
@@ -219,7 +219,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			break;
 
 		default:
-			BUG();
+			();
 			break;
 		}
 

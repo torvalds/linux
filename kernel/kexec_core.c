@@ -1100,7 +1100,7 @@ static int __init crash_notes_memory_init(void)
 	 * Break compile if size is bigger than PAGE_SIZE since crash_notes
 	 * definitely will be in 2 pages with that.
 	 */
-	BUILD_BUG_ON(size > PAGE_SIZE);
+	BUILD__ON(size > PAGE_SIZE);
 
 	crash_notes = __alloc_percpu(size, align);
 	if (!crash_notes) {

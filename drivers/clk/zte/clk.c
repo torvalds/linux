@@ -424,7 +424,7 @@ static int zx_audio_div_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	audio_calc_reg(zx_audio_div, &divt, rate, parent_rate);
 	if (divt.rate != rate)
-		pr_debug("the real rate is:%ld", divt.rate);
+		pr_de("the real rate is:%ld", divt.rate);
 
 	writel_relaxed(divt.frac_reg, zx_audio_div->reg_base);
 

@@ -68,7 +68,7 @@ static const char * const nvmem_type_str[] = {
 	[NVMEM_TYPE_BATTERY_BACKED] = "Battery backed",
 };
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 static struct lock_class_key eeprom_lock_key;
 #endif
 
@@ -441,7 +441,7 @@ static int nvmem_setup_compat(struct nvmem_device *nvmem,
 		nvmem->eeprom = bin_attr_rw_root_nvmem;
 	nvmem->eeprom.attr.name = "eeprom";
 	nvmem->eeprom.size = nvmem->size;
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	nvmem->eeprom.attr.key = &eeprom_lock_key;
 #endif
 	nvmem->eeprom.private = &nvmem->dev;

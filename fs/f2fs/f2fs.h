@@ -27,9 +27,9 @@
 #include <linux/fscrypt.h>
 
 #ifdef CONFIG_F2FS_CHECK_FS
-#define f2fs_bug_on(sbi, condition)	BUG_ON(condition)
+#define f2fs__on(sbi, condition)	_ON(condition)
 #else
-#define f2fs_bug_on(sbi, condition)					\
+#define f2fs__on(sbi, condition)					\
 	do {								\
 		if (unlikely(condition)) {				\
 			WARN_ON(1);					\
@@ -1419,14 +1419,14 @@ static inline u32 __f2fs_crc32(struct f2fs_sb_info *sbi, u32 crc,
 	} desc;
 	int err;
 
-	BUG_ON(crypto_shash_descsize(sbi->s_chksum_driver) != sizeof(desc.ctx));
+	_ON(crypto_shash_descsize(sbi->s_chksum_driver) != sizeof(desc.ctx));
 
 	desc.shash.tfm = sbi->s_chksum_driver;
 	desc.shash.flags = 0;
 	*(u32 *)desc.ctx = crc;
 
 	err = crypto_shash_update(&desc.shash, address, length);
-	BUG_ON(err);
+	_ON(err);
 
 	return *(u32 *)desc.ctx;
 }
@@ -1785,8 +1785,8 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 	blkcnt_t sectors = count << F2FS_LOG_SECTORS_PER_BLOCK;
 
 	spin_lock(&sbi->stat_lock);
-	f2fs_bug_on(sbi, sbi->total_valid_block_count < (block_t) count);
-	f2fs_bug_on(sbi, inode->i_blocks < sectors);
+	f2fs__on(sbi, sbi->total_valid_block_count < (block_t) count);
+	f2fs__on(sbi, inode->i_blocks < sectors);
 	sbi->total_valid_block_count -= (block_t)count;
 	if (sbi->reserved_blocks &&
 		sbi->current_reserved_blocks < sbi->reserved_blocks)
@@ -2007,9 +2007,9 @@ static inline void dec_valid_node_count(struct f2fs_sb_info *sbi,
 {
 	spin_lock(&sbi->stat_lock);
 
-	f2fs_bug_on(sbi, !sbi->total_valid_block_count);
-	f2fs_bug_on(sbi, !sbi->total_valid_node_count);
-	f2fs_bug_on(sbi, !is_inode && !inode->i_blocks);
+	f2fs__on(sbi, !sbi->total_valid_block_count);
+	f2fs__on(sbi, !sbi->total_valid_node_count);
+	f2fs__on(sbi, !is_inode && !inode->i_blocks);
 
 	sbi->total_valid_node_count--;
 	sbi->total_valid_block_count--;
@@ -2098,7 +2098,7 @@ static inline void f2fs_put_page(struct page *page, int unlock)
 		return;
 
 	if (unlock) {
-		f2fs_bug_on(F2FS_P_SB(page), !PageLocked(page));
+		f2fs__on(F2FS_P_SB(page), !PageLocked(page));
 		unlock_page(page);
 	}
 	put_page(page);
@@ -2814,7 +2814,7 @@ static inline void verify_blkaddr(struct f2fs_sb_info *sbi,
 		f2fs_msg(sbi->sb, KERN_ERR,
 			"invalid blkaddr: %u, type: %d, run fsck to fix.",
 			blkaddr, type);
-		f2fs_bug_on(sbi, 1);
+		f2fs__on(sbi, 1);
 	}
 }
 
@@ -3186,7 +3186,7 @@ int f2fs_recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only);
 bool f2fs_space_for_roll_forward(struct f2fs_sb_info *sbi);
 
 /*
- * debug.c
+ * de.c
  */
 #ifdef CONFIG_F2FS_STAT_FS
 struct f2fs_stat_info {

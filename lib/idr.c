@@ -1,5 +1,5 @@
 #include <linux/bitmap.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/export.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
@@ -486,7 +486,7 @@ void ida_free(struct ida *ida, unsigned int id)
 	struct ida_bitmap *bitmap;
 	unsigned long flags;
 
-	BUG_ON((int)id < 0);
+	_ON((int)id < 0);
 
 	xas_lock_irqsave(&xas, flags);
 	bitmap = xas_load(&xas);
@@ -585,7 +585,7 @@ static void ida_dump_entry(void *entry, unsigned long index)
 static void ida_dump(struct ida *ida)
 {
 	struct xarray *xa = &ida->xa;
-	pr_debug("ida: %p node %p free %d\n", ida, xa->xa_head,
+	pr_de("ida: %p node %p free %d\n", ida, xa->xa_head,
 				xa->xa_flags >> ROOT_TAG_SHIFT);
 	ida_dump_entry(xa->xa_head, 0);
 }

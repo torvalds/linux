@@ -28,7 +28,7 @@
 #define ELOG_ENTRY_VALID	(1ULL<<63)
 #define ELOG_ENTRY_LEN		0x1000
 
-#define EMCA_BUG \
+#define EMCA_ \
 	"Can not request iomem region <0x%016llx-0x%016llx> - eMCA disabled\n"
 
 struct extlog_l1_head {
@@ -203,7 +203,7 @@ static bool __init extlog_get_l1addr(void)
 
 	/* Spec says L1 directory must be 4K aligned, bail out if it isn't */
 	if (l1_dirbase & ((1 << 12) - 1)) {
-		pr_warn(FW_BUG "L1 Directory is invalid at physical %llx\n",
+		pr_warn(FW_ "L1 Directory is invalid at physical %llx\n",
 			l1_dirbase);
 		return false;
 	}
@@ -239,7 +239,7 @@ static int __init extlog_init(void)
 	l1_hdr_size = sizeof(struct extlog_l1_head);
 	r = request_mem_region(l1_dirbase, l1_hdr_size, "L1 DIR HDR");
 	if (!r) {
-		pr_warn(FW_BUG EMCA_BUG,
+		pr_warn(FW_ EMCA_,
 			(unsigned long long)l1_dirbase,
 			(unsigned long long)l1_dirbase + l1_hdr_size);
 		goto err;
@@ -257,7 +257,7 @@ static int __init extlog_init(void)
 	/* remap L1 header again based on completed information */
 	r = request_mem_region(l1_dirbase, l1_size, "L1 Table");
 	if (!r) {
-		pr_warn(FW_BUG EMCA_BUG,
+		pr_warn(FW_ EMCA_,
 			(unsigned long long)l1_dirbase,
 			(unsigned long long)l1_dirbase + l1_size);
 		goto err;
@@ -268,7 +268,7 @@ static int __init extlog_init(void)
 	/* remap elog table */
 	r = request_mem_region(elog_base, elog_size, "Elog Table");
 	if (!r) {
-		pr_warn(FW_BUG EMCA_BUG,
+		pr_warn(FW_ EMCA_,
 			(unsigned long long)elog_base,
 			(unsigned long long)elog_base + elog_size);
 		goto err_release_l1_dir;
@@ -302,7 +302,7 @@ err_release_l1_dir:
 		acpi_os_unmap_iomem(extlog_l1_addr, l1_size);
 	release_mem_region(l1_dirbase, l1_size);
 err:
-	pr_warn(FW_BUG "Extended error log disabled because of problems parsing f/w tables\n");
+	pr_warn(FW_ "Extended error log disabled because of problems parsing f/w tables\n");
 	return rc;
 }
 

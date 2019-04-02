@@ -15,7 +15,7 @@
  */
 
 #include "pvrusb2-io.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -35,7 +35,7 @@ static const char *pvr2_buffer_state_decode(enum pvr2_buffer_state);
 		"Buffer %p is bad at %s:%d", \
 		(bp), __FILE__, __LINE__); \
 		pvr2_buffer_describe(bp, "BadSig"); \
-		BUG(); \
+		(); \
 	} \
 } while (0)
 #else

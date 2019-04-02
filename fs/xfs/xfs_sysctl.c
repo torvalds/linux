@@ -45,7 +45,7 @@ xfs_panic_mask_proc_handler(
 	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 	if (!ret && write) {
 		xfs_panic_mask = *valp;
-#ifdef DEBUG
+#ifdef DE
 		xfs_panic_mask |= (XFS_PTAG_SHUTDOWN_CORRUPT | XFS_PTAG_LOGRES);
 #endif
 	}

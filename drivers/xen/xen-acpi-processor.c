@@ -104,7 +104,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 		set_xen_guest_handle(dst_cx->dp, NULL);
 	}
 	if (!ok) {
-		pr_debug("No _Cx for ACPI CPU %u\n", _pr->acpi_id);
+		pr_de("No _Cx for ACPI CPU %u\n", _pr->acpi_id);
 		kfree(dst_cx_states);
 		return -EINVAL;
 	}
@@ -121,12 +121,12 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 		ret = HYPERVISOR_platform_op(&op);
 
 	if (!ret) {
-		pr_debug("ACPI CPU%u - C-states uploaded.\n", _pr->acpi_id);
+		pr_de("ACPI CPU%u - C-states uploaded.\n", _pr->acpi_id);
 		for (i = 1; i <= _pr->power.count; i++) {
 			cx = &_pr->power.states[i];
 			if (!cx->valid)
 				continue;
-			pr_debug("     C%d: %s %d uS\n",
+			pr_de("     C%d: %s %d uS\n",
 				 cx->type, cx->desc, (u32)cx->latency);
 		}
 	} else if ((ret != -EINVAL) && (ret != -ENOSYS))
@@ -147,7 +147,7 @@ xen_copy_pss_data(struct acpi_processor *_pr,
 	struct xen_processor_px *dst_states = NULL;
 	unsigned int i;
 
-	BUILD_BUG_ON(sizeof(struct xen_processor_px) !=
+	BUILD__ON(sizeof(struct xen_processor_px) !=
 		     sizeof(struct acpi_processor_px));
 
 	dst_states = kcalloc(_pr->performance->state_count,
@@ -168,7 +168,7 @@ static int xen_copy_psd_data(struct acpi_processor *_pr,
 {
 	struct acpi_psd_package *pdomain;
 
-	BUILD_BUG_ON(sizeof(struct xen_psd_package) !=
+	BUILD__ON(sizeof(struct xen_psd_package) !=
 		     sizeof(struct acpi_psd_package));
 
 	/* This information is enumerated only if acpi_processor_preregister_performance
@@ -253,9 +253,9 @@ static int push_pxx_to_hypervisor(struct acpi_processor *_pr)
 		unsigned int i;
 
 		perf = _pr->performance;
-		pr_debug("ACPI CPU%u - P-states uploaded.\n", _pr->acpi_id);
+		pr_de("ACPI CPU%u - P-states uploaded.\n", _pr->acpi_id);
 		for (i = 0; i < perf->state_count; i++) {
-			pr_debug("     %cP%d: %d MHz, %d mW, %d uS\n",
+			pr_de("     %cP%d: %d MHz, %d mW, %d uS\n",
 			(i == perf->state ? '*' : ' '), i,
 			(u32) perf->states[i].core_frequency,
 			(u32) perf->states[i].power,
@@ -318,7 +318,7 @@ static unsigned int __init get_max_acpi_id(void)
 		max_acpi_id = max(info->acpi_id, max_acpi_id);
 	}
 	max_acpi_id *= 2; /* Slack for CPU hotplug support. */
-	pr_debug("Max ACPI ID: %u\n", max_acpi_id);
+	pr_de("Max ACPI ID: %u\n", max_acpi_id);
 	return max_acpi_id;
 }
 /*
@@ -365,24 +365,24 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 	if (invalid_phys_cpuid(acpi_get_phys_id(handle,
 						acpi_type == ACPI_TYPE_DEVICE,
 						acpi_id))) {
-		pr_debug("CPU with ACPI ID %u is unavailable\n", acpi_id);
+		pr_de("CPU with ACPI ID %u is unavailable\n", acpi_id);
 		return AE_OK;
 	}
 	/* There are more ACPI Processor objects than in x2APIC or MADT.
 	 * This can happen with incorrect ACPI SSDT declerations. */
 	if (acpi_id >= nr_acpi_bits) {
-		pr_debug("max acpi id %u, trying to set %u\n",
+		pr_de("max acpi id %u, trying to set %u\n",
 			 nr_acpi_bits - 1, acpi_id);
 		return AE_OK;
 	}
 	/* OK, There is a ACPI Processor object */
 	__set_bit(acpi_id, acpi_id_present);
 
-	pr_debug("ACPI CPU%u w/ PBLK:0x%lx\n", acpi_id, (unsigned long)pblk);
+	pr_de("ACPI CPU%u w/ PBLK:0x%lx\n", acpi_id, (unsigned long)pblk);
 
 	/* It has P-state dependencies */
 	if (!acpi_processor_get_psd(handle, &acpi_psd[acpi_id])) {
-		pr_debug("ACPI CPU%u w/ PST:coord_type = %llu domain = %llu\n",
+		pr_de("ACPI CPU%u w/ PST:coord_type = %llu domain = %llu\n",
 			 acpi_id, acpi_psd[acpi_id].coord_type,
 			 acpi_psd[acpi_id].domain);
 	}
@@ -539,7 +539,7 @@ static int __init xen_acpi_processor_init(void)
 
 	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
 	if (!acpi_perf_data) {
-		pr_debug("Memory allocation error for acpi_perf_data\n");
+		pr_de("Memory allocation error for acpi_perf_data\n");
 		bitmap_free(acpi_ids_done);
 		return -ENOMEM;
 	}

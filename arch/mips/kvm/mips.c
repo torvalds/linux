@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -40,7 +40,7 @@
 #endif
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x)
-struct kvm_stats_debugfs_item debugfs_entries[] = {
+struct kvm_stats_defs_item defs_entries[] = {
 	{ "wait",	  VCPU_STAT(wait_exits),	 KVM_STAT_VCPU },
 	{ "cache",	  VCPU_STAT(cache_exits),	 KVM_STAT_VCPU },
 	{ "signal",	  VCPU_STAT(signal_exits),	 KVM_STAT_VCPU },
@@ -150,12 +150,12 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	return 0;
 }
 
-bool kvm_arch_has_vcpu_debugfs(void)
+bool kvm_arch_has_vcpu_defs(void)
 {
 	return false;
 }
 
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+int kvm_arch_create_vcpu_defs(struct kvm_vcpu *vcpu)
 {
 	return 0;
 }
@@ -246,7 +246,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 {
 	int needs_flush;
 
-	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
+	kvm_de("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
 		  __func__, kvm, mem->slot, mem->guest_phys_addr,
 		  mem->memory_size, mem->userspace_addr);
 
@@ -277,17 +277,17 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 {
 	u32 *p;
 
-	pr_debug("LEAF(%s)\n", symbol);
+	pr_de("LEAF(%s)\n", symbol);
 
-	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_de("\t.set push\n");
+	pr_de("\t.set noreorder\n");
 
 	for (p = start; p < (u32 *)end; ++p)
-		pr_debug("\t.word\t0x%08x\t\t# %p\n", *p, p);
+		pr_de("\t.word\t0x%08x\t\t# %p\n", *p, p);
 
-	pr_debug("\t.set\tpop\n");
+	pr_de("\t.set\tpop\n");
 
-	pr_debug("\tEND(%s)\n", symbol);
+	pr_de("\tEND(%s)\n", symbol);
 }
 
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
@@ -308,7 +308,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto out_free_cpu;
 
-	kvm_debug("kvm @ %p: create cpu %d at %p\n", kvm, id, vcpu);
+	kvm_de("kvm @ %p: create cpu %d at %p\n", kvm, id, vcpu);
 
 	/*
 	 * Allocate space for host mode exception handlers that handle
@@ -325,7 +325,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 		err = -ENOMEM;
 		goto out_uninit_cpu;
 	}
-	kvm_debug("Allocated %d bytes for KVM Exception Handlers @ %p\n",
+	kvm_de("Allocated %d bytes for KVM Exception Handlers @ %p\n",
 		  ALIGN(size, PAGE_SIZE), gebase);
 
 	/*
@@ -357,7 +357,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 
 	/* For vectored interrupts poke the exception code @ all offsets 0-7 */
 	for (i = 0; i < 8; i++) {
-		kvm_debug("L1 Vectored handler @ %p\n",
+		kvm_de("L1 Vectored handler @ %p\n",
 			  gebase + 0x200 + (i * VECTORSPACING));
 		kvm_mips_build_exception(gebase + 0x200 + i * VECTORSPACING,
 					 handler);
@@ -372,9 +372,9 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	p = kvm_mips_build_vcpu_run(p);
 
 	/* Dump the generated code */
-	pr_debug("#include <asm/asm.h>\n");
-	pr_debug("#include <asm/regdef.h>\n");
-	pr_debug("\n");
+	pr_de("#include <asm/asm.h>\n");
+	pr_de("#include <asm/regdef.h>\n");
+	pr_de("\n");
 	dump_handler("kvm_vcpu_run", vcpu->arch.vcpu_run, p);
 	dump_handler("kvm_tlb_refill", refill_start, refill_end);
 	dump_handler("kvm_gen_exc", gebase + 0x180, gebase + 0x200);
@@ -395,7 +395,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 		goto out_free_gebase;
 	}
 
-	kvm_debug("Allocated COMM page @ %p\n", vcpu->arch.kseg0_commpage);
+	kvm_de("Allocated COMM page @ %p\n", vcpu->arch.kseg0_commpage);
 	kvm_mips_commpage_init(vcpu);
 
 	/* Init */
@@ -436,8 +436,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_arch_vcpu_free(vcpu);
 }
 
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-					struct kvm_guest_debug *dbg)
+int kvm_arch_vcpu_ioctl_set_guest_de(struct kvm_vcpu *vcpu,
+					struct kvm_guest_de *dbg)
 {
 	return -ENOIOCTLCMD;
 }
@@ -493,7 +493,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu *dvcpu = NULL;
 
 	if (intr == 3 || intr == -3 || intr == 4 || intr == -4)
-		kvm_debug("%s: CPU: %d, INTR: %d\n", __func__, irq->cpu,
+		kvm_de("%s: CPU: %d, INTR: %d\n", __func__, irq->cpu,
 			  (int)intr);
 
 	if (irq->cpu == -1)
@@ -914,7 +914,7 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp, unsigned int ioctl,
 
 		if (copy_from_user(&irq, argp, sizeof(irq)))
 			return -EFAULT;
-		kvm_debug("[%d] %s: irq: %d\n", vcpu->vcpu_id, __func__,
+		kvm_de("[%d] %s: irq: %d\n", vcpu->vcpu_id, __func__,
 			  irq.irq);
 
 		return kvm_vcpu_ioctl_interrupt(vcpu, &irq);
@@ -1162,25 +1162,25 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
 	if (!vcpu)
 		return -1;
 
-	kvm_debug("VCPU Register Dump:\n");
-	kvm_debug("\tpc = 0x%08lx\n", vcpu->arch.pc);
-	kvm_debug("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
+	kvm_de("VCPU Register Dump:\n");
+	kvm_de("\tpc = 0x%08lx\n", vcpu->arch.pc);
+	kvm_de("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
-		kvm_debug("\tgpr%02d: %08lx %08lx %08lx %08lx\n", i,
+		kvm_de("\tgpr%02d: %08lx %08lx %08lx %08lx\n", i,
 		       vcpu->arch.gprs[i],
 		       vcpu->arch.gprs[i + 1],
 		       vcpu->arch.gprs[i + 2], vcpu->arch.gprs[i + 3]);
 	}
-	kvm_debug("\thi: 0x%08lx\n", vcpu->arch.hi);
-	kvm_debug("\tlo: 0x%08lx\n", vcpu->arch.lo);
+	kvm_de("\thi: 0x%08lx\n", vcpu->arch.hi);
+	kvm_de("\tlo: 0x%08lx\n", vcpu->arch.lo);
 
 	cop0 = vcpu->arch.cop0;
-	kvm_debug("\tStatus: 0x%08x, Cause: 0x%08x\n",
+	kvm_de("\tStatus: 0x%08x, Cause: 0x%08x\n",
 		  kvm_read_c0_guest_status(cop0),
 		  kvm_read_c0_guest_cause(cop0));
 
-	kvm_debug("\tEPC: 0x%08lx\n", kvm_read_c0_guest_epc(cop0));
+	kvm_de("\tEPC: 0x%08lx\n", kvm_read_c0_guest_epc(cop0));
 
 	return 0;
 }
@@ -1313,7 +1313,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	local_irq_enable();
 
-	kvm_debug("kvm_mips_handle_exit: cause: %#x, PC: %p, kvm_run: %p, kvm_vcpu: %p\n",
+	kvm_de("kvm_mips_handle_exit: cause: %#x, PC: %p, kvm_run: %p, kvm_vcpu: %p\n",
 			cause, opc, run, vcpu);
 	trace_kvm_exit(vcpu, exccode);
 
@@ -1335,7 +1335,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	switch (exccode) {
 	case EXCCODE_INT:
-		kvm_debug("[%d]EXCCODE_INT @ %p\n", vcpu->vcpu_id, opc);
+		kvm_de("[%d]EXCCODE_INT @ %p\n", vcpu->vcpu_id, opc);
 
 		++vcpu->stat.int_exits;
 
@@ -1346,7 +1346,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	case EXCCODE_CPU:
-		kvm_debug("EXCCODE_CPU: @ PC: %p\n", opc);
+		kvm_de("EXCCODE_CPU: @ PC: %p\n", opc);
 
 		++vcpu->stat.cop_unusable_exits;
 		ret = kvm_mips_callbacks->handle_cop_unusable(vcpu);
@@ -1361,7 +1361,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	case EXCCODE_TLBS:
-		kvm_debug("TLB ST fault:  cause %#x, status %#x, PC: %p, BadVaddr: %#lx\n",
+		kvm_de("TLB ST fault:  cause %#x, status %#x, PC: %p, BadVaddr: %#lx\n",
 			  cause, kvm_read_c0_guest_status(vcpu->arch.cop0), opc,
 			  badvaddr);
 
@@ -1370,7 +1370,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 
 	case EXCCODE_TLBL:
-		kvm_debug("TLB LD fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
+		kvm_de("TLB LD fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
 			  cause, opc, badvaddr);
 
 		++vcpu->stat.tlbmiss_ld_exits;
@@ -1691,7 +1691,7 @@ static int kvm_mips_csr_die_notify(struct notifier_block *self,
 		return NOTIFY_DONE;
 
 	/* Should never get here from user mode */
-	BUG_ON(user_mode(regs));
+	_ON(user_mode(regs));
 
 	pc = instruction_pointer(regs);
 	switch (cmd) {

@@ -28,7 +28,7 @@
  *					does NOT close.
  *		Alan Cox	:	Switched to new sk_buff handlers. No more backlog!
  *		Alan Cox	:	Using generic datagram code. Even smaller and the PEEK
- *					bug no longer crashes it.
+ *					 no longer crashes it.
  *		Fred Van Kempen	: 	Net2e support for sk->broadcast.
  *		Alan Cox	:	Uses skb_free_datagram
  *		Alan Cox	:	Added get/set sockopt support.
@@ -1192,7 +1192,7 @@ back_from_confirm:
 	lock_sock(sk);
 	if (unlikely(up->pending)) {
 		/* The socket is already corked while preparing it. */
-		/* ... which is an evident application bug. --ANK */
+		/* ... which is an evident application . --ANK */
 		release_sock(sk);
 
 		net_dbg_ratelimited("socket already corked\n");
@@ -1311,7 +1311,7 @@ static void udp_set_dev_scratch(struct sk_buff *skb)
 {
 	struct udp_dev_scratch *scratch = udp_skb_scratch(skb);
 
-	BUILD_BUG_ON(sizeof(struct udp_dev_scratch) > sizeof(long));
+	BUILD__ON(sizeof(struct udp_dev_scratch) > sizeof(long));
 	scratch->_tsize_state = skb->truesize;
 #if BITS_PER_LONG == 64
 	scratch->len = skb->len;
@@ -2084,7 +2084,7 @@ static int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (likely(!udp_unexpected_gso(sk, skb)))
 		return udp_queue_rcv_one_skb(sk, skb);
 
-	BUILD_BUG_ON(sizeof(struct udp_skb_cb) > SKB_SGO_CB_OFFSET);
+	BUILD__ON(sizeof(struct udp_skb_cb) > SKB_SGO_CB_OFFSET);
 	__skb_push(skb, -skb_mac_offset(skb));
 	segs = udp_rcv_segment(sk, skb, true);
 	for (skb = segs; skb; skb = next) {

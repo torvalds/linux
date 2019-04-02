@@ -229,7 +229,7 @@ static inline int do_int_store(int reg_num, int size, unsigned long *dst_addr,
 			break;
 		case 16:
 		default:
-			BUG();
+			();
 			break;
 		}
 	}
@@ -369,7 +369,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 					break;
 				case 16:
 				default:
-					BUG();
+					();
 					break;
 				}
 				*reg_addr = val_in;

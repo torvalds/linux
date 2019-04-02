@@ -2,13 +2,13 @@
 #ifndef _FS_CEPH_LIBCEPH_H
 #define _FS_CEPH_LIBCEPH_H
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <asm/unaligned.h>
 #include <linux/backing-dev.h>
 #include <linux/completion.h>
 #include <linux/exportfs.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/fs.h>
 #include <linux/mempool.h>
 #include <linux/pagemap.h>
@@ -135,11 +135,11 @@ struct ceph_client {
 	struct ceph_mon_client monc;
 	struct ceph_osd_client osdc;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_monmap;
-	struct dentry *debugfs_osdmap;
-	struct dentry *debugfs_options;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_dir;
+	struct dentry *defs_monmap;
+	struct dentry *defs_osdmap;
+	struct dentry *defs_options;
 #endif
 };
 
@@ -191,7 +191,7 @@ static void insert_##name(struct rb_root *root, type *t)		\
 	struct rb_node **n = &root->rb_node;				\
 	struct rb_node *parent = NULL;					\
 									\
-	BUG_ON(!RB_EMPTY_NODE(&t->nodefld));				\
+	_ON(!RB_EMPTY_NODE(&t->nodefld));				\
 									\
 	while (*n) {							\
 		type *cur = rb_entry(*n, type, nodefld);		\
@@ -204,7 +204,7 @@ static void insert_##name(struct rb_root *root, type *t)		\
 		else if (cmp > 0)					\
 			n = &(*n)->rb_right;				\
 		else							\
-			BUG();						\
+			();						\
 	}								\
 									\
 	rb_link_node(&t->nodefld, parent, n);				\
@@ -212,7 +212,7 @@ static void insert_##name(struct rb_root *root, type *t)		\
 }									\
 static void erase_##name(struct rb_root *root, type *t)			\
 {									\
-	BUG_ON(RB_EMPTY_NODE(&t->nodefld));				\
+	_ON(RB_EMPTY_NODE(&t->nodefld));				\
 	rb_erase(&t->nodefld, root);					\
 	RB_CLEAR_NODE(&t->nodefld);					\
 }

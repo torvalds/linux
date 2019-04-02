@@ -14,7 +14,7 @@
  * These "simple" wait-queues are broken garbage, and should never be
  * used. The comments below claim that they are "similar" to regular
  * wait-queues, but the semantics are actually completely different, and
- * every single user we have ever had has been buggy (or pointless).
+ * every single user we have ever had has been gy (or pointless).
  *
  * A "swake_up_one()" only wakes up _one_ waiter, which is not at all what
  * "wake_up()" does, and has led to problems. In other cases, it has

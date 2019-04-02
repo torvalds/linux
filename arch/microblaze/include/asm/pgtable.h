@@ -42,7 +42,7 @@ extern int mem_init_done;
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-#define ZERO_PAGE(vaddr)	({ BUG(); NULL; })
+#define ZERO_PAGE(vaddr)	({ (); NULL; })
 
 #define swapper_pg_dir ((pgd_t *) NULL)
 

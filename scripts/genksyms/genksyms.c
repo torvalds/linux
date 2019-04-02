@@ -37,13 +37,13 @@
 #define HASH_BUCKETS  4096
 
 static struct symbol *symtab[HASH_BUCKETS];
-static FILE *debugfile;
+static FILE *defile;
 
 int cur_line = 1;
 char *cur_filename, *source_file;
 int in_source_file;
 
-static int flag_debug, flag_dump_defs, flag_reference, flag_dump_types,
+static int flag_de, flag_dump_defs, flag_reference, flag_dump_types,
 	   flag_preserve, flag_warnings, flag_rel_crcs;
 
 static int errors;
@@ -300,17 +300,17 @@ static struct symbol *__add_symbol(const char *name, enum symbol_type type,
 	sym->status = status;
 	sym->is_override = 0;
 
-	if (flag_debug) {
+	if (flag_de) {
 		if (symbol_types[type].name)
-			fprintf(debugfile, "Defn for %s %s == <",
+			fprintf(defile, "Defn for %s %s == <",
 				symbol_types[type].name, name);
 		else
-			fprintf(debugfile, "Defn for type%d %s == <",
+			fprintf(defile, "Defn for type%d %s == <",
 				type, name);
 		if (is_extern)
-			fputs("extern ", debugfile);
-		print_list(debugfile, defn);
-		fputs(">\n", debugfile);
+			fputs("extern ", defile);
+		print_list(defile, defn);
+		fputs(">\n", defile);
 	}
 
 	++nsyms;
@@ -568,7 +568,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 		switch (cur->tag) {
 		case SYM_NORMAL:
 			if (flag_dump_defs)
-				fprintf(debugfile, "%s ", cur->string);
+				fprintf(defile, "%s ", cur->string);
 			crc = partial_crc32(cur->string, crc);
 			crc = partial_crc32_one(' ', crc);
 			break;
@@ -579,7 +579,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 			/* FIXME: Bad reference files can segfault here. */
 			if (subsym->expansion_trail) {
 				if (flag_dump_defs)
-					fprintf(debugfile, "%s ", cur->string);
+					fprintf(defile, "%s ", cur->string);
 				crc = partial_crc32(cur->string, crc);
 				crc = partial_crc32_one(' ', crc);
 			} else {
@@ -610,7 +610,7 @@ static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 			}
 			if (subsym->expansion_trail) {
 				if (flag_dump_defs) {
-					fprintf(debugfile, "%s %s ",
+					fprintf(defile, "%s %s ",
 						symbol_types[cur->tag].name,
 						cur->string);
 				}
@@ -654,7 +654,7 @@ void export_symbol(const char *name)
 		int has_changed = 0;
 
 		if (flag_dump_defs)
-			fprintf(debugfile, "Export %s == <", name);
+			fprintf(defile, "Export %s == <", name);
 
 		expansion_trail = (struct symbol *)-1L;
 
@@ -689,7 +689,7 @@ void export_symbol(const char *name)
 			fprintf(stderr, "\n");
 
 		if (flag_dump_defs)
-			fputs(">\n", debugfile);
+			fputs(">\n", defile);
 
 		/* Used as a linker script. */
 		printf(!flag_rel_crcs ? "__crc_%s = 0x%08lx;\n" :
@@ -735,8 +735,8 @@ static void genksyms_usage(void)
 	fputs("Usage:\n" "genksyms [-adDTwqhVR] > /path/to/.tmp_obj.ver\n" "\n"
 #ifdef __GNU_LIBRARY__
 	      "  -s, --symbol-prefix   Select symbol prefix\n"
-	      "  -d, --debug           Increment the debug level (repeatable)\n"
-	      "  -D, --dump            Dump expanded symbol defs (for debugging only)\n"
+	      "  -d, --de           Increment the de level (repeatable)\n"
+	      "  -D, --dump            Dump expanded symbol defs (for deging only)\n"
 	      "  -r, --reference file  Read reference symbols from a file\n"
 	      "  -T, --dump-types file Dump expanded types into file\n"
 	      "  -p, --preserve        Preserve reference modversions or fail\n"
@@ -747,8 +747,8 @@ static void genksyms_usage(void)
 	      "  -R, --relative-crc    Emit section relative symbol CRCs\n"
 #else				/* __GNU_LIBRARY__ */
 	      "  -s                    Select symbol prefix\n"
-	      "  -d                    Increment the debug level (repeatable)\n"
-	      "  -D                    Dump expanded symbol defs (for debugging only)\n"
+	      "  -d                    Increment the de level (repeatable)\n"
+	      "  -D                    Dump expanded symbol defs (for deging only)\n"
 	      "  -r file               Read reference symbols from a file\n"
 	      "  -T file               Dump expanded types into file\n"
 	      "  -p                    Preserve reference modversions or fail\n"
@@ -768,7 +768,7 @@ int main(int argc, char **argv)
 
 #ifdef __GNU_LIBRARY__
 	struct option long_opts[] = {
-		{"debug", 0, 0, 'd'},
+		{"de", 0, 0, 'd'},
 		{"warnings", 0, 0, 'w'},
 		{"quiet", 0, 0, 'q'},
 		{"dump", 0, 0, 'D'},
@@ -788,7 +788,7 @@ int main(int argc, char **argv)
 #endif				/* __GNU_LIBRARY__ */
 		switch (o) {
 		case 'd':
-			flag_debug++;
+			flag_de++;
 			break;
 		case 'w':
 			flag_warnings = 1;
@@ -832,14 +832,14 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	{
-		extern int yydebug;
-		extern int yy_flex_debug;
+		extern int yyde;
+		extern int yy_flex_de;
 
-		yydebug = (flag_debug > 1);
-		yy_flex_debug = (flag_debug > 2);
+		yyde = (flag_de > 1);
+		yy_flex_de = (flag_de > 2);
 
-		debugfile = stderr;
-		/* setlinebuf(debugfile); */
+		defile = stderr;
+		/* setlinebuf(defile); */
 	}
 
 	if (flag_reference) {
@@ -871,8 +871,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (flag_debug) {
-		fprintf(debugfile, "Hash table occupancy %d/%d = %g\n",
+	if (flag_de) {
+		fprintf(defile, "Hash table occupancy %d/%d = %g\n",
 			nsyms, HASH_BUCKETS,
 			(double)nsyms / (double)HASH_BUCKETS);
 	}

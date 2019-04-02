@@ -16,7 +16,7 @@
 #define BLIST_KEY		((__force blist_flags_t)(1ULL << 3))
 /* Do not use LUNs in parallel */
 #define BLIST_SINGLELUN		((__force blist_flags_t)(1ULL << 4))
-/* Buggy Tagged Command Queuing */
+/* gy Tagged Command Queuing */
 #define BLIST_NOTQ		((__force blist_flags_t)(1ULL << 5))
 /* Non consecutive LUN numbering */
 #define BLIST_SPARSELUN		((__force blist_flags_t)(1ULL << 6))

@@ -16,7 +16,7 @@
 #ifndef MAC80211_H
 #define MAC80211_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
@@ -1110,16 +1110,16 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 {
 	int i;
 
-	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) !=
+	BUILD__ON(offsetof(struct ieee80211_tx_info, status.rates) !=
 		     offsetof(struct ieee80211_tx_info, control.rates));
-	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) !=
+	BUILD__ON(offsetof(struct ieee80211_tx_info, status.rates) !=
 		     offsetof(struct ieee80211_tx_info, driver_rates));
-	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) != 8);
+	BUILD__ON(offsetof(struct ieee80211_tx_info, status.rates) != 8);
 	/* clear the rate counts */
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++)
 		info->status.rates[i].count = 0;
 
-	BUILD_BUG_ON(
+	BUILD__ON(
 	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 	memset(&info->status.ampdu_ack_len, 0,
 	       sizeof(struct ieee80211_tx_info) -
@@ -1583,8 +1583,8 @@ enum ieee80211_vif_flags {
  *	path needing to access it; even though the netdev carrier will always
  *	be off when it is %NULL there can still be races and packets could be
  *	processed after it switches back to %NULL.
- * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
- *	interface debug files. Note that it will be NULL for the virtual
+ * @defs_dir: defs dentry, can be used by drivers to create own per
+ *	interface de files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
  * @probe_req_reg: probe requests should be reported to mac80211 for this
  *	interface.
@@ -1611,8 +1611,8 @@ struct ieee80211_vif {
 
 	u32 driver_flags;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *debugfs_dir;
+#ifdef CONFIG_MAC80211_DEFS
+	struct dentry *defs_dir;
 #endif
 
 	unsigned int probe_req_reg;
@@ -2220,7 +2220,7 @@ struct ieee80211_txq {
  *	deauthentication frame might not be transmitted.
  *
  * @IEEE80211_HW_DOESNT_SUPPORT_QOS_NDP: The driver (or firmware) doesn't
- *	support QoS NDP for AP probing - that's most likely a driver bug.
+ *	support QoS NDP for AP probing - that's most likely a driver .
  *
  * @IEEE80211_HW_BUFF_MMPDU_TXQ: use the TXQ for bufferable MMPDUs, this of
  *	course requires the driver to use TXQs to start with.
@@ -3372,9 +3372,9 @@ enum ieee80211_reconfig_type {
  *	the station. See @sta_pre_rcu_remove if needed.
  *	This callback can sleep.
  *
- * @sta_add_debugfs: Drivers can use this callback to add debugfs files
+ * @sta_add_defs: Drivers can use this callback to add defs files
  *	when a station is added to mac80211's station list. This callback
- *	should be within a CONFIG_MAC80211_DEBUGFS conditional. This
+ *	should be within a CONFIG_MAC80211_DEFS conditional. This
  *	callback can sleep.
  *
  * @sta_notify: Notifies low level driver about power state transition of an
@@ -3424,12 +3424,12 @@ enum ieee80211_reconfig_type {
  *	The callback can sleep.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
- *	this is only used for IBSS mode BSSID merging and debugging. Is not a
+ *	this is only used for IBSS mode BSSID merging and deging. Is not a
  *	required function.
  *	The callback can sleep.
  *
  * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
- *	Currently, this is only used for IBSS mode debugging. Is not a
+ *	Currently, this is only used for IBSS mode deging. Is not a
  *	required function.
  *	The callback can sleep.
  *
@@ -3786,8 +3786,8 @@ struct ieee80211_ops {
 		       struct ieee80211_sta *sta);
 	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta);
-#ifdef CONFIG_MAC80211_DEBUGFS
-	void (*sta_add_debugfs)(struct ieee80211_hw *hw,
+#ifdef CONFIG_MAC80211_DEFS
+	void (*sta_add_defs)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
 				struct dentry *dir);
@@ -5884,7 +5884,7 @@ enum rate_control_capabilities {
 struct rate_control_ops {
 	unsigned long capa;
 	const char *name;
-	void *(*alloc)(struct ieee80211_hw *hw, struct dentry *debugfsdir);
+	void *(*alloc)(struct ieee80211_hw *hw, struct dentry *defsdir);
 	void (*free)(void *priv);
 
 	void *(*alloc_sta)(void *priv, struct ieee80211_sta *sta, gfp_t gfp);
@@ -5907,9 +5907,9 @@ struct rate_control_ops {
 	void (*get_rate)(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 			 struct ieee80211_tx_rate_control *txrc);
 
-	void (*add_sta_debugfs)(void *priv, void *priv_sta,
+	void (*add_sta_defs)(void *priv, void *priv_sta,
 				struct dentry *dir);
-	void (*remove_sta_debugfs)(void *priv, void *priv_sta);
+	void (*remove_sta_defs)(void *priv, void *priv_sta);
 
 	u32 (*get_expected_throughput)(void *priv_sta);
 };

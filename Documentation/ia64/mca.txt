@@ -179,7 +179,7 @@ delivered?
 
 If the previous task has been verified and converted to a blocked
 state, then sos->prev_task on the MCA/INIT stack is updated to point to
-the previous task.  You can look at that field in dumps or debuggers.
+the previous task.  You can look at that field in dumps or degers.
 To help distinguish between the handler and the original tasks,
 handlers have _TIF_MCA_INIT set in thread_info.flags.
 

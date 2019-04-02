@@ -28,16 +28,16 @@
 #include <media/tuner.h>
 
 /*
- * 1 = General debug messages
+ * 1 = General de messages
  * 2 = USB handling
  * 4 = I2C related
  * 8 = Bridge related
  * 16 = IR related
  */
-int au0828_debug;
-module_param_named(debug, au0828_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "set debug bitmask: 1=general, 2=USB, 4=I2C, 8=bridge, 16=IR");
+int au0828_de;
+module_param_named(de, au0828_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "set de bitmask: 1=general, 2=USB, 4=I2C, 8=bridge, 16=IR");
 
 static unsigned int disable_usb_speed_check;
 module_param(disable_usb_speed_check, int, 0444);
@@ -361,7 +361,7 @@ static int au0828_enable_source(struct media_entity *entity,
 			if (dev->active_link_owner != entity &&
 			    dev->active_link_owner->function ==
 						MEDIA_ENT_F_AUDIO_CAPTURE) {
-				pr_debug("ALSA has the tuner\n");
+				pr_de("ALSA has the tuner\n");
 				ret = -EBUSY;
 				goto end;
 			}
@@ -414,11 +414,11 @@ static int au0828_enable_source(struct media_entity *entity,
 	dev->active_source = source;
 	dev->active_sink = sink;
 
-	pr_debug("Enabled Source: %s->%s->%s Ret %d\n",
+	pr_de("Enabled Source: %s->%s->%s Ret %d\n",
 		 dev->active_source->name, dev->active_sink->name,
 		 dev->active_link_owner->name, ret);
 end:
-	pr_debug("au0828_enable_source() end %s %d %d\n",
+	pr_de("au0828_enable_source() end %s %d %d\n",
 		 entity->name, entity->function, ret);
 	return ret;
 }
@@ -452,7 +452,7 @@ static void au0828_disable_source(struct media_entity *entity)
 		if (ret)
 			pr_err("Deactivate link Error %d\n", ret);
 
-		pr_debug("Disabled Source: %s->%s->%s Ret %d\n",
+		pr_de("Disabled Source: %s->%s->%s Ret %d\n",
 			 dev->active_source->name, dev->active_sink->name,
 			 dev->active_link_owner->name, ret);
 
@@ -719,21 +719,21 @@ static int __init au0828_init(void)
 {
 	int ret;
 
-	if (au0828_debug & 1)
-		pr_info("%s() Debugging is enabled\n", __func__);
+	if (au0828_de & 1)
+		pr_info("%s() Deging is enabled\n", __func__);
 
-	if (au0828_debug & 2)
-		pr_info("%s() USB Debugging is enabled\n", __func__);
+	if (au0828_de & 2)
+		pr_info("%s() USB Deging is enabled\n", __func__);
 
-	if (au0828_debug & 4)
-		pr_info("%s() I2C Debugging is enabled\n", __func__);
+	if (au0828_de & 4)
+		pr_info("%s() I2C Deging is enabled\n", __func__);
 
-	if (au0828_debug & 8)
-		pr_info("%s() Bridge Debugging is enabled\n",
+	if (au0828_de & 8)
+		pr_info("%s() Bridge Deging is enabled\n",
 		       __func__);
 
-	if (au0828_debug & 16)
-		pr_info("%s() IR Debugging is enabled\n",
+	if (au0828_de & 16)
+		pr_info("%s() IR Deging is enabled\n",
 		       __func__);
 
 	pr_info("au0828 driver loaded\n");

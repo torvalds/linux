@@ -19,7 +19,7 @@
  */
 
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/types.h>
@@ -132,7 +132,7 @@ void release_thread(struct task_struct *dead_task)
 }
 
 /*
- * Some archs flush debug and FPU info here
+ * Some archs flush de and FPU info here
  */
 void flush_thread(void)
 {

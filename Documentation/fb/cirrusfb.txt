@@ -58,7 +58,7 @@ Version 1.9.4.4
   modelled after that in atyfb and matroxfb.
 * Code cleanup, add comments.
 * Overhaul SR07 handling.
-* Bug fixes.
+*  fixes.
 
 
 Version 1.9.4.3
@@ -76,7 +76,7 @@ Version 1.9.4.2
 ---------------
 * Casting fixes.
 * Assertions no longer cause an oops on purpose.
-* Bug fixes.
+*  fixes.
 
 
 Version 1.9.4.1
@@ -86,7 +86,7 @@ Version 1.9.4.1
 
 Version 1.9.4
 -------------
-* Several enhancements, smaller memory footprint, a few bugfixes.
+* Several enhancements, smaller memory footprint, a few fixes.
 * Requires kernel 2.3.14-pre1 or later.
 
 

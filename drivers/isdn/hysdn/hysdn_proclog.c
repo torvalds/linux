@@ -83,7 +83,7 @@ hysdn_addlog(hysdn_card *card, char *fmt, ...)
 	*cp++ = '\n';
 	*cp = 0;
 
-	if (card->debug_flags & DEB_OUT_SYSLOG)
+	if (card->de_flags & DEB_OUT_SYSLOG)
 		printk(KERN_INFO "%s", pd->logtmp);
 	else
 		put_log_buffer(card, pd->logtmp);
@@ -156,10 +156,10 @@ hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t 
 	int rc;
 	hysdn_card *card = file->private_data;
 
-	rc = kstrtoul_from_user(buf, count, 0, &card->debug_flags);
+	rc = kstrtoul_from_user(buf, count, 0, &card->de_flags);
 	if (rc < 0)
 		return rc;
-	hysdn_addlog(card, "debug set to 0x%lx", card->debug_flags);
+	hysdn_addlog(card, "de set to 0x%lx", card->de_flags);
 	return (count);
 }				/* hysdn_log_write */
 
@@ -211,7 +211,7 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 		struct procdata *pd = card->proclog;
 		unsigned long flags;
 
-		/* read access -> log/debug read */
+		/* read access -> log/de read */
 		spin_lock_irqsave(&card->hysdn_lock, flags);
 		pd->if_used++;
 		if (pd->log_head)
@@ -244,10 +244,10 @@ hysdn_log_close(struct inode *ino, struct file *filep)
 
 	mutex_lock(&hysdn_log_mutex);
 	if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE) {
-		/* write only access -> write debug level written */
+		/* write only access -> write de level written */
 		retval = 0;	/* success */
 	} else {
-		/* read access -> log/debug read, mark one further file as closed */
+		/* read access -> log/de read, mark one further file as closed */
 
 		inf = *((struct log_data **) filep->private_data);	/* get first log entry */
 		if (inf)

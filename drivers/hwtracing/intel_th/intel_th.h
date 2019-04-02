@@ -42,7 +42,7 @@ struct intel_th_output {
 /**
  * struct intel_th_drvdata - describes hardware capabilities and quirks
  * @tscu_enable:	device needs SW to enable time stamping unit
- * @host_mode_only:	device can only operate in 'host debugger' mode
+ * @host_mode_only:	device can only operate in 'host deger' mode
  */
 struct intel_th_drvdata {
 	unsigned int	tscu_enable        : 1,
@@ -59,7 +59,7 @@ struct intel_th_drvdata {
  * @num_resources:	number of resources in @resource array
  * @type:		INTEL_TH_{SOURCE,OUTPUT,SWITCH}
  * @id:			device instance or -1
- * @host_mode:		Intel TH is controlled by an external debug host
+ * @host_mode:		Intel TH is controlled by an external de host
  * @output:		output descriptor for INTEL_TH_OUTPUT devices
  * @name:		device name to match the driver
  */
@@ -268,7 +268,7 @@ struct intel_th {
 #ifdef CONFIG_MODULES
 	struct work_struct	request_module_work;
 #endif /* CONFIG_MODULES */
-#ifdef CONFIG_INTEL_TH_DEBUG
+#ifdef CONFIG_INTEL_TH_DE
 	struct dentry		*dbg;
 #endif
 };
@@ -318,7 +318,7 @@ enum {
 };
 
 /*
- * Scratchpad bits: tell firmware and external debuggers
+ * Scratchpad bits: tell firmware and external degers
  * what we are up to.
  */
 enum {
@@ -352,8 +352,8 @@ enum {
 	SCRPD_STH_IS_ENABLED		= BIT(15),
 	SCRPD_DCIH_IS_ENABLED		= BIT(16),
 	SCRPD_VER_IS_ENABLED		= BIT(17),
-	/* External debugger is using Intel TH */
-	SCRPD_DEBUGGER_IN_USE		= BIT(24),
+	/* External deger is using Intel TH */
+	SCRPD_DEGER_IN_USE		= BIT(24),
 };
 
 #endif

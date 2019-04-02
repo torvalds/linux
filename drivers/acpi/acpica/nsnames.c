@@ -27,7 +27,7 @@ static void acpi_ns_normalize_pathname(char *original_path);
  *              separators.)
  *
  * DESCRIPTION: Used to obtain the full pathname to a namespace node, usually
- *              for error and debug statements.
+ *              for error and de statements.
  *
  ******************************************************************************/
 
@@ -111,7 +111,7 @@ acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
 	ACPI_MOVE_NAME(buffer->pointer, node_name);
 	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -166,7 +166,7 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
 					    required_size, no_trailing);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
+	ACPI_DE_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));
 	return_ACPI_STATUS(AE_OK);
 }
@@ -285,7 +285,7 @@ build_trailing_null:
  *              separators.)
  *
  * DESCRIPTION: Used to obtain the full pathname to a namespace node, usually
- *              for error and debug statements. All trailing '_' will be
+ *              for error and de statements. All trailing '_' will be
  *              removed from the full pathname if 'NoTrailing' is specified..
  *
  ******************************************************************************/
@@ -318,7 +318,7 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 	(void)acpi_ns_build_normalized_path(node, name_buffer, size,
 					    no_trailing);
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES, "%s: Path \"%s\"\n",
+	ACPI_DE_PRINT_RAW((ACPI_DB_NAMES, "%s: Path \"%s\"\n",
 			      ACPI_GET_FUNCTION_NAME, name_buffer));
 
 	return_PTR(name_buffer);

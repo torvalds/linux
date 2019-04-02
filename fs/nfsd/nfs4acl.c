@@ -240,7 +240,7 @@ _posix_to_nfsv4_one(struct posix_acl *pacl, struct nfs4_acl *acl,
 	int eflag = ((flags & NFS4_ACL_TYPE_DEFAULT) ?
 		NFS4_INHERITANCE_FLAGS | NFS4_ACE_INHERIT_ONLY_ACE : 0);
 
-	BUG_ON(pacl->a_count < 3);
+	_ON(pacl->a_count < 3);
 	summarize_posix_acl(pacl, &pas);
 
 	pa = pacl->a_entries;
@@ -406,7 +406,7 @@ sort_pacl(struct posix_acl *pacl)
 		i++;
 	sort_pacl_range(pacl, 1, i-1);
 
-	BUG_ON(pacl->a_entries[i].e_tag != ACL_GROUP_OBJ);
+	_ON(pacl->a_entries[i].e_tag != ACL_GROUP_OBJ);
 	j = ++i;
 	while (pacl->a_entries[j].e_tag == ACL_GROUP)
 		j++;
@@ -816,7 +816,7 @@ ace2type(struct nfs4_ace *ace)
 		case NFS4_ACL_WHO_EVERYONE:
 			return ACL_OTHER;
 	}
-	BUG();
+	();
 	return -1;
 }
 

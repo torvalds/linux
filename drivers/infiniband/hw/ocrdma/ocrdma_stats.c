@@ -80,9 +80,9 @@ bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev)
 		return false;
 	}
 
-	/* Alloc debugfs mem */
-	mem->debugfs_mem = kzalloc(OCRDMA_MAX_DBGFS_MEM, GFP_KERNEL);
-	if (!mem->debugfs_mem)
+	/* Alloc defs mem */
+	mem->defs_mem = kzalloc(OCRDMA_MAX_DBGFS_MEM, GFP_KERNEL);
+	if (!mem->defs_mem)
 		return false;
 
 	return true;
@@ -96,12 +96,12 @@ void ocrdma_release_stats_resources(struct ocrdma_dev *dev)
 		dma_free_coherent(&dev->nic_info.pdev->dev, mem->size,
 				  mem->va, mem->pa);
 	mem->va = NULL;
-	kfree(mem->debugfs_mem);
+	kfree(mem->defs_mem);
 }
 
 static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 			(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
@@ -218,7 +218,7 @@ static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 
 static char *ocrdma_rx_stats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rx_stats *rx_stats = &rdma_stats->rx_stats;
@@ -286,7 +286,7 @@ static u64 ocrdma_sysfs_rcv_data(struct ocrdma_dev *dev)
 
 static char *ocrdma_tx_stats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_tx_stats *tx_stats = &rdma_stats->tx_stats;
@@ -360,7 +360,7 @@ static u64 ocrdma_sysfs_xmit_data(struct ocrdma_dev *dev)
 
 static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_wqe_stats	*wqe_stats = &rdma_stats->wqe_stats;
@@ -393,7 +393,7 @@ static char *ocrdma_wqe_stats(struct ocrdma_dev *dev)
 
 static char *ocrdma_db_errstats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_db_err_stats *db_err_stats = &rdma_stats->db_err_stats;
@@ -414,7 +414,7 @@ static char *ocrdma_db_errstats(struct ocrdma_dev *dev)
 
 static char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rx_qp_err_stats *rx_qp_err_stats =
@@ -440,7 +440,7 @@ static char *ocrdma_rxqp_errstats(struct ocrdma_dev *dev)
 
 static char *ocrdma_txqp_errstats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_tx_qp_err_stats *tx_qp_err_stats =
@@ -465,7 +465,7 @@ static char *ocrdma_txqp_errstats(struct ocrdma_dev *dev)
 static char *ocrdma_tx_dbg_stats(struct ocrdma_dev *dev)
 {
 	int i;
-	char *pstats = dev->stats_mem.debugfs_mem;
+	char *pstats = dev->stats_mem.defs_mem;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_tx_dbg_stats *tx_dbg_stats =
@@ -477,13 +477,13 @@ static char *ocrdma_tx_dbg_stats(struct ocrdma_dev *dev)
 		pstats += snprintf(pstats, 80, "DW[%d] = 0x%x\n", i,
 				 tx_dbg_stats->data[i]);
 
-	return dev->stats_mem.debugfs_mem;
+	return dev->stats_mem.defs_mem;
 }
 
 static char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
 {
 	int i;
-	char *pstats = dev->stats_mem.debugfs_mem;
+	char *pstats = dev->stats_mem.defs_mem;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		(struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rx_dbg_stats *rx_dbg_stats =
@@ -495,12 +495,12 @@ static char *ocrdma_rx_dbg_stats(struct ocrdma_dev *dev)
 		pstats += snprintf(pstats, 80, "DW[%d] = 0x%x\n", i,
 				 rx_dbg_stats->data[i]);
 
-	return dev->stats_mem.debugfs_mem;
+	return dev->stats_mem.defs_mem;
 }
 
 static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
 {
-	char *stats = dev->stats_mem.debugfs_mem, *pcur;
+	char *stats = dev->stats_mem.defs_mem, *pcur;
 
 
 	memset(stats, 0, (OCRDMA_MAX_DBGFS_MEM));
@@ -766,76 +766,76 @@ void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 		return;
 
 	/* Create post stats base dir */
-	dev->dir = debugfs_create_dir(pci_name(pdev), ocrdma_dbgfs_dir);
+	dev->dir = defs_create_dir(pci_name(pdev), ocrdma_dbgfs_dir);
 
 	dev->rsrc_stats.type = OCRDMA_RSRC_STATS;
 	dev->rsrc_stats.dev = dev;
-	debugfs_create_file("resource_stats", S_IRUSR, dev->dir,
+	defs_create_file("resource_stats", S_IRUSR, dev->dir,
 			    &dev->rsrc_stats, &ocrdma_dbg_ops);
 
 	dev->rx_stats.type = OCRDMA_RXSTATS;
 	dev->rx_stats.dev = dev;
-	debugfs_create_file("rx_stats", S_IRUSR, dev->dir, &dev->rx_stats,
+	defs_create_file("rx_stats", S_IRUSR, dev->dir, &dev->rx_stats,
 			    &ocrdma_dbg_ops);
 
 	dev->wqe_stats.type = OCRDMA_WQESTATS;
 	dev->wqe_stats.dev = dev;
-	debugfs_create_file("wqe_stats", S_IRUSR, dev->dir, &dev->wqe_stats,
+	defs_create_file("wqe_stats", S_IRUSR, dev->dir, &dev->wqe_stats,
 			    &ocrdma_dbg_ops);
 
 	dev->tx_stats.type = OCRDMA_TXSTATS;
 	dev->tx_stats.dev = dev;
-	debugfs_create_file("tx_stats", S_IRUSR, dev->dir, &dev->tx_stats,
+	defs_create_file("tx_stats", S_IRUSR, dev->dir, &dev->tx_stats,
 			    &ocrdma_dbg_ops);
 
 	dev->db_err_stats.type = OCRDMA_DB_ERRSTATS;
 	dev->db_err_stats.dev = dev;
-	debugfs_create_file("db_err_stats", S_IRUSR, dev->dir,
+	defs_create_file("db_err_stats", S_IRUSR, dev->dir,
 			    &dev->db_err_stats, &ocrdma_dbg_ops);
 
 	dev->tx_qp_err_stats.type = OCRDMA_TXQP_ERRSTATS;
 	dev->tx_qp_err_stats.dev = dev;
-	debugfs_create_file("tx_qp_err_stats", S_IRUSR, dev->dir,
+	defs_create_file("tx_qp_err_stats", S_IRUSR, dev->dir,
 			    &dev->tx_qp_err_stats, &ocrdma_dbg_ops);
 
 	dev->rx_qp_err_stats.type = OCRDMA_RXQP_ERRSTATS;
 	dev->rx_qp_err_stats.dev = dev;
-	debugfs_create_file("rx_qp_err_stats", S_IRUSR, dev->dir,
+	defs_create_file("rx_qp_err_stats", S_IRUSR, dev->dir,
 			    &dev->rx_qp_err_stats, &ocrdma_dbg_ops);
 
 	dev->tx_dbg_stats.type = OCRDMA_TX_DBG_STATS;
 	dev->tx_dbg_stats.dev = dev;
-	debugfs_create_file("tx_dbg_stats", S_IRUSR, dev->dir,
+	defs_create_file("tx_dbg_stats", S_IRUSR, dev->dir,
 			    &dev->tx_dbg_stats, &ocrdma_dbg_ops);
 
 	dev->rx_dbg_stats.type = OCRDMA_RX_DBG_STATS;
 	dev->rx_dbg_stats.dev = dev;
-	debugfs_create_file("rx_dbg_stats", S_IRUSR, dev->dir,
+	defs_create_file("rx_dbg_stats", S_IRUSR, dev->dir,
 			    &dev->rx_dbg_stats, &ocrdma_dbg_ops);
 
 	dev->driver_stats.type = OCRDMA_DRV_STATS;
 	dev->driver_stats.dev = dev;
-	debugfs_create_file("driver_dbg_stats", S_IRUSR, dev->dir,
+	defs_create_file("driver_dbg_stats", S_IRUSR, dev->dir,
 			    &dev->driver_stats, &ocrdma_dbg_ops);
 
 	dev->reset_stats.type = OCRDMA_RESET_STATS;
 	dev->reset_stats.dev = dev;
-	debugfs_create_file("reset_stats", 0200, dev->dir, &dev->reset_stats,
+	defs_create_file("reset_stats", 0200, dev->dir, &dev->reset_stats,
 			    &ocrdma_dbg_ops);
 }
 
 void ocrdma_rem_port_stats(struct ocrdma_dev *dev)
 {
-	debugfs_remove_recursive(dev->dir);
+	defs_remove_recursive(dev->dir);
 }
 
-void ocrdma_init_debugfs(void)
+void ocrdma_init_defs(void)
 {
-	/* Create base dir in debugfs root dir */
-	ocrdma_dbgfs_dir = debugfs_create_dir("ocrdma", NULL);
+	/* Create base dir in defs root dir */
+	ocrdma_dbgfs_dir = defs_create_dir("ocrdma", NULL);
 }
 
-void ocrdma_rem_debugfs(void)
+void ocrdma_rem_defs(void)
 {
-	debugfs_remove_recursive(ocrdma_dbgfs_dir);
+	defs_remove_recursive(ocrdma_dbgfs_dir);
 }

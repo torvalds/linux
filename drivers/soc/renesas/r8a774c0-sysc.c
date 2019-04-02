@@ -6,7 +6,7 @@
  * Based on Renesas R-Car E3 System Controller
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/sys_soc.h>
 

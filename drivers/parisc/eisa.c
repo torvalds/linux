@@ -48,7 +48,7 @@
 #include "iommu.h"
 
 #if 0
-#define EISA_DBG(msg, arg...) printk(KERN_DEBUG "eisa: " msg, ## arg)
+#define EISA_DBG(msg, arg...) printk(KERN_DE "eisa: " msg, ## arg)
 #else
 #define EISA_DBG(msg, arg...)
 #endif

@@ -31,14 +31,14 @@ static struct {
 #define PSTR_OFFS	 0x40		/* Power Status Register */
 #define CPUNCR_OFFS(n)	(0x100 + (0x10 * (n)))
 					/* CPUn Power Status Control Register */
-#define DBGRCR_OFFS	0x180		/* Debug Resource Reset Control Reg. */
+#define DBGRCR_OFFS	0x180		/* De Resource Reset Control Reg. */
 
 /* Power Status Register */
 #define CPUNST(r, n)	(((r) >> (n * 4)) & 3)	/* CPUn Status Bit */
 #define CPUST_RUN	0		/* Run Mode */
 #define CPUST_STANDBY	3		/* CoreStandby Mode */
 
-/* Debug Resource Reset Control Register */
+/* De Resource Reset Control Register */
 #define DBGCPUREN	BIT(24)		/* CPU Other Reset Request Enable */
 #define DBGCPUNREN(n)	BIT((n) + 20)	/* CPUn Reset Request Enable */
 #define DBGCPUPREN	BIT(19)		/* CPU Peripheral Reset Req. Enable */
@@ -192,9 +192,9 @@ static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 	apmu_cpus[cpu].iomem = ioremap_nocache(res->start, resource_size(res));
 	apmu_cpus[cpu].bit = bit;
 
-	pr_debug("apmu ioremap %d %d %pr\n", cpu, bit, res);
+	pr_de("apmu ioremap %d %d %pr\n", cpu, bit, res);
 
-	/* Setup for debug mode */
+	/* Setup for de mode */
 	x = readl(apmu_cpus[cpu].iomem + DBGRCR_OFFS);
 	x |= DBGCPUREN | DBGCPUNREN(bit) | DBGCPUPREN;
 	writel(x, apmu_cpus[cpu].iomem + DBGRCR_OFFS);

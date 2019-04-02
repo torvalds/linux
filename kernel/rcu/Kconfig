@@ -205,7 +205,7 @@ config RCU_NOCB_CPU
 	  between each callback, and (2) affinity or cgroups can be used
 	  to force the kthreads to run on whatever set of CPUs is desired.
 
-	  Say Y here if you want to help to debug reduced OS jitter.
+	  Say Y here if you want to help to de reduced OS jitter.
 	  Say N here if you are unsure.
 
 endmenu # "RCU Subsystem"

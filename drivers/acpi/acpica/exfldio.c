@@ -225,12 +225,12 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	    obj_desc->common_field.base_byte_offset + field_datum_byte_offset;
 
 	if ((function & ACPI_IO_MASK) == ACPI_READ) {
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD, "[READ]"));
+		ACPI_DE_PRINT((ACPI_DB_BFIELD, "[READ]"));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD, "[WRITE]"));
+		ACPI_DE_PRINT((ACPI_DB_BFIELD, "[WRITE]"));
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT_RAW((ACPI_DB_BFIELD,
 			      " Region [%s:%X], Width %X, ByteBase %X, Offset %X at %8.8X%8.8X\n",
 			      acpi_ut_get_region_name(rgn_desc->region.
 						      space_id),
@@ -461,7 +461,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 		field_datum_byte_offset += obj_desc->index_field.value;
 
-		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+		ACPI_DE_PRINT((ACPI_DB_BFIELD,
 				  "Write to Index Register: Value %8.8X\n",
 				  field_datum_byte_offset));
 
@@ -477,7 +477,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 			/* Read the datum from the data_register */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "Read from Data Register\n"));
 
 			status =
@@ -487,7 +487,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		} else {
 			/* Write the datum to the data_register */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "Write to Data Register: Value %8.8X%8.8X\n",
 					  ACPI_FORMAT_UINT64(*value)));
 
@@ -508,13 +508,13 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 	if (ACPI_SUCCESS(status)) {
 		if (read_write == ACPI_READ) {
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "Value Read %8.8X%8.8X, Width %u\n",
 					  ACPI_FORMAT_UINT64(*value),
 					  obj_desc->common_field.
 					  access_byte_width));
 		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+			ACPI_DE_PRINT((ACPI_DB_BFIELD,
 					  "Value Written %8.8X%8.8X, Width %u\n",
 					  ACPI_FORMAT_UINT64(*value),
 					  obj_desc->common_field.
@@ -612,7 +612,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+	ACPI_DE_PRINT((ACPI_DB_BFIELD,
 			  "Mask %8.8X%8.8X, DatumOffset %X, Width %X, "
 			  "Value %8.8X%8.8X, MergedValue %8.8X%8.8X\n",
 			  ACPI_FORMAT_UINT64(mask),

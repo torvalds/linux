@@ -996,7 +996,7 @@ struct adapter {
 
 	struct mutex uld_mutex;
 
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	bool use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
 	bool trace_rss;	/* 1 implies that different RSS flit per filter is
 			 * used per filter else if 0 default RSS flit is
@@ -1013,7 +1013,7 @@ struct adapter {
 
 	/* TC u32 offload */
 	struct cxgb4_tc_u32_table *tc_u32;
-	struct chcr_stats_debug chcr_stats;
+	struct chcr_stats_de chcr_stats;
 
 	/* TC flower offload */
 	bool tc_flower_initialized;

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
- * Module Name: dbnames - Debugger commands for the acpi namespace
+ * Module Name: dbnames - Deger commands for the acpi namespace
  *
  ******************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
-#include "acdebug.h"
+#include "acde.h"
 #include "acpredef.h"
 
-#define _COMPONENT          ACPI_CA_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEGER
 ACPI_MODULE_NAME("dbnames")
 
 /* Local prototypes */
@@ -69,7 +69,7 @@ static struct acpi_db_argument_info acpi_db_object_types[] = {
 	{"THERMALZONES"},
 	{"BUFFERFIELDS"},
 	{"DDBHANDLES"},
-	{"DEBUG"},
+	{"DE"},
 	{"REGIONFIELDS"},
 	{"BANKFIELDS"},
 	{"INDEXFIELDS"},
@@ -324,7 +324,7 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
 	} else {
 		info.count = 0;
 		info.owner_id = ACPI_OWNER_ID_MAX;
-		info.debug_level = ACPI_UINT32_MAX;
+		info.de_level = ACPI_UINT32_MAX;
 		info.display_type = ACPI_DISPLAY_SUMMARY | ACPI_DISPLAY_SHORT;
 
 		acpi_os_printf("%32s", (char *)buffer.pointer);
@@ -611,7 +611,7 @@ acpi_status acpi_db_display_objects(char *obj_type_arg, char *display_count_arg)
 
 	info.count = 0;
 	info.owner_id = ACPI_OWNER_ID_MAX;
-	info.debug_level = ACPI_UINT32_MAX;
+	info.de_level = ACPI_UINT32_MAX;
 	info.display_type = ACPI_DISPLAY_SUMMARY | ACPI_DISPLAY_SHORT;
 
 	/* Walk the namespace from the root */

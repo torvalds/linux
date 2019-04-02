@@ -48,9 +48,9 @@ struct arch_hw_breakpoint {
 				 HW_BRK_TYPE_HYP)
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <asm/reg.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 struct perf_event_attr;
 struct perf_event;

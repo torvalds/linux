@@ -808,7 +808,7 @@ extern void __iounmap_at(void *ea, unsigned long size);
  */
 static inline unsigned long virt_to_phys(volatile void * address)
 {
-	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && !virt_addr_valid(address));
+	WARN_ON(IS_ENABLED(CONFIG_DE_VIRTUAL) && !virt_addr_valid(address));
 
 	return __pa((unsigned long)address);
 }
@@ -837,7 +837,7 @@ static inline phys_addr_t page_to_phys(struct page *page)
 {
 	unsigned long pfn = page_to_pfn(page);
 
-	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && !pfn_valid(pfn));
+	WARN_ON(IS_ENABLED(CONFIG_DE_VIRTUAL) && !pfn_valid(pfn));
 
 	return PFN_PHYS(pfn);
 }

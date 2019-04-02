@@ -549,7 +549,7 @@ static int acpi_battery_get_info(struct acpi_battery *battery)
 	}
 
 	if (!result && !use_bix && xinfo)
-		pr_warn(FW_BUG "The _BIX method is broken, using _BIF.\n");
+		pr_warn(FW_ "The _BIX method is broken, using _BIF.\n");
 
 	return result;
 }
@@ -583,7 +583,7 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 	battery->update_time = jiffies;
 	kfree(buffer.pointer);
 
-	/* For buggy DSDTs that report negative 16-bit values for either
+	/* For gy DSDTs that report negative 16-bit values for either
 	 * charging or discharging current and/or report 0 as 65536
 	 * due to bad math.
 	 */
@@ -591,7 +591,7 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 		battery->rate_now != ACPI_BATTERY_VALUE_UNKNOWN &&
 		(s16)(battery->rate_now) < 0) {
 		battery->rate_now = abs((s16)battery->rate_now);
-		pr_warn_once(FW_BUG "battery: (dis)charge rate invalid.\n");
+		pr_warn_once(FW_ "battery: (dis)charge rate invalid.\n");
 	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
@@ -626,7 +626,7 @@ static int acpi_battery_set_alarm(struct acpi_battery *battery)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Alarm set to %d\n", battery->alarm));
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Alarm set to %d\n", battery->alarm));
 	return 0;
 }
 
@@ -880,7 +880,7 @@ static void find_battery(const struct dmi_header *dm, void *private)
  *
  * Now we found some battery reports percentage remaining capacity
  * even if it's rechargeable.
- * https://bugzilla.kernel.org/show_bug.cgi?id=15979
+ * https://zilla.kernel.org/show_.cgi?id=15979
  *
  * Handle this correctly so that they won't break userspace.
  */

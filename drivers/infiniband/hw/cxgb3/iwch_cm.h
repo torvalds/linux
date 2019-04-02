@@ -54,14 +54,14 @@
 #define MPA_FLAGS_MASK		0xE0
 
 #define put_ep(ep) {							\
-	pr_debug("put_ep (via %s:%u) ep %p refcnt %d\n",		\
+	pr_de("put_ep (via %s:%u) ep %p refcnt %d\n",		\
 		 __func__, __LINE__, ep, kref_read(&((ep)->kref)));	\
 	WARN_ON(kref_read(&((ep)->kref)) < 1);				\
 	kref_put(&((ep)->kref), __free_ep);				\
 }
 
 #define get_ep(ep) {							\
-	pr_debug("get_ep (via %s:%u) ep %p, refcnt %d\n",		\
+	pr_de("get_ep (via %s:%u) ep %p, refcnt %d\n",		\
 		 __func__, __LINE__, ep, kref_read(&((ep)->kref)));	\
 	kref_get(&((ep)->kref));					\
 }

@@ -99,9 +99,9 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-static int b44_debug = -1;	/* -1 == use B44_DEF_MSG_ENABLE as value */
-module_param(b44_debug, int, 0);
-MODULE_PARM_DESC(b44_debug, "B44 bitmapped debugging message enable value");
+static int b44_de = -1;	/* -1 == use B44_DEF_MSG_ENABLE as value */
+module_param(b44_de, int, 0);
+MODULE_PARM_DESC(b44_de, "B44 bitmapped deging message enable value");
 
 
 #ifdef CONFIG_B44_PCI
@@ -190,7 +190,7 @@ static int b44_wait_bit(struct b44 *bp, unsigned long reg,
 	}
 	if (i == timeout) {
 		if (net_ratelimit())
-			netdev_err(bp->dev, "BUG!  Timeout waiting for bit %08x of register %lx to %s\n",
+			netdev_err(bp->dev, "!  Timeout waiting for bit %08x of register %lx to %s\n",
 				   bit, reg, clear ? "clear" : "set");
 
 		return -ENODEV;
@@ -627,7 +627,7 @@ static void b44_tx(struct b44 *bp)
 		struct ring_info *rp = &bp->tx_buffers[cons];
 		struct sk_buff *skb = rp->skb;
 
-		BUG_ON(skb == NULL);
+		_ON(skb == NULL);
 
 		dma_unmap_single(bp->sdev->dma_dev,
 				 rp->mapping,
@@ -678,7 +678,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 				 RX_PKT_BUF_SZ,
 				 DMA_FROM_DEVICE);
 
-	/* Hardware bug work-around, the chip is unable to do PCI DMA
+	/* Hardware  work-around, the chip is unable to do PCI DMA
 	   to/from anything above 1GB :-( */
 	if (dma_mapping_error(bp->sdev->dma_dev, mapping) ||
 		mapping + RX_PKT_BUF_SZ > DMA_BIT_MASK(30)) {
@@ -984,7 +984,7 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This is a hard error, log it. */
 	if (unlikely(TX_BUFFS_AVAIL(bp) < 1)) {
 		netif_stop_queue(dev);
-		netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
+		netdev_err(dev, "! Tx Ring full when queue awake!\n");
 		goto err_out;
 	}
 
@@ -1040,9 +1040,9 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 
 	bw32(bp, B44_DMATX_PTR, entry * sizeof(struct dma_desc));
-	if (bp->flags & B44_FLAG_BUGGY_TXPTR)
+	if (bp->flags & B44_FLAG_GY_TXPTR)
 		bw32(bp, B44_DMATX_PTR, entry * sizeof(struct dma_desc));
-	if (bp->flags & B44_FLAG_REORDER_BUG)
+	if (bp->flags & B44_FLAG_REORDER_)
 		br32(bp, B44_DMATX_PTR);
 
 	netdev_sent_queue(dev, skb->len);
@@ -1833,7 +1833,7 @@ static int b44_get_link_ksettings(struct net_device *dev,
 	u32 supported, advertising;
 
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
-		BUG_ON(!dev->phydev);
+		_ON(!dev->phydev);
 		phy_ethtool_ksettings_get(dev->phydev, cmd);
 
 		return 0;
@@ -1889,7 +1889,7 @@ static int b44_set_link_ksettings(struct net_device *dev,
 	u32 advertising;
 
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
-		BUG_ON(!dev->phydev);
+		_ON(!dev->phydev);
 		spin_lock_irq(&bp->lock);
 		if (netif_running(dev))
 			b44_setup_phy(bp);
@@ -2143,7 +2143,7 @@ static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	spin_lock_irq(&bp->lock);
 	if (bp->flags & B44_FLAG_EXTERNAL_PHY) {
-		BUG_ON(!dev->phydev);
+		_ON(!dev->phydev);
 		err = phy_mii_ioctl(dev->phydev, ifr, cmd);
 	} else {
 		err = generic_mii_ioctl(&bp->mii_if, if_mii(ifr), cmd, NULL);
@@ -2169,7 +2169,7 @@ static int b44_get_invariants(struct b44 *bp)
 		addr = sdev->bus->sprom.et0mac;
 		bp->phy_addr = sdev->bus->sprom.et0phyaddr;
 	}
-	/* Some ROMs have buggy PHY addresses with the high
+	/* Some ROMs have gy PHY addresses with the high
 	 * bits set (sign extension?). Truncate them to a
 	 * valid PHY address. */
 	bp->phy_addr &= 0x1F;
@@ -2184,7 +2184,7 @@ static int b44_get_invariants(struct b44 *bp)
 	bp->imask = IMASK_DEF;
 
 	/* XXX - really required?
-	   bp->flags |= B44_FLAG_BUGGY_TXPTR;
+	   bp->flags |= B44_FLAG_GY_TXPTR;
 	*/
 
 	if (bp->sdev->id.revision >= 7)
@@ -2215,7 +2215,7 @@ static void b44_adjust_link(struct net_device *dev)
 	struct phy_device *phydev = dev->phydev;
 	bool status_changed = 0;
 
-	BUG_ON(!phydev);
+	_ON(!phydev);
 
 	if (bp->old_link != phydev->link) {
 		status_changed = 1;
@@ -2365,7 +2365,7 @@ static int b44_init_one(struct ssb_device *sdev,
 	bp->dev = dev;
 	bp->force_copybreak = 0;
 
-	bp->msg_enable = netif_msg_init(b44_debug, B44_DEF_MSG_ENABLE);
+	bp->msg_enable = netif_msg_init(b44_de, B44_DEF_MSG_ENABLE);
 
 	spin_lock_init(&bp->lock);
 	u64_stats_init(&bp->hw_stats.syncp);

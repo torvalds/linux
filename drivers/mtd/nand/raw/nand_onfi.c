@@ -60,7 +60,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 	ret = -EINVAL;
 	if ((onfi_crc16(ONFI_CRC_BASE, ((uint8_t *)ep) + 2, len - 2)
 		!= le16_to_cpu(ep->crc))) {
-		pr_debug("fail in the CRC.\n");
+		pr_de("fail in the CRC.\n");
 		goto ext_out;
 	}
 
@@ -69,7 +69,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 	 * Do not strictly follow the ONFI spec, maybe changed in future.
 	 */
 	if (strncmp(ep->sig, "EPPS", 4)) {
-		pr_debug("The signature is invalid.\n");
+		pr_de("The signature is invalid.\n");
 		goto ext_out;
 	}
 
@@ -82,7 +82,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 		cursor += s->length * 16;
 	}
 	if (i == ONFI_EXT_SECTION_MAX) {
-		pr_debug("We can not find the ECC section.\n");
+		pr_de("We can not find the ECC section.\n");
 		goto ext_out;
 	}
 
@@ -90,7 +90,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 	ecc = (struct onfi_ext_ecc_info *)cursor;
 
 	if (!ecc->codeword_size) {
-		pr_debug("Invalid codeword size\n");
+		pr_de("Invalid codeword size\n");
 		goto ext_out;
 	}
 

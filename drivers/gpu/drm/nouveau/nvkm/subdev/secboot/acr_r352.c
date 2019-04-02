@@ -170,9 +170,9 @@ struct acr_r352_lsf_lsb_header {
 	/**
 	 * LS falcon signatures
 	 * @prd_keys:		signature to use in production mode
-	 * @dgb_keys:		signature to use in debug mode
+	 * @dgb_keys:		signature to use in de mode
 	 * @b_prd_present:	whether the production key is present
-	 * @b_dgb_present:	whether the debug key is present
+	 * @b_dgb_present:	whether the de key is present
 	 * @falcon_id:		ID of the falcon the ucode applies to
 	 */
 	struct {
@@ -551,7 +551,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	if (ret)
 		goto cleanup;
 
-	nvkm_debug(subdev, "%d managed LS falcons, WPR size is %d bytes\n",
+	nvkm_de(subdev, "%d managed LS falcons, WPR size is %d bytes\n",
 		    managed_count, image_wpr_size);
 
 	/* If WPR address and size are not fixed, set them to fit the LS blob */
@@ -765,7 +765,7 @@ acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	}
 
 	acr->firmware_ok = true;
-	nvkm_debug(&sb->subdev, "LS blob successfully created\n");
+	nvkm_de(&sb->subdev, "LS blob successfully created\n");
 
 	return 0;
 }
@@ -844,7 +844,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	if (acr->unload_blob && sb->wpr_set) {
 		int ret;
 
-		nvkm_debug(subdev, "running HS unload blob\n");
+		nvkm_de(subdev, "running HS unload blob\n");
 		ret = sb->func->run_blob(sb, acr->unload_blob, sb->halt_falcon);
 		if (ret < 0)
 			return ret;
@@ -856,7 +856,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 			nvkm_error(subdev, "HS unload failed, ret 0x%08x\n", ret);
 			return -EINVAL;
 		}
-		nvkm_debug(subdev, "HS unload blob completed\n");
+		nvkm_de(subdev, "HS unload blob completed\n");
 	}
 
 	for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++)
@@ -914,7 +914,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	if (ret)
 		return ret;
 
-	nvkm_debug(subdev, "running HS load blob\n");
+	nvkm_de(subdev, "running HS load blob\n");
 	ret = sb->func->run_blob(sb, acr->load_blob, sb->boot_falcon);
 	/* clear halt interrupt */
 	nvkm_falcon_clear_interrupt(sb->boot_falcon, 0x10);
@@ -925,7 +925,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		nvkm_error(subdev, "HS load failed, ret 0x%08x\n", ret);
 		return -EINVAL;
 	}
-	nvkm_debug(subdev, "HS load blob completed\n");
+	nvkm_de(subdev, "HS load blob completed\n");
 	/* WPR must be set at this point */
 	if (!sb->wpr_set) {
 		nvkm_error(subdev, "ACR blob completed but WPR not set!\n");
@@ -1027,14 +1027,14 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 
 	/* Otherwise just ask the LS firmware to reset the falcon */
 	for_each_set_bit(falcon, &falcon_mask, NVKM_SECBOOT_FALCON_END)
-		nvkm_debug(&sb->subdev, "resetting %s falcon\n",
+		nvkm_de(&sb->subdev, "resetting %s falcon\n",
 			   nvkm_secboot_falcon_name[falcon]);
 	ret = nvkm_msgqueue_acr_boot_falcons(queue, falcon_mask);
 	if (ret) {
 		nvkm_error(&sb->subdev, "error during falcon reset: %d\n", ret);
 		return ret;
 	}
-	nvkm_debug(&sb->subdev, "falcon reset done\n");
+	nvkm_de(&sb->subdev, "falcon reset done\n");
 
 	return 0;
 }

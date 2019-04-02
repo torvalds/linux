@@ -66,7 +66,7 @@ decompress_fn __init decompress_method(const unsigned char *inbuf, long len,
 		return NULL;	/* Need at least this much... */
 	}
 
-	pr_debug("Compressed data magic: %#.2x %#.2x\n", inbuf[0], inbuf[1]);
+	pr_de("Compressed data magic: %#.2x %#.2x\n", inbuf[0], inbuf[1]);
 
 	for (cf = compressed_formats; cf->name; cf++) {
 		if (!memcmp(inbuf, cf->magic, 2))

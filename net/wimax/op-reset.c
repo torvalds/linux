@@ -36,7 +36,7 @@
 #include "wimax-internal.h"
 
 #define D_SUBMODULE op_reset
-#include "debug-levels.h"
+#include "de-levels.h"
 
 
 /**

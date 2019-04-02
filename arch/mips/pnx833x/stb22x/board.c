@@ -29,14 +29,14 @@
 #include <gpio.h>
 
 /* endianess twiddlers */
-#define PNX8335_DEBUG0 0x4400
-#define PNX8335_DEBUG1 0x4404
-#define PNX8335_DEBUG2 0x4408
-#define PNX8335_DEBUG3 0x440c
-#define PNX8335_DEBUG4 0x4410
-#define PNX8335_DEBUG5 0x4414
-#define PNX8335_DEBUG6 0x4418
-#define PNX8335_DEBUG7 0x441c
+#define PNX8335_DE0 0x4400
+#define PNX8335_DE1 0x4404
+#define PNX8335_DE2 0x4408
+#define PNX8335_DE3 0x440c
+#define PNX8335_DE4 0x4410
+#define PNX8335_DE5 0x4414
+#define PNX8335_DE6 0x4418
+#define PNX8335_DE7 0x441c
 
 int prom_argc;
 char **prom_argv, **prom_envp;

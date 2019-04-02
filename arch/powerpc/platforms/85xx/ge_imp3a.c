@@ -61,7 +61,7 @@ void __init ge_imp3a_pic_init(void)
 			0, 256, " OpenPIC  ");
 	}
 
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 	mpic_init(mpic);
 	/*
 	 * There is a simple interrupt handler in the main FPGA, this needs

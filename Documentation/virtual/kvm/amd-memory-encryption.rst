@@ -50,7 +50,7 @@ SEV Key Management
 The SEV guest key management is handled by a separate processor called the AMD
 Secure Processor (AMD-SP). Firmware running inside the AMD-SP provides a secure
 key management interface to perform common hypervisor activities such as
-encrypting bootstrap code, snapshot, migrating and debugging the guest. For more
+encrypting bootstrap code, snapshot, migrating and deging the guest. For more
 information, see the SEV Key Management spec [api-spec]_
 
 KVM implements the following commands to support common lifecycle events of SEV
@@ -178,7 +178,7 @@ SEV guest state:
 7. KVM_SEV_DBG_DECRYPT
 ----------------------
 
-The KVM_SEV_DEBUG_DECRYPT command can be used by the hypervisor to request the
+The KVM_SEV_DE_DECRYPT command can be used by the hypervisor to request the
 firmware to decrypt the data at the given memory region.
 
 Parameters (in): struct kvm_sev_dbg
@@ -193,12 +193,12 @@ Returns: 0 on success, -negative on error
                 __u32 len;              /* length of memory region to decrypt */
         };
 
-The command returns an error if the guest policy does not allow debugging.
+The command returns an error if the guest policy does not allow deging.
 
 8. KVM_SEV_DBG_ENCRYPT
 ----------------------
 
-The KVM_SEV_DEBUG_ENCRYPT command can be used by the hypervisor to request the
+The KVM_SEV_DE_ENCRYPT command can be used by the hypervisor to request the
 firmware to encrypt the data at the given memory region.
 
 Parameters (in): struct kvm_sev_dbg
@@ -213,7 +213,7 @@ Returns: 0 on success, -negative on error
                 __u32 len;              /* length of memory region to encrypt */
         };
 
-The command returns an error if the guest policy does not allow debugging.
+The command returns an error if the guest policy does not allow deging.
 
 9. KVM_SEV_LAUNCH_SECRET
 ------------------------

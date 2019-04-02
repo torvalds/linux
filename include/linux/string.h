@@ -133,7 +133,7 @@ static inline void *memset_p(void **p, void *v, __kernel_size_t n)
 
 extern void **__memcat_p(void **a, void **b);
 #define memcat_p(a, b) ({					\
-	BUILD_BUG_ON_MSG(!__same_type(*(a), *(b)),		\
+	BUILD__ON_MSG(!__same_type(*(a), *(b)),		\
 			 "type mismatch in memcat_p()");	\
 	(typeof(*a) *)__memcat_p((void **)(a), (void **)(b));	\
 })
@@ -464,7 +464,7 @@ static inline void memcpy_and_pad(void *dest, size_t dest_len,
  * A common way to test a prefix of a string is to do:
  *  strncmp(str, prefix, sizeof(prefix) - 1)
  *
- * But this can lead to bugs due to typos, or if prefix is a pointer
+ * But this can lead to s due to typos, or if prefix is a pointer
  * and not a constant. Instead use str_has_prefix().
  *
  * Returns: 0 if @str does not start with @prefix

@@ -184,20 +184,20 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	return ssp->sda ? 0 : -ENOMEM;
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 
 int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
 		       struct lock_class_key *key)
 {
 	/* Don't re-initialize a lock while it is held. */
-	debug_check_no_locks_freed((void *)ssp, sizeof(*ssp));
+	de_check_no_locks_freed((void *)ssp, sizeof(*ssp));
 	lockdep_init_map(&ssp->dep_map, name, key, 0);
 	spin_lock_init(&ACCESS_PRIVATE(ssp, lock));
 	return init_srcu_struct_fields(ssp, false);
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct);
 
-#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#else /* #ifdef CONFIG_DE_LOCK_ALLOC */
 
 /**
  * init_srcu_struct - initialize a sleep-RCU structure
@@ -214,7 +214,7 @@ int init_srcu_struct(struct srcu_struct *ssp)
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct);
 
-#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #else #ifdef CONFIG_DE_LOCK_ALLOC */
 
 /*
  * First-use initialization of statically allocated srcu_struct
@@ -846,7 +846,7 @@ void __call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
 	struct srcu_data *sdp;
 
 	check_init_srcu_struct(ssp);
-	if (debug_rcu_head_queue(rhp)) {
+	if (de_rcu_head_queue(rhp)) {
 		/* Probable double call_srcu(), so leak the callback. */
 		WRITE_ONCE(rhp->func, srcu_leak_callback);
 		WARN_ONCE(1, "call_srcu(): Leaked duplicate callback\n");
@@ -1054,10 +1054,10 @@ void srcu_barrier(struct srcu_struct *ssp)
 		spin_lock_irq_rcu_node(sdp);
 		atomic_inc(&ssp->srcu_barrier_cpu_cnt);
 		sdp->srcu_barrier_head.func = srcu_barrier_cb;
-		debug_rcu_head_queue(&sdp->srcu_barrier_head);
+		de_rcu_head_queue(&sdp->srcu_barrier_head);
 		if (!rcu_segcblist_entrain(&sdp->srcu_cblist,
 					   &sdp->srcu_barrier_head, 0)) {
-			debug_rcu_head_unqueue(&sdp->srcu_barrier_head);
+			de_rcu_head_unqueue(&sdp->srcu_barrier_head);
 			atomic_dec(&ssp->srcu_barrier_cpu_cnt);
 		}
 		spin_unlock_irq_rcu_node(sdp);
@@ -1184,7 +1184,7 @@ static void srcu_invoke_callbacks(struct work_struct *work)
 	spin_unlock_irq_rcu_node(sdp);
 	rhp = rcu_cblist_dequeue(&ready_cbs);
 	for (; rhp != NULL; rhp = rcu_cblist_dequeue(&ready_cbs)) {
-		debug_rcu_head_unqueue(rhp);
+		de_rcu_head_unqueue(rhp);
 		local_bh_disable();
 		rhp->func(rhp);
 		local_bh_enable();

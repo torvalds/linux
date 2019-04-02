@@ -392,7 +392,7 @@ void __init early_fixmap_init(void)
 	 * The early fixmap range spans multiple pmds, for which
 	 * we are not prepared:
 	 */
-	BUILD_BUG_ON((__fix_to_virt(__end_of_early_ioremap_region) >> PMD_SHIFT)
+	BUILD__ON((__fix_to_virt(__end_of_early_ioremap_region) >> PMD_SHIFT)
 		     != FIXADDR_TOP >> PMD_SHIFT);
 
 	pmd = fixmap_pmd(FIXADDR_TOP);
@@ -412,9 +412,9 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 	pte_t *pte = pte_offset_fixmap(pmd_off_k(vaddr), vaddr);
 
 	/* Make sure fixmap region does not exceed available allocation. */
-	BUILD_BUG_ON(FIXADDR_START + (__end_of_fixed_addresses * PAGE_SIZE) >
+	BUILD__ON(FIXADDR_START + (__end_of_fixed_addresses * PAGE_SIZE) >
 		     FIXADDR_END);
-	BUG_ON(idx >= __end_of_fixed_addresses);
+	_ON(idx >= __end_of_fixed_addresses);
 
 	/* we only support device mappings until pgprot_kernel has been set */
 	if (WARN_ON(pgprot_val(prot) != pgprot_val(FIXMAP_PAGE_IO) &&
@@ -735,7 +735,7 @@ static void *__init late_alloc(unsigned long sz)
 	void *ptr = (void *)__get_free_pages(PGALLOC_GFP, get_order(sz));
 
 	if (!ptr || !pgtable_page_ctor(virt_to_page(ptr)))
-		BUG();
+		();
 	return ptr;
 }
 
@@ -747,7 +747,7 @@ static pte_t * __init arm_pte_alloc(pmd_t *pmd, unsigned long addr,
 		pte_t *pte = alloc(PTE_HWTABLE_OFF + PTE_HWTABLE_SIZE);
 		__pmd_populate(pmd, __pa(pte), prot);
 	}
-	BUG_ON(pmd_bad(*pmd));
+	_ON(pmd_bad(*pmd));
 	return pte_offset_kernel(pmd, addr);
 }
 
@@ -933,7 +933,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
-		pr_warn("BUG: map for 0x%08llx at 0x%08lx can not be mapped using pages, ignoring.\n",
+		pr_warn(": map for 0x%08llx at 0x%08lx can not be mapped using pages, ignoring.\n",
 			(long long)__pfn_to_phys(md->pfn), addr);
 		return;
 	}
@@ -960,7 +960,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 static void __init create_mapping(struct map_desc *md)
 {
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
-		pr_warn("BUG: not creating mapping for 0x%08llx at 0x%08lx in user region\n",
+		pr_warn(": not creating mapping for 0x%08llx at 0x%08lx in user region\n",
 			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
@@ -968,7 +968,7 @@ static void __init create_mapping(struct map_desc *md)
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < FIXADDR_START &&
 	    (md->virtual < VMALLOC_START || md->virtual >= VMALLOC_END)) {
-		pr_warn("BUG: mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
+		pr_warn(": mapping for 0x%08llx at 0x%08lx out of vmalloc space\n",
 			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
@@ -1117,12 +1117,12 @@ static void __init pci_reserve_io(void)
 #define pci_reserve_io() do { } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_LL
-void __init debug_ll_io_init(void)
+#ifdef CONFIG_DE_LL
+void __init de_ll_io_init(void)
 {
 	struct map_desc map;
 
-	debug_ll_addr(&map.pfn, &map.virtual);
+	de_ll_addr(&map.pfn, &map.virtual);
 	if (!map.pfn || !map.virtual)
 		return;
 	map.pfn = __phys_to_pfn(map.pfn);
@@ -1303,7 +1303,7 @@ void __init arm_mm_memblock_reserve(void)
 
 #ifdef CONFIG_SA1111
 	/*
-	 * Because of the SA1111 DMA bug, we want to preserve our
+	 * Because of the SA1111 DMA , we want to preserve our
 	 * precious DMA-able memory...
 	 */
 	memblock_reserve(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET);
@@ -1312,9 +1312,9 @@ void __init arm_mm_memblock_reserve(void)
 
 /*
  * Set up the device mappings.  Since we clear out the page tables for all
- * mappings above VMALLOC_START, except early fixmap, we might remove debug
- * device mappings.  This means earlycon can be used to debug this function
- * Any other function or debugging method which may touch any device _will_
+ * mappings above VMALLOC_START, except early fixmap, we might remove de
+ * device mappings.  This means earlycon can be used to de this function
+ * Any other function or deging method which may touch any device _will_
  * crash the kernel.
  */
 static void __init devicemaps_init(const struct machine_desc *mdesc)
@@ -1401,7 +1401,7 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	if (mdesc->map_io)
 		mdesc->map_io();
 	else
-		debug_ll_io_init();
+		de_ll_io_init();
 	fill_pmd_gaps();
 
 	/* Reserve fixed i/o space in VMALLOC region */

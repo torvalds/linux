@@ -24,7 +24,7 @@
 
 /*
  * Using a branch-likely instruction to check the result of an sc instruction
- * works around a bug present in R10000 CPUs prior to revision 3.0 that could
+ * works around a  present in R10000 CPUs prior to revision 3.0 that could
  * cause ll-sc sequences to execute non-atomically.
  */
 #if R10000_LLSC_WAR

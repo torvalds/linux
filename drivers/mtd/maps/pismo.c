@@ -273,8 +273,8 @@ static struct i2c_driver pismo_driver = {
 
 static int __init pismo_init(void)
 {
-	BUILD_BUG_ON(sizeof(struct pismo_cs_block) != 48);
-	BUILD_BUG_ON(sizeof(struct pismo_eeprom) != 256);
+	BUILD__ON(sizeof(struct pismo_cs_block) != 48);
+	BUILD__ON(sizeof(struct pismo_eeprom) != 256);
 
 	return i2c_add_driver(&pismo_driver);
 }

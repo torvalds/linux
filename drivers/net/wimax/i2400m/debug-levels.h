@@ -1,6 +1,6 @@
 /*
  * Intel Wireless WiMAX Connection 2400m
- * Debug levels control file for the i2400m module
+ * De levels control file for the i2400m module
  *
  *
  * Copyright (C) 2007-2008 Intel Corporation <linux-wimax@intel.com>
@@ -20,20 +20,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
  */
-#ifndef __debug_levels__h__
-#define __debug_levels__h__
+#ifndef __de_levels__h__
+#define __de_levels__h__
 
-/* Maximum compile and run time debug level for all submodules */
+/* Maximum compile and run time de level for all submodules */
 #define D_MODULENAME i2400m
-#define D_MASTER CONFIG_WIMAX_I2400M_DEBUG_LEVEL
+#define D_MASTER CONFIG_WIMAX_I2400M_DE_LEVEL
 
-#include <linux/wimax/debug.h>
+#include <linux/wimax/de.h>
 
 /* List of all the enabled modules */
 enum d_module {
 	D_SUBMODULE_DECLARE(control),
 	D_SUBMODULE_DECLARE(driver),
-	D_SUBMODULE_DECLARE(debugfs),
+	D_SUBMODULE_DECLARE(defs),
 	D_SUBMODULE_DECLARE(fw),
 	D_SUBMODULE_DECLARE(netdev),
 	D_SUBMODULE_DECLARE(rfkill),
@@ -43,4 +43,4 @@ enum d_module {
 };
 
 
-#endif /* #ifndef __debug_levels__h__ */
+#endif /* #ifndef __de_levels__h__ */

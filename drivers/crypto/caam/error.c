@@ -10,7 +10,7 @@
 #include "desc.h"
 #include "error.h"
 
-#ifdef DEBUG
+#ifdef DE
 #include <linux/highmem.h>
 
 void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
@@ -47,7 +47,7 @@ void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
 		  int rowsize, int groupsize, struct scatterlist *sg,
 		  size_t tlen, bool ascii)
 {}
-#endif /* DEBUG */
+#endif /* DE */
 EXPORT_SYMBOL(caam_dump_sg);
 
 bool caam_little_end;

@@ -2139,7 +2139,7 @@ static int ravb_probe(struct platform_device *pdev)
 	if (chip_id != RCAR_GEN2)
 		ravb_ptp_init(ndev, pdev);
 
-	/* Debug message level */
+	/* De message level */
 	priv->msg_enable = RAVB_DEF_MSG_ENABLE;
 
 	/* Read and set MAC address */

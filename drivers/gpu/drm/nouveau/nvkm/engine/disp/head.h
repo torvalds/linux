@@ -49,7 +49,7 @@ void nv50_head_rgpos(struct nvkm_head *, u16 *, u16 *);
 	nvkm_##l(&_h->disp->engine.subdev, "head-%d: "f"\n", _h->id, ##a);     \
 } while(0)
 #define HEAD_WARN(h,f,a...) HEAD_MSG((h), warn, f, ##a)
-#define HEAD_DBG(h,f,a...) HEAD_MSG((h), debug, f, ##a)
+#define HEAD_DBG(h,f,a...) HEAD_MSG((h), de, f, ##a)
 
 int nv04_head_new(struct nvkm_disp *, int id);
 

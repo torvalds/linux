@@ -208,7 +208,7 @@ enum batadv_uev_type {
 #define BATADV_DAT_CANDIDATE_NOT_FOUND	0
 #define BATADV_DAT_CANDIDATE_ORIG	1
 
-/* Debug Messages */
+/* De Messages */
 #ifdef pr_fmt
 #undef pr_fmt
 #endif

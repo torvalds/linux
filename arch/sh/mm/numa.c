@@ -28,7 +28,7 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	unsigned long start_pfn, end_pfn;
 
 	/* Don't allow bogus node assignment */
-	BUG_ON(nid >= MAX_NUMNODES || nid <= 0);
+	_ON(nid >= MAX_NUMNODES || nid <= 0);
 
 	start_pfn = PFN_DOWN(start);
 	end_pfn = PFN_DOWN(end);

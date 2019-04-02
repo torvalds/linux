@@ -56,9 +56,9 @@ MODULE_PARM_DESC(ddr_timeout,
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-static int debug = -1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
+static int de = -1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "NETIF_MSG de bits");
 
 static char fw_type[LIO_MAX_FW_TYPE_LEN] = LIO_FW_NAME_TYPE_AUTO;
 module_param_string(fw_type, fw_type, sizeof(fw_type), 0444);
@@ -67,14 +67,14 @@ MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded (default is \"auto\"), 
 static u32 console_bitmask;
 module_param(console_bitmask, int, 0644);
 MODULE_PARM_DESC(console_bitmask,
-		 "Bitmask indicating which consoles have debug output redirected to syslog.");
+		 "Bitmask indicating which consoles have de output redirected to syslog.");
 
 /**
- * \brief determines if a given console has debug enabled.
+ * \brief determines if a given console has de enabled.
  * @param console console to check
  * @returns  1 = enabled. 0 otherwise
  */
-static int octeon_console_debug_enabled(u32 console)
+static int octeon_console_de_enabled(u32 console)
 {
 	return (console_bitmask >> (console)) & 0x1;
 }
@@ -86,7 +86,7 @@ static int octeon_console_debug_enabled(u32 console)
 #define LIQUIDIO_LINK_QUERY_INTERVAL_MS         1000
 /* update localtime to octeon firmware every 60 seconds.
  * make firmware to use same time reference, so that it will be easy to
- * correlate firmware logged events/errors with host events, for debugging.
+ * correlate firmware logged events/errors with host events, for deging.
  */
 #define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
@@ -3571,7 +3571,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		WRITE_ONCE(sc->caller_is_done, true);
 
-		lio->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
+		lio->msg_enable = netif_msg_init(de, DEFAULT_MSG_ENABLE);
 
 		if (OCTEON_CN23XX_PF(octeon_dev) ||
 		    OCTEON_CN6XXX(octeon_dev)) {
@@ -3687,7 +3687,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		liquidio_set_feature(netdev, OCTNET_CMD_VLAN_FILTER_CTL,
 				     OCTNET_CMD_VLAN_FILTER_ENABLE);
 
-		if ((debug != -1) && (debug & NETIF_MSG_HW))
+		if ((de != -1) && (de & NETIF_MSG_HW))
 			liquidio_set_feature(netdev,
 					     OCTNET_CMD_VERBOSE_ENABLE, 0);
 
@@ -4296,15 +4296,15 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev, "Could not access board consoles\n");
 			return 1;
 		}
-		/* If console debug enabled, specify empty string to use default
+		/* If console de enabled, specify empty string to use default
 		 * enablement ELSE specify NULL string for 'disabled'.
 		 */
-		dbg_enb = octeon_console_debug_enabled(0) ? "" : NULL;
+		dbg_enb = octeon_console_de_enabled(0) ? "" : NULL;
 		ret = octeon_add_console(octeon_dev, 0, dbg_enb);
 		if (ret) {
 			dev_err(&octeon_dev->pci_dev->dev, "Could not access board console\n");
 			return 1;
-		} else if (octeon_console_debug_enabled(0)) {
+		} else if (octeon_console_de_enabled(0)) {
 			/* If console was added AND we're logging console output
 			 * then set our console print function.
 			 */
@@ -4332,13 +4332,13 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 }
 
 /**
- * \brief Debug console print function
+ * \brief De console print function
  * @param octeon_dev  octeon device
  * @param console_num console number
  * @param prefix      first portion of line to display
  * @param suffix      second portion of line to display
  *
- * The OCTEON debug console outputs entire lines (excluding '\n').
+ * The OCTEON de console outputs entire lines (excluding '\n').
  * Normally, the line will be passed in the 'prefix' parameter.
  * However, due to buffering, it is possible for a line to be split into two
  * parts, in which case they will be passed as the 'prefix' parameter and

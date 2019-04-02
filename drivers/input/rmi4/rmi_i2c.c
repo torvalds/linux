@@ -116,7 +116,7 @@ static int rmi_i2c_write_block(struct rmi_transport_dev *xport, u16 addr,
 		retval = -EIO;
 
 exit:
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev,
+	rmi_dbg(RMI_DE_XPORT, &client->dev,
 		"write %zd bytes at %#06x: %d (%*ph)\n",
 		len, addr, retval, (int)len, buf);
 
@@ -161,7 +161,7 @@ static int rmi_i2c_read_block(struct rmi_transport_dev *xport, u16 addr,
 		retval = -EIO;
 
 exit:
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev,
+	rmi_dbg(RMI_DE_XPORT, &client->dev,
 		"read %zd bytes at %#06x: %d (%*ph)\n",
 		len, addr, retval, (int)len, buf);
 
@@ -218,7 +218,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	pdata->irq = client->irq;
 
-	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s.\n",
+	rmi_dbg(RMI_DE_XPORT, &client->dev, "Probing %s.\n",
 			dev_name(&client->dev));
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {

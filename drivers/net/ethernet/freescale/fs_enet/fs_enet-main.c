@@ -55,10 +55,10 @@ MODULE_DESCRIPTION("Freescale Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-static int fs_enet_debug = -1; /* -1 == use FS_ENET_DEF_MSG_ENABLE as value */
-module_param(fs_enet_debug, int, 0);
-MODULE_PARM_DESC(fs_enet_debug,
-		 "Freescale bitmapped debugging message enable value");
+static int fs_enet_de = -1; /* -1 == use FS_ENET_DEF_MSG_ENABLE as value */
+module_param(fs_enet_de, int, 0);
+MODULE_PARM_DESC(fs_enet_de,
+		 "Freescale bitmapped deging message enable value");
 
 #define RX_RING_SIZE	32
 #define TX_RING_SIZE	64

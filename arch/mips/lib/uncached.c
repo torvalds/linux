@@ -10,7 +10,7 @@
 
 
 #include <asm/addrspace.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/cacheflush.h>
 
 #ifndef CKSEG2
@@ -28,7 +28,7 @@
  *    segment used is CKSEG1.
  * 2. If the original address is in XKPHYS, then the uncached segment
  *    used is XKPHYS(2).
- * 3. Otherwise it's a bug.
+ * 3. Otherwise it's a .
  *
  * The same remapping is done with the stack pointer.  Stack handling
  * works because we don't handle stack arguments or more complex return
@@ -51,7 +51,7 @@ unsigned long run_uncached(void *func)
 				     XKPHYS_TO_PHYS((long long)sp));
 #endif
 	else {
-		BUG();
+		();
 		usp = sp;
 	}
 	if (lfunc >= (long)CKSEG0 && lfunc < (long)CKSEG2)
@@ -63,7 +63,7 @@ unsigned long run_uncached(void *func)
 				       XKPHYS_TO_PHYS((long long)lfunc));
 #endif
 	else {
-		BUG();
+		();
 		ufunc = lfunc;
 	}
 

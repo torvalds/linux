@@ -443,7 +443,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	struct iommu *iommu;
 	unsigned long base_shift;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;
@@ -614,7 +614,7 @@ static void dma_4u_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	struct strbuf *strbuf;
 	struct iommu *iommu;
 
-	BUG_ON(direction == DMA_NONE);
+	_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
 	strbuf = dev->archdata.stc;

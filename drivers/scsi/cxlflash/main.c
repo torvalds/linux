@@ -102,7 +102,7 @@ static void process_cmd_err(struct afu_cmd *cmd, struct scsi_cmnd *scp)
 				/* If the SISL_RC_FLAGS_OVERRUN flag was set,
 				 * then we will handle this error else where.
 				 * If not then we must handle it here.
-				 * This is probably an AFU bug.
+				 * This is probably an AFU .
 				 */
 				scp->result = (DID_ERROR << 16);
 			}
@@ -3384,17 +3384,17 @@ out:
 }
 
 /**
- * cxlflash_afu_debug() - host AFU debug handler
+ * cxlflash_afu_de() - host AFU de handler
  * @cfg:	Internal structure associated with the host.
  * @arg:	Kernel copy of userspace ioctl data structure.
  *
- * For debug requests requiring a data buffer, always provide an aligned
+ * For de requests requiring a data buffer, always provide an aligned
  * (cache line) buffer to the AFU to appease any alignment requirements.
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
-			      struct ht_cxlflash_afu_debug *afu_dbg)
+static int cxlflash_afu_de(struct cxlflash_cfg *cfg,
+			      struct ht_cxlflash_afu_de *afu_dbg)
 {
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
@@ -3408,7 +3408,7 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 	bool is_write = afu_dbg->hdr.flags & HT_CXLFLASH_HOST_WRITE;
 	int rc = 0;
 
-	if (!afu_is_afu_debug(afu)) {
+	if (!afu_is_afu_de(afu)) {
 		rc = -ENOTSUPP;
 		goto out;
 	}
@@ -3416,7 +3416,7 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 	if (ulen) {
 		req_flags |= SISL_REQ_FLAGS_SUP_UNDERRUN;
 
-		if (ulen > HT_CXLFLASH_AFU_DEBUG_MAX_DATA_LEN) {
+		if (ulen > HT_CXLFLASH_AFU_DE_MAX_DATA_LEN) {
 			rc = -EINVAL;
 			goto out;
 		}
@@ -3444,7 +3444,7 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 
 	rcb.req_flags = req_flags;
 	rcb.msi = SISL_MSI_RRQ_UPDATED;
-	rcb.timeout = MC_AFU_DEBUG_TIMEOUT;
+	rcb.timeout = MC_AFU_DE_TIMEOUT;
 	rcb.ioasa = &asa;
 
 	if (ulen) {
@@ -3452,9 +3452,9 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 		rcb.data_ea = (uintptr_t)kbuf;
 	}
 
-	rcb.cdb[0] = SISL_AFU_CMD_DEBUG;
+	rcb.cdb[0] = SISL_AFU_CMD_DE;
 	memcpy(&rcb.cdb[4], afu_dbg->afu_subcmd,
-	       HT_CXLFLASH_AFU_DEBUG_SUBCMD_LEN);
+	       HT_CXLFLASH_AFU_DE_SUBCMD_LEN);
 
 	rc = send_afu_cmd(afu, &rcb);
 	if (rc) {
@@ -3511,8 +3511,8 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 	} ioctl_tbl[] = {	/* NOTE: order matters here */
 	{ sizeof(struct ht_cxlflash_lun_provision),
 		(hioctl)cxlflash_lun_provision },
-	{ sizeof(struct ht_cxlflash_afu_debug),
-		(hioctl)cxlflash_afu_debug },
+	{ sizeof(struct ht_cxlflash_afu_de),
+		(hioctl)cxlflash_afu_de },
 	};
 
 	/* Hold read semaphore so we can drain if needed */
@@ -3523,7 +3523,7 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case HT_CXLFLASH_LUN_PROVISION:
-	case HT_CXLFLASH_AFU_DEBUG:
+	case HT_CXLFLASH_AFU_DE:
 		known_ioctl = true;
 		idx = _IOC_NR(HT_CXLFLASH_LUN_PROVISION) - _IOC_NR(cmd);
 		size = ioctl_tbl[idx].size;
@@ -3908,7 +3908,7 @@ static int cxlflash_class_init(void)
 
 	cxlflash_class->devnode = cxlflash_devnode;
 out:
-	pr_debug("%s: returning rc=%d\n", __func__, rc);
+	pr_de("%s: returning rc=%d\n", __func__, rc);
 	return rc;
 err:
 	unregister_chrdev_region(devno, CXLFLASH_MAX_ADAPTERS);
@@ -3963,7 +3963,7 @@ static int __init init_cxlflash(void)
 	if (unlikely(rc))
 		goto err;
 out:
-	pr_debug("%s: returning rc=%d\n", __func__, rc);
+	pr_de("%s: returning rc=%d\n", __func__, rc);
 	return rc;
 err:
 	cxlflash_class_exit();

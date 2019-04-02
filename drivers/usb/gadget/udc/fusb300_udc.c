@@ -253,7 +253,7 @@ static int fusb300_disable(struct usb_ep *_ep)
 
 	ep = container_of(_ep, struct fusb300_ep, ep);
 
-	BUG_ON(!ep);
+	_ON(!ep);
 
 	while (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next, struct fusb300_request, queue);
@@ -352,24 +352,24 @@ static void fusb300_wrcxf(struct fusb300_ep *ep,
 		for (i = length >> 2; i > 0; i--) {
 			data = *tmp | *(tmp + 1) << 8 | *(tmp + 2) << 16 |
 				*(tmp + 3) << 24;
-			printk(KERN_DEBUG "    0x%x\n", data);
+			printk(KERN_DE "    0x%x\n", data);
 			iowrite32(data, fusb300->reg + FUSB300_OFFSET_CXPORT);
 			tmp = tmp + 4;
 		}
 		switch (length % 4) {
 		case 1:
 			data = *tmp;
-			printk(KERN_DEBUG "    0x%x\n", data);
+			printk(KERN_DE "    0x%x\n", data);
 			iowrite32(data, fusb300->reg + FUSB300_OFFSET_CXPORT);
 			break;
 		case 2:
 			data = *tmp | *(tmp + 1) << 8;
-			printk(KERN_DEBUG "    0x%x\n", data);
+			printk(KERN_DE "    0x%x\n", data);
 			iowrite32(data, fusb300->reg + FUSB300_OFFSET_CXPORT);
 			break;
 		case 3:
 			data = *tmp | *(tmp + 1) << 8 | *(tmp + 2) << 16;
-			printk(KERN_DEBUG "    0x%x\n", data);
+			printk(KERN_DE "    0x%x\n", data);
 			iowrite32(data, fusb300->reg + FUSB300_OFFSET_CXPORT);
 			break;
 		default:
@@ -390,7 +390,7 @@ static void fusb300_clear_epnstall(struct fusb300 *fusb300, u8 ep)
 	u32 reg = ioread32(fusb300->reg + FUSB300_OFFSET_EPSET0(ep));
 
 	if (reg & FUSB300_EPSET0_STL) {
-		printk(KERN_DEBUG "EP%d stall... Clear!!\n", ep);
+		printk(KERN_DE "EP%d stall... Clear!!\n", ep);
 		reg |= FUSB300_EPSET0_STL_CLR;
 		iowrite32(reg, fusb300->reg + FUSB300_OFFSET_EPSET0(ep));
 	}
@@ -402,7 +402,7 @@ static void ep0_queue(struct fusb300_ep *ep, struct fusb300_request *req)
 		if (req->req.length) {
 			fusb300_wrcxf(ep, req);
 		} else
-			printk(KERN_DEBUG "%s : req->req.length = 0x%x\n",
+			printk(KERN_DE "%s : req->req.length = 0x%x\n",
 				__func__, req->req.length);
 		if ((req->req.length == req->req.actual) ||
 		    (req->req.actual < ep->ep.maxpacket))
@@ -565,7 +565,7 @@ static void fusb300_rdcxf(struct fusb300 *fusb300,
 
 	for (i = (length >> 2); i > 0; i--) {
 		data = ioread32(fusb300->reg + FUSB300_OFFSET_CXPORT);
-		printk(KERN_DEBUG "    0x%x\n", data);
+		printk(KERN_DE "    0x%x\n", data);
 		*tmp = data & 0xFF;
 		*(tmp + 1) = (data >> 8) & 0xFF;
 		*(tmp + 2) = (data >> 16) & 0xFF;
@@ -576,18 +576,18 @@ static void fusb300_rdcxf(struct fusb300 *fusb300,
 	switch (length % 4) {
 	case 1:
 		data = ioread32(fusb300->reg + FUSB300_OFFSET_CXPORT);
-		printk(KERN_DEBUG "    0x%x\n", data);
+		printk(KERN_DE "    0x%x\n", data);
 		*tmp = data & 0xFF;
 		break;
 	case 2:
 		data = ioread32(fusb300->reg + FUSB300_OFFSET_CXPORT);
-		printk(KERN_DEBUG "    0x%x\n", data);
+		printk(KERN_DE "    0x%x\n", data);
 		*tmp = data & 0xFF;
 		*(tmp + 1) = (data >> 8) & 0xFF;
 		break;
 	case 3:
 		data = ioread32(fusb300->reg + FUSB300_OFFSET_CXPORT);
-		printk(KERN_DEBUG "    0x%x\n", data);
+		printk(KERN_DE "    0x%x\n", data);
 		*tmp = data & 0xFF;
 		*(tmp + 1) = (data >> 8) & 0xFF;
 		*(tmp + 2) = (data >> 16) & 0xFF;
@@ -610,7 +610,7 @@ static void fusb300_rdfifo(struct fusb300_ep *ep,
 	req->req.actual += length;
 
 	if (req->req.actual > req->req.length)
-		printk(KERN_DEBUG "req->req.actual > req->req.length\n");
+		printk(KERN_DE "req->req.actual > req->req.length\n");
 
 	for (i = (length >> 2); i > 0; i--) {
 		data = ioread32(fusb300->reg +
@@ -677,7 +677,7 @@ static u8 fusb300_get_cxstall(struct fusb300 *fusb300)
 static void request_error(struct fusb300 *fusb300)
 {
 	fusb300_set_cxstall(fusb300);
-	printk(KERN_DEBUG "request error!!\n");
+	printk(KERN_DE "request error!!\n");
 }
 
 static void get_status(struct fusb300 *fusb300, struct usb_ctrlrequest *ctrl)

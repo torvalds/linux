@@ -69,7 +69,7 @@
 #include <linux/lockdep.h>
 #include <linux/kernel.h>
 
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-config.h"
 #include "fw/img.h"
 #include "iwl-op-mode.h"
@@ -408,7 +408,7 @@ struct iwl_hcmd_arr {
  * @scd_set_active: should the transport configure the SCD for HCMD queue
  * @sw_csum_tx: transport should compute the TCP checksum
  * @command_groups: array of command groups, each member is an array of the
- *	commands in the group; for debugging only
+ *	commands in the group; for deging only
  * @command_groups_size: number of command groups, to avoid illegal access
  * @cb_data_offs: offset inside skb->cb to store transport data at, must have
  *	space for at least two pointers
@@ -507,7 +507,7 @@ struct iwl_trans_rxq_dma_data {
  *	configuration may be %NULL, in which case the hardware will not be
  *	configured. If true is returned, the operation mode needs to increment
  *	the sequence number of the packets routed to this queue because of a
- *	hardware scheduler bug. May sleep.
+ *	hardware scheduler . May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @txq_set_shared_mode: change Tx queue shared/unshared marking
@@ -543,11 +543,11 @@ struct iwl_trans_rxq_dma_data {
  * @unref: release a reference previously taken with @ref. Note that
  *	initially the reference count is 1, making an initial @unref
  *	necessary to allow low power states.
- * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
+ * @dump_data: return a vmalloc'ed buffer with de data, maybe containing last
  *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
- * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
- *	of the trans debugfs
+ * @defs_cleanup: used in the driver unload flow to make a proper cleanup
+ *	of the trans defs
  */
 struct iwl_trans_ops {
 
@@ -617,7 +617,7 @@ struct iwl_trans_ops {
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 u32 dump_mask);
-	void (*debugfs_cleanup)(struct iwl_trans *trans);
+	void (*defs_cleanup)(struct iwl_trans *trans);
 };
 
 /**
@@ -752,9 +752,9 @@ struct iwl_self_init_dram {
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
  *	start of the 802.11 header in the @rx_mpdu_cmd
  * @dflt_pwr_limit: default power limit fetched from the platform (ACPI)
- * @dbg_dest_tlv: points to the destination TLV for debug
- * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
- * @dbg_trigger_tlv: array of pointers to triggers TLVs for debug
+ * @dbg_dest_tlv: points to the destination TLV for de
+ * @dbg_conf_tlv: array of pointers to configuration TLVs for de
+ * @dbg_trigger_tlv: array of pointers to triggers TLVs for de
  * @dbg_n_dest_reg: num of reg_ops in %dbg_dest_tlv
  * @num_blocks: number of blocks in fw_mon
  * @fw_mon: address of the buffers for firmware monitor
@@ -764,7 +764,7 @@ struct iwl_self_init_dram {
  * @runtime_pm_mode: the runtime power management mode in use.  This
  *	mode is set during the initialization phase and is not
  *	supposed to change during runtime.
- * @dbg_rec_on: true iff there is a fw debug recording currently active
+ * @dbg_rec_on: true iff there is a fw de recording currently active
  * @lmac_error_event_table: addrs of lmacs error tables
  * @umac_error_event_table: addr of umac error table
  * @error_event_table_tlv_status: bitmap that indicates what error table
@@ -1176,7 +1176,7 @@ static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 #define iwl_trans_read_mem_bytes(trans, addr, buf, bufsize)		      \
 	do {								      \
 		if (__builtin_constant_p(bufsize))			      \
-			BUILD_BUG_ON((bufsize) % sizeof(u32));		      \
+			BUILD__ON((bufsize) % sizeof(u32));		      \
 		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
 	} while (0)
 

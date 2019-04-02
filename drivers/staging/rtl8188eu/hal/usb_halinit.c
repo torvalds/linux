@@ -758,7 +758,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	InitUsbAggregationSetting(Adapter);
 	_InitBeaconParameters(Adapter);
 	/*  Init CR MACTXEN, MACRXEN after setting RxFF boundary REG_TRXFF_BNDY to patch */
-	/*  Hw bug which Hw initials RxFF boundary size to a value which is larger than the real Rx buffer size in 88E. */
+	/*  Hw  which Hw initials RxFF boundary size to a value which is larger than the real Rx buffer size in 88E. */
 	/*  Enable MACTXEN/MACRXEN block */
 	value16 = usb_read16(Adapter, REG_CR);
 	value16 |= (MACTXEN | MACRXEN);
@@ -822,7 +822,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  2010/08/11 MH Merge from 8192SE for Minicard init. We need to confirm current radio status */
 	/*  and then decide to enable RF or not.!!!??? For Selective suspend mode. We may not */
 	/*  call initstruct adapter. May cause some problem?? */
-	/*  Fix the bug that Hw/Sw radio off before S3/S4, the RF off action will not be executed */
+	/*  Fix the  that Hw/Sw radio off before S3/S4, the RF off action will not be executed */
 	/*  in MgntActSet_RF_State() after wake up, because the value of haldata->eRFPowerState */
 	/*  is the same as eRfOff, we should change it to eRfOn after we config RF parameters. */
 	/*  Added by tynli. 2010.03.30. */
@@ -1098,7 +1098,7 @@ void rtw_hal_read_chip_info(struct adapter *Adapter)
 		jiffies_to_msecs(jiffies - start));
 }
 
-#define GPIO_DEBUG_PORT_NUM 0
+#define GPIO_DE_PORT_NUM 0
 static void rtl8192cu_trigger_gpio_0(struct adapter *adapt)
 {
 }
@@ -1865,7 +1865,7 @@ u8 rtw_hal_get_def_var(
 		{
 			struct odm_dm_struct *dm_ocm = &haldata->odmpriv;
 
-			pr_info("dm_ocm->DebugComponents = 0x%llx\n", dm_ocm->DebugComponents);
+			pr_info("dm_ocm->DeComponents = 0x%llx\n", dm_ocm->DeComponents);
 		}
 		break;
 	case HAL_DEF_DBG_DUMP_RXPKT:
@@ -1967,7 +1967,7 @@ void rtw_hal_bcn_related_reg_setting(struct adapter *adapt)
 	value32 |= TSFRST;
 	usb_write32(adapt, REG_TCR, value32);
 
-	/*  NOTE: Fix test chip's bug (about contention windows's randomness) */
+	/*  NOTE: Fix test chip's  (about contention windows's randomness) */
 	usb_write8(adapt,  REG_RXTSF_OFFSET_CCK, 0x50);
 	usb_write8(adapt, REG_RXTSF_OFFSET_OFDM, 0x50);
 

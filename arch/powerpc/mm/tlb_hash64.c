@@ -28,7 +28,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm/pte-walk.h>
 
 
@@ -72,7 +72,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 		else
 			offset = PTRS_PER_PMD;
 #else
-		BUG();
+		();
 		psize = pte_pagesize_index(mm, addr, pte); /* shutup gcc */
 #endif
 	} else {
@@ -199,7 +199,7 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	start = _ALIGN_DOWN(start, PAGE_SIZE);
 	end = _ALIGN_UP(end, PAGE_SIZE);
 
-	BUG_ON(!mm->pgd);
+	_ON(!mm->pgd);
 
 	/* Note: Normally, we should only ever use a batch within a
 	 * PTE locked section. This violates the rule, but will work

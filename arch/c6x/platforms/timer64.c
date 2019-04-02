@@ -197,21 +197,21 @@ void __init timer64_init(void)
 		if (first)
 			np = of_node_get(first);
 		else {
-			pr_debug("Cannot find ti,c64x+timer64 timer.\n");
+			pr_de("Cannot find ti,c64x+timer64 timer.\n");
 			return;
 		}
 	}
 
 	timer = of_iomap(np, 0);
 	if (!timer) {
-		pr_debug("%pOF: Cannot map timer registers.\n", np);
+		pr_de("%pOF: Cannot map timer registers.\n", np);
 		goto out;
 	}
-	pr_debug("%pOF: Timer registers=%p.\n", np, timer);
+	pr_de("%pOF: Timer registers=%p.\n", np, timer);
 
 	cd->irq	= irq_of_parse_and_map(np, 0);
 	if (cd->irq == NO_IRQ) {
-		pr_debug("%pOF: Cannot find interrupt.\n", np);
+		pr_de("%pOF: Cannot find interrupt.\n", np);
 		iounmap(timer);
 		goto out;
 	}
@@ -229,7 +229,7 @@ void __init timer64_init(void)
 		dscr_set_devstate(timer64_devstate_id, DSCR_DEVSTATE_ENABLED);
 	}
 
-	pr_debug("%pOF: Timer irq=%d.\n", np, cd->irq);
+	pr_de("%pOF: Timer irq=%d.\n", np, cd->irq);
 
 	clockevents_calc_mult_shift(cd, c6x_core_freq / TIMER_DIVISOR, 5);
 

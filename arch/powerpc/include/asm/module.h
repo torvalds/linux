@@ -10,7 +10,7 @@
  */
 
 #include <linux/list.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <asm-generic/module.h>
 
 
@@ -67,10 +67,10 @@ struct mod_arch_specific {
 #endif
 #endif
 
-	/* List of BUG addresses, source line numbers and filenames */
-	struct list_head bug_list;
-	struct bug_entry *bug_table;
-	unsigned int num_bugs;
+	/* List of  addresses, source line numbers and filenames */
+	struct list_head _list;
+	struct _entry *_table;
+	unsigned int num_s;
 };
 
 /*

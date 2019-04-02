@@ -34,7 +34,7 @@ int main(void)
 	DEFINE(PT_DEPC, offsetof (struct pt_regs, depc));
 	DEFINE(PT_EXCCAUSE, offsetof (struct pt_regs, exccause));
 	DEFINE(PT_EXCVADDR, offsetof (struct pt_regs, excvaddr));
-	DEFINE(PT_DEBUGCAUSE, offsetof (struct pt_regs, debugcause));
+	DEFINE(PT_DECAUSE, offsetof (struct pt_regs, decause));
 	DEFINE(PT_WMASK, offsetof (struct pt_regs, wmask));
 	DEFINE(PT_LBEG, offsetof (struct pt_regs, lbeg));
 	DEFINE(PT_LEND, offsetof (struct pt_regs, lend));
@@ -121,15 +121,15 @@ int main(void)
 	DEFINE(_CLONE_UNTRACED, CLONE_UNTRACED);
 	DEFINE(PG_ARCH_1, PG_arch_1);
 
-	/* struct debug_table */
-	DEFINE(DT_DEBUG_EXCEPTION,
-	       offsetof(struct debug_table, debug_exception));
-	DEFINE(DT_DEBUG_SAVE, offsetof(struct debug_table, debug_save));
+	/* struct de_table */
+	DEFINE(DT_DE_EXCEPTION,
+	       offsetof(struct de_table, de_exception));
+	DEFINE(DT_DE_SAVE, offsetof(struct de_table, de_save));
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	DEFINE(DT_DBREAKC_SAVE, offsetof(struct debug_table, dbreakc_save));
-	DEFINE(DT_ICOUNT_SAVE, offsetof(struct debug_table, icount_save));
+	DEFINE(DT_DBREAKC_SAVE, offsetof(struct de_table, dbreakc_save));
+	DEFINE(DT_ICOUNT_SAVE, offsetof(struct de_table, icount_save));
 	DEFINE(DT_ICOUNT_LEVEL_SAVE,
-	       offsetof(struct debug_table, icount_level_save));
+	       offsetof(struct de_table, icount_level_save));
 #endif
 
 	/* struct exc_table */

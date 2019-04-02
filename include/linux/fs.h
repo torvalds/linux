@@ -17,7 +17,7 @@
 #include <linux/rbtree.h>
 #include <linux/init.h>
 #include <linux/pid.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/mm_types.h>
@@ -38,7 +38,7 @@
 #include <linux/errseq.h>
 #include <linux/ioprio.h>
 #include <linux/fs_types.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/stddef.h>
 
 #include <asm/byteorder.h>
@@ -2222,7 +2222,7 @@ void kill_block_super(struct super_block *sb);
 #else
 static inline void kill_block_super(struct super_block *sb)
 {
-	BUG();
+	();
 }
 #endif
 void kill_anon_super(struct super_block *sb);
@@ -2273,7 +2273,7 @@ mount_pseudo(struct file_system_type *fs_type, char *name,
 	do {	\
 		struct file *__file = (f); \
 		fops_put(__file->f_op); \
-		BUG_ON(!(__file->f_op = (fops))); \
+		_ON(!(__file->f_op = (fops))); \
 	} while(0)
 
 extern int register_filesystem(struct file_system_type *);
@@ -2472,7 +2472,7 @@ static inline int try_break_deleg(struct inode *inode, struct inode **delegated_
 
 static inline int break_deleg_wait(struct inode **delegated_inode)
 {
-	BUG();
+	();
 	return 0;
 }
 
@@ -2878,7 +2878,7 @@ static inline bool inode_is_open_for_write(const struct inode *inode)
 #ifdef CONFIG_IMA
 static inline void i_readcount_dec(struct inode *inode)
 {
-	BUG_ON(!atomic_read(&inode->i_readcount));
+	_ON(!atomic_read(&inode->i_readcount));
 	atomic_dec(&inode->i_readcount);
 }
 static inline void i_readcount_inc(struct inode *inode)
@@ -2983,7 +2983,7 @@ extern struct inode *find_inode_nowait(struct super_block *,
 				       void *data);
 extern int insert_inode_locked4(struct inode *, unsigned long, int (*test)(struct inode *, void *), void *);
 extern int insert_inode_locked(struct inode *);
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 extern void lockdep_annotate_inode_mutex_key(struct inode *inode);
 #else
 static inline void lockdep_annotate_inode_mutex_key(struct inode *inode) { };

@@ -36,7 +36,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -310,7 +310,7 @@ struct dsi_module_id_data {
 };
 
 enum dsi_quirks {
-	DSI_QUIRK_PLL_PWR_BUG = (1 << 0),	/* DSI-PLL power command 0x3 is not working */
+	DSI_QUIRK_PLL_PWR_ = (1 << 0),	/* DSI-PLL power command 0x3 is not working */
 	DSI_QUIRK_DCS_CMD_CONFIG_VC = (1 << 1),
 	DSI_QUIRK_VC_OCP_WIDTH = (1 << 2),
 	DSI_QUIRK_REVERSE_TXCLKESC = (1 << 3),
@@ -398,13 +398,13 @@ struct dsi_data {
 	ktime_t perf_setup_time;
 	ktime_t perf_start_time;
 #endif
-	int debug_read;
-	int debug_write;
+	int de_read;
+	int de_write;
 	struct {
-		struct dss_debugfs_entry *irqs;
-		struct dss_debugfs_entry *regs;
-		struct dss_debugfs_entry *clks;
-	} debugfs;
+		struct dss_defs_entry *irqs;
+		struct dss_defs_entry *regs;
+		struct dss_defs_entry *clks;
+	} defs;
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	spinlock_t irq_stats_lock;
@@ -536,7 +536,7 @@ static u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 	case OMAP_DSS_DSI_FMT_RGB565:
 		return 16;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 }
@@ -612,7 +612,7 @@ static void print_irq_status(u32 status)
 
 #define PIS(x) (status & DSI_IRQ_##x) ? (#x " ") : ""
 
-	pr_debug("DSI IRQ: 0x%x: %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	pr_de("DSI IRQ: 0x%x: %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		status,
 		verbose_irq ? PIS(VC0) : "",
 		verbose_irq ? PIS(VC1) : "",
@@ -644,7 +644,7 @@ static void print_irq_status_vc(int channel, u32 status)
 
 #define PIS(x) (status & DSI_VC_IRQ_##x) ? (#x " ") : ""
 
-	pr_debug("DSI VC(%d) IRQ 0x%x: %s%s%s%s%s%s%s%s%s\n",
+	pr_de("DSI VC(%d) IRQ 0x%x: %s%s%s%s%s%s%s%s%s\n",
 		channel,
 		status,
 		PIS(CS),
@@ -666,7 +666,7 @@ static void print_irq_status_cio(u32 status)
 
 #define PIS(x) (status & DSI_CIO_IRQ_##x) ? (#x " ") : ""
 
-	pr_debug("DSI CIO IRQ 0x%x: %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	pr_de("DSI CIO IRQ 0x%x: %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		status,
 		PIS(ERRSYNCESC1),
 		PIS(ERRSYNCESC2),
@@ -713,7 +713,7 @@ static void dsi_collect_irq_stats(struct dsi_data *dsi, u32 irqstatus,
 #define dsi_collect_irq_stats(dsi, irqstatus, vcstatus, ciostatus)
 #endif
 
-static int debug_irq;
+static int de_irq;
 
 static void dsi_handle_irq_errors(struct dsi_data *dsi, u32 irqstatus,
 				  u32 *vcstatus, u32 ciostatus)
@@ -726,7 +726,7 @@ static void dsi_handle_irq_errors(struct dsi_data *dsi, u32 irqstatus,
 		spin_lock(&dsi->errors_lock);
 		dsi->errors |= irqstatus & DSI_IRQ_ERROR_MASK;
 		spin_unlock(&dsi->errors_lock);
-	} else if (debug_irq) {
+	} else if (de_irq) {
 		print_irq_status(irqstatus);
 	}
 
@@ -735,7 +735,7 @@ static void dsi_handle_irq_errors(struct dsi_data *dsi, u32 irqstatus,
 			DSSERR("DSI VC(%d) error, vc irqstatus %x\n",
 				       i, vcstatus[i]);
 			print_irq_status_vc(i, vcstatus[i]);
-		} else if (debug_irq) {
+		} else if (de_irq) {
 			print_irq_status_vc(i, vcstatus[i]);
 		}
 	}
@@ -743,7 +743,7 @@ static void dsi_handle_irq_errors(struct dsi_data *dsi, u32 irqstatus,
 	if (ciostatus & DSI_CIO_IRQ_ERROR_MASK) {
 		DSSERR("DSI CIO error, cio irqstatus %x\n", ciostatus);
 		print_irq_status_cio(ciostatus);
-	} else if (debug_irq) {
+	} else if (de_irq) {
 		print_irq_status_cio(ciostatus);
 	}
 }
@@ -939,7 +939,7 @@ static int _dsi_register_isr(omap_dsi_isr_t isr, void *arg, u32 mask,
 	int free_idx;
 	int i;
 
-	BUG_ON(isr == NULL);
+	_ON(isr == NULL);
 
 	/* check for duplicate entry and find a free slot */
 	free_idx = -1;
@@ -1160,7 +1160,7 @@ static void _dsi_print_reset_status(struct dsi_data *dsi)
 #define DSI_FLD_GET(fld, start, end)\
 	FLD_GET(dsi_read_reg(dsi, DSI_##fld), start, end)
 
-	pr_debug("DSI resets: PLL (%d) CIO (%d) PHY (%x%x%x, %d, %d, %d)\n",
+	pr_de("DSI resets: PLL (%d) CIO (%d) PHY (%x%x%x, %d, %d, %d)\n",
 		DSI_FLD_GET(PLL_STATUS, 0, 0),
 		DSI_FLD_GET(COMPLEXIO_CFG1, 29, 29),
 		DSI_FLD_GET(DSIPHY_CFG5, b0, b0),
@@ -1294,7 +1294,7 @@ static int dsi_pll_power(struct dsi_data *dsi, enum dsi_pll_power_state state)
 	int t = 0;
 
 	/* DSI-PLL power command 0x3 is not working */
-	if ((dsi->data->quirks & DSI_QUIRK_PLL_PWR_BUG) &&
+	if ((dsi->data->quirks & DSI_QUIRK_PLL_PWR_) &&
 	    state == DSI_PLL_POWER_ON_DIV)
 		state = DSI_PLL_POWER_ON_ALL;
 
@@ -1698,7 +1698,7 @@ static unsigned int dsi_get_line_buf_size(struct dsi_data *dsi)
 	case 7:
 		return 1920 * 3;	/* 1920x24 bits */
 	default:
-		BUG();
+		();
 		return 0;
 	}
 }
@@ -2180,7 +2180,7 @@ static void dsi_config_tx_fifo(struct dsi_data *dsi,
 
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
-			BUG();
+			();
 			return;
 		}
 
@@ -2212,7 +2212,7 @@ static void dsi_config_rx_fifo(struct dsi_data *dsi,
 
 		if (add + size > 4) {
 			DSSERR("Illegal FIFO configuration\n");
-			BUG();
+			();
 			return;
 		}
 
@@ -2357,7 +2357,7 @@ static int dsi_sync_vc(struct dsi_data *dsi, int channel)
 	case DSI_VC_SOURCE_L4:
 		return dsi_sync_vc_l4(dsi, channel);
 	default:
-		BUG();
+		();
 		return -EINVAL;
 	}
 }
@@ -2548,7 +2548,7 @@ static u16 dsi_vc_flush_receive_data(struct dsi_data *dsi, int channel)
 
 static int dsi_vc_send_bta(struct dsi_data *dsi, int channel)
 {
-	if (dsi->debug_write || dsi->debug_read)
+	if (dsi->de_write || dsi->de_read)
 		DSSDBG("dsi_vc_send_bta %d\n", channel);
 
 	WARN_ON(!dsi_bus_is_locked(dsi));
@@ -2649,7 +2649,7 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int channel, u8 data_type,
 	int r = 0;
 	u8 b1, b2, b3, b4;
 
-	if (dsi->debug_write)
+	if (dsi->de_write)
 		DSSDBG("dsi_vc_send_long, %d bytes\n", len);
 
 	/* len + header */
@@ -2664,7 +2664,7 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int channel, u8 data_type,
 
 	p = data;
 	for (i = 0; i < len >> 2; i++) {
-		if (dsi->debug_write)
+		if (dsi->de_write)
 			DSSDBG("\tsending full packet %d\n", i);
 
 		b1 = *p++;
@@ -2679,7 +2679,7 @@ static int dsi_vc_send_long(struct dsi_data *dsi, int channel, u8 data_type,
 	if (i) {
 		b1 = 0; b2 = 0; b3 = 0;
 
-		if (dsi->debug_write)
+		if (dsi->de_write)
 			DSSDBG("\tsending remainder bytes %d\n", i);
 
 		switch (i) {
@@ -2711,7 +2711,7 @@ static int dsi_vc_send_short(struct dsi_data *dsi, int channel, u8 data_type,
 
 	WARN_ON(!dsi_bus_is_locked(dsi));
 
-	if (dsi->debug_write)
+	if (dsi->de_write)
 		DSSDBG("dsi_vc_send_short(ch%d, dt %#x, b1 %#x, b2 %#x)\n",
 				channel,
 				data_type, data & 0xff, (data >> 8) & 0xff);
@@ -2744,7 +2744,7 @@ static int dsi_vc_write_nosync_common(struct dsi_data *dsi, int channel,
 	int r;
 
 	if (len == 0) {
-		BUG_ON(type == DSS_DSI_CONTENT_DCS);
+		_ON(type == DSS_DSI_CONTENT_DCS);
 		r = dsi_vc_send_short(dsi, channel,
 				MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM, 0, 0);
 	} else if (len == 1) {
@@ -2835,7 +2835,7 @@ static int dsi_vc_dcs_send_read_request(struct dsi_data *dsi, int channel,
 {
 	int r;
 
-	if (dsi->debug_read)
+	if (dsi->de_read)
 		DSSDBG("dsi_vc_dcs_send_read_request(ch%d, dcs_cmd %x)\n",
 			channel, dcs_cmd);
 
@@ -2856,7 +2856,7 @@ static int dsi_vc_generic_send_read_request(struct dsi_data *dsi, int channel,
 	u8 data_type;
 	int r;
 
-	if (dsi->debug_read)
+	if (dsi->de_read)
 		DSSDBG("dsi_vc_generic_send_read_request(ch %d, reqlen %d)\n",
 			channel, reqlen);
 
@@ -2870,7 +2870,7 @@ static int dsi_vc_generic_send_read_request(struct dsi_data *dsi, int channel,
 		data_type = MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM;
 		data = reqdata[0] | (reqdata[1] << 8);
 	} else {
-		BUG();
+		();
 		return -EINVAL;
 	}
 
@@ -2899,7 +2899,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 	}
 
 	val = dsi_read_reg(dsi, DSI_VC_SHORT_PACKET_HEADER(channel));
-	if (dsi->debug_read)
+	if (dsi->de_read)
 		DSSDBG("\theader: %08x\n", val);
 	dt = FLD_GET(val, 5, 0);
 	if (dt == MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT) {
@@ -2912,7 +2912,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 			MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE :
 			MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE)) {
 		u8 data = FLD_GET(val, 15, 8);
-		if (dsi->debug_read)
+		if (dsi->de_read)
 			DSSDBG("\t%s short response, 1 byte: %02x\n",
 				type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" :
 				"DCS", data);
@@ -2929,7 +2929,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 			MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE :
 			MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE)) {
 		u16 data = FLD_GET(val, 23, 8);
-		if (dsi->debug_read)
+		if (dsi->de_read)
 			DSSDBG("\t%s short response, 2 byte: %04x\n",
 				type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" :
 				"DCS", data);
@@ -2948,7 +2948,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 			MIPI_DSI_RX_DCS_LONG_READ_RESPONSE)) {
 		int w;
 		int len = FLD_GET(val, 23, 8);
-		if (dsi->debug_read)
+		if (dsi->de_read)
 			DSSDBG("\t%s long response, len %d\n",
 				type == DSS_DSI_CONTENT_GENERIC ? "GENERIC" :
 				"DCS", len);
@@ -2963,7 +2963,7 @@ static int dsi_vc_read_rx_fifo(struct dsi_data *dsi, int channel, u8 *buf,
 			int b;
 			val = dsi_read_reg(dsi,
 				DSI_VC_SHORT_PACKET_HEADER(channel));
-			if (dsi->debug_read)
+			if (dsi->de_read)
 				DSSDBG("\t\t%02x %02x %02x %02x\n",
 						(val >> 0) & 0xff,
 						(val >> 8) & 0xff,
@@ -3158,7 +3158,7 @@ static void dsi_set_lp_rx_timeout(struct dsi_data *dsi, unsigned int ticks,
 	unsigned long total_ticks;
 	u32 r;
 
-	BUG_ON(ticks > 0x1fff);
+	_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
 	fck = dsi_fclk_rate(dsi);
@@ -3185,7 +3185,7 @@ static void dsi_set_ta_timeout(struct dsi_data *dsi, unsigned int ticks,
 	unsigned long total_ticks;
 	u32 r;
 
-	BUG_ON(ticks > 0x1fff);
+	_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
 	fck = dsi_fclk_rate(dsi);
@@ -3212,7 +3212,7 @@ static void dsi_set_stop_state_counter(struct dsi_data *dsi, unsigned int ticks,
 	unsigned long total_ticks;
 	u32 r;
 
-	BUG_ON(ticks > 0x1fff);
+	_ON(ticks > 0x1fff);
 
 	/* ticks in DSI_FCK */
 	fck = dsi_fclk_rate(dsi);
@@ -3239,7 +3239,7 @@ static void dsi_set_hs_tx_timeout(struct dsi_data *dsi, unsigned int ticks,
 	unsigned long total_ticks;
 	u32 r;
 
-	BUG_ON(ticks > 0x1fff);
+	_ON(ticks > 0x1fff);
 
 	/* ticks in TxByteClkHS */
 	fck = dsi_get_txbyteclkhs(dsi);
@@ -3534,7 +3534,7 @@ static int dsi_proto_config(struct dsi_data *dsi)
 		buswidth = 2;
 		break;
 	default:
-		BUG();
+		();
 		return -EINVAL;
 	}
 
@@ -3609,8 +3609,8 @@ static void dsi_proto_timings(struct dsi_data *dsi)
 			4);
 	ddr_clk_post = DIV_ROUND_UP(tclk_post + ths_trail, 4) + ths_eot;
 
-	BUG_ON(ddr_clk_pre == 0 || ddr_clk_pre > 255);
-	BUG_ON(ddr_clk_post == 0 || ddr_clk_post > 255);
+	_ON(ddr_clk_pre == 0 || ddr_clk_pre > 255);
+	_ON(ddr_clk_post == 0 || ddr_clk_post > 255);
 
 	r = dsi_read_reg(dsi, DSI_CLK_TIMING);
 	r = FLD_MOD(r, ddr_clk_pre, 15, 8);
@@ -3899,7 +3899,7 @@ static void dsi_update_screen_dispc(struct dsi_data *dsi)
 
 	r = schedule_delayed_work(&dsi->framedone_timeout_work,
 		msecs_to_jiffies(250));
-	BUG_ON(r == 0);
+	_ON(r == 0);
 
 	dss_mgr_start_update(&dsi->output);
 
@@ -3947,7 +3947,7 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 	 * 250ms which would conflict with this timeout work. What should be
 	 * done is first cancel the transfer on the HW, and then cancel the
 	 * possibly scheduled framedone work. However, cancelling the transfer
-	 * on the HW is buggy, and would probably require resetting the whole
+	 * on the HW is gy, and would probably require resetting the whole
 	 * DSI */
 
 	DSSERR("Framedone not received for 250ms!\n");
@@ -4239,7 +4239,7 @@ static void print_dsi_vm(const char *str,
 
 #define TO_DSI_T(x) ((u32)div64_u64((u64)x * 1000000000llu, byteclk))
 
-	pr_debug("%s bck %lu, %u/%u/%u/%u/%u/%u = %u+%u = %u, "
+	pr_de("%s bck %lu, %u/%u/%u/%u/%u/%u = %u+%u = %u, "
 			"%u/%u/%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			byteclk,
@@ -4270,7 +4270,7 @@ static void print_dispc_vm(const char *str, const struct videomode *vm)
 
 #define TO_DISPC_T(x) ((u32)div64_u64((u64)x * 1000000000llu, pck))
 
-	pr_debug("%s pck %lu, %u/%u/%u/%u = %u+%u = %u, "
+	pr_de("%s pck %lu, %u/%u/%u/%u = %u+%u = %u, "
 			"%u/%u/%u/%u = %u + %u = %u\n",
 			str,
 			pck,
@@ -5093,15 +5093,15 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi_runtime_put(dsi);
 
 	snprintf(name, sizeof(name), "dsi%u_regs", dsi->module_id + 1);
-	dsi->debugfs.regs = dss_debugfs_create_file(dss, name,
+	dsi->defs.regs = dss_defs_create_file(dss, name,
 						    dsi_dump_dsi_regs, dsi);
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 	snprintf(name, sizeof(name), "dsi%u_irqs", dsi->module_id + 1);
-	dsi->debugfs.irqs = dss_debugfs_create_file(dss, name,
+	dsi->defs.irqs = dss_defs_create_file(dss, name,
 						    dsi_dump_dsi_irqs, dsi);
 #endif
 	snprintf(name, sizeof(name), "dsi%u_clks", dsi->module_id + 1);
-	dsi->debugfs.clks = dss_debugfs_create_file(dss, name,
+	dsi->defs.clks = dss_defs_create_file(dss, name,
 						    dsi_dump_dsi_clocks, dsi);
 
 	return 0;
@@ -5111,9 +5111,9 @@ static void dsi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dsi_data *dsi = dev_get_drvdata(dev);
 
-	dss_debugfs_remove_file(dsi->debugfs.clks);
-	dss_debugfs_remove_file(dsi->debugfs.irqs);
-	dss_debugfs_remove_file(dsi->debugfs.regs);
+	dss_defs_remove_file(dsi->defs.clks);
+	dss_defs_remove_file(dsi->defs.irqs);
+	dss_defs_remove_file(dsi->defs.regs);
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
 
@@ -5252,7 +5252,7 @@ static const struct dsi_of_data dsi_of_data_omap36xx = {
 	},
 	.max_fck_freq = 173000000,
 	.max_pll_lpdiv = (1 << 13) - 1,
-	.quirks = DSI_QUIRK_PLL_PWR_BUG,
+	.quirks = DSI_QUIRK_PLL_PWR_,
 };
 
 static const struct dsi_of_data dsi_of_data_omap4 = {

@@ -24,7 +24,7 @@
  * FIXME test other values from "smaps"
  * FIXME support other archs
  */
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <errno.h>
 #include <sched.h>

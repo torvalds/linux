@@ -387,7 +387,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 			 */
 			if (!(gpe_register_info->enable_for_run |
 			      gpe_register_info->enable_for_wake)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
+				ACPI_DE_PRINT((ACPI_DB_INTERRUPTS,
 						  "Ignore disabled registers for GPE %02X-%02X: "
 						  "RunEnable=%02X, WakeEnable=%02X\n",
 						  gpe_register_info->
@@ -664,7 +664,7 @@ acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
 
 	/* Check if there is anything active at all in this GPE */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
+	ACPI_DE_PRINT((ACPI_DB_INTERRUPTS,
 			  "Read registers for GPE %02X: Status=%02X, Enable=%02X, "
 			  "RunEnable=%02X, WakeEnable=%02X\n",
 			  gpe_number,

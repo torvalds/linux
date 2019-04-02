@@ -378,7 +378,7 @@ struct acpi_table_desc {
 /*
  * Sizes of the various flavors of FADT. We need to look closely
  * at the FADT length because the version number essentially tells
- * us nothing because of many BIOS bugs where the version does not
+ * us nothing because of many BIOS s where the version does not
  * match the expected length. In other words, the length of the
  * FADT is the bottom line as to what the version really is.
  *

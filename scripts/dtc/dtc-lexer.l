@@ -47,9 +47,9 @@ extern bool treesource_error;
 		srcpos_update(&yylloc, yytext, yyleng); \
 	}
 
-/*#define LEXDEBUG	1*/
+/*#define LEXDE	1*/
 
-#ifdef LEXDEBUG
+#ifdef LEXDE
 #define DPRINT(fmt, ...)	fprintf(stderr, fmt, ##__VA_ARGS__)
 #else
 #define DPRINT(fmt, ...)	do { } while (0)

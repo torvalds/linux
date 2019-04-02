@@ -242,7 +242,7 @@ static struct ep93xx_dma_chan *to_ep93xx_dma_chan(struct dma_chan *chan)
 static void ep93xx_dma_set_active(struct ep93xx_dma_chan *edmac,
 				  struct ep93xx_dma_desc *desc)
 {
-	BUG_ON(!list_empty(&edmac->active));
+	_ON(!list_empty(&edmac->active));
 
 	list_add_tail(&desc->node, &edmac->active);
 
@@ -957,8 +957,8 @@ static void ep93xx_dma_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 	LIST_HEAD(list);
 
-	BUG_ON(!list_empty(&edmac->active));
-	BUG_ON(!list_empty(&edmac->queue));
+	_ON(!list_empty(&edmac->active));
+	_ON(!list_empty(&edmac->queue));
 
 	spin_lock_irqsave(&edmac->lock, flags);
 	edmac->edma->hw_shutdown(edmac);

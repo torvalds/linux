@@ -10,7 +10,7 @@
 
 
 /*  */
-/* Define the debug levels */
+/* Define the de levels */
 /*  */
 /* 1.	DBG_TRACE and DBG_LOUD are used for normal cases. */
 /* So that, they can help SW engineer to develope or trace states changed */
@@ -18,7 +18,7 @@
 /* e.g IO, Tx, Rx. */
 /*  */
 /* 2.	DBG_WARNNING and DBG_SERIOUS are used for unusual or error cases, */
-/* which help us to debug SW or HW. */
+/* which help us to de SW or HW. */
 /*  */
 /*  */
 /*  */
@@ -27,9 +27,9 @@
 #define ODM_DBG_OFF					1
 
 /*  */
-/* Fatal bug. */
+/* Fatal . */
 /* For example, Tx/Rx/IO locked up, OS hangs, memory access violation, */
-/* resource allocation failed, unexpected HW behavior, HW BUG and so on. */
+/* resource allocation failed, unexpected HW behavior, HW  and so on. */
 /*  */
 #define ODM_DBG_SERIOUS				2
 
@@ -99,8 +99,8 @@
 #define ODM_RT_TRACE(pDM_Odm, comp, level, fmt)\
 	do {\
 		if (\
-			(comp & pDM_Odm->DebugComponents) &&\
-			(level <= pDM_Odm->DebugLevel ||\
+			(comp & pDM_Odm->DeComponents) &&\
+			(level <= pDM_Odm->DeLevel ||\
 			 level == ODM_DBG_SERIOUS)\
 		) {\
 			RT_PRINTK fmt;\
@@ -110,8 +110,8 @@
 #define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)\
 	do {\
 		if (\
-			(comp & pDM_Odm->DebugComponents) &&\
-			(level <= pDM_Odm->DebugLevel)\
+			(comp & pDM_Odm->DeComponents) &&\
+			(level <= pDM_Odm->DeLevel)\
 		) {\
 			RT_PRINTK fmt;\
 		} \
@@ -138,8 +138,8 @@
 #define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr)\
 	do {\
 		if (\
-			(comp & pDM_Odm->DebugComponents) &&\
-			(level <= pDM_Odm->DebugLevel)\
+			(comp & pDM_Odm->DeComponents) &&\
+			(level <= pDM_Odm->DeLevel)\
 		) {\
 			int __i;\
 			u8 *__ptr = (u8 *)ptr;\
@@ -162,6 +162,6 @@
 	no_printk("%s %p", title_str, ptr)
 #endif
 
-void ODM_InitDebugSetting(PDM_ODM_T pDM_Odm);
+void ODM_InitDeSetting(PDM_ODM_T pDM_Odm);
 
 #endif	/*  __ODM_DBG_H__ */

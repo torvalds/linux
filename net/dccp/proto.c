@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(dccp_hashinfo);
 /* the maximum queue length for tx in packets. 0 is no limit */
 int sysctl_dccp_tx_qlen __read_mostly = 5;
 
-#ifdef CONFIG_IP_DCCP_DEBUG
+#ifdef CONFIG_IP_DCCP_DE
 static const char *dccp_state_name(const int state)
 {
 	static const char *const dccp_state_names[] = {
@@ -82,7 +82,7 @@ void dccp_set_state(struct sock *sk, const int state)
 {
 	const int oldstate = sk->sk_state;
 
-	dccp_pr_debug("%s(%p)  %s  -->  %s\n", dccp_role(sk), sk,
+	dccp_pr_de("%s(%p)  %s  -->  %s\n", dccp_role(sk), sk,
 		      dccp_state_name(oldstate), dccp_state_name(state));
 	WARN_ON(state == oldstate);
 
@@ -858,12 +858,12 @@ int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 				dccp_finish_passive_close(sk);
 			/* fall through */
 		case DCCP_PKT_RESET:
-			dccp_pr_debug("found fin (%s) ok!\n",
+			dccp_pr_de("found fin (%s) ok!\n",
 				      dccp_packet_name(dh->dccph_type));
 			len = 0;
 			goto found_fin_ok;
 		default:
-			dccp_pr_debug("packet_type=%s\n",
+			dccp_pr_de("packet_type=%s\n",
 				      dccp_packet_name(dh->dccph_type));
 			sk_eat_skb(sk, skb);
 		}
@@ -980,7 +980,7 @@ static void dccp_terminate_connection(struct sock *sk)
 		dccp_finish_passive_close(sk);
 		break;
 	case DCCP_PARTOPEN:
-		dccp_pr_debug("Stop PARTOPEN timer (%p)\n", sk);
+		dccp_pr_de("Stop PARTOPEN timer (%p)\n", sk);
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 		/* fall through */
 	case DCCP_OPEN:
@@ -1098,7 +1098,7 @@ EXPORT_SYMBOL_GPL(dccp_close);
 
 void dccp_shutdown(struct sock *sk, int how)
 {
-	dccp_pr_debug("called shutdown(%x)\n", how);
+	dccp_pr_de("called shutdown(%x)\n", how);
 }
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
@@ -1120,12 +1120,12 @@ static int thash_entries;
 module_param(thash_entries, int, 0444);
 MODULE_PARM_DESC(thash_entries, "Number of ehash buckets");
 
-#ifdef CONFIG_IP_DCCP_DEBUG
-bool dccp_debug;
-module_param(dccp_debug, bool, 0644);
-MODULE_PARM_DESC(dccp_debug, "Enable debug messages");
+#ifdef CONFIG_IP_DCCP_DE
+bool dccp_de;
+module_param(dccp_de, bool, 0644);
+MODULE_PARM_DESC(dccp_de, "Enable de messages");
 
-EXPORT_SYMBOL_GPL(dccp_debug);
+EXPORT_SYMBOL_GPL(dccp_de);
 #endif
 
 static int __init dccp_init(void)
@@ -1135,7 +1135,7 @@ static int __init dccp_init(void)
 	int ehash_order, bhash_order, i;
 	int rc;
 
-	BUILD_BUG_ON(sizeof(struct dccp_skb_cb) >
+	BUILD__ON(sizeof(struct dccp_skb_cb) >
 		     FIELD_SIZEOF(struct sk_buff, cb));
 	rc = percpu_counter_init(&dccp_orphan_count, 0, GFP_KERNEL);
 	if (rc)

@@ -54,17 +54,17 @@ static unsigned int dma_reset_workaround = 1;
 module_param(dma_reset_workaround, int, 0644);
 MODULE_PARM_DESC(dma_reset_workaround, "periodic RiSC dma engine reset; 0-force disable, 1-driver detect (default), 2-force enable");
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages");
 
 static unsigned int card[]  = {[0 ... (CX23885_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
 #define dprintk(level, fmt, arg...)\
-	do { if (debug >= level)\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+	do { if (de >= level)\
+		printk(KERN_DE pr_fmt("%s: " fmt), \
 		       __func__, ##arg); \
 	} while (0)
 
@@ -422,7 +422,7 @@ static int cx23885_risc_decode(u32 risc)
 	};
 	int i;
 
-	printk(KERN_DEBUG "0x%08x [ %s", risc,
+	printk(KERN_DE "0x%08x [ %s", risc,
 	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
 	for (i = ARRAY_SIZE(bits) - 1; i >= 0; i--)
 		if (risc & (1 << (i + 12)))
@@ -486,7 +486,7 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 	lines = ch->fifo_size / bpl;
 	if (lines > 6)
 		lines = 6;
-	BUG_ON(lines < 2);
+	_ON(lines < 2);
 
 	cx_write(8 + 0, RISC_JUMP | RISC_CNT_RESET);
 	cx_write(8 + 4, 12);
@@ -713,7 +713,7 @@ static int cx23885_pci_quirks(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
 
-	/* The cx23885 bridge has a weird bug which causes NMI to be asserted
+	/* The cx23885 bridge has a weird  which causes NMI to be asserted
 	 * when DMA begins if RDR_TLCTL0 bit4 is not cleared. It does not
 	 * occur on the cx23887 bridge.
 	 */
@@ -803,7 +803,7 @@ static int cx23885_init_tsport(struct cx23885_dev *dev,
 		port->pci_irqmask        = 0x04; /* VID_C bit2 */
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return 0;
@@ -908,7 +908,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		dev->clk_freq = 28000000;
 		dev->sram_channels = cx23885_sram_channels;
 	} else
-		BUG();
+		();
 
 	dprintk(1, "%s() Memory configured for PCIe bridge type %d\n",
 		__func__, dev->bridge);
@@ -1243,7 +1243,7 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -1276,7 +1276,7 @@ int cx23885_risc_databuffer(struct pci_dev *pci,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -1323,7 +1323,7 @@ int cx23885_risc_vbibuffer(struct pci_dev *pci, struct cx23885_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
+	_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -1332,7 +1332,7 @@ void cx23885_free_buffer(struct cx23885_dev *dev, struct cx23885_buffer *buf)
 {
 	struct cx23885_riscmem *risc = &buf->risc;
 
-	BUG_ON(in_interrupt());
+	_ON(in_interrupt());
 	pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
 }
 
@@ -1420,7 +1420,7 @@ int cx23885_start_dma(struct cx23885_tsport *port,
 	cx23885_sram_channel_setup(dev,
 				   &dev->sram_channels[port->sram_chno],
 				   port->ts_packet_size, buf->risc.dma);
-	if (debug > 5) {
+	if (de > 5) {
 		cx23885_sram_channel_dump(dev,
 			&dev->sram_channels[port->sram_chno]);
 		cx23885_risc_disasm(port, &buf->risc);
@@ -1514,7 +1514,7 @@ int cx23885_start_dma(struct cx23885_tsport *port,
 		cx23885_clear_bridge_error(dev);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	cx_set(DEV_CNTRL2, (1<<5)); /* Enable RISC controller */
@@ -1524,7 +1524,7 @@ int cx23885_start_dma(struct cx23885_tsport *port,
 	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER)
 		cx23885_av_clk(dev, 1);
 
-	if (debug > 4)
+	if (de > 4)
 		cx23885_tsport_reg_dump(port);
 
 	cx23885_irq_get_mask(dev);

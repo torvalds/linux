@@ -69,7 +69,7 @@ static int configure_channel(struct most_interface *most_iface,
 	struct hdm_i2c *dev = to_hdm(most_iface);
 	unsigned int delay, pr;
 
-	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
+	_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
 
 	if (channel_config->data_type != MOST_CH_CONTROL) {
 		pr_err("bad data type for channel %d\n", ch_idx);
@@ -123,7 +123,7 @@ static int enqueue(struct most_interface *most_iface,
 	struct hdm_i2c *dev = to_hdm(most_iface);
 	int ret;
 
-	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
+	_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
 
 	if (ch_idx == CH_RX) {
 		/* RX */
@@ -168,7 +168,7 @@ static int poison_channel(struct most_interface *most_iface,
 	struct hdm_i2c *dev = to_hdm(most_iface);
 	struct mbo *mbo;
 
-	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
+	_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
 
 	if (ch_idx == CH_RX) {
 		if (!polling_rate)

@@ -1,7 +1,7 @@
 /* ieee754 floating point arithmetic
  * single and double precision
  *
- * BUGS
+ * S
  * not much dp done
  * doesn't generate IEEE754_INEXACT
  *

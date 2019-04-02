@@ -32,10 +32,10 @@
 #include "renesas-cpg-mssr.h"
 #include "clk-div6.h"
 
-#ifdef DEBUG
-#define WARN_DEBUG(x)	WARN_ON(x)
+#ifdef DE
+#define WARN_DE(x)	WARN_ON(x)
 #else
-#define WARN_DEBUG(x)	do { } while (0)
+#define WARN_DE(x)	do { } while (0)
 #endif
 
 
@@ -308,8 +308,8 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 	unsigned int id = core->id, div = core->div;
 	const char *parent_name;
 
-	WARN_DEBUG(id >= priv->num_core_clks);
-	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
+	WARN_DE(id >= priv->num_core_clks);
+	WARN_DE(PTR_ERR(priv->clks[id]) != -ENOENT);
 
 	if (!core->name) {
 		/* Skip NULLified clock */
@@ -324,7 +324,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 	case CLK_TYPE_FF:
 	case CLK_TYPE_DIV6P1:
 	case CLK_TYPE_DIV6_RO:
-		WARN_DEBUG(core->parent >= priv->num_core_clks);
+		WARN_DE(core->parent >= priv->num_core_clks);
 		parent = priv->clks[core->parent];
 		if (IS_ERR(parent)) {
 			clk = parent;
@@ -388,10 +388,10 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	const char *parent_name;
 	unsigned int i;
 
-	WARN_DEBUG(id < priv->num_core_clks);
-	WARN_DEBUG(id >= priv->num_core_clks + priv->num_mod_clks);
-	WARN_DEBUG(mod->parent >= priv->num_core_clks + priv->num_mod_clks);
-	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
+	WARN_DE(id < priv->num_core_clks);
+	WARN_DE(id >= priv->num_core_clks + priv->num_mod_clks);
+	WARN_DE(mod->parent >= priv->num_core_clks + priv->num_mod_clks);
+	WARN_DE(PTR_ERR(priv->clks[id]) != -ENOENT);
 
 	if (!mod->name) {
 		/* Skip NULLified clock */

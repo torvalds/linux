@@ -50,7 +50,7 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/unaligned.h>
 
 /* List of available DOI definitions */

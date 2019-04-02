@@ -204,7 +204,7 @@ void elv_rqhash_add(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	BUG_ON(ELV_ON_HASH(rq));
+	_ON(ELV_ON_HASH(rq));
 	hash_add(e->hash, &rq->hash, rq_hash_key(rq));
 	rq->rq_flags |= RQF_HASHED;
 }
@@ -223,7 +223,7 @@ struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
 	struct request *rq;
 
 	hash_for_each_possible_safe(e->hash, rq, next, hash, offset) {
-		BUG_ON(!ELV_ON_HASH(rq));
+		_ON(!ELV_ON_HASH(rq));
 
 		if (unlikely(!rq_mergeable(rq))) {
 			__elv_rqhash_del(rq);
@@ -264,7 +264,7 @@ EXPORT_SYMBOL(elv_rb_add);
 
 void elv_rb_del(struct rb_root *root, struct request *rq)
 {
-	BUG_ON(RB_EMPTY_NODE(&rq->rb_node));
+	_ON(RB_EMPTY_NODE(&rq->rb_node));
 	rb_erase(&rq->rb_node, root);
 	RB_CLEAR_NODE(&rq->rb_node);
 }

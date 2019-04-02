@@ -20,14 +20,14 @@
  * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 #include "af9005.h"
-/* debug */
-static int dvb_usb_af9005_remote_debug;
-module_param_named(debug, dvb_usb_af9005_remote_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "enable (1) or disable (0) debug messages."
-		 DVB_USB_DEBUG_STATUS);
+/* de */
+static int dvb_usb_af9005_remote_de;
+module_param_named(de, dvb_usb_af9005_remote_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "enable (1) or disable (0) de messages."
+		 DVB_USB_DE_STATUS);
 
-#define deb_decode(args...)   dprintk(dvb_usb_af9005_remote_debug,0x01,args)
+#define deb_decode(args...)   dprintk(dvb_usb_af9005_remote_de,0x01,args)
 
 struct rc_map_table rc_map_af9005_table[] = {
 

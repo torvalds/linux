@@ -76,10 +76,10 @@
 #define ABIT_UGURU3_SYNCHRONIZE_TIMEOUT		5
 /* utility macros */
 #define ABIT_UGURU3_NAME			"abituguru3"
-#define ABIT_UGURU3_DEBUG(format, arg...)		\
+#define ABIT_UGURU3_DE(format, arg...)		\
 	do {						\
 		if (verbose)				\
-			pr_debug(format , ## arg);	\
+			pr_de(format , ## arg);	\
 	} while (0)
 
 /* Macros to help calculate the sysfs_names array length */
@@ -694,7 +694,7 @@ static int abituguru3_synchronize(struct abituguru3_data *data)
 
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("synchronize timeout during initial busy "
+		ABIT_UGURU3_DE("synchronize timeout during initial busy "
 			"wait, status: 0x%02x\n", x);
 		return -EIO;
 	}
@@ -702,7 +702,7 @@ static int abituguru3_synchronize(struct abituguru3_data *data)
 	outb(0x20, data->addr + ABIT_UGURU3_DATA);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("synchronize timeout after sending 0x20, "
+		ABIT_UGURU3_DE("synchronize timeout after sending 0x20, "
 			"status: 0x%02x\n", x);
 		return -EIO;
 	}
@@ -710,7 +710,7 @@ static int abituguru3_synchronize(struct abituguru3_data *data)
 	outb(0x10, data->addr + ABIT_UGURU3_CMD);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("synchronize timeout after sending 0x10, "
+		ABIT_UGURU3_DE("synchronize timeout after sending 0x10, "
 			"status: 0x%02x\n", x);
 		return -EIO;
 	}
@@ -718,14 +718,14 @@ static int abituguru3_synchronize(struct abituguru3_data *data)
 	outb(0x00, data->addr + ABIT_UGURU3_CMD);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("synchronize timeout after sending 0x00, "
+		ABIT_UGURU3_DE("synchronize timeout after sending 0x00, "
 			"status: 0x%02x\n", x);
 		return -EIO;
 	}
 
 	x = abituguru3_wait_for_read(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("synchronize timeout waiting for read, "
+		ABIT_UGURU3_DE("synchronize timeout waiting for read, "
 			"status: 0x%02x\n", x);
 		return -EIO;
 	}
@@ -733,7 +733,7 @@ static int abituguru3_synchronize(struct abituguru3_data *data)
 	while ((x = inb(data->addr + ABIT_UGURU3_CMD)) != 0xAC) {
 		timeout--;
 		if (timeout == 0) {
-			ABIT_UGURU3_DEBUG("synchronize timeout cmd does not "
+			ABIT_UGURU3_DE("synchronize timeout cmd does not "
 				"hold 0xAC after synchronize, cmd: 0x%02x\n",
 				x);
 			return -EIO;
@@ -759,7 +759,7 @@ static int abituguru3_read(struct abituguru3_data *data, u8 bank, u8 offset,
 	outb(0x1A, data->addr + ABIT_UGURU3_DATA);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("read from 0x%02x:0x%02x timed out after "
+		ABIT_UGURU3_DE("read from 0x%02x:0x%02x timed out after "
 			"sending 0x1A, status: 0x%02x\n", (unsigned int)bank,
 			(unsigned int)offset, x);
 		return -EIO;
@@ -768,7 +768,7 @@ static int abituguru3_read(struct abituguru3_data *data, u8 bank, u8 offset,
 	outb(bank, data->addr + ABIT_UGURU3_CMD);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("read from 0x%02x:0x%02x timed out after "
+		ABIT_UGURU3_DE("read from 0x%02x:0x%02x timed out after "
 			"sending the bank, status: 0x%02x\n",
 			(unsigned int)bank, (unsigned int)offset, x);
 		return -EIO;
@@ -777,7 +777,7 @@ static int abituguru3_read(struct abituguru3_data *data, u8 bank, u8 offset,
 	outb(offset, data->addr + ABIT_UGURU3_CMD);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("read from 0x%02x:0x%02x timed out after "
+		ABIT_UGURU3_DE("read from 0x%02x:0x%02x timed out after "
 			"sending the offset, status: 0x%02x\n",
 			(unsigned int)bank, (unsigned int)offset, x);
 		return -EIO;
@@ -786,7 +786,7 @@ static int abituguru3_read(struct abituguru3_data *data, u8 bank, u8 offset,
 	outb(count, data->addr + ABIT_UGURU3_CMD);
 	x = abituguru3_wait_while_busy(data);
 	if (x != ABIT_UGURU3_SUCCESS) {
-		ABIT_UGURU3_DEBUG("read from 0x%02x:0x%02x timed out after "
+		ABIT_UGURU3_DE("read from 0x%02x:0x%02x timed out after "
 			"sending the count, status: 0x%02x\n",
 			(unsigned int)bank, (unsigned int)offset, x);
 		return -EIO;
@@ -795,7 +795,7 @@ static int abituguru3_read(struct abituguru3_data *data, u8 bank, u8 offset,
 	for (i = 0; i < count; i++) {
 		x = abituguru3_wait_for_read(data);
 		if (x != ABIT_UGURU3_SUCCESS) {
-			ABIT_UGURU3_DEBUG("timeout reading byte %d from "
+			ABIT_UGURU3_DE("timeout reading byte %d from "
 				"0x%02x:0x%02x, status: 0x%02x\n", i,
 				(unsigned int)bank, (unsigned int)offset, x);
 			break;
@@ -1232,7 +1232,7 @@ static int __init abituguru3_detect(void)
 			 (cmd_val == 0x55)))
 		return 0;
 
-	ABIT_UGURU3_DEBUG("no Abit uGuru3 found, data = 0x%02X, cmd = "
+	ABIT_UGURU3_DE("no Abit uGuru3 found, data = 0x%02X, cmd = "
 		"0x%02X\n", (unsigned int)data_val, (unsigned int)cmd_val);
 
 	if (force) {

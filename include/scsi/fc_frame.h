@@ -96,7 +96,7 @@ struct fcoe_rcv_info {
  */
 static inline struct fcoe_rcv_info *fcoe_dev_from_skb(const struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct fcoe_rcv_info) > sizeof(skb->cb));
+	BUILD__ON(sizeof(struct fcoe_rcv_info) > sizeof(skb->cb));
 	return (struct fcoe_rcv_info *) skb->cb;
 }
 

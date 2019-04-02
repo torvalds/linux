@@ -2,12 +2,12 @@
 #include <linux/fs.h>
 #include <linux/qnx4_fs.h>
 
-#define QNX4_DEBUG 0
+#define QNX4_DE 0
 
-#if QNX4_DEBUG
-#define QNX4DEBUG(X) printk X
+#if QNX4_DE
+#define QNX4DE(X) printk X
 #else
-#define QNX4DEBUG(X) (void) 0
+#define QNX4DE(X) (void) 0
 #endif
 
 struct qnx4_sb_info {

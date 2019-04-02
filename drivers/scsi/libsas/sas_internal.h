@@ -180,8 +180,8 @@ static inline void sas_add_parent_port(struct domain_device *dev, int phy_id)
 	if (!ex->parent_port) {
 		ex->parent_port = sas_port_alloc(&dev->rphy->dev, phy_id);
 		/* FIXME: error handling */
-		BUG_ON(!ex->parent_port);
-		BUG_ON(sas_port_add(ex->parent_port));
+		_ON(!ex->parent_port);
+		_ON(sas_port_add(ex->parent_port));
 		sas_port_mark_backlink(ex->parent_port);
 	}
 	sas_port_add_phy(ex->parent_port, ex_phy->phy);

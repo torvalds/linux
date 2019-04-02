@@ -68,7 +68,7 @@ struct ehci_caps {
 #define HC_LENGTH(p)		(((p)>>00)&0x00ff)	/* bits 7:0 */
 #define HC_VERSION(p)		(((p)>>16)&0xffff)	/* bits 31:16 */
 	u32		hcs_params;     /* HCSPARAMS - offset 0x4 */
-#define HCS_DEBUG_PORT(p)	(((p)>>20)&0xf)	/* bits 23:20, debug port? */
+#define HCS_DE_PORT(p)	(((p)>>20)&0xf)	/* bits 23:20, de port? */
 #define HCS_INDICATOR(p)	((p)&(1 << 16))	/* true: has port indicators */
 #define HCS_N_CC(p)		(((p)>>12)&0xf)	/* bits 15:12, #companion HCs */
 #define HCS_N_PCC(p)		(((p)>>8)&0xf)	/* bits 11:8, ports per CC */
@@ -165,7 +165,7 @@ struct ehci_regs {
 #define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
 } __attribute__ ((packed));
 
-/* Appendix C, Debug port ... intended for use with special "debug devices"
+/* Appendix C, De port ... intended for use with special "de devices"
  * that can help if there's no serial console.  (nonstandard enumeration.)
  */
 struct ehci_dbg_port {

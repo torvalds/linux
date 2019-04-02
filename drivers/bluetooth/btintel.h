@@ -45,7 +45,7 @@ struct intel_boot_params {
 	__u8     key_type;
 	__u8     otp_lock;
 	__u8     api_lock;
-	__u8     debug_lock;
+	__u8     de_lock;
 	bdaddr_t otp_bdaddr;
 	__u8     min_fw_build_nn;
 	__u8     min_fw_build_cw;
@@ -91,8 +91,8 @@ void btintel_version_info(struct hci_dev *hdev, struct intel_version *ver);
 int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
 			const void *param);
 int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name);
-int btintel_set_event_mask(struct hci_dev *hdev, bool debug);
-int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug);
+int btintel_set_event_mask(struct hci_dev *hdev, bool de);
+int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool de);
 int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver);
 
 struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
@@ -155,12 +155,12 @@ static inline int btintel_load_ddc_config(struct hci_dev *hdev,
 	return -EOPNOTSUPP;
 }
 
-static inline int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
+static inline int btintel_set_event_mask(struct hci_dev *hdev, bool de)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
+static inline int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool de)
 {
 	return -EOPNOTSUPP;
 }

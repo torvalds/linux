@@ -840,19 +840,19 @@
 #define TIMER_CB        0x80000000 /* Timer callback detection             */
 
 /*
-** DE4X5 DEBUG Options
+** DE4X5 DE Options
 */
-#define DEBUG_NONE      0x0000     /* No DEBUG messages */
-#define DEBUG_VERSION   0x0001     /* Print version message */
-#define DEBUG_MEDIA     0x0002     /* Print media messages */
-#define DEBUG_TX        0x0004     /* Print TX (queue_pkt) messages */
-#define DEBUG_RX        0x0008     /* Print RX (de4x5_rx) messages */
-#define DEBUG_SROM      0x0010     /* Print SROM messages */
-#define DEBUG_MII       0x0020     /* Print MII messages */
-#define DEBUG_OPEN      0x0040     /* Print de4x5_open() messages */
-#define DEBUG_CLOSE     0x0080     /* Print de4x5_close() messages */
-#define DEBUG_PCICFG    0x0100
-#define DEBUG_ALL       0x01ff
+#define DE_NONE      0x0000     /* No DE messages */
+#define DE_VERSION   0x0001     /* Print version message */
+#define DE_MEDIA     0x0002     /* Print media messages */
+#define DE_TX        0x0004     /* Print TX (queue_pkt) messages */
+#define DE_RX        0x0008     /* Print RX (de4x5_rx) messages */
+#define DE_SROM      0x0010     /* Print SROM messages */
+#define DE_MII       0x0020     /* Print MII messages */
+#define DE_OPEN      0x0040     /* Print de4x5_open() messages */
+#define DE_CLOSE     0x0080     /* Print de4x5_close() messages */
+#define DE_PCICFG    0x0100
+#define DE_ALL       0x01ff
 
 /*
 ** Miscellaneous
@@ -1014,4 +1014,4 @@ struct de4x5_ioctl {
 #define DE4X5_SET_OMR           0x0d /* Set the OMR Register contents */
 #define DE4X5_GET_REG           0x0e /* Get the DE4X5 Registers */
 
-#define MOTO_SROM_BUG    (lp->active == 8 && (get_unaligned_le32(dev->dev_addr) & 0x00ffffff) == 0x3e0008)
+#define MOTO_SROM_    (lp->active == 8 && (get_unaligned_le32(dev->dev_addr) & 0x00ffffff) == 0x3e0008)

@@ -69,7 +69,7 @@ struct max8998_rtc_info {
 	struct i2c_client	*rtc;
 	struct rtc_device	*rtc_dev;
 	int irq;
-	bool lp3974_bug_workaround;
+	bool lp3974__workaround;
 };
 
 static void max8998_data_to_tm(u8 *data, struct rtc_time *tm)
@@ -127,7 +127,7 @@ static int max8998_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	ret = max8998_bulk_write(info->rtc, MAX8998_RTC_SEC, 8, data);
 
-	if (info->lp3974_bug_workaround)
+	if (info->lp3974__workaround)
 		msleep(2000);
 
 	return ret;
@@ -168,7 +168,7 @@ static int max8998_rtc_stop_alarm(struct max8998_rtc_info *info)
 {
 	int ret = max8998_write_reg(info->rtc, MAX8998_ALARM0_CONF, 0);
 
-	if (info->lp3974_bug_workaround)
+	if (info->lp3974__workaround)
 		msleep(2000);
 
 	return ret;
@@ -179,13 +179,13 @@ static int max8998_rtc_start_alarm(struct max8998_rtc_info *info)
 	int ret;
 	u8 alarm0_conf = 0x77;
 
-	/* LP3974 with delay bug chips has rtc alarm bugs with "MONTH" field */
-	if (info->lp3974_bug_workaround)
+	/* LP3974 with delay  chips has rtc alarm s with "MONTH" field */
+	if (info->lp3974__workaround)
 		alarm0_conf = 0x57;
 
 	ret = max8998_write_reg(info->rtc, MAX8998_ALARM0_CONF, alarm0_conf);
 
-	if (info->lp3974_bug_workaround)
+	if (info->lp3974__workaround)
 		msleep(2000);
 
 	return ret;
@@ -207,7 +207,7 @@ static int max8998_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (ret < 0)
 		return ret;
 
-	if (info->lp3974_bug_workaround)
+	if (info->lp3974__workaround)
 		msleep(2000);
 
 	if (alrm->enabled)
@@ -290,7 +290,7 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 no_irq:
 	dev_info(&pdev->dev, "RTC CHIP NAME: %s\n", pdev->id_entry->name);
 	if (pdata && pdata->rtc_delay) {
-		info->lp3974_bug_workaround = true;
+		info->lp3974__workaround = true;
 		dev_warn(&pdev->dev, "LP3974 with RTC REGERR option."
 				" RTC updates will be extremely slow.\n");
 	}

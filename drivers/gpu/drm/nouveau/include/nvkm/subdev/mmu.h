@@ -26,7 +26,7 @@ struct nvkm_vmm {
 	const struct nvkm_vmm_func *func;
 	struct nvkm_mmu *mmu;
 	const char *name;
-	u32 debug;
+	u32 de;
 	struct kref kref;
 	struct mutex mutex;
 

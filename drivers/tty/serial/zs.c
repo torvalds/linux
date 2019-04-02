@@ -48,7 +48,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -126,9 +126,9 @@ static u8 zs_init_regs[ZS_NUM_REGS] __initdata = {
 };
 
 /*
- * Debugging.
+ * Deging.
  */
-#undef ZS_DEBUG_REGS
+#undef ZS_DE_REGS
 
 
 /*
@@ -190,7 +190,7 @@ static void write_zsdata(struct zs_port *zport, u8 value)
 	return;
 }
 
-#ifdef ZS_DEBUG_REGS
+#ifdef ZS_DE_REGS
 void zs_dump(void)
 {
 	struct zs_port *zport;
@@ -909,7 +909,7 @@ static void zs_set_termios(struct uart_port *uport, struct ktermios *termios,
 		zport->regs[4] |= X1CLK;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	baud = uart_get_baud_rate(uport, termios, old_termios, 0,

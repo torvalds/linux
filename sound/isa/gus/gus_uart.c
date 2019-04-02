@@ -103,7 +103,7 @@ static int snd_gf1_uart_output_open(struct snd_rawmidi_substream *substream)
 	gus->midi_substream_output = substream;
 	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 #if 0
-	snd_printk(KERN_DEBUG "write init - cmd = 0x%x, stat = 0x%x\n", gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
+	snd_printk(KERN_DE "write init - cmd = 0x%x, stat = 0x%x\n", gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
 #endif
 	return 0;
 }
@@ -129,10 +129,10 @@ static int snd_gf1_uart_input_open(struct snd_rawmidi_substream *substream)
 	}
 	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 #if 0
-	snd_printk(KERN_DEBUG
+	snd_printk(KERN_DE
 		   "read init - enable = %i, cmd = 0x%x, stat = 0x%x\n",
 		   gus->uart_enable, gus->gf1.uart_cmd, snd_gf1_uart_stat(gus));
-	snd_printk(KERN_DEBUG
+	snd_printk(KERN_DE
 		   "[0x%x] reg (ctrl/status) = 0x%x, reg (data) = 0x%x "
 		   "(page = 0x%x)\n",
 		   gus->gf1.port + 0x100, inb(gus->gf1.port + 0x100),

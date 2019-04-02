@@ -16,15 +16,15 @@
 
 #include <media/drv-intf/saa7146.h>
 
-extern int budget_debug;
+extern int budget_de;
 
 #ifdef dprintk
 #undef dprintk
 #endif
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (level & budget_debug)					\
-		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
+	if (level & budget_de)					\
+		printk(KERN_DE KBUILD_MODNAME ": %s(): " fmt,	\
 		       __func__, ##arg);				\
 } while (0)
 

@@ -13,12 +13,12 @@
 #define _EXT4_EXTENTS_STATUS_H
 
 /*
- * Turn on ES_DEBUG__ to get lots of info about extent status operations.
+ * Turn on ES_DE__ to get lots of info about extent status operations.
  */
-#ifdef ES_DEBUG__
-#define es_debug(fmt, ...)	printk(fmt, ##__VA_ARGS__)
+#ifdef ES_DE__
+#define es_de(fmt, ...)	printk(fmt, ##__VA_ARGS__)
 #else
-#define es_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define es_de(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 /*

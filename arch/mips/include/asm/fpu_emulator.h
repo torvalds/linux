@@ -30,7 +30,7 @@
 #include <asm/local.h>
 #include <asm/processor.h>
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 struct mips_fpu_emulator_stats {
 	unsigned long emulated;
@@ -174,7 +174,7 @@ do {									\
 
 #else
 #define MIPS_FPU_EMU_INC_STATS(M) do { } while (0)
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 				    struct mips_fpu_struct *ctx, int has_fpu,

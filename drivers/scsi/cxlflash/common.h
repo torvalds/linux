@@ -72,8 +72,8 @@ extern const struct file_operations cxlflash_cxl_fops;
 
 static inline void check_sizes(void)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_NUM_FC_PORTS_PER_BANK);
-	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_MAX_CMDS);
+	BUILD__ON_NOT_POWER_OF_2(CXLFLASH_NUM_FC_PORTS_PER_BANK);
+	BUILD__ON_NOT_POWER_OF_2(CXLFLASH_MAX_CMDS);
 }
 
 /* AFU defines a fixed size of 4K for command buffers (borrow 4K page define) */
@@ -280,9 +280,9 @@ static inline bool afu_is_ocxl_lisn(struct afu *afu)
 	return afu_has_cap(afu, SISL_INTVER_CAP_OCXL_LISN);
 }
 
-static inline bool afu_is_afu_debug(struct afu *afu)
+static inline bool afu_is_afu_de(struct afu *afu)
 {
-	return afu_has_cap(afu, SISL_INTVER_CAP_AFU_DEBUG);
+	return afu_has_cap(afu, SISL_INTVER_CAP_AFU_DE);
 }
 
 static inline bool afu_is_lun_provision(struct afu *afu)

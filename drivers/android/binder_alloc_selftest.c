@@ -268,7 +268,7 @@ static void binder_selftest_alloc_offset(struct binder_alloc *alloc,
 	prev = index == 0 ? 0 : end_offset[index - 1];
 	end = prev;
 
-	BUILD_BUG_ON(BUFFER_MIN_SIZE * BUFFER_NUM >= PAGE_SIZE);
+	BUILD__ON(BUFFER_MIN_SIZE * BUFFER_NUM >= PAGE_SIZE);
 
 	for (align = SAME_PAGE_UNALIGNED; align < LOOP_END; align++) {
 		if (align % 2)

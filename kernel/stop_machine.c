@@ -573,7 +573,7 @@ static int __init cpu_stop_init(void)
 		INIT_LIST_HEAD(&stopper->works);
 	}
 
-	BUG_ON(smpboot_register_percpu_thread(&cpu_stop_threads));
+	_ON(smpboot_register_percpu_thread(&cpu_stop_threads));
 	stop_machine_unpark(raw_smp_processor_id());
 	stop_machine_initialized = true;
 	return 0;
@@ -659,7 +659,7 @@ int stop_machine_from_inactive_cpu(cpu_stop_fn_t fn, void *data,
 	int ret;
 
 	/* Local CPU must be inactive and CPU hotplug in progress. */
-	BUG_ON(cpu_active(raw_smp_processor_id()));
+	_ON(cpu_active(raw_smp_processor_id()));
 	msdata.num_threads = num_active_cpus() + 1;	/* +1 for local */
 
 	/* No proper task established and can't sleep - busy wait for lock. */

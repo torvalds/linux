@@ -103,7 +103,7 @@
 #define TIOCSERSWILD	_IOW('T', 85,  int) /* 0x5455 */
 #define TIOCGLCKTRMIOS	0x5456
 #define TIOCSLCKTRMIOS	0x5457
-#define TIOCSERGSTRUCT	0x80d85458	/* _IOR('T', 88, struct async_struct) 0x5458 */ /* For debugging only */
+#define TIOCSERGSTRUCT	0x80d85458	/* _IOR('T', 88, struct async_struct) 0x5458 */ /* For deging only */
 #define TIOCSERGETLSR   _IOR('T', 89, unsigned int) /* 0x5459 */ /* Get line status register */
   /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 # define TIOCSER_TEMT    0x01	/* Transmitter physically empty */

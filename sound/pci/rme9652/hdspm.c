@@ -14,7 +14,7 @@
  *      Modified 2009-04-14 for native float support by Florian Faber
  *                                               <faber@faberman.de>
  *
- *      Modified 2009-04-26 fixed bug in rms metering by Florian Faber
+ *      Modified 2009-04-26 fixed  in rms metering by Florian Faber
  *                                               <faber@faberman.de>
  *
  *      Modified 2009-04-30 added hw serial number support by Florian Faber
@@ -1049,7 +1049,7 @@ struct hdspm {
 	unsigned long port;
 	void __iomem *iobase;
 
-	int irq_count;		/* for debug */
+	int irq_count;		/* for de */
 	int midiPorts;
 
 	struct snd_card *card;	/* one card */
@@ -1590,7 +1590,7 @@ static u64 hdspm_calc_dds_value(struct hdspm *hdspm, u64 period)
 		freq_const = 131072000000000ULL;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return 0;
 	}
 
@@ -1602,7 +1602,7 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 {
 	u64 n;
 
-	if (snd_BUG_ON(rate <= 0))
+	if (snd__ON(rate <= 0))
 		return;
 
 	if (rate >= 112000)
@@ -1623,13 +1623,13 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 		n = 104857600000000ULL;  /* 100 MHz */
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return;
 	}
 
 	n = div_u64(n, rate);
 	/* n should be less than 2^32 for being written to FREQ register */
-	snd_BUG_ON(n >> 32);
+	snd__ON(n >> 32);
 	hdspm_write(hdspm, HDSPM_freqReg, (u32)n);
 }
 
@@ -3762,7 +3762,7 @@ static int snd_hdspm_get_playback_mixer(struct snd_kcontrol *kcontrol,
 
 	channel = ucontrol->id.index - 1;
 
-	if (snd_BUG_ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
+	if (snd__ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
 		return -EINVAL;
 
 	spin_lock_irq(&hdspm->lock);
@@ -3786,7 +3786,7 @@ static int snd_hdspm_put_playback_mixer(struct snd_kcontrol *kcontrol,
 
 	channel = ucontrol->id.index - 1;
 
-	if (snd_BUG_ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
+	if (snd__ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
 		return -EINVAL;
 
 	gain = ucontrol->value.integer.value[0]*UNITY_GAIN/64;
@@ -5239,9 +5239,9 @@ snd_hdspm_proc_read_raydat(struct snd_info_entry *entry,
 
 }
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 static void
-snd_hdspm_proc_read_debug(struct snd_info_entry *entry,
+snd_hdspm_proc_read_de(struct snd_info_entry *entry,
 			  struct snd_info_buffer *buffer)
 {
 	struct hdspm *hdspm = entry->private_data;
@@ -5312,10 +5312,10 @@ static void snd_hdspm_proc_init(struct hdspm *hdspm)
 	snd_card_ro_proc_new(hdspm->card, "ports.out", hdspm,
 			     snd_hdspm_proc_ports_out);
 
-#ifdef CONFIG_SND_DEBUG
-	/* debug file to read all hdspm registers */
-	snd_card_ro_proc_new(hdspm->card, "debug", hdspm,
-			     snd_hdspm_proc_read_debug);
+#ifdef CONFIG_SND_DE
+	/* de file to read all hdspm registers */
+	snd_card_ro_proc_new(hdspm->card, "de", hdspm,
+			     snd_hdspm_proc_read_de);
 #endif
 }
 
@@ -5693,7 +5693,7 @@ static int snd_hdspm_channel_info(struct snd_pcm_substream *substream,
 	unsigned int channel = info->channel;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (snd_BUG_ON(channel >= hdspm->max_channels_out)) {
+		if (snd__ON(channel >= hdspm->max_channels_out)) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: output channel out of range (%d)\n",
 				 channel);
@@ -5711,7 +5711,7 @@ static int snd_hdspm_channel_info(struct snd_pcm_substream *substream,
 		info->offset = hdspm->channel_map_out[channel] *
 			HDSPM_CHANNEL_BUFFER_BYTES;
 	} else {
-		if (snd_BUG_ON(channel >= hdspm->max_channels_in)) {
+		if (snd__ON(channel >= hdspm->max_channels_in)) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: input channel out of range (%d)\n",
 				 channel);
@@ -5771,7 +5771,7 @@ static int snd_hdspm_trigger(struct snd_pcm_substream *substream, int cmd)
 		running &= ~(1 << substream->stream);
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		spin_unlock(&hdspm->lock);
 		return -EINVAL;
 	}

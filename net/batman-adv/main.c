@@ -19,7 +19,7 @@
 #include "main.h"
 
 #include <linux/atomic.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/byteorder/generic.h>
 #include <linux/crc32c.h>
 #include <linux/errno.h>
@@ -53,7 +53,7 @@
 #include "bat_iv_ogm.h"
 #include "bat_v.h"
 #include "bridge_loop_avoidance.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "gateway_common.h"
@@ -107,7 +107,7 @@ static int __init batadv_init(void)
 		goto err_create_wq;
 
 	batadv_socket_init();
-	batadv_debugfs_init();
+	batadv_defs_init();
 
 	register_netdevice_notifier(&batadv_hard_if_notifier);
 	rtnl_link_register(&batadv_link_ops);
@@ -126,7 +126,7 @@ err_create_wq:
 
 static void __exit batadv_exit(void)
 {
-	batadv_debugfs_destroy();
+	batadv_defs_destroy();
 	batadv_netlink_unregister();
 	rtnl_link_unregister(&batadv_link_ops);
 	unregister_netdevice_notifier(&batadv_hard_if_notifier);
@@ -298,11 +298,11 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 	return is_my_mac;
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
- * batadv_seq_print_text_primary_if_get() - called from debugfs table printing
+ * batadv_seq_print_text_primary_if_get() - called from defs table printing
  *  function that requires the primary interface
- * @seq: debugfs table seq_file struct
+ * @seq: defs table seq_file struct
  *
  * Return: primary interface if found or NULL otherwise.
  */
@@ -523,25 +523,25 @@ static void batadv_recv_handler_init(void)
 		batadv_rx_handler[i] = batadv_recv_unhandled_unicast_packet;
 
 	/* compile time checks for sizes */
-	BUILD_BUG_ON(sizeof(struct batadv_bla_claim_dst) != 6);
-	BUILD_BUG_ON(sizeof(struct batadv_ogm_packet) != 24);
-	BUILD_BUG_ON(sizeof(struct batadv_icmp_header) != 20);
-	BUILD_BUG_ON(sizeof(struct batadv_icmp_packet) != 20);
-	BUILD_BUG_ON(sizeof(struct batadv_icmp_packet_rr) != 116);
-	BUILD_BUG_ON(sizeof(struct batadv_unicast_packet) != 10);
-	BUILD_BUG_ON(sizeof(struct batadv_unicast_4addr_packet) != 18);
-	BUILD_BUG_ON(sizeof(struct batadv_frag_packet) != 20);
-	BUILD_BUG_ON(sizeof(struct batadv_bcast_packet) != 14);
-	BUILD_BUG_ON(sizeof(struct batadv_coded_packet) != 46);
-	BUILD_BUG_ON(sizeof(struct batadv_unicast_tvlv_packet) != 20);
-	BUILD_BUG_ON(sizeof(struct batadv_tvlv_hdr) != 4);
-	BUILD_BUG_ON(sizeof(struct batadv_tvlv_gateway_data) != 8);
-	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_vlan_data) != 8);
-	BUILD_BUG_ON(sizeof(struct batadv_tvlv_tt_change) != 12);
-	BUILD_BUG_ON(sizeof(struct batadv_tvlv_roam_adv) != 8);
+	BUILD__ON(sizeof(struct batadv_bla_claim_dst) != 6);
+	BUILD__ON(sizeof(struct batadv_ogm_packet) != 24);
+	BUILD__ON(sizeof(struct batadv_icmp_header) != 20);
+	BUILD__ON(sizeof(struct batadv_icmp_packet) != 20);
+	BUILD__ON(sizeof(struct batadv_icmp_packet_rr) != 116);
+	BUILD__ON(sizeof(struct batadv_unicast_packet) != 10);
+	BUILD__ON(sizeof(struct batadv_unicast_4addr_packet) != 18);
+	BUILD__ON(sizeof(struct batadv_frag_packet) != 20);
+	BUILD__ON(sizeof(struct batadv_bcast_packet) != 14);
+	BUILD__ON(sizeof(struct batadv_coded_packet) != 46);
+	BUILD__ON(sizeof(struct batadv_unicast_tvlv_packet) != 20);
+	BUILD__ON(sizeof(struct batadv_tvlv_hdr) != 4);
+	BUILD__ON(sizeof(struct batadv_tvlv_gateway_data) != 8);
+	BUILD__ON(sizeof(struct batadv_tvlv_tt_vlan_data) != 8);
+	BUILD__ON(sizeof(struct batadv_tvlv_tt_change) != 12);
+	BUILD__ON(sizeof(struct batadv_tvlv_roam_adv) != 8);
 
 	i = FIELD_SIZEOF(struct sk_buff, cb);
-	BUILD_BUG_ON(sizeof(struct batadv_skb_cb) > i);
+	BUILD__ON(sizeof(struct batadv_skb_cb) > i);
 
 	/* broadcast packet */
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;

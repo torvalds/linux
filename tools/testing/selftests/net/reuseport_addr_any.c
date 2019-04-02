@@ -219,7 +219,7 @@ static void run_one_test(int fam_send, int fam_rcv, int proto,
 {
 	/* Below we test that a socket listening on a specific address
 	 * is always selected in preference over a socket listening
-	 * on addr_any. Bugs where this is not the case often result
+	 * on addr_any. s where this is not the case often result
 	 * in sockets created first or last to get picked. So below
 	 * we make sure that there are always addr_any sockets created
 	 * before and after a specific socket is created.

@@ -334,7 +334,7 @@ enum {
 };
 
 /*
- *  RAM Debug Address Register (RAM_DBG_ADDR) bit definitions.
+ *  RAM De Address Register (RAM_DBG_ADDR) bit definitions.
  */
 enum {
 	RAM_DBG_ADDR_FW = (1 << 30),

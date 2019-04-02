@@ -8,14 +8,14 @@
  *	ChangeLog:
  *		....	Most of the time spent on reading sources & docs.
  *		v0.2.x	First official release for the Linux kernel.
- *		v0.3.0	Beutified and structured, some bugs fixed.
- *		v0.3.x	URBifying bulk requests and bugfixing. First relatively
+ *		v0.3.0	Beutified and structured, some s fixed.
+ *		v0.3.x	URBifying bulk requests and fixing. First relatively
  *			stable release. Still can touch device's registers only
  *			from top-halves.
  *		v0.4.0	Control messages remained unurbified are now URBs.
  *			Now we can touch the HW at any time.
  *		v0.4.9	Control urbs again use process context to wait. Argh...
- *			Some long standing bugs (enable_net_traffic) fixed.
+ *			Some long standing s (enable_net_traffic) fixed.
  *			Also nasty trick about resubmiting control urb from
  *			interrupt context used. Please let me know how it
  *			behaves. Pegasus II support added since this version.

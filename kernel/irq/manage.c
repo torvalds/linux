@@ -742,7 +742,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 		 * IRQF_TRIGGER_* but the PIC does not support multiple
 		 * flow-types?
 		 */
-		pr_debug("No set_type function for IRQ %d (%s)\n",
+		pr_de("No set_type function for IRQ %d (%s)\n",
 			 irq_desc_get_irq(desc),
 			 chip ? (chip->name ? : "unknown") : "unknown");
 		return 0;
@@ -1589,7 +1589,7 @@ mismatch:
 	if (!(new->flags & IRQF_PROBE_SHARED)) {
 		pr_err("Flags mismatch irq %d. %08x (%s) vs. %08x (%s)\n",
 		       irq, new->flags, new->name, old->flags, old->name);
-#ifdef CONFIG_DEBUG_SHIRQ
+#ifdef CONFIG_DE_SHIRQ
 		dump_stack();
 #endif
 	}
@@ -1728,7 +1728,7 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 	/* Make sure it's not being used on another CPU: */
 	synchronize_hardirq(irq);
 
-#ifdef CONFIG_DEBUG_SHIRQ
+#ifdef CONFIG_DE_SHIRQ
 	/*
 	 * It's a shared IRQ -- the driver ought to be prepared for an IRQ
 	 * event to happen even now it's being freed, so let's make sure that
@@ -1994,7 +1994,7 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		kfree(action);
 	}
 
-#ifdef CONFIG_DEBUG_SHIRQ_FIXME
+#ifdef CONFIG_DE_SHIRQ_FIXME
 	if (!retval && (irqflags & IRQF_SHARED)) {
 		/*
 		 * It's a shared IRQ -- the driver ought to be prepared for it

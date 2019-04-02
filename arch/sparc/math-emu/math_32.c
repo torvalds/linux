@@ -167,7 +167,7 @@ int do_mathemu(struct pt_regs *regs, struct task_struct *fpt)
 
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 
-#ifdef DEBUG_MATHEMU
+#ifdef DE_MATHEMU
 	printk("In do_mathemu()... pc is %08lx\n", regs->pc);
 	printk("fpqdepth is %ld\n", fpt->thread.fpqdepth);
 	for (i = 0; i < fpt->thread.fpqdepth; i++)
@@ -176,7 +176,7 @@ int do_mathemu(struct pt_regs *regs, struct task_struct *fpt)
 #endif
 
 	if (fpt->thread.fpqdepth == 0) {                   /* no queue, guilty insn is at regs->pc */
-#ifdef DEBUG_MATHEMU
+#ifdef DE_MATHEMU
 		printk("precise trap at %08lx\n", regs->pc);
 #endif
 		if (!get_user(insn, (u32 __user *) regs->pc)) {
@@ -289,7 +289,7 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 	int IR;
 	long fsr;
 
-#ifdef DEBUG_MATHEMU
+#ifdef DE_MATHEMU
 	printk("In do_mathemu(), emulating %08lx\n", insn);
 #endif
 
@@ -340,7 +340,7 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 	}
 
 	if (!type) {	/* oops, didn't recognise that FPop */
-#ifdef DEBUG_MATHEMU
+#ifdef DE_MATHEMU
 		printk("attempt to emulate unrecognised FPop!\n");
 #endif
 		return 0;
@@ -419,7 +419,7 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 		rd = (void *)&fregs[freg];
 		break;
 	}
-#ifdef DEBUG_MATHEMU
+#ifdef DE_MATHEMU
 	printk("executing insn...\n");
 #endif
 	/* do the Right Thing */

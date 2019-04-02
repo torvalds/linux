@@ -7,7 +7,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-        Please submit bugs to http://bugzilla.kernel.org/ .
+        Please submit s to http://zilla.kernel.org/ .
 */
 
 #include <linux/pci.h>
@@ -122,12 +122,12 @@ int tulip_poll(struct napi_struct *napi, int budget)
 #ifdef CONFIG_TULIP_NAPI_HW_MITIGATION
 
 /* that one buffer is needed for mit activation; or might be a
-   bug in the ring buffer code; check later -- JHS*/
+    in the ring buffer code; check later -- JHS*/
 
         if (budget >=RX_RING_SIZE) budget--;
 #endif
 
-	if (tulip_debug > 4)
+	if (tulip_de > 4)
 		netdev_dbg(dev, " In tulip_rx(), entry %d %08x\n",
 			   entry, tp->rx_ring[entry].status);
 
@@ -148,7 +148,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
                        if (tp->dirty_rx + RX_RING_SIZE == tp->cur_rx)
                                break;
 
-		       if (tulip_debug > 5)
+		       if (tulip_de > 5)
 				netdev_dbg(dev, "In tulip_rx(), entry %d %08x\n",
 					   entry, status);
 
@@ -179,7 +179,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
 					      RxWholePkt)) != RxWholePkt) {
                                 /* Ingore earlier buffers. */
                                        if ((status & 0xffff) != 0x7fff) {
-                                               if (tulip_debug > 1)
+                                               if (tulip_de > 1)
                                                        dev_warn(&dev->dev,
 								"Oversized Ethernet frame spanned multiple buffers, status %08x!\n",
 								status);
@@ -187,7 +187,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
 					}
 			       } else {
                                 /* There was a fatal error. */
-				       if (tulip_debug > 2)
+				       if (tulip_de > 2)
 						netdev_dbg(dev, "Receive error, Rx status %08x\n",
 							   status);
 					dev->stats.rx_errors++; /* end of a packet.*/
@@ -350,7 +350,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
          /* Start timer, stop polling, but do not enable rx interrupts. */
          mod_timer(&tp->oom_timer, jiffies+1);
 
-         /* Think: timer_pending() was an explicit signature of bug.
+         /* Think: timer_pending() was an explicit signature of .
           * Timer can be pending now but fired and completed
           * before we did napi_complete(). See? We would lose it. */
 
@@ -369,7 +369,7 @@ static int tulip_rx(struct net_device *dev)
 	int rx_work_limit = tp->dirty_rx + RX_RING_SIZE - tp->cur_rx;
 	int received = 0;
 
-	if (tulip_debug > 4)
+	if (tulip_de > 4)
 		netdev_dbg(dev, "In tulip_rx(), entry %d %08x\n",
 			   entry, tp->rx_ring[entry].status);
 	/* If we own the next entry, it is a new packet. Send it up. */
@@ -377,7 +377,7 @@ static int tulip_rx(struct net_device *dev)
 		s32 status = le32_to_cpu(tp->rx_ring[entry].status);
 		short pkt_len;
 
-		if (tulip_debug > 5)
+		if (tulip_de > 5)
 			netdev_dbg(dev, "In tulip_rx(), entry %d %08x\n",
 				   entry, status);
 		if (--rx_work_limit < 0)
@@ -406,7 +406,7 @@ static int tulip_rx(struct net_device *dev)
 			     RxWholePkt))         != RxWholePkt) {
 				/* Ingore earlier buffers. */
 				if ((status & 0xffff) != 0x7fff) {
-					if (tulip_debug > 1)
+					if (tulip_de > 1)
 						netdev_warn(dev,
 							    "Oversized Ethernet frame spanned multiple buffers, status %08x!\n",
 							    status);
@@ -414,7 +414,7 @@ static int tulip_rx(struct net_device *dev)
 				}
 			} else {
 				/* There was a fatal error. */
-				if (tulip_debug > 2)
+				if (tulip_de > 2)
 					netdev_dbg(dev, "Receive error, Rx status %08x\n",
 						   status);
 				dev->stats.rx_errors++; /* end of a packet.*/
@@ -575,7 +575,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 
 #endif /*  CONFIG_TULIP_NAPI */
 
-		if (tulip_debug > 4)
+		if (tulip_de > 4)
 			netdev_dbg(dev, "interrupt  csr5=%#8.8x new csr5=%#8.8x\n",
 				   csr5, ioread32(ioaddr + CSR5));
 
@@ -607,7 +607,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				if (status & 0x8000) {
 					/* There was an major error, log it. */
 #ifndef final_version
-					if (tulip_debug > 1)
+					if (tulip_de > 1)
 						netdev_dbg(dev, "Transmit error, Tx status %08x\n",
 							   status);
 #endif
@@ -654,7 +654,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 
 			tp->dirty_tx = dirty_tx;
 			if (csr5 & TxDied) {
-				if (tulip_debug > 2)
+				if (tulip_de > 2)
 					dev_warn(&dev->dev,
 						 "The transmitter stopped.  CSR5 is %x, CSR6 %x, new CSR6 %x\n",
 						 csr5, ioread32(ioaddr + CSR6),
@@ -720,7 +720,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 		}
 		if (csr5 & TimerInt) {
 
-			if (tulip_debug > 2)
+			if (tulip_de > 2)
 				dev_err(&dev->dev,
 					"Re-enabling interrupts, %08x\n",
 					csr5);
@@ -729,7 +729,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 			oi++;
 		}
 		if (tx > maxtx || rx > maxrx || oi > maxoi) {
-			if (tulip_debug > 1)
+			if (tulip_de > 1)
 				dev_warn(&dev->dev, "Too much work during an interrupt, csr5=0x%08x. (%lu) (%d,%d,%d)\n",
 					 csr5, tp->nir, tx, rx, oi);
 
@@ -779,7 +779,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 	/* check if the card is in suspend mode */
 	entry = tp->dirty_rx % RX_RING_SIZE;
 	if (tp->rx_buffers[entry].skb == NULL) {
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_warn(&dev->dev,
 				 "in rx suspend mode: (%lu) (tp->cur_rx = %u, ttimer = %d, rx = %d) go/stay in suspend mode\n",
 				 tp->nir, tp->cur_rx, tp->ttimer, rx);
@@ -788,7 +788,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 			mod_timer(&tp->timer, RUN_AT(HZ/50));
 		} else {
 			if (tp->ttimer == 0 || (ioread32(ioaddr + CSR11) & 0xffff) == 0) {
-				if (tulip_debug > 1)
+				if (tulip_de > 1)
 					dev_warn(&dev->dev,
 						 "in rx suspend mode: (%lu) set timer\n",
 						 tp->nir);
@@ -806,7 +806,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 		dev->stats.rx_dropped += missed & 0x10000 ? 0x10000 : missed;
 	}
 
-	if (tulip_debug > 4)
+	if (tulip_de > 4)
 		netdev_dbg(dev, "exiting interrupt, csr5=%#04x\n",
 			   ioread32(ioaddr + CSR5));
 

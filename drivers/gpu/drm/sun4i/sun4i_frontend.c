@@ -201,7 +201,7 @@ void sun4i_frontend_update_buffer(struct sun4i_frontend *frontend,
 	}
 
 	/* Set the line width */
-	DRM_DEBUG_DRIVER("Frontend stride: %d bytes\n", fb->pitches[0]);
+	DRM_DE_DRIVER("Frontend stride: %d bytes\n", fb->pitches[0]);
 	regmap_write(frontend->regs, SUN4I_FRONTEND_LINESTRD0_REG,
 		     strides[0]);
 
@@ -219,13 +219,13 @@ void sun4i_frontend_update_buffer(struct sun4i_frontend *frontend,
 	/* Set the physical address of the buffer in memory */
 	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
 	paddr -= PHYS_OFFSET;
-	DRM_DEBUG_DRIVER("Setting buffer #0 address to %pad\n", &paddr);
+	DRM_DE_DRIVER("Setting buffer #0 address to %pad\n", &paddr);
 	regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR0_REG, paddr);
 
 	if (fb->format->num_planes > 1) {
 		paddr = drm_fb_cma_get_gem_addr(fb, state, swap ? 2 : 1);
 		paddr -= PHYS_OFFSET;
-		DRM_DEBUG_DRIVER("Setting buffer #1 address to %pad\n", &paddr);
+		DRM_DE_DRIVER("Setting buffer #1 address to %pad\n", &paddr);
 		regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR1_REG,
 			     paddr);
 	}
@@ -233,7 +233,7 @@ void sun4i_frontend_update_buffer(struct sun4i_frontend *frontend,
 	if (fb->format->num_planes > 2) {
 		paddr = drm_fb_cma_get_gem_addr(fb, state, swap ? 1 : 2);
 		paddr -= PHYS_OFFSET;
-		DRM_DEBUG_DRIVER("Setting buffer #2 address to %pad\n", &paddr);
+		DRM_DE_DRIVER("Setting buffer #2 address to %pad\n", &paddr);
 		regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR2_REG,
 			     paddr);
 	}
@@ -411,26 +411,26 @@ int sun4i_frontend_update_formats(struct sun4i_frontend *frontend,
 
 	ret = sun4i_frontend_drm_format_to_input_fmt(format, &in_fmt_val);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Invalid input format\n");
+		DRM_DE_DRIVER("Invalid input format\n");
 		return ret;
 	}
 
 	ret = sun4i_frontend_drm_format_to_input_mode(format, modifier,
 						      &in_mod_val);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Invalid input mode\n");
+		DRM_DE_DRIVER("Invalid input mode\n");
 		return ret;
 	}
 
 	ret = sun4i_frontend_drm_format_to_input_sequence(format, &in_ps_val);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Invalid pixel sequence\n");
+		DRM_DE_DRIVER("Invalid pixel sequence\n");
 		return ret;
 	}
 
 	ret = sun4i_frontend_drm_format_to_output_fmt(out_fmt, &out_fmt_val);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Invalid output format\n");
+		DRM_DE_DRIVER("Invalid output format\n");
 		return ret;
 	}
 
@@ -496,7 +496,7 @@ void sun4i_frontend_update_coord(struct sun4i_frontend *frontend,
 	uint32_t chroma_width, chroma_height;
 
 	/* Set height and width */
-	DRM_DEBUG_DRIVER("Frontend size W: %u H: %u\n",
+	DRM_DE_DRIVER("Frontend size W: %u H: %u\n",
 			 state->crtc_w, state->crtc_h);
 
 	luma_width = state->src_w >> 16;

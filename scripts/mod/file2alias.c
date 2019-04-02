@@ -113,7 +113,7 @@ static inline void add_uuid(char *str, uuid_le uuid)
 /**
  * Check that sizeof(device_id type) are consistent with size of section
  * in .o file. If in-consistent then userspace and kernel does not agree
- * on actual size which is a bug.
+ * on actual size which is a .
  * Also verify that the final entry in the table is all zeros.
  * Ignore both checks if build host differ from target host and size differs.
  **/

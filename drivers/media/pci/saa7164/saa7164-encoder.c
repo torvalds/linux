@@ -137,7 +137,7 @@ static int saa7164_encoder_buffers_alloc(struct saa7164_port *port)
 		params->numpagetables = 2 +
 			((SAA7164_TS_NUMBER_OF_LINES * 188) / PAGE_SIZE);
 	} else
-		BUG();
+		();
 
 	/* Init and establish defaults */
 	params->bitspersample = 8;
@@ -393,7 +393,7 @@ int saa7164_s_frequency(struct saa7164_port *port,
 	else if (port->nr == SAA7164_PORT_ENC2)
 		tsport = &dev->ports[SAA7164_PORT_TS2];
 	else
-		BUG();
+		();
 
 	fe = tsport->dvb.frontend;
 
@@ -1017,7 +1017,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
-	BUG_ON(port->type != SAA7164_MPEG_ENCODER);
+	_ON(port->type != SAA7164_MPEG_ENCODER);
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
@@ -1127,7 +1127,7 @@ int saa7164_encoder_register(struct saa7164_port *port)
 	saa7164_api_set_audio_volume(port, 20);
 	saa7164_api_set_aspect_ratio(port);
 
-	/* Disable audio standard detection, it's buggy */
+	/* Disable audio standard detection, it's gy */
 	saa7164_api_set_audio_detection(port, 0);
 
 	saa7164_api_set_encoder(port);
@@ -1144,7 +1144,7 @@ void saa7164_encoder_unregister(struct saa7164_port *port)
 
 	dprintk(DBGLVL_ENC, "%s(port=%d)\n", __func__, port->nr);
 
-	BUG_ON(port->type != SAA7164_MPEG_ENCODER);
+	_ON(port->type != SAA7164_MPEG_ENCODER);
 
 	if (port->v4l_device) {
 		if (port->v4l_device->minor != -1)

@@ -19,7 +19,7 @@
 #include <linux/vmstat.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/sched.h>
 #include <linux/math64.h>
 #include <linux/writeback.h>
@@ -1273,7 +1273,7 @@ const char * const vmstat_text[] = {
 	"balloon_migrate",
 #endif
 #endif /* CONFIG_MEMORY_BALLOON */
-#ifdef CONFIG_DEBUG_TLBFLUSH
+#ifdef CONFIG_DE_TLBFLUSH
 #ifdef CONFIG_SMP
 	"nr_tlb_remote_flush",
 	"nr_tlb_remote_flush_received",
@@ -1283,9 +1283,9 @@ const char * const vmstat_text[] = {
 #endif /* CONFIG_SMP */
 	"nr_tlb_local_flush_all",
 	"nr_tlb_local_flush_one",
-#endif /* CONFIG_DEBUG_TLBFLUSH */
+#endif /* CONFIG_DE_TLBFLUSH */
 
-#ifdef CONFIG_DEBUG_VM_VMACACHE
+#ifdef CONFIG_DE_VM_VMACACHE
 	"vmacache_find_calls",
 	"vmacache_find_hits",
 #endif
@@ -1297,7 +1297,7 @@ const char * const vmstat_text[] = {
 };
 #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
 
-#if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)) || \
+#if (defined(CONFIG_DE_FS) && defined(CONFIG_COMPACTION)) || \
      defined(CONFIG_PROC_FS)
 static void *frag_start(struct seq_file *m, loff_t *pos)
 {
@@ -1665,7 +1665,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	stat_items_size += sizeof(struct vm_event_state);
 #endif
 
-	BUILD_BUG_ON(stat_items_size !=
+	BUILD__ON(stat_items_size !=
 		     ARRAY_SIZE(vmstat_text) * sizeof(unsigned long));
 	v = kmalloc(stat_items_size, GFP_KERNEL);
 	m->private = v;
@@ -1820,9 +1820,9 @@ static bool need_update(int cpu)
 	for_each_populated_zone(zone) {
 		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
 
-		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
+		BUILD__ON(sizeof(p->vm_stat_diff[0]) != 1);
 #ifdef CONFIG_NUMA
-		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 2);
+		BUILD__ON(sizeof(p->vm_numa_stat_diff[0]) != 2);
 #endif
 
 		/*
@@ -1980,7 +1980,7 @@ void __init init_mm_internals(void)
 #endif
 }
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
+#if defined(CONFIG_DE_FS) && defined(CONFIG_COMPACTION)
 
 /*
  * Return an index indicating how much of the available free memory is
@@ -2116,20 +2116,20 @@ static const struct file_operations extfrag_file_ops = {
 	.release	= seq_release,
 };
 
-static int __init extfrag_debug_init(void)
+static int __init extfrag_de_init(void)
 {
-	struct dentry *extfrag_debug_root;
+	struct dentry *extfrag_de_root;
 
-	extfrag_debug_root = debugfs_create_dir("extfrag", NULL);
+	extfrag_de_root = defs_create_dir("extfrag", NULL);
 
-	debugfs_create_file("unusable_index", 0444, extfrag_debug_root, NULL,
+	defs_create_file("unusable_index", 0444, extfrag_de_root, NULL,
 			    &unusable_file_ops);
 
-	debugfs_create_file("extfrag_index", 0444, extfrag_debug_root, NULL,
+	defs_create_file("extfrag_index", 0444, extfrag_de_root, NULL,
 			    &extfrag_file_ops);
 
 	return 0;
 }
 
-module_init(extfrag_debug_init);
+module_init(extfrag_de_init);
 #endif

@@ -21,7 +21,7 @@ do {				\
 
 #define pr_warning(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
-#define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
+#define pr_de(fmt, ...)	__pr(LIBBPF_DE, fmt, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 } /* extern "C" */

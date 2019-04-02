@@ -83,10 +83,10 @@ static void sun3x_prom_write(struct console *co, const char *s,
 	}
 }
 
-/* debug console - write-only */
+/* de console - write-only */
 
-static struct console sun3x_debug = {
-	.name	= "debug",
+static struct console sun3x_de = {
+	.name	= "de",
 	.write	= sun3x_prom_write,
 	.flags	= CON_PRINTBUFFER,
 	.index	= -1,
@@ -119,15 +119,15 @@ void __init sun3x_prom_init(void)
 	vectors[VEC_TRAP14] = sun3x_prom_abort;
 }
 
-static int __init sun3x_debug_setup(char *arg)
+static int __init sun3x_de_setup(char *arg)
 {
-	/* If debug=prom was specified, start the debug console */
+	/* If de=prom was specified, start the de console */
 	if (MACH_IS_SUN3X && !strcmp(arg, "prom"))
-		register_console(&sun3x_debug);
+		register_console(&sun3x_de);
 	return 0;
 }
 
-early_param("debug", sun3x_debug_setup);
+early_param("de", sun3x_de_setup);
 
 /* some prom functions to export */
 int prom_getintdefault(int node, char *property, int deflt)

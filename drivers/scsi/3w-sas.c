@@ -42,7 +42,7 @@
 
    LSI 3ware 9750 6Gb/s SAS/SATA-RAID
 
-   Bugs/Comments/Suggestions should be mailed to:
+   s/Comments/Suggestions should be mailed to:
    aradford@gmail.com
 
    History
@@ -209,7 +209,7 @@ static char *twl_aen_severity_lookup(unsigned char severity_code)
 	char *retval = NULL;
 
 	if ((severity_code < (unsigned char) TW_AEN_SEVERITY_ERROR) ||
-	    (severity_code > (unsigned char) TW_AEN_SEVERITY_DEBUG))
+	    (severity_code > (unsigned char) TW_AEN_SEVERITY_DE))
 		goto out;
 
 	retval = twl_aen_severity_table[severity_code];
@@ -253,7 +253,7 @@ static void twl_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 	header->err_specific_desc[sizeof(header->err_specific_desc) - 1] = '\0';
 	event->parameter_len = strlen(header->err_specific_desc);
 	memcpy(event->parameter_data, header->err_specific_desc, event->parameter_len + 1 + strlen(error_str));
-	if (event->severity != TW_AEN_SEVERITY_DEBUG)
+	if (event->severity != TW_AEN_SEVERITY_DE)
 		printk(KERN_WARNING "3w-sas:%s AEN: %s (0x%02X:0x%04X): %s:%s.\n",
 		       host,
 		       twl_aen_severity_lookup(TW_SEV_OUT(header->status_block.severity__reserved)),

@@ -40,7 +40,7 @@ brcmsmac-y := \
 	phy/phy_qmath.o \
 	dma.o \
 	brcms_trace_events.o \
-	debug.o
+	de.o
 
 brcmsmac-$(CONFIG_BCMA_DRIVER_GPIO) += led.o
 

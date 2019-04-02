@@ -335,7 +335,7 @@ void ef4_fast_push_rx_descriptors(struct ef4_rx_queue *rx_queue, bool atomic)
 
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EF4_BUG_ON_PARANOID(fill_level > rx_queue->efx->rxq_entries);
+	EF4__ON_PARANOID(fill_level > rx_queue->efx->rxq_entries);
 	if (fill_level >= rx_queue->fast_fill_trigger)
 		goto out;
 
@@ -347,7 +347,7 @@ void ef4_fast_push_rx_descriptors(struct ef4_rx_queue *rx_queue, bool atomic)
 
 	batch_size = efx->rx_pages_per_batch * efx->rx_bufs_per_page;
 	space = rx_queue->max_fill - fill_level;
-	EF4_BUG_ON_PARANOID(space < batch_size);
+	EF4__ON_PARANOID(space < batch_size);
 
 	netif_vdbg(rx_queue->efx, rx_status, rx_queue->efx->net_dev,
 		   "RX queue %d fast-filling descriptor ring from"
@@ -486,7 +486,7 @@ static struct sk_buff *ef4_rx_mk_skb(struct ef4_channel *channel,
 		return NULL;
 	}
 
-	EF4_BUG_ON_PARANOID(rx_buf->len < hdr_len);
+	EF4__ON_PARANOID(rx_buf->len < hdr_len);
 
 	memcpy(skb->data + efx->rx_ip_align, eh - efx->rx_prefix_size,
 	       efx->rx_prefix_size + hdr_len);
@@ -690,7 +690,7 @@ int ef4_probe_rx_queue(struct ef4_rx_queue *rx_queue)
 
 	/* Create the smallest power-of-two aligned ring */
 	entries = max(roundup_pow_of_two(efx->rxq_entries), EF4_MIN_DMAQ_SIZE);
-	EF4_BUG_ON_PARANOID(entries > EF4_MAX_DMAQ_SIZE);
+	EF4__ON_PARANOID(entries > EF4_MAX_DMAQ_SIZE);
 	rx_queue->ptr_mask = entries - 1;
 
 	netif_dbg(efx, probe, efx->net_dev,

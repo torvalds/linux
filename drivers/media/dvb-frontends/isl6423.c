@@ -36,8 +36,8 @@ MODULE_PARM_DESC(verbose, "Set Verbosity level");
 #define FE_ERROR				0
 #define FE_NOTICE				1
 #define FE_INFO					2
-#define FE_DEBUG				3
-#define FE_DEBUGREG				4
+#define FE_DE				3
+#define FE_DEREG				4
 
 #define dprintk(__y, __z, format, arg...) do {						\
 	if (__z) {									\
@@ -47,8 +47,8 @@ MODULE_PARM_DESC(verbose, "Set Verbosity level");
 			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
 		else if ((verbose > FE_INFO) && (verbose > __y))			\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
-		else if ((verbose > FE_DEBUG) && (verbose > __y))			\
-			printk(KERN_DEBUG "%s: " format "\n", __func__ , ##arg);	\
+		else if ((verbose > FE_DE) && (verbose > __y))			\
+			printk(KERN_DE "%s: " format "\n", __func__ , ##arg);	\
 	} else {									\
 		if (verbose > __y)							\
 			printk(format, ##arg);						\
@@ -73,7 +73,7 @@ static int isl6423_write(struct isl6423_dev *isl6423, u8 reg)
 
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = &reg, .len = 1 };
 
-	dprintk(FE_DEBUG, 1, "write reg %02X", reg);
+	dprintk(FE_DE, 1, "write reg %02X", reg);
 	err = i2c_transfer(i2c, &msg, 1);
 	if (err < 0)
 		goto exit;

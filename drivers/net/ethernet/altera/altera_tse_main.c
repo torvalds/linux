@@ -55,9 +55,9 @@
 
 static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
-static int debug = -1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+static int de = -1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Message Level (-1: default, 0: no output, 16: all)");
 
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
@@ -1377,7 +1377,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->device = &pdev->dev;
 	priv->dev = ndev;
-	priv->msg_enable = netif_msg_init(debug, default_msg_level);
+	priv->msg_enable = netif_msg_init(de, default_msg_level);
 
 	of_id = of_match_device(altera_tse_ids, &pdev->dev);
 
@@ -1510,7 +1510,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 				      "altr,has-hash-multicast-filter");
 
 	/* Set hash filter to not set for now until the
-	 * multicast filter receive issue is debugged
+	 * multicast filter receive issue is deged
 	 */
 	priv->hash_filter = 0;
 

@@ -105,7 +105,7 @@ void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
 		      (void *pkt, void *arg_a), void *arg_a);
 
 /*
- * DMA(Bug) on bcm47xx chips seems to declare that the packet is ready, but
+ * DMA() on bcm47xx chips seems to declare that the packet is ready, but
  * the packet length is not updated yet (by DMA) on the expected time.
  * Workaround is to hold processor till DMA updates the length, and stay off
  * the bus to allow DMA update the length in buffer

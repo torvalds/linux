@@ -55,7 +55,7 @@ static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 			return;
 		}
 	}
-	BUG();
+	();
 }
 
 void __init uv_setup(char **cmdline_p)
@@ -93,7 +93,7 @@ void __init uv_setup(char **cmdline_p)
 
 	m_val = m_n_config.s.m_skt;
 	n_val = m_n_config.s.n_skt;
-	printk(KERN_DEBUG "UV: global MMR base 0x%lx\n", mmr_base);
+	printk(KERN_DE "UV: global MMR base 0x%lx\n", mmr_base);
 
 	gnode_upper = (((unsigned long)node_id.s.node_id) &
 		       ~((1 << n_val) - 1)) << m_val;
@@ -110,7 +110,7 @@ void __init uv_setup(char **cmdline_p)
 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
 		uv_cpu_hub_info(cpu)->coherency_domain_number = 0;/* ZZZ */
-		printk(KERN_DEBUG "UV cpu %d, nid %d\n", cpu, nid);
+		printk(KERN_DE "UV cpu %d, nid %d\n", cpu, nid);
 	}
 }
 

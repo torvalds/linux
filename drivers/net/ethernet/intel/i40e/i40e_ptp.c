@@ -768,7 +768,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		struct timespec64 ts;
 		u32 regval;
 
-		if (pf->hw.debug_mask & I40E_DEBUG_LAN)
+		if (pf->hw.de_mask & I40E_DE_LAN)
 			dev_info(&pf->pdev->dev, "PHC enabled\n");
 		pf->flags |= I40E_FLAG_PTP;
 

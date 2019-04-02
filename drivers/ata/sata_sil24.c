@@ -802,7 +802,7 @@ static int sil24_qc_defer(struct ata_queued_cmd *qc)
 	u8 prot = qc->tf.protocol;
 
 	/*
-	 * There is a bug in the chip:
+	 * There is a  in the chip:
 	 * Port LRAM Causes the PRB/SGT Data to be Corrupted
 	 * If the host issues a read request for LRAM and SActive registers
 	 * while active commands are available in the port, PRB/SGT data in
@@ -812,7 +812,7 @@ static int sil24_qc_defer(struct ata_queued_cmd *qc)
 	 * Therefore, reading LRAM when there is no particular error [and
 	 * other commands may be outstanding] is prohibited.
 	 *
-	 * To avoid this bug there are two situations where a command must run
+	 * To avoid this  there are two situations where a command must run
 	 * exclusive of any other commands on the port:
 	 *
 	 * - ATAPI commands which check the sense data

@@ -38,7 +38,7 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <net/calipso.h>
-#include <asm/bug.h>
+#include <asm/.h>
 #include <linux/atomic.h>
 
 #include "netlabel_domainhash.h"

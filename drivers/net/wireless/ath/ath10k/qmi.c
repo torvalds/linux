@@ -5,7 +5,7 @@
 
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -17,7 +17,7 @@
 #include <linux/string.h>
 #include <net/sock.h>
 
-#include "debug.h"
+#include "de.h"
 #include "snoc.h"
 
 #define ATH10K_QMI_CLIENT_ID		0x4b4e454c
@@ -353,8 +353,8 @@ ath10k_qmi_mode_send_sync_msg(struct ath10k *ar, enum wlfw_driver_mode_enum_v01 
 		goto out;
 
 	req.mode = mode;
-	req.hw_debug_valid = 1;
-	req.hw_debug = 0;
+	req.hw_de_valid = 1;
+	req.hw_de = 0;
 
 	ret = qmi_send_request(&qmi->qmi_hdl, NULL, &txn,
 			       QMI_WLFW_WLAN_MODE_REQ_V01,

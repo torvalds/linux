@@ -93,7 +93,7 @@ void omap_set_lcd_dma_b1_rotation(int rotate)
 {
 	if (cpu_is_omap15xx()) {
 		printk(KERN_ERR "DMA rotation is not supported in 1510 mode\n");
-		BUG();
+		();
 		return;
 	}
 	lcd_dma.rotate = rotate;
@@ -104,7 +104,7 @@ void omap_set_lcd_dma_b1_mirror(int mirror)
 {
 	if (cpu_is_omap15xx()) {
 		printk(KERN_ERR "DMA mirror is not supported in 1510 mode\n");
-		BUG();
+		();
 	}
 	lcd_dma.mirror = mirror;
 }
@@ -114,7 +114,7 @@ void omap_set_lcd_dma_b1_vxres(unsigned long vxres)
 {
 	if (cpu_is_omap15xx()) {
 		pr_err("DMA virtual resolution is not supported in 1510 mode\n");
-		BUG();
+		();
 	}
 	lcd_dma.vxres = vxres;
 }
@@ -124,7 +124,7 @@ void omap_set_lcd_dma_b1_scale(unsigned int xscale, unsigned int yscale)
 {
 	if (cpu_is_omap15xx()) {
 		printk(KERN_ERR "DMA scale is not supported in 1510 mode\n");
-		BUG();
+		();
 	}
 	lcd_dma.xscale = xscale;
 	lcd_dma.yscale = yscale;
@@ -152,14 +152,14 @@ static void set_b1_regs(void)
 		es = 4;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
 	vxres = lcd_dma.vxres ? lcd_dma.vxres : lcd_dma.xres;
 	xscale = lcd_dma.xscale ? lcd_dma.xscale : 1;
 	yscale = lcd_dma.yscale ? lcd_dma.yscale : 1;
-	BUG_ON(vxres < lcd_dma.xres);
+	_ON(vxres < lcd_dma.xres);
 
 #define PIXADDR(x, y) (lcd_dma.addr +					\
 		((y) * vxres * yscale + (x) * xscale) * es)
@@ -232,7 +232,7 @@ static void set_b1_regs(void)
 		fn = lcd_dma.xres;
 		break;
 	default:
-		BUG();
+		();
 		return;	/* Suppress warning about uninitialized vars */
 	}
 
@@ -308,7 +308,7 @@ int omap_request_lcd_dma(void (*callback)(u16 status, void *data),
 	if (lcd_dma.reserved) {
 		spin_unlock_irq(&lcd_dma.lock);
 		printk(KERN_ERR "LCD DMA channel already reserved\n");
-		BUG();
+		();
 		return -EBUSY;
 	}
 	lcd_dma.reserved = 1;
@@ -335,7 +335,7 @@ void omap_free_lcd_dma(void)
 	if (!lcd_dma.reserved) {
 		spin_unlock(&lcd_dma.lock);
 		printk(KERN_ERR "LCD DMA is not reserved\n");
-		BUG();
+		();
 		return;
 	}
 	if (!cpu_is_omap15xx())
@@ -372,7 +372,7 @@ EXPORT_SYMBOL(omap_enable_lcd_dma);
 
 void omap_setup_lcd_dma(void)
 {
-	BUG_ON(lcd_dma.active);
+	_ON(lcd_dma.active);
 	if (!cpu_is_omap15xx()) {
 		/* Set some reasonable defaults */
 		omap_writew(0x5440, OMAP1610_DMA_LCD_CCR);

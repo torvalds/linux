@@ -232,8 +232,8 @@ static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
 	} u = { .lock = __ARCH_SPIN_LOCK_UNLOCKED };
 
 	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED not 0");
-	BUILD_BUG_ON(sizeof(*l) != sizeof(__u32));
-	BUILD_BUG_ON(sizeof(*lock) != sizeof(__u32));
+	BUILD__ON(sizeof(*l) != sizeof(__u32));
+	BUILD__ON(sizeof(*lock) != sizeof(__u32));
 	arch_spin_lock(l);
 }
 
@@ -250,7 +250,7 @@ static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
 {
 	atomic_t *l = (void *)lock;
 
-	BUILD_BUG_ON(sizeof(*l) != sizeof(*lock));
+	BUILD__ON(sizeof(*l) != sizeof(*lock));
 	do {
 		atomic_cond_read_relaxed(l, !VAL);
 	} while (atomic_xchg(l, 1));

@@ -102,7 +102,7 @@
 		};
 
 		syscon {
-			/* Debug registers mapped as syscon */
+			/* De registers mapped as syscon */
 			compatible = "syscon", "simple-mfd";
 			reg = <0x1a000000 0x10>;
 

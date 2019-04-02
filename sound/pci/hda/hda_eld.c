@@ -147,9 +147,9 @@ static unsigned int hdmi_get_eld_data(struct hda_codec *codec, hda_nid_t nid,
 
 #define GRAB_BITS(buf, byte, lowbit, bits) 		\
 ({							\
-	BUILD_BUG_ON(lowbit > 7);			\
-	BUILD_BUG_ON(bits > 8);				\
-	BUILD_BUG_ON(bits <= 0);			\
+	BUILD__ON(lowbit > 7);			\
+	BUILD__ON(bits > 8);				\
+	BUILD__ON(bits <= 0);			\
 							\
 	(buf[byte] >> (lowbit)) & ((1 << (bits)) - 1);	\
 })

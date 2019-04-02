@@ -2004,7 +2004,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * ever clear.  This assumes the UART isn't doing flow
 	 * control, which is currently the case.  Hence, if it ever
 	 * takes longer than info->timeout, this is probably due to a
-	 * UART bug of some kind.  So, we clamp the timeout parameter at
+	 * UART  of some kind.  So, we clamp the timeout parameter at
 	 * 2*info->timeout.
 	 */
 	if (!timeout || timeout > 2 * info->timeout)

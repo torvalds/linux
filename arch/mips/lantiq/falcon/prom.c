@@ -47,9 +47,9 @@ void __init ltq_soc_nmi_setup(void)
 
 void __init ltq_soc_ejtag_setup(void)
 {
-	extern void (*ejtag_debug_handler)(void);
+	extern void (*ejtag_de_handler)(void);
 
-	ltq_w32((unsigned long)&ejtag_debug_handler, (void *)BOOT_EVEC);
+	ltq_w32((unsigned long)&ejtag_de_handler, (void *)BOOT_EVEC);
 }
 
 void __init ltq_soc_detect(struct ltq_soc_info *i)

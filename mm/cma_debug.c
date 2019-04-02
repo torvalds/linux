@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * CMA DebugFS Interface
+ * CMA DeFS Interface
  *
  * Copyright (c) 2015 Sasha Levin <sasha.levin@oracle.com>
  */
 
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/cma.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
@@ -21,7 +21,7 @@ struct cma_mem {
 	unsigned long n;
 };
 
-static int cma_debugfs_get(void *data, u64 *val)
+static int cma_defs_get(void *data, u64 *val)
 {
 	unsigned long *p = data;
 
@@ -29,7 +29,7 @@ static int cma_debugfs_get(void *data, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(cma_defs_fops, cma_defs_get, NULL, "%llu\n");
 
 static int cma_used_get(void *data, u64 *val)
 {
@@ -109,7 +109,7 @@ static int cma_free_mem(struct cma *cma, int count)
 			count = 0;
 			cma_add_to_cma_mem_list(cma, mem);
 		} else {
-			pr_debug("cma: cannot release partial block when order_per_bit != 0\n");
+			pr_de("cma: cannot release partial block when order_per_bit != 0\n");
 			cma_add_to_cma_mem_list(cma, mem);
 			break;
 		}
@@ -160,7 +160,7 @@ static int cma_alloc_write(void *data, u64 val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
 
-static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
+static void cma_defs_add_one(struct cma *cma, struct dentry *root_dentry)
 {
 	struct dentry *tmp;
 	char name[16];
@@ -168,32 +168,32 @@ static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 
 	scnprintf(name, sizeof(name), "cma-%s", cma->name);
 
-	tmp = debugfs_create_dir(name, root_dentry);
+	tmp = defs_create_dir(name, root_dentry);
 
-	debugfs_create_file("alloc", 0200, tmp, cma, &cma_alloc_fops);
-	debugfs_create_file("free", 0200, tmp, cma, &cma_free_fops);
-	debugfs_create_file("base_pfn", 0444, tmp,
-			    &cma->base_pfn, &cma_debugfs_fops);
-	debugfs_create_file("count", 0444, tmp, &cma->count, &cma_debugfs_fops);
-	debugfs_create_file("order_per_bit", 0444, tmp,
-			    &cma->order_per_bit, &cma_debugfs_fops);
-	debugfs_create_file("used", 0444, tmp, cma, &cma_used_fops);
-	debugfs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
+	defs_create_file("alloc", 0200, tmp, cma, &cma_alloc_fops);
+	defs_create_file("free", 0200, tmp, cma, &cma_free_fops);
+	defs_create_file("base_pfn", 0444, tmp,
+			    &cma->base_pfn, &cma_defs_fops);
+	defs_create_file("count", 0444, tmp, &cma->count, &cma_defs_fops);
+	defs_create_file("order_per_bit", 0444, tmp,
+			    &cma->order_per_bit, &cma_defs_fops);
+	defs_create_file("used", 0444, tmp, cma, &cma_used_fops);
+	defs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
 
 	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
-	debugfs_create_u32_array("bitmap", 0444, tmp, (u32 *)cma->bitmap, u32s);
+	defs_create_u32_array("bitmap", 0444, tmp, (u32 *)cma->bitmap, u32s);
 }
 
-static int __init cma_debugfs_init(void)
+static int __init cma_defs_init(void)
 {
-	struct dentry *cma_debugfs_root;
+	struct dentry *cma_defs_root;
 	int i;
 
-	cma_debugfs_root = debugfs_create_dir("cma", NULL);
+	cma_defs_root = defs_create_dir("cma", NULL);
 
 	for (i = 0; i < cma_area_count; i++)
-		cma_debugfs_add_one(&cma_areas[i], cma_debugfs_root);
+		cma_defs_add_one(&cma_areas[i], cma_defs_root);
 
 	return 0;
 }
-late_initcall(cma_debugfs_init);
+late_initcall(cma_defs_init);

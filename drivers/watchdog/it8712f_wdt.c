@@ -35,7 +35,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 
-#define DEBUG
+#define DE
 #define NAME "it8712f_wdt"
 
 MODULE_AUTHOR("Jorge Boncompte - DTI2 <jorge@dti2.net>");
@@ -186,7 +186,7 @@ static int it8712f_wdt_enable(void)
 	if (ret)
 		return ret;
 
-	pr_debug("enabling watchdog timer\n");
+	pr_de("enabling watchdog timer\n");
 	superio_select(LDN_GPIO);
 
 	superio_outb(wdt_control_reg, WDT_CONTROL);
@@ -206,7 +206,7 @@ static int it8712f_wdt_disable(void)
 	if (ret)
 		return ret;
 
-	pr_debug("disabling watchdog timer\n");
+	pr_de("disabling watchdog timer\n");
 	superio_select(LDN_GPIO);
 
 	superio_outb(0, WDT_CONFIG);

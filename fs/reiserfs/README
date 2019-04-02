@@ -47,7 +47,7 @@ described at https://reiser4.wiki.kernel.org/index.php/Main_Page
 
 Stop reading here.  Go there, then return.
 
-Send bug reports to yura@namesys.botik.ru.
+Send  reports to yura@namesys.botik.ru.
 
 mkreiserfs and other utilities are in reiserfs/utils, or wherever your
 Linux provider put them.  There is some disagreement about how useful

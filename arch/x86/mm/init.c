@@ -118,7 +118,7 @@ __ref void *alloc_low_pages(unsigned int num)
 	} else {
 		pfn = pgt_buf_end;
 		pgt_buf_end += num;
-		printk(KERN_DEBUG "BRK [%#010lx, %#010lx] PGTABLE\n",
+		printk(KERN_DE "BRK [%#010lx, %#010lx] PGTABLE\n",
 			pfn << PAGE_SHIFT, (pgt_buf_end << PAGE_SHIFT) - 1);
 	}
 
@@ -172,11 +172,11 @@ static int page_size_mask;
 static void __init probe_page_size_mask(void)
 {
 	/*
-	 * For pagealloc debugging, identity mapping will use small pages.
+	 * For pagealloc deging, identity mapping will use small pages.
 	 * This will simplify cpa(), which otherwise needs to support splitting
 	 * large pages into small in interrupt context, etc.
 	 */
-	if (boot_cpu_has(X86_FEATURE_PSE) && !debug_pagealloc_enabled())
+	if (boot_cpu_has(X86_FEATURE_PSE) && !de_pagealloc_enabled())
 		page_size_mask |= 1 << PG_LEVEL_2M;
 	else
 		direct_gbpages = 0;
@@ -423,7 +423,7 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	}
 
 	for (i = 0; i < nr_range; i++)
-		pr_debug(" [mem %#010lx-%#010lx] page %s\n",
+		pr_de(" [mem %#010lx-%#010lx] page %s\n",
 				mr[i].start, mr[i].end - 1,
 				page_size_string(&mr[i]));
 
@@ -470,7 +470,7 @@ unsigned long __ref init_memory_mapping(unsigned long start,
 	unsigned long ret = 0;
 	int nr_range, i;
 
-	pr_debug("init_memory_mapping: [mem %#010lx-%#010lx]\n",
+	pr_de("init_memory_mapping: [mem %#010lx-%#010lx]\n",
 	       start, end - 1);
 
 	memset(mr, 0, sizeof(mr));
@@ -759,12 +759,12 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 		return;
 
 	/*
-	 * If debugging page accesses then do not free this memory but
-	 * mark them not present - any buggy init-section access will
+	 * If deging page accesses then do not free this memory but
+	 * mark them not present - any gy init-section access will
 	 * create a kernel page fault:
 	 */
-	if (debug_pagealloc_enabled()) {
-		pr_info("debug: unmapping init [mem %#010lx-%#010lx]\n",
+	if (de_pagealloc_enabled()) {
+		pr_info("de: unmapping init [mem %#010lx-%#010lx]\n",
 			begin, end - 1);
 		set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
 	} else {
@@ -918,7 +918,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_tlbstate);
 void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache)
 {
 	/* entry 0 MUST be WB (hardwired to speed up translations) */
-	BUG_ON(!entry && cache != _PAGE_CACHE_MODE_WB);
+	_ON(!entry && cache != _PAGE_CACHE_MODE_WB);
 
 	__cachemode2pte_tbl[cache] = __cm_idx2pte(entry);
 	__pte2cachemode_tbl[entry] = cache;
@@ -931,7 +931,7 @@ unsigned long max_swapfile_size(void)
 
 	pages = generic_max_swapfile_size();
 
-	if (boot_cpu_has_bug(X86_BUG_L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
+	if (boot_cpu_has_(X86__L1TF) && l1tf_mitigation != L1TF_MITIGATION_OFF) {
 		/* Limit the swap file size to MAX_PA/2 for L1TF workaround */
 		unsigned long long l1tf_limit = l1tf_pfn_limit();
 		/*

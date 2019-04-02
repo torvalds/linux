@@ -26,7 +26,7 @@
  *
  * Version History:
  * V1.0 Ryan Drake	   Initial version by Ryan Drake
- * V1.1 Gerard v.d. Horst  Added some debugoutput, reset the video-standard
+ * V1.1 Gerard v.d. Horst  Added some deoutput, reset the video-standard
  */
 
 #include <linux/init.h>
@@ -204,10 +204,10 @@ static inline struct ks0127 *to_ks0127(struct v4l2_subdev *sd)
 }
 
 
-static int debug; /* insmod parameter */
+static int de; /* insmod parameter */
 
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug output");
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De output");
 
 static u8 reg_defaults[64];
 
@@ -293,7 +293,7 @@ static void init_reg_defaults(void)
 }
 
 
-/* We need to manually read because of a bug in the KS0127 chip.
+/* We need to manually read because of a  in the KS0127 chip.
  *
  * An explanation from kayork@mail.utexas.edu:
  *
@@ -329,7 +329,7 @@ static u8 ks0127_read(struct v4l2_subdev *sd, u8 reg)
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret != ARRAY_SIZE(msgs))
-		v4l2_dbg(1, debug, sd, "read error\n");
+		v4l2_dbg(1, de, sd, "read error\n");
 
 	return val;
 }
@@ -342,7 +342,7 @@ static void ks0127_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	char msg[] = { reg, val };
 
 	if (i2c_master_send(client, msg, sizeof(msg)) != sizeof(msg))
-		v4l2_dbg(1, debug, sd, "write error\n");
+		v4l2_dbg(1, de, sd, "write error\n");
 
 	ks->regs[reg] = val;
 }
@@ -368,7 +368,7 @@ static void ks0127_init(struct v4l2_subdev *sd)
 	u8 *table = reg_defaults;
 	int i;
 
-	v4l2_dbg(1, debug, sd, "reset\n");
+	v4l2_dbg(1, de, sd, "reset\n");
 	msleep(1);
 
 	/* initialize all registers to known values */
@@ -388,21 +388,21 @@ static void ks0127_init(struct v4l2_subdev *sd)
 
 
 	if ((ks0127_read(sd, KS_STAT) & 0x80) == 0) {
-		v4l2_dbg(1, debug, sd, "ks0122s found\n");
+		v4l2_dbg(1, de, sd, "ks0122s found\n");
 		return;
 	}
 
 	switch (ks0127_read(sd, KS_CMDE) & 0x0f) {
 	case 0:
-		v4l2_dbg(1, debug, sd, "ks0127 found\n");
+		v4l2_dbg(1, de, sd, "ks0127 found\n");
 		break;
 
 	case 9:
-		v4l2_dbg(1, debug, sd, "ks0127B Revision A found\n");
+		v4l2_dbg(1, de, sd, "ks0127B Revision A found\n");
 		break;
 
 	default:
-		v4l2_dbg(1, debug, sd, "unknown revision\n");
+		v4l2_dbg(1, de, sd, "unknown revision\n");
 		break;
 	}
 }
@@ -419,7 +419,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 	case KS_INPUT_COMPOSITE_4:
 	case KS_INPUT_COMPOSITE_5:
 	case KS_INPUT_COMPOSITE_6:
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_routing %d: Composite\n", input);
 		/* autodetect 50/60 Hz */
 		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
@@ -453,7 +453,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 	case KS_INPUT_SVIDEO_1:
 	case KS_INPUT_SVIDEO_2:
 	case KS_INPUT_SVIDEO_3:
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_routing %d: S-Video\n", input);
 		/* autodetect 50/60 Hz */
 		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
@@ -485,7 +485,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 		break;
 
 	case KS_INPUT_YUV656:
-		v4l2_dbg(1, debug, sd, "s_routing 15: YUV656\n");
+		v4l2_dbg(1, de, sd, "s_routing 15: YUV656\n");
 		if (ks->norm & V4L2_STD_525_60)
 			/* force 60 Hz */
 			ks0127_and_or(sd, KS_CMDA,   0xfc, 0x03);
@@ -529,7 +529,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd,
 		break;
 
 	default:
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_routing: Unknown input %d\n", input);
 		break;
 	}
@@ -549,23 +549,23 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	ks->norm = std;
 	if (std & V4L2_STD_NTSC) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_std: NTSC_M\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x20);
 	} else if (std & V4L2_STD_PAL_N) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_std: NTSC_N (fixme)\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x40);
 	} else if (std & V4L2_STD_PAL) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_std: PAL_N\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x20);
 	} else if (std & V4L2_STD_PAL_M) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_std: PAL_M (fixme)\n");
 		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x40);
 	} else if (std & V4L2_STD_SECAM) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"s_std: SECAM\n");
 
 		/* set to secam autodetection */
@@ -578,7 +578,7 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 			/* force to secam mode */
 			ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x0f);
 	} else {
-		v4l2_dbg(1, debug, sd, "s_std: Unknown norm %llx\n",
+		v4l2_dbg(1, de, sd, "s_std: Unknown norm %llx\n",
 			       (unsigned long long)std);
 	}
 	return 0;
@@ -586,7 +586,7 @@ static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 static int ks0127_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	v4l2_dbg(1, debug, sd, "s_stream(%d)\n", enable);
+	v4l2_dbg(1, de, sd, "s_stream(%d)\n", enable);
 	if (enable) {
 		/* All output pins on */
 		ks0127_and_or(sd, KS_OFMTA, 0xcf, 0x30);
@@ -632,13 +632,13 @@ static int ks0127_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd
 
 static int ks0127_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
-	v4l2_dbg(1, debug, sd, "querystd\n");
+	v4l2_dbg(1, de, sd, "querystd\n");
 	return ks0127_status(sd, NULL, std);
 }
 
 static int ks0127_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
-	v4l2_dbg(1, debug, sd, "g_input_status\n");
+	v4l2_dbg(1, de, sd, "g_input_status\n");
 	return ks0127_status(sd, status, NULL);
 }
 

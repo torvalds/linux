@@ -202,7 +202,7 @@ struct arch_shared_info {
  * for HVM and PVH guests, not all information in this structure is updated:
  *
  * - For HVM guests, the structures read include: fpu_ctxt (if
- * VGCT_I387_VALID is set), flags, user_regs, debugreg[*]
+ * VGCT_I387_VALID is set), flags, user_regs, dereg[*]
  *
  * - PVH guests are the same as HVM guests, but additionally use ctrlreg[3] to
  * set cr3. All other fields not used should be set to 0.
@@ -230,7 +230,7 @@ struct vcpu_guest_context {
     unsigned long kernel_ss, kernel_sp;     /* Virtual TSS (only SS1/SP1)   */
     /* NB. User pagetable on x86/64 is placed in ctrlreg[1]. */
     unsigned long ctrlreg[8];               /* CR0-CR7 (control registers)  */
-    unsigned long debugreg[8];              /* DB0-DB7 (debug registers)    */
+    unsigned long dereg[8];              /* DB0-DB7 (de registers)    */
 #ifdef __i386__
     unsigned long event_callback_cs;        /* CS:EIP of event callback     */
     unsigned long event_callback_eip;
@@ -290,7 +290,7 @@ struct xen_pmu_intel_ctxt {
 	uint64_t fixed_ctrl;
 	uint64_t ds_area;
 	uint64_t pebs_enable;
-	uint64_t debugctl;
+	uint64_t dectl;
 
 	/* Fixed and architectural counter MSRs */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L

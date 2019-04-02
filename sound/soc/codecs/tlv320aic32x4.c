@@ -91,12 +91,12 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 				AIC32x4_MICBIAS_MASK,
 				AIC32X4_MICBIAS_LDOIN |
 				AIC32X4_MICBIAS_2075V);
-		printk(KERN_DEBUG "%s: Mic Bias will be turned ON\n", __func__);
+		printk(KERN_DE "%s: Mic Bias will be turned ON\n", __func__);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_component_update_bits(component, AIC32X4_MICBIAS,
 				AIC32x4_MICBIAS_MASK, 0);
-		printk(KERN_DEBUG "%s: Mic Bias will be turned OFF\n",
+		printk(KERN_DE "%s: Mic Bias will be turned OFF\n",
 				__func__);
 		break;
 	}
@@ -1014,7 +1014,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	/*
 	 * Workaround: for an unknown reason, the ADC needs to be powered up
 	 * and down for the first capture to work properly. It seems related to
-	 * a HW BUG or some kind of behavior not documented in the datasheet.
+	 * a HW  or some kind of behavior not documented in the datasheet.
 	 */
 	tmp_reg = snd_soc_component_read32(component, AIC32X4_ADCSETUP);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg |

@@ -601,7 +601,7 @@ static int snd_opti93x_mixer(struct snd_wss *chip)
 	struct snd_ctl_elem_id id1, id2;
 	int err;
 
-	if (snd_BUG_ON(!chip || !chip->pcm))
+	if (snd__ON(!chip || !chip->pcm))
 		return -EINVAL;
 
 	card = chip->card;

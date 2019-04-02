@@ -1,34 +1,34 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _M68K_BUG_H
-#define _M68K_BUG_H
+#ifndef _M68K__H
+#define _M68K__H
 
 #ifdef CONFIG_MMU
-#ifdef CONFIG_BUG
-#ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifdef CONFIG_
+#ifdef CONFIG_DE_VERBOSE
 #ifndef CONFIG_SUN3
-#define BUG() do { \
-	pr_crit("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
+#define () do { \
+	pr_crit("kernel  at %s:%d!\n", __FILE__, __LINE__); \
 	barrier_before_unreachable(); \
 	__builtin_trap(); \
 } while (0)
 #else
-#define BUG() do { \
-	pr_crit("kernel BUG at %s:%d!\n", __FILE__, __LINE__); \
+#define () do { \
+	pr_crit("kernel  at %s:%d!\n", __FILE__, __LINE__); \
 	barrier_before_unreachable(); \
-	panic("BUG!"); \
+	panic("!"); \
 } while (0)
 #endif
 #else
-#define BUG() do { \
+#define () do { \
 	barrier_before_unreachable(); \
 	__builtin_trap(); \
 } while (0)
 #endif
 
-#define HAVE_ARCH_BUG
+#define HAVE_ARCH_
 #endif
 #endif /* CONFIG_MMU */
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
 #endif

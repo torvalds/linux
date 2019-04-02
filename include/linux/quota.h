@@ -111,7 +111,7 @@ static inline struct kqid make_kqid(struct user_namespace *from,
 		kqid.projid = make_kprojid(from, qid);
 		break;
 	default:
-		BUG();
+		();
 	}
 	return kqid;
 }
@@ -138,7 +138,7 @@ static inline struct kqid make_kqid_invalid(enum quota_type type)
 		kqid.projid = INVALID_PROJID;
 		break;
 	default:
-		BUG();
+		();
 	}
 	return kqid;
 }
@@ -500,7 +500,7 @@ static inline unsigned int dquot_generic_flag(unsigned int flags, int type)
 /* Bitmap of quota types where flag is set in flags */
 static __always_inline unsigned dquot_state_types(unsigned flags, unsigned flag)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(flag);
+	BUILD__ON_NOT_POWER_OF_2(flag);
 	return (flags / flag) & ((1 << MAXQUOTAS) - 1);
 }
 

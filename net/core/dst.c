@@ -236,7 +236,7 @@ u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 				kfree(old_p);
 		}
 	}
-	BUILD_BUG_ON(offsetof(struct dst_metrics, metrics) != 0);
+	BUILD__ON(offsetof(struct dst_metrics, metrics) != 0);
 	return (u32 *)p;
 }
 EXPORT_SYMBOL(dst_cow_metrics_generic);

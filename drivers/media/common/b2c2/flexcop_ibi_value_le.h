@@ -190,18 +190,18 @@ typedef union {
 		u32 Stream1_PID                    :13;
 		u32 Stream1_trans                  : 1;
 		u32 MAC_Multicast_filter           : 1;
-		u32 debug_flag_pid_saved           : 1;
+		u32 de_flag_pid_saved           : 1;
 		u32 Stream2_PID                    :13;
 		u32 Stream2_trans                  : 1;
-		u32 debug_flag_write_status00      : 1;
-		u32 debug_fifo_problem             : 1;
+		u32 de_flag_write_status00      : 1;
+		u32 de_fifo_problem             : 1;
 	} pid_filter_300;
 
 	struct {
 		u32 PCR_PID                        :13;
 		u32 PCR_trans                      : 1;
-		u32 debug_overrun3                 : 1;
-		u32 debug_overrun2                 : 1;
+		u32 de_overrun3                 : 1;
+		u32 de_overrun2                 : 1;
 		u32 PMT_PID                        :13;
 		u32 PMT_trans                      : 1;
 		u32 reserved                       : 2;

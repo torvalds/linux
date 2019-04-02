@@ -229,7 +229,7 @@ static int fill_from_part(struct orangefs_dir_part *part,
 			return 0;
 		i += padlen + sizeof *khandle;
 		i = i + (8 - i%8)%8;
-		BUG_ON(i > part->len);
+		_ON(i > part->len);
 		ctx->pos = (ctx->pos & PART_MASK) | i;
 		continue;
 next:

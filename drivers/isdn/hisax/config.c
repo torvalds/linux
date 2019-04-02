@@ -409,7 +409,7 @@ static int __init HiSax_setup(char *line)
 
 	str = get_options(line, MAX_ARG, ints);
 	argc = ints[0];
-	printk(KERN_DEBUG "HiSax_setup: argc(%d) str(%s)\n", argc, str);
+	printk(KERN_DE "HiSax_setup: argc(%d) str(%s)\n", argc, str);
 	i = 0;
 	j = 1;
 	while (argc && (i < HISAX_MAX_CARDS)) {
@@ -708,7 +708,7 @@ void VHiSax_putstatus(struct IsdnCardState *cs, char *head, const char *fmt,
 		memcpy(cs->status_write, data + i, len);
 		cs->status_write += len;
 	}
-#ifdef KERNELSTACK_DEBUG
+#ifdef KERNELSTACK_DE
 	i = (ulong) & len - current->kernel_stack_page;
 	sprintf(tmpbuf, "kstack %s %lx use %ld\n", current->comm,
 		current->kernel_stack_page, i);
@@ -1042,7 +1042,7 @@ static int hisax_cs_new(int cardnr, char *id, struct IsdnCard *card,
 	cs->chanlimit = 2;	/* maximum B-channel number */
 	cs->logecho = 0;	/* No echo logging */
 	cs->cardnr = cardnr;
-	cs->debug = L1_DEB_WARN;
+	cs->de = L1_DEB_WARN;
 	cs->HW_Flags = 0;
 	cs->busy_flag = busy_flag;
 	cs->irq_flags = I4L_IRQ_FLAG;
@@ -1291,26 +1291,26 @@ void HiSax_reportcard(int cardnr, int sel)
 {
 	struct IsdnCardState *cs = cards[cardnr].cs;
 
-	printk(KERN_DEBUG "HiSax: reportcard No %d\n", cardnr + 1);
-	printk(KERN_DEBUG "HiSax: Type %s\n", CardType[cs->typ]);
-	printk(KERN_DEBUG "HiSax: debuglevel %x\n", cs->debug);
-	printk(KERN_DEBUG "HiSax: HiSax_reportcard address 0x%lX\n",
+	printk(KERN_DE "HiSax: reportcard No %d\n", cardnr + 1);
+	printk(KERN_DE "HiSax: Type %s\n", CardType[cs->typ]);
+	printk(KERN_DE "HiSax: delevel %x\n", cs->de);
+	printk(KERN_DE "HiSax: HiSax_reportcard address 0x%lX\n",
 	       (ulong) & HiSax_reportcard);
-	printk(KERN_DEBUG "HiSax: cs 0x%lX\n", (ulong) cs);
-	printk(KERN_DEBUG "HiSax: HW_Flags %lx bc0 flg %lx bc1 flg %lx\n",
+	printk(KERN_DE "HiSax: cs 0x%lX\n", (ulong) cs);
+	printk(KERN_DE "HiSax: HW_Flags %lx bc0 flg %lx bc1 flg %lx\n",
 	       cs->HW_Flags, cs->bcs[0].Flag, cs->bcs[1].Flag);
-	printk(KERN_DEBUG "HiSax: bcs 0 mode %d ch%d\n",
+	printk(KERN_DE "HiSax: bcs 0 mode %d ch%d\n",
 	       cs->bcs[0].mode, cs->bcs[0].channel);
-	printk(KERN_DEBUG "HiSax: bcs 1 mode %d ch%d\n",
+	printk(KERN_DE "HiSax: bcs 1 mode %d ch%d\n",
 	       cs->bcs[1].mode, cs->bcs[1].channel);
 #ifdef ERROR_STATISTIC
-	printk(KERN_DEBUG "HiSax: dc errors(rx,crc,tx) %d,%d,%d\n",
+	printk(KERN_DE "HiSax: dc errors(rx,crc,tx) %d,%d,%d\n",
 	       cs->err_rx, cs->err_crc, cs->err_tx);
-	printk(KERN_DEBUG
+	printk(KERN_DE
 	       "HiSax: bc0 errors(inv,rdo,crc,tx) %d,%d,%d,%d\n",
 	       cs->bcs[0].err_inv, cs->bcs[0].err_rdo, cs->bcs[0].err_crc,
 	       cs->bcs[0].err_tx);
-	printk(KERN_DEBUG
+	printk(KERN_DE
 	       "HiSax: bc1 errors(inv,rdo,crc,tx) %d,%d,%d,%d\n",
 	       cs->bcs[1].err_inv, cs->bcs[1].err_rdo, cs->bcs[1].err_crc,
 	       cs->bcs[1].err_tx);
@@ -1509,7 +1509,7 @@ static int __init HiSax_init(void)
 	for (i = 0; i < HISAX_MAX_CARDS; i++)
 		if (cards[i].typ > 0)
 			nrcards++;
-	printk(KERN_DEBUG "HiSax: Total %d card%s defined\n",
+	printk(KERN_DE "HiSax: Total %d card%s defined\n",
 	       nrcards, (nrcards > 1) ? "s" : "");
 
 	/* Install only, if at least one card found */
@@ -1788,9 +1788,9 @@ static void hisax_d_l2l1(struct PStack *st, int pr, void *arg)
 	switch (pr) {
 	case PH_DATA | REQUEST:
 	case PH_PULL | INDICATION:
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 0);
 		Logl2Frame(cs, skb, "PH_DATA_REQ", 0);
 		// FIXME lock?
@@ -1885,7 +1885,7 @@ static void EChannel_proc_rcv(struct hisax_d_if *d_if)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&d_if->erq)) != NULL) {
-		if (cs->debug & DEB_DLOG_HEX) {
+		if (cs->de & DEB_DLOG_HEX) {
 			ptr = cs->dlog;
 			if ((skb->len) < MAX_DLOG_SPACE / 3 - 10) {
 				*ptr++ = 'E';

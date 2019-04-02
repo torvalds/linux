@@ -12,7 +12,7 @@
         1.01    GRG 1998.05.06 init_proto, release_proto
 	1.02    GRG 1998.09.23 updates for the -E rev chip
 	1.03    GRG 1998.12.14 fix for slave drives
-	1.04    GRG 1998.12.20 yet another bug fix
+	1.04    GRG 1998.12.20 yet another  fix
 
 */
 

@@ -21,7 +21,7 @@
 #ifndef __TSI721_H
 #define __TSI721_H
 
-/* Debug output filtering masks */
+/* De output filtering masks */
 enum {
 	DBG_NONE	= 0,
 	DBG_INIT	= BIT(0), /* driver init */
@@ -39,17 +39,17 @@ enum {
 	DBG_ALL		= ~0,
 };
 
-#ifdef DEBUG
+#ifdef DE
 extern u32 tsi_dbg_level;
 
-#define tsi_debug(level, dev, fmt, arg...)				\
+#define tsi_de(level, dev, fmt, arg...)				\
 	do {								\
 		if (DBG_##level & tsi_dbg_level)				\
 			dev_dbg(dev, "%s: " fmt "\n", __func__, ##arg);	\
 	} while (0)
 #else
-#define tsi_debug(level, dev, fmt, arg...) \
-		no_printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##arg)
+#define tsi_de(level, dev, fmt, arg...) \
+		no_printk(KERN_DE "%s: " fmt "\n", __func__, ##arg)
 #endif
 
 #define tsi_info(dev, fmt, arg...) \

@@ -4561,7 +4561,7 @@ struct wcn36xx_hal_feat_caps_msg {
 	u32 feat_caps[WCN36XX_HAL_CAPS_SIZE];
 } __packed;
 
-/* status codes to help debug rekey failures */
+/* status codes to help de rekey failures */
 enum gtk_rekey_status {
 	WCN36XX_HAL_GTK_REKEY_STATUS_SUCCESS = 0,
 
@@ -4632,7 +4632,7 @@ enum wake_reason_type {
   WCN36XX_HAL_WAKE_REASON_TYPE_EAPOL4WAY_PACKET
   WCN36XX_HAL_WAKE_REASON_TYPE_GTK_REKEY_STATUS
 
-  The information is provided to the host for auditing and debug purposes
+  The information is provided to the host for auditing and de purposes
 
 */
 

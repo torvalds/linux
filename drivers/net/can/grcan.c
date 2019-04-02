@@ -245,7 +245,7 @@ struct grcan_device_config {
 		.rxsize		= GRCAN_DEFAULT_BUFFER_SIZE,	\
 		}
 
-#define GRCAN_TXBUG_SAFE_GRLIB_VERSION	0x4100
+#define GRCAN_TX_SAFE_GRLIB_VERSION	0x4100
 #define GRLIB_VERSION_MASK		0xffff
 
 /* GRCAN private data structure */
@@ -279,23 +279,23 @@ struct grcan_priv {
 	 * The tx queue must never be woken up if there is a running reset or
 	 * close in progress.
 	 *
-	 * A running reset (see below on need_txbug_workaround) should never be
+	 * A running reset (see below on need_tx_workaround) should never be
 	 * done if the interface is closing down and several running resets
 	 * should never be scheduled simultaneously.
 	 */
 	spinlock_t lock;
 
-	/* Whether a workaround is needed due to a bug in older hardware. In
-	 * this case, the driver both tries to prevent the bug from being
-	 * triggered and recovers, if the bug nevertheless happens, by doing a
+	/* Whether a workaround is needed due to a  in older hardware. In
+	 * this case, the driver both tries to prevent the  from being
+	 * triggered and recovers, if the  nevertheless happens, by doing a
 	 * running reset. A running reset, resets the device and continues from
 	 * where it were without being noticeable from outside the driver (apart
 	 * from slight delays).
 	 */
-	bool need_txbug_workaround;
+	bool need_tx_workaround;
 
 	/* To trigger initization of running reset and to trigger running reset
-	 * respectively in the case of a hanged device due to a txbug.
+	 * respectively in the case of a hanged device due to a tx.
 	 */
 	struct timer_list hang_timer;
 	struct timer_list rr_timer;
@@ -596,7 +596,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 			grcan_lost_one_shot_frame(dev);
 
 		/* Stop printing as soon as error passive or bus off is in
-		 * effect to limit the amount of txloss debug printouts.
+		 * effect to limit the amount of txloss de printouts.
 		 */
 		if (!(status & GRCAN_STAT_ERRCTR_RELATED)) {
 			netdev_dbg(dev, "tx message lost\n");
@@ -779,7 +779,7 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
 	/* If we got TX progress, the device has not hanged,
 	 * so disable the hang timer
 	 */
-	if (priv->need_txbug_workaround &&
+	if (priv->need_tx_workaround &&
 	    (sources & (GRCAN_IRQ_TX | GRCAN_IRQ_TXLOSS))) {
 		del_timer(&priv->hang_timer);
 	}
@@ -804,7 +804,7 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
 /* Reset device and restart operations from where they were.
  *
  * This assumes that RXCTRL & RXCTRL is properly disabled and that RX
- * is not ONGOING (TX might be stuck in ONGOING due to a harwrware bug
+ * is not ONGOING (TX might be stuck in ONGOING due to a harwrware 
  * for single shot)
  */
 static void grcan_running_reset(struct timer_list *t)
@@ -1116,7 +1116,7 @@ static int grcan_close(struct net_device *dev)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	priv->closing = true;
-	if (priv->need_txbug_workaround) {
+	if (priv->need_tx_workaround) {
 		del_timer_sync(&priv->hang_timer);
 		del_timer_sync(&priv->rr_timer);
 	}
@@ -1155,7 +1155,7 @@ static int grcan_transmit_catch_up(struct net_device *dev, int budget)
 		/* With napi we don't get TX interrupts for a while,
 		 * so prevent a running reset while catching up
 		 */
-		if (priv->need_txbug_workaround)
+		if (priv->need_tx_workaround)
 			del_timer(&priv->hang_timer);
 	}
 
@@ -1275,13 +1275,13 @@ static int grcan_poll(struct napi_struct *napi, int budget)
 	return rx_work_done + tx_work_done;
 }
 
-/* Work tx bug by waiting while for the risky situation to clear. If that fails,
+/* Work tx  by waiting while for the risky situation to clear. If that fails,
  * drop a frame in one-shot mode or indicate a busy device otherwise.
  *
  * Returns 0 on successful wait. Otherwise it sets *netdev_tx_status to the
  * value that should be returned by grcan_start_xmit when aborting the xmit.
  */
-static int grcan_txbug_workaround(struct net_device *dev, struct sk_buff *skb,
+static int grcan_tx_workaround(struct net_device *dev, struct sk_buff *skb,
 				  u32 txwr, u32 oneshotmode,
 				  netdev_tx_t *netdev_tx_status)
 {
@@ -1292,7 +1292,7 @@ static int grcan_txbug_workaround(struct net_device *dev, struct sk_buff *skb,
 	unsigned long flags;
 
 	/* Wait a while for ongoing to be cleared or read pointer to catch up to
-	 * write pointer. The latter is needed due to a bug in older versions of
+	 * write pointer. The latter is needed due to a  in older versions of
 	 * GRCAN in which ONGOING is not cleared properly one-shot mode when a
 	 * transmission fails.
 	 */
@@ -1429,23 +1429,23 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	if (oneshotmode && !(txctrl & GRCAN_TXCTRL_SINGLE))
 		netdev_err(dev, "one-shot mode spuriously disabled\n");
 
-	/* Bug workaround for old version of grcan where updating txwr
+	/*  workaround for old version of grcan where updating txwr
 	 * in the same clock cycle as the controller updates txrd to
 	 * the current txwr could hang the can controller
 	 */
-	if (priv->need_txbug_workaround) {
+	if (priv->need_tx_workaround) {
 		txrd = grcan_read_reg(&regs->txrd);
 		if (unlikely(grcan_ring_sub(txwr, txrd, dma->tx.size) == 1)) {
 			netdev_tx_t txstatus;
 
-			err = grcan_txbug_workaround(dev, skb, txwr,
+			err = grcan_tx_workaround(dev, skb, txwr,
 						     oneshotmode, &txstatus);
 			if (err)
 				return txstatus;
 		}
 	}
 
-	/* Prepare skb for echoing. This must be after the bug workaround above
+	/* Prepare skb for echoing. This must be after the  workaround above
 	 * as ownership of the skb is passed on by calling can_put_echo_skb.
 	 * Returning NETDEV_TX_BUSY or accessing skb or cf after a call to
 	 * can_put_echo_skb would be an error unless other measures are
@@ -1584,7 +1584,7 @@ static const struct net_device_ops grcan_netdev_ops = {
 
 static int grcan_setup_netdev(struct platform_device *ofdev,
 			      void __iomem *base,
-			      int irq, u32 ambafreq, bool txbug)
+			      int irq, u32 ambafreq, bool tx)
 {
 	struct net_device *dev;
 	struct grcan_priv *priv;
@@ -1612,7 +1612,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	priv->can.clock.freq = ambafreq;
 	priv->can.ctrlmode_supported =
 		CAN_CTRLMODE_LISTENONLY | CAN_CTRLMODE_ONE_SHOT;
-	priv->need_txbug_workaround = txbug;
+	priv->need_tx_workaround = tx;
 
 	/* Discover if triple sampling is supported by hardware */
 	regs = priv->regs;
@@ -1625,7 +1625,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 
 	spin_lock_init(&priv->lock);
 
-	if (priv->need_txbug_workaround) {
+	if (priv->need_tx_workaround) {
 		timer_setup(&priv->rr_timer, grcan_running_reset, 0);
 		timer_setup(&priv->hang_timer, grcan_initiate_running_reset, 0);
 	}
@@ -1660,15 +1660,15 @@ static int grcan_probe(struct platform_device *ofdev)
 	u32 sysid, ambafreq;
 	int irq, err;
 	void __iomem *base;
-	bool txbug = true;
+	bool tx = true;
 
 	/* Compare GRLIB version number with the first that does not
-	 * have the tx bug (see start_xmit)
+	 * have the tx  (see start_xmit)
 	 */
 	err = of_property_read_u32(np, "systemid", &sysid);
 	if (!err && ((sysid & GRLIB_VERSION_MASK)
-		     >= GRCAN_TXBUG_SAFE_GRLIB_VERSION))
-		txbug = false;
+		     >= GRCAN_TX_SAFE_GRLIB_VERSION))
+		tx = false;
 
 	err = of_property_read_u32(np, "freq", &ambafreq);
 	if (err) {
@@ -1692,7 +1692,7 @@ static int grcan_probe(struct platform_device *ofdev)
 
 	grcan_sanitize_module_config(ofdev);
 
-	err = grcan_setup_netdev(ofdev, base, irq, ambafreq, txbug);
+	err = grcan_setup_netdev(ofdev, base, irq, ambafreq, tx);
 	if (err)
 		goto exit_dispose_irq;
 

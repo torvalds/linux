@@ -95,7 +95,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		}
 
 		dev_warn(&dev->dev,
-			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommended!\n");
+			 "Using DEing ioctl SIOCSIFADDR isn't recommended!\n");
 		if (sa->family != AF_IEEE802154 ||
 		    sa->addr.addr_type != IEEE802154_ADDR_SHORT ||
 		    sa->addr.pan_id == IEEE802154_PANID_BROADCAST ||
@@ -490,7 +490,7 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	struct ieee802154_hdr hdr;
 
 	if (ieee802154_hdr_peek_addrs(skb, &hdr) < 0) {
-		pr_debug("malformed packet\n");
+		pr_de("malformed packet\n");
 		return 0;
 	}
 
@@ -612,7 +612,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		wpan_dev->promiscuous_mode = true;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return 0;

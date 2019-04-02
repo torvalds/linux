@@ -165,7 +165,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 #define assert(test) J_ASSERT(test)
 #endif
 
-#ifdef DX_DEBUG
+#ifdef DX_DE
 #define dxtrace(command) command
 #else
 #define dxtrace(command)
@@ -574,13 +574,13 @@ static inline unsigned dx_node_limit(struct inode *dir)
 }
 
 /*
- * Debug
+ * De
  */
-#ifdef DX_DEBUG
+#ifdef DX_DE
 static void dx_show_index(char * label, struct dx_entry *entries)
 {
 	int i, n = dx_get_count (entries);
-	printk(KERN_DEBUG "%s index", label);
+	printk(KERN_DE "%s index", label);
 	for (i = 0; i < n; i++) {
 		printk(KERN_CONT " %x->%lu",
 		       i ? dx_get_hash(entries + i) : 0,
@@ -715,12 +715,12 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 		brelse(bh);
 	}
 	if (bcount)
-		printk(KERN_DEBUG "%snames %u, fullness %u (%u%%)\n",
+		printk(KERN_DE "%snames %u, fullness %u (%u%%)\n",
 		       levels ? "" : "   ", names, space/bcount,
 		       (space/bcount)*100/blocksize);
 	return (struct stats) { names, space, bcount};
 }
-#endif /* DX_DEBUG */
+#endif /* DX_DE */
 
 /*
  * Probe for a directory leaf block to search.
@@ -1075,7 +1075,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	__u32 hashval;
 	struct fscrypt_str tmp_str;
 
-	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n",
+	dxtrace(printk(KERN_DE "In htree_fill_tree, start hash: %x:%x\n",
 		       start_hash, start_minor_hash));
 	dir = file_inode(dir_file);
 	if (!(ext4_test_inode_flag(dir, EXT4_INODE_INDEX))) {
@@ -1161,7 +1161,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			break;
 	}
 	dx_release(frames);
-	dxtrace(printk(KERN_DEBUG "Fill tree: returned %d entries, "
+	dxtrace(printk(KERN_DE "Fill tree: returned %d entries, "
 		       "next hash: %x\n", count, *next_hash));
 	return count;
 errout:
@@ -1397,7 +1397,7 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 		 */
 		if (!IS_ERR(ret) || PTR_ERR(ret) != ERR_BAD_DX_DIR)
 			goto cleanup_and_exit;
-		dxtrace(printk(KERN_DEBUG "ext4_find_entry: dx failed, "
+		dxtrace(printk(KERN_DE "ext4_find_entry: dx failed, "
 			       "falling back\n"));
 		ret = NULL;
 	}
@@ -1535,7 +1535,7 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 
 	bh = NULL;
 errout:
-	dxtrace(printk(KERN_DEBUG "%s not found\n", fname->usr_fname->name));
+	dxtrace(printk(KERN_DE "%s not found\n", fname->usr_fname->name));
 success:
 	dx_release(frames);
 	return bh;
@@ -1922,7 +1922,7 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	blocksize =  dir->i_sb->s_blocksize;
-	dxtrace(printk(KERN_DEBUG "Creating index: inode %lu\n", dir->i_ino));
+	dxtrace(printk(KERN_DE "Creating index: inode %lu\n", dir->i_ino));
 	BUFFER_TRACE(bh, "get_write_access");
 	retval = ext4_journal_get_write_access(handle, bh);
 	if (retval) {
@@ -2158,7 +2158,7 @@ again:
 
 	err = 0;
 	/* Block full, should compress but for now just split */
-	dxtrace(printk(KERN_DEBUG "using %u of %u node entries\n",
+	dxtrace(printk(KERN_DE "using %u of %u node entries\n",
 		       dx_get_count(entries), dx_get_limit(entries)));
 	/* Need to split index? */
 	if (dx_get_count(entries) == dx_get_limit(entries)) {
@@ -2211,7 +2211,7 @@ again:
 		if (!add_level) {
 			unsigned icount1 = icount/2, icount2 = icount - icount1;
 			unsigned hash2 = dx_get_hash(entries + icount1);
-			dxtrace(printk(KERN_DEBUG "Split index %i/%i\n",
+			dxtrace(printk(KERN_DE "Split index %i/%i\n",
 				       icount1, icount2));
 
 			BUFFER_TRACE(frame->bh, "get_write_access"); /* index root */
@@ -2260,7 +2260,7 @@ again:
 			dx_set_block(entries + 0, newblock);
 			dxroot = (struct dx_root *)frames[0].bh->b_data;
 			dxroot->info.indirect_levels += 1;
-			dxtrace(printk(KERN_DEBUG
+			dxtrace(printk(KERN_DE
 				       "Creating %d level index...\n",
 				       dxroot->info.indirect_levels));
 			err = ext4_handle_dirty_dx_node(handle, dir, frame->bh);
@@ -2815,8 +2815,8 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	} else
 		brelse(iloc.bh);
 
-	jbd_debug(4, "superblock will point to %lu\n", inode->i_ino);
-	jbd_debug(4, "orphan inode %lu will point to %d\n",
+	jbd_de(4, "superblock will point to %lu\n", inode->i_ino);
+	jbd_de(4, "orphan inode %lu will point to %d\n",
 			inode->i_ino, NEXT_ORPHAN(inode));
 out:
 	ext4_std_error(sb, err);
@@ -2851,7 +2851,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	}
 
 	mutex_lock(&sbi->s_orphan_lock);
-	jbd_debug(4, "remove inode %lu from orphan list\n", inode->i_ino);
+	jbd_de(4, "remove inode %lu from orphan list\n", inode->i_ino);
 
 	prev = ei->i_orphan.prev;
 	list_del_init(&ei->i_orphan);
@@ -2867,7 +2867,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 
 	ino_next = NEXT_ORPHAN(inode);
 	if (prev == &sbi->s_orphan) {
-		jbd_debug(4, "superblock will point to %u\n", ino_next);
+		jbd_de(4, "superblock will point to %u\n", ino_next);
 		BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 		err = ext4_journal_get_write_access(handle, sbi->s_sbh);
 		if (err) {
@@ -2882,7 +2882,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		struct inode *i_prev =
 			&list_entry(prev, struct ext4_inode_info, i_orphan)->vfs_inode;
 
-		jbd_debug(4, "orphan inode %lu will point to %u\n",
+		jbd_de(4, "orphan inode %lu will point to %u\n",
 			  i_prev->i_ino, ino_next);
 		err = ext4_reserve_inode_write(handle, i_prev, &iloc2);
 		if (err) {

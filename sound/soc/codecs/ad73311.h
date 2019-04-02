@@ -10,7 +10,7 @@
  * Modified:
  *               Copyright 2006 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ * s:         Enter s at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

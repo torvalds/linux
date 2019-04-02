@@ -1283,7 +1283,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		wait_for_ctrl_irq(ctrl);
 
 		/* Change bits in slot power register to force another shift out
-		 * NOTE: this is to work around the timer bug */
+		 * NOTE: this is to work around the timer  */
 		temp_byte = readb(ctrl->hpc_reg + SLOT_POWER);
 		writeb(0x00, ctrl->hpc_reg + SLOT_POWER);
 		writeb(temp_byte, ctrl->hpc_reg + SLOT_POWER);
@@ -1430,7 +1430,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	wait_for_ctrl_irq(ctrl);
 
 	/* Change bits in slot power register to force another shift out
-	 * NOTE: this is to work around the timer bug
+	 * NOTE: this is to work around the timer 
 	 */
 	temp_byte = readb(ctrl->hpc_reg + SLOT_POWER);
 	writeb(0x00, ctrl->hpc_reg + SLOT_POWER);

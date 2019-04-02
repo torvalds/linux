@@ -82,7 +82,7 @@ static void put_mapping(struct gasket_sysfs_mapping *mapping)
 	struct device *device;
 
 	if (!mapping) {
-		pr_debug("%s: Mapping should not be NULL\n", __func__);
+		pr_de("%s: Mapping should not be NULL\n", __func__);
 		return;
 	}
 

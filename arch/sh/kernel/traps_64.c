@@ -7,7 +7,7 @@
  * Copyright (C) 2003, 2004  Richard Curnow
  */
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -207,7 +207,7 @@ static int misaligned_load(struct pt_regs *regs,
 			break;
 		}
 	} else {
-		/* kernel mode - we can take short cuts since if we fault, it's a genuine bug */
+		/* kernel mode - we can take short cuts since if we fault, it's a genuine  */
 		__u64 lo, hi;
 
 		switch (width_shift) {
@@ -278,7 +278,7 @@ static int misaligned_store(struct pt_regs *regs,
 			return -1; /* fault */
 		}
 	} else {
-		/* kernel mode - we can take short cuts since if we fault, it's a genuine bug */
+		/* kernel mode - we can take short cuts since if we fault, it's a genuine  */
 		__u64 val = regs->regs[srcreg];
 
 		switch (width_shift) {
@@ -764,7 +764,7 @@ asmlinkage void do_exception_error(unsigned long ex, struct pt_regs *regs)
 
 asmlinkage int do_unknown_trapa(unsigned long scId, struct pt_regs *regs)
 {
-	/* Syscall debug */
+	/* Syscall de */
 	printk("System call ID error: [0x1#args:8 #syscall:16  0x%lx]\n", scId);
 
 	die_if_kernel("unknown trapa", regs, scId);
@@ -790,13 +790,13 @@ asmlinkage void do_address_error_store(unsigned long error_code, struct pt_regs 
 				error_code, regs);
 }
 
-asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
+asmlinkage void do_de_interrupt(unsigned long code, struct pt_regs *regs)
 {
 	u64 peek_real_address_q(u64 addr);
 	u64 poke_real_address_q(u64 addr, u64 val);
 	unsigned long long DM_EXP_CAUSE_PHY = 0x0c100010;
 	unsigned long long exp_cause;
-	/* It's not worth ioremapping the debug module registers for the amount
+	/* It's not worth ioremapping the de module registers for the amount
 	   of access we make to them - just go direct to their physical
 	   addresses. */
 	exp_cause = peek_real_address_q(DM_EXP_CAUSE_PHY);
@@ -804,7 +804,7 @@ asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 		printk("DM.EXP_CAUSE had unexpected bits set (=%08lx)\n",
 			(unsigned long)(exp_cause & 0xffffffff));
 	show_state();
-	/* Clear all DEBUGINT causes */
+	/* Clear all DEINT causes */
 	poke_real_address_q(DM_EXP_CAUSE_PHY, 0x0);
 }
 

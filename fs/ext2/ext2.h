@@ -125,9 +125,9 @@ sb_bgl_lock(struct ext2_sb_info *sbi, unsigned int block_group)
 }
 
 /*
- * Define EXT2FS_DEBUG to produce debug messages
+ * Define EXT2FS_DE to produce de messages
  */
-#undef EXT2FS_DEBUG
+#undef EXT2FS_DE
 
 /*
  * Define EXT2_RESERVATION to reserve data blocks for expanding files
@@ -143,16 +143,16 @@ sb_bgl_lock(struct ext2_sb_info *sbi, unsigned int block_group)
 #define EXT2FS_VERSION		"0.5b"
 
 /*
- * Debug code
+ * De code
  */
-#ifdef EXT2FS_DEBUG
-#	define ext2_debug(f, a...)	{ \
-					printk ("EXT2-fs DEBUG (%s, %d): %s:", \
+#ifdef EXT2FS_DE
+#	define ext2_de(f, a...)	{ \
+					printk ("EXT2-fs DE (%s, %d): %s:", \
 						__FILE__, __LINE__, __func__); \
 				  	printk (f, ## a); \
 					}
 #else
-#	define ext2_debug(f, a...)	/**/
+#	define ext2_de(f, a...)	/**/
 #endif
 
 /*
@@ -377,7 +377,7 @@ struct ext2_inode {
 #define EXT2_MOUNT_CHECK		0x000001  /* Do mount-time checks */
 #define EXT2_MOUNT_OLDALLOC		0x000002  /* Don't use the new Orlov allocator */
 #define EXT2_MOUNT_GRPID		0x000004  /* Create files with directory's group */
-#define EXT2_MOUNT_DEBUG		0x000008  /* Some debugging messages */
+#define EXT2_MOUNT_DE		0x000008  /* Some deging messages */
 #define EXT2_MOUNT_ERRORS_CONT		0x000010  /* Continue on errors */
 #define EXT2_MOUNT_ERRORS_RO		0x000020  /* Remount fs ro on errors */
 #define EXT2_MOUNT_ERRORS_PANIC		0x000040  /* Panic on errors */
@@ -567,7 +567,7 @@ struct ext2_super_block {
 /*
  * Default mount options
  */
-#define EXT2_DEFM_DEBUG		0x0001
+#define EXT2_DEFM_DE		0x0001
 #define EXT2_DEFM_BSDGROUPS	0x0002
 #define EXT2_DEFM_XATTR_USER	0x0004
 #define EXT2_DEFM_ACL		0x0008
@@ -616,7 +616,7 @@ struct ext2_dir_entry_2 {
 
 static inline void verify_offsets(void)
 {
-#define A(x,y) BUILD_BUG_ON(x != offsetof(struct ext2_super_block, y));
+#define A(x,y) BUILD__ON(x != offsetof(struct ext2_super_block, y));
 	A(EXT2_SB_MAGIC_OFFSET, s_magic);
 	A(EXT2_SB_BLOCKS_OFFSET, s_blocks_count);
 	A(EXT2_SB_BSIZE_OFFSET, s_log_block_size);

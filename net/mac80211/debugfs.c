@@ -1,5 +1,5 @@
 /*
- * mac80211 debugfs for wireless PHYs
+ * mac80211 defs for wireless PHYs
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
@@ -9,21 +9,21 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/rtnetlink.h>
 #include <linux/vmalloc.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 #include "rate.h"
-#include "debugfs.h"
+#include "defs.h"
 
-#define DEBUGFS_FORMAT_BUFFER_SIZE 100
+#define DEFS_FORMAT_BUFFER_SIZE 100
 
 int mac80211_format_buffer(char __user *userbuf, size_t count,
 				  loff_t *ppos, char *fmt, ...)
 {
 	va_list args;
-	char buf[DEBUGFS_FORMAT_BUFFER_SIZE];
+	char buf[DEFS_FORMAT_BUFFER_SIZE];
 	int res;
 
 	va_start(args, fmt);
@@ -33,7 +33,7 @@ int mac80211_format_buffer(char __user *userbuf, size_t count,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
 
-#define DEBUGFS_READONLY_FILE_FN(name, fmt, value...)			\
+#define DEFS_READONLY_FILE_FN(name, fmt, value...)			\
 static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 			    size_t count, loff_t *ppos)			\
 {									\
@@ -43,33 +43,33 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 				      fmt "\n", ##value);		\
 }
 
-#define DEBUGFS_READONLY_FILE_OPS(name)			\
+#define DEFS_READONLY_FILE_OPS(name)			\
 static const struct file_operations name## _ops = {			\
 	.read = name## _read,						\
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
-#define DEBUGFS_READONLY_FILE(name, fmt, value...)		\
-	DEBUGFS_READONLY_FILE_FN(name, fmt, value)		\
-	DEBUGFS_READONLY_FILE_OPS(name)
+#define DEFS_READONLY_FILE(name, fmt, value...)		\
+	DEFS_READONLY_FILE_FN(name, fmt, value)		\
+	DEFS_READONLY_FILE_OPS(name)
 
-#define DEBUGFS_ADD(name)						\
-	debugfs_create_file(#name, 0400, phyd, local, &name## _ops);
+#define DEFS_ADD(name)						\
+	defs_create_file(#name, 0400, phyd, local, &name## _ops);
 
-#define DEBUGFS_ADD_MODE(name, mode)					\
-	debugfs_create_file(#name, mode, phyd, local, &name## _ops);
+#define DEFS_ADD_MODE(name, mode)					\
+	defs_create_file(#name, mode, phyd, local, &name## _ops);
 
 
-DEBUGFS_READONLY_FILE(user_power, "%d",
+DEFS_READONLY_FILE(user_power, "%d",
 		      local->user_power_level);
-DEBUGFS_READONLY_FILE(power, "%d",
+DEFS_READONLY_FILE(power, "%d",
 		      local->hw.conf.power_level);
-DEBUGFS_READONLY_FILE(total_ps_buffered, "%d",
+DEFS_READONLY_FILE(total_ps_buffered, "%d",
 		      local->total_ps_buffered);
-DEBUGFS_READONLY_FILE(wep_iv, "%#08x",
+DEFS_READONLY_FILE(wep_iv, "%#08x",
 		      local->wep_iv & 0xffffff);
-DEBUGFS_READONLY_FILE(rate_ctrl_alg, "%s",
+DEFS_READONLY_FILE(rate_ctrl_alg, "%s",
 	local->rate_ctrl ? local->rate_ctrl->ops->name : "hw/driver");
 
 static ssize_t aqm_read(struct file *file,
@@ -240,7 +240,7 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	/* fail compilation if somebody adds or removes
 	 * a flag without updating the name array above
 	 */
-	BUILD_BUG_ON(ARRAY_SIZE(hw_flag_names) != NUM_IEEE80211_HW_FLAGS);
+	BUILD__ON(ARRAY_SIZE(hw_flag_names) != NUM_IEEE80211_HW_FLAGS);
 
 	for (i = 0; i < NUM_IEEE80211_HW_FLAGS; i++) {
 		if (test_bit(i, local->hw.flags))
@@ -303,9 +303,9 @@ static ssize_t queues_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, res);
 }
 
-DEBUGFS_READONLY_FILE_OPS(hwflags);
-DEBUGFS_READONLY_FILE_OPS(queues);
-DEBUGFS_READONLY_FILE_OPS(misc);
+DEFS_READONLY_FILE_OPS(hwflags);
+DEFS_READONLY_FILE_OPS(queues);
+DEFS_READONLY_FILE_OPS(misc);
 
 /* statistics stuff */
 
@@ -328,7 +328,7 @@ static ssize_t format_devstat_counter(struct ieee80211_local *local,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
 
-#define DEBUGFS_DEVSTATS_FILE(name)					\
+#define DEFS_DEVSTATS_FILE(name)					\
 static int print_devstats_##name(struct ieee80211_low_level_stats *stats,\
 				 char *buf, int buflen)			\
 {									\
@@ -351,77 +351,77 @@ static const struct file_operations stats_ ##name## _ops = {		\
 	.llseek = generic_file_llseek,					\
 };
 
-#define DEBUGFS_STATS_ADD(name)					\
-	debugfs_create_u32(#name, 0400, statsd, &local->name);
-#define DEBUGFS_DEVSTATS_ADD(name)					\
-	debugfs_create_file(#name, 0400, statsd, local, &stats_ ##name## _ops);
+#define DEFS_STATS_ADD(name)					\
+	defs_create_u32(#name, 0400, statsd, &local->name);
+#define DEFS_DEVSTATS_ADD(name)					\
+	defs_create_file(#name, 0400, statsd, local, &stats_ ##name## _ops);
 
-DEBUGFS_DEVSTATS_FILE(dot11ACKFailureCount);
-DEBUGFS_DEVSTATS_FILE(dot11RTSFailureCount);
-DEBUGFS_DEVSTATS_FILE(dot11FCSErrorCount);
-DEBUGFS_DEVSTATS_FILE(dot11RTSSuccessCount);
+DEFS_DEVSTATS_FILE(dot11ACKFailureCount);
+DEFS_DEVSTATS_FILE(dot11RTSFailureCount);
+DEFS_DEVSTATS_FILE(dot11FCSErrorCount);
+DEFS_DEVSTATS_FILE(dot11RTSSuccessCount);
 
-void debugfs_hw_add(struct ieee80211_local *local)
+void defs_hw_add(struct ieee80211_local *local)
 {
-	struct dentry *phyd = local->hw.wiphy->debugfsdir;
+	struct dentry *phyd = local->hw.wiphy->defsdir;
 	struct dentry *statsd;
 
 	if (!phyd)
 		return;
 
-	local->debugfs.keys = debugfs_create_dir("keys", phyd);
+	local->defs.keys = defs_create_dir("keys", phyd);
 
-	DEBUGFS_ADD(total_ps_buffered);
-	DEBUGFS_ADD(wep_iv);
-	DEBUGFS_ADD(rate_ctrl_alg);
-	DEBUGFS_ADD(queues);
-	DEBUGFS_ADD(misc);
+	DEFS_ADD(total_ps_buffered);
+	DEFS_ADD(wep_iv);
+	DEFS_ADD(rate_ctrl_alg);
+	DEFS_ADD(queues);
+	DEFS_ADD(misc);
 #ifdef CONFIG_PM
-	DEBUGFS_ADD_MODE(reset, 0200);
+	DEFS_ADD_MODE(reset, 0200);
 #endif
-	DEBUGFS_ADD(hwflags);
-	DEBUGFS_ADD(user_power);
-	DEBUGFS_ADD(power);
+	DEFS_ADD(hwflags);
+	DEFS_ADD(user_power);
+	DEFS_ADD(power);
 
 	if (local->ops->wake_tx_queue)
-		DEBUGFS_ADD_MODE(aqm, 0600);
+		DEFS_ADD_MODE(aqm, 0600);
 
-	debugfs_create_u16("airtime_flags", 0600,
+	defs_create_u16("airtime_flags", 0600,
 			   phyd, &local->airtime_flags);
 
-	statsd = debugfs_create_dir("statistics", phyd);
+	statsd = defs_create_dir("statistics", phyd);
 
 	/* if the dir failed, don't put all the other things into the root! */
 	if (!statsd)
 		return;
 
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_STATS_ADD(dot11TransmittedFragmentCount);
-	DEBUGFS_STATS_ADD(dot11MulticastTransmittedFrameCount);
-	DEBUGFS_STATS_ADD(dot11FailedCount);
-	DEBUGFS_STATS_ADD(dot11RetryCount);
-	DEBUGFS_STATS_ADD(dot11MultipleRetryCount);
-	DEBUGFS_STATS_ADD(dot11FrameDuplicateCount);
-	DEBUGFS_STATS_ADD(dot11ReceivedFragmentCount);
-	DEBUGFS_STATS_ADD(dot11MulticastReceivedFrameCount);
-	DEBUGFS_STATS_ADD(dot11TransmittedFrameCount);
-	DEBUGFS_STATS_ADD(tx_handlers_drop);
-	DEBUGFS_STATS_ADD(tx_handlers_queued);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_wep);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_unauth_port);
-	DEBUGFS_STATS_ADD(rx_handlers_drop);
-	DEBUGFS_STATS_ADD(rx_handlers_queued);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_nullfunc);
-	DEBUGFS_STATS_ADD(rx_handlers_drop_defrag);
-	DEBUGFS_STATS_ADD(tx_expand_skb_head);
-	DEBUGFS_STATS_ADD(tx_expand_skb_head_cloned);
-	DEBUGFS_STATS_ADD(rx_expand_skb_head_defrag);
-	DEBUGFS_STATS_ADD(rx_handlers_fragments);
-	DEBUGFS_STATS_ADD(tx_status_drop);
+#ifdef CONFIG_MAC80211_DE_COUNTERS
+	DEFS_STATS_ADD(dot11TransmittedFragmentCount);
+	DEFS_STATS_ADD(dot11MulticastTransmittedFrameCount);
+	DEFS_STATS_ADD(dot11FailedCount);
+	DEFS_STATS_ADD(dot11RetryCount);
+	DEFS_STATS_ADD(dot11MultipleRetryCount);
+	DEFS_STATS_ADD(dot11FrameDuplicateCount);
+	DEFS_STATS_ADD(dot11ReceivedFragmentCount);
+	DEFS_STATS_ADD(dot11MulticastReceivedFrameCount);
+	DEFS_STATS_ADD(dot11TransmittedFrameCount);
+	DEFS_STATS_ADD(tx_handlers_drop);
+	DEFS_STATS_ADD(tx_handlers_queued);
+	DEFS_STATS_ADD(tx_handlers_drop_wep);
+	DEFS_STATS_ADD(tx_handlers_drop_not_assoc);
+	DEFS_STATS_ADD(tx_handlers_drop_unauth_port);
+	DEFS_STATS_ADD(rx_handlers_drop);
+	DEFS_STATS_ADD(rx_handlers_queued);
+	DEFS_STATS_ADD(rx_handlers_drop_nullfunc);
+	DEFS_STATS_ADD(rx_handlers_drop_defrag);
+	DEFS_STATS_ADD(tx_expand_skb_head);
+	DEFS_STATS_ADD(tx_expand_skb_head_cloned);
+	DEFS_STATS_ADD(rx_expand_skb_head_defrag);
+	DEFS_STATS_ADD(rx_handlers_fragments);
+	DEFS_STATS_ADD(tx_status_drop);
 #endif
-	DEBUGFS_DEVSTATS_ADD(dot11ACKFailureCount);
-	DEBUGFS_DEVSTATS_ADD(dot11RTSFailureCount);
-	DEBUGFS_DEVSTATS_ADD(dot11FCSErrorCount);
-	DEBUGFS_DEVSTATS_ADD(dot11RTSSuccessCount);
+	DEFS_DEVSTATS_ADD(dot11ACKFailureCount);
+	DEFS_DEVSTATS_ADD(dot11RTSFailureCount);
+	DEFS_DEVSTATS_ADD(dot11FCSErrorCount);
+	DEFS_DEVSTATS_ADD(dot11RTSSuccessCount);
 }

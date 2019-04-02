@@ -46,14 +46,14 @@
 /* amount of chips attached via this driver */
 static int zr36050_codecs;
 
-/* debugging is available via module parameter */
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-4)");
+/* deging is available via module parameter */
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-4)");
 
 #define dprintk(num, format, args...) \
 	do { \
-		if (debug >= num) \
+		if (de >= num) \
 			printk(format, ##args); \
 	} while (0)
 

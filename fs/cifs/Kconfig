@@ -55,7 +55,7 @@ config CIFS_STATS2
 	depends on CIFS
 	help
 	  Enabling this option will allow more detailed statistics on SMB
-	  request timing to be displayed in /proc/fs/cifs/DebugData and also
+	  request timing to be displayed in /proc/fs/cifs/DeData and also
 	  allow optional logging of slow responses to dmesg (depending on the
 	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
 	  These additional statistics may have a minor effect on performance
@@ -151,29 +151,29 @@ config CIFS_ACL
 	  is handed over to the application/caller.  See the man
 	  page for getcifsacl for more information.  If unsure, say Y.
 
-config CIFS_DEBUG
-	bool "Enable CIFS debugging routines"
+config CIFS_DE
+	bool "Enable CIFS deging routines"
 	default y
 	depends on CIFS
 	help
-	  Enabling this option adds helpful debugging messages to
+	  Enabling this option adds helpful deging messages to
 	  the cifs code which increases the size of the cifs module.
 	  If unsure, say Y.
 
-config CIFS_DEBUG2
-	bool "Enable additional CIFS debugging routines"
-	depends on CIFS_DEBUG
+config CIFS_DE2
+	bool "Enable additional CIFS deging routines"
+	depends on CIFS_DE
 	help
-	  Enabling this option adds a few more debugging routines
+	  Enabling this option adds a few more deging routines
 	  to the cifs code which slightly increases the size of
-	  the cifs module and can cause additional logging of debug
+	  the cifs module and can cause additional logging of de
 	  messages in some error paths, slowing performance. This
-	  option can be turned off unless you are debugging
+	  option can be turned off unless you are deging
 	  cifs problems.  If unsure, say N.
 
-config CIFS_DEBUG_DUMP_KEYS
+config CIFS_DE_DUMP_KEYS
 	bool "Dump encryption keys for offline decryption (Unsafe)"
-	depends on CIFS_DEBUG
+	depends on CIFS_DE
 	help
 	  Enabling this will dump the encryption and decryption keys
 	  used to communicate on an encrypted share connection on the

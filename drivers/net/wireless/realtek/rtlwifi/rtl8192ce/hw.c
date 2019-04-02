@@ -1100,7 +1100,7 @@ static enum version_8192c _rtl92ce_read_chip_version(struct ieee80211_hw *hw)
 		versionid = "B_CUT_88C";
 		break;
 	default:
-		versionid = "Unknown. Bug?";
+		versionid = "Unknown. ?";
 		break;
 	}
 

@@ -18,7 +18,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/xattr.h>
@@ -58,7 +58,7 @@ struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 retry:

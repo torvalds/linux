@@ -25,7 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
@@ -1428,8 +1428,8 @@ static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 {
 	int *sort;
 
-	BUILD_BUG_ON(ARRAY_SIZE(dapm_up_seq) != SND_SOC_DAPM_TYPE_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(dapm_down_seq) != SND_SOC_DAPM_TYPE_COUNT);
+	BUILD__ON(ARRAY_SIZE(dapm_up_seq) != SND_SOC_DAPM_TYPE_COUNT);
+	BUILD__ON(ARRAY_SIZE(dapm_down_seq) != SND_SOC_DAPM_TYPE_COUNT);
 
 	if (power_up)
 		sort = dapm_up_seq;
@@ -2039,7 +2039,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static ssize_t dapm_widget_power_read_file(struct file *file,
 					   char __user *user_buf,
 					   size_t count, loff_t *ppos)
@@ -2149,7 +2149,7 @@ static const struct file_operations dapm_bias_fops = {
 	.llseek = default_llseek,
 };
 
-void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
+void snd_soc_dapm_defs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
 	struct dentry *d;
@@ -2157,55 +2157,55 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	if (!parent)
 		return;
 
-	dapm->debugfs_dapm = debugfs_create_dir("dapm", parent);
+	dapm->defs_dapm = defs_create_dir("dapm", parent);
 
-	if (!dapm->debugfs_dapm) {
+	if (!dapm->defs_dapm) {
 		dev_warn(dapm->dev,
-		       "ASoC: Failed to create DAPM debugfs directory\n");
+		       "ASoC: Failed to create DAPM defs directory\n");
 		return;
 	}
 
-	d = debugfs_create_file("bias_level", 0444,
-				dapm->debugfs_dapm, dapm,
+	d = defs_create_file("bias_level", 0444,
+				dapm->defs_dapm, dapm,
 				&dapm_bias_fops);
 	if (!d)
 		dev_warn(dapm->dev,
-			 "ASoC: Failed to create bias level debugfs file\n");
+			 "ASoC: Failed to create bias level defs file\n");
 }
 
-static void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+static void dapm_defs_add_widget(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct dentry *d;
 
-	if (!dapm->debugfs_dapm || !w->name)
+	if (!dapm->defs_dapm || !w->name)
 		return;
 
-	d = debugfs_create_file(w->name, 0444,
-				dapm->debugfs_dapm, w,
+	d = defs_create_file(w->name, 0444,
+				dapm->defs_dapm, w,
 				&dapm_widget_power_fops);
 	if (!d)
 		dev_warn(w->dapm->dev,
-			"ASoC: Failed to create %s debugfs file\n",
+			"ASoC: Failed to create %s defs file\n",
 			w->name);
 }
 
-static void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
+static void dapm_defs_cleanup(struct snd_soc_dapm_context *dapm)
 {
-	debugfs_remove_recursive(dapm->debugfs_dapm);
+	defs_remove_recursive(dapm->defs_dapm);
 }
 
 #else
-void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
+void snd_soc_dapm_defs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
 }
 
-static inline void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+static inline void dapm_defs_add_widget(struct snd_soc_dapm_widget *w)
 {
 }
 
-static inline void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
+static inline void dapm_defs_cleanup(struct snd_soc_dapm_context *dapm)
 {
 }
 
@@ -2216,7 +2216,7 @@ static inline void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
  * @path: The path to update
  * @connect: The new connect state of the path. True if the path is connected,
  *  false if it is disconnected.
- * @reason: The reason why the path changed (for debugging only)
+ * @reason: The reason why the path changed (for deging only)
  */
 static void soc_dapm_connect_path(struct snd_soc_dapm_path *path,
 	bool connect, const char *reason)
@@ -3219,7 +3219,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 		w->new = 1;
 
 		dapm_mark_dirty(w, "new widget");
-		dapm_debugfs_add_widget(w);
+		dapm_defs_add_widget(w);
 	}
 
 	dapm_power_widgets(card, SND_SOC_DAPM_STREAM_NOP);
@@ -4639,7 +4639,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
  */
 void snd_soc_dapm_free(struct snd_soc_dapm_context *dapm)
 {
-	dapm_debugfs_cleanup(dapm);
+	dapm_defs_cleanup(dapm);
 	dapm_free_widgets(dapm);
 	list_del(&dapm->list);
 }

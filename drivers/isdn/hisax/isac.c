@@ -39,8 +39,8 @@ void ISACVersion(struct IsdnCardState *cs, char *s)
 static void
 ph_command(struct IsdnCardState *cs, unsigned int command)
 {
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "ph_command %x", command);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "ph_command %x", command);
 	cs->writeisac(cs, ISAC_CIX0, (command << 2) | 3);
 }
 
@@ -88,8 +88,8 @@ isac_bh(struct work_struct *work)
 	struct PStack *stptr;
 
 	if (test_and_clear_bit(D_CLEARBUSY, &cs->event)) {
-		if (cs->debug)
-			debugl1(cs, "D-Channel Busy cleared");
+		if (cs->de)
+			del1(cs, "D-Channel Busy cleared");
 		stptr = cs->stlist;
 		while (stptr != NULL) {
 			stptr->l1.l1l2(stptr, PH_PAUSE | CONFIRM, NULL);
@@ -117,12 +117,12 @@ isac_empty_fifo(struct IsdnCardState *cs, int count)
 {
 	u_char *ptr;
 
-	if ((cs->debug & L1_DEB_ISAC) && !(cs->debug & L1_DEB_ISAC_FIFO))
-		debugl1(cs, "isac_empty_fifo");
+	if ((cs->de & L1_DEB_ISAC) && !(cs->de & L1_DEB_ISAC_FIFO))
+		del1(cs, "isac_empty_fifo");
 
 	if ((cs->rcvidx + count) >= MAX_DFRAME_LEN_L1) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "isac_empty_fifo overrun %d",
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "isac_empty_fifo overrun %d",
 				cs->rcvidx + count);
 		cs->writeisac(cs, ISAC_CMDR, 0x80);
 		cs->rcvidx = 0;
@@ -132,12 +132,12 @@ isac_empty_fifo(struct IsdnCardState *cs, int count)
 	cs->rcvidx += count;
 	cs->readisacfifo(cs, ptr, count);
 	cs->writeisac(cs, ISAC_CMDR, 0x80);
-	if (cs->debug & L1_DEB_ISAC_FIFO) {
+	if (cs->de & L1_DEB_ISAC_FIFO) {
 		char *t = cs->dlog;
 
 		t += sprintf(t, "isac_empty_fifo cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, "%s", cs->dlog);
+		del1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -147,8 +147,8 @@ isac_fill_fifo(struct IsdnCardState *cs)
 	int count, more;
 	u_char *ptr;
 
-	if ((cs->debug & L1_DEB_ISAC) && !(cs->debug & L1_DEB_ISAC_FIFO))
-		debugl1(cs, "isac_fill_fifo");
+	if ((cs->de & L1_DEB_ISAC) && !(cs->de & L1_DEB_ISAC_FIFO))
+		del1(cs, "isac_fill_fifo");
 
 	if (!cs->tx_skb)
 		return;
@@ -168,17 +168,17 @@ isac_fill_fifo(struct IsdnCardState *cs)
 	cs->writeisacfifo(cs, ptr, count);
 	cs->writeisac(cs, ISAC_CMDR, more ? 0x8 : 0xa);
 	if (test_and_set_bit(FLG_DBUSY_TIMER, &cs->HW_Flags)) {
-		debugl1(cs, "isac_fill_fifo dbusytimer running");
+		del1(cs, "isac_fill_fifo dbusytimer running");
 		del_timer(&cs->dbusytimer);
 	}
 	cs->dbusytimer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&cs->dbusytimer);
-	if (cs->debug & L1_DEB_ISAC_FIFO) {
+	if (cs->de & L1_DEB_ISAC_FIFO) {
 		char *t = cs->dlog;
 
 		t += sprintf(t, "isac_fill_fifo cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, "%s", cs->dlog);
+		del1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -189,21 +189,21 @@ isac_interrupt(struct IsdnCardState *cs, u_char val)
 	struct sk_buff *skb;
 	unsigned int count;
 
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "ISAC interrupt %x", val);
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "ISAC interrupt %x", val);
 	if (val & 0x80) {	/* RME */
 		exval = cs->readisac(cs, ISAC_RSTA);
 		if ((exval & 0x70) != 0x20) {
 			if (exval & 0x40) {
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "ISAC RDO");
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "ISAC RDO");
 #ifdef ERROR_STATISTIC
 				cs->err_rx++;
 #endif
 			}
 			if (!(exval & 0x20)) {
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "ISAC CRC error");
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "ISAC CRC error");
 #ifdef ERROR_STATISTIC
 				cs->err_crc++;
 #endif
@@ -234,8 +234,8 @@ isac_interrupt(struct IsdnCardState *cs, u_char val)
 	}
 	if (val & 0x20) {	/* RSC */
 		/* never */
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "ISAC RSC interrupt");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "ISAC RSC interrupt");
 	}
 	if (val & 0x10) {	/* XPR */
 		if (test_and_clear_bit(FLG_DBUSY_TIMER, &cs->HW_Flags))
@@ -262,35 +262,35 @@ isac_interrupt(struct IsdnCardState *cs, u_char val)
 afterXPR:
 	if (val & 0x04) {	/* CISQ */
 		exval = cs->readisac(cs, ISAC_CIR0);
-		if (cs->debug & L1_DEB_ISAC)
-			debugl1(cs, "ISAC CIR0 %02X", exval);
+		if (cs->de & L1_DEB_ISAC)
+			del1(cs, "ISAC CIR0 %02X", exval);
 		if (exval & 2) {
 			cs->dc.isac.ph_state = (exval >> 2) & 0xf;
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "ph_state change %x", cs->dc.isac.ph_state);
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "ph_state change %x", cs->dc.isac.ph_state);
 			schedule_event(cs, D_L1STATECHANGE);
 		}
 		if (exval & 1) {
 			exval = cs->readisac(cs, ISAC_CIR1);
-			if (cs->debug & L1_DEB_ISAC)
-				debugl1(cs, "ISAC CIR1 %02X", exval);
+			if (cs->de & L1_DEB_ISAC)
+				del1(cs, "ISAC CIR1 %02X", exval);
 		}
 	}
 	if (val & 0x02) {	/* SIN */
 		/* never */
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "ISAC SIN interrupt");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "ISAC SIN interrupt");
 	}
 	if (val & 0x01) {	/* EXI */
 		exval = cs->readisac(cs, ISAC_EXIR);
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "ISAC EXIR %02x", exval);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "ISAC EXIR %02x", exval);
 		if (exval & 0x80) {  /* XMR */
-			debugl1(cs, "ISAC XMR");
+			del1(cs, "ISAC XMR");
 			printk(KERN_WARNING "HiSax: ISAC XMR\n");
 		}
 		if (exval & 0x40) {  /* XDU */
-			debugl1(cs, "ISAC XDU");
+			del1(cs, "ISAC XDU");
 			printk(KERN_WARNING "HiSax: ISAC XDU\n");
 #ifdef ERROR_STATISTIC
 			cs->err_tx++;
@@ -305,20 +305,20 @@ afterXPR:
 				isac_fill_fifo(cs);
 			} else {
 				printk(KERN_WARNING "HiSax: ISAC XDU no skb\n");
-				debugl1(cs, "ISAC XDU no skb");
+				del1(cs, "ISAC XDU no skb");
 			}
 		}
 		if (exval & 0x04) {  /* MOS */
 			v1 = cs->readisac(cs, ISAC_MOSR);
-			if (cs->debug & L1_DEB_MONITOR)
-				debugl1(cs, "ISAC MOSR %02x", v1);
+			if (cs->de & L1_DEB_MONITOR)
+				del1(cs, "ISAC MOSR %02x", v1);
 #if ARCOFI_USE
 			if (v1 & 0x08) {
 				if (!cs->dc.isac.mon_rx) {
 					cs->dc.isac.mon_rx = kmalloc(MAX_MON_FRAME, GFP_ATOMIC);
 					if (!cs->dc.isac.mon_rx) {
-						if (cs->debug & L1_DEB_WARN)
-							debugl1(cs, "ISAC MON RX out of memory!");
+						if (cs->de & L1_DEB_WARN)
+							del1(cs, "ISAC MON RX out of memory!");
 						cs->dc.isac.mocr &= 0xf0;
 						cs->dc.isac.mocr |= 0x0a;
 						cs->writeisac(cs, ISAC_MOCR, cs->dc.isac.mocr);
@@ -331,13 +331,13 @@ afterXPR:
 					cs->dc.isac.mocr |= 0x0a;
 					cs->writeisac(cs, ISAC_MOCR, cs->dc.isac.mocr);
 					cs->dc.isac.mon_rxp = 0;
-					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "ISAC MON RX overflow!");
+					if (cs->de & L1_DEB_WARN)
+						del1(cs, "ISAC MON RX overflow!");
 					goto afterMONR0;
 				}
 				cs->dc.isac.mon_rx[cs->dc.isac.mon_rxp++] = cs->readisac(cs, ISAC_MOR0);
-				if (cs->debug & L1_DEB_MONITOR)
-					debugl1(cs, "ISAC MOR0 %02x", cs->dc.isac.mon_rx[cs->dc.isac.mon_rxp - 1]);
+				if (cs->de & L1_DEB_MONITOR)
+					del1(cs, "ISAC MOR0 %02x", cs->dc.isac.mon_rx[cs->dc.isac.mon_rxp - 1]);
 				if (cs->dc.isac.mon_rxp == 1) {
 					cs->dc.isac.mocr |= 0x04;
 					cs->writeisac(cs, ISAC_MOCR, cs->dc.isac.mocr);
@@ -348,8 +348,8 @@ afterXPR:
 				if (!cs->dc.isac.mon_rx) {
 					cs->dc.isac.mon_rx = kmalloc(MAX_MON_FRAME, GFP_ATOMIC);
 					if (!cs->dc.isac.mon_rx) {
-						if (cs->debug & L1_DEB_WARN)
-							debugl1(cs, "ISAC MON RX out of memory!");
+						if (cs->de & L1_DEB_WARN)
+							del1(cs, "ISAC MON RX out of memory!");
 						cs->dc.isac.mocr &= 0x0f;
 						cs->dc.isac.mocr |= 0xa0;
 						cs->writeisac(cs, ISAC_MOCR, cs->dc.isac.mocr);
@@ -362,13 +362,13 @@ afterXPR:
 					cs->dc.isac.mocr |= 0xa0;
 					cs->writeisac(cs, ISAC_MOCR, cs->dc.isac.mocr);
 					cs->dc.isac.mon_rxp = 0;
-					if (cs->debug & L1_DEB_WARN)
-						debugl1(cs, "ISAC MON RX overflow!");
+					if (cs->de & L1_DEB_WARN)
+						del1(cs, "ISAC MON RX overflow!");
 					goto afterMONR1;
 				}
 				cs->dc.isac.mon_rx[cs->dc.isac.mon_rxp++] = cs->readisac(cs, ISAC_MOR1);
-				if (cs->debug & L1_DEB_MONITOR)
-					debugl1(cs, "ISAC MOR1 %02x", cs->dc.isac.mon_rx[cs->dc.isac.mon_rxp - 1]);
+				if (cs->de & L1_DEB_MONITOR)
+					del1(cs, "ISAC MOR1 %02x", cs->dc.isac.mon_rx[cs->dc.isac.mon_rxp - 1]);
 				cs->dc.isac.mocr |= 0x40;
 				cs->writeisac(cs, ISAC_MOCR, cs->dc.isac.mocr);
 			}
@@ -406,8 +406,8 @@ afterXPR:
 				}
 				cs->writeisac(cs, ISAC_MOX0,
 					      cs->dc.isac.mon_tx[cs->dc.isac.mon_txp++]);
-				if (cs->debug & L1_DEB_MONITOR)
-					debugl1(cs, "ISAC %02x -> MOX0", cs->dc.isac.mon_tx[cs->dc.isac.mon_txp - 1]);
+				if (cs->de & L1_DEB_MONITOR)
+					del1(cs, "ISAC %02x -> MOX0", cs->dc.isac.mon_tx[cs->dc.isac.mon_txp - 1]);
 			}
 		AfterMOX0:
 			if (v1 & 0x20) {
@@ -429,8 +429,8 @@ afterXPR:
 				}
 				cs->writeisac(cs, ISAC_MOX1,
 					      cs->dc.isac.mon_tx[cs->dc.isac.mon_txp++]);
-				if (cs->debug & L1_DEB_MONITOR)
-					debugl1(cs, "ISAC %02x -> MOX1", cs->dc.isac.mon_tx[cs->dc.isac.mon_txp - 1]);
+				if (cs->de & L1_DEB_MONITOR)
+					del1(cs, "ISAC %02x -> MOX1", cs->dc.isac.mon_tx[cs->dc.isac.mon_txp - 1]);
 			}
 		AfterMOX1:;
 #endif
@@ -448,22 +448,22 @@ ISAC_l1hw(struct PStack *st, int pr, void *arg)
 
 	switch (pr) {
 	case (PH_DATA | REQUEST):
-		if (cs->debug & DEB_DLOG_HEX)
+		if (cs->de & DEB_DLOG_HEX)
 			LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE)
+		if (cs->de & DEB_DLOG_VERBOSE)
 			dlogframe(cs, skb, 0);
 		spin_lock_irqsave(&cs->lock, flags);
 		if (cs->tx_skb) {
 			skb_queue_tail(&cs->sq, skb);
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "PH_DATA Queued", 0);
 #endif
 		} else {
 			cs->tx_skb = skb;
 			cs->tx_cnt = 0;
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "PH_DATA", 0);
 #endif
 			isac_fill_fifo(cs);
@@ -473,18 +473,18 @@ ISAC_l1hw(struct PStack *st, int pr, void *arg)
 	case (PH_PULL | INDICATION):
 		spin_lock_irqsave(&cs->lock, flags);
 		if (cs->tx_skb) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, " l2l1 tx_skb exist this shouldn't happen");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, " l2l1 tx_skb exist this shouldn't happen");
 			skb_queue_tail(&cs->sq, skb);
 		} else {
-			if (cs->debug & DEB_DLOG_HEX)
+			if (cs->de & DEB_DLOG_HEX)
 				LogFrame(cs, skb->data, skb->len);
-			if (cs->debug & DEB_DLOG_VERBOSE)
+			if (cs->de & DEB_DLOG_VERBOSE)
 				dlogframe(cs, skb, 0);
 			cs->tx_skb = skb;
 			cs->tx_cnt = 0;
-#ifdef L2FRAME_DEBUG		/* psa */
-			if (cs->debug & L1_DEB_LAPD)
+#ifdef L2FRAME_DE		/* psa */
+			if (cs->de & L1_DEB_LAPD)
 				Logl2Frame(cs, skb, "PH_DATA_PULLED", 0);
 #endif
 			isac_fill_fifo(cs);
@@ -492,9 +492,9 @@ ISAC_l1hw(struct PStack *st, int pr, void *arg)
 		spin_unlock_irqrestore(&cs->lock, flags);
 		break;
 	case (PH_PULL | REQUEST):
-#ifdef L2FRAME_DEBUG		/* psa */
-		if (cs->debug & L1_DEB_LAPD)
-			debugl1(cs, "-> PH_REQUEST_PULL");
+#ifdef L2FRAME_DE		/* psa */
+		if (cs->de & L1_DEB_LAPD)
+			del1(cs, "-> PH_REQUEST_PULL");
 #endif
 		if (!cs->tx_skb) {
 			test_and_clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
@@ -561,8 +561,8 @@ ISAC_l1hw(struct PStack *st, int pr, void *arg)
 			schedule_event(cs, D_CLEARBUSY);
 		break;
 	default:
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "isac_l1hw unknown %04x", pr);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "isac_l1hw unknown %04x", pr);
 		break;
 	}
 }
@@ -592,8 +592,8 @@ dbusy_timer_handler(struct timer_list *t)
 	if (test_bit(FLG_DBUSY_TIMER, &cs->HW_Flags)) {
 		rbch = cs->readisac(cs, ISAC_RBCH);
 		star = cs->readisac(cs, ISAC_STAR);
-		if (cs->debug)
-			debugl1(cs, "D-Channel Busy RBCH %02x STAR %02x",
+		if (cs->de)
+			del1(cs, "D-Channel Busy RBCH %02x STAR %02x",
 				rbch, star);
 		if (rbch & ISAC_RBCH_XAC) { /* D-Channel Busy */
 			test_and_set_bit(FLG_L1_DBUSY, &cs->HW_Flags);
@@ -611,7 +611,7 @@ dbusy_timer_handler(struct timer_list *t)
 				cs->tx_skb = NULL;
 			} else {
 				printk(KERN_WARNING "HiSax: ISAC D-Channel Busy no skb\n");
-				debugl1(cs, "D-Channel Busy no skb");
+				del1(cs, "D-Channel Busy no skb");
 			}
 			cs->writeisac(cs, ISAC_CMDR, 0x01); /* Transmitter reset */
 			cs->irq_func(cs->irq, cs);
@@ -655,19 +655,19 @@ void clear_pending_isac_ints(struct IsdnCardState *cs)
 	int val, eval;
 
 	val = cs->readisac(cs, ISAC_STAR);
-	debugl1(cs, "ISAC STAR %x", val);
+	del1(cs, "ISAC STAR %x", val);
 	val = cs->readisac(cs, ISAC_MODE);
-	debugl1(cs, "ISAC MODE %x", val);
+	del1(cs, "ISAC MODE %x", val);
 	val = cs->readisac(cs, ISAC_ADF2);
-	debugl1(cs, "ISAC ADF2 %x", val);
+	del1(cs, "ISAC ADF2 %x", val);
 	val = cs->readisac(cs, ISAC_ISTA);
-	debugl1(cs, "ISAC ISTA %x", val);
+	del1(cs, "ISAC ISTA %x", val);
 	if (val & 0x01) {
 		eval = cs->readisac(cs, ISAC_EXIR);
-		debugl1(cs, "ISAC EXIR %x", eval);
+		del1(cs, "ISAC EXIR %x", eval);
 	}
 	val = cs->readisac(cs, ISAC_CIR0);
-	debugl1(cs, "ISAC CIR0 %x", val);
+	del1(cs, "ISAC CIR0 %x", val);
 	cs->dc.isac.ph_state = (val >> 2) & 0xf;
 	schedule_event(cs, D_L1STATECHANGE);
 	/* Disable all IRQ */

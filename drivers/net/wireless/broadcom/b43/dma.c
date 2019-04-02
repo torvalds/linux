@@ -30,7 +30,7 @@
 #include "b43.h"
 #include "dma.h"
 #include "main.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "xmit.h"
 
 #include <linux/dma-mapping.h>
@@ -288,14 +288,14 @@ static inline int prev_slot(struct b43_dmaring *ring, int slot)
 	return slot - 1;
 }
 
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_B43_DE
 static void update_max_used_slots(struct b43_dmaring *ring,
 				  int current_used_slots)
 {
 	if (current_used_slots <= ring->max_used_slots)
 		return;
 	ring->max_used_slots = current_used_slots;
-	if (b43_debug(ring->dev, B43_DBG_DMAVERBOSE)) {
+	if (b43_de(ring->dev, B43_DBG_DMAVERBOSE)) {
 		b43dbg(ring->dev->wl,
 		       "max_used_slots increased to %d on %s ring %d\n",
 		       ring->max_used_slots,
@@ -307,7 +307,7 @@ static inline
     void update_max_used_slots(struct b43_dmaring *ring, int current_used_slots)
 {
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 /* Request a slot for usage. */
 static inline int request_slot(struct b43_dmaring *ring)
@@ -422,7 +422,7 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	/* The specs call for 4K buffers for 30- and 32-bit DMA with 4K
 	 * alignment and 8K buffers for 64-bit DMA with 8K alignment.
 	 * In practice we could use smaller buffers for the latter, but the
-	 * alignment is really important because of the hardware bug. If bit
+	 * alignment is really important because of the hardware . If bit
 	 * 0x00001000 is used in DMA address, some hardware (like BCM4331)
 	 * copies that bit into B43_DMA64_RXSTATUS and we get false values from
 	 * B43_DMA64_RXSTATDPTR. Let's just use 8K buffers even if we don't use
@@ -906,13 +906,13 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		} else
 			B43_WARN_ON(1);
 	}
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_B43_DE
 	ring->last_injected_overflow = jiffies;
 #endif
 
 	if (for_tx) {
 		/* Assumption: B43_TXRING_SLOTS can be divided by TX_SLOTS_PER_FRAME */
-		BUILD_BUG_ON(B43_TXRING_SLOTS % TX_SLOTS_PER_FRAME != 0);
+		BUILD__ON(B43_TXRING_SLOTS % TX_SLOTS_PER_FRAME != 0);
 
 		ring->txhdr_cache = kcalloc(ring->nr_slots / TX_SLOTS_PER_FRAME,
 					    b43_txhdr_size(dev),
@@ -995,7 +995,7 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring,
 	if (!ring)
 		return;
 
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_B43_DE
 	{
 		/* Print some statistics. */
 		u64 failed_packets = ring->nr_failed_tx_packets;
@@ -1021,7 +1021,7 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring,
 		       (unsigned long long)divide(average_tries, 100),
 		       (unsigned long long)modulo(average_tries, 100));
 	}
-#endif /* DEBUG */
+#endif /* DE */
 
 	/* Device IRQs are disabled prior entering this function,
 	 * so no need to take care of concurrency with rx handler stuff.
@@ -1092,7 +1092,7 @@ static int b43_dma_set_mask(struct b43_wldev *dev, u64 mask)
 	return 0;
 }
 
-/* Some hardware with 64-bit DMA seems to be bugged and looks for translation
+/* Some hardware with 64-bit DMA seems to be ged and looks for translation
  * bit in low address word instead of high one.
  */
 static bool b43_dma_translation_in_low_word(struct b43_wldev *dev,
@@ -1349,8 +1349,8 @@ out_unmap_hdr:
 
 static inline int should_inject_overflow(struct b43_dmaring *ring)
 {
-#ifdef CONFIG_B43_DEBUG
-	if (unlikely(b43_debug(ring->dev, B43_DBG_DMAOVERFLOW))) {
+#ifdef CONFIG_B43_DE
+	if (unlikely(b43_de(ring->dev, B43_DBG_DMAOVERFLOW))) {
 		/* Check if we should inject another ringbuffer overflow
 		 * to test handling of this situation in the stack. */
 		unsigned long next_overflow;
@@ -1364,7 +1364,7 @@ static inline int should_inject_overflow(struct b43_dmaring *ring)
 			return 1;
 		}
 	}
-#endif /* CONFIG_B43_DEBUG */
+#endif /* CONFIG_B43_DE */
 	return 0;
 }
 
@@ -1422,11 +1422,11 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	B43_WARN_ON(!ring->tx);
 
 	if (unlikely(ring->stopped)) {
-		/* We get here only because of a bug in mac80211.
+		/* We get here only because of a  in mac80211.
 		 * Because of a race, one packet may be queued after
 		 * the queue is stopped, thus we got called when we shouldn't.
 		 * For now, just refuse the transmit. */
-		if (b43_debug(dev, B43_DBG_DMAVERBOSE))
+		if (b43_de(dev, B43_DBG_DMAVERBOSE))
 			b43err(dev->wl, "Packet after queue stopped\n");
 		err = -ENOSPC;
 		goto out;
@@ -1464,7 +1464,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		ieee80211_stop_queue(dev->wl->hw, skb_mapping);
 		dev->wl->tx_queue_stopped[skb_mapping] = 1;
 		ring->stopped = true;
-		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
+		if (b43_de(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Stopped TX ring %d\n", ring->index);
 		}
 	}
@@ -1500,7 +1500,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 	skip = 0;
 	if (unlikely(slot != firstused)) {
-		/* This possibly is a firmware bug and will result in
+		/* This possibly is a firmware  and will result in
 		 * malfunction, memory leaks and/or stall of DMA functionality.
 		 */
 		if (slot == next_slot(ring, next_slot(ring, firstused))) {
@@ -1586,13 +1586,13 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 			frame_succeed = b43_fill_txstatus_report(dev, info,
 								 txstat);
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_B43_DE
 			if (frame_succeed)
 				ring->nr_succeed_tx_packets++;
 			else
 				ring->nr_failed_tx_packets++;
 			ring->nr_total_packet_tries += status->frame_count;
-#endif /* DEBUG */
+#endif /* DE */
 			ieee80211_tx_status(dev->wl->hw, meta->skb);
 
 			/* skb will be freed by ieee80211_tx_status().
@@ -1633,7 +1633,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 		/* If the driver queue is running wake the corresponding
 		 * mac80211 queue. */
 		ieee80211_wake_queue(dev->wl->hw, ring->queue_prio);
-		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
+		if (b43_de(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Woke up TX ring %d\n", ring->index);
 		}
 	}

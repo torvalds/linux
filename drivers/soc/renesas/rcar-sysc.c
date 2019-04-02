@@ -150,7 +150,7 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
  out:
 	spin_unlock_irqrestore(&rcar_sysc_lock, flags);
 
-	pr_debug("sysc power %s domain %d: %08x -> %d\n", on ? "on" : "off",
+	pr_de("sysc power %s domain %d: %08x -> %d\n", on ? "on" : "off",
 		 sysc_ch->isr_bit, ioread32(rcar_sysc_base + SYSCISR), ret);
 	return ret;
 }
@@ -182,7 +182,7 @@ static int rcar_sysc_pd_power_off(struct generic_pm_domain *genpd)
 {
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
-	pr_debug("%s: %s\n", __func__, genpd->name);
+	pr_de("%s: %s\n", __func__, genpd->name);
 	return rcar_sysc_power(&pd->ch, false);
 }
 
@@ -190,7 +190,7 @@ static int rcar_sysc_pd_power_on(struct generic_pm_domain *genpd)
 {
 	struct rcar_sysc_pd *pd = to_rcar_pd(genpd);
 
-	pr_debug("%s: %s\n", __func__, genpd->name);
+	pr_de("%s: %s\n", __func__, genpd->name);
 	return rcar_sysc_power(&pd->ch, true);
 }
 
@@ -208,7 +208,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 * This domain contains a CPU core and therefore it should
 		 * only be turned off if the CPU is not in use.
 		 */
-		pr_debug("PM domain %s contains %s\n", name, "CPU");
+		pr_de("PM domain %s contains %s\n", name, "CPU");
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_SCU) {
 		/*
@@ -216,7 +216,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		 * therefore it should only be turned off if the CPU cores are
 		 * not in use.
 		 */
-		pr_debug("PM domain %s contains %s\n", name, "SCU");
+		pr_de("PM domain %s contains %s\n", name, "SCU");
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_NO_CR) {
 		/*
@@ -242,12 +242,12 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 
 	if (pd->flags & (PD_CPU | PD_NO_CR)) {
 		/* Skip CPUs (handled by SMP code) and areas without control */
-		pr_debug("%s: Not touching %s\n", __func__, genpd->name);
+		pr_de("%s: Not touching %s\n", __func__, genpd->name);
 		goto finalize;
 	}
 
 	if (!rcar_sysc_power_is_off(&pd->ch)) {
-		pr_debug("%s: %s is already powered\n", __func__, genpd->name);
+		pr_de("%s: %s is already powered\n", __func__, genpd->name);
 		goto finalize;
 	}
 

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <linux/compiler.h>
 
-#include "debug.h"
+#include "de.h"
 #include "tests/tests.h"
 #include "util/find-map.c"
 

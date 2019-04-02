@@ -518,7 +518,7 @@ struct qed_fcoe_pf_params {
 	u8 log_page_size;
 	u8 gl_rq_pi;
 	u8 gl_cmd_pi;
-	u8 debug_mode;
+	u8 de_mode;
 	u8 is_target;
 	u8 bdq_pbl_num_entries[2];
 };
@@ -556,7 +556,7 @@ struct qed_iscsi_pf_params {
 	u8 max_fin_rt;
 	u8 gl_rq_pi;
 	u8 gl_cmd_pi;
-	u8 debug_mode;
+	u8 de_mode;
 	u8 ll2_ooo_queue_id;
 
 	u8 is_target;
@@ -962,7 +962,7 @@ struct qed_common_ops {
 	int		(*drain)(struct qed_dev *cdev);
 
 /**
- * @brief update_msglvl - update module debug level
+ * @brief update_msglvl - update module de level
  *
  * @param cdev
  * @param dp_module
@@ -1140,7 +1140,7 @@ struct qed_common_ops {
 #define GET_FIELD(value, name) \
 	(((value) >> (name ## _SHIFT)) & name ## _MASK)
 
-/* Debug print definitions */
+/* De print definitions */
 #define DP_ERR(cdev, fmt, ...)					\
 	do {							\
 		pr_err("[%s:%d(%s)]" fmt,			\
@@ -1204,7 +1204,7 @@ enum DP_MODULE {
 	QED_MSG_LL2	= 0x1000000,
 	QED_MSG_ILT	= 0x2000000,
 	QED_MSG_RDMA	= 0x4000000,
-	QED_MSG_DEBUG	= 0x8000000,
+	QED_MSG_DE	= 0x8000000,
 	/* to be added...up to 0x8000000 */
 };
 

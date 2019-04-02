@@ -26,7 +26,7 @@
 		vdd-supply = <&vdd_gpu>;
 	};
 
-	/* debug port */
+	/* de port */
 	serial@70006000 {
 		status = "okay";
 	};

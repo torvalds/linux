@@ -88,7 +88,7 @@ static inline __u16 READRDP(struct lance_private *lp)
 #endif
 #endif /* IS_ENABLED(CONFIG_HPLANCE) */
 
-/* debugging output macros, various flavours */
+/* deging output macros, various flavours */
 /* #define TEST_HITS */
 #ifdef UNDEF
 #define PRINT_RINGS() \
@@ -131,7 +131,7 @@ static void load_csrs(struct lance_private *lp)
 }
 
 /* #define to 0 or 1 appropriately */
-#define DEBUG_IRING 0
+#define DE_IRING 0
 /* Set up the Lance Rx and Tx rings and the init block */
 static void lance_init_ring(struct net_device *dev)
 {
@@ -170,7 +170,7 @@ static void lance_init_ring(struct net_device *dev)
 	       ib->phys_addr[i] = dev->dev_addr[i];
 #endif
 
-	if (DEBUG_IRING)
+	if (DE_IRING)
 		printk("TX rings:\n");
 
 	lp->tx_full = 0;
@@ -182,12 +182,12 @@ static void lance_init_ring(struct net_device *dev)
 		ib->btx_ring[i].tmd1_bits = 0;
 		ib->btx_ring[i].length    = 0xf000; /* The ones required by tmd2 */
 		ib->btx_ring[i].misc      = 0;
-		if (DEBUG_IRING)
+		if (DE_IRING)
 			printk("%d: 0x%8.8x\n", i, leptr);
 	}
 
 	/* Setup the Rx ring entries */
-	if (DEBUG_IRING)
+	if (DE_IRING)
 		printk("RX rings:\n");
 	for (i = 0; i < (1 << lp->lance_log_rx_bufs); i++) {
 		leptr = LANCE_ADDR(&aib->rx_buf[i][0]);
@@ -198,7 +198,7 @@ static void lance_init_ring(struct net_device *dev)
 		/* 0xf000 == bits that must be one (reserved, presumably) */
 		ib->brx_ring[i].length    = -RX_BUFF_SIZE | 0xf000;
 		ib->brx_ring[i].mblength  = 0;
-		if (DEBUG_IRING)
+		if (DE_IRING)
 			printk("%d: 0x%8.8x\n", i, leptr);
 	}
 
@@ -208,14 +208,14 @@ static void lance_init_ring(struct net_device *dev)
 	leptr = LANCE_ADDR(&aib->brx_ring);
 	ib->rx_len = (lp->lance_log_rx_bufs << 13) | (leptr >> 16);
 	ib->rx_ptr = leptr;
-	if (DEBUG_IRING)
+	if (DE_IRING)
 		printk("RX ptr: %8.8x\n", leptr);
 
 	/* Setup tx descriptor pointer */
 	leptr = LANCE_ADDR(&aib->btx_ring);
 	ib->tx_len = (lp->lance_log_tx_bufs << 13) | (leptr >> 16);
 	ib->tx_ptr = leptr;
-	if (DEBUG_IRING)
+	if (DE_IRING)
 		printk("TX ptr: %8.8x\n", leptr);
 
 	/* Clear the multicast filter */
@@ -262,7 +262,7 @@ static int lance_reset(struct net_device *dev)
 	lance_init_ring(dev);
 	netif_trans_update(dev); /* prevent tx timeout */
 	status = init_restart_lance(lp);
-#ifdef DEBUG_DRIVER
+#ifdef DE_DRIVER
 	printk("Lance restart=%d\n", status);
 #endif
 	return status;
@@ -552,7 +552,7 @@ int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skblen = skb->len;
 
-#ifdef DEBUG_DRIVER
+#ifdef DE_DRIVER
 	/* dump the packet */
 	{
 		int i;

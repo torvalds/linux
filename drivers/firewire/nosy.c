@@ -603,7 +603,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	lynx->rcv_pcl->buffer[i - 1].control |= cpu_to_le32(PCL_LAST_BUFF);
 
 	reg_set_bits(lynx, MISC_CONTROL, MISC_CONTROL_SWRESET);
-	/* Fix buggy cards with autoboot pin not tied low: */
+	/* Fix gy cards with autoboot pin not tied low: */
 	reg_write(lynx, DMA0_CHAN_CTRL, 0);
 	reg_write(lynx, DMA_GLOBAL_REGISTER, 0x00 << 24);
 

@@ -20,7 +20,7 @@ Optional properties:
 	if the CPU stop working while it is in idle state, which is probably
 	not what you want.
 - atmel,dbg-halt: present if you want to stop the watchdog when the CPU is
-		  in debug state.
+		  in de state.
 
 Example:
 	watchdog@fc068640 {

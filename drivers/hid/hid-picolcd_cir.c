@@ -18,7 +18,7 @@
  ***************************************************************************/
 
 #include <linux/hid.h>
-#include <linux/hid-debug.h>
+#include <linux/hid-de.h>
 #include <linux/input.h>
 #include "hid-ids.h"
 
@@ -30,7 +30,7 @@
 #include <linux/leds.h>
 
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <linux/completion.h>
 #include <linux/uaccess.h>

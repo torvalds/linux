@@ -2,7 +2,7 @@
 OBJECT_FILES_NON_STANDARD_xen-asm_$(BITS).o := y
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do not profile de and lowlevel utilities
 CFLAGS_REMOVE_spinlock.o = -pg
 CFLAGS_REMOVE_time.o = -pg
 CFLAGS_REMOVE_irq.o = -pg
@@ -46,7 +46,7 @@ obj-$(CONFIG_XEN_PVHVM_SMP)  	+= smp_hvm.o
 
 obj-$(CONFIG_PARAVIRT_SPINLOCKS)+= spinlock.o
 
-obj-$(CONFIG_XEN_DEBUG_FS)	+= debugfs.o
+obj-$(CONFIG_XEN_DE_FS)	+= defs.o
 
 obj-$(CONFIG_XEN_DOM0)		+= vga.o
 

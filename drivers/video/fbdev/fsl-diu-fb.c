@@ -441,11 +441,11 @@ static const struct mfb_info mfb_template[] = {
 	},
 };
 
-#ifdef DEBUG
+#ifdef DE
 static void __attribute__ ((unused)) fsl_diu_dump(struct diu __iomem *hw)
 {
 	mb();
-	pr_debug("DIU: desc=%08x,%08x,%08x, gamma=%08x palette=%08x "
+	pr_de("DIU: desc=%08x,%08x,%08x, gamma=%08x palette=%08x "
 		 "cursor=%08x curs_pos=%08x diu_mode=%08x bgnd=%08x "
 		 "disp_size=%08x hsyn_para=%08x vsyn_para=%08x syn_pol=%08x "
 		 "thresholds=%08x int_mask=%08x plut=%08x\n",
@@ -1945,7 +1945,7 @@ static int __init fsl_diu_init(void)
 	coherence_data_size = be32_to_cpup(prop) * 13;
 	coherence_data_size /= 8;
 
-	pr_debug("fsl-diu-fb: coherence data size is %zu bytes\n",
+	pr_de("fsl-diu-fb: coherence data size is %zu bytes\n",
 		 coherence_data_size);
 
 	prop = of_get_property(np, "d-cache-line-size", NULL);
@@ -1957,7 +1957,7 @@ static int __init fsl_diu_init(void)
 	}
 	d_cache_line_size = be32_to_cpup(prop);
 
-	pr_debug("fsl-diu-fb: cache lines size is %u bytes\n",
+	pr_de("fsl-diu-fb: cache lines size is %u bytes\n",
 		 d_cache_line_size);
 
 	of_node_put(np);

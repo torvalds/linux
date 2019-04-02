@@ -225,7 +225,7 @@ skip_lookup:
 	 * Allow quirks to override default ECAM ops and CFG resource
 	 * range.  This may even fabricate a CFG resource range in case
 	 * MCFG does not have it.  Invalid CFG start address means MCFG
-	 * firmware bug or we need another quirk in array.
+	 * firmware  or we need another quirk in array.
 	 */
 	pci_mcfg_apply_quirks(root, &res, &ops);
 	if (!res.start)

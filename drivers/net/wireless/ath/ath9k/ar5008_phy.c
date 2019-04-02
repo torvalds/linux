@@ -147,7 +147,7 @@ static void ar5008_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 	if (!AR_SREV_5416(ah) || synth_freq >= 3000)
 		return;
 
-	BUG_ON(AR_SREV_9280_20_OR_LATER(ah));
+	_ON(AR_SREV_9280_20_OR_LATER(ah));
 
 	if (synth_freq < 2412)
 		new_bias = 0;
@@ -297,7 +297,7 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 
 	for (i = 0; i < ARRAY_SIZE(mask_m); i++) {
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-			/* workaround for gcc bug #37014 */
+			/* workaround for gcc  #37014 */
 			volatile int tmp_v = abs(cur_vit_mask - bin);
 
 			if (tmp_v < 75)

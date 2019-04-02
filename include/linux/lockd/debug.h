@@ -1,34 +1,34 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * linux/include/linux/lockd/debug.h
+ * linux/include/linux/lockd/de.h
  *
- * Debugging stuff.
+ * Deging stuff.
  *
  * Copyright (C) 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#ifndef LINUX_LOCKD_DEBUG_H
-#define LINUX_LOCKD_DEBUG_H
+#ifndef LINUX_LOCKD_DE_H
+#define LINUX_LOCKD_DE_H
 
 #ifdef __KERNEL__
 
-#include <linux/sunrpc/debug.h>
+#include <linux/sunrpc/de.h>
 
 /*
- * Enable lockd debugging.
- * Requires RPC_DEBUG.
+ * Enable lockd deging.
+ * Requires RPC_DE.
  */
-#undef ifdebug
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define ifdebug(flag)		if (unlikely(nlm_debug & NLMDBG_##flag))
+#undef ifde
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
+# define ifde(flag)		if (unlikely(nlm_de & NLMDBG_##flag))
 #else
-# define ifdebug(flag)		if (0)
+# define ifde(flag)		if (0)
 #endif
 
 #endif /* __KERNEL__ */
 
 /*
- * Debug flags
+ * De flags
  */
 #define NLMDBG_SVC		0x0001
 #define NLMDBG_CLIENT		0x0002
@@ -41,4 +41,4 @@
 #define NLMDBG_XDR		0x0100
 #define NLMDBG_ALL		0x7fff
 
-#endif /* LINUX_LOCKD_DEBUG_H */
+#endif /* LINUX_LOCKD_DE_H */

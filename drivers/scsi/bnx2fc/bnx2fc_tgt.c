@@ -201,7 +201,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
 		else {
 			rc = bnx2fc_initiate_cleanup(io_req);
-			BUG_ON(rc);
+			_ON(rc);
 		}
 	}
 
@@ -235,7 +235,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
 		else {
 			rc = bnx2fc_initiate_cleanup(io_req);
-			BUG_ON(rc);
+			_ON(rc);
 		}
 	}
 

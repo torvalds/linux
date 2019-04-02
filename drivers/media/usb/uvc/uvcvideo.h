@@ -586,8 +586,8 @@ struct uvc_streaming {
 	u32 sequence;
 	u8 last_fid;
 
-	/* debugfs */
-	struct dentry *debugfs_dir;
+	/* defs */
+	struct dentry *defs_dir;
 	struct {
 		struct uvc_stats_frame frame;
 		struct uvc_stats_stream stream;
@@ -692,7 +692,7 @@ struct uvc_driver {
 };
 
 /* ------------------------------------------------------------------------
- * Debugging, printing and logging
+ * Deging, printing and logging
  */
 
 #define UVC_TRACE_PROBE		(1 << 0)
@@ -721,7 +721,7 @@ extern unsigned int uvc_hw_timestamps_param;
 #define uvc_trace(flag, msg...) \
 	do { \
 		if (uvc_trace_param & flag) \
-			printk(KERN_DEBUG "uvcvideo: " msg); \
+			printk(KERN_DE "uvcvideo: " msg); \
 	} while (0)
 
 #define uvc_warn_once(dev, warn, msg...) \
@@ -867,11 +867,11 @@ void uvc_video_decode_isight(struct uvc_urb *uvc_urb,
 			     struct uvc_buffer *buf,
 			     struct uvc_buffer *meta_buf);
 
-/* debugfs and statistics */
-void uvc_debugfs_init(void);
-void uvc_debugfs_cleanup(void);
-void uvc_debugfs_init_stream(struct uvc_streaming *stream);
-void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream);
+/* defs and statistics */
+void uvc_defs_init(void);
+void uvc_defs_cleanup(void);
+void uvc_defs_init_stream(struct uvc_streaming *stream);
+void uvc_defs_cleanup_stream(struct uvc_streaming *stream);
 
 size_t uvc_video_stats_dump(struct uvc_streaming *stream, char *buf,
 			    size_t size);

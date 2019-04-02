@@ -44,7 +44,7 @@
    along with this program; if not, write to the Free Software               
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
 
-   Bugs/Comments/Suggestions should be mailed to:                            
+   s/Comments/Suggestions should be mailed to:                            
 
    aradford@gmail.com
    
@@ -271,7 +271,7 @@ static unsigned char tw_sense_table[][4] =
 	(x & TW_STATUS_MICROCONTROLLER_ERROR)) && \
 	(x & TW_STATUS_MICROCONTROLLER_READY))
 
-#ifdef TW_DEBUG
+#ifdef TW_DE
 #define dprintk(msg...) printk(msg)
 #else
 #define dprintk(msg...) do { } while(0)

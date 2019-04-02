@@ -202,7 +202,7 @@ bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev);
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc);
 void rt2800_clear_beacon(struct queue_entry *entry);
 
-extern const struct rt2x00debug rt2800_rt2x00debug;
+extern const struct rt2x00de rt2800_rt2x00de;
 
 int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev);
 int rt2800_config_shared_key(struct rt2x00_dev *rt2x00dev,

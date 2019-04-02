@@ -23,10 +23,10 @@ menuconfig REGULATOR
 
 if REGULATOR
 
-config REGULATOR_DEBUG
-	bool "Regulator debug support"
+config REGULATOR_DE
+	bool "Regulator de support"
 	help
-	  Say yes here to enable debugging support.
+	  Say yes here to enable deging support.
 
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"

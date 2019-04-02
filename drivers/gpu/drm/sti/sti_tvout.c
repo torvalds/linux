@@ -113,7 +113,7 @@ struct sti_tvout {
 	struct drm_encoder *hdmi;
 	struct drm_encoder *hda;
 	struct drm_encoder *dvo;
-	bool debugfs_registered;
+	bool defs_registered;
 };
 
 struct sti_tvout_encoder {
@@ -299,7 +299,7 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
-		DRM_DEBUG_DRIVER("main vip for DVO\n");
+		DRM_DE_DRIVER("main vip for DVO\n");
 		/* Select the input sync for dvo */
 		tmp = TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_DVO;
 		val  = tmp << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
@@ -308,7 +308,7 @@ static void tvout_dvo_start(struct sti_tvout *tvout, bool main_path)
 		tvout_write(tvout, val, TVO_DVO_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
-		DRM_DEBUG_DRIVER("aux vip for DVO\n");
+		DRM_DE_DRIVER("aux vip for DVO\n");
 		/* Select the input sync for dvo */
 		tmp = TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_DVO;
 		val  = tmp << TVO_SYNC_DVO_PAD_VSYNC_SHIFT;
@@ -352,14 +352,14 @@ static void tvout_hdmi_start(struct sti_tvout *tvout, bool main_path)
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
-		DRM_DEBUG_DRIVER("main vip for hdmi\n");
+		DRM_DE_DRIVER("main vip for hdmi\n");
 		/* select the input sync for hdmi */
 		tvout_write(tvout,
 			    TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDMI,
 			    TVO_HDMI_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
-		DRM_DEBUG_DRIVER("aux vip for hdmi\n");
+		DRM_DE_DRIVER("aux vip for hdmi\n");
 		/* select the input sync for hdmi */
 		tvout_write(tvout,
 			    TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDMI,
@@ -402,7 +402,7 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 	dev_dbg(tvout->dev, "%s\n", __func__);
 
 	if (main_path) {
-		DRM_DEBUG_DRIVER("main vip for HDF\n");
+		DRM_DE_DRIVER("main vip for HDF\n");
 		/* Select the input sync for HD analog and HD DCS */
 		val  = TVO_SYNC_MAIN_VTG_SET_REF | VTG_SYNC_ID_HDDCS;
 		val  = val << TVO_SYNC_HD_DCS_SHIFT;
@@ -410,7 +410,7 @@ static void tvout_hda_start(struct sti_tvout *tvout, bool main_path)
 		tvout_write(tvout, val, TVO_HD_SYNC_SEL);
 		tvo_in_vid_format = TVO_MAIN_IN_VID_FORMAT;
 	} else {
-		DRM_DEBUG_DRIVER("aux vip for HDF\n");
+		DRM_DE_DRIVER("aux vip for HDF\n");
 		/* Select the input sync for HD analog and HD DCS */
 		val  = TVO_SYNC_AUX_VTG_SET_REF | VTG_SYNC_ID_HDDCS;
 		val  = val << TVO_SYNC_HD_DCS_SHIFT;
@@ -562,20 +562,20 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list tvout_debugfs_files[] = {
+static struct drm_info_list tvout_defs_files[] = {
 	{ "tvout", tvout_dbg_show, 0, NULL },
 };
 
-static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
+static int tvout_defs_init(struct sti_tvout *tvout, struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(tvout_debugfs_files); i++)
-		tvout_debugfs_files[i].data = tvout;
+	for (i = 0; i < ARRAY_SIZE(tvout_defs_files); i++)
+		tvout_defs_files[i].data = tvout;
 
-	return drm_debugfs_create_files(tvout_debugfs_files,
-					ARRAY_SIZE(tvout_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(tvout_defs_files,
+					ARRAY_SIZE(tvout_defs_files),
+					minor->defs_root, minor);
 }
 
 static void sti_tvout_encoder_dpms(struct drm_encoder *encoder, int mode)
@@ -601,14 +601,14 @@ static int sti_tvout_late_register(struct drm_encoder *encoder)
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 	int ret;
 
-	if (tvout->debugfs_registered)
+	if (tvout->defs_registered)
 		return 0;
 
-	ret = tvout_debugfs_init(tvout, encoder->dev->primary);
+	ret = tvout_defs_init(tvout, encoder->dev->primary);
 	if (ret)
 		return ret;
 
-	tvout->debugfs_registered = true;
+	tvout->defs_registered = true;
 	return 0;
 }
 
@@ -616,10 +616,10 @@ static void sti_tvout_early_unregister(struct drm_encoder *encoder)
 {
 	struct sti_tvout *tvout = to_sti_tvout(encoder);
 
-	if (!tvout->debugfs_registered)
+	if (!tvout->defs_registered)
 		return;
 
-	tvout->debugfs_registered = false;
+	tvout->defs_registered = false;
 }
 
 static const struct drm_encoder_funcs sti_tvout_encoder_funcs = {

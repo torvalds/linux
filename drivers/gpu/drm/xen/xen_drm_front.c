@@ -640,7 +640,7 @@ static void displback_changed(struct xenbus_device *xb_dev,
 	struct xen_drm_front_info *front_info = dev_get_drvdata(&xb_dev->dev);
 	int ret;
 
-	DRM_DEBUG("Backend state is %s, front is %s\n",
+	DRM_DE("Backend state is %s, front is %s\n",
 		  xenbus_strstate(backend_state),
 		  xenbus_strstate(xb_dev->state));
 

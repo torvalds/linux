@@ -289,59 +289,59 @@ static int gdp_node_dbg_show(struct seq_file *s, void *arg)
 	return 0;
 }
 
-static struct drm_info_list gdp0_debugfs_files[] = {
+static struct drm_info_list gdp0_defs_files[] = {
 	{ "gdp0", gdp_dbg_show, 0, NULL },
 	{ "gdp0_node", gdp_node_dbg_show, 0, NULL },
 };
 
-static struct drm_info_list gdp1_debugfs_files[] = {
+static struct drm_info_list gdp1_defs_files[] = {
 	{ "gdp1", gdp_dbg_show, 0, NULL },
 	{ "gdp1_node", gdp_node_dbg_show, 0, NULL },
 };
 
-static struct drm_info_list gdp2_debugfs_files[] = {
+static struct drm_info_list gdp2_defs_files[] = {
 	{ "gdp2", gdp_dbg_show, 0, NULL },
 	{ "gdp2_node", gdp_node_dbg_show, 0, NULL },
 };
 
-static struct drm_info_list gdp3_debugfs_files[] = {
+static struct drm_info_list gdp3_defs_files[] = {
 	{ "gdp3", gdp_dbg_show, 0, NULL },
 	{ "gdp3_node", gdp_node_dbg_show, 0, NULL },
 };
 
-static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_minor *minor)
+static int gdp_defs_init(struct sti_gdp *gdp, struct drm_minor *minor)
 {
 	unsigned int i;
-	struct drm_info_list *gdp_debugfs_files;
+	struct drm_info_list *gdp_defs_files;
 	int nb_files;
 
 	switch (gdp->plane.desc) {
 	case STI_GDP_0:
-		gdp_debugfs_files = gdp0_debugfs_files;
-		nb_files = ARRAY_SIZE(gdp0_debugfs_files);
+		gdp_defs_files = gdp0_defs_files;
+		nb_files = ARRAY_SIZE(gdp0_defs_files);
 		break;
 	case STI_GDP_1:
-		gdp_debugfs_files = gdp1_debugfs_files;
-		nb_files = ARRAY_SIZE(gdp1_debugfs_files);
+		gdp_defs_files = gdp1_defs_files;
+		nb_files = ARRAY_SIZE(gdp1_defs_files);
 		break;
 	case STI_GDP_2:
-		gdp_debugfs_files = gdp2_debugfs_files;
-		nb_files = ARRAY_SIZE(gdp2_debugfs_files);
+		gdp_defs_files = gdp2_defs_files;
+		nb_files = ARRAY_SIZE(gdp2_defs_files);
 		break;
 	case STI_GDP_3:
-		gdp_debugfs_files = gdp3_debugfs_files;
-		nb_files = ARRAY_SIZE(gdp3_debugfs_files);
+		gdp_defs_files = gdp3_defs_files;
+		nb_files = ARRAY_SIZE(gdp3_defs_files);
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	for (i = 0; i < nb_files; i++)
-		gdp_debugfs_files[i].data = gdp;
+		gdp_defs_files[i].data = gdp;
 
-	return drm_debugfs_create_files(gdp_debugfs_files,
+	return drm_defs_create_files(gdp_defs_files,
 					nb_files,
-					minor->debugfs_root, minor);
+					minor->defs_root, minor);
 }
 
 static int sti_gdp_fourcc2format(int fourcc)
@@ -434,7 +434,7 @@ struct sti_gdp_node_list *sti_gdp_get_current_nodes(struct sti_gdp *gdp)
 			return &gdp->node_list[i];
 
 end:
-	DRM_DEBUG_DRIVER("Warning, NVN 0x%08X for %s does not match any node\n",
+	DRM_DE_DRIVER("Warning, NVN 0x%08X for %s does not match any node\n",
 				hw_nvn, sti_plane_to_str(&gdp->plane));
 
 	return NULL;
@@ -450,7 +450,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 {
 	unsigned int i;
 
-	DRM_DEBUG_DRIVER("%s\n", sti_plane_to_str(&gdp->plane));
+	DRM_DE_DRIVER("%s\n", sti_plane_to_str(&gdp->plane));
 
 	/* Set the nodes as 'to be ignored on mixer' */
 	for (i = 0; i < GDP_NODE_NB_BANK; i++) {
@@ -459,7 +459,7 @@ static void sti_gdp_disable(struct sti_gdp *gdp)
 	}
 
 	if (sti_vtg_unregister_client(gdp->vtg, &gdp->vtg_field_nb))
-		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
+		DRM_DE_DRIVER("Warning: cannot unregister VTG notifier\n");
 
 	if (gdp->clk_pix)
 		clk_disable_unprepare(gdp->clk_pix);
@@ -486,7 +486,7 @@ static int sti_gdp_field_cb(struct notifier_block *nb,
 
 	if (gdp->plane.status == STI_PLANE_FLUSHING) {
 		/* disable need to be synchronize on vsync event */
-		DRM_DEBUG_DRIVER("Vsync event received => disable %s\n",
+		DRM_DE_DRIVER("Vsync event received => disable %s\n",
 				 sti_plane_to_str(&gdp->plane));
 
 		sti_gdp_disable(gdp);
@@ -533,7 +533,7 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 		gdp->node_list[i].top_field = base;
 		gdp->node_list[i].top_field_paddr = dma_addr;
 
-		DRM_DEBUG_DRIVER("node[%d].top_field=%p\n", i, base);
+		DRM_DE_DRIVER("node[%d].top_field=%p\n", i, base);
 		base += sizeof(struct sti_gdp_node);
 		dma_addr += sizeof(struct sti_gdp_node);
 
@@ -543,7 +543,7 @@ static void sti_gdp_init(struct sti_gdp *gdp)
 		}
 		gdp->node_list[i].btm_field = base;
 		gdp->node_list[i].btm_field_paddr = dma_addr;
-		DRM_DEBUG_DRIVER("node[%d].btm_field=%p\n", i, base);
+		DRM_DE_DRIVER("node[%d].btm_field=%p\n", i, base);
 		base += sizeof(struct sti_gdp_node);
 		dma_addr += sizeof(struct sti_gdp_node);
 	}
@@ -678,10 +678,10 @@ static int sti_gdp_atomic_check(struct drm_plane *drm_plane,
 		}
 	}
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
+	DRM_DE_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
 		      crtc->base.id, sti_mixer_to_str(mixer),
 		      drm_plane->base.id, sti_plane_to_str(plane));
-	DRM_DEBUG_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
+	DRM_DE_KMS("%s dst=(%dx%d)@(%d,%d) - src=(%dx%d)@(%d,%d)\n",
 		      sti_plane_to_str(plane),
 		      dst_w, dst_h, dst_x, dst_y,
 		      src_w, src_h, src_x, src_y);
@@ -723,7 +723,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	    (oldstate->src_w == state->src_w) &&
 	    (oldstate->src_h == state->src_h)) {
 		/* No change since last update, do not post cmd */
-		DRM_DEBUG_DRIVER("No change, not posting cmd\n");
+		DRM_DE_DRIVER("No change, not posting cmd\n");
 		plane->status = STI_PLANE_UPDATED;
 		return;
 	}
@@ -766,7 +766,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 
-	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
+	DRM_DE_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
 			 (char *)&fb->format->format,
 			 (unsigned long)cma_obj->paddr);
 
@@ -823,7 +823,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 	if (!curr_list) {
 		/* First update or invalid node should directly write in the
 		 * hw register */
-		DRM_DEBUG_DRIVER("%s first update (or invalid node)\n",
+		DRM_DE_DRIVER("%s first update (or invalid node)\n",
 				 sti_plane_to_str(plane));
 
 		writel(gdp->is_curr_top ?
@@ -860,12 +860,12 @@ static void sti_gdp_atomic_disable(struct drm_plane *drm_plane,
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 
 	if (!oldstate->crtc) {
-		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
+		DRM_DE_DRIVER("drm plane:%d not enabled\n",
 				 drm_plane->base.id);
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
+	DRM_DE_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
 			 oldstate->crtc->base.id,
 			 sti_mixer_to_str(to_sti_mixer(oldstate->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
@@ -881,7 +881,7 @@ static const struct drm_plane_helper_funcs sti_gdp_helpers_funcs = {
 
 static void sti_gdp_destroy(struct drm_plane *drm_plane)
 {
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	drm_plane_cleanup(drm_plane);
 }
@@ -891,7 +891,7 @@ static int sti_gdp_late_register(struct drm_plane *drm_plane)
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_gdp *gdp = to_sti_gdp(plane);
 
-	return gdp_debugfs_init(gdp, drm_plane->dev->primary);
+	return gdp_defs_init(gdp, drm_plane->dev->primary);
 }
 
 static const struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {

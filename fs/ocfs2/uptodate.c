@@ -71,42 +71,42 @@ static struct kmem_cache *ocfs2_uptodate_cachep;
 
 u64 ocfs2_metadata_cache_owner(struct ocfs2_caching_info *ci)
 {
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	return ci->ci_ops->co_owner(ci);
 }
 
 struct super_block *ocfs2_metadata_cache_get_super(struct ocfs2_caching_info *ci)
 {
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	return ci->ci_ops->co_get_super(ci);
 }
 
 static void ocfs2_metadata_cache_lock(struct ocfs2_caching_info *ci)
 {
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	ci->ci_ops->co_cache_lock(ci);
 }
 
 static void ocfs2_metadata_cache_unlock(struct ocfs2_caching_info *ci)
 {
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	ci->ci_ops->co_cache_unlock(ci);
 }
 
 void ocfs2_metadata_cache_io_lock(struct ocfs2_caching_info *ci)
 {
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	ci->ci_ops->co_io_lock(ci);
 }
 
 void ocfs2_metadata_cache_io_unlock(struct ocfs2_caching_info *ci)
 {
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	ci->ci_ops->co_io_unlock(ci);
 }
@@ -127,7 +127,7 @@ static void ocfs2_metadata_cache_reset(struct ocfs2_caching_info *ci,
 void ocfs2_metadata_cache_init(struct ocfs2_caching_info *ci,
 			       const struct ocfs2_caching_operations *ops)
 {
-	BUG_ON(!ops);
+	_ON(!ops);
 
 	ci->ci_ops = ops;
 	ocfs2_metadata_cache_reset(ci, 1);
@@ -167,13 +167,13 @@ static unsigned int ocfs2_purge_copied_metadata_tree(struct rb_root *root)
  *
  * This function is a few more lines longer than necessary due to some
  * accounting done here, but I think it's worth tracking down those
- * bugs sooner -- Mark */
+ * s sooner -- Mark */
 void ocfs2_metadata_cache_purge(struct ocfs2_caching_info *ci)
 {
 	unsigned int tree, to_purge, purged;
 	struct rb_root root = RB_ROOT;
 
-	BUG_ON(!ci || !ci->ci_ops);
+	_ON(!ci || !ci->ci_ops);
 
 	ocfs2_metadata_cache_lock(ci);
 	tree = !(ci->ci_flags & OCFS2_CACHE_FL_INLINE);
@@ -303,7 +303,7 @@ int ocfs2_buffer_read_ahead(struct ocfs2_caching_info *ci,
 static void ocfs2_append_cache_array(struct ocfs2_caching_info *ci,
 				     sector_t block)
 {
-	BUG_ON(ci->ci_num_cached >= OCFS2_CACHE_INFO_MAX_ARRAY);
+	_ON(ci->ci_num_cached >= OCFS2_CACHE_INFO_MAX_ARRAY);
 
 	trace_ocfs2_append_cache_array(
 		(unsigned long long)ocfs2_metadata_cache_owner(ci),
@@ -341,7 +341,7 @@ static void __ocfs2_insert_cache_tree(struct ocfs2_caching_info *ci,
 			/* This should never happen! */
 			mlog(ML_ERROR, "Duplicate block %llu cached!\n",
 			     (unsigned long long) block);
-			BUG();
+			();
 		}
 	}
 
@@ -367,11 +367,11 @@ static void ocfs2_expand_cache(struct ocfs2_caching_info *ci,
 {
 	int i;
 
-	mlog_bug_on_msg(ci->ci_num_cached != OCFS2_CACHE_INFO_MAX_ARRAY,
+	mlog__on_msg(ci->ci_num_cached != OCFS2_CACHE_INFO_MAX_ARRAY,
 			"Owner %llu, num cached = %u, should be %u\n",
 			(unsigned long long)ocfs2_metadata_cache_owner(ci),
 			ci->ci_num_cached, OCFS2_CACHE_INFO_MAX_ARRAY);
-	mlog_bug_on_msg(!(ci->ci_flags & OCFS2_CACHE_FL_INLINE),
+	mlog__on_msg(!(ci->ci_flags & OCFS2_CACHE_FL_INLINE),
 			"Owner %llu not marked as inline anymore!\n",
 			(unsigned long long)ocfs2_metadata_cache_owner(ci));
 
@@ -522,7 +522,7 @@ void ocfs2_set_new_buffer_uptodate(struct ocfs2_caching_info *ci,
 				   struct buffer_head *bh)
 {
 	/* This should definitely *not* exist in our cache */
-	BUG_ON(ocfs2_buffer_cached(ci, bh));
+	_ON(ocfs2_buffer_cached(ci, bh));
 
 	set_buffer_uptodate(bh);
 
@@ -538,9 +538,9 @@ static void ocfs2_remove_metadata_array(struct ocfs2_caching_info *ci,
 	sector_t *array = ci->ci_cache.ci_array;
 	int bytes;
 
-	BUG_ON(index < 0 || index >= OCFS2_CACHE_INFO_MAX_ARRAY);
-	BUG_ON(index >= ci->ci_num_cached);
-	BUG_ON(!ci->ci_num_cached);
+	_ON(index < 0 || index >= OCFS2_CACHE_INFO_MAX_ARRAY);
+	_ON(index >= ci->ci_num_cached);
+	_ON(!ci->ci_num_cached);
 
 	trace_ocfs2_remove_metadata_array(
 		(unsigned long long)ocfs2_metadata_cache_owner(ci),

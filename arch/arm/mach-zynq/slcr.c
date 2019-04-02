@@ -208,13 +208,13 @@ int __init zynq_early_slcr_init(void)
 	np = of_find_compatible_node(NULL, NULL, "xlnx,zynq-slcr");
 	if (!np) {
 		pr_err("%s: no slcr node found\n", __func__);
-		BUG();
+		();
 	}
 
 	zynq_slcr_base = of_iomap(np, 0);
 	if (!zynq_slcr_base) {
 		pr_err("%s: Unable to map I/O memory\n", __func__);
-		BUG();
+		();
 	}
 
 	np->data = (__force void *)zynq_slcr_base;

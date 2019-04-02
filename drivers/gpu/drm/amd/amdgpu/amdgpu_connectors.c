@@ -156,7 +156,7 @@ int amdgpu_connector_get_monitor_bpc(struct drm_connector *connector)
 		 * required by the HDMI-1.3 spec. Clamp to a safe 12 bpc maximum.
 		 */
 		if (bpc > 12) {
-			DRM_DEBUG("%s: HDMI deep color %d bpc unsupported. Using 12 bpc.\n",
+			DRM_DE("%s: HDMI deep color %d bpc unsupported. Using 12 bpc.\n",
 				  connector->name, bpc);
 			bpc = 12;
 		}
@@ -169,7 +169,7 @@ int amdgpu_connector_get_monitor_bpc(struct drm_connector *connector)
 			/* Maximum allowable input clock in kHz */
 			max_tmds_clock = connector->display_info.max_tmds_clock;
 
-			DRM_DEBUG("%s: hdmi mode dotclock %d kHz, max tmds input clock %d kHz.\n",
+			DRM_DE("%s: hdmi mode dotclock %d kHz, max tmds input clock %d kHz.\n",
 				  connector->name, mode_clock, max_tmds_clock);
 
 			/* Check if bpc is within clock limit. Try to degrade gracefully otherwise */
@@ -180,30 +180,30 @@ int amdgpu_connector_get_monitor_bpc(struct drm_connector *connector)
 				else
 					bpc = 8;
 
-				DRM_DEBUG("%s: HDMI deep color 12 bpc exceeds max tmds clock. Using %d bpc.\n",
+				DRM_DE("%s: HDMI deep color 12 bpc exceeds max tmds clock. Using %d bpc.\n",
 					  connector->name, bpc);
 			}
 
 			if ((bpc == 10) && (mode_clock * 5/4 > max_tmds_clock)) {
 				bpc = 8;
-				DRM_DEBUG("%s: HDMI deep color 10 bpc exceeds max tmds clock. Using %d bpc.\n",
+				DRM_DE("%s: HDMI deep color 10 bpc exceeds max tmds clock. Using %d bpc.\n",
 					  connector->name, bpc);
 			}
 		} else if (bpc > 8) {
 			/* max_tmds_clock missing, but hdmi spec mandates it for deep color. */
-			DRM_DEBUG("%s: Required max tmds clock for HDMI deep color missing. Using 8 bpc.\n",
+			DRM_DE("%s: Required max tmds clock for HDMI deep color missing. Using 8 bpc.\n",
 				  connector->name);
 			bpc = 8;
 		}
 	}
 
 	if ((amdgpu_deep_color == 0) && (bpc > 8)) {
-		DRM_DEBUG("%s: Deep color disabled. Set amdgpu module param deep_color=1 to enable.\n",
+		DRM_DE("%s: Deep color disabled. Set amdgpu module param deep_color=1 to enable.\n",
 			  connector->name);
 		bpc = 8;
 	}
 
-	DRM_DEBUG("%s: Display bpc=%d, returned bpc=%d\n",
+	DRM_DE("%s: Display bpc=%d, returned bpc=%d\n",
 		  connector->name, connector->display_info.bpc, bpc);
 
 	return bpc;
@@ -392,7 +392,7 @@ amdgpu_connector_lcd_native_mode(struct drm_encoder *encoder)
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
 		drm_mode_set_name(mode);
 
-		DRM_DEBUG_KMS("Adding native panel mode %s\n", mode->name);
+		DRM_DE_KMS("Adding native panel mode %s\n", mode->name);
 	} else if (native_mode->hdisplay != 0 &&
 		   native_mode->vdisplay != 0) {
 		/* mac laptops without an edid */
@@ -404,7 +404,7 @@ amdgpu_connector_lcd_native_mode(struct drm_encoder *encoder)
 		 */
 		mode = drm_cvt_mode(dev, native_mode->hdisplay, native_mode->vdisplay, 60, true, false, false);
 		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
-		DRM_DEBUG_KMS("Adding cvt approximation of native panel mode %s\n", mode->name);
+		DRM_DE_KMS("Adding cvt approximation of native panel mode %s\n", mode->name);
 	}
 	return mode;
 }
@@ -630,14 +630,14 @@ amdgpu_connector_fixup_lcd_native_mode(struct drm_encoder *encoder,
 			    mode->vdisplay == native_mode->vdisplay) {
 				*native_mode = *mode;
 				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
-				DRM_DEBUG_KMS("Determined LVDS native mode details from EDID\n");
+				DRM_DE_KMS("Determined LVDS native mode details from EDID\n");
 				break;
 			}
 		}
 	}
 
 	if (!native_mode->clock) {
-		DRM_DEBUG_KMS("No LVDS native mode details, disabling RMX\n");
+		DRM_DE_KMS("No LVDS native mode details, disabling RMX\n");
 		amdgpu_encoder->rmx_type = RMX_OFF;
 	}
 }
@@ -778,7 +778,7 @@ static int amdgpu_connector_set_lcd_property(struct drm_connector *connector,
 	struct amdgpu_encoder *amdgpu_encoder;
 	enum amdgpu_rmx_type rmx_type;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	if (property != dev->mode_config.scaling_mode_property)
 		return 0;
 
@@ -1089,7 +1089,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 					/* assume digital unless load detected otherwise */
 					amdgpu_connector->use_digital = true;
 					lret = encoder_funcs->detect(encoder, connector);
-					DRM_DEBUG_KMS("load_detect %x returned: %x\n",encoder->encoder_type,lret);
+					DRM_DE_KMS("load_detect %x returned: %x\n",encoder->encoder_type,lret);
 					if (lret == connector_status_connected)
 						amdgpu_connector->use_digital = false;
 				}

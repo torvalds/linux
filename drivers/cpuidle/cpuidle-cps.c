@@ -52,7 +52,7 @@ static int cps_nc_enter(struct cpuidle_device *dev,
 		pm_state = CPS_PM_POWER_GATED;
 		break;
 	default:
-		BUG();
+		();
 		return -EINVAL;
 	}
 

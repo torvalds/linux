@@ -537,8 +537,8 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 	  models only have mute control (the volume hotkeys are just normal
 	  keys and volume control is done through the main HDA mixer).
 
-config THINKPAD_ACPI_DEBUGFACILITIES
-	bool "Maintainer debug facilities"
+config THINKPAD_ACPI_DEFACILITIES
+	bool "Maintainer de facilities"
 	depends on THINKPAD_ACPI
 	---help---
 	  Enables extra stuff in the thinkpad-acpi which is completely useless
@@ -547,11 +547,11 @@ config THINKPAD_ACPI_DEBUGFACILITIES
 	  Say N here, unless you were told by a kernel maintainer to do
 	  otherwise.
 
-config THINKPAD_ACPI_DEBUG
-	bool "Verbose debug mode"
+config THINKPAD_ACPI_DE
+	bool "Verbose de mode"
 	depends on THINKPAD_ACPI
 	---help---
-	  Enables extra debugging information, at the expense of a slightly
+	  Enables extra deging information, at the expense of a slightly
 	  increase in driver size.
 
 	  If you are not sure, say N here.
@@ -990,7 +990,7 @@ config INTEL_SCU_IPC_UTIL
 	default y
 	---help---
 	  The IPC Util driver provides an interface with the SCU enabling
-	  low level access for debug work and updating the firmware. Say
+	  low level access for de work and updating the firmware. Say
 	  N unless you will be doing this on an Intel MID platform.
 
 config INTEL_MID_POWER_BUTTON
@@ -1048,7 +1048,7 @@ config INTEL_PMC_CORE
 	---help---
 	  The Intel Platform Controller Hub for Intel Core SoCs provides access
 	  to Power Management Controller registers via a PCI interface. This
-	  driver can utilize debugging capabilities and supported features as
+	  driver can utilize deging capabilities and supported features as
 	  exposed by the Power Management Controller.
 
 	  Supported features:
@@ -1216,7 +1216,7 @@ config INTEL_TELEMETRY
 	  This driver provides interfaces to configure and use
 	  telemetry for INTEL SoC from APL onwards. It is also
 	  used to get various SoC events and parameters
-	  directly via debugfs files. Various tools may use
+	  directly via defs files. Various tools may use
 	  this interface for SoC state monitoring.
 
 config MLX_PLATFORM

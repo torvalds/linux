@@ -96,7 +96,7 @@
 
 /*
  * BUF_XX distinguish the Rx buffers depending on their (small/large) size.
- * BUG_SM and BUG_LG are both used by the driver and the device.
+ * _SM and _LG are both used by the driver and the device.
  * BUF_NONE is only used by the driver.
  */
 #define BUF_SM		0x00000000	/* These two are used for push_rxbufs() */

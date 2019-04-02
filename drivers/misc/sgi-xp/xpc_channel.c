@@ -35,7 +35,7 @@ xpc_process_connect(struct xpc_channel *ch, unsigned long *irq_flags)
 		/* nothing more to do for now */
 		return;
 	}
-	DBUG_ON(!(ch->flags & XPC_C_CONNECTING));
+	D_ON(!(ch->flags & XPC_C_CONNECTING));
 
 	if (!(ch->flags & XPC_C_SETUP)) {
 		spin_unlock_irqrestore(&ch->lock, *irq_flags);
@@ -87,7 +87,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	if (!(ch->flags & XPC_C_DISCONNECTING))
 		return;
 
-	DBUG_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
+	D_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
 
 	/* make sure all activity has settled down first */
 
@@ -95,7 +95,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 	    atomic_read(&ch->references) > 0) {
 		return;
 	}
-	DBUG_ON((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
+	D_ON((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
 		!(ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE));
 
 	if (part->act_state == XPC_P_AS_DEACTIVATING) {
@@ -133,7 +133,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 		spin_lock_irqsave(&ch->lock, *irq_flags);
 	}
 
-	DBUG_ON(atomic_read(&ch->n_to_notify) != 0);
+	D_ON(atomic_read(&ch->n_to_notify) != 0);
 
 	/* it's now safe to free the channel's message queues */
 	xpc_arch_ops.teardown_msg_structures(ch);
@@ -218,18 +218,18 @@ again:
 		 */
 
 		if (ch->flags & XPC_C_RCLOSEREQUEST) {
-			DBUG_ON(!(ch->flags & XPC_C_DISCONNECTING));
-			DBUG_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
-			DBUG_ON(!(ch->flags & XPC_C_CLOSEREPLY));
-			DBUG_ON(ch->flags & XPC_C_RCLOSEREPLY);
+			D_ON(!(ch->flags & XPC_C_DISCONNECTING));
+			D_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
+			D_ON(!(ch->flags & XPC_C_CLOSEREPLY));
+			D_ON(ch->flags & XPC_C_RCLOSEREPLY);
 
-			DBUG_ON(!(chctl_flags & XPC_CHCTL_CLOSEREPLY));
+			D_ON(!(chctl_flags & XPC_CHCTL_CLOSEREPLY));
 			chctl_flags &= ~XPC_CHCTL_CLOSEREPLY;
 			ch->flags |= XPC_C_RCLOSEREPLY;
 
 			/* both sides have finished disconnecting */
 			xpc_process_disconnect(ch, &irq_flags);
-			DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
+			D_ON(!(ch->flags & XPC_C_DISCONNECTED));
 			goto again;
 		}
 
@@ -238,7 +238,7 @@ again:
 				if (part->chctl.flags[ch_number] &
 				    XPC_CHCTL_OPENREQUEST) {
 
-					DBUG_ON(ch->delayed_chctl_flags != 0);
+					D_ON(ch->delayed_chctl_flags != 0);
 					spin_lock(&part->chctl_lock);
 					part->chctl.flags[ch_number] |=
 					    XPC_CHCTL_CLOSEREQUEST;
@@ -273,7 +273,7 @@ again:
 
 			XPC_DISCONNECT_CHANNEL(ch, reason, &irq_flags);
 
-			DBUG_ON(chctl_flags & XPC_CHCTL_CLOSEREPLY);
+			D_ON(chctl_flags & XPC_CHCTL_CLOSEREPLY);
 			goto out;
 		}
 
@@ -286,17 +286,17 @@ again:
 			"%d, channel=%d\n", ch->partid, ch->number);
 
 		if (ch->flags & XPC_C_DISCONNECTED) {
-			DBUG_ON(part->act_state != XPC_P_AS_DEACTIVATING);
+			D_ON(part->act_state != XPC_P_AS_DEACTIVATING);
 			goto out;
 		}
 
-		DBUG_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
+		D_ON(!(ch->flags & XPC_C_CLOSEREQUEST));
 
 		if (!(ch->flags & XPC_C_RCLOSEREQUEST)) {
 			if (part->chctl.flags[ch_number] &
 			    XPC_CHCTL_CLOSEREQUEST) {
 
-				DBUG_ON(ch->delayed_chctl_flags != 0);
+				D_ON(ch->delayed_chctl_flags != 0);
 				spin_lock(&part->chctl_lock);
 				part->chctl.flags[ch_number] |=
 				    XPC_CHCTL_CLOSEREPLY;
@@ -329,9 +329,9 @@ again:
 			ch->delayed_chctl_flags |= XPC_CHCTL_OPENREQUEST;
 			goto out;
 		}
-		DBUG_ON(!(ch->flags & (XPC_C_DISCONNECTED |
+		D_ON(!(ch->flags & (XPC_C_DISCONNECTED |
 				       XPC_C_OPENREQUEST)));
-		DBUG_ON(ch->flags & (XPC_C_ROPENREQUEST | XPC_C_ROPENREPLY |
+		D_ON(ch->flags & (XPC_C_ROPENREQUEST | XPC_C_ROPENREPLY |
 				     XPC_C_OPENREPLY | XPC_C_CONNECTED));
 
 		/*
@@ -382,8 +382,8 @@ again:
 			goto out;
 		}
 
-		DBUG_ON(!(ch->flags & XPC_C_ROPENREQUEST));
-		DBUG_ON(ch->flags & XPC_C_CONNECTED);
+		D_ON(!(ch->flags & XPC_C_ROPENREQUEST));
+		D_ON(ch->flags & XPC_C_CONNECTED);
 
 		/*
 		 * The meaningful OPENREPLY connection state fields are:
@@ -392,9 +392,9 @@ again:
 		 *      local_nentries = remote partition's local_nentries
 		 *      remote_nentries = remote partition's remote_nentries
 		 */
-		DBUG_ON(args->local_msgqueue_pa == 0);
-		DBUG_ON(args->local_nentries == 0);
-		DBUG_ON(args->remote_nentries == 0);
+		D_ON(args->local_msgqueue_pa == 0);
+		D_ON(args->local_nentries == 0);
+		D_ON(args->remote_nentries == 0);
 
 		ret = xpc_arch_ops.save_remote_msgqueue_pa(ch,
 						      args->local_msgqueue_pa);
@@ -441,9 +441,9 @@ again:
 			goto out;
 		}
 
-		DBUG_ON(!(ch->flags & XPC_C_ROPENREQUEST));
-		DBUG_ON(!(ch->flags & XPC_C_ROPENREPLY));
-		DBUG_ON(!(ch->flags & XPC_C_CONNECTED));
+		D_ON(!(ch->flags & XPC_C_ROPENREQUEST));
+		D_ON(!(ch->flags & XPC_C_ROPENREPLY));
+		D_ON(!(ch->flags & XPC_C_CONNECTED));
 
 		ch->flags |= XPC_C_ROPENCOMPLETE;
 
@@ -477,8 +477,8 @@ xpc_connect_channel(struct xpc_channel *ch)
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
 
-	DBUG_ON(ch->flags & XPC_C_CONNECTED);
-	DBUG_ON(ch->flags & XPC_C_OPENREQUEST);
+	D_ON(ch->flags & XPC_C_CONNECTED);
+	D_ON(ch->flags & XPC_C_OPENREQUEST);
 
 	if (ch->flags & XPC_C_DISCONNECTING) {
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
@@ -490,12 +490,12 @@ xpc_connect_channel(struct xpc_channel *ch)
 
 	ch->kthreads_assigned_limit = registration->assigned_limit;
 	ch->kthreads_idle_limit = registration->idle_limit;
-	DBUG_ON(atomic_read(&ch->kthreads_assigned) != 0);
-	DBUG_ON(atomic_read(&ch->kthreads_idle) != 0);
-	DBUG_ON(atomic_read(&ch->kthreads_active) != 0);
+	D_ON(atomic_read(&ch->kthreads_assigned) != 0);
+	D_ON(atomic_read(&ch->kthreads_idle) != 0);
+	D_ON(atomic_read(&ch->kthreads_active) != 0);
 
 	ch->func = registration->func;
-	DBUG_ON(registration->func == NULL);
+	D_ON(registration->func == NULL);
 	ch->key = registration->key;
 
 	ch->local_nentries = registration->nentries;
@@ -587,7 +587,7 @@ xpc_process_sent_chctl_flags(struct xpc_partition *part)
 
 		if (!(ch_flags & XPC_C_CONNECTED)) {
 			if (!(ch_flags & XPC_C_OPENREQUEST)) {
-				DBUG_ON(ch_flags & XPC_C_SETUP);
+				D_ON(ch_flags & XPC_C_SETUP);
 				(void)xpc_connect_channel(ch);
 			}
 			continue;
@@ -657,7 +657,7 @@ xpc_initiate_connect(int ch_number)
 	short partid;
 	struct xpc_partition *part;
 
-	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
+	D_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
 
 	for (partid = 0; partid < xp_max_npartitions; partid++) {
 		part = &xpc_partitions[partid];
@@ -711,7 +711,7 @@ xpc_initiate_disconnect(int ch_number)
 	struct xpc_partition *part;
 	struct xpc_channel *ch;
 
-	DBUG_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
+	D_ON(ch_number < 0 || ch_number >= XPC_MAX_NCHANNELS);
 
 	/* initiate the channel disconnect for every active partition */
 	for (partid = 0; partid < xp_max_npartitions; partid++) {
@@ -760,7 +760,7 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 	if (ch->flags & (XPC_C_DISCONNECTING | XPC_C_DISCONNECTED))
 		return;
 
-	DBUG_ON(!(ch->flags & (XPC_C_CONNECTING | XPC_C_CONNECTED)));
+	D_ON(!(ch->flags & (XPC_C_CONNECTING | XPC_C_CONNECTED)));
 
 	dev_dbg(xpc_chan, "reason=%d, line=%d, partid=%d, channel=%d\n",
 		reason, line, ch->partid, ch->number);
@@ -828,7 +828,7 @@ xpc_allocate_msg_wait(struct xpc_channel *ch)
 	DEFINE_WAIT(wait);
 
 	if (ch->flags & XPC_C_DISCONNECTING) {
-		DBUG_ON(ch->reason == xpInterrupted);
+		D_ON(ch->reason == xpInterrupted);
 		return ch->reason;
 	}
 
@@ -840,7 +840,7 @@ xpc_allocate_msg_wait(struct xpc_channel *ch)
 
 	if (ch->flags & XPC_C_DISCONNECTING) {
 		ret = ch->reason;
-		DBUG_ON(ch->reason == xpInterrupted);
+		D_ON(ch->reason == xpInterrupted);
 	} else if (ret == 0) {
 		ret = xpTimeout;
 	} else {
@@ -878,9 +878,9 @@ xpc_initiate_send(short partid, int ch_number, u32 flags, void *payload,
 	dev_dbg(xpc_chan, "payload=0x%p, partid=%d, channel=%d\n", payload,
 		partid, ch_number);
 
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
-	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
-	DBUG_ON(payload == NULL);
+	D_ON(partid < 0 || partid >= xp_max_npartitions);
+	D_ON(ch_number < 0 || ch_number >= part->nchannels);
+	D_ON(payload == NULL);
 
 	if (xpc_part_ref(part)) {
 		ret = xpc_arch_ops.send_payload(&part->channels[ch_number],
@@ -929,10 +929,10 @@ xpc_initiate_send_notify(short partid, int ch_number, u32 flags, void *payload,
 	dev_dbg(xpc_chan, "payload=0x%p, partid=%d, channel=%d\n", payload,
 		partid, ch_number);
 
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
-	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
-	DBUG_ON(payload == NULL);
-	DBUG_ON(func == NULL);
+	D_ON(partid < 0 || partid >= xp_max_npartitions);
+	D_ON(ch_number < 0 || ch_number >= part->nchannels);
+	D_ON(payload == NULL);
+	D_ON(func == NULL);
 
 	if (xpc_part_ref(part)) {
 		ret = xpc_arch_ops.send_payload(&part->channels[ch_number],
@@ -1000,8 +1000,8 @@ xpc_initiate_received(short partid, int ch_number, void *payload)
 	struct xpc_partition *part = &xpc_partitions[partid];
 	struct xpc_channel *ch;
 
-	DBUG_ON(partid < 0 || partid >= xp_max_npartitions);
-	DBUG_ON(ch_number < 0 || ch_number >= part->nchannels);
+	D_ON(partid < 0 || partid >= xp_max_npartitions);
+	D_ON(ch_number < 0 || ch_number >= part->nchannels);
 
 	ch = &part->channels[ch_number];
 	xpc_arch_ops.received_payload(ch, payload);

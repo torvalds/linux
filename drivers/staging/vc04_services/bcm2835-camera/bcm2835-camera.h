@@ -31,7 +31,7 @@ enum {
 
 #define PREVIEW_LAYER      2
 
-extern int bcm2835_v4l2_debug;
+extern int bcm2835_v4l2_de;
 
 struct bm2835_mmal_dev {
 	/* v4l2 devices */
@@ -116,20 +116,20 @@ int bm2835_mmal_init_controls(
 int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev);
 int set_framerate_params(struct bm2835_mmal_dev *dev);
 
-/* Debug helpers */
+/* De helpers */
 
-#define v4l2_dump_pix_format(level, debug, dev, pix_fmt, desc)	\
+#define v4l2_dump_pix_format(level, de, dev, pix_fmt, desc)	\
 {	\
-	v4l2_dbg(level, debug, dev,	\
+	v4l2_dbg(level, de, dev,	\
 "%s: w %u h %u field %u pfmt 0x%x bpl %u sz_img %u colorspace 0x%x priv %u\n", \
 		desc,	\
 		(pix_fmt)->width, (pix_fmt)->height, (pix_fmt)->field,	\
 		(pix_fmt)->pixelformat, (pix_fmt)->bytesperline,	\
 		(pix_fmt)->sizeimage, (pix_fmt)->colorspace, (pix_fmt)->priv); \
 }
-#define v4l2_dump_win_format(level, debug, dev, win_fmt, desc)	\
+#define v4l2_dump_win_format(level, de, dev, win_fmt, desc)	\
 {	\
-	v4l2_dbg(level, debug, dev,	\
+	v4l2_dbg(level, de, dev,	\
 "%s: w %u h %u l %u t %u  field %u chromakey %06X clip %p " \
 "clipcount %u bitmap %p\n", \
 		desc,	\

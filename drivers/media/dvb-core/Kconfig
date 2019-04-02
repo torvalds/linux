@@ -41,8 +41,8 @@ config DVB_DEMUX_SECTION_LOSS_LOG
 
 	  If you are unsure about this, say N here.
 
-config DVB_ULE_DEBUG
-	bool "Enable DVB net ULE packet debug messages"
+config DVB_ULE_DE
+	bool "Enable DVB net ULE packet de messages"
 	depends on DVB_CORE
 	default n
 	help

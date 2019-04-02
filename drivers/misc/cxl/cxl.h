@@ -42,7 +42,7 @@ extern uint cxl_verbose;
  * Opaque types to avoid accidentally passing registers for the wrong MMIO
  *
  * At the end of the day, I'm not married to using typedef here, but it might
- * (and has!) help avoid bugs like mixing up CXL_PSL_CtxTime and
+ * (and has!) help avoid s like mixing up CXL_PSL_CtxTime and
  * CXL_PSL_CtxTime_An, or calling cxl_p1n_write instead of cxl_p1_write.
  *
  * I'm quite happy if these are changed back to #defines before upstreaming, it
@@ -102,7 +102,7 @@ static const cxl_p1_reg_t CXL_XSL9_DSNCTL   = {0x0168};
 static const cxl_p1_reg_t CXL_PSL9_FIR1     = {0x0300};
 static const cxl_p1_reg_t CXL_PSL9_FIR_MASK = {0x0308};
 static const cxl_p1_reg_t CXL_PSL9_Timebase = {0x0310};
-static const cxl_p1_reg_t CXL_PSL9_DEBUG    = {0x0320};
+static const cxl_p1_reg_t CXL_PSL9_DE    = {0x0320};
 static const cxl_p1_reg_t CXL_PSL9_FIR_CNTL = {0x0348};
 static const cxl_p1_reg_t CXL_PSL9_DSNDCTL  = {0x0350};
 static const cxl_p1_reg_t CXL_PSL9_TB_CTLSTAT = {0x0340};
@@ -141,7 +141,7 @@ static const cxl_p1n_reg_t CXL_PSL_IVTE_Offset_An = {0xB0};
 static const cxl_p1n_reg_t CXL_PSL_IVTE_Limit_An  = {0xB8};
 /* 0xC0:FF Implementation Dependent Area - CAIA 1&2 */
 static const cxl_p1n_reg_t CXL_PSL_FIR_SLICE_An   = {0xC0};
-static const cxl_p1n_reg_t CXL_AFU_DEBUG_An       = {0xC8};
+static const cxl_p1n_reg_t CXL_AFU_DE_An       = {0xC8};
 /* 0xC0:FF Implementation Dependent Area - CAIA 1 */
 static const cxl_p1n_reg_t CXL_PSL_APCALLOC_A     = {0xD0};
 static const cxl_p1n_reg_t CXL_PSL_COALLOC_A      = {0xD8};
@@ -364,8 +364,8 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_TFC_An_AE (1ull << (63-30)) /* Restart PSL with address error */
 #define CXL_PSL_TFC_An_R  (1ull << (63-31)) /* Restart PSL transaction */
 
-/****** CXL_PSL_DEBUG *****************************************************/
-#define CXL_PSL_DEBUG_CDC  (1ull << (63-27)) /* Coherent Data cache support */
+/****** CXL_PSL_DE *****************************************************/
+#define CXL_PSL_DE_CDC  (1ull << (63-27)) /* Coherent Data cache support */
 
 /****** CXL_XSL9_IERAT_ERAT - CAIA 2 **********************************/
 #define CXL_XSL9_IERAT_MLPID    (1ull << (63-0))  /* Match LPID */
@@ -492,7 +492,7 @@ struct cxl_afu {
 	struct cdev afu_cdev_s, afu_cdev_m, afu_cdev_d;
 	struct device *chardev_s, *chardev_m, *chardev_d;
 	struct idr contexts_idr;
-	struct dentry *debugfs;
+	struct dentry *defs;
 	struct mutex contexts_lock;
 	spinlock_t afu_cntl_lock;
 
@@ -639,11 +639,11 @@ struct cxl_service_layer_ops {
 	int (*attach_afu_directed)(struct cxl_context *ctx, u64 wed, u64 amr);
 	int (*attach_dedicated_process)(struct cxl_context *ctx, u64 wed, u64 amr);
 	void (*update_dedicated_ivtes)(struct cxl_context *ctx);
-	void (*debugfs_add_adapter_regs)(struct cxl *adapter, struct dentry *dir);
-	void (*debugfs_add_afu_regs)(struct cxl_afu *afu, struct dentry *dir);
+	void (*defs_add_adapter_regs)(struct cxl *adapter, struct dentry *dir);
+	void (*defs_add_afu_regs)(struct cxl_afu *afu, struct dentry *dir);
 	void (*psl_irq_dump_registers)(struct cxl_context *ctx);
 	void (*err_irq_dump_registers)(struct cxl *adapter);
-	void (*debugfs_stop_trace)(struct cxl *adapter);
+	void (*defs_stop_trace)(struct cxl *adapter);
 	void (*write_timebase_ctrl)(struct cxl *adapter);
 	u64 (*timebase_read)(struct cxl *adapter);
 	int capi_mode;
@@ -685,7 +685,7 @@ struct cxl {
 	struct device dev;
 	struct dentry *trace;
 	struct dentry *psl_err_chk;
-	struct dentry *debugfs;
+	struct dentry *defs;
 	char *irq_name;
 	struct bin_attribute cxl_attr;
 	int adapter_num;
@@ -910,67 +910,67 @@ int cxl_attach_dedicated_process_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 void cxl_update_dedicated_ivtes_psl9(struct cxl_context *ctx);
 void cxl_update_dedicated_ivtes_psl8(struct cxl_context *ctx);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-int cxl_debugfs_init(void);
-void cxl_debugfs_exit(void);
-int cxl_debugfs_adapter_add(struct cxl *adapter);
-void cxl_debugfs_adapter_remove(struct cxl *adapter);
-int cxl_debugfs_afu_add(struct cxl_afu *afu);
-void cxl_debugfs_afu_remove(struct cxl_afu *afu);
-void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir);
-void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir);
+int cxl_defs_init(void);
+void cxl_defs_exit(void);
+int cxl_defs_adapter_add(struct cxl *adapter);
+void cxl_defs_adapter_remove(struct cxl *adapter);
+int cxl_defs_afu_add(struct cxl_afu *afu);
+void cxl_defs_afu_remove(struct cxl_afu *afu);
+void cxl_defs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir);
+void cxl_defs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir);
+void cxl_defs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir);
+void cxl_defs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir);
 
-#else /* CONFIG_DEBUG_FS */
+#else /* CONFIG_DE_FS */
 
-static inline int __init cxl_debugfs_init(void)
+static inline int __init cxl_defs_init(void)
 {
 	return 0;
 }
 
-static inline void cxl_debugfs_exit(void)
+static inline void cxl_defs_exit(void)
 {
 }
 
-static inline int cxl_debugfs_adapter_add(struct cxl *adapter)
-{
-	return 0;
-}
-
-static inline void cxl_debugfs_adapter_remove(struct cxl *adapter)
-{
-}
-
-static inline int cxl_debugfs_afu_add(struct cxl_afu *afu)
+static inline int cxl_defs_adapter_add(struct cxl *adapter)
 {
 	return 0;
 }
 
-static inline void cxl_debugfs_afu_remove(struct cxl_afu *afu)
+static inline void cxl_defs_adapter_remove(struct cxl *adapter)
 {
 }
 
-static inline void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter,
+static inline int cxl_defs_afu_add(struct cxl_afu *afu)
+{
+	return 0;
+}
+
+static inline void cxl_defs_afu_remove(struct cxl_afu *afu)
+{
+}
+
+static inline void cxl_defs_add_adapter_regs_psl9(struct cxl *adapter,
 						    struct dentry *dir)
 {
 }
 
-static inline void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter,
+static inline void cxl_defs_add_adapter_regs_psl8(struct cxl *adapter,
 						    struct dentry *dir)
 {
 }
 
-static inline void cxl_debugfs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir)
+static inline void cxl_defs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir)
 {
 }
 
-static inline void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir)
+static inline void cxl_defs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir)
 {
 }
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 void cxl_handle_fault(struct work_struct *work);
 void cxl_prefault(struct cxl_context *ctx, u64 wed);
@@ -978,7 +978,7 @@ int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar);
 
 struct cxl *get_cxl_adapter(int num);
 int cxl_alloc_sst(struct cxl_context *ctx);
-void cxl_dump_debug_buffer(void *addr, size_t size);
+void cxl_dump_de_buffer(void *addr, size_t size);
 
 void init_cxl_native(void);
 

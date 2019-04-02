@@ -105,7 +105,7 @@ static struct mem_ctl_info *pnd2_mci;
 
 #define PND2_MSG_SIZE	256
 
-/* Debug macros */
+/* De macros */
 #define pnd2_printk(level, fmt, arg...)			\
 	edac_printk(level, "pnd2", fmt, ##arg)
 
@@ -209,7 +209,7 @@ static int apl_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 		/* fall through */
 	case 4:
 		ret |= _apl_rd_reg(port, off, op, (u32 *)data);
-		pnd2_printk(KERN_DEBUG, "%s=%x%08x ret=%d\n", name,
+		pnd2_printk(KERN_DE, "%s=%x%08x ret=%d\n", name,
 					sz == 8 ? *((u32 *)(data + 4)) : 0, *((u32 *)data), ret);
 		break;
 	}
@@ -350,15 +350,15 @@ static void mk_region(char *name, struct region *rp, u64 base, u64 limit)
 static void mk_region_mask(char *name, struct region *rp, u64 base, u64 mask)
 {
 	if (mask == 0) {
-		pr_info(FW_BUG "MOT mask cannot be zero\n");
+		pr_info(FW_ "MOT mask cannot be zero\n");
 		return;
 	}
 	if (mask != GENMASK_ULL(PND_MAX_PHYS_BIT, __ffs(mask))) {
-		pr_info(FW_BUG "MOT mask not power of two\n");
+		pr_info(FW_ "MOT mask not power of two\n");
 		return;
 	}
 	if (base & ~mask) {
-		pr_info(FW_BUG "MOT region base/mask alignment error\n");
+		pr_info(FW_ "MOT region base/mask alignment error\n");
 		return;
 	}
 	rp->base = base;
@@ -1439,7 +1439,7 @@ static struct notifier_block pnd2_mce_dec = {
 	.notifier_call	= pnd2_mce_check_error,
 };
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 /*
  * Write an address to this file to exercise the address decode
  * logic in this driver.
@@ -1448,12 +1448,12 @@ static u64 pnd2_fake_addr;
 #define PND2_BLOB_SIZE 1024
 static char pnd2_result[PND2_BLOB_SIZE];
 static struct dentry *pnd2_test;
-static struct debugfs_blob_wrapper pnd2_blob = {
+static struct defs_blob_wrapper pnd2_blob = {
 	.data = pnd2_result,
 	.size = 0
 };
 
-static int debugfs_u64_set(void *data, u64 val)
+static int defs_u64_set(void *data, u64 val)
 {
 	struct dram_addr daddr;
 	struct mce m;
@@ -1471,24 +1471,24 @@ static int debugfs_u64_set(void *data, u64 val)
 
 	return 0;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
+DEFINE_DEFS_ATTRIBUTE(fops_u64_wo, NULL, defs_u64_set, "%llu\n");
 
-static void setup_pnd2_debug(void)
+static void setup_pnd2_de(void)
 {
-	pnd2_test = edac_debugfs_create_dir("pnd2_test");
-	edac_debugfs_create_file("pnd2_debug_addr", 0200, pnd2_test,
+	pnd2_test = edac_defs_create_dir("pnd2_test");
+	edac_defs_create_file("pnd2_de_addr", 0200, pnd2_test,
 							 &pnd2_fake_addr, &fops_u64_wo);
-	debugfs_create_blob("pnd2_debug_results", 0400, pnd2_test, &pnd2_blob);
+	defs_create_blob("pnd2_de_results", 0400, pnd2_test, &pnd2_blob);
 }
 
-static void teardown_pnd2_debug(void)
+static void teardown_pnd2_de(void)
 {
-	debugfs_remove_recursive(pnd2_test);
+	defs_remove_recursive(pnd2_test);
 }
 #else
-static void setup_pnd2_debug(void)	{}
-static void teardown_pnd2_debug(void)	{}
-#endif /* CONFIG_EDAC_DEBUG */
+static void setup_pnd2_de(void)	{}
+static void teardown_pnd2_de(void)	{}
+#endif /* CONFIG_EDAC_DE */
 
 
 static int pnd2_probe(void)
@@ -1583,7 +1583,7 @@ static int __init pnd2_init(void)
 		return -ENODEV;
 
 	mce_register_decode_chain(&pnd2_mce_dec);
-	setup_pnd2_debug();
+	setup_pnd2_de();
 
 	return 0;
 }
@@ -1591,7 +1591,7 @@ static int __init pnd2_init(void)
 static void __exit pnd2_exit(void)
 {
 	edac_dbg(2, "\n");
-	teardown_pnd2_debug();
+	teardown_pnd2_de();
 	mce_unregister_decode_chain(&pnd2_mce_dec);
 	pnd2_remove();
 }

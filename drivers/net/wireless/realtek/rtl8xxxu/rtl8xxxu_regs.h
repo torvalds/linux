@@ -778,7 +778,7 @@
 #define REG_CAM_WRITE			0x0674
 #define  CAM_WRITE_VALID		BIT(15)
 #define REG_CAM_READ			0x0678
-#define REG_CAM_DEBUG			0x067c
+#define REG_CAM_DE			0x067c
 #define REG_SECURITY_CFG		0x0680
 #define  SEC_CFG_TX_USE_DEFKEY		BIT(0)
 #define  SEC_CFG_RX_USE_DEFKEY		BIT(1)

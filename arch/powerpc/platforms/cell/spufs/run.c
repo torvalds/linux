@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#define DEBUG
+#define DE
 
 #include <linux/wait.h>
 #include <linux/ptrace.h>
@@ -150,7 +150,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 	if (!(status & SPU_STATUS_RUNNING)) {
 		/* If isolated LOAD has failed: run SPU, we will get a stop-and
 		 * signal later. */
-		pr_debug("%s: isolated LOAD failed\n", __func__);
+		pr_de("%s: isolated LOAD failed\n", __func__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
 		ret = -EACCES;
 		goto out_drop_priv;
@@ -158,7 +158,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 
 	if (!(status & SPU_STATUS_ISOLATED_STATE)) {
 		/* This isn't allowed by the CBEA, but check anyway */
-		pr_debug("%s: SPU fell out of isolated mode?\n", __func__);
+		pr_de("%s: SPU fell out of isolated mode?\n", __func__);
 		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_STOP);
 		ret = -EINVAL;
 		goto out_drop_priv;

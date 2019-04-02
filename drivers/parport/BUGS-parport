@@ -1,4 +1,4 @@
-Currently known (or at least suspected) bugs in parport:
+Currently known (or at least suspected) s in parport:
 
 o lp doesn't allow you to read status while printing is in progress (is
   this still true?).

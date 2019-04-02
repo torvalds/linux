@@ -3,9 +3,9 @@
  *  Driver EMU10K1X chips
  *
  *  Parts of this code were adapted from audigyls.c driver which is
- *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.demon.co.uk>
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -1237,7 +1237,7 @@ static void mpu401_clear_rx(struct emu10k1x *emu, struct emu10k1x_midi *mpu)
 	int timeout = 100000;
 	for (; timeout > 0 && mpu401_input_avail(emu, mpu); timeout--)
 		mpu401_read_data(emu, mpu);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (timeout <= 0)
 		dev_err(emu->card->dev,
 			"cmd: clear rx timeout (status = 0x%x)\n",
@@ -1332,7 +1332,7 @@ static int snd_emu10k1x_midi_input_open(struct snd_rawmidi_substream *substream)
 	unsigned long flags;
 	
 	emu = midi->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	midi->midi_mode |= EMU10K1X_MIDI_MODE_INPUT;
@@ -1359,7 +1359,7 @@ static int snd_emu10k1x_midi_output_open(struct snd_rawmidi_substream *substream
 	unsigned long flags;
 
 	emu = midi->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	midi->midi_mode |= EMU10K1X_MIDI_MODE_OUTPUT;
@@ -1387,7 +1387,7 @@ static int snd_emu10k1x_midi_input_close(struct snd_rawmidi_substream *substream
 	int err = 0;
 
 	emu = midi->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	snd_emu10k1x_intr_disable(emu, midi->rx_enable);
@@ -1410,7 +1410,7 @@ static int snd_emu10k1x_midi_output_close(struct snd_rawmidi_substream *substrea
 	int err = 0;
 
 	emu = midi->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return -ENXIO;
 	spin_lock_irqsave(&midi->open_lock, flags);
 	snd_emu10k1x_intr_disable(emu, midi->tx_enable);
@@ -1430,7 +1430,7 @@ static void snd_emu10k1x_midi_input_trigger(struct snd_rawmidi_substream *substr
 	struct emu10k1x *emu;
 	struct emu10k1x_midi *midi = substream->rmidi->private_data;
 	emu = midi->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return;
 
 	if (up)
@@ -1446,7 +1446,7 @@ static void snd_emu10k1x_midi_output_trigger(struct snd_rawmidi_substream *subst
 	unsigned long flags;
 
 	emu = midi->emu;
-	if (snd_BUG_ON(!emu))
+	if (snd__ON(!emu))
 		return;
 
 	if (up) {

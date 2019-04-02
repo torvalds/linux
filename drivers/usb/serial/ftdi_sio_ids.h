@@ -436,7 +436,7 @@
 #define FTDI_USB_UIRT_PID	0xF850	/* Product Id */
 
 /* CCS Inc. ICDU/ICDU40 product ID -
- * the FT232BM is used in an in-circuit-debugger unit for PIC16's/PIC18's */
+ * the FT232BM is used in an in-circuit-deger unit for PIC16's/PIC18's */
 #define FTDI_CCSICDU20_0_PID    0xF9D0
 #define FTDI_CCSICDU40_1_PID    0xF9D1
 #define FTDI_CCSMACHX_2_PID     0xF9D2
@@ -877,11 +877,11 @@
 #define MOBILITY_USB_SERIAL_PID		0x0202	/* EasiDock USB 200 serial */
 
 /*
- * FIC / OpenMoko, Inc. http://wiki.openmoko.org/wiki/Neo1973_Debug_Board_v3
+ * FIC / OpenMoko, Inc. http://wiki.openmoko.org/wiki/Neo1973_De_Board_v3
  * Submitted by Harald Welte <laforge@openmoko.org>
  */
 #define	FIC_VID			0x1457
-#define	FIC_NEO1973_DEBUG_PID	0x5118
+#define	FIC_NEO1973_DE_PID	0x5118
 
 /*
  * Actel / Microsemi

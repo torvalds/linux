@@ -12,7 +12,7 @@
 #define _ZCRYPT_ERROR_H_
 
 #include <linux/atomic.h>
-#include "zcrypt_debug.h"
+#include "zcrypt_de.h"
 #include "zcrypt_api.h"
 #include "zcrypt_msgtype6.h"
 
@@ -102,7 +102,7 @@ static inline int convert_error(struct zcrypt_queue *zq,
 	case REP82_ERROR_MESSAGE_TYPE:
 	//   REP88_ERROR_MESSAGE_TYPE		// '20' CEX2A
 		/*
-		 * To sent a message of the wrong type is a bug in the
+		 * To sent a message of the wrong type is a  in the
 		 * device driver. Send error msg, disable the device
 		 * and then repeat the request.
 		 */

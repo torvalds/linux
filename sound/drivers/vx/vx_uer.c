@@ -162,14 +162,14 @@ static int vx_calc_clock_from_freq(struct vx_core *chip, int freq)
 {
 	int hexfreq;
 
-	if (snd_BUG_ON(freq <= 0))
+	if (snd__ON(freq <= 0))
 		return 0;
 
 	hexfreq = (28224000 * 10) / freq;
 	hexfreq = (hexfreq + 5) / 10;
 
 	/* max freq = 55125 Hz */
-	if (snd_BUG_ON(hexfreq <= 0x00000200))
+	if (snd__ON(hexfreq <= 0x00000200))
 		return 0;
 
 	if (hexfreq <= 0x03ff)
@@ -209,7 +209,7 @@ void vx_set_internal_clock(struct vx_core *chip, unsigned int freq)
 
 	/* Get real clock value */
 	clock = vx_calc_clock_from_freq(chip, freq);
-	snd_printdd(KERN_DEBUG "set internal clock to 0x%x from freq %d\n", clock, freq);
+	snd_printdd(KERN_DE "set internal clock to 0x%x from freq %d\n", clock, freq);
 	mutex_lock(&chip->lock);
 	if (vx_is_pcmcia(chip)) {
 		vx_outb(chip, HIFREQ, (clock >> 8) & 0x0f);

@@ -221,7 +221,7 @@ static int brcmstb_pm_s3(void)
 	/* Save CP0 context */
 	brcm_pm_save_cp0_context(&s3_context);
 
-	/* Save RTS(skip debug register) */
+	/* Save RTS(skip de register) */
 	memc_arb_base = ctrl.memcs[0].arb_base + 4;
 	for (i = 0; i < NUM_MEMC_CLIENTS; i++) {
 		s3_context.memc0_rts[i] = __raw_readl(memc_arb_base);
@@ -239,7 +239,7 @@ static int brcmstb_pm_s3(void)
 	bmips_cpu_setup();
 	cpumask_clear(&bmips_booted_mask);
 
-	/* Restore RTS (skip debug register) */
+	/* Restore RTS (skip de register) */
 	memc_arb_base = ctrl.memcs[0].arb_base + 4;
 	for (i = 0; i < NUM_MEMC_CLIENTS; i++) {
 		__raw_writel(s3_context.memc0_rts[i], memc_arb_base);

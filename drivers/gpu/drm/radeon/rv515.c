@@ -35,8 +35,8 @@
 #include "rv515_reg_safe.h"
 
 /* This files gather functions specifics to: rv515 */
-static int rv515_debugfs_pipes_info_init(struct radeon_device *rdev);
-static int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
+static int rv515_defs_pipes_info_init(struct radeon_device *rdev);
+static int rv515_defs_ga_info_init(struct radeon_device *rdev);
 static void rv515_gpu_init(struct radeon_device *rdev);
 int rv515_mc_wait_for_idle(struct radeon_device *rdev);
 
@@ -46,16 +46,16 @@ static const u32 crtc_offsets[2] =
 	AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL
 };
 
-void rv515_debugfs(struct radeon_device *rdev)
+void rv515_defs(struct radeon_device *rdev)
 {
-	if (r100_debugfs_rbbm_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for RBBM !\n");
+	if (r100_defs_rbbm_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for RBBM !\n");
 	}
-	if (rv515_debugfs_pipes_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for pipes !\n");
+	if (rv515_defs_pipes_info_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for pipes !\n");
 	}
-	if (rv515_debugfs_ga_info_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for pipes !\n");
+	if (rv515_defs_ga_info_init(rdev)) {
+		DRM_ERROR("Failed to register defs file for pipes !\n");
 	}
 }
 
@@ -229,8 +229,8 @@ void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
-#if defined(CONFIG_DEBUG_FS)
-static int rv515_debugfs_pipes_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int rv515_defs_pipes_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -248,7 +248,7 @@ static int rv515_debugfs_pipes_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int rv515_debugfs_ga_info(struct seq_file *m, void *data)
+static int rv515_defs_ga_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -264,27 +264,27 @@ static int rv515_debugfs_ga_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list rv515_pipes_info_list[] = {
-	{"rv515_pipes_info", rv515_debugfs_pipes_info, 0, NULL},
+	{"rv515_pipes_info", rv515_defs_pipes_info, 0, NULL},
 };
 
 static struct drm_info_list rv515_ga_info_list[] = {
-	{"rv515_ga_info", rv515_debugfs_ga_info, 0, NULL},
+	{"rv515_ga_info", rv515_defs_ga_info, 0, NULL},
 };
 #endif
 
-static int rv515_debugfs_pipes_info_init(struct radeon_device *rdev)
+static int rv515_defs_pipes_info_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, rv515_pipes_info_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, rv515_pipes_info_list, 1);
 #else
 	return 0;
 #endif
 }
 
-static int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
+static int rv515_defs_ga_info_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, rv515_ga_info_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, rv515_ga_info_list, 1);
 #else
 	return 0;
 #endif
@@ -671,7 +671,7 @@ int rv515_init(struct radeon_device *rdev)
 	}
 	/* initialize memory controller */
 	rv515_mc_init(rdev);
-	rv515_debugfs(rdev);
+	rv515_defs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

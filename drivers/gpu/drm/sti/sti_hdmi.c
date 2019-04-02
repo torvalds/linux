@@ -6,7 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/hdmi.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
@@ -257,7 +257,7 @@ static void hdmi_config(struct sti_hdmi *hdmi)
 {
 	u32 conf;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Clear overrun and underrun fifo */
 	conf = HDMI_CFG_FIFO_OVERRUN_CLR | HDMI_CFG_FIFO_UNDERRUN_CLR;
@@ -269,13 +269,13 @@ static void hdmi_config(struct sti_hdmi *hdmi)
 
 	/* Set Hsync polarity */
 	if (hdmi->mode.flags & DRM_MODE_FLAG_NHSYNC) {
-		DRM_DEBUG_DRIVER("H Sync Negative\n");
+		DRM_DE_DRIVER("H Sync Negative\n");
 		conf |= HDMI_CFG_H_SYNC_POL_NEG;
 	}
 
 	/* Set Vsync polarity */
 	if (hdmi->mode.flags & DRM_MODE_FLAG_NVSYNC) {
-		DRM_DEBUG_DRIVER("V Sync Negative\n");
+		DRM_DE_DRIVER("V Sync Negative\n");
 		conf |= HDMI_CFG_V_SYNC_POL_NEG;
 	}
 
@@ -432,7 +432,7 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)];
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&infoframe,
 						       hdmi->drm_connector, mode);
@@ -474,7 +474,7 @@ static int hdmi_audio_infoframe_config(struct sti_hdmi *hdmi)
 	u8 buffer[HDMI_INFOFRAME_SIZE(AUDIO)];
 	int ret, val;
 
-	DRM_DEBUG_DRIVER("enter %s, AIF %s\n", __func__,
+	DRM_DE_DRIVER("enter %s, AIF %s\n", __func__,
 			 audio->enabled ? "enable" : "disable");
 	if (audio->enabled) {
 		/* set audio parameters stored*/
@@ -514,7 +514,7 @@ static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_VENDOR_INFOFRAME_MAX_SIZE];
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(&infoframe,
 							  hdmi->drm_connector,
@@ -551,7 +551,7 @@ static void hdmi_swreset(struct sti_hdmi *hdmi)
 {
 	u32 val;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Enable hdmi_audio clock only during hdmi reset */
 	if (clk_prepare_enable(hdmi->clk_audio))
@@ -575,7 +575,7 @@ static void hdmi_swreset(struct sti_hdmi *hdmi)
 	 * set to '1' and clk_audio is running.
 	 */
 	if ((hdmi_read(hdmi, HDMI_STA) & HDMI_STA_SW_RST) == 0)
-		DRM_DEBUG_DRIVER("Warning: HDMI sw reset timeout occurs\n");
+		DRM_DE_DRIVER("Warning: HDMI sw reset timeout occurs\n");
 
 	val = hdmi_read(hdmi, HDMI_CFG);
 	val &= ~HDMI_CFG_SW_RST_EN;
@@ -719,20 +719,20 @@ static int hdmi_dbg_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static struct drm_info_list hdmi_debugfs_files[] = {
+static struct drm_info_list hdmi_defs_files[] = {
 	{ "hdmi", hdmi_dbg_show, 0, NULL },
 };
 
-static int hdmi_debugfs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
+static int hdmi_defs_init(struct sti_hdmi *hdmi, struct drm_minor *minor)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(hdmi_debugfs_files); i++)
-		hdmi_debugfs_files[i].data = hdmi;
+	for (i = 0; i < ARRAY_SIZE(hdmi_defs_files); i++)
+		hdmi_defs_files[i].data = hdmi;
 
-	return drm_debugfs_create_files(hdmi_debugfs_files,
-					ARRAY_SIZE(hdmi_debugfs_files),
-					minor->debugfs_root, minor);
+	return drm_defs_create_files(hdmi_defs_files,
+					ARRAY_SIZE(hdmi_defs_files),
+					minor->defs_root, minor);
 }
 
 static void sti_hdmi_disable(struct drm_bridge *bridge)
@@ -744,7 +744,7 @@ static void sti_hdmi_disable(struct drm_bridge *bridge)
 	if (!hdmi->enabled)
 		return;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Disable HDMI */
 	val &= ~HDMI_CFG_DEVICE_EN;
@@ -827,7 +827,7 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	struct hdmi_audio_params *params = &hdmi->audio;
 	struct hdmi_audio_infoframe *info = &params->cea;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (!hdmi->enabled)
 		return 0;
@@ -835,7 +835,7 @@ static int hdmi_audio_configure(struct sti_hdmi *hdmi)
 	/* update N parameter */
 	n = sti_hdmi_audio_get_non_coherent_n(params->sample_rate);
 
-	DRM_DEBUG_DRIVER("Audio rate = %d Hz, TMDS clock = %d Hz, n = %d\n",
+	DRM_DE_DRIVER("Audio rate = %d Hz, TMDS clock = %d Hz, n = %d\n",
 			 params->sample_rate, hdmi->mode.clock * 1000, n);
 	hdmi_write(hdmi, n, HDMI_AUDN);
 
@@ -868,7 +868,7 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 {
 	struct sti_hdmi *hdmi = bridge->driver_private;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (hdmi->enabled)
 		return;
@@ -924,7 +924,7 @@ static void sti_hdmi_set_mode(struct drm_bridge *bridge,
 	struct sti_hdmi *hdmi = bridge->driver_private;
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* Copy the drm display mode in the connector local structure */
 	memcpy(&hdmi->mode, mode, sizeof(struct drm_display_mode));
@@ -965,14 +965,14 @@ static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int count;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	edid = drm_get_edid(connector, hdmi->ddc_adapt);
 	if (!edid)
 		goto fail;
 
 	hdmi->hdmi_monitor = drm_detect_hdmi_monitor(edid);
-	DRM_DEBUG_KMS("%s : %dx%d cm\n",
+	DRM_DE_KMS("%s : %dx%d cm\n",
 		      (hdmi->hdmi_monitor ? "hdmi monitor" : "dvi monitor"),
 		      edid->width_cm, edid->height_cm);
 	cec_notifier_set_phys_addr_from_edid(hdmi->notifier, edid);
@@ -1004,11 +1004,11 @@ static int sti_hdmi_connector_mode_valid(struct drm_connector *connector,
 
 	result = clk_round_rate(hdmi->clk_pix, target);
 
-	DRM_DEBUG_DRIVER("target rate = %d => available rate = %d\n",
+	DRM_DE_DRIVER("target rate = %d => available rate = %d\n",
 			 target, result);
 
 	if ((result < target_min) || (result > target_max)) {
-		DRM_DEBUG_DRIVER("hdmi pixclk=%d not supported\n", target);
+		DRM_DE_DRIVER("hdmi pixclk=%d not supported\n", target);
 		return MODE_BAD;
 	}
 
@@ -1029,14 +1029,14 @@ sti_hdmi_connector_detect(struct drm_connector *connector, bool force)
 		= to_sti_hdmi_connector(connector);
 	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (hdmi->hpd) {
-		DRM_DEBUG_DRIVER("hdmi cable connected\n");
+		DRM_DE_DRIVER("hdmi cable connected\n");
 		return connector_status_connected;
 	}
 
-	DRM_DEBUG_DRIVER("hdmi cable disconnected\n");
+	DRM_DE_DRIVER("hdmi cable disconnected\n");
 	cec_notifier_set_phys_addr(hdmi->notifier, CEC_PHYS_ADDR_INVALID);
 	return connector_status_disconnected;
 }
@@ -1106,8 +1106,8 @@ static int sti_hdmi_late_register(struct drm_connector *connector)
 		= to_sti_hdmi_connector(connector);
 	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
 
-	if (hdmi_debugfs_init(hdmi, hdmi->drm_dev->primary)) {
-		DRM_ERROR("HDMI debugfs setup failed\n");
+	if (hdmi_defs_init(hdmi, hdmi->drm_dev->primary)) {
+		DRM_ERROR("HDMI defs setup failed\n");
 		return -EINVAL;
 	}
 
@@ -1143,7 +1143,7 @@ static void hdmi_audio_shutdown(struct device *dev, void *data)
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 	int audio_cfg;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* disable audio */
 	audio_cfg = HDMI_AUD_CFG_SPDIF_DIV_2 | HDMI_AUD_CFG_DTS_INVALID |
@@ -1162,7 +1162,7 @@ static int hdmi_audio_hw_params(struct device *dev,
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 	int ret;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if ((daifmt->fmt != HDMI_I2S) || daifmt->bit_clk_inv ||
 	    daifmt->frame_clk_inv || daifmt->bit_clk_master ||
@@ -1191,7 +1191,7 @@ static int hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 
-	DRM_DEBUG_DRIVER("%s\n", enable ? "enable" : "disable");
+	DRM_DE_DRIVER("%s\n", enable ? "enable" : "disable");
 
 	if (enable)
 		hdmi_write(hdmi, HDMI_SAMPLE_FLAT_ALL, HDMI_SAMPLE_FLAT_MASK);
@@ -1206,7 +1206,7 @@ static int hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, size
 	struct sti_hdmi *hdmi = dev_get_drvdata(dev);
 	struct drm_connector *connector = hdmi->drm_connector;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 	memcpy(buf, connector->eld, min(sizeof(connector->eld), len));
 
 	return 0;
@@ -1228,7 +1228,7 @@ static int sti_hdmi_register_audio_driver(struct device *dev,
 		.i2s = 1,
 	};
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	hdmi->audio.enabled = false;
 

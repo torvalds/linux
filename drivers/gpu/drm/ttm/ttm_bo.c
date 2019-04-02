@@ -77,7 +77,7 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 	return 0;
 }
 
-static void ttm_mem_type_debug(struct ttm_bo_device *bdev, struct drm_printer *p,
+static void ttm_mem_type_de(struct ttm_bo_device *bdev, struct drm_printer *p,
 			       int mem_type)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
@@ -90,13 +90,13 @@ static void ttm_mem_type_debug(struct ttm_bo_device *bdev, struct drm_printer *p
 	drm_printf(p, "    available_caching: 0x%08X\n", man->available_caching);
 	drm_printf(p, "    default_caching: 0x%08X\n", man->default_caching);
 	if (mem_type != TTM_PL_SYSTEM)
-		(*man->func->debug)(man, p);
+		(*man->func->de)(man, p);
 }
 
-static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
+static void ttm_bo_mem_space_de(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
-	struct drm_printer p = drm_debug_printer(TTM_PFX);
+	struct drm_printer p = drm_de_printer(TTM_PFX);
 	int i, ret, mem_type;
 
 	drm_printf(&p, "No space for %p (%lu pages, %luK, %luM)\n",
@@ -109,7 +109,7 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 			return;
 		drm_printf(&p, "  placement[%d]=0x%08X (%d)\n",
 			   i, placement->placement[i].flags, mem_type);
-		ttm_mem_type_debug(bo->bdev, &p, mem_type);
+		ttm_mem_type_de(bo->bdev, &p, mem_type);
 	}
 }
 
@@ -152,12 +152,12 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	struct ttm_bo_device *bdev = bo->bdev;
 	size_t acc_size = bo->acc_size;
 
-	BUG_ON(kref_read(&bo->list_kref));
-	BUG_ON(kref_read(&bo->kref));
-	BUG_ON(atomic_read(&bo->cpu_writers));
-	BUG_ON(bo->mem.mm_node != NULL);
-	BUG_ON(!list_empty(&bo->lru));
-	BUG_ON(!list_empty(&bo->ddestroy));
+	_ON(kref_read(&bo->list_kref));
+	_ON(kref_read(&bo->kref));
+	_ON(atomic_read(&bo->cpu_writers));
+	_ON(bo->mem.mm_node != NULL);
+	_ON(!list_empty(&bo->lru));
+	_ON(!list_empty(&bo->ddestroy));
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->bdev->glob->bo_count);
 	dma_fence_put(bo->moving);
@@ -175,7 +175,7 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 	reservation_object_assert_held(bo->resv);
 
 	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		BUG_ON(!list_empty(&bo->lru));
+		_ON(!list_empty(&bo->lru));
 
 		man = &bdev->man[bo->mem.mem_type];
 		list_add_tail(&bo->lru, &man->lru[bo->priority]);
@@ -191,9 +191,9 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_add_to_lru);
 
-static void ttm_bo_ref_bug(struct kref *list_kref)
+static void ttm_bo_ref_(struct kref *list_kref)
 {
-	BUG();
+	();
 }
 
 void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
@@ -203,12 +203,12 @@ void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 
 	if (!list_empty(&bo->swap)) {
 		list_del_init(&bo->swap);
-		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+		kref_put(&bo->list_kref, ttm_bo_ref_);
 		notify = true;
 	}
 	if (!list_empty(&bo->lru)) {
 		list_del_init(&bo->lru);
-		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+		kref_put(&bo->list_kref, ttm_bo_ref_);
 		notify = true;
 	}
 
@@ -435,7 +435,7 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 	if (bo->resv == &bo->ttm_resv)
 		return 0;
 
-	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
+	_ON(!reservation_object_trylock(&bo->ttm_resv));
 
 	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
 	if (r)
@@ -593,7 +593,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 
 	ttm_bo_del_from_lru(bo);
 	list_del_init(&bo->ddestroy);
-	kref_put(&bo->list_kref, ttm_bo_ref_bug);
+	kref_put(&bo->list_kref, ttm_bo_ref_);
 
 	spin_unlock(&glob->lru_lock);
 	ttm_bo_cleanup_memtype_use(bo);
@@ -725,7 +725,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 		if (ret != -ERESTARTSYS) {
 			pr_err("Failed to find memory space for buffer 0x%p eviction\n",
 			       bo);
-			ttm_bo_mem_space_debug(bo, &placement);
+			ttm_bo_mem_space_de(bo, &placement);
 		}
 		goto out;
 	}
@@ -1485,9 +1485,9 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	struct ttm_mem_type_manager *man;
 	unsigned i;
 
-	BUG_ON(type >= TTM_NUM_MEM_TYPES);
+	_ON(type >= TTM_NUM_MEM_TYPES);
 	man = &bdev->man[type];
-	BUG_ON(man->has_type);
+	_ON(man->has_type);
 	man->io_reserve_fastpath = true;
 	man->use_io_reserve_lru = false;
 	mutex_init(&man->io_reserve_mutex);
@@ -1604,12 +1604,12 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	cancel_delayed_work_sync(&bdev->wq);
 
 	if (ttm_bo_delayed_delete(bdev, true))
-		pr_debug("Delayed destroy list was clean\n");
+		pr_de("Delayed destroy list was clean\n");
 
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		if (list_empty(&bdev->man[0].lru[0]))
-			pr_debug("Swap list %d was clean\n", i);
+			pr_de("Swap list %d was clean\n", i);
 	spin_unlock(&glob->lru_lock);
 
 	drm_vma_offset_manager_destroy(&bdev->vma_manager);

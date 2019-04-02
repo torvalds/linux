@@ -2225,7 +2225,7 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct tep_format_field *field,
 
 	hde = malloc(sizeof(*hde));
 	if (hde == NULL) {
-		pr_debug("Memory allocation failed\n");
+		pr_de("Memory allocation failed\n");
 		return NULL;
 	}
 
@@ -2341,7 +2341,7 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 		/* case 3 */
 		if (!full_name && strstr(pos->name, event_name)) {
 			if (evsel) {
-				pr_debug("'%s' event is ambiguous: it can be %s or %s\n",
+				pr_de("'%s' event is ambiguous: it can be %s or %s\n",
 					 event_name, evsel->name, pos->name);
 				return NULL;
 			}
@@ -2446,7 +2446,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 
 	if (opt_name) {
 		if (strcmp(opt_name, "raw")) {
-			pr_debug("unsupported field option %s\n", opt_name);
+			pr_de("unsupported field option %s\n", opt_name);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -2465,13 +2465,13 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 
 	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
-		pr_debug("Cannot find event: %s\n", event_name);
+		pr_de("Cannot find event: %s\n", event_name);
 		ret = -ENOENT;
 		goto out;
 	}
 
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
-		pr_debug("%s is not a tracepoint event\n", event_name);
+		pr_de("%s is not a tracepoint event\n", event_name);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2481,7 +2481,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 	} else {
 		field = tep_find_any_field(evsel->tp_format, field_name);
 		if (field == NULL) {
-			pr_debug("Cannot find event field for %s.%s\n",
+			pr_de("Cannot find event field for %s.%s\n",
 				 event_name, field_name);
 			return -ENOENT;
 		}
@@ -2562,7 +2562,7 @@ static int __hpp_dimension__add_output(struct perf_hpp_list *list,
 
 int hpp_dimension__add_output(unsigned col)
 {
-	BUG_ON(col >= PERF_HPP__MAX_INDEX);
+	_ON(col >= PERF_HPP__MAX_INDEX);
 	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
 }
 
@@ -2722,7 +2722,7 @@ static const char *get_default_sort_order(struct perf_evlist *evlist)
 	bool use_trace = true;
 	struct perf_evsel *evsel;
 
-	BUG_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
+	_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
 
 	if (evlist == NULL || perf_evlist__empty(evlist))
 		goto out_no_evlist;

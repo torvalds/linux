@@ -287,7 +287,7 @@ static irqreturn_t w8001_interrupt(struct serio *serio,
 	switch (w8001->idx++) {
 	case 0:
 		if ((data & W8001_LEAD_MASK) != W8001_LEAD_BYTE) {
-			pr_debug("w8001: unsynchronized data: 0x%02x\n", data);
+			pr_de("w8001: unsynchronized data: 0x%02x\n", data);
 			w8001->idx = 0;
 		}
 		break;

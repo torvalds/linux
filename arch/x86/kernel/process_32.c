@@ -36,7 +36,7 @@
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/syscalls.h>
 
 #include <asm/pgtable.h>
@@ -50,7 +50,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
 #include <asm/syscalls.h>
-#include <asm/debugreg.h>
+#include <asm/dereg.h>
 #include <asm/switch_to.h>
 #include <asm/vm86.h>
 #include <asm/resctrl_sched.h>
@@ -94,14 +94,14 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 	printk(KERN_DEFAULT "CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n",
 			cr0, cr2, cr3, cr4);
 
-	get_debugreg(d0, 0);
-	get_debugreg(d1, 1);
-	get_debugreg(d2, 2);
-	get_debugreg(d3, 3);
-	get_debugreg(d6, 6);
-	get_debugreg(d7, 7);
+	get_dereg(d0, 0);
+	get_dereg(d1, 1);
+	get_dereg(d2, 2);
+	get_dereg(d3, 3);
+	get_dereg(d6, 6);
+	get_dereg(d7, 7);
 
-	/* Only print out debug registers if they are in their non-default state. */
+	/* Only print out de registers if they are in their non-default state. */
 	if ((d0 == 0) && (d1 == 0) && (d2 == 0) && (d3 == 0) &&
 	    (d6 == DR6_RESERVED) && (d7 == 0x400))
 		return;
@@ -114,7 +114,7 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 
 void release_thread(struct task_struct *dead_task)
 {
-	BUG_ON(dead_task->mm);
+	_ON(dead_task->mm);
 	release_vm86_irqs(dead_task);
 }
 

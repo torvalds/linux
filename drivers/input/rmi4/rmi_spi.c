@@ -202,7 +202,7 @@ static int rmi_spi_xfer(struct rmi_spi_xport *rmi_spi,
 		spi_message_add_tail(xfer, &msg);
 	}
 
-	rmi_dbg(RMI_DEBUG_XPORT, &spi->dev, "%s: cmd: %s tx_buf len: %d tx_buf: %*ph\n",
+	rmi_dbg(RMI_DE_XPORT, &spi->dev, "%s: cmd: %s tx_buf len: %d tx_buf: %*ph\n",
 		__func__, cmd->op == RMI_SPI_WRITE ? "WRITE" : "READ",
 		total_tx_len, total_tx_len, rmi_spi->tx_buf);
 
@@ -233,7 +233,7 @@ static int rmi_spi_xfer(struct rmi_spi_xport *rmi_spi,
 
 	if (rx_buf) {
 		memcpy(rx_buf, rmi_spi->rx_buf, rx_len);
-		rmi_dbg(RMI_DEBUG_XPORT, &spi->dev, "%s: (%d) %*ph\n",
+		rmi_dbg(RMI_DE_XPORT, &spi->dev, "%s: (%d) %*ph\n",
 			__func__, rx_len, rx_len, rx_buf);
 	}
 

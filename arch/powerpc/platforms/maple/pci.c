@@ -8,7 +8,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -28,7 +28,7 @@
 
 #include "maple.h"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)
@@ -551,7 +551,7 @@ void maple_pci_irq_fixup(struct pci_dev *dev)
 	/* Fixup IRQ for PCIe host */
 	if (u4_pcie != NULL && dev->bus->number == 0 &&
 	    pci_bus_to_host(dev->bus) == u4_pcie) {
-		printk(KERN_DEBUG "Fixup U4 PCIe IRQ\n");
+		printk(KERN_DE "Fixup U4 PCIe IRQ\n");
 		dev->irq = irq_create_mapping(NULL, 1);
 		if (dev->irq)
 			irq_set_irq_type(dev->irq, IRQ_TYPE_LEVEL_LOW);

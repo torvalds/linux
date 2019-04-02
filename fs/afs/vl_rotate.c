@@ -128,19 +128,19 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
-		_debug("no conn %d", error);
+		_de("no conn %d", error);
 		vc->error = error;
 		goto iterate_address;
 
 	case -ECONNRESET:
-		_debug("call reset");
+		_de("call reset");
 		vc->error = error;
 		vc->flags |= AFS_VL_CURSOR_RETRY;
 		goto next_server;
 	}
 
 restart_from_beginning:
-	_debug("restart");
+	_de("restart");
 	afs_end_cursor(&vc->ac);
 	afs_put_vlserverlist(vc->cell->net, vc->server_list);
 	vc->server_list = NULL;
@@ -148,7 +148,7 @@ restart_from_beginning:
 		goto failed;
 	vc->flags |= AFS_VL_CURSOR_RETRIED;
 start:
-	_debug("start");
+	_de("start");
 
 	if (!afs_start_vl_iteration(vc))
 		goto failed;
@@ -158,7 +158,7 @@ start:
 		goto failed_set_error;
 
 pick_server:
-	_debug("pick [%lx]", vc->untried);
+	_de("pick [%lx]", vc->untried);
 
 	error = afs_wait_for_vl_probes(vc->server_list, vc->untried);
 	if (error < 0)
@@ -186,7 +186,7 @@ pick_server:
 		goto no_more_servers;
 
 selected_server:
-	_debug("use %d", vc->index);
+	_de("use %d", vc->index);
 	__clear_bit(vc->index, &vc->untried);
 
 	/* We're starting on a different vlserver from the list.  We need to
@@ -197,7 +197,7 @@ selected_server:
 	vlserver = vc->server_list->servers[vc->index].server;
 	vc->server = vlserver;
 
-	_debug("USING VLSERVER: %s", vlserver->name);
+	_de("USING VLSERVER: %s", vlserver->name);
 
 	read_lock(&vlserver->lock);
 	alist = rcu_dereference_protected(vlserver->addresses,
@@ -222,13 +222,13 @@ iterate_address:
 	if (!afs_iterate_addresses(&vc->ac))
 		goto next_server;
 
-	_debug("VL address %d/%d", vc->ac.index, vc->ac.alist->nr_addrs);
+	_de("VL address %d/%d", vc->ac.index, vc->ac.alist->nr_addrs);
 
 	_leave(" = t %pISpc", &vc->ac.alist->addrs[vc->ac.index].transport);
 	return true;
 
 next_server:
-	_debug("next");
+	_de("next");
 	afs_end_cursor(&vc->ac);
 	goto pick_server;
 
@@ -265,7 +265,7 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 	static int count;
 	int i;
 
-	if (!IS_ENABLED(CONFIG_AFS_DEBUG_CURSOR) || count > 3)
+	if (!IS_ENABLED(CONFIG_AFS_DE_CURSOR) || count > 3)
 		return;
 	count++;
 

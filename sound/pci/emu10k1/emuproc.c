@@ -3,10 +3,10 @@
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips / proc interface routines
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.co.uk>
  *  	Added EMU 1010 support.
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -393,7 +393,7 @@ static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry,
 	}
 }
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
@@ -566,7 +566,7 @@ static struct snd_info_entry_ops snd_emu10k1_proc_ops_fx8010 = {
 int snd_emu10k1_proc_init(struct snd_emu10k1 *emu)
 {
 	struct snd_info_entry *entry;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	if (emu->card_capabilities->emu_model) {
 		snd_card_ro_proc_new(emu->card, "emu1010_regs",
 				     emu, snd_emu_proc_emu1010_reg_read);

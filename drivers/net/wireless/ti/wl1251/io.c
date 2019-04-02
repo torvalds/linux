@@ -137,20 +137,20 @@ void wl1251_set_partition(struct wl1251 *wl,
 {
 	struct wl1251_partition partition[2];
 
-	wl1251_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
+	wl1251_de(DE_SPI, "mem_start %08X mem_size %08X",
 		     mem_start, mem_size);
-	wl1251_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
+	wl1251_de(DE_SPI, "reg_start %08X reg_size %08X",
 		     reg_start, reg_size);
 
 	/* Make sure that the two partitions together don't exceed the
 	 * address range */
 	if ((mem_size + reg_size) > HW_ACCESS_MEMORY_MAX_RANGE) {
-		wl1251_debug(DEBUG_SPI, "Total size exceeds maximum virtual"
+		wl1251_de(DE_SPI, "Total size exceeds maximum virtual"
 			     " address range.  Truncating partition[0].");
 		mem_size = HW_ACCESS_MEMORY_MAX_RANGE - reg_size;
-		wl1251_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
+		wl1251_de(DE_SPI, "mem_start %08X mem_size %08X",
 			     mem_start, mem_size);
-		wl1251_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
+		wl1251_de(DE_SPI, "reg_start %08X reg_size %08X",
 			     reg_start, reg_size);
 	}
 
@@ -158,23 +158,23 @@ void wl1251_set_partition(struct wl1251 *wl,
 	    ((mem_start + mem_size) > reg_start)) {
 		/* Guarantee that the memory partition doesn't overlap the
 		 * registers partition */
-		wl1251_debug(DEBUG_SPI, "End of partition[0] is "
+		wl1251_de(DE_SPI, "End of partition[0] is "
 			     "overlapping partition[1].  Adjusted.");
 		mem_size = reg_start - mem_start;
-		wl1251_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
+		wl1251_de(DE_SPI, "mem_start %08X mem_size %08X",
 			     mem_start, mem_size);
-		wl1251_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
+		wl1251_de(DE_SPI, "reg_start %08X reg_size %08X",
 			     reg_start, reg_size);
 	} else if ((reg_start < mem_start) &&
 		   ((reg_start + reg_size) > mem_start)) {
 		/* Guarantee that the register partition doesn't overlap the
 		 * memory partition */
-		wl1251_debug(DEBUG_SPI, "End of partition[1] is"
+		wl1251_de(DE_SPI, "End of partition[1] is"
 			     " overlapping partition[0].  Adjusted.");
 		reg_size = mem_start - reg_start;
-		wl1251_debug(DEBUG_SPI, "mem_start %08X mem_size %08X",
+		wl1251_de(DE_SPI, "mem_start %08X mem_size %08X",
 			     mem_start, mem_size);
-		wl1251_debug(DEBUG_SPI, "reg_start %08X reg_size %08X",
+		wl1251_de(DE_SPI, "reg_start %08X reg_size %08X",
 			     reg_start, reg_size);
 	}
 

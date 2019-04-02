@@ -27,7 +27,7 @@
 #include <scsi/libfcoe.h>
 
 /*
- * OK to include local libfcoe.h for debug_logging, but cannot include
+ * OK to include local libfcoe.h for de_logging, but cannot include
  * <scsi/libfcoe.h> otherwise non-netdev based fcoe solutions would have
  * have to include more than fcoe_sysfs.h.
  */

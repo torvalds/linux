@@ -2,7 +2,7 @@
 /* 
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 2000
  *
  * History of changes
@@ -199,7 +199,7 @@ idal_buffer_to_user(struct idal_buffer *ib, void __user *to, size_t count)
 	size_t left;
 	int i;
 
-	BUG_ON(count > ib->size);
+	_ON(count > ib->size);
 	for (i = 0; count > IDA_BLOCK_SIZE; i++) {
 		left = copy_to_user(to, ib->data[i], IDA_BLOCK_SIZE);
 		if (left)
@@ -219,7 +219,7 @@ idal_buffer_from_user(struct idal_buffer *ib, const void __user *from, size_t co
 	size_t left;
 	int i;
 
-	BUG_ON(count > ib->size);
+	_ON(count > ib->size);
 	for (i = 0; count > IDA_BLOCK_SIZE; i++) {
 		left = copy_from_user(ib->data[i], from, IDA_BLOCK_SIZE);
 		if (left)

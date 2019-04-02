@@ -658,7 +658,7 @@ static int sk_psock_bpf_run(struct sk_psock *psock, struct bpf_prog *prog,
 	preempt_enable();
 	/* strparser clones the skb before handing it to a upper layer,
 	 * meaning skb_orphan has been called. We NULL sk on the way out
-	 * to ensure we don't trigger a BUG_ON() in skb/sk operations
+	 * to ensure we don't trigger a _ON() in skb/sk operations
 	 * later and because we are not charging the memory of this skb
 	 * to any socket yet.
 	 */

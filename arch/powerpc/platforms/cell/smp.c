@@ -12,7 +12,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -45,7 +45,7 @@
 #include "interrupt.h"
 #include <asm/udbg.h>
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)

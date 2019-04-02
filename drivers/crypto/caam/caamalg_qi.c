@@ -213,7 +213,7 @@ static int aead_setkey(struct crypto_aead *aead, const u8 *key,
 	if (crypto_authenc_extractkeys(&keys, key, keylen) != 0)
 		goto badkey;
 
-#ifdef DEBUG
+#ifdef DE
 	dev_err(jrdev, "keylen %d enckeylen %d authkeylen %d\n",
 		keys.authkeylen + keys.enckeylen, keys.enckeylen,
 		keys.authkeylen);
@@ -252,7 +252,7 @@ static int aead_setkey(struct crypto_aead *aead, const u8 *key,
 	memcpy(ctx->key + ctx->adata.keylen_pad, keys.enckey, keys.enckeylen);
 	dma_sync_single_for_device(jrdev, ctx->key_dma, ctx->adata.keylen_pad +
 				   keys.enckeylen, ctx->dir);
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "ctx.key@" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
 		       ctx->adata.keylen_pad + keys.enckeylen, 1);
@@ -352,7 +352,7 @@ static int gcm_setkey(struct crypto_aead *aead,
 	struct device *jrdev = ctx->jrdev;
 	int ret;
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
@@ -451,7 +451,7 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	if (keylen < 4)
 		return -EINVAL;
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
@@ -555,7 +555,7 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	if (keylen < 4)
 		return -EINVAL;
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
@@ -610,7 +610,7 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	const bool is_rfc3686 = alg->caam.rfc3686;
 	int ret = 0;
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "key in @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
@@ -1141,7 +1141,7 @@ static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 	struct device *qidev = caam_ctx->qidev;
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 
-#ifdef DEBUG
+#ifdef DE
 	dev_err(qidev, "%s %d: status 0x%x\n", __func__, __LINE__, status);
 #endif
 
@@ -1150,7 +1150,7 @@ static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 	if (status)
 		caam_jr_strstatus(qidev, status);
 
-#ifdef DEBUG
+#ifdef DE
 	print_hex_dump(KERN_ERR, "dstiv  @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
 		       edesc->src_nents > 1 ? 100 : ivsize, 1);

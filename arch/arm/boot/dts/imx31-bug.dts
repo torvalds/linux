@@ -13,8 +13,8 @@
 #include "imx31.dtsi"
 
 / {
-	model = "Buglabs i.MX31 Bug 1.x";
-	compatible = "buglabs,imx31-bug", "fsl,imx31";
+	model = "labs i.MX31  1.x";
+	compatible = "labs,imx31-", "fsl,imx31";
 
 	memory@80000000 {
 		device_type = "memory";

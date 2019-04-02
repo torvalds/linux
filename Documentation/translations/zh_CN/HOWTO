@@ -125,7 +125,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     这篇文档对于理解Linux的开发哲学至关重要。对于将开发平台从其他操作系
     统转移到Linux的人来说也很重要。
 
-  Documentation/admin-guide/security-bugs.rst
+  Documentation/admin-guide/security-s.rst
     如果你认为自己发现了Linux内核的安全性问题，请根据这篇文档中的步骤来
     提醒其他内核开发者并帮助解决这个问题。
 
@@ -217,7 +217,7 @@ kernel.org网站的pub/linux/kernel/v2.6/目录下找到它。它的开发遵循
     6个星期。
 
 关于内核发布，值得一提的是Andrew Morton在linux-kernel邮件列表中如是说：
-	“没有人知道新内核何时会被发布，因为发布是根据已知bug的情况来决定
+	“没有人知道新内核何时会被发布，因为发布是根据已知的情况来决定
 	的，而不是根据一个事先制定好的时间表。”
 
 
@@ -311,31 +311,31 @@ linux-kernel邮件列表中提供反馈，告诉大家你遇到了问题还是�
   其他内核源码树可以在http://git.kernel.org的列表中和MAINTAINERS文件里
   找到。
 
-报告bug
+报告
 -------
 
-bugzilla.kernel.org是Linux内核开发者们用来跟踪内核Bug的网站。我们鼓励用
-户在这个工具中报告找到的所有bug。如何使用内核bugzilla的细节请访问：
-	http://test.kernel.org/bugzilla/faq.html
+zilla.kernel.org是Linux内核开发者们用来跟踪内核的网站。我们鼓励用
+户在这个工具中报告找到的所有。如何使用内核zilla的细节请访问：
+	http://test.kernel.org/zilla/faq.html
 
-内核源码主目录中的admin-guide/reporting-bugs.rst文件里有一个很好的模板。它指导用户如何报
-告可能的内核bug以及需要提供哪些信息来帮助内核开发者们找到问题的根源。
+内核源码主目录中的admin-guide/reporting-s.rst文件里有一个很好的模板。它指导用户如何报
+告可能的内核以及需要提供哪些信息来帮助内核开发者们找到问题的根源。
 
 
-利用bug报告
+利用报告
 -----------
 
-练习内核开发技能的最好办法就是修改其他人报告的bug。你不光可以帮助内核变
+练习内核开发技能的最好办法就是修改其他人报告的。你不光可以帮助内核变
 得更加稳定，还可以学会如何解决实际问题从而提高自己的技能，并且让其他开发
-者感受到你的存在。修改bug是赢得其他开发者赞誉的最好办法，因为并不是很多
-人都喜欢浪费时间去修改别人报告的bug。
+者感受到你的存在。修改是赢得其他开发者赞誉的最好办法，因为并不是很多
+人都喜欢浪费时间去修改别人报告的。
 
-要尝试修改已知的bug，请访问http://bugzilla.kernel.org网址。如果你想获得
-最新bug的通知，可以订阅bugme-new邮件列表（只有新的bug报告会被寄到这里）
-或者订阅bugme-janitor邮件列表（所有bugzilla的变动都会被寄到这里）。
+要尝试修改已知的，请访问http://zilla.kernel.org网址。如果你想获得
+最新的通知，可以订阅me-new邮件列表（只有新的报告会被寄到这里）
+或者订阅me-janitor邮件列表（所有zilla的变动都会被寄到这里）。
 
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
-	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
+	https://lists.linux-foundation.org/mailman/listinfo/me-new
+	https://lists.linux-foundation.org/mailman/listinfo/me-janitors
 
 
 邮件列表

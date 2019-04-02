@@ -36,7 +36,7 @@
 
 static struct mtd_partition firebee_flash_parts[] = {
 	{
-		.name	= "dBUG",
+		.name	= "d",
 		.offset	= PART_BOOT_START,
 		.size	= PART_BOOT_SIZE,
 	},

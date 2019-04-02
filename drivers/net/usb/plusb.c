@@ -16,7 +16,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
@@ -32,7 +32,7 @@
 /*
  * Prolific PL-2301/PL-2302 driver ... http://www.prolific.com.tw/ 
  *
- * The protocol and handshaking used here should be bug-compatible
+ * The protocol and handshaking used here should be -compatible
  * with the Linux 2.2 "plusb" driver, by Deti Fliegl.
  *
  * HEADS UP:  this handshaking isn't all that robust.  This driver

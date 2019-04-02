@@ -183,7 +183,7 @@ struct ar9170_tx_hw_mac_control {
 	union {
 		struct {
 			/*
-			 * Beware of compiler bugs in all gcc pre 4.4!
+			 * Beware of compiler s in all gcc pre 4.4!
 			 */
 
 			u8 erp_prot:2;
@@ -214,7 +214,7 @@ struct ar9170_tx_hw_phy_control {
 	union {
 		struct {
 			/*
-			 * Beware of compiler bugs in all gcc pre 4.4!
+			 * Beware of compiler s in all gcc pre 4.4!
 			 */
 
 			u8 modulation:2;
@@ -405,7 +405,7 @@ static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_macstatus *t)
 }
 
 /*
- * This is an workaround for several undocumented bugs.
+ * This is an workaround for several undocumented s.
  * Don't mess with the QoS/AC <-> HW Queue map, if you don't
  * know what you are doing.
  *

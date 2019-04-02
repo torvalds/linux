@@ -335,7 +335,7 @@ TRACE_MAKE_SYSTEM_STR();
 #undef __print_array
 #define __print_array(array, count, el_size)				\
 	({								\
-		BUILD_BUG_ON(el_size != 1 && el_size != 2 &&		\
+		BUILD__ON(el_size != 1 && el_size != 2 &&		\
 			     el_size != 4 && el_size != 8);		\
 		trace_print_array_seq(p, array, count, el_size);	\
 	})
@@ -421,8 +421,8 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 #define __array(type, item, len)					\
 	do {								\
 		char *type_str = #type"["__stringify(len)"]";		\
-		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
-		BUILD_BUG_ON(len <= 0);					\
+		BUILD__ON(len > MAX_FILTER_STR_VAL);			\
+		BUILD__ON(len <= 0);					\
 		ret = trace_define_field(event_call, type_str, #item,	\
 				 offsetof(typeof(field), item),		\
 				 sizeof(field.item),			\

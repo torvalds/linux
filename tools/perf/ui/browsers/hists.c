@@ -659,7 +659,7 @@ int hist_browser__run(struct hist_browser *browser, const char *help,
 			ui_browser__show_title(&browser->b, title);
 			continue;
 		}
-		case 'D': { /* Debug */
+		case 'D': { /* De */
 			static int seq;
 			struct hist_entry *h = rb_entry(browser->b.top,
 							struct hist_entry, rb_node);

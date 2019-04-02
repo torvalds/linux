@@ -35,7 +35,7 @@ extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 extern bool rx_align_2;
 extern bool rx_large_buf;
-extern bool debug_fw;
+extern bool de_fw;
 extern bool disable_ap_sme;
 extern bool ftm_mode;
 extern bool drop_if_ring_full;
@@ -307,7 +307,7 @@ struct RGF_ICR {
 	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_CLR			BIT(3)
 	#define BIT_DMA_ITR_RX_IDL_CNT_CTL_REACHED_TRESH	BIT(4)
 #define RGF_DMA_MISC_CTL				(0x881d6c)
-	#define BIT_OFUL34_RDY_VALID_BUG_FIX_EN			BIT(7)
+	#define BIT_OFUL34_RDY_VALID__FIX_EN			BIT(7)
 
 #define RGF_DMA_PSEUDO_CAUSE		(0x881c68)
 #define RGF_DMA_PSEUDO_CAUSE_MASK_SW	(0x881c6c)
@@ -417,7 +417,7 @@ struct fw_map {
 	u32 from; /* linker address - from, inclusive */
 	u32 to;   /* linker address - to, exclusive */
 	u32 host; /* PCI/Host address - BAR0 + 0x880000 */
-	const char *name; /* for debugfs */
+	const char *name; /* for defs */
 	bool fw; /* true if FW mapping, false if UCODE mapping */
 	bool crash_dump; /* true if should be dumped during crash dump */
 };
@@ -654,7 +654,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0, /* FW operational */
 	wil_status_dontscan,
 	wil_status_mbox_ready, /* MBOX structures ready */
-	wil_status_irqen, /* interrupts enabled - for debug */
+	wil_status_irqen, /* interrupts enabled - for de */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 	wil_status_resetting, /* reset in progress */
 	wil_status_suspending, /* suspend in progress */
@@ -748,7 +748,7 @@ struct wil_sta_info {
 	 * 20 latency bins. 1st bin counts packets with latency
 	 * of 0..tx_latency_res, last bin counts packets with latency
 	 * of 19*tx_latency_res and above.
-	 * tx_latency_res is configured from "tx_latency" debug-fs.
+	 * tx_latency_res is configured from "tx_latency" de-fs.
 	 */
 	u64 *tx_latency_bins;
 	struct wmi_link_stats_basic fw_stats_basic;
@@ -799,7 +799,7 @@ struct wil_halp {
 
 struct wil_blob_wrapper {
 	struct wil6210_priv *wil;
-	struct debugfs_blob_wrapper blob;
+	struct defs_blob_wrapper blob;
 };
 
 #define WIL_LED_MAX_ID			(2)
@@ -822,13 +822,13 @@ struct blink_on_off_time {
 	u32 off_ms;
 };
 
-struct wil_debugfs_iomem_data {
+struct wil_defs_iomem_data {
 	void *offset;
 	struct wil6210_priv *wil;
 };
 
-struct wil_debugfs_data {
-	struct wil_debugfs_iomem_data *data_arr;
+struct wil_defs_data {
+	struct wil_defs_iomem_data *data_arr;
 	int iomem_data_count;
 };
 
@@ -994,14 +994,14 @@ struct wil6210_priv {
 	struct mutex mutex; /* for wil6210_priv access in wil_{up|down} */
 	/* statistics */
 	atomic_t isr_count_rx, isr_count_tx;
-	/* debugfs */
-	struct dentry *debug;
+	/* defs */
+	struct dentry *de;
 	struct wil_blob_wrapper blobs[MAX_FW_MAPPING_TABLE_SIZE];
 	u8 discovery_mode;
 	u8 abft_len;
 	u8 wakeup_trigger;
 	struct wil_suspend_stats suspend_stats;
-	struct wil_debugfs_data dbg_data;
+	struct wil_defs_data dbg_data;
 	bool tx_latency; /* collect TX latency measurements */
 	size_t tx_latency_res; /* bin resolution in usec */
 
@@ -1134,25 +1134,25 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 
 void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DE)
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
-			  print_hex_dump_debug("DBG[TXRX]" prefix_str,\
+			  print_hex_dump_de("DBG[TXRX]" prefix_str,\
 					 prefix_type, rowsize,	\
 					 groupsize, buf, len, ascii)
 
 #define wil_hex_dump_wmi(prefix_str, prefix_type, rowsize,	\
 			 groupsize, buf, len, ascii)		\
-			 print_hex_dump_debug("DBG[ WMI]" prefix_str,\
+			 print_hex_dump_de("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
 
 #define wil_hex_dump_misc(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
-			  print_hex_dump_debug("DBG[MISC]" prefix_str,\
+			  print_hex_dump_de("DBG[MISC]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
-#else /* defined(CONFIG_DYNAMIC_DEBUG) */
+#else /* defined(CONFIG_DYNAMIC_DE) */
 static inline
 void wil_hex_dump_txrx(const char *prefix_str, int prefix_type, int rowsize,
 		       int groupsize, const void *buf, size_t len, bool ascii)
@@ -1170,7 +1170,7 @@ void wil_hex_dump_misc(const char *prefix_str, int prefix_type, int rowsize,
 		       int groupsize, const void *buf, size_t len, bool ascii)
 {
 }
-#endif /* defined(CONFIG_DYNAMIC_DEBUG) */
+#endif /* defined(CONFIG_DYNAMIC_DE) */
 
 void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 			  size_t count);
@@ -1296,12 +1296,12 @@ int wil_cfg80211_iface_combinations_from_fw(
 	const struct wil_fw_record_concurrency *conc);
 int wil_vif_prepare_stop(struct wil6210_vif *vif);
 
-#if defined(CONFIG_WIL6210_DEBUGFS)
-int wil6210_debugfs_init(struct wil6210_priv *wil);
-void wil6210_debugfs_remove(struct wil6210_priv *wil);
+#if defined(CONFIG_WIL6210_DEFS)
+int wil6210_defs_init(struct wil6210_priv *wil);
+void wil6210_defs_remove(struct wil6210_priv *wil);
 #else
-static inline int wil6210_debugfs_init(struct wil6210_priv *wil) { return 0; }
-static inline void wil6210_debugfs_remove(struct wil6210_priv *wil) {}
+static inline int wil6210_defs_init(struct wil6210_priv *wil) { return 0; }
+static inline void wil6210_defs_remove(struct wil6210_priv *wil) {}
 #endif
 
 int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,

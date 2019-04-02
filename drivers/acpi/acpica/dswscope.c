@@ -39,7 +39,7 @@ void acpi_ds_scope_stack_clear(struct acpi_walk_state *walk_state)
 		scope_info = walk_state->scope_info;
 		walk_state->scope_info = scope_info->scope.next;
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "Popped object type (%s)\n",
 				  acpi_ut_get_type_name(scope_info->common.
 							value)));
@@ -102,23 +102,23 @@ acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
 
 	walk_state->scope_depth++;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "[%.2d] Pushed scope ",
 			  (u32) walk_state->scope_depth));
 
 	old_scope_info = walk_state->scope_info;
 	if (old_scope_info) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC,
+		ACPI_DE_PRINT_RAW((ACPI_DB_EXEC,
 				      "[%4.4s] (%s)",
 				      acpi_ut_get_node_name(old_scope_info->
 							    scope.node),
 				      acpi_ut_get_type_name(old_scope_info->
 							    common.value)));
 	} else {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC, ACPI_NAMESPACE_ROOT));
+		ACPI_DE_PRINT_RAW((ACPI_DB_EXEC, ACPI_NAMESPACE_ROOT));
 	}
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC,
+	ACPI_DE_PRINT_RAW((ACPI_DB_EXEC,
 			      ", New scope -> [%4.4s] (%s)\n",
 			      acpi_ut_get_node_name(scope_info->scope.node),
 			      acpi_ut_get_type_name(scope_info->common.value)));
@@ -158,7 +158,7 @@ acpi_status acpi_ds_scope_stack_pop(struct acpi_walk_state *walk_state)
 
 	walk_state->scope_depth--;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "[%.2d] Popped scope [%4.4s] (%s), New scope -> ",
 			  (u32) walk_state->scope_depth,
 			  acpi_ut_get_node_name(scope_info->scope.node),
@@ -166,13 +166,13 @@ acpi_status acpi_ds_scope_stack_pop(struct acpi_walk_state *walk_state)
 
 	new_scope_info = walk_state->scope_info;
 	if (new_scope_info) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC, "[%4.4s] (%s)\n",
+		ACPI_DE_PRINT_RAW((ACPI_DB_EXEC, "[%4.4s] (%s)\n",
 				      acpi_ut_get_node_name(new_scope_info->
 							    scope.node),
 				      acpi_ut_get_type_name(new_scope_info->
 							    common.value)));
 	} else {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_EXEC, "%s\n",
+		ACPI_DE_PRINT_RAW((ACPI_DB_EXEC, "%s\n",
 				      ACPI_NAMESPACE_ROOT));
 	}
 

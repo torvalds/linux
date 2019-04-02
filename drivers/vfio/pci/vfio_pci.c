@@ -128,7 +128,7 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_device *vdev)
 
 		/*
 		 * The PCI core shouldn't set up a resource with a
-		 * type but zero size. But there may be bugs that
+		 * type but zero size. But there may be s that
 		 * cause us to do that.
 		 */
 		if (!resource_size(res))
@@ -287,7 +287,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	pci_save_state(pdev);
 	vdev->pci_saved_state = pci_store_saved_state(pdev);
 	if (!vdev->pci_saved_state)
-		pr_debug("%s: Couldn't store %s saved state\n",
+		pr_de("%s: Couldn't store %s saved state\n",
 			 __func__, dev_name(&pdev->dev));
 
 	if (likely(!nointxmask)) {

@@ -16,7 +16,7 @@
 
 
 CFLAGS_aha152x.o =   -DAHA152X_STAT -DAUTOCONF
-CFLAGS_gdth.o    = # -DDEBUG_GDTH=2 -D__SERIAL__ -D__COM2__ -DGDTH_STATISTICS
+CFLAGS_gdth.o    = # -DDE_GDTH=2 -D__SERIAL__ -D__COM2__ -DGDTH_STATISTICS
 
 obj-$(CONFIG_PCMCIA)		+= pcmcia/
 
@@ -153,7 +153,7 @@ obj-$(CONFIG_SCSI_ENCLOSURE)	+= ses.o
 obj-$(CONFIG_SCSI_HISI_SAS) += hisi_sas/
 
 # This goes last, so that "real" scsi devices probe earlier
-obj-$(CONFIG_SCSI_DEBUG)	+= scsi_debug.o
+obj-$(CONFIG_SCSI_DE)	+= scsi_de.o
 scsi_mod-y			+= scsi.o hosts.o scsi_ioctl.o \
 				   scsicam.o scsi_error.o scsi_lib.o
 scsi_mod-$(CONFIG_SCSI_CONSTANTS) += constants.o
@@ -162,7 +162,7 @@ scsi_mod-y			+= scsi_scan.o scsi_sysfs.o scsi_devinfo.o
 scsi_mod-$(CONFIG_SCSI_NETLINK)	+= scsi_netlink.o
 scsi_mod-$(CONFIG_SYSCTL)	+= scsi_sysctl.o
 scsi_mod-$(CONFIG_SCSI_PROC_FS)	+= scsi_proc.o
-scsi_mod-$(CONFIG_BLK_DEBUG_FS)	+= scsi_debugfs.o
+scsi_mod-$(CONFIG_BLK_DE_FS)	+= scsi_defs.o
 scsi_mod-y			+= scsi_trace.o scsi_logging.o
 scsi_mod-$(CONFIG_PM)		+= scsi_pm.o
 scsi_mod-$(CONFIG_SCSI_DH)	+= scsi_dh.o

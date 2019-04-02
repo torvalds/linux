@@ -12,11 +12,11 @@
  *	Fixes:
  *	Michael Chastain	:	Incorrect size of copying.
  *	Alan Cox		:	Added the cache manager code
- *	Alan Cox		:	Fixed the clone/copy bug and device race.
+ *	Alan Cox		:	Fixed the clone/copy  and device race.
  *	Mike McLagan		:	Routing by source
  *	Malcolm Beattie		:	Buffer handling fixes.
  *	Alexey Kuznetsov	:	Double buffer free and other fixes.
- *	SVR Anand		:	Fixed several multicast bugs and problems.
+ *	SVR Anand		:	Fixed several multicast s and problems.
  *	Alexey Kuznetsov	:	Status, optimisations and more.
  *	Brad Parker		:	Better behaviour on mrouted upcall
  *					overflow.

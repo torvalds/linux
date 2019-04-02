@@ -5,7 +5,7 @@
  * GNU General Public License.
  *
  * The author may be reached as romieu@cogenit.fr.
- * Specific bug reports/asian food will be welcome.
+ * Specific  reports/asian food will be welcome.
  *
  * Special thanks to the nice people at CS-Telecom for the hardware and the
  * access to the test/measure tools.
@@ -39,7 +39,7 @@
  * III. Driver operation
  *
  * The rx/tx operations are based on a linked list of descriptors. The driver
- * doesn't use HOLD mode any more. HOLD mode is definitely buggy and the more
+ * doesn't use HOLD mode any more. HOLD mode is definitely gy and the more
  * I tried to fix it, the more it started to look like (convoluted) software
  * mutation of LxDA method. Errata sheet DS5 suggests to use LxDA: consider
  * this a rfc2119 MUST.
@@ -112,7 +112,7 @@
 
 /* Version */
 static const char version[] = "$Id: dscc4.c,v 1.173 2003/09/20 23:55:34 romieu Exp $ for Linux\n";
-static int debug;
+static int de;
 static int quartz;
 
 #ifdef CONFIG_DSCC4_PCI_RST
@@ -129,8 +129,8 @@ static u32 dscc4_pci_config_store[16];
 MODULE_AUTHOR("Maintainer: Francois Romieu <romieu@cogenit.fr>");
 MODULE_DESCRIPTION("Siemens PEB20534 PCI Controller");
 MODULE_LICENSE("GPL");
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug,"Enable/disable extra messages");
+module_param(de, int, 0);
+MODULE_PARM_DESC(de,"Enable/disable extra messages");
 module_param(quartz, int, 0);
 MODULE_PARM_DESC(quartz,"If present, on-board quartz frequency (Hz)");
 
@@ -455,14 +455,14 @@ static int state_check(u32 state, struct dscc4_dev_priv *dpriv,
 {
 	int ret = 0;
 
-	if (debug > 1) {
+	if (de > 1) {
 		if (SOURCE_ID(state) != dpriv->dev_id) {
-			printk(KERN_DEBUG "%s (%s): Source Id=%d, state=%08x\n",
+			printk(KERN_DE "%s (%s): Source Id=%d, state=%08x\n",
 			       dev->name, msg, SOURCE_ID(state), state);
 			ret = -1;
 		}
 		if (state & 0x0df80c00) {
-			printk(KERN_DEBUG "%s (%s): state=%08x (UFO alert)\n",
+			printk(KERN_DE "%s (%s): state=%08x (UFO alert)\n",
 			       dev->name, msg, state);
 			ret = -1;
 		}
@@ -474,7 +474,7 @@ static void dscc4_tx_print(struct net_device *dev,
 			   struct dscc4_dev_priv *dpriv,
 			   char *msg)
 {
-	printk(KERN_DEBUG "%s: tx_current=%02d tx_dirty=%02d (%s)\n",
+	printk(KERN_DE "%s: tx_current=%02d tx_dirty=%02d (%s)\n",
 	       dev->name, dpriv->tx_current, dpriv->tx_dirty, msg);
 }
 
@@ -553,7 +553,7 @@ static int dscc4_wait_ack_cec(struct dscc4_dev_priv *dpriv,
 
 	do {
 		if (!(scc_readl_star(dpriv, dev) & SccBusy)) {
-			printk(KERN_DEBUG "%s: %s ack (%d try)\n", dev->name,
+			printk(KERN_DE "%s: %s ack (%d try)\n", dev->name,
 			       msg, i);
 			goto done;
 		}
@@ -658,7 +658,7 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 
 	skb = dpriv->rx_skbuff[dpriv->rx_current++%RX_RING_SIZE];
 	if (!skb) {
-		printk(KERN_DEBUG "%s: skb=0 (%s)\n", dev->name, __func__);
+		printk(KERN_DE "%s: skb=0 (%s)\n", dev->name, __func__);
 		goto refill;
 	}
 	pkt_len = TO_SIZE(le32_to_cpu(rx_fd->state2));
@@ -718,7 +718,7 @@ static int dscc4_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *ioaddr;
 	int i, rc;
 
-	printk(KERN_DEBUG "%s", version);
+	printk(KERN_DE "%s", version);
 
 	rc = pci_enable_device(pdev);
 	if (rc < 0)
@@ -743,7 +743,7 @@ static int dscc4_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -EIO;
 		goto err_free_mmio_regions_2;
 	}
-	printk(KERN_DEBUG "Siemens DSCC4, MMIO at %#llx (regs), %#llx (lbi), IRQ %d\n",
+	printk(KERN_DE "Siemens DSCC4, MMIO at %#llx (regs), %#llx (lbi), IRQ %d\n",
 	        (unsigned long long)pci_resource_start(pdev, 0),
 	        (unsigned long long)pci_resource_start(pdev, 1), pdev->irq);
 
@@ -1049,7 +1049,7 @@ static int dscc4_open(struct net_device *dev)
 		goto err;
 
 	/*
-	 * Due to various bugs, there is no way to reliably reset a
+	 * Due to various s, there is no way to reliably reset a
 	 * specific port (manufacturer's dependent special PCI #RST wiring
 	 * apart: it affects all ports). Thus the device goes in the best
 	 * silent mode possible at dscc4_close() time and simply claims to
@@ -1105,7 +1105,7 @@ static int dscc4_open(struct net_device *dev)
 		goto err_disable_scc_events;
 	}
 	
-	if (debug > 2)
+	if (de > 2)
 		dscc4_tx_print(dev, dpriv, "Open");
 
 done:
@@ -1162,7 +1162,7 @@ static netdev_tx_t dscc4_start_xmit(struct sk_buff *skb,
 	spin_unlock(&dpriv->lock);
 #endif
 
-	if (debug > 2)
+	if (de > 2)
 		dscc4_tx_print(dev, dpriv, "Xmit");
 	/* To be cleaned(unsigned int)/optimized. Later, ok ? */
 	if (!((++dpriv->tx_current - dpriv->tx_dirty)%TX_RING_SIZE))
@@ -1369,15 +1369,15 @@ static int dscc4_clock_setting(struct dscc4_dev_priv *dpriv,
 	if (dscc4_set_clock(dev, &bps, &state) < 0)
 		goto done;
 	if (bps) { /* DCE */
-		printk(KERN_DEBUG "%s: generated RxClk (DCE)\n", dev->name);
+		printk(KERN_DE "%s: generated RxClk (DCE)\n", dev->name);
 		if (settings->clock_rate != bps) {
-			printk(KERN_DEBUG "%s: clock adjusted (%08d -> %08d)\n",
+			printk(KERN_DE "%s: clock adjusted (%08d -> %08d)\n",
 				dev->name, settings->clock_rate, bps);
 			settings->clock_rate = bps;
 		}
 	} else { /* DTE */
 		state |= PowerUp | Vis;
-		printk(KERN_DEBUG "%s: external RxClk (DTE)\n", dev->name);
+		printk(KERN_DE "%s: external RxClk (DTE)\n", dev->name);
 	}
 	scc_writel(state, dpriv, dev, CCR0);
 	ret = 0;
@@ -1414,10 +1414,10 @@ static int dscc4_loopback_setting(struct dscc4_dev_priv *dpriv,
 
 	state = scc_readl(dpriv, CCR1);
 	if (settings->loopback) {
-		printk(KERN_DEBUG "%s: loopback\n", dev->name);
+		printk(KERN_DE "%s: loopback\n", dev->name);
 		state |= 0x00000100;
 	} else {
-		printk(KERN_DEBUG "%s: normal\n", dev->name);
+		printk(KERN_DE "%s: normal\n", dev->name);
 		state &= ~0x00000100;
 	}
 	scc_writel(state, dpriv, dev, CCR1);
@@ -1485,8 +1485,8 @@ static irqreturn_t dscc4_irq(int irq, void *token)
 		handled = 0;
 		goto out;
 	}
-	if (debug > 3)
-		printk(KERN_DEBUG "%s: GSTAR = 0x%08x\n", DRV_NAME, state);
+	if (de > 3)
+		printk(KERN_DE "%s: GSTAR = 0x%08x\n", DRV_NAME, state);
 	writel(state, ioaddr + GSTAR);
 
 	if (state & Arf) {
@@ -1495,8 +1495,8 @@ static irqreturn_t dscc4_irq(int irq, void *token)
 	}
 	state &= ~ArAck;
 	if (state & Cfg) {
-		if (debug > 0)
-			printk(KERN_DEBUG "%s: CfgIV\n", DRV_NAME);
+		if (de > 0)
+			printk(KERN_DE "%s: CfgIV\n", DRV_NAME);
 		if (priv->iqcfg[priv->cfg_cur++%IRQ_RING_SIZE] & cpu_to_le32(Arf))
 			netdev_err(dev, "CFG failed\n");
 		if (!(state &= ~Cfg))
@@ -1532,11 +1532,11 @@ try:
 	cur = dpriv->iqtx_current%IRQ_RING_SIZE;
 	state = le32_to_cpu(dpriv->iqtx[cur]);
 	if (!state) {
-		if (debug > 4)
-			printk(KERN_DEBUG "%s: Tx ISR = 0x%08x\n", dev->name,
+		if (de > 4)
+			printk(KERN_DE "%s: Tx ISR = 0x%08x\n", dev->name,
 			       state);
-		if ((debug > 1) && (loop > 1))
-			printk(KERN_DEBUG "%s: Tx irq loop=%d\n", dev->name, loop);
+		if ((de > 1) && (loop > 1))
+			printk(KERN_DE "%s: Tx irq loop=%d\n", dev->name, loop);
 		if (loop && netif_queue_stopped(dev))
 			if ((dpriv->tx_current - dpriv->tx_dirty)%TX_RING_SIZE)
 				netif_wake_queue(dev);
@@ -1558,7 +1558,7 @@ try:
 			struct sk_buff *skb;
 			struct TxFD *tx_fd;
 
-			if (debug > 2)
+			if (de > 2)
 				dscc4_tx_print(dev, dpriv, "Alls");
 			/*
 			 * DataComplete can't be trusted for Tx completion.
@@ -1579,7 +1579,7 @@ try:
 				dpriv->tx_skbuff[cur] = NULL;
 				++dpriv->tx_dirty;
 			} else {
-				if (debug > 1)
+				if (de > 1)
 					netdev_err(dev, "Tx: NULL skb %d\n",
 						   cur);
 			}
@@ -1610,13 +1610,13 @@ try:
 		}
 		if (state & Cts) {
 			netdev_info(dev, "CTS transition\n");
-			if (!(state &= ~Cts)) /* DEBUG */
+			if (!(state &= ~Cts)) /* DE */
 				goto try;
 		}
 		if (state & Xmr) {
 			/* Frame needs to be sent again - FIXME */
 			netdev_err(dev, "Tx ReTx. Ask maintainer\n");
-			if (!(state &= ~Xmr)) /* DEBUG */
+			if (!(state &= ~Xmr)) /* DE */
 				goto try;
 		}
 		if (state & Xpr) {
@@ -1638,7 +1638,7 @@ try:
 			scc_addr = dpriv->base_addr + 0x0c*dpriv->dev_id;
 			/* Keep this order: IDT before IDR */
 			if (dpriv->flags & NeedIDT) {
-				if (debug > 2)
+				if (de > 2)
 					dscc4_tx_print(dev, dpriv, "Xpr");
 				ring = dpriv->tx_fd_dma +
 				       (dpriv->tx_dirty%TX_RING_SIZE)*
@@ -1669,9 +1669,9 @@ try:
 				goto try;
 		}
 		if (state & Cd) {
-			if (debug > 0)
+			if (de > 0)
 				netdev_info(dev, "CD transition\n");
-			if (!(state &= ~Cd)) /* DEBUG */
+			if (!(state &= ~Cd)) /* DE */
 				goto try;
 		}
 	} else { /* ! SccEvt */
@@ -1712,12 +1712,12 @@ try:
 	if (!(state & SccEvt)){
 		struct RxFD *rx_fd;
 
-		if (debug > 4)
-			printk(KERN_DEBUG "%s: Rx ISR = 0x%08x\n", dev->name,
+		if (de > 4)
+			printk(KERN_DE "%s: Rx ISR = 0x%08x\n", dev->name,
 			       state);
 		state &= 0x00ffffff;
 		if (state & Err) { /* Hold or reset */
-			printk(KERN_DEBUG "%s: Rx ERR\n", dev->name);
+			printk(KERN_DE "%s: Rx ERR\n", dev->name);
 			cur = dpriv->rx_current%RX_RING_SIZE;
 			rx_fd = dpriv->rx_fd + cur;
 			/*
@@ -1758,7 +1758,7 @@ try:
 			goto try;
 		}
 	} else { /* SccEvt */
-		if (debug > 1) {
+		if (de > 1) {
 			//FIXME: verifier la presence de tous les evenements
 			static struct {
 				u32 mask;
@@ -1773,7 +1773,7 @@ try:
 
 			for (evt = evts; evt->irq_name; evt++) {
 				if (state & evt->mask) {
-					printk(KERN_DEBUG "%s: %s\n",
+					printk(KERN_DE "%s: %s\n",
 					       dev->name, evt->irq_name);
 					if (!(state &= ~evt->mask))
 						goto try;
@@ -1785,7 +1785,7 @@ try:
 		}
 		if (state & Cts) {
 			netdev_info(dev, "CTS transition\n");
-			if (!(state &= ~Cts)) /* DEBUG */
+			if (!(state &= ~Cts)) /* DE */
 				goto try;
 		}
 		/*
@@ -1796,7 +1796,7 @@ try:
 			void __iomem *scc_addr;
 			int cur;
 
-			//if (debug)
+			//if (de)
 			//	dscc4_rx_dump(dpriv);
 			scc_addr = dpriv->base_addr + 0x0c*dpriv->dev_id;
 
@@ -1828,9 +1828,9 @@ try:
 					dscc4_rx_skb(dpriv, dev);
 			} while (1);
 
-			if (debug > 0) {
+			if (de > 0) {
 				if (dpriv->flags & RdoSet)
-					printk(KERN_DEBUG
+					printk(KERN_DE
 					       "%s: no RDO in Rx data\n", DRV_NAME);
 			}
 #ifdef DSCC4_RDO_EXPERIMENTAL_RECOVERY
@@ -1858,11 +1858,11 @@ try:
 		}
 		if (state & Cd) {
 			netdev_info(dev, "CD transition\n");
-			if (!(state &= ~Cd)) /* DEBUG */
+			if (!(state &= ~Cd)) /* DE */
 				goto try;
 		}
 		if (state & Flex) {
-			printk(KERN_DEBUG "%s: Flex. Ttttt...\n", DRV_NAME);
+			printk(KERN_DE "%s: Flex. Ttttt...\n", DRV_NAME);
 			if (!(state &= ~Flex))
 				goto try;
 		}
@@ -2030,7 +2030,7 @@ static int dscc4_hdlc_attach(struct net_device *dev, unsigned short encoding,
 #ifndef MODULE
 static int __init dscc4_setup(char *str)
 {
-	int *args[] = { &debug, &quartz, NULL }, **p = args;
+	int *args[] = { &de, &quartz, NULL }, **p = args;
 
 	while (*p && (get_option(&str, *p) == 2))
 		p++;

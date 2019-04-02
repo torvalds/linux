@@ -580,7 +580,7 @@ question.
 Process objects reflect tasks on the system and the Smack label used to access
 them is the same Smack label that the task would use for its own access
 attempts. Sending a signal via the kill() system call is a write operation
-from the signaler to the recipient. Debugging a process requires both reading
+from the signaler to the recipient. Deging a process requires both reading
 and writing. Creating a new task is an internal operation that results in two
 tasks with identical Smack labels and requires no access checks.
 

@@ -27,7 +27,7 @@
 #include "vega10_processpptables.h"
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
-#include "pp_debug.h"
+#include "pp_de.h"
 #include "cgs_common.h"
 #include "vega10_pptable.h"
 

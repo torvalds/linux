@@ -7,7 +7,7 @@
  * This file implements counting semaphores.
  * A counting semaphore may be acquired 'n' times before sleeping.
  * See mutex.c for single-acquisition sleeping locks which enforce
- * rules which allow code to be debugged more easily.
+ * rules which allow code to be deged more easily.
  */
 
 /*
@@ -29,7 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/ftrace.h>

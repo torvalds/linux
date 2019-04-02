@@ -25,7 +25,7 @@ static void sti_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	mixer->status = STI_MIXER_READY;
 
@@ -37,7 +37,7 @@ static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	mixer->status = STI_MIXER_DISABLING;
 
@@ -53,10 +53,10 @@ sti_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct clk *compo_clk, *pix_clk;
 	int rate = mode->clock * 1000;
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) mode: (%s)\n",
+	DRM_DE_KMS("CRTC:%d (%s) mode: (%s)\n",
 		      crtc->base.id, sti_mixer_to_str(mixer), mode->name);
 
-	DRM_DEBUG_KMS(DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+	DRM_DE_KMS(DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 
 	if (mixer->id == STI_MIXER_MAIN) {
 		compo_clk = compo->clk_compo_main;
@@ -105,7 +105,7 @@ static void sti_crtc_disable(struct drm_crtc *crtc)
 	struct device *dev = mixer->dev;
 	struct sti_compositor *compo = dev_get_drvdata(dev);
 
-	DRM_DEBUG_KMS("CRTC:%d (%s)\n", crtc->base.id, sti_mixer_to_str(mixer));
+	DRM_DE_KMS("CRTC:%d (%s)\n", crtc->base.id, sti_mixer_to_str(mixer));
 
 	/* Disable Background */
 	sti_mixer_set_background_status(mixer, false);
@@ -140,7 +140,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_pending_vblank_event *event;
 	unsigned long flags;
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	/* perform plane actions */
 	list_for_each_entry(p, &drm_dev->mode_config.plane_list, head) {
@@ -153,7 +153,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 				continue;
 
 			/* update planes tag as updated */
-			DRM_DEBUG_DRIVER("update plane %s\n",
+			DRM_DE_DRIVER("update plane %s\n",
 					 sti_plane_to_str(plane));
 
 			if (sti_mixer_set_plane_depth(mixer, plane)) {
@@ -177,7 +177,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 			break;
 		case STI_PLANE_DISABLING:
 			/* disabling sequence for planes tag as disabling */
-			DRM_DEBUG_DRIVER("disable plane %s from mixer\n",
+			DRM_DE_DRIVER("disable plane %s from mixer\n",
 					 sti_plane_to_str(plane));
 
 			if (sti_mixer_set_plane_status(mixer, plane, false)) {
@@ -226,7 +226,7 @@ static const struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
 
 static void sti_crtc_destroy(struct drm_crtc *crtc)
 {
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	drm_crtc_cleanup(crtc);
 }
 
@@ -234,7 +234,7 @@ static int sti_crtc_set_property(struct drm_crtc *crtc,
 				 struct drm_property *property,
 				 uint64_t val)
 {
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 	return 0;
 }
 
@@ -285,7 +285,7 @@ int sti_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	struct drm_crtc *crtc = &compo->mixer[pipe]->drm_crtc;
 	struct sti_vtg *vtg = compo->vtg[pipe];
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (sti_vtg_register_client(vtg, vtg_vblank_nb, crtc)) {
 		DRM_ERROR("Cannot register VTG notifier\n");
@@ -302,10 +302,10 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
 	struct sti_vtg *vtg = compo->vtg[pipe];
 
-	DRM_DEBUG_DRIVER("\n");
+	DRM_DE_DRIVER("\n");
 
 	if (sti_vtg_unregister_client(vtg, vtg_vblank_nb))
-		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
+		DRM_DE_DRIVER("Warning: cannot unregister VTG notifier\n");
 }
 
 static int sti_crtc_late_register(struct drm_crtc *crtc)
@@ -314,7 +314,7 @@ static int sti_crtc_late_register(struct drm_crtc *crtc)
 	struct sti_compositor *compo = dev_get_drvdata(mixer->dev);
 
 	if (drm_crtc_index(crtc) == 0)
-		return sti_compositor_debugfs_init(compo, crtc->dev->primary);
+		return sti_compositor_defs_init(compo, crtc->dev->primary);
 
 	return 0;
 }
@@ -355,7 +355,7 @@ int sti_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 
 	drm_crtc_helper_add(crtc, &sti_crtc_helper_funcs);
 
-	DRM_DEBUG_DRIVER("drm CRTC:%d mapped to %s\n",
+	DRM_DE_DRIVER("drm CRTC:%d mapped to %s\n",
 			 crtc->base.id, sti_mixer_to_str(mixer));
 
 	return 0;

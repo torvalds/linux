@@ -39,8 +39,8 @@
 static const char* version = "SDL RISCom/N2 driver version: 1.15";
 static const char* devname = "RISCom/N2";
 
-#undef DEBUG_PKT
-#define DEBUG_RINGS
+#undef DE_PKT
+#define DE_RINGS
 
 #define USE_WINDOWSIZE 16384
 #define USE_BUS16BITS 1
@@ -253,7 +253,7 @@ static int n2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
 	port_t *port = dev_to_port(dev);
 
-#ifdef DEBUG_RINGS
+#ifdef DE_RINGS
 	if (cmd == SIOCDEVPRIVATE) {
 		sca_dump_rings(dev);
 		return 0;

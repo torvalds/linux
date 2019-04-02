@@ -17,7 +17,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/irq_work.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/kref.h>
@@ -281,7 +281,7 @@ end:
 static inline void subbuf_start_reserve(struct rchan_buf *buf,
 					size_t length)
 {
-	BUG_ON(length >= buf->chan->subbuf_size - 1);
+	_ON(length >= buf->chan->subbuf_size - 1);
 	buf->offset = length;
 }
 

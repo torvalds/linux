@@ -71,8 +71,8 @@
   5 - EVENT_A	- Event Mailbox interrupt
   6 - EVENT_B	- Event Mailbox interrupt
   7 - WNONHST	- Wake On Host Interrupt
-  8 - TRACE_A	- Debug Trace interrupt
-  9 - TRACE_B	- Debug Trace interrupt
+  8 - TRACE_A	- De Trace interrupt
+  9 - TRACE_B	- De Trace interrupt
  10 - CDCMP		- Command Complete Interrupt
  11 -
  12 -

@@ -130,7 +130,7 @@ static inline bool can_inc_bucket_gen(struct bucket *b)
 
 bool bch_can_invalidate_bucket(struct cache *ca, struct bucket *b)
 {
-	BUG_ON(!ca->set->gc_mark_valid);
+	_ON(!ca->set->gc_mark_valid);
 
 	return (!GC_MARK(b) ||
 		GC_MARK(b) == GC_MARK_RECLAIMABLE) &&
@@ -141,7 +141,7 @@ bool bch_can_invalidate_bucket(struct cache *ca, struct bucket *b)
 void __bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
 {
 	lockdep_assert_held(&ca->set->bucket_lock);
-	BUG_ON(GC_MARK(b) && GC_MARK(b) != GC_MARK_RECLAIMABLE);
+	_ON(GC_MARK(b) && GC_MARK(b) != GC_MARK_RECLAIMABLE);
 
 	if (GC_SECTORS_USED(b))
 		trace_bcache_invalidate(ca, b - ca->buckets);
@@ -265,7 +265,7 @@ static void invalidate_buckets_random(struct cache *ca)
 
 static void invalidate_buckets(struct cache *ca)
 {
-	BUG_ON(ca->invalidate_needs_gc);
+	_ON(ca->invalidate_needs_gc);
 
 	switch (CACHE_REPLACEMENT(&ca->sb)) {
 	case CACHE_REPLACEMENT_LRU:
@@ -419,24 +419,24 @@ out:
 
 	trace_bcache_alloc(ca, reserve);
 
-	if (expensive_debug_checks(ca->set)) {
+	if (expensive_de_checks(ca->set)) {
 		size_t iter;
 		long i;
 		unsigned int j;
 
 		for (iter = 0; iter < prio_buckets(ca) * 2; iter++)
-			BUG_ON(ca->prio_buckets[iter] == (uint64_t) r);
+			_ON(ca->prio_buckets[iter] == (uint64_t) r);
 
 		for (j = 0; j < RESERVE_NR; j++)
 			fifo_for_each(i, &ca->free[j], iter)
-				BUG_ON(i == r);
+				_ON(i == r);
 		fifo_for_each(i, &ca->free_inc, iter)
-			BUG_ON(i == r);
+			_ON(i == r);
 	}
 
 	b = ca->buckets + r;
 
-	BUG_ON(atomic_read(&b->pin) != 1);
+	_ON(atomic_read(&b->pin) != 1);
 
 	SET_GC_SECTORS_USED(b, ca->sb.bucket_size);
 
@@ -484,7 +484,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
 	int i;
 
 	lockdep_assert_held(&c->bucket_lock);
-	BUG_ON(!n || n > c->caches_loaded || n > MAX_CACHES_PER_SET);
+	_ON(!n || n > c->caches_loaded || n > MAX_CACHES_PER_SET);
 
 	bkey_init(k);
 
@@ -640,7 +640,7 @@ bool bch_alloc_sectors(struct cache_set *c,
 		bkey_put(c, &alloc.key);
 
 	for (i = 0; i < KEY_PTRS(&b->key); i++)
-		EBUG_ON(ptr_stale(c, &b->key, i));
+		E_ON(ptr_stale(c, &b->key, i));
 
 	/* Set up the pointer to the space we're allocating: */
 

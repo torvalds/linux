@@ -40,7 +40,7 @@ halmac_pwr_sub_seq_parer_88xx(struct halmac_adapter *halmac_adapter, u8 cut,
 			      struct halmac_wl_pwr_cfg_ *pwr_sub_seq_cfg);
 
 static enum halmac_ret_status
-halmac_parse_c2h_debug_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
+halmac_parse_c2h_de_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
 			    u32 c2h_size);
 
 static enum halmac_ret_status
@@ -2346,7 +2346,7 @@ halmac_parse_c2h_packet_88xx(struct halmac_adapter *halmac_adapter,
 
 	switch (c2h_sub_cmd_id) {
 	case C2H_SUB_CMD_ID_C2H_DBG:
-		status = halmac_parse_c2h_debug_88xx(halmac_adapter, c2h_buf,
+		status = halmac_parse_c2h_de_88xx(halmac_adapter, c2h_buf,
 						     c2h_size);
 		break;
 	case C2H_SUB_CMD_ID_H2C_ACK_HDR:
@@ -2381,7 +2381,7 @@ halmac_parse_c2h_packet_88xx(struct halmac_adapter *halmac_adapter,
 }
 
 static enum halmac_ret_status
-halmac_parse_c2h_debug_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
+halmac_parse_c2h_de_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
 			    u32 c2h_size)
 {
 	void *driver_adapter = NULL;

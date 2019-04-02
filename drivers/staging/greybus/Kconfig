@@ -87,10 +87,10 @@ config GREYBUS_LIGHT
 	  will be called gb-light.ko
 
 config GREYBUS_LOG
-	tristate "Greybus Debug Log Class driver"
+	tristate "Greybus De Log Class driver"
 	---help---
 	  Select this option if you have a device that follows the
-	  Greybus Debug Log Class specification.
+	  Greybus De Log Class specification.
 
 	  To compile this code as a module, chose M here: the module
 	  will be called gb-log.ko
@@ -99,7 +99,7 @@ config GREYBUS_LOOPBACK
 	tristate "Greybus Loopback Class driver"
 	---help---
 	  Select this option if you have a device that follows the
-	  Greybus Debug Log Class specification.
+	  Greybus De Log Class specification.
 
 	  To compile this code as a module, chose M here: the module
 	  will be called gb-log.ko

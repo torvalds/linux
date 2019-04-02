@@ -293,7 +293,7 @@ static int __init cryptomgr_init(void)
 static void __exit cryptomgr_exit(void)
 {
 	int err = crypto_unregister_notifier(&cryptomgr_notifier);
-	BUG_ON(err);
+	_ON(err);
 }
 
 subsys_initcall(cryptomgr_init);

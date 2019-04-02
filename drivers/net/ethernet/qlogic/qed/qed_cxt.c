@@ -1581,7 +1581,7 @@ static void qed_dq_init_pf(struct qed_hwfn *p_hwfn)
 
 	/* Connection types 6 & 7 are not in use, yet they must be configured
 	 * as the highest possible connection. Not configuring them means the
-	 * defaults will be  used, and with a large number of cids a bug may
+	 * defaults will be  used, and with a large number of cids a  may
 	 * occur, if the defaults will be smaller than dq_pf_max_cid /
 	 * dq_vf_max_cid.
 	 */
@@ -2316,7 +2316,7 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 	}
 
 	/* configuration of refTagMask to 0xF is required for RoCE DIF MR only,
-	 * to compensate for a HW bug, but it is configured even if DIF is not
+	 * to compensate for a HW , but it is configured even if DIF is not
 	 * enabled. This is harmless and allows us to avoid a dedicated API. We
 	 * configure the field for all of the contexts on the newly allocated
 	 * page.

@@ -203,16 +203,16 @@ get_appl(struct gigaset_capi_ctr *iif, u16 appl)
 }
 
 /*
- * dump CAPI message to kernel messages for debugging
+ * dump CAPI message to kernel messages for deging
  */
-static inline void dump_cmsg(enum debuglevel level, const char *tag, _cmsg *p)
+static inline void dump_cmsg(enum delevel level, const char *tag, _cmsg *p)
 {
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 	/* dump at most 20 messages in 20 secs */
 	static DEFINE_RATELIMIT_STATE(msg_dump_ratelimit, 20 * HZ, 20);
 	_cdebbuf *cdb;
 
-	if (!(gigaset_debuglevel & level))
+	if (!(gigaset_delevel & level))
 		return;
 	if (!___ratelimit(&msg_dump_ratelimit, tag))
 		return;
@@ -228,14 +228,14 @@ static inline void dump_cmsg(enum debuglevel level, const char *tag, _cmsg *p)
 #endif
 }
 
-static inline void dump_rawmsg(enum debuglevel level, const char *tag,
+static inline void dump_rawmsg(enum delevel level, const char *tag,
 			       unsigned char *data)
 {
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 	char *dbgline;
 	int i, l;
 
-	if (!(gigaset_debuglevel & level))
+	if (!(gigaset_delevel & level))
 		return;
 
 	l = CAPIMSG_LEN(data);
@@ -268,7 +268,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 	     CAPIMSG_SUBCOMMAND(data) == CAPI_IND)) {
 		l = CAPIMSG_DATALEN(data);
 		gig_dbg(level, "   DataLength=%d", l);
-		if (l <= 0 || !(gigaset_debuglevel & DEBUG_LLDATA))
+		if (l <= 0 || !(gigaset_delevel & DE_LLDATA))
 			return;
 		if (l > 64)
 			l = 64; /* arbitrary limit */
@@ -292,7 +292,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
  * format CAPI IE as string
  */
 
-#ifdef CONFIG_GIGASET_DEBUG
+#ifdef CONFIG_GIGASET_DE
 static const char *format_ie(const char *ie)
 {
 	static char result[3 * MAX_FMT_IE_LEN];
@@ -349,7 +349,7 @@ static void send_data_b3_conf(struct cardstate *cs, struct capi_ctr *ctr,
 	CAPIMSG_SETINFO_CONF(msg, info);
 
 	/* emit message */
-	dump_rawmsg(DEBUG_MCMD, __func__, msg);
+	dump_rawmsg(DE_MCMD, __func__, msg);
 	capi_ctr_handle_message(ctr, appl, cskb);
 }
 
@@ -379,13 +379,13 @@ void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *dskb)
 	++bcs->trans_up;
 
 	if (!ap) {
-		gig_dbg(DEBUG_MCMD, "%s: application gone", __func__);
+		gig_dbg(DE_MCMD, "%s: application gone", __func__);
 		return;
 	}
 
 	/* don't send further B3 messages if disconnected */
 	if (bcs->apconnstate < APCONN_ACTIVE) {
-		gig_dbg(DEBUG_MCMD, "%s: disconnected", __func__);
+		gig_dbg(DE_MCMD, "%s: disconnected", __func__);
 		return;
 	}
 
@@ -423,14 +423,14 @@ void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 	bcs->trans_down++;
 
 	if (!ap) {
-		gig_dbg(DEBUG_MCMD, "%s: application gone", __func__);
+		gig_dbg(DE_MCMD, "%s: application gone", __func__);
 		dev_kfree_skb_any(skb);
 		return;
 	}
 
 	/* don't send further B3 messages if disconnected */
 	if (bcs->apconnstate < APCONN_ACTIVE) {
-		gig_dbg(DEBUG_MCMD, "%s: disconnected", __func__);
+		gig_dbg(DE_MCMD, "%s: disconnected", __func__);
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -456,7 +456,7 @@ void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 	/* Data64 parameter not present */
 
 	/* emit message */
-	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
+	dump_rawmsg(DE_MCMD, __func__, skb->data);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 EXPORT_SYMBOL_GPL(gigaset_skb_rcvd);
@@ -615,14 +615,14 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 	 *   - Facilitydataarray
 	 */
 
-	gig_dbg(DEBUG_CMD, "icall: PLCI %x CIP %d BC %s",
+	gig_dbg(DE_CMD, "icall: PLCI %x CIP %d BC %s",
 		iif->hcmsg.adr.adrPLCI, iif->hcmsg.CIPValue,
 		format_ie(iif->hcmsg.BC));
-	gig_dbg(DEBUG_CMD, "icall: HLC %s",
+	gig_dbg(DE_CMD, "icall: HLC %s",
 		format_ie(iif->hcmsg.HLC));
-	gig_dbg(DEBUG_CMD, "icall: CgPty %s",
+	gig_dbg(DE_CMD, "icall: CgPty %s",
 		format_ie(iif->hcmsg.CallingPartyNumber));
-	gig_dbg(DEBUG_CMD, "icall: CdPty %s",
+	gig_dbg(DE_CMD, "icall: CdPty %s",
 		format_ie(iif->hcmsg.CalledPartyNumber));
 
 	/* scan application list for matching listeners */
@@ -654,7 +654,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 				dev_kfree_skb_any(skb);
 				break;
 			}
-			dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
+			dump_cmsg(DE_CMD, __func__, &iif->hcmsg);
 
 			/* add to listeners on this B channel, update state */
 			spin_lock_irqsave(&bcs->aplock, flags);
@@ -705,7 +705,7 @@ static void send_disconnect_ind(struct bc_state *bcs,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->hcmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -740,7 +740,7 @@ static void send_disconnect_b3_ind(struct bc_state *bcs,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->hcmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -764,7 +764,7 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 	ap = bcs->ap;
 	if (!ap) {
 		spin_unlock_irqrestore(&bcs->aplock, flags);
-		gig_dbg(DEBUG_CMD, "%s: application gone", __func__);
+		gig_dbg(DE_CMD, "%s: application gone", __func__);
 		return;
 	}
 	if (bcs->apconnstate == APCONN_NONE) {
@@ -809,7 +809,7 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->hcmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -864,7 +864,7 @@ void gigaset_isdn_connB(struct bc_state *bcs)
 	ap = bcs->ap;
 	if (!ap) {
 		spin_unlock_irqrestore(&bcs->aplock, flags);
-		gig_dbg(DEBUG_CMD, "%s: application gone", __func__);
+		gig_dbg(DE_CMD, "%s: application gone", __func__);
 		return;
 	}
 	if (!bcs->apconnstate) {
@@ -913,7 +913,7 @@ void gigaset_isdn_connB(struct bc_state *bcs)
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->hcmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->hcmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -931,7 +931,7 @@ void gigaset_isdn_hupB(struct bc_state *bcs)
 	/* ToDo: assure order of DISCONNECT_B3_IND and DISCONNECT_IND ? */
 
 	if (!ap) {
-		gig_dbg(DEBUG_CMD, "%s: application gone", __func__);
+		gig_dbg(DE_CMD, "%s: application gone", __func__);
 		return;
 	}
 
@@ -1002,7 +1002,7 @@ static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
 	struct cardstate *cs = ctr->driverdata;
 	struct gigaset_capi_appl *ap;
 
-	gig_dbg(DEBUG_CMD, "%s [%u] l3cnt=%u blkcnt=%u blklen=%u",
+	gig_dbg(DE_CMD, "%s [%u] l3cnt=%u blkcnt=%u blklen=%u",
 		__func__, appl, rp->level3cnt, rp->datablkcnt, rp->datablklen);
 
 	list_for_each_entry(ap, &iif->appls, ctrlist)
@@ -1090,7 +1090,7 @@ static void gigaset_release_appl(struct capi_ctr *ctr, u16 appl)
 	struct gigaset_capi_appl *ap, *tmp;
 	unsigned ch;
 
-	gig_dbg(DEBUG_CMD, "%s [%u]", __func__, appl);
+	gig_dbg(DE_CMD, "%s [%u]", __func__, appl);
 
 	list_for_each_entry_safe(ap, tmp, &iif->appls, ctrlist)
 		if (ap->id == appl) {
@@ -1133,7 +1133,7 @@ static void send_conf(struct gigaset_capi_ctr *iif,
 		return;
 	}
 	__skb_trim(skb, CAPI_STDCONF_LEN);
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->acmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -1158,7 +1158,7 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 
 	/*
 	 * Facility Request Parameter is not decoded by capi_message2cmsg()
@@ -1271,7 +1271,7 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(cskb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, cskb);
 }
 
@@ -1292,7 +1292,7 @@ static void do_listen_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->acmsg);
 
 	/* store listening parameters */
 	ap->listenInfoMask = iif->acmsg.InfoMask;
@@ -1316,7 +1316,7 @@ static void do_alert_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->acmsg);
 	send_conf(iif, ap, skb, CapiAlertAlreadySent);
 }
 
@@ -1345,7 +1345,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 
 	/* get free B channel & construct PLCI */
 	bcs = gigaset_get_free_channel(cs);
@@ -1636,7 +1636,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 	dev_kfree_skb_any(skb);
 
 	/* extract and check channel number from PLCI */
@@ -1806,7 +1806,7 @@ static void do_connect_b3_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 
 	/* extract and check channel number from PLCI */
 	channel = (cmsg->adr.adrPLCI >> 8) & 0xff;
@@ -1855,7 +1855,7 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 
 	/* extract and check channel number and NCCI */
 	channel = (cmsg->adr.adrNCCI >> 8) & 0xff;
@@ -1899,7 +1899,7 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 	capi_ctr_handle_message(&iif->ctr, ap->id, skb);
 }
 
@@ -1925,7 +1925,7 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 
 	/* extract and check channel number from PLCI */
 	channel = (cmsg->adr.adrPLCI >> 8) & 0xff;
@@ -1988,7 +1988,7 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 			dev_kfree_skb_any(b3skb);
 			return;
 		}
-		dump_cmsg(DEBUG_CMD, __func__, b3cmsg);
+		dump_cmsg(DE_CMD, __func__, b3cmsg);
 		kfree(b3cmsg);
 		capi_ctr_handle_message(&iif->ctr, ap->id, b3skb);
 	}
@@ -2023,7 +2023,7 @@ static void do_disconnect_b3_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, cmsg);
+	dump_cmsg(DE_CMD, __func__, cmsg);
 
 	/* extract and check channel number and NCCI */
 	channel = (cmsg->adr.adrNCCI >> 8) & 0xff;
@@ -2076,7 +2076,7 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 	u16 handle = CAPIMSG_HANDLE_REQ(skb->data);
 
 	/* frequent message, avoid _cmsg overhead */
-	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
+	dump_rawmsg(DE_MCMD, __func__, skb->data);
 
 	/* check parameters */
 	if (channel == 0 || channel > cs->channels || ncci != 1) {
@@ -2147,7 +2147,7 @@ static void do_reset_b3_req(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->acmsg);
 	send_conf(iif, ap, skb,
 		  CapiResetProcedureNotSupportedByCurrentProtocol);
 }
@@ -2167,7 +2167,7 @@ static void do_unsupported(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->acmsg);
 	send_conf(iif, ap, skb, CapiMessageNotSupportedInCurrentState);
 }
 
@@ -2186,7 +2186,7 @@ static void do_nothing(struct gigaset_capi_ctr *iif,
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	dump_cmsg(DEBUG_CMD, __func__, &iif->acmsg);
+	dump_cmsg(DE_CMD, __func__, &iif->acmsg);
 	dev_kfree_skb_any(skb);
 }
 
@@ -2194,7 +2194,7 @@ static void do_data_b3_resp(struct gigaset_capi_ctr *iif,
 			    struct gigaset_capi_appl *ap,
 			    struct sk_buff *skb)
 {
-	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
+	dump_rawmsg(DE_MCMD, __func__, skb->data);
 	dev_kfree_skb_any(skb);
 }
 

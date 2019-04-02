@@ -10,7 +10,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -460,7 +460,7 @@ static void handle_playback_irq(struct cygnus_audio *cygaud)
 		 * Ringbuffer or FIFO underflow
 		 * If we get this interrupt then, it is also true that we have
 		 * not yet responded to the freemark interrupt.
-		 * Log a debug message.  The freemark handler below will
+		 * Log a de message.  The freemark handler below will
 		 * handle getting everything going again.
 		 */
 		if ((esrmask & esr_status1) || (esrmask & esr_status0)) {
@@ -521,7 +521,7 @@ static void handle_capture_irq(struct cygnus_audio *cygaud)
 		 * Ringbuffer or FIFO overflow
 		 * If we get this interrupt then, it is also true that we have
 		 * not yet responded to the fullmark interrupt.
-		 * Log a debug message.  The fullmark handler below will
+		 * Log a de message.  The fullmark handler below will
 		 * handle getting everything going again.
 		 */
 		if (esrmask & esr_status2)

@@ -13,9 +13,9 @@ endif
 # rbtree can be global and individual rotations don't correlate with inputs.
 KCOV_INSTRUMENT_string.o := n
 KCOV_INSTRUMENT_rbtree.o := n
-KCOV_INSTRUMENT_list_debug.o := n
-KCOV_INSTRUMENT_debugobjects.o := n
-KCOV_INSTRUMENT_dynamic_debug.o := n
+KCOV_INSTRUMENT_list_de.o := n
+KCOV_INSTRUMENT_deobjects.o := n
+KCOV_INSTRUMENT_dynamic_de.o := n
 
 lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 rbtree.o radix-tree.o timerqueue.o xarray.o \
@@ -33,7 +33,7 @@ lib-$(CONFIG_SMP) += cpumask.o
 lib-y	+= kobject.o klist.o
 obj-y	+= lockref.o
 
-obj-y += bcd.o div64.o sort.o parser.o debug_locks.o random32.o \
+obj-y += bcd.o div64.o sort.o parser.o de_locks.o random32.o \
 	 bust_spinlocks.o kasprintf.o bitmap.o scatterlist.o \
 	 gcd.o lcm.o list_sort.o uuid.o iov_iter.o clz_ctz.o \
 	 bsearch.o find_bit.o llist.o memweight.o kfifo.o \
@@ -75,26 +75,26 @@ obj-$(CONFIG_TEST_UUID) += test_uuid.o
 obj-$(CONFIG_TEST_XARRAY) += test_xarray.o
 obj-$(CONFIG_TEST_PARMAN) += test_parman.o
 obj-$(CONFIG_TEST_KMOD) += test_kmod.o
-obj-$(CONFIG_TEST_DEBUG_VIRTUAL) += test_debug_virtual.o
+obj-$(CONFIG_TEST_DE_VIRTUAL) += test_de_virtual.o
 obj-$(CONFIG_TEST_MEMCAT_P) += test_memcat_p.o
 obj-$(CONFIG_TEST_OBJAGG) += test_objagg.o
 obj-$(CONFIG_TEST_STACKINIT) += test_stackinit.o
 
 obj-$(CONFIG_TEST_LIVEPATCH) += livepatch/
 
-ifeq ($(CONFIG_DEBUG_KOBJECT),y)
-CFLAGS_kobject.o += -DDEBUG
-CFLAGS_kobject_uevent.o += -DDEBUG
+ifeq ($(CONFIG_DE_KOBJECT),y)
+CFLAGS_kobject.o += -DDE
+CFLAGS_kobject_uevent.o += -DDE
 endif
 
-obj-$(CONFIG_DEBUG_INFO_REDUCED) += debug_info.o
-CFLAGS_debug_info.o += $(call cc-option, -femit-struct-debug-detailed=any)
+obj-$(CONFIG_DE_INFO_REDUCED) += de_info.o
+CFLAGS_de_info.o += $(call cc-option, -femit-struct-de-detailed=any)
 
 obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
 obj-$(CONFIG_GENERIC_PCI_IOMAP) += pci_iomap.o
 obj-$(CONFIG_HAS_IOMEM) += iomap_copy.o devres.o
 obj-$(CONFIG_CHECK_SIGNATURE) += check_signature.o
-obj-$(CONFIG_DEBUG_LOCKING_API_SELFTESTS) += locking-selftest.o
+obj-$(CONFIG_DE_LOCKING_API_SELFTESTS) += locking-selftest.o
 
 obj-y += logic_pio.o
 
@@ -103,9 +103,9 @@ obj-$(CONFIG_GENERIC_HWEIGHT) += hweight.o
 obj-$(CONFIG_BTREE) += btree.o
 obj-$(CONFIG_INTERVAL_TREE) += interval_tree.o
 obj-$(CONFIG_ASSOCIATIVE_ARRAY) += assoc_array.o
-obj-$(CONFIG_DEBUG_PREEMPT) += smp_processor_id.o
-obj-$(CONFIG_DEBUG_LIST) += list_debug.o
-obj-$(CONFIG_DEBUG_OBJECTS) += debugobjects.o
+obj-$(CONFIG_DE_PREEMPT) += smp_processor_id.o
+obj-$(CONFIG_DE_LIST) += list_de.o
+obj-$(CONFIG_DE_OBJECTS) += deobjects.o
 
 obj-$(CONFIG_BITREVERSE) += bitrev.o
 obj-$(CONFIG_RATIONAL)	+= rational.o
@@ -164,11 +164,11 @@ obj-$(CONFIG_OF_RECONFIG_NOTIFIER_ERROR_INJECT) += \
 	of-reconfig-notifier-error-inject.o
 obj-$(CONFIG_FUNCTION_ERROR_INJECTION) += error-inject.o
 
-lib-$(CONFIG_GENERIC_BUG) += bug.o
+lib-$(CONFIG_GENERIC_) += .o
 
 obj-$(CONFIG_HAVE_ARCH_TRACEHOOK) += syscall.o
 
-obj-$(CONFIG_DYNAMIC_DEBUG) += dynamic_debug.o
+obj-$(CONFIG_DYNAMIC_DE) += dynamic_de.o
 
 obj-$(CONFIG_NLATTR) += nlattr.o
 

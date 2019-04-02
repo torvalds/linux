@@ -70,7 +70,7 @@
 #endif /* CONFIG_HYSDN_CAPI*/
 
 /************************************************/
-/* constants and bits for debugging/log outputs */
+/* constants and bits for deging/log outputs */
 /************************************************/
 #define LOG_MAX_LINELEN 120
 #define DEB_OUT_SYSLOG  0x80000000	/* output to syslog instead of proc fs */
@@ -81,8 +81,8 @@
 #define LOG_POF_CARD    0x00000080	/* log pof related card functions */
 #define LOG_CNF_LINE    0x00000100	/* all conf lines are put to procfs */
 #define LOG_CNF_DATA    0x00000200	/* non comment conf lines are shown with channel */
-#define LOG_CNF_MISC    0x00000400	/* additional conf line debug outputs */
-#define LOG_SCHED_ASYN  0x00001000	/* debug schedulers async tx routines */
+#define LOG_CNF_MISC    0x00000400	/* additional conf line de outputs */
+#define LOG_SCHED_ASYN  0x00001000	/* de schedulers async tx routines */
 #define LOG_PROC_OPEN   0x00100000	/* open and close from procfs are logged */
 #define LOG_PROC_ALL    0x00200000	/* all actions from procfs are logged */
 #define LOG_NET_INIT    0x00010000	/* network init and deinit logging */
@@ -158,9 +158,9 @@ typedef struct HYSDN_CARD {
 	void *proclog;		/* pointer to proclog filesystem specific data */
 	void *procconf;		/* pointer to procconf filesystem specific data */
 
-	/* debugging and logging */
+	/* deging and logging */
 	unsigned char err_log_state;/* actual error log state of the card */
-	unsigned long debug_flags;/* tells what should be debugged and where */
+	unsigned long de_flags;/* tells what should be deged and where */
 	void (*set_errlog_state) (struct HYSDN_CARD *, int);
 
 	/* interrupt handler + interrupt synchronisation */

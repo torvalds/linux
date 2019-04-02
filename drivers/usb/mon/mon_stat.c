@@ -2,7 +2,7 @@
 /*
  * The USB Monitor, inspired by Dave Harding's USBMon.
  *
- * This is the 's' or 'stat' reader which debugs usbmon itself.
+ * This is the 's' or 'stat' reader which des usbmon itself.
  * Note that this code blows through locks, so make sure that
  * /dbg/usbmon/0s is well protected from non-root users.
  *

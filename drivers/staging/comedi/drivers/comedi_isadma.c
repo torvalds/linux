@@ -106,16 +106,16 @@ unsigned int comedi_isadma_poll(struct comedi_isadma *dma)
 
 	flags = claim_dma_lock();
 	clear_dma_ff(desc->chan);
-	if (!isa_dma_bridge_buggy)
+	if (!isa_dma_bridge_gy)
 		disable_dma(desc->chan);
 	result = get_dma_residue(desc->chan);
 	/*
 	 * Read the counter again and choose higher value in order to
 	 * avoid reading during counter lower byte roll over if the
-	 * isa_dma_bridge_buggy is set.
+	 * isa_dma_bridge_gy is set.
 	 */
 	result1 = get_dma_residue(desc->chan);
-	if (!isa_dma_bridge_buggy)
+	if (!isa_dma_bridge_gy)
 		enable_dma(desc->chan);
 	release_dma_lock(flags);
 

@@ -18,7 +18,7 @@
 #define MUX_CFG(soc, desc, muxreg, mode_offset, mode_mask, mux_mode, dbg)\
 [soc##_##desc] = {							\
 			.name =  #desc,					\
-			.debug = dbg,					\
+			.de = dbg,					\
 			.mux_reg_name = "PINMUX"#muxreg,		\
 			.mux_reg = PINMUX(muxreg),			\
 			.mask_offset = mode_offset,			\
@@ -29,7 +29,7 @@
 #define INT_CFG(soc, desc, mode_offset, mode_mask, mux_mode, dbg)	\
 [soc##_##desc] = {							\
 			.name =  #desc,					\
-			.debug = dbg,					\
+			.de = dbg,					\
 			.mux_reg_name = "INTMUX",			\
 			.mux_reg = INTMUX,				\
 			.mask_offset = mode_offset,			\
@@ -40,7 +40,7 @@
 #define EVT_CFG(soc, desc, mode_offset, mode_mask, mux_mode, dbg)	\
 [soc##_##desc] = {							\
 			.name =  #desc,					\
-			.debug = dbg,					\
+			.de = dbg,					\
 			.mux_reg_name = "EVTMUX",			\
 			.mux_reg = EVTMUX,				\
 			.mask_offset = mode_offset,			\

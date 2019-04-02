@@ -433,10 +433,10 @@ static int do_set_pwm_enable(struct device *dev, unsigned long val)
 	case G762_FAN_MODE_OPEN_LOOP:
 		data->fan_cmd1 &= ~G762_REG_FAN_CMD1_FAN_MODE;
 		/*
-		 * BUG FIX: if SET_CNT register value is 255 then, for some
+		 *  FIX: if SET_CNT register value is 255 then, for some
 		 * unknown reason, fan will not rotate as expected, no matter
 		 * the value of SET_OUT (to be specific, this seems to happen
-		 * only in PWM mode). To workaround this bug, we give SET_CNT
+		 * only in PWM mode). To workaround this , we give SET_CNT
 		 * value of 254 if it is 255 when switching to open-loop.
 		 */
 		if (data->set_cnt == 0xff)

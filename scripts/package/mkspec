@@ -50,7 +50,7 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 $S	Source: kernel-$__KERNELRELEASE.tar.gz
 	Provides: $PROVIDES
 	%define __spec_install_post /usr/lib/rpm/brp-compress || :
-	%define debug_package %{nil}
+	%define de_package %{nil}
 
 	%description
 	The Linux Kernel, the operating system core itself

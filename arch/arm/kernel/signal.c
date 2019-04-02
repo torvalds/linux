@@ -79,7 +79,7 @@ static int preserve_iwmmxt_context(struct iwmmxt_sigframe __user *frame)
 		iwmmxt_task_copy(current_thread_info(), &kframe->storage);
 	} else {
 		/*
-		 * For bug-compatibility with older kernels, some space
+		 * For -compatibility with older kernels, some space
 		 * has to be reserved for iWMMXt even if it's not used.
 		 * Set the magic and size appropriately so that properly
 		 * written userspace can skip it reliably:
@@ -595,7 +595,7 @@ static int do_signal(struct pt_regs *regs, int syscall)
 
 		/*
 		 * Prepare for system call restart.  We do this here so that a
-		 * debugger will see the already changed PSW.
+		 * deger will see the already changed PSW.
 		 */
 		switch (retval) {
 		case -ERESTART_RESTARTBLOCK:
@@ -612,12 +612,12 @@ static int do_signal(struct pt_regs *regs, int syscall)
 
 	/*
 	 * Get the signal to deliver.  When running under ptrace, at this
-	 * point the debugger may change all our registers ...
+	 * point the deger may change all our registers ...
 	 */
 	/*
 	 * Depending on the signal settings we may need to revert the
 	 * decision to restart the system call.  But skip this if a
-	 * debugger has chosen to restart at a different PC.
+	 * deger has chosen to restart at a different PC.
 	 */
 	if (get_signal(&ksig)) {
 		/* handler */
@@ -719,7 +719,7 @@ asmlinkage void addr_limit_check_failed(void)
 	addr_limit_user_check();
 }
 
-#ifdef CONFIG_DEBUG_RSEQ
+#ifdef CONFIG_DE_RSEQ
 asmlinkage void do_rseq_syscall(struct pt_regs *regs)
 {
 	rseq_syscall(regs);

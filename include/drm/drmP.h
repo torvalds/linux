@@ -76,7 +76,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_pci.h>
 #include <drm/drm_file.h>
-#include <drm/drm_debugfs.h>
+#include <drm/drm_defs.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_sysfs.h>
 #include <drm/drm_vblank.h>

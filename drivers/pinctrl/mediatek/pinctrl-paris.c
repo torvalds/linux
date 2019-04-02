@@ -28,7 +28,7 @@ static const struct pinconf_generic_params mtk_custom_bindings[] = {
 	{"mediatek,pull-down-adv", MTK_PIN_CONFIG_PD_ADV,	1},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item mtk_conf_items[] = {
 	PCONFDUMP(MTK_PIN_CONFIG_TDSEL, "tdsel", NULL, true),
 	PCONFDUMP(MTK_PIN_CONFIG_RDSEL, "rdsel", NULL, true),
@@ -876,7 +876,7 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev,
 	mtk_desc.npins = hw->soc->npins;
 	mtk_desc.num_custom_params = ARRAY_SIZE(mtk_custom_bindings);
 	mtk_desc.custom_params = mtk_custom_bindings;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	mtk_desc.custom_conf_items = mtk_conf_items;
 #endif
 

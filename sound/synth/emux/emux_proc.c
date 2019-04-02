@@ -59,7 +59,7 @@ snd_emux_proc_info_read(struct snd_info_entry *entry,
 		snd_iprintf(buf, "Locked Samples: %d\n", emu->sflist->sample_locked);
 		mutex_unlock(&emu->sflist->presets_mutex);
 	}
-#if 0  /* debug */
+#if 0  /* de */
 	if (emu->voices[0].state != SNDRV_EMUX_ST_OFF && emu->voices[0].ch >= 0) {
 		struct snd_emux_voice *vp = &emu->voices[0];
 		snd_iprintf(buf, "voice 0: on\n");

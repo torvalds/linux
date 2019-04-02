@@ -58,9 +58,9 @@ static const struct platform_device_id vpbe_venc_devtype[] = {
 
 MODULE_DEVICE_TABLE(platform, vpbe_venc_devtype);
 
-static int debug = 2;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level 0-2");
+static int de = 2;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level 0-2");
 
 struct venc_state {
 	struct v4l2_subdev sd;
@@ -125,15 +125,15 @@ static int venc_set_dac(struct v4l2_subdev *sd, u32 out_index)
 {
 	switch (out_index) {
 	case 0:
-		v4l2_dbg(debug, 1, sd, "Setting output to Composite\n");
+		v4l2_dbg(de, 1, sd, "Setting output to Composite\n");
 		venc_write(sd, VENC_DACSEL, 0);
 		break;
 	case 1:
-		v4l2_dbg(debug, 1, sd, "Setting output to Component\n");
+		v4l2_dbg(de, 1, sd, "Setting output to Component\n");
 		venc_write(sd, VENC_DACSEL, VDAC_COMPONENT);
 		break;
 	case 2:
-		v4l2_dbg(debug, 1, sd, "Setting output to S-video\n");
+		v4l2_dbg(de, 1, sd, "Setting output to S-video\n");
 		venc_write(sd, VENC_DACSEL, VDAC_S_VIDEO);
 		break;
 	default:
@@ -147,7 +147,7 @@ static void venc_enabledigitaloutput(struct v4l2_subdev *sd, int benable)
 {
 	struct venc_state *venc = to_state(sd);
 
-	v4l2_dbg(debug, 2, sd, "venc_enabledigitaloutput\n");
+	v4l2_dbg(de, 2, sd, "venc_enabledigitaloutput\n");
 
 	if (benable) {
 		venc_write(sd, VENC_VMOD, 0);
@@ -231,7 +231,7 @@ static int venc_set_ntsc(struct v4l2_subdev *sd)
 	struct venc_state *venc = to_state(sd);
 	struct venc_platform_data *pdata = venc->pdata;
 
-	v4l2_dbg(debug, 2, sd, "venc_set_ntsc\n");
+	v4l2_dbg(de, 2, sd, "venc_set_ntsc\n");
 
 	/* Setup clock at VPSS & VENC for SD */
 	vpss_enable_clock(VPSS_VENC_CLOCK_SEL, 1);
@@ -277,7 +277,7 @@ static int venc_set_pal(struct v4l2_subdev *sd)
 {
 	struct venc_state *venc = to_state(sd);
 
-	v4l2_dbg(debug, 2, sd, "venc_set_pal\n");
+	v4l2_dbg(de, 2, sd, "venc_set_pal\n");
 
 	/* Setup clock at VPSS & VENC for SD */
 	vpss_enable_clock(VPSS_VENC_CLOCK_SEL, 1);
@@ -330,7 +330,7 @@ static int venc_set_480p59_94(struct v4l2_subdev *sd)
 	struct venc_state *venc = to_state(sd);
 	struct venc_platform_data *pdata = venc->pdata;
 
-	v4l2_dbg(debug, 2, sd, "venc_set_480p59_94\n");
+	v4l2_dbg(de, 2, sd, "venc_set_480p59_94\n");
 	if (venc->venc_type != VPBE_VERSION_1 &&
 	    venc->venc_type != VPBE_VERSION_2)
 		return -EINVAL;
@@ -378,7 +378,7 @@ static int venc_set_576p50(struct v4l2_subdev *sd)
 	struct venc_state *venc = to_state(sd);
 	struct venc_platform_data *pdata = venc->pdata;
 
-	v4l2_dbg(debug, 2, sd, "venc_set_576p50\n");
+	v4l2_dbg(de, 2, sd, "venc_set_576p50\n");
 
 	if (venc->venc_type != VPBE_VERSION_1 &&
 	    venc->venc_type != VPBE_VERSION_2)
@@ -478,7 +478,7 @@ static int venc_set_1080i30_internal(struct v4l2_subdev *sd)
 
 static int venc_s_std_output(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
-	v4l2_dbg(debug, 1, sd, "venc_s_std_output\n");
+	v4l2_dbg(de, 1, sd, "venc_s_std_output\n");
 
 	if (norm & V4L2_STD_525_60)
 		return venc_set_ntsc(sd);
@@ -495,7 +495,7 @@ static int venc_s_dv_timings(struct v4l2_subdev *sd,
 	u32 height = dv_timings->bt.height;
 	int ret;
 
-	v4l2_dbg(debug, 1, sd, "venc_s_dv_timings\n");
+	v4l2_dbg(de, 1, sd, "venc_s_dv_timings\n");
 
 	if (height == 576)
 		return venc_set_576p50(sd);
@@ -525,7 +525,7 @@ static int venc_s_routing(struct v4l2_subdev *sd, u32 input, u32 output,
 	struct venc_state *venc = to_state(sd);
 	int ret;
 
-	v4l2_dbg(debug, 1, sd, "venc_s_routing\n");
+	v4l2_dbg(de, 1, sd, "venc_s_routing\n");
 
 	ret = venc_set_dac(sd, output);
 	if (!ret)

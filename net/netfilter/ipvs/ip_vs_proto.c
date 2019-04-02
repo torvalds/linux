@@ -217,7 +217,7 @@ const char *ip_vs_state_name(const struct ip_vs_conn *cp)
 
 
 static void
-ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
+ip_vs_tcpudp_de_packet_v4(struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
 			     const char *msg)
@@ -244,12 +244,12 @@ ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
 				&ih->daddr, ntohs(pptr[1]));
 	}
 
-	pr_debug("%s: %s %s\n", msg, pp->name, buf);
+	pr_de("%s: %s %s\n", msg, pp->name, buf);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
 static void
-ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
+ip_vs_tcpudp_de_packet_v6(struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
 			     const char *msg)
@@ -276,23 +276,23 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 				&ih->daddr, ntohs(pptr[1]));
 	}
 
-	pr_debug("%s: %s %s\n", msg, pp->name, buf);
+	pr_de("%s: %s %s\n", msg, pp->name, buf);
 }
 #endif
 
 
 void
-ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
+ip_vs_tcpudp_de_packet(int af, struct ip_vs_protocol *pp,
 			  const struct sk_buff *skb,
 			  int offset,
 			  const char *msg)
 {
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		ip_vs_tcpudp_debug_packet_v6(pp, skb, offset, msg);
+		ip_vs_tcpudp_de_packet_v6(pp, skb, offset, msg);
 	else
 #endif
-		ip_vs_tcpudp_debug_packet_v4(pp, skb, offset, msg);
+		ip_vs_tcpudp_de_packet_v4(pp, skb, offset, msg);
 }
 
 /*

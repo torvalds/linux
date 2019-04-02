@@ -555,7 +555,7 @@ static resource_size_t init_dpa_allocation(struct nd_label_id *label_id,
 /**
  * space_valid() - validate free dpa space against constraints
  * @nd_region: hosting region of the free space
- * @ndd: dimm device data for debug
+ * @ndd: dimm device data for de
  * @label_id: namespace id to allocate space
  * @prev: potential allocation that precedes free space
  * @next: allocation that follows the given free space range

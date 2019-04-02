@@ -148,7 +148,7 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u16 vport,
 	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
 		return -EOPNOTSUPP;
 
-	esw_debug(dev, "Set Vport[%d] VLAN %d qos %d set=%x\n",
+	esw_de(dev, "Set Vport[%d] VLAN %d qos %d set=%x\n",
 		  vport, vlan, qos, set_flags);
 
 	if (set_flags & SET_VLAN_STRIP)
@@ -219,7 +219,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u16 vport, bool rx_rule,
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport.num = vport;
 
-	esw_debug(esw->dev,
+	esw_de(esw->dev,
 		  "\tFDB add rule dmac_v(%pM) dmac_c(%pM) -> vport(%d)\n",
 		  dmac_v, dmac_c, vport);
 	spec->match_criteria_enable = match_header;
@@ -316,7 +316,7 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw)
 	u8 *dmac;
 	int err = 0;
 
-	esw_debug(dev, "Create FDB log_max_size(%d)\n",
+	esw_de(dev, "Create FDB log_max_size(%d)\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
 	root_ns = mlx5_get_fdb_sub_ns(dev, 0);
@@ -399,7 +399,7 @@ out:
 
 static void esw_destroy_legacy_vepa_table(struct mlx5_eswitch *esw)
 {
-	esw_debug(esw->dev, "Destroy VEPA Table\n");
+	esw_de(esw->dev, "Destroy VEPA Table\n");
 	if (!esw->fdb_table.legacy.vepa_fdb)
 		return;
 
@@ -409,7 +409,7 @@ static void esw_destroy_legacy_vepa_table(struct mlx5_eswitch *esw)
 
 static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw)
 {
-	esw_debug(esw->dev, "Destroy FDB Table\n");
+	esw_de(esw->dev, "Destroy FDB Table\n");
 	if (!esw->fdb_table.legacy.fdb)
 		return;
 
@@ -479,7 +479,7 @@ fdb_add:
 	if (esw->fdb_table.legacy.fdb && esw->mode == SRIOV_LEGACY)
 		vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
 
-	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
+	esw_de(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
 		  vport, mac, vaddr->flow_rule);
 
 	return 0;
@@ -593,7 +593,7 @@ add:
 
 	/* Forward MC MAC to vport */
 	vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
-	esw_debug(esw->dev,
+	esw_de(esw->dev,
 		  "\tADDED MC MAC: vport[%d] %pM fr(%p) refcnt(%d) uplinkfr(%p)\n",
 		  vport, mac, vaddr->flow_rule,
 		  esw_mc->refcnt, esw_mc->uplink_rule);
@@ -617,7 +617,7 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 			 mac, vport);
 		return -EINVAL;
 	}
-	esw_debug(esw->dev,
+	esw_de(esw->dev,
 		  "\tDELETE MC MAC: vport[%d] %pM fr(%p) refcnt(%d) uplinkfr(%p)\n",
 		  vport, mac, vaddr->flow_rule, esw_mc->refcnt,
 		  esw_mc->uplink_rule);
@@ -714,7 +714,7 @@ static void esw_update_vport_addr_list(struct mlx5_eswitch *esw,
 					    mac_list, &size);
 	if (err)
 		goto out;
-	esw_debug(esw->dev, "vport[%d] context update %s list size (%d)\n",
+	esw_de(esw->dev, "vport[%d] context update %s list size (%d)\n",
 		  vport_num, is_uc ? "UC" : "MC", size);
 
 	for (i = 0; i < size; i++) {
@@ -859,7 +859,7 @@ static void esw_update_vport_rx_mode(struct mlx5_eswitch *esw, u16 vport_num)
 					   &promisc_all);
 	if (err)
 		return;
-	esw_debug(esw->dev, "vport[%d] context update rx mode promisc_all=%d, all_multi=%d\n",
+	esw_de(esw->dev, "vport[%d] context update rx mode promisc_all=%d, all_multi=%d\n",
 		  vport_num, promisc_all, promisc_mc);
 
 	if (!vport->info.trusted || !vport->enabled) {
@@ -879,7 +879,7 @@ static void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 	u8 mac[ETH_ALEN];
 
 	mlx5_query_nic_vport_mac_address(dev, vport->vport, mac);
-	esw_debug(dev, "vport[%d] Context Changed: perm mac: %pM\n",
+	esw_de(dev, "vport[%d] Context Changed: perm mac: %pM\n",
 		  vport->vport, mac);
 
 	if (vport->enabled_events & UC_ADDR_CHANGE) {
@@ -905,7 +905,7 @@ static void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 					  MLX5_NVPRT_LIST_TYPE_MC);
 	}
 
-	esw_debug(esw->dev, "vport[%d] Context Changed: Done\n", vport->vport);
+	esw_de(esw->dev, "vport[%d] Context Changed: Done\n", vport->vport);
 	if (vport->enabled)
 		arm_vport_context_events_cmd(dev, vport->vport,
 					     vport->enabled_events);
@@ -946,7 +946,7 @@ static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	if (!IS_ERR_OR_NULL(vport->egress.acl))
 		return 0;
 
-	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
+	esw_de(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_EGRESS_ACL(dev, log_max_ft_size));
 
 	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS,
@@ -1025,7 +1025,7 @@ static void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
 	if (IS_ERR_OR_NULL(vport->egress.acl))
 		return;
 
-	esw_debug(esw->dev, "Destroy vport[%d] E-Switch egress ACL\n", vport->vport);
+	esw_de(esw->dev, "Destroy vport[%d] E-Switch egress ACL\n", vport->vport);
 
 	esw_vport_cleanup_egress_rules(esw, vport);
 	mlx5_destroy_flow_group(vport->egress.allowed_vlans_grp);
@@ -1064,7 +1064,7 @@ static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	if (!IS_ERR_OR_NULL(vport->ingress.acl))
 		return 0;
 
-	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
+	esw_de(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
 
 	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS,
@@ -1187,7 +1187,7 @@ static void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
 	if (IS_ERR_OR_NULL(vport->ingress.acl))
 		return;
 
-	esw_debug(esw->dev, "Destroy vport[%d] E-Switch ingress ACL\n", vport->vport);
+	esw_de(esw->dev, "Destroy vport[%d] E-Switch ingress ACL\n", vport->vport);
 
 	esw_vport_cleanup_ingress_rules(esw, vport);
 	mlx5_destroy_flow_group(vport->ingress.allow_spoofchk_only_grp);
@@ -1229,7 +1229,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		return err;
 	}
 
-	esw_debug(esw->dev,
+	esw_de(esw->dev,
 		  "vport[%d] configure ingress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
@@ -1321,7 +1321,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		return err;
 	}
 
-	esw_debug(esw->dev,
+	esw_de(esw->dev,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",
 		  vport->vport, vport->info.vlan, vport->info.qos);
 
@@ -1608,7 +1608,7 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 	mutex_lock(&esw->state_lock);
 	WARN_ON(vport->enabled);
 
-	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
+	esw_de(esw->dev, "Enabling VPORT(%d)\n", vport_num);
 
 	/* Create steering drop counters for ingress and egress ACLs */
 	if (vport_num && esw->mode == SRIOV_LEGACY)
@@ -1636,7 +1636,7 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 	esw_vport_change_handle_locked(vport);
 
 	esw->enabled_vports++;
-	esw_debug(esw->dev, "Enabled VPORT(%d)\n", vport_num);
+	esw_de(esw->dev, "Enabled VPORT(%d)\n", vport_num);
 	mutex_unlock(&esw->state_lock);
 }
 
@@ -1648,7 +1648,7 @@ static void esw_disable_vport(struct mlx5_eswitch *esw,
 	if (!vport->enabled)
 		return;
 
-	esw_debug(esw->dev, "Disabling vport(%d)\n", vport_num);
+	esw_de(esw->dev, "Disabling vport(%d)\n", vport_num);
 	/* Mark this vport as disabled to discard new events */
 	vport->enabled = false;
 

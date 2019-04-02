@@ -117,7 +117,7 @@ static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
 		BCMA_CC_PMU15_PLL_PC0_FREQTGT_SHIFT;
 
 	if (freq_tgt_current == freq_tgt_target) {
-		bcma_debug(bus, "Target TGT frequency already set\n");
+		bcma_de(bus, "Target TGT frequency already set\n");
 		return;
 	}
 
@@ -189,7 +189,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		max_msk = 0x3FFFFFFF;
 		break;
 	default:
-		bcma_debug(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
+		bcma_de(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
 			   bus->chipinfo.id);
 	}
 
@@ -262,7 +262,7 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		}
 		break;
 	default:
-		bcma_debug(bus, "Workarounds unknown or not needed for device 0x%04X\n",
+		bcma_de(bus, "Workarounds unknown or not needed for device 0x%04X\n",
 			   bus->chipinfo.id);
 	}
 }
@@ -284,7 +284,7 @@ void bcma_pmu_early_init(struct bcma_drv_cc *cc)
 	pmucap = bcma_pmu_read32(cc, BCMA_CC_PMU_CAP);
 	cc->pmu.rev = (pmucap & BCMA_CC_PMU_CAP_REVISION);
 
-	bcma_debug(bus, "Found rev %u PMU (capabilities 0x%08X)\n", cc->pmu.rev,
+	bcma_de(bus, "Found rev %u PMU (capabilities 0x%08X)\n", cc->pmu.rev,
 		   pmucap);
 }
 
@@ -351,9 +351,9 @@ static u32 bcma_pmu_pll_clock(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 	u32 tmp, div, ndiv, p1, p2, fc;
 	struct bcma_bus *bus = cc->core->bus;
 
-	BUG_ON((pll0 & 3) || (pll0 > BCMA_CC_PMU4716_MAINPLL_PLL0));
+	_ON((pll0 & 3) || (pll0 > BCMA_CC_PMU4716_MAINPLL_PLL0));
 
-	BUG_ON(!m || m > 4);
+	_ON(!m || m > 4);
 
 	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM5357 ||
 	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4749) {
@@ -387,7 +387,7 @@ static u32 bcma_pmu_pll_clock_bcm4706(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 	u32 tmp, ndiv, p1div, p2div;
 	u32 clock;
 
-	BUG_ON(!m || m > 4);
+	_ON(!m || m > 4);
 
 	/* Get N, P1 and P2 dividers to determine CPU clock */
 	tmp = bcma_chipco_pll_read(cc, pll0 + BCMA_CC_PMU6_4706_PROCPLL_OFF);

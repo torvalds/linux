@@ -57,7 +57,7 @@
 #include <linux/mtd/blktrans.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
-/*#define PSYCHO_DEBUG */
+/*#define PSYCHO_DE */
 
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -333,7 +333,7 @@ static int erase_xfer(partition_t *part,
     struct erase_info *erase;
 
     xfer = &part->XferInfo[xfernum];
-    pr_debug("ftl_cs: erasing xfer unit at 0x%x\n", xfer->Offset);
+    pr_de("ftl_cs: erasing xfer unit at 0x%x\n", xfer->Offset);
     xfer->state = XFER_ERASING;
 
     /* Is there a free erase slot? Always in MTD. */
@@ -379,7 +379,7 @@ static int prepare_xfer(partition_t *part, int i)
     xfer = &part->XferInfo[i];
     xfer->state = XFER_FAILED;
 
-    pr_debug("ftl_cs: preparing xfer unit at 0x%x\n", xfer->Offset);
+    pr_de("ftl_cs: preparing xfer unit at 0x%x\n", xfer->Offset);
 
     /* Write the transfer unit header */
     header = part->header;
@@ -440,7 +440,7 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
 
     eun = &part->EUNInfo[srcunit];
     xfer = &part->XferInfo[xferunit];
-    pr_debug("ftl_cs: copying block 0x%x to 0x%x\n",
+    pr_de("ftl_cs: copying block 0x%x to 0x%x\n",
 	  eun->Offset, xfer->Offset);
 
 
@@ -571,8 +571,8 @@ static int reclaim_block(partition_t *part)
     uint32_t best;
     int queued, ret;
 
-    pr_debug("ftl_cs: reclaiming space...\n");
-    pr_debug("NumTransferUnits == %x\n", part->header.NumTransferUnits);
+    pr_de("ftl_cs: reclaiming space...\n");
+    pr_de("NumTransferUnits == %x\n", part->header.NumTransferUnits);
     /* Pick the least erased transfer unit */
     best = 0xffffffff; xfer = 0xffff;
     do {
@@ -580,22 +580,22 @@ static int reclaim_block(partition_t *part)
 	for (i = 0; i < part->header.NumTransferUnits; i++) {
 	    int n=0;
 	    if (part->XferInfo[i].state == XFER_UNKNOWN) {
-		pr_debug("XferInfo[%d].state == XFER_UNKNOWN\n",i);
+		pr_de("XferInfo[%d].state == XFER_UNKNOWN\n",i);
 		n=1;
 		erase_xfer(part, i);
 	    }
 	    if (part->XferInfo[i].state == XFER_ERASING) {
-		pr_debug("XferInfo[%d].state == XFER_ERASING\n",i);
+		pr_de("XferInfo[%d].state == XFER_ERASING\n",i);
 		n=1;
 		queued = 1;
 	    }
 	    else if (part->XferInfo[i].state == XFER_ERASED) {
-		pr_debug("XferInfo[%d].state == XFER_ERASED\n",i);
+		pr_de("XferInfo[%d].state == XFER_ERASED\n",i);
 		n=1;
 		prepare_xfer(part, i);
 	    }
 	    if (part->XferInfo[i].state == XFER_PREPARED) {
-		pr_debug("XferInfo[%d].state == XFER_PREPARED\n",i);
+		pr_de("XferInfo[%d].state == XFER_PREPARED\n",i);
 		n=1;
 		if (part->XferInfo[i].EraseCount <= best) {
 		    best = part->XferInfo[i].EraseCount;
@@ -603,12 +603,12 @@ static int reclaim_block(partition_t *part)
 		}
 	    }
 		if (!n)
-		    pr_debug("XferInfo[%d].state == %x\n",i, part->XferInfo[i].state);
+		    pr_de("XferInfo[%d].state == %x\n",i, part->XferInfo[i].state);
 
 	}
 	if (xfer == 0xffff) {
 	    if (queued) {
-		pr_debug("ftl_cs: waiting for transfer "
+		pr_de("ftl_cs: waiting for transfer "
 		      "unit to be prepared...\n");
 		mtd_sync(part->mbd.mtd);
 	    } else {
@@ -617,7 +617,7 @@ static int reclaim_block(partition_t *part)
 		    printk(KERN_NOTICE "ftl_cs: reclaim failed: no "
 			   "suitable transfer units!\n");
 		else
-		    pr_debug("ftl_cs: reclaim failed: no "
+		    pr_de("ftl_cs: reclaim failed: no "
 			  "suitable transfer units!\n");
 
 		return -EIO;
@@ -627,7 +627,7 @@ static int reclaim_block(partition_t *part)
 
     eun = 0;
     if ((jiffies % shuffle_freq) == 0) {
-	pr_debug("ftl_cs: recycling freshest block...\n");
+	pr_de("ftl_cs: recycling freshest block...\n");
 	best = 0xffffffff;
 	for (i = 0; i < part->DataUnits; i++)
 	    if (part->EUNInfo[i].EraseCount <= best) {
@@ -647,7 +647,7 @@ static int reclaim_block(partition_t *part)
 		printk(KERN_NOTICE "ftl_cs: reclaim failed: "
 		       "no free blocks!\n");
 	    else
-		pr_debug("ftl_cs: reclaim failed: "
+		pr_de("ftl_cs: reclaim failed: "
 		       "no free blocks!\n");
 
 	    return -EIO;
@@ -671,13 +671,13 @@ static int reclaim_block(partition_t *part)
 
 ======================================================================*/
 
-#ifdef PSYCHO_DEBUG
+#ifdef PSYCHO_DE
 static void dump_lists(partition_t *part)
 {
     int i;
-    printk(KERN_DEBUG "ftl_cs: Free total = %d\n", part->FreeTotal);
+    printk(KERN_DE "ftl_cs: Free total = %d\n", part->FreeTotal);
     for (i = 0; i < part->DataUnits; i++)
-	printk(KERN_DEBUG "ftl_cs:   unit %d: %d phys, %d free, "
+	printk(KERN_DE "ftl_cs:   unit %d: %d phys, %d free, "
 	       "%d deleted\n", i,
 	       part->EUNInfo[i].Offset >> part->header.EraseUnitSize,
 	       part->EUNInfo[i].Free, part->EUNInfo[i].Deleted);
@@ -725,7 +725,7 @@ static uint32_t find_free(partition_t *part)
     for (blk = 0; blk < part->BlocksPerUnit; blk++)
 	if (BLOCK_FREE(le32_to_cpu(part->bam_cache[blk]))) break;
     if (blk == part->BlocksPerUnit) {
-#ifdef PSYCHO_DEBUG
+#ifdef PSYCHO_DE
 	static int ne = 0;
 	if (++ne == 1)
 	    dump_lists(part);
@@ -733,7 +733,7 @@ static uint32_t find_free(partition_t *part)
 	printk(KERN_NOTICE "ftl_cs: bad free list!\n");
 	return 0;
     }
-    pr_debug("ftl_cs: found free block at %d in %d\n", blk, eun);
+    pr_de("ftl_cs: found free block at %d in %d\n", blk, eun);
     return blk;
 
 } /* find_free */
@@ -753,7 +753,7 @@ static int ftl_read(partition_t *part, caddr_t buffer,
     int ret;
     size_t offset, retlen;
 
-    pr_debug("ftl_cs: ftl_read(0x%p, 0x%lx, %ld)\n",
+    pr_de("ftl_cs: ftl_read(0x%p, 0x%lx, %ld)\n",
 	  part, sector, nblocks);
     if (!(part->state & FTL_FORMATTED)) {
 	printk(KERN_NOTICE "ftl_cs: bad partition\n");
@@ -795,14 +795,14 @@ static int set_bam_entry(partition_t *part, uint32_t log_addr,
 			 uint32_t virt_addr)
 {
     uint32_t bsize, blk, le_virt_addr;
-#ifdef PSYCHO_DEBUG
+#ifdef PSYCHO_DE
     uint32_t old_addr;
 #endif
     uint16_t eun;
     int ret;
     size_t retlen, offset;
 
-    pr_debug("ftl_cs: set_bam_entry(0x%p, 0x%x, 0x%x)\n",
+    pr_de("ftl_cs: set_bam_entry(0x%p, 0x%x, 0x%x)\n",
 	  part, log_addr, virt_addr);
     bsize = 1 << part->header.EraseUnitSize;
     eun = log_addr / bsize;
@@ -810,7 +810,7 @@ static int set_bam_entry(partition_t *part, uint32_t log_addr,
     offset = (part->EUNInfo[eun].Offset + blk * sizeof(uint32_t) +
 		  le32_to_cpu(part->header.BAMOffset));
 
-#ifdef PSYCHO_DEBUG
+#ifdef PSYCHO_DE
     ret = mtd_read(part->mbd.mtd, offset, sizeof(uint32_t), &retlen,
                    (u_char *)&old_addr);
     if (ret) {
@@ -833,7 +833,7 @@ static int set_bam_entry(partition_t *part, uint32_t log_addr,
 #endif
     le_virt_addr = cpu_to_le32(virt_addr);
     if (part->bam_index == eun) {
-#ifdef PSYCHO_DEBUG
+#ifdef PSYCHO_DE
 	if (le32_to_cpu(part->bam_cache[blk]) != old_addr) {
 	    static int ne = 0;
 	    if (++ne < 5) {
@@ -867,7 +867,7 @@ static int ftl_write(partition_t *part, caddr_t buffer,
     int ret;
     size_t retlen, offset;
 
-    pr_debug("ftl_cs: ftl_write(0x%p, %ld, %ld)\n",
+    pr_de("ftl_cs: ftl_write(0x%p, %ld, %ld)\n",
 	  part, sector, nblocks);
     if (!(part->state & FTL_FORMATTED)) {
 	printk(KERN_NOTICE "ftl_cs: bad partition\n");
@@ -972,7 +972,7 @@ static int ftl_discardsect(struct mtd_blktrans_dev *dev,
 	partition_t *part = (void *)dev;
 	uint32_t bsize = 1 << part->header.EraseUnitSize;
 
-	pr_debug("FTL erase sector %ld for %d sectors\n",
+	pr_de("FTL erase sector %ld for %d sectors\n",
 	      sector, nr_sects);
 
 	while (nr_sects) {
@@ -1021,7 +1021,7 @@ static void ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	    (build_maps(partition) == 0)) {
 
 		partition->state = FTL_FORMATTED;
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
 		printk(KERN_INFO "ftl_cs: opening %d KiB FTL partition\n",
 		       le32_to_cpu(partition->header.FormattedSize) >> 10);
 #endif

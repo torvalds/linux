@@ -63,14 +63,14 @@ static void *worker_thread(void *__tdata)
 	for (i = 0; i < loops; i++) {
 		if (!td->nr) {
 			ret = read(td->pipe_read, &m, sizeof(int));
-			BUG_ON(ret != sizeof(int));
+			_ON(ret != sizeof(int));
 			ret = write(td->pipe_write, &m, sizeof(int));
-			BUG_ON(ret != sizeof(int));
+			_ON(ret != sizeof(int));
 		} else {
 			ret = write(td->pipe_write, &m, sizeof(int));
-			BUG_ON(ret != sizeof(int));
+			_ON(ret != sizeof(int));
 			ret = read(td->pipe_read, &m, sizeof(int));
-			BUG_ON(ret != sizeof(int));
+			_ON(ret != sizeof(int));
 		}
 	}
 
@@ -96,8 +96,8 @@ int bench_sched_pipe(int argc, const char **argv)
 
 	argc = parse_options(argc, argv, options, bench_sched_pipe_usage, 0);
 
-	BUG_ON(pipe(pipe_1));
-	BUG_ON(pipe(pipe_2));
+	_ON(pipe(pipe_1));
+	_ON(pipe(pipe_2));
 
 	gettimeofday(&start, NULL);
 
@@ -122,14 +122,14 @@ int bench_sched_pipe(int argc, const char **argv)
 			td = threads + t;
 
 			ret = pthread_create(&td->pthread, NULL, worker_thread, td);
-			BUG_ON(ret);
+			_ON(ret);
 		}
 
 		for (t = 0; t < nr_threads; t++) {
 			td = threads + t;
 
 			ret = pthread_join(td->pthread, NULL);
-			BUG_ON(ret);
+			_ON(ret);
 		}
 
 	} else {

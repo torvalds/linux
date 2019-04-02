@@ -29,7 +29,7 @@ static const char * const request_state[] = {
 static const char *
 media_request_state_str(enum media_request_state state)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(request_state) != NR_OF_MEDIA_REQUEST_STATE);
+	BUILD__ON(ARRAY_SIZE(request_state) != NR_OF_MEDIA_REQUEST_STATE);
 
 	if (WARN_ON(state >= ARRAY_SIZE(request_state)))
 		return "invalid";
@@ -63,7 +63,7 @@ static void media_request_release(struct kref *kref)
 		container_of(kref, struct media_request, kref);
 	struct media_device *mdev = req->mdev;
 
-	dev_dbg(mdev->dev, "request: release %s\n", req->debug_str);
+	dev_dbg(mdev->dev, "request: release %s\n", req->de_str);
 
 	/* No other users, no need for a spinlock */
 	req->state = MEDIA_REQUEST_STATE_CLEANING;
@@ -123,7 +123,7 @@ static long media_request_ioctl_queue(struct media_request *req)
 	unsigned long flags;
 	int ret;
 
-	dev_dbg(mdev->dev, "request: queue %s\n", req->debug_str);
+	dev_dbg(mdev->dev, "request: queue %s\n", req->de_str);
 
 	/*
 	 * Ensure the request that is validated will be the one that gets queued
@@ -143,7 +143,7 @@ static long media_request_ioctl_queue(struct media_request *req)
 	if (state != MEDIA_REQUEST_STATE_VALIDATING) {
 		dev_dbg(mdev->dev,
 			"request: unable to queue %s, request in state %s\n",
-			req->debug_str, media_request_state_str(state));
+			req->de_str, media_request_state_str(state));
 		media_request_put(req);
 		mutex_unlock(&mdev->req_queue_mutex);
 		return -EBUSY;
@@ -178,7 +178,7 @@ static long media_request_ioctl_queue(struct media_request *req)
 
 	if (ret) {
 		dev_dbg(mdev->dev, "request: can't queue %s (%d)\n",
-			req->debug_str, ret);
+			req->de_str, ret);
 		media_request_put(req);
 	}
 
@@ -195,14 +195,14 @@ static long media_request_ioctl_reinit(struct media_request *req)
 	    req->state != MEDIA_REQUEST_STATE_COMPLETE) {
 		dev_dbg(mdev->dev,
 			"request: %s not in idle or complete state, cannot reinit\n",
-			req->debug_str);
+			req->de_str);
 		spin_unlock_irqrestore(&req->lock, flags);
 		return -EBUSY;
 	}
 	if (req->access_count) {
 		dev_dbg(mdev->dev,
 			"request: %s is being accessed, cannot reinit\n",
-			req->debug_str);
+			req->de_str);
 		spin_unlock_irqrestore(&req->lock, flags);
 		return -EBUSY;
 	}
@@ -328,9 +328,9 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 
 	*alloc_fd = fd;
 
-	snprintf(req->debug_str, sizeof(req->debug_str), "%u:%d",
+	snprintf(req->de_str, sizeof(req->de_str), "%u:%d",
 		 atomic_inc_return(&mdev->request_id), fd);
-	dev_dbg(mdev->dev, "request: allocated %s\n", req->debug_str);
+	dev_dbg(mdev->dev, "request: allocated %s\n", req->de_str);
 
 	fd_install(fd, filp);
 

@@ -38,7 +38,7 @@ void x86_pci_root_bus_resources(int bus, struct list_head *resources)
 	if (!info)
 		goto default_resources;
 
-	printk(KERN_DEBUG "PCI: root bus %02x: hardware-probed resources\n",
+	printk(KERN_DE "PCI: root bus %02x: hardware-probed resources\n",
 	       bus);
 
 	/* already added by acpi ? */
@@ -62,7 +62,7 @@ default_resources:
 	 * "native host bridge drivers," e.g., amd_bus or broadcom_bus,
 	 * so fall back to the defaults historically used by pci_create_bus().
 	 */
-	printk(KERN_DEBUG "PCI: root bus %02x: using default resources\n", bus);
+	printk(KERN_DE "PCI: root bus %02x: using default resources\n", bus);
 	pci_add_resource(resources, &ioport_resource);
 	pci_add_resource(resources, &iomem_resource);
 }

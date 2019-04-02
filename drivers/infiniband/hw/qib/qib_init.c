@@ -47,8 +47,8 @@
 #include "qib.h"
 #include "qib_common.h"
 #include "qib_mad.h"
-#ifdef CONFIG_DEBUG_FS
-#include "qib_debugfs.h"
+#ifdef CONFIG_DE_FS
+#include "qib_defs.h"
 #include "qib_verbs.h"
 #endif
 
@@ -178,7 +178,7 @@ struct qib_ctxtdata *qib_create_ctxtdata(struct qib_pportdata *ppd, u32 ctxt,
 		rcd->cnt = 1;
 		rcd->ctxt = ctxt;
 		dd->rcd[ctxt] = rcd;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 		if (ctxt < dd->first_user_ctxt) { /* N/A for PSM contexts */
 			rcd->opstats = kzalloc_node(sizeof(*rcd->opstats),
 				GFP_KERNEL, node_id);
@@ -562,7 +562,7 @@ static void init_piobuf_state(struct qib_devdata *dd)
 		dd->pioavailshadow[i] = le64_to_cpu(tmp);
 	}
 	while (i < ARRAY_SIZE(dd->pioavailshadow))
-		dd->pioavailshadow[i++] = 0; /* for debugging sanity */
+		dd->pioavailshadow[i++] = 0; /* for deging sanity */
 
 	/* after pioavailshadow is setup */
 	qib_chg_pioavailkernel(dd, 0, dd->piobcnt2k + dd->piobcnt4k,
@@ -728,7 +728,7 @@ int qib_init(struct qib_devdata *dd, int reinit)
 			ret = lastfail;
 		else if (!ret)
 			ret = -ENETDOWN;
-		/* but continue on, so we can debug cause */
+		/* but continue on, so we can de cause */
 	}
 
 	enable_chip(dd);
@@ -953,7 +953,7 @@ void qib_free_ctxtdata(struct qib_devdata *dd, struct qib_ctxtdata *rcd)
 	vfree(rcd->subctxt_uregbase);
 	vfree(rcd->subctxt_rcvegrbuf);
 	vfree(rcd->subctxt_rcvhdr_base);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	kfree(rcd->opstats);
 	rcd->opstats = NULL;
 #endif
@@ -1051,7 +1051,7 @@ void qib_free_devdata(struct qib_devdata *dd)
 	list_del(&dd->list);
 	spin_unlock_irqrestore(&qib_devs_lock, flags);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qib_dbg_ibdev_exit(&dd->verbs_dev);
 #endif
 	free_percpu(dd->int_counter);
@@ -1140,7 +1140,7 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 		if (qib_cpulist)
 			qib_cpulist_count = count;
 	}
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qib_dbg_ibdev_init(&dd->verbs_dev);
 #endif
 	return dd;
@@ -1260,7 +1260,7 @@ static int __init qib_ib_init(void)
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 	dca_register_notify(&dca_notifier);
 #endif
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qib_dbg_init();
 #endif
 	ret = pci_register_driver(&qib_driver);
@@ -1278,7 +1278,7 @@ bail_dev:
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 	dca_unregister_notify(&dca_notifier);
 #endif
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qib_dbg_exit();
 #endif
 	idr_destroy(&qib_unit_table);
@@ -1306,7 +1306,7 @@ static void __exit qib_ib_cleanup(void)
 	dca_unregister_notify(&dca_notifier);
 #endif
 	pci_unregister_driver(&qib_driver);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	qib_dbg_exit();
 #endif
 
@@ -1394,7 +1394,7 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	for (ctxt = 0; tmp && ctxt < dd->ctxtcnt; ctxt++) {
 		struct qib_ctxtdata *rcd = tmp[ctxt];
 
-		tmp[ctxt] = NULL; /* debugging paranoia */
+		tmp[ctxt] = NULL; /* deging paranoia */
 		qib_free_ctxtdata(dd, rcd);
 	}
 	kfree(tmp);

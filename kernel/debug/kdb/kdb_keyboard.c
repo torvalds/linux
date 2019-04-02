@@ -1,5 +1,5 @@
 /*
- * Kernel Debugger Architecture Dependent Console I/O handler
+ * Kernel Deger Architecture Dependent Console I/O handler
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.

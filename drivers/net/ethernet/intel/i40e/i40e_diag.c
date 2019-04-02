@@ -25,7 +25,7 @@ static i40e_status i40e_diag_reg_pattern_test(struct i40e_hw *hw,
 		wr32(hw, reg, (pat & mask));
 		val = rd32(hw, reg);
 		if ((val & mask) != (pat & mask)) {
-			i40e_debug(hw, I40E_DEBUG_DIAG,
+			i40e_de(hw, I40E_DE_DIAG,
 				   "%s: reg pattern test failed - reg 0x%08x pat 0x%08x val 0x%08x\n",
 				   __func__, reg, pat, val);
 			return I40E_ERR_DIAG_TEST_FAILED;
@@ -35,7 +35,7 @@ static i40e_status i40e_diag_reg_pattern_test(struct i40e_hw *hw,
 	wr32(hw, reg, orig_val);
 	val = rd32(hw, reg);
 	if (val != orig_val) {
-		i40e_debug(hw, I40E_DEBUG_DIAG,
+		i40e_de(hw, I40E_DE_DIAG,
 			   "%s: reg restore test failed - reg 0x%08x orig_val 0x%08x val 0x%08x\n",
 			   __func__, reg, orig_val, val);
 		return I40E_ERR_DIAG_TEST_FAILED;

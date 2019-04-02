@@ -12,10 +12,10 @@
  * Changes:
  *          Steve Whitehouse : Devices now see incoming frames so they
  *                             can mark on who it came from.
- *          Steve Whitehouse : Fixed bug in creating neighbours. Each neighbour
+ *          Steve Whitehouse : Fixed  in creating neighbours. Each neighbour
  *                             can now have a device specific setup func.
  *          Steve Whitehouse : Added /proc/sys/net/decnet/conf/<dev>/
- *          Steve Whitehouse : Fixed bug which sometimes killed timer
+ *          Steve Whitehouse : Fixed  which sometimes killed timer
  *          Steve Whitehouse : Multiple ifaddr support
  *          Steve Whitehouse : SIOCGIFCONF is now a compile time option
  *          Steve Whitehouse : /proc/sys/net/decnet/conf/<sys>/forwarding
@@ -726,7 +726,7 @@ static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 
 	err = dn_nl_fill_ifaddr(skb, ifa, 0, 0, event, 0);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in dn_ifaddr_nlmsg_size() */
+		/* -EMSGSIZE implies  in dn_ifaddr_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

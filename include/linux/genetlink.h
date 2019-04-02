@@ -17,7 +17,7 @@ extern atomic_t genl_sk_destructing_cnt;
 extern wait_queue_head_t genl_sk_destructing_waitq;
 
 /**
- * rcu_dereference_genl - rcu_dereference with debug checking
+ * rcu_dereference_genl - rcu_dereference with de checking
  * @p: The pointer to read, prior to dereferencing
  *
  * Do an rcu_dereference(p), but check caller either holds rcu_read_lock()

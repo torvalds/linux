@@ -529,7 +529,7 @@ static int rts524a_optimize_phy(struct rtsx_pcr *pcr)
 			PHY_ANA1A_TXR_LOOPBACK | PHY_ANA1A_RXT_BIST |
 			PHY_ANA1A_TXR_BIST | PHY_ANA1A_REV);
 		rtsx_pci_write_phy_register(pcr, PHY_ANA1D,
-			PHY_ANA1D_DEBUG_ADDR);
+			PHY_ANA1D_DE_ADDR);
 		rtsx_pci_write_phy_register(pcr, PHY_DIG1E,
 			PHY_DIG1E_REV | PHY_DIG1E_D0_X_D1 |
 			PHY_DIG1E_RX_ON_HOST | PHY_DIG1E_RCLK_REF_HOST |
@@ -553,7 +553,7 @@ static int rts524a_extra_init_hw(struct rtsx_pcr *pcr)
 
 	rtsx_pci_write_register(pcr, FUNC_FORCE_CTL,
 		FORCE_ASPM_L1_EN, FORCE_ASPM_L1_EN);
-	rtsx_pci_write_register(pcr, PM_EVENT_DEBUG, PME_DEBUG_0, PME_DEBUG_0);
+	rtsx_pci_write_register(pcr, PM_EVENT_DE, PME_DE_0, PME_DE_0);
 	rtsx_pci_write_register(pcr, LDO_VCC_CFG1, LDO_VCC_LMT_EN,
 		LDO_VCC_LMT_EN);
 	rtsx_pci_write_register(pcr, PCLK_CTL, PCLK_MODE_SEL, PCLK_MODE_SEL);
@@ -691,7 +691,7 @@ static int rts525a_optimize_phy(struct rtsx_pcr *pcr)
 
 	rtsx_pci_write_phy_register(pcr, _PHY_ANA03,
 		_PHY_ANA03_TIMER_MAX | _PHY_ANA03_OOBS_DEB_EN |
-		_PHY_CMU_DEBUG_EN);
+		_PHY_CMU_DE_EN);
 
 	if (is_version(pcr, 0x525A, IC_VER_A))
 		rtsx_pci_write_phy_register(pcr, _PHY_REV0,

@@ -394,7 +394,7 @@ static int __init init_power8_pmu(void)
 	/* Tell userspace that EBB is supported */
 	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_EBB;
 
-	if (cpu_has_feature(CPU_FTR_PMAO_BUG))
+	if (cpu_has_feature(CPU_FTR_PMAO_))
 		pr_info("PMAO restore workaround active.\n");
 
 	return 0;

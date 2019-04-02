@@ -62,8 +62,8 @@
 
 #include "../kselftest.h"
 
-#ifndef bug_on
-# define bug_on(cond)		assert(!(cond))
+#ifndef _on
+# define _on(cond)		assert(!(cond))
 #endif
 
 #ifndef __aligned_tpacket
@@ -214,7 +214,7 @@ static inline int __v1_v2_rx_kernel_ready(void *base, int version)
 	case TPACKET_V2:
 		return __v2_rx_kernel_ready(base);
 	default:
-		bug_on(1);
+		_on(1);
 		return 0;
 	}
 }
@@ -238,7 +238,7 @@ static void walk_v1_v2_rx(int sock, struct ring *ring)
 	union frame_map ppd;
 	unsigned int frame_num = 0;
 
-	bug_on(ring->type != PACKET_RX_RING);
+	_on(ring->type != PACKET_RX_RING);
 
 	pair_udp_open(udp_sock, PORT_BASE);
 
@@ -333,7 +333,7 @@ static inline int __tx_kernel_ready(void *base, int version)
 	case TPACKET_V3:
 		return __v3_tx_kernel_ready(base);
 	default:
-		bug_on(1);
+		_on(1);
 		return 0;
 	}
 }
@@ -376,7 +376,7 @@ static inline void *get_next_frame(struct ring *ring, int n)
 	case TPACKET_V3:
 		return f0 + (n * ring->req3.tp_frame_size);
 	default:
-		bug_on(1);
+		_on(1);
 	}
 }
 
@@ -403,8 +403,8 @@ static void walk_tx(int sock, struct ring *ring)
 	else
 		nframes = ring->req3.tp_frame_nr;
 
-	bug_on(ring->type != PACKET_TX_RING);
-	bug_on(nframes < NUM_PACKETS);
+	_on(ring->type != PACKET_TX_RING);
+	_on(nframes < NUM_PACKETS);
 
 	rcv_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (rcv_sock == -1) {
@@ -482,7 +482,7 @@ static void walk_tx(int sock, struct ring *ring)
 		poll(&pfd, 1, 1);
 	}
 
-	bug_on(total_packets != 0);
+	_on(total_packets != 0);
 
 	ret = sendto(sock, NULL, 0, 0, NULL, 0);
 	if (ret == -1) {
@@ -599,7 +599,7 @@ static void walk_v3_rx(int sock, struct ring *ring)
 	struct block_desc *pbd;
 	int udp_sock[2];
 
-	bug_on(ring->type != PACKET_RX_RING);
+	_on(ring->type != PACKET_RX_RING);
 
 	pair_udp_open(udp_sock, PORT_BASE);
 

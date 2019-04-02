@@ -81,9 +81,9 @@ To enable LDM, choose the following two options:
   - "Windows Logical Disk Manager (Dynamic Disk) support" CONFIG_LDM_PARTITION
 
 If you believe the driver isn't working as it should, you can enable the extra
-debugging code.  This will produce a LOT of output.  The option is:
+deging code.  This will produce a LOT of output.  The option is:
 
-  - "Windows LDM extra logging" CONFIG_LDM_DEBUG
+  - "Windows LDM extra logging" CONFIG_LDM_DE
 
 N.B. The partition code cannot be compiled as a module.
 

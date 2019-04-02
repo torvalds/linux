@@ -41,7 +41,7 @@
 #include <asm/byteorder.h>
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/sysctl.h>
 #include <linux/oom.h>
 
@@ -90,8 +90,8 @@ torture_param(int, n_barrier_cbs, 0,
 	     "# of callbacks/kthreads for barrier testing");
 torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
-torture_param(int, object_debug, 0,
-	     "Enable debug-object double call_rcu() testing");
+torture_param(int, object_de, 0,
+	     "Enable de-object double call_rcu() testing");
 torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
 torture_param(int, onoff_interval, 0,
 	     "Time between CPU hotplugs (jiffies), 0=disable");
@@ -112,7 +112,7 @@ torture_param(int, test_boost_interval, 7,
 torture_param(bool, test_no_idle_hz, true,
 	     "Test support for tickless idle CPUs");
 torture_param(int, verbose, 1,
-	     "Enable verbose debugging printk()s");
+	     "Enable verbose deging printk()s");
 
 static char *torture_type = "rcu";
 module_param(torture_type, charp, 0444);
@@ -453,25 +453,25 @@ static struct rcu_torture_ops rcu_ops = {
 /*
  * Don't even think about trying any of these in real life!!!
  * The names includes "busted", and they really means it!
- * The only purpose of these functions is to provide a buggy RCU
+ * The only purpose of these functions is to provide a gy RCU
  * implementation to make sure that rcutorture correctly emits
- * buggy-RCU error messages.
+ * gy-RCU error messages.
  */
 static void rcu_busted_torture_deferred_free(struct rcu_torture *p)
 {
-	/* This is a deliberate bug for testing purposes only! */
+	/* This is a deliberate  for testing purposes only! */
 	rcu_torture_cb(&p->rtort_rcu);
 }
 
 static void synchronize_rcu_busted(void)
 {
-	/* This is a deliberate bug for testing purposes only! */
+	/* This is a deliberate  for testing purposes only! */
 }
 
 static void
 call_rcu_busted(struct rcu_head *head, rcu_callback_t func)
 {
-	/* This is a deliberate bug for testing purposes only! */
+	/* This is a deliberate  for testing purposes only! */
 	func(head);
 }
 
@@ -2174,7 +2174,7 @@ rcu_torture_cleanup(void)
 	torture_cleanup_end();
 }
 
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+#ifdef CONFIG_DE_OBJECTS_RCU_HEAD
 static void rcu_torture_leak_cb(struct rcu_head *rhp)
 {
 }
@@ -2188,20 +2188,20 @@ static void rcu_torture_err_cb(struct rcu_head *rhp)
 	 * someone else starts a grace period that includes that
 	 * callback, then the second of the pair must wait for the
 	 * next grace period.  Unlikely, but can happen.  If it
-	 * does happen, the debug-objects subsystem won't have splatted.
+	 * does happen, the de-objects subsystem won't have splatted.
 	 */
 	pr_alert("%s: duplicated callback was invoked.\n", KBUILD_MODNAME);
 }
-#endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+#endif /* #ifdef CONFIG_DE_OBJECTS_RCU_HEAD */
 
 /*
- * Verify that double-free causes debug-objects to complain, but only
- * if CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.  Otherwise, say that the test
+ * Verify that double-free causes de-objects to complain, but only
+ * if CONFIG_DE_OBJECTS_RCU_HEAD=y.  Otherwise, say that the test
  * cannot be carried out.
  */
-static void rcu_test_debug_objects(void)
+static void rcu_test_de_objects(void)
 {
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+#ifdef CONFIG_DE_OBJECTS_RCU_HEAD
 	struct rcu_head rh1;
 	struct rcu_head rh2;
 
@@ -2225,9 +2225,9 @@ static void rcu_test_debug_objects(void)
 	pr_alert("%s: WARN: Duplicate call_rcu() test complete.\n", KBUILD_MODNAME);
 	destroy_rcu_head_on_stack(&rh1);
 	destroy_rcu_head_on_stack(&rh2);
-#else /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
-	pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n", KBUILD_MODNAME);
-#endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+#else /* #ifdef CONFIG_DE_OBJECTS_RCU_HEAD */
+	pr_alert("%s: !CONFIG_DE_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n", KBUILD_MODNAME);
+#endif /* #else #ifdef CONFIG_DE_OBJECTS_RCU_HEAD */
 }
 
 static void rcutorture_sync(void)
@@ -2412,8 +2412,8 @@ rcu_torture_init(void)
 	firsterr = rcu_torture_barrier_init();
 	if (firsterr)
 		goto unwind;
-	if (object_debug)
-		rcu_test_debug_objects();
+	if (object_de)
+		rcu_test_de_objects();
 	torture_init_end();
 	return 0;
 

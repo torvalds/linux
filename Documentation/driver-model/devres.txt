@@ -24,14 +24,14 @@ native mode makes use of 5 PCI BARs and all of them should be
 maintained.
 
 As with many other device drivers, libata low level drivers have
-sufficient bugs in ->remove and ->probe failure path.  Well, yes,
+sufficient s in ->remove and ->probe failure path.  Well, yes,
 that's probably because libata low level driver developers are lazy
 bunch, but aren't all low level driver developers?  After spending a
 day fiddling with braindamaged hardware with no document or
 braindamaged document, if it's finally working, well, it's working.
 
 For one reason or another, low level drivers don't receive as much
-attention or testing as core code, and bugs on driver detach or
+attention or testing as core code, and s on driver detach or
 initialization failure don't happen often enough to be noticeable.
 Init failure path is worse because it's much less travelled while
 needs to handle multiple entry points.
@@ -224,7 +224,7 @@ right gfp mask is given.
   -----------
 
 Each devres bookkeeping info is allocated together with requested data
-area.  With debug option turned off, bookkeeping info occupies 16
+area.  With de option turned off, bookkeeping info occupies 16
 bytes on 32bit machines and 24 bytes on 64bit (three pointers rounded
 up to ull alignment).  If singly linked list is used, it can be
 reduced to two pointers (8 bytes on 32bit, 16 bytes on 64bit).

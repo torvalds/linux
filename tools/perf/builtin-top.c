@@ -46,7 +46,7 @@
 #include "util/parse-branch-options.h"
 #include "arch/common.h"
 
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/ordered-events.h"
 
 #include <assert.h>
@@ -964,7 +964,7 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 	evlist__for_each_entry(evlist, counter)
 		counter->attr.write_backward = false;
 	opts->overwrite = false;
-	pr_debug2("fall back to non-overwrite mode\n");
+	pr_de2("fall back to non-overwrite mode\n");
 	return 1;
 }
 
@@ -1641,7 +1641,7 @@ int cmd_top(int argc, const char **argv)
 		bpf_event__add_sb_event(&sb_evlist, &perf_env);
 
 	if (perf_evlist__start_sb_thread(sb_evlist, target)) {
-		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
+		pr_de("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
 		opts->no_bpf_event = true;
 	}
 

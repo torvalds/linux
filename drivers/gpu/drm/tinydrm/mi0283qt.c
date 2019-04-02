@@ -59,7 +59,7 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	u8 addr_mode;
 	int ret;
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	ret = mipi_dbi_poweron_conditional_reset(mipi);
 	if (ret < 0)
@@ -155,7 +155,7 @@ static struct drm_driver mi0283qt_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
-	.debugfs_init		= mipi_dbi_debugfs_init,
+	.defs_init		= mipi_dbi_defs_init,
 	.name			= "mi0283qt",
 	.desc			= "Multi-Inno MI0283QT",
 	.date			= "20160614",

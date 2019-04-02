@@ -216,7 +216,7 @@ struct tipc_link_config {
 #define TIPC_NTQ_ALLTYPES 0x80000000
 
 struct tipc_name_table_query {
-	__be32 depth;	/* 1:type, 2:+name info, 3:+port info, 4+:+debug info */
+	__be32 depth;	/* 1:type, 2:+name info, 3:+port info, 4+:+de info */
 	__be32 type;	/* {t,l,u} info ignored if high bit of "depth" is set */
 	__be32 lowbound; /* (i.e. displays all entries of name table) */
 	__be32 upbound;

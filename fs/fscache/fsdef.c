@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define FSCACHE_DEBUG_LEVEL CACHE
+#define FSCACHE_DE_LEVEL CACHE
 #include <linux/module.h>
 #include "internal.h"
 

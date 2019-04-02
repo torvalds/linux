@@ -155,7 +155,7 @@ int xen_pcibk_config_read(struct pci_dev *dev, int offset, int size,
 	u32 value = 0, tmp_val;
 
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: read %d bytes at 0x%x\n",
+		printk(KERN_DE DRV_NAME ": %s: read %d bytes at 0x%x\n",
 		       pci_name(dev), size, offset);
 
 	if (!valid_request(offset, size)) {
@@ -196,7 +196,7 @@ int xen_pcibk_config_read(struct pci_dev *dev, int offset, int size,
 
 out:
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG DRV_NAME ": %s: read %d bytes at 0x%x = %x\n",
+		printk(KERN_DE DRV_NAME ": %s: read %d bytes at 0x%x = %x\n",
 		       pci_name(dev), size, offset, value);
 
 	*ret_val = value;
@@ -213,7 +213,7 @@ int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 	int field_start, field_end;
 
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       DRV_NAME ": %s: write request %d bytes at 0x%x = %x\n",
 		       pci_name(dev), size, offset, value);
 

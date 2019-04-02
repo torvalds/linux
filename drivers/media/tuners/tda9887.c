@@ -20,9 +20,9 @@
    Used as part of several tuners
 */
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 static DEFINE_MUTEX(tda9887_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
@@ -575,13 +575,13 @@ static void tda9887_configure(struct dvb_frontend *fe)
 
 	tuner_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		  priv->data[1], priv->data[2], priv->data[3]);
-	if (debug > 1)
+	if (de > 1)
 		dump_write_message(fe, priv->data);
 
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,priv->data,4)))
 		tuner_info("i2c i/o error: rc == %d (should be 4)\n", rc);
 
-	if (debug > 2) {
+	if (de > 2) {
 		msleep_interruptible(1000);
 		tda9887_status(fe);
 	}

@@ -137,7 +137,7 @@ static int mlx5_fpga_tls_alloc_swid(struct idr *idr, spinlock_t *idr_spinlock,
 	 * swid must not exceed 3 bytes.
 	 * See tls_rxtx.c:insert_pet() for details
 	 */
-	BUILD_BUG_ON((SWID_END - 1) & 0xFF000000);
+	BUILD__ON((SWID_END - 1) & 0xFF000000);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock_irqsave(idr_spinlock, flags);

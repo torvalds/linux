@@ -631,7 +631,7 @@ static void dispc_ovl_write_firv_reg(enum omap_plane plane, int reg, u32 value)
 
 static void dispc_ovl_write_firh2_reg(enum omap_plane plane, int reg, u32 value)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(DISPC_OVL_FIR_COEF_H2(plane, reg), value);
 }
@@ -639,14 +639,14 @@ static void dispc_ovl_write_firh2_reg(enum omap_plane plane, int reg, u32 value)
 static void dispc_ovl_write_firhv2_reg(enum omap_plane plane, int reg,
 		u32 value)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(DISPC_OVL_FIR_COEF_HV2(plane, reg), value);
 }
 
 static void dispc_ovl_write_firv2_reg(enum omap_plane plane, int reg, u32 value)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(DISPC_OVL_FIR_COEF_V2(plane, reg), value);
 }
@@ -782,7 +782,7 @@ static void dispc_ovl_set_output_size(enum omap_plane plane, int width,
 {
 	u32 val;
 
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
 
@@ -881,7 +881,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 		case OMAP_DSS_COLOR_XRGB16_1555:
 			m = 0xf; break;
 		default:
-			BUG(); return;
+			(); return;
 		}
 	} else {
 		switch (color_mode) {
@@ -918,7 +918,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 		case OMAP_DSS_COLOR_XRGB16_1555:
 			m = 0xf; break;
 		default:
-			BUG(); return;
+			(); return;
 		}
 	}
 
@@ -953,7 +953,7 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 		shift = 16;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -977,7 +977,7 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 				chan = 0;
 				chan2 = 2;
 			} else {
-				BUG();
+				();
 				return;
 			}
 			break;
@@ -986,7 +986,7 @@ void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 			chan2 = 3;
 			break;
 		default:
-			BUG();
+			();
 			return;
 		}
 
@@ -1014,7 +1014,7 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
 		shift = 16;
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 
@@ -1121,7 +1121,7 @@ static void dispc_ovl_set_vid_color_conv(enum omap_plane plane, bool enable)
 {
 	u32 val;
 
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	val = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
 	val = FLD_MOD(val, enable, 9, 9);
@@ -1317,7 +1317,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 	 * combined fifo size
 	 */
 
-	if (manual_update && dss_has_feature(FEAT_OMAP3_DSI_FIFO_BUG)) {
+	if (manual_update && dss_has_feature(FEAT_OMAP3_DSI_FIFO_)) {
 		*fifo_low = ovl_fifo_size - burst_size * 2;
 		*fifo_high = total_fifo_size - burst_size;
 	} else if (plane == OMAP_DSS_WB) {
@@ -1549,7 +1549,7 @@ static void dispc_ovl_set_accu_uv(enum omap_plane plane,
 		idx = 3;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -1565,7 +1565,7 @@ static void dispc_ovl_set_accu_uv(enum omap_plane plane,
 		accu_table = accu_yuv;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -1694,7 +1694,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -1724,7 +1724,7 @@ static void dispc_ovl_set_scaling(enum omap_plane plane,
 		bool fieldmode, enum omap_color_mode color_mode,
 		u8 rotation)
 {
-	BUG_ON(plane == OMAP_DSS_GFX);
+	_ON(plane == OMAP_DSS_GFX);
 
 	dispc_ovl_set_scaling_common(plane,
 			orig_width, orig_height,
@@ -1843,7 +1843,7 @@ static int color_mode_to_bpp(enum omap_color_mode color_mode)
 	case OMAP_DSS_COLOR_RGBX32:
 		return 32;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 }
@@ -1857,7 +1857,7 @@ static s32 pixinc(int pixels, u8 ps)
 	else if (pixels < 0)
 		return 1 - (-pixels + 1) * ps;
 	else
-		BUG();
+		();
 	return 0;
 }
 
@@ -1877,7 +1877,7 @@ static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
 	case OMAP_DSS_COLOR_CLUT2:
 	case OMAP_DSS_COLOR_CLUT4:
 	case OMAP_DSS_COLOR_CLUT8:
-		BUG();
+		();
 		return;
 	case OMAP_DSS_COLOR_YUV2:
 	case OMAP_DSS_COLOR_UYVY:
@@ -1943,7 +1943,7 @@ static void calc_vrfb_rotation_offset(u8 rotation, bool mirror,
 		break;
 
 	default:
-		BUG();
+		();
 		return;
 	}
 }
@@ -1965,7 +1965,7 @@ static void calc_dma_rotation_offset(u8 rotation, bool mirror,
 	case OMAP_DSS_COLOR_CLUT2:
 	case OMAP_DSS_COLOR_CLUT4:
 	case OMAP_DSS_COLOR_CLUT8:
-		BUG();
+		();
 		return;
 	default:
 		ps = color_mode_to_bpp(color_mode) / 8;
@@ -2099,7 +2099,7 @@ static void calc_dma_rotation_offset(u8 rotation, bool mirror,
 		break;
 
 	default:
-		BUG();
+		();
 		return;
 	}
 }
@@ -2116,7 +2116,7 @@ static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
 	case OMAP_DSS_COLOR_CLUT2:
 	case OMAP_DSS_COLOR_CLUT4:
 	case OMAP_DSS_COLOR_CLUT8:
-		BUG();
+		();
 		return;
 	default:
 		ps = color_mode_to_bpp(color_mode) / 8;
@@ -3029,7 +3029,7 @@ static void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_line
 		code = 3;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -3055,7 +3055,7 @@ static void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
 		gpout1 = 1;
 		break;
 	default:
-		BUG();
+		();
 		return;
 	}
 
@@ -3169,7 +3169,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		vs = false;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (hsync_level) {
@@ -3180,7 +3180,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		hs = false;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (de_level) {
@@ -3191,7 +3191,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		de = false;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (data_pclk_edge) {
@@ -3202,7 +3202,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		ipc = true;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	/* always use the 'rf' setting */
@@ -3216,7 +3216,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		rf = true;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	l = FLD_VAL(onoff, 17, 17) |
@@ -3263,7 +3263,7 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	DSSDBG("channel %d xres %u yres %u\n", channel, t.x_res, t.y_res);
 
 	if (!dispc_mgr_timings_ok(channel, &t)) {
-		BUG();
+		();
 		return;
 	}
 
@@ -3298,8 +3298,8 @@ EXPORT_SYMBOL(dispc_mgr_set_timings);
 static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 		u16 pck_div)
 {
-	BUG_ON(lck_div < 1);
-	BUG_ON(pck_div < 1);
+	_ON(lck_div < 1);
+	_ON(pck_div < 1);
 
 	dispc_write_reg(DISPC_DIVISORo(channel),
 			FLD_VAL(lck_div, 23, 16) | FLD_VAL(pck_div, 7, 0));
@@ -3342,7 +3342,7 @@ static unsigned long dispc_fclk_rate(void)
 		r = pll->cinfo.clkout[0];
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 
@@ -3380,7 +3380,7 @@ static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 			r = pll->cinfo.clkout[0];
 			break;
 		default:
-			BUG();
+			();
 			return 0;
 		}
 
@@ -4114,7 +4114,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dss_init_overlay_managers();
 
-	dss_debugfs_create_file("dispc", dispc_dump_regs);
+	dss_defs_create_file("dispc", dispc_dump_regs);
 
 	return 0;
 

@@ -48,7 +48,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 			pte_unmap(ptep);
 			return 0;
 		}
-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+		VM__ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		get_page(page);
 		SetPageReferenced(page);
@@ -63,8 +63,8 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 
 static inline void get_head_page_multiple(struct page *page, int nr)
 {
-	VM_BUG_ON(page != compound_head(page));
-	VM_BUG_ON(page_count(page) == 0);
+	VM__ON(page != compound_head(page));
+	VM__ON(page_count(page) == 0);
 	page_ref_add(page, nr);
 	SetPageReferenced(page);
 }
@@ -79,14 +79,14 @@ static int gup_huge_pmd(pmd_t pmd, unsigned long addr, unsigned long end,
 	if (write && !pte_write(pte))
 		return 0;
 	/* hugepages are never "special" */
-	VM_BUG_ON(pte_special(pte));
-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+	VM__ON(pte_special(pte));
+	VM__ON(!pfn_valid(pte_pfn(pte)));
 
 	refs = 0;
 	head = pte_page(pte);
 	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
 	do {
-		VM_BUG_ON(compound_head(page) != head);
+		VM__ON(compound_head(page) != head);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;
@@ -132,14 +132,14 @@ static int gup_huge_pud(pud_t pud, unsigned long addr, unsigned long end,
 	if (write && !pte_write(pte))
 		return 0;
 	/* hugepages are never "special" */
-	VM_BUG_ON(pte_special(pte));
-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+	VM__ON(pte_special(pte));
+	VM__ON(!pfn_valid(pte_pfn(pte)));
 
 	refs = 0;
 	head = pte_page(pte);
 	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
 	do {
-		VM_BUG_ON(compound_head(page) != head);
+		VM__ON(compound_head(page) != head);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;
@@ -278,7 +278,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	} while (pgdp++, addr = next, addr != end);
 	local_irq_enable();
 
-	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+	VM__ON(nr != (end - start) >> PAGE_SHIFT);
 	return nr;
 slow:
 	local_irq_enable();

@@ -46,16 +46,16 @@ options:
 	CONFIG_RXKAD		- The RxRPC Kerberos security handler
 	CONFIG_AFS		- The AFS filesystem
 
-Additionally, the following can be turned on to aid debugging:
+Additionally, the following can be turned on to aid deging:
 
-	CONFIG_AF_RXRPC_DEBUG	- Permit AF_RXRPC debugging to be enabled
-	CONFIG_AFS_DEBUG	- Permit AFS debugging to be enabled
+	CONFIG_AF_RXRPC_DE	- Permit AF_RXRPC deging to be enabled
+	CONFIG_AFS_DE	- Permit AFS deging to be enabled
 
-They permit the debugging messages to be turned on dynamically by manipulating
+They permit the deging messages to be turned on dynamically by manipulating
 the masks in the following files:
 
-	/sys/module/af_rxrpc/parameters/debug
-	/sys/module/kafs/parameters/debug
+	/sys/module/af_rxrpc/parameters/de
+	/sys/module/kafs/parameters/de
 
 
 =====

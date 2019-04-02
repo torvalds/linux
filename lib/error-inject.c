@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // error-inject.c: Function-level error injection table
 #include <linux/error-injection.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/module.h>
@@ -206,24 +206,24 @@ static int ei_open(struct inode *inode, struct file *filp)
 	return seq_open(filp, &ei_seq_ops);
 }
 
-static const struct file_operations debugfs_ei_ops = {
+static const struct file_operations defs_ei_ops = {
 	.open           = ei_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
 	.release        = seq_release,
 };
 
-static int __init ei_debugfs_init(void)
+static int __init ei_defs_init(void)
 {
 	struct dentry *dir, *file;
 
-	dir = debugfs_create_dir("error_injection", NULL);
+	dir = defs_create_dir("error_injection", NULL);
 	if (!dir)
 		return -ENOMEM;
 
-	file = debugfs_create_file("list", 0444, dir, NULL, &debugfs_ei_ops);
+	file = defs_create_file("list", 0444, dir, NULL, &defs_ei_ops);
 	if (!file) {
-		debugfs_remove(dir);
+		defs_remove(dir);
 		return -ENOMEM;
 	}
 
@@ -235,7 +235,7 @@ static int __init init_error_injection(void)
 	populate_kernel_ei_list();
 
 	if (!module_ei_init())
-		ei_debugfs_init();
+		ei_defs_init();
 
 	return 0;
 }

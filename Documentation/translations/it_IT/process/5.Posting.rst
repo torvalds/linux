@@ -47,7 +47,7 @@ Ci sono un certo numero di cose che dovreste fare prima di considerare
 l'invio delle patch alla comunità di sviluppo.  Queste cose includono:
 
  - Verificare il codice fino al massimo che vi è consentito. Usate gli
-   strumenti di debug del kernel, assicuratevi che il kernel compili con
+   strumenti di de del kernel, assicuratevi che il kernel compili con
    tutte le più ragionevoli combinazioni d'opzioni, usate cross-compilatori
    per compilare il codice per differenti architetture, eccetera.
 

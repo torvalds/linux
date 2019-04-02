@@ -480,7 +480,7 @@ static int adv7183_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int adv7183_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = adv7183_read(sd, reg->reg & 0xff);
@@ -502,7 +502,7 @@ static const struct v4l2_ctrl_ops adv7183_ctrl_ops = {
 static const struct v4l2_subdev_core_ops adv7183_core_ops = {
 	.log_status = adv7183_log_status,
 	.reset = adv7183_reset,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = adv7183_g_register,
 	.s_register = adv7183_s_register,
 #endif

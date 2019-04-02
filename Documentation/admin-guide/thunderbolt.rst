@@ -157,7 +157,7 @@ Upgrading NVM on Thunderbolt device or host
 -------------------------------------------
 Since most of the functionality is handled in firmware running on a
 host controller or a device, it is important that the firmware can be
-upgraded to the latest where possible bugs in it have been fixed.
+upgraded to the latest where possible s in it have been fixed.
 Typically OEMs provide this firmware from their support site.
 
 There is also a central site which has links where to download firmware

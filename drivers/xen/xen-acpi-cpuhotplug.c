@@ -234,7 +234,7 @@ static acpi_status xen_acpi_cpu_hotadd(struct acpi_processor *pr)
 
 static int acpi_processor_device_remove(struct acpi_device *device)
 {
-	pr_debug(PREFIX "Xen does not support CPU hotremove\n");
+	pr_de(PREFIX "Xen does not support CPU hotremove\n");
 
 	return -ENOSYS;
 }
@@ -252,7 +252,7 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 	switch (event) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 			"Processor driver received %s event\n",
 			(event == ACPI_NOTIFY_BUS_CHECK) ?
 			"ACPI_NOTIFY_BUS_CHECK" : "ACPI_NOTIFY_DEVICE_CHECK"));
@@ -279,7 +279,7 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "received ACPI_NOTIFY_EJECT_REQUEST\n"));
 
 		if (acpi_bus_get_device(handle, &device)) {
@@ -300,7 +300,7 @@ static void acpi_processor_hotplug_notify(acpi_handle handle,
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 
 		/* non-hotplug event; possibly handled by other handler */

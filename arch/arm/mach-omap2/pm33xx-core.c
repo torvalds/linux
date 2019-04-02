@@ -117,7 +117,7 @@ static int am33xx_suspend(unsigned int state, int (*fn)(unsigned long),
 	amx3_post_suspend_common();
 
 	/*
-	 * BUG: GFX_L4LS clock domain needs to be woken up to
+	 * : GFX_L4LS clock domain needs to be woken up to
 	 * ensure thet L4LS clock domain does not get stuck in
 	 * transition. If that happens L3 module does not get
 	 * disabled, thereby leading to PER power domain

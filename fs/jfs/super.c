@@ -43,7 +43,7 @@
 #include "jfs_dmap.h"
 #include "jfs_imap.h"
 #include "jfs_acl.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 #include "jfs_xattr.h"
 #include "jfs_dinode.h"
 
@@ -66,7 +66,7 @@ static struct task_struct *jfsCommitThread[MAX_COMMIT_THREADS];
 struct task_struct *jfsIOthread;
 struct task_struct *jfsSyncThread;
 
-#ifdef CONFIG_JFS_DEBUG
+#ifdef CONFIG_JFS_DE
 int jfsloglevel = JFS_LOGLEVEL_WARN;
 module_param(jfsloglevel, int, 0644);
 MODULE_PARM_DESC(jfsloglevel, "Specify JFS loglevel (0, 1 or 2)");
@@ -135,7 +135,7 @@ static void jfs_destroy_inode(struct inode *inode)
 {
 	struct jfs_inode_info *ji = JFS_IP(inode);
 
-	BUG_ON(!list_empty(&ji->anon_inode_list));
+	_ON(!list_empty(&ji->anon_inode_list));
 
 	spin_lock_irq(&ji->ag_lock);
 	if (ji->active_ag != -1) {

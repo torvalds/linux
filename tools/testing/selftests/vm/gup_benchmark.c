@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 	gup.nr_pages_per_call = nr_pages;
 	gup.flags = write;
 
-	fd = open("/sys/kernel/debug/gup_benchmark", O_RDWR);
+	fd = open("/sys/kernel/de/gup_benchmark", O_RDWR);
 	if (fd == -1)
 		perror("open"), exit(1);
 

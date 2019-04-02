@@ -235,7 +235,7 @@ static bool __init efi_memmap_entry_valid(const efi_memory_desc_t *md, int i)
 		return true;
 	}
 
-	pr_warn_once(FW_BUG "Invalid EFI memory map entries:\n");
+	pr_warn_once(FW_ "Invalid EFI memory map entries:\n");
 
 	if (end_hi) {
 		pr_warn("mem%02u: %s range=[0x%016llx-0x%llx%016llx] (invalid)\n",
@@ -746,7 +746,7 @@ static bool should_map_region(efi_memory_desc_t *md)
 		return true;
 
 	/*
-	 * 32-bit EFI doesn't suffer from the bug that requires us to
+	 * 32-bit EFI doesn't suffer from the  that requires us to
 	 * reserve boot services regions, and mixed mode support
 	 * doesn't exist for 32-bit kernels.
 	 */
@@ -765,7 +765,7 @@ static bool should_map_region(efi_memory_desc_t *md)
 	}
 
 	/*
-	 * Map boot services regions as a workaround for buggy
+	 * Map boot services regions as a workaround for gy
 	 * firmware that accesses them even when they shouldn't.
 	 *
 	 * See efi_{reserve,free}_boot_services().
@@ -866,7 +866,7 @@ static void __init kexec_enter_virtual_mode(void)
 		return;
 	}
 
-	BUG_ON(!efi.systab);
+	_ON(!efi.systab);
 
 	num_pages = ALIGN(efi.memmap.nr_map * efi.memmap.desc_size, PAGE_SIZE);
 	num_pages >>= PAGE_SHIFT;
@@ -963,7 +963,7 @@ static void __init __efi_enter_virtual_mode(void)
 		efi_print_memmap();
 	}
 
-	BUG_ON(!efi.systab);
+	_ON(!efi.systab);
 
 	if (efi_setup_page_tables(pa, 1 << pg_shift)) {
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);

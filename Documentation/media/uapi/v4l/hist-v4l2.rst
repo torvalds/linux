@@ -1201,7 +1201,7 @@ V4L2 in Linux 3.10
    VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output
    capability flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS.
 
-2. Added new debugging ioctl
+2. Added new deging ioctl
    :ref:`VIDIOC_DBG_G_CHIP_INFO`.
 
 

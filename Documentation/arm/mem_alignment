@@ -13,7 +13,7 @@ alignment trap can fixup misaligned access for the exception cases, but at
 a high performance cost.  It better be rare.
 
 Now for user space applications, it is possible to configure the alignment
-trap to SIGBUS any code performing unaligned access (good for debugging bad
+trap to SIGBUS any code performing unaligned access (good for deging bad
 code), or even fixup the access by software like for kernel code.  The later
 mode isn't recommended for performance reasons (just think about the
 floating point emulation that works about the same way).  Fix your code

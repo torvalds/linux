@@ -3352,7 +3352,7 @@ static void nfp_net_set_vxlan_port(struct nfp_net *nn, int idx, __be16 port)
 	if (!(nn->dp.ctrl & NFP_NET_CFG_CTRL_VXLAN))
 		return;
 
-	BUILD_BUG_ON(NFP_NET_N_VXLAN_PORTS & 1);
+	BUILD__ON(NFP_NET_N_VXLAN_PORTS & 1);
 	for (i = 0; i < NFP_NET_N_VXLAN_PORTS; i += 2)
 		nn_writel(nn, NFP_NET_CFG_VXLAN_PORT + i * sizeof(port),
 			  be16_to_cpu(nn->vxlan_ports[i + 1]) << 16 |

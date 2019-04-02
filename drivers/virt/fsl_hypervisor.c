@@ -225,7 +225,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	 */
 	pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
-		pr_debug("fsl-hv: could not allocate page list\n");
+		pr_de("fsl-hv: could not allocate page list\n");
 		return -ENOMEM;
 	}
 
@@ -236,7 +236,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	sg_list_unaligned = kmalloc(num_pages * sizeof(struct fh_sg_list) +
 		sizeof(struct fh_sg_list) - 1, GFP_KERNEL);
 	if (!sg_list_unaligned) {
-		pr_debug("fsl-hv: could not allocate S/G list\n");
+		pr_de("fsl-hv: could not allocate S/G list\n");
 		ret = -ENOMEM;
 		goto exit;
 	}
@@ -248,7 +248,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 
 	if (num_pinned != num_pages) {
 		/* get_user_pages() failed */
-		pr_debug("fsl-hv: could not lock source buffer\n");
+		pr_de("fsl-hv: could not lock source buffer\n");
 		ret = (num_pinned < 0) ? num_pinned : -EFAULT;
 		goto exit;
 	}
@@ -439,7 +439,7 @@ static long fsl_hv_ioctl(struct file *file, unsigned int cmd,
 		ret = ioctl_dtprop(arg, 1);
 		break;
 	default:
-		pr_debug("fsl-hv: bad ioctl dir=%u type=%u cmd=%u size=%u\n",
+		pr_de("fsl-hv: bad ioctl dir=%u type=%u cmd=%u size=%u\n",
 			 _IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd),
 			 _IOC_SIZE(cmd));
 		return -ENOTTY;

@@ -133,11 +133,11 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 	struct mantis_hwconfig *config;
 
 	mantis = i2c_get_adapdata(adapter);
-	BUG_ON(!mantis);
+	_ON(!mantis);
 	config = mantis->hwconfig;
-	BUG_ON(!config);
+	_ON(!config);
 
-	dprintk(MANTIS_DEBUG, 1, "Messages:%d", num);
+	dprintk(MANTIS_DE, 1, "Messages:%d", num);
 	mutex_lock(&mantis->i2c_lock);
 
 	while (i < num) {
@@ -148,7 +148,7 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 		    (msgs[i + 1].len < 2)		&&
 		    (msgs[i + 1].flags & I2C_M_RD)) {
 
-			dprintk(MANTIS_DEBUG, 0, "        Byte MODE:\n");
+			dprintk(MANTIS_DE, 0, "        Byte MODE:\n");
 
 			/* Read operation */
 			txd = msgs[i].addr << 25 | (0x1 << 24)
@@ -169,7 +169,7 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 				if (stat & MANTIS_INT_I2CRACK) {
 					data = mmread(MANTIS_I2CDATA_CTL);
 					msgs[i + 1].buf[0] = (data >> 8) & 0xff;
-					dprintk(MANTIS_DEBUG, 0, "        Byte <%d> RXD=0x%02x  [%02x]\n", 0x0, data, msgs[i + 1].buf[0]);
+					dprintk(MANTIS_DE, 0, "        Byte <%d> RXD=0x%02x  [%02x]\n", 0x0, data, msgs[i + 1].buf[0]);
 				} else {
 					/* I/O error */
 					dprintk(MANTIS_ERROR, 1, "        I/O error, LINE:%d", __LINE__);
@@ -239,12 +239,12 @@ int mantis_i2c_init(struct mantis_pci *mantis)
 	if (mantis->i2c_rc < 0)
 		return mantis->i2c_rc;
 
-	dprintk(MANTIS_DEBUG, 1, "Initializing I2C ..");
+	dprintk(MANTIS_DE, 1, "Initializing I2C ..");
 
 	intstat = mmread(MANTIS_INT_STAT);
 	mmread(MANTIS_INT_MASK);
 	mmwrite(intstat, MANTIS_INT_STAT);
-	dprintk(MANTIS_DEBUG, 1, "Disabling I2C interrupt");
+	dprintk(MANTIS_DE, 1, "Disabling I2C interrupt");
 	mantis_mask_ints(mantis, MANTIS_INT_I2CDONE);
 
 	return 0;
@@ -253,10 +253,10 @@ EXPORT_SYMBOL_GPL(mantis_i2c_init);
 
 int mantis_i2c_exit(struct mantis_pci *mantis)
 {
-	dprintk(MANTIS_DEBUG, 1, "Disabling I2C interrupt");
+	dprintk(MANTIS_DE, 1, "Disabling I2C interrupt");
 	mantis_mask_ints(mantis, MANTIS_INT_I2CDONE);
 
-	dprintk(MANTIS_DEBUG, 1, "Removing I2C adapter");
+	dprintk(MANTIS_DE, 1, "Removing I2C adapter");
 	i2c_del_adapter(&mantis->adapter);
 
 	return 0;

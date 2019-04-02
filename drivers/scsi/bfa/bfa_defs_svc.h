@@ -1098,7 +1098,7 @@ struct bfa_port_link_s {
 	u8	 linkstate_rsn;	/*  bfa_port_linkstate_rsn_t */
 	u8	 topology;	/*  P2P/LOOP bfa_port_topology */
 	u8	 speed;		/*  Link speed (1/2/4/8 G) */
-	u32	 linkstate_opt; /*  Linkstate optional data (debug) */
+	u32	 linkstate_opt; /*  Linkstate optional data (de) */
 	u8	 trunked;	/*  Trunked or not (1 or 0) */
 	u8	 fec_state;	/*!< State of FEC */
 	u8	 resvd[6];

@@ -31,7 +31,7 @@
 #include <linux/skbuff.h>
 #include <linux/of_gpio.h>
 #include <linux/ieee802154.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
@@ -672,7 +672,7 @@ at86rf230_tx_trac_check(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 
-	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS)) {
+	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEFS)) {
 		u8 trac = TRAC_MASK(ctx->buf[1]);
 
 		switch (trac) {
@@ -736,7 +736,7 @@ at86rf230_rx_trac_check(void *context)
 	u8 *buf = ctx->buf;
 	int rc;
 
-	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS)) {
+	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEFS)) {
 		u8 trac = TRAC_MASK(buf[1]);
 
 		switch (trac) {
@@ -951,7 +951,7 @@ at86rf230_start(struct ieee802154_hw *hw)
 	struct at86rf230_local *lp = hw->priv;
 
 	/* reset trac stats on start */
-	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEBUGFS))
+	if (IS_ENABLED(CONFIG_IEEE802154_AT86RF230_DEFS))
 		memset(&lp->trac, 0, sizeof(struct at86rf230_trac));
 
 	at86rf230_awake(lp);
@@ -1614,8 +1614,8 @@ not_supp:
 	return rc;
 }
 
-#ifdef CONFIG_IEEE802154_AT86RF230_DEBUGFS
-static struct dentry *at86rf230_debugfs_root;
+#ifdef CONFIG_IEEE802154_AT86RF230_DEFS
+static struct dentry *at86rf230_defs_root;
 
 static int at86rf230_stats_show(struct seq_file *file, void *offset)
 {
@@ -1634,19 +1634,19 @@ static int at86rf230_stats_show(struct seq_file *file, void *offset)
 }
 DEFINE_SHOW_ATTRIBUTE(at86rf230_stats);
 
-static int at86rf230_debugfs_init(struct at86rf230_local *lp)
+static int at86rf230_defs_init(struct at86rf230_local *lp)
 {
-	char debugfs_dir_name[DNAME_INLINE_LEN + 1] = "at86rf230-";
+	char defs_dir_name[DNAME_INLINE_LEN + 1] = "at86rf230-";
 	struct dentry *stats;
 
-	strncat(debugfs_dir_name, dev_name(&lp->spi->dev), DNAME_INLINE_LEN);
+	strncat(defs_dir_name, dev_name(&lp->spi->dev), DNAME_INLINE_LEN);
 
-	at86rf230_debugfs_root = debugfs_create_dir(debugfs_dir_name, NULL);
-	if (!at86rf230_debugfs_root)
+	at86rf230_defs_root = defs_create_dir(defs_dir_name, NULL);
+	if (!at86rf230_defs_root)
 		return -ENOMEM;
 
-	stats = debugfs_create_file("trac_stats", 0444,
-				    at86rf230_debugfs_root, lp,
+	stats = defs_create_file("trac_stats", 0444,
+				    at86rf230_defs_root, lp,
 				    &at86rf230_stats_fops);
 	if (!stats)
 		return -ENOMEM;
@@ -1654,13 +1654,13 @@ static int at86rf230_debugfs_init(struct at86rf230_local *lp)
 	return 0;
 }
 
-static void at86rf230_debugfs_remove(void)
+static void at86rf230_defs_remove(void)
 {
-	debugfs_remove_recursive(at86rf230_debugfs_root);
+	defs_remove_recursive(at86rf230_defs_root);
 }
 #else
-static int at86rf230_debugfs_init(struct at86rf230_local *lp) { return 0; }
-static void at86rf230_debugfs_remove(void) { }
+static int at86rf230_defs_init(struct at86rf230_local *lp) { return 0; }
+static void at86rf230_defs_remove(void) { }
 #endif
 
 static int at86rf230_probe(struct spi_device *spi)
@@ -1759,18 +1759,18 @@ static int at86rf230_probe(struct spi_device *spi)
 	/* going into sleep by default */
 	at86rf230_sleep(lp);
 
-	rc = at86rf230_debugfs_init(lp);
+	rc = at86rf230_defs_init(lp);
 	if (rc)
 		goto free_dev;
 
 	rc = ieee802154_register_hw(lp->hw);
 	if (rc)
-		goto free_debugfs;
+		goto free_defs;
 
 	return rc;
 
-free_debugfs:
-	at86rf230_debugfs_remove();
+free_defs:
+	at86rf230_defs_remove();
 free_dev:
 	ieee802154_free_hw(lp->hw);
 
@@ -1785,7 +1785,7 @@ static int at86rf230_remove(struct spi_device *spi)
 	at86rf230_write_subreg(lp, SR_IRQ_MASK, 0);
 	ieee802154_unregister_hw(lp->hw);
 	ieee802154_free_hw(lp->hw);
-	at86rf230_debugfs_remove();
+	at86rf230_defs_remove();
 	dev_dbg(&spi->dev, "unregistered at86rf230\n");
 
 	return 0;

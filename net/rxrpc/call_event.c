@@ -66,7 +66,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	/* Update DELAY, IDLE, REQUESTED and PING_RESPONSE ACK serial
 	 * numbers, but we don't alter the timeout.
 	 */
-	_debug("prior %u %u vs %u %u",
+	_de("prior %u %u vs %u %u",
 	       ack_reason, prior,
 	       call->ackr_reason, rxrpc_ack_priority[call->ackr_reason]);
 	if (ack_reason == call->ackr_reason) {
@@ -109,9 +109,9 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	}
 
 	if (test_bit(RXRPC_CALL_EV_ACK, &call->events)) {
-		_debug("already scheduled");
+		_de("already scheduled");
 	} else if (immediate || expiry == 0) {
-		_debug("immediate ACK %lx", call->events);
+		_de("immediate ACK %lx", call->events);
 		if (!test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events) &&
 		    background)
 			rxrpc_queue_call(call);
@@ -318,7 +318,7 @@ void rxrpc_process_call(struct work_struct *work)
 
 	//printk("\n--------------------\n");
 	_enter("{%d,%s,%lx}",
-	       call->debug_id, rxrpc_call_states[call->state], call->events);
+	       call->de_id, rxrpc_call_states[call->state], call->events);
 
 recheck_state:
 	/* Limit the number of times we do this before returning to the manager */

@@ -51,6 +51,6 @@ struct nvkm_outp_func {
 		 _outp->index, _outp->info.hasht, _outp->info.hashm, ##a);     \
 } while(0)
 #define OUTP_ERR(o,f,a...) OUTP_MSG((o), error, f, ##a)
-#define OUTP_DBG(o,f,a...) OUTP_MSG((o), debug, f, ##a)
+#define OUTP_DBG(o,f,a...) OUTP_MSG((o), de, f, ##a)
 #define OUTP_TRACE(o,f,a...) OUTP_MSG((o), trace, f, ##a)
 #endif

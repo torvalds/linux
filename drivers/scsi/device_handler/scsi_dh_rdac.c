@@ -237,7 +237,7 @@ static struct workqueue_struct *kmpath_rdacd;
 static void send_mode_select(struct work_struct *work);
 
 /*
- * module parameter to enable rdac debug logging.
+ * module parameter to enable rdac de logging.
  * 2 bits for each type of logging, only two types defined for now
  * Can be enhanced if required at later point
  */
@@ -424,7 +424,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 		rcu_read_lock();
 		list_for_each_entry_rcu(tmp, &h->ctlr->dh_list, node) {
 			/* h->sdev should always be valid */
-			BUG_ON(!tmp->sdev);
+			_ON(!tmp->sdev);
 			tmp->sdev->access_state = access_state;
 		}
 		rcu_read_unlock();

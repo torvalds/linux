@@ -1,4 +1,4 @@
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kprobes.h>
 #include <linux/export.h>
 #include <linux/notifier.h>
@@ -83,7 +83,7 @@ static int notifier_call_chain(struct notifier_block **nl,
 	while (nb && nr_to_call) {
 		next_nb = rcu_dereference_raw(nb->next);
 
-#ifdef CONFIG_DEBUG_NOTIFIERS
+#ifdef CONFIG_DE_NOTIFIERS
 		if (unlikely(!func_ptr_is_kernel_text(nb->notifier_call))) {
 			WARN(1, "Invalid notifier called!");
 			nb = next_nb;
@@ -524,7 +524,7 @@ void srcu_init_notifier_head(struct srcu_notifier_head *nh)
 {
 	mutex_init(&nh->mutex);
 	if (init_srcu_struct(&nh->srcu) < 0)
-		BUG();
+		();
 	nh->head = NULL;
 }
 EXPORT_SYMBOL_GPL(srcu_init_notifier_head);

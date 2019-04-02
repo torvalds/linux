@@ -191,8 +191,8 @@ static const struct {
 	HDMI_REG(VC4_HD_FRAME_COUNT),
 };
 
-#ifdef CONFIG_DEBUG_FS
-int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
+#ifdef CONFIG_DE_FS
+int vc4_hdmi_defs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -213,7 +213,7 @@ int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 
 	return 0;
 }
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static void vc4_hdmi_dump_regs(struct drm_device *dev)
 {
@@ -506,7 +506,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hdmi *hdmi = vc4->hdmi;
-	bool debug_dump_regs = false;
+	bool de_dump_regs = false;
 	bool hsync_pos = mode->flags & DRM_MODE_FLAG_PHSYNC;
 	bool vsync_pos = mode->flags & DRM_MODE_FLAG_PVSYNC;
 	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
@@ -560,7 +560,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	HDMI_WRITE(VC4_HDMI_TX_PHY_RESET_CTL, 0);
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("HDMI regs before:\n");
 		vc4_hdmi_dump_regs(dev);
 	}
@@ -636,7 +636,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	HDMI_WRITE(VC4_HDMI_FIFO_CTL, VC4_HDMI_FIFO_CTL_MASTER_SLAVE_N);
 
-	if (debug_dump_regs) {
+	if (de_dump_regs) {
 		DRM_INFO("HDMI regs after:\n");
 		vc4_hdmi_dump_regs(dev);
 	}
@@ -1353,7 +1353,7 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi->ddc = of_find_i2c_adapter_by_node(ddc_node);
 	of_node_put(ddc_node);
 	if (!hdmi->ddc) {
-		DRM_DEBUG("Failed to get ddc i2c adapter by node\n");
+		DRM_DE("Failed to get ddc i2c adapter by node\n");
 		return -EPROBE_DEFER;
 	}
 

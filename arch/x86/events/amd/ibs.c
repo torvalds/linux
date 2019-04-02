@@ -797,13 +797,13 @@ static inline int ibs_eilvt_valid(void)
 	offset = val & IBSCTL_LVT_OFFSET_MASK;
 
 	if (!(val & IBSCTL_LVT_OFFSET_VALID)) {
-		pr_err(FW_BUG "cpu %d, invalid IBS interrupt offset %d (MSR%08X=0x%016llx)\n",
+		pr_err(FW_ "cpu %d, invalid IBS interrupt offset %d (MSR%08X=0x%016llx)\n",
 		       smp_processor_id(), offset, MSR_AMD64_IBSCTL, val);
 		goto out;
 	}
 
 	if (!get_eilvt(offset)) {
-		pr_err(FW_BUG "cpu %d, IBS interrupt offset %d not available (MSR%08X=0x%016llx)\n",
+		pr_err(FW_ "cpu %d, IBS interrupt offset %d not available (MSR%08X=0x%016llx)\n",
 		       smp_processor_id(), offset, MSR_AMD64_IBSCTL, val);
 		goto out;
 	}
@@ -835,14 +835,14 @@ static int setup_ibs_ctl(int ibs_eilvt_off)
 		pci_read_config_dword(cpu_cfg, IBSCTL, &value);
 		if (value != (ibs_eilvt_off | IBSCTL_LVT_OFFSET_VALID)) {
 			pci_dev_put(cpu_cfg);
-			pr_debug("Failed to setup IBS LVT offset, IBSCTL = 0x%08x\n",
+			pr_de("Failed to setup IBS LVT offset, IBSCTL = 0x%08x\n",
 				 value);
 			return -EINVAL;
 		}
 	} while (1);
 
 	if (!nodes) {
-		pr_debug("No CPU node configured for IBS\n");
+		pr_de("No CPU node configured for IBS\n");
 		return -ENODEV;
 	}
 
@@ -871,7 +871,7 @@ static void force_ibs_eilvt_setup(void)
 	preempt_enable();
 
 	if (offset == APIC_EILVT_NR_MAX) {
-		pr_debug("No EILVT entry available\n");
+		pr_de("No EILVT entry available\n");
 		return;
 	}
 

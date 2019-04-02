@@ -1015,7 +1015,7 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 	if (ret)
 		goto out;
 
-	BUG_ON(id_priv->cma_dev->device != id_priv->id.device);
+	_ON(id_priv->cma_dev->device != id_priv->id.device);
 
 	if (conn_param)
 		qp_attr.max_dest_rd_atomic = conn_param->responder_resources;
@@ -1871,7 +1871,7 @@ static int cma_rep_recv(struct rdma_id_private *id_priv)
 
 	return 0;
 reject:
-	pr_debug_ratelimited("RDMA CM: CONNECT_ERROR: failed to handle reply. status %d\n", ret);
+	pr_de_ratelimited("RDMA CM: CONNECT_ERROR: failed to handle reply. status %d\n", ret);
 	cma_modify_qp_err(id_priv);
 	ib_send_cm_rej(id_priv->cm_id.ib, IB_CM_REJ_CONSUMER_DEFINED,
 		       NULL, 0, NULL, 0);
@@ -1946,7 +1946,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id,
 		/* ignore event */
 		goto out;
 	case IB_CM_REJ_RECEIVED:
-		pr_debug_ratelimited("RDMA CM: REJECTED: %s\n", rdma_reject_msg(&id_priv->id,
+		pr_de_ratelimited("RDMA CM: REJECTED: %s\n", rdma_reject_msg(&id_priv->id,
 										ib_event->param.rej_rcvd.reason));
 		cma_modify_qp_err(id_priv);
 		event.status = ib_event->param.rej_rcvd.reason;
@@ -2540,7 +2540,7 @@ static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 		work->new_state = RDMA_CM_ADDR_RESOLVED;
 		work->event.event = RDMA_CM_EVENT_ROUTE_ERROR;
 		work->event.status = status;
-		pr_debug_ratelimited("RDMA CM: ROUTE_ERROR: failed to query path. status %d\n",
+		pr_de_ratelimited("RDMA CM: ROUTE_ERROR: failed to query path. status %d\n",
 				     status);
 	}
 
@@ -3019,10 +3019,10 @@ static void addr_handler(int status, struct sockaddr *src_addr,
 	if (!status && !id_priv->cma_dev) {
 		status = cma_acquire_dev_by_src_ip(id_priv);
 		if (status)
-			pr_debug_ratelimited("RDMA CM: ADDR_ERROR: failed to acquire device. status %d\n",
+			pr_de_ratelimited("RDMA CM: ADDR_ERROR: failed to acquire device. status %d\n",
 					     status);
 	} else {
-		pr_debug_ratelimited("RDMA CM: ADDR_ERROR: failed to resolve IP. status %d\n", status);
+		pr_de_ratelimited("RDMA CM: ADDR_ERROR: failed to resolve IP. status %d\n", status);
 	}
 
 	if (status) {
@@ -3656,13 +3656,13 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 		if (rep->status != IB_SIDR_SUCCESS) {
 			event.event = RDMA_CM_EVENT_UNREACHABLE;
 			event.status = ib_event->param.sidr_rep_rcvd.status;
-			pr_debug_ratelimited("RDMA CM: UNREACHABLE: bad SIDR reply. status %d\n",
+			pr_de_ratelimited("RDMA CM: UNREACHABLE: bad SIDR reply. status %d\n",
 					     event.status);
 			break;
 		}
 		ret = cma_set_qkey(id_priv, rep->qkey);
 		if (ret) {
-			pr_debug_ratelimited("RDMA CM: ADDR_ERROR: failed to set qkey. status %d\n", ret);
+			pr_de_ratelimited("RDMA CM: ADDR_ERROR: failed to set qkey. status %d\n", ret);
 			event.event = RDMA_CM_EVENT_ADDR_ERROR;
 			event.status = ret;
 			break;
@@ -4126,14 +4126,14 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 	if (!status)
 		status = cma_set_qkey(id_priv, be32_to_cpu(multicast->rec.qkey));
 	else
-		pr_debug_ratelimited("RDMA CM: MULTICAST_ERROR: failed to join multicast. status %d\n",
+		pr_de_ratelimited("RDMA CM: MULTICAST_ERROR: failed to join multicast. status %d\n",
 				     status);
 	mutex_lock(&id_priv->qp_mutex);
 	if (!status && id_priv->id.qp) {
 		status = ib_attach_mcast(id_priv->id.qp, &multicast->rec.mgid,
 					 be16_to_cpu(multicast->rec.mlid));
 		if (status)
-			pr_debug_ratelimited("RDMA CM: MULTICAST_ERROR: failed to attach QP. status %d\n",
+			pr_de_ratelimited("RDMA CM: MULTICAST_ERROR: failed to attach QP. status %d\n",
 					     status);
 	}
 	mutex_unlock(&id_priv->qp_mutex);
@@ -4451,7 +4451,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 						&mc->multicast.ib->rec.mgid,
 						be16_to_cpu(mc->multicast.ib->rec.mlid));
 
-			BUG_ON(id_priv->cma_dev->device != id->device);
+			_ON(id_priv->cma_dev->device != id->device);
 
 			if (rdma_cap_ib_mcast(id->device, id->port_num)) {
 				ib_sa_free_multicast(mc->multicast.ib);

@@ -187,7 +187,7 @@ int idle_inject_start(struct idle_inject_device *ii_dev)
 	if (!idle_duration_ms || !run_duration_ms)
 		return -EINVAL;
 
-	pr_debug("Starting injecting idle cycles on CPUs '%*pbl'\n",
+	pr_de("Starting injecting idle cycles on CPUs '%*pbl'\n",
 		 cpumask_pr_args(to_cpumask(ii_dev->cpumask)));
 
 	idle_inject_wakeup(ii_dev);
@@ -215,7 +215,7 @@ void idle_inject_stop(struct idle_inject_device *ii_dev)
 	struct idle_inject_thread *iit;
 	unsigned int cpu;
 
-	pr_debug("Stopping idle injection on CPUs '%*pbl'\n",
+	pr_de("Stopping idle injection on CPUs '%*pbl'\n",
 		 cpumask_pr_args(to_cpumask(ii_dev->cpumask)));
 
 	hrtimer_cancel(&ii_dev->timer);

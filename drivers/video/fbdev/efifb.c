@@ -376,7 +376,7 @@ static int efifb_probe(struct platform_device *dev)
 	if (!screen_info.pages)
 		screen_info.pages = 1;
 	if (!fb_base_is_valid()) {
-		printk(KERN_DEBUG "efifb: invalid framebuffer address\n");
+		printk(KERN_DE "efifb: invalid framebuffer address\n");
 		return -ENODEV;
 	}
 	printk(KERN_INFO "efifb: probing for efifb\n");

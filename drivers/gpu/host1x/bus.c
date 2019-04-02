@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/host1x.h>
 #include <linux/of.h>
 #include <linux/seq_file.h>
@@ -555,7 +555,7 @@ int host1x_register(struct host1x *host1x)
 
 	mutex_unlock(&drivers_lock);
 
-	debugfs_create_file("devices", S_IRUGO, host1x->debugfs, host1x,
+	defs_create_file("devices", S_IRUGO, host1x->defs, host1x,
 			    &host1x_devices_fops);
 
 	return 0;

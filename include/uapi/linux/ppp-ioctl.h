@@ -33,7 +33,7 @@
 #define SC_COMP_RUN	0x00001000	/* compressor has been inited */
 #define SC_DECOMP_RUN	0x00002000	/* decompressor has been inited */
 #define SC_MP_XSHORTSEQ	0x00004000	/* transmit short MP seq numbers */
-#define SC_DEBUG	0x00010000	/* enable debug messages */
+#define SC_DE	0x00010000	/* enable de messages */
 #define SC_LOG_INPKT	0x00020000	/* log contents of good pkts recvd */
 #define SC_LOG_OUTPKT	0x00040000	/* log contents of pkts sent */
 #define SC_LOG_RAWIN	0x00080000	/* log all chars received */
@@ -101,8 +101,8 @@ struct pppol2tp_ioc_stats {
 #define PPPIOCSNPMODE	_IOW('t', 75, struct npioctl)  /* set NP mode */
 #define PPPIOCSPASS	_IOW('t', 71, struct sock_fprog) /* set pass filter */
 #define PPPIOCSACTIVE	_IOW('t', 70, struct sock_fprog) /* set active filt */
-#define PPPIOCGDEBUG	_IOR('t', 65, int)	/* Read debug level */
-#define PPPIOCSDEBUG	_IOW('t', 64, int)	/* Set debug level */
+#define PPPIOCGDE	_IOR('t', 65, int)	/* Read de level */
+#define PPPIOCSDE	_IOW('t', 64, int)	/* Set de level */
 #define PPPIOCGIDLE	_IOR('t', 63, struct ppp_idle) /* get idle time */
 #define PPPIOCNEWUNIT	_IOWR('t', 62, int)	/* create new ppp unit */
 #define PPPIOCATTACH	_IOW('t', 61, int)	/* attach to ppp unit */

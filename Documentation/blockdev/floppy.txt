@@ -180,8 +180,8 @@ in a configuration file in /etc/modprobe.d/.
 	problems. However, some older drives, and also some laptops
 	are known not to have a DCL.
 
- floppy=debug
-	Print debugging messages.
+ floppy=de
+	Print deging messages.
 
  floppy=messages
 	Print informational messages for some operations (disk change
@@ -225,14 +225,14 @@ The fdutils releases can be found at:
 Reporting problems about the floppy driver
 ==========================================
 
- If you have a question or a bug report about the floppy driver, mail
+ If you have a question or a  report about the floppy driver, mail
 me at Alain.Knaff@poboxes.com . If you post to Usenet, preferably use
 comp.os.linux.hardware. As the volume in these groups is rather high,
 be sure to include the word "floppy" (or "FLOPPY") in the subject
 line.  If the reported problem happens when mounting floppy disks, be
 sure to mention also the type of the filesystem in the subject line.
 
- Be sure to read the FAQ before mailing/posting any bug reports!
+ Be sure to read the FAQ before mailing/posting any  reports!
 
  Alain
 

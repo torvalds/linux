@@ -24,11 +24,11 @@
 MODULE_DESCRIPTION("sony-btf-mpx driver");
 MODULE_LICENSE("GPL v2");
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level 0=off(default) 1=on");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "de level 0=off(default) 1=on");
 
-/* #define MPX_DEBUG */
+/* #define MPX_DE */
 
 /*
  * Note:
@@ -231,7 +231,7 @@ static int mpx_setup(struct sony_btf_mpx *t)
 		mpx_write(client, 0x10, 0x0022,
 			t->audmode == V4L2_TUNER_MODE_MONO ? 0x07f0 : 0x0190);
 
-#ifdef MPX_DEBUG
+#ifdef MPX_DE
 	{
 		u8 buf1[3], buf2[2];
 		struct i2c_msg msgs[2];

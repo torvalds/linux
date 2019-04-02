@@ -58,7 +58,7 @@ static int pdiag_put_mclist(const struct packet_sock *po, struct sk_buff *nlskb)
 		dml->pdmc_type = ml->type;
 		dml->pdmc_alen = ml->alen;
 		dml->pdmc_count = ml->count;
-		BUILD_BUG_ON(sizeof(dml->pdmc_addr) != sizeof(ml->addr));
+		BUILD__ON(sizeof(dml->pdmc_addr) != sizeof(ml->addr));
 		memcpy(dml->pdmc_addr, ml->addr, sizeof(ml->addr));
 	}
 

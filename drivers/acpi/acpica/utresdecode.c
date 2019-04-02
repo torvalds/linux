@@ -12,12 +12,12 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utresdecode")
 
-#if defined (ACPI_DEBUG_OUTPUT) || \
+#if defined (ACPI_DE_OUTPUT) || \
 	defined (ACPI_DISASSEMBLER) || \
-	defined (ACPI_DEBUGGER)
+	defined (ACPI_DEGER)
 /*
  * Strings used to decode resource descriptors.
- * Used by both the disassembler and the debugger resource dump routines
+ * Used by both the disassembler and the deger resource dump routines
  */
 const char *acpi_gbl_bm_decode[] = {
 	"NotBusMaster",

@@ -215,7 +215,7 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 	dentry = dget(target_dir);
 
 	while (dentry->d_flags & DCACHE_DISCONNECTED) {
-		BUG_ON(dentry == mnt->mnt_sb->s_root);
+		_ON(dentry == mnt->mnt_sb->s_root);
 
 		if (IS_ROOT(dentry))
 			parent = reconnect_one(mnt, dentry, nbuf);

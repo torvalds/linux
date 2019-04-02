@@ -23,7 +23,7 @@
 #define wil_dbg_fw(wil, fmt, arg...) wil_dbg(wil, "DBG[ FW ]" fmt, ##arg)
 #define wil_hex_dump_fw(prefix_str, prefix_type, rowsize,		\
 			groupsize, buf, len, ascii)			\
-			print_hex_dump_debug("DBG[ FW ]" prefix_str,	\
+			print_hex_dump_de("DBG[ FW ]" prefix_str,	\
 					     prefix_type, rowsize,	\
 					     groupsize, buf, len, ascii)
 

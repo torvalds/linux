@@ -59,7 +59,7 @@ void __init plat_irq_setup_pins(int mode)
 		register_intc_controller(&intc_desc_irq0123);
 		return;
 	}
-	BUG();
+	();
 }
 
 void __init plat_irq_setup_sh3(void)

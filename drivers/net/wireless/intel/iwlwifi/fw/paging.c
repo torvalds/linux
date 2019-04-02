@@ -76,7 +76,7 @@ void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt)
 		struct iwl_fw_paging *paging = &fwrt->fw_paging_db[i];
 
 		if (!paging->fw_paging_block) {
-			IWL_DEBUG_FW(fwrt,
+			IWL_DE_FW(fwrt,
 				     "Paging: block %d already freed, continue to next page\n",
 				     i);
 
@@ -105,7 +105,7 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 		return 0;
 
 	/* ensure BLOCK_2_EXP_SIZE is power of 2 of PAGING_BLOCK_SIZE */
-	BUILD_BUG_ON(BIT(BLOCK_2_EXP_SIZE) != PAGING_BLOCK_SIZE);
+	BUILD__ON(BIT(BLOCK_2_EXP_SIZE) != PAGING_BLOCK_SIZE);
 
 	num_of_pages = image->paging_mem_size / FW_PAGING_SIZE;
 	fwrt->num_of_paging_blk =
@@ -114,7 +114,7 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 		num_of_pages -
 		NUM_OF_PAGE_PER_GROUP * (fwrt->num_of_paging_blk - 1);
 
-	IWL_DEBUG_FW(fwrt,
+	IWL_DE_FW(fwrt,
 		     "Paging: allocating mem for %d paging blocks, each block holds 8 pages, last block holds %d pages\n",
 		     fwrt->num_of_paging_blk,
 		     fwrt->num_of_pages_in_last_blk);
@@ -150,11 +150,11 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 		fwrt->fw_paging_db[blk_idx].fw_paging_phys = phys;
 
 		if (!blk_idx)
-			IWL_DEBUG_FW(fwrt,
+			IWL_DE_FW(fwrt,
 				     "Paging: allocated 4K(CSS) bytes (order %d) for firmware paging.\n",
 				     order);
 		else
-			IWL_DEBUG_FW(fwrt,
+			IWL_DE_FW(fwrt,
 				     "Paging: allocated 32K bytes (order %d) for firmware paging.\n",
 				     order);
 	}
@@ -197,7 +197,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* copy the CSS block to the dram */
-	IWL_DEBUG_FW(fwrt, "Paging: load paging CSS to FW, sec = %d\n",
+	IWL_DE_FW(fwrt, "Paging: load paging CSS to FW, sec = %d\n",
 		     sec_idx);
 
 	if (image->sec[sec_idx].len > fwrt->fw_paging_db[0].fw_paging_size) {
@@ -214,7 +214,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 				   fwrt->fw_paging_db[0].fw_paging_size,
 				   DMA_BIDIRECTIONAL);
 
-	IWL_DEBUG_FW(fwrt,
+	IWL_DE_FW(fwrt,
 		     "Paging: copied %d CSS bytes to first block\n",
 		     fwrt->fw_paging_db[0].fw_paging_size);
 
@@ -259,7 +259,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 					   block->fw_paging_size,
 					   DMA_BIDIRECTIONAL);
 
-		IWL_DEBUG_FW(fwrt,
+		IWL_DE_FW(fwrt,
 			     "Paging: copied %d paging bytes to block %d\n",
 			     len, idx);
 

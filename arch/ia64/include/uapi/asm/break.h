@@ -10,7 +10,7 @@
  */
 
 /*
- * OS-specific debug break numbers:
+ * OS-specific de break numbers:
  */
 #define __IA64_BREAK_KDB		0x80100
 #define __IA64_BREAK_KPROBE		0x81000 /* .. 0x81fff */

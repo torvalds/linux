@@ -3,7 +3,7 @@
 #ifndef __ASM_VMAP_STACK_H
 #define __ASM_VMAP_STACK_H
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/gfp.h>
 #include <linux/kconfig.h>
 #include <linux/vmalloc.h>
@@ -17,7 +17,7 @@
  */
 static inline unsigned long *arch_alloc_vmap_stack(size_t stack_size, int node)
 {
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_VMAP_STACK));
+	BUILD__ON(!IS_ENABLED(CONFIG_VMAP_STACK));
 
 	return __vmalloc_node_range(stack_size, THREAD_ALIGN,
 				    VMALLOC_START, VMALLOC_END,

@@ -122,7 +122,7 @@ irqreturn_t via_driver_irq_handler(int irq, void *arg)
 			dev_priv->last_vblank_valid = 1;
 		}
 		if (!(atomic_read(&dev_priv->vbl_received) & 0xFF)) {
-			DRM_DEBUG("nsec per vblank is: %llu\n",
+			DRM_DE("nsec per vblank is: %llu\n",
 				  ktime_to_ns(dev_priv->nsec_per_vblank));
 		}
 		drm_handle_vblank(dev, 0);
@@ -209,7 +209,7 @@ via_driver_irq_wait(struct drm_device *dev, unsigned int irq, int force_sequence
 	maskarray_t *masks;
 	int real_irq;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
@@ -259,7 +259,7 @@ void via_driver_irq_preinstall(struct drm_device *dev)
 	drm_via_irq_t *cur_irq;
 	int i;
 
-	DRM_DEBUG("dev_priv: %p\n", dev_priv);
+	DRM_DE("dev_priv: %p\n", dev_priv);
 	if (dev_priv) {
 		cur_irq = dev_priv->via_irqs;
 
@@ -286,7 +286,7 @@ void via_driver_irq_preinstall(struct drm_device *dev)
 			dev_priv->irq_pending_mask |= cur_irq->pending_mask;
 			cur_irq++;
 
-			DRM_DEBUG("Initializing IRQ %d\n", i);
+			DRM_DE("Initializing IRQ %d\n", i);
 		}
 
 		dev_priv->last_vblank_valid = 0;
@@ -306,7 +306,7 @@ int via_driver_irq_postinstall(struct drm_device *dev)
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 
-	DRM_DEBUG("via_driver_irq_postinstall\n");
+	DRM_DE("via_driver_irq_postinstall\n");
 	if (!dev_priv)
 		return -EINVAL;
 
@@ -326,7 +326,7 @@ void via_driver_irq_uninstall(struct drm_device *dev)
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 	u32 status;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	if (dev_priv) {
 
 		/* Some more magic, oh for some data sheets ! */

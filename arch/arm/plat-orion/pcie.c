@@ -48,8 +48,8 @@
 #define  PCIE_STAT_BUS_OFFS		8
 #define  PCIE_STAT_BUS_MASK		0xff
 #define  PCIE_STAT_LINK_DOWN		1
-#define PCIE_DEBUG_CTRL         0x1a60
-#define  PCIE_DEBUG_SOFT_RESET		(1<<20)
+#define PCIE_DE_CTRL         0x1a60
+#define  PCIE_DE_SOFT_RESET		(1<<20)
 
 
 u32 orion_pcie_dev_id(void __iomem *base)
@@ -100,9 +100,9 @@ void __init orion_pcie_reset(void __iomem *base)
 	 * When set, generates an internal reset in the PCI Express unit.
 	 * This bit should be cleared after the link is re-established.
 	 */
-	reg = readl(base + PCIE_DEBUG_CTRL);
-	reg |= PCIE_DEBUG_SOFT_RESET;
-	writel(reg, base + PCIE_DEBUG_CTRL);
+	reg = readl(base + PCIE_DE_CTRL);
+	reg |= PCIE_DE_SOFT_RESET;
+	writel(reg, base + PCIE_DE_CTRL);
 
 	for (i = 0; i < 20; i++) {
 		mdelay(10);
@@ -111,8 +111,8 @@ void __init orion_pcie_reset(void __iomem *base)
 			break;
 	}
 
-	reg &= ~(PCIE_DEBUG_SOFT_RESET);
-	writel(reg, base + PCIE_DEBUG_CTRL);
+	reg &= ~(PCIE_DE_SOFT_RESET);
+	writel(reg, base + PCIE_DE_CTRL);
 }
 
 /*

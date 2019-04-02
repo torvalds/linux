@@ -155,7 +155,7 @@
 
 
 #define D_SUBMODULE rx
-#include "debug-levels.h"
+#include "de-levels.h"
 
 static int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
 module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
@@ -365,7 +365,7 @@ void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
 
 	result = i2400m_msg_size_check(i2400m, l3l4_hdr, size);
 	if (result < 0) {
-		dev_err(dev, "HW BUG? device sent a bad message: %d\n",
+		dev_err(dev, "HW ? device sent a bad message: %d\n",
 			result);
 		goto error_check;
 	}
@@ -442,7 +442,7 @@ void i2400m_rx_trace(struct i2400m *i2400m,
 
 	result = i2400m_msg_size_check(i2400m, l3l4_hdr, size);
 	if (result < 0) {
-		dev_err(dev, "HW BUG? device sent a bad trace message: %d\n",
+		dev_err(dev, "HW ? device sent a bad trace message: %d\n",
 			result);
 		goto error_check;
 	}
@@ -577,7 +577,7 @@ void i2400m_roq_log_entry_print(struct i2400m *i2400m, unsigned index,
 			index, e->ws, e->count, e->sn, e->nsn, e->new_ws);
 		break;
 	default:
-		dev_err(dev, "q#%d BUG? entry %u - unknown type %u\n",
+		dev_err(dev, "q#%d ? entry %u - unknown type %u\n",
 			index, e_index, e->type);
 		break;
 	}
@@ -620,7 +620,7 @@ void i2400m_roq_log_dump(struct i2400m *i2400m, struct i2400m_roq *roq)
 	struct i2400m_roq_log_entry *e;
 	int index = __i2400m_roq_index(i2400m, roq);
 
-	BUG_ON(roq->log->out > roq->log->in);
+	_ON(roq->log->out > roq->log->in);
 	for (cnt = roq->log->out; cnt < roq->log->in; cnt++) {
 		cnt_idx = cnt % I2400M_ROQ_LOG_LENGTH;
 		e = &roq->log->entry[cnt_idx];
@@ -666,7 +666,7 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 		  i2400m, roq, skb, sn, nsn);
 
 	roq_data = (struct i2400m_roq_data *) &skb->cb;
-	BUILD_BUG_ON(sizeof(*roq_data) > sizeof(skb->cb));
+	BUILD__ON(sizeof(*roq_data) > sizeof(skb->cb));
 	roq_data->sn = sn;
 	d_printf(3, dev, "ERX: roq %p [ws %u] nsn %d sn %u\n",
 		 roq, roq->ws, nsn, roq_data->sn);
@@ -709,7 +709,7 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 	}
 	/* If we get here, that is VERY bad -- print info to help
 	 * diagnose and crash it */
-	dev_err(dev, "SW BUG? failed to insert packet\n");
+	dev_err(dev, "SW ? failed to insert packet\n");
 	dev_err(dev, "ERX: roq %p [ws %u] skb %p nsn %d sn %u\n",
 		roq, roq->ws, skb, nsn, roq_data->sn);
 	skb_queue_walk(&roq->queue, skb_itr) {
@@ -719,7 +719,7 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 		dev_err(dev, "ERX: roq %p skb_itr %p nsn %d sn %u\n",
 			roq, skb_itr, nsn_itr, roq_data_itr->sn);
 	}
-	BUG();
+	();
 out:
 	d_fnend(4, dev, "(i2400m %p roq %p skb %p sn %u nsn %d) = void\n",
 		i2400m, roq, skb, sn, nsn);
@@ -829,7 +829,7 @@ void i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 	len = skb_queue_len(&roq->queue);
 	nsn = __i2400m_roq_nsn(roq, lbn);
 	if (unlikely(nsn >= 1024)) {
-		dev_err(dev, "SW BUG? queue nsn %d (lbn %u ws %u)\n",
+		dev_err(dev, "SW ? queue nsn %d (lbn %u ws %u)\n",
 			nsn, lbn, roq->ws);
 		i2400m_roq_log_dump(i2400m, roq);
 		i2400m_reset(i2400m, I2400M_RT_WARM);
@@ -991,12 +991,12 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 	struct i2400m_roq_data *roq_data;
 	unsigned long flags;
 
-	BUILD_BUG_ON(ETH_HLEN > sizeof(*hdr));
+	BUILD__ON(ETH_HLEN > sizeof(*hdr));
 
 	d_fnstart(2, dev, "(i2400m %p skb_rx %p single %u payload %p "
 		  "size %zu)\n", i2400m, skb_rx, single_last, payload, size);
 	if (size < sizeof(*hdr)) {
-		dev_err(dev, "ERX: HW BUG? message with short header (%zu "
+		dev_err(dev, "ERX: HW ? message with short header (%zu "
 			"vs %zu bytes expected)\n", size, sizeof(*hdr));
 		goto error;
 	}
@@ -1062,7 +1062,7 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 			i2400m_roq_queue_update_ws(i2400m, roq, skb, ro_sn);
 			break;
 		default:
-			dev_err(dev, "HW BUG? unknown reorder type %u\n", ro_type);
+			dev_err(dev, "HW ? unknown reorder type %u\n", ro_type);
 		}
 
 		spin_lock_irqsave(&i2400m->rx_lock, flags);
@@ -1123,7 +1123,7 @@ void i2400m_rx_payload(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		break;
 	default:	/* Anything else shouldn't come to the host */
 		if (printk_ratelimit())
-			dev_err(dev, "RX: HW BUG? unexpected payload type %u\n",
+			dev_err(dev, "RX: HW ? unexpected payload type %u\n",
 				pl_type);
 	}
 }
@@ -1147,22 +1147,22 @@ int i2400m_rx_msg_hdr_check(struct i2400m *i2400m,
 	int result = -EIO;
 	struct device *dev = i2400m_dev(i2400m);
 	if (buf_size < sizeof(*msg_hdr)) {
-		dev_err(dev, "RX: HW BUG? message with short header (%zu "
+		dev_err(dev, "RX: HW ? message with short header (%zu "
 			"vs %zu bytes expected)\n", buf_size, sizeof(*msg_hdr));
 		goto error;
 	}
 	if (msg_hdr->barker != cpu_to_le32(I2400M_D2H_MSG_BARKER)) {
-		dev_err(dev, "RX: HW BUG? message received with unknown "
+		dev_err(dev, "RX: HW ? message received with unknown "
 			"barker 0x%08x (buf_size %zu bytes)\n",
 			le32_to_cpu(msg_hdr->barker), buf_size);
 		goto error;
 	}
 	if (msg_hdr->num_pls == 0) {
-		dev_err(dev, "RX: HW BUG? zero payload packets in message\n");
+		dev_err(dev, "RX: HW ? zero payload packets in message\n");
 		goto error;
 	}
 	if (le16_to_cpu(msg_hdr->num_pls) > I2400M_MAX_PLS_IN_MSG) {
-		dev_err(dev, "RX: HW BUG? message contains more payload "
+		dev_err(dev, "RX: HW ? message contains more payload "
 			"than maximum; ignoring.\n");
 		goto error;
 	}
@@ -1195,20 +1195,20 @@ int i2400m_rx_pl_descr_check(struct i2400m *i2400m,
 	enum i2400m_pt pl_type = i2400m_pld_type(pld);
 
 	if (pl_size > i2400m->bus_pl_size_max) {
-		dev_err(dev, "RX: HW BUG? payload @%zu: size %zu is "
+		dev_err(dev, "RX: HW ? payload @%zu: size %zu is "
 			"bigger than maximum %zu; ignoring message\n",
 			pl_itr, pl_size, i2400m->bus_pl_size_max);
 		goto error;
 	}
 	if (pl_itr + pl_size > buf_size) {	/* enough? */
-		dev_err(dev, "RX: HW BUG? payload @%zu: size %zu "
+		dev_err(dev, "RX: HW ? payload @%zu: size %zu "
 			"goes beyond the received buffer "
 			"size (%zu bytes); ignoring message\n",
 			pl_itr, pl_size, buf_size);
 		goto error;
 	}
 	if (pl_type >= I2400M_PT_ILLEGAL) {
-		dev_err(dev, "RX: HW BUG? illegal payload type %u; "
+		dev_err(dev, "RX: HW ? illegal payload type %u; "
 			"ignoring message\n", pl_type);
 		goto error;
 	}
@@ -1264,7 +1264,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	pl_itr = struct_size(msg_hdr, pld, num_pls);
 	pl_itr = ALIGN(pl_itr, I2400M_PL_ALIGN);
 	if (pl_itr > skb_len) {	/* got all the payload descriptors? */
-		dev_err(dev, "RX: HW BUG? message too short (%u bytes) for "
+		dev_err(dev, "RX: HW ? message too short (%u bytes) for "
 			"%u payload descriptors (%zu each, total %zu)\n",
 			skb_len, num_pls, sizeof(msg_hdr->pld[0]), pl_itr);
 		goto error_pl_descr_short;
@@ -1314,7 +1314,7 @@ void i2400m_unknown_barker(struct i2400m *i2400m,
 	struct device *dev = i2400m_dev(i2400m);
 	char prefix[64];
 	const __le32 *barker = buf;
-	dev_err(dev, "RX: HW BUG? unknown barker %08x, "
+	dev_err(dev, "RX: HW ? unknown barker %08x, "
 		"dropping %zu bytes\n", le32_to_cpu(*barker), size);
 	snprintf(prefix, sizeof(prefix), "%s %s: ",
 		 dev_driver_string(dev), dev_name(dev));

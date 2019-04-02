@@ -31,7 +31,7 @@
 #include "cifsglob.h"
 #include "cifsacl.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 
 /* security id for everyone/world system group */
 static const struct cifs_sid sid_everyone = {
@@ -416,7 +416,7 @@ try_upcall_to_get_id:
 	 * probably a safe assumption but might be better to check based on
 	 * sidtype.
 	 */
-	BUILD_BUG_ON(sizeof(uid_t) != sizeof(gid_t));
+	BUILD__ON(sizeof(uid_t) != sizeof(gid_t));
 	if (sidkey->datalen != sizeof(uid_t)) {
 		rc = -EIO;
 		cifs_dbg(FYI, "%s: Downcall contained malformed key (datalen=%hu)\n",
@@ -665,7 +665,7 @@ static __u16 fill_ace_for_sid(struct cifs_ace *pntace,
 }
 
 
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 {
 	int num_subauth;
@@ -754,7 +754,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 			dump_ace(ppace[i], end_of_acl);
 #endif
 			if (compare_sids(&(ppace[i]->sid), pownersid) == 0)
@@ -827,7 +827,7 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	if (psid->num_subauth) {
 		int i;
 		cifs_dbg(FYI, "SID revision %d num_auth %d\n",

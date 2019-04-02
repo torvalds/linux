@@ -55,12 +55,12 @@
 
 extern int usbip_use_syslog;
 extern int usbip_use_stderr;
-extern int usbip_use_debug ;
+extern int usbip_use_de ;
 
 #define PROGNAME "usbip"
 
 #define pr_fmt(fmt)	"%s: %s: " fmt "\n", PROGNAME
-#define dbg_fmt(fmt)	pr_fmt("%s:%d:[%s] " fmt), "debug",	\
+#define dbg_fmt(fmt)	pr_fmt("%s:%d:[%s] " fmt), "de",	\
 		        __FILE__, __LINE__, __func__
 
 #define err(fmt, args...)						\
@@ -85,9 +85,9 @@ extern int usbip_use_debug ;
 
 #define dbg(fmt, args...)						\
 	do {								\
-	if (usbip_use_debug) {						\
+	if (usbip_use_de) {						\
 		if (usbip_use_syslog) {					\
-			syslog(LOG_DEBUG, dbg_fmt(fmt), ##args);	\
+			syslog(LOG_DE, dbg_fmt(fmt), ##args);	\
 		}							\
 		if (usbip_use_stderr) {					\
 			fprintf(stderr, dbg_fmt(fmt), ##args);		\
@@ -95,9 +95,9 @@ extern int usbip_use_debug ;
 	}								\
 	} while (0)
 
-#define BUG()						\
+#define ()						\
 	do {						\
-		err("sorry, it's a bug!");		\
+		err("sorry, it's a !");		\
 		abort();				\
 	} while (0)
 

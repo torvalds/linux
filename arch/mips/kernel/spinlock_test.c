@@ -3,10 +3,10 @@
 #include <linux/kthread.h>
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 
 static int ss_get(void *data, u64 *val)
 {
@@ -118,9 +118,9 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_multi, multi_get, NULL, "%llu\n");
 
 static int __init spinlock_test(void)
 {
-	debugfs_create_file("spin_single", S_IRUGO, mips_debugfs_dir, NULL,
+	defs_create_file("spin_single", S_IRUGO, mips_defs_dir, NULL,
 			    &fops_ss);
-	debugfs_create_file("spin_multi", S_IRUGO, mips_debugfs_dir, NULL,
+	defs_create_file("spin_multi", S_IRUGO, mips_defs_dir, NULL,
 			    &fops_multi);
 	return 0;
 }

@@ -151,20 +151,20 @@ int nilfs_page_buffers_clean(struct page *page)
 	return 1;
 }
 
-void nilfs_page_bug(struct page *page)
+void nilfs_page_(struct page *page)
 {
 	struct address_space *m;
 	unsigned long ino;
 
 	if (unlikely(!page)) {
-		printk(KERN_CRIT "NILFS_PAGE_BUG(NULL)\n");
+		printk(KERN_CRIT "NILFS_PAGE_(NULL)\n");
 		return;
 	}
 
 	m = page->mapping;
 	ino = m ? m->host->i_ino : 0;
 
-	printk(KERN_CRIT "NILFS_PAGE_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
+	printk(KERN_CRIT "NILFS_PAGE_(%p): cnt=%d index#=%llu flags=0x%lx "
 	       "mapping=%p ino=%lu\n",
 	       page, page_ref_count(page),
 	       (unsigned long long)page->index, page->flags, m, ino);
@@ -199,7 +199,7 @@ static void nilfs_copy_page(struct page *dst, struct page *src, int copy_dirty)
 	struct buffer_head *dbh, *dbufs, *sbh, *sbufs;
 	unsigned long mask = NILFS_BUFFER_INHERENT_BITS;
 
-	BUG_ON(PageWriteback(dst));
+	_ON(PageWriteback(dst));
 
 	sbh = sbufs = page_buffers(src);
 	if (!page_has_buffers(dst))
@@ -256,7 +256,7 @@ repeat:
 
 		lock_page(page);
 		if (unlikely(!PageDirty(page)))
-			NILFS_PAGE_BUG(page, "inconsistent dirty state");
+			NILFS_PAGE_(page, "inconsistent dirty state");
 
 		dpage = grab_cache_page(dmap, page->index);
 		if (unlikely(!dpage)) {
@@ -266,7 +266,7 @@ repeat:
 			break;
 		}
 		if (unlikely(!page_has_buffers(page)))
-			NILFS_PAGE_BUG(page,
+			NILFS_PAGE_(page,
 				       "found empty page in dat page cache");
 
 		nilfs_copy_page(dpage, page, 1);
@@ -388,7 +388,7 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	if (!silent)
 		nilfs_msg(sb, KERN_WARNING,

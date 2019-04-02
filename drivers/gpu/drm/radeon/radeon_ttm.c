@@ -41,14 +41,14 @@
 #include <linux/swiotlb.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
-static int radeon_ttm_debugfs_init(struct radeon_device *rdev);
-static void radeon_ttm_debugfs_fini(struct radeon_device *rdev);
+static int radeon_ttm_defs_init(struct radeon_device *rdev);
+static void radeon_ttm_defs_fini(struct radeon_device *rdev);
 
 static struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 {
@@ -187,7 +187,7 @@ static void radeon_move_null(struct ttm_buffer_object *bo,
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
-	BUG_ON(old_mem->mm_node != NULL);
+	_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 }
@@ -235,7 +235,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
+	BUILD__ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
 
 	num_pages = new_mem->num_pages * (PAGE_SIZE / RADEON_GPU_PAGE_SIZE);
 	fence = radeon_copy(rdev, old_start, new_start, num_pages, bo->resv);
@@ -834,9 +834,9 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	DRM_INFO("radeon: %uM of GTT memory ready.\n",
 		 (unsigned)(rdev->mc.gtt_size / (1024 * 1024)));
 
-	r = radeon_ttm_debugfs_init(rdev);
+	r = radeon_ttm_defs_init(rdev);
 	if (r) {
-		DRM_ERROR("Failed to init debugfs\n");
+		DRM_ERROR("Failed to init defs\n");
 		return r;
 	}
 	return 0;
@@ -848,7 +848,7 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 
 	if (!rdev->mman.initialized)
 		return;
-	radeon_ttm_debugfs_fini(rdev);
+	radeon_ttm_defs_fini(rdev);
 	if (rdev->stolen_vga_memory) {
 		r = radeon_bo_reserve(rdev->stolen_vga_memory, false);
 		if (r == 0) {
@@ -927,7 +927,7 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
 static int radeon_mm_dump_table(struct seq_file *m, void *data)
 {
@@ -938,7 +938,7 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 	struct ttm_mem_type_manager *man = &rdev->mman.bdev.man[ttm_pl];
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	man->func->debug(man, &p);
+	man->func->de(man, &p);
 	return 0;
 }
 
@@ -946,12 +946,12 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 static int ttm_pl_vram = TTM_PL_VRAM;
 static int ttm_pl_tt = TTM_PL_TT;
 
-static struct drm_info_list radeon_ttm_debugfs_list[] = {
+static struct drm_info_list radeon_ttm_defs_list[] = {
 	{"radeon_vram_mm", radeon_mm_dump_table, 0, &ttm_pl_vram},
 	{"radeon_gtt_mm", radeon_mm_dump_table, 0, &ttm_pl_tt},
-	{"ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL},
+	{"ttm_page_pool", ttm_page_alloc_defs, 0, NULL},
 #ifdef CONFIG_SWIOTLB
-	{"ttm_dma_page_pool", ttm_dma_page_alloc_debugfs, 0, NULL}
+	{"ttm_dma_page_pool", ttm_dma_page_alloc_defs, 0, NULL}
 #endif
 };
 
@@ -1063,48 +1063,48 @@ static const struct file_operations radeon_ttm_gtt_fops = {
 
 #endif
 
-static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
+static int radeon_ttm_defs_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	unsigned count;
 
 	struct drm_minor *minor = rdev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *ent, *root = minor->defs_root;
 
-	ent = debugfs_create_file("radeon_vram", S_IFREG | S_IRUGO, root,
+	ent = defs_create_file("radeon_vram", S_IFREG | S_IRUGO, root,
 				  rdev, &radeon_ttm_vram_fops);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 	rdev->mman.vram = ent;
 
-	ent = debugfs_create_file("radeon_gtt", S_IFREG | S_IRUGO, root,
+	ent = defs_create_file("radeon_gtt", S_IFREG | S_IRUGO, root,
 				  rdev, &radeon_ttm_gtt_fops);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 	rdev->mman.gtt = ent;
 
-	count = ARRAY_SIZE(radeon_ttm_debugfs_list);
+	count = ARRAY_SIZE(radeon_ttm_defs_list);
 
 #ifdef CONFIG_SWIOTLB
 	if (!(rdev->need_swiotlb && swiotlb_nr_tbl()))
 		--count;
 #endif
 
-	return radeon_debugfs_add_files(rdev, radeon_ttm_debugfs_list, count);
+	return radeon_defs_add_files(rdev, radeon_ttm_defs_list, count);
 #else
 
 	return 0;
 #endif
 }
 
-static void radeon_ttm_debugfs_fini(struct radeon_device *rdev)
+static void radeon_ttm_defs_fini(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
-	debugfs_remove(rdev->mman.vram);
+	defs_remove(rdev->mman.vram);
 	rdev->mman.vram = NULL;
 
-	debugfs_remove(rdev->mman.gtt);
+	defs_remove(rdev->mman.gtt);
 	rdev->mman.gtt = NULL;
 #endif
 }

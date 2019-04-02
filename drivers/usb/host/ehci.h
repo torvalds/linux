@@ -25,7 +25,7 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 #define EHCI_STATS
 #endif
 
@@ -122,7 +122,7 @@ struct ehci_hcd {			/* one per controller */
 	/* glue to PCI and HCD framework */
 	struct ehci_caps __iomem *caps;
 	struct ehci_regs __iomem *regs;
-	struct ehci_dbg_port __iomem *debug;
+	struct ehci_dbg_port __iomem *de;
 
 	__u32			hcs_params;	/* cached register copy */
 	spinlock_t		lock;
@@ -204,7 +204,7 @@ struct ehci_hcd {			/* one per controller */
 
 	/* SILICON QUIRKS */
 	unsigned		no_selective_suspend:1;
-	unsigned		has_fsl_port_bug:1; /* FreeScale */
+	unsigned		has_fsl_port_:1; /* FreeScale */
 	unsigned		has_fsl_hs_errata:1;	/* Freescale HS quirk */
 	unsigned		has_fsl_susp_errata:1;	/* NXP SUSP quirk */
 	unsigned		big_endian_mmio:1;
@@ -214,8 +214,8 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		need_io_watchdog:1;
 	unsigned		amd_pll_fix:1;
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
-	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
-	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
+	unsigned		has_synopsys_hc_:1; /* Synopsys HC */
+	unsigned		frame_index_:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
 	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
 
@@ -240,9 +240,9 @@ struct ehci_hcd {			/* one per controller */
 #	define INCR(x) do {} while (0)
 #endif
 
-	/* debug files */
-#ifdef CONFIG_DYNAMIC_DEBUG
-	struct dentry		*debug_dir;
+	/* de files */
+#ifdef CONFIG_DYNAMIC_DE
+	struct dentry		*de_dir;
 #endif
 
 	/* bandwidth usage */
@@ -681,9 +681,9 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 /* Some Freescale processors have an erratum in which the TT
  * port number in the queue head was 0..N-1 instead of 1..N.
  */
-#define	ehci_has_fsl_portno_bug(e)		((e)->has_fsl_port_bug)
+#define	ehci_has_fsl_portno_(e)		((e)->has_fsl_port_)
 #else
-#define	ehci_has_fsl_portno_bug(e)		(0)
+#define	ehci_has_fsl_portno_(e)		(0)
 #endif
 
 #define PORTSC_FSL_PFSC	24	/* Port Force Full-Speed Connect */

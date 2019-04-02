@@ -88,10 +88,10 @@ int __init sfi_parse_mtmr(struct sfi_table_header *table)
 		memcpy(sfi_mtimer_array, pentry, totallen);
 	}
 
-	pr_debug("SFI MTIMER info (num = %d):\n", sfi_mtimer_num);
+	pr_de("SFI MTIMER info (num = %d):\n", sfi_mtimer_num);
 	pentry = sfi_mtimer_array;
 	for (totallen = 0; totallen < sfi_mtimer_num; totallen++, pentry++) {
-		pr_debug("timer[%d]: paddr = 0x%08x, freq = %dHz, irq = %d\n",
+		pr_de("timer[%d]: paddr = 0x%08x, freq = %dHz, irq = %d\n",
 			totallen, (u32)pentry->phys_addr,
 			pentry->freq_hz, pentry->irq);
 		mp_irq.type = MP_INTSRC;
@@ -113,7 +113,7 @@ struct sfi_timer_table_entry *sfi_get_mtmr(int hint)
 	int i;
 	if (hint < sfi_mtimer_num) {
 		if (!sfi_mtimer_usage[hint]) {
-			pr_debug("hint taken for timer %d irq %d\n",
+			pr_de("hint taken for timer %d irq %d\n",
 				hint, sfi_mtimer_array[hint].irq);
 			sfi_mtimer_usage[hint] = 1;
 			return &sfi_mtimer_array[hint];
@@ -160,10 +160,10 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 		memcpy(sfi_mrtc_array, pentry, totallen);
 	}
 
-	pr_debug("SFI RTC info (num = %d):\n", sfi_mrtc_num);
+	pr_de("SFI RTC info (num = %d):\n", sfi_mrtc_num);
 	pentry = sfi_mrtc_array;
 	for (totallen = 0; totallen < sfi_mrtc_num; totallen++, pentry++) {
-		pr_debug("RTC[%d]: paddr = 0x%08x, irq = %d\n",
+		pr_de("RTC[%d]: paddr = 0x%08x, irq = %d\n",
 			totallen, (u32)pentry->phys_addr, pentry->irq);
 		mp_irq.type = MP_INTSRC;
 		mp_irq.irqtype = mp_INT;
@@ -200,9 +200,9 @@ static int __init sfi_parse_gpio(struct sfi_table_header *table)
 		return -1;
 	gpio_num_entry = num;
 
-	pr_debug("GPIO pin info:\n");
+	pr_de("GPIO pin info:\n");
 	for (i = 0; i < num; i++, pentry++)
-		pr_debug("info[%2d]: controller = %16.16s, pin_name = %16.16s,"
+		pr_de("info[%2d]: controller = %16.16s, pin_name = %16.16s,"
 		" pin = %d\n", i,
 			pentry->controller_name,
 			pentry->pin_name,
@@ -331,7 +331,7 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *pentry,
 	struct platform_device *pdev;
 	void *pdata = NULL;
 
-	pr_debug("IPC bus, name = %16.16s, irq = 0x%2x\n",
+	pr_de("IPC bus, name = %16.16s, irq = 0x%2x\n",
 		pentry->name, pentry->irq);
 
 	/*
@@ -376,7 +376,7 @@ static void __init sfi_handle_spi_dev(struct sfi_device_table_entry *pentry,
 	spi_info.bus_num = pentry->host_num;
 	spi_info.chip_select = pentry->addr;
 	spi_info.max_speed_hz = pentry->max_freq;
-	pr_debug("SPI bus=%d, name=%16.16s, irq=0x%2x, max_freq=%d, cs=%d\n",
+	pr_de("SPI bus=%d, name=%16.16s, irq=0x%2x, max_freq=%d, cs=%d\n",
 		spi_info.bus_num,
 		spi_info.modalias,
 		spi_info.irq,
@@ -404,7 +404,7 @@ static void __init sfi_handle_i2c_dev(struct sfi_device_table_entry *pentry,
 	strncpy(i2c_info.type, pentry->name, SFI_NAME_LEN);
 	i2c_info.irq = ((pentry->irq == (u8)0xff) ? 0 : pentry->irq);
 	i2c_info.addr = pentry->addr;
-	pr_debug("I2C bus = %d, name = %16.16s, irq = 0x%2x, addr = 0x%x\n",
+	pr_de("I2C bus = %d, name = %16.16s, irq = 0x%2x, addr = 0x%x\n",
 		pentry->host_num,
 		i2c_info.type,
 		i2c_info.irq,
@@ -431,7 +431,7 @@ static void __init sfi_handle_sd_dev(struct sfi_device_table_entry *pentry,
 	sd_info.bus_num = pentry->host_num;
 	sd_info.max_clk = pentry->max_freq;
 	sd_info.addr = pentry->addr;
-	pr_debug("SD bus = %d, name = %16.16s, max_clk = %d, addr = 0x%x\n",
+	pr_de("SD bus = %d, name = %16.16s, max_clk = %d, addr = 0x%x\n",
 		 sd_info.bus_num,
 		 sd_info.name,
 		 sd_info.max_clk,
@@ -443,7 +443,7 @@ static void __init sfi_handle_sd_dev(struct sfi_device_table_entry *pentry,
 	/* Nothing we can do with this for now */
 	sd_info.platform_data = pdata;
 
-	pr_debug("Successfully registered %16.16s", sd_info.name);
+	pr_de("Successfully registered %16.16s", sd_info.name);
 }
 
 extern struct devs_id *const __x86_intel_mid_dev_start[],

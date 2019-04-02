@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.demon.co.uk>
  *  Driver p16v chips
  *  Version: 0.21
  *
@@ -41,7 +41,7 @@
  *    Split from p16v.c
  *
  *
- *  BUGS:
+ *  S:
  *    Some stability problems when unloading the snd-p16v kernel module.
  *    --
  *

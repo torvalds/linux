@@ -27,9 +27,9 @@ static int z_erofs_unzip_lz4(void *in, void *out, size_t inlen, size_t outlen)
 	errln("%s, failed to decompress, in[%p, %zu] outlen[%p, %zu]",
 	      __func__, in, inlen, out, outlen);
 	WARN_ON(1);
-	print_hex_dump(KERN_DEBUG, "raw data [in]: ", DUMP_PREFIX_OFFSET,
+	print_hex_dump(KERN_DE, "raw data [in]: ", DUMP_PREFIX_OFFSET,
 		       16, 1, in, inlen, true);
-	print_hex_dump(KERN_DEBUG, "raw data [out]: ", DUMP_PREFIX_OFFSET,
+	print_hex_dump(KERN_DE, "raw data [out]: ", DUMP_PREFIX_OFFSET,
 		       16, 1, out, outlen, true);
 	return -EIO;
 }
@@ -79,7 +79,7 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 			if (compressed_pages[j] != page)
 				continue;
 
-			DBG_BUGON(mirrored[j]);
+			DBG_ON(mirrored[j]);
 			memcpy(percpu_data + j * PAGE_SIZE, dst, PAGE_SIZE);
 			mirrored[j] = true;
 			break;

@@ -130,7 +130,7 @@ Sat Apr 1  12:00 2000 Gerard Roudier (groudier@club-internet.fr)
 	- Tiny change for __sparc__ appeared in 2.3.99-pre4.1 that 
 	  applies to cache line size (? Probably from David S Miller).
 	- Make sure no data transfer will happen for Scsi_Cmnd requests 
-	  that supply SCSI_DATA_NONE direction (this avoids some BUG() 
+	  that supply SCSI_DATA_NONE direction (this avoids some () 
 	  statement in the PCI code when a data buffer is also supplied).
 
 Sat Mar 11 12:00 2000 Gerard Roudier (groudier@club-internet.fr)
@@ -169,11 +169,11 @@ Sun Feb 20 11:00 2000 Gerard Roudier (groudier@club-internet.fr)
 	  Many thanks to David S. Miller for his preliminary changes 
 	  that have been useful guidelines, for having reviewed the 
 	  code and having tested this driver version on Ultra-Sparc.
-	- 2 tiny bugs fixed in the PCI wrapper that provides support 
+	- 2 tiny s fixed in the PCI wrapper that provides support 
 	  for early kernels without pci device structure.
 	- Get data transfer direction from the scsi command structure 
 	  (Scsi_Cmnd) with kernels that provide this information.
-	- Fix an old bug that only affected 896 rev. 1 when driver 
+	- Fix an old  that only affected 896 rev. 1 when driver 
 	  profile support option was set in kernel configuration.
 
 Fri Jan 14 14:00 2000 Pam Delaney (pam.delaney@lsil.com)
@@ -223,7 +223,7 @@ Mon Dec 6  22:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	- Get rid of the old PCI bios interface, but preserve kernel 2.0 
 	  compatibility from a simple wrapper.
 	- Update the poor Tekram sync factor table.
-	- Fix in a tiny 'printk' bug that may oops in case of extended 
+	- Fix in a tiny 'printk'  that may oops in case of extended 
 	  errors (unrecovered parity error, data overrun, etc ...)
 	  (Sent by Pamela Delaney from LSILOGIC)
 	- Remove the compilation condition about having to acquire the 
@@ -267,7 +267,7 @@ Sat Sep 11  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	  table indirect. Extended messages of any size are accepted now.
 	  (Size is limited to 8 for now, but a constant is just to be 
 	  increased if necessary)
-	- Fix some bug in the fully untested MDP handling:) and share 
+	- Fix some  in the fully untested MDP handling:) and share 
 	  some code between MDP handling and residual calculation.
 	- Calculate the data transfer residual as the 2's complement 
 	  integer (A positive value in returned on data overrun, and 
@@ -391,7 +391,7 @@ Thu Mar 11  23:00 1999 Gerard Roudier (groudier@club-internet.fr)
 
 Sat Mar 6  11:00 1999 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.2b
-	- Fix some oooold bug that hangs the bus if a device rejects a 
+	- Fix some oooold  that hangs the bus if a device rejects a 
 	  negotiation. Btw, the corresponding stuff also needed some cleanup 
 	  and thus the change is a bit larger than it could have been.
 	- Still some typo that made compilation fail for 64 bit (trivial fix).
@@ -468,7 +468,7 @@ Sat Dec 19  21:00 1998 Gerard Roudier (groudier@club-internet.fr)
 Thu Dec  3  24:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	* version pre-sym53c8xx-0.18
 	- I received this afternoon a 896 from SYMBIOS and started testing  
-	  the driver with this beast. After having fixed 3 buglets, it worked  
+	  the driver with this beast. After having fixed 3 lets, it worked  
 	  with all features enabled including the phase mismatch handling 
 	  from SCRIPTS. Since this feature is not yet tested enough, the 
 	  boot option 'ncr53c8xx=specf:1' is still required to enable the 
@@ -499,7 +499,7 @@ Tue Nov 24  23:00 1998 Gerard Roudier (groudier@club-internet.fr)
 	  Even with this penalty, I think that this will work great.
 	  Obviously this optimization makes sense only if the IRQ is not 
 	  shared with another device.
-	- Still a buglet in the tags initial settings that needed to be fixed.
+	- Still a let in the tags initial settings that needed to be fixed.
 	  It was not possible to disable TGQ at system startup for devices 
 	  that claim TGQ support. The driver used at least 2 for the queue 
 	  depth but did'nt keep track of user settings for tags depth lower 

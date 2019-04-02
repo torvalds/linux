@@ -267,7 +267,7 @@ static void bdc_mem_init(struct bdc *bdc, bool reinit)
 	usb2_pm |= BDC_HLE;
 	bdc_writel(bdc->regs, BDC_USPPM2, usb2_pm);
 
-	/* readback for debug */
+	/* readback for de */
 	usb2_pm = bdc_readl(bdc->regs, BDC_USPPM2);
 	dev_dbg(bdc->dev, "usb2_pm=%08x\n", usb2_pm);
 

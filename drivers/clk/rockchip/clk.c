@@ -150,7 +150,7 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 	struct clk_mux *frac_mux = &frac->mux;
 	int ret = 0;
 
-	pr_debug("%s: event %lu, old_rate %lu, new_rate: %lu\n",
+	pr_de("%s: event %lu, old_rate %lu, new_rate: %lu\n",
 		 __func__, event, ndata->old_rate, ndata->new_rate);
 	if (event == PRE_RATE_CHANGE) {
 		frac->rate_change_idx =
@@ -304,7 +304,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 
 		/* notifier on the fraction divider to catch rate changes */
 		if (frac->mux_frac_idx >= 0) {
-			pr_debug("%s: found fractional parent in mux at pos %d\n",
+			pr_de("%s: found fractional parent in mux at pos %d\n",
 				 __func__, frac->mux_frac_idx);
 			ret = clk_notifier_register(clk, &frac->clk_nb);
 			if (ret)

@@ -43,7 +43,7 @@ static struct inode * _ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 						   int type,
 						   u32 slot);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 static struct lock_class_key ocfs2_sysfile_cluster_lock_key[NUM_SYSTEM_INODES];
 #endif
 
@@ -60,8 +60,8 @@ static struct inode **get_local_system_inode(struct ocfs2_super *osb,
 	int index;
 	struct inode **local_system_inodes, **free = NULL;
 
-	BUG_ON(slot == OCFS2_INVALID_SLOT);
-	BUG_ON(type < OCFS2_FIRST_LOCAL_SYSTEM_INODE ||
+	_ON(slot == OCFS2_INVALID_SLOT);
+	_ON(type < OCFS2_FIRST_LOCAL_SYSTEM_INODE ||
 	       type > OCFS2_LAST_LOCAL_SYSTEM_INODE);
 
 	spin_lock(&osb->osb_lock);
@@ -119,7 +119,7 @@ struct inode *ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 		/* get a ref in addition to the array ref */
 		inode = igrab(inode);
 		mutex_unlock(&osb->system_file_mutex);
-		BUG_ON(!inode);
+		_ON(!inode);
 
 		return inode;
 	}
@@ -130,7 +130,7 @@ struct inode *ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 	/* add one more if putting into array for first time */
 	if (arr && inode) {
 		*arr = igrab(inode);
-		BUG_ON(!*arr);
+		_ON(!*arr);
 	}
 	mutex_unlock(&osb->system_file_mutex);
 	return inode;
@@ -161,7 +161,7 @@ static struct inode * _ocfs2_get_system_file_inode(struct ocfs2_super *osb,
 		inode = NULL;
 		goto bail;
 	}
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	if (type == LOCAL_USER_QUOTA_SYSTEM_INODE ||
 	    type == LOCAL_GROUP_QUOTA_SYSTEM_INODE ||
 	    type == JOURNAL_SYSTEM_INODE) {

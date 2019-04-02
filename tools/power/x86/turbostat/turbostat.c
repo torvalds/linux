@@ -52,7 +52,7 @@ struct timeval interval_tv = {5, 0};
 struct timespec interval_ts = {5, 0};
 struct timespec one_msec = {0, 1000000};
 unsigned int num_iterations;
-unsigned int debug;
+unsigned int de;
 unsigned int quiet;
 unsigned int shown;
 unsigned int sums_need_wide_columns;
@@ -530,7 +530,7 @@ void help(void)
 	"		  eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
 	"  -c, --cpu	cpu-set	limit output to summary plus cpu-set:\n"
 	"		  {core | package | j,k,l..m,n-p }\n"
-	"  -d, --debug	displays usec, Time_Of_Day_Seconds and more debugging\n"
+	"  -d, --de	displays usec, Time_Of_Day_Seconds and more deging\n"
 	"  -D, --Dump	displays the raw counter values\n"
 	"  -e, --enable	[all | column]\n"
 	"		shows all or the specified disabled column\n"
@@ -591,7 +591,7 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 				exit(-1);
 			}
 			deferred_skip_names[deferred_skip_index++] = name_list;
-			if (debug)
+			if (de)
 				fprintf(stderr, "deferred \"%s\"\n", name_list);
 			if (deferred_skip_index >= MAX_DEFERRED) {
 				fprintf(stderr, "More than max %d un-recognized --skip options '%s'\n",
@@ -1323,7 +1323,7 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	}
 
 	if (old->mperf == 0) {
-		if (debug > 1)
+		if (de > 1)
 			fprintf(outf, "cpu%d MPERF 0!\n", old->cpu_id);
 		old->mperf = 1;	/* divide by 0 protection */
 	}
@@ -1711,8 +1711,8 @@ void get_apic_id(struct thread_data *t)
 	__cpuid(0xb, eax, ebx, ecx, edx);
 	t->x2apic_id = edx;
 
-	if (debug && (t->apic_id != (t->x2apic_id & 0xff)))
-		fprintf(outf, "cpu%d: BIOS BUG: apic 0x%x x2apic 0x%x\n",
+	if (de && (t->apic_id != (t->x2apic_id & 0xff)))
+		fprintf(outf, "cpu%d: BIOS : apic 0x%x x2apic 0x%x\n",
 				t->cpu_id, t->apic_id, t->x2apic_id);
 }
 
@@ -2918,11 +2918,11 @@ static void signal_handler (int signal)
 	switch (signal) {
 	case SIGINT:
 		exit_requested = 1;
-		if (debug)
+		if (de)
 			fprintf(stderr, " SIGINT\n");
 		break;
 	case SIGUSR1:
-		if (debug > 1)
+		if (de > 1)
 			fprintf(stderr, "SIGUSR1\n");
 		break;
 	}
@@ -3965,7 +3965,7 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 	}
 
 
-	if (do_dts && debug) {
+	if (do_dts && de) {
 		unsigned int resolution;
 
 		if (get_msr(cpu, MSR_IA32_THERM_STATUS, &msr))
@@ -4778,7 +4778,7 @@ void topology_probe()
 	if (!summary_only && topo.num_cpus > 1)
 		BIC_PRESENT(BIC_CPU);
 
-	if (debug > 1)
+	if (de > 1)
 		fprintf(outf, "num_cpus %d max_cpu_num %d\n", topo.num_cpus, topo.max_cpu_num);
 
 	cpus = calloc(1, (topo.max_cpu_num  + 1) * sizeof(struct cpu_topology));
@@ -4823,7 +4823,7 @@ void topology_probe()
 		int siblings;
 
 		if (cpu_is_not_present(i)) {
-			if (debug > 1)
+			if (de > 1)
 				fprintf(outf, "cpu%d NOT PRESENT\n", i);
 			continue;
 		}
@@ -4854,30 +4854,30 @@ void topology_probe()
 	}
 
 	topo.cores_per_node = max_core_id + 1;
-	if (debug > 1)
+	if (de > 1)
 		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n",
 			max_core_id, topo.cores_per_node);
 	if (!summary_only && topo.cores_per_node > 1)
 		BIC_PRESENT(BIC_Core);
 
 	topo.num_packages = max_package_id + 1;
-	if (debug > 1)
+	if (de > 1)
 		fprintf(outf, "max_package_id %d, sizing for %d packages\n",
 			max_package_id, topo.num_packages);
 	if (!summary_only && topo.num_packages > 1)
 		BIC_PRESENT(BIC_Package);
 
 	set_node_data();
-	if (debug > 1)
+	if (de > 1)
 		fprintf(outf, "nodes_per_pkg %d\n", topo.nodes_per_pkg);
 	if (!summary_only && topo.nodes_per_pkg > 1)
 		BIC_PRESENT(BIC_Node);
 
 	topo.threads_per_core = max_siblings;
-	if (debug > 1)
+	if (de > 1)
 		fprintf(outf, "max_siblings %d\n", max_siblings);
 
-	if (debug < 1)
+	if (de < 1)
 		return;
 
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
@@ -5014,7 +5014,7 @@ void set_base_cpu(void)
 	if (base_cpu < 0)
 		err(-ENODEV, "No valid cpus found");
 
-	if (debug > 1)
+	if (de > 1)
 		fprintf(outf, "base_cpu = %d\n", base_cpu);
 }
 
@@ -5461,7 +5461,7 @@ void cmdline(int argc, char **argv)
 		{"add",		required_argument,	0, 'a'},
 		{"cpu",		required_argument,	0, 'c'},
 		{"Dump",	no_argument,		0, 'D'},
-		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
+		{"de",	no_argument,		0, 'd'},	/* internal, not documented */
 		{"enable",	required_argument,	0, 'e'},
 		{"interval",	required_argument,	0, 'i'},
 		{"num_iterations",	required_argument,	0, 'n'},
@@ -5497,7 +5497,7 @@ void cmdline(int argc, char **argv)
 			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
 			break;
 		case 'd':
-			debug++;
+			de++;
 			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
 			break;
 		case 'H':

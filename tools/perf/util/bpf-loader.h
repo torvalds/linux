@@ -85,13 +85,13 @@ int bpf__strerror_setup_output_event(struct perf_evlist *evlist, int err, char *
 #else
 #include <errno.h>
 #include <string.h>
-#include "debug.h"
+#include "de.h"
 
 static inline struct bpf_object *
 bpf__prepare_load(const char *filename __maybe_unused,
 		  bool source __maybe_unused)
 {
-	pr_debug("ERROR: eBPF object loading is disabled during compiling.\n");
+	pr_de("ERROR: eBPF object loading is disabled during compiling.\n");
 	return ERR_PTR(-ENOTSUP);
 }
 

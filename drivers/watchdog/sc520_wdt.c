@@ -18,7 +18,7 @@
  *
  *	Additional fixes Alan Cox
  *	-	Fixed formatting
- *	-	Removed debug printks
+ *	-	Removed de printks
  *	-	Fixed SMP built kernel deadlock
  *	-	Switched to private locks not lock_kernel
  *	-	Used ioremap/writew/readw
@@ -41,7 +41,7 @@
  *	3/27 - 2004 Changes by Sean Young <sean@mess.org>
  *	-	set MMCR_BASE to 0xfffef000
  *	-	CBAR does not need to be read
- *	-	removed debugging printks
+ *	-	removed deging printks
  *
  *  This WDT driver is different from most other Linux WDT
  *  drivers in that the driver will ping the watchdog by itself,

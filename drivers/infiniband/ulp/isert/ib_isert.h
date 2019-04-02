@@ -13,21 +13,21 @@
 
 #define isert_dbg(fmt, arg...)				 \
 	do {						 \
-		if (unlikely(isert_debug_level > 2))	 \
-			printk(KERN_DEBUG PFX "%s: " fmt,\
+		if (unlikely(isert_de_level > 2))	 \
+			printk(KERN_DE PFX "%s: " fmt,\
 				__func__ , ## arg);	 \
 	} while (0)
 
 #define isert_warn(fmt, arg...)				\
 	do {						\
-		if (unlikely(isert_debug_level > 0))	\
+		if (unlikely(isert_de_level > 0))	\
 			pr_warn(PFX "%s: " fmt,         \
 				__func__ , ## arg);	\
 	} while (0)
 
 #define isert_info(fmt, arg...)				\
 	do {						\
-		if (unlikely(isert_debug_level > 1))	\
+		if (unlikely(isert_de_level > 1))	\
 			pr_info(PFX "%s: " fmt,         \
 				__func__ , ## arg);	\
 	} while (0)

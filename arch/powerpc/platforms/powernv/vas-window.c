@@ -41,7 +41,7 @@ static void compute_paste_address(struct vas_window *window, u64 *addr, int *len
 	if (len)
 		*len = PAGE_SIZE;
 
-	pr_debug("Txwin #%d: Paste addr 0x%llx\n", winid, *addr);
+	pr_de("Txwin #%d: Paste addr 0x%llx\n", winid, *addr);
 }
 
 u64 vas_win_paste_addr(struct vas_window *win)
@@ -160,7 +160,7 @@ static void unmap_paste_region(struct vas_window *window)
 
 /*
  * Unmap the MMIO regions for a window. Hold the vas_mutex so we don't
- * unmap when the window's debugfs dir is in use. This serializes close
+ * unmap when the window's defs dir is in use. This serializes close
  * of a window even on another VAS instance but since its not a critical
  * path, just minimize the time we hold the mutex for now. We can add
  * a per-instance mutex later if necessary.
@@ -767,7 +767,7 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 static bool rx_win_args_valid(enum vas_cop_type cop,
 			struct vas_rx_win_attr *attr)
 {
-	pr_debug("Rxattr: fault %d, notify %d, intr %d, early %d, fifo %d\n",
+	pr_de("Rxattr: fault %d, notify %d, intr %d, early %d, fifo %d\n",
 			attr->fault_win, attr->notify_disable,
 			attr->intr_disable, attr->notify_early,
 			attr->rx_fifo_size);
@@ -1118,7 +1118,7 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 	else
 		rc = -EINVAL;
 
-	pr_debug("Txwin #%d: Msg count %llu\n", txwin->winid,
+	pr_de("Txwin #%d: Msg count %llu\n", txwin->winid,
 			read_hvwc_reg(txwin, VREG(LRFIFO_PUSH)));
 
 	return rc;

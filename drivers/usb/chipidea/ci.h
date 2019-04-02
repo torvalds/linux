@@ -193,7 +193,7 @@ struct hw_bank {
  * @phy: pointer to PHY, if any
  * @usb_phy: pointer to USB PHY, if any and if using the USB PHY framework
  * @hcd: pointer to usb_hcd for ehci host driver
- * @debugfs: root dentry for this controller in debugfs
+ * @defs: root dentry for this controller in defs
  * @id_event: indicates there is an id event, and handled at ci_otg_work
  * @b_sess_valid_event: indicates there is a vbus event, and handled
  * at ci_otg_work
@@ -246,7 +246,7 @@ struct ci_hdrc {
 	/* old usb_phy interface */
 	struct usb_phy			*usb_phy;
 	struct usb_hcd			*hcd;
-	struct dentry			*debugfs;
+	struct dentry			*defs;
 	bool				id_event;
 	bool				b_sess_valid_event;
 	bool				imx28_write_fix;
@@ -258,7 +258,7 @@ struct ci_hdrc {
 
 static inline struct ci_role_driver *ci_role(struct ci_hdrc *ci)
 {
-	BUG_ON(ci->role >= CI_ROLE_END || !ci->roles[ci->role]);
+	_ON(ci->role >= CI_ROLE_END || !ci->roles[ci->role]);
 	return ci->roles[ci->role];
 }
 

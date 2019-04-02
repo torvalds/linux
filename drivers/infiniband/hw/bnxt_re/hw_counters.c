@@ -237,7 +237,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 struct rdma_hw_stats *bnxt_re_ib_alloc_hw_stats(struct ib_device *ibdev,
 						u8 port_num)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(bnxt_re_stat_name) != BNXT_RE_NUM_COUNTERS);
+	BUILD__ON(ARRAY_SIZE(bnxt_re_stat_name) != BNXT_RE_NUM_COUNTERS);
 	/* We support only per port stats */
 	if (!port_num)
 		return NULL;

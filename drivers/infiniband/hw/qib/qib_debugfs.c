@@ -29,18 +29,18 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 
 #include "qib.h"
 #include "qib_verbs.h"
-#include "qib_debugfs.h"
+#include "qib_defs.h"
 
 static struct dentry *qib_dbg_root;
 
-#define DEBUGFS_FILE(name) \
+#define DEFS_FILE(name) \
 static const struct seq_operations _##name##_seq_ops = { \
 	.start = _##name##_seq_start, \
 	.next  = _##name##_seq_next, \
@@ -114,7 +114,7 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_FILE(opcode_stats)
+DEFS_FILE(opcode_stats)
 
 static void *_ctx_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -176,7 +176,7 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-DEBUGFS_FILE(ctx_stats)
+DEFS_FILE(ctx_stats)
 
 static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(RCU)
@@ -236,7 +236,7 @@ static int _qp_stats_seq_show(struct seq_file *s, void *iter_ptr)
 	return 0;
 }
 
-DEBUGFS_FILE(qp_stats)
+DEFS_FILE(qp_stats)
 
 void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 {
@@ -244,31 +244,31 @@ void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 	char name[10];
 
 	snprintf(name, sizeof(name), "qib%d", dd_from_dev(ibd)->unit);
-	root = debugfs_create_dir(name, qib_dbg_root);
+	root = defs_create_dir(name, qib_dbg_root);
 	ibd->qib_ibdev_dbg = root;
 
-	debugfs_create_file("opcode_stats", 0400, root, ibd,
+	defs_create_file("opcode_stats", 0400, root, ibd,
 			    &_opcode_stats_file_ops);
-	debugfs_create_file("ctx_stats", 0400, root, ibd, &_ctx_stats_file_ops);
-	debugfs_create_file("qp_stats", 0400, root, ibd, &_qp_stats_file_ops);
+	defs_create_file("ctx_stats", 0400, root, ibd, &_ctx_stats_file_ops);
+	defs_create_file("qp_stats", 0400, root, ibd, &_qp_stats_file_ops);
 }
 
 void qib_dbg_ibdev_exit(struct qib_ibdev *ibd)
 {
 	if (!qib_dbg_root)
 		goto out;
-	debugfs_remove_recursive(ibd->qib_ibdev_dbg);
+	defs_remove_recursive(ibd->qib_ibdev_dbg);
 out:
 	ibd->qib_ibdev_dbg = NULL;
 }
 
 void qib_dbg_init(void)
 {
-	qib_dbg_root = debugfs_create_dir(QIB_DRV_NAME, NULL);
+	qib_dbg_root = defs_create_dir(QIB_DRV_NAME, NULL);
 }
 
 void qib_dbg_exit(void)
 {
-	debugfs_remove_recursive(qib_dbg_root);
+	defs_remove_recursive(qib_dbg_root);
 	qib_dbg_root = NULL;
 }

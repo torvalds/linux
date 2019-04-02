@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: uttrack - Memory allocation tracking routines (debug only)
+ * Module Name: uttrack - Memory allocation tracking routines (de only)
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -27,18 +27,18 @@
 ACPI_MODULE_NAME("uttrack")
 
 /* Local prototypes */
-static struct acpi_debug_mem_block *acpi_ut_find_allocation(struct
-							    acpi_debug_mem_block
+static struct acpi_de_mem_block *acpi_ut_find_allocation(struct
+							    acpi_de_mem_block
 							    *allocation);
 
 static acpi_status
-acpi_ut_track_allocation(struct acpi_debug_mem_block *address,
+acpi_ut_track_allocation(struct acpi_de_mem_block *address,
 			 acpi_size size,
 			 u8 alloc_type,
 			 u32 component, const char *module, u32 line);
 
 static acpi_status
-acpi_ut_remove_allocation(struct acpi_debug_mem_block *address,
+acpi_ut_remove_allocation(struct acpi_de_mem_block *address,
 			  u32 component, const char *module, u32 line);
 
 /*******************************************************************************
@@ -91,7 +91,7 @@ acpi_ut_create_list(const char *list_name,
 void *acpi_ut_allocate_and_track(acpi_size size,
 				 u32 component, const char *module, u32 line)
 {
-	struct acpi_debug_mem_block *allocation;
+	struct acpi_de_mem_block *allocation;
 	acpi_status status;
 
 	/* Check for an inadvertent size of zero bytes */
@@ -103,7 +103,7 @@ void *acpi_ut_allocate_and_track(acpi_size size,
 	}
 
 	allocation =
-	    acpi_os_allocate(size + sizeof(struct acpi_debug_mem_header));
+	    acpi_os_allocate(size + sizeof(struct acpi_de_mem_header));
 	if (!allocation) {
 
 		/* Report allocation error */
@@ -154,7 +154,7 @@ void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
 					u32 component,
 					const char *module, u32 line)
 {
-	struct acpi_debug_mem_block *allocation;
+	struct acpi_de_mem_block *allocation;
 	acpi_status status;
 
 	/* Check for an inadvertent size of zero bytes */
@@ -167,7 +167,7 @@ void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
 
 	allocation =
 	    acpi_os_allocate_zeroed(size +
-				    sizeof(struct acpi_debug_mem_header));
+				    sizeof(struct acpi_de_mem_header));
 	if (!allocation) {
 
 		/* Report allocation error */
@@ -217,7 +217,7 @@ void
 acpi_ut_free_and_track(void *allocation,
 		       u32 component, const char *module, u32 line)
 {
-	struct acpi_debug_mem_block *debug_block;
+	struct acpi_de_mem_block *de_block;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ut_free, allocation);
@@ -228,22 +228,22 @@ acpi_ut_free_and_track(void *allocation,
 		return_VOID;
 	}
 
-	debug_block = ACPI_CAST_PTR(struct acpi_debug_mem_block,
+	de_block = ACPI_CAST_PTR(struct acpi_de_mem_block,
 				    (((char *)allocation) -
-				     sizeof(struct acpi_debug_mem_header)));
+				     sizeof(struct acpi_de_mem_header)));
 
 	acpi_gbl_global_list->total_freed++;
-	acpi_gbl_global_list->current_total_size -= debug_block->size;
+	acpi_gbl_global_list->current_total_size -= de_block->size;
 
 	status =
-	    acpi_ut_remove_allocation(debug_block, component, module, line);
+	    acpi_ut_remove_allocation(de_block, component, module, line);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Could not free memory"));
 	}
 
-	acpi_os_free(debug_block);
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p freed (block %p)\n",
-			  allocation, debug_block));
+	acpi_os_free(de_block);
+	ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS, "%p freed (block %p)\n",
+			  allocation, de_block));
 	return_VOID;
 }
 
@@ -274,11 +274,11 @@ acpi_ut_free_and_track(void *allocation,
  *
  ******************************************************************************/
 
-static struct acpi_debug_mem_block *acpi_ut_find_allocation(struct
-							    acpi_debug_mem_block
+static struct acpi_de_mem_block *acpi_ut_find_allocation(struct
+							    acpi_de_mem_block
 							    *allocation)
 {
-	struct acpi_debug_mem_block *element;
+	struct acpi_de_mem_block *element;
 
 	element = acpi_gbl_global_list->list_head;
 	if (!element) {
@@ -328,13 +328,13 @@ static struct acpi_debug_mem_block *acpi_ut_find_allocation(struct
  ******************************************************************************/
 
 static acpi_status
-acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
+acpi_ut_track_allocation(struct acpi_de_mem_block *allocation,
 			 acpi_size size,
 			 u8 alloc_type,
 			 u32 component, const char *module, u32 line)
 {
 	struct acpi_memory_list *mem_list;
-	struct acpi_debug_mem_block *element;
+	struct acpi_de_mem_block *element;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE_PTR(ut_track_allocation, allocation);
@@ -376,7 +376,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 		/* Insert at list head */
 
 		if (mem_list->list_head) {
-			((struct acpi_debug_mem_block *)(mem_list->list_head))->
+			((struct acpi_de_mem_block *)(mem_list->list_head))->
 			    previous = allocation;
 		}
 
@@ -418,7 +418,7 @@ unlock_and_exit:
  ******************************************************************************/
 
 static acpi_status
-acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
+acpi_ut_remove_allocation(struct acpi_de_mem_block *allocation,
 			  u32 component, const char *module, u32 line)
 {
 	struct acpi_memory_list *mem_list;
@@ -458,7 +458,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
 		(allocation->next)->previous = allocation->previous;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "Freeing %p, size 0%X\n",
+	ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS, "Freeing %p, size 0%X\n",
 			  &allocation->user_space, allocation->size));
 
 	/* Mark the segment as deleted */
@@ -490,32 +490,32 @@ void acpi_ut_dump_allocation_info(void)
 	ACPI_FUNCTION_TRACE(ut_dump_allocation_info);
 
 /*
-	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+	ACPI_DE_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Current allocations",
 		mem_list->current_count,
 		ROUND_UP_TO_1K (mem_list->current_size)));
 
-	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+	ACPI_DE_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Max concurrent allocations",
 		mem_list->max_concurrent_count,
 		ROUND_UP_TO_1K (mem_list->max_concurrent_size)));
 
-	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+	ACPI_DE_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Total (all) internal objects",
 		running_object_count,
 		ROUND_UP_TO_1K (running_object_size)));
 
-	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+	ACPI_DE_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Total (all) allocations",
 		running_alloc_count,
 		ROUND_UP_TO_1K (running_alloc_size)));
 
-	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+	ACPI_DE_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Current Nodes",
 		acpi_gbl_current_node_count,
 		ROUND_UP_TO_1K (acpi_gbl_current_node_size)));
 
-	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
+	ACPI_DE_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Max Nodes",
 		acpi_gbl_max_concurrent_node_count,
 		ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_node_count *
@@ -539,7 +539,7 @@ void acpi_ut_dump_allocation_info(void)
 
 void acpi_ut_dump_allocations(u32 component, const char *module)
 {
-	struct acpi_debug_mem_block *element;
+	struct acpi_de_mem_block *element;
 	union acpi_descriptor *descriptor;
 	u32 num_outstanding = 0;
 	u8 descriptor_type;

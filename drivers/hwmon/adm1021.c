@@ -340,7 +340,7 @@ static int adm1021_detect(struct i2c_client *client,
 	int conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("detect failed, smbus byte data not supported!\n");
+		pr_de("detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
@@ -351,7 +351,7 @@ static int adm1021_detect(struct i2c_client *client,
 
 	/* Check unused bits */
 	if ((status & 0x03) || (config & 0x3F) || (conv_rate & 0xF8)) {
-		pr_debug("detect failed, chip not detected!\n");
+		pr_de("detect failed, chip not detected!\n");
 		return -ENODEV;
 	}
 
@@ -422,7 +422,7 @@ static int adm1021_detect(struct i2c_client *client,
 		}
 	}
 
-	pr_debug("Detected chip %s at adapter %d, address 0x%02x.\n",
+	pr_de("Detected chip %s at adapter %d, address 0x%02x.\n",
 		 type_name, i2c_adapter_id(adapter), client->addr);
 	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 

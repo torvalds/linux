@@ -72,7 +72,7 @@ int nvidia_probe_of_connector(struct fb_info *info, int conn, u8 **out_edid)
 		*out_edid = kmemdup(pedid, EDID_LENGTH, GFP_KERNEL);
 		if (*out_edid == NULL)
 			return -1;
-		printk(KERN_DEBUG "nvidiafb: Found OF EDID for head %d\n", conn);
+		printk(KERN_DE "nvidiafb: Found OF EDID for head %d\n", conn);
 		return 0;
 	}
 	return -1;

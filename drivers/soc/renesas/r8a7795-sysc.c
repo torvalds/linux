@@ -5,7 +5,7 @@
  * Copyright (C) 2016-2017 Glider bvba
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/kernel.h>
 #include <linux/sys_soc.h>
 

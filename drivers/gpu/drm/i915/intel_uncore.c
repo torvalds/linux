@@ -48,7 +48,7 @@ static const char * const forcewake_domain_names[] = {
 const char *
 intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(forcewake_domain_names) != FW_DOMAIN_ID_COUNT);
+	BUILD__ON(ARRAY_SIZE(forcewake_domain_names) != FW_DOMAIN_ID_COUNT);
 
 	if (id >= 0 && id < FW_DOMAIN_ID_COUNT)
 		return forcewake_domain_names[id];
@@ -160,7 +160,7 @@ fw_domain_wait_ack_with_fallback(const struct drm_i915_private *i915,
 				   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL_FALLBACK));
 	} while (!ack_detected && pass++ < 10);
 
-	DRM_DEBUG_DRIVER("%s had to use fallback to %s ack, 0x%x (passes %u)\n",
+	DRM_DE_DRIVER("%s had to use fallback to %s ack, 0x%x (passes %u)\n",
 			 intel_uncore_forcewake_domain_to_str(d->id),
 			 type == ACK_SET ? "set" : "clear",
 			 __raw_i915_read32(i915, d->reg_ack),
@@ -220,7 +220,7 @@ fw_domains_get(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM__ON(fw_domains & ~i915->uncore.fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
 		fw_domain_wait_ack_clear(i915, d);
@@ -240,7 +240,7 @@ fw_domains_get_with_fallback(struct drm_i915_private *i915,
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM__ON(fw_domains & ~i915->uncore.fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
 		fw_domain_wait_ack_clear_fallback(i915, d);
@@ -259,7 +259,7 @@ fw_domains_put(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM__ON(fw_domains & ~i915->uncore.fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
 		fw_domain_put(i915, d);
@@ -277,7 +277,7 @@ fw_domains_reset(struct drm_i915_private *i915,
 	if (!fw_domains)
 		return;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM__ON(fw_domains & ~i915->uncore.fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
 		fw_domain_reset(i915, d);
@@ -334,7 +334,7 @@ static void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 		if (wait_for_atomic((n = fifo_free_entries(dev_priv)) >
 				    GT_FIFO_NUM_RESERVED_ENTRIES,
 				    GT_FIFO_TIMEOUT_MS)) {
-			DRM_DEBUG("GT_FIFO timeout, entries: %u\n", n);
+			DRM_DE("GT_FIFO timeout, entries: %u\n", n);
 			return;
 		}
 	}
@@ -503,14 +503,14 @@ vlv_check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 }
 
 static bool
-gen6_check_for_fifo_debug(struct drm_i915_private *dev_priv)
+gen6_check_for_fifo_de(struct drm_i915_private *dev_priv)
 {
 	u32 fifodbg;
 
 	fifodbg = __raw_i915_read32(dev_priv, GTFIFODBG);
 
 	if (unlikely(fifodbg)) {
-		DRM_DEBUG_DRIVER("GTFIFODBG = 0x08%x\n", fifodbg);
+		DRM_DE_DRIVER("GTFIFODBG = 0x08%x\n", fifodbg);
 		__raw_i915_write32(dev_priv, GTFIFODBG, fifodbg);
 	}
 
@@ -529,7 +529,7 @@ check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 		ret |= vlv_check_for_unclaimed_mmio(dev_priv);
 
 	if (IS_GEN_RANGE(dev_priv, 6, 7))
-		ret |= gen6_check_for_fifo_debug(dev_priv);
+		ret |= gen6_check_for_fifo_de(dev_priv);
 
 	return ret;
 }
@@ -539,7 +539,7 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 {
 	/* clear out unclaimed reg detection bit */
 	if (check_for_unclaimed_mmio(dev_priv))
-		DRM_DEBUG("unclaimed mmio detected on uncore init, clearing\n");
+		DRM_DE("unclaimed mmio detected on uncore init, clearing\n");
 
 	/* WaDisableShadowRegForCpd:chv */
 	if (IS_CHERRYVIEW(dev_priv)) {
@@ -650,7 +650,7 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
  * @dev_priv: i915 device instance
  *
  * This function is a wrapper around intel_uncore_forcewake_get() to acquire
- * the GT powerwell and in the process disable our debugging for the
+ * the GT powerwell and in the process disable our deging for the
  * duration of userspace's bypass.
  */
 void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv)
@@ -659,14 +659,14 @@ void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv)
 	if (!dev_priv->uncore.user_forcewake.count++) {
 		intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
 
-		/* Save and disable mmio debugging for the user bypass */
+		/* Save and disable mmio deging for the user bypass */
 		dev_priv->uncore.user_forcewake.saved_mmio_check =
 			dev_priv->uncore.unclaimed_mmio_check;
-		dev_priv->uncore.user_forcewake.saved_mmio_debug =
-			i915_modparams.mmio_debug;
+		dev_priv->uncore.user_forcewake.saved_mmio_de =
+			i915_modparams.mmio_de;
 
 		dev_priv->uncore.unclaimed_mmio_check = 0;
-		i915_modparams.mmio_debug = 0;
+		i915_modparams.mmio_de = 0;
 	}
 	spin_unlock_irq(&dev_priv->uncore.lock);
 }
@@ -688,8 +688,8 @@ void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv)
 
 		dev_priv->uncore.unclaimed_mmio_check =
 			dev_priv->uncore.user_forcewake.saved_mmio_check;
-		i915_modparams.mmio_debug =
-			dev_priv->uncore.user_forcewake.saved_mmio_debug;
+		i915_modparams.mmio_de =
+			dev_priv->uncore.user_forcewake.saved_mmio_de;
 
 		intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
 	}
@@ -1082,7 +1082,7 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 }
 
 static void
-__unclaimed_reg_debug(struct drm_i915_private *dev_priv,
+__unclaimed_reg_de(struct drm_i915_private *dev_priv,
 		      const i915_reg_t reg,
 		      const bool read,
 		      const bool before)
@@ -1092,19 +1092,19 @@ __unclaimed_reg_debug(struct drm_i915_private *dev_priv,
 		 read ? "read from" : "write to",
 		 i915_mmio_reg_offset(reg)))
 		/* Only report the first N failures */
-		i915_modparams.mmio_debug--;
+		i915_modparams.mmio_de--;
 }
 
 static inline void
-unclaimed_reg_debug(struct drm_i915_private *dev_priv,
+unclaimed_reg_de(struct drm_i915_private *dev_priv,
 		    const i915_reg_t reg,
 		    const bool read,
 		    const bool before)
 {
-	if (likely(!i915_modparams.mmio_debug))
+	if (likely(!i915_modparams.mmio_de))
 		return;
 
-	__unclaimed_reg_debug(dev_priv, reg, read, before);
+	__unclaimed_reg_de(dev_priv, reg, read, before);
 }
 
 #define GEN2_READ_HEADER(x) \
@@ -1153,10 +1153,10 @@ __gen2_read(64)
 	u##x val = 0; \
 	assert_rpm_wakelock_held(dev_priv); \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
-	unclaimed_reg_debug(dev_priv, reg, true, true)
+	unclaimed_reg_de(dev_priv, reg, true, true)
 
 #define GEN6_READ_FOOTER \
-	unclaimed_reg_debug(dev_priv, reg, true, false); \
+	unclaimed_reg_de(dev_priv, reg, true, false); \
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
@@ -1167,7 +1167,7 @@ static noinline void ___force_wake_auto(struct drm_i915_private *dev_priv,
 	struct intel_uncore_forcewake_domain *domain;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~dev_priv->uncore.fw_domains);
+	GEM__ON(fw_domains & ~dev_priv->uncore.fw_domains);
 
 	for_each_fw_domain_masked(domain, fw_domains, dev_priv, tmp)
 		fw_domain_arm_timer(domain);
@@ -1265,10 +1265,10 @@ __gen2_write(32)
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	assert_rpm_wakelock_held(dev_priv); \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
-	unclaimed_reg_debug(dev_priv, reg, false, true)
+	unclaimed_reg_de(dev_priv, reg, false, true)
 
 #define GEN6_WRITE_FOOTER \
-	unclaimed_reg_debug(dev_priv, reg, false, false); \
+	unclaimed_reg_de(dev_priv, reg, false, false); \
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
 
 #define __gen6_write(x) \
@@ -1355,15 +1355,15 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 
 	d->id = domain_id;
 
-	BUILD_BUG_ON(FORCEWAKE_RENDER != (1 << FW_DOMAIN_ID_RENDER));
-	BUILD_BUG_ON(FORCEWAKE_BLITTER != (1 << FW_DOMAIN_ID_BLITTER));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA != (1 << FW_DOMAIN_ID_MEDIA));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA_VDBOX0 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX0));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA_VDBOX1 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX1));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA_VDBOX2 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX2));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA_VDBOX3 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX3));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA_VEBOX0 != (1 << FW_DOMAIN_ID_MEDIA_VEBOX0));
-	BUILD_BUG_ON(FORCEWAKE_MEDIA_VEBOX1 != (1 << FW_DOMAIN_ID_MEDIA_VEBOX1));
+	BUILD__ON(FORCEWAKE_RENDER != (1 << FW_DOMAIN_ID_RENDER));
+	BUILD__ON(FORCEWAKE_BLITTER != (1 << FW_DOMAIN_ID_BLITTER));
+	BUILD__ON(FORCEWAKE_MEDIA != (1 << FW_DOMAIN_ID_MEDIA));
+	BUILD__ON(FORCEWAKE_MEDIA_VDBOX0 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX0));
+	BUILD__ON(FORCEWAKE_MEDIA_VDBOX1 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX1));
+	BUILD__ON(FORCEWAKE_MEDIA_VDBOX2 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX2));
+	BUILD__ON(FORCEWAKE_MEDIA_VDBOX3 != (1 << FW_DOMAIN_ID_MEDIA_VDBOX3));
+	BUILD__ON(FORCEWAKE_MEDIA_VEBOX0 != (1 << FW_DOMAIN_ID_MEDIA_VEBOX0));
+	BUILD__ON(FORCEWAKE_MEDIA_VEBOX1 != (1 << FW_DOMAIN_ID_MEDIA_VEBOX1));
 
 
 	d->mask = BIT(domain_id);
@@ -1680,9 +1680,9 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 	while (remain) {
 		u32 entry_offset = i915_mmio_reg_offset(entry->offset_ldw);
 
-		GEM_BUG_ON(!is_power_of_2(entry->size));
-		GEM_BUG_ON(entry->size > 8);
-		GEM_BUG_ON(entry_offset & (entry->size - 1));
+		GEM__ON(!is_power_of_2(entry->size));
+		GEM__ON(entry->size > 8);
+		GEM__ON(entry_offset & (entry->size - 1));
 
 		if (INTEL_INFO(dev_priv)->gen_mask & entry->gen_mask &&
 		    entry_offset == (reg->offset & -entry->size))
@@ -1755,7 +1755,7 @@ int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 
 	/* Catch any overuse of this function */
 	might_sleep_if(slow_timeout_ms);
-	GEM_BUG_ON(fast_timeout_us > 20000);
+	GEM__ON(fast_timeout_us > 20000);
 
 	ret = -ETIMEDOUT;
 	if (fast_timeout_us && fast_timeout_us <= 20000)
@@ -1844,11 +1844,11 @@ intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 		goto out;
 
 	if (unlikely(intel_uncore_unclaimed_mmio(dev_priv))) {
-		if (!i915_modparams.mmio_debug) {
-			DRM_DEBUG("Unclaimed register detected, "
+		if (!i915_modparams.mmio_de) {
+			DRM_DE("Unclaimed register detected, "
 				  "enabling oneshot unclaimed register reporting. "
-				  "Please use i915.mmio_debug=N for more information.\n");
-			i915_modparams.mmio_debug++;
+				  "Please use i915.mmio_de=N for more information.\n");
+			i915_modparams.mmio_de++;
 		}
 		dev_priv->uncore.unclaimed_mmio_check--;
 		ret = true;

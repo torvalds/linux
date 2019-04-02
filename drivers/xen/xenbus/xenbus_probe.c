@@ -33,7 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DPRINTK(fmt, args...)				\
-	pr_debug("xenbus_probe (%s:%d) " fmt ".\n",	\
+	pr_de("xenbus_probe (%s:%d) " fmt ".\n",	\
 		 __func__, __LINE__, ##args)
 
 #include <linux/kernel.h>
@@ -730,7 +730,7 @@ static int __init xenstored_local_init(void)
 	if (err == -ENOSYS)
 		goto out_err;
 
-	BUG_ON(err);
+	_ON(err);
 	xen_store_evtchn = alloc_unbound.port;
 
 	return 0;

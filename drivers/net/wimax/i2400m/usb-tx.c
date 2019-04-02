@@ -72,7 +72,7 @@
 
 
 #define D_SUBMODULE tx
-#include "usb-debug-levels.h"
+#include "usb-de-levels.h"
 
 
 /*
@@ -187,7 +187,7 @@ int i2400mu_txd(void *_i2400mu)
 	d_fnstart(4, dev, "(i2400mu %p)\n", i2400mu);
 
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
-	BUG_ON(i2400mu->tx_kthread != NULL);
+	_ON(i2400mu->tx_kthread != NULL);
 	i2400mu->tx_kthread = current;
 	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 

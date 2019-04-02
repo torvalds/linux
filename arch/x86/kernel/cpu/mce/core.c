@@ -15,7 +15,7 @@
 #include <linux/rcupdate.h>
 #include <linux/kobject.h>
 #include <linux/uaccess.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
@@ -36,7 +36,7 @@
 #include <linux/smp.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/irq_work.h>
 #include <linux/export.h>
 #include <linux/jump_label.h>
@@ -389,7 +389,7 @@ static u64 mce_rdmsrl(u32 msr)
 		/*
 		 * Return zero in case the access faulted. This should
 		 * not happen normally but can happen if the CPU does
-		 * something weird, or if the code is buggy.
+		 * something weird, or if the code is gy.
 		 */
 		v = 0;
 	}
@@ -1332,7 +1332,7 @@ EXPORT_SYMBOL_GPL(do_machine_check);
 int memory_failure(unsigned long pfn, int flags)
 {
 	/* mce_severity() should not hand us an ACTION_REQUIRED error */
-	BUG_ON(flags & MF_ACTION_REQUIRED);
+	_ON(flags & MF_ACTION_REQUIRED);
 	pr_err("Uncorrected memory error in page 0x%lx ignored\n"
 	       "Rebuild kernel with CONFIG_MEMORY_FAILURE=y for smarter handling\n",
 	       pfn);
@@ -1851,7 +1851,7 @@ static void __mce_disable_bank(void *arg)
 void mce_disable_bank(int bank)
 {
 	if (bank >= mca_cfg.banks) {
-		pr_warn(FW_BUG
+		pr_warn(FW_
 			"Ignoring request to disable invalid MCA bank %d.\n",
 			bank);
 		return;
@@ -2337,7 +2337,7 @@ static __init int mcheck_init_device(void)
 	 * Check if we have a spare virtual bit. This will only become
 	 * a problem if/when we move beyond 5-level page tables.
 	 */
-	MAYBE_BUILD_BUG_ON(__VIRTUAL_MASK_SHIFT >= 63);
+	MAYBE_BUILD__ON(__VIRTUAL_MASK_SHIFT >= 63);
 
 	if (!mce_available(&boot_cpu_data)) {
 		err = -EIO;
@@ -2392,13 +2392,13 @@ static int __init mcheck_disable(char *str)
 }
 __setup("nomce", mcheck_disable);
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *mce_get_debugfs_dir(void)
+#ifdef CONFIG_DE_FS
+struct dentry *mce_get_defs_dir(void)
 {
 	static struct dentry *dmce;
 
 	if (!dmce)
-		dmce = debugfs_create_dir("mce", NULL);
+		dmce = defs_create_dir("mce", NULL);
 
 	return dmce;
 }
@@ -2428,14 +2428,14 @@ static int fake_panic_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(fake_panic_fops, fake_panic_get,
 			fake_panic_set, "%llu\n");
 
-static int __init mcheck_debugfs_init(void)
+static int __init mcheck_defs_init(void)
 {
 	struct dentry *dmce, *ffake_panic;
 
-	dmce = mce_get_debugfs_dir();
+	dmce = mce_get_defs_dir();
 	if (!dmce)
 		return -ENOMEM;
-	ffake_panic = debugfs_create_file("fake_panic", 0444, dmce, NULL,
+	ffake_panic = defs_create_file("fake_panic", 0444, dmce, NULL,
 					  &fake_panic_fops);
 	if (!ffake_panic)
 		return -ENOMEM;
@@ -2443,7 +2443,7 @@ static int __init mcheck_debugfs_init(void)
 	return 0;
 }
 #else
-static int __init mcheck_debugfs_init(void) { return -EINVAL; }
+static int __init mcheck_defs_init(void) { return -EINVAL; }
 #endif
 
 DEFINE_STATIC_KEY_FALSE(mcsafe_key);
@@ -2454,7 +2454,7 @@ static int __init mcheck_late_init(void)
 	if (mca_cfg.recovery)
 		static_branch_inc(&mcsafe_key);
 
-	mcheck_debugfs_init();
+	mcheck_defs_init();
 	cec_init();
 
 	/*

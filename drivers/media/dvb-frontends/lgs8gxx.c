@@ -29,17 +29,17 @@
 
 #define dprintk(args...) \
 	do { \
-		if (debug) \
-			printk(KERN_DEBUG "lgs8gxx: " args); \
+		if (de) \
+			printk(KERN_DE "lgs8gxx: " args); \
 	} while (0)
 
-static int debug;
+static int de;
 static int fake_signal_str = 1;
 
 #define LGS8GXX_FIRMWARE "lgs8g75.fw"
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 module_param(fake_signal_str, int, 0644);
 MODULE_PARM_DESC(fake_signal_str, "fake signal strength for LGS8913."
@@ -57,7 +57,7 @@ static int lgs8gxx_write_reg(struct lgs8gxx_state *priv, u8 reg, u8 data)
 	if (priv->config->prod != LGS8GXX_PROD_LGS8G75 && reg >= 0xC0)
 		msg.addr += 0x02;
 
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg, 1);
@@ -93,7 +93,7 @@ static int lgs8gxx_read_reg(struct lgs8gxx_state *priv, u8 reg, u8 *p_data)
 	}
 
 	*p_data = b1[0];
-	if (debug >= 2)
+	if (de >= 2)
 		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, b1[0]);
 	return 0;
 }
@@ -491,7 +491,7 @@ static void lgs8gxx_auto_lock(struct lgs8gxx_state *priv)
 	/* Apply detected parameters */
 	if (priv->config->prod == LGS8GXX_PROD_LGS8913) {
 		u8 inter_leave_len = detected_param & TIM_MASK ;
-		/* Fix 8913 time interleaver detection bug */
+		/* Fix 8913 time interleaver detection  */
 		inter_leave_len = (inter_leave_len == TIM_MIDDLE) ? 0x60 : 0x40;
 		detected_param &= CF_MASK | SC_MASK  | LGS_FEC_MASK;
 		detected_param |= inter_leave_len;

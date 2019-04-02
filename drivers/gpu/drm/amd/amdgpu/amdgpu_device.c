@@ -166,7 +166,7 @@ uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset) {
 	if (offset < adev->rmmio_size)
 		return (readb(adev->rmmio + offset));
-	BUG();
+	();
 }
 
 /*
@@ -188,7 +188,7 @@ void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value)
 	if (offset < adev->rmmio_size)
 		writeb(value, adev->rmmio + offset);
 	else
-		BUG();
+		();
 }
 
 /**
@@ -363,7 +363,7 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
 static uint32_t amdgpu_invalid_rreg(struct amdgpu_device *adev, uint32_t reg)
 {
 	DRM_ERROR("Invalid callback to read register 0x%04X\n", reg);
-	BUG();
+	();
 	return 0;
 }
 
@@ -381,7 +381,7 @@ static void amdgpu_invalid_wreg(struct amdgpu_device *adev, uint32_t reg, uint32
 {
 	DRM_ERROR("Invalid callback to write register 0x%04X with 0x%08X\n",
 		  reg, v);
-	BUG();
+	();
 }
 
 /**
@@ -400,7 +400,7 @@ static uint32_t amdgpu_block_invalid_rreg(struct amdgpu_device *adev,
 {
 	DRM_ERROR("Invalid callback to read register 0x%04X in block 0x%04X\n",
 		  reg, block);
-	BUG();
+	();
 	return 0;
 }
 
@@ -421,7 +421,7 @@ static void amdgpu_block_invalid_wreg(struct amdgpu_device *adev,
 {
 	DRM_ERROR("Invalid block callback to write register 0x%04X in block 0x%04X with 0x%08X\n",
 		  reg, block, v);
-	BUG();
+	();
 }
 
 /**
@@ -1885,7 +1885,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 			/* XXX handle errors */
 			if (r) {
-				DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
+				DRM_DE("hw_fini of IP block <%s> failed %d\n",
 					  adev->ip_blocks[i].version->funcs->name, r);
 			}
 			adev->ip_blocks[i].status.hw = false;
@@ -1900,7 +1900,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 		r = adev->ip_blocks[i].version->funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
+			DRM_DE("hw_fini of IP block <%s> failed %d\n",
 				  adev->ip_blocks[i].version->funcs->name, r);
 		}
 
@@ -1922,7 +1922,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 		r = adev->ip_blocks[i].version->funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_DEBUG("sw_fini of IP block <%s> failed %d\n",
+			DRM_DE("sw_fini of IP block <%s> failed %d\n",
 				  adev->ip_blocks[i].version->funcs->name, r);
 		}
 		adev->ip_blocks[i].status.sw = false;
@@ -2632,7 +2632,7 @@ fence_driver_init:
 
 	adev->accel_working = true;
 
-	amdgpu_vm_check_compute_bug(adev);
+	amdgpu_vm_check_compute_(adev);
 
 	/* Initialize the buffer migration limit. */
 	if (amdgpu_moverate >= 0)
@@ -2653,23 +2653,23 @@ fence_driver_init:
 
 	r = amdgpu_pm_sysfs_init(adev);
 	if (r)
-		DRM_ERROR("registering pm debugfs failed (%d).\n", r);
+		DRM_ERROR("registering pm defs failed (%d).\n", r);
 
-	r = amdgpu_debugfs_gem_init(adev);
+	r = amdgpu_defs_gem_init(adev);
 	if (r)
-		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
+		DRM_ERROR("registering gem defs failed (%d).\n", r);
 
-	r = amdgpu_debugfs_regs_init(adev);
+	r = amdgpu_defs_regs_init(adev);
 	if (r)
-		DRM_ERROR("registering register debugfs failed (%d).\n", r);
+		DRM_ERROR("registering register defs failed (%d).\n", r);
 
-	r = amdgpu_debugfs_firmware_init(adev);
+	r = amdgpu_defs_firmware_init(adev);
 	if (r)
-		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
+		DRM_ERROR("registering firmware defs failed (%d).\n", r);
 
-	r = amdgpu_debugfs_init(adev);
+	r = amdgpu_defs_init(adev);
 	if (r)
-		DRM_ERROR("Creating debugfs files failed (%d).\n", r);
+		DRM_ERROR("Creating defs files failed (%d).\n", r);
 
 	if ((amdgpu_testing & 1)) {
 		if (adev->accel_working)
@@ -2757,7 +2757,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	iounmap(adev->rmmio);
 	adev->rmmio = NULL;
 	amdgpu_device_doorbell_fini(adev);
-	amdgpu_debugfs_regs_cleanup(adev);
+	amdgpu_defs_regs_cleanup(adev);
 }
 
 

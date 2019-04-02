@@ -540,7 +540,7 @@ static void __init check_sigio(void)
 }
 
 /* Here because it only does the SIGIO testing for now */
-void __init os_check_bugs(void)
+void __init os_check_s(void)
 {
 	check_sigio();
 }

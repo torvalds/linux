@@ -62,7 +62,7 @@ static struct ocfs2_stack_plugin o2cb_stack;
 #endif
 static inline int mode_to_o2dlm(int mode)
 {
-	BUG_ON(mode > LKM_MAXMODE);
+	_ON(mode > LKM_MAXMODE);
 
 	return mode;
 }
@@ -87,7 +87,7 @@ static int flags_to_o2dlm(u32 flags)
 	map_flag(DLM_LKF_LOCAL, LKM_LOCAL);
 
 	/* map_flag() should have cleared every flag passed in */
-	BUG_ON(flags != 0);
+	_ON(flags != 0);
 
 	return o2dlm_flags;
 }
@@ -156,7 +156,7 @@ static int status_map[] = {
 
 static int dlm_status_to_errno(enum dlm_status status)
 {
-	BUG_ON(status < 0 || status >= ARRAY_SIZE(status_map));
+	_ON(status < 0 || status >= ARRAY_SIZE(status_map));
 
 	return status_map[status];
 }
@@ -333,8 +333,8 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	struct o2dlm_private *priv;
 	struct dlm_protocol_version fs_version;
 
-	BUG_ON(conn == NULL);
-	BUG_ON(conn->cc_proto == NULL);
+	_ON(conn == NULL);
+	_ON(conn->cc_proto == NULL);
 
 	/* Ensure cluster stack is up and all nodes are connected */
 	rc = o2cb_cluster_check();

@@ -16,7 +16,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>
@@ -207,7 +207,7 @@ static int blan_mdlm_bind(struct usbnet *dev, struct usb_interface *intf)
 			 *  - 0x01 -- Zaurus framing (add CRC)
 			 *  - 0x02 -- PADBEFORE (CRC includes some padding)
 			 *  - 0x04 -- PADAFTER (some padding after CRC)
-			 *  - 0x08 -- "fermat" packet mangling (for hw bugs)
+			 *  - 0x08 -- "fermat" packet mangling (for hw s)
 			 * the PADBEFORE appears not to matter; we interop
 			 * with devices that use it and those that don't.
 			 */

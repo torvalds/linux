@@ -216,7 +216,7 @@ salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe)
 	int i;
 	int saved_size = ARRAY_SIZE(data->data_saved);
 
-	BUG_ON(type >= ARRAY_SIZE(salinfo_log_name));
+	_ON(type >= ARRAY_SIZE(salinfo_log_name));
 
 	if (irqsafe)
 		spin_lock_irqsave(&data_saved_lock, flags);

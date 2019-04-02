@@ -59,7 +59,7 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 			clear_bit(AF_82XX_FW_DUMPED, &ha->flags);
 			/* Reload minidump template */
 			qla4xxx_alloc_fw_dump(ha);
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "Firmware template reloaded\n"));
 		}
 		break;
@@ -68,7 +68,7 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 		if (test_bit(AF_82XX_FW_DUMPED, &ha->flags) &&
 		    !test_bit(AF_82XX_DUMP_READING, &ha->flags)) {
 			set_bit(AF_82XX_DUMP_READING, &ha->flags);
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "Raw firmware dump ready for read on (%ld).\n",
 					  ha->host_no));
 		}

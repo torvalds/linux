@@ -43,7 +43,7 @@ static int setup_afu_irq(struct ocxl_context *ctx, struct afu_irq *irq)
 		pr_err("irq_create_mapping failed\n");
 		return -ENOMEM;
 	}
-	pr_debug("hw_irq %d mapped to virq %u\n", irq->hw_irq, irq->virq);
+	pr_de("hw_irq %d mapped to virq %u\n", irq->hw_irq, irq->virq);
 
 	irq->name = kasprintf(GFP_KERNEL, "ocxl-afu-%u", irq->virq);
 	if (!irq->name) {

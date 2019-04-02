@@ -4,7 +4,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/perf_event.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/stddef.h>
 #include <asm/perf_regs.h>
 #include <asm/ptrace.h>

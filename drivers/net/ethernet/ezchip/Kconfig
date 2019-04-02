@@ -20,7 +20,7 @@ config EZCHIP_NPS_MANAGEMENT_ENET
 	depends on OF_IRQ && OF_NET
 	depends on HAS_IOMEM
 	---help---
-	  Simple LAN device for debug or management purposes.
+	  Simple LAN device for de or management purposes.
 	  Device supports interrupts for RX and TX(completion).
 	  Device does not have DMA ability.
 

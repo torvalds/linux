@@ -7,7 +7,7 @@
 #define _HCI_INTF_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <linux/jiffies.h>
 
 #ifndef dev_to_sdio_func
@@ -567,7 +567,7 @@ static int rtw_sdio_suspend(struct device *dev)
 	struct dvobj_priv *psdpriv = sdio_get_drvdata(func);
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct adapter *padapter = psdpriv->if1;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (padapter->bDriverStopped == true)
 	{
@@ -589,7 +589,7 @@ static int rtw_resume_process(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (pwrpriv->bInSuspend == false)
 	{
@@ -608,7 +608,7 @@ static int rtw_sdio_resume(struct device *dev)
 	struct adapter *padapter = psdpriv->if1;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	int ret = 0;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	DBG_871X("==> %s (%s:%d)\n", __func__, current->comm, current->pid);
 

@@ -154,7 +154,7 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 	if (err)
 		return err;
 
-	nfp_net_debugfs_vnic_add(nn, pf->ddir);
+	nfp_net_defs_vnic_add(nn, pf->ddir);
 
 	if (nn->port) {
 		err = nfp_devlink_port_register(pf->app, nn->port);
@@ -176,7 +176,7 @@ err_devlink_port_clean:
 	if (nn->port)
 		nfp_devlink_port_unregister(nn->port);
 err_dfs_clean:
-	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_defs_dir_clean(&nn->defs_dir);
 	nfp_net_clean(nn);
 	return err;
 }
@@ -222,7 +222,7 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 		nfp_app_vnic_clean(pf->app, nn);
 	if (nn->port)
 		nfp_devlink_port_unregister(nn->port);
-	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_defs_dir_clean(&nn->defs_dir);
 	nfp_net_clean(nn);
 }
 
@@ -705,7 +705,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		goto err_devlink_unreg;
 
 	mutex_lock(&pf->lock);
-	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
+	pf->ddir = nfp_net_defs_device_add(pf->pdev);
 
 	/* Allocate the vnics and do basic init */
 	err = nfp_net_pf_alloc_vnics(pf, ctrl_bar, qc_bar, stride);
@@ -735,7 +735,7 @@ err_free_irqs:
 err_free_vnics:
 	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
-	nfp_net_debugfs_dir_clean(&pf->ddir);
+	nfp_net_defs_dir_clean(&pf->ddir);
 	mutex_unlock(&pf->lock);
 	nfp_shared_buf_unregister(pf);
 err_devlink_unreg:
@@ -762,7 +762,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	nfp_net_pf_app_stop(pf);
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
-	nfp_net_debugfs_dir_clean(&pf->ddir);
+	nfp_net_defs_dir_clean(&pf->ddir);
 
 	mutex_unlock(&pf->lock);
 

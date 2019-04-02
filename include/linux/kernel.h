@@ -13,7 +13,7 @@
 #include <linux/log2.h>
 #include <linux/typecheck.h>
 #include <linux/printk.h>
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <asm/byteorder.h>
 #include <asm/div64.h>
 #include <uapi/linux/kernel.h>
@@ -215,7 +215,7 @@ extern int _cond_resched(void);
 # define might_resched() do { } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+#ifdef CONFIG_DE_ATOMIC_SLEEP
 extern void ___might_sleep(const char *file, int line, int preempt_offset);
 extern void __might_sleep(const char *file, int line, int preempt_offset);
 extern void __cant_sleep(const char *file, int line, int preempt_offset);
@@ -226,7 +226,7 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
  * this macro will print a stack trace if it is executed in an atomic
  * context (spinlock, irq-handler, ...).
  *
- * This is a useful debugging help to be able to catch problems early and not
+ * This is a useful deging help to be able to catch problems early and not
  * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
@@ -295,7 +295,7 @@ static inline u32 reciprocal_scale(u32 val, u32 ep_ro)
 }
 
 #if defined(CONFIG_MMU) && \
-	(defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP))
+	(defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DE_ATOMIC_SLEEP))
 #define might_fault() __might_fault(__FILE__, __LINE__)
 void __might_fault(const char *file, int line);
 #else
@@ -506,7 +506,7 @@ static inline u32 int_sqrt64(u64 x)
 #endif
 
 extern void bust_spinlocks(int yes);
-extern int oops_in_progress;		/* If set, an oops, panic(), BUG() or die() is in progress */
+extern int oops_in_progress;		/* If set, an oops, panic(), () or die() is in progress */
 extern int panic_timeout;
 extern unsigned long panic_print;
 extern int panic_on_oops;
@@ -624,7 +624,7 @@ bool mac_pton(const char *s, u8 *mac);
  *
  * Use tracing_on/tracing_off when you want to quickly turn on or off
  * tracing. It simply enables or disables the recording of the trace events.
- * This also corresponds to the user space /sys/kernel/debug/tracing/tracing_on
+ * This also corresponds to the user space /sys/kernel/de/tracing/tracing_on
  * file, which gives a means for the kernel and userspace to interact.
  * Place a tracing_off() in the kernel where you want tracing to end.
  * From user space, examine the trace, and then echo 1 > tracing_on
@@ -671,12 +671,12 @@ do {									\
  * Note: __trace_printk is an internal function for trace_printk() and
  *       the @ip is passed in via the trace_printk() macro.
  *
- * This function allows a kernel developer to debug fast path sections
+ * This function allows a kernel developer to de fast path sections
  * that printk is not appropriate for. By scattering in various
  * printk like tracing in the code, a developer can quickly see
  * where problems are occurring.
  *
- * This is intended as a debugging tool for the developer only.
+ * This is intended as a deging tool for the developer only.
  * Please refrain from leaving trace_printks scattered around in
  * your code. (Extra memory is used for special buffers that are
  * allocated when trace_printk() is used.)
@@ -731,15 +731,15 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  *       the @ip is passed in via the trace_puts macro.
  *
  * This is similar to trace_printk() but is made for those really fast
- * paths that a developer wants the least amount of "Heisenbug" effects,
+ * paths that a developer wants the least amount of "Heisen" effects,
  * where the processing of the print format is still too much.
  *
- * This function allows a kernel developer to debug fast path sections
+ * This function allows a kernel developer to de fast path sections
  * that printk is not appropriate for. By scattering in various
  * printk like tracing in the code, a developer can quickly see
  * where problems are occurring.
  *
- * This is intended as a debugging tool for the developer only.
+ * This is intended as a deging tool for the developer only.
  * Please refrain from leaving trace_puts scattered around in
  * your code. (Extra memory is used for special buffers that are
  * allocated when trace_puts() is used.)
@@ -976,7 +976,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  */
 #define container_of(ptr, type, member) ({				\
 	void *__mptr = (void *)(ptr);					\
-	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+	BUILD__ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
 			 !__same_type(*(ptr), void),			\
 			 "pointer type mismatch in container_of()");	\
 	((type *)(__mptr - offsetof(type, member))); })
@@ -991,7 +991,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  */
 #define container_of_safe(ptr, type, member) ({				\
 	void *__mptr = (void *)(ptr);					\
-	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+	BUILD__ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
 			 !__same_type(*(ptr), void),			\
 			 "pointer type mismatch in container_of()");	\
 	IS_ERR_OR_NULL(__mptr) ? ERR_CAST(__mptr) :			\
@@ -1004,14 +1004,14 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 
 /* Permissions on a sysfs file: you didn't miss the 0 prefix did you? */
 #define VERIFY_OCTAL_PERMISSIONS(perms)						\
-	(BUILD_BUG_ON_ZERO((perms) < 0) +					\
-	 BUILD_BUG_ON_ZERO((perms) > 0777) +					\
+	(BUILD__ON_ZERO((perms) < 0) +					\
+	 BUILD__ON_ZERO((perms) > 0777) +					\
 	 /* USER_READABLE >= GROUP_READABLE >= OTHER_READABLE */		\
-	 BUILD_BUG_ON_ZERO((((perms) >> 6) & 4) < (((perms) >> 3) & 4)) +	\
-	 BUILD_BUG_ON_ZERO((((perms) >> 3) & 4) < ((perms) & 4)) +		\
+	 BUILD__ON_ZERO((((perms) >> 6) & 4) < (((perms) >> 3) & 4)) +	\
+	 BUILD__ON_ZERO((((perms) >> 3) & 4) < ((perms) & 4)) +		\
 	 /* USER_WRITABLE >= GROUP_WRITABLE */					\
-	 BUILD_BUG_ON_ZERO((((perms) >> 6) & 2) < (((perms) >> 3) & 2)) +	\
+	 BUILD__ON_ZERO((((perms) >> 6) & 2) < (((perms) >> 3) & 2)) +	\
 	 /* OTHER_WRITABLE?  Generally considered a bad idea. */		\
-	 BUILD_BUG_ON_ZERO((perms) & 2) +					\
+	 BUILD__ON_ZERO((perms) & 2) +					\
 	 (perms))
 #endif

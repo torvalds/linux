@@ -103,7 +103,7 @@
  * (applied in that order).
  *
  * [Jun 2000 AV] Inconsistent behaviour of open() in case if flags==O_CREAT
- * restored for 2.4. This is the last surviving part of old 4.2BSD bug.
+ * restored for 2.4. This is the last surviving part of old 4.2BSD .
  * During the 2.4 we need to fix the userland stuff depending on it -
  * hopefully we will be able to get rid of that wart in 2.5. So far only
  * XEmacs seems to be relying on it...
@@ -247,7 +247,7 @@ getname_kernel(const char * filename)
 
 void putname(struct filename *name)
 {
-	BUG_ON(name->refcnt <= 0);
+	_ON(name->refcnt <= 0);
 
 	if (--name->refcnt > 0)
 		return;
@@ -667,7 +667,7 @@ static int unlazy_walk(struct nameidata *nd)
 {
 	struct dentry *parent = nd->path.dentry;
 
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
+	_ON(!(nd->flags & LOOKUP_RCU));
 
 	nd->flags &= ~LOOKUP_RCU;
 	if (unlikely(!legitimize_links(nd)))
@@ -679,7 +679,7 @@ static int unlazy_walk(struct nameidata *nd)
 			goto out;
 	}
 	rcu_read_unlock();
-	BUG_ON(nd->inode != parent->d_inode);
+	_ON(nd->inode != parent->d_inode);
 	return 0;
 
 out2:
@@ -708,7 +708,7 @@ out:
  */
 static int unlazy_child(struct nameidata *nd, struct dentry *dentry, unsigned seq)
 {
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
+	_ON(!(nd->flags & LOOKUP_RCU));
 
 	nd->flags &= ~LOOKUP_RCU;
 	if (unlikely(!legitimize_links(nd)))
@@ -1231,8 +1231,8 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 		/* Allow the filesystem to manage the transit without i_mutex
 		 * being held. */
 		if (managed & DCACHE_MANAGE_TRANSIT) {
-			BUG_ON(!path->dentry->d_op);
-			BUG_ON(!path->dentry->d_op->d_manage);
+			_ON(!path->dentry->d_op);
+			_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(path, false);
 			if (ret < 0)
 				break;
@@ -1423,8 +1423,8 @@ int follow_down(struct path *path)
 		 * The filesystem may sleep at this point.
 		 */
 		if (managed & DCACHE_MANAGE_TRANSIT) {
-			BUG_ON(!path->dentry->d_op);
-			BUG_ON(!path->dentry->d_op->d_manage);
+			_ON(!path->dentry->d_op);
+			_ON(!path->dentry->d_op->d_manage);
 			ret = path->dentry->d_op->d_manage(path, false);
 			if (ret < 0)
 				return ret == -EISDIR ? 0 : ret;
@@ -1835,7 +1835,7 @@ static int walk_component(struct nameidata *nd, int flags)
  *   do a "get_unaligned()" if this helps and is sufficiently
  *   fast.
  *
- * - non-CONFIG_DEBUG_PAGEALLOC configurations (so that we
+ * - non-CONFIG_DE_PAGEALLOC configurations (so that we
  *   do not trap on the (extremely unlikely) case of a page
  *   crossing operation.
  *
@@ -2792,9 +2792,9 @@ static int may_delete(struct inode *dir, struct dentry *victim, bool isdir)
 
 	if (d_is_negative(victim))
 		return -ENOENT;
-	BUG_ON(!inode);
+	_ON(!inode);
 
-	BUG_ON(victim->d_parent->d_inode != dir);
+	_ON(victim->d_parent->d_inode != dir);
 
 	/* Inode writeback is not safe when the uid or gid are invalid. */
 	if (!uid_valid(inode->i_uid) || !gid_valid(inode->i_gid))
@@ -3286,8 +3286,8 @@ static int do_last(struct nameidata *nd,
 		if (error < 0)
 			return error;
 
-		BUG_ON(nd->inode != dir->d_inode);
-		BUG_ON(nd->flags & LOOKUP_RCU);
+		_ON(nd->inode != dir->d_inode);
+		_ON(nd->flags & LOOKUP_RCU);
 	} else {
 		/* create side of things */
 		/*
@@ -3412,7 +3412,7 @@ finish_open_created:
 	error = may_open(&nd->path, acc_mode, open_flag);
 	if (error)
 		goto out;
-	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
+	_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 	error = vfs_open(&nd->path, file);
 	if (error)
 		goto out;
@@ -4788,7 +4788,7 @@ const char *page_get_link(struct dentry *dentry, struct inode *inode,
 			return (char*)page;
 	}
 	set_delayed_call(callback, page_put_link, page);
-	BUG_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
+	_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
 	kaddr = page_address(page);
 	nd_terminate_link(kaddr, inode->i_size, PAGE_SIZE - 1);
 	return kaddr;

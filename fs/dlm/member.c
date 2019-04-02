@@ -58,14 +58,14 @@ void dlm_slots_copy_out(struct dlm_ls *ls, struct dlm_rcom *rc)
 	}
 }
 
-#define SLOT_DEBUG_LINE 128
+#define SLOT_DE_LINE 128
 
 static void log_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
 		      struct rcom_slot *ro0, struct dlm_slot *array,
 		      int array_size)
 {
-	char line[SLOT_DEBUG_LINE];
-	int len = SLOT_DEBUG_LINE - 1;
+	char line[SLOT_DE_LINE];
+	int len = SLOT_DE_LINE - 1;
 	int pos = 0;
 	int ret, i;
 

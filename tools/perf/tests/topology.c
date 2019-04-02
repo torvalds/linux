@@ -6,7 +6,7 @@
 #include "util.h"
 #include "session.h"
 #include "evlist.h"
-#include "debug.h"
+#include "de.h"
 
 #define TEMPL "/tmp/perf-test-XXXXXX"
 #define DATA_SIZE	10
@@ -95,7 +95,7 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {
 		if (!cpu_map__has(map, i))
 			continue;
-		pr_debug("CPU %d, core %d, socket %d\n", i,
+		pr_de("CPU %d, core %d, socket %d\n", i,
 			 session->header.env.cpu[i].core_id,
 			 session->header.env.cpu[i].socket_id);
 	}
@@ -121,14 +121,14 @@ int test__session_topology(struct test *test __maybe_unused, int subtest __maybe
 
 	TEST_ASSERT_VAL("can't get templ file", !get_temp(path));
 
-	pr_debug("templ file: %s\n", path);
+	pr_de("templ file: %s\n", path);
 
 	if (session_write_header(path))
 		goto free_path;
 
 	map = cpu_map__new(NULL);
 	if (map == NULL) {
-		pr_debug("failed to get system cpumap\n");
+		pr_de("failed to get system cpumap\n");
 		goto free_path;
 	}
 

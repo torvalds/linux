@@ -755,7 +755,7 @@ static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_init(ak, &akm_delta66e, &akm_delta66e_priv, ice);
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 

@@ -19,7 +19,7 @@
 #include "dpu_formats.h"
 #include "dpu_trace.h"
 
-#define DPU_DEBUG_CMDENC(e, fmt, ...) DPU_DEBUG("enc%d intf%d " fmt, \
+#define DPU_DE_CMDENC(e, fmt, ...) DPU_DE("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
 		(e)->base.parent->base.id : -1, \
 		(e) ? (e)->base.intf_idx - INTF_0 : -1, ##__VA_ARGS__)
@@ -55,7 +55,7 @@ static bool dpu_encoder_phys_cmd_mode_fixup(
 		struct drm_display_mode *adj_mode)
 {
 	if (phys_enc)
-		DPU_DEBUG_CMDENC(to_dpu_encoder_phys_cmd(phys_enc), "\n");
+		DPU_DE_CMDENC(to_dpu_encoder_phys_cmd(phys_enc), "\n");
 	return true;
 }
 
@@ -195,8 +195,8 @@ static void dpu_encoder_phys_cmd_mode_set(
 		return;
 	}
 	phys_enc->cached_mode = *adj_mode;
-	DPU_DEBUG_CMDENC(cmd_enc, "caching mode:\n");
-	drm_mode_debug_printmodeline(adj_mode);
+	DPU_DE_CMDENC(cmd_enc, "caching mode:\n");
+	drm_mode_de_printmodeline(adj_mode);
 
 	_dpu_encoder_phys_cmd_setup_irq_hw_idx(phys_enc);
 }
@@ -301,7 +301,7 @@ static int dpu_encoder_phys_cmd_control_vblank_irq(
 		goto end;
 	}
 
-	DRM_DEBUG_KMS("id:%u pp:%d enable=%s/%d\n", DRMID(phys_enc->parent),
+	DRM_DE_KMS("id:%u pp:%d enable=%s/%d\n", DRMID(phys_enc->parent),
 		      phys_enc->hw_pp->idx - PINGPONG_0,
 		      enable ? "true" : "false", refcount);
 
@@ -373,11 +373,11 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	}
 	mode = &phys_enc->cached_mode;
 
-	DPU_DEBUG_CMDENC(cmd_enc, "pp %d\n", phys_enc->hw_pp->idx - PINGPONG_0);
+	DPU_DE_CMDENC(cmd_enc, "pp %d\n", phys_enc->hw_pp->idx - PINGPONG_0);
 
 	if (!phys_enc->hw_pp->ops.setup_tearcheck ||
 		!phys_enc->hw_pp->ops.enable_tearcheck) {
-		DPU_DEBUG_CMDENC(cmd_enc, "tearcheck not supported\n");
+		DPU_DE_CMDENC(cmd_enc, "tearcheck not supported\n");
 		return;
 	}
 
@@ -399,7 +399,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	 */
 	vsync_hz = dpu_kms_get_clk_rate(dpu_kms, "vsync");
 	if (vsync_hz <= 0) {
-		DPU_DEBUG_CMDENC(cmd_enc, "invalid - vsync_hz %u\n",
+		DPU_DE_CMDENC(cmd_enc, "invalid - vsync_hz %u\n",
 				 vsync_hz);
 		return;
 	}
@@ -421,19 +421,19 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	tc_cfg.start_pos = mode->vdisplay;
 	tc_cfg.rd_ptr_irq = mode->vdisplay + 1;
 
-	DPU_DEBUG_CMDENC(cmd_enc,
+	DPU_DE_CMDENC(cmd_enc,
 		"tc %d vsync_clk_speed_hz %u vtotal %u vrefresh %u\n",
 		phys_enc->hw_pp->idx - PINGPONG_0, vsync_hz,
 		mode->vtotal, mode->vrefresh);
-	DPU_DEBUG_CMDENC(cmd_enc,
+	DPU_DE_CMDENC(cmd_enc,
 		"tc %d enable %u start_pos %u rd_ptr_irq %u\n",
 		phys_enc->hw_pp->idx - PINGPONG_0, tc_enable, tc_cfg.start_pos,
 		tc_cfg.rd_ptr_irq);
-	DPU_DEBUG_CMDENC(cmd_enc,
+	DPU_DE_CMDENC(cmd_enc,
 		"tc %d hw_vsync_mode %u vsync_count %u vsync_init_val %u\n",
 		phys_enc->hw_pp->idx - PINGPONG_0, tc_cfg.hw_vsync_mode,
 		tc_cfg.vsync_count, tc_cfg.vsync_init_val);
-	DPU_DEBUG_CMDENC(cmd_enc,
+	DPU_DE_CMDENC(cmd_enc,
 		"tc %d cfgheight %u thresh_start %u thresh_cont %u\n",
 		phys_enc->hw_pp->idx - PINGPONG_0, tc_cfg.sync_cfg_height,
 		tc_cfg.sync_threshold_start, tc_cfg.sync_threshold_continue);
@@ -454,9 +454,9 @@ static void _dpu_encoder_phys_cmd_pingpong_config(
 		return;
 	}
 
-	DPU_DEBUG_CMDENC(cmd_enc, "pp %d, enabling mode:\n",
+	DPU_DE_CMDENC(cmd_enc, "pp %d, enabling mode:\n",
 			phys_enc->hw_pp->idx - PINGPONG_0);
-	drm_mode_debug_printmodeline(&phys_enc->cached_mode);
+	drm_mode_de_printmodeline(&phys_enc->cached_mode);
 
 	_dpu_encoder_phys_cmd_update_intf_cfg(phys_enc);
 	dpu_encoder_phys_cmd_tearcheck_config(phys_enc);
@@ -505,7 +505,7 @@ static void dpu_encoder_phys_cmd_enable(struct dpu_encoder_phys *phys_enc)
 		return;
 	}
 
-	DPU_DEBUG_CMDENC(cmd_enc, "pp %d\n", phys_enc->hw_pp->idx - PINGPONG_0);
+	DPU_DE_CMDENC(cmd_enc, "pp %d\n", phys_enc->hw_pp->idx - PINGPONG_0);
 
 	if (phys_enc->enable_state == DPU_ENC_ENABLED) {
 		DPU_ERROR("already enabled\n");
@@ -560,7 +560,7 @@ static void dpu_encoder_phys_cmd_disable(struct dpu_encoder_phys *phys_enc)
 		DPU_ERROR("invalid encoder\n");
 		return;
 	}
-	DRM_DEBUG_KMS("id:%u pp:%d state:%d\n", DRMID(phys_enc->parent),
+	DRM_DE_KMS("id:%u pp:%d state:%d\n", DRMID(phys_enc->parent),
 		      phys_enc->hw_pp->idx - PINGPONG_0,
 		      phys_enc->enable_state);
 
@@ -604,7 +604,7 @@ static void dpu_encoder_phys_cmd_prepare_for_kickoff(
 		DPU_ERROR("invalid encoder\n");
 		return;
 	}
-	DRM_DEBUG_KMS("id:%u pp:%d pending_cnt:%d\n", DRMID(phys_enc->parent),
+	DRM_DE_KMS("id:%u pp:%d pending_cnt:%d\n", DRMID(phys_enc->parent),
 		      phys_enc->hw_pp->idx - PINGPONG_0,
 		      atomic_read(&phys_enc->pending_kickoff_cnt));
 
@@ -621,7 +621,7 @@ static void dpu_encoder_phys_cmd_prepare_for_kickoff(
 			  phys_enc->hw_pp->idx - PINGPONG_0);
 	}
 
-	DPU_DEBUG_CMDENC(cmd_enc, "pp:%d pending_cnt %d\n",
+	DPU_DE_CMDENC(cmd_enc, "pp:%d pending_cnt %d\n",
 			phys_enc->hw_pp->idx - PINGPONG_0,
 			atomic_read(&phys_enc->pending_kickoff_cnt));
 }
@@ -779,7 +779,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 	struct dpu_encoder_irq *irq;
 	int i, ret = 0;
 
-	DPU_DEBUG("intf %d\n", p->intf_idx - INTF_0);
+	DPU_DE("intf %d\n", p->intf_idx - INTF_0);
 
 	cmd_enc = kzalloc(sizeof(*cmd_enc), GFP_KERNEL);
 	if (!cmd_enc) {
@@ -839,7 +839,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 	init_waitqueue_head(&phys_enc->pending_kickoff_wq);
 	init_waitqueue_head(&cmd_enc->pending_vblank_wq);
 
-	DPU_DEBUG_CMDENC(cmd_enc, "created\n");
+	DPU_DE_CMDENC(cmd_enc, "created\n");
 
 	return phys_enc;
 

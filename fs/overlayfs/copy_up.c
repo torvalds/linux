@@ -254,7 +254,7 @@ struct ovl_fh *ovl_encode_real_fh(struct dentry *real, bool is_upper)
 	    WARN_ON(fh_type == FILEID_INVALID))
 		goto out;
 
-	BUILD_BUG_ON(MAX_HANDLE_SZ + offsetof(struct ovl_fh, fid) > 255);
+	BUILD__ON(MAX_HANDLE_SZ + offsetof(struct ovl_fh, fid) > 255);
 	fh_len = offsetof(struct ovl_fh, fid) + buflen;
 	fh = kmalloc(fh_len, GFP_KERNEL);
 	if (!fh) {

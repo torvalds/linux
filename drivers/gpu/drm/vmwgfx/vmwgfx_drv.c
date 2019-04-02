@@ -365,7 +365,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 		return ret;
 
 	ret = ttm_bo_reserve(&vbo->base, false, true, NULL);
-	BUG_ON(ret != 0);
+	_ON(ret != 0);
 	vmw_bo_pin_reserved(vbo, true);
 
 	ret = ttm_bo_kmap(&vbo->base, 0, 1, &map);
@@ -481,7 +481,7 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 	 * the pinned bo.
 	 */
 
-	BUG_ON(dev_priv->pinned_bo != NULL);
+	_ON(dev_priv->pinned_bo != NULL);
 
 	vmw_bo_unreference(&dev_priv->dummy_query_bo);
 	if (dev_priv->cman)
@@ -1246,7 +1246,7 @@ static int vmw_master_set(struct drm_device *dev,
 	int ret = 0;
 
 	if (active) {
-		BUG_ON(active != &dev_priv->fbdev_master);
+		_ON(active != &dev_priv->fbdev_master);
 		ret = ttm_vt_lock(&active->lock, false, vmw_fp->tfile);
 		if (unlikely(ret != 0))
 			return ret;
@@ -1258,7 +1258,7 @@ static int vmw_master_set(struct drm_device *dev,
 	ttm_lock_set_kill(&vmaster->lock, false, SIGTERM);
 	if (!from_open) {
 		ttm_vt_unlock(&vmaster->lock);
-		BUG_ON(vmw_fp->locked_master != file_priv->master);
+		_ON(vmw_fp->locked_master != file_priv->master);
 		drm_master_put(&vmw_fp->locked_master);
 	}
 

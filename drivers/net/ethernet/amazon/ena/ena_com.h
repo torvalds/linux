@@ -335,10 +335,10 @@ struct ena_rss {
 };
 
 struct ena_host_attribute {
-	/* Debug area */
-	u8 *debug_area_virt_addr;
-	dma_addr_t debug_area_dma_addr;
-	u32 debug_area_size;
+	/* De area */
+	u8 *de_area_virt_addr;
+	dma_addr_t de_area_dma_addr;
+	u32 de_area_size;
 
 	/* Host information */
 	struct ena_admin_host_info *host_info;
@@ -816,21 +816,21 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl);
  */
 int ena_com_allocate_host_info(struct ena_com_dev *ena_dev);
 
-/* ena_com_allocate_debug_area - Allocate debug area.
+/* ena_com_allocate_de_area - Allocate de area.
  * @ena_dev: ENA communication layer struct
- * @debug_area_size - debug area size.
+ * @de_area_size - de area size.
  *
  * @return: 0 on Success and negative value otherwise.
  */
-int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
-				u32 debug_area_size);
+int ena_com_allocate_de_area(struct ena_com_dev *ena_dev,
+				u32 de_area_size);
 
-/* ena_com_delete_debug_area - Free the debug area resources.
+/* ena_com_delete_de_area - Free the de area resources.
  * @ena_dev: ENA communication layer struct
  *
- * Free the allocate debug area.
+ * Free the allocate de area.
  */
-void ena_com_delete_debug_area(struct ena_com_dev *ena_dev);
+void ena_com_delete_de_area(struct ena_com_dev *ena_dev);
 
 /* ena_com_delete_host_info - Free the host info resources.
  * @ena_dev: ENA communication layer struct
@@ -840,7 +840,7 @@ void ena_com_delete_debug_area(struct ena_com_dev *ena_dev);
 void ena_com_delete_host_info(struct ena_com_dev *ena_dev);
 
 /* ena_com_set_host_attributes - Update the device with the host
- * attributes (debug area and host info) base address.
+ * attributes (de area and host info) base address.
  * @ena_dev: ENA communication layer struct
  *
  * @return: 0 on Success and negative value otherwise.

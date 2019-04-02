@@ -43,10 +43,10 @@ MODULE_AUTHOR(  "Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, "
 		"Hans Verkuil, Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
-static bool debug;
-module_param(debug, bool, 0644);
+static bool de;
+module_param(de, bool, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 enum saa711x_model {
@@ -166,7 +166,7 @@ static int saa711x_writeregs(struct v4l2_subdev *sd, const unsigned char *regs)
 			if (saa711x_write(sd, reg, data) < 0)
 				return -1;
 		} else {
-			v4l2_dbg(1, debug, sd, "tried to access reserved reg 0x%02x\n", reg);
+			v4l2_dbg(1, de, sd, "tried to access reserved reg 0x%02x\n", reg);
 		}
 	}
 	return 0;
@@ -760,7 +760,7 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	if (!saa711x_has_reg(state->ident, R_30_AUD_MAST_CLK_CYCLES_PER_FIELD))
 		return 0;
 
-	v4l2_dbg(1, debug, sd, "set audio clock freq: %d\n", freq);
+	v4l2_dbg(1, de, sd, "set audio clock freq: %d\n", freq);
 
 	/* sanity check */
 	if (freq < 32000 || freq > 48000)
@@ -870,7 +870,7 @@ static int saa711x_set_size(struct v4l2_subdev *sd, int width, int height)
 	int is_50hz = state->std & V4L2_STD_625_50;
 	int Vsrc = is_50hz ? 576 : 480;
 
-	v4l2_dbg(1, debug, sd, "decoder set size to %ix%i\n", width, height);
+	v4l2_dbg(1, de, sd, "decoder set size to %ix%i\n", width, height);
 
 	/* FIXME need better bounds checking here */
 	if ((width < 1) || (width > 1440))
@@ -925,7 +925,7 @@ static int saa711x_set_size(struct v4l2_subdev *sd, int width, int height)
 	saa711x_write(sd, R_D0_B_HORIZ_PRESCALING,
 				(u8) (HPSC & 0x3f));
 
-	v4l2_dbg(1, debug, sd, "Hpsc: 0x%05x, Hfsc: 0x%05x\n", HPSC, HFSC);
+	v4l2_dbg(1, de, sd, "Hpsc: 0x%05x, Hfsc: 0x%05x\n", HPSC, HFSC);
 	/* write H fine-scaling (luminance) */
 	saa711x_write(sd, R_D8_B_HORIZ_LUMA_SCALING_INC,
 				(u8) (HFSC & 0xff));
@@ -939,7 +939,7 @@ static int saa711x_set_size(struct v4l2_subdev *sd, int width, int height)
 				(u8) ((HFSC >> 9) & 0xff));
 
 	VSCY = (int)((1024 * Vsrc) / height);
-	v4l2_dbg(1, debug, sd, "Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
+	v4l2_dbg(1, de, sd, "Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
 
 	/* Correct Contrast and Luminance */
 	saa711x_write(sd, R_D5_B_LUMA_CONTRAST_CNTL,
@@ -985,7 +985,7 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	// This works for NTSC-M, SECAM-L and the 50Hz PAL variants.
 	if (std & V4L2_STD_525_60) {
-		v4l2_dbg(1, debug, sd, "decoder set standard 60 Hz\n");
+		v4l2_dbg(1, de, sd, "decoder set standard 60 Hz\n");
 		if (state->ident == GM7113C) {
 			u8 reg = saa711x_read(sd, R_08_SYNC_CNTL);
 			reg &= ~(SAA7113_R_08_FSEL | SAA7113_R_08_AUFD);
@@ -996,7 +996,7 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 		}
 		saa711x_set_size(sd, 720, 480);
 	} else {
-		v4l2_dbg(1, debug, sd, "decoder set standard 50 Hz\n");
+		v4l2_dbg(1, de, sd, "decoder set standard 50 Hz\n");
 		if (state->ident == GM7113C) {
 			u8 reg = saa711x_read(sd, R_08_SYNC_CNTL);
 			reg &= ~(SAA7113_R_08_FSEL | SAA7113_R_08_AUFD);
@@ -1261,7 +1261,7 @@ static int saa711x_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		return 0;
 	status = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
 
-	v4l2_dbg(1, debug, sd, "status: 0x%02x\n", status);
+	v4l2_dbg(1, de, sd, "status: 0x%02x\n", status);
 	vt->signal = ((status & (1 << 6)) == 0) ? 0xffff : 0x0;
 	return 0;
 }
@@ -1289,7 +1289,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 	struct saa711x_state *state = to_state(sd);
 	u8 mask = (state->ident <= SAA7111A) ? 0xf8 : 0xf0;
 
-	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
+	v4l2_dbg(1, de, sd, "decoder set input %d output %d\n",
 		input, output);
 
 	/* saa7111/3 does not have these inputs */
@@ -1303,7 +1303,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if (state->input == input && state->output == output)
 		return 0;
-	v4l2_dbg(1, debug, sd, "now setting %s input %s output\n",
+	v4l2_dbg(1, de, sd, "now setting %s input %s output\n",
 		(input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
 		(output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
 	state->input = input;
@@ -1362,7 +1362,7 @@ static int saa711x_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct saa711x_state *state = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "%s output\n",
+	v4l2_dbg(1, de, sd, "%s output\n",
 			enable ? "enable" : "disable");
 
 	if (state->enable == enable)
@@ -1391,7 +1391,7 @@ static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, u32 freq, u32 flags)
 
 static int saa711x_reset(struct v4l2_subdev *sd, u32 val)
 {
-	v4l2_dbg(1, debug, sd, "decoder RESET\n");
+	v4l2_dbg(1, de, sd, "decoder RESET\n");
 	saa711x_writeregs(sd, saa7115_cfg_reset_scaler);
 	return 0;
 }
@@ -1444,7 +1444,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	if (state->ident == SAA7115) {
 		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
 
-		v4l2_dbg(1, debug, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
+		v4l2_dbg(1, de, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
 
 		switch (reg1e & 0x03) {
 		case 1:
@@ -1469,7 +1469,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		}
 	}
 
-	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
+	v4l2_dbg(1, de, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
 
 	/* horizontal/vertical not locked */
 	if (reg1f & 0x40) {
@@ -1483,7 +1483,7 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		*std &= V4L2_STD_625_50;
 
 ret:
-	v4l2_dbg(1, debug, sd, "detected std mask = %08Lx\n", *std);
+	v4l2_dbg(1, de, sd, "detected std mask = %08Lx\n", *std);
 
 	return 0;
 }
@@ -1503,7 +1503,7 @@ static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int saa711x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = saa711x_read(sd, reg->reg & 0xff);
@@ -1579,7 +1579,7 @@ static const struct v4l2_subdev_core_ops saa711x_core_ops = {
 	.log_status = saa711x_log_status,
 	.reset = saa711x_reset,
 	.s_gpio = saa711x_s_gpio,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = saa711x_g_register,
 	.s_register = saa711x_s_register,
 #endif
@@ -1776,7 +1776,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		if (!autodetect && strcmp(name, id->name))
 			return -EINVAL;
 
-		v4l_dbg(1, debug, client,
+		v4l_dbg(1, de, client,
 			"It seems to be a %s chip (%*ph) @ 0x%x.\n",
 			name, 16, chip_ver, client->addr << 1);
 
@@ -1790,7 +1790,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		if (!autodetect && strcmp(name, id->name))
 			return -EINVAL;
 
-		v4l_dbg(1, debug, client,
+		v4l_dbg(1, de, client,
 			"It seems to be a %s chip (%*ph) @ 0x%x.\n",
 			name, 16, chip_ver, client->addr << 1);
 
@@ -1799,7 +1799,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 	}
 
 	/* Chip was not discovered. Return its ID and don't bind */
-	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unknown.\n",
+	v4l_dbg(1, de, client, "chip %*ph @ 0x%x is unknown.\n",
 		16, chip_ver, client->addr << 1);
 	return -ENODEV;
 }
@@ -1887,7 +1887,7 @@ static int saa711x_probe(struct i2c_client *client,
 
 	state->audclk_freq = 48000;
 
-	v4l2_dbg(1, debug, sd, "writing init values\n");
+	v4l2_dbg(1, de, sd, "writing init values\n");
 
 	/* init to 60hz/48khz */
 	state->crystal_freq = SAA7115_FREQ_24_576_MHZ;
@@ -1919,7 +1919,7 @@ static int saa711x_probe(struct i2c_client *client,
 	saa711x_set_v4lstd(sd, V4L2_STD_NTSC);
 	v4l2_ctrl_handler_setup(hdl);
 
-	v4l2_dbg(1, debug, sd, "status: (1E) 0x%02x, (1F) 0x%02x\n",
+	v4l2_dbg(1, de, sd, "status: (1E) 0x%02x, (1F) 0x%02x\n",
 		saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC),
 		saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC));
 	return 0;

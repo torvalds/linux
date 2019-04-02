@@ -359,7 +359,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		wm8994->num_supplies = ARRAY_SIZE(wm8958_main_supplies);
 		break;
 	default:
-		BUG();
+		();
 		goto err;
 	}
 
@@ -386,7 +386,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			wm8994->supplies[i].supply = wm8958_main_supplies[i];
 		break;
 	default:
-		BUG();
+		();
 		goto err;
 	}
 

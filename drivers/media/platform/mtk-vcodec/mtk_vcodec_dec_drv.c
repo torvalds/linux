@@ -78,7 +78,7 @@ static irqreturn_t mtk_vcodec_dec_irq_handler(int irq, void *priv)
 
 	wake_up_ctx(ctx);
 
-	mtk_v4l2_debug(3,
+	mtk_v4l2_de(3,
 			"mtk_vcodec_dec_irq_handler :wake up ctx %d, dec_done_status=%x",
 			ctx->id, dec_done_status);
 
@@ -95,7 +95,7 @@ static void mtk_vcodec_dec_reset_handler(void *priv)
 	mutex_lock(&dev->dev_mutex);
 	list_for_each_entry(ctx, &dev->ctx_list, list) {
 		ctx->state = MTK_STATE_ABORT;
-		mtk_v4l2_debug(0, "[%d] Change to state MTK_STATE_ERROR",
+		mtk_v4l2_de(0, "[%d] Change to state MTK_STATE_ERROR",
 				ctx->id);
 	}
 	mutex_unlock(&dev->dev_mutex);
@@ -167,13 +167,13 @@ static int fops_vcodec_open(struct file *file)
 
 		dev->dec_capability =
 			vpu_get_vdec_hw_capa(dev->vpu_plat_dev);
-		mtk_v4l2_debug(0, "decoder capability %x", dev->dec_capability);
+		mtk_v4l2_de(0, "decoder capability %x", dev->dec_capability);
 	}
 
 	list_add(&ctx->list, &dev->ctx_list);
 
 	mutex_unlock(&dev->dev_mutex);
-	mtk_v4l2_debug(0, "%s decoder [%d]", dev_name(&dev->plat_dev->dev),
+	mtk_v4l2_de(0, "%s decoder [%d]", dev_name(&dev->plat_dev->dev),
 			ctx->id);
 	return ret;
 
@@ -197,7 +197,7 @@ static int fops_vcodec_release(struct file *file)
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_ctx *ctx = fh_to_ctx(file->private_data);
 
-	mtk_v4l2_debug(0, "[%d] decoder", ctx->id);
+	mtk_v4l2_de(0, "[%d] decoder", ctx->id);
 	mutex_lock(&dev->dev_mutex);
 
 	/*
@@ -272,7 +272,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 			ret = PTR_ERR((__force void *)dev->reg_base[i]);
 			goto err_res;
 		}
-		mtk_v4l2_debug(2, "reg[%d] base=%p", i, dev->reg_base[i]);
+		mtk_v4l2_de(2, "reg[%d] base=%p", i, dev->reg_base[i]);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -351,7 +351,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		goto err_dec_reg;
 	}
 
-	mtk_v4l2_debug(0, "decoder registered as /dev/video%d",
+	mtk_v4l2_de(0, "decoder registered as /dev/video%d",
 		vfd_dec->num);
 
 	return 0;

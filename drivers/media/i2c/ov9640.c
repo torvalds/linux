@@ -215,7 +215,7 @@ static int ov9640_reg_write(struct i2c_client *client, u8 reg, u8 val)
 		return ret;
 	}
 
-	/* we have to read the register back ... no idea why, maybe HW bug */
+	/* we have to read the register back ... no idea why, maybe HW  */
 	ret = ov9640_reg_read(client, reg, &_val);
 	if (ret)
 		dev_err(&client->dev,
@@ -291,7 +291,7 @@ static int ov9640_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ov9640_get_register(struct v4l2_subdev *sd,
 				struct v4l2_dbg_register *reg)
 {
@@ -640,7 +640,7 @@ static const struct v4l2_ctrl_ops ov9640_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops ov9640_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register		= ov9640_get_register,
 	.s_register		= ov9640_set_register,
 #endif

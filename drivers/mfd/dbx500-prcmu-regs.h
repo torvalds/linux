@@ -172,7 +172,7 @@
 #define PRCM_EPOD_C_SET            (prcmu_base + 0x410)
 #define PRCM_SRAM_LS_SLEEP         (prcmu_base + 0x304)
 
-/* Debug power control unit registers */
+/* De power control unit registers */
 #define PRCM_POWER_STATE_SET       (prcmu_base + 0x254)
 
 /* Miscellaneous unit registers */

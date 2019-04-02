@@ -719,10 +719,10 @@ static void find_endpoints(struct usb_serial *serial,
 	struct usb_endpoint_descriptor *epd;
 	unsigned int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_in) < USB_MAXENDPOINTS / 2);
-	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_out) < USB_MAXENDPOINTS / 2);
-	BUILD_BUG_ON(ARRAY_SIZE(epds->interrupt_in) < USB_MAXENDPOINTS / 2);
-	BUILD_BUG_ON(ARRAY_SIZE(epds->interrupt_out) < USB_MAXENDPOINTS / 2);
+	BUILD__ON(ARRAY_SIZE(epds->bulk_in) < USB_MAXENDPOINTS / 2);
+	BUILD__ON(ARRAY_SIZE(epds->bulk_out) < USB_MAXENDPOINTS / 2);
+	BUILD__ON(ARRAY_SIZE(epds->interrupt_in) < USB_MAXENDPOINTS / 2);
+	BUILD__ON(ARRAY_SIZE(epds->interrupt_out) < USB_MAXENDPOINTS / 2);
 
 	iface_desc = serial->interface->cur_altsetting;
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
@@ -1282,7 +1282,7 @@ module_exit(usb_serial_exit);
 	do {								\
 		if (!type->function) {					\
 			type->function = usb_serial_generic_##function;	\
-			pr_debug("%s: using generic " #function	"\n",	\
+			pr_de("%s: using generic " #function	"\n",	\
 						type->driver.name);	\
 		}							\
 	} while (0)

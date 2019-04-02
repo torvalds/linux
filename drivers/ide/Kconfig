@@ -16,7 +16,7 @@ menuconfig IDE
 	  ATAPI units. The most common cases are IDE hard drives and ATAPI
 	  CD-ROM drives.
 
-	  This subsystem is currently in maintenance mode with only bug fix
+	  This subsystem is currently in maintenance mode with only  fix
 	  changes applied. Users of ATA hardware are encouraged to migrate to
 	  the newer ATA subsystem ("Serial ATA (prod) and Parallel ATA
 	  (experimental) drivers") which is more actively maintained.
@@ -196,7 +196,7 @@ config IDE_PROC_FS
 
 	  If unsure say Y.
 
-comment "IDE chipset support/bugfixes"
+comment "IDE chipset support/fixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
@@ -228,7 +228,7 @@ config BLK_DEV_PLATFORM
 	  If unsure, say N.
 
 config BLK_DEV_CMD640
-	tristate "CMD640 chipset bugfix/support"
+	tristate "CMD640 chipset fix/support"
 	depends on X86
 	select IDE_TIMINGS
 	---help---
@@ -244,7 +244,7 @@ config BLK_DEV_CMD640
 	  This driver will work automatically in PCI based systems (most new
 	  systems have PCI slots). But if your system uses VESA local bus
 	  (VLB) instead of PCI, you must also supply a kernel boot parameter
-	  to enable the CMD640 bugfix/support: "cmd640.probe_vlb". (Try "man
+	  to enable the CMD640 fix/support: "cmd640.probe_vlb". (Try "man
 	  bootparam" or see the documentation of your boot loader about how to
 	  pass options to the kernel.)
 
@@ -332,7 +332,7 @@ config BLK_DEV_OPTI621
 	  Please read the comments at the top of <file:drivers/ide/opti621.c>.
 
 config BLK_DEV_RZ1000
-	tristate "RZ1000 chipset bugfix/support"
+	tristate "RZ1000 chipset fix/support"
 	depends on X86
 	select BLK_DEV_IDEPCI
 	help

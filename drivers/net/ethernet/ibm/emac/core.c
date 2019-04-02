@@ -995,7 +995,7 @@ static void emac_set_multicast_list(struct net_device *ndev)
 
 	DBG(dev, "multicast" NL);
 
-	BUG_ON(!netif_running(dev->ndev));
+	_ON(!netif_running(dev->ndev));
 
 	if (dev->no_mcast) {
 		dev->mcast_pending = 1;
@@ -1079,7 +1079,7 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 			goto oom;
 		}
 
-		BUG_ON(!dev->rx_skb[i]);
+		_ON(!dev->rx_skb[i]);
 		dev_kfree_skb(dev->rx_skb[i]);
 
 		dev->rx_desc[i].data_ptr =
@@ -1822,7 +1822,7 @@ static int emac_poll_rx(void *param, int budget)
 		continue;
 	sg:
 		if (ctrl & MAL_RX_CTRL_FIRST) {
-			BUG_ON(dev->rx_sg_skb);
+			_ON(dev->rx_sg_skb);
 			if (unlikely(emac_alloc_rx_skb_napi(dev, slot))) {
 				DBG(dev, "rx OOM %d" NL, slot);
 				++dev->estats.rx_dropped_oom;

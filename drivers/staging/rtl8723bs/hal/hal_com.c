@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include "hal_com_h2c.h"
 
 #include "odm_precomp.h"
@@ -1136,9 +1136,9 @@ u8 SetHalDefVar(
 	case HW_DEF_FA_CNT_DUMP:
 		/* ODM_COMP_COMMON */
 		if (*((u8 *)value))
-			odm->DebugComponents |= (ODM_COMP_DIG | ODM_COMP_FA_CNT);
+			odm->DeComponents |= (ODM_COMP_DIG | ODM_COMP_FA_CNT);
 		else
-			odm->DebugComponents &= ~(ODM_COMP_DIG | ODM_COMP_FA_CNT);
+			odm->DeComponents &= ~(ODM_COMP_DIG | ODM_COMP_FA_CNT);
 		break;
 	case HAL_DEF_DBG_RX_INFO_DUMP:
 		DBG_871X("============ Rx Info dump ===================\n");
@@ -1232,10 +1232,10 @@ u8 GetHalDefVar(
 		}
 		break;
 	case HW_DEF_ODM_DBG_FLAG:
-		*((u64 *)value) = odm->DebugComponents;
+		*((u64 *)value) = odm->DeComponents;
 		break;
 	case HW_DEF_ODM_DBG_LEVEL:
-		*((u32 *)value) = odm->DebugLevel;
+		*((u32 *)value) = odm->DeLevel;
 		break;
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32 *)value) = hal_data->odmpriv.SupportAbility;
@@ -1561,7 +1561,7 @@ bool isAllSpaceOrTab(u8 *data, u8 size)
 void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 {
 	struct dvobj_priv *psdpriv = adapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	struct de_priv *pdbgpriv = &psdpriv->drv_dbg;
 	int save_cnt = false;
 
 	/* switch counter to RX fifo */

@@ -34,7 +34,7 @@
 
 struct intel_guc;
 
-#ifdef CONFIG_DRM_I915_DEBUG_GUC
+#ifdef CONFIG_DRM_I915_DE_GUC
 #define CRASH_BUFFER_SIZE	SZ_2M
 #define DPC_BUFFER_SIZE		SZ_8M
 #define ISR_BUFFER_SIZE		SZ_8M

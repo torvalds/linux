@@ -41,7 +41,7 @@
 #include <linux/backing-dev.h>
 #include <linux/genhd.h>
 #include <linux/idr.h>
-#include <linux/dynamic_debug.h>
+#include <linux/dynamic_de.h>
 #include <net/tcp.h>
 #include <linux/lru_cache.h>
 #include <linux/prefetch.h>
@@ -120,7 +120,7 @@ void drbd_printk_with_wrong_object_type(void);
 		drbd_printk_with_wrong_object_type()))))
 
 #define drbd_dbg(obj, fmt, args...) \
-	drbd_printk(KERN_DEBUG, obj, fmt, ## args)
+	drbd_printk(KERN_DE, obj, fmt, ## args)
 #define drbd_alert(obj, fmt, args...) \
 	drbd_printk(KERN_ALERT, obj, fmt, ## args)
 #define drbd_err(obj, fmt, args...) \
@@ -457,7 +457,7 @@ enum {
 	/* Is set when net_conf had two_primaries set while creating this peer_req */
 	__EE_IN_INTERVAL_TREE,
 
-	/* for debugfs: */
+	/* for defs: */
 	/* has this been submitted, or does it still wait for something else? */
 	__EE_SUBMITTED,
 
@@ -663,11 +663,11 @@ enum which_state { NOW, OLD = NOW, NEW };
 
 struct drbd_resource {
 	char *name;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_res;
-	struct dentry *debugfs_res_volumes;
-	struct dentry *debugfs_res_connections;
-	struct dentry *debugfs_res_in_flight_summary;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_res;
+	struct dentry *defs_res_volumes;
+	struct dentry *defs_res_connections;
+	struct dentry *defs_res_in_flight_summary;
 #endif
 	struct kref kref;
 	struct idr devices;		/* volume number to device mapping */
@@ -699,10 +699,10 @@ struct drbd_thread_timing_details
 struct drbd_connection {
 	struct list_head connections;
 	struct drbd_resource *resource;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_conn;
-	struct dentry *debugfs_conn_callback_history;
-	struct dentry *debugfs_conn_oldest_requests;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_conn;
+	struct dentry *defs_conn_callback_history;
+	struct dentry *defs_conn_oldest_requests;
 #endif
 	struct kref kref;
 	struct idr peer_devices;	/* volume number to peer device mapping */
@@ -819,8 +819,8 @@ struct drbd_peer_device {
 	struct drbd_device *device;
 	struct drbd_connection *connection;
 	struct work_struct send_acks_work;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_peer_dev;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_peer_dev;
 #endif
 };
 
@@ -830,14 +830,14 @@ struct drbd_device {
 	struct list_head pending_bitmap_io;
 
 	unsigned long flush_jif;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_minor;
-	struct dentry *debugfs_vol;
-	struct dentry *debugfs_vol_oldest_requests;
-	struct dentry *debugfs_vol_act_log_extents;
-	struct dentry *debugfs_vol_resync_extents;
-	struct dentry *debugfs_vol_data_gen_id;
-	struct dentry *debugfs_vol_ed_gen_id;
+#ifdef CONFIG_DE_FS
+	struct dentry *defs_minor;
+	struct dentry *defs_vol;
+	struct dentry *defs_vol_oldest_requests;
+	struct dentry *defs_vol_act_log_extents;
+	struct dentry *defs_vol_resync_extents;
+	struct dentry *defs_vol_data_gen_id;
+	struct dentry *defs_vol_ed_gen_id;
 #endif
 
 	unsigned int vnr;	/* volume number within the connection */

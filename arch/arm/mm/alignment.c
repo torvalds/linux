@@ -14,7 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
@@ -33,7 +33,7 @@
 
 /*
  * 32-bit misaligned trap handler (c) 1998 San Mehat (CCC) -July 1998
- * /proc/sys/debug/alignment, modified and integrated into
+ * /proc/sys/de/alignment, modified and integrated into
  * Linux 2.1 by Russell King
  *
  * Speed optimisations and better fault handling by Russell King.

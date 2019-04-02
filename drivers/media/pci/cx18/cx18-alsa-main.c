@@ -34,17 +34,17 @@
 #include "cx18-alsa.h"
 #include "cx18-alsa-pcm.h"
 
-int cx18_alsa_debug;
+int cx18_alsa_de;
 
-#define CX18_DEBUG_ALSA_INFO(fmt, arg...) \
+#define CX18_DE_ALSA_INFO(fmt, arg...) \
 	do { \
-		if (cx18_alsa_debug & 2) \
+		if (cx18_alsa_de & 2) \
 			printk(KERN_INFO "%s: " fmt, "cx18-alsa", ## arg); \
 	} while (0);
 
-module_param_named(debug, cx18_alsa_debug, int, 0644);
-MODULE_PARM_DESC(debug,
-		 "Debug level (bitmask). Default: 0\n"
+module_param_named(de, cx18_alsa_de, int, 0644);
+MODULE_PARM_DESC(de,
+		 "De level (bitmask). Default: 0\n"
 		 "\t\t\t  1/0x0001: warning\n"
 		 "\t\t\t  2/0x0002: info\n");
 
@@ -211,7 +211,7 @@ static int cx18_alsa_load(struct cx18 *cx)
 
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
 	if (s->video_dev.v4l2_dev == NULL) {
-		CX18_DEBUG_ALSA_INFO("%s: PCM stream for card is disabled - skipping\n",
+		CX18_DE_ALSA_INFO("%s: PCM stream for card is disabled - skipping\n",
 				     __func__);
 		return 0;
 	}
@@ -226,7 +226,7 @@ static int cx18_alsa_load(struct cx18 *cx)
 		CX18_ALSA_ERR("%s: failed to create struct snd_cx18_card\n",
 			      __func__);
 	} else {
-		CX18_DEBUG_ALSA_INFO("%s: created cx18 ALSA interface instance\n",
+		CX18_DE_ALSA_INFO("%s: created cx18 ALSA interface instance\n",
 				     __func__);
 	}
 	return 0;

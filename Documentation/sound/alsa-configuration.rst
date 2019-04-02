@@ -17,9 +17,9 @@ If you want to support the WaveTable functionality on cards such as
 SB Live! then you need to enable "Sequencer support"
 (``CONFIG_SND_SEQUENCER``).
 
-To make ALSA debug messages more verbose, enable the "Verbose printk"
-and "Debug" options.  To check for memory leaks, turn on "Debug memory"
-too.  "Debug detection" will add checks for the detection of cards.
+To make ALSA de messages more verbose, enable the "Verbose printk"
+and "De" options.  To check for memory leaks, turn on "De memory"
+too.  "De detection" will add checks for the detection of cards.
 
 Please note that all the ALSA ISA drivers support the Linux isapnp API
 (if the card supports ISA PnP).  You don't need to configure the cards
@@ -52,13 +52,13 @@ slots
     Reserve the slot index for the given driver;
     This option takes multiple strings.
     See `Module Autoloading Support`_ section for details.
-debug
-    Specifies the debug message level;
-    (0 = disable debug prints, 1 = normal debug messages,
-    2 = verbose debug messages);
-    This option appears only when ``CONFIG_SND_DEBUG=y``.
+de
+    Specifies the de message level;
+    (0 = disable de prints, 1 = normal de messages,
+    2 = verbose de messages);
+    This option appears only when ``CONFIG_SND_DE=y``.
     This option can be dynamically changed via sysfs
-    /sys/modules/snd/parameters/debug file.
+    /sys/modules/snd/parameters/de file.
   
 Module snd-pcm-oss
 ------------------
@@ -265,7 +265,7 @@ ac97_quirk
     See `AC97 Quirk Option`_ section below.
 ac97_codec
     Workaround to specify which AC'97 codec instead of probing.
-    If this works for you file a bug with your `lspci -vn` output.
+    If this works for you file a  with your `lspci -vn` output.
     (-2 = Force probing, -1 = Default behavior, 0-2 = Use the
     specified codec.)
 spdif_aclink
@@ -1008,7 +1008,7 @@ probe_mask
     slots regardless what hardware reports back
 probe_only
     Only probing and no codec initialization (default=off);
-    Useful to check the initial codec status for debugging
+    Useful to check the initial codec status for deging
 bdl_pos_adj
     Specifies the DMA IRQ timing delay in samples.
     Passing -1 will make the driver to choose the appropriate
@@ -1026,7 +1026,7 @@ beep_mode
 
 single_cmd
     Use single immediate commands to communicate with codecs
-    (for debugging only)
+    (for deging only)
 enable_msi
     Enable Message Signaled Interrupt (MSI) (default = off)
 power_save
@@ -1054,11 +1054,11 @@ is found in hd-audio/models.rst.
 
 The model name ``generic`` is treated as a special case.  When this
 model is given, the driver uses the generic codec parser without
-"codec-patch".  It's sometimes good for testing and debugging.
+"codec-patch".  It's sometimes good for testing and deging.
 
 If the default configuration doesn't work and one of the above
 matches with your device, report it together with alsa-info.sh
-output (with ``--no-upload`` option) to kernel bugzilla or alsa-devel
+output (with ``--no-upload`` option) to kernel zilla or alsa-devel
 ML (see the section `Links and Addresses`_).
 
 ``power_save`` and ``power_save_controller`` options are for power-saving
@@ -1094,7 +1094,7 @@ to avoid the ``azx_get_response timeout`` problem above, instead.
 This occurs when the access to non-existing or non-working codec slot
 (likely a modem one) causes a stall of the communication via HD-audio
 bus.  You can see which codec slots are probed by enabling
-``CONFIG_SND_DEBUG_VERBOSE``, or simply from the file name of the codec
+``CONFIG_SND_DE_VERBOSE``, or simply from the file name of the codec
 proc files.  Then limit the slots to probe by probe_mask option.
 For example, ``probe_mask=1`` means to probe only the first slot, and
 ``probe_mask=4`` means only the third slot.
@@ -1273,11 +1273,11 @@ ac97_clock
 ac97_quirk
     AC'97 workaround for strange hardware;
     See `AC97 Quirk Option`_ section below.
-buggy_irq
-    Enable workaround for buggy interrupts on some motherboards
+gy_irq
+    Enable workaround for gy interrupts on some motherboards
     (default yes on nForce chips, otherwise off)
-buggy_semaphore
-    Enable workaround for hardware with buggy semaphores (e.g. on some
+gy_semaphore
+    Enable workaround for hardware with gy semaphores (e.g. on some
     ASUS laptops) (default off)
 spdif_aclink
     Use S/PDIF over AC-link instead of direct connection from the
@@ -2092,8 +2092,8 @@ fx_raw
     when the driver is loaded.  The default is to download the
     microprogram and associated coefficients to set it up for
     "default" operation, whatever that means.
-debug_default
-    Debug parameters for card initialization
+de_default
+    De parameters for card initialization
 wait_usecs
     How long to wait without sleeping, usecs (default:150);
     This magic number seems to give pretty optimal throughput
@@ -2240,7 +2240,7 @@ check.
 
 NB: ``ignore_ctl_error=1`` may help when you get an error at accessing
 the mixer element such as URB error -22.  This happens on some
-buggy USB device or the controller.
+gy USB device or the controller.
 
 NB: quirk_alias option is provided only for testing / development.
 If you want to have a proper support, contact to upstream for
@@ -2305,7 +2305,7 @@ each channel.
 As default (``dxs_support = 0``), 48k fixed rate is chosen
 except for the known devices since the output is often
 noisy except for 48k on some mother boards due to the
-bug of BIOS.
+ of BIOS.
 Please try once ``dxs_support=5`` and if it works on other
 sample rates (e.g. 44.1kHz of mp3 playback), please let us
 know the PCI subsystem vendor/device id's (output of
@@ -2622,7 +2622,7 @@ erase
 	disable
 	    the application tries to open a pcm device for
 	    this channel but does not want to use it.
-	    (Cause a bug or mmap needs)
+	    (Cause a  or mmap needs)
 	    It's good for Quake etc...
 	direct
 	    don't use plugins
@@ -2635,7 +2635,7 @@ erase
 	    playback only)
 	no-silence
 	    do not fill silence ahead to avoid clicks
-	buggy-ptr
+	gy-ptr
 	    Returns the whitespace blocks in GETOPTR ioctl
 	    instead of filled blocks
 
@@ -2682,8 +2682,8 @@ Links and Addresses
 
 ALSA project homepage
     http://www.alsa-project.org
-Kernel Bugzilla
-    http://bugzilla.kernel.org/
+Kernel zilla
+    http://zilla.kernel.org/
 ALSA Developers ML
     mailto:alsa-devel@alsa-project.org
 alsa-info.sh script

@@ -160,7 +160,7 @@ EXPORT_SYMBOL(rfkill_get_led_trigger_name);
 
 void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
 {
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	rfkill->ledtrigname = name;
 }
@@ -539,7 +539,7 @@ bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
 	unsigned long flags;
 	bool ret, prev;
 
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	spin_lock_irqsave(&rfkill->lock, flags);
 	prev = !!(rfkill->state & RFKILL_BLOCK_HW);
@@ -579,7 +579,7 @@ bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked)
 	unsigned long flags;
 	bool prev, hwblock;
 
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	spin_lock_irqsave(&rfkill->lock, flags);
 	prev = !!(rfkill->state & RFKILL_BLOCK_SW);
@@ -605,8 +605,8 @@ void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked)
 {
 	unsigned long flags;
 
-	BUG_ON(!rfkill);
-	BUG_ON(rfkill->registered);
+	_ON(!rfkill);
+	_ON(rfkill->registered);
 
 	spin_lock_irqsave(&rfkill->lock, flags);
 	__rfkill_set_sw_state(rfkill, blocked);
@@ -620,7 +620,7 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 	unsigned long flags;
 	bool swprev, hwprev;
 
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	spin_lock_irqsave(&rfkill->lock, flags);
 
@@ -666,7 +666,7 @@ enum rfkill_type rfkill_find_type(const char *name)
 {
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(rfkill_types) != NUM_RFKILL_TYPES);
+	BUILD__ON(ARRAY_SIZE(rfkill_types) != NUM_RFKILL_TYPES);
 
 	if (!name)
 		return RFKILL_TYPE_ALL;
@@ -843,7 +843,7 @@ static int rfkill_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 void rfkill_pause_polling(struct rfkill *rfkill)
 {
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	if (!rfkill->ops->poll)
 		return;
@@ -855,7 +855,7 @@ EXPORT_SYMBOL(rfkill_pause_polling);
 
 void rfkill_resume_polling(struct rfkill *rfkill)
 {
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	if (!rfkill->ops->poll)
 		return;
@@ -1017,7 +1017,7 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 	struct device *dev = &rfkill->dev;
 	int error;
 
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	mutex_lock(&rfkill_global_mutex);
 
@@ -1080,7 +1080,7 @@ EXPORT_SYMBOL(rfkill_register);
 
 void rfkill_unregister(struct rfkill *rfkill)
 {
-	BUG_ON(!rfkill);
+	_ON(!rfkill);
 
 	if (rfkill->ops->poll)
 		cancel_delayed_work_sync(&rfkill->poll_work);
@@ -1280,7 +1280,7 @@ static int rfkill_fop_release(struct inode *inode, struct file *file)
 #ifdef CONFIG_RFKILL_INPUT
 	if (data->input_handler)
 		if (atomic_dec_return(&rfkill_input_disabled) == 0)
-			printk(KERN_DEBUG "rfkill: input handler enabled\n");
+			printk(KERN_DE "rfkill: input handler enabled\n");
 #endif
 
 	kfree(data);
@@ -1304,7 +1304,7 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 
 	if (!data->input_handler) {
 		if (atomic_inc_return(&rfkill_input_disabled) == 1)
-			printk(KERN_DEBUG "rfkill: input handler disabled\n");
+			printk(KERN_DE "rfkill: input handler disabled\n");
 		data->input_handler = true;
 	}
 

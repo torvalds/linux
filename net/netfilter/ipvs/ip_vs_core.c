@@ -66,8 +66,8 @@ EXPORT_SYMBOL(ip_vs_conn_out_get);
 EXPORT_SYMBOL(ip_vs_tcp_conn_listen);
 #endif
 EXPORT_SYMBOL(ip_vs_conn_put);
-#ifdef CONFIG_IP_VS_DEBUG
-EXPORT_SYMBOL(ip_vs_get_debug_level);
+#ifdef CONFIG_IP_VS_DE
+EXPORT_SYMBOL(ip_vs_get_de_level);
 #endif
 EXPORT_SYMBOL(ip_vs_new_conn_out);
 

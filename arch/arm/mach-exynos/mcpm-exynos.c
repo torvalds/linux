@@ -59,7 +59,7 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
 		cluster >= EXYNOS5420_NR_CLUSTERS)
 		return -EINVAL;
@@ -94,7 +94,7 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 
 static int exynos_cluster_powerup(unsigned int cluster)
 {
-	pr_debug("%s: cluster %u\n", __func__, cluster);
+	pr_de("%s: cluster %u\n", __func__, cluster);
 	if (cluster >= EXYNOS5420_NR_CLUSTERS)
 		return -EINVAL;
 
@@ -106,16 +106,16 @@ static void exynos_cpu_powerdown_prepare(unsigned int cpu, unsigned int cluster)
 {
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	_ON(cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
 			cluster >= EXYNOS5420_NR_CLUSTERS);
 	exynos_cpu_power_down(cpunr);
 }
 
 static void exynos_cluster_powerdown_prepare(unsigned int cluster)
 {
-	pr_debug("%s: cluster %u\n", __func__, cluster);
-	BUG_ON(cluster >= EXYNOS5420_NR_CLUSTERS);
+	pr_de("%s: cluster %u\n", __func__, cluster);
+	_ON(cluster >= EXYNOS5420_NR_CLUSTERS);
 	exynos_cluster_power_down(cluster);
 }
 
@@ -154,8 +154,8 @@ static int exynos_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 	unsigned int tries = 100;
 	unsigned int cpunr = cpu + (cluster * EXYNOS5420_CPUS_PER_CLUSTER);
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	_ON(cpu >= EXYNOS5420_CPUS_PER_CLUSTER ||
 			cluster >= EXYNOS5420_NR_CLUSTERS);
 
 	/* Wait for the core state to be OFF */

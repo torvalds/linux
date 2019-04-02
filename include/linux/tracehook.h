@@ -8,7 +8,7 @@
  * of the GNU General Public License v.2.
  *
  * This file defines hook entry points called by core code where
- * user tracing/debugging support might need to do something.  These
+ * user tracing/deging support might need to do something.  These
  * entry points are called tracehook_*().  Each hook declared below
  * has a detailed kerneldoc comment giving the context (locking et
  * al) from which it is called, and the meaning of its return value.
@@ -19,7 +19,7 @@
  *
  * The purpose of this file and the tracehook_* layer is to consolidate
  * the interface that the kernel core and arch code uses to enable any
- * user debugging or tracing facility (such as ptrace).  The interfaces
+ * user deging or tracing facility (such as ptrace).  The interfaces
  * here are carefully documented so that maintainers of core and arch
  * code do not need to think about the implementation details of the
  * tracing facilities.  Likewise, maintainers of the tracing code do not
@@ -131,7 +131,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 
 /**
  * tracehook_signal_handler - signal handler setup is complete
- * @stepping:		nonzero if debugger single-step or block-step in use
+ * @stepping:		nonzero if deger single-step or block-step in use
  *
  * Called by the arch code after a signal handler has been set up.
  * Register and stack state reflects the user handler about to run.

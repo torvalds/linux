@@ -242,12 +242,12 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 	unsigned nl = be16_to_cpu(ev->event_name_len);
 
 	if (nl < 2) {
-		pr_debug("%s: name length too short: %d", __func__, nl);
+		pr_de("%s: name length too short: %d", __func__, nl);
 		return NULL;
 	}
 
 	if (start + nl > end) {
-		pr_debug("%s: start=%p + nl=%u > end=%p",
+		pr_de("%s: start=%p + nl=%u > end=%p",
 				__func__, start, nl, end);
 		return NULL;
 	}
@@ -257,12 +257,12 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 		pr_warn("desc len not aligned %p", dl_);
 	dl = be16_to_cpu(*dl_);
 	if (dl < 2) {
-		pr_debug("%s: desc len too short: %d", __func__, dl);
+		pr_de("%s: desc len too short: %d", __func__, dl);
 		return NULL;
 	}
 
 	if (start + nl + dl > end) {
-		pr_debug("%s: (start=%p + nl=%u + dl=%u)=%p > end=%p",
+		pr_de("%s: (start=%p + nl=%u + dl=%u)=%p > end=%p",
 				__func__, start, nl, dl, start + nl + dl, end);
 		return NULL;
 	}
@@ -272,13 +272,13 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 		pr_warn("long desc len not aligned %p", ldl_);
 	ldl = be16_to_cpu(*ldl_);
 	if (ldl < 2) {
-		pr_debug("%s: long desc len too short (ldl=%u)",
+		pr_de("%s: long desc len too short (ldl=%u)",
 				__func__, ldl);
 		return NULL;
 	}
 
 	if (start + nl + dl + ldl > end) {
-		pr_debug("%s: start=%p + nl=%u + dl=%u + ldl=%u > end=%p",
+		pr_de("%s: start=%p + nl=%u + dl=%u + ldl=%u > end=%p",
 				__func__, start, nl, dl, ldl, end);
 		return NULL;
 	}
@@ -777,7 +777,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 	 * using vmalloc_to_phys() like this only works if PAGE_SIZE is
 	 * divisible by 4096
 	 */
-	BUILD_BUG_ON(PAGE_SIZE % 4096);
+	BUILD__ON(PAGE_SIZE % 4096);
 
 	for (i = 0; i < event_data_len; i++) {
 		hret = h_get_24x7_catalog_page_(
@@ -1197,7 +1197,7 @@ static int get_count_from_result(struct perf_event *event,
 	 * We can bail out early if the result is empty.
 	 */
 	if (!num_elements) {
-		pr_debug("Result of request %hhu is empty, nothing to do\n",
+		pr_de("Result of request %hhu is empty, nothing to do\n",
 			 res->result_ix);
 
 		if (next)
@@ -1220,7 +1220,7 @@ static int get_count_from_result(struct perf_event *event,
 	}
 
 	if (data_size != sizeof(u64)) {
-		pr_debug("Error: result of request %hhu has data of %hu bytes\n",
+		pr_de("Error: result of request %hhu has data of %hu bytes\n",
 			 res->result_ix, data_size);
 
 		return -ENOTSUPP;
@@ -1254,8 +1254,8 @@ static int single_24x7_request(struct perf_event *event, u64 *count)
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
 
-	BUILD_BUG_ON(sizeof(*request_buffer) > 4096);
-	BUILD_BUG_ON(sizeof(*result_buffer) > 4096);
+	BUILD__ON(sizeof(*request_buffer) > 4096);
+	BUILD__ON(sizeof(*result_buffer) > 4096);
 
 	request_buffer = (void *)get_cpu_var(hv_24x7_reqb);
 	result_buffer = (void *)get_cpu_var(hv_24x7_resb);
@@ -1578,7 +1578,7 @@ static int hv_24x7_init(void)
 	struct hv_perf_caps caps;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_debug("not a virtualized system, not enabling\n");
+		pr_de("not a virtualized system, not enabling\n");
 		return -ENODEV;
 	} else if (!cur_cpu_spec->oprofile_cpu_type)
 		return -ENODEV;
@@ -1596,7 +1596,7 @@ static int hv_24x7_init(void)
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
+		pr_de("could not obtain capabilities, not enabling, rc=%ld\n",
 				hret);
 		return -ENODEV;
 	}

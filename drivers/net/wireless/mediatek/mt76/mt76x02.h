@@ -190,7 +190,7 @@ void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
 void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
-void mt76x02_init_debugfs(struct mt76x02_dev *dev);
+void mt76x02_init_defs(struct mt76x02_dev *dev);
 
 static inline bool is_mt76x0(struct mt76x02_dev *dev)
 {

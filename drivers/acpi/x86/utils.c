@@ -23,7 +23,7 @@
  * devices at the same time, so the others get hidden.
  *
  * Some BIOS-es (temporarily) hide specific APCI devices to work around Windows
- * driver bugs. We use DMI matching to match known cases of this.
+ * driver s. We use DMI matching to match known cases of this.
  *
  * We work around this by always reporting ACPI_STA_DEFAULT for these
  * devices. Note this MUST only be done for devices where this is safe.

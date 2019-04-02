@@ -2,12 +2,12 @@
 /*
  * Copyright (c) 2011 Bryan Schumaker <bjschuma@netapp.com>
  *
- * Uses debugfs to create fault injection points for client testing
+ * Uses defs to create fault injection points for client testing
  */
 
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/nsproxy.h>
 #include <linux/sunrpc/addr.h>
@@ -24,7 +24,7 @@ struct nfsd_fault_inject_op {
 	u64 (*set_clnt)(struct sockaddr_storage *, size_t);
 };
 
-static struct dentry *debug_dir;
+static struct dentry *de_dir;
 
 static ssize_t fault_inject_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *ppos)
@@ -91,7 +91,7 @@ static const struct file_operations fops_nfsd = {
 
 void nfsd_fault_inject_cleanup(void)
 {
-	debugfs_remove_recursive(debug_dir);
+	defs_remove_recursive(de_dir);
 }
 
 static struct nfsd_fault_inject_op inject_ops[] = {
@@ -133,13 +133,13 @@ int nfsd_fault_inject_init(void)
 	struct nfsd_fault_inject_op *op;
 	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 
-	debug_dir = debugfs_create_dir("nfsd", NULL);
-	if (!debug_dir)
+	de_dir = defs_create_dir("nfsd", NULL);
+	if (!de_dir)
 		goto fail;
 
 	for (i = 0; i < ARRAY_SIZE(inject_ops); i++) {
 		op = &inject_ops[i];
-		if (!debugfs_create_file(op->file, mode, debug_dir, op, &fops_nfsd))
+		if (!defs_create_file(op->file, mode, de_dir, op, &fops_nfsd))
 			goto fail;
 	}
 	return 0;

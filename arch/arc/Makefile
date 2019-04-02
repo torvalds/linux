@@ -14,7 +14,7 @@ cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=hs38
 
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file
-# We had a customer reported bug where some code built in kernel was NOT using
+# We had a customer reported  where some code built in kernel was NOT using
 # any kernel headers, and missing the r25 global register
 # Can't do unconditionally because of recursive include issues
 # due to <linux/thread_info.h>

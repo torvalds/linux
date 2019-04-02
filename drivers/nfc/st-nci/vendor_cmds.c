@@ -56,7 +56,7 @@ static int st_nci_factory_mode(struct nfc_dev *dev, void *data,
 	if (data_len != 1)
 		return -EINVAL;
 
-	pr_debug("factory mode: %x\n", ((u8 *)data)[0]);
+	pr_de("factory mode: %x\n", ((u8 *)data)[0]);
 
 	switch (((u8 *)data)[0]) {
 	case ST_NCI_FACTORY_MODE_ON:

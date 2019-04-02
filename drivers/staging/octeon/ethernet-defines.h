@@ -16,7 +16,7 @@
  *      can significantly improve performance for forwarding and bridging, but
  *      may be somewhat dangerous. Checks are made, but if any buffer is reused
  *      without the proper Linux cleanup, the networking stack may have very
- *      bizarre bugs.
+ *      bizarre s.
  */
 #ifndef __ETHERNET_DEFINES_H__
 #define __ETHERNET_DEFINES_H__

@@ -234,7 +234,7 @@ struct adf_accel_dev {
 	struct list_head crypto_list;
 	unsigned long status;
 	atomic_t ref_count;
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 	struct list_head list;
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;

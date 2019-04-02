@@ -630,7 +630,7 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
 		/* no hint - S/PDIF input is master, simply return */
 		return;
 	default:
-		snd_BUG();
+		snd_();
 		return;
 	}
 

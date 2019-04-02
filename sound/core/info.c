@@ -39,7 +39,7 @@ int snd_info_check_reserved_words(const char *str)
 	{
 		"version",
 		"meminfo",
-		"memdebug",
+		"memde",
 		"detect",
 		"devices",
 		"oss",
@@ -521,7 +521,7 @@ int snd_info_card_create(struct snd_card *card)
 	char str[8];
 	struct snd_info_entry *entry;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 
 	sprintf(str, "card%i", card->number);
@@ -543,7 +543,7 @@ int snd_info_card_register(struct snd_card *card)
 	struct proc_dir_entry *p;
 	int err;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 
 	err = snd_info_register(card->proc_root);
@@ -623,7 +623,7 @@ int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len)
 {
 	int c = -1;
 
-	if (snd_BUG_ON(!buffer || !buffer->buffer))
+	if (snd__ON(!buffer || !buffer->buffer))
 		return 1;
 	if (len <= 0 || buffer->stop || buffer->error)
 		return 1;
@@ -804,7 +804,7 @@ static int __snd_info_register(struct snd_info_entry *entry)
 {
 	struct proc_dir_entry *root, *p = NULL;
 
-	if (snd_BUG_ON(!entry))
+	if (snd__ON(!entry))
 		return -ENXIO;
 	root = entry->parent == NULL ? snd_proc_root->p : entry->parent->p;
 	mutex_lock(&info_mutex);

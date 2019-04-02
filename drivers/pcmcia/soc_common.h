@@ -164,16 +164,16 @@ void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
 int soc_pcmcia_regulator_set(struct soc_pcmcia_socket *skt,
 	struct soc_pcmcia_regulator *r, int v);
 
-#ifdef CONFIG_PCMCIA_DEBUG
+#ifdef CONFIG_PCMCIA_DE
 
-extern void soc_pcmcia_debug(struct soc_pcmcia_socket *skt, const char *func,
+extern void soc_pcmcia_de(struct soc_pcmcia_socket *skt, const char *func,
 			     int lvl, const char *fmt, ...);
 
-#define debug(skt, lvl, fmt, arg...) \
-	soc_pcmcia_debug(skt, __func__, lvl, fmt , ## arg)
+#define de(skt, lvl, fmt, arg...) \
+	soc_pcmcia_de(skt, __func__, lvl, fmt , ## arg)
 
 #else
-#define debug(skt, lvl, fmt, arg...) do { } while (0)
+#define de(skt, lvl, fmt, arg...) do { } while (0)
 #endif
 
 

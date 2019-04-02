@@ -1190,14 +1190,14 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 		if (status) {
 			ret = uhci_map_status(status,
 					uhci_packetout(td_token(uhci, td)));
-			if ((debug == 1 && ret != -EPIPE) || debug > 1) {
-				/* Some debugging code */
+			if ((de == 1 && ret != -EPIPE) || de > 1) {
+				/* Some deging code */
 				dev_dbg(&urb->dev->dev,
 						"%s: failed with status %x\n",
 						__func__, status);
 
-				if (debug > 1 && errbuf) {
-					/* Print the chain for debugging */
+				if (de > 1 && errbuf) {
+					/* Print the chain for deging */
 					uhci_show_qh(uhci, urbp->qh, errbuf,
 						ERRBUF_LEN - EXTRA_SPACE, 0);
 					lprintk(errbuf);
@@ -1660,7 +1660,7 @@ restart:
  * Returns 0 if the queue is not Isochronous, is ACTIVE, and
  * has not advanced since last examined; 1 otherwise.
  *
- * Early Intel controllers have a bug which causes qh->element sometimes
+ * Early Intel controllers have a  which causes qh->element sometimes
  * not to advance when a TD completes successfully.  The queue remains
  * stuck on the inactive completed TD.  We detect such cases and advance
  * the element pointer by hand.
@@ -1707,7 +1707,7 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 
 	if (time_after(jiffies, qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
 
-		/* Detect the Intel bug and work around it */
+		/* Detect the Intel  and work around it */
 		if (qh->post_td && qh_element(qh) ==
 			LINK_TO_TD(uhci, qh->post_td)) {
 			qh->element = qh->post_td->link;

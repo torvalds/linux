@@ -795,14 +795,14 @@ static const unsigned int ca_audio_lpc_pins[] = { 62, 63, 64, 65, 66, 67, 68,
 static const unsigned int ca_bt_lpc_pins[] = { 85, 86, 87, 88, 89, 90, };
 static const unsigned int ca_coex_pins[] = { 129, 130, 131, 132, };
 static const unsigned int ca_curator_lpc_pins[] = { 57, 58, 59, 60, };
-static const unsigned int ca_pcm_debug_pins[] = { 91, 93, 94, 92, };
+static const unsigned int ca_pcm_de_pins[] = { 91, 93, 94, 92, };
 static const unsigned int ca_pio_pins[] = { 121, 122, 125, 126, 38, 37, 47,
 		49, 50, 54, 55, 56, };
-static const unsigned int ca_sdio_debug_pins[] = { 40, 39, 44, 43, 42, 41, };
+static const unsigned int ca_sdio_de_pins[] = { 40, 39, 44, 43, 42, 41, };
 static const unsigned int ca_spi_pins[] = { 82, 79, 80, 81, };
 static const unsigned int ca_trb_pins[] = { 91, 93, 94, 95, 96, 78, 74, 75,
 		76, 77, };
-static const unsigned int ca_uart_debug_pins[] = { 136, 135, 134, 133, };
+static const unsigned int ca_uart_de_pins[] = { 136, 135, 134, 133, };
 static const unsigned int clkc_pins0[] = { 30, 47, };
 static const unsigned int clkc_pins1[] = { 78, 54, };
 static const unsigned int gn_gnss_i2c_pins[] = { 128, 127, };
@@ -1064,12 +1064,12 @@ static struct atlas7_pin_group altas7_pin_groups[] = {
 	GROUP("ca_bt_lpc_grp", ca_bt_lpc_pins),
 	GROUP("ca_coex_grp", ca_coex_pins),
 	GROUP("ca_curator_lpc_grp", ca_curator_lpc_pins),
-	GROUP("ca_pcm_debug_grp", ca_pcm_debug_pins),
+	GROUP("ca_pcm_de_grp", ca_pcm_de_pins),
 	GROUP("ca_pio_grp", ca_pio_pins),
-	GROUP("ca_sdio_debug_grp", ca_sdio_debug_pins),
+	GROUP("ca_sdio_de_grp", ca_sdio_de_pins),
 	GROUP("ca_spi_grp", ca_spi_pins),
 	GROUP("ca_trb_grp", ca_trb_pins),
-	GROUP("ca_uart_debug_grp", ca_uart_debug_pins),
+	GROUP("ca_uart_de_grp", ca_uart_de_pins),
 	GROUP("clkc_grp0", clkc_pins0),
 	GROUP("clkc_grp1", clkc_pins1),
 	GROUP("gn_gnss_i2c_grp", gn_gnss_i2c_pins),
@@ -1341,12 +1341,12 @@ static const char * const ca_audio_lpc_grp[] = { "ca_audio_lpc_grp", };
 static const char * const ca_bt_lpc_grp[] = { "ca_bt_lpc_grp", };
 static const char * const ca_coex_grp[] = { "ca_coex_grp", };
 static const char * const ca_curator_lpc_grp[] = { "ca_curator_lpc_grp", };
-static const char * const ca_pcm_debug_grp[] = { "ca_pcm_debug_grp", };
+static const char * const ca_pcm_de_grp[] = { "ca_pcm_de_grp", };
 static const char * const ca_pio_grp[] = { "ca_pio_grp", };
-static const char * const ca_sdio_debug_grp[] = { "ca_sdio_debug_grp", };
+static const char * const ca_sdio_de_grp[] = { "ca_sdio_de_grp", };
 static const char * const ca_spi_grp[] = { "ca_spi_grp", };
 static const char * const ca_trb_grp[] = { "ca_trb_grp", };
-static const char * const ca_uart_debug_grp[] = { "ca_uart_debug_grp", };
+static const char * const ca_uart_de_grp[] = { "ca_uart_de_grp", };
 static const char * const clkc_grp0[] = { "clkc_grp0", };
 static const char * const clkc_grp1[] = { "clkc_grp1", };
 static const char * const gn_gnss_i2c_grp[] = { "gn_gnss_i2c_grp", };
@@ -2305,16 +2305,16 @@ static struct atlas7_grp_mux ca_curator_lpc_grp_mux = {
 	.pad_mux_list = ca_curator_lpc_grp_pad_mux,
 };
 
-static struct atlas7_pad_mux ca_pcm_debug_grp_pad_mux[] = {
+static struct atlas7_pad_mux ca_pcm_de_grp_pad_mux[] = {
 	MUX(1, 91, 5, N, N, N, N),
 	MUX(1, 93, 5, N, N, N, N),
 	MUX(1, 94, 5, N, N, N, N),
 	MUX(1, 92, 5, N, N, N, N),
 };
 
-static struct atlas7_grp_mux ca_pcm_debug_grp_mux = {
-	.pad_mux_count = ARRAY_SIZE(ca_pcm_debug_grp_pad_mux),
-	.pad_mux_list = ca_pcm_debug_grp_pad_mux,
+static struct atlas7_grp_mux ca_pcm_de_grp_mux = {
+	.pad_mux_count = ARRAY_SIZE(ca_pcm_de_grp_pad_mux),
+	.pad_mux_list = ca_pcm_de_grp_pad_mux,
 };
 
 static struct atlas7_pad_mux ca_pio_grp_pad_mux[] = {
@@ -2337,7 +2337,7 @@ static struct atlas7_grp_mux ca_pio_grp_mux = {
 	.pad_mux_list = ca_pio_grp_pad_mux,
 };
 
-static struct atlas7_pad_mux ca_sdio_debug_grp_pad_mux[] = {
+static struct atlas7_pad_mux ca_sdio_de_grp_pad_mux[] = {
 	MUX(1, 40, 5, N, N, N, N),
 	MUX(1, 39, 5, N, N, N, N),
 	MUX(1, 44, 5, N, N, N, N),
@@ -2346,9 +2346,9 @@ static struct atlas7_pad_mux ca_sdio_debug_grp_pad_mux[] = {
 	MUX(1, 41, 5, N, N, N, N),
 };
 
-static struct atlas7_grp_mux ca_sdio_debug_grp_mux = {
-	.pad_mux_count = ARRAY_SIZE(ca_sdio_debug_grp_pad_mux),
-	.pad_mux_list = ca_sdio_debug_grp_pad_mux,
+static struct atlas7_grp_mux ca_sdio_de_grp_mux = {
+	.pad_mux_count = ARRAY_SIZE(ca_sdio_de_grp_pad_mux),
+	.pad_mux_list = ca_sdio_de_grp_pad_mux,
 };
 
 static struct atlas7_pad_mux ca_spi_grp_pad_mux[] = {
@@ -2381,16 +2381,16 @@ static struct atlas7_grp_mux ca_trb_grp_mux = {
 	.pad_mux_list = ca_trb_grp_pad_mux,
 };
 
-static struct atlas7_pad_mux ca_uart_debug_grp_pad_mux[] = {
+static struct atlas7_pad_mux ca_uart_de_grp_pad_mux[] = {
 	MUX(1, 136, 3, N, N, N, N),
 	MUX(1, 135, 3, N, N, N, N),
 	MUX(1, 134, 3, N, N, N, N),
 	MUX(1, 133, 3, N, N, N, N),
 };
 
-static struct atlas7_grp_mux ca_uart_debug_grp_mux = {
-	.pad_mux_count = ARRAY_SIZE(ca_uart_debug_grp_pad_mux),
-	.pad_mux_list = ca_uart_debug_grp_pad_mux,
+static struct atlas7_grp_mux ca_uart_de_grp_mux = {
+	.pad_mux_count = ARRAY_SIZE(ca_uart_de_grp_pad_mux),
+	.pad_mux_list = ca_uart_de_grp_pad_mux,
 };
 
 static struct atlas7_pad_mux clkc_grp0_pad_mux[] = {
@@ -4475,12 +4475,12 @@ static struct atlas7_pmx_func atlas7_pmx_functions[] = {
 	FUNCTION("ca_curator_lpc",
 			ca_curator_lpc_grp,
 			&ca_curator_lpc_grp_mux),
-	FUNCTION("ca_pcm_debug", ca_pcm_debug_grp, &ca_pcm_debug_grp_mux),
+	FUNCTION("ca_pcm_de", ca_pcm_de_grp, &ca_pcm_de_grp_mux),
 	FUNCTION("ca_pio", ca_pio_grp, &ca_pio_grp_mux),
-	FUNCTION("ca_sdio_debug", ca_sdio_debug_grp, &ca_sdio_debug_grp_mux),
+	FUNCTION("ca_sdio_de", ca_sdio_de_grp, &ca_sdio_de_grp_mux),
 	FUNCTION("ca_spi", ca_spi_grp, &ca_spi_grp_mux),
 	FUNCTION("ca_trb", ca_trb_grp, &ca_trb_grp_mux),
-	FUNCTION("ca_uart_debug", ca_uart_debug_grp, &ca_uart_debug_grp_mux),
+	FUNCTION("ca_uart_de", ca_uart_de_grp, &ca_uart_de_grp_mux),
 	FUNCTION("clkc_m0", clkc_grp0, &clkc_grp0_mux),
 	FUNCTION("clkc_m1", clkc_grp1, &clkc_grp1_mux),
 	FUNCTION("gn_gnss_i2c", gn_gnss_i2c_grp, &gn_gnss_i2c_grp_mux),
@@ -5017,7 +5017,7 @@ static int __atlas7_pmx_pin_ad_sel(struct atlas7_pmx *pmx,
 			pmx->regs[bank] + conf->ad_ctrl_reg);
 
 	regv = readl(pmx->regs[bank] + conf->ad_ctrl_reg);
-	pr_debug("bank:%d reg:0x%04x val:0x%08lx\n",
+	pr_de("bank:%d reg:0x%04x val:0x%08lx\n",
 			bank, conf->ad_ctrl_reg, regv);
 	return 0;
 }
@@ -5050,7 +5050,7 @@ static int __atlas7_pmx_pin_enable(struct atlas7_pmx *pmx,
 	int ret;
 	unsigned long regv;
 
-	pr_debug("PMX DUMP ### pin#%d func:%d #### START >>>\n",
+	pr_de("PMX DUMP ### pin#%d func:%d #### START >>>\n",
 			pin, func);
 
 	/* Get this Pad's descriptor from PINCTRL */
@@ -5087,7 +5087,7 @@ static int __atlas7_pmx_pin_enable(struct atlas7_pmx *pmx,
 			pmx->regs[bank] + conf->mux_reg);
 
 	regv = readl(pmx->regs[bank] + conf->mux_reg);
-	pr_debug("bank:%d reg:0x%04x val:0x%08lx\n",
+	pr_de("bank:%d reg:0x%04x val:0x%08lx\n",
 		bank, conf->mux_reg, regv);
 
 	return 0;
@@ -5106,7 +5106,7 @@ static int atlas7_pmx_set_mux(struct pinctrl_dev *pctldev,
 	pmx_func = &pmx->pctl_data->funcs[func_selector];
 	pin_grp = &pmx->pctl_data->grps[group_selector];
 
-	pr_debug("PMX DUMP ### Function:[%s] Group:[%s] #### START >>>\n",
+	pr_de("PMX DUMP ### Function:[%s] Group:[%s] #### START >>>\n",
 			pmx_func->name, pin_grp->name);
 
 	/* the sd3 and sd9 pin select by SYS2PCI_SDIO9SEL register */
@@ -5128,11 +5128,11 @@ static int atlas7_pmx_set_mux(struct pinctrl_dev *pctldev,
 				"FUNC:%s GRP:%s PIN#%d.%d failed, ret=%d\n",
 				pmx_func->name, pin_grp->name,
 				mux->pin, mux->func, ret);
-			BUG_ON(1);
+			_ON(1);
 		}
 		__atlas7_pmx_pin_input_disable_clr(pmx, mux);
 	}
-	pr_debug("PMX DUMP ### Function:[%s] Group:[%s] #### END <<<\n",
+	pr_de("PMX DUMP ### Function:[%s] Group:[%s] #### END <<<\n",
 			pmx_func->name, pin_grp->name);
 
 	return 0;
@@ -5180,7 +5180,7 @@ static int altas7_pinctrl_set_pull_sel(struct pinctrl_dev *pctldev,
 	writel(pull_info->mask << conf->pupd_bit, CLR_REG(pull_sel_reg));
 	writel(regv << conf->pupd_bit, pull_sel_reg);
 
-	pr_debug("PIN_CFG ### SET PIN#%d PULL SELECTOR:%d == OK ####\n",
+	pr_de("PIN_CFG ### SET PIN#%d PULL SELECTOR:%d == OK ####\n",
 		pin, sel);
 	return 0;
 }
@@ -5230,7 +5230,7 @@ static int altas7_pinctrl_set_drive_strength_sel(struct pinctrl_dev *pctldev,
 
 	ret =  __altas7_pinctrl_set_drive_strength_sel(pctldev,
 						pin, sel);
-	pr_debug("PIN_CFG ### SET PIN#%d DS:%d MA:%d == %s ####\n",
+	pr_de("PIN_CFG ### SET PIN#%d DS:%d MA:%d == %s ####\n",
 		pin, sel, ma, ret?"FAILED":"OK");
 	return ret;
 }
@@ -5329,7 +5329,7 @@ static int atlas7_pin_config_set(struct pinctrl_dev *pctldev,
 		param = pinconf_to_config_param(configs[idx]);
 		arg = pinconf_to_config_argument(configs[idx]);
 
-		pr_debug("PMX CFG###### ATLAS7 PIN#%d [%s] CONFIG PARAM:%d ARG:%d >>>>>\n",
+		pr_de("PMX CFG###### ATLAS7 PIN#%d [%s] CONFIG PARAM:%d ARG:%d >>>>>\n",
 			pin, atlas7_ioc_pads[pin].name, param, arg);
 		switch (param) {
 		case PIN_CONFIG_BIAS_PULL_UP:
@@ -5368,7 +5368,7 @@ static int atlas7_pin_config_set(struct pinctrl_dev *pctldev,
 		default:
 			return -ENOTSUPP;
 		}
-		pr_debug("PMX CFG###### ATLAS7 PIN#%d [%s] CONFIG PARAM:%d ARG:%d <<<<\n",
+		pr_de("PMX CFG###### ATLAS7 PIN#%d [%s] CONFIG PARAM:%d ARG:%d <<<<\n",
 			pin, atlas7_ioc_pads[pin].name, param, arg);
 	}
 
@@ -5791,7 +5791,7 @@ static void atlas7_gpio_handle_irq(struct irq_desc *desc)
 		if (bank->irq == irq)
 			break;
 	}
-	BUG_ON(idx == a7gc->nbank);
+	_ON(idx == a7gc->nbank);
 
 	chained_irq_enter(chip, desc);
 
@@ -5811,7 +5811,7 @@ static void atlas7_gpio_handle_irq(struct irq_desc *desc)
 		 * interrupt has been enabled, otherwise just skip it
 		 */
 		if ((status & 0x1) && (ctrl & ATLAS7_GPIO_CTL_INTR_EN_MASK)) {
-			pr_debug("%s: chip[%s] gpio:%d happens\n",
+			pr_de("%s: chip[%s] gpio:%d happens\n",
 				__func__, gc->label,
 				bank->gpio_offset + pin_in_bank);
 			generic_handle_irq(

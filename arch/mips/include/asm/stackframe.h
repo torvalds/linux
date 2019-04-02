@@ -247,7 +247,7 @@
 		cfi_st	v1, PT_R3, \docfi
 		/*
 		 * You might think that you don't need to save $0,
-		 * but the FPU emulator and gdb remote debug stub
+		 * but the FPU emulator and gdb remote de stub
 		 * need it to operate correctly
 		 */
 		LONG_S	$0, PT_R0(sp)

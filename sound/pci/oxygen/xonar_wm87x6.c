@@ -1170,7 +1170,7 @@ static int add_lc_controls(struct oxygen *chip)
 	struct snd_kcontrol *ctl;
 	int err;
 
-	BUILD_BUG_ON(ARRAY_SIZE(lc_controls) != ARRAY_SIZE(data->lc_controls));
+	BUILD__ON(ARRAY_SIZE(lc_controls) != ARRAY_SIZE(data->lc_controls));
 	for (i = 0; i < ARRAY_SIZE(lc_controls); ++i) {
 		ctl = snd_ctl_new1(&lc_controls[i], chip);
 		if (!ctl)

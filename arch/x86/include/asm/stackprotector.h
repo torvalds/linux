@@ -64,7 +64,7 @@ static __always_inline void boot_init_stack_canary(void)
 	u64 tsc;
 
 #ifdef CONFIG_X86_64
-	BUILD_BUG_ON(offsetof(union irq_stack_union, stack_canary) != 40);
+	BUILD__ON(offsetof(union irq_stack_union, stack_canary) != 40);
 #endif
 	/*
 	 * We both use the random pool and the current TSC as a source

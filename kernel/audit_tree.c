@@ -1066,7 +1066,7 @@ static void audit_tree_freeing_mark(struct fsnotify_mark *mark,
 	 * We are guaranteed to have at least one reference to the mark from
 	 * either the inode or the caller of fsnotify_destroy_mark().
 	 */
-	BUG_ON(refcount_read(&mark->refcnt) < 1);
+	_ON(refcount_read(&mark->refcnt) < 1);
 }
 
 static const struct fsnotify_ops audit_tree_ops = {

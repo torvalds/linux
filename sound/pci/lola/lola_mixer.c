@@ -862,7 +862,7 @@ int lola_create_mixer(struct lola *chip)
 	if (err < 0)
 		return err;
 #if 0
-/* FIXME: buggy mixer matrix handling */
+/* FIXME: gy mixer matrix handling */
 	err = create_dest_gain_mixer(chip,
 				     chip->mixer.src_phys_ins, 0,
 				     chip->mixer.dest_stream_ins, 0,

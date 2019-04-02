@@ -186,7 +186,7 @@ static void fimc_handle_jpeg(struct fimc_context *ctx, bool enable)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("enable[%d]\n", enable);
+	DRM_DE_KMS("enable[%d]\n", enable);
 
 	cfg = fimc_read(ctx, EXYNOS_CIGCTRL);
 	if (enable)
@@ -201,7 +201,7 @@ static void fimc_mask_irq(struct fimc_context *ctx, bool enable)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("enable[%d]\n", enable);
+	DRM_DE_KMS("enable[%d]\n", enable);
 
 	cfg = fimc_read(ctx, EXYNOS_CIGCTRL);
 	if (enable) {
@@ -225,7 +225,7 @@ static bool fimc_check_ovf(struct fimc_context *ctx)
 	flag = EXYNOS_CISTATUS_OVFIY | EXYNOS_CISTATUS_OVFICB |
 		EXYNOS_CISTATUS_OVFICR;
 
-	DRM_DEBUG_KMS("flag[0x%x]\n", flag);
+	DRM_DE_KMS("flag[0x%x]\n", flag);
 
 	if (status & flag) {
 		fimc_set_bits(ctx, EXYNOS_CIWDOFST,
@@ -246,7 +246,7 @@ static bool fimc_check_frame_end(struct fimc_context *ctx)
 
 	cfg = fimc_read(ctx, EXYNOS_CISTATUS);
 
-	DRM_DEBUG_KMS("cfg[0x%x]\n", cfg);
+	DRM_DE_KMS("cfg[0x%x]\n", cfg);
 
 	if (!(cfg & EXYNOS_CISTATUS_FRAMEEND))
 		return false;
@@ -268,7 +268,7 @@ static int fimc_get_buf_id(struct fimc_context *ctx)
 	if (frame_cnt == 0)
 		frame_cnt = EXYNOS_CISTATUS2_GET_FRAMECOUNT_PRESENT(cfg);
 
-	DRM_DEBUG_KMS("present[%d]before[%d]\n",
+	DRM_DE_KMS("present[%d]before[%d]\n",
 		EXYNOS_CISTATUS2_GET_FRAMECOUNT_PRESENT(cfg),
 		EXYNOS_CISTATUS2_GET_FRAMECOUNT_BEFORE(cfg));
 
@@ -278,7 +278,7 @@ static int fimc_get_buf_id(struct fimc_context *ctx)
 	}
 
 	buf_id = frame_cnt - 1;
-	DRM_DEBUG_KMS("buf_id[%d]\n", buf_id);
+	DRM_DE_KMS("buf_id[%d]\n", buf_id);
 
 	return buf_id;
 }
@@ -287,7 +287,7 @@ static void fimc_handle_lastend(struct fimc_context *ctx, bool enable)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("enable[%d]\n", enable);
+	DRM_DE_KMS("enable[%d]\n", enable);
 
 	cfg = fimc_read(ctx, EXYNOS_CIOCTRL);
 	if (enable)
@@ -302,7 +302,7 @@ static void fimc_src_set_fmt_order(struct fimc_context *ctx, u32 fmt)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DE_KMS("fmt[0x%x]\n", fmt);
 
 	/* RGB */
 	cfg = fimc_read(ctx, EXYNOS_CISCCTRL);
@@ -367,7 +367,7 @@ static void fimc_src_set_fmt(struct fimc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DE_KMS("fmt[0x%x]\n", fmt);
 
 	cfg = fimc_read(ctx, EXYNOS_MSCTRL);
 	cfg &= ~EXYNOS_MSCTRL_INFORMAT_RGB;
@@ -420,7 +420,7 @@ static void fimc_src_set_transf(struct fimc_context *ctx, unsigned int rotation)
 	unsigned int degree = rotation & DRM_MODE_ROTATE_MASK;
 	u32 cfg1, cfg2;
 
-	DRM_DEBUG_KMS("rotation[%x]\n", rotation);
+	DRM_DE_KMS("rotation[%x]\n", rotation);
 
 	cfg1 = fimc_read(ctx, EXYNOS_MSCTRL);
 	cfg1 &= ~(EXYNOS_MSCTRL_FLIP_X_MIRROR |
@@ -478,10 +478,10 @@ static void fimc_set_window(struct fimc_context *ctx,
 	v1 = buf->rect.y;
 	v2 = buf->buf.height - buf->rect.h - buf->rect.y;
 
-	DRM_DEBUG_KMS("x[%d]y[%d]w[%d]h[%d]hsize[%d]vsize[%d]\n",
+	DRM_DE_KMS("x[%d]y[%d]w[%d]h[%d]hsize[%d]vsize[%d]\n",
 		buf->rect.x, buf->rect.y, buf->rect.w, buf->rect.h,
 		real_width, buf->buf.height);
-	DRM_DEBUG_KMS("h1[%d]h2[%d]v1[%d]v2[%d]\n", h1, h2, v1, v2);
+	DRM_DE_KMS("h1[%d]h2[%d]v1[%d]v2[%d]\n", h1, h2, v1, v2);
 
 	/*
 	 * set window offset 1, 2 size
@@ -506,7 +506,7 @@ static void fimc_src_set_size(struct fimc_context *ctx,
 	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg;
 
-	DRM_DEBUG_KMS("hsize[%d]vsize[%d]\n", real_width, buf->buf.height);
+	DRM_DE_KMS("hsize[%d]vsize[%d]\n", real_width, buf->buf.height);
 
 	/* original size */
 	cfg = (EXYNOS_ORGISIZE_HORIZONTAL(real_width) |
@@ -514,7 +514,7 @@ static void fimc_src_set_size(struct fimc_context *ctx,
 
 	fimc_write(ctx, cfg, EXYNOS_ORGISIZE);
 
-	DRM_DEBUG_KMS("x[%d]y[%d]w[%d]h[%d]\n", buf->rect.x, buf->rect.y,
+	DRM_DE_KMS("x[%d]y[%d]w[%d]h[%d]\n", buf->rect.x, buf->rect.y,
 		buf->rect.w, buf->rect.h);
 
 	/* set input DMA image size */
@@ -560,7 +560,7 @@ static void fimc_dst_set_fmt_order(struct fimc_context *ctx, u32 fmt)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DE_KMS("fmt[0x%x]\n", fmt);
 
 	/* RGB */
 	cfg = fimc_read(ctx, EXYNOS_CISCCTRL);
@@ -631,7 +631,7 @@ static void fimc_dst_set_fmt(struct fimc_context *ctx, u32 fmt, bool tiled)
 {
 	u32 cfg;
 
-	DRM_DEBUG_KMS("fmt[0x%x]\n", fmt);
+	DRM_DE_KMS("fmt[0x%x]\n", fmt);
 
 	cfg = fimc_read(ctx, EXYNOS_CIEXTEN);
 
@@ -691,7 +691,7 @@ static void fimc_dst_set_transf(struct fimc_context *ctx, unsigned int rotation)
 	unsigned int degree = rotation & DRM_MODE_ROTATE_MASK;
 	u32 cfg;
 
-	DRM_DEBUG_KMS("rotation[0x%x]\n", rotation);
+	DRM_DE_KMS("rotation[0x%x]\n", rotation);
 
 	cfg = fimc_read(ctx, EXYNOS_CITRGFMT);
 	cfg &= ~EXYNOS_CITRGFMT_FLIP_MASK;
@@ -775,19 +775,19 @@ static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 
 	pre_dst_width = src_w >> hfactor;
 	pre_dst_height = src_h >> vfactor;
-	DRM_DEBUG_KMS("pre_dst_width[%d]pre_dst_height[%d]\n",
+	DRM_DE_KMS("pre_dst_width[%d]pre_dst_height[%d]\n",
 		pre_dst_width, pre_dst_height);
-	DRM_DEBUG_KMS("hfactor[%d]vfactor[%d]\n", hfactor, vfactor);
+	DRM_DE_KMS("hfactor[%d]vfactor[%d]\n", hfactor, vfactor);
 
 	sc->hratio = (src_w << 14) / (dst_w << hfactor);
 	sc->vratio = (src_h << 14) / (dst_h << vfactor);
 	sc->up_h = (dst_w >= src_w) ? true : false;
 	sc->up_v = (dst_h >= src_h) ? true : false;
-	DRM_DEBUG_KMS("hratio[%d]vratio[%d]up_h[%d]up_v[%d]\n",
+	DRM_DE_KMS("hratio[%d]vratio[%d]up_h[%d]up_v[%d]\n",
 		sc->hratio, sc->vratio, sc->up_h, sc->up_v);
 
 	shfactor = FIMC_SHFACTOR - (hfactor + vfactor);
-	DRM_DEBUG_KMS("shfactor[%d]\n", shfactor);
+	DRM_DE_KMS("shfactor[%d]\n", shfactor);
 
 	cfg = (EXYNOS_CISCPRERATIO_SHFACTOR(shfactor) |
 		EXYNOS_CISCPRERATIO_PREHORRATIO(1 << hfactor) |
@@ -805,9 +805,9 @@ static void fimc_set_scaler(struct fimc_context *ctx, struct fimc_scaler *sc)
 {
 	u32 cfg, cfg_ext;
 
-	DRM_DEBUG_KMS("range[%d]bypass[%d]up_h[%d]up_v[%d]\n",
+	DRM_DE_KMS("range[%d]bypass[%d]up_h[%d]up_v[%d]\n",
 		sc->range, sc->bypass, sc->up_h, sc->up_v);
-	DRM_DEBUG_KMS("hratio[%d]vratio[%d]\n",
+	DRM_DE_KMS("hratio[%d]vratio[%d]\n",
 		sc->hratio, sc->vratio);
 
 	cfg = fimc_read(ctx, EXYNOS_CISCCTRL);
@@ -846,7 +846,7 @@ static void fimc_dst_set_size(struct fimc_context *ctx,
 	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg, cfg_ext;
 
-	DRM_DEBUG_KMS("hsize[%d]vsize[%d]\n", real_width, buf->buf.height);
+	DRM_DE_KMS("hsize[%d]vsize[%d]\n", real_width, buf->buf.height);
 
 	/* original size */
 	cfg = (EXYNOS_ORGOSIZE_HORIZONTAL(real_width) |
@@ -854,7 +854,7 @@ static void fimc_dst_set_size(struct fimc_context *ctx,
 
 	fimc_write(ctx, cfg, EXYNOS_ORGOSIZE);
 
-	DRM_DEBUG_KMS("x[%d]y[%d]w[%d]h[%d]\n", buf->rect.x, buf->rect.y,
+	DRM_DE_KMS("x[%d]y[%d]w[%d]h[%d]\n", buf->rect.x, buf->rect.y,
 		buf->rect.w, buf->rect.h);
 
 	/* CSC ITU */
@@ -905,7 +905,7 @@ static void fimc_dst_set_buf_seq(struct fimc_context *ctx, u32 buf_id,
 	u32 buf_num;
 	u32 cfg;
 
-	DRM_DEBUG_KMS("buf_id[%d]enqueu[%d]\n", buf_id, enqueue);
+	DRM_DE_KMS("buf_id[%d]enqueu[%d]\n", buf_id, enqueue);
 
 	spin_lock_irqsave(&ctx->lock, flags);
 
@@ -945,7 +945,7 @@ static irqreturn_t fimc_irq_handler(int irq, void *dev_id)
 	struct fimc_context *ctx = dev_id;
 	int buf_id;
 
-	DRM_DEBUG_KMS("fimc id[%d]\n", ctx->id);
+	DRM_DE_KMS("fimc id[%d]\n", ctx->id);
 
 	fimc_clear_irq(ctx);
 	if (fimc_check_ovf(ctx))
@@ -958,7 +958,7 @@ static irqreturn_t fimc_irq_handler(int irq, void *dev_id)
 	if (buf_id < 0)
 		return IRQ_HANDLED;
 
-	DRM_DEBUG_KMS("buf_id[%d]\n", buf_id);
+	DRM_DE_KMS("buf_id[%d]\n", buf_id);
 
 	if (ctx->task) {
 		struct exynos_drm_ipp_task *task = ctx->task;
@@ -1380,7 +1380,7 @@ static int fimc_runtime_suspend(struct device *dev)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
 
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
+	DRM_DE_KMS("id[%d]\n", ctx->id);
 	clk_disable_unprepare(ctx->clocks[FIMC_CLK_GATE]);
 	return 0;
 }
@@ -1389,7 +1389,7 @@ static int fimc_runtime_resume(struct device *dev)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
 
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
+	DRM_DE_KMS("id[%d]\n", ctx->id);
 	return clk_prepare_enable(ctx->clocks[FIMC_CLK_GATE]);
 }
 #endif

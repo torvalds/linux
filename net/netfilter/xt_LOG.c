@@ -52,12 +52,12 @@ static int log_tg_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 
 	if (loginfo->level >= 8) {
-		pr_debug("level %u >= 8\n", loginfo->level);
+		pr_de("level %u >= 8\n", loginfo->level);
 		return -EINVAL;
 	}
 
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		pr_debug("prefix is not null-terminated\n");
+		pr_de("prefix is not null-terminated\n");
 		return -EINVAL;
 	}
 

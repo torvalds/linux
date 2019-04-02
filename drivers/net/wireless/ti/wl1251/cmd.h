@@ -91,7 +91,7 @@ enum wl1251_commands {
 	CMD_SPS_SCAN = 42,
 	CMD_STOP_SPS_SCAN = 43,
 	CMD_HEALTH_CHECK     = 45,
-	CMD_DEBUG            = 46,
+	CMD_DE            = 46,
 	CMD_TRIGGER_SCAN_TO  = 47,
 
 	NUM_COMMANDS,

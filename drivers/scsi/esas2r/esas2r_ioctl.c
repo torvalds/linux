@@ -132,7 +132,7 @@ static void do_fm_api(struct esas2r_adapter *a, struct esas2r_flash_img *fi)
 							     GFP_KERNEL);
 
 		if (a->firmware.header_buff == NULL) {
-			esas2r_debug("failed to allocate header buffer!");
+			esas2r_de("failed to allocate header buffer!");
 			fi->status = FI_STAT_BUSY;
 			goto free_req;
 		}
@@ -241,7 +241,7 @@ allocate_buffer:
 			   "for a buffered ioctl!",
 			   bi->length);
 
-		esas2r_debug("buffered ioctl alloc failure");
+		esas2r_de("buffered ioctl alloc failure");
 		result = IOCTL_OUT_OF_RESOURCES;
 		goto exit_cleanly;
 	}
@@ -254,7 +254,7 @@ allocate_buffer:
 			   "could not allocate an internal request");
 
 		result = IOCTL_OUT_OF_RESOURCES;
-		esas2r_debug("buffered ioctl - no requests");
+		esas2r_de("buffered ioctl - no requests");
 		goto exit_cleanly;
 	}
 
@@ -1210,13 +1210,13 @@ static void hba_ioctl_done_callback(struct esas2r_adapter *a,
 	struct atto_ioctl *ioctl_hba =
 		(struct atto_ioctl *)esas2r_buffered_ioctl;
 
-	esas2r_debug("hba_ioctl_done_callback %d", a->index);
+	esas2r_de("hba_ioctl_done_callback %d", a->index);
 
 	if (ioctl_hba->function == ATTO_FUNC_GET_ADAP_INFO) {
 		struct atto_hba_get_adapter_info *gai =
 			&ioctl_hba->data.get_adap_info;
 
-		esas2r_debug("ATTO_FUNC_GET_ADAP_INFO");
+		esas2r_de("ATTO_FUNC_GET_ADAP_INFO");
 
 		gai->drvr_rev_major = ESAS2R_MAJOR_REV;
 		gai->drvr_rev_minor = ESAS2R_MINOR_REV;
@@ -1485,7 +1485,7 @@ int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg)
 		break;
 
 	default:
-		esas2r_debug("esas2r_ioctl invalid cmd %p!", cmd);
+		esas2r_de("esas2r_ioctl invalid cmd %p!", cmd);
 		ioctl->header.return_code = IOCTL_ERR_INVCMD;
 	}
 
@@ -1559,7 +1559,7 @@ static int allocate_fw_buffers(struct esas2r_adapter *a, u32 length)
 						    GFP_KERNEL);
 
 	if (!a->firmware.data) {
-		esas2r_debug("buffer alloc failed!");
+		esas2r_de("buffer alloc failed!");
 		return 0;
 	}
 
@@ -1575,7 +1575,7 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 		int size = min_t(int, count, sizeof(a->firmware.header));
 		esas2r_trace_exit();
 		memcpy(buf, &a->firmware.header, size);
-		esas2r_debug("esas2r_read_fw: STATUS size %d", size);
+		esas2r_de("esas2r_read_fw: STATUS size %d", size);
 		return size;
 	}
 
@@ -1588,7 +1588,7 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 		u32 length = a->firmware.header.length;
 		esas2r_trace_exit();
 
-		esas2r_debug("esas2r_read_fw: COMMAND length %d off %d",
+		esas2r_de("esas2r_read_fw: COMMAND length %d off %d",
 			     length,
 			     off);
 
@@ -1612,10 +1612,10 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 					    (int)sizeof(a->firmware.header));
 				do_fm_api(a, &a->firmware.header);
 				memcpy(buf, &a->firmware.header, size);
-				esas2r_debug("FI_ACT_UPSZ size %d", size);
+				esas2r_de("FI_ACT_UPSZ size %d", size);
 				return size;
 			} else {
-				esas2r_debug("invalid action %d",
+				esas2r_de("invalid action %d",
 					     a->firmware.header.action);
 				return -ENOSYS;
 			}
@@ -1628,12 +1628,12 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 			return 0;
 
 		if (!a->firmware.data) {
-			esas2r_debug(
+			esas2r_de(
 				"read: nonzero offset but no buffer available!");
 			return -ENOMEM;
 		}
 
-		esas2r_debug("esas2r_read_fw: off %d count %d length %d ", off,
+		esas2r_de("esas2r_read_fw: off %d count %d length %d ", off,
 			     count,
 			     length);
 
@@ -1642,7 +1642,7 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 		/* when done, release the buffer */
 
 		if (length <= off + count) {
-			esas2r_debug("esas2r_read_fw: freeing buffer!");
+			esas2r_de("esas2r_read_fw: freeing buffer!");
 
 			free_fw_buffers(a);
 		}
@@ -1651,7 +1651,7 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 	}
 
 	esas2r_trace_exit();
-	esas2r_debug("esas2r_read_fw: invalid firmware state %d",
+	esas2r_de("esas2r_read_fw: invalid firmware state %d",
 		     a->firmware.state);
 
 	return -EINVAL;
@@ -1677,7 +1677,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 		if (count < 4
 		    ||  header->fi_version > FI_VERSION_1) {
-			esas2r_debug(
+			esas2r_de(
 				"esas2r_write_fw: short header or invalid version");
 			return -EINVAL;
 		}
@@ -1689,7 +1689,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 		/* If this is the start, the header must be full and valid. */
 		if (count < min_size) {
-			esas2r_debug("esas2r_write_fw: short header, aborting");
+			esas2r_de("esas2r_write_fw: short header, aborting");
 			return -EINVAL;
 		}
 
@@ -1697,7 +1697,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 		length = header->length;
 
 		if (length > 1024 * 1024) {
-			esas2r_debug(
+			esas2r_de(
 				"esas2r_write_fw: hosed, length %d  fi_version %d",
 				length, header->fi_version);
 			return -EINVAL;
@@ -1729,7 +1729,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 			a->firmware.state = FW_COMMAND_ST;
 
-			esas2r_debug(
+			esas2r_de(
 				"esas2r_write_fw: COMMAND, count %d, action %d ",
 				count, header->action);
 
@@ -1740,7 +1740,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 			return count;
 		} else {
-			esas2r_debug("esas2r_write_fw: invalid action %d ",
+			esas2r_de("esas2r_write_fw: invalid action %d ",
 				     a->firmware.header.action);
 			return -ENOSYS;
 		}
@@ -1758,7 +1758,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 		count = length - off;
 
 	if (count > 0) {
-		esas2r_debug("esas2r_write_fw: off %d count %d length %d", off,
+		esas2r_de("esas2r_write_fw: off %d count %d length %d", off,
 			     count,
 			     length);
 
@@ -1771,7 +1771,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 			return count;
 
 		if (!a->firmware.data) {
-			esas2r_debug(
+			esas2r_de(
 				"write: nonzero offset but no buffer available!");
 			return -ENOMEM;
 		}
@@ -1792,7 +1792,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 			a->firmware.state = FW_STATUS_ST;
 
-			esas2r_debug("write completed");
+			esas2r_de("write completed");
 
 			/*
 			 * Since the system has the data buffered, the only way
@@ -1847,7 +1847,7 @@ int esas2r_read_vda(struct esas2r_adapter *a, char *buf, long off, int count)
 		/* allocate a request */
 		rq = esas2r_alloc_request(a);
 		if (rq == NULL) {
-			esas2r_debug("esas2r_read_vda: out of requests");
+			esas2r_de("esas2r_read_vda: out of requests");
 			return -EBUSY;
 		}
 
@@ -1975,7 +1975,7 @@ busy:
 
 		rq = esas2r_alloc_request(a);
 		if (rq == NULL) {
-			esas2r_debug("esas2r_read_fs: out of requests");
+			esas2r_de("esas2r_read_fs: out of requests");
 			mutex_unlock(&a->fs_api_mutex);
 			goto busy;
 		}

@@ -14,7 +14,7 @@
 #include <linux/genalloc.h>
 
 #define PGS_IN_2MB_PAGE	(PAGE_SIZE_2MB >> PAGE_SHIFT)
-#define HL_MMU_DEBUG	0
+#define HL_MMU_DE	0
 
 /*
  * The va ranges in context object contain a list with the available chunks of
@@ -376,7 +376,7 @@ static void clear_va_list_locked(struct hl_device *hdev,
 static void print_va_list_locked(struct hl_device *hdev,
 		struct list_head *va_list)
 {
-#if HL_MMU_DEBUG
+#if HL_MMU_DE
 	struct hl_vm_va_block *va_block;
 
 	dev_dbg(hdev->dev, "print va list:\n");
@@ -1288,7 +1288,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 		goto free_sgt;
 	}
 
-	hl_debugfs_add_userptr(hdev, userptr);
+	hl_defs_add_userptr(hdev, userptr);
 
 	return 0;
 
@@ -1315,7 +1315,7 @@ int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 {
 	struct page **pages;
 
-	hl_debugfs_remove_userptr(hdev, userptr);
+	hl_defs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
 		hdev->asic_funcs->hl_dma_unmap_sg(hdev,
@@ -1482,7 +1482,7 @@ static int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
 		goto dram_vm_err;
 	}
 
-	hl_debugfs_add_ctx_mem_hash(hdev, ctx);
+	hl_defs_add_ctx_mem_hash(hdev, ctx);
 
 	return 0;
 
@@ -1606,7 +1606,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	struct hlist_node *tmp_node;
 	int i;
 
-	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
+	hl_defs_remove_ctx_mem_hash(hdev, ctx);
 
 	if (!hash_empty(ctx->mem_hash))
 		dev_notice(hdev->dev, "ctx is freed while it has va in use\n");

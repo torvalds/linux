@@ -76,7 +76,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x1601) }, /* Arkham Technology DS101 Adapter */
 	{ USB_DEVICE(0x10C4, 0x800A) }, /* SPORTident BSM7-D-USB main station */
 	{ USB_DEVICE(0x10C4, 0x803B) }, /* Pololu USB-serial converter */
-	{ USB_DEVICE(0x10C4, 0x8044) }, /* Cygnal Debug Adapter */
+	{ USB_DEVICE(0x10C4, 0x8044) }, /* Cygnal De Adapter */
 	{ USB_DEVICE(0x10C4, 0x804E) }, /* Software Bisque Paramount ME build-in converter */
 	{ USB_DEVICE(0x10C4, 0x8053) }, /* Enfora EDG1228 */
 	{ USB_DEVICE(0x10C4, 0x8054) }, /* Enfora GSM2228 */
@@ -752,9 +752,9 @@ static int cp210x_write_vendor_block(struct usb_serial *serial, u8 type,
 #endif
 
 /*
- * Detect CP2108 GET_LINE_CTL bug and activate workaround.
+ * Detect CP2108 GET_LINE_CTL  and activate workaround.
  * Write a known good value 0x800, read it back.
- * If it comes back swapped the bug is detected.
+ * If it comes back swapped the  is detected.
  * Preserve the original register value.
  */
 static int cp210x_detect_swapped_line_ctl(struct usb_serial_port *port)
@@ -786,7 +786,7 @@ static int cp210x_detect_swapped_line_ctl(struct usb_serial_port *port)
 
 /*
  * Must always be called instead of cp210x_read_u16_reg(CP210X_GET_LINE_CTL)
- * to workaround cp2108 bug and get correct value.
+ * to workaround cp2108  and get correct value.
  */
 static int cp210x_get_line_ctl(struct usb_serial_port *port, u16 *ctl)
 {

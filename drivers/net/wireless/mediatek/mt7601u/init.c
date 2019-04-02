@@ -57,7 +57,7 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 	}
 
 	/* Note: vendor driver tries to disable/enable wlan here and retry
-	 *       but the code which does it is so buggy it must have never
+	 *       but the code which does it is so gy it must have never
 	 *       triggered, so don't bother.
 	 */
 	if (!i)
@@ -629,7 +629,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	if (ret)
 		return ret;
 
-	mt7601u_init_debugfs(dev);
+	mt7601u_init_defs(dev);
 
 	return 0;
 }

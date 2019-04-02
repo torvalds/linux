@@ -15,4 +15,4 @@ bcma-$(CONFIG_BCMA_HOST_PCI)		+= host_pci.o
 bcma-$(CONFIG_BCMA_HOST_SOC)		+= host_soc.o
 obj-$(CONFIG_BCMA)			+= bcma.o
 
-ccflags-$(CONFIG_BCMA_DEBUG)		:= -DDEBUG
+ccflags-$(CONFIG_BCMA_DE)		:= -DDE

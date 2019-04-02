@@ -51,7 +51,7 @@ static u64 max_lun = IBMVFC_MAX_LUN;
 static unsigned int max_targets = IBMVFC_MAX_TARGETS;
 static unsigned int max_requests = IBMVFC_MAX_REQUESTS_DEFAULT;
 static unsigned int disc_threads = IBMVFC_MAX_DISC_THREADS;
-static unsigned int ibmvfc_debug = IBMVFC_DEBUG;
+static unsigned int ibmvfc_de = IBMVFC_DE;
 static unsigned int log_level = IBMVFC_DEFAULT_LOG_LEVEL;
 static unsigned int cls3_error = IBMVFC_CLS3_ERROR;
 static LIST_HEAD(ibmvfc_head);
@@ -82,9 +82,9 @@ MODULE_PARM_DESC(max_targets, "Maximum allowed targets. "
 module_param_named(disc_threads, disc_threads, uint, S_IRUGO);
 MODULE_PARM_DESC(disc_threads, "Number of device discovery threads to use. "
 		 "[Default=" __stringify(IBMVFC_MAX_DISC_THREADS) "]");
-module_param_named(debug, ibmvfc_debug, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable driver debug information. "
-		 "[Default=" __stringify(IBMVFC_DEBUG) "]");
+module_param_named(de, ibmvfc_de, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Enable driver de information. "
+		 "[Default=" __stringify(IBMVFC_DE) "]");
 module_param_named(log_level, log_level, uint, 0);
 MODULE_PARM_DESC(log_level, "Set to 0 - 4 for increasing verbosity of device driver. "
 		 "[Default=" __stringify(IBMVFC_DEFAULT_LOG_LEVEL) "]");
@@ -771,8 +771,8 @@ static void ibmvfc_free_event(struct ibmvfc_event *evt)
 	struct ibmvfc_host *vhost = evt->vhost;
 	struct ibmvfc_event_pool *pool = &vhost->pool;
 
-	BUG_ON(!ibmvfc_valid_event(pool, evt));
-	BUG_ON(atomic_inc_return(&evt->free) != 1);
+	_ON(!ibmvfc_valid_event(pool, evt));
+	_ON(atomic_inc_return(&evt->free) != 1);
 	list_add_tail(&evt->queue, &vhost->free);
 }
 
@@ -1254,7 +1254,7 @@ static void ibmvfc_free_event_pool(struct ibmvfc_host *vhost)
 	ENTER;
 	for (i = 0; i < pool->size; ++i) {
 		list_del(&pool->events[i].queue);
-		BUG_ON(atomic_read(&pool->events[i].free) != 1);
+		_ON(atomic_read(&pool->events[i].free) != 1);
 		if (pool->events[i].ext_list)
 			dma_pool_free(vhost->sg_pool,
 				      pool->events[i].ext_list,
@@ -1278,7 +1278,7 @@ static struct ibmvfc_event *ibmvfc_get_event(struct ibmvfc_host *vhost)
 {
 	struct ibmvfc_event *evt;
 
-	BUG_ON(list_empty(&vhost->free));
+	_ON(list_empty(&vhost->free));
 	evt = list_entry(vhost->free.next, struct ibmvfc_event, queue);
 	atomic_set(&evt->free, 0);
 	list_del(&evt->queue);
@@ -1423,7 +1423,7 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 	else if (evt->crq.format == IBMVFC_MAD_FORMAT)
 		evt->xfer_iu->mad_common.tag = cpu_to_be64((u64)evt);
 	else
-		BUG();
+		();
 
 	list_add_tail(&evt->queue, &vhost->sent);
 	timer_setup(&evt->timer, ibmvfc_timeout, 0);
@@ -4374,7 +4374,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 		vhost->job_step(vhost);
 		break;
 	case IBMVFC_HOST_ACTION_INIT:
-		BUG_ON(vhost->state != IBMVFC_INITIALIZING);
+		_ON(vhost->state != IBMVFC_INITIALIZING);
 		if (vhost->delay_init) {
 			vhost->delay_init = 0;
 			spin_unlock_irqrestore(vhost->host->host_lock, flags);
@@ -4489,7 +4489,7 @@ static int ibmvfc_work(void *data)
 		rc = wait_event_interruptible(vhost->work_wait_q,
 					      ibmvfc_work_to_do(vhost));
 
-		BUG_ON(rc);
+		_ON(rc);
 
 		if (kthread_should_stop())
 			break;

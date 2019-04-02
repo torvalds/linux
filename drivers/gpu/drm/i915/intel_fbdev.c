@@ -191,7 +191,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	if (intel_fb &&
 	    (sizes->fb_width > intel_fb->base.width ||
 	     sizes->fb_height > intel_fb->base.height)) {
-		DRM_DEBUG_KMS("BIOS fb too small (%dx%d), we require (%dx%d),"
+		DRM_DE_KMS("BIOS fb too small (%dx%d), we require (%dx%d),"
 			      " releasing it\n",
 			      intel_fb->base.width, intel_fb->base.height,
 			      sizes->fb_width, sizes->fb_height);
@@ -199,13 +199,13 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		intel_fb = ifbdev->fb = NULL;
 	}
 	if (!intel_fb || WARN_ON(!intel_fb_obj(&intel_fb->base))) {
-		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
+		DRM_DE_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
 			return ret;
 		intel_fb = ifbdev->fb;
 	} else {
-		DRM_DEBUG_KMS("re-using BIOS fb\n");
+		DRM_DE_KMS("re-using BIOS fb\n");
 		prealloc = true;
 		sizes->fb_width = intel_fb->base.width;
 		sizes->fb_height = intel_fb->base.height;
@@ -274,7 +274,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x\n",
+	DRM_DE_KMS("allocated %dx%d fb: 0x%08x\n",
 		      fb->width, fb->height, i915_ggtt_offset(vma));
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;
@@ -380,14 +380,14 @@ retry:
 			num_connectors_detected++;
 
 		if (!enabled[i]) {
-			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
+			DRM_DE_KMS("connector %s not enabled, skipping\n",
 				      connector->name);
 			conn_configured |= BIT(i);
 			continue;
 		}
 
 		if (connector->force == DRM_FORCE_OFF) {
-			DRM_DEBUG_KMS("connector %s is disabled by user, skipping\n",
+			DRM_DE_KMS("connector %s is disabled by user, skipping\n",
 				      connector->name);
 			enabled[i] = false;
 			continue;
@@ -398,7 +398,7 @@ retry:
 			if (connector->force > DRM_FORCE_OFF)
 				goto bail;
 
-			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
+			DRM_DE_KMS("connector %s has no encoder or crtc, skipping\n",
 				      connector->name);
 			enabled[i] = false;
 			conn_configured |= BIT(i);
@@ -417,12 +417,12 @@ retry:
 		 */
 		for (j = 0; j < count; j++) {
 			if (crtcs[j] == new_crtc) {
-				DRM_DEBUG_KMS("fallback: cloned configuration\n");
+				DRM_DE_KMS("fallback: cloned configuration\n");
 				goto bail;
 			}
 		}
 
-		DRM_DEBUG_KMS("looking for cmdline mode on connector %s\n",
+		DRM_DE_KMS("looking for cmdline mode on connector %s\n",
 			      connector->name);
 
 		/* go for command line mode first */
@@ -430,7 +430,7 @@ retry:
 
 		/* try for preferred next */
 		if (!modes[i]) {
-			DRM_DEBUG_KMS("looking for preferred mode on connector %s %d\n",
+			DRM_DE_KMS("looking for preferred mode on connector %s %d\n",
 				      connector->name, connector->has_tile);
 			modes[i] = drm_has_preferred_mode(fb_conn, width,
 							  height);
@@ -438,7 +438,7 @@ retry:
 
 		/* No preferred mode marked by the EDID? Are there any modes? */
 		if (!modes[i] && !list_empty(&connector->modes)) {
-			DRM_DEBUG_KMS("using first mode listed on connector %s\n",
+			DRM_DE_KMS("using first mode listed on connector %s\n",
 				      connector->name);
 			modes[i] = list_first_entry(&connector->modes,
 						    struct drm_display_mode,
@@ -460,13 +460,13 @@ retry:
 			 * I915_MODE_FLAG_INHERITED, which we clear to force check
 			 * state.
 			 */
-			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
+			DRM_DE_KMS("looking for current mode on connector %s\n",
 				      connector->name);
 			modes[i] = &connector->state->crtc->mode;
 		}
 		crtcs[i] = new_crtc;
 
-		DRM_DEBUG_KMS("connector %s on [CRTC:%d:%s]: %dx%d%s\n",
+		DRM_DE_KMS("connector %s on [CRTC:%d:%s]: %dx%d%s\n",
 			      connector->name,
 			      connector->state->crtc->base.id,
 			      connector->state->crtc->name,
@@ -489,15 +489,15 @@ retry:
 	 */
 	if (num_connectors_enabled != num_connectors_detected &&
 	    num_connectors_enabled < INTEL_INFO(dev_priv)->num_pipes) {
-		DRM_DEBUG_KMS("fallback: Not all outputs enabled\n");
-		DRM_DEBUG_KMS("Enabled: %i, detected: %i\n", num_connectors_enabled,
+		DRM_DE_KMS("fallback: Not all outputs enabled\n");
+		DRM_DE_KMS("Enabled: %i, detected: %i\n", num_connectors_enabled,
 			      num_connectors_detected);
 		fallback = true;
 	}
 
 	if (fallback) {
 bail:
-		DRM_DEBUG_KMS("Not using firmware configuration\n");
+		DRM_DE_KMS("Not using firmware configuration\n");
 		memcpy(enabled, save_enabled, count);
 		ret = false;
 	}
@@ -559,13 +559,13 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!crtc->state->active || !obj) {
-			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
+			DRM_DE_KMS("pipe %c not active or no fb, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
 		}
 
 		if (obj->base.size > max_size) {
-			DRM_DEBUG_KMS("found possible fb from plane %c\n",
+			DRM_DE_KMS("found possible fb from plane %c\n",
 				      pipe_name(intel_crtc->pipe));
 			fb = to_intel_framebuffer(crtc->primary->state->fb);
 			max_size = obj->base.size;
@@ -573,7 +573,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	}
 
 	if (!fb) {
-		DRM_DEBUG_KMS("no active fbs found, not using BIOS config\n");
+		DRM_DE_KMS("no active fbs found, not using BIOS config\n");
 		goto out;
 	}
 
@@ -584,12 +584,12 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!crtc->state->active) {
-			DRM_DEBUG_KMS("pipe %c not active, skipping\n",
+			DRM_DE_KMS("pipe %c not active, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
 		}
 
-		DRM_DEBUG_KMS("checking plane %c for BIOS fb\n",
+		DRM_DE_KMS("checking plane %c for BIOS fb\n",
 			      pipe_name(intel_crtc->pipe));
 
 		/*
@@ -600,7 +600,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		cur_size = crtc->state->adjusted_mode.crtc_hdisplay;
 		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
-			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
+			DRM_DE_KMS("fb not wide enough for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
 				      cur_size, fb->base.pitches[0]);
 			fb = NULL;
@@ -610,7 +610,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		cur_size = crtc->state->adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(&fb->base, 0, cur_size);
 		cur_size *= fb->base.pitches[0];
-		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
+		DRM_DE_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
 			      pipe_name(intel_crtc->pipe),
 			      crtc->state->adjusted_mode.crtc_hdisplay,
 			      crtc->state->adjusted_mode.crtc_vdisplay,
@@ -618,20 +618,20 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			      cur_size);
 
 		if (cur_size > max_size) {
-			DRM_DEBUG_KMS("fb not big enough for plane %c (%d vs %d)\n",
+			DRM_DE_KMS("fb not big enough for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
 				      cur_size, max_size);
 			fb = NULL;
 			break;
 		}
 
-		DRM_DEBUG_KMS("fb big enough for plane %c (%d >= %d)\n",
+		DRM_DE_KMS("fb big enough for plane %c (%d >= %d)\n",
 			      pipe_name(intel_crtc->pipe),
 			      max_size, cur_size);
 	}
 
 	if (!fb) {
-		DRM_DEBUG_KMS("BIOS fb not suitable for all pipes, not using\n");
+		DRM_DE_KMS("BIOS fb not suitable for all pipes, not using\n");
 		goto out;
 	}
 
@@ -653,7 +653,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	}
 
 
-	DRM_DEBUG_KMS("using BIOS fb for initial console\n");
+	DRM_DE_KMS("using BIOS fb for initial console\n");
 	return true;
 
 out:
@@ -772,7 +772,7 @@ static void intel_fbdev_hpd_set_suspend(struct intel_fbdev *ifbdev, int state)
 	mutex_unlock(&ifbdev->hpd_lock);
 
 	if (send_hpd) {
-		DRM_DEBUG_KMS("Handling delayed fbcon HPD event\n");
+		DRM_DE_KMS("Handling delayed fbcon HPD event\n");
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 	}
 }

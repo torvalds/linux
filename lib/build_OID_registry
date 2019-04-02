@@ -190,7 +190,7 @@ for (my $i = 0; $i <= $#names; $i++) {
 print C_FILE "};\n";
 
 #
-# Emit the OID debugging name table
+# Emit the OID deging name table
 #
 #print C_FILE "\n";
 #print C_FILE "const char *const oid_name_table[OID__NR + 1] = {\n";

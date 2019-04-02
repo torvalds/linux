@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 
 /*
- * XXX Fixme: those 2 inlines are meant for debugging and will go away
+ * XXX Fixme: those 2 inlines are meant for deging and will go away
  */
 static inline unsigned
 short from64to16(unsigned long x)

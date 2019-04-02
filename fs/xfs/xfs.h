@@ -6,8 +6,8 @@
 #ifndef __XFS_H__
 #define __XFS_H__
 
-#ifdef CONFIG_XFS_DEBUG
-#define DEBUG 1
+#ifdef CONFIG_XFS_DE
+#define DE 1
 #endif
 
 #ifdef CONFIG_XFS_ASSERT_FATAL

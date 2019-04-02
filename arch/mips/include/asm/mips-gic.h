@@ -57,7 +57,7 @@ static inline void __iomem *addr_gic_##name(unsigned int intr)		\
 									\
 static inline unsigned int read_gic_##name(unsigned int intr)		\
 {									\
-	BUILD_BUG_ON(sz != 32);						\
+	BUILD__ON(sz != 32);						\
 	return __raw_readl(addr_gic_##name(intr));			\
 }
 
@@ -68,7 +68,7 @@ static inline unsigned int read_gic_##name(unsigned int intr)		\
 static inline void write_gic_##name(unsigned int intr,			\
 				    unsigned int val)			\
 {									\
-	BUILD_BUG_ON(sz != 32);						\
+	BUILD__ON(sz != 32);						\
 	__raw_writel(val, addr_gic_##name(intr));			\
 }
 
@@ -251,7 +251,7 @@ GIC_VX_ACCESSOR_RW(32, 0x044, compare_map)
 /* GIC_Vx_TIMER_MAP - Route the local CPU timer (cp0 count/compare) interrupt */
 GIC_VX_ACCESSOR_RW(32, 0x048, timer_map)
 
-/* GIC_Vx_FDC_MAP - Route the local fast debug channel interrupt */
+/* GIC_Vx_FDC_MAP - Route the local fast de channel interrupt */
 GIC_VX_ACCESSOR_RW(32, 0x04c, fdc_map)
 
 /* GIC_Vx_PERFCTR_MAP - Route the local performance counter interrupt */
@@ -285,7 +285,7 @@ GIC_VX_ACCESSOR_RW_INTR_REG(32, 0x100, 0x4, eic_shadow_set)
  * @GIC_LOCAL_INT_PERFCTR: Performance counter interrupt
  * @GIC_LOCAL_INT_SWINT0: Software interrupt 0
  * @GIC_LOCAL_INT_SWINT1: Software interrupt 1
- * @GIC_LOCAL_INT_FDC: Fast debug channel interrupt
+ * @GIC_LOCAL_INT_FDC: Fast de channel interrupt
  * @GIC_NUM_LOCAL_INTRS: The number of local interrupts
  *
  * Enumerates interrupts provided by the GIC that are local to a VP.
@@ -335,9 +335,9 @@ extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
 
 /**
- * gic_get_c0_fdc_int() - Return fast debug channel interrupt virq
+ * gic_get_c0_fdc_int() - Return fast de channel interrupt virq
  *
- * Determine the virq number to use for fast debug channel (FDC) interrupts,
+ * Determine the virq number to use for fast de channel (FDC) interrupts,
  * which may be routed via the GIC.
  *
  * Returns the virq number or a negative error number.

@@ -63,6 +63,6 @@ Notes and limitations.
   show a successful completion, but the ds2490 status register would
   show 0 bytes written.  Detaching qemu from the ds2490 hardware and
   reattaching would clear the problem.  usbmon output in the guest and
-  host did not explain the problem.  My guess is a bug in either qemu
+  host did not explain the problem.  My guess is a  in either qemu
   or the host OS and more likely the host OS.
 -- 03-06-2008 David Fries <David@Fries.net>

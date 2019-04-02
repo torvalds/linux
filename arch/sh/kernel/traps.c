@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/io.h>
 #include <linux/types.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
@@ -86,33 +86,33 @@ void die_if_no_fixup(const char *str, struct pt_regs *regs, long err)
 	}
 }
 
-#ifdef CONFIG_GENERIC_BUG
-static void handle_BUG(struct pt_regs *regs)
+#ifdef CONFIG_GENERIC_
+static void handle_(struct pt_regs *regs)
 {
-	const struct bug_entry *bug;
-	unsigned long bugaddr = regs->pc;
-	enum bug_trap_type tt;
+	const struct _entry *;
+	unsigned long addr = regs->pc;
+	enum _trap_type tt;
 
-	if (!is_valid_bugaddr(bugaddr))
+	if (!is_valid_addr(addr))
 		goto invalid;
 
-	bug = find_bug(bugaddr);
+	 = find_(addr);
 
 	/* Switch unwinders when unwind_stack() is called */
-	if (bug->flags & BUGFLAG_UNWINDER)
+	if (->flags & FLAG_UNWINDER)
 		unwinder_faulted = 1;
 
-	tt = report_bug(bugaddr, regs);
-	if (tt == BUG_TRAP_TYPE_WARN) {
-		regs->pc += instruction_size(bugaddr);
+	tt = report_(addr, regs);
+	if (tt == _TRAP_TYPE_WARN) {
+		regs->pc += instruction_size(addr);
 		return;
 	}
 
 invalid:
-	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
+	die("Kernel ", regs, TRAPA__OPCODE & 0xff);
 }
 
-int is_valid_bugaddr(unsigned long addr)
+int is_valid_addr(unsigned long addr)
 {
 	insn_size_t opcode;
 
@@ -120,7 +120,7 @@ int is_valid_bugaddr(unsigned long addr)
 		return 0;
 	if (probe_kernel_address((insn_size_t *)addr, opcode))
 		return 0;
-	if (opcode == TRAPA_BUG_OPCODE)
+	if (opcode == TRAPA__OPCODE)
 		return 1;
 
 	return 0;
@@ -130,14 +130,14 @@ int is_valid_bugaddr(unsigned long addr)
 /*
  * Generic trap handler.
  */
-BUILD_TRAP_HANDLER(debug)
+BUILD_TRAP_HANDLER(de)
 {
 	TRAP_HANDLER_DECL;
 
 	/* Rewind */
 	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, "debug trap", regs, 0, vec & 0xff,
+	if (notify_die(DIE_TRAP, "de trap", regs, 0, vec & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
@@ -145,24 +145,24 @@ BUILD_TRAP_HANDLER(debug)
 }
 
 /*
- * Special handler for BUG() traps.
+ * Special handler for () traps.
  */
-BUILD_TRAP_HANDLER(bug)
+BUILD_TRAP_HANDLER()
 {
 	TRAP_HANDLER_DECL;
 
 	/* Rewind */
 	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
-	if (notify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
+	if (notify_die(DIE_TRAP, " trap", regs, 0, TRAPA__OPCODE & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
-#ifdef CONFIG_GENERIC_BUG
+#ifdef CONFIG_GENERIC_
 	if (__kernel_text_address(instruction_pointer(regs))) {
 		insn_size_t insn = *(insn_size_t *)instruction_pointer(regs);
-		if (insn == TRAPA_BUG_OPCODE)
-			handle_BUG(regs);
+		if (insn == TRAPA__OPCODE)
+			handle_(regs);
 		return;
 	}
 #endif

@@ -176,10 +176,10 @@ struct Fsm {
 struct FsmInst {
 	struct Fsm *fsm;
 	int state;
-	int debug;
+	int de;
 	void *userdata;
 	int userint;
-	void (*printdebug) (struct FsmInst *, char *, ...);
+	void (*printde) (struct FsmInst *, char *, ...);
 };
 
 struct FsmNode {
@@ -266,8 +266,8 @@ struct Layer2 {
 	struct FsmInst l2m;
 	struct FsmTimer t200, t203;
 	int T200, N200, T203;
-	int debug;
-	char debug_id[16];
+	int de;
+	char de_id[16];
 };
 
 struct Layer3 {
@@ -280,8 +280,8 @@ struct Layer3 {
 	struct l3_process *proc;
 	struct l3_process *global;
 	int N303;
-	int debug;
-	char debug_id[8];
+	int de;
+	char de_id[8];
 };
 
 struct LLInterface {
@@ -298,7 +298,7 @@ struct Management {
 	int	ri;
 	struct FsmInst tei_m;
 	struct FsmTimer t202;
-	int T202, N202, debug;
+	int T202, N202, de;
 	void (*layer) (struct PStack *, int, void *);
 };
 
@@ -342,7 +342,7 @@ struct l3_process {
 	int state;
 	struct L3Timer timer;
 	int N303;
-	int debug;
+	int de;
 	struct Param para;
 	struct Channel *chan;
 	struct PStack *st;
@@ -539,7 +539,7 @@ struct Channel {
 	int incoming;
 	struct FsmInst fi;
 	struct FsmTimer drel_timer, dial_timer;
-	int debug;
+	int de;
 	int l2_protocol, l2_active_protocol;
 	int l3_protocol;
 	int data_open;
@@ -943,7 +943,7 @@ struct IsdnCardState {
 	struct sk_buff_head rq, sq; /* D-channel queues */
 	int		cardnr;
 	char		*dlog;
-	int		debug;
+	int		de;
 	union {
 		struct isac_chip isac;
 		struct hfcd_chip hfcd;
@@ -1226,7 +1226,7 @@ struct IsdnCardState {
 
 #define TEI_PER_CARD 1
 
-/* L1 Debug */
+/* L1 De */
 #define	L1_DEB_WARN		0x01
 #define	L1_DEB_INTSTAT		0x02
 #define	L1_DEB_ISAC		0x04
@@ -1240,9 +1240,9 @@ struct IsdnCardState {
 #define DEB_DLOG_HEX		0x400
 #define DEB_DLOG_VERBOSE	0x800
 
-#define L2FRAME_DEBUG
+#define L2FRAME_DE
 
-#ifdef L2FRAME_DEBUG
+#ifdef L2FRAME_DE
 extern void Logl2Frame(struct IsdnCardState *cs, struct sk_buff *skb, char *buf, int dir);
 #endif
 
@@ -1259,7 +1259,7 @@ void setstack_l1_B(struct PStack *st);
 void setstack_tei(struct PStack *st);
 void setstack_manager(struct PStack *st);
 
-void setstack_isdnl2(struct PStack *st, char *debug_id);
+void setstack_isdnl2(struct PStack *st, char *de_id);
 void releasestack_isdnl2(struct PStack *st);
 void setstack_transl2(struct PStack *st);
 void releasestack_transl2(struct PStack *st);

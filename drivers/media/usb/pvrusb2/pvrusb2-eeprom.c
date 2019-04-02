@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include "pvrusb2-eeprom.h"
 #include "pvrusb2-hdw-internal.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 
 #define trace_eeprom(...) pvr2_trace(PVR2_TRACE_EEPROM,__VA_ARGS__)
 

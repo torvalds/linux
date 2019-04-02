@@ -504,7 +504,7 @@ int ip6_mc_input(struct sk_buff *skb)
 				deliver = false;
 
 				if (!ipv6_ext_hdr(nexthdr)) {
-					/* BUG */
+					/*  */
 					goto out;
 				}
 				offset = ipv6_skip_exthdr(skb, sizeof(*hdr),

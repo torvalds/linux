@@ -437,7 +437,7 @@ group is checking for children.
 
 Sometimes other drivers depend on particular configfs items.  For
 example, ocfs2 mounts depend on a heartbeat region item.  If that
-region item is removed with rmdir(2), the ocfs2 mount must BUG or go
+region item is removed with rmdir(2), the ocfs2 mount must  or go
 readonly.  Not happy.
 
 configfs provides two additional API calls: configfs_depend_item() and

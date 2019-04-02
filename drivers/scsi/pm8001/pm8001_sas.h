@@ -186,7 +186,7 @@ struct forensic_data {
 /* Inbound doorbell bit7 */
 #define SPCv_MSGU_CFG_TABLE_NONFATAL_DUMP	 0x80
 /* Inbound doorbell bit7 SPCV */
-#define SPCV_MSGU_CFG_TABLE_TRANSFER_DEBUG_INFO  0x80
+#define SPCV_MSGU_CFG_TABLE_TRANSFER_DE_INFO  0x80
 #define MAIN_MERRDCTO_MERRDCES		         0xA0/* DWORD 0x28) */
 
 struct pm8001_dispatch {

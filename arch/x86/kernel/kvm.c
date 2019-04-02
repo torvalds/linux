@@ -34,7 +34,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/kprobes.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/nmi.h>
 #include <linux/swait.h>
 #include <asm/timer.h>
@@ -344,7 +344,7 @@ static void kvm_guest_cpu_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI)) {
 		unsigned long pa;
 		/* Size alignment is implied but just to make it explicit. */
-		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
+		BUILD__ON(__alignof__(kvm_apic_eoi) < 4);
 		__this_cpu_write(kvm_apic_eoi, 0);
 		pa = slow_virt_to_phys(this_cpu_ptr(&kvm_apic_eoi))
 			| KVM_MSR_ENABLED;

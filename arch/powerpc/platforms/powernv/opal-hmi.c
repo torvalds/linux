@@ -18,7 +18,7 @@
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -76,8 +76,8 @@ static void print_core_checkstop_reason(const char *level,
 				"Hang Recovery Failed (core check stop)" },
 		{ CORE_CHECKSTOP_PC_AMBI_HANG_DETECTED, "PC",
 				"Ambiguous Hang Detected (unknown source)" },
-		{ CORE_CHECKSTOP_PC_DEBUG_TRIG_ERR_INJ, "PC",
-				"Debug Trigger Error inject" },
+		{ CORE_CHECKSTOP_PC_DE_TRIG_ERR_INJ, "PC",
+				"De Trigger Error inject" },
 		{ CORE_CHECKSTOP_PC_SPRD_HYP_ERR_INJ, "PC",
 				"Hypervisor check stop via SPRC/SPRD" },
 	};
@@ -181,7 +181,7 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		"An XSCOM operation failure",
 		"An XSCOM operation completed",
 		"SCOM has set a reserved FIR bit to cause recovery",
-		"Debug trigger has set a reserved FIR bit to cause recovery",
+		"De trigger has set a reserved FIR bit to cause recovery",
 		"A hypervisor resource error occurred",
 		"CAPP recovery process is in progress",
 	};

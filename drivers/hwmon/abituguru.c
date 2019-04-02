@@ -96,10 +96,10 @@
 #define ABIT_UGURU_MAX_TIMEOUTS			2
 /* utility macros */
 #define ABIT_UGURU_NAME				"abituguru"
-#define ABIT_UGURU_DEBUG(level, format, arg...)		\
+#define ABIT_UGURU_DE(level, format, arg...)		\
 	do {						\
 		if (level <= verbose)			\
-			pr_debug(format , ## arg);	\
+			pr_de(format , ## arg);	\
 	} while (0)
 
 /* Macros to help calculate the sysfs_names array length */
@@ -296,7 +296,7 @@ static int abituguru_ready(struct abituguru_data *data)
 
 	/* Wait till the uguru is ready */
 	if (abituguru_wait(data, ABIT_UGURU_STATUS_READY)) {
-		ABIT_UGURU_DEBUG(1,
+		ABIT_UGURU_DE(1,
 			"timeout exceeded waiting for ready state\n");
 		return -EIO;
 	}
@@ -305,7 +305,7 @@ static int abituguru_ready(struct abituguru_data *data)
 	while (inb_p(data->addr + ABIT_UGURU_CMD) != 0xAC) {
 		timeout--;
 		if (timeout == 0) {
-			ABIT_UGURU_DEBUG(1,
+			ABIT_UGURU_DE(1,
 			   "CMD reg does not hold 0xAC after ready command\n");
 			return -EIO;
 		}
@@ -320,7 +320,7 @@ static int abituguru_ready(struct abituguru_data *data)
 	while (inb_p(data->addr + ABIT_UGURU_DATA) != ABIT_UGURU_STATUS_INPUT) {
 		timeout--;
 		if (timeout == 0) {
-			ABIT_UGURU_DEBUG(1,
+			ABIT_UGURU_DE(1,
 				"state != more input after ready command\n");
 			return -EIO;
 		}
@@ -362,7 +362,7 @@ static int abituguru_send_address(struct abituguru_data *data,
 		 */
 		if (abituguru_wait(data, ABIT_UGURU_STATUS_INPUT)) {
 			if (retries) {
-				ABIT_UGURU_DEBUG(3, "timeout exceeded "
+				ABIT_UGURU_DE(3, "timeout exceeded "
 					"waiting for more input state, %d "
 					"tries remaining\n", retries);
 				set_current_state(TASK_UNINTERRUPTIBLE);
@@ -371,7 +371,7 @@ static int abituguru_send_address(struct abituguru_data *data,
 				continue;
 			}
 			if (report_errors)
-				ABIT_UGURU_DEBUG(1, "timeout exceeded "
+				ABIT_UGURU_DE(1, "timeout exceeded "
 					"waiting for more input state "
 					"(bank: %d)\n", (int)bank_addr);
 			return -EBUSY;
@@ -398,7 +398,7 @@ static int abituguru_read(struct abituguru_data *data,
 	/* And read the data */
 	for (i = 0; i < count; i++) {
 		if (abituguru_wait(data, ABIT_UGURU_STATUS_READ)) {
-			ABIT_UGURU_DEBUG(retries ? 1 : 3,
+			ABIT_UGURU_DE(retries ? 1 : 3,
 				"timeout exceeded waiting for "
 				"read state (bank: %d, sensor: %d)\n",
 				(int)bank_addr, (int)sensor_addr);
@@ -435,7 +435,7 @@ static int abituguru_write(struct abituguru_data *data,
 	/* And write the data */
 	for (i = 0; i < count; i++) {
 		if (abituguru_wait(data, ABIT_UGURU_STATUS_WRITE)) {
-			ABIT_UGURU_DEBUG(1, "timeout exceeded waiting for "
+			ABIT_UGURU_DE(1, "timeout exceeded waiting for "
 				"write state (bank: %d, sensor: %d)\n",
 				(int)bank_addr, (int)sensor_addr);
 			break;
@@ -449,7 +449,7 @@ static int abituguru_write(struct abituguru_data *data,
 	 * succeeded.
 	 */
 	if (abituguru_wait(data, ABIT_UGURU_STATUS_READ)) {
-		ABIT_UGURU_DEBUG(1, "timeout exceeded waiting for read state "
+		ABIT_UGURU_DE(1, "timeout exceeded waiting for read state "
 			"after write (bank: %d, sensor: %d)\n", (int)bank_addr,
 			(int)sensor_addr);
 		return -EIO;
@@ -459,7 +459,7 @@ static int abituguru_write(struct abituguru_data *data,
 	while (inb_p(data->addr + ABIT_UGURU_CMD) != 0xAC) {
 		timeout--;
 		if (timeout == 0) {
-			ABIT_UGURU_DEBUG(1, "CMD reg does not hold 0xAC after "
+			ABIT_UGURU_DE(1, "CMD reg does not hold 0xAC after "
 				"write (bank: %d, sensor: %d)\n",
 				(int)bank_addr, (int)sensor_addr);
 			return -EIO;
@@ -491,7 +491,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* If overriden by the user return the user selected type */
 	if (bank1_types[sensor_addr] >= ABIT_UGURU_IN_SENSOR &&
 			bank1_types[sensor_addr] <= ABIT_UGURU_NC) {
-		ABIT_UGURU_DEBUG(2, "assuming sensor type %d for bank1 sensor "
+		ABIT_UGURU_DE(2, "assuming sensor type %d for bank1 sensor "
 			"%d because of \"bank1_types\" module param\n",
 			bank1_types[sensor_addr], (int)sensor_addr);
 		return bank1_types[sensor_addr];
@@ -515,7 +515,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 		return ABIT_UGURU_NC;
 	}
 
-	ABIT_UGURU_DEBUG(2, "testing bank1 sensor %d\n", (int)sensor_addr);
+	ABIT_UGURU_DE(2, "testing bank1 sensor %d\n", (int)sensor_addr);
 	/*
 	 * Volt sensor test, enable volt low alarm, set min value ridiculously
 	 * high, or vica versa if the reading is very high. If its a volt
@@ -552,14 +552,14 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				ABIT_UGURU_MAX_RETRIES) != 3)
 			goto abituguru_detect_bank1_sensor_type_exit;
 		if (buf[0] & test_flag) {
-			ABIT_UGURU_DEBUG(2, "  found volt sensor\n");
+			ABIT_UGURU_DE(2, "  found volt sensor\n");
 			ret = ABIT_UGURU_IN_SENSOR;
 			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
-			ABIT_UGURU_DEBUG(2, "  alarm raised during volt "
+			ABIT_UGURU_DE(2, "  alarm raised during volt "
 				"sensor test, but volt range flag not set\n");
 	} else
-		ABIT_UGURU_DEBUG(2, "  alarm not raised during volt sensor "
+		ABIT_UGURU_DE(2, "  alarm not raised during volt sensor "
 			"test\n");
 
 	/*
@@ -589,14 +589,14 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				ABIT_UGURU_MAX_RETRIES) != 3)
 			goto abituguru_detect_bank1_sensor_type_exit;
 		if (buf[0] & ABIT_UGURU_TEMP_HIGH_ALARM_FLAG) {
-			ABIT_UGURU_DEBUG(2, "  found temp sensor\n");
+			ABIT_UGURU_DE(2, "  found temp sensor\n");
 			ret = ABIT_UGURU_TEMP_SENSOR;
 			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
-			ABIT_UGURU_DEBUG(2, "  alarm raised during temp "
+			ABIT_UGURU_DE(2, "  alarm raised during temp "
 				"sensor test, but temp high flag not set\n");
 	} else
-		ABIT_UGURU_DEBUG(2, "  alarm not raised during temp sensor "
+		ABIT_UGURU_DE(2, "  alarm not raised during temp sensor "
 			"test\n");
 
 	ret = ABIT_UGURU_NC;
@@ -645,13 +645,13 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 
 	if (fan_sensors > 0 && fan_sensors <= ABIT_UGURU_MAX_BANK2_SENSORS) {
 		data->bank2_sensors = fan_sensors;
-		ABIT_UGURU_DEBUG(2, "assuming %d fan sensors because of "
+		ABIT_UGURU_DE(2, "assuming %d fan sensors because of "
 			"\"fan_sensors\" module param\n",
 			(int)data->bank2_sensors);
 		return;
 	}
 
-	ABIT_UGURU_DEBUG(2, "detecting number of fan sensors\n");
+	ABIT_UGURU_DE(2, "detecting number of fan sensors\n");
 	for (i = 0; i < ABIT_UGURU_MAX_BANK2_SENSORS; i++) {
 		/*
 		 * 0x89 are the known used bits:
@@ -662,7 +662,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		 * 0x40 (bit 6) is also high for some of the fans??
 		 */
 		if (data->bank2_settings[i][0] & ~0xC9) {
-			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
+			ABIT_UGURU_DE(2, "  bank2 sensor %d does not seem "
 				"to be a fan sensor: settings[0] = %02X\n",
 				i, (unsigned int)data->bank2_settings[i][0]);
 			break;
@@ -671,7 +671,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		/* check if the threshold is within the allowed range */
 		if (data->bank2_settings[i][1] <
 				abituguru_bank2_min_threshold) {
-			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
+			ABIT_UGURU_DE(2, "  bank2 sensor %d does not seem "
 				"to be a fan sensor: the threshold (%d) is "
 				"below the minimum (%d)\n", i,
 				(int)data->bank2_settings[i][1],
@@ -680,7 +680,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		}
 		if (data->bank2_settings[i][1] >
 				abituguru_bank2_max_threshold) {
-			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
+			ABIT_UGURU_DE(2, "  bank2 sensor %d does not seem "
 				"to be a fan sensor: the threshold (%d) is "
 				"above the maximum (%d)\n", i,
 				(int)data->bank2_settings[i][1],
@@ -690,7 +690,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 	}
 
 	data->bank2_sensors = i;
-	ABIT_UGURU_DEBUG(2, " found: %d fan sensors\n",
+	ABIT_UGURU_DE(2, " found: %d fan sensors\n",
 		(int)data->bank2_sensors);
 }
 
@@ -701,12 +701,12 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 
 	if (pwms > 0 && pwms <= ABIT_UGURU_MAX_PWMS) {
 		data->pwms = pwms;
-		ABIT_UGURU_DEBUG(2, "assuming %d PWM outputs because of "
+		ABIT_UGURU_DE(2, "assuming %d PWM outputs because of "
 			"\"pwms\" module param\n", (int)data->pwms);
 		return;
 	}
 
-	ABIT_UGURU_DEBUG(2, "detecting number of PWM outputs\n");
+	ABIT_UGURU_DE(2, "detecting number of PWM outputs\n");
 	for (i = 0; i < ABIT_UGURU_MAX_PWMS; i++) {
 		/*
 		 * 0x80 is the enable bit and the low
@@ -714,7 +714,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 		 * the other bits should be 0
 		 */
 		if (data->pwm_settings[i][0] & ~0x8F) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DE(2, "  pwm channel %d does not seem "
 				"to be a pwm channel: settings[0] = %02X\n",
 				i, (unsigned int)data->pwm_settings[i][0]);
 			break;
@@ -731,7 +731,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 				break;
 		}
 		if (j == data->bank1_sensors[ABIT_UGURU_TEMP_SENSOR]) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DE(2, "  pwm channel %d does not seem "
 				"to be a pwm channel: %d is not a valid temp "
 				"sensor address\n", i,
 				data->pwm_settings[i][0] & 0x0F);
@@ -747,7 +747,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 			else
 				min = abituguru_pwm_min[j];
 			if (data->pwm_settings[i][j] < min) {
-				ABIT_UGURU_DEBUG(2, "  pwm channel %d does "
+				ABIT_UGURU_DE(2, "  pwm channel %d does "
 					"not seem to be a pwm channel: "
 					"setting %d (%d) is below the minimum "
 					"value (%d)\n", i, j,
@@ -756,7 +756,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 				goto abituguru_detect_no_pwms_exit;
 			}
 			if (data->pwm_settings[i][j] > abituguru_pwm_max[j]) {
-				ABIT_UGURU_DEBUG(2, "  pwm channel %d does "
+				ABIT_UGURU_DE(2, "  pwm channel %d does "
 					"not seem to be a pwm channel: "
 					"setting %d (%d) is above the maximum "
 					"value (%d)\n", i, j,
@@ -768,7 +768,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 
 		/* check that min temp < max temp and min pwm < max pwm */
 		if (data->pwm_settings[i][1] >= data->pwm_settings[i][2]) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DE(2, "  pwm channel %d does not seem "
 				"to be a pwm channel: min pwm (%d) >= "
 				"max pwm (%d)\n", i,
 				(int)data->pwm_settings[i][1],
@@ -776,7 +776,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 			break;
 		}
 		if (data->pwm_settings[i][3] >= data->pwm_settings[i][4]) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DE(2, "  pwm channel %d does not seem "
 				"to be a pwm channel: min temp (%d) >= "
 				"max temp (%d)\n", i,
 				(int)data->pwm_settings[i][3],
@@ -787,7 +787,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 
 abituguru_detect_no_pwms_exit:
 	data->pwms = i;
-	ABIT_UGURU_DEBUG(2, " found: %d PWM outputs\n", (int)data->pwms);
+	ABIT_UGURU_DE(2, " found: %d PWM outputs\n", (int)data->pwms);
 }
 
 /*
@@ -1496,12 +1496,12 @@ LEAVE_UPDATE:
 			if (data->update_timeouts < 255u)
 				data->update_timeouts++;
 			if (data->update_timeouts <= ABIT_UGURU_MAX_TIMEOUTS) {
-				ABIT_UGURU_DEBUG(3, "timeout exceeded, will "
+				ABIT_UGURU_DE(3, "timeout exceeded, will "
 					"try again next update\n");
 				/* Just a timeout, fake a successful read */
 				success = 1;
 			} else
-				ABIT_UGURU_DEBUG(1, "timeout exceeded %d "
+				ABIT_UGURU_DE(1, "timeout exceeded %d "
 					"times waiting for more input state\n",
 					(int)data->update_timeouts);
 		}
@@ -1570,7 +1570,7 @@ static int __init abituguru_detect(void)
 	    ((cmd_val == 0x00) || (cmd_val == 0xAC)))
 		return ABIT_UGURU_BASE;
 
-	ABIT_UGURU_DEBUG(2, "no Abit uGuru found, data = 0x%02X, cmd = "
+	ABIT_UGURU_DE(2, "no Abit uGuru found, data = 0x%02X, cmd = "
 		"0x%02X\n", (unsigned int)data_val, (unsigned int)cmd_val);
 
 	if (force) {

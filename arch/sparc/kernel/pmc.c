@@ -20,9 +20,9 @@
 #include <asm/auxio.h>
 #include <asm/processor.h>
 
-/* Debug
+/* De
  *
- * #define PMC_DEBUG_LED
+ * #define PMC_DE_LED
  * #define PMC_NO_IDLE
  */
 
@@ -43,13 +43,13 @@ static u8 __iomem *regs;
  */
 static void pmc_swift_idle(void)
 {
-#ifdef PMC_DEBUG_LED
+#ifdef PMC_DE_LED
 	set_auxio(0x00, AUXIO_LED);
 #endif
 
 	pmc_writeb(pmc_readb(PMC_IDLE_REG) | PMC_IDLE_ON, PMC_IDLE_REG);
 
-#ifdef PMC_DEBUG_LED
+#ifdef PMC_DE_LED
 	set_auxio(AUXIO_LED, 0x00);
 #endif
 }

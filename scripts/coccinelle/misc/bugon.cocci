@@ -1,8 +1,8 @@
-/// Use BUG_ON instead of a if condition followed by BUG.
+/// Use _ON instead of a if condition followed by .
 ///
-//# This makes an effort to find cases where BUG() follows an if
-//# condition on an expression and replaces the if condition and BUG()
-//# with a BUG_ON having the conditional expression of the if statement
+//# This makes an effort to find cases where () follows an if
+//# condition on an expression and replaces the if condition and ()
+//# with a _ON having the conditional expression of the if statement
 //# as argument.
 //
 // Confidence: High
@@ -23,7 +23,7 @@ virtual report
 expression e;
 @@
 
-*if (e) BUG();
+*if (e) ();
 
 //----------------------------------------------------------
 //  For patch mode
@@ -33,8 +33,8 @@ expression e;
 expression e;
 @@
 
--if (e) BUG();
-+BUG_ON(e);
+-if (e) ();
++_ON(e);
 
 //----------------------------------------------------------
 //  For org and report mode
@@ -45,18 +45,18 @@ expression e;
 position p;
 @@
 
- if (e) BUG@p ();
+ if (e) @p ();
 
 @script:python depends on org@
 p << r.p;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING use BUG_ON")
+coccilib.org.print_todo(p[0], "WARNING use _ON")
 
 @script:python depends on report@
 p << r.p;
 @@
 
-msg="WARNING: Use BUG_ON instead of if condition followed by BUG.\nPlease make sure the condition has no side effects (see conditional BUG_ON definition in include/asm-generic/bug.h)"
+msg="WARNING: Use _ON instead of if condition followed by .\nPlease make sure the condition has no side effects (see conditional _ON definition in include/asm-generic/.h)"
 coccilib.report.print_report(p[0], msg)
 

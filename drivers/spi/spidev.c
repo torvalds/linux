@@ -567,7 +567,7 @@ static int spidev_open(struct inode *inode, struct file *filp)
 	}
 
 	if (status) {
-		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
+		pr_de("spidev: nothing for minor %d\n", iminor(inode));
 		goto err_find_dev;
 	}
 
@@ -727,7 +727,7 @@ static int spidev_probe(struct spi_device *spi)
 	 */
 	WARN(spi->dev.of_node &&
 	     of_device_is_compatible(spi->dev.of_node, "spidev"),
-	     "%pOF: buggy DT: spidev listed directly in DT\n", spi->dev.of_node);
+	     "%pOF: gy DT: spidev listed directly in DT\n", spi->dev.of_node);
 
 	spidev_probe_acpi(spi);
 
@@ -823,7 +823,7 @@ static int __init spidev_init(void)
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * the driver which manages those device numbers.
 	 */
-	BUILD_BUG_ON(N_SPI_MINORS > 256);
+	BUILD__ON(N_SPI_MINORS > 256);
 	status = register_chrdev(SPIDEV_MAJOR, "spi", &spidev_fops);
 	if (status < 0)
 		return status;

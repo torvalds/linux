@@ -7,7 +7,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	Please submit bugs to http://bugzilla.kernel.org/ .
+	Please submit s to http://zilla.kernel.org/ .
 */
 
 #ifndef __NET_TULIP_H__
@@ -27,8 +27,8 @@
 
 
 
-/* undefine, or define to various debugging levels (>4 == obscene levels) */
-#define TULIP_DEBUG 1
+/* undefine, or define to various deging levels (>4 == obscene levels) */
+#define TULIP_DE 1
 
 #ifdef CONFIG_TULIP_MMIO
 #define TULIP_BAR	1	/* CBMA */
@@ -512,7 +512,7 @@ void mxic_timer(struct timer_list *t);
 void comet_timer(struct timer_list *t);
 
 /* tulip_core.c */
-extern int tulip_debug;
+extern int tulip_de;
 extern const char * const medianame[];
 extern const char tulip_media_cap[];
 extern const struct tulip_chip_table tulip_tbl[];

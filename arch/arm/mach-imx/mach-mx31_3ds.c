@@ -33,7 +33,7 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 
-#include "3ds_debugboard.h"
+#include "3ds_deboard.h"
 #include "common.h"
 #include "devices-imx31.h"
 #include "ehci.h"
@@ -595,8 +595,8 @@ static void __init mx31_3ds_late(void)
 		imx31_add_fsl_usb2_udc(&usbotg_pdata);
 
 	if (mxc_expio_init(MX31_CS5_BASE_ADDR, IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)))
-		printk(KERN_WARNING "Init of the debug board failed, all "
-		       "devices on the debug board are unusable.\n");
+		printk(KERN_WARNING "Init of the de board failed, all "
+		       "devices on the de board are unusable.\n");
 
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 }

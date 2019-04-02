@@ -818,7 +818,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, armh->dp.pbn,
 				     armh->dp.tu);
 	if (!r)
-		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
+		DRM_DE_KMS("Failed to allocate VCPI\n");
 
 	if (!mstm->links++)
 		nv50_outp_acquire(mstm->outp);
@@ -1255,7 +1255,7 @@ nv50_mstm_detect(struct nv50_mstm *mstm, u8 dpcd[8], int allow)
 		/* Just check that the MST hub is still as we expect it */
 		ret = drm_dp_dpcd_readb(aux, DP_MSTM_CTRL, &mstm_ctrl);
 		if (ret < 0 || !(mstm_ctrl & DP_MST_EN)) {
-			DRM_DEBUG_KMS("Hub gone, disabling MST topology\n");
+			DRM_DE_KMS("Hub gone, disabling MST topology\n");
 			new_state = false;
 		}
 	} else if (dpcd[0] >= 0x12) {
@@ -1511,7 +1511,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		nv50_audio_enable(encoder, mode);
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 
@@ -1664,7 +1664,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 		proto = 0x0;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

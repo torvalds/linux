@@ -16,7 +16,7 @@ struct rtw_proc_hdl {
 	ssize_t (*write)(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 };
 
-#ifdef PROC_DEBUG
+#ifdef PROC_DE
 
 int rtw_drv_proc_init(void);
 void rtw_drv_proc_deinit(void);
@@ -24,7 +24,7 @@ struct proc_dir_entry *rtw_adapter_proc_init(struct net_device *dev);
 void rtw_adapter_proc_deinit(struct net_device *dev);
 void rtw_adapter_proc_replace(struct net_device *dev);
 
-#else //!PROC_DEBUG
+#else //!PROC_DE
 
 static inline int rtw_drv_proc_init(void) {return 0;}
 static inline void rtw_drv_proc_deinit(void) {}
@@ -32,6 +32,6 @@ static inline struct proc_dir_entry *rtw_adapter_proc_init(struct net_device *de
 static inline void rtw_adapter_proc_deinit(struct net_device *dev){}
 static inline void rtw_adapter_proc_replace(struct net_device *dev){}
 
-#endif //!PROC_DEBUG
+#endif //!PROC_DE
 
 #endif //__RTW_PROC_H__

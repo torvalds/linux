@@ -1197,7 +1197,7 @@ static inline void *hv_get_drvdata(struct hv_device *dev)
 	return dev_get_drvdata(&dev->device);
 }
 
-struct hv_ring_buffer_debug_info {
+struct hv_ring_buffer_de_info {
 	u32 current_interrupt_mask;
 	u32 current_read_index;
 	u32 current_write_index;
@@ -1206,8 +1206,8 @@ struct hv_ring_buffer_debug_info {
 };
 
 
-int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-				struct hv_ring_buffer_debug_info *debug_info);
+int hv_ringbuffer_get_deinfo(const struct hv_ring_buffer_info *ring_info,
+				struct hv_ring_buffer_de_info *de_info);
 
 /* Vmbus interface */
 #define vmbus_driver_register(driver)	\

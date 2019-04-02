@@ -96,7 +96,7 @@ enum xz_mode {
  * to XZ code cannot consume any input and cannot produce any new output.
  * This happens when there is no new input available, or the output buffer
  * is full while at least one output byte is still pending. Assuming your
- * code is not buggy, you can get this error only when decoding a compressed
+ * code is not gy, you can get this error only when decoding a compressed
  * stream that is truncated or otherwise corrupt.
  *
  * In single-call mode, XZ_BUF_ERROR is returned only when the output buffer

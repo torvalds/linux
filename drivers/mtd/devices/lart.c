@@ -31,8 +31,8 @@
  *    adapt the driver (:
  */
 
-/* debugging */
-//#define LART_DEBUG
+/* deging */
+//#define LART_DE
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -267,8 +267,8 @@ static char module_name[] = "lart";
 static __u8 read8 (__u32 offset)
 {
    volatile __u8 *data = (__u8 *) (FLASH_OFFSET + offset);
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x -> 0x%.2x\n", __func__, offset, *data);
+#ifdef LART_DE
+   printk (KERN_DE "%s(): 0x%.8x -> 0x%.2x\n", __func__, offset, *data);
 #endif
    return (*data);
 }
@@ -276,8 +276,8 @@ static __u8 read8 (__u32 offset)
 static __u32 read32 (__u32 offset)
 {
    volatile __u32 *data = (__u32 *) (FLASH_OFFSET + offset);
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x -> 0x%.8x\n", __func__, offset, *data);
+#ifdef LART_DE
+   printk (KERN_DE "%s(): 0x%.8x -> 0x%.8x\n", __func__, offset, *data);
 #endif
    return (*data);
 }
@@ -286,8 +286,8 @@ static void write32 (__u32 x,__u32 offset)
 {
    volatile __u32 *data = (__u32 *) (FLASH_OFFSET + offset);
    *data = x;
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x <- 0x%.8x\n", __func__, offset, *data);
+#ifdef LART_DE
+   printk (KERN_DE "%s(): 0x%.8x <- 0x%.8x\n", __func__, offset, *data);
 #endif
 }
 
@@ -329,8 +329,8 @@ static inline int erase_block (__u32 offset)
 {
    __u32 status;
 
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x\n", __func__, offset);
+#ifdef LART_DE
+   printk (KERN_DE "%s(): 0x%.8x\n", __func__, offset);
 #endif
 
    /* erase and confirm */
@@ -363,8 +363,8 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
    __u32 addr,len;
    int i,first;
 
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(addr = 0x%.8x, len = %d)\n", __func__, instr->addr, instr->len);
+#ifdef LART_DE
+   printk (KERN_DE "%s(addr = 0x%.8x, len = %d)\n", __func__, instr->addr, instr->len);
 #endif
 
    /*
@@ -427,8 +427,8 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
 
 static int flash_read (struct mtd_info *mtd,loff_t from,size_t len,size_t *retlen,u_char *buf)
 {
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(from = 0x%.8x, len = %d)\n", __func__, (__u32)from, len);
+#ifdef LART_DE
+   printk (KERN_DE "%s(from = 0x%.8x, len = %d)\n", __func__, (__u32)from, len);
 #endif
 
    /* we always read len bytes */
@@ -469,8 +469,8 @@ static inline int write_dword (__u32 offset,__u32 x)
 {
    __u32 status;
 
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(): 0x%.8x <- 0x%.8x\n", __func__, offset, x);
+#ifdef LART_DE
+   printk (KERN_DE "%s(): 0x%.8x <- 0x%.8x\n", __func__, offset, x);
 #endif
 
    /* setup writing */
@@ -505,8 +505,8 @@ static int flash_write (struct mtd_info *mtd,loff_t to,size_t len,size_t *retlen
    __u8 tmp[4];
    int i,n;
 
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG "%s(to = 0x%.8x, len = %d)\n", __func__, (__u32)to, len);
+#ifdef LART_DE
+   printk (KERN_DE "%s(to = 0x%.8x, len = %d)\n", __func__, (__u32)to, len);
 #endif
 
    /* sanity checks */
@@ -625,8 +625,8 @@ static int __init lart_flash_init (void)
    mtd._write = flash_write;
    mtd.owner = THIS_MODULE;
 
-#ifdef LART_DEBUG
-   printk (KERN_DEBUG
+#ifdef LART_DE
+   printk (KERN_DE
 		   "mtd.name = %s\n"
 		   "mtd.size = 0x%.8x (%uM)\n"
 		   "mtd.erasesize = 0x%.8x (%uK)\n"
@@ -638,7 +638,7 @@ static int __init lart_flash_init (void)
 
    if (mtd.numeraseregions)
 	 for (result = 0; result < mtd.numeraseregions; result++)
-	   printk (KERN_DEBUG
+	   printk (KERN_DE
 			   "\n\n"
 			   "mtd.eraseregions[%d].offset = 0x%.8x\n"
 			   "mtd.eraseregions[%d].erasesize = 0x%.8x (%uK)\n"
@@ -650,7 +650,7 @@ static int __init lart_flash_init (void)
    printk ("\npartitions = %d\n", ARRAY_SIZE(lart_partitions));
 
    for (result = 0; result < ARRAY_SIZE(lart_partitions); result++)
-	 printk (KERN_DEBUG
+	 printk (KERN_DE
 			 "\n\n"
 			 "lart_partitions[%d].name = %s\n"
 			 "lart_partitions[%d].offset = 0x%.8x\n"

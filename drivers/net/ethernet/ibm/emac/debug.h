@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/ibm/emac/debug.h
+ * drivers/net/ethernet/ibm/emac/de.h
  *
- * Driver for PowerPC 4xx on-chip ethernet controller, debug print routines.
+ * Driver for PowerPC 4xx on-chip ethernet controller, de print routines.
  *
  * Copyright 2007 Benjamin Herrenschmidt, IBM Corp.
  *                <benh@kernel.crashing.org>
@@ -17,21 +17,21 @@
  * option) any later version.
  *
  */
-#ifndef __IBM_NEWEMAC_DEBUG_H
-#define __IBM_NEWEMAC_DEBUG_H
+#ifndef __IBM_NEWEMAC_DE_H
+#define __IBM_NEWEMAC_DE_H
 
 #include <linux/init.h>
 
 #include "core.h"
 
-#if defined(CONFIG_IBM_EMAC_DEBUG)
+#if defined(CONFIG_IBM_EMAC_DE)
 # define DBG_LEVEL		1
 #else
 # define DBG_LEVEL		0
 #endif
 
 #define EMAC_DBG(d, name, fmt, arg...) \
-	printk(KERN_DEBUG #name "%pOF: " fmt, d->ofdev->dev.of_node, ## arg)
+	printk(KERN_DE #name "%pOF: " fmt, d->ofdev->dev.of_node, ## arg)
 
 #if DBG_LEVEL > 0
 #  define DBG(d,f,x...)		EMAC_DBG(d, emac, f, ##x)
@@ -57,4 +57,4 @@
 #  define RGMII_DBG2(d,f,x...) 	((void)0)
 #endif
 
-#endif /* __IBM_NEWEMAC_DEBUG_H */
+#endif /* __IBM_NEWEMAC_DE_H */

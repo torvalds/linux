@@ -78,7 +78,7 @@ static inline struct irq_routing_table *pirq_check_routing_table(u8 *addr)
 	for (i = 0; i < rt->size; i++)
 		sum += addr[i];
 	if (!sum) {
-		DBG(KERN_DEBUG "PCI: Interrupt Routing Table found at 0x%p\n",
+		DBG(KERN_DE "PCI: Interrupt Routing Table found at 0x%p\n",
 			rt);
 		return rt;
 	}
@@ -126,10 +126,10 @@ static void __init pirq_peer_trick(void)
 	memset(busmap, 0, sizeof(busmap));
 	for (i = 0; i < (rt->size - sizeof(struct irq_routing_table)) / sizeof(struct irq_info); i++) {
 		e = &rt->slots[i];
-#ifdef DEBUG
+#ifdef DE
 		{
 			int j;
-			DBG(KERN_DEBUG "%02x:%02x slot=%02x", e->bus, e->devfn/8, e->slot);
+			DBG(KERN_DE "%02x:%02x slot=%02x", e->bus, e->devfn/8, e->slot);
 			for (j = 0; j < 4; j++)
 				DBG(" %d:%02x/%04x", j, e->irq[j].link, e->irq[j].bitmap);
 			DBG("\n");
@@ -161,10 +161,10 @@ void elcr_set_level_irq(unsigned int irq)
 		return;
 
 	elcr_irq_mask |= (1 << irq);
-	printk(KERN_DEBUG "PCI: setting IRQ %u as level-triggered\n", irq);
+	printk(KERN_DE "PCI: setting IRQ %u as level-triggered\n", irq);
 	val = inb(port);
 	if (!(val & mask)) {
-		DBG(KERN_DEBUG " -> edge");
+		DBG(KERN_DE " -> edge");
 		outb(val | mask, port);
 	}
 }
@@ -619,7 +619,7 @@ static __init int via_router_probe(struct irq_router *r,
 	/* FIXME: We should move some of the quirk fixup stuff here */
 
 	/*
-	 * workarounds for some buggy BIOSes
+	 * workarounds for some gy BIOSes
 	 */
 	if (device == PCI_DEVICE_ID_VIA_82C586_0) {
 		switch (router->device) {
@@ -836,13 +836,13 @@ static void __init pirq_find_router(struct irq_router *r)
 	r->get = NULL;
 	r->set = NULL;
 
-	DBG(KERN_DEBUG "PCI: Attempting to find IRQ router for [%04x:%04x]\n",
+	DBG(KERN_DE "PCI: Attempting to find IRQ router for [%04x:%04x]\n",
 	    rt->rtr_vendor, rt->rtr_device);
 
 	pirq_router_dev = pci_get_domain_bus_and_slot(0, rt->rtr_bus,
 						      rt->rtr_devfn);
 	if (!pirq_router_dev) {
-		DBG(KERN_DEBUG "PCI: Interrupt router not found at "
+		DBG(KERN_DE "PCI: Interrupt router not found at "
 			"%02x:%02x\n", rt->rtr_bus, rt->rtr_devfn);
 		return;
 	}
@@ -1028,7 +1028,7 @@ void __init pcibios_fixup_irqs(void)
 	struct pci_dev *dev = NULL;
 	u8 pin;
 
-	DBG(KERN_DEBUG "PCI: IRQ fixup\n");
+	DBG(KERN_DE "PCI: IRQ fixup\n");
 	for_each_pci_dev(dev) {
 		/*
 		 * If the BIOS has set an out of range IRQ number, just
@@ -1119,7 +1119,7 @@ static const struct dmi_system_id pciirq_dmi_table[] __initconst = {
 
 void __init pcibios_irq_init(void)
 {
-	DBG(KERN_DEBUG "PCI: IRQ init\n");
+	DBG(KERN_DE "PCI: IRQ init\n");
 
 	if (raw_pci_ops == NULL)
 		return;
@@ -1238,7 +1238,7 @@ static int pirq_enable_irq(struct pci_dev *dev)
 					 "INT %c -> IRQ %d\n", 'A' + pin - 1, irq);
 				return 0;
 			} else
-				msg = "; probably buggy MP table";
+				msg = "; probably gy MP table";
 #endif
 		} else if (pci_probe & PCI_BIOS_IRQ_SCAN)
 			msg = "";

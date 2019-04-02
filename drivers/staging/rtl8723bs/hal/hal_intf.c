@@ -8,7 +8,7 @@
 #define _HAL_INTF_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <hal_data.h>
 
 void rtw_hal_chip_configure(struct adapter *padapter)

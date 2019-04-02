@@ -20,8 +20,8 @@
  *          Adrian Hunter
  */
 
-#ifndef __UBIFS_DEBUG_H__
-#define __UBIFS_DEBUG_H__
+#ifndef __UBIFS_DE_H__
+#define __UBIFS_DE_H__
 
 /* Checking helper functions */
 typedef int (*dbg_leaf_callback)(struct ubifs_info *c,
@@ -30,14 +30,14 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
 				  struct ubifs_znode *znode, void *priv);
 
 /*
- * The UBIFS debugfs directory name pattern and maximum name length (3 for "ubi"
+ * The UBIFS defs directory name pattern and maximum name length (3 for "ubi"
  * + 1 for "_" and plus 2x2 for 2 UBI numbers and 1 for the trailing zero byte.
  */
 #define UBIFS_DFS_DIR_NAME "ubi%d_%d"
 #define UBIFS_DFS_DIR_LEN  (3 + 1 + 2*2 + 1)
 
 /**
- * ubifs_debug_info - per-FS debugging information.
+ * ubifs_de_info - per-FS deging information.
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
@@ -53,8 +53,8 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @chk_lpt_wastage: used by LPT tree size checker
  * @chk_lpt_lebs: used by LPT tree size checker
  * @new_nhead_offs: used by LPT tree size checker
- * @new_ihead_lnum: used by debugging to check @c->ihead_lnum
- * @new_ihead_offs: used by debugging to check @c->ihead_offs
+ * @new_ihead_lnum: used by deging to check @c->ihead_lnum
+ * @new_ihead_offs: used by deging to check @c->ihead_offs
  *
  * @saved_lst: saved lprops statistics (used by 'dbg_save_space_info()')
  * @saved_bi: saved budgeting information
@@ -68,23 +68,23 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @chk_fs: if UBIFS contents extra checks are enabled
  * @tst_rcvry: if UBIFS recovery testing mode enabled
  *
- * @dfs_dir_name: name of debugfs directory containing this file-system's files
- * @dfs_dir: direntry object of the file-system debugfs directory
- * @dfs_dump_lprops: "dump lprops" debugfs knob
- * @dfs_dump_budg: "dump budgeting information" debugfs knob
- * @dfs_dump_tnc: "dump TNC" debugfs knob
- * @dfs_chk_gen: debugfs knob to enable UBIFS general extra checks
- * @dfs_chk_index: debugfs knob to enable UBIFS index extra checks
- * @dfs_chk_orph: debugfs knob to enable UBIFS orphans extra checks
- * @dfs_chk_lprops: debugfs knob to enable UBIFS LEP properties extra checks
- * @dfs_chk_fs: debugfs knob to enable UBIFS contents extra checks
- * @dfs_tst_rcvry: debugfs knob to enable UBIFS recovery testing
- * @dfs_ro_error: debugfs knob to switch UBIFS to R/O mode (different to
+ * @dfs_dir_name: name of defs directory containing this file-system's files
+ * @dfs_dir: direntry object of the file-system defs directory
+ * @dfs_dump_lprops: "dump lprops" defs knob
+ * @dfs_dump_budg: "dump budgeting information" defs knob
+ * @dfs_dump_tnc: "dump TNC" defs knob
+ * @dfs_chk_gen: defs knob to enable UBIFS general extra checks
+ * @dfs_chk_index: defs knob to enable UBIFS index extra checks
+ * @dfs_chk_orph: defs knob to enable UBIFS orphans extra checks
+ * @dfs_chk_lprops: defs knob to enable UBIFS LEP properties extra checks
+ * @dfs_chk_fs: defs knob to enable UBIFS contents extra checks
+ * @dfs_tst_rcvry: defs knob to enable UBIFS recovery testing
+ * @dfs_ro_error: defs knob to switch UBIFS to R/O mode (different to
  *                re-mounting to R/O mode because it does not flush any buffers
  *                and UBIFS just starts returning -EROFS on all write
  *               operations)
  */
-struct ubifs_debug_info {
+struct ubifs_de_info {
 	struct ubifs_zbranch old_zroot;
 	int old_zroot_level;
 	unsigned long long old_zroot_sqnum;
@@ -130,7 +130,7 @@ struct ubifs_debug_info {
 };
 
 /**
- * ubifs_global_debug_info - global (not per-FS) UBIFS debugging information.
+ * ubifs_global_de_info - global (not per-FS) UBIFS deging information.
  *
  * @chk_gen: if general extra checks are enabled
  * @chk_index: if index xtra checks are enabled
@@ -139,7 +139,7 @@ struct ubifs_debug_info {
  * @chk_fs: if UBIFS contents extra checks are enabled
  * @tst_rcvry: if UBIFS recovery testing mode enabled
  */
-struct ubifs_global_debug_info {
+struct ubifs_global_de_info {
 	unsigned int chk_gen:1;
 	unsigned int chk_index:1;
 	unsigned int chk_orph:1;
@@ -167,13 +167,13 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
 } while (0)
 
 #define ubifs_dbg_msg(type, fmt, ...) \
-	pr_debug("UBIFS DBG " type " (pid %d): " fmt "\n", current->pid,       \
+	pr_de("UBIFS DBG " type " (pid %d): " fmt "\n", current->pid,       \
 		 ##__VA_ARGS__)
 
 #define DBG_KEY_BUF_LEN 48
 #define ubifs_dbg_msg_key(type, key, fmt, ...) do {                            \
 	char __tmp_key_buf[DBG_KEY_BUF_LEN];                                   \
-	pr_debug("UBIFS DBG " type " (pid %d): " fmt "%s\n", current->pid,     \
+	pr_de("UBIFS DBG " type " (pid %d): " fmt "%s\n", current->pid,     \
 		 ##__VA_ARGS__,                                                \
 		 dbg_snprintf_key(c, key, __tmp_key_buf, DBG_KEY_BUF_LEN));    \
 } while (0)
@@ -211,7 +211,7 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
 /* Additional recovery messages */
 #define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
-extern struct ubifs_global_debug_info ubifs_dbg;
+extern struct ubifs_global_de_info ubifs_dbg;
 
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)
 {
@@ -242,8 +242,8 @@ static inline int dbg_is_power_cut(const struct ubifs_info *c)
 	return !!c->dbg->pc_happened;
 }
 
-int ubifs_debugging_init(struct ubifs_info *c);
-void ubifs_debugging_exit(struct ubifs_info *c);
+int ubifs_deging_init(struct ubifs_info *c);
+void ubifs_deging_exit(struct ubifs_info *c);
 
 /* Dump functions */
 const char *dbg_ntype(int type);
@@ -308,10 +308,10 @@ int dbg_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len);
 int dbg_leb_unmap(struct ubifs_info *c, int lnum);
 int dbg_leb_map(struct ubifs_info *c, int lnum);
 
-/* Debugfs-related stuff */
-int dbg_debugfs_init(void);
-void dbg_debugfs_exit(void);
-int dbg_debugfs_init_fs(struct ubifs_info *c);
-void dbg_debugfs_exit_fs(struct ubifs_info *c);
+/* Defs-related stuff */
+int dbg_defs_init(void);
+void dbg_defs_exit(void);
+int dbg_defs_init_fs(struct ubifs_info *c);
+void dbg_defs_exit_fs(struct ubifs_info *c);
 
-#endif /* !__UBIFS_DEBUG_H__ */
+#endif /* !__UBIFS_DE_H__ */

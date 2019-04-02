@@ -36,7 +36,7 @@
 
 struct file_operations;
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/export.h>
 
 #include "ipoib.h"
@@ -259,35 +259,35 @@ static const struct file_operations ipoib_path_fops = {
 	.release = seq_release
 };
 
-void ipoib_create_debug_files(struct net_device *dev)
+void ipoib_create_de_files(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	char name[IFNAMSIZ + sizeof("_path")];
 
 	snprintf(name, sizeof(name), "%s_mcg", dev->name);
-	priv->mcg_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
+	priv->mcg_dentry = defs_create_file(name, S_IFREG | S_IRUGO,
 					       ipoib_root, dev, &ipoib_mcg_fops);
 
 	snprintf(name, sizeof(name), "%s_path", dev->name);
-	priv->path_dentry = debugfs_create_file(name, S_IFREG | S_IRUGO,
+	priv->path_dentry = defs_create_file(name, S_IFREG | S_IRUGO,
 						ipoib_root, dev, &ipoib_path_fops);
 }
 
-void ipoib_delete_debug_files(struct net_device *dev)
+void ipoib_delete_de_files(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	debugfs_remove(priv->mcg_dentry);
-	debugfs_remove(priv->path_dentry);
+	defs_remove(priv->mcg_dentry);
+	defs_remove(priv->path_dentry);
 	priv->mcg_dentry = priv->path_dentry = NULL;
 }
 
-void ipoib_register_debugfs(void)
+void ipoib_register_defs(void)
 {
-	ipoib_root = debugfs_create_dir("ipoib", NULL);
+	ipoib_root = defs_create_dir("ipoib", NULL);
 }
 
-void ipoib_unregister_debugfs(void)
+void ipoib_unregister_defs(void)
 {
-	debugfs_remove(ipoib_root);
+	defs_remove(ipoib_root);
 }

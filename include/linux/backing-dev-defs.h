@@ -201,9 +201,9 @@ struct backing_dev_info {
 
 	struct timer_list laptop_mode_wb_timer;
 
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debug_dir;
-	struct dentry *debug_stats;
+#ifdef CONFIG_DE_FS
+	struct dentry *de_dir;
+	struct dentry *de_stats;
 #endif
 };
 
@@ -261,7 +261,7 @@ static inline void wb_put(struct bdi_writeback *wb)
 {
 	if (WARN_ON_ONCE(!wb->bdi)) {
 		/*
-		 * A driver bug might cause a file to be removed before bdi was
+		 * A driver  might cause a file to be removed before bdi was
 		 * initialized.
 		 */
 		return;

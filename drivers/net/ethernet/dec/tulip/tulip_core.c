@@ -6,7 +6,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	Please submit bugs to http://bugzilla.kernel.org/ .
+	Please submit s to http://zilla.kernel.org/ .
 */
 
 #define pr_fmt(fmt) "tulip: " fmt
@@ -110,17 +110,17 @@ MODULE_AUTHOR("The Linux Kernel Team");
 MODULE_DESCRIPTION("Digital 21*4* Tulip ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-module_param(tulip_debug, int, 0);
+module_param(tulip_de, int, 0);
 module_param(max_interrupt_work, int, 0);
 module_param(rx_copybreak, int, 0);
 module_param(csr0, int, 0);
 module_param_array(options, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
 
-#ifdef TULIP_DEBUG
-int tulip_debug = TULIP_DEBUG;
+#ifdef TULIP_DE
+int tulip_de = TULIP_DE;
 #else
-int tulip_debug = 1;
+int tulip_de = 1;
 #endif
 
 static void tulip_timer(struct timer_list *t)
@@ -326,7 +326,7 @@ static void tulip_up(struct net_device *dev)
 	pci_read_config_dword(tp->pdev, PCI_COMMAND, &reg);  /* flush write */
 	udelay(100);
 
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		netdev_dbg(dev, "tulip_up(), irq==%d\n", tp->pdev->irq);
 
 	iowrite32(tp->rx_ring_dma, ioaddr + CSR3);
@@ -354,7 +354,7 @@ static void tulip_up(struct net_device *dev)
 		u16 *setup_frm = &tp->setup_frame[15*6];
 		dma_addr_t mapping;
 
-		/* 21140 bug: you must add the broadcast address. */
+		/* 21140 : you must add the broadcast address. */
 		memset(tp->setup_frame, 0xff, sizeof(tp->setup_frame));
 		/* Fill the final entry of the table with our physical address. */
 		*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
@@ -426,7 +426,7 @@ media_picked:
 	} else if (tp->chip_id == DC21142) {
 		if (tp->mii_cnt) {
 			tulip_select_media(dev, 1);
-			if (tulip_debug > 1)
+			if (tulip_de > 1)
 				dev_info(&dev->dev,
 					 "Using MII transceiver %d, status %04x\n",
 					 tp->phys[0],
@@ -493,7 +493,7 @@ media_picked:
 	tulip_start_rxtx(tp);
 	iowrite32(0, ioaddr + CSR2);		/* Rx poll demand */
 
-	if (tulip_debug > 2) {
+	if (tulip_de > 2) {
 		netdev_dbg(dev, "Done tulip_up(), CSR0 %08x, CSR5 %08x CSR6 %08x\n",
 			   ioread32(ioaddr + CSR0),
 			   ioread32(ioaddr + CSR5),
@@ -544,7 +544,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 
 	if (tulip_media_cap[dev->if_port] & MediaIsMII) {
 		/* Do nothing -- the media monitor should handle this. */
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_warn(&dev->dev,
 				 "Transmit timeout using MII device\n");
 	} else if (tp->chip_id == DC21140 || tp->chip_id == DC21142 ||
@@ -573,12 +573,12 @@ static void tulip_tx_timeout(struct net_device *dev)
 	}
 
 #if defined(way_too_many_messages)
-	if (tulip_debug > 3) {
+	if (tulip_de > 3) {
 		int i;
 		for (i = 0; i < RX_RING_SIZE; i++) {
 			u8 *buf = (u8 *)(tp->rx_ring[i].buffer1);
 			int j;
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "%2d: %08x %08x %08x %08x  %02x %02x %02x\n",
 			       i,
 			       (unsigned int)tp->rx_ring[i].status,
@@ -591,10 +591,10 @@ static void tulip_tx_timeout(struct net_device *dev)
 					pr_cont(" %02x", buf[j]);
 			pr_cont(" j=%d\n", j);
 		}
-		printk(KERN_DEBUG "  Rx ring %p: ", tp->rx_ring);
+		printk(KERN_DE "  Rx ring %p: ", tp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			pr_cont(" %08x", (unsigned int)tp->rx_ring[i].status);
-		printk(KERN_DEBUG "  Tx ring %p: ", tp->tx_ring);
+		printk(KERN_DE "  Tx ring %p: ", tp->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			pr_cont(" %08x", (unsigned int)tp->tx_ring[i].status);
 		pr_cont("\n");
@@ -834,7 +834,7 @@ static int tulip_close (struct net_device *dev)
 
 	tulip_down (dev);
 
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		netdev_dbg(dev, "Shutting down ethercard, status was %02x\n",
 			   ioread32 (ioaddr + CSR5));
 
@@ -1098,7 +1098,7 @@ static void set_rx_mode(struct net_device *dev)
 							      ha->addr) >> 26;
 				filterbit &= 0x3f;
 				mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
-				if (tulip_debug > 2)
+				if (tulip_de > 2)
 					dev_info(&dev->dev,
 						 "Added filter for %pM  %08x bit %d\n",
 						 ha->addr,
@@ -1194,7 +1194,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 	u16 pci_command;
 	u32 csr0;
 
-	if (tulip_debug > 3)
+	if (tulip_de > 3)
 		netdev_dbg(dev, "tulip_mwi_config()\n");
 
 	tp->csr0 = csr0 = 0;
@@ -1256,7 +1256,7 @@ static void tulip_mwi_config(struct pci_dev *pdev, struct net_device *dev)
 
 out:
 	tp->csr0 = csr0;
-	if (tulip_debug > 2)
+	if (tulip_de > 2)
 		netdev_dbg(dev, "MWI config cacheline=%d, csr0=%08x\n",
 			   cache, csr0);
 }
@@ -1315,7 +1315,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned int force_csr0 = 0;
 
 #ifndef MODULE
-	if (tulip_debug > 0)
+	if (tulip_de > 0)
 		printk_once(KERN_INFO "%s", version);
 #endif
 
@@ -1349,7 +1349,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		if (pdev->vendor == 0x1282 && pdev->device == 0x9100 &&
 		    pdev->revision < 0x30) {
-			pr_info("skipping early DM9100 with Crc bug (use dmfe)\n");
+			pr_info("skipping early DM9100 with Crc  (use dmfe)\n");
 			return -ENODEV;
 		}
 
@@ -1379,7 +1379,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		force_csr0 = 1;
 	}
 
-	/* bugfix: the ASIX must have a burst limit or horrible things happen. */
+	/* fix: the ASIX must have a burst limit or horrible things happen. */
 	if (chip_idx == AX88140) {
 		if ((csr0 & 0x3f00) == 0)
 			csr0 |= 0x2000;
@@ -1623,7 +1623,7 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (addr && len == ETH_ALEN)
 			memcpy(dev->dev_addr, addr, ETH_ALEN);
 #endif
-#if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS bug. */
+#if defined(__i386__) || defined(__x86_64__)	/* Patch up x86 BIOS . */
 		if (last_irq)
 			irq = last_irq;
 #endif

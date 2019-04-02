@@ -1,5 +1,5 @@
 /*
- * Kernel Debugger Architecture Independent Stack Traceback
+ * Kernel Deger Architecture Independent Stack Traceback
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kdb.h>
 #include <linux/nmi.h>
 #include "kdb_private.h"

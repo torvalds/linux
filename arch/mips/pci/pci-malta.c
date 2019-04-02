@@ -95,7 +95,7 @@ void __init mips_pcibios_init(void)
 	switch (mips_revision_sconid) {
 	case MIPS_REVISION_SCON_GT64120:
 		/*
-		 * Due to a bug in the Galileo system controller, we need
+		 * Due to a  in the Galileo system controller, we need
 		 * to setup the PCI BAR for the Galileo internal registers.
 		 * This should be done in the bios/bootprom and will be
 		 * fixed in a later revision of YAMON (the MIPS boards
@@ -128,7 +128,7 @@ void __init mips_pcibios_init(void)
 		}
 		mask = ~(start ^ end);
 		/* We don't support remapping with a discontiguous mask.  */
-		BUG_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
+		_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
 		       mask != ~((mask & -mask) - 1));
 		gt64120_mem_resource.start = start;
 		gt64120_mem_resource.end = end;
@@ -145,7 +145,7 @@ void __init mips_pcibios_init(void)
 		end = (end & GT_PCI_HD_MSK) | (start & ~GT_PCI_HD_MSK);
 		mask = ~(start ^ end);
 		/* We don't support remapping with a discontiguous mask.  */
-		BUG_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
+		_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
 		       mask != ~((mask & -mask) - 1));
 		gt64120_io_resource.start = map & mask;
 		gt64120_io_resource.end = (map & mask) | ~mask;

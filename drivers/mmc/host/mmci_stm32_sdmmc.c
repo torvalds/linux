@@ -196,7 +196,7 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 		host->cclk = host->mclk / (2 * clk);
 	}
 
-	/* Set actual clock for debug */
+	/* Set actual clock for de */
 	if (host->mmc->ios.power_mode == MMC_POWER_ON)
 		host->mmc->actual_clock = host->cclk;
 	else

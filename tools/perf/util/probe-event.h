@@ -138,7 +138,7 @@ int perf_probe_event__copy(struct perf_probe_event *dst,
 
 bool perf_probe_with_var(struct perf_probe_event *pev);
 
-/* Check the perf_probe_event needs debuginfo */
+/* Check the perf_probe_event needs deinfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
 
 /* Release event contents */

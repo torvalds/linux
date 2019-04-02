@@ -77,41 +77,41 @@ int iscsi_login_tx_data(
 
 void iscsi_dump_conn_ops(struct iscsi_conn_ops *conn_ops)
 {
-	pr_debug("HeaderDigest: %s\n", (conn_ops->HeaderDigest) ?
+	pr_de("HeaderDigest: %s\n", (conn_ops->HeaderDigest) ?
 				"CRC32C" : "None");
-	pr_debug("DataDigest: %s\n", (conn_ops->DataDigest) ?
+	pr_de("DataDigest: %s\n", (conn_ops->DataDigest) ?
 				"CRC32C" : "None");
-	pr_debug("MaxRecvDataSegmentLength: %u\n",
+	pr_de("MaxRecvDataSegmentLength: %u\n",
 				conn_ops->MaxRecvDataSegmentLength);
 }
 
 void iscsi_dump_sess_ops(struct iscsi_sess_ops *sess_ops)
 {
-	pr_debug("InitiatorName: %s\n", sess_ops->InitiatorName);
-	pr_debug("InitiatorAlias: %s\n", sess_ops->InitiatorAlias);
-	pr_debug("TargetName: %s\n", sess_ops->TargetName);
-	pr_debug("TargetAlias: %s\n", sess_ops->TargetAlias);
-	pr_debug("TargetPortalGroupTag: %hu\n",
+	pr_de("InitiatorName: %s\n", sess_ops->InitiatorName);
+	pr_de("InitiatorAlias: %s\n", sess_ops->InitiatorAlias);
+	pr_de("TargetName: %s\n", sess_ops->TargetName);
+	pr_de("TargetAlias: %s\n", sess_ops->TargetAlias);
+	pr_de("TargetPortalGroupTag: %hu\n",
 			sess_ops->TargetPortalGroupTag);
-	pr_debug("MaxConnections: %hu\n", sess_ops->MaxConnections);
-	pr_debug("InitialR2T: %s\n",
+	pr_de("MaxConnections: %hu\n", sess_ops->MaxConnections);
+	pr_de("InitialR2T: %s\n",
 			(sess_ops->InitialR2T) ? "Yes" : "No");
-	pr_debug("ImmediateData: %s\n", (sess_ops->ImmediateData) ?
+	pr_de("ImmediateData: %s\n", (sess_ops->ImmediateData) ?
 			"Yes" : "No");
-	pr_debug("MaxBurstLength: %u\n", sess_ops->MaxBurstLength);
-	pr_debug("FirstBurstLength: %u\n", sess_ops->FirstBurstLength);
-	pr_debug("DefaultTime2Wait: %hu\n", sess_ops->DefaultTime2Wait);
-	pr_debug("DefaultTime2Retain: %hu\n",
+	pr_de("MaxBurstLength: %u\n", sess_ops->MaxBurstLength);
+	pr_de("FirstBurstLength: %u\n", sess_ops->FirstBurstLength);
+	pr_de("DefaultTime2Wait: %hu\n", sess_ops->DefaultTime2Wait);
+	pr_de("DefaultTime2Retain: %hu\n",
 			sess_ops->DefaultTime2Retain);
-	pr_debug("MaxOutstandingR2T: %hu\n",
+	pr_de("MaxOutstandingR2T: %hu\n",
 			sess_ops->MaxOutstandingR2T);
-	pr_debug("DataPDUInOrder: %s\n",
+	pr_de("DataPDUInOrder: %s\n",
 			(sess_ops->DataPDUInOrder) ? "Yes" : "No");
-	pr_debug("DataSequenceInOrder: %s\n",
+	pr_de("DataSequenceInOrder: %s\n",
 			(sess_ops->DataSequenceInOrder) ? "Yes" : "No");
-	pr_debug("ErrorRecoveryLevel: %hu\n",
+	pr_de("ErrorRecoveryLevel: %hu\n",
 			sess_ops->ErrorRecoveryLevel);
-	pr_debug("SessionType: %s\n", (sess_ops->SessionType) ?
+	pr_de("SessionType: %s\n", (sess_ops->SessionType) ?
 			"Discovery" : "Normal");
 }
 
@@ -120,7 +120,7 @@ void iscsi_print_params(struct iscsi_param_list *param_list)
 	struct iscsi_param *param;
 
 	list_for_each_entry(param, &param_list->param_list, p_list)
-		pr_debug("%s: %s\n", param->name, param->value);
+		pr_de("%s: %s\n", param->name, param->value);
 }
 
 static struct iscsi_param *iscsi_set_default_param(struct iscsi_param_list *param_list,
@@ -708,7 +708,7 @@ int iscsi_update_param_value(struct iscsi_param *param, char *value)
 		return -ENOMEM;
 	}
 
-	pr_debug("iSCSI Parameter updated to %s=%s\n",
+	pr_de("iSCSI Parameter updated to %s=%s\n",
 			param->name, param->value);
 	return 0;
 }
@@ -1048,7 +1048,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 				return -1;
 
 			conn->conn_ops->MaxRecvDataSegmentLength = tmp;
-			pr_debug("Saving op->MaxRecvDataSegmentLength from"
+			pr_de("Saving op->MaxRecvDataSegmentLength from"
 				" original initiator received value: %u\n",
 				conn->conn_ops->MaxRecvDataSegmentLength);
 
@@ -1063,7 +1063,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 			if (rc < 0)
 				return -1;
 
-			pr_debug("Updated %s to target MXDSL value: %s\n",
+			pr_de("Updated %s to target MXDSL value: %s\n",
 					param->name, param->value);
 		}
 	} else if (IS_TYPE_VALUE_LIST(param)) {
@@ -1133,7 +1133,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		return -1;
 	}
 	if (!strcmp(value, IRRELEVANT)) {
-		pr_debug("Received %s=%s\n", param->name, value);
+		pr_de("Received %s=%s\n", param->name, value);
 		SET_PSTATE_IRRELEVANT(param);
 		return 0;
 	}
@@ -1274,13 +1274,13 @@ static struct iscsi_param *iscsi_check_key(
 				param->name);
 		switch (phase) {
 		case PHASE_SECURITY:
-			pr_debug("Security phase.\n");
+			pr_de("Security phase.\n");
 			break;
 		case PHASE_OPERATIONAL:
-			pr_debug("Operational phase.\n");
+			pr_de("Operational phase.\n");
 			break;
 		default:
-			pr_debug("Unknown phase.\n");
+			pr_de("Unknown phase.\n");
 		}
 		return NULL;
 	}
@@ -1325,7 +1325,7 @@ static int iscsi_enforce_integrity_rules(
 			if (strcmp(param->value, "1")) {
 				if (iscsi_update_param_value(param, "1") < 0)
 					return -1;
-				pr_debug("Reset \"%s\" to \"%s\".\n",
+				pr_de("Reset \"%s\" to \"%s\".\n",
 					param->name, param->value);
 			}
 		}
@@ -1333,7 +1333,7 @@ static int iscsi_enforce_integrity_rules(
 			if (strcmp(param->value, "1")) {
 				if (iscsi_update_param_value(param, "1") < 0)
 					return -1;
-				pr_debug("Reset \"%s\" to \"%s\".\n",
+				pr_de("Reset \"%s\" to \"%s\".\n",
 					param->name, param->value);
 			}
 		}
@@ -1346,7 +1346,7 @@ static int iscsi_enforce_integrity_rules(
 				sprintf(tmpbuf, "%u", MaxBurstLength);
 				if (iscsi_update_param_value(param, tmpbuf))
 					return -1;
-				pr_debug("Reset \"%s\" to \"%s\".\n",
+				pr_de("Reset \"%s\" to \"%s\".\n",
 					param->name, param->value);
 			}
 		}
@@ -1383,7 +1383,7 @@ int iscsi_decode_text_input(
 		if (iscsi_extract_key_value(start, &key, &value) < 0)
 			goto free_buffer;
 
-		pr_debug("Got key: %s=%s\n", key, value);
+		pr_de("Got key: %s=%s\n", key, value);
 
 		if (phase & PHASE_SECURITY) {
 			if (iscsi_check_for_auth_key(key) > 0) {
@@ -1456,7 +1456,7 @@ int iscsi_encode_text_output(
 			*length += 1;
 			output_buf = textbuf + *length;
 			SET_PSTATE_RESPONSE_SENT(param);
-			pr_debug("Sending key: %s=%s\n",
+			pr_de("Sending key: %s=%s\n",
 				param->name, param->value);
 			continue;
 		}
@@ -1471,7 +1471,7 @@ int iscsi_encode_text_output(
 			SET_PSTATE_PROPOSER(param);
 			iscsi_check_proposer_for_optional_reply(param,
 							        keys_workaround);
-			pr_debug("Sending key: %s=%s\n",
+			pr_de("Sending key: %s=%s\n",
 				param->name, param->value);
 		}
 	}
@@ -1480,7 +1480,7 @@ int iscsi_encode_text_output(
 		*length += sprintf(output_buf, "%s=%s", er->key, er->value);
 		*length += 1;
 		output_buf = textbuf + *length;
-		pr_debug("Sending key: %s=%s\n", er->key, er->value);
+		pr_de("Sending key: %s=%s\n", er->key, er->value);
 	}
 	iscsi_release_extra_responses(param_list);
 
@@ -1549,7 +1549,7 @@ void iscsi_set_connection_parameters(
 	char *tmpptr;
 	struct iscsi_param *param;
 
-	pr_debug("---------------------------------------------------"
+	pr_de("---------------------------------------------------"
 			"---------------\n");
 	list_for_each_entry(param, &param_list->param_list, p_list) {
 		/*
@@ -1560,22 +1560,22 @@ void iscsi_set_connection_parameters(
 		if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
 			ops->MaxXmitDataSegmentLength =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("MaxXmitDataSegmentLength:     %s\n",
+			pr_de("MaxXmitDataSegmentLength:     %s\n",
 				param->value);
 		}
 
 		if (!IS_PSTATE_ACCEPTOR(param) && !IS_PSTATE_PROPOSER(param))
 			continue;
 		if (!strcmp(param->name, AUTHMETHOD)) {
-			pr_debug("AuthMethod:                   %s\n",
+			pr_de("AuthMethod:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, HEADERDIGEST)) {
 			ops->HeaderDigest = !strcmp(param->value, CRC32C);
-			pr_debug("HeaderDigest:                 %s\n",
+			pr_de("HeaderDigest:                 %s\n",
 				param->value);
 		} else if (!strcmp(param->name, DATADIGEST)) {
 			ops->DataDigest = !strcmp(param->value, CRC32C);
-			pr_debug("DataDigest:                   %s\n",
+			pr_de("DataDigest:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH)) {
 			/*
@@ -1583,27 +1583,27 @@ void iscsi_set_connection_parameters(
 			 * set ops->MaxRecvDataSegmentLength from the original
 			 * initiator provided value.
 			 */
-			pr_debug("MaxRecvDataSegmentLength:     %u\n",
+			pr_de("MaxRecvDataSegmentLength:     %u\n",
 				ops->MaxRecvDataSegmentLength);
 		} else if (!strcmp(param->name, INITIATORRECVDATASEGMENTLENGTH)) {
 			ops->InitiatorRecvDataSegmentLength =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("InitiatorRecvDataSegmentLength: %s\n",
+			pr_de("InitiatorRecvDataSegmentLength: %s\n",
 				param->value);
 			ops->MaxRecvDataSegmentLength =
 					ops->InitiatorRecvDataSegmentLength;
-			pr_debug("Set MRDSL from InitiatorRecvDataSegmentLength\n");
+			pr_de("Set MRDSL from InitiatorRecvDataSegmentLength\n");
 		} else if (!strcmp(param->name, TARGETRECVDATASEGMENTLENGTH)) {
 			ops->TargetRecvDataSegmentLength =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("TargetRecvDataSegmentLength:  %s\n",
+			pr_de("TargetRecvDataSegmentLength:  %s\n",
 				param->value);
 			ops->MaxXmitDataSegmentLength =
 					ops->TargetRecvDataSegmentLength;
-			pr_debug("Set MXDSL from TargetRecvDataSegmentLength\n");
+			pr_de("Set MXDSL from TargetRecvDataSegmentLength\n");
 		}
 	}
-	pr_debug("----------------------------------------------------"
+	pr_de("----------------------------------------------------"
 			"--------------\n");
 }
 
@@ -1615,7 +1615,7 @@ void iscsi_set_session_parameters(
 	char *tmpptr;
 	struct iscsi_param *param;
 
-	pr_debug("----------------------------------------------------"
+	pr_de("----------------------------------------------------"
 			"--------------\n");
 	list_for_each_entry(param, &param_list->param_list, p_list) {
 		if (!IS_PSTATE_ACCEPTOR(param) && !IS_PSTATE_PROPOSER(param))
@@ -1627,7 +1627,7 @@ void iscsi_set_session_parameters(
 				snprintf(ops->InitiatorName,
 						sizeof(ops->InitiatorName),
 						"%s", param->value);
-			pr_debug("InitiatorName:                %s\n",
+			pr_de("InitiatorName:                %s\n",
 				param->value);
 		} else if (!strcmp(param->name, INITIATORALIAS)) {
 			if (!param->value)
@@ -1635,7 +1635,7 @@ void iscsi_set_session_parameters(
 			snprintf(ops->InitiatorAlias,
 						sizeof(ops->InitiatorAlias),
 						"%s", param->value);
-			pr_debug("InitiatorAlias:               %s\n",
+			pr_de("InitiatorAlias:               %s\n",
 				param->value);
 		} else if (!strcmp(param->name, TARGETNAME)) {
 			if (!param->value)
@@ -1644,82 +1644,82 @@ void iscsi_set_session_parameters(
 				snprintf(ops->TargetName,
 						sizeof(ops->TargetName),
 						"%s", param->value);
-			pr_debug("TargetName:                   %s\n",
+			pr_de("TargetName:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, TARGETALIAS)) {
 			if (!param->value)
 				continue;
 			snprintf(ops->TargetAlias, sizeof(ops->TargetAlias),
 					"%s", param->value);
-			pr_debug("TargetAlias:                  %s\n",
+			pr_de("TargetAlias:                  %s\n",
 				param->value);
 		} else if (!strcmp(param->name, TARGETPORTALGROUPTAG)) {
 			ops->TargetPortalGroupTag =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("TargetPortalGroupTag:         %s\n",
+			pr_de("TargetPortalGroupTag:         %s\n",
 				param->value);
 		} else if (!strcmp(param->name, MAXCONNECTIONS)) {
 			ops->MaxConnections =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("MaxConnections:               %s\n",
+			pr_de("MaxConnections:               %s\n",
 				param->value);
 		} else if (!strcmp(param->name, INITIALR2T)) {
 			ops->InitialR2T = !strcmp(param->value, YES);
-			pr_debug("InitialR2T:                   %s\n",
+			pr_de("InitialR2T:                   %s\n",
 				param->value);
 		} else if (!strcmp(param->name, IMMEDIATEDATA)) {
 			ops->ImmediateData = !strcmp(param->value, YES);
-			pr_debug("ImmediateData:                %s\n",
+			pr_de("ImmediateData:                %s\n",
 				param->value);
 		} else if (!strcmp(param->name, MAXBURSTLENGTH)) {
 			ops->MaxBurstLength =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("MaxBurstLength:               %s\n",
+			pr_de("MaxBurstLength:               %s\n",
 				param->value);
 		} else if (!strcmp(param->name, FIRSTBURSTLENGTH)) {
 			ops->FirstBurstLength =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("FirstBurstLength:             %s\n",
+			pr_de("FirstBurstLength:             %s\n",
 				param->value);
 		} else if (!strcmp(param->name, DEFAULTTIME2WAIT)) {
 			ops->DefaultTime2Wait =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("DefaultTime2Wait:             %s\n",
+			pr_de("DefaultTime2Wait:             %s\n",
 				param->value);
 		} else if (!strcmp(param->name, DEFAULTTIME2RETAIN)) {
 			ops->DefaultTime2Retain =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("DefaultTime2Retain:           %s\n",
+			pr_de("DefaultTime2Retain:           %s\n",
 				param->value);
 		} else if (!strcmp(param->name, MAXOUTSTANDINGR2T)) {
 			ops->MaxOutstandingR2T =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("MaxOutstandingR2T:            %s\n",
+			pr_de("MaxOutstandingR2T:            %s\n",
 				param->value);
 		} else if (!strcmp(param->name, DATAPDUINORDER)) {
 			ops->DataPDUInOrder = !strcmp(param->value, YES);
-			pr_debug("DataPDUInOrder:               %s\n",
+			pr_de("DataPDUInOrder:               %s\n",
 				param->value);
 		} else if (!strcmp(param->name, DATASEQUENCEINORDER)) {
 			ops->DataSequenceInOrder = !strcmp(param->value, YES);
-			pr_debug("DataSequenceInOrder:          %s\n",
+			pr_de("DataSequenceInOrder:          %s\n",
 				param->value);
 		} else if (!strcmp(param->name, ERRORRECOVERYLEVEL)) {
 			ops->ErrorRecoveryLevel =
 				simple_strtoul(param->value, &tmpptr, 0);
-			pr_debug("ErrorRecoveryLevel:           %s\n",
+			pr_de("ErrorRecoveryLevel:           %s\n",
 				param->value);
 		} else if (!strcmp(param->name, SESSIONTYPE)) {
 			ops->SessionType = !strcmp(param->value, DISCOVERY);
-			pr_debug("SessionType:                  %s\n",
+			pr_de("SessionType:                  %s\n",
 				param->value);
 		} else if (!strcmp(param->name, RDMAEXTENSIONS)) {
 			ops->RDMAExtensions = !strcmp(param->value, YES);
-			pr_debug("RDMAExtensions:               %s\n",
+			pr_de("RDMAExtensions:               %s\n",
 				param->value);
 		}
 	}
-	pr_debug("----------------------------------------------------"
+	pr_de("----------------------------------------------------"
 			"--------------\n");
 
 }

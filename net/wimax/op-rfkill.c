@@ -69,7 +69,7 @@
 #include "wimax-internal.h"
 
 #define D_SUBMODULE op_rfkill
-#include "debug-levels.h"
+#include "de-levels.h"
 
 /**
  * wimax_report_rfkill_hw - Reports changes in the hardware RF switch
@@ -98,8 +98,8 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 	enum wimax_st wimax_state;
 
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
-	BUG_ON(state == WIMAX_RF_QUERY);
-	BUG_ON(state != WIMAX_RF_ON && state != WIMAX_RF_OFF);
+	_ON(state == WIMAX_RF_QUERY);
+	_ON(state != WIMAX_RF_ON && state != WIMAX_RF_OFF);
 
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
@@ -153,8 +153,8 @@ void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
 	enum wimax_st wimax_state;
 
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
-	BUG_ON(state == WIMAX_RF_QUERY);
-	BUG_ON(state != WIMAX_RF_ON && state != WIMAX_RF_OFF);
+	_ON(state == WIMAX_RF_QUERY);
+	_ON(state != WIMAX_RF_ON && state != WIMAX_RF_OFF);
 
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);

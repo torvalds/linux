@@ -35,7 +35,7 @@ struct sys_reg_params {
 };
 
 struct sys_reg_desc {
-	/* Sysreg string for debug */
+	/* Sysreg string for de */
 	const char *name;
 
 	/* MRS/MSR instruction which accesses it. */
@@ -90,22 +90,22 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 static inline void reset_unknown(struct kvm_vcpu *vcpu,
 				 const struct sys_reg_desc *r)
 {
-	BUG_ON(!r->reg);
-	BUG_ON(r->reg >= NR_SYS_REGS);
+	_ON(!r->reg);
+	_ON(r->reg >= NR_SYS_REGS);
 	__vcpu_sys_reg(vcpu, r->reg) = 0x1de7ec7edbadc0deULL;
 }
 
 static inline void reset_val(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
-	BUG_ON(!r->reg);
-	BUG_ON(r->reg >= NR_SYS_REGS);
+	_ON(!r->reg);
+	_ON(r->reg >= NR_SYS_REGS);
 	__vcpu_sys_reg(vcpu, r->reg) = r->val;
 }
 
 static inline int cmp_sys_reg(const struct sys_reg_desc *i1,
 			      const struct sys_reg_desc *i2)
 {
-	BUG_ON(i1 == i2);
+	_ON(i1 == i2);
 	if (!i1)
 		return 1;
 	else if (!i2)

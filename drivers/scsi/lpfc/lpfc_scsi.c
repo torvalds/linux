@@ -90,7 +90,7 @@ static int
 lpfc_prot_group_type(struct lpfc_hba *phba, struct scsi_cmnd *sc);
 
 static void
-lpfc_debug_save_data(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
+lpfc_de_save_data(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
 {
 	void *src, *dst;
 	struct scatterlist *sgde = scsi_sglist(cmnd);
@@ -119,7 +119,7 @@ lpfc_debug_save_data(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
 }
 
 static void
-lpfc_debug_save_dif(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
+lpfc_de_save_dif(struct lpfc_hba *phba, struct scsi_cmnd *cmnd)
 {
 	void *src, *dst;
 	struct scatterlist *sgde = scsi_prot_sglist(cmnd);
@@ -718,7 +718,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	lpfc_cmd->start_time = jiffies;
 	lpfc_cmd->waitq = NULL;
 	lpfc_cmd->cpu = cpu;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	lpfc_cmd->prot_data_type = 0;
 #endif
 	lpfc_cmd->fcp_cmnd = (lpfc_cmd->data + sgl_size);
@@ -1001,7 +1001,7 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	return 0;
 }
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 
 /* Return BG_ERR_INIT if error injection is detected by Initiator */
 #define BG_ERR_INIT	0x1
@@ -1498,7 +1498,7 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	return ret;
 }
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 /**
  * lpfc_bg_err_opcodes - reDetermine the BlockGuard opcodes to be used with
  * the specified SCSI command in order to force a guard tag error.
@@ -1612,7 +1612,7 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	dma_addr_t physaddr;
 	int i = 0, num_bde = 0, status;
 	int datadir = sc->sc_data_direction;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint32_t rc;
 #endif
 	uint32_t checking = 1;
@@ -1626,7 +1626,7 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	/* extract some info from the scsi command for pde*/
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
@@ -1761,7 +1761,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	int datadir = sc->sc_data_direction;
 	unsigned char pgdone = 0, alldone = 0;
 	unsigned blksize;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint32_t rc;
 #endif
 	uint32_t checking = 1;
@@ -1787,7 +1787,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	blksize = lpfc_cmd_blksize(sc);
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
@@ -1851,7 +1851,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		protgroup_len = sg_dma_len(sgpe) - protgroup_offset;
 
 		/* must be integer multiple of the DIF block length */
-		BUG_ON(protgroup_len % 8);
+		_ON(protgroup_len % 8);
 
 		pde7 = (struct lpfc_pde7 *) bpl;
 		memset(pde7, 0, sizeof(struct lpfc_pde7));
@@ -1947,9 +1947,9 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			/* update the reference tag */
 			reftag += protgrp_blks;
 		} else {
-			/* if we're here, we have a bug */
+			/* if we're here, we have a  */
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9054 BLKGRD: bug in %s\n", __func__);
+				"9054 BLKGRD:  in %s\n", __func__);
 		}
 
 	} while (!alldone);
@@ -1997,7 +1997,7 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	int i = 0, num_sge = 0, status;
 	uint32_t reftag;
 	uint8_t txop, rxop;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint32_t rc;
 #endif
 	uint32_t checking = 1;
@@ -2011,7 +2011,7 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	/* extract some info from the scsi command for pde*/
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
@@ -2141,7 +2141,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	uint32_t reftag;
 	uint8_t txop, rxop;
 	uint32_t dma_len;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	uint32_t rc;
 #endif
 	uint32_t checking = 1;
@@ -2166,7 +2166,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	blksize = lpfc_cmd_blksize(sc);
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
@@ -2235,7 +2235,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		protgroup_len = sg_dma_len(sgpe) - protgroup_offset;
 
 		/* must be integer multiple of the DIF block length */
-		BUG_ON(protgroup_len % 8);
+		_ON(protgroup_len % 8);
 
 		/* Now setup DIF SGE */
 		sgl->word2 = 0;
@@ -2332,9 +2332,9 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			/* update the reference tag */
 			reftag += protgrp_blks;
 		} else {
-			/* if we're here, we have a bug */
+			/* if we're here, we have a  */
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9085 BLKGRD: bug in %s\n", __func__);
+				"9085 BLKGRD:  in %s\n", __func__);
 		}
 
 	} while (!alldone);
@@ -2812,17 +2812,17 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
 	spin_lock(&_dump_buf_lock);
 	if (!_dump_buf_done) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_BG,  "9070 BLKGRD: Saving"
-			" Data for %u blocks to debugfs\n",
+			" Data for %u blocks to defs\n",
 				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-		lpfc_debug_save_data(phba, cmd);
+		lpfc_de_save_data(phba, cmd);
 
 		/* If we have a prot sgl, save the DIF buffer */
 		if (lpfc_prot_group_type(phba, cmd) ==
 				LPFC_PG_TYPE_DIF_BUF) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9071 BLKGRD: "
-				"Saving DIF for %u blocks to debugfs\n",
+				"Saving DIF for %u blocks to defs\n",
 				(cmd->cmnd[7] << 8 | cmd->cmnd[8]));
-			lpfc_debug_save_dif(phba, cmd);
+			lpfc_de_save_dif(phba, cmd);
 		}
 
 		_dump_buf_done = 1;
@@ -3647,7 +3647,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct Scsi_Host *shost;
 	int idx;
 	uint32_t logit = LOG_FCP;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	int cpu;
 #endif
 
@@ -3667,7 +3667,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	if (phba->sli4_hba.hdwq)
 		phba->sli4_hba.hdwq[idx].scsi_cstat.io_cmpls++;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (phba->cpucheck_on & LPFC_CHECK_SCSI_IO) {
 		cpu = smp_processor_id();
 		if (cpu < LPFC_CHECK_CPU_CNT)
@@ -3681,7 +3681,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	/* pick up SLI4 exhange busy status from HBA */
 	lpfc_cmd->exch_busy = pIocbOut->iocb_flag & LPFC_EXCHANGE_BUSY;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (lpfc_cmd->prot_data_type) {
 		struct scsi_dif_tuple *src = NULL;
 
@@ -4345,7 +4345,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	struct lpfc_io_buf *lpfc_cmd;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 	int err, idx;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	int cpu;
 #endif
 
@@ -4462,7 +4462,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DE_FS
 	if (phba->cpucheck_on & LPFC_CHECK_SCSI_IO) {
 		cpu = smp_processor_id();
 		if (cpu < LPFC_CHECK_CPU_CNT) {
@@ -4620,7 +4620,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		goto out_unlock_ring;
 	}
 
-	BUG_ON(iocb->context1 != lpfc_cmd);
+	_ON(iocb->context1 != lpfc_cmd);
 
 	/* abort issued in recovery is still in progress */
 	if (iocb->iocb_flag & LPFC_DRIVER_ABORTED) {

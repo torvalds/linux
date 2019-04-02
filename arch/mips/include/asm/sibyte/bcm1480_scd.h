@@ -4,7 +4,7 @@
     *  SCD Constants and Macros			    File: bcm1480_scd.h
     *
     *  This module contains constants and macros useful for
-    *  manipulating the System Control and Debug module.
+    *  manipulating the System Control and De module.
     *
     *  BCM1400 specification level: 1X55_1X80-UM100-R (12/18/03)
     *
@@ -61,7 +61,7 @@
     ********************************************************************* */
 
 /*  *********************************************************************
-    *  System control/debug registers
+    *  System control/de registers
     ********************************************************************* */
 
 /*
@@ -290,7 +290,7 @@
 
 /*
  * Bus Watcher Error Status Register (Tables 36, 37)
- * Registers: BUS_ERR_STATUS, BUS_ERR_STATUS_DEBUG
+ * Registers: BUS_ERR_STATUS, BUS_ERR_STATUS_DE
  * Same as BCM1250.
  */
 

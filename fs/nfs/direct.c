@@ -30,7 +30,7 @@
  * help from Andrew Morton.
  *
  * 18 Dec 2001	Initial implementation for 2.4  --cel
- * 08 Jul 2002	Version for 2.4.19, with bug fixes --trondmy
+ * 08 Jul 2002	Version for 2.4.19, with  fixes --trondmy
  * 08 Jun 2003	Port to 2.5 APIs  --cel
  * 31 Mar 2004	Handle direct I/O without VFS support  --cel
  * 15 Sep 2004	Parallel async reads  --cel
@@ -268,7 +268,7 @@ ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (!IS_SWAPFILE(inode))
 		return 0;
 
-	VM_BUG_ON(iov_iter_count(iter) != PAGE_SIZE);
+	VM__ON(iov_iter_count(iter) != PAGE_SIZE);
 
 	if (iov_iter_rw(iter) == READ)
 		return nfs_file_direct_read(iocb, iter);

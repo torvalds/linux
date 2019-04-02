@@ -1,4 +1,4 @@
-#undef DEBUG
+#undef DE
 
 /*
  * ARM performance counter support.
@@ -367,7 +367,7 @@ __hw_perf_event_init(struct perf_event *event)
 	mapping = armpmu->map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_de("event %x:%llx not supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}
@@ -388,7 +388,7 @@ __hw_perf_event_init(struct perf_event *event)
 	 */
 	if (armpmu->set_event_filter &&
 	    armpmu->set_event_filter(hwc, &event->attr)) {
-		pr_debug("ARM performance counters do not support "
+		pr_de("ARM performance counters do not support "
 			 "mode exclusion\n");
 		return -EOPNOTSUPP;
 	}

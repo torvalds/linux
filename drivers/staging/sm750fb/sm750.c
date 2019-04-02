@@ -100,7 +100,7 @@ static const struct fb_videomode lynx750_ext[] = {
 	 FB_VMODE_NONINTERLACED},
 };
 
-/* no hardware cursor supported under version 2.6.10, kernel bug */
+/* no hardware cursor supported under version 2.6.10, kernel  */
 static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 {
 	struct lynxfb_par *par;
@@ -517,7 +517,7 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 	par = info->par;
 	crtc = &par->crtc;
 
-	pr_debug("check var:%dx%d-%d\n",
+	pr_de("check var:%dx%d-%d\n",
 		 var->xres,
 		 var->yres,
 		 var->bits_per_pixel);
@@ -635,7 +635,7 @@ static int lynxfb_ops_blank(int blank, struct fb_info *info)
 	struct lynxfb_par *par;
 	struct lynxfb_output *output;
 
-	pr_debug("blank = %d.\n", blank);
+	pr_de("blank = %d.\n", blank);
 	par = info->par;
 	output = &par->output;
 	return output->proc_setBLANK(output, blank);
@@ -861,7 +861,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	info->pseudo_palette = &par->pseudo_palette[0];
 	info->screen_base = crtc->vScreen;
-	pr_debug("screen_base vaddr = %p\n", info->screen_base);
+	pr_de("screen_base vaddr = %p\n", info->screen_base);
 	info->screen_size = line_length * var->yres_virtual;
 	info->flags = FBINFO_FLAG_DEFAULT | 0;
 
@@ -881,7 +881,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	 * according to mmap experiment from user space application,
 	 * fix->mmio_len should not larger than virtual size
 	 * (xres_virtual x yres_virtual x ByPP)
-	 * Below line maybe buggy when user mmap fb dev node and write
+	 * Below line maybe gy when user mmap fb dev node and write
 	 * data into the bound over virtual size
 	 */
 	fix->smem_len = crtc->vidmem_size;
@@ -907,7 +907,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	var->accel_flags = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
 
-	pr_debug("#1 show info->cmap :\nstart=%d,len=%d,red=%p,green=%p,blue=%p,transp=%p\n",
+	pr_de("#1 show info->cmap :\nstart=%d,len=%d,red=%p,green=%p,blue=%p,transp=%p\n",
 		 info->cmap.start, info->cmap.len,
 		 info->cmap.red, info->cmap.green, info->cmap.blue,
 		 info->cmap.transp);
@@ -918,7 +918,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 		goto exit;
 	}
 
-	pr_debug("#2 show info->cmap :\nstart=%d,len=%d,red=%p,green=%p,blue=%p,transp=%p\n",
+	pr_de("#2 show info->cmap :\nstart=%d,len=%d,red=%p,green=%p,blue=%p,transp=%p\n",
 		 info->cmap.start, info->cmap.len,
 		 info->cmap.red, info->cmap.green, info->cmap.blue,
 		 info->cmap.transp);

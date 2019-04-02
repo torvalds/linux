@@ -63,40 +63,40 @@ extern void edac_mc_reset_delay_period(unsigned long value);
 extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 
 /*
- * EDAC debugfs functions
+ * EDAC defs functions
  */
 
-#define edac_debugfs_remove_recursive debugfs_remove_recursive
-#define edac_debugfs_remove debugfs_remove
-#ifdef CONFIG_EDAC_DEBUG
-void edac_debugfs_init(void);
-void edac_debugfs_exit(void);
-void edac_create_debugfs_nodes(struct mem_ctl_info *mci);
-struct dentry *edac_debugfs_create_dir(const char *dirname);
+#define edac_defs_remove_recursive defs_remove_recursive
+#define edac_defs_remove defs_remove
+#ifdef CONFIG_EDAC_DE
+void edac_defs_init(void);
+void edac_defs_exit(void);
+void edac_create_defs_nodes(struct mem_ctl_info *mci);
+struct dentry *edac_defs_create_dir(const char *dirname);
 struct dentry *
-edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent);
+edac_defs_create_dir_at(const char *dirname, struct dentry *parent);
 struct dentry *
-edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
+edac_defs_create_file(const char *name, umode_t mode, struct dentry *parent,
 			 void *data, const struct file_operations *fops);
 struct dentry *
-edac_debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent, u8 *value);
+edac_defs_create_x8(const char *name, umode_t mode, struct dentry *parent, u8 *value);
 struct dentry *
-edac_debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent, u16 *value);
+edac_defs_create_x16(const char *name, umode_t mode, struct dentry *parent, u16 *value);
 #else
-static inline void edac_debugfs_init(void)					{ }
-static inline void edac_debugfs_exit(void)					{ }
-static inline void edac_create_debugfs_nodes(struct mem_ctl_info *mci)		{ }
-static inline struct dentry *edac_debugfs_create_dir(const char *dirname)	{ return NULL; }
+static inline void edac_defs_init(void)					{ }
+static inline void edac_defs_exit(void)					{ }
+static inline void edac_create_defs_nodes(struct mem_ctl_info *mci)		{ }
+static inline struct dentry *edac_defs_create_dir(const char *dirname)	{ return NULL; }
 static inline struct dentry *
-edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent)		{ return NULL; }
+edac_defs_create_dir_at(const char *dirname, struct dentry *parent)		{ return NULL; }
 static inline struct dentry *
-edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
+edac_defs_create_file(const char *name, umode_t mode, struct dentry *parent,
 			 void *data, const struct file_operations *fops)	{ return NULL; }
 static inline struct dentry *
-edac_debugfs_create_x8(const char *name, umode_t mode,
+edac_defs_create_x8(const char *name, umode_t mode,
 		       struct dentry *parent, u8 *value)			{ return NULL; }
 static inline struct dentry *
-edac_debugfs_create_x16(const char *name, umode_t mode,
+edac_defs_create_x16(const char *name, umode_t mode,
 		       struct dentry *parent, u16 *value)			{ return NULL; }
 #endif
 

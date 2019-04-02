@@ -7,7 +7,7 @@
  * as defined in MIPI STPv2 specification.
  */
 
-#undef DEBUG
+#undef DE
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -19,7 +19,7 @@ dummy_stm_packet(struct stm_data *stm_data, unsigned int master,
 		 unsigned int channel, unsigned int packet, unsigned int flags,
 		 unsigned int size, const unsigned char *payload)
 {
-#ifdef DEBUG
+#ifdef DE
 	u64 pl = 0;
 
 	if (payload)

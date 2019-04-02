@@ -5,7 +5,7 @@ config ARM
 	select ARCH_32BIT_OFF_T
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK if !HAVE_ARCH_PFN_VALID && !KEXEC
-	select ARCH_HAS_DEBUG_VIRTUAL if MMU
+	select ARCH_HAS_DE_VIRTUAL if MMU
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -66,7 +66,7 @@ config ARM
 	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DE_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS if MMU
 	select HAVE_DYNAMIC_FTRACE if !XIP_KERNEL && !CPU_ENDIAN_BE32 && MMU
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
@@ -273,9 +273,9 @@ config PHYS_OFFSET
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
 
-config GENERIC_BUG
+config GENERIC_
 	def_bool y
-	depends on BUG
+	depends on 
 
 config PGTABLE_LEVELS
 	int
@@ -1362,11 +1362,11 @@ config BL_SWITCHER
 
 config BL_SWITCHER_DUMMY_IF
 	tristate "Simple big.LITTLE switcher user interface"
-	depends on BL_SWITCHER && DEBUG_KERNEL
+	depends on BL_SWITCHER && DE_KERNEL
 	help
 	  This is a simple and dummy char dev interface to control
 	  the big.LITTLE switcher core code.  It is meant for
-	  debugging purposes only.
+	  deging purposes only.
 
 choice
 	prompt "Memory split"
@@ -1498,7 +1498,7 @@ config THUMB2_KERNEL
 	  If unsure, say N.
 
 config THUMB2_AVOID_R_ARM_THM_JUMP11
-	bool "Work around buggy Thumb-2 short branch relocations in gas"
+	bool "Work around gy Thumb-2 short branch relocations in gas"
 	depends on THUMB2_KERNEL && MODULES
 	default y
 	help
@@ -1522,7 +1522,7 @@ config THUMB2_AVOID_R_ARM_THM_JUMP11
 	  stack usage in some cases.
 
 	  The problem is described in more detail at:
-	      https://bugs.launchpad.net/binutils-linaro/+bug/725126
+	      https://s.launchpad.net/binutils-linaro/+/725126
 
 	  Only Thumb-2 kernels are affected.
 
@@ -1637,7 +1637,7 @@ config CPU_SW_DOMAIN_PAN
 	help
 	  Increase kernel security by ensuring that normal kernel accesses
 	  are unable to access userspace addresses.  This can help prevent
-	  use-after-free bugs becoming an exploitable privilege escalation
+	  use-after-free s becoming an exploitable privilege escalation
 	  by ensuring that magic values (such as LIST_POISON) will always
 	  fault when dereferenced.
 
@@ -2055,7 +2055,7 @@ config DMI
 
 	  NOTE: This does *NOT* enable or encourage the use of DMI quirks,
 	  i.e., the the practice of identifying the platform via DMI to
-	  decide whether certain workarounds for buggy hardware and/or
+	  decide whether certain workarounds for gy hardware and/or
 	  firmware need to be enabled. This would require the DMI subsystem
 	  to be enabled much earlier than we do on ARM, which is non-trivial.
 

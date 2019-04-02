@@ -213,11 +213,11 @@ struct batadv_hard_iface {
 	struct batadv_hard_iface_bat_v bat_v;
 #endif
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 	/**
-	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
+	 * @de_dir: dentry for nc subdir in batman-adv directory in defs
 	 */
-	struct dentry *debug_dir;
+	struct dentry *de_dir;
 #endif
 
 	/**
@@ -1066,12 +1066,12 @@ struct batadv_priv_bla {
 };
 #endif
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 
 /**
- * struct batadv_priv_debug_log - debug logging data
+ * struct batadv_priv_de_log - de logging data
  */
-struct batadv_priv_debug_log {
+struct batadv_priv_de_log {
 	/** @log_buff: buffer holding the logs (ring bufer) */
 	char log_buff[BATADV_LOG_BUF_LEN];
 
@@ -1253,11 +1253,11 @@ struct batadv_priv_nc {
 	/** @work: work queue callback item for cleanup */
 	struct delayed_work work;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 	/**
-	 * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
+	 * @de_dir: dentry for nc subdir in batman-adv directory in defs
 	 */
-	struct dentry *debug_dir;
+	struct dentry *de_dir;
 #endif
 
 	/**
@@ -1576,7 +1576,7 @@ struct batadv_priv {
 	 */
 	atomic_t hop_penalty;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
+#ifdef CONFIG_BATMAN_ADV_DE
 	/** @log_level: configured log level (see batadv_dbg_level) */
 	atomic_t log_level;
 #endif
@@ -1608,9 +1608,9 @@ struct batadv_priv {
 	/** @mesh_obj: kobject for sysfs mesh subdirectory */
 	struct kobject *mesh_obj;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
-	/** @debug_dir: dentry for debugfs batman-adv subdirectory */
-	struct dentry *debug_dir;
+#ifdef CONFIG_BATMAN_ADV_DEFS
+	/** @de_dir: dentry for defs batman-adv subdirectory */
+	struct dentry *de_dir;
 #endif
 
 	/** @forw_bat_list: list of aggregated OGMs that will be forwarded */
@@ -1666,9 +1666,9 @@ struct batadv_priv {
 	struct batadv_priv_bla bla;
 #endif
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
-	/** @debug_log: holding debug logging relevant data */
-	struct batadv_priv_debug_log *debug_log;
+#ifdef CONFIG_BATMAN_ADV_DE
+	/** @de_log: holding de logging relevant data */
+	struct batadv_priv_de_log *de_log;
 #endif
 
 	/** @gw: gateway data */
@@ -2169,7 +2169,7 @@ struct batadv_algo_neigh_ops {
 				     struct batadv_neigh_node *neigh2,
 				     struct batadv_hard_iface *if_outgoing2);
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 	/** @print: print the single hop neighbor list (optional) */
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq);
 #endif
@@ -2184,7 +2184,7 @@ struct batadv_algo_neigh_ops {
  * struct batadv_algo_orig_ops - mesh algorithm callbacks (originator specific)
  */
 struct batadv_algo_orig_ops {
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 	/** @print: print the originator table (optional) */
 	void (*print)(struct batadv_priv *priv, struct seq_file *seq,
 		      struct batadv_hard_iface *hard_iface);
@@ -2228,7 +2228,7 @@ struct batadv_algo_gw_ops {
 			    struct batadv_orig_node *curr_gw_orig,
 			    struct batadv_orig_node *orig_node);
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 	/** @print: print the gateway table (optional) */
 	void (*print)(struct batadv_priv *bat_priv, struct seq_file *seq);
 #endif

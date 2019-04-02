@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "rsi_debugfs.h"
+#include "rsi_defs.h"
 #include "rsi_sdio.h"
 
 /**
@@ -132,7 +132,7 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 	seq_puts(seq, "==> RSI STA DRIVER STATUS <==\n");
 	seq_puts(seq, "DRIVER_FSM_STATE: ");
 
-	BUILD_BUG_ON(ARRAY_SIZE(fsm_state) != NUM_FSM_STATES);
+	BUILD__ON(ARRAY_SIZE(fsm_state) != NUM_FSM_STATES);
 
 	if (common->fsm_state <= FSM_MAC_INIT_DONE)
 		seq_printf(seq, "%s", fsm_state[common->fsm_state]);
@@ -192,13 +192,13 @@ static int rsi_stats_open(struct inode *inode,
 }
 
 /**
- * rsi_debug_zone_read() - This function display the currently enabled debug zones.
+ * rsi_de_zone_read() - This function display the currently enabled de zones.
  * @seq: Pointer to the sequence file structure.
  * @data: Pointer to the data.
  *
  * Return: 0 on success, -1 on failure.
  */
-static int rsi_debug_zone_read(struct seq_file *seq, void *data)
+static int rsi_de_zone_read(struct seq_file *seq, void *data)
 {
 	rsi_dbg(FSM_ZONE, "%x: rsi_enabled zone", rsi_zone_enabled);
 	seq_printf(seq, "The zones available are %#x\n",
@@ -207,21 +207,21 @@ static int rsi_debug_zone_read(struct seq_file *seq, void *data)
 }
 
 /**
- * rsi_debug_read() - This function calls single open function of seq_file to
+ * rsi_de_read() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
  * @inode: Pointer to the inode structure.
  * @file: Pointer to the file structure.
  *
  * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
  */
-static int rsi_debug_read(struct inode *inode,
+static int rsi_de_read(struct inode *inode,
 			  struct file *file)
 {
-	return single_open(file, rsi_debug_zone_read, inode->i_private);
+	return single_open(file, rsi_de_zone_read, inode->i_private);
 }
 
 /**
- * rsi_debug_zone_write() - This function writes into hal queues as per user
+ * rsi_de_zone_write() - This function writes into hal queues as per user
  *			    requirement.
  * @filp: Pointer to the file structure.
  * @buff: Pointer to the character buffer.
@@ -230,7 +230,7 @@ static int rsi_debug_read(struct inode *inode,
  *
  * Return: len: Number of bytes read.
  */
-static ssize_t rsi_debug_zone_write(struct file *filp,
+static ssize_t rsi_de_zone_write(struct file *filp,
 				    const char __user *buff,
 				    size_t len,
 				    loff_t *data)
@@ -265,10 +265,10 @@ static ssize_t rsi_debug_zone_write(struct file *filp,
 	.write = (fwrite), \
 }
 
-static const struct rsi_dbg_files dev_debugfs_files[] = {
+static const struct rsi_dbg_files dev_defs_files[] = {
 	{"version", 0644, FOPS(rsi_version_open),},
 	{"stats", 0644, FOPS(rsi_stats_open),},
-	{"debug_zone", 0666, FOPS_RW(rsi_debug_read, rsi_debug_zone_write),},
+	{"de_zone", 0666, FOPS_RW(rsi_de_read, rsi_de_zone_write),},
 	{"sdio_stats", 0644, FOPS(rsi_sdio_stats_open),},
 };
 
@@ -281,7 +281,7 @@ static const struct rsi_dbg_files dev_debugfs_files[] = {
 int rsi_init_dbgfs(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
-	struct rsi_debugfs *dev_dbgfs;
+	struct rsi_defs *dev_dbgfs;
 	char devdir[6];
 	int ii;
 	const struct rsi_dbg_files *files;
@@ -295,12 +295,12 @@ int rsi_init_dbgfs(struct rsi_hw *adapter)
 	snprintf(devdir, sizeof(devdir), "%s",
 		 wiphy_name(adapter->hw->wiphy));
 
-	dev_dbgfs->subdir = debugfs_create_dir(devdir, NULL);
+	dev_dbgfs->subdir = defs_create_dir(devdir, NULL);
 
-	for (ii = 0; ii < adapter->num_debugfs_entries; ii++) {
-		files = &dev_debugfs_files[ii];
+	for (ii = 0; ii < adapter->num_defs_entries; ii++) {
+		files = &dev_defs_files[ii];
 		dev_dbgfs->rsi_files[ii] =
-		debugfs_create_file(files->name,
+		defs_create_file(files->name,
 				    files->perms,
 				    dev_dbgfs->subdir,
 				    common,
@@ -319,11 +319,11 @@ EXPORT_SYMBOL_GPL(rsi_init_dbgfs);
  */
 void rsi_remove_dbgfs(struct rsi_hw *adapter)
 {
-	struct rsi_debugfs *dev_dbgfs = adapter->dfsentry;
+	struct rsi_defs *dev_dbgfs = adapter->dfsentry;
 
 	if (!dev_dbgfs)
 		return;
 
-	debugfs_remove_recursive(dev_dbgfs->subdir);
+	defs_remove_recursive(dev_dbgfs->subdir);
 }
 EXPORT_SYMBOL_GPL(rsi_remove_dbgfs);

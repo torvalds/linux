@@ -568,8 +568,8 @@ static void xive_spapr_eoi(u32 hw_irq)
 
 static void xive_spapr_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 {
-	/* Only some debug on the TIMA settings */
-	pr_debug("(HW value: %08x %08x %08x)\n",
+	/* Only some de on the TIMA settings */
+	pr_de("(HW value: %08x %08x %08x)\n",
 		 in_be32(xive_tima + TM_QW1_OS + TM_WORD0),
 		 in_be32(xive_tima + TM_QW1_OS + TM_WORD1),
 		 in_be32(xive_tima + TM_QW1_OS + TM_WORD2));

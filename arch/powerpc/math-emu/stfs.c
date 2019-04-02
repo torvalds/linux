@@ -16,19 +16,19 @@ stfs(void *frS, void *ea)
 	FP_DECL_EX;
 	float f;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: S %p, ea %p\n", __func__, frS, ea);
 #endif
 
 	FP_UNPACK_DP(A, frS);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("A: %ld %lu %lu %ld (%ld)\n", A_s, A_f1, A_f0, A_e, A_c);
 #endif
 
 	FP_CONV(S, D, 1, 2, R, A);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("R: %ld %lu %ld (%ld)\n", R_s, R_f, R_e, R_c);
 #endif
 

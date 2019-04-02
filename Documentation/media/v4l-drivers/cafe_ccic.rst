@@ -14,7 +14,7 @@ and this driver was written with support from the OLPC project.
 
 Current status: the core driver works.  It can generate data in YUV422,
 RGB565, and RGB444 formats.  (Anybody looking at the code will see RGB32 as
-well, but that is a debugging aid which will be removed shortly).  VGA and
+well, but that is a deging aid which will be removed shortly).  VGA and
 QVGA modes work; CIF is there but the colors remain funky.  Only the OV7670
 sensor is known to work with this controller at this time.
 

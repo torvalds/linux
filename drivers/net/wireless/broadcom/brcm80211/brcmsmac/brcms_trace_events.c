@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/module.h> /* bug in tracepoint.h, it should include this */
+#include <linux/module.h> /*  in tracepoint.h, it should include this */
 
 #ifndef __CHECKER__
 #include "mac80211_if.h"

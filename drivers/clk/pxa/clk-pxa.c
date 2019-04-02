@@ -236,11 +236,11 @@ int pxa2xx_determine_rate(struct clk_rate_request *req,
 	} else if (closest_above >= 0) {
 		rate = freqs[closest_above].cpll;
 	} else {
-		pr_debug("%s(rate=%lu) no match\n", __func__, req->rate);
+		pr_de("%s(rate=%lu) no match\n", __func__, req->rate);
 		return -EINVAL;
 	}
 
-	pr_debug("%s(rate=%lu) rate=%lu\n", __func__, req->rate, rate);
+	pr_de("%s(rate=%lu) rate=%lu\n", __func__, req->rate, rate);
 	req->rate = rate;
 
 	return 0;

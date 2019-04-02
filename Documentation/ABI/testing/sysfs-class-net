@@ -107,7 +107,7 @@ Description:
 		exclusively at 'dev_port', while others only consult 'dev_id'.
 		If a network device has multiple client adapter ports as
 		described in the previous paragraph and does not set this
-		attribute to its port number, it's a kernel bug.
+		attribute to its port number, it's a kernel .
 
 What:		/sys/class/net/<iface>/dormant
 Date:		March 2006

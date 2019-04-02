@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
-#include "debug.h"
+#include "de.h"
 #include "acx.h"
 #include "boot.h"
 #include "io.h"
@@ -181,9 +181,9 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 
 	/* whal_FwCtrl_LoadFwImageSm() */
 
-	wl1271_debug(DEBUG_BOOT, "starting firmware upload");
+	wl1271_de(DE_BOOT, "starting firmware upload");
 
-	wl1271_debug(DEBUG_BOOT, "fw_data_len %zd chunk_size %d",
+	wl1271_de(DE_BOOT, "fw_data_len %zd chunk_size %d",
 		     fw_data_len, CHUNK_SIZE);
 
 	if ((fw_data_len % 4) != 0) {
@@ -224,7 +224,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		addr = dest + chunk_num * CHUNK_SIZE;
 		p = buf + chunk_num * CHUNK_SIZE;
 		memcpy(chunk, p, CHUNK_SIZE);
-		wl1271_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
+		wl1271_de(DE_BOOT, "uploading fw chunk 0x%p to 0x%x",
 			     p, addr);
 		ret = wlcore_write(wl, addr, chunk, CHUNK_SIZE, false);
 		if (ret < 0)
@@ -237,7 +237,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 	addr = dest + chunk_num * CHUNK_SIZE;
 	p = buf + chunk_num * CHUNK_SIZE;
 	memcpy(chunk, p, fw_data_len % CHUNK_SIZE);
-	wl1271_debug(DEBUG_BOOT, "uploading fw last chunk (%zd B) 0x%p to 0x%x",
+	wl1271_de(DE_BOOT, "uploading fw last chunk (%zd B) 0x%p to 0x%x",
 		     fw_data_len % CHUNK_SIZE, p, addr);
 	ret = wlcore_write(wl, addr, chunk, fw_data_len % CHUNK_SIZE, false);
 
@@ -256,7 +256,7 @@ int wlcore_boot_upload_firmware(struct wl1271 *wl)
 	chunks = be32_to_cpup((__be32 *) fw);
 	fw += sizeof(u32);
 
-	wl1271_debug(DEBUG_BOOT, "firmware chunks to be uploaded: %u", chunks);
+	wl1271_de(DE_BOOT, "firmware chunks to be uploaded: %u", chunks);
 
 	while (chunks--) {
 		addr = be32_to_cpup((__be32 *) fw);
@@ -268,7 +268,7 @@ int wlcore_boot_upload_firmware(struct wl1271 *wl)
 			wl1271_info("firmware chunk too long: %u", len);
 			return -EINVAL;
 		}
-		wl1271_debug(DEBUG_BOOT, "chunk %d addr 0x%x len %u",
+		wl1271_de(DE_BOOT, "chunk %d addr 0x%x len %u",
 			     chunks, addr, len);
 		ret = wl1271_boot_upload_firmware_chunk(wl, fw, len, addr);
 		if (ret != 0)
@@ -388,7 +388,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 			val = (nvs_ptr[0] | (nvs_ptr[1] << 8)
 			       | (nvs_ptr[2] << 16) | (nvs_ptr[3] << 24));
 
-			wl1271_debug(DEBUG_BOOT,
+			wl1271_de(DE_BOOT,
 				     "nvs burst write 0x%x: 0x%x",
 				     dest_addr, val);
 			ret = wlcore_write32(wl, dest_addr, val);
@@ -459,7 +459,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	wl1271_debug(DEBUG_BOOT, "chip id after firmware boot: 0x%x", chip_id);
+	wl1271_de(DE_BOOT, "chip id after firmware boot: 0x%x", chip_id);
 
 	if (chip_id != wl->chip.id) {
 		wl1271_error("chip id doesn't match after firmware boot");
@@ -500,7 +500,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x", wl->cmd_box_addr);
+	wl1271_de(DE_MAILBOX, "cmd_box_addr 0x%x", wl->cmd_box_addr);
 
 	/* get hardware config event mail box */
 	ret = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR, &wl->mbox_ptr[0]);
@@ -509,7 +509,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + wl->mbox_size;
 
-	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
+	wl1271_de(DE_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 
 	ret = wlcore_boot_static_data(wl);

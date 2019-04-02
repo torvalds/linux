@@ -144,6 +144,6 @@ struct lpfc_scsicmd_bkt {
 
 #define TXRDY_PAYLOAD_LEN	12
 
-/* For sysfs/debugfs tmp string max len */
+/* For sysfs/defs tmp string max len */
 #define LPFC_MAX_SCSI_INFO_TMP_LEN	79
 

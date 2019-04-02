@@ -339,12 +339,12 @@ static inline void set_mb_power(struct media_bay_info* bay, int onoff)
 	if (onoff) {
 		bay->ops->power(bay, 1);
 		bay->state = mb_powering_up;
-		pr_debug("mediabay%d: powering up\n", bay->index);
+		pr_de("mediabay%d: powering up\n", bay->index);
 	} else { 
 		/* Make sure everything is powered down & disabled */
 		bay->ops->power(bay, 0);
 		bay->state = mb_powering_down;
-		pr_debug("mediabay%d: powering down\n", bay->index);
+		pr_de("mediabay%d: powering down\n", bay->index);
 	}
 	bay->timer = msecs_to_jiffies(MB_POWER_DELAY);
 }
@@ -378,9 +378,9 @@ static void poll_media_bay(struct media_bay_info* bay)
 		 */
 		if ((id != MB_NO) && (bay->content_id != MB_NO)) {
 			id = MB_NO;
-			pr_debug("mediabay%d: forcing MB_NO\n", bay->index);
+			pr_de("mediabay%d: forcing MB_NO\n", bay->index);
 		}
-		pr_debug("mediabay%d: switching to %d\n", bay->index, id);
+		pr_de("mediabay%d: switching to %d\n", bay->index, id);
 		set_mb_power(bay, id != MB_NO);
 		bay->content_id = id;
 		if (id >= MB_NO || id < 0)
@@ -485,32 +485,32 @@ static void media_bay_step(int i)
 	switch(bay->state) {
 	case mb_powering_up:
 	    	if (bay->ops->setup_bus(bay, bay->last_value) < 0) {
-			pr_debug("mediabay%d: device not supported (kind:%d)\n",
+			pr_de("mediabay%d: device not supported (kind:%d)\n",
 				 i, bay->content_id);
 	    		set_mb_power(bay, 0);
 	    		break;
 	    	}
 	    	bay->timer = msecs_to_jiffies(MB_RESET_DELAY);
 	    	bay->state = mb_enabling_bay;
-		pr_debug("mediabay%d: enabling (kind:%d)\n", i, bay->content_id);
+		pr_de("mediabay%d: enabling (kind:%d)\n", i, bay->content_id);
 		break;
 	case mb_enabling_bay:
 		bay->ops->un_reset(bay);
 	    	bay->timer = msecs_to_jiffies(MB_SETUP_DELAY);
 	    	bay->state = mb_resetting;
-		pr_debug("mediabay%d: releasing bay reset (kind:%d)\n",
+		pr_de("mediabay%d: releasing bay reset (kind:%d)\n",
 			 i, bay->content_id);
 	    	break;
 	case mb_resetting:
 		if (bay->content_id != MB_CD) {
-			pr_debug("mediabay%d: bay is up (kind:%d)\n", i,
+			pr_de("mediabay%d: bay is up (kind:%d)\n", i,
 				 bay->content_id);
 			bay->state = mb_up;
 			device_for_each_child(&bay->mdev->ofdev.dev,
 					      bay, mb_broadcast_hotplug);
 			break;
 	    	}
-		pr_debug("mediabay%d: releasing ATA reset (kind:%d)\n",
+		pr_de("mediabay%d: releasing ATA reset (kind:%d)\n",
 			 i, bay->content_id);
 		bay->ops->un_reset_ide(bay);
 	    	bay->timer = msecs_to_jiffies(MB_IDE_WAIT);
@@ -518,7 +518,7 @@ static void media_bay_step(int i)
 	    	break;
 
 	case mb_ide_resetting:
-		pr_debug("mediabay%d: bay is up (kind:%d)\n", i, bay->content_id);
+		pr_de("mediabay%d: bay is up (kind:%d)\n", i, bay->content_id);
 		bay->state = mb_up;
 		device_for_each_child(&bay->mdev->ofdev.dev,
 				      bay, mb_broadcast_hotplug);
@@ -528,7 +528,7 @@ static void media_bay_step(int i)
 	    	bay->state = mb_empty;
 		device_for_each_child(&bay->mdev->ofdev.dev,
 				      bay, mb_broadcast_hotplug);
-		pr_debug("mediabay%d: end of power down\n", i);
+		pr_de("mediabay%d: end of power down\n", i);
 	    	break;
 	}
 }

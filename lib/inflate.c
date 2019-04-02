@@ -377,7 +377,7 @@ DEBG("huft1 ");
     Tracecv(*p, (stderr, (n-i >= ' ' && n-i <= '~' ? "%c %d\n" : "0x%x %d\n"), 
 	    n-i, *p));
     c[*p]++;                    /* assume all entries <= BMAX */
-    p++;                      /* Can't combine with above line (Solaris bug) */
+    p++;                      /* Can't combine with above line (Solaris ) */
   } while (--i);
   if (c[0] == n)                /* null input--all zero length codes */
   {
@@ -507,7 +507,7 @@ DEBG1("5 ");
           r.b = (uch)l;         /* bits to dump before this table */
           r.e = (uch)(16 + j);  /* bits in this table */
           r.v.t = q;            /* pointer to this table */
-          j = i >> (w - l);     /* (get around Turbo C bug) */
+          j = i >> (w - l);     /* (get around Turbo C ) */
           u[h-1][j] = r;        /* connect to last table */
         }
 DEBG1("6 ");
@@ -664,7 +664,7 @@ STATIC int INIT inflate_codes(
       /* do the copy */
       do {
         n -= (e = (e = WSIZE - ((d &= WSIZE-1) > w ? d : w)) > n ? n : e);
-#if !defined(NOMEMCPY) && !defined(DEBUG)
+#if !defined(NOMEMCPY) && !defined(DE)
         if (w - d >= e)         /* (this test assumes unsigned comparison) */
         {
           memcpy(slide + w, slide + d, e);
@@ -848,7 +848,7 @@ STATIC int noinline INIT inflate_dynamic(void)
 
 DEBG("<dyn");
 
-#ifdef PKZIP_BUG_WORKAROUND
+#ifdef PKZIP__WORKAROUND
   ll = malloc(sizeof(*ll) * (288+32));  /* literal/length and distance code lengths */
 #else
   ll = malloc(sizeof(*ll) * (286+30));  /* literal/length and distance code lengths */
@@ -872,7 +872,7 @@ DEBG("<dyn");
   NEEDBITS(4)
   nb = 4 + ((unsigned)b & 0xf);         /* number of bit length codes */
   DUMPBITS(4)
-#ifdef PKZIP_BUG_WORKAROUND
+#ifdef PKZIP__WORKAROUND
   if (nl > 288 || nd > 32)
 #else
   if (nl > 286 || nd > 30)
@@ -992,7 +992,7 @@ DEBG("dyn5c ");
 DEBG("dyn5d ");
     if (i == 1) {
       error("incomplete distance tree");
-#ifdef PKZIP_BUG_WORKAROUND
+#ifdef PKZIP__WORKAROUND
       i = 0;
     }
 #else
@@ -1122,9 +1122,9 @@ STATIC int INIT inflate(void)
 
 
   /* return success */
-#ifdef DEBUG
+#ifdef DE
   fprintf(stderr, "<%u> ", h);
-#endif /* DEBUG */
+#endif /* DE */
   return 0;
 }
 

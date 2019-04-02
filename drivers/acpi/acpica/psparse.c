@@ -414,7 +414,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 	ACPI_FUNCTION_TRACE(ps_parse_aml);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+	ACPI_DE_PRINT((ACPI_DB_PARSE,
 			  "Entered with WalkState=%p Aml=%p size=%X\n",
 			  walk_state, walk_state->parser_state.aml,
 			  walk_state->parser_state.aml_size));
@@ -454,7 +454,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 	acpi_ds_push_walk_state(walk_state, thread);
 
 	/*
-	 * This global allows the AML debugger to get a handle to the currently
+	 * This global allows the AML deger to get a handle to the currently
 	 * executing control method.
 	 */
 	acpi_gbl_current_walk_list = thread;
@@ -463,7 +463,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 	 * Execute the walk loop as long as there is a valid Walk State. This
 	 * handles nested control method invocations without recursion.
 	 */
-	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "State=%p\n", walk_state));
+	ACPI_DE_PRINT((ACPI_DB_PARSE, "State=%p\n", walk_state));
 
 	status = AE_OK;
 	while (walk_state) {
@@ -475,7 +475,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			status = acpi_ps_parse_loop(walk_state);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "Completed one call to walk loop, %s State=%p\n",
 				  acpi_format_exception(status), walk_state));
 
@@ -483,7 +483,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			/* Optional object evaluation log */
 
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			ACPI_DE_PRINT_RAW((ACPI_DB_EVALUATION,
 					      "%-26s:  %*s%s\n",
 					      "   Exit nested method",
 					      (walk_state->
@@ -575,7 +575,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		acpi_ps_cleanup_scope(&walk_state->parser_state);
 		previous_walk_state = walk_state;
 
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+		ACPI_DE_PRINT((ACPI_DB_PARSE,
 				  "ReturnValue=%p, ImplicitValue=%p State=%p\n",
 				  walk_state->return_desc,
 				  walk_state->implicit_return_obj, walk_state));

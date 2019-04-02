@@ -21,7 +21,7 @@
 #include <linux/smp.h>
 #include <linux/perf_event.h>
 #include <linux/interrupt.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 
 #include <asm/page.h>
@@ -247,7 +247,7 @@ good_area:
 			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
-		BUG();
+		();
 	}
 
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
@@ -302,7 +302,7 @@ no_context:
 			extern const unsigned int __csum_partial_copy_start[];
 			extern const unsigned int __csum_partial_copy_end[];
 
-#ifdef DEBUG_EXCEPTIONS
+#ifdef DE_EXCEPTIONS
 			printk("Exception: PC<%08lx> faddr<%08lx>\n",
 			       regs->pc, address);
 			printk("EX_TABLE: insn<%08lx> fixup<%08x> g2<%08lx>\n",

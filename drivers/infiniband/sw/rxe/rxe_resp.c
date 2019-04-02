@@ -1235,7 +1235,7 @@ int rxe_responder(void *arg)
 	}
 
 	while (1) {
-		pr_debug("qp#%d state = %s\n", qp_num(qp),
+		pr_de("qp#%d state = %s\n", qp_num(qp),
 			 resp_state_name[state]);
 		switch (state) {
 		case RESPST_GET_REQ:

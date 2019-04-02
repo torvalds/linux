@@ -29,13 +29,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _DRM_DEBUGFS_H_
-#define _DRM_DEBUGFS_H_
+#ifndef _DRM_DEFS_H_
+#define _DRM_DEFS_H_
 
 /**
- * struct drm_info_list - debugfs info list entry
+ * struct drm_info_list - defs info list entry
  *
- * This structure represents a debugfs file to be created by the drm
+ * This structure represents a defs file to be created by the drm
  * core.
  */
 struct drm_info_list {
@@ -56,14 +56,14 @@ struct drm_info_list {
 };
 
 /**
- * struct drm_info_node - Per-minor debugfs node structure
+ * struct drm_info_node - Per-minor defs node structure
  *
- * This structure represents a debugfs file, as an instantiation of a &struct
+ * This structure represents a defs file, as an instantiation of a &struct
  * drm_info_list on a &struct drm_minor.
  *
  * FIXME:
  *
- * No it doesn't make a hole lot of sense that we duplicate debugfs entries for
+ * No it doesn't make a hole lot of sense that we duplicate defs entries for
  * both the render and the primary nodes, but that's how this has organically
  * grown. It should probably be fixed, with a compatibility link, if needed.
  */
@@ -77,25 +77,25 @@ struct drm_info_node {
 	struct dentry *dent;
 };
 
-#if defined(CONFIG_DEBUG_FS)
-int drm_debugfs_create_files(const struct drm_info_list *files,
+#if defined(CONFIG_DE_FS)
+int drm_defs_create_files(const struct drm_info_list *files,
 			     int count, struct dentry *root,
 			     struct drm_minor *minor);
-int drm_debugfs_remove_files(const struct drm_info_list *files,
+int drm_defs_remove_files(const struct drm_info_list *files,
 			     int count, struct drm_minor *minor);
 #else
-static inline int drm_debugfs_create_files(const struct drm_info_list *files,
+static inline int drm_defs_create_files(const struct drm_info_list *files,
 					   int count, struct dentry *root,
 					   struct drm_minor *minor)
 {
 	return 0;
 }
 
-static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
+static inline int drm_defs_remove_files(const struct drm_info_list *files,
 					   int count, struct drm_minor *minor)
 {
 	return 0;
 }
 #endif
 
-#endif /* _DRM_DEBUGFS_H_ */
+#endif /* _DRM_DEFS_H_ */

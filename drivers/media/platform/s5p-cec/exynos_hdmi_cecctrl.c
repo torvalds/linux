@@ -198,12 +198,12 @@ void s5p_clr_pending_rx(struct s5p_cec_dev *cec)
 void s5p_cec_get_rx_buf(struct s5p_cec_dev *cec, u32 size, u8 *buffer)
 {
 	u32 i = 0;
-	char debug[40];
+	char de[40];
 
 	while (i < size) {
 		buffer[i] = readb(cec->reg + S5P_CEC_RX_BUFF0 + (i * 4));
-		sprintf(debug + i * 2, "%02x ", buffer[i]);
+		sprintf(de + i * 2, "%02x ", buffer[i]);
 		i++;
 	}
-	dev_dbg(cec->dev, "cec-rx: cec size(%d): %s", size, debug);
+	dev_dbg(cec->dev, "cec-rx: cec size(%d): %s", size, de);
 }

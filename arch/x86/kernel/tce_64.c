@@ -140,7 +140,7 @@ int __init build_tce_table(struct pci_dev *dev, void __iomem *bbar)
 	if (pci_iommu(dev->bus)) {
 		printk(KERN_ERR "Calgary: dev %p has sysdata->iommu %p\n",
 		       dev, pci_iommu(dev->bus));
-		BUG();
+		();
 	}
 
 	tbl = kzalloc(sizeof(struct iommu_table), GFP_KERNEL);

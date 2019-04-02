@@ -461,7 +461,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 		return DLM_REJECTED;
 	}
 
-	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
+	mlog__on_msg(!dlm_domain_fully_joined(dlm),
 			"Domain %s not fully joined!\n", dlm->name);
 
 	if (cnv->namelen > DLM_LOCKID_NAME_MAX) {
@@ -520,11 +520,11 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	/* see if caller needed to get/put lvb */
 	if (flags & LKM_PUT_LVB) {
-		BUG_ON(lksb->flags & (DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB));
+		_ON(lksb->flags & (DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB));
 		lksb->flags |= DLM_LKSB_PUT_LVB;
 		memcpy(&lksb->lvb[0], &cnv->lvb[0], DLM_LVB_LEN);
 	} else if (flags & LKM_GET_LVB) {
-		BUG_ON(lksb->flags & (DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB));
+		_ON(lksb->flags & (DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB));
 		lksb->flags |= DLM_LKSB_GET_LVB;
 	}
 

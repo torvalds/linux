@@ -25,7 +25,7 @@
 #include <sound/gus.h>
 #include <sound/info.h>
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 static void snd_gf1_mem_info_read(struct snd_info_entry *entry, 
 				  struct snd_info_buffer *buffer);
 #endif
@@ -259,7 +259,7 @@ int snd_gf1_mem_init(struct snd_gus_card * gus)
 	block.name = kstrdup("Voice default (NULL's)", GFP_KERNEL);
 	if (snd_gf1_mem_xalloc(alloc, &block) == NULL)
 		return -ENOMEM;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 	snd_card_ro_proc_new(gus->card, "gusmem", gus, snd_gf1_mem_info_read);
 #endif
 	return 0;
@@ -280,7 +280,7 @@ int snd_gf1_mem_done(struct snd_gus_card * gus)
 	return 0;
 }
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 static void snd_gf1_mem_info_read(struct snd_info_entry *entry, 
 				  struct snd_info_buffer *buffer)
 {

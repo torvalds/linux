@@ -25,7 +25,7 @@ static void engine_skip_context(struct i915_request *rq)
 	struct i915_timeline *timeline = rq->timeline;
 
 	lockdep_assert_held(&engine->timeline.lock);
-	GEM_BUG_ON(timeline == &engine->timeline);
+	GEM__ON(timeline == &engine->timeline);
 
 	spin_lock(&timeline->lock);
 
@@ -60,7 +60,7 @@ static void client_mark_guilty(struct drm_i915_file_private *file_priv,
 	if (score) {
 		atomic_add(score, &file_priv->ban_score);
 
-		DRM_DEBUG_DRIVER("client %s: gained %u ban score, now %u\n",
+		DRM_DE_DRIVER("client %s: gained %u ban score, now %u\n",
 				 ctx->name, score,
 				 atomic_read(&file_priv->ban_score));
 	}
@@ -82,7 +82,7 @@ static bool context_mark_guilty(struct i915_gem_context *ctx)
 		return false;
 
 	if (banned) {
-		DRM_DEBUG_DRIVER("context %s: guilty %d, score %u, banned\n",
+		DRM_DE_DRIVER("context %s: guilty %d, score %u, banned\n",
 				 ctx->name, atomic_read(&ctx->guilty_count),
 				 score);
 		i915_gem_context_set_banned(ctx);
@@ -102,7 +102,7 @@ static void context_mark_innocent(struct i915_gem_context *ctx)
 void i915_reset_request(struct i915_request *rq, bool guilty)
 {
 	lockdep_assert_held(&rq->engine->timeline.lock);
-	GEM_BUG_ON(i915_request_completed(rq));
+	GEM__ON(i915_request_completed(rq));
 
 	if (guilty) {
 		i915_request_skip(rq, -EIO);
@@ -120,7 +120,7 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	const u32 base = engine->mmio_base;
 
 	if (intel_engine_stop_cs(engine))
-		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n", engine->name);
+		DRM_DE_DRIVER("%s: timed out on STOP_RING\n", engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
 	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
@@ -134,7 +134,7 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 
 	/* Check acts as a post */
 	if (I915_READ_FW(RING_HEAD(base)) != 0)
-		DRM_DEBUG_DRIVER("%s: ring head not parked\n",
+		DRM_DE_DRIVER("%s: ring head not parked\n",
 				 engine->name);
 }
 
@@ -214,7 +214,7 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv,
 			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
+		DRM_DE_DRIVER("Wait for media reset failed\n");
 		goto out;
 	}
 
@@ -222,7 +222,7 @@ static int g4x_do_reset(struct drm_i915_private *dev_priv,
 			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret =  wait_for_atomic(g4x_reset_complete(pdev), 50);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for render reset failed\n");
+		DRM_DE_DRIVER("Wait for render reset failed\n");
 		goto out;
 	}
 
@@ -248,7 +248,7 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 					   5000, 0,
 					   NULL);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for render reset failed\n");
+		DRM_DE_DRIVER("Wait for render reset failed\n");
 		goto out;
 	}
 
@@ -258,7 +258,7 @@ static int ironlake_do_reset(struct drm_i915_private *dev_priv,
 					   5000, 0,
 					   NULL);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Wait for media reset failed\n");
+		DRM_DE_DRIVER("Wait for media reset failed\n");
 		goto out;
 	}
 
@@ -287,7 +287,7 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 					   500, 0,
 					   NULL);
 	if (err)
-		DRM_DEBUG_DRIVER("Wait for 0x%08x engines reset failed\n",
+		DRM_DE_DRIVER("Wait for 0x%08x engines reset failed\n",
 				 hw_domain_mask);
 
 	return err;
@@ -378,7 +378,7 @@ static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
 					 sfc_forced_lock_ack_bit,
 					 sfc_forced_lock_ack_bit,
 					 1000, 0, NULL)) {
-		DRM_DEBUG_DRIVER("Wait for SFC forced lock ack failed\n");
+		DRM_DE_DRIVER("Wait for SFC forced lock ack failed\n");
 		return 0;
 	}
 
@@ -436,7 +436,7 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 	u32 hw_mask;
 	int ret;
 
-	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
+	BUILD__ON(VECS2 + 1 != I915_NUM_ENGINES);
 
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN11_GRDOM_FULL;
@@ -613,7 +613,7 @@ int intel_reset_guc(struct drm_i915_private *i915)
 		INTEL_GEN(i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
 	int ret;
 
-	GEM_BUG_ON(!HAS_GUC(i915));
+	GEM__ON(!HAS_GUC(i915));
 
 	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(i915, guc_domain);
@@ -779,8 +779,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		return;
 	}
 
-	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(i915)) {
-		struct drm_printer p = drm_debug_printer(__func__);
+	if (GEM_SHOW_DE() && !intel_engines_are_idle(i915)) {
+		struct drm_printer p = drm_de_printer(__func__);
 
 		for_each_engine(engine, i915, id)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
@@ -987,7 +987,7 @@ void i915_reset(struct drm_i915_private *i915,
 
 	might_sleep();
 	assert_rpm_wakelock_held(i915);
-	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
+	GEM__ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
 	if (!i915_gem_unset_wedged(i915))
@@ -1003,7 +1003,7 @@ void i915_reset(struct drm_i915_private *i915,
 		if (i915_modparams.reset)
 			dev_err(i915->drm.dev, "GPU reset not supported\n");
 		else
-			DRM_DEBUG_DRIVER("GPU reset disabled\n");
+			DRM_DE_DRIVER("GPU reset disabled\n");
 		goto error;
 	}
 
@@ -1081,7 +1081,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 	int ret;
 
 	GEM_TRACE("%s flags=%lx\n", engine->name, error->flags);
-	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
+	GEM__ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
 
 	reset_prepare_engine(engine);
 
@@ -1096,7 +1096,7 @@ int i915_reset_engine(struct intel_engine_cs *engine, const char *msg)
 		ret = intel_guc_reset_engine(&engine->i915->guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		DRM_DEBUG_DRIVER("%sFailed to reset %s, ret=%d\n",
+		DRM_DE_DRIVER("%sFailed to reset %s, ret=%d\n",
 				 engine->i915->guc.execbuf_client ? "GuC " : "",
 				 engine->name, ret);
 		goto out;
@@ -1137,7 +1137,7 @@ static void i915_reset_device(struct drm_i915_private *i915,
 
 	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
-	DRM_DEBUG_DRIVER("resetting chip\n");
+	DRM_DE_DRIVER("resetting chip\n");
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
 	/* Use a watchdog to ensure that our reset completes */
@@ -1172,7 +1172,7 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 		 * some errors might have become stuck,
 		 * mask them.
 		 */
-		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
+		DRM_DE_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
 		I915_WRITE(EMR, I915_READ(EMR) | eir);
 		I915_WRITE(IIR, I915_MASTER_ERROR_INTERRUPT);
 	}
@@ -1203,7 +1203,7 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
  *
  * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
- * sure we get a record and make it available in debugfs.  Fire a uevent
+ * sure we get a record and make it available in defs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
@@ -1233,7 +1233,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 	 * reference held, for example because there is a pending GPU
 	 * request that won't finish until the reset is done. This
 	 * isn't the case at least when we get here by doing a
-	 * simulated reset via debugfs, so get an RPM reference.
+	 * simulated reset via defs, so get an RPM reference.
 	 */
 	wakeref = intel_runtime_pm_get(i915);
 
@@ -1251,7 +1251,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 	if (intel_has_reset_engine(i915) &&
 	    !i915_terminally_wedged(&i915->gpu_error)) {
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
-			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
+			BUILD__ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
 					     &i915->gpu_error.flags))
 				continue;
@@ -1307,7 +1307,7 @@ bool i915_reset_flush(struct drm_i915_private *i915)
 	cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
 
 	flush_workqueue(i915->wq);
-	GEM_BUG_ON(READ_ONCE(i915->gpu_error.restart));
+	GEM__ON(READ_ONCE(i915->gpu_error.restart));
 
 	mutex_lock(&i915->drm.struct_mutex);
 	err = i915_gem_wait_for_idle(i915,

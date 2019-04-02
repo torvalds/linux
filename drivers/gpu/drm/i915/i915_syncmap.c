@@ -26,7 +26,7 @@
 
 #include "i915_syncmap.h"
 
-#include "i915_gem.h" /* GEM_BUG_ON() */
+#include "i915_gem.h" /* GEM__ON() */
 #include "i915_selftest.h"
 
 #define SHIFT ilog2(KSYNCMAP)
@@ -90,21 +90,21 @@ struct i915_syncmap {
  */
 void i915_syncmap_init(struct i915_syncmap **root)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(KSYNCMAP);
-	BUILD_BUG_ON_NOT_POWER_OF_2(SHIFT);
-	BUILD_BUG_ON(KSYNCMAP > BITS_PER_TYPE((*root)->bitmap));
+	BUILD__ON_NOT_POWER_OF_2(KSYNCMAP);
+	BUILD__ON_NOT_POWER_OF_2(SHIFT);
+	BUILD__ON(KSYNCMAP > BITS_PER_TYPE((*root)->bitmap));
 	*root = NULL;
 }
 
 static inline u32 *__sync_seqno(struct i915_syncmap *p)
 {
-	GEM_BUG_ON(p->height);
+	GEM__ON(p->height);
 	return (u32 *)(p + 1);
 }
 
 static inline struct i915_syncmap **__sync_child(struct i915_syncmap *p)
 {
-	GEM_BUG_ON(!p->height);
+	GEM__ON(!p->height);
 	return (struct i915_syncmap **)(p + 1);
 }
 
@@ -117,7 +117,7 @@ __sync_branch_idx(const struct i915_syncmap *p, u64 id)
 static inline unsigned int
 __sync_leaf_idx(const struct i915_syncmap *p, u64 id)
 {
-	GEM_BUG_ON(p->height);
+	GEM__ON(p->height);
 	return id & MASK;
 }
 
@@ -128,7 +128,7 @@ static inline u64 __sync_branch_prefix(const struct i915_syncmap *p, u64 id)
 
 static inline u64 __sync_leaf_prefix(const struct i915_syncmap *p, u64 id)
 {
-	GEM_BUG_ON(p->height);
+	GEM__ON(p->height);
 	return id >> SHIFT;
 }
 
@@ -241,7 +241,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 	}
 
 	/* Caller handled the likely cached case */
-	GEM_BUG_ON(__sync_leaf_prefix(p, id) == p->prefix);
+	GEM__ON(__sync_leaf_prefix(p, id) == p->prefix);
 
 	/* Climb back up the tree until we find a common prefix */
 	do {
@@ -297,7 +297,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 			if (p->parent) {
 				idx = __sync_branch_idx(p->parent, id);
 				__sync_child(p->parent)[idx] = next;
-				GEM_BUG_ON(!(p->parent->bitmap & BIT(idx)));
+				GEM__ON(!(p->parent->bitmap & BIT(idx)));
 			}
 			next->parent = p->parent;
 
@@ -314,7 +314,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 		}
 
 		/* Descend into the next layer */
-		GEM_BUG_ON(!p->height);
+		GEM__ON(!p->height);
 		idx = __sync_branch_idx(p, id);
 		next = __sync_child(p)[idx];
 		if (!next) {
@@ -331,7 +331,7 @@ static noinline int __sync_set(struct i915_syncmap **root, u64 id, u32 seqno)
 	} while (1);
 
 found:
-	GEM_BUG_ON(p->prefix != __sync_leaf_prefix(p, id));
+	GEM__ON(p->prefix != __sync_leaf_prefix(p, id));
 	__sync_set_seqno(p, id, seqno);
 	*root = p;
 	return 0;

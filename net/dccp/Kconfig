@@ -27,15 +27,15 @@ config INET_DCCP_DIAG
 source "net/dccp/ccids/Kconfig"
 
 menu "DCCP Kernel Hacking"
-	depends on DEBUG_KERNEL=y
+	depends on DE_KERNEL=y
 
-config IP_DCCP_DEBUG
-	bool "DCCP debug messages"
+config IP_DCCP_DE
+	bool "DCCP de messages"
 	---help---
 	  Only use this if you're hacking DCCP.
 
-	  When compiling DCCP as a module, this debugging output can be toggled
-	  by setting the parameter dccp_debug of the `dccp' module to 0 or 1.
+	  When compiling DCCP as a module, this deging output can be toggled
+	  by setting the parameter dccp_de of the `dccp' module to 0 or 1.
 
 	  Just say N.
 

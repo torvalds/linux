@@ -18,7 +18,7 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "testmode.h"
 #include "trace.h"
 #include "../regd.h"
@@ -2293,7 +2293,7 @@ int ath6kl_wmi_disctimeout_cmd(struct wmi *wmi, u8 if_idx, u8 timeout)
 				  NO_SYNC_WMIFLAG);
 
 	if (ret == 0)
-		ath6kl_debug_set_disconnect_timeout(wmi->parent_dev, timeout);
+		ath6kl_de_set_disconnect_timeout(wmi->parent_dev, timeout);
 
 	return ret;
 }
@@ -3035,7 +3035,7 @@ int ath6kl_wmi_get_challenge_resp_cmd(struct wmi *wmi, u32 cookie, u32 source)
 	return ret;
 }
 
-int ath6kl_wmi_config_debug_module_cmd(struct wmi *wmi, u32 valid, u32 config)
+int ath6kl_wmi_config_de_module_cmd(struct wmi *wmi, u32 valid, u32 config)
 {
 	struct ath6kl_wmix_dbglog_cfg_module_cmd *cmd;
 	struct sk_buff *skb;
@@ -3165,7 +3165,7 @@ int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 if_idx,
 				  NO_SYNC_WMIFLAG);
 
 	if (ret == 0)
-		ath6kl_debug_set_keepalive(wmi->parent_dev, keep_alive_intvl);
+		ath6kl_de_set_keepalive(wmi->parent_dev, keep_alive_intvl);
 
 	return ret;
 }
@@ -3864,7 +3864,7 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMIX_DBGLOG_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "wmi event dbglog len %d\n", len);
-		ath6kl_debug_fwlog_event(wmi->parent_dev, datap, len);
+		ath6kl_de_fwlog_event(wmi->parent_dev, datap, len);
 		break;
 	default:
 		ath6kl_warn("unknown cmd id 0x%x\n", id);
@@ -3877,7 +3877,7 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 
 static int ath6kl_wmi_roam_tbl_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
-	return ath6kl_debug_roam_tbl_event(wmi->parent_dev, datap, len);
+	return ath6kl_de_roam_tbl_event(wmi->parent_dev, datap, len);
 }
 
 /* Process interface specific wmi events, caller would free the datap */

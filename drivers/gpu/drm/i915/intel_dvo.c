@@ -300,7 +300,7 @@ static enum drm_connector_status
 intel_dvo_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
@@ -376,8 +376,8 @@ intel_dvo_get_current_mode(struct intel_encoder *encoder)
 
 	mode = intel_encoder_current_mode(encoder);
 	if (mode) {
-		DRM_DEBUG_KMS("using current (BIOS) mode: ");
-		drm_mode_debug_printmodeline(mode);
+		DRM_DE_KMS("using current (BIOS) mode: ");
+		drm_mode_de_printmodeline(mode);
 		mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
 

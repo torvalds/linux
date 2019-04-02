@@ -193,7 +193,7 @@ static struct pci_dev * __init gx_detect_chipset(void)
 			return gx_pci;
 	}
 
-	pr_debug("error: no supported chipset found!\n");
+	pr_de("error: no supported chipset found!\n");
 	return NULL;
 }
 
@@ -294,14 +294,14 @@ static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 			break;
 		default:
 			local_irq_restore(flags);
-			pr_debug("fatal: try to set unknown chipset.\n");
+			pr_de("fatal: try to set unknown chipset.\n");
 			return;
 		}
 	} else {
 		suscfg = gx_params->pci_suscfg & ~(SUSMOD);
 		gx_params->off_duration = 0;
 		gx_params->on_duration = 0;
-		pr_debug("suspend modulation disabled: cpu runs 100%% speed.\n");
+		pr_de("suspend modulation disabled: cpu runs 100%% speed.\n");
 	}
 
 	gx_write_byte(PCI_MODOFF, gx_params->off_duration);
@@ -316,9 +316,9 @@ static void gx_set_cpuspeed(struct cpufreq_policy *policy, unsigned int khz)
 
 	cpufreq_freq_transition_end(policy, &freqs, 0);
 
-	pr_debug("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
+	pr_de("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
 		gx_params->on_duration * 32, gx_params->off_duration * 32);
-	pr_debug("suspend modulation w/ clock speed: %d kHz.\n", freqs.new);
+	pr_de("suspend modulation w/ clock speed: %d kHz.\n", freqs.new);
 }
 
 /****************************************************************
@@ -416,7 +416,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 
 	stock_freq = maxfreq;
 
-	pr_debug("cpu max frequency is %d.\n", maxfreq);
+	pr_de("cpu max frequency is %d.\n", maxfreq);
 
 	/* setup basic struct for cpufreq API */
 	policy->cpu = 0;
@@ -460,7 +460,7 @@ static int __init cpufreq_gx_init(void)
 	if (max_duration > 0xff)
 		max_duration = 0xff;
 
-	pr_debug("geode suspend modulation available.\n");
+	pr_de("geode suspend modulation available.\n");
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (params == NULL)

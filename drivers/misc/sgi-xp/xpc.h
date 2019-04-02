@@ -955,7 +955,7 @@ xpc_msgqueue_deref(struct xpc_channel *ch)
 {
 	s32 refs = atomic_dec_return(&ch->references);
 
-	DBUG_ON(refs < 0);
+	D_ON(refs < 0);
 	if (refs == 0)
 		xpc_wakeup_channel_mgr(&xpc_partitions[ch->partid]);
 }
@@ -972,7 +972,7 @@ xpc_part_deref(struct xpc_partition *part)
 {
 	s32 refs = atomic_dec_return(&part->references);
 
-	DBUG_ON(refs < 0);
+	D_ON(refs < 0);
 	if (refs == 0 && part->setup_state == XPC_P_SS_WTEARDOWN)
 		wake_up(&part->teardown_wq);
 }

@@ -22,7 +22,7 @@
 
 const char *l2_revision = "$Revision: 2.30.2.4 $";
 
-static void l2m_debug(struct FsmInst *fi, char *fmt, ...);
+static void l2m_de(struct FsmInst *fi, char *fmt, ...);
 
 static struct Fsm l2fsm;
 
@@ -367,14 +367,14 @@ FRMR_error(struct PStack *st, struct sk_buff *skb)
 		if (skb->len < headers + 5)
 			return 'N';
 		else
-			l2m_debug(&st->l2.l2m, "FRMR information %2x %2x %2x %2x %2x",
+			l2m_de(&st->l2.l2m, "FRMR information %2x %2x %2x %2x %2x",
 				  datap[0], datap[1], datap[2],
 				  datap[3], datap[4]);
 	} else {
 		if (skb->len < headers + 3)
 			return 'N';
 		else
-			l2m_debug(&st->l2.l2m, "FRMR information %2x %2x %2x",
+			l2m_de(&st->l2.l2m, "FRMR information %2x %2x %2x",
 				  datap[0], datap[1], datap[2]);
 	}
 
@@ -1005,7 +1005,7 @@ l2_st7_got_super(struct FsmInst *fi, int event, void *arg)
 			stop_t200(st, 10);
 			if (FsmAddTimer(&st->l2.t203, st->l2.T203,
 					EV_L2_T203, NULL, 6))
-				l2m_debug(&st->l2.l2m, "Restart T203 ST7 REJ");
+				l2m_de(&st->l2.l2m, "Restart T203 ST7 REJ");
 		} else if ((nr == l2->vs) && (typ == RR)) {
 			setva(st, nr);
 			stop_t200(st, 11);
@@ -1695,7 +1695,7 @@ isdnl2_l1l2(struct PStack *st, int pr, void *arg)
 		FsmEvent(&st->l2.l2m, EV_L1_DEACTIVATE, arg);
 		break;
 	default:
-		l2m_debug(&st->l2.l2m, "l2 unknown pr %04x", pr);
+		l2m_de(&st->l2.l2m, "l2 unknown pr %04x", pr);
 		break;
 	}
 }
@@ -1757,18 +1757,18 @@ releasestack_isdnl2(struct PStack *st)
 }
 
 static void
-l2m_debug(struct FsmInst *fi, char *fmt, ...)
+l2m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	va_list args;
 	struct PStack *st = fi->userdata;
 
 	va_start(args, fmt);
-	VHiSax_putstatus(st->l1.hardware, st->l2.debug_id, fmt, args);
+	VHiSax_putstatus(st->l1.hardware, st->l2.de_id, fmt, args);
 	va_end(args);
 }
 
 void
-setstack_isdnl2(struct PStack *st, char *debug_id)
+setstack_isdnl2(struct PStack *st, char *de_id)
 {
 	spin_lock_init(&st->l2.lock);
 	st->l1.l1l2 = isdnl2_l1l2;
@@ -1777,18 +1777,18 @@ setstack_isdnl2(struct PStack *st, char *debug_id)
 	skb_queue_head_init(&st->l2.i_queue);
 	skb_queue_head_init(&st->l2.ui_queue);
 	InitWin(&st->l2);
-	st->l2.debug = 0;
+	st->l2.de = 0;
 
 	st->l2.l2m.fsm = &l2fsm;
 	if (test_bit(FLG_LAPB, &st->l2.flag))
 		st->l2.l2m.state = ST_L2_4;
 	else
 		st->l2.l2m.state = ST_L2_1;
-	st->l2.l2m.debug = 0;
+	st->l2.l2m.de = 0;
 	st->l2.l2m.userdata = st;
 	st->l2.l2m.userint = 0;
-	st->l2.l2m.printdebug = l2m_debug;
-	strcpy(st->l2.debug_id, debug_id);
+	st->l2.l2m.printde = l2m_de;
+	strcpy(st->l2.de_id, de_id);
 
 	FsmInitTimer(&st->l2.l2m, &st->l2.t200);
 	FsmInitTimer(&st->l2.l2m, &st->l2.t203);

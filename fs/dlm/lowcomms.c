@@ -1506,7 +1506,7 @@ static void send_to_sock(struct connection *con)
 
 		len = e->len;
 		offset = e->offset;
-		BUG_ON(len == 0 && e->users == 0);
+		_ON(len == 0 && e->users == 0);
 		spin_unlock(&con->writequeue_lock);
 
 		ret = 0;

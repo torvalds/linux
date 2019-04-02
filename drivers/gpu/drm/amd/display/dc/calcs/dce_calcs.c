@@ -2146,7 +2146,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.dispclk_ramping_factor = bw_frc_to_fixed(105, 100);
 		dceip.display_pipe_throughput_factor = bw_frc_to_fixed(105, 100);
 		dceip.scatter_gather_pte_request_rows_in_tiling_mode = 2;
-		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a bug*/
+		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a */
 		break;
 	case BW_CALCS_VERSION_POLARIS10:
 		/* TODO: Treat VEGAM the same as P10 for now
@@ -3013,7 +3013,7 @@ bool bw_calcs(struct dc_context *ctx,
 		struct bw_fixed mid_yclk = vbios->mid_yclk;
 		struct bw_fixed low_yclk = vbios->low_yclk;
 
-		if (ctx->dc->debug.bandwidth_calcs_trace) {
+		if (ctx->dc->de.bandwidth_calcs_trace) {
 			print_bw_calcs_dceip(ctx, dceip);
 			print_bw_calcs_vbios(ctx, vbios);
 			print_bw_calcs_data(ctx, data);

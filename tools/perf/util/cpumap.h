@@ -7,7 +7,7 @@
 #include <linux/refcount.h>
 
 #include "perf.h"
-#include "util/debug.h"
+#include "util/de.h"
 
 struct cpu_map {
 	refcount_t refcnt;

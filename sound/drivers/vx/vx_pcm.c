@@ -182,7 +182,7 @@ static int vx_set_format(struct vx_core *chip, struct vx_pipe *pipe,
 	case 16: header |= HEADER_FMT_16BITS; break;
 	case 24: header |= HEADER_FMT_24BITS; break;
 	default : 
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 
@@ -206,7 +206,7 @@ static int vx_set_ibl(struct vx_core *chip, struct vx_ibl_info *info)
 	info->max_size = rmh.Stat[1];
 	info->min_size = rmh.Stat[2];
 	info->granularity = rmh.Stat[3];
-	snd_printdd(KERN_DEBUG "vx_set_ibl: size = %d, max = %d, min = %d, gran = %d\n",
+	snd_printdd(KERN_DE "vx_set_ibl: size = %d, max = %d, min = %d, gran = %d\n",
 		   info->size, info->max_size, info->min_size, info->granularity);
 	return 0;
 }
@@ -535,7 +535,7 @@ static int vx_pcm_playback_open(struct snd_pcm_substream *subs)
 		return -EBUSY;
 
 	audio = subs->pcm->device * 2;
-	if (snd_BUG_ON(audio >= chip->audio_outs))
+	if (snd__ON(audio >= chip->audio_outs))
 		return -EINVAL;
 	
 	/* playback pipe may have been already allocated for monitoring */
@@ -743,12 +743,12 @@ static int vx_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 			vx_pcm_playback_transfer(chip, subs, pipe, 2);
 		err = vx_start_stream(chip, pipe);
 		if (err < 0) {
-			pr_debug("vx: cannot start stream\n");
+			pr_de("vx: cannot start stream\n");
 			return err;
 		}
 		err = vx_toggle_pipe(chip, pipe, 1);
 		if (err < 0) {
-			pr_debug("vx: cannot start pipe\n");
+			pr_de("vx: cannot start pipe\n");
 			vx_stop_stream(chip, pipe);
 			return err;
 		}
@@ -824,7 +824,7 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 		/* IEC958 status (raw-mode) was changed */
 		/* we reopen the pipe */
 		struct vx_rmh rmh;
-		snd_printdd(KERN_DEBUG "reopen the pipe with data_mode = %d\n", data_mode);
+		snd_printdd(KERN_DE "reopen the pipe with data_mode = %d\n", data_mode);
 		vx_init_rmh(&rmh, CMD_FREE_PIPE);
 		vx_set_pipe_cmd_params(&rmh, 0, pipe->number, 0);
 		if ((err = vx_send_msg(chip, &rmh)) < 0)
@@ -926,7 +926,7 @@ static int vx_pcm_capture_open(struct snd_pcm_substream *subs)
 		return -EBUSY;
 
 	audio = subs->pcm->device * 2;
-	if (snd_BUG_ON(audio >= chip->audio_ins))
+	if (snd__ON(audio >= chip->audio_ins))
 		return -EINVAL;
 	err = vx_alloc_pipe(chip, 1, audio, 2, &pipe);
 	if (err < 0)
@@ -1146,7 +1146,7 @@ void vx_pcm_update_intr(struct vx_core *chip, unsigned int events)
 			}
 			if (capture)
 				continue;
-			if (snd_BUG_ON(p < 0 || p >= chip->audio_outs))
+			if (snd__ON(p < 0 || p >= chip->audio_outs))
 				continue;
 			pipe = chip->playback_pipes[p];
 			if (pipe && pipe->substream) {

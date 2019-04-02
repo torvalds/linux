@@ -44,9 +44,9 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-unsigned int cx88_core_debug;
-module_param_named(core_debug, cx88_core_debug, int, 0644);
-MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
+unsigned int cx88_core_de;
+module_param_named(core_de, cx88_core_de, int, 0644);
+MODULE_PARM_DESC(core_de, "enable de messages [core]");
 
 static unsigned int nicam;
 module_param(nicam, int, 0644);
@@ -57,12 +57,12 @@ module_param(nocomb, int, 0644);
 MODULE_PARM_DESC(nocomb, "disable comb filter");
 
 #define dprintk0(fmt, arg...)				\
-	printk(KERN_DEBUG pr_fmt("%s: core:" fmt),	\
+	printk(KERN_DE pr_fmt("%s: core:" fmt),	\
 		__func__, ##arg)			\
 
 #define dprintk(level, fmt, arg...)	do {			\
-	if (cx88_core_debug >= level)				\
-		printk(KERN_DEBUG pr_fmt("%s: core:" fmt),	\
+	if (cx88_core_de >= level)				\
+		printk(KERN_DE pr_fmt("%s: core:" fmt),	\
 		       __func__, ##arg);			\
 } while (0)
 
@@ -385,7 +385,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 EXPORT_SYMBOL(cx88_sram_channel_setup);
 
 /* ------------------------------------------------------------------ */
-/* debug helper code                                                  */
+/* de helper code                                                  */
 
 static int cx88_risc_decode(u32 risc)
 {
@@ -868,7 +868,7 @@ static int set_tvaudio(struct cx88_core *core)
 
 /*
  * This should be needed only on cx88-alsa. It seems that some cx88 chips have
- * bugs and does require DMA enabled for it to work.
+ * s and does require DMA enabled for it to work.
  */
 	cx88_start_audio_dma(core);
 	return 0;

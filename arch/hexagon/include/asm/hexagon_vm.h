@@ -28,7 +28,7 @@
  * we'll use subroutines for both the VM and the native
  * kernels.  It's costing a subroutine call/return,
  * but it makes for a single set of entry points
- * for tracing/debugging.
+ * for tracing/deging.
  */
 
 #define HVM_TRAP1_VMVERSION		0

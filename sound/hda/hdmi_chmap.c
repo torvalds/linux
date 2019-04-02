@@ -319,10 +319,10 @@ static int hdmi_channel_allocation_spk_alloc_blk(struct hdac_device *codec,
 	return ca;
 }
 
-static void hdmi_debug_channel_mapping(struct hdac_chmap *chmap,
+static void hdmi_de_channel_mapping(struct hdac_chmap *chmap,
 				       hda_nid_t pin_nid)
 {
-#ifdef CONFIG_SND_DEBUG_VERBOSE
+#ifdef CONFIG_SND_DE_VERBOSE
 	int i;
 	int channel;
 
@@ -559,7 +559,7 @@ void snd_hdac_setup_channel_mapping(struct hdac_chmap *chmap,
 		hdmi_setup_fake_chmap(map, ca);
 	}
 
-	hdmi_debug_channel_mapping(chmap, pin_nid);
+	hdmi_de_channel_mapping(chmap, pin_nid);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_setup_channel_mapping);
 

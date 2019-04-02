@@ -23,9 +23,9 @@
 #include <media/dvb_math.h>
 #include "lgdt3305.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "set de level (info=1, reg=2 (or-able))");
 
 #define DBG_INFO 1
 #define DBG_REG  2
@@ -36,10 +36,10 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
 #define lg_info(fmt, arg...)	printk(KERN_INFO "lgdt3305: " fmt, ##arg)
 #define lg_warn(fmt, arg...)	lg_printk(KERN_WARNING,       fmt, ##arg)
 #define lg_err(fmt, arg...)	lg_printk(KERN_ERR,           fmt, ##arg)
-#define lg_dbg(fmt, arg...) if (debug & DBG_INFO)			\
-				lg_printk(KERN_DEBUG,         fmt, ##arg)
-#define lg_reg(fmt, arg...) if (debug & DBG_REG)			\
-				lg_printk(KERN_DEBUG,         fmt, ##arg)
+#define lg_dbg(fmt, arg...) if (de & DBG_INFO)			\
+				lg_printk(KERN_DE,         fmt, ##arg)
+#define lg_reg(fmt, arg...) if (de & DBG_REG)			\
+				lg_printk(KERN_DE,         fmt, ##arg)
 
 #define lg_fail(ret)							\
 ({									\

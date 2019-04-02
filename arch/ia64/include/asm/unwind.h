@@ -7,7 +7,7 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *
  * A simple API for unwinding kernel stacks.  This is used for
- * debugging and error reporting purposes.  The kernel doesn't need
+ * deging and error reporting purposes.  The kernel doesn't need
  * full-blown stack unwinding with all the bells and whitles, so there
  * is not much point in implementing the full IA-64 unwind API (though
  * it would of course be possible to implement the kernel API on top

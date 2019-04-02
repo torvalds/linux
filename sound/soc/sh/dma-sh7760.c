@@ -130,7 +130,7 @@ static int camelot_pcm_open(struct snd_pcm_substream *substream)
 		cam->rx_ss = substream;
 		ret = dmabrg_request_irq(dmairq, camelot_rxdma, cam);
 		if (unlikely(ret)) {
-			pr_debug("audio unit %d irqs already taken!\n",
+			pr_de("audio unit %d irqs already taken!\n",
 			     rtd->cpu_dai->id);
 			return -EBUSY;
 		}
@@ -139,7 +139,7 @@ static int camelot_pcm_open(struct snd_pcm_substream *substream)
 		cam->tx_ss = substream;
 		ret = dmabrg_request_irq(dmairq, camelot_txdma, cam);
 		if (unlikely(ret)) {
-			pr_debug("audio unit %d irqs already taken!\n",
+			pr_de("audio unit %d irqs already taken!\n",
 			     rtd->cpu_dai->id);
 			return -EBUSY;
 		}
@@ -202,7 +202,7 @@ static int camelot_prepare(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct camelot_pcm *cam = &cam_pcm_data[rtd->cpu_dai->id];
 
-	pr_debug("PCM data: addr 0x%08lx len %d\n",
+	pr_de("PCM data: addr 0x%08lx len %d\n",
 		 (u32)runtime->dma_addr, runtime->dma_bytes);
  
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {

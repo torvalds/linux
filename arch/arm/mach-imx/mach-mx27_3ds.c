@@ -36,7 +36,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include "3ds_debugboard.h"
+#include "3ds_deboard.h"
 #include "common.h"
 #include "devices-imx27.h"
 #include "ehci.h"
@@ -430,7 +430,7 @@ static void __init mx27pdk_late_init(void)
 				ARRAY_SIZE(mx27_3ds_spi_devs));
 
 	if (mxc_expio_init(MX27_CS5_BASE_ADDR, IMX_GPIO_NR(3, 28)))
-		pr_warn("Init of the debugboard failed, all devices on the debugboard are unusable.\n");
+		pr_warn("Init of the deboard failed, all devices on the deboard are unusable.\n");
 
 
 	imx_add_platform_device("imx_mc13783", 0, NULL, 0, NULL, 0);

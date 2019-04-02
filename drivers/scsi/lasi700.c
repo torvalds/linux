@@ -24,11 +24,11 @@
 
 /*
  * Many thanks to Richard Hirst <rhirst@linuxcare.com> for patiently
- * debugging this driver on the parisc architecture and suggesting
- * many improvements and bug fixes.
+ * deging this driver on the parisc architecture and suggesting
+ * many improvements and  fixes.
  *
  * Thanks also go to Linuxcare Inc. for providing several PARISC
- * machines for me to debug the driver on.
+ * machines for me to de the driver on.
  */
 
 #include <linux/kernel.h>

@@ -156,7 +156,7 @@ struct mlx5_ft_underlay_qp {
  */
 #define MLX5_ST_SZ_DW_MATCH_PARAM					    \
 	((MLX5_BYTE_OFF(fte_match_param, MLX5_FTE_MATCH_PARAM_RESERVED) / sizeof(u32)) + \
-	 BUILD_BUG_ON_ZERO(MLX5_ST_SZ_BYTES(fte_match_param) !=		     \
+	 BUILD__ON_ZERO(MLX5_ST_SZ_BYTES(fte_match_param) !=		     \
 			   MLX5_FLD_SZ_BYTES(fte_match_param,		     \
 					     MLX5_FTE_MATCH_PARAM_RESERVED) +\
 			   MLX5_BYTE_OFF(fte_match_param,		     \
@@ -271,7 +271,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 	(type == FS_FT_FDB) ? MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) :		\
 	(type == FS_FT_SNIFFER_RX) ? MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) :		\
 	(type == FS_FT_SNIFFER_TX) ? MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) :		\
-	(BUILD_BUG_ON_ZERO(FS_FT_SNIFFER_TX != FS_FT_MAX_TYPE))\
+	(BUILD__ON_ZERO(FS_FT_SNIFFER_TX != FS_FT_MAX_TYPE))\
 	)
 
 #endif

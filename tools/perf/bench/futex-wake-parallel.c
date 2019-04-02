@@ -9,7 +9,7 @@
  */
 #include "bench.h"
 #include <linux/compiler.h>
-#include "../util/debug.h"
+#include "../util/de.h"
 
 #ifndef HAVE_PTHREAD_BARRIER
 int bench_futex_wake_parallel(int argc __maybe_unused, const char **argv __maybe_unused)

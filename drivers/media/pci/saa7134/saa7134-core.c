@@ -40,17 +40,17 @@ MODULE_VERSION(SAA7134_VERSION);
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int irq_debug;
-module_param(irq_debug, int, 0644);
-MODULE_PARM_DESC(irq_debug,"enable debug messages [IRQ handler]");
+static unsigned int irq_de;
+module_param(irq_de, int, 0644);
+MODULE_PARM_DESC(irq_de,"enable de messages [IRQ handler]");
 
-static unsigned int core_debug;
-module_param(core_debug, int, 0644);
-MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
+static unsigned int core_de;
+module_param(core_de, int, 0644);
+MODULE_PARM_DESC(core_de,"enable de messages [core]");
 
 static unsigned int gpio_tracking;
 module_param(gpio_tracking, int, 0644);
-MODULE_PARM_DESC(gpio_tracking,"enable debug messages [gpio]");
+MODULE_PARM_DESC(gpio_tracking,"enable de messages [gpio]");
 
 static unsigned int alsa = 1;
 module_param(alsa, int, 0644);
@@ -98,13 +98,13 @@ int (*saa7134_dmasound_init)(struct saa7134_dev *dev);
 int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 
 #define core_dbg(fmt, arg...) do { \
-	if (core_debug) \
-		printk(KERN_DEBUG pr_fmt("core: " fmt), ## arg); \
+	if (core_de) \
+		printk(KERN_DE pr_fmt("core: " fmt), ## arg); \
 	} while (0)
 
 #define irq_dbg(level, fmt, arg...)  do {\
-	if (irq_debug > level) \
-		printk(KERN_DEBUG pr_fmt("irq: " fmt), ## arg); \
+	if (irq_de > level) \
+		printk(KERN_DE pr_fmt("irq: " fmt), ## arg); \
 	} while (0)
 
 void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg)
@@ -248,7 +248,7 @@ int saa7134_pgtable_build(struct pci_dev *pci, struct saa7134_pgtable *pt,
 	__le32        *ptr;
 	unsigned int  i, p;
 
-	BUG_ON(NULL == pt || NULL == pt->cpu);
+	_ON(NULL == pt || NULL == pt->cpu);
 
 	ptr = pt->cpu + startpage;
 	for (i = 0; i < length; i++, list = sg_next(list)) {
@@ -316,7 +316,7 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 	struct saa7134_buf *buf,*next = NULL;
 
 	assert_spin_locked(&dev->slock);
-	BUG_ON(NULL != q->curr);
+	_ON(NULL != q->curr);
 
 	if (!list_empty(&q->queue)) {
 		/* activate next one from queue */
@@ -547,7 +547,7 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 
 		handled = 1;
 		saa_writel(SAA7134_IRQ_REPORT,report);
-		if (irq_debug)
+		if (irq_de)
 			print_irqstatus(dev,loop,report,status);
 
 
@@ -1312,8 +1312,8 @@ static void saa7134_finidev(struct pci_dev *pci_dev)
 		saa7134_dmasound_exit(dev);
 	}
 
-	/* debugging ... */
-	if (irq_debug) {
+	/* deging ... */
+	if (irq_de) {
 		u32 report = saa_readl(SAA7134_IRQ_REPORT);
 		u32 status = saa_readl(SAA7134_IRQ_STATUS);
 		print_irqstatus(dev,42,report,status);

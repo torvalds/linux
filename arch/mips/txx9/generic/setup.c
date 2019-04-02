@@ -455,7 +455,7 @@ void __init txx9_sio_init(unsigned long baseaddr, int irq,
 	req.mapbase = baseaddr;
 	req.irq = irq;
 	if (!nocts)
-		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
+		req.flags |= UPF_GY_UART /*HAVE_CTS_LINE*/;
 	if (sclk) {
 		req.flags |= UPF_MAGIC_MULTIPLIER /*USE_SCLK*/;
 		req.uartclk = sclk;

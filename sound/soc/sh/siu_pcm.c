@@ -47,7 +47,7 @@ static int siu_pcm_stmwrite_stop(struct siu_port *port_info)
 	/* output FIFO disable */
 	stfifo = siu_read32(base + SIU_STFIFO);
 	siu_write32(base + SIU_STFIFO, stfifo & ~0x0c180c18);
-	pr_debug("%s: STFIFO %x -> %x\n", __func__,
+	pr_de("%s: STFIFO %x -> %x\n", __func__,
 		 stfifo, stfifo & ~0x0c180c18);
 
 	/* during stmwrite clear */
@@ -88,7 +88,7 @@ static void siu_dma_tx_complete(void *arg)
 			    siu_stream->period_bytes))
 		siu_stream->cur_period = 0;
 
-	pr_debug("%s: done period #%d (%u/%u bytes), cookie %d\n",
+	pr_de("%s: done period #%d (%u/%u bytes), cookie %d\n",
 		__func__, siu_stream->cur_period,
 		siu_stream->cur_period * siu_stream->period_bytes,
 		siu_stream->buf_bytes, siu_stream->cookie);
@@ -318,7 +318,7 @@ static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct sh_dmae_slave *param = slave;
 
-	pr_debug("%s: slave ID %d\n", __func__, param->shdma_slave.slave_id);
+	pr_de("%s: slave ID %d\n", __func__, param->shdma_slave.slave_id);
 
 	chan->private = &param->shdma_slave;
 	return true;

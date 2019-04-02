@@ -439,12 +439,12 @@ struct bfi_enet_tx_cfg_req {
 struct bfi_enet_tx_cfg_rsp {
 	struct		bfi_msgq_mhdr mh;
 	u8		error;
-	u8		hw_id;		/* For debugging */
+	u8		hw_id;		/* For deging */
 	u8		rsvd[2];
 	struct {
 		u32	q_dbell;	/* PCI base address offset */
 		u32	i_dbell;	/* PCI base address offset */
-		u8	hw_qid;		/* For debugging */
+		u8	hw_qid;		/* For deging */
 		u8	rsvd[3];
 	} __packed q_handles[BFI_ENET_TXQ_PRIO_MAX];
 };
@@ -512,15 +512,15 @@ struct bfi_enet_rx_cfg_req {
 struct bfi_enet_rx_cfg_rsp {
 	struct bfi_msgq_mhdr mh;
 	u8		error;
-	u8		hw_id;	 /* For debugging */
+	u8		hw_id;	 /* For deging */
 	u8		rsvd[2];
 	struct {
 		u32	ql_dbell; /* PCI base address offset */
 		u32	qs_dbell; /* PCI base address offset */
 		u32	i_dbell;  /* PCI base address offset */
-		u8		hw_lqid;  /* For debugging */
-		u8		hw_sqid;  /* For debugging */
-		u8		hw_cqid;  /* For debugging */
+		u8		hw_lqid;  /* For deging */
+		u8		hw_sqid;  /* For deging */
+		u8		hw_cqid;  /* For deging */
 		u8		rsvd;
 	} __packed q_handles[BFI_ENET_RX_QSET_MAX];
 } __packed;

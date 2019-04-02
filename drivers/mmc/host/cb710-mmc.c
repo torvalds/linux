@@ -148,7 +148,7 @@ static int cb710_wait_for_event(struct cb710_slot *slot, u8 what)
 	int err = 0;
 	unsigned limit = 2000000;	/* FIXME: real timeout */
 
-#ifdef CONFIG_CB710_DEBUG
+#ifdef CONFIG_CB710_DE
 	u32 e, x;
 	e = cb710_read_port_32(slot, CB710_MMC_STATUS_PORT);
 #endif
@@ -163,7 +163,7 @@ static int cb710_wait_for_event(struct cb710_slot *slot, u8 what)
 		udelay(1);
 	}
 
-#ifdef CONFIG_CB710_DEBUG
+#ifdef CONFIG_CB710_DE
 	x = cb710_read_port_32(slot, CB710_MMC_STATUS_PORT);
 
 	limit = 2000000 - limit;
@@ -181,7 +181,7 @@ static int cb710_wait_while_busy(struct cb710_slot *slot, uint8_t mask)
 	unsigned limit = 500000;	/* FIXME: real timeout */
 	int err = 0;
 
-#ifdef CONFIG_CB710_DEBUG
+#ifdef CONFIG_CB710_DE
 	u32 e, x;
 	e = cb710_read_port_32(slot, CB710_MMC_STATUS_PORT);
 #endif
@@ -196,7 +196,7 @@ static int cb710_wait_while_busy(struct cb710_slot *slot, uint8_t mask)
 		udelay(1);
 	}
 
-#ifdef CONFIG_CB710_DEBUG
+#ifdef CONFIG_CB710_DE
 	x = cb710_read_port_32(slot, CB710_MMC_STATUS_PORT);
 
 	limit = 500000 - limit;
@@ -351,7 +351,7 @@ static u16 cb710_encode_cmd_flags(struct cb710_mmc_reader *reader,
 	/* Windows driver returned 0 for commands for which no response
 	 * is expected. It happened that there were only two such commands
 	 * used: MMC_GO_IDLE_STATE and MMC_GO_INACTIVE_STATE so it might
-	 * as well be a bug in that driver.
+	 * as well be a  in that driver.
 	 *
 	 * Original driver set bit 14 for MMC/SD application
 	 * commands. There's no difference 'on the wire' and
@@ -377,7 +377,7 @@ static u16 cb710_encode_cmd_flags(struct cb710_mmc_reader *reader,
 		/* Windows driver set 01 at bits 4,3 except for
 		 * MMC_SET_BLOCKLEN where it set 10. Maybe the
 		 * hardware can do something special about this
-		 * command? The original driver looks buggy/incomplete
+		 * command? The original driver looks gy/incomplete
 		 * anyway so we ignore this for now.
 		 *
 		 * I assume that 00 here means no response is expected.
@@ -499,7 +499,7 @@ static void cb710_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static int cb710_mmc_powerup(struct cb710_slot *slot)
 {
-#ifdef CONFIG_CB710_DEBUG
+#ifdef CONFIG_CB710_DE
 	struct cb710_chip *chip = cb710_slot_to_chip(slot);
 #endif
 	int err;

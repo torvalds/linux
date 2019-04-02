@@ -840,7 +840,7 @@ cleanup_file:
 int finish_open(struct file *file, struct dentry *dentry,
 		int (*open)(struct inode *, struct file *))
 {
-	BUG_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
+	_ON(file->f_mode & FMODE_OPENED); /* once it's opened, it's opened */
 
 	file->f_path.dentry = dentry;
 	return do_dentry_open(file, d_backing_inode(dentry), open);
@@ -895,7 +895,7 @@ struct file *dentry_open(const struct path *path, int flags,
 	validate_creds(cred);
 
 	/* We must always pass in a valid mount pointer. */
-	BUG_ON(!path->mnt);
+	_ON(!path->mnt);
 
 	f = alloc_empty_file(flags, cred);
 	if (!IS_ERR(f)) {

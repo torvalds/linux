@@ -12,7 +12,7 @@
  * @codec_pdata: AC97 codec platform_data
 
  * reset_gpio should only be specified for pxa27x CPUs where a silicon
- * bug prevents correct operation of the reset line. If not specified,
+ *  prevents correct operation of the reset line. If not specified,
  * the default behaviour on these CPUs is to consider gpio 113 as the
  * AC97 reset line, which is the default on most boards.
  */

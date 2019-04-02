@@ -22,15 +22,15 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/wake_q.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/osq_lock.h>
 
-#ifdef CONFIG_DEBUG_MUTEXES
-# include "mutex-debug.h"
+#ifdef CONFIG_DE_MUTEXES
+# include "mutex-de.h"
 #else
 # include "mutex.h"
 #endif
@@ -45,7 +45,7 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 	osq_lock_init(&lock->osq);
 #endif
 
-	debug_mutex_init(lock, name, key);
+	de_mutex_init(lock, name, key);
 }
 EXPORT_SYMBOL(__mutex_init);
 
@@ -95,8 +95,8 @@ static inline struct task_struct *__mutex_trylock_or_owner(struct mutex *lock)
 
 			flags &= ~MUTEX_FLAG_PICKUP;
 		} else {
-#ifdef CONFIG_DEBUG_MUTEXES
-			DEBUG_LOCKS_WARN_ON(flags & MUTEX_FLAG_PICKUP);
+#ifdef CONFIG_DE_MUTEXES
+			DE_LOCKS_WARN_ON(flags & MUTEX_FLAG_PICKUP);
 #endif
 		}
 
@@ -125,7 +125,7 @@ static inline bool __mutex_trylock(struct mutex *lock)
 	return !__mutex_trylock_or_owner(lock);
 }
 
-#ifndef CONFIG_DEBUG_LOCK_ALLOC
+#ifndef CONFIG_DE_LOCK_ALLOC
 /*
  * Lockdep annotations are contained to the slow paths for simplicity.
  * There is nothing that would stop spreading the lockdep annotations outwards
@@ -181,7 +181,7 @@ static void __sched
 __mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 		   struct list_head *list)
 {
-	debug_mutex_add_waiter(lock, waiter, current);
+	de_mutex_add_waiter(lock, waiter, current);
 
 	list_add_tail(&waiter->list, list);
 	if (__mutex_waiter_is_first(lock, waiter))
@@ -201,9 +201,9 @@ static void __mutex_handoff(struct mutex *lock, struct task_struct *task)
 	for (;;) {
 		unsigned long old, new;
 
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(__owner_task(owner) != current);
-		DEBUG_LOCKS_WARN_ON(owner & MUTEX_FLAG_PICKUP);
+#ifdef CONFIG_DE_MUTEXES
+		DE_LOCKS_WARN_ON(__owner_task(owner) != current);
+		DE_LOCKS_WARN_ON(owner & MUTEX_FLAG_PICKUP);
 #endif
 
 		new = (owner & MUTEX_FLAG_WAITERS);
@@ -219,7 +219,7 @@ static void __mutex_handoff(struct mutex *lock, struct task_struct *task)
 	}
 }
 
-#ifndef CONFIG_DEBUG_LOCK_ALLOC
+#ifndef CONFIG_DE_LOCK_ALLOC
 /*
  * We split the mutex lock/unlock logic into separate fastpath and
  * slowpath functions, to reduce the register pressure on the fastpath.
@@ -243,9 +243,9 @@ static void __sched __mutex_lock_slowpath(struct mutex *lock);
  * (or statically defined) before it can be locked. memset()-ing
  * the mutex to 0 is not allowed.
  *
- * (The CONFIG_DEBUG_MUTEXES .config option turns on debugging
+ * (The CONFIG_DE_MUTEXES .config option turns on deging
  * checks that will enforce the restrictions and will also do
- * deadlock debugging)
+ * deadlock deging)
  *
  * This function is similar to (but not equivalent to) down().
  */
@@ -278,39 +278,39 @@ EXPORT_SYMBOL(mutex_lock);
 static __always_inline void
 ww_mutex_lock_acquired(struct ww_mutex *ww, struct ww_acquire_ctx *ww_ctx)
 {
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	/*
 	 * If this WARN_ON triggers, you used ww_mutex_lock to acquire,
 	 * but released with a normal mutex_unlock in this call.
 	 *
 	 * This should never happen, always use ww_mutex_unlock.
 	 */
-	DEBUG_LOCKS_WARN_ON(ww->ctx);
+	DE_LOCKS_WARN_ON(ww->ctx);
 
 	/*
 	 * Not quite done after calling ww_acquire_done() ?
 	 */
-	DEBUG_LOCKS_WARN_ON(ww_ctx->done_acquire);
+	DE_LOCKS_WARN_ON(ww_ctx->done_acquire);
 
 	if (ww_ctx->contending_lock) {
 		/*
 		 * After -EDEADLK you tried to
 		 * acquire a different ww_mutex? Bad!
 		 */
-		DEBUG_LOCKS_WARN_ON(ww_ctx->contending_lock != ww);
+		DE_LOCKS_WARN_ON(ww_ctx->contending_lock != ww);
 
 		/*
 		 * You called ww_mutex_lock after receiving -EDEADLK,
 		 * but 'forgot' to unlock everything else first?
 		 */
-		DEBUG_LOCKS_WARN_ON(ww_ctx->acquired > 0);
+		DE_LOCKS_WARN_ON(ww_ctx->acquired > 0);
 		ww_ctx->contending_lock = NULL;
 	}
 
 	/*
 	 * Naughty, using a different class will lead to undefined behavior!
 	 */
-	DEBUG_LOCKS_WARN_ON(ww_ctx->ww_class != ww->ww_class);
+	DE_LOCKS_WARN_ON(ww_ctx->ww_class != ww->ww_class);
 #endif
 	ww_ctx->acquired++;
 	ww->ctx = ww_ctx;
@@ -345,7 +345,7 @@ __ww_mutex_die(struct mutex *lock, struct mutex_waiter *waiter,
 
 	if (waiter->ww_ctx->acquired > 0 &&
 			__ww_ctx_stamp_after(waiter->ww_ctx, ww_ctx)) {
-		debug_mutex_wake_waiter(lock, waiter);
+		de_mutex_wake_waiter(lock, waiter);
 		wake_up_process(waiter->task);
 	}
 
@@ -706,7 +706,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
  */
 void __sched mutex_unlock(struct mutex *lock)
 {
-#ifndef CONFIG_DEBUG_LOCK_ALLOC
+#ifndef CONFIG_DE_LOCK_ALLOC
 	if (__mutex_unlock_fast(lock))
 		return;
 #endif
@@ -732,8 +732,8 @@ void __sched ww_mutex_unlock(struct ww_mutex *lock)
 	 * into 'unlocked' state:
 	 */
 	if (lock->ctx) {
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(!lock->ctx->acquired);
+#ifdef CONFIG_DE_MUTEXES
+		DE_LOCKS_WARN_ON(!lock->ctx->acquired);
 #endif
 		if (lock->ctx->acquired > 0)
 			lock->ctx->acquired--;
@@ -749,11 +749,11 @@ static __always_inline int __sched
 __ww_mutex_kill(struct mutex *lock, struct ww_acquire_ctx *ww_ctx)
 {
 	if (ww_ctx->acquired > 0) {
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 		struct ww_mutex *ww;
 
 		ww = container_of(lock, struct ww_mutex, base);
-		DEBUG_LOCKS_WARN_ON(ww_ctx->contending_lock);
+		DE_LOCKS_WARN_ON(ww_ctx->contending_lock);
 		ww_ctx->contending_lock = ww;
 #endif
 		return -EDEADLK;
@@ -945,7 +945,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		goto skip_wait;
 	}
 
-	debug_mutex_lock_common(lock, &waiter);
+	de_mutex_lock_common(lock, &waiter);
 
 	lock_contended(&lock->dep_map, ip);
 
@@ -954,7 +954,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		__mutex_add_waiter(lock, &waiter, &lock->wait_list);
 
 
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 		waiter.ww_ctx = MUTEX_POISON_WW_CTX;
 #endif
 	} else {
@@ -1041,7 +1041,7 @@ acquired:
 	if (likely(list_empty(&lock->wait_list)))
 		__mutex_clear_flag(lock, MUTEX_FLAGS);
 
-	debug_mutex_free_waiter(&waiter);
+	de_mutex_free_waiter(&waiter);
 
 skip_wait:
 	/* got the lock - cleanup and rejoice! */
@@ -1059,7 +1059,7 @@ err:
 	mutex_remove_waiter(lock, &waiter, current);
 err_early_kill:
 	spin_unlock(&lock->wait_lock);
-	debug_mutex_free_waiter(&waiter);
+	de_mutex_free_waiter(&waiter);
 	mutex_release(&lock->dep_map, 1, ip);
 	preempt_enable();
 	return ret;
@@ -1080,7 +1080,7 @@ __ww_mutex_lock(struct mutex *lock, long state, unsigned int subclass,
 	return __mutex_lock_common(lock, state, subclass, nest_lock, ip, ww_ctx, true);
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 void __sched
 mutex_lock_nested(struct mutex *lock, unsigned int subclass)
 {
@@ -1127,7 +1127,7 @@ EXPORT_SYMBOL_GPL(mutex_lock_io_nested);
 static inline int
 ww_mutex_deadlock_injection(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-#ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+#ifdef CONFIG_DE_WW_MUTEX_SLOWPATH
 	unsigned tmp;
 
 	if (ctx->deadlock_inject_countdown-- == 0) {
@@ -1207,9 +1207,9 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	for (;;) {
 		unsigned long old;
 
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(__owner_task(owner) != current);
-		DEBUG_LOCKS_WARN_ON(owner & MUTEX_FLAG_PICKUP);
+#ifdef CONFIG_DE_MUTEXES
+		DE_LOCKS_WARN_ON(__owner_task(owner) != current);
+		DE_LOCKS_WARN_ON(owner & MUTEX_FLAG_PICKUP);
 #endif
 
 		if (owner & MUTEX_FLAG_HANDOFF)
@@ -1228,7 +1228,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	}
 
 	spin_lock(&lock->wait_lock);
-	debug_mutex_unlock(lock);
+	de_mutex_unlock(lock);
 	if (!list_empty(&lock->wait_list)) {
 		/* get the first entry from the wait-list: */
 		struct mutex_waiter *waiter =
@@ -1237,7 +1237,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 
 		next = waiter->task;
 
-		debug_mutex_wake_waiter(lock, waiter);
+		de_mutex_wake_waiter(lock, waiter);
 		wake_q_add(&wake_q, next);
 	}
 
@@ -1249,7 +1249,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	wake_up_q(&wake_q);
 }
 
-#ifndef CONFIG_DEBUG_LOCK_ALLOC
+#ifndef CONFIG_DE_LOCK_ALLOC
 /*
  * Here come the less common (and hence less performance-critical) APIs:
  * mutex_lock_interruptible() and mutex_trylock().
@@ -1387,7 +1387,7 @@ int __sched mutex_trylock(struct mutex *lock)
 }
 EXPORT_SYMBOL(mutex_trylock);
 
-#ifndef CONFIG_DEBUG_LOCK_ALLOC
+#ifndef CONFIG_DE_LOCK_ALLOC
 int __sched
 ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {

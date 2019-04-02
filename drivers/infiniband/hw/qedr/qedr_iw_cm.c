@@ -250,7 +250,7 @@ qedr_iw_passive_complete(void *context,
 	 * passive. In this case there will be no associated QP.
 	 */
 	if ((params->status == -ECONNREFUSED) && (!ep->qp)) {
-		DP_DEBUG(dev, QEDR_MSG_IWARP,
+		DP_DE(dev, QEDR_MSG_IWARP,
 			 "PASSIVE connection refused releasing ep...\n");
 		kfree(ep);
 		return;
@@ -420,7 +420,7 @@ qedr_addr4_resolve(struct qedr_dev *dev,
 		rcu_read_lock();
 		if (neigh->nud_state & NUD_VALID) {
 			ether_addr_copy(dst_mac, neigh->ha);
-			DP_DEBUG(dev, QEDR_MSG_QP, "mac_addr=[%pM]\n", dst_mac);
+			DP_DE(dev, QEDR_MSG_QP, "mac_addr=[%pM]\n", dst_mac);
 		} else {
 			neigh_event_send(neigh, NULL);
 		}
@@ -463,7 +463,7 @@ qedr_addr6_resolve(struct qedr_dev *dev,
 		rcu_read_lock();
 		if (neigh->nud_state & NUD_VALID) {
 			ether_addr_copy(dst_mac, neigh->ha);
-			DP_DEBUG(dev, QEDR_MSG_QP, "mac_addr=[%pM]\n", dst_mac);
+			DP_DE(dev, QEDR_MSG_QP, "mac_addr=[%pM]\n", dst_mac);
 		} else {
 			neigh_event_send(neigh, NULL);
 		}
@@ -500,11 +500,11 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
 	raddr6 = (struct sockaddr_in6 *)&cm_id->m_remote_addr;
 
-	DP_DEBUG(dev, QEDR_MSG_IWARP, "MAPPED %d %d\n",
+	DP_DE(dev, QEDR_MSG_IWARP, "MAPPED %d %d\n",
 		 ntohs(((struct sockaddr_in *)&cm_id->remote_addr)->sin_port),
 		 ntohs(raddr->sin_port));
 
-	DP_DEBUG(dev, QEDR_MSG_IWARP,
+	DP_DE(dev, QEDR_MSG_IWARP,
 		 "Connect source address: %pISpc, remote address: %pISpc\n",
 		 &cm_id->local_addr, &cm_id->remote_addr);
 
@@ -568,7 +568,7 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (rc)
 		goto err;
 
-	DP_DEBUG(dev, QEDR_MSG_IWARP,
+	DP_DE(dev, QEDR_MSG_IWARP,
 		 "ord = %d ird=%d private_data=%p private_data_len=%d rq_psn=%d\n",
 		 conn_param->ord, conn_param->ird, conn_param->private_data,
 		 conn_param->private_data_len, qp->rq_psn);
@@ -607,7 +607,7 @@ int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
 	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
 
-	DP_DEBUG(dev, QEDR_MSG_IWARP,
+	DP_DE(dev, QEDR_MSG_IWARP,
 		 "Create Listener address: %pISpc\n", &cm_id->local_addr);
 
 	listener = kzalloc(sizeof(*listener), GFP_KERNEL);
@@ -679,7 +679,7 @@ int qedr_iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct qed_iwarp_accept_in params;
 	int rc;
 
-	DP_DEBUG(dev, QEDR_MSG_IWARP, "Accept on qpid=%d\n", conn_param->qpn);
+	DP_DE(dev, QEDR_MSG_IWARP, "Accept on qpid=%d\n", conn_param->qpn);
 
 	qp = idr_find(&dev->qpidr.idr, conn_param->qpn);
 	if (!qp) {

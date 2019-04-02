@@ -91,7 +91,7 @@ typedef struct {
 	int action;		/* data for action handler */
 } ctrl_buft;
 
-/* Debugging Flags */
+/* Deging Flags */
 #define HFCUSB_DBG_INIT		0x0001
 #define HFCUSB_DBG_STATES	0x0002
 #define HFCUSB_DBG_DCHANNEL	0x0080
@@ -168,7 +168,7 @@ static int validconf[][19] = {
 	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}	// EOL element
 };
 
-#ifdef CONFIG_HISAX_DEBUG
+#ifdef CONFIG_HISAX_DE
 // string description of chosen config
 static char *conf_str[] = {
 	"4 Interrupt IN + 3 Isochron OUT",

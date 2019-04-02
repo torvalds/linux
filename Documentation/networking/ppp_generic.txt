@@ -362,14 +362,14 @@ an interface unit are:
 * PPPIOCGUNIT returns, in the int pointed to by the argument, the unit
   number of this interface unit.
 
-* PPPIOCSDEBUG sets the debug flags for the interface to the value in
+* PPPIOCSDE sets the de flags for the interface to the value in
   the int pointed to by the argument.  Only the least significant bit
-  is used; if this is 1 the generic layer will print some debug
-  messages during its operation.  This is only intended for debugging
+  is used; if this is 1 the generic layer will print some de
+  messages during its operation.  This is only intended for deging
   the generic PPP layer code; it is generally not helpful for working
   out why a PPP connection is failing.
 
-* PPPIOCGDEBUG returns the debug flags for the interface in the int
+* PPPIOCGDE returns the de flags for the interface in the int
   pointed to by the argument.
 
 * PPPIOCGIDLE returns the time, in seconds, since the last data

@@ -65,7 +65,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 	} else if (!strncmp(sig, EFI32_LOADER_SIGNATURE, 4)) {
 		efi_64 = false;
 	} else {
-		debug_putstr("Wrong EFI loader signature.\n");
+		de_putstr("Wrong EFI loader signature.\n");
 		return 0;
 	}
 
@@ -74,7 +74,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 	systab = ei->efi_systab | ((__u64)ei->efi_systab_hi << 32);
 #else
 	if (ei->efi_systab_hi || ei->efi_memmap_hi) {
-		debug_putstr("Error getting RSDP address: EFI system table located above 4GB.\n");
+		de_putstr("Error getting RSDP address: EFI system table located above 4GB.\n");
 		return 0;
 	}
 	systab = ei->efi_systab;
@@ -114,7 +114,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 			table = tbl->table;
 
 			if (!IS_ENABLED(CONFIG_X86_64) && table >> 32) {
-				debug_putstr("Error getting RSDP address: EFI config table located above 4GB.\n");
+				de_putstr("Error getting RSDP address: EFI config table located above 4GB.\n");
 				return 0;
 			}
 		} else {
@@ -327,7 +327,7 @@ int count_immovable_mem_regions(void)
 			}
 
 			if (num >= MAX_NUMNODES*2) {
-				debug_putstr("Too many immovable memory regions, aborting.\n");
+				de_putstr("Too many immovable memory regions, aborting.\n");
 				return 0;
 			}
 		}

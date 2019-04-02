@@ -55,7 +55,7 @@ struct pt_regs {
 	unsigned long depc;		/*  12 */
 	unsigned long exccause;		/*  16 */
 	unsigned long excvaddr;		/*  20 */
-	unsigned long debugcause;	/*  24 */
+	unsigned long decause;	/*  24 */
 	unsigned long wmask;		/*  28 */
 	unsigned long lbeg;		/*  32 */
 	unsigned long lend;		/*  36 */

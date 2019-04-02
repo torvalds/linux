@@ -183,7 +183,7 @@ v1.04 (990427)
     Changes:
 	- New SMT module included, changing LED functionality
     Problems fixed:
-	- Synchronization on SMP machines was buggy
+	- Synchronization on SMP machines was gy
 
 v1.03 (990325)
     Problems fixed:

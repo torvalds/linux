@@ -206,7 +206,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 
 	vma->vm_ops->open(vma);
 
-	pr_debug("%s: mapped dma addr 0x%08lx at 0x%08lx, size %ld\n",
+	pr_de("%s: mapped dma addr 0x%08lx at 0x%08lx, size %ld\n",
 		__func__, (unsigned long)buf->dma_addr, vma->vm_start,
 		buf->size);
 
@@ -432,7 +432,7 @@ static void vb2_dc_put_userptr(void *buf_priv)
 				   buf->dma_dir, DMA_ATTR_SKIP_CPU_SYNC);
 		pages = frame_vector_pages(buf->vec);
 		/* sgt should exist only if vector contains pages... */
-		BUG_ON(IS_ERR(pages));
+		_ON(IS_ERR(pages));
 		if (buf->dma_dir == DMA_FROM_DEVICE ||
 		    buf->dma_dir == DMA_BIDIRECTIONAL)
 			for (i = 0; i < frame_vector_count(buf->vec); i++)
@@ -461,12 +461,12 @@ static void *vb2_dc_get_userptr(struct device *dev, unsigned long vaddr,
 
 	/* Only cache aligned DMA transfers are reliable */
 	if (!IS_ALIGNED(vaddr | size, dma_align)) {
-		pr_debug("user data must be aligned to %lu bytes\n", dma_align);
+		pr_de("user data must be aligned to %lu bytes\n", dma_align);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!size) {
-		pr_debug("size is zero\n");
+		pr_de("size is zero\n");
 		return ERR_PTR(-EINVAL);
 	}
 

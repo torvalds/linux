@@ -19,16 +19,16 @@ TODO for the driver
   functionality.
 
 
-Parameters exposed over debugfs
+Parameters exposed over defs
 -------------------------------
 SI476x allow user to get multiple characteristics that can be very
 useful for EoL testing/RF performance estimation, parameters that have
 very little to do with V4L2 subsystem. Such parameters are exposed via
-debugfs and can be accessed via regular file I/O operations.
+defs and can be accessed via regular file I/O operations.
 
 The drivers exposes following files:
 
-* /sys/kernel/debug/<device-name>/acf
+* /sys/kernel/de/<device-name>/acf
   This file contains ACF(Automatically Controlled Features) status
   information. The contents of the file is binary data of the
   following layout:
@@ -63,7 +63,7 @@ The drivers exposes following files:
   =============  ==============   ====================================
 
 
-* /sys/kernel/debug/<device-name>/rds_blckcnt
+* /sys/kernel/de/<device-name>/rds_blckcnt
   This file contains statistics about RDS receptions. It's binary data
   has the following layout:
 
@@ -77,7 +77,7 @@ The drivers exposes following files:
   0x04		 uncorrectable	  Number of uncorrectable RDS blocks
   =============  ==============   ====================================
 
-* /sys/kernel/debug/<device-name>/agc
+* /sys/kernel/de/<device-name>/agc
   This file contains information about parameters pertaining to
   AGC(Automatic Gain Control)
 
@@ -102,7 +102,7 @@ The drivers exposes following files:
   0x07		 fmwblang	  FM/WB LNA Gain in dB
   =============  ==============   ====================================
 
-* /sys/kernel/debug/<device-name>/rsq
+* /sys/kernel/de/<device-name>/rsq
   This file contains information about parameters pertaining to
   RSQ(Received Signal Quality)
 
@@ -154,7 +154,7 @@ The drivers exposes following files:
   0x30		 rdspi		  RDS PI code
   =============  ==============   ====================================
 
-* /sys/kernel/debug/<device-name>/rsq_primary
+* /sys/kernel/de/<device-name>/rsq_primary
   This file contains information about parameters pertaining to
   RSQ(Received Signal Quality) for primary tuner only. Layout is as
   the one above.

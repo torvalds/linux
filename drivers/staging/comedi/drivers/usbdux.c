@@ -45,7 +45,7 @@
  *       alloc to comedi.
  *       | kernel | registration | usbdux-usb | usbdux-comedi | comedi |
  * 0.99: USB 2.0: changed protocol to isochronous transfer
- *                IRQ transfer is too buggy and too risky in 2.0
+ *                IRQ transfer is too gy and too risky in 2.0
  *                for the high speed ISO transfer is now a working version
  *                available
  * 0.99b: Increased the iso transfer buffer for high sp.to 10 buffers. Some VIA
@@ -61,9 +61,9 @@
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
- * 2.3:  corrected a bug in bulk timeouts which were far too short
- * 2.4:  fixed a bug which causes the driver to hang when it ran out of data.
- *       Thanks to Jan-Matthias Braun and Ian to spot the bug and fix it.
+ * 2.3:  corrected a  in bulk timeouts which were far too short
+ * 2.4:  fixed a  which causes the driver to hang when it ran out of data.
+ *       Thanks to Jan-Matthias Braun and Ian to spot the  and fix it.
  *
  */
 
@@ -139,11 +139,11 @@
 #define NUMOFOUTBUFFERSFULL	5
 
 /* Number of in-URBs which receive the data: min=5 */
-/* must have more buffers due to buggy USB ctr */
+/* must have more buffers due to gy USB ctr */
 #define NUMOFINBUFFERSHIGH	10
 
 /* Number of out-URBs which send the data: min=5 */
-/* must have more buffers due to buggy USB ctr */
+/* must have more buffers due to gy USB ctr */
 #define NUMOFOUTBUFFERSHIGH	10
 
 /* number of retries to get the right dux command */
@@ -279,7 +279,7 @@ static void usbduxsub_ai_handle_urb(struct comedi_device *dev,
 				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
-					"buggy USB host controller or bug in IRQ handler!\n");
+					"gy USB host controller or  in IRQ handler!\n");
 			async->events |= COMEDI_CB_ERROR;
 		}
 	}
@@ -426,7 +426,7 @@ static void usbduxsub_ao_handle_urb(struct comedi_device *dev,
 				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
-					"buggy USB host controller or bug in IRQ handling!\n");
+					"gy USB host controller or  in IRQ handling!\n");
 			async->events |= COMEDI_CB_ERROR;
 		}
 	}
@@ -1197,7 +1197,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
-					"buggy USB host controller or bug in IRQ handling!\n");
+					"gy USB host controller or  in IRQ handling!\n");
 
 			/* don't do an unlink here */
 			usbdux_pwm_stop(dev, 0);

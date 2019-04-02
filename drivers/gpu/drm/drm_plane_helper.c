@@ -195,7 +195,7 @@ static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *c
 
 	/* Find current connectors for CRTC */
 	num_connectors = get_connectors_for_crtc(crtc, NULL, 0);
-	BUG_ON(num_connectors == 0);
+	_ON(num_connectors == 0);
 	connector_list = kcalloc(num_connectors, sizeof(*connector_list),
 				 GFP_KERNEL);
 	if (!connector_list)

@@ -128,11 +128,11 @@ Bus drivers can export attributes using the BUS_ATTR_RW macro that works
 similarly to the DEVICE_ATTR_RW macro for devices. For example, a
 definition like this:
 
-static BUS_ATTR_RW(debug);
+static BUS_ATTR_RW(de);
 
 is equivalent to declaring:
 
-static bus_attribute bus_attr_debug;
+static bus_attribute bus_attr_de;
 
 This can then be used to add and remove the attribute from the bus's
 sysfs directory using:

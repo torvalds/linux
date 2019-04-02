@@ -202,8 +202,8 @@ static struct drm_driver driver = {
 	.dumb_create = virtio_gpu_mode_dumb_create,
 	.dumb_map_offset = virtio_gpu_mode_dumb_mmap,
 
-#if defined(CONFIG_DEBUG_FS)
-	.debugfs_init = virtio_gpu_debugfs_init,
+#if defined(CONFIG_DE_FS)
+	.defs_init = virtio_gpu_defs_init,
 #endif
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,

@@ -786,16 +786,16 @@ static struct sock *gtp_encap_enable_socket(int fd, int type,
 	struct sock *sk;
 	int err;
 
-	pr_debug("enable gtp on %d, %d\n", fd, type);
+	pr_de("enable gtp on %d, %d\n", fd, type);
 
 	sock = sockfd_lookup(fd, &err);
 	if (!sock) {
-		pr_debug("gtp socket fd=%d not found\n", fd);
+		pr_de("gtp socket fd=%d not found\n", fd);
 		return NULL;
 	}
 
 	if (sock->sk->sk_protocol != IPPROTO_UDP) {
-		pr_debug("socket fd=%d not UDP\n", fd);
+		pr_de("socket fd=%d not UDP\n", fd);
 		sk = ERR_PTR(-EINVAL);
 		goto out_sock;
 	}

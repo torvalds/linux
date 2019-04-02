@@ -74,7 +74,7 @@ struct sisl_ioarcb {
 	u8 cdb[16];		/* must be in big endian */
 #define SISL_AFU_CMD_SYNC		0xC0	/* AFU sync command */
 #define SISL_AFU_CMD_LUN_PROVISION	0xD0	/* AFU LUN provision command */
-#define SISL_AFU_CMD_DEBUG		0xE0	/* AFU debug command */
+#define SISL_AFU_CMD_DE		0xE0	/* AFU de command */
 
 #define SISL_AFU_LUN_PROVISION_CREATE	0x00	/* LUN provision create type */
 #define SISL_AFU_LUN_PROVISION_DELETE	0x01	/* LUN provision delete type */
@@ -149,8 +149,8 @@ struct sisl_rc {
 #define SISL_FC_RC_ABORTPEND	0x52	/* exchange timeout or abort request */
 #define SISL_FC_RC_WRABORTPEND	0x53	/* due to write XFER_RDY invalid */
 #define SISL_FC_RC_NOLOGI	0x54	/* port not logged in, in-flight cmds */
-#define SISL_FC_RC_NOEXP	0x55	/* FC protocol error or HW bug */
-#define SISL_FC_RC_INUSE	0x56	/* tag already in use, HW bug */
+#define SISL_FC_RC_NOEXP	0x55	/* FC protocol error or HW  */
+#define SISL_FC_RC_INUSE	0x56	/* tag already in use, HW  */
 #define SISL_FC_RC_LINKDOWN	0x57	/* link down, in-flight cmds */
 #define SISL_FC_RC_ABORTOK	0x58	/* pending abort completed w/success */
 #define SISL_FC_RC_ABORTFAIL	0x59	/* pending abort completed w/fail */
@@ -295,7 +295,7 @@ struct sisl_host_map {
 	__be64 mbox_w;		/* restricted use */
 	__be64 sq_start;	/* Submission Queue (R/W): write sequence and */
 	__be64 sq_end;		/* inclusion semantics are the same as RRQ    */
-	__be64 sq_head;		/* Submission Queue Head (R): for debugging   */
+	__be64 sq_head;		/* Submission Queue Head (R): for deging   */
 	__be64 sq_tail;		/* Submission Queue TAIL (R/W): next IOARCB   */
 	__be64 sq_ctx_reset;	/* Submission Queue Context Reset (R/W)	      */
 };
@@ -426,7 +426,7 @@ struct sisl_global_regs {
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_A	0x200000000000ULL
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_B	0x100000000000ULL
 #define SISL_INTVER_CAP_LUN_PROVISION		0x080000000000ULL
-#define SISL_INTVER_CAP_AFU_DEBUG		0x040000000000ULL
+#define SISL_INTVER_CAP_AFU_DE		0x040000000000ULL
 #define SISL_INTVER_CAP_OCXL_LISN		0x020000000000ULL
 };
 

@@ -535,13 +535,13 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			card->ext_csd.raw_bkops_status =
 				ext_csd[EXT_CSD_BKOPS_STATUS];
 			if (card->ext_csd.man_bkops_en)
-				pr_debug("%s: MAN_BKOPS_EN bit is set\n",
+				pr_de("%s: MAN_BKOPS_EN bit is set\n",
 					mmc_hostname(card->host));
 			card->ext_csd.auto_bkops_en =
 					(ext_csd[EXT_CSD_BKOPS_EN] &
 						EXT_CSD_AUTO_BKOPS_MASK);
 			if (card->ext_csd.auto_bkops_en)
-				pr_debug("%s: AUTO_BKOPS_EN bit is set\n",
+				pr_de("%s: AUTO_BKOPS_EN bit is set\n",
 					mmc_hostname(card->host));
 		}
 
@@ -647,7 +647,7 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			card->ext_csd.cmdq_depth = 0;
 		}
 		if (card->ext_csd.cmdq_support) {
-			pr_debug("%s: Command Queue supported depth %u\n",
+			pr_de("%s: Command Queue supported depth %u\n",
 				 mmc_hostname(card->host),
 				 card->ext_csd.cmdq_depth);
 		}
@@ -1594,7 +1594,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 	if (oldcard) {
 		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
-			pr_debug("%s: Perhaps the card was replaced\n",
+			pr_de("%s: Perhaps the card was replaced\n",
 				mmc_hostname(host));
 			err = -ENOENT;
 			goto err;

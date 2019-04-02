@@ -8,10 +8,10 @@
 #include <linux/moduleparam.h>
 #include "tfrc.h"
 
-#ifdef CONFIG_IP_DCCP_TFRC_DEBUG
-bool tfrc_debug;
-module_param(tfrc_debug, bool, 0644);
-MODULE_PARM_DESC(tfrc_debug, "Enable TFRC debug messages");
+#ifdef CONFIG_IP_DCCP_TFRC_DE
+bool tfrc_de;
+module_param(tfrc_de, bool, 0644);
+MODULE_PARM_DESC(tfrc_de, "Enable TFRC de messages");
 #endif
 
 int __init tfrc_lib_init(void)

@@ -796,7 +796,7 @@ unsigned int ipic_get_irq(void)
 {
 	int irq;
 
-	BUG_ON(primary_ipic == NULL);
+	_ON(primary_ipic == NULL);
 
 #define IPIC_SIVCR_VECTOR_MASK	0x7f
 	irq = ipic_read(primary_ipic->regs, IPIC_SIVCR) & IPIC_SIVCR_VECTOR_MASK;
@@ -883,7 +883,7 @@ static int __init init_ipic_syscore(void)
 	if (!primary_ipic || !primary_ipic->regs)
 		return -ENODEV;
 
-	printk(KERN_DEBUG "Registering ipic system core operations\n");
+	printk(KERN_DE "Registering ipic system core operations\n");
 	register_syscore_ops(&ipic_syscore_ops);
 
 	return 0;

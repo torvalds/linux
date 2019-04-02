@@ -23,9 +23,9 @@
 #define DISABLE_MOUSE	0xf5
 #define PSMOUSE_RST	0xff
 
-#ifdef NVEC_PS2_DEBUG
+#ifdef NVEC_PS2_DE
 #define NVEC_PHD(str, buf, len) \
-	print_hex_dump(KERN_DEBUG, str, DUMP_PREFIX_NONE, \
+	print_hex_dump(KERN_DE, str, DUMP_PREFIX_NONE, \
 			16, 1, buf, len, false)
 #else
 #define NVEC_PHD(str, buf, len)

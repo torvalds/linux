@@ -1,6 +1,6 @@
 /*
  * Linux WiMAX
- * Collection of tools to manage debug operations.
+ * Collection of tools to manage de operations.
  *
  *
  * Copyright (C) 2005-2007 Intel Corporation
@@ -24,10 +24,10 @@
  * Don't #include this file directly, read on!
  *
  *
- * EXECUTING DEBUGGING ACTIONS OR NOT
+ * EXECUTING DEGING ACTIONS OR NOT
  *
  * The main thing this framework provides is decission power to take a
- * debug action (like printing a message) if the current debug level
+ * de action (like printing a message) if the current de level
  * allows it.
  *
  * The decission power is at two levels: at compile-time (what does
@@ -35,8 +35,8 @@
  * selection is done per-submodule (as they are declared by the user
  * of the framework).
  *
- * A call to d_test(L) (L being the target debug level) returns true
- * if the action should be taken because the current debug levels
+ * A call to d_test(L) (L being the target de level) returns true
+ * if the action should be taken because the current de levels
  * allow it (both compile and run time).
  *
  * It follows that a call to d_test() that can be determined to be
@@ -44,12 +44,12 @@
  * compiled out by optimization.
  *
  *
- * DEBUG LEVELS
+ * DE LEVELS
  *
- * It is up to the caller to define how much a debugging level is.
+ * It is up to the caller to define how much a deging level is.
  *
- * Convention sets 0 as "no debug" (so an action marked as debug level 0
- * will always be taken). The increasing debug levels are used for
+ * Convention sets 0 as "no de" (so an action marked as de level 0
+ * will always be taken). The increasing de levels are used for
  * increased verbosity.
  *
  *
@@ -64,22 +64,22 @@
  *
  *  - a MODULENAME (single word, legal C identifier)
  *
- *  - a debug-levels.h header file that declares the list of
+ *  - a de-levels.h header file that declares the list of
  *    submodules and that is included by all .c files that use
- *    the debugging tools. The file name can be anything.
+ *    the deging tools. The file name can be anything.
  *
- *  - some (optional) .c code to manipulate the runtime debug levels
- *    through debugfs.
+ *  - some (optional) .c code to manipulate the runtime de levels
+ *    through defs.
  *
- * The debug-levels.h file would look like:
+ * The de-levels.h file would look like:
  *
- *     #ifndef __debug_levels__h__
- *     #define __debug_levels__h__
+ *     #ifndef __de_levels__h__
+ *     #define __de_levels__h__
  *
  *     #define D_MODULENAME modulename
  *     #define D_MASTER 10
  *
- *     #include <linux/wimax/debug.h>
+ *     #include <linux/wimax/de.h>
  *
  *     enum d_module {
  *             D_SUBMODULE_DECLARE(submodule_1),
@@ -90,13 +90,13 @@
  *
  *     #endif
  *
- * D_MASTER is the maximum compile-time debug level; any debug actions
+ * D_MASTER is the maximum compile-time de level; any de actions
  * above this will be out. D_MODULENAME is the module name (legal C
  * identifier), which has to be unique for each module (to avoid
  * namespace collisions during linkage). Note those #defines need to
- * be done before #including debug.h
+ * be done before #including de.h
  *
- * We declare N different submodules whose debug level can be
+ * We declare N different submodules whose de level can be
  * independently controlled during runtime.
  *
  * In a .c file of the module (and only in one of them), define the
@@ -114,26 +114,26 @@
  * and declared in this file using the D_LEVEL and D_LEVEL_SIZE macros
  * #defined also in this file.
  *
- * To manipulate from user space the levels, create a debugfs dentry
+ * To manipulate from user space the levels, create a defs dentry
  * and then register each submodule with:
  *
- *     result = d_level_register_debugfs("PREFIX_", submodule_X, parent);
+ *     result = d_level_register_defs("PREFIX_", submodule_X, parent);
  *     if (result < 0)
  *            goto error;
  *
- * Where PREFIX_ is a name of your chosing. This will create debugfs
+ * Where PREFIX_ is a name of your chosing. This will create defs
  * file with a single numeric value that can be use to tweak it. To
- * remove the entires, just use debugfs_remove_recursive() on 'parent'.
+ * remove the entires, just use defs_remove_recursive() on 'parent'.
  *
  * NOTE: remember that even if this will show attached to some
  *     particular instance of a device, the settings are *global*.
  *
  *
- * On each submodule (for example, .c files), the debug infrastructure
+ * On each submodule (for example, .c files), the de infrastructure
  * should be included like this:
  *
- *     #define D_SUBMODULE submodule_x     // matches one in debug-levels.h
- *     #include "debug-levels.h"
+ *     #define D_SUBMODULE submodule_x     // matches one in de-levels.h
+ *     #include "de-levels.h"
  *
  * after #including all your include files.
  *
@@ -141,17 +141,17 @@
  * Now you can use the d_*() macros below [d_test(), d_fnstart(),
  * d_fnend(), d_printf(), d_dump()].
  *
- * If their debug level is greater than D_MASTER, they will be
+ * If their de level is greater than D_MASTER, they will be
  * compiled out.
  *
- * If their debug level is lower or equal than D_MASTER but greater
- * than the current debug level of their submodule, they'll be
+ * If their de level is lower or equal than D_MASTER but greater
+ * than the current de level of their submodule, they'll be
  * ignored.
  *
  * Otherwise, the action will be performed.
  */
-#ifndef __debug__h__
-#define __debug__h__
+#ifndef __de__h__
+#define __de__h__
 
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -161,7 +161,7 @@ struct device;
 /* Backend stuff */
 
 /*
- * Debug backend: generate a message header from a 'struct device'
+ * De backend: generate a message header from a 'struct device'
  *
  * @head: buffer where to place the header
  * @head_size: length of @head
@@ -184,9 +184,9 @@ void __d_head(char *head, size_t head_size,
 
 
 /*
- * Debug backend: log some message if debugging is enabled
+ * De backend: log some message if deging is enabled
  *
- * @l: intended debug level
+ * @l: intended de level
  * @tag: tag to prefix the message with
  * @dev: 'struct device' associated to this message
  * @f: printf-like format and arguments
@@ -194,7 +194,7 @@ void __d_head(char *head, size_t head_size,
  * Note this is optimized out if it doesn't pass the compile-time
  * check; however, it is *always* compiled. This is useful to make
  * sure the printf-like formats and variables are always checked and
- * they don't get bit rot if you have all the debugging disabled.
+ * they don't get bit rot if you have all the deging disabled.
  */
 #define _d_printf(l, tag, dev, f, a...)					\
 do {									\
@@ -216,7 +216,7 @@ do {									\
 
 
 /*
- * Store a submodule's runtime debug level and name
+ * Store a submodule's runtime de level and name
  */
 struct d_level {
 	u8 level;
@@ -225,7 +225,7 @@ struct d_level {
 
 
 /*
- * List of available submodules and their debug levels
+ * List of available submodules and their de levels
  *
  * We call them d_level_MODULENAME and d_level_size_MODULENAME; the
  * macros D_LEVEL and D_LEVEL_SIZE contain the name already for
@@ -245,16 +245,16 @@ extern size_t D_LEVEL_SIZE;
  * Frontend stuff
  *
  *
- * Stuff you need to declare prior to using the actual "debug" actions
+ * Stuff you need to declare prior to using the actual "de" actions
  * (defined below).
  */
 
 #ifndef D_MODULENAME
-#error D_MODULENAME is not defined in your debug-levels.h file
+#error D_MODULENAME is not defined in your de-levels.h file
 /**
  * D_MODULE - Name of the current module
  *
- * #define in your module's debug-levels.h, making sure it is
+ * #define in your module's de-levels.h, making sure it is
  * unique. This has to be a legal C identifier.
  */
 #define D_MODULENAME undefined_modulename
@@ -262,34 +262,34 @@ extern size_t D_LEVEL_SIZE;
 
 
 #ifndef D_MASTER
-#warning D_MASTER not defined, but debug.h included! [see docs]
+#warning D_MASTER not defined, but de.h included! [see docs]
 /**
- * D_MASTER - Compile time maximum debug level
+ * D_MASTER - Compile time maximum de level
  *
- * #define in your debug-levels.h file to the maximum debug level the
+ * #define in your de-levels.h file to the maximum de level the
  * runtime code will be allowed to have. This allows you to provide a
  * main knob.
  *
  * Anything above that level will be optimized out of the compile.
  *
- * Defaults to zero (no debug code compiled in).
+ * Defaults to zero (no de code compiled in).
  *
- * Maximum one definition per module (at the debug-levels.h file).
+ * Maximum one definition per module (at the de-levels.h file).
  */
 #define D_MASTER 0
 #endif
 
 #ifndef D_SUBMODULE
-#error D_SUBMODULE not defined, but debug.h included! [see docs]
+#error D_SUBMODULE not defined, but de.h included! [see docs]
 /**
  * D_SUBMODULE - Name of the current submodule
  *
- * #define in your submodule .c file before #including debug-levels.h
+ * #define in your submodule .c file before #including de-levels.h
  * to the name of the current submodule as previously declared and
  * defined with D_SUBMODULE_DECLARE() (in your module's
- * debug-levels.h) and D_SUBMODULE_DEFINE().
+ * de-levels.h) and D_SUBMODULE_DEFINE().
  *
- * This is used to provide runtime-control over the debug levels.
+ * This is used to provide runtime-control over the de levels.
  *
  * Maximum one per .c file! Can be shared among different .c files
  * (meaning they belong to the same submodule categorization).
@@ -299,12 +299,12 @@ extern size_t D_LEVEL_SIZE;
 
 
 /**
- * D_SUBMODULE_DECLARE - Declare a submodule for runtime debug level control
+ * D_SUBMODULE_DECLARE - Declare a submodule for runtime de level control
  *
  * @_name: name of the submodule, restricted to the chars that make up a
  *     valid C identifier ([a-zA-Z0-9_]).
  *
- * Declare in the module's debug-levels.h header file as:
+ * Declare in the module's de-levels.h header file as:
  *
  * enum d_module {
  *         D_SUBMODULE_DECLARE(submodule_1),
@@ -319,7 +319,7 @@ extern size_t D_LEVEL_SIZE;
 
 
 /**
- * D_SUBMODULE_DEFINE - Define a submodule for runtime debug level control
+ * D_SUBMODULE_DEFINE - Define a submodule for runtime de level control
  *
  * @_name: name of the submodule, restricted to the chars that make up a
  *     valid C identifier ([a-zA-Z0-9_]).
@@ -335,7 +335,7 @@ extern size_t D_LEVEL_SIZE;
  * size_t d_level_size_SUBDMODULENAME = ARRAY_SIZE(d_level_SUBDMODULENAME);
  *
  * Matching D_SUBMODULE_DECLARE()s have to be present in a
- * debug-levels.h header file.
+ * de-levels.h header file.
  */
 #define D_SUBMODULE_DEFINE(_name)		\
 [__D_SUBMODULE_##_name] = {			\
@@ -345,22 +345,22 @@ extern size_t D_LEVEL_SIZE;
 
 
 
-/* The actual "debug" operations */
+/* The actual "de" operations */
 
 
 /**
- * d_test - Returns true if debugging should be enabled
+ * d_test - Returns true if deging should be enabled
  *
- * @l: intended debug level (unsigned)
+ * @l: intended de level (unsigned)
  *
- * If the master debug switch is enabled and the current settings are
- * higher or equal to the requested level, then debugging
+ * If the master de switch is enabled and the current settings are
+ * higher or equal to the requested level, then deging
  * output/actions should be enabled.
  *
  * NOTE:
  *
  * This needs to be coded so that it can be evaluated in compile
- * time; this is why the ugly BUG_ON() is placed in there, so the
+ * time; this is why the ugly _ON() is placed in there, so the
  * D_MASTER evaluation compiles all out if it is compile-time false.
  */
 #define d_test(l)							\
@@ -368,16 +368,16 @@ extern size_t D_LEVEL_SIZE;
 	unsigned __l = l;	/* type enforcer */			\
 	(D_MASTER) >= __l						\
 	&& ({								\
-		BUG_ON(_D_SUBMODULE_INDEX(D_SUBMODULE) >= D_LEVEL_SIZE);\
+		_ON(_D_SUBMODULE_INDEX(D_SUBMODULE) >= D_LEVEL_SIZE);\
 		D_LEVEL[_D_SUBMODULE_INDEX(D_SUBMODULE)].level >= __l;	\
 	});								\
 })
 
 
 /**
- * d_fnstart - log message at function start if debugging enabled
+ * d_fnstart - log message at function start if deging enabled
  *
- * @l: intended debug level
+ * @l: intended de level
  * @_dev: 'struct device' pointer, NULL if none (for context)
  * @f: printf-like format and arguments
  */
@@ -385,9 +385,9 @@ extern size_t D_LEVEL_SIZE;
 
 
 /**
- * d_fnend - log message at function end if debugging enabled
+ * d_fnend - log message at function end if deging enabled
  *
- * @l: intended debug level
+ * @l: intended de level
  * @_dev: 'struct device' pointer, NULL if none (for context)
  * @f: printf-like format and arguments
  */
@@ -395,9 +395,9 @@ extern size_t D_LEVEL_SIZE;
 
 
 /**
- * d_printf - log message if debugging enabled
+ * d_printf - log message if deging enabled
  *
- * @l: intended debug level
+ * @l: intended de level
  * @_dev: 'struct device' pointer, NULL if none (for context)
  * @f: printf-like format and arguments
  */
@@ -405,9 +405,9 @@ extern size_t D_LEVEL_SIZE;
 
 
 /**
- * d_dump - log buffer hex dump if debugging enabled
+ * d_dump - log buffer hex dump if deging enabled
  *
- * @l: intended debug level
+ * @l: intended de level
  * @_dev: 'struct device' pointer, NULL if none (for context)
  * @f: printf-like format and arguments
  */
@@ -423,27 +423,27 @@ do {							\
 
 
 /**
- * Export a submodule's debug level over debugfs as PREFIXSUBMODULE
+ * Export a submodule's de level over defs as PREFIXSUBMODULE
  *
  * @prefix: string to prefix the name with
  * @submodule: name of submodule (not a string, just the name)
- * @dentry: debugfs parent dentry
+ * @dentry: defs parent dentry
  *
  * Returns: 0 if ok, < 0 errno on error.
  *
- * For removing, just use debugfs_remove_recursive() on the parent.
+ * For removing, just use defs_remove_recursive() on the parent.
  */
-#define d_level_register_debugfs(prefix, name, parent)			\
+#define d_level_register_defs(prefix, name, parent)			\
 ({									\
 	int rc;								\
 	struct dentry *fd;						\
 	struct dentry *verify_parent_type = parent;			\
-	fd = debugfs_create_u8(						\
+	fd = defs_create_u8(						\
 		prefix #name, 0600, verify_parent_type,			\
 		&(D_LEVEL[__D_SUBMODULE_ ## name].level));		\
 	rc = PTR_ERR(fd);						\
 	if (IS_ERR(fd) && rc != -ENODEV)				\
-		printk(KERN_ERR "%s: Can't create debugfs entry %s: "	\
+		printk(KERN_ERR "%s: Can't create defs entry %s: "	\
 		       "%d\n", __func__, prefix #name, rc);		\
 	else								\
 		rc = 0;							\
@@ -475,14 +475,14 @@ void d_submodule_set(struct d_level *d_level, size_t d_level_size,
 
 
 /**
- * d_parse_params - Parse a string with debug parameters from the
+ * d_parse_params - Parse a string with de parameters from the
  * command line
  *
  * @d_level: level structure (D_LEVEL)
  * @d_level_size: number of items in the level structure
  *     (D_LEVEL_SIZE).
  * @_params: string with the parameters; this is a space (not tab!)
- *     separated list of NAME:VALUE, where value is the debug level
+ *     separated list of NAME:VALUE, where value is the de level
  *     and NAME is the name of the submodule.
  * @tag: string for error messages (example: MODULE.ARGNAME).
  */
@@ -523,4 +523,4 @@ void d_parse_params(struct d_level *d_level, size_t d_level_size,
 	kfree(params_orig);
 }
 
-#endif /* #ifndef __debug__h__ */
+#endif /* #ifndef __de__h__ */

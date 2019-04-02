@@ -137,7 +137,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 
 	ASSERT_RTNL();
 
-	pr_debug("adding new link\n");
+	pr_de("adding new link\n");
 
 	if (!tb[IFLA_LINK])
 		return -EINVAL;

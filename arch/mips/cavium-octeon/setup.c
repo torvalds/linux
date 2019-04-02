@@ -606,7 +606,7 @@ void octeon_user_io_init(void)
 		cvmmemctl.s.wbthresh = 10;
 
 	/* R/W If set, CVMSEG is available for loads/stores in
-	 * kernel/debug mode. */
+	 * kernel/de mode. */
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
 	cvmmemctl.s.cvmsegenak = 1;
 #else

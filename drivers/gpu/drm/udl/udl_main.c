@@ -71,7 +71,7 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 			case 0x0200: { /* max_area */
 				u32 max_area;
 				max_area = le32_to_cpu(*((u32 *)desc));
-				DRM_DEBUG("DL chip limited to %d pixel modes\n",
+				DRM_DE("DL chip limited to %d pixel modes\n",
 					max_area);
 				udl->sku_pixel_limit = max_area;
 				break;
@@ -172,7 +172,7 @@ static void udl_free_urb_list(struct drm_device *dev)
 	struct urb_node *unode;
 	struct urb *urb;
 
-	DRM_DEBUG("Waiting for completes and freeing all render urbs\n");
+	DRM_DE("Waiting for completes and freeing all render urbs\n");
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
@@ -256,7 +256,7 @@ retry:
 		udl->urbs.available++;
 	}
 
-	DRM_DEBUG("allocated %d %d byte urbs\n", udl->urbs.count, (int) size);
+	DRM_DE("allocated %d %d byte urbs\n", udl->urbs.count, (int) size);
 
 	return udl->urbs.count;
 }
@@ -280,7 +280,7 @@ struct urb *udl_get_urb(struct drm_device *dev)
 
 	spin_lock_irq(&udl->urbs.lock);
 
-	BUG_ON(list_empty(&udl->urbs.list)); /* reserved one with limit_sem */
+	_ON(list_empty(&udl->urbs.list)); /* reserved one with limit_sem */
 	entry = udl->urbs.list.next;
 	list_del_init(entry);
 	udl->urbs.available--;
@@ -299,7 +299,7 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 	struct udl_device *udl = dev->dev_private;
 	int ret;
 
-	BUG_ON(len > udl->urbs.size);
+	_ON(len > udl->urbs.size);
 
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
@@ -317,7 +317,7 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	struct udl_device *udl;
 	int ret = -ENOMEM;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	udl = kzalloc(sizeof(struct udl_device), GFP_KERNEL);
 	if (!udl)
 		return -ENOMEM;
@@ -342,7 +342,7 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 		goto err;
 	}
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 	ret = udl_modeset_init(dev);
 	if (ret)
 		goto err;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Standalone EHCI usb debug driver
+ * Standalone EHCI usb de driver
  *
  * Originally written by:
  *  Eric W. Biederman" <ebiederm@xmission.com> and
@@ -18,7 +18,7 @@
 #include <linux/console.h>
 #include <linux/types.h>
 
-/* Appendix C, Debug port ... intended for use with special "debug devices"
+/* Appendix C, De port ... intended for use with special "de devices"
  * that can help if there's no serial console.  (nonstandard enumeration.)
  */
 struct ehci_dbg_port {
@@ -66,7 +66,7 @@ static inline int xen_dbgp_external_startup(struct usb_hcd *hcd)
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK_DBGP
-/* Call backs from ehci host driver to ehci debug driver */
+/* Call backs from ehci host driver to ehci de driver */
 extern int dbgp_external_startup(struct usb_hcd *);
 extern int dbgp_reset_prep(struct usb_hcd *);
 #else

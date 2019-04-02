@@ -173,7 +173,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../label
 Date:		July 2010
-Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Contact:	Narendra K <narendra_k@dell.com>, linux-s@dell.com
 Description:
 		Reading this attribute will provide the firmware
 		given name (SMBIOS type 41 string or ACPI _DSM string) of
@@ -187,7 +187,7 @@ Users:
 
 What:		/sys/bus/pci/devices/.../index
 Date:		July 2010
-Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Contact:	Narendra K <narendra_k@dell.com>, linux-s@dell.com
 Description:
 		Reading this attribute will provide the firmware
 		given instance (SMBIOS type 41 device type instance) of the
@@ -201,7 +201,7 @@ Users:
 
 What:		/sys/bus/pci/devices/.../acpi_index
 Date:		July 2010
-Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Contact:	Narendra K <narendra_k@dell.com>, linux-s@dell.com
 Description:
 		Reading this attribute will provide the firmware
 		given instance (ACPI _DSM instance number) of the PCI device.
@@ -291,7 +291,7 @@ Description:
 		comes from an ACPI _PXM method or a similar firmware
 		source.  If that is missing or incorrect, this file can be
 		written to override the node.  In that case, please report
-		a firmware bug to the system vendor.  Writing to this file
+		a firmware  to the system vendor.  Writing to this file
 		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
 		reduces the supportability of your system.
 

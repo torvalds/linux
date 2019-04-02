@@ -3,7 +3,7 @@
 #include <dlfcn.h>
 
 #include "../util/cache.h"
-#include "../util/debug.h"
+#include "../util/de.h"
 #include "../util/hist.h"
 #include "../util/util.h"
 

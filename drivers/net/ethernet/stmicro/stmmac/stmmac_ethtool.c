@@ -137,7 +137,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(irq_pcs_ane_n),
 	STMMAC_STAT(irq_pcs_link_n),
 	STMMAC_STAT(irq_rgmii_n),
-	/* DEBUG */
+	/* DE */
 	STMMAC_STAT(mtl_tx_status_fifo_full),
 	STMMAC_STAT(mtl_tx_fifo_not_empty),
 	STMMAC_STAT(mmtl_fifo_ctrl),
@@ -555,7 +555,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		}
 
 		if (priv->synopsys_id >= DWMAC_CORE_3_50)
-			stmmac_mac_debug(priv, priv->ioaddr,
+			stmmac_mac_de(priv, priv->ioaddr,
 					(void *)&priv->xstats,
 					rx_queues_count, tx_queues_count);
 	}

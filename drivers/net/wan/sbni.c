@@ -15,7 +15,7 @@
  *
  *
  *  5.0.1	Jun 22 2001
- *	  - Fixed bug in probe
+ *	  - Fixed  in probe
  *  5.0.0	Jun 06 2001
  *	  - Driver was completely redesigned by Denis I.Timofeev,
  *	  - now PCI/Dual, ISA/Dual (with single interrupt line) models are
@@ -25,11 +25,11 @@
  *  3.2.0	Mon Dec 13 22:26:53 NOVT 1999
  * 	  - Completely rebuilt all the packet storage system
  * 	  -    to work in Ethernet-like style.
- *  3.1.1	just fixed some bugs (5 aug 1999)
+ *  3.1.1	just fixed some s (5 aug 1999)
  *  3.1.0	added balancing feature	(26 apr 1999)
- *  3.0.1	just fixed some bugs (14 apr 1999).
+ *  3.0.1	just fixed some s (14 apr 1999).
  *  3.0.0	Initial Revision, Yaroslav Polyakov (24 Feb 1999)
- *        - added pre-calculation for CRC, fixed bug with "len-2" frames, 
+ *        - added pre-calculation for CRC, fixed  with "len-2" frames, 
  *        - removed outbound fragmentation (MTU=1000), written CRC-calculation 
  *        - on asm, added work with hard_headers and now we have our own cache 
  *        - for them, optionally supported word-interchange on some chipsets,

@@ -40,7 +40,7 @@ static int cachefiles_daemon_brun(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_bcull(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_bstop(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_cull(struct cachefiles_cache *, char *);
-static int cachefiles_daemon_debug(struct cachefiles_cache *, char *);
+static int cachefiles_daemon_de(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_dir(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_inuse(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_secctx(struct cachefiles_cache *, char *);
@@ -69,7 +69,7 @@ static const struct cachefiles_daemon_cmd cachefiles_daemon_cmds[] = {
 	{ "bcull",	cachefiles_daemon_bcull		},
 	{ "bstop",	cachefiles_daemon_bstop		},
 	{ "cull",	cachefiles_daemon_cull		},
-	{ "debug",	cachefiles_daemon_debug		},
+	{ "de",	cachefiles_daemon_de		},
 	{ "dir",	cachefiles_daemon_dir		},
 	{ "frun",	cachefiles_daemon_frun		},
 	{ "fcull",	cachefiles_daemon_fcull		},
@@ -597,10 +597,10 @@ inval:
 }
 
 /*
- * set debugging mode
- * - command: "debug <mask>"
+ * set deging mode
+ * - command: "de <mask>"
  */
-static int cachefiles_daemon_debug(struct cachefiles_cache *cache, char *args)
+static int cachefiles_daemon_de(struct cachefiles_cache *cache, char *args)
 {
 	unsigned long mask;
 
@@ -610,12 +610,12 @@ static int cachefiles_daemon_debug(struct cachefiles_cache *cache, char *args)
 	if (args[0] != '\0')
 		goto inval;
 
-	cachefiles_debug = mask;
+	cachefiles_de = mask;
 	_leave(" = 0");
 	return 0;
 
 inval:
-	pr_err("debug command requires mask\n");
+	pr_err("de command requires mask\n");
 	return -EINVAL;
 }
 
@@ -704,7 +704,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 
 	stats.f_bavail >>= cache->bshift;
 
-	//_debug("avail %llu,%llu",
+	//_de("avail %llu,%llu",
 	//       (unsigned long long) stats.f_ffree,
 	//       (unsigned long long) stats.f_bavail);
 
@@ -734,7 +734,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 	    stats.f_bavail >= cache->brun &&
 	    test_and_clear_bit(CACHEFILES_CULLING, &cache->flags)
 	    ) {
-		_debug("cease culling");
+		_de("cease culling");
 		cachefiles_state_changed(cache);
 	}
 
@@ -743,7 +743,7 @@ int cachefiles_has_space(struct cachefiles_cache *cache,
 
 begin_cull:
 	if (!test_and_set_bit(CACHEFILES_CULLING, &cache->flags)) {
-		_debug("### CULL CACHE ###");
+		_de("### CULL CACHE ###");
 		cachefiles_state_changed(cache);
 	}
 

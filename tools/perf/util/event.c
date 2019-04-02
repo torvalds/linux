@@ -12,7 +12,7 @@
 #include <api/fs/fs.h>
 #include <linux/perf_event.h>
 #include "event.h"
-#include "debug.h"
+#include "de.h"
 #include "hist.h"
 #include "machine.h"
 #include "sort.h"
@@ -24,7 +24,7 @@
 #include "map.h"
 #include "symbol.h"
 #include "symbol/kallsyms.h"
-#include "asm/bug.h"
+#include "asm/.h"
 #include "stat.h"
 #include "session.h"
 #include "bpf-event.h"
@@ -137,7 +137,7 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		pr_debug("couldn't open %s\n", filename);
+		pr_de("couldn't open %s\n", filename);
 		return -1;
 	}
 
@@ -170,21 +170,21 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 		memcpy(comm, name, size);
 		comm[size] = '\0';
 	} else {
-		pr_debug("Name: string not found for pid %d\n", pid);
+		pr_de("Name: string not found for pid %d\n", pid);
 	}
 
 	if (tgids) {
 		tgids += 5;  /* strlen("Tgid:") */
 		*tgid = atoi(tgids);
 	} else {
-		pr_debug("Tgid: string not found for pid %d\n", pid);
+		pr_de("Tgid: string not found for pid %d\n", pid);
 	}
 
 	if (ppids) {
 		ppids += 5;  /* strlen("PPid:") */
 		*ppid = atoi(ppids);
 	} else {
-		pr_debug("PPid: string not found for pid %d\n", pid);
+		pr_de("PPid: string not found for pid %d\n", pid);
 	}
 
 	return 0;
@@ -355,7 +355,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		/*
 		 * We raced with a task exiting - just return:
 		 */
-		pr_debug("couldn't open %s\n", filename);
+		pr_de("couldn't open %s\n", filename);
 		return -1;
 	}
 
@@ -478,7 +478,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {
-		pr_debug("Not enough memory synthesizing mmap event "
+		pr_de("Not enough memory synthesizing mmap event "
 			 "for kernel modules\n");
 		return -1;
 	}
@@ -570,7 +570,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 
 	tasks = opendir(filename);
 	if (tasks == NULL) {
-		pr_debug("couldn't open %s\n", filename);
+		pr_de("couldn't open %s\n", filename);
 		return 0;
 	}
 
@@ -925,7 +925,7 @@ static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	 */
 	event = zalloc((sizeof(event->mmap) + machine->id_hdr_size));
 	if (event == NULL) {
-		pr_debug("Not enough memory synthesizing mmap event "
+		pr_de("Not enough memory synthesizing mmap event "
 			 "for kernel modules\n");
 		return -1;
 	}

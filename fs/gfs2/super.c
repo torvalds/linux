@@ -56,8 +56,8 @@ enum {
 	Opt_ignore_local_fs,
 	Opt_localflocks,
 	Opt_localcaching,
-	Opt_debug,
-	Opt_nodebug,
+	Opt_de,
+	Opt_node,
 	Opt_upgrade,
 	Opt_acl,
 	Opt_noacl,
@@ -97,8 +97,8 @@ static const match_table_t tokens = {
 	{Opt_ignore_local_fs, "ignore_local_fs"},
 	{Opt_localflocks, "localflocks"},
 	{Opt_localcaching, "localcaching"},
-	{Opt_debug, "debug"},
-	{Opt_nodebug, "nodebug"},
+	{Opt_de, "de"},
+	{Opt_node, "node"},
 	{Opt_upgrade, "upgrade"},
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
@@ -180,15 +180,15 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 		case Opt_localcaching:
 			/* Retained for backwards compat only */
 			break;
-		case Opt_debug:
+		case Opt_de:
 			if (args->ar_errors == GFS2_ERRORS_PANIC) {
-				pr_warn("-o debug and -o errors=panic are mutually exclusive\n");
+				pr_warn("-o de and -o errors=panic are mutually exclusive\n");
 				return -EINVAL;
 			}
-			args->ar_debug = 1;
+			args->ar_de = 1;
 			break;
-		case Opt_nodebug:
-			args->ar_debug = 0;
+		case Opt_node:
+			args->ar_de = 0;
 			break;
 		case Opt_upgrade:
 			/* Retained for backwards compat only */
@@ -264,8 +264,8 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_errors = GFS2_ERRORS_WITHDRAW;
 			break;
 		case Opt_err_panic:
-			if (args->ar_debug) {
-				pr_warn("-o debug and -o errors=panic are mutually exclusive\n");
+			if (args->ar_de) {
+				pr_warn("-o de and -o errors=panic are mutually exclusive\n");
 				return -EINVAL;
 			}
 			args->ar_errors = GFS2_ERRORS_PANIC;
@@ -934,7 +934,7 @@ restart:
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
 	gfs2_gl_hash_clear(sdp);
-	gfs2_delete_debugfs_file(sdp);
+	gfs2_delete_defs_file(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
 
@@ -1385,8 +1385,8 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",spectator");
 	if (args->ar_localflocks)
 		seq_puts(s, ",localflocks");
-	if (args->ar_debug)
-		seq_puts(s, ",debug");
+	if (args->ar_de)
+		seq_puts(s, ",de");
 	if (args->ar_posix_acl)
 		seq_puts(s, ",acl");
 	if (args->ar_quota != GFS2_QUOTA_DEFAULT) {
@@ -1584,7 +1584,7 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 
 	if (test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
-		BUG_ON(!gfs2_glock_is_locked_by_me(ip->i_gl));
+		_ON(!gfs2_glock_is_locked_by_me(ip->i_gl));
 		gfs2_holder_mark_uninitialized(&gh);
 		goto alloc_failed;
 	}

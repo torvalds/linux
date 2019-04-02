@@ -1477,7 +1477,7 @@ static int at91_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static void at91_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	enum at91_mux mode;
@@ -1654,7 +1654,7 @@ void at91_pinctrl_gpio_suspend(void)
 		if (!wakeups[i])
 			clk_disable_unprepare(gpio_chips[i]->clock);
 		else
-			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n",
+			printk(KERN_DE "GPIO-%c may wake for %08x\n",
 			       'A'+i, wakeups[i]);
 	}
 }
@@ -1823,7 +1823,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	uint32_t ngpio;
 	char **names;
 
-	BUG_ON(alias_idx >= ARRAY_SIZE(gpio_chips));
+	_ON(alias_idx >= ARRAY_SIZE(gpio_chips));
 	if (gpio_chips[alias_idx]) {
 		ret = -EBUSY;
 		goto err;

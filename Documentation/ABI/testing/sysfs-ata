@@ -135,5 +135,5 @@ Description:
 		queued:                 Drive supports queued DSM TRIM
 
 		forced_unqueued:	Drive's queued DSM support is known to
-					be buggy and only unqueued TRIM commands
+					be gy and only unqueued TRIM commands
 					are sent

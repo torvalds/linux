@@ -144,9 +144,9 @@ static struct i2c_client *cmi_lcd_i2c_client;
 /* Chip/Rev Registers */
 #define IDREG			0x0580
 
-/* Debug Registers */
-#define DEBUG00			0x05A0
-#define DEBUG01			0x05A4
+/* De Registers */
+#define DE00			0x05A0
+#define DE01			0x05A4
 
 /* Panel CABC registers */
 #define PANEL_PWM_CONTROL	0x90
@@ -757,7 +757,7 @@ static int cmi_lcd_hack_create_device(void)
 		.addr = CMI_LCD_I2C_ADDR,
 	};
 
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	adapter = i2c_get_adapter(CMI_LCD_I2C_ADAPTER);
 	if (!adapter) {
@@ -820,7 +820,7 @@ void tc35876x_init(struct drm_device *dev)
 
 void tc35876x_exit(void)
 {
-	pr_debug("%s\n", __func__);
+	pr_de("%s\n", __func__);
 
 	i2c_del_driver(&tc35876x_bridge_i2c_driver);
 

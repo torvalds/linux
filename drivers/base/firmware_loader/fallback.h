@@ -14,7 +14,7 @@
  *
  * @force_sysfs_fallback: force the sysfs fallback mechanism to be used
  * 	as if one had enabled CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y.
- * 	Useful to help debug a CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y
+ * 	Useful to help de a CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y
  * 	functionality on a kernel where that config entry has been disabled.
  * @ignore_sysfs_fallback: force to disable the sysfs fallback mechanism.
  * 	This emulates the behaviour as if we had set the kernel

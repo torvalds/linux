@@ -549,8 +549,8 @@ static inline struct kvm_memslots *kvm_memslots_raw(struct kvm *kvm)
 	return rcu_dereference_raw_notrace(kvm->memslots[0]);
 }
 
-extern void kvmppc_mmu_debugfs_init(struct kvm *kvm);
-extern void kvmhv_radix_debugfs_init(struct kvm *kvm);
+extern void kvmppc_mmu_defs_init(struct kvm *kvm);
+extern void kvmhv_radix_defs_init(struct kvm *kvm);
 
 extern void kvmhv_rm_send_ipi(int cpu);
 

@@ -35,7 +35,7 @@ static void __init mx25_init_irq(void)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,avic");
 	avic_base = of_iomap(np, 0);
-	BUG_ON(!avic_base);
+	_ON(!avic_base);
 	mxc_init_irq(avic_base);
 }
 

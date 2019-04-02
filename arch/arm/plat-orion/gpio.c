@@ -8,7 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#define DEBUG
+#define DE
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -145,7 +145,7 @@ orion_gpio_is_valid(struct orion_gpio_chip *ochip, unsigned pin, int mode)
 	return 1;
 
 err_out:
-	pr_debug("%s: invalid GPIO %d\n", __func__, pin);
+	pr_de("%s: invalid GPIO %d\n", __func__, pin);
 	return false;
 }
 
@@ -434,7 +434,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/seq_file.h>
 
 static void orion_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)

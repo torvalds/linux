@@ -561,13 +561,13 @@ struct ena_admin_set_feature_host_attr_desc {
 	 */
 	struct ena_common_mem_addr os_info_ba;
 
-	/* host debug area base address in OS memory. debug area must be
+	/* host de area base address in OS memory. de area must be
 	 * physically contiguous
 	 */
-	struct ena_common_mem_addr debug_ba;
+	struct ena_common_mem_addr de_ba;
 
-	/* debug area size */
-	u32 debug_area_size;
+	/* de area size */
+	u32 de_area_size;
 };
 
 struct ena_admin_feature_intr_moder_desc {

@@ -100,7 +100,7 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 						  dev_name(&device->dev), event, 0);
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}

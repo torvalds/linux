@@ -553,7 +553,7 @@ static int __init sh7786_pcie_init(void)
 	sh7786_pcie_hwops = &sh7786_65nm_pcie_hwops;
 
 	nr_ports = sh7786_pcie_hwops->core_init();
-	BUG_ON(nr_ports > ARRAY_SIZE(sh7786_pci_channels));
+	_ON(nr_ports > ARRAY_SIZE(sh7786_pci_channels));
 
 	if (unlikely(nr_ports == 0))
 		return -ENODEV;

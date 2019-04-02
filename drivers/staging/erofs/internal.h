@@ -30,16 +30,16 @@
 
 #define errln(x, ...)   pr_err(x "\n", ##__VA_ARGS__)
 #define infoln(x, ...)  pr_info(x "\n", ##__VA_ARGS__)
-#ifdef CONFIG_EROFS_FS_DEBUG
-#define debugln(x, ...) pr_debug(x "\n", ##__VA_ARGS__)
+#ifdef CONFIG_EROFS_FS_DE
+#define deln(x, ...) pr_de(x "\n", ##__VA_ARGS__)
 
 #define dbg_might_sleep         might_sleep
-#define DBG_BUGON               BUG_ON
+#define DBG_ON               _ON
 #else
-#define debugln(x, ...)         ((void)0)
+#define deln(x, ...)         ((void)0)
 
 #define dbg_might_sleep()       ((void)0)
-#define DBG_BUGON(x)            ((void)(x))
+#define DBG_ON(x)            ((void)(x))
 #endif
 
 enum {
@@ -247,7 +247,7 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 	int v = atomic_read(&grp->refcount);
 
 	/* workgroup is never freezed on uniprocessor systems */
-	DBG_BUGON(v == EROFS_LOCKED_MAGIC);
+	DBG_ON(v == EROFS_LOCKED_MAGIC);
 	return v;
 }
 #endif
@@ -470,7 +470,7 @@ erofs_grab_bio(struct super_block *sb,
 		if (nr_pages == 1) {
 			bio = bio_alloc(gfp | (nofail ? __GFP_NOFAIL : 0), 1);
 			if (unlikely(bio == NULL)) {
-				DBG_BUGON(nofail);
+				DBG_ON(nofail);
 				return ERR_PTR(-ENOMEM);
 			}
 			break;

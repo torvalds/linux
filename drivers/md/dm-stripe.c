@@ -291,7 +291,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
-		BUG_ON(target_bio_nr >= sc->stripes);
+		_ON(target_bio_nr >= sc->stripes);
 		bio_set_dev(bio, sc->stripe[target_bio_nr].dev->bdev);
 		return DM_MAPIO_REMAPPED;
 	}
@@ -300,7 +300,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
 	    unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES) ||
 	    unlikely(bio_op(bio) == REQ_OP_WRITE_SAME)) {
 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
-		BUG_ON(target_bio_nr >= sc->stripes);
+		_ON(target_bio_nr >= sc->stripes);
 		return stripe_map_range(sc, bio, target_bio_nr);
 	}
 

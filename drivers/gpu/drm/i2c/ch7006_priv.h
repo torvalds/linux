@@ -103,7 +103,7 @@ struct ch7006_priv {
 #define to_ch7006_priv(x) \
 	((struct ch7006_priv *)to_encoder_slave(x)->slave_priv)
 
-extern int ch7006_debug;
+extern int ch7006_de;
 extern char *ch7006_tv_norm;
 extern int ch7006_scale;
 
@@ -131,8 +131,8 @@ void ch7006_state_save(struct i2c_client *client,
 /* Some helper macros */
 
 #define ch7006_dbg(client, format, ...) do {				\
-		if (ch7006_debug)					\
-			dev_printk(KERN_DEBUG, &client->dev,		\
+		if (ch7006_de)					\
+			dev_printk(KERN_DE, &client->dev,		\
 				   "%s: " format, __func__, ## __VA_ARGS__); \
 	} while (0)
 #define ch7006_info(client, format, ...) \

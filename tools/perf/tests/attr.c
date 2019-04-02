@@ -19,7 +19,7 @@
  * permissions. All the event text files are stored there.
  */
 
-#include <debug.h>
+#include <de.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>

@@ -3,13 +3,13 @@
  *                   Creative Labs, Inc.
  *  Routines for control of EMU10K1 chips
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.co.uk>
  *      Added support for Audigy 2 Value.
  *  	Added EMU 1010 support.
- *  	General bug fixes and enhancements.
+ *  	General  fixes and enhancements.
  *
  *
- *  BUGS:
+ *  S:
  *    --
  *
  *  TODO:
@@ -1316,7 +1316,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1},
 	/* Audigy4 (Not PRO) SB0610 */
-	/* Tested by James@superbug.co.uk 4th April 2006 */
+	/* Tested by James@super.co.uk 4th April 2006 */
 	/* A_IOCFG bits
 	 * Output
 	 * 0: ?
@@ -1364,7 +1364,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet.
 	 * Need to find out how to turn off interpolators.
 	 */
-	/* Tested by James@superbug.co.uk 3rd July 2005 */
+	/* Tested by James@super.co.uk 3rd July 2005 */
 	/* DSP: CA0108-IAT
 	 * DAC: CS4382-KQ
 	 * ADC: Philips 1361T
@@ -1379,7 +1379,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .ac97_chip = 1} ,
 	/* Audigy 2 ZS Notebook Cardbus card.*/
-	/* Tested by James@superbug.co.uk 6th November 2006 */
+	/* Tested by James@super.co.uk 6th November 2006 */
 	/* Audio output 7.1/Headphones working.
 	 * Digital output working. (AC3 not checked, only PCM)
 	 * Audio Mic/Line inputs working.
@@ -1391,7 +1391,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 * AC97: None
 	 * CA0151: None
 	 */
-	/* Tested by James@superbug.co.uk 4th April 2006 */
+	/* Tested by James@super.co.uk 4th April 2006 */
 	/* A_IOCFG bits
 	 * Output
 	 * 0: Not Used
@@ -1419,7 +1419,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .spi_dac = 1,
 	 .i2c_adc = 1,
 	 .spk71 = 1} ,
-	/* Tested by James@superbug.co.uk 4th Nov 2007. */
+	/* Tested by James@super.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]",
 	 .id = "EMU1010",
@@ -1428,7 +1428,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca_cardbus_chip = 1,
 	 .spk71 = 1 ,
 	 .emu_model = EMU_MODEL_EMU1616},
-	/* Tested by James@superbug.co.uk 4th Nov 2007. */
+	/* Tested by James@super.co.uk 4th Nov 2007. */
 	/* This is MAEM8960, 0202 is MAEM 8980 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
 	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM8960]",
@@ -1437,7 +1437,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 new revision */
-	/* Tested by Maxim Kachur <mcdebugger@duganet.ru> 17th Oct 2012. */
+	/* Tested by Maxim Kachur <mcdeger@duganet.ru> 17th Oct 2012. */
 	/* This is MAEM8986, 0202 is MAEM8980 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
 	 .driver = "Audigy2", .name = "E-mu 1010 PCIe [MAEM8986]",
@@ -1446,7 +1446,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 PCIe */
-	/* Tested by James@superbug.co.uk 8th July 2005. */
+	/* Tested by James@super.co.uk 8th July 2005. */
 	/* This is MAEM8810, 0202 is MAEM8820 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 [MAEM8810]",
@@ -1463,7 +1463,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 new revision */
-	/* Tested by James@superbug.co.uk 20-3-2007. */
+	/* Tested by James@super.co.uk 20-3-2007. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40021102,
 	 .driver = "Audigy2", .name = "E-mu 0404 [MAEM8850]",
 	 .id = "EMU0404",
@@ -1486,7 +1486,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .ac97_chip = 1} ,
-	/* Tested by James@superbug.co.uk 3rd July 2005 */
+	/* Tested by James@super.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20071102,
 	 .driver = "Audigy2", .name = "SB Audigy 4 PRO [SB0380]",
 	 .id = "Audigy2",
@@ -1494,7 +1494,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .ac97_chip = 1} ,
 	/* Tested by shane-alsa@cm.nu 5th Nov 2005 */
 	/* The 0x20061102 does have SB0350 written on it
@@ -1507,7 +1507,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	/* 0x20051102 also has SB0350 written on it, treated as Audigy 2 ZS by
@@ -1519,7 +1519,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20021102,
@@ -1529,7 +1529,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20011102,
@@ -1539,11 +1539,11 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	/* Audigy 2 */
-	/* Tested by James@superbug.co.uk 3rd July 2005 */
+	/* Tested by James@super.co.uk 3rd July 2005 */
 	/* DSP: CA0102-IAT
 	 * DAC: CS4382-KQ
 	 * ADC: Philips 1361T
@@ -1557,7 +1557,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10051102,
@@ -1567,9 +1567,9 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1} ,
+	 .spdif_ = 1} ,
 	/* Dell OEM/Creative Labs Audigy 2 ZS */
-	/* See ALSA bug#1365 */
+	/* See ALSA #1365 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10031102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 ZS [SB0353]",
 	 .id = "Audigy2",
@@ -1577,7 +1577,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x10021102,
@@ -1587,9 +1587,9 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
-	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit. Fixes ALSA bug#324 */
+	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit. Fixes ALSA #324 */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .revision = 0x04,
 	 .driver = "Audigy2", .name = "SB Audigy 2 [Unknown]",
@@ -1597,7 +1597,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .ca0151_chip = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x00531102,
 	 .driver = "Audigy", .name = "SB Audigy 1 [SB0092]",
@@ -1610,7 +1610,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .id = "Audigy",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
-	 .spdif_bug = 1,
+	 .spdif_ = 1,
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x00511102,
 	 .driver = "Audigy", .name = "SB Audigy 1 [SB0090]",
@@ -1648,7 +1648,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
-	/* Tested by ALSA bug#1680 26th December 2005 */
+	/* Tested by ALSA #1680 26th December 2005 */
 	/* note: It really has SB0220 written on the card, */
 	/* but it's SB0228 according to kx.inf */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80661102,
@@ -1670,7 +1670,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
-	/* Tested by alsa bugtrack user "hus" bug #1297 12th Aug 2005 */
+	/* Tested by alsa track user "hus"  #1297 12th Aug 2005 */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80611102,
 	 .driver = "EMU10K1", .name = "SB Live! 5.1 [SB0060]",
 	 .id = "Live",
@@ -1708,7 +1708,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
-	/* Tested by James@superbug.co.uk 3rd July 2005 */
+	/* Tested by James@super.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80271102,
 	 .driver = "EMU10K1", .name = "SB Live! Value [CT4832]",
 	 .id = "Live",

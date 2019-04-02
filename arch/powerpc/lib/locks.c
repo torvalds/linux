@@ -30,7 +30,7 @@ void __spin_yield(arch_spinlock_t *lock)
 	if (lock_value == 0)
 		return;
 	holder_cpu = lock_value & 0xffff;
-	BUG_ON(holder_cpu >= NR_CPUS);
+	_ON(holder_cpu >= NR_CPUS);
 	yield_count = be32_to_cpu(lppaca_of(holder_cpu).yield_count);
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */
@@ -56,7 +56,7 @@ void __rw_yield(arch_rwlock_t *rw)
 	if (lock_value >= 0)
 		return;		/* no write lock at present */
 	holder_cpu = lock_value & 0xffff;
-	BUG_ON(holder_cpu >= NR_CPUS);
+	_ON(holder_cpu >= NR_CPUS);
 	yield_count = be32_to_cpu(lppaca_of(holder_cpu).yield_count);
 	if ((yield_count & 1) == 0)
 		return;		/* virtual cpu is currently running */

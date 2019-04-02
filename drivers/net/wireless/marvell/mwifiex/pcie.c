@@ -235,7 +235,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 	struct pcie_service_card *card;
 	int ret;
 
-	pr_debug("info: vendor=0x%4.04X device=0x%4.04X rev=%d\n",
+	pr_de("info: vendor=0x%4.04X device=0x%4.04X rev=%d\n",
 		 pdev->vendor, pdev->device, pdev->revision);
 
 	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);

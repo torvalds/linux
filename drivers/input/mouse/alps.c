@@ -1693,7 +1693,7 @@ static int alps_command_mode_send_nibble(struct psmouse *psmouse, int nibble)
 	unsigned char *param;
 	unsigned char dummy[4];
 
-	BUG_ON(nibble > 0xf);
+	_ON(nibble > 0xf);
 
 	command = priv->nibble_commands[nibble].command;
 	param = (command & 0x0f00) ?

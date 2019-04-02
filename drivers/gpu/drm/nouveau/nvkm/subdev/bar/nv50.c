@@ -135,7 +135,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 		return ret;
 
 	atomic_inc(&bar->bar2_vmm->engref[NVKM_SUBDEV_BAR]);
-	bar->bar2_vmm->debug = bar->base.subdev.debug;
+	bar->bar2_vmm->de = bar->base.subdev.de;
 
 	ret = nvkm_vmm_boot(bar->bar2_vmm);
 	if (ret)
@@ -170,7 +170,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 			   &bar1_lock, "bar1", &bar->bar1_vmm);
 
 	atomic_inc(&bar->bar1_vmm->engref[NVKM_SUBDEV_BAR]);
-	bar->bar1_vmm->debug = bar->base.subdev.debug;
+	bar->bar1_vmm->de = bar->base.subdev.de;
 
 	ret = nvkm_vmm_join(bar->bar1_vmm, bar->mem->memory);
 	if (ret)

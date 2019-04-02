@@ -105,7 +105,7 @@ static void cs5530_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		case XFER_MW_DMA_2:
 			timing  = 0x00002020;break;
 		default:
-			BUG();
+			();
 	}
 	/* Merge in the PIO format bit */
 	timing |= (tuning & 0x80000000UL);

@@ -446,7 +446,7 @@ static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_DEBUG "radeonfb (%s): Invalid ROM signature %x "
+		printk(KERN_DE "radeonfb (%s): Invalid ROM signature %x "
 			"should be 0xaa55\n",
 			pci_name(rinfo->pdev), BIOS_IN16(0));
 		goto failed;
@@ -1124,7 +1124,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 			if (mode_switch || blank == FB_BLANK_NORMAL)
 				break;
 
-			/* Asic bug, when turning off LVDS_ON, we have to make sure
+			/* Asic , when turning off LVDS_ON, we have to make sure
 			 * RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
 			 */
 			tmp_pix_clks = INPLL(PIXCLKS_CNTL);
@@ -1372,7 +1372,7 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 		    (mode->ppll_div_3 == (INPLL(PPLL_DIV_3) &
 					  (PPLL_POST3_DIV_MASK | PPLL_FB3_DIV_MASK)))) {
 			/* We still have to force a switch to selected PPLL div thanks to
-			 * an XFree86 driver bug which will switch it away in some cases
+			 * an XFree86 driver  which will switch it away in some cases
 			 * even when using UseFDev */
 			OUTREGP(CLOCK_CNTL_INDEX,
 				mode->clk_cntl_index & PPLL_DIV_SEL_MASK,
@@ -1599,7 +1599,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		freq = rinfo->pll.ppll_max;
 	if (freq*12 < rinfo->pll.ppll_min)
 		freq = rinfo->pll.ppll_min / 12;
-	pr_debug("freq = %lu, PLL min = %u, PLL max = %u\n",
+	pr_de("freq = %lu, PLL min = %u, PLL max = %u\n",
 	       freq, rinfo->pll.ppll_min, rinfo->pll.ppll_max);
 
 	for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
@@ -1620,7 +1620,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		post_div = &post_divs[post_div->bitvalue];
 		pll_output_freq = post_div->divider * freq;
 	}
-	pr_debug("ref_div = %d, ref_clk = %d, output_freq = %d\n",
+	pr_de("ref_div = %d, ref_clk = %d, output_freq = %d\n",
 	       rinfo->pll.ref_div, rinfo->pll.ref_clk,
 	       pll_output_freq);
 
@@ -1630,7 +1630,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		post_div = &post_divs[post_div->bitvalue];
 		pll_output_freq = post_div->divider * freq;
 	}
-	pr_debug("ref_div = %d, ref_clk = %d, output_freq = %d\n",
+	pr_de("ref_div = %d, ref_clk = %d, output_freq = %d\n",
 	       rinfo->pll.ref_div, rinfo->pll.ref_clk,
 	       pll_output_freq);
 
@@ -1639,9 +1639,9 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 	regs->ppll_ref_div = rinfo->pll.ref_div;
 	regs->ppll_div_3 = fb_div | (post_div->bitvalue << 16);
 
-	pr_debug("post div = 0x%x\n", post_div->bitvalue);
-	pr_debug("fb_div = 0x%x\n", fb_div);
-	pr_debug("ppll_div_3 = 0x%x\n", regs->ppll_div_3);
+	pr_de("post div = 0x%x\n", post_div->bitvalue);
+	pr_de("fb_div = 0x%x\n", fb_div);
+	pr_de("ppll_div_3 = 0x%x\n", regs->ppll_div_3);
 }
 
 static int radeonfb_set_par(struct fb_info *info)
@@ -1713,9 +1713,9 @@ static int radeonfb_set_par(struct fb_info *info)
 	dotClock = 1000000000 / pixClock;
 	freq = dotClock / 10; /* x100 */
 
-	pr_debug("hStart = %d, hEnd = %d, hTotal = %d\n",
+	pr_de("hStart = %d, hEnd = %d, hTotal = %d\n",
 		hSyncStart, hSyncEnd, hTotal);
-	pr_debug("vStart = %d, vEnd = %d, vTotal = %d\n",
+	pr_de("vStart = %d, vEnd = %d, vTotal = %d\n",
 		vSyncStart, vSyncEnd, vTotal);
 
 	hsync_wid = (hSyncEnd - hSyncStart) / 8;
@@ -1824,16 +1824,16 @@ static int radeonfb_set_par(struct fb_info *info)
 		newmode->surf_info[i] = 0;
 	}
 
-	pr_debug("h_total_disp = 0x%x\t   hsync_strt_wid = 0x%x\n",
+	pr_de("h_total_disp = 0x%x\t   hsync_strt_wid = 0x%x\n",
 		newmode->crtc_h_total_disp, newmode->crtc_h_sync_strt_wid);
-	pr_debug("v_total_disp = 0x%x\t   vsync_strt_wid = 0x%x\n",
+	pr_de("v_total_disp = 0x%x\t   vsync_strt_wid = 0x%x\n",
 		newmode->crtc_v_total_disp, newmode->crtc_v_sync_strt_wid);
 
 	rinfo->bpp = mode->bits_per_pixel;
 	rinfo->depth = depth;
 
-	pr_debug("pixclock = %lu\n", (unsigned long)pixClock);
-	pr_debug("freq = %lu\n", (unsigned long)freq);
+	pr_de("pixclock = %lu\n", (unsigned long)pixClock);
+	pr_de("freq = %lu\n", (unsigned long)freq);
 
 	/* We use PPLL_DIV_3 */
 	newmode->clk_cntl_index = 0x300;
@@ -1955,7 +1955,7 @@ static int radeonfb_set_par(struct fb_info *info)
 		: FB_VISUAL_DIRECTCOLOR;
 
 #ifdef CONFIG_BOOTX_TEXT
-	/* Update debug text engine */
+	/* Update de text engine */
 	btext_update_display(rinfo->fb_base_phys, mode->xres, mode->yres,
 			     rinfo->depth, info->fix.line_length);
 #endif
@@ -2097,7 +2097,7 @@ static void fixup_memory_mappings(struct radeonfb_info *rinfo)
 	if (rinfo->has_CRTC2)
 		OUTREG(CRTC2_GEN_CNTL, save_crtc2_gen_cntl);	
 
-	pr_debug("aper_base: %08x MC_FB_LOC to: %08x, MC_AGP_LOC to: %08x\n",
+	pr_de("aper_base: %08x MC_FB_LOC to: %08x, MC_AGP_LOC to: %08x\n",
 		aper_base,
 		((aper_base + aper_size - 1) & 0xffff0000) | (aper_base >> 16),
 		0xffff0000 | (agp_base >> 16));
@@ -2130,7 +2130,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 
           if ((rinfo->family == CHIP_FAMILY_RS100) ||
               (rinfo->family == CHIP_FAMILY_RS200)) {
-             /* This is to workaround the asic bug for RMX, some versions
+             /* This is to workaround the asic  for RMX, some versions
                 of BIOS doesn't have this register initialized correctly.
              */
              OUTREGP(CRTC_MORE_CNTL, CRTC_H_CUTOFF_ACTIVE_EN,
@@ -2195,7 +2195,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 	 * ToDo: identify these cases
 	 */
 
-	pr_debug("radeonfb (%s): Found %ldk of %s %d bits wide videoram\n",
+	pr_de("radeonfb (%s): Found %ldk of %s %d bits wide videoram\n",
 	       pci_name(rinfo->pdev),
 	       rinfo->video_ram / 1024,
 	       rinfo->vram_ddr ? "DDR" : "SDRAM",
@@ -2282,7 +2282,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	unsigned char c1, c2;
 	int err = 0;
 
-	pr_debug("radeonfb_pci_register BEGIN\n");
+	pr_de("radeonfb_pci_register BEGIN\n");
 	
 	/* Enable device in PCI config */
 	ret = pci_enable_device(pdev);
@@ -2409,7 +2409,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		goto err_unmap_rom;
 	}
 
-	pr_debug("radeonfb (%s): mapped %ldk videoram\n", pci_name(rinfo->pdev),
+	pr_de("radeonfb (%s): mapped %ldk videoram\n", pci_name(rinfo->pdev),
 	       rinfo->mapped_vram/1024);
 
 	/*
@@ -2507,7 +2507,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 
 	if (rinfo->bios_seg)
 		radeon_unmap_ROM(rinfo, pdev);
-	pr_debug("radeonfb_pci_register END\n");
+	pr_de("radeonfb_pci_register END\n");
 
 	return 0;
 err_unmap_fb:
@@ -2679,7 +2679,7 @@ MODULE_PARM_DESC(ignore_edid, "bool: Ignore EDID data when doing DDC probe");
 module_param(monitor_layout, charp, 0);
 MODULE_PARM_DESC(monitor_layout, "Specify monitor mapping (like XFree86)");
 module_param(force_measure_pll, bool, 0);
-MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (debug)");
+MODULE_PARM_DESC(force_measure_pll, "Force measurement of PLL (de)");
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "bool: disable use of MTRR registers");
 module_param(panel_yres, int, 0);
@@ -2690,5 +2690,5 @@ MODULE_PARM_DESC(mode_option, "Specify resolution as \"<xres>x<yres>[-<bpp>][@<r
 module_param(force_sleep, bool, 0);
 MODULE_PARM_DESC(force_sleep, "bool: force D2 sleep mode on all hardware");
 module_param(ignore_devlist, bool, 0);
-MODULE_PARM_DESC(ignore_devlist, "bool: ignore workarounds for bugs in specific laptops");
+MODULE_PARM_DESC(ignore_devlist, "bool: ignore workarounds for s in specific laptops");
 #endif

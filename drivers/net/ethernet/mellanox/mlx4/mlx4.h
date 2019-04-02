@@ -208,16 +208,16 @@ struct mlx4_cmd_info {
 		       struct mlx4_cmd_info *cmd);
 };
 
-#ifdef CONFIG_MLX4_DEBUG
-extern int mlx4_debug_level;
-#else /* CONFIG_MLX4_DEBUG */
-#define mlx4_debug_level	(0)
-#endif /* CONFIG_MLX4_DEBUG */
+#ifdef CONFIG_MLX4_DE
+extern int mlx4_de_level;
+#else /* CONFIG_MLX4_DE */
+#define mlx4_de_level	(0)
+#endif /* CONFIG_MLX4_DE */
 
 #define mlx4_dbg(mdev, format, ...)					\
 do {									\
-	if (mlx4_debug_level)						\
-		dev_printk(KERN_DEBUG,					\
+	if (mlx4_de_level)						\
+		dev_printk(KERN_DE,					\
 			   &(mdev)->persist->pdev->dev, format,		\
 			   ##__VA_ARGS__);				\
 } while (0)

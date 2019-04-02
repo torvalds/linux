@@ -274,7 +274,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 			break;
 	}
 
-	nvkm_debug(subdev, "setting performance state %d\n", pstatei);
+	nvkm_de(subdev, "setting performance state %d\n", pstatei);
 	clk->pstate = pstatei;
 
 	nvkm_pcie_set_link(pci, pstate->pcie_speed, pstate->pcie_width);
@@ -359,12 +359,12 @@ nvkm_pstate_info(struct nvkm_clk *clk, struct nvkm_pstate *pstate)
 		if (hi == 0)
 			continue;
 
-		nvkm_debug(subdev, "%02x: %10d KHz\n", clock->name, lo);
+		nvkm_de(subdev, "%02x: %10d KHz\n", clock->name, lo);
 		list_for_each_entry(cstate, &pstate->list, head) {
 			u32 freq = cstate->domain[clock->name];
 			lo = min(lo, freq);
 			hi = max(hi, freq);
-			nvkm_debug(subdev, "%10d KHz\n", freq);
+			nvkm_de(subdev, "%10d KHz\n", freq);
 		}
 
 		if (clock->mname && ++i < ARRAY_SIZE(info)) {
@@ -380,7 +380,7 @@ nvkm_pstate_info(struct nvkm_clk *clk, struct nvkm_pstate *pstate)
 		}
 	}
 
-	nvkm_debug(subdev, "%s: %s %s %s\n", name, info[0], info[1], info[2]);
+	nvkm_de(subdev, "%s: %s %s %s\n", name, info[0], info[1], info[2]);
 }
 
 static void

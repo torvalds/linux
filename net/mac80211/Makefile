@@ -35,11 +35,11 @@ mac80211-y := \
 	ocb.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
-mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
-	debugfs.o \
-	debugfs_sta.o \
-	debugfs_netdev.o \
-	debugfs_key.o
+mac80211-$(CONFIG_MAC80211_DEFS) += \
+	defs.o \
+	defs_sta.o \
+	defs_netdev.o \
+	defs_key.o
 
 mac80211-$(CONFIG_MAC80211_MESH) += \
 	mesh.o \
@@ -57,10 +57,10 @@ rc80211_minstrel-y := \
 	rc80211_minstrel.o \
 	rc80211_minstrel_ht.o
 
-rc80211_minstrel-$(CONFIG_MAC80211_DEBUGFS) += \
-	rc80211_minstrel_debugfs.o \
-	rc80211_minstrel_ht_debugfs.o
+rc80211_minstrel-$(CONFIG_MAC80211_DEFS) += \
+	rc80211_minstrel_defs.o \
+	rc80211_minstrel_ht_defs.o
 
 mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
 
-ccflags-y += -DDEBUG
+ccflags-y += -DDE

@@ -30,7 +30,7 @@
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
 #include <linux/extable.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/slab.h>
 #include <asm/code-patching.h>
 #include <asm/cacheflush.h>
@@ -247,7 +247,7 @@ static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 * good to catch them, just in case...
 		 */
 		printk("Can't step on instruction %x\n", insn);
-		BUG();
+		();
 	} else {
 		/*
 		 * If we haven't previously emulated this instruction, then it
@@ -346,7 +346,7 @@ int kprobe_handler(struct pt_regs *regs)
 			/*
 			 * The breakpoint instruction was removed right
 			 * after we hit it.  Another cpu has removed
-			 * either a probepoint or a debugger breakpoint
+			 * either a probepoint or a deger breakpoint
 			 * at this address.  In either case, no further
 			 * handling of this interrupt is appropriate.
 			 */
@@ -520,7 +520,7 @@ out:
 	/*
 	 * if somebody else is singlestepping across a probe point, msr
 	 * will have DE/SE set, in which case, continue the remaining processing
-	 * of do_debug, as if this is not a probe hit.
+	 * of do_de, as if this is not a probe hit.
 	 */
 	if (regs->msr & MSR_SINGLESTEP)
 		return 0;

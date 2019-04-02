@@ -42,7 +42,7 @@ struct sync_file {
 	 * entire array is 0).
 	 */
 	char			user_name[32];
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct list_head	sync_file_list;
 #endif
 

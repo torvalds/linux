@@ -25,7 +25,7 @@
 
 
 /* Define the following to 1 to enable a printk on each coreswitch. */
-#define SSB_VERBOSE_PCICORESWITCH_DEBUG		0
+#define SSB_VERBOSE_PCICORESWITCH_DE		0
 
 
 /* Lowlevel coreswitching */
@@ -66,7 +66,7 @@ int ssb_pci_switch_core(struct ssb_bus *bus,
 	int err;
 	unsigned long flags;
 
-#if SSB_VERBOSE_PCICORESWITCH_DEBUG
+#if SSB_VERBOSE_PCICORESWITCH_DE
 	pr_info("Switching to %s core, index %d\n",
 		ssb_core_name(dev->id.coreid), dev->core_index);
 #endif
@@ -476,7 +476,7 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	u16 il0mac_offset;
 	int i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(pwr_info_offset) !=
+	BUILD__ON(ARRAY_SIZE(pwr_info_offset) !=
 		     ARRAY_SIZE(out->core_pwr_info));
 
 	if (out->revision == 4)
@@ -600,7 +600,7 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
 		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
 	};
-	BUILD_BUG_ON(ARRAY_SIZE(pwr_info_offset) !=
+	BUILD__ON(ARRAY_SIZE(pwr_info_offset) !=
 			ARRAY_SIZE(out->core_pwr_info));
 
 	/* extract the MAC address */
@@ -815,7 +815,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 	memset(out, 0, sizeof(*out));
 
 	out->revision = in[size - 1] & 0x00FF;
-	pr_debug("SPROM revision %d detected\n", out->revision);
+	pr_de("SPROM revision %d detected\n", out->revision);
 	memset(out->et0mac, 0xFF, 6);		/* preset et0 and et1 mac */
 	memset(out->et1mac, 0xFF, 6);
 
@@ -824,7 +824,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 		 * number stored in the SPROM.
 		 * Always extract r1. */
 		out->revision = 1;
-		pr_debug("SPROM treated as revision %d\n", out->revision);
+		pr_de("SPROM treated as revision %d\n", out->revision);
 	}
 
 	switch (out->revision) {
@@ -881,7 +881,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	} else {
 		bus->sprom_offset = SSB_SPROM_BASE1;
 	}
-	pr_debug("SPROM offset is 0x%x\n", bus->sprom_offset);
+	pr_de("SPROM offset is 0x%x\n", bus->sprom_offset);
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
@@ -910,7 +910,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 					err);
 				goto out_free;
 			} else {
-				pr_debug("Using SPROM revision %d provided by platform\n",
+				pr_de("Using SPROM revision %d provided by platform\n",
 					 sprom->revision);
 				err = 0;
 				goto out_free;

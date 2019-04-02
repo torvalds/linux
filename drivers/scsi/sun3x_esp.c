@@ -22,7 +22,7 @@
 #define DMA_CSR		0x00UL	/* rw  DMA control/status register    0x00   */
 #define DMA_ADDR        0x04UL	/* rw  DMA transfer address register  0x04   */
 #define DMA_COUNT       0x08UL	/* rw  DMA transfer count register    0x08   */
-#define DMA_TEST        0x0cUL	/* rw  DMA test/debug register        0x0c   */
+#define DMA_TEST        0x0cUL	/* rw  DMA test/de register        0x0c   */
 
 #include <scsi/scsi_host.h>
 
@@ -129,7 +129,7 @@ static void sun3x_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 {
 	u32 csr;
 
-	BUG_ON(!(cmd & ESP_CMD_DMA));
+	_ON(!(cmd & ESP_CMD_DMA));
 
 	sun3x_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	sun3x_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);

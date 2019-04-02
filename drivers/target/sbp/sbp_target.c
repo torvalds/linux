@@ -469,7 +469,7 @@ already_logged_in:
 		sbp2_pointer_to_addr(&req->orb.ptr2), response,
 		login_response_len);
 	if (ret != RCODE_COMPLETE) {
-		pr_debug("failed to write login response block: %x\n", ret);
+		pr_de("failed to write login response block: %x\n", ret);
 
 		kfree(response);
 		sbp_login_release(login, true);
@@ -685,7 +685,7 @@ static int tgt_agent_rw_agent_state(struct fw_card *card, int tcode, void *data,
 
 	switch (tcode) {
 	case TCODE_READ_QUADLET_REQUEST:
-		pr_debug("tgt_agent AGENT_STATE READ\n");
+		pr_de("tgt_agent AGENT_STATE READ\n");
 
 		spin_lock_bh(&agent->lock);
 		state = agent->state;
@@ -709,7 +709,7 @@ static int tgt_agent_rw_agent_reset(struct fw_card *card, int tcode, void *data,
 {
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
-		pr_debug("tgt_agent AGENT_RESET\n");
+		pr_de("tgt_agent AGENT_RESET\n");
 		spin_lock_bh(&agent->lock);
 		agent->state = AGENT_STATE_RESET;
 		spin_unlock_bh(&agent->lock);
@@ -740,7 +740,7 @@ static int tgt_agent_rw_orb_pointer(struct fw_card *card, int tcode, void *data,
 		agent->orb_pointer = sbp2_pointer_to_addr(ptr);
 		agent->doorbell = false;
 
-		pr_debug("tgt_agent ORB_POINTER write: 0x%llx\n",
+		pr_de("tgt_agent ORB_POINTER write: 0x%llx\n",
 				agent->orb_pointer);
 
 		queue_work(system_unbound_wq, &agent->work);
@@ -748,7 +748,7 @@ static int tgt_agent_rw_orb_pointer(struct fw_card *card, int tcode, void *data,
 		return RCODE_COMPLETE;
 
 	case TCODE_READ_BLOCK_REQUEST:
-		pr_debug("tgt_agent ORB_POINTER READ\n");
+		pr_de("tgt_agent ORB_POINTER READ\n");
 		spin_lock_bh(&agent->lock);
 		addr_to_sbp2_pointer(agent->orb_pointer, ptr);
 		spin_unlock_bh(&agent->lock);
@@ -767,7 +767,7 @@ static int tgt_agent_rw_doorbell(struct fw_card *card, int tcode, void *data,
 		spin_lock_bh(&agent->lock);
 		if (agent->state != AGENT_STATE_SUSPENDED) {
 			spin_unlock_bh(&agent->lock);
-			pr_debug("Ignoring DOORBELL while active.\n");
+			pr_de("Ignoring DOORBELL while active.\n");
 			return RCODE_CONFLICT_ERROR;
 		}
 		agent->state = AGENT_STATE_ACTIVE;
@@ -775,7 +775,7 @@ static int tgt_agent_rw_doorbell(struct fw_card *card, int tcode, void *data,
 
 		agent->doorbell = true;
 
-		pr_debug("tgt_agent DOORBELL\n");
+		pr_de("tgt_agent DOORBELL\n");
 
 		queue_work(system_unbound_wq, &agent->work);
 
@@ -794,7 +794,7 @@ static int tgt_agent_rw_unsolicited_status_enable(struct fw_card *card,
 {
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
-		pr_debug("tgt_agent UNSOLICITED_STATUS_ENABLE\n");
+		pr_de("tgt_agent UNSOLICITED_STATUS_ENABLE\n");
 		/* ignored as we don't send unsolicited status */
 		return RCODE_COMPLETE;
 
@@ -869,14 +869,14 @@ static void tgt_agent_process_work(struct work_struct *work)
 	struct sbp_target_request *req =
 		container_of(work, struct sbp_target_request, work);
 
-	pr_debug("tgt_orb ptr:0x%llx next_ORB:0x%llx data_descriptor:0x%llx misc:0x%x\n",
+	pr_de("tgt_orb ptr:0x%llx next_ORB:0x%llx data_descriptor:0x%llx misc:0x%x\n",
 			req->orb_pointer,
 			sbp2_pointer_to_addr(&req->orb.next_orb),
 			sbp2_pointer_to_addr(&req->orb.data_descriptor),
 			be32_to_cpu(req->orb.misc));
 
 	if (req->orb_pointer >> 32)
-		pr_debug("ORB with high bits set\n");
+		pr_de("ORB with high bits set\n");
 
 	switch (ORB_REQUEST_FORMAT(be32_to_cpu(req->orb.misc))) {
 		case 0:/* Format specified by this standard */
@@ -904,7 +904,7 @@ static void tgt_agent_process_work(struct work_struct *work)
 			sbp_send_status(req);
 			return;
 		default:
-			BUG();
+			();
 	}
 }
 
@@ -972,7 +972,7 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 				sess->node_id, sess->generation, sess->speed,
 				req->orb_pointer, &req->orb, sizeof(req->orb));
 		if (ret != RCODE_COMPLETE) {
-			pr_debug("tgt_orb fetch failed: %x\n", ret);
+			pr_de("tgt_orb fetch failed: %x\n", ret);
 			req->status.status |= cpu_to_be32(
 					STATUS_BLOCK_SRC(
 						STATUS_SRC_ORB_FINISHED) |
@@ -1133,7 +1133,7 @@ static int sbp_fetch_command(struct sbp_target_request *req)
 		min_t(int, cmd_len, sizeof(req->orb.command_block)));
 
 	if (cmd_len > sizeof(req->orb.command_block)) {
-		pr_debug("sbp_fetch_command: filling in long command\n");
+		pr_de("sbp_fetch_command: filling in long command\n");
 		copy_len = cmd_len - sizeof(req->orb.command_block);
 
 		ret = sbp_run_request_transaction(req,
@@ -1212,13 +1212,13 @@ static void sbp_handle_command(struct sbp_target_request *req)
 
 	ret = sbp_fetch_command(req);
 	if (ret) {
-		pr_debug("sbp_handle_command: fetch command failed: %d\n", ret);
+		pr_de("sbp_handle_command: fetch command failed: %d\n", ret);
 		goto err;
 	}
 
 	ret = sbp_fetch_page_table(req);
 	if (ret) {
-		pr_debug("sbp_handle_command: fetch page table failed: %d\n",
+		pr_de("sbp_handle_command: fetch page table failed: %d\n",
 			ret);
 		goto err;
 	}
@@ -1226,7 +1226,7 @@ static void sbp_handle_command(struct sbp_target_request *req)
 	unpacked_lun = req->login->login_lun;
 	sbp_calc_data_length_direction(req, &data_length, &data_dir);
 
-	pr_debug("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
+	pr_de("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
 			req->orb_pointer, unpacked_lun, data_length, data_dir);
 
 	/* only used for printk until we do TMRs */
@@ -1351,12 +1351,12 @@ static int sbp_send_status(struct sbp_target_request *req)
 	rc = sbp_run_request_transaction(req, TCODE_WRITE_BLOCK_REQUEST,
 			login->status_fifo_addr, &req->status, length);
 	if (rc != RCODE_COMPLETE) {
-		pr_debug("sbp_send_status: write failed: 0x%x\n", rc);
+		pr_de("sbp_send_status: write failed: 0x%x\n", rc);
 		ret = -EIO;
 		goto put_ref;
 	}
 
-	pr_debug("sbp_send_status: status write complete for ORB: 0x%llx\n",
+	pr_de("sbp_send_status: status write complete for ORB: 0x%llx\n",
 			req->orb_pointer);
 	/*
 	 * Drop the extra ACK_KREF reference taken by target_submit_cmd()
@@ -1476,11 +1476,11 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		req->node_addr, req->generation, req->speed,
 		agent->orb_offset, &req->orb, sizeof(req->orb));
 	if (ret != RCODE_COMPLETE) {
-		pr_debug("mgt_orb fetch failed: %x\n", ret);
+		pr_de("mgt_orb fetch failed: %x\n", ret);
 		goto out;
 	}
 
-	pr_debug("mgt_orb ptr1:0x%llx ptr2:0x%llx misc:0x%x len:0x%x status_fifo:0x%llx\n",
+	pr_de("mgt_orb ptr1:0x%llx ptr2:0x%llx misc:0x%x len:0x%x status_fifo:0x%llx\n",
 		sbp2_pointer_to_addr(&req->orb.ptr1),
 		sbp2_pointer_to_addr(&req->orb.ptr2),
 		be32_to_cpu(req->orb.misc), be32_to_cpu(req->orb.length),
@@ -1578,7 +1578,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		sbp2_pointer_to_addr(&req->orb.status_fifo),
 		&req->status, 8 + status_data_len);
 	if (ret != RCODE_COMPLETE) {
-		pr_debug("mgt_orb status write failed: %x\n", ret);
+		pr_de("mgt_orb status write failed: %x\n", ret);
 		goto out;
 	}
 

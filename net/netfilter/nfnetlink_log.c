@@ -595,7 +595,7 @@ __build_packet_message(struct nfnl_log_net *log,
 		nla->nla_len = size;
 
 		if (skb_copy_bits(skb, 0, nla_data(nla), data_len))
-			BUG();
+			();
 	}
 
 	nlh->nlmsg_len = inst->skb->tail - old_tail;

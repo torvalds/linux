@@ -1039,7 +1039,7 @@
 #define BIT_WL_HWPDN_SL_8822B BIT(1)
 #define BIT_WL_HWPDN_EN_8822B BIT(0)
 
-/* 2 REG_SDM_DEBUG_8822B */
+/* 2 REG_SDM_DE_8822B */
 
 #define BIT_SHIFT_WLCLK_PHASE_8822B 0
 #define BIT_MASK_WLCLK_PHASE_8822B 0x1f
@@ -1528,12 +1528,12 @@
 
 /* 2 REG_DBG_PORT_SEL_8822B */
 
-#define BIT_SHIFT_DEBUG_ST_8822B 0
-#define BIT_MASK_DEBUG_ST_8822B 0xffffffffL
-#define BIT_DEBUG_ST_8822B(x)                                                  \
-	(((x) & BIT_MASK_DEBUG_ST_8822B) << BIT_SHIFT_DEBUG_ST_8822B)
-#define BIT_GET_DEBUG_ST_8822B(x)                                              \
-	(((x) >> BIT_SHIFT_DEBUG_ST_8822B) & BIT_MASK_DEBUG_ST_8822B)
+#define BIT_SHIFT_DE_ST_8822B 0
+#define BIT_MASK_DE_ST_8822B 0xffffffffL
+#define BIT_DE_ST_8822B(x)                                                  \
+	(((x) & BIT_MASK_DE_ST_8822B) << BIT_SHIFT_DE_ST_8822B)
+#define BIT_GET_DE_ST_8822B(x)                                              \
+	(((x) >> BIT_SHIFT_DE_ST_8822B) & BIT_MASK_DE_ST_8822B)
 
 /* 2 REG_PAD_CTRL2_8822B */
 #define BIT_USB3_USB2_TRANSITION_8822B BIT(20)
@@ -4019,12 +4019,12 @@
 
 /* 2 REG_RXDMA_DPR_8822B */
 
-#define BIT_SHIFT_RDE_DEBUG_8822B 0
-#define BIT_MASK_RDE_DEBUG_8822B 0xffffffffL
-#define BIT_RDE_DEBUG_8822B(x)                                                 \
-	(((x) & BIT_MASK_RDE_DEBUG_8822B) << BIT_SHIFT_RDE_DEBUG_8822B)
-#define BIT_GET_RDE_DEBUG_8822B(x)                                             \
-	(((x) >> BIT_SHIFT_RDE_DEBUG_8822B) & BIT_MASK_RDE_DEBUG_8822B)
+#define BIT_SHIFT_RDE_DE_8822B 0
+#define BIT_MASK_RDE_DE_8822B 0xffffffffL
+#define BIT_RDE_DE_8822B(x)                                                 \
+	(((x) & BIT_MASK_RDE_DE_8822B) << BIT_SHIFT_RDE_DE_8822B)
+#define BIT_GET_RDE_DE_8822B(x)                                             \
+	(((x) >> BIT_SHIFT_RDE_DE_8822B) & BIT_MASK_RDE_DE_8822B)
 
 /* 2 REG_RXDMA_MODE_8822B */
 
@@ -9527,7 +9527,7 @@
 #define BIT_GET_CAMR_DATA_8822B(x)                                             \
 	(((x) >> BIT_SHIFT_CAMR_DATA_8822B) & BIT_MASK_CAMR_DATA_8822B)
 
-/* 2 REG_CAMDBG_8822B (CAM DEBUG REGISTER) */
+/* 2 REG_CAMDBG_8822B (CAM DE REGISTER) */
 #define BIT_SECCAM_INFO_8822B BIT(31)
 #define BIT_SEC_KEYFOUND_8822B BIT(15)
 
@@ -11650,12 +11650,12 @@
 
 /* 2 REG_TXCMD_INFO_FOR_RSP_PKT_8822B */
 
-#define BIT_SHIFT_R_MAC_DEBUG_8822B (32 & CPU_OPT_WIDTH)
-#define BIT_MASK_R_MAC_DEBUG_8822B 0xffffffffL
-#define BIT_R_MAC_DEBUG_8822B(x)                                               \
-	(((x) & BIT_MASK_R_MAC_DEBUG_8822B) << BIT_SHIFT_R_MAC_DEBUG_8822B)
-#define BIT_GET_R_MAC_DEBUG_8822B(x)                                           \
-	(((x) >> BIT_SHIFT_R_MAC_DEBUG_8822B) & BIT_MASK_R_MAC_DEBUG_8822B)
+#define BIT_SHIFT_R_MAC_DE_8822B (32 & CPU_OPT_WIDTH)
+#define BIT_MASK_R_MAC_DE_8822B 0xffffffffL
+#define BIT_R_MAC_DE_8822B(x)                                               \
+	(((x) & BIT_MASK_R_MAC_DE_8822B) << BIT_SHIFT_R_MAC_DE_8822B)
+#define BIT_GET_R_MAC_DE_8822B(x)                                           \
+	(((x) >> BIT_SHIFT_R_MAC_DE_8822B) & BIT_MASK_R_MAC_DE_8822B)
 
 #define BIT_SHIFT_R_MAC_DBG_SHIFT_8822B 8
 #define BIT_MASK_R_MAC_DBG_SHIFT_8822B 0x7

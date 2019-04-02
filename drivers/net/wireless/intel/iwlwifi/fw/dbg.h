@@ -137,8 +137,8 @@ _iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, enum iwl_fw_dbg_trigger id)
 }
 
 #define iwl_fw_dbg_get_trigger(fw, id) ({			\
-	BUILD_BUG_ON(!__builtin_constant_p(id));		\
-	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
+	BUILD__ON(!__builtin_constant_p(id));		\
+	BUILD__ON((id) >= FW_DBG_TRIGGER_MAX);		\
 	_iwl_fw_dbg_get_trigger((fw), (id));			\
 })
 
@@ -217,8 +217,8 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 }
 
 #define iwl_fw_dbg_trigger_on(fwrt, wdev, id) ({		\
-	BUILD_BUG_ON(!__builtin_constant_p(id));		\
-	BUILD_BUG_ON((id) >= FW_DBG_TRIGGER_MAX);		\
+	BUILD__ON(!__builtin_constant_p(id));		\
+	BUILD__ON((id) >= FW_DBG_TRIGGER_MAX);		\
 	_iwl_fw_dbg_trigger_on((fwrt), (wdev), (id));		\
 })
 
@@ -269,8 +269,8 @@ static inline int
 iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
 {
 	struct iwl_ldbg_config_cmd cmd = {
-		.type = start ? cpu_to_le32(START_DEBUG_RECORDING) :
-				cpu_to_le32(STOP_DEBUG_RECORDING),
+		.type = start ? cpu_to_le32(START_DE_RECORDING) :
+				cpu_to_le32(STOP_DE_RECORDING),
 	};
 	struct iwl_host_cmd hcmd = {
 		.id = LDBG_CONFIG_CMD,
@@ -299,7 +299,7 @@ _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 	iwl_write_umac_prph(trans, DBGC_IN_SAMPLE, 0);
 	udelay(100);
 	iwl_write_umac_prph(trans, DBGC_OUT_CTRL, 0);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	trans->dbg_rec_on = false;
 #endif
 }
@@ -332,7 +332,7 @@ _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 	}
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
 {
 	if (fwrt->fw->dbg.dest_tlv && fwrt->cur_fw_img == IWL_UCODE_REGULAR)
@@ -348,7 +348,7 @@ iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
 	else
 		iwl_fw_dbg_start_stop_hcmd(fwrt, true);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 	iwl_fw_set_dbg_rec_on(fwrt);
 #endif
 }
@@ -365,14 +365,14 @@ static inline bool iwl_fw_dbg_type_on(struct iwl_fw_runtime *fwrt, u32 type)
 	return (fwrt->fw->dbg.dump_mask & BIT(type) || fwrt->trans->ini_valid);
 }
 
-static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)
+static inline bool iwl_fw_dbg_is_d3_de_enabled(struct iwl_fw_runtime *fwrt)
 {
 	return fw_has_capa(&fwrt->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_D3_DEBUG) &&
-		fwrt->trans->cfg->d3_debug_data_length && fwrt->ops &&
-		fwrt->ops->d3_debug_enable &&
-		fwrt->ops->d3_debug_enable(fwrt->ops_ctx) &&
-		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DEBUG_DATA);
+			   IWL_UCODE_TLV_CAPA_D3_DE) &&
+		fwrt->trans->cfg->d3_de_data_length && fwrt->ops &&
+		fwrt->ops->d3_de_enable &&
+		fwrt->ops->d3_de_enable(fwrt->ops_ctx) &&
+		iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_D3_DE_DATA);
 }
 
 static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
@@ -384,7 +384,7 @@ static inline bool iwl_fw_dbg_is_paging_enabled(struct iwl_fw_runtime *fwrt)
 		fwrt->fw_paging_db[0].fw_paging_block;
 }
 
-void iwl_fw_dbg_read_d3_debug_data(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_read_d3_de_data(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
 {
@@ -396,7 +396,7 @@ static inline void iwl_fw_cancel_dump(struct iwl_fw_runtime *fwrt)
 	cancel_delayed_work_sync(&fwrt->dump.wk);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_IWLWIFI_DEFS
 static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
 {
 	fwrt->timestamp.delay = 0;
@@ -430,7 +430,7 @@ static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_IWLWIFI_DEFS */
 
 void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt);
 void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,

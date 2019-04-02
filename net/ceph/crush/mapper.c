@@ -13,7 +13,7 @@
 #ifdef __KERNEL__
 # include <linux/string.h>
 # include <linux/slab.h>
-# include <linux/bug.h>
+# include <linux/.h>
 # include <linux/kernel.h>
 # include <linux/crush/crush.h>
 # include <linux/crush/hash.h>
@@ -380,7 +380,7 @@ static int crush_bucket_choose(const struct crush_bucket *in,
 			       int position)
 {
 	dprintk(" crush_bucket_choose %d x=%d r=%d\n", in->id, x, r);
-	BUG_ON(in->size == 0);
+	_ON(in->size == 0);
 	switch (in->alg) {
 	case CRUSH_BUCKET_UNIFORM:
 		return bucket_uniform_choose(
@@ -674,7 +674,7 @@ static void crush_choose_indep(const struct crush_map *map,
 	}
 
 	for (ftotal = 0; left > 0 && ftotal < tries; ftotal++) {
-#ifdef DEBUG_INDEP
+#ifdef DE_INDEP
 		if (out2 && ftotal) {
 			dprintk("%u %d a: ", ftotal, left);
 			for (rep = outpos; rep < endpos; rep++) {
@@ -816,7 +816,7 @@ static void crush_choose_indep(const struct crush_map *map,
 	if (map->choose_tries && ftotal <= map->choose_total_tries)
 		map->choose_tries[ftotal]++;
 #endif
-#ifdef DEBUG_INDEP
+#ifdef DE_INDEP
 	if (out2) {
 		dprintk("%u %d a: ", ftotal, left);
 		for (rep = outpos; rep < endpos; rep++) {
@@ -876,7 +876,7 @@ void crush_init_workspace(const struct crush_map *map, void *v)
 		w->work[b]->perm = v;
 		v += map->buckets[b]->size * sizeof(__u32);
 	}
-	BUG_ON(v - (void *)w != map->working_size);
+	_ON(v - (void *)w != map->working_size);
 }
 
 /**

@@ -92,7 +92,7 @@ struct ath5k_ani_state {
 	unsigned int		ofdm_errors;
 	unsigned int		cck_errors;
 
-	/* debug/statistics only: numbers from last ANI calibration */
+	/* de/statistics only: numbers from last ANI calibration */
 	struct ath_cycle_counters last_cc;
 	unsigned int		last_listen;
 	unsigned int		last_ofdm_errors;

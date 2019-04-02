@@ -84,7 +84,7 @@ static void __init storcenter_init_IRQ(void)
 	struct mpic *mpic;
 
 	mpic = mpic_alloc(NULL, 0, 0, 16, 0, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
+	_ON(mpic == NULL);
 
 	/*
 	 * 16 Serial Interrupts followed by 16 Internal Interrupts.

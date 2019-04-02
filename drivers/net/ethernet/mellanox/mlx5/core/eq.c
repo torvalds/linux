@@ -318,7 +318,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
 	if (err)
 		goto err_eq;
 
-	err = mlx5_debug_eq_add(dev, eq);
+	err = mlx5_de_eq_add(dev, eq);
 	if (err)
 		goto err_irq;
 
@@ -351,7 +351,7 @@ static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 
 	irq_info = &eq_table->irq_info[eq->vecidx];
 
-	mlx5_debug_eq_remove(dev, eq);
+	mlx5_de_eq_remove(dev, eq);
 
 	free_irq(eq->irqn, irq_info->context);
 	irq_info->context = NULL;
@@ -412,7 +412,7 @@ int mlx5_eq_table_init(struct mlx5_core_dev *dev)
 
 	dev->priv.eq_table = eq_table;
 
-	err = mlx5_eq_debugfs_init(dev);
+	err = mlx5_eq_defs_init(dev);
 	if (err)
 		goto kvfree_eq_table;
 
@@ -430,7 +430,7 @@ kvfree_eq_table:
 
 void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev)
 {
-	mlx5_eq_debugfs_cleanup(dev);
+	mlx5_eq_defs_cleanup(dev);
 	kvfree(dev->priv.eq_table);
 }
 

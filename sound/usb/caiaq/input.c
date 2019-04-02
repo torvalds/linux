@@ -622,7 +622,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 		input->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
 			BIT_MASK(ABS_Z);
-		BUILD_BUG_ON(sizeof(cdev->keycode) < sizeof(keycode_rk2));
+		BUILD__ON(sizeof(cdev->keycode) < sizeof(keycode_rk2));
 		memcpy(cdev->keycode, keycode_rk2, sizeof(keycode_rk2));
 		input->keycodemax = ARRAY_SIZE(keycode_rk2);
 		input_set_abs_params(input, ABS_X, 0, 4096, 0, 10);
@@ -634,7 +634,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 		input->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
 			BIT_MASK(ABS_Z);
-		BUILD_BUG_ON(sizeof(cdev->keycode) < sizeof(keycode_rk3));
+		BUILD__ON(sizeof(cdev->keycode) < sizeof(keycode_rk3));
 		memcpy(cdev->keycode, keycode_rk3, sizeof(keycode_rk3));
 		input->keycodemax = ARRAY_SIZE(keycode_rk3);
 		input_set_abs_params(input, ABS_X, 0, 1024, 0, 10);
@@ -645,7 +645,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
 		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 		input->absbit[0] = BIT_MASK(ABS_X);
-		BUILD_BUG_ON(sizeof(cdev->keycode) < sizeof(keycode_ak1));
+		BUILD__ON(sizeof(cdev->keycode) < sizeof(keycode_ak1));
 		memcpy(cdev->keycode, keycode_ak1, sizeof(keycode_ak1));
 		input->keycodemax = ARRAY_SIZE(keycode_ak1);
 		input_set_abs_params(input, ABS_X, 0, 999, 0, 10);
@@ -661,7 +661,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				   BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
 				   BIT_MASK(ABS_Z);
 		input->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
-		BUILD_BUG_ON(sizeof(cdev->keycode) < sizeof(keycode_kore));
+		BUILD__ON(sizeof(cdev->keycode) < sizeof(keycode_kore));
 		memcpy(cdev->keycode, keycode_kore, sizeof(keycode_kore));
 		input->keycodemax = ARRAY_SIZE(keycode_kore);
 		input_set_abs_params(input, ABS_HAT0X, 0, 999, 0, 10);
@@ -687,7 +687,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				   BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
 				   BIT_MASK(ABS_Z);
 		input->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
-		BUILD_BUG_ON(sizeof(cdev->keycode) < KONTROLX1_INPUTS);
+		BUILD__ON(sizeof(cdev->keycode) < KONTROLX1_INPUTS);
 		for (i = 0; i < KONTROLX1_INPUTS; i++)
 			cdev->keycode[i] = BTN_MISC + i;
 		input->keycodemax = KONTROLX1_INPUTS;
@@ -728,7 +728,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4):
 		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-		BUILD_BUG_ON(sizeof(cdev->keycode) < KONTROLS4_BUTTONS);
+		BUILD__ON(sizeof(cdev->keycode) < KONTROLS4_BUTTONS);
 		for (i = 0; i < KONTROLS4_BUTTONS; i++)
 			cdev->keycode[i] = KONTROLS4_BUTTON(i);
 		input->keycodemax = KONTROLS4_BUTTONS;
@@ -777,7 +777,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 			BIT_MASK(ABS_RX) | BIT_MASK(ABS_RY) |
 			BIT_MASK(ABS_RZ);
 
-		BUILD_BUG_ON(sizeof(cdev->keycode) < sizeof(keycode_maschine));
+		BUILD__ON(sizeof(cdev->keycode) < sizeof(keycode_maschine));
 		memcpy(cdev->keycode, keycode_maschine, sizeof(keycode_maschine));
 		input->keycodemax = ARRAY_SIZE(keycode_maschine);
 

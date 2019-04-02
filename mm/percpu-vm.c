@@ -317,7 +317,7 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
 	 * be available now.
 	 */
 	pages = pcpu_get_pages();
-	BUG_ON(!pages);
+	_ON(!pages);
 
 	/* unmap and free */
 	pcpu_pre_unmap_flush(chunk, page_start, page_end);

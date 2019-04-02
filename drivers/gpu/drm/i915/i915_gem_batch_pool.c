@@ -102,7 +102,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 				break;
 
 			i915_retire_requests(pool->engine->i915);
-			GEM_BUG_ON(i915_gem_object_is_active(obj));
+			GEM__ON(i915_gem_object_is_active(obj));
 
 			/*
 			 * The object is now idle, clear the array of shared
@@ -119,7 +119,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			}
 		}
 
-		GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv,
+		GEM__ON(!reservation_object_test_signaled_rcu(obj->resv,
 								 true));
 
 		if (obj->base.size >= size)

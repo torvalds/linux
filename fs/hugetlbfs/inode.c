@@ -341,7 +341,7 @@ static int hugetlbfs_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	BUG();
+	();
 	return -EINVAL;
 }
 
@@ -452,10 +452,10 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			 * until we finish removing the page.
 			 *
 			 * This race can only happen in the hole punch case.
-			 * Getting here in a truncate operation is a bug.
+			 * Getting here in a truncate operation is a .
 			 */
 			if (unlikely(page_mapped(page))) {
-				BUG_ON(truncate_op);
+				_ON(truncate_op);
 
 				i_mmap_lock_write(mapping);
 				hugetlb_vmdelete_list(&mapping->i_mmap,
@@ -474,7 +474,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			 * the subpool and global reserve usage count can need
 			 * to be adjusted.
 			 */
-			VM_BUG_ON(PagePrivate(page));
+			VM__ON(PagePrivate(page));
 			remove_huge_page(page);
 			freed++;
 			if (!truncate_op) {
@@ -512,7 +512,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 	struct address_space *mapping = inode->i_mapping;
 	struct hstate *h = hstate_inode(inode);
 
-	BUG_ON(offset & ~huge_page_mask(h));
+	_ON(offset & ~huge_page_mask(h));
 	pgoff = offset >> PAGE_SHIFT;
 
 	i_size_write(inode, offset);
@@ -695,7 +695,7 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 	unsigned int ia_valid = attr->ia_valid;
 	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 
-	BUG_ON(!inode);
+	_ON(!inode);
 
 	error = setattr_prepare(dentry, attr);
 	if (error)

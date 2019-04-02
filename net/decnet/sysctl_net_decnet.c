@@ -30,7 +30,7 @@
 #include <net/dn_route.h>
 
 
-int decnet_debug_level;
+int decnet_de_level;
 int decnet_time_wait = 30;
 int decnet_dn_count = 1;
 int decnet_di_count = 3;
@@ -343,8 +343,8 @@ static struct ctl_table dn_table[] = {
 		.proc_handler = proc_dointvec,
 	},
 	{
-		.procname = "debug",
-		.data = &decnet_debug_level,
+		.procname = "de",
+		.data = &decnet_de_level,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec,

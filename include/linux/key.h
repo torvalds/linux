@@ -39,7 +39,7 @@ struct key;
 
 #ifdef CONFIG_KEYS
 
-#undef KEY_DEBUGGING
+#undef KEY_DEGING
 
 #define KEY_POS_VIEW	0x01000000	/* possessor can view a key's attributes */
 #define KEY_POS_READ	0x02000000	/* possessor can read key payload / view keyring */
@@ -177,9 +177,9 @@ struct key {
 						 */
 	short			state;		/* Key state (+) or rejection error (-) */
 
-#ifdef KEY_DEBUGGING
+#ifdef KEY_DEGING
 	unsigned		magic;
-#define KEY_DEBUG_MAGIC		0x18273645u
+#define KEY_DE_MAGIC		0x18273645u
 #endif
 
 	unsigned long		flags;		/* status flags (change with bitops) */

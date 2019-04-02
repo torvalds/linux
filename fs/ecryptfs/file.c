@@ -83,7 +83,7 @@ ecryptfs_filldir(struct dir_context *ctx, const char *lower_name,
 						  lower_namelen);
 	if (rc) {
 		if (rc != -EINVAL) {
-			ecryptfs_printk(KERN_DEBUG,
+			ecryptfs_printk(KERN_DE,
 					"%s: Error attempting to decode and decrypt filename [%s]; rc = [%d]\n",
 					__func__, lower_name, rc);
 			return rc;
@@ -223,7 +223,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
 	mutex_lock(&crypt_stat->cs_mutex);
 	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED)) {
-		ecryptfs_printk(KERN_DEBUG, "Setting flags for stat...\n");
+		ecryptfs_printk(KERN_DE, "Setting flags for stat...\n");
 		/* Policy code enabled in future release */
 		crypt_stat->flags |= (ECRYPTFS_POLICY_APPLIED
 				      | ECRYPTFS_ENCRYPTED);
@@ -249,7 +249,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	rc = read_or_initialize_metadata(ecryptfs_dentry);
 	if (rc)
 		goto out_put;
-	ecryptfs_printk(KERN_DEBUG, "inode w/ addr = [0x%p], i_ino = "
+	ecryptfs_printk(KERN_DE, "inode w/ addr = [0x%p], i_ino = "
 			"[0x%.16lx] size: [0x%.16llx]\n", inode, inode->i_ino,
 			(unsigned long long)i_size_read(inode));
 	goto out;

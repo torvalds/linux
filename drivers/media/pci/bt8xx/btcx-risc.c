@@ -34,13 +34,13 @@
 
 #include "btcx-risc.h"
 
-static unsigned int btcx_debug;
-module_param(btcx_debug, int, 0644);
-MODULE_PARM_DESC(btcx_debug,"debug messages, default is 0 (no)");
+static unsigned int btcx_de;
+module_param(btcx_de, int, 0644);
+MODULE_PARM_DESC(btcx_de,"de messages, default is 0 (no)");
 
 #define dprintk(fmt, arg...) do {				\
-	if (btcx_debug)						\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),		\
+	if (btcx_de)						\
+		printk(KERN_DE pr_fmt("%s: " fmt),		\
 		       __func__, ##arg);			\
 } while (0)
 
@@ -233,7 +233,7 @@ btcx_calc_skips(int line, int width, int *maxy,
 	*nskips = skip;
 	*maxy = maxline;
 
-	if (btcx_debug) {
+	if (btcx_de) {
 		dprintk("btcx: skips line %d-%d:", line, maxline);
 		for (skip = 0; skip < *nskips; skip++) {
 			pr_cont(" %d-%d", skips[skip].start, skips[skip].end);

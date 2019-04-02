@@ -52,7 +52,7 @@ void tegra_cpu_die(unsigned int cpu)
 	tegra_hotplug_shutdown();
 
 	/* Should never return here. */
-	BUG();
+	();
 }
 
 static int __init tegra_hotplug_init(void)

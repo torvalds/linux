@@ -23,14 +23,14 @@
 #define STACK_TOP_MAX	TASK_SIZE
 #endif
 
-struct debug_entry {
+struct de_entry {
 	u32			address;
 	u32			insn;
 };
 
-struct debug_info {
+struct de_info {
 	int			nsaved;
-	struct debug_entry	bp[2];
+	struct de_entry	bp[2];
 };
 
 struct thread_struct {
@@ -38,8 +38,8 @@ struct thread_struct {
 	unsigned long		address;
 	unsigned long		trap_no;
 	unsigned long		error_code;
-							/* debugging	  */
-	struct debug_info	debug;
+							/* deging	  */
+	struct de_info	de;
 };
 
 #define INIT_THREAD  {	}

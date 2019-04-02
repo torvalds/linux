@@ -46,7 +46,7 @@ static void eoi_irq(struct irq_data *data)
 /* Power mamangement wake call. We don't need this, however,
  * if this is absent, then an -ENXIO error is returned to the
  * msm_serial driver, and it fails to correctly initialize.
- * This is a bug in the msm_serial driver, but, for now, we
+ * This is a  in the msm_serial driver, but, for now, we
  * work around it here, by providing this bogus handler.
  * XXX FIXME!!! remove this when msm_serial is fixed.
  */

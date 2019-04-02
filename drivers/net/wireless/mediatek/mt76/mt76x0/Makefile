@@ -7,4 +7,4 @@ mt76x0-common-y := init.o main.o eeprom.o phy.o
 mt76x0u-y := usb.o usb_mcu.o
 mt76x0e-y := pci.o pci_mcu.o
 
-# ccflags-y := -DDEBUG
+# ccflags-y := -DDE

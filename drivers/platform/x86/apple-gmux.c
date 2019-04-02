@@ -442,7 +442,7 @@ static int gmux_switch_ddc(enum vga_switcheroo_client_id id)
 	if (id == old_ddc_owner)
 		return id;
 
-	pr_debug("Switching DDC from %d to %d\n", old_ddc_owner, id);
+	pr_de("Switching DDC from %d to %d\n", old_ddc_owner, id);
 	apple_gmux_data->switch_state_ddc = id;
 
 	if (id == VGA_SWITCHEROO_IGD)
@@ -469,11 +469,11 @@ static int gmux_set_discrete_state(struct apple_gmux_data *gmux_data,
 	if (state == VGA_SWITCHEROO_ON) {
 		gmux_write8(gmux_data, GMUX_PORT_DISCRETE_POWER, 1);
 		gmux_write8(gmux_data, GMUX_PORT_DISCRETE_POWER, 3);
-		pr_debug("Discrete card powered up\n");
+		pr_de("Discrete card powered up\n");
 	} else {
 		gmux_write8(gmux_data, GMUX_PORT_DISCRETE_POWER, 1);
 		gmux_write8(gmux_data, GMUX_PORT_DISCRETE_POWER, 0);
-		pr_debug("Discrete card powered down\n");
+		pr_de("Discrete card powered down\n");
 	}
 
 	gmux_data->power_state = state;
@@ -567,7 +567,7 @@ static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
 
 	status = gmux_interrupt_get_status(gmux_data);
 	gmux_disable_interrupts(gmux_data);
-	pr_debug("Notify handler called: status %d\n", status);
+	pr_de("Notify handler called: status %d\n", status);
 
 	gmux_clear_interrupts(gmux_data);
 	gmux_enable_interrupts(gmux_data);

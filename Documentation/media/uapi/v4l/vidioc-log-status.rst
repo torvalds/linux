@@ -37,7 +37,7 @@ Description
 ===========
 
 As the video/audio devices become more complicated it becomes harder to
-debug problems. When this ioctl is called the driver will output the
+de problems. When this ioctl is called the driver will output the
 current device status to the kernel log. This is particular useful when
 dealing with problems like no sound, no video and incorrectly tuned
 channels. Also many modern devices autodetect video and audio standards

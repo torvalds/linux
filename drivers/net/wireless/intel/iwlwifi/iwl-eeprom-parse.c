@@ -419,7 +419,7 @@ static void iwl_eeprom_enhanced_txpower(struct device *dev,
 	__le16 *txp_len;
 	s8 max_txp_avg_halfdbm;
 
-	BUILD_BUG_ON(sizeof(struct iwl_eeprom_enhanced_txpwr) != 8);
+	BUILD__ON(sizeof(struct iwl_eeprom_enhanced_txpwr) != 8);
 
 	/* the length is in 16-bit words, but we want entries */
 	txp_len = (__le16 *)iwl_eeprom_query_addr(eeprom, eeprom_size,
@@ -435,7 +435,7 @@ static void iwl_eeprom_enhanced_txpower(struct device *dev,
 		if (!(txp->flags & IWL_EEPROM_ENH_TXP_FL_VALID))
 			continue;
 
-		IWL_DEBUG_EEPROM(dev, "%s %d:\t %s%s%s%s%s%s%s%s (0x%02x)\n",
+		IWL_DE_EEPROM(dev, "%s %d:\t %s%s%s%s%s%s%s%s (0x%02x)\n",
 				 (txp->channel && (txp->flags &
 					IWL_EEPROM_ENH_TXP_FL_COMMON_TYPE)) ?
 					"Common " : (txp->channel) ?
@@ -450,11 +450,11 @@ static void iwl_eeprom_enhanced_txpower(struct device *dev,
 				 TXP_CHECK_AND_PRINT(RES2),
 				 TXP_CHECK_AND_PRINT(COMMON_TYPE),
 				 txp->flags);
-		IWL_DEBUG_EEPROM(dev,
+		IWL_DE_EEPROM(dev,
 				 "\t\t chain_A: %d chain_B: %d chain_C: %d\n",
 				 txp->chain_a_max, txp->chain_b_max,
 				 txp->chain_c_max);
-		IWL_DEBUG_EEPROM(dev,
+		IWL_DE_EEPROM(dev,
 				 "\t\t MIMO2: %d MIMO3: %d High 20_on_40: 0x%02x Low 20_on_40: 0x%02x\n",
 				 txp->mimo2_max, txp->mimo3_max,
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
@@ -542,7 +542,7 @@ static void iwl_mod_ht40_chan_info(struct device *dev,
 	if (!chan)
 		return;
 
-	IWL_DEBUG_EEPROM(dev,
+	IWL_DE_EEPROM(dev,
 			 "HT40 Ch. %d [%sGHz] %s%s%s%s%s(0x%02x %ddBm): Ad-Hoc %ssupported\n",
 			 channel,
 			 band == NL80211_BAND_5GHZ ? "5.2" : "2.4",
@@ -591,7 +591,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			eeprom_ch = &eeprom_ch_info[ch_idx];
 
 			if (!(eeprom_ch->flags & EEPROM_CHANNEL_VALID)) {
-				IWL_DEBUG_EEPROM(dev,
+				IWL_DE_EEPROM(dev,
 						 "Ch. %d Flags %x [%sGHz] - No traffic\n",
 						 eeprom_ch_array[ch_idx],
 						 eeprom_ch_info[ch_idx].flags,
@@ -624,7 +624,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			/* Initialize regulatory-based run-time data */
 			channel->max_power =
 				eeprom_ch_info[ch_idx].max_power_avg;
-			IWL_DEBUG_EEPROM(dev,
+			IWL_DE_EEPROM(dev,
 					 "Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x %ddBm): Ad-Hoc %ssupported\n",
 					 channel->hw_value,
 					 (band != 1) ? "5.2" : "2.4",

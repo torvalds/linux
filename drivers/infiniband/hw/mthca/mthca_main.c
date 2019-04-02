@@ -50,13 +50,13 @@ MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
+#ifdef CONFIG_INFINIBAND_MTHCA_DE
 
-int mthca_debug_level = 0;
-module_param_named(debug_level, mthca_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+int mthca_de_level = 0;
+module_param_named(de_level, mthca_de_level, int, 0644);
+MODULE_PARM_DESC(de_level, "Enable de tracing if > 0");
 
-#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+#endif /* CONFIG_INFINIBAND_MTHCA_DE */
 
 #ifdef CONFIG_PCI_MSI
 

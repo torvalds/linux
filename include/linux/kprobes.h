@@ -34,7 +34,7 @@
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
@@ -220,9 +220,9 @@ static inline void kretprobe_assert(struct kretprobe_instance *ri,
 	unsigned long orig_ret_address, unsigned long trampoline_address)
 {
 	if (!orig_ret_address || (orig_ret_address == trampoline_address)) {
-		printk("kretprobe BUG!: Processing kretprobe %p @ %p\n",
+		printk("kretprobe !: Processing kretprobe %p @ %p\n",
 				ri->rp, ri->rp->kp.addr);
-		BUG();
+		();
 	}
 }
 

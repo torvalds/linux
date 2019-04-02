@@ -21,7 +21,7 @@
 #include "core.h"
 #include "bus.h"
 #include "shm_ipc.h"
-#include "debug.h"
+#include "de.h"
 
 #define PEARL_TX_BD_SIZE_DEFAULT	32
 
@@ -253,7 +253,7 @@ static int pearl_alloc_bd_table(struct qtnf_pcie_pearl_state *ps)
 	ps->tx_bd_vbase = vaddr;
 	ps->tx_bd_pbase = paddr;
 
-	pr_debug("TX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
+	pr_de("TX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
 
 	priv->tx_bd_r_index = 0;
 	priv->tx_bd_w_index = 0;
@@ -275,7 +275,7 @@ static int pearl_alloc_bd_table(struct qtnf_pcie_pearl_state *ps)
 	writel(priv->rx_bd_num | (sizeof(struct qtnf_pearl_rx_bd)) << 16,
 	       PCIE_HDP_TX_HOST_Q_SZ_CTRL(ps->pcie_reg_base));
 
-	pr_debug("RX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
+	pr_de("RX descriptor table: vaddr=0x%p paddr=%pad\n", vaddr, &paddr);
 
 	return 0;
 }
@@ -727,7 +727,7 @@ static int qtnf_pcie_pearl_rx_poll(struct napi_struct *napi, int budget)
 				skb->protocol = eth_type_trans(skb, ndev);
 				napi_gro_receive(napi, skb);
 			} else {
-				pr_debug("drop untagged skb\n");
+				pr_de("drop untagged skb\n");
 				bus->mux_dev.stats.rx_dropped++;
 				dev_kfree_skb_any(skb);
 			}
@@ -919,7 +919,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_pearl_state *ps, const u8 *fw, u32 fw_size)
 	int blk = 0;
 	int len;
 
-	pr_debug("FW upload started: fw_addr=0x%p size=%d\n", fw, fw_size);
+	pr_de("FW upload started: fw_addr=0x%p size=%d\n", fw, fw_size);
 
 	while (blk < blk_count) {
 		if (++threshold > 10000) {
@@ -972,7 +972,7 @@ qtnf_ep_fw_load(struct qtnf_pcie_pearl_state *ps, const u8 *fw, u32 fw_size)
 		blk++;
 	}
 
-	pr_debug("FW upload completed: totally sent %d blocks\n", blk);
+	pr_de("FW upload completed: totally sent %d blocks\n", blk);
 	return 0;
 }
 
@@ -1045,8 +1045,8 @@ fw_load_exit:
 	qtnf_pcie_fw_boot_done(bus, fw_boot_success);
 
 	if (fw_boot_success) {
-		qtnf_debugfs_add_entry(bus, "hdp_stats", qtnf_dbg_hdp_stats);
-		qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
+		qtnf_defs_add_entry(bus, "hdp_stats", qtnf_dbg_hdp_stats);
+		qtnf_defs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
 	}
 }
 

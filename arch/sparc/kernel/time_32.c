@@ -120,7 +120,7 @@ static __init void setup_timer_ce(void)
 {
 	struct clock_event_device *ce = &timer_ce;
 
-	BUG_ON(smp_processor_id() != boot_cpu_id);
+	_ON(smp_processor_id() != boot_cpu_id);
 
 	ce->name     = "timer_ce";
 	ce->rating   = 100;

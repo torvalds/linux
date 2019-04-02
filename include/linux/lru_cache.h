@@ -222,7 +222,7 @@ struct lru_cache {
 
 /* flag-bits for lru_cache */
 enum {
-	/* debugging aid, to catch concurrent access early.
+	/* deging aid, to catch concurrent access early.
 	 * user needs to guarantee exclusive access by proper locking! */
 	__LC_PARANOIA,
 

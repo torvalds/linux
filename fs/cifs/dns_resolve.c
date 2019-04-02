@@ -30,7 +30,7 @@
 #include "dns_resolve.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 
 /**
  * dns_resolve_server_name_to_ip - Resolve UNC server name to ip address.

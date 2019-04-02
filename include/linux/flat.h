@@ -19,7 +19,7 @@
  * purely for compatibility with old tool chains.
  *
  * DO NOT make changes or enhancements to the old format please,  just work
- *        with the format above,  except to fix bugs with old format support.
+ *        with the format above,  except to fix s with old format support.
  */
 
 #include <asm/byteorder.h>

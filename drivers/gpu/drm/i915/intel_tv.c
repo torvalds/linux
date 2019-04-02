@@ -1141,8 +1141,8 @@ intel_tv_get_config(struct intel_encoder *encoder,
 
 	intel_tv_mode_to_mode(&mode, &tv_mode);
 
-	DRM_DEBUG_KMS("TV mode:\n");
-	drm_mode_debug_printmodeline(&mode);
+	DRM_DE_KMS("TV mode:\n");
+	drm_mode_de_printmodeline(&mode);
 
 	intel_tv_scale_mode_horiz(&mode, hdisplay,
 				  xpos, mode.hdisplay - xsize - xpos);
@@ -1197,7 +1197,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
-	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
+	DRM_DE_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;
 
 	pipe_config->port_clock = tv_mode->clock;
@@ -1212,7 +1212,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		extra = adjusted_mode->crtc_vdisplay - vdisplay;
 
 		if (extra < 0) {
-			DRM_DEBUG_KMS("No vertical scaling for >1024 pixel wide modes\n");
+			DRM_DE_KMS("No vertical scaling for >1024 pixel wide modes\n");
 			return -EINVAL;
 		}
 
@@ -1245,8 +1245,8 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		tv_conn_state->bypass_vfilter = false;
 	}
 
-	DRM_DEBUG_KMS("TV mode:\n");
-	drm_mode_debug_printmodeline(adjusted_mode);
+	DRM_DE_KMS("TV mode:\n");
+	drm_mode_de_printmodeline(adjusted_mode);
 
 	/*
 	 * The pipe scanline counter behaviour looks as follows when
@@ -1613,7 +1613,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 
 	type = -1;
 	tv_dac = I915_READ(TV_DAC);
-	DRM_DEBUG_KMS("TV detected: %x, %x\n", tv_ctl, tv_dac);
+	DRM_DE_KMS("TV detected: %x, %x\n", tv_ctl, tv_dac);
 	/*
 	 *  A B C
 	 *  0 1 1 Composite
@@ -1621,16 +1621,16 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	 *  0 0 0 Component
 	 */
 	if ((tv_dac & TVDAC_SENSE_MASK) == (TVDAC_B_SENSE | TVDAC_C_SENSE)) {
-		DRM_DEBUG_KMS("Detected Composite TV connection\n");
+		DRM_DE_KMS("Detected Composite TV connection\n");
 		type = DRM_MODE_CONNECTOR_Composite;
 	} else if ((tv_dac & (TVDAC_A_SENSE|TVDAC_B_SENSE)) == TVDAC_A_SENSE) {
-		DRM_DEBUG_KMS("Detected S-Video TV connection\n");
+		DRM_DE_KMS("Detected S-Video TV connection\n");
 		type = DRM_MODE_CONNECTOR_SVIDEO;
 	} else if ((tv_dac & TVDAC_SENSE_MASK) == 0) {
-		DRM_DEBUG_KMS("Detected Component TV connection\n");
+		DRM_DE_KMS("Detected Component TV connection\n");
 		type = DRM_MODE_CONNECTOR_Component;
 	} else {
-		DRM_DEBUG_KMS("Unrecognised TV connection\n");
+		DRM_DE_KMS("Unrecognised TV connection\n");
 		type = -1;
 	}
 
@@ -1690,7 +1690,7 @@ intel_tv_detect(struct drm_connector *connector,
 	enum drm_connector_status status;
 	int type;
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
+	DRM_DE_KMS("[CONNECTOR:%d:%s] force=%d\n",
 		      connector->base.id, connector->name,
 		      force);
 
@@ -1791,8 +1791,8 @@ intel_tv_get_modes(struct drm_connector *connector)
 		 */
 		intel_tv_mode_to_mode(mode, tv_mode);
 		if (count == 0) {
-			DRM_DEBUG_KMS("TV mode:\n");
-			drm_mode_debug_printmodeline(mode);
+			DRM_DE_KMS("TV mode:\n");
+			drm_mode_de_printmodeline(mode);
 		}
 		intel_tv_scale_mode_horiz(mode, input->w, 0, 0);
 		intel_tv_scale_mode_vert(mode, input->h, 0, 0);
@@ -1869,7 +1869,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 		return;
 
 	if (!intel_bios_is_tv_present(dev_priv)) {
-		DRM_DEBUG_KMS("Integrated TV is not present.\n");
+		DRM_DE_KMS("Integrated TV is not present.\n");
 		return;
 	}
 

@@ -407,7 +407,7 @@ static int get_rsb_struct(struct dlm_ls *ls, char *name, int len,
 	if (list_empty(&ls->ls_new_rsb)) {
 		count = ls->ls_new_rsb_count;
 		spin_unlock(&ls->ls_new_rsb_spin);
-		log_debug(ls, "find_rsb retry %d %d %s",
+		log_de(ls, "find_rsb retry %d %d %s",
 			  count, dlm_config.ci_new_rsb_count, name);
 		return -EAGAIN;
 	}
@@ -621,7 +621,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 	if ((r->res_master_nodeid != our_nodeid) && from_other) {
 		/* our rsb was not master, and another node (not the dir node)
 		   has sent us a request */
-		log_debug(ls, "find_rsb toss from_other %d master %d dir %d %s",
+		log_de(ls, "find_rsb toss from_other %d master %d dir %d %s",
 			  from_nodeid, r->res_master_nodeid, dir_nodeid,
 			  r->res_name);
 		error = -ENOTBLK;
@@ -675,7 +675,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 
 	if (from_dir) {
 		/* want to see how often this happens */
-		log_debug(ls, "find_rsb new from_dir %d recreate %s",
+		log_de(ls, "find_rsb new from_dir %d recreate %s",
 			  from_nodeid, r->res_name);
 		r->res_master_nodeid = our_nodeid;
 		r->res_nodeid = 0;
@@ -693,7 +693,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
 	}
 
 	if (from_other) {
-		log_debug(ls, "find_rsb new from_other %d dir %d %s",
+		log_de(ls, "find_rsb new from_other %d dir %d %s",
 			  from_nodeid, dir_nodeid, r->res_name);
 	}
 
@@ -854,10 +854,10 @@ static int validate_master_nodeid(struct dlm_ls *ls, struct dlm_rsb *r,
 	if (from_nodeid != r->res_dir_nodeid) {
 		/* our rsb is not master, and another node (not the dir node)
 	   	   has sent us a request.  this is much more common when our
-	   	   master_nodeid is zero, so limit debug to non-zero.  */
+	   	   master_nodeid is zero, so limit de to non-zero.  */
 
 		if (r->res_master_nodeid) {
-			log_debug(ls, "validate master from_other %d master %d "
+			log_de(ls, "validate master from_other %d master %d "
 				  "dir %d first %x %s", from_nodeid,
 				  r->res_master_nodeid, r->res_dir_nodeid,
 				  r->res_first_lkid, r->res_name);
@@ -1015,7 +1015,7 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, char *name, int len,
 		/* this will happen if recovery happens while we're looking
 		   up the master for this rsb */
 
-		log_debug(ls, "dlm_master_lookup master 0 to %d first %x %s",
+		log_de(ls, "dlm_master_lookup master 0 to %d first %x %s",
 			  from_nodeid, r->res_first_lkid, r->res_name);
 		r->res_master_nodeid = from_nodeid;
 		r->res_nodeid = from_nodeid;
@@ -1396,9 +1396,9 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
 	s64 us;
-	s64 debug_maxus = 0;
-	u32 debug_scanned = 0;
-	u32 debug_expired = 0;
+	s64 de_maxus = 0;
+	u32 de_scanned = 0;
+	u32 de_expired = 0;
 	int num_nodes = 0;
 	int *warned = NULL;
 
@@ -1411,7 +1411,7 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 		if (!lkb->lkb_wait_time)
 			continue;
 
-		debug_scanned++;
+		de_scanned++;
 
 		us = ktime_to_us(ktime_sub(ktime_get(), lkb->lkb_wait_time));
 
@@ -1420,9 +1420,9 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 
 		lkb->lkb_wait_time = 0;
 
-		debug_expired++;
-		if (us > debug_maxus)
-			debug_maxus = us;
+		de_expired++;
+		if (us > de_maxus)
+			de_maxus = us;
 
 		if (!num_nodes) {
 			num_nodes = ls->ls_num_nodes;
@@ -1440,10 +1440,10 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 	mutex_unlock(&ls->ls_waiters_mutex);
 	kfree(warned);
 
-	if (debug_expired)
-		log_debug(ls, "scan_waiters %u warn %u over %d us max %lld us",
-			  debug_scanned, debug_expired,
-			  dlm_config.ci_waitwarn_us, (long long)debug_maxus);
+	if (de_expired)
+		log_de(ls, "scan_waiters %u warn %u over %d us max %lld us",
+			  de_scanned, de_expired,
+			  dlm_config.ci_waitwarn_us, (long long)de_maxus);
 }
 
 /* add/remove lkb from global waiters list of lkb's waiting for
@@ -1477,7 +1477,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 		lkb->lkb_wait_count++;
 		hold_lkb(lkb);
 
-		log_debug(ls, "addwait %x cur %d overlap %d count %d f %x",
+		log_de(ls, "addwait %x cur %d overlap %d count %d f %x",
 			  lkb->lkb_id, lkb->lkb_wait_type, mstype,
 			  lkb->lkb_wait_count, lkb->lkb_flags);
 		goto out;
@@ -1490,7 +1490,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 	lkb->lkb_wait_count++;
 	lkb->lkb_wait_type = mstype;
 	lkb->lkb_wait_time = ktime_get();
-	lkb->lkb_wait_nodeid = to_nodeid; /* for debugging */
+	lkb->lkb_wait_nodeid = to_nodeid; /* for deging */
 	hold_lkb(lkb);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
  out:
@@ -1514,14 +1514,14 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 	int overlap_done = 0;
 
 	if (is_overlap_unlock(lkb) && (mstype == DLM_MSG_UNLOCK_REPLY)) {
-		log_debug(ls, "remwait %x unlock_reply overlap", lkb->lkb_id);
+		log_de(ls, "remwait %x unlock_reply overlap", lkb->lkb_id);
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
 		overlap_done = 1;
 		goto out_del;
 	}
 
 	if (is_overlap_cancel(lkb) && (mstype == DLM_MSG_CANCEL_REPLY)) {
-		log_debug(ls, "remwait %x cancel_reply overlap", lkb->lkb_id);
+		log_de(ls, "remwait %x cancel_reply overlap", lkb->lkb_id);
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
 		overlap_done = 1;
 		goto out_del;
@@ -1532,7 +1532,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 
 	if ((mstype == DLM_MSG_CANCEL_REPLY) &&
 	    (lkb->lkb_wait_type != DLM_MSG_CANCEL)) {
-		log_debug(ls, "remwait %x cancel_reply wait_type %d",
+		log_de(ls, "remwait %x cancel_reply wait_type %d",
 			  lkb->lkb_id, lkb->lkb_wait_type);
 		return -1;
 	}
@@ -1548,7 +1548,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
 	if ((mstype == DLM_MSG_CONVERT_REPLY) &&
 	    (lkb->lkb_wait_type == DLM_MSG_CONVERT) &&
 	    is_overlap_cancel(lkb) && ms && !ms->m_result) {
-		log_debug(ls, "remwait %x convert_reply zap overlap_cancel",
+		log_de(ls, "remwait %x convert_reply zap overlap_cancel",
 			  lkb->lkb_id);
 		lkb->lkb_wait_type = 0;
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
@@ -1631,7 +1631,7 @@ static void wait_pending_remove(struct dlm_rsb *r)
 	spin_lock(&ls->ls_remove_spin);
 	if (ls->ls_remove_len &&
 	    !rsb_cmp(r, ls->ls_remove_name, ls->ls_remove_len)) {
-		log_debug(ls, "delay lookup for remove dir %d %s",
+		log_de(ls, "delay lookup for remove dir %d %s",
 		  	  r->res_dir_nodeid, r->res_name);
 		spin_unlock(&ls->ls_remove_spin);
 		msleep(1);
@@ -1743,13 +1743,13 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
 		if (rv) {
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
-			log_debug(ls, "remove_name not toss %s", name);
+			log_de(ls, "remove_name not toss %s", name);
 			continue;
 		}
 
 		if (r->res_master_nodeid != our_nodeid) {
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
-			log_debug(ls, "remove_name master %d dir %d our %d %s",
+			log_de(ls, "remove_name master %d dir %d our %d %s",
 				  r->res_master_nodeid, r->res_dir_nodeid,
 				  our_nodeid, name);
 			continue;
@@ -1767,7 +1767,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		if (!time_after_eq(jiffies, r->res_toss_time +
 				   dlm_config.ci_toss_secs * HZ)) {
 			spin_unlock(&ls->ls_rsbtbl[b].lock);
-			log_debug(ls, "remove_name toss_time %lu now %lu %s",
+			log_de(ls, "remove_name toss_time %lu now %lu %s",
 				  r->res_toss_time, jiffies, name);
 			continue;
 		}
@@ -1903,7 +1903,7 @@ void dlm_scan_timeout(struct dlm_ls *ls)
 		}
 
 		if (do_cancel) {
-			log_debug(ls, "timeout cancel %x node %d %s",
+			log_de(ls, "timeout cancel %x node %d %s",
 				  lkb->lkb_id, lkb->lkb_nodeid, r->res_name);
 			lkb->lkb_flags &= ~DLM_IFL_WATCH_TIMEWARN;
 			lkb->lkb_flags |= DLM_IFL_TIMEOUT_CANCEL;
@@ -2739,7 +2739,7 @@ static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		   past find_rsb and go through _request_lock again.
 		   confirm_master() or process_lookup_list() needs to be
 		   called after this. */
-		log_debug(r->res_ls, "set_master %x self master %d dir %d %s",
+		log_de(r->res_ls, "set_master %x self master %d dir %d %s",
 			  lkb->lkb_id, r->res_master_nodeid, r->res_dir_nodeid,
 			  r->res_name);
 		r->res_master_nodeid = our_nodeid;
@@ -2922,7 +2922,7 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	rv = 0;
  out:
 	if (rv)
-		log_debug(ls, "validate_lock_args %d %x %x %x %d %d %s",
+		log_de(ls, "validate_lock_args %d %x %x %x %d %d %s",
 			  rv, lkb->lkb_id, lkb->lkb_flags, args->flags,
 			  lkb->lkb_status, lkb->lkb_wait_type,
 			  lkb->lkb_resource->res_name);
@@ -2952,7 +2952,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 	   locks; return same error as if the lkid had not been found at all */
 
 	if (lkb->lkb_flags & DLM_IFL_ENDOFLIFE) {
-		log_debug(ls, "unlock on ENDOFLIFE %x", lkb->lkb_id);
+		log_de(ls, "unlock on ENDOFLIFE %x", lkb->lkb_id);
 		rv = -ENOENT;
 		goto out;
 	}
@@ -2962,7 +2962,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 
 	if (!list_empty(&lkb->lkb_rsb_lookup)) {
 		if (args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) {
-			log_debug(ls, "unlock on rsb_lookup %x", lkb->lkb_id);
+			log_de(ls, "unlock on rsb_lookup %x", lkb->lkb_id);
 			list_del_init(&lkb->lkb_rsb_lookup);
 			queue_cast(lkb->lkb_resource, lkb,
 				   args->flags & DLM_LKF_CANCEL ?
@@ -3059,7 +3059,7 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 	rv = 0;
  out:
 	if (rv)
-		log_debug(ls, "validate_unlock_args %d %x %x %x %x %d %s", rv,
+		log_de(ls, "validate_unlock_args %d %x %x %x %x %d %s", rv,
 			  lkb->lkb_id, lkb->lkb_flags, lkb->lkb_exflags,
 			  args->flags, lkb->lkb_wait_type,
 			  lkb->lkb_resource->res_name);
@@ -4446,7 +4446,7 @@ static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
 			return;
 		}
 
-		log_debug(ls, "receive_remove from %d master %d first %x %s",
+		log_de(ls, "receive_remove from %d master %d first %x %s",
 			  from_nodeid, r->res_master_nodeid, r->res_first_lkid,
 			  name);
 		spin_unlock(&ls->ls_rsbtbl[b].lock);
@@ -4577,13 +4577,13 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 
 	if (is_overlap_unlock(lkb) && (result == 0 || result == -EINPROGRESS)) {
-		log_debug(ls, "receive_request_reply %x result %d unlock",
+		log_de(ls, "receive_request_reply %x result %d unlock",
 			  lkb->lkb_id, result);
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
 		send_unlock(r, lkb);
 	} else if (is_overlap_cancel(lkb) && (result == -EINPROGRESS)) {
-		log_debug(ls, "receive_request_reply %x cancel", lkb->lkb_id);
+		log_de(ls, "receive_request_reply %x cancel", lkb->lkb_id);
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
 		send_cancel(r, lkb);
@@ -4839,7 +4839,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 
 	if (is_overlap(lkb)) {
-		log_debug(ls, "receive_lookup_reply %x unlock %x",
+		log_de(ls, "receive_lookup_reply %x unlock %x",
 			  lkb->lkb_id, lkb->lkb_flags);
 		queue_cast_overlap(r, lkb);
 		unhold_lkb(lkb); /* undoes create_lkb() */
@@ -4952,13 +4952,13 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 	 *
 	 * The lock id referenced in the message wasn't found.  This may
 	 * happen in normal usage for the async messages and cancel, so
-	 * only use log_debug for them.
+	 * only use log_de for them.
 	 *
 	 * Some errors are expected and normal.
 	 */
 
 	if (error == -ENOENT && noent) {
-		log_debug(ls, "receive %d no %x remote %d %x saved_seq %u",
+		log_de(ls, "receive %d no %x remote %d %x saved_seq %u",
 			  ms->m_type, ms->m_remid, ms->m_header.h_nodeid,
 			  ms->m_lkid, saved_seq);
 	} else if (error == -ENOENT) {
@@ -5048,8 +5048,8 @@ void dlm_receive_buffer(union dlm_packet *p, int nodeid)
 
 	ls = dlm_find_lockspace_global(hd->h_lockspace);
 	if (!ls) {
-		if (dlm_config.ci_log_debug) {
-			printk_ratelimited(KERN_DEBUG "dlm: invalid lockspace "
+		if (dlm_config.ci_log_de) {
+			printk_ratelimited(KERN_DE "dlm: invalid lockspace "
 				"%u from %d cmd %d type %d\n",
 				hd->h_lockspace, nodeid, hd->h_cmd, type);
 		}
@@ -5135,11 +5135,11 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 
 		dir_nodeid = dlm_dir_nodeid(lkb->lkb_resource);
 
-		/* exclude debug messages about unlocks because there can be so
+		/* exclude de messages about unlocks because there can be so
 		   many and they aren't very interesting */
 
 		if (lkb->lkb_wait_type != DLM_MSG_UNLOCK) {
-			log_debug(ls, "waiter %x remote %x msg %d r_nodeid %d "
+			log_de(ls, "waiter %x remote %x msg %d r_nodeid %d "
 				  "lkb_nodeid %d wait_nodeid %d dir_nodeid %d",
 				  lkb->lkb_id,
 				  lkb->lkb_remid,
@@ -5182,7 +5182,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 					stub_unlock_result = -ENOENT;
 			}
 
-			log_debug(ls, "rwpre overlap %x %x %d %d %d",
+			log_de(ls, "rwpre overlap %x %x %d %d %d",
 				  lkb->lkb_id, lkb->lkb_flags, wait_type,
 				  stub_cancel_result, stub_unlock_result);
 		}
@@ -5273,7 +5273,7 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 
 	while (1) {
 		if (dlm_locking_stopped(ls)) {
-			log_debug(ls, "recover_waiters_post aborted");
+			log_de(ls, "recover_waiters_post aborted");
 			error = -EINTR;
 			break;
 		}
@@ -5291,7 +5291,7 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 		ou = is_overlap_unlock(lkb);
 		err = 0;
 
-		log_debug(ls, "waiter %x remote %x msg %d r_nodeid %d "
+		log_de(ls, "waiter %x remote %x msg %d r_nodeid %d "
 			  "lkb_nodeid %d wait_nodeid %d dir_nodeid %d "
 			  "overlap %d %d", lkb->lkb_id, lkb->lkb_remid, mstype,
 			  r->res_nodeid, lkb->lkb_nodeid, lkb->lkb_wait_nodeid,
@@ -5745,7 +5745,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 		   dlm_recover_master_reply(), this wouldn't happen if we did
 		   a barrier between recover_masters and recover_locks. */
 
-		log_debug(ls, "dlm_recover_process_copy %x remote %d %x %d",
+		log_de(ls, "dlm_recover_process_copy %x remote %d %x %d",
 			  lkid, rc->rc_header.h_nodeid, remid, result);
 	
 		dlm_send_rcom_lock(r, lkb);

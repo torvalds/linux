@@ -5,34 +5,34 @@
  *  Author: Jan Glauber (jang@linux.vnet.ibm.com)
  */
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <asm/debug.h>
-#include "qdio_debug.h"
+#include <asm/de.h>
+#include "qdio_de.h"
 #include "qdio.h"
 
-debug_info_t *qdio_dbf_setup;
-debug_info_t *qdio_dbf_error;
+de_info_t *qdio_dbf_setup;
+de_info_t *qdio_dbf_error;
 
-static struct dentry *debugfs_root;
-#define QDIO_DEBUGFS_NAME_LEN	10
+static struct dentry *defs_root;
+#define QDIO_DEFS_NAME_LEN	10
 #define QDIO_DBF_NAME_LEN	20
 
 struct qdio_dbf_entry {
 	char dbf_name[QDIO_DBF_NAME_LEN];
-	debug_info_t *dbf_info;
+	de_info_t *dbf_info;
 	struct list_head dbf_list;
 };
 
 static LIST_HEAD(qdio_dbf_list);
 static DEFINE_MUTEX(qdio_dbf_list_mutex);
 
-static debug_info_t *qdio_get_dbf_entry(char *name)
+static de_info_t *qdio_get_dbf_entry(char *name)
 {
 	struct qdio_dbf_entry *entry;
-	debug_info_t *rc = NULL;
+	de_info_t *rc = NULL;
 
 	mutex_lock(&qdio_dbf_list_mutex);
 	list_for_each_entry(entry, &qdio_dbf_list, dbf_list) {
@@ -52,7 +52,7 @@ static void qdio_clear_dbf_list(void)
 	mutex_lock(&qdio_dbf_list_mutex);
 	list_for_each_entry_safe(entry, tmp, &qdio_dbf_list, dbf_list) {
 		list_del(&entry->dbf_list);
-		debug_unregister(entry->dbf_info);
+		de_unregister(entry->dbf_info);
 		kfree(entry);
 	}
 	mutex_unlock(&qdio_dbf_list_mutex);
@@ -82,27 +82,27 @@ int qdio_allocate_dbf(struct qdio_initialize *init_data,
 	/* allocate trace view for the interface */
 	snprintf(text, QDIO_DBF_NAME_LEN, "qdio_%s",
 					dev_name(&init_data->cdev->dev));
-	irq_ptr->debug_area = qdio_get_dbf_entry(text);
-	if (irq_ptr->debug_area)
+	irq_ptr->de_area = qdio_get_dbf_entry(text);
+	if (irq_ptr->de_area)
 		DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf reused");
 	else {
-		irq_ptr->debug_area = debug_register(text, 2, 1, 16);
-		if (!irq_ptr->debug_area)
+		irq_ptr->de_area = de_register(text, 2, 1, 16);
+		if (!irq_ptr->de_area)
 			return -ENOMEM;
-		if (debug_register_view(irq_ptr->debug_area,
-						&debug_hex_ascii_view)) {
-			debug_unregister(irq_ptr->debug_area);
+		if (de_register_view(irq_ptr->de_area,
+						&de_hex_ascii_view)) {
+			de_unregister(irq_ptr->de_area);
 			return -ENOMEM;
 		}
-		debug_set_level(irq_ptr->debug_area, DBF_WARN);
+		de_set_level(irq_ptr->de_area, DBF_WARN);
 		DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf created");
 		new_entry = kzalloc(sizeof(struct qdio_dbf_entry), GFP_KERNEL);
 		if (!new_entry) {
-			debug_unregister(irq_ptr->debug_area);
+			de_unregister(irq_ptr->de_area);
 			return -ENOMEM;
 		}
 		strlcpy(new_entry->dbf_name, text, QDIO_DBF_NAME_LEN);
-		new_entry->dbf_info = irq_ptr->debug_area;
+		new_entry->dbf_info = irq_ptr->de_area;
 		mutex_lock(&qdio_dbf_list_mutex);
 		list_add(&new_entry->dbf_list, &qdio_dbf_list);
 		mutex_unlock(&qdio_dbf_list_mutex);
@@ -137,7 +137,7 @@ static int qstat_show(struct seq_file *m, void *v)
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
 
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
-		debug_get_buf_state(q, i, &state);
+		de_get_buf_state(q, i, &state);
 		switch (state) {
 		case SLSB_P_INPUT_NOT_INIT:
 		case SLSB_P_OUTPUT_NOT_INIT:
@@ -277,7 +277,7 @@ static int qperf_seq_open(struct inode *inode, struct file *filp)
 			   file_inode(filp)->i_private);
 }
 
-static const struct file_operations debugfs_perf_fops = {
+static const struct file_operations defs_perf_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = qperf_seq_open,
 	.read	 = seq_read,
@@ -286,75 +286,75 @@ static const struct file_operations debugfs_perf_fops = {
 	.release = single_release,
 };
 
-static void setup_debugfs_entry(struct qdio_q *q)
+static void setup_defs_entry(struct qdio_q *q)
 {
-	char name[QDIO_DEBUGFS_NAME_LEN];
+	char name[QDIO_DEFS_NAME_LEN];
 
-	snprintf(name, QDIO_DEBUGFS_NAME_LEN, "%s_%d",
+	snprintf(name, QDIO_DEFS_NAME_LEN, "%s_%d",
 		 q->is_input_q ? "input" : "output",
 		 q->nr);
-	q->debugfs_q = debugfs_create_file(name, 0444,
-				q->irq_ptr->debugfs_dev, q, &qstat_fops);
-	if (IS_ERR(q->debugfs_q))
-		q->debugfs_q = NULL;
+	q->defs_q = defs_create_file(name, 0444,
+				q->irq_ptr->defs_dev, q, &qstat_fops);
+	if (IS_ERR(q->defs_q))
+		q->defs_q = NULL;
 }
 
-void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
+void qdio_setup_de_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)
 {
 	struct qdio_q *q;
 	int i;
 
-	irq_ptr->debugfs_dev = debugfs_create_dir(dev_name(&cdev->dev),
-						  debugfs_root);
-	if (IS_ERR(irq_ptr->debugfs_dev))
-		irq_ptr->debugfs_dev = NULL;
+	irq_ptr->defs_dev = defs_create_dir(dev_name(&cdev->dev),
+						  defs_root);
+	if (IS_ERR(irq_ptr->defs_dev))
+		irq_ptr->defs_dev = NULL;
 
-	irq_ptr->debugfs_perf = debugfs_create_file("statistics",
+	irq_ptr->defs_perf = defs_create_file("statistics",
 				S_IFREG | S_IRUGO | S_IWUSR,
-				irq_ptr->debugfs_dev, irq_ptr,
-				&debugfs_perf_fops);
-	if (IS_ERR(irq_ptr->debugfs_perf))
-		irq_ptr->debugfs_perf = NULL;
+				irq_ptr->defs_dev, irq_ptr,
+				&defs_perf_fops);
+	if (IS_ERR(irq_ptr->defs_perf))
+		irq_ptr->defs_perf = NULL;
 
 	for_each_input_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q);
+		setup_defs_entry(q);
 	for_each_output_queue(irq_ptr, q, i)
-		setup_debugfs_entry(q);
+		setup_defs_entry(q);
 }
 
-void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr)
+void qdio_shutdown_de_entries(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
 	int i;
 
 	for_each_input_queue(irq_ptr, q, i)
-		debugfs_remove(q->debugfs_q);
+		defs_remove(q->defs_q);
 	for_each_output_queue(irq_ptr, q, i)
-		debugfs_remove(q->debugfs_q);
-	debugfs_remove(irq_ptr->debugfs_perf);
-	debugfs_remove(irq_ptr->debugfs_dev);
+		defs_remove(q->defs_q);
+	defs_remove(irq_ptr->defs_perf);
+	defs_remove(irq_ptr->defs_dev);
 }
 
-int __init qdio_debug_init(void)
+int __init qdio_de_init(void)
 {
-	debugfs_root = debugfs_create_dir("qdio", NULL);
+	defs_root = defs_create_dir("qdio", NULL);
 
-	qdio_dbf_setup = debug_register("qdio_setup", 16, 1, 16);
-	debug_register_view(qdio_dbf_setup, &debug_hex_ascii_view);
-	debug_set_level(qdio_dbf_setup, DBF_INFO);
+	qdio_dbf_setup = de_register("qdio_setup", 16, 1, 16);
+	de_register_view(qdio_dbf_setup, &de_hex_ascii_view);
+	de_set_level(qdio_dbf_setup, DBF_INFO);
 	DBF_EVENT("dbf created\n");
 
-	qdio_dbf_error = debug_register("qdio_error", 4, 1, 16);
-	debug_register_view(qdio_dbf_error, &debug_hex_ascii_view);
-	debug_set_level(qdio_dbf_error, DBF_INFO);
+	qdio_dbf_error = de_register("qdio_error", 4, 1, 16);
+	de_register_view(qdio_dbf_error, &de_hex_ascii_view);
+	de_set_level(qdio_dbf_error, DBF_INFO);
 	DBF_ERROR("dbf created\n");
 	return 0;
 }
 
-void qdio_debug_exit(void)
+void qdio_de_exit(void)
 {
 	qdio_clear_dbf_list();
-	debugfs_remove(debugfs_root);
-	debug_unregister(qdio_dbf_setup);
-	debug_unregister(qdio_dbf_error);
+	defs_remove(defs_root);
+	de_unregister(qdio_dbf_setup);
+	de_unregister(qdio_dbf_error);
 }

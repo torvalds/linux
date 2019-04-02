@@ -149,7 +149,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     리눅스로 전향하는 사람들에게는 매우 중요하다.
 
 
-  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+  :ref:`Documentation/admin-guide/security-s.rst <securitys>`
     여러분들이 리눅스 커널의 보안 문제를 발견했다고 생각한다면 이 문서에
     나온 단계에 따라서 커널 개발자들에게 알리고 그 문제를 해결할 수 있도록
     도와 달라.
@@ -340,13 +340,13 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 버그 보고
 ---------
 
-https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버그를 추적하는
+https://zilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버그를 추적하는
 곳이다. 사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을
-권장한다.  kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
+권장한다.  kernel zilla를 사용하는 자세한 방법은 다음을 참조하라.
 
-    https://bugzilla.kernel.org/page.cgi?id=faq.html
+    https://zilla.kernel.org/page.cgi?id=faq.html
 
-메인 커널 소스 디렉토리에 있는 :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+메인 커널 소스 디렉토리에 있는 :ref:`admin-guide/reporting-s.rst <reportings>`
 파일은 커널 버그라고 생각되는 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를
 추적하기 위해서 커널 개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고
 있다.
@@ -363,7 +363,7 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 점수를 얻을 수 있는 가장 좋은 방법중의 하나이다. 왜냐하면 많은 사람들은
 다른 사람들의 버그들을 수정하기 위하여 시간을 낭비하지 않기 때문이다.
 
-이미 보고된 버그 리포트들을 가지고 작업하기 위해서 https://bugzilla.kernel.org
+이미 보고된 버그 리포트들을 가지고 작업하기 위해서 https://zilla.kernel.org
 를 참조하라.
 
 

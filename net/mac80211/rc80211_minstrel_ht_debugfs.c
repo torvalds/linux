@@ -8,7 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ieee80211.h>
 #include <linux/export.h>
 #include <net/mac80211.h>
@@ -18,7 +18,7 @@
 static ssize_t
 minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
 {
-	struct minstrel_debugfs_info *ms;
+	struct minstrel_defs_info *ms;
 
 	ms = file->private_data;
 	return simple_read_from_buffer(buf, len, ppos, ms->buf, ms->len);
@@ -125,7 +125,7 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_ht_sta_priv *msp = inode->i_private;
 	struct minstrel_ht_sta *mi = &msp->ht;
-	struct minstrel_debugfs_info *ms;
+	struct minstrel_defs_info *ms;
 	unsigned int i;
 	int ret;
 	char *p;
@@ -275,7 +275,7 @@ minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_ht_sta_priv *msp = inode->i_private;
 	struct minstrel_ht_sta *mi = &msp->ht;
-	struct minstrel_debugfs_info *ms;
+	struct minstrel_defs_info *ms;
 	unsigned int i;
 	int ret;
 	char *p;
@@ -317,12 +317,12 @@ static const struct file_operations minstrel_ht_stat_csv_fops = {
 };
 
 void
-minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
+minstrel_ht_add_sta_defs(void *priv, void *priv_sta, struct dentry *dir)
 {
 	struct minstrel_ht_sta_priv *msp = priv_sta;
 
-	debugfs_create_file("rc_stats", 0444, dir, msp,
+	defs_create_file("rc_stats", 0444, dir, msp,
 			    &minstrel_ht_stat_fops);
-	debugfs_create_file("rc_stats_csv", 0444, dir, msp,
+	defs_create_file("rc_stats_csv", 0444, dir, msp,
 			    &minstrel_ht_stat_csv_fops);
 }

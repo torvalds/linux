@@ -3623,7 +3623,7 @@ static u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 		   "hlen %d  fix %d  csum before fix %x\n",
 		   le16_to_cpu(pbd->total_hlen_w), fix, SKB_CS(skb));
 
-		/* HW bug: fixup the CSUM */
+		/* HW : fixup the CSUM */
 		pbd->tcp_pseudo_csum =
 			bnx2x_csum_fix(skb_transport_header(skb),
 				       SKB_CS(skb), fix);
@@ -3759,15 +3759,15 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	txq_index = skb_get_queue_mapping(skb);
 	txq = netdev_get_tx_queue(dev, txq_index);
 
-	BUG_ON(txq_index >= MAX_ETH_TXQ_IDX(bp) + (CNIC_LOADED(bp) ? 1 : 0));
+	_ON(txq_index >= MAX_ETH_TXQ_IDX(bp) + (CNIC_LOADED(bp) ? 1 : 0));
 
 	txdata = &bp->bnx2x_txq[txq_index];
 
-	/* enable this debug print to view the transmission queue being used
+	/* enable this de print to view the transmission queue being used
 	DP(NETIF_MSG_TX_QUEUED, "indices: txq %d, fp %d, txdata %d\n",
 	   txq_index, fp_index, txdata_index); */
 
-	/* enable this debug print to view the transmission details
+	/* enable this de print to view the transmission details
 	DP(NETIF_MSG_TX_QUEUED,
 	   "transmitting packet cid %d fp index %d txdata_index %d tx_data ptr %p fp pointer %p\n",
 	   txdata->cid, fp_index, txdata_index, txdata, fp); */
@@ -3786,7 +3786,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		bnx2x_fp_qstats(bp, txdata->parent_fp)->driver_xoff++;
 		netif_tx_stop_queue(txq);
-		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
+		BNX2X_ERR("! Tx ring full when queue awake!\n");
 
 		return NETDEV_TX_BUSY;
 	}

@@ -111,8 +111,8 @@
 #define mmTHM_TMON0_CTRL_BASE_IDX                                                                      0
 #define mmTHM_TMON0_CTRL2                                                                              0x002f
 #define mmTHM_TMON0_CTRL2_BASE_IDX                                                                     0
-#define mmTHM_TMON0_DEBUG                                                                              0x0030
-#define mmTHM_TMON0_DEBUG_BASE_IDX                                                                     0
+#define mmTHM_TMON0_DE                                                                              0x0030
+#define mmTHM_TMON0_DE_BASE_IDX                                                                     0
 #define mmTHM_DIE1_TEMP                                                                                0x0055
 #define mmTHM_DIE1_TEMP_BASE_IDX                                                                       0
 #define mmTHM_DIE2_TEMP                                                                                0x0056

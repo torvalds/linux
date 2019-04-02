@@ -63,7 +63,7 @@ static int xen_suspend(void *data)
 	struct suspend_info *si = data;
 	int err;
 
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	err = syscore_suspend();
 	if (err) {
@@ -118,7 +118,7 @@ static void do_suspend(void)
 		goto out_thaw;
 	}
 
-	printk(KERN_DEBUG "suspending xenstore...\n");
+	printk(KERN_DE "suspending xenstore...\n");
 	xs_suspend();
 
 	err = dpm_suspend_end(PMSG_FREEZE);

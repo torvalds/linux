@@ -685,7 +685,7 @@ static int test_dma_fence(void *arg)
 	sleep = jiffies_to_usecs(delay) / 3;
 	usleep_range(sleep, 2 * sleep);
 	if (time_after(jiffies, end)) {
-		pr_debug("Slept too long, delay=%lu, (target=%lu, now=%lu) skipping\n",
+		pr_de("Slept too long, delay=%lu, (target=%lu, now=%lu) skipping\n",
 			 delay, end, jiffies);
 		goto skip;
 	}

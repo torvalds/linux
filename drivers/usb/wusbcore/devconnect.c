@@ -701,7 +701,7 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 		size_t cap_size;
 		u8 cap_type;
 		if (top - itr < sizeof(*cap_hdr)) {
-			dev_err(dev, "Device BUG? premature end of BOS header "
+			dev_err(dev, "Device ? premature end of BOS header "
 				"data [offset 0x%02x]: only %zu bytes left\n",
 				(int)(itr - (void *)bos), top - itr);
 			result = -ENOSPC;
@@ -712,7 +712,7 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 		if (cap_size == 0)
 			break;
 		if (cap_size > top - itr) {
-			dev_err(dev, "Device BUG? premature end of BOS data "
+			dev_err(dev, "Device ? premature end of BOS data "
 				"[offset 0x%02x cap %02x %zu bytes]: "
 				"only %zu bytes left\n",
 				(int)(itr - (void *)bos),
@@ -723,7 +723,7 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 		switch (cap_type) {
 		case USB_CAP_TYPE_WIRELESS_USB:
 			if (cap_size != sizeof(*wusb_dev->wusb_cap_descr))
-				dev_err(dev, "Device BUG? WUSB Capability "
+				dev_err(dev, "Device ? WUSB Capability "
 					"descriptor is %zu bytes vs %zu "
 					"needed\n", cap_size,
 					sizeof(*wusb_dev->wusb_cap_descr));
@@ -731,7 +731,7 @@ static int wusb_dev_bos_grok(struct usb_device *usb_dev,
 				wusb_dev->wusb_cap_descr = itr;
 			break;
 		default:
-			dev_err(dev, "BUG? Unknown BOS capability 0x%02x "
+			dev_err(dev, "? Unknown BOS capability 0x%02x "
 				"(%zu bytes) at offset 0x%02x\n", cap_type,
 				cap_size, (int)(itr - (void *)bos));
 		}
@@ -952,7 +952,7 @@ struct wusb_dev *__wusb_dev_get_by_usb_dev(struct wusbhc *wusbhc,
 	u8 port_idx;
 
 	port_idx = wusb_port_no_to_idx(usb_dev->portnum);
-	BUG_ON(port_idx > wusbhc->ports_max);
+	_ON(port_idx > wusbhc->ports_max);
 	wusb_dev = wusb_port_by_idx(wusbhc, port_idx)->wusb_dev;
 	if (wusb_dev != NULL)		/* ops, device is gone */
 		wusb_dev_get(wusb_dev);

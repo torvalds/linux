@@ -83,7 +83,7 @@ int afs_open_socket(struct afs_net *net)
 		goto error_2;
 
 	/* Ideally, we'd turn on service upgrade here, but we can't because
-	 * OpenAFS is buggy and leaks the userStatus field from packet to
+	 * OpenAFS is gy and leaks the userStatus field from packet to
 	 * packet and between FS packets and CB packets - so if we try to do an
 	 * upgrade on an FS packet, OpenAFS will leak that into the CB packet
 	 * it sends back to us.
@@ -123,16 +123,16 @@ void afs_close_socket(struct afs_net *net)
 		net->spare_incoming_call = NULL;
 	}
 
-	_debug("outstanding %u", atomic_read(&net->nr_outstanding_calls));
+	_de("outstanding %u", atomic_read(&net->nr_outstanding_calls));
 	wait_var_event(&net->nr_outstanding_calls,
 		       !atomic_read(&net->nr_outstanding_calls));
-	_debug("no outstanding calls");
+	_de("no outstanding calls");
 
 	kernel_sock_shutdown(net->socket, SHUT_RDWR);
 	flush_workqueue(afs_async_calls);
 	sock_release(net->socket);
 
-	_debug("dework");
+	_de("dework");
 	_leave("");
 }
 
@@ -152,7 +152,7 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 
 	call->type = type;
 	call->net = net;
-	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
+	call->de_id = atomic_inc_return(&rxrpc_de_id);
 	atomic_set(&call->usage, 1);
 	INIT_WORK(&call->async_work, afs_process_async_call);
 	init_waitqueue_head(&call->waitq);
@@ -378,7 +378,7 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	ASSERT(call->type != NULL);
 	ASSERT(call->type->name != NULL);
 
-	_debug("____MAKE %p{%s,%x} [%d]____",
+	_de("____MAKE %p{%s,%x} [%d]____",
 	       call, call->type->name, key_serial(call->key),
 	       atomic_read(&call->net->nr_outstanding_calls));
 
@@ -419,7 +419,7 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
 					 call->upgrade,
-					 call->debug_id);
+					 call->de_id);
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
 		call->error = ret;
@@ -567,7 +567,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 			goto local_abort;
 		case -EIO:
 			pr_err("kAFS: Call %u in bad state %u\n",
-			       call->debug_id, state);
+			       call->de_id, state);
 			/* Fall through */
 		case -ENODATA:
 		case -EBADMSG:
@@ -665,7 +665,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 
 	/* Kill off the call if it's still live. */
 	if (!afs_check_call_state(call, AFS_CALL_COMPLETE)) {
-		_debug("call interrupted");
+		_de("call interrupted");
 		if (rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
 					    RX_USER_ABORT, -EINTR, "KWI"))
 			afs_set_call_complete(call, -EINTR, 0);
@@ -689,7 +689,7 @@ static long afs_wait_for_call_to_complete(struct afs_call *call,
 		break;
 	}
 
-	_debug("call complete");
+	_de("call complete");
 	afs_put_call(call);
 	_leave(" = %p", (void *)ret);
 	return ret;
@@ -807,7 +807,7 @@ void afs_charge_preallocation(struct work_struct *work)
 					       afs_rx_attach,
 					       (unsigned long)call,
 					       GFP_KERNEL,
-					       call->debug_id) < 0)
+					       call->de_id) < 0)
 			break;
 		call = NULL;
 	}
@@ -906,7 +906,7 @@ void afs_send_empty_reply(struct afs_call *call)
 		return;
 
 	case -ENOMEM:
-		_debug("oom");
+		_de("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
 					RX_USER_ABORT, -ENOMEM, "KOO");
 	default:
@@ -947,7 +947,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	}
 
 	if (n == -ENOMEM) {
-		_debug("oom");
+		_de("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
 					RX_USER_ABORT, -ENOMEM, "KOO");
 	}
@@ -983,7 +983,7 @@ int afs_extract_data(struct afs_call *call, bool want_more)
 			afs_set_call_state(call, state, AFS_CALL_SV_REPLYING);
 			break;
 		case AFS_CALL_COMPLETE:
-			kdebug("prem complete %d", call->error);
+			kde("prem complete %d", call->error);
 			return afs_io_error(call, afs_io_error_extract);
 		default:
 			break;

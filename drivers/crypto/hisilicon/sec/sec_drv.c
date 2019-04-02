@@ -96,9 +96,9 @@
 #define   SEC_CTRL2_ENDIAN_BD_TYPE			BIT(9)
 
 #define SEC_CNT_PRECISION_CFG_REG			0x006c
-#define SEC_DEBUG_BD_CFG_REG				0x0070
-#define   SEC_DEBUG_BD_CFG_WB_NORMAL			BIT(0)
-#define   SEC_DEBUG_BD_CFG_WB_EN			BIT(1)
+#define SEC_DE_BD_CFG_REG				0x0070
+#define   SEC_DE_BD_CFG_WB_NORMAL			BIT(0)
+#define   SEC_DE_BD_CFG_WB_EN			BIT(1)
 
 #define SEC_Q_SIGHT_SEL					0x0074
 #define SEC_Q_SIGHT_HIS_CLR				0x0078
@@ -202,13 +202,13 @@
 #define SEC_Q_1ST_ERR_BD_WR_ERR_ID_REG			0x91c
 #define SEC_Q_1ST_BD_MAC_WR_ERR_ID_REG			0x920
 
-struct sec_debug_bd_info {
-#define SEC_DEBUG_BD_INFO_SOFT_ERR_CHECK_M	GENMASK(22, 0)
+struct sec_de_bd_info {
+#define SEC_DE_BD_INFO_SOFT_ERR_CHECK_M	GENMASK(22, 0)
 	u32 soft_err_check;
-#define SEC_DEBUG_BD_INFO_HARD_ERR_CHECK_M	GENMASK(9, 0)
+#define SEC_DE_BD_INFO_HARD_ERR_CHECK_M	GENMASK(9, 0)
 	u32 hard_err_check;
 	u32 icv_mac1st_word;
-#define SEC_DEBUG_BD_INFO_GET_ID_M		GENMASK(19, 0)
+#define SEC_DE_BD_INFO_GET_ID_M		GENMASK(19, 0)
 	u32 sec_get_id;
 	/* W4---W15 */
 	u32 reserv_left[12];
@@ -470,17 +470,17 @@ static int sec_ipv4_hashmask(struct sec_dev_info *info, u32 hash_mask)
 
 static void sec_set_dbg_bd_cfg(struct sec_dev_info *info, u32 cfg)
 {
-	void __iomem *addr = info->regs[SEC_SAA] + SEC_DEBUG_BD_CFG_REG;
+	void __iomem *addr = info->regs[SEC_SAA] + SEC_DE_BD_CFG_REG;
 	u32 regval;
 
 	regval = readl_relaxed(addr);
 	/* Always disable write back of normal bd */
-	regval &= ~SEC_DEBUG_BD_CFG_WB_NORMAL;
+	regval &= ~SEC_DE_BD_CFG_WB_NORMAL;
 
 	if (cfg)
-		regval &= ~SEC_DEBUG_BD_CFG_WB_EN;
+		regval &= ~SEC_DE_BD_CFG_WB_EN;
 	else
-		regval |= SEC_DEBUG_BD_CFG_WB_EN;
+		regval |= SEC_DE_BD_CFG_WB_EN;
 
 	writel_relaxed(regval, addr);
 }
@@ -966,7 +966,7 @@ static int sec_hw_init(struct sec_dev_info *info)
 
 	sec_ipv6_hashmask(info, sec_ipv6_mask);
 
-	/*  do not use debug bd */
+	/*  do not use de bd */
 	sec_set_dbg_bd_cfg(info, 0);
 
 	if (domain && (domain->type & __IOMMU_DOMAIN_PAGING)) {
@@ -1072,7 +1072,7 @@ static void sec_base_exit(struct sec_dev_info *info)
 #define SEC_Q_CQ_SIZE \
 	round_up(SEC_QUEUE_LEN * sizeof(struct sec_out_bd_info), PAGE_SIZE)
 #define SEC_Q_DB_SIZE \
-	round_up(SEC_QUEUE_LEN * sizeof(struct sec_debug_bd_info), PAGE_SIZE)
+	round_up(SEC_QUEUE_LEN * sizeof(struct sec_de_bd_info), PAGE_SIZE)
 
 static int sec_queue_res_cfg(struct sec_queue *queue)
 {

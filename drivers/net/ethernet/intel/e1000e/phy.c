@@ -7,7 +7,7 @@ static s32 e1000_wait_autoneg(struct e1000_hw *hw);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read, bool page_set);
 static u32 e1000_get_phy_addr_for_hv_page(u32 page);
-static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
+static s32 e1000_access_phy_de_regs_hv(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read);
 
 /* Cable length tables */
@@ -2755,7 +2755,7 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 	}
 
 	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
-		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
+		ret_val = e1000_access_phy_de_regs_hv(hw, offset,
 							 data, true);
 		goto out;
 	}
@@ -2862,7 +2862,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 	}
 
 	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
-		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
+		ret_val = e1000_access_phy_de_regs_hv(hw, offset,
 							 &data, false);
 		goto out;
 	}
@@ -2880,7 +2880,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 		    !(MAX_PHY_REG_ADDRESS & reg) && (data & BIT(11))) {
 			u16 data2 = 0x7EFF;
 
-			ret_val = e1000_access_phy_debug_regs_hv(hw,
+			ret_val = e1000_access_phy_de_regs_hv(hw,
 								 BIT(6) | 0x3,
 								 &data2, false);
 			if (ret_val)
@@ -2969,7 +2969,7 @@ static u32 e1000_get_phy_addr_for_hv_page(u32 page)
 }
 
 /**
- *  e1000_access_phy_debug_regs_hv - Read HV PHY vendor specific high registers
+ *  e1000_access_phy_de_regs_hv - Read HV PHY vendor specific high registers
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read or written
  *  @data: pointer to the data to be read or written
@@ -2980,7 +2980,7 @@ static u32 e1000_get_phy_addr_for_hv_page(u32 page)
  *  to access these regs uses the address port and data port to read/write.
  *  These accesses done with PHY address 2 and without using pages.
  **/
-static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
+static s32 e1000_access_phy_de_regs_hv(struct e1000_hw *hw, u32 offset,
 					  u16 *data, bool read)
 {
 	s32 ret_val;
@@ -3018,7 +3018,7 @@ static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
  *  e1000_link_stall_workaround_hv - Si workaround
  *  @hw: pointer to the HW structure
  *
- *  This function works around a Si bug where the link partner can get
+ *  This function works around a Si  where the link partner can get
  *  a link up indication before the PHY does.  If small packets are sent
  *  by the link partner they can be placed in the packet buffer without
  *  being properly accounted for by the PHY and will stall preventing

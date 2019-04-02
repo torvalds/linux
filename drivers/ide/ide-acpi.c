@@ -43,14 +43,14 @@ struct ide_acpi_hwif_link {
 	struct ide_acpi_drive_link	 slave;
 };
 
-#undef DEBUGGING
-/* note: adds function name and KERN_DEBUG */
-#ifdef DEBUGGING
+#undef DEGING
+/* note: adds function name and KERN_DE */
+#ifdef DEGING
 #define DEBPRINT(fmt, args...)	\
-		printk(KERN_DEBUG "%s: " fmt, __func__, ## args)
+		printk(KERN_DE "%s: " fmt, __func__, ## args)
 #else
 #define DEBPRINT(fmt, args...)	do {} while (0)
-#endif	/* DEBUGGING */
+#endif	/* DEGING */
 
 static bool ide_noacpi;
 module_param_named(noacpi, ide_noacpi, bool, 0);
@@ -73,7 +73,7 @@ static int no_acpi_psx(const struct dmi_system_id *id)
 }
 
 static const struct dmi_system_id ide_acpi_dmi_table[] = {
-	/* Bug 9673. */
+	/*  9673. */
 	/* We should check if this is because ACPI NVS isn't save/restored. */
 	{
 		.callback = no_acpi_psx,
@@ -250,7 +250,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	status = acpi_evaluate_object(drive->acpidata->obj_handle, "_GTF",
 				      NULL, &output);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: Run _GTF error: status = 0x%x\n",
 		       __func__, status);
 		goto out;

@@ -48,7 +48,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	unsigned int i;
 	Elf32_Rela *rela = (void *)sechdrs[relsec].sh_addr;
 
-	pr_debug("Applying relocate section %u to %u\n", relsec,
+	pr_de("Applying relocate section %u to %u\n", relsec,
 		 sechdrs[relsec].sh_info);
 
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rela); i++) {
@@ -64,7 +64,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 				+ ELF32_R_SYM(rela[i].r_info));
 		uint32_t v = sym->st_value + rela[i].r_addend;
 
-		pr_debug("reltype %d 0x%x name:<%s>\n",
+		pr_de("reltype %d 0x%x name:<%s>\n",
 			ELF32_R_TYPE(rela[i].r_info),
 			rela[i].r_offset, strtab + sym->st_name);
 

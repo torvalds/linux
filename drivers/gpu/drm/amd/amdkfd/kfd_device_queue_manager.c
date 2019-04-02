@@ -153,7 +153,7 @@ static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 		found = find_first_zero_bit(qpd->doorbell_bitmap,
 					    KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 		if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
-			pr_debug("No doorbells available");
+			pr_de("No doorbells available");
 			return -EBUSY;
 		}
 		set_bit(found, qpd->doorbell_bitmap);
@@ -194,7 +194,7 @@ static int allocate_vmid(struct device_queue_manager *dqm,
 	dqm->vmid_bitmap &= ~(1 << bit);
 
 	allocated_vmid = bit + dqm->dev->vm_info.first_vmid_kfd;
-	pr_debug("vmid allocation %d\n", allocated_vmid);
+	pr_de("vmid allocation %d\n", allocated_vmid);
 	qpd->vmid = allocated_vmid;
 	q->properties.vmid = allocated_vmid;
 
@@ -313,7 +313,7 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	 * type or whether the queue is active.
 	 */
 	dqm->total_queue_count++;
-	pr_debug("Total of %d queues are accountable so far\n",
+	pr_de("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
 out_unlock:
@@ -348,7 +348,7 @@ static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 	if (!set)
 		return -EBUSY;
 
-	pr_debug("hqd slot - pipe %d, queue %d\n", q->pipe, q->queue);
+	pr_de("hqd slot - pipe %d, queue %d\n", q->pipe, q->queue);
 	/* horizontal hqd allocation */
 	dqm->next_pipe_to_allocate = (pipe + 1) % get_pipes_per_mec(dqm);
 
@@ -385,7 +385,7 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		goto out_deallocate_doorbell;
 
-	pr_debug("Loading mqd to hqd on pipe %d, queue %d\n",
+	pr_de("Loading mqd to hqd on pipe %d, queue %d\n",
 			q->pipe, q->queue);
 
 	dqm->dev->kfd2kgd->set_scratch_backing_va(
@@ -436,7 +436,7 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 		dqm->sdma_queue_count--;
 		deallocate_sdma_queue(dqm, q->sdma_id);
 	} else {
-		pr_debug("q->properties.type %d is invalid\n",
+		pr_de("q->properties.type %d is invalid\n",
 				q->properties.type);
 		return -EINVAL;
 	}
@@ -579,7 +579,7 @@ static struct mqd_manager *get_mqd_manager(
 	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
 		return NULL;
 
-	pr_debug("mqd type %d\n", type);
+	pr_de("mqd type %d\n", type);
 
 	mqd_mgr = dqm->mqd_mgrs[type];
 	if (!mqd_mgr) {
@@ -658,7 +658,7 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 		dqm->queue_count--;
 	}
 	retval = execute_queues_cpsch(dqm,
-				qpd->is_debug ?
+				qpd->is_de ?
 				KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES :
 				KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
 
@@ -694,7 +694,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%llx\n", pd_base);
+	pr_de("Updated PD address to 0x%llx\n", pd_base);
 
 	if (!list_empty(&qpd->queues_list)) {
 		dqm->dev->kfd2kgd->set_vm_context_page_table_base(
@@ -765,7 +765,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%llx\n", pd_base);
+	pr_de("Updated PD address to 0x%llx\n", pd_base);
 
 	/* activate all active queues on the qpd */
 	list_for_each_entry(q, &qpd->queues_list, list) {
@@ -807,7 +807,7 @@ static int register_process(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%llx\n", pd_base);
+	pr_de("Updated PD address to 0x%llx\n", pd_base);
 
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
@@ -825,7 +825,7 @@ static int unregister_process(struct device_queue_manager *dqm,
 	int retval;
 	struct device_process_node *cur, *next;
 
-	pr_debug("qpd->queues_list is %s\n",
+	pr_de("qpd->queues_list is %s\n",
 			list_empty(&qpd->queues_list) ? "empty" : "not empty");
 
 	retval = 0;
@@ -869,7 +869,7 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 {
 	int pipe, queue;
 
-	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
+	pr_de("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
 	dqm->allocated_queues = kcalloc(get_pipes_per_mec(dqm),
 					sizeof(unsigned int), GFP_KERNEL);
@@ -966,9 +966,9 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		goto out_deallocate_sdma_queue;
 
-	pr_debug("SDMA id is:    %d\n", q->sdma_id);
-	pr_debug("SDMA queue id: %d\n", q->properties.sdma_queue_id);
-	pr_debug("SDMA engine id: %d\n", q->properties.sdma_engine_id);
+	pr_de("SDMA id is:    %d\n", q->sdma_id);
+	pr_de("SDMA queue id: %d\n", q->properties.sdma_queue_id);
+	pr_de("SDMA engine id: %d\n", q->properties.sdma_engine_id);
 
 	dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	retval = mqd_mgr->init_mqd(mqd_mgr, &q->mqd, &q->mqd_mem_obj,
@@ -1030,7 +1030,7 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 	res.gws_mask = res.oac_mask = res.gds_heap_base =
 						res.gds_heap_size = 0;
 
-	pr_debug("Scheduling resources:\n"
+	pr_de("Scheduling resources:\n"
 			"vmid mask: 0x%8X\n"
 			"queue mask: 0x%8llX\n",
 			res.vmid_mask, res.queue_mask);
@@ -1040,7 +1040,7 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 
 static int initialize_cpsch(struct device_queue_manager *dqm)
 {
-	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
+	pr_de("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock_hidden);
 	INIT_LIST_HEAD(&dqm->queues);
@@ -1068,7 +1068,7 @@ static int start_cpsch(struct device_queue_manager *dqm)
 	if (retval)
 		goto fail_set_sched_resources;
 
-	pr_debug("Allocating fence memory\n");
+	pr_de("Allocating fence memory\n");
 
 	/* allocate fence memory on the gart */
 	retval = kfd_gtt_sa_allocate(dqm->dev, sizeof(*dqm->fence_addr),
@@ -1125,12 +1125,12 @@ static int create_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	 * type or whether the queue is active.
 	 */
 	dqm->total_queue_count++;
-	pr_debug("Total of %d queues are accountable so far\n",
+	pr_de("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
 	list_add(&kq->list, &qpd->priv_queue_list);
 	dqm->queue_count++;
-	qpd->is_debug = true;
+	qpd->is_de = true;
 	execute_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
 	dqm_unlock(dqm);
 
@@ -1144,14 +1144,14 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	dqm_lock(dqm);
 	list_del(&kq->list);
 	dqm->queue_count--;
-	qpd->is_debug = false;
+	qpd->is_de = false;
 	execute_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES, 0);
 	/*
 	 * Unconditionally decrement this counter, regardless of the queue's
 	 * type.
 	 */
 	dqm->total_queue_count--;
-	pr_debug("Total of %d queues are accountable so far\n",
+	pr_de("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 	dqm_unlock(dqm);
 }
@@ -1228,7 +1228,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	 */
 	dqm->total_queue_count++;
 
-	pr_debug("Total of %d queues are accountable so far\n",
+	pr_de("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
 	dqm_unlock(dqm);
@@ -1256,7 +1256,7 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 			pr_err("qcm fence wait loop timeout expired\n");
 			/* In HWS case, this is used to halt the driver thread
 			 * in order not to mess up CP states before doing
-			 * scandumps for FW debugging.
+			 * scandumps for FW deging.
 			 */
 			while (halt_if_hws_hang)
 				schedule();
@@ -1310,7 +1310,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	if (!dqm->active_runlist)
 		return retval;
 
-	pr_debug("Before destroying queues, sdma queue count is : %u\n",
+	pr_de("Before destroying queues, sdma queue count is : %u\n",
 		dqm->sdma_queue_count);
 
 	if (dqm->sdma_queue_count > 0) {
@@ -1370,13 +1370,13 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	/* remove queue from list to prevent rescheduling after preemption */
 	dqm_lock(dqm);
 
-	if (qpd->is_debug) {
+	if (qpd->is_de) {
 		/*
 		 * error, currently we do not allow to destroy a queue
-		 * of a currently debugged process
+		 * of a currently deged process
 		 */
 		retval = -EBUSY;
-		goto failed_try_destroy_debugged_queue;
+		goto failed_try_destroy_deged_queue;
 
 	}
 
@@ -1411,7 +1411,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	 * type
 	 */
 	dqm->total_queue_count--;
-	pr_debug("Total of %d queues are accountable so far\n",
+	pr_de("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
 	dqm_unlock(dqm);
@@ -1419,7 +1419,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	return retval;
 
 failed:
-failed_try_destroy_debugged_queue:
+failed_try_destroy_deged_queue:
 
 	dqm_unlock(dqm);
 	return retval;
@@ -1486,7 +1486,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 	if ((dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
 		program_sh_mem_settings(dqm, qpd);
 
-	pr_debug("sh_mem_config: 0x%x, ape1_base: 0x%x, ape1_limit: 0x%x\n",
+	pr_de("sh_mem_config: 0x%x, ape1_base: 0x%x, ape1_limit: 0x%x\n",
 		qpd->sh_mem_config, qpd->sh_mem_ape1_base,
 		qpd->sh_mem_ape1_limit);
 
@@ -1602,7 +1602,7 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 	list_for_each_entry_safe(kq, kq_next, &qpd->priv_queue_list, list) {
 		list_del(&kq->list);
 		dqm->queue_count--;
-		qpd->is_debug = false;
+		qpd->is_de = false;
 		dqm->total_queue_count--;
 		filter = KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES;
 	}
@@ -1659,7 +1659,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 {
 	struct device_queue_manager *dqm;
 
-	pr_debug("Loading device queue manager\n");
+	pr_de("Loading device queue manager\n");
 
 	dqm = kzalloc(sizeof(*dqm), GFP_KERNEL);
 	if (!dqm)
@@ -1801,7 +1801,7 @@ static void kfd_process_hw_exception(struct work_struct *work)
 	amdgpu_amdkfd_gpu_reset(dqm->dev->kgd);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
 static void seq_reg_dump(struct seq_file *m,
 			 uint32_t (*dump)[2], uint32_t n_regs)
@@ -1824,7 +1824,7 @@ static void seq_reg_dump(struct seq_file *m,
 	seq_puts(m, "\n");
 }
 
-int dqm_debugfs_hqds(struct seq_file *m, void *data)
+int dqm_defs_hqds(struct seq_file *m, void *data)
 {
 	struct device_queue_manager *dqm = data;
 	uint32_t (*dump)[2], n_regs;
@@ -1884,7 +1884,7 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	return r;
 }
 
-int dqm_debugfs_execute_queues(struct device_queue_manager *dqm)
+int dqm_defs_execute_queues(struct device_queue_manager *dqm)
 {
 	int r = 0;
 

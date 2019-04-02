@@ -82,7 +82,7 @@ static int amd64_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 						      page_to_phys(mem->pages[i]),
 						      mask_type);
 
-		BUG_ON(tmp & 0xffffff0000000ffcULL);
+		_ON(tmp & 0xffffff0000000ffcULL);
 		pte = (tmp & 0x000000ff00000000ULL) >> 28;
 		pte |=(tmp & 0x00000000fffff000ULL);
 		pte |= GPTE_VALID | GPTE_COHERENT;

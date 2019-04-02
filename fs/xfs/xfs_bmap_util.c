@@ -521,8 +521,8 @@ xfs_getbmap(
 
 	if (bmv->bmv_iflags & ~BMV_IF_VALID)
 		return -EINVAL;
-#ifndef DEBUG
-	/* Only allow CoW fork queries if we're debugging. */
+#ifndef DE
+	/* Only allow CoW fork queries if we're deging. */
 	if (iflags & BMV_IF_COWFORK)
 		return -EINVAL;
 #endif
@@ -835,7 +835,7 @@ xfs_free_eofblocks(
 		 * Do not update the on-disk file size.  If we update the
 		 * on-disk file size and then the system crashes before the
 		 * contents of the file are flushed to disk then the files
-		 * may be full of holes (ie NULL files bug).
+		 * may be full of holes (ie NULL files ).
 		 */
 		error = xfs_itruncate_extents_flags(&tp, ip, XFS_DATA_FORK,
 					XFS_ISIZE(ip), XFS_BMAPI_NODISCARD);

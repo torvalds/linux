@@ -27,15 +27,15 @@ or
 DESCRIPTION
 -----------
 This command defines dynamic tracepoint events, by symbol and registers
-without debuginfo, or by C expressions (C line numbers, C function names,
-and C local variables) with debuginfo.
+without deinfo, or by C expressions (C line numbers, C function names,
+and C local variables) with deinfo.
 
 
 OPTIONS
 -------
 -k::
 --vmlinux=PATH::
-	Specify vmlinux path which has debuginfo (Dwarf binary).
+	Specify vmlinux path which has deinfo (Dwarf binary).
 	Only when using this with --definition, you can give an offline
 	vmlinux file.
 
@@ -198,7 +198,7 @@ Each probe argument follows below syntax.
 
 'NAME' specifies the name of this argument (optional). You can use the name of local variable, local data structure member (e.g. var->field, var.field2), local array with fixed index (e.g. array[1], var->array[0], var->pointer[2]), or kprobe-tracer argument format (e.g. $retval, %ax, etc). Note that the name of this argument will be set as the last member name if you specify a local data structure member (e.g. field2 for 'var->field1.field2'.)
 '$vars' and '$params' special arguments are also available for NAME, '$vars' is expanded to the local variables (including function parameters) which can access at given probe point. '$params' is expanded to only the function parameters.
-'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on debuginfo (*). Currently, basic types (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal integers (x/x8/x16/x32/x64), signedness casting (u/s), "string" and bitfield are supported. (see TYPES for detail)
+'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on deinfo (*). Currently, basic types (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal integers (x/x8/x16/x32/x64), signedness casting (u/s), "string" and bitfield are supported. (see TYPES for detail)
 On x86 systems %REG is always the short form of the register: for example %AX. %RAX or %EAX is not valid.
 
 TYPES

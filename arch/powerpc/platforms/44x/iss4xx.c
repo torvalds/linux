@@ -72,7 +72,7 @@ static void __init iss4xx_init_irq(void)
 		 * device-tree, just pass 0 to all arguments
 		 */
 		struct mpic *mpic = mpic_alloc(np, 0, MPIC_NO_RESET, 0, 0, " MPIC     ");
-		BUG_ON(mpic == NULL);
+		_ON(mpic == NULL);
 		mpic_init(mpic);
 		ppc_md.get_irq = mpic_get_irq;
 #endif
@@ -93,7 +93,7 @@ static int smp_iss4xx_kick_cpu(int cpu)
 	u32 *spin_table;
 	extern void start_secondary_47x(void);
 
-	BUG_ON(cpunode == NULL);
+	_ON(cpunode == NULL);
 
 	/* Assume spin table. We could test for the enable-method in
 	 * the device-tree but currently there's little point as it's
@@ -110,7 +110,7 @@ static int smp_iss4xx_kick_cpu(int cpu)
 	 * fishy but will work fine for now
 	 */
 	spin_table = (u32 *)__va(*spin_table_addr_prop);
-	pr_debug("CPU%d: Spin table mapped at %p\n", cpu, spin_table);
+	pr_de("CPU%d: Spin table mapped at %p\n", cpu, spin_table);
 
 	spin_table[3] = cpu;
 	smp_wmb();

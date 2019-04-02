@@ -1069,12 +1069,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					    sizeof(eventcause));
 		break;
 	case EVENT_FW_DUMP_INFO:
-		mwifiex_dbg(adapter, EVENT, "event: firmware debug info\n");
+		mwifiex_dbg(adapter, EVENT, "event: firmware de info\n");
 		mwifiex_fw_dump_info_event(priv, adapter->event_skb);
 		break;
-	/* Debugging event; not used, but let's not print an ERROR for it. */
-	case EVENT_UNKNOWN_DEBUG:
-		mwifiex_dbg(adapter, EVENT, "event: debug\n");
+	/* Deging event; not used, but let's not print an ERROR for it. */
+	case EVENT_UNKNOWN_DE:
+		mwifiex_dbg(adapter, EVENT, "event: de\n");
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",

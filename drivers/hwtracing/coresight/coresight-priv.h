@@ -29,7 +29,7 @@
 
 /*
  * Coresight device CLAIM protocol.
- * See PSCI - ARM DEN 0022D, Section: 6.8.1 Debug and Trace save and restore.
+ * See PSCI - ARM DEN 0022D, Section: 6.8.1 De and Trace save and restore.
  */
 #define CORESIGHT_CLAIM_SELF_HOSTED	BIT(1)
 

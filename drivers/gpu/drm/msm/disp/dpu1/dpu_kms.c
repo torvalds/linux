@@ -19,7 +19,7 @@
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
 #include <drm/drm_crtc.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/of_irq.h>
 #include <linux/dma-buf.h>
 
@@ -45,15 +45,15 @@ static const char * const iommu_ports[] = {
 
 /*
  * To enable overall DRM driver logging
- * # echo 0x2 > /sys/module/drm/parameters/debug
+ * # echo 0x2 > /sys/module/drm/parameters/de
  *
  * To enable DRM driver h/w logging
- * # echo <mask> > /sys/kernel/debug/dri/0/debug/hw_log_mask
+ * # echo <mask> > /sys/kernel/de/dri/0/de/hw_log_mask
  *
  * See dpu_hw_mdss.h for h/w logging mask definitions (search for DPU_DBG_MASK_)
  */
-#define DPU_DEBUGFS_DIR "msm_dpu"
-#define DPU_DEBUGFS_HWMASKNAME "hw_log_mask"
+#define DPU_DEFS_DIR "msm_dpu"
+#define DPU_DEFS_HWMASKNAME "hw_log_mask"
 
 static int dpu_kms_hw_init(struct msm_kms *kms);
 static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms);
@@ -72,7 +72,7 @@ static unsigned long dpu_iomap_size(struct platform_device *pdev,
 	return resource_size(res);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int _dpu_danger_signal_status(struct seq_file *s,
 		bool danger_status)
 {
@@ -113,7 +113,7 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 	return 0;
 }
 
-#define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)				\
+#define DEFINE_DPU_DEFS_SEQ_FOPS(__prefix)				\
 static int __prefix ## _open(struct inode *inode, struct file *file)	\
 {									\
 	return single_open(file, __prefix ## _show, inode->i_private);	\
@@ -126,34 +126,34 @@ static const struct file_operations __prefix ## _fops = {		\
 	.llseek = seq_lseek,						\
 }
 
-static int dpu_debugfs_danger_stats_show(struct seq_file *s, void *v)
+static int dpu_defs_danger_stats_show(struct seq_file *s, void *v)
 {
 	return _dpu_danger_signal_status(s, true);
 }
-DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_danger_stats);
+DEFINE_DPU_DEFS_SEQ_FOPS(dpu_defs_danger_stats);
 
-static int dpu_debugfs_safe_stats_show(struct seq_file *s, void *v)
+static int dpu_defs_safe_stats_show(struct seq_file *s, void *v)
 {
 	return _dpu_danger_signal_status(s, false);
 }
-DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_safe_stats);
+DEFINE_DPU_DEFS_SEQ_FOPS(dpu_defs_safe_stats);
 
-static void dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
+static void dpu_defs_danger_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
-	struct dentry *entry = debugfs_create_dir("danger", parent);
+	struct dentry *entry = defs_create_dir("danger", parent);
 	if (IS_ERR_OR_NULL(entry))
 		return;
 
-	debugfs_create_file("danger_status", 0600, entry,
-			dpu_kms, &dpu_debugfs_danger_stats_fops);
-	debugfs_create_file("safe_status", 0600, entry,
-			dpu_kms, &dpu_debugfs_safe_stats_fops);
+	defs_create_file("danger_status", 0600, entry,
+			dpu_kms, &dpu_defs_danger_stats_fops);
+	defs_create_file("safe_status", 0600, entry,
+			dpu_kms, &dpu_defs_safe_stats_fops);
 }
 
-static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
+static int _dpu_defs_show_regset32(struct seq_file *s, void *data)
 {
-	struct dpu_debugfs_regset32 *regset = s->private;
+	struct dpu_defs_regset32 *regset = s->private;
 	struct dpu_kms *dpu_kms = regset->dpu_kms;
 	struct drm_device *dev;
 	struct msm_drm_private *priv;
@@ -195,20 +195,20 @@ static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int dpu_debugfs_open_regset32(struct inode *inode,
+static int dpu_defs_open_regset32(struct inode *inode,
 		struct file *file)
 {
-	return single_open(file, _dpu_debugfs_show_regset32, inode->i_private);
+	return single_open(file, _dpu_defs_show_regset32, inode->i_private);
 }
 
 static const struct file_operations dpu_fops_regset32 = {
-	.open =		dpu_debugfs_open_regset32,
+	.open =		dpu_defs_open_regset32,
 	.read =		seq_read,
 	.llseek =	seq_lseek,
 	.release =	single_release,
 };
 
-void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
+void dpu_defs_setup_regset32(struct dpu_defs_regset32 *regset,
 		uint32_t offset, uint32_t length, struct dpu_kms *dpu_kms)
 {
 	if (regset) {
@@ -218,8 +218,8 @@ void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
 	}
 }
 
-void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
-		void *parent, struct dpu_debugfs_regset32 *regset)
+void *dpu_defs_create_regset32(const char *name, umode_t mode,
+		void *parent, struct dpu_defs_regset32 *regset)
 {
 	if (!name || !regset || !regset->dpu_kms || !regset->blk_len)
 		return NULL;
@@ -227,11 +227,11 @@ void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
 	/* make sure offset is a multiple of 4 */
 	regset->offset = round_down(regset->offset, 4);
 
-	return debugfs_create_file(name, mode, parent,
+	return defs_create_file(name, mode, parent,
 			regset, &dpu_fops_regset32);
 }
 
-static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
+static int _dpu_defs_init(struct dpu_kms *dpu_kms)
 {
 	void *p = dpu_hw_util_get_log_mask_ptr();
 	struct dentry *entry;
@@ -239,18 +239,18 @@ static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
 	if (!p)
 		return -EINVAL;
 
-	entry = debugfs_create_dir("debug", dpu_kms->dev->primary->debugfs_root);
+	entry = defs_create_dir("de", dpu_kms->dev->primary->defs_root);
 	if (IS_ERR_OR_NULL(entry))
 		return -ENODEV;
 
 	/* allow root to be NULL */
-	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, entry, p);
+	defs_create_x32(DPU_DEFS_HWMASKNAME, 0600, entry, p);
 
-	dpu_debugfs_danger_init(dpu_kms, entry);
-	dpu_debugfs_vbif_init(dpu_kms, entry);
-	dpu_debugfs_core_irq_init(dpu_kms, entry);
+	dpu_defs_danger_init(dpu_kms, entry);
+	dpu_defs_vbif_init(dpu_kms, entry);
+	dpu_defs_core_irq_init(dpu_kms, entry);
 
-	return dpu_core_perf_debugfs_init(dpu_kms, entry);
+	return dpu_core_perf_defs_init(dpu_kms, entry);
 }
 #endif
 
@@ -379,12 +379,12 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 	dev = crtc->dev;
 
 	if (!crtc->state->enable) {
-		DPU_DEBUG("[crtc:%d] not enable\n", crtc->base.id);
+		DPU_DE("[crtc:%d] not enable\n", crtc->base.id);
 		return;
 	}
 
 	if (!crtc->state->active) {
-		DPU_DEBUG("[crtc:%d] not active\n", crtc->base.id);
+		DPU_DE("[crtc:%d] not active\n", crtc->base.id);
 		return;
 	}
 
@@ -537,7 +537,7 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 		else
 			type = DRM_PLANE_TYPE_OVERLAY;
 
-		DPU_DEBUG("Create plane type %d with features %lx (cur %lx)\n",
+		DPU_DE("Create plane type %d with features %lx (cur %lx)\n",
 			  type, catalog->sspp[i].features,
 			  catalog->sspp[i].features & BIT(DPU_SSPP_CURSOR));
 
@@ -578,10 +578,10 @@ fail:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
+#ifdef CONFIG_DE_FS
+static int dpu_kms_defs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
-	return _dpu_debugfs_init(to_dpu_kms(kms));
+	return _dpu_defs_init(to_dpu_kms(kms));
 }
 #endif
 
@@ -720,8 +720,8 @@ static const struct msm_kms_funcs kms_funcs = {
 	.round_pixclk    = dpu_kms_round_pixclk,
 	.destroy         = dpu_kms_destroy,
 	.set_encoder_mode = _dpu_kms_set_encoder_mode,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_init    = dpu_kms_debugfs_init,
+#ifdef CONFIG_DE_FS
+	.defs_init    = dpu_kms_defs_init,
 #endif
 };
 
@@ -832,7 +832,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		dpu_kms->mmio = NULL;
 		goto error;
 	}
-	DRM_DEBUG("mapped dpu address space @%pK\n", dpu_kms->mmio);
+	DRM_DE("mapped dpu address space @%pK\n", dpu_kms->mmio);
 	dpu_kms->mmio_len = dpu_iomap_size(dpu_kms->pdev, "mdp");
 
 	dpu_kms->vbif[VBIF_RT] = msm_ioremap(dpu_kms->pdev, "vbif", "vbif");
@@ -846,7 +846,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dpu_kms->vbif[VBIF_NRT] = msm_ioremap(dpu_kms->pdev, "vbif_nrt", "vbif_nrt");
 	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
 		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
+		DPU_DE("VBIF NRT is not defined");
 	} else {
 		dpu_kms->vbif_len[VBIF_NRT] = dpu_iomap_size(dpu_kms->pdev,
 							     "vbif_nrt");
@@ -855,7 +855,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dpu_kms->reg_dma = msm_ioremap(dpu_kms->pdev, "regdma", "regdma");
 	if (IS_ERR(dpu_kms->reg_dma)) {
 		dpu_kms->reg_dma = NULL;
-		DPU_DEBUG("REG_DMA is not defined");
+		DPU_DE("REG_DMA is not defined");
 	} else {
 		dpu_kms->reg_dma_len = dpu_iomap_size(dpu_kms->pdev, "regdma");
 	}

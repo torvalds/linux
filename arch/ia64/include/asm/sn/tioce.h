@@ -45,7 +45,7 @@ typedef volatile struct tioce {
 	u64	ce_adm_mmr_chn_timeout;			/* 0x000038 */
 	u64	ce_adm_ssp_ure_timeout;			/* 0x000040 */
 	u64	ce_adm_ssp_dre_timeout;			/* 0x000048 */
-	u64	ce_adm_ssp_debug_sel;			/* 0x000050 */
+	u64	ce_adm_ssp_de_sel;			/* 0x000050 */
 	u64	ce_adm_int_status;			/* 0x000058 */
 	u64	ce_adm_int_status_alias;		/* 0x000060 */
 	u64	ce_adm_int_mask;			/* 0x000068 */
@@ -67,23 +67,23 @@ typedef volatile struct tioce {
 	u64	ce_adm_ce_sram_perr_detail;		/* 0x000160 */
 	u64	ce_adm_ce_credit_oflow_detail;		/* 0x000168 */
 	u64	ce_adm_tx_link_idle_max_timer;		/* 0x000170 */
-	u64	ce_adm_pcie_debug_sel;			/* 0x000178 */
+	u64	ce_adm_pcie_de_sel;			/* 0x000178 */
 	u64	ce_pad_000180[16];	    /* 0x000180 -- 0x0001F8 */
 
-	u64	ce_adm_pcie_debug_sel_top;		/* 0x000200 */
-	u64	ce_adm_pcie_debug_lat_sel_lo_top;	/* 0x000208 */
-	u64	ce_adm_pcie_debug_lat_sel_hi_top;	/* 0x000210 */
-	u64	ce_adm_pcie_debug_trig_sel_top;		/* 0x000218 */
-	u64	ce_adm_pcie_debug_trig_lat_sel_lo_top;	/* 0x000220 */
-	u64	ce_adm_pcie_debug_trig_lat_sel_hi_top;	/* 0x000228 */
+	u64	ce_adm_pcie_de_sel_top;		/* 0x000200 */
+	u64	ce_adm_pcie_de_lat_sel_lo_top;	/* 0x000208 */
+	u64	ce_adm_pcie_de_lat_sel_hi_top;	/* 0x000210 */
+	u64	ce_adm_pcie_de_trig_sel_top;		/* 0x000218 */
+	u64	ce_adm_pcie_de_trig_lat_sel_lo_top;	/* 0x000220 */
+	u64	ce_adm_pcie_de_trig_lat_sel_hi_top;	/* 0x000228 */
 	u64	ce_adm_pcie_trig_compare_top;		/* 0x000230 */
 	u64	ce_adm_pcie_trig_compare_en_top;	/* 0x000238 */
-	u64	ce_adm_ssp_debug_sel_top;		/* 0x000240 */
-	u64	ce_adm_ssp_debug_lat_sel_lo_top;	/* 0x000248 */
-	u64	ce_adm_ssp_debug_lat_sel_hi_top;	/* 0x000250 */
-	u64	ce_adm_ssp_debug_trig_sel_top;		/* 0x000258 */
-	u64	ce_adm_ssp_debug_trig_lat_sel_lo_top;	/* 0x000260 */
-	u64	ce_adm_ssp_debug_trig_lat_sel_hi_top;	/* 0x000268 */
+	u64	ce_adm_ssp_de_sel_top;		/* 0x000240 */
+	u64	ce_adm_ssp_de_lat_sel_lo_top;	/* 0x000248 */
+	u64	ce_adm_ssp_de_lat_sel_hi_top;	/* 0x000250 */
+	u64	ce_adm_ssp_de_trig_sel_top;		/* 0x000258 */
+	u64	ce_adm_ssp_de_trig_lat_sel_lo_top;	/* 0x000260 */
+	u64	ce_adm_ssp_de_trig_lat_sel_hi_top;	/* 0x000268 */
 	u64	ce_adm_ssp_trig_compare_top;		/* 0x000270 */
 	u64	ce_adm_ssp_trig_compare_en_top;		/* 0x000278 */
 	u64	ce_pad_000280[48];	    /* 0x000280 -- 0x0003F8 */
@@ -224,7 +224,7 @@ typedef volatile struct tioce {
 	/*
 	 * CRM: Coretalk Receive Module Registers
 	 */
-	u64	ce_crm_debug_mux;			/* 0x004050 */
+	u64	ce_crm_de_mux;			/* 0x004050 */
 	u64	ce_pad_004058;				/* 0x004058 */
 	u64	ce_crm_ssp_err_cmd_wrd;			/* 0x004060 */
 	u64	ce_crm_ssp_err_addr;			/* 0x004068 */
@@ -241,7 +241,7 @@ typedef volatile struct tioce {
 	u64	ce_cxm_force_credit;			/* 0x005028 */
 	u64	ce_cxm_disable_bypass;			/* 0x005030 */
 	u64	ce_pad_005038[3];	    /* 0x005038 -- 0x005048 */
-	u64	ce_cxm_debug_mux;			/* 0x005050 */
+	u64	ce_cxm_de_mux;			/* 0x005050 */
 
         u64        ce_pad_005058[501];         /* 0x005058 -- 0x005FF8 */
 
@@ -264,12 +264,12 @@ typedef volatile struct tioce {
 		u64	ce_dtl_dtl_last_credit_stat;	/* 0x00y018 */
 		u64	ce_dtl_dtl_ctrl;		/* 0x00y020 */
 		u64	ce_pad_00y028[5];   /* 0x00y028 -- 0x00y048 */
-		u64	ce_dtl_debug_sel;		/* 0x00y050 */
+		u64	ce_dtl_de_sel;		/* 0x00y050 */
 		u64	ce_pad_00y058[501]; /* 0x00y058 -- 0x00yFF8 */
 
 		/* UTL */
 		u64	ce_utl_utl_ctrl;		/* 0x00z000 */
-		u64	ce_utl_debug_sel;		/* 0x00z008 */
+		u64	ce_utl_de_sel;		/* 0x00z008 */
 		u64	ce_pad_00z010[510]; /* 0x00z010 -- 0x00zFF8 */
 	} ce_dtl_utl[2];
 
@@ -285,8 +285,8 @@ typedef volatile struct tioce {
 	u64	ce_ure_control;				/* 0x00B030 */
 	u64	ce_ure_status;				/* 0x00B038 */
 	u64	ce_pad_00B040[2];	    /* 0x00B040 -- 0x00B048 */
-	u64	ce_ure_debug_sel;			/* 0x00B050 */
-	u64	ce_ure_pcie_debug_sel;			/* 0x00B058 */
+	u64	ce_ure_de_sel;			/* 0x00B050 */
+	u64	ce_ure_pcie_de_sel;			/* 0x00B058 */
 	u64	ce_ure_ssp_err_cmd_wrd;			/* 0x00B060 */
 	u64	ce_ure_ssp_err_addr;			/* 0x00B068 */
 	u64	ce_ure_page_map;			/* 0x00B070 */
@@ -412,8 +412,8 @@ typedef volatile struct tioce {
 	u64	ce_dre_credit_limit2;			/* 0x040038 */
 	u64	ce_dre_force_credit1;			/* 0x040040 */
 	u64	ce_dre_force_credit2;			/* 0x040048 */
-	u64	ce_dre_debug_mux1;			/* 0x040050 */
-	u64	ce_dre_debug_mux2;			/* 0x040058 */
+	u64	ce_dre_de_mux1;			/* 0x040050 */
+	u64	ce_dre_de_mux2;			/* 0x040058 */
 	u64	ce_dre_ssp_err_cmd_wrd;			/* 0x040060 */
 	u64	ce_dre_ssp_err_addr;			/* 0x040068 */
 	u64	ce_dre_comp_err_cmd_wrd;		/* 0x040070 */

@@ -73,14 +73,14 @@ config BRCM_TRACING
 	---help---
 	  If you say Y here, the Broadcom wireless drivers will register
 	  with ftrace to dump event information into the trace ringbuffer.
-	  Tracing can be enabled at runtime to aid in debugging wireless
+	  Tracing can be enabled at runtime to aid in deging wireless
 	  issues. This option adds a small amount of overhead when tracing
 	  is disabled. If unsure, say Y to allow developers to better help
 	  you when wireless problems occur.
 
 config BRCMDBG
-	bool "Broadcom driver debug functions"
+	bool "Broadcom driver de functions"
 	depends on BRCMSMAC || BRCMFMAC
 	select WANT_DEV_COREDUMP
 	---help---
-	  Selecting this enables additional code for debug purposes.
+	  Selecting this enables additional code for de purposes.

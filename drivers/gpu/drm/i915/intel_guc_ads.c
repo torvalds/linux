@@ -90,7 +90,7 @@ int intel_guc_ads_create(struct intel_guc *guc)
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;
 
-	GEM_BUG_ON(guc->ads_vma);
+	GEM__ON(guc->ads_vma);
 
 	vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(sizeof(*blob)));
 	if (IS_ERR(vma))

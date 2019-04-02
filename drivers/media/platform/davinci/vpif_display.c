@@ -32,14 +32,14 @@ MODULE_VERSION(VPIF_DISPLAY_VERSION);
 #define VPIF_V4L2_STD (V4L2_STD_525_60 | V4L2_STD_625_50)
 
 #define vpif_err(fmt, arg...)	v4l2_err(&vpif_obj.v4l2_dev, fmt, ## arg)
-#define vpif_dbg(level, debug, fmt, arg...)	\
-		v4l2_dbg(level, debug, &vpif_obj.v4l2_dev, fmt, ## arg)
+#define vpif_dbg(level, de, fmt, arg...)	\
+		v4l2_dbg(level, de, &vpif_obj.v4l2_dev, fmt, ## arg)
 
-static int debug = 1;
+static int de = 1;
 
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 
-MODULE_PARM_DESC(debug, "Debug level 0-1");
+MODULE_PARM_DESC(de, "De level 0-1");
 
 #define VPIF_DRIVER_NAME	"vpif_display"
 MODULE_ALIAS("platform:" VPIF_DRIVER_NAME);
@@ -438,7 +438,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	for (i = 0; i < vpif_ch_params_count; i++) {
 		config = &vpif_ch_params[i];
 		if (config->hd_sd == 0) {
-			vpif_dbg(2, debug, "SD format\n");
+			vpif_dbg(2, de, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {
 				memcpy(std_info, config, sizeof(*config));
 				break;
@@ -447,7 +447,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	}
 
 	if (i == vpif_ch_params_count) {
-		vpif_dbg(1, debug, "Format not found\n");
+		vpif_dbg(1, de, "Format not found\n");
 		return -EINVAL;
 	}
 
@@ -472,7 +472,7 @@ static int vpif_update_resolution(struct channel_obj *ch)
 	common->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV422P;
 	common->fmt.fmt.pix.width = std_info->width;
 	common->fmt.fmt.pix.height = std_info->height;
-	vpif_dbg(1, debug, "Pixel details: Width = %d,Height = %d\n",
+	vpif_dbg(1, de, "Pixel details: Width = %d,Height = %d\n",
 			common->fmt.fmt.pix.width, common->fmt.fmt.pix.height);
 
 	/* Set height and width paramateres */
@@ -757,7 +757,7 @@ static int vpif_enum_output(struct file *file, void *fh,
 
 	chan_cfg = &config->chan_config[ch->channel_id];
 	if (output->index >= chan_cfg->output_count) {
-		vpif_dbg(1, debug, "Invalid output index\n");
+		vpif_dbg(1, de, "Invalid output index\n");
 		return -EINVAL;
 	}
 
@@ -783,7 +783,7 @@ vpif_output_to_subdev(struct vpif_display_config *vpif_cfg,
 	const char *subdev_name;
 	int i;
 
-	vpif_dbg(2, debug, "vpif_output_to_subdev\n");
+	vpif_dbg(2, de, "vpif_output_to_subdev\n");
 
 	if (!chan_cfg->outputs)
 		return -1;
@@ -936,7 +936,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 		return -EBUSY;
 
 	if (timings->type != V4L2_DV_BT_656_1120) {
-		vpif_dbg(2, debug, "Timing type not defined\n");
+		vpif_dbg(2, de, "Timing type not defined\n");
 		return -EINVAL;
 	}
 
@@ -945,7 +945,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		ret = 0;
 	if (ret < 0) {
-		vpif_dbg(2, debug, "Error setting custom DV timings\n");
+		vpif_dbg(2, de, "Error setting custom DV timings\n");
 		return ret;
 	}
 
@@ -956,7 +956,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 				timings->bt.vfrontporch &&
 				(timings->bt.vbackporch ||
 				 timings->bt.vsync))) {
-		vpif_dbg(2, debug, "Timings for width, height, horizontal back porch, horizontal sync, horizontal front porch, vertical back porch, vertical sync and vertical back porch must be defined\n");
+		vpif_dbg(2, de, "Timings for width, height, horizontal back porch, horizontal sync, horizontal front porch, vertical back porch, vertical sync and vertical back porch must be defined\n");
 		return -EINVAL;
 	}
 
@@ -981,7 +981,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 			std_info->l11 = std_info->vsize -
 				(bt->il_vfrontporch - 1);
 		} else {
-			vpif_dbg(2, debug, "Required timing values for interlaced BT format missing\n");
+			vpif_dbg(2, de, "Required timing values for interlaced BT format missing\n");
 			return -EINVAL;
 		}
 	} else {
@@ -1205,7 +1205,7 @@ static int vpif_probe_complete(void)
 		INIT_LIST_HEAD(&common->dma_queue);
 
 		/* register video device */
-		vpif_dbg(1, debug, "channel=%p,channel->video_dev=%p\n",
+		vpif_dbg(1, de, "channel=%p,channel->video_dev=%p\n",
 			 ch, &ch->video_dev);
 
 		/* Initialize the video_device structure */

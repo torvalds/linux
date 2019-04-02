@@ -522,11 +522,11 @@ void math_emulate(struct math_emu_info *info)
 
       FPU_fwait_done:
 
-#ifdef DEBUG
+#ifdef DE
 	RE_ENTRANT_CHECK_OFF;
 	FPU_printall();
 	RE_ENTRANT_CHECK_ON;
-#endif /* DEBUG */
+#endif /* DE */
 
 	if (FPU_lookahead && !need_resched()) {
 		FPU_ORIG_EIP = FPU_EIP - code_base;

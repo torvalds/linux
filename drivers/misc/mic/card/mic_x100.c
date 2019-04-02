@@ -327,11 +327,11 @@ static int __init mic_init(void)
 	}
 
 	request_module("mic_x100_dma");
-	mic_init_card_debugfs();
+	mic_init_card_defs();
 	ret = platform_device_register(&mic_platform_dev);
 	if (ret) {
 		pr_err("platform_device_register ret %d\n", ret);
-		goto cleanup_debugfs;
+		goto cleanup_defs;
 	}
 	ret = platform_driver_register(&mic_platform_driver);
 	if (ret) {
@@ -342,8 +342,8 @@ static int __init mic_init(void)
 
 device_unregister:
 	platform_device_unregister(&mic_platform_dev);
-cleanup_debugfs:
-	mic_exit_card_debugfs();
+cleanup_defs:
+	mic_exit_card_defs();
 done:
 	return ret;
 }
@@ -352,7 +352,7 @@ static void __exit mic_exit(void)
 {
 	platform_driver_unregister(&mic_platform_driver);
 	platform_device_unregister(&mic_platform_dev);
-	mic_exit_card_debugfs();
+	mic_exit_card_defs();
 }
 
 module_init(mic_init);

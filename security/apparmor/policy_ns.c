@@ -93,7 +93,7 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	struct aa_ns *ns;
 
 	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
-	AA_DEBUG("%s(%p)\n", __func__, ns);
+	AA_DE("%s(%p)\n", __func__, ns);
 	if (!ns)
 		return NULL;
 	if (!aa_policy_init(&ns->base, prefix, name, GFP_KERNEL))
@@ -249,9 +249,9 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 	struct aa_ns *ns;
 	int error;
 
-	AA_BUG(!parent);
-	AA_BUG(!name);
-	AA_BUG(!mutex_is_locked(&parent->lock));
+	AA_(!parent);
+	AA_(!name);
+	AA_(!mutex_is_locked(&parent->lock));
 
 	ns = alloc_ns(parent->base.hname, name);
 	if (!ns)
@@ -288,7 +288,7 @@ struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
 {
 	struct aa_ns *ns;
 
-	AA_BUG(!mutex_is_locked(&parent->lock));
+	AA_(!mutex_is_locked(&parent->lock));
 
 	/* try and find the specified ns */
 	/* released by caller */

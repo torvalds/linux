@@ -150,7 +150,7 @@ typedef unsigned int sigINT;
 #define FTF_DLL         0x01    /* Dynamic Link Library */
 #define FTF_NLM         0x02    /* Netware Loadable Module */
 #define FTF_OVERLAYS    0x04    /* Uses overlays */
-#define FTF_DEBUG       0x08    /* Debug version */
+#define FTF_DE       0x08    /* De version */
 #define FTF_TSR         0x10    /* TSR */
 #define FTF_SYS         0x20    /* DOS Loadable driver */
 #define FTF_PROTECTED   0x40    /* Runs in protected mode */

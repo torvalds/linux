@@ -138,7 +138,7 @@ static int mop500_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *mop500_card = platform_get_drvdata(pdev);
 
-	pr_debug("%s: Enter.\n", __func__);
+	pr_de("%s: Enter.\n", __func__);
 
 	snd_soc_unregister_card(mop500_card);
 	mop500_ab8500_remove(mop500_card);

@@ -84,7 +84,7 @@ static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshi
 #define SWP_TYPE_BITS 5
 #define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
 
-#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+#define MAX_SWAPFILES_CHECK() BUILD__ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
 
 #define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
 					 & ((1U << SWP_TYPE_BITS) - 1))

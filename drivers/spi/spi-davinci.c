@@ -663,7 +663,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 		txdesc->callback = davinci_spi_dma_tx_callback;
 		txdesc->callback_param = (void *)dspi;
 
-		if (pdata->cshold_bug)
+		if (pdata->cshold_)
 			iowrite16(spidat1 >> 16, dspi->base + SPIDAT1 + 2);
 
 		dmaengine_submit(rxdesc);

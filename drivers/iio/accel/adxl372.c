@@ -889,7 +889,7 @@ static const struct iio_info adxl372_info = {
 	.attrs = &adxl372_attrs_group,
 	.read_raw = adxl372_read_raw,
 	.write_raw = adxl372_write_raw,
-	.debugfs_reg_access = &adxl372_reg_access,
+	.defs_reg_access = &adxl372_reg_access,
 	.hwfifo_set_watermark = adxl372_set_watermark,
 };
 

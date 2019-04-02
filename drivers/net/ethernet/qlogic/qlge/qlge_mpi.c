@@ -828,7 +828,7 @@ int ql_mb_get_port_cfg(struct ql_adapter *qdev)
 			  "Failed Get Port Configuration.\n");
 		status = -EIO;
 	} else	{
-		netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
+		netif_printk(qdev, drv, KERN_DE, qdev->ndev,
 			     "Passed Get Port Configuration.\n");
 		qdev->link_config = mbcp->mbox_out[1];
 		qdev->max_frame_size = mbcp->mbox_out[2];
@@ -1125,7 +1125,7 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 	status = ql_mb_get_port_cfg(qdev);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Bug: Failed to get port config data.\n");
+			  ": Failed to get port config data.\n");
 		goto err;
 	}
 
@@ -1139,7 +1139,7 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 	status = ql_set_port_cfg(qdev);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Bug: Failed to set port config data.\n");
+			  ": Failed to set port config data.\n");
 		goto err;
 	}
 end:
@@ -1171,7 +1171,7 @@ void ql_mpi_idc_work(struct work_struct *work)
 	switch (aen) {
 	default:
 		netif_err(qdev, drv, qdev->ndev,
-			  "Bug: Unhandled IDC action.\n");
+			  ": Unhandled IDC action.\n");
 		break;
 	case MB_CMD_PORT_RESET:
 	case MB_CMD_STOP_FW:
@@ -1188,9 +1188,9 @@ void ql_mpi_idc_work(struct work_struct *work)
 			status = ql_mb_idc_ack(qdev);
 			if (status)
 				netif_err(qdev, drv, qdev->ndev,
-					  "Bug: No pending IDC!\n");
+					  ": No pending IDC!\n");
 		} else {
-			netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
+			netif_printk(qdev, drv, KERN_DE, qdev->ndev,
 				     "IDC ACK not required\n");
 			status = 0; /* success */
 		}
@@ -1221,9 +1221,9 @@ void ql_mpi_idc_work(struct work_struct *work)
 			status = ql_mb_idc_ack(qdev);
 			if (status)
 				netif_err(qdev, drv, qdev->ndev,
-					  "Bug: No pending IDC!\n");
+					  ": No pending IDC!\n");
 		} else {
-			netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
+			netif_printk(qdev, drv, KERN_DE, qdev->ndev,
 				     "IDC ACK not required\n");
 			status = 0; /* success */
 		}

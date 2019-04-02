@@ -746,7 +746,7 @@ static irqreturn_t hideep_irq(int irq, void *handle)
 	struct hideep_ts *ts = handle;
 	int error;
 
-	BUILD_BUG_ON(HIDEEP_MAX_EVENT > HIDEEP_XFER_BUF_SIZE);
+	BUILD__ON(HIDEEP_MAX_EVENT > HIDEEP_XFER_BUF_SIZE);
 
 	error = regmap_bulk_read(ts->reg, HIDEEP_EVENT_ADDR,
 				 ts->xfer_buf, HIDEEP_MAX_EVENT / 2);

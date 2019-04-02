@@ -13,11 +13,11 @@
  *
  * We keep a section table for a few reasons:
  *
- * Binutils has issues debugging the vDSO: it reads the section table to
+ * Binutils has issues deging the vDSO: it reads the section table to
  * find SHT_NOTE; it won't look at PT_NOTE for the in-memory vDSO, which
  * would break build-id if we removed the section table.  Binutils
  * also requires that shstrndx != 0.  See:
- * https://sourceware.org/bugzilla/show_bug.cgi?id=17064
+ * https://sourceware.org/zilla/show_.cgi?id=17064
  *
  * elfutils might not look for PT_NOTE if there is a section table at
  * all.  I don't know whether this matters for any practical purpose.

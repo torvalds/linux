@@ -326,7 +326,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 
 		ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
 		if (ret) {
-			DRM_DEBUG("failed to validate\n");
+			DRM_DE("failed to validate\n");
 			goto fail_unref;
 		}
 

@@ -64,7 +64,7 @@ static void *rtllib_ccmp_init(int key_idx)
 
 	priv->tfm = (void *)crypto_alloc_cipher("aes", 0, 0);
 	if (IS_ERR(priv->tfm)) {
-		pr_debug("Could not allocate crypto API aes\n");
+		pr_de("Could not allocate crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}
@@ -270,7 +270,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
-			pr_debug("CCMP: received packet without ExtIV flag from %pM\n",
+			pr_de("CCMP: received packet without ExtIV flag from %pM\n",
 				 hdr->addr2);
 		}
 		key->dot11RSNAStatsCCMPFormatErrors++;
@@ -278,13 +278,13 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	keyidx >>= 6;
 	if (key->key_idx != keyidx) {
-		pr_debug("CCMP: RX tkey->key_idx=%d frame keyidx=%d priv=%p\n",
+		pr_de("CCMP: RX tkey->key_idx=%d frame keyidx=%d priv=%p\n",
 			 key->key_idx, keyidx, priv);
 		return -6;
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			pr_debug("CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
+			pr_de("CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
 				 hdr->addr2, keyidx);
 		}
 		return -3;
@@ -332,7 +332,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		if (memcmp(mic, a, CCMP_MIC_LEN) != 0) {
 			if (net_ratelimit()) {
-				pr_debug("CCMP: decrypt failed: STA= %pM\n",
+				pr_de("CCMP: decrypt failed: STA= %pM\n",
 					 hdr->addr2);
 			}
 			key->dot11RSNAStatsCCMPDecryptErrors++;

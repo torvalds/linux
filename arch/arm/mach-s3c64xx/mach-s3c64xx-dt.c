@@ -30,7 +30,7 @@ static struct map_desc s3c64xx_dt_iodesc[] __initdata = {
 
 static void __init s3c64xx_dt_map_io(void)
 {
-	debug_ll_io_init();
+	de_ll_io_init();
 	iotable_init(s3c64xx_dt_iodesc, ARRAY_SIZE(s3c64xx_dt_iodesc));
 
 	s3c64xx_init_cpu();

@@ -147,7 +147,7 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	/* exclude also MIPS ELF local symbols ($L123 instead of .L123) */
 	else if (sym[0] == '$')
 		return -1;
-	/* exclude debugging symbols */
+	/* exclude deging symbols */
 	else if (stype == 'N' || stype == 'n')
 		return -1;
 

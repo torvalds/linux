@@ -14,7 +14,7 @@ the Linux Kernel.
 This documentation is provided for developers who want to implement
 board drivers or filesystem drivers suitable for NAND devices.
 
-Known Bugs And Assumptions
+Known s And Assumptions
 ==========================
 
 None.
@@ -999,7 +999,7 @@ The following people have contributed to the NAND driver:
 
 3. Thomas Gleixner\ tglx@linutronix.de
 
-A lot of users have provided bugfixes, improvements and helping hands
+A lot of users have provided fixes, improvements and helping hands
 for testing. Thanks a lot.
 
 The following people have contributed to this document:

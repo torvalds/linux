@@ -563,7 +563,7 @@ static const struct pinctrl_ops madera_pin_group_ops = {
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 #endif
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 	.pin_dbg_show = madera_pin_dbg_show,
 #endif
 };
@@ -994,7 +994,7 @@ static int madera_pin_probe(struct platform_device *pdev)
 	struct madera_pin_private *priv;
 	int ret;
 
-	BUILD_BUG_ON(ARRAY_SIZE(madera_pin_single_group_names) !=
+	BUILD__ON(ARRAY_SIZE(madera_pin_single_group_names) !=
 		     ARRAY_SIZE(madera_pin_single_group_pins));
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);

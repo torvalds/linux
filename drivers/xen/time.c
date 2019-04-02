@@ -57,7 +57,7 @@ static void xen_get_runstate_snapshot_cpu_delta(
 	u64 state_time;
 	struct vcpu_runstate_info *state;
 
-	BUG_ON(preemptible());
+	_ON(preemptible());
 
 	state = per_cpu_ptr(&xen_runstate, cpu);
 
@@ -165,7 +165,7 @@ void xen_setup_runstate_info(int cpu)
 
 	if (HYPERVISOR_vcpu_op(VCPUOP_register_runstate_memory_area,
 			       xen_vcpu_nr(cpu), &area))
-		BUG();
+		();
 }
 
 void __init xen_time_setup_guest(void)

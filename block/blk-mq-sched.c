@@ -11,7 +11,7 @@
 
 #include "blk.h"
 #include "blk-mq.h"
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 #include "blk-mq-sched.h"
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
@@ -503,7 +503,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	if (ret)
 		goto err;
 
-	blk_mq_debugfs_register_sched(q);
+	blk_mq_defs_register_sched(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (e->ops.init_hctx) {
@@ -515,7 +515,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 				return ret;
 			}
 		}
-		blk_mq_debugfs_register_sched_hctx(q, hctx);
+		blk_mq_defs_register_sched_hctx(q, hctx);
 	}
 
 	return 0;
@@ -532,13 +532,13 @@ void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 	unsigned int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		blk_mq_debugfs_unregister_sched_hctx(hctx);
+		blk_mq_defs_unregister_sched_hctx(hctx);
 		if (e->type->ops.exit_hctx && hctx->sched_data) {
 			e->type->ops.exit_hctx(hctx, i);
 			hctx->sched_data = NULL;
 		}
 	}
-	blk_mq_debugfs_unregister_sched(q);
+	blk_mq_defs_unregister_sched(q);
 	if (e->type->ops.exit_sched)
 		e->type->ops.exit_sched(e);
 	blk_mq_sched_tags_teardown(q);

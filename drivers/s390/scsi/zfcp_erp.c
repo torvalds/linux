@@ -342,7 +342,7 @@ static void _zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter,
  * zfcp_erp_adapter_reopen - Reopen adapter.
  * @adapter: Adapter to reopen.
  * @clear: Status flags to clear.
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  */
 void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear,
 			     char *dbftag)
@@ -362,7 +362,7 @@ void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear,
  * zfcp_erp_adapter_shutdown - Shutdown adapter.
  * @adapter: Adapter to shut down.
  * @clear: Status flags to clear.
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  */
 void zfcp_erp_adapter_shutdown(struct zfcp_adapter *adapter, int clear,
 			       char *dbftag)
@@ -375,7 +375,7 @@ void zfcp_erp_adapter_shutdown(struct zfcp_adapter *adapter, int clear,
  * zfcp_erp_port_shutdown - Shutdown port
  * @port: Port to shut down.
  * @clear: Status flags to clear.
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  */
 void zfcp_erp_port_shutdown(struct zfcp_port *port, int clear, char *dbftag)
 {
@@ -403,7 +403,7 @@ static void _zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear,
  * zfcp_erp_port_forced_reopen - Forced close of port and open again
  * @port: Port to force close and to reopen.
  * @clear: Status flags to clear.
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  */
 void zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear,
 				 char *dbftag)
@@ -430,7 +430,7 @@ static void _zfcp_erp_port_reopen(struct zfcp_port *port, int clear,
  * zfcp_erp_port_reopen - trigger remote port recovery
  * @port: port to recover
  * @clear: flags in port status to be cleared
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  */
 void zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *dbftag)
 {
@@ -464,7 +464,7 @@ static void _zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear,
  * zfcp_erp_lun_reopen - initiate reopen of a LUN
  * @sdev: SCSI device / LUN to be reopened
  * @clear: specifies flags in LUN status to be cleared
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  *
  * Return: 0 on success, < 0 on error
  */
@@ -484,7 +484,7 @@ void zfcp_erp_lun_reopen(struct scsi_device *sdev, int clear, char *dbftag)
  * zfcp_erp_lun_shutdown - Shutdown LUN
  * @sdev: SCSI device / LUN to shut down.
  * @clear: Status flags to clear.
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  */
 void zfcp_erp_lun_shutdown(struct scsi_device *sdev, int clear, char *dbftag)
 {
@@ -495,7 +495,7 @@ void zfcp_erp_lun_shutdown(struct scsi_device *sdev, int clear, char *dbftag)
 /**
  * zfcp_erp_lun_shutdown_wait - Shutdown LUN and wait for erp completion
  * @sdev: SCSI device / LUN to shut down.
- * @dbftag: Tag for debug trace event.
+ * @dbftag: Tag for de trace event.
  *
  * Do not acquire a reference for the LUN when creating the ERP
  * action. It is safe, because this function waits for the ERP to

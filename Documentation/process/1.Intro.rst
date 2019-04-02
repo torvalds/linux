@@ -18,7 +18,7 @@ Linux kernel must be made available under a GPL-compatible license.
 release cycle, and the mechanics of the merge window.  The various phases in
 the patch development, review, and merging cycle are covered.  There is some
 discussion of tools and mailing lists.  Developers wanting to get started
-with kernel development are encouraged to track down and fix bugs as an
+with kernel development are encouraged to track down and fix s as an
 initial exercise.
 
 :ref:`development_early_stage` covers early-stage project planning, with an
@@ -158,7 +158,7 @@ discussed in greater detail later in this document.  Consider:
 - Kernel code is subjected to review, both before and after merging into
   the mainline.  No matter how strong the original developer's skills are,
   this review process invariably finds ways in which the code can be
-  improved.  Often review finds severe bugs and security problems.  This is
+  improved.  Often review finds severe s and security problems.  This is
   especially true for code which has been developed in a closed
   environment; such code benefits strongly from review by outside
   developers.  Out-of-tree code is lower-quality code.
@@ -200,7 +200,7 @@ include:
   determined by the courts.  But the uncertainty which haunts those modules
   is there regardless.
 
-- Binary modules greatly increase the difficulty of debugging kernel
+- Binary modules greatly increase the difficulty of deging kernel
   problems, to the point that most kernel developers will not even try.  So
   the distribution of binary-only modules will make it harder for your
   users to get support from the community.

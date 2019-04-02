@@ -507,7 +507,7 @@ xfs_inobt_irec_to_allocmask(
 	return bitmap;
 }
 
-#if defined(DEBUG) || defined(XFS_WARN)
+#if defined(DE) || defined(XFS_WARN)
 /*
  * Verify that an in-core inode record has a valid inode count.
  */
@@ -536,7 +536,7 @@ xfs_inobt_rec_check_count(
 
 	return 0;
 }
-#endif	/* DEBUG */
+#endif	/* DE */
 
 static xfs_extlen_t
 xfs_inobt_max_size(

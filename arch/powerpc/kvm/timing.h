@@ -26,8 +26,8 @@
 #ifdef CONFIG_KVM_EXIT_TIMING
 void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu);
 void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu);
-void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu, unsigned int id);
-void kvmppc_remove_vcpu_debugfs(struct kvm_vcpu *vcpu);
+void kvmppc_create_vcpu_defs(struct kvm_vcpu *vcpu, unsigned int id);
+void kvmppc_remove_vcpu_defs(struct kvm_vcpu *vcpu);
 
 static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type)
 {
@@ -38,9 +38,9 @@ static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type)
 /* if exit timing is not configured there is no need to build the c file */
 static inline void kvmppc_init_timing_stats(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_update_timing_stats(struct kvm_vcpu *vcpu) {}
-static inline void kvmppc_create_vcpu_debugfs(struct kvm_vcpu *vcpu,
+static inline void kvmppc_create_vcpu_defs(struct kvm_vcpu *vcpu,
 						unsigned int id) {}
-static inline void kvmppc_remove_vcpu_debugfs(struct kvm_vcpu *vcpu) {}
+static inline void kvmppc_remove_vcpu_defs(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_set_exit_type(struct kvm_vcpu *vcpu, int type) {}
 #endif /* CONFIG_KVM_EXIT_TIMING */
 
@@ -49,9 +49,9 @@ static inline void kvmppc_account_exit_stat(struct kvm_vcpu *vcpu, int type)
 {
 	/* type has to be known at build time for optimization */
 
-	/* The BUILD_BUG_ON below breaks in funny ways, commented out
+	/* The BUILD__ON below breaks in funny ways, commented out
 	 * for now ... -BenH
-	BUILD_BUG_ON(!__builtin_constant_p(type));
+	BUILD__ON(!__builtin_constant_p(type));
 	*/
 	switch (type) {
 	case EXT_INTR_EXITS:

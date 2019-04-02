@@ -112,7 +112,7 @@
  *   subsequence), 1 1 1 1 (repeated valid subsequence).  The following
  *   sequences are invalid: 0 3 2 1 (invalid subsequence), 0 2 3 5 0 2 3
  *   (incompletely repeated subsequence).  Some versions of the PCI230+ and
- *   PCI260+ have a bug that requires a subsequence longer than one entry
+ *   PCI260+ have a  that requires a subsequence longer than one entry
  *   long to include channel 0.
  *
  * AO Subdevice:
@@ -165,7 +165,7 @@
  */
 
 /*
- * Extra triggered scan functionality, interrupt bug-fix added by Steve
+ * Extra triggered scan functionality, interrupt -fix added by Steve
  * Sharples.  Support for PCI230+/260+, more triggered scan functionality,
  * and workarounds for (or detection of) various hardware problems added
  * by Ian Abbott.
@@ -1481,20 +1481,20 @@ static int pci230_ai_check_chanlist(struct comedi_device *dev,
 	}
 
 	/*
-	 * Buggy PCI230+ or PCI260+ requires channel 0 to be (first) in the
+	 * gy PCI230+ or PCI260+ requires channel 0 to be (first) in the
 	 * sequence if the sequence contains more than one channel. Hardware
-	 * versions 1 and 2 have the bug. There is no hardware version 3.
+	 * versions 1 and 2 have the . There is no hardware version 3.
 	 *
 	 * Actually, there are two firmwares that report themselves as
 	 * hardware version 1 (the boards have different ADC chips with
 	 * slightly different timing requirements, which was supposed to
 	 * be invisible to software). The first one doesn't seem to have
-	 * the bug, but the second one does, and we can't tell them apart!
+	 * the , but the second one does, and we can't tell them apart!
 	 */
 	if (devpriv->hwver > 0 && devpriv->hwver < 4) {
 		if (subseq_len > 1 && CR_CHAN(cmd->chanlist[0])) {
 			dev_info(dev->class_dev,
-				 "amplc_pci230: ai_cmdtest: Buggy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
+				 "amplc_pci230: ai_cmdtest: gy PCI230+/260+ h/w version %u requires first channel of multi-channel sequence to be 0 (corrected in h/w version 4)\n",
 				 devpriv->hwver);
 			return -EINVAL;
 		}
@@ -2390,7 +2390,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	board = pci230_find_pci_board(pci_dev);
 	if (!board) {
 		dev_err(dev->class_dev,
-			"amplc_pci230: BUG! cannot determine board type!\n");
+			"amplc_pci230: ! cannot determine board type!\n");
 		return -EINVAL;
 	}
 	dev->board_ptr = board;

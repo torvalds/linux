@@ -147,7 +147,7 @@ struct saa7146_vv
 };
 
 /* flags */
-#define SAA7146_USE_PORT_B_FOR_VBI	0x2     /* use input port b for vbi hardware bug workaround */
+#define SAA7146_USE_PORT_B_FOR_VBI	0x2     /* use input port b for vbi hardware  workaround */
 
 struct saa7146_ext_vv
 {

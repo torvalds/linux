@@ -32,7 +32,7 @@ const struct gic_kvm_info *gic_get_kvm_info(void)
 
 void gic_set_kvm_info(const struct gic_kvm_info *info)
 {
-	BUG_ON(gic_kvm_info != NULL);
+	_ON(gic_kvm_info != NULL);
 	gic_kvm_info = info;
 }
 

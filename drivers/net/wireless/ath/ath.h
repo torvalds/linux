@@ -146,7 +146,7 @@ struct ath_common {
 	void *ah;
 	void *priv;
 	struct ieee80211_hw *hw;
-	int debug_mask;
+	int de_mask;
 	enum ath_device_state state;
 	unsigned long op_flags;
 
@@ -226,7 +226,7 @@ void ath_printk(const char *level, const struct ath_common *common,
 	ath_printk(KERN_INFO, common, fmt, ##__VA_ARGS__)
 
 /**
- * enum ath_debug_level - atheros wireless debug level
+ * enum ath_de_level - atheros wireless de level
  *
  * @ATH_DBG_RESET: reset processing
  * @ATH_DBG_QUEUE: hardware queue management
@@ -250,15 +250,15 @@ void ath_printk(const char *level, const struct ath_common *common,
  * @ATH_DBG_WOW: Wake on Wireless
  * @ATH_DBG_DYNACK: dynack handling
  * @ATH_DBG_SPECTRAL_SCAN: FFT spectral scan
- * @ATH_DBG_ANY: enable all debugging
+ * @ATH_DBG_ANY: enable all deging
  *
- * The debug level is used to control the amount and type of debugging output
- * we want to see. Each driver has its own method for enabling debugging and
- * modifying debug level states -- but this is typically done through a
- * module parameter 'debug' along with a respective 'debug' debugfs file
+ * The de level is used to control the amount and type of deging output
+ * we want to see. Each driver has its own method for enabling deging and
+ * modifying de level states -- but this is typically done through a
+ * module parameter 'de' along with a respective 'de' defs file
  * entry.
  */
-enum ATH_DEBUG {
+enum ATH_DE {
 	ATH_DBG_RESET		= 0x00000001,
 	ATH_DBG_QUEUE		= 0x00000002,
 	ATH_DBG_EEPROM		= 0x00000004,
@@ -286,12 +286,12 @@ enum ATH_DEBUG {
 #define ATH_DBG_DEFAULT (ATH_DBG_FATAL)
 #define ATH_DBG_MAX_LEN 512
 
-#ifdef CONFIG_ATH_DEBUG
+#ifdef CONFIG_ATH_DE
 
 #define ath_dbg(common, dbg_mask, fmt, ...)				\
 do {									\
-	if ((common)->debug_mask & ATH_DBG_##dbg_mask)			\
-		ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
+	if ((common)->de_mask & ATH_DBG_##dbg_mask)			\
+		ath_printk(KERN_DE, common, fmt, ##__VA_ARGS__);	\
 } while (0)
 
 #define ATH_DBG_WARN(foo, arg...) WARN(foo, arg)
@@ -300,7 +300,7 @@ do {									\
 #else
 
 static inline  __attribute__ ((format (printf, 3, 4)))
-void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
+void _ath_dbg(struct ath_common *common, enum ATH_DE dbg_mask,
 	     const char *fmt, ...)
 {
 }
@@ -313,10 +313,10 @@ void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	unlikely(__ret_warn_once);				\
 })
 
-#endif /* CONFIG_ATH_DEBUG */
+#endif /* CONFIG_ATH_DE */
 
 /** Returns string describing opmode, or NULL if unknown mode. */
-#ifdef CONFIG_ATH_DEBUG
+#ifdef CONFIG_ATH_DE
 const char *ath_opmode_to_string(enum nl80211_iftype opmode);
 #else
 static inline const char *ath_opmode_to_string(enum nl80211_iftype opmode)

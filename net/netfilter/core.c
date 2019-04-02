@@ -162,7 +162,7 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 
 static void hooks_validate(const struct nf_hook_entries *hooks)
 {
-#ifdef CONFIG_DEBUG_KERNEL
+#ifdef CONFIG_DE_KERNEL
 	struct nf_hook_ops **orig_ops;
 	int prio = INT_MIN;
 	size_t i = 0;
@@ -196,7 +196,7 @@ int nf_hook_entries_insert_raw(struct nf_hook_entries __rcu **pp,
 
 	rcu_assign_pointer(*pp, new_hooks);
 
-	BUG_ON(p == new_hooks);
+	_ON(p == new_hooks);
 	nf_hook_entries_free(p);
 	return 0;
 }
@@ -350,7 +350,7 @@ static int __nf_register_net_hook(struct net *net, int pf,
 #ifdef CONFIG_JUMP_LABEL
 	static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
 #endif
-	BUG_ON(p == new_hooks);
+	_ON(p == new_hooks);
 	nf_hook_entries_free(p);
 	return 0;
 }
@@ -597,7 +597,7 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 
 	rcu_read_lock();
 	ct_hook = rcu_dereference(nf_ct_hook);
-	BUG_ON(ct_hook == NULL);
+	_ON(ct_hook == NULL);
 	ct_hook->destroy(nfct);
 	rcu_read_unlock();
 }

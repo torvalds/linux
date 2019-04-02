@@ -111,7 +111,7 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	ah->nvifs++;
-	ATH5K_DBG(ah, ATH5K_DEBUG_MODE, "add interface mode %d\n", avf->opmode);
+	ATH5K_DBG(ah, ATH5K_DE_MODE, "add interface mode %d\n", avf->opmode);
 
 	/* Assign the vap/adhoc to a beacon xmit slot. */
 	if ((avf->opmode == NL80211_IFTYPE_AP) ||
@@ -131,7 +131,7 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 				break;
 			}
 		}
-		BUG_ON(ah->bslot[avf->bslot] != NULL);
+		_ON(ah->bslot[avf->bslot] != NULL);
 		ah->bslot[avf->bslot] = vif;
 		if (avf->opmode == NL80211_IFTYPE_AP)
 			ah->num_ap_vifs++;
@@ -290,7 +290,7 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		ath5k_hw_set_ledstate(ah, ah->assoc ?
 			AR5K_LED_ASSOC : AR5K_LED_INIT);
 		if (bss_conf->assoc) {
-			ATH5K_DBG(ah, ATH5K_DEBUG_ANY,
+			ATH5K_DBG(ah, ATH5K_DE_ANY,
 				  "Bss Info ASSOC %d, bssid: %pM\n",
 				  bss_conf->aid, common->curbssid);
 			common->curaid = bss_conf->aid;
@@ -592,7 +592,7 @@ ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	qi.tqi_cw_max = params->cw_max;
 	qi.tqi_burst_time = params->txop * 32;
 
-	ATH5K_DBG(ah, ATH5K_DEBUG_ANY,
+	ATH5K_DBG(ah, ATH5K_DE_ANY,
 		  "Configure tx [queue %d],  "
 		  "aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
 		  queue, params->aifs, params->cw_min,

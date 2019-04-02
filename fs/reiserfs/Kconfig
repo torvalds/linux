@@ -28,7 +28,7 @@ config REISERFS_FS
 	  need, buy a support contract, or pay us to port it to another OS.
 
 config REISERFS_CHECK
-	bool "Enable reiserfs debug mode"
+	bool "Enable reiserfs de mode"
 	depends on REISERFS_FS
 	help
 	  If you set this to Y, then ReiserFS will perform every check it can
@@ -36,8 +36,8 @@ config REISERFS_CHECK
 	  operation.  It will also go substantially slower.  More than once we
 	  have forgotten that this was on, and then gone despondent over the
 	  latest benchmarks.:-) Use of this option allows our team to go all
-	  out in checking for consistency when debugging without fear of its
-	  effect on end users.  If you are on the verge of sending in a bug
+	  out in checking for consistency when deging without fear of its
+	  effect on end users.  If you are on the verge of sending in a 
 	  report, say Y and you might get a useful error message.  Almost
 	  everyone should say N.
 

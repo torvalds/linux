@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Various register offset definitions for debuggers, core file
+ * Various register offset definitions for degers, core file
  * examiners and whatnot.
  *
  * This file is subject to the terms and conditions of the GNU General Public

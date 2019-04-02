@@ -45,7 +45,7 @@
 
 #include "b43legacy.h"
 #include "main.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "phy.h"
 #include "dma.h"
 #include "pio.h"
@@ -234,7 +234,7 @@ void b43legacywarn(struct b43legacy_wl *wl, const char *fmt, ...)
 	va_end(args);
 }
 
-#if B43legacy_DEBUG
+#if B43legacy_DE
 void b43legacydbg(struct b43legacy_wl *wl, const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -245,12 +245,12 @@ void b43legacydbg(struct b43legacy_wl *wl, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "b43legacy-%s debug: %pV",
+	printk(KERN_DE "b43legacy-%s de: %pV",
 	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
 
 	va_end(args);
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static void b43legacy_ram_write(struct b43legacy_wldev *dev, u16 offset,
 				u32 val)
@@ -642,7 +642,7 @@ void b43legacy_dummy_transmission(struct b43legacy_wldev *dev)
 		buffer[0] = 0x000B846E;
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 		return;
 	}
 
@@ -1299,7 +1299,7 @@ static void b43legacy_set_beacon_int(struct b43legacy_wldev *dev,
 	b43legacydbg(dev->wl, "Set beacon interval to %u\n", beacon_int);
 }
 
-static void handle_irq_ucode_debug(struct b43legacy_wldev *dev)
+static void handle_irq_ucode_de(struct b43legacy_wldev *dev)
 {
 }
 
@@ -1359,8 +1359,8 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 			       dma_reason[4], dma_reason[5]);
 	}
 
-	if (unlikely(reason & B43legacy_IRQ_UCODE_DEBUG))
-		handle_irq_ucode_debug(dev);
+	if (unlikely(reason & B43legacy_IRQ_UCODE_DE))
+		handle_irq_ucode_de(dev);
 	if (reason & B43legacy_IRQ_TBTT_INDI)
 		handle_irq_tbtt_indication(dev);
 	if (reason & B43legacy_IRQ_ATIM_END)
@@ -1817,7 +1817,7 @@ static int b43legacy_write_initvals(struct b43legacy_wldev *dev,
 	size_t i;
 	bool bit32;
 
-	BUILD_BUG_ON(sizeof(struct b43legacy_iv) != 6);
+	BUILD__ON(sizeof(struct b43legacy_iv) != 6);
 	iv = ivals;
 	for (i = 0; i < count; i++) {
 		if (array_size < sizeof(iv->offset_size))
@@ -2115,7 +2115,7 @@ static void b43legacy_rate_memory_init(struct b43legacy_wldev *dev)
 		b43legacy_rate_memory_write(dev, B43legacy_CCK_RATE_11MB, 0);
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 }
 
@@ -2137,7 +2137,7 @@ static void b43legacy_mgmtframe_txantenna(struct b43legacy_wldev *dev,
 		ant |= B43legacy_TX4_PHY_ANTLAST;
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 
 	/* FIXME We also need to set the other flags of the PHY control
@@ -2352,14 +2352,14 @@ static void b43legacy_periodic_work_handler(struct work_struct *work)
 
 	if (unlikely(b43legacy_status(dev) != B43legacy_STAT_STARTED))
 		goto out;
-	if (b43legacy_debug(dev, B43legacy_DBG_PWORK_STOP))
+	if (b43legacy_de(dev, B43legacy_DBG_PWORK_STOP))
 		goto out_requeue;
 
 	do_periodic_work(dev);
 
 	dev->periodic_state++;
 out_requeue:
-	if (b43legacy_debug(dev, B43legacy_DBG_PWORK_FAST))
+	if (b43legacy_de(dev, B43legacy_DBG_PWORK_FAST))
 		delay = msecs_to_jiffies(50);
 	else
 		delay = round_jiffies_relative(HZ * 15);
@@ -2562,7 +2562,7 @@ static const char *phymode_to_string(unsigned int phymode)
 	case B43legacy_PHYMODE_G:
 		return "G";
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 	return "";
 }
@@ -3083,7 +3083,7 @@ static int b43legacy_phy_versioning(struct b43legacy_wldev *dev)
 			unsupported = 1;
 		break;
 	default:
-		B43legacy_BUG_ON(1);
+		B43legacy__ON(1);
 	}
 	if (unsupported) {
 		b43legacyerr(dev->wl, "FOUND UNSUPPORTED RADIO "
@@ -3710,7 +3710,7 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 			have_gphy = 1;
 			break;
 		default:
-			B43legacy_BUG_ON(1);
+			B43legacy__ON(1);
 		}
 	}
 	dev->phy.gmode = (have_gphy || have_bphy);
@@ -3752,7 +3752,7 @@ static void b43legacy_one_core_detach(struct ssb_device *dev)
 
 	wldev = ssb_get_drvdata(dev);
 	wl = wldev->wl;
-	b43legacy_debugfs_remove_device(wldev);
+	b43legacy_defs_remove_device(wldev);
 	b43legacy_wireless_core_detach(wldev);
 	list_del(&wldev->list);
 	wl->nr_devs--;
@@ -3788,7 +3788,7 @@ static int b43legacy_one_core_attach(struct ssb_device *dev,
 	list_add(&wldev->list, &wl->devlist);
 	wl->nr_devs++;
 	ssb_set_drvdata(dev, wldev);
-	b43legacy_debugfs_add_device(wldev);
+	b43legacy_defs_add_device(wldev);
 out:
 	return err;
 
@@ -4041,7 +4041,7 @@ static int __init b43legacy_init(void)
 {
 	int err;
 
-	b43legacy_debugfs_init();
+	b43legacy_defs_init();
 
 	err = ssb_driver_register(&b43legacy_ssb_driver);
 	if (err)
@@ -4052,14 +4052,14 @@ static int __init b43legacy_init(void)
 	return err;
 
 err_dfs_exit:
-	b43legacy_debugfs_exit();
+	b43legacy_defs_exit();
 	return err;
 }
 
 static void __exit b43legacy_exit(void)
 {
 	ssb_driver_unregister(&b43legacy_ssb_driver);
-	b43legacy_debugfs_exit();
+	b43legacy_defs_exit();
 }
 
 module_init(b43legacy_init)

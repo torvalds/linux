@@ -29,7 +29,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 #include <asm/e820/api.h>
 #include <asm/bios_ebda.h>
 #include <asm/bootparam_utils.h>
@@ -273,7 +273,7 @@ static void __init reset_early_page_tables(void)
 {
 	memset(early_top_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
 	next_early_pgt = 0;
-	write_cr3(__sme_pa_nodebug(early_top_pgt));
+	write_cr3(__sme_pa_node(early_top_pgt));
 }
 
 /* Create a new PMD entry */
@@ -286,7 +286,7 @@ int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
 	pmdval_t *pmd_p;
 
 	/* Invalid address or early pgt is done ?  */
-	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_nodebug(early_top_pgt))
+	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_node(early_top_pgt))
 		return -1;
 
 again:
@@ -408,15 +408,15 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 	 * Build-time sanity checks on the kernel image and module
 	 * area mappings. (these are purely build-time and produce no code)
 	 */
-	BUILD_BUG_ON(MODULES_VADDR < __START_KERNEL_map);
-	BUILD_BUG_ON(MODULES_VADDR - __START_KERNEL_map < KERNEL_IMAGE_SIZE);
-	BUILD_BUG_ON(MODULES_LEN + KERNEL_IMAGE_SIZE > 2*PUD_SIZE);
-	BUILD_BUG_ON((__START_KERNEL_map & ~PMD_MASK) != 0);
-	BUILD_BUG_ON((MODULES_VADDR & ~PMD_MASK) != 0);
-	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
-	MAYBE_BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
+	BUILD__ON(MODULES_VADDR < __START_KERNEL_map);
+	BUILD__ON(MODULES_VADDR - __START_KERNEL_map < KERNEL_IMAGE_SIZE);
+	BUILD__ON(MODULES_LEN + KERNEL_IMAGE_SIZE > 2*PUD_SIZE);
+	BUILD__ON((__START_KERNEL_map & ~PMD_MASK) != 0);
+	BUILD__ON((MODULES_VADDR & ~PMD_MASK) != 0);
+	BUILD__ON(!(MODULES_VADDR > __START_KERNEL));
+	MAYBE_BUILD__ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
 				(__START_KERNEL & PGDIR_MASK)));
-	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
+	BUILD__ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
 	cr4_init_shadow();
 

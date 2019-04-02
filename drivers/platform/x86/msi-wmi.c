@@ -133,7 +133,7 @@ static int msi_wmi_set_block(int instance, int value)
 
 	struct acpi_buffer input = { sizeof(int), &value };
 
-	pr_debug("Going to set block of instance: %d - value: %d\n",
+	pr_de("Going to set block of instance: %d - value: %d\n",
 		 instance, value);
 
 	status = wmi_set_block(MSIWMI_BIOS_GUID, instance, &input);
@@ -151,10 +151,10 @@ static int bl_get(struct backlight_device *bd)
 		pr_err("Could not query backlight: %d\n", err);
 		return -EINVAL;
 	}
-	pr_debug("Get: Query block returned: %d\n", ret);
+	pr_de("Get: Query block returned: %d\n", ret);
 	for (level = 0; level < ARRAY_SIZE(backlight_map); level++) {
 		if (backlight_map[level] == ret) {
-			pr_debug("Current backlight level: 0x%X - index: %d\n",
+			pr_de("Current backlight level: 0x%X - index: %d\n",
 				 backlight_map[level], level);
 			break;
 		}
@@ -198,7 +198,7 @@ static void msi_wmi_notify(u32 value, void *context)
 
 	if (obj && obj->type == ACPI_TYPE_INTEGER) {
 		int eventcode = obj->integer.value;
-		pr_debug("Eventcode: 0x%x\n", eventcode);
+		pr_de("Eventcode: 0x%x\n", eventcode);
 		key = sparse_keymap_entry_from_scancode(msi_wmi_input_dev,
 				eventcode);
 		if (!key) {
@@ -212,7 +212,7 @@ static void msi_wmi_notify(u32 value, void *context)
 			/* Ignore event if any event happened in a 50 ms
 			   timeframe -> Key press may result in 10-20 GPEs */
 			if (ktime_to_us(diff) < 1000 * 50) {
-				pr_debug("Suppressed key event 0x%X - "
+				pr_de("Suppressed key event 0x%X - "
 					 "Last press was %lld us ago\n",
 					 key->code, ktime_to_us(diff));
 				goto msi_wmi_notify_exit;
@@ -225,7 +225,7 @@ static void msi_wmi_notify(u32 value, void *context)
 		(backlight ||
 		(key->code != MSI_KEY_BRIGHTNESSUP &&
 		key->code != MSI_KEY_BRIGHTNESSDOWN))) {
-			pr_debug("Send key: 0x%X - Input layer keycode: %d\n",
+			pr_de("Send key: 0x%X - Input layer keycode: %d\n",
 				 key->code, key->keycode);
 			sparse_keymap_report_entry(msi_wmi_input_dev, key, 1,
 						   true);
@@ -314,7 +314,7 @@ static int __init msi_wmi_init(void)
 			goto err_free_input;
 		}
 
-		pr_debug("Event handler installed\n");
+		pr_de("Event handler installed\n");
 		event_wmi = &event_wmis[i];
 		break;
 	}
@@ -326,7 +326,7 @@ static int __init msi_wmi_init(void)
 			pr_err("Unable to setup backlight device\n");
 			goto err_uninstall_handler;
 		}
-		pr_debug("Backlight device created\n");
+		pr_de("Backlight device created\n");
 	}
 
 	if (!event_wmi && !backlight) {

@@ -10,7 +10,7 @@
 #include <linux/memory.h>
 #include <linux/stop_machine.h>
 #include <linux/slab.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/kprobes.h>
 #include <asm/text-patching.h>
 #include <asm/alternative.h>
@@ -29,14 +29,14 @@ EXPORT_SYMBOL_GPL(alternatives_patched);
 
 #define MAX_PATCH_LEN (255-1)
 
-static int __initdata_or_module debug_alternative;
+static int __initdata_or_module de_alternative;
 
-static int __init debug_alt(char *str)
+static int __init de_alt(char *str)
 {
-	debug_alternative = 1;
+	de_alternative = 1;
 	return 1;
 }
-__setup("debug-alternative", debug_alt);
+__setup("de-alternative", de_alt);
 
 static int noreplace_smp;
 
@@ -49,19 +49,19 @@ __setup("noreplace-smp", setup_noreplace_smp);
 
 #define DPRINTK(fmt, args...)						\
 do {									\
-	if (debug_alternative)						\
-		printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##args);	\
+	if (de_alternative)						\
+		printk(KERN_DE "%s: " fmt "\n", __func__, ##args);	\
 } while (0)
 
 #define DUMP_BYTES(buf, len, fmt, args...)				\
 do {									\
-	if (unlikely(debug_alternative)) {				\
+	if (unlikely(de_alternative)) {				\
 		int j;							\
 									\
 		if (!(len))						\
 			break;						\
 									\
-		printk(KERN_DEBUG fmt, ##args);				\
+		printk(KERN_DE fmt, ##args);				\
 		for (j = 0; j < (len) - 1; j++)				\
 			printk(KERN_CONT "%02hhx ", buf[j]);		\
 		printk(KERN_CONT "%02hhx\n", buf[j]);			\
@@ -385,8 +385,8 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 
 		instr = (u8 *)&a->instr_offset + a->instr_offset;
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
-		BUG_ON(a->instrlen > sizeof(insnbuf));
-		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
+		_ON(a->instrlen > sizeof(insnbuf));
+		_ON(a->cpuid >= (NCAPINTS + NINTS) * 32);
 		if (!boot_cpu_has(a->cpuid)) {
 			if (a->padlen > 1)
 				optimize_nops(a, instr);
@@ -541,13 +541,13 @@ void alternatives_enable_smp(void)
 	struct smp_alt_module *mod;
 
 	/* Why bother if there are no other CPUs? */
-	BUG_ON(num_possible_cpus() == 1);
+	_ON(num_possible_cpus() == 1);
 
 	mutex_lock(&text_mutex);
 
 	if (uniproc_patched) {
 		pr_info("switching to SMP code\n");
-		BUG_ON(num_online_cpus() != 1);
+		_ON(num_online_cpus() != 1);
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
 		clear_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
 		list_for_each_entry(mod, &smp_alt_modules, next)
@@ -596,13 +596,13 @@ void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
 	for (p = start; p < end; p++) {
 		unsigned int used;
 
-		BUG_ON(p->len > MAX_PATCH_LEN);
+		_ON(p->len > MAX_PATCH_LEN);
 		/* prep the buffer with the original instructions */
 		memcpy(insnbuf, p->instr, p->len);
 		used = pv_ops.init.patch(p->instrtype, insnbuf,
 					 (unsigned long)p->instr, p->len);
 
-		BUG_ON(used > p->len);
+		_ON(used > p->len);
 
 		/* Pad the rest with nops */
 		add_nops(insnbuf + used, p->len - used);
@@ -701,7 +701,7 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 	 * While boot memory allocator is runnig we cannot use struct
 	 * pages as they are not yet initialized.
 	 */
-	BUG_ON(!after_bootmem);
+	_ON(!after_bootmem);
 
 	lockdep_assert_held(&text_mutex);
 
@@ -713,7 +713,7 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 		WARN_ON(!PageReserved(pages[0]));
 		pages[1] = virt_to_page(addr + PAGE_SIZE);
 	}
-	BUG_ON(!pages[0]);
+	_ON(!pages[0]);
 	local_irq_save(flags);
 	set_fixmap(FIX_TEXT_POKE0, page_to_phys(pages[0]));
 	if (pages[1])
@@ -728,7 +728,7 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
 	   that causes hangs on some VIA CPUs. */
 	for (i = 0; i < len; i++)
-		BUG_ON(((char *)addr)[i] != ((char *)opcode)[i]);
+		_ON(((char *)addr)[i] != ((char *)opcode)[i]);
 	local_irq_restore(flags);
 	return addr;
 }

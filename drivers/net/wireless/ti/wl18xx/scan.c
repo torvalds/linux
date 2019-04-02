@@ -21,7 +21,7 @@
 
 #include <linux/ieee80211.h>
 #include "scan.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 
 static void wl18xx_adjust_channels(struct wl18xx_cmd_scan_params *cmd,
 				   struct wlcore_scan_channels *cmd_channels)
@@ -143,7 +143,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		}
 	}
 
-	wl1271_dump(DEBUG_SCAN, "SCAN: ", cmd, sizeof(*cmd));
+	wl1271_dump(DE_SCAN, "SCAN: ", cmd, sizeof(*cmd));
 
 	ret = wl1271_cmd_send(wl, CMD_SCAN, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -177,7 +177,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	int ret;
 	int filter_type;
 
-	wl1271_debug(DEBUG_CMD, "cmd sched_scan scan config");
+	wl1271_de(DE_CMD, "cmd sched_scan scan config");
 
 	filter_type = wlcore_scan_sched_scan_ssid_list(wl, wlvif, req);
 	if (filter_type < 0)
@@ -239,7 +239,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 			cpu_to_le16(req->scan_plans[0].interval * MSEC_PER_SEC);
 		cmd->short_cycles_count = 0;
 	}
-	wl1271_debug(DEBUG_SCAN, "short_interval: %d, long_interval: %d, num_short: %d",
+	wl1271_de(DE_SCAN, "short_interval: %d, long_interval: %d, num_short: %d",
 		     le16_to_cpu(cmd->short_cycles_msec),
 		     le16_to_cpu(cmd->long_cycles_msec),
 		     cmd->short_cycles_count);
@@ -286,7 +286,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 		}
 	}
 
-	wl1271_dump(DEBUG_SCAN, "SCAN: ", cmd, sizeof(*cmd));
+	wl1271_dump(DE_SCAN, "SCAN: ", cmd, sizeof(*cmd));
 
 	ret = wl1271_cmd_send(wl, CMD_SCAN, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
@@ -313,7 +313,7 @@ static int __wl18xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct wl18xx_cmd_scan_stop *stop;
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "cmd periodic scan stop");
+	wl1271_de(DE_CMD, "cmd periodic scan stop");
 
 	stop = kzalloc(sizeof(*stop), GFP_KERNEL);
 	if (!stop) {

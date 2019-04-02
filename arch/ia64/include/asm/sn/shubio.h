@@ -197,7 +197,7 @@
 #define		IIO_ICSMM		0x00400708	/* IO CRB Spurious Message Middle */
 #define		IIO_ICSMH		0x00400710	/* IO CRB Spurious Message High */
 
-#define		IIO_IDBSS		0x00400718	/* IO Debug Submenu Select */
+#define		IIO_IDBSS		0x00400718	/* IO De Submenu Select */
 
 #define		IIO_IBLS0		0x00410000	/* IO BTE Length Status 0 */
 #define		IIO_IBSA0		0x00410008	/* IO BTE Source Address 0 */
@@ -2076,13 +2076,13 @@ typedef union ii_icdr_u {
 
 /************************************************************************
  *									*
- *  This register provides debug access to two FIFOs inside of II.      *
+ *  This register provides de access to two FIFOs inside of II.      *
  * Both IOQ_MAX* fields of this register contain the instantaneous      *
  * depth (in units of the number of available entries) of the           *
  * associated IOQ FIFO.  A read of this register will return the        *
  * number of free entries on each FIFO at the time of the read.  So     *
  * when a FIFO is idle, the associated field contains the maximum       *
- * depth of the FIFO.  This register is writable for debug reasons      *
+ * depth of the FIFO.  This register is writable for de reasons      *
  * and is intended to be written with the maximum desired FIFO depth    *
  * while the FIFO is idle. Software must assure that II is idle when    *
  * this register is written. If there are any active entries in any     *
@@ -2432,7 +2432,7 @@ typedef union ii_icsmh_u {
 
 /************************************************************************
  *									*
- *  The Shub DEBUG unit provides a 3-bit selection signal to the        *
+ *  The Shub DE unit provides a 3-bit selection signal to the        *
  * II core and a 3-bit selection signal to the fsbclk domain in the II  *
  * wrapper.                                                             *
  *									*
@@ -2946,7 +2946,7 @@ typedef union ii_ippr_u {
 #define IIO_IMEM_B1ESD	(1UL << 8)	/* BTE 1 Shut down due to error */
 
 /*
- * As a permanent workaround for a bug in the PI side of the shub, we've
+ * As a permanent workaround for a  in the PI side of the shub, we've
  * redefined big window 7 as small window 0.
  XXX does this still apply for SN1??
  */

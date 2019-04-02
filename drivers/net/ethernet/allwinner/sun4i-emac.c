@@ -38,9 +38,9 @@
 #define EMAC_MAX_FRAME_LEN	0x0600
 
 #define EMAC_DEFAULT_MSG_ENABLE 0x0000
-static int debug = -1;     /* defaults above */;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "debug message flags");
+static int de = -1;     /* defaults above */;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "de message flags");
 
 /* Transmit timeout, default 5 seconds. */
 static int watchdog = 5000;
@@ -823,7 +823,7 @@ static int emac_probe(struct platform_device *pdev)
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
 	db->pdev = pdev;
-	db->msg_enable = netif_msg_init(debug, EMAC_DEFAULT_MSG_ENABLE);
+	db->msg_enable = netif_msg_init(de, EMAC_DEFAULT_MSG_ENABLE);
 
 	spin_lock_init(&db->lock);
 

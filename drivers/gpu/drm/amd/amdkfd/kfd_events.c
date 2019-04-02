@@ -81,7 +81,7 @@ static struct kfd_signal_page *allocate_signal_page(struct kfd_process *p)
 
 	page->kernel_address = backing_store;
 	page->need_to_free_pages = true;
-	pr_debug("Allocated new event signal page at %p, for process %p\n",
+	pr_de("Allocated new event signal page at %p, for process %p\n",
 			page, p);
 
 	return page;
@@ -202,7 +202,7 @@ static int create_signal_event(struct file *devkfd,
 	p->signal_event_count++;
 
 	ev->user_signal_address = &p->signal_page->user_address[ev->event_id];
-	pr_debug("Signal event number %zu created with id %d, address %p\n",
+	pr_de("Signal event number %zu created with id %d, address %p\n",
 			p->signal_event_count, ev->event_id,
 			ev->user_signal_address);
 
@@ -245,7 +245,7 @@ static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
 	wake_up_all(&ev->wq);
 
 	if (ev->type == KFD_EVENT_TYPE_SIGNAL ||
-	    ev->type == KFD_EVENT_TYPE_DEBUG)
+	    ev->type == KFD_EVENT_TYPE_DE)
 		p->signal_event_count--;
 
 	idr_remove(&p->event_idr, ev->event_id);
@@ -287,7 +287,7 @@ void kfd_event_free_process(struct kfd_process *p)
 static bool event_can_be_gpu_signaled(const struct kfd_event *ev)
 {
 	return ev->type == KFD_EVENT_TYPE_SIGNAL ||
-					ev->type == KFD_EVENT_TYPE_DEBUG;
+					ev->type == KFD_EVENT_TYPE_DE;
 }
 
 static bool event_can_be_cpu_signaled(const struct kfd_event *ev)
@@ -342,7 +342,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 
 	switch (event_type) {
 	case KFD_EVENT_TYPE_SIGNAL:
-	case KFD_EVENT_TYPE_DEBUG:
+	case KFD_EVENT_TYPE_DE:
 		ret = create_signal_event(devkfd, p, ev);
 		if (!ret) {
 			*event_page_offset = KFD_MMAP_TYPE_EVENTS;
@@ -493,7 +493,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 		uint32_t id;
 
 		if (valid_id_bits)
-			pr_debug_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
+			pr_de_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
 					     partial_id, valid_id_bits);
 
 		if (p->signal_event_count < KFD_SIGNAL_EVENT_LIMIT / 64) {
@@ -794,8 +794,8 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 
 	page = p->signal_page;
 	if (!page) {
-		/* Probably KFD bug, but mmap is user-accessible. */
-		pr_debug("Signal page could not be found\n");
+		/* Probably KFD , but mmap is user-accessible. */
+		pr_de("Signal page could not be found\n");
 		return -EINVAL;
 	}
 
@@ -805,12 +805,12 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
 		       | VM_DONTDUMP | VM_PFNMAP;
 
-	pr_debug("Mapping signal page\n");
-	pr_debug("     start user address  == 0x%08lx\n", vma->vm_start);
-	pr_debug("     end user address    == 0x%08lx\n", vma->vm_end);
-	pr_debug("     pfn                 == 0x%016lX\n", pfn);
-	pr_debug("     vm_flags            == 0x%08lX\n", vma->vm_flags);
-	pr_debug("     size                == 0x%08lX\n",
+	pr_de("Mapping signal page\n");
+	pr_de("     start user address  == 0x%08lx\n", vma->vm_start);
+	pr_de("     end user address    == 0x%08lx\n", vma->vm_end);
+	pr_de("     pfn                 == 0x%016lX\n", pfn);
+	pr_de("     vm_flags            == 0x%08lX\n", vma->vm_flags);
+	pr_de("     size                == 0x%08lX\n",
 			vma->vm_end - vma->vm_start);
 
 	page->user_address = (uint64_t __user *)vma->vm_start;
@@ -928,7 +928,7 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	up_read(&mm->mmap_sem);
 	mmput(mm);
 
-	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
+	pr_de("notpresent %d, noexecute %d, readonly %d\n",
 			memory_exception_data.failure.NotPresent,
 			memory_exception_data.failure.NoExecute,
 			memory_exception_data.failure.ReadOnly);

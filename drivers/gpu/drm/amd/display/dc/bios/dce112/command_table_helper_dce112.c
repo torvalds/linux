@@ -300,7 +300,7 @@ static uint8_t encoder_action_to_atom(enum bp_encoder_control_action action)
 		atom_action = ATOM_ENCODER_INIT;
 		break;
 	default:
-		BREAK_TO_DEBUGGER(); /* Unhandle action in driver.!! */
+		BREAK_TO_DEGER(); /* Unhandle action in driver.!! */
 		break;
 	}
 

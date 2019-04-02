@@ -102,7 +102,7 @@ static int cx18_pci_latency = 1;
 static int mmio_ndelay;
 static int retry_mmio = 1;
 
-int cx18_debug;
+int cx18_de;
 
 module_param_array(tuner, int, &tuner_c, 0644);
 module_param_array(radio, int, &radio_c, 0644);
@@ -110,7 +110,7 @@ module_param_array(cardtype, int, &cardtype_c, 0644);
 module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
 module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
-module_param_named(debug, cx18_debug, int, 0644);
+module_param_named(de, cx18_de, int, 0644);
 module_param(mmio_ndelay, int, 0644);
 module_param(retry_mmio, int, 0644);
 module_param(cx18_pci_latency, int, 0644);
@@ -159,8 +159,8 @@ MODULE_PARM_DESC(cardtype,
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
 MODULE_PARM_DESC(secam, "Set SECAM standard: B, G, H, D, K, L, LC");
 MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J, K");
-MODULE_PARM_DESC(debug,
-		 "Debug level (bitmask). Default: 0\n"
+MODULE_PARM_DESC(de,
+		 "De level (bitmask). Default: 0\n"
 		 "\t\t\t  1/0x0001: warning\n"
 		 "\t\t\t  2/0x0002: info\n"
 		 "\t\t\t  4/0x0004: mailbox\n"
@@ -296,7 +296,7 @@ static void cx18_iounmap(struct cx18 *cx)
 
 	/* Release io memory */
 	if (cx->enc_mem) {
-		CX18_DEBUG_INFO("releasing enc_mem\n");
+		CX18_DE_INFO("releasing enc_mem\n");
 		iounmap(cx->enc_mem);
 		cx->enc_mem = NULL;
 	}
@@ -432,16 +432,16 @@ static void cx18_process_eeprom(struct cx18 *cx)
 				   V4L2_STD_DK)
 	if ((tv.tuner_formats & TVEEPROM_TUNER_FORMAT_ALL)
 					== TVEEPROM_TUNER_FORMAT_ALL) {
-		CX18_DEBUG_INFO("Worldwide tuner detected\n");
+		CX18_DE_INFO("Worldwide tuner detected\n");
 		cx->std = V4L2_STD_ALL;
 	} else if (tv.tuner_formats & V4L2_STD_PAL) {
-		CX18_DEBUG_INFO("PAL tuner detected\n");
+		CX18_DE_INFO("PAL tuner detected\n");
 		cx->std |= V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 	} else if (tv.tuner_formats & V4L2_STD_NTSC) {
-		CX18_DEBUG_INFO("NTSC tuner detected\n");
+		CX18_DE_INFO("NTSC tuner detected\n");
 		cx->std |= V4L2_STD_NTSC_M;
 	} else if (tv.tuner_formats & V4L2_STD_SECAM) {
-		CX18_DEBUG_INFO("SECAM tuner detected\n");
+		CX18_DE_INFO("SECAM tuner detected\n");
 		cx->std |= V4L2_STD_SECAM_L;
 	} else {
 		CX18_INFO("No tuner detected, default to NTSC-M\n");
@@ -630,7 +630,7 @@ static void cx18_process_options(struct cx18 *cx)
 			/* convert from kB to bytes */
 			cx->stream_buf_size[i] *= 1024;
 		}
-		CX18_DEBUG_INFO("Stream type %d options: %d MB, %d buffers, %d bytes\n",
+		CX18_DE_INFO("Stream type %d options: %d MB, %d buffers, %d bytes\n",
 				i, cx->options.megabytes[i],
 				cx->stream_buffers[i], cx->stream_buf_size[i]);
 	}
@@ -710,7 +710,7 @@ static void cx18_init_in_work_orders(struct cx18 *cx)
 	int i;
 	for (i = 0; i < CX18_MAX_IN_WORK_ORDERS; i++) {
 		cx->in_work_order[i].cx = cx;
-		cx->in_work_order[i].str = cx->epu_debug_str;
+		cx->in_work_order[i].str = cx->epu_de_str;
 		INIT_WORK(&cx->in_work_order[i].work, cx18_in_work_handler);
 	}
 }
@@ -808,7 +808,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 	u16 cmd;
 	unsigned char pci_latency;
 
-	CX18_DEBUG_INFO("Enabling pci device\n");
+	CX18_DE_INFO("Enabling pci device\n");
 
 	if (pci_enable_device(pci_dev)) {
 		CX18_ERR("Can't enable device %d!\n", cx->instance);
@@ -839,7 +839,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 		pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER, &pci_latency);
 	}
 
-	CX18_DEBUG_INFO("cx%d (rev %d) at %02x:%02x.%x, irq: %d, latency: %d, memory: 0x%llx\n",
+	CX18_DE_INFO("cx%d (rev %d) at %02x:%02x.%x, irq: %d, latency: %d, memory: 0x%llx\n",
 		   cx->pci_dev->device, cx->card_rev, pci_dev->bus->number,
 		   PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn),
 		   cx->pci_dev->irq, pci_latency, (u64)cx->base_addr);
@@ -937,7 +937,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 	if (retval)
 		goto err;
 
-	CX18_DEBUG_INFO("base addr: 0x%llx\n", (u64)cx->base_addr);
+	CX18_DE_INFO("base addr: 0x%llx\n", (u64)cx->base_addr);
 
 	/* PCI Device Setup */
 	retval = cx18_setup_pci(cx, pci_dev, pci_id);
@@ -945,7 +945,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 		goto free_workqueues;
 
 	/* map io memory */
-	CX18_DEBUG_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
+	CX18_DE_INFO("attempting ioremap at 0x%llx len 0x%08x\n",
 		   (u64)cx->base_addr + CX18_MEM_OFFSET, CX18_MEM_SIZE);
 	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
@@ -995,7 +995,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 	}
 
 	/* active i2c  */
-	CX18_DEBUG_INFO("activating i2c...\n");
+	CX18_DE_INFO("activating i2c...\n");
 	retval = init_cx18_i2c(cx);
 	if (retval) {
 		CX18_ERR("Could not initialize i2c\n");
@@ -1172,7 +1172,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	set_bit(CX18_F_I_LOADED_FW, &cx->i_flags);
 
 	/*
-	 * Init the firmware twice to work around a silicon bug
+	 * Init the firmware twice to work around a silicon 
 	 * with the digital TS.
 	 *
 	 * The second firmware load requires us to normalize the APU state,
@@ -1262,12 +1262,12 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	struct cx18 *cx = to_cx18(v4l2_dev);
 	int i;
 
-	CX18_DEBUG_INFO("Removing Card\n");
+	CX18_DE_INFO("Removing Card\n");
 
 	flush_request_modules(cx);
 
 	/* Stop all captures */
-	CX18_DEBUG_INFO("Stopping all streams\n");
+	CX18_DE_INFO("Stopping all streams\n");
 	if (atomic_read(&cx->tot_capturing) > 0)
 		cx18_stop_all_captures(cx);
 
@@ -1330,9 +1330,9 @@ static int __init module_start(void)
 		return -1;
 	}
 
-	if (cx18_debug < 0 || cx18_debug > 511) {
-		cx18_debug = 0;
-		printk(KERN_INFO "cx18:   Debug value must be >= 0 and <= 511!\n");
+	if (cx18_de < 0 || cx18_de > 511) {
+		cx18_de = 0;
+		printk(KERN_INFO "cx18:   De value must be >= 0 and <= 511!\n");
 	}
 
 	if (pci_register_driver(&cx18_pci_driver)) {

@@ -523,7 +523,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		mcr |= CR_PSIZE32;
 		break;
 	default:
-		pr_warn("bug! invalid mem bit width for dma transfer\n");
+		pr_warn("! invalid mem bit width for dma transfer\n");
 		break;
 	}
 	writel(mcr, mite->mmio + MITE_MCR(mite_chan->channel));
@@ -542,7 +542,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 		dcr |= CR_PSIZE32;
 		break;
 	default:
-		pr_warn("bug! invalid dev bit width for dma transfer\n");
+		pr_warn("! invalid dev bit width for dma transfer\n");
 		break;
 	}
 	writel(dcr, mite->mmio + MITE_DCR(mite_chan->channel));
@@ -841,7 +841,7 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 	mite->num_channels = CSIGR_TO_DMAC(csigr_bits);
 	if (mite->num_channels > MAX_MITE_DMA_CHANNELS) {
 		dev_warn(dev->class_dev,
-			 "mite: bug? chip claims to have %i dma channels. Setting to %i.\n",
+			 "mite: ? chip claims to have %i dma channels. Setting to %i.\n",
 			 mite->num_channels, MAX_MITE_DMA_CHANNELS);
 		mite->num_channels = MAX_MITE_DMA_CHANNELS;
 	}

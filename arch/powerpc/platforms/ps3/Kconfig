@@ -161,7 +161,7 @@ config PS3GELIC_UDBG
 	bool "PS3 udbg output via UDP broadcasts on Ethernet"
 	depends on PPC_PS3
 	help
-	  Enables udbg early debugging output by sending broadcast UDP
+	  Enables udbg early deging output by sending broadcast UDP
 	  via the Ethernet port (UDP port number 18194).
 
 	  This driver uses a trivial implementation and is independent

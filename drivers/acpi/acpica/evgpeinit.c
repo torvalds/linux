@@ -52,7 +52,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 	ACPI_FUNCTION_TRACE(ev_gpe_initialize);
 
-	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+	ACPI_DE_PRINT_RAW((ACPI_DB_INIT,
 			      "Initializing General Purpose Events (GPEs):\n"));
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
@@ -167,7 +167,7 @@ acpi_status acpi_ev_gpe_initialize(void)
 
 		/* GPEs are not required by ACPI, this is OK */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
+		ACPI_DE_PRINT((ACPI_DB_INIT,
 				  "There are no GPE blocks defined in the FADT\n"));
 		status = AE_OK;
 		goto cleanup;
@@ -337,7 +337,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 		/* Unknown method type, just ignore it */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+		ACPI_DE_PRINT((ACPI_DB_LOAD,
 				  "Ignoring unknown GPE method type: %s "
 				  "(name not of form _Lxx or _Exx)", name));
 		return_ACPI_STATUS(AE_OK);
@@ -350,7 +350,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 
 		/* Conversion failed; invalid method, just ignore it */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+		ACPI_DE_PRINT((ACPI_DB_LOAD,
 				  "Could not extract GPE number from name: %s "
 				  "(name is not of form _Lxx or _Exx)", name));
 		return_ACPI_STATUS(AE_OK);
@@ -406,7 +406,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_METHOD);
 	gpe_event_info->dispatch.method_node = method_node;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
+	ACPI_DE_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",
 			  name, gpe_number));
 	return_ACPI_STATUS(AE_OK);

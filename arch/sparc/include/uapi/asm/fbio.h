@@ -156,7 +156,7 @@ struct fb_wid_list {
 #define FFB_SETOVCTL		(FFB_IOCTL|88)
 #define FFB_GETOVCTL		(FFB_IOCTL|89)
 #define FFB_GETSAXNUM		(FFB_IOCTL|90)
-#define FFB_FBDEBUG		(FFB_IOCTL|91)
+#define FFB_FBDE		(FFB_IOCTL|91)
 
 /* Cg14 ioctls */
 #define MDI_IOCTL          ('M'<<8)

@@ -117,7 +117,7 @@
 #define HCPTR_TTA	(1 << 20)
 #define HCPTR_TCPAC	(1 << 31)
 
-/* Hyp Debug Configuration Register bits */
+/* Hyp De Configuration Register bits */
 #define HDCR_TDRA	(1 << 11)
 #define HDCR_TDOSA	(1 << 10)
 #define HDCR_TDA	(1 << 9)

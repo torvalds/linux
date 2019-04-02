@@ -45,13 +45,13 @@
 /* Use Equalizer Mean Squared Error instead of Phaser Tracker MSE */
 /* #define USE_EQMSE */
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off lgdt330x frontend debugging (default:off).");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off lgdt330x frontend deging (default:off).");
 
 #define dprintk(state, fmt, arg...) do {				\
-	if (debug)							\
-		dev_printk(KERN_DEBUG, &state->client->dev, fmt, ##arg);\
+	if (de)							\
+		dev_printk(KERN_DE, &state->client->dev, fmt, ##arg);\
 } while (0)
 
 struct lgdt330x_state {
@@ -917,8 +917,8 @@ static int lgdt330x_probe(struct i2c_client *client,
 
 error:
 	kfree(state);
-	if (debug)
-		dev_printk(KERN_DEBUG, &client->dev, "Error loading lgdt330x driver\n");
+	if (de)
+		dev_printk(KERN_DE, &client->dev, "Error loading lgdt330x driver\n");
 	return -ENODEV;
 }
 struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *_config,

@@ -274,7 +274,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_cleanup_vgpu_type_groups(gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 
-	intel_gvt_debugfs_clean(gvt);
+	intel_gvt_defs_clean(gvt);
 	clean_service_thread(gvt);
 	intel_gvt_clean_cmd_parser(gvt);
 	intel_gvt_clean_sched_policy(gvt);
@@ -375,9 +375,9 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	}
 	gvt->idle_vgpu = vgpu;
 
-	ret = intel_gvt_debugfs_init(gvt);
+	ret = intel_gvt_defs_init(gvt);
 	if (ret)
-		gvt_err("debugfs registration failed, go on.\n");
+		gvt_err("defs registration failed, go on.\n");
 
 	gvt_dbg_core("gvt device initialization is done\n");
 	dev_priv->gvt = gvt;

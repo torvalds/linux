@@ -1000,7 +1000,7 @@ static irqreturn_t xgene_dma_chan_ring_isr(int irq, void *id)
 {
 	struct xgene_dma_chan *chan = (struct xgene_dma_chan *)id;
 
-	BUG_ON(!chan);
+	_ON(!chan);
 
 	/*
 	 * Disable DMA channel IRQ until we process completed

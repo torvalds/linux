@@ -139,7 +139,7 @@ int main(void)
 #endif /* CONFIG_SPE */
 #endif /* CONFIG_PPC64 */
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-	OFFSET(THREAD_DBCR0, thread_struct, debug.dbcr0);
+	OFFSET(THREAD_DBCR0, thread_struct, de.dbcr0);
 #endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	OFFSET(THREAD_KVM_SVCPU, thread_struct, kvm_shadow_vcpu);
@@ -415,8 +415,8 @@ int main(void)
 	DEFINE(NSEC_PER_SEC, NSEC_PER_SEC);
 	DEFINE(CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 
-#ifdef CONFIG_BUG
-	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
+#ifdef CONFIG_
+	DEFINE(_ENTRY_SIZE, sizeof(struct _entry));
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64

@@ -1478,7 +1478,7 @@ out_objbuf_err:
 int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
 		     void *addr_ptr, int mem_size)
 {
-	BUILD_BUG_ON(ICP_QAT_UCLO_MAX_AE >=
+	BUILD__ON(ICP_QAT_UCLO_MAX_AE >=
 		     (sizeof(handle->hal_handle->ae_mask) * 8));
 
 	if (!handle || !addr_ptr || mem_size < 24)

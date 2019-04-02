@@ -360,7 +360,7 @@ static int read_download_mem(struct usb_device *dev, int start_address,
 		}
 
 		if (read_length > 1)
-			usb_serial_debug_data(&dev->dev, __func__, read_length, buffer);
+			usb_serial_de_data(&dev->dev, __func__, read_length, buffer);
 
 		/* Update pointers/length */
 		start_address += read_length;
@@ -397,7 +397,7 @@ static int read_boot_mem(struct edgeport_serial *serial,
 
 	dev_dbg(&serial->serial->dev->dev, "%s - start_address = %x, length = %d\n",
 		__func__, start_address, length);
-	usb_serial_debug_data(&serial->serial->dev->dev, __func__, length, buffer);
+	usb_serial_de_data(&serial->serial->dev->dev, __func__, length, buffer);
 
 	serial->TiReadI2C = 1;
 
@@ -433,7 +433,7 @@ static int write_boot_mem(struct edgeport_serial *serial,
 	}
 
 	dev_dbg(&serial->serial->dev->dev, "%s - start_sddr = %x, length = %d\n", __func__, start_address, length);
-	usb_serial_debug_data(&serial->serial->dev->dev, __func__, length, buffer);
+	usb_serial_de_data(&serial->serial->dev->dev, __func__, length, buffer);
 
 	return status;
 }
@@ -458,7 +458,7 @@ static int write_i2c_mem(struct edgeport_serial *serial,
 
 	dev_dbg(dev, "%s - BytesInFirstPage Addr = %x, length = %d\n",
 		__func__, start_address, write_length);
-	usb_serial_debug_data(dev, __func__, write_length, buffer);
+	usb_serial_de_data(dev, __func__, write_length, buffer);
 
 	/*
 	 * Write first page.
@@ -491,7 +491,7 @@ static int write_i2c_mem(struct edgeport_serial *serial,
 
 		dev_dbg(dev, "%s - Page Write Addr = %x, length = %d\n",
 			__func__, start_address, write_length);
-		usb_serial_debug_data(dev, __func__, write_length, buffer);
+		usb_serial_de_data(dev, __func__, write_length, buffer);
 
 		/*
 		 * Write next page.
@@ -665,7 +665,7 @@ static int valid_csum(struct ti_i2c_desc *rom_desc, __u8 *buffer)
 		cs = (__u8)(cs + buffer[i]);
 
 	if (cs != rom_desc->CheckSum) {
-		pr_debug("%s - Mismatch %x - %x", __func__, rom_desc->CheckSum, cs);
+		pr_de("%s - Mismatch %x - %x", __func__, rom_desc->CheckSum, cs);
 		return -EINVAL;
 	}
 	return 0;
@@ -1659,7 +1659,7 @@ static void edge_interrupt_callback(struct urb *urb)
 	}
 
 	dev = &edge_serial->serial->dev->dev;
-	usb_serial_debug_data(dev, __func__, length, data);
+	usb_serial_de_data(dev, __func__, length, data);
 
 	if (length != 2) {
 		dev_dbg(dev, "%s - expecting packet of size 2, got %d\n", __func__, length);
@@ -1769,7 +1769,7 @@ static void edge_bulk_in_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length) {
-		usb_serial_debug_data(dev, __func__, urb->actual_length, data);
+		usb_serial_de_data(dev, __func__, urb->actual_length, data);
 		if (edge_port->close_pending)
 			dev_dbg(dev, "%s - close pending, dropping data on the floor\n",
 								__func__);
@@ -1941,7 +1941,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	/*
-	 * reset the data toggle on the bulk endpoints to work around bug in
+	 * reset the data toggle on the bulk endpoints to work around  in
 	 * host controllers where things get out of sync some times
 	 */
 	usb_clear_halt(dev, port->write_urb->pipe);
@@ -2061,7 +2061,7 @@ static void edge_send(struct usb_serial_port *port, struct tty_struct *tty)
 
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
-	usb_serial_debug_data(&port->dev, __func__, count, port->write_urb->transfer_buffer);
+	usb_serial_de_data(&port->dev, __func__, count, port->write_urb->transfer_buffer);
 
 	/* set up our urb */
 	port->write_urb->transfer_buffer_length = count;

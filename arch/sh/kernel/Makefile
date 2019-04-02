@@ -6,15 +6,15 @@
 extra-y	:= head_$(BITS).o vmlinux.lds
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do not profile de and lowlevel utilities
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
-obj-y	:= debugtraps.o dumpstack.o 		\
-	   idle.o io.o irq.o irq_$(BITS).o kdebugfs.o			\
-	   machvec.o nmi_debug.o process.o				\
+obj-y	:= detraps.o dumpstack.o 		\
+	   idle.o io.o irq.o irq_$(BITS).o kdefs.o			\
+	   machvec.o nmi_de.o process.o				\
 	   process_$(BITS).o ptrace.o ptrace_$(BITS).o			\
 	   reboot.o return_address.o					\
 	   setup.o signal_$(BITS).o sys_sh.o 				\

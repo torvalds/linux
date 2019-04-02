@@ -694,7 +694,7 @@ err_unbuf:
 		dev_err(&ar->udev->dev, "no command feedback "
 			"received (%d).\n", err);
 
-		/* provide some maybe useful debug information */
+		/* provide some maybe useful de information */
 		print_hex_dump_bytes("carl9170 cmd: ", DUMP_PREFIX_NONE,
 				     &ar->cmd, plen + 4);
 

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Freescale SSI ALSA SoC Digital Audio Interface (DAI) debugging functions
+// Freescale SSI ALSA SoC Digital Audio Interface (DAI) deging functions
 //
 // Copyright 2014 Markus Pargmann <mpa@pengutronix.de>, Pengutronix
 //
 // Split from fsl_ssi.c
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 
@@ -126,25 +126,25 @@ static int fsl_ssi_stats_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(fsl_ssi_stats);
 
-int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev)
+int fsl_ssi_defs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev)
 {
-	ssi_dbg->dbg_dir = debugfs_create_dir(dev_name(dev), NULL);
+	ssi_dbg->dbg_dir = defs_create_dir(dev_name(dev), NULL);
 	if (!ssi_dbg->dbg_dir)
 		return -ENOMEM;
 
-	ssi_dbg->dbg_stats = debugfs_create_file("stats", 0444,
+	ssi_dbg->dbg_stats = defs_create_file("stats", 0444,
 						 ssi_dbg->dbg_dir, ssi_dbg,
 						 &fsl_ssi_stats_fops);
 	if (!ssi_dbg->dbg_stats) {
-		debugfs_remove(ssi_dbg->dbg_dir);
+		defs_remove(ssi_dbg->dbg_dir);
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)
+void fsl_ssi_defs_remove(struct fsl_ssi_dbg *ssi_dbg)
 {
-	debugfs_remove(ssi_dbg->dbg_stats);
-	debugfs_remove(ssi_dbg->dbg_dir);
+	defs_remove(ssi_dbg->dbg_stats);
+	defs_remove(ssi_dbg->dbg_dir);
 }

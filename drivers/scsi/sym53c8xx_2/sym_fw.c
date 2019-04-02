@@ -393,7 +393,7 @@ void sym_fw_bind_script(struct sym_hcb *np, u32 *start, int len)
 			continue;
 		}
 
-		if (DEBUG_FLAGS & DEBUG_SCRIPT)
+		if (DE_FLAGS & DE_SCRIPT)
 			printf ("%d:  <%x>\n", (int) (cur-start),
 				(unsigned)opcode);
 

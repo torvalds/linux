@@ -49,7 +49,7 @@ DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
  * preempt_count, and associated (compiler) barriers, that we'd like to avoid
  * the expense of. If we're preemptible, the value can be stale at use anyway.
  * And we can't use this_cpu_ptr() either, as that winds up recursing back
- * here under CONFIG_DEBUG_PREEMPT=y.
+ * here under CONFIG_DE_PREEMPT=y.
  */
 #define raw_smp_processor_id() (*raw_cpu_ptr(&cpu_number))
 
@@ -107,7 +107,7 @@ extern void arch_send_wakeup_ipi_mask(const struct cpumask *mask);
 #else
 static inline void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
 {
-	BUILD_BUG();
+	BUILD_();
 }
 #endif
 

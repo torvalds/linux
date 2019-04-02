@@ -214,7 +214,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 	*/
 	if (unlikely((long)skb->data & 0x03)) {
 		int offset = (4 - (long)skb->data) & 0x03;
-		wl1251_debug(DEBUG_TX, "skb offset %d", offset);
+		wl1251_de(DE_TX, "skb offset %d", offset);
 
 		/* check whether the current skb can be used */
 		if (skb_cloned(skb) || (skb_tailroom(skb) < offset)) {
@@ -230,7 +230,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 			wl->tx_frames[tx_hdr->id] = skb = newskb;
 
 			offset = (4 - (long)skb->data) & 0x03;
-			wl1251_debug(DEBUG_TX, "new skb offset %d", offset);
+			wl1251_de(DE_TX, "new skb offset %d", offset);
 		}
 
 		/* align the buffer on a 4-byte boundary */
@@ -253,7 +253,7 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 
 	wl1251_mem_write(wl, addr, skb->data, len);
 
-	wl1251_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u rate 0x%x "
+	wl1251_de(DE_TX, "tx id %u skb 0x%p payload %u rate 0x%x "
 		     "queue %d", tx_hdr->id, skb, tx_hdr->length,
 		     tx_hdr->rate, tx_hdr->xmit_queue);
 
@@ -442,7 +442,7 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 		skb_pull(skb, WL1251_TKIP_IV_SPACE);
 	}
 
-	wl1251_debug(DEBUG_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
+	wl1251_de(DE_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
 		     " status 0x%x (%s)",
 		     result->id, skb, result->ack_failures, result->rate,
 		     result->status, wl1251_tx_parse_status(result->status));
@@ -491,14 +491,14 @@ void wl1251_tx_complete(struct wl1251 *wl)
 
 	if ((num_complete > 0) && (queue_len > 0)) {
 		/* firmware buffer has space, reschedule tx_work */
-		wl1251_debug(DEBUG_TX, "tx_complete: reschedule tx_work");
+		wl1251_de(DE_TX, "tx_complete: reschedule tx_work");
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
 	}
 
 	if (wl->tx_queue_stopped &&
 	    queue_len <= WL1251_TX_QUEUE_LOW_WATERMARK) {
 		/* tx_queue has space, restart queues */
-		wl1251_debug(DEBUG_TX, "tx_complete: waking queues");
+		wl1251_de(DE_TX, "tx_complete: waking queues");
 		spin_lock_irqsave(&wl->wl_lock, flags);
 		ieee80211_wake_queues(wl->hw);
 		wl->tx_queue_stopped = false;
@@ -568,7 +568,7 @@ void wl1251_tx_flush(struct wl1251 *wl)
 	while ((skb = skb_dequeue(&wl->tx_queue))) {
 		info = IEEE80211_SKB_CB(skb);
 
-		wl1251_debug(DEBUG_TX, "flushing skb 0x%p", skb);
+		wl1251_de(DE_TX, "flushing skb 0x%p", skb);
 
 		if (!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS))
 				continue;

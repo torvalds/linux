@@ -19,7 +19,7 @@
 /*
  * Support for user memory access from kernel.  This will
  * probably be inlined for performance at some point, but
- * for ease of debug, and to a lesser degree for code size,
+ * for ease of de, and to a lesser degree for code size,
  * we implement here as subroutines.
  */
 #include <linux/types.h>

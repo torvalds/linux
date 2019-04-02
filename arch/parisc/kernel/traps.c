@@ -12,7 +12,7 @@
  */
 
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -26,7 +26,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 
@@ -120,7 +120,7 @@ void show_regs(struct pt_regs *regs)
 	unsigned long cr30, cr31;
 
 	user = user_mode(regs);
-	level = user ? KERN_DEBUG : KERN_CRIT;
+	level = user ? KERN_DE : KERN_CRIT;
 
 	show_regs_print_info(level);
 
@@ -200,7 +200,7 @@ void show_stack(struct task_struct *t, unsigned long *sp)
 	parisc_show_stack(t, NULL);
 }
 
-int is_valid_bugaddr(unsigned long iaoq)
+int is_valid_addr(unsigned long iaoq)
 {
 	return 1;
 }
@@ -280,22 +280,22 @@ static void handle_break(struct pt_regs *regs)
 {
 	unsigned iir = regs->iir;
 
-	if (unlikely(iir == PARISC_BUG_BREAK_INSN && !user_mode(regs))) {
-		/* check if a BUG() or WARN() trapped here.  */
-		enum bug_trap_type tt;
-		tt = report_bug(regs->iaoq[0] & ~3, regs);
-		if (tt == BUG_TRAP_TYPE_WARN) {
+	if (unlikely(iir == PARISC__BREAK_INSN && !user_mode(regs))) {
+		/* check if a () or WARN() trapped here.  */
+		enum _trap_type tt;
+		tt = report_(regs->iaoq[0] & ~3, regs);
+		if (tt == _TRAP_TYPE_WARN) {
 			regs->iaoq[0] += 4;
 			regs->iaoq[1] += 4;
 			return; /* return to next instruction when WARN_ON().  */
 		}
 		die_if_kernel("Unknown kernel breakpoint", regs,
-			(tt == BUG_TRAP_TYPE_NONE) ? 9 : 0);
+			(tt == _TRAP_TYPE_NONE) ? 9 : 0);
 	}
 
 	if (unlikely(iir != GDB_BREAK_INSN))
 		parisc_printk_ratelimited(0, regs,
-			KERN_DEBUG "break %d,%d: pid=%d command='%s'\n",
+			KERN_DE "break %d,%d: pid=%d command='%s'\n",
 			iir & 31, (iir>>13) & ((1<<13)-1),
 			task_pid_nr(current), current->comm);
 
@@ -718,7 +718,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	default:
 		if (user_mode(regs)) {
-			parisc_printk_ratelimited(0, regs, KERN_DEBUG
+			parisc_printk_ratelimited(0, regs, KERN_DE
 				"handle_interruption() pid=%d command='%s'\n",
 				task_pid_nr(current), current->comm);
 			/* SIGBUS, for lack of a better one. */
@@ -734,7 +734,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 	    if ((fault_space >> SPACEID_SHIFT) != (regs->sr[7] >> SPACEID_SHIFT)) {
-		parisc_printk_ratelimited(0, regs, KERN_DEBUG
+		parisc_printk_ratelimited(0, regs, KERN_DE
 				"User fault %d on space 0x%08lx, pid=%d command='%s'\n",
 				code, fault_space,
 				task_pid_nr(current), current->comm);

@@ -84,7 +84,7 @@ static int drv_load(struct drm_device *ddev)
 	struct ltdc_device *ldev;
 	int ret;
 
-	DRM_DEBUG("%s\n", __func__);
+	DRM_DE("%s\n", __func__);
 
 	ldev = devm_kzalloc(ddev->dev, sizeof(*ldev), GFP_KERNEL);
 	if (!ldev)
@@ -122,7 +122,7 @@ err:
 
 static void drv_unload(struct drm_device *ddev)
 {
-	DRM_DEBUG("%s\n", __func__);
+	DRM_DE("%s\n", __func__);
 
 	drm_kms_helper_poll_fini(ddev);
 	ltdc_unload(ddev);
@@ -135,7 +135,7 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 	struct drm_device *ddev;
 	int ret;
 
-	DRM_DEBUG("%s\n", __func__);
+	DRM_DE("%s\n", __func__);
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 
@@ -165,7 +165,7 @@ static int stm_drm_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
-	DRM_DEBUG("%s\n", __func__);
+	DRM_DE("%s\n", __func__);
 
 	drm_dev_unregister(ddev);
 	drv_unload(ddev);

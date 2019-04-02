@@ -140,7 +140,7 @@ static void print_cpuinfo(void)
 
 	printk(KERN_INFO "-- additional features:\n");
 	if (upr & SPR_UPR_DUP)
-		printk(KERN_INFO "-- debug unit\n");
+		printk(KERN_INFO "-- de unit\n");
 	if (upr & SPR_UPR_PCUP)
 		printk(KERN_INFO "-- performance counters\n");
 	if (upr & SPR_UPR_PMP)

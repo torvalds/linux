@@ -145,7 +145,7 @@ static void set_irq(struct ssb_device *dev, unsigned int irq)
 	struct ssb_device *mdev = bus->mipscore.dev;
 	u32 irqflag = ssb_irqflag(dev);
 
-	BUG_ON(oldirq == 6);
+	_ON(oldirq == 6);
 
 	dev->irq = irq + 2;
 

@@ -25,18 +25,18 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-/* kcs_debug is a bit-field
- *	KCS_DEBUG_ENABLE -	turned on for now
- *	KCS_DEBUG_MSG    -	commands and their responses
- *	KCS_DEBUG_STATES -	state machine
+/* kcs_de is a bit-field
+ *	KCS_DE_ENABLE -	turned on for now
+ *	KCS_DE_MSG    -	commands and their responses
+ *	KCS_DE_STATES -	state machine
  */
-#define KCS_DEBUG_STATES	4
-#define KCS_DEBUG_MSG		2
-#define	KCS_DEBUG_ENABLE	1
+#define KCS_DE_STATES	4
+#define KCS_DE_MSG		2
+#define	KCS_DE_ENABLE	1
 
-static int kcs_debug;
-module_param(kcs_debug, int, 0644);
-MODULE_PARM_DESC(kcs_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
+static int kcs_de;
+module_param(kcs_de, int, 0644);
+MODULE_PARM_DESC(kcs_de, "de bitmask, 1=enable, 2=messages, 4=states");
 
 /* The states the KCS driver may be in. */
 enum kcs_states {
@@ -186,8 +186,8 @@ static inline void start_error_recovery(struct si_sm_data *kcs, char *reason)
 {
 	(kcs->error_retries)++;
 	if (kcs->error_retries > MAX_ERROR_RETRIES) {
-		if (kcs_debug & KCS_DEBUG_ENABLE)
-			printk(KERN_DEBUG "ipmi_kcs_sm: kcs hosed: %s\n",
+		if (kcs_de & KCS_DE_ENABLE)
+			printk(KERN_DE "ipmi_kcs_sm: kcs hosed: %s\n",
 			       reason);
 		kcs->state = KCS_HOSED;
 	} else {
@@ -271,8 +271,8 @@ static int start_kcs_transaction(struct si_sm_data *kcs, unsigned char *data,
 	if ((kcs->state != KCS_IDLE) && (kcs->state != KCS_HOSED))
 		return IPMI_NOT_IN_MY_STATE_ERR;
 
-	if (kcs_debug & KCS_DEBUG_MSG) {
-		printk(KERN_DEBUG "start_kcs_transaction -");
+	if (kcs_de & KCS_DE_MSG) {
+		printk(KERN_DE "start_kcs_transaction -");
 		for (i = 0; i < size; i++)
 			pr_cont(" %02x", data[i]);
 		pr_cont("\n");
@@ -330,8 +330,8 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 
 	status = read_status(kcs);
 
-	if (kcs_debug & KCS_DEBUG_STATES)
-		printk(KERN_DEBUG "KCS: State = %d, %x\n", kcs->state, status);
+	if (kcs_de & KCS_DE_STATES)
+		printk(KERN_DE "KCS: State = %d, %x\n", kcs->state, status);
 
 	/* All states wait for ibf, so just do it here. */
 	if (!check_ibf(kcs, status, time))

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Standalone xHCI debug capability driver
+ * Standalone xHCI de capability driver
  *
  * Copyright (C) 2016 Intel Corporation
  *

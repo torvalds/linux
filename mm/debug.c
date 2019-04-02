@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * mm/debug.c
+ * mm/de.c
  *
- * mm/ specific debug routines.
+ * mm/ specific de routines.
  *
  */
 
@@ -61,7 +61,7 @@ void __dump_page(struct page *page, const char *reason)
 	mapping = page_mapping(page);
 
 	/*
-	 * Avoid VM_BUG_ON() in page_mapcount().
+	 * Avoid VM__ON() in page_mapcount().
 	 * page->_mapcount space in struct page is used by sl[aou]b pages to
 	 * encode own info.
 	 */
@@ -85,7 +85,7 @@ void __dump_page(struct page *page, const char *reason)
 			pr_warn("name:\"%pd\" ", dentry);
 		}
 	}
-	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
+	BUILD__ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
 	pr_warn("flags: %#lx(%pGp)\n", page->flags, &page->flags);
 
@@ -110,7 +110,7 @@ void dump_page(struct page *page, const char *reason)
 }
 EXPORT_SYMBOL(dump_page);
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 
 void dump_vma(const struct vm_area_struct *vma)
 {
@@ -194,13 +194,13 @@ void dump_mm(const struct mm_struct *mm)
 
 static bool page_init_poisoning __read_mostly = true;
 
-static int __init setup_vm_debug(char *str)
+static int __init setup_vm_de(char *str)
 {
 	bool __page_init_poisoning = true;
 
 	/*
-	 * Calling vm_debug with no arguments is equivalent to requesting
-	 * to enable all debugging options we can control.
+	 * Calling vm_de with no arguments is equivalent to requesting
+	 * to enable all deging options we can control.
 	 */
 	if (*str++ != '=' || !*str)
 		goto out;
@@ -215,7 +215,7 @@ static int __init setup_vm_debug(char *str)
 			__page_init_poisoning = true;
 			break;
 		default:
-			pr_err("vm_debug option '%c' unknown. skipped\n",
+			pr_err("vm_de option '%c' unknown. skipped\n",
 			       *str);
 		}
 
@@ -223,13 +223,13 @@ static int __init setup_vm_debug(char *str)
 	}
 out:
 	if (page_init_poisoning && !__page_init_poisoning)
-		pr_warn("Page struct poisoning disabled by kernel command line option 'vm_debug'\n");
+		pr_warn("Page struct poisoning disabled by kernel command line option 'vm_de'\n");
 
 	page_init_poisoning = __page_init_poisoning;
 
 	return 1;
 }
-__setup("vm_debug", setup_vm_debug);
+__setup("vm_de", setup_vm_de);
 
 void page_init_poison(struct page *page, size_t size)
 {
@@ -237,4 +237,4 @@ void page_init_poison(struct page *page, size_t size)
 		memset(page, PAGE_POISON_PATTERN, size);
 }
 EXPORT_SYMBOL_GPL(page_init_poison);
-#endif		/* CONFIG_DEBUG_VM */
+#endif		/* CONFIG_DE_VM */

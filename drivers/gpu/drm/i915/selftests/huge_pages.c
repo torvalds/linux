@@ -99,7 +99,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 		do {
 			struct page *page;
 
-			GEM_BUG_ON(order >= MAX_ORDER);
+			GEM__ON(order >= MAX_ORDER);
 			page = alloc_pages(GFP | __GFP_ZERO, order);
 			if (!page)
 				goto err;
@@ -125,7 +125,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 
 	obj->mm.madv = I915_MADV_DONTNEED;
 
-	GEM_BUG_ON(sg_page_sizes != obj->mm.page_mask);
+	GEM__ON(sg_page_sizes != obj->mm.page_mask);
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
@@ -162,8 +162,8 @@ huge_pages_object(struct drm_i915_private *i915,
 {
 	struct drm_i915_gem_object *obj;
 
-	GEM_BUG_ON(!size);
-	GEM_BUG_ON(!IS_ALIGNED(size, BIT(__ffs(page_mask))));
+	GEM__ON(!size);
+	GEM__ON(!IS_ALIGNED(size, BIT(__ffs(page_mask))));
 
 	if (size >> PAGE_SHIFT > INT_MAX)
 		return ERR_PTR(-E2BIG);
@@ -215,7 +215,7 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 		unsigned int len = min(page_size * div_u64(rem, page_size),
 				       max_len);
 
-		GEM_BUG_ON(!page_size);
+		GEM__ON(!page_size);
 
 		sg->offset = 0;
 		sg->length = len;
@@ -264,7 +264,7 @@ static int fake_get_huge_pages_single(struct drm_i915_gem_object *obj)
 	st->nents = 1;
 
 	page_size = get_largest_page_size(i915, obj->base.size);
-	GEM_BUG_ON(!page_size);
+	GEM__ON(!page_size);
 
 	sg->offset = 0;
 	sg->length = obj->base.size;
@@ -311,8 +311,8 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 {
 	struct drm_i915_gem_object *obj;
 
-	GEM_BUG_ON(!size);
-	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
+	GEM__ON(!size);
+	GEM__ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
 
 	if (size >> PAGE_SHIFT > UINT_MAX)
 		return ERR_PTR(-E2BIG);
@@ -676,8 +676,8 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 			}
 		}
 
-		GEM_BUG_ON(!expected_gtt);
-		GEM_BUG_ON(size);
+		GEM__ON(!expected_gtt);
+		GEM__ON(size);
 
 		if (expected_gtt & I915_GTT_PAGE_SIZE_4K)
 			expected_gtt &= ~I915_GTT_PAGE_SIZE_64K;
@@ -974,7 +974,7 @@ static int gpu_write(struct i915_vma *vma,
 	struct i915_vma *batch;
 	int err;
 
-	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
+	GEM__ON(!intel_engine_can_store_dword(engine));
 
 	err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
 	if (err)
@@ -1122,7 +1122,7 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 	int i, n;
 	int err = 0;
 
-	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	GEM__ON(!i915_gem_object_has_pinned_pages(obj));
 
 	size = obj->base.size;
 	if (obj->mm.page_sizes.sg & I915_GTT_PAGE_SIZE_64K)
@@ -1445,7 +1445,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * Make sure there's no funny business when doing a PIN_UPDATE -- in the
 	 * past we had a subtle issue with being able to incorrectly do multiple
 	 * alloc va ranges on the same object when doing a PIN_UPDATE, which
-	 * resulted in some pretty nasty bugs, though only when using
+	 * resulted in some pretty nasty s, though only when using
 	 * huge-gtt-pages.
 	 */
 

@@ -98,7 +98,7 @@
 			that is done by the driver.  Set it to 0 for 
 			quiet operation, to 1 to enable progress
 			messages while the driver probes for devices,
-			or to 2 for full debug logging.  (default 0)
+			or to 2 for full de logging.  (default 0)
 
 	If this driver is built into the kernel, you can use 
 	the following command line parameters, with the same values
@@ -116,7 +116,7 @@
 
 /* Changes:
 
-	1.01	GRG 1998.06.16	Bug fixes
+	1.01	GRG 1998.06.16	 fixes
 	1.02    GRG 1998.09.24  Added jumbo support
 
 */

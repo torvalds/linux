@@ -2,7 +2,7 @@
 /* Copyright 2019 NXP
  */
 #include <linux/device.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fsl/ptp_qoriq.h>
 
 static int ptp_qoriq_fiper1_lpbk_get(void *data, u64 *val)
@@ -33,7 +33,7 @@ static int ptp_qoriq_fiper1_lpbk_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(ptp_qoriq_fiper1_fops, ptp_qoriq_fiper1_lpbk_get,
+DEFINE_DEFS_ATTRIBUTE(ptp_qoriq_fiper1_fops, ptp_qoriq_fiper1_lpbk_get,
 			 ptp_qoriq_fiper1_lpbk_set, "%llu\n");
 
 static int ptp_qoriq_fiper2_lpbk_get(void *data, u64 *val)
@@ -64,38 +64,38 @@ static int ptp_qoriq_fiper2_lpbk_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(ptp_qoriq_fiper2_fops, ptp_qoriq_fiper2_lpbk_get,
+DEFINE_DEFS_ATTRIBUTE(ptp_qoriq_fiper2_fops, ptp_qoriq_fiper2_lpbk_get,
 			 ptp_qoriq_fiper2_lpbk_set, "%llu\n");
 
-void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq)
+void ptp_qoriq_create_defs(struct ptp_qoriq *ptp_qoriq)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(dev_name(ptp_qoriq->dev), NULL);
+	root = defs_create_dir(dev_name(ptp_qoriq->dev), NULL);
 	if (IS_ERR(root))
 		return;
 	if (!root)
 		goto err_root;
 
-	ptp_qoriq->debugfs_root = root;
+	ptp_qoriq->defs_root = root;
 
-	if (!debugfs_create_file_unsafe("fiper1-loopback", 0600, root,
+	if (!defs_create_file_unsafe("fiper1-loopback", 0600, root,
 					ptp_qoriq, &ptp_qoriq_fiper1_fops))
 		goto err_node;
-	if (!debugfs_create_file_unsafe("fiper2-loopback", 0600, root,
+	if (!defs_create_file_unsafe("fiper2-loopback", 0600, root,
 					ptp_qoriq, &ptp_qoriq_fiper2_fops))
 		goto err_node;
 	return;
 
 err_node:
-	debugfs_remove_recursive(root);
-	ptp_qoriq->debugfs_root = NULL;
+	defs_remove_recursive(root);
+	ptp_qoriq->defs_root = NULL;
 err_root:
-	dev_err(ptp_qoriq->dev, "failed to initialize debugfs\n");
+	dev_err(ptp_qoriq->dev, "failed to initialize defs\n");
 }
 
-void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq)
+void ptp_qoriq_remove_defs(struct ptp_qoriq *ptp_qoriq)
 {
-	debugfs_remove_recursive(ptp_qoriq->debugfs_root);
-	ptp_qoriq->debugfs_root = NULL;
+	defs_remove_recursive(ptp_qoriq->defs_root);
+	ptp_qoriq->defs_root = NULL;
 }

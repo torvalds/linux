@@ -119,7 +119,7 @@ static int sunxi_cpu_power_switch_set(unsigned int cpu, unsigned int cluster,
 	reg = readl(prcm_base + PRCM_PWR_SWITCH_REG(cluster, cpu));
 	if (enable) {
 		if (reg == 0x00) {
-			pr_debug("power clamp for cluster %u cpu %u already open\n",
+			pr_de("power clamp for cluster %u cpu %u already open\n",
 				 cluster, cpu);
 			return 0;
 		}
@@ -157,7 +157,7 @@ static int sunxi_cpu_powerup(unsigned int cpu, unsigned int cluster)
 {
 	u32 reg;
 
-	pr_debug("%s: cluster %u cpu %u\n", __func__, cluster, cpu);
+	pr_de("%s: cluster %u cpu %u\n", __func__, cluster, cpu);
 	if (cpu >= SUNXI_CPUS_PER_CLUSTER || cluster >= SUNXI_NR_CLUSTERS)
 		return -EINVAL;
 
@@ -252,7 +252,7 @@ static int sunxi_cluster_powerup(unsigned int cluster)
 {
 	u32 reg;
 
-	pr_debug("%s: cluster %u\n", __func__, cluster);
+	pr_de("%s: cluster %u\n", __func__, cluster);
 	if (cluster >= SUNXI_NR_CLUSTERS)
 		return -EINVAL;
 
@@ -428,7 +428,7 @@ static void sunxi_cluster_cache_disable(void)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(read_cpuid_mpidr(), 1);
 	u32 reg;
 
-	pr_debug("%s: cluster %u\n", __func__, cluster);
+	pr_de("%s: cluster %u\n", __func__, cluster);
 
 	sunxi_cluster_cache_disable_without_axi();
 
@@ -446,20 +446,20 @@ static void sunxi_mc_smp_cpu_die(unsigned int l_cpu)
 	mpidr = cpu_logical_map(l_cpu);
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-	pr_debug("%s: cluster %u cpu %u\n", __func__, cluster, cpu);
+	pr_de("%s: cluster %u cpu %u\n", __func__, cluster, cpu);
 
 	spin_lock(&boot_lock);
 	sunxi_mc_smp_cpu_table[cluster][cpu]--;
 	if (sunxi_mc_smp_cpu_table[cluster][cpu] == 1) {
 		/* A power_up request went ahead of us. */
-		pr_debug("%s: aborting due to a power up request\n",
+		pr_de("%s: aborting due to a power up request\n",
 			 __func__);
 		spin_unlock(&boot_lock);
 		return;
 	} else if (sunxi_mc_smp_cpu_table[cluster][cpu] > 1) {
 		pr_err("Cluster %d CPU%d boots multiple times\n",
 		       cluster, cpu);
-		BUG();
+		();
 	}
 
 	last_man = sunxi_mc_smp_cluster_is_down(cluster);
@@ -479,7 +479,7 @@ static int sunxi_cpu_powerdown(unsigned int cpu, unsigned int cluster)
 {
 	u32 reg;
 
-	pr_debug("%s: cluster %u cpu %u\n", __func__, cluster, cpu);
+	pr_de("%s: cluster %u cpu %u\n", __func__, cluster, cpu);
 	if (cpu >= SUNXI_CPUS_PER_CLUSTER || cluster >= SUNXI_NR_CLUSTERS)
 		return -EINVAL;
 
@@ -499,12 +499,12 @@ static int sunxi_cluster_powerdown(unsigned int cluster)
 {
 	u32 reg;
 
-	pr_debug("%s: cluster %u\n", __func__, cluster);
+	pr_de("%s: cluster %u\n", __func__, cluster);
 	if (cluster >= SUNXI_NR_CLUSTERS)
 		return -EINVAL;
 
 	/* assert cluster resets or system will hang */
-	pr_debug("%s: assert cluster reset\n", __func__);
+	pr_de("%s: assert cluster reset\n", __func__);
 	reg = readl(cpucfg_base + CPUCFG_CX_RST_CTRL(cluster));
 	reg &= ~CPUCFG_CX_RST_CTRL_DBG_SOC_RST;
 	reg &= ~CPUCFG_CX_RST_CTRL_H_RST;
@@ -512,7 +512,7 @@ static int sunxi_cluster_powerdown(unsigned int cluster)
 	writel(reg, cpucfg_base + CPUCFG_CX_RST_CTRL(cluster));
 
 	/* gate cluster power */
-	pr_debug("%s: gate cluster power\n", __func__);
+	pr_de("%s: gate cluster power\n", __func__);
 	reg = readl(prcm_base + PRCM_PWROFF_GATING_REG(cluster));
 	if (is_a83t)
 		reg |= PRCM_PWROFF_GATING_REG_CLUSTER_SUN8I;
@@ -594,7 +594,7 @@ static int sunxi_mc_smp_cpu_kill(unsigned int l_cpu)
 
 out:
 	spin_unlock_irq(&boot_lock);
-	pr_debug("%s: cluster %u cpu %u powerdown: %d\n",
+	pr_de("%s: cluster %u cpu %u powerdown: %d\n",
 		 __func__, cluster, cpu, ret);
 	return !ret;
 }
@@ -651,7 +651,7 @@ static int __init nocache_trampoline(unsigned long __unused)
 
 	phys_reset = (phys_reset_t)(unsigned long)__pa_symbol(cpu_reset);
 	phys_reset(__pa_symbol(sunxi_mc_smp_resume), false);
-	BUG();
+	();
 }
 
 static int __init sunxi_mc_smp_loopback(void)

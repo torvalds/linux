@@ -140,7 +140,7 @@
 			};
 
 			usart3: serial@fc00c000 {
-				/* debug */
+				/* de */
 				status = "okay";
 			};
 

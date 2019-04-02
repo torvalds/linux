@@ -9,7 +9,7 @@
 
 #include "bcache.h"
 #include "btree.h"
-#include "debug.h"
+#include "de.h"
 #include "writeback.h"
 
 #include <linux/delay.h>
@@ -397,7 +397,7 @@ static void read_dirty(struct cached_dev *dc)
 	struct closure cl;
 	uint16_t sequence = 0;
 
-	BUG_ON(!llist_empty(&dc->writeback_ordering_wait.list));
+	_ON(!llist_empty(&dc->writeback_ordering_wait.list));
 	atomic_set(&dc->writeback_sequence_next, sequence);
 	closure_init_stack(&cl);
 
@@ -415,7 +415,7 @@ static void read_dirty(struct cached_dev *dc)
 		nk = 0;
 
 		do {
-			BUG_ON(ptr_stale(dc->disk.c, &next->key, 0));
+			_ON(ptr_stale(dc->disk.c, &next->key, 0));
 
 			/*
 			 * Don't combine too many operations, even if they
@@ -556,7 +556,7 @@ static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 					     struct cached_dev,
 					     writeback_keys);
 
-	BUG_ON(KEY_INODE(k) != dc->disk.id);
+	_ON(KEY_INODE(k) != dc->disk.id);
 
 	return KEY_DIRTY(k);
 }

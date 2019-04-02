@@ -30,9 +30,9 @@ config ALPHA_LEGACY_START_ADDRESS
 	default y
 
 config MATHEMU
-	tristate "Kernel FP software completion" if DEBUG_KERNEL && !SMP
-	default y if !DEBUG_KERNEL || SMP
+	tristate "Kernel FP software completion" if DE_KERNEL && !SMP
+	default y if !DE_KERNEL || SMP
 	help
 	  This option is required for IEEE compliant floating point arithmetic
 	  on the Alpha. The only time you would ever not say Y is to say M in
-	  order to debug the code. Say Y unless you know what you are doing.
+	  order to de the code. Say Y unless you know what you are doing.

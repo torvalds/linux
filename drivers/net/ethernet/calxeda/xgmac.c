@@ -38,7 +38,7 @@
 #define XGMAC_LPI_TIMER		0x0000002C	/* LPI Timers Control */
 #define XGMAC_TX_PACE		0x00000030	/* Transmit Pace and Stretch */
 #define XGMAC_VLAN_HASH		0x00000034	/* VLAN Hash Table */
-#define XGMAC_DEBUG		0x00000038	/* Debug */
+#define XGMAC_DE		0x00000038	/* De */
 #define XGMAC_INT_STAT		0x0000003C	/* Interrupt and Control */
 #define XGMAC_ADDR_HIGH(reg)	(0x00000040 + ((reg) * 8))
 #define XGMAC_ADDR_LOW(reg)	(0x00000044 + ((reg) * 8))

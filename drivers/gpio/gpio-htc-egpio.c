@@ -67,7 +67,7 @@ static inline u16 egpio_readw(struct egpio_info *ei, int reg)
 static inline void ack_irqs(struct egpio_info *ei)
 {
 	egpio_writew(ei->ack_write, ei, ei->ack_register);
-	pr_debug("EGPIO ack - write %x to base+%x\n",
+	pr_de("EGPIO ack - write %x to base+%x\n",
 			ei->ack_write, ei->ack_register << ei->bus_shift);
 }
 
@@ -82,14 +82,14 @@ static void egpio_mask(struct irq_data *data)
 {
 	struct egpio_info *ei = irq_data_get_irq_chip_data(data);
 	ei->irqs_enabled &= ~(1 << (data->irq - ei->irq_start));
-	pr_debug("EGPIO mask %d %04x\n", data->irq, ei->irqs_enabled);
+	pr_de("EGPIO mask %d %04x\n", data->irq, ei->irqs_enabled);
 }
 
 static void egpio_unmask(struct irq_data *data)
 {
 	struct egpio_info *ei = irq_data_get_irq_chip_data(data);
 	ei->irqs_enabled |= 1 << (data->irq - ei->irq_start);
-	pr_debug("EGPIO unmask %d %04x\n", data->irq, ei->irqs_enabled);
+	pr_de("EGPIO unmask %d %04x\n", data->irq, ei->irqs_enabled);
 }
 
 static struct irq_chip egpio_muxed_chip = {
@@ -106,14 +106,14 @@ static void egpio_handler(struct irq_desc *desc)
 
 	/* Read current pins. */
 	unsigned long readval = egpio_readw(ei, ei->ack_register);
-	pr_debug("IRQ reg: %x\n", (unsigned int)readval);
+	pr_de("IRQ reg: %x\n", (unsigned int)readval);
 	/* Ack/unmask interrupts. */
 	ack_irqs(ei);
 	/* Process all set pins. */
 	readval &= ei->irqs_enabled;
 	for_each_set_bit(irqpin, &readval, ei->nirqs) {
 		/* Run irq handler */
-		pr_debug("got IRQ %d\n", irqpin);
+		pr_de("got IRQ %d\n", irqpin);
 		generic_handle_irq(ei->irq_start + irqpin);
 	}
 }
@@ -154,7 +154,7 @@ static int egpio_get(struct gpio_chip *chip, unsigned offset)
 	int                reg;
 	int                value;
 
-	pr_debug("egpio_get_value(%d)\n", chip->base + offset);
+	pr_de("egpio_get_value(%d)\n", chip->base + offset);
 
 	egpio = gpiochip_get_data(chip);
 	ei    = dev_get_drvdata(egpio->dev);
@@ -165,7 +165,7 @@ static int egpio_get(struct gpio_chip *chip, unsigned offset)
 		return !!(egpio->cached_values & (1 << offset));
 	} else {
 		value = egpio_readw(ei, reg);
-		pr_debug("readw(%p + %x) = %x\n",
+		pr_de("readw(%p + %x) = %x\n",
 			 ei->base_addr, reg << ei->bus_shift, value);
 		return !!(value & bit);
 	}
@@ -193,7 +193,7 @@ static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	int               reg;
 	int               shift;
 
-	pr_debug("egpio_set(%s, %d(%d), %d)\n",
+	pr_de("egpio_set(%s, %d(%d), %d)\n",
 			chip->label, offset, offset+chip->base, value);
 
 	egpio = gpiochip_get_data(chip);
@@ -202,7 +202,7 @@ static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	reg   = egpio->reg_start + pos;
 	shift = pos << ei->reg_shift;
 
-	pr_debug("egpio %s: reg %d = 0x%04x\n", value ? "set" : "clear",
+	pr_de("egpio %s: reg %d = 0x%04x\n", value ? "set" : "clear",
 			reg, (egpio->cached_values >> shift) & ei->reg_mask);
 
 	spin_lock_irqsave(&ei->lock, flag);
@@ -256,7 +256,7 @@ static void egpio_write_cache(struct egpio_info *ei)
 			if (!((egpio->is_out >> shift) & ei->reg_mask))
 				continue;
 
-			pr_debug("EGPIO: setting %x to %x, was %x\n", reg,
+			pr_de("EGPIO: setting %x to %x, was %x\n", reg,
 				(egpio->cached_values >> shift) & ei->reg_mask,
 				egpio_readw(ei, reg));
 
@@ -302,17 +302,17 @@ static int __init egpio_probe(struct platform_device *pdev)
 					     resource_size(res));
 	if (!ei->base_addr)
 		goto fail;
-	pr_debug("EGPIO phys=%08x virt=%p\n", (u32)res->start, ei->base_addr);
+	pr_de("EGPIO phys=%08x virt=%p\n", (u32)res->start, ei->base_addr);
 
 	if ((pdata->bus_width != 16) && (pdata->bus_width != 32))
 		goto fail;
 	ei->bus_shift = fls(pdata->bus_width - 1) - 3;
-	pr_debug("bus_shift = %d\n", ei->bus_shift);
+	pr_de("bus_shift = %d\n", ei->bus_shift);
 
 	if ((pdata->reg_width != 8) && (pdata->reg_width != 16))
 		goto fail;
 	ei->reg_shift = fls(pdata->reg_width - 1);
-	pr_debug("reg_shift = %d\n", ei->reg_shift);
+	pr_de("reg_shift = %d\n", ei->reg_shift);
 
 	ei->reg_mask = (1 << pdata->reg_width) - 1;
 

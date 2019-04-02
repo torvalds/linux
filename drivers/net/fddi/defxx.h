@@ -1692,9 +1692,9 @@ typedef union
 
 #define IN_RANGE(value,low,high) ((value >= low) && (value <= high))
 
-/* Only execute special print call when debug driver was built */
+/* Only execute special print call when de driver was built */
 
-#ifdef DEFXX_DEBUG
+#ifdef DEFXX_DE
 #define DBG_printk(args...) printk(args)
 #else
 #define DBG_printk(args...)

@@ -100,7 +100,7 @@ int generic_console_write(int fd, const char *buf, int n)
 	err = generic_write(fd, buf, n, NULL);
 	/*
 	 * Restore raw mode, in any case; we *must* ignore any error apart
-	 * EINTR, except for debug.
+	 * EINTR, except for de.
 	 */
 	if (isatty(fd)) {
 		CATCH_EINTR(tcsetattr(fd, TCSAFLUSH, &save));

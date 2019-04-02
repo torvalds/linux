@@ -109,10 +109,10 @@ fnic_trace_data_t *fnic_trace_get_buf(void);
 int fnic_get_trace_data(fnic_dbgfs_t *);
 int fnic_trace_buf_init(void);
 void fnic_trace_free(void);
-int fnic_debugfs_init(void);
-void fnic_debugfs_terminate(void);
-void fnic_trace_debugfs_init(void);
-void fnic_trace_debugfs_terminate(void);
+int fnic_defs_init(void);
+void fnic_defs_terminate(void);
+void fnic_trace_defs_init(void);
+void fnic_trace_defs_terminate(void);
 
 /* Fnic FC CTLR Trace releated function */
 int fnic_fc_trace_init(void);
@@ -123,7 +123,7 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag);
 void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 				fnic_dbgfs_t *fnic_dbgfs_prt,
 				int *len, u8 rdata_flag);
-void fnic_fc_trace_debugfs_init(void);
-void fnic_fc_trace_debugfs_terminate(void);
+void fnic_fc_trace_defs_init(void);
+void fnic_fc_trace_defs_terminate(void);
 
 #endif

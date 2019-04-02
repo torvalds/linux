@@ -184,7 +184,7 @@ static void submit_channel_request(
 				AUXN_IMPCAL_ENABLE, 1,
 				AUXN_IMPCAL_OVERRIDE_ENABLE, 0);
 
-		/* bug? why AUXN update EN and OVERRIDE_EN 1 by 1 while AUX P toggles OVERRIDE? */
+		/* ? why AUXN update EN and OVERRIDE_EN 1 by 1 while AUX P toggles OVERRIDE? */
 
 		REG_UPDATE_SEQ(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE,
 				1,
@@ -330,7 +330,7 @@ static enum aux_channel_operation_result get_channel_status(
 	 * AUX_SW_RX_RECV_NO_DET, AUX_SW_RX_RECV_INVALID_H.
 	 *
 	 * AUX_SW_RX_MIN_COUNT_VIOL is an internal,
-	 * HW debugging bit and should be ignored.
+	 * HW deging bit and should be ignored.
 	 */
 	if (value & AUX_SW_STATUS__AUX_SW_DONE_MASK) {
 		if ((value & AUX_SW_STATUS__AUX_SW_RX_TIMEOUT_STATE_MASK) ||

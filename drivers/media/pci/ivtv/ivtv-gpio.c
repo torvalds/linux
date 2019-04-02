@@ -109,7 +109,7 @@ void ivtv_reset_ir_gpio(struct ivtv *itv)
 
 	if (itv->card->type != IVTV_CARD_PVR_150)
 		return;
-	IVTV_DEBUG_INFO("Resetting PVR150 IR\n");
+	IVTV_DE_INFO("Resetting PVR150 IR\n");
 	curout = read_reg(IVTV_REG_GPIO_OUT);
 	curdir = read_reg(IVTV_REG_GPIO_DIR);
 	curdir |= 0x80;
@@ -133,7 +133,7 @@ int ivtv_reset_tuner_gpio(void *dev, int component, int cmd, int value)
 
 	if (cmd != XC2028_TUNER_RESET)
 		return 0;
-	IVTV_DEBUG_INFO("Resetting tuner\n");
+	IVTV_DE_INFO("Resetting tuner\n");
 	curout = read_reg(IVTV_REG_GPIO_OUT);
 	curout &= ~(1 << itv->card->xceive_pin);
 	write_reg(curout, IVTV_REG_GPIO_OUT);
@@ -347,7 +347,7 @@ int ivtv_gpio_init(struct ivtv *itv)
 	if ((itv->card->gpio_init.direction | pin) == 0)
 		return 0;
 
-	IVTV_DEBUG_INFO("GPIO initial dir: %08x out: %08x\n",
+	IVTV_DE_INFO("GPIO initial dir: %08x out: %08x\n",
 		   read_reg(IVTV_REG_GPIO_DIR), read_reg(IVTV_REG_GPIO_OUT));
 
 	/* init output data then direction */

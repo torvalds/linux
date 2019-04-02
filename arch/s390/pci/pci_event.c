@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <asm/pci_debug.h>
+#include <asm/pci_de.h>
 #include <asm/sclp.h>
 
 /* Content Code Description for PCI Function Error */

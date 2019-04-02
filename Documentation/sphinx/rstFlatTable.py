@@ -302,7 +302,7 @@ class ListTableBuilder(object):
                     row.append( (0, 0, nodes.comment()) )
 
     def pprint(self):
-        # for debugging
+        # for deging
         retVal = "[   "
         for row in self.rows:
             retVal += "[ "

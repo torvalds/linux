@@ -232,7 +232,7 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
 void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+#if defined(CONFIG_DE_FS) || defined(CONFIG_DEV_COREDUMP)
 void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		struct drm_printer *p);
 #endif
@@ -316,12 +316,12 @@ static inline bool adreno_reg_check(struct adreno_gpu *gpu,
 {
 	if (offset_name >= REG_ADRENO_REGISTER_MAX ||
 			!gpu->reg_offsets[offset_name]) {
-		BUG();
+		();
 	}
 
 	/*
 	 * REG_SKIP is a special value that tell us that the register in
-	 * question isn't implemented on target but don't trigger a BUG(). This
+	 * question isn't implemented on target but don't trigger a (). This
 	 * is used to cleanly implement adreno_gpu_write64() and
 	 * adreno_gpu_read64() in a generic fashion
 	 */

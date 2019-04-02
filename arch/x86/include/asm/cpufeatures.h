@@ -14,7 +14,7 @@
  * Defines x86 CPU feature bits
  */
 #define NCAPINTS			19	   /* N 32-bit words worth of info */
-#define NBUGINTS			1	   /* N 32-bit bug flags */
+#define NINTS			1	   /* N 32-bit  flags */
 
 /*
  * Note: If the comment begins with a quoted string, that string is used
@@ -28,7 +28,7 @@
 /* Intel-defined CPU features, CPUID level 0x00000001 (EDX), word 0 */
 #define X86_FEATURE_FPU			( 0*32+ 0) /* Onboard FPU */
 #define X86_FEATURE_VME			( 0*32+ 1) /* Virtual Mode Extensions */
-#define X86_FEATURE_DE			( 0*32+ 2) /* Debugging Extensions */
+#define X86_FEATURE_DE			( 0*32+ 2) /* Deging Extensions */
 #define X86_FEATURE_PSE			( 0*32+ 3) /* Page Size Extensions */
 #define X86_FEATURE_TSC			( 0*32+ 4) /* Time Stamp Counter */
 #define X86_FEATURE_MSR			( 0*32+ 5) /* Model-Specific Registers */
@@ -45,7 +45,7 @@
 #define X86_FEATURE_PSE36		( 0*32+17) /* 36-bit PSEs */
 #define X86_FEATURE_PN			( 0*32+18) /* Processor serial number */
 #define X86_FEATURE_CLFLUSH		( 0*32+19) /* CLFLUSH instruction */
-#define X86_FEATURE_DS			( 0*32+21) /* "dts" Debug Store */
+#define X86_FEATURE_DS			( 0*32+21) /* "dts" De Store */
 #define X86_FEATURE_ACPI		( 0*32+22) /* ACPI via MSR */
 #define X86_FEATURE_MMX			( 0*32+23) /* Multimedia Extensions */
 #define X86_FEATURE_FXSR		( 0*32+24) /* FXSAVE/FXRSTOR, CR4.OSFXSR */
@@ -114,20 +114,20 @@
 /* Intel-defined CPU features, CPUID level 0x00000001 (ECX), word 4 */
 #define X86_FEATURE_XMM3		( 4*32+ 0) /* "pni" SSE-3 */
 #define X86_FEATURE_PCLMULQDQ		( 4*32+ 1) /* PCLMULQDQ instruction */
-#define X86_FEATURE_DTES64		( 4*32+ 2) /* 64-bit Debug Store */
+#define X86_FEATURE_DTES64		( 4*32+ 2) /* 64-bit De Store */
 #define X86_FEATURE_MWAIT		( 4*32+ 3) /* "monitor" MONITOR/MWAIT support */
-#define X86_FEATURE_DSCPL		( 4*32+ 4) /* "ds_cpl" CPL-qualified (filtered) Debug Store */
+#define X86_FEATURE_DSCPL		( 4*32+ 4) /* "ds_cpl" CPL-qualified (filtered) De Store */
 #define X86_FEATURE_VMX			( 4*32+ 5) /* Hardware virtualization */
 #define X86_FEATURE_SMX			( 4*32+ 6) /* Safer Mode eXtensions */
 #define X86_FEATURE_EST			( 4*32+ 7) /* Enhanced SpeedStep */
 #define X86_FEATURE_TM2			( 4*32+ 8) /* Thermal Monitor 2 */
 #define X86_FEATURE_SSSE3		( 4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_CID			( 4*32+10) /* Context ID */
-#define X86_FEATURE_SDBG		( 4*32+11) /* Silicon Debug */
+#define X86_FEATURE_SDBG		( 4*32+11) /* Silicon De */
 #define X86_FEATURE_FMA			( 4*32+12) /* Fused multiply-add */
 #define X86_FEATURE_CX16		( 4*32+13) /* CMPXCHG16B instruction */
 #define X86_FEATURE_XTPR		( 4*32+14) /* Send Task Priority Messages */
-#define X86_FEATURE_PDCM		( 4*32+15) /* Perf/Debug Capabilities MSR */
+#define X86_FEATURE_PDCM		( 4*32+15) /* Perf/De Capabilities MSR */
 #define X86_FEATURE_PCID		( 4*32+17) /* Process Context Identifiers */
 #define X86_FEATURE_DCA			( 4*32+18) /* Direct Cache Access */
 #define X86_FEATURE_XMM4_1		( 4*32+19) /* "sse4_1" SSE-4.1 */
@@ -353,34 +353,34 @@
 #define X86_FEATURE_SPEC_CTRL_SSBD	(18*32+31) /* "" Speculative Store Bypass Disable */
 
 /*
- * BUG word(s)
+ *  word(s)
  */
-#define X86_BUG(x)			(NCAPINTS*32 + (x))
+#define X86_(x)			(NCAPINTS*32 + (x))
 
-#define X86_BUG_F00F			X86_BUG(0) /* Intel F00F */
-#define X86_BUG_FDIV			X86_BUG(1) /* FPU FDIV */
-#define X86_BUG_COMA			X86_BUG(2) /* Cyrix 6x86 coma */
-#define X86_BUG_AMD_TLB_MMATCH		X86_BUG(3) /* "tlb_mmatch" AMD Erratum 383 */
-#define X86_BUG_AMD_APIC_C1E		X86_BUG(4) /* "apic_c1e" AMD Erratum 400 */
-#define X86_BUG_11AP			X86_BUG(5) /* Bad local APIC aka 11AP */
-#define X86_BUG_FXSAVE_LEAK		X86_BUG(6) /* FXSAVE leaks FOP/FIP/FOP */
-#define X86_BUG_CLFLUSH_MONITOR		X86_BUG(7) /* AAI65, CLFLUSH required before MONITOR */
-#define X86_BUG_SYSRET_SS_ATTRS		X86_BUG(8) /* SYSRET doesn't fix up SS attrs */
+#define X86__F00F			X86_(0) /* Intel F00F */
+#define X86__FDIV			X86_(1) /* FPU FDIV */
+#define X86__COMA			X86_(2) /* Cyrix 6x86 coma */
+#define X86__AMD_TLB_MMATCH		X86_(3) /* "tlb_mmatch" AMD Erratum 383 */
+#define X86__AMD_APIC_C1E		X86_(4) /* "apic_c1e" AMD Erratum 400 */
+#define X86__11AP			X86_(5) /* Bad local APIC aka 11AP */
+#define X86__FXSAVE_LEAK		X86_(6) /* FXSAVE leaks FOP/FIP/FOP */
+#define X86__CLFLUSH_MONITOR		X86_(7) /* AAI65, CLFLUSH required before MONITOR */
+#define X86__SYSRET_SS_ATTRS		X86_(8) /* SYSRET doesn't fix up SS attrs */
 #ifdef CONFIG_X86_32
 /*
- * 64-bit kernels don't use X86_BUG_ESPFIX.  Make the define conditional
+ * 64-bit kernels don't use X86__ESPFIX.  Make the define conditional
  * to avoid confusion.
  */
-#define X86_BUG_ESPFIX			X86_BUG(9) /* "" IRET to 16-bit SS corrupts ESP/RSP high bits */
+#define X86__ESPFIX			X86_(9) /* "" IRET to 16-bit SS corrupts ESP/RSP high bits */
 #endif
-#define X86_BUG_NULL_SEG		X86_BUG(10) /* Nulling a selector preserves the base */
-#define X86_BUG_SWAPGS_FENCE		X86_BUG(11) /* SWAPGS without input dep on GS */
-#define X86_BUG_MONITOR			X86_BUG(12) /* IPI required to wake up remote CPU */
-#define X86_BUG_AMD_E400		X86_BUG(13) /* CPU is among the affected by Erratum 400 */
-#define X86_BUG_CPU_MELTDOWN		X86_BUG(14) /* CPU is affected by meltdown attack and needs kernel page table isolation */
-#define X86_BUG_SPECTRE_V1		X86_BUG(15) /* CPU is affected by Spectre variant 1 attack with conditional branches */
-#define X86_BUG_SPECTRE_V2		X86_BUG(16) /* CPU is affected by Spectre variant 2 attack with indirect branches */
-#define X86_BUG_SPEC_STORE_BYPASS	X86_BUG(17) /* CPU is affected by speculative store bypass attack */
-#define X86_BUG_L1TF			X86_BUG(18) /* CPU is affected by L1 Terminal Fault */
+#define X86__NULL_SEG		X86_(10) /* Nulling a selector preserves the base */
+#define X86__SWAPGS_FENCE		X86_(11) /* SWAPGS without input dep on GS */
+#define X86__MONITOR			X86_(12) /* IPI required to wake up remote CPU */
+#define X86__AMD_E400		X86_(13) /* CPU is among the affected by Erratum 400 */
+#define X86__CPU_MELTDOWN		X86_(14) /* CPU is affected by meltdown attack and needs kernel page table isolation */
+#define X86__SPECTRE_V1		X86_(15) /* CPU is affected by Spectre variant 1 attack with conditional branches */
+#define X86__SPECTRE_V2		X86_(16) /* CPU is affected by Spectre variant 2 attack with indirect branches */
+#define X86__SPEC_STORE_BYPASS	X86_(17) /* CPU is affected by speculative store bypass attack */
+#define X86__L1TF			X86_(18) /* CPU is affected by L1 Terminal Fault */
 
 #endif /* _ASM_X86_CPUFEATURES_H */

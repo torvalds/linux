@@ -184,7 +184,7 @@ static struct device *mmc_device;
 
 static int n8x0_mmc_switch_slot(struct device *dev, int slot)
 {
-#ifdef CONFIG_MMC_DEBUG
+#ifdef CONFIG_MMC_DE
 	dev_dbg(dev, "Choose slot %d\n", slot + 1);
 #endif
 	gpio_set_value(N8X0_SLOT_SWITCH_GPIO, slot);
@@ -196,7 +196,7 @@ static int n8x0_mmc_set_power_menelaus(struct device *dev, int slot,
 {
 	int mV;
 
-#ifdef CONFIG_MMC_DEBUG
+#ifdef CONFIG_MMC_DE
 	dev_dbg(dev, "Set slot %d power: %s (vdd %d)\n", slot + 1,
 		power_on ? "on" : "off", vdd);
 #endif
@@ -219,7 +219,7 @@ static int n8x0_mmc_set_power_menelaus(struct device *dev, int slot,
 			mV = 1850;
 			break;
 		default:
-			BUG();
+			();
 		}
 		return menelaus_set_vmmc(mV);
 	} else {
@@ -253,7 +253,7 @@ static int n8x0_mmc_set_power_menelaus(struct device *dev, int slot,
 			mV = 1800;
 			break;
 		default:
-			BUG();
+			();
 		}
 		return menelaus_set_vdcdc(3, mV);
 	}
@@ -295,7 +295,7 @@ static int n8x0_mmc_set_bus_mode(struct device *dev, int slot, int bus_mode)
 
 	dev_dbg(dev, "Set slot %d bus mode %s\n", slot + 1,
 		bus_mode == MMC_BUSMODE_OPENDRAIN ? "open-drain" : "push-pull");
-	BUG_ON(slot != 0 && slot != 1);
+	_ON(slot != 0 && slot != 1);
 	slot++;
 	switch (bus_mode) {
 	case MMC_BUSMODE_OPENDRAIN:
@@ -305,7 +305,7 @@ static int n8x0_mmc_set_bus_mode(struct device *dev, int slot, int bus_mode)
 		r = menelaus_set_mmc_opendrain(slot, 0);
 		break;
 	default:
-		BUG();
+		();
 	}
 	if (r != 0 && printk_ratelimit())
 		dev_err(dev, "MMC: unable to set bus mode for slot %d\n",
@@ -316,7 +316,7 @@ static int n8x0_mmc_set_bus_mode(struct device *dev, int slot, int bus_mode)
 static int n8x0_mmc_get_cover_state(struct device *dev, int slot)
 {
 	slot++;
-	BUG_ON(slot != 1 && slot != 2);
+	_ON(slot != 1 && slot != 2);
 	if (slot == 1)
 		return slot1_cover_open;
 	else

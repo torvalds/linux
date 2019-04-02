@@ -47,7 +47,7 @@ unsigned int intc_get_reg(struct intc_desc_int *d, unsigned long address)
 			return k;
 	}
 
-	BUG();
+	();
 	return 0;
 }
 

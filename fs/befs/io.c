@@ -30,7 +30,7 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 	befs_blocknr_t block;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
-	befs_debug(sb, "---> Enter %s "
+	befs_de(sb, "---> Enter %s "
 		   "[%u, %hu, %hu]", __func__, iaddr.allocation_group,
 		   iaddr.start, iaddr.len);
 
@@ -42,7 +42,7 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 
 	block = iaddr2blockno(sb, &iaddr);
 
-	befs_debug(sb, "%s: offset = %lu", __func__, (unsigned long)block);
+	befs_de(sb, "%s: offset = %lu", __func__, (unsigned long)block);
 
 	bh = sb_bread(sb, block);
 
@@ -52,10 +52,10 @@ befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 		goto error;
 	}
 
-	befs_debug(sb, "<--- %s", __func__);
+	befs_de(sb, "<--- %s", __func__);
 	return bh;
 
 error:
-	befs_debug(sb, "<--- %s ERROR", __func__);
+	befs_de(sb, "<--- %s ERROR", __func__);
 	return NULL;
 }

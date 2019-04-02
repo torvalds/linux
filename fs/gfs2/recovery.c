@@ -574,7 +574,7 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, bool wait)
 
 	/* we have JDF_RECOVERY, queue should always succeed */
 	rv = queue_work(gfs_recovery_wq, &jd->jd_work);
-	BUG_ON(!rv);
+	_ON(!rv);
 
 	if (wait)
 		wait_on_bit(&jd->jd_flags, JDF_RECOVERY,

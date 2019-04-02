@@ -2146,7 +2146,7 @@ enum {
 /* Volume Rescale */
 #define RT5645_VOL_RSCL_MAX 0x27
 #define RT5645_VOL_RSCL_RANGE 0x1F
-/* Debug String Length */
+/* De String Length */
 #define RT5645_REG_DISP_LEN 23
 
 

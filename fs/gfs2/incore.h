@@ -137,7 +137,7 @@ static inline struct gfs2_bitmap *rbm_bi(const struct gfs2_rbm *rbm)
 
 static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
 {
-	BUG_ON(rbm->offset >= rbm->rgd->rd_data);
+	_ON(rbm->offset >= rbm->rgd->rd_data);
 	return rbm->rgd->rd_data0 + (rbm_bi(rbm)->bi_start * GFS2_NBBY) +
 		rbm->offset;
 }
@@ -575,7 +575,7 @@ struct gfs2_args {
 	char ar_hostdata[GFS2_LOCKNAME_LEN];	/* Host specific data */
 	unsigned int ar_spectator:1;		/* Don't get a journal */
 	unsigned int ar_localflocks:1;		/* Let the VFS do flock|fcntl */
-	unsigned int ar_debug:1;		/* Oops on errors */
+	unsigned int ar_de:1;		/* Oops on errors */
 	unsigned int ar_posix_acl:1;		/* Enable posix acls */
 	unsigned int ar_quota:2;		/* off/account/on */
 	unsigned int ar_suiddir:1;		/* suiddir support */
@@ -849,10 +849,10 @@ struct gfs2_sbd {
 	char sd_table_name[GFS2_FSNAME_LEN];
 	char sd_proto_name[GFS2_FSNAME_LEN];
 
-	/* Debugging crud */
+	/* Deging crud */
 
 	unsigned long sd_last_warning;
-	struct dentry *debugfs_dir;    /* debugfs directory */
+	struct dentry *defs_dir;    /* defs directory */
 };
 
 static inline void gfs2_glstats_inc(struct gfs2_glock *gl, int which)

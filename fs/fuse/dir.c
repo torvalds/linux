@@ -389,7 +389,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	struct fuse_file *ff;
 
 	/* Userspace expects S_IFREG in create mode */
-	BUG_ON((mode & S_IFMT) != S_IFREG);
+	_ON((mode & S_IFMT) != S_IFREG);
 
 	forget = fuse_alloc_forget();
 	err = -ENOMEM;
@@ -1049,7 +1049,7 @@ static int fuse_access(struct inode *inode, int mask)
 	struct fuse_access_in inarg;
 	int err;
 
-	BUG_ON(mask & MAY_NOT_BLOCK);
+	_ON(mask & MAY_NOT_BLOCK);
 
 	if (fc->no_access)
 		return 0;
@@ -1176,7 +1176,7 @@ static int fuse_readlink_page(struct inode *inode, struct page *page)
 		char *link = page_address(page);
 		size_t len = req->out.args[0].size;
 
-		BUG_ON(len >= PAGE_SIZE);
+		_ON(len >= PAGE_SIZE);
 		link[len] = '\0';
 	}
 
@@ -1345,10 +1345,10 @@ void fuse_set_nowrite(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
-	BUG_ON(!inode_is_locked(inode));
+	_ON(!inode_is_locked(inode));
 
 	spin_lock(&fi->lock);
-	BUG_ON(fi->writectr < 0);
+	_ON(fi->writectr < 0);
 	fi->writectr += FUSE_NOWRITE;
 	spin_unlock(&fi->lock);
 	wait_event(fi->page_waitq, fi->writectr == FUSE_NOWRITE);
@@ -1364,7 +1364,7 @@ static void __fuse_release_nowrite(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
-	BUG_ON(fi->writectr != FUSE_NOWRITE);
+	_ON(fi->writectr != FUSE_NOWRITE);
 	fi->writectr = 0;
 	fuse_flush_writepages(inode);
 }

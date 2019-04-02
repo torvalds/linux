@@ -98,7 +98,7 @@ static int nilfs_compute_checksum(struct the_nilfs *nilfs,
 	unsigned long size;
 	u32 crc;
 
-	BUG_ON(offset >= blocksize);
+	_ON(offset >= blocksize);
 	check_bytes -= offset;
 	size = min_t(u64, check_bytes, blocksize - offset);
 	crc = crc32_le(nilfs->ns_crc_seed,
@@ -246,7 +246,7 @@ static void *nilfs_read_summary_info(struct the_nilfs *nilfs,
 	void *ptr;
 	sector_t blocknr;
 
-	BUG_ON((*pbh)->b_size < *offset);
+	_ON((*pbh)->b_size < *offset);
 	if (bytes > (*pbh)->b_size - *offset) {
 		blocknr = (*pbh)->b_blocknr;
 		brelse(*pbh);
@@ -698,7 +698,7 @@ static void nilfs_finish_roll_forward(struct the_nilfs *nilfs,
 		return;
 
 	bh = __getblk(nilfs->ns_bdev, ri->ri_lsegs_start, nilfs->ns_blocksize);
-	BUG_ON(!bh);
+	_ON(!bh);
 	memset(bh->b_data, 0, bh->b_size);
 	set_buffer_dirty(bh);
 	err = sync_dirty_buffer(bh);

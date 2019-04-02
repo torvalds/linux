@@ -5,7 +5,7 @@
  * Fairchild FUSB302 Type-C Chip Driver
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/extcon.h>
@@ -109,7 +109,7 @@ struct fusb302_chip {
 	enum typec_cc_status cc2;
 	u32 snk_pdo[PDO_MAX_OBJECTS];
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dentry;
 	/* lock for log buffer access */
 	struct mutex logbuffer_lock;
@@ -123,7 +123,7 @@ struct fusb302_chip {
  * Logging
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static bool fusb302_log_full(struct fusb302_chip *chip)
 {
@@ -187,7 +187,7 @@ static void fusb302_log(struct fusb302_chip *chip, const char *fmt, ...)
 	va_end(args);
 }
 
-static int fusb302_debug_show(struct seq_file *s, void *v)
+static int fusb302_de_show(struct seq_file *s, void *v)
 {
 	struct fusb302_chip *chip = (struct fusb302_chip *)s->private;
 	int tail;
@@ -204,33 +204,33 @@ static int fusb302_debug_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(fusb302_debug);
+DEFINE_SHOW_ATTRIBUTE(fusb302_de);
 
 static struct dentry *rootdir;
 
-static void fusb302_debugfs_init(struct fusb302_chip *chip)
+static void fusb302_defs_init(struct fusb302_chip *chip)
 {
 	mutex_init(&chip->logbuffer_lock);
 	if (!rootdir)
-		rootdir = debugfs_create_dir("fusb302", NULL);
+		rootdir = defs_create_dir("fusb302", NULL);
 
-	chip->dentry = debugfs_create_file(dev_name(chip->dev),
+	chip->dentry = defs_create_file(dev_name(chip->dev),
 					   S_IFREG | 0444, rootdir,
-					   chip, &fusb302_debug_fops);
+					   chip, &fusb302_de_fops);
 }
 
-static void fusb302_debugfs_exit(struct fusb302_chip *chip)
+static void fusb302_defs_exit(struct fusb302_chip *chip)
 {
-	debugfs_remove(chip->dentry);
-	debugfs_remove(rootdir);
+	defs_remove(chip->dentry);
+	defs_remove(rootdir);
 }
 
 #else
 
 static void fusb302_log(const struct fusb302_chip *chip,
 			const char *fmt, ...) { }
-static void fusb302_debugfs_init(const struct fusb302_chip *chip) { }
-static void fusb302_debugfs_exit(const struct fusb302_chip *chip) { }
+static void fusb302_defs_init(const struct fusb302_chip *chip) { }
+static void fusb302_defs_exit(const struct fusb302_chip *chip) { }
 
 #endif
 
@@ -1091,8 +1091,8 @@ static const char * const transmit_type_name[] = {
 	[TCPC_TX_SOP]			= "SOP",
 	[TCPC_TX_SOP_PRIME]		= "SOP'",
 	[TCPC_TX_SOP_PRIME_PRIME]	= "SOP''",
-	[TCPC_TX_SOP_DEBUG_PRIME]	= "DEBUG'",
-	[TCPC_TX_SOP_DEBUG_PRIME_PRIME]	= "DEBUG''",
+	[TCPC_TX_SOP_DE_PRIME]	= "DE'",
+	[TCPC_TX_SOP_DE_PRIME_PRIME]	= "DE''",
 	[TCPC_TX_HARD_RESET]		= "HARD_RESET",
 	[TCPC_TX_CABLE_RESET]		= "CABLE_RESET",
 	[TCPC_TX_BIST_MODE_2]		= "BIST_MODE_2",
@@ -1807,7 +1807,7 @@ static int fusb302_probe(struct i2c_client *client,
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);
-	fusb302_debugfs_init(chip);
+	fusb302_defs_init(chip);
 	i2c_set_clientdata(client, chip);
 
 	return ret;
@@ -1826,7 +1826,7 @@ static int fusb302_remove(struct i2c_client *client)
 
 	tcpm_unregister_port(chip->tcpm_port);
 	destroy_workqueue(chip->wq);
-	fusb302_debugfs_exit(chip);
+	fusb302_defs_exit(chip);
 
 	return 0;
 }

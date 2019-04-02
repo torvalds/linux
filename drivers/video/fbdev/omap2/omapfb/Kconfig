@@ -17,13 +17,13 @@ menuconfig FB_OMAP2
 
 if FB_OMAP2
 
-config FB_OMAP2_DEBUG_SUPPORT
-        bool "Debug support for OMAP2+ FB"
+config FB_OMAP2_DE_SUPPORT
+        bool "De support for OMAP2+ FB"
 	default y
 	depends on FB_OMAP2
 	help
-	  Support for debug output. You have to enable the actual printing
-	  with 'debug' module parameter.
+	  Support for de output. You have to enable the actual printing
+	  with 'de' module parameter.
 
 config FB_OMAP2_NUM_FBS
 	int "Number of framebuffers"

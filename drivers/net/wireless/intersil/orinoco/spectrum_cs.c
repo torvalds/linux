@@ -40,7 +40,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 /* Module parameters */
 
-/* Some D-Link cards have buggy CIS. They do work at 5v properly, but
+/* Some D-Link cards have gy CIS. They do work at 5v properly, but
  * don't have any CIS entry for it. This workaround it... */
 static int ignore_cis_vcc; /* = 0 */
 module_param(ignore_cis_vcc, int, 0);

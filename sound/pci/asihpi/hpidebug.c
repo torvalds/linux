@@ -16,46 +16,46 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-Debug macro translation.
+De macro translation.
 
 ************************************************************************/
 
 #include "hpi_internal.h"
-#include "hpidebug.h"
+#include "hpide.h"
 
-/* Debug level; 0 quiet; 1 informative, 2 debug, 3 verbose debug.  */
-int hpi_debug_level = HPI_DEBUG_LEVEL_DEFAULT;
+/* De level; 0 quiet; 1 informative, 2 de, 3 verbose de.  */
+int hpi_de_level = HPI_DE_LEVEL_DEFAULT;
 
-void hpi_debug_init(void)
+void hpi_de_init(void)
 {
-	printk(KERN_INFO "debug start\n");
+	printk(KERN_INFO "de start\n");
 }
 
-int hpi_debug_level_set(int level)
+int hpi_de_level_set(int level)
 {
 	int old_level;
 
-	old_level = hpi_debug_level;
-	hpi_debug_level = level;
+	old_level = hpi_de_level;
+	hpi_de_level = level;
 	return old_level;
 }
 
-int hpi_debug_level_get(void)
+int hpi_de_level_get(void)
 {
-	return hpi_debug_level;
+	return hpi_de_level;
 }
 
-void hpi_debug_message(struct hpi_message *phm, char *sz_fileline)
+void hpi_de_message(struct hpi_message *phm, char *sz_fileline)
 {
 	if (phm) {
-		printk(KERN_DEBUG "HPI_MSG%d,%d,%d,%d,%d\n", phm->version,
+		printk(KERN_DE "HPI_MSG%d,%d,%d,%d,%d\n", phm->version,
 			phm->adapter_index, phm->obj_index, phm->function,
 			phm->u.c.attribute);
 	}
 
 }
 
-void hpi_debug_data(u16 *pdata, u32 len)
+void hpi_de_data(u16 *pdata, u32 len)
 {
 	u32 i;
 	int j;
@@ -68,7 +68,7 @@ void hpi_debug_data(u16 *pdata, u32 len)
 		lines = 8;
 
 	for (i = 0, j = 0; j < lines; j++) {
-		printk(KERN_DEBUG "%p:", (pdata + i));
+		printk(KERN_DE "%p:", (pdata + i));
 
 		for (k = 0; k < cols && i < len; i++, k++)
 			printk(KERN_CONT "%s%04x", k == 0 ? "" : " ", pdata[i]);

@@ -136,7 +136,7 @@ static void config_item_cleanup(struct config_item *item)
 	struct config_group *s = item->ci_group;
 	struct config_item *parent = item->ci_parent;
 
-	pr_debug("config_item %s: cleaning up\n", config_item_name(item));
+	pr_de("config_item %s: cleaning up\n", config_item_name(item));
 	if (item->ci_name != item->ci_namebuf)
 		kfree(item->ci_name);
 	item->ci_name = NULL;

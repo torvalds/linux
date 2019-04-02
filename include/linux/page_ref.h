@@ -15,7 +15,7 @@ extern struct tracepoint __tracepoint_page_ref_mod_unless;
 extern struct tracepoint __tracepoint_page_ref_freeze;
 extern struct tracepoint __tracepoint_page_ref_unfreeze;
 
-#ifdef CONFIG_DEBUG_PAGE_REF
+#ifdef CONFIG_DE_PAGE_REF
 
 /*
  * Ideally we would want to use the trace_<tracepoint>_enabled() helper
@@ -172,8 +172,8 @@ static inline int page_ref_freeze(struct page *page, int count)
 
 static inline void page_ref_unfreeze(struct page *page, int count)
 {
-	VM_BUG_ON_PAGE(page_count(page) != 0, page);
-	VM_BUG_ON(count == 0);
+	VM__ON_PAGE(page_count(page) != 0, page);
+	VM__ON(count == 0);
 
 	atomic_set_release(&page->_refcount, count);
 	if (page_ref_tracepoint_active(__tracepoint_page_ref_unfreeze))

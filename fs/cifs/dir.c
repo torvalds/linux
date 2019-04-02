@@ -30,7 +30,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 
@@ -797,7 +797,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 const struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 	.d_automount = cifs_dfs_d_automount,
-/* d_delete:       cifs_d_delete,      */ /* not needed except for debugging */
+/* d_delete:       cifs_d_delete,      */ /* not needed except for deging */
 };
 
 static int cifs_ci_hash(const struct dentry *dentry, struct qstr *q)

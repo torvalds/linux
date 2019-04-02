@@ -997,7 +997,7 @@ static void mpc5121_clk_provide_migration_support(void)
 		if (regnode) \
 			clk_register_clkdev(clk, clkname, np->name); \
 		did_register |= DID_REG_ ## regflag; \
-		pr_debug("clock alias name '%s' for dev '%s' pointer %p\n", \
+		pr_de("clock alias name '%s' for dev '%s' pointer %p\n", \
 			 clkname, devname, clk); \
 	} else { \
 		clk_put(clk); \
@@ -1165,7 +1165,7 @@ static void mpc5121_clk_provide_backwards_compat(void)
 			  (did_register & DID_REG_USB) ? " USB" : "",
 			  (did_register & DID_REG_PATA) ? " PATA" : "");
 	} else {
-		pr_debug("device tree has clock specs, no fallbacks added\n");
+		pr_de("device tree has clock specs, no fallbacks added\n");
 	}
 }
 

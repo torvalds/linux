@@ -1624,7 +1624,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 		/* The original V2 implementation uses bytes 2-7 of
 		 * the UUID to match the packet to the timestamp. This
 		 * discards two of the bytes of the MAC address used
-		 * to create the UUID (SF bug 33070).  The PTP V2
+		 * to create the UUID (SF  33070).  The PTP V2
 		 * enhanced mode fixes this issue and uses bytes 0-2
 		 * and byte 5-7 of the UUID.
 		 */
@@ -1633,7 +1633,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 			match_data_012 = data + PTP_V2_UUID_OFFSET + 2;
 		} else {
 			match_data_012 = data + PTP_V2_UUID_OFFSET + 0;
-			BUG_ON(ptp->mode != MC_CMD_PTP_MODE_V2_ENHANCED);
+			_ON(ptp->mode != MC_CMD_PTP_MODE_V2_ENHANCED);
 		}
 	}
 
@@ -1644,8 +1644,8 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 		/* We expect the sequence number to be in the same position in
 		 * the packet for PTP V1 and V2
 		 */
-		BUILD_BUG_ON(PTP_V1_SEQUENCE_OFFSET != PTP_V2_SEQUENCE_OFFSET);
-		BUILD_BUG_ON(PTP_V1_SEQUENCE_LENGTH != PTP_V2_SEQUENCE_LENGTH);
+		BUILD__ON(PTP_V1_SEQUENCE_OFFSET != PTP_V2_SEQUENCE_OFFSET);
+		BUILD__ON(PTP_V1_SEQUENCE_LENGTH != PTP_V2_SEQUENCE_LENGTH);
 
 		/* Extract UUID/Sequence information */
 		match->words[0] = (match_data_012[0]         |

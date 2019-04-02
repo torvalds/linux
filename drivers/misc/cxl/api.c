@@ -211,7 +211,7 @@ int cxl_allocate_afu_irqs(struct cxl_context *ctx, int num)
 	if (ctx->status == STARTED) {
 		if (cxl_ops->update_ivtes)
 			cxl_ops->update_ivtes(ctx);
-		else WARN(1, "BUG: cxl_allocate_afu_irqs must be called prior to starting the context on this platform\n");
+		else WARN(1, ": cxl_allocate_afu_irqs must be called prior to starting the context on this platform\n");
 	}
 
 	return res;

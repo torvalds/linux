@@ -88,13 +88,13 @@ static void __iomem *remap_window(struct map_info *map, unsigned long to)
 	int ret;
 
 	if (!pcmcia_dev_present(dev->p_dev)) {
-		pr_debug("device removed\n");
+		pr_de("device removed\n");
 		return NULL;
 	}
 
 	offset = to & ~(dev->win_size-1);
 	if (offset != dev->offset) {
-		pr_debug("Remapping window from 0x%8.8x to 0x%8.8x\n",
+		pr_de("Remapping window from 0x%8.8x to 0x%8.8x\n",
 		      dev->offset, offset);
 		ret = pcmcia_map_mem_page(dev->p_dev, win, offset);
 		if (ret != 0)
@@ -115,7 +115,7 @@ static map_word pcmcia_read8_remap(struct map_info *map, unsigned long ofs)
 		return d;
 
 	d.x[0] = readb(addr);
-	pr_debug("ofs = 0x%08lx (%p) data = 0x%02lx\n", ofs, addr, d.x[0]);
+	pr_de("ofs = 0x%08lx (%p) data = 0x%02lx\n", ofs, addr, d.x[0]);
 	return d;
 }
 
@@ -130,7 +130,7 @@ static map_word pcmcia_read16_remap(struct map_info *map, unsigned long ofs)
 		return d;
 
 	d.x[0] = readw(addr);
-	pr_debug("ofs = 0x%08lx (%p) data = 0x%04lx\n", ofs, addr, d.x[0]);
+	pr_de("ofs = 0x%08lx (%p) data = 0x%04lx\n", ofs, addr, d.x[0]);
 	return d;
 }
 
@@ -140,7 +140,7 @@ static void pcmcia_copy_from_remap(struct map_info *map, void *to, unsigned long
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	unsigned long win_size = dev->win_size;
 
-	pr_debug("to = %p from = %lu len = %zd\n", to, from, len);
+	pr_de("to = %p from = %lu len = %zd\n", to, from, len);
 	while(len) {
 		int toread = win_size - (from & (win_size-1));
 		void __iomem *addr;
@@ -152,7 +152,7 @@ static void pcmcia_copy_from_remap(struct map_info *map, void *to, unsigned long
 		if(!addr)
 			return;
 
-		pr_debug("memcpy from %p to %p len = %d\n", addr, to, toread);
+		pr_de("memcpy from %p to %p len = %d\n", addr, to, toread);
 		memcpy_fromio(to, addr, toread);
 		len -= toread;
 		to += toread;
@@ -168,7 +168,7 @@ static void pcmcia_write8_remap(struct map_info *map, map_word d, unsigned long 
 	if(!addr)
 		return;
 
-	pr_debug("adr = 0x%08lx (%p)  data = 0x%02lx\n", adr, addr, d.x[0]);
+	pr_de("adr = 0x%08lx (%p)  data = 0x%02lx\n", adr, addr, d.x[0]);
 	writeb(d.x[0], addr);
 }
 
@@ -179,7 +179,7 @@ static void pcmcia_write16_remap(struct map_info *map, map_word d, unsigned long
 	if(!addr)
 		return;
 
-	pr_debug("adr = 0x%08lx (%p)  data = 0x%04lx\n", adr, addr, d.x[0]);
+	pr_de("adr = 0x%08lx (%p)  data = 0x%04lx\n", adr, addr, d.x[0]);
 	writew(d.x[0], addr);
 }
 
@@ -189,7 +189,7 @@ static void pcmcia_copy_to_remap(struct map_info *map, unsigned long to, const v
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	unsigned long win_size = dev->win_size;
 
-	pr_debug("to = %lu from = %p len = %zd\n", to, from, len);
+	pr_de("to = %lu from = %p len = %zd\n", to, from, len);
 	while(len) {
 		int towrite = win_size - (to & (win_size-1));
 		void __iomem *addr;
@@ -201,7 +201,7 @@ static void pcmcia_copy_to_remap(struct map_info *map, unsigned long to, const v
 		if(!addr)
 			return;
 
-		pr_debug("memcpy from %p to %p len = %d\n", from, addr, towrite);
+		pr_de("memcpy from %p to %p len = %d\n", from, addr, towrite);
 		memcpy_toio(addr, from, towrite);
 		len -= towrite;
 		to += towrite;
@@ -223,7 +223,7 @@ static map_word pcmcia_read8(struct map_info *map, unsigned long ofs)
 		return d;
 
 	d.x[0] = readb(win_base + ofs);
-	pr_debug("ofs = 0x%08lx (%p) data = 0x%02lx\n",
+	pr_de("ofs = 0x%08lx (%p) data = 0x%02lx\n",
 	      ofs, win_base + ofs, d.x[0]);
 	return d;
 }
@@ -238,7 +238,7 @@ static map_word pcmcia_read16(struct map_info *map, unsigned long ofs)
 		return d;
 
 	d.x[0] = readw(win_base + ofs);
-	pr_debug("ofs = 0x%08lx (%p) data = 0x%04lx\n",
+	pr_de("ofs = 0x%08lx (%p) data = 0x%04lx\n",
 	      ofs, win_base + ofs, d.x[0]);
 	return d;
 }
@@ -251,7 +251,7 @@ static void pcmcia_copy_from(struct map_info *map, void *to, unsigned long from,
 	if(DEV_REMOVED(map))
 		return;
 
-	pr_debug("to = %p from = %lu len = %zd\n", to, from, len);
+	pr_de("to = %p from = %lu len = %zd\n", to, from, len);
 	memcpy_fromio(to, win_base + from, len);
 }
 
@@ -263,7 +263,7 @@ static void pcmcia_write8(struct map_info *map, map_word d, unsigned long adr)
 	if(DEV_REMOVED(map))
 		return;
 
-	pr_debug("adr = 0x%08lx (%p)  data = 0x%02lx\n",
+	pr_de("adr = 0x%08lx (%p)  data = 0x%02lx\n",
 	      adr, win_base + adr, d.x[0]);
 	writeb(d.x[0], win_base + adr);
 }
@@ -276,7 +276,7 @@ static void pcmcia_write16(struct map_info *map, map_word d, unsigned long adr)
 	if(DEV_REMOVED(map))
 		return;
 
-	pr_debug("adr = 0x%08lx (%p)  data = 0x%04lx\n",
+	pr_de("adr = 0x%08lx (%p)  data = 0x%04lx\n",
 	      adr, win_base + adr, d.x[0]);
 	writew(d.x[0], win_base + adr);
 }
@@ -289,7 +289,7 @@ static void pcmcia_copy_to(struct map_info *map, unsigned long to, const void *f
 	if(DEV_REMOVED(map))
 		return;
 
-	pr_debug("to = %lu from = %p len = %zd\n", to, from, len);
+	pr_de("to = %lu from = %p len = %zd\n", to, from, len);
 	memcpy_toio(win_base + to, from, len);
 }
 
@@ -302,7 +302,7 @@ static void pcmciamtd_set_vpp(struct map_info *map, int on)
 	struct pcmcia_device *link = dev->p_dev;
 	unsigned long flags;
 
-	pr_debug("dev = %p on = %d vpp = %d\n\n", dev, on, dev->vpp);
+	pr_de("dev = %p on = %d vpp = %d\n\n", dev, on, dev->vpp);
 	spin_lock_irqsave(&pcmcia_vpp_lock, flags);
 	if (on) {
 		if (++pcmcia_vpp_refcnt == 1)   /* first nested 'on' */
@@ -319,7 +319,7 @@ static void pcmciamtd_release(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev = link->priv;
 
-	pr_debug("link = 0x%p\n", link);
+	pr_de("link = 0x%p\n", link);
 
 	if (link->resource[2]->end) {
 		if(dev->win_base) {
@@ -340,7 +340,7 @@ static int pcmciamtd_cistpl_format(struct pcmcia_device *p_dev,
 	if (!pcmcia_parse_tuple(tuple, &parse)) {
 		cistpl_format_t *t = &parse.format;
 		(void)t; /* Shut up, gcc */
-		pr_debug("Format type: %u, Error Detection: %u, offset = %u, length =%u\n",
+		pr_de("Format type: %u, Error Detection: %u, offset = %u, length =%u\n",
 			t->type, t->edc, t->offset, t->length);
 	}
 	return -ENOSPC;
@@ -356,7 +356,7 @@ static int pcmciamtd_cistpl_jedec(struct pcmcia_device *p_dev,
 	if (!pcmcia_parse_tuple(tuple, &parse)) {
 		cistpl_jedec_t *t = &parse.jedec;
 		for (i = 0; i < t->nid; i++)
-			pr_debug("JEDEC: 0x%02x 0x%02x\n",
+			pr_de("JEDEC: 0x%02x 0x%02x\n",
 			      t->id[i].mfr, t->id[i].info);
 	}
 	return -ENOSPC;
@@ -374,14 +374,14 @@ static int pcmciamtd_cistpl_device(struct pcmcia_device *p_dev,
 	if (pcmcia_parse_tuple(tuple, &parse))
 		return -EINVAL;
 
-	pr_debug("Common memory:\n");
+	pr_de("Common memory:\n");
 	dev->pcmcia_map.size = t->dev[0].size;
-	/* from here on: DEBUG only */
+	/* from here on: DE only */
 	for (i = 0; i < t->ndev; i++) {
-		pr_debug("Region %d, type = %u\n", i, t->dev[i].type);
-		pr_debug("Region %d, wp = %u\n", i, t->dev[i].wp);
-		pr_debug("Region %d, speed = %u ns\n", i, t->dev[i].speed);
-		pr_debug("Region %d, size = %u bytes\n", i, t->dev[i].size);
+		pr_de("Region %d, type = %u\n", i, t->dev[i].type);
+		pr_de("Region %d, wp = %u\n", i, t->dev[i].wp);
+		pr_de("Region %d, speed = %u ns\n", i, t->dev[i].speed);
+		pr_de("Region %d, size = %u bytes\n", i, t->dev[i].size);
 	}
 	return 0;
 }
@@ -399,14 +399,14 @@ static int pcmciamtd_cistpl_geo(struct pcmcia_device *p_dev,
 		return -EINVAL;
 
 	dev->pcmcia_map.bankwidth = t->geo[0].buswidth;
-	/* from here on: DEBUG only */
+	/* from here on: DE only */
 	for (i = 0; i < t->ngeo; i++) {
-		pr_debug("region: %d bankwidth = %u\n", i, t->geo[i].buswidth);
-		pr_debug("region: %d erase_block = %u\n", i, t->geo[i].erase_block);
-		pr_debug("region: %d read_block = %u\n", i, t->geo[i].read_block);
-		pr_debug("region: %d write_block = %u\n", i, t->geo[i].write_block);
-		pr_debug("region: %d partition = %u\n", i, t->geo[i].partition);
-		pr_debug("region: %d interleave = %u\n", i, t->geo[i].interleave);
+		pr_de("region: %d bankwidth = %u\n", i, t->geo[i].buswidth);
+		pr_de("region: %d erase_block = %u\n", i, t->geo[i].erase_block);
+		pr_de("region: %d read_block = %u\n", i, t->geo[i].read_block);
+		pr_de("region: %d write_block = %u\n", i, t->geo[i].write_block);
+		pr_de("region: %d partition = %u\n", i, t->geo[i].partition);
+		pr_de("region: %d interleave = %u\n", i, t->geo[i].interleave);
 	}
 	return 0;
 }
@@ -424,7 +424,7 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *p_dev
 			if (p_dev->prod_id[i])
 				strcat(dev->mtd_name, p_dev->prod_id[i]);
 		}
-		pr_debug("Found name: %s\n", dev->mtd_name);
+		pr_de("Found name: %s\n", dev->mtd_name);
 	}
 
 	pcmcia_loop_tuple(p_dev, CISTPL_FORMAT, pcmciamtd_cistpl_format, NULL);
@@ -440,12 +440,12 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *p_dev
 
 	if(force_size) {
 		dev->pcmcia_map.size = force_size << 20;
-		pr_debug("size forced to %dM\n", force_size);
+		pr_de("size forced to %dM\n", force_size);
 	}
 
 	if(bankwidth) {
 		dev->pcmcia_map.bankwidth = bankwidth;
-		pr_debug("bankwidth forced to %d\n", bankwidth);
+		pr_de("bankwidth forced to %d\n", bankwidth);
 	}
 
 	dev->pcmcia_map.name = dev->mtd_name;
@@ -454,7 +454,7 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *p_dev
 		*new_name = 1;
 	}
 
-	pr_debug("Device: Size: %lu Width:%d Name: %s\n",
+	pr_de("Device: Size: %lu Width:%d Name: %s\n",
 	      dev->pcmcia_map.size,
 	      dev->pcmcia_map.bankwidth << 3, dev->mtd_name);
 }
@@ -469,7 +469,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
 	int new_name = 0;
 
-	pr_debug("link=0x%p\n", link);
+	pr_de("link=0x%p\n", link);
 
 	card_settings(dev, link, &new_name);
 
@@ -502,11 +502,11 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 
 	do {
 		int ret;
-		pr_debug("requesting window with size = %luKiB memspeed = %d\n",
+		pr_de("requesting window with size = %luKiB memspeed = %d\n",
 			(unsigned long) resource_size(link->resource[2]) >> 10,
 			mem_speed);
 		ret = pcmcia_request_window(link, link->resource[2], mem_speed);
-		pr_debug("ret = %d dev->win_size = %d\n", ret, dev->win_size);
+		pr_de("ret = %d dev->win_size = %d\n", ret, dev->win_size);
 		if(ret) {
 			j++;
 			link->resource[2]->start = 0;
@@ -514,21 +514,21 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 					force_size << 20 : MAX_PCMCIA_ADDR;
 			link->resource[2]->end >>= j;
 		} else {
-			pr_debug("Got window of size %luKiB\n", (unsigned long)
+			pr_de("Got window of size %luKiB\n", (unsigned long)
 				resource_size(link->resource[2]) >> 10);
 			dev->win_size = resource_size(link->resource[2]);
 			break;
 		}
 	} while (link->resource[2]->end >= 0x1000);
 
-	pr_debug("dev->win_size = %d\n", dev->win_size);
+	pr_de("dev->win_size = %d\n", dev->win_size);
 
 	if(!dev->win_size) {
 		dev_err(&dev->p_dev->dev, "Cannot allocate memory window\n");
 		pcmciamtd_release(link);
 		return -ENODEV;
 	}
-	pr_debug("Allocated a window of %dKiB\n", dev->win_size >> 10);
+	pr_de("Allocated a window of %dKiB\n", dev->win_size >> 10);
 
 	/* Get write protect status */
 	dev->win_base = ioremap(link->resource[2]->start,
@@ -539,7 +539,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		pcmciamtd_release(link);
 		return -ENODEV;
 	}
-	pr_debug("mapped window dev = %p @ %pR, base = %p\n",
+	pr_de("mapped window dev = %p @ %pR, base = %p\n",
 	      dev, link->resource[2], dev->win_base);
 
 	dev->offset = 0;
@@ -554,7 +554,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	link->config_index = 0;
-	pr_debug("Setting Configuration\n");
+	pr_de("Setting Configuration\n");
 	ret = pcmcia_enable_device(link);
 	if (ret != 0) {
 		if (dev->win_base) {
@@ -570,17 +570,17 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		mtd = do_map_probe("map_rom", &dev->pcmcia_map);
 	} else {
 		for(i = 0; i < ARRAY_SIZE(probes); i++) {
-			pr_debug("Trying %s\n", probes[i]);
+			pr_de("Trying %s\n", probes[i]);
 			mtd = do_map_probe(probes[i], &dev->pcmcia_map);
 			if(mtd)
 				break;
 
-			pr_debug("FAILED: %s\n", probes[i]);
+			pr_de("FAILED: %s\n", probes[i]);
 		}
 	}
 
 	if(!mtd) {
-		pr_debug("Can not find an MTD\n");
+		pr_de("Can not find an MTD\n");
 		pcmciamtd_release(link);
 		return -ENODEV;
 	}
@@ -607,7 +607,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	/* If the memory found is fits completely into the mapped PCMCIA window,
 	   use the faster non-remapping read/write functions */
 	if(mtd->size <= dev->win_size) {
-		pr_debug("Using non remapping memory functions\n");
+		pr_de("Using non remapping memory functions\n");
 		dev->pcmcia_map.map_priv_2 = (unsigned long)dev->win_base;
 		if (dev->pcmcia_map.bankwidth == 1) {
 			dev->pcmcia_map.read = pcmcia_read8;
@@ -635,7 +635,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 
 static int pcmciamtd_suspend(struct pcmcia_device *dev)
 {
-	pr_debug("EVENT_PM_RESUME\n");
+	pr_de("EVENT_PM_RESUME\n");
 
 	/* get_lock(link); */
 
@@ -644,7 +644,7 @@ static int pcmciamtd_suspend(struct pcmcia_device *dev)
 
 static int pcmciamtd_resume(struct pcmcia_device *dev)
 {
-	pr_debug("EVENT_PM_SUSPEND\n");
+	pr_de("EVENT_PM_SUSPEND\n");
 
 	/* free_lock(link); */
 
@@ -656,7 +656,7 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev = link->priv;
 
-	pr_debug("link=0x%p\n", link);
+	pr_de("link=0x%p\n", link);
 
 	if(dev->mtd_info) {
 		mtd_device_unregister(dev->mtd_info);
@@ -676,7 +676,7 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 	/* Create new memory card device */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) return -ENOMEM;
-	pr_debug("dev=0x%p\n", dev);
+	pr_de("dev=0x%p\n", dev);
 
 	dev->p_dev = link;
 	link->priv = dev;
@@ -746,7 +746,7 @@ static int __init init_pcmciamtd(void)
 
 static void __exit exit_pcmciamtd(void)
 {
-	pr_debug(DRIVER_DESC " unloading");
+	pr_de(DRIVER_DESC " unloading");
 	pcmcia_unregister_driver(&pcmciamtd_driver);
 }
 

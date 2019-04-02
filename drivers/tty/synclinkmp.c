@@ -465,12 +465,12 @@ static int ttymajor = 0;
 /*
  * Array of user specified options for ISA adapters.
  */
-static int debug_level = 0;
+static int de_level = 0;
 static int maxframe[MAX_DEVICES] = {0,};
 
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
-module_param(debug_level, int, 0);
+module_param(de_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
 
 static char *driver_name = "SyncLink MultiPort driver";
@@ -654,9 +654,9 @@ static u32 sca_pci_load_interval = 64;
 
 /*
  * 1st function defined in .text section. Calling this function in
- * init_module() followed by a breakpoint allows a remote debugger
+ * init_module() followed by a breakpoint allows a remote deger
  * (gdb) to get the .text address for the add-symbol-file command.
- * This allows remote debugging of dynamically loadable modules.
+ * This allows remote deging of dynamically loadable modules.
  */
 static void* synclinkmp_get_text_ptr(void);
 static void* synclinkmp_get_text_ptr(void) {return synclinkmp_get_text_ptr;}
@@ -748,7 +748,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 
 	info->port.tty = tty;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s open(), old ref count = %d\n",
 			 __FILE__,__LINE__,tty->driver->name, info->port.count);
 
@@ -772,13 +772,13 @@ static int open(struct tty_struct *tty, struct file *filp)
 
 	retval = block_til_ready(tty, filp, info);
 	if (retval) {
-		if (debug_level >= DEBUG_LEVEL_INFO)
+		if (de_level >= DE_LEVEL_INFO)
 			printk("%s(%d):%s block_til_ready() returned %d\n",
 				 __FILE__,__LINE__, info->device_name, retval);
 		goto cleanup;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s open() success\n",
 			 __FILE__,__LINE__, info->device_name);
 	retval = 0;
@@ -804,7 +804,7 @@ static void close(struct tty_struct *tty, struct file *filp)
 	if (sanity_check(info, tty->name, "close"))
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s close() entry, count=%d\n",
 			 __FILE__,__LINE__, info->device_name, info->port.count);
 
@@ -823,7 +823,7 @@ static void close(struct tty_struct *tty, struct file *filp)
 	tty_port_close_end(&info->port, tty);
 	info->port.tty = NULL;
 cleanup:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s close() exit, count=%d\n", __FILE__,__LINE__,
 			tty->driver->name, info->port.count);
 }
@@ -836,7 +836,7 @@ static void hangup(struct tty_struct *tty)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s hangup()\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -864,7 +864,7 @@ static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s set_termios()\n", __FILE__,__LINE__,
 			tty->driver->name );
 
@@ -912,7 +912,7 @@ static int write(struct tty_struct *tty,
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s write() count=%d\n",
 		       __FILE__,__LINE__,info->device_name,count);
 
@@ -977,7 +977,7 @@ start:
  	}
 
 cleanup:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk( "%s(%d):%s write() returning=%d\n",
 			__FILE__,__LINE__,info->device_name,ret);
 	return ret;
@@ -991,7 +991,7 @@ static int put_char(struct tty_struct *tty, unsigned char ch)
 	unsigned long flags;
 	int ret = 0;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO ) {
+	if ( de_level >= DE_LEVEL_INFO ) {
 		printk( "%s(%d):%s put_char(%d)\n",
 			__FILE__,__LINE__,info->device_name,ch);
 	}
@@ -1027,7 +1027,7 @@ static void send_xchar(struct tty_struct *tty, char ch)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s send_xchar(%d)\n",
 			 __FILE__,__LINE__, info->device_name, ch );
 
@@ -1054,7 +1054,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	if (!info )
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s wait_until_sent() entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -1105,7 +1105,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 
 exit:
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s wait_until_sent() exit\n",
 			 __FILE__,__LINE__, info->device_name );
 }
@@ -1128,7 +1128,7 @@ static int write_room(struct tty_struct *tty)
 			ret = 0;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s write_room()=%d\n",
 		       __FILE__, __LINE__, info->device_name, ret);
 
@@ -1142,7 +1142,7 @@ static void flush_chars(struct tty_struct *tty)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):%s flush_chars() entry tx_count=%d\n",
 			__FILE__,__LINE__,info->device_name,info->tx_count);
 
@@ -1153,7 +1153,7 @@ static void flush_chars(struct tty_struct *tty)
 	    !info->tx_buf)
 		return;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):%s flush_chars() entry, starting transmitter\n",
 			__FILE__,__LINE__,info->device_name );
 
@@ -1181,7 +1181,7 @@ static void flush_buffer(struct tty_struct *tty)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s flush_buffer() entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -1206,7 +1206,7 @@ static void tx_hold(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "tx_hold"))
 		return;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s(%d):%s tx_hold()\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -1226,7 +1226,7 @@ static void tx_release(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "tx_release"))
 		return;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s(%d):%s tx_release()\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -1252,7 +1252,7 @@ static int ioctl(struct tty_struct *tty,
 	SLMP_INFO *info = tty->driver_data;
 	void __user *argp = (void __user *)arg;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s ioctl() cmd=%08X\n", __FILE__,__LINE__,
 			info->device_name, cmd );
 
@@ -1429,7 +1429,7 @@ static int chars_in_buffer(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "chars_in_buffer"))
 		return 0;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s chars_in_buffer()=%d\n",
 		       __FILE__, __LINE__, info->device_name, info->tx_count);
 
@@ -1443,7 +1443,7 @@ static void throttle(struct tty_struct * tty)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s throttle() entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -1468,7 +1468,7 @@ static void unthrottle(struct tty_struct * tty)
 	SLMP_INFO *info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s unthrottle() entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -1499,7 +1499,7 @@ static int set_break(struct tty_struct *tty, int break_state)
 	SLMP_INFO * info = tty->driver_data;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s set_break(%d)\n",
 			 __FILE__,__LINE__, info->device_name, break_state);
 
@@ -1580,7 +1580,7 @@ static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
 	SLMP_INFO *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk(KERN_INFO "%s:hdlc_xmit(%s)\n",__FILE__,dev->name);
 
 	/* stop sending until this frame completes */
@@ -1623,7 +1623,7 @@ static int hdlcdev_open(struct net_device *dev)
 	int rc;
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_open(%s)\n",__FILE__,dev->name);
 
 	/* generic HDLC layer open processing */
@@ -1681,7 +1681,7 @@ static int hdlcdev_close(struct net_device *dev)
 	SLMP_INFO *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_close(%s)\n",__FILE__,dev->name);
 
 	netif_stop_queue(dev);
@@ -1715,7 +1715,7 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	SLMP_INFO *info = dev_to_port(dev);
 	unsigned int flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s:hdlcdev_ioctl(%s)\n",__FILE__,dev->name);
 
 	/* return error if TTY interface open */
@@ -1812,7 +1812,7 @@ static void hdlcdev_tx_timeout(struct net_device *dev)
 	SLMP_INFO *info = dev_to_port(dev);
 	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("hdlcdev_tx_timeout(%s)\n",dev->name);
 
 	dev->stats.tx_errors++;
@@ -1850,7 +1850,7 @@ static void hdlcdev_rx(SLMP_INFO *info, char *buf, int size)
 	struct sk_buff *skb = dev_alloc_skb(size);
 	struct net_device *dev = info->netdev;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("hdlcdev_rx(%s)\n",dev->name);
 
 	if (skb == NULL) {
@@ -1982,7 +1982,7 @@ static void bh_handler(struct work_struct *work)
 	SLMP_INFO *info = container_of(work, SLMP_INFO, task);
 	int action;
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):%s bh_handler() entry\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -1991,7 +1991,7 @@ static void bh_handler(struct work_struct *work)
 	while((action = bh_action(info)) != 0) {
 
 		/* Process work item */
-		if ( debug_level >= DEBUG_LEVEL_BH )
+		if ( de_level >= DE_LEVEL_BH )
 			printk( "%s(%d):%s bh_handler() work item action=%d\n",
 				__FILE__,__LINE__,info->device_name, action);
 
@@ -2014,14 +2014,14 @@ static void bh_handler(struct work_struct *work)
 		}
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):%s bh_handler() exit\n",
 			__FILE__,__LINE__,info->device_name);
 }
 
 static void bh_receive(SLMP_INFO *info)
 {
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):%s bh_receive()\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -2032,7 +2032,7 @@ static void bh_transmit(SLMP_INFO *info)
 {
 	struct tty_struct *tty = info->port.tty;
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):%s bh_transmit() entry\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -2042,7 +2042,7 @@ static void bh_transmit(SLMP_INFO *info)
 
 static void bh_status(SLMP_INFO *info)
 {
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk( "%s(%d):%s bh_status() entry\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -2073,7 +2073,7 @@ static void isr_timer(SLMP_INFO * info)
 
 	info->irq_occurred = true;
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_timer()\n",
 			__FILE__,__LINE__,info->device_name);
 }
@@ -2092,7 +2092,7 @@ static void isr_rxint(SLMP_INFO * info)
 	if (status2)
 		write_reg(info, SR2, status2);
 	
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_rxint status=%02X %02x\n",
 			__FILE__,__LINE__,info->device_name,status,status2);
 
@@ -2141,7 +2141,7 @@ static void isr_rxrdy(SLMP_INFO * info)
 	unsigned char DataByte;
  	struct	mgsl_icount *icount = &info->icount;
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_rxrdy\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -2189,7 +2189,7 @@ static void isr_rxrdy(SLMP_INFO * info)
 			tty_insert_flip_char(&info->port, 0, TTY_OVERRUN);
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_ISR ) {
+	if ( de_level >= DE_LEVEL_ISR ) {
 		printk("%s(%d):%s rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,info->device_name,
 			icount->rx,icount->brk,icount->parity,
@@ -2201,7 +2201,7 @@ static void isr_rxrdy(SLMP_INFO * info)
 
 static void isr_txeom(SLMP_INFO * info, unsigned char status)
 {
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_txeom status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status);
 
@@ -2266,7 +2266,7 @@ static void isr_txint(SLMP_INFO * info)
 	/* clear status bits */
 	write_reg(info, SR1, status);
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_txint status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status);
 
@@ -2289,7 +2289,7 @@ static void isr_txint(SLMP_INFO * info)
  */
 static void isr_txrdy(SLMP_INFO * info)
 {
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_txrdy() tx_count=%d\n",
 			__FILE__,__LINE__,info->device_name,info->tx_count);
 
@@ -2328,7 +2328,7 @@ static void isr_rxdmaok(SLMP_INFO * info)
 	/* clear IRQ (BIT0 must be 1 to prevent clearing DE bit) */
 	write_reg(info, RXDMA + DSR, (unsigned char)(status | 1));
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_rxdmaok(), status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status);
 
@@ -2345,7 +2345,7 @@ static void isr_rxdmaerror(SLMP_INFO * info)
 	/* clear IRQ (BIT0 must be 1 to prevent clearing DE bit) */
 	write_reg(info, RXDMA + DSR, (unsigned char)(status | 1));
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_rxdmaerror(), status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status);
 
@@ -2361,7 +2361,7 @@ static void isr_txdmaok(SLMP_INFO * info)
 	write_reg(info, TXDMA + DSR, 0xc0); /* clear IRQs and disable DMA */
 	write_reg(info, TXDMA + DCMD, SWABORT);	/* reset/init DMA channel */
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_txdmaok(), status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status_reg1);
 
@@ -2381,7 +2381,7 @@ static void isr_txdmaerror(SLMP_INFO * info)
 	/* clear IRQ (BIT0 must be 1 to prevent clearing DE bit) */
 	write_reg(info, TXDMA + DSR, (unsigned char)(status | 1));
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):%s isr_txdmaerror(), status=%02x\n",
 			__FILE__,__LINE__,info->device_name,status);
 }
@@ -2392,7 +2392,7 @@ static void isr_io_pin( SLMP_INFO *info, u16 status )
 {
  	struct	mgsl_icount *icount;
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
+	if ( de_level >= DE_LEVEL_ISR )
 		printk("%s(%d):isr_io_pin status=%04X\n",
 			__FILE__,__LINE__,status);
 
@@ -2450,13 +2450,13 @@ static void isr_io_pin( SLMP_INFO *info, u16 status )
 
 		if (tty_port_check_carrier(&info->port) &&
 		     (status & MISCSTATUS_DCD_LATCHED) ) {
-			if ( debug_level >= DEBUG_LEVEL_ISR )
+			if ( de_level >= DE_LEVEL_ISR )
 				printk("%s CD now %s...", info->device_name,
 				       (status & SerialSignal_DCD) ? "on" : "off");
 			if (status & SerialSignal_DCD)
 				wake_up_interruptible(&info->port.open_wait);
 			else {
-				if ( debug_level >= DEBUG_LEVEL_ISR )
+				if ( de_level >= DE_LEVEL_ISR )
 					printk("doing serial hangup...");
 				if (info->port.tty)
 					tty_hangup(info->port.tty);
@@ -2468,7 +2468,7 @@ static void isr_io_pin( SLMP_INFO *info, u16 status )
 			if ( info->port.tty ) {
 				if (info->port.tty->hw_stopped) {
 					if (status & SerialSignal_CTS) {
-						if ( debug_level >= DEBUG_LEVEL_ISR )
+						if ( de_level >= DE_LEVEL_ISR )
 							printk("CTS tx start...");
 			 			info->port.tty->hw_stopped = 0;
 						tx_start(info);
@@ -2477,7 +2477,7 @@ static void isr_io_pin( SLMP_INFO *info, u16 status )
 					}
 				} else {
 					if (!(status & SerialSignal_CTS)) {
-						if ( debug_level >= DEBUG_LEVEL_ISR )
+						if ( de_level >= DE_LEVEL_ISR )
 							printk("CTS tx stop...");
 			 			info->port.tty->hw_stopped = 1;
 						tx_stop(info);
@@ -2507,8 +2507,8 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 	unsigned int i;
 	unsigned short tmp;
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
-		printk(KERN_DEBUG "%s(%d): synclinkmp_interrupt(%d)entry.\n",
+	if ( de_level >= DE_LEVEL_ISR )
+		printk(KERN_DE "%s(%d): synclinkmp_interrupt(%d)entry.\n",
 			__FILE__, __LINE__, info->irq_level);
 
 	spin_lock(&info->lock);
@@ -2521,8 +2521,8 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 		dmastatus0 = (unsigned char)(tmp>>8);
 		timerstatus0 = read_reg(info, ISR2);
 
-		if ( debug_level >= DEBUG_LEVEL_ISR )
-			printk(KERN_DEBUG "%s(%d):%s status0=%02x, dmastatus0=%02x, timerstatus0=%02x\n",
+		if ( de_level >= DE_LEVEL_ISR )
+			printk(KERN_DE "%s(%d):%s status0=%02x, dmastatus0=%02x, timerstatus0=%02x\n",
 				__FILE__, __LINE__, info->device_name,
 				status0, dmastatus0, timerstatus0);
 
@@ -2533,7 +2533,7 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 			dmastatus1 = (unsigned char)(tmp>>8);
 			timerstatus1 = read_reg(info->port_array[2], ISR2);
 
-			if ( debug_level >= DEBUG_LEVEL_ISR )
+			if ( de_level >= DE_LEVEL_ISR )
 				printk("%s(%d):%s status1=%02x, dmastatus1=%02x, timerstatus1=%02x\n",
 					__FILE__,__LINE__,info->device_name,
 					status1,dmastatus1,timerstatus1);
@@ -2598,7 +2598,7 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 		if ( port && (port->port.count || port->netcount) &&
 		     port->pending_bh && !port->bh_running &&
 		     !port->bh_requested ) {
-			if ( debug_level >= DEBUG_LEVEL_ISR )
+			if ( de_level >= DE_LEVEL_ISR )
 				printk("%s(%d):%s queueing bh task.\n",
 					__FILE__,__LINE__,port->device_name);
 			schedule_work(&port->task);
@@ -2608,8 +2608,8 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
 
 	spin_unlock(&info->lock);
 
-	if ( debug_level >= DEBUG_LEVEL_ISR )
-		printk(KERN_DEBUG "%s(%d):synclinkmp_interrupt(%d)exit.\n",
+	if ( de_level >= DE_LEVEL_ISR )
+		printk(KERN_DE "%s(%d):synclinkmp_interrupt(%d)exit.\n",
 			__FILE__, __LINE__, info->irq_level);
 	return IRQ_HANDLED;
 }
@@ -2618,7 +2618,7 @@ static irqreturn_t synclinkmp_interrupt(int dummy, void *dev_id)
  */
 static int startup(SLMP_INFO * info)
 {
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s(%d):%s tx_releaseup()\n",__FILE__,__LINE__,info->device_name);
 
 	if (tty_port_initialized(&info->port))
@@ -2661,7 +2661,7 @@ static void shutdown(SLMP_INFO * info)
 	if (!tty_port_initialized(&info->port))
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s synclinkmp_shutdown()\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -2737,7 +2737,7 @@ static void change_params(SLMP_INFO *info)
 	if (!info->port.tty)
 		return;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s change_params()\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -2826,7 +2826,7 @@ static int get_stats(SLMP_INFO * info, struct mgsl_icount __user *user_icount)
 {
 	int err;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s get_params()\n",
 			 __FILE__,__LINE__, info->device_name);
 
@@ -2846,7 +2846,7 @@ static int get_stats(SLMP_INFO * info, struct mgsl_icount __user *user_icount)
 static int get_params(SLMP_INFO * info, MGSL_PARAMS __user *user_params)
 {
 	int err;
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s get_params()\n",
 			 __FILE__,__LINE__, info->device_name);
 
@@ -2854,7 +2854,7 @@ static int get_params(SLMP_INFO * info, MGSL_PARAMS __user *user_params)
 	COPY_TO_USER(err,user_params, &info->params, sizeof(MGSL_PARAMS));
 	mutex_unlock(&info->port.mutex);
 	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
+		if ( de_level >= DE_LEVEL_INFO )
 			printk( "%s(%d):%s get_params() user buffer copy failed\n",
 				__FILE__,__LINE__,info->device_name);
 		return -EFAULT;
@@ -2869,12 +2869,12 @@ static int set_params(SLMP_INFO * info, MGSL_PARAMS __user *new_params)
 	MGSL_PARAMS tmp_params;
 	int err;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s set_params\n",
 			__FILE__,__LINE__,info->device_name );
 	COPY_FROM_USER(err,&tmp_params, new_params, sizeof(MGSL_PARAMS));
 	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
+		if ( de_level >= DE_LEVEL_INFO )
 			printk( "%s(%d):%s set_params() user buffer copy failed\n",
 				__FILE__,__LINE__,info->device_name);
 		return -EFAULT;
@@ -2895,13 +2895,13 @@ static int get_txidle(SLMP_INFO * info, int __user *idle_mode)
 {
 	int err;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s get_txidle()=%d\n",
 			 __FILE__,__LINE__, info->device_name, info->idle_mode);
 
 	COPY_TO_USER(err,idle_mode, &info->idle_mode, sizeof(int));
 	if (err) {
-		if ( debug_level >= DEBUG_LEVEL_INFO )
+		if ( de_level >= DE_LEVEL_INFO )
 			printk( "%s(%d):%s get_txidle() user buffer copy failed\n",
 				__FILE__,__LINE__,info->device_name);
 		return -EFAULT;
@@ -2914,7 +2914,7 @@ static int set_txidle(SLMP_INFO * info, int idle_mode)
 {
  	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s set_txidle(%d)\n",
 			__FILE__,__LINE__,info->device_name, idle_mode );
 
@@ -2929,7 +2929,7 @@ static int tx_enable(SLMP_INFO * info, int enable)
 {
  	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tx_enable(%d)\n",
 			__FILE__,__LINE__,info->device_name, enable);
 
@@ -2952,7 +2952,7 @@ static int tx_abort(SLMP_INFO * info)
 {
  	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tx_abort()\n",
 			__FILE__,__LINE__,info->device_name);
 
@@ -2976,7 +2976,7 @@ static int rx_enable(SLMP_INFO * info, int enable)
 {
  	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s rx_enable(%d)\n",
 			__FILE__,__LINE__,info->device_name,enable);
 
@@ -3010,7 +3010,7 @@ static int wait_mgsl_event(SLMP_INFO * info, int __user *mask_ptr)
 		return  -EFAULT;
 	}
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s wait_mgsl_event(%d)\n",
 			__FILE__,__LINE__,info->device_name,mask);
 
@@ -3187,7 +3187,7 @@ static int tiocmget(struct tty_struct *tty)
 		 ((info->serial_signals & SerialSignal_DSR) ? TIOCM_DSR : 0) |
 		 ((info->serial_signals & SerialSignal_CTS) ? TIOCM_CTS : 0);
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tiocmget() value=%08X\n",
 			 __FILE__,__LINE__, info->device_name, result );
 	return result;
@@ -3201,7 +3201,7 @@ static int tiocmset(struct tty_struct *tty,
 	SLMP_INFO *info = tty->driver_data;
  	unsigned long flags;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s tiocmset(%x,%x)\n",
 			__FILE__,__LINE__,info->device_name, set, clear);
 
@@ -3259,7 +3259,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	int		cd;
 	struct tty_port *port = &info->port;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s block_til_ready()\n",
 			 __FILE__,__LINE__, tty->driver->name );
 
@@ -3283,7 +3283,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	retval = 0;
 	add_wait_queue(&port->open_wait, &wait);
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s block_til_ready() before block, count=%d\n",
 			 __FILE__,__LINE__, tty->driver->name, port->count );
 
@@ -3313,7 +3313,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			break;
 		}
 
-		if (debug_level >= DEBUG_LEVEL_INFO)
+		if (de_level >= DE_LEVEL_INFO)
 			printk("%s(%d):%s block_til_ready() count=%d\n",
 				 __FILE__,__LINE__, tty->driver->name, port->count );
 
@@ -3328,7 +3328,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		port->count++;
 	port->blocked_open--;
 
-	if (debug_level >= DEBUG_LEVEL_INFO)
+	if (de_level >= DE_LEVEL_INFO)
 		printk("%s(%d):%s block_til_ready() after, count=%d\n",
 			 __FILE__,__LINE__, tty->driver->name, port->count );
 
@@ -3385,7 +3385,7 @@ static int alloc_dma_bufs(SLMP_INFO *info)
 	if (info->rx_buf_count > SCAMAXDESC)
 		info->rx_buf_count = SCAMAXDESC;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk("%s(%d):%s Allocating %d TX and %d RX DMA buffers.\n",
 			__FILE__,__LINE__, info->device_name,
 			info->tx_buf_count,info->rx_buf_count);
@@ -3612,7 +3612,7 @@ errout:
 
 static void release_resources(SLMP_INFO *info)
 {
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):%s release_resources() entry\n",
 			__FILE__,__LINE__,info->device_name );
 
@@ -3658,7 +3658,7 @@ static void release_resources(SLMP_INFO *info)
 		info->lcr_base = NULL;
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):%s release_resources() exit\n",
 			__FILE__,__LINE__,info->device_name );
 }
@@ -4100,7 +4100,7 @@ static void set_rate( SLMP_INFO *info, u32 data_rate )
  */
 static void rx_stop(SLMP_INFO *info)
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):%s rx_stop()\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -4123,7 +4123,7 @@ static void rx_start(SLMP_INFO *info)
 {
 	int i;
 
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):%s rx_start()\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -4178,7 +4178,7 @@ static void rx_start(SLMP_INFO *info)
  */
 static void tx_start(SLMP_INFO *info)
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):%s tx_start() tx_count=%d\n",
 			 __FILE__,__LINE__, info->device_name,info->tx_count );
 
@@ -4248,7 +4248,7 @@ static void tx_start(SLMP_INFO *info)
  */
 static void tx_stop( SLMP_INFO *info )
 {
-	if (debug_level >= DEBUG_LEVEL_ISR)
+	if (de_level >= DE_LEVEL_ISR)
 		printk("%s(%d):%s tx_stop()\n",
 			 __FILE__,__LINE__, info->device_name );
 
@@ -4927,11 +4927,11 @@ CheckAgain:
 #endif
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_BH )
+	if ( de_level >= DE_LEVEL_BH )
 		printk("%s(%d):%s rx_get_frame() status=%04X size=%d\n",
 			__FILE__,__LINE__,info->device_name,status,framesize);
 
-	if ( debug_level >= DEBUG_LEVEL_DATA )
+	if ( de_level >= DE_LEVEL_DATA )
 		trace_block(info,info->rx_buf_list_ex[StartIndex].virt_addr,
 			min_t(unsigned int, framesize, SCABUFSIZE), 0);
 
@@ -4997,7 +4997,7 @@ static void tx_load_dma_buffer(SLMP_INFO *info, const char *buf, unsigned int co
 	SCADESC *desc;
 	SCADESC_EX *desc_ex;
 
-	if ( debug_level >= DEBUG_LEVEL_DATA )
+	if ( de_level >= DE_LEVEL_DATA )
 		trace_block(info, buf, min_t(unsigned int, count, SCABUFSIZE), 1);
 
 	/* Copy source buffer to one or more DMA buffers, starting with
@@ -5288,7 +5288,7 @@ static bool loopback_test(SLMP_INFO *info)
 static int adapter_test( SLMP_INFO *info )
 {
 	unsigned long flags;
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):Testing device %s\n",
 			__FILE__,__LINE__,info->device_name );
 
@@ -5331,7 +5331,7 @@ static int adapter_test( SLMP_INFO *info )
 		return -ENODEV;
 	}
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):device %s passed diagnostics\n",
 			__FILE__,__LINE__,info->device_name );
 
@@ -5458,7 +5458,7 @@ static void tx_timeout(struct timer_list *t)
 	SLMP_INFO *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 
-	if ( debug_level >= DEBUG_LEVEL_INFO )
+	if ( de_level >= DE_LEVEL_INFO )
 		printk( "%s(%d):%s tx_timeout()\n",
 			__FILE__,__LINE__,info->device_name);
 	if(info->tx_active && info->params.mode == MGSL_MODE_HDLC) {

@@ -228,7 +228,7 @@ static void update_power_regs(struct snd_ac97 *ac97);
 
 static int snd_ac97_valid_reg(struct snd_ac97 *ac97, unsigned short reg)
 {
-	/* filter some registers for buggy codecs */
+	/* filter some registers for gy codecs */
 	switch (ac97->id) {
 	case AC97_ID_ST_AC97_ID4:
 		if (reg == 0x08)
@@ -289,7 +289,7 @@ void snd_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short va
 	if (!snd_ac97_valid_reg(ac97, reg))
 		return;
 	if ((ac97->id & 0xffffff00) == AC97_ID_ALC100) {
-		/* Fix H/W bug of ALC100/100P */
+		/* Fix H/W  of ALC100/100P */
 		if (reg == AC97_MASTER || reg == AC97_HEADPHONE)
 			ac97->bus->ops->write(ac97, AC97_RESET, 0);	/* reset audio codec */
 	}
@@ -1923,7 +1923,7 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 		.dev_free =	snd_ac97_bus_dev_free,
 	};
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -EINVAL;
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
@@ -2027,9 +2027,9 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 
 	if (rac97)
 		*rac97 = NULL;
-	if (snd_BUG_ON(!bus || !template))
+	if (snd__ON(!bus || !template))
 		return -EINVAL;
-	if (snd_BUG_ON(template->num >= 4))
+	if (snd__ON(template->num >= 4))
 		return -EINVAL;
 	if (bus->codec[template->num])
 		return -EBUSY;

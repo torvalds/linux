@@ -794,7 +794,7 @@ static irqreturn_t st95hf_irq_thread_handler(int irq, void  *st95hfcontext)
 	/*
 	 * check semaphore, if not down() already, then we don't
 	 * know in which context the ISR is called and surely it
-	 * will be a bug. Note that down() of the semaphore is done
+	 * will be a . Note that down() of the semaphore is done
 	 * in the corresponding st95hf_in_send_cmd() and then
 	 * only this ISR should be called. ISR will up() the
 	 * semaphore before leaving. Hence when the ISR is called
@@ -802,7 +802,7 @@ static irqreturn_t st95hf_irq_thread_handler(int irq, void  *st95hfcontext)
 	 * return 1 (indicating semaphore cant be taken and hence no
 	 * change in semaphore count).
 	 * If not, then we up() the semaphore and crash on
-	 * a BUG() !
+	 * a () !
 	 */
 	if (!down_trylock(&stcontext->exchange_lock)) {
 		up(&stcontext->exchange_lock);
@@ -976,7 +976,7 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 	/*
 	 * down the semaphore to indicate to remove func that an
 	 * ISR is pending, note that it will not block here in any case.
-	 * If found blocked, it is a BUG!
+	 * If found blocked, it is a !
 	 */
 	rc = down_killable(&stcontext->exchange_lock);
 	if (rc) {

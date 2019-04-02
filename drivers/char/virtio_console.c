@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/cdev.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -54,8 +54,8 @@ struct ports_driver_data {
 	/* Used for registering chardevs */
 	struct class *class;
 
-	/* Used for exporting per-port information to debugfs */
-	struct dentry *debugfs_dir;
+	/* Used for exporting per-port information to defs */
+	struct dentry *defs_dir;
 
 	/* List of all the devices we're handling */
 	struct list_head portdevs;
@@ -205,12 +205,12 @@ struct port {
 	/* The IO vqs for this port */
 	struct virtqueue *in_vq, *out_vq;
 
-	/* File in the debugfs directory that exposes this port's information */
-	struct dentry *debugfs_file;
+	/* File in the defs directory that exposes this port's information */
+	struct dentry *defs_file;
 
 	/*
 	 * Keep count of the bytes sent, received and discarded for
-	 * this port for accounting and debugging purposes.  These
+	 * this port for accounting and deging purposes.  These
 	 * counts are not reset across port open / close events.
 	 */
 	struct port_stats stats;
@@ -1172,7 +1172,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 		return -EPIPE;
 
 	/* If we don't have an input queue yet, we can't get input. */
-	BUG_ON(!port->in_vq);
+	_ON(!port->in_vq);
 
 	return fill_readbuf(port, (__force char __user *)buf, count, false);
 }
@@ -1309,7 +1309,7 @@ static const struct attribute_group port_attribute_group = {
 	.attrs = port_sysfs_entries,
 };
 
-static int port_debugfs_show(struct seq_file *s, void *data)
+static int port_defs_show(struct seq_file *s, void *data)
 {
 	struct port *port = s->private;
 
@@ -1327,7 +1327,7 @@ static int port_debugfs_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(port_debugfs);
+DEFINE_SHOW_ATTRIBUTE(port_defs);
 
 static void set_console_size(struct port *port, u16 rows, u16 cols)
 {
@@ -1372,7 +1372,7 @@ static void send_sigio_to_port(struct port *port)
 
 static int add_port(struct ports_device *portdev, u32 id)
 {
-	char debugfs_name[16];
+	char defs_name[16];
 	struct port *port;
 	dev_t devt;
 	unsigned int nr_added_bufs;
@@ -1469,17 +1469,17 @@ static int add_port(struct ports_device *portdev, u32 id)
 	 */
 	send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
 
-	if (pdrvdata.debugfs_dir) {
+	if (pdrvdata.defs_dir) {
 		/*
-		 * Finally, create the debugfs file that we can use to
+		 * Finally, create the defs file that we can use to
 		 * inspect a port's state at any time
 		 */
-		snprintf(debugfs_name, sizeof(debugfs_name), "vport%up%u",
+		snprintf(defs_name, sizeof(defs_name), "vport%up%u",
 			 port->portdev->vdev->index, id);
-		port->debugfs_file = debugfs_create_file(debugfs_name, 0444,
-							 pdrvdata.debugfs_dir,
+		port->defs_file = defs_create_file(defs_name, 0444,
+							 pdrvdata.defs_dir,
 							 port,
-							 &port_debugfs_fops);
+							 &port_defs_fops);
 	}
 	return 0;
 
@@ -1562,7 +1562,7 @@ static void unplug_port(struct port *port)
 	device_destroy(pdrvdata.class, port->dev->devt);
 	cdev_del(port->cdev);
 
-	debugfs_remove(port->debugfs_file);
+	defs_remove(port->defs_file);
 	kfree(port->name);
 
 	/*
@@ -2257,9 +2257,9 @@ static int __init init(void)
 		return err;
 	}
 
-	pdrvdata.debugfs_dir = debugfs_create_dir("virtio-ports", NULL);
-	if (!pdrvdata.debugfs_dir)
-		pr_warn("Error creating debugfs dir for virtio-ports\n");
+	pdrvdata.defs_dir = defs_create_dir("virtio-ports", NULL);
+	if (!pdrvdata.defs_dir)
+		pr_warn("Error creating defs dir for virtio-ports\n");
 	INIT_LIST_HEAD(&pdrvdata.consoles);
 	INIT_LIST_HEAD(&pdrvdata.portdevs);
 
@@ -2278,7 +2278,7 @@ static int __init init(void)
 unregister:
 	unregister_virtio_driver(&virtio_console);
 free:
-	debugfs_remove_recursive(pdrvdata.debugfs_dir);
+	defs_remove_recursive(pdrvdata.defs_dir);
 	class_destroy(pdrvdata.class);
 	return err;
 }
@@ -2291,7 +2291,7 @@ static void __exit fini(void)
 	unregister_virtio_driver(&virtio_rproc_serial);
 
 	class_destroy(pdrvdata.class);
-	debugfs_remove_recursive(pdrvdata.debugfs_dir);
+	defs_remove_recursive(pdrvdata.defs_dir);
 }
 module_init(init);
 module_exit(fini);

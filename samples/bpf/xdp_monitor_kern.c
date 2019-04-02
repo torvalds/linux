@@ -22,7 +22,7 @@ struct bpf_map_def SEC("maps") exception_cnt = {
 	.max_entries	= XDP_UNKNOWN + 1,
 };
 
-/* Tracepoint format: /sys/kernel/debug/tracing/events/xdp/xdp_redirect/format
+/* Tracepoint format: /sys/kernel/de/tracing/events/xdp/xdp_redirect/format
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_redirect_ctx {
@@ -92,7 +92,7 @@ int trace_xdp_redirect_map(struct xdp_redirect_ctx *ctx)
 	return xdp_redirect_collect_stat(ctx);
 }
 
-/* Tracepoint format: /sys/kernel/debug/tracing/events/xdp/xdp_exception/format
+/* Tracepoint format: /sys/kernel/de/tracing/events/xdp/xdp_exception/format
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_exception_ctx {
@@ -143,7 +143,7 @@ struct bpf_map_def SEC("maps") cpumap_kthread_cnt = {
 	.max_entries	= 1,
 };
 
-/* Tracepoint: /sys/kernel/debug/tracing/events/xdp/xdp_cpumap_enqueue/format
+/* Tracepoint: /sys/kernel/de/tracing/events/xdp/xdp_cpumap_enqueue/format
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_enqueue_ctx {
@@ -178,7 +178,7 @@ int trace_xdp_cpumap_enqueue(struct cpumap_enqueue_ctx *ctx)
 	return 0;
 }
 
-/* Tracepoint: /sys/kernel/debug/tracing/events/xdp/xdp_cpumap_kthread/format
+/* Tracepoint: /sys/kernel/de/tracing/events/xdp/xdp_cpumap_kthread/format
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_kthread_ctx {
@@ -217,7 +217,7 @@ struct bpf_map_def SEC("maps") devmap_xmit_cnt = {
 	.max_entries	= 1,
 };
 
-/* Tracepoint: /sys/kernel/debug/tracing/events/xdp/xdp_devmap_xmit/format
+/* Tracepoint: /sys/kernel/de/tracing/events/xdp/xdp_devmap_xmit/format
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct devmap_xmit_ctx {

@@ -32,8 +32,8 @@ static void __raw_writel(unsigned int value, unsigned int ptr)
 	*((volatile unsigned int *)ptr) = value;
 }
 
-#define PHYS_UART_DATA		(CONFIG_DEBUG_UART_PHYS + 0x00)
-#define PHYS_UART_FLAG		(CONFIG_DEBUG_UART_PHYS + 0x18)
+#define PHYS_UART_DATA		(CONFIG_DE_UART_PHYS + 0x00)
+#define PHYS_UART_FLAG		(CONFIG_DE_UART_PHYS + 0x18)
 #define UART_FLAG_TXFF		0x20
 
 static inline void putc(int c)

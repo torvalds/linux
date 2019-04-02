@@ -72,7 +72,7 @@ static int tftp_help(struct sk_buff *skb,
 				  &tuple->src.u3, &tuple->dst.u3,
 				  IPPROTO_UDP, NULL, &tuple->dst.u.udp.port);
 
-		pr_debug("expect: ");
+		pr_de("expect: ");
 		nf_ct_dump_tuple(&exp->tuple);
 
 		nf_nat_tftp = rcu_dereference(nf_nat_tftp_hook);
@@ -86,13 +86,13 @@ static int tftp_help(struct sk_buff *skb,
 		break;
 	case TFTP_OPCODE_DATA:
 	case TFTP_OPCODE_ACK:
-		pr_debug("Data/ACK opcode\n");
+		pr_de("Data/ACK opcode\n");
 		break;
 	case TFTP_OPCODE_ERROR:
-		pr_debug("Error opcode\n");
+		pr_de("Error opcode\n");
 		break;
 	default:
-		pr_debug("Unknown opcode\n");
+		pr_de("Unknown opcode\n");
 	}
 	return ret;
 }
@@ -113,7 +113,7 @@ static int __init nf_conntrack_tftp_init(void)
 {
 	int i, ret;
 
-	NF_CT_HELPER_BUILD_BUG_ON(0);
+	NF_CT_HELPER_BUILD__ON(0);
 
 	if (ports_c == 0)
 		ports[ports_c++] = TFTP_PORT;

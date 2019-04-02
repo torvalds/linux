@@ -83,7 +83,7 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 	if (length == sizeof(rep->v0) && rep->v0.version == 0) {
 		if (WARN_ON(!(ntfy = (void *)(unsigned long)rep->v0.token)))
 			return NVIF_NOTIFY_DROP;
-		BUG_ON(rep->v0.route != NVDRM_NOTIFY_USIF);
+		_ON(rep->v0.route != NVDRM_NOTIFY_USIF);
 	} else
 	if (WARN_ON(1))
 		return NVIF_NOTIFY_DROP;
@@ -103,7 +103,7 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 	}
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

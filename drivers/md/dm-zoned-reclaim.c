@@ -189,7 +189,7 @@ static int dmz_reclaim_buf(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	struct dmz_metadata *zmd = zrc->metadata;
 	int ret;
 
-	dmz_dev_debug(zrc->dev,
+	dmz_dev_de(zrc->dev,
 		      "Chunk %u, move buf zone %u (weight %u) to data zone %u (weight %u)",
 		      dzone->chunk, dmz_id(zmd, bzone), dmz_weight(bzone),
 		      dmz_id(zmd, dzone), dmz_weight(dzone));
@@ -228,7 +228,7 @@ static int dmz_reclaim_seq_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	struct dmz_metadata *zmd = zrc->metadata;
 	int ret = 0;
 
-	dmz_dev_debug(zrc->dev,
+	dmz_dev_de(zrc->dev,
 		      "Chunk %u, move data zone %u (weight %u) to buf zone %u (weight %u)",
 		      chunk, dmz_id(zmd, dzone), dmz_weight(dzone),
 		      dmz_id(zmd, bzone), dmz_weight(bzone));
@@ -280,7 +280,7 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	if (!szone)
 		return -ENOSPC;
 
-	dmz_dev_debug(zrc->dev,
+	dmz_dev_de(zrc->dev,
 		      "Chunk %u, move rnd zone %u (weight %u) to seq zone %u",
 		      chunk, dmz_id(zmd, dzone), dmz_weight(dzone),
 		      dmz_id(zmd, szone));
@@ -396,7 +396,7 @@ out:
 
 	(void) dmz_flush_metadata(zrc->metadata);
 
-	dmz_dev_debug(zrc->dev, "Reclaimed zone %u in %u ms",
+	dmz_dev_de(zrc->dev, "Reclaimed zone %u in %u ms",
 		      dmz_id(zmd, rzone), jiffies_to_msecs(jiffies - start));
 }
 
@@ -465,7 +465,7 @@ static void dmz_reclaim_work(struct work_struct *work)
 		zrc->kc_throttle.throttle = min(75U, 100U - p_unmap_rnd / 2);
 	}
 
-	dmz_dev_debug(zrc->dev,
+	dmz_dev_de(zrc->dev,
 		      "Reclaim (%u): %s, %u%% free rnd zones (%u/%u)",
 		      zrc->kc_throttle.throttle,
 		      (dmz_target_idle(zrc) ? "Idle" : "Busy"),

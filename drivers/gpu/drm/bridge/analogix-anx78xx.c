@@ -416,7 +416,7 @@ static int anx78xx_xtal_clk_sel(struct anx78xx *anx78xx)
 	int err;
 
 	err = regmap_update_bits(anx78xx->map[I2C_IDX_TX_P2],
-				 SP_ANALOG_DEBUG2_REG,
+				 SP_ANALOG_DE2_REG,
 				 SP_XTAL_FRQ | SP_FORCE_SW_OFF_BYPASS,
 				 SP_XTAL_FRQ_27M);
 	if (err)
@@ -523,12 +523,12 @@ static int anx78xx_tx_initialization(struct anx78xx *anx78xx)
 		return err;
 
 	err = anx78xx_set_bits(anx78xx->map[I2C_IDX_TX_P0],
-			       SP_DP_LINK_DEBUG_CTRL_REG, SP_M_VID_DEBUG);
+			       SP_DP_LINK_DE_CTRL_REG, SP_M_VID_DE);
 	if (err)
 		return err;
 
 	err = anx78xx_set_bits(anx78xx->map[I2C_IDX_TX_P2],
-			       SP_ANALOG_DEBUG2_REG, SP_POWERON_TIME_1P5MS);
+			       SP_ANALOG_DE2_REG, SP_POWERON_TIME_1P5MS);
 	if (err)
 		return err;
 
@@ -772,7 +772,7 @@ static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 		break;
 
 	default:
-		DRM_DEBUG_KMS("DP bandwidth (%#02x) not supported\n", dp_bw);
+		DRM_DE_KMS("DP bandwidth (%#02x) not supported\n", dp_bw);
 		return -EINVAL;
 	}
 
@@ -821,7 +821,7 @@ static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 		return err;
 
 	if (anx78xx->dpcd[DP_MAX_DOWNSPREAD] & DP_MAX_DOWNSPREAD_0_5) {
-		DRM_DEBUG("Enable downspread on the sink\n");
+		DRM_DE("Enable downspread on the sink\n");
 		/* 4000PPM */
 		err = regmap_write(anx78xx->map[I2C_IDX_TX_P0],
 				   SP_DP_DOWNSPREAD_CTRL1_REG, 8);
@@ -1160,7 +1160,7 @@ static int anx78xx_handle_dp_int_1(struct anx78xx *anx78xx, u8 irq)
 {
 	int err;
 
-	DRM_DEBUG_KMS("Handle DP interrupt 1: %02x\n", irq);
+	DRM_DE_KMS("Handle DP interrupt 1: %02x\n", irq);
 
 	err = regmap_write(anx78xx->map[I2C_IDX_TX_P2], SP_DP_INT_STATUS1_REG,
 			   irq);
@@ -1168,7 +1168,7 @@ static int anx78xx_handle_dp_int_1(struct anx78xx *anx78xx, u8 irq)
 		return err;
 
 	if (irq & SP_TRAINING_FINISH) {
-		DRM_DEBUG_KMS("IRQ: hardware link training finished\n");
+		DRM_DE_KMS("IRQ: hardware link training finished\n");
 		err = anx78xx_config_dp_output(anx78xx);
 	}
 
@@ -1180,7 +1180,7 @@ static bool anx78xx_handle_common_int_4(struct anx78xx *anx78xx, u8 irq)
 	bool event = false;
 	int err;
 
-	DRM_DEBUG_KMS("Handle common interrupt 4: %02x\n", irq);
+	DRM_DE_KMS("Handle common interrupt 4: %02x\n", irq);
 
 	err = regmap_write(anx78xx->map[I2C_IDX_TX_P2],
 			   SP_COMMON_INT_STATUS4_REG, irq);
@@ -1190,14 +1190,14 @@ static bool anx78xx_handle_common_int_4(struct anx78xx *anx78xx, u8 irq)
 	}
 
 	if (irq & SP_HPD_LOST) {
-		DRM_DEBUG_KMS("IRQ: Hot plug detect - cable is pulled out\n");
+		DRM_DE_KMS("IRQ: Hot plug detect - cable is pulled out\n");
 		event = true;
 		anx78xx_poweroff(anx78xx);
 		/* Free cached EDID */
 		kfree(anx78xx->edid);
 		anx78xx->edid = NULL;
 	} else if (irq & SP_HPD_PLUG) {
-		DRM_DEBUG_KMS("IRQ: Hot plug detect - cable plug\n");
+		DRM_DE_KMS("IRQ: Hot plug detect - cable plug\n");
 		event = true;
 	}
 
@@ -1209,7 +1209,7 @@ static void anx78xx_handle_hdmi_int_1(struct anx78xx *anx78xx, u8 irq)
 	unsigned int value;
 	int err;
 
-	DRM_DEBUG_KMS("Handle HDMI interrupt 1: %02x\n", irq);
+	DRM_DE_KMS("Handle HDMI interrupt 1: %02x\n", irq);
 
 	err = regmap_write(anx78xx->map[I2C_IDX_RX_P0], SP_INT_STATUS1_REG,
 			   irq);
@@ -1219,7 +1219,7 @@ static void anx78xx_handle_hdmi_int_1(struct anx78xx *anx78xx, u8 irq)
 	}
 
 	if ((irq & SP_CKDT_CHG) || (irq & SP_SCDT_CHG)) {
-		DRM_DEBUG_KMS("IRQ: HDMI input detected\n");
+		DRM_DE_KMS("IRQ: HDMI input detected\n");
 
 		err = regmap_read(anx78xx->map[I2C_IDX_RX_P0],
 				  SP_SYSTEM_STATUS_REG, &value);
@@ -1229,12 +1229,12 @@ static void anx78xx_handle_hdmi_int_1(struct anx78xx *anx78xx, u8 irq)
 		}
 
 		if (!(value & SP_TMDS_CLOCK_DET)) {
-			DRM_DEBUG_KMS("IRQ: *** Waiting for HDMI clock ***\n");
+			DRM_DE_KMS("IRQ: *** Waiting for HDMI clock ***\n");
 			return;
 		}
 
 		if (!(value & SP_TMDS_DE_DET)) {
-			DRM_DEBUG_KMS("IRQ: *** Waiting for HDMI signal ***\n");
+			DRM_DE_KMS("IRQ: *** Waiting for HDMI signal ***\n");
 			return;
 		}
 

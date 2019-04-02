@@ -192,7 +192,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 {
 	u32 cxt_size;
 
-	BUILD_BUG_ON(I915_GTT_PAGE_SIZE != PAGE_SIZE);
+	BUILD__ON(I915_GTT_PAGE_SIZE != PAGE_SIZE);
 
 	switch (class) {
 	case RENDER_CLASS:
@@ -249,8 +249,8 @@ static u32 __engine_mmio_base(struct drm_i915_private *i915,
 		if (INTEL_GEN(i915) >= bases[i].gen)
 			break;
 
-	GEM_BUG_ON(i == MAX_MMIO_BASES);
-	GEM_BUG_ON(!bases[i].base);
+	GEM__ON(i == MAX_MMIO_BASES);
+	GEM__ON(!bases[i].base);
 
 	return bases[i].base;
 }
@@ -294,21 +294,21 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	const struct engine_info *info = &intel_engines[id];
 	struct intel_engine_cs *engine;
 
-	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
+	GEM__ON(info->class >= ARRAY_SIZE(intel_engine_classes));
 
-	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
-	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
+	BUILD__ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
+	BUILD__ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
 
-	if (GEM_DEBUG_WARN_ON(info->class > MAX_ENGINE_CLASS))
+	if (GEM_DE_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 
-	if (GEM_DEBUG_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
+	if (GEM_DE_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
 		return -EINVAL;
 
-	if (GEM_DEBUG_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+	if (GEM_DE_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
-	GEM_BUG_ON(dev_priv->engine[id]);
+	GEM__ON(dev_priv->engine[id]);
 	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
 	if (!engine)
 		return -ENOMEM;
@@ -431,14 +431,14 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 		err = -EINVAL;
 		err_id = id;
 
-		if (GEM_DEBUG_WARN_ON(!init))
+		if (GEM_DE_WARN_ON(!init))
 			goto cleanup;
 
 		err = init(engine);
 		if (err)
 			goto cleanup;
 
-		GEM_BUG_ON(!engine->submit_request);
+		GEM__ON(!engine->submit_request);
 	}
 
 	return 0;
@@ -458,7 +458,7 @@ cleanup:
 void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	GEM_BUG_ON(intel_engine_get_seqno(engine) != seqno);
+	GEM__ON(intel_engine_get_seqno(engine) != seqno);
 }
 
 static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
@@ -471,8 +471,8 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
 	execlists->port_mask = 1;
-	GEM_BUG_ON(!is_power_of_2(execlists_num_ports(execlists)));
-	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
+	GEM__ON(!is_power_of_2(execlists_num_ports(execlists)));
+	GEM__ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
 	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
@@ -632,7 +632,7 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	struct measure_breadcrumb *frame;
 	int dw = -ENOMEM;
 
-	GEM_BUG_ON(!engine->i915->gt.scratch);
+	GEM__ON(!engine->i915->gt.scratch);
 
 	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
 	if (!frame)
@@ -1158,7 +1158,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 		 * are truly idle.
 		 */
 		if (wait_for(intel_engine_is_idle(engine), 10)) {
-			struct drm_printer p = drm_debug_printer(__func__);
+			struct drm_printer p = drm_de_printer(__func__);
 
 			dev_err(i915->drm.dev,
 				"%s is not idle before parking\n",
@@ -1167,7 +1167,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 		}
 
 		/* Must be reset upon idling, or we may miss the busy wakeup. */
-		GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
+		GEM__ON(engine->execlists.queue_priority_hint != INT_MIN);
 
 		if (engine->park)
 			engine->park(engine);
@@ -1576,7 +1576,7 @@ intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
 
 	class = user_class_map[class];
 
-	GEM_BUG_ON(class > MAX_ENGINE_CLASS);
+	GEM__ON(class > MAX_ENGINE_CLASS);
 
 	if (instance > MAX_ENGINE_INSTANCE)
 		return NULL;

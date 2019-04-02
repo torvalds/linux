@@ -35,10 +35,10 @@
 #define RECALC_WRITE_SUPER		16
 
 /*
- * Warning - DEBUG_PRINT prints security-sensitive data to the log,
+ * Warning - DE_PRINT prints security-sensitive data to the log,
  * so it should not be enabled in the official kernel
  */
-//#define DEBUG_PRINT
+//#define DE_PRINT
 //#define INTERNAL_VERIFY
 
 /*
@@ -296,9 +296,9 @@ static struct kmem_cache *journal_io_cache;
 
 #define JOURNAL_IO_MEMPOOL	32
 
-#ifdef DEBUG_PRINT
-#define DEBUG_print(x, ...)	printk(KERN_DEBUG x, ##__VA_ARGS__)
-static void __DEBUG_bytes(__u8 *bytes, size_t len, const char *msg, ...)
+#ifdef DE_PRINT
+#define DE_print(x, ...)	printk(KERN_DE x, ##__VA_ARGS__)
+static void __DE_bytes(__u8 *bytes, size_t len, const char *msg, ...)
 {
 	va_list args;
 	va_start(args, msg);
@@ -313,10 +313,10 @@ static void __DEBUG_bytes(__u8 *bytes, size_t len, const char *msg, ...)
 	}
 	pr_cont("\n");
 }
-#define DEBUG_bytes(bytes, len, msg, ...)	__DEBUG_bytes(bytes, len, KERN_DEBUG msg, ##__VA_ARGS__)
+#define DE_bytes(bytes, len, msg, ...)	__DE_bytes(bytes, len, KERN_DE msg, ##__VA_ARGS__)
 #else
-#define DEBUG_print(x, ...)			do { } while (0)
-#define DEBUG_bytes(bytes, len, msg, ...)	do { } while (0)
+#define DE_print(x, ...)			do { } while (0)
+#define DE_bytes(bytes, len, msg, ...)	do { } while (0)
 #endif
 
 /*
@@ -370,7 +370,7 @@ static void get_area_and_offset(struct dm_integrity_c *ic, sector_t data_sector,
 
 #define sector_to_block(ic, n)						\
 do {									\
-	BUG_ON((n) & (unsigned)((ic)->sectors_per_block - 1));		\
+	_ON((n) & (unsigned)((ic)->sectors_per_block - 1));		\
 	(n) >>= (ic)->sb->log2_sectors_per_block;			\
 } while (0)
 
@@ -454,14 +454,14 @@ static int sync_rw_sb(struct dm_integrity_c *ic, int op, int op_flags)
 static void access_journal_check(struct dm_integrity_c *ic, unsigned section, unsigned offset,
 				 bool e, const char *function)
 {
-#if defined(CONFIG_DM_DEBUG) || defined(INTERNAL_VERIFY)
+#if defined(CONFIG_DM_DE) || defined(INTERNAL_VERIFY)
 	unsigned limit = e ? ic->journal_section_entries : ic->journal_section_sectors;
 
 	if (unlikely(section >= ic->journal_sections) ||
 	    unlikely(offset >= limit)) {
 		printk(KERN_CRIT "%s: invalid access at (%u,%u), limit (%u,%u)\n",
 			function, section, offset, ic->journal_sections, limit);
-		BUG();
+		();
 	}
 #endif
 }
@@ -603,7 +603,7 @@ static void rw_section_mac(struct dm_integrity_c *ic, unsigned section, bool wr)
 static void complete_journal_op(void *context)
 {
 	struct journal_completion *comp = context;
-	BUG_ON(!atomic_read(&comp->in_flight));
+	_ON(!atomic_read(&comp->in_flight));
 	if (likely(atomic_dec_and_test(&comp->in_flight)))
 		complete(&comp->comp);
 }
@@ -660,7 +660,7 @@ static void xor_journal(struct dm_integrity_c *ic, bool encrypt, unsigned sectio
 		n_bytes -= this_step;
 	} while (n_bytes);
 
-	BUG_ON(n_sections);
+	_ON(n_sections);
 
 	async_tx_issue_pending_all();
 }
@@ -879,7 +879,7 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 	int r;
 	unsigned sector, pl_index, pl_offset;
 
-	BUG_ON((target | n_sectors | offset) & (unsigned)(ic->sectors_per_block - 1));
+	_ON((target | n_sectors | offset) & (unsigned)(ic->sectors_per_block - 1));
 
 	if (unlikely(dm_integrity_failed(ic))) {
 		fn(-1UL, data);
@@ -921,7 +921,7 @@ static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *
 	struct rb_node **n = &ic->in_progress.rb_node;
 	struct rb_node *parent;
 
-	BUG_ON((new_range->logical_sector | new_range->n_sectors) & (unsigned)(ic->sectors_per_block - 1));
+	_ON((new_range->logical_sector | new_range->n_sectors) & (unsigned)(ic->sectors_per_block - 1));
 
 	if (likely(check_waiting)) {
 		struct dm_integrity_range *range;
@@ -1007,7 +1007,7 @@ static void add_journal_node(struct dm_integrity_c *ic, struct journal_node *nod
 	struct rb_node *parent;
 
 	node->sector = sector;
-	BUG_ON(!RB_EMPTY_NODE(&node->node));
+	_ON(!RB_EMPTY_NODE(&node->node));
 
 	link = &ic->journal_tree_root.rb_node;
 	parent = NULL;
@@ -1028,7 +1028,7 @@ static void add_journal_node(struct dm_integrity_c *ic, struct journal_node *nod
 
 static void remove_journal_node(struct dm_integrity_c *ic, struct journal_node *node)
 {
-	BUG_ON(RB_EMPTY_NODE(&node->node));
+	_ON(RB_EMPTY_NODE(&node->node));
 	rb_erase(&node->node, &ic->journal_tree_root);
 	init_journal_node(node);
 }
@@ -1083,7 +1083,7 @@ static bool find_newer_committed_node(struct dm_integrity_c *ic, struct journal_
 	struct journal_node *next_node;
 	unsigned next_section;
 
-	BUG_ON(RB_EMPTY_NODE(&node->node));
+	_ON(RB_EMPTY_NODE(&node->node));
 
 	next = rb_next(&node->node);
 	if (unlikely(!next))
@@ -1404,7 +1404,7 @@ again:
 				unsigned char *tag;
 				unsigned this_len;
 
-				BUG_ON(PageHighMem(biv.bv_page));
+				_ON(PageHighMem(biv.bv_page));
 				tag = lowmem_page_address(biv.bv_page) + biv.bv_offset;
 				this_len = min(biv.bv_len, data_to_process);
 				r = dm_integrity_rw_tag(ic, tag, &dio->metadata_block, &dio->metadata_offset,
@@ -1545,7 +1545,7 @@ retry_kmap:
 					goto retry_kmap;
 				}
 				smp_rmb();
-				BUG_ON(journal_entry_get_sector(je) != logical_sector);
+				_ON(journal_entry_get_sector(je) != logical_sector);
 				js = access_journal_data(ic, journal_section, journal_entry);
 				mem_ptr = mem + bv.bv_offset;
 				s = 0;
@@ -1577,7 +1577,7 @@ retry_kmap:
 					struct bio_vec biv = bvec_iter_bvec(bip->bip_vec, bip->bip_iter);
 					unsigned tag_now = min(biv.bv_len, tag_todo);
 					char *tag_addr;
-					BUG_ON(PageHighMem(biv.bv_page));
+					_ON(PageHighMem(biv.bv_page));
 					tag_addr = lowmem_page_address(biv.bv_page) + biv.bv_offset;
 					if (likely(dio->write))
 						memcpy(tag_ptr, tag_addr, tag_now);
@@ -1720,7 +1720,7 @@ retry:
 					pos = 0;
 
 				je = access_journal_entry(ic, ws, we);
-				BUG_ON(!journal_entry_is_unused(je));
+				_ON(!journal_entry_is_unused(je));
 				journal_entry_set_inprogress(je);
 				we++;
 				if (unlikely(we == ic->journal_section_entries)) {
@@ -1959,7 +1959,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 
 			if (journal_entry_is_unused(je))
 				continue;
-			BUG_ON(unlikely(journal_entry_is_inprogress(je)) && !from_replay);
+			_ON(unlikely(journal_entry_is_inprogress(je)) && !from_replay);
 			sec = journal_entry_get_sector(je);
 			if (unlikely(from_replay)) {
 				if (unlikely(sec & (unsigned)(ic->sectors_per_block - 1))) {
@@ -1974,7 +1974,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 				sector_t sec2, area2, offset2;
 				if (journal_entry_is_unused(je2))
 					break;
-				BUG_ON(unlikely(journal_entry_is_inprogress(je2)) && !from_replay);
+				_ON(unlikely(journal_entry_is_inprogress(je2)) && !from_replay);
 				sec2 = journal_entry_get_sector(je2);
 				get_area_and_offset(ic, sec2, &area2, &offset2);
 				if (area2 != area || offset2 != offset + ((k - j) << ic->sb->log2_sectors_per_block))
@@ -2263,10 +2263,10 @@ static void replay_journal(struct dm_integrity_c *ic)
 	write_start = 0;
 
 	if (!ic->just_formatted) {
-		DEBUG_print("reading journal\n");
+		DE_print("reading journal\n");
 		rw_journal(ic, REQ_OP_READ, 0, 0, ic->journal_sections, NULL);
 		if (ic->journal_io)
-			DEBUG_bytes(lowmem_page_address(ic->journal_io[0].page), 64, "read journal");
+			DE_bytes(lowmem_page_address(ic->journal_io[0].page), 64, "read journal");
 		if (ic->journal_io) {
 			struct journal_completion crypt_comp;
 			crypt_comp.ic = ic;
@@ -2275,7 +2275,7 @@ static void replay_journal(struct dm_integrity_c *ic)
 			encrypt_journal(ic, false, 0, ic->journal_sections, &crypt_comp);
 			wait_for_completion(&crypt_comp.comp);
 		}
-		DEBUG_bytes(lowmem_page_address(ic->journal[0].page), 64, "decrypted journal");
+		DE_bytes(lowmem_page_address(ic->journal[0].page), 64, "decrypted journal");
 	}
 
 	if (dm_integrity_failed(ic))
@@ -2318,7 +2318,7 @@ static void replay_journal(struct dm_integrity_c *ic)
 			goto clear_journal;
 		}
 	}
-	DEBUG_print("first unused commit seq %d [%d,%d,%d,%d]\n",
+	DE_print("first unused commit seq %d [%d,%d,%d,%d]\n",
 		    unused, used_commit_ids[0], used_commit_ids[1],
 		    used_commit_ids[2], used_commit_ids[3]);
 
@@ -2344,7 +2344,7 @@ static void replay_journal(struct dm_integrity_c *ic)
 				 * We won't replay the inconsistent part of the
 				 * journal.
 				 */
-				DEBUG_print("commit id mismatch at position (%u, %u): %d != %d\n",
+				DE_print("commit id mismatch at position (%u, %u): %d != %d\n",
 					    i, j, find_commit_seq(ic, i, j, js->commit_id), want_commit_seq);
 				goto brk;
 			}
@@ -2357,7 +2357,7 @@ static void replay_journal(struct dm_integrity_c *ic)
 brk:
 
 	if (!journal_empty) {
-		DEBUG_print("replaying %u sections, starting at %u, commit seq %d\n",
+		DE_print("replaying %u sections, starting at %u, commit seq %d\n",
 			    write_sections, write_start, want_commit_seq);
 		do_journal_write(ic, write_start, write_sections, true);
 	}
@@ -2365,12 +2365,12 @@ brk:
 	if (write_sections == ic->journal_sections && (ic->mode == 'J' || journal_empty)) {
 		continue_section = write_start;
 		ic->commit_seq = want_commit_seq;
-		DEBUG_print("continuing from section %u, commit seq %d\n", write_start, ic->commit_seq);
+		DE_print("continuing from section %u, commit seq %d\n", write_start, ic->commit_seq);
 	} else {
 		unsigned s;
 		unsigned char erase_seq;
 clear_journal:
-		DEBUG_print("clearing journal\n");
+		DE_print("clearing journal\n");
 
 		erase_seq = prev_commit_seq(prev_commit_seq(last_used));
 		s = write_start;
@@ -2426,7 +2426,7 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 
 	WRITE_ONCE(ic->suspending, 0);
 
-	BUG_ON(!RB_EMPTY_ROOT(&ic->in_progress));
+	_ON(!RB_EMPTY_ROOT(&ic->in_progress));
 
 	ic->journal_uptodate = true;
 }
@@ -2879,7 +2879,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				goto bad;
 			}
 		}
-		DEBUG_print("cipher %s, block size %u iv size %u\n",
+		DE_print("cipher %s, block size %u iv size %u\n",
 			    ic->journal_crypt_alg.alg_string, blocksize, ivsize);
 
 		ic->journal_io = dm_integrity_alloc_page_list(ic);
@@ -2941,7 +2941,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				*error = "Unable to encrypt journal";
 				goto bad;
 			}
-			DEBUG_bytes(lowmem_page_address(ic->journal_xor[0].page), 64, "xor data");
+			DE_bytes(lowmem_page_address(ic->journal_xor[0].page), 64, "xor data");
 
 			crypto_free_skcipher(ic->journal_crypt);
 			ic->journal_crypt = NULL;
@@ -3028,7 +3028,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 				memcpy(section_req->iv + ivsize, crypt_data, ivsize);
 				section_req->cryptlen = (size_t)ic->journal_section_sectors << SECTOR_SHIFT;
 				ic->sk_requests[i] = section_req;
-				DEBUG_bytes(crypt_data, ivsize, "iv(%u)", i);
+				DE_bytes(crypt_data, ivsize, "iv(%u)", i);
 			}
 		}
 	}
@@ -3042,7 +3042,7 @@ retest_commit_id:
 				goto retest_commit_id;
 			}
 		}
-		DEBUG_print("commit id %u: %016llx\n", i, ic->commit_ids[i]);
+		DE_print("commit id %u: %016llx\n", i, ic->commit_ids[i]);
 	}
 
 	journal_tree_size = (__u64)ic->journal_entries * sizeof(struct journal_node);
@@ -3432,22 +3432,22 @@ try_smaller_buffer:
 	do_div(threshold, 100);
 	ic->free_sectors_threshold = threshold;
 
-	DEBUG_print("initialized:\n");
-	DEBUG_print("	integrity_tag_size %u\n", le16_to_cpu(ic->sb->integrity_tag_size));
-	DEBUG_print("	journal_entry_size %u\n", ic->journal_entry_size);
-	DEBUG_print("	journal_entries_per_sector %u\n", ic->journal_entries_per_sector);
-	DEBUG_print("	journal_section_entries %u\n", ic->journal_section_entries);
-	DEBUG_print("	journal_section_sectors %u\n", ic->journal_section_sectors);
-	DEBUG_print("	journal_sections %u\n", (unsigned)le32_to_cpu(ic->sb->journal_sections));
-	DEBUG_print("	journal_entries %u\n", ic->journal_entries);
-	DEBUG_print("	log2_interleave_sectors %d\n", ic->sb->log2_interleave_sectors);
-	DEBUG_print("	device_sectors 0x%llx\n", (unsigned long long)ic->device_sectors);
-	DEBUG_print("	initial_sectors 0x%x\n", ic->initial_sectors);
-	DEBUG_print("	metadata_run 0x%x\n", ic->metadata_run);
-	DEBUG_print("	log2_metadata_run %d\n", ic->log2_metadata_run);
-	DEBUG_print("	provided_data_sectors 0x%llx (%llu)\n", (unsigned long long)ic->provided_data_sectors,
+	DE_print("initialized:\n");
+	DE_print("	integrity_tag_size %u\n", le16_to_cpu(ic->sb->integrity_tag_size));
+	DE_print("	journal_entry_size %u\n", ic->journal_entry_size);
+	DE_print("	journal_entries_per_sector %u\n", ic->journal_entries_per_sector);
+	DE_print("	journal_section_entries %u\n", ic->journal_section_entries);
+	DE_print("	journal_section_sectors %u\n", ic->journal_section_sectors);
+	DE_print("	journal_sections %u\n", (unsigned)le32_to_cpu(ic->sb->journal_sections));
+	DE_print("	journal_entries %u\n", ic->journal_entries);
+	DE_print("	log2_interleave_sectors %d\n", ic->sb->log2_interleave_sectors);
+	DE_print("	device_sectors 0x%llx\n", (unsigned long long)ic->device_sectors);
+	DE_print("	initial_sectors 0x%x\n", ic->initial_sectors);
+	DE_print("	metadata_run 0x%x\n", ic->metadata_run);
+	DE_print("	log2_metadata_run %d\n", ic->log2_metadata_run);
+	DE_print("	provided_data_sectors 0x%llx (%llu)\n", (unsigned long long)ic->provided_data_sectors,
 		    (unsigned long long)ic->provided_data_sectors);
-	DEBUG_print("	log2_buffer_sectors %u\n", ic->log2_buffer_sectors);
+	DE_print("	log2_buffer_sectors %u\n", ic->log2_buffer_sectors);
 
 	if (recalculate && !(ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING))) {
 		ic->sb->flags |= cpu_to_le32(SB_FLAG_RECALCULATING);
@@ -3537,8 +3537,8 @@ static void dm_integrity_dtr(struct dm_target *ti)
 {
 	struct dm_integrity_c *ic = ti->private;
 
-	BUG_ON(!RB_EMPTY_ROOT(&ic->in_progress));
-	BUG_ON(!list_empty(&ic->wait_list));
+	_ON(!RB_EMPTY_ROOT(&ic->in_progress));
+	_ON(!list_empty(&ic->wait_list));
 
 	if (ic->metadata_wq)
 		destroy_workqueue(ic->metadata_wq);

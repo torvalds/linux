@@ -303,7 +303,7 @@ struct stmmac_ops {
 	void (*reset_eee_mode)(struct mac_device_info *hw);
 	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);
-	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+	void (*de)(void __iomem *ioaddr, struct stmmac_extra_stats *x,
 		      u32 rx_queues, u32 tx_queues);
 	/* PCS calls */
 	void (*pcs_ctrl_ane)(void __iomem *ioaddr, bool ane, bool srgmi_ral,
@@ -374,8 +374,8 @@ struct stmmac_ops {
 	stmmac_do_void_callback(__priv, mac, set_eee_timer, __args)
 #define stmmac_set_eee_pls(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, set_eee_pls, __args)
-#define stmmac_mac_debug(__priv, __args...) \
-	stmmac_do_void_callback(__priv, mac, debug, __args)
+#define stmmac_mac_de(__priv, __args...) \
+	stmmac_do_void_callback(__priv, mac, de, __args)
 #define stmmac_pcs_ctrl_ane(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, pcs_ctrl_ane, __args)
 #define stmmac_pcs_rane(__priv, __args...) \

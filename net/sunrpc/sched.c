@@ -25,7 +25,7 @@
 
 #include "sunrpc.h"
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 #define RPCDBG_FACILITY		RPCDBG_SCHED
 #endif
 
@@ -269,22 +269,22 @@ static int rpc_wait_bit_killable(struct wait_bit_key *key, int mode)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG) || IS_ENABLED(CONFIG_TRACEPOINTS)
-static void rpc_task_set_debuginfo(struct rpc_task *task)
+#if IS_ENABLED(CONFIG_SUNRPC_DE) || IS_ENABLED(CONFIG_TRACEPOINTS)
+static void rpc_task_set_deinfo(struct rpc_task *task)
 {
 	static atomic_t rpc_pid;
 
 	task->tk_pid = atomic_inc_return(&rpc_pid);
 }
 #else
-static inline void rpc_task_set_debuginfo(struct rpc_task *task)
+static inline void rpc_task_set_deinfo(struct rpc_task *task)
 {
 }
 #endif
 
 static void rpc_set_active(struct rpc_task *task)
 {
-	rpc_task_set_debuginfo(task);
+	rpc_task_set_deinfo(task);
 	set_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
 	trace_rpc_task_begin(task, NULL);
 }

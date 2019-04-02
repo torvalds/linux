@@ -185,17 +185,17 @@ do { \
  * structures.  However, rcu_head structures allocated dynamically in the
  * heap don't need any initialization.
  */
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+#ifdef CONFIG_DE_OBJECTS_RCU_HEAD
 void init_rcu_head(struct rcu_head *head);
 void destroy_rcu_head(struct rcu_head *head);
 void init_rcu_head_on_stack(struct rcu_head *head);
 void destroy_rcu_head_on_stack(struct rcu_head *head);
-#else /* !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+#else /* !CONFIG_DE_OBJECTS_RCU_HEAD */
 static inline void init_rcu_head(struct rcu_head *head) { }
 static inline void destroy_rcu_head(struct rcu_head *head) { }
 static inline void init_rcu_head_on_stack(struct rcu_head *head) { }
 static inline void destroy_rcu_head_on_stack(struct rcu_head *head) { }
-#endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+#endif	/* #else !CONFIG_DE_OBJECTS_RCU_HEAD */
 
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU)
 bool rcu_lockdep_current_cpu_online(void);
@@ -203,7 +203,7 @@ bool rcu_lockdep_current_cpu_online(void);
 static inline bool rcu_lockdep_current_cpu_online(void) { return true; }
 #endif /* #else #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PROVE_RCU) */
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 
 static inline void rcu_lock_acquire(struct lockdep_map *map)
 {
@@ -219,12 +219,12 @@ extern struct lockdep_map rcu_lock_map;
 extern struct lockdep_map rcu_bh_lock_map;
 extern struct lockdep_map rcu_sched_lock_map;
 extern struct lockdep_map rcu_callback_map;
-int debug_lockdep_rcu_enabled(void);
+int de_lockdep_rcu_enabled(void);
 int rcu_read_lock_held(void);
 int rcu_read_lock_bh_held(void);
 int rcu_read_lock_sched_held(void);
 
-#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#else /* #ifdef CONFIG_DE_LOCK_ALLOC */
 
 # define rcu_lock_acquire(a)		do { } while (0)
 # define rcu_lock_release(a)		do { } while (0)
@@ -243,7 +243,7 @@ static inline int rcu_read_lock_sched_held(void)
 {
 	return !preemptible();
 }
-#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif /* #else #ifdef CONFIG_DE_LOCK_ALLOC */
 
 #ifdef CONFIG_PROVE_RCU
 
@@ -255,7 +255,7 @@ static inline int rcu_read_lock_sched_held(void)
 #define RCU_LOCKDEP_WARN(c, s)						\
 	do {								\
 		static bool __section(.data.unlikely) __warned;		\
-		if (debug_lockdep_rcu_enabled() && !__warned && (c)) {	\
+		if (de_lockdep_rcu_enabled() && !__warned && (c)) {	\
 			__warned = true;				\
 			lockdep_rcu_suspicious(__FILE__, __LINE__, s);	\
 		}							\
@@ -416,7 +416,7 @@ static inline void rcu_preempt_sleep_check(void) { }
 #define rcu_access_pointer(p) __rcu_access_pointer((p), __rcu)
 
 /**
- * rcu_dereference_check() - rcu_dereference with debug checking
+ * rcu_dereference_check() - rcu_dereference with de checking
  * @p: The pointer to read, prior to dereferencing
  * @c: The conditions under which the dereference will take place
  *
@@ -452,7 +452,7 @@ static inline void rcu_preempt_sleep_check(void) { }
 	__rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
 
 /**
- * rcu_dereference_bh_check() - rcu_dereference_bh with debug checking
+ * rcu_dereference_bh_check() - rcu_dereference_bh with de checking
  * @p: The pointer to read, prior to dereferencing
  * @c: The conditions under which the dereference will take place
  *
@@ -462,7 +462,7 @@ static inline void rcu_preempt_sleep_check(void) { }
 	__rcu_dereference_check((p), (c) || rcu_read_lock_bh_held(), __rcu)
 
 /**
- * rcu_dereference_sched_check() - rcu_dereference_sched with debug checking
+ * rcu_dereference_sched_check() - rcu_dereference_sched with de checking
  * @p: The pointer to read, prior to dereferencing
  * @c: The conditions under which the dereference will take place
  *
@@ -600,7 +600,7 @@ static inline void rcu_read_lock(void)
 /*
  * So where is rcu_write_lock()?  It does not exist, as there is no
  * way for writers to lock out RCU readers.  This is a feature, not
- * a bug -- this property is what provides RCU's performance benefits.
+ * a  -- this property is what provides RCU's performance benefits.
  * Of course, writers must coordinate with each other.  The normal
  * spinlock primitives work well for this, but any other technique may be
  * used as well.  RCU does not care how the writers keep out of each
@@ -798,7 +798,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  */
 #define __kfree_rcu(head, offset) \
 	do { \
-		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+		BUILD__ON(!__is_kfree_rcu_offset(offset)); \
 		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
 	} while (0)
 
@@ -825,7 +825,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * Note that the allowable offset might decrease in the future, for example,
  * to allow something like kmem_cache_free_rcu().
  *
- * The BUILD_BUG_ON check must not involve any function calls, hence the
+ * The BUILD__ON check must not involve any function calls, hence the
  * checks are done in macros here.
  */
 #define kfree_rcu(ptr, rcu_head)					\

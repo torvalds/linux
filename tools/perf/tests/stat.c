@@ -4,7 +4,7 @@
 #include "tests.h"
 #include "stat.h"
 #include "counts.h"
-#include "debug.h"
+#include "de.h"
 
 static bool has_term(struct stat_config_event *config,
 		     u64 tag, u64 val)

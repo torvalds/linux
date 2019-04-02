@@ -198,7 +198,7 @@ void __init check_wait(void)
 	case CPU_PROAPTIV:
 	case CPU_P5600:
 		/*
-		 * Incoming Fast Debug Channel (FDC) data during a wait
+		 * Incoming Fast De Channel (FDC) data during a wait
 		 * instruction causes the wait never to resume, even if an
 		 * interrupt is received. Avoid using wait at all if FDC data is
 		 * likely to be received.

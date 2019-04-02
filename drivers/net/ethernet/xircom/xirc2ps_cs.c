@@ -310,22 +310,22 @@ static int do_stop(struct net_device *dev);
 #define PutByte(reg,value) outb((value), ioaddr+(reg))
 #define PutWord(reg,value) outw((value), ioaddr+(reg))
 
-/*====== Functions used for debugging =================================*/
+/*====== Functions used for deging =================================*/
 #if 0 /* reading regs may change system status */
 static void
 PrintRegisters(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
 
-    if (pc_debug > 1) {
+    if (pc_de > 1) {
 	int i, page;
 
-	printk(KERN_DEBUG pr_fmt("Register  common: "));
+	printk(KERN_DE pr_fmt("Register  common: "));
 	for (i = 0; i < 8; i++)
 	    pr_cont(" %2.2x", GetByte(i));
 	pr_cont("\n");
 	for (page = 0; page <= 8; page++) {
-	    printk(KERN_DEBUG pr_fmt("Register page %2x: "), page);
+	    printk(KERN_DE pr_fmt("Register page %2x: "), page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
 		pr_cont(" %2.2x", GetByte(i));
@@ -335,7 +335,7 @@ PrintRegisters(struct net_device *dev)
 		if (page == 0x43 || (page >= 0x46 && page <= 0x4f) ||
 		    (page >= 0x51 && page <=0x5e))
 			continue;
-	    printk(KERN_DEBUG pr_fmt("Register page %2x: "), page);
+	    printk(KERN_DE pr_fmt("Register page %2x: "), page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
 		pr_cont(" %2.2x", GetByte(i));
@@ -993,7 +993,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	PutByte(XIRCREG_CR, 0);
     }
 
-    pr_debug("%s: interrupt %d at %#x.\n", dev->name, irq, ioaddr);
+    pr_de("%s: interrupt %d at %#x.\n", dev->name, irq, ioaddr);
 
     saved_page = GetByte(XIRCREG_PR);
     /* Read the ISR to see whats the cause for the interrupt.
@@ -1003,7 +1003,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     bytes_rcvd = 0;
   loop_entry:
     if (int_status == 0xff) { /* card may be ejected */
-	pr_debug("%s: interrupt %d for dead card\n", dev->name, irq);
+	pr_de("%s: interrupt %d for dead card\n", dev->name, irq);
 	goto leave;
     }
     eth_status = GetByte(XIRCREG_ESR);
@@ -1016,7 +1016,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     PutByte(XIRCREG40_TXST0, 0);
     PutByte(XIRCREG40_TXST1, 0);
 
-    pr_debug("%s: ISR=%#2.2x ESR=%#2.2x RSR=%#2.2x TSR=%#4.4x\n",
+    pr_de("%s: ISR=%#2.2x ESR=%#2.2x RSR=%#2.2x TSR=%#4.4x\n",
 	  dev->name, int_status, eth_status, rx_status, tx_status);
 
     /***** receive section ******/
@@ -1027,14 +1027,14 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    /* too many bytes received during this int, drop the rest of the
 	     * packets */
 	    dev->stats.rx_dropped++;
-	    pr_debug("%s: RX drop, too much done\n", dev->name);
+	    pr_de("%s: RX drop, too much done\n", dev->name);
 	} else if (rsr & PktRxOk) {
 	    struct sk_buff *skb;
 
 	    pktlen = GetWord(XIRCREG0_RBC);
 	    bytes_rcvd += pktlen;
 
-	    pr_debug("rsr=%#02x packet_length=%u\n", rsr, pktlen);
+	    pr_de("rsr=%#02x packet_length=%u\n", rsr, pktlen);
 
 	    /* 1 extra so we can use insw */
 	    skb = netdev_alloc_skb(dev, pktlen + 3);
@@ -1042,7 +1042,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		dev->stats.rx_dropped++;
 	    } else { /* okay get the packet */
 		skb_reserve(skb, 2);
-		if (lp->silicon == 0 ) { /* work around a hardware bug */
+		if (lp->silicon == 0 ) { /* work around a hardware  */
 		    unsigned rhsa; /* receive start address */
 
 		    SelectPage(5);
@@ -1101,19 +1101,19 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		    dev->stats.multicast++;
 	    }
 	} else { /* bad packet */
-	    pr_debug("rsr=%#02x\n", rsr);
+	    pr_de("rsr=%#02x\n", rsr);
 	}
 	if (rsr & PktTooLong) {
 	    dev->stats.rx_frame_errors++;
-	    pr_debug("%s: Packet too long\n", dev->name);
+	    pr_de("%s: Packet too long\n", dev->name);
 	}
 	if (rsr & CRCErr) {
 	    dev->stats.rx_crc_errors++;
-	    pr_debug("%s: CRC error\n", dev->name);
+	    pr_de("%s: CRC error\n", dev->name);
 	}
 	if (rsr & AlignErr) {
 	    dev->stats.rx_fifo_errors++; /* okay ? */
-	    pr_debug("%s: Alignment error\n", dev->name);
+	    pr_de("%s: Alignment error\n", dev->name);
 	}
 
 	/* clear the received/dropped/error packet */
@@ -1125,7 +1125,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     if (rx_status & 0x10) { /* Receive overrun */
 	dev->stats.rx_over_errors++;
 	PutByte(XIRCREG_CR, ClearRxOvrun);
-	pr_debug("receive overrun cleared\n");
+	pr_de("receive overrun cleared\n");
     }
 
     /***** transmit section ******/
@@ -1138,13 +1138,13 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	if (nn < n) /* rollover */
 	    dev->stats.tx_packets += 256 - n;
 	else if (n == nn) { /* happens sometimes - don't know why */
-	    pr_debug("PTR not changed?\n");
+	    pr_de("PTR not changed?\n");
 	} else
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
     }
     if (tx_status & 0x0002) {	/* Excessive collisions */
-	pr_debug("tx restarted due to excessive collisions\n");
+	pr_de("tx restarted due to excessive collisions\n");
 	PutByte(XIRCREG_CR, RestartTx);  /* restart transmitter process */
     }
     if (tx_status & 0x0040)
@@ -1163,14 +1163,14 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		maxrx_bytes = 2000;
 	    else if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
-	    pr_debug("set maxrx=%u (rcvd=%u ticks=%lu)\n",
+	    pr_de("set maxrx=%u (rcvd=%u ticks=%lu)\n",
 		  maxrx_bytes, bytes_rcvd, duration);
 	} else if (!duration && maxrx_bytes < 22000) {
 	    /* now much faster */
 	    maxrx_bytes += 2000;
 	    if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
-	    pr_debug("set maxrx=%u\n", maxrx_bytes);
+	    pr_de("set maxrx=%u\n", maxrx_bytes);
 	}
     }
 
@@ -1220,7 +1220,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     unsigned freespace;
     unsigned pktlen = skb->len;
 
-    pr_debug("do_start_xmit(skb=%p, dev=%p) len=%u\n",
+    pr_de("do_start_xmit(skb=%p, dev=%p) len=%u\n",
 	  skb, dev, pktlen);
 
 
@@ -1246,7 +1246,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     freespace &= 0x7fff;
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
-    pr_debug("%s: avail. tx space=%u%s\n",
+    pr_de("%s: avail. tx space=%u%s\n",
 	  dev->name, freespace, okay ? " (okay)":" (not enough)");
     if (!okay) { /* not enough space */
 	return NETDEV_TX_BUSY;  /* upper layer may decide to requeue this packet */
@@ -1363,7 +1363,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 {
     struct local_info *local = netdev_priv(dev);
 
-    pr_debug("do_config(%p)\n", dev);
+    pr_de("do_config(%p)\n", dev);
     if (map->port != 255 && map->port != dev->if_port) {
 	if (map->port > 4)
 	    return -EINVAL;
@@ -1424,7 +1424,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     unsigned int ioaddr = dev->base_addr;
     struct mii_ioctl_data *data = if_mii(rq);
 
-    pr_debug("%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
+    pr_de("%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
 	  dev->name, rq->ifr_ifrn.ifrn_name, cmd,
 	  data->phy_id, data->reg_num, data->val_in, data->val_out);
 
@@ -1473,7 +1473,7 @@ do_reset(struct net_device *dev, int full)
     unsigned int ioaddr = dev->base_addr;
     unsigned value;
 
-    pr_debug("%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
+    pr_de("%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
 
     hardreset(dev);
     PutByte(XIRCREG_CR, SoftReset); /* set */
@@ -1515,7 +1515,7 @@ do_reset(struct net_device *dev, int full)
     {
 	SelectPage(0);
 	value = GetByte(XIRCREG_ESR);	 /* read the ESR */
-	pr_debug("%s: ESR is: %#02x\n", dev->name, value);
+	pr_de("%s: ESR is: %#02x\n", dev->name, value);
     }
   #endif
 
@@ -1529,7 +1529,7 @@ do_reset(struct net_device *dev, int full)
 	value |= DisableLinkPulse;
     PutByte(XIRCREG1_ECR, value);
   #endif
-    pr_debug("%s: ECR is: %#02x\n", dev->name, value);
+    pr_de("%s: ECR is: %#02x\n", dev->name, value);
 
     SelectPage(0x42);
     PutByte(XIRCREG42_SWC0, 0x20); /* disable source insertion */
@@ -1617,7 +1617,7 @@ do_reset(struct net_device *dev, int full)
     if (full)
 	netdev_info(dev, "media %s, silicon revision %d\n",
 		    if_names[dev->if_port], local->silicon);
-    /* We should switch back to page 0 to avoid a bug in revision 0
+    /* We should switch back to page 0 to avoid a  in revision 0
      * where regs with offset below 8 can't be read after an access
      * to the MAC registers */
     SelectPage(0);
@@ -1703,7 +1703,7 @@ do_powerdown(struct net_device *dev)
 
     unsigned int ioaddr = dev->base_addr;
 
-    pr_debug("do_powerdown(%p)\n", dev);
+    pr_de("do_powerdown(%p)\n", dev);
 
     SelectPage(4);
     PutByte(XIRCREG4_GPR1, 0);	     /* clear bit 0: power down */

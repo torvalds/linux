@@ -23,9 +23,9 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 
-static int debug = -1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "DWC ethernet debug level (0=none,...,16=all)");
+static int de = -1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "DWC ethernet de level (0=none,...,16=all)");
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 				      NETIF_MSG_IFUP);
 
@@ -107,7 +107,7 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 	 *  pdata->tx_desc_count;
 	 *  pdata->rx_desc_count;
 	 */
-	BUILD_BUG_ON_NOT_POWER_OF_2(XLGMAC_TX_DESC_CNT);
+	BUILD__ON_NOT_POWER_OF_2(XLGMAC_TX_DESC_CNT);
 	pdata->tx_desc_count = XLGMAC_TX_DESC_CNT;
 	if (pdata->tx_desc_count & (pdata->tx_desc_count - 1)) {
 		dev_err(pdata->dev, "tx descriptor count (%d) is not valid\n",
@@ -115,7 +115,7 @@ static int xlgmac_init(struct xlgmac_pdata *pdata)
 		ret = -EINVAL;
 		return ret;
 	}
-	BUILD_BUG_ON_NOT_POWER_OF_2(XLGMAC_RX_DESC_CNT);
+	BUILD__ON_NOT_POWER_OF_2(XLGMAC_RX_DESC_CNT);
 	pdata->rx_desc_count = XLGMAC_RX_DESC_CNT;
 	if (pdata->rx_desc_count & (pdata->rx_desc_count - 1)) {
 		dev_err(pdata->dev, "rx descriptor count (%d) is not valid\n",
@@ -249,7 +249,7 @@ int xlgmac_drv_probe(struct device *dev, struct xlgmac_resources *res)
 	pdata->mac_regs = res->addr;
 
 	mutex_init(&pdata->rss_mutex);
-	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
+	pdata->msg_enable = netif_msg_init(de, default_msg_level);
 
 	ret = xlgmac_init(pdata);
 	if (ret) {
@@ -435,7 +435,7 @@ void xlgmac_get_all_hw_features(struct xlgmac_pdata *pdata)
 	hw_feat->tso           = XLGMAC_GET_REG_BITS(mac_hfr1,
 						MAC_HWF1R_TSOEN_POS,
 						MAC_HWF1R_TSOEN_LEN);
-	hw_feat->dma_debug     = XLGMAC_GET_REG_BITS(mac_hfr1,
+	hw_feat->dma_de     = XLGMAC_GET_REG_BITS(mac_hfr1,
 						MAC_HWF1R_DBGMEMA_POS,
 						MAC_HWF1R_DBGMEMA_LEN);
 	hw_feat->rss           = XLGMAC_GET_REG_BITS(mac_hfr1,
@@ -658,8 +658,8 @@ void xlgmac_print_all_hw_features(struct xlgmac_pdata *pdata)
 		  pdata->hw_feat.sph ? "YES" : "NO");
 	XLGMAC_PR("TCP Segmentation Offload Enable             : %s\n",
 		  pdata->hw_feat.tso ? "YES" : "NO");
-	XLGMAC_PR("DMA Debug Registers Enabled                 : %s\n",
-		  pdata->hw_feat.dma_debug ? "YES" : "NO");
+	XLGMAC_PR("DMA De Registers Enabled                 : %s\n",
+		  pdata->hw_feat.dma_de ? "YES" : "NO");
 	XLGMAC_PR("RSS Feature Enabled                         : %s\n",
 		  pdata->hw_feat.rss ? "YES" : "NO");
 	XLGMAC_PR("Number of Traffic classes                   : %u\n",

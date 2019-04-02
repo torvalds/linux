@@ -1,4 +1,4 @@
-simple isdn4linux PPP FAQ .. to be continued .. not 'debugged' 
+simple isdn4linux PPP FAQ .. to be continued .. not 'deged' 
 -------------------------------------------------------------------
 
 Q01: what's pppd, ipppd, syncPPP, asyncPPP ??
@@ -91,7 +91,7 @@ A: MPPP or MP or MPP (Warning: MP is also an
 --
 
 Q05: I tried MPPP but it doesn't work .. the ipppd
-   writes in the debug log something like:
+   writes in the de log something like:
    .. rcvd [0][proto=0x3d] c0 00 00 00 80 fd 01 01 00 0a ...
    .. sent [0][LCP ProtRej id=0x2 00 3d c0 00 00 00 80 fd 01 ...
 
@@ -111,7 +111,7 @@ A: No .. that's not possible .. Use the standard
 
 Q07: A SunISDN machine tries to connect my i4l system,
    which doesn't work.
-   Checking the debug log I just saw garbage like:
+   Checking the de log I just saw garbage like:
 !![ ... fill in the line ... ]!!
 
 A: The Sun tries to talk asynchronous PPP ... i4l
@@ -192,14 +192,14 @@ A: Maybe you try these options .. e.g:
 
 Q11: I can't connect. How can I check where the problem is.
 
-A: A good help log is the debug output from the ipppd...
+A: A good help log is the de output from the ipppd...
    Check whether you can find there:
    - only a few LCP-conf-req SENT messages (less then 10)
      and then a Term-REQ:
      -> check whether your ISDN card is well configured
         it seems, that your machine doesn't dial
         (IRQ,IO,Proto, etc problems)
-        Configure your ISDN card to print debug messages and
+        Configure your ISDN card to print de messages and
         check the /dev/isdnctrl output next time. There
         you can see, whether there is activity on the card/line.
    - there are at least a few RECV messages in the log:
@@ -208,16 +208,16 @@ A: A good help log is the debug output from the ipppd...
         authentication. Check your ipppd configuration again.
    - the ipppd exits for some reason:
      -> not good ... check /var/adm/syslog and /var/adm/daemon.
-        Could be a bug in the ipppd.
+        Could be a  in the ipppd.
 
 --
 
 Q12: How can I reduce login delay?
 
-A: Log a login session ('debug' log) and check which options 
+A: Log a login session ('de' log) and check which options 
   your remote side rejects. Next time configure your ipppd
   to not negotiate these options. Another 'side effect' is, that
-  this increases redundancy. (e.g your remote side is buggy and
+  this increases redundancy. (e.g your remote side is gy and
   rejects options in a wrong way).
 
 

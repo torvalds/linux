@@ -988,7 +988,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 			tpm_tis_probe_irq_single(chip, intmask, IRQF_SHARED,
 						 irq);
 			if (!(chip->flags & TPM_CHIP_FLAG_IRQ))
-				dev_err(&chip->dev, FW_BUG
+				dev_err(&chip->dev, FW_
 					"TPM interrupt not working, polling instead\n");
 		} else {
 			tpm_tis_probe_irq(chip, intmask);

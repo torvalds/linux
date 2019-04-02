@@ -189,5 +189,5 @@ void __init ptp_classifier_init(void)
 		.len = ARRAY_SIZE(ptp_filter), .filter = ptp_filter,
 	};
 
-	BUG_ON(bpf_prog_create(&ptp_insns, &ptp_prog));
+	_ON(bpf_prog_create(&ptp_insns, &ptp_prog));
 }

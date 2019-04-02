@@ -150,7 +150,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 
 	event = fsnotify_peek_first_event(group);
 
-	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
+	pr_de("%s: group=%p event=%p\n", __func__, group, event);
 
 	event_size += round_event_name_len(event);
 	if (event_size > count)
@@ -179,7 +179,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	size_t name_len;
 	size_t pad_name_len;
 
-	pr_debug("%s: group=%p event=%p\n", __func__, group, fsn_event);
+	pr_de("%s: group=%p event=%p\n", __func__, group, fsn_event);
 
 	event = INOTIFY_E(fsn_event);
 	name_len = event->name_len;
@@ -237,7 +237,7 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 		kevent = get_one_event(group, count);
 		spin_unlock(&group->notification_lock);
 
-		pr_debug("%s: group=%p kevent=%p\n", __func__, group, kevent);
+		pr_de("%s: group=%p kevent=%p\n", __func__, group, kevent);
 
 		if (kevent) {
 			ret = PTR_ERR(kevent);
@@ -275,7 +275,7 @@ static int inotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
 
-	pr_debug("%s: group=%p\n", __func__, group);
+	pr_de("%s: group=%p\n", __func__, group);
 
 	/* free this group, matching get was inotify_init->fsnotify_obtain_group */
 	fsnotify_destroy_group(group);
@@ -295,7 +295,7 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 	group = file->private_data;
 	p = (void __user *) arg;
 
-	pr_debug("%s: group=%p cmd=%u\n", __func__, group, cmd);
+	pr_de("%s: group=%p cmd=%u\n", __func__, group, cmd);
 
 	switch (cmd) {
 	case FIONREAD:
@@ -391,7 +391,7 @@ static struct inotify_inode_mark *inotify_idr_find_locked(struct fsnotify_group 
 
 		fsnotify_get_mark(fsn_mark);
 		/* One ref for being in the idr, one ref we just took */
-		BUG_ON(refcount_read(&fsn_mark->refcnt) < 2);
+		_ON(refcount_read(&fsn_mark->refcnt) < 2);
 	}
 
 	return i_mark;
@@ -465,7 +465,7 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 		printk(KERN_ERR "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
 			 __func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		/* we can't really recover with bad ref cnting.. */
-		BUG();
+		();
 	}
 
 	idr_remove(idr, wd);
@@ -668,8 +668,8 @@ static int do_inotify_init(int flags)
 	int ret;
 
 	/* Check the IN_* constants for consistency.  */
-	BUILD_BUG_ON(IN_CLOEXEC != O_CLOEXEC);
-	BUILD_BUG_ON(IN_NONBLOCK != O_NONBLOCK);
+	BUILD__ON(IN_CLOEXEC != O_CLOEXEC);
+	BUILD__ON(IN_NONBLOCK != O_NONBLOCK);
 
 	if (flags & ~(IN_CLOEXEC | IN_NONBLOCK))
 		return -EINVAL;
@@ -802,26 +802,26 @@ out:
  */
 static int __init inotify_user_setup(void)
 {
-	BUILD_BUG_ON(IN_ACCESS != FS_ACCESS);
-	BUILD_BUG_ON(IN_MODIFY != FS_MODIFY);
-	BUILD_BUG_ON(IN_ATTRIB != FS_ATTRIB);
-	BUILD_BUG_ON(IN_CLOSE_WRITE != FS_CLOSE_WRITE);
-	BUILD_BUG_ON(IN_CLOSE_NOWRITE != FS_CLOSE_NOWRITE);
-	BUILD_BUG_ON(IN_OPEN != FS_OPEN);
-	BUILD_BUG_ON(IN_MOVED_FROM != FS_MOVED_FROM);
-	BUILD_BUG_ON(IN_MOVED_TO != FS_MOVED_TO);
-	BUILD_BUG_ON(IN_CREATE != FS_CREATE);
-	BUILD_BUG_ON(IN_DELETE != FS_DELETE);
-	BUILD_BUG_ON(IN_DELETE_SELF != FS_DELETE_SELF);
-	BUILD_BUG_ON(IN_MOVE_SELF != FS_MOVE_SELF);
-	BUILD_BUG_ON(IN_UNMOUNT != FS_UNMOUNT);
-	BUILD_BUG_ON(IN_Q_OVERFLOW != FS_Q_OVERFLOW);
-	BUILD_BUG_ON(IN_IGNORED != FS_IN_IGNORED);
-	BUILD_BUG_ON(IN_EXCL_UNLINK != FS_EXCL_UNLINK);
-	BUILD_BUG_ON(IN_ISDIR != FS_ISDIR);
-	BUILD_BUG_ON(IN_ONESHOT != FS_IN_ONESHOT);
+	BUILD__ON(IN_ACCESS != FS_ACCESS);
+	BUILD__ON(IN_MODIFY != FS_MODIFY);
+	BUILD__ON(IN_ATTRIB != FS_ATTRIB);
+	BUILD__ON(IN_CLOSE_WRITE != FS_CLOSE_WRITE);
+	BUILD__ON(IN_CLOSE_NOWRITE != FS_CLOSE_NOWRITE);
+	BUILD__ON(IN_OPEN != FS_OPEN);
+	BUILD__ON(IN_MOVED_FROM != FS_MOVED_FROM);
+	BUILD__ON(IN_MOVED_TO != FS_MOVED_TO);
+	BUILD__ON(IN_CREATE != FS_CREATE);
+	BUILD__ON(IN_DELETE != FS_DELETE);
+	BUILD__ON(IN_DELETE_SELF != FS_DELETE_SELF);
+	BUILD__ON(IN_MOVE_SELF != FS_MOVE_SELF);
+	BUILD__ON(IN_UNMOUNT != FS_UNMOUNT);
+	BUILD__ON(IN_Q_OVERFLOW != FS_Q_OVERFLOW);
+	BUILD__ON(IN_IGNORED != FS_IN_IGNORED);
+	BUILD__ON(IN_EXCL_UNLINK != FS_EXCL_UNLINK);
+	BUILD__ON(IN_ISDIR != FS_ISDIR);
+	BUILD__ON(IN_ONESHOT != FS_IN_ONESHOT);
 
-	BUILD_BUG_ON(HWEIGHT32(ALL_INOTIFY_BITS) != 22);
+	BUILD__ON(HWEIGHT32(ALL_INOTIFY_BITS) != 22);
 
 	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark,
 					       SLAB_PANIC|SLAB_ACCOUNT);

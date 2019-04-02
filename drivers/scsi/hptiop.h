@@ -11,7 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Please report bugs/comments/suggestions to linux@highpoint-tech.com
+ * Please report s/comments/suggestions to linux@highpoint-tech.com
  *
  * For more information, visit http://www.highpoint-tech.com
  */

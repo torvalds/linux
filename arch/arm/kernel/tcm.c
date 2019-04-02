@@ -325,7 +325,7 @@ void __init tcm_init(void)
 		end   = &__edtcm_data;
 		ram   = &__dtcm_start;
 		memcpy(start, ram, dtcm_code_sz);
-		pr_debug("CPU DTCM: copied data from %p - %p\n",
+		pr_de("CPU DTCM: copied data from %p - %p\n",
 			 start, end);
 		dtcm_present = true;
 	} else if (dtcm_code_sz) {
@@ -363,7 +363,7 @@ no_dtcm:
 		end   = &__eitcm_text;
 		ram   = &__itcm_start;
 		memcpy(start, ram, itcm_code_sz);
-		pr_debug("CPU ITCM: copied code from %p - %p\n",
+		pr_de("CPU ITCM: copied code from %p - %p\n",
 			 start, end);
 		itcm_present = true;
 	} else if (itcm_code_sz) {
@@ -393,7 +393,7 @@ static int __init setup_tcm_pool(void)
 	 */
 	tcm_pool = gen_pool_create(2, -1);
 
-	pr_debug("Setting up TCM memory pool\n");
+	pr_de("Setting up TCM memory pool\n");
 
 	/* Add the rest of DTCM to the TCM pool */
 	if (dtcm_present) {
@@ -405,7 +405,7 @@ static int __init setup_tcm_pool(void)
 				       "remainder to pool!\n");
 				return ret;
 			}
-			pr_debug("CPU DTCM: Added %08x bytes @ %08x to " \
+			pr_de("CPU DTCM: Added %08x bytes @ %08x to " \
 				 "the TCM memory pool\n",
 				 dtcm_end - dtcm_pool_start,
 				 dtcm_pool_start);
@@ -422,7 +422,7 @@ static int __init setup_tcm_pool(void)
 				       "remainder to pool!\n");
 				return ret;
 			}
-			pr_debug("CPU ITCM: Added %08x bytes @ %08x to " \
+			pr_de("CPU ITCM: Added %08x bytes @ %08x to " \
 				 "the TCM memory pool\n",
 				 itcm_end - itcm_pool_start,
 				 itcm_pool_start);

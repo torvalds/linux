@@ -219,7 +219,7 @@ int twl6030_mmc_card_detect_config(void);
 #else
 static inline int twl6030_mmc_card_detect_config(void)
 {
-	pr_debug("twl6030_mmc_card_detect_config not supported\n");
+	pr_de("twl6030_mmc_card_detect_config not supported\n");
 	return 0;
 }
 #endif
@@ -230,7 +230,7 @@ int twl6030_mmc_card_detect(struct device *dev, int slot);
 #else
 static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
 {
-	pr_debug("Call back twl6030_mmc_card_detect not supported\n");
+	pr_de("Call back twl6030_mmc_card_detect not supported\n");
 	return -EIO;
 }
 #endif

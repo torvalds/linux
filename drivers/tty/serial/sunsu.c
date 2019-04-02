@@ -668,7 +668,7 @@ static int sunsu_startup(struct uart_port *port)
 	 * if it is, then bail out, because there's likely no UART
 	 * here.
 	 */
-	if (!(up->port.flags & UPF_BUGGY_UART) &&
+	if (!(up->port.flags & UPF_GY_UART) &&
 	    (serial_inp(up, UART_LSR) == 0xff)) {
 		printk("ttyS%d: LSR safety check engaged!\n", up->port.line);
 		return -ENODEV;
@@ -811,7 +811,7 @@ sunsu_change_speed(struct uart_port *port, unsigned int cflag,
 #endif
 
 	/*
-	 * Work around a bug in the Oxford Semiconductor 952 rev B
+	 * Work around a  in the Oxford Semiconductor 952 rev B
 	 * chip which causes it to seriously miscalculate baud rates
 	 * when DLL is 0.
 	 */
@@ -1050,7 +1050,7 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	if (!(up->port.flags & UPF_BUGGY_UART)) {
+	if (!(up->port.flags & UPF_GY_UART)) {
 		/*
 		 * Do a simple existence test first; if we fail this, there's
 		 * no point trying anything else.

@@ -23,17 +23,17 @@
 #include <linux/timer.h>
 
 /*
- * HW DEBUG 0xHHHHGGGG
+ * HW DE 0xHHHHGGGG
  * H - hardware driver specific bits
  * G - for all drivers
  */
 
-#define DEBUG_HW		0x00000001
-#define DEBUG_HW_OPEN		0x00000002
-#define DEBUG_HW_DCHANNEL	0x00000100
-#define DEBUG_HW_DFIFO		0x00000200
-#define DEBUG_HW_BCHANNEL	0x00001000
-#define DEBUG_HW_BFIFO		0x00002000
+#define DE_HW		0x00000001
+#define DE_HW_OPEN		0x00000002
+#define DE_HW_DCHANNEL	0x00000100
+#define DE_HW_DFIFO		0x00000200
+#define DE_HW_BCHANNEL	0x00001000
+#define DE_HW_BFIFO		0x00002000
 
 #define MAX_DFRAME_LEN_L1	300
 #define MAX_MON_FRAME		32
@@ -102,7 +102,7 @@ struct dchannel {
 	struct sk_buff_head	rqueue;
 	struct sk_buff		*tx_skb;
 	int			tx_idx;
-	int			debug;
+	int			de;
 	/* statistics */
 	int			err_crc;
 	int			err_tx;
@@ -170,7 +170,7 @@ struct bchannel {
 	struct sk_buff_head	rqueue;
 	int			rcount;
 	int			tx_idx;
-	int			debug;
+	int			de;
 	/* statistics */
 	int			err_crc;
 	int			err_tx;

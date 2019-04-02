@@ -320,7 +320,7 @@ struct vxge_vpath {
 	u32 level_err;
 	u32 level_trace;
 };
-#define VXGE_COPY_DEBUG_INFO_TO_LL(vdev, err, trace) {	\
+#define VXGE_COPY_DE_INFO_TO_LL(vdev, err, trace) {	\
 	for (i = 0; i < vdev->no_of_vpath; i++) {		\
 		vdev->vpaths[i].level_err = err;		\
 		vdev->vpaths[i].level_trace = trace;		\
@@ -373,7 +373,7 @@ struct vxgedev {
 	int no_of_vpath;
 
 	struct napi_struct napi;
-	/* A debug option, when enabled and if error condition occurs,
+	/* A de option, when enabled and if error condition occurs,
 	 * the driver will do following steps:
 	 * - mask all interrupts
 	 * - Not clear the source of the alarm
@@ -427,82 +427,82 @@ void vxge_os_timer(struct timer_list *timer, void (*func)(struct timer_list *),
 void vxge_initialize_ethtool_ops(struct net_device *ndev);
 int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
 
-/* #define VXGE_DEBUG_INIT: debug for initialization functions
- * #define VXGE_DEBUG_TX	 : debug transmit related functions
- * #define VXGE_DEBUG_RX  : debug recevice related functions
- * #define VXGE_DEBUG_MEM : debug memory module
- * #define VXGE_DEBUG_LOCK: debug locks
- * #define VXGE_DEBUG_SEM : debug semaphore
- * #define VXGE_DEBUG_ENTRYEXIT: debug functions by adding entry exit statements
+/* #define VXGE_DE_INIT: de for initialization functions
+ * #define VXGE_DE_TX	 : de transmit related functions
+ * #define VXGE_DE_RX  : de recevice related functions
+ * #define VXGE_DE_MEM : de memory module
+ * #define VXGE_DE_LOCK: de locks
+ * #define VXGE_DE_SEM : de semaphore
+ * #define VXGE_DE_ENTRYEXIT: de functions by adding entry exit statements
 */
-#define VXGE_DEBUG_INIT		0x00000001
-#define VXGE_DEBUG_TX		0x00000002
-#define VXGE_DEBUG_RX		0x00000004
-#define VXGE_DEBUG_MEM		0x00000008
-#define VXGE_DEBUG_LOCK		0x00000010
-#define VXGE_DEBUG_SEM		0x00000020
-#define VXGE_DEBUG_ENTRYEXIT	0x00000040
-#define VXGE_DEBUG_INTR		0x00000080
-#define VXGE_DEBUG_LL_CONFIG	0x00000100
+#define VXGE_DE_INIT		0x00000001
+#define VXGE_DE_TX		0x00000002
+#define VXGE_DE_RX		0x00000004
+#define VXGE_DE_MEM		0x00000008
+#define VXGE_DE_LOCK		0x00000010
+#define VXGE_DE_SEM		0x00000020
+#define VXGE_DE_ENTRYEXIT	0x00000040
+#define VXGE_DE_INTR		0x00000080
+#define VXGE_DE_LL_CONFIG	0x00000100
 
-/* Debug tracing for VXGE driver */
-#ifndef VXGE_DEBUG_MASK
-#define VXGE_DEBUG_MASK	0x0
+/* De tracing for VXGE driver */
+#ifndef VXGE_DE_MASK
+#define VXGE_DE_MASK	0x0
 #endif
 
-#if (VXGE_DEBUG_LL_CONFIG & VXGE_DEBUG_MASK)
-#define vxge_debug_ll_config(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_LL_CONFIG, fmt, __VA_ARGS__)
+#if (VXGE_DE_LL_CONFIG & VXGE_DE_MASK)
+#define vxge_de_ll_config(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_LL_CONFIG, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_ll_config(level, fmt, ...)
+#define vxge_de_ll_config(level, fmt, ...)
 #endif
 
-#if (VXGE_DEBUG_INIT & VXGE_DEBUG_MASK)
-#define vxge_debug_init(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_INIT, fmt, __VA_ARGS__)
+#if (VXGE_DE_INIT & VXGE_DE_MASK)
+#define vxge_de_init(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_INIT, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_init(level, fmt, ...)
+#define vxge_de_init(level, fmt, ...)
 #endif
 
-#if (VXGE_DEBUG_TX & VXGE_DEBUG_MASK)
-#define vxge_debug_tx(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_TX, fmt, __VA_ARGS__)
+#if (VXGE_DE_TX & VXGE_DE_MASK)
+#define vxge_de_tx(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_TX, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_tx(level, fmt, ...)
+#define vxge_de_tx(level, fmt, ...)
 #endif
 
-#if (VXGE_DEBUG_RX & VXGE_DEBUG_MASK)
-#define vxge_debug_rx(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_RX, fmt, __VA_ARGS__)
+#if (VXGE_DE_RX & VXGE_DE_MASK)
+#define vxge_de_rx(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_RX, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_rx(level, fmt, ...)
+#define vxge_de_rx(level, fmt, ...)
 #endif
 
-#if (VXGE_DEBUG_MEM & VXGE_DEBUG_MASK)
-#define vxge_debug_mem(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_MEM, fmt, __VA_ARGS__)
+#if (VXGE_DE_MEM & VXGE_DE_MASK)
+#define vxge_de_mem(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_MEM, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_mem(level, fmt, ...)
+#define vxge_de_mem(level, fmt, ...)
 #endif
 
-#if (VXGE_DEBUG_ENTRYEXIT & VXGE_DEBUG_MASK)
-#define vxge_debug_entryexit(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_ENTRYEXIT, fmt, __VA_ARGS__)
+#if (VXGE_DE_ENTRYEXIT & VXGE_DE_MASK)
+#define vxge_de_entryexit(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_ENTRYEXIT, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_entryexit(level, fmt, ...)
+#define vxge_de_entryexit(level, fmt, ...)
 #endif
 
-#if (VXGE_DEBUG_INTR & VXGE_DEBUG_MASK)
-#define vxge_debug_intr(level, fmt, ...) \
-	vxge_debug_ll(level, VXGE_DEBUG_INTR, fmt, __VA_ARGS__)
+#if (VXGE_DE_INTR & VXGE_DE_MASK)
+#define vxge_de_intr(level, fmt, ...) \
+	vxge_de_ll(level, VXGE_DE_INTR, fmt, __VA_ARGS__)
 #else
-#define vxge_debug_intr(level, fmt, ...)
+#define vxge_de_intr(level, fmt, ...)
 #endif
 
-#define VXGE_DEVICE_DEBUG_LEVEL_SET(level, mask, vdev) {\
-	vxge_hw_device_debug_set((struct __vxge_hw_device  *)vdev->devh, \
+#define VXGE_DEVICE_DE_LEVEL_SET(level, mask, vdev) {\
+	vxge_hw_device_de_set((struct __vxge_hw_device  *)vdev->devh, \
 		level, mask);\
-	VXGE_COPY_DEBUG_INFO_TO_LL(vdev, \
+	VXGE_COPY_DE_INFO_TO_LL(vdev, \
 		vxge_hw_device_error_level_get((struct __vxge_hw_device  *) \
 			vdev->devh), \
 		vxge_hw_device_trace_level_get((struct __vxge_hw_device  *) \

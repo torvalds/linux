@@ -10,7 +10,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG_LOW
+#undef DE_LOW
 
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
@@ -33,7 +33,7 @@
 
 #include <misc/cxl-base.h>
 
-#ifdef DEBUG_LOW
+#ifdef DE_LOW
 #define DBG_LOW(fmt...) udbg_printf(fmt)
 #else
 #define DBG_LOW(fmt...)
@@ -131,7 +131,7 @@ void hash__tlbiel_all(unsigned int action)
 		is = 2;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (early_cpu_has_feature(CPU_FTR_ARCH_300))
@@ -203,7 +203,7 @@ static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 
 static inline void fixup_tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 {
-	if (cpu_has_feature(CPU_FTR_P9_TLBIE_BUG)) {
+	if (cpu_has_feature(CPU_FTR_P9_TLBIE_)) {
 		/* Need the extra ptesync to ensure we don't reorder tlbie*/
 		asm volatile("ptesync": : :"memory");
 		___tlbie(vpn, psize, apsize, ssize);

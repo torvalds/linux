@@ -631,7 +631,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 
 	if (count < method_elm->req_size + sizeof(hdr)) {
 		/*
-		 * rdma-core v18 and v19 have a bug where they send DESTROY_CQ
+		 * rdma-core v18 and v19 have a  where they send DESTROY_CQ
 		 * with a 16 byte write instead of 24. Old kernels didn't
 		 * check the size so they allowed this. Now that the size is
 		 * checked provide a compatibility work around to not break

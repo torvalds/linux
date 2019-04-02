@@ -614,7 +614,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	unsigned long flags;
 	int idx, err;
 
-	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
+	BUILD__ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
 	/* Re-check scsi_block_requests now that we've the host-lock */
 	if (cmnd->device->host->host_self_blocked)
@@ -825,7 +825,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	if (devinfo->flags & US_FL_NO_REPORT_OPCODES)
 		sdev->no_report_opcodes = 1;
 
-	/* A few buggy USB-ATA bridges don't understand FUA */
+	/* A few gy USB-ATA bridges don't understand FUA */
 	if (devinfo->flags & US_FL_BROKEN_FUA)
 		sdev->broken_fua = 1;
 

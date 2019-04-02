@@ -7,10 +7,10 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <asm/cpu.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/mipsregs.h>
 
 static void build_segment_config(char *str, unsigned int cfg)
@@ -96,7 +96,7 @@ static const struct file_operations segments_fops = {
 static int __init segments_info(void)
 {
 	if (cpu_has_segments)
-		debugfs_create_file("segments", S_IRUGO, mips_debugfs_dir, NULL,
+		defs_create_file("segments", S_IRUGO, mips_defs_dir, NULL,
 				    &segments_fops);
 	return 0;
 }

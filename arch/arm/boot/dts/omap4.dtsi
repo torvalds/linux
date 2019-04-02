@@ -62,7 +62,7 @@
 	 */
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
-		ti,hwmods = "debugss";
+		ti,hwmods = "dess";
 	};
 
 	gic: interrupt-controller@48241000 {

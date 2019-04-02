@@ -581,13 +581,13 @@ int __nd_driver_register(struct nd_device_driver *nd_drv, struct module *owner,
 	struct device_driver *drv = &nd_drv->drv;
 
 	if (!nd_drv->type) {
-		pr_debug("driver type bitmask not set (%pf)\n",
+		pr_de("driver type bitmask not set (%pf)\n",
 				__builtin_return_address(0));
 		return -EINVAL;
 	}
 
 	if (!nd_drv->probe) {
-		pr_debug("%s ->probe() must be specified\n", mod_name);
+		pr_de("%s ->probe() must be specified\n", mod_name);
 		return -EINVAL;
 	}
 

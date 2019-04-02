@@ -190,7 +190,7 @@ struct omap_udc {
 #define ERR(stuff...)		pr_err("udc: " stuff)
 #define WARNING(stuff...)	pr_warn("udc: " stuff)
 #define INFO(stuff...)		pr_info("udc: " stuff)
-#define DBG(stuff...)		pr_debug("udc: " stuff)
+#define DBG(stuff...)		pr_de("udc: " stuff)
 
 /*-------------------------------------------------------------------------*/
 

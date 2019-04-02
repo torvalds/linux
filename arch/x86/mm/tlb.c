@@ -6,7 +6,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <linux/cpu.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
@@ -297,17 +297,17 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	/*
 	 * Verify that CR3 is what we think it is.  This will catch
-	 * hypothetical buggy code that directly switches to swapper_pg_dir
+	 * hypothetical gy code that directly switches to swapper_pg_dir
 	 * without going through leave_mm() / switch_mm_irqs_off() or that
 	 * does something like write_cr3(read_cr3_pa()).
 	 *
-	 * Only do this check if CONFIG_DEBUG_VM=y because __read_cr3()
+	 * Only do this check if CONFIG_DE_VM=y because __read_cr3()
 	 * isn't free.
 	 */
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev->pgd, prev_asid))) {
 		/*
-		 * If we were to BUG here, we'd be very likely to kill
+		 * If we were to  here, we'd be very likely to kill
 		 * the system so hard that we don't see the call trace.
 		 * Try to recover instead by ignoring the error and doing
 		 * a global flush to minimize the chance of corruption.
@@ -865,8 +865,8 @@ static const struct file_operations fops_tlbflush = {
 
 static int __init create_tlb_single_page_flush_ceiling(void)
 {
-	debugfs_create_file("tlb_single_page_flush_ceiling", S_IRUSR | S_IWUSR,
-			    arch_debugfs_dir, NULL, &fops_tlbflush);
+	defs_create_file("tlb_single_page_flush_ceiling", S_IRUSR | S_IWUSR,
+			    arch_defs_dir, NULL, &fops_tlbflush);
 	return 0;
 }
 late_initcall(create_tlb_single_page_flush_ceiling);

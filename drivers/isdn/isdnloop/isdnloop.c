@@ -738,7 +738,7 @@ isdnloop_vstphone(isdnloop_card *card, char *phone, int caller)
 	static char nphone[30];
 
 	if (!card) {
-		printk("BUG!!!\n");
+		printk("!!!\n");
 		return "";
 	}
 	switch (card->ptype) {
@@ -1134,7 +1134,7 @@ isdnloop_command(isdn_ctrl *c, isdnloop_card *card)
 	case ISDN_CMD_IOCTL:
 		memcpy(&a, c->parm.num, sizeof(ulong));
 		switch (c->arg) {
-		case ISDNLOOP_IOCTL_DEBUGVAR:
+		case ISDNLOOP_IOCTL_DEVAR:
 			return (ulong) card;
 		case ISDNLOOP_IOCTL_STARTUP:
 			return isdnloop_start(card, (isdnloop_sdef *) a);
@@ -1258,7 +1258,7 @@ isdnloop_command(isdn_ctrl *c, isdnloop_card *card)
 			default:
 				sprintf(cbuf, "%02d;BCON_R\n", (int) a);
 			}
-			printk(KERN_DEBUG "isdnloop writecmd '%s'\n", cbuf);
+			printk(KERN_DE "isdnloop writecmd '%s'\n", cbuf);
 			i = isdnloop_writecmd(cbuf, strlen(cbuf), 0, card);
 			break;
 		case ISDN_CMD_HANGUP:

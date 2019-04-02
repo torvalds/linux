@@ -47,9 +47,9 @@
 typedef char *elf_caddr_t;
 
 #if 0
-#define kdebug(fmt, ...) printk("FDPIC "fmt"\n" ,##__VA_ARGS__ )
+#define kde(fmt, ...) printk("FDPIC "fmt"\n" ,##__VA_ARGS__ )
 #else
-#define kdebug(fmt, ...) do {} while(0)
+#define kde(fmt, ...) do {} while(0)
 #endif
 
 #if 0
@@ -201,7 +201,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	int retval, i;
 	loff_t pos;
 
-	kdebug("____ LOAD %d ____", current->pid);
+	kde("____ LOAD %d ____", current->pid);
 
 	memset(&exec_params, 0, sizeof(exec_params));
 	memset(&interp_params, 0, sizeof(interp_params));
@@ -260,7 +260,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 			if (interpreter_name[phdr->p_filesz - 1] != '\0')
 				goto error;
 
-			kdebug("Using ELF interpreter %s", interpreter_name);
+			kde("Using ELF interpreter %s", interpreter_name);
 
 			/* replace the program with the interpreter */
 			interpreter = open_exec(interpreter_name);
@@ -443,13 +443,13 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 				    &exec_params, &interp_params) < 0)
 		goto error;
 
-	kdebug("- start_code  %lx", current->mm->start_code);
-	kdebug("- end_code    %lx", current->mm->end_code);
-	kdebug("- start_data  %lx", current->mm->start_data);
-	kdebug("- end_data    %lx", current->mm->end_data);
-	kdebug("- start_brk   %lx", current->mm->start_brk);
-	kdebug("- brk         %lx", current->mm->brk);
-	kdebug("- start_stack %lx", current->mm->start_stack);
+	kde("- start_code  %lx", current->mm->start_code);
+	kde("- end_code    %lx", current->mm->end_code);
+	kde("- start_data  %lx", current->mm->start_data);
+	kde("- end_data    %lx", current->mm->end_data);
+	kde("- start_brk   %lx", current->mm->start_brk);
+	kde("- brk         %lx", current->mm->brk);
+	kde("- start_stack %lx", current->mm->start_stack);
 
 #ifdef ELF_FDPIC_PLAT_INIT
 	/*
@@ -681,7 +681,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	csp -= sizeof(unsigned long);
 	__put_user(bprm->argc, (unsigned long __user *) csp);
 
-	BUG_ON(csp != sp);
+	_ON(csp != sp);
 
 	/* fill in the argv[] array */
 #ifdef CONFIG_MMU
@@ -891,14 +891,14 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	}
 #endif
 
-	kdebug("Mapped Object [%s]:", what);
-	kdebug("- elfhdr   : %lx", params->elfhdr_addr);
-	kdebug("- entry    : %lx", params->entry_addr);
-	kdebug("- PHDR[]   : %lx", params->ph_addr);
-	kdebug("- DYNAMIC[]: %lx", params->dynamic_addr);
+	kde("Mapped Object [%s]:", what);
+	kde("- elfhdr   : %lx", params->elfhdr_addr);
+	kde("- entry    : %lx", params->entry_addr);
+	kde("- PHDR[]   : %lx", params->ph_addr);
+	kde("- DYNAMIC[]: %lx", params->dynamic_addr);
 	seg = loadmap->segs;
 	for (loop = 0; loop < loadmap->nsegs; loop++, seg++)
-		kdebug("- LOAD[%d] : %08x-%08x [va=%x ms=%x]",
+		kde("- LOAD[%d] : %08x-%08x [va=%x ms=%x]",
 		       loop,
 		       seg->addr, seg->addr + seg->p_memsz - 1,
 		       seg->p_vaddr, seg->p_memsz);
@@ -1029,7 +1029,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		if (phdr->p_type != PT_LOAD)
 			continue;
 
-		kdebug("[LOAD] va=%lx of=%lx fs=%lx ms=%lx",
+		kde("[LOAD] va=%lx of=%lx fs=%lx ms=%lx",
 		       (unsigned long) phdr->p_vaddr,
 		       (unsigned long) phdr->p_offset,
 		       (unsigned long) phdr->p_filesz,
@@ -1077,7 +1077,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			break;
 
 		default:
-			BUG();
+			();
 		}
 
 		maddr &= PAGE_MASK;
@@ -1087,7 +1087,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		maddr = vm_mmap(file, maddr, phdr->p_memsz + disp, prot, flags,
 				phdr->p_offset - disp);
 
-		kdebug("mmap[%d] <file> sz=%lx pr=%x fl=%x of=%lx --> %08lx",
+		kde("mmap[%d] <file> sz=%lx pr=%x fl=%x of=%lx --> %08lx",
 		       loop, phdr->p_memsz + disp, prot, flags,
 		       phdr->p_offset - disp, maddr);
 
@@ -1109,7 +1109,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		/* clear the bit between beginning of mapping and beginning of
 		 * PT_LOAD */
 		if (prot & PROT_WRITE && disp > 0) {
-			kdebug("clear[%d] ad=%lx sz=%lx", loop, maddr, disp);
+			kde("clear[%d] ad=%lx sz=%lx", loop, maddr, disp);
 			if (clear_user((void __user *) maddr, disp))
 				return -EFAULT;
 			maddr += disp;
@@ -1132,7 +1132,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			xmaddr = vm_mmap(NULL, xaddr, excess - excess1,
 					 prot, flags, 0);
 
-			kdebug("mmap[%d] <anon>"
+			kde("mmap[%d] <anon>"
 			       " ad=%lx sz=%lx pr=%x fl=%x of=0 --> %08lx",
 			       loop, xaddr, excess - excess1, prot, flags,
 			       xmaddr);
@@ -1142,7 +1142,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		}
 
 		if (prot & PROT_WRITE && excess1 > 0) {
-			kdebug("clear[%d] ad=%lx sz=%lx",
+			kde("clear[%d] ad=%lx sz=%lx",
 			       loop, maddr + phdr->p_filesz, excess1);
 			if (clear_user((void __user *) maddr + phdr->p_filesz,
 				       excess1))
@@ -1151,7 +1151,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 
 #else
 		if (excess > 0) {
-			kdebug("clear[%d] ad=%lx sz=%lx",
+			kde("clear[%d] ad=%lx sz=%lx",
 			       loop, maddr + phdr->p_filesz, excess);
 			if (clear_user((void *) maddr + phdr->p_filesz, excess))
 				return -EFAULT;
@@ -1277,7 +1277,7 @@ static int notesize(struct memelfnote *en)
 	return sz;
 }
 
-/* #define DEBUG */
+/* #define DE */
 
 static int writenote(struct memelfnote *men, struct coredump_params *cprm)
 {

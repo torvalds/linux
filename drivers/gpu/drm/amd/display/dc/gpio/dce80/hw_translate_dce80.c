@@ -55,7 +55,7 @@ static uint32_t index_from_vector(
 		mask <<= 1;
 	} while (mask);
 
-	BREAK_TO_DEBUGGER();
+	BREAK_TO_DEGER();
 
 	return GPIO_ENUM_UNKNOWN;
 }
@@ -93,7 +93,7 @@ static bool offset_to_id(
 			*en = GPIO_GENERIC_G;
 			return true;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 	break;
@@ -120,7 +120,7 @@ static bool offset_to_id(
 			*en = GPIO_HPD_6;
 			return true;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 	break;
@@ -135,7 +135,7 @@ static bool offset_to_id(
 			*en = GPIO_SYNC_VSYNC_A;
 			return true;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 	break;
@@ -156,7 +156,7 @@ static bool offset_to_id(
 			*en = GPIO_GSL_SWAPLOCK_B;
 			return true;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			return false;
 		}
 	break;
@@ -198,11 +198,11 @@ static bool offset_to_id(
 	case mmDC_GPIO_PWRSEQ_A:
 	case mmDC_GPIO_PAD_STRENGTH_1:
 	case mmDC_GPIO_PAD_STRENGTH_2:
-	case mmDC_GPIO_DEBUG:
+	case mmDC_GPIO_DE:
 		return false;
 	/* UNEXPECTED */
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 }
@@ -243,7 +243,7 @@ static bool id_to_offset(
 			info->offset = mmDC_GPIO_I2CPAD_A;
 		break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			result = false;
 		}
 	break;
@@ -275,7 +275,7 @@ static bool id_to_offset(
 			info->offset = mmDC_GPIO_I2CPAD_A;
 		break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			result = false;
 		}
 	break;
@@ -304,7 +304,7 @@ static bool id_to_offset(
 			info->mask = DC_GPIO_GENERIC_A__DC_GPIO_GENERICG_A_MASK;
 		break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			result = false;
 		}
 	break;
@@ -330,7 +330,7 @@ static bool id_to_offset(
 			info->mask = DC_GPIO_HPD_A__DC_GPIO_HPD6_A_MASK;
 		break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			result = false;
 		}
 	break;
@@ -347,7 +347,7 @@ static bool id_to_offset(
 		case GPIO_SYNC_HSYNC_B:
 		case GPIO_SYNC_VSYNC_B:
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			result = false;
 		}
 	break;
@@ -371,7 +371,7 @@ static bool id_to_offset(
 			info->mask = DC_GPIO_GENLK_A__DC_GPIO_SWAPLOCK_B_A_MASK;
 		break;
 		default:
-			BREAK_TO_DEBUGGER();
+			BREAK_TO_DEGER();
 			result = false;
 		}
 	break;
@@ -382,7 +382,7 @@ static bool id_to_offset(
 	break;
 	case GPIO_ID_VIP_PAD:
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		result = false;
 	}
 

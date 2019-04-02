@@ -102,7 +102,7 @@ static inline void purge_tlb_entries_huge(struct mm_struct *mm, unsigned long ad
 
 	/* We may use multiple physical huge pages (e.g. 2x1 MB) to emulate
 	 * Linux standard huge pages (e.g. 2 MB) */
-	BUILD_BUG_ON(REAL_HPAGE_SHIFT > HPAGE_SHIFT);
+	BUILD__ON(REAL_HPAGE_SHIFT > HPAGE_SHIFT);
 
 	addr &= HPAGE_MASK;
 	addr |= _HUGE_PAGE_SIZE_ENCODING_DEFAULT;

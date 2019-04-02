@@ -12,7 +12,7 @@
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
  *    NON INFRINGEMENT.  See the GNU General Public License for more details.
  *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/fixes to esc.storagedev@microsemi.com
  *
  */
 
@@ -429,17 +429,17 @@ void sis_soft_reset(struct pqi_ctrl_info *ctrl_info)
 
 static void __attribute__((unused)) verify_structures(void)
 {
-	BUILD_BUG_ON(offsetof(struct sis_base_struct,
+	BUILD__ON(offsetof(struct sis_base_struct,
 		revision) != 0x0);
-	BUILD_BUG_ON(offsetof(struct sis_base_struct,
+	BUILD__ON(offsetof(struct sis_base_struct,
 		flags) != 0x4);
-	BUILD_BUG_ON(offsetof(struct sis_base_struct,
+	BUILD__ON(offsetof(struct sis_base_struct,
 		error_buffer_paddr_low) != 0x8);
-	BUILD_BUG_ON(offsetof(struct sis_base_struct,
+	BUILD__ON(offsetof(struct sis_base_struct,
 		error_buffer_paddr_high) != 0xc);
-	BUILD_BUG_ON(offsetof(struct sis_base_struct,
+	BUILD__ON(offsetof(struct sis_base_struct,
 		error_buffer_element_length) != 0x10);
-	BUILD_BUG_ON(offsetof(struct sis_base_struct,
+	BUILD__ON(offsetof(struct sis_base_struct,
 		error_buffer_num_elements) != 0x14);
-	BUILD_BUG_ON(sizeof(struct sis_base_struct) != 0x18);
+	BUILD__ON(sizeof(struct sis_base_struct) != 0x18);
 }

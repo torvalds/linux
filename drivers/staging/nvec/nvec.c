@@ -230,7 +230,7 @@ static size_t nvec_msg_size(struct nvec_msg *msg)
  * @nvec: A &struct nvec_chip
  * @value: The value to write (0 or 1)
  *
- * Like gpio_set_value(), but generating debugging information
+ * Like gpio_set_value(), but generating deging information
  */
 static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 {

@@ -16,7 +16,7 @@
 #include <linux/swapops.h>
 #include <linux/security.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/frontswap.h>
 #include <linux/swapfile.h>
 
@@ -50,9 +50,9 @@ static bool frontswap_writethrough_enabled __read_mostly;
  */
 static bool frontswap_tmem_exclusive_gets_enabled __read_mostly;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 /*
- * Counters available via /sys/kernel/debug/frontswap (if debugfs is
+ * Counters available via /sys/kernel/de/frontswap (if defs is
  * properly configured).  These are for information only so are not protected
  * against increment races.
  */
@@ -193,7 +193,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
 	struct swap_info_struct *sis = swap_info[type];
 	struct frontswap_ops *ops;
 
-	VM_BUG_ON(sis == NULL);
+	VM__ON(sis == NULL);
 
 	/*
 	 * p->frontswap is a bitmap that we MUST have to figure out which page
@@ -252,9 +252,9 @@ int __frontswap_store(struct page *page)
 	pgoff_t offset = swp_offset(entry);
 	struct frontswap_ops *ops;
 
-	VM_BUG_ON(!frontswap_ops);
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(sis == NULL);
+	VM__ON(!frontswap_ops);
+	VM__ON(!PageLocked(page));
+	VM__ON(sis == NULL);
 
 	/*
 	 * If a dup, we must remove the old page first; we can't leave the
@@ -301,9 +301,9 @@ int __frontswap_load(struct page *page)
 	pgoff_t offset = swp_offset(entry);
 	struct frontswap_ops *ops;
 
-	VM_BUG_ON(!frontswap_ops);
-	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(sis == NULL);
+	VM__ON(!frontswap_ops);
+	VM__ON(!PageLocked(page));
+	VM__ON(sis == NULL);
 
 	if (!__frontswap_test(sis, offset))
 		return -1;
@@ -334,8 +334,8 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
 	struct swap_info_struct *sis = swap_info[type];
 	struct frontswap_ops *ops;
 
-	VM_BUG_ON(!frontswap_ops);
-	VM_BUG_ON(sis == NULL);
+	VM__ON(!frontswap_ops);
+	VM__ON(sis == NULL);
 
 	if (!__frontswap_test(sis, offset))
 		return;
@@ -356,8 +356,8 @@ void __frontswap_invalidate_area(unsigned type)
 	struct swap_info_struct *sis = swap_info[type];
 	struct frontswap_ops *ops;
 
-	VM_BUG_ON(!frontswap_ops);
-	VM_BUG_ON(sis == NULL);
+	VM__ON(!frontswap_ops);
+	VM__ON(sis == NULL);
 
 	if (sis->frontswap_map == NULL)
 		return;
@@ -466,7 +466,7 @@ EXPORT_SYMBOL(frontswap_shrink);
 /*
  * Count and return the number of frontswap pages across all
  * swap devices.  This is exported so that backend drivers can
- * determine current usage without reading debugfs.
+ * determine current usage without reading defs.
  */
 unsigned long frontswap_curr_pages(void)
 {
@@ -482,15 +482,15 @@ EXPORT_SYMBOL(frontswap_curr_pages);
 
 static int __init init_frontswap(void)
 {
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *root = debugfs_create_dir("frontswap", NULL);
+#ifdef CONFIG_DE_FS
+	struct dentry *root = defs_create_dir("frontswap", NULL);
 	if (root == NULL)
 		return -ENXIO;
-	debugfs_create_u64("loads", 0444, root, &frontswap_loads);
-	debugfs_create_u64("succ_stores", 0444, root, &frontswap_succ_stores);
-	debugfs_create_u64("failed_stores", 0444, root,
+	defs_create_u64("loads", 0444, root, &frontswap_loads);
+	defs_create_u64("succ_stores", 0444, root, &frontswap_succ_stores);
+	defs_create_u64("failed_stores", 0444, root,
 			   &frontswap_failed_stores);
-	debugfs_create_u64("invalidates", 0444, root, &frontswap_invalidates);
+	defs_create_u64("invalidates", 0444, root, &frontswap_invalidates);
 #endif
 	return 0;
 }

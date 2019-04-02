@@ -990,7 +990,7 @@ can.ko Module Params
   invoked at can.ko module start time by default. This timer can be
   disabled by using stattimer=0 on the module commandline.
 
-- **debug**:
+- **de**:
   (removed since SocketCAN SVN r546)
 
 

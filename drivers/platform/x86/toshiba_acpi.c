@@ -2899,7 +2899,7 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 		brightness++;
 	ret = set_lcd_brightness(dev, brightness);
 	if (ret) {
-		pr_debug("Backlight method is read-only, disabling backlight support\n");
+		pr_de("Backlight method is read-only, disabling backlight support\n");
 		return 0;
 	}
 
@@ -3222,7 +3222,7 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 	switch (event) {
 	case 0x80: /* Hotkeys and some system events */
 		/*
-		 * Machines with this WMI GUID aren't supported due to bugs in
+		 * Machines with this WMI GUID aren't supported due to s in
 		 * their AML.
 		 *
 		 * Return silently to avoid triggering a netlink event.

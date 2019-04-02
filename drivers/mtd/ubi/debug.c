@@ -19,7 +19,7 @@
  */
 
 #include "ubi.h"
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -51,7 +51,7 @@ void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len)
 
 	ubi_msg(ubi, "dumping %d bytes of data from PEB %d, offset %d",
 		len, pnum, offset);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 out:
 	vfree(buf);
 	return;
@@ -72,7 +72,7 @@ void ubi_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 	pr_err("\timage_seq      %d\n", be32_to_cpu(ec_hdr->image_seq));
 	pr_err("\thdr_crc        %#08x\n", be32_to_cpu(ec_hdr->hdr_crc));
 	pr_err("erase counter header hexdump:\n");
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       ec_hdr, UBI_EC_HDR_SIZE, 1);
 }
 
@@ -97,7 +97,7 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 		(unsigned long long)be64_to_cpu(vid_hdr->sqnum));
 	pr_err("\thdr_crc   %08x\n", be32_to_cpu(vid_hdr->hdr_crc));
 	pr_err("Volume identifier header hexdump:\n");
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       vid_hdr, UBI_VID_HDR_SIZE, 1);
 }
 
@@ -219,27 +219,27 @@ void ubi_dump_mkvol_req(const struct ubi_mkvol_req *req)
 }
 
 /*
- * Root directory for UBI stuff in debugfs. Contains sub-directories which
+ * Root directory for UBI stuff in defs. Contains sub-directories which
  * contain the stuff specific to particular UBI devices.
  */
 static struct dentry *dfs_rootdir;
 
 /**
- * ubi_debugfs_init - create UBI debugfs directory.
+ * ubi_defs_init - create UBI defs directory.
  *
- * Create UBI debugfs directory. Returns zero in case of success and a negative
+ * Create UBI defs directory. Returns zero in case of success and a negative
  * error code in case of failure.
  */
-int ubi_debugfs_init(void)
+int ubi_defs_init(void)
 {
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+	if (!IS_ENABLED(CONFIG_DE_FS))
 		return 0;
 
-	dfs_rootdir = debugfs_create_dir("ubi", NULL);
+	dfs_rootdir = defs_create_dir("ubi", NULL);
 	if (IS_ERR_OR_NULL(dfs_rootdir)) {
 		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
 
-		pr_err("UBI error: cannot create \"ubi\" debugfs directory, error %d\n",
+		pr_err("UBI error: cannot create \"ubi\" defs directory, error %d\n",
 		       err);
 		return err;
 	}
@@ -248,22 +248,22 @@ int ubi_debugfs_init(void)
 }
 
 /**
- * ubi_debugfs_exit - remove UBI debugfs directory.
+ * ubi_defs_exit - remove UBI defs directory.
  */
-void ubi_debugfs_exit(void)
+void ubi_defs_exit(void)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		debugfs_remove(dfs_rootdir);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		defs_remove(dfs_rootdir);
 }
 
-/* Read an UBI debugfs file */
+/* Read an UBI defs file */
 static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	unsigned long ubi_num = (unsigned long)file->private_data;
 	struct dentry *dent = file->f_path.dentry;
 	struct ubi_device *ubi;
-	struct ubi_debug_info *d;
+	struct ubi_de_info *d;
 	char buf[8];
 	int val;
 
@@ -319,14 +319,14 @@ out:
 	return count;
 }
 
-/* Write an UBI debugfs file */
+/* Write an UBI defs file */
 static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 	unsigned long ubi_num = (unsigned long)file->private_data;
 	struct dentry *dent = file->f_path.dentry;
 	struct ubi_device *ubi;
-	struct ubi_debug_info *d;
+	struct ubi_de_info *d;
 	size_t buf_size;
 	char buf[8] = {0};
 	int val;
@@ -387,7 +387,7 @@ out:
 	return count;
 }
 
-/* File operations for all UBI debugfs files except
+/* File operations for all UBI defs files except
  * detailed_erase_block_info
  */
 static const struct file_operations dfs_fops = {
@@ -514,21 +514,21 @@ static const struct file_operations eraseblk_count_fops = {
 };
 
 /**
- * ubi_debugfs_init_dev - initialize debugfs for an UBI device.
+ * ubi_defs_init_dev - initialize defs for an UBI device.
  * @ubi: UBI device description object
  *
- * This function creates all debugfs files for UBI device @ubi. Returns zero in
+ * This function creates all defs files for UBI device @ubi. Returns zero in
  * case of success and a negative error code in case of failure.
  */
-int ubi_debugfs_init_dev(struct ubi_device *ubi)
+int ubi_defs_init_dev(struct ubi_device *ubi)
 {
 	int err, n;
 	unsigned long ubi_num = ubi->ubi_num;
 	const char *fname;
 	struct dentry *dent;
-	struct ubi_debug_info *d = &ubi->dbg;
+	struct ubi_de_info *d = &ubi->dbg;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+	if (!IS_ENABLED(CONFIG_DE_FS))
 		return 0;
 
 	n = snprintf(d->dfs_dir_name, UBI_DFS_DIR_LEN + 1, UBI_DFS_DIR_NAME,
@@ -541,76 +541,76 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 	}
 
 	fname = d->dfs_dir_name;
-	dent = debugfs_create_dir(fname, dfs_rootdir);
+	dent = defs_create_dir(fname, dfs_rootdir);
 	if (IS_ERR_OR_NULL(dent))
 		goto out;
 	d->dfs_dir = dent;
 
 	fname = "chk_gen";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_gen = dent;
 
 	fname = "chk_io";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_io = dent;
 
 	fname = "chk_fastmap";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_chk_fastmap = dent;
 
 	fname = "tst_disable_bgt";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_disable_bgt = dent;
 
 	fname = "tst_emulate_bitflips";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_emulate_bitflips = dent;
 
 	fname = "tst_emulate_io_failures";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_emulate_io_failures = dent;
 
 	fname = "tst_emulate_power_cut";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_emulate_power_cut = dent;
 
 	fname = "tst_emulate_power_cut_min";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_power_cut_min = dent;
 
 	fname = "tst_emulate_power_cut_max";
-	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
 				   &dfs_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_power_cut_max = dent;
 
 	fname = "detailed_erase_block_info";
-	dent = debugfs_create_file(fname, S_IRUSR, d->dfs_dir, (void *)ubi_num,
+	dent = defs_create_file(fname, S_IRUSR, d->dfs_dir, (void *)ubi_num,
 				   &eraseblk_count_fops);
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
@@ -618,22 +618,22 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 	return 0;
 
 out_remove:
-	debugfs_remove_recursive(d->dfs_dir);
+	defs_remove_recursive(d->dfs_dir);
 out:
 	err = dent ? PTR_ERR(dent) : -ENODEV;
-	ubi_err(ubi, "cannot create \"%s\" debugfs file or directory, error %d\n",
+	ubi_err(ubi, "cannot create \"%s\" defs file or directory, error %d\n",
 		fname, err);
 	return err;
 }
 
 /**
- * dbg_debug_exit_dev - free all debugfs files corresponding to device @ubi
+ * dbg_de_exit_dev - free all defs files corresponding to device @ubi
  * @ubi: UBI device description object
  */
-void ubi_debugfs_exit_dev(struct ubi_device *ubi)
+void ubi_defs_exit_dev(struct ubi_device *ubi)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		debugfs_remove_recursive(ubi->dbg.dfs_dir);
+	if (IS_ENABLED(CONFIG_DE_FS))
+		defs_remove_recursive(ubi->dbg.dfs_dir);
 }
 
 /**

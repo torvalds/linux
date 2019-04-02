@@ -8,7 +8,7 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/string.h>
 
 #define KERNEL_DS	((mm_segment_t){0})
@@ -89,7 +89,7 @@ struct exception_table_entry {
 	case 2: __get_user_asm(val, "ldh", ptr); break; \
 	case 4: __get_user_asm(val, "ldw", ptr); break; \
 	case 8: LDD_USER(val, ptr); break;		\
-	default: BUILD_BUG();				\
+	default: BUILD_();				\
 	}						\
 							\
 	__gu_err;					\
@@ -148,7 +148,7 @@ struct exception_table_entry {
 	case 2: __put_user_asm("sth", __x, ptr); break;		\
 	case 4: __put_user_asm("stw", __x, ptr); break;		\
 	case 8: STD_USER(__x, ptr); break;			\
-	default: BUILD_BUG();					\
+	default: BUILD_();					\
 	}							\
 								\
 	__pu_err;						\

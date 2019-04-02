@@ -70,7 +70,7 @@ static int set_copy_dsdt(const struct dmi_system_id *id)
 static const struct dmi_system_id dsdt_dmi_table[] __initconst = {
 	/*
 	 * Invoke DSDT corruption work-around on all Toshiba Satellite.
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=14679
+	 * https://zilla.kernel.org/show_.cgi?id=14679
 	 */
 	{
 	 .callback = set_copy_dsdt,
@@ -129,12 +129,12 @@ int acpi_bus_get_status(struct acpi_device *device)
 	acpi_set_device_status(device, sta);
 
 	if (device->status.functional && !device->status.present) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
+		ACPI_DE_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
 		       "functional but not present;\n",
 			device->pnp.bus_id, (u32)sta));
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n",
 			  device->pnp.bus_id, (u32)sta));
 	return 0;
 }
@@ -154,7 +154,7 @@ int acpi_bus_attach_private_data(acpi_handle handle, void *data)
 	status = acpi_attach_data(handle,
 			acpi_bus_private_data_handler, data);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_debug(handle, "Error attaching device data\n");
+		acpi_handle_de(handle, "Error attaching device data\n");
 		return -ENODEV;
 	}
 
@@ -171,7 +171,7 @@ int acpi_bus_get_private_data(acpi_handle handle, void **data)
 
 	status = acpi_get_data(handle, acpi_bus_private_data_handler, data);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_debug(handle, "No context for object\n");
+		acpi_handle_de(handle, "No context for object\n");
 		return -ENODEV;
 	}
 
@@ -190,13 +190,13 @@ static void acpi_print_osc_error(acpi_handle handle,
 {
 	int i;
 
-	acpi_handle_debug(handle, "(%s): %s\n", context->uuid_str, error);
+	acpi_handle_de(handle, "(%s): %s\n", context->uuid_str, error);
 
-	pr_debug("_OSC request data:");
+	pr_de("_OSC request data:");
 	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		pr_debug(" %x", *((u32 *)(context->cap.pointer + i)));
+		pr_de(" %x", *((u32 *)(context->cap.pointer + i)));
 
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
@@ -361,26 +361,26 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_BUS_CHECK event\n");
+		acpi_handle_de(handle, "ACPI_NOTIFY_BUS_CHECK event\n");
 		hotplug_event = true;
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_CHECK event\n");
+		acpi_handle_de(handle, "ACPI_NOTIFY_DEVICE_CHECK event\n");
 		hotplug_event = true;
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_WAKE event\n");
+		acpi_handle_de(handle, "ACPI_NOTIFY_DEVICE_WAKE event\n");
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
+		acpi_handle_de(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
 		hotplug_event = true;
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK_LIGHT:
-		acpi_handle_debug(handle, "ACPI_NOTIFY_DEVICE_CHECK_LIGHT event\n");
+		acpi_handle_de(handle, "ACPI_NOTIFY_DEVICE_CHECK_LIGHT event\n");
 		/* TBD: Exactly what does 'light' mean? */
 		break;
 
@@ -399,7 +399,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	default:
-		acpi_handle_debug(handle, "Unknown event type 0x%x\n", type);
+		acpi_handle_de(handle, "Unknown event type 0x%x\n", type);
 		break;
 	}
 
@@ -923,7 +923,7 @@ static int acpi_device_probe(struct device *dev)
 		return ret;
 
 	acpi_dev->driver = acpi_drv;
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Driver [%s] successfully bound to device [%s]\n",
 			  acpi_drv->name, acpi_dev->pnp.bus_id));
 
@@ -939,7 +939,7 @@ static int acpi_device_probe(struct device *dev)
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found driver [%s] for device [%s]\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Found driver [%s] for device [%s]\n",
 			  acpi_drv->name, acpi_dev->pnp.bus_id));
 	get_device(dev);
 	return 0;
@@ -1261,10 +1261,10 @@ static int __init acpi_init(void)
 	acpi_iort_init();
 	acpi_scan_init();
 	acpi_ec_init();
-	acpi_debugfs_init();
+	acpi_defs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
-	acpi_debugger_init();
+	acpi_deger_init();
 	acpi_setup_sb_notify_handler();
 	return 0;
 }

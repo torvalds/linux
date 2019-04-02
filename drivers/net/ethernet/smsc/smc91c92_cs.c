@@ -1027,7 +1027,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int loc, int value)
 
 ======================================================================*/
 
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
 static void smc_dump(struct net_device *dev)
 {
     unsigned int ioaddr = dev->base_addr;
@@ -1051,7 +1051,7 @@ static int smc_open(struct net_device *dev)
 
     dev_dbg(&link->dev, "%s: smc_open(%p), ID/Window %4.4x.\n",
 	  dev->name, dev, inw(dev->base_addr + BANK_SELECT));
-#ifdef PCMCIA_DEBUG
+#ifdef PCMCIA_DE
     smc_dump(dev);
 #endif
 

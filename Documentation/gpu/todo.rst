@@ -78,7 +78,7 @@ now, but there's still a pile of existing drivers that easily could be
 converted over to the new infrastructure.
 
 One issue with the helpers is that they require that drivers handle completion
-events for atomic commits correctly. But fixing these bugs is good anyway.
+events for atomic commits correctly. But fixing these s is good anyway.
 
 Contact: Daniel Vetter, respective driver maintainers
 
@@ -276,7 +276,7 @@ Convert direct mode.vrefresh accesses to use drm_mode_vrefresh()
 ----------------------------------------------------------------
 
 drm_display_mode.vrefresh isn't guaranteed to be populated. As such, using it
-is risky and has been known to cause div-by-zero bugs. Fortunately, drm core
+is risky and has been known to cause div-by-zero s. Fortunately, drm core
 has helper which will use mode.vrefresh if it's !0 and will calculate it from
 the timings when it's 0.
 
@@ -295,7 +295,7 @@ Remove drm_display_mode.hsync
 
 We have drm_mode_hsync() to calculate this from hsync_start/end, since drivers
 shouldn't/don't use this, remove this member to avoid any temptations to use it
-in the future. If there is any debug code using drm_display_mode.hsync, convert
+in the future. If there is any de code using drm_display_mode.hsync, convert
 it to use drm_mode_hsync() instead.
 
 Contact: Sean Paul
@@ -337,14 +337,14 @@ This is a really varied tasks with lots of little bits and pieces:
   main issue here is that panics can be triggered from hardirq contexts and
   hence all panic related callback can run in hardirq context. It would be
   awesome if we could test at least the fbdev helper code and driver code by
-  e.g. trigger calls through drm debugfs files. hardirq context could be
+  e.g. trigger calls through drm defs files. hardirq context could be
   achieved by using an IPI to the local processor.
 
 * There's a massive confusion of different panic handlers. DRM fbdev emulation
   helpers have one, but on top of that the fbcon code itself also has one. We
   need to make sure that they stop fighting over each another.
 
-* ``drm_can_sleep()`` is a mess. It hides real bugs in normal operations and
+* ``drm_can_sleep()`` is a mess. It hides real s in normal operations and
   isn't a full solution for panic paths. We need to make sure that it only
   returns true if there's a panic going on for real, and fix up all the
   fallout.
@@ -367,7 +367,7 @@ This is a really varied tasks with lots of little bits and pieces:
 
 Contact: Daniel Vetter
 
-Clean up the debugfs support
+Clean up the defs support
 ----------------------------
 
 There's a bunch of issues with it:
@@ -375,7 +375,7 @@ There's a bunch of issues with it:
 - The drm_info_list ->show() function doesn't even bother to cast to the drm
   structure for you. This is lazy.
 
-- We probably want to have some support for debugfs files on crtc/connectors and
+- We probably want to have some support for defs files on crtc/connectors and
   maybe other kms objects directly in core. There's even drm_print support in
   the funcs for these objects to dump kms state, so it's all there. And then the
   ->show() functions should obviously give you a pointer to the right object.
@@ -383,13 +383,13 @@ There's a bunch of issues with it:
 - The drm_info_list stuff is centered on drm_minor instead of drm_device. For
   anything we want to print drm_device (or maybe drm_file) is the right thing.
 
-- The drm_driver->debugfs_init hooks we have is just an artifact of the old
-  midlayered load sequence. DRM debugfs should work more like sysfs, where you
+- The drm_driver->defs_init hooks we have is just an artifact of the old
+  midlayered load sequence. DRM defs should work more like sysfs, where you
   can create properties/files for an object anytime you want, and the core
   takes care of publishing/unpuplishing all the files at register/unregister
   time. Drivers shouldn't need to worry about these technicalities, and fixing
   this (together with the drm_minor->drm_device move) would allow us to remove
-  debugfs_init.
+  defs_init.
 
 Contact: Daniel Vetter
 

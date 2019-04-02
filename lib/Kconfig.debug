@@ -77,7 +77,7 @@ config MESSAGE_LOGLEVEL_DEFAULT
 
 config BOOT_PRINTK_DELAY
 	bool "Delay each boot printk message by N milliseconds"
-	depends on DEBUG_KERNEL && PRINTK && GENERIC_CALIBRATE_DELAY
+	depends on DE_KERNEL && PRINTK && GENERIC_CALIBRATE_DELAY
 	help
 	  This build option allows you to read kernel boot messages
 	  by inserting a short delay after each one.  The delay is
@@ -93,46 +93,46 @@ config BOOT_PRINTK_DELAY
 	  BOOT_PRINTK_DELAY also may cause LOCKUP_DETECTOR to detect
 	  what it believes to be lockup conditions.
 
-config DYNAMIC_DEBUG
+config DYNAMIC_DE
 	bool "Enable dynamic printk() support"
 	default n
 	depends on PRINTK
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
 
-	  Compiles debug level messages into the kernel, which would not
+	  Compiles de level messages into the kernel, which would not
 	  otherwise be available at runtime. These messages can then be
 	  enabled/disabled based on various levels of scope - per source file,
 	  function, module, format string, and line number. This mechanism
-	  implicitly compiles in all pr_debug() and dev_dbg() calls, which
+	  implicitly compiles in all pr_de() and dev_dbg() calls, which
 	  enlarges the kernel text size by about 2%.
 
-	  If a source file is compiled with DEBUG flag set, any
-	  pr_debug() calls in it are enabled by default, but can be
-	  disabled at runtime as below.  Note that DEBUG flag is
-	  turned on by many CONFIG_*DEBUG* options.
+	  If a source file is compiled with DE flag set, any
+	  pr_de() calls in it are enabled by default, but can be
+	  disabled at runtime as below.  Note that DE flag is
+	  turned on by many CONFIG_*DE* options.
 
 	  Usage:
 
-	  Dynamic debugging is controlled via the 'dynamic_debug/control' file,
-	  which is contained in the 'debugfs' filesystem. Thus, the debugfs
+	  Dynamic deging is controlled via the 'dynamic_de/control' file,
+	  which is contained in the 'defs' filesystem. Thus, the defs
 	  filesystem must first be mounted before making use of this feature.
-	  We refer the control file as: <debugfs>/dynamic_debug/control. This
-	  file contains a list of the debug statements that can be enabled. The
+	  We refer the control file as: <defs>/dynamic_de/control. This
+	  file contains a list of the de statements that can be enabled. The
 	  format for each line of the file is:
 
 		filename:lineno [module]function flags format
 
-	  filename : source file of the debug statement
-	  lineno : line number of the debug statement
-	  module : module that contains the debug statement
-	  function : function that contains the debug statement
+	  filename : source file of the de statement
+	  lineno : line number of the de statement
+	  module : module that contains the de statement
+	  function : function that contains the de statement
           flags : '=p' means the line is turned 'on' for printing
-          format : the format used for the debug statement
+          format : the format used for the de statement
 
 	  From a live system:
 
-		nullarbor:~ # cat <debugfs>/dynamic_debug/control
+		nullarbor:~ # cat <defs>/dynamic_de/control
 		# filename:lineno [module]function flags format
 		fs/aio.c:222 [aio]__put_ioctx =_ "__put_ioctx:\040freeing\040%p\012"
 		fs/aio.c:248 [aio]ioctx_alloc =_ "ENOMEM:\040nr_events\040too\040high\012"
@@ -142,92 +142,92 @@ config DYNAMIC_DEBUG
 
 		// enable the message at line 1603 of file svcsock.c
 		nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
-						<debugfs>/dynamic_debug/control
+						<defs>/dynamic_de/control
 
 		// enable all the messages in file svcsock.c
 		nullarbor:~ # echo -n 'file svcsock.c +p' >
-						<debugfs>/dynamic_debug/control
+						<defs>/dynamic_de/control
 
 		// enable all the messages in the NFS server module
 		nullarbor:~ # echo -n 'module nfsd +p' >
-						<debugfs>/dynamic_debug/control
+						<defs>/dynamic_de/control
 
 		// enable all 12 messages in the function svc_process()
 		nullarbor:~ # echo -n 'func svc_process +p' >
-						<debugfs>/dynamic_debug/control
+						<defs>/dynamic_de/control
 
 		// disable all 12 messages in the function svc_process()
 		nullarbor:~ # echo -n 'func svc_process -p' >
-						<debugfs>/dynamic_debug/control
+						<defs>/dynamic_de/control
 
-	  See Documentation/admin-guide/dynamic-debug-howto.rst for additional
+	  See Documentation/admin-guide/dynamic-de-howto.rst for additional
 	  information.
 
 endmenu # "printk and dmesg options"
 
 menu "Compile-time checks and compiler options"
 
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	depends on DEBUG_KERNEL && !COMPILE_TEST
+config DE_INFO
+	bool "Compile the kernel with de info"
+	depends on DE_KERNEL && !COMPILE_TEST
 	help
           If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  This adds debug symbols to the kernel and modules (gcc -g), and
+	  deging info resulting in a larger kernel image.
+	  This adds de symbols to the kernel and modules (gcc -g), and
 	  is needed if you intend to use kernel crashdump or binary object
 	  tools like crash, kgdb, LKCD, gdb, etc on the kernel.
-	  Say Y here only if you plan to debug the kernel.
+	  Say Y here only if you plan to de the kernel.
 
 	  If unsure, say N.
 
-config DEBUG_INFO_REDUCED
-	bool "Reduce debugging information"
-	depends on DEBUG_INFO
+config DE_INFO_REDUCED
+	bool "Reduce deging information"
+	depends on DE_INFO
 	help
-	  If you say Y here gcc is instructed to generate less debugging
+	  If you say Y here gcc is instructed to generate less deging
 	  information for structure types. This means that tools that
-	  need full debugging information (like kgdb or systemtap) won't
-	  be happy. But if you merely need debugging information to
+	  need full deging information (like kgdb or systemtap) won't
+	  be happy. But if you merely need deging information to
 	  resolve line numbers there is no loss. Advantage is that
 	  build directory object sizes shrink dramatically over a full
-	  DEBUG_INFO build and compile times are reduced too.
+	  DE_INFO build and compile times are reduced too.
 	  Only works with newer gcc versions.
 
-config DEBUG_INFO_SPLIT
-	bool "Produce split debuginfo in .dwo files"
-	depends on DEBUG_INFO
+config DE_INFO_SPLIT
+	bool "Produce split deinfo in .dwo files"
+	depends on DE_INFO
 	depends on $(cc-option,-gsplit-dwarf)
 	help
-	  Generate debug info into separate .dwo files. This significantly
-	  reduces the build directory size for builds with DEBUG_INFO,
+	  Generate de info into separate .dwo files. This significantly
+	  reduces the build directory size for builds with DE_INFO,
 	  because it stores the information only once on disk in .dwo
 	  files instead of multiple times in object files and executables.
-	  In addition the debug information is also compressed.
+	  In addition the de information is also compressed.
 
 	  Requires recent gcc (4.7+) and recent gdb/binutils.
-	  Any tool that packages or reads debug information would need
+	  Any tool that packages or reads de information would need
 	  to know about the .dwo files and include them.
 	  Incompatible with older versions of ccache.
 
-config DEBUG_INFO_DWARF4
-	bool "Generate dwarf4 debuginfo"
-	depends on DEBUG_INFO
+config DE_INFO_DWARF4
+	bool "Generate dwarf4 deinfo"
+	depends on DE_INFO
 	depends on $(cc-option,-gdwarf-4)
 	help
-	  Generate dwarf4 debug info. This requires recent versions
-	  of gcc and gdb. It makes the debug information larger.
+	  Generate dwarf4 de info. This requires recent versions
+	  of gcc and gdb. It makes the de information larger.
 	  But it significantly improves the success of resolving
 	  variables in gdb on optimized code.
 
 config GDB_SCRIPTS
-	bool "Provide GDB scripts for kernel debugging"
-	depends on DEBUG_INFO
+	bool "Provide GDB scripts for kernel deging"
+	depends on DE_INFO
 	help
 	  This creates the required links to GDB helper scripts in the
 	  build directory. If you load vmlinux into gdb, the helper
 	  scripts will be automatically imported by gdb as well, and
 	  additional functions are available to analyze a Linux kernel
-	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
+	  instance. See Documentation/dev-tools/gdb-kernel-deging.rst
 	  for further details.
 
 config ENABLE_MUST_CHECK
@@ -261,7 +261,7 @@ config STRIP_ASM_SYMS
 
 config READABLE_ASM
         bool "Generate readable assembler code"
-        depends on DEBUG_KERNEL
+        depends on DE_KERNEL
         help
           Disable some compiler optimizations that tend to generate human unreadable
           assembler output. This may make the kernel slightly slower, but it helps
@@ -284,14 +284,14 @@ config UNUSED_SYMBOLS
 	  you really need it, and what the merge plan to the mainline kernel for
 	  your module is.
 
-config DEBUG_FS
-	bool "Debug Filesystem"
+config DE_FS
+	bool "De Filesystem"
 	help
-	  debugfs is a virtual file system that kernel developers use to put
-	  debugging files into.  Enable this option to be able to read and
+	  defs is a virtual file system that kernel developers use to put
+	  deging files into.  Enable this option to be able to read and
 	  write to these files.
 
-	  For detailed documentation on the debugfs API, see
+	  For detailed documentation on the defs API, see
 	  Documentation/filesystems/.
 
 	  If unsure, say N.
@@ -310,7 +310,7 @@ config HEADERS_CHECK
 	  exported to $(INSTALL_HDR_PATH) (usually 'usr/include' in
 	  your build tree), to make sure they're suitable.
 
-config DEBUG_SECTION_MISMATCH
+config DE_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
 	help
 	  The section mismatch analysis checks if there are illegal
@@ -353,19 +353,19 @@ config SECTION_MISMATCH_WARN_ONLY
 #
 # Select this config option from the architecture Kconfig, if it
 # is preferred to always offer frame pointers as a config
-# option on the architecture (regardless of KERNEL_DEBUG):
+# option on the architecture (regardless of KERNEL_DE):
 #
 config ARCH_WANT_FRAME_POINTERS
 	bool
 
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
-	depends on DEBUG_KERNEL && (M68K || UML || SUPERH) || ARCH_WANT_FRAME_POINTERS
-	default y if (DEBUG_INFO && UML) || ARCH_WANT_FRAME_POINTERS
+	depends on DE_KERNEL && (M68K || UML || SUPERH) || ARCH_WANT_FRAME_POINTERS
+	default y if (DE_INFO && UML) || ARCH_WANT_FRAME_POINTERS
 	help
 	  If you say Y here the resulting kernel image will be slightly
-	  larger and slower, but it gives very useful debugging information
-	  in case of kernel bugs. (precise oopses/stacktraces/warnings)
+	  larger and slower, but it gives very useful deging information
+	  in case of kernel s. (precise oopses/stacktraces/warnings)
 
 config STACK_VALIDATION
 	bool "Compile-time stack metadata validation"
@@ -382,9 +382,9 @@ config STACK_VALIDATION
 	  For more information, see
 	  tools/objtool/Documentation/stack-validation.txt.
 
-config DEBUG_FORCE_WEAK_PER_CPU
+config DE_FORCE_WEAK_PER_CPU
 	bool "Force weak per-cpu definitions"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  s390 and alpha require percpu variables in modules to be
 	  defined weak to work around addressing range issue which
@@ -404,7 +404,7 @@ config MAGIC_SYSRQ
 	depends on !UML
 	help
 	  If you say Y here, you will have some control over the system even
-	  if the system crashes for example during kernel debugging (e.g., you
+	  if the system crashes for example during kernel deging (e.g., you
 	  will be able to flush the buffer cache to disk, reboot the system
 	  immediately or dump some status information). This is accomplished
 	  by pressing various keys while holding SysRq (Alt+PrintScreen). It
@@ -432,108 +432,108 @@ config MAGIC_SYSRQ_SERIAL
 	  This option allows you to decide whether you want to enable the
 	  magic SysRq key.
 
-config DEBUG_KERNEL
-	bool "Kernel debugging"
+config DE_KERNEL
+	bool "Kernel deging"
 	help
-	  Say Y here if you are developing drivers or trying to debug and
+	  Say Y here if you are developing drivers or trying to de and
 	  identify kernel problems.
 
-menu "Memory Debugging"
+menu "Memory Deging"
 
-source "mm/Kconfig.debug"
+source "mm/Kconfig.de"
 
-config DEBUG_OBJECTS
-	bool "Debug object operations"
-	depends on DEBUG_KERNEL
+config DE_OBJECTS
+	bool "De object operations"
+	depends on DE_KERNEL
 	help
 	  If you say Y here, additional code will be inserted into the
 	  kernel to track the life time of various objects and validate
 	  the operations on those objects.
 
-config DEBUG_OBJECTS_SELFTEST
-	bool "Debug objects selftest"
-	depends on DEBUG_OBJECTS
+config DE_OBJECTS_SELFTEST
+	bool "De objects selftest"
+	depends on DE_OBJECTS
 	help
-	  This enables the selftest of the object debug code.
+	  This enables the selftest of the object de code.
 
-config DEBUG_OBJECTS_FREE
-	bool "Debug objects in freed memory"
-	depends on DEBUG_OBJECTS
+config DE_OBJECTS_FREE
+	bool "De objects in freed memory"
+	depends on DE_OBJECTS
 	help
 	  This enables checks whether a k/v free operation frees an area
 	  which contains an object which has not been deactivated
 	  properly. This can make kmalloc/kfree-intensive workloads
 	  much slower.
 
-config DEBUG_OBJECTS_TIMERS
-	bool "Debug timer objects"
-	depends on DEBUG_OBJECTS
+config DE_OBJECTS_TIMERS
+	bool "De timer objects"
+	depends on DE_OBJECTS
 	help
 	  If you say Y here, additional code will be inserted into the
 	  timer routines to track the life time of timer objects and
 	  validate the timer operations.
 
-config DEBUG_OBJECTS_WORK
-	bool "Debug work objects"
-	depends on DEBUG_OBJECTS
+config DE_OBJECTS_WORK
+	bool "De work objects"
+	depends on DE_OBJECTS
 	help
 	  If you say Y here, additional code will be inserted into the
 	  work queue routines to track the life time of work objects and
 	  validate the work operations.
 
-config DEBUG_OBJECTS_RCU_HEAD
-	bool "Debug RCU callbacks objects"
-	depends on DEBUG_OBJECTS
+config DE_OBJECTS_RCU_HEAD
+	bool "De RCU callbacks objects"
+	depends on DE_OBJECTS
 	help
-	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
+	  Enable this to turn on deging of RCU list heads (call_rcu() usage).
 
-config DEBUG_OBJECTS_PERCPU_COUNTER
-	bool "Debug percpu counter objects"
-	depends on DEBUG_OBJECTS
+config DE_OBJECTS_PERCPU_COUNTER
+	bool "De percpu counter objects"
+	depends on DE_OBJECTS
 	help
 	  If you say Y here, additional code will be inserted into the
 	  percpu counter routines to track the life time of percpu counter
 	  objects and validate the percpu counter operations.
 
-config DEBUG_OBJECTS_ENABLE_DEFAULT
-	int "debug_objects bootup default value (0-1)"
+config DE_OBJECTS_ENABLE_DEFAULT
+	int "de_objects bootup default value (0-1)"
         range 0 1
         default "1"
-        depends on DEBUG_OBJECTS
+        depends on DE_OBJECTS
         help
-          Debug objects boot parameter default value
+          De objects boot parameter default value
 
-config DEBUG_SLAB
-	bool "Debug slab memory allocations"
-	depends on DEBUG_KERNEL && SLAB
+config DE_SLAB
+	bool "De slab memory allocations"
+	depends on DE_KERNEL && SLAB
 	help
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
 	  memory. This can make kmalloc/kfree-intensive workloads much slower.
 
-config DEBUG_SLAB_LEAK
-	bool "Memory leak debugging"
-	depends on DEBUG_SLAB
+config DE_SLAB_LEAK
+	bool "Memory leak deging"
+	depends on DE_SLAB
 
-config SLUB_DEBUG_ON
-	bool "SLUB debugging on by default"
-	depends on SLUB && SLUB_DEBUG
+config SLUB_DE_ON
+	bool "SLUB deging on by default"
+	depends on SLUB && SLUB_DE
 	default n
 	help
-	  Boot with debugging on by default. SLUB boots by default with
-	  the runtime debug capabilities switched off. Enabling this is
-	  equivalent to specifying the "slub_debug" parameter on boot.
-	  There is no support for more fine grained debug control like
-	  possible with slub_debug=xxx. SLUB debugging may be switched
-	  off in a kernel built with CONFIG_SLUB_DEBUG_ON by specifying
-	  "slub_debug=-".
+	  Boot with deging on by default. SLUB boots by default with
+	  the runtime de capabilities switched off. Enabling this is
+	  equivalent to specifying the "slub_de" parameter on boot.
+	  There is no support for more fine grained de control like
+	  possible with slub_de=xxx. SLUB deging may be switched
+	  off in a kernel built with CONFIG_SLUB_DE_ON by specifying
+	  "slub_de=-".
 
 config SLUB_STATS
 	default n
 	bool "Enable SLUB performance statistics"
 	depends on SLUB && SYSFS
 	help
-	  SLUB statistics are useful to debug SLUBs allocation behavior in
+	  SLUB statistics are useful to de SLUBs allocation behavior in
 	  order find ways to optimize the allocator. This should never be
 	  enabled for production use since keeping statistics slows down
 	  the allocator by a few percentage points. The slabinfo command
@@ -541,13 +541,13 @@ config SLUB_STATS
 	  out which slabs are relevant to a particular load.
 	  Try running: slabinfo -DA
 
-config HAVE_DEBUG_KMEMLEAK
+config HAVE_DE_KMEMLEAK
 	bool
 
-config DEBUG_KMEMLEAK
+config DE_KMEMLEAK
 	bool "Kernel memory leak detector"
-	depends on DEBUG_KERNEL && HAVE_DEBUG_KMEMLEAK
-	select DEBUG_FS
+	depends on DE_KERNEL && HAVE_DE_KMEMLEAK
+	select DE_FS
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
 	select CRC32
@@ -556,20 +556,20 @@ config DEBUG_KMEMLEAK
 	  detector. The memory allocation/freeing is traced in a way
 	  similar to the Boehm's conservative garbage collector, the
 	  difference being that the orphan objects are not freed but
-	  only shown in /sys/kernel/debug/kmemleak. Enabling this
+	  only shown in /sys/kernel/de/kmemleak. Enabling this
 	  feature will introduce an overhead to memory
 	  allocations. See Documentation/dev-tools/kmemleak.rst for more
 	  details.
 
-	  Enabling DEBUG_SLAB or SLUB_DEBUG may increase the chances
+	  Enabling DE_SLAB or SLUB_DE may increase the chances
 	  of finding leaks due to the slab objects poisoning.
 
-	  In order to access the kmemleak file, debugfs needs to be
-	  mounted (usually at /sys/kernel/debug).
+	  In order to access the kmemleak file, defs needs to be
+	  mounted (usually at /sys/kernel/de).
 
-config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
+config DE_KMEMLEAK_EARLY_LOG_SIZE
 	int "Maximum kmemleak early log entries"
-	depends on DEBUG_KMEMLEAK
+	depends on DE_KMEMLEAK
 	range 200 40000
 	default 400
 	help
@@ -579,25 +579,25 @@ config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
 	  used to store these actions. If kmemleak reports "early log
 	  buffer exceeded", please increase this value.
 
-config DEBUG_KMEMLEAK_TEST
+config DE_KMEMLEAK_TEST
 	tristate "Simple test for the kernel memory leak detector"
-	depends on DEBUG_KMEMLEAK && m
+	depends on DE_KMEMLEAK && m
 	help
 	  This option enables a module that explicitly leaks memory.
 
 	  If unsure, say N.
 
-config DEBUG_KMEMLEAK_DEFAULT_OFF
+config DE_KMEMLEAK_DEFAULT_OFF
 	bool "Default kmemleak to off"
-	depends on DEBUG_KMEMLEAK
+	depends on DE_KMEMLEAK
 	help
 	  Say Y here to disable kmemleak by default. It can then be enabled
 	  on the command line via kmemleak=on.
 
-config DEBUG_KMEMLEAK_AUTO_SCAN
+config DE_KMEMLEAK_AUTO_SCAN
 	bool "Enable kmemleak auto scan thread on boot up"
 	default y
-	depends on DEBUG_KMEMLEAK
+	depends on DE_KMEMLEAK
 	help
 	  Depending on the cpu, kmemleak scan may be cpu intensive and can
 	  stall user tasks at times. This option enables/disables automatic
@@ -609,77 +609,77 @@ config DEBUG_KMEMLEAK_AUTO_SCAN
 
 	  If unsure, say Y.
 
-config DEBUG_STACK_USAGE
+config DE_STACK_USAGE
 	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL && !IA64
+	depends on DE_KERNEL && !IA64
 	help
 	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T and sysrq-P debug output.
+	  task has ever had available in the sysrq-T and sysrq-P de output.
 
 	  This option will slow down process creation somewhat.
 
-config DEBUG_VM
-	bool "Debug VM"
-	depends on DEBUG_KERNEL
+config DE_VM
+	bool "De VM"
+	depends on DE_KERNEL
 	help
 	  Enable this to turn on extended checks in the virtual-memory system
           that may impact performance.
 
 	  If unsure, say N.
 
-config DEBUG_VM_VMACACHE
-	bool "Debug VMA caching"
-	depends on DEBUG_VM
+config DE_VM_VMACACHE
+	bool "De VMA caching"
+	depends on DE_VM
 	help
-	  Enable this to turn on VMA caching debug information. Doing so
+	  Enable this to turn on VMA caching de information. Doing so
 	  can cause significant overhead, so only enable it in non-production
 	  environments.
 
 	  If unsure, say N.
 
-config DEBUG_VM_RB
-	bool "Debug VM red-black trees"
-	depends on DEBUG_VM
+config DE_VM_RB
+	bool "De VM red-black trees"
+	depends on DE_VM
 	help
-	  Enable VM red-black tree debugging information and extra validations.
+	  Enable VM red-black tree deging information and extra validations.
 
 	  If unsure, say N.
 
-config DEBUG_VM_PGFLAGS
-	bool "Debug page-flags operations"
-	depends on DEBUG_VM
+config DE_VM_PGFLAGS
+	bool "De page-flags operations"
+	depends on DE_VM
 	help
 	  Enables extra validation on page flags operations.
 
 	  If unsure, say N.
 
-config ARCH_HAS_DEBUG_VIRTUAL
+config ARCH_HAS_DE_VIRTUAL
 	bool
 
-config DEBUG_VIRTUAL
-	bool "Debug VM translations"
-	depends on DEBUG_KERNEL && ARCH_HAS_DEBUG_VIRTUAL
+config DE_VIRTUAL
+	bool "De VM translations"
+	depends on DE_KERNEL && ARCH_HAS_DE_VIRTUAL
 	help
 	  Enable some costly sanity checks in virtual to page code. This can
 	  catch mistakes with virt_to_page() and friends.
 
 	  If unsure, say N.
 
-config DEBUG_NOMMU_REGIONS
-	bool "Debug the global anon/private NOMMU mapping region tree"
-	depends on DEBUG_KERNEL && !MMU
+config DE_NOMMU_REGIONS
+	bool "De the global anon/private NOMMU mapping region tree"
+	depends on DE_KERNEL && !MMU
 	help
 	  This option causes the global tree of anonymous and private mapping
 	  regions to be regularly checked for invalid topology.
 
-config DEBUG_MEMORY_INIT
-	bool "Debug memory initialisation" if EXPERT
+config DE_MEMORY_INIT
+	bool "De memory initialisation" if EXPERT
 	default !EXPERT
 	help
 	  Enable this for additional checks during memory initialisation.
 	  The sanity checks verify aspects of the VM such as the memory model
 	  and other information provided by the architecture. Verbose
-	  information will be printed at KERN_DEBUG loglevel depending
+	  information will be printed at KERN_DE loglevel depending
 	  on the mminit_loglevel= command-line option.
 
 	  If unsure, say Y
@@ -690,14 +690,14 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 	help
 	  This option provides the ability to inject artificial errors to
 	  memory hotplug notifier chain callbacks.  It is controlled through
-	  debugfs interface under /sys/kernel/debug/notifier-error-inject/memory
+	  defs interface under /sys/kernel/de/notifier-error-inject/memory
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".
 
 	  Example: Inject memory hotplug offline error (-12 == -ENOMEM)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/memory
+	  # cd /sys/kernel/de/notifier-error-inject/memory
 	  # echo -12 > actions/MEM_GOING_OFFLINE/error
 	  # echo offline > /sys/devices/system/memory/memoryXXX/state
 	  bash: echo: write error: Cannot allocate memory
@@ -707,9 +707,9 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 
 	  If unsure, say N.
 
-config DEBUG_PER_CPU_MAPS
-	bool "Debug access to per_cpu maps"
-	depends on DEBUG_KERNEL
+config DE_PER_CPU_MAPS
+	bool "De access to per_cpu maps"
+	depends on DE_KERNEL
 	depends on SMP
 	help
 	  Say Y to verify that the per_cpu map being accessed has
@@ -718,26 +718,26 @@ config DEBUG_PER_CPU_MAPS
 
 	  Say N if unsure.
 
-config DEBUG_HIGHMEM
-	bool "Highmem debugging"
-	depends on DEBUG_KERNEL && HIGHMEM
+config DE_HIGHMEM
+	bool "Highmem deging"
+	depends on DE_KERNEL && HIGHMEM
 	help
 	  This option enables additional error checking for high memory
 	  systems.  Disable for production systems.
 
-config HAVE_DEBUG_STACKOVERFLOW
+config HAVE_DE_STACKOVERFLOW
 	bool
 
-config DEBUG_STACKOVERFLOW
+config DE_STACKOVERFLOW
 	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL && HAVE_DEBUG_STACKOVERFLOW
+	depends on DE_KERNEL && HAVE_DE_STACKOVERFLOW
 	---help---
 	  Say Y here if you want to check for overflows of kernel, IRQ
 	  and exception stacks (if your architecture uses them). This
 	  option will show detailed messages if free stack space drops
 	  below a certain limit.
 
-	  These kinds of bugs usually occur when call-chains in the
+	  These kinds of s usually occur when call-chains in the
 	  kernel get too deep, especially when interrupts are
 	  involved.
 
@@ -748,7 +748,7 @@ config DEBUG_STACKOVERFLOW
 
 source "lib/Kconfig.kasan"
 
-endmenu # "Memory Debugging"
+endmenu # "Memory Deging"
 
 config ARCH_HAS_KCOV
 	bool
@@ -764,7 +764,7 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
-	select DEBUG_FS
+	select DE_FS
 	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
@@ -797,29 +797,29 @@ config KCOV_INSTRUMENT_ALL
 	  filesystem fuzzing with AFL) then you will want to enable coverage
 	  for more specific subsets of files, and should say n here.
 
-config DEBUG_SHIRQ
-	bool "Debug shared IRQ handlers"
-	depends on DEBUG_KERNEL
+config DE_SHIRQ
+	bool "De shared IRQ handlers"
+	depends on DE_KERNEL
 	help
 	  Enable this to generate a spurious interrupt as soon as a shared
 	  interrupt handler is registered, and just before one is deregistered.
 	  Drivers ought to be able to handle interrupts coming in at those
 	  points; some don't and need to be caught.
 
-menu "Debug Lockups and Hangs"
+menu "De Lockups and Hangs"
 
 config LOCKUP_DETECTOR
 	bool
 
 config SOFTLOCKUP_DETECTOR
 	bool "Detect Soft Lockups"
-	depends on DEBUG_KERNEL && !S390
+	depends on DE_KERNEL && !S390
 	select LOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to act as a watchdog to detect
 	  soft lockups.
 
-	  Softlockups are bugs that cause the kernel to loop in kernel
+	  Softlockups are s that cause the kernel to loop in kernel
 	  mode for more than 20 seconds, without giving other tasks a
 	  chance to run.  The current stack trace is displayed upon
 	  detection and the system will stay locked up.
@@ -829,7 +829,7 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 	depends on SOFTLOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "soft lockups",
-	  which are bugs that cause the kernel to loop in kernel
+	  which are s that cause the kernel to loop in kernel
 	  mode for more than 20 seconds (configurable using the watchdog_thresh
 	  sysctl), without giving other tasks a chance to run.
 
@@ -865,7 +865,7 @@ config HARDLOCKUP_CHECK_TIMESTAMP
 #
 config HARDLOCKUP_DETECTOR
 	bool "Detect Hard Lockups"
-	depends on DEBUG_KERNEL && !S390
+	depends on DE_KERNEL && !S390
 	depends on HAVE_HARDLOCKUP_DETECTOR_PERF || HAVE_HARDLOCKUP_DETECTOR_ARCH
 	select LOCKUP_DETECTOR
 	select HARDLOCKUP_DETECTOR_PERF if HAVE_HARDLOCKUP_DETECTOR_PERF
@@ -874,7 +874,7 @@ config HARDLOCKUP_DETECTOR
 	  Say Y here to enable the kernel to act as a watchdog to detect
 	  hard lockups.
 
-	  Hardlockups are bugs that cause the CPU to loop in kernel mode
+	  Hardlockups are s that cause the CPU to loop in kernel mode
 	  for more than 10 seconds, without letting other interrupts have a
 	  chance to run.  The current stack trace is displayed upon detection
 	  and the system will stay locked up.
@@ -884,7 +884,7 @@ config BOOTPARAM_HARDLOCKUP_PANIC
 	depends on HARDLOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to panic on "hard lockups",
-	  which are bugs that cause the kernel to loop in kernel
+	  which are s that cause the kernel to loop in kernel
 	  mode with interrupts disabled for more than 10 seconds (configurable
 	  using the watchdog_thresh sysctl).
 
@@ -899,11 +899,11 @@ config BOOTPARAM_HARDLOCKUP_PANIC_VALUE
 
 config DETECT_HUNG_TASK
 	bool "Detect Hung Tasks"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	default SOFTLOCKUP_DETECTOR
 	help
 	  Say Y here to enable the kernel to detect "hung tasks",
-	  which are bugs that cause the task to be stuck in
+	  which are s that cause the task to be stuck in
 	  uninterruptible "D" state indefinitely.
 
 	  When a hung task is detected, the kernel will print the
@@ -933,7 +933,7 @@ config BOOTPARAM_HUNG_TASK_PANIC
 	depends on DETECT_HUNG_TASK
 	help
 	  Say Y here to enable the kernel to panic on "hung tasks",
-	  which are bugs that cause the kernel to leave a task stuck
+	  which are s that cause the kernel to leave a task stuck
 	  in uninterruptible "D" state.
 
 	  The panic can be used in combination with panic_timeout,
@@ -953,7 +953,7 @@ config BOOTPARAM_HUNG_TASK_PANIC_VALUE
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  Say Y here to enable stall detection on workqueues.  If a
 	  worker pool doesn't make forward progress on a pending work
@@ -962,7 +962,7 @@ config WQ_WATCHDOG
 	  state.  This can be configured through kernel parameter
 	  "workqueue.watchdog_thresh" and its sysfs counterpart.
 
-endmenu # "Debug lockups and hangs"
+endmenu # "De lockups and hangs"
 
 config PANIC_ON_OOPS
 	bool "Panic on Oops"
@@ -992,13 +992,13 @@ config PANIC_TIMEOUT
 	  value n > 0 will wait n seconds before rebooting, while a timeout
 	  value n < 0 will reboot immediately.
 
-config SCHED_DEBUG
-	bool "Collect scheduler debugging info"
-	depends on DEBUG_KERNEL && PROC_FS
+config SCHED_DE
+	bool "Collect scheduler deging info"
+	depends on DE_KERNEL && PROC_FS
 	default y
 	help
-	  If you say Y here, the /proc/sched_debug file will be provided
-	  that can help debug the scheduler. The runtime overhead of this
+	  If you say Y here, the /proc/sched_de file will be provided
+	  that can help de the scheduler. The runtime overhead of this
 	  option is minimal.
 
 config SCHED_INFO
@@ -1007,20 +1007,20 @@ config SCHED_INFO
 
 config SCHEDSTATS
 	bool "Collect scheduler statistics"
-	depends on DEBUG_KERNEL && PROC_FS
+	depends on DE_KERNEL && PROC_FS
 	select SCHED_INFO
 	help
 	  If you say Y here, additional code will be inserted into the
 	  scheduler and related routines to collect statistics about
 	  scheduler behavior and provide them in /proc/schedstat.  These
-	  stats may be useful for both tuning and debugging the scheduler
-	  If you aren't debugging the scheduler or trying to tune a specific
+	  stats may be useful for both tuning and deging the scheduler
+	  If you aren't deging the scheduler or trying to tune a specific
 	  application, you can say N to avoid the very slight overhead
 	  this adds.
 
 config SCHED_STACK_END_CHECK
 	bool "Detect stack corruption on calls to schedule()"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	default n
 	help
 	  This option checks for a stack overrun on calls to schedule().
@@ -1030,7 +1030,7 @@ config SCHED_STACK_END_CHECK
 	  data corruption or a sporadic crash at a later stage once the region
 	  is examined. The runtime overhead introduced is minimal.
 
-config DEBUG_TIMEKEEPING
+config DE_TIMEKEEPING
 	bool "Enable extra timekeeping sanity checking"
 	help
 	  This option will enable additional timekeeping sanity checks
@@ -1043,33 +1043,33 @@ config DEBUG_TIMEKEEPING
 
 	  If unsure, say N.
 
-config DEBUG_PREEMPT
-	bool "Debug preemptible kernel"
-	depends on DEBUG_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
+config DE_PREEMPT
+	bool "De preemptible kernel"
+	depends on DE_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
 	default y
 	help
-	  If you say Y here then the kernel will use a debug variant of the
+	  If you say Y here then the kernel will use a de variant of the
 	  commonly used smp_processor_id() function and will print warnings
 	  if kernel code uses it in a preemption-unsafe way. Also, the kernel
 	  will detect preemption count underflows.
 
-menu "Lock Debugging (spinlocks, mutexes, etc...)"
+menu "Lock Deging (spinlocks, mutexes, etc...)"
 
-config LOCK_DEBUGGING_SUPPORT
+config LOCK_DEGING_SUPPORT
 	bool
 	depends on TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	default y
 
 config PROVE_LOCKING
-	bool "Lock debugging: prove locking correctness"
-	depends on DEBUG_KERNEL && LOCK_DEBUGGING_SUPPORT
+	bool "Lock deging: prove locking correctness"
+	depends on DE_KERNEL && LOCK_DEGING_SUPPORT
 	select LOCKDEP
-	select DEBUG_SPINLOCK
-	select DEBUG_MUTEXES
-	select DEBUG_RT_MUTEXES if RT_MUTEXES
-	select DEBUG_RWSEMS if RWSEM_SPIN_ON_OWNER
-	select DEBUG_WW_MUTEX_SLOWPATH
-	select DEBUG_LOCK_ALLOC
+	select DE_SPINLOCK
+	select DE_MUTEXES
+	select DE_RT_MUTEXES if RT_MUTEXES
+	select DE_RWSEMS if RWSEM_SPIN_ON_OWNER
+	select DE_WW_MUTEX_SLOWPATH
+	select DE_LOCK_ALLOC
 	select TRACE_IRQFLAGS
 	default n
 	help
@@ -1108,12 +1108,12 @@ config PROVE_LOCKING
 
 config LOCK_STAT
 	bool "Lock usage statistics"
-	depends on DEBUG_KERNEL && LOCK_DEBUGGING_SUPPORT
+	depends on DE_KERNEL && LOCK_DEGING_SUPPORT
 	select LOCKDEP
-	select DEBUG_SPINLOCK
-	select DEBUG_MUTEXES
-	select DEBUG_RT_MUTEXES if RT_MUTEXES
-	select DEBUG_LOCK_ALLOC
+	select DE_SPINLOCK
+	select DE_MUTEXES
+	select DE_RT_MUTEXES if RT_MUTEXES
+	select DE_LOCK_ALLOC
 	default n
 	help
 	 This feature enables tracking lock contention points
@@ -1128,36 +1128,36 @@ config LOCK_STAT
 	 CONFIG_LOCK_STAT defines "contended" and "acquired" lock events.
 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
 
-config DEBUG_RT_MUTEXES
-	bool "RT Mutex debugging, deadlock detection"
-	depends on DEBUG_KERNEL && RT_MUTEXES
+config DE_RT_MUTEXES
+	bool "RT Mutex deging, deadlock detection"
+	depends on DE_KERNEL && RT_MUTEXES
 	help
 	 This allows rt mutex semantics violations and rt mutex related
 	 deadlocks (lockups) to be detected and reported automatically.
 
-config DEBUG_SPINLOCK
-	bool "Spinlock and rw-lock debugging: basic checks"
-	depends on DEBUG_KERNEL
+config DE_SPINLOCK
+	bool "Spinlock and rw-lock deging: basic checks"
+	depends on DE_KERNEL
 	select UNINLINE_SPIN_UNLOCK
 	help
 	  Say Y here and build SMP to catch missing spinlock initialization
 	  and certain other kinds of spinlock errors commonly made.  This is
 	  best used in conjunction with the NMI watchdog so that spinlock
-	  deadlocks are also debuggable.
+	  deadlocks are also degable.
 
-config DEBUG_MUTEXES
-	bool "Mutex debugging: basic checks"
-	depends on DEBUG_KERNEL
+config DE_MUTEXES
+	bool "Mutex deging: basic checks"
+	depends on DE_KERNEL
 	help
 	 This feature allows mutex semantics violations to be detected and
 	 reported.
 
-config DEBUG_WW_MUTEX_SLOWPATH
-	bool "Wait/wound mutex debugging: Slowpath testing"
-	depends on DEBUG_KERNEL && LOCK_DEBUGGING_SUPPORT
-	select DEBUG_LOCK_ALLOC
-	select DEBUG_SPINLOCK
-	select DEBUG_MUTEXES
+config DE_WW_MUTEX_SLOWPATH
+	bool "Wait/wound mutex deging: Slowpath testing"
+	depends on DE_KERNEL && LOCK_DEGING_SUPPORT
+	select DE_LOCK_ALLOC
+	select DE_SPINLOCK
+	select DE_MUTEXES
 	help
 	 This feature enables slowpath testing for w/w mutex users by
 	 injecting additional -EDEADLK wound/backoff cases. Together with
@@ -1166,22 +1166,22 @@ config DEBUG_WW_MUTEX_SLOWPATH
 	 exception of simply not acquiring all the required locks.
 	 Note that this feature can introduce significant overhead, so
 	 it really should not be enabled in a production or distro kernel,
-	 even a debug kernel.  If you are a driver writer, enable it.  If
+	 even a de kernel.  If you are a driver writer, enable it.  If
 	 you are a distro, do not.
 
-config DEBUG_RWSEMS
-	bool "RW Semaphore debugging: basic checks"
-	depends on DEBUG_KERNEL && RWSEM_SPIN_ON_OWNER
+config DE_RWSEMS
+	bool "RW Semaphore deging: basic checks"
+	depends on DE_KERNEL && RWSEM_SPIN_ON_OWNER
 	help
-	  This debugging feature allows mismatched rw semaphore locks and unlocks
+	  This deging feature allows mismatched rw semaphore locks and unlocks
 	  to be detected and reported.
 
-config DEBUG_LOCK_ALLOC
-	bool "Lock debugging: detect incorrect freeing of live locks"
-	depends on DEBUG_KERNEL && LOCK_DEBUGGING_SUPPORT
-	select DEBUG_SPINLOCK
-	select DEBUG_MUTEXES
-	select DEBUG_RT_MUTEXES if RT_MUTEXES
+config DE_LOCK_ALLOC
+	bool "Lock deging: detect incorrect freeing of live locks"
+	depends on DE_KERNEL && LOCK_DEGING_SUPPORT
+	select DE_SPINLOCK
+	select DE_MUTEXES
+	select DE_RT_MUTEXES if RT_MUTEXES
 	select LOCKDEP
 	help
 	 This feature will check whether any held lock (spinlock, rwlock,
@@ -1193,7 +1193,7 @@ config DEBUG_LOCK_ALLOC
 
 config LOCKDEP
 	bool
-	depends on DEBUG_KERNEL && LOCK_DEBUGGING_SUPPORT
+	depends on DE_KERNEL && LOCK_DEGING_SUPPORT
 	select STACKTRACE
 	select FRAME_POINTER if !MIPS && !PPC && !ARM && !S390 && !MICROBLAZE && !ARC && !X86
 	select KALLSYMS
@@ -1202,18 +1202,18 @@ config LOCKDEP
 config LOCKDEP_SMALL
 	bool
 
-config DEBUG_LOCKDEP
-	bool "Lock dependency engine debugging"
-	depends on DEBUG_KERNEL && LOCKDEP
+config DE_LOCKDEP
+	bool "Lock dependency engine deging"
+	depends on DE_KERNEL && LOCKDEP
 	help
 	  If you say Y here, the lock dependency engine will do
-	  additional runtime checks to debug itself, at the price
+	  additional runtime checks to de itself, at the price
 	  of more runtime overhead.
 
-config DEBUG_ATOMIC_SLEEP
+config DE_ATOMIC_SLEEP
 	bool "Sleep inside atomic section checking"
 	select PREEMPT_COUNT
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	depends on !ARCH_NO_PREEMPT
 	help
 	  If you say Y here, various routines which may sleep will become very
@@ -1221,20 +1221,20 @@ config DEBUG_ATOMIC_SLEEP
 	  held, inside an rcu read side critical section, inside preempt disabled
 	  sections, inside an interrupt, etc...
 
-config DEBUG_LOCKING_API_SELFTESTS
+config DE_LOCKING_API_SELFTESTS
 	bool "Locking API boot-time self-tests"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  Say Y here if you want the kernel to run a short self-test during
-	  bootup. The self-test checks whether common types of locking bugs
-	  are detected by debugging mechanisms or not. (if you disable
-	  lock debugging then those bugs wont be detected of course.)
+	  bootup. The self-test checks whether common types of locking s
+	  are detected by deging mechanisms or not. (if you disable
+	  lock deging then those s wont be detected of course.)
 	  The following locking APIs are covered: spinlocks, rwlocks,
 	  mutexes and rwsems.
 
 config LOCK_TORTURE_TEST
 	tristate "torture tests for locking"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	select TORTURE_TEST
 	help
 	  This option provides a kernel module that runs torture tests
@@ -1252,19 +1252,19 @@ config WW_MUTEX_SELFTEST
 	  This option provides a kernel module that runs tests on the
 	  on the struct ww_mutex locking API.
 
-	  It is recommended to enable DEBUG_WW_MUTEX_SLOWPATH in conjunction
+	  It is recommended to enable DE_WW_MUTEX_SLOWPATH in conjunction
 	  with this test harness.
 
 	  Say M if you want these self tests to build as a module.
 	  Say N if you are unsure.
 
-endmenu # lock debugging
+endmenu # lock deging
 
 config TRACE_IRQFLAGS
 	bool
 	help
 	  Enables hooks to interrupt enabling and disabling for
-	  either tracing or lock debugging.
+	  either tracing or lock deging.
 
 config STACKTRACE
 	bool "Stack backtrace support"
@@ -1272,14 +1272,14 @@ config STACKTRACE
 	help
 	  This option causes the kernel to create a /proc/pid/stack for
 	  every process, showing its current stack trace.
-	  It is also used by various kernel debugging features that require
+	  It is also used by various kernel deging features that require
 	  stack trace generation.
 
 config WARN_ALL_UNSEEDED_RANDOM
 	bool "Warn for all uses of unseeded randomness"
 	default n
 	help
-	  Some parts of the kernel contain bugs relating to their use of
+	  Some parts of the kernel contain s relating to their use of
 	  cryptographically secure random numbers before it's actually possible
 	  to generate those numbers securely. This setting ensures that these
 	  flaws don't go unnoticed, by enabling a message, should this ever
@@ -1303,16 +1303,16 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  Linux kernels running on their architecture (or
 	  subarchitecture).
 
-config DEBUG_KOBJECT
-	bool "kobject debugging"
-	depends on DEBUG_KERNEL
+config DE_KOBJECT
+	bool "kobject deging"
+	depends on DE_KERNEL
 	help
-	  If you say Y here, some extra kobject debugging messages will be sent
+	  If you say Y here, some extra kobject deging messages will be sent
 	  to the syslog.
 
-config DEBUG_KOBJECT_RELEASE
-	bool "kobject release debugging"
-	depends on DEBUG_OBJECTS_TIMERS
+config DE_KOBJECT_RELEASE
+	bool "kobject release deging"
+	depends on DE_OBJECTS_TIMERS
 	help
 	  kobjects are reference counted objects.  This means that their
 	  last reference count put is not predictable, and the kobject can
@@ -1321,38 +1321,38 @@ config DEBUG_KOBJECT_RELEASE
 	  example of this would be a struct device which has just been
 	  unregistered.
 
-	  However, some buggy drivers assume that after such an operation,
+	  However, some gy drivers assume that after such an operation,
 	  the memory backing the kobject can be immediately freed.  This
 	  goes completely against the principles of a refcounted object.
 
 	  If you say Y here, the kernel will delay the release of kobjects
 	  on the last reference count to improve the visibility of this
-	  kind of kobject release bug.
+	  kind of kobject release .
 
-config HAVE_DEBUG_BUGVERBOSE
+config HAVE_DE_VERBOSE
 	bool
 
-config DEBUG_BUGVERBOSE
-	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
-	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
+config DE_VERBOSE
+	bool "Verbose () reporting (adds 70K)" if DE_KERNEL && EXPERT
+	depends on  && (GENERIC_ || HAVE_DE_VERBOSE)
 	default y
 	help
-	  Say Y here to make BUG() panics output the file name and line number
-	  of the BUG call as well as the EIP and oops trace.  This aids
-	  debugging but costs about 70-100K of memory.
+	  Say Y here to make () panics output the file name and line number
+	  of the  call as well as the EIP and oops trace.  This aids
+	  deging but costs about 70-100K of memory.
 
-config DEBUG_LIST
-	bool "Debug linked list manipulation"
-	depends on DEBUG_KERNEL || BUG_ON_DATA_CORRUPTION
+config DE_LIST
+	bool "De linked list manipulation"
+	depends on DE_KERNEL || _ON_DATA_CORRUPTION
 	help
 	  Enable this to turn on extended checks in the linked-list
 	  walking routines.
 
 	  If unsure, say N.
 
-config DEBUG_PI_LIST
-	bool "Debug priority linked list manipulation"
-	depends on DEBUG_KERNEL
+config DE_PI_LIST
+	bool "De priority linked list manipulation"
+	depends on DE_KERNEL
 	help
 	  Enable this to turn on extended checks in the priority-ordered
 	  linked-list (plist) walking routines.  This checks the entire
@@ -1360,9 +1360,9 @@ config DEBUG_PI_LIST
 
 	  If unsure, say N.
 
-config DEBUG_SG
-	bool "Debug SG table operations"
-	depends on DEBUG_KERNEL
+config DE_SG
+	bool "De SG table operations"
+	depends on DE_KERNEL
 	help
 	  Enable this to turn on checks on scatter-gather tables. This can
 	  help find problems with drivers that do not properly initialize
@@ -1370,9 +1370,9 @@ config DEBUG_SG
 
 	  If unsure, say N.
 
-config DEBUG_NOTIFIERS
-	bool "Debug notifier call chains"
-	depends on DEBUG_KERNEL
+config DE_NOTIFIERS
+	bool "De notifier call chains"
+	depends on DE_KERNEL
 	help
 	  Enable this to turn on sanity checking for notifier call chains.
 	  This is most useful for kernel developers to make sure that
@@ -1380,11 +1380,11 @@ config DEBUG_NOTIFIERS
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
 
-config DEBUG_CREDENTIALS
-	bool "Debug credential management"
-	depends on DEBUG_KERNEL
+config DE_CREDENTIALS
+	bool "De credential management"
+	depends on DE_KERNEL
 	help
-	  Enable this to turn on some debug checking for credential
+	  Enable this to turn on some de checking for credential
 	  management.  The additional code keeps track of the number of
 	  pointers from task_structs to any given cred struct, and checks to
 	  see that this number never exceeds the usage count of the cred
@@ -1395,26 +1395,26 @@ config DEBUG_CREDENTIALS
 
 	  If unsure, say N.
 
-source "kernel/rcu/Kconfig.debug"
+source "kernel/rcu/Kconfig.de"
 
-config DEBUG_WQ_FORCE_RR_CPU
+config DE_WQ_FORCE_RR_CPU
 	bool "Force round-robin CPU selection for unbound work items"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	default n
 	help
 	  Workqueue used to implicitly guarantee that work items queued
 	  without explicit CPU specified are put on the local CPU.  This
 	  guarantee is no longer true and while local CPU is still
 	  preferred work items may be put on foreign CPUs.  Kernel
-	  parameter "workqueue.debug_force_rr_cpu" is added to force
+	  parameter "workqueue.de_force_rr_cpu" is added to force
 	  round-robin CPU selection to flush out usages which depend on the
-	  now broken guarantee.  This config option enables the debug
+	  now broken guarantee.  This config option enables the de
 	  feature by default.  When enabled, memory and cache locality will
 	  be impacted.
 
-config DEBUG_BLOCK_EXT_DEVT
+config DE_BLOCK_EXT_DEVT
         bool "Force extended block device numbers and spread them"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	depends on BLOCK
 	default n
 	help
@@ -1431,7 +1431,7 @@ config DEBUG_BLOCK_EXT_DEVT
 	  userland code paths which assume predetermined contiguous
 	  device number allocation.
 
-	  Note that turning on this debug option shuffles all the
+	  Note that turning on this de option shuffles all the
 	  device numbers for all IDE and SCSI devices including libata
 	  ones, so root partition specified using device number
 	  directly (via rdev or root=MAJ:MIN) won't work anymore.
@@ -1441,12 +1441,12 @@ config DEBUG_BLOCK_EXT_DEVT
 
 config CPU_HOTPLUG_STATE_CONTROL
 	bool "Enable CPU hotplug state control"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	depends on HOTPLUG_CPU
 	default n
 	help
 	  Allows to write steps between "offline" and "online" to the CPUs
-	  sysfs target file so states can be stepped granular. This is a debug
+	  sysfs target file so states can be stepped granular. This is a de
 	  option for now as the hotplug machinery cannot be stopped and
 	  restarted at arbitrary points yet.
 
@@ -1454,8 +1454,8 @@ config CPU_HOTPLUG_STATE_CONTROL
 
 config NOTIFIER_ERROR_INJECTION
 	tristate "Notifier error injection"
-	depends on DEBUG_KERNEL
-	select DEBUG_FS
+	depends on DE_KERNEL
+	select DE_FS
 	help
 	  This option provides the ability to inject artificial errors to
 	  specified notifier chain callbacks. It is useful to test the error
@@ -1466,18 +1466,18 @@ config NOTIFIER_ERROR_INJECTION
 config PM_NOTIFIER_ERROR_INJECT
 	tristate "PM notifier error injection module"
 	depends on PM && NOTIFIER_ERROR_INJECTION
-	default m if PM_DEBUG
+	default m if PM_DE
 	help
 	  This option provides the ability to inject artificial errors to
-	  PM notifier chain callbacks.  It is controlled through debugfs
-	  interface /sys/kernel/debug/notifier-error-inject/pm
+	  PM notifier chain callbacks.  It is controlled through defs
+	  interface /sys/kernel/de/notifier-error-inject/pm
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".
 
 	  Example: Inject PM suspend error (-12 = -ENOMEM)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/pm/
+	  # cd /sys/kernel/de/notifier-error-inject/pm/
 	  # echo -12 > actions/PM_SUSPEND_PREPARE/error
 	  # echo mem > /sys/power/state
 	  bash: echo: write error: Cannot allocate memory
@@ -1493,8 +1493,8 @@ config OF_RECONFIG_NOTIFIER_ERROR_INJECT
 	help
 	  This option provides the ability to inject artificial errors to
 	  OF reconfig notifier chain callbacks.  It is controlled
-	  through debugfs interface under
-	  /sys/kernel/debug/notifier-error-inject/OF-reconfig/
+	  through defs interface under
+	  /sys/kernel/de/notifier-error-inject/OF-reconfig/
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".
@@ -1509,15 +1509,15 @@ config NETDEV_NOTIFIER_ERROR_INJECT
 	depends on NET && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  netdevice notifier chain callbacks.  It is controlled through debugfs
-	  interface /sys/kernel/debug/notifier-error-inject/netdev
+	  netdevice notifier chain callbacks.  It is controlled through defs
+	  interface /sys/kernel/de/notifier-error-inject/netdev
 
 	  If the notifier call chain should be failed with some events
 	  notified, write the error code to "actions/<notifier event>/error".
 
 	  Example: Inject netdevice mtu change error (-22 = -EINVAL)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/netdev
+	  # cd /sys/kernel/de/notifier-error-inject/netdev
 	  # echo -22 > actions/NETDEV_CHANGEMTU/error
 	  # ip link set eth0 mtu 1024
 	  RTNETLINK answers: Invalid argument
@@ -1533,7 +1533,7 @@ config FUNCTION_ERROR_INJECTION
 
 config FAULT_INJECTION
 	bool "Fault-injection framework"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  Provide fault-injection framework.
 	  For more details, see Documentation/fault-injection/.
@@ -1570,20 +1570,20 @@ config FAIL_IO_TIMEOUT
 
 config FAIL_FUTEX
 	bool "Fault-injection capability for futexes"
-	select DEBUG_FS
+	select DE_FS
 	depends on FAULT_INJECTION && FUTEX
 	help
 	  Provide fault-injection capability for futexes.
 
-config FAULT_INJECTION_DEBUG_FS
-	bool "Debugfs entries for fault-injection capabilities"
-	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
+config FAULT_INJECTION_DE_FS
+	bool "Defs entries for fault-injection capabilities"
+	depends on FAULT_INJECTION && SYSFS && DE_FS
 	help
-	  Enable configuration of fault-injection capabilities via debugfs.
+	  Enable configuration of fault-injection capabilities via defs.
 
 config FAIL_FUNCTION
 	bool "Fault-injection capability for functions"
-	depends on FAULT_INJECTION_DEBUG_FS && FUNCTION_ERROR_INJECTION
+	depends on FAULT_INJECTION_DE_FS && FUNCTION_ERROR_INJECTION
 	help
 	  Provide function-based fault-injection capability.
 	  This will allow you to override a specific function with a return
@@ -1593,7 +1593,7 @@ config FAIL_FUNCTION
 
 config FAIL_MMC_REQUEST
 	bool "Fault-injection capability for MMC IO"
-	depends on FAULT_INJECTION_DEBUG_FS && MMC
+	depends on FAULT_INJECTION_DE_FS && MMC
 	help
 	  Provide fault-injection capability for MMC IO.
 	  This will make the mmc core return data errors. This is
@@ -1603,7 +1603,7 @@ config FAIL_MMC_REQUEST
 
 config FAULT_INJECTION_STACKTRACE_FILTER
 	bool "stacktrace filter for fault-injection capabilities"
-	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
+	depends on FAULT_INJECTION_DE_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
 	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM && !ARC && !X86
@@ -1612,7 +1612,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
 	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM && !ARC && !X86
@@ -1620,7 +1620,7 @@ config LATENCYTOP
 	select KALLSYMS_ALL
 	select STACKTRACE
 	select SCHEDSTATS
-	select SCHED_DEBUG
+	select SCHED_DE
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
@@ -1628,10 +1628,10 @@ config LATENCYTOP
 source "kernel/trace/Kconfig"
 
 config PROVIDE_OHCI1394_DMA_INIT
-	bool "Remote debugging over FireWire early on boot"
+	bool "Remote deging over FireWire early on boot"
 	depends on PCI && X86
 	help
-	  If you want to debug problems which hang or crash the kernel early
+	  If you want to de problems which hang or crash the kernel early
 	  on boot and the crashing machine has a FireWire port, you can use
 	  this feature to remotely access the memory of the crashed machine
 	  over FireWire. This employs remote DMA as part of the OHCI1394
@@ -1639,7 +1639,7 @@ config PROVIDE_OHCI1394_DMA_INIT
 
 	  With remote DMA, you can monitor the printk buffer remotely using
 	  firescope and access all memory below 4GB using fireproxy from gdb.
-	  Even controlling a kernel debugger is possible using remote DMA.
+	  Even controlling a kernel deger is possible using remote DMA.
 
 	  Usage:
 
@@ -1649,12 +1649,12 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  As all changes to the FireWire bus such as enabling and disabling
 	  devices cause a bus reset and thereby disable remote DMA for all
 	  devices, be sure to have the cable plugged and FireWire enabled on
-	  the debugging host before booting the debug target for debugging.
+	  the deging host before booting the de target for deging.
 
 	  This code (~1k) is freed after boot. By then, the firewire stack
 	  in charge of the OHCI-1394 controllers should be used instead.
 
-	  See Documentation/debugging-via-ohci1394.txt for more information.
+	  See Documentation/deging-via-ohci1394.txt for more information.
 
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
@@ -1664,7 +1664,7 @@ if RUNTIME_TESTING_MENU
 
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
-	depends on DEBUG_FS
+	depends on DE_FS
 	help
 	This module enables testing of the different dumping mechanisms by
 	inducing system failures at predefined crash points.
@@ -1677,7 +1677,7 @@ config LKDTM
 
 config TEST_LIST_SORT
 	tristate "Linked list sorting test"
-	depends on DEBUG_KERNEL || m
+	depends on DE_KERNEL || m
 	help
 	  Enable this to turn on 'list_sort()' function test. This test is
 	  executed only once during system boot (so affects only boot time),
@@ -1687,7 +1687,7 @@ config TEST_LIST_SORT
 
 config TEST_SORT
 	tristate "Array-based sort test"
-	depends on DEBUG_KERNEL || m
+	depends on DE_KERNEL || m
 	help
 	  This option enables the self-test function of 'sort()' at boot,
 	  or at module load time.
@@ -1696,7 +1696,7 @@ config TEST_SORT
 
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	depends on KPROBES
 	help
 	  This option provides for testing basic kprobes functionality on
@@ -1707,7 +1707,7 @@ config KPROBES_SANITY_TEST
 
 config BACKTRACE_SELF_TEST
 	tristate "Self test for the backtrace code"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  This option provides a kernel module that can be used to test
 	  the kernel stack backtrace code. This option is not useful
@@ -1721,21 +1721,21 @@ config BACKTRACE_SELF_TEST
 
 config RBTREE_TEST
 	tristate "Red-Black tree test"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	help
 	  A benchmark measuring the performance of the rbtree library.
 	  Also includes rbtree invariant checks.
 
 config INTERVAL_TREE_TEST
 	tristate "Interval tree test"
-	depends on DEBUG_KERNEL
+	depends on DE_KERNEL
 	select INTERVAL_TREE
 	help
 	  A benchmark measuring the performance of the interval tree library
 
 config PERCPU_TEST
 	tristate "Per cpu operations test"
-	depends on m && DEBUG_KERNEL
+	depends on m && DE_KERNEL
 	help
 	  Enable this option to build test module which validates per-cpu
 	  operations.
@@ -1950,9 +1950,9 @@ config TEST_KMOD
 
 	  If unsure, say N.
 
-config TEST_DEBUG_VIRTUAL
-	tristate "Test CONFIG_DEBUG_VIRTUAL feature"
-	depends on DEBUG_VIRTUAL
+config TEST_DE_VIRTUAL
+	tristate "Test CONFIG_DE_VIRTUAL feature"
+	depends on DE_VIRTUAL
 	help
 	  Test the kernel's ability to detect incorrect calls to
 	  virt_to_phys() done against the non-linear part of the
@@ -1971,7 +1971,7 @@ config TEST_MEMCAT_P
 config TEST_LIVEPATCH
 	tristate "Test livepatching"
 	default n
-	depends on DYNAMIC_DEBUG
+	depends on DYNAMIC_DE
 	depends on LIVEPATCH
 	depends on m
 	help
@@ -2022,11 +2022,11 @@ config MEMTEST
 	        memtest=17, mean do 17 test patterns.
 	  If you are unsure how to answer this question, answer N.
 
-config BUG_ON_DATA_CORRUPTION
-	bool "Trigger a BUG when data corruption is detected"
-	select DEBUG_LIST
+config _ON_DATA_CORRUPTION
+	bool "Trigger a  when data corruption is detected"
+	select DE_LIST
 	help
-	  Select this option if the kernel should BUG when it encounters
+	  Select this option if the kernel should  when it encounters
 	  data corruption in kernel memory structures when they get checked
 	  for validity.
 
@@ -2050,7 +2050,7 @@ config STRICT_DEVMEM
 	  If this option is disabled, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental
 	  access to this is obviously disastrous, but specific access can
-	  be used by people debugging the kernel. Note that with PAT support
+	  be used by people deging the kernel. Note that with PAT support
 	  enabled, even in this case there are restrictions on /dev/mem
 	  use due to the cache aliasing requirements.
 
@@ -2068,7 +2068,7 @@ config IO_STRICT_DEVMEM
 	  If this option is disabled, you allow userspace (root) access to all
 	  io-memory regardless of whether a driver is actively using that
 	  range.  Accidental access to this is obviously disastrous, but
-	  specific access can be used by people debugging kernel drivers.
+	  specific access can be used by people deging kernel drivers.
 
 	  If this option is switched on, the /dev/mem file only allows
 	  userspace access to *idle* io-memory ranges (see /proc/iomem) This
@@ -2077,6 +2077,6 @@ config IO_STRICT_DEVMEM
 
 	  If in doubt, say Y.
 
-source "arch/$(SRCARCH)/Kconfig.debug"
+source "arch/$(SRCARCH)/Kconfig.de"
 
 endmenu # Kernel hacking

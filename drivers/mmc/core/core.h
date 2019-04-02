@@ -83,12 +83,12 @@ int mmc_attach_sdio(struct mmc_host *host);
 /* Module parameters */
 extern bool use_spi_crc;
 
-/* Debugfs information for hosts and cards */
-void mmc_add_host_debugfs(struct mmc_host *host);
-void mmc_remove_host_debugfs(struct mmc_host *host);
+/* Defs information for hosts and cards */
+void mmc_add_host_defs(struct mmc_host *host);
+void mmc_remove_host_defs(struct mmc_host *host);
 
-void mmc_add_card_debugfs(struct mmc_card *card);
-void mmc_remove_card_debugfs(struct mmc_card *card);
+void mmc_add_card_defs(struct mmc_card *card);
+void mmc_remove_card_defs(struct mmc_card *card);
 
 int mmc_execute_tuning(struct mmc_card *card);
 int mmc_hs200_to_hs400(struct mmc_card *card);

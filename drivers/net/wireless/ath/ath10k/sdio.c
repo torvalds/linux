@@ -16,7 +16,7 @@
 #include <linux/bitfield.h>
 #include "core.h"
 #include "bmi.h"
-#include "debug.h"
+#include "de.h"
 #include "hif.h"
 #include "htc.h"
 #include "mac.h"
@@ -733,12 +733,12 @@ static int ath10k_sdio_mbox_proc_dbg_intr(struct ath10k *ar)
 	/* TODO: Add firmware crash handling */
 	ath10k_warn(ar, "firmware crashed\n");
 
-	/* read counter to clear the interrupt, the debug error interrupt is
+	/* read counter to clear the interrupt, the de error interrupt is
 	 * counter 0.
 	 */
 	ret = ath10k_sdio_read32(ar, MBOX_COUNT_DEC_ADDRESS, &val);
 	if (ret)
-		ath10k_warn(ar, "failed to clear debug interrupt: %d\n", ret);
+		ath10k_warn(ar, "failed to clear de interrupt: %d\n", ret);
 
 	return ret;
 }
@@ -756,9 +756,9 @@ static int ath10k_sdio_mbox_proc_counter_intr(struct ath10k *ar)
 
 	/* NOTE: other modules like GMBOX may use the counter interrupt for
 	 * credit flow control on other counters, we only need to check for
-	 * the debug assertion counter interrupt.
+	 * the de assertion counter interrupt.
 	 */
-	if (counter_int_status & ATH10K_SDIO_TARGET_DEBUG_INTR_MASK)
+	if (counter_int_status & ATH10K_SDIO_TARGET_DE_INTR_MASK)
 		ret = ath10k_sdio_mbox_proc_dbg_intr(ar);
 	else
 		ret = 0;
@@ -1163,7 +1163,7 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 * HIF Read and removes some FIFO data.  So for large reads the
 	 * Host proceeds to post an HIF Read BEFORE all the data is
 	 * actually available to read.  Fortunately, large BMI reads do
-	 * not occur in practice -- they're supported for debug/development.
+	 * not occur in practice -- they're supported for de/development.
 	 *
 	 * So Host/Target BMI synchronization is divided into these cases:
 	 *  CASE 1: length < 4
@@ -1180,7 +1180,7 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 *
 	 * For most uses, a small timeout should be sufficient and we will
 	 * usually see a response quickly; but there may be some unusual
-	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
+	 * (de) cases of BMI_EXECUTE where we want an larger timeout.
 	 * For now, we use an unbounded busy loop while waiting for
 	 * BMI_EXECUTE.
 	 *
@@ -1504,11 +1504,11 @@ static int ath10k_sdio_hif_enable_intrs(struct ath10k *ar)
 		FIELD_PREP(MBOX_ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK, 1);
 
 	/* Enable Counter interrupt status register to get fatal errors for
-	 * debugging.
+	 * deging.
 	 */
 	regs->cntr_int_status_en =
 		FIELD_PREP(MBOX_COUNTER_INT_STATUS_ENABLE_BIT_MASK,
-			   ATH10K_SDIO_TARGET_DEBUG_INTR_MASK);
+			   ATH10K_SDIO_TARGET_DE_INTR_MASK);
 
 	ret = ath10k_sdio_write(ar, MBOX_INT_STATUS_ENABLE_ADDRESS,
 				&regs->int_status_en, sizeof(*regs));

@@ -1065,7 +1065,7 @@ static void pllx_get_dyn_steps(struct clk_hw *hw, u32 *step_a, u32 *step_b)
 	default:
 		pr_err("%s: Unexpected reference rate %lu\n",
 			__func__, input_rate);
-		BUG();
+		();
 	}
 }
 
@@ -1388,7 +1388,7 @@ static int tegra210_pllx_dyn_ramp(struct tegra_clk_pll *pllx,
 	writel_relaxed(val, clk_base + pllx->params->ext_misc_reg[2]);
 	udelay(1);
 
-	pr_debug("%s: dynamic ramp to m = %u n = %u p = %u, Fout = %lu kHz\n",
+	pr_de("%s: dynamic ramp to m = %u n = %u p = %u, Fout = %lu kHz\n",
 		 __clk_get_name(pllx->hw.clk), cfg->m, cfg->n, cfg->p,
 		 cfg->input_rate / cfg->m * cfg->n /
 		 pllx->params->pdiv_tohw[cfg->p].pdiv / 1000);

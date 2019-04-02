@@ -69,7 +69,7 @@ void
 			     struct nf_conntrack_expect *exp) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_pptp_hook_expectfn);
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(DE) || defined(CONFIG_DYNAMIC_DE)
 /* PptpControlMessageType names */
 const char *const pptp_msg_name[] = {
 	"UNKNOWN_MESSAGE",
@@ -104,7 +104,7 @@ static void pptp_expectfn(struct nf_conn *ct,
 {
 	struct net *net = nf_ct_net(ct);
 	typeof(nf_nat_pptp_hook_expectfn) nf_nat_pptp_expectfn;
-	pr_debug("increasing timeouts\n");
+	pr_de("increasing timeouts\n");
 
 	/* increase timeout of GRE data channel conntrack entry */
 	ct->proto.gre.timeout	     = PPTP_GRE_TIMEOUT;
@@ -122,17 +122,17 @@ static void pptp_expectfn(struct nf_conn *ct,
 
 		/* obviously this tuple inversion only works until you do NAT */
 		nf_ct_invert_tuple(&inv_t, &exp->tuple);
-		pr_debug("trying to unexpect other dir: ");
+		pr_de("trying to unexpect other dir: ");
 		nf_ct_dump_tuple(&inv_t);
 
 		exp_other = nf_ct_expect_find_get(net, nf_ct_zone(ct), &inv_t);
 		if (exp_other) {
 			/* delete other expectation.  */
-			pr_debug("found\n");
+			pr_de("found\n");
 			nf_ct_unexpect_related(exp_other);
 			nf_ct_expect_put(exp_other);
 		} else {
-			pr_debug("not found\n");
+			pr_de("not found\n");
 		}
 	}
 }
@@ -145,14 +145,14 @@ static int destroy_sibling_or_exp(struct net *net, struct nf_conn *ct,
 	struct nf_conntrack_expect *exp;
 	struct nf_conn *sibling;
 
-	pr_debug("trying to timeout ct or exp for tuple ");
+	pr_de("trying to timeout ct or exp for tuple ");
 	nf_ct_dump_tuple(t);
 
 	zone = nf_ct_zone(ct);
 	h = nf_conntrack_find_get(net, zone, t);
 	if (h)  {
 		sibling = nf_ct_tuplehash_to_ctrack(h);
-		pr_debug("setting timeout of conntrack %p to 0\n", sibling);
+		pr_de("setting timeout of conntrack %p to 0\n", sibling);
 		sibling->proto.gre.timeout	  = 0;
 		sibling->proto.gre.stream_timeout = 0;
 		nf_ct_kill(sibling);
@@ -161,7 +161,7 @@ static int destroy_sibling_or_exp(struct net *net, struct nf_conn *ct,
 	} else {
 		exp = nf_ct_expect_find_get(net, zone, t);
 		if (exp) {
-			pr_debug("unexpect_related of expect %p\n", exp);
+			pr_de("unexpect_related of expect %p\n", exp);
 			nf_ct_unexpect_related(exp);
 			nf_ct_expect_put(exp);
 			return 1;
@@ -185,7 +185,7 @@ static void pptp_destroy_siblings(struct nf_conn *ct)
 	t.src.u.gre.key = ct_pptp_info->pns_call_id;
 	t.dst.u.gre.key = ct_pptp_info->pac_call_id;
 	if (!destroy_sibling_or_exp(net, ct, &t))
-		pr_debug("failed to timeout original pns->pac ct/exp\n");
+		pr_de("failed to timeout original pns->pac ct/exp\n");
 
 	/* try reply (pac->pns) tuple */
 	memcpy(&t, &ct->tuplehash[IP_CT_DIR_REPLY].tuple, sizeof(t));
@@ -193,7 +193,7 @@ static void pptp_destroy_siblings(struct nf_conn *ct)
 	t.src.u.gre.key = ct_pptp_info->pac_call_id;
 	t.dst.u.gre.key = ct_pptp_info->pns_call_id;
 	if (!destroy_sibling_or_exp(net, ct, &t))
-		pr_debug("failed to timeout reply pac->pns ct/exp\n");
+		pr_de("failed to timeout reply pac->pns ct/exp\n");
 }
 
 /* expect GRE connections (PNS->PAC and PAC->PNS direction) */
@@ -275,7 +275,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	typeof(nf_nat_pptp_hook_inbound) nf_nat_pptp_inbound;
 
 	msg = ntohs(ctlh->messageType);
-	pr_debug("inbound control message %s\n", pptp_msg_name[msg]);
+	pr_de("inbound control message %s\n", pptp_msg_name[msg]);
 
 	switch (msg) {
 	case PPTP_START_SESSION_REPLY:
@@ -310,7 +310,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		pcid = pptpReq->ocack.peersCallID;
 		if (info->pns_call_id != pcid)
 			goto invalid;
-		pr_debug("%s, CID=%X, PCID=%X\n", pptp_msg_name[msg],
+		pr_de("%s, CID=%X, PCID=%X\n", pptp_msg_name[msg],
 			 ntohs(cid), ntohs(pcid));
 
 		if (pptpReq->ocack.resultCode == PPTP_OUTCALL_CONNECT) {
@@ -327,7 +327,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 			goto invalid;
 
 		cid = pptpReq->icreq.callID;
-		pr_debug("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
+		pr_de("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
 		info->cstate = PPTP_CALL_IN_REQ;
 		info->pac_call_id = cid;
 		break;
@@ -346,7 +346,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		if (info->pns_call_id != pcid)
 			goto invalid;
 
-		pr_debug("%s, PCID=%X\n", pptp_msg_name[msg], ntohs(pcid));
+		pr_de("%s, PCID=%X\n", pptp_msg_name[msg], ntohs(pcid));
 		info->cstate = PPTP_CALL_IN_CONF;
 
 		/* we expect a GRE connection from PAC to PNS */
@@ -356,7 +356,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	case PPTP_CALL_DISCONNECT_NOTIFY:
 		/* server confirms disconnect */
 		cid = pptpReq->disc.callID;
-		pr_debug("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
+		pr_de("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
 		info->cstate = PPTP_CALL_NONE;
 
 		/* untrack this call id, unexpect GRE packets */
@@ -381,7 +381,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	return NF_ACCEPT;
 
 invalid:
-	pr_debug("invalid %s: type=%d cid=%u pcid=%u "
+	pr_de("invalid %s: type=%d cid=%u pcid=%u "
 		 "cstate=%d sstate=%d pns_cid=%u pac_cid=%u\n",
 		 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] : pptp_msg_name[0],
 		 msg, ntohs(cid), ntohs(pcid),  info->cstate, info->sstate,
@@ -403,7 +403,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	typeof(nf_nat_pptp_hook_outbound) nf_nat_pptp_outbound;
 
 	msg = ntohs(ctlh->messageType);
-	pr_debug("outbound control message %s\n", pptp_msg_name[msg]);
+	pr_de("outbound control message %s\n", pptp_msg_name[msg]);
 
 	switch (msg) {
 	case PPTP_START_SESSION_REQUEST:
@@ -425,7 +425,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		info->cstate = PPTP_CALL_OUT_REQ;
 		/* track PNS call id */
 		cid = pptpReq->ocreq.callID;
-		pr_debug("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
+		pr_de("%s, CID=%X\n", pptp_msg_name[msg], ntohs(cid));
 		info->pns_call_id = cid;
 		break;
 
@@ -439,7 +439,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		pcid = pptpReq->icack.peersCallID;
 		if (info->pac_call_id != pcid)
 			goto invalid;
-		pr_debug("%s, CID=%X PCID=%X\n", pptp_msg_name[msg],
+		pr_de("%s, CID=%X PCID=%X\n", pptp_msg_name[msg],
 			 ntohs(cid), ntohs(pcid));
 
 		if (pptpReq->icack.resultCode == PPTP_INCALL_ACCEPT) {
@@ -477,7 +477,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 	return NF_ACCEPT;
 
 invalid:
-	pr_debug("invalid %s: type=%d cid=%u pcid=%u "
+	pr_de("invalid %s: type=%d cid=%u pcid=%u "
 		 "cstate=%d sstate=%d pns_cid=%u pac_cid=%u\n",
 		 msg <= PPTP_MSG_MAX ? pptp_msg_name[msg] : pptp_msg_name[0],
 		 msg, ntohs(cid), ntohs(pcid),  info->cstate, info->sstate,
@@ -535,13 +535,13 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 
 	nexthdr_off = protoff;
 	tcph = skb_header_pointer(skb, nexthdr_off, sizeof(_tcph), &_tcph);
-	BUG_ON(!tcph);
+	_ON(!tcph);
 	nexthdr_off += tcph->doff * 4;
 	datalen = tcplen - tcph->doff * 4;
 
 	pptph = skb_header_pointer(skb, nexthdr_off, sizeof(_pptph), &_pptph);
 	if (!pptph) {
-		pr_debug("no full PPTP header, can't track\n");
+		pr_de("no full PPTP header, can't track\n");
 		return NF_ACCEPT;
 	}
 	nexthdr_off += sizeof(_pptph);
@@ -550,7 +550,7 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 	/* if it's not a control message we can't do anything with it */
 	if (ntohs(pptph->packetType) != PPTP_PACKET_CONTROL ||
 	    ntohl(pptph->magicCookie) != PPTP_MAGIC_COOKIE) {
-		pr_debug("not a control packet\n");
+		pr_de("not a control packet\n");
 		return NF_ACCEPT;
 	}
 
@@ -586,7 +586,7 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 		/* server -> client (PAC -> PNS) */
 		ret = pptp_inbound_pkt(skb, protoff, ctlh, pptpReq, reqlen, ct,
 				       ctinfo);
-	pr_debug("sstate: %d->%d, cstate: %d->%d\n",
+	pr_de("sstate: %d->%d, cstate: %d->%d\n",
 		 oldsstate, info->sstate, oldcstate, info->cstate);
 	spin_unlock_bh(&nf_pptp_lock);
 
@@ -612,7 +612,7 @@ static struct nf_conntrack_helper pptp __read_mostly = {
 
 static int __init nf_conntrack_pptp_init(void)
 {
-	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_pptp_master));
+	NF_CT_HELPER_BUILD__ON(sizeof(struct nf_ct_pptp_master));
 
 	return nf_conntrack_helper_register(&pptp);
 }

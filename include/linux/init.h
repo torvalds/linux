@@ -58,7 +58,7 @@
  * A section mismatch happens when there are references from a
  * code or data section to an init section (both code or data).
  * The init sections are (for most archs) discarded by the kernel
- * when early init has completed so all such references are potential bugs.
+ * when early init has completed so all such references are potential s.
  * For exit sections the same issue exists.
  *
  * The following markers are used for the cases where the reference to
@@ -157,7 +157,7 @@ void mark_rodata_ro(void);
 
 extern void (*late_time_init)(void);
 
-extern bool initcall_debug;
+extern bool initcall_de;
 
 #endif
   

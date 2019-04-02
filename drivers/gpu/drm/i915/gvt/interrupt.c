@@ -53,7 +53,7 @@ static void update_upstream_irq(struct intel_vgpu *vgpu,
 
 static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[RCS_MI_USER_INTERRUPT] = "Render CS MI USER INTERRUPT",
-	[RCS_DEBUG] = "Render EU debug from SVG",
+	[RCS_DE] = "Render EU de from SVG",
 	[RCS_MMIO_SYNC_FLUSH] = "Render MMIO sync flush status",
 	[RCS_CMD_STREAMER_ERR] = "Render CS error interrupt",
 	[RCS_PIPE_CONTROL] = "Render PIPE CONTROL notify",
@@ -126,7 +126,7 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[FDI_RX_INTERRUPTS_TRANSCODER_C] = "FDI RX Interrupts Combined C",
 	[AUDIO_CP_CHANGE_TRANSCODER_C] = "Audio CP Change Transcoder C",
 	[AUDIO_CP_REQUEST_TRANSCODER_C] = "Audio CP Request Transcoder C",
-	[ERR_AND_DBG] = "South Error and Debug Interrupts Combined",
+	[ERR_AND_DBG] = "South Error and De Interrupts Combined",
 	[GMBUS] = "Gmbus",
 	[SDVO_B_HOTPLUG] = "SDVO B hotplug",
 	[CRT_HOTPLUG] = "CRT Hotplug",

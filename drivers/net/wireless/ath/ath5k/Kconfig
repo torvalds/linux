@@ -21,24 +21,24 @@ config ATH5K
 	  If you choose to build a module, it'll be called ath5k. Say M if
 	  unsure.
 
-config ATH5K_DEBUG
-	bool "Atheros 5xxx debugging"
+config ATH5K_DE
+	bool "Atheros 5xxx deging"
 	depends on ATH5K
 	---help---
-	  Atheros 5xxx debugging messages.
+	  Atheros 5xxx deging messages.
 
-	  Say Y, if and you will get debug options for ath5k.
-	  To use this, you need to mount debugfs:
+	  Say Y, if and you will get de options for ath5k.
+	  To use this, you need to mount defs:
 
-	  mount -t debugfs debug /sys/kernel/debug
+	  mount -t defs de /sys/kernel/de
 
 	  You will get access to files under:
-	  /sys/kernel/debug/ath5k/phy0/
+	  /sys/kernel/de/ath5k/phy0/
 
-	  To enable debug, pass the debug level to the debug module
+	  To enable de, pass the de level to the de module
 	  parameter. For example:
 
-	  modprobe ath5k debug=0x00000400
+	  modprobe ath5k de=0x00000400
 
 config ATH5K_TRACER
 	bool "Atheros 5xxx tracer"
@@ -47,7 +47,7 @@ config ATH5K_TRACER
 	---help---
 	  Say Y here to enable tracepoints for the ath5k driver
 	  using the kernel tracing infrastructure.  Select this
-	  option if you are interested in debugging the driver.
+	  option if you are interested in deging the driver.
 
 	  If unsure, say N.
 

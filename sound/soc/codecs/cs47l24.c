@@ -1213,7 +1213,7 @@ static int cs47l24_probe(struct platform_device *pdev)
 	struct cs47l24_priv *cs47l24;
 	int i, ret;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cs47l24_dai) > ARIZONA_MAX_DAI);
+	BUILD__ON(ARRAY_SIZE(cs47l24_dai) > ARIZONA_MAX_DAI);
 
 	cs47l24 = devm_kzalloc(&pdev->dev, sizeof(struct cs47l24_priv),
 			       GFP_KERNEL);

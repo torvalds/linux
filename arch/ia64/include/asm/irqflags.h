@@ -14,7 +14,7 @@
 #include <asm/pal.h>
 #include <asm/kregs.h>
 
-#ifdef CONFIG_IA64_DEBUG_IRQ
+#ifdef CONFIG_IA64_DE_IRQ
 extern unsigned long last_cli_ip;
 static inline void arch_maybe_save_ip(unsigned long flags)
 {
@@ -55,7 +55,7 @@ static inline unsigned long arch_local_irq_save(void)
 
 static inline void arch_local_irq_disable(void)
 {
-#ifdef CONFIG_IA64_DEBUG_IRQ
+#ifdef CONFIG_IA64_DE_IRQ
 	arch_local_irq_save();
 #else
 	ia64_stop();
@@ -72,7 +72,7 @@ static inline void arch_local_irq_enable(void)
 
 static inline void arch_local_irq_restore(unsigned long flags)
 {
-#ifdef CONFIG_IA64_DEBUG_IRQ
+#ifdef CONFIG_IA64_DE_IRQ
 	unsigned long old_psr = arch_local_save_flags();
 #endif
 	ia64_intrin_local_irq_restore(flags & IA64_PSR_I);

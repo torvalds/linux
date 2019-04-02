@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-//#include <asm/debug-ll.h>
+//#include <asm/de-ll.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 

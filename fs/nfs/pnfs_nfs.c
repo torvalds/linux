@@ -323,7 +323,7 @@ EXPORT_SYMBOL_GPL(pnfs_generic_commit_pagelist);
 static DEFINE_SPINLOCK(nfs4_ds_cache_lock);
 static LIST_HEAD(nfs4_data_server_cache);
 
-/* Debug routines */
+/* De routines */
 static void
 print_ds(struct nfs4_pnfs_ds *ds)
 {
@@ -429,7 +429,7 @@ static void destroy_ds(struct nfs4_pnfs_ds *ds)
 	struct nfs4_pnfs_ds_addr *da;
 
 	dprintk("--> %s\n", __func__);
-	ifdebug(FACILITY)
+	ifde(FACILITY)
 		print_ds(ds);
 
 	nfs_put_client(ds->ds_clp);
@@ -526,7 +526,7 @@ nfs4_pnfs_ds_add(struct list_head *dsaddrs, gfp_t gfp_flags)
 	if (!ds)
 		goto out;
 
-	/* this is only used for debugging, so it's ok if its NULL */
+	/* this is only used for deging, so it's ok if its NULL */
 	remotestr = nfs4_pnfs_remotestr(dsaddrs, gfp_flags);
 
 	spin_lock(&nfs4_ds_cache_lock);

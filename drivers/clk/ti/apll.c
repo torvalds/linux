@@ -82,7 +82,7 @@ static int dra7_apll_enable(struct clk_hw *hw)
 			clk_name, (state) ? "locked" : "bypassed");
 		r = -EBUSY;
 	} else
-		pr_debug("clock: %s transition to '%s' in %d loops\n",
+		pr_de("clock: %s transition to '%s' in %d loops\n",
 			 clk_name, (state) ? "locked" : "bypassed", i);
 
 	return r;
@@ -143,7 +143,7 @@ static void __init omap_clk_register_apll(void *user,
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_debug("clk-ref for %pOFn not ready, retry\n",
+		pr_de("clk-ref for %pOFn not ready, retry\n",
 			 node);
 		if (!ti_clk_retry_init(node, hw, omap_clk_register_apll))
 			return;
@@ -155,7 +155,7 @@ static void __init omap_clk_register_apll(void *user,
 
 	clk = of_clk_get(node, 1);
 	if (IS_ERR(clk)) {
-		pr_debug("clk-bypass for %pOFn not ready, retry\n",
+		pr_de("clk-bypass for %pOFn not ready, retry\n",
 			 node);
 		if (!ti_clk_retry_init(node, hw, omap_clk_register_apll))
 			return;

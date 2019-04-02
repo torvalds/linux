@@ -145,7 +145,7 @@ extern int i810_max_ioctl;
 
 #define BEGIN_LP_RING(n) do {					\
 	if (I810_VERBOSE)					\
-		DRM_DEBUG("BEGIN_LP_RING(%d)\n", n);		\
+		DRM_DE("BEGIN_LP_RING(%d)\n", n);		\
 	if (dev_priv->ring.space < n*4)				\
 		i810_wait_ring(dev, n*4);			\
 	dev_priv->ring.space -= n*4;				\
@@ -156,14 +156,14 @@ extern int i810_max_ioctl;
 
 #define ADVANCE_LP_RING() do {					\
 	if (I810_VERBOSE)					\
-		DRM_DEBUG("ADVANCE_LP_RING\n");			\
+		DRM_DE("ADVANCE_LP_RING\n");			\
 	dev_priv->ring.tail = outring;				\
 	I810_WRITE(LP_RING + RING_TAIL, outring);		\
 } while (0)
 
 #define OUT_RING(n) do {					\
 	if (I810_VERBOSE)					\
-		DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
+		DRM_DE("   OUT_RING %x\n", (int)(n));	\
 	*(volatile unsigned int *)(virt + outring) = n;		\
 	outring += 4;						\
 	outring &= ringmask;					\

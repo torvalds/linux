@@ -65,7 +65,7 @@
 	};
 
 	serial@70006000 {
-		/* Debug connector on the bottom of the board near SD card. */
+		/* De connector on the bottom of the board near SD card. */
 		status = "okay";
 	};
 

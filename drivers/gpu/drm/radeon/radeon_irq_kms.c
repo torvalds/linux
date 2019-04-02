@@ -554,7 +554,7 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
  *
  * Helper for updating the enable state of interrupt registers. Checks whether
  * or not the interrupt matches the enable state we want. If it doesn't, then
- * we update it and print a debugging message to the kernel log indicating the
+ * we update it and print a deging message to the kernel log indicating the
  * new state of the interrupt register.
  *
  * Used for updating sequences of interrupts registers like HPD1, HPD2, etc.
@@ -570,10 +570,10 @@ void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
 		return;
 
 	if (enable) {
-		DRM_DEBUG("%s%d interrupts enabled\n", name, n);
+		DRM_DE("%s%d interrupts enabled\n", name, n);
 		WREG32(reg, tmp |= mask);
 	} else {
-		DRM_DEBUG("%s%d interrupts disabled\n", name, n);
+		DRM_DE("%s%d interrupts disabled\n", name, n);
 		WREG32(reg, tmp & ~mask);
 	}
 }

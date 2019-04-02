@@ -91,7 +91,7 @@ bool dal_hw_translate_init(
 #endif
 
 	default:
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 }

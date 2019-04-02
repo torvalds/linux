@@ -50,27 +50,27 @@ config OCFS2_FS_USERSPACE_CLUSTER
 
 config OCFS2_FS_STATS
 	bool "OCFS2 statistics"
-	depends on OCFS2_FS && DEBUG_FS
+	depends on OCFS2_FS && DE_FS
 	default y
 	help
 	  This option allows some fs statistics to be captured. Enabling
 	  this option may increase the memory consumption.
 
-config OCFS2_DEBUG_MASKLOG
+config OCFS2_DE_MASKLOG
 	bool "OCFS2 logging support"
 	depends on OCFS2_FS
 	default y
 	help
 	  The ocfs2 filesystem has an extensive logging system.  The system
 	  allows selection of events to log via files in /sys/o2cb/logmask/.
-	  This option will enlarge your kernel, but it allows debugging of
+	  This option will enlarge your kernel, but it allows deging of
 	  ocfs2 filesystem issues.
 
-config OCFS2_DEBUG_FS
+config OCFS2_DE_FS
 	bool "OCFS2 expensive checks"
 	depends on OCFS2_FS
 	default n
 	help
 	  This option will enable expensive consistency checks. Enable
-	  this option for debugging only as it is likely to decrease
+	  this option for deging only as it is likely to decrease
 	  performance of the filesystem.

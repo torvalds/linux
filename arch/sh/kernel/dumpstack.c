@@ -7,10 +7,10 @@
  */
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
-#include <linux/debug_locks.h>
-#include <linux/sched/debug.h>
+#include <linux/de_locks.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/export.h>
 #include <linux/uaccess.h>
 #include <asm/unwinder.h>
@@ -141,7 +141,7 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 	if (!tsk)
 		tsk = current;
 
-	debug_show_held_locks(tsk);
+	de_show_held_locks(tsk);
 }
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)

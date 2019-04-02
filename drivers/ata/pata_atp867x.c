@@ -284,7 +284,7 @@ static struct ata_port_operations atp867x_ops = {
 };
 
 
-#ifdef	ATP867X_DEBUG
+#ifdef	ATP867X_DE
 static void atp867x_check_res(struct pci_dev *pdev)
 {
 	int i;
@@ -294,7 +294,7 @@ static void atp867x_check_res(struct pci_dev *pdev)
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		start = pci_resource_start(pdev, i);
 		len   = pci_resource_len(pdev, i);
-		printk(KERN_DEBUG "ATP867X: resource start:len=%lx:%lx\n",
+		printk(KERN_DE "ATP867X: resource start:len=%lx:%lx\n",
 			start, len);
 	}
 }
@@ -304,7 +304,7 @@ static void atp867x_check_ports(struct ata_port *ap, int port)
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	struct atp867x_priv *dp = ap->private_data;
 
-	printk(KERN_DEBUG "ATP867X: port[%d] addresses\n"
+	printk(KERN_DE "ATP867X: port[%d] addresses\n"
 		"  cmd_addr	=0x%llx, 0x%llx\n"
 		"  ctl_addr	=0x%llx, 0x%llx\n"
 		"  bmdma_addr	=0x%llx, 0x%llx\n"
@@ -384,7 +384,7 @@ static void atp867x_fixup(struct ata_host *host)
 	if (v < 0x80) {
 		v = 0x80;
 		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, v);
-		printk(KERN_DEBUG "ATP867X: set latency timer of device %s"
+		printk(KERN_DE "ATP867X: set latency timer of device %s"
 			" to %d\n", pci_name(pdev), v);
 	}
 
@@ -433,11 +433,11 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 		return rc;
 	host->iomap = pcim_iomap_table(pdev);
 
-#ifdef	ATP867X_DEBUG
+#ifdef	ATP867X_DE
 	atp867x_check_res(pdev);
 
 	for (i = 0; i < PCI_ROM_RESOURCE; i++)
-		printk(KERN_DEBUG "ATP867X: iomap[%d]=0x%llx\n", i,
+		printk(KERN_DE "ATP867X: iomap[%d]=0x%llx\n", i,
 			(unsigned long long)(host->iomap[i]));
 #endif
 
@@ -458,7 +458,7 @@ static int atp867x_ata_pci_sff_init_host(struct ata_host *host)
 		if (rc)
 			return rc;
 
-#ifdef	ATP867X_DEBUG
+#ifdef	ATP867X_DE
 		atp867x_check_ports(ap, i);
 #endif
 		ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx",

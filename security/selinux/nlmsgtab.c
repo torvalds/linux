@@ -162,11 +162,11 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 	switch (sclass) {
 	case SECCLASS_NETLINK_ROUTE_SOCKET:
 		/* RTM_MAX always points to RTM_SETxxxx, ie RTM_NEWxxx + 3.
-		 * If the BUILD_BUG_ON() below fails you must update the
+		 * If the BUILD__ON() below fails you must update the
 		 * structures at the top of this file with the new mappings
-		 * before updating the BUILD_BUG_ON() macro!
+		 * before updating the BUILD__ON() macro!
 		 */
-		BUILD_BUG_ON(RTM_MAX != (RTM_NEWCHAIN + 3));
+		BUILD__ON(RTM_MAX != (RTM_NEWCHAIN + 3));
 		err = nlmsg_perm(nlmsg_type, perm, nlmsg_route_perms,
 				 sizeof(nlmsg_route_perms));
 		break;
@@ -177,11 +177,11 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 		break;
 
 	case SECCLASS_NETLINK_XFRM_SOCKET:
-		/* If the BUILD_BUG_ON() below fails you must update the
+		/* If the BUILD__ON() below fails you must update the
 		 * structures at the top of this file with the new mappings
-		 * before updating the BUILD_BUG_ON() macro!
+		 * before updating the BUILD__ON() macro!
 		 */
-		BUILD_BUG_ON(XFRM_MSG_MAX != XFRM_MSG_MAPPING);
+		BUILD__ON(XFRM_MSG_MAX != XFRM_MSG_MAPPING);
 		err = nlmsg_perm(nlmsg_type, perm, nlmsg_xfrm_perms,
 				 sizeof(nlmsg_xfrm_perms));
 		break;

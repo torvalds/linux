@@ -276,7 +276,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 
 	WARN(vgpu->active, "vGPU is still active!\n");
 
-	intel_gvt_debugfs_remove_vgpu(vgpu);
+	intel_gvt_defs_remove_vgpu(vgpu);
 	intel_vgpu_clean_sched_policy(vgpu);
 	intel_vgpu_clean_submission(vgpu);
 	intel_vgpu_clean_display(vgpu);
@@ -420,7 +420,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_submission;
 
-	ret = intel_gvt_debugfs_add_vgpu(vgpu);
+	ret = intel_gvt_defs_add_vgpu(vgpu);
 	if (ret)
 		goto out_clean_sched_policy;
 

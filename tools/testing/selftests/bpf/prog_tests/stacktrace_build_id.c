@@ -22,7 +22,7 @@ retry:
 
 	/* Get the ID for the sched/sched_switch tracepoint */
 	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/random/urandom_read/id");
+		 "/sys/kernel/de/tracing/events/random/urandom_read/id");
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		goto close_prog;

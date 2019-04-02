@@ -14,7 +14,7 @@
 #include <net/netlink.h>
 
 #include "wlcore.h"
-#include "debug.h"
+#include "de.h"
 #include "hw_ops.h"
 #include "vendor_cmd.h"
 
@@ -36,7 +36,7 @@ wlcore_vendor_cmd_smart_config_start(struct wiphy *wiphy,
 	struct nlattr *tb[NUM_WLCORE_VENDOR_ATTR];
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "vendor cmd smart config start");
+	wl1271_de(DE_CMD, "vendor cmd smart config start");
 
 	if (!data)
 		return -EINVAL;
@@ -82,7 +82,7 @@ wlcore_vendor_cmd_smart_config_stop(struct wiphy *wiphy,
 	struct wl1271 *wl = hw->priv;
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "testmode cmd smart config stop");
+	wl1271_de(DE_CMD, "testmode cmd smart config stop");
 
 	mutex_lock(&wl->mutex);
 
@@ -117,7 +117,7 @@ wlcore_vendor_cmd_smart_config_set_group_key(struct wiphy *wiphy,
 	struct nlattr *tb[NUM_WLCORE_VENDOR_ATTR];
 	int ret;
 
-	wl1271_debug(DEBUG_CMD, "testmode cmd smart config set group key");
+	wl1271_de(DE_CMD, "testmode cmd smart config set group key");
 
 	if (!data)
 		return -EINVAL;

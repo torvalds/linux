@@ -249,7 +249,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 			return -EINVAL;
 	} else if (pasid) {
 		mm = get_task_mm(current);
-		BUG_ON(!mm);
+		_ON(!mm);
 	}
 
 	mutex_lock(&pasid_mutex);

@@ -2,7 +2,7 @@
 #ifndef GENL_MAGIC_FUNC_H
 #define GENL_MAGIC_FUNC_H
 
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/genl_magic_struct.h>
 
 /*
@@ -51,7 +51,7 @@ static struct nla_policy s_name ## _nl_policy[] __read_mostly =		\
 #endif
 #endif
 
-#ifdef GENL_MAGIC_DEBUG
+#ifdef GENL_MAGIC_DE
 static void dprint_field(const char *dir, int nla_type,
 		const char *name, void *valp)
 {
@@ -144,7 +144,7 @@ static int __ ## s_name ## _from_attrs(struct s_name *s,		\
 	struct nlattr **ntb = nested_attr_tb;				\
 	struct nlattr *nla;						\
 	int err;							\
-	BUILD_BUG_ON(ARRAY_SIZE(s_name ## _nl_policy) > ARRAY_SIZE(nested_attr_tb));	\
+	BUILD__ON(ARRAY_SIZE(s_name ## _nl_policy) > ARRAY_SIZE(nested_attr_tb));	\
 	if (!tla)							\
 		return -ENOMSG;						\
 	DPRINT_TLA(#s_name, "<=-", #tag_name);				\

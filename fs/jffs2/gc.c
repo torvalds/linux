@@ -101,7 +101,7 @@ again:
 	if (!ret->gc_node) {
 		pr_warn("Eep. ret->gc_node for block at 0x%08x is NULL\n",
 			ret->offset);
-		BUG();
+		();
 	}
 
 	/* Have we accidentally picked a clean block with wasted space ? */
@@ -206,11 +206,11 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			pr_warn("Inode #%u is in state %d during CRC check phase!\n",
 				ic->ino, ic->state);
 			spin_unlock(&c->inocache_lock);
-			BUG();
+			();
 
 		case INO_STATE_READING:
 			/* We need to wait for it to finish, lest we move on
-			   and trigger the BUG() above while we haven't yet
+			   and trigger the () above while we haven't yet
 			   finished checking all its nodes */
 			jffs2_dbg(1, "Waiting for ino #%u to finish reading\n",
 				  ic->ino);
@@ -223,7 +223,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			return 0;
 
 		default:
-			BUG();
+			();
 
 		case INO_STATE_UNCHECKED:
 			;
@@ -280,7 +280,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	jffs2_dbg(1, "GC from block %08x, used_size %08x, dirty_size %08x, free_size %08x\n",
 		  jeb->offset, jeb->used_size, jeb->dirty_size, jeb->free_size);
 	D1(if (c->nextblock)
-	   printk(KERN_DEBUG "Nextblock at  %08x, used_size %08x, dirty_size %08x, wasted_size %08x, free_size %08x\n", c->nextblock->offset, c->nextblock->used_size, c->nextblock->dirty_size, c->nextblock->wasted_size, c->nextblock->free_size));
+	   printk(KERN_DE "Nextblock at  %08x, used_size %08x, dirty_size %08x, wasted_size %08x, free_size %08x\n", c->nextblock->offset, c->nextblock->used_size, c->nextblock->dirty_size, c->nextblock->wasted_size, c->nextblock->free_size));
 
 	if (!jeb->used_size) {
 		mutex_unlock(&c->alloc_sem);
@@ -302,7 +302,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			jeb->gc_node = raw;
 			spin_unlock(&c->erase_completion_lock);
 			mutex_unlock(&c->alloc_sem);
-			BUG();
+			();
 		}
 	}
 	jeb->gc_node = raw;
@@ -392,7 +392,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			ic->ino, ic->state);
 		mutex_unlock(&c->alloc_sem);
 		spin_unlock(&c->inocache_lock);
-		BUG();
+		();
 
 	case INO_STATE_READING:
 		/* Someone's currently trying to read it. We must wait for
@@ -579,7 +579,7 @@ static int jffs2_garbage_collect_live(struct jffs2_sb_info *c,  struct jffs2_era
 			pr_warn("But it's obsolete so we don't mind too much\n");
 		} else {
 			jffs2_dbg_dump_node(c, ref_offset(raw));
-			BUG();
+			();
 		}
 	}
  upnout:
@@ -1148,11 +1148,11 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	}
 	if (fn->frags) {
 		pr_warn("%s(): Old node still has frags!\n", __func__);
-		BUG();
+		();
 	}
 	if (!new_fn->frags) {
 		pr_warn("%s(): New node has no frags!\n", __func__);
-		BUG();
+		();
 	}
 
 	jffs2_mark_node_obsolete(c, fn->raw);
@@ -1197,9 +1197,9 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 
 		frag = jffs2_lookup_node_frag(&f->fragtree, start);
 
-		/* BUG_ON(!frag) but that'll happen anyway... */
+		/* _ON(!frag) but that'll happen anyway... */
 
-		BUG_ON(frag->ofs != start);
+		_ON(frag->ofs != start);
 
 		/* First grow down... */
 		while((frag = frag_prev(frag)) && frag->ofs >= min) {
@@ -1311,9 +1311,9 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		jffs2_dbg(1, "Expanded dnode to write from (0x%x-0x%x) to (0x%x-0x%x)\n",
 			  orig_start, orig_end, start, end);
 
-		D1(BUG_ON(end > frag_last(&f->fragtree)->ofs + frag_last(&f->fragtree)->size));
-		BUG_ON(end < orig_end);
-		BUG_ON(start > orig_start);
+		D1(_ON(end > frag_last(&f->fragtree)->ofs + frag_last(&f->fragtree)->size));
+		_ON(end < orig_end);
+		_ON(start > orig_start);
 	}
 
 	/* The rules state that we must obtain the page lock *before* f->sem, so

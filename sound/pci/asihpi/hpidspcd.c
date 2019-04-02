@@ -21,7 +21,7 @@
 ***********************************************************************/
 #define SOURCEFILE_NAME "hpidspcd.c"
 #include "hpidspcd.h"
-#include "hpidebug.h"
+#include "hpide.h"
 #include "hpi_version.h"
 
 struct dsp_code_private {
@@ -79,7 +79,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 			header.version, HPI_VER);
 	}
 
-	HPI_DEBUG_LOG(DEBUG, "dsp code %s opened\n", fw_name);
+	HPI_DE_LOG(DE, "dsp code %s opened\n", fw_name);
 	dsp_code->pvt = kmalloc(sizeof(*dsp_code->pvt), GFP_KERNEL);
 	if (!dsp_code->pvt) {
 		err_ret = HPI_ERROR_MEMORY_ALLOC;
@@ -103,7 +103,7 @@ error1:
 /*-------------------------------------------------------------------*/
 void hpi_dsp_code_close(struct dsp_code *dsp_code)
 {
-	HPI_DEBUG_LOG(DEBUG, "dsp code closed\n");
+	HPI_DE_LOG(DE, "dsp code closed\n");
 	release_firmware(dsp_code->pvt->firmware);
 	kfree(dsp_code->pvt);
 }

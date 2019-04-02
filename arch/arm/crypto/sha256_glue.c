@@ -37,7 +37,7 @@ int crypto_sha256_arm_update(struct shash_desc *desc, const u8 *data,
 			     unsigned int len)
 {
 	/* make sure casting to sha256_block_fn() is safe */
-	BUILD_BUG_ON(offsetof(struct sha256_state, state) != 0);
+	BUILD__ON(offsetof(struct sha256_state, state) != 0);
 
 	return sha256_base_do_update(desc, data, len,
 				(sha256_block_fn *)sha256_block_data_order);

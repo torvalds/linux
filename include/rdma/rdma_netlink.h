@@ -26,7 +26,7 @@ enum rdma_nl_flags {
 #define MODULE_ALIAS_RDMA_NETLINK(_index, _val)                                \
 	static inline void __chk_##_index(void)                                \
 	{                                                                      \
-		BUILD_BUG_ON(_index != _val);                                  \
+		BUILD__ON(_index != _val);                                  \
 	}                                                                      \
 	MODULE_ALIAS("rdma-netlink-subsys-" __stringify(_val))
 

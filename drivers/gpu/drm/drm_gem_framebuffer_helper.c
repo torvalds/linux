@@ -165,7 +165,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 
 		objs[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!objs[i]) {
-			DRM_DEBUG_KMS("Failed to lookup GEM object\n");
+			DRM_DE_KMS("Failed to lookup GEM object\n");
 			ret = -ENOENT;
 			goto err_gem_object_put;
 		}

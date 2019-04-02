@@ -837,7 +837,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 		memcpy(&key->tun_key, &tun_info->key, sizeof(key->tun_key));
 
 		if (tun_info->options_len) {
-			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
+			BUILD__ON((1 << (sizeof(tun_info->options_len) *
 						   8)) - 1
 					> sizeof(key->tun_opts));
 

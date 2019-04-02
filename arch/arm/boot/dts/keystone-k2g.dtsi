@@ -246,7 +246,7 @@
 			compatible = "ti,k2g-message-manager";
 			#mbox-cells = <2>;
 			reg-names = "queue_proxy_region",
-				    "queue_state_debug_region";
+				    "queue_state_de_region";
 			reg = <0x02a00000 0x400000>, <0x028c3400 0x400>;
 			interrupt-names = "rx_005",
 					  "rx_057";
@@ -264,7 +264,7 @@
 			mbox-names = "rx", "tx";
 			mboxes= <&msgmgr 5 2>,
 				<&msgmgr 0 0>;
-			reg-names = "debug_messages";
+			reg-names = "de_messages";
 			reg = <0x02921c00 0x400>;
 
 			k2g_pds: power-controller {

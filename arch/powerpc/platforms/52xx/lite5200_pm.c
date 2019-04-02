@@ -169,13 +169,13 @@ static void lite5200_restore_regs(void)
 	out_be32(&bes->cReqSelect, sbes.cReqSelect);
 	out_be32(&bes->task_size0, sbes.task_size0);
 	out_be32(&bes->task_size1, sbes.task_size1);
-	out_be32(&bes->MDEDebug, sbes.MDEDebug);
-	out_be32(&bes->ADSDebug, sbes.ADSDebug);
+	out_be32(&bes->MDEDe, sbes.MDEDe);
+	out_be32(&bes->ADSDe, sbes.ADSDe);
 	out_be32(&bes->Value1, sbes.Value1);
 	out_be32(&bes->Value2, sbes.Value2);
 	out_be32(&bes->Control, sbes.Control);
 	out_be32(&bes->Status, sbes.Status);
-	out_be32(&bes->PTDDebug, sbes.PTDDebug);
+	out_be32(&bes->PTDDe, sbes.PTDDe);
 
 	/* restore tasks */
 	for (i=0; i<16; i++)

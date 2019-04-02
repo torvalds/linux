@@ -70,7 +70,7 @@
 /*
  * Complain if VAR is out of range.
  */
-#define DEBUG_VAR 1
+#define DE_VAR 1
 
 #include "pxafb.h"
 
@@ -485,7 +485,7 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return err;
 
 #ifdef CONFIG_CPU_FREQ
-	pr_debug("pxafb: dma period = %d ps\n",
+	pr_de("pxafb: dma period = %d ps\n",
 		 pxafb_display_dma_period(var));
 #endif
 
@@ -1269,7 +1269,7 @@ static int pxafb_smart_thread(void *arg)
 		return -EINVAL;
 	}
 
-	pr_debug("%s(): task starting\n", __func__);
+	pr_de("%s(): task starting\n", __func__);
 
 	set_freezable();
 	while (!kthread_should_stop()) {
@@ -1290,7 +1290,7 @@ static int pxafb_smart_thread(void *arg)
 		schedule_timeout(msecs_to_jiffies(30));
 	}
 
-	pr_debug("%s(): task ending\n", __func__);
+	pr_de("%s(): task ending\n", __func__);
 	return 0;
 }
 
@@ -1412,7 +1412,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
  */
 static inline void __pxafb_backlight_power(struct pxafb_info *fbi, int on)
 {
-	pr_debug("pxafb: backlight o%s\n", on ? "n" : "ff");
+	pr_de("pxafb: backlight o%s\n", on ? "n" : "ff");
 
 	if (fbi->backlight_power)
 		fbi->backlight_power(on);
@@ -1420,7 +1420,7 @@ static inline void __pxafb_backlight_power(struct pxafb_info *fbi, int on)
 
 static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 {
-	pr_debug("pxafb: LCD power o%s\n", on ? "n" : "ff");
+	pr_de("pxafb: LCD power o%s\n", on ? "n" : "ff");
 
 	if (fbi->lcd_power)
 		fbi->lcd_power(on, &fbi->fb.var);
@@ -1443,13 +1443,13 @@ static inline void __pxafb_lcd_power(struct pxafb_info *fbi, int on)
 
 static void pxafb_enable_controller(struct pxafb_info *fbi)
 {
-	pr_debug("pxafb: Enabling LCD controller\n");
-	pr_debug("fdadr0 0x%08x\n", (unsigned int) fbi->fdadr[0]);
-	pr_debug("fdadr1 0x%08x\n", (unsigned int) fbi->fdadr[1]);
-	pr_debug("reg_lccr0 0x%08x\n", (unsigned int) fbi->reg_lccr0);
-	pr_debug("reg_lccr1 0x%08x\n", (unsigned int) fbi->reg_lccr1);
-	pr_debug("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
-	pr_debug("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
+	pr_de("pxafb: Enabling LCD controller\n");
+	pr_de("fdadr0 0x%08x\n", (unsigned int) fbi->fdadr[0]);
+	pr_de("fdadr1 0x%08x\n", (unsigned int) fbi->fdadr[1]);
+	pr_de("reg_lccr0 0x%08x\n", (unsigned int) fbi->reg_lccr0);
+	pr_de("reg_lccr1 0x%08x\n", (unsigned int) fbi->reg_lccr1);
+	pr_de("reg_lccr2 0x%08x\n", (unsigned int) fbi->reg_lccr2);
+	pr_de("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
 	/* enable LCD controller clock */
 	if (clk_prepare_enable(fbi->clk)) {
@@ -1688,7 +1688,7 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
 
 	switch (val) {
 	case CPUFREQ_ADJUST:
-		pr_debug("min dma period: %d ps, "
+		pr_de("min dma period: %d ps, "
 			"new clock %d kHz\n", pxafb_display_dma_period(var),
 			policy->max);
 		/* TODO: fill in min/max values */
@@ -2076,7 +2076,7 @@ MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
 #define pxafb_setup_options()		(0)
 #endif
 
-#ifdef DEBUG_VAR
+#ifdef DE_VAR
 /* Check for various illegal bit-combinations. Currently only
  * a warning is given. */
 static void pxafb_check_options(struct device *dev, struct pxafb_mach_info *inf)
@@ -2239,7 +2239,7 @@ static struct pxafb_mach_info *of_pxafb_of_mach_info(struct device *dev)
 
 	/*
 	 * On purpose, neither lccrX registers nor video memory size can be
-	 * specified through device-tree, they are considered more a debug hack
+	 * specified through device-tree, they are considered more a de hack
 	 * available through command line.
 	 */
 	return info;

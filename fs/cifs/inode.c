@@ -31,7 +31,7 @@
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 #include "fscache.h"
@@ -1262,7 +1262,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 					       current->tgid);
 		/*
 		 * some samba versions return -ENOENT when we try to set the
-		 * file disposition here. Likely a samba bug, but work around
+		 * file disposition here. Likely a samba , but work around
 		 * it for now. This means that some cifsXXX files may hang
 		 * around after they shouldn't.
 		 *
@@ -1547,7 +1547,7 @@ cifs_posix_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode,
 
 	d_instantiate(dentry, newinode);
 
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 	cifs_dbg(FYI, "instantiated dentry %p %pd to inode %p\n",
 		 dentry, dentry, newinode);
 

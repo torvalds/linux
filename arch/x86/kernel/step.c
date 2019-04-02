@@ -94,7 +94,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 		 * pushf: NOTE! We should probably not let
 		 * the user see the TF bit being set. But
 		 * it's more pain than it's worth to avoid
-		 * it, and a debugger could emulate this
+		 * it, and a deger could emulate this
 		 * all in user space if it _really_ cares.
 		 */
 		case 0x9c:
@@ -115,9 +115,9 @@ static int enable_single_step(struct task_struct *child)
 
 	/*
 	 * If we stepped into a sysenter/syscall insn, it trapped in
-	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
+	 * kernel mode; do_de() cleared TF and set TIF_SINGLESTEP.
 	 * If user-mode had set TF itself, then it's still clear from
-	 * do_debug() and we need to set it again to restore the user
+	 * do_de() and we need to set it again to restore the user
 	 * state so we don't wrongly set TIF_FORCED_TF below.
 	 * If enable_single_step() was used last and that is what
 	 * set TIF_SINGLESTEP, then both TF and TIF_FORCED_TF are
@@ -166,11 +166,11 @@ static int enable_single_step(struct task_struct *child)
 
 void set_task_blockstep(struct task_struct *task, bool on)
 {
-	unsigned long debugctl;
+	unsigned long dectl;
 
 	/*
-	 * Ensure irq/preemption can't change debugctl in between.
-	 * Note also that both TIF_BLOCKSTEP and debugctl should
+	 * Ensure irq/preemption can't change dectl in between.
+	 * Note also that both TIF_BLOCKSTEP and dectl should
 	 * be changed atomically wrt preemption.
 	 *
 	 * NOTE: this means that set/clear TIF_BLOCKSTEP is only safe if
@@ -179,16 +179,16 @@ void set_task_blockstep(struct task_struct *task, bool on)
 	 * PTRACE_KILL is not safe.
 	 */
 	local_irq_disable();
-	debugctl = get_debugctlmsr();
+	dectl = get_dectlmsr();
 	if (on) {
-		debugctl |= DEBUGCTLMSR_BTF;
+		dectl |= DECTLMSR_BTF;
 		set_tsk_thread_flag(task, TIF_BLOCKSTEP);
 	} else {
-		debugctl &= ~DEBUGCTLMSR_BTF;
+		dectl &= ~DECTLMSR_BTF;
 		clear_tsk_thread_flag(task, TIF_BLOCKSTEP);
 	}
 	if (task == current)
-		update_debugctlmsr(debugctl);
+		update_dectlmsr(dectl);
 	local_irq_enable();
 }
 
@@ -201,7 +201,7 @@ static void enable_step(struct task_struct *child, bool block)
 	 * Make sure block stepping (BTF) is not enabled unless it should be.
 	 * Note that we don't try to worry about any is_setting_trap_flag()
 	 * instructions after the first when using block stepping.
-	 * So no one should try to use debugger block stepping in a program
+	 * So no one should try to use deger block stepping in a program
 	 * that uses user-mode single stepping itself.
 	 */
 	if (enable_single_step(child) && block)

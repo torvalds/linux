@@ -78,7 +78,7 @@
  * drivers for the WL11000, I'd say it's quite tricky to write code
  * that will successfully deal with a hot unplug. Very odd things
  * happen on the I/O side of things. But anyway, be warned. Despite
- * that, I've hot-swapped a number of times during debugging and
+ * that, I've hot-swapped a number of times during deging and
  * driver development for various reasons (stuck WAIT# line after the
  * radio card's firmware locks up).
  */
@@ -145,7 +145,7 @@ static int orinoco_plx_hw_init(struct orinoco_pci_card *card)
 		0x01, 0x03, 0x00, 0x00, 0xff, 0x17, 0x04, 0x67
 	};
 
-	printk(KERN_DEBUG PFX "CIS: ");
+	printk(KERN_DE PFX "CIS: ");
 	for (i = 0; i < 16; i++)
 		printk("%02X:", ioread8(card->attr_io + (i << 1)));
 	printk("\n");
@@ -350,7 +350,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 static int __init orinoco_plx_init(void)
 {
-	printk(KERN_DEBUG "%s\n", version);
+	printk(KERN_DE "%s\n", version);
 	return pci_register_driver(&orinoco_plx_driver);
 }
 

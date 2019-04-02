@@ -200,7 +200,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			ehci->use_dummy_qh = 1;
 			ehci_info(ehci, "applying AMD SB700/SB800/Hudson-2/3 EHCI dummy qh workaround\n");
 		}
-		/* SB600 and old version of SB700 have a bug in EHCI controller,
+		/* SB600 and old version of SB700 have a  in EHCI controller,
 		 * which causes usb devices lose response in some cases.
 		 */
 		if ((pdev->device == 0x4386 || pdev->device == 0x4396) &&
@@ -212,13 +212,13 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 		break;
 	case PCI_VENDOR_ID_NETMOS:
-		/* MosChip frame-index-register bug */
+		/* MosChip frame-index-register  */
 		ehci_info(ehci, "applying MosChip frame-index workaround\n");
-		ehci->frame_index_bug = 1;
+		ehci->frame_index_ = 1;
 		break;
 	}
 
-	/* optional debug port, normally in the first BAR */
+	/* optional de port, normally in the first BAR */
 	temp = pci_find_capability(pdev, PCI_CAP_ID_DBG);
 	if (temp) {
 		pci_read_config_dword(pdev, temp, &temp);
@@ -228,13 +228,13 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 						    &ehci->caps->hcs_params);
 
 			temp &= 0x1fff;
-			ehci->debug = hcd->regs + temp;
-			temp = ehci_readl(ehci, &ehci->debug->control);
-			ehci_info(ehci, "debug port %d%s\n",
-				  HCS_DEBUG_PORT(hcs_params),
+			ehci->de = hcd->regs + temp;
+			temp = ehci_readl(ehci, &ehci->de->control);
+			ehci_info(ehci, "de port %d%s\n",
+				  HCS_DE_PORT(hcs_params),
 				  (temp & DBGP_ENABLED) ? " IN USE" : "");
 			if (!(temp & DBGP_ENABLED))
-				ehci->debug = NULL;
+				ehci->de = NULL;
 		}
 	}
 

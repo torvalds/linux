@@ -50,12 +50,12 @@ static void class_release(struct kobject *kobj)
 	struct subsys_private *cp = to_subsys_private(kobj);
 	struct class *class = cp->class;
 
-	pr_debug("class '%s': release.\n", class->name);
+	pr_de("class '%s': release.\n", class->name);
 
 	if (class->class_release)
 		class->class_release(class);
 	else
-		pr_debug("class '%s' does not have a release() function, "
+		pr_de("class '%s' does not have a release() function, "
 			 "be careful\n", class->name);
 
 	kfree(cp);
@@ -154,7 +154,7 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	struct subsys_private *cp;
 	int error;
 
-	pr_debug("device class '%s': registering\n", cls->name);
+	pr_de("device class '%s': registering\n", cls->name);
 
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
@@ -197,14 +197,14 @@ EXPORT_SYMBOL_GPL(__class_register);
 
 void class_unregister(struct class *cls)
 {
-	pr_debug("device class '%s': unregistering\n", cls->name);
+	pr_de("device class '%s': unregistering\n", cls->name);
 	class_remove_groups(cls, cls->class_groups);
 	kset_unregister(&cls->p->subsys);
 }
 
 static void class_create_release(struct class *cls)
 {
-	pr_debug("%s called for %s\n", __func__, cls->name);
+	pr_de("%s called for %s\n", __func__, cls->name);
 	kfree(cls);
 }
 
@@ -212,7 +212,7 @@ static void class_create_release(struct class *cls)
  * class_create - create a struct class structure
  * @owner: pointer to the module that is to "own" this struct class
  * @name: pointer to a string for the name of this class.
- * @key: the lock_class_key for this class; used by mutex lock debugging
+ * @key: the lock_class_key for this class; used by mutex lock deging
  *
  * This is used to create a struct class pointer that can then be used
  * in calls to device_create().

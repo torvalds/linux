@@ -9,7 +9,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
@@ -67,14 +67,14 @@
  * mipi_dbi_spi_init().
  */
 
-#define MIPI_DBI_DEBUG_COMMAND(cmd, data, len) \
+#define MIPI_DBI_DE_COMMAND(cmd, data, len) \
 ({ \
 	if (!len) \
-		DRM_DEBUG_DRIVER("cmd=%02x\n", cmd); \
+		DRM_DE_DRIVER("cmd=%02x\n", cmd); \
 	else if (len <= 32) \
-		DRM_DEBUG_DRIVER("cmd=%02x, par=%*ph\n", cmd, (int)len, data);\
+		DRM_DE_DRIVER("cmd=%02x, par=%*ph\n", cmd, (int)len, data);\
 	else \
-		DRM_DEBUG_DRIVER("cmd=%02x, len=%zu\n", cmd, len); \
+		DRM_DE_DRIVER("cmd=%02x, len=%zu\n", cmd, len); \
 })
 
 static const u8 mipi_dbi_dcs_read_commands[] = {
@@ -230,7 +230,7 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 
 	full = width == fb->width && height == fb->height;
 
-	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
+	DRM_DE_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
 	if (!mipi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
@@ -345,7 +345,7 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
 
-	DRM_DEBUG_KMS("\n");
+	DRM_DE_KMS("\n");
 
 	mipi->enabled = false;
 
@@ -422,7 +422,7 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 
 	drm_mode_config_reset(tdev->drm);
 
-	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
+	DRM_DE_KMS("preferred_depth=%u, rotation = %u\n",
 		      tdev->drm->mode_config.preferred_depth, rotation);
 
 	return 0;
@@ -473,7 +473,7 @@ bool mipi_dbi_display_is_on(struct mipi_dbi *mipi)
 	    DCS_POWER_MODE_DISPLAY_NORMAL_MODE | DCS_POWER_MODE_SLEEP_MODE))
 		return false;
 
-	DRM_DEBUG_DRIVER("Display is ON\n");
+	DRM_DE_DRIVER("Display is ON\n");
 
 	return true;
 }
@@ -605,8 +605,8 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *mipi, int dc,
 	int i, ret;
 	u8 *dst;
 
-	if (drm_debug & DRM_UT_DRIVER)
-		pr_debug("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
+	if (drm_de & DRM_UT_DRIVER)
+		pr_de("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
 			 __func__, dc, max_chunk);
 
 	tr.speed_hz = mipi_dbi_spi_cmd_max_speed(spi, len);
@@ -732,8 +732,8 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 	max_chunk = mipi->tx_buf9_len;
 	dst16 = mipi->tx_buf9;
 
-	if (drm_debug & DRM_UT_DRIVER)
-		pr_debug("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
+	if (drm_de & DRM_UT_DRIVER)
+		pr_de("[drm:%s] dc=%d, max_chunk=%zu, transfers:\n",
 			 __func__, dc, max_chunk);
 
 	max_chunk = min(max_chunk / 2, len);
@@ -783,7 +783,7 @@ static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 cmd,
 	if (mipi_dbi_command_is_read(mipi, cmd))
 		return -ENOTSUPP;
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, parameters, num);
+	MIPI_DBI_DE_COMMAND(cmd, parameters, num);
 
 	ret = mipi_dbi_spi1_transfer(mipi, 0, &cmd, 1, 8);
 	if (ret || !num)
@@ -852,7 +852,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 			data[i] = (buf[i] << 1) | !!(buf[i + 1] & BIT(7));
 	}
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, data, len);
+	MIPI_DBI_DE_COMMAND(cmd, data, len);
 
 err_free:
 	kfree(buf);
@@ -871,7 +871,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
 	if (mipi_dbi_command_is_read(mipi, cmd))
 		return mipi_dbi_typec3_command_read(mipi, cmd, par, num);
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, par, num);
+	MIPI_DBI_DE_COMMAND(cmd, par, num);
 
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
@@ -957,7 +957,7 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 			return -ENOMEM;
 	}
 
-	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
+	DRM_DE_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
 
 	return 0;
 }
@@ -965,9 +965,9 @@ EXPORT_SYMBOL(mipi_dbi_spi_init);
 
 #endif /* CONFIG_SPI */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
+static ssize_t mipi_dbi_defs_command_write(struct file *file,
 					      const char __user *ubuf,
 					      size_t count, loff_t *ppos)
 {
@@ -1020,7 +1020,7 @@ err_free:
 	return ret < 0 ? ret : count;
 }
 
-static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
+static int mipi_dbi_defs_command_show(struct seq_file *m, void *unused)
 {
 	struct mipi_dbi *mipi = m->private;
 	u8 cmd, val[4];
@@ -1059,34 +1059,34 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int mipi_dbi_debugfs_command_open(struct inode *inode,
+static int mipi_dbi_defs_command_open(struct inode *inode,
 					 struct file *file)
 {
-	return single_open(file, mipi_dbi_debugfs_command_show,
+	return single_open(file, mipi_dbi_defs_command_show,
 			   inode->i_private);
 }
 
-static const struct file_operations mipi_dbi_debugfs_command_fops = {
+static const struct file_operations mipi_dbi_defs_command_fops = {
 	.owner = THIS_MODULE,
-	.open = mipi_dbi_debugfs_command_open,
+	.open = mipi_dbi_defs_command_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
-	.write = mipi_dbi_debugfs_command_write,
+	.write = mipi_dbi_defs_command_write,
 };
 
 /**
- * mipi_dbi_debugfs_init - Create debugfs entries
+ * mipi_dbi_defs_init - Create defs entries
  * @minor: DRM minor
  *
- * This function creates a 'command' debugfs file for sending commands to the
+ * This function creates a 'command' defs file for sending commands to the
  * controller or getting the read command values.
- * Drivers can use this as their &drm_driver->debugfs_init callback.
+ * Drivers can use this as their &drm_driver->defs_init callback.
  *
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_debugfs_init(struct drm_minor *minor)
+int mipi_dbi_defs_init(struct drm_minor *minor)
 {
 	struct tinydrm_device *tdev = minor->dev->dev_private;
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
@@ -1094,12 +1094,12 @@ int mipi_dbi_debugfs_init(struct drm_minor *minor)
 
 	if (mipi->read_commands)
 		mode |= S_IRUGO;
-	debugfs_create_file("command", mode, minor->debugfs_root, mipi,
-			    &mipi_dbi_debugfs_command_fops);
+	defs_create_file("command", mode, minor->defs_root, mipi,
+			    &mipi_dbi_defs_command_fops);
 
 	return 0;
 }
-EXPORT_SYMBOL(mipi_dbi_debugfs_init);
+EXPORT_SYMBOL(mipi_dbi_defs_init);
 
 #endif
 

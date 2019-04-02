@@ -1609,7 +1609,7 @@ void qla2x00_fcport_event_handler(scsi_qla_host_t *vha, struct event_arg *ea)
 		qla_handle_els_plogi_done(vha, ea);
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		break;
 	}
 }
@@ -2280,7 +2280,7 @@ qla2300_pci_config(scsi_qla_host_t *vha)
 
 	/*
 	 * If this is a 2300 card and not 2312, reset the
-	 * COMMAND_INVALIDATE due to a bug in the 2300. Unfortunately,
+	 * COMMAND_INVALIDATE due to a  in the 2300. Unfortunately,
 	 * the 2310 also reports itself as a 2300 so we need to get the
 	 * fb revision level -- a 6 indicates it really is a 2300 and
 	 * not a 2310.

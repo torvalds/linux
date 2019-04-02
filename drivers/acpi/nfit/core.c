@@ -233,7 +233,7 @@ static union acpi_object *pkg_to_buf(union acpi_object *pkg)
 	union acpi_object *buf = NULL;
 
 	if (pkg->type != ACPI_TYPE_PACKAGE) {
-		WARN_ONCE(1, "BIOS bug, unexpected element type: %d\n",
+		WARN_ONCE(1, "BIOS , unexpected element type: %d\n",
 				pkg->type);
 		goto err;
 	}
@@ -246,7 +246,7 @@ static union acpi_object *pkg_to_buf(union acpi_object *pkg)
 		else if (obj->type == ACPI_TYPE_BUFFER)
 			size += obj->buffer.length;
 		else {
-			WARN_ONCE(1, "BIOS bug, unexpected element type: %d\n",
+			WARN_ONCE(1, "BIOS , unexpected element type: %d\n",
 					obj->type);
 			goto err;
 		}
@@ -285,7 +285,7 @@ static union acpi_object *int_to_buf(union acpi_object *integer)
 		goto err;
 
 	if (integer->type != ACPI_TYPE_INTEGER) {
-		WARN_ONCE(1, "BIOS bug, unexpected element type: %d\n",
+		WARN_ONCE(1, "BIOS , unexpected element type: %d\n",
 				integer->type);
 		goto err;
 	}
@@ -409,7 +409,7 @@ static bool payload_dumpable(struct nvdimm *nvdimm, unsigned int func)
 	if (nfit_mem && nfit_mem->family == NVDIMM_FAMILY_INTEL
 			&& func >= NVDIMM_INTEL_GET_SECURITY_STATE
 			&& func <= NVDIMM_INTEL_MASTER_SECURE_ERASE)
-		return IS_ENABLED(CONFIG_NFIT_SECURITY_DEBUG);
+		return IS_ENABLED(CONFIG_NFIT_SECURITY_DE);
 	return true;
 }
 
@@ -526,7 +526,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	dev_dbg(dev, "%s cmd: %d: func: %d input length: %d\n",
 		dimm_name, cmd, func, in_buf.buffer.length);
 	if (payload_dumpable(nvdimm, func))
-		print_hex_dump_debug("nvdimm in  ", DUMP_PREFIX_OFFSET, 4, 4,
+		print_hex_dump_de("nvdimm in  ", DUMP_PREFIX_OFFSET, 4, 4,
 				in_buf.buffer.pointer,
 				min_t(u32, 256, in_buf.buffer.length), true);
 
@@ -587,7 +587,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 
 	dev_dbg(dev, "%s cmd: %s output length: %d\n", dimm_name,
 			cmd_name, out_obj->buffer.length);
-	print_hex_dump_debug(cmd_name, DUMP_PREFIX_OFFSET, 4, 4,
+	print_hex_dump_de(cmd_name, DUMP_PREFIX_OFFSET, 4, 4,
 			out_obj->buffer.pointer,
 			min_t(u32, 128, out_obj->buffer.length), true);
 
@@ -3779,14 +3779,14 @@ static __init int nfit_init(void)
 {
 	int ret;
 
-	BUILD_BUG_ON(sizeof(struct acpi_table_nfit) != 40);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_system_address) != 56);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_memory_map) != 48);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_interleave) != 20);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_smbios) != 9);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_control_region) != 80);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_data_region) != 40);
-	BUILD_BUG_ON(sizeof(struct acpi_nfit_capabilities) != 16);
+	BUILD__ON(sizeof(struct acpi_table_nfit) != 40);
+	BUILD__ON(sizeof(struct acpi_nfit_system_address) != 56);
+	BUILD__ON(sizeof(struct acpi_nfit_memory_map) != 48);
+	BUILD__ON(sizeof(struct acpi_nfit_interleave) != 20);
+	BUILD__ON(sizeof(struct acpi_nfit_smbios) != 9);
+	BUILD__ON(sizeof(struct acpi_nfit_control_region) != 80);
+	BUILD__ON(sizeof(struct acpi_nfit_data_region) != 40);
+	BUILD__ON(sizeof(struct acpi_nfit_capabilities) != 16);
 
 	guid_parse(UUID_VOLATILE_MEMORY, &nfit_uuid[NFIT_SPA_VOLATILE]);
 	guid_parse(UUID_PERSISTENT_MEMORY, &nfit_uuid[NFIT_SPA_PM]);

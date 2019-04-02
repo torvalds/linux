@@ -37,7 +37,7 @@ static int s3c64xx_i2s_cfg_gpio(struct platform_device *pdev)
 		s3c_gpio_cfgpin_range(S3C64XX_GPH(6), 4, S3C_GPIO_SFN(5));
 		return 0;
 	default:
-		printk(KERN_DEBUG "Invalid I2S Controller number: %d\n",
+		printk(KERN_DE "Invalid I2S Controller number: %d\n",
 			pdev->id);
 		return -EINVAL;
 	}
@@ -122,7 +122,7 @@ static int s3c64xx_pcm_cfg_gpio(struct platform_device *pdev)
 		base = S3C64XX_GPE(0);
 		break;
 	default:
-		printk(KERN_DEBUG "Invalid PCM Controller number: %d\n",
+		printk(KERN_DE "Invalid PCM Controller number: %d\n",
 			pdev->id);
 		return -EINVAL;
 	}

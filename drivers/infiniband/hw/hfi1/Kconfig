@@ -6,12 +6,12 @@ config INFINIBAND_HFI1
 	select I2C_ALGOBIT
 	---help---
 	This is a low-level driver for Intel OPA Gen1 adapter.
-config HFI1_DEBUG_SDMA_ORDER
-	bool "HFI1 SDMA Order debug"
+config HFI1_DE_SDMA_ORDER
+	bool "HFI1 SDMA Order de"
 	depends on INFINIBAND_HFI1
 	default n
 	---help---
-	This is a debug flag to test for out of order
+	This is a de flag to test for out of order
 	sdma completions for unit testing
 config SDMA_VERBOSITY
 	bool "Config SDMA Verbosity"
@@ -19,4 +19,4 @@ config SDMA_VERBOSITY
 	default n
 	---help---
 	This is a configuration flag to enable verbose
-	SDMA debug
+	SDMA de

@@ -5,7 +5,7 @@
  * Copyright (C) 1997, 2001, 2003, 2004 Ralf Baechle (ralf@linux-mips.org)
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -44,10 +44,10 @@ static void rm7k_sc_wback_inv(unsigned long addr, unsigned long size)
 {
 	unsigned long end, a;
 
-	pr_debug("rm7k_sc_wback_inv[%08lx,%08lx]", addr, size);
+	pr_de("rm7k_sc_wback_inv[%08lx,%08lx]", addr, size);
 
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	_ON(size == 0);
 
 	blast_scache_range(addr, addr + size);
 
@@ -68,10 +68,10 @@ static void rm7k_sc_inv(unsigned long addr, unsigned long size)
 {
 	unsigned long end, a;
 
-	pr_debug("rm7k_sc_inv[%08lx,%08lx]", addr, size);
+	pr_de("rm7k_sc_inv[%08lx,%08lx]", addr, size);
 
 	/* Catch bad driver code */
-	BUG_ON(size == 0);
+	_ON(size == 0);
 
 	blast_inv_scache_range(addr, addr + size);
 
@@ -122,7 +122,7 @@ static void rm7k_tc_enable(void)
 	if (read_c0_config() & RM7K_CONF_TE)
 		return;
 
-	BUG_ON(tcache_size == 0);
+	_ON(tcache_size == 0);
 
 	run_uncached(__rm7k_tc_enable);
 }

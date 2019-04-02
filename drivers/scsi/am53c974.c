@@ -17,13 +17,13 @@
 #define DRV_MODULE_NAME "am53c974"
 #define DRV_MODULE_VERSION "1.00"
 
-static bool am53c974_debug;
+static bool am53c974_de;
 static bool am53c974_fenab = true;
 
 #define esp_dma_log(f, a...)						\
 	do {								\
-		if (am53c974_debug)					\
-			shost_printk(KERN_DEBUG, esp->host, f, ##a);	\
+		if (am53c974_de)					\
+			shost_printk(KERN_DE, esp->host, f, ##a);	\
 	} while (0)
 
 #define ESP_DMA_CMD 0x10
@@ -213,7 +213,7 @@ static void pci_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	struct pci_esp_priv *pep = pci_esp_get_priv(esp);
 	u32 val = 0;
 
-	BUG_ON(!(cmd & ESP_CMD_DMA));
+	_ON(!(cmd & ESP_CMD_DMA));
 
 	pep->dma_status = 0;
 
@@ -534,8 +534,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 MODULE_ALIAS("tmscsim");
 
-module_param(am53c974_debug, bool, 0644);
-MODULE_PARM_DESC(am53c974_debug, "Enable debugging");
+module_param(am53c974_de, bool, 0644);
+MODULE_PARM_DESC(am53c974_de, "Enable deging");
 
 module_param(am53c974_fenab, bool, 0444);
 MODULE_PARM_DESC(am53c974_fenab, "Enable 24-bit DMA transfer sizes");

@@ -648,7 +648,7 @@ static int convert_type86_ica(struct zcrypt_queue *zq,
 		    (service_rc == 8 && service_rs == 72) ||
 		    (service_rc == 8 && service_rs == 770) ||
 		    (service_rc == 12 && service_rs == 769)) {
-			ZCRYPT_DBF(DBF_DEBUG,
+			ZCRYPT_DBF(DBF_DE,
 				   "device=%02x.%04x rc/rs=%d/%d => rc=EINVAL\n",
 				   AP_QID_CARD(zq->queue->qid),
 				   AP_QID_QUEUE(zq->queue->qid),

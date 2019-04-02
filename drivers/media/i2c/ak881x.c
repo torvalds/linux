@@ -60,7 +60,7 @@ static struct ak881x *to_ak881x(const struct i2c_client *client)
 	return container_of(i2c_get_clientdata(client), struct ak881x, subdev);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int ak881x_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
@@ -205,7 +205,7 @@ static int ak881x_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static const struct v4l2_subdev_core_ops ak881x_subdev_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register	= ak881x_g_register,
 	.s_register	= ak881x_s_register,
 #endif

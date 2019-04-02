@@ -24,7 +24,7 @@
 
 #include "core.h"
 #include "cfg80211.h"
-#include "debug.h"
+#include "de.h"
 #include "hif-ops.h"
 #include "testmode.h"
 
@@ -1853,7 +1853,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 	} else {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 			   "invalid rate from stats: %d\n", rate);
-		ath6kl_debug_war(ar, ATH6KL_WAR_INVALID_RATE);
+		ath6kl_de_war(ar, ATH6KL_WAR_INVALID_RATE);
 		return 0;
 	}
 

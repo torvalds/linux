@@ -156,7 +156,7 @@ ext2_get_acl(struct inode *inode, int type)
 		name_index = EXT2_XATTR_INDEX_POSIX_ACL_DEFAULT;
 		break;
 	default:
-		BUG();
+		();
 	}
 	retval = ext2_xattr_get(inode, name_index, "", NULL, 0);
 	if (retval > 0) {

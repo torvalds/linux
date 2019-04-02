@@ -142,7 +142,7 @@ snic_io_hdr_dec(struct snic_io_hdr *hdr, u8 *typ, u8 *stat, u32 *cmnd_id,
  * Used for sending host information to firmware, and request fw version
  */
 struct snic_exch_ver_req {
-	__le32	drvr_ver;	/* for debugging, when fw dump captured */
+	__le32	drvr_ver;	/* for deging, when fw dump captured */
 	__le32	os_type;	/* for OS specific features */
 };
 

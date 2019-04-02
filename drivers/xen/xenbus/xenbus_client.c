@@ -504,7 +504,7 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 	}
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, j))
-		BUG();
+		();
 
 	*leaked = false;
 	for (i = 0; i < j; i++) {
@@ -762,7 +762,7 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 	}
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
-		BUG();
+		();
 
 	err = GNTST_okay;
 	leaked = false;
@@ -885,7 +885,7 @@ int xenbus_unmap_ring(struct xenbus_device *dev,
 				    GNTMAP_host_map, handles[i]);
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
-		BUG();
+		();
 
 	err = GNTST_okay;
 	for (i = 0; i < nr_handles; i++) {

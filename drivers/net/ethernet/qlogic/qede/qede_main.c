@@ -70,9 +70,9 @@ MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-static uint debug;
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, " Default debug msglevel");
+static uint de;
+module_param(de, uint, 0);
+MODULE_PARM_DESC(de, " Default de msglevel");
 
 static const struct qed_eth_ops *qed_ops;
 
@@ -305,7 +305,7 @@ int __init qede_init(void)
 
 static void __exit qede_cleanup(void)
 {
-	if (debug & QED_LOG_INFO_MASK)
+	if (de & QED_LOG_INFO_MASK)
 		pr_info("qede_cleanup called\n");
 
 	unregister_netdevice_notifier(&qede_netdev_notifier);
@@ -518,7 +518,7 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		return qede_ptp_hw_ts(edev, ifr);
 	default:
-		DP_VERBOSE(edev, QED_MSG_DEBUG,
+		DP_VERBOSE(edev, QED_MSG_DE,
 			   "default IOCTL cmd 0x%x\n", cmd);
 		return -EOPNOTSUPP;
 	}
@@ -833,17 +833,17 @@ static void qede_init_ndev(struct qede_dev *edev)
  *
  * Notice that the level should be that of the lowest required logs.
  */
-void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level)
+void qede_config_de(uint de, u32 *p_dp_module, u8 *p_dp_level)
 {
 	*p_dp_level = QED_LEVEL_NOTICE;
 	*p_dp_module = 0;
 
-	if (debug & QED_LOG_VERBOSE_MASK) {
+	if (de & QED_LOG_VERBOSE_MASK) {
 		*p_dp_level = QED_LEVEL_VERBOSE;
-		*p_dp_module = (debug & 0x3FFFFFFF);
-	} else if (debug & QED_LOG_INFO_MASK) {
+		*p_dp_module = (de & 0x3FFFFFFF);
+	} else if (de & QED_LOG_INFO_MASK) {
 		*p_dp_level = QED_LEVEL_INFO;
-	} else if (debug & QED_LOG_NOTICE_MASK) {
+	} else if (de & QED_LOG_NOTICE_MASK) {
 		*p_dp_level = QED_LEVEL_NOTICE;
 	}
 }
@@ -1198,16 +1198,16 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	switch ((enum qede_pci_private)id->driver_data) {
 	case QEDE_PRIVATE_VF:
-		if (debug & QED_LOG_VERBOSE_MASK)
+		if (de & QED_LOG_VERBOSE_MASK)
 			dev_err(&pdev->dev, "Probing a VF\n");
 		is_vf = true;
 		break;
 	default:
-		if (debug & QED_LOG_VERBOSE_MASK)
+		if (de & QED_LOG_VERBOSE_MASK)
 			dev_err(&pdev->dev, "Probing a PF\n");
 	}
 
-	qede_config_debug(debug, &dp_module, &dp_level);
+	qede_config_de(de, &dp_module, &dp_level);
 
 	return __qede_probe(pdev, dp_module, dp_level, is_vf,
 			    QEDE_PROBE_NORMAL);

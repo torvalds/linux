@@ -121,7 +121,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2004-12-29
 
-  - after several days of struggling around bug of no returning URBs fixed.
+  - after several days of struggling around  of no returning URBs fixed.
 
   2004-12-26
 
@@ -136,7 +136,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
   2004-11-23
 
   - merged changes from DiB3000MC_ver2.1
-  - revised the debugging
+  - revised the deging
   - possibility to deliver the complete TS for USB2.0
 
   2004-11-21
@@ -251,10 +251,10 @@ Loading the drivers
 Hotplug is able to load the driver, when it is needed (because you plugged
 in the device).
 
-If you want to enable debug output, you have to load the driver manually and
+If you want to enable de output, you have to load the driver manually and
 from within the dvb-kernel cvs repository.
 
-first have a look, which debug level are available:
+first have a look, which de level are available:
 
 .. code-block:: none
 
@@ -265,8 +265,8 @@ first have a look, which debug level are available:
 
 .. code-block:: none
 
-	modprobe dvb-usb debug=<level>
-	modprobe dvb-usb-vp7045 debug=<level>
+	modprobe dvb-usb de=<level>
+	modprobe dvb-usb-vp7045 de=<level>
 	etc.
 
 should do the trick.
@@ -279,7 +279,7 @@ At this point you should be able to start a dvb-capable application. I'm use
 (t|s)zap, mplayer and dvbscan to test the basics. VDR-xine provides the
 long-term test scenario.
 
-Known problems and bugs
+Known problems and s
 -----------------------
 
 - Don't remove the USB device while running an DVB application, your system
@@ -302,7 +302,7 @@ but watching a channel while recording another channel on the same
 frequency simply does not work very well. This applies to all USB1.1
 DVB-T devices, not just the dvb-usb-devices)
 
-The bug, where the TS is distorted by a heavy usage of the device is gone
+The , where the TS is distorted by a heavy usage of the device is gone
 definitely. All dvb-usb-devices I was using (Twinhan, Kworld, DiBcom) are
 working like charm now with VDR. Sometimes I even was able to record a channel
 and watch another one.
@@ -325,7 +325,7 @@ Patches, comments and suggestions are very very welcome.
    Alex Woods for frequently answering question about usb and dvb
    stuff, a big thank you.
 
-   Bernd Wagner for helping with huge bug reports and discussions.
+   Bernd Wagner for helping with huge  reports and discussions.
 
    Gunnar Wittich and Joachim von Caron for their trust for providing
    root-shells on their machines to implement support for new devices.

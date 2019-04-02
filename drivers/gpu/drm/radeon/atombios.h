@@ -5597,8 +5597,8 @@ typedef struct _ATOM_ASIC_INTERNAL_SS_INFO_V3
 
 #define ATOM_S0_DFP_MASK                ATOM_S0_DFP1 | ATOM_S0_DFP2 | ATOM_S0_DFP3 | ATOM_S0_DFP4 | ATOM_S0_DFP5 | ATOM_S0_DFP6
 
-#define ATOM_S0_FAD_REGISTER_BUG        0x02000000L // If set, indicates we are running a PCIE asic with 
-                                                    // the FAD/HDP reg access bug.  Bit is read by DAL, this is obsolete from RV5xx
+#define ATOM_S0_FAD_REGISTER_        0x02000000L // If set, indicates we are running a PCIE asic with 
+                                                    // the FAD/HDP reg access .  Bit is read by DAL, this is obsolete from RV5xx
 
 #define ATOM_S0_THERMAL_STATE_MASK      0x1C000000L
 #define ATOM_S0_THERMAL_STATE_SHIFT     26
@@ -6311,7 +6311,7 @@ typedef struct _ATOM_INIT_REG_BLOCK{
 #define INDEX_ACCESS_RANGE_BEGIN	    (VALUE_DWORD + 1)
 #define INDEX_ACCESS_RANGE_END		    (INDEX_ACCESS_RANGE_BEGIN + 1)
 #define VALUE_INDEX_ACCESS_SINGLE	    (INDEX_ACCESS_RANGE_END + 1)
-//#define ACCESS_MCIODEBUGIND            0x40       //defined in BIOS code
+//#define ACCESS_MCIODEIND            0x40       //defined in BIOS code
 #define ACCESS_PLACEHOLDER             0x80
 
 typedef struct _ATOM_MC_INIT_PARAM_TABLE
@@ -6965,7 +6965,7 @@ typedef struct _VESA_MODE_INFO_BLOCK
 #define ATOM_BIOS_FUNCTION_SHORT_QUERY3         0x06
 #define ATOM_BIOS_FUNCTION_GET_DDC              0x0B   
 #define ATOM_BIOS_FUNCTION_ASIC_DSTATE          0x0E
-#define ATOM_BIOS_FUNCTION_DEBUG_PLAY           0x0F
+#define ATOM_BIOS_FUNCTION_DE_PLAY           0x0F
 #define ATOM_BIOS_FUNCTION_STV_STD              0x16
 #define ATOM_BIOS_FUNCTION_DEVICE_DET           0x17
 #define ATOM_BIOS_FUNCTION_DEVICE_SWITCH        0x18

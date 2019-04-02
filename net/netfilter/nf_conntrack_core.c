@@ -341,7 +341,7 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 
 	/* Check bogus IP headers */
 	if (dataoff > skb->len) {
-		pr_debug("bogus IPv4 packet: nhoff %u, ihl %u, skblen %u\n",
+		pr_de("bogus IPv4 packet: nhoff %u, ihl %u, skblen %u\n",
 			 nhoff, iph->ihl << 2, skb->len);
 		return -1;
 	}
@@ -359,7 +359,7 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 
 	if (skb_copy_bits(skb, nhoff + offsetof(struct ipv6hdr, nexthdr),
 			  &nexthdr, sizeof(nexthdr)) != 0) {
-		pr_debug("can't get nexthdr\n");
+		pr_de("can't get nexthdr\n");
 		return -1;
 	}
 	protoff = ipv6_skip_exthdr(skb, extoff, &nexthdr, &frag_off);
@@ -368,7 +368,7 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	 * IPv6 and possibly extensions headers, but it is tracked anyway
 	 */
 	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
-		pr_debug("can't find proto in pkt\n");
+		pr_de("can't find proto in pkt\n");
 		return -1;
 	}
 
@@ -452,7 +452,7 @@ EXPORT_SYMBOL_GPL(nf_ct_invert_tuple);
 static void
 clean_from_lists(struct nf_conn *ct)
 {
-	pr_debug("clean_from_lists(%p)\n", ct);
+	pr_de("clean_from_lists(%p)\n", ct);
 	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
 	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode);
 
@@ -499,7 +499,7 @@ static void nf_ct_del_from_dying_or_unconfirmed_list(struct nf_conn *ct)
 	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
 
 	spin_lock(&pcpu->lock);
-	BUG_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode));
+	_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode));
 	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
 	spin_unlock(&pcpu->lock);
 }
@@ -566,7 +566,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 
-	pr_debug("destroy_conntrack(%p)\n", ct);
+	pr_de("destroy_conntrack(%p)\n", ct);
 	WARN_ON(atomic_read(&nfct->use) != 0);
 
 	if (unlikely(nf_ct_is_template(ct))) {
@@ -592,7 +592,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	if (ct->master)
 		nf_ct_put(ct->master);
 
-	pr_debug("destroy_conntrack: returning ct=%p to slab\n", ct);
+	pr_de("destroy_conntrack: returning ct=%p to slab\n", ct);
 	nf_conntrack_free(ct);
 }
 
@@ -947,7 +947,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		return NF_DROP;
 	}
 
-	pr_debug("Confirming conntrack %p\n", ct);
+	pr_de("Confirming conntrack %p\n", ct);
 	/* We have to check the DYING flag after unlink to prevent
 	 * a race against nf_ct_get_next_corpse() possibly called from
 	 * user context, else we insert an already 'dead' hash, blocking
@@ -1292,7 +1292,7 @@ static void gc_worker(struct work_struct *work)
 	} else {
 		unsigned int max = GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV;
 
-		BUILD_BUG_ON((GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV) == 0);
+		BUILD__ON((GC_MAX_SCAN_JIFFIES / GC_MAX_BUCKETS_DIV) == 0);
 
 		gc_work->next_gc_run += min_interval;
 		if (gc_work->next_gc_run > max)
@@ -1413,7 +1413,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	struct nf_conntrack_zone tmp;
 
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple)) {
-		pr_debug("Can't invert tuple.\n");
+		pr_de("Can't invert tuple.\n");
 		return NULL;
 	}
 
@@ -1448,7 +1448,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		spin_lock(&nf_conntrack_expect_lock);
 		exp = nf_ct_find_expectation(net, zone, tuple);
 		if (exp) {
-			pr_debug("expectation arrives ct=%p exp=%p\n",
+			pr_de("expectation arrives ct=%p exp=%p\n",
 				 ct, exp);
 			/* Welcome, Mr. Bond.  We've been expecting you... */
 			__set_bit(IPS_EXPECTED_BIT, &ct->status);
@@ -1507,7 +1507,7 @@ resolve_normal_ct(struct nf_conn *tmpl,
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 			     dataoff, state->pf, protonum, state->net,
 			     &tuple)) {
-		pr_debug("Can't get tuple\n");
+		pr_de("Can't get tuple\n");
 		return 0;
 	}
 
@@ -1531,13 +1531,13 @@ resolve_normal_ct(struct nf_conn *tmpl,
 	} else {
 		/* Once we've had two way comms, always ESTABLISHED. */
 		if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
-			pr_debug("normal packet for %p\n", ct);
+			pr_de("normal packet for %p\n", ct);
 			ctinfo = IP_CT_ESTABLISHED;
 		} else if (test_bit(IPS_EXPECTED_BIT, &ct->status)) {
-			pr_debug("related packet for %p\n", ct);
+			pr_de("related packet for %p\n", ct);
 			ctinfo = IP_CT_RELATED;
 		} else {
-			pr_debug("new packet for %p\n", ct);
+			pr_de("new packet for %p\n", ct);
 			ctinfo = IP_CT_NEW;
 		}
 	}
@@ -1657,7 +1657,7 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 	/* rcu_read_lock()ed by nf_hook_thresh */
 	dataoff = get_l4proto(skb, skb_network_offset(skb), state->pf, &protonum);
 	if (dataoff <= 0) {
-		pr_debug("not prepared to track yet or error occurred\n");
+		pr_de("not prepared to track yet or error occurred\n");
 		NF_CT_STAT_INC_ATOMIC(state->net, error);
 		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
 		ret = NF_ACCEPT;
@@ -1697,7 +1697,7 @@ repeat:
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
-		pr_debug("nf_conntrack_in: Can't track with proto module\n");
+		pr_de("nf_conntrack_in: Can't track with proto module\n");
 		nf_conntrack_put(&ct->ct_general);
 		skb->_nfct = 0;
 		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
@@ -1734,7 +1734,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	/* Should be unconfirmed, so not in hash table yet */
 	WARN_ON(nf_ct_is_confirmed(ct));
 
-	pr_debug("Altering reply tuple of %p to ", ct);
+	pr_de("Altering reply tuple of %p to ", ct);
 	nf_ct_dump_tuple(newreply);
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
@@ -2218,7 +2218,7 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 	if (*sizep > (UINT_MAX / sizeof(struct hlist_nulls_head)))
 		return NULL;
 
-	BUILD_BUG_ON(sizeof(struct hlist_nulls_head) != sizeof(struct hlist_head));
+	BUILD__ON(sizeof(struct hlist_nulls_head) != sizeof(struct hlist_head));
 	nr_slots = *sizep = roundup(*sizep, PAGE_SIZE / sizeof(struct hlist_nulls_head));
 
 	hash = kvmalloc_array(nr_slots, sizeof(struct hlist_nulls_head),
@@ -2312,7 +2312,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_set_hashsize);
 static __always_inline unsigned int total_extension_size(void)
 {
 	/* remember to add new extensions below */
-	BUILD_BUG_ON(NF_CT_EXT_NUM > 9);
+	BUILD__ON(NF_CT_EXT_NUM > 9);
 
 	return sizeof(struct nf_ct_ext) +
 	       sizeof(struct nf_conn_help)
@@ -2347,7 +2347,7 @@ int nf_conntrack_init_start(void)
 	int i;
 
 	/* struct nf_ct_ext uses u8 to store offsets/size */
-	BUILD_BUG_ON(total_extension_size() > 255u);
+	BUILD__ON(total_extension_size() > 255u);
 
 	seqcount_init(&nf_conntrack_generation);
 
@@ -2479,8 +2479,8 @@ int nf_conntrack_init_net(struct net *net)
 	int ret = -ENOMEM;
 	int cpu;
 
-	BUILD_BUG_ON(IP_CT_UNTRACKED == IP_CT_NUMBER);
-	BUILD_BUG_ON_NOT_POWER_OF_2(CONNTRACK_LOCKS);
+	BUILD__ON(IP_CT_UNTRACKED == IP_CT_NUMBER);
+	BUILD__ON_NOT_POWER_OF_2(CONNTRACK_LOCKS);
 	atomic_set(&net->ct.count, 0);
 
 	net->ct.pcpu_lists = alloc_percpu(struct ct_pcpu);

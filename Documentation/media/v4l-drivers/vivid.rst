@@ -247,9 +247,9 @@ all configurable using the following module options:
 		- 1: this is a single-planar instance.
 		- 2: this is a multi-planar instance.
 
-- vivid_debug:
+- vivid_de:
 
-	enable driver debugging info
+	enable driver deging info
 
 - no_error_inj:
 

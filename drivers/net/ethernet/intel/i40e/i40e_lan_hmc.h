@@ -79,7 +79,7 @@ enum i40e_hmc_obj_rx_hsplit_0 {
 	I40E_HMC_OBJ_RX_HSPLIT_0_SPLIT_SCTP    = 8,
 };
 
-/* fcoe_cntx and fcoe_filt are for debugging purpose only */
+/* fcoe_cntx and fcoe_filt are for deging purpose only */
 struct i40e_hmc_obj_fcoe_cntx {
 	u32 rsv[32];
 };

@@ -18,7 +18,7 @@
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
@@ -247,7 +247,7 @@ static void enable_maceisa_irq(struct irq_data *d)
 {
 	unsigned int crime_int = 0;
 
-	pr_debug("maceisa enable: %u\n", d->irq);
+	pr_de("maceisa enable: %u\n", d->irq);
 
 	switch (d->irq) {
 	case MACEISA_AUDIO_SW_IRQ ... MACEISA_AUDIO3_MERR_IRQ:
@@ -260,7 +260,7 @@ static void enable_maceisa_irq(struct irq_data *d)
 		crime_int = MACE_SUPERIO_INT;
 		break;
 	}
-	pr_debug("crime_int %08x enabled\n", crime_int);
+	pr_de("crime_int %08x enabled\n", crime_int);
 	crime_mask |= crime_int;
 	crime->imask = crime_mask;
 	maceisa_mask |= 1 << (d->irq - MACEISA_AUDIO_SW_IRQ);
@@ -370,8 +370,8 @@ static void ip32_irq0(void)
 	 * MACE got 32 interrupts and there are 32 MACE ISA interrupts daisy
 	 * chained.
 	 */
-	BUILD_BUG_ON(CRIME_VICE_IRQ - MACE_VID_IN1_IRQ != 31);
-	BUILD_BUG_ON(MACEISA_SERIAL2_RDMAOR_IRQ - MACEISA_AUDIO_SW_IRQ != 31);
+	BUILD__ON(CRIME_VICE_IRQ - MACE_VID_IN1_IRQ != 31);
+	BUILD__ON(MACEISA_SERIAL2_RDMAOR_IRQ - MACEISA_AUDIO_SW_IRQ != 31);
 
 	crime_int = crime->istat & crime_mask;
 
@@ -386,7 +386,7 @@ static void ip32_irq0(void)
 		irq = __ffs(mace_int & maceisa_mask) + MACEISA_AUDIO_SW_IRQ;
 	}
 
-	pr_debug("*irq %u*\n", irq);
+	pr_de("*irq %u*\n", irq);
 	do_IRQ(irq);
 }
 

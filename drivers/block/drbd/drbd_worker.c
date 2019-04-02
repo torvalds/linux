@@ -742,7 +742,7 @@ next_sector:
 				/* everything ok */
 				break;
 			default:
-				BUG();
+				();
 			}
 		} else {
 			int err;
@@ -979,7 +979,7 @@ int drbd_resync_finished(struct drbd_device *device)
 				drbd_uuid_set(device, UI_BITMAP, device->ldev->md.uuid[UI_CURRENT]);
 				_drbd_uuid_set(device, UI_CURRENT, device->p_uuid[UI_CURRENT]);
 			} else {
-				drbd_err(device, "device->p_uuid is NULL! BUG\n");
+				drbd_err(device, "device->p_uuid is NULL! \n");
 			}
 		}
 

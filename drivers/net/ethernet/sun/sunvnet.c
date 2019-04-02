@@ -372,7 +372,7 @@ static void vnet_cleanup(void)
 		list_del(&vp->list);
 		dev = vp->dev;
 		/* vio_unregister_driver() should have cleaned up port_list */
-		BUG_ON(!list_empty(&vp->port_list));
+		_ON(!list_empty(&vp->port_list));
 		unregister_netdev(dev);
 		free_netdev(dev);
 	}

@@ -15,7 +15,7 @@
  */
 
 #include <linux/etherdevice.h>
-#include "rsi_debugfs.h"
+#include "rsi_defs.h"
 #include "rsi_mgmt.h"
 #include "rsi_sdio.h"
 #include "rsi_common.h"
@@ -318,7 +318,7 @@ void rsi_mac80211_detach(struct rsi_hw *adapter)
 		kfree(sband->channels);
 	}
 
-#ifdef CONFIG_RSI_DEBUGFS
+#ifdef CONFIG_RSI_DEFS
 	rsi_remove_dbgfs(adapter);
 	kfree(adapter->dfsentry);
 #endif

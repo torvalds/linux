@@ -4,7 +4,7 @@
  * This module only registers itself as a handler that is specified to it
  * by the 'irq' parameter.
  *
- * The sole purpose of this module is to help with debugging of systems on
+ * The sole purpose of this module is to help with deging of systems on
  * which spurious IRQs would happen on disabled IRQ vector.
  *
  * Copyright (C) 2013 Jiri Kosina

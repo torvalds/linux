@@ -17,7 +17,7 @@
 #include <linux/tracepoint.h>
 #include <asm/byteorder.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 
 DECLARE_EVENT_CLASS(dwc3_log_io,
 	TP_PROTO(void *base, u32 offset, u32 value),

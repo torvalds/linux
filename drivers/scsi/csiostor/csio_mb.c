@@ -1130,19 +1130,19 @@ csio_mb_intr_disable(struct csio_hw *hw)
 static void
 csio_mb_dump_fw_dbg(struct csio_hw *hw, __be64 *cmd)
 {
-	struct fw_debug_cmd *dbg = (struct fw_debug_cmd *)cmd;
+	struct fw_de_cmd *dbg = (struct fw_de_cmd *)cmd;
 
-	if ((FW_DEBUG_CMD_TYPE_G(ntohl(dbg->op_type))) == 1) {
+	if ((FW_DE_CMD_TYPE_G(ntohl(dbg->op_type))) == 1) {
 		csio_info(hw, "FW print message:\n");
-		csio_info(hw, "\tdebug->dprtstridx = %d\n",
+		csio_info(hw, "\tde->dprtstridx = %d\n",
 			    ntohs(dbg->u.prt.dprtstridx));
-		csio_info(hw, "\tdebug->dprtstrparam0 = 0x%x\n",
+		csio_info(hw, "\tde->dprtstrparam0 = 0x%x\n",
 			    ntohl(dbg->u.prt.dprtstrparam0));
-		csio_info(hw, "\tdebug->dprtstrparam1 = 0x%x\n",
+		csio_info(hw, "\tde->dprtstrparam1 = 0x%x\n",
 			    ntohl(dbg->u.prt.dprtstrparam1));
-		csio_info(hw, "\tdebug->dprtstrparam2 = 0x%x\n",
+		csio_info(hw, "\tde->dprtstrparam2 = 0x%x\n",
 			    ntohl(dbg->u.prt.dprtstrparam2));
-		csio_info(hw, "\tdebug->dprtstrparam3 = 0x%x\n",
+		csio_info(hw, "\tde->dprtstrparam3 = 0x%x\n",
 			    ntohl(dbg->u.prt.dprtstrparam3));
 	} else {
 		/* This is a FW assertion */
@@ -1155,13 +1155,13 @@ csio_mb_dump_fw_dbg(struct csio_hw *hw, __be64 *cmd)
 }
 
 static void
-csio_mb_debug_cmd_handler(struct csio_hw *hw)
+csio_mb_de_cmd_handler(struct csio_hw *hw)
 {
 	int i;
 	__be64 cmd[CSIO_MB_MAX_REGS];
 	uint32_t ctl_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_CTRL_A);
 	uint32_t data_reg = PF_REG(hw->pfn, CIM_PF_MAILBOX_DATA_A);
-	int size = sizeof(struct fw_debug_cmd);
+	int size = sizeof(struct fw_de_cmd);
 
 	/* Copy mailbox data */
 	for (i = 0; i < size; i += 8)
@@ -1313,8 +1313,8 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 			fw_hdr = (struct fw_cmd_hdr *)&hdr;
 
 			switch (FW_CMD_OP_G(ntohl(fw_hdr->hi))) {
-			case FW_DEBUG_CMD:
-				csio_mb_debug_cmd_handler(hw);
+			case FW_DE_CMD:
+				csio_mb_de_cmd_handler(hw);
 				continue;
 			}
 
@@ -1451,7 +1451,7 @@ csio_mb_fwevt_handler(struct csio_hw *hw, __be64 *cmd)
 			hw->pport[port_id].mod_type = mod_type;
 			csio_mb_portmod_changed(hw, port_id);
 		}
-	} else if (opcode == FW_DEBUG_CMD) {
+	} else if (opcode == FW_DE_CMD) {
 		csio_mb_dump_fw_dbg(hw, cmd);
 	} else {
 		csio_dbg(hw, "Gen MB can't handle op:0x%x on evtq.\n", opcode);
@@ -1519,8 +1519,8 @@ csio_mb_isr_handler(struct csio_hw *hw)
 		fw_hdr = (struct fw_cmd_hdr *)&hdr;
 
 		switch (FW_CMD_OP_G(ntohl(fw_hdr->hi))) {
-		case FW_DEBUG_CMD:
-			csio_mb_debug_cmd_handler(hw);
+		case FW_DE_CMD:
+			csio_mb_de_cmd_handler(hw);
 			return -EINVAL;
 #if 0
 		case FW_ERROR_CMD:

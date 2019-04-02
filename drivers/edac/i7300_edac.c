@@ -679,11 +679,11 @@ static int decode_mtr(struct i7300_pvt *pvt,
  * print_dimm_size() - Prints dump of the memory organization
  * @pvt: pointer to the private data struct used by i7300 driver
  *
- * Useful for debug. If debug is disabled, this routine do nothing
+ * Useful for de. If de is disabled, this routine do nothing
  */
 static void print_dimm_size(struct i7300_pvt *pvt)
 {
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	struct i7300_dimm_info *dinfo;
 	char *p;
 	int space, n;

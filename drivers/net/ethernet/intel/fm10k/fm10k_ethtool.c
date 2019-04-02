@@ -330,7 +330,7 @@ static void fm10k_get_reg_q(struct fm10k_hw *hw, u32 *buff, int i)
 	buff[idx++] = fm10k_read_reg(hw, FM10K_TX_SGLORT(i));
 	buff[idx++] = fm10k_read_reg(hw, FM10K_PFVTCTL(i));
 
-	BUG_ON(idx != FM10K_REGS_LEN_Q);
+	_ON(idx != FM10K_REGS_LEN_Q);
 }
 
 /* If function above adds more registers this define needs to be updated */
@@ -346,7 +346,7 @@ static void fm10k_get_reg_vsi(struct fm10k_hw *hw, u32 *buff, int i)
 	for (j = 0; j < 32; j++)
 		buff[idx++] = fm10k_read_reg(hw, FM10K_RETA(i, j));
 
-	BUG_ON(idx != FM10K_REGS_LEN_VSI);
+	_ON(idx != FM10K_REGS_LEN_VSI);
 }
 
 static void fm10k_get_regs(struct net_device *netdev,

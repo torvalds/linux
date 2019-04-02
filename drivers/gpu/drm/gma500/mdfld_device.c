@@ -54,7 +54,7 @@ int mdfld_set_brightness(struct backlight_device *bd)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int level = bd->props.brightness;
 
-	DRM_DEBUG_DRIVER("backlight level set to %d\n", level);
+	DRM_DE_DRIVER("backlight level set to %d\n", level);
 
 	/* Perform value bounds checking */
 	if (level < BRIGHTNESS_MIN_LEVEL)
@@ -99,7 +99,7 @@ static int mdfld_get_brightness(struct backlight_device *bd)
 		(struct drm_device *)bl_get_data(mdfld_backlight_device);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	DRM_DEBUG_DRIVER("brightness = 0x%x \n", dev_priv->brightness);
+	DRM_DE_DRIVER("brightness = 0x%x \n", dev_priv->brightness);
 
 	/* return locally cached var instead of HW read (due to DPST etc.) */
 	return dev_priv->brightness;

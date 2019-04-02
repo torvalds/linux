@@ -96,7 +96,7 @@ static inline netdev_tx_t vlan_netpoll_send_skb(struct vlan_dev_priv *vlan, stru
 	if (vlan->netpoll)
 		netpoll_send_skb(vlan->netpoll, skb);
 #else
-	BUG();
+	();
 #endif
 	return NETDEV_TX_OK;
 }

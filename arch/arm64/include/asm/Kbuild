@@ -1,4 +1,4 @@
-generic-y += bugs.h
+generic-y += s.h
 generic-y += delay.h
 generic-y += div64.h
 generic-y += dma.h
@@ -7,7 +7,7 @@ generic-y += early_ioremap.h
 generic-y += emergency-restart.h
 generic-y += hw_irq.h
 generic-y += irq_regs.h
-generic-y += kdebug.h
+generic-y += kde.h
 generic-y += kmap_types.h
 generic-y += local.h
 generic-y += local64.h

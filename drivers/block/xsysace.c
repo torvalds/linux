@@ -78,7 +78,7 @@
  *    - Request major number from lanana
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/module.h>
 #include <linux/ctype.h>
@@ -365,10 +365,10 @@ static inline void ace_out32(struct ace_device *ace, int reg, u32 val)
 }
 
 /* ---------------------------------------------------------------------
- * Debug support functions
+ * De support functions
  */
 
-#if defined(DEBUG)
+#if defined(DE)
 static void ace_dump_mem(void *base, int len)
 {
 	const char *ptr = base;
@@ -493,7 +493,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 	u16 val;
 	int count;
 
-#if defined(DEBUG)
+#if defined(DE)
 	dev_dbg(ace->dev, "fsm_state=%i, id_req_count=%i\n",
 		ace->fsm_state, ace->id_req_count);
 #endif
@@ -628,7 +628,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 	case ACE_FSM_STATE_IDENTIFY_COMPLETE:
 		ace_fix_driveid(ace->cf_id);
-		ace_dump_mem(ace->cf_id, 512);	/* Debug: Dump out disk ID */
+		ace_dump_mem(ace->cf_id, 512);	/* De: Dump out disk ID */
 
 		if (ace->data_result) {
 			/* Error occurred, disable the disk */
@@ -1269,7 +1269,7 @@ module_init(ace_init);
 
 static void __exit ace_exit(void)
 {
-	pr_debug("Unregistering Xilinx SystemACE driver\n");
+	pr_de("Unregistering Xilinx SystemACE driver\n");
 	platform_driver_unregister(&ace_platform_driver);
 	unregister_blkdev(ace_major, "xsysace");
 }

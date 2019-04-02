@@ -9,7 +9,7 @@
 #ifndef _ASM_UPROBES_H
 #define _ASM_UPROBES_H
 
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/insn.h>
 #include <asm/probes.h>
 

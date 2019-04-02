@@ -700,11 +700,11 @@ static int mrf24j40_filter(struct ieee802154_hw *hw,
 			regmap_write(devrec->regmap_short, REG_EADR0 + i,
 				     addr[i]);
 
-#ifdef DEBUG
-		pr_debug("Set long addr to: ");
+#ifdef DE
+		pr_de("Set long addr to: ");
 		for (i = 0; i < 8; i++)
-			pr_debug("%02hhx ", addr[7 - i]);
-		pr_debug("\n");
+			pr_de("%02hhx ", addr[7 - i]);
+		pr_de("\n");
 #endif
 	}
 
@@ -777,10 +777,10 @@ static void mrf24j40_handle_rx_read_buf_complete(void *context)
 	skb_put_data(skb, rx_local_buf, len);
 	ieee802154_rx_irqsafe(devrec->hw, skb, 0);
 
-#ifdef DEBUG
-	 print_hex_dump(KERN_DEBUG, "mrf24j40 rx: ", DUMP_PREFIX_OFFSET, 16, 1,
+#ifdef DE
+	 print_hex_dump(KERN_DE, "mrf24j40 rx: ", DUMP_PREFIX_OFFSET, 16, 1,
 			rx_local_buf, len, 0);
-	 pr_debug("mrf24j40 rx: lqi: %02hhx rssi: %02hhx\n",
+	 pr_de("mrf24j40 rx: lqi: %02hhx rssi: %02hhx\n",
 		  devrec->rx_lqi_buf[0], devrec->rx_lqi_buf[1]);
 #endif
 }

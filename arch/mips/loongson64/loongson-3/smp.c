@@ -284,7 +284,7 @@ void loongson3_ipi_interrupt(struct pt_regs *regs)
 	}
 
 	if (action & SMP_ASK_C0COUNT) {
-		BUG_ON(cpu != 0);
+		_ON(cpu != 0);
 		c0count = read_c0_count();
 		c0count = c0count ? c0count : 1;
 		for (i = 1; i < nr_cpu_ids; i++)
@@ -413,7 +413,7 @@ static int loongson3_boot_secondary(int cpu, struct task_struct *idle)
 	startargs[2] = (unsigned long)task_thread_info(idle);
 	startargs[3] = 0;
 
-	pr_debug("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
+	pr_de("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
 			cpu, startargs[0], startargs[1], startargs[2]);
 
 	loongson3_ipi_write64(startargs[3],

@@ -258,7 +258,7 @@ static inline void inc_opstats(
 	u32 tlen,
 	struct hfi1_opcode_stats *stats)
 {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	stats->n_bytes += tlen;
 	stats->n_packets++;
 #endif
@@ -292,8 +292,8 @@ struct hfi1_ibdev {
 	u64 n_piodrain;
 	struct timer_list mem_timer;
 
-#ifdef CONFIG_DEBUG_FS
-	/* per HFI debugfs */
+#ifdef CONFIG_DE_FS
+	/* per HFI defs */
 	struct dentry *hfi1_ibdev_dbg;
 	/* per HFI symlinks to above */
 	struct dentry *hfi1_ibdev_link;

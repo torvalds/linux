@@ -212,7 +212,7 @@ static int mpol_set_nodemask(struct mempolicy *pol,
 	nodes_and(nsc->mask1,
 		  cpuset_current_mems_allowed, node_states[N_MEMORY]);
 
-	VM_BUG_ON(!nodes);
+	VM__ON(!nodes);
 	if (pol->mode == MPOL_PREFERRED && nodes_empty(*nodes))
 		nodes = NULL;	/* explicit local allocation */
 	else {
@@ -244,7 +244,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 {
 	struct mempolicy *policy;
 
-	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
+	pr_de("setting mode %d flags %d nodes[0] %lx\n",
 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : NUMA_NO_NODE);
 
 	if (mode == MPOL_DEFAULT) {
@@ -252,7 +252,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 			return ERR_PTR(-EINVAL);
 		return NULL;
 	}
-	VM_BUG_ON(!nodes);
+	VM__ON(!nodes);
 
 	/*
 	 * MPOL_PREFERRED cannot be used with MPOL_F_STATIC_NODES or
@@ -555,7 +555,7 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
 unlock:
 	spin_unlock(ptl);
 #else
-	BUG();
+	();
 #endif
 	return 0;
 }
@@ -674,7 +674,7 @@ static int vma_replace_policy(struct vm_area_struct *vma,
 	struct mempolicy *old;
 	struct mempolicy *new;
 
-	pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
+	pr_de("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
 		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
 		 vma->vm_ops, vma->vm_file,
 		 vma->vm_ops ? vma->vm_ops->set_policy : NULL);
@@ -819,7 +819,7 @@ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
 		/* else return empty node mask for local allocation */
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -997,7 +997,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 	 * need migration.  Between passing in the full user address
 	 * space range and MPOL_MF_DISCONTIG_OK, this call can not fail.
 	 */
-	VM_BUG_ON(!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)));
+	VM__ON(!(flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)));
 	queue_pages_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
 
@@ -1217,7 +1217,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 	if (!new)
 		flags |= MPOL_MF_DISCONTIG_OK;
 
-	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
+	pr_de("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
 		 start, start + len, mode, mode_flags,
 		 nmask ? nodes_addr(*nmask)[0] : NUMA_NO_NODE);
 
@@ -1725,7 +1725,7 @@ static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
 {
 	enum zone_type dynamic_policy_zone = policy_zone;
 
-	BUG_ON(dynamic_policy_zone == ZONE_MOVABLE);
+	_ON(dynamic_policy_zone == ZONE_MOVABLE);
 
 	/*
 	 * if policy->v.nodes has movable memory only,
@@ -1828,7 +1828,7 @@ unsigned int mempolicy_slab_node(void)
 	}
 
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1867,7 +1867,7 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 		 * pages, we need to shift off the always 0 bits to get
 		 * a useful offset.
 		 */
-		BUG_ON(shift < PAGE_SHIFT);
+		_ON(shift < PAGE_SHIFT);
 		off = vma->vm_pgoff >> (shift - PAGE_SHIFT);
 		off += (addr - vma->vm_start) >> shift;
 		return offset_il_node(pol, off);
@@ -1952,7 +1952,7 @@ bool init_nodemask_of_mempolicy(nodemask_t *mask)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 	task_unlock(current);
 
@@ -1997,7 +1997,7 @@ bool mempolicy_nodemask_intersects(struct task_struct *tsk,
 		ret = nodes_intersects(mempolicy->v.nodes, *mask);
 		break;
 	default:
-		BUG();
+		();
 	}
 out:
 	task_unlock(tsk);
@@ -2206,7 +2206,7 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
 			return true;
 		return a->v.preferred_node == b->v.preferred_node;
 	default:
-		BUG();
+		();
 		return false;
 	}
 }
@@ -2272,11 +2272,11 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
 		else if (new->end > nd->end)
 			p = &(*p)->rb_right;
 		else
-			BUG();
+			();
 	}
 	rb_link_node(&new->nd, parent, p);
 	rb_insert_color(&new->nd, &sp->root);
-	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
+	pr_de("inserting %lx-%lx: %d\n", new->start, new->end,
 		 new->policy ? new->policy->mode : 0);
 }
 
@@ -2369,7 +2369,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	/* Migrate the page towards the node whose CPU is referencing it */
@@ -2407,7 +2407,7 @@ void mpol_put_task_policy(struct task_struct *task)
 
 static void sp_delete(struct shared_policy *sp, struct sp_node *n)
 {
-	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
+	pr_de("deleting %lx-l%lx\n", n->start, n->end);
 	rb_erase(&n->nd, &sp->root);
 	sp_free(n);
 }
@@ -2563,7 +2563,7 @@ int mpol_set_shared_policy(struct shared_policy *info,
 	struct sp_node *new = NULL;
 	unsigned long sz = vma_pages(vma);
 
-	pr_debug("set_shared_policy %lx sz %lu %d %d %lx\n",
+	pr_de("set_shared_policy %lx sz %lu %d %d %lx\n",
 		 vma->vm_pgoff,
 		 sz, npol ? npol->mode : -1,
 		 npol ? npol->flags : -1,

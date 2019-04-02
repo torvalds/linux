@@ -12,7 +12,7 @@
 #define RK3288_PD_A17_2		2
 #define RK3288_PD_A17_3		3
 #define RK3288_PD_SCU		4
-#define RK3288_PD_DEBUG		5
+#define RK3288_PD_DE		5
 #define RK3288_PD_MEM		6
 
 /* VD_LOGIC */

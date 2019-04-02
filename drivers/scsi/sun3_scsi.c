@@ -272,7 +272,7 @@ static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
 		shost_printk(KERN_ERR, hostdata->host,
 		             "FIFO mismatch %04x not %04x\n",
 		             dregs->fifo_count, (unsigned int) count);
-		NCR5380_dprint(NDEBUG_DMA, hostdata->host);
+		NCR5380_dprint(NDE_DMA, hostdata->host);
 	}
 
 	/* setup udc */

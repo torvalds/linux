@@ -69,9 +69,9 @@ int (*pm_cpu_sleep)(unsigned long);
 static int s3c_pm_enter(suspend_state_t state)
 {
 	int ret;
-	/* ensure the debug is initialised (if enabled) */
+	/* ensure the de is initialised (if enabled) */
 
-	s3c_pm_debug_init();
+	s3c_pm_de_init();
 
 	S3C_PMDBG("%s(%d)\n", __func__, state);
 
@@ -144,7 +144,7 @@ static int s3c_pm_enter(suspend_state_t state)
 		s3c_pm_restored_gpios();
 	}
 
-	s3c_pm_debug_init();
+	s3c_pm_de_init();
 
 	/* check what irq (if any) restored the system */
 
@@ -153,7 +153,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	S3C_PMDBG("%s: post sleep, preparing to return\n", __func__);
 
 	/* LEDs should now be 1110 */
-	s3c_pm_debug_smdkled(1 << 1, 0);
+	s3c_pm_de_smdkled(1 << 1, 0);
 
 	s3c_pm_check_restore();
 

@@ -28,7 +28,7 @@
 
 #include "core.h"
 #include "bus.h"
-#include "debug.h"
+#include "de.h"
 #include "fwil_types.h"
 #include "p2p.h"
 #include "pno.h"
@@ -902,7 +902,7 @@ static int brcmf_psm_watchdog_notify(struct brcmf_if *ifp,
 
 	bphy_err(drvr, "PSM's watchdog has fired!\n");
 
-	err = brcmf_debug_create_memdump(ifp->drvr->bus_if, data,
+	err = brcmf_de_create_memdump(ifp->drvr->bus_if, data,
 					 evtmsg->datalen);
 	if (err)
 		bphy_err(drvr, "Failed to get memory dump, %d\n", err);
@@ -1155,11 +1155,11 @@ static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 #endif
 #endif /* CONFIG_INET */
 
-	/* populate debugfs */
-	brcmf_debugfs_add_entry(drvr, "revinfo", brcmf_revinfo_read);
-	brcmf_feat_debugfs_create(drvr);
-	brcmf_proto_debugfs_create(drvr);
-	brcmf_bus_debugfs_create(bus_if);
+	/* populate defs */
+	brcmf_defs_add_entry(drvr, "revinfo", brcmf_revinfo_read);
+	brcmf_feat_defs_create(drvr);
+	brcmf_proto_defs_create(drvr);
+	brcmf_bus_defs_create(bus_if);
 
 	return 0;
 
@@ -1269,7 +1269,7 @@ void brcmf_dev_coredump(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 
-	if (brcmf_debug_create_memdump(bus_if, NULL, 0) < 0)
+	if (brcmf_de_create_memdump(bus_if, NULL, 0) < 0)
 		brcmf_dbg(TRACE, "failed to create coredump\n");
 }
 

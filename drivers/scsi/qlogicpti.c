@@ -234,7 +234,7 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	       !(sbus_readw(qpti->qregs + SBUS_SEMAPHORE) & SBUS_SEMAPHORE_LCK)) {
 		udelay(20);
 
-		/* Workaround for some buggy chips. */
+		/* Workaround for some gy chips. */
 		if (sbus_readw(qpti->qregs + MBOX0) & 0x4000)
 			break;
 	}
@@ -956,7 +956,7 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 
 static inline void update_can_queue(struct Scsi_Host *host, u_int in_ptr, u_int out_ptr)
 {
-	/* Temporary workaround until bug is found and fixed (one bug has been found
+	/* Temporary workaround until  is found and fixed (one  has been found
 	   already, but fixing it makes things even worse) -jj */
 	int num_free = QLOGICPTI_REQ_QUEUE_LEN - REQ_QUEUE_DEPTH(in_ptr, out_ptr) - 64;
 	host->can_queue = scsi_host_busy(host) + num_free;

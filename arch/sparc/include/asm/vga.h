@@ -8,7 +8,7 @@
 #ifndef _LINUX_ASM_VGA_H_
 #define _LINUX_ASM_VGA_H_
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/string.h>
 #include <asm/types.h>
 
@@ -22,35 +22,35 @@
 
 static inline void scr_writew(u16 val, u16 *addr)
 {
-	BUG_ON((long) addr >= 0);
+	_ON((long) addr >= 0);
 
 	*addr = val;
 }
 
 static inline u16 scr_readw(const u16 *addr)
 {
-	BUG_ON((long) addr >= 0);
+	_ON((long) addr >= 0);
 
 	return *addr;
 }
 
 static inline void scr_memsetw(u16 *p, u16 v, unsigned int n)
 {
-	BUG_ON((long) p >= 0);
+	_ON((long) p >= 0);
 
 	memset16(p, cpu_to_le16(v), n / 2);
 }
 
 static inline void scr_memcpyw(u16 *d, u16 *s, unsigned int n)
 {
-	BUG_ON((long) d >= 0);
+	_ON((long) d >= 0);
 
 	memcpy(d, s, n);
 }
 
 static inline void scr_memmovew(u16 *d, u16 *s, unsigned int n)
 {
-	BUG_ON((long) d >= 0);
+	_ON((long) d >= 0);
 
 	memmove(d, s, n);
 }

@@ -166,7 +166,7 @@ static inline void invalidate_dtlb_mapping (unsigned address)
 /*
  * DO NOT USE THESE FUNCTIONS.  These instructions aren't part of the Xtensa
  * ISA and exist only for test purposes..
- * You may find it helpful for MMU debugging, however.
+ * You may find it helpful for MMU deging, however.
  *
  * 'at' is the unmodified input register
  * 'as' is the output register, as follows (specific to the Linux config):

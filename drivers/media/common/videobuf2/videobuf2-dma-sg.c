@@ -22,13 +22,13 @@
 #include <media/videobuf2-memops.h>
 #include <media/videobuf2-dma-sg.h>
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
-		if (debug >= level)					\
-			printk(KERN_DEBUG "vb2-dma-sg: " fmt, ## arg);	\
+		if (de >= level)					\
+			printk(KERN_DE "vb2-dma-sg: " fmt, ## arg);	\
 	} while (0)
 
 struct vb2_dma_sg_buf {
@@ -304,7 +304,7 @@ static void *vb2_dma_sg_vaddr(void *buf_priv)
 {
 	struct vb2_dma_sg_buf *buf = buf_priv;
 
-	BUG_ON(!buf);
+	_ON(!buf);
 
 	if (!buf->vaddr) {
 		if (buf->db_attach)

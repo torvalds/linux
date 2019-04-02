@@ -590,7 +590,7 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 	if (!fd)
 		fd = &freqdata_tab[ARRAY_SIZE(freqdata_tab) - 1];
 	b43dbg(dev->wl, "b2062: Using crystal tab entry %u kHz.\n",
-	       fd->freq); /* FIXME: Keep this printk until the code is fully debugged. */
+	       fd->freq); /* FIXME: Keep this printk until the code is fully deged. */
 
 	b43_radio_write(dev, B2062_S_RFPLL_CTL8,
 			((u16)(fd->data[1]) << 4) | fd->data[0]);
@@ -910,7 +910,7 @@ static void lpphy_set_tx_gains(struct b43_wldev *dev,
 			      (gains.pga << 8) | gains.gm);
 		/*
 		 * SPEC FIXME The spec calls for (pa_gain << 8) here, but that
-		 * conflicts with the spec for set_pa_gain! Vendor driver bug?
+		 * conflicts with the spec for set_pa_gain! Vendor driver ?
 		 */
 		b43_phy_maskset(dev, B43_PHY_OFDM(0xFB),
 				0x8000, gains.pad | (pa_gain << 6));

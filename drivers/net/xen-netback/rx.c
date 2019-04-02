@@ -322,7 +322,7 @@ static void xenvif_rx_next_chunk(struct xenvif_queue *queue,
 	void *frag_data;
 	size_t frag_len, chunk_len;
 
-	BUG_ON(!frag_iter);
+	_ON(!frag_iter);
 
 	if (pkt->frag == -1) {
 		frag_data = frag_iter->data;
@@ -416,7 +416,7 @@ static void xenvif_rx_extra_slot(struct xenvif_queue *queue,
 			return;
 		}
 	}
-	BUG();
+	();
 }
 
 static void xenvif_rx_skb(struct xenvif_queue *queue)

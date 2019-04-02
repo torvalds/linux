@@ -16,7 +16,7 @@
  * Authors: Waiman Long <waiman.long@hp.com>
  */
 #include <linux/smp.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>

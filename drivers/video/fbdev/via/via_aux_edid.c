@@ -54,7 +54,7 @@ static void query_edid(struct via_aux_drv *drv)
 		kfree(spec);
 		spec = NULL;
 	} else
-		printk(KERN_DEBUG "EDID: %s %s\n", spec->manufacturer, spec->monitor);
+		printk(KERN_DE "EDID: %s %s\n", spec->manufacturer, spec->monitor);
 
 	drv->data = spec;
 }

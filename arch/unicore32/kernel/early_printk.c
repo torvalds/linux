@@ -14,7 +14,7 @@
 #include <linux/string.h>
 #include <mach/ocd.h>
 
-/* On-Chip-Debugger functions */
+/* On-Chip-Deger functions */
 
 static void early_ocd_write(struct console *con, const char *s, unsigned n)
 {

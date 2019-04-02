@@ -4,7 +4,7 @@
 # Installs a probe on libc's inet_pton function, that will use uprobes,
 # then use 'perf trace' on a ping to localhost asking for just one packet
 # with the a backtrace 3 levels deep, check that it is what we expect.
-# This needs no debuginfo package, all is done using the libc ELF symtab
+# This needs no deinfo package, all is done using the libc ELF symtab
 # and the CFI info in the binaries.
 
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017

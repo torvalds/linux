@@ -80,7 +80,7 @@
 	    verbose	This parameter controls the amount of logging
 			that the driver will do.  Set it to 0 for 
 			normal operation, 1 to see autoprobe progress
-			messages, or 2 to see additional debugging
+			messages, or 2 to see additional deging
 			output.  (default 0)
 
             nice        This parameter controls the driver's use of
@@ -109,7 +109,7 @@
 	1.02    GRG 1998.05.06  SMP spinlock changes, 
 				Added slave support
 	1.03    GRG 1998.06.16  Eliminate an Ugh.
-	1.04	GRG 1998.08.15  Extra debugging, use HZ in loop timing
+	1.04	GRG 1998.08.15  Extra deging, use HZ in loop timing
 	1.05    GRG 1998.09.24  Added jumbo support
 
 */

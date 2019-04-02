@@ -1459,7 +1459,7 @@ static inline struct lcd_regs *path_regs(struct mmp_path *path)
 		return (struct lcd_regs *)(ctrl_regs(path) + 0x200);
 	else {
 		dev_err(path->dev, "path id %d invalid\n", path->id);
-		BUG_ON(1);
+		_ON(1);
 		return NULL;
 	}
 }

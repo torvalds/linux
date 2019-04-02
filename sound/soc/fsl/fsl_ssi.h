@@ -39,7 +39,7 @@
 /* SSI FIFO Control/Status Register */
 #define REG_SSI_SFCSR			0x2c
 /*
- * SSI Test Register (Intended for debugging purposes only)
+ * SSI Test Register (Intended for deging purposes only)
  *
  * Note: STR is not documented in recent IMX datasheet, but
  * is described in IMX51 reference manual at section 56.3.3.14
@@ -266,7 +266,7 @@
 
 struct device;
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+#if IS_ENABLED(CONFIG_DE_FS)
 
 struct fsl_ssi_dbg {
 	struct dentry *dbg_dir;
@@ -299,9 +299,9 @@ struct fsl_ssi_dbg {
 
 void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *ssi_dbg, u32 sisr);
 
-int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev);
+int fsl_ssi_defs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev);
 
-void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg);
+void fsl_ssi_defs_remove(struct fsl_ssi_dbg *ssi_dbg);
 
 #else
 
@@ -312,15 +312,15 @@ static inline void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *stats, u32 sisr)
 {
 }
 
-static inline int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg,
+static inline int fsl_ssi_defs_create(struct fsl_ssi_dbg *ssi_dbg,
 					 struct device *dev)
 {
 	return 0;
 }
 
-static inline void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)
+static inline void fsl_ssi_defs_remove(struct fsl_ssi_dbg *ssi_dbg)
 {
 }
-#endif  /* ! IS_ENABLED(CONFIG_DEBUG_FS) */
+#endif  /* ! IS_ENABLED(CONFIG_DE_FS) */
 
 #endif

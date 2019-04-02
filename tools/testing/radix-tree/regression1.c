@@ -2,7 +2,7 @@
 /*
  * Regression1
  * Description:
- * Salman Qazi describes the following radix-tree bug:
+ * Salman Qazi describes the following radix-tree :
  *
  * In the following case, we get can get a deadlock:
  *
@@ -25,7 +25,7 @@
  * lookup retry into a general "retry the lookup" bit.
  *
  * Running:
- * This test should run to completion in a few seconds. The above bug would
+ * This test should run to completion in a few seconds. The above  would
  * cause it to hang indefinitely.
  *
  * Upstream commit:

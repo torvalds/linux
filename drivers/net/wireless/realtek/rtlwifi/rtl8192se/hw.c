@@ -606,7 +606,7 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_ISO_CTRL);
 	rtl_write_word(rtlpriv, REG_SYS_ISO_CTRL, (tmpu2b | BIT(11)));
 
-	/* For warm reboot NIC disappera bug. */
+	/* For warm reboot NIC disappera . */
 	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
 	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | BIT(13)));
 
@@ -847,7 +847,7 @@ static void _rtl92se_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	/* 10. Power Save Control Register (Offset: 0x0260 - 0x02DF) */
 	/* 11. General Purpose Register (Offset: 0x02E0 - 0x02FF) */
 	/* 12. Host Interrupt Status Register (Offset: 0x0300 - 0x030F) */
-	/* 13. Test mode and Debug Control Register (Offset: 0x0310 - 0x034F) */
+	/* 13. Test mode and De Control Register (Offset: 0x0310 - 0x034F) */
 
 	/* 14. Set driver info, we only accept PHY status now. */
 	rtl_write_byte(rtlpriv, RXDRVINFO_SZ, 4);
@@ -1081,7 +1081,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 		rtl92s_phy_chk_fwcmd_iodone(hw);
 	}
 
-	/* Add to prevent ASPM bug. */
+	/* Add to prevent ASPM . */
 	/* Always enable hst and NIC clock request. */
 	rtl92s_phy_switch_ephy_parameter(hw);
 
@@ -1455,7 +1455,7 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, REG_SYS_ISO_CTRL, (tmpu2b | BIT(11)));
 
 
-	/* For warm reboot NIC disappera bug. */
+	/* For warm reboot NIC disappera . */
 	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
 	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | BIT(13)));
 

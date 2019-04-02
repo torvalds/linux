@@ -43,8 +43,8 @@ static void nh_generic(const u32 *key, const u8 *message, size_t message_len,
 {
 	u64 sums[4] = { 0, 0, 0, 0 };
 
-	BUILD_BUG_ON(NH_PAIR_STRIDE != 2);
-	BUILD_BUG_ON(NH_NUM_PASSES != 4);
+	BUILD__ON(NH_PAIR_STRIDE != 2);
+	BUILD__ON(NH_NUM_PASSES != 4);
 
 	while (message_len) {
 		u32 m0 = get_unaligned_le32(message + 0);
@@ -75,7 +75,7 @@ static void nh_generic(const u32 *key, const u8 *message, size_t message_len,
 static void process_nh_hash_value(struct nhpoly1305_state *state,
 				  const struct nhpoly1305_key *key)
 {
-	BUILD_BUG_ON(NH_HASH_BYTES % POLY1305_BLOCK_SIZE != 0);
+	BUILD__ON(NH_HASH_BYTES % POLY1305_BLOCK_SIZE != 0);
 
 	poly1305_core_blocks(&state->poly_state, &key->poly_key, state->nh_hash,
 			     NH_HASH_BYTES / POLY1305_BLOCK_SIZE);

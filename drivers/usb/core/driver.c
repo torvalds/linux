@@ -847,11 +847,11 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	if (usb_dev->devnum < 0) {
 		/* driver is often null here; dev_dbg() would oops */
-		pr_debug("usb %s: already deleted?\n", dev_name(dev));
+		pr_de("usb %s: already deleted?\n", dev_name(dev));
 		return -ENODEV;
 	}
 	if (!usb_dev->bus) {
-		pr_debug("usb %s: bus removed?\n", dev_name(dev));
+		pr_de("usb %s: bus removed?\n", dev_name(dev));
 		return -ENODEV;
 	}
 

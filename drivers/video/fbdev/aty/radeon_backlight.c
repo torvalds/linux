@@ -96,7 +96,7 @@ static int radeon_bl_update_status(struct backlight_device *bd)
 		rinfo->init_state.lvds_gen_cntl |= rinfo->pending_lvds_gen_cntl
 			& LVDS_STATE_MASK;
 	} else {
-		/* Asic bug, when turning off LVDS_ON, we have to make sure
+		/* Asic , when turning off LVDS_ON, we have to make sure
 		   RADEON_PIXCLK_LVDS_ALWAYS_ON bit is off
 		*/
 		tmpPixclksCntl = INPLL(PIXCLKS_CNTL);

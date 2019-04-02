@@ -40,7 +40,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		if (cond != ALT_COND_ALWAYS && no_alternatives)
 			continue;
 
-		pr_debug("Check %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
+		pr_de("Check %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
 			index, cond, len, from, replacement);
 
 		if ((cond & ALT_COND_NO_SMP) && (num_cpus != 1))
@@ -73,7 +73,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		if (replacement == INSN_NOP && len > 1)
 			replacement = 0xe8000002 + (len-2)*8; /* "b,n .+8" */
 
-		pr_debug("Do    %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
+		pr_de("Do    %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
 			index, cond, len, from, replacement);
 
 		/* Replace instruction */

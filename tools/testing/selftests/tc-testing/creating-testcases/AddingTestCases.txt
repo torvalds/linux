@@ -82,7 +82,7 @@ in the test cases.  tdc will output a series of TAP results for the skipped
 tests.
 
 Repeated failures of the setup/teardown may indicate a problem with the test
-case, or possibly even a bug in one of the commands that are not being tested.
+case, or possibly even a  in one of the commands that are not being tested.
 
 It's possible to include acceptable exit codes with the setup/teardown command
 so that it doesn't halt the script for an error that doesn't matter. Turn the

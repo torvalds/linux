@@ -280,7 +280,7 @@ static int h_msb_default_bad(struct memstick_dev *card,
 
 #define __dbg(level, format, ...) \
 	do { \
-		if (debug >= level) \
+		if (de >= level) \
 			pr_err(format "\n", ## __VA_ARGS__); \
 	} while (0)
 

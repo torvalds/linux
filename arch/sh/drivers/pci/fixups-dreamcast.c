@@ -60,7 +60,7 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 		res.end = GAPSPCI_DMA_BASE + GAPSPCI_DMA_SIZE - 1;
 		res.flags = IORESOURCE_MEM;
 		pcibios_resource_to_bus(dev->bus, &region, &res);
-		BUG_ON(dma_declare_coherent_memory(&dev->dev,
+		_ON(dma_declare_coherent_memory(&dev->dev,
 						res.start,
 						region.start,
 						resource_size(&res)));

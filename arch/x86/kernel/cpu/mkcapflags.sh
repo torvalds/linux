@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 #
-# Generate the x86_cap/bug_flags[] arrays from include/asm/cpufeatures.h
+# Generate the x86_cap/_flags[] arrays from include/asm/cpufeatures.h
 #
 
 IN=$1
@@ -58,7 +58,7 @@ trap 'rm "$OUT"' EXIT
 	dump_array "x86_cap_flags" "NCAPINTS*32" "X86_FEATURE_" ""
 	echo ""
 
-	dump_array "x86_bug_flags" "NBUGINTS*32" "X86_BUG_" "NCAPINTS*32"
+	dump_array "x86__flags" "NINTS*32" "X86__" "NCAPINTS*32"
 
 ) > $OUT
 

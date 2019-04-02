@@ -17,7 +17,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/facility.h>
 #include <asm/current.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include <asm/pgtable.h>

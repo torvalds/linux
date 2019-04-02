@@ -83,19 +83,19 @@ EXPORT_SYMBOL(__ucmpdi2);
 
 void __xtensa_libgcc_window_spill(void)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL(__xtensa_libgcc_window_spill);
 
 unsigned long __sync_fetch_and_and_4(unsigned long *p, unsigned long v)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL(__sync_fetch_and_and_4);
 
 unsigned long __sync_fetch_and_or_4(unsigned long *p, unsigned long v)
 {
-	BUG();
+	();
 }
 EXPORT_SYMBOL(__sync_fetch_and_or_4);
 

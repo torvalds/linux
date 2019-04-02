@@ -100,7 +100,7 @@ static inline unsigned int nmi_evntsel_msr_to_bit(unsigned int msr)
 /* checks for a bit availability (hack for oprofile) */
 int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
 {
-	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
+	_ON(counter > NMI_MAX_COUNTER_BITS);
 
 	return !test_bit(counter, perfctr_nmi_owner);
 }

@@ -409,7 +409,7 @@ struct compat_resume_swap_area {
 static long
 snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	BUILD_BUG_ON(sizeof(loff_t) != sizeof(compat_loff_t));
+	BUILD__ON(sizeof(loff_t) != sizeof(compat_loff_t));
 
 	switch (cmd) {
 	case SNAPSHOT_GET_IMAGE_SIZE:

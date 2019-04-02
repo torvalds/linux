@@ -1319,7 +1319,7 @@ int lg4ff_init(struct hid_device *hid)
 
 	if (i == ARRAY_SIZE(lg4ff_devices)) {
 		hid_err(hid, "This device is flagged to be handled by the lg4ff module but this module does not know how to handle it. "
-			     "Please report this as a bug to LKML, Simon Wood <simon@mungewell.org> or "
+			     "Please report this as a  to LKML, Simon Wood <simon@mungewell.org> or "
 			     "Michal Maly <madcatxster@devoid-pointer.net>\n");
 		error = -1;
 		goto err_init;
@@ -1349,7 +1349,7 @@ int lg4ff_init(struct hid_device *hid)
 
 	/* Initialize device properties */
 	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
-		BUG_ON(mmode_idx == -1);
+		_ON(mmode_idx == -1);
 		mmode_wheel = &lg4ff_multimode_wheels[mmode_idx];
 	}
 	lg4ff_init_wheel_data(&entry->wdata, &lg4ff_devices[i], mmode_wheel, real_product_id);

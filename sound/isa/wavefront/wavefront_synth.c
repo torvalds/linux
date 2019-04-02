@@ -48,9 +48,9 @@ static int fx_raw = 1; /* if this is zero, we'll leave the FX processor in
 			  operation, whatever that means.
 		       */
 
-static int debug_default = 0;  /* you can set this to control debugging
+static int de_default = 0;  /* you can set this to control deging
 				  during driver loading. it takes any combination
-				  of the WF_DEBUG_* flags defined in
+				  of the WF_DE_* flags defined in
 				  wavefront.h
 			       */
 
@@ -90,8 +90,8 @@ module_param(wf_raw, int, 0444);
 MODULE_PARM_DESC(wf_raw, "if non-zero, assume that we need to boot the OS");
 module_param(fx_raw, int, 0444);
 MODULE_PARM_DESC(fx_raw, "if non-zero, assume that the FX process needs help");
-module_param(debug_default, int, 0444);
-MODULE_PARM_DESC(debug_default, "debug parameters for card initialization");
+module_param(de_default, int, 0444);
+MODULE_PARM_DESC(de_default, "de parameters for card initialization");
 module_param(wait_usecs, int, 0444);
 MODULE_PARM_DESC(wait_usecs, "how long to wait without sleeping, usecs");
 module_param(sleep_interval, int, 0444);
@@ -107,23 +107,23 @@ MODULE_PARM_DESC(ramcheck_time, "how many seconds to wait for the RAM test");
 module_param(osrun_time, int, 0444);
 MODULE_PARM_DESC(osrun_time, "how many seconds to wait for the ICS2115 OS");
 
-/* if WF_DEBUG not defined, no run-time debugging messages will
-   be available via the debug flag setting. Given the current
+/* if WF_DE not defined, no run-time deging messages will
+   be available via the de flag setting. Given the current
    beta state of the driver, this will remain set until a future 
    version.
 */
 
-#define WF_DEBUG 1
+#define WF_DE 1
 
-#ifdef WF_DEBUG
+#ifdef WF_DE
 
 #define DPRINT(cond, ...) \
-       if ((dev->debug & (cond)) == (cond)) { \
+       if ((dev->de & (cond)) == (cond)) { \
 	     snd_printk (__VA_ARGS__); \
        }
 #else
 #define DPRINT(cond, args...)
-#endif /* WF_DEBUG */
+#endif /* WF_DE */
 
 #define LOGNAME "WaveFront: "
 
@@ -313,7 +313,7 @@ wavefront_read (snd_wavefront_t *dev)
 	if (wavefront_wait (dev, STAT_CAN_READ))
 		return inb (dev->data_port);
 
-	DPRINT (WF_DEBUG_DATA, "read timeout.\n");
+	DPRINT (WF_DE_DATA, "read timeout.\n");
 
 	return -1;
 }
@@ -327,7 +327,7 @@ wavefront_write (snd_wavefront_t *dev, unsigned char data)
 		return 0;
 	}
 
-	DPRINT (WF_DEBUG_DATA, "write timeout.\n");
+	DPRINT (WF_DE_DATA, "write timeout.\n");
 
 	return -1;
 }
@@ -358,44 +358,44 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 		rbuf = NULL;
 	}
 
-	DPRINT (WF_DEBUG_CMD, "0x%x [%s] (%d,%d,%d)\n",
+	DPRINT (WF_DE_CMD, "0x%x [%s] (%d,%d,%d)\n",
 			       cmd, wfcmd->action, wfcmd->read_cnt,
 			       wfcmd->write_cnt, wfcmd->need_ack);
     
 	if (wavefront_write (dev, cmd)) { 
-		DPRINT ((WF_DEBUG_IO|WF_DEBUG_CMD), "cannot request "
+		DPRINT ((WF_DE_IO|WF_DE_CMD), "cannot request "
 						     "0x%x [%s].\n",
 						     cmd, wfcmd->action);
 		return 1;
 	} 
 
 	if (wfcmd->write_cnt > 0) {
-		DPRINT (WF_DEBUG_DATA, "writing %d bytes "
+		DPRINT (WF_DE_DATA, "writing %d bytes "
 					"for 0x%x\n",
 					wfcmd->write_cnt, cmd);
 
 		for (i = 0; i < wfcmd->write_cnt; i++) {
 			if (wavefront_write (dev, wbuf[i])) {
-				DPRINT (WF_DEBUG_IO, "bad write for byte "
+				DPRINT (WF_DE_IO, "bad write for byte "
 						      "%d of 0x%x [%s].\n",
 						      i, cmd, wfcmd->action);
 				return 1;
 			}
 
-			DPRINT (WF_DEBUG_DATA, "write[%d] = 0x%x\n",
+			DPRINT (WF_DE_DATA, "write[%d] = 0x%x\n",
 						i, wbuf[i]);
 		}
 	}
 
 	if (wfcmd->read_cnt > 0) {
-		DPRINT (WF_DEBUG_DATA, "reading %d ints "
+		DPRINT (WF_DE_DATA, "reading %d ints "
 					"for 0x%x\n",
 					wfcmd->read_cnt, cmd);
 
 		for (i = 0; i < wfcmd->read_cnt; i++) {
 
 			if ((c = wavefront_read (dev)) == -1) {
-				DPRINT (WF_DEBUG_IO, "bad read for byte "
+				DPRINT (WF_DE_IO, "bad read for byte "
 						      "%d of 0x%x [%s].\n",
 						      i, cmd, wfcmd->action);
 				return 1;
@@ -405,7 +405,7 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 	    
 			if (c == 0xff) { 
 				if ((c = wavefront_read (dev)) == -1) {
-					DPRINT (WF_DEBUG_IO, "bad read for "
+					DPRINT (WF_DE_IO, "bad read for "
 							      "error byte at "
 							      "read byte %d "
 							      "of 0x%x [%s].\n",
@@ -433,7 +433,7 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 
 				} else {
 
-					DPRINT (WF_DEBUG_IO, "error %d (%s) "
+					DPRINT (WF_DE_IO, "error %d (%s) "
 							      "during "
 							      "read for byte "
 							      "%d of 0x%x "
@@ -450,13 +450,13 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 				rbuf[i] = c;
 			}
 			
-			DPRINT (WF_DEBUG_DATA, "read[%d] = 0x%x\n",i, rbuf[i]);
+			DPRINT (WF_DE_DATA, "read[%d] = 0x%x\n",i, rbuf[i]);
 		}
 	}
 	
 	if ((wfcmd->read_cnt == 0 && wfcmd->write_cnt == 0) || wfcmd->need_ack) {
 
-		DPRINT (WF_DEBUG_CMD, "reading ACK for 0x%x\n", cmd);
+		DPRINT (WF_DE_CMD, "reading ACK for 0x%x\n", cmd);
 
 		/* Some commands need an ACK, but return zero instead
 		   of the standard value.
@@ -468,7 +468,7 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 	
 		if (ack != WF_ACK) {
 			if (ack == -1) {
-				DPRINT (WF_DEBUG_IO, "cannot read ack for "
+				DPRINT (WF_DE_IO, "cannot read ack for "
 						      "0x%x [%s].\n",
 						      cmd, wfcmd->action);
 				return 1;
@@ -479,14 +479,14 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 				if (ack == 0xff) { /* explicit error */
 		    
 					if ((err = wavefront_read (dev)) == -1) {
-						DPRINT (WF_DEBUG_DATA,
+						DPRINT (WF_DE_DATA,
 							"cannot read err "
 							"for 0x%x [%s].\n",
 							cmd, wfcmd->action);
 					}
 				}
 				
-				DPRINT (WF_DEBUG_IO, "0x%x [%s] "
+				DPRINT (WF_DE_IO, "0x%x [%s] "
 					"failed (0x%x, 0x%x, %s)\n",
 					cmd, wfcmd->action, ack, err,
 					wavefront_errorstr (err));
@@ -495,12 +495,12 @@ snd_wavefront_cmd (snd_wavefront_t *dev,
 			}
 		}
 		
-		DPRINT (WF_DEBUG_DATA, "ack received "
+		DPRINT (WF_DE_DATA, "ack received "
 					"for 0x%x [%s]\n",
 					cmd, wfcmd->action);
 	} else {
 
-		DPRINT (WF_DEBUG_CMD, "0x%x [%s] does not need "
+		DPRINT (WF_DE_CMD, "0x%x [%s] does not need "
 				       "ACK (%d,%d,%d)\n",
 				       cmd, wfcmd->action, wfcmd->read_cnt,
 				       wfcmd->write_cnt, wfcmd->need_ack);
@@ -783,7 +783,7 @@ wavefront_send_patch (snd_wavefront_t *dev, wavefront_patch_info *header)
 	unsigned char buf[WF_PATCH_BYTES+2];
 	unsigned char *bptr;
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "downloading patch %d\n",
+	DPRINT (WF_DE_LOAD_PATCH, "downloading patch %d\n",
 				      header->number);
 
 	if (header->number >= ARRAY_SIZE(dev->patch_status))
@@ -810,7 +810,7 @@ wavefront_send_program (snd_wavefront_t *dev, wavefront_patch_info *header)
 	unsigned char buf[WF_PROGRAM_BYTES+1];
 	int i;
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "downloading program %d\n",
+	DPRINT (WF_DE_LOAD_PATCH, "downloading program %d\n",
 		header->number);
 
 	if (header->number >= ARRAY_SIZE(dev->prog_status))
@@ -888,7 +888,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 	int skip = 0;
 	int initial_skip = 0;
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "sample %sdownload for slot %d, "
+	DPRINT (WF_DE_LOAD_PATCH, "sample %sdownload for slot %d, "
 				      "type %d, %d bytes from 0x%lx\n",
 				      header->size ? "" : "header ", 
 				      header->number, header->subkey,
@@ -996,7 +996,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 		break;
 	}
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "channel selection: %d => "
+	DPRINT (WF_DE_LOAD_PATCH, "channel selection: %d => "
 				      "initial skip = %d, skip = %d\n",
 				      WF_GET_CHANNEL (&header->hdr.s),
 				      initial_skip, skip);
@@ -1171,7 +1171,7 @@ wavefront_send_alias (snd_wavefront_t *dev, wavefront_patch_info *header)
 {
 	unsigned char alias_hdr[WF_ALIAS_BYTES];
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "download alias, %d is "
+	DPRINT (WF_DE_LOAD_PATCH, "download alias, %d is "
 				      "alias for %d\n",
 				      header->number,
 				      header->hdr.a.OriginalSample);
@@ -1220,13 +1220,13 @@ wavefront_send_multisample (snd_wavefront_t *dev, wavefront_patch_info *header)
 	num_samples = (1<<(header->hdr.ms.NumberOfSamples&7));
 	msample_hdr[2] = (unsigned char) header->hdr.ms.NumberOfSamples;
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "multi %d with %d=%d samples\n",
+	DPRINT (WF_DE_LOAD_PATCH, "multi %d with %d=%d samples\n",
 				      header->number,
 				      header->hdr.ms.NumberOfSamples,
 				      num_samples);
 
 	for (i = 0; i < num_samples; i++) {
-		DPRINT(WF_DEBUG_LOAD_PATCH|WF_DEBUG_DATA, "sample[%d] = %d\n",
+		DPRINT(WF_DE_LOAD_PATCH|WF_DE_DATA, "sample[%d] = %d\n",
 		       i, header->hdr.ms.SampleNumber[i]);
 		munge_int32 (header->hdr.ms.SampleNumber[i],
 		     &msample_hdr[3+(i*2)], 2);
@@ -1267,7 +1267,7 @@ wavefront_fetch_multisample (snd_wavefront_t *dev,
 		return -EIO;
 	}
     
-	DPRINT (WF_DEBUG_DATA, "msample %d has %d samples\n",
+	DPRINT (WF_DE_DATA, "msample %d has %d samples\n",
 				header->number, log_ns[0]);
 
 	header->hdr.ms.NumberOfSamples = log_ns[0];
@@ -1297,7 +1297,7 @@ wavefront_fetch_multisample (snd_wavefront_t *dev,
 		header->hdr.ms.SampleNumber[i] =
 			demunge_int32 ((unsigned char *) d, 2);
 	
-		DPRINT (WF_DEBUG_DATA, "msample sample[%d] = %d\n",
+		DPRINT (WF_DE_DATA, "msample sample[%d] = %d\n",
 					i, header->hdr.ms.SampleNumber[i]);
 	}
 
@@ -1313,7 +1313,7 @@ wavefront_send_drum (snd_wavefront_t *dev, wavefront_patch_info *header)
 	wavefront_drum *drum = &header->hdr.d;
 	int i;
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "downloading edrum for MIDI "
+	DPRINT (WF_DE_LOAD_PATCH, "downloading edrum for MIDI "
 		"note %d, patch = %d\n", 
 		header->number, drum->PatchNumber);
 
@@ -1380,7 +1380,7 @@ wavefront_load_patch (snd_wavefront_t *dev, const char __user *addr)
 		goto __error;
 	}
 
-	DPRINT (WF_DEBUG_LOAD_PATCH, "download "
+	DPRINT (WF_DE_LOAD_PATCH, "download "
 				      "Sample type: %d "
 				      "Sample number: %d "
 				      "Sample size: %d\n",
@@ -1509,7 +1509,7 @@ wavefront_synth_control (snd_wavefront_card_t *acard,
 	unsigned char patchnumbuf[2];
 	int i;
 
-	DPRINT (WF_DEBUG_CMD, "synth control with "
+	DPRINT (WF_DE_CMD, "synth control with "
 		"cmd 0x%x\n", wc->cmd);
 
 	/* Pre-handling of or for various commands */
@@ -1549,9 +1549,9 @@ wavefront_synth_control (snd_wavefront_card_t *acard,
 		wc->status = 0;
 		return 0;
 
-	case WFC_DEBUG_DRIVER:
-		dev->debug = wc->wbuf[0];
-		snd_printk ("debug = 0x%x\n", dev->debug);
+	case WFC_DE_DRIVER:
+		dev->de = wc->wbuf[0];
+		snd_printk ("de = 0x%x\n", dev->de);
 		return 0;
 
 	case WFC_UPLOAD_PATCH:
@@ -1660,9 +1660,9 @@ snd_wavefront_synth_ioctl (struct snd_hwdep *hw, struct file *file,
 
 	card = (struct snd_card *) hw->card;
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENODEV;
-	if (snd_BUG_ON(!card->private_data))
+	if (snd__ON(!card->private_data))
 		return -ENODEV;
 
 	acard = card->private_data;
@@ -2086,7 +2086,7 @@ wavefront_do_reset (snd_wavefront_t *dev)
 	if (wavefront_write (dev, 0xf0) ||
 	    wavefront_write (dev, 1) ||
 	    (wavefront_read (dev) < 0)) {
-		dev->debug = 0;
+		dev->de = 0;
 		snd_printk ("MPU emulation mode not set.\n");
 		goto gone_bad;
 	}
@@ -2164,7 +2164,7 @@ snd_wavefront_detect (snd_wavefront_card_t *card)
 
 	dev->israw = 0;
 	dev->has_fx = 0;
-	dev->debug = debug_default;
+	dev->de = de_default;
 	dev->interrupts_are_midi = 0;
 	dev->irq_cnt = 0;
 	dev->rom_samples_rdonly = 1;

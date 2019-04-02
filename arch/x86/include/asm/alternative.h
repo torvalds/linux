@@ -55,7 +55,7 @@ struct alt_instr {
 } __packed;
 
 /*
- * Debug flag that can be tested to see whether alternative
+ * De flag that can be tested to see whether alternative
  * instructions were patched in already:
  */
 extern int alternatives_patched;

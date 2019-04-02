@@ -1007,7 +1007,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 	u32 transport_caps;
 	struct mlx5_base_av *av;
 	unsigned ds, opcode;
-#if defined(DEBUG)
+#if defined(DE)
 	u32 ctrl_wqe_index, ctrl_qpn;
 #endif
 	u32 qpn = qp->trans_qp.base.mqp.qpn;
@@ -1025,7 +1025,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 		return -EFAULT;
 	}
 
-#if defined(DEBUG)
+#if defined(DE)
 	ctrl_wqe_index = (be32_to_cpu(ctrl->opmod_idx_opcode) &
 			MLX5_WQE_CTRL_WQE_INDEX_MASK) >>
 			MLX5_WQE_CTRL_WQE_INDEX_SHIFT;
@@ -1044,7 +1044,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 			    ctrl_qpn);
 		return -EFAULT;
 	}
-#endif /* DEBUG */
+#endif /* DE */
 
 	*wqe_end = *wqe + ds * MLX5_WQE_DS_UNITS;
 	*wqe += sizeof(*ctrl);

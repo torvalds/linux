@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Mapping of DWARF debug register numbers into register names.
+ * Mapping of DWARF de register numbers into register names.
  *
  * Copyright IBM Corp. 2010, 2017
  * Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,

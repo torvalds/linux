@@ -529,14 +529,14 @@ struct txd_desc {
 #define PCI_LINK_STATUS_REG 0x92
 #define GET_LINK_STATUS_LANES(x)		GET_BITS_SHIFT(x, 6, 4)
 
-/* Debugging Macros */
+/* Deging Macros */
 
 #define DBG2(fmt, args...)					\
 	pr_err("%s:%-5d: " fmt, __func__, __LINE__, ## args)
 
-#define BDX_ASSERT(x) BUG_ON(x)
+#define BDX_ASSERT(x) _ON(x)
 
-#ifdef DEBUG
+#ifdef DE
 
 #define ENTER						\
 do {							\

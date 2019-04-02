@@ -387,7 +387,7 @@ static void hns_ae_reset(struct hnae_handle *handle)
 {
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 
-	if (vf_cb->mac_cb->mac_type == HNAE_PORT_DEBUG) {
+	if (vf_cb->mac_cb->mac_type == HNAE_PORT_DE) {
 		hns_mac_reset(vf_cb->mac_cb);
 		hns_ppe_reset_common(vf_cb->dsaf_dev, 0);
 	}
@@ -561,7 +561,7 @@ static void hns_ae_get_max_coalesced_frames(struct hnae_handle *handle,
 	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    handle->port_type == HNAE_PORT_DEBUG)
+	    handle->port_type == HNAE_PORT_DE)
 		*tx_frames = hns_rcb_get_rx_coalesced_frames(
 			ring_pair->rcb_common, ring_pair->port_id_in_comm);
 	else
@@ -590,7 +590,7 @@ static int hns_ae_set_coalesce_frames(struct hnae_handle *handle,
 	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    handle->port_type == HNAE_PORT_DEBUG) {
+	    handle->port_type == HNAE_PORT_DE) {
 		if (tx_frames != rx_frames)
 			return -EINVAL;
 		return hns_rcb_set_rx_coalesced_frames(
@@ -627,7 +627,7 @@ static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
 	*rx_frames_low  = HNS_RCB_RX_FRAMES_LOW;
 
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    handle->port_type == HNAE_PORT_DEBUG)
+	    handle->port_type == HNAE_PORT_DE)
 		*tx_frames_high =
 			(dsaf_dev->desc_num - 1 > HNS_RCB_TX_FRAMES_HIGH) ?
 			HNS_RCB_TX_FRAMES_HIGH : dsaf_dev->desc_num - 1;

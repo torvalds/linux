@@ -23,7 +23,7 @@
 #include <linux/usb.h>
 #include <linux/completion.h>
 #include <net/mac80211.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include "../mt76x02.h"
 #include "eeprom.h"

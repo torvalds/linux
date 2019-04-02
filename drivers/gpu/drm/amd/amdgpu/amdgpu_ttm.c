@@ -41,7 +41,7 @@
 #include <linux/swiotlb.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/iommu.h>
 #include "amdgpu.h"
 #include "amdgpu_object.h"
@@ -58,8 +58,8 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 			     struct amdgpu_ring *ring,
 			     uint64_t *addr);
 
-static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev);
-static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev);
+static int amdgpu_ttm_defs_init(struct amdgpu_device *adev);
+static void amdgpu_ttm_defs_fini(struct amdgpu_device *adev);
 
 static int amdgpu_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 {
@@ -240,7 +240,7 @@ static void amdgpu_move_null(struct ttm_buffer_object *bo,
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
-	BUG_ON(old_mem->mm_node != NULL);
+	_ON(old_mem->mm_node != NULL);
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 }
@@ -1471,7 +1471,7 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
  * @write:  true if writing
  *
  * This is used to access VRAM that backs a buffer object via MMIO
- * access for debugging purposes.
+ * access for deging purposes.
  */
 static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 				    unsigned long offset,
@@ -1787,10 +1787,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	/* Register debugfs entries for amdgpu_ttm */
-	r = amdgpu_ttm_debugfs_init(adev);
+	/* Register defs entries for amdgpu_ttm */
+	r = amdgpu_ttm_defs_init(adev);
 	if (r) {
-		DRM_ERROR("Failed to init debugfs\n");
+		DRM_ERROR("Failed to init defs\n");
 		return r;
 	}
 	return 0;
@@ -1813,7 +1813,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	if (!adev->mman.initialized)
 		return;
 
-	amdgpu_ttm_debugfs_fini(adev);
+	amdgpu_ttm_defs_fini(adev);
 	amdgpu_ttm_fw_reserve_vram_fini(adev);
 	if (adev->mman.aper_base_kaddr)
 		iounmap(adev->mman.aper_base_kaddr);
@@ -1908,7 +1908,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	uint64_t flags;
 	int r;
 
-	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
+	_ON(adev->mman.buffer_funcs->copy_max_bytes <
 	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
 
 	*addr = adev->gmc.gart_start;
@@ -2122,7 +2122,7 @@ error_free:
 	return r;
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 
 static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 {
@@ -2133,26 +2133,26 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[ttm_pl];
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	man->func->debug(man, &p);
+	man->func->de(man, &p);
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
+static const struct drm_info_list amdgpu_ttm_defs_list[] = {
 	{"amdgpu_vram_mm", amdgpu_mm_dump_table, 0, (void *)TTM_PL_VRAM},
 	{"amdgpu_gtt_mm", amdgpu_mm_dump_table, 0, (void *)TTM_PL_TT},
 	{"amdgpu_gds_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_GDS},
 	{"amdgpu_gws_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_GWS},
 	{"amdgpu_oa_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_OA},
-	{"ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL},
+	{"ttm_page_pool", ttm_page_alloc_defs, 0, NULL},
 #ifdef CONFIG_SWIOTLB
-	{"ttm_dma_page_pool", ttm_dma_page_alloc_debugfs, 0, NULL}
+	{"ttm_dma_page_pool", ttm_dma_page_alloc_defs, 0, NULL}
 #endif
 };
 
 /**
  * amdgpu_ttm_vram_read - Linear read access to VRAM
  *
- * Accesses VRAM via MMIO for debugging purposes.
+ * Accesses VRAM via MMIO for deging purposes.
  */
 static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
@@ -2196,7 +2196,7 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 /**
  * amdgpu_ttm_vram_write - Linear write access to VRAM
  *
- * Accesses VRAM via MMIO for debugging purposes.
+ * Accesses VRAM via MMIO for deging purposes.
  */
 static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
 				    size_t size, loff_t *pos)
@@ -2244,7 +2244,7 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 	.llseek = default_llseek,
 };
 
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 
 /**
  * amdgpu_ttm_gtt_read - Linear read access to GTT memory
@@ -2414,9 +2414,9 @@ static const struct {
 	char *name;
 	const struct file_operations *fops;
 	int domain;
-} ttm_debugfs_entries[] = {
+} ttm_defs_entries[] = {
 	{ "amdgpu_vram", &amdgpu_ttm_vram_fops, TTM_PL_VRAM },
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+#ifdef CONFIG_DRM_AMDGPU_GART_DEFS
 	{ "amdgpu_gtt", &amdgpu_ttm_gtt_fops, TTM_PL_TT },
 #endif
 	{ "amdgpu_iomem", &amdgpu_ttm_iomem_fops, TTM_PL_SYSTEM },
@@ -2424,48 +2424,48 @@ static const struct {
 
 #endif
 
-static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
+static int amdgpu_ttm_defs_init(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	unsigned count;
 
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *ent, *root = minor->defs_root;
 
-	for (count = 0; count < ARRAY_SIZE(ttm_debugfs_entries); count++) {
-		ent = debugfs_create_file(
-				ttm_debugfs_entries[count].name,
+	for (count = 0; count < ARRAY_SIZE(ttm_defs_entries); count++) {
+		ent = defs_create_file(
+				ttm_defs_entries[count].name,
 				S_IFREG | S_IRUGO, root,
 				adev,
-				ttm_debugfs_entries[count].fops);
+				ttm_defs_entries[count].fops);
 		if (IS_ERR(ent))
 			return PTR_ERR(ent);
-		if (ttm_debugfs_entries[count].domain == TTM_PL_VRAM)
+		if (ttm_defs_entries[count].domain == TTM_PL_VRAM)
 			i_size_write(ent->d_inode, adev->gmc.mc_vram_size);
-		else if (ttm_debugfs_entries[count].domain == TTM_PL_TT)
+		else if (ttm_defs_entries[count].domain == TTM_PL_TT)
 			i_size_write(ent->d_inode, adev->gmc.gart_size);
-		adev->mman.debugfs_entries[count] = ent;
+		adev->mman.defs_entries[count] = ent;
 	}
 
-	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
+	count = ARRAY_SIZE(amdgpu_ttm_defs_list);
 
 #ifdef CONFIG_SWIOTLB
 	if (!(adev->need_swiotlb && swiotlb_nr_tbl()))
 		--count;
 #endif
 
-	return amdgpu_debugfs_add_files(adev, amdgpu_ttm_debugfs_list, count);
+	return amdgpu_defs_add_files(adev, amdgpu_ttm_defs_list, count);
 #else
 	return 0;
 #endif
 }
 
-static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
+static void amdgpu_ttm_defs_fini(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DE_FS)
 	unsigned i;
 
-	for (i = 0; i < ARRAY_SIZE(ttm_debugfs_entries); i++)
-		debugfs_remove(adev->mman.debugfs_entries[i]);
+	for (i = 0; i < ARRAY_SIZE(ttm_defs_entries); i++)
+		defs_remove(adev->mman.defs_entries[i]);
 #endif
 }

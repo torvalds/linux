@@ -164,12 +164,12 @@ static int cdce925_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if ((rate < CDCE925_PLL_FREQUENCY_MIN) ||
 		(rate > CDCE925_PLL_FREQUENCY_MAX)) {
-		pr_debug("%s: rate %lu outside PLL range.\n", __func__, rate);
+		pr_de("%s: rate %lu outside PLL range.\n", __func__, rate);
 		return -EINVAL;
 	}
 
 	if (rate < parent_rate) {
-		pr_debug("%s: rate %lu less than parent rate %lu.\n", __func__,
+		pr_de("%s: rate %lu less than parent rate %lu.\n", __func__,
 			rate, parent_rate);
 		return -EINVAL;
 	}
@@ -239,15 +239,15 @@ static int cdce925_pll_prepare(struct clk_hw *hw)
 		/* q = int(nn/m) */
 		q = nn / m;
 		if ((q < 16) || (q > 63)) {
-			pr_debug("%s invalid q=%d\n", __func__, q);
+			pr_de("%s invalid q=%d\n", __func__, q);
 			return -EINVAL;
 		}
 		r = nn - (m*q);
 		if (r > 511) {
-			pr_debug("%s invalid r=%d\n", __func__, r);
+			pr_de("%s invalid r=%d\n", __func__, r);
 			return -EINVAL;
 		}
-		pr_debug("%s n=%d m=%d p=%d q=%d r=%d\n", __func__,
+		pr_de("%s n=%d m=%d p=%d q=%d r=%d\n", __func__,
 			n, m, p, q, r);
 		/* encode into register bits */
 		pll[0] = n >> 4;

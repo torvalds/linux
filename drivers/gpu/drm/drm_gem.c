@@ -163,7 +163,7 @@ EXPORT_SYMBOL(drm_gem_object_init);
 void drm_gem_private_object_init(struct drm_device *dev,
 				 struct drm_gem_object *obj, size_t size)
 {
-	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
+	_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj->dev = dev;
 	obj->filp = NULL;
@@ -569,7 +569,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 	/* This is the shared memory object that backs the GEM resource */
 	mapping = obj->filp->f_mapping;
 
-	/* We already BUG_ON() for non-page-aligned sizes in
+	/* We already _ON() for non-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
 	 * driver author is doing something really wrong:
 	 */
@@ -594,7 +594,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 		 * __GFP_DMA32 to be set in mapping_gfp_mask(inode->i_mapping)
 		 * so shmem can relocate pages during swapin if required.
 		 */
-		BUG_ON(mapping_gfp_constraint(mapping, __GFP_DMA32) &&
+		_ON(mapping_gfp_constraint(mapping, __GFP_DMA32) &&
 				(page_to_pfn(p) >= 0x00100000UL));
 	}
 
@@ -632,7 +632,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 	mapping = file_inode(obj->filp)->i_mapping;
 	mapping_clear_unevictable(mapping);
 
-	/* We already BUG_ON() for non-page-aligned sizes in
+	/* We already _ON() for non-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
 	 * driver author is doing something really wrong:
 	 */

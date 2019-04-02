@@ -628,7 +628,7 @@ struct smu_sdbp_cpupiddata {
 
 
 /* Other partitions without known structures */
-#define SMU_SDB_DEBUG_SWITCHES_ID	0x05
+#define SMU_SDB_DE_SWITCHES_ID	0x05
 
 #ifdef __KERNEL__
 /*

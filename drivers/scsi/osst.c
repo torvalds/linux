@@ -26,7 +26,7 @@
 static const char * cvsid = "$Id: osst.c,v 1.73 2005/01/01 21:13:34 wriede Exp $";
 static const char * osst_version = "0.99.4";
 
-/* The "failure to reconnect" firmware bug */
+/* The "failure to reconnect" firmware  */
 #define OSST_FW_NEED_POLL_MIN 10601 /*(107A)*/
 #define OSST_FW_NEED_POLL_MAX 10704 /*(108D)*/
 #define OSST_FW_NEED_POLL(x,d) ((x) >= OSST_FW_NEED_POLL_MIN && (x) <= OSST_FW_NEED_POLL_MAX && d->host->this_id != 7)
@@ -55,13 +55,13 @@ static const char * osst_version = "0.99.4";
 #include <linux/uaccess.h>
 #include <asm/dma.h>
 
-/* The driver prints some debugging information on the console if DEBUG
+/* The driver prints some deging information on the console if DE
    is defined and non-zero. */
-#define DEBUG 0
+#define DE 0
 
-/* The message level for the debug messages is currently set to KERN_NOTICE
-   so that people can easily see the messages. Later when the debugging messages
-   in the drivers are more widely classified, this may be changed to KERN_DEBUG. */
+/* The message level for the de messages is currently set to KERN_NOTICE
+   so that people can easily see the messages. Later when the deging messages
+   in the drivers are more widely classified, this may be changed to KERN_DE. */
 #define OSST_DEB_MSG  KERN_NOTICE
 
 #include <scsi/scsi.h>
@@ -120,8 +120,8 @@ static struct osst_dev_parm {
 #error "Buffer size should not exceed (2 << 24 - 1) bytes!"
 #endif
 
-#if DEBUG
-static int debugging = 1;
+#if DE
+static int deging = 1;
 /* uncomment define below to test error recovery */
 // #define OSST_INJECT_ERRORS 1 
 #endif
@@ -237,7 +237,7 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 	char *name = tape_name(STp);
 	int result = SRpnt->result;
 	u8 * sense = SRpnt->sense, scode;
-#if DEBUG
+#if DE
 	const char *stp;
 #endif
 	struct st_cmdstatus *cmdstatp;
@@ -252,8 +252,8 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 		scode = STp->buffer->cmdstat.sense_hdr.sense_key;
 	else
 		scode = 0;
-#if DEBUG
-	if (debugging) {
+#if DE
+	if (deging) {
 		printk(OSST_DEB_MSG "%s:D: Error: %x, cmd: %x %x %x %x %x %x\n",
 		   name, result,
 		   SRpnt->cmd[0], SRpnt->cmd[1], SRpnt->cmd[2],
@@ -300,8 +300,8 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 	if (cmdstatp->have_sense && scode == RECOVERED_ERROR) {
 		STp->recover_count++;
 		STp->recover_erreg++;
-#if DEBUG
-		if (debugging) {
+#if DE
+		if (deging) {
 			if (SRpnt->cmd[0] == READ_6)
 				stp = "read";
 			else if (SRpnt->cmd[0] == WRITE_6)
@@ -328,7 +328,7 @@ static void osst_end_async(struct request *req, blk_status_t status)
 	struct rq_map_data *mdata = &SRpnt->stp->buffer->map_data;
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = rq->result;
-#if DEBUG
+#if DE
 	STp->write_pending = 0;
 #endif
 	if (rq->sense_len)
@@ -516,7 +516,7 @@ static void osst_write_behind_check(struct osst_tape *STp)
 
 	STbuffer = STp->buffer;
 
-#if DEBUG
+#if DE
 	if (STp->write_pending)
 		STp->nbr_waits++;
 	else
@@ -632,27 +632,27 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 		return 1;
 	}
 	if (STp->buffer->syscall_result) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame, read error\n", name);
 #endif
 		return 0;
 	}
 	if (ntohl(aux->format_id) != 0) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame, format_id %u\n", name, ntohl(aux->format_id));
 #endif
 		goto err_out;
 	}
 	if (memcmp(aux->application_sig, STp->application_sig, 4) != 0 &&
 	    (memcmp(aux->application_sig, "LIN3", 4) != 0 || STp->linux_media_version != 4)) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame, incorrect application signature\n", name);
 #endif
 		goto err_out;
 	}
 	if (par->partition_num != OS_DATA_PARTITION) {
 		if (!STp->linux_media || STp->linux_media_version != 2) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Skipping frame, partition num %d\n",
 					    name, par->partition_num);
 #endif
@@ -660,13 +660,13 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 		}
 	}
 	if (par->par_desc_ver != OS_PARTITION_VERSION) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame, partition version %d\n", name, par->par_desc_ver);
 #endif
 		goto err_out;
 	}
 	if (ntohs(par->wrt_pass_cntr) != STp->wrt_pass_cntr) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame, wrt_pass_cntr %d (expected %d)\n", 
 				    name, ntohs(par->wrt_pass_cntr), STp->wrt_pass_cntr);
 #endif
@@ -676,7 +676,7 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 	    aux->frame_type != OS_FRAME_TYPE_EOD &&
 	    aux->frame_type != OS_FRAME_TYPE_MARKER) {
 		if (!quiet) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Skipping frame, frame type %x\n", name, aux->frame_type);
 #endif
 		}
@@ -690,7 +690,7 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 	}
         if (frame_seq_number != -1 && ntohl(aux->frame_seq_num) != frame_seq_number) {
 		if (!quiet) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Skipping frame, sequence number %u (expected %d)\n", 
 					    name, ntohl(aux->frame_seq_num), frame_seq_number);
 #endif
@@ -703,7 +703,7 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 		i = ntohl(aux->filemark_cnt);
 		if (STp->header_cache != NULL && i < OS_FM_TAB_MAX && (i > STp->filemark_cnt ||
 		    STp->first_frame_position - 1 != ntohl(STp->header_cache->dat_fm_tab.fm_tab_ent[i]))) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: %s filemark %d at frame pos %d\n", name,
 				  STp->header_cache->dat_fm_tab.fm_tab_ent[i] == 0?"Learned":"Corrected",
 				  i, STp->first_frame_position - 1);
@@ -755,8 +755,8 @@ static int osst_wait_ready(struct osst_tape * STp, struct osst_request ** aSRpnt
 	unsigned char		cmd[MAX_COMMAND_SIZE];
 	struct osst_request   * SRpnt;
 	unsigned long		startwait = jiffies;
-#if DEBUG
-	int			dbg  = debugging;
+#if DE
+	int			dbg  = deging;
 	char    	      * name = tape_name(STp);
 
 	printk(OSST_DEB_MSG "%s:D: Reached onstream wait ready\n", name);
@@ -777,11 +777,11 @@ static int osst_wait_ready(struct osst_tape * STp, struct osst_request ** aSRpnt
 		 (SRpnt->sense[13] == 1 || SRpnt->sense[13] == 8)    ) ||
 		( SRpnt->sense[2]  == 6 && SRpnt->sense[12] == 0x28 &&
 		  SRpnt->sense[13] == 0                                        )  )) {
-#if DEBUG
-	    if (debugging) {
+#if DE
+	    if (deging) {
 		printk(OSST_DEB_MSG "%s:D: Sleeping in onstream wait ready\n", name);
-		printk(OSST_DEB_MSG "%s:D: Turning off debugging for a while\n", name);
-		debugging = 0;
+		printk(OSST_DEB_MSG "%s:D: Turning off deging for a while\n", name);
+		deging = 0;
 	    }
 #endif
 	    msleep(100);
@@ -792,12 +792,12 @@ static int osst_wait_ready(struct osst_tape * STp, struct osst_request ** aSRpnt
 	    SRpnt = osst_do_scsi(SRpnt, STp, cmd, 0, DMA_NONE, STp->timeout, MAX_RETRIES, 1);
 	}
 	*aSRpnt = SRpnt;
-#if DEBUG
-	debugging = dbg;
+#if DE
+	deging = dbg;
 #endif
 	if ( STp->buffer->syscall_result &&
 	     osst_write_error_recovery(STp, aSRpnt, 0) ) {
-#if DEBUG
+#if DE
 	    printk(OSST_DEB_MSG "%s:D: Abnormal exit from onstream wait ready\n", name);
 	    printk(OSST_DEB_MSG "%s:D: Result = %d, Sense: 0=%02x, 2=%02x, 12=%02x, 13=%02x\n", name,
 			STp->buffer->syscall_result, SRpnt->sense[0], SRpnt->sense[2],
@@ -805,7 +805,7 @@ static int osst_wait_ready(struct osst_tape * STp, struct osst_request ** aSRpnt
 #endif
 	    return (-EIO);
 	}
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Normal exit from onstream wait ready\n", name);
 #endif
 	return 0;
@@ -819,8 +819,8 @@ static int osst_wait_for_medium(struct osst_tape * STp, struct osst_request ** a
 	unsigned char		cmd[MAX_COMMAND_SIZE];
 	struct osst_request   * SRpnt;
 	unsigned long		startwait = jiffies;
-#if DEBUG
-	int			dbg = debugging;
+#if DE
+	int			dbg = deging;
 	char    	      * name = tape_name(STp);
 
 	printk(OSST_DEB_MSG "%s:D: Reached onstream wait for medium\n", name);
@@ -835,11 +835,11 @@ static int osst_wait_for_medium(struct osst_tape * STp, struct osst_request ** a
 
 	while ( STp->buffer->syscall_result && time_before(jiffies, startwait + timeout*HZ) &&
 		SRpnt->sense[2] == 2 && SRpnt->sense[12] == 0x3a && SRpnt->sense[13] == 0  ) {
-#if DEBUG
-	    if (debugging) {
+#if DE
+	    if (deging) {
 		printk(OSST_DEB_MSG "%s:D: Sleeping in onstream wait medium\n", name);
-		printk(OSST_DEB_MSG "%s:D: Turning off debugging for a while\n", name);
-		debugging = 0;
+		printk(OSST_DEB_MSG "%s:D: Turning off deging for a while\n", name);
+		deging = 0;
 	    }
 #endif
 	    msleep(100);
@@ -850,12 +850,12 @@ static int osst_wait_for_medium(struct osst_tape * STp, struct osst_request ** a
 	    SRpnt = osst_do_scsi(SRpnt, STp, cmd, 0, DMA_NONE, STp->timeout, MAX_RETRIES, 1);
 	}
 	*aSRpnt = SRpnt;
-#if DEBUG
-	debugging = dbg;
+#if DE
+	deging = dbg;
 #endif
 	if ( STp->buffer->syscall_result     && SRpnt->sense[2]  != 2 &&
 	     SRpnt->sense[12] != 4 && SRpnt->sense[13] == 1) {
-#if DEBUG
+#if DE
 	    printk(OSST_DEB_MSG "%s:D: Abnormal exit from onstream wait medium\n", name);
 	    printk(OSST_DEB_MSG "%s:D: Result = %d, Sense: 0=%02x, 2=%02x, 12=%02x, 13=%02x\n", name,
 			STp->buffer->syscall_result, SRpnt->sense[0], SRpnt->sense[2],
@@ -863,7 +863,7 @@ static int osst_wait_for_medium(struct osst_tape * STp, struct osst_request ** a
 #endif
 	    return 0;
 	}
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Normal exit from onstream wait medium\n", name);
 #endif
 	return 1;
@@ -889,7 +889,7 @@ static int osst_flush_drive_buffer(struct osst_tape * STp, struct osst_request *
 	struct osst_request   * SRpnt;
 	int			result = 0;
 	int			delay  = OSST_WAIT_WRITE_COMPLETE;
-#if DEBUG
+#if DE
 	char		      * name = tape_name(STp);
 
 	printk(OSST_DEB_MSG "%s:D: Reached onstream flush drive buffer (write filemark)\n", name);
@@ -921,7 +921,7 @@ static int osst_wait_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 {
 	unsigned long	startwait = jiffies;
 	char	      * name      = tape_name(STp);
-#if DEBUG
+#if DE
 	char	   notyetprinted  = 1;
 #endif
 	if (minlast >= 0 && STp->ps[STp->partition].rw != ST_READING)
@@ -941,8 +941,8 @@ static int osst_wait_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 		     (minlast >= 0 && STp->cur_frames > minlast)
 		    ) && result >= 0)
 		{
-#if DEBUG			
-			if (debugging || time_after_eq(jiffies, startwait + 2*HZ/OSST_POLL_PER_SEC))
+#if DE			
+			if (deging || time_after_eq(jiffies, startwait + 2*HZ/OSST_POLL_PER_SEC))
 				printk (OSST_DEB_MSG
 					"%s:D: Succ wait f fr %i (>%i): %i-%i %i (%i): %3li.%li s\n",
 					name, curr, curr+minlast, STp->first_frame_position,
@@ -952,7 +952,7 @@ static int osst_wait_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 #endif
 			return 0;
 		}
-#if DEBUG
+#if DE
 		if (time_after_eq(jiffies, startwait + 2*HZ/OSST_POLL_PER_SEC) && notyetprinted)
 		{
 			printk (OSST_DEB_MSG "%s:D: Wait for frame %i (>%i): %i-%i %i (%i)\n",
@@ -963,7 +963,7 @@ static int osst_wait_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 #endif
 		msleep(1000 / OSST_POLL_PER_SEC);
 	}
-#if DEBUG
+#if DE
 	printk (OSST_DEB_MSG "%s:D: Fail wait f fr %i (>%i): %i-%i %i: %3li.%li s\n",
 		name, curr, curr+minlast, STp->first_frame_position,
 		STp->last_frame_position, STp->cur_frames,
@@ -1035,7 +1035,7 @@ static int osst_read_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 	unsigned char		cmd[MAX_COMMAND_SIZE];
 	struct osst_request   * SRpnt;
 	int			retval = 0;
-#if DEBUG
+#if DE
 	os_aux_t	      * aux    = STp->buffer->aux;
 	char		      * name   = tape_name(STp);
 #endif
@@ -1049,8 +1049,8 @@ static int osst_read_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 	cmd[1] = 1;
 	cmd[4] = 1;
 
-#if DEBUG
-	if (debugging)
+#if DE
+	if (deging)
 		printk(OSST_DEB_MSG "%s:D: Reading frame from OnStream tape\n", name);
 #endif
 	SRpnt = osst_do_scsi(*aSRpnt, STp, cmd, OS_FRAME_SIZE, DMA_FROM_DEVICE,
@@ -1063,12 +1063,12 @@ static int osst_read_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 	    retval = 1;
 	    if (STp->read_error_frame == 0) {
 		STp->read_error_frame = STp->first_frame_position;
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Recording read error at %d\n", name, STp->read_error_frame);
 #endif
 	    }
-#if DEBUG
-	    if (debugging)
+#if DE
+	    if (deging)
 		printk(OSST_DEB_MSG "%s:D: Sense: %2x %2x %2x %2x %2x %2x %2x %2x\n",
 		   name,
 		   SRpnt->sense[0], SRpnt->sense[1],
@@ -1079,8 +1079,8 @@ static int osst_read_frame(struct osst_tape * STp, struct osst_request ** aSRpnt
 	}
 	else
 	    STp->first_frame_position++;
-#if DEBUG
-	if (debugging) {
+#if DE
+	if (deging) {
 	   char sig[8]; int i;
 	   for (i=0;i<4;i++)
 		   sig[i] = aux->application_sig[i]<32?'^':aux->application_sig[i];
@@ -1126,7 +1126,7 @@ static int osst_initiate_read(struct osst_tape * STp, struct osst_request ** aSR
 		cmd[0] = READ_6;
 		cmd[1] = 1;
 
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Start Read Ahead on OnStream tape\n", name);
 #endif
 		SRpnt   = osst_do_scsi(*aSRpnt, STp, cmd, 0, DMA_NONE, STp->timeout, MAX_RETRIES, 1);
@@ -1153,7 +1153,7 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
 	 * If we want just any frame (-1) and there is a frame in the buffer, return it
 	 */
 	if (frame_seq_number == -1 && STp->frame_in_buffer) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Frame %d still in buffer\n", name, STp->frame_seq_number);
 #endif
 		return (STps->eof);
@@ -1167,7 +1167,7 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
 					    name, frame_seq_number);
 			if (STp->read_error_frame) {
 				osst_set_frame_position(STp, aSRpnt, STp->read_error_frame, 0);
-#if DEBUG
+#if DE
                         	printk(OSST_DEB_MSG "%s:D: Repositioning tape to bad frame %d\n",
 						    name, STp->read_error_frame);
 #endif
@@ -1176,8 +1176,8 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
 			}
 			return (-EIO);
 		}
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Looking for frame %d, attempt %d\n",
 					  name, frame_seq_number, cnt);
 #endif
@@ -1196,7 +1196,7 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
 				position += 29;
 				cnt      += 19;
 			}
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Bad frame detected, positioning tape to block %d\n",
 					 name, position);
 #endif
@@ -1227,7 +1227,7 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
 					if (STp->first_frame_position >= 3000 && position < 3000)
 						position -= 10;
 				}
-#if DEBUG
+#if DE
                                 printk(OSST_DEB_MSG
 				       "%s:D: Found logical frame %d while looking for %d: back up %d\n",
 						name, x, frame_seq_number,
@@ -1240,7 +1240,7 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
 				past = 0;
 		}
 		if (osst_get_frame_position(STp, aSRpnt) == 0xbaf) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Skipping config partition\n", name);
 #endif
 			osst_set_frame_position(STp, aSRpnt, 0xbb8, 0);
@@ -1256,8 +1256,8 @@ static int osst_get_logical_frame(struct osst_tape * STp, struct osst_request **
  	}
 	STp->read_count++;
 
-#if DEBUG
-	if (debugging || STps->eof)
+#if DE
+	if (deging || STps->eof)
 		printk(OSST_DEB_MSG
 			"%s:D: Exit get logical frame (%d=>%d) from OnStream tape with code %d\n",
 			name, frame_seq_number, STp->frame_seq_number, STps->eof);
@@ -1275,7 +1275,7 @@ static int osst_seek_logical_blk(struct osst_tape * STp, struct osst_request ** 
 	int	frame_seq_estimate, ppos_estimate, move;
 	
 	if (logical_blk_num < 0) logical_blk_num = 0;
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Seeking logical block %d (now at %d, size %d%c)\n",
 				name, logical_blk_num, STp->logical_blk_num, 
 				STp->block_size<1024?STp->block_size:STp->block_size/1024,
@@ -1314,7 +1314,7 @@ static int osst_seek_logical_blk(struct osst_tape * STp, struct osst_request ** 
 		    move               /= (OS_DATA_SIZE / STp->block_size);
 		 }
 		 if (!move) move = logical_blk_num > STp->logical_blk_num ? 1 : -1;
-#if DEBUG
+#if DE
 		 printk(OSST_DEB_MSG
 			"%s:D: Seek retry %d at ppos %d fsq %d (est %d) lbn %d (need %d) move %d\n",
 				name, retries, ppos_estimate, STp->frame_seq_number, frame_seq_estimate, 
@@ -1327,7 +1327,7 @@ static int osst_seek_logical_blk(struct osst_tape * STp, struct osst_request ** 
 		 STp->buffer->read_pointer  = (logical_blk_num - STp->logical_blk_num) * STp->block_size;
 		 STp->buffer->buffer_bytes -= STp->buffer->read_pointer;
 		 STp->logical_blk_num       =  logical_blk_num;
-#if DEBUG
+#if DE
 		 printk(OSST_DEB_MSG 
 			"%s:D: Seek success at ppos %d fsq %d in_buf %d, bytes %d, ptr %d*%d\n",
 				name, ppos_estimate, STp->frame_seq_number, STp->frame_in_buffer, 
@@ -1351,7 +1351,7 @@ static int osst_seek_logical_blk(struct osst_tape * STp, struct osst_request ** 
 	   if (osst_get_logical_frame(STp, aSRpnt, -1, 1) < 0)
 	      goto error;
 	   /* we are not yet at the estimated frame, adjust our estimate of its physical position */
-#if DEBUG
+#if DE
 	   printk(OSST_DEB_MSG "%s:D: Seek retry %d at ppos %d fsq %d (est %d) lbn %d (need %d)\n", 
 			   name, retries, ppos_estimate, STp->frame_seq_number, frame_seq_estimate, 
 			   STp->logical_blk_num, logical_blk_num);
@@ -1379,7 +1379,7 @@ error:
 static int osst_get_sector(struct osst_tape * STp, struct osst_request ** aSRpnt)
 {
 	int	sector;
-#if DEBUG
+#if DE
 	char  * name = tape_name(STp);
 	
 	printk(OSST_DEB_MSG 
@@ -1412,7 +1412,7 @@ static int osst_seek_sector(struct osst_tape * STp, struct osst_request ** aSRpn
 	int		     frame  = sector >> OSST_FRAME_SHIFT,
 			     offset = (sector & OSST_SECTOR_MASK) << OSST_SECTOR_SHIFT, 
 			     r;
-#if DEBUG
+#if DE
 	char          * name = tape_name(STp);
 
 	printk(OSST_DEB_MSG "%s:D: Seeking sector %d in frame %d at offset %d\n",
@@ -1453,7 +1453,7 @@ static int osst_seek_sector(struct osst_tape * STp, struct osst_request ** aSRpn
 				  -1;
 	}
 	STps->eof       = (STp->first_frame_position >= STp->eod_frame_ppos)?ST_EOD:ST_NOEOF;
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG 
 		"%s:D: Now positioned at ppos %d, frame %d, lbn %d, file %d, blk %d, rptr %d, eof %d\n",
 		name, STp->first_frame_position, STp->frame_seq_number, STp->logical_blk_num,
@@ -1484,8 +1484,8 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 						- (nframes + pending - 1) * blks_per_frame;
 	char		      * name             = tape_name(STp);
 	unsigned long		startwait        = jiffies;
-#if DEBUG
-	int			dbg              = debugging;
+#if DE
+	int			dbg              = deging;
 #endif
 
 	if ((buffer = vmalloc(array_size((nframes + 1), OS_DATA_SIZE))) == NULL)
@@ -1495,8 +1495,8 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 			 name, nframes, pending?" and one that was pending":"");
 
 	osst_copy_from_buffer(STp->buffer, (p = &buffer[nframes * OS_DATA_SIZE]));
-#if DEBUG
-	if (pending && debugging)
+#if DE
+	if (pending && deging)
 		printk(OSST_DEB_MSG "%s:D: Pending frame %d (lblk %d), data %02x %02x %02x %02x\n",
 				name, frame_seq_number + nframes,
 			       	logical_blk_num + nframes * blks_per_frame,
@@ -1520,8 +1520,8 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 			return (-EIO);
 		}
 		osst_copy_from_buffer(STp->buffer, p);
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Read back logical frame %d, data %02x %02x %02x %02x\n",
 					  name, frame_seq_number + i, p[0], p[1], p[2], p[3]);
 #endif
@@ -1529,7 +1529,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 	*aSRpnt = SRpnt;
 	osst_get_frame_position(STp, aSRpnt);
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Frames left in buffer: %d\n", name, STp->cur_frames);
 #endif
 	/* Write synchronously so we can be sure we're OK again and don't have to recover recursively */
@@ -1546,7 +1546,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 				new_frame = 3000-i;
 			else
 				new_frame += skip;
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Position to frame %d, write fseq %d\n",
 						name, new_frame+i, frame_seq_number+i);
 #endif
@@ -1575,8 +1575,8 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 		cmd[1] = 1;
 		cmd[4] = 1;
 
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG
 				"%s:D: About to write frame %d, seq %d, lbn %d, data %02x %02x %02x %02x\n",
 				name, new_frame+i, frame_seq_number+i, logical_blk_num + i*blks_per_frame,
@@ -1592,7 +1592,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 
 			/* if we just sent the last frame, wait till all successfully written */
 			if ( i == nframes + pending ) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG "%s:D: Check re-write successful\n", name);
 #endif
 				memset(cmd, 0, MAX_COMMAND_SIZE);
@@ -1600,11 +1600,11 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 				cmd[1] = 1;
 				SRpnt = osst_do_scsi(SRpnt, STp, cmd, 0, DMA_NONE,
 							    STp->timeout, MAX_RETRIES, 1);
-#if DEBUG
-				if (debugging) {
+#if DE
+				if (deging) {
 					printk(OSST_DEB_MSG "%s:D: Sleeping in re-write wait ready\n", name);
-					printk(OSST_DEB_MSG "%s:D: Turning off debugging for a while\n", name);
-					debugging = 0;
+					printk(OSST_DEB_MSG "%s:D: Turning off deging for a while\n", name);
+					deging = 0;
 				}
 #endif
 				flag = STp->buffer->syscall_result;
@@ -1626,8 +1626,8 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 						flag = 1;
 					break;
 				}
-#if DEBUG
-				debugging = dbg;
+#if DE
+				deging = dbg;
 				printk(OSST_DEB_MSG "%s:D: Wait re-write finished\n", name);
 #endif
 			}
@@ -1646,11 +1646,11 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 			     (SRpnt->sense[5] <<  8) |
 			      SRpnt->sense[6]        ) - new_frame;
 			p = &buffer[i * OS_DATA_SIZE];
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Additional write error at %d\n", name, new_frame+i);
 #endif
 			osst_get_frame_position(STp, aSRpnt);
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: reported frame positions: host = %d, tape = %d, buffer = %d\n",
 					  name, STp->first_frame_position, STp->last_frame_position, STp->cur_frames);
 #endif
@@ -1677,19 +1677,19 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct osst_request
 	int			attempts  = 1000 / skip;
 	int			flag      = 1;
 	unsigned long		startwait = jiffies;
-#if DEBUG
-	int			dbg       = debugging;
+#if DE
+	int			dbg       = deging;
 #endif
 
 	while (attempts && time_before(jiffies, startwait + 60*HZ)) {
 		if (flag) {
-#if DEBUG
-			debugging = dbg;
+#if DE
+			deging = dbg;
 #endif
 			if (frame < 2990 && frame+skip+STp->cur_frames+pending >= 2990)
 				frame = 3000-skip;
 			expected = frame+skip+STp->cur_frames+pending;
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Position to fppos %d, re-write from fseq %d\n",
 					  name, frame+skip, STp->frame_seq_number-STp->cur_frames-pending);
 #endif
@@ -1699,7 +1699,7 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct osst_request
 			schedule_timeout_interruptible(msecs_to_jiffies(100));
 		}
 		if (osst_get_frame_position(STp, aSRpnt) < 0) {		/* additional write error */
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Addl error, host %d, tape %d, buffer %d\n",
 					  name, STp->first_frame_position,
 					  STp->last_frame_position, STp->cur_frames);
@@ -1714,7 +1714,7 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct osst_request
 			cmd[0] = WRITE_6;
 			cmd[1] = 1;
 			cmd[4] = 1;
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: About to write pending fseq %d at fppos %d\n",
 					  name, STp->frame_seq_number-1, STp->first_frame_position);
 #endif
@@ -1739,8 +1739,8 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct osst_request
 			continue;
 		}
 		if (STp->cur_frames == 0) {
-#if DEBUG
-			debugging = dbg;
+#if DE
+			deging = dbg;
 			printk(OSST_DEB_MSG "%s:D: Wait re-write finished\n", name);
 #endif
 			if (STp->first_frame_position != expected) {
@@ -1750,18 +1750,18 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct osst_request
 			}
 			return 0;
 		}
-#if DEBUG
-		if (debugging) {
+#if DE
+		if (deging) {
 			printk(OSST_DEB_MSG "%s:D: Sleeping in re-write wait ready\n", name);
-			printk(OSST_DEB_MSG "%s:D: Turning off debugging for a while\n", name);
-			debugging = 0;
+			printk(OSST_DEB_MSG "%s:D: Turning off deging for a while\n", name);
+			deging = 0;
 		}
 #endif
 		schedule_timeout_interruptible(msecs_to_jiffies(100));
 	}
 	printk(KERN_ERR "%s:E: Failed to find valid tape media\n", name);
-#if DEBUG
-	debugging = dbg;
+#if DE
+	deging = dbg;
 #endif
 	return (-EIO);
 }
@@ -1784,7 +1784,7 @@ static int osst_write_error_recovery(struct osst_tape * STp, struct osst_request
 	if ((SRpnt->sense[ 2] & 0x0f) != 3
 	  || SRpnt->sense[12]         != 12
 	  || SRpnt->sense[13]         != 0) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Write error recovery cannot handle %02x:%02x:%02x\n", name,
 			SRpnt->sense[2], SRpnt->sense[12], SRpnt->sense[13]);
 #endif
@@ -1796,11 +1796,11 @@ static int osst_write_error_recovery(struct osst_tape * STp, struct osst_request
 		 SRpnt->sense[6];
 	skip  =  SRpnt->sense[9];
  
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Detected physical bad frame at %u, advised to skip %d\n", name, frame, skip);
 #endif
 	osst_get_frame_position(STp, aSRpnt);
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: reported frame positions: host = %d, tape = %d\n",
 			name, STp->first_frame_position, STp->last_frame_position);
 #endif
@@ -1834,7 +1834,7 @@ static int osst_write_error_recovery(struct osst_tape * STp, struct osst_request
 		osst_set_frame_position(STp, aSRpnt, frame + STp->cur_frames + pending, 0);
 	}
 	osst_get_frame_position(STp, aSRpnt);
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Positioning complete, cur_frames %d, pos %d, tape pos %d\n", 
 			name, STp->cur_frames, STp->first_frame_position, STp->last_frame_position);
 	printk(OSST_DEB_MSG "%s:D: next logical frame to write: %d\n", name, STp->logical_blk_num);
@@ -1856,11 +1856,11 @@ static int osst_space_over_filemarks_backward(struct osst_tape * STp, struct oss
 	int     cnt;
 	int     last_mark_ppos = -1;
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Reached space_over_filemarks_backwards %d %d\n", name, mt_op, mt_count);
 #endif
 	if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks_bwd\n", name);
 #endif
 		return -EIO;
@@ -1878,7 +1878,7 @@ static int osst_space_over_filemarks_backward(struct osst_tape * STp, struct oss
 		    STp->header_cache->dat_fm_tab.fm_tab_ent[cnt-1] == STp->buffer->aux->last_mark_ppos)
 
 			last_mark_ppos = ntohl(STp->header_cache->dat_fm_tab.fm_tab_ent[cnt - mt_count]);
-#if DEBUG
+#if DE
 		if (STp->header_cache == NULL || (cnt - mt_count) < 0 || (cnt - mt_count) >= OS_FM_TAB_MAX)
 			printk(OSST_DEB_MSG "%s:D: Filemark lookup fail due to %s\n", name,
 			       STp->header_cache == NULL?"lack of header cache":"count out of range");
@@ -1893,7 +1893,7 @@ static int osst_space_over_filemarks_backward(struct osst_tape * STp, struct oss
 		if (last_mark_ppos > 10 && last_mark_ppos < STp->eod_frame_ppos) {
 			osst_position_tape_and_confirm(STp, aSRpnt, last_mark_ppos);
 			if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG 
 					"%s:D: Couldn't get logical blk num in space_filemarks\n", name);
 #endif
@@ -1906,7 +1906,7 @@ static int osst_space_over_filemarks_backward(struct osst_tape * STp, struct oss
 			}
 			goto found;
 		}
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Reverting to scan filemark backwards\n", name);
 #endif
 	}
@@ -1915,13 +1915,13 @@ static int osst_space_over_filemarks_backward(struct osst_tape * STp, struct oss
 		last_mark_ppos = ntohl(STp->buffer->aux->last_mark_ppos);
 		if (last_mark_ppos == -1)
 			return (-EIO);
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Positioning to last mark at %d\n", name, last_mark_ppos);
 #endif
 		osst_position_tape_and_confirm(STp, aSRpnt, last_mark_ppos);
 		cnt++;
 		if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks\n", name);
 #endif
 			return (-EIO);
@@ -1952,20 +1952,20 @@ static int osst_space_over_filemarks_forward_slow(struct osst_tape * STp, struct
 								     int mt_op, int mt_count)
 {
 	int	cnt = 0;
-#if DEBUG
+#if DE
 	char  * name = tape_name(STp);
 
 	printk(OSST_DEB_MSG "%s:D: Reached space_over_filemarks_forward_slow %d %d\n", name, mt_op, mt_count);
 #endif
 	if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks_fwd\n", name);
 #endif
 		return (-EIO);
 	}
 	while (1) {
 		if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks\n", name);
 #endif
 			return (-EIO);
@@ -1973,11 +1973,11 @@ static int osst_space_over_filemarks_forward_slow(struct osst_tape * STp, struct
 		if (STp->buffer->aux->frame_type == OS_FRAME_TYPE_MARKER)
 			cnt++;
 		if (STp->buffer->aux->frame_type == OS_FRAME_TYPE_EOD) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: space_fwd: EOD reached\n", name);
 #endif
 			if (STp->first_frame_position > STp->eod_frame_ppos+1) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG "%s:D: EOD position corrected (%d=>%d)\n",
 					       	name, STp->eod_frame_ppos, STp->first_frame_position-1);
 #endif
@@ -2009,11 +2009,11 @@ static int osst_space_over_filemarks_forward_fast(struct osst_tape * STp, struct
 	int	cnt  = 0,
 		next_mark_ppos = -1;
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Reached space_over_filemarks_forward_fast %d %d\n", name, mt_op, mt_count);
 #endif
 	if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks_fwd\n", name);
 #endif
 		return (-EIO);
@@ -2032,7 +2032,7 @@ static int osst_space_over_filemarks_forward_fast(struct osst_tape * STp, struct
 		     (STp->header_cache->dat_fm_tab.fm_tab_ent[cnt] == STp->buffer->aux->last_mark_ppos)))
 
 			next_mark_ppos = ntohl(STp->header_cache->dat_fm_tab.fm_tab_ent[cnt + mt_count]);
-#if DEBUG
+#if DE
 		if (STp->header_cache == NULL || (cnt + mt_count) >= OS_FM_TAB_MAX)
 			printk(OSST_DEB_MSG "%s:D: Filemark lookup fail due to %s\n", name,
 			       STp->header_cache == NULL?"lack of header cache":"count out of range");
@@ -2045,14 +2045,14 @@ static int osst_space_over_filemarks_forward_fast(struct osst_tape * STp, struct
 			       mt_count, next_mark_ppos);
 #endif
 		if (next_mark_ppos <= 10 || next_mark_ppos > STp->eod_frame_ppos) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Reverting to slow filemark space\n", name);
 #endif
 			return osst_space_over_filemarks_forward_slow(STp, aSRpnt, mt_op, mt_count);
 		} else {
 			osst_position_tape_and_confirm(STp, aSRpnt, next_mark_ppos);
 			if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks\n",
 						 name);
 #endif
@@ -2078,21 +2078,21 @@ static int osst_space_over_filemarks_forward_fast(struct osst_tape * STp, struct
 			if (STp->buffer->aux->frame_type == OS_FRAME_TYPE_MARKER)
 				break;
 			if (STp->buffer->aux->frame_type == OS_FRAME_TYPE_EOD) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG "%s:D: space_fwd: EOD reached\n", name);
 #endif
 				return (-EIO);
 			}
 			if (ntohl(STp->buffer->aux->filemark_cnt) == 0) {
 				if (STp->first_mark_ppos == -1) {
-#if DEBUG
+#if DE
 					printk(OSST_DEB_MSG "%s:D: Reverting to slow filemark space\n", name);
 #endif
 					return osst_space_over_filemarks_forward_slow(STp, aSRpnt, mt_op, mt_count);
 				}
 				osst_position_tape_and_confirm(STp, aSRpnt, STp->first_mark_ppos);
 				if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 					printk(OSST_DEB_MSG
 					       "%s:D: Couldn't get logical blk num in space_filemarks_fwd_fast\n",
 					       name);
@@ -2114,18 +2114,18 @@ static int osst_space_over_filemarks_forward_fast(struct osst_tape * STp, struct
 		while (cnt != mt_count) {
 			next_mark_ppos = ntohl(STp->buffer->aux->next_mark_ppos);
 			if (!next_mark_ppos || next_mark_ppos > STp->eod_frame_ppos) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG "%s:D: Reverting to slow filemark space\n", name);
 #endif
 				return osst_space_over_filemarks_forward_slow(STp, aSRpnt, mt_op, mt_count - cnt);
 			}
-#if DEBUG
+#if DE
 			else printk(OSST_DEB_MSG "%s:D: Positioning to next mark at %d\n", name, next_mark_ppos);
 #endif
 			osst_position_tape_and_confirm(STp, aSRpnt, next_mark_ppos);
 			cnt++;
 			if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in space_filemarks\n",
 						 name);
 #endif
@@ -2149,10 +2149,10 @@ static int osst_space_over_filemarks_forward_fast(struct osst_tape * STp, struct
 }
 
 /*
- * In debug mode, we want to see as many errors as possible
+ * In de mode, we want to see as many errors as possible
  * to test the error recovery mechanism.
  */
-#if DEBUG
+#if DE
 static void osst_set_retries(struct osst_tape * STp, struct osst_request ** aSRpnt, int retries)
 {
 	unsigned char		cmd[MAX_COMMAND_SIZE];
@@ -2173,7 +2173,7 @@ static void osst_set_retries(struct osst_tape * STp, struct osst_request ** aSRp
 	(STp->buffer)->b_data[MODE_HEADER_LENGTH + 2] = 4;
 	(STp->buffer)->b_data[MODE_HEADER_LENGTH + 3] = retries;
 
-	if (debugging)
+	if (deging)
 	    printk(OSST_DEB_MSG "%s:D: Setting number of retries on OnStream tape to %d\n", name, retries);
 
 	SRpnt = osst_do_scsi(SRpnt, STp, cmd, cmd[4], DMA_TO_DEVICE, STp->timeout, 0, 1);
@@ -2190,14 +2190,14 @@ static int osst_write_filemark(struct osst_tape * STp, struct osst_request ** aS
 	int	result;
 	int	this_mark_ppos = STp->first_frame_position;
 	int	this_mark_lbn  = STp->logical_blk_num;
-#if DEBUG
+#if DE
 	char  * name = tape_name(STp);
 #endif
 
 	if (STp->raw) return 0;
 
 	STp->write_type = OS_WRITE_NEW_MARK;
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Writing Filemark %i at fppos %d (fseq %d, lblk %d)\n", 
 	       name, STp->filemark_cnt, this_mark_ppos, STp->frame_seq_number, this_mark_lbn);
 #endif
@@ -2216,7 +2216,7 @@ static int osst_write_filemark(struct osst_tape * STp, struct osst_request ** aS
 static int osst_write_eod(struct osst_tape * STp, struct osst_request ** aSRpnt)
 {
 	int	result;
-#if DEBUG
+#if DE
 	char  * name = tape_name(STp);
 #endif
 
@@ -2224,7 +2224,7 @@ static int osst_write_eod(struct osst_tape * STp, struct osst_request ** aSRpnt)
 
 	STp->write_type = OS_WRITE_EOD;
 	STp->eod_frame_ppos = STp->first_frame_position;
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Writing EOD at fppos %d (fseq %d, lblk %d)\n", name,
 			STp->eod_frame_ppos, STp->frame_seq_number, STp->logical_blk_num);
 #endif
@@ -2240,7 +2240,7 @@ static int osst_write_filler(struct osst_tape * STp, struct osst_request ** aSRp
 {
 	char * name = tape_name(STp);
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Reached onstream write filler group %d\n", name, where);
 #endif
 	osst_wait_ready(STp, aSRpnt, 60 * 5, 0);
@@ -2255,7 +2255,7 @@ static int osst_write_filler(struct osst_tape * STp, struct osst_request ** aSRp
 			return (-EIO);
 		}
 	}
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Exiting onstream write filler group\n", name);
 #endif
 	return osst_flush_drive_buffer(STp, aSRpnt);
@@ -2266,7 +2266,7 @@ static int __osst_write_header(struct osst_tape * STp, struct osst_request ** aS
 	char * name = tape_name(STp);
 	int     result;
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Reached onstream write header group %d\n", name, where);
 #endif
 	osst_wait_ready(STp, aSRpnt, 60 * 5, 0);
@@ -2282,7 +2282,7 @@ static int __osst_write_header(struct osst_tape * STp, struct osst_request ** aS
 		}
 	}
 	result = osst_flush_drive_buffer(STp, aSRpnt);
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Write onstream header group %s\n", name, result?"failed":"done");
 #endif
 	return result;
@@ -2294,7 +2294,7 @@ static int osst_write_header(struct osst_tape * STp, struct osst_request ** aSRp
 	int	      result;
 	char        * name = tape_name(STp);
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Writing tape header\n", name);
 #endif
 	if (STp->raw) return 0;
@@ -2305,7 +2305,7 @@ static int osst_write_header(struct osst_tape * STp, struct osst_request ** aSRp
 			return (-ENOMEM);
 		}
 		memset(STp->header_cache, 0, sizeof(os_header_t));
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Allocated and cleared memory for header cache\n", name);
 #endif
 	}
@@ -2346,7 +2346,7 @@ static int osst_write_header(struct osst_tape * STp, struct osst_request ** aSRp
 	result &= __osst_write_header(STp, aSRpnt,     5, 5);
 
 	if (locate_eod) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Locating back to eod frame addr %d\n", name, STp->eod_frame_ppos);
 #endif
 		osst_set_frame_position(STp, aSRpnt, STp->eod_frame_ppos, 0);
@@ -2397,7 +2397,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 		}
 	}
 	if (osst_read_frame(STp, aSRpnt, 180)) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Couldn't read header frame\n", name);
 #endif
 		return 0;
@@ -2405,7 +2405,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 	header = (os_header_t *) STp->buffer->b_data;	/* warning: only first segment addressable */
 	aux = STp->buffer->aux;
 	if (aux->frame_type != OS_FRAME_TYPE_HEADER) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping non-header frame (%d)\n", name, ppos);
 #endif
 		return 0;
@@ -2415,7 +2415,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 	          aux->partition.partition_num     != OS_CONFIG_PARTITION ||
 	    ntohl(aux->partition.first_frame_ppos) != 0                   ||
 	    ntohl(aux->partition.last_frame_ppos)  != 0xbb7               ) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Invalid header frame (%d,%d,%d,%d,%d)\n", name,
 				ntohl(aux->frame_seq_num), ntohl(aux->logical_blk_num),
 			       	aux->partition.partition_num, ntohl(aux->partition.first_frame_ppos),
@@ -2426,21 +2426,21 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 	if (strncmp(header->ident_str, "ADR_SEQ", 7) != 0 &&
 	    strncmp(header->ident_str, "ADR-SEQ", 7) != 0) {
 		strlcpy(id_string, header->ident_str, 8);
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Invalid header identification string %s\n", name, id_string);
 #endif
 		return 0;
 	}
 	update_frame_cntr = ntohl(aux->update_frame_cntr);
 	if (update_frame_cntr < STp->update_frame_cntr) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame %d with update_frame_counter %d<%d\n",
 				   name, ppos, update_frame_cntr, STp->update_frame_cntr);
 #endif
 		return 0;
 	}
 	if (header->major_rev != 1 || header->minor_rev != 4 ) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: %s revision %d.%d detected (1.4 supported)\n", 
 				 name, (header->major_rev != 1 || header->minor_rev < 2 || 
 				       header->minor_rev  > 4 )? "Invalid" : "Warning:",
@@ -2449,7 +2449,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 		if (header->major_rev != 1 || header->minor_rev < 2 || header->minor_rev > 4)
 			return 0;
 	}
-#if DEBUG
+#if DE
 	if (header->pt_par_num != 1)
 		printk(KERN_INFO "%s:W: %d partitions defined, only one supported\n", 
 				 name, header->pt_par_num);
@@ -2467,14 +2467,14 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 		return 0;
 	}
 	if (linux_media_version < STp->linux_media_version) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Skipping frame %d with linux_media_version %d\n",
 				  name, ppos, linux_media_version);
 #endif
 		return 0;
 	}
 	if (linux_media_version > STp->linux_media_version) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Frame %d sets linux_media_version to %d\n",
 				   name, ppos, linux_media_version);
 #endif
@@ -2483,7 +2483,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 		STp->update_frame_cntr = -1;
 	}
 	if (update_frame_cntr > STp->update_frame_cntr) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Frame %d sets update_frame_counter to %d\n",
 				   name, ppos, update_frame_cntr);
 #endif
@@ -2492,7 +2492,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 				printk(KERN_ERR "%s:E: Failed to allocate header cache\n", name);
 				return 0;
 			}
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Allocated memory for header cache\n", name);
 #endif
 		}
@@ -2508,7 +2508,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 		STp->last_mark_ppos    = ntohl(aux->last_mark_ppos);
 		STp->last_mark_lbn     = ntohl(aux->last_mark_lbn);
 		STp->update_frame_cntr = update_frame_cntr;
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Detected write pass %d, update frame counter %d, filemark counter %d\n",
 			  name, STp->wrt_pass_cntr, STp->update_frame_cntr, STp->filemark_cnt);
 	printk(OSST_DEB_MSG "%s:D: first data frame on tape = %d, last = %d, eod frame = %d\n", name,
@@ -2519,7 +2519,7 @@ static int __osst_analyze_headers(struct osst_tape * STp, struct osst_request **
 			  name, STp->first_mark_ppos, STp->last_mark_ppos, STp->eod_frame_ppos);
 #endif
 		if (header->minor_rev < 4 && STp->linux_media_version == 4) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Moving filemark list to ADR 1.4 location\n", name);
 #endif
 			memcpy((void *)header->dat_fm_tab.fm_tab_ent, 
@@ -2570,7 +2570,7 @@ static int osst_analyze_headers(struct osst_tape * STp, struct osst_request ** a
 	STp->wrt_pass_cntr = STp->update_frame_cntr = -1;
 	STp->eod_frame_ppos = STp->first_data_ppos = -1;
 	STp->first_mark_ppos = STp->last_mark_ppos = STp->last_mark_lbn = -1;
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Reading header\n", name);
 #endif
 
@@ -2616,14 +2616,14 @@ static int osst_verify_position(struct osst_tape * STp, struct osst_request ** a
 	int	read_pointer    = STp->buffer->read_pointer;
 	int	prev_mark_ppos  = -1;
 	int	actual_mark_ppos, i, n;
-#if DEBUG
+#if DE
 	char  * name = tape_name(STp);
 
 	printk(OSST_DEB_MSG "%s:D: Verify that the tape is really the one we think before writing\n", name);
 #endif
 	osst_set_frame_position(STp, aSRpnt, frame_position - 1, 0);
 	if (osst_get_logical_frame(STp, aSRpnt, -1, 0) < 0) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Couldn't get logical blk num in verify_position\n", name);
 #endif
 		return (-EIO);
@@ -2639,7 +2639,7 @@ static int osst_verify_position(struct osst_tape * STp, struct osst_request ** a
 	if (frame_position  != STp->first_frame_position                   ||
 	    frame_seq_numbr != STp->frame_seq_number + (halfway_frame?0:1) ||
 	    prev_mark_ppos  != actual_mark_ppos                            ) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Block mismatch: fppos %d-%d, fseq %d-%d, mark %d-%d\n", name,
 				  STp->first_frame_position, frame_position, 
 				  STp->frame_seq_number + (halfway_frame?0:1),
@@ -2695,7 +2695,7 @@ static int osst_configure_onstream(struct osst_tape *STp, struct osst_request **
 	int                            drive_buffer_size;
 
 	if (STp->ready != ST_READY) {
-#if DEBUG
+#if DE
 	    printk(OSST_DEB_MSG "%s:D: Not Ready\n", name);
 #endif
 	    return (-EIO);
@@ -2718,7 +2718,7 @@ static int osst_configure_onstream(struct osst_tape *STp, struct osst_request **
 
 	SRpnt = osst_do_scsi(SRpnt, STp, cmd, cmd[4], DMA_FROM_DEVICE, STp->timeout, 0, 1);
 	if (SRpnt == NULL) {
-#if DEBUG
+#if DE
  	    printk(OSST_DEB_MSG "osst :D: Busy\n");
 #endif
 	    return (-EBUSY);
@@ -2732,7 +2732,7 @@ static int osst_configure_onstream(struct osst_tape *STp, struct osst_request **
 	header = (osst_mode_parameter_header_t *) (STp->buffer)->b_data;
 	bs = (osst_block_size_page_t *) ((STp->buffer)->b_data + sizeof(osst_mode_parameter_header_t) + header->bdl);
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: 32KB play back: %s\n",   name, bs->play32     ? "Yes" : "No");
 	printk(OSST_DEB_MSG "%s:D: 32.5KB play back: %s\n", name, bs->play32_5   ? "Yes" : "No");
 	printk(OSST_DEB_MSG "%s:D: 32KB record: %s\n",      name, bs->record32   ? "Yes" : "No");
@@ -2760,10 +2760,10 @@ static int osst_configure_onstream(struct osst_tape *STp, struct osst_request **
 	    return (-EIO);
 	}
 
-#if DEBUG
+#if DE
 	printk(KERN_INFO "%s:D: Drive Block Size changed to 32.5K\n", name);
 	 /*
-	 * In debug mode, we want to see as many errors as possible
+	 * In de mode, we want to see as many errors as possible
 	 * to test the error recovery mechanism.
 	 */
 	osst_set_retries(STp, aSRpnt, 0);
@@ -2842,7 +2842,7 @@ static int osst_configure_onstream(struct osst_tape *STp, struct osst_request **
 
 	STp->density  = prm->density;
 	STp->capacity = ntohs(prm->segtrk) * ntohs(prm->trks);
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Density %d, tape length: %dMB, drive buffer size: %dKB\n",
 			  name, STp->density, STp->capacity / 32, drive_buffer_size);
 #endif
@@ -2859,8 +2859,8 @@ static int cross_eof(struct osst_tape *STp, struct osst_request ** aSRpnt, int f
 	int	result;
 	char  * name = tape_name(STp);
 
-#if DEBUG
-	if (debugging)
+#if DE
+	if (deging)
 		printk(OSST_DEB_MSG "%s:D: Stepping over filemark %s.\n",
 	   			  name, forward ? "forward" : "backward");
 #endif
@@ -2924,7 +2924,7 @@ static int osst_get_frame_position(struct osst_tape *STp, struct osst_request **
 			STp->buffer->b_data = mybuf; STp->buffer->buffer_size = 24;
 			SRpnt = osst_do_scsi(SRpnt, STp, scmd, 20, DMA_FROM_DEVICE,
 						    STp->timeout, MAX_RETRIES, 1);
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Reread position, reason=[%02x:%02x:%02x], result=[%s%02x:%02x:%02x]\n",
 					name, mysense[2], mysense[12], mysense[13], STp->buffer->syscall_result?"":"ok:",
 					SRpnt->sense[2],SRpnt->sense[12],SRpnt->sense[13]);
@@ -2943,8 +2943,8 @@ static int osst_get_frame_position(struct osst_tape *STp, struct osst_request **
 					  + ((STp->buffer)->b_data[10] <<  8)
 					  +  (STp->buffer)->b_data[11];
 		STp->cur_frames           =  (STp->buffer)->b_data[15];
-#if DEBUG
-		if (debugging) {
+#if DE
+		if (deging) {
 			printk(OSST_DEB_MSG "%s:D: Drive Positions: host %d, tape %d%s, buffer %d\n", name,
 					    STp->first_frame_position, STp->last_frame_position,
 					    ((STp->buffer)->b_data[0]&0x80)?" (BOP)":
@@ -2953,7 +2953,7 @@ static int osst_get_frame_position(struct osst_tape *STp, struct osst_request **
 		}
 #endif
 		if (STp->cur_frames == 0 && STp->first_frame_position != STp->last_frame_position) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Correcting read position %d, %d, %d\n", name,
 					STp->first_frame_position, STp->last_frame_position, STp->cur_frames);
 #endif
@@ -2987,8 +2987,8 @@ static int osst_set_frame_position(struct osst_tape *STp, struct osst_request **
 	}
 
 	do {
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Setting ppos to %d.\n", name, pp);
 #endif
 		memset (scmd, 0, MAX_COMMAND_SIZE);
@@ -3008,7 +3008,7 @@ static int osst_set_frame_position(struct osst_tape *STp, struct osst_request **
 		*aSRpnt  = SRpnt;
 
 		if ((STp->buffer)->syscall_result != 0) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: SEEK command from %d to %d failed.\n",
 					name, STp->first_frame_position, pp);
 #endif
@@ -3063,20 +3063,20 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 
 	if ((STp->buffer)->writing) {
 		if (SRpnt == (STp->buffer)->last_SRpnt)
-#if DEBUG
+#if DE
 			{ printk(OSST_DEB_MSG
 	 "%s:D: aSRpnt points to osst_request that write_behind_check will release -- cleared\n", name);
 #endif
 			*aSRpnt = SRpnt = NULL;
-#if DEBUG
+#if DE
 			} else if (SRpnt)
 				printk(OSST_DEB_MSG
 	 "%s:D: aSRpnt does not point to osst_request that write_behind_check will release -- strange\n", name);
 #endif	
 		osst_write_behind_check(STp);
 		if ((STp->buffer)->syscall_result) {
-#if DEBUG
-			if (debugging)
+#if DE
+			if (deging)
 				printk(OSST_DEB_MSG "%s:D: Async write error (flush) %x.\n",
 				       name, (STp->buffer)->midlevel_result);
 #endif
@@ -3110,8 +3110,8 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 
 		switch	(STp->write_type) {
 		   case OS_WRITE_DATA:
-#if DEBUG
-   			if (debugging)
+#if DE
+   			if (deging)
 				printk(OSST_DEB_MSG "%s:D: Writing %d blocks to frame %d, lblks %d-%d\n",
 					name, blks, STp->frame_seq_number, 
 					STp->logical_blk_num - blks, STp->logical_blk_num - 1);
@@ -3133,8 +3133,8 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 		default: /* probably FILLER */
 			osst_init_aux(STp, OS_FRAME_TYPE_FILL, 0, 0, 0, 0);
 		}
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Flushing %d bytes, Transferring %d bytes in %d lblocks.\n",
 			  			 name, offset, transfer, blks);
 #endif
@@ -3146,7 +3146,7 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 			return (-EBUSY);
 
 		if ((STp->buffer)->syscall_result != 0) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG
 				"%s:D: write sense [0]=0x%02x [2]=%02x [12]=%02x [13]=%02x\n",
 				name, SRpnt->sense[0], SRpnt->sense[2],
@@ -3173,7 +3173,7 @@ static int osst_flush_write_buffer(struct osst_tape *STp, struct osst_request **
 			(STp->buffer)->buffer_bytes = 0;
 		}
 	}
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Exit flush write buffer with code %d\n", name, result);
 #endif
 	return result;
@@ -3186,7 +3186,7 @@ static int osst_flush_buffer(struct osst_tape * STp, struct osst_request ** aSRp
 {
 	struct st_partstat * STps;
 	int    backspace = 0, result = 0;
-#if DEBUG
+#if DE
 	char * name = tape_name(STp);
 #endif
 
@@ -3208,7 +3208,7 @@ static int osst_flush_buffer(struct osst_tape * STp, struct osst_request ** aSRp
 	if (STp->block_size == 0)
 		return 0;
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Reached flush (read) buffer\n", name);
 #endif
 
@@ -3249,12 +3249,12 @@ static int osst_write_frame(struct osst_tape * STp, struct osst_request ** aSRpn
 	unsigned char		cmd[MAX_COMMAND_SIZE];
 	struct osst_request   * SRpnt;
 	int			blks;
-#if DEBUG
+#if DE
 	char		      * name = tape_name(STp);
 #endif
 
 	if ((!STp-> raw) && (STp->first_frame_position == 0xbae)) { /* _must_ preserve buffer! */
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Reaching config partition.\n", name);
 #endif
 		if (osst_flush_drive_buffer(STp, aSRpnt) < 0) {
@@ -3262,7 +3262,7 @@ static int osst_write_frame(struct osst_tape * STp, struct osst_request ** aSRpn
 		}
 		/* error recovery may have bumped us past the header partition */
 		if (osst_get_frame_position(STp, aSRpnt) < 0xbb8) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Skipping over config partition.\n", name);
 #endif
 		osst_position_tape_and_confirm(STp, aSRpnt, 0xbb8);
@@ -3284,15 +3284,15 @@ static int osst_write_frame(struct osst_tape * STp, struct osst_request ** aSRpn
 	cmd[1]   = 1;
 	cmd[4]   = 1;						/* one frame at a time... */
 	blks     = STp->buffer->buffer_bytes / STp->block_size;
-#if DEBUG
-	if (debugging)
+#if DE
+	if (deging)
 		printk(OSST_DEB_MSG "%s:D: Writing %d blocks to frame %d, lblks %d-%d\n", name, blks, 
 			STp->frame_seq_number, STp->logical_blk_num - blks, STp->logical_blk_num - 1);
 #endif
 	osst_init_aux(STp, OS_FRAME_TYPE_DATA, STp->frame_seq_number++,
 		      STp->logical_blk_num - blks, STp->block_size, blks);
 
-#if DEBUG
+#if DE
 	if (!synchronous)
 		STp->write_pending = 1;
 #endif
@@ -3304,8 +3304,8 @@ static int osst_write_frame(struct osst_tape * STp, struct osst_request ** aSRpn
 
 	if (synchronous) {
 		if (STp->buffer->syscall_result != 0) {
-#if DEBUG
-			if (debugging)
+#if DE
+			if (deging)
 				printk(OSST_DEB_MSG "%s:D: Error on write:\n", name);
 #endif
 			if ((SRpnt->sense[0] & 0x70) == 0x70 &&
@@ -3332,7 +3332,7 @@ static int do_door_lock(struct osst_tape * STp, int do_lock)
 {
 	int retval;
 
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: %socking drive door.\n", tape_name(STp), do_lock ? "L" : "Unl");
 #endif
 
@@ -3419,7 +3419,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 		goto out;
 	}
 
-#if DEBUG
+#if DE
 	if (!STp->in_use) {
 		printk(OSST_DEB_MSG "%s:D: Incorrect device.\n", name);
 		retval = (-EIO);
@@ -3454,7 +3454,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 	STps = &(STp->ps[STp->partition]);
 
 	if (STps->rw == ST_READING) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Switching from read to write at file %d, block %d\n", name, 
 					STps->drv_file, STps->drv_block);
 #endif
@@ -3469,7 +3469,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 		    (STp->first_frame_position == STp->first_data_ppos && STps->drv_block < 0) ||
 		    (STps->drv_file == 0 && STps->drv_block == 0)) {
 			STp->wrt_pass_cntr++;
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Allocating next write pass counter: %d\n",
 						  name, STp->wrt_pass_cntr);
 #endif
@@ -3486,7 +3486,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 				}
 				else {
 					/* We have no idea where the tape is positioned - give up */
-#if DEBUG
+#if DE
 					printk(OSST_DEB_MSG
 						"%s:D: Cannot write at indeterminate position.\n", name);
 #endif
@@ -3504,7 +3504,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 				printk(KERN_WARNING
 					"%s:W: may lead to stale data being accepted on reading back!\n",
 						name);
-#if DEBUG
+#if DE
 				printk(OSST_DEB_MSG
 				  "%s:D: resetting filemark count to %d and last mark ppos,lbn to %d,%d\n",
 					name, STp->filemark_cnt, STp->last_mark_ppos, STp->last_mark_lbn);
@@ -3514,7 +3514,7 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 		STp->fast_open = 0;
 	}
 	if (!STp->header_ok) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Write cannot proceed without valid headers\n", name);
 #endif
 		retval = (-EIO);
@@ -3525,8 +3525,8 @@ static ssize_t osst_write(struct file * filp, const char __user * buf, size_t co
 if (SRpnt) printk(KERN_ERR "%s:A: Not supposed to have SRpnt at line %d\n", name, __LINE__);
 		osst_write_behind_check(STp);
 		if ((STp->buffer)->syscall_result) {
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Async write error (write) %x.\n", name,
 						 (STp->buffer)->midlevel_result);
 #endif
@@ -3562,8 +3562,8 @@ if (SRpnt) printk(KERN_ERR "%s:A: Not supposed to have SRpnt at line %d\n", name
 		write_threshold--;
 
 	total = count;
-#if DEBUG
-	if (debugging)
+#if DE
+	if (deging)
 		printk(OSST_DEB_MSG "%s:D: Writing %d bytes to file %d block %d lblk %d fseq %d fppos %d\n",
 				name, (int) count, STps->drv_file, STps->drv_block,
 				STp->logical_blk_num, STp->frame_seq_number, STp->first_frame_position);
@@ -3598,8 +3598,8 @@ if (SRpnt) printk(KERN_ERR "%s:A: Not supposed to have SRpnt at line %d\n", name
 				}
 				STps->eof = ST_EOM_OK;
 				retval = (-ENOSPC);		/* EOM within current request */
-#if DEBUG
-				if (debugging)
+#if DE
+				if (deging)
 				      printk(OSST_DEB_MSG "%s:D: EOM with %d bytes unwritten.\n",
 							     name, (int) transfer);
 #endif
@@ -3608,8 +3608,8 @@ if (SRpnt) printk(KERN_ERR "%s:A: Not supposed to have SRpnt at line %d\n", name
 				STps->eof = ST_EOM_ERROR;
 				STps->drv_block = (-1);		/* Too cautious? */
 				retval = (-EIO);		/* EOM for old data */
-#if DEBUG
-				if (debugging)
+#if DE
+				if (deging)
 				      printk(OSST_DEB_MSG "%s:D: EOM with lost data.\n", name);
 #endif
 			}
@@ -3728,7 +3728,7 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 		retval = (-ENXIO);
 		goto out;
 	}
-#if DEBUG
+#if DE
 	if (!STp->in_use) {
 		printk(OSST_DEB_MSG "%s:D: Incorrect device.\n", name);
 		retval = (-EIO);
@@ -3759,8 +3759,8 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 		    STp->block_size<1024?STp->block_size:STp->block_size/1024, STp->block_size<1024?'b':'k');
 	}
 
-#if DEBUG
-	if (debugging && STps->eof != ST_NOEOF)
+#if DE
+	if (deging && STps->eof != ST_NOEOF)
 		printk(OSST_DEB_MSG "%s:D: EOF/EOM flag up (%d). Bytes %d\n", name,
 				     STps->eof, (STp->buffer)->buffer_bytes);
 #endif
@@ -3802,8 +3802,8 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 
 		/* Move the data from driver buffer to user buffer */
 		if ((STp->buffer)->buffer_bytes > 0) {
-#if DEBUG
-			if (debugging && STps->eof != ST_NOEOF)
+#if DE
+			if (deging && STps->eof != ST_NOEOF)
 			    printk(OSST_DEB_MSG "%s:D: EOF up (%d). Left %d, needed %d.\n", name,
 						 STps->eof, (STp->buffer)->buffer_bytes, (int) (count - total));
 #endif
@@ -3833,8 +3833,8 @@ static ssize_t osst_read(struct file * filp, char __user * buf, size_t count, lo
 		}
  
 		if ((STp->buffer)->buffer_bytes == 0) {
-#if DEBUG
-			if (debugging)
+#if DE
+			if (deging)
 				printk(OSST_DEB_MSG "%s:D: Finished with frame %d\n",
 					       	name, STp->frame_seq_number);
 #endif
@@ -3890,10 +3890,10 @@ static void osst_log_options(struct osst_tape *STp, struct st_modedef *STm, char
 	 STp->scsi2_logical);
   printk(KERN_INFO
 "%s:I:    sysv: %d\n", name, STm->sysv);
-#if DEBUG
+#if DE
   printk(KERN_INFO
-	 "%s:D:    debugging: %d\n",
-	 name, debugging);
+	 "%s:D:    deging: %d\n",
+	 name, deging);
 #endif
 }
 
@@ -3909,8 +3909,8 @@ static int osst_set_options(struct osst_tape *STp, long options)
 	if (!STm->defined) {
 		memcpy(STm, &(STp->modes[0]), sizeof(*STm));
 		modes_defined = 1;
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Initialized mode %d definition from mode 0\n",
 					     name, STp->current_mode);
 #endif
@@ -3931,8 +3931,8 @@ static int osst_set_options(struct osst_tape *STp, long options)
 			STp->can_partitions = (options & MT_ST_CAN_PARTITIONS) != 0;
 		STp->scsi2_logical    = (options & MT_ST_SCSI2LOGICAL) != 0;
 		STm->sysv	      = (options & MT_ST_SYSV) != 0;
-#if DEBUG
-		debugging = (options & MT_ST_DEBUGGING) != 0;
+#if DE
+		deging = (options & MT_ST_DEGING) != 0;
 #endif
 		osst_log_options(STp, STm, name);
 	}
@@ -3963,9 +3963,9 @@ static int osst_set_options(struct osst_tape *STp, long options)
 			STp->scsi2_logical = value;
 		if ((options & MT_ST_SYSV) != 0)
 			STm->sysv = value;
-#if DEBUG
-		if ((options & MT_ST_DEBUGGING) != 0)
-			debugging = value;
+#if DE
+		if ((options & MT_ST_DEGING) != 0)
+			deging = value;
 #endif
 		osst_log_options(STp, STm, name);
 	}
@@ -4113,8 +4113,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 
 	 case MTFSR:
 	 case MTBSR:
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 		   printk(OSST_DEB_MSG "%s:D: Skipping %lu blocks %s from logical block %d\n",
 				name, arg, cmd_in==MTFSR?"forward":"backward", logical_blk_num);
 #endif
@@ -4138,8 +4138,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 		cmd[2] = (arg >> 16);
 		cmd[3] = (arg >> 8);
 		cmd[4] = arg;
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Spacing tape forward %d setmarks.\n", name,
 		cmd[2] * 65536 + cmd[3] * 256 + cmd[4]);
 #endif
@@ -4155,8 +4155,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 		cmd[2] = (ltmp >> 16);
 		cmd[3] = (ltmp >> 8);
 		cmd[4] = ltmp;
-#if DEBUG
-		if (debugging) {
+#if DE
+		if (deging) {
 			if (cmd[2] & 0x80)
 			   ltmp = 0xff000000;
 			ltmp = ltmp | (cmd[2] << 16) | (cmd[3] << 8) | cmd[4];
@@ -4175,8 +4175,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 			ioctl_result = osst_flush_write_buffer(STp, &SRpnt);
 		 } else
 			ioctl_result = 0;
-#if DEBUG
-		 if (debugging) 
+#if DE
+		 if (deging) 
 			   printk(OSST_DEB_MSG "%s:D: Writing %ld filemark(s).\n", name, arg);
 #endif
 		 for (i=0; i<arg; i++)
@@ -4197,8 +4197,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 		 cmd[3] = (arg >> 8);
 		 cmd[4] = arg;
 		 timeout = STp->timeout;
-#if DEBUG
-		 if (debugging) 
+#if DE
+		 if (deging) 
 			   printk(OSST_DEB_MSG "%s:D: Writing %d setmark(s).\n", name,
 				  cmd[2] * 65536 + cmd[3] * 256 + cmd[4]);
 #endif
@@ -4224,8 +4224,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 		 if (cmd_in == MTOFFL)
 			 cmd[4] = 4;		/* rewind then eject */
 		 timeout = STp->timeout;
-#if DEBUG
-		 if (debugging) {
+#if DE
+		 if (deging) {
 			 switch (cmd_in) {
 				 case MTUNLOAD:
 					 printk(OSST_DEB_MSG "%s:D: Unloading tape.\n", name);
@@ -4245,15 +4245,15 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
        fileno = blkno = at_sm = frame_seq_numbr = logical_blk_num = 0 ;
 		 break;
 	 case MTNOP:
-#if DEBUG
-		 if (debugging)
+#if DE
+		 if (deging)
 			 printk(OSST_DEB_MSG "%s:D: No-op on tape.\n", name);
 #endif
 		 return 0;  /* Should do something ? */
 		 break;
 	 case MTEOM:
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 		   printk(OSST_DEB_MSG "%s:D: Spacing to end of recorded medium.\n", name);
 #endif
 		if ((osst_position_tape_and_confirm(STp, &SRpnt, STp->eod_frame_ppos) < 0) ||
@@ -4262,7 +4262,7 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 		   goto os_bypass;
 		}
 		if (STp->buffer->aux->frame_type != OS_FRAME_TYPE_EOD) {
-#if DEBUG
+#if DE
 		   printk(OSST_DEB_MSG "%s:D: No EOD frame found where expected.\n", name);
 #endif
 		   ioctl_result = -EIO;
@@ -4287,8 +4287,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 	 case MTREW:
 		cmd[0] = REZERO_UNIT; /* rewind */
 		cmd[1] = 1;
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 		   printk(OSST_DEB_MSG "%s:D: Rewinding tape, Immed=%d.\n", name, cmd[1]);
 #endif
 		fileno = blkno = at_sm = frame_seq_numbr = logical_blk_num = 0 ;
@@ -4337,7 +4337,7 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 	ioctl_result = (STp->buffer)->syscall_result;
 
 	if (!SRpnt) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Couldn't exec scsi cmd for IOCTL\n", name);
 #endif
 		return ioctl_result;
@@ -4349,8 +4349,8 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 	}
 
 os_bypass:
-#if DEBUG
-	if (debugging)
+#if DE
+	if (deging)
 		printk(OSST_DEB_MSG "%s:D: IOCTL (%d) Result=%d\n", name, cmd_in, ioctl_result);
 #endif
 
@@ -4471,14 +4471,14 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 
 	if (STp->in_use) {
 		write_unlock(&os_scsi_tapes_lock);
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Device already in use.\n", name);
 #endif
 		return (-EBUSY);
 	}
 	if (scsi_device_get(STp->device)) {
 		write_unlock(&os_scsi_tapes_lock);
-#if DEBUG
+#if DE
                 printk(OSST_DEB_MSG "%s:D: Failed scsi_device_get.\n", name);
 #endif
 		return (-ENXIO);
@@ -4493,8 +4493,8 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 	}
 
 	if (mode != STp->current_mode) {
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Mode change from %d to %d.\n",
 					       name, STp->current_mode, mode);
 #endif
@@ -4521,7 +4521,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 		     (i < STp->buffer->sg_segs) && ((b_size + STp->buffer->sg[i].length) <= OS_DATA_SIZE); 
 		     b_size += STp->buffer->sg[i++].length);
 		STp->buffer->aux = (os_aux_t *) (page_address(sg_page(&STp->buffer->sg[i])) + OS_DATA_SIZE - b_size);
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: b_data points to %p in segment 0 at %p\n", name,
 			STp->buffer->b_data, page_address(STp->buffer->sg[0].page));
 		printk(OSST_DEB_MSG "%s:D: AUX points to %p in segment %d at %p\n", name,
@@ -4541,7 +4541,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 		STps->rw = ST_IDLE;
 	}
 	STp->ready = ST_READY;
-#if DEBUG
+#if DE
 	STp->nbr_waits = STp->nbr_finished = 0;
 #endif
 
@@ -4556,7 +4556,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 	if ((SRpnt->sense[0] & 0x70) == 0x70      &&
 	    (SRpnt->sense[2] & 0x0f) == NOT_READY &&
 	     SRpnt->sense[12]        == 4         ) {
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Unit not ready, cause %x\n", name, SRpnt->sense[13]);
 #endif
 		if (filp->f_flags & O_NONBLOCK) {
@@ -4575,7 +4575,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 	}
 	if ((SRpnt->sense[0] & 0x70) == 0x70 &&
 	    (SRpnt->sense[2] & 0x0f) == UNIT_ATTENTION) { /* New media? */
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Unit wants attention\n", name);
 #endif
 		STp->header_ok = 0;
@@ -4629,7 +4629,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 		    STp->buffer->b_data[MODE_HEADER_LENGTH + 3] != 'I' ||
 		    STp->buffer->b_data[MODE_HEADER_LENGTH + 4] != 'N' ||
 		    STp->buffer->b_data[MODE_HEADER_LENGTH + 5] != '4'  ) {
-#if DEBUG
+#if DE
 			printk(OSST_DEB_MSG "%s:D: Signature was changed to %c%c%c%c\n", name,
 			  STp->buffer->b_data[MODE_HEADER_LENGTH + 2],
 			  STp->buffer->b_data[MODE_HEADER_LENGTH + 3],
@@ -4656,7 +4656,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 			osst_release_request(SRpnt);
 			return 0;
 		}
-#if DEBUG
+#if DE
 		if (i != STp->first_frame_position)
 			printk(OSST_DEB_MSG "%s:D: Tape position changed from %d to %d\n",
 						name, i, STp->first_frame_position);
@@ -4682,7 +4682,7 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 		(STp->buffer)->b_data[MODE_HEADER_LENGTH + 2] = 2;
 		(STp->buffer)->b_data[MODE_HEADER_LENGTH + 3] = 3;
 
-#if DEBUG
+#if DE
 		printk(OSST_DEB_MSG "%s:D: Applying soft reset\n", name);
 #endif
 		SRpnt = osst_do_scsi(SRpnt, STp, cmd, cmd[4], DMA_TO_DEVICE, STp->timeout, 0, 1);
@@ -4752,8 +4752,8 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 	STp->buffer->read_pointer  =
 	STp->frame_in_buffer       = 0;
 
-#if DEBUG
-	if (debugging)
+#if DE
+	if (deging)
 		printk(OSST_DEB_MSG "%s:D: Block size: %d, frame size: %d, buffer size: %d (%d blocks).\n",
 		     name, STp->block_size, OS_FRAME_SIZE, (STp->buffer)->buffer_size,
 		     (STp->buffer)->buffer_blocks);
@@ -4761,8 +4761,8 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 
 	if (STp->drv_write_prot) {
 		STp->write_prot = 1;
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Write protected\n", name);
 #endif
 		if ((flags & O_ACCMODE) == O_WRONLY || (flags & O_ACCMODE) == O_RDWR) {
@@ -4772,8 +4772,8 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 	}
 
 	if (new_session) {  /* Change the drive parameters for the new mode */
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 	printk(OSST_DEB_MSG "%s:D: New Session\n", name);
 #endif
 		STp->density_changed = STp->blksize_changed = 0;
@@ -4842,8 +4842,8 @@ static int os_scsi_tape_flush(struct file * filp, fl_owner_t id)
 	}
 	if ( STps->rw >= ST_WRITING && !STp->pos_unknown) {
 
-#if DEBUG
-		if (debugging) {
+#if DE
+		if (deging) {
 			printk(OSST_DEB_MSG "%s:D: File length %ld bytes.\n",
 					       name, (long)(filp->f_pos));
 			printk(OSST_DEB_MSG "%s:D: Async write waits %d, finished %d.\n",
@@ -4851,8 +4851,8 @@ static int os_scsi_tape_flush(struct file * filp, fl_owner_t id)
 		}
 #endif
 		result = osst_write_trailer(STp, &SRpnt, !(STp->rew_at_close));
-#if DEBUG
-		if (debugging)
+#if DE
+		if (deging)
 			printk(OSST_DEB_MSG "%s:D: Buffer flushed, %d EOF(s) written\n",
 					       name, 1+STp->two_fm);
 #endif
@@ -4955,8 +4955,8 @@ static long osst_ioctl(struct file * file,
 		return -ERESTARTSYS;
 	}
 
-#if DEBUG
-	if (debugging && !STp->in_use) {
+#if DE
+	if (deging && !STp->in_use) {
 		printk(OSST_DEB_MSG "%s:D: Incorrect device.\n", name);
 		retval = (-EIO);
 		goto out;
@@ -4978,7 +4978,7 @@ static long osst_ioctl(struct file * file,
 
 	cmd_type = _IOC_TYPE(cmd_in);
 	cmd_nr   = _IOC_NR(cmd_in);
-#if DEBUG
+#if DE
 	printk(OSST_DEB_MSG "%s:D: Ioctl %d,%d in %s mode\n", name,
 			    cmd_type, cmd_nr, STp->raw?"raw":"normal");
 #endif
@@ -5073,7 +5073,7 @@ static long osst_ioctl(struct file * file,
 			 * the tape without proper end, in that case write EOD and
 			 * update the header to reflect its position.
 			 */
-#if DEBUG
+#if DE
 			printk(KERN_WARNING "%s:D: auto_weod %s at ffp=%d,efp=%d,fsn=%d,lbn=%d,fn=%d,bn=%d\n", name,
 					STps->rw >= ST_WRITING ? "write" : STps->rw == ST_READING ? "read" : "idle",
 					STp->first_frame_position, STp->eod_frame_ppos, STp->frame_seq_number,
@@ -5084,7 +5084,7 @@ static long osst_ioctl(struct file * file,
 							!(mtc.mt_op == MTREW || mtc.mt_op == MTOFFL));
 				i = osst_write_trailer(STp, &SRpnt,
 							!(mtc.mt_op == MTREW || mtc.mt_op == MTOFFL));
-#if DEBUG
+#if DE
 				printk(KERN_WARNING "%s:D: post trailer xeof=%d,ffp=%d,efp=%d,fsn=%d,lbn=%d,fn=%d,bn=%d\n",
 						name, auto_weof, STp->first_frame_position, STp->eod_frame_ppos,
 						STp->frame_seq_number, STp->logical_blk_num, STps->drv_file, STps->drv_block );
@@ -5321,8 +5321,8 @@ static struct osst_buffer * new_tape_buffer( int from_initialization, int need_d
 	tb->in_use = 1;
 	tb->dma = need_dma;
 	tb->buffer_size = 0;
-#if DEBUG
-	if (debugging) 
+#if DE
+	if (deging) 
 		printk(OSST_DEB_MSG
 			"osst :D: Allocated tape buffer skeleton (%d bytes, %d segments, dma: %d).\n",
 			   i, max_sg, need_dma);
@@ -5376,7 +5376,7 @@ static int enlarge_buffer(struct osst_buffer *STbuffer, int need_dma)
 		if (page == NULL) {
 			printk(KERN_WARNING "osst :W: Failed to enlarge buffer to %d bytes.\n",
 						OS_FRAME_SIZE);
-#if DEBUG
+#if DE
 			STbuffer->buffer_size = got;
 #endif
 			normalize_buffer(STbuffer);
@@ -5387,8 +5387,8 @@ static int enlarge_buffer(struct osst_buffer *STbuffer, int need_dma)
 		STbuffer->buffer_size = got;
 		STbuffer->sg_segs = ++segs;
 	}
-#if DEBUG
-	if (debugging) {
+#if DE
+	if (deging) {
 		printk(OSST_DEB_MSG
 			   "osst :D: Expanded tape buffer (%d bytes, %d->%d segments, dma: %d, at: %p).\n",
 			   got, STbuffer->orig_sg_segs, STbuffer->sg_segs, need_dma, STbuffer->b_data);
@@ -5417,8 +5417,8 @@ static void normalize_buffer(struct osst_buffer *STbuffer)
 		__free_pages(sg_page(&STbuffer->sg[i]), order);
 		STbuffer->buffer_size -= STbuffer->sg[i].length;
 	}
-#if DEBUG
-	if (debugging && STbuffer->orig_sg_segs < STbuffer->sg_segs)
+#if DE
+	if (deging && STbuffer->orig_sg_segs < STbuffer->sg_segs)
 		printk(OSST_DEB_MSG "osst :D: Buffer at %p normalized to %d bytes (segs %d).\n",
 			     STbuffer->b_data, STbuffer->buffer_size, STbuffer->sg_segs);
 #endif
@@ -5574,7 +5574,7 @@ static void validate_options (void)
 		osst_write_threshold = osst_buffer_size;
   if (max_sg_segs >= OSST_FIRST_SG)
 		osst_max_sg_segs = max_sg_segs;
-#if DEBUG
+#if DE
   printk(OSST_DEB_MSG "osst :D: max tapes %d, write threshold %d, max s/g segs %d.\n",
 			   osst_max_dev, osst_write_threshold, osst_max_sg_segs);
 #endif

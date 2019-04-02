@@ -109,14 +109,14 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 		ptr = memblock_alloc_from(size, align, goal);
 		pr_info("cpu %d has no node %d or node-local memory\n",
 			cpu, node);
-		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
+		pr_de("per cpu data for cpu%d %lu bytes at %016lx\n",
 			 cpu, size, __pa(ptr));
 	} else {
 		ptr = memblock_alloc_try_nid(size, align, goal,
 					     MEMBLOCK_ALLOC_ACCESSIBLE,
 					     node);
 
-		pr_debug("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",
+		pr_de("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",
 			 cpu, size, node, __pa(ptr));
 	}
 	return ptr;

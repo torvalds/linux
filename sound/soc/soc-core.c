@@ -23,7 +23,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/ctype.h>
@@ -45,9 +45,9 @@
 
 #define NAME_SIZE	32
 
-#ifdef CONFIG_DEBUG_FS
-struct dentry *snd_soc_debugfs_root;
-EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
+#ifdef CONFIG_DE_FS
+struct dentry *snd_soc_defs_root;
+EXPORT_SYMBOL_GPL(snd_soc_defs_root);
 #endif
 
 static DEFINE_MUTEX(client_mutex);
@@ -137,40 +137,40 @@ static const struct attribute_group *soc_dev_attr_groups[] = {
 	NULL
 };
 
-#ifdef CONFIG_DEBUG_FS
-static void soc_init_component_debugfs(struct snd_soc_component *component)
+#ifdef CONFIG_DE_FS
+static void soc_init_component_defs(struct snd_soc_component *component)
 {
-	if (!component->card->debugfs_card_root)
+	if (!component->card->defs_card_root)
 		return;
 
-	if (component->debugfs_prefix) {
+	if (component->defs_prefix) {
 		char *name;
 
 		name = kasprintf(GFP_KERNEL, "%s:%s",
-			component->debugfs_prefix, component->name);
+			component->defs_prefix, component->name);
 		if (name) {
-			component->debugfs_root = debugfs_create_dir(name,
-				component->card->debugfs_card_root);
+			component->defs_root = defs_create_dir(name,
+				component->card->defs_card_root);
 			kfree(name);
 		}
 	} else {
-		component->debugfs_root = debugfs_create_dir(component->name,
-				component->card->debugfs_card_root);
+		component->defs_root = defs_create_dir(component->name,
+				component->card->defs_card_root);
 	}
 
-	if (!component->debugfs_root) {
+	if (!component->defs_root) {
 		dev_warn(component->dev,
-			"ASoC: Failed to create component debugfs directory\n");
+			"ASoC: Failed to create component defs directory\n");
 		return;
 	}
 
-	snd_soc_dapm_debugfs_init(snd_soc_component_get_dapm(component),
-		component->debugfs_root);
+	snd_soc_dapm_defs_init(snd_soc_component_get_dapm(component),
+		component->defs_root);
 }
 
-static void soc_cleanup_component_debugfs(struct snd_soc_component *component)
+static void soc_cleanup_component_defs(struct snd_soc_component *component)
 {
-	debugfs_remove_recursive(component->debugfs_root);
+	defs_remove_recursive(component->defs_root);
 }
 
 static int dai_list_show(struct seq_file *m, void *v)
@@ -205,80 +205,80 @@ static int component_list_show(struct seq_file *m, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(component_list);
 
-static void soc_init_card_debugfs(struct snd_soc_card *card)
+static void soc_init_card_defs(struct snd_soc_card *card)
 {
-	if (!snd_soc_debugfs_root)
+	if (!snd_soc_defs_root)
 		return;
 
-	card->debugfs_card_root = debugfs_create_dir(card->name,
-						     snd_soc_debugfs_root);
-	if (!card->debugfs_card_root) {
+	card->defs_card_root = defs_create_dir(card->name,
+						     snd_soc_defs_root);
+	if (!card->defs_card_root) {
 		dev_warn(card->dev,
-			 "ASoC: Failed to create card debugfs directory\n");
+			 "ASoC: Failed to create card defs directory\n");
 		return;
 	}
 
-	card->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0644,
-						    card->debugfs_card_root,
+	card->defs_pop_time = defs_create_u32("dapm_pop_time", 0644,
+						    card->defs_card_root,
 						    &card->pop_time);
-	if (!card->debugfs_pop_time)
+	if (!card->defs_pop_time)
 		dev_warn(card->dev,
-			 "ASoC: Failed to create pop time debugfs file\n");
+			 "ASoC: Failed to create pop time defs file\n");
 }
 
-static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
+static void soc_cleanup_card_defs(struct snd_soc_card *card)
 {
-	debugfs_remove_recursive(card->debugfs_card_root);
+	defs_remove_recursive(card->defs_card_root);
 }
 
-static void snd_soc_debugfs_init(void)
+static void snd_soc_defs_init(void)
 {
-	snd_soc_debugfs_root = debugfs_create_dir("asoc", NULL);
-	if (IS_ERR_OR_NULL(snd_soc_debugfs_root)) {
-		pr_warn("ASoC: Failed to create debugfs directory\n");
-		snd_soc_debugfs_root = NULL;
+	snd_soc_defs_root = defs_create_dir("asoc", NULL);
+	if (IS_ERR_OR_NULL(snd_soc_defs_root)) {
+		pr_warn("ASoC: Failed to create defs directory\n");
+		snd_soc_defs_root = NULL;
 		return;
 	}
 
-	if (!debugfs_create_file("dais", 0444, snd_soc_debugfs_root, NULL,
+	if (!defs_create_file("dais", 0444, snd_soc_defs_root, NULL,
 				 &dai_list_fops))
-		pr_warn("ASoC: Failed to create DAI list debugfs file\n");
+		pr_warn("ASoC: Failed to create DAI list defs file\n");
 
-	if (!debugfs_create_file("components", 0444, snd_soc_debugfs_root, NULL,
+	if (!defs_create_file("components", 0444, snd_soc_defs_root, NULL,
 				 &component_list_fops))
-		pr_warn("ASoC: Failed to create component list debugfs file\n");
+		pr_warn("ASoC: Failed to create component list defs file\n");
 }
 
-static void snd_soc_debugfs_exit(void)
+static void snd_soc_defs_exit(void)
 {
-	debugfs_remove_recursive(snd_soc_debugfs_root);
+	defs_remove_recursive(snd_soc_defs_root);
 }
 
 #else
 
-static inline void soc_init_component_debugfs(
+static inline void soc_init_component_defs(
 	struct snd_soc_component *component)
 {
 }
 
-static inline void soc_cleanup_component_debugfs(
+static inline void soc_cleanup_component_defs(
 	struct snd_soc_component *component)
 {
 }
 
-static inline void soc_init_card_debugfs(struct snd_soc_card *card)
+static inline void soc_init_card_defs(struct snd_soc_card *card)
 {
 }
 
-static inline void soc_cleanup_card_debugfs(struct snd_soc_card *card)
+static inline void soc_cleanup_card_defs(struct snd_soc_card *card)
 {
 }
 
-static inline void snd_soc_debugfs_init(void)
+static inline void snd_soc_defs_init(void)
 {
 }
 
-static inline void snd_soc_debugfs_exit(void)
+static inline void snd_soc_defs_exit(void)
 {
 }
 
@@ -945,7 +945,7 @@ static void soc_cleanup_component(struct snd_soc_component *component)
 {
 	list_del(&component->card_list);
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
-	soc_cleanup_component_debugfs(component);
+	soc_cleanup_component_defs(component);
 	component->card = NULL;
 	if (!component->driver->ignore_module_refcount)
 		module_put(component->dev->driver->owner);
@@ -1391,7 +1391,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 	INIT_LIST_HEAD(&dapm->list);
 	soc_set_name_prefix(card, component);
 
-	soc_init_component_debugfs(component);
+	soc_init_component_defs(component);
 
 	if (component->driver->dapm_widgets) {
 		ret = snd_soc_dapm_new_controls(dapm,
@@ -1605,10 +1605,10 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	/* add DPCM sysfs entries */
 	if (dai_link->dynamic)
-		soc_dpcm_debugfs_add(rtd);
+		soc_dpcm_defs_add(rtd);
 #endif
 
 	num = rtd->num;
@@ -1853,7 +1853,7 @@ static int is_dmi_valid(const char *field)
  * An Intel machine driver may be used by many different devices but are
  * difficult for userspace to differentiate, since machine drivers ususally
  * use their own name as the card short name and leave the card long name
- * blank. To differentiate such devices and fix bugs due to lack of
+ * blank. To differentiate such devices and fix s due to lack of
  * device-specific configurations, this function allows DMI info to be used
  * as the sound card long name, in the format of
  * "vendor-product-version-board"
@@ -2046,7 +2046,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	soc_remove_aux_devices(card);
 
 	snd_soc_dapm_free(&card->dapm);
-	soc_cleanup_card_debugfs(card);
+	soc_cleanup_card_defs(card);
 
 	/* remove the card */
 	if (card->remove)
@@ -2100,10 +2100,10 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		goto probe_end;
 	}
 
-	soc_init_card_debugfs(card);
+	soc_init_card_defs(card);
 
-#ifdef CONFIG_DEBUG_FS
-	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
+#ifdef CONFIG_DE_FS
+	snd_soc_dapm_defs_init(&card->dapm, card->defs_card_root);
 #endif
 
 #ifdef CONFIG_PM_SLEEP
@@ -3938,7 +3938,7 @@ EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_link_codecs);
 
 static int __init snd_soc_init(void)
 {
-	snd_soc_debugfs_init();
+	snd_soc_defs_init();
 	snd_soc_util_init();
 
 	return platform_driver_register(&soc_driver);
@@ -3948,7 +3948,7 @@ module_init(snd_soc_init);
 static void __exit snd_soc_exit(void)
 {
 	snd_soc_util_exit();
-	snd_soc_debugfs_exit();
+	snd_soc_defs_exit();
 
 	platform_driver_unregister(&soc_driver);
 }

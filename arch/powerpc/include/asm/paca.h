@@ -36,13 +36,13 @@
 
 register struct paca_struct *local_paca asm("r13");
 
-#if defined(CONFIG_DEBUG_PREEMPT) && defined(CONFIG_SMP)
-extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
+#if defined(CONFIG_DE_PREEMPT) && defined(CONFIG_SMP)
+extern unsigned int de_smp_processor_id(void); /* from linux/smp.h */
 /*
  * Add standard checks that preemption cannot occur when using get_paca():
  * otherwise the paca_struct it points to may be the wrong one just after.
  */
-#define get_paca()	((void) debug_smp_processor_id(), local_paca)
+#define get_paca()	((void) de_smp_processor_id(), local_paca)
 #else
 #define get_paca()	local_paca
 #endif
@@ -115,7 +115,7 @@ struct paca_struct {
 	u16 vmalloc_sllp;
 	u8 slb_cache_ptr;
 	u8 stab_rr;			/* stab/slb round-robin counter */
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 	u8 in_kernel_slb_handler;
 #endif
 	u32 slb_used_bitmap;		/* Bitmaps for first 32 SLB entries. */
@@ -134,12 +134,12 @@ struct paca_struct {
 
 	/*
 	 * We can have up to 3 levels of reentrancy in the TLB miss handler,
-	 * in each of four exception levels (normal, crit, mcheck, debug).
+	 * in each of four exception levels (normal, crit, mcheck, de).
 	 */
 	u64 extlb[12][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
-	u64 exdbg[8];		/* used for debug interrupts */
+	u64 exdbg[8];		/* used for de interrupts */
 
 	/* Kernel stack pointers for use by special exceptions */
 	void *mc_kstack;

@@ -1592,7 +1592,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 	size_t baselen;
 	struct ieee802_11_elems elems;
 
-	BUILD_BUG_ON(offsetof(typeof(mgmt->u.probe_resp), variable) !=
+	BUILD__ON(offsetof(typeof(mgmt->u.probe_resp), variable) !=
 		     offsetof(typeof(mgmt->u.beacon), variable));
 
 	/*

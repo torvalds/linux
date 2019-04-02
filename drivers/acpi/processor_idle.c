@@ -79,7 +79,7 @@ static int disabled_by_idle_boot_param(void)
 
 /*
  * IBM ThinkPad R40e crashes mysteriously when going into C2 or C3.
- * For now disable this. Probably a bug somewhere else.
+ * For now disable this. Probably a  somewhere else.
  *
  * To skip this limit, boot/load with a large max_cstate limit.
  */
@@ -143,7 +143,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 	if (cpu_has(&cpu_data(pr->id), X86_FEATURE_ARAT))
 		return;
 
-	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E))
+	if (boot_cpu_has_(X86__AMD_APIC_C1E))
 		type = ACPI_STATE_C1;
 
 	/*
@@ -260,7 +260,7 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * 100 microseconds.
 	 */
 	if (acpi_gbl_FADT.c2_latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 			"C2 latency too large [%d]\n", acpi_gbl_FADT.c2_latency));
 		/* invalidate C2 */
 		pr->power.states[ACPI_STATE_C2].address = 0;
@@ -271,13 +271,13 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * 1000 microseconds.
 	 */
 	if (acpi_gbl_FADT.c3_latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 			"C3 latency too large [%d]\n", acpi_gbl_FADT.c3_latency));
 		/* invalidate C3 */
 		pr->power.states[ACPI_STATE_C3].address = 0;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "lvl2[0x%08x] lvl3[0x%08x]\n",
 			  pr->power.states[ACPI_STATE_C2].address,
 			  pr->power.states[ACPI_STATE_C3].address));
@@ -325,7 +325,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	status = acpi_evaluate_object(pr->handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _CST, giving up\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "No _CST, giving up\n"));
 		return -ENODEV;
 	}
 
@@ -383,7 +383,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 		cx.type = obj->integer.value;
 		/*
-		 * Some buggy BIOSes won't list C1 in _CST -
+		 * Some gy BIOSes won't list C1 in _CST -
 		 * Let acpi_processor_get_power_info_default() handle them later
 		 */
 		if (i == 1 && cx.type != ACPI_STATE_C1)
@@ -458,7 +458,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 		}
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d power states\n",
+	ACPI_DE_PRINT((ACPI_DB_INFO, "Found %d power states\n",
 			  current_count));
 
 	/* Validate number of power states discovered */
@@ -489,7 +489,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	 * devices thus we take the conservative approach.
 	 */
 	else if (errata.piix4.fdma) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DE_PRINT((ACPI_DB_INFO,
 				  "C3 not supported on PIIX4 with Type-F DMA\n"));
 		return;
 	}
@@ -509,12 +509,12 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		if (!pr->flags.bm_control) {
 			if (pr->flags.has_cst != 1) {
 				/* bus mastering control is necessary */
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 					"C3 support requires BM control\n"));
 				return;
 			} else {
 				/* Here we enter C3 without bus mastering */
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				ACPI_DE_PRINT((ACPI_DB_INFO,
 					"C3 support without BM control\n"));
 			}
 		}
@@ -524,7 +524,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		 * supported on when bm_check is not required.
 		 */
 		if (!(acpi_gbl_FADT.flags & ACPI_FADT_WBINVD)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "Cache invalidation should work properly"
 					  " for C3 to be enabled on SMP systems\n"));
 			return;
@@ -982,7 +982,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 
 	status = acpi_evaluate_object(handle, "_LPI", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _LPI, giving up\n"));
+		ACPI_DE_PRINT((ACPI_DB_INFO, "No _LPI, giving up\n"));
 		return -ENODEV;
 	}
 
@@ -991,7 +991,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 	/* There must be at least 4 elements = 3 elements + 1 package */
 	if (!lpi_data || lpi_data->type != ACPI_TYPE_PACKAGE ||
 	    lpi_data->package.count < 4) {
-		pr_debug("not enough elements in _LPI\n");
+		pr_de("not enough elements in _LPI\n");
 		ret = -ENODATA;
 		goto end;
 	}
@@ -1000,7 +1000,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 
 	/* Validate number of power states. */
 	if (pkg_count < 1 || pkg_count != lpi_data->package.count - 3) {
-		pr_debug("count given by _LPI is not valid\n");
+		pr_de("count given by _LPI is not valid\n");
 		ret = -ENODATA;
 		goto end;
 	}
@@ -1053,12 +1053,12 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 
 		lpi_state->index = state_idx;
 		if (obj_get_integer(pkg_elem + 0, &lpi_state->min_residency)) {
-			pr_debug("No min. residency found, assuming 10 us\n");
+			pr_de("No min. residency found, assuming 10 us\n");
 			lpi_state->min_residency = 10;
 		}
 
 		if (obj_get_integer(pkg_elem + 1, &lpi_state->wake_latency)) {
-			pr_debug("No wakeup residency found, assuming 10 us\n");
+			pr_de("No wakeup residency found, assuming 10 us\n");
 			lpi_state->wake_latency = 10;
 		}
 
@@ -1075,7 +1075,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 			lpi_state->enable_parent_state = 0;
 	}
 
-	acpi_handle_debug(handle, "Found %d power states\n", state_idx);
+	acpi_handle_de(handle, "Found %d power states\n", state_idx);
 end:
 	kfree(buffer.pointer);
 	return ret;
@@ -1461,7 +1461,7 @@ int acpi_processor_power_init(struct acpi_processor *pr)
 			retval = cpuidle_register_driver(&acpi_idle_driver);
 			if (retval)
 				return retval;
-			pr_debug("%s registered with cpuidle\n",
+			pr_de("%s registered with cpuidle\n",
 				 acpi_idle_driver.name);
 		}
 

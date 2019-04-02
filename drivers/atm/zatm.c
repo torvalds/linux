@@ -50,12 +50,12 @@
 #define ZATM_COPPER	1
 
 #if 0
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
+#define DPRINTK(format,args...) printk(KERN_DE format,##args)
 #else
 #define DPRINTK(format,args...)
 #endif
 
-#ifndef CONFIG_ATM_ZATM_DEBUG
+#ifndef CONFIG_ATM_ZATM_DE
 
 
 #define NULLCHECK(x)
@@ -79,7 +79,7 @@ static void event_dump(void)
   if ((unsigned long) (x) < 0x30) printk(KERN_CRIT #x "==0x%x\n", (int) (x))
 
 /*
- * Very extensive activity logging. Greatly improves bug detection speed but
+ * Very extensive activity logging. Greatly improves  detection speed but
  * costs a few Mbps if enabled.
  */
 
@@ -113,7 +113,7 @@ static void event_dump(void)
 }
 
 
-#endif /* CONFIG_ATM_ZATM_DEBUG */
+#endif /* CONFIG_ATM_ZATM_DE */
 
 
 #define RING_BUSY	1	/* indication from do_tx that PDU has to be
@@ -782,7 +782,7 @@ NO !
 
 
 /*
- * BUG BUG BUG: Doesn't handle "new-style" rate specification yet.
+ *   : Doesn't handle "new-style" rate specification yet.
  */
 
 static int alloc_shaper(struct atm_dev *dev,int *pcr,int min,int max,int ubr)

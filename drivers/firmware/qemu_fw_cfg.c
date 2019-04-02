@@ -715,7 +715,7 @@ static int fw_cfg_sysfs_probe(struct platform_device *pdev)
 		goto err_dir;
 
 	/* success */
-	pr_debug("fw_cfg: loaded.\n");
+	pr_de("fw_cfg: loaded.\n");
 	return 0;
 
 err_dir:
@@ -733,7 +733,7 @@ err_sel:
 
 static int fw_cfg_sysfs_remove(struct platform_device *pdev)
 {
-	pr_debug("fw_cfg: unloading.\n");
+	pr_de("fw_cfg: unloading.\n");
 	fw_cfg_sysfs_cache_cleanup();
 	sysfs_remove_file(fw_cfg_top_ko, &fw_cfg_rev_attr.attr);
 	fw_cfg_io_cleanup();

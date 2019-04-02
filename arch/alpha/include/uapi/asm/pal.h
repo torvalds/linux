@@ -9,7 +9,7 @@
 #define PAL_cflush	  1
 #define PAL_draina	  2
 #define PAL_bpt		128
-#define PAL_bugchk	129
+#define PAL_chk	129
 #define PAL_chmk	131
 #define PAL_callsys	131
 #define PAL_imb		134

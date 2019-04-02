@@ -424,7 +424,7 @@ next_fragment:
 	/*
 	 * If running this driver under PSM with message size
 	 * fitting into one transfer unit, it is not possible
-	 * to pass this line. otherwise, it is a buggggg.
+	 * to pass this line. otherwise, it is a gggg.
 	 */
 
 	/*

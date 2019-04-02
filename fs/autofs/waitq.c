@@ -25,7 +25,7 @@ void autofs_catatonic_mode(struct autofs_sb_info *sbi)
 		return;
 	}
 
-	pr_debug("entering catatonic mode\n");
+	pr_de("entering catatonic mode\n");
 
 	sbi->flags |= AUTOFS_SBI_CATATONIC;
 	wq = sbi->queues;
@@ -91,7 +91,7 @@ static void autofs_notify_daemon(struct autofs_sb_info *sbi,
 	size_t pktsz;
 	int ret;
 
-	pr_debug("wait id = 0x%08lx, name = %.*s, type=%d\n",
+	pr_de("wait id = 0x%08lx, name = %.*s, type=%d\n",
 		 (unsigned long) wq->wait_queue_token,
 		 wq->name.len, wq->name.name, type);
 
@@ -458,7 +458,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 					autofs_ptype_expire_indirect;
 		}
 
-		pr_debug("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+		pr_de("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			 (unsigned long) wq->wait_queue_token, wq->name.len,
 			 wq->name.name, notify);
 
@@ -468,7 +468,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 		autofs_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
-		pr_debug("existing wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+		pr_de("existing wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			 (unsigned long) wq->wait_queue_token, wq->name.len,
 			 wq->name.name, notify);
 		mutex_unlock(&sbi->wq_mutex);

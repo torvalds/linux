@@ -24,7 +24,7 @@
 #include <linux/pagemap.h>
 
 #include "lcnalloc.h"
-#include "debug.h"
+#include "de.h"
 #include "bitmap.h"
 #include "inode.h"
 #include "volume.h"
@@ -53,7 +53,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
 	struct inode *lcnbmp_vi = vol->lcnbmp_ino;
 	int ret = 0;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	if (!rl)
 		return 0;
 	for (; rl->length; rl++) {
@@ -65,7 +65,7 @@ int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,
 		if (unlikely(err && (!ret || ret == -ENOMEM) && ret != err))
 			ret = err;
 	}
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return ret;
 }
 
@@ -160,19 +160,19 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 	int err = 0, rlpos, rlsize, buf_size;
 	u8 pass, done_zones, search_zone, need_writeback = 0, bit;
 
-	ntfs_debug("Entering for start_vcn 0x%llx, count 0x%llx, start_lcn "
+	ntfs_de("Entering for start_vcn 0x%llx, count 0x%llx, start_lcn "
 			"0x%llx, zone %s_ZONE.", (unsigned long long)start_vcn,
 			(unsigned long long)count,
 			(unsigned long long)start_lcn,
 			zone == MFT_ZONE ? "MFT" : "DATA");
-	BUG_ON(!vol);
+	_ON(!vol);
 	lcnbmp_vi = vol->lcnbmp_ino;
-	BUG_ON(!lcnbmp_vi);
-	BUG_ON(start_vcn < 0);
-	BUG_ON(count < 0);
-	BUG_ON(start_lcn < -1);
-	BUG_ON(zone < FIRST_ZONE);
-	BUG_ON(zone > LAST_ZONE);
+	_ON(!lcnbmp_vi);
+	_ON(start_vcn < 0);
+	_ON(count < 0);
+	_ON(start_lcn < -1);
+	_ON(zone < FIRST_ZONE);
+	_ON(zone > LAST_ZONE);
 
 	/* Return NULL if @count is zero. */
 	if (!count)
@@ -255,7 +255,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 	mapping = lcnbmp_vi->i_mapping;
 	i_size = i_size_read(lcnbmp_vi);
 	while (1) {
-		ntfs_debug("Start of outer while loop: done_zones 0x%x, "
+		ntfs_de("Start of outer while loop: done_zones 0x%x, "
 				"search_zone %i, pass %i, zone_start 0x%llx, "
 				"zone_end 0x%llx, bmp_initial_pos 0x%llx, "
 				"bmp_pos 0x%llx, rlpos %i, rlsize %i.",
@@ -266,16 +266,16 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 				(unsigned long long)bmp_pos, rlpos, rlsize);
 		/* Loop until we run out of free clusters. */
 		last_read_pos = bmp_pos >> 3;
-		ntfs_debug("last_read_pos 0x%llx.",
+		ntfs_de("last_read_pos 0x%llx.",
 				(unsigned long long)last_read_pos);
 		if (last_read_pos > i_size) {
-			ntfs_debug("End of attribute reached.  "
+			ntfs_de("End of attribute reached.  "
 					"Skipping to zone_pass_done.");
 			goto zone_pass_done;
 		}
 		if (likely(page)) {
 			if (need_writeback) {
-				ntfs_debug("Marking page dirty.");
+				ntfs_de("Marking page dirty.");
 				flush_dcache_page(page);
 				set_page_dirty(page);
 				need_writeback = 0;
@@ -297,13 +297,13 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 		buf_size <<= 3;
 		lcn = bmp_pos & 7;
 		bmp_pos &= ~(LCN)7;
-		ntfs_debug("Before inner while loop: buf_size %i, lcn 0x%llx, "
+		ntfs_de("Before inner while loop: buf_size %i, lcn 0x%llx, "
 				"bmp_pos 0x%llx, need_writeback %i.", buf_size,
 				(unsigned long long)lcn,
 				(unsigned long long)bmp_pos, need_writeback);
 		while (lcn < buf_size && lcn + bmp_pos < zone_end) {
 			byte = buf + (lcn >> 3);
-			ntfs_debug("In inner while loop: buf_size %i, "
+			ntfs_de("In inner while loop: buf_size %i, "
 					"lcn 0x%llx, bmp_pos 0x%llx, "
 					"need_writeback %i, byte ofs 0x%x, "
 					"*byte 0x%x.", buf_size,
@@ -315,15 +315,15 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 			/* Skip full bytes. */
 			if (*byte == 0xff) {
 				lcn = (lcn + 8) & ~(LCN)7;
-				ntfs_debug("Continuing while loop 1.");
+				ntfs_de("Continuing while loop 1.");
 				continue;
 			}
 			bit = 1 << (lcn & 7);
-			ntfs_debug("bit 0x%x.", bit);
+			ntfs_de("bit 0x%x.", bit);
 			/* If the bit is already set, go onto the next one. */
 			if (*byte & bit) {
 				lcn++;
-				ntfs_debug("Continuing while loop 2.");
+				ntfs_de("Continuing while loop 2.");
 				continue;
 			}
 			/*
@@ -334,9 +334,9 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 			if ((rlpos + 2) * sizeof(*rl) > rlsize) {
 				runlist_element *rl2;
 
-				ntfs_debug("Reallocating memory.");
+				ntfs_de("Reallocating memory.");
 				if (!rl)
-					ntfs_debug("First free bit is at LCN "
+					ntfs_de("First free bit is at LCN "
 							"0x%llx.",
 							(unsigned long long)
 							(lcn + bmp_pos));
@@ -351,20 +351,20 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 				ntfs_free(rl);
 				rl = rl2;
 				rlsize += PAGE_SIZE;
-				ntfs_debug("Reallocated memory, rlsize 0x%x.",
+				ntfs_de("Reallocated memory, rlsize 0x%x.",
 						rlsize);
 			}
 			/* Allocate the bitmap bit. */
 			*byte |= bit;
 			/* We need to write this bitmap page to disk. */
 			need_writeback = 1;
-			ntfs_debug("*byte 0x%x, need_writeback is set.",
+			ntfs_de("*byte 0x%x, need_writeback is set.",
 					(unsigned int)*byte);
 			/*
 			 * Coalesce with previous run if adjacent LCNs.
 			 * Otherwise, append a new run.
 			 */
-			ntfs_debug("Adding run (lcn 0x%llx, len 0x%llx), "
+			ntfs_de("Adding run (lcn 0x%llx, len 0x%llx), "
 					"prev_lcn 0x%llx, lcn 0x%llx, "
 					"bmp_pos 0x%llx, prev_run_len 0x%llx, "
 					"rlpos %i.",
@@ -375,14 +375,14 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 					(unsigned long long)prev_run_len,
 					rlpos);
 			if (prev_lcn == lcn + bmp_pos - prev_run_len && rlpos) {
-				ntfs_debug("Coalescing to run (lcn 0x%llx, "
+				ntfs_de("Coalescing to run (lcn 0x%llx, "
 						"len 0x%llx).",
 						(unsigned long long)
 						rl[rlpos - 1].lcn,
 						(unsigned long long)
 						rl[rlpos - 1].length);
 				rl[rlpos - 1].length = ++prev_run_len;
-				ntfs_debug("Run now (lcn 0x%llx, len 0x%llx), "
+				ntfs_de("Run now (lcn 0x%llx, len 0x%llx), "
 						"prev_run_len 0x%llx.",
 						(unsigned long long)
 						rl[rlpos - 1].lcn,
@@ -392,7 +392,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 						prev_run_len);
 			} else {
 				if (likely(rlpos)) {
-					ntfs_debug("Adding new run, (previous "
+					ntfs_de("Adding new run, (previous "
 							"run lcn 0x%llx, "
 							"len 0x%llx).",
 							(unsigned long long)
@@ -402,7 +402,7 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 					rl[rlpos].vcn = rl[rlpos - 1].vcn +
 							prev_run_len;
 				} else {
-					ntfs_debug("Adding new run, is first "
+					ntfs_de("Adding new run, is first "
 							"run.");
 					rl[rlpos].vcn = start_vcn;
 				}
@@ -419,14 +419,14 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 				 * during the respective zone switches.
 				 */
 				tc = lcn + bmp_pos + 1;
-				ntfs_debug("Done. Updating current zone "
+				ntfs_de("Done. Updating current zone "
 						"position, tc 0x%llx, "
 						"search_zone %i.",
 						(unsigned long long)tc,
 						search_zone);
 				switch (search_zone) {
 				case 1:
-					ntfs_debug("Before checks, "
+					ntfs_de("Before checks, "
 							"vol->mft_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -441,14 +441,14 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 							tc > vol->mft_zone_pos)
 							&& tc >= vol->mft_lcn)
 						vol->mft_zone_pos = tc;
-					ntfs_debug("After checks, "
+					ntfs_de("After checks, "
 							"vol->mft_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
 							vol->mft_zone_pos);
 					break;
 				case 2:
-					ntfs_debug("Before checks, "
+					ntfs_de("Before checks, "
 							"vol->data1_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -461,14 +461,14 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 						    tc > vol->data1_zone_pos)
 						    && tc >= vol->mft_zone_end)
 						vol->data1_zone_pos = tc;
-					ntfs_debug("After checks, "
+					ntfs_de("After checks, "
 							"vol->data1_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
 							vol->data1_zone_pos);
 					break;
 				case 4:
-					ntfs_debug("Before checks, "
+					ntfs_de("Before checks, "
 							"vol->data2_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -479,34 +479,34 @@ runlist_element *ntfs_cluster_alloc(ntfs_volume *vol, const VCN start_vcn,
 						      vol->data2_zone_pos ||
 						      tc > vol->data2_zone_pos)
 						vol->data2_zone_pos = tc;
-					ntfs_debug("After checks, "
+					ntfs_de("After checks, "
 							"vol->data2_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
 							vol->data2_zone_pos);
 					break;
 				default:
-					BUG();
+					();
 				}
-				ntfs_debug("Finished.  Going to out.");
+				ntfs_de("Finished.  Going to out.");
 				goto out;
 			}
 			lcn++;
 		}
 		bmp_pos += buf_size;
-		ntfs_debug("After inner while loop: buf_size 0x%x, lcn "
+		ntfs_de("After inner while loop: buf_size 0x%x, lcn "
 				"0x%llx, bmp_pos 0x%llx, need_writeback %i.",
 				buf_size, (unsigned long long)lcn,
 				(unsigned long long)bmp_pos, need_writeback);
 		if (bmp_pos < zone_end) {
-			ntfs_debug("Continuing outer while loop, "
+			ntfs_de("Continuing outer while loop, "
 					"bmp_pos 0x%llx, zone_end 0x%llx.",
 					(unsigned long long)bmp_pos,
 					(unsigned long long)zone_end);
 			continue;
 		}
 zone_pass_done:	/* Finished with the current zone pass. */
-		ntfs_debug("At zone_pass_done, pass %i.", pass);
+		ntfs_de("At zone_pass_done, pass %i.", pass);
 		if (pass == 1) {
 			/*
 			 * Now do pass 2, scanning the first part of the zone
@@ -525,13 +525,13 @@ zone_pass_done:	/* Finished with the current zone pass. */
 				zone_start = 0;
 				break;
 			default:
-				BUG();
+				();
 			}
 			/* Sanity check. */
 			if (zone_end < zone_start)
 				zone_end = zone_start;
 			bmp_pos = zone_start;
-			ntfs_debug("Continuing outer while loop, pass 2, "
+			ntfs_de("Continuing outer while loop, pass 2, "
 					"zone_start 0x%llx, zone_end 0x%llx, "
 					"bmp_pos 0x%llx.",
 					(unsigned long long)zone_start,
@@ -540,24 +540,24 @@ zone_pass_done:	/* Finished with the current zone pass. */
 			continue;
 		} /* pass == 2 */
 done_zones_check:
-		ntfs_debug("At done_zones_check, search_zone %i, done_zones "
+		ntfs_de("At done_zones_check, search_zone %i, done_zones "
 				"before 0x%x, done_zones after 0x%x.",
 				search_zone, done_zones,
 				done_zones | search_zone);
 		done_zones |= search_zone;
 		if (done_zones < 7) {
-			ntfs_debug("Switching zone.");
+			ntfs_de("Switching zone.");
 			/* Now switch to the next zone we haven't done yet. */
 			pass = 1;
 			switch (search_zone) {
 			case 1:
-				ntfs_debug("Switching from mft zone to data1 "
+				ntfs_de("Switching from mft zone to data1 "
 						"zone.");
 				/* Update mft zone position. */
 				if (rlpos) {
 					LCN tc;
 
-					ntfs_debug("Before checks, "
+					ntfs_de("Before checks, "
 							"vol->mft_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -574,7 +574,7 @@ done_zones_check:
 							tc > vol->mft_zone_pos)
 							&& tc >= vol->mft_lcn)
 						vol->mft_zone_pos = tc;
-					ntfs_debug("After checks, "
+					ntfs_de("After checks, "
 							"vol->mft_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -594,13 +594,13 @@ switch_to_data1_zone:		search_zone = 2;
 				}
 				break;
 			case 2:
-				ntfs_debug("Switching from data1 zone to "
+				ntfs_de("Switching from data1 zone to "
 						"data2 zone.");
 				/* Update data1 zone position. */
 				if (rlpos) {
 					LCN tc;
 
-					ntfs_debug("Before checks, "
+					ntfs_de("Before checks, "
 							"vol->data1_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -615,7 +615,7 @@ switch_to_data1_zone:		search_zone = 2;
 						    tc > vol->data1_zone_pos)
 						    && tc >= vol->mft_zone_end)
 						vol->data1_zone_pos = tc;
-					ntfs_debug("After checks, "
+					ntfs_de("After checks, "
 							"vol->data1_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -635,13 +635,13 @@ switch_to_data1_zone:		search_zone = 2;
 				}
 				break;
 			case 4:
-				ntfs_debug("Switching from data2 zone to "
+				ntfs_de("Switching from data2 zone to "
 						"data1 zone.");
 				/* Update data2 zone position. */
 				if (rlpos) {
 					LCN tc;
 
-					ntfs_debug("Before checks, "
+					ntfs_de("Before checks, "
 							"vol->data2_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -654,7 +654,7 @@ switch_to_data1_zone:		search_zone = 2;
 						      vol->data2_zone_pos ||
 						      tc > vol->data2_zone_pos)
 						vol->data2_zone_pos = tc;
-					ntfs_debug("After checks, "
+					ntfs_de("After checks, "
 							"vol->data2_zone_pos "
 							"0x%llx.",
 							(unsigned long long)
@@ -663,9 +663,9 @@ switch_to_data1_zone:		search_zone = 2;
 				/* Switch from data2 zone to data1 zone. */
 				goto switch_to_data1_zone;
 			default:
-				BUG();
+				();
 			}
-			ntfs_debug("After zone switch, search_zone %i, "
+			ntfs_de("After zone switch, search_zone %i, "
 					"pass %i, bmp_initial_pos 0x%llx, "
 					"zone_start 0x%llx, zone_end 0x%llx.",
 					search_zone, pass,
@@ -674,32 +674,32 @@ switch_to_data1_zone:		search_zone = 2;
 					(unsigned long long)zone_end);
 			bmp_pos = zone_start;
 			if (zone_start == zone_end) {
-				ntfs_debug("Empty zone, going to "
+				ntfs_de("Empty zone, going to "
 						"done_zones_check.");
 				/* Empty zone. Don't bother searching it. */
 				goto done_zones_check;
 			}
-			ntfs_debug("Continuing outer while loop.");
+			ntfs_de("Continuing outer while loop.");
 			continue;
 		} /* done_zones == 7 */
-		ntfs_debug("All zones are finished.");
+		ntfs_de("All zones are finished.");
 		/*
 		 * All zones are finished!  If DATA_ZONE, shrink mft zone.  If
 		 * MFT_ZONE, we have really run out of space.
 		 */
 		mft_zone_size = vol->mft_zone_end - vol->mft_zone_start;
-		ntfs_debug("vol->mft_zone_start 0x%llx, vol->mft_zone_end "
+		ntfs_de("vol->mft_zone_start 0x%llx, vol->mft_zone_end "
 				"0x%llx, mft_zone_size 0x%llx.",
 				(unsigned long long)vol->mft_zone_start,
 				(unsigned long long)vol->mft_zone_end,
 				(unsigned long long)mft_zone_size);
 		if (zone == MFT_ZONE || mft_zone_size <= 0) {
-			ntfs_debug("No free clusters left, going to out.");
+			ntfs_de("No free clusters left, going to out.");
 			/* Really no more space left on device. */
 			err = -ENOSPC;
 			goto out;
 		} /* zone == DATA_ZONE && mft_zone_size > 0 */
-		ntfs_debug("Shrinking mft zone.");
+		ntfs_de("Shrinking mft zone.");
 		zone_end = vol->mft_zone_end;
 		mft_zone_size >>= 1;
 		if (mft_zone_size > 0)
@@ -717,7 +717,7 @@ switch_to_data1_zone:		search_zone = 2;
 		search_zone = 2;
 		pass = 2;
 		done_zones &= ~2;
-		ntfs_debug("After shrinking mft zone, mft_zone_size 0x%llx, "
+		ntfs_de("After shrinking mft zone, mft_zone_size 0x%llx, "
 				"vol->mft_zone_start 0x%llx, "
 				"vol->mft_zone_end 0x%llx, "
 				"vol->mft_zone_pos 0x%llx, search_zone 2, "
@@ -732,9 +732,9 @@ switch_to_data1_zone:		search_zone = 2;
 				(unsigned long long)zone_end,
 				(unsigned long long)vol->data1_zone_pos);
 	}
-	ntfs_debug("After outer while loop.");
+	ntfs_de("After outer while loop.");
 out:
-	ntfs_debug("At out.");
+	ntfs_de("At out.");
 	/* Add runlist terminator element. */
 	if (likely(rl)) {
 		rl[rlpos].vcn = rl[rlpos - 1].vcn + rl[rlpos - 1].length;
@@ -743,7 +743,7 @@ out:
 	}
 	if (likely(page && !IS_ERR(page))) {
 		if (need_writeback) {
-			ntfs_debug("Marking page dirty.");
+			ntfs_de("Marking page dirty.");
 			flush_dcache_page(page);
 			set_page_dirty(page);
 			need_writeback = 0;
@@ -752,7 +752,7 @@ out:
 	}
 	if (likely(!err)) {
 		up_write(&vol->lcnbmp_lock);
-		ntfs_debug("Done.");
+		ntfs_de("Done.");
 		return rl;
 	}
 	ntfs_error(vol->sb, "Failed to allocate clusters, aborting "
@@ -761,14 +761,14 @@ out:
 		int err2;
 
 		if (err == -ENOSPC)
-			ntfs_debug("Not enough space to complete allocation, "
+			ntfs_de("Not enough space to complete allocation, "
 					"err -ENOSPC, first free lcn 0x%llx, "
 					"could allocate up to 0x%llx "
 					"clusters.",
 					(unsigned long long)rl[0].lcn,
 					(unsigned long long)(count - clusters));
 		/* Deallocate all allocated clusters. */
-		ntfs_debug("Attempting rollback...");
+		ntfs_de("Attempting rollback...");
 		err2 = ntfs_cluster_free_from_rl_nolock(vol, rl);
 		if (err2) {
 			ntfs_error(vol->sb, "Failed to rollback (error %i).  "
@@ -779,7 +779,7 @@ out:
 		/* Free the runlist. */
 		ntfs_free(rl);
 	} else if (err == -ENOSPC)
-		ntfs_debug("No space left at all, err = -ENOSPC, first free "
+		ntfs_de("No space left at all, err = -ENOSPC, first free "
 				"lcn = 0x%llx.",
 				(long long)vol->data1_zone_pos);
 	up_write(&vol->lcnbmp_lock);
@@ -855,16 +855,16 @@ s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
 	runlist_element *rl;
 	int err;
 
-	BUG_ON(!ni);
-	ntfs_debug("Entering for i_ino 0x%lx, start_vcn 0x%llx, count "
+	_ON(!ni);
+	ntfs_de("Entering for i_ino 0x%lx, start_vcn 0x%llx, count "
 			"0x%llx.%s", ni->mft_no, (unsigned long long)start_vcn,
 			(unsigned long long)count,
 			is_rollback ? " (rollback)" : "");
 	vol = ni->vol;
 	lcnbmp_vi = vol->lcnbmp_ino;
-	BUG_ON(!lcnbmp_vi);
-	BUG_ON(start_vcn < 0);
-	BUG_ON(count < -1);
+	_ON(!lcnbmp_vi);
+	_ON(start_vcn < 0);
+	_ON(count < -1);
 	/*
 	 * Lock the lcn bitmap for writing but only if not rolling back.  We
 	 * must hold the lock all the way including through rollback otherwise
@@ -981,10 +981,10 @@ s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn, s64 count,
 	if (likely(!is_rollback))
 		up_write(&vol->lcnbmp_lock);
 
-	BUG_ON(count > 0);
+	_ON(count > 0);
 
 	/* We are done.  Return the number of actually freed clusters. */
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return real_freed;
 err_out:
 	if (is_rollback)

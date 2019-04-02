@@ -13,7 +13,7 @@
  *   o Error correcting in remote HZ, therefore remote HZ will be keeped
  *     on checking and updating.
  *   o Handling calculation of One-Way-Delay (OWD) within rtt_sample, since
- *     OWD have a similar meaning as RTT. Also correct the buggy formular.
+ *     OWD have a similar meaning as RTT. Also correct the gy formular.
  *   o Handle reaction for Early Congestion Indication (ECI) within
  *     pkts_acked, as mentioned within pseudo code.
  *   o OWD is handled in relative format, where local time stamp will in
@@ -47,7 +47,7 @@
  * @LP_WITHIN_INF: are we within inference?
  *
  * TCP-LP's state flags.
- * We create this set of state flag mainly for debugging.
+ * We create this set of state flag mainly for deging.
  */
 enum tcp_lp_state {
 	LP_VALID_RHZ = (1 << 0),
@@ -181,7 +181,7 @@ static u32 tcp_lp_remote_hz_estimator(struct sock *sk)
  * difference directly. As this time difference just simply equal to RTT, when
  * the network status is stable, remote RTT will equal to local RTT, and result
  * OWD into zero.
- * It seems to be a bug and so we fixed it.
+ * It seems to be a  and so we fixed it.
  */
 static u32 tcp_lp_owd_calculator(struct sock *sk)
 {
@@ -288,7 +288,7 @@ static void tcp_lp_pkts_acked(struct sock *sk, const struct ack_sample *sample)
 	else
 		lp->flag &= ~LP_WITHIN_THR;
 
-	pr_debug("TCP-LP: %05o|%5u|%5u|%15u|%15u|%15u\n", lp->flag,
+	pr_de("TCP-LP: %05o|%5u|%5u|%15u|%15u|%15u\n", lp->flag,
 		 tp->snd_cwnd, lp->remote_hz, lp->owd_min, lp->owd_max,
 		 lp->sowd >> 3);
 
@@ -329,7 +329,7 @@ static struct tcp_congestion_ops tcp_lp __read_mostly = {
 
 static int __init tcp_lp_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct lp) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct lp) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&tcp_lp);
 }
 

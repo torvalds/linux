@@ -59,7 +59,7 @@ static inline pte_t *virt_to_kpte(unsigned long vaddr)
 
 static void __init highmem_init(void)
 {
-	pr_debug("%x\n", (u32)PKMAP_BASE);
+	pr_de("%x\n", (u32)PKMAP_BASE);
 	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
 

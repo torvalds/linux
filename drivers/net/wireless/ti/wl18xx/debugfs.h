@@ -19,10 +19,10 @@
  *
  */
 
-#ifndef __WL18XX_DEBUGFS_H__
-#define __WL18XX_DEBUGFS_H__
+#ifndef __WL18XX_DEFS_H__
+#define __WL18XX_DEFS_H__
 
-int wl18xx_debugfs_add_files(struct wl1271 *wl,
+int wl18xx_defs_add_files(struct wl1271 *wl,
 			     struct dentry *rootdir);
 
-#endif /* __WL18XX_DEBUGFS_H__ */
+#endif /* __WL18XX_DEFS_H__ */

@@ -17,7 +17,7 @@
 #include <linux/sched.h>
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_common.h"
-#include "s5p_mfc_debug.h"
+#include "s5p_mfc_de.h"
 #include "s5p_mfc_intr.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_pm.h"
@@ -53,7 +53,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 
 	/* Firmware has to be present as a separate file or compiled
 	 * into kernel. */
-	mfc_debug_enter();
+	mfc_de_enter();
 
 	if (dev->fw_get_done)
 		return 0;
@@ -82,7 +82,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	wmb();
 	dev->fw_get_done = true;
 	release_firmware(fw_blob);
-	mfc_debug_leave();
+	mfc_de_leave();
 	return 0;
 }
 
@@ -122,7 +122,7 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 	unsigned long timeout;
 	int i;
 
-	mfc_debug_enter();
+	mfc_de_enter();
 
 	if (IS_MFCV6_PLUS(dev)) {
 		/* Zero Initialization of MFC registers */
@@ -170,7 +170,7 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 		mfc_write(dev, 0x3fe, S5P_FIMV_SW_RESET);
 	}
 
-	mfc_debug_leave();
+	mfc_de_leave();
 	return 0;
 }
 
@@ -179,14 +179,14 @@ static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 	if (IS_MFCV6_PLUS(dev)) {
 		mfc_write(dev, dev->dma_base[BANK_L_CTX],
 			  S5P_FIMV_RISC_BASE_ADDRESS_V6);
-		mfc_debug(2, "Base Address : %pad\n",
+		mfc_de(2, "Base Address : %pad\n",
 			  &dev->dma_base[BANK_L_CTX]);
 	} else {
 		mfc_write(dev, dev->dma_base[BANK_L_CTX],
 			  S5P_FIMV_MC_DRAMBASE_ADR_A);
 		mfc_write(dev, dev->dma_base[BANK_R_CTX],
 			  S5P_FIMV_MC_DRAMBASE_ADR_B);
-		mfc_debug(2, "Bank1: %pad, Bank2: %pad\n",
+		mfc_de(2, "Bank1: %pad, Bank2: %pad\n",
 			  &dev->dma_base[BANK_L_CTX],
 			  &dev->dma_base[BANK_R_CTX]);
 	}
@@ -211,14 +211,14 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	unsigned int ver;
 	int ret;
 
-	mfc_debug_enter();
+	mfc_de_enter();
 	if (!dev->fw_buf.virt) {
 		mfc_err("Firmware memory is not allocated.\n");
 		return -EINVAL;
 	}
 
 	/* 0. MFC reset */
-	mfc_debug(2, "MFC reset..\n");
+	mfc_de(2, "MFC reset..\n");
 	s5p_mfc_clock_on();
 	dev->risc_on = 0;
 	ret = s5p_mfc_reset(dev);
@@ -226,7 +226,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 		mfc_err("Failed to reset MFC - timeout\n");
 		return ret;
 	}
-	mfc_debug(2, "Done MFC reset..\n");
+	mfc_de(2, "Done MFC reset..\n");
 	/* 1. Set DRAM base Addr */
 	s5p_mfc_init_memctrl(dev);
 	/* 2. Initialize registers of channel I/F */
@@ -243,7 +243,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	if (IS_MFCV10(dev))
 		mfc_write(dev, 0x0, S5P_FIMV_MFC_CLOCK_OFF_V10);
 
-	mfc_debug(2, "Will now wait for completion of firmware transfer\n");
+	mfc_de(2, "Will now wait for completion of firmware transfer\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err("Failed to load firmware\n");
 		s5p_mfc_reset(dev);
@@ -259,7 +259,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 		s5p_mfc_clock_off();
 		return ret;
 	}
-	mfc_debug(2, "Ok, now will wait for completion of hardware init\n");
+	mfc_de(2, "Ok, now will wait for completion of hardware init\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_SYS_INIT_RET)) {
 		mfc_err("Failed to init hardware\n");
 		s5p_mfc_reset(dev);
@@ -281,10 +281,10 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	else
 		ver = mfc_read(dev, S5P_FIMV_FW_VERSION);
 
-	mfc_debug(2, "MFC F/W version : %02xyy, %02xmm, %02xdd\n",
+	mfc_de(2, "MFC F/W version : %02xyy, %02xmm, %02xdd\n",
 		(ver >> 16) & 0xFF, (ver >> 8) & 0xFF, ver & 0xFF);
 	s5p_mfc_clock_off();
-	mfc_debug_leave();
+	mfc_de_leave();
 	return 0;
 }
 
@@ -304,7 +304,7 @@ int s5p_mfc_sleep(struct s5p_mfc_dev *dev)
 {
 	int ret;
 
-	mfc_debug_enter();
+	mfc_de_enter();
 	s5p_mfc_clock_on();
 	s5p_mfc_clean_dev_int_flags(dev);
 	ret = s5p_mfc_hw_call(dev->mfc_cmds, sleep_cmd, dev);
@@ -325,7 +325,7 @@ int s5p_mfc_sleep(struct s5p_mfc_dev *dev)
 								dev->int_type);
 		return -EIO;
 	}
-	mfc_debug_leave();
+	mfc_de_leave();
 	return ret;
 }
 
@@ -341,7 +341,7 @@ static int s5p_mfc_v8_wait_wakeup(struct s5p_mfc_dev *dev)
 		mfc_err("Failed to reset MFCV8\n");
 		return -EIO;
 	}
-	mfc_debug(2, "Write command to wakeup MFCV8\n");
+	mfc_de(2, "Write command to wakeup MFCV8\n");
 	ret = s5p_mfc_hw_call(dev->mfc_cmds, wakeup_cmd, dev);
 	if (ret) {
 		mfc_err("Failed to send command to MFCV8 - timeout\n");
@@ -385,9 +385,9 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 {
 	int ret;
 
-	mfc_debug_enter();
+	mfc_de_enter();
 	/* 0. MFC reset */
-	mfc_debug(2, "MFC reset..\n");
+	mfc_de(2, "MFC reset..\n");
 	s5p_mfc_clock_on();
 	dev->risc_on = 0;
 	ret = s5p_mfc_reset(dev);
@@ -396,7 +396,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 		s5p_mfc_clock_off();
 		return ret;
 	}
-	mfc_debug(2, "Done MFC reset..\n");
+	mfc_de(2, "Done MFC reset..\n");
 	/* 1. Set DRAM base Addr */
 	s5p_mfc_init_memctrl(dev);
 	/* 2. Initialize registers of channel I/F */
@@ -420,7 +420,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 								dev->int_type);
 		return -EIO;
 	}
-	mfc_debug_leave();
+	mfc_de_leave();
 	return 0;
 }
 
@@ -453,7 +453,7 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 		goto err_free_desc_buf;
 	}
 
-	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
+	mfc_de(2, "Got instance number: %d\n", ctx->inst_no);
 	return ret;
 
 err_free_desc_buf:

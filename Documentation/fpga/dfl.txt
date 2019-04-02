@@ -104,7 +104,7 @@ FIU - PORT
 ==========
 A port represents the interface between the static FPGA fabric and a partially
 reconfigurable region containing an AFU. It controls the communication from SW
-to the accelerator and exposes features such as reset and debug. Each FPGA
+to the accelerator and exposes features such as reset and de. Each FPGA
 device may have more than one port, but always one AFU per port.
 
 

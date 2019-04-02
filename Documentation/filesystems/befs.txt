@@ -94,7 +94,7 @@ MOUNT OPTIONS
 uid=nnn        All files in the partition will be owned by user id nnn.
 gid=nnn	       All files in the partition will be in group nnn.
 iocharset=xxx  Use xxx as the name of the NLS translation table.
-debug          The driver will output debugging information to the syslog.
+de          The driver will output deging information to the syslog.
 
 HOW TO GET LASTEST VERSION
 ==========================
@@ -102,7 +102,7 @@ HOW TO GET LASTEST VERSION
 The latest version is currently available at:
 <http://befs-driver.sourceforge.net/>
 
-ANY KNOWN BUGS?
+ANY KNOWN S?
 ===========
 As of Jan 20, 2002:
 	

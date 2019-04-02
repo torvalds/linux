@@ -208,7 +208,7 @@ is described in this commit:
     commit 4bb3c7a0208fc13ca70598efd109901a7cd45ae7
     Author: Paul Mackerras <paulus@ozlabs.org>
     Date:   Wed Mar 21 21:32:01 2018 +1100
-    KVM: PPC: Book3S HV: Work around transactional memory bugs in POWER9
+    KVM: PPC: Book3S HV: Work around transactional memory s in POWER9
 
 To account for this different POWER9 chips have TM enabled in
 different ways.

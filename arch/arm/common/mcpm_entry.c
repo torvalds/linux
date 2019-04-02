@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(mcpm_is_available);
  * We can't use regular spinlocks. In the switcher case, it is possible
  * for an outbound CPU to call power_down() after its inbound counterpart
  * is already live using the same logical CPU number which trips lockdep
- * debugging.
+ * deging.
  */
 static arch_spinlock_t mcpm_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
@@ -200,7 +200,7 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
 	bool cpu_is_down, cluster_is_down;
 	int ret = 0;
 
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (!platform_ops)
 		return -EUNATCH; /* try not to shadow power_up errors */
 	might_sleep();
@@ -222,9 +222,9 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
 	 * 1 = CPU (still) up
 	 * 2 = CPU requested to be up before it had a chance
 	 *     to actually make itself down.
-	 * Any other value is a bug.
+	 * Any other value is a .
 	 */
-	BUG_ON(mcpm_cpu_use_count[cluster][cpu] != 1 &&
+	_ON(mcpm_cpu_use_count[cluster][cpu] != 1 &&
 	       mcpm_cpu_use_count[cluster][cpu] != 2);
 
 	if (cluster_is_down)
@@ -248,19 +248,19 @@ void mcpm_cpu_power_down(void)
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	pr_de("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (WARN_ON_ONCE(!platform_ops))
 	       return;
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 
 	setup_mm_for_reboot();
 
 	__mcpm_cpu_going_down(cpu, cluster);
 	arch_spin_lock(&mcpm_lock);
-	BUG_ON(__mcpm_cluster_state(cluster) != CLUSTER_UP);
+	_ON(__mcpm_cluster_state(cluster) != CLUSTER_UP);
 
 	mcpm_cpu_use_count[cluster][cpu]--;
-	BUG_ON(mcpm_cpu_use_count[cluster][cpu] != 0 &&
+	_ON(mcpm_cpu_use_count[cluster][cpu] != 0 &&
 	       mcpm_cpu_use_count[cluster][cpu] != 1);
 	cpu_going_down = !mcpm_cpu_use_count[cluster][cpu];
 	last_man = mcpm_cluster_unused(cluster);
@@ -305,7 +305,7 @@ void mcpm_cpu_power_down(void)
 	phys_reset(__pa_symbol(mcpm_entry_point), false);
 
 	/* should never get here */
-	BUG();
+	();
 }
 
 int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster)
@@ -385,14 +385,14 @@ static int __init nocache_trampoline(unsigned long _arg)
 	setup_mm_for_reboot();
 
 	__mcpm_cpu_going_down(cpu, cluster);
-	BUG_ON(!__mcpm_outbound_enter_critical(cpu, cluster));
+	_ON(!__mcpm_outbound_enter_critical(cpu, cluster));
 	cache_disable();
 	__mcpm_outbound_leave_critical(cluster, CLUSTER_DOWN);
 	__mcpm_cpu_down(cpu, cluster);
 
 	phys_reset = (phys_reset_t)(unsigned long)__pa_symbol(cpu_reset);
 	phys_reset(__pa_symbol(mcpm_entry_point), false);
-	BUG();
+	();
 }
 
 int __init mcpm_loopback(void (*cache_disable)(void))
@@ -428,8 +428,8 @@ int __init mcpm_sync_init(
 {
 	unsigned int i, j, mpidr, this_cluster;
 
-	BUILD_BUG_ON(MCPM_SYNC_CLUSTER_SIZE * MAX_NR_CLUSTERS != sizeof mcpm_sync);
-	BUG_ON((unsigned long)&mcpm_sync & (__CACHE_WRITEBACK_GRANULE - 1));
+	BUILD__ON(MCPM_SYNC_CLUSTER_SIZE * MAX_NR_CLUSTERS != sizeof mcpm_sync);
+	_ON((unsigned long)&mcpm_sync & (__CACHE_WRITEBACK_GRANULE - 1));
 
 	/*
 	 * Set initial CPU and cluster states.

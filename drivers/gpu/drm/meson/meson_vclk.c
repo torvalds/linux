@@ -583,7 +583,7 @@ static bool meson_hdmi_pll_find_params(struct meson_drm *priv,
 			continue;
 		*frac = meson_hdmi_pll_get_frac(priv, *m, freq * *od);
 
-		DRM_DEBUG_DRIVER("PLL params for %dkHz: m=%x frac=%x od=%d\n",
+		DRM_DE_DRIVER("PLL params for %dkHz: m=%x frac=%x od=%d\n",
 				 freq, *m, *frac, *od);
 
 		if (meson_hdmi_pll_validate_params(priv, *m, *frac))
@@ -625,7 +625,7 @@ static void meson_hdmi_pll_generic_set(struct meson_drm *priv,
 			od1 = od / od2;
 		}
 
-		DRM_DEBUG_DRIVER("PLL params for %dkHz: m=%x frac=%x od=%d/%d/%d\n",
+		DRM_DE_DRIVER("PLL params for %dkHz: m=%x frac=%x od=%d/%d/%d\n",
 				 pll_freq, m, frac, od1, od2, od3);
 
 		meson_hdmi_pll_set_params(priv, m, frac, od1, od2, od3);
@@ -642,10 +642,10 @@ meson_vclk_vic_supported_freq(unsigned int freq)
 {
 	int i;
 
-	DRM_DEBUG_DRIVER("freq = %d\n", freq);
+	DRM_DE_DRIVER("freq = %d\n", freq);
 
 	for (i = 0 ; params[i].pixel_freq ; ++i) {
-		DRM_DEBUG_DRIVER("i = %d pixel_freq = %d alt = %d\n",
+		DRM_DE_DRIVER("i = %d pixel_freq = %d alt = %d\n",
 				 i, params[i].pixel_freq,
 				 FREQ_1000_1001(params[i].pixel_freq));
 		/* Match strict frequency */

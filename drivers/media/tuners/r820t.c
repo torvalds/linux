@@ -41,9 +41,9 @@
 
 #define VER_NUM  49
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable verbose de messages");
 
 static int no_imr_cal;
 module_param(no_imr_cal, int, 0444);

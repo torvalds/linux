@@ -341,10 +341,10 @@ static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
-static inline void kvm_arm_init_debug(void) {}
-static inline void kvm_arm_setup_debug(struct kvm_vcpu *vcpu) {}
-static inline void kvm_arm_clear_debug(struct kvm_vcpu *vcpu) {}
-static inline void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_init_de(void) {}
+static inline void kvm_arm_setup_de(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_clear_de(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arm_reset_de_ptr(struct kvm_vcpu *vcpu) {}
 
 int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);

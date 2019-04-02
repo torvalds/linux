@@ -269,7 +269,7 @@ struct myrs_ctlr_info {
 		unsigned char rsvd16[12];
 		unsigned char cpu_name[16];
 	} __packed cpu[2];
-	/* Debugging/Profiling/Command Time Tracing Information */
+	/* Deging/Profiling/Command Time Tracing Information */
 	unsigned short cur_prof_page_num;	/* Bytes 336-337 */
 	unsigned short num_prof_waiters;	/* Bytes 338-339 */
 	unsigned short cur_trace_page_num;	/* Bytes 340-341 */

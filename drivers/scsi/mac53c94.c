@@ -73,11 +73,11 @@ static int mac53c94_queue_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cm
 #if 0
 	if (cmd->sc_data_direction == DMA_TO_DEVICE) {
 		int i;
-		printk(KERN_DEBUG "mac53c94_queue %p: command is", cmd);
+		printk(KERN_DE "mac53c94_queue %p: command is", cmd);
 		for (i = 0; i < cmd->cmd_len; ++i)
 			printk(KERN_CONT " %.2x", cmd->cmnd[i]);
 		printk(KERN_CONT "\n");
-		printk(KERN_DEBUG "use_sg=%d request_bufflen=%d request_buffer=%p\n",
+		printk(KERN_DE "use_sg=%d request_bufflen=%d request_buffer=%p\n",
 		       scsi_sg_count(cmd), scsi_bufflen(cmd), scsi_sglist(cmd));
 	}
 #endif
@@ -208,7 +208,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 	intr = readb(&regs->interrupt);
 
 #if 0
-	printk(KERN_DEBUG "mac53c94_intr, intr=%x stat=%x seq=%x phase=%d\n",
+	printk(KERN_DE "mac53c94_intr, intr=%x stat=%x seq=%x phase=%d\n",
 	       intr, stat, seq, state->phase);
 #endif
 
@@ -236,7 +236,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		writeb(CMD_NOP + CMD_DMA_MODE, &regs->command);
 	}
 	if (cmd == 0) {
-		printk(KERN_DEBUG "53c94: interrupt with no command active?\n");
+		printk(KERN_DE "53c94: interrupt with no command active?\n");
 		return;
 	}
 	if (stat & STAT_PARITY) {
@@ -252,12 +252,12 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 			return;
 		}
 		if (intr != INTR_BUS_SERV + INTR_DONE) {
-			printk(KERN_DEBUG "got intr %x during selection\n", intr);
+			printk(KERN_DE "got intr %x during selection\n", intr);
 			cmd_done(state, DID_ERROR << 16);
 			return;
 		}
 		if ((seq & SS_MASK) != SS_DONE) {
-			printk(KERN_DEBUG "seq step %x after command\n", seq);
+			printk(KERN_DE "seq step %x after command\n", seq);
 			cmd_done(state, DID_ERROR << 16);
 			return;
 		}
@@ -282,7 +282,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 			writeb(CMD_I_COMPLETE, &regs->command);
 			state->phase = completing;
 		} else {
-			printk(KERN_DEBUG "in unexpected phase %x after cmd\n",
+			printk(KERN_DE "in unexpected phase %x after cmd\n",
 			       stat & STAT_PHASE);
 			cmd_done(state, DID_ERROR << 16);
 			return;
@@ -291,7 +291,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 
 	case dataing:
 		if (intr != INTR_BUS_SERV) {
-			printk(KERN_DEBUG "got intr %x before status\n", intr);
+			printk(KERN_DE "got intr %x before status\n", intr);
 			cmd_done(state, DID_ERROR << 16);
 			return;
 		}
@@ -309,7 +309,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 			break;
 		}
 		if ((stat & STAT_PHASE) != STAT_CD + STAT_IO) {
-			printk(KERN_DEBUG "intr %x before data xfer complete\n", intr);
+			printk(KERN_DE "intr %x before data xfer complete\n", intr);
 		}
 		writel(RUN << 16, &dma->control);	/* stop dma */
 		scsi_dma_unmap(cmd);
@@ -319,7 +319,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		break;
 	case completing:
 		if (intr != INTR_DONE) {
-			printk(KERN_DEBUG "got intr %x on completion\n", intr);
+			printk(KERN_DE "got intr %x on completion\n", intr);
 			cmd_done(state, DID_ERROR << 16);
 			return;
 		}
@@ -331,13 +331,13 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		break;
 	case busfreeing:
 		if (intr != INTR_DISCONNECT) {
-			printk(KERN_DEBUG "got intr %x when expected disconnect\n", intr);
+			printk(KERN_DE "got intr %x when expected disconnect\n", intr);
 		}
 		cmd_done(state, (DID_OK << 16) + (cmd->SCp.Message << 8)
 			 + cmd->SCp.Status);
 		break;
 	default:
-		printk(KERN_DEBUG "don't know about phase %d\n", state->phase);
+		printk(KERN_DE "don't know about phase %d\n", state->phase);
 	}
 }
 
@@ -367,7 +367,7 @@ static void set_dma_cmds(struct fsc_state *state, struct scsi_cmnd *cmd)
 	u32 dma_len;
 
 	nseg = scsi_dma_map(cmd);
-	BUG_ON(nseg < 0);
+	_ON(nseg < 0);
 	if (!nseg)
 		return;
 

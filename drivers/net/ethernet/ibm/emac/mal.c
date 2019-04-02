@@ -84,7 +84,7 @@ void mal_unregister_commac(struct mal_instance	*mal,
 
 int mal_set_rcbs(struct mal_instance *mal, int channel, unsigned long size)
 {
-	BUG_ON(channel < 0 || channel >= mal->num_rx_chans ||
+	_ON(channel < 0 || channel >= mal->num_rx_chans ||
 	       size > MAL_MAX_RX_SIZE);
 
 	MAL_DBG(mal, "set_rbcs(%d, %lu)" NL, channel, size);
@@ -102,14 +102,14 @@ int mal_set_rcbs(struct mal_instance *mal, int channel, unsigned long size)
 
 int mal_tx_bd_offset(struct mal_instance *mal, int channel)
 {
-	BUG_ON(channel < 0 || channel >= mal->num_tx_chans);
+	_ON(channel < 0 || channel >= mal->num_tx_chans);
 
 	return channel * NUM_TX_BUFF;
 }
 
 int mal_rx_bd_offset(struct mal_instance *mal, int channel)
 {
-	BUG_ON(channel < 0 || channel >= mal->num_rx_chans);
+	_ON(channel < 0 || channel >= mal->num_rx_chans);
 	return mal->num_tx_chans * NUM_TX_BUFF + channel * NUM_RX_BUFF;
 }
 
@@ -238,8 +238,8 @@ static irqreturn_t mal_serr(int irq, void *dev_instance)
 		}
 
 		if (esr & MAL_ESR_PEIN) {
-			/* PLB error, it's probably buggy hardware or
-			 * incorrect physical address in BD (i.e. bug)
+			/* PLB error, it's probably gy hardware or
+			 * incorrect physical address in BD (i.e. )
 			 */
 			if (net_ratelimit())
 				printk(KERN_ERR
@@ -249,7 +249,7 @@ static irqreturn_t mal_serr(int irq, void *dev_instance)
 			return IRQ_HANDLED;
 		}
 
-		/* OPB error, it's probably buggy hardware or incorrect
+		/* OPB error, it's probably gy hardware or incorrect
 		 * EBC setup
 		 */
 		if (net_ratelimit())
@@ -630,8 +630,8 @@ static int mal_probe(struct platform_device *ofdev)
 	set_mal_dcrn(mal, MAL_CFG, cfg);
 
 	/* Allocate space for BD rings */
-	BUG_ON(mal->num_tx_chans <= 0 || mal->num_tx_chans > 32);
-	BUG_ON(mal->num_rx_chans <= 0 || mal->num_rx_chans > 32);
+	_ON(mal->num_tx_chans <= 0 || mal->num_tx_chans > 32);
+	_ON(mal->num_rx_chans <= 0 || mal->num_rx_chans > 32);
 
 	bd_size = sizeof(struct mal_descriptor) *
 		(NUM_TX_BUFF * mal->num_tx_chans +

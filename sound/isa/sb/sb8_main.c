@@ -124,7 +124,7 @@ static int snd_sb8_playback_prepare(struct snd_pcm_substream *substream)
 		break;
 	case SB_HW_PRO:
 		if (runtime->channels > 1) {
-			if (snd_BUG_ON(rate != SB8_RATE(11025) &&
+			if (snd__ON(rate != SB8_RATE(11025) &&
 				       rate != SB8_RATE(22050)))
 				return -EINVAL;
 			chip->playback_format = SB_DSP_HI_OUTPUT_AUTO;
@@ -274,7 +274,7 @@ static int snd_sb8_capture_prepare(struct snd_pcm_substream *substream)
 		break;
 	case SB_HW_PRO:
 		if (runtime->channels > 1) {
-			if (snd_BUG_ON(rate != SB8_RATE(11025) &&
+			if (snd__ON(rate != SB8_RATE(11025) &&
 				       rate != SB8_RATE(22050)))
 				return -EINVAL;
 			chip->capture_format = SB_DSP_HI_INPUT_AUTO;

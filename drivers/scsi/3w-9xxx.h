@@ -40,7 +40,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-   Bugs/Comments/Suggestions should be mailed to:
+   s/Comments/Suggestions should be mailed to:
    aradford@gmail.com
 */
 
@@ -131,7 +131,7 @@ static twa_message_type twa_aen_table[] = {
 /* AEN severity table */
 static char *twa_aen_severity_table[] =
 {
-	"None", "ERROR", "WARNING", "INFO", "DEBUG", (char*) 0
+	"None", "ERROR", "WARNING", "INFO", "DE", (char*) 0
 };
 
 /* Error strings */
@@ -303,7 +303,7 @@ static twa_message_type twa_error_table[] = {
 #define TW_AEN_SOFT_RESET        0x0001
 #define TW_AEN_SYNC_TIME_WITH_HOST 0x031
 #define TW_AEN_SEVERITY_ERROR    0x1
-#define TW_AEN_SEVERITY_DEBUG    0x4
+#define TW_AEN_SEVERITY_DE    0x4
 #define TW_AEN_NOT_RETRIEVED 0x1
 #define TW_AEN_RETRIEVED 0x2
 

@@ -286,7 +286,7 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 	else if (ih == &adev->irq.ih2)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING2);
 	else
-		BUG();
+		();
 
 	wptr = RREG32_NO_KIQ(reg);
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
@@ -311,7 +311,7 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 	else if (ih == &adev->irq.ih2)
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING2);
 	else
-		BUG();
+		();
 
 	tmp = RREG32_NO_KIQ(reg);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);

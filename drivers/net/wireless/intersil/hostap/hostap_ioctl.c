@@ -206,7 +206,7 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 	local->open_wep = erq->flags & IW_ENCODE_OPEN;
 
 	if (hostap_set_encryption(local)) {
-		printk(KERN_DEBUG "%s: set_encryption failed\n", dev->name);
+		printk(KERN_DE "%s: set_encryption failed\n", dev->name);
 		return -EINVAL;
 	}
 
@@ -216,7 +216,7 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 	 * after WEP configuration. However, keys are apparently changed at
 	 * least in Managed mode. */
 	if (local->iw_mode != IW_MODE_INFRA && local->func->reset_port(dev)) {
-		printk(KERN_DEBUG "%s: reset_port failed\n", dev->name);
+		printk(KERN_DE "%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
 
@@ -507,7 +507,7 @@ static int prism2_ioctl_giwaplist(struct net_device *dev,
 	local = iface->local;
 
 	if (local->iw_mode != IW_MODE_MASTER) {
-		printk(KERN_DEBUG "SIOCGIWAPLIST is currently only supported "
+		printk(KERN_DE "SIOCGIWAPLIST is currently only supported "
 		       "in Host AP mode\n");
 		data->length = 0;
 		return -EOPNOTSUPP;
@@ -665,12 +665,12 @@ static int hostap_join_ap(struct net_device *dev)
 
 	if (local->func->set_rid(dev, HFA384X_RID_JOINREQUEST, &req,
 				 sizeof(req))) {
-		printk(KERN_DEBUG "%s: JoinRequest %pM failed\n",
+		printk(KERN_DE "%s: JoinRequest %pM failed\n",
 		       dev->name, local->preferred_ap);
 		return -1;
 	}
 
-	printk(KERN_DEBUG "%s: Trying to join BSSID %pM\n",
+	printk(KERN_DE "%s: Trying to join BSSID %pM\n",
 	       dev->name, local->preferred_ap);
 
 	return 0;
@@ -700,7 +700,7 @@ static int prism2_ioctl_siwap(struct net_device *dev,
 		scan_req.txrate = cpu_to_le16(HFA384X_RATES_1MBPS);
 		if (local->func->set_rid(dev, HFA384X_RID_SCANREQUEST,
 					 &scan_req, sizeof(scan_req))) {
-			printk(KERN_DEBUG "%s: ScanResults request failed - "
+			printk(KERN_DE "%s: ScanResults request failed - "
 			       "preferred AP delayed to next unsolicited "
 			       "scan\n", dev->name);
 		}
@@ -709,7 +709,7 @@ static int prism2_ioctl_siwap(struct net_device *dev,
 		if (hostap_join_ap(dev))
 			return -EINVAL;
 	} else {
-		printk(KERN_DEBUG "%s: Preferred AP (SIOCSIWAP) is used only "
+		printk(KERN_DE "%s: Preferred AP (SIOCSIWAP) is used only "
 		       "in Managed mode when host_roaming is enabled\n",
 		       dev->name);
 	}
@@ -902,7 +902,7 @@ static int prism2_ioctl_siwessid(struct net_device *dev,
 	if (local->iw_mode == IW_MODE_MASTER && ssid[0] == '\0') {
 		/* Setting SSID to empty string seems to kill the card in
 		 * Host AP mode */
-		printk(KERN_DEBUG "%s: Host AP mode does not support "
+		printk(KERN_DE "%s: Host AP mode does not support "
 		       "'Any' essid\n", dev->name);
 		return -EINVAL;
 	}
@@ -1080,12 +1080,12 @@ static int hostap_monitor_mode_enable(local_info_t *local)
 {
 	struct net_device *dev = local->dev;
 
-	printk(KERN_DEBUG "Enabling monitor mode\n");
+	printk(KERN_DE "Enabling monitor mode\n");
 	hostap_monitor_set_type(local);
 
 	if (hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE,
 			    HFA384X_PORTTYPE_PSEUDO_IBSS)) {
-		printk(KERN_DEBUG "Port type setting for monitor mode "
+		printk(KERN_DE "Port type setting for monitor mode "
 		       "failed\n");
 		return -EOPNOTSUPP;
 	}
@@ -1096,7 +1096,7 @@ static int hostap_monitor_mode_enable(local_info_t *local)
 	if (hostap_set_word(dev, HFA384X_RID_CNFWEPFLAGS,
 			    HFA384X_WEPFLAGS_HOSTENCRYPT |
 			    HFA384X_WEPFLAGS_HOSTDECRYPT)) {
-		printk(KERN_DEBUG "WEP flags setting failed\n");
+		printk(KERN_DE "WEP flags setting failed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1104,7 +1104,7 @@ static int hostap_monitor_mode_enable(local_info_t *local)
 	    local->func->cmd(dev, HFA384X_CMDCODE_TEST |
 			     (HFA384X_TEST_MONITOR << 8),
 			     0, NULL, NULL)) {
-		printk(KERN_DEBUG "Setting monitor mode failed\n");
+		printk(KERN_DE "Setting monitor mode failed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1119,7 +1119,7 @@ static int hostap_monitor_mode_disable(local_info_t *local)
 	if (dev == NULL)
 		return -1;
 
-	printk(KERN_DEBUG "%s: Disabling monitor mode\n", dev->name);
+	printk(KERN_DE "%s: Disabling monitor mode\n", dev->name);
 	dev->type = ARPHRD_ETHER;
 
 	if (local->func->cmd(dev, HFA384X_CMDCODE_TEST |
@@ -1165,14 +1165,14 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 
 	if ((local->iw_mode == IW_MODE_ADHOC ||
 	     local->iw_mode == IW_MODE_MONITOR) && *mode == IW_MODE_MASTER) {
-		/* There seems to be a firmware bug in at least STA f/w v1.5.6
+		/* There seems to be a firmware  in at least STA f/w v1.5.6
 		 * that leaves beacon frames to use IBSS type when moving from
 		 * IBSS to Host AP mode. Doing double Port0 reset seems to be
 		 * enough to workaround this. */
 		double_reset = 1;
 	}
 
-	printk(KERN_DEBUG "prism2: %s: operating mode changed "
+	printk(KERN_DE "prism2: %s: operating mode changed "
 	       "%d -> %d\n", dev->name, local->iw_mode, *mode);
 	local->iw_mode = *mode;
 
@@ -1180,8 +1180,8 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 		hostap_monitor_mode_enable(local);
 	else if (local->iw_mode == IW_MODE_MASTER && !local->host_encrypt &&
 		 !local->fw_encrypt_ok) {
-		printk(KERN_DEBUG "%s: defaulting to host-based encryption as "
-		       "a workaround for firmware bug in Host AP mode WEP\n",
+		printk(KERN_DE "%s: defaulting to host-based encryption as "
+		       "a workaround for firmware  in Host AP mode WEP\n",
 		       dev->name);
 		local->host_encrypt = 1;
 	}
@@ -1372,7 +1372,7 @@ static int prism2_ioctl_siwretry(struct net_device *dev,
 		} else {
 			if (hostap_set_word(dev, HFA384X_RID_CNFALTRETRYCOUNT,
 					    rrq->value)) {
-				printk(KERN_DEBUG "%s: Alternate retry count "
+				printk(KERN_DE "%s: Alternate retry count "
 				       "setting to %d failed\n",
 				       dev->name, rrq->value);
 				return -EOPNOTSUPP;
@@ -1524,7 +1524,7 @@ static int prism2_ioctl_siwtxpow(struct net_device *dev,
 			ret = local->func->cmd(dev, HFA384X_CMDCODE_WRITEMIF,
 					       HFA386X_CR_A_D_TEST_MODES2,
 					       &val, NULL);
-			printk(KERN_DEBUG "%s: Turning radio off: %s\n",
+			printk(KERN_DE "%s: Turning radio off: %s\n",
 			       dev->name, ret ? "failed" : "OK");
 			local->txpower_type = PRISM2_TXPOWER_OFF;
 		}
@@ -1535,14 +1535,14 @@ static int prism2_ioctl_siwtxpow(struct net_device *dev,
 		val = 0; /* disable all standby and sleep modes */
 		ret = local->func->cmd(dev, HFA384X_CMDCODE_WRITEMIF,
 				       HFA386X_CR_A_D_TEST_MODES2, &val, NULL);
-		printk(KERN_DEBUG "%s: Turning radio on: %s\n",
+		printk(KERN_DE "%s: Turning radio on: %s\n",
 		       dev->name, ret ? "failed" : "OK");
 		local->txpower_type = PRISM2_TXPOWER_UNKNOWN;
 	}
 
 #ifdef RAW_TXPOWER_SETTING
 	if (!rrq->fixed && local->txpower_type != PRISM2_TXPOWER_AUTO) {
-		printk(KERN_DEBUG "Setting ALC on\n");
+		printk(KERN_DE "Setting ALC on\n");
 		val = HFA384X_TEST_CFG_BIT_ALC;
 		local->func->cmd(dev, HFA384X_CMDCODE_TEST |
 				 (HFA384X_TEST_CFG_BITS << 8), 1, &val, NULL);
@@ -1551,7 +1551,7 @@ static int prism2_ioctl_siwtxpow(struct net_device *dev,
 	}
 
 	if (local->txpower_type != PRISM2_TXPOWER_FIXED) {
-		printk(KERN_DEBUG "Setting ALC off\n");
+		printk(KERN_DE "Setting ALC off\n");
 		val = HFA384X_TEST_CFG_BIT_ALC;
 		local->func->cmd(dev, HFA384X_CMDCODE_TEST |
 				 (HFA384X_TEST_CFG_BITS << 8), 0, &val, NULL);
@@ -1564,7 +1564,7 @@ static int prism2_ioctl_siwtxpow(struct net_device *dev,
 		tmp = "mW";
 	else
 		tmp = "UNKNOWN";
-	printk(KERN_DEBUG "Setting TX power to %d %s\n", rrq->value, tmp);
+	printk(KERN_DE "Setting TX power to %d %s\n", rrq->value, tmp);
 
 	if (rrq->flags != IW_TXPOW_DBM) {
 		printk("SIOCSIWTXPOW with mW is not supported; use dBm\n");
@@ -1654,7 +1654,7 @@ static int prism2_request_hostscan(struct net_device *dev,
 
 	if (local->func->set_rid(dev, HFA384X_RID_HOSTSCAN, &scan_req,
 				 sizeof(scan_req))) {
-		printk(KERN_DEBUG "%s: HOSTSCAN failed\n", dev->name);
+		printk(KERN_DE "%s: HOSTSCAN failed\n", dev->name);
 		return -EINVAL;
 	}
 	return 0;
@@ -1691,7 +1691,7 @@ static int prism2_request_scan(struct net_device *dev)
 
 	if (local->func->set_rid(dev, HFA384X_RID_SCANREQUEST, &scan_req,
 				 sizeof(scan_req))) {
-		printk(KERN_DEBUG "SCANREQUEST failed\n");
+		printk(KERN_DE "SCANREQUEST failed\n");
 		ret = -EINVAL;
 	}
 
@@ -2089,12 +2089,12 @@ static int prism2_ioctl_giwscan(struct net_device *dev,
 		/* Translate to WE format */
 		res = prism2_ap_translate_scan(dev, info, extra);
 		if (res >= 0) {
-			printk(KERN_DEBUG "Scan result translation succeeded "
+			printk(KERN_DE "Scan result translation succeeded "
 			       "(length=%d)\n", res);
 			data->length = res;
 			return 0;
 		} else {
-			printk(KERN_DEBUG
+			printk(KERN_DE
 			       "Scan result translation failed (res=%d)\n",
 			       res);
 			data->length = 0;
@@ -2253,12 +2253,12 @@ static const struct iw_priv_args prism2_priv[] = {
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "enh_sec" },
 	{ PRISM2_PARAM_ENH_SEC,
 	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getenh_sec" },
-#ifdef PRISM2_IO_DEBUG
-	{ PRISM2_PARAM_IO_DEBUG,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "io_debug" },
-	{ PRISM2_PARAM_IO_DEBUG,
-	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getio_debug" },
-#endif /* PRISM2_IO_DEBUG */
+#ifdef PRISM2_IO_DE
+	{ PRISM2_PARAM_IO_DE,
+	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "io_de" },
+	{ PRISM2_PARAM_IO_DE,
+	  0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "getio_de" },
+#endif /* PRISM2_IO_DE */
 	{ PRISM2_PARAM_BASIC_RATES,
 	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "basic_rates" },
 	{ PRISM2_PARAM_BASIC_RATES,
@@ -2351,7 +2351,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 			break;
 		}
 
-		printk(KERN_DEBUG "prism2: %s: pseudo IBSS change %d -> %d\n",
+		printk(KERN_DE "prism2: %s: pseudo IBSS change %d -> %d\n",
 		       dev->name, local->pseudo_adhoc, value);
 		local->pseudo_adhoc = value;
 		if (local->iw_mode != IW_MODE_ADHOC)
@@ -2369,7 +2369,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 #endif /* PRISM2_NO_STATION_MODES */
 
 	case PRISM2_PARAM_ALC:
-		printk(KERN_DEBUG "%s: %s ALC\n", dev->name,
+		printk(KERN_DE "%s: %s ALC\n", dev->name,
 		       value == 0 ? "Disabling" : "Enabling");
 		val = HFA384X_TEST_CFG_BIT_ALC;
 		local->func->cmd(dev, HFA384X_CMDCODE_TEST |
@@ -2535,13 +2535,13 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 			if (hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE,
 					    HFA384X_PORTTYPE_BSS) ||
 			    local->func->reset_port(dev))
-				printk(KERN_DEBUG "Leaving Host AP mode "
+				printk(KERN_DE "Leaving Host AP mode "
 				       "for HostScan failed\n");
 		}
 
 		if (local->func->set_rid(dev, HFA384X_RID_HOSTSCAN, &scan_req,
 					 sizeof(scan_req))) {
-			printk(KERN_DEBUG "HOSTSCAN failed\n");
+			printk(KERN_DE "HOSTSCAN failed\n");
 			ret = -EINVAL;
 		}
 		if (local->iw_mode == IW_MODE_MASTER) {
@@ -2558,7 +2558,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 			if (hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE,
 					    HFA384X_PORTTYPE_HOSTAP) ||
 			    local->func->reset_port(dev))
-				printk(KERN_DEBUG "Returning to Host AP mode "
+				printk(KERN_DE "Returning to Host AP mode "
 				       "after HostScan failed\n");
 		}
 		break;
@@ -2590,11 +2590,11 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		}
 		break;
 
-#ifdef PRISM2_IO_DEBUG
-	case PRISM2_PARAM_IO_DEBUG:
-		local->io_debug_enabled = value;
+#ifdef PRISM2_IO_DE
+	case PRISM2_PARAM_IO_DE:
+		local->io_de_enabled = value;
 		break;
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 	case PRISM2_PARAM_BASIC_RATES:
 		if ((value & local->tx_rate_control) != value || value == 0) {
@@ -2654,7 +2654,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		break;
 
 	default:
-		printk(KERN_DEBUG "%s: prism2_param: unknown param %d\n",
+		printk(KERN_DE "%s: prism2_param: unknown param %d\n",
 		       dev->name, param);
 		ret = -EOPNOTSUPP;
 		break;
@@ -2796,11 +2796,11 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 		*param = local->enh_sec;
 		break;
 
-#ifdef PRISM2_IO_DEBUG
-	case PRISM2_PARAM_IO_DEBUG:
-		*param = local->io_debug_enabled;
+#ifdef PRISM2_IO_DE
+	case PRISM2_PARAM_IO_DE:
+		*param = local->io_de_enabled;
 		break;
-#endif /* PRISM2_IO_DEBUG */
+#endif /* PRISM2_IO_DE */
 
 	case PRISM2_PARAM_BASIC_RATES:
 		*param = local->basic_rates;
@@ -2841,7 +2841,7 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 		break;
 
 	default:
-		printk(KERN_DEBUG "%s: get_prism2_param: unknown param %d\n",
+		printk(KERN_DE "%s: get_prism2_param: unknown param %d\n",
 		       dev->name, *param);
 		ret = -EOPNOTSUPP;
 		break;
@@ -2902,7 +2902,7 @@ static int prism2_ioctl_priv_monitor(struct net_device *dev, int *i)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	printk(KERN_DEBUG "%s: process %d (%s) used deprecated iwpriv monitor "
+	printk(KERN_DE "%s: process %d (%s) used deprecated iwpriv monitor "
 	       "- update software to use iwconfig mode monitor\n",
 	       dev->name, task_pid_nr(current), current->comm);
 
@@ -2946,7 +2946,7 @@ static int prism2_ioctl_priv_reset(struct net_device *dev, int *i)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	printk(KERN_DEBUG "%s: manual reset request(%d)\n", dev->name, *i);
+	printk(KERN_DE "%s: manual reset request(%d)\n", dev->name, *i);
 	switch (*i) {
 	case 0:
 		/* Disable and enable card */
@@ -2978,7 +2978,7 @@ static int prism2_ioctl_priv_reset(struct net_device *dev, int *i)
 		break;
 
 	default:
-		printk(KERN_DEBUG "Unknown reset request %d\n", *i);
+		printk(KERN_DE "Unknown reset request %d\n", *i);
 		return -EOPNOTSUPP;
 	}
 
@@ -2991,7 +2991,7 @@ static int prism2_ioctl_priv_set_rid_word(struct net_device *dev, int *i)
 	int rid = *i;
 	int value = *(i + 1);
 
-	printk(KERN_DEBUG "%s: Set RID[0x%X] = %d\n", dev->name, rid, value);
+	printk(KERN_DE "%s: Set RID[0x%X] = %d\n", dev->name, rid, value);
 
 	if (hostap_set_word(dev, rid, value))
 		return -EINVAL;
@@ -3261,7 +3261,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 		module = "lib80211_crypt_ccmp";
 		break;
 	default:
-		printk(KERN_DEBUG "%s: unsupported algorithm %d\n",
+		printk(KERN_DE "%s: unsupported algorithm %d\n",
 		       local->dev->name, ext->alg);
 		ret = -EOPNOTSUPP;
 		goto done;
@@ -3273,7 +3273,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		printk(KERN_DEBUG "%s: unknown crypto alg '%s'\n",
+		printk(KERN_DE "%s: unknown crypto alg '%s'\n",
 		       local->dev->name, alg);
 		ret = -EOPNOTSUPP;
 		goto done;
@@ -3321,7 +3321,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 	    && (*crypt)->ops->set_key &&
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
-		printk(KERN_DEBUG "%s: key setting failed\n",
+		printk(KERN_DE "%s: key setting failed\n",
 		       local->dev->name);
 		ret = -EINVAL;
 		goto done;
@@ -3491,7 +3491,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 		ops = lib80211_get_crypto_ops(param->u.crypt.alg);
 	}
 	if (ops == NULL) {
-		printk(KERN_DEBUG "%s: unknown crypto alg '%s'\n",
+		printk(KERN_DE "%s: unknown crypto alg '%s'\n",
 		       local->dev->name, param->u.crypt.alg);
 		param->u.crypt.err = HOSTAP_CRYPT_ERR_UNKNOWN_ALG;
 		ret = -EINVAL;
@@ -3531,7 +3531,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 	    (*crypt)->ops->set_key(param->u.crypt.key,
 				   param->u.crypt.key_len, param->u.crypt.seq,
 				   (*crypt)->priv) < 0) {
-		printk(KERN_DEBUG "%s: key setting failed\n",
+		printk(KERN_DE "%s: key setting failed\n",
 		       local->dev->name);
 		param->u.crypt.err = HOSTAP_CRYPT_ERR_KEY_SET_FAILED;
 		ret = -EINVAL;
@@ -3542,7 +3542,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 		if (!sta_ptr)
 			local->crypt_info.tx_keyidx = param->u.crypt.idx;
 		else if (param->u.crypt.idx) {
-			printk(KERN_DEBUG "%s: TX key idx setting failed\n",
+			printk(KERN_DE "%s: TX key idx setting failed\n",
 			       local->dev->name);
 			param->u.crypt.err =
 				HOSTAP_CRYPT_ERR_TX_KEY_SET_FAILED;
@@ -3669,7 +3669,7 @@ static int prism2_ioctl_set_assoc_ap_addr(local_info_t *local,
 					  struct prism2_hostapd_param *param,
 					  int param_len)
 {
-	printk(KERN_DEBUG "%ssta: associated as client with AP %pM\n",
+	printk(KERN_DE "%ssta: associated as client with AP %pM\n",
 	       local->dev->name, param->sta_addr);
 	memcpy(local->assoc_ap_addr, param->sta_addr, ETH_ALEN);
 	return 0;

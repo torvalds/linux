@@ -171,7 +171,7 @@ static int ctrl_init(struct omapfb_device *fbdev)
 		return r;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	for (i = 0; i < fbdev->mem_desc.region_cnt; i++) {
 		dev_dbg(fbdev->dev, "region%d phys %08x virt %p size=%lu\n",
 			 i,
@@ -287,7 +287,7 @@ static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 	return r;
 }
@@ -1078,7 +1078,7 @@ static int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 	} p;
 	int r = 0;
 
-	BUG_ON(!ops);
+	_ON(!ops);
 	switch (cmd) {
 	case OMAPFB_MIRROR:
 		if (get_user(p.mirror, (int __user *)arg))
@@ -1570,7 +1570,7 @@ static void omapfb_free_resources(struct omapfb_device *fbdev, int state)
 		/* nothing to free */
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -1767,7 +1767,7 @@ static int omapfb_probe(struct platform_device *pdev)
 {
 	int r;
 
-	BUG_ON(fbdev_pdev != NULL);
+	_ON(fbdev_pdev != NULL);
 
 	r = platform_device_register(&omapdss_device);
 	if (r) {
@@ -1784,7 +1784,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 void omapfb_register_panel(struct lcd_panel *panel)
 {
-	BUG_ON(fbdev_panel != NULL);
+	_ON(fbdev_panel != NULL);
 
 	fbdev_panel = panel;
 	if (fbdev_pdev != NULL)
@@ -1847,7 +1847,7 @@ static int __init omapfb_setup(char *options)
 	char *this_opt = NULL;
 	int r = 0;
 
-	pr_debug("omapfb: options %s\n", options);
+	pr_de("omapfb: options %s\n", options);
 
 	if (!options || !*options)
 		return 0;
@@ -1871,7 +1871,7 @@ static int __init omapfb_setup(char *options)
 				vram *= 1024;
 				break;
 			default:
-				pr_debug("omapfb: invalid vram suffix %c\n",
+				pr_de("omapfb: invalid vram suffix %c\n",
 					 suffix[0]);
 				r = -1;
 			}
@@ -1888,7 +1888,7 @@ static int __init omapfb_setup(char *options)
 		else if (!strncmp(this_opt, "manual_update", 13))
 			manual_update = 1;
 		else {
-			pr_debug("omapfb: invalid option\n");
+			pr_de("omapfb: invalid option\n");
 			r = -1;
 		}
 	}
@@ -1910,7 +1910,7 @@ static int __init omapfb_init(void)
 #endif
 	/* Register the driver with LDM */
 	if (platform_driver_register(&omapfb_driver)) {
-		pr_debug("failed to register omapfb driver\n");
+		pr_de("failed to register omapfb driver\n");
 		return -ENODEV;
 	}
 

@@ -235,7 +235,7 @@ static int st_nci_spi_probe(struct spi_device *dev)
 
 	/* Check SPI platform functionnalities */
 	if (!dev) {
-		pr_debug("%s: dev is NULL. Device is not accessible.\n",
+		pr_de("%s: dev is NULL. Device is not accessible.\n",
 			__func__);
 		return -ENODEV;
 	}

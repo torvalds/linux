@@ -101,7 +101,7 @@ static struct scif_endpt *scif_disconnect_ep(struct scif_endpt *ep)
 	 * Wake up any threads blocked in send()/recv() before closing
 	 * out the connection. Grabbing and releasing the send/recv lock
 	 * will ensure that any blocked senders/receivers have exited for
-	 * Ring 0 endpoints. It is a Ring 0 bug to call send/recv after
+	 * Ring 0 endpoints. It is a Ring 0  to call send/recv after
 	 * close. Ring 3 endpoints are not affected since close will not
 	 * be called while there are IOCTLs executing.
 	 */

@@ -94,7 +94,7 @@ Callers of this function must make sure that there are no racy
 wait_for_completion() calls going on in parallel.
 
 Calling init_completion() on the same completion object twice is
-most likely a bug as it re-initializes the queue to an empty queue and
+most likely a  as it re-initializes the queue to an empty queue and
 enqueued tasks could get "lost" - use reinit_completion() in that case,
 but be aware of other races.
 
@@ -258,13 +258,13 @@ wakeup order is the same in which they were enqueued (FIFO order).
 
 If complete() is called multiple times then this will allow for that number
 of waiters to continue - each call to complete() will simply increment the
-done field. Calling complete_all() multiple times is a bug though. Both
+done field. Calling complete_all() multiple times is a  though. Both
 complete() and complete_all() can be called in IRQ/atomic context safely.
 
 There can only be one thread calling complete() or complete_all() on a
 particular 'struct completion' at any time - serialized through the wait
 queue spinlock. Any such concurrent calls to complete() or complete_all()
-probably are a design bug.
+probably are a design .
 
 Signaling completion from IRQ context is fine as it will appropriately
 lock with spin_lock_irqsave()/spin_unlock_irqrestore() and it will never

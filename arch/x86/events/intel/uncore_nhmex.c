@@ -718,7 +718,7 @@ fail:
 		 * register. If we failed to take one field, try the
 		 * rest 3 choices.
 		 */
-		BUG_ON(__BITS_VALUE(reg1->idx, 1, 8) != 0xff);
+		_ON(__BITS_VALUE(reg1->idx, 1, 8) != 0xff);
 		idx[0] -= EXTRA_REG_NHMEX_M_ZDP_CTL_FVC;
 		idx[0] = (idx[0] + 1) % 4;
 		idx[0] += EXTRA_REG_NHMEX_M_ZDP_CTL_FVC;

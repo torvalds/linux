@@ -251,7 +251,7 @@ enum tpacpi_hkey_event_t {
 
 #define TPACPI_MAX_ACPI_ARGS 3
 
-/* Debugging printk groups */
+/* Deging printk groups */
 #define TPACPI_DBG_ALL		0xffff
 #define TPACPI_DBG_DISCLOSETASK	0x8000
 #define TPACPI_DBG_INIT		0x0001
@@ -394,7 +394,7 @@ struct tpacpi_led_classdev {
 /* brightness level capabilities */
 static unsigned int bright_maxlvl;	/* 0 = unknown */
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 static int dbg_wlswemul;
 static bool tpacpi_wlsw_emulstate;
 static int dbg_bluetoothemul;
@@ -407,17 +407,17 @@ static bool tpacpi_uwb_emulstate;
 
 
 /*************************************************************************
- *  Debugging helpers
+ *  Deging helpers
  */
 
 #define dbg_printk(a_dbg_level, format, arg...)				\
 do {									\
 	if (dbg_level & (a_dbg_level))					\
-		printk(KERN_DEBUG pr_fmt("%s: " format),		\
+		printk(KERN_DE pr_fmt("%s: " format),		\
 		       __func__, ##arg);				\
 } while (0)
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUG
+#ifdef CONFIG_THINKPAD_ACPI_DE
 #define vdbg_printk dbg_printk
 static const char *str_supported(int is_supported);
 #else
@@ -428,7 +428,7 @@ static inline const char *str_supported(int is_supported) { return ""; }
 
 static void tpacpi_log_usertask(const char * const what)
 {
-	printk(KERN_DEBUG pr_fmt("%s: access by process with PID %d\n"),
+	printk(KERN_DE pr_fmt("%s: access by process with PID %d\n"),
 	       what, task_tgid_vnr(current));
 }
 
@@ -436,7 +436,7 @@ static void tpacpi_log_usertask(const char * const what)
 do {									\
 	if (unlikely((dbg_level & TPACPI_DBG_DISCLOSETASK) &&		\
 		     (tpacpi_lifecycle == TPACPI_LIFE_RUNNING))) {	\
-		printk(KERN_DEBUG pr_fmt("%s: PID %d: " format),	\
+		printk(KERN_DE pr_fmt("%s: PID %d: " format),	\
 		       what, task_tgid_vnr(current), ## arg);		\
 	}								\
 } while (0)
@@ -754,7 +754,7 @@ static void __init tpacpi_acpi_handle_locate(const char *name,
 	acpi_status status;
 	acpi_handle device_found;
 
-	BUG_ON(!name || !handle);
+	_ON(!name || !handle);
 	vdbg_printk(TPACPI_DBG_INIT,
 			"trying to locate ACPI handle for %s, using HID %s\n",
 			name, hid ? hid : "NULL");
@@ -794,7 +794,7 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 	acpi_status status;
 	int rc;
 
-	BUG_ON(!ibm->acpi);
+	_ON(!ibm->acpi);
 
 	if (!*ibm->acpi->handle)
 		return 0;
@@ -841,7 +841,7 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 	dbg_printk(TPACPI_DBG_INIT,
 		"registering %s as an ACPI driver\n", ibm->name);
 
-	BUG_ON(!ibm->acpi);
+	_ON(!ibm->acpi);
 
 	ibm->acpi->driver = kzalloc(sizeof(struct acpi_driver), GFP_KERNEL);
 	if (!ibm->acpi->driver) {
@@ -1286,7 +1286,7 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 	bool hw_state;
 	int sw_status;
 
-	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
+	_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
 
 	atp_rfk = kzalloc(sizeof(struct tpacpi_rfk), GFP_KERNEL);
 	if (atp_rfk)
@@ -1338,7 +1338,7 @@ static void tpacpi_destroy_rfkill(const enum tpacpi_rfk_id id)
 {
 	struct tpacpi_rfk *tp_rfk;
 
-	BUG_ON(id >= TPACPI_RFK_SW_MAX);
+	_ON(id >= TPACPI_RFK_SW_MAX);
 
 	tp_rfk = tpacpi_rfkill_switches[id];
 	if (tp_rfk) {
@@ -1470,13 +1470,13 @@ static ssize_t interface_version_show(struct device_driver *drv, char *buf)
 }
 static DRIVER_ATTR_RO(interface_version);
 
-/* debug_level --------------------------------------------------------- */
-static ssize_t debug_level_show(struct device_driver *drv, char *buf)
+/* de_level --------------------------------------------------------- */
+static ssize_t de_level_show(struct device_driver *drv, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "0x%04x\n", dbg_level);
 }
 
-static ssize_t debug_level_store(struct device_driver *drv, const char *buf,
+static ssize_t de_level_store(struct device_driver *drv, const char *buf,
 				 size_t count)
 {
 	unsigned long t;
@@ -1488,7 +1488,7 @@ static ssize_t debug_level_store(struct device_driver *drv, const char *buf,
 
 	return count;
 }
-static DRIVER_ATTR_RW(debug_level);
+static DRIVER_ATTR_RW(de_level);
 
 /* version ------------------------------------------------------------- */
 static ssize_t version_show(struct device_driver *drv, char *buf)
@@ -1500,7 +1500,7 @@ static DRIVER_ATTR_RO(version);
 
 /* --------------------------------------------------------------------- */
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 
 /* wlsw_emulstate ------------------------------------------------------ */
 static ssize_t wlsw_emulstate_show(struct device_driver *drv, char *buf)
@@ -1589,7 +1589,7 @@ static DRIVER_ATTR_RW(uwb_emulstate);
 /* --------------------------------------------------------------------- */
 
 static struct driver_attribute *tpacpi_driver_attributes[] = {
-	&driver_attr_debug_level, &driver_attr_version,
+	&driver_attr_de_level, &driver_attr_version,
 	&driver_attr_interface_version,
 };
 
@@ -1604,7 +1604,7 @@ static int __init tpacpi_create_driver_attributes(struct device_driver *drv)
 		i++;
 	}
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (!res && dbg_wlswemul)
 		res = driver_create_file(drv, &driver_attr_wlsw_emulstate);
 	if (!res && dbg_bluetoothemul)
@@ -1625,7 +1625,7 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv)
 	for (i = 0; i < ARRAY_SIZE(tpacpi_driver_attributes); i++)
 		driver_remove_file(drv, tpacpi_driver_attributes[i]);
 
-#ifdef THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef THINKPAD_ACPI_DEFACILITIES
 	driver_remove_file(drv, &driver_attr_wlsw_emulstate);
 	driver_remove_file(drv, &driver_attr_bluetooth_emulstate);
 	driver_remove_file(drv, &driver_attr_wwan_emulstate);
@@ -1642,9 +1642,9 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv)
  *
  * Reasons for listing:
  *    1. Stable BIOS, listed because the unknown amount of
- *       bugs and bad ACPI behaviour on older versions
+ *       s and bad ACPI behaviour on older versions
  *
- *    2. BIOS or EC fw with known bugs that trigger on Linux
+ *    2. BIOS or EC fw with known s that trigger on Linux
  *
  *    3. BIOS with known reduced functionality in older versions
  *
@@ -1822,7 +1822,7 @@ static void __init tpacpi_check_outdated_fw(void)
 		 * best if the user upgrades the firmware anyway.
 		 */
 		pr_warn("WARNING: Outdated ThinkPad BIOS/EC firmware\n");
-		pr_warn("WARNING: This firmware may be missing critical bug fixes and/or important features\n");
+		pr_warn("WARNING: This firmware may be missing critical  fixes and/or important features\n");
 	}
 }
 
@@ -2101,7 +2101,7 @@ static int hotkey_get_wlsw(void)
 	if (!tp_features.hotkey_wlsw)
 		return -ENODEV;
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_wlswemul)
 		return (tpacpi_wlsw_emulstate) ?
 				TPACPI_RFK_RADIO_ON : TPACPI_RFK_RADIO_OFF;
@@ -2545,7 +2545,7 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 	 * since the last poll cycle.
 	 *
 	 * Just to make our life interesting, some newer Lenovo ThinkPads have
-	 * bugs in the BIOS and may fail to update volume_toggle properly.
+	 * s in the BIOS and may fail to update volume_toggle properly.
 	 */
 	if (newn->mute) {
 		/* muted */
@@ -2748,7 +2748,7 @@ static int hotkey_inputdev_open(struct input_dev *dev)
 	}
 
 	/* Should only happen if tpacpi_lifecycle is corrupt */
-	BUG();
+	();
 	return -EBUSY;
 }
 
@@ -3292,7 +3292,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	 *    keymaps.  This requirement exists so that you will
 	 *    know the past history of problems with the thinkpad-
 	 *    acpi driver keymaps, and also that you will be
-	 *    listening to any bug reports;
+	 *    listening to any  reports;
 	 *
 	 * 3. Do not send thinkpad-acpi specific patches directly to
 	 *    for merging, *ever*.  Send them to the linux-acpi
@@ -3390,7 +3390,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		 *
 		 * T60?, T61, R60?, R61: firmware and EC tries to send
 		 * these over the regular keyboard, so these are no-ops,
-		 * but there are still weird bugs re. MUTE, so do not
+		 * but there are still weird s re. MUTE, so do not
 		 * change unless you get test reports from all Lenovo
 		 * models.  May cause the BIOS to interfere with the
 		 * HDA mixer.
@@ -3499,8 +3499,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			"initializing hotkey subdriver\n");
 
-	BUG_ON(!tpacpi_inputdev);
-	BUG_ON(tpacpi_inputdev->open != NULL ||
+	_ON(!tpacpi_inputdev);
+	_ON(tpacpi_inputdev->open != NULL ||
 	       tpacpi_inputdev->close != NULL);
 
 	TPACPI_ACPIHANDLE_INIT(hkey);
@@ -3632,7 +3632,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		hotkey_acpi_mask = hotkey_all_mask;
 	}
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_wlswemul) {
 		tp_features.hotkey_wlsw = 1;
 		radiosw_state = !!tpacpi_wlsw_emulstate;
@@ -3672,7 +3672,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 	keymap_id = tpacpi_check_quirks(tpacpi_keymap_qtable,
 					ARRAY_SIZE(tpacpi_keymap_qtable));
-	BUG_ON(keymap_id >= ARRAY_SIZE(tpacpi_keymaps));
+	_ON(keymap_id >= ARRAY_SIZE(tpacpi_keymaps));
 	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		   "using keymap number %lu\n", keymap_id);
 
@@ -4060,17 +4060,17 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 
 	switch (hkey) {
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
-		pr_debug("EC reports: Thermal Table has changed\n");
+		pr_de("EC reports: Thermal Table has changed\n");
 		/* recommended action: do nothing, we don't have
 		 * Lenovo ATM information */
 		return true;
 	case TP_HKEY_EV_THM_CSM_COMPLETED:
-		pr_debug("EC reports: Thermal Control Command set completed (DYTC)\n");
+		pr_de("EC reports: Thermal Control Command set completed (DYTC)\n");
 		/* recommended action: do nothing, we don't have
 		 * Lenovo ATM information */
 		return true;
 	case TP_HKEY_EV_THM_TRANSFM_CHANGED:
-		pr_debug("EC reports: Thermal Transformation changed (GMTS)\n");
+		pr_de("EC reports: Thermal Transformation changed (GMTS)\n");
 		/* recommended action: do nothing, we don't have
 		 * Lenovo ATM information */
 		return true;
@@ -4405,7 +4405,7 @@ static int bluetooth_get_status(void)
 {
 	int status;
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_bluetoothemul)
 		return (tpacpi_bluetooth_emulstate) ?
 		       TPACPI_RFK_RADIO_ON : TPACPI_RFK_RADIO_OFF;
@@ -4426,7 +4426,7 @@ static int bluetooth_set_status(enum tpacpi_rfkill_state state)
 		"will attempt to %s bluetooth\n",
 		(state == TPACPI_RFK_RADIO_ON) ? "enable" : "disable");
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_bluetoothemul) {
 		tpacpi_bluetooth_emulstate = (state == TPACPI_RFK_RADIO_ON);
 		return 0;
@@ -4521,7 +4521,7 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.bluetooth),
 		status);
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_bluetoothemul) {
 		tp_features.bluetooth = 1;
 		pr_info("bluetooth switch emulation enabled\n");
@@ -4593,7 +4593,7 @@ static int wan_get_status(void)
 {
 	int status;
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_wwanemul)
 		return (tpacpi_wwan_emulstate) ?
 		       TPACPI_RFK_RADIO_ON : TPACPI_RFK_RADIO_OFF;
@@ -4614,7 +4614,7 @@ static int wan_set_status(enum tpacpi_rfkill_state state)
 		"will attempt to %s wwan\n",
 		(state == TPACPI_RFK_RADIO_ON) ? "enable" : "disable");
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_wwanemul) {
 		tpacpi_wwan_emulstate = (state == TPACPI_RFK_RADIO_ON);
 		return 0;
@@ -4708,7 +4708,7 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.wan),
 		status);
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_wwanemul) {
 		tp_features.wan = 1;
 		pr_info("wwan switch emulation enabled\n");
@@ -4779,7 +4779,7 @@ static int uwb_get_status(void)
 {
 	int status;
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_uwbemul)
 		return (tpacpi_uwb_emulstate) ?
 		       TPACPI_RFK_RADIO_ON : TPACPI_RFK_RADIO_OFF;
@@ -4800,7 +4800,7 @@ static int uwb_set_status(enum tpacpi_rfkill_state state)
 		"will attempt to %s UWB\n",
 		(state == TPACPI_RFK_RADIO_ON) ? "enable" : "disable");
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_uwbemul) {
 		tpacpi_uwb_emulstate = (state == TPACPI_RFK_RADIO_ON);
 		return 0;
@@ -4848,7 +4848,7 @@ static int __init uwb_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.uwb),
 		status);
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 	if (dbg_uwbemul) {
 		tp_features.uwb = 1;
 		pr_info("uwb switch emulation enabled\n");
@@ -6911,7 +6911,7 @@ static void __init tpacpi_detect_brightness_capabilities(void)
 		tp_features.bright_unkfw = 1;
 		bright_maxlvl = b - 1;
 	}
-	pr_debug("detected %u brightness levels\n", bright_maxlvl + 1);
+	pr_de("detected %u brightness levels\n", bright_maxlvl + 1);
 }
 
 static int __init brightness_init(struct ibm_init_struct *iibm)
@@ -7572,7 +7572,7 @@ static int __init volume_create_alsa_mixer(void)
 		return 1;
 	}
 
-	BUG_ON(!card->private_data);
+	_ON(!card->private_data);
 	data = card->private_data;
 	data->card = card;
 
@@ -7944,11 +7944,11 @@ static struct ibm_struct volume_driver_data = {
  * 		Some ThinkPads may have other levels, see
  * 		TPACPI_FAN_WR_ACPI_FANS (X31/X40/X41)
  *
- *	FIRMWARE BUG: on some models, EC 0x2f might not be initialized at
+ *	FIRMWARE : on some models, EC 0x2f might not be initialized at
  *	boot. Apparently the EC does not initialize it, so unless ACPI DSDT
  *	does so, its initial value is meaningless (0x07).
  *
- *	For firmware bugs, refer to:
+ *	For firmware s, refer to:
  *	http://thinkwiki.org/wiki/Embedded_Controller_Firmware#Firmware_Issues
  *
  * 	----
@@ -7967,13 +7967,13 @@ static struct ibm_struct volume_driver_data = {
  *	probably support the tachometer (like the early X models), so
  *	detecting it is quite hard.  We need more data to know for sure.
  *
- *	FIRMWARE BUG: always read 0x84 first, otherwise incorrect readings
+ *	FIRMWARE : always read 0x84 first, otherwise incorrect readings
  *	might result.
  *
- *	FIRMWARE BUG: may go stale while the EC is switching to full speed
+ *	FIRMWARE : may go stale while the EC is switching to full speed
  *	mode.
  *
- *	For firmware bugs, refer to:
+ *	For firmware s, refer to:
  *	http://thinkwiki.org/wiki/Embedded_Controller_Firmware#Firmware_Issues
  *
  *	----
@@ -8083,7 +8083,7 @@ TPACPI_HANDLE(sfan, ec, "SFAN",	/* 570 */
  * which is only used by the firmware during thermal emergencies.
  *
  * Enable for TP-1Y (T43), TP-78 (R51e), TP-76 (R52),
- * TP-70 (T43, R52), which are known to be buggy.
+ * TP-70 (T43, R52), which are known to be gy.
  */
 
 static void fan_quirk1_setup(void)
@@ -9726,14 +9726,14 @@ static struct proc_dir_entry *proc_dir;
 
 static bool force_load;
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUG
+#ifdef CONFIG_THINKPAD_ACPI_DE
 static const char * __init str_supported(int is_supported)
 {
 	static char text_unsupported[] __initdata = "not supported";
 
 	return (is_supported) ? &text_unsupported[4] : &text_unsupported[0];
 }
-#endif /* CONFIG_THINKPAD_ACPI_DEBUG */
+#endif /* CONFIG_THINKPAD_ACPI_DE */
 
 static void ibm_exit(struct ibm_struct *ibm)
 {
@@ -9744,7 +9744,7 @@ static void ibm_exit(struct ibm_struct *ibm)
 	if (ibm->flags.acpi_notify_installed) {
 		dbg_printk(TPACPI_DBG_EXIT,
 			"%s: acpi_remove_notify_handler\n", ibm->name);
-		BUG_ON(!ibm->acpi);
+		_ON(!ibm->acpi);
 		acpi_remove_notify_handler(*ibm->acpi->handle,
 					   ibm->acpi->type,
 					   dispatch_acpi_notify);
@@ -9761,7 +9761,7 @@ static void ibm_exit(struct ibm_struct *ibm)
 	if (ibm->flags.acpi_driver_registered) {
 		dbg_printk(TPACPI_DBG_EXIT,
 			"%s: acpi_bus_unregister_driver\n", ibm->name);
-		BUG_ON(!ibm->acpi);
+		_ON(!ibm->acpi);
 		acpi_bus_unregister_driver(ibm->acpi->driver);
 		kfree(ibm->acpi->driver);
 		ibm->acpi->driver = NULL;
@@ -9782,7 +9782,7 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 	struct ibm_struct *ibm = iibm->data;
 	struct proc_dir_entry *entry;
 
-	BUG_ON(ibm == NULL);
+	_ON(ibm == NULL);
 
 	INIT_LIST_HEAD(&ibm->all_drivers);
 
@@ -10020,7 +10020,7 @@ static void __init thinkpad_acpi_init_banner(void)
 		(thinkpad_id.ec_version_str) ?
 			thinkpad_id.ec_version_str : "unknown");
 
-	BUG_ON(!thinkpad_id.vendor);
+	_ON(!thinkpad_id.vendor);
 
 	if (thinkpad_id.model_str)
 		pr_info("%s %s, model %s\n",
@@ -10139,8 +10139,8 @@ module_param(experimental, int, 0444);
 MODULE_PARM_DESC(experimental,
 		 "Enables experimental features when non-zero");
 
-module_param_named(debug, dbg_level, uint, 0);
-MODULE_PARM_DESC(debug, "Sets debug level bit-mask");
+module_param_named(de, dbg_level, uint, 0);
+MODULE_PARM_DESC(de, "Sets de level bit-mask");
 
 module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load,
@@ -10200,7 +10200,7 @@ TPACPI_PARAM(brightness);
 TPACPI_PARAM(volume);
 TPACPI_PARAM(fan);
 
-#ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
+#ifdef CONFIG_THINKPAD_ACPI_DEFACILITIES
 module_param(dbg_wlswemul, uint, 0444);
 MODULE_PARM_DESC(dbg_wlswemul, "Enables WLSW emulation");
 module_param_named(wlsw_state, tpacpi_wlsw_emulstate, bool, 0);

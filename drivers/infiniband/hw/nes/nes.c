@@ -80,9 +80,9 @@ unsigned int nes_drv_opt = NES_DRV_OPT_DISABLE_INT_MOD | NES_DRV_OPT_ENABLE_PAU;
 module_param(nes_drv_opt, int, 0644);
 MODULE_PARM_DESC(nes_drv_opt, "Driver option parameters");
 
-unsigned int nes_debug_level = 0;
-module_param_named(debug_level, nes_debug_level, uint, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug output level");
+unsigned int nes_de_level = 0;
+module_param_named(de_level, nes_de_level, uint, 0644);
+MODULE_PARM_DESC(de_level, "Enable de output level");
 
 unsigned int wqm_quanta = 0x10000;
 module_param(wqm_quanta, int, 0644);
@@ -136,10 +136,10 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 	struct nes_vnic *nesvnic;
 	unsigned int is_bonded;
 
-	nes_debug(NES_DBG_NETDEV, "nes_inetaddr_event: ip address %pI4, netmask %pI4.\n",
+	nes_de(NES_DBG_NETDEV, "nes_inetaddr_event: ip address %pI4, netmask %pI4.\n",
 		  &ifa->ifa_address, &ifa->ifa_mask);
 	list_for_each_entry(nesdev, &nes_dev_list, list) {
-		nes_debug(NES_DBG_NETDEV, "Nesdev list entry = 0x%p. (%s)\n",
+		nes_de(NES_DBG_NETDEV, "Nesdev list entry = 0x%p. (%s)\n",
 				nesdev, nesdev->netdev[0]->name);
 		netdev = nesdev->netdev[0];
 		nesvnic = netdev_priv(netdev);
@@ -148,7 +148,7 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 			    (upper_dev == event_netdev);
 		if ((netdev == event_netdev) || is_bonded) {
 			if (nesvnic->rdma_enabled == 0) {
-				nes_debug(NES_DBG_NETDEV, "Returning without processing event for %s since"
+				nes_de(NES_DBG_NETDEV, "Returning without processing event for %s since"
 						" RDMA is not enabled.\n",
 						netdev->name);
 				return NOTIFY_OK;
@@ -156,7 +156,7 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 			/* we have ifa->ifa_address/mask here if we need it */
 			switch (event) {
 				case NETDEV_DOWN:
-					nes_debug(NES_DBG_NETDEV, "event:DOWN\n");
+					nes_de(NES_DBG_NETDEV, "event:DOWN\n");
 					nes_write_indexed(nesdev,
 							NES_IDX_DST_IP_ADDR+(0x10*PCI_FUNC(nesdev->pcidev->devfn)), 0);
 
@@ -169,10 +169,10 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 						return NOTIFY_OK;
 					break;
 				case NETDEV_UP:
-					nes_debug(NES_DBG_NETDEV, "event:UP\n");
+					nes_de(NES_DBG_NETDEV, "event:UP\n");
 
 					if (nesvnic->local_ipaddr != 0) {
-						nes_debug(NES_DBG_NETDEV, "Interface already has local_ipaddr\n");
+						nes_de(NES_DBG_NETDEV, "Interface already has local_ipaddr\n");
 						return NOTIFY_OK;
 					}
 					/* fall through */
@@ -223,12 +223,12 @@ static int nes_net_event(struct notifier_block *notifier,
 	switch (event) {
 		case NETEVENT_NEIGH_UPDATE:
 			list_for_each_entry(nesdev, &nes_dev_list, list) {
-				/* nes_debug(NES_DBG_NETDEV, "Nesdev list entry = 0x%p.\n", nesdev); */
+				/* nes_de(NES_DBG_NETDEV, "Nesdev list entry = 0x%p.\n", nesdev); */
 				netdev = nesdev->netdev[0];
 				nesvnic = netdev_priv(netdev);
 				if (netdev == neigh->dev) {
 					if (nesvnic->rdma_enabled == 0) {
-						nes_debug(NES_DBG_NETDEV, "Skipping device %s since no RDMA\n",
+						nes_de(NES_DBG_NETDEV, "Skipping device %s since no RDMA\n",
 								netdev->name);
 					} else {
 						if (neigh->nud_state & NUD_VALID) {
@@ -244,7 +244,7 @@ static int nes_net_event(struct notifier_block *notifier,
 			}
 			break;
 		default:
-			nes_debug(NES_DBG_NETDEV, "NETEVENT_ %lu undefined\n", event);
+			nes_de(NES_DBG_NETDEV, "NETEVENT_ %lu undefined\n", event);
 			break;
 	}
 
@@ -260,7 +260,7 @@ void nes_add_ref(struct ib_qp *ibqp)
 	struct nes_qp *nesqp;
 
 	nesqp = to_nesqp(ibqp);
-	nes_debug(NES_DBG_QP, "Bumping refcount for QP%u.  Pre-inc value = %u\n",
+	nes_de(NES_DBG_QP, "Bumping refcount for QP%u.  Pre-inc value = %u\n",
 			ibqp->qp_num, atomic_read(&nesqp->refcount));
 	atomic_inc(&nesqp->refcount);
 }
@@ -313,7 +313,7 @@ void nes_rem_ref(struct ib_qp *ibqp)
 	if (atomic_read(&nesqp->refcount) == 0) {
 		printk(KERN_INFO PFX "%s: Reference count already 0 for QP%d, last aeq = 0x%04X.\n",
 				__func__, ibqp->qp_num, nesqp->last_aeq);
-		BUG();
+		();
 	}
 
 	if (atomic_dec_and_test(&nesqp->refcount)) {
@@ -323,7 +323,7 @@ void nes_rem_ref(struct ib_qp *ibqp)
 		/* Destroy the QP */
 		cqp_request = nes_get_cqp_request(nesdev);
 		if (cqp_request == NULL) {
-			nes_debug(NES_DBG_QP, "Failed to get a cqp_request.\n");
+			nes_de(NES_DBG_QP, "Failed to get a cqp_request.\n");
 			return;
 		}
 		cqp_request->waiting = 0;
@@ -369,7 +369,7 @@ struct ib_qp *nes_get_qp(struct ib_device *device, int qpn)
  */
 static void nes_print_macaddr(struct net_device *netdev)
 {
-	nes_debug(NES_DBG_INIT, "%s: %pM, IRQ %u\n",
+	nes_de(NES_DBG_INIT, "%s: %pM, IRQ %u\n",
 		  netdev->name, netdev->dev_addr, netdev->irq);
 }
 
@@ -465,10 +465,10 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto bail0;
 	}
 
-	nes_debug(NES_DBG_INIT, "BAR0 (@0x%08lX) size = 0x%lX bytes\n",
+	nes_de(NES_DBG_INIT, "BAR0 (@0x%08lX) size = 0x%lX bytes\n",
 			(long unsigned int)pci_resource_start(pcidev, BAR_0),
 			(long unsigned int)pci_resource_len(pcidev, BAR_0));
-	nes_debug(NES_DBG_INIT, "BAR1 (@0x%08lX) size = 0x%lX bytes\n",
+	nes_de(NES_DBG_INIT, "BAR1 (@0x%08lX) size = 0x%lX bytes\n",
 			(long unsigned int)pci_resource_start(pcidev, BAR_1),
 			(long unsigned int)pci_resource_len(pcidev, BAR_1));
 
@@ -520,12 +520,12 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto bail2;
 	}
 
-	nes_debug(NES_DBG_INIT, "Allocated nes device at %p\n", nesdev);
+	nes_de(NES_DBG_INIT, "Allocated nes device at %p\n", nesdev);
 	nesdev->pcidev = pcidev;
 	pci_set_drvdata(pcidev, nesdev);
 
 	pci_read_config_byte(pcidev, 0x0008, &hw_rev);
-	nes_debug(NES_DBG_INIT, "hw_rev=%u\n", hw_rev);
+	nes_de(NES_DBG_INIT, "hw_rev=%u\n", hw_rev);
 
 	spin_lock_init(&nesdev->indexed_regs_lock);
 
@@ -546,14 +546,14 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	if (nes_drv_opt & NES_DRV_OPT_ENABLE_MSI) {
 		if (!pci_enable_msi(nesdev->pcidev)) {
 			nesdev->msi_enabled = 1;
-			nes_debug(NES_DBG_INIT, "MSI is enabled for device %s\n",
+			nes_de(NES_DBG_INIT, "MSI is enabled for device %s\n",
 					pci_name(pcidev));
 		} else {
-			nes_debug(NES_DBG_INIT, "MSI is disabled by linux for device %s\n",
+			nes_de(NES_DBG_INIT, "MSI is disabled by linux for device %s\n",
 					pci_name(pcidev));
 		}
 	} else {
-		nes_debug(NES_DBG_INIT, "MSI not requested due to driver options for device %s\n",
+		nes_de(NES_DBG_INIT, "MSI not requested due to driver options for device %s\n",
 				pci_name(pcidev));
 	}
 
@@ -603,7 +603,7 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 			printk(KERN_ERR PFX "Unable to set max read request"
 				" to 256 bytes\n");
 		else
-			nes_debug(NES_DBG_INIT, "Max read request size set"
+			nes_de(NES_DBG_INIT, "Max read request size set"
 				" to 256 bytes\n");
 	}
 
@@ -636,17 +636,17 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		nesdev->intf_int_req = 0;
 	}
 	nesdev->intf_int_req |= (1 << (PCI_FUNC(nesdev->pcidev->devfn)+16));
-	nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS0, 0);
-	nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS1, 0);
-	nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS2, 0x00001265);
-	nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS4, 0x18021804);
+	nes_write_indexed(nesdev, NES_IDX_DE_ERROR_MASKS0, 0);
+	nes_write_indexed(nesdev, NES_IDX_DE_ERROR_MASKS1, 0);
+	nes_write_indexed(nesdev, NES_IDX_DE_ERROR_MASKS2, 0x00001265);
+	nes_write_indexed(nesdev, NES_IDX_DE_ERROR_MASKS4, 0x18021804);
 
-	nes_write_indexed(nesdev, NES_IDX_DEBUG_ERROR_MASKS3, 0x17801790);
+	nes_write_indexed(nesdev, NES_IDX_DE_ERROR_MASKS3, 0x17801790);
 
 	/* deal with both periodic and one_shot */
 	nesdev->timer_int_req = 0x101 << PCI_FUNC(nesdev->pcidev->devfn);
 	nesdev->nesadapter->timer_int_req |= nesdev->timer_int_req;
-	nes_debug(NES_DBG_INIT, "setting int_req for function %u, nesdev = 0x%04X, adapter = 0x%04X\n",
+	nes_de(NES_DBG_INIT, "setting int_req for function %u, nesdev = 0x%04X, adapter = 0x%04X\n",
 			PCI_FUNC(nesdev->pcidev->devfn),
 			nesdev->timer_int_req, nesdev->nesadapter->timer_int_req);
 
@@ -706,7 +706,7 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		nes_netdev_destroy(nesdev->netdev[nesdev->netdev_count]);
 	}
 
-	nes_debug(NES_DBG_INIT, "netdev_count=%d, nesadapter->netdev_count=%d\n",
+	nes_de(NES_DBG_INIT, "netdev_count=%d, nesadapter->netdev_count=%d\n",
 			nesdev->netdev_count, nesdev->nesadapter->netdev_count);
 
 	nes_notifiers_registered--;
@@ -802,7 +802,7 @@ static void nes_remove(struct pci_dev *pcidev)
 	iounmap(nesdev->regs);
 	kfree(nesdev);
 
-	/* nes_debug(NES_DBG_SHUTDOWN, "calling pci_release_regions.\n"); */
+	/* nes_de(NES_DBG_SHUTDOWN, "calling pci_release_regions.\n"); */
 	pci_release_regions(pcidev);
 	pci_disable_device(pcidev);
 	pci_set_drvdata(pcidev, NULL);

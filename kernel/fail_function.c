@@ -3,7 +3,7 @@
  * fail_function.c: Function-based error injection
  */
 #include <linux/error-injection.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fault-inject.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
@@ -31,7 +31,7 @@ struct fei_attr {
 static DEFINE_MUTEX(fei_lock);
 static LIST_HEAD(fei_attr_list);
 static DECLARE_FAULT_ATTR(fei_fault_attr);
-static struct dentry *fei_debugfs_dir;
+static struct dentry *fei_defs_dir;
 
 static unsigned long adjust_error_retval(unsigned long addr, unsigned long retv)
 {
@@ -149,31 +149,31 @@ static int fei_retval_get(void *data, u64 *val)
 
 	return err;
 }
-DEFINE_DEBUGFS_ATTRIBUTE(fei_retval_ops, fei_retval_get, fei_retval_set,
+DEFINE_DEFS_ATTRIBUTE(fei_retval_ops, fei_retval_get, fei_retval_set,
 			 "%llx\n");
 
-static int fei_debugfs_add_attr(struct fei_attr *attr)
+static int fei_defs_add_attr(struct fei_attr *attr)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir(attr->kp.symbol_name, fei_debugfs_dir);
+	dir = defs_create_dir(attr->kp.symbol_name, fei_defs_dir);
 	if (!dir)
 		return -ENOMEM;
 
-	if (!debugfs_create_file("retval", 0600, dir, attr, &fei_retval_ops)) {
-		debugfs_remove_recursive(dir);
+	if (!defs_create_file("retval", 0600, dir, attr, &fei_retval_ops)) {
+		defs_remove_recursive(dir);
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-static void fei_debugfs_remove_attr(struct fei_attr *attr)
+static void fei_defs_remove_attr(struct fei_attr *attr)
 {
 	struct dentry *dir;
 
-	dir = debugfs_lookup(attr->kp.symbol_name, fei_debugfs_dir);
-	debugfs_remove_recursive(dir);
+	dir = defs_lookup(attr->kp.symbol_name, fei_defs_dir);
+	defs_remove_recursive(dir);
 }
 
 static int fei_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
@@ -228,7 +228,7 @@ static int fei_open(struct inode *inode, struct file *file)
 
 static void fei_attr_remove(struct fei_attr *attr)
 {
-	fei_debugfs_remove_attr(attr);
+	fei_defs_remove_attr(attr);
 	unregister_kprobe(&attr->kp);
 	list_del(&attr->list);
 	fei_attr_free(attr);
@@ -306,7 +306,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 
 	ret = register_kprobe(&attr->kp);
 	if (!ret)
-		ret = fei_debugfs_add_attr(attr);
+		ret = fei_defs_add_attr(attr);
 	if (ret < 0)
 		fei_attr_remove(attr);
 	else {
@@ -327,29 +327,29 @@ static const struct file_operations fei_ops = {
 	.release =	seq_release,
 };
 
-static int __init fei_debugfs_init(void)
+static int __init fei_defs_init(void)
 {
 	struct dentry *dir;
 
-	dir = fault_create_debugfs_attr("fail_function", NULL,
+	dir = fault_create_defs_attr("fail_function", NULL,
 					&fei_fault_attr);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
 	/* injectable attribute is just a symlink of error_inject/list */
-	if (!debugfs_create_symlink("injectable", dir,
+	if (!defs_create_symlink("injectable", dir,
 				    "../error_injection/list"))
 		goto error;
 
-	if (!debugfs_create_file("inject", 0600, dir, NULL, &fei_ops))
+	if (!defs_create_file("inject", 0600, dir, NULL, &fei_ops))
 		goto error;
 
-	fei_debugfs_dir = dir;
+	fei_defs_dir = dir;
 
 	return 0;
 error:
-	debugfs_remove_recursive(dir);
+	defs_remove_recursive(dir);
 	return -ENOMEM;
 }
 
-late_initcall(fei_debugfs_init);
+late_initcall(fei_defs_init);

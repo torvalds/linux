@@ -25,7 +25,7 @@
  * are listed in a 'board' table.
  */
 
-#undef DEBUG
+#undef DE
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>

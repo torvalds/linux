@@ -228,7 +228,7 @@ static u64 fec_ptp_read(const struct cyclecounter *cc)
 	tempval |= FEC_T_CTRL_CAPTURE;
 	writel(tempval, fep->hwp + FEC_ATIME_CTRL);
 
-	if (id_entry->driver_data & FEC_QUIRK_BUG_CAPTURE)
+	if (id_entry->driver_data & FEC_QUIRK__CAPTURE)
 		udelay(1);
 
 	return readl(fep->hwp + FEC_ATIME);

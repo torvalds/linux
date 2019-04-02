@@ -346,7 +346,7 @@ int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
 	struct snd_rawmidi *rmidi;
 	int err = 0;
 
-	if (snd_BUG_ON(!rfile))
+	if (snd__ON(!rfile))
 		return -EINVAL;
 
 	mutex_lock(&register_mutex);
@@ -527,7 +527,7 @@ int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
 {
 	struct snd_rawmidi *rmidi;
 
-	if (snd_BUG_ON(!rfile))
+	if (snd__ON(!rfile))
 		return -ENXIO;
 
 	rmidi = rfile->rmidi;
@@ -1169,7 +1169,7 @@ int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int coun
 			  "snd_rawmidi_transmit_ack: output is not active!!!\n");
 		return -EINVAL;
 	}
-	snd_BUG_ON(runtime->avail + count > runtime->buffer_size);
+	snd__ON(runtime->avail + count > runtime->buffer_size);
 	runtime->hw_ptr += count;
 	runtime->hw_ptr %= runtime->buffer_size;
 	runtime->avail += count;
@@ -1272,7 +1272,7 @@ static long snd_rawmidi_kernel_write1(struct snd_rawmidi_substream *substream,
 
 	if (!kernelbuf && !userbuf)
 		return -EINVAL;
-	if (snd_BUG_ON(!runtime->buffer))
+	if (snd__ON(!runtime->buffer))
 		return -EINVAL;
 
 	result = 0;
@@ -1568,7 +1568,7 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 		.dev_disconnect = snd_rawmidi_dev_disconnect,
 	};
 
-	if (snd_BUG_ON(!card))
+	if (snd__ON(!card))
 		return -ENXIO;
 	if (rrawmidi)
 		*rrawmidi = NULL;

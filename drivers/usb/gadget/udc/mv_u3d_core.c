@@ -276,7 +276,7 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 
 	/* how big will this transfer be? */
 	*length = req->req.length - req->req.actual;
-	BUG_ON(*length > (unsigned)MV_U3D_EP_MAX_LENGTH_TRANSFER);
+	_ON(*length > (unsigned)MV_U3D_EP_MAX_LENGTH_TRANSFER);
 
 	u3d = req->ep->u3d;
 
@@ -1750,7 +1750,7 @@ static int mv_u3d_remove(struct platform_device *dev)
 {
 	struct mv_u3d *u3d = platform_get_drvdata(dev);
 
-	BUG_ON(u3d == NULL);
+	_ON(u3d == NULL);
 
 	usb_del_gadget_udc(&u3d->gadget);
 

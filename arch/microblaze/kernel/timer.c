@@ -118,7 +118,7 @@ static inline void xilinx_timer0_start_oneshot(unsigned long load_val)
 static int xilinx_timer_set_next_event(unsigned long delta,
 					struct clock_event_device *dev)
 {
-	pr_debug("%s: next event, delta %x\n", __func__, (u32)delta);
+	pr_de("%s: next event, delta %x\n", __func__, (u32)delta);
 	xilinx_timer0_start_oneshot(delta);
 	return 0;
 }

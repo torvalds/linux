@@ -320,7 +320,7 @@ static int uinput_create_device(struct uinput_device *udev)
 	int error, nslot;
 
 	if (udev->state != UIST_SETUP_COMPLETE) {
-		printk(KERN_DEBUG "%s: write device info first\n", UINPUT_NAME);
+		printk(KERN_DE "%s: write device info first\n", UINPUT_NAME);
 		return -EINVAL;
 	}
 
@@ -342,7 +342,7 @@ static int uinput_create_device(struct uinput_device *udev)
 	}
 
 	if (test_bit(EV_FF, dev->evbit) && !udev->ff_effects_max) {
-		printk(KERN_DEBUG "%s: ff_effects_max should be non-zero when FF_BIT is set\n",
+		printk(KERN_DE "%s: ff_effects_max should be non-zero when FF_BIT is set\n",
 			UINPUT_NAME);
 		error = -EINVAL;
 		goto fail1;
@@ -412,14 +412,14 @@ static int uinput_validate_absinfo(struct input_dev *dev, unsigned int code,
 	max = abs->maximum;
 
 	if ((min != 0 || max != 0) && max < min) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: invalid abs[%02x] min:%d max:%d\n",
 		       UINPUT_NAME, code, min, max);
 		return -EINVAL;
 	}
 
 	if (!check_sub_overflow(max, min, &range) && abs->flat > range) {
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "%s: abs_flat #%02x out of range: %d (min:%d/max:%d)\n",
 		       UINPUT_NAME, code, abs->flat, min, max);
 		return -EINVAL;

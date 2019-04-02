@@ -7345,7 +7345,7 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 
 	/*
 	 * Sets internal input loopback to off, used to have a switch to
-	 * enable input loopback, but turned out to be way too buggy.
+	 * enable input loopback, but turned out to be way too gy.
 	 */
 	tmp = FLOAT_ONE;
 	dspio_set_uint_param(codec, 0x37, 0x08, tmp);

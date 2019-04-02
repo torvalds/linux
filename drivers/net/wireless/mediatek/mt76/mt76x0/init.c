@@ -59,7 +59,7 @@ mt76x0_set_wlan_state(struct mt76x02_dev *dev, u32 val, bool enable)
 	udelay(20);
 
 	/* Note: vendor driver tries to disable/enable wlan here and retry
-	 *       but the code which does it is so buggy it must have never
+	 *       but the code which does it is so gy it must have never
 	 *       triggered, so don't bother.
 	 */
 	if (enable && !mt76_poll(dev, MT_CMB_CTRL, mask, mask, 2000))
@@ -305,7 +305,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (dev->mt76.cap.has_2ghz)
 		mt76x0_init_txpower(dev, &dev->mt76.sband_2g.sband);
 
-	mt76x02_init_debugfs(dev);
+	mt76x02_init_defs(dev);
 
 	return 0;
 }

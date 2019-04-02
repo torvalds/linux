@@ -63,7 +63,7 @@ the partition /dev/dd?1 instead of the whole volume. You only lose 3kB
 but may be sure that you can reuse your data after introduction of a
 real partition table.
 
-BUGS:
+S:
 - Performance sometimes is rather low because we don't fully exploit clustering
 
 TODO-List:

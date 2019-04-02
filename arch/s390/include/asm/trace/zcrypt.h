@@ -21,7 +21,7 @@
  * performance measurements together with information about on which card
  * and queue the request has been processed. It is not an ffdc interface as
  * there is already code in the zcrypt device driver to serve the s390
- * debug feature interface.
+ * de feature interface.
  */
 
 #undef TRACE_SYSTEM

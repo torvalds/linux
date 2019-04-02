@@ -750,9 +750,9 @@ struct ixgbe_adapter {
 #ifdef CONFIG_IXGBE_HWMON
 	struct hwmon_buff *ixgbe_hwmon_buff;
 #endif /* CONFIG_IXGBE_HWMON */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *ixgbe_dbg_adapter;
-#endif /*CONFIG_DEBUG_FS*/
+#endif /*CONFIG_DE_FS*/
 
 	u8 default_up;
 	/* Bitmask indicating in use pools */
@@ -949,7 +949,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 			   struct netdev_fcoe_hbainfo *info);
 u8 ixgbe_fcoe_get_tc(struct ixgbe_adapter *adapter);
 #endif /* IXGBE_FCOE */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter);
 void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter);
 void ixgbe_dbg_init(void);
@@ -959,7 +959,7 @@ static inline void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter) {}
 static inline void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter) {}
 static inline void ixgbe_dbg_init(void) {}
 static inline void ixgbe_dbg_exit(void) {}
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
 {
 	return netdev_get_tx_queue(ring->netdev, ring->queue_index);

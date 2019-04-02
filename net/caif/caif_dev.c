@@ -212,7 +212,7 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	 * the original destructor.
 	 */
 
-	pr_debug("queue has stopped(%d) or is full (%d > %d)\n",
+	pr_de("queue has stopped(%d) or is full (%d > %d)\n",
 			netif_queue_stopped(caifd->netdev),
 			qlen, high);
 	caifd->xoff = 1;

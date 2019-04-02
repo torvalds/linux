@@ -52,7 +52,7 @@
 #define DRIVER_VERSION	"0.17"
 #define DRIVER_DESC "Atmel at76x USB Wireless LAN Driver"
 
-/* at76_debug bits */
+/* at76_de bits */
 #define DBG_PROGRESS		0x00000001	/* authentication/accociation */
 #define DBG_BSS_TABLE		0x00000002	/* show BSS table after scans */
 #define DBG_IOCTL		0x00000004	/* ioctl calls / settings */
@@ -91,19 +91,19 @@
 /* Use our own dbg macro */
 #define at76_dbg(bits, format, arg...)					\
 do {									\
-	if (at76_debug & (bits))					\
-		printk(KERN_DEBUG DRIVER_NAME ": " format "\n", ##arg);	\
+	if (at76_de & (bits))					\
+		printk(KERN_DE DRIVER_NAME ": " format "\n", ##arg);	\
 } while (0)
 
 #define at76_dbg_dump(bits, buf, len, format, arg...)			\
 do {									\
-	if (at76_debug & (bits)) {					\
-		printk(KERN_DEBUG DRIVER_NAME ": " format "\n", ##arg);	\
+	if (at76_de & (bits)) {					\
+		printk(KERN_DE DRIVER_NAME ": " format "\n", ##arg);	\
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);	\
 	}								\
 } while (0)
 
-static uint at76_debug = DBG_DEFAULTS;
+static uint at76_de = DBG_DEFAULTS;
 
 /* Protect against concurrent firmware loading and parsing */
 static struct mutex fw_mutex;
@@ -1455,7 +1455,7 @@ static int at76_startup_device(struct at76_priv *priv)
 	if (ret < 0)
 		return ret;
 
-	if (at76_debug & DBG_MIB) {
+	if (at76_de & DBG_MIB) {
 		at76_dump_mib_mac(priv);
 		at76_dump_mib_mac_addr(priv);
 		at76_dump_mib_mac_mgmt(priv);
@@ -1661,7 +1661,7 @@ static struct fwentry *at76_load_firmware(struct usb_device *udev,
 
 	fwe->loaded = 1;
 
-	dev_printk(KERN_DEBUG, &udev->dev,
+	dev_printk(KERN_DE, &udev->dev,
 		   "using firmware %s (version %d.%d.%d-%d)\n",
 		   fwe->fwname, fwh->major, fwh->minor, fwh->patch, fwh->build);
 
@@ -2479,7 +2479,7 @@ static int at76_probe(struct usb_interface *interface,
 	if (op_mode != OPMODE_NORMAL_NIC_WITH_FLASH
 	    && op_mode != OPMODE_NORMAL_NIC_WITHOUT_FLASH) {
 		/* download internal firmware part */
-		dev_printk(KERN_DEBUG, &interface->dev,
+		dev_printk(KERN_DE, &interface->dev,
 			   "downloading internal firmware\n");
 		ret = at76_load_internal_fw(udev, fwe);
 		if (ret < 0) {
@@ -2508,7 +2508,7 @@ static int at76_probe(struct usb_interface *interface,
 		need_ext_fw = 1;
 
 	if (need_ext_fw) {
-		dev_printk(KERN_DEBUG, &interface->dev,
+		dev_printk(KERN_DE, &interface->dev,
 			   "downloading external firmware\n");
 
 		ret = at76_load_external_fw(udev, fwe);
@@ -2601,8 +2601,8 @@ static void __exit at76_mod_exit(void)
 	led_trigger_unregister_simple(ledtrig_tx);
 }
 
-module_param_named(debug, at76_debug, uint, 0600);
-MODULE_PARM_DESC(debug, "Debugging level");
+module_param_named(de, at76_de, uint, 0600);
+MODULE_PARM_DESC(de, "Deging level");
 
 module_init(at76_mod_init);
 module_exit(at76_mod_exit);

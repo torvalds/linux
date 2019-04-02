@@ -25,7 +25,7 @@
 #include <linux/rcupdate_wait.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/nmi.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
@@ -151,7 +151,7 @@ static void sync_sched_exp_online_cleanup(int cpu);
 static int kthread_prio = IS_ENABLED(CONFIG_RCU_BOOST) ? 1 : 0;
 module_param(kthread_prio, int, 0644);
 
-/* Delay in jiffies for grace-period initialization delays, debug only. */
+/* Delay in jiffies for grace-period initialization delays, de only. */
 
 static int gp_preinit_delay;
 module_param(gp_preinit_delay, int, 0444);
@@ -234,10 +234,10 @@ static void rcu_dynticks_eqs_enter(void)
 	 */
 	seq = atomic_add_return(RCU_DYNTICK_CTRL_CTR, &rdp->dynticks);
 	/* Better be in an extended quiescent state! */
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) &&
 		     (seq & RCU_DYNTICK_CTRL_CTR));
 	/* Better not have special action (TLB flush) pending! */
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) &&
 		     (seq & RCU_DYNTICK_CTRL_MASK));
 }
 
@@ -256,7 +256,7 @@ static void rcu_dynticks_eqs_exit(void)
 	 * critical section.
 	 */
 	seq = atomic_add_return(RCU_DYNTICK_CTRL_CTR, &rdp->dynticks);
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) &&
 		     !(seq & RCU_DYNTICK_CTRL_CTR));
 	if (seq & RCU_DYNTICK_CTRL_MASK) {
 		atomic_andnot(RCU_DYNTICK_CTRL_MASK, &rdp->dynticks);
@@ -474,7 +474,7 @@ static void force_qs_rnp(int (*f)(struct rcu_data *rdp));
 static int rcu_pending(void);
 
 /*
- * Return the number of RCU GPs completed thus far for debug & stats.
+ * Return the number of RCU GPs completed thus far for de & stats.
  */
 unsigned long rcu_get_gp_seq(void)
 {
@@ -484,7 +484,7 @@ EXPORT_SYMBOL_GPL(rcu_get_gp_seq);
 
 /*
  * Return the number of RCU expedited batches completed thus far for
- * debug & stats.  Odd numbers mean that a batch is in progress, even
+ * de & stats.  Odd numbers mean that a batch is in progress, even
  * numbers mean idle.  The value returned will thus be roughly double
  * the cumulative batches since boot.
  */
@@ -611,7 +611,7 @@ static void rcu_eqs_enter(bool user)
 
 	WARN_ON_ONCE(rdp->dynticks_nmi_nesting != DYNTICK_IRQ_NONIDLE);
 	WRITE_ONCE(rdp->dynticks_nmi_nesting, 0);
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) &&
 		     rdp->dynticks_nesting == 0);
 	if (rdp->dynticks_nesting != 1) {
 		rdp->dynticks_nesting--;
@@ -620,7 +620,7 @@ static void rcu_eqs_enter(bool user)
 
 	lockdep_assert_irqs_disabled();
 	trace_rcu_dyntick(TPS("Start"), rdp->dynticks_nesting, 0, rdp->dynticks);
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) && !user && !is_idle_task(current));
 	rdp = this_cpu_ptr(&rcu_data);
 	do_nocb_deferred_wakeup(rdp);
 	rcu_prepare_for_idle();
@@ -639,7 +639,7 @@ static void rcu_eqs_enter(bool user)
  * handled by irq_enter() and irq_exit().)
  *
  * If you add or remove a call to rcu_idle_enter(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
+ * CONFIG_RCU_EQS_DE=y.
  */
 void rcu_idle_enter(void)
 {
@@ -657,7 +657,7 @@ void rcu_idle_enter(void)
  * when the CPU runs in userspace.
  *
  * If you add or remove a call to rcu_user_enter(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
+ * CONFIG_RCU_EQS_DE=y.
  */
 void rcu_user_enter(void)
 {
@@ -673,7 +673,7 @@ void rcu_user_enter(void)
  * being RCU-idle.
  *
  * If you add or remove a call to rcu_nmi_exit_common(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
+ * with CONFIG_RCU_EQS_DE=y.
  */
 static __always_inline void rcu_nmi_exit_common(bool irq)
 {
@@ -715,7 +715,7 @@ static __always_inline void rcu_nmi_exit_common(bool irq)
  * rcu_nmi_exit - inform RCU of exit from NMI context
  *
  * If you add or remove a call to rcu_nmi_exit(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
+ * with CONFIG_RCU_EQS_DE=y.
  */
 void rcu_nmi_exit(void)
 {
@@ -739,7 +739,7 @@ void rcu_nmi_exit(void)
  * You have been warned.
  *
  * If you add or remove a call to rcu_irq_exit(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
+ * CONFIG_RCU_EQS_DE=y.
  */
 void rcu_irq_exit(void)
 {
@@ -751,7 +751,7 @@ void rcu_irq_exit(void)
  * Wrapper for rcu_irq_exit() where interrupts are enabled.
  *
  * If you add or remove a call to rcu_irq_exit_irqson(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
+ * with CONFIG_RCU_EQS_DE=y.
  */
 void rcu_irq_exit_irqson(void)
 {
@@ -778,7 +778,7 @@ static void rcu_eqs_exit(bool user)
 	lockdep_assert_irqs_disabled();
 	rdp = this_cpu_ptr(&rcu_data);
 	oldval = rdp->dynticks_nesting;
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) && oldval < 0);
 	if (oldval) {
 		rdp->dynticks_nesting++;
 		return;
@@ -787,7 +787,7 @@ static void rcu_eqs_exit(bool user)
 	rcu_dynticks_eqs_exit();
 	rcu_cleanup_after_idle();
 	trace_rcu_dyntick(TPS("End"), rdp->dynticks_nesting, 1, rdp->dynticks);
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DE) && !user && !is_idle_task(current));
 	WRITE_ONCE(rdp->dynticks_nesting, 1);
 	WARN_ON_ONCE(rdp->dynticks_nmi_nesting);
 	WRITE_ONCE(rdp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
@@ -800,7 +800,7 @@ static void rcu_eqs_exit(bool user)
  * read-side critical sections can occur.
  *
  * If you add or remove a call to rcu_idle_exit(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
+ * CONFIG_RCU_EQS_DE=y.
  */
 void rcu_idle_exit(void)
 {
@@ -819,7 +819,7 @@ void rcu_idle_exit(void)
  * run a RCU read side critical section anytime.
  *
  * If you add or remove a call to rcu_user_exit(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
+ * CONFIG_RCU_EQS_DE=y.
  */
 void rcu_user_exit(void)
 {
@@ -838,7 +838,7 @@ void rcu_user_exit(void)
  * run out of stack space first.)
  *
  * If you add or remove a call to rcu_nmi_enter_common(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
+ * with CONFIG_RCU_EQS_DE=y.
  */
 static __always_inline void rcu_nmi_enter_common(bool irq)
 {
@@ -905,7 +905,7 @@ NOKPROBE_SYMBOL(rcu_nmi_enter);
  * You have been warned.
  *
  * If you add or remove a call to rcu_irq_enter(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
+ * CONFIG_RCU_EQS_DE=y.
  */
 void rcu_irq_enter(void)
 {
@@ -917,7 +917,7 @@ void rcu_irq_enter(void)
  * Wrapper for rcu_irq_enter() where interrupts are enabled.
  *
  * If you add or remove a call to rcu_irq_enter_irqson(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
+ * with CONFIG_RCU_EQS_DE=y.
  */
 void rcu_irq_enter_irqson(void)
 {
@@ -1270,7 +1270,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	/*
 	 * OK, time to rat on our buddy...
-	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * See Documentation/RCU/stallwarn.txt for info on how to de
 	 * RCU CPU stall warnings.
 	 */
 	pr_err("INFO: %s detected stalls on CPUs/tasks:", rcu_state.name);
@@ -1340,7 +1340,7 @@ static void print_cpu_stall(void)
 
 	/*
 	 * OK, time to rat on ourselves...
-	 * See Documentation/RCU/stallwarn.txt for info on how to debug
+	 * See Documentation/RCU/stallwarn.txt for info on how to de
 	 * RCU CPU stall warnings.
 	 */
 	pr_err("INFO: %s self-detected stall on CPU", rcu_state.name);
@@ -1574,7 +1574,7 @@ static bool rcu_future_gp_cleanup(struct rcu_node *rnp)
  * is nothing for the grace-period kthread to do (as in several CPUs raced
  * to awaken, and we lost), and finally don't try to awaken a kthread that
  * has not yet been created.  If all those checks are passed, track some
- * debug information and awaken.
+ * de information and awaken.
  *
  * So why do the self-wakeup when in an interrupt or softirq handler
  * in the grace-period kthread's context?  Because the kthread might have
@@ -2471,7 +2471,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	/* Invoke callbacks. */
 	rhp = rcu_cblist_dequeue(&rcl);
 	for (; rhp; rhp = rcu_cblist_dequeue(&rcl)) {
-		debug_rcu_head_unqueue(rhp);
+		de_rcu_head_unqueue(rhp);
 		if (__rcu_reclaim(rcu_state.name, rhp))
 			rcu_cblist_dequeued_lazy(&rcl);
 		/*
@@ -2508,7 +2508,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 
 	/*
 	 * The following usually indicates a double call_rcu().  To track
-	 * this down, try building with CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.
+	 * this down, try building with CONFIG_DE_OBJECTS_RCU_HEAD=y.
 	 */
 	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) != (count == 0));
 
@@ -2864,7 +2864,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
 	/* Misaligned rcu_head! */
 	WARN_ON_ONCE((unsigned long)head & (sizeof(void *) - 1));
 
-	if (debug_rcu_head_queue(head)) {
+	if (de_rcu_head_queue(head)) {
 		/*
 		 * Probable double call_rcu(), so leak the callback.
 		 * Use rcu:rcu_callback trace event to find the previous
@@ -3167,11 +3167,11 @@ static void rcu_barrier_func(void *unused)
 
 	rcu_barrier_trace(TPS("IRQ"), -1, rcu_state.barrier_sequence);
 	rdp->barrier_head.func = rcu_barrier_callback;
-	debug_rcu_head_queue(&rdp->barrier_head);
+	de_rcu_head_queue(&rdp->barrier_head);
 	if (rcu_segcblist_entrain(&rdp->cblist, &rdp->barrier_head, 0)) {
 		atomic_inc(&rcu_state.barrier_cpu_count);
 	} else {
-		debug_rcu_head_unqueue(&rdp->barrier_head);
+		de_rcu_head_unqueue(&rdp->barrier_head);
 		rcu_barrier_trace(TPS("IRQNQ"), -1,
 				   rcu_state.barrier_sequence);
 	}
@@ -3653,7 +3653,7 @@ static void __init rcu_init_one(void)
 	int j;
 	struct rcu_node *rnp;
 
-	BUILD_BUG_ON(RCU_NUM_LVLS > ARRAY_SIZE(buf));  /* Fix buf[] init! */
+	BUILD__ON(RCU_NUM_LVLS > ARRAY_SIZE(buf));  /* Fix buf[] init! */
 
 	/* Silence gcc 4.8 false positive about array index out of range. */
 	if (rcu_num_lvls <= 0 || rcu_num_lvls > RCU_NUM_LVLS)

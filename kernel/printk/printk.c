@@ -45,7 +45,7 @@
 #include <linux/ctype.h>
 #include <linux/uio.h>
 #include <linux/sched/clock.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/task_stack.h>
 
 #include <linux/uaccess.h>
@@ -240,9 +240,9 @@ static void __up_console_sem(unsigned long ip)
 #define up_console_sem() __up_console_sem(_RET_IP_)
 
 /*
- * This is used for debugging the mess that is the VT code by
+ * This is used for deging the mess that is the VT code by
  * keeping track if we have the console semaphore held. It's
- * definitely not the perfect debug tool (we don't know if _WE_
+ * definitely not the perfect de tool (we don't know if _WE_
  * hold it and are racing, but it helps tracking those weird code
  * paths in the console code where we end up in places I want
  * locked without the console sempahore held).
@@ -1169,7 +1169,7 @@ static bool __read_mostly ignore_loglevel;
 static int __init ignore_loglevel_setup(char *str)
 {
 	ignore_loglevel = true;
-	pr_info("debug: ignoring loglevel setting.\n");
+	pr_info("de: ignoring loglevel setting.\n");
 
 	return 0;
 }
@@ -1200,7 +1200,7 @@ static int __init boot_delay_setup(char *str)
 	if (boot_delay > 10 * 1000)
 		boot_delay = 0;
 
-	pr_debug("boot_delay: %u, preset_lpj: %ld, lpj: %lu, "
+	pr_de("boot_delay: %u, preset_lpj: %ld, lpj: %lu, "
 		"HZ: %d, loops_per_msec: %llu\n",
 		boot_delay, preset_lpj, lpj, HZ, loops_per_msec);
 	return 0;
@@ -2219,7 +2219,7 @@ void suspend_console(void)
 {
 	if (!console_suspend_enabled)
 		return;
-	pr_info("Suspending console(s) (use no_console_suspend to debug)\n");
+	pr_info("Suspending console(s) (use no_console_suspend to de)\n");
 	console_lock();
 	console_suspended = 1;
 	up_console_sem();
@@ -2588,7 +2588,7 @@ static int __read_mostly keep_bootcon;
 static int __init keep_bootcon_setup(char *str)
 {
 	keep_bootcon = 1;
-	pr_info("debug: skip boot console de-registration.\n");
+	pr_info("de: skip boot console de-registration.\n");
 
 	return 0;
 }
@@ -2678,7 +2678,7 @@ void register_console(struct console *newcon)
 		if (!newcon->match ||
 		    newcon->match(newcon, c->name, c->index, c->options) != 0) {
 			/* default matching */
-			BUILD_BUG_ON(sizeof(c->name) != sizeof(newcon->name));
+			BUILD__ON(sizeof(c->name) != sizeof(newcon->name));
 			if (strcmp(c->name, newcon->name) != 0)
 				continue;
 			if (newcon->index >= 0 &&

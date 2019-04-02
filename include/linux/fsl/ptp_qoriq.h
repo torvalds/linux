@@ -144,7 +144,7 @@ struct ptp_qoriq {
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
 	struct resource *rsrc;
-	struct dentry *debugfs_root;
+	struct dentry *defs_root;
 	struct device *dev;
 	bool extts_fifo_support;
 	int irq;
@@ -192,13 +192,13 @@ int ptp_qoriq_settime(struct ptp_clock_info *ptp,
 		      const struct timespec64 *ts);
 int ptp_qoriq_enable(struct ptp_clock_info *ptp,
 		     struct ptp_clock_request *rq, int on);
-#ifdef CONFIG_DEBUG_FS
-void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq);
-void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq);
+#ifdef CONFIG_DE_FS
+void ptp_qoriq_create_defs(struct ptp_qoriq *ptp_qoriq);
+void ptp_qoriq_remove_defs(struct ptp_qoriq *ptp_qoriq);
 #else
-static inline void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq)
+static inline void ptp_qoriq_create_defs(struct ptp_qoriq *ptp_qoriq)
 { }
-static inline void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq)
+static inline void ptp_qoriq_remove_defs(struct ptp_qoriq *ptp_qoriq)
 { }
 #endif
 

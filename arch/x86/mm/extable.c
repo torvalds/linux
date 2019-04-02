@@ -1,11 +1,11 @@
 #include <linux/extable.h>
 #include <linux/uaccess.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <xen/xen.h>
 
 #include <asm/fpu/internal.h>
 #include <asm/traps.h>
-#include <asm/kdebug.h>
+#include <asm/kde.h>
 
 typedef bool (*ex_handler_t)(const struct exception_table_entry *,
 			    struct pt_regs *, int, unsigned long,
@@ -95,7 +95,7 @@ EXPORT_SYMBOL(ex_handler_refcount);
 /*
  * Handler for when we fail to restore a task's FPU state.  We should never get
  * here because the FPU state of a task using the FPU (task->thread.fpu.state)
- * should always be valid.  However, past bugs have allowed userspace to set
+ * should always be valid.  However, past s have allowed userspace to set
  * reserved bits in the XSAVE area using PTRACE_SETREGSET or sys_rt_sigreturn().
  * These caused XRSTOR to fail when switching to the task, leaking the FPU
  * registers of the task previously executing on the CPU.  Mitigate this class
@@ -178,7 +178,7 @@ __visible bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 				   unsigned long error_code,
 				   unsigned long fault_addr)
 {
-	if (static_cpu_has(X86_BUG_NULL_SEG))
+	if (static_cpu_has(X86__NULL_SEG))
 		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
 	asm volatile ("mov %0, %%fs" : : "rm" (0));
 	return ex_handler_default(fixup, regs, trapnr, error_code, fault_addr);
@@ -256,7 +256,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 *
 	 * This is better than filtering which handlers can be used,
 	 * because refusing to call a handler here is guaranteed to
-	 * result in a hard-to-debug panic.
+	 * result in a hard-to-de panic.
 	 *
 	 * Keep in mind that not all vectors actually get here.  Early
 	 * page faults, for example, are special.
@@ -264,7 +264,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))
 		return;
 
-	if (fixup_bug(regs, trapnr))
+	if (fixup_(regs, trapnr))
 		return;
 
 fail:

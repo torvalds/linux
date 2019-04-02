@@ -9,6 +9,6 @@ iwldvm-objs		+= scan.o
 iwldvm-objs		+= rxon.o devices.o
 
 iwldvm-$(CONFIG_IWLWIFI_LEDS) += led.o
-iwldvm-$(CONFIG_IWLWIFI_DEBUGFS) += debugfs.o
+iwldvm-$(CONFIG_IWLWIFI_DEFS) += defs.o
 
 ccflags-y += -I $(srctree)/$(src)/../

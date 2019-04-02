@@ -26,9 +26,9 @@
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Enable module debug trace. Set to 1 to enable.");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Enable module de trace. Set to 1 to enable.");
 
 #define MODULE_NAME		"NOON010PC30"
 
@@ -424,7 +424,7 @@ static int power_enable(struct noon010_info *info)
 	}
 	info->power = 1;
 
-	v4l2_dbg(1, debug, &info->sd,  "%s: sensor is on\n", __func__);
+	v4l2_dbg(1, de, &info->sd,  "%s: sensor is on\n", __func__);
 	return 0;
 }
 
@@ -450,7 +450,7 @@ static int power_disable(struct noon010_info *info)
 
 	info->power = 0;
 
-	v4l2_dbg(1, debug, &info->sd,  "%s: sensor is off\n", __func__);
+	v4l2_dbg(1, de, &info->sd,  "%s: sensor is off\n", __func__);
 
 	return 0;
 }
@@ -461,7 +461,7 @@ static int noon010_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct noon010_info *info = to_noon010(sd);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, sd, "%s: ctrl_id: %d, value: %d\n",
+	v4l2_dbg(1, de, sd, "%s: ctrl_id: %d, value: %d\n",
 		 __func__, ctrl->id, ctrl->val);
 
 	mutex_lock(&info->lock);

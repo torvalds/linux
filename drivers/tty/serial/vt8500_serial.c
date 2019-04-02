@@ -502,7 +502,7 @@ static void vt8500_console_write(struct console *co, const char *s,
 	struct vt8500_port *vt8500_port = vt8500_uart_ports[co->index];
 	unsigned long ier;
 
-	BUG_ON(co->index < 0 || co->index >= vt8500_uart_driver.nr);
+	_ON(co->index < 0 || co->index >= vt8500_uart_driver.nr);
 
 	ier = vt8500_read(&vt8500_port->uart, VT8500_URIER);
 	vt8500_write(&vt8500_port->uart, VT8500_URIER, 0);

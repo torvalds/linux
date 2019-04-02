@@ -87,7 +87,7 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 	u32 range;
 	u32 limit;
 
-	BUG_ON(bcm_clk->type != bcm_clk_peri);
+	_ON(bcm_clk->type != bcm_clk_peri);
 	peri = bcm_clk->u.peri;
 	name = bcm_clk->init_data.name;
 	range = bcm_clk->ccu->range;
@@ -267,7 +267,7 @@ static bool gate_valid(struct bcm_clk_gate *gate, const char *field_name,
 				return false;
 		}
 	} else {
-		BUG_ON(!gate_is_hw_controllable(gate));
+		_ON(!gate_is_hw_controllable(gate));
 	}
 
 	return true;
@@ -372,7 +372,7 @@ static bool kona_dividers_valid(struct kona_clk *bcm_clk)
 	struct bcm_clk_div *pre_div;
 	u32 limit;
 
-	BUG_ON(bcm_clk->type != bcm_clk_peri);
+	_ON(bcm_clk->type != bcm_clk_peri);
 
 	if (!divider_exists(&peri->div) || !divider_exists(&peri->pre_div))
 		return true;
@@ -409,7 +409,7 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 	struct bcm_clk_trig *trig;
 	const char *name;
 
-	BUG_ON(bcm_clk->type != bcm_clk_peri);
+	_ON(bcm_clk->type != bcm_clk_peri);
 
 	/*
 	 * First validate register offsets.  This is the only place

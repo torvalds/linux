@@ -25,7 +25,7 @@ struct snd_cx18_card {
 	spinlock_t slock;
 };
 
-extern int cx18_alsa_debug;
+extern int cx18_alsa_de;
 
 /*
  * File operations that manipulate the encoder or video or audio subdevices
@@ -46,18 +46,18 @@ static inline void snd_cx18_unlock(struct snd_cx18_card *cxsc)
 #define CX18_ALSA_DBGFLG_WARN  (1 << 0)
 #define CX18_ALSA_DBGFLG_INFO  (1 << 1)
 
-#define CX18_ALSA_DEBUG(x, type, fmt, args...) \
+#define CX18_ALSA_DE(x, type, fmt, args...) \
 	do { \
-		if ((x) & cx18_alsa_debug) \
+		if ((x) & cx18_alsa_de) \
 			printk(KERN_INFO "%s-alsa: " type ": " fmt, \
 				v4l2_dev->name , ## args); \
 	} while (0)
 
-#define CX18_ALSA_DEBUG_WARN(fmt, args...) \
-	CX18_ALSA_DEBUG(CX18_ALSA_DBGFLG_WARN, "warning", fmt , ## args)
+#define CX18_ALSA_DE_WARN(fmt, args...) \
+	CX18_ALSA_DE(CX18_ALSA_DBGFLG_WARN, "warning", fmt , ## args)
 
-#define CX18_ALSA_DEBUG_INFO(fmt, args...) \
-	CX18_ALSA_DEBUG(CX18_ALSA_DBGFLG_INFO, "info", fmt , ## args)
+#define CX18_ALSA_DE_INFO(fmt, args...) \
+	CX18_ALSA_DE(CX18_ALSA_DBGFLG_INFO, "info", fmt , ## args)
 
 #define CX18_ALSA_ERR(fmt, args...) \
 	printk(KERN_ERR "%s-alsa: " fmt, v4l2_dev->name , ## args)

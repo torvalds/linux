@@ -39,7 +39,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 	if (unlikely(buffer_mapped(bh) || buffer_uptodate(bh) ||
 		     buffer_dirty(bh))) {
 		brelse(bh);
-		BUG();
+		();
 	}
 	memset(bh->b_data, 0, i_blocksize(inode));
 	bh->b_bdev = inode->i_sb->s_bdev;
@@ -171,9 +171,9 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 		struct page *opage = obh->b_page;
 		lock_page(opage);
 retry:
-		/* BUG_ON(oldkey != obh->b_page->index); */
+		/* _ON(oldkey != obh->b_page->index); */
 		if (unlikely(oldkey != opage->index))
-			NILFS_PAGE_BUG(opage,
+			NILFS_PAGE_(opage,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);
@@ -203,7 +203,7 @@ retry:
 	if (!nbh)
 		return -ENOMEM;
 
-	BUG_ON(nbh == obh);
+	_ON(nbh == obh);
 	ctxt->newbh = nbh;
 	return 0;
 
@@ -229,7 +229,7 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 	if (nbh == NULL) {	/* blocksize == pagesize */
 		opage = obh->b_page;
 		if (unlikely(oldkey != opage->index))
-			NILFS_PAGE_BUG(opage,
+			NILFS_PAGE_(opage,
 				       "invalid oldkey %lld (newkey=%lld)",
 				       (unsigned long long)oldkey,
 				       (unsigned long long)newkey);

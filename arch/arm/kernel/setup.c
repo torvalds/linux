@@ -27,7 +27,7 @@
 #include <linux/smp.h>
 #include <linux/proc_fs.h>
 #include <linux/memblock.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/compiler.h>
 #include <linux/sort.h>
 #include <linux/psci.h>
@@ -277,7 +277,7 @@ static int __get_cpu_architecture(void)
 
 int __pure cpu_architecture(void)
 {
-	BUG_ON(__cpu_architecture == CPU_ARCH_UNKNOWN);
+	_ON(__cpu_architecture == CPU_ARCH_UNKNOWN);
 
 	return __cpu_architecture;
 }
@@ -373,7 +373,7 @@ void __init early_print(const char *str, ...)
 	vsnprintf(buf, sizeof(buf), str, ap);
 	va_end(ap);
 
-#ifdef CONFIG_DEBUG_LL
+#ifdef CONFIG_DE_LL
 	printascii(buf);
 #endif
 	printk("%s", buf);
@@ -530,7 +530,7 @@ void notrace cpu_init(void)
 
 	if (cpu >= NR_CPUS) {
 		pr_crit("CPU%u: bad primary CPU number\n", cpu);
-		BUG();
+		();
 	}
 
 	/*
@@ -623,7 +623,7 @@ static void __init smp_build_mpidr_hash(void)
 	 */
 	for_each_possible_cpu(i)
 		mask |= (cpu_logical_map(i) ^ cpu_logical_map(0));
-	pr_debug("mask of set bits 0x%x\n", mask);
+	pr_de("mask of set bits 0x%x\n", mask);
 	/*
 	 * Find and stash the last and first bit set at all affinity levels to
 	 * check how many bits are required to represent them.
@@ -655,7 +655,7 @@ static void __init smp_build_mpidr_hash(void)
 						(bits[1] + bits[0]);
 	mpidr_hash.mask = mask;
 	mpidr_hash.bits = bits[2] + bits[1] + bits[0];
-	pr_debug("MPIDR hash: aff0[%u] aff1[%u] aff2[%u] mask[0x%x] bits[%u]\n",
+	pr_de("MPIDR hash: aff0[%u] aff1[%u] aff2[%u] mask[0x%x] bits[%u]\n",
 				mpidr_hash.shift_aff[0],
 				mpidr_hash.shift_aff[1],
 				mpidr_hash.shift_aff[2],

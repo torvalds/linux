@@ -44,7 +44,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 		if (sg_dma_address(startsg) & PIDE_FLAG) {
 			u32 pide = sg_dma_address(startsg) & ~PIDE_FLAG;
 
-			BUG_ON(pdirp && (dma_len != sg_dma_len(dma_sg)));
+			_ON(pdirp && (dma_len != sg_dma_len(dma_sg)));
 
 			dma_sg++;
 
@@ -65,7 +65,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 			prefetchw(pdirp);
 		}
 		
-		BUG_ON(pdirp == NULL);
+		_ON(pdirp == NULL);
 		
 		vaddr = (unsigned long)sg_virt(startsg);
 		sg_dma_len(dma_sg) += startsg->length;

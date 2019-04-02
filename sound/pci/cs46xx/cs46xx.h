@@ -281,7 +281,7 @@
 #define HSAR_MEMID_SP_DMEM0                     0x00000000
 #define HSAR_MEMID_SP_DMEM1                     0x00010000
 #define HSAR_MEMID_SP_PMEM                      0x00020000
-#define HSAR_MEMID_SP_DEBUG                     0x00030000
+#define HSAR_MEMID_SP_DE                     0x00030000
 #define HSAR_MEMID_OMNI_MEM                     0x000E0000
 #define HSAR_END                                0x40000000
 #define HSAR_ERR                                0x80000000
@@ -296,7 +296,7 @@
 #define HDAR_MEMID_SP_DMEM0                     0x00000000
 #define HDAR_MEMID_SP_DMEM1                     0x00010000
 #define HDAR_MEMID_SP_PMEM                      0x00020000
-#define HDAR_MEMID_SP_DEBUG                     0x00030000
+#define HDAR_MEMID_SP_DE                     0x00030000
 #define HDAR_MEMID_OMNI_MEM                     0x000E0000
 #define HDAR_END                                0x40000000
 #define HDAR_ERR                                0x80000000
@@ -1183,10 +1183,10 @@
 #endif
 
 /*
- *  The following defines are for the flags in the debug index register.
+ *  The following defines are for the flags in the de index register.
  */
 #define DREG_REGID_MASK                         0x0000007F
-#define DREG_DEBUG                              0x00000080
+#define DREG_DE                              0x00000080
 #define DREG_RGBK_MASK                          0x00000700
 #define DREG_TRAP                               0x00000800
 #if !defined(NO_CS4612)
@@ -1564,7 +1564,7 @@
 #define DMA_RQ_SD_SP_PARAM_ADDR                 0x00000000
 #define DMA_RQ_SD_SP_SAMPLE_ADDR                0x00010000
 #define DMA_RQ_SD_SP_PROGRAM_ADDR               0x00020000
-#define DMA_RQ_SD_SP_DEBUG_ADDR                 0x00030000
+#define DMA_RQ_SD_SP_DE_ADDR                 0x00030000
 #define DMA_RQ_SD_OMNIMEM_ADDR                  0x000E0000
 #define DMA_RQ_SD_END_FLAG                      0x40000000
 #define DMA_RQ_SD_ERROR_FLAG                    0x80000000

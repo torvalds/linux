@@ -101,7 +101,7 @@ static void xway_select_chip(struct nand_chip *chip, int select)
 		ltq_ebu_w32_mask(0, NAND_CON_CE, EBU_NAND_CON);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

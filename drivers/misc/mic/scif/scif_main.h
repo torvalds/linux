@@ -65,7 +65,7 @@ enum scif_msg_state {
  * @nb_connect_list: List for non blocking connections
  * @misc_work: miscellaneous SCIF tasks
  * @conflock: Lock to synchronize SCIF node configuration changes
- * @en_msg_log: Enable debug message logging
+ * @en_msg_log: Enable de message logging
  * @p2p_enable: Enable P2P SCIF network
  * @mdev: The MISC device
  * @conn_work: Work for workqueue handling all connections
@@ -269,8 +269,8 @@ static inline int _scifdev_alive(struct scif_dev *scifdev)
 
 #include "scif_epd.h"
 
-void __init scif_init_debugfs(void);
-void scif_exit_debugfs(void);
+void __init scif_init_defs(void);
+void scif_exit_defs(void);
 int scif_setup_intr_wq(struct scif_dev *scifdev);
 void scif_destroy_intr_wq(struct scif_dev *scifdev);
 void scif_cleanup_scifdev(struct scif_dev *dev);

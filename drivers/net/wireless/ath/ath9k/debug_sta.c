@@ -88,7 +88,7 @@ static const struct file_operations fops_node_aggr = {
 /* node_recv */
 /*************/
 
-void ath_debug_rate_stats(struct ath_softc *sc,
+void ath_de_rate_stats(struct ath_softc *sc,
 			  struct ath_rx_status *rs,
 			  struct sk_buff *skb)
 {
@@ -242,13 +242,13 @@ static const struct file_operations fops_node_recv = {
 	.llseek = default_llseek,
 };
 
-void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
+void ath9k_sta_add_defs(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
 			   struct dentry *dir)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 
-	debugfs_create_file("node_aggr", 0444, dir, an, &fops_node_aggr);
-	debugfs_create_file("node_recv", 0444, dir, an, &fops_node_recv);
+	defs_create_file("node_aggr", 0444, dir, an, &fops_node_aggr);
+	defs_create_file("node_recv", 0444, dir, an, &fops_node_recv);
 }

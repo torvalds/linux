@@ -67,7 +67,7 @@ void rds_ib_ring_init(struct rds_ib_work_ring *ring, u32 nr)
 {
 	memset(ring, 0, sizeof(*ring));
 	ring->w_nr = nr;
-	rdsdebug("ring %p nr %u\n", ring, ring->w_nr);
+	rdsde("ring %p nr %u\n", ring, ring->w_nr);
 }
 
 static inline u32 __rds_ib_ring_used(struct rds_ib_work_ring *ring)
@@ -76,7 +76,7 @@ static inline u32 __rds_ib_ring_used(struct rds_ib_work_ring *ring)
 
 	/* This assumes that atomic_t has at least as many bits as u32 */
 	diff = ring->w_alloc_ctr - (u32) atomic_read(&ring->w_free_ctr);
-	BUG_ON(diff > ring->w_nr);
+	_ON(diff > ring->w_nr);
 
 	return diff;
 }
@@ -85,7 +85,7 @@ void rds_ib_ring_resize(struct rds_ib_work_ring *ring, u32 nr)
 {
 	/* We only ever get called from the connection setup code,
 	 * prior to creating the QP. */
-	BUG_ON(__rds_ib_ring_used(ring));
+	_ON(__rds_ib_ring_used(ring));
 	ring->w_nr = nr;
 }
 
@@ -100,7 +100,7 @@ u32 rds_ib_ring_alloc(struct rds_ib_work_ring *ring, u32 val, u32 *pos)
 
 	avail = ring->w_nr - __rds_ib_ring_used(ring);
 
-	rdsdebug("ring %p val %u next %u free %u\n", ring, val,
+	rdsde("ring %p val %u next %u free %u\n", ring, val,
 		 ring->w_alloc_ptr, avail);
 
 	if (val && avail) {
@@ -162,7 +162,7 @@ u32 rds_ib_ring_completed(struct rds_ib_work_ring *ring, u32 wr_id, u32 oldest)
 	else
 		ret = ring->w_nr - oldest + (unsigned long long)wr_id + 1;
 
-	rdsdebug("ring %p ret %u wr_id %u oldest %u\n", ring, ret,
+	rdsde("ring %p ret %u wr_id %u oldest %u\n", ring, ret,
 		 wr_id, oldest);
 	return ret;
 }

@@ -4,7 +4,7 @@
 #include "halbt_precomp.h"
 
 /***************************************************
- *		Debug related function
+ *		De related function
  ***************************************************/
 
 static const char *const gl_btc_wifi_bw_string[] = {

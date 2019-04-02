@@ -64,7 +64,7 @@ void nuc900_clock_source(struct device *dev, unsigned char *src)
 	unsigned int clkval;
 	const char *dev_id;
 
-	BUG_ON(!src);
+	_ON(!src);
 	clkval = 0;
 
 	mutex_lock(&clksel_sem);

@@ -36,13 +36,13 @@
 MODULE_AUTHOR("Devin Heitmueller");
 MODULE_LICENSE("GPL");
 
-static int au8522_analog_debug;
+static int au8522_analog_de;
 
 
-module_param_named(analog_debug, au8522_analog_debug, int, 0644);
+module_param_named(analog_de, au8522_analog_de, int, 0644);
 
-MODULE_PARM_DESC(analog_debug,
-		 "Analog debugging messages [0=Off (default) 1=On]");
+MODULE_PARM_DESC(analog_de,
+		 "Analog deging messages [0=Off (default) 1=On]");
 
 struct au8522_register_config {
 	u16 reg_name;
@@ -477,7 +477,7 @@ static int au8522_s_ctrl(struct v4l2_ctrl *ctrl)
 
 /* ----------------------------------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int au8522_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
@@ -645,7 +645,7 @@ static int au8522_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 static const struct v4l2_subdev_core_ops au8522_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = au8522_g_register,
 	.s_register = au8522_s_register,
 #endif

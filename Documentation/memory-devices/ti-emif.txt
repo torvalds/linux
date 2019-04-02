@@ -48,9 +48,9 @@ affecting EMIF and takes appropriate actions when these are invoked.
 - freq_post_notify_handling()
 - volt_notify_handling()
 
-Debugfs
+Defs
 ========
-The driver creates two debugfs entries per device.
+The driver creates two defs entries per device.
 - regcache_dump : dump of register values calculated and saved for all
   frequencies used so far.
 - mr4 : last polled value of MR4 register in the LPDDR2 device. MR4

@@ -98,7 +98,7 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 		"\t\t0x00002000 - Target Mgmt.   0x00001000 - Target TMF.\n"
 		"\t\t0x7fffffff - For enabling all logs, can be too many logs.\n"
 		"\t\t0x1e400000 - Preferred value for capturing essential "
-		"debug information (equivalent to old "
+		"de information (equivalent to old "
 		"ql2xextended_error_logging=1).\n"
 		"\t\tDo LOGICAL OR of the value to enable more than one level");
 
@@ -3613,7 +3613,7 @@ qla2x00_delete_all_vps(struct qla_hw_data *ha, scsi_qla_host_t *base_vha)
 	while (ha->cur_vport_count) {
 		spin_lock_irqsave(&ha->vport_slock, flags);
 
-		BUG_ON(base_vha->list.next == &ha->vp_list);
+		_ON(base_vha->list.next == &ha->vp_list);
 		/* This assumes first entry in ha->vp_list is always base vha */
 		vha = list_first_entry(&base_vha->list, scsi_qla_host_t, list);
 		scsi_host_get(vha->host);
@@ -6008,13 +6008,13 @@ qla83xx_idc_state_handler(scsi_qla_host_t *base_vha)
 			    (ha->fcoe_dev_init_timeout * HZ);
 			break;
 		case QLA8XXX_DEV_NEED_QUIESCENT:
-			/* XXX: DEBUG for now */
+			/* XXX: DE for now */
 			qla83xx_idc_unlock(base_vha, 0);
 			msleep(1000);
 			qla83xx_idc_lock(base_vha, 0);
 			break;
 		case QLA8XXX_DEV_QUIESCENT:
-			/* XXX: DEBUG for now */
+			/* XXX: DE for now */
 			if (ha->flags.quiesce_owner)
 				goto exit;
 
@@ -7276,7 +7276,7 @@ qla2x00_module_init(void)
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
 	if (ql2xextended_error_logging)
-		strcat(qla2x00_version_str, "-debug");
+		strcat(qla2x00_version_str, "-de");
 	if (ql2xextended_error_logging == 1)
 		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
 

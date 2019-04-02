@@ -16,7 +16,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/wake_q.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/osq_lock.h>
 
 #include "rwsem.h"
@@ -76,11 +76,11 @@
 void __init_rwsem(struct rw_semaphore *sem, const char *name,
 		  struct lock_class_key *key)
 {
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 	/*
 	 * Make sure we are not reinitializing a held semaphore:
 	 */
-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+	de_check_no_locks_freed((void *)sem, sizeof(*sem));
 	lockdep_init_map(&sem->dep_map, name, key, 0);
 #endif
 	atomic_long_set(&sem->count, RWSEM_UNLOCKED_VALUE);
@@ -377,7 +377,7 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	struct task_struct *owner;
 	bool ret = true;
 
-	BUILD_BUG_ON(!rwsem_has_anonymous_owner(RWSEM_OWNER_UNKNOWN));
+	BUILD__ON(!rwsem_has_anonymous_owner(RWSEM_OWNER_UNKNOWN));
 
 	if (need_resched())
 		return false;

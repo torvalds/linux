@@ -159,7 +159,7 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 				       &report_val);
 	}
 
-	pr_debug("HID_SENSOR %s set power_state %d report_state %d\n",
+	pr_de("HID_SENSOR %s set power_state %d report_state %d\n",
 		 st->pdev->name, state_val, report_val);
 
 	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,

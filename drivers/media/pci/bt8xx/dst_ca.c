@@ -33,7 +33,7 @@
 #define DST_CA_ERROR		0
 #define DST_CA_NOTICE		1
 #define DST_CA_INFO		2
-#define DST_CA_DEBUG		3
+#define DST_CA_DE		3
 
 #define dprintk(x, y, z, format, arg...) do {						\
 	if (z) {									\
@@ -43,8 +43,8 @@
 			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
 		else if ((x > DST_CA_INFO) && (x > y))					\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);	\
-		else if ((x > DST_CA_DEBUG) && (x > y))					\
-			printk(KERN_DEBUG "%s: " format "\n", __func__ , ##arg);	\
+		else if ((x > DST_CA_DE) && (x > y))					\
+			printk(KERN_DE "%s: " format "\n", __func__ , ##arg);	\
 	} else {									\
 		if (x > y)								\
 			printk(format, ## arg);						\
@@ -67,10 +67,10 @@ static void put_command_and_length(u8 *data, int command, int length)
 
 static void put_checksum(u8 *check_string, int length)
 {
-	dprintk(verbose, DST_CA_DEBUG, 1, " Computing string checksum.");
-	dprintk(verbose, DST_CA_DEBUG, 1, "  -> string length : 0x%02x", length);
+	dprintk(verbose, DST_CA_DE, 1, " Computing string checksum.");
+	dprintk(verbose, DST_CA_DE, 1, "  -> string length : 0x%02x", length);
 	check_string[length] = dst_check_sum (check_string, length);
-	dprintk(verbose, DST_CA_DEBUG, 1, "  -> checksum      : 0x%02x", check_string[length]);
+	dprintk(verbose, DST_CA_DE, 1, "  -> checksum      : 0x%02x", check_string[length]);
 }
 
 static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 len, int read)
@@ -379,29 +379,29 @@ static u32 asn_1_decode(u8 *asn_1_array)
 	u32 length = 0;
 
 	length_field = asn_1_array[0];
-	dprintk(verbose, DST_CA_DEBUG, 1, " Length field=[%02x]", length_field);
+	dprintk(verbose, DST_CA_DE, 1, " Length field=[%02x]", length_field);
 	if (length_field < 0x80) {
 		length = length_field & 0x7f;
-		dprintk(verbose, DST_CA_DEBUG, 1, " Length=[%02x]\n", length);
+		dprintk(verbose, DST_CA_DE, 1, " Length=[%02x]\n", length);
 	} else {
 		word_count = length_field & 0x7f;
 		for (count = 0; count < word_count; count++) {
 			length = length  << 8;
 			length += asn_1_array[count + 1];
-			dprintk(verbose, DST_CA_DEBUG, 1, " Length=[%04x]", length);
+			dprintk(verbose, DST_CA_DE, 1, " Length=[%04x]", length);
 		}
 	}
 	return length;
 }
 
-static int debug_string(u8 *msg, u32 length, u32 offset)
+static int de_string(u8 *msg, u32 length, u32 offset)
 {
 	u32 i;
 
-	dprintk(verbose, DST_CA_DEBUG, 0, " String=[ ");
+	dprintk(verbose, DST_CA_DE, 0, " String=[ ");
 	for (i = offset; i < length; i++)
-		dprintk(verbose, DST_CA_DEBUG, 0, "%02x ", msg[i]);
-	dprintk(verbose, DST_CA_DEBUG, 0, "]\n");
+		dprintk(verbose, DST_CA_DE, 0, "%02x ", msg[i]);
+	dprintk(verbose, DST_CA_DE, 0, "]\n");
 
 	return 0;
 }
@@ -413,14 +413,14 @@ static int ca_set_pmt(struct dst_state *state, struct ca_msg *p_ca_message, stru
 	u8 tag_length = 8;
 
 	length = asn_1_decode(&p_ca_message->msg[3]);
-	dprintk(verbose, DST_CA_DEBUG, 1, " CA Message length=[%d]", length);
-	debug_string(&p_ca_message->msg[4], length, 0); /*	length is excluding tag & length	*/
+	dprintk(verbose, DST_CA_DE, 1, " CA Message length=[%d]", length);
+	de_string(&p_ca_message->msg[4], length, 0); /*	length is excluding tag & length	*/
 
 	memset(hw_buffer->msg, '\0', length);
 	handle_dst_tag(state, p_ca_message, hw_buffer, length);
 	put_checksum(hw_buffer->msg, hw_buffer->msg[0]);
 
-	debug_string(hw_buffer->msg, (length + tag_length), 0); /*	tags too	*/
+	de_string(hw_buffer->msg, (length + tag_length), 0); /*	tags too	*/
 	write_to_8820(state, hw_buffer, (length + tag_length), reply);
 
 	return 0;
@@ -469,7 +469,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	hw_buffer = kmalloc(sizeof(*hw_buffer), GFP_KERNEL);
 	if (!hw_buffer)
 		return -ENOMEM;
-	dprintk(verbose, DST_CA_DEBUG, 1, " ");
+	dprintk(verbose, DST_CA_DE, 1, " ");
 
 	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg))) {
 		result = -EFAULT;
@@ -484,11 +484,11 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 		if (i < 2)
 			command = command << 8;
 	}
-	dprintk(verbose, DST_CA_DEBUG, 1, " Command=[0x%x]\n", command);
+	dprintk(verbose, DST_CA_DE, 1, " Command=[0x%x]\n", command);
 
 	switch (command) {
 	case CA_PMT:
-		dprintk(verbose, DST_CA_DEBUG, 1, "Command = SEND_CA_PMT");
+		dprintk(verbose, DST_CA_DE, 1, "Command = SEND_CA_PMT");
 		if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, 0)) < 0) {	// code simplification started
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_PMT Failed !");
 			result = -1;
@@ -506,7 +506,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_PMT_REPLY Success !");
 		break;
-	case CA_APP_INFO_ENQUIRY:		// only for debugging
+	case CA_APP_INFO_ENQUIRY:		// only for deging
 		dprintk(verbose, DST_CA_INFO, 1, " Getting Cam Application information");
 
 		if ((ca_get_app_info(state)) < 0) {
@@ -622,28 +622,28 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 
 static int dst_ca_open(struct inode *inode, struct file *file)
 {
-	dprintk(verbose, DST_CA_DEBUG, 1, " Device opened [%p] ", file);
+	dprintk(verbose, DST_CA_DE, 1, " Device opened [%p] ", file);
 
 	return 0;
 }
 
 static int dst_ca_release(struct inode *inode, struct file *file)
 {
-	dprintk(verbose, DST_CA_DEBUG, 1, " Device closed.");
+	dprintk(verbose, DST_CA_DE, 1, " Device closed.");
 
 	return 0;
 }
 
 static ssize_t dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
-	dprintk(verbose, DST_CA_DEBUG, 1, " Device read.");
+	dprintk(verbose, DST_CA_DE, 1, " Device read.");
 
 	return 0;
 }
 
 static ssize_t dst_ca_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset)
 {
-	dprintk(verbose, DST_CA_DEBUG, 1, " Device write.");
+	dprintk(verbose, DST_CA_DE, 1, " Device write.");
 
 	return 0;
 }

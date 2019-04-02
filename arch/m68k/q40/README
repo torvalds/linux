@@ -47,7 +47,7 @@ problems. For cards using 16bit io/mem more care is required, like
 checking byte order issues, hacking memcpy_*_io etc.
 
 
-Debugging
+Deging
 =========
 
 Upon startup the kernel will usually output "ABCQGHIJ" into the SRAM,
@@ -57,12 +57,12 @@ went wrong during earliest setup stages of head.S.
 requested - SRAM must start with '%LX$' signature to do this. '-d' option
 to 'lxx' loader enables this.
 
-SRAM can also be used as additional console device, use debug=mem.
+SRAM can also be used as additional console device, use de=mem.
 This will save kernel startup msgs into SRAM, the screen will display
 only the penguin - and shell prompt if it gets that far..
 Unfortunately only 2000 bytes are available.
 
-Serial console works and can also be used for debugging, see loader_txt
+Serial console works and can also be used for deging, see loader_txt
 
 Most problems seem to be caused by fawlty or badly configured io-cards or
 hard drives anyway.
@@ -132,7 +132,7 @@ problems, email me ideally this:
 	- exact keypress/release sequence
 	- 'showkey -s' run on q40, non-X session
 	- 'showkey -s' run on a PC, non-X session
-	- AT codes as displayed by the q40 debugging ROM
+	- AT codes as displayed by the q40 deging ROM
 btw if the showkey output from PC and Q40 doesn't differ then you have some
 classic configuration problem - don't send me anything in this case
 

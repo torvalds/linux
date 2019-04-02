@@ -218,7 +218,7 @@ ergo_writebootimg(struct HYSDN_CARD *card, unsigned char *buf,
 	tErgDpram *dpram;
 	int cnt = (BOOT_IMG_SIZE >> 2);		/* number of words to move and swap (byte order!) */
 
-	if (card->debug_flags & LOG_POF_CARD)
+	if (card->de_flags & LOG_POF_CARD)
 		hysdn_addlog(card, "ERGO: write bootldr offs=0x%lx ", offs);
 
 	dst = card->dpram;	/* pointer to start of DPRAM */
@@ -244,7 +244,7 @@ ergo_writebootimg(struct HYSDN_CARD *card, unsigned char *buf,
 		msleep_interruptible(20);		/* Timeout 20ms */
 
 		if (((tDpramBootSpooler *) card->dpram)->Len != DPRAM_SPOOLER_DATA_SIZE) {
-			if (card->debug_flags & LOG_POF_CARD)
+			if (card->de_flags & LOG_POF_CARD)
 				hysdn_addlog(card, "ERGO: write bootldr no answer");
 			return (-ERR_BOOTIMG_FAIL);
 		}
@@ -268,7 +268,7 @@ ergo_writebootseq(struct HYSDN_CARD *card, unsigned char *buf, int len)
 	unsigned char wr_mirror;
 	int i;
 
-	if (card->debug_flags & LOG_POF_CARD)
+	if (card->de_flags & LOG_POF_CARD)
 		hysdn_addlog(card, "ERGO: write boot seq len=%d ", len);
 
 	dst = sp->Data;		/* point to data in spool structure */
@@ -286,7 +286,7 @@ ergo_writebootseq(struct HYSDN_CARD *card, unsigned char *buf, int len)
 		} while (i && (tmp_rdptr != sp->RdPtr));	/* wait for stable pointer */
 
 		if (!i) {
-			if (card->debug_flags & LOG_POF_CARD)
+			if (card->de_flags & LOG_POF_CARD)
 				hysdn_addlog(card, "ERGO: write boot seq timeout");
 			return (-ERR_BOOTSEQ_FAIL);	/* value not stable -> timeout */
 		}
@@ -327,7 +327,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 	int msg_size;
 	int i;
 
-	if (card->debug_flags & LOG_POF_CARD)
+	if (card->de_flags & LOG_POF_CARD)
 		hysdn_addlog(card, "ERGO: waiting for pof ready");
 	while (timecnt--) {
 		/* wait until timeout  */
@@ -347,7 +347,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 				if (EvalSysrTokData(card, dpr->ToPcBuf + RDY_MAGIC_SIZE, msg_size))
 					break;
 
-			if (card->debug_flags & LOG_POF_RECORD)
+			if (card->de_flags & LOG_POF_RECORD)
 				hysdn_addlog(card, "ERGO: pof boot success");
 			spin_lock_irqsave(&card->hysdn_lock, flags);
 
@@ -380,7 +380,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 		msleep_interruptible(50);		/* Timeout 50ms */
 	}			/* wait until timeout */
 
-	if (card->debug_flags & LOG_POF_CARD)
+	if (card->de_flags & LOG_POF_CARD)
 		hysdn_addlog(card, "ERGO: pof boot ready timeout");
 	return (-ERR_POF_TIMEOUT);
 }				/* ergo_waitpofready */

@@ -23,7 +23,7 @@
 #include "layer1.h"
 #include "fsm.h"
 
-static u_int *debug;
+static u_int *de;
 
 struct layer1 {
 	u_long Flags;
@@ -98,7 +98,7 @@ static char *strL1Event[] =
 };
 
 static void
-l1m_debug(struct FsmInst *fi, char *fmt, ...)
+l1m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	struct layer1 *l1 = fi->userdata;
 	struct va_format vaf;
@@ -109,7 +109,7 @@ l1m_debug(struct FsmInst *fi, char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	printk(KERN_DEBUG "%s: %pV\n", dev_name(&l1->dch->dev.dev), &vaf);
+	printk(KERN_DE "%s: %pV\n", dev_name(&l1->dch->dev.dev), &vaf);
 
 	va_end(va);
 }
@@ -370,8 +370,8 @@ l1_event(struct layer1 *l1, u_int event)
 			l1->t3_value = val;
 			break;
 		}
-		if (*debug & DEBUG_L1)
-			printk(KERN_DEBUG "%s %x unhandled\n",
+		if (*de & DE_L1)
+			printk(KERN_DE "%s %x unhandled\n",
 			       __func__, event);
 		err = -EINVAL;
 	}
@@ -392,10 +392,10 @@ create_l1(struct dchannel *dch, dchannel_l1callback *dcb) {
 	nl1->l1m.state = ST_L1_F3;
 	nl1->Flags = 0;
 	nl1->t3_value = TIMER3_DEFAULT_VALUE;
-	nl1->l1m.debug = *debug & DEBUG_L1_FSM;
+	nl1->l1m.de = *de & DE_L1_FSM;
 	nl1->l1m.userdata = nl1;
 	nl1->l1m.userint = 0;
-	nl1->l1m.printdebug = l1m_debug;
+	nl1->l1m.printde = l1m_de;
 	nl1->dch = dch;
 	nl1->dcb = dcb;
 	mISDN_FsmInitTimer(&nl1->l1m, &nl1->timer3);
@@ -409,7 +409,7 @@ EXPORT_SYMBOL(create_l1);
 int
 l1_init(u_int *deb)
 {
-	debug = deb;
+	de = deb;
 	l1fsm_s.state_count = L1S_STATE_COUNT;
 	l1fsm_s.event_count = L1_EVENT_COUNT;
 	l1fsm_s.strEvent = strL1Event;

@@ -10,7 +10,7 @@
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/deadline.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/hotplug.h>
 #include <linux/sched/idle.h>
 #include <linux/sched/init.h>
@@ -43,7 +43,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpuset.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delayacct.h>
 #include <linux/energy_model.h>
 #include <linux/init_task.h>
@@ -75,7 +75,7 @@
 #include "cpupri.h"
 #include "cpudeadline.h"
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 # define SCHED_WARN_ON(x)	WARN_ONCE(x, #x)
 #else
 # define SCHED_WARN_ON(x)	({ (void)(x), 0; })
@@ -508,7 +508,7 @@ struct cfs_rq {
 	struct sched_entity	*last;
 	struct sched_entity	*skip;
 
-#ifdef	CONFIG_SCHED_DEBUG
+#ifdef	CONFIG_SCHED_DE
 	unsigned int		nr_spread_over;
 #endif
 
@@ -1018,7 +1018,7 @@ static inline u64 __rq_clock_broken(struct rq *rq)
  * %RQCF_ACT_SKIP - is set from inside of __schedule() when skipping is
  *  in effect and calls to update_rq_clock() are being ignored.
  *
- * %RQCF_UPDATED - is a debug flag that indicates whether a call has been
+ * %RQCF_UPDATED - is a de flag that indicates whether a call has been
  *  made to update_rq_clock() since the last time rq::lock was pinned.
  *
  * If inside of __schedule(), clock_update_flags will have been
@@ -1079,7 +1079,7 @@ static inline void rq_clock_cancel_skipupdate(struct rq *rq)
 struct rq_flags {
 	unsigned long flags;
 	struct pin_cookie cookie;
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	/*
 	 * A copy of (rq::clock_update_flags & RQCF_UPDATED) for the
 	 * current pin context is stashed here in case it needs to be
@@ -1093,7 +1093,7 @@ static inline void rq_pin_lock(struct rq *rq, struct rq_flags *rf)
 {
 	rf->cookie = lockdep_pin_lock(&rq->lock);
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	rq->clock_update_flags &= (RQCF_REQ_SKIP|RQCF_ACT_SKIP);
 	rf->clock_update_flags = 0;
 #endif
@@ -1101,7 +1101,7 @@ static inline void rq_pin_lock(struct rq *rq, struct rq_flags *rf)
 
 static inline void rq_unpin_lock(struct rq *rq, struct rq_flags *rf)
 {
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	if (rq->clock_update_flags > RQCF_ACT_SKIP)
 		rf->clock_update_flags = RQCF_UPDATED;
 #endif
@@ -1113,7 +1113,7 @@ static inline void rq_repin_lock(struct rq *rq, struct rq_flags *rf)
 {
 	lockdep_repin_lock(&rq->lock, rf->cookie);
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	/*
 	 * Restore the value we stashed in @rf for this pin context.
 	 */
@@ -1345,7 +1345,7 @@ struct sched_group_capacity {
 	unsigned long		next_update;
 	int			imbalance;		/* XXX unrelated to capacity but shared group state */
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	int			id;
 #endif
 
@@ -1394,7 +1394,7 @@ static inline unsigned int group_first_cpu(struct sched_group *group)
 
 extern int group_balance_cpu(struct sched_group *sg);
 
-#if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_SYSCTL)
+#if defined(CONFIG_SCHED_DE) && defined(CONFIG_SYSCTL)
 void register_sched_domain_sysctl(void);
 void dirty_sched_domain_sysctl(int cpu);
 void unregister_sched_domain_sysctl(void);
@@ -1488,13 +1488,13 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 }
 
 /*
- * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
+ * Tunables that become constants when CONFIG_SCHED_DE is off:
  */
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 # include <linux/static_key.h>
-# define const_debug __read_mostly
+# define const_de __read_mostly
 #else
-# define const_debug const
+# define const_de const
 #endif
 
 #define SCHED_FEAT(name, enabled)	\
@@ -1507,13 +1507,13 @@ enum {
 
 #undef SCHED_FEAT
 
-#if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
+#if defined(CONFIG_SCHED_DE) && defined(CONFIG_JUMP_LABEL)
 
 /*
  * To support run-time toggling of sched features, all the translation units
  * (but core.c) reference the sysctl_sched_features defined in core.c.
  */
-extern const_debug unsigned int sysctl_sched_features;
+extern const_de unsigned int sysctl_sched_features;
 
 #define SCHED_FEAT(name, enabled)					\
 static __always_inline bool static_branch_##name(struct static_key *key) \
@@ -1527,7 +1527,7 @@ static __always_inline bool static_branch_##name(struct static_key *key) \
 extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
 #define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
 
-#else /* !(SCHED_DEBUG && CONFIG_JUMP_LABEL) */
+#else /* !(SCHED_DE && CONFIG_JUMP_LABEL) */
 
 /*
  * Each translation unit has its own copy of sysctl_sched_features to allow
@@ -1536,14 +1536,14 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
  */
 #define SCHED_FEAT(name, enabled)	\
 	(1UL << __SCHED_FEAT_##name) * enabled |
-static const_debug __maybe_unused unsigned int sysctl_sched_features =
+static const_de __maybe_unused unsigned int sysctl_sched_features =
 #include "features.h"
 	0;
 #undef SCHED_FEAT
 
 #define sched_feat(x) !!(sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
 
-#endif /* SCHED_DEBUG && CONFIG_JUMP_LABEL */
+#endif /* SCHED_DE && CONFIG_JUMP_LABEL */
 
 extern struct static_key_false sched_numa_balancing;
 extern struct static_key_false sched_schedstats;
@@ -1772,7 +1772,7 @@ static inline struct cpuidle_state *idle_get_state(struct rq *rq)
 
 extern void schedule_idle(void);
 
-extern void sysrq_sched_debug_show(void);
+extern void sysrq_sched_de_show(void);
 extern void sched_init_granularity(void);
 extern void update_max_interval(void);
 
@@ -1861,8 +1861,8 @@ extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
 
 extern void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags);
 
-extern const_debug unsigned int sysctl_sched_nr_migrate;
-extern const_debug unsigned int sysctl_sched_migration_cost;
+extern const_de unsigned int sysctl_sched_nr_migrate;
+extern const_de unsigned int sysctl_sched_migration_cost;
 
 #ifdef CONFIG_SCHED_HRTICK
 
@@ -1962,7 +1962,7 @@ static inline int double_lock_balance(struct rq *this_rq, struct rq *busiest)
 	if (unlikely(!irqs_disabled())) {
 		/* printk() doesn't work well under rq->lock */
 		raw_spin_unlock(&this_rq->lock);
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	return _double_lock_balance(this_rq, busiest);
@@ -2012,7 +2012,7 @@ static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
 	__acquires(rq1->lock)
 	__acquires(rq2->lock)
 {
-	BUG_ON(!irqs_disabled());
+	_ON(!irqs_disabled());
 	if (rq1 == rq2) {
 		raw_spin_lock(&rq1->lock);
 		__acquire(rq2->lock);	/* Fake it out ;) */
@@ -2060,8 +2060,8 @@ static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
 	__acquires(rq1->lock)
 	__acquires(rq2->lock)
 {
-	BUG_ON(!irqs_disabled());
-	BUG_ON(rq1 != rq2);
+	_ON(!irqs_disabled());
+	_ON(rq1 != rq2);
 	raw_spin_lock(&rq1->lock);
 	__acquire(rq2->lock);	/* Fake it out ;) */
 }
@@ -2076,7 +2076,7 @@ static inline void double_rq_unlock(struct rq *rq1, struct rq *rq2)
 	__releases(rq1->lock)
 	__releases(rq2->lock)
 {
-	BUG_ON(rq1 != rq2);
+	_ON(rq1 != rq2);
 	raw_spin_unlock(&rq1->lock);
 	__release(rq2->lock);
 }
@@ -2086,8 +2086,8 @@ static inline void double_rq_unlock(struct rq *rq1, struct rq *rq2)
 extern struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq);
 extern struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq);
 
-#ifdef	CONFIG_SCHED_DEBUG
-extern bool sched_debug_enabled;
+#ifdef	CONFIG_SCHED_DE
+extern bool sched_de_enabled;
 
 extern void print_cfs_stats(struct seq_file *m, int cpu);
 extern void print_rt_stats(struct seq_file *m, int cpu);
@@ -2102,7 +2102,7 @@ extern void
 print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
 	unsigned long tpf, unsigned long gsf, unsigned long gpf);
 #endif /* CONFIG_NUMA_BALANCING */
-#endif /* CONFIG_SCHED_DEBUG */
+#endif /* CONFIG_SCHED_DE */
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq);

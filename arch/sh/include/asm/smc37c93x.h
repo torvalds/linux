@@ -51,7 +51,7 @@
 #define GPIO46_INDEX		0xc6
 #define GPIO47_INDEX		0xc7
 
-/* UART stuff. Only for debugging.  */
+/* UART stuff. Only for deging.  */
 /* UART Register */
 
 #define UART_RBR	0x0	/* Receiver Buffer Register (Read Only) */

@@ -13,7 +13,7 @@
  */
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>

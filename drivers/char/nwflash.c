@@ -49,7 +49,7 @@ static int write_block(unsigned long p, const char __user *buf, int count);
 #define KFLASH_ID	0x89A6		//Intel flash
 #define KFLASH_ID4	0xB0D4		//Intel flash 4Meg
 
-static bool flashdebug;		//if set - we will display progress msgs
+static bool flashde;		//if set - we will display progress msgs
 
 static int gbWriteEnable;
 static int gbWriteBase64Enable;
@@ -124,8 +124,8 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t size,
 {
 	ssize_t ret;
 
-	if (flashdebug)
-		printk(KERN_DEBUG "flash_read: flash_read: offset=0x%llx, "
+	if (flashde)
+		printk(KERN_DE "flash_read: flash_read: offset=0x%llx, "
 		       "buffer=%p, count=0x%zx.\n", *ppos, buf, size);
 	/*
 	 * We now lock against reads and writes. --rmk
@@ -148,7 +148,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 	int nBlock, temp, rc;
 	int i, j;
 
-	if (flashdebug)
+	if (flashde)
 		printk("flash_write: offset=0x%lX, buffer=0x%p, count=0x%X.\n",
 		       p, buf, count);
 
@@ -191,13 +191,13 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 	if (((int) (p + count) & 0xFFFF) == 0)
 		temp -= 1;
 
-	if (flashdebug)
-		printk(KERN_DEBUG "flash_write: writing %d block(s) "
+	if (flashde)
+		printk(KERN_DE "flash_write: writing %d block(s) "
 			"starting at %d.\n", temp, nBlock);
 
 	for (; temp; temp--, nBlock++) {
-		if (flashdebug)
-			printk(KERN_DEBUG "flash_write: erasing block %d.\n", nBlock);
+		if (flashde)
+			printk(KERN_DE "flash_write: erasing block %d.\n", nBlock);
 
 		/*
 		 * first we have to erase the block(s), where we will write...
@@ -214,8 +214,8 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 			printk(KERN_ERR "flash_write: erase error %x\n", rc);
 			break;
 		}
-		if (flashdebug)
-			printk(KERN_DEBUG "flash_write: writing offset %lX, "
+		if (flashde)
+			printk(KERN_DE "flash_write: writing offset %lX, "
 			       "from buf %p, bytes left %X.\n", p, buf,
 			       count - written);
 
@@ -250,8 +250,8 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 		written += rc;
 		*ppos += rc;
 
-		if (flashdebug)
-			printk(KERN_DEBUG "flash_write: written 0x%X bytes OK.\n", written);
+		if (flashde)
+			printk(KERN_DE "flash_write: written 0x%X bytes OK.\n", written);
 	}
 
 	mutex_unlock(&nwflash_mutex);
@@ -273,8 +273,8 @@ static loff_t flash_llseek(struct file *file, loff_t offset, int orig)
 	loff_t ret;
 
 	mutex_lock(&flash_mutex);
-	if (flashdebug)
-		printk(KERN_DEBUG "flash_llseek: offset=0x%X, orig=0x%X.\n",
+	if (flashde)
+		printk(KERN_DE "flash_llseek: offset=0x%X, orig=0x%X.\n",
 		       (unsigned int) offset, orig);
 
 	ret = no_seek_end_llseek_size(file, offset, orig, gbFlashSize);
@@ -504,8 +504,8 @@ static int write_block(unsigned long p, const char __user *buf, int count)
 			 * before timeout?
 			 */
 			if (time_before(jiffies, timeout)) {
-				if (flashdebug)
-					printk(KERN_DEBUG "write_block: Retrying write at 0x%X)n",
+				if (flashde)
+					printk(KERN_DE "write_block: Retrying write at 0x%X)n",
 					       pWritePtr - FLASH_BASE);
 
 				/*
@@ -619,7 +619,7 @@ static void __exit nwflash_exit(void)
 
 MODULE_LICENSE("GPL");
 
-module_param(flashdebug, bool, 0644);
+module_param(flashde, bool, 0644);
 
 module_init(nwflash_init);
 module_exit(nwflash_exit);

@@ -116,9 +116,9 @@ struct hw_pairwise_ta_entry {
 
 /*
  * Since NULL frame won't be that long (256 byte),
- * We steal 16 tail bytes to save debugging settings.
+ * We steal 16 tail bytes to save deging settings.
  */
-#define HW_DEBUG_SETTING_BASE		0x2bf0
+#define HW_DE_SETTING_BASE		0x2bf0
 
 /*
  * On-chip BEACON frame space.

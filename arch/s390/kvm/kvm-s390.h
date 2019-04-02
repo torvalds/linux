@@ -24,22 +24,22 @@
 #define TDB_FORMAT1		1
 #define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
-extern debug_info_t *kvm_s390_dbf;
+extern de_info_t *kvm_s390_dbf;
 #define KVM_EVENT(d_loglevel, d_string, d_args...)\
 do { \
-	debug_sprintf_event(kvm_s390_dbf, d_loglevel, d_string "\n", \
+	de_sprintf_event(kvm_s390_dbf, d_loglevel, d_string "\n", \
 	  d_args); \
 } while (0)
 
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
-	debug_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
+	de_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
 	  d_args); \
 } while (0)
 
 #define VCPU_EVENT(d_vcpu, d_loglevel, d_string, d_args...)\
 do { \
-	debug_sprintf_event(d_vcpu->kvm->arch.dbf, d_loglevel, \
+	de_sprintf_event(d_vcpu->kvm->arch.dbf, d_loglevel, \
 	  "%02d[%016lx-%016lx]: " d_string "\n", d_vcpu->vcpu_id, \
 	  d_vcpu->arch.sie_block->gpsw.mask, d_vcpu->arch.sie_block->gpsw.addr,\
 	  d_args); \
@@ -389,9 +389,9 @@ void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);
 void kvm_s390_restore_guest_per_regs(struct kvm_vcpu *vcpu);
 void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu);
 int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
-			    struct kvm_guest_debug *dbg);
+			    struct kvm_guest_de *dbg);
 void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
-void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
+void kvm_s390_prepare_de_exit(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 

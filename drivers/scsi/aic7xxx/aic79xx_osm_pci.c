@@ -282,7 +282,7 @@ ahd_linux_pci_reserve_mem_region(struct ahd_softc *ahd,
 	if (aic79xx_allow_memio == 0)
 		return (ENOMEM);
 
-	if ((ahd->bugs & AHD_PCIX_MMAPIO_BUG) != 0)
+	if ((ahd->s & AHD_PCIX_MMAPIO_) != 0)
 		return (ENOMEM);
 
 	start = pci_resource_start(ahd->dev_softc, 1);

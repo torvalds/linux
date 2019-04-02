@@ -498,7 +498,7 @@ static int usb_amd_resume_quirk(struct usb_device *udev)
 
 	hcd = bus_to_hcd(udev->bus);
 	/* The device should be attached directly to root hub */
-	if (udev->level == 1 && hcd->amd_resume_bug == 1)
+	if (udev->level == 1 && hcd->amd_resume_ == 1)
 		return 1;
 
 	return 0;

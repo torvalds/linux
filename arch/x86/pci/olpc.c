@@ -257,7 +257,7 @@ static int pci_olpc_read(unsigned int seg, unsigned int bus,
 		*value = *addr;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	return 0;

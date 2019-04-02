@@ -4,7 +4,7 @@
 
 #include <stdbool.h>
 
-#include "bug_on.h"
+#include "_on.h"
 
 /* This flag contains garbage if preempt_disable_count is 0. */
 extern __thread int thread_cpu_id;
@@ -53,7 +53,7 @@ static inline void put_cpu(void)
 
 static inline void might_sleep(void)
 {
-	BUG_ON(preempt_disable_count);
+	_ON(preempt_disable_count);
 }
 
 #endif

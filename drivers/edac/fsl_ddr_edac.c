@@ -51,7 +51,7 @@ static inline void ddr_out32(void __iomem *addr, u32 value)
 		iowrite32be(value, addr);
 }
 
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 /************************ MC SYSFS parts ***********************************/
 
 #define to_mci(k) container_of(k, struct mem_ctl_info, dev)
@@ -152,10 +152,10 @@ static DEVICE_ATTR(inject_data_lo, S_IRUGO | S_IWUSR,
 		   fsl_mc_inject_data_lo_show, fsl_mc_inject_data_lo_store);
 static DEVICE_ATTR(inject_ctrl, S_IRUGO | S_IWUSR,
 		   fsl_mc_inject_ctrl_show, fsl_mc_inject_ctrl_store);
-#endif /* CONFIG_EDAC_DEBUG */
+#endif /* CONFIG_EDAC_DE */
 
 static struct attribute *fsl_ddr_dev_attrs[] = {
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	&dev_attr_inject_data_hi.attr,
 	&dev_attr_inject_data_lo.attr,
 	&dev_attr_inject_ctrl.attr,

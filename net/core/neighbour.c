@@ -44,12 +44,12 @@
 
 #include <trace/events/neigh.h>
 
-#define DEBUG
-#define NEIGH_DEBUG 1
+#define DE
+#define NEIGH_DE 1
 #define neigh_dbg(level, fmt, ...)		\
 do {						\
-	if (level <= NEIGH_DEBUG)		\
-		pr_debug(fmt, ##__VA_ARGS__);	\
+	if (level <= NEIGH_DE)		\
+		pr_de(fmt, ##__VA_ARGS__);	\
 } while (0)
 
 #define PNEIGH_HASHMASK		0xF
@@ -263,7 +263,7 @@ static void neigh_add_timer(struct neighbour *n, unsigned long when)
 {
 	neigh_hold(n);
 	if (unlikely(mod_timer(&n->timer, when))) {
-		printk("NEIGH: BUG, double timer add, state is %x\n",
+		printk("NEIGH: , double timer add, state is %x\n",
 		       n->nud_state);
 		dump_stack();
 	}
@@ -2093,7 +2093,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 			goto nla_put_failure;
 	}
 
-	BUG_ON(tbl->parms.dev);
+	_ON(tbl->parms.dev);
 	if (neightbl_fill_parms(skb, &tbl->parms) < 0)
 		goto nla_put_failure;
 
@@ -3223,7 +3223,7 @@ void *neigh_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		if (!(state->flags & NEIGH_SEQ_NEIGH_ONLY))
 			rc = pneigh_get_first(seq);
 	} else {
-		BUG_ON(state->flags & NEIGH_SEQ_NEIGH_ONLY);
+		_ON(state->flags & NEIGH_SEQ_NEIGH_ONLY);
 		rc = pneigh_get_next(seq, v, NULL);
 	}
 out:
@@ -3333,7 +3333,7 @@ static void __neigh_notify(struct neighbour *n, int type, int flags,
 
 	err = neigh_fill_info(skb, n, pid, 0, type, flags);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in neigh_nlmsg_size() */
+		/* -EMSGSIZE implies  in neigh_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -3666,7 +3666,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	      p_name = "ipv6";
 	      break;
 	default:
-	      BUG();
+	      ();
 	}
 
 	snprintf(neigh_path, sizeof(neigh_path), "net/%s/neigh/%s",

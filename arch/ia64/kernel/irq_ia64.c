@@ -45,7 +45,7 @@
 # include <asm/perfmon.h>
 #endif
 
-#define IRQ_DEBUG	0
+#define IRQ_DE	0
 
 #define IRQ_VECTOR_UNASSIGNED	(0)
 
@@ -129,8 +129,8 @@ static int __bind_irq_vector(int irq, int vector, cpumask_t domain)
 	int cpu;
 	struct irq_cfg *cfg = &irq_cfg[irq];
 
-	BUG_ON((unsigned)irq >= NR_IRQS);
-	BUG_ON((unsigned)vector >= IA64_NUM_VECTORS);
+	_ON((unsigned)irq >= NR_IRQS);
+	_ON((unsigned)vector >= IA64_NUM_VECTORS);
 
 	cpumask_and(&mask, &domain, cpu_online_mask);
 	if (cpumask_empty(&mask))
@@ -165,8 +165,8 @@ static void __clear_irq_vector(int irq)
 	cpumask_t domain;
 	struct irq_cfg *cfg = &irq_cfg[irq];
 
-	BUG_ON((unsigned)irq >= NR_IRQS);
-	BUG_ON(cfg->vector == IRQ_VECTOR_UNASSIGNED);
+	_ON((unsigned)irq >= NR_IRQS);
+	_ON(cfg->vector == IRQ_VECTOR_UNASSIGNED);
 	vector = cfg->vector;
 	domain = cfg->domain;
 	for_each_cpu_and(cpu, &cfg->domain, cpu_online_mask)
@@ -206,7 +206,7 @@ ia64_native_assign_irq_vector (int irq)
 		goto out;
 	if (irq == AUTO_ASSIGN)
 		irq = vector;
-	BUG_ON(__bind_irq_vector(irq, vector, domain));
+	_ON(__bind_irq_vector(irq, vector, domain));
  out:
 	spin_unlock_irqrestore(&vector_lock, flags);
 	return vector;
@@ -284,7 +284,7 @@ static int __irq_prepare_move(int irq, int cpu)
 	cfg->old_domain = cfg->domain;
 	cfg->vector = IRQ_VECTOR_UNASSIGNED;
 	cfg->domain = CPU_MASK_NONE;
-	BUG_ON(__bind_irq_vector(irq, vector, domain));
+	_ON(__bind_irq_vector(irq, vector, domain));
 	return 0;
 }
 
@@ -410,7 +410,7 @@ int create_irq(void)
 	irq = find_unassigned_irq();
 	if (irq < 0)
 		goto out;
-	BUG_ON(__bind_irq_vector(irq, vector, domain));
+	_ON(__bind_irq_vector(irq, vector, domain));
  out:
 	spin_unlock_irqrestore(&vector_lock, flags);
 	if (irq >= 0)
@@ -442,7 +442,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long saved_tpr;
 
-#if IRQ_DEBUG
+#if IRQ_DE
 	{
 		unsigned long bsp, sp;
 
@@ -466,7 +466,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			}
 		}
 	}
-#endif /* IRQ_DEBUG */
+#endif /* IRQ_DE */
 
 	/*
 	 * Always set TPR to limit maximum interrupt nesting depth to
@@ -584,7 +584,7 @@ void ia64_process_pending_intr(void)
 
 static irqreturn_t dummy_handler (int irq, void *dev_id)
 {
-	BUG();
+	();
 }
 
 static struct irqaction ipi_irqaction = {
@@ -613,7 +613,7 @@ ia64_native_register_percpu_irq (ia64_vector vec, struct irqaction *action)
 	unsigned int irq;
 
 	irq = vec;
-	BUG_ON(bind_irq_vector(irq, vec, CPU_MASK_ALL));
+	_ON(bind_irq_vector(irq, vec, CPU_MASK_ALL));
 	irq_set_status_flags(irq, IRQ_PER_CPU);
 	irq_set_chip(irq, &irq_type_ia64_lsapic);
 	if (action)

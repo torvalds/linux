@@ -88,7 +88,7 @@ static inline int check_master_abort(void)
 	if (isr & PCI_ISR_PFE) {
 		/* make sure the Master Abort bit is reset */    
 		*PCI_ISR = PCI_ISR_PFE;
-		pr_debug("%s failed\n", __func__);
+		pr_de("%s failed\n", __func__);
 		return 1;
 	}
 
@@ -207,18 +207,18 @@ static u32 local_byte_lane_enable_bits(u32 n, int size)
 static int local_read_config(int where, int size, u32 *value)
 { 
 	u32 n, data;
-	pr_debug("local_read_config from %d size %d\n", where, size);
+	pr_de("local_read_config from %d size %d\n", where, size);
 	n = where % 4;
 	crp_read(where & ~3, &data);
 	*value = (data >> (8*n)) & bytemask[size];
-	pr_debug("local_read_config read %#x\n", *value);
+	pr_de("local_read_config read %#x\n", *value);
 	return PCIBIOS_SUCCESSFUL;
 }
 
 static int local_write_config(int where, int size, u32 value)
 {
 	u32 n, byte_enables, data;
-	pr_debug("local_write_config %#x to %d size %d\n", value, where, size);
+	pr_de("local_write_config %#x to %d size %d\n", value, where, size);
 	n = where % 4;
 	byte_enables = local_byte_lane_enable_bits(n, size);
 	if (byte_enables == 0xffffffff)
@@ -244,7 +244,7 @@ static int ixp4xx_pci_read_config(struct pci_bus *bus, unsigned int devfn, int w
 	u32 n, byte_enables, addr, data;
 	u8 bus_num = bus->number;
 
-	pr_debug("read_config from %d size %d dev %d:%d:%d\n", where, size,
+	pr_de("read_config from %d size %d dev %d:%d:%d\n", where, size,
 		bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	*value = 0xffffffff;
@@ -258,7 +258,7 @@ static int ixp4xx_pci_read_config(struct pci_bus *bus, unsigned int devfn, int w
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	*value = (data >> (8*n)) & bytemask[size];
-	pr_debug("read_config_byte read %#x\n", *value);
+	pr_de("read_config_byte read %#x\n", *value);
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -267,7 +267,7 @@ static int ixp4xx_pci_write_config(struct pci_bus *bus,  unsigned int devfn, int
 	u32 n, byte_enables, addr, data;
 	u8 bus_num = bus->number;
 
-	pr_debug("write_config_byte %#x to %d size %d dev %d:%d:%d\n", value, where,
+	pr_de("write_config_byte %#x to %d size %d dev %d:%d:%d\n", value, where,
 		size, bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	n = where % 4;
@@ -297,7 +297,7 @@ static int abort_handler(unsigned long addr, unsigned int fsr, struct pt_regs *r
 
 	isr = *PCI_ISR;
 	local_read_config(PCI_STATUS, 2, &status);
-	pr_debug("PCI: abort_handler addr = %#lx, isr = %#x, "
+	pr_de("PCI: abort_handler addr = %#lx, isr = %#x, "
 		"status = %#x\n", addr, isr, status);
 
 	/* make sure the Master Abort bit is reset */    
@@ -340,7 +340,7 @@ void __init ixp4xx_pci_preinit(void)
 	hook_fault_code(16+6, abort_handler, SIGBUS, 0,
 			"imprecise external abort");
 
-	pr_debug("setup PCI-AHB(inbound) and AHB-PCI(outbound) address mappings\n");
+	pr_de("setup PCI-AHB(inbound) and AHB-PCI(outbound) address mappings\n");
 
 	/*
 	 * We use identity AHB->PCI address translation
@@ -361,7 +361,7 @@ void __init ixp4xx_pci_preinit(void)
 	if (*PCI_CSR & PCI_CSR_HOST) {
 		printk("PCI: IXP4xx is host\n");
 
-		pr_debug("setup BARs in controller\n");
+		pr_de("setup BARs in controller\n");
 
 		/*
 		 * We configure the PCI inbound memory windows to be
@@ -396,7 +396,7 @@ void __init ixp4xx_pci_preinit(void)
 #endif
 		);
 
-	pr_debug("clear error bits in ISR\n");
+	pr_de("clear error bits in ISR\n");
 	*PCI_ISR = PCI_ISR_PSE | PCI_ISR_PFE | PCI_ISR_PPE | PCI_ISR_AHBE;
 
 	/*
@@ -411,7 +411,7 @@ void __init ixp4xx_pci_preinit(void)
 	*PCI_CSR = PCI_CSR_IC | PCI_CSR_ABE;
 #endif
 
-	pr_debug("DONE\n");
+	pr_de("DONE\n");
 }
 
 int ixp4xx_setup(int nr, struct pci_sys_data *sys)

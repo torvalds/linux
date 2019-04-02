@@ -322,7 +322,7 @@ disable_regulators:
 				core->power_state = SI476X_POWER_INCONSISTENT;
 			break;
 		default:
-			BUG();
+			();
 		}
 	}
 
@@ -593,7 +593,7 @@ static int si476x_core_fwver_to_revision(struct si476x_core *core,
 		}
 	case SI476X_FUNC_BOOTLOADER:
 	default:		/* FALLTHROUG */
-		BUG();
+		();
 		return -1;
 	}
 

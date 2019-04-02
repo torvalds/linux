@@ -36,7 +36,7 @@ struct bpf_map_def SEC("maps") stack_amap = {
 	.max_entries = 16384,
 };
 
-/* taken from /sys/kernel/debug/tracing/events/sched/sched_switch/format */
+/* taken from /sys/kernel/de/tracing/events/sched/sched_switch/format */
 struct sched_switch_args {
 	unsigned long long pad;
 	char prev_comm[16];

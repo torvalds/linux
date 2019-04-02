@@ -238,7 +238,7 @@ restart:
 		prev = rsv;
 	}
 	printk("Window map complete.\n");
-	BUG_ON(bad);
+	_ON(bad);
 }
 #define rsv_window_dump(root, verbose) \
 	__rsv_window_dump((root), (verbose), __func__)
@@ -350,7 +350,7 @@ void ext2_rsv_window_add(struct super_block *sb,
 			p = &(*p)->rb_right;
 		else {
 			rsv_window_dump(root, 1);
-			BUG();
+			();
 		}
 	}
 
@@ -499,7 +499,7 @@ void ext2_free_blocks (struct inode * inode, unsigned long block,
 		goto error_return;
 	}
 
-	ext2_debug ("freeing block(s) %lu-%lu\n", block, block + count - 1);
+	ext2_de ("freeing block(s) %lu-%lu\n", block, block + count - 1);
 
 do_more:
 	overflow = 0;
@@ -622,7 +622,7 @@ find_next_usable_block(int start, struct buffer_head *bh, int maxblocks)
 		here = ext2_find_next_zero_bit(bh->b_data, end_goal, start);
 		if (here < end_goal)
 			return here;
-		ext2_debug("Bit not found near goal\n");
+		ext2_de("Bit not found near goal\n");
 	}
 
 	here = start;
@@ -696,7 +696,7 @@ ext2_try_to_allocate(struct super_block *sb, int group,
 		end = EXT2_BLOCKS_PER_GROUP(sb);
 	}
 
-	BUG_ON(start > EXT2_BLOCKS_PER_GROUP(sb));
+	_ON(start > EXT2_BLOCKS_PER_GROUP(sb));
 
 repeat:
 	if (grp_goal < 0) {
@@ -1160,7 +1160,7 @@ ext2_try_to_allocate_with_rsv(struct super_block *sb, unsigned int group,
 		if ((my_rsv->rsv_start > group_last_block) ||
 				(my_rsv->rsv_end < group_first_block)) {
 			rsv_window_dump(&EXT2_SB(sb)->s_rsv_window_root, 1);
-			BUG();
+			();
 		}
 		ret = ext2_try_to_allocate(sb, group, bitmap_bh, grp_goal,
 					   &num, &my_rsv->rsv_window);
@@ -1268,7 +1268,7 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 
 	sbi = EXT2_SB(sb);
 	es = EXT2_SB(sb)->s_es;
-	ext2_debug("goal=%lu.\n", goal);
+	ext2_de("goal=%lu.\n", goal);
 	/*
 	 * Allocate a block from reservation only when
 	 * filesystem is mounted with reservation(default,-o reservation), and
@@ -1387,7 +1387,7 @@ retry_alloc:
 
 allocated:
 
-	ext2_debug("using block group %d(%d)\n",
+	ext2_de("using block group %d(%d)\n",
 			group_no, gdp->bg_free_blocks_count);
 
 	ret_block = grp_alloc_blk + ext2_group_first_block_no(sb, group_no);
@@ -1457,21 +1457,21 @@ ext2_fsblk_t ext2_new_block(struct inode *inode, unsigned long goal, int *errp)
 	return ext2_new_blocks(inode, goal, &count, errp);
 }
 
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_DE
 
 unsigned long ext2_count_free(struct buffer_head *map, unsigned int numchars)
 {
 	return numchars * BITS_PER_BYTE - memweight(map->b_data, numchars);
 }
 
-#endif  /*  EXT2FS_DEBUG  */
+#endif  /*  EXT2FS_DE  */
 
 unsigned long ext2_count_free_blocks (struct super_block * sb)
 {
 	struct ext2_group_desc * desc;
 	unsigned long desc_count = 0;
 	int i;
-#ifdef EXT2FS_DEBUG
+#ifdef EXT2FS_DE
 	unsigned long bitmap_count, x;
 	struct ext2_super_block *es;
 

@@ -182,7 +182,7 @@ static void netvsc_revoke_recv_buf(struct hv_device *device,
 			ret = 0;
 		/*
 		 * If we failed here, we might as well return and
-		 * have a leak rather than continue and a bugchk
+		 * have a leak rather than continue and a chk
 		 */
 		if (ret != 0) {
 			netdev_err(ndev, "unable to send "
@@ -233,7 +233,7 @@ static void netvsc_revoke_send_buf(struct hv_device *device,
 			ret = 0;
 
 		/* If we failed here, we might as well return and
-		 * have a leak rather than continue and a bugchk
+		 * have a leak rather than continue and a chk
 		 */
 		if (ret != 0) {
 			netdev_err(ndev, "unable to send "
@@ -255,7 +255,7 @@ static void netvsc_teardown_recv_gpadl(struct hv_device *device,
 					   net_device->recv_buf_gpadl_handle);
 
 		/* If we failed here, we might as well return and have a leak
-		 * rather than continue and a bugchk
+		 * rather than continue and a chk
 		 */
 		if (ret != 0) {
 			netdev_err(ndev,
@@ -277,7 +277,7 @@ static void netvsc_teardown_send_gpadl(struct hv_device *device,
 					   net_device->send_buf_gpadl_handle);
 
 		/* If we failed here, we might as well return and have a leak
-		 * rather than continue and a bugchk
+		 * rather than continue and a chk
 		 */
 		if (ret != 0) {
 			netdev_err(ndev,
@@ -583,7 +583,7 @@ static int netvsc_connect_vsp(struct hv_device *device,
 		goto cleanup;
 	}
 
-	pr_debug("Negotiated NVSP version:%x\n", net_device->nvsp_version);
+	pr_de("Negotiated NVSP version:%x\n", net_device->nvsp_version);
 
 	/* Send the ndis version */
 	memset(init_packet, 0, sizeof(struct nvsp_message));

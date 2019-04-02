@@ -1,5 +1,5 @@
 /*
- * Use DWARF Debug information to skip unnecessary callchain entries.
+ * Use DWARF De information to skip unnecessary callchain entries.
  *
  * Copyright (C) 2014 Sukadev Bhattiprolu, IBM Corporation.
  * Copyright (C) 2014 Ulrich Weigand, IBM Corporation.
@@ -15,7 +15,7 @@
 
 #include "util/thread.h"
 #include "util/callchain.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "util/dso.h"
 #include "util/map.h"
 #include "util/symbol.h"
@@ -25,7 +25,7 @@
  * excess entries in the callchain. A few of these entries are needed
  * in some cases but not others. If the unnecessary entries are not
  * ignored, we end up with duplicate arcs in the call-graphs. Use
- * DWARF debug information to skip over any unnecessary callchain
+ * DWARF de information to skip over any unnecessary callchain
  * entries.
  *
  * See function header for arch_adjust_callchain() below for more details.
@@ -33,11 +33,11 @@
  * The libdwfl code in this file is based on code from elfutils
  * (libdwfl/argp-std.c, libdwfl/tests/addrcfi.c, etc).
  */
-static char *debuginfo_path;
+static char *deinfo_path;
 
 static const Dwfl_Callbacks offline_callbacks = {
-	.debuginfo_path = &debuginfo_path,
-	.find_debuginfo = dwfl_standard_find_debuginfo,
+	.deinfo_path = &deinfo_path,
+	.find_deinfo = dwfl_standard_find_deinfo,
 	.section_address = dwfl_offline_section_address,
 };
 
@@ -56,7 +56,7 @@ static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
 
 	result = dwarf_frame_register(frame, ra_regno, ops_mem, &ops, &nops);
 	if (result < 0) {
-		pr_debug("dwarf_frame_register() %s\n", dwarf_errmsg(-1));
+		pr_de("dwarf_frame_register() %s\n", dwarf_errmsg(-1));
 		return -1;
 	}
 
@@ -76,7 +76,7 @@ static int check_return_reg(int ra_regno, Dwarf_Frame *frame)
 	 */
 	result = dwarf_frame_cfa(frame, &ops, &nops);
 	if (result < 0) {
-		pr_debug("dwarf_frame_cfa() returns %d, %s\n", result,
+		pr_de("dwarf_frame_cfa() returns %d, %s\n", result,
 					dwarf_errmsg(-1));
 		return -1;
 	}
@@ -106,13 +106,13 @@ static Dwarf_Frame *get_eh_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 
 	cfi = dwfl_module_eh_cfi(mod, &bias);
 	if (!cfi) {
-		pr_debug("%s(): no CFI - %s\n", __func__, dwfl_errmsg(-1));
+		pr_de("%s(): no CFI - %s\n", __func__, dwfl_errmsg(-1));
 		return NULL;
 	}
 
 	result = dwarf_cfi_addrframe(cfi, pc-bias, &frame);
 	if (result) {
-		pr_debug("%s(): %s\n", __func__, dwfl_errmsg(-1));
+		pr_de("%s(): %s\n", __func__, dwfl_errmsg(-1));
 		return NULL;
 	}
 
@@ -120,7 +120,7 @@ static Dwarf_Frame *get_eh_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 }
 
 /*
- * Get the DWARF frame from the .debug_frame section.
+ * Get the DWARF frame from the .de_frame section.
  */
 static Dwarf_Frame *get_dwarf_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 {
@@ -131,13 +131,13 @@ static Dwarf_Frame *get_dwarf_frame(Dwfl_Module *mod, Dwarf_Addr pc)
 
 	cfi = dwfl_module_dwarf_cfi(mod, &bias);
 	if (!cfi) {
-		pr_debug("%s(): no CFI - %s\n", __func__, dwfl_errmsg(-1));
+		pr_de("%s(): no CFI - %s\n", __func__, dwfl_errmsg(-1));
 		return NULL;
 	}
 
 	result = dwarf_cfi_addrframe(cfi, pc-bias, &frame);
 	if (result) {
-		pr_debug("%s(): %s\n", __func__, dwfl_errmsg(-1));
+		pr_de("%s(): %s\n", __func__, dwfl_errmsg(-1));
 		return NULL;
 	}
 
@@ -169,17 +169,17 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 	if (!dwfl) {
 		dwfl = dwfl_begin(&offline_callbacks);
 		if (!dwfl) {
-			pr_debug("dwfl_begin() failed: %s\n", dwarf_errmsg(-1));
+			pr_de("dwfl_begin() failed: %s\n", dwarf_errmsg(-1));
 			return -1;
 		}
 
 		mod = dwfl_report_elf(dwfl, exec_file, exec_file, -1,
 						map_start, false);
 		if (!mod) {
-			pr_debug("dwfl_report_elf() failed %s\n",
+			pr_de("dwfl_report_elf() failed %s\n",
 						dwarf_errmsg(-1));
 			/*
-			 * We normally cache the DWARF debug info and never
+			 * We normally cache the DWARF de info and never
 			 * call dwfl_end(). But to prevent fd leak, free in
 			 * case of error.
 			 */
@@ -191,13 +191,13 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 
 	mod = dwfl_addrmodule(dwfl, pc);
 	if (!mod) {
-		pr_debug("dwfl_addrmodule() failed, %s\n", dwarf_errmsg(-1));
+		pr_de("dwfl_addrmodule() failed, %s\n", dwarf_errmsg(-1));
 		goto out;
 	}
 
 	/*
-	 * To work with split debug info files (eg: glibc), check both
-	 * .eh_frame and .debug_frame sections of the ELF header.
+	 * To work with split de info files (eg: glibc), check both
+	 * .eh_frame and .de_frame sections of the ELF header.
 	 */
 	frame = get_eh_frame(mod, pc);
 	if (!frame) {
@@ -208,7 +208,7 @@ static int check_return_addr(struct dso *dso, u64 map_start, Dwarf_Addr pc)
 
 	ra_regno = dwarf_frame_info(frame, &start, &end, &signalp);
 	if (ra_regno < 0) {
-		pr_debug("Return address register unavailable: %s\n",
+		pr_de("Return address register unavailable: %s\n",
 				dwarf_errmsg(-1));
 		goto out;
 	}
@@ -236,7 +236,7 @@ out:
  * caller, slot 4: contains the caller's caller and the contents of slot 3:
  * (chain->ips[3]) is undefined and must be ignored.
  *
- * Use DWARF debug information to determine if any entries need to be skipped.
+ * Use DWARF de information to determine if any entries need to be skipped.
  *
  * Return:
  *	index:	of callchain entry that needs to be ignored (if any)
@@ -261,13 +261,13 @@ int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 		dso = al.map->dso;
 
 	if (!dso) {
-		pr_debug("%" PRIx64 " dso is NULL\n", ip);
+		pr_de("%" PRIx64 " dso is NULL\n", ip);
 		return skip_slot;
 	}
 
 	rc = check_return_addr(dso, al.map->start, ip);
 
-	pr_debug("[DSO %s, sym %s, ip 0x%" PRIx64 "] rc %d\n",
+	pr_de("[DSO %s, sym %s, ip 0x%" PRIx64 "] rc %d\n",
 				dso->long_name, al.sym->name, ip, rc);
 
 	if (rc == 0) {

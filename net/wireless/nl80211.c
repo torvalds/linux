@@ -3323,7 +3323,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 			return -EBUSY;
 
 		wdev_lock(wdev);
-		BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN !=
+		BUILD__ON(IEEE80211_MAX_SSID_LEN !=
 			     IEEE80211_MAX_MESH_ID_LEN);
 		wdev->mesh_id_up_len =
 			nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
@@ -3432,7 +3432,7 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		if (!info->attrs[NL80211_ATTR_MESH_ID])
 			break;
 		wdev_lock(wdev);
-		BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN !=
+		BUILD__ON(IEEE80211_MAX_SSID_LEN !=
 			     IEEE80211_MAX_MESH_ID_LEN);
 		wdev->mesh_id_up_len =
 			nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
@@ -4044,7 +4044,7 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 	/* The nested attribute uses enum nl80211_band as the index. This maps
 	 * directly to the enum nl80211_band values used in cfg80211.
 	 */
-	BUILD_BUG_ON(NL80211_MAX_SUPP_HT_RATES > IEEE80211_HT_MCS_MASK_LEN * 8);
+	BUILD__ON(NL80211_MAX_SUPP_HT_RATES > IEEE80211_HT_MCS_MASK_LEN * 8);
 	nla_for_each_nested(tx_rates, info->attrs[NL80211_ATTR_TX_RATES], rem) {
 		enum nl80211_band band = nla_type(tx_rates);
 		int err;
@@ -4813,7 +4813,7 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 		goto nla_put_failure;
 
 #define PUT_SINFO(attr, memb, type) do {				\
-	BUILD_BUG_ON(sizeof(type) == sizeof(u64));			\
+	BUILD__ON(sizeof(type) == sizeof(u64));			\
 	if (sinfo->filled & BIT_ULL(NL80211_STA_INFO_ ## attr) &&	\
 	    nla_put_ ## type(msg, NL80211_STA_INFO_ ## attr,		\
 			     sinfo->memb))				\
@@ -5108,14 +5108,14 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 		return -EINVAL;
 
 	/* When you run into this, adjust the code below for the new flag */
-	BUILD_BUG_ON(NL80211_STA_FLAG_MAX != 7);
+	BUILD__ON(NL80211_STA_FLAG_MAX != 7);
 
 	switch (statype) {
 	case CFG80211_STA_MESH_PEER_KERNEL:
 	case CFG80211_STA_MESH_PEER_USER:
 		/*
 		 * No ignoring the TDLS flag here -- the userspace mesh
-		 * code doesn't have the bug of including TDLS in the
+		 * code doesn't have the  of including TDLS in the
 		 * mask everywhere.
 		 */
 		if (params->sta_flags_mask &
@@ -5643,7 +5643,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* When you run into this, adjust the code below for the new flag */
-	BUILD_BUG_ON(NL80211_STA_FLAG_MAX != 7);
+	BUILD__ON(NL80211_STA_FLAG_MAX != 7);
 
 	switch (dev->ieee80211_ptr->iftype) {
 	case NL80211_IFTYPE_AP:
@@ -6410,7 +6410,7 @@ do {									\
 
 	/* This makes sure that there aren't more than 32 mesh config
 	 * parameters (otherwise our bitfield scheme would not work.) */
-	BUILD_BUG_ON(NL80211_MESHCONF_ATTR_MAX > 32);
+	BUILD__ON(NL80211_MESHCONF_ATTR_MAX > 32);
 
 	/* Fill in the params struct */
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshRetryTimeout, mask,
@@ -11893,7 +11893,7 @@ static int handle_nan_filter(struct nlattr *attr_filter,
 	if (n_entries < 0)
 		return n_entries;
 
-	BUILD_BUG_ON(sizeof(*func->rx_filters) != sizeof(*func->tx_filters));
+	BUILD__ON(sizeof(*func->rx_filters) != sizeof(*func->tx_filters));
 
 	filter = kcalloc(n_entries, sizeof(*func->rx_filters), GFP_KERNEL);
 	if (!filter)

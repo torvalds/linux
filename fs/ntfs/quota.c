@@ -24,7 +24,7 @@
 
 #include "index.h"
 #include "quota.h"
-#include "debug.h"
+#include "de.h"
 #include "ntfs.h"
 
 /**
@@ -41,7 +41,7 @@ bool ntfs_mark_quotas_out_of_date(ntfs_volume *vol)
 	const le32 qid = QUOTA_DEFAULTS_ID;
 	int err;
 
-	ntfs_debug("Entering.");
+	ntfs_de("Entering.");
 	if (NVolQuotaOutOfDate(vol))
 		goto done;
 	if (!vol->quota_ino || !vol->quota_q_ino) {
@@ -75,7 +75,7 @@ bool ntfs_mark_quotas_out_of_date(ntfs_volume *vol)
 				"supported.", le32_to_cpu(qce->version));
 		goto err_out;
 	}
-	ntfs_debug("Quota defaults flags = 0x%x.", le32_to_cpu(qce->flags));
+	ntfs_de("Quota defaults flags = 0x%x.", le32_to_cpu(qce->flags));
 	/* If quotas are already marked out of date, no need to do anything. */
 	if (qce->flags & QUOTA_FLAG_OUT_OF_DATE)
 		goto set_done;
@@ -105,7 +105,7 @@ set_done:
 	 */
 	NVolSetQuotaOutOfDate(vol);
 done:
-	ntfs_debug("Done.");
+	ntfs_de("Done.");
 	return true;
 err_out:
 	if (ictx)

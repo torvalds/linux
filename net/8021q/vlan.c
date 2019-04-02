@@ -86,7 +86,7 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	ASSERT_RTNL();
 
 	vlan_info = rtnl_dereference(real_dev->vlan_info);
-	BUG_ON(!vlan_info);
+	_ON(!vlan_info);
 
 	grp = &vlan_info->grp;
 
@@ -152,7 +152,7 @@ int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack)
 
 	vlan_info = rtnl_dereference(real_dev->vlan_info);
 	/* vlan_info should be there now. vlan_vid_add took care of it */
-	BUG_ON(!vlan_info);
+	_ON(!vlan_info);
 
 	grp = &vlan_info->grp;
 	if (grp->nr_vlan_devs == 0) {

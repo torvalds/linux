@@ -2,8 +2,8 @@
 #ifndef __TRIGGER_H_
 #define __TRIGGER_H_ 1
 
-#include "util/debug.h"
-#include "asm/bug.h"
+#include "util/de.h"
+#include "asm/.h"
 
 /*
  * Use trigger to model operations which need to be executed when

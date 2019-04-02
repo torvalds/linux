@@ -10,10 +10,10 @@
  *  Note: 16-bit wide is assigned to first direction which made request.
  *        With full duplex - playback is preferred with abstract layer.
  *
- *  Note: Some chip revisions have hardware bug. Changing capture
+ *  Note: Some chip revisions have hardware . Changing capture
  *        channel from full-duplex 8bit DMA to 16bit DMA will block
  *        16bit DMA transfers from DSP chip (capture) until 8bit transfer
- *        to DSP chip (playback) starts. This bug can be avoided with
+ *        to DSP chip (playback) starts. This  can be avoided with
  *        "16bit DMA Allocation" setting set to Playback or Capture.
  *
  *
@@ -673,7 +673,7 @@ static int snd_sb16_capture_close(struct snd_pcm_substream *substream)
 static int snd_sb16_set_dma_mode(struct snd_sb *chip, int what)
 {
 	if (chip->dma8 < 0 || chip->dma16 < 0) {
-		if (snd_BUG_ON(what))
+		if (snd__ON(what))
 			return -EINVAL;
 		return 0;
 	}
@@ -759,7 +759,7 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 	unsigned char realirq, realdma, realmpureg;
 	/* note: mpu register should be present only on SB16 Vibra soundcards */
 
-	// printk(KERN_DEBUG "codec->irq=%i, codec->dma8=%i, codec->dma16=%i\n", chip->irq, chip->dma8, chip->dma16);
+	// printk(KERN_DE "codec->irq=%i, codec->dma8=%i, codec->dma16=%i\n", chip->irq, chip->dma8, chip->dma16);
 	spin_lock_irqsave(&chip->mixer_lock, flags);
 	mpureg = snd_sbmixer_read(chip, SB_DSP4_MPUSETUP) & ~0x06;
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);

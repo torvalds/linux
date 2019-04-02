@@ -30,14 +30,14 @@
 #include <media/dmxdev.h>
 #include <media/dvb_vb2.h>
 
-static int debug;
+static int de;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off deging (default:off).");
 
 #define dprintk(fmt, arg...) do {					\
-	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+	if (de)							\
+		printk(KERN_DE pr_fmt("%s: " fmt),			\
 			__func__, ##arg);				\
 } while (0)
 
@@ -602,7 +602,7 @@ static void dvb_dmxdev_delete_pids(struct dmxdev_filter *dmxdevfilter)
 		kfree(feed);
 	}
 
-	BUG_ON(!list_empty(&dmxdevfilter->feed.ts));
+	_ON(!list_empty(&dmxdevfilter->feed.ts));
 }
 
 static inline int dvb_dmxdev_filter_reset(struct dmxdev_filter *dmxdevfilter)

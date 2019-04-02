@@ -623,7 +623,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 	if (EXT4_SB(sb)->s_mb_free_pending == 0)
 		return 0;
 
-	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
+	jbd_de(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
 	jbd2_journal_force_commit_nested(EXT4_SB(sb)->s_journal);
 	return 1;
 }
@@ -681,7 +681,7 @@ ext4_fsblk_t ext4_count_free_clusters(struct super_block *sb)
 	ext4_group_t i;
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	struct ext4_group_info *grp;
-#ifdef EXT4FS_DEBUG
+#ifdef EXT4FS_DE
 	struct ext4_super_block *es;
 	ext4_fsblk_t bitmap_count;
 	unsigned int x;
@@ -710,12 +710,12 @@ ext4_fsblk_t ext4_count_free_clusters(struct super_block *sb)
 
 		x = ext4_count_free(bitmap_bh->b_data,
 				    EXT4_CLUSTERS_PER_GROUP(sb) / 8);
-		printk(KERN_DEBUG "group %u: stored = %d, counted = %u\n",
+		printk(KERN_DE "group %u: stored = %d, counted = %u\n",
 			i, ext4_free_group_clusters(sb, gdp), x);
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	printk(KERN_DEBUG "ext4_count_free_clusters: stored = %llu"
+	printk(KERN_DE "ext4_count_free_clusters: stored = %llu"
 	       ", computed = %llu, %llu\n",
 	       EXT4_NUM_B2C(EXT4_SB(sb), ext4_free_blocks_count(es)),
 	       desc_count, bitmap_count);

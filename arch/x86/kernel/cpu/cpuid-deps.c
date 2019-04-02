@@ -77,8 +77,8 @@ static inline void clear_feature(struct cpuinfo_x86 *c, unsigned int feature)
 	}
 }
 
-/* Take the capabilities and the BUG bits into account */
-#define MAX_FEATURE_BITS ((NCAPINTS + NBUGINTS) * sizeof(u32) * 8)
+/* Take the capabilities and the  bits into account */
+#define MAX_FEATURE_BITS ((NCAPINTS + NINTS) * sizeof(u32) * 8)
 
 static void do_clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int feature)
 {

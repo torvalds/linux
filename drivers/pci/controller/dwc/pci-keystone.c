@@ -440,7 +440,7 @@ static int ks_pcie_link_up(struct dw_pcie *pci)
 {
 	u32 val;
 
-	val = dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG0);
+	val = dw_pcie_readl_dbi(pci, PCIE_PORT_DE0);
 	val &= PORT_LOGIC_LTSSM_STATE_MASK;
 	return (val == PORT_LOGIC_LTSSM_STATE_L0);
 }

@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 
-#define DEBUG_QMGR	0
+#define DE_QMGR	0
 
 #define HALF_QUEUES	32
 #define QUEUES		64
@@ -64,7 +64,7 @@ void qmgr_disable_irq(unsigned int queue);
 
 /* request_ and release_queue() must be called from non-IRQ context */
 
-#if DEBUG_QMGR
+#if DE_QMGR
 extern char qmgr_queue_descs[QUEUES][32];
 
 int qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
@@ -87,10 +87,10 @@ void qmgr_release_queue(unsigned int queue);
 static inline void qmgr_put_entry(unsigned int queue, u32 val)
 {
 	struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
-#if DEBUG_QMGR
-	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+#if DE_QMGR
+	_ON(!qmgr_queue_descs[queue]); /* not yet requested */
 
-	printk(KERN_DEBUG "Queue %s(%i) put %X\n",
+	printk(KERN_DE "Queue %s(%i) put %X\n",
 	       qmgr_queue_descs[queue], queue, val);
 #endif
 	__raw_writel(val, &qmgr_regs->acc[queue][0]);
@@ -101,10 +101,10 @@ static inline u32 qmgr_get_entry(unsigned int queue)
 	u32 val;
 	const struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
 	val = __raw_readl(&qmgr_regs->acc[queue][0]);
-#if DEBUG_QMGR
-	BUG_ON(!qmgr_queue_descs[queue]); /* not yet requested */
+#if DE_QMGR
+	_ON(!qmgr_queue_descs[queue]); /* not yet requested */
 
-	printk(KERN_DEBUG "Queue %s(%i) get %X\n",
+	printk(KERN_DE "Queue %s(%i) get %X\n",
 	       qmgr_queue_descs[queue], queue, val);
 #endif
 	return val;
@@ -120,7 +120,7 @@ static inline int __qmgr_get_stat1(unsigned int queue)
 static inline int __qmgr_get_stat2(unsigned int queue)
 {
 	const struct qmgr_regs __iomem *qmgr_regs = IXP4XX_QMGR_BASE_VIRT;
-	BUG_ON(queue >= HALF_QUEUES);
+	_ON(queue >= HALF_QUEUES);
 	return (__raw_readl(&qmgr_regs->stat2[queue >> 4])
 		>> ((queue & 0xF) << 1)) & 0x3;
 }
@@ -133,7 +133,7 @@ static inline int __qmgr_get_stat2(unsigned int queue)
  */
 static inline int qmgr_stat_empty(unsigned int queue)
 {
-	BUG_ON(queue >= HALF_QUEUES);
+	_ON(queue >= HALF_QUEUES);
 	return __qmgr_get_stat1(queue) & QUEUE_STAT1_EMPTY;
 }
 
@@ -160,7 +160,7 @@ static inline int qmgr_stat_below_low_watermark(unsigned int queue)
  */
 static inline int qmgr_stat_above_high_watermark(unsigned int queue)
 {
-	BUG_ON(queue >= HALF_QUEUES);
+	_ON(queue >= HALF_QUEUES);
 	return __qmgr_get_stat1(queue) & QUEUE_STAT1_NEARLY_FULL;
 }
 

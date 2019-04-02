@@ -74,7 +74,7 @@ static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
 		mm->locked_vm -= npages;
 	}
 
-	pr_debug("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
+	pr_de("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
 			current ? current->pid : 0,
 			incr ? '+' : '-',
 			npages << PAGE_SHIFT,

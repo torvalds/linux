@@ -31,21 +31,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VCHIQ_DEBUGFS_H
-#define VCHIQ_DEBUGFS_H
+#ifndef VCHIQ_DEFS_H
+#define VCHIQ_DEFS_H
 
 #include "vchiq_core.h"
 
-struct vchiq_debugfs_node {
+struct vchiq_defs_node {
     struct dentry *dentry;
 };
 
-void vchiq_debugfs_init(void);
+void vchiq_defs_init(void);
 
-void vchiq_debugfs_deinit(void);
+void vchiq_defs_deinit(void);
 
-void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance);
+void vchiq_defs_add_instance(VCHIQ_INSTANCE_T instance);
 
-void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance);
+void vchiq_defs_remove_instance(VCHIQ_INSTANCE_T instance);
 
-#endif /* VCHIQ_DEBUGFS_H */
+#endif /* VCHIQ_DEFS_H */

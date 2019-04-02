@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
+ccflags-$(CONFIG_PM_DE)	:= -DDE
 
 KASAN_SANITIZE_snapshot.o	:= n
 

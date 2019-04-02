@@ -48,7 +48,7 @@ uses Intel TXT to perform a measured and verified launch of an OS
 kernel/VMM.
 
 It is hosted on SourceForge at http://sourceforge.net/projects/tboot.
-The mercurial source repo is available at http://www.bughost.org/
+The mercurial source repo is available at http://www.host.org/
 repos.hg/tboot.hg.
 
 Tboot currently supports launching Xen (open source VMM/hypervisor

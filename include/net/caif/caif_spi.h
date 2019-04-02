@@ -47,7 +47,7 @@
 #define CAIF_MAX_SPI_PKTS 9
 
 /* Decides if SPI buffers should be prefilled with 0xFF pattern for easier
- * debugging. Both TX and RX buffers will be filled before the transfer.
+ * deging. Both TX and RX buffers will be filled before the transfer.
  */
 #define CFSPI_DBG_PREFILL		0
 
@@ -123,7 +123,7 @@ struct cfspi {
 	bool flow_stop;
 	bool slave;
 	bool slave_talked;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	enum cfspi_state dbg_state;
 	u16 pcmd;
 	u16 tx_ppck_len;
@@ -131,7 +131,7 @@ struct cfspi {
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_state;
 	struct dentry *dbgfs_frame;
-#endif				/* CONFIG_DEBUG_FS */
+#endif				/* CONFIG_DE_FS */
 };
 
 extern int spi_frm_align;

@@ -15,7 +15,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/completion.h>
 #include <linux/ieee802154.h>
 #include <linux/rculist.h>
@@ -132,7 +132,7 @@ llsec_key_alloc(const struct ieee802154_llsec_key *template)
 	kref_init(&key->ref);
 	key->key = *template;
 
-	BUILD_BUG_ON(ARRAY_SIZE(authsizes) != ARRAY_SIZE(key->tfm));
+	BUILD__ON(ARRAY_SIZE(authsizes) != ARRAY_SIZE(key->tfm));
 
 	for (i = 0; i < ARRAY_SIZE(key->tfm); i++) {
 		key->tfm[i] = crypto_alloc_aead("ccm(aes)", 0,
@@ -362,7 +362,7 @@ int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
 	u32 skey = llsec_dev_hash_short(dev->short_addr, dev->pan_id);
 	u64 hwkey = llsec_dev_hash_long(dev->hwaddr);
 
-	BUILD_BUG_ON(sizeof(hwkey) != IEEE802154_ADDR_LEN);
+	BUILD__ON(sizeof(hwkey) != IEEE802154_ADDR_LEN);
 
 	if ((llsec_dev_use_shortaddr(dev->short_addr) &&
 	     llsec_dev_find_short(sec, dev->short_addr, dev->pan_id)) ||
@@ -649,7 +649,7 @@ llsec_tfm_by_len(struct mac802154_llsec_key *key, int authlen)
 		if (crypto_aead_authsize(key->tfm[i]) == authlen)
 			return key->tfm[i];
 
-	BUG();
+	();
 }
 
 static int

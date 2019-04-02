@@ -217,7 +217,7 @@ static int carl9170_alloc_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 	 *  1. The firmware might use it generate BlockACK frames
 	 *     in responds of an incoming BlockAckReqs.
 	 *
-	 *  2. Prevent double-free bugs.
+	 *  2. Prevent double-free s.
 	 */
 	super->s.cookie = (u8) cookie + 1;
 	return 0;
@@ -275,7 +275,7 @@ static void carl9170_tx_release(struct kref *ref)
 	if (WARN_ON_ONCE(!ar))
 		return;
 
-	BUILD_BUG_ON(
+	BUILD__ON(
 	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 
 	memset(&txinfo->status.ack_signal, 0,
@@ -357,7 +357,7 @@ static void carl9170_tx_shift_bm(struct ar9170 *ar,
 	 * Sanity check. For each MPDU we set the bit in bitmap and
 	 * clear it once we received the tx_status.
 	 * But if the bit is already cleared then we've been bitten
-	 * by a bug.
+	 * by a .
 	 */
 	WARN_ON_ONCE(!test_and_clear_bit(off, tid_info->bitmap));
 
@@ -591,9 +591,9 @@ next:
 		 * possible reasons may include:
 		 *  - frames got lost/corrupted (bad connection to the device)
 		 *  - stalled rx processing/usb controller hiccups
-		 *  - firmware errors/bugs
-		 *  - every bug you can think of.
-		 *  - all bugs you can't...
+		 *  - firmware errors/s
+		 *  - every  you can think of.
+		 *  - all s you can't...
 		 *  - ...
 		 */
 		carl9170_restart(ar, CARL9170_RR_STUCK_TX);
@@ -875,8 +875,8 @@ static void carl9170_tx_get_rates(struct ar9170 *ar,
 {
 	struct ieee80211_tx_info *info;
 
-	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES < CARL9170_TX_MAX_RATES);
-	BUILD_BUG_ON(IEEE80211_TX_MAX_RATES > IEEE80211_TX_RATE_TABLE_SIZE);
+	BUILD__ON(IEEE80211_TX_MAX_RATES < CARL9170_TX_MAX_RATES);
+	BUILD__ON(IEEE80211_TX_MAX_RATES > IEEE80211_TX_RATE_TABLE_SIZE);
 
 	info = IEEE80211_SKB_CB(skb);
 
@@ -968,14 +968,14 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 	__le16 mac_tmp;
 	u16 len;
 
-	BUILD_BUG_ON(sizeof(*arinfo) > sizeof(info->rate_driver_data));
-	BUILD_BUG_ON(sizeof(struct _carl9170_tx_superdesc) !=
+	BUILD__ON(sizeof(*arinfo) > sizeof(info->rate_driver_data));
+	BUILD__ON(sizeof(struct _carl9170_tx_superdesc) !=
 		     CARL9170_TX_SUPERDESC_LEN);
 
-	BUILD_BUG_ON(sizeof(struct _ar9170_tx_hwdesc) !=
+	BUILD__ON(sizeof(struct _ar9170_tx_hwdesc) !=
 		     AR9170_TX_HWDESC_LEN);
 
-	BUILD_BUG_ON(AR9170_MAX_VIRTUAL_MAC >
+	BUILD__ON(AR9170_MAX_VIRTUAL_MAC >
 		((CARL9170_TX_SUPER_MISC_VIF_ID >>
 		 CARL9170_TX_SUPER_MISC_VIF_ID_S) + 1));
 
@@ -1246,7 +1246,7 @@ static struct sk_buff *carl9170_tx_pick_skb(struct ar9170 *ar,
 	struct ieee80211_tx_info *info;
 	struct carl9170_tx_info *arinfo;
 
-	BUILD_BUG_ON(sizeof(*arinfo) > sizeof(info->rate_driver_data));
+	BUILD__ON(sizeof(*arinfo) > sizeof(info->rate_driver_data));
 
 	spin_lock_bh(&queue->lock);
 	skb = skb_peek(queue);

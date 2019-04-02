@@ -16,7 +16,7 @@
 #include "hist.h"
 #include "intlist.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include "color.h"
 #include <subcmd/parse-options.h>
 #include "string2.h"
@@ -336,7 +336,7 @@ static int run_test(struct test *test, int subtest)
 
 	if (!child) {
 		if (!dont_fork) {
-			pr_debug("test child forked, pid %d\n", getpid());
+			pr_de("test child forked, pid %d\n", getpid());
 
 			if (verbose <= 0) {
 				int nullfd = open("/dev/null", O_WRONLY);
@@ -365,10 +365,10 @@ static int run_test(struct test *test, int subtest)
 
 		if (WIFEXITED(status)) {
 			err = (signed char)WEXITSTATUS(status);
-			pr_debug("test child finished with %d\n", err);
+			pr_de("test child finished with %d\n", err);
 		} else if (WIFSIGNALED(status)) {
 			err = -1;
-			pr_debug("test child interrupted\n");
+			pr_de("test child interrupted\n");
 		}
 	}
 
@@ -384,18 +384,18 @@ static int test_and_print(struct test *t, bool force_skip, int subtest)
 	int err;
 
 	if (!force_skip) {
-		pr_debug("\n--- start ---\n");
+		pr_de("\n--- start ---\n");
 		err = run_test(t, subtest);
-		pr_debug("---- end ----\n");
+		pr_de("---- end ----\n");
 	} else {
-		pr_debug("\n--- force skipped ---\n");
+		pr_de("\n--- force skipped ---\n");
 		err = TEST_SKIP;
 	}
 
 	if (!t->subtest.get_nr)
-		pr_debug("%s:", t->desc);
+		pr_de("%s:", t->desc);
 	else
-		pr_debug("%s subtest %d:", t->desc, subtest + 1);
+		pr_de("%s subtest %d:", t->desc, subtest + 1);
 
 	switch (err) {
 	case TEST_OK:
@@ -568,7 +568,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			continue;
 
 		if (t->is_supported && !t->is_supported()) {
-			pr_debug("%2d: %-*s: Disabled\n", i, width, t->desc);
+			pr_de("%2d: %-*s: Disabled\n", i, width, t->desc);
 			continue;
 		}
 

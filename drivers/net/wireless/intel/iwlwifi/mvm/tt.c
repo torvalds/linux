@@ -136,7 +136,7 @@ static int iwl_mvm_temp_notif_parse(struct iwl_mvm *mvm,
 	if (WARN_ON_ONCE(temp < 0))
 		temp = 0;
 
-	IWL_DEBUG_TEMP(mvm, "DTS_MEASUREMENT_NOTIFICATION - %d\n", temp);
+	IWL_DE_TEMP(mvm, "DTS_MEASUREMENT_NOTIFICATION - %d\n", temp);
 
 	return temp;
 }
@@ -192,7 +192,7 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	if (ths_crossed == 0xFF)
 		return;
 
-	IWL_DEBUG_TEMP(mvm, "Temp = %d Threshold crossed = %d\n",
+	IWL_DE_TEMP(mvm, "Temp = %d Threshold crossed = %d\n",
 		       temp, ths_crossed);
 
 #ifdef CONFIG_THERMAL
@@ -220,7 +220,7 @@ void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	}
 
 	notif = (struct ct_kill_notif *)pkt->data;
-	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
+	IWL_DE_TEMP(mvm, "CT Kill notification temperature = %d\n",
 		       notif->temperature);
 
 	iwl_mvm_enter_ctkill(mvm);
@@ -313,7 +313,7 @@ static void check_exit_ctkill(struct work_struct *work)
 	if (ret)
 		goto reschedule;
 
-	IWL_DEBUG_TEMP(mvm, "NIC temperature: %d\n", temp);
+	IWL_DE_TEMP(mvm, "NIC temperature: %d\n", temp);
 
 	if (temp <= tt->params.ct_kill_exit) {
 		mutex_unlock(&mvm->mutex);
@@ -363,7 +363,7 @@ static void iwl_mvm_tt_tx_protection(struct iwl_mvm *mvm, bool enable)
 			IWL_ERR(mvm, "Failed to %s Tx protection\n",
 				enable ? "enable" : "disable");
 		} else {
-			IWL_DEBUG_TEMP(mvm, "%s Tx protection\n",
+			IWL_DE_TEMP(mvm, "%s Tx protection\n",
 				       enable ? "Enable" : "Disable");
 			mvmsta->tt_tx_protection = enable;
 		}
@@ -381,7 +381,7 @@ void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff)
 	backoff = max(backoff, mvm->thermal_throttle.min_backoff);
 
 	if (iwl_mvm_send_cmd(mvm, &cmd) == 0) {
-		IWL_DEBUG_TEMP(mvm, "Set Thermal Tx backoff to: %u\n",
+		IWL_DE_TEMP(mvm, "Set Thermal Tx backoff to: %u\n",
 			       backoff);
 		mvm->thermal_throttle.tx_backoff = backoff;
 	} else {
@@ -398,7 +398,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 	int i;
 	u32 tx_backoff;
 
-	IWL_DEBUG_TEMP(mvm, "NIC temperature: %d\n", mvm->temperature);
+	IWL_DE_TEMP(mvm, "NIC temperature: %d\n", mvm->temperature);
 
 	if (params->support_ct_kill && temperature >= params->ct_kill_entry) {
 		iwl_mvm_enter_ctkill(mvm);
@@ -414,7 +414,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 	if (params->support_dynamic_smps) {
 		if (!tt->dynamic_smps &&
 		    temperature >= params->dynamic_smps_entry) {
-			IWL_DEBUG_TEMP(mvm, "Enable dynamic SMPS\n");
+			IWL_DE_TEMP(mvm, "Enable dynamic SMPS\n");
 			tt->dynamic_smps = true;
 			ieee80211_iterate_active_interfaces_atomic(
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -422,7 +422,7 @@ void iwl_mvm_tt_handler(struct iwl_mvm *mvm)
 			throttle_enable = true;
 		} else if (tt->dynamic_smps &&
 			   temperature <= params->dynamic_smps_exit) {
-			IWL_DEBUG_TEMP(mvm, "Disable dynamic SMPS\n");
+			IWL_DE_TEMP(mvm, "Disable dynamic SMPS\n");
 			tt->dynamic_smps = false;
 			ieee80211_iterate_active_interfaces_atomic(
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -541,7 +541,7 @@ int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
 #endif /* CONFIG_THERMAL */
 		break;
 	case CTDP_CMD_OPERATION_REPORT:
-		IWL_DEBUG_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
+		IWL_DE_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
 		/* when the function is called with CTDP_CMD_OPERATION_REPORT
 		 * option the function should return the average budget value
 		 * that is received from the FW.
@@ -550,7 +550,7 @@ int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
 		 */
 		return status;
 	case CTDP_CMD_OPERATION_STOP:
-		IWL_DEBUG_TEMP(mvm, "cTDP stopped successfully\n");
+		IWL_DE_TEMP(mvm, "cTDP stopped successfully\n");
 		break;
 	}
 
@@ -742,7 +742,7 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 		return;
 	}
 
-	BUILD_BUG_ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
+	BUILD__ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
 
 	mvm->tz_device.tzone = thermal_zone_device_register(name,
 							IWL_MAX_DTS_TRIPS,
@@ -750,7 +750,7 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 							mvm, &tzone_ops,
 							NULL, 0, 0);
 	if (IS_ERR(mvm->tz_device.tzone)) {
-		IWL_DEBUG_TEMP(mvm,
+		IWL_DE_TEMP(mvm,
 			       "Failed to register to thermal zone (err = %ld)\n",
 			       PTR_ERR(mvm->tz_device.tzone));
 		mvm->tz_device.tzone = NULL;
@@ -822,7 +822,7 @@ static void iwl_mvm_cooling_device_register(struct iwl_mvm *mvm)
 	if (!iwl_mvm_is_ctdp_supported(mvm))
 		return;
 
-	BUILD_BUG_ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
+	BUILD__ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
 
 	mvm->cooling_dev.cdev =
 		thermal_cooling_device_register(name,
@@ -830,7 +830,7 @@ static void iwl_mvm_cooling_device_register(struct iwl_mvm *mvm)
 						&tcooling_ops);
 
 	if (IS_ERR(mvm->cooling_dev.cdev)) {
-		IWL_DEBUG_TEMP(mvm,
+		IWL_DE_TEMP(mvm,
 			       "Failed to register to cooling device (err = %ld)\n",
 			       PTR_ERR(mvm->cooling_dev.cdev));
 		mvm->cooling_dev.cdev = NULL;
@@ -843,7 +843,7 @@ static void iwl_mvm_thermal_zone_unregister(struct iwl_mvm *mvm)
 	if (!iwl_mvm_is_tt_in_fw(mvm) || !mvm->tz_device.tzone)
 		return;
 
-	IWL_DEBUG_TEMP(mvm, "Thermal zone device unregister\n");
+	IWL_DE_TEMP(mvm, "Thermal zone device unregister\n");
 	if (mvm->tz_device.tzone) {
 		thermal_zone_device_unregister(mvm->tz_device.tzone);
 		mvm->tz_device.tzone = NULL;
@@ -855,7 +855,7 @@ static void iwl_mvm_cooling_device_unregister(struct iwl_mvm *mvm)
 	if (!iwl_mvm_is_ctdp_supported(mvm) || !mvm->cooling_dev.cdev)
 		return;
 
-	IWL_DEBUG_TEMP(mvm, "Cooling device unregister\n");
+	IWL_DE_TEMP(mvm, "Cooling device unregister\n");
 	if (mvm->cooling_dev.cdev) {
 		thermal_cooling_device_unregister(mvm->cooling_dev.cdev);
 		mvm->cooling_dev.cdev = NULL;
@@ -867,7 +867,7 @@ void iwl_mvm_thermal_initialize(struct iwl_mvm *mvm, u32 min_backoff)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 
-	IWL_DEBUG_TEMP(mvm, "Initialize Thermal Throttling\n");
+	IWL_DE_TEMP(mvm, "Initialize Thermal Throttling\n");
 
 	if (mvm->cfg->thermal_params)
 		tt->params = *mvm->cfg->thermal_params;
@@ -892,7 +892,7 @@ void iwl_mvm_thermal_exit(struct iwl_mvm *mvm)
 		return;
 
 	cancel_delayed_work_sync(&mvm->thermal_throttle.ct_kill_exit);
-	IWL_DEBUG_TEMP(mvm, "Exit Thermal Throttling\n");
+	IWL_DE_TEMP(mvm, "Exit Thermal Throttling\n");
 
 #ifdef CONFIG_THERMAL
 	iwl_mvm_cooling_device_unregister(mvm);

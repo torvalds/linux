@@ -191,7 +191,7 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 				}
 
 				/* We *have* to have set this in jffs2_build_inode_pass1() */
-				BUG_ON(!(fd->ic->flags & INO_FLAGS_IS_DIR));
+				_ON(!(fd->ic->flags & INO_FLAGS_IS_DIR));
 
 				/* We clear ic->pino_nlink ∀ directories' ic *only* if dir_hardlinks
 				 * is set. Otherwise, we know this should never trigger anyway, so
@@ -310,7 +310,7 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 	uint32_t size;
 
 	/* Deletion should almost _always_ be allowed. We're fairly
-	   buggered once we stop allowing people to delete stuff
+	   gered once we stop allowing people to delete stuff
 	   because there's not enough free space... */
 	c->resv_blocks_deletion = 2;
 

@@ -13,8 +13,8 @@ modules that can be used to test the following notifiers.
 
 PM notifier error injection module
 ----------------------------------
-This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/pm/actions/<notifier event>/error
+This feature is controlled through defs interface
+/sys/kernel/de/notifier-error-inject/pm/actions/<notifier event>/error
 
 Possible PM notifier events to be failed are:
 
@@ -24,15 +24,15 @@ Possible PM notifier events to be failed are:
 
 Example: Inject PM suspend error (-12 = -ENOMEM)
 
-	# cd /sys/kernel/debug/notifier-error-inject/pm/
+	# cd /sys/kernel/de/notifier-error-inject/pm/
 	# echo -12 > actions/PM_SUSPEND_PREPARE/error
 	# echo mem > /sys/power/state
 	bash: echo: write error: Cannot allocate memory
 
 Memory hotplug notifier error injection module
 ----------------------------------------------
-This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/memory/actions/<notifier event>/error
+This feature is controlled through defs interface
+/sys/kernel/de/notifier-error-inject/memory/actions/<notifier event>/error
 
 Possible memory notifier events to be failed are:
 
@@ -41,15 +41,15 @@ Possible memory notifier events to be failed are:
 
 Example: Inject memory hotplug offline error (-12 == -ENOMEM)
 
-	# cd /sys/kernel/debug/notifier-error-inject/memory
+	# cd /sys/kernel/de/notifier-error-inject/memory
 	# echo -12 > actions/MEM_GOING_OFFLINE/error
 	# echo offline > /sys/devices/system/memory/memoryXXX/state
 	bash: echo: write error: Cannot allocate memory
 
 powerpc pSeries reconfig notifier error injection module
 --------------------------------------------------------
-This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/pSeries-reconfig/actions/<notifier event>/error
+This feature is controlled through defs interface
+/sys/kernel/de/notifier-error-inject/pSeries-reconfig/actions/<notifier event>/error
 
 Possible pSeries reconfig notifier events to be failed are:
 
@@ -60,8 +60,8 @@ Possible pSeries reconfig notifier events to be failed are:
 
 Netdevice notifier error injection module
 ----------------------------------------------
-This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/netdev/actions/<notifier event>/error
+This feature is controlled through defs interface
+/sys/kernel/de/notifier-error-inject/netdev/actions/<notifier event>/error
 
 Netdevice notifier events which can be failed are:
 
@@ -77,7 +77,7 @@ Netdevice notifier events which can be failed are:
 
 Example: Inject netdevice mtu change error (-22 == -EINVAL)
 
-	# cd /sys/kernel/debug/notifier-error-inject/netdev
+	# cd /sys/kernel/de/notifier-error-inject/netdev
 	# echo -22 > actions/NETDEV_CHANGEMTU/error
 	# ip link set eth0 mtu 1024
 	RTNETLINK answers: Invalid argument

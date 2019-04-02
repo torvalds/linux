@@ -7,14 +7,14 @@
  * published by the Free Software Foundation.
  */
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 
-static int armada_debugfs_gem_linear_show(struct seq_file *m, void *data)
+static int armada_defs_gem_linear_show(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -28,7 +28,7 @@ static int armada_debugfs_gem_linear_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int armada_debugfs_reg_show(struct seq_file *m, void *data)
+static int armada_defs_reg_show(struct seq_file *m, void *data)
 {
 	struct drm_device *dev = m->private;
 	struct armada_private *priv = dev->dev_private;
@@ -50,20 +50,20 @@ static int armada_debugfs_reg_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int armada_debugfs_reg_r_open(struct inode *inode, struct file *file)
+static int armada_defs_reg_r_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, armada_debugfs_reg_show, inode->i_private);
+	return single_open(file, armada_defs_reg_show, inode->i_private);
 }
 
 static const struct file_operations fops_reg_r = {
 	.owner = THIS_MODULE,
-	.open = armada_debugfs_reg_r_open,
+	.open = armada_defs_reg_r_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-static int armada_debugfs_write(struct file *file, const char __user *ptr,
+static int armada_defs_write(struct file *file, const char __user *ptr,
 	size_t len, loff_t *off)
 {
 	struct drm_device *dev = file->private_data;
@@ -98,33 +98,33 @@ static int armada_debugfs_write(struct file *file, const char __user *ptr,
 static const struct file_operations fops_reg_w = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.write = armada_debugfs_write,
+	.write = armada_defs_write,
 	.llseek = noop_llseek,
 };
 
-static struct drm_info_list armada_debugfs_list[] = {
-	{ "gem_linear", armada_debugfs_gem_linear_show, 0 },
+static struct drm_info_list armada_defs_list[] = {
+	{ "gem_linear", armada_defs_gem_linear_show, 0 },
 };
-#define ARMADA_DEBUGFS_ENTRIES ARRAY_SIZE(armada_debugfs_list)
+#define ARMADA_DEFS_ENTRIES ARRAY_SIZE(armada_defs_list)
 
-int armada_drm_debugfs_init(struct drm_minor *minor)
+int armada_drm_defs_init(struct drm_minor *minor)
 {
 	struct dentry *de;
 	int ret;
 
-	ret = drm_debugfs_create_files(armada_debugfs_list,
-				       ARMADA_DEBUGFS_ENTRIES,
-				       minor->debugfs_root, minor);
+	ret = drm_defs_create_files(armada_defs_list,
+				       ARMADA_DEFS_ENTRIES,
+				       minor->defs_root, minor);
 	if (ret)
 		return ret;
 
-	de = debugfs_create_file("reg", S_IFREG | S_IRUSR,
-				 minor->debugfs_root, minor->dev, &fops_reg_r);
+	de = defs_create_file("reg", S_IFREG | S_IRUSR,
+				 minor->defs_root, minor->dev, &fops_reg_r);
 	if (!de)
 		return -ENOMEM;
 
-	de = debugfs_create_file("reg_wr", S_IFREG | S_IWUSR,
-				 minor->debugfs_root, minor->dev, &fops_reg_w);
+	de = defs_create_file("reg_wr", S_IFREG | S_IWUSR,
+				 minor->defs_root, minor->dev, &fops_reg_w);
 	if (!de)
 		return -ENOMEM;
 

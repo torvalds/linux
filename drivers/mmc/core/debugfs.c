@@ -1,5 +1,5 @@
 /*
- * Debugfs support for hosts and cards
+ * Defs support for hosts and cards
  *
  * Copyright (C) 2008 Atmel Corporation
  *
@@ -9,7 +9,7 @@
  */
 #include <linux/moduleparam.h>
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -32,7 +32,7 @@ module_param(fail_request, charp, 0);
 
 #endif /* CONFIG_FAIL_MMC_REQUEST */
 
-/* The debugfs functions are optimized away when CONFIG_DEBUG_FS isn't set. */
+/* The defs functions are optimized away when CONFIG_DE_FS isn't set. */
 static int mmc_ios_show(struct seq_file *s, void *data)
 {
 	static const char *vdd_str[] = {
@@ -225,31 +225,31 @@ static int mmc_clock_opt_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(mmc_clock_fops, mmc_clock_opt_get, mmc_clock_opt_set,
 	"%llu\n");
 
-void mmc_add_host_debugfs(struct mmc_host *host)
+void mmc_add_host_defs(struct mmc_host *host)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(mmc_hostname(host), NULL);
+	root = defs_create_dir(mmc_hostname(host), NULL);
 	if (IS_ERR(root))
-		/* Don't complain -- debugfs just isn't enabled */
+		/* Don't complain -- defs just isn't enabled */
 		return;
 	if (!root)
-		/* Complain -- debugfs is enabled, but it failed to
+		/* Complain -- defs is enabled, but it failed to
 		 * create the directory. */
 		goto err_root;
 
-	host->debugfs_root = root;
+	host->defs_root = root;
 
-	if (!debugfs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops))
+	if (!defs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops))
 		goto err_node;
 
-	if (!debugfs_create_x32("caps", S_IRUSR, root, &host->caps))
+	if (!defs_create_x32("caps", S_IRUSR, root, &host->caps))
 		goto err_node;
 
-	if (!debugfs_create_x32("caps2", S_IRUSR, root, &host->caps2))
+	if (!defs_create_x32("caps2", S_IRUSR, root, &host->caps2))
 		goto err_node;
 
-	if (!debugfs_create_file("clock", S_IRUSR | S_IWUSR, root, host,
+	if (!defs_create_file("clock", S_IRUSR | S_IWUSR, root, host,
 			&mmc_clock_fops))
 		goto err_node;
 
@@ -257,7 +257,7 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	if (fail_request)
 		setup_fault_attr(&fail_default_attr, fail_request);
 	host->fail_mmc_request = fail_default_attr;
-	if (IS_ERR(fault_create_debugfs_attr("fail_mmc_request",
+	if (IS_ERR(fault_create_defs_attr("fail_mmc_request",
 					     root,
 					     &host->fail_mmc_request)))
 		goto err_node;
@@ -265,49 +265,49 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	return;
 
 err_node:
-	debugfs_remove_recursive(root);
-	host->debugfs_root = NULL;
+	defs_remove_recursive(root);
+	host->defs_root = NULL;
 err_root:
-	dev_err(&host->class_dev, "failed to initialize debugfs\n");
+	dev_err(&host->class_dev, "failed to initialize defs\n");
 }
 
-void mmc_remove_host_debugfs(struct mmc_host *host)
+void mmc_remove_host_defs(struct mmc_host *host)
 {
-	debugfs_remove_recursive(host->debugfs_root);
+	defs_remove_recursive(host->defs_root);
 }
 
-void mmc_add_card_debugfs(struct mmc_card *card)
+void mmc_add_card_defs(struct mmc_card *card)
 {
 	struct mmc_host	*host = card->host;
 	struct dentry	*root;
 
-	if (!host->debugfs_root)
+	if (!host->defs_root)
 		return;
 
-	root = debugfs_create_dir(mmc_card_id(card), host->debugfs_root);
+	root = defs_create_dir(mmc_card_id(card), host->defs_root);
 	if (IS_ERR(root))
-		/* Don't complain -- debugfs just isn't enabled */
+		/* Don't complain -- defs just isn't enabled */
 		return;
 	if (!root)
-		/* Complain -- debugfs is enabled, but it failed to
+		/* Complain -- defs is enabled, but it failed to
 		 * create the directory. */
 		goto err;
 
-	card->debugfs_root = root;
+	card->defs_root = root;
 
-	if (!debugfs_create_x32("state", S_IRUSR, root, &card->state))
+	if (!defs_create_x32("state", S_IRUSR, root, &card->state))
 		goto err;
 
 	return;
 
 err:
-	debugfs_remove_recursive(root);
-	card->debugfs_root = NULL;
-	dev_err(&card->dev, "failed to initialize debugfs\n");
+	defs_remove_recursive(root);
+	card->defs_root = NULL;
+	dev_err(&card->dev, "failed to initialize defs\n");
 }
 
-void mmc_remove_card_debugfs(struct mmc_card *card)
+void mmc_remove_card_defs(struct mmc_card *card)
 {
-	debugfs_remove_recursive(card->debugfs_root);
-	card->debugfs_root = NULL;
+	defs_remove_recursive(card->defs_root);
+	card->defs_root = NULL;
 }

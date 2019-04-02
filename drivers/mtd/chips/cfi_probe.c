@@ -18,9 +18,9 @@
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/gen_probe.h>
 
-//#define DEBUG_CFI
+//#define DE_CFI
 
-#ifdef DEBUG_CFI
+#ifdef DE_CFI
 static void print_cfi_ident(struct cfi_ident *);
 #endif
 
@@ -140,7 +140,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 			/* If the QRY marker goes away, it's an alias */
 			if (!cfi_qry_present(map, start, cfi)) {
 				xip_allowed(base, map);
-				printk(KERN_DEBUG "%s: Found an alias at 0x%x for the chip at 0x%lx\n",
+				printk(KERN_DE "%s: Found an alias at 0x%x for the chip at 0x%lx\n",
 				       map->name, base, start);
 				return 0;
 			}
@@ -152,7 +152,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 
 			if (cfi_qry_present(map, base, cfi)) {
 				xip_allowed(base, map);
-				printk(KERN_DEBUG "%s: Found an alias at 0x%x for the chip at 0x%lx\n",
+				printk(KERN_DE "%s: Found an alias at 0x%x for the chip at 0x%lx\n",
 				       map->name, base, start);
 				return 0;
 			}
@@ -201,7 +201,7 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	int addr_unlock1 = 0x555, addr_unlock2 = 0x2AA;
 
 	xip_enable(base, map, cfi);
-#ifdef DEBUG_CFI
+#ifdef DE_CFI
 	printk("Number of erase regions: %d\n", num_erase_regions);
 #endif
 	if (!num_erase_regions)
@@ -231,7 +231,7 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	cfi->cfiq->InterfaceDesc = le16_to_cpu(cfi->cfiq->InterfaceDesc);
 	cfi->cfiq->MaxBufWriteSize = le16_to_cpu(cfi->cfiq->MaxBufWriteSize);
 
-#ifdef DEBUG_CFI
+#ifdef DE_CFI
 	/* Dump the information therein */
 	print_cfi_ident(cfi->cfiq);
 #endif
@@ -239,7 +239,7 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	for (i=0; i<cfi->cfiq->NumEraseRegions; i++) {
 		cfi->cfiq->EraseRegionInfo[i] = le32_to_cpu(cfi->cfiq->EraseRegionInfo[i]);
 
-#ifdef DEBUG_CFI
+#ifdef DE_CFI
 		printk("  Erase Region #%d: BlockSize 0x%4.4X bytes, %d blocks\n",
 		       i, (cfi->cfiq->EraseRegionInfo[i] >> 8) & ~0xff,
 		       (cfi->cfiq->EraseRegionInfo[i] & 0xffff) + 1);
@@ -284,7 +284,7 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	return 1;
 }
 
-#ifdef DEBUG_CFI
+#ifdef DE_CFI
 static char *vendorname(__u16 vendor)
 {
 	switch (vendor) {
@@ -421,7 +421,7 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 	printk("Number of Erase Block Regions: %d\n", cfip->NumEraseRegions);
 
 }
-#endif /* DEBUG_CFI */
+#endif /* DE_CFI */
 
 static struct chip_probe cfi_chip_probe = {
 	.name		= "CFI",

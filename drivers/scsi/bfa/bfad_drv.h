@@ -139,8 +139,8 @@ struct bfad_port_s {
 	u32	supported_fc4s;
 	enum bfad_port_pvb_type pvb_type;
 	struct bfad_im_port_s *im_port;	/* IM specific data */
-	/* port debugfs specific data */
-	struct dentry *port_debugfs_root;
+	/* port defs specific data */
+	struct dentry *port_defs_root;
 };
 
 /*
@@ -224,7 +224,7 @@ struct bfad_s {
 	union bfad_tmp_buf tmp_buf;
 	struct fc_host_statistics link_stats;
 	struct list_head pbc_vport_list;
-	/* debugfs specific data */
+	/* defs specific data */
 	char *regdata;
 	u32 reglen;
 	struct dentry *bfad_dentry_files[5];
@@ -320,8 +320,8 @@ int		bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad);
 void		bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad);
 void		bfad_drv_uninit(struct bfad_s *bfad);
 int		bfad_worker(void *ptr);
-void		bfad_debugfs_init(struct bfad_port_s *port);
-void		bfad_debugfs_exit(struct bfad_port_s *port);
+void		bfad_defs_init(struct bfad_port_s *port);
+void		bfad_defs_exit(struct bfad_port_s *port);
 
 void bfad_pci_remove(struct pci_dev *pdev);
 int bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid);
@@ -355,7 +355,7 @@ extern int      fdmi_enable;
 extern int      supported_fc4s;
 extern int	pcie_max_read_reqsz;
 extern int	max_xfer_size;
-extern int bfa_debugfs_enable;
+extern int bfa_defs_enable;
 extern struct mutex bfad_mutex;
 
 #endif /* __BFAD_DRV_H__ */

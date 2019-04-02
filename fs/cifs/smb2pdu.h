@@ -95,7 +95,7 @@
  * SMB2 Header Definition
  *
  * "MBZ" :  Must be Zero
- * "BB"  :  BugBug, Something to check/review/analyze later
+ * "BB"  :  , Something to check/review/analyze later
  * "PDU" :  "Protocol Data Unit" (ie a network "frame")
  *
  */

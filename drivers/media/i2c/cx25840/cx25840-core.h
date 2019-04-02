@@ -52,7 +52,7 @@ enum cx25840_media_pads {
  * @volume:		audio volume V4L2 control (non-cx2583x devices only)
  * @mute:		audio mute V4L2 control (non-cx2583x devices only)
  * @pvr150_workaround:	whether we enable workaround for Hauppauge PVR150
- *			hardware bug (audio dropping out)
+ *			hardware  (audio dropping out)
  * @radio:		set if we are currently in the radio mode, otherwise
  *			the current mode is non-radio (that is, video)
  * @std:		currently set video standard

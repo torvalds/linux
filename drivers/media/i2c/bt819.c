@@ -39,9 +39,9 @@ MODULE_DESCRIPTION("Brooktree-819 video decoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
 MODULE_LICENSE("GPL");
 
-static int debug;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+static int de;
+module_param(de, int, 0);
+MODULE_PARM_DESC(de, "De level (0-1)");
 
 
 /* ----------------------------------------------------------------------- */
@@ -166,8 +166,8 @@ static int bt819_init(struct v4l2_subdev *sd)
 		0x12, 0x04,	/* 0x12 Output Format */
 		0x13, 0x20,	/* 0x13 Vertical Scaling msb 0x00
 					   chroma comb OFF, line drop scaling, interlace scaling
-					   BUG? Why does turning the chroma comb on fuck up color?
-					   Bug in the bt819 stepping on my board?
+					   ? Why does turning the chroma comb on fuck up color?
+					    in the bt819 stepping on my board?
 					*/
 		0x14, 0x00,	/* 0x14 Vertical Scaling lsb */
 		0x16, 0x07,	/* 0x16 Video Timing Polarity
@@ -227,7 +227,7 @@ static int bt819_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
 	if (pstatus)
 		*pstatus = res;
 
-	v4l2_dbg(1, debug, sd, "get status %x\n", status);
+	v4l2_dbg(1, de, sd, "get status %x\n", status);
 	return 0;
 }
 
@@ -246,7 +246,7 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct bt819 *decoder = to_bt819(sd);
 	struct timing *timing = NULL;
 
-	v4l2_dbg(1, debug, sd, "set norm %llx\n", (unsigned long long)std);
+	v4l2_dbg(1, de, sd, "set norm %llx\n", (unsigned long long)std);
 
 	if (sd->v4l2_dev == NULL || sd->v4l2_dev->notify == NULL)
 		v4l2_err(sd, "no notify found!\n");
@@ -270,7 +270,7 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		/* bt819_setbit(decoder, 0x1a,  5, 0); */
 		timing = &timing_data[0];
 	} else {
-		v4l2_dbg(1, debug, sd, "unsupported norm %llx\n",
+		v4l2_dbg(1, de, sd, "unsupported norm %llx\n",
 				(unsigned long long)std);
 		return -EINVAL;
 	}
@@ -295,7 +295,7 @@ static int bt819_s_routing(struct v4l2_subdev *sd,
 {
 	struct bt819 *decoder = to_bt819(sd);
 
-	v4l2_dbg(1, debug, sd, "set input %x\n", input);
+	v4l2_dbg(1, de, sd, "set input %x\n", input);
 
 	if (input > 7)
 		return -EINVAL;
@@ -323,7 +323,7 @@ static int bt819_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct bt819 *decoder = to_bt819(sd);
 
-	v4l2_dbg(1, debug, sd, "enable output %x\n", enable);
+	v4l2_dbg(1, de, sd, "enable output %x\n", enable);
 
 	if (decoder->enable != enable) {
 		decoder->enable = enable;
@@ -419,7 +419,7 @@ static int bt819_probe(struct i2c_client *client,
 		name = "bt815a";
 		break;
 	default:
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"unknown chip version 0x%02x\n", ver);
 		return -ENODEV;
 	}
@@ -433,7 +433,7 @@ static int bt819_probe(struct i2c_client *client,
 
 	i = bt819_init(sd);
 	if (i < 0)
-		v4l2_dbg(1, debug, sd, "init status %d\n", i);
+		v4l2_dbg(1, de, sd, "init status %d\n", i);
 
 	v4l2_ctrl_handler_init(&decoder->hdl, 4);
 	v4l2_ctrl_new_std(&decoder->hdl, &bt819_ctrl_ops,

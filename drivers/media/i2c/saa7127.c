@@ -52,15 +52,15 @@
 #include <media/v4l2-device.h>
 #include <media/i2c/saa7127.h>
 
-static int debug;
+static int de;
 static int test_image;
 
 MODULE_DESCRIPTION("Philips SAA7127/9 video encoder driver");
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_LICENSE("GPL");
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 module_param(test_image, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
+MODULE_PARM_DESC(de, "de level (0-2)");
 MODULE_PARM_DESC(test_image, "test_image (0-1)");
 
 
@@ -352,7 +352,7 @@ static int saa7127_set_vps(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 	if (enable && (data->field != 0 || data->line != 16))
 		return -EINVAL;
 	if (state->vps_enable != enable) {
-		v4l2_dbg(1, debug, sd, "Turn VPS Signal %s\n", enable ? "on" : "off");
+		v4l2_dbg(1, de, sd, "Turn VPS Signal %s\n", enable ? "on" : "off");
 		saa7127_write(sd, 0x54, enable << 7);
 		state->vps_enable = enable;
 	}
@@ -364,7 +364,7 @@ static int saa7127_set_vps(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 	state->vps_data[2] = data->data[9];
 	state->vps_data[3] = data->data[10];
 	state->vps_data[4] = data->data[11];
-	v4l2_dbg(1, debug, sd, "Set VPS data %*ph\n", 5, state->vps_data);
+	v4l2_dbg(1, de, sd, "Set VPS data %*ph\n", 5, state->vps_data);
 	saa7127_write(sd, 0x55, state->vps_data[0]);
 	saa7127_write(sd, 0x56, state->vps_data[1]);
 	saa7127_write(sd, 0x57, state->vps_data[2]);
@@ -384,7 +384,7 @@ static int saa7127_set_cc(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_d
 	if (enable && (data->field != 0 || data->line != 21))
 		return -EINVAL;
 	if (state->cc_enable != enable) {
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			"Turn CC %s\n", enable ? "on" : "off");
 		saa7127_write(sd, SAA7127_REG_CLOSED_CAPTION,
 			(state->xds_enable << 7) | (enable << 6) | 0x11);
@@ -393,7 +393,7 @@ static int saa7127_set_cc(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_d
 	if (!enable)
 		return 0;
 
-	v4l2_dbg(2, debug, sd, "CC data: %04x\n", cc);
+	v4l2_dbg(2, de, sd, "CC data: %04x\n", cc);
 	saa7127_write(sd, SAA7127_REG_LINE_21_ODD_0, cc & 0xff);
 	saa7127_write(sd, SAA7127_REG_LINE_21_ODD_1, cc >> 8);
 	state->cc_data = cc;
@@ -411,7 +411,7 @@ static int saa7127_set_xds(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 	if (enable && (data->field != 1 || data->line != 21))
 		return -EINVAL;
 	if (state->xds_enable != enable) {
-		v4l2_dbg(1, debug, sd, "Turn XDS %s\n", enable ? "on" : "off");
+		v4l2_dbg(1, de, sd, "Turn XDS %s\n", enable ? "on" : "off");
 		saa7127_write(sd, SAA7127_REG_CLOSED_CAPTION,
 				(enable << 7) | (state->cc_enable << 6) | 0x11);
 		state->xds_enable = enable;
@@ -419,7 +419,7 @@ static int saa7127_set_xds(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 	if (!enable)
 		return 0;
 
-	v4l2_dbg(2, debug, sd, "XDS data: %04x\n", xds);
+	v4l2_dbg(2, de, sd, "XDS data: %04x\n", xds);
 	saa7127_write(sd, SAA7127_REG_LINE_21_EVEN_0, xds & 0xff);
 	saa7127_write(sd, SAA7127_REG_LINE_21_EVEN_1, xds >> 8);
 	state->xds_data = xds;
@@ -436,7 +436,7 @@ static int saa7127_set_wss(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 	if (enable && (data->field != 0 || data->line != 23))
 		return -EINVAL;
 	if (state->wss_enable != enable) {
-		v4l2_dbg(1, debug, sd, "Turn WSS %s\n", enable ? "on" : "off");
+		v4l2_dbg(1, de, sd, "Turn WSS %s\n", enable ? "on" : "off");
 		saa7127_write(sd, 0x27, enable << 7);
 		state->wss_enable = enable;
 	}
@@ -445,7 +445,7 @@ static int saa7127_set_wss(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 
 	saa7127_write(sd, 0x26, data->data[0]);
 	saa7127_write(sd, 0x27, 0x80 | (data->data[1] & 0x3f));
-	v4l2_dbg(1, debug, sd,
+	v4l2_dbg(1, de, sd,
 		"WSS mode: %s\n", wss_strs[data->data[0] & 0xf]);
 	state->wss_mode = (data->data[1] & 0x3f) << 8 | data->data[0];
 	return 0;
@@ -458,11 +458,11 @@ static int saa7127_set_video_enable(struct v4l2_subdev *sd, int enable)
 	struct saa7127_state *state = to_state(sd);
 
 	if (enable) {
-		v4l2_dbg(1, debug, sd, "Enable Video Output\n");
+		v4l2_dbg(1, de, sd, "Enable Video Output\n");
 		saa7127_write(sd, 0x2d, state->reg_2d);
 		saa7127_write(sd, 0x61, state->reg_61);
 	} else {
-		v4l2_dbg(1, debug, sd, "Disable Video Output\n");
+		v4l2_dbg(1, de, sd, "Disable Video Output\n");
 		saa7127_write(sd, 0x2d, (state->reg_2d & 0xf0));
 		saa7127_write(sd, 0x61, (state->reg_61 | 0xc0));
 	}
@@ -478,7 +478,7 @@ static int saa7127_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	const struct i2c_reg_value *inittab;
 
 	if (std & V4L2_STD_525_60) {
-		v4l2_dbg(1, debug, sd, "Selecting 60 Hz video Standard\n");
+		v4l2_dbg(1, de, sd, "Selecting 60 Hz video Standard\n");
 		inittab = saa7127_init_config_60hz;
 		state->reg_61 = SAA7127_60HZ_DAC_CONTROL;
 
@@ -487,13 +487,13 @@ static int saa7127_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		   !(std & (V4L2_STD_625_50 & ~V4L2_STD_SECAM))) {
 
 		/* If and only if SECAM, with a SAA712[89] */
-		v4l2_dbg(1, debug, sd,
+		v4l2_dbg(1, de, sd,
 			 "Selecting 50 Hz SECAM video Standard\n");
 		inittab = saa7127_init_config_50hz_secam;
 		state->reg_61 = SAA7127_50HZ_SECAM_DAC_CONTROL;
 
 	} else {
-		v4l2_dbg(1, debug, sd, "Selecting 50 Hz PAL video Standard\n");
+		v4l2_dbg(1, de, sd, "Selecting 50 Hz PAL video Standard\n");
 		inittab = saa7127_init_config_50hz_pal;
 		state->reg_61 = SAA7127_50HZ_PAL_DAC_CONTROL;
 	}
@@ -553,7 +553,7 @@ static int saa7127_set_output_type(struct v4l2_subdev *sd, int output)
 	default:
 		return -EINVAL;
 	}
-	v4l2_dbg(1, debug, sd,
+	v4l2_dbg(1, de, sd,
 		"Selecting %s output type\n", output_strs[output]);
 
 	/* Configure Encoder */
@@ -571,12 +571,12 @@ static int saa7127_set_input_type(struct v4l2_subdev *sd, int input)
 
 	switch (input) {
 	case SAA7127_INPUT_TYPE_NORMAL:	/* avia */
-		v4l2_dbg(1, debug, sd, "Selecting Normal Encoder Input\n");
+		v4l2_dbg(1, de, sd, "Selecting Normal Encoder Input\n");
 		state->reg_3a_cb = 0;
 		break;
 
 	case SAA7127_INPUT_TYPE_TEST_IMAGE:	/* color bar */
-		v4l2_dbg(1, debug, sd, "Selecting Color Bar generator\n");
+		v4l2_dbg(1, de, sd, "Selecting Color Bar generator\n");
 		state->reg_3a_cb = 0x80;
 		break;
 
@@ -658,7 +658,7 @@ static int saa7127_s_vbi_data(struct v4l2_subdev *sd, const struct v4l2_sliced_v
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int saa7127_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = saa7127_read(sd, reg->reg & 0xff);
@@ -692,7 +692,7 @@ static int saa7127_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops saa7127_core_ops = {
 	.log_status = saa7127_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = saa7127_g_register,
 	.s_register = saa7127_s_register,
 #endif
@@ -728,7 +728,7 @@ static int saa7127_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n",
+	v4l_dbg(1, de, client, "detecting saa7127 client on address 0x%x\n",
 			client->addr << 1);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
@@ -745,7 +745,7 @@ static int saa7127_probe(struct i2c_client *client,
 	   0x1d after a reset and not expected to ever change. */
 	if ((saa7127_read(sd, 0) & 0xe4) != 0 ||
 			(saa7127_read(sd, 0x29) & 0x3f) != 0x1d) {
-		v4l2_dbg(1, debug, sd, "saa7127 not found\n");
+		v4l2_dbg(1, de, sd, "saa7127 not found\n");
 		return -ENODEV;
 	}
 
@@ -771,7 +771,7 @@ static int saa7127_probe(struct i2c_client *client,
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
 
-	v4l2_dbg(1, debug, sd, "Configuring encoder\n");
+	v4l2_dbg(1, de, sd, "Configuring encoder\n");
 	saa7127_write_inittab(sd, saa7127_init_config_common);
 	saa7127_set_std(sd, V4L2_STD_NTSC);
 	saa7127_set_output_type(sd, SAA7127_OUTPUT_TYPE_BOTH);
@@ -781,7 +781,7 @@ static int saa7127_probe(struct i2c_client *client,
 	saa7127_set_xds(sd, &vbi);
 	if (test_image == 1)
 		/* The Encoder has an internal Colorbar generator */
-		/* This can be used for debugging */
+		/* This can be used for deging */
 		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_TEST_IMAGE);
 	else
 		saa7127_set_input_type(sd, SAA7127_INPUT_TYPE_NORMAL);

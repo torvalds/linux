@@ -145,14 +145,14 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_GSCAN_CAPA	= 50,
 	IWL_UCODE_TLV_FW_MEM_SEG	= 51,
 	IWL_UCODE_TLV_IML		= 52,
-	IWL_UCODE_TLV_UMAC_DEBUG_ADDRS	= 54,
-	IWL_UCODE_TLV_LMAC_DEBUG_ADDRS	= 55,
+	IWL_UCODE_TLV_UMAC_DE_ADDRS	= 54,
+	IWL_UCODE_TLV_LMAC_DE_ADDRS	= 55,
 	IWL_UCODE_TLV_FW_RECOVERY_INFO	= 57,
 	IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION	= IWL_UCODE_INI_TLV_GROUP | 0x1,
 	IWL_UCODE_TLV_TYPE_HCMD			= IWL_UCODE_INI_TLV_GROUP | 0x2,
 	IWL_UCODE_TLV_TYPE_REGIONS		= IWL_UCODE_INI_TLV_GROUP | 0x3,
 	IWL_UCODE_TLV_TYPE_TRIGGERS		= IWL_UCODE_INI_TLV_GROUP | 0x4,
-	IWL_UCODE_TLV_TYPE_DEBUG_FLOW		= IWL_UCODE_INI_TLV_GROUP | 0x5,
+	IWL_UCODE_TLV_TYPE_DE_FLOW		= IWL_UCODE_INI_TLV_GROUP | 0x5,
 
 	/* TLVs 0x1000-0x2000 are for internal driver usage */
 	IWL_UCODE_TLV_FW_DBG_DUMP_LST	= 0x1000,
@@ -373,7 +373,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_TX_POWER_ACK: reduced TX power API has larger
  *	command size (command version 4) that supports toggling ACK TX
  *	power reduction.
- * @IWL_UCODE_TLV_CAPA_D3_DEBUG: supports debug recording during D3
+ * @IWL_UCODE_TLV_CAPA_D3_DE: supports de recording during D3
  * @IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT: MCC response support 11ax
  *	capability.
  * @IWL_UCODE_TLV_CAPA_CSI_REPORTING: firmware is capable of being configured
@@ -437,7 +437,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG	= (__force iwl_ucode_tlv_capa_t)80,
 	IWL_UCODE_TLV_CAPA_LQM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)81,
 	IWL_UCODE_TLV_CAPA_TX_POWER_ACK			= (__force iwl_ucode_tlv_capa_t)84,
-	IWL_UCODE_TLV_CAPA_D3_DEBUG			= (__force iwl_ucode_tlv_capa_t)87,
+	IWL_UCODE_TLV_CAPA_D3_DE			= (__force iwl_ucode_tlv_capa_t)87,
 	IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT		= (__force iwl_ucode_tlv_capa_t)88,
 	IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT	= (__force iwl_ucode_tlv_capa_t)89,
 	IWL_UCODE_TLV_CAPA_CSI_REPORTING		= (__force iwl_ucode_tlv_capa_t)90,
@@ -574,7 +574,7 @@ enum iwl_fw_dbg_monitor_mode {
 };
 
 /**
- * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
+ * struct iwl_fw_dbg_mem_seg_tlv - configures the de data memory segments
  *
  * @data_type: the memory segment type to record
  * @ofs: the memory segment offset
@@ -589,7 +589,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
 } __packed;
 
 /**
- * struct iwl_fw_dbg_dest_tlv_v1 - configures the destination of the debug data
+ * struct iwl_fw_dbg_dest_tlv_v1 - configures the destination of the de data
  *
  * @version: version of the TLV - currently 0
  * @monitor_mode: &enum iwl_fw_dbg_monitor_mode
@@ -907,7 +907,7 @@ struct iwl_fw_dbg_trigger_tx_status {
 } __packed;
 
 /**
- * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
+ * struct iwl_fw_dbg_conf_tlv - a TLV that describes a de configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used
  * @num_of_hcmds: how many HCMDs to send are present here

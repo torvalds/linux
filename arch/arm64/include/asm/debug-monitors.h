@@ -13,8 +13,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __ASM_DEBUG_MONITORS_H
-#define __ASM_DEBUG_MONITORS_H
+#ifndef __ASM_DE_MONITORS_H
+#define __ASM_DE_MONITORS_H
 
 #ifdef __KERNEL__
 
@@ -107,15 +107,15 @@ struct break_hook {
 void register_break_hook(struct break_hook *hook);
 void unregister_break_hook(struct break_hook *hook);
 
-u8 debug_monitors_arch(void);
+u8 de_monitors_arch(void);
 
 enum dbg_active_el {
 	DBG_ACTIVE_EL0 = 0,
 	DBG_ACTIVE_EL1,
 };
 
-void enable_debug_monitors(enum dbg_active_el el);
-void disable_debug_monitors(enum dbg_active_el el);
+void enable_de_monitors(enum dbg_active_el el);
+void disable_de_monitors(enum dbg_active_el el);
 
 void user_rewind_single_step(struct task_struct *task);
 void user_fastforward_single_step(struct task_struct *task);
@@ -137,4 +137,4 @@ int aarch32_break_handler(struct pt_regs *regs);
 
 #endif	/* __ASSEMBLY */
 #endif	/* __KERNEL__ */
-#endif	/* __ASM_DEBUG_MONITORS_H */
+#endif	/* __ASM_DE_MONITORS_H */

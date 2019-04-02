@@ -87,7 +87,7 @@ static int ocfs2_validate_refcount_block(struct super_block *sb,
 
 	trace_ocfs2_validate_refcount_block((unsigned long long)bh->b_blocknr);
 
-	BUG_ON(!buffer_uptodate(bh));
+	_ON(!buffer_uptodate(bh));
 
 	/*
 	 * If the ecc fails, we return the error but otherwise
@@ -241,7 +241,7 @@ static void ocfs2_insert_refcount_tree(struct ocfs2_super *osb,
 			/* This should never happen! */
 			mlog(ML_ERROR, "Duplicate refcount block %llu found!\n",
 			     (unsigned long long)rf_blkno);
-			BUG();
+			();
 		}
 	}
 
@@ -411,7 +411,7 @@ static int ocfs2_get_refcount_block(struct inode *inode, u64 *ref_blkno)
 		goto out;
 	}
 
-	BUG_ON(!ocfs2_is_refcount_inode(inode));
+	_ON(!ocfs2_is_refcount_inode(inode));
 
 	di = (struct ocfs2_dinode *)di_bh->b_data;
 	*ref_blkno = le64_to_cpu(di->i_refcount_loc);
@@ -570,7 +570,7 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	u32 num_got;
 	u64 suballoc_loc, first_blkno;
 
-	BUG_ON(ocfs2_is_refcount_inode(inode));
+	_ON(ocfs2_is_refcount_inode(inode));
 
 	trace_ocfs2_create_refcount_tree(
 		(unsigned long long)oi->ip_blkno);
@@ -670,7 +670,7 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	 * one we just deleted.  We free the old tree before
 	 * inserting the new tree.
 	 */
-	BUG_ON(tree && tree->rf_generation == new_tree->rf_generation);
+	_ON(tree && tree->rf_generation == new_tree->rf_generation);
 	if (tree)
 		ocfs2_erase_refcount_tree_from_list_no_lock(osb, tree);
 	ocfs2_insert_refcount_tree(osb, new_tree);
@@ -708,7 +708,7 @@ static int ocfs2_set_refcount_tree(struct inode *inode,
 	struct ocfs2_refcount_block *rb;
 	struct ocfs2_refcount_tree *ref_tree;
 
-	BUG_ON(ocfs2_is_refcount_inode(inode));
+	_ON(ocfs2_is_refcount_inode(inode));
 
 	ret = ocfs2_lock_refcount_tree(osb, refcount_loc, 1,
 				       &ref_tree, &ref_root_bh);
@@ -778,7 +778,7 @@ int ocfs2_remove_refcount_tree(struct inode *inode, struct buffer_head *di_bh)
 	if (!ocfs2_is_refcount_inode(inode))
 		return 0;
 
-	BUG_ON(!ref_blkno);
+	_ON(!ref_blkno);
 	ret = ocfs2_lock_refcount_tree(osb, ref_blkno, 1, &ref_tree, &blk_bh);
 	if (ret) {
 		mlog_errno(ret);
@@ -1046,7 +1046,7 @@ static int ocfs2_get_refcount_cpos_end(struct ocfs2_caching_info *ci,
 		}
 	}
 
-	BUG_ON(i == le16_to_cpu(tmp_el->l_next_free_rec));
+	_ON(i == le16_to_cpu(tmp_el->l_next_free_rec));
 
 out:
 	ocfs2_free_path(left_path);
@@ -1194,7 +1194,7 @@ static enum ocfs2_ref_rec_contig
 static void ocfs2_rotate_refcount_rec_left(struct ocfs2_refcount_block *rb,
 					   int index)
 {
-	BUG_ON(rb->rf_records.rl_recs[index].r_refcount !=
+	_ON(rb->rf_records.rl_recs[index].r_refcount !=
 	       rb->rf_records.rl_recs[index+1].r_refcount);
 
 	le32_add_cpu(&rb->rf_records.rl_recs[index].r_clusters,
@@ -1224,7 +1224,7 @@ static void ocfs2_refcount_rec_merge(struct ocfs2_refcount_block *rb,
 		return;
 
 	if (contig == REF_CONTIG_LEFT || contig == REF_CONTIG_LEFTRIGHT) {
-		BUG_ON(index == 0);
+		_ON(index == 0);
 		index--;
 	}
 
@@ -1534,7 +1534,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 	struct ocfs2_refcount_block *new_rb;
 	struct ocfs2_extent_tree ref_et;
 
-	BUG_ON(!(le32_to_cpu(root_rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL));
+	_ON(!(le32_to_cpu(root_rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL));
 
 	ret = ocfs2_journal_access_rb(handle, ci, ref_root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
@@ -1724,7 +1724,7 @@ static int ocfs2_adjust_refcount_rec(handle_t *handle,
 		if (le32_to_cpu(el->l_recs[i].e_cpos) == old_cpos)
 			break;
 
-	BUG_ON(i == le16_to_cpu(el->l_next_free_rec));
+	_ON(i == le16_to_cpu(el->l_next_free_rec));
 
 	el->l_recs[i].e_cpos = cpu_to_le32(new_cpos);
 
@@ -1753,7 +1753,7 @@ static int ocfs2_insert_refcount_rec(handle_t *handle,
 	struct ocfs2_refcount_list *rf_list = &rb->rf_records;
 	struct buffer_head *new_bh = NULL;
 
-	BUG_ON(le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL);
+	_ON(le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL);
 
 	if (rf_list->rl_used == rf_list->rl_count) {
 		u64 cpos = le64_to_cpu(rec->r_cpos);
@@ -1845,7 +1845,7 @@ static int ocfs2_split_refcount_rec(handle_t *handle,
 	struct ocfs2_refcount_rec *tail_rec = NULL;
 	struct buffer_head *new_bh = NULL;
 
-	BUG_ON(le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL);
+	_ON(le32_to_cpu(rb->rf_flags) & OCFS2_REFCOUNT_TREE_FL);
 
 	trace_ocfs2_split_refcount_rec(le64_to_cpu(orig_rec->r_cpos),
 		le32_to_cpu(orig_rec->r_clusters),
@@ -2090,7 +2090,7 @@ static int ocfs2_remove_refcount_extent(handle_t *handle,
 			(struct ocfs2_refcount_block *)ref_leaf_bh->b_data;
 	struct ocfs2_extent_tree et;
 
-	BUG_ON(rb->rf_records.rl_used);
+	_ON(rb->rf_records.rl_used);
 
 	trace_ocfs2_remove_refcount_extent(
 		(unsigned long long)ocfs2_metadata_cache_owner(ci),
@@ -2137,7 +2137,7 @@ static int ocfs2_remove_refcount_extent(handle_t *handle,
 	 * there is no leaf extent block at atll.
 	 */
 	if (!rb->rf_list.l_next_free_rec) {
-		BUG_ON(rb->rf_clusters);
+		_ON(rb->rf_clusters);
 
 		trace_ocfs2_restore_refcount_block(
 		     (unsigned long long)ref_root_bh->b_blocknr);
@@ -2182,8 +2182,8 @@ static int ocfs2_decrease_refcount_rec(handle_t *handle,
 			(struct ocfs2_refcount_block *)ref_leaf_bh->b_data;
 	struct ocfs2_refcount_rec *rec = &rb->rf_records.rl_recs[index];
 
-	BUG_ON(cpos < le64_to_cpu(rec->r_cpos));
-	BUG_ON(cpos + len >
+	_ON(cpos < le64_to_cpu(rec->r_cpos));
+	_ON(cpos + len >
 	       le64_to_cpu(rec->r_cpos) + le32_to_cpu(rec->r_clusters));
 
 	trace_ocfs2_decrease_refcount_rec(
@@ -2253,9 +2253,9 @@ static int __ocfs2_decrease_refcount(handle_t *handle,
 		}
 
 		r_count = le32_to_cpu(rec.r_refcount);
-		BUG_ON(r_count == 0);
+		_ON(r_count == 0);
 		if (!delete)
-			BUG_ON(r_count > 1);
+			_ON(r_count > 1);
 
 		r_len = min((u64)(cpos + len), le64_to_cpu(rec.r_cpos) +
 			      le32_to_cpu(rec.r_clusters)) - cpos;
@@ -2302,7 +2302,7 @@ int ocfs2_decrease_refcount(struct inode *inode,
 	struct buffer_head *ref_root_bh = NULL;
 	struct ocfs2_refcount_tree *tree;
 
-	BUG_ON(!ocfs2_is_refcount_inode(inode));
+	_ON(!ocfs2_is_refcount_inode(inode));
 
 	ret = ocfs2_get_refcount_block(inode, &ref_blkno);
 	if (ret) {
@@ -2542,7 +2542,7 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 		goto out;
 	}
 
-	BUG_ON(!ocfs2_is_refcount_inode(inode));
+	_ON(!ocfs2_is_refcount_inode(inode));
 
 	ret = ocfs2_get_refcount_tree(OCFS2_SB(inode->i_sb),
 				      refcount_loc, &tree);
@@ -2598,7 +2598,7 @@ static inline unsigned int ocfs2_cow_align_start(struct super_block *sb,
 						 unsigned int start,
 						 unsigned int cpos)
 {
-	BUG_ON(start > cpos);
+	_ON(start > cpos);
 
 	return start + ((cpos - start) & ocfs2_cow_contig_mask(sb));
 }
@@ -2649,7 +2649,7 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 	int contig_clusters = ocfs2_cow_contig_clusters(inode->i_sb);
 	int leaf_clusters;
 
-	BUG_ON(cpos + write_len > max_cpos);
+	_ON(cpos + write_len > max_cpos);
 
 	if (tree_height > 0) {
 		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, cpos, &eb_bh);
@@ -2675,7 +2675,7 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 		rec = &el->l_recs[i];
 
 		if (ocfs2_is_empty_extent(rec)) {
-			mlog_bug_on_msg(i != 0, "Inode %lu has empty record in "
+			mlog__on_msg(i != 0, "Inode %lu has empty record in "
 					"index %d\n", inode->i_ino, i);
 			continue;
 		}
@@ -2689,7 +2689,7 @@ static int ocfs2_refcount_cal_cow_clusters(struct inode *inode,
 			 * We should find a refcounted record in the
 			 * first pass.
 			 */
-			BUG_ON(!(rec->e_flags & OCFS2_EXT_REFCOUNTED));
+			_ON(!(rec->e_flags & OCFS2_EXT_REFCOUNTED));
 			*cow_start = le32_to_cpu(rec->e_cpos);
 		}
 
@@ -2901,7 +2901,7 @@ out:
 
 static int ocfs2_clear_cow_buffer(handle_t *handle, struct buffer_head *bh)
 {
-	BUG_ON(buffer_dirty(bh));
+	_ON(buffer_dirty(bh));
 
 	clear_buffer_mapped(bh);
 
@@ -3178,7 +3178,7 @@ int ocfs2_cow_sync_writeback(struct super_block *sb,
 
 		page = find_or_create_page(inode->i_mapping,
 					   page_index, GFP_NOFS);
-		BUG_ON(!page);
+		_ON(!page);
 
 		wait_on_page_writeback(page);
 		if (PageError(page)) {
@@ -3257,7 +3257,7 @@ static int ocfs2_make_clusters_writable(struct super_block *sb,
 			goto out_commit;
 		}
 
-		BUG_ON(!rec.r_refcount);
+		_ON(!rec.r_refcount);
 		set_len = min((u64)p_cluster + num_clusters,
 			      le64_to_cpu(rec.r_cpos) +
 			      le32_to_cpu(rec.r_clusters)) - p_cluster;
@@ -3382,7 +3382,7 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 			break;
 		}
 
-		BUG_ON(!(ext_flags & OCFS2_EXT_REFCOUNTED));
+		_ON(!(ext_flags & OCFS2_EXT_REFCOUNTED));
 
 		if (cow_len < num_clusters)
 			num_clusters = cow_len;
@@ -3424,7 +3424,7 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 	struct ocfs2_refcount_tree *ref_tree;
 	struct ocfs2_cow_context *context = NULL;
 
-	BUG_ON(!ocfs2_is_refcount_inode(inode));
+	_ON(!ocfs2_is_refcount_inode(inode));
 
 	ret = ocfs2_refcount_cal_cow_clusters(inode, &di->id2.i_list,
 					      cpos, write_len, max_cpos,
@@ -3438,7 +3438,7 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 				      cpos, write_len, max_cpos,
 				      cow_start, cow_len);
 
-	BUG_ON(cow_len == 0);
+	_ON(cow_len == 0);
 
 	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
 	if (!context) {
@@ -3574,7 +3574,7 @@ int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
 				goto out;
 			}
 
-			BUG_ON(!rec.r_refcount);
+			_ON(!rec.r_refcount);
 
 			rb = (struct ocfs2_refcount_block *)ref_leaf_bh->b_data;
 
@@ -3637,7 +3637,7 @@ int ocfs2_refcount_cow_xattr(struct inode *inode,
 	struct ocfs2_cow_context *context = NULL;
 	u32 cow_start, cow_len;
 
-	BUG_ON(!ocfs2_is_refcount_inode(inode));
+	_ON(!ocfs2_is_refcount_inode(inode));
 
 	ret = ocfs2_refcount_cal_cow_clusters(inode, &xv->xr_list,
 					      cpos, write_len, UINT_MAX,
@@ -3647,7 +3647,7 @@ int ocfs2_refcount_cow_xattr(struct inode *inode,
 		goto out;
 	}
 
-	BUG_ON(cow_len == 0);
+	_ON(cow_len == 0);
 
 	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
 	if (!context) {
@@ -3822,7 +3822,7 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 		}
 	}
 
-	BUG_ON(!di->i_refcount_loc);
+	_ON(!di->i_refcount_loc);
 	ret = ocfs2_lock_refcount_tree(osb,
 				       le64_to_cpu(di->i_refcount_loc), 1,
 				       &ref_tree, &ref_root_bh);
@@ -3970,7 +3970,7 @@ static int ocfs2_duplicate_inline_data(struct inode *s_inode,
 	struct ocfs2_dinode *s_di = (struct ocfs2_dinode *)s_bh->b_data;
 	struct ocfs2_dinode *t_di = (struct ocfs2_dinode *)t_bh->b_data;
 
-	BUG_ON(!(OCFS2_I(s_inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
+	_ON(!(OCFS2_I(s_inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
 
 	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 	if (IS_ERR(handle)) {

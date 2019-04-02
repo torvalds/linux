@@ -86,7 +86,7 @@ void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev, int block_num,
 	guid_indexes = be64_to_cpu((__force __be64) dev->sriov.alias_guid.
 				   ports_guid[port_num - 1].
 				   all_rec_per_port[block_num].guid_indexes);
-	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num, guid_indexes);
+	pr_de("port: %d, guid_indexes: 0x%llx\n", port_num, guid_indexes);
 
 	for (i = 0; i < NUM_ALIAS_GUID_IN_REC; i++) {
 		/* The location of the specific index starts from bit number 4
@@ -94,7 +94,7 @@ void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev, int block_num,
 		if (test_bit(i + 4, (unsigned long *)&guid_indexes)) {
 			slave_id = (block_num * NUM_ALIAS_GUID_IN_REC) + i ;
 			if (slave_id >= dev->dev->num_slaves) {
-				pr_debug("The last slave: %d\n", slave_id);
+				pr_de("The last slave: %d\n", slave_id);
 				return;
 			}
 
@@ -103,7 +103,7 @@ void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev, int block_num,
 			       &p_data[i * GUID_REC_SIZE],
 			       GUID_REC_SIZE);
 		} else
-			pr_debug("Guid number: %d in block: %d"
+			pr_de("Guid number: %d in block: %d"
 				 " was not updated\n", i, block_num);
 	}
 }
@@ -206,7 +206,7 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 	guid_indexes = be64_to_cpu((__force __be64) dev->sriov.alias_guid.
 				   ports_guid[port_num - 1].
 				   all_rec_per_port[block_num].guid_indexes);
-	pr_debug("port: %d, guid_indexes: 0x%llx\n", port_num, guid_indexes);
+	pr_de("port: %d, guid_indexes: 0x%llx\n", port_num, guid_indexes);
 
 	/*calculate the slaves and notify them*/
 	for (i = 0; i < NUM_ALIAS_GUID_IN_REC; i++) {
@@ -260,11 +260,11 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 			new_state = set_and_calc_slave_port_state(dev->dev, slave_id, port_num,
 								  MLX4_PORT_STATE_IB_PORT_STATE_EVENT_GID_VALID,
 								  &gen_event);
-			pr_debug("slave: %d, port: %d prev_port_state: %d,"
+			pr_de("slave: %d, port: %d prev_port_state: %d,"
 				 " new_port_state: %d, gen_event: %d\n",
 				 slave_id, port_num, prev_state, new_state, gen_event);
 			if (gen_event == SLAVE_PORT_GEN_EVENT_UP) {
-				pr_debug("sending PORT_UP event to slave: %d, port: %d\n",
+				pr_de("sending PORT_UP event to slave: %d, port: %d\n",
 					 slave_id, port_num);
 				mlx4_gen_port_state_change_eqe(dev->dev, slave_id,
 							       port_num, MLX4_PORT_CHANGE_SUBTYPE_ACTIVE);
@@ -274,7 +274,7 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 						      MLX4_PORT_STATE_IB_EVENT_GID_INVALID,
 						      &gen_event);
 			if (gen_event == SLAVE_PORT_GEN_EVENT_DOWN) {
-				pr_debug("sending PORT DOWN event to slave: %d, port: %d\n",
+				pr_de("sending PORT DOWN event to slave: %d, port: %d\n",
 					 slave_id, port_num);
 				mlx4_gen_port_state_change_eqe(dev->dev,
 							       slave_id,
@@ -308,7 +308,7 @@ static void aliasguid_query_handler(int status,
 		all_rec_per_port[cb_ctx->block_num];
 
 	if (status) {
-		pr_debug("(port: %d) failed: status = %d\n",
+		pr_de("(port: %d) failed: status = %d\n",
 			 cb_ctx->port, status);
 		rec->time_to_run = ktime_get_boot_ns() + 1 * NSEC_PER_SEC;
 		goto out;
@@ -320,7 +320,7 @@ static void aliasguid_query_handler(int status,
 		goto out;
 	}
 
-	pr_debug("lid/port: %d/%d, block_num: %d\n",
+	pr_de("lid/port: %d/%d, block_num: %d\n",
 		 be16_to_cpu(guid_rec->lid), cb_ctx->port,
 		 guid_rec->block_num);
 
@@ -343,7 +343,7 @@ static void aliasguid_query_handler(int status,
 				goto next_entry;
 
 			/* A new value was set till we got the response */
-			pr_debug("need to set new value %llx, record num %d, block_num:%d\n",
+			pr_de("need to set new value %llx, record num %d, block_num:%d\n",
 				 be64_to_cpu(required_val),
 				 i, guid_rec->block_num);
 			goto entry_declined;
@@ -411,7 +411,7 @@ next_entry:
 	applied_guid_indexes =  cb_ctx->guid_indexes & ~declined_guid_indexes;
 	if (declined_guid_indexes ||
 	    rec->guid_indexes & ~(applied_guid_indexes)) {
-		pr_debug("record=%d wasn't fully set, guid_indexes=0x%llx applied_indexes=0x%llx, declined_indexes=0x%llx\n",
+		pr_de("record=%d wasn't fully set, guid_indexes=0x%llx applied_indexes=0x%llx, declined_indexes=0x%llx\n",
 			 guid_rec->block_num,
 			 be64_to_cpu((__force __be64)rec->guid_indexes),
 			 be64_to_cpu((__force __be64)applied_guid_indexes),
@@ -502,13 +502,13 @@ static int set_guid_rec(struct ib_device *ibdev,
 	memset(&attr, 0, sizeof(attr));
 	err = __mlx4_ib_query_port(ibdev, port, &attr, 1);
 	if (err) {
-		pr_debug("mlx4_ib_query_port failed (err: %d), port: %d\n",
+		pr_de("mlx4_ib_query_port failed (err: %d), port: %d\n",
 			 err, port);
 		return err;
 	}
 	/*check the port was configured by the sm, otherwise no need to send */
 	if (attr.state != IB_PORT_ACTIVE) {
-		pr_debug("port %d not active...rescheduling\n", port);
+		pr_de("port %d not active...rescheduling\n", port);
 		resched_delay = 5 * HZ;
 		err = -EAGAIN;
 		goto new_schedule;
@@ -549,7 +549,7 @@ static int set_guid_rec(struct ib_device *ibdev,
 					  callback_context,
 					  &callback_context->sa_query);
 	if (callback_context->query_id < 0) {
-		pr_debug("ib_sa_guid_info_rec_query failed, query_id: "
+		pr_de("ib_sa_guid_info_rec_query failed, query_id: "
 			 "%d. will reschedule to the next 1 sec.\n",
 			 callback_context->query_id);
 		spin_lock_irqsave(&dev->sriov.alias_guid.ag_work_lock, flags1);
@@ -596,7 +596,7 @@ static void mlx4_ib_guid_port_init(struct mlx4_ib_dev *dev, int port)
 			*(__be64 *)&dev->sriov.alias_guid.ports_guid[port - 1].
 				all_rec_per_port[j].all_recs
 				[GUID_REC_SIZE * k] = guid;
-			pr_debug("guid was set, entry=%d, val=0x%llx, port=%d\n",
+			pr_de("guid was set, entry=%d, val=0x%llx, port=%d\n",
 				 entry,
 				 be64_to_cpu(guid),
 				 port);
@@ -608,7 +608,7 @@ void mlx4_ib_invalidate_all_guid_record(struct mlx4_ib_dev *dev, int port)
 	int i;
 	unsigned long flags, flags1;
 
-	pr_debug("port %d\n", port);
+	pr_de("port %d\n", port);
 
 	spin_lock_irqsave(&dev->sriov.going_down_lock, flags);
 	spin_lock_irqsave(&dev->sriov.alias_guid.ag_work_lock, flags1);
@@ -759,10 +759,10 @@ static void alias_guid_work(struct work_struct *work)
 	if (!rec)
 		return;
 
-	pr_debug("starting [port: %d]...\n", sriov_alias_port->port + 1);
+	pr_de("starting [port: %d]...\n", sriov_alias_port->port + 1);
 	ret = get_next_record_to_update(dev, sriov_alias_port->port, rec);
 	if (ret) {
-		pr_debug("No more records to update.\n");
+		pr_de("No more records to update.\n");
 		goto out;
 	}
 

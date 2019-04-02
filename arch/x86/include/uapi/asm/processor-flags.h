@@ -94,7 +94,7 @@
 #define X86_CR4_PVI		_BITUL(X86_CR4_PVI_BIT)
 #define X86_CR4_TSD_BIT		2 /* disable time stamp at ipl 3 */
 #define X86_CR4_TSD		_BITUL(X86_CR4_TSD_BIT)
-#define X86_CR4_DE_BIT		3 /* enable debugging extensions */
+#define X86_CR4_DE_BIT		3 /* enable deging extensions */
 #define X86_CR4_DE		_BITUL(X86_CR4_DE_BIT)
 #define X86_CR4_PSE_BIT		4 /* enable page size extensions */
 #define X86_CR4_PSE		_BITUL(X86_CR4_PSE_BIT)

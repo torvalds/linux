@@ -291,7 +291,7 @@ static void __init omap_fsample_init(void)
 	omap_writel(0x00000088, OMAP7XX_FLASH_ACFG_0);
 
 	/*
-	 * Ethernet support through the debug board
+	 * Ethernet support through the de board
 	 * CS1 timings setup
 	 */
 	omap_writel(0x0000fff3, OMAP7XX_FLASH_CFG_1);
@@ -306,7 +306,7 @@ static void __init omap_fsample_init(void)
 
 	fsample_init_smc91x();
 
-	BUG_ON(gpio_request(FSAMPLE_NAND_RB_GPIO_PIN, "NAND ready") < 0);
+	_ON(gpio_request(FSAMPLE_NAND_RB_GPIO_PIN, "NAND ready") < 0);
 	gpio_direction_input(FSAMPLE_NAND_RB_GPIO_PIN);
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);

@@ -3,7 +3,7 @@
 #include "map.h"
 #include "thread.h"
 #include "session.h"
-#include "debug.h"
+#include "de.h"
 #include "env.h"
 
 struct unwind_libunwind_ops __weak *local_unwind_libunwind_ops;
@@ -25,7 +25,7 @@ int unwind__prepare_access(struct thread *thread, struct map *map,
 	int err;
 
 	if (thread->addr_space) {
-		pr_debug("unwind: thread map already set, dso=%s\n",
+		pr_de("unwind: thread map already set, dso=%s\n",
 			 map->dso->name);
 		if (initialized)
 			*initialized = true;

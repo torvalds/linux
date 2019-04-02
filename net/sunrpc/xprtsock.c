@@ -188,12 +188,12 @@ static struct ctl_table sunrpc_table[] = {
  */
 #define XS_IDLE_DISC_TO		(5U * 60 * HZ)
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# undef  RPC_DEBUG_DATA
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
+# undef  RPC_DE_DATA
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-#ifdef RPC_DEBUG_DATA
+#ifdef RPC_DE_DATA
 static void xs_pktdump(char *msg, u32 *packet, unsigned int count)
 {
 	u8 *buf = (u8 *) packet;
@@ -273,7 +273,7 @@ static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 		snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = kstrdup(buf, GFP_KERNEL);
@@ -1817,7 +1817,7 @@ static void xs_local_set_port(struct rpc_xprt *xprt, unsigned short port)
 {
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 static struct lock_class_key xs_key[2];
 static struct lock_class_key xs_slock_key[2];
 

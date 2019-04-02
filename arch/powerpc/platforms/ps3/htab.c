@@ -79,7 +79,7 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 		pr_info("%s:result=%s vpn=%lx pa=%lx ix=%lx v=%llx r=%llx\n",
 			__func__, ps3_result(result), vpn, pa, hpte_group,
 			hpte_v, hpte_r);
-		BUG();
+		();
 	}
 
 	/*
@@ -90,7 +90,7 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 				       &hpte_v_array[0], &hpte_v_array[1],
 				       &hpte_v_array[2], &hpte_v_array[3],
 				       &hpte_rs);
-	BUG_ON(result);
+	_ON(result);
 
 	if (hpte_v_array[inserted_index % 4] & HPTE_V_SECONDARY)
 		ret = (inserted_index & 7) | (1 << 3);
@@ -130,7 +130,7 @@ static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	if (result) {
 		pr_info("%s: result=%s read vpn=%lx slot=%lx psize=%d\n",
 			__func__, ps3_result(result), vpn, slot, psize);
-		BUG();
+		();
 	}
 
 	hpte_v = hpte_v_array[slot % 4];
@@ -175,7 +175,7 @@ static void ps3_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	if (result) {
 		pr_info("%s: result=%s vpn=%lx slot=%lx psize=%d\n",
 			__func__, ps3_result(result), vpn, slot, psize);
-		BUG();
+		();
 	}
 
 	spin_unlock_irqrestore(&ps3_htab_lock, flags);

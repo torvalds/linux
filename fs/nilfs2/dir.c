@@ -50,7 +50,7 @@ static inline __le16 nilfs_rec_len_to_disk(unsigned int len)
 	if (len == (1 << 16))
 		return cpu_to_le16(NILFS_MAX_REC_LEN);
 
-	BUG_ON(len > (1 << 16));
+	_ON(len > (1 << 16));
 #endif
 	return cpu_to_le16(len);
 }
@@ -424,7 +424,7 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 
 	lock_page(page);
 	err = nilfs_prepare_chunk(page, from, to);
-	BUG_ON(err);
+	_ON(err);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
 	nilfs_commit_chunk(page, mapping, from, to);
@@ -497,7 +497,7 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 		unlock_page(page);
 		nilfs_put_page(page);
 	}
-	BUG();
+	();
 	return -EINVAL;
 
 got_it:
@@ -562,7 +562,7 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 		from = (char *)pde - (char *)page_address(page);
 	lock_page(page);
 	err = nilfs_prepare_chunk(page, from, to);
-	BUG_ON(err);
+	_ON(err);
 	if (pde)
 		pde->rec_len = nilfs_rec_len_to_disk(to - from);
 	dir->inode = 0;

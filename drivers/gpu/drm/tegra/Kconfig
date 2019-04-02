@@ -18,10 +18,10 @@ config DRM_TEGRA
 
 if DRM_TEGRA
 
-config DRM_TEGRA_DEBUG
-	bool "NVIDIA Tegra DRM debug support"
+config DRM_TEGRA_DE
+	bool "NVIDIA Tegra DRM de support"
 	help
-	  Say yes here to enable debugging support.
+	  Say yes here to enable deging support.
 
 config DRM_TEGRA_STAGING
 	bool "Enable HOST1X interface"

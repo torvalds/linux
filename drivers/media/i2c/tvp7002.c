@@ -60,10 +60,10 @@ MODULE_LICENSE("GPL");
 #define TVP7002_CL_SHIFT	8
 #define TVP7002_CL_MASK		0x0f
 
-/* Debug functions */
-static bool debug;
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+/* De functions */
+static bool de;
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 /* Structure for register values */
 struct i2c_reg_value {
@@ -658,13 +658,13 @@ static int tvp7002_query_dv(struct v4l2_subdev *sd, int *index)
 		}
 
 	if (*index == NUM_TIMINGS) {
-		v4l2_dbg(1, debug, sd, "detection failed: lpf = %x, cpl = %x\n",
+		v4l2_dbg(1, de, sd, "detection failed: lpf = %x, cpl = %x\n",
 								lpfr, cpln);
 		return -ENOLINK;
 	}
 
 	/* Update lines per frame and clocks per line info */
-	v4l2_dbg(1, debug, sd, "detected timings: %d\n", *index);
+	v4l2_dbg(1, de, sd, "detected timings: %d\n", *index);
 	return 0;
 }
 
@@ -680,7 +680,7 @@ static int tvp7002_query_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 /*
  * tvp7002_g_register() - Get the value of a register
  * @sd: ptr to v4l2_subdev struct
@@ -735,7 +735,7 @@ static int tvp7002_s_stream(struct v4l2_subdev *sd, int enable)
 	/* low impedance: on, high impedance: off */
 	error = tvp7002_write(sd, TVP7002_MISC_CTL_2, enable ? 0x00 : 0x03);
 	if (error) {
-		v4l2_dbg(1, debug, sd, "Fail to set streaming\n");
+		v4l2_dbg(1, de, sd, "Fail to set streaming\n");
 		return error;
 	}
 
@@ -857,7 +857,7 @@ tvp7002_set_pad_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cf
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 	.log_status = tvp7002_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = tvp7002_g_register,
 	.s_register = tvp7002_s_register,
 #endif
@@ -1053,7 +1053,7 @@ static int tvp7002_remove(struct i2c_client *c)
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct tvp7002 *device = to_tvp7002(sd);
 
-	v4l2_dbg(1, debug, sd, "Removing tvp7002 adapter"
+	v4l2_dbg(1, de, sd, "Removing tvp7002 adapter"
 				"on address 0x%x\n", c->addr);
 	v4l2_async_unregister_subdev(&device->sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)

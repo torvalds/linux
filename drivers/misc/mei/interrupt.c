@@ -447,7 +447,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 				return ret;
 			break;
 		default:
-			BUG();
+			();
 		}
 
 	}

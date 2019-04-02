@@ -7,7 +7,7 @@
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  */
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -15,7 +15,7 @@
 #include <asm/sgialib.h>
 #include <asm/bootinfo.h>
 
-#undef DEBUG_CMDLINE
+#undef DE_CMDLINE
 
 static char *ignored[] = {
 	"ConsoleIn=",
@@ -98,7 +98,7 @@ void __init prom_init_cmdline(void)
 		--cp;
 	*cp = '\0';
 
-#ifdef DEBUG_CMDLINE
-	printk(KERN_DEBUG "prom cmdline: %s\n", arcs_cmdline);
+#ifdef DE_CMDLINE
+	printk(KERN_DE "prom cmdline: %s\n", arcs_cmdline);
 #endif
 }

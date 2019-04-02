@@ -20,8 +20,8 @@ static int prepare_packet(struct cros_ec_device *ec_dev,
 	int i;
 	u8 csum = 0;
 
-	BUG_ON(ec_dev->proto_version != EC_HOST_REQUEST_VERSION);
-	BUG_ON(msg->outsize + sizeof(*request) > ec_dev->dout_size);
+	_ON(ec_dev->proto_version != EC_HOST_REQUEST_VERSION);
+	_ON(msg->outsize + sizeof(*request) > ec_dev->dout_size);
 
 	out = ec_dev->dout;
 	request = (struct ec_host_request *)out;
@@ -111,7 +111,7 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 	if (ec_dev->proto_version > 2)
 		return prepare_packet(ec_dev, msg);
 
-	BUG_ON(msg->outsize > EC_PROTO2_MAX_PARAM_SIZE);
+	_ON(msg->outsize > EC_PROTO2_MAX_PARAM_SIZE);
 	out = ec_dev->dout;
 	out[0] = EC_CMD_VERSION0 + msg->version;
 	out[1] = msg->command;
@@ -610,7 +610,7 @@ u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
 {
 	u32 host_event;
 
-	BUG_ON(!ec_dev->mkbp_event_supported);
+	_ON(!ec_dev->mkbp_event_supported);
 
 	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_HOST_EVENT)
 		return 0;

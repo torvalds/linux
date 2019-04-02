@@ -158,7 +158,7 @@ void kvm_pmu_enable_counter(struct kvm_vcpu *vcpu, u64 val)
 		if (pmc->perf_event) {
 			perf_event_enable(pmc->perf_event);
 			if (pmc->perf_event->state != PERF_EVENT_STATE_ACTIVE)
-				kvm_debug("fail to enable perf event\n");
+				kvm_de("fail to enable perf event\n");
 		}
 	}
 }
@@ -557,7 +557,7 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		if (kvm_arm_pmu_irq_initialized(vcpu))
 			return -EBUSY;
 
-		kvm_debug("Set kvm ARM PMU irq: %d\n", irq);
+		kvm_de("Set kvm ARM PMU irq: %d\n", irq);
 		vcpu->arch.pmu.irq_num = irq;
 		return 0;
 	}

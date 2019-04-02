@@ -6,7 +6,7 @@
 
 #include "util.h"
 #include "values.h"
-#include "debug.h"
+#include "de.h"
 
 int perf_read_values_init(struct perf_read_values *values)
 {
@@ -15,7 +15,7 @@ int perf_read_values_init(struct perf_read_values *values)
 	values->tid = malloc(values->threads_max * sizeof(*values->tid));
 	values->value = zalloc(values->threads_max * sizeof(*values->value));
 	if (!values->pid || !values->tid || !values->value) {
-		pr_debug("failed to allocate read_values threads arrays");
+		pr_de("failed to allocate read_values threads arrays");
 		goto out_free_pid;
 	}
 	values->threads = 0;
@@ -26,7 +26,7 @@ int perf_read_values_init(struct perf_read_values *values)
 	values->countername = malloc(values->counters_max
 				     * sizeof(*values->countername));
 	if (!values->counterrawid || !values->countername) {
-		pr_debug("failed to allocate read_values counters arrays");
+		pr_de("failed to allocate read_values counters arrays");
 		goto out_free_counter;
 	}
 	values->counters = 0;
@@ -80,7 +80,7 @@ out_err:
 	free(npid);
 	free(ntid);
 	free(nvalue);
-	pr_debug("failed to enlarge read_values threads arrays");
+	pr_de("failed to enlarge read_values threads arrays");
 	return -ENOMEM;
 }
 
@@ -103,7 +103,7 @@ static int perf_read_values__findnew_thread(struct perf_read_values *values,
 
 	values->value[i] = zalloc(values->counters_max * sizeof(**values->value));
 	if (!values->value[i]) {
-		pr_debug("failed to allocate read_values counters array");
+		pr_de("failed to allocate read_values counters array");
 		return -ENOMEM;
 	}
 	values->pid[i] = pid;
@@ -120,13 +120,13 @@ static int perf_read_values__enlarge_counters(struct perf_read_values *values)
 	u64 *counterrawid = realloc(values->counterrawid, counters_max * sizeof(*values->counterrawid));
 
 	if (!counterrawid) {
-		pr_debug("failed to enlarge read_values rawid array");
+		pr_de("failed to enlarge read_values rawid array");
 		goto out_enomem;
 	}
 
 	countername = realloc(values->countername, counters_max * sizeof(*values->countername));
 	if (!countername) {
-		pr_debug("failed to enlarge read_values rawid array");
+		pr_de("failed to enlarge read_values rawid array");
 		goto out_free_rawid;
 	}
 
@@ -135,7 +135,7 @@ static int perf_read_values__enlarge_counters(struct perf_read_values *values)
 		int j;
 
 		if (!value) {
-			pr_debug("failed to enlarge read_values ->values array");
+			pr_de("failed to enlarge read_values ->values array");
 			goto out_free_name;
 		}
 

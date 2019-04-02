@@ -249,7 +249,7 @@ u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length)
 
 			/* Sig and checksum valid, we have found a real RSDP */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			ACPI_DE_PRINT((ACPI_DB_INFO,
 					  "RSDP located at physical address %p\n",
 					  mem_rover));
 			return_PTR(mem_rover);
@@ -260,7 +260,7 @@ u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length)
 
 	/* Searched entire block, no RSDP was found */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	ACPI_DE_PRINT((ACPI_DB_INFO,
 			  "Searched entire block from %p, valid RSDP was not found\n",
 			  start_address));
 	return_PTR(NULL);

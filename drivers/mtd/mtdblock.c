@@ -97,7 +97,7 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 	if (mtdblk->cache_state != STATE_DIRTY)
 		return 0;
 
-	pr_debug("mtdblock: writing cached data for \"%s\" "
+	pr_de("mtdblock: writing cached data for \"%s\" "
 			"at 0x%lx, size 0x%x\n", mtd->name,
 			mtdblk->cache_offset, mtdblk->cache_size);
 
@@ -126,7 +126,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 	size_t retlen;
 	int ret;
 
-	pr_debug("mtdblock: write on \"%s\" at 0x%lx, size 0x%x\n",
+	pr_de("mtdblock: write on \"%s\" at 0x%lx, size 0x%x\n",
 		mtd->name, pos, len);
 
 	if (!sect_size)
@@ -196,7 +196,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 	size_t retlen;
 	int ret;
 
-	pr_debug("mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
+	pr_de("mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
 			mtd->name, pos, len);
 
 	if (!sect_size)
@@ -261,7 +261,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 {
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
 
-	pr_debug("mtdblock_open\n");
+	pr_de("mtdblock_open\n");
 
 	if (mtdblk->count) {
 		mtdblk->count++;
@@ -277,7 +277,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 		mtdblk->cache_data = NULL;
 	}
 
-	pr_debug("ok\n");
+	pr_de("ok\n");
 
 	return 0;
 }
@@ -286,7 +286,7 @@ static void mtdblock_release(struct mtd_blktrans_dev *mbd)
 {
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
 
-	pr_debug("mtdblock_release\n");
+	pr_de("mtdblock_release\n");
 
 	mutex_lock(&mtdblk->cache_mutex);
 	write_cached_data(mtdblk);
@@ -302,7 +302,7 @@ static void mtdblock_release(struct mtd_blktrans_dev *mbd)
 		vfree(mtdblk->cache_data);
 	}
 
-	pr_debug("ok\n");
+	pr_de("ok\n");
 }
 
 static int mtdblock_flush(struct mtd_blktrans_dev *dev)

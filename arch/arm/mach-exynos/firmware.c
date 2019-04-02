@@ -169,8 +169,8 @@ static void exynos_l2_write_sec(unsigned long val, unsigned reg)
 		exynos_smc(SMC_CMD_L2X0CTRL, val, 0, 0);
 		break;
 
-	case L2X0_DEBUG_CTRL:
-		exynos_smc(SMC_CMD_L2X0DEBUG, val, 0, 0);
+	case L2X0_DE_CTRL:
+		exynos_smc(SMC_CMD_L2X0DE, val, 0, 0);
 		break;
 
 	default:

@@ -128,7 +128,7 @@ static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
  * to.	Bridges can only handle three requests, but XG will do more.
  * How many can crossbow handle to widget 0?  We're assuming 1.
  *
- * XXX - There is a bug in the crossbow that link reset PIOs do not
+ * XXX - There is a  in the crossbow that link reset PIOs do not
  * return write responses.  The easiest solution to this problem is to
  * leave widget 0 (xbow) in fire-and-forget mode at all times.	This
  * only affects pio's to xbow registers, which should be rare.

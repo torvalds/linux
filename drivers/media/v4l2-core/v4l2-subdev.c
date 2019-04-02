@@ -249,7 +249,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_UNSUBSCRIBE_EVENT:
 		return v4l2_subdev_call(sd, core, unsubscribe_event, vfh, arg);
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_dbg_register *p = arg;
@@ -625,7 +625,7 @@ v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 	}
 
 	WARN(pad->entity->function != MEDIA_ENT_F_IO_V4L,
-	     "Driver bug! Wrong media entity type 0x%08x, entity %s\n",
+	     "Driver ! Wrong media entity type 0x%08x, entity %s\n",
 	     pad->entity->function, pad->entity->name);
 
 	return -EINVAL;
@@ -693,7 +693,7 @@ EXPORT_SYMBOL_GPL(v4l2_subdev_free_pad_config);
 void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 {
 	INIT_LIST_HEAD(&sd->list);
-	BUG_ON(!ops);
+	_ON(!ops);
 	sd->ops = ops;
 	sd->v4l2_dev = NULL;
 	sd->flags = 0;

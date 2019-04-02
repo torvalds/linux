@@ -4,7 +4,7 @@
  *
  * Note: this board is shipped with a new generation boot loader that
  * remaps internal registers at 0xf1000000. Therefore, if earlyprintk
- * is used, the CONFIG_DEBUG_MVEBU_UART0_ALTERNATE option should be
+ * is used, the CONFIG_DE_MVEBU_UART0_ALTERNATE option should be
  * used.
  *
  * Copyright (C) 2014 Imre Kaloz <kaloz@openwrt.org>

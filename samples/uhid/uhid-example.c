@@ -105,7 +105,7 @@
  *   LED.CapsLock ---> LED.CapsLock
  *   LED.ScrollLock ---> LED.ScrollLock
  *
- * This information can be verified by reading /sys/kernel/debug/hid/<dev>/rdesc
+ * This information can be verified by reading /sys/kernel/de/hid/<dev>/rdesc
  * This file should print the same information as showed above.
  */
 
@@ -204,7 +204,7 @@ static void destroy(int fd)
 /* This parses raw output reports sent by the kernel to the device. A normal
  * uhid program shouldn't do this but instead just forward the raw report.
  * However, for ducomentational purposes, we try to detect LED events here and
- * print debug messages for it. */
+ * print de messages for it. */
 static void handle_output(struct uhid_event *ev)
 {
 	/* LED messages are adverised via OUTPUT reports; ignore the rest */

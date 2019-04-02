@@ -138,7 +138,7 @@ unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
 	spin_lock_irqsave(&ctrl->lock, flags);
 	old = sc->id;
 	for (;;) {
-		VM_BUG_ON(sc->id != old);
+		VM__ON(sc->id != old);
 		sc->id = id;
 		offset++;
 		if (offset == end)

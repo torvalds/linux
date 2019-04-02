@@ -1307,7 +1307,7 @@ static int vga16fb_probe(struct platform_device *dev)
 	int i;
 	int ret = 0;
 
-	printk(KERN_DEBUG "vga16fb: initializing\n");
+	printk(KERN_DE "vga16fb: initializing\n");
 	info = framebuffer_alloc(sizeof(struct vga16fb_par), &dev->dev);
 
 	if (!info) {

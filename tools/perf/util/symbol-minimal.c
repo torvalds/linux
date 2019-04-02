@@ -72,8 +72,8 @@ static int read_build_id(void *note_data, size_t note_len, void *bf,
 	return -1;
 }
 
-int filename__read_debuglink(const char *filename __maybe_unused,
-			     char *debuglink __maybe_unused,
+int filename__read_delink(const char *filename __maybe_unused,
+			     char *delink __maybe_unused,
 			     size_t size __maybe_unused)
 {
 	return -1;

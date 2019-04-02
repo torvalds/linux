@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-#dmaengine debug flags
-subdir-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
-subdir-ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
+#dmaengine de flags
+subdir-ccflags-$(CONFIG_DMADEVICES_DE)  := -DDE
+subdir-ccflags-$(CONFIG_DMADEVICES_VDE) += -DVERBOSE_DE
 
 #core
 obj-$(CONFIG_DMA_ENGINE) += dmaengine.o

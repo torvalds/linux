@@ -40,7 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/scatterlist.h>

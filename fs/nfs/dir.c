@@ -45,7 +45,7 @@
 
 #include "nfstrace.h"
 
-/* #define NFS_DEBUG_VERBOSE 1 */
+/* #define NFS_DE_VERBOSE 1 */
 
 static int nfs_opendir(struct inode *, struct file *);
 static int nfs_closedir(struct inode *, struct file *);
@@ -1579,7 +1579,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	int err;
 
 	/* Expect a negative dentry */
-	BUG_ON(d_inode(dentry));
+	_ON(d_inode(dentry));
 
 	dfprintk(VFS, "NFS: atomic_open(%s/%lu), %pd\n",
 			dir->i_sb->s_id, dir->i_ino, dentry);

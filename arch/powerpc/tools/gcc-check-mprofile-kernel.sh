@@ -4,7 +4,7 @@
 set -e
 set -o pipefail
 
-# To debug, uncomment the following line
+# To de, uncomment the following line
 # set -x
 
 # -mprofile-kernel is only supported on 64le, so this should not be invoked

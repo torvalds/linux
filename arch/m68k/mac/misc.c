@@ -637,9 +637,9 @@ int mac_hwclk(int op, struct rtc_time *t)
 		unmktime(now, 0,
 			 &t->tm_year, &t->tm_mon, &t->tm_mday,
 			 &t->tm_hour, &t->tm_min, &t->tm_sec);
-		pr_debug("%s: read %ptR\n", __func__, t);
+		pr_de("%s: read %ptR\n", __func__, t);
 	} else { /* write */
-		pr_debug("%s: tried to write %ptR\n", __func__, t);
+		pr_de("%s: tried to write %ptR\n", __func__, t);
 
 		switch (macintosh_config->adb_type) {
 		case MAC_ADB_IOP:

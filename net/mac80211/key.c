@@ -23,7 +23,7 @@
 #include <asm/unaligned.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
-#include "debugfs_key.h"
+#include "defs_key.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
 #include "aes_gmac.h"
@@ -43,7 +43,7 @@
  * simply kept for software encryption (unless it is for an algorithm
  * that isn't implemented in software).
  * There is currently no way of knowing whether a key is handled in SW
- * or HW except by looking into debugfs.
+ * or HW except by looking into defs.
  *
  * All key management is internally protected by a mutex. Within all
  * other parts of mac80211, key references are, just as STA structure
@@ -338,7 +338,7 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 	if (multi)
 		rcu_assign_pointer(sdata->default_multicast_key, key);
 
-	ieee80211_debugfs_key_update_default(sdata);
+	ieee80211_defs_key_update_default(sdata);
 }
 
 void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx,
@@ -362,7 +362,7 @@ __ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata, int idx)
 
 	rcu_assign_pointer(sdata->default_mgmt_key, key);
 
-	ieee80211_debugfs_key_update_default(sdata);
+	ieee80211_defs_key_update_default(sdata);
 }
 
 void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
@@ -657,7 +657,7 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key,
 	if (key->local) {
 		struct ieee80211_sub_if_data *sdata = key->sdata;
 
-		ieee80211_debugfs_key_remove(key);
+		ieee80211_defs_key_remove(key);
 
 		if (delay_tailroom) {
 			/* see ieee80211_delayed_tailroom_dec */
@@ -769,7 +769,7 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	ret = ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
 
 	if (!ret) {
-		ieee80211_debugfs_key_add(key);
+		ieee80211_defs_key_add(key);
 		ieee80211_key_destroy(old_key, delay_tailroom);
 	} else {
 		ieee80211_key_free(key, delay_tailroom);
@@ -931,7 +931,7 @@ static void ieee80211_free_keys_iface(struct ieee80211_sub_if_data *sdata,
 				     sdata->crypto_tx_tailroom_pending_dec);
 	sdata->crypto_tx_tailroom_pending_dec = 0;
 
-	ieee80211_debugfs_key_remove_mgmt_default(sdata);
+	ieee80211_defs_key_remove_mgmt_default(sdata);
 
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list) {
 		ieee80211_key_replace(key->sdata, key->sta,
@@ -940,7 +940,7 @@ static void ieee80211_free_keys_iface(struct ieee80211_sub_if_data *sdata,
 		list_add_tail(&key->list, keys);
 	}
 
-	ieee80211_debugfs_key_update_default(sdata);
+	ieee80211_defs_key_update_default(sdata);
 }
 
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata,

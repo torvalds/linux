@@ -196,7 +196,7 @@ tree using software transactional memory to protect concurrent updates
 RCU-protected resizable hash tables [Triplett:2011:RPHash], the 3.0 RCU
 trainwreck [PaulEMcKenney2011RCU3.0trainwreck], and Neil Brown's "Meet the
 Lockers" LWN article [NeilBrown2011MeetTheLockers].  Some academic
-work looked at debugging uses of RCU [Seyster:2011:RFA:2075416.2075425].
+work looked at deging uses of RCU [Seyster:2011:RFA:2075416.2075425].
 
 In 2012, Josh Triplett received his Ph.D. with his dissertation
 covering RCU-protected resizable hash tables and the relationship
@@ -2330,9 +2330,9 @@ lot of {Linux} into your technology!!!"
 [Viewed January 14, 2009]"
 }
 
-@unpublished{PaulEMcKenney2009HuntingHeisenbugs
+@unpublished{PaulEMcKenney2009HuntingHeisens
 ,Author="Paul E. McKenney"
-,Title="Hunting Heisenbugs"
+,Title="Hunting Heisens"
 ,month="November"
 ,year="2009"
 ,day="1"
@@ -2340,7 +2340,7 @@ lot of {Linux} into your technology!!!"
 \url{http://paulmck.livejournal.com/14639.html}
 [Viewed June 4, 2010]"
 ,annotation={
-	Day-one bug in Tree RCU that took forever to track down.
+	Day-one  in Tree RCU that took forever to track down.
 }
 }
 

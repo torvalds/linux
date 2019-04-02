@@ -384,7 +384,7 @@ static void gnttab_handle_deferred(struct timer_list *unused)
 		if (_gnttab_end_foreign_access_ref(entry->ref, entry->ro)) {
 			put_free_entry(entry->ref);
 			if (entry->page) {
-				pr_debug("freeing g.e. %#x (pfn %#lx)\n",
+				pr_de("freeing g.e. %#x (pfn %#lx)\n",
 					 entry->ref, page_to_pfn(entry->page));
 				put_page(entry->page);
 			} else
@@ -430,7 +430,7 @@ static void gnttab_add_deferred(grant_ref_t ref, bool readonly,
 			add_timer(&deferred_timer);
 		}
 		spin_unlock_irqrestore(&gnttab_list_lock, flags);
-		what = KERN_DEBUG "deferring";
+		what = KERN_DE "deferring";
 	}
 	printk("%s g.e. %#x (pfn %#lx)\n",
 	       what, ref, page ? page_to_pfn(page) : -1);
@@ -495,7 +495,7 @@ static unsigned long gnttab_end_foreign_transfer_ref_v1(grant_ref_t ref)
 
 	rmb();	/* Read the frame number /after/ reading completion status. */
 	frame = gnttab_shared.v1[ref].frame;
-	BUG_ON(frame == 0);
+	_ON(frame == 0);
 
 	return frame;
 }
@@ -526,7 +526,7 @@ static unsigned long gnttab_end_foreign_transfer_ref_v2(grant_ref_t ref)
 
 	rmb();  /* Read the frame number /after/ reading completion status. */
 	frame = gnttab_shared.v2[ref].full_page.frame;
-	BUG_ON(frame == 0);
+	_ON(frame == 0);
 
 	return frame;
 }
@@ -664,7 +664,7 @@ static int grow_gnttab_list(unsigned int more_frames)
 	unsigned int nr_glist_frames, new_nr_glist_frames;
 	unsigned int grefs_per_frame;
 
-	BUG_ON(gnttab_interface == NULL);
+	_ON(gnttab_interface == NULL);
 	grefs_per_frame = gnttab_interface->grefs_per_grant_frame;
 
 	new_nr_grant_frames = nr_grant_frames + more_frames;
@@ -863,7 +863,7 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 					   &args->dev_bus_addr,
 					   GFP_KERNEL | __GFP_NOWARN);
 	if (!args->vaddr) {
-		pr_debug("Failed to allocate DMA buffer of size %zu\n", size);
+		pr_de("Failed to allocate DMA buffer of size %zu\n", size);
 		return -ENOMEM;
 	}
 
@@ -881,7 +881,7 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 
 	ret = xenmem_reservation_decrease(args->nr_pages, args->frames);
 	if (ret != args->nr_pages) {
-		pr_debug("Failed to decrease reservation for DMA buffer\n");
+		pr_de("Failed to decrease reservation for DMA buffer\n");
 		ret = -EFAULT;
 		goto fail;
 	}
@@ -914,7 +914,7 @@ int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args)
 
 	ret = xenmem_reservation_increase(args->nr_pages, args->frames);
 	if (ret != args->nr_pages) {
-		pr_debug("Failed to increase reservation for DMA buffer\n");
+		pr_de("Failed to increase reservation for DMA buffer\n");
 		ret = -EFAULT;
 	} else {
 		ret = 0;
@@ -944,7 +944,7 @@ gnttab_retry_eagain_gop(unsigned int cmd, void *gop, int16_t *status,
 	unsigned delay = 1;
 
 	do {
-		BUG_ON(HYPERVISOR_grant_table_op(cmd, gop, 1));
+		_ON(HYPERVISOR_grant_table_op(cmd, gop, 1));
 		if (*status == GNTST_eagain)
 			msleep(delay++);
 	} while ((*status == GNTST_eagain) && (delay < MAX_DELAY));
@@ -960,7 +960,7 @@ void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count)
 	struct gnttab_map_grant_ref *op;
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, batch, count))
-		BUG();
+		();
 	for (op = batch; op < batch + count; op++)
 		if (op->status == GNTST_eagain)
 			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, op,
@@ -973,7 +973,7 @@ void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count)
 	struct gnttab_copy *op;
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_copy, batch, count))
-		BUG();
+		();
 	for (op = batch; op < batch + count; op++)
 		if (op->status == GNTST_eagain)
 			gnttab_retry_eagain_gop(GNTTABOP_copy, op,
@@ -1160,7 +1160,7 @@ EXPORT_SYMBOL_GPL(gnttab_unmap_refs_sync);
 
 static unsigned int nr_status_frames(unsigned int nr_grant_frames)
 {
-	BUG_ON(gnttab_interface == NULL);
+	_ON(gnttab_interface == NULL);
 	return gnttab_frames(nr_grant_frames, SPP);
 }
 
@@ -1171,7 +1171,7 @@ static int gnttab_map_frames_v1(xen_pfn_t *frames, unsigned int nr_gframes)
 	rc = arch_gnttab_map_shared(frames, nr_gframes,
 				    gnttab_max_grant_frames(),
 				    &gnttab_shared.addr);
-	BUG_ON(rc);
+	_ON(rc);
 
 	return 0;
 }
@@ -1208,18 +1208,18 @@ static int gnttab_map_frames_v2(xen_pfn_t *frames, unsigned int nr_gframes)
 		return -ENOSYS;
 	}
 
-	BUG_ON(rc || getframes.status);
+	_ON(rc || getframes.status);
 
 	rc = arch_gnttab_map_status(sframes, nr_sframes,
 				    nr_status_frames(gnttab_max_grant_frames()),
 				    &grstatus);
-	BUG_ON(rc);
+	_ON(rc);
 	kfree(sframes);
 
 	rc = arch_gnttab_map_shared(frames, nr_gframes,
 				    gnttab_max_grant_frames(),
 				    &gnttab_shared.addr);
-	BUG_ON(rc);
+	_ON(rc);
 
 	return 0;
 }
@@ -1241,7 +1241,7 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 		struct xen_add_to_physmap xatp;
 		unsigned int i = end_idx;
 		rc = 0;
-		BUG_ON(xen_auto_xlat_grant_frames.count < nr_gframes);
+		_ON(xen_auto_xlat_grant_frames.count < nr_gframes);
 		/*
 		 * Loop backwards, so that the first hypercall has the largest
 		 * index, ensuring that the table will grow only once.
@@ -1279,7 +1279,7 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 		return -ENOSYS;
 	}
 
-	BUG_ON(rc || setup.status);
+	_ON(rc || setup.status);
 
 	rc = gnttab_interface->map_frames(frames, nr_gframes);
 
@@ -1389,7 +1389,7 @@ static int gnttab_expand(unsigned int req_entries)
 	int rc;
 	unsigned int cur, extra;
 
-	BUG_ON(gnttab_interface == NULL);
+	_ON(gnttab_interface == NULL);
 	cur = nr_grant_frames;
 	extra = ((req_entries + gnttab_interface->grefs_per_grant_frame - 1) /
 		 gnttab_interface->grefs_per_grant_frame);
@@ -1424,7 +1424,7 @@ int gnttab_init(void)
 	/* Determine the maximum number of frames required for the
 	 * grant reference free list on the current hypervisor.
 	 */
-	BUG_ON(gnttab_interface == NULL);
+	_ON(gnttab_interface == NULL);
 	max_nr_glist_frames = (max_nr_grant_frames *
 			       gnttab_interface->grefs_per_grant_frame / RPP);
 

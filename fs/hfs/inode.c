@@ -86,7 +86,7 @@ static int hfs_releasepage(struct page *page, gfp_t mask)
 		tree = HFS_SB(sb)->cat_tree;
 		break;
 	default:
-		BUG();
+		();
 		return 0;
 	}
 
@@ -302,7 +302,7 @@ static int hfs_test_inode(struct inode *inode, void *data)
 	case HFS_CDR_FIL:
 		return inode->i_ino == be32_to_cpu(rec->file.FlNum);
 	default:
-		BUG();
+		();
 		return 1;
 	}
 }
@@ -438,7 +438,7 @@ int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 			hfs_btree_write(HFS_SB(inode->i_sb)->cat_tree);
 			return 0;
 		default:
-			BUG();
+			();
 			return -EIO;
 		}
 	}

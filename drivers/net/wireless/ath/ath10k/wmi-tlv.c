@@ -5,7 +5,7 @@
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  */
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "mac.h"
 #include "hw.h"
 #include "wmi.h"
@@ -502,8 +502,8 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_TLV_ECHO_EVENTID:
 		ath10k_wmi_event_echo(ar, skb);
 		break;
-	case WMI_TLV_DEBUG_MESG_EVENTID:
-		ath10k_wmi_event_debug_mesg(ar, skb);
+	case WMI_TLV_DE_MESG_EVENTID:
+		ath10k_wmi_event_de_mesg(ar, skb);
 		break;
 	case WMI_TLV_UPDATE_STATS_EVENTID:
 		ath10k_wmi_event_update_stats(ar, skb);
@@ -532,8 +532,8 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_TLV_PROFILE_MATCH:
 		ath10k_wmi_event_profile_match(ar, skb);
 		break;
-	case WMI_TLV_DEBUG_PRINT_EVENTID:
-		ath10k_wmi_event_debug_print(ar, skb);
+	case WMI_TLV_DE_PRINT_EVENTID:
+		ath10k_wmi_event_de_print(ar, skb);
 		break;
 	case WMI_TLV_PDEV_QVIT_EVENTID:
 		ath10k_wmi_event_pdev_qvit(ar, skb);
@@ -2939,7 +2939,7 @@ ath10k_wmi_tlv_op_gen_dbglog_cfg(struct ath10k *ar, u64 module_enable,
 	ptr = (void *)skb->data;
 
 	tlv = ptr;
-	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_DEBUG_LOG_CONFIG_CMD);
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_DE_LOG_CONFIG_CMD);
 	tlv->len = __cpu_to_le16(sizeof(*cmd));
 	cmd = (void *)tlv->value;
 	cmd->param = __cpu_to_le32(WMI_TLV_DBGLOG_PARAM_LOG_LEVEL);

@@ -43,7 +43,7 @@
 		Donald Becker - he wrote the original driver, kudos to him!
 		(but please don't e-mail him for support, this isn't his driver)
 
-		Tigran Aivazian - bug fixes, skbuff free cleanup
+		Tigran Aivazian -  fixes, skbuff free cleanup
 
 		Martin Mares - suggestions for PCI cleanup
 
@@ -52,17 +52,17 @@
 		Ernst Gill - fixes ported from BSD driver
 
 		Daniel Kobras - identified specific locations of
-			posted MMIO write bugginess
+			posted MMIO write giness
 
-		Gerard Sharp - bug fix, testing and feedback
+		Gerard Sharp -  fix, testing and feedback
 
 		David Ford - Rx ring wrap fix
 
 		Dan DeMaggio - swapped RTL8139 cards with me, and allowed me
-		to find and fix a crucial bug on older chipsets.
+		to find and fix a crucial  on older chipsets.
 
 		Donald Becker/Chris Butterworth/Marcus Westergren -
-		Noticed various Rx packet size-related buglets.
+		Noticed various Rx packet size-related lets.
 
 		Santiago Garcia Mantinan - testing and feedback
 
@@ -71,7 +71,7 @@
 		Martin Dennett - incredibly helpful insight on undocumented
 		features of the 8139 chips
 
-		Jean-Jacques Michel - bug fix
+		Jean-Jacques Michel -  fix
 
 		Tobias Ringström - Rx interrupt status checking suggestion
 
@@ -82,10 +82,10 @@
 
 		Robert Kuebel - Save kernel thread from dying on any signal.
 
-	Submitting bug reports:
+	Submitting  reports:
 
 		"rtl8139-diag -mmmaaavvveefN" output
-		enable RTL8139_DEBUG below, and look at 'dmesg' or kernel log
+		enable RTL8139_DE below, and look at 'dmesg' or kernel log
 
 */
 
@@ -123,14 +123,14 @@
                                  NETIF_MSG_LINK)
 
 
-/* define to 1, 2 or 3 to enable copious debugging info */
-#define RTL8139_DEBUG 0
+/* define to 1, 2 or 3 to enable copious deging info */
+#define RTL8139_DE 0
 
-/* define to 1 to disable lightweight runtime debugging checks */
-#undef RTL8139_NDEBUG
+/* define to 1 to disable lightweight runtime deging checks */
+#undef RTL8139_NDE
 
 
-#ifdef RTL8139_NDEBUG
+#ifdef RTL8139_NDE
 #  define assert(expr) do {} while (0)
 #else
 #  define assert(expr) \
@@ -159,7 +159,7 @@ static bool use_io = false;
 static int multicast_filter_limit = 32;
 
 /* bitmapped message enable number */
-static int debug = -1;
+static int de = -1;
 
 /*
  * Receive ring size
@@ -630,8 +630,8 @@ MODULE_PARM_DESC(use_io, "Force use of I/O access mode. 0=MMIO 1=PIO");
 module_param(multicast_filter_limit, int, 0);
 module_param_array(media, int, NULL, 0);
 module_param_array(full_duplex, int, NULL, 0);
-module_param(debug, int, 0);
-MODULE_PARM_DESC (debug, "8139too bitmapped message enable number");
+module_param(de, int, 0);
+MODULE_PARM_DESC (de, "8139too bitmapped message enable number");
 MODULE_PARM_DESC (multicast_filter_limit, "8139too maximum number of filtered multicast addresses");
 MODULE_PARM_DESC (media, "8139too: Bits 4+9: force full duplex, bit 5: 100Mbps");
 MODULE_PARM_DESC (full_duplex, "8139too: Force full duplex for board(s) (1)");
@@ -664,7 +664,7 @@ static void rtl8139_tx_timeout_task(struct work_struct *work);
 static const struct ethtool_ops rtl8139_ethtool_ops;
 
 /* write MMIO register, with flush */
-/* Flush avoids rtl8139 bug w/ posted MMIO writes */
+/* Flush avoids rtl8139  w/ posted MMIO writes */
 #define RTL_W8_F(reg, val8)	do { iowrite8 ((val8), ioaddr + (reg)); ioread8 (ioaddr + (reg)); } while (0)
 #define RTL_W16_F(reg, val16)	do { iowrite16 ((val16), ioaddr + (reg)); ioread16 (ioaddr + (reg)); } while (0)
 #define RTL_W32_F(reg, val32)	do { iowrite32 ((val32), ioaddr + (reg)); ioread32 (ioaddr + (reg)); } while (0)
@@ -856,12 +856,12 @@ retry:
 	tp->chipset = 0;
 
 match:
-	pr_debug("chipset id (%d) == index %d, '%s'\n",
+	pr_de("chipset id (%d) == index %d, '%s'\n",
 		 version, i, rtl_chip_info[i].name);
 
 	if (tp->chipset >= CH_8139B) {
 		u8 new_tmp8 = tmp8 = RTL_R8 (Config1);
-		pr_debug("PCI PM wakeup\n");
+		pr_de("PCI PM wakeup\n");
 		if ((rtl_chip_info[tp->chipset].flags & HasLWake) &&
 		    (tmp8 & LWAKE))
 			new_tmp8 &= ~LWAKE;
@@ -880,7 +880,7 @@ match:
 			}
 		}
 	} else {
-		pr_debug("Old chip wakeup\n");
+		pr_de("Old chip wakeup\n");
 		tmp8 = RTL_R8 (Config1);
 		tmp8 &= ~(SLEEP | PWRDN);
 		RTL_W8 (Config1, tmp8);
@@ -1024,7 +1024,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	tp->drv_flags = board_info[ent->driver_data].hw_flags;
 	tp->mmio_addr = ioaddr;
 	tp->msg_enable =
-		(debug < 0 ? RTL8139_DEF_MSG_ENABLE : ((1 << debug) - 1));
+		(de < 0 ? RTL8139_DEF_MSG_ENABLE : ((1 << de) - 1));
 	spin_lock_init (&tp->lock);
 	spin_lock_init (&tp->rx_lock);
 	INIT_DELAYED_WORK(&tp->thread, rtl8139_thread);
@@ -1035,7 +1035,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	tp->mii.reg_num_mask = 0x1f;
 
 	/* dev is fully set up and ready to use now */
-	pr_debug("about to register device named %s (%p)...\n",
+	pr_de("about to register device named %s (%p)...\n",
 		 dev->name, dev);
 	i = register_netdev (dev);
 	if (i) goto err_out;
@@ -1812,13 +1812,13 @@ static void rtl8139_tx_interrupt (struct net_device *dev,
 		tx_left--;
 	}
 
-#ifndef RTL8139_NDEBUG
+#ifndef RTL8139_NDE
 	if (tp->cur_tx - dirty_tx > NUM_TX_DESC) {
 		netdev_err(dev, "Out-of-sync dirty pointer, %ld vs. %ld\n",
 			   dirty_tx, tp->cur_tx);
 		dirty_tx += NUM_TX_DESC;
 	}
-#endif /* RTL8139_NDEBUG */
+#endif /* RTL8139_NDE */
 
 	/* only wake the queue if we did work, and the queue is stopped */
 	if (tp->dirty_tx != dirty_tx) {
@@ -1864,7 +1864,7 @@ static void rtl8139_rx_err (u32 rx_status, struct net_device *dev,
 	RTL_W32 (RxConfig, tp->rx_config);
 	tp->cur_rx = 0;
 #else
-	/* Reset the receiver, based on RealTek recommendation. (Bug?) */
+	/* Reset the receiver, based on RealTek recommendation. (?) */
 
 	/* disable receive */
 	RTL_W8_F (ChipCmd, CmdTxEnb);
@@ -1975,8 +1975,8 @@ static int rtl8139_rx(struct net_device *dev, struct rtl8139_private *tp,
 
 		netif_dbg(tp, rx_status, dev, "%s() status %04x, size %04x, cur %04x\n",
 			  __func__, rx_status, rx_size, cur_rx);
-#if RTL8139_DEBUG > 2
-		print_hex_dump(KERN_DEBUG, "Frame contents: ",
+#if RTL8139_DE > 2
+		print_hex_dump(KERN_DE, "Frame contents: ",
 			       DUMP_PREFIX_OFFSET, 16, 1,
 			       &rx_ring[ring_offset], 70, true);
 #endif

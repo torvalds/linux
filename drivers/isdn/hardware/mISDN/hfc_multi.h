@@ -3,17 +3,17 @@
  * see notice in hfc_multi.c
  */
 
-#define DEBUG_HFCMULTI_FIFO	0x00010000
-#define	DEBUG_HFCMULTI_CRC	0x00020000
-#define	DEBUG_HFCMULTI_INIT	0x00040000
-#define	DEBUG_HFCMULTI_PLXSD	0x00080000
-#define	DEBUG_HFCMULTI_MODE	0x00100000
-#define	DEBUG_HFCMULTI_MSG	0x00200000
-#define	DEBUG_HFCMULTI_STATE	0x00400000
-#define	DEBUG_HFCMULTI_FILL	0x00800000
-#define	DEBUG_HFCMULTI_SYNC	0x01000000
-#define	DEBUG_HFCMULTI_DTMF	0x02000000
-#define	DEBUG_HFCMULTI_LOCK	0x80000000
+#define DE_HFCMULTI_FIFO	0x00010000
+#define	DE_HFCMULTI_CRC	0x00020000
+#define	DE_HFCMULTI_INIT	0x00040000
+#define	DE_HFCMULTI_PLXSD	0x00080000
+#define	DE_HFCMULTI_MODE	0x00100000
+#define	DE_HFCMULTI_MSG	0x00200000
+#define	DE_HFCMULTI_STATE	0x00400000
+#define	DE_HFCMULTI_FILL	0x00800000
+#define	DE_HFCMULTI_SYNC	0x01000000
+#define	DE_HFCMULTI_DTMF	0x02000000
+#define	DE_HFCMULTI_LOCK	0x80000000
 
 #define	PCI_ENA_REGIO	0x01
 #define	PCI_ENA_MEMIO	0x02
@@ -147,34 +147,34 @@ struct hfc_multi {
 	u_int		irqcnt;
 	struct pci_dev	*pci_dev;
 	int		io_mode; /* selects mode */
-#ifdef HFC_REGISTER_DEBUG
+#ifdef HFC_REGISTER_DE
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
 				    u_char val, const char *function, int line);
-	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
+	void		(*HFC_outb_node)(struct hfc_multi *hc, u_char reg,
 					    u_char val, const char *function, int line);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg,
 				   const char *function, int line);
-	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg,
+	u_char		(*HFC_inb_node)(struct hfc_multi *hc, u_char reg,
 					   const char *function, int line);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg,
 				   const char *function, int line);
-	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg,
+	u_short		(*HFC_inw_node)(struct hfc_multi *hc, u_char reg,
 					   const char *function, int line);
 	void		(*HFC_wait)(struct hfc_multi *hc,
 				    const char *function, int line);
-	void		(*HFC_wait_nodebug)(struct hfc_multi *hc,
+	void		(*HFC_wait_node)(struct hfc_multi *hc,
 					    const char *function, int line);
 #else
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
 				    u_char val);
-	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
+	void		(*HFC_outb_node)(struct hfc_multi *hc, u_char reg,
 					    u_char val);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg);
-	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg);
+	u_char		(*HFC_inb_node)(struct hfc_multi *hc, u_char reg);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg);
-	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg);
+	u_short		(*HFC_inw_node)(struct hfc_multi *hc, u_char reg);
 	void		(*HFC_wait)(struct hfc_multi *hc);
-	void		(*HFC_wait_nodebug)(struct hfc_multi *hc);
+	void		(*HFC_wait_node)(struct hfc_multi *hc);
 #endif
 	void		(*read_fifo)(struct hfc_multi *hc, u_char *data,
 				     int len);
@@ -1084,9 +1084,9 @@ struct hfc_multi {
 #define V_GPI_IN30		0x40
 #define V_GPI_IN31		0x80
 
-/* map of all registers, used for debugging */
+/* map of all registers, used for deging */
 
-#ifdef HFC_REGISTER_DEBUG
+#ifdef HFC_REGISTER_DE
 struct hfc_register_names {
 	char *name;
 	u_char reg;
@@ -1233,4 +1233,4 @@ struct hfc_register_names {
 	{"R_IRQ_FIFO_BL6",	0xCE},
 	{"R_IRQ_FIFO_BL7",	0xCF},
 };
-#endif /* HFC_REGISTER_DEBUG */
+#endif /* HFC_REGISTER_DE */

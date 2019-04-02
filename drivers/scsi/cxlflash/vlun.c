@@ -67,14 +67,14 @@ static int ba_init(struct ba_lun *ba_lun)
 	int last_word_underflow = 0;
 	u64 *lam;
 
-	pr_debug("%s: Initializing LUN: lun_id=%016llx "
+	pr_de("%s: Initializing LUN: lun_id=%016llx "
 		 "ba_lun->lsize=%lx ba_lun->au_size=%lX\n",
 		__func__, ba_lun->lun_id, ba_lun->lsize, ba_lun->au_size);
 
 	/* Calculate bit map size */
 	lun_size_au = ba_lun->lsize / ba_lun->au_size;
 	if (lun_size_au == 0) {
-		pr_debug("%s: Requested LUN size of 0!\n", __func__);
+		pr_de("%s: Requested LUN size of 0!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -136,7 +136,7 @@ static int ba_init(struct ba_lun *ba_lun)
 	/* Pass the allocated LUN info as a handle to the user */
 	ba_lun->ba_lun_handle = bali;
 
-	pr_debug("%s: Successfully initialized the LUN: "
+	pr_de("%s: Successfully initialized the LUN: "
 		 "lun_id=%016llx bitmap size=%x, free_aun_cnt=%llx\n",
 		__func__, ba_lun->lun_id, bali->lun_bmap_size,
 		bali->free_aun_cnt);
@@ -193,12 +193,12 @@ static u64 ba_alloc(struct ba_lun *ba_lun)
 
 	bali = ba_lun->ba_lun_handle;
 
-	pr_debug("%s: Received block allocation request: "
+	pr_de("%s: Received block allocation request: "
 		 "lun_id=%016llx free_aun_cnt=%llx\n",
 		 __func__, ba_lun->lun_id, bali->free_aun_cnt);
 
 	if (bali->free_aun_cnt == 0) {
-		pr_debug("%s: No space left on LUN: lun_id=%016llx\n",
+		pr_de("%s: No space left on LUN: lun_id=%016llx\n",
 			 __func__, ba_lun->lun_id);
 		return -1ULL;
 	}
@@ -211,7 +211,7 @@ static u64 ba_alloc(struct ba_lun *ba_lun)
 					  bali->free_curr_idx,
 					  bali, &bit_word);
 		if (bit_pos == -1) {
-			pr_debug("%s: Could not find an allocation unit on LUN:"
+			pr_de("%s: Could not find an allocation unit on LUN:"
 				 " lun_id=%016llx\n", __func__, ba_lun->lun_id);
 			return -1ULL;
 		}
@@ -223,7 +223,7 @@ static u64 ba_alloc(struct ba_lun *ba_lun)
 	else
 		bali->free_curr_idx = bit_word;
 
-	pr_debug("%s: Allocating AU number=%llx lun_id=%016llx "
+	pr_de("%s: Allocating AU number=%llx lun_id=%016llx "
 		 "free_aun_cnt=%llx\n", __func__,
 		 ((bit_word * BITS_PER_LONG) + bit_pos), ba_lun->lun_id,
 		 bali->free_aun_cnt);
@@ -266,17 +266,17 @@ static int ba_free(struct ba_lun *ba_lun, u64 to_free)
 	bali = ba_lun->ba_lun_handle;
 
 	if (validate_alloc(bali, to_free)) {
-		pr_debug("%s: AUN %llx is not allocated on lun_id=%016llx\n",
+		pr_de("%s: AUN %llx is not allocated on lun_id=%016llx\n",
 			 __func__, to_free, ba_lun->lun_id);
 		return -1;
 	}
 
-	pr_debug("%s: Received a request to free AU=%llx lun_id=%016llx "
+	pr_de("%s: Received a request to free AU=%llx lun_id=%016llx "
 		 "free_aun_cnt=%llx\n", __func__, to_free, ba_lun->lun_id,
 		 bali->free_aun_cnt);
 
 	if (bali->aun_clone_map[to_free] > 0) {
-		pr_debug("%s: AUN %llx lun_id=%016llx cloned. Clone count=%x\n",
+		pr_de("%s: AUN %llx lun_id=%016llx cloned. Clone count=%x\n",
 			 __func__, to_free, ba_lun->lun_id,
 			 bali->aun_clone_map[to_free]);
 		bali->aun_clone_map[to_free]--;
@@ -294,7 +294,7 @@ static int ba_free(struct ba_lun *ba_lun, u64 to_free)
 	else if (idx > bali->free_high_idx)
 		bali->free_high_idx = idx;
 
-	pr_debug("%s: Successfully freed AU bit_pos=%x bit map index=%x "
+	pr_de("%s: Successfully freed AU bit_pos=%x bit map index=%x "
 		 "lun_id=%016llx free_aun_cnt=%llx\n", __func__, bit_pos, idx,
 		 ba_lun->lun_id, bali->free_aun_cnt);
 
@@ -313,16 +313,16 @@ static int ba_clone(struct ba_lun *ba_lun, u64 to_clone)
 	struct ba_lun_info *bali = ba_lun->ba_lun_handle;
 
 	if (validate_alloc(bali, to_clone)) {
-		pr_debug("%s: AUN=%llx not allocated on lun_id=%016llx\n",
+		pr_de("%s: AUN=%llx not allocated on lun_id=%016llx\n",
 			 __func__, to_clone, ba_lun->lun_id);
 		return -1;
 	}
 
-	pr_debug("%s: Received a request to clone AUN %llx on lun_id=%016llx\n",
+	pr_de("%s: Received a request to clone AUN %llx on lun_id=%016llx\n",
 		 __func__, to_clone, ba_lun->lun_id);
 
 	if (bali->aun_clone_map[to_clone] == MAX_AUN_CLONE_CNT) {
-		pr_debug("%s: AUN %llx on lun_id=%016llx hit max clones already\n",
+		pr_de("%s: AUN %llx on lun_id=%016llx hit max clones already\n",
 			 __func__, to_clone, ba_lun->lun_id);
 		return -1;
 	}
@@ -388,9 +388,9 @@ static int init_vlun(struct llun_info *lli)
 
 	rc = ba_init(&blka->ba_lun);
 	if (unlikely(rc))
-		pr_debug("%s: cannot init block_alloc, rc=%d\n", __func__, rc);
+		pr_de("%s: cannot init block_alloc, rc=%d\n", __func__, rc);
 
-	pr_debug("%s: returning rc=%d lli=%p\n", __func__, rc, lli);
+	pr_de("%s: returning rc=%d lli=%p\n", __func__, rc, lli);
 	return rc;
 }
 

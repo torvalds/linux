@@ -599,7 +599,7 @@ void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
 
 	/*
 	 * This is possible under two circumstances:
-	 *  - rtime isn't monotonic after all (a bug);
+	 *  - rtime isn't monotonic after all (a );
 	 *  - we got reordered by the lock.
 	 *
 	 * In both cases this acts as a filter such that the rest of the code

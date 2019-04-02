@@ -20,16 +20,16 @@ struct uml_tls_struct {
 
 struct arch_thread {
 	struct uml_tls_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
-	unsigned long debugregs[8];
-	int debugregs_seq;
+	unsigned long deregs[8];
+	int deregs_seq;
 	struct faultinfo faultinfo;
 };
 
 #define INIT_ARCH_THREAD { \
 	.tls_array  		= { [ 0 ... GDT_ENTRY_TLS_ENTRIES - 1 ] = \
 				    { .present = 0, .flushed = 0 } }, \
-	.debugregs  		= { [ 0 ... 7 ] = 0 }, \
-	.debugregs_seq		= 0, \
+	.deregs  		= { [ 0 ... 7 ] = 0 }, \
+	.deregs_seq		= 0, \
 	.faultinfo		= { 0, 0, 0 } \
 }
 

@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 // Test that values in /proc/uptime increment monotonically.
-#undef NDEBUG
+#undef NDE
 #include <assert.h>
 #include <stdint.h>
 #include <sys/types.h>

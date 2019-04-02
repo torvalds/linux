@@ -276,7 +276,7 @@ out:
 	 *    we disconnect from the AP in the caller
 	 *  - disconnect causes CRDA to reload world regdomain and the game
 	 *    starts anew.
-	 * (see https://bugzilla.kernel.org/show_bug.cgi?id=70881)
+	 * (see https://zilla.kernel.org/show_.cgi?id=70881)
 	 *
 	 * It seems possible that there are still scenarios with CSA or real
 	 * bandwidth changes where a this could happen, but those cases are
@@ -463,7 +463,7 @@ static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 	u16 cap;
 	struct ieee80211_sta_ht_cap ht_cap;
 
-	BUILD_BUG_ON(sizeof(ht_cap) != sizeof(sband->ht_cap));
+	BUILD__ON(sizeof(ht_cap) != sizeof(sband->ht_cap));
 
 	memcpy(&ht_cap, &sband->ht_cap, sizeof(ht_cap));
 	ieee80211_apply_htcap_overrides(sdata, &ht_cap);
@@ -537,7 +537,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta_vht_cap vht_cap;
 	u32 mask, ap_bf_sts, our_bf_sts;
 
-	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
+	BUILD__ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
 
 	memcpy(&vht_cap, &sband->vht_cap, sizeof(vht_cap));
 	ieee80211_apply_vhtcap_overrides(sdata, &vht_cap);
@@ -2178,7 +2178,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	if (sdata->u.mgd.have_beacon) {
 		/*
-		 * If the AP is buggy we may get here with no DTIM period
+		 * If the AP is gy we may get here with no DTIM period
 		 * known, so assume it's 1 which is the only safe assumption
 		 * in that case, although if the TIM IE is broken powersave
 		 * probably just won't work at all.
@@ -2493,7 +2493,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	/*
 	 * Try sending broadcast probe requests for the last three
 	 * probe requests after the first ones failed since some
-	 * buggy APs only support broadcast probe requests.
+	 * gy APs only support broadcast probe requests.
 	 */
 	if (ifmgd->probe_send_count >= unicast_limit)
 		dst = NULL;
@@ -3235,7 +3235,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		    !elems.wmm_param && bss_elems.wmm_param) {
 			elems.wmm_param = bss_elems.wmm_param;
 			sdata_info(sdata,
-				   "AP bug: WMM param missing from AssocResp\n");
+				   "AP : WMM param missing from AssocResp\n");
 		}
 
 		/*
@@ -3246,25 +3246,25 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
 			elems.ht_cap_elem = bss_elems.ht_cap_elem;
 			sdata_info(sdata,
-				   "AP bug: HT capability missing from AssocResp\n");
+				   "AP : HT capability missing from AssocResp\n");
 		}
 		if (!elems.ht_operation && bss_elems.ht_operation &&
 		    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
 			elems.ht_operation = bss_elems.ht_operation;
 			sdata_info(sdata,
-				   "AP bug: HT operation missing from AssocResp\n");
+				   "AP : HT operation missing from AssocResp\n");
 		}
 		if (!elems.vht_cap_elem && bss_elems.vht_cap_elem &&
 		    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)) {
 			elems.vht_cap_elem = bss_elems.vht_cap_elem;
 			sdata_info(sdata,
-				   "AP bug: VHT capa missing from AssocResp\n");
+				   "AP : VHT capa missing from AssocResp\n");
 		}
 		if (!elems.vht_operation && bss_elems.vht_operation &&
 		    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)) {
 			elems.vht_operation = bss_elems.vht_operation;
 			sdata_info(sdata,
-				   "AP bug: VHT operation missing from AssocResp\n");
+				   "AP : VHT operation missing from AssocResp\n");
 		}
 	}
 
@@ -4935,7 +4935,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		 * in the association response frame. Now that we no
 		 * longer use the basic rates from there, it probably
 		 * doesn't happen any more, but keep the workaround so
-		 * in case some *other* APs are buggy in different ways
+		 * in case some *other* APs are gy in different ways
 		 * we can connect -- with a warning.
 		 */
 		if (!basic_rates && min_rate_index >= 0) {

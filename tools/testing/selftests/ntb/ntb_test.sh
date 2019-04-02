@@ -16,7 +16,7 @@
 REMOTE_HOST=
 LIST_DEVS=FALSE
 
-DEBUGFS=${DEBUGFS-/sys/kernel/debug}
+DEFS=${DEFS-/sys/kernel/de}
 
 PERF_RUN_ORDER=32
 MAX_MW_SIZE=0
@@ -481,8 +481,8 @@ function perf_test()
 
 function ntb_tool_tests()
 {
-	LOCAL_TOOL="$DEBUGFS/ntb_tool/$LOCAL_DEV"
-	REMOTE_TOOL="$REMOTE_HOST:$DEBUGFS/ntb_tool/$REMOTE_DEV"
+	LOCAL_TOOL="$DEFS/ntb_tool/$LOCAL_DEV"
+	REMOTE_TOOL="$REMOTE_HOST:$DEFS/ntb_tool/$REMOTE_DEV"
 
 	echo "Starting ntb_tool tests..."
 
@@ -517,8 +517,8 @@ function ntb_tool_tests()
 
 function ntb_pingpong_tests()
 {
-	LOCAL_PP="$DEBUGFS/ntb_pingpong/$LOCAL_DEV"
-	REMOTE_PP="$REMOTE_HOST:$DEBUGFS/ntb_pingpong/$REMOTE_DEV"
+	LOCAL_PP="$DEFS/ntb_pingpong/$LOCAL_DEV"
+	REMOTE_PP="$REMOTE_HOST:$DEFS/ntb_pingpong/$REMOTE_DEV"
 
 	echo "Starting ntb_pingpong tests..."
 
@@ -531,8 +531,8 @@ function ntb_pingpong_tests()
 
 function ntb_perf_tests()
 {
-	LOCAL_PERF="$DEBUGFS/ntb_perf/$LOCAL_DEV"
-	REMOTE_PERF="$REMOTE_HOST:$DEBUGFS/ntb_perf/$REMOTE_DEV"
+	LOCAL_PERF="$DEFS/ntb_perf/$LOCAL_DEV"
+	REMOTE_PERF="$REMOTE_HOST:$DEFS/ntb_perf/$REMOTE_DEV"
 
 	echo "Starting ntb_perf tests..."
 

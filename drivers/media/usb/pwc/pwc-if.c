@@ -5,8 +5,8 @@
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
-   Please send bug reports and support requests to <luc@saillard.org>.
+   driver and thus may have s that are not present in the original version.
+   Please send  reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
@@ -132,8 +132,8 @@ static struct usb_driver pwc_driver = {
 #define MAX_DEV_HINTS	20
 #define MAX_ISOC_ERRORS	20
 
-#ifdef CONFIG_USB_PWC_DEBUG
-	int pwc_trace = PWC_DEBUG_LEVEL;
+#ifdef CONFIG_USB_PWC_DE
+	int pwc_trace = PWC_DE_LEVEL;
 #endif
 static int power_save = -1;
 static int leds[2] = { 100, 0 };
@@ -229,7 +229,7 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 		unsigned char *ptr = (unsigned char *)fbuf->data;
 
 		if (ptr[1] == 1 && ptr[0] & 0x10) {
-			PWC_TRACE("Hyundai CMOS sensor bug. Dropping frame.\n");
+			PWC_TRACE("Hyundai CMOS sensor . Dropping frame.\n");
 			pdev->drop_frames += 2;
 		}
 		if ((ptr[0] ^ pdev->vmirror) & 0x01) {
@@ -267,7 +267,7 @@ static void pwc_frame_complete(struct pwc_device *pdev)
 	} else {
 		/* Check for underflow first */
 		if (fbuf->filled < pdev->frame_total_size) {
-			PWC_DEBUG_FLOW("Frame buffer underflow (%d bytes); discarded.\n",
+			PWC_DE_FLOW("Frame buffer underflow (%d bytes); discarded.\n",
 				       fbuf->filled);
 		} else {
 			fbuf->vb.field = V4L2_FIELD_NONE;
@@ -293,7 +293,7 @@ static void pwc_isoc_handler(struct urb *urb)
 
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
 	    urb->status == -ESHUTDOWN) {
-		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronously.\n",
+		PWC_DE_OPEN("URB (%p) unlinked %ssynchronously.\n",
 			       urb, urb->status == -ENOENT ? "" : "a");
 		return;
 	}
@@ -441,7 +441,7 @@ retry:
 	}
 
 	/* Set alternate interface */
-	PWC_DEBUG_OPEN("Setting alternate interface %d\n", pdev->valternate);
+	PWC_DE_OPEN("Setting alternate interface %d\n", pdev->valternate);
 	ret = usb_set_interface(pdev->udev, 0, pdev->valternate);
 	if (ret == -ENOSPC && compression < 3) {
 		compression++;
@@ -458,7 +458,7 @@ retry:
 			return -ENOMEM;
 		}
 		pdev->urbs[i] = urb;
-		PWC_DEBUG_MEMORY("Allocated URB at 0x%p\n", urb);
+		PWC_DE_MEMORY("Allocated URB at 0x%p\n", urb);
 
 		urb->interval = 1; // devik
 		urb->dev = udev;
@@ -496,11 +496,11 @@ retry:
 			pwc_isoc_cleanup(pdev);
 			return ret;
 		}
-		PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->urbs[i]);
+		PWC_DE_MEMORY("URB 0x%p submitted.\n", pdev->urbs[i]);
 	}
 
 	/* All is done... */
-	PWC_DEBUG_OPEN("<< pwc_isoc_init()\n");
+	PWC_DE_OPEN("<< pwc_isoc_init()\n");
 	return 0;
 }
 
@@ -511,7 +511,7 @@ static void pwc_iso_stop(struct pwc_device *pdev)
 	/* Unlinking ISOC buffers one by one */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		if (pdev->urbs[i]) {
-			PWC_DEBUG_MEMORY("Unlinking URB %p\n", pdev->urbs[i]);
+			PWC_DE_MEMORY("Unlinking URB %p\n", pdev->urbs[i]);
 			usb_kill_urb(pdev->urbs[i]);
 		}
 	}
@@ -526,7 +526,7 @@ static void pwc_iso_free(struct pwc_device *pdev)
 		struct urb *urb = pdev->urbs[i];
 
 		if (urb) {
-			PWC_DEBUG_MEMORY("Freeing URB\n");
+			PWC_DE_MEMORY("Freeing URB\n");
 			if (urb->transfer_buffer)
 				pwc_free_urb_buffer(&urb->dev->dev,
 						    urb->transfer_buffer_length,
@@ -541,13 +541,13 @@ static void pwc_iso_free(struct pwc_device *pdev)
 /* Both v4l2_lock and vb_queue_lock should be locked when calling this */
 static void pwc_isoc_cleanup(struct pwc_device *pdev)
 {
-	PWC_DEBUG_OPEN(">> pwc_isoc_cleanup()\n");
+	PWC_DE_OPEN(">> pwc_isoc_cleanup()\n");
 
 	pwc_iso_stop(pdev);
 	pwc_iso_free(pdev);
 	usb_set_interface(pdev->udev, 0, 0);
 
-	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");
+	PWC_DE_OPEN("<< pwc_isoc_cleanup()\n");
 }
 
 /* Must be called with vb_queue_lock hold */
@@ -568,7 +568,7 @@ static void pwc_cleanup_queued_bufs(struct pwc_device *pdev,
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
 }
 
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DE
 static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 {
 	switch(sensor_type) {
@@ -786,7 +786,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	product_id = le16_to_cpu(udev->descriptor.idProduct);
 
 	/* Check if we can handle this device */
-	PWC_DEBUG_PROBE("probe() called [%04X %04X], if %d\n",
+	PWC_DE_PROBE("probe() called [%04X %04X], if %d\n",
 		vendor_id, product_id,
 		intf->altsetting->desc.bInterfaceNumber);
 
@@ -1031,7 +1031,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	memset(serial_number, 0, 30);
 	usb_string(udev, udev->descriptor.iSerialNumber, serial_number, 29);
-	PWC_DEBUG_PROBE("Device serial number is %s\n", serial_number);
+	PWC_DE_PROBE("Device serial number is %s\n", serial_number);
 
 	if (udev->descriptor.bNumConfigurations > 1)
 		PWC_WARNING("Warning: more than 1 configuration available.\n");
@@ -1076,7 +1076,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	video_set_drvdata(&pdev->vdev, pdev);
 
 	pdev->release = le16_to_cpu(udev->descriptor.bcdDevice);
-	PWC_DEBUG_PROBE("Release: %04x\n", pdev->release);
+	PWC_DE_PROBE("Release: %04x\n", pdev->release);
 
 	/* Allocate USB command buffers */
 	pdev->ctrl_buf = kmalloc(sizeof(pdev->cmd_buf), GFP_KERNEL);
@@ -1086,10 +1086,10 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		goto err_free_mem;
 	}
 
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DE
 	/* Query sensor type */
 	if (pwc_get_cmos_sensor(pdev, &rc) >= 0) {
-		PWC_DEBUG_OPEN("This %s camera is equipped with a %s (%d).\n",
+		PWC_DE_OPEN("This %s camera is equipped with a %s (%d).\n",
 				pdev->vdev.name,
 				pwc_sensor_type_to_string(rc), rc);
 	}
@@ -1208,14 +1208,14 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 
 static unsigned int leds_nargs;
 
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_USB_PWC_DE
 module_param_named(trace, pwc_trace, int, 0644);
 #endif
 module_param(power_save, int, 0644);
 module_param_array(leds, int, &leds_nargs, 0444);
 
-#ifdef CONFIG_USB_PWC_DEBUG
-MODULE_PARM_DESC(trace, "For debugging purposes");
+#ifdef CONFIG_USB_PWC_DE
+MODULE_PARM_DESC(trace, "For deging purposes");
 #endif
 MODULE_PARM_DESC(power_save, "Turn power saving for new cameras on or off");
 MODULE_PARM_DESC(leds, "LED on,off time in milliseconds");

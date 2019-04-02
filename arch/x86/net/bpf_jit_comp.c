@@ -238,7 +238,7 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf)
 		/* mov qword ptr [rbp+32], rax */
 		EMIT4(0x48, 0x89, 0x45, 32);
 
-		BUILD_BUG_ON(cnt != PROLOGUE_SIZE);
+		BUILD__ON(cnt != PROLOGUE_SIZE);
 	}
 
 	*pprog = prog;
@@ -319,9 +319,9 @@ static void emit_bpf_tail_call(u8 **pprog)
 	RETPOLINE_RAX_BPF_JIT();
 
 	/* out: */
-	BUILD_BUG_ON(cnt - label1 != OFFSET1);
-	BUILD_BUG_ON(cnt - label2 != OFFSET2);
-	BUILD_BUG_ON(cnt - label3 != OFFSET3);
+	BUILD__ON(cnt - label1 != OFFSET1);
+	BUILD__ON(cnt - label2 != OFFSET2);
+	BUILD__ON(cnt - label3 != OFFSET3);
 	*pprog = prog;
 }
 
@@ -1000,7 +1000,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 			} else if (is_simm32(jmp_offset)) {
 				EMIT2_off32(0x0F, jmp_cond + 0x10, jmp_offset);
 			} else {
-				pr_err("cond_jmp gen bug %llx\n", jmp_offset);
+				pr_err("cond_jmp gen  %llx\n", jmp_offset);
 				return -EFAULT;
 			}
 
@@ -1027,7 +1027,7 @@ emit_jmp:
 			} else if (is_simm32(jmp_offset)) {
 				EMIT1_off32(0xE9, jmp_offset);
 			} else {
-				pr_err("jmp gen bug %llx\n", jmp_offset);
+				pr_err("jmp gen  %llx\n", jmp_offset);
 				return -EFAULT;
 			}
 			break;

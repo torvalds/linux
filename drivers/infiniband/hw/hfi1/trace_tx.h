@@ -394,7 +394,7 @@ DEFINE_EVENT(hfi1_sdma_ahg_ad, hfi1_ahg_deallocate,
 	     TP_PROTO(struct sdma_engine *sde, int aidx),
 	     TP_ARGS(sde, aidx));
 
-#ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
+#ifdef CONFIG_HFI1_DE_SDMA_ORDER
 TRACE_EVENT(hfi1_sdma_progress,
 	    TP_PROTO(struct sdma_engine *sde,
 		     u16 hwhead,

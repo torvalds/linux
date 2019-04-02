@@ -87,7 +87,7 @@ static inline int object_is_on_stack(const void *obj)
 
 extern void thread_stack_cache_init(void);
 
-#ifdef CONFIG_DEBUG_STACK_USAGE
+#ifdef CONFIG_DE_STACK_USAGE
 static inline unsigned long stack_not_used(struct task_struct *p)
 {
 	unsigned long *n = end_of_stack(p);

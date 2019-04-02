@@ -311,7 +311,7 @@ v3d_cl_lookup_bos(struct drm_device *dev,
 		/* See comment on bo_index for why we have to check
 		 * this.
 		 */
-		DRM_DEBUG("Rendering requires BOs\n");
+		DRM_DE("Rendering requires BOs\n");
 		return -EINVAL;
 	}
 
@@ -319,14 +319,14 @@ v3d_cl_lookup_bos(struct drm_device *dev,
 				  sizeof(struct drm_gem_cma_object *),
 				  GFP_KERNEL | __GFP_ZERO);
 	if (!exec->bo) {
-		DRM_DEBUG("Failed to allocate validated BO pointers\n");
+		DRM_DE("Failed to allocate validated BO pointers\n");
 		return -ENOMEM;
 	}
 
 	handles = kvmalloc_array(exec->bo_count, sizeof(u32), GFP_KERNEL);
 	if (!handles) {
 		ret = -ENOMEM;
-		DRM_DEBUG("Failed to allocate incoming GEM handles\n");
+		DRM_DE("Failed to allocate incoming GEM handles\n");
 		goto fail;
 	}
 
@@ -334,7 +334,7 @@ v3d_cl_lookup_bos(struct drm_device *dev,
 			   (void __user *)(uintptr_t)args->bo_handles,
 			   exec->bo_count * sizeof(u32))) {
 		ret = -EFAULT;
-		DRM_DEBUG("Failed to copy in GEM handles\n");
+		DRM_DE("Failed to copy in GEM handles\n");
 		goto fail;
 	}
 
@@ -343,7 +343,7 @@ v3d_cl_lookup_bos(struct drm_device *dev,
 		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
 						     handles[i]);
 		if (!bo) {
-			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
+			DRM_DE("Failed to look up GEM BO %d: %d\n",
 				  i, handles[i]);
 			ret = -ENOENT;
 			spin_unlock(&file_priv->table_lock);
@@ -441,7 +441,7 @@ v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DE("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
 	}
 	bo = to_v3d_bo(gem_obj);
@@ -657,7 +657,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 		bo = idr_find(&file_priv->object_idr,
 			      args->bo_handles[bo_count]);
 		if (!bo) {
-			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
+			DRM_DE("Failed to look up GEM BO %d: %d\n",
 				  bo_count, args->bo_handles[bo_count]);
 			ret = -ENOENT;
 			spin_unlock(&file_priv->table_lock);

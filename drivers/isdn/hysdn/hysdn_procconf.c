@@ -55,7 +55,7 @@ process_line(struct conf_writedata *cnf)
 	unsigned char *cp = cnf->conf_line;
 	int i;
 
-	if (cnf->card->debug_flags & LOG_CNF_LINE)
+	if (cnf->card->de_flags & LOG_CNF_LINE)
 		hysdn_addlog(cnf->card, "conf line: %s", cp);
 
 	if (*cp == '-') {	/* option */
@@ -67,7 +67,7 @@ process_line(struct conf_writedata *cnf)
 		while ((*cp <= '9') && (*cp >= '0'))
 			i = i * 10 + *cp++ - '0';	/* get decimal number */
 		if (i > 65535) {
-			if (cnf->card->debug_flags & LOG_CNF_MISC)
+			if (cnf->card->de_flags & LOG_CNF_MISC)
 				hysdn_addlog(cnf->card, "conf channel invalid  %d", i);
 			return (-ERR_INV_CHAN);		/* invalid channel */
 		}
@@ -75,7 +75,7 @@ process_line(struct conf_writedata *cnf)
 		return (0);	/* success */
 	}			/* option */
 	if (*cp == '*') {	/* line to send */
-		if (cnf->card->debug_flags & LOG_CNF_DATA)
+		if (cnf->card->de_flags & LOG_CNF_DATA)
 			hysdn_addlog(cnf->card, "conf chan=%d %s", cnf->channel, cp);
 		return (hysdn_tx_cfgline(cnf->card, cnf->conf_line + 1,
 					 cnf->channel));	/* send the line without * */
@@ -147,7 +147,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 	else {			/* conf write active */
 
 		if (cnf->card->state != CARD_STATE_RUN) {
-			if (cnf->card->debug_flags & LOG_CNF_MISC)
+			if (cnf->card->de_flags & LOG_CNF_MISC)
 				hysdn_addlog(cnf->card, "cnf write denied -> not booted");
 			return (-ERR_NOT_BOOTED);
 		}
@@ -187,7 +187,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 			else {
 				cnf->buf_size += count;		/* add chars to string */
 				if (cnf->buf_size >= CONF_LINE_LEN - 1) {
-					if (cnf->card->debug_flags & LOG_CNF_MISC)
+					if (cnf->card->de_flags & LOG_CNF_MISC)
 						hysdn_addlog(cnf->card, "cnf line too long %d chars pos %d", cnf->buf_size, count);
 					return (-ERR_CONF_LONG);
 				}
@@ -196,7 +196,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 		}
 		/* copy remaining bytes into buffer */
 		else {
-			if (cnf->card->debug_flags & LOG_CNF_MISC)
+			if (cnf->card->de_flags & LOG_CNF_MISC)
 				hysdn_addlog(cnf->card, "cnf line too long");
 			return (-ERR_CONF_LONG);
 		}
@@ -235,7 +235,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 	/* now search the addressed card */
 	mutex_lock(&hysdn_conf_mutex);
 	card = PDE_DATA(ino);
-	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
+	if (card->de_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config open for uid=%d gid=%d mode=0x%x",
 			     filep->f_cred->fsuid, filep->f_cred->fsgid,
 			     filep->f_mode);
@@ -309,7 +309,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 
 	mutex_lock(&hysdn_conf_mutex);
 	card = PDE_DATA(ino);
-	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
+	if (card->de_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config close for uid=%d gid=%d mode=0x%x",
 			     filep->f_cred->fsuid, filep->f_cred->fsgid,
 			     filep->f_mode);

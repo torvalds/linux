@@ -36,7 +36,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 	int err;
 	int jbegin_failure = 0;
 
-	BUG_ON(!S_ISREG(inode->i_mode));
+	_ON(!S_ISREG(inode->i_mode));
 
         if (atomic_add_unless(&REISERFS_I(inode)->openers, -1, 1))
 		return 0;
@@ -159,7 +159,7 @@ static int reiserfs_sync_file(struct file *filp, loff_t start, loff_t end,
 		return err;
 
 	inode_lock(inode);
-	BUG_ON(!S_ISREG(inode->i_mode));
+	_ON(!S_ISREG(inode->i_mode));
 	err = sync_mapping_buffers(inode->i_mapping);
 	reiserfs_write_lock(inode->i_sb);
 	barrier_done = reiserfs_commit_for_inode(inode);

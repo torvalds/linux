@@ -371,11 +371,11 @@ struct sdma {
 	u8	res2[0x38];
 } __attribute__ ((packed));
 
-/* Debug Space */
+/* De Space */
 struct dbg {
-	__be32	bpdcr;		/* Breakpoint debug command register */
-	__be32	bpdsr;		/* Breakpoint debug status register */
-	__be32	bpdmr;		/* Breakpoint debug mask register */
+	__be32	bpdcr;		/* Breakpoint de command register */
+	__be32	bpdsr;		/* Breakpoint de status register */
+	__be32	bpdmr;		/* Breakpoint de mask register */
 	__be32	bprmrr0;	/* Breakpoint request mode risc register 0 */
 	__be32	bprmrr1;	/* Breakpoint request mode risc register 1 */
 	u8	res0[0x8];
@@ -450,7 +450,7 @@ struct qe_immap {
 	struct upc		upc2;		/* MultiPHY UTOPIA POS Ctrlr 2*/
 	struct sdma		sdma;		/* SDMA */
 	struct dbg		dbg;		/* 0x104080 - 0x1040FF
-						   Debug Space */
+						   De Space */
 	struct rsp		rsp[0x2];	/* 0x104100 - 0x1042FF
 						   RISC Special Registers
 						   (Trap and Breakpoint) */

@@ -99,7 +99,7 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 #endif
 
 	default:
-		BUG();
+		();
 	}
 
 	return rxrpc_lookup_peer_rcu(local, srx);
@@ -155,7 +155,7 @@ void rxrpc_error_report(struct sock *sk)
 	struct rxrpc_peer *peer;
 	struct sk_buff *skb;
 
-	_enter("%p{%d}", sk, local->debug_id);
+	_enter("%p{%d}", sk, local->de_id);
 
 	skb = sock_dequeue_err_skb(sk);
 	if (!skb) {
@@ -360,8 +360,8 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 
 		keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
 		slot = keepalive_at - base;
-		_debug("%02x peer %u t=%d {%pISp}",
-		       cursor, peer->debug_id, slot, &peer->srx.transport);
+		_de("%02x peer %u t=%d {%pISp}",
+		       cursor, peer->de_id, slot, &peer->srx.transport);
 
 		if (keepalive_at <= base ||
 		    keepalive_at > base + RXRPC_KEEPALIVE_TIME) {

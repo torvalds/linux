@@ -58,7 +58,7 @@ static bool shrinker_lock(struct drm_i915_private *i915,
 		return true;
 	}
 
-	BUG();
+	();
 }
 
 static void shrinker_unlock(struct drm_i915_private *i915, bool unlock)

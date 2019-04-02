@@ -586,7 +586,7 @@ static void qh_link_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	qh->xacterrs = 0;
 	qh->unlink_reason = 0;
 
-	/* update per-qh bandwidth for debugfs */
+	/* update per-qh bandwidth for defs */
 	ehci_to_hcd(ehci)->self.bandwidth_allocated += qh->ps.bw_period
 		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.bw_period)
 		: (qh->ps.usecs * 8);
@@ -624,7 +624,7 @@ static void qh_unlink_periodic(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	for (i = qh->ps.phase; i < ehci->periodic_size; i += period)
 		periodic_unlink(ehci, i, qh);
 
-	/* update per-qh bandwidth for debugfs */
+	/* update per-qh bandwidth for defs */
 	ehci_to_hcd(ehci)->self.bandwidth_allocated -= qh->ps.bw_period
 		? ((qh->ps.usecs + qh->ps.c_usecs) / qh->ps.bw_period)
 		: (qh->ps.usecs * 8);
@@ -954,7 +954,7 @@ static int intr_submit(
 
 	/* then queue the urb's tds to the qh */
 	qh = qh_append_tds(ehci, urb, qtd_list, epnum, &urb->ep->hcpriv);
-	BUG_ON(qh == NULL);
+	_ON(qh == NULL);
 
 	/* stuff into the periodic schedule */
 	if (qh->qh_state == QH_STATE_IDLE) {
@@ -1700,7 +1700,7 @@ itd_patch(
 	struct ehci_iso_packet	*uf = &iso_sched->packet[index];
 	unsigned		pg = itd->pg;
 
-	/* BUG_ON(pg == 6 && uf->cross); */
+	/* _ON(pg == 6 && uf->cross); */
 
 	uframe &= 0x07;
 	itd->index[uframe] = index;
@@ -1777,7 +1777,7 @@ static void itd_link_urb(
 			packet < urb->number_of_packets;) {
 		if (itd == NULL) {
 			/* ASSERT:  we have all necessary itds */
-			/* BUG_ON(list_empty(&iso_sched->td_list)); */
+			/* _ON(list_empty(&iso_sched->td_list)); */
 
 			/* ASSERT:  no itds for this endpoint in this uframe */
 
@@ -1881,7 +1881,7 @@ static bool itd_complete(struct ehci_hcd *ehci, struct ehci_itd *itd)
 	/*
 	 * ASSERT: it's really the last itd for this urb
 	 * list_for_each_entry (itd, &stream->td_list, itd_list)
-	 *	 BUG_ON(itd->urb == urb);
+	 *	 _ON(itd->urb == urb);
 	 */
 
 	/* give urb back to the driver; completion often (re)submits */
@@ -2180,7 +2180,7 @@ static void sitd_link_urb(
 			packet++) {
 
 		/* ASSERT:  we have all necessary sitds */
-		BUG_ON(list_empty(&sched->td_list));
+		_ON(list_empty(&sched->td_list));
 
 		/* ASSERT:  no itds for this endpoint in this frame */
 
@@ -2261,7 +2261,7 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 	/*
 	 * ASSERT: it's really the last sitd for this urb
 	 * list_for_each_entry (sitd, &stream->td_list, sitd_list)
-	 *	 BUG_ON(sitd->urb == urb);
+	 *	 _ON(sitd->urb == urb);
 	 */
 
 	/* give urb back to the driver; completion often (re)submits */
@@ -2474,7 +2474,7 @@ restart:
 		default:
 			ehci_dbg(ehci, "corrupt type %d frame %d shadow %p\n",
 					type, frame, q.ptr);
-			/* BUG(); */
+			/* (); */
 			/* FALL THROUGH */
 		case Q_TYPE_QH:
 		case Q_TYPE_FSTN:

@@ -174,7 +174,7 @@ static void s3c2440_cpufreq_setdivs(struct s3c_cpufreq_config *cfg)
 		break;
 
 	default:
-		BUG();	/* we don't expect to get here. */
+		();	/* we don't expect to get here. */
 	}
 
 	if (cfg->divs.p_divisor != cfg->divs.h_divisor)
@@ -263,7 +263,7 @@ static struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.calc_divs	= s3c2440_cpufreq_calcdivs,
 	.calc_freqtable	= s3c2440_cpufreq_calctable,
 
-	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
+	.de_io_show  = s3c_cpufreq_defs_call(s3c2410_iotiming_defs),
 };
 
 static int s3c2440_cpufreq_add(struct device *dev,

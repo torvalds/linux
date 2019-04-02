@@ -13,7 +13,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 
 static char *test_file(int size)
 {
@@ -182,7 +182,7 @@ static long open_files_cnt(void)
 	long nr = 0;
 
 	scnprintf(path, PATH_MAX, "%s/self/fd", procfs__mountpoint());
-	pr_debug("fd path: %s\n", path);
+	pr_de("fd path: %s\n", path);
 
 	dir = opendir(path);
 	TEST_ASSERT_VAL("failed to open fd directory", dir);
@@ -242,7 +242,7 @@ static int set_fd_limit(int n)
 	if (getrlimit(RLIMIT_NOFILE, &rlim))
 		return -1;
 
-	pr_debug("file limit %ld, new %d\n", (long) rlim.rlim_cur, n);
+	pr_de("file limit %ld, new %d\n", (long) rlim.rlim_cur, n);
 
 	rlim.rlim_cur = n;
 	return setrlimit(RLIMIT_NOFILE, &rlim);
@@ -303,7 +303,7 @@ int test__dso_data_cache(struct test *test __maybe_unused, int subtest __maybe_u
 
 	/* Make sure we did not leak any file descriptor. */
 	nr_end = open_files_cnt();
-	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
+	pr_de("nr start %ld, nr stop %ld\n", nr, nr_end);
 	TEST_ASSERT_VAL("failed leadking files", nr == nr_end);
 	return 0;
 }
@@ -379,7 +379,7 @@ int test__dso_data_reopen(struct test *test __maybe_unused, int subtest __maybe_
 
 	/* Make sure we did not leak any file descriptor. */
 	nr_end = open_files_cnt();
-	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
+	pr_de("nr start %ld, nr stop %ld\n", nr, nr_end);
 	TEST_ASSERT_VAL("failed leadking files", nr == nr_end);
 	return 0;
 }

@@ -511,7 +511,7 @@ int qib_sd7220_init(struct qib_devdata *dd)
 			goto bail;
 		}
 		/*
-		 * DEBUG: check each time we reset if trimdone bits have
+		 * DE: check each time we reset if trimdone bits have
 		 * gotten cleared, and re-set them.
 		 */
 		qib_sd_trimdone_monitor(dd, "First-reset");

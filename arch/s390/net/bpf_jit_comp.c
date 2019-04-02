@@ -238,7 +238,7 @@ static inline void reg_set_seen(struct bpf_jit *jit, u32 b1)
 	_EMIT6(op1 | (reg_high(b1) | mask) << 16 |		\
 		(rel & 0xffff), op2 | (imm & 0xff) << 8);	\
 	REG_SET_SEEN(b1);					\
-	BUILD_BUG_ON(((unsigned long) imm) > 0xff);		\
+	BUILD__ON(((unsigned long) imm) > 0xff);		\
 })
 
 #define EMIT6_PCREL(op1, op2, b1, b2, i, off, mask)		\

@@ -29,12 +29,12 @@
 
 extern bool pciehp_poll_mode;
 extern int pciehp_poll_time;
-extern bool pciehp_debug;
+extern bool pciehp_de;
 
 #define dbg(format, arg...)						\
 do {									\
-	if (pciehp_debug)						\
-		printk(KERN_DEBUG "%s: " format, MY_NAME, ## arg);	\
+	if (pciehp_de)						\
+		printk(KERN_DE "%s: " format, MY_NAME, ## arg);	\
 } while (0)
 #define err(format, arg...)						\
 	printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
@@ -45,8 +45,8 @@ do {									\
 
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
-		if (pciehp_debug)					\
-			dev_printk(KERN_DEBUG, &ctrl->pcie->device,	\
+		if (pciehp_de)					\
+			dev_printk(KERN_DE, &ctrl->pcie->device,	\
 					format, ## arg);		\
 	} while (0)
 #define ctrl_err(ctrl, format, arg...)					\

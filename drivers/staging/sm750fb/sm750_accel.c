@@ -97,7 +97,7 @@ int sm750_hw_fillrect(struct lynx_accel *accel,
 		 * int time wait and always busy,seems hardware
 		 * got something error
 		 */
-		pr_debug("De engine always busy\n");
+		pr_de("De engine always busy\n");
 		return -1;
 	}
 

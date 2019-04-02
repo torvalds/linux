@@ -40,12 +40,12 @@ static void init_bounce_bioset(void)
 		return;
 
 	ret = bioset_init(&bounce_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
-	BUG_ON(ret);
+	_ON(ret);
 	if (bioset_integrity_create(&bounce_bio_set, BIO_POOL_SIZE))
-		BUG_ON(1);
+		_ON(1);
 
 	ret = bioset_init(&bounce_bio_split, BIO_POOL_SIZE, 0, 0);
-	BUG_ON(ret);
+	_ON(ret);
 	bounce_bs_setup = true;
 }
 
@@ -59,7 +59,7 @@ static __init int init_emergency_pool(void)
 #endif
 
 	ret = mempool_init_page_pool(&page_pool, POOL_SIZE, 0);
-	BUG_ON(ret);
+	_ON(ret);
 	pr_info("pool size: %d pages\n", POOL_SIZE);
 
 	init_bounce_bioset();
@@ -116,7 +116,7 @@ int init_emergency_isa_pool(void)
 
 	ret = mempool_init(&isa_page_pool, ISA_POOL_SIZE, mempool_alloc_pages_isa,
 			   mempool_free_pages, (void *) 0);
-	BUG_ON(ret);
+	_ON(ret);
 
 	pr_info("isa pool size: %d pages\n", ISA_POOL_SIZE);
 	init_bounce_bioset();
@@ -378,7 +378,7 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 			return;
 		pool = &page_pool;
 	} else {
-		BUG_ON(!mempool_initialized(&isa_page_pool));
+		_ON(!mempool_initialized(&isa_page_pool));
 		pool = &isa_page_pool;
 	}
 

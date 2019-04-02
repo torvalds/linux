@@ -48,7 +48,7 @@ torture_param(int, stat_interval, 60,
 	     "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
 torture_param(int, verbose, 1,
-	     "Enable verbose debugging printk()s");
+	     "Enable verbose deging printk()s");
 
 static char *torture_type = "spin_lock";
 module_param(torture_type, charp, 0444);
@@ -90,7 +90,7 @@ struct lock_torture_ops {
 struct lock_torture_cxt {
 	int nrealwriters_stress;
 	int nrealreaders_stress;
-	bool debug_lock;
+	bool de_lock;
 	atomic_t n_lock_torture_errors;
 	struct lock_torture_ops *cur_ops;
 	struct lock_stress_stats *lwsa; /* writer statistics */
@@ -105,7 +105,7 @@ static struct lock_torture_cxt cxt = { 0, 0, false,
 
 static int torture_lock_busted_write_lock(void)
 {
-	return 0;  /* BUGGY, do not use in real life!!! */
+	return 0;  /* GY, do not use in real life!!! */
 }
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
@@ -122,7 +122,7 @@ static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 
 static void torture_lock_busted_write_unlock(void)
 {
-	  /* BUGGY, do not use in real life!!! */
+	  /* GY, do not use in real life!!! */
 }
 
 static void torture_boost_dummy(struct torture_random_state *trsp)
@@ -575,7 +575,7 @@ static struct percpu_rw_semaphore pcpu_rwsem;
 
 void torture_percpu_rwsem_init(void)
 {
-	BUG_ON(percpu_init_rwsem(&pcpu_rwsem));
+	_ON(percpu_init_rwsem(&pcpu_rwsem));
 }
 
 static int torture_percpu_rwsem_down_write(void) __acquires(pcpu_rwsem)
@@ -777,7 +777,7 @@ lock_torture_print_module_parms(struct lock_torture_ops *cur_ops,
 {
 	pr_alert("%s" TORTURE_FLAG
 		 "--- %s%s: nwriters_stress=%d nreaders_stress=%d stat_interval=%d verbose=%d shuffle_interval=%d stutter=%d shutdown_secs=%d onoff_interval=%d onoff_holdoff=%d\n",
-		 torture_type, tag, cxt.debug_lock ? " [debug]": "",
+		 torture_type, tag, cxt.de_lock ? " [de]": "",
 		 cxt.nrealwriters_stress, cxt.nrealreaders_stress, stat_interval,
 		 verbose, shuffle_interval, stutter, shutdown_secs,
 		 onoff_interval, onoff_holdoff);
@@ -886,18 +886,18 @@ static int __init lock_torture_init(void)
 	else
 		cxt.nrealwriters_stress = 2 * num_online_cpus();
 
-#ifdef CONFIG_DEBUG_MUTEXES
+#ifdef CONFIG_DE_MUTEXES
 	if (strncmp(torture_type, "mutex", 5) == 0)
-		cxt.debug_lock = true;
+		cxt.de_lock = true;
 #endif
-#ifdef CONFIG_DEBUG_RT_MUTEXES
+#ifdef CONFIG_DE_RT_MUTEXES
 	if (strncmp(torture_type, "rtmutex", 7) == 0)
-		cxt.debug_lock = true;
+		cxt.de_lock = true;
 #endif
-#ifdef CONFIG_DEBUG_SPINLOCK
+#ifdef CONFIG_DE_SPINLOCK
 	if ((strncmp(torture_type, "spin", 4) == 0) ||
 	    (strncmp(torture_type, "rw_lock", 7) == 0))
-		cxt.debug_lock = true;
+		cxt.de_lock = true;
 #endif
 
 	/* Initialize the statistics so that each run gets its own numbers. */

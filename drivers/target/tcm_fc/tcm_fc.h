@@ -132,7 +132,7 @@ struct ft_cmd {
 
 extern struct mutex ft_lport_lock;
 extern struct fc4_prov ft_prov;
-extern unsigned int ft_debug_logging;
+extern unsigned int ft_de_logging;
 
 /*
  * Fabric methods.

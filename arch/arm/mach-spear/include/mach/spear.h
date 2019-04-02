@@ -37,7 +37,7 @@
 #define SPEAR_ICM3_MISC_REG_BASE	UL(0xFCA80000)
 #define VA_SPEAR_ICM3_MISC_REG_BASE	(VA_SPEAR_ICM3_SMI_CTRL_BASE - SPEAR_ICM3_SMI_CTRL_BASE + SPEAR_ICM3_MISC_REG_BASE)
 
-/* Debug uart for linux, will be used for debug and uncompress messages */
+/* De uart for linux, will be used for de and uncompress messages */
 #define SPEAR_DBG_UART_BASE		SPEAR_ICM1_UART_BASE
 
 /* Sysctl base for spear platform */
@@ -83,7 +83,7 @@
 /* others */
 #define MCIF_CF_BASE				UL(0xB2800000)
 
-/* Debug uart for linux, will be used for debug and uncompress messages */
+/* De uart for linux, will be used for de and uncompress messages */
 #define SPEAR_DBG_UART_BASE			UART_BASE
 
 #endif /* SPEAR13XX */

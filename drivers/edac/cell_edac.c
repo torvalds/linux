@@ -7,7 +7,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/edac.h>
 #include <linux/module.h>
@@ -26,7 +26,7 @@ struct cell_edac_priv
 	struct cbe_mic_tm_regs __iomem	*regs;
 	int				node;
 	int				chanmask;
-#ifdef DEBUG
+#ifdef DE
 	u64				prev_fir;
 #endif
 };
@@ -82,7 +82,7 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 	u64				fir, addreg, clear = 0;
 
 	fir = in_be64(&priv->regs->mic_fir);
-#ifdef DEBUG
+#ifdef DE
 	if (fir != priv->prev_fir) {
 		dev_dbg(mci->pdev, "fir change : 0x%016lx\n", fir);
 		priv->prev_fir = fir;
@@ -118,7 +118,7 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 		(void)in_be64(&priv->regs->mic_fir);
 
 		mb();	/* sync up */
-#ifdef DEBUG
+#ifdef DE
 		fir = in_be64(&priv->regs->mic_fir);
 		dev_dbg(mci->pdev, "fir clear  : 0x%016lx\n", fir);
 #endif
@@ -253,17 +253,17 @@ static struct platform_driver cell_edac_driver = {
 static int __init cell_edac_init(void)
 {
 	/* Sanity check registers data structure */
-	BUILD_BUG_ON(offsetof(struct cbe_mic_tm_regs,
+	BUILD__ON(offsetof(struct cbe_mic_tm_regs,
 			      mic_df_ecc_address_0) != 0xf8);
-	BUILD_BUG_ON(offsetof(struct cbe_mic_tm_regs,
+	BUILD__ON(offsetof(struct cbe_mic_tm_regs,
 			      mic_df_ecc_address_1) != 0x1b8);
-	BUILD_BUG_ON(offsetof(struct cbe_mic_tm_regs,
+	BUILD__ON(offsetof(struct cbe_mic_tm_regs,
 			      mic_df_config) != 0x218);
-	BUILD_BUG_ON(offsetof(struct cbe_mic_tm_regs,
+	BUILD__ON(offsetof(struct cbe_mic_tm_regs,
 			      mic_fir) != 0x230);
-	BUILD_BUG_ON(offsetof(struct cbe_mic_tm_regs,
+	BUILD__ON(offsetof(struct cbe_mic_tm_regs,
 			      mic_mnt_cfg) != 0x210);
-	BUILD_BUG_ON(offsetof(struct cbe_mic_tm_regs,
+	BUILD__ON(offsetof(struct cbe_mic_tm_regs,
 			      mic_exc) != 0x208);
 
 	return platform_driver_register(&cell_edac_driver);

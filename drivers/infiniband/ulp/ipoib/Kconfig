@@ -23,27 +23,27 @@ config INFINIBAND_IPOIB_CM
 	  drops for multicast and UD mode traffic from this interface,
 	  unless you limit mtu for these destinations to 2044.
 
-config INFINIBAND_IPOIB_DEBUG
-	bool "IP-over-InfiniBand debugging" if EXPERT
+config INFINIBAND_IPOIB_DE
+	bool "IP-over-InfiniBand deging" if EXPERT
 	depends on INFINIBAND_IPOIB
 	default y
 	---help---
-	  This option causes debugging code to be compiled into the
+	  This option causes deging code to be compiled into the
 	  IPoIB driver.  The output can be turned on via the
-	  debug_level and mcast_debug_level module parameters (which
+	  de_level and mcast_de_level module parameters (which
 	  can also be set after the driver is loaded through sysfs).
 
 	  This option also creates a directory tree under ipoib/ in
-	  debugfs, which contains files that expose debugging
+	  defs, which contains files that expose deging
 	  information about IB multicast groups used by the IPoIB
 	  driver.
 
-config INFINIBAND_IPOIB_DEBUG_DATA
-	bool "IP-over-InfiniBand data path debugging"
-	depends on INFINIBAND_IPOIB_DEBUG
+config INFINIBAND_IPOIB_DE_DATA
+	bool "IP-over-InfiniBand data path deging"
+	depends on INFINIBAND_IPOIB_DE
 	---help---
-	  This option compiles debugging code into the data path
+	  This option compiles deging code into the data path
 	  of the IPoIB driver.  The output can be turned on via the
-	  data_debug_level module parameter; however, even with output
-	  turned off, this debugging code will have some performance
+	  data_de_level module parameter; however, even with output
+	  turned off, this deging code will have some performance
 	  impact.

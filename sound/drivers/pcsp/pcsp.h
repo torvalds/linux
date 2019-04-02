@@ -15,7 +15,7 @@
 #include <linux/timex.h>
 
 #define PCSP_SOUND_VERSION 0x400	/* read 4.00 */
-#define PCSP_DEBUG 0
+#define PCSP_DE 0
 
 /* default timer freq for PC-Speaker: 18643 Hz */
 #define DIV_18KHZ 64

@@ -27,7 +27,7 @@
  *	embedded market I might add.
  *
  * Notes:
- *	Due to what I assume is more buggy SROM, the 64M PMC551 I
+ *	Due to what I assume is more gy SROM, the 64M PMC551 I
  *	have available claims that all 4 of its DRAM banks have 64MiB
  *	of ram configured (making a grand total of 256MiB onboard).
  *	This is slightly annoying since the BAR0 size reflects the
@@ -64,11 +64,11 @@
  *	* Modified driver to utilize a sliding aperture instead of
  *	 mapping all memory into kernel space which turned out to
  *	 be very wasteful.
- *	* Located a bug in the SROM's initialization sequence that
+ *	* Located a  in the SROM's initialization sequence that
  *	 made the memory unusable, added a fix to code to touch up
  *	 the DRAM some.
  *
- * Bugs/FIXMEs:
+ * s/FIXMEs:
  *	* MUST fix the init function to not spin on a register
  *	waiting for it to set .. this does not safely handle busted
  *	devices that never reset the register correctly which will
@@ -145,8 +145,8 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u_char *ptr;
 	size_t retlen;
 
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_erase(pos:%ld, len:%ld)\n", (long)instr->addr,
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_erase(pos:%ld, len:%ld)\n", (long)instr->addr,
 		(long)instr->len);
 #endif
 
@@ -167,8 +167,8 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 		/* We have to do multiple writes to get all the data
 		   written. */
 		while (soff_hi != eoff_hi) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-			printk(KERN_DEBUG "pmc551_erase() soff_hi: %ld, "
+#ifdef CONFIG_MTD_PMC551_DE
+			printk(KERN_DE "pmc551_erase() soff_hi: %ld, "
 				"eoff_hi: %ld\n", (long)soff_hi, (long)eoff_hi);
 #endif
 			memset(ptr, 0xff, priv->asize);
@@ -184,8 +184,8 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
       out:
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_erase() done\n");
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_erase() done\n");
 #endif
 
 	return 0;
@@ -198,8 +198,8 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 	u32 soff_hi;
 	u32 soff_lo;
 
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_point(%ld, %ld)\n", (long)from, (long)len);
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_point(%ld, %ld)\n", (long)from, (long)len);
 #endif
 
 	soff_hi = from & ~(priv->asize - 1);
@@ -219,8 +219,8 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 
 static int pmc551_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_unpoint()\n");
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_unpoint()\n");
 #endif
 	return 0;
 }
@@ -235,8 +235,8 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 	u_char *ptr;
 	u_char *copyto = buf;
 
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_read(pos:%ld, len:%ld) asize: %ld\n",
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_read(pos:%ld, len:%ld) asize: %ld\n",
 		(long)from, (long)len, (long)priv->asize);
 #endif
 
@@ -257,8 +257,8 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 		/* We have to do multiple writes to get all the data
 		   written. */
 		while (soff_hi != eoff_hi) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-			printk(KERN_DEBUG "pmc551_read() soff_hi: %ld, "
+#ifdef CONFIG_MTD_PMC551_DE
+			printk(KERN_DE "pmc551_read() soff_hi: %ld, "
 				"eoff_hi: %ld\n", (long)soff_hi, (long)eoff_hi);
 #endif
 			memcpy(copyto, ptr, priv->asize);
@@ -275,8 +275,8 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
       out:
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_read() done\n");
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_read() done\n");
 #endif
 	*retlen = copyto - buf;
 	return 0;
@@ -292,8 +292,8 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 	u_char *ptr;
 	const u_char *copyfrom = buf;
 
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_write(pos:%ld, len:%ld) asize:%ld\n",
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_write(pos:%ld, len:%ld) asize:%ld\n",
 		(long)to, (long)len, (long)priv->asize);
 #endif
 
@@ -314,8 +314,8 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 		/* We have to do multiple writes to get all the data
 		   written. */
 		while (soff_hi != eoff_hi) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-			printk(KERN_DEBUG "pmc551_write() soff_hi: %ld, "
+#ifdef CONFIG_MTD_PMC551_DE
+			printk(KERN_DE "pmc551_write() soff_hi: %ld, "
 				"eoff_hi: %ld\n", (long)soff_hi, (long)eoff_hi);
 #endif
 			memcpy(ptr, copyfrom, priv->asize);
@@ -332,8 +332,8 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 	}
 
       out:
-#ifdef CONFIG_MTD_PMC551_DEBUG
-	printk(KERN_DEBUG "pmc551_write() done\n");
+#ifdef CONFIG_MTD_PMC551_DE
+	printk(KERN_DE "pmc551_write() done\n");
 #endif
 	*retlen = copyfrom - buf;
 	return 0;
@@ -346,14 +346,14 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
  * This function basically kick starts the DRAM oboard the card and gets it
  * ready to be used.  Before this is done the device reads VERY erratic, so
  * much that it can crash the Linux 2.2.x series kernels when a user cat's
- * /proc/pci .. though that is mainly a kernel bug in handling the PCI DEVSEL
+ * /proc/pci .. though that is mainly a kernel  in handling the PCI DEVSEL
  * register.  FIXME: stop spinning on registers .. must implement a timeout
  * mechanism
  * returns the size of the memory region found.
  */
 static int __init fixup_pmc551(struct pci_dev *dev)
 {
-#ifdef CONFIG_MTD_PMC551_BUGFIX
+#ifdef CONFIG_MTD_PMC551_FIX
 	u32 dram_data;
 #endif
 	u32 size, dcmd, cfg, dtmp;
@@ -414,7 +414,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	 * "size", and then write back all the old config.
 	 */
 	pci_read_config_dword(dev, PCI_BASE_ADDRESS_0, &cfg);
-#ifndef CONFIG_MTD_PMC551_BUGFIX
+#ifndef CONFIG_MTD_PMC551_FIX
 	pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, ~0);
 	pci_read_config_dword(dev, PCI_BASE_ADDRESS_0, &size);
 	size = (size & PCI_BASE_ADDRESS_MEM_MASK);
@@ -459,7 +459,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	if ((size &= PCI_BASE_ADDRESS_MEM_MASK) == 0) {
 		return -ENODEV;
 	}
-#endif				/* CONFIG_MTD_PMC551_BUGFIX */
+#endif				/* CONFIG_MTD_PMC551_FIX */
 
 	if ((cfg & PCI_BASE_ADDRESS_SPACE) != PCI_BASE_ADDRESS_SPACE_MEMORY) {
 		return -ENODEV;
@@ -554,11 +554,11 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	 */
 	pci_write_config_word(dev, PCI_COMMAND,
 			      PCI_COMMAND_MEMORY | PCI_COMMAND_IO);
-#ifdef CONFIG_MTD_PMC551_DEBUG
+#ifdef CONFIG_MTD_PMC551_DE
 	/*
 	 * Some screen fun
 	 */
-	printk(KERN_DEBUG "pmc551: %d%sB (0x%x) of %sprefetchable memory at "
+	printk(KERN_DE "pmc551: %d%sB (0x%x) of %sprefetchable memory at "
 		"0x%llx\n", (size < 1024) ? size : (size < 1048576) ?
 		size >> 10 : size >> 20,
 		(size < 1024) ? "" : (size < 1048576) ? "Ki" : "Mi", size,
@@ -569,7 +569,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	 * Check to see the state of the memory
 	 */
 	pci_read_config_dword(dev, PMC551_DRAM_BLK0, &dcmd);
-	printk(KERN_DEBUG "pmc551: DRAM_BLK0 Flags: %s,%s\n"
+	printk(KERN_DE "pmc551: DRAM_BLK0 Flags: %s,%s\n"
 		"pmc551: DRAM_BLK0 Size: %d at %d\n"
 		"pmc551: DRAM_BLK0 Row MUX: %d, Col MUX: %d\n",
 		(((0x1 << 1) & dcmd) == 0) ? "RW" : "RO",
@@ -579,7 +579,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		((dcmd >> 9) & 0xF));
 
 	pci_read_config_dword(dev, PMC551_DRAM_BLK1, &dcmd);
-	printk(KERN_DEBUG "pmc551: DRAM_BLK1 Flags: %s,%s\n"
+	printk(KERN_DE "pmc551: DRAM_BLK1 Flags: %s,%s\n"
 		"pmc551: DRAM_BLK1 Size: %d at %d\n"
 		"pmc551: DRAM_BLK1 Row MUX: %d, Col MUX: %d\n",
 		(((0x1 << 1) & dcmd) == 0) ? "RW" : "RO",
@@ -589,7 +589,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		((dcmd >> 9) & 0xF));
 
 	pci_read_config_dword(dev, PMC551_DRAM_BLK2, &dcmd);
-	printk(KERN_DEBUG "pmc551: DRAM_BLK2 Flags: %s,%s\n"
+	printk(KERN_DE "pmc551: DRAM_BLK2 Flags: %s,%s\n"
 		"pmc551: DRAM_BLK2 Size: %d at %d\n"
 		"pmc551: DRAM_BLK2 Row MUX: %d, Col MUX: %d\n",
 		(((0x1 << 1) & dcmd) == 0) ? "RW" : "RO",
@@ -599,7 +599,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		((dcmd >> 9) & 0xF));
 
 	pci_read_config_dword(dev, PMC551_DRAM_BLK3, &dcmd);
-	printk(KERN_DEBUG "pmc551: DRAM_BLK3 Flags: %s,%s\n"
+	printk(KERN_DE "pmc551: DRAM_BLK3 Flags: %s,%s\n"
 		"pmc551: DRAM_BLK3 Size: %d at %d\n"
 		"pmc551: DRAM_BLK3 Row MUX: %d, Col MUX: %d\n",
 		(((0x1 << 1) & dcmd) == 0) ? "RW" : "RO",
@@ -609,22 +609,22 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		((dcmd >> 9) & 0xF));
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	printk(KERN_DEBUG "pmc551: Memory Access %s\n",
+	printk(KERN_DE "pmc551: Memory Access %s\n",
 		(((0x1 << 1) & cmd) == 0) ? "off" : "on");
-	printk(KERN_DEBUG "pmc551: I/O Access %s\n",
+	printk(KERN_DE "pmc551: I/O Access %s\n",
 		(((0x1 << 0) & cmd) == 0) ? "off" : "on");
 
 	pci_read_config_word(dev, PCI_STATUS, &cmd);
-	printk(KERN_DEBUG "pmc551: Devsel %s\n",
+	printk(KERN_DE "pmc551: Devsel %s\n",
 		((PCI_STATUS_DEVSEL_MASK & cmd) == 0x000) ? "Fast" :
 		((PCI_STATUS_DEVSEL_MASK & cmd) == 0x200) ? "Medium" :
 		((PCI_STATUS_DEVSEL_MASK & cmd) == 0x400) ? "Slow" : "Invalid");
 
-	printk(KERN_DEBUG "pmc551: %sFast Back-to-Back\n",
+	printk(KERN_DE "pmc551: %sFast Back-to-Back\n",
 		((PCI_COMMAND_FAST_BACK & cmd) == 0) ? "Not " : "");
 
 	pci_read_config_byte(dev, PMC551_SYS_CTRL_REG, &bcmd);
-	printk(KERN_DEBUG "pmc551: EEPROM is under %s control\n"
+	printk(KERN_DE "pmc551: EEPROM is under %s control\n"
 		"pmc551: System Control Register is %slocked to PCI access\n"
 		"pmc551: System Control Register is %slocked to EEPROM access\n",
 		(bcmd & 0x1) ? "software" : "hardware",
@@ -755,8 +755,8 @@ static int __init init_pmc551(void)
 			kfree(mtd);
 			break;
 		}
-#ifdef CONFIG_MTD_PMC551_DEBUG
-		printk(KERN_DEBUG "pmc551: setting aperture to %d\n",
+#ifdef CONFIG_MTD_PMC551_DE
+		printk(KERN_DE "pmc551: setting aperture to %d\n",
 			ffs(priv->asize >> 20) - 1);
 #endif
 
@@ -767,8 +767,8 @@ static int __init init_pmc551(void)
 		pci_write_config_dword(priv->dev, PMC551_PCI_MEM_MAP0,
 					priv->curr_map0);
 
-#ifdef CONFIG_MTD_PMC551_DEBUG
-		printk(KERN_DEBUG "pmc551: aperture set to %d\n",
+#ifdef CONFIG_MTD_PMC551_DE
+		printk(KERN_DE "pmc551: aperture set to %d\n",
 			(priv->base_map0 & 0xF0) >> 4);
 #endif
 
@@ -835,7 +835,7 @@ static void __exit cleanup_pmc551(void)
 		pmc551list = priv->nextpmc551;
 
 		if (priv->start) {
-			printk(KERN_DEBUG "pmc551: unmapping %dMiB starting at "
+			printk(KERN_DE "pmc551: unmapping %dMiB starting at "
 				"0x%p\n", priv->asize >> 20, priv->start);
 			pci_iounmap(priv->dev, priv->start);
 		}

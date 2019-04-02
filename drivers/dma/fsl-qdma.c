@@ -134,7 +134,7 @@
  *			    memory 40-bit address.
  * @__reserved1:	    Reserved field.
  * @cfg8b_w1:		    Compound descriptor command queue origin produced
- *			    by qDMA and dynamic debug field.
+ *			    by qDMA and dynamic de field.
  * @data		    Pointer to the memory 40-bit address, describes DMA
  *			    source information and DMA destination information.
  */

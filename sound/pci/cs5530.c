@@ -14,7 +14,7 @@
  * 
  * XpressAudio(tm) is used on the Cyrix MediaGX (now NatSemi Geode) systems.
  * The older version (VSA1) provides fairly good soundblaster emulation
- * although there are a couple of bugs: large DMA buffers break record,
+ * although there are a couple of s: large DMA buffers break record,
  * and the MPU event handling seems suspect. VSA2 allows the native driver
  * to control the AC97 audio engine directly and requires a different driver.
  *

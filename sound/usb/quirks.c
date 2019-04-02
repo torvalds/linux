@@ -810,7 +810,7 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 static int snd_usb_gamecon780_boot_quirk(struct usb_device *dev)
 {
 	/* set the initial volume and don't change; other values are either
-	 * too loud or silent due to firmware bug (bko#65251)
+	 * too loud or silent due to firmware  (bko#65251)
 	 */
 	u8 buf[2] = { 0x74, 0xe3 };
 	return snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
@@ -1013,7 +1013,7 @@ static int snd_usb_motu_microbookii_communicate(struct usb_device *dev, u8 *buf,
 	if (err < 0)
 		return err;
 
-	print_hex_dump(KERN_DEBUG, "MicroBookII snd: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_DE, "MicroBookII snd: ", DUMP_PREFIX_NONE, 16, 1,
 		       buf, actual_length, false);
 
 	memset(buf, 0, buf_size);
@@ -1023,7 +1023,7 @@ static int snd_usb_motu_microbookii_communicate(struct usb_device *dev, u8 *buf,
 	if (err < 0)
 		return err;
 
-	print_hex_dump(KERN_DEBUG, "MicroBookII rcv: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_DE, "MicroBookII rcv: ", DUMP_PREFIX_NONE, 16, 1,
 		       buf, actual_length, false);
 
 	*length = actual_length;

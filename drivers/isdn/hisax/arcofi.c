@@ -50,8 +50,8 @@ send_arcofi(struct IsdnCardState *cs) {
 
 int
 arcofi_fsm(struct IsdnCardState *cs, int event, void *data) {
-	if (cs->debug & L1_DEB_MONITOR) {
-		debugl1(cs, "arcofi state %d event %d", cs->dc.isac.arcofi_state, event);
+	if (cs->de & L1_DEB_MONITOR) {
+		del1(cs, "arcofi state %d event %d", cs->dc.isac.arcofi_state, event);
 	}
 	if (event == ARCOFI_TIMEOUT) {
 		cs->dc.isac.arcofi_state = ARCOFI_NOP;
@@ -104,7 +104,7 @@ arcofi_fsm(struct IsdnCardState *cs, int event, void *data) {
 		}
 		break;
 	default:
-		debugl1(cs, "Arcofi unknown state %x", cs->dc.isac.arcofi_state);
+		del1(cs, "Arcofi unknown state %x", cs->dc.isac.arcofi_state);
 		return (2);
 	}
 	return (0);

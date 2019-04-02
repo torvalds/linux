@@ -366,7 +366,7 @@ void vmw_bo_pin_reserved(struct vmw_buffer_object *vbo, bool pin)
 
 	ret = ttm_bo_validate(bo, &placement, &ctx);
 
-	BUG_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
+	_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
 }
 
 

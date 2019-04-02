@@ -40,13 +40,13 @@ struct l64781_state {
 
 #define dprintk(args...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "l64781: " args); \
+		if (de) printk(KERN_DE "l64781: " args); \
 	} while (0)
 
-static int debug;
+static int de;
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 
 static int l64781_writereg (struct l64781_state* state, u8 reg, u8 data)

@@ -1823,7 +1823,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_UNREG_VPI	    0x97
 
 #define MBX_WRITE_WWN       0x98
-#define MBX_SET_DEBUG       0x99
+#define MBX_SET_DE       0x99
 #define MBX_LOAD_EXP_ROM    0x9C
 #define MBX_SLI4_CONFIG	    0x9B
 #define MBX_SLI4_REQ_FTRS   0x9D

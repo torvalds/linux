@@ -21,7 +21,7 @@
 #include "fsm.h"
 #include "layer2.h"
 
-static u_int *debug;
+static u_int *de;
 
 static
 struct Fsm l2fsm = {NULL, 0, 0, NULL, NULL};
@@ -96,13 +96,13 @@ static char *strL2Event[] =
 };
 
 static void
-l2m_debug(struct FsmInst *fi, char *fmt, ...)
+l2m_de(struct FsmInst *fi, char *fmt, ...)
 {
 	struct layer2 *l2 = fi->userdata;
 	struct va_format vaf;
 	va_list va;
 
-	if (!(*debug & DEBUG_L2_FSM))
+	if (!(*de & DE_L2_FSM))
 		return;
 
 	va_start(va, fmt);
@@ -110,7 +110,7 @@ l2m_debug(struct FsmInst *fi, char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	printk(KERN_DEBUG "%s l2 (sapi %d tei %d): %pV\n",
+	printk(KERN_DE "%s l2 (sapi %d tei %d): %pV\n",
 	       mISDNDevName4ch(&l2->ch), l2->sapi, l2->tei, &vaf);
 
 	va_end(va);
@@ -190,8 +190,8 @@ l2down_skb(struct layer2 *l2, struct sk_buff *skb) {
 	int ret;
 
 	ret = l2->ch.recv(l2->ch.peer, skb);
-	if (ret && (*debug & DEBUG_L2_RECV))
-		printk(KERN_DEBUG "l2down_skb: dev %s ret(%d)\n",
+	if (ret && (*de & DE_L2_RECV))
+		printk(KERN_DE "l2down_skb: dev %s ret(%d)\n",
 		       mISDNDevName4ch(&l2->ch), ret);
 	return ret;
 }
@@ -300,8 +300,8 @@ l2_timeout(struct FsmInst *fi, int event, void *arg)
 	hh = mISDN_HEAD_P(skb);
 	hh->prim = event == EV_L2_T200 ? DL_TIMER200_IND : DL_TIMER203_IND;
 	hh->id = l2->ch.nr;
-	if (*debug & DEBUG_TIMER)
-		printk(KERN_DEBUG "%s: L2(%d,%d) nr:%x timer %s expired\n",
+	if (*de & DE_TIMER)
+		printk(KERN_DE "%s: L2(%d,%d) nr:%x timer %s expired\n",
 		       mISDNDevName4ch(&l2->ch), l2->sapi, l2->tei,
 		       l2->ch.nr, event == EV_L2_T200 ? "T200" : "T203");
 	if (l2->ch.st)
@@ -573,15 +573,15 @@ FRMR_error(struct layer2 *l2, struct sk_buff *skb)
 	if (test_bit(FLG_MOD128, &l2->flag)) {
 		if (skb->len < headers + 5)
 			return 'N';
-		else if (*debug & DEBUG_L2)
-			l2m_debug(&l2->l2m,
+		else if (*de & DE_L2)
+			l2m_de(&l2->l2m,
 				  "FRMR information %2x %2x %2x %2x %2x",
 				  datap[0], datap[1], datap[2], datap[3], datap[4]);
 	} else {
 		if (skb->len < headers + 3)
 			return 'N';
-		else if (*debug & DEBUG_L2)
-			l2m_debug(&l2->l2m,
+		else if (*de & DE_L2)
+			l2m_de(&l2->l2m,
 				  "FRMR information %2x %2x %2x",
 				  datap[0], datap[1], datap[2]);
 	}
@@ -1232,7 +1232,7 @@ l2_st7_got_super(struct FsmInst *fi, int event, void *arg)
 			stop_t200(l2, 10);
 			if (mISDN_FsmAddTimer(&l2->t203, l2->T203,
 					      EV_L2_T203, NULL, 6))
-				l2m_debug(&l2->l2m, "Restart T203 ST7 REJ");
+				l2m_de(&l2->l2m, "Restart T203 ST7 REJ");
 		} else if ((nr == l2->vs) && (typ == RR)) {
 			setva(l2, nr);
 			stop_t200(l2, 11);
@@ -1891,8 +1891,8 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
 			/* not our business */
-			if (*debug & DEBUG_L2)
-				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
+			if (*de & DE_L2)
+				printk(KERN_DE "%s: sapi %d/%d mismatch\n",
 				       mISDNDevName4ch(&l2->ch), psapi,
 				       l2->sapi);
 			dev_kfree_skb(skb);
@@ -1900,8 +1900,8 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
 			/* not our business */
-			if (*debug & DEBUG_L2)
-				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
+			if (*de & DE_L2)
+				printk(KERN_DE "%s: tei %d/%d mismatch\n",
 				       mISDNDevName4ch(&l2->ch), ptei, l2->tei);
 			dev_kfree_skb(skb);
 			return 0;
@@ -1957,16 +1957,16 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 	struct mISDNhead	*hh =  mISDN_HEAD_P(skb);
 	int			ret = -EINVAL;
 
-	if (*debug & DEBUG_L2_RECV)
-		printk(KERN_DEBUG "%s: %s prim(%x) id(%x) sapi(%d) tei(%d)\n",
+	if (*de & DE_L2_RECV)
+		printk(KERN_DE "%s: %s prim(%x) id(%x) sapi(%d) tei(%d)\n",
 		       __func__, mISDNDevName4ch(&l2->ch), hh->prim, hh->id,
 		       l2->sapi, l2->tei);
 	if (hh->prim == DL_INTERN_MSG) {
 		struct mISDNhead *chh = hh + 1; /* saved copy */
 
 		*hh = *chh;
-		if (*debug & DEBUG_L2_RECV)
-			printk(KERN_DEBUG "%s: prim(%x) id(%x) internal msg\n",
+		if (*de & DE_L2_RECV)
+			printk(KERN_DE "%s: prim(%x) id(%x) internal msg\n",
 				mISDNDevName4ch(&l2->ch), hh->prim, hh->id);
 	}
 	switch (hh->prim) {
@@ -2031,8 +2031,8 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 		mISDN_FsmEvent(&l2->l2m, EV_L2_T203I, NULL);
 		break;
 	default:
-		if (*debug & DEBUG_L2)
-			l2m_debug(&l2->l2m, "l2 unknown pr %04x",
+		if (*de & DE_L2)
+			l2m_de(&l2->l2m, "l2 unknown pr %04x",
 				  hh->prim);
 	}
 	if (ret) {
@@ -2047,8 +2047,8 @@ tei_l2(struct layer2 *l2, u_int cmd, u_long arg)
 {
 	int		ret = -EINVAL;
 
-	if (*debug & DEBUG_L2_TEI)
-		printk(KERN_DEBUG "%s: cmd(%x) in %s\n",
+	if (*de & DE_L2_TEI)
+		printk(KERN_DE "%s: cmd(%x) in %s\n",
 		       mISDNDevName4ch(&l2->ch), cmd, __func__);
 	switch (cmd) {
 	case (MDL_ASSIGN_REQ):
@@ -2094,8 +2094,8 @@ l2_ctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	struct layer2		*l2 = container_of(ch, struct layer2, ch);
 	u_int			info;
 
-	if (*debug & DEBUG_L2_CTRL)
-		printk(KERN_DEBUG "%s: %s cmd(%x)\n",
+	if (*de & DE_L2_CTRL)
+		printk(KERN_DE "%s: %s cmd(%x)\n",
 		       mISDNDevName4ch(ch), __func__, cmd);
 
 	switch (cmd) {
@@ -2213,10 +2213,10 @@ create_l2(struct mISDNchannel *ch, u_int protocol, u_long options, int tei,
 		l2->l2m.state = ST_L2_4;
 	else
 		l2->l2m.state = ST_L2_1;
-	l2->l2m.debug = *debug;
+	l2->l2m.de = *de;
 	l2->l2m.userdata = l2;
 	l2->l2m.userint = 0;
-	l2->l2m.printdebug = l2m_debug;
+	l2->l2m.printde = l2m_de;
 
 	mISDN_FsmInitTimer(&l2->l2m, &l2->t200);
 	mISDN_FsmInitTimer(&l2->l2m, &l2->t203);
@@ -2248,7 +2248,7 @@ int
 Isdnl2_Init(u_int *deb)
 {
 	int res;
-	debug = deb;
+	de = deb;
 	mISDN_register_Bprotocol(&X75SLP);
 	l2fsm.state_count = L2_STATE_COUNT;
 	l2fsm.event_count = L2_EVENT_COUNT;

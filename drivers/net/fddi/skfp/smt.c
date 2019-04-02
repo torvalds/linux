@@ -954,7 +954,7 @@ static void smt_send_nif(struct s_smc *smc, const struct fddi_addr *dest,
 	smt_send_frame(smc,mb,fc,local) ;
 }
 
-#ifdef	DEBUG
+#ifdef	DE
 /*
  * send NIF request (test purpose)
  */
@@ -1719,7 +1719,7 @@ void fddi_send_antc(struct s_smc *smc, struct fddi_addr *dest)
 }
 #endif
 
-#ifdef	DEBUG
+#ifdef	DE
 char *addr_to_string(struct fddi_addr *addr)
 {
 	int	i ;

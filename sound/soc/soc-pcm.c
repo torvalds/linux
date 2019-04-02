@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -598,12 +598,12 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
-	pr_debug("ASoC: %s <-> %s info:\n",
+	pr_de("ASoC: %s <-> %s info:\n",
 			codec_dai_name, cpu_dai->name);
-	pr_debug("ASoC: rate mask 0x%x\n", runtime->hw.rates);
-	pr_debug("ASoC: min ch %d max ch %d\n", runtime->hw.channels_min,
+	pr_de("ASoC: rate mask 0x%x\n", runtime->hw.rates);
+	pr_de("ASoC: min ch %d max ch %d\n", runtime->hw.channels_min,
 		 runtime->hw.channels_max);
-	pr_debug("ASoC: min rate %d max rate %d\n", runtime->hw.rate_min,
+	pr_de("ASoC: min rate %d max rate %d\n", runtime->hw.rate_min,
 		 runtime->hw.rate_max);
 
 dynamic:
@@ -1235,10 +1235,10 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 			stream ? "capture" : "playback",  fe->dai_link->name,
 			stream ? "<-" : "->", be->dai_link->name);
 
-#ifdef CONFIG_DEBUG_FS
-	if (fe->debugfs_dpcm_root)
-		dpcm->debugfs_state = debugfs_create_u32(be->dai_link->name, 0644,
-				fe->debugfs_dpcm_root, &dpcm->state);
+#ifdef CONFIG_DE_FS
+	if (fe->defs_dpcm_root)
+		dpcm->defs_state = defs_create_u32(be->dai_link->name, 0644,
+				fe->defs_dpcm_root, &dpcm->state);
 #endif
 	return 1;
 }
@@ -1291,8 +1291,8 @@ void dpcm_be_disconnect(struct snd_soc_pcm_runtime *fe, int stream)
 		/* BEs still alive need new FE */
 		dpcm_be_reparent(fe, dpcm->be, stream);
 
-#ifdef CONFIG_DEBUG_FS
-		debugfs_remove(dpcm->debugfs_state);
+#ifdef CONFIG_DE_FS
+		defs_remove(dpcm->defs_state);
 #endif
 		list_del(&dpcm->list_be);
 		list_del(&dpcm->list_fe);
@@ -3267,7 +3267,7 @@ int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_params);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 {
 	switch (state) {
@@ -3385,24 +3385,24 @@ static const struct file_operations dpcm_state_fops = {
 	.llseek = default_llseek,
 };
 
-void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
+void soc_dpcm_defs_add(struct snd_soc_pcm_runtime *rtd)
 {
 	if (!rtd->dai_link)
 		return;
 
-	if (!rtd->card->debugfs_card_root)
+	if (!rtd->card->defs_card_root)
 		return;
 
-	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
-			rtd->card->debugfs_card_root);
-	if (!rtd->debugfs_dpcm_root) {
+	rtd->defs_dpcm_root = defs_create_dir(rtd->dai_link->name,
+			rtd->card->defs_card_root);
+	if (!rtd->defs_dpcm_root) {
 		dev_dbg(rtd->dev,
-			 "ASoC: Failed to create dpcm debugfs directory %s\n",
+			 "ASoC: Failed to create dpcm defs directory %s\n",
 			 rtd->dai_link->name);
 		return;
 	}
 
-	debugfs_create_file("state", 0444, rtd->debugfs_dpcm_root,
+	defs_create_file("state", 0444, rtd->defs_dpcm_root,
 			    rtd, &dpcm_state_fops);
 }
 #endif

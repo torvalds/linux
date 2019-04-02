@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/uaccess.h>
-#include <asm/pci_debug.h>
+#include <asm/pci_de.h>
 #include <asm/pci_clp.h>
 #include <asm/clp.h>
 #include <uapi/asm/clp.h>

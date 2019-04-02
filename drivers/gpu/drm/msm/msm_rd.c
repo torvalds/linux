@@ -15,9 +15,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* For debugging crashes, userspace can:
+/* For deging crashes, userspace can:
  *
- *   tail -f /sys/kernel/debug/dri/<minor>/rd > logfile.rd
+ *   tail -f /sys/kernel/de/dri/<minor>/rd > logfile.rd
  *
  * to log the cmdstream in a format that is understood by freedreno/cffdump
  * utility.  By comparing the last successfully completed fence #, to the
@@ -26,13 +26,13 @@
  *
  * Additionally:
  *
- *   tail -f /sys/kernel/debug/dri/<minor>/hangrd > logfile.rd
+ *   tail -f /sys/kernel/de/dri/<minor>/hangrd > logfile.rd
  *
  * will capture just the cmdstream from submits which triggered a GPU hang.
  *
- * This bypasses drm_debugfs_create_files() mainly because we need to use
+ * This bypasses drm_defs_create_files() mainly because we need to use
  * our own fops for a bit more control.  In particular, we don't want to
- * do anything if userspace doesn't have the debugfs file open.
+ * do anything if userspace doesn't have the defs file open.
  *
  * The module-param "rd_full", which defaults to false, enables snapshotting
  * all (non-written) buffers in the submit, rather than just cmdstream bo's.
@@ -40,10 +40,10 @@
  * or shader programs (if not emitted inline in cmdstream).
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #include <linux/kfifo.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/circ_buf.h>
 #include <linux/wait.h>
 
@@ -52,7 +52,7 @@
 #include "msm_gem.h"
 
 static bool rd_full = false;
-MODULE_PARM_DESC(rd_full, "If true, $debugfs/.../rd will snapshot all buffer contents");
+MODULE_PARM_DESC(rd_full, "If true, $defs/.../rd will snapshot all buffer contents");
 module_param_named(rd_full, rd_full, bool, 0600);
 
 enum rd_sect_type {
@@ -223,7 +223,7 @@ static int rd_release(struct inode *inode, struct file *file)
 }
 
 
-static const struct file_operations rd_debugfs_fops = {
+static const struct file_operations rd_defs_fops = {
 	.owner = THIS_MODULE,
 	.open = rd_open,
 	.read = rd_read,
@@ -258,11 +258,11 @@ static struct msm_rd_state *rd_init(struct drm_minor *minor, const char *name)
 
 	init_waitqueue_head(&rd->fifo_event);
 
-	ent = debugfs_create_file(name, S_IFREG | S_IRUGO,
-			minor->debugfs_root, rd, &rd_debugfs_fops);
+	ent = defs_create_file(name, S_IFREG | S_IRUGO,
+			minor->defs_root, rd, &rd_defs_fops);
 	if (!ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/%s\n",
-				minor->debugfs_root, name);
+		DRM_ERROR("Cannot create /sys/kernel/de/dri/%pd/%s\n",
+				minor->defs_root, name);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -274,7 +274,7 @@ fail:
 	return ERR_PTR(ret);
 }
 
-int msm_rd_debugfs_init(struct drm_minor *minor)
+int msm_rd_defs_init(struct drm_minor *minor)
 {
 	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_rd_state *rd;
@@ -303,11 +303,11 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	return 0;
 
 fail:
-	msm_rd_debugfs_cleanup(priv);
+	msm_rd_defs_cleanup(priv);
 	return ret;
 }
 
-void msm_rd_debugfs_cleanup(struct msm_drm_private *priv)
+void msm_rd_defs_cleanup(struct msm_drm_private *priv)
 {
 	rd_cleanup(priv->rd);
 	priv->rd = NULL;

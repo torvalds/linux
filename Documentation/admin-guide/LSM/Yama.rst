@@ -24,7 +24,7 @@ This is not a theoretical problem. SSH session hijacking
 (http://c-skills.blogspot.com/2007/05/injectso.html) attacks already
 exist and remain possible if ptrace is allowed to operate as before.
 Since ptrace is not commonly used by non-developers and non-admins, system
-builders should be allowed the option to disable this debugging system.
+builders should be allowed the option to disable this deging system.
 
 For a solution, some applications use ``prctl(PR_SET_DUMPABLE, ...)`` to
 specifically disallow such ptrace attachment (e.g. ssh-agent), but many
@@ -34,10 +34,10 @@ work), or with ``CAP_SYS_PTRACE`` (i.e. "gdb --pid=PID", and "strace -p PID"
 still work as root).
 
 In mode 1, software that has defined application-specific relationships
-between a debugging process and its inferior (crash handlers, etc),
+between a deging process and its inferior (crash handlers, etc),
 ``prctl(PR_SET_PTRACER, pid, ...)`` can be used. An inferior can declare which
 other process (and its descendants) are allowed to call ``PTRACE_ATTACH``
-against it. Only one such declared debugging process can exists for
+against it. Only one such declared deging process can exists for
 each inferior at a time. For example, this is used by KDE, Chromium, and
 Firefox's crash handlers, and by Wine for allowing only Wine processes
 to ptrace each other. If a process wishes to entirely disable these ptrace
@@ -59,8 +59,8 @@ The sysctl settings (writable only with ``CAP_SYS_PTRACE``) are:
     with the inferior it wants to call ``PTRACE_ATTACH`` on. By default,
     this relationship is that of only its descendants when the above
     classic criteria is also met. To change the relationship, an
-    inferior can call ``prctl(PR_SET_PTRACER, debugger, ...)`` to declare
-    an allowed debugger PID to call ``PTRACE_ATTACH`` on the inferior.
+    inferior can call ``prctl(PR_SET_PTRACER, deger, ...)`` to declare
+    an allowed deger PID to call ``PTRACE_ATTACH`` on the inferior.
     Using ``PTRACE_TRACEME`` is unchanged.
 
 2 - admin-only attach:

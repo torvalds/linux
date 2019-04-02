@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/utsname.h>
 
-#include "debug.h"
+#include "de.h"
 #include "hw.h"
 
 static const struct ath10k_mem_section qca6174_hw21_register_sections[] = {
@@ -1072,7 +1072,7 @@ static u32 ath10k_coredump_get_ramdump_size(struct ath10k *ar)
 	/* reserve space for the headers */
 	size += hw->region_table.size * sizeof(struct ath10k_dump_ram_data_hdr);
 
-	/* make sure it is aligned 16 bytes for debug message print out */
+	/* make sure it is aligned 16 bytes for de message print out */
 	size = ALIGN(size, 16);
 
 	return size;

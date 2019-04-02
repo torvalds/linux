@@ -28,48 +28,48 @@
 #define NET_9P_H
 
 /**
- * enum p9_debug_flags - bits for mount time debug parameter
- * @P9_DEBUG_ERROR: more verbose error messages including original error string
- * @P9_DEBUG_9P: 9P protocol tracing
- * @P9_DEBUG_VFS: VFS API tracing
- * @P9_DEBUG_CONV: protocol conversion tracing
- * @P9_DEBUG_MUX: trace management of concurrent transactions
- * @P9_DEBUG_TRANS: transport tracing
- * @P9_DEBUG_SLABS: memory management tracing
- * @P9_DEBUG_FCALL: verbose dump of protocol messages
- * @P9_DEBUG_FID: fid allocation/deallocation tracking
- * @P9_DEBUG_PKT: packet marshalling/unmarshalling
- * @P9_DEBUG_FSC: FS-cache tracing
- * @P9_DEBUG_VPKT: Verbose packet debugging (full packet dump)
+ * enum p9_de_flags - bits for mount time de parameter
+ * @P9_DE_ERROR: more verbose error messages including original error string
+ * @P9_DE_9P: 9P protocol tracing
+ * @P9_DE_VFS: VFS API tracing
+ * @P9_DE_CONV: protocol conversion tracing
+ * @P9_DE_MUX: trace management of concurrent transactions
+ * @P9_DE_TRANS: transport tracing
+ * @P9_DE_SLABS: memory management tracing
+ * @P9_DE_FCALL: verbose dump of protocol messages
+ * @P9_DE_FID: fid allocation/deallocation tracking
+ * @P9_DE_PKT: packet marshalling/unmarshalling
+ * @P9_DE_FSC: FS-cache tracing
+ * @P9_DE_VPKT: Verbose packet deging (full packet dump)
  *
  * These flags are passed at mount time to turn on various levels of
  * verbosity and tracing which will be output to the system logs.
  */
 
-enum p9_debug_flags {
-	P9_DEBUG_ERROR = 	(1<<0),
-	P9_DEBUG_9P = 		(1<<2),
-	P9_DEBUG_VFS =		(1<<3),
-	P9_DEBUG_CONV =		(1<<4),
-	P9_DEBUG_MUX =		(1<<5),
-	P9_DEBUG_TRANS =	(1<<6),
-	P9_DEBUG_SLABS =      	(1<<7),
-	P9_DEBUG_FCALL =	(1<<8),
-	P9_DEBUG_FID =		(1<<9),
-	P9_DEBUG_PKT =		(1<<10),
-	P9_DEBUG_FSC =		(1<<11),
-	P9_DEBUG_VPKT =		(1<<12),
+enum p9_de_flags {
+	P9_DE_ERROR = 	(1<<0),
+	P9_DE_9P = 		(1<<2),
+	P9_DE_VFS =		(1<<3),
+	P9_DE_CONV =		(1<<4),
+	P9_DE_MUX =		(1<<5),
+	P9_DE_TRANS =	(1<<6),
+	P9_DE_SLABS =      	(1<<7),
+	P9_DE_FCALL =	(1<<8),
+	P9_DE_FID =		(1<<9),
+	P9_DE_PKT =		(1<<10),
+	P9_DE_FSC =		(1<<11),
+	P9_DE_VPKT =		(1<<12),
 };
 
-#ifdef CONFIG_NET_9P_DEBUG
-extern unsigned int p9_debug_level;
+#ifdef CONFIG_NET_9P_DE
+extern unsigned int p9_de_level;
 __printf(3, 4)
-void _p9_debug(enum p9_debug_flags level, const char *func,
+void _p9_de(enum p9_de_flags level, const char *func,
 	       const char *fmt, ...);
-#define p9_debug(level, fmt, ...)			\
-	_p9_debug(level, __func__, fmt, ##__VA_ARGS__)
+#define p9_de(level, fmt, ...)			\
+	_p9_de(level, __func__, fmt, ##__VA_ARGS__)
 #else
-#define p9_debug(level, fmt, ...)			\
+#define p9_de(level, fmt, ...)			\
 	no_printk(fmt, ##__VA_ARGS__)
 #endif
 

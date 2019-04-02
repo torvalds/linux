@@ -266,7 +266,7 @@ struct COFF_syment
 union COFF_auxent {
 
 /*
- *  Debugger information
+ *  Deger information
  */
 
   struct {
@@ -294,7 +294,7 @@ union COFF_auxent {
   } x_sym;
 
 /*
- *   Source file names (debugger information)
+ *   Source file names (deger information)
  */
 
   union {

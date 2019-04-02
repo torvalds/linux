@@ -281,7 +281,7 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
 	spin_lock(&fi->lock);
 	memset(req, 0, sizeof(*req));
 	fuse_request_init(req, NULL, NULL, 0);
-	BUG_ON(ff->reserved_req);
+	_ON(ff->reserved_req);
 	ff->reserved_req = req;
 	wake_up_all(&fc->reserved_req_waitq);
 	spin_unlock(&fi->lock);
@@ -558,7 +558,7 @@ static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct fuse_iqueue *fiq = &fc->iq;
 
-	BUG_ON(test_bit(FR_BACKGROUND, &req->flags));
+	_ON(test_bit(FR_BACKGROUND, &req->flags));
 	spin_lock(&fiq->waitq.lock);
 	if (!fiq->connected) {
 		spin_unlock(&fiq->waitq.lock);
@@ -645,7 +645,7 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	fuse_request_send(fc, req);
 	ret = req->out.h.error;
 	if (!ret && args->out.argvar) {
-		BUG_ON(args->out.numargs != 1);
+		_ON(args->out.numargs != 1);
 		ret = req->out.args[0].size;
 	}
 	fuse_put_request(fc, req);
@@ -831,7 +831,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 			if (err)
 				return err;
 
-			BUG_ON(!cs->nr_segs);
+			_ON(!cs->nr_segs);
 			cs->currbuf = buf;
 			cs->pg = buf->page;
 			cs->offset = buf->offset;
@@ -862,7 +862,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 		err = iov_iter_get_pages(cs->iter, &page, PAGE_SIZE, 1, &off);
 		if (err < 0)
 			return err;
-		BUG_ON(!err);
+		_ON(!err);
 		cs->len = err;
 		cs->offset = off;
 		cs->pg = page;
@@ -930,7 +930,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (err)
 		return err;
 
-	BUG_ON(!cs->nr_segs);
+	_ON(!cs->nr_segs);
 	cs->currbuf = buf;
 	cs->len = buf->len;
 	cs->pipebufs++;
@@ -2066,8 +2066,8 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 		struct pipe_buffer *ibuf;
 		struct pipe_buffer *obuf;
 
-		BUG_ON(nbuf >= pipe->buffers);
-		BUG_ON(!pipe->nrbufs);
+		_ON(nbuf >= pipe->buffers);
+		_ON(!pipe->nrbufs);
 		ibuf = &pipe->bufs[pipe->curbuf];
 		obuf = &bufs[nbuf];
 

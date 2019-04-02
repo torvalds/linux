@@ -50,7 +50,7 @@ qedf_dbg_warn(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	if (!(qedf_debug & QEDF_LOG_WARN))
+	if (!(qedf_de & QEDF_LOG_WARN))
 		goto ret;
 
 	if (likely(qedf) && likely(qedf->pdev))
@@ -79,7 +79,7 @@ qedf_dbg_notice(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	if (!(qedf_debug & QEDF_LOG_NOTICE))
+	if (!(qedf_de & QEDF_LOG_NOTICE))
 		goto ret;
 
 	if (likely(qedf) && likely(qedf->pdev))
@@ -109,7 +109,7 @@ qedf_dbg_info(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 	vaf.fmt = fmt;
 	vaf.va = &va;
 
-	if (!(qedf_debug & level))
+	if (!(qedf_de & level))
 		goto ret;
 
 	if (likely(qedf) && likely(qedf->pdev))

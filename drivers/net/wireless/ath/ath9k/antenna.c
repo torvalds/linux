@@ -838,7 +838,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 div_comb_done:
 	ath_ant_div_conf_fast_divbias(&div_ant_conf, antcomb, alt_ratio);
 	ath9k_hw_antdiv_comb_conf_set(sc->sc_ah, &div_ant_conf);
-	ath9k_debug_stat_ant(sc, &div_ant_conf, main_rssi_avg, alt_rssi_avg);
+	ath9k_de_stat_ant(sc, &div_ant_conf, main_rssi_avg, alt_rssi_avg);
 
 	antcomb->scan_start_time = jiffies;
 	antcomb->total_pkt_count = 0;

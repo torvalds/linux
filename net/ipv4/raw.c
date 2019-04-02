@@ -22,7 +22,7 @@
  *		Alan Cox	:	Fixed error return for broadcasts
  *		Alan Cox	:	Removed wake_up calls
  *		Alan Cox	:	Use ttl/tos
- *		Alan Cox	:	Cleaned up old debugging
+ *		Alan Cox	:	Cleaned up old deging
  *		Alan Cox	:	Use new kernel side addresses
  *	Arnt Gulbrandsen	:	Fixed MSG_DONTROUTE in raw sockets.
  *		Alan Cox	:	BSD style RAW socket demultiplexing.

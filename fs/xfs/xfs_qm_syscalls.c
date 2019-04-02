@@ -264,7 +264,7 @@ xfs_qm_scall_trunc_qfiles(
 
 	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0 ||
 	    (flags & ~XFS_DQ_ALLTYPES)) {
-		xfs_debug(mp, "%s: flags=%x m_qflags=%x",
+		xfs_de(mp, "%s: flags=%x m_qflags=%x",
 			__func__, flags, mp->m_qflags);
 		return -EINVAL;
 	}
@@ -305,7 +305,7 @@ xfs_qm_scall_quotaon(
 	flags &= ~(XFS_ALL_QUOTA_ACCT);
 
 	if (flags == 0) {
-		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
+		xfs_de(mp, "%s: zero flags, m_qflags=%x",
 			__func__, mp->m_qflags);
 		return -EINVAL;
 	}
@@ -321,7 +321,7 @@ xfs_qm_scall_quotaon(
 	     (flags & XFS_GQUOTA_ENFD)) ||
 	    ((mp->m_sb.sb_qflags & XFS_PQUOTA_ACCT) == 0 &&
 	     (flags & XFS_PQUOTA_ENFD))) {
-		xfs_debug(mp,
+		xfs_de(mp,
 			"%s: Can't enforce without acct, flags=%x sbflags=%x",
 			__func__, flags, mp->m_sb.sb_qflags);
 		return -EINVAL;
@@ -449,7 +449,7 @@ xfs_qm_scall_setqlim(
 			defq->bsoftlimit = soft;
 		}
 	} else {
-		xfs_debug(mp, "blkhard %Ld < blksoft %Ld", hard, soft);
+		xfs_de(mp, "blkhard %Ld < blksoft %Ld", hard, soft);
 	}
 	hard = (newlim->d_fieldmask & QC_RT_SPC_HARD) ?
 		(xfs_qcnt_t) XFS_B_TO_FSB(mp, newlim->d_rt_spc_hardlimit) :
@@ -465,7 +465,7 @@ xfs_qm_scall_setqlim(
 			defq->rtbsoftlimit = soft;
 		}
 	} else {
-		xfs_debug(mp, "rtbhard %Ld < rtbsoft %Ld", hard, soft);
+		xfs_de(mp, "rtbhard %Ld < rtbsoft %Ld", hard, soft);
 	}
 
 	hard = (newlim->d_fieldmask & QC_INO_HARD) ?
@@ -482,7 +482,7 @@ xfs_qm_scall_setqlim(
 			defq->isoftlimit = soft;
 		}
 	} else {
-		xfs_debug(mp, "ihard %Ld < isoft %Ld", hard, soft);
+		xfs_de(mp, "ihard %Ld < isoft %Ld", hard, soft);
 	}
 
 	/*
@@ -656,7 +656,7 @@ xfs_qm_scall_getquota_fill_qc(
 		dst->d_rt_spc_timer = 0;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	if (((XFS_IS_UQUOTA_ENFORCED(mp) && type == XFS_DQ_USER) ||
 	     (XFS_IS_GQUOTA_ENFORCED(mp) && type == XFS_DQ_GROUP) ||
 	     (XFS_IS_PQUOTA_ENFORCED(mp) && type == XFS_DQ_PROJ)) &&

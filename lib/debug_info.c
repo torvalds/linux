@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This file exists solely to ensure debug information for some core
+ * This file exists solely to ensure de information for some core
  * data structures is included in the final image even for
- * CONFIG_DEBUG_INFO_REDUCED. Please do not add actual code. However,
+ * CONFIG_DE_INFO_REDUCED. Please do not add actual code. However,
  * adding appropriate #includes is fine.
  */
 #include <stdarg.h>

@@ -40,7 +40,7 @@ static struct unittest_results {
 		pr_err("FAIL %s():%i " fmt, __func__, __LINE__, ##__VA_ARGS__); \
 	} else { \
 		unittest_results.passed++; \
-		pr_debug("pass %s():%i\n", __func__, __LINE__); \
+		pr_de("pass %s():%i\n", __func__, __LINE__); \
 	} \
 	failed; \
 })
@@ -246,7 +246,7 @@ static void __init of_unittest_check_tree_linkage(void)
 	unittest(child_count == allnode_count,
 		 "allnodes list size (%i) doesn't match sibling lists size (%i)\n",
 		 allnode_count, child_count);
-	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
+	pr_de("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
 }
 
 static void __init of_unittest_printf_one(struct device_node *np, const char *fmt,
@@ -1052,7 +1052,7 @@ static void __init of_unittest_platform_populate(void)
 	 * Add a dummy resource to the test bus node after it is
 	 * registered to catch problems with un-inserted resources. The
 	 * DT code doesn't insert the resources, and it has caused the
-	 * kernel to oops in the past. This makes sure the same bug
+	 * kernel to oops in the past. This makes sure the same 
 	 * doesn't crop up again.
 	 */
 	platform_device_add_resources(test_bus, &test_bus_res, 1);
@@ -1431,7 +1431,7 @@ static void of_unittest_track_overlay(int id)
 	id -= overlay_first_id;
 
 	/* we shouldn't need that many */
-	BUG_ON(id >= MAX_UNITTEST_OVERLAYS);
+	_ON(id >= MAX_UNITTEST_OVERLAYS);
 	overlay_id_bits[BIT_WORD(id)] |= BIT_MASK(id);
 }
 
@@ -1440,7 +1440,7 @@ static void of_unittest_untrack_overlay(int id)
 	if (overlay_first_id < 0)
 		return;
 	id -= overlay_first_id;
-	BUG_ON(id >= MAX_UNITTEST_OVERLAYS);
+	_ON(id >= MAX_UNITTEST_OVERLAYS);
 	overlay_id_bits[BIT_WORD(id)] &= ~BIT_MASK(id);
 }
 
@@ -2354,7 +2354,7 @@ static int __init overlay_data_apply(const char *overlay_name, int *overlay_id)
 	if (ret < 0)
 		goto out;
 
-	pr_debug("%s applied\n", overlay_name);
+	pr_de("%s applied\n", overlay_name);
 
 out:
 	if (ret != info->expected_result)

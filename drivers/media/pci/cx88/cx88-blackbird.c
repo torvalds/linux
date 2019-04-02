@@ -40,13 +40,13 @@ MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages [blackbird]");
+static unsigned int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "enable de messages [blackbird]");
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (debug + 1 > level)						\
-		printk(KERN_DEBUG pr_fmt("%s: blackbird:" fmt),		\
+	if (de + 1 > level)						\
+		printk(KERN_DE pr_fmt("%s: blackbird:" fmt),		\
 			__func__, ##arg);				\
 } while (0)
 

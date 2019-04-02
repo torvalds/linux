@@ -12,7 +12,7 @@
 #include "protocol.h"
 #include "scsiglue.h"
 #include "sierra_ms.h"
-#include "debug.h"
+#include "de.h"
 
 #define SWIMS_USB_REQUEST_SetSwocMode	0x0B
 #define SWIMS_USB_REQUEST_GetSwocInfo	0x0A
@@ -82,7 +82,7 @@ static int sierra_get_swoc_info(struct usb_device *udev,
 	return result;
 }
 
-static void debug_swoc(const struct device *dev, struct swoc_info *swocInfo)
+static void de_swoc(const struct device *dev, struct swoc_info *swocInfo)
 {
 	dev_dbg(dev, "SWIMS: SWoC Rev: %02d\n", swocInfo->rev);
 	dev_dbg(dev, "SWIMS: Linux SKU: %04X\n", swocInfo->LinuxSKU);
@@ -112,7 +112,7 @@ static ssize_t truinst_show(struct device *dev, struct device_attribute *attr,
 			snprintf(buf, PAGE_SIZE, "Error\n");
 			return -EIO;
 		}
-		debug_swoc(dev, swocInfo);
+		de_swoc(dev, swocInfo);
 		result = snprintf(buf, PAGE_SIZE,
 			"REV=%02d SKU=%04X VER=%04X\n",
 			swocInfo->rev,
@@ -176,7 +176,7 @@ int sierra_ms_init(struct us_data *us)
 			return -EIO;
 		}
 
-		debug_swoc(&us->pusb_dev->dev, swocInfo);
+		de_swoc(&us->pusb_dev->dev, swocInfo);
 
 		/*
 		 * If there is not Linux software on the TRU-Install device

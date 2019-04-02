@@ -7,7 +7,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-	Please submit bugs to http://bugzilla.kernel.org/ .
+	Please submit s to http://zilla.kernel.org/ .
 */
 
 #include <linux/interrupt.h>
@@ -37,7 +37,7 @@ void pnic_do_nway(struct net_device *dev)
 			tp->full_duplex = 1;
 			new_csr6 |= 0x00000200;
 		}
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			netdev_dbg(dev, "PNIC autonegotiated status %08x, %s\n",
 				   phy_reg, medianame[dev->if_port]);
 		if (tp->csr6 != new_csr6) {
@@ -55,7 +55,7 @@ void pnic_lnk_change(struct net_device *dev, int csr5)
 	void __iomem *ioaddr = tp->base_addr;
 	int phy_reg = ioread32(ioaddr + 0xB8);
 
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		netdev_dbg(dev, "PNIC link changed state %08x, CSR5 %08x\n",
 			   phy_reg, csr5);
 	if (ioread32(ioaddr + CSR5) & TPLnkFail) {
@@ -111,7 +111,7 @@ void pnic_timer(struct timer_list *t)
 		int phy_reg = ioread32(ioaddr + 0xB8);
 		int csr5 = ioread32(ioaddr + CSR5);
 
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			netdev_dbg(dev, "PNIC timer PHY status %08x, %s CSR5 %08x\n",
 				   phy_reg, medianame[dev->if_port], csr5);
 		if (phy_reg & 0x04000000) {	/* Remote link fault */
@@ -122,7 +122,7 @@ void pnic_timer(struct timer_list *t)
 			pnic_do_nway(dev);
 			next_tick = 60*HZ;
 		} else if (csr5 & TPLnkFail) { /* 100baseTx link beat */
-			if (tulip_debug > 1)
+			if (tulip_de > 1)
 				netdev_dbg(dev, "%s link beat failed, CSR12 %04x, CSR5 %08x, PHY %03x\n",
 					   medianame[dev->if_port],
 					   csr12,
@@ -148,7 +148,7 @@ void pnic_timer(struct timer_list *t)
 				/* Restart Tx */
 				tulip_restart_rxtx(tp);
 				netif_trans_update(dev);
-				if (tulip_debug > 1)
+				if (tulip_de > 1)
 					dev_info(&dev->dev,
 						 "Changing PNIC configuration to %s %s-duplex, CSR6 %08x\n",
 						 medianame[dev->if_port],
@@ -160,7 +160,7 @@ void pnic_timer(struct timer_list *t)
 too_good_connection:
 	mod_timer(&tp->timer, RUN_AT(next_tick));
 	if(!ioread32(ioaddr + CSR7)) {
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev, "sw timer wakeup\n");
 		disable_irq(dev->irq);
 		tulip_refill_rx(dev);

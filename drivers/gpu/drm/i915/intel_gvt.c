@@ -99,7 +99,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return -ENODEV;
 
 	if (!i915_modparams.enable_gvt) {
-		DRM_DEBUG_DRIVER("GVT-g is disabled by kernel params\n");
+		DRM_DE_DRIVER("GVT-g is disabled by kernel params\n");
 		return 0;
 	}
 
@@ -110,7 +110,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 
 	ret = intel_gvt_init_device(dev_priv);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Fail to init GVT device\n");
+		DRM_DE_DRIVER("Fail to init GVT device\n");
 		goto bail;
 	}
 

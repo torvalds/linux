@@ -57,8 +57,8 @@ struct psc724_spec {
  *    use I2S, not AC97
  *
  *  I2S converters feature ICE_EEP2_I2S=0x30
- *    I2S codec has no volume/mute control feature (bug!)
- *    I2S codec does not support 96KHz or 192KHz (bug!)
+ *    I2S codec has no volume/mute control feature (!)
+ *    I2S codec does not support 96KHz or 192KHz (!)
  *    I2S codec 24bits
  *
  *  S/PDIF configuration ICE_EEP2_SPDIF=0xc1
@@ -433,7 +433,7 @@ static void psc724_exit(struct snd_ice1712 *ice)
 	cancel_delayed_work_sync(&spec->hp_work);
 }
 
-/* PSC724 has buggy EEPROM (no 96&192kHz, all FFh GPIOs), so override it here */
+/* PSC724 has gy EEPROM (no 96&192kHz, all FFh GPIOs), so override it here */
 static unsigned char psc724_eeprom[] = {
 	[ICE_EEP2_SYSCONF]	= 0x42,	/* 49.152MHz, 1 ADC, 3 DACs */
 	[ICE_EEP2_ACLINK]	= 0x80,	/* I2S */

@@ -21,22 +21,22 @@
 #include "decl.h"
 #include "dev.h"
 #include "cfg.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "cmd.h"
 #include "mesh.h"
 
 #define DRIVER_RELEASE_VERSION "323.p0"
 const char lbs_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
-#ifdef  DEBUG
+#ifdef  DE
     "-dbg"
 #endif
     "";
 
 
 /* Module parameters */
-unsigned int lbs_debug;
-EXPORT_SYMBOL_GPL(lbs_debug);
-module_param_named(libertas_debug, lbs_debug, int, 0644);
+unsigned int lbs_de;
+EXPORT_SYMBOL_GPL(lbs_de);
+module_param_named(libertas_de, lbs_de, int, 0644);
 
 unsigned int lbs_disablemesh;
 EXPORT_SYMBOL_GPL(lbs_disablemesh);
@@ -1066,7 +1066,7 @@ int lbs_start_card(struct lbs_private *priv)
 	if (lbs_mesh_activated(priv))
 		lbs_start_mesh(priv);
 
-	lbs_debugfs_init_one(priv, dev);
+	lbs_defs_init_one(priv, dev);
 
 	netdev_info(dev, "Marvell WLAN 802.11 adapter\n");
 
@@ -1094,7 +1094,7 @@ void lbs_stop_card(struct lbs_private *priv)
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
 
-	lbs_debugfs_remove_one(priv);
+	lbs_defs_remove_one(priv);
 	lbs_deinit_mesh(priv);
 	unregister_netdev(dev);
 }
@@ -1124,7 +1124,7 @@ void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 		priv->psstate = PS_STATE_AWAKE;
 
 	/* Swap buffers by flipping the response index */
-	BUG_ON(resp_idx > 1);
+	_ON(resp_idx > 1);
 	priv->resp_idx = resp_idx;
 
 	wake_up(&priv->waitq);
@@ -1137,14 +1137,14 @@ static int __init lbs_init_module(void)
 	confirm_sleep.hdr.command = cpu_to_le16(CMD_802_11_PS_MODE);
 	confirm_sleep.hdr.size = cpu_to_le16(sizeof(confirm_sleep));
 	confirm_sleep.action = cpu_to_le16(PS_MODE_ACTION_SLEEP_CONFIRMED);
-	lbs_debugfs_init();
+	lbs_defs_init();
 
 	return 0;
 }
 
 static void __exit lbs_exit_module(void)
 {
-	lbs_debugfs_remove();
+	lbs_defs_remove();
 }
 
 module_init(lbs_init_module);

@@ -79,7 +79,7 @@ static bool get_hw_supported_ddc_line(
 	*line = GPIO_DDC_LINE_UNKNOWN;
 
 	if (!ddc) {
-		BREAK_TO_DEBUGGER();
+		BREAK_TO_DEGER();
 		return false;
 	}
 

@@ -24,7 +24,7 @@
 #define NBD_DO_IT	_IO( 0xab, 3 )
 #define NBD_CLEAR_SOCK	_IO( 0xab, 4 )
 #define NBD_CLEAR_QUE	_IO( 0xab, 5 )
-#define NBD_PRINT_DEBUG	_IO( 0xab, 6 )
+#define NBD_PRINT_DE	_IO( 0xab, 6 )
 #define NBD_SET_SIZE_BLOCKS	_IO( 0xab, 7 )
 #define NBD_DISCONNECT  _IO( 0xab, 8 )
 #define NBD_SET_TIMEOUT _IO( 0xab, 9 )

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "../perf.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "namespaces.h"
 #include <api/fs/fs.h>
 #include <sys/mman.h>
@@ -47,7 +47,7 @@ unsigned int page_size;
 static void cache_line_size(int *cacheline_sizep)
 {
 	if (sysfs__read_int("devices/system/cpu/cpu0/cache/index0/coherency_line_size", cacheline_sizep))
-		pr_debug("cannot determine cache line size");
+		pr_de("cannot determine cache line size");
 }
 #endif
 
@@ -185,7 +185,7 @@ static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 		/* We have to check symbolic link itself */
 		ret = lstat(namebuf, &statbuf);
 		if (ret < 0) {
-			pr_debug("stat failed: %s\n", namebuf);
+			pr_de("stat failed: %s\n", namebuf);
 			break;
 		}
 
@@ -403,7 +403,7 @@ static ssize_t ion(bool is_read, int fd, void *buf, size_t n)
 		buf  += ret;
 	}
 
-	BUG_ON((size_t)(buf - buf_start) != n);
+	_ON((size_t)(buf - buf_start) != n);
 	return n;
 }
 
@@ -470,7 +470,7 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 
 	vsig = fopen("/proc/version_signature", "r");
 	if (!vsig) {
-		pr_debug("Open /proc/version_signature failed: %s\n",
+		pr_de("Open /proc/version_signature failed: %s\n",
 			 strerror(errno));
 		return -1;
 	}
@@ -479,21 +479,21 @@ fetch_ubuntu_kernel_version(unsigned int *puint)
 	fclose(vsig);
 	err = -1;
 	if (len <= 0) {
-		pr_debug("Reading from /proc/version_signature failed: %s\n",
+		pr_de("Reading from /proc/version_signature failed: %s\n",
 			 strerror(errno));
 		goto errout;
 	}
 
 	ptr = strrchr(line, ' ');
 	if (!ptr) {
-		pr_debug("Parsing /proc/version_signature failed: %s\n", line);
+		pr_de("Parsing /proc/version_signature failed: %s\n", line);
 		goto errout;
 	}
 
 	err = sscanf(ptr + 1, "%d.%d.%d",
 		     &version, &patchlevel, &sublevel);
 	if (err != 3) {
-		pr_debug("Unable to get kernel version from /proc/version_signature '%s'\n",
+		pr_de("Unable to get kernel version from /proc/version_signature '%s'\n",
 			 line);
 		goto errout;
 	}
@@ -532,7 +532,7 @@ fetch_kernel_version(unsigned int *puint, char *str,
 		     &version, &patchlevel, &sublevel);
 
 	if (err != 3) {
-		pr_debug("Unable to get kernel version from uname '%s'\n",
+		pr_de("Unable to get kernel version from uname '%s'\n",
 			 utsname.release);
 		return -1;
 	}

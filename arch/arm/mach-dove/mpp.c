@@ -59,13 +59,13 @@ static void __init dove_mpp_gpio_mode(int start, int end, int gpio_mode)
    registers for pins 0-23. */
 static void __init dove_mpp_dump_regs(void)
 {
-	pr_debug("PMU_CTRL4_CTRL: %08x\n",
+	pr_de("PMU_CTRL4_CTRL: %08x\n",
 		 readl(DOVE_MPP_CTRL4_VIRT_BASE));
 
-	pr_debug("PMU_MPP_GENERAL_CTRL: %08x\n",
+	pr_de("PMU_MPP_GENERAL_CTRL: %08x\n",
 		 readl(DOVE_PMU_MPP_GENERAL_CTRL));
 
-	pr_debug("MPP_GENERAL: %08x\n", readl(DOVE_MPP_GENERAL_VIRT_BASE));
+	pr_de("MPP_GENERAL: %08x\n", readl(DOVE_MPP_GENERAL_VIRT_BASE));
 }
 
 static void __init dove_mpp_cfg_nfc(int sel)

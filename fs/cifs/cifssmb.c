@@ -41,7 +41,7 @@
 #include "cifsacl.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "fscache.h"
 #include "smbdirect.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -880,7 +880,7 @@ CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 	/*
 	 * BB: do we need to check validity of ses and server? They should
 	 * always be valid since we have an active reference. If not, that
-	 * should probably be a BUG()
+	 * should probably be a ()
 	 */
 	if (!ses || !ses->server)
 		return -EIO;
@@ -5643,7 +5643,7 @@ QFSPosixRetry:
  * We can not use write of zero bytes trick to set file size due to need for
  * large file support. Also note that this SetPathInfo is preferred to
  * SetFileInfo based method in next routine which is only needed to work around
- * a sharing violation bugin Samba which this routine can run into.
+ * a sharing violation in Samba which this routine can run into.
  */
 int
 CIFSSMBSetEOF(const unsigned int xid, struct cifs_tcon *tcon,
@@ -6023,7 +6023,7 @@ SetTimesRetry:
 
 /* Can not be used to set time stamps yet (due to old DOS time format) */
 /* Can be used to set attributes */
-#if 0  /* Possibly not needed - since it turns out that strangely NT4 has a bug
+#if 0  /* Possibly not needed - since it turns out that strangely NT4 has a 
 	  handling it anyway and NT4 was what we thought it would be needed for
 	  Do not delete it until we prove whether needed for Win9x though */
 int
@@ -6086,7 +6086,7 @@ cifs_fill_unix_set_info(FILE_UNIX_BASIC_INFO *data_offset,
 		gid = from_kgid(&init_user_ns, args->gid);
 
 	/*
-	 * Samba server ignores set of file size to zero due to bugs in some
+	 * Samba server ignores set of file size to zero due to s in some
 	 * older clients, but we should be precise - we use SetFileSize to
 	 * set file size and do not want to truncate file size to zero
 	 * accidentally as happened on one Samba server beta by putting

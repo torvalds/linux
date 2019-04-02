@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) by James Courtier-Dutton <James@superbug.demon.co.uk>
+ *  Copyright (c) by James Courtier-Dutton <James@super.demon.co.uk>
  *  Driver tina2 chips
  *  Version: 0.1
  *

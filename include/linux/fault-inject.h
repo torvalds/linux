@@ -5,7 +5,7 @@
 #ifdef CONFIG_FAULT_INJECTION
 
 #include <linux/types.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ratelimit.h>
 #include <linux/atomic.h>
 
@@ -45,20 +45,20 @@ struct fault_attr {
 int setup_fault_attr(struct fault_attr *attr, char *str);
 bool should_fail(struct fault_attr *attr, ssize_t size);
 
-#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+#ifdef CONFIG_FAULT_INJECTION_DE_FS
 
-struct dentry *fault_create_debugfs_attr(const char *name,
+struct dentry *fault_create_defs_attr(const char *name,
 			struct dentry *parent, struct fault_attr *attr);
 
-#else /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+#else /* CONFIG_FAULT_INJECTION_DE_FS */
 
-static inline struct dentry *fault_create_debugfs_attr(const char *name,
+static inline struct dentry *fault_create_defs_attr(const char *name,
 			struct dentry *parent, struct fault_attr *attr)
 {
 	return ERR_PTR(-ENODEV);
 }
 
-#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
+#endif /* CONFIG_FAULT_INJECTION_DE_FS */
 
 #endif /* CONFIG_FAULT_INJECTION */
 

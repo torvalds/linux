@@ -7,7 +7,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/exec.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
@@ -24,8 +24,8 @@ unsigned long *sleep_save_stash;
 /*
  * This hook is provided so that cpu_suspend code can restore HW
  * breakpoints as early as possible in the resume path, before reenabling
- * debug exceptions. Code cannot be run from a CPU PM notifier since by the
- * time the notifier runs debug exceptions might have been enabled already,
+ * de exceptions. Code cannot be run from a CPU PM notifier since by the
+ * time the notifier runs de exceptions might have been enabled already,
  * with HW breakpoints registers content still in an unknown state.
  */
 static int (*hw_breakpoint_restore)(unsigned int);
@@ -61,7 +61,7 @@ void notrace __cpu_suspend_exit(void)
 
 	/*
 	 * Restore HW breakpoint registers to sane values
-	 * before debug exceptions are possibly reenabled
+	 * before de exceptions are possibly reenabled
 	 * by cpu_suspend()s local_daif_restore() call.
 	 */
 	if (hw_breakpoint_restore)
@@ -90,9 +90,9 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	struct sleep_stack_data state;
 
 	/*
-	 * From this point debug exceptions are disabled to prevent
+	 * From this point de exceptions are disabled to prevent
 	 * updates to mdscr register (saved and restored along with
-	 * general purpose registers) from kernel debuggers.
+	 * general purpose registers) from kernel degers.
 	 */
 	flags = local_daif_save();
 
@@ -124,7 +124,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 
 	/*
 	 * Restore pstate flags. OS lock and mdscr have been already
-	 * restored, so from this point onwards, debugging is fully
+	 * restored, so from this point onwards, deging is fully
 	 * renabled if it was enabled when core started shutdown.
 	 */
 	local_daif_restore(flags);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* 
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2000
  * EMC Symmetrix ioctl Copyright EMC Corporation, 2008
  * Author.........: Nigel Hislop <hislop_nigel@emc.com>

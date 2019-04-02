@@ -90,7 +90,7 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	u64 fp, gp;
 	ia64_fptr_t *init_handler = (ia64_fptr_t *)ia64_os_init_on_kdump;
 
-	BUG_ON(!image);
+	_ON(!image);
 	code_addr = (unsigned long)page_address(image->control_code_page);
 	if (image->type == KEXEC_TYPE_CRASH) {
 		crash_save_this_cpu();
@@ -133,12 +133,12 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	rnk = (relocate_new_kernel_t)&code_addr;
 	(*rnk)(image->head, image->start, ia64_boot_param,
 		     GRANULEROUNDDOWN((unsigned long) pal_addr));
-	BUG();
+	();
 }
 
 void machine_kexec(struct kimage *image)
 {
-	BUG_ON(!image);
+	_ON(!image);
 	unw_init_running(ia64_machine_kexec, image);
 	for(;;);
 }

@@ -29,10 +29,10 @@ config ARCH_HAS_ILOG2_U64
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_BUG
-	def_bool y if BUG
+config GENERIC_
+	def_bool y if 
 
-config GENERIC_BUG_RELATIVE_POINTERS
+config GENERIC__RELATIVE_POINTERS
 	def_bool y
 
 config GENERIC_LOCKBREAK
@@ -41,7 +41,7 @@ config GENERIC_LOCKBREAK
 config PGSTE
 	def_bool y if KVM
 
-config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+config ARCH_SUPPORTS_DE_PAGEALLOC
 	def_bool y
 
 config AUDIT_ARCH
@@ -138,7 +138,7 @@ config S390
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
 	select HAVE_COPY_THREAD_TLS
-	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DE_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
@@ -845,7 +845,7 @@ config PFAULT
 	  handling under VM. If running native or in LPAR, this option
 	  has no effect. If your VM does not support PFAULT, PAGEEX
 	  pseudo page fault handling will be used.
-	  Note that VM 4.2 supports PFAULT but has a bug in its
+	  Note that VM 4.2 supports PFAULT but has a  in its
 	  implementation that causes some problems.
 	  Everybody who wants to run Linux under VM != VM4.2 should select
 	  this option.

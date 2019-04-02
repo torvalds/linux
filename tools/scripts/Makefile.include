@@ -18,7 +18,7 @@ $(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
 endif
 
 #
-# Include saner warnings here, which can catch bugs:
+# Include saner warnings here, which can catch s:
 #
 EXTRA_WARNINGS := -Wbad-function-cast
 EXTRA_WARNINGS += -Wdeclaration-after-statement

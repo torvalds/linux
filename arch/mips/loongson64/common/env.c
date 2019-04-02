@@ -165,7 +165,7 @@ void __init prom_init_env(void)
 	loongson_sysconf.suspend_addr = boot_p->reset_system.DoSuspend;
 
 	loongson_sysconf.vgabios_addr = boot_p->efi.smbios.vga_bios;
-	pr_debug("Shutdown Addr: %llx, Restart Addr: %llx, VBIOS Addr: %llx\n",
+	pr_de("Shutdown Addr: %llx, Restart Addr: %llx, VBIOS Addr: %llx\n",
 		loongson_sysconf.poweroff_addr, loongson_sysconf.restart_addr,
 		loongson_sysconf.vgabios_addr);
 

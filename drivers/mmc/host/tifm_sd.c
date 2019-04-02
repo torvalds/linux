@@ -348,7 +348,7 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 		rc |= TIFM_MMCSD_RSP_R3;
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	switch (mmc_cmd_type(cmd)) {
@@ -365,7 +365,7 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 		rc |= TIFM_MMCSD_CMD_ADTC;
 		break;
 	default:
-		BUG();
+		();
 	}
 	return rc;
 }

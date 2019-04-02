@@ -23,11 +23,11 @@ config WIL6210_ISR_COR
 	  COR (Clear-On-Read) or W1C (Write-1-to-Clear) mode.
 	  For production code, use COR (say y); is default since
 	  it saves extra target transaction;
-	  For ISR debug, use W1C (say n); is allows to monitor ISR
-	  registers with debugfs. If COR were used, ISR would
-	  self-clear when accessed for debug purposes, it makes
+	  For ISR de, use W1C (say n); is allows to monitor ISR
+	  registers with defs. If COR were used, ISR would
+	  self-clear when accessed for de purposes, it makes
 	  such monitoring impossible.
-	  Say y unless you debug interrupts
+	  Say y unless you de interrupts
 
 config WIL6210_TRACING
 	bool "wil6210 tracing support"
@@ -37,18 +37,18 @@ config WIL6210_TRACING
 	---help---
 	  Say Y here to enable tracepoints for the wil6210 driver
 	  using the kernel tracing infrastructure.  Select this
-	  option if you are interested in debugging the driver.
+	  option if you are interested in deging the driver.
 
-	  If unsure, say Y to make it easier to debug problems.
+	  If unsure, say Y to make it easier to de problems.
 
-config WIL6210_DEBUGFS
-	bool "wil6210 debugfs support"
+config WIL6210_DEFS
+	bool "wil6210 defs support"
 	depends on WIL6210
-	depends on DEBUG_FS
+	depends on DE_FS
 	default y
 	---help---
-	  Say Y here to enable wil6210 debugfs support, using the
-	  kernel debugfs infrastructure. Select this
-	  option if you are interested in debugging the driver.
+	  Say Y here to enable wil6210 defs support, using the
+	  kernel defs infrastructure. Select this
+	  option if you are interested in deging the driver.
 
-	  If unsure, say Y to make it easier to debug problems.
+	  If unsure, say Y to make it easier to de problems.

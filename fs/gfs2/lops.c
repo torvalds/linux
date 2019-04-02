@@ -43,7 +43,7 @@ void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd;
 
-	BUG_ON(!current->journal_info);
+	_ON(!current->journal_info);
 
 	clear_buffer_dirty(bh);
 	if (test_set_buffer_pinned(bh))
@@ -101,8 +101,8 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 {
 	struct gfs2_bufdata *bd = bh->b_private;
 
-	BUG_ON(!buffer_uptodate(bh));
-	BUG_ON(!buffer_pinned(bh));
+	_ON(!buffer_uptodate(bh));
+	_ON(!buffer_pinned(bh));
 
 	lock_buffer(bh);
 	mark_buffer_dirty(bh);
@@ -132,7 +132,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 
 static void gfs2_log_incr_head(struct gfs2_sbd *sdp)
 {
-	BUG_ON((sdp->sd_log_flush_head == sdp->sd_log_tail) &&
+	_ON((sdp->sd_log_flush_head == sdp->sd_log_tail) &&
 	       (sdp->sd_log_flush_head != sdp->sd_log_head));
 
 	if (++sdp->sd_log_flush_head == sdp->sd_jdesc->jd_blocks)
@@ -488,7 +488,7 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 				break;
 		}
 
-		BUG_ON(total < num);
+		_ON(total < num);
 		total -= num;
 	}
 	gfs2_log_unlock(sdp);

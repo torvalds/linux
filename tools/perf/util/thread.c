@@ -9,7 +9,7 @@
 #include "thread.h"
 #include "thread-stack.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "namespaces.h"
 #include "comm.h"
 #include "map.h"
@@ -81,7 +81,7 @@ void thread__delete(struct thread *thread)
 	struct namespaces *namespaces, *tmp_namespaces;
 	struct comm *comm, *tmp_comm;
 
-	BUG_ON(!RB_EMPTY_NODE(&thread->rb_node));
+	_ON(!RB_EMPTY_NODE(&thread->rb_node));
 
 	thread_stack__free(thread);
 
@@ -342,7 +342,7 @@ static int thread__clone_map_groups(struct thread *thread,
 		return thread__prepare_access(thread);
 
 	if (thread->mg == parent->mg) {
-		pr_debug("broken map groups on thread %d/%d parent %d/%d\n",
+		pr_de("broken map groups on thread %d/%d parent %d/%d\n",
 			 thread->pid_, thread->tid, parent->pid_, parent->tid);
 		return 0;
 	}

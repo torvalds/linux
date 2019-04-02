@@ -7,7 +7,7 @@
 #include <linux/btf.h>
 #include <linux/err.h>
 #include "bpf-event.h"
-#include "debug.h"
+#include "de.h"
 #include "symbol.h"
 #include "machine.h"
 #include "env.h"
@@ -82,7 +82,7 @@ int machine__process_bpf_event(struct machine *machine __maybe_unused,
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n",
+		pr_de("unexpected bpf_event type of %d\n",
 			 event->bpf_event.type);
 		break;
 	}
@@ -189,12 +189,12 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 	info_linear = bpf_program__get_prog_info_linear(fd, arrays);
 	if (IS_ERR_OR_NULL(info_linear)) {
 		info_linear = NULL;
-		pr_debug("%s: failed to get BPF program info. aborting\n", __func__);
+		pr_de("%s: failed to get BPF program info. aborting\n", __func__);
 		return -1;
 	}
 
 	if (info_linear->info_len < offsetof(struct bpf_prog_info, prog_tags)) {
-		pr_debug("%s: the kernel is too old, aborting\n", __func__);
+		pr_de("%s: the kernel is too old, aborting\n", __func__);
 		return -2;
 	}
 
@@ -210,12 +210,12 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_session *session,
 	if (info->btf_id && info->nr_func_info && info->func_info_rec_size) {
 		/* btf func info number should be same as sub_prog_cnt */
 		if (sub_prog_cnt != info->nr_func_info) {
-			pr_debug("%s: mismatch in BPF sub program count and BTF function info count, aborting\n", __func__);
+			pr_de("%s: mismatch in BPF sub program count and BTF function info count, aborting\n", __func__);
 			err = -1;
 			goto out;
 		}
 		if (btf__get_from_id(info->btf_id, &btf)) {
-			pr_debug("%s: failed to get BTF of id %u, aborting\n", __func__, info->btf_id);
+			pr_de("%s: failed to get BTF of id %u, aborting\n", __func__, info->btf_id);
 			err = -1;
 			btf = NULL;
 			goto out;
@@ -311,7 +311,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 				err = 0;
 				break;
 			}
-			pr_debug("%s: can't get next program: %s%s\n",
+			pr_de("%s: can't get next program: %s%s\n",
 				 __func__, strerror(errno),
 				 errno == EINVAL ? " -- kernel too old?" : "");
 			/* don't report error on old kernel or EPERM  */
@@ -320,7 +320,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 		}
 		fd = bpf_prog_get_fd_by_id(id);
 		if (fd < 0) {
-			pr_debug("%s: failed to get fd for prog_id %u\n",
+			pr_de("%s: failed to get fd for prog_id %u\n",
 				 __func__, id);
 			continue;
 		}
@@ -363,7 +363,7 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 
 	info_linear = bpf_program__get_prog_info_linear(fd, arrays);
 	if (IS_ERR_OR_NULL(info_linear)) {
-		pr_debug("%s: failed to get BPF program info. aborting\n", __func__);
+		pr_de("%s: failed to get BPF program info. aborting\n", __func__);
 		goto out;
 	}
 
@@ -380,7 +380,7 @@ static void perf_env__add_bpf_info(struct perf_env *env, u32 id)
 		goto out;
 
 	if (btf__get_from_id(btf_id, &btf)) {
-		pr_debug("%s: failed to get BTF of id %u, aborting\n",
+		pr_de("%s: failed to get BTF of id %u, aborting\n",
 			 __func__, btf_id);
 		goto out;
 	}
@@ -410,7 +410,7 @@ static int bpf_event__sb_cb(union perf_event *event, void *data)
 		 */
 		break;
 	default:
-		pr_debug("unexpected bpf_event type of %d\n",
+		pr_de("unexpected bpf_event type of %d\n",
 			 event->bpf_event.type);
 		break;
 	}

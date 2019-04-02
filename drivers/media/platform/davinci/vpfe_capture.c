@@ -72,17 +72,17 @@
 #include <media/davinci/vpfe_capture.h>
 #include "ccdc_hw_device.h"
 
-static int debug;
+static int de;
 static u32 numbuffers = 3;
 static u32 bufsize = (720 * 576 * 2);
 
 module_param(numbuffers, uint, S_IRUGO);
 module_param(bufsize, uint, S_IRUGO);
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 
 MODULE_PARM_DESC(numbuffers, "buffer count (default:3)");
 MODULE_PARM_DESC(bufsize, "buffer size in bytes (default:720 x 576 x 2)");
-MODULE_PARM_DESC(debug, "Debug level 0-1");
+MODULE_PARM_DESC(de, "De level 0-1");
 
 MODULE_DESCRIPTION("VPFE Video for Linux Capture Driver");
 MODULE_LICENSE("GPL");
@@ -208,21 +208,21 @@ int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev)
 	int ret = 0;
 	printk(KERN_NOTICE "vpfe_register_ccdc_device: %s\n", dev->name);
 
-	BUG_ON(!dev->hw_ops.open);
-	BUG_ON(!dev->hw_ops.enable);
-	BUG_ON(!dev->hw_ops.set_hw_if_params);
-	BUG_ON(!dev->hw_ops.configure);
-	BUG_ON(!dev->hw_ops.set_buftype);
-	BUG_ON(!dev->hw_ops.get_buftype);
-	BUG_ON(!dev->hw_ops.enum_pix);
-	BUG_ON(!dev->hw_ops.set_frame_format);
-	BUG_ON(!dev->hw_ops.get_frame_format);
-	BUG_ON(!dev->hw_ops.get_pixel_format);
-	BUG_ON(!dev->hw_ops.set_pixel_format);
-	BUG_ON(!dev->hw_ops.set_image_window);
-	BUG_ON(!dev->hw_ops.get_image_window);
-	BUG_ON(!dev->hw_ops.get_line_length);
-	BUG_ON(!dev->hw_ops.getfid);
+	_ON(!dev->hw_ops.open);
+	_ON(!dev->hw_ops.enable);
+	_ON(!dev->hw_ops.set_hw_if_params);
+	_ON(!dev->hw_ops.configure);
+	_ON(!dev->hw_ops.set_buftype);
+	_ON(!dev->hw_ops.get_buftype);
+	_ON(!dev->hw_ops.enum_pix);
+	_ON(!dev->hw_ops.set_frame_format);
+	_ON(!dev->hw_ops.get_frame_format);
+	_ON(!dev->hw_ops.get_pixel_format);
+	_ON(!dev->hw_ops.set_pixel_format);
+	_ON(!dev->hw_ops.set_image_window);
+	_ON(!dev->hw_ops.get_image_window);
+	_ON(!dev->hw_ops.get_line_length);
+	_ON(!dev->hw_ops.getfid);
 
 	mutex_lock(&ccdc_lock);
 	if (!ccdc_cfg) {
@@ -459,7 +459,7 @@ static int vpfe_open(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct vpfe_fh *fh;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_open\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_open\n");
 
 	if (!vpfe_dev->cfg->num_subdevs) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "No decoder registered\n");
@@ -532,7 +532,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 	enum v4l2_field field;
 	int fid;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "\nStarting vpfe_isr...\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "\nStarting vpfe_isr...\n");
 	field = vpfe_dev->fmt.fmt.pix.field;
 
 	/* if streaming not started, don't do anything */
@@ -545,7 +545,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 
 	if (field == V4L2_FIELD_NONE) {
 		/* handle progressive frame capture */
-		v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+		v4l2_dbg(1, de, &vpfe_dev->v4l2_dev,
 			"frame format is progressive...\n");
 		if (vpfe_dev->cur_frm != vpfe_dev->next_frm)
 			vpfe_process_buffer_complete(vpfe_dev);
@@ -557,7 +557,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 
 	/* switch the software maintained field id */
 	vpfe_dev->field_id ^= 1;
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "field id = %x:%x.\n",
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "field id = %x:%x.\n",
 		fid, vpfe_dev->field_id);
 	if (fid == vpfe_dev->field_id) {
 		/* we are in-sync here,continue */
@@ -607,7 +607,7 @@ static irqreturn_t vdint1_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "\nInside vdint1_isr...\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "\nInside vdint1_isr...\n");
 
 	/* if streaming not started, don't do anything */
 	if (!vpfe_dev->started) {
@@ -671,7 +671,7 @@ static int vpfe_release(struct file *file)
 	struct vpfe_subdev_info *sdinfo;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_release\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_release\n");
 
 	/* Get the device lock */
 	mutex_lock(&vpfe_dev->lock);
@@ -722,7 +722,7 @@ static int vpfe_mmap(struct file *file, struct vm_area_struct *vma)
 	/* Get the device object and file handle object */
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_mmap\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_mmap\n");
 
 	return videobuf_mmap_mapper(&vpfe_dev->buffer_queue, vma);
 }
@@ -734,7 +734,7 @@ static __poll_t vpfe_poll(struct file *file, poll_table *wait)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_poll\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_poll\n");
 
 	if (vpfe_dev->started)
 		return videobuf_poll_stream(file,
@@ -885,7 +885,7 @@ static int vpfe_querycap(struct file *file, void  *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querycap\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_querycap\n");
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -900,7 +900,7 @@ static int vpfe_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_fmt_vid_cap\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_g_fmt_vid_cap\n");
 	/* Fill in the information about format */
 	*fmt = vpfe_dev->fmt;
 	return 0;
@@ -914,7 +914,7 @@ static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
 	int temp_index;
 	u32 pix;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_fmt_vid_cap\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_enum_fmt_vid_cap\n");
 
 	if (ccdc_dev->hw_ops.enum_pix(&pix, fmt->index) < 0)
 		return -EINVAL;
@@ -937,7 +937,7 @@ static int vpfe_s_fmt_vid_cap(struct file *file, void *priv,
 	const struct vpfe_pixel_format *pix_fmts;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_fmt_vid_cap\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_s_fmt_vid_cap\n");
 
 	/* If streaming is started, return error */
 	if (vpfe_dev->started) {
@@ -970,7 +970,7 @@ static int vpfe_try_fmt_vid_cap(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	const struct vpfe_pixel_format *pix_fmts;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_try_fmt_vid_cap\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_try_fmt_vid_cap\n");
 
 	pix_fmts = vpfe_check_format(vpfe_dev, &f->fmt.pix);
 	if (!pix_fmts)
@@ -1035,7 +1035,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 	struct vpfe_subdev_info *sdinfo;
 	int subdev, index ;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_enum_input\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_enum_input\n");
 
 	if (vpfe_get_subdev_input_index(vpfe_dev,
 					&subdev,
@@ -1053,7 +1053,7 @@ static int vpfe_g_input(struct file *file, void *priv, unsigned int *index)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_input\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_g_input\n");
 
 	return vpfe_get_app_input_index(vpfe_dev, index);
 }
@@ -1069,7 +1069,7 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 	u32 input, output;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_input\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_s_input\n");
 
 	ret = mutex_lock_interruptible(&vpfe_dev->lock);
 	if (ret)
@@ -1138,7 +1138,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	struct vpfe_subdev_info *sdinfo;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querystd\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_querystd\n");
 
 	ret = mutex_lock_interruptible(&vpfe_dev->lock);
 	sdinfo = vpfe_dev->current_subdev;
@@ -1157,7 +1157,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	struct vpfe_subdev_info *sdinfo;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_std\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_s_std\n");
 
 	/* Call decoder driver function to set the standard */
 	ret = mutex_lock_interruptible(&vpfe_dev->lock);
@@ -1189,7 +1189,7 @@ static int vpfe_g_std(struct file *file, void *priv, v4l2_std_id *std_id)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_std\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_g_std\n");
 
 	*std_id = vpfe_standards[vpfe_dev->std_index].std_id;
 	return 0;
@@ -1204,7 +1204,7 @@ static int vpfe_videobuf_setup(struct videobuf_queue *vq,
 	struct vpfe_fh *fh = vq->priv_data;
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_setup\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_buffer_setup\n");
 	*size = vpfe_dev->fmt.fmt.pix.sizeimage;
 	if (vpfe_dev->memory == V4L2_MEMORY_MMAP &&
 		vpfe_dev->fmt.fmt.pix.sizeimage > config_params.device_bufsize)
@@ -1212,7 +1212,7 @@ static int vpfe_videobuf_setup(struct videobuf_queue *vq,
 
 	if (*count < config_params.min_numbuffers)
 		*count = config_params.min_numbuffers;
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev,
 		"count=%d, size=%d\n", *count, *size);
 	return 0;
 }
@@ -1226,7 +1226,7 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 	unsigned long addr;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_prepare\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_buffer_prepare\n");
 
 	/* If buffer is not initialized, initialize it */
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
@@ -1257,7 +1257,7 @@ static void vpfe_videobuf_queue(struct videobuf_queue *vq,
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
 	unsigned long flags;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_queue\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_buffer_queue\n");
 
 	/* add the buffer to the DMA queue */
 	spin_lock_irqsave(&vpfe_dev->dma_queue_lock, flags);
@@ -1275,7 +1275,7 @@ static void vpfe_videobuf_release(struct videobuf_queue *vq,
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
 	unsigned long flags;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_videobuf_release\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_videobuf_release\n");
 
 	/*
 	 * We need to flush the buffer from the dma queue since
@@ -1306,7 +1306,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	struct vpfe_fh *fh = file->private_data;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_reqbufs\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_reqbufs\n");
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != req_buf->type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buffer type\n");
@@ -1347,7 +1347,7 @@ static int vpfe_querybuf(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querybuf\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_querybuf\n");
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != buf->type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buf type\n");
@@ -1368,7 +1368,7 @@ static int vpfe_qbuf(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_fh *fh = file->private_data;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_qbuf\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_qbuf\n");
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != p->type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buf type\n");
@@ -1391,7 +1391,7 @@ static int vpfe_dqbuf(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_dqbuf\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_dqbuf\n");
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != buf->type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buf type\n");
@@ -1409,7 +1409,7 @@ static void vpfe_calculate_offsets(struct vpfe_device *vpfe_dev)
 {
 	struct v4l2_rect image_win;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_calculate_offsets\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_calculate_offsets\n");
 
 	ccdc_dev->hw_ops.get_image_window(&image_win);
 	vpfe_dev->field_off = image_win.height * image_win.width;
@@ -1438,7 +1438,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 	unsigned long addr;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_streamon\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_streamon\n");
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != buf_type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buf type\n");
@@ -1521,7 +1521,7 @@ static int vpfe_streamoff(struct file *file, void *priv,
 	struct vpfe_subdev_info *sdinfo;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_streamoff\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_streamoff\n");
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != buf_type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buf type\n");
@@ -1563,7 +1563,7 @@ static int vpfe_g_pixelaspect(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_pixelaspect\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_g_pixelaspect\n");
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1580,7 +1580,7 @@ static int vpfe_g_selection(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_selection\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_g_selection\n");
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1607,7 +1607,7 @@ static int vpfe_s_selection(struct file *file, void *priv,
 	struct v4l2_rect rect = sel->r;
 	int ret;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_selection\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_s_selection\n");
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
 	    sel->target != V4L2_SEL_TGT_CROP)
@@ -1817,9 +1817,9 @@ static int vpfe_probe(struct platform_device *pdev)
 	vpfe_dev->numbuffers = config_params.numbuffers;
 
 	/* register video device */
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev,
 		"trying to register vpfe device.\n");
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev,
 		"video_dev=%p\n", &vpfe_dev->video_dev);
 	vpfe_dev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ret = video_register_device(&vpfe_dev->video_dev,

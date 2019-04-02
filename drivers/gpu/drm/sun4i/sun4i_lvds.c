@@ -73,7 +73,7 @@ static void sun4i_lvds_encoder_enable(struct drm_encoder *encoder)
 	struct sun4i_lvds *lvds = drm_encoder_to_sun4i_lvds(encoder);
 	struct sun4i_tcon *tcon = lvds->tcon;
 
-	DRM_DEBUG_DRIVER("Enabling LVDS output\n");
+	DRM_DE_DRIVER("Enabling LVDS output\n");
 
 	if (tcon->panel) {
 		drm_panel_prepare(tcon->panel);
@@ -86,7 +86,7 @@ static void sun4i_lvds_encoder_disable(struct drm_encoder *encoder)
 	struct sun4i_lvds *lvds = drm_encoder_to_sun4i_lvds(encoder);
 	struct sun4i_tcon *tcon = lvds->tcon;
 
-	DRM_DEBUG_DRIVER("Disabling LVDS output\n");
+	DRM_DE_DRIVER("Disabling LVDS output\n");
 
 	if (tcon->panel) {
 		drm_panel_disable(tcon->panel);

@@ -26,7 +26,7 @@ CONFIG_STMMAC_PLATFORM: is to enable the platform driver.
 CONFIG_STMMAC_PCI: is to enable the pci driver.
 
 2) Driver parameters list:
-	debug: message level (0: no output, 16: all);
+	de: message level (0: no output, 16: all);
 	phyaddr: to manually provide the physical address to the PHY device;
 	buf_sz: DMA buffer size;
 	tc: control the HW FIFO threshold;
@@ -125,7 +125,7 @@ struct plat_stmmacenet_data {
 	int enh_desc;
 	int tx_coe;
 	int rx_coe;
-	int bugged_jumbo;
+	int ged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
 	int force_thresh_dma_mode;
@@ -162,7 +162,7 @@ Where:
  o tx_coe: core is able to perform the tx csum in HW.
  o rx_coe: the supports three check sum offloading engine types:
 	   type_1, type_2 (full csum) and no RX coe.
- o bugged_jumbo: some HWs are not able to perform the csum in HW for
+ o ged_jumbo: some HWs are not able to perform the csum in HW for
 		over-sized frames due to limited buffer sizes.
 		Setting this flag the csum will be done in SW on
 		JUMBO frames.
@@ -337,10 +337,10 @@ perform the segmentation by it self to match with maximum frame length.
 
 This feature can be enabled in device tree through "snps,tso" entry.
 
-5) Debug Information
+5) De Information
 
 The driver exports many information i.e. internal statistics,
-debug information, MAC and DMA registers etc.
+de information, MAC and DMA registers etc.
 
 These can be read in several ways depending on the
 type of the information actually needed.
@@ -350,13 +350,13 @@ to get statistics: e.g. using: ethtool -S ethX
 (that shows the Management counters (MMC) if supported)
 or sees the MAC/DMA registers: e.g. using: ethtool -d ethX
 
-Compiling the Kernel with CONFIG_DEBUG_FS the driver will export the following
-debugfs entries:
+Compiling the Kernel with CONFIG_DE_FS the driver will export the following
+defs entries:
 
-/sys/kernel/debug/stmmaceth/descriptors_status
+/sys/kernel/de/stmmaceth/descriptors_status
   To show the DMA TX/RX descriptor rings
 
-Developer can also use the "debug" module parameter to get further debug
+Developer can also use the "de" module parameter to get further de
 information (please see: NETIF Msg Level).
 
 6) Energy Efficient Ethernet

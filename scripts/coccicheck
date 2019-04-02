@@ -36,15 +36,15 @@ FLAGS="--very-quiet"
 # heuristics done in this file as Coccinelle accepts the last options when
 # options conflict.
 #
-# A good example for use of SPFLAGS is if you want to debug your cocci script,
+# A good example for use of SPFLAGS is if you want to de your cocci script,
 # you can for instance use the following:
 #
 # $ export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
-# $ make coccicheck MODE=report DEBUG_FILE="all.err" SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
+# $ make coccicheck MODE=report DE_FILE="all.err" SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
 #
 # "--show-trying" should show you what rule is being processed as it goes to
-# stdout, you do not need a debug file for that. The profile output will be
-# be sent to stdout, if you provide a DEBUG_FILE the profiling data can be
+# stdout, you do not need a de file for that. The profile output will be
+# be sent to stdout, if you provide a DE_FILE the profiling data can be
 # inspected there.
 #
 # --profile will not output if --very-quiet is used, so avoid it.
@@ -126,8 +126,8 @@ run_cmd_parmap() {
 	if [ $VERBOSE -ne 0 ] ; then
 		echo "Running ($NPROC in parallel): $@"
 	fi
-	echo $@ >>$DEBUG_FILE
-	$@ 2>>$DEBUG_FILE
+	echo $@ >>$DE_FILE
+	$@ 2>>$DE_FILE
 	err=$?
 	if [[ $err -ne 0 ]]; then
 		echo "coccicheck failed"
@@ -244,13 +244,13 @@ coccinelle () {
 
 }
 
-if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
-	if [ -f $DEBUG_FILE ]; then
-		echo "Debug file $DEBUG_FILE exists, bailing"
+if [ "$DE_FILE" != "/dev/null" -a "$DE_FILE" != "" ]; then
+	if [ -f $DE_FILE ]; then
+		echo "De file $DE_FILE exists, bailing"
 		exit
 	fi
 else
-	DEBUG_FILE="/dev/null"
+	DE_FILE="/dev/null"
 fi
 
 if [ "$COCCI" = "" ] ; then

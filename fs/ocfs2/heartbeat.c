@@ -64,7 +64,7 @@ void ocfs2_do_node_down(int node_num, void *data)
 {
 	struct ocfs2_super *osb = data;
 
-	BUG_ON(osb->node_num == node_num);
+	_ON(osb->node_num == node_num);
 
 	trace_ocfs2_do_node_down(node_num);
 
@@ -93,7 +93,7 @@ void ocfs2_node_map_set_bit(struct ocfs2_super *osb,
 {
 	if (bit==-1)
 		return;
-	BUG_ON(bit >= map->num_nodes);
+	_ON(bit >= map->num_nodes);
 	spin_lock(&osb->node_map_lock);
 	__ocfs2_node_map_set_bit(map, bit);
 	spin_unlock(&osb->node_map_lock);
@@ -111,7 +111,7 @@ void ocfs2_node_map_clear_bit(struct ocfs2_super *osb,
 {
 	if (bit==-1)
 		return;
-	BUG_ON(bit >= map->num_nodes);
+	_ON(bit >= map->num_nodes);
 	spin_lock(&osb->node_map_lock);
 	__ocfs2_node_map_clear_bit(map, bit);
 	spin_unlock(&osb->node_map_lock);
@@ -124,7 +124,7 @@ int ocfs2_node_map_test_bit(struct ocfs2_super *osb,
 	int ret;
 	if (bit >= map->num_nodes) {
 		mlog(ML_ERROR, "bit=%d map->num_nodes=%d\n", bit, map->num_nodes);
-		BUG();
+		();
 	}
 	spin_lock(&osb->node_map_lock);
 	ret = test_bit(bit, map->map);

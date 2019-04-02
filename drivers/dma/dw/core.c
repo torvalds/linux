@@ -185,7 +185,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"%s: BUG: Attempted to start non-idle channel\n",
+			"%s: : Attempted to start non-idle channel\n",
 			__func__);
 		dwc_dump_chan_regs(dwc);
 
@@ -198,7 +198,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 						&dwc->flags);
 		if (was_soft_llp) {
 			dev_err(chan2dev(&dwc->chan),
-				"BUG: Attempted to start new LLP transfer inside ongoing one\n");
+				": Attempted to start new LLP transfer inside ongoing one\n");
 			return;
 		}
 
@@ -273,7 +273,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: XFER bit set, but channel not idle!\n");
+			": XFER bit set, but channel not idle!\n");
 
 		/* Try to continue after resetting the channel... */
 		dwc_chan_disable(dw, dwc);
@@ -406,7 +406,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	}
 
 	dev_err(chan2dev(&dwc->chan),
-		"BUG: All descriptors done, but channel not idle!\n");
+		": All descriptors done, but channel not idle!\n");
 
 	/* Try to continue after resetting the channel... */
 	dwc_chan_disable(dw, dwc);
@@ -523,7 +523,7 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 	status = dma_readl(dw, STATUS_INT);
 	if (status) {
 		dev_err(dw->dma.dev,
-			"BUG: Unexpected interrupts pending: 0x%x\n",
+			": Unexpected interrupts pending: 0x%x\n",
 			status);
 
 		/* Try to recover */
@@ -1023,9 +1023,9 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 			dwc->descs_allocated);
 
 	/* ASSERT:  channel is idle */
-	BUG_ON(!list_empty(&dwc->active_list));
-	BUG_ON(!list_empty(&dwc->queue));
-	BUG_ON(dma_readl(to_dw_dma(chan->device), CH_EN) & dwc->mask);
+	_ON(!list_empty(&dwc->active_list));
+	_ON(!list_empty(&dwc->queue));
+	_ON(dma_readl(to_dw_dma(chan->device), CH_EN) & dwc->mask);
 
 	spin_lock_irqsave(&dwc->lock, flags);
 

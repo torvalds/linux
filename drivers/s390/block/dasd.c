@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Copyright IBM Corp. 1999, 2009
  */
 
@@ -20,7 +20,7 @@
 #include <linux/hdreg.h>
 #include <linux/async.h>
 #include <linux/mutex.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 
@@ -53,9 +53,9 @@ MODULE_PARM_DESC(nr_hw_queues, "Default number of hardware queues for new DASD d
 /*
  * SECTION: exported variables of dasd.c
  */
-debug_info_t *dasd_debug_area;
-EXPORT_SYMBOL(dasd_debug_area);
-static struct dentry *dasd_debugfs_root_entry;
+de_info_t *dasd_de_area;
+EXPORT_SYMBOL(dasd_de_area);
+static struct dentry *dasd_defs_root_entry;
 struct dasd_discipline *dasd_diag_discipline_pointer;
 EXPORT_SYMBOL(dasd_diag_discipline_pointer);
 void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
@@ -226,14 +226,14 @@ static int dasd_state_known_to_new(struct dasd_device *device)
 	return 0;
 }
 
-static struct dentry *dasd_debugfs_setup(const char *name,
+static struct dentry *dasd_defs_setup(const char *name,
 					 struct dentry *base_dentry)
 {
 	struct dentry *pde;
 
 	if (!base_dentry)
 		return NULL;
-	pde = debugfs_create_dir(name, base_dentry);
+	pde = defs_create_dir(name, base_dentry);
 	if (!pde || IS_ERR(pde))
 		return NULL;
 	return pde;
@@ -252,25 +252,25 @@ static int dasd_state_known_to_basic(struct dasd_device *device)
 		rc = dasd_gendisk_alloc(block);
 		if (rc)
 			return rc;
-		block->debugfs_dentry =
-			dasd_debugfs_setup(block->gdp->disk_name,
-					   dasd_debugfs_root_entry);
-		dasd_profile_init(&block->profile, block->debugfs_dentry);
+		block->defs_dentry =
+			dasd_defs_setup(block->gdp->disk_name,
+					   dasd_defs_root_entry);
+		dasd_profile_init(&block->profile, block->defs_dentry);
 		if (dasd_global_profile_level == DASD_PROFILE_ON)
 			dasd_profile_on(&device->block->profile);
 	}
-	device->debugfs_dentry =
-		dasd_debugfs_setup(dev_name(&device->cdev->dev),
-				   dasd_debugfs_root_entry);
-	dasd_profile_init(&device->profile, device->debugfs_dentry);
-	dasd_hosts_init(device->debugfs_dentry, device);
+	device->defs_dentry =
+		dasd_defs_setup(dev_name(&device->cdev->dev),
+				   dasd_defs_root_entry);
+	dasd_profile_init(&device->profile, device->defs_dentry);
+	dasd_hosts_init(device->defs_dentry, device);
 
-	/* register 'device' debug area, used for all DBF_DEV_XXX calls */
-	device->debug_area = debug_register(dev_name(&device->cdev->dev), 4, 1,
+	/* register 'device' de area, used for all DBF_DEV_XXX calls */
+	device->de_area = de_register(dev_name(&device->cdev->dev), 4, 1,
 					    8 * sizeof(long));
-	debug_register_view(device->debug_area, &debug_sprintf_view);
-	debug_set_level(device->debug_area, DBF_WARNING);
-	DBF_DEV_EVENT(DBF_EMERG, device, "%s", "debug area created");
+	de_register_view(device->de_area, &de_sprintf_view);
+	de_set_level(device->de_area, DBF_WARNING);
+	DBF_DEV_EVENT(DBF_EMERG, device, "%s", "de area created");
 
 	device->state = DASD_STATE_BASIC;
 
@@ -292,7 +292,7 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 
 	if (device->block) {
 		dasd_profile_exit(&device->block->profile);
-		debugfs_remove(device->block->debugfs_dentry);
+		defs_remove(device->block->defs_dentry);
 		dasd_gendisk_free(device->block);
 		dasd_block_clear_timer(device->block);
 	}
@@ -302,11 +302,11 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 	dasd_device_clear_timer(device);
 	dasd_profile_exit(&device->profile);
 	dasd_hosts_exit(device);
-	debugfs_remove(device->debugfs_dentry);
-	DBF_DEV_EVENT(DBF_EMERG, device, "%p debug area deleted", device);
-	if (device->debug_area != NULL) {
-		debug_unregister(device->debug_area);
-		device->debug_area = NULL;
+	defs_remove(device->defs_dentry);
+	DBF_DEV_EVENT(DBF_EMERG, device, "%p de area deleted", device);
+	if (device->de_area != NULL) {
+		de_unregister(device->de_area);
+		device->de_area = NULL;
 	}
 	device->state = DASD_STATE_KNOWN;
 	return 0;
@@ -683,7 +683,7 @@ unsigned int dasd_global_profile_level = DASD_PROFILE_OFF;
 struct dasd_profile dasd_global_profile = {
 	.lock = __SPIN_LOCK_UNLOCKED(dasd_global_profile.lock),
 };
-static struct dentry *dasd_debugfs_global_entry;
+static struct dentry *dasd_defs_global_entry;
 
 /*
  * Add profiling information for cqr before execution.
@@ -1094,7 +1094,7 @@ static void dasd_profile_init(struct dasd_profile *profile,
 	profile->dentry = NULL;
 	profile->data = NULL;
 	mode = (S_IRUSR | S_IWUSR | S_IFREG);
-	pde = debugfs_create_file("statistics", mode, base_dentry,
+	pde = defs_create_file("statistics", mode, base_dentry,
 				  profile, &dasd_stats_raw_fops);
 	if (pde && !IS_ERR(pde))
 		profile->dentry = pde;
@@ -1104,7 +1104,7 @@ static void dasd_profile_init(struct dasd_profile *profile,
 static void dasd_profile_exit(struct dasd_profile *profile)
 {
 	dasd_profile_off(profile);
-	debugfs_remove(profile->dentry);
+	defs_remove(profile->dentry);
 	profile->dentry = NULL;
 }
 
@@ -1112,29 +1112,29 @@ static void dasd_statistics_removeroot(void)
 {
 	dasd_global_profile_level = DASD_PROFILE_OFF;
 	dasd_profile_exit(&dasd_global_profile);
-	debugfs_remove(dasd_debugfs_global_entry);
-	debugfs_remove(dasd_debugfs_root_entry);
+	defs_remove(dasd_defs_global_entry);
+	defs_remove(dasd_defs_root_entry);
 }
 
 static void dasd_statistics_createroot(void)
 {
 	struct dentry *pde;
 
-	dasd_debugfs_root_entry = NULL;
-	pde = debugfs_create_dir("dasd", NULL);
+	dasd_defs_root_entry = NULL;
+	pde = defs_create_dir("dasd", NULL);
 	if (!pde || IS_ERR(pde))
 		goto error;
-	dasd_debugfs_root_entry = pde;
-	pde = debugfs_create_dir("global", dasd_debugfs_root_entry);
+	dasd_defs_root_entry = pde;
+	pde = defs_create_dir("global", dasd_defs_root_entry);
 	if (!pde || IS_ERR(pde))
 		goto error;
-	dasd_debugfs_global_entry = pde;
-	dasd_profile_init(&dasd_global_profile, dasd_debugfs_global_entry);
+	dasd_defs_global_entry = pde;
+	dasd_profile_init(&dasd_global_profile, dasd_defs_global_entry);
 	return;
 
 error:
 	DBF_EVENT(DBF_ERR, "%s",
-		  "Creation of the dasd debugfs interface failed");
+		  "Creation of the dasd defs interface failed");
 	dasd_statistics_removeroot();
 	return;
 }
@@ -1196,7 +1196,7 @@ DEFINE_SHOW_ATTRIBUTE(dasd_hosts);
 
 static void dasd_hosts_exit(struct dasd_device *device)
 {
-	debugfs_remove(device->hosts_dentry);
+	defs_remove(device->hosts_dentry);
 	device->hosts_dentry = NULL;
 }
 
@@ -1210,7 +1210,7 @@ static void dasd_hosts_init(struct dentry *base_dentry,
 		return;
 
 	mode = S_IRUSR | S_IFREG;
-	pde = debugfs_create_file("host_access_list", mode, base_dentry,
+	pde = defs_create_file("host_access_list", mode, base_dentry,
 				  device, &dasd_hosts_fops);
 	if (pde && !IS_ERR(pde))
 		device->hosts_dentry = pde;
@@ -1315,7 +1315,7 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 			cqr->status = DASD_CQR_CLEAR_PENDING;
 			cqr->stopclk = get_tod_clock();
 			cqr->starttime = 0;
-			DBF_DEV_EVENT(DBF_DEBUG, device,
+			DBF_DEV_EVENT(DBF_DE, device,
 				      "terminate cqr %p successful",
 				      cqr);
 			break;
@@ -1343,7 +1343,7 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 			snprintf(errorstring, ERRORLENGTH, "10 %d", rc);
 			dev_err(&device->cdev->dev, "An error occurred in the "
 				"DASD device driver, reason=%s\n", errorstring);
-			BUG();
+			();
 			break;
 		}
 		retries++;
@@ -1374,7 +1374,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 	      test_bit(DASD_FLAG_LOCK_STOLEN, &cqr->block->base->flags)) ||
 	     test_bit(DASD_FLAG_LOCK_STOLEN, &device->flags)) &&
 	    !test_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags)) {
-		DBF_DEV_EVENT(DBF_DEBUG, device, "start_IO: return request %p "
+		DBF_DEV_EVENT(DBF_DE, device, "start_IO: return request %p "
 			      "because of stolen lock", cqr);
 		cqr->status = DASD_CQR_ERROR;
 		cqr->intrc = -EPERM;
@@ -1425,7 +1425,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 				      cqr->lpm);
 		} else if (cqr->lpm != dasd_path_get_opm(device)) {
 			cqr->lpm = dasd_path_get_opm(device);
-			DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+			DBF_DEV_EVENT(DBF_DE, device, "%s",
 				      "start_IO: selected paths gone,"
 				      " retry on all paths");
 		} else {
@@ -1459,7 +1459,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		dev_err(&device->cdev->dev,
 			"An error occurred in the DASD device driver, "
 			"reason=%s\n", errorstring);
-		BUG();
+		();
 		break;
 	}
 	cqr->intrc = rc;
@@ -1519,7 +1519,7 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 		return;
 	cqr = (struct dasd_ccw_req *) intparm;
 	if (cqr->status != DASD_CQR_IN_IO) {
-		DBF_EVENT_DEVID(DBF_DEBUG, cdev,
+		DBF_EVENT_DEVID(DBF_DE, cdev,
 				"invalid status in handle_killed_request: "
 				"%02x", cqr->status);
 		return;
@@ -1527,7 +1527,7 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 
 	device = dasd_device_from_cdev_locked(cdev);
 	if (IS_ERR(device)) {
-		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
+		DBF_EVENT_DEVID(DBF_DE, cdev, "%s",
 				"unable to get device from cdev");
 		return;
 	}
@@ -1536,7 +1536,7 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 	    device != cqr->startdev ||
 	    strncmp(cqr->startdev->discipline->ebcname,
 		    (char *) &cqr->magic, 4)) {
-		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
+		DBF_EVENT_DEVID(DBF_DE, cdev, "%s",
 				"invalid device in request");
 		dasd_put_device(device);
 		return;
@@ -1631,7 +1631,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 		/*
 		 * In some cases 'File Protected' or 'No Record Found' errors
-		 * might be expected and debug log messages for the
+		 * might be expected and de log messages for the
 		 * corresponding interrupts shouldn't be written then.
 		 * Check if either of the according suppress bits is set.
 		 */
@@ -1667,7 +1667,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	device = (struct dasd_device *) cqr->startdev;
 	if (!device ||
 	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
-		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
+		DBF_EVENT_DEVID(DBF_DE, cdev, "%s",
 				"invalid device in request");
 		return;
 	}
@@ -1684,7 +1684,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	/* check status - the request might have been killed by dyn detach */
 	if (cqr->status != DASD_CQR_IN_IO) {
-		DBF_DEV_EVENT(DBF_DEBUG, device, "invalid status: bus_id %s, "
+		DBF_DEV_EVENT(DBF_DE, device, "invalid status: bus_id %s, "
 			      "status %02x", dev_name(&cdev->dev), cqr->status);
 		return;
 	}
@@ -1716,7 +1716,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		if (!test_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags) &&
 		    cqr->retries > 0) {
 			if (cqr->lpm == dasd_path_get_opm(device))
-				DBF_DEV_EVENT(DBF_DEBUG, device,
+				DBF_DEV_EVENT(DBF_DE, device,
 					      "default ERP in fastpath "
 					      "(%i retries left)",
 					      cqr->retries);
@@ -1836,7 +1836,7 @@ static void __dasd_process_cqr(struct dasd_device *device,
 		dev_err(&device->cdev->dev,
 			"An error occurred in the DASD device driver, "
 			"reason=%s\n", errorstring);
-		BUG();
+		();
 	}
 	if (cqr->callback)
 		cqr->callback(cqr, cqr->callback_data);
@@ -3300,9 +3300,9 @@ dasd_exit(void)
 	dasd_page_cache = NULL;
 	dasd_gendisk_exit();
 	dasd_devmap_exit();
-	if (dasd_debug_area != NULL) {
-		debug_unregister(dasd_debug_area);
-		dasd_debug_area = NULL;
+	if (dasd_de_area != NULL) {
+		de_unregister(dasd_de_area);
+		dasd_de_area = NULL;
 	}
 	dasd_statistics_removeroot();
 }
@@ -3515,7 +3515,7 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 			dasd_free_block(device->block);
 		dasd_delete_device(device);
 	} else
-		pr_debug("dasd_generic device %s found\n",
+		pr_de("dasd_generic device %s found\n",
 				dev_name(&cdev->dev));
 
 	wait_event(dasd_init_waitq, _wait_for_device(device));
@@ -4075,16 +4075,16 @@ static int __init dasd_init(void)
 	init_waitqueue_head(&generic_waitq);
 	init_waitqueue_head(&shutdown_waitq);
 
-	/* register 'common' DASD debug area, used for all DBF_XXX calls */
-	dasd_debug_area = debug_register("dasd", 1, 1, 8 * sizeof(long));
-	if (dasd_debug_area == NULL) {
+	/* register 'common' DASD de area, used for all DBF_XXX calls */
+	dasd_de_area = de_register("dasd", 1, 1, 8 * sizeof(long));
+	if (dasd_de_area == NULL) {
 		rc = -ENOMEM;
 		goto failed;
 	}
-	debug_register_view(dasd_debug_area, &debug_sprintf_view);
-	debug_set_level(dasd_debug_area, DBF_WARNING);
+	de_register_view(dasd_de_area, &de_sprintf_view);
+	de_set_level(dasd_de_area, DBF_WARNING);
 
-	DBF_EVENT(DBF_EMERG, "%s", "debug area created");
+	DBF_EVENT(DBF_EMERG, "%s", "de area created");
 
 	dasd_diag_discipline_pointer = NULL;
 

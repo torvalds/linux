@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
-#include <asm/debug-monitors.h>
+#include <asm/de-monitors.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
@@ -31,7 +31,7 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug were to happen, it
+	 * We are paranoid about modifying text, as if a  were to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with aarch64_insn_*() which uses
 	 * probe_kernel_*(), and make sure what we read is what we expected it

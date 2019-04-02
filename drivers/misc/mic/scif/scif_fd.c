@@ -68,11 +68,11 @@ static int scif_fdflush(struct file *f, fl_owner_t id)
 	return 0;
 }
 
-static __always_inline void scif_err_debug(int err, const char *str)
+static __always_inline void scif_err_de(int err, const char *str)
 {
 	/*
 	 * ENOTCONN is a common uninteresting error which is
-	 * flooding debug messages to the console unnecessarily.
+	 * flooding de messages to the console unnecessarily.
 	 */
 	if (err < 0 && err != -ENOTCONN)
 		dev_dbg(scif_info.mdev.this_device, "%s err %d\n", str, err);
@@ -234,7 +234,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		}
 		err = 0;
 send_err:
-		scif_err_debug(err, "scif_send");
+		scif_err_de(err, "scif_send");
 		return err;
 	}
 	case SCIF_RECV:
@@ -260,7 +260,7 @@ send_err:
 		}
 		err = 0;
 recv_err:
-		scif_err_debug(err, "scif_recv");
+		scif_err_de(err, "scif_recv");
 		return err;
 	}
 	case SCIF_GET_NODEIDS:
@@ -333,7 +333,7 @@ getnodes_err2:
 		}
 		err = 0;
 reg_err:
-		scif_err_debug(err, "scif_register");
+		scif_err_de(err, "scif_register");
 		return err;
 	}
 	case SCIF_UNREG:
@@ -347,7 +347,7 @@ reg_err:
 		}
 		err = scif_unregister(priv, unreg.offset, unreg.len);
 unreg_err:
-		scif_err_debug(err, "scif_unregister");
+		scif_err_de(err, "scif_unregister");
 		return err;
 	}
 	case SCIF_READFROM:
@@ -362,7 +362,7 @@ unreg_err:
 		err = scif_readfrom(priv, copy.loffset, copy.len, copy.roffset,
 				    copy.flags);
 readfrom_err:
-		scif_err_debug(err, "scif_readfrom");
+		scif_err_de(err, "scif_readfrom");
 		return err;
 	}
 	case SCIF_WRITETO:
@@ -377,7 +377,7 @@ readfrom_err:
 		err = scif_writeto(priv, copy.loffset, copy.len, copy.roffset,
 				   copy.flags);
 writeto_err:
-		scif_err_debug(err, "scif_writeto");
+		scif_err_de(err, "scif_writeto");
 		return err;
 	}
 	case SCIF_VREADFROM:
@@ -392,7 +392,7 @@ writeto_err:
 		err = scif_vreadfrom(priv, (void __force *)copy.addr, copy.len,
 				     copy.roffset, copy.flags);
 vreadfrom_err:
-		scif_err_debug(err, "scif_vreadfrom");
+		scif_err_de(err, "scif_vreadfrom");
 		return err;
 	}
 	case SCIF_VWRITETO:
@@ -407,7 +407,7 @@ vreadfrom_err:
 		err = scif_vwriteto(priv, (void __force *)copy.addr, copy.len,
 				    copy.roffset, copy.flags);
 vwriteto_err:
-		scif_err_debug(err, "scif_vwriteto");
+		scif_err_de(err, "scif_vwriteto");
 		return err;
 	}
 	case SCIF_FENCE_MARK:
@@ -429,7 +429,7 @@ vwriteto_err:
 			goto fence_mark_err;
 		}
 fence_mark_err:
-		scif_err_debug(err, "scif_fence_mark");
+		scif_err_de(err, "scif_fence_mark");
 		return err;
 	}
 	case SCIF_FENCE_WAIT:
@@ -437,7 +437,7 @@ fence_mark_err:
 		struct scif_endpt *priv = f->private_data;
 
 		err = scif_fence_wait(priv, arg);
-		scif_err_debug(err, "scif_fence_wait");
+		scif_err_de(err, "scif_fence_wait");
 		return err;
 	}
 	case SCIF_FENCE_SIGNAL:
@@ -453,7 +453,7 @@ fence_mark_err:
 		err = scif_fence_signal(priv, signal.loff, signal.lval,
 					signal.roff, signal.rval, signal.flags);
 fence_signal_err:
-		scif_err_debug(err, "scif_fence_signal");
+		scif_err_de(err, "scif_fence_signal");
 		return err;
 	}
 	}

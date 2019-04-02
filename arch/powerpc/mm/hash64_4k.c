@@ -112,7 +112,7 @@ repeat:
 		 */
 		if (unlikely(slot == -2)) {
 			*ptep = __pte(old_pte);
-			hash_failure_debug(ea, access, vsid, trap, ssize,
+			hash_failure_de(ea, access, vsid, trap, ssize,
 					   MMU_PAGE_4K, MMU_PAGE_4K, old_pte);
 			return -1;
 		}

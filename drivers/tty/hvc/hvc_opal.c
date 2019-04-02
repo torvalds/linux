@@ -5,7 +5,7 @@
  * Copyright 2011 Benjamin Herrenschmidt <benh@kernel.crashing.org>, IBM Corp.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/init.h>
@@ -393,21 +393,21 @@ out:
 	of_node_put(stdout_node);
 }
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_OPAL_RAW
-void __init udbg_init_debug_opal_raw(void)
+#ifdef CONFIG_PPC_EARLY_DE_OPAL_RAW
+void __init udbg_init_de_opal_raw(void)
 {
-	u32 index = CONFIG_PPC_EARLY_DEBUG_OPAL_VTERMNO;
+	u32 index = CONFIG_PPC_EARLY_DE_OPAL_VTERMNO;
 	hvc_opal_privs[index] = &hvc_opal_boot_priv;
 	hvc_opal_boot_priv.proto = HV_PROTOCOL_RAW;
 	hvc_opal_boot_termno = index;
 	udbg_init_opal_common();
 }
-#endif /* CONFIG_PPC_EARLY_DEBUG_OPAL_RAW */
+#endif /* CONFIG_PPC_EARLY_DE_OPAL_RAW */
 
-#ifdef CONFIG_PPC_EARLY_DEBUG_OPAL_HVSI
-void __init udbg_init_debug_opal_hvsi(void)
+#ifdef CONFIG_PPC_EARLY_DE_OPAL_HVSI
+void __init udbg_init_de_opal_hvsi(void)
 {
-	u32 index = CONFIG_PPC_EARLY_DEBUG_OPAL_VTERMNO;
+	u32 index = CONFIG_PPC_EARLY_DE_OPAL_VTERMNO;
 	hvc_opal_privs[index] = &hvc_opal_boot_priv;
 	hvc_opal_boot_termno = index;
 	udbg_init_opal_common();
@@ -416,4 +416,4 @@ void __init udbg_init_debug_opal_hvsi(void)
 		     index, 1);
 	hvsilib_establish(&hvc_opal_boot_priv.hvsi);
 }
-#endif /* CONFIG_PPC_EARLY_DEBUG_OPAL_HVSI */
+#endif /* CONFIG_PPC_EARLY_DE_OPAL_HVSI */

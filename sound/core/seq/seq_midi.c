@@ -112,7 +112,7 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 	struct snd_rawmidi_runtime *runtime;
 	int tmp;
 
-	if (snd_BUG_ON(!substream || !buf))
+	if (snd__ON(!substream || !buf))
 		return -EINVAL;
 	runtime = substream->runtime;
 	if ((tmp = runtime->avail) < count) {
@@ -133,7 +133,7 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 	struct snd_rawmidi_substream *substream;
 	int len;
 
-	if (snd_BUG_ON(!msynth))
+	if (snd__ON(!msynth))
 		return -EINVAL;
 	substream = msynth->output_rfile.output;
 	if (substream == NULL)
@@ -141,7 +141,7 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 	if (ev->type == SNDRV_SEQ_EVENT_SYSEX) {	/* special case, to save space */
 		if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE) {
 			/* invalid event */
-			pr_debug("ALSA: seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
+			pr_de("ALSA: seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
 			return 0;
 		}
 		snd_seq_dump_var_event(ev, (snd_seq_dump_func_t)dump_midi, substream);
@@ -185,7 +185,7 @@ static int midisynth_subscribe(void *private_data, struct snd_seq_port_subscribe
 					   msynth->subdevice,
 					   SNDRV_RAWMIDI_LFLG_INPUT,
 					   &msynth->input_rfile)) < 0) {
-		pr_debug("ALSA: seq_midi: midi input open failed!!!\n");
+		pr_de("ALSA: seq_midi: midi input open failed!!!\n");
 		return err;
 	}
 	runtime = msynth->input_rfile.input->runtime;
@@ -209,7 +209,7 @@ static int midisynth_unsubscribe(void *private_data, struct snd_seq_port_subscri
 	int err;
 	struct seq_midisynth *msynth = private_data;
 
-	if (snd_BUG_ON(!msynth->input_rfile.input))
+	if (snd__ON(!msynth->input_rfile.input))
 		return -EINVAL;
 	err = snd_rawmidi_kernel_release(&msynth->input_rfile);
 	return err;
@@ -227,7 +227,7 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 					   msynth->subdevice,
 					   SNDRV_RAWMIDI_LFLG_OUTPUT,
 					   &msynth->output_rfile)) < 0) {
-		pr_debug("ALSA: seq_midi: midi output open failed!!!\n");
+		pr_de("ALSA: seq_midi: midi output open failed!!!\n");
 		return err;
 	}
 	memset(&params, 0, sizeof(params));
@@ -247,7 +247,7 @@ static int midisynth_unuse(void *private_data, struct snd_seq_port_subscribe *in
 {
 	struct seq_midisynth *msynth = private_data;
 
-	if (snd_BUG_ON(!msynth->output_rfile.output))
+	if (snd__ON(!msynth->output_rfile.output))
 		return -EINVAL;
 	snd_rawmidi_drain_output(msynth->output_rfile.output);
 	return snd_rawmidi_kernel_release(&msynth->output_rfile);
@@ -284,7 +284,7 @@ snd_seq_midisynth_probe(struct device *_dev)
 	int device = dev->device;
 	unsigned int input_count = 0, output_count = 0;
 
-	if (snd_BUG_ON(!card || device < 0 || device >= SNDRV_RAWMIDI_DEVICES))
+	if (snd__ON(!card || device < 0 || device >= SNDRV_RAWMIDI_DEVICES))
 		return -EINVAL;
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)

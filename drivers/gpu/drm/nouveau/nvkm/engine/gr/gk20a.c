@@ -234,7 +234,7 @@ gk20a_gr_init(struct gf100_gr *gr)
 	if (ret)
 		return ret;
 
-	/* MMU debug buffer */
+	/* MMU de buffer */
 	if (gr->func->init_gpc_mmu)
 		gr->func->init_gpc_mmu(gr);
 

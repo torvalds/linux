@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
 #include <linux/cache.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
 
@@ -113,13 +113,13 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 		    != is_init)
 			continue;
 
-		/* We don't want to look at debug sections. */
-		if (strstr(secstrings + sechdrs[i].sh_name, ".debug"))
+		/* We don't want to look at de sections. */
+		if (strstr(secstrings + sechdrs[i].sh_name, ".de"))
 			continue;
 
 		if (sechdrs[i].sh_type == SHT_RELA) {
-			pr_debug("Found relocations in section %u\n", i);
-			pr_debug("Ptr: %p.  Number: %u\n",
+			pr_de("Found relocations in section %u\n", i);
+			pr_de("Ptr: %p.  Number: %u\n",
 			       (void *)hdr + sechdrs[i].sh_offset,
 			       sechdrs[i].sh_size / sizeof(Elf32_Rela));
 
@@ -186,7 +186,7 @@ static uint32_t do_plt_call(void *location,
 {
 	struct ppc_plt_entry *entry;
 
-	pr_debug("Doing plt for call to 0x%x at 0x%x\n", val, (unsigned int)location);
+	pr_de("Doing plt for call to 0x%x at 0x%x\n", val, (unsigned int)location);
 	/* Init, or core PLT? */
 	if (location >= mod->core_layout.base
 	    && location < mod->core_layout.base + mod->core_layout.size)
@@ -205,7 +205,7 @@ static uint32_t do_plt_call(void *location,
 	entry->jump[2] = 0x7d8903a6;                    /* mtctr r12 */
 	entry->jump[3] = 0x4e800420;			/* bctr */
 
-	pr_debug("Initialized plt for 0x%x at %p\n", val, entry);
+	pr_de("Initialized plt for 0x%x at %p\n", val, entry);
 	return (uint32_t)entry;
 }
 
@@ -221,7 +221,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	uint32_t *location;
 	uint32_t value;
 
-	pr_debug("Applying ADD relocate section %u to %u\n", relsec,
+	pr_de("Applying ADD relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rela); i++) {
 		/* This is where to make the change */
@@ -265,17 +265,17 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 						    sechdrs, module);
 
 			/* Only replace bits 2 through 26 */
-			pr_debug("REL24 value = %08X. location = %08X\n",
+			pr_de("REL24 value = %08X. location = %08X\n",
 			       value, (uint32_t)location);
-			pr_debug("Location before: %08X.\n",
+			pr_de("Location before: %08X.\n",
 			       *(uint32_t *)location);
 			*(uint32_t *)location
 				= (*(uint32_t *)location & ~0x03fffffc)
 				| ((value - (uint32_t)location)
 				   & 0x03fffffc);
-			pr_debug("Location after: %08X.\n",
+			pr_de("Location after: %08X.\n",
 			       *(uint32_t *)location);
-			pr_debug("ie. jump to %08X+%08X = %08X\n",
+			pr_de("ie. jump to %08X+%08X = %08X\n",
 			       *(uint32_t *)location & 0x03fffffc,
 			       (uint32_t)location,
 			       (*(uint32_t *)location & 0x03fffffc)

@@ -266,7 +266,7 @@ struct ORANGEFS_sys_attr_s {
 
 /* pint-dev.h ***************************************************************/
 
-/* parameter structure used in ORANGEFS_DEV_DEBUG ioctl command */
+/* parameter structure used in ORANGEFS_DEV_DE ioctl command */
 struct dev_mask_info_s {
 	enum {
 		KERNEL_MASK,
@@ -283,8 +283,8 @@ struct dev_mask2_info_s {
 /* pvfs2-util.h *************************************************************/
 __s32 ORANGEFS_util_translate_mode(int mode);
 
-/* pvfs2-debug.h ************************************************************/
-#include "orangefs-debug.h"
+/* pvfs2-de.h ************************************************************/
+#include "orangefs-de.h"
 
 /* pvfs2-internal.h *********************************************************/
 #define llu(x) (unsigned long long)(x)
@@ -300,7 +300,7 @@ __s32 ORANGEFS_util_translate_mode(int mode);
 #define DEV_GET_MAX_DOWNSIZE    0x3
 #define DEV_MAP                 0x4
 #define DEV_REMOUNT_ALL         0x5
-#define DEV_DEBUG               0x6
+#define DEV_DE               0x6
 #define DEV_UPSTREAM            0x7
 #define DEV_CLIENT_MASK         0x8
 #define DEV_CLIENT_STRING       0x9
@@ -315,7 +315,7 @@ enum {
 	    _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAX_DOWNSIZE, __s32),
 	ORANGEFS_DEV_MAP = _IO(ORANGEFS_DEV_MAGIC, DEV_MAP),
 	ORANGEFS_DEV_REMOUNT_ALL = _IO(ORANGEFS_DEV_MAGIC, DEV_REMOUNT_ALL),
-	ORANGEFS_DEV_DEBUG = _IOR(ORANGEFS_DEV_MAGIC, DEV_DEBUG, __s32),
+	ORANGEFS_DEV_DE = _IOR(ORANGEFS_DEV_MAGIC, DEV_DE, __s32),
 	ORANGEFS_DEV_UPSTREAM = _IOW(ORANGEFS_DEV_MAGIC, DEV_UPSTREAM, int),
 	ORANGEFS_DEV_CLIENT_MASK = _IOW(ORANGEFS_DEV_MAGIC,
 				    DEV_CLIENT_MASK,
@@ -350,13 +350,13 @@ struct ORANGEFS_dev_map_desc {
 
 /* gossip.h *****************************************************************/
 
-extern __u64 orangefs_gossip_debug_mask;
+extern __u64 orangefs_gossip_de_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
-#define gossip_debug(mask, fmt, ...)					\
+#define gossip_de(mask, fmt, ...)					\
 do {									\
-	if (orangefs_gossip_debug_mask & (mask))			\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
+	if (orangefs_gossip_de_mask & (mask))			\
+		printk(KERN_DE fmt, ##__VA_ARGS__);			\
 } while (0)
 
 #define gossip_err pr_err

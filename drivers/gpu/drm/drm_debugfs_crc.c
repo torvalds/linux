@@ -28,7 +28,7 @@
 
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
 
@@ -39,7 +39,7 @@
  * it reached a given hardware component (a CRC sampling "source").
  *
  * Userspace can control generation of CRCs in a given CRTC by writing to the
- * file dri/0/crtc-N/crc/control in debugfs, with N being the index of the CRTC.
+ * file dri/0/crtc-N/crc/control in defs, with N being the index of the CRTC.
  * Accepted values are source names (which are driver-specific) and the "auto"
  * keyword, which will let the driver select a default source of frame CRCs
  * for this CRTC.
@@ -59,7 +59,7 @@
  * the reported CRCs of frames that should have the same contents.
  *
  * On the driver side the implementation effort is minimal, drivers only need to
- * implement &drm_crtc_funcs.set_crc_source. The debugfs files are automatically
+ * implement &drm_crtc_funcs.set_crc_source. The defs files are automatically
  * set up if that vfunc is set. CRC samples need to be captured in the driver by
  * calling drm_crtc_add_crc_entry().
  */
@@ -115,7 +115,7 @@ static ssize_t crc_control_write(struct file *file, const char __user *ubuf,
 		return 0;
 
 	if (len > PAGE_SIZE - 1) {
-		DRM_DEBUG_KMS("Expected < %lu bytes into crtc crc control\n",
+		DRM_DE_KMS("Expected < %lu bytes into crtc crc control\n",
 			      PAGE_SIZE);
 		return -E2BIG;
 	}
@@ -298,7 +298,7 @@ static ssize_t crtc_crc_read(struct file *filep, char __user *user_buf,
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(DRM_CRC_ENTRIES_NR);
+	BUILD__ON_NOT_POWER_OF_2(DRM_CRC_ENTRIES_NR);
 	crc->tail = (crc->tail + 1) & (DRM_CRC_ENTRIES_NR - 1);
 
 	spin_unlock_irq(&crc->lock);
@@ -344,23 +344,23 @@ static const struct file_operations drm_crtc_crc_data_fops = {
 	.release = crtc_crc_release,
 };
 
-int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
+int drm_defs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	struct dentry *crc_ent, *ent;
 
 	if (!crtc->funcs->set_crc_source || !crtc->funcs->verify_crc_source)
 		return 0;
 
-	crc_ent = debugfs_create_dir("crc", crtc->debugfs_entry);
+	crc_ent = defs_create_dir("crc", crtc->defs_entry);
 	if (!crc_ent)
 		return -ENOMEM;
 
-	ent = debugfs_create_file("control", S_IRUGO, crc_ent, crtc,
+	ent = defs_create_file("control", S_IRUGO, crc_ent, crtc,
 				  &drm_crtc_crc_control_fops);
 	if (!ent)
 		goto error;
 
-	ent = debugfs_create_file("data", S_IRUGO, crc_ent, crtc,
+	ent = defs_create_file("data", S_IRUGO, crc_ent, crtc,
 				  &drm_crtc_crc_data_fops);
 	if (!ent)
 		goto error;
@@ -368,7 +368,7 @@ int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 	return 0;
 
 error:
-	debugfs_remove_recursive(crc_ent);
+	defs_remove_recursive(crc_ent);
 
 	return -ENOMEM;
 }

@@ -168,7 +168,7 @@ static int pci_vpd_wait(struct pci_dev *dev)
 			max_sleep *= 2;
 	} while (true);
 
-	pci_warn(dev, "VPD access failed.  This is likely a firmware bug on this device.  Contact the card vendor for a firmware update\n");
+	pci_warn(dev, "VPD access failed.  This is likely a firmware  on this device.  Contact the card vendor for a firmware update\n");
 	return -ETIMEDOUT;
 }
 
@@ -554,7 +554,7 @@ static void quirk_blacklist_vpd(struct pci_dev *dev)
 {
 	if (dev->vpd) {
 		dev->vpd->len = 0;
-		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
+		pci_warn(dev, FW_ "disabling VPD access (can't determine size of non-standard VPD format)\n");
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0060, quirk_blacklist_vpd);

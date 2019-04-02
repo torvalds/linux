@@ -68,10 +68,10 @@
  * ARCH_NEEDS_WEAK_PER_CPU in asm/percpu.h when necessary.
  *
  * To ensure that the generic code observes the above two
- * restrictions, if CONFIG_DEBUG_FORCE_WEAK_PER_CPU is set weak
+ * restrictions, if CONFIG_DE_FORCE_WEAK_PER_CPU is set weak
  * definition is used for all cases.
  */
-#if defined(ARCH_NEEDS_WEAK_PER_CPU) || defined(CONFIG_DEBUG_FORCE_WEAK_PER_CPU)
+#if defined(ARCH_NEEDS_WEAK_PER_CPU) || defined(CONFIG_DE_FORCE_WEAK_PER_CPU)
 /*
  * __pcpu_scope_* dummy variable is used to enforce scope.  It
  * receives the static modifier when it's used in front of
@@ -242,7 +242,7 @@ do {									\
 	arch_raw_cpu_ptr(ptr);						\
 })
 
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 #define this_cpu_ptr(ptr)						\
 ({									\
 	__verify_pcpu_ptr(ptr);						\
@@ -307,7 +307,7 @@ do {									\
 
 extern void __bad_size_call_parameter(void);
 
-#ifdef CONFIG_DEBUG_PREEMPT
+#ifdef CONFIG_DE_PREEMPT
 extern void __this_cpu_preempt_check(const char *op);
 #else
 static inline void __this_cpu_preempt_check(const char *op) { }
@@ -355,9 +355,9 @@ static inline void __this_cpu_preempt_check(const char *op) { }
 ({									\
 	bool pdcrb_ret__;						\
 	__verify_pcpu_ptr(&(pcp1));					\
-	BUILD_BUG_ON(sizeof(pcp1) != sizeof(pcp2));			\
-	VM_BUG_ON((unsigned long)(&(pcp1)) % (2 * sizeof(pcp1)));	\
-	VM_BUG_ON((unsigned long)(&(pcp2)) !=				\
+	BUILD__ON(sizeof(pcp1) != sizeof(pcp2));			\
+	VM__ON((unsigned long)(&(pcp1)) % (2 * sizeof(pcp1)));	\
+	VM__ON((unsigned long)(&(pcp2)) !=				\
 		  (unsigned long)(&(pcp1)) + sizeof(pcp1));		\
 	switch(sizeof(pcp1)) {						\
 	case 1: pdcrb_ret__ = stem##1(pcp1, pcp2, __VA_ARGS__); break;	\

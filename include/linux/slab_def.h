@@ -46,7 +46,7 @@ struct kmem_cache {
 	int align;
 
 /* 5) statistics */
-#ifdef CONFIG_DEBUG_SLAB
+#ifdef CONFIG_DE_SLAB
 	unsigned long num_active;
 	unsigned long num_allocations;
 	unsigned long high_mark;
@@ -61,19 +61,19 @@ struct kmem_cache {
 	atomic_t allocmiss;
 	atomic_t freehit;
 	atomic_t freemiss;
-#ifdef CONFIG_DEBUG_SLAB_LEAK
+#ifdef CONFIG_DE_SLAB_LEAK
 	atomic_t store_user_clean;
 #endif
 
 	/*
-	 * If debugging is enabled, then the allocator can add additional
+	 * If deging is enabled, then the allocator can add additional
 	 * fields and/or padding to every object. 'size' contains the total
 	 * object size including these internal fields, while 'obj_offset'
 	 * and 'object_size' contain the offset to the user object and its
 	 * size.
 	 */
 	int obj_offset;
-#endif /* CONFIG_DEBUG_SLAB */
+#endif /* CONFIG_DE_SLAB */
 
 #ifdef CONFIG_MEMCG
 	struct memcg_cache_params memcg_params;

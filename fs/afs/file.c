@@ -271,7 +271,7 @@ int afs_page_filler(void *data, struct page *page)
 
 	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	ret = -ESTALE;
 	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
@@ -294,12 +294,12 @@ int afs_page_filler(void *data, struct page *page)
 
 		/* page not yet cached */
 	case -ENODATA:
-		_debug("cache said ENODATA");
+		_de("cache said ENODATA");
 		goto go_on;
 
 		/* page will not be cached */
 	case -ENOBUFS:
-		_debug("cache said ENOBUFS");
+		_de("cache said ENOBUFS");
 	default:
 	go_on:
 		req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
@@ -326,7 +326,7 @@ int afs_page_filler(void *data, struct page *page)
 
 		if (ret < 0) {
 			if (ret == -ENOENT) {
-				_debug("got NOENT from server"
+				_de("got NOENT from server"
 				       " - marking file deleted and stale");
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
 				ret = -ESTALE;
@@ -335,7 +335,7 @@ int afs_page_filler(void *data, struct page *page)
 #ifdef CONFIG_AFS_FSCACHE
 			fscache_uncache_page(vnode->cache, page);
 #endif
-			BUG_ON(PageFsCache(page));
+			_ON(PageFsCache(page));
 
 			if (ret == -EINTR ||
 			    ret == -ENOMEM ||
@@ -353,7 +353,7 @@ int afs_page_filler(void *data, struct page *page)
 		    fscache_write_page(vnode->cache, page, vnode->status.size,
 				       GFP_KERNEL) != 0) {
 			fscache_uncache_page(vnode->cache, page);
-			BUG_ON(PageFsCache(page));
+			_ON(PageFsCache(page));
 		}
 #endif
 		unlock_page(page);
@@ -418,7 +418,7 @@ static void afs_readpages_page_done(struct afs_call *call, struct afs_read *req)
 	    fscache_write_page(vnode->cache, page, vnode->status.size,
 			       GFP_KERNEL) != 0) {
 		fscache_uncache_page(vnode->cache, page);
-		BUG_ON(PageFsCache(page));
+		_ON(PageFsCache(page));
 	}
 #endif
 	unlock_page(page);
@@ -505,7 +505,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 
 error:
 	if (ret == -ENOENT) {
-		_debug("got NOENT from server"
+		_de("got NOENT from server"
 		       " - marking file deleted and stale");
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
 		ret = -ESTALE;
@@ -563,8 +563,8 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 	switch (ret) {
 		/* all pages are being read from the cache */
 	case 0:
-		BUG_ON(!list_empty(pages));
-		BUG_ON(nr_pages != 0);
+		_ON(!list_empty(pages));
+		_ON(nr_pages != 0);
 		_leave(" = 0 [reading all]");
 		return 0;
 
@@ -602,7 +602,7 @@ static void afs_invalidatepage(struct page *page, unsigned int offset,
 
 	_enter("{%lu},%u,%u", page->index, offset, length);
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 
 	/* we clean up only if the entire page is being invalidated */
 	if (offset == 0 && length == PAGE_SIZE) {

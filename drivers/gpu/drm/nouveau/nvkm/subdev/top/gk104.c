@@ -95,7 +95,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 			break;
 		}
 
-		nvkm_debug(subdev, "%02x.%d (%8s): addr %06x fault %2d "
+		nvkm_de(subdev, "%02x.%d (%8s): addr %06x fault %2d "
 				   "engine %2d runlist %2d intr %2d "
 				   "reset %2d\n", type, inst,
 			   info->index == NVKM_SUBDEV_NR ? NULL :

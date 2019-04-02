@@ -36,7 +36,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 Description:
 		The alloc_calls file is read-only and lists the kernel code
 		locations from which allocations for this cache were performed.
-		The alloc_calls file only contains information if debugging is
+		The alloc_calls file only contains information if deging is
 		enabled for that cache (see Documentation/vm/slub.rst).
 
 What:		/sys/kernel/slab/cache/alloc_fastpath
@@ -218,7 +218,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The free_calls file is read-only and lists the locations of
-		object frees if slab debugging is enabled (see
+		object frees if slab deging is enabled (see
 		Documentation/vm/slub.rst).
 
 What:		/sys/kernel/slab/cache/free_fastpath
@@ -346,7 +346,7 @@ Description:
 		number of objects per slab.  If a slab cannot be allocated
 		because of fragmentation, SLUB will retry with the minimum order
 		possible depending on its characteristics.
-		When debug_guardpage_minorder=N (N > 0) parameter is specified
+		When de_guardpage_minorder=N (N > 0) parameter is specified
 		(see Documentation/admin-guide/kernel-parameters.rst), the minimum possible
 		order is used and this sysfs entry can not be used to change
 		the order at run time.
@@ -441,7 +441,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 		Christoph Lameter <cl@linux-foundation.org>
 Description:
 		The slab_size file is read-only and specifies the object size
-		with metadata (debugging information and alignment) in bytes.
+		with metadata (deging information and alignment) in bytes.
 
 What:		/sys/kernel/slab/cache/slabs
 Date:		May 2007

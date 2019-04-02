@@ -351,7 +351,7 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 		goto out;
 	}
 
-	BUG_ON(!cpu_has_mipsmt && !cpu_has_vp);
+	_ON(!cpu_has_mipsmt && !cpu_has_vp);
 
 	/* Boot a VPE on this core */
 	mips_cps_boot_vpes(core_cfg, vpe_id);
@@ -374,7 +374,7 @@ static void cps_init_secondary(void)
 		 * what the GIC reports, otherwise we'll have configured
 		 * interrupts incorrectly.
 		 */
-		BUG_ON(ident != mips_cm_vp_id(smp_processor_id()));
+		_ON(ident != mips_cm_vp_id(smp_processor_id()));
 	}
 
 	if (cpu_has_veic)
@@ -415,7 +415,7 @@ static void cps_shutdown_this_cpu(enum cpu_death death)
 	if (death == CPU_DEATH_HALT) {
 		vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 
-		pr_debug("Halting core %d VP%d\n", core, vpe_id);
+		pr_de("Halting core %d VP%d\n", core, vpe_id);
 		if (cpu_has_mipsmt) {
 			/* Halt this TC */
 			write_c0_tchalt(TCHALT_H);
@@ -427,7 +427,7 @@ static void cps_shutdown_this_cpu(enum cpu_death death)
 			wmb();
 		}
 	} else {
-		pr_debug("Gating power to core %d\n", core);
+		pr_de("Gating power to core %d\n", core);
 		/* Power down the core */
 		cps_pm_enter_state(CPS_PM_POWER_GATED);
 	}
@@ -481,7 +481,7 @@ void play_dead(void)
 	cpu = smp_processor_id();
 	cpu_death = CPU_DEATH_POWER;
 
-	pr_debug("CPU%d going offline\n", cpu);
+	pr_de("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
 		/* Look for another online VPE within the core */

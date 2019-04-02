@@ -555,7 +555,7 @@ static int vnet_walk_rx_one(struct vnet_port *port,
 	struct vio_driver_state *vio = &port->vio;
 	int err;
 
-	BUG_ON(!desc);
+	_ON(!desc);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
@@ -784,7 +784,7 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 	int npkts = 0;
 
 	/* we don't expect any other bits */
-	BUG_ON(port->rx_event & ~(LDC_EVENT_DATA_READY |
+	_ON(port->rx_event & ~(LDC_EVENT_DATA_READY |
 				  LDC_EVENT_RESET |
 				  LDC_EVENT_UP));
 
@@ -1012,7 +1012,7 @@ static struct sk_buff *vnet_clean_tx_ring(struct vnet_port *port,
 			if (d->hdr.state != VIO_DESC_DONE)
 				pr_notice("invalid ring buffer state %d\n",
 					  d->hdr.state);
-			BUG_ON(port->tx_bufs[txi].skb->next);
+			_ON(port->tx_bufs[txi].skb->next);
 
 			port->tx_bufs[txi].skb->next = skb;
 			skb = port->tx_bufs[txi].skb;
@@ -1400,7 +1400,7 @@ sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 			netif_tx_stop_queue(txq);
 
 			/* This is a hard error, log it. */
-			netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
+			netdev_err(dev, "! Tx Ring full when queue awake!\n");
 			dev->stats.tx_errors++;
 		}
 		rcu_read_unlock();
@@ -1413,7 +1413,7 @@ sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 
 	freeskbs = vnet_clean_tx_ring(port, &pending);
 
-	BUG_ON(port->tx_bufs[txi].skb);
+	_ON(port->tx_bufs[txi].skb);
 
 	len = skb->len;
 	if (len < ETH_ZLEN)

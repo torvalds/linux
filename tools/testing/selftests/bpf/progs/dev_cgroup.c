@@ -13,7 +13,7 @@ SEC("cgroup/dev")
 int bpf_prog1(struct bpf_cgroup_dev_ctx *ctx)
 {
 	short type = ctx->access_type & 0xFFFF;
-#ifdef DEBUG
+#ifdef DE
 	short access = ctx->access_type >> 16;
 	char fmt[] = "  %d:%d    \n";
 

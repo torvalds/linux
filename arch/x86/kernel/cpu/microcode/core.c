@@ -104,7 +104,7 @@ static bool amd_check_current_patch_level(void)
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, lvl, dummy);
 
 	if (IS_ENABLED(CONFIG_X86_32))
-		levels = (u32 *)__pa_nodebug(&final_levels);
+		levels = (u32 *)__pa_node(&final_levels);
 	else
 		levels = final_levels;
 
@@ -120,9 +120,9 @@ static bool __init check_loader_disabled_bsp(void)
 	static const char *__dis_opt_str = "dis_ucode_ldr";
 
 #ifdef CONFIG_X86_32
-	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
-	const char *option  = (const char *)__pa_nodebug(__dis_opt_str);
-	bool *res = (bool *)__pa_nodebug(&dis_ucode_ldr);
+	const char *cmdline = (const char *)__pa_node(boot_command_line);
+	const char *option  = (const char *)__pa_node(__dis_opt_str);
+	bool *res = (bool *)__pa_node(&dis_ucode_ldr);
 
 #else /* CONFIG_X86_64 */
 	const char *cmdline = boot_command_line;
@@ -206,7 +206,7 @@ void __init load_ucode_bsp(void)
 static bool check_loader_disabled_ap(void)
 {
 #ifdef CONFIG_X86_32
-	return *((bool *)__pa_nodebug(&dis_ucode_ldr));
+	return *((bool *)__pa_node(&dis_ucode_ldr));
 #else
 	return dis_ucode_ldr;
 #endif
@@ -268,7 +268,7 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 	struct boot_params *params;
 
 	if (use_pa)
-		params = (struct boot_params *)__pa_nodebug(&boot_params);
+		params = (struct boot_params *)__pa_node(&boot_params);
 	else
 		params = &boot_params;
 
@@ -315,7 +315,7 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 		 * since we're running from physical addresses, we need to access
 		 * relocated_ramdisk through its *physical* address too.
 		 */
-		u64 *rr = (u64 *)__pa_nodebug(&relocated_ramdisk);
+		u64 *rr = (u64 *)__pa_node(&relocated_ramdisk);
 		if (*rr)
 			start = *rr;
 	}
@@ -694,7 +694,7 @@ static enum ucode_state microcode_resume_cpu(int cpu)
 	if (apply_microcode_on_target(cpu))
 		return UCODE_ERROR;
 
-	pr_debug("CPU%d updated upon resume\n", cpu);
+	pr_de("CPU%d updated upon resume\n", cpu);
 
 	return UCODE_OK;
 }
@@ -716,7 +716,7 @@ static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 
 	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev, refresh_fw);
 	if (ustate == UCODE_NEW) {
-		pr_debug("CPU%d updated upon init\n", cpu);
+		pr_de("CPU%d updated upon init\n", cpu);
 		apply_microcode_on_target(cpu);
 	}
 
@@ -743,7 +743,7 @@ static int mc_device_add(struct device *dev, struct subsys_interface *sif)
 	if (!cpu_online(cpu))
 		return 0;
 
-	pr_debug("CPU%d added\n", cpu);
+	pr_de("CPU%d added\n", cpu);
 
 	err = sysfs_create_group(&dev->kobj, &mc_attr_group);
 	if (err)
@@ -762,7 +762,7 @@ static void mc_device_remove(struct device *dev, struct subsys_interface *sif)
 	if (!cpu_online(cpu))
 		return;
 
-	pr_debug("CPU%d removed\n", cpu);
+	pr_de("CPU%d removed\n", cpu);
 	microcode_fini_cpu(cpu);
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
 }
@@ -798,7 +798,7 @@ static int mc_cpu_online(unsigned int cpu)
 
 	dev = get_cpu_device(cpu);
 	microcode_update_cpu(cpu);
-	pr_debug("CPU%d added\n", cpu);
+	pr_de("CPU%d added\n", cpu);
 
 	if (sysfs_create_group(&dev->kobj, &mc_attr_group))
 		pr_err("Failed to create group for CPU%d\n", cpu);
@@ -812,7 +812,7 @@ static int mc_cpu_down_prep(unsigned int cpu)
 	dev = get_cpu_device(cpu);
 	/* Suspend is in progress, only remove the interface */
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
-	pr_debug("CPU%d removed\n", cpu);
+	pr_de("CPU%d removed\n", cpu);
 
 	return 0;
 }

@@ -31,7 +31,7 @@
 #include <linux/irq_work.h>
 
 #include <linux/atomic.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
@@ -275,7 +275,7 @@ void __cpu_die(unsigned int cpu)
 		pr_err("CPU%u: cpu didn't die\n", cpu);
 		return;
 	}
-	pr_debug("CPU%u: shutdown\n", cpu);
+	pr_de("CPU%u: shutdown\n", cpu);
 
 	clear_tasks_mm_cpumask(cpu);
 	/*
@@ -407,7 +407,7 @@ asmlinkage void secondary_start_kernel(void)
 #ifndef CONFIG_MMU
 	setup_vectors_base();
 #endif
-	pr_debug("CPU%u: Booted secondary processor\n", cpu);
+	pr_de("CPU%u: Booted secondary processor\n", cpu);
 
 	preempt_disable();
 	trace_hardirqs_off();
@@ -431,7 +431,7 @@ asmlinkage void secondary_start_kernel(void)
 	 */
 	set_cpu_online(cpu, true);
 
-	check_other_bugs();
+	check_other_s();
 
 	complete(&cpu_running);
 
@@ -728,7 +728,7 @@ void smp_send_stop(void)
  */
 void panic_smp_self_stop(void)
 {
-	pr_debug("CPU %u will stop doing anything useful since another CPU has paniced\n",
+	pr_de("CPU %u will stop doing anything useful since another CPU has paniced\n",
 	         smp_processor_id());
 	set_cpu_online(smp_processor_id(), false);
 	while (1)

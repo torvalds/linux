@@ -77,7 +77,7 @@ int register_filesystem(struct file_system_type * fs)
 	if (fs->parameters && !fs_validate_description(fs->parameters))
 		return -EINVAL;
 
-	BUG_ON(strchr(fs->name, '.'));
+	_ON(strchr(fs->name, '.'));
 	if (fs->next)
 		return -EBUSY;
 	write_lock(&file_systems_lock);

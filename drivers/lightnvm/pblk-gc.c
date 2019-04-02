@@ -302,7 +302,7 @@ static int pblk_gc_line(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_gc *gc = &pblk->gc;
 	struct pblk_line_ws *line_ws;
 
-	pblk_debug(pblk, "line '%d' being reclaimed for GC\n", line->id);
+	pblk_de(pblk, "line '%d' being reclaimed for GC\n", line->id);
 
 	line_ws = kmalloc(sizeof(struct pblk_line_ws), GFP_KERNEL);
 	if (!line_ws)
@@ -537,7 +537,7 @@ static int pblk_gc_reader_ts(void *data)
 		io_schedule();
 	}
 
-#ifdef CONFIG_NVM_PBLK_DEBUG
+#ifdef CONFIG_NVM_PBLK_DE
 	pblk_info(pblk, "flushing gc pipeline, %d lines left\n",
 		atomic_read(&gc->pipeline_gc));
 #endif
@@ -555,7 +555,7 @@ static int pblk_gc_reader_ts(void *data)
 static void pblk_gc_start(struct pblk *pblk)
 {
 	pblk->gc.gc_active = 1;
-	pblk_debug(pblk, "gc start\n");
+	pblk_de(pblk, "gc start\n");
 }
 
 void pblk_gc_should_start(struct pblk *pblk)

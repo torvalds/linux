@@ -339,7 +339,7 @@ mgt_le_to_cpu(int type, void *data)
 	case OID_TYPE_RAW:
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -408,7 +408,7 @@ mgt_cpu_to_le(int type, void *data)
 	case OID_TYPE_RAW:
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -424,8 +424,8 @@ mgt_set_request(islpci_private *priv, enum oid_num_t n, int extra, void *data)
 	void *cache, *_data = data;
 	u32 oid;
 
-	BUG_ON(n >= OID_NUM_LAST);
-	BUG_ON(extra > isl_oid[n].range);
+	_ON(n >= OID_NUM_LAST);
+	_ON(extra > isl_oid[n].range);
 
 	if (!priv->mib)
 		/* memory has been freed */
@@ -485,7 +485,7 @@ mgt_set_varlen(islpci_private *priv, enum oid_num_t n, void *data, int extra_len
 	int dlen;
 	u32 oid;
 
-	BUG_ON(n >= OID_NUM_LAST);
+	_ON(n >= OID_NUM_LAST);
 
 	dlen = isl_oid[n].size;
 	oid = isl_oid[n].oid;
@@ -524,8 +524,8 @@ mgt_get_request(islpci_private *priv, enum oid_num_t n, int extra, void *data,
 	void *cache, *_res = NULL;
 	u32 oid;
 
-	BUG_ON(n >= OID_NUM_LAST);
-	BUG_ON(extra > isl_oid[n].range);
+	_ON(n >= OID_NUM_LAST);
+	_ON(extra > isl_oid[n].range);
 
 	res->ptr = NULL;
 
@@ -563,7 +563,7 @@ mgt_get_request(islpci_private *priv, enum oid_num_t n, int extra, void *data,
 		res->u = ret ? 0 : le32_to_cpu(*(u32 *) _res);
 	else {
 		res->ptr = kmalloc(reslen, GFP_KERNEL);
-		BUG_ON(res->ptr == NULL);
+		_ON(res->ptr == NULL);
 		if (ret)
 			memset(res->ptr, 0, reslen);
 		else {
@@ -579,7 +579,7 @@ mgt_get_request(islpci_private *priv, enum oid_num_t n, int extra, void *data,
 		islpci_mgt_release(response);
 
 	if (reslen > isl_oid[n].size)
-		printk(KERN_DEBUG
+		printk(KERN_DE
 		       "mgt_get_request(0x%x): received data length was bigger "
 		       "than expected (%d > %d). Memory is probably corrupted...",
 		       oid, reslen, isl_oid[n].size);
@@ -599,7 +599,7 @@ mgt_commit_list(islpci_private *priv, enum oid_num_t *l, int n)
 		void *data = priv->mib[l[i]];
 		int j = 0;
 		u32 oid = t->oid;
-		BUG_ON(data == NULL);
+		_ON(data == NULL);
 		while (j <= t->range) {
 			int r = islpci_mgt_transaction(priv->ndev, PIMFOR_OP_SET,
 						      oid, data, t->size,
@@ -626,8 +626,8 @@ mgt_commit_list(islpci_private *priv, enum oid_num_t *l, int n)
 void
 mgt_set(islpci_private *priv, enum oid_num_t n, void *data)
 {
-	BUG_ON(n >= OID_NUM_LAST);
-	BUG_ON(priv->mib[n] == NULL);
+	_ON(n >= OID_NUM_LAST);
+	_ON(priv->mib[n] == NULL);
 
 	memcpy(priv->mib[n], data, isl_oid[n].size);
 	mgt_cpu_to_le(isl_oid[n].flags & OID_FLAG_TYPE, priv->mib[n]);
@@ -636,9 +636,9 @@ mgt_set(islpci_private *priv, enum oid_num_t n, void *data)
 void
 mgt_get(islpci_private *priv, enum oid_num_t n, void *res)
 {
-	BUG_ON(n >= OID_NUM_LAST);
-	BUG_ON(priv->mib[n] == NULL);
-	BUG_ON(res == NULL);
+	_ON(n >= OID_NUM_LAST);
+	_ON(priv->mib[n] == NULL);
+	_ON(res == NULL);
 
 	memcpy(res, priv->mib[n], isl_oid[n].size);
 	mgt_le_to_cpu(isl_oid[n].flags & OID_FLAG_TYPE, res);
@@ -713,7 +713,7 @@ mgt_commit(islpci_private *priv)
 	if (rvalue) {
 		/* some request have failed. The device might be in an
 		   incoherent state. We should reset it ! */
-		printk(KERN_DEBUG "%s: mgt_commit: failure\n", priv->ndev->name);
+		printk(KERN_DE "%s: mgt_commit: failure\n", priv->ndev->name);
 	}
 	return rvalue;
 }
@@ -750,7 +750,7 @@ mgt_unlatch_all(islpci_private *priv)
 #endif
 
 	if (rvalue)
-		printk(KERN_DEBUG "%s: Unlatching OIDs failed\n", priv->ndev->name);
+		printk(KERN_DE "%s: Unlatching OIDs failed\n", priv->ndev->name);
 }
 #endif
 
@@ -782,7 +782,7 @@ mgt_oidtonum(u32 oid)
 		if (isl_oid[i].oid == oid)
 			return i;
 
-	printk(KERN_DEBUG "looking for an unknown oid 0x%x", oid);
+	printk(KERN_DE "looking for an unknown oid 0x%x", oid);
 
 	return OID_NUM_LAST;
 }
@@ -895,7 +895,7 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 	return 0;
 }

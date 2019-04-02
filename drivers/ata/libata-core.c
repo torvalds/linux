@@ -197,7 +197,7 @@ static bool ata_sstatus_online(u32 sstatus)
 struct ata_link *ata_link_next(struct ata_link *link, struct ata_port *ap,
 			       enum ata_link_iter_mode mode)
 {
-	BUG_ON(mode != ATA_LITER_EDGE &&
+	_ON(mode != ATA_LITER_EDGE &&
 	       mode != ATA_LITER_PMP_FIRST && mode != ATA_LITER_HOST_FIRST);
 
 	/* NULL link indicates start of iteration */
@@ -256,7 +256,7 @@ struct ata_link *ata_link_next(struct ata_link *link, struct ata_port *ap,
 struct ata_device *ata_dev_next(struct ata_device *dev, struct ata_link *link,
 				enum ata_dev_iter_mode mode)
 {
-	BUG_ON(mode != ATA_DITER_ENABLED && mode != ATA_DITER_ENABLED_REVERSE &&
+	_ON(mode != ATA_DITER_ENABLED && mode != ATA_DITER_ENABLED_REVERSE &&
 	       mode != ATA_DITER_ALL && mode != ATA_DITER_ALL_REVERSE);
 
 	/* NULL dev indicates start of iteration */
@@ -1131,7 +1131,7 @@ void ata_id_string(const u16 *id, unsigned char *s,
 {
 	unsigned int c;
 
-	BUG_ON(len & 1);
+	_ON(len & 1);
 
 	while (len > 0) {
 		c = id[ofs] >> 8;
@@ -1424,7 +1424,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 }
 
 /**
- *	ata_dump_id - IDENTIFY DEVICE info debugging output
+ *	ata_dump_id - IDENTIFY DEVICE info deging output
  *	@id: IDENTIFY DEVICE page to dump
  *
  *	Dump selected 16-bit words from the given IDENTIFY DEVICE
@@ -1949,7 +1949,7 @@ retry:
 		ata_dev_dbg(dev, "dumping IDENTIFY data, "
 			    "class=%d may_fallback=%d tried_spinup=%d\n",
 			    class, may_fallback, tried_spinup);
-		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,
+		print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET,
 			       16, 2, id, ATA_ID_WORDS * sizeof(*id), true);
 	}
 
@@ -2763,8 +2763,8 @@ int ata_dev_configure(struct ata_device *dev)
 		/* Let the user know. We don't want to disallow opens for
 		   rescue purposes, or in case the vendor is just a blithering
 		   idiot. Do this after the dev_config call as some controllers
-		   with buggy firmware may want to avoid reporting false device
-		   bugs */
+		   with gy firmware may want to avoid reporting false device
+		   s */
 
 		if (print_info) {
 			ata_dev_warn(dev,
@@ -3471,7 +3471,7 @@ int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 		break;
 
 	default:
-		BUG();
+		();
 	}
 
 	xfer_mask &= ata_pack_xfermask(pio_mask, mwdma_mask, udma_mask);
@@ -4366,7 +4366,7 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	 * Some BIOSes boot w/o HPA but resume w/ HPA locked.  Try
 	 * unlocking HPA in those cases.
 	 *
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=15396
+	 * https://zilla.kernel.org/show_.cgi?id=15396
 	 */
 	if (dev->n_native_sectors == n_native_sectors &&
 	    dev->n_sectors < n_sectors && n_sectors == n_native_sectors &&
@@ -4443,7 +4443,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 
 	/*
 	 * These devices time out with higher max sects.
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=121671
+	 * https://zilla.kernel.org/show_.cgi?id=121671
 	 */
 	{ "LITEON CX1-JB*-HP",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
 	{ "LITEON EP1-*",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
@@ -4463,7 +4463,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "ST3160023AS",	"3.42",		ATA_HORKAGE_NONCQ },
 	{ "OCZ CORE_SSD",	"02.10104",	ATA_HORKAGE_NONCQ },
 
-	/* Seagate NCQ + FLUSH CACHE firmware bug */
+	/* Seagate NCQ + FLUSH CACHE firmware  */
 	{ "ST31500341AS",	"SD1[5-9]",	ATA_HORKAGE_NONCQ |
 						ATA_HORKAGE_FIRMWARE_WARN },
 
@@ -4487,7 +4487,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "HTS541080G9SA00",    "MB4OC60D",     ATA_HORKAGE_NONCQ, },
 	{ "HTS541010G9SA00",    "MBZOC60D",     ATA_HORKAGE_NONCQ, },
 
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=15573 */
+	/* https://zilla.kernel.org/show_.cgi?id=15573 */
 	{ "C300-CTFDDAC128MAG",	"0001",		ATA_HORKAGE_NONCQ, },
 
 	/* Some Sandisk SSDs lock up hard with NCQ enabled.  Reported on
@@ -4592,7 +4592,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 */
 
 	/*
-	 * The intel 510 drive has buggy DRAT/RZAT. Explicitly exclude
+	 * The intel 510 drive has gy DRAT/RZAT. Explicitly exclude
 	 * that model before whitelisting all other intel SSDs.
 	 */
 	{ "INTEL*SSDSC2MH*",		NULL,	0, },
@@ -4613,7 +4613,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 * known prefixes and is SATA-1.  As a side effect LPM partial is
 	 * lost too.
 	 *
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=57211
+	 * https://zilla.kernel.org/show_.cgi?id=57211
 	 */
 	{ "WDC WD800JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 	{ "WDC WD1200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
@@ -6015,10 +6015,10 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap->host = host;
 	ap->dev = host->dev;
 
-#if defined(ATA_VERBOSE_DEBUG)
-	/* turn on all debugging levels */
+#if defined(ATA_VERBOSE_DE)
+	/* turn on all deging levels */
 	ap->msg_enable = 0x00FF;
-#elif defined(ATA_DEBUG)
+#elif defined(ATA_DE)
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_INFO | ATA_MSG_CTL | ATA_MSG_WARN | ATA_MSG_ERR;
 #else
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
@@ -6522,7 +6522,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 
 	/* host must have been started */
 	if (!(host->flags & ATA_HOST_STARTED)) {
-		dev_err(host->dev, "BUG: trying to register unstarted host\n");
+		dev_err(host->dev, ": trying to register unstarted host\n");
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -7059,7 +7059,7 @@ static int __init ata_init(void)
 		goto err_out;
 	}
 
-	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
+	printk(KERN_DE "libata version " DRV_VERSION " loaded.\n");
 	return 0;
 
 err_out:
@@ -7282,7 +7282,7 @@ EXPORT_SYMBOL(ata_dev_printk);
 
 void ata_print_version(const struct device *dev, const char *version)
 {
-	dev_printk(KERN_DEBUG, dev, "version %s\n", version);
+	dev_printk(KERN_DE, dev, "version %s\n", version);
 }
 EXPORT_SYMBOL(ata_print_version);
 

@@ -3,7 +3,7 @@ that I do not like numbers like 0.1 and the like for
 things that can be used since quite some time. But
 then, 3.1 doesn't mean 'perfectly stable', too.)
 
-Known bugs:
+Known s:
 -----------
 
 - Doesn't work on the alpha. The only 64/32-bit
@@ -11,7 +11,7 @@ Known bugs:
   in readdir()) gives compiler warnings but is
   apparently not causing the failure, as directory
   reads basically work (but all files are of size 0).
-  Alas, I've got no alpha to debug. :-(
+  Alas, I've got no alpha to de. :-(
 
 - The partition checker (drivers/block/genhd.c)
   doesn't work with devices which have 256 byte
@@ -26,7 +26,7 @@ Known bugs:
   last allocated block is not cleared. Well,
   this fs never claimed to be Posix conformant.
 
-Please direct bug reports to: zippel@linux-m68k.org
+Please direct  reports to: zippel@linux-m68k.org
 
 Version 3.20
 ------------
@@ -37,7 +37,7 @@ Version 3.19
 ------------
 
 - sizeof changes from Kernel Janitor Project
-- several bug fixes found with fsx
+- several  fixes found with fsx
 
 Version 3.18
 ------------
@@ -92,7 +92,7 @@ Version 3.11
 ------------
 
 - Converted to use 2.3.x page cache [Dave Jones]
-- Corruption in truncate() bugfix [Ken Tyler <kent@werple.net.au>]
+- Corruption in truncate() fix [Ken Tyler <kent@werple.net.au>]
 
 Version 3.10
 ------------
@@ -116,7 +116,7 @@ Version 3.9
   it anyway).
 
 - Added a few comments, fixed some typos (and
-  introduced some new ones), made the debug messages
+  introduced some new ones), made the de messages
   more consistent. Changed a bad example in the
   doc file (affs.txt).
 
@@ -169,7 +169,7 @@ Version 3.7
   like the affs itself.
 
 - getblock() didn't update the lastblock field in the
-  inode if the fs was not an OFS. This bug only shows
+  inode if the fs was not an OFS. This  only shows
   up if a file was enlarged via truncate() and there
   was not enough space.
 
@@ -185,16 +185,16 @@ Version 3.6
 
 - dentry changes. (Thanks to Jes Sorensen for his help.)
 
-- Fixed bug in balloc(): Superblock was not set dirty after
+- Fixed  in balloc(): Superblock was not set dirty after
   the bitmap was changed, so the bitmap wasn't sync'd.
 
-- Fixed nasty bug in find_new_zone(): If the current
+- Fixed nasty  in find_new_zone(): If the current
   zone number was zero, the loop didn't terminate,
   causing a solid lock-up.
 
 - Removed support for old-style directory reads.
 
-- Fixed bug in add_entry(): When doing a sorted insert,
+- Fixed  in add_entry(): When doing a sorted insert,
   the pointer to the next entry in the hash chain wasn't
   correctly byte-swapped. Since most of the users of the
   affs use it on a 68k, they didn't notice. But why did
@@ -240,7 +240,7 @@ Version 3.6
 
 - Argument to volume option could overflow the
   name buffer. It is now silently truncated to
-  30 characters. (Damn it! This kind of bug
+  30 characters. (Damn it! This kind of 
   is too embarrassing.)
 
 - Split inode.c into 2 files, the superblock
@@ -313,7 +313,7 @@ Version 3.2
 Version 3.1
 -----------
 
-- Fixed a nasty bug which didn't allow read-only
+- Fixed a nasty  which didn't allow read-only
   mounts.
 - Allow dir-cache filesystems to be mounted
   read only.

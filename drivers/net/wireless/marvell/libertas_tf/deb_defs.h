@@ -12,9 +12,9 @@
 
 #include <linux/spinlock.h>
 
-#ifdef CONFIG_LIBERTAS_THINFIRM_DEBUG
-#define DEBUG
-#define PROC_DEBUG
+#ifdef CONFIG_LIBERTAS_THINFIRM_DE
+#define DE
+#define PROC_DE
 #endif
 
 #define LBTF_DEB_ENTER	0x00000001
@@ -28,7 +28,7 @@
 #define LBTF_DEB_ASSOC	0x00000100
 #define LBTF_DEB_JOIN	0x00000200
 #define LBTF_DEB_11D	0x00000400
-#define LBTF_DEB_DEBUGFS	0x00000800
+#define LBTF_DEB_DEFS	0x00000800
 #define LBTF_DEB_ETHTOOL	0x00001000
 #define LBTF_DEB_HOST	0x00002000
 #define LBTF_DEB_CMD	0x00004000
@@ -42,13 +42,13 @@
 #define LBTF_DEB_SDIO	0x00400000
 #define LBTF_DEB_MACOPS	0x00800000
 
-extern unsigned int lbtf_debug;
+extern unsigned int lbtf_de;
 
 
-#ifdef DEBUG
+#ifdef DE
 #define LBTF_DEB_LL(grp, grpnam, fmt, args...) \
-do { if ((lbtf_debug & (grp)) == (grp)) \
-  printk(KERN_DEBUG DRV_NAME grpnam "%s: " fmt, \
+do { if ((lbtf_de & (grp)) == (grp)) \
+  printk(KERN_DE DRV_NAME grpnam "%s: " fmt, \
          in_interrupt() ? " (INT)" : "", ## args); } while (0)
 #else
 #define LBTF_DEB_LL(grp, grpnam, fmt, args...) do {} while (0)
@@ -72,7 +72,7 @@ do { if ((lbtf_debug & (grp)) == (grp)) \
 #define lbtf_deb_assoc(fmt, args...)     LBTF_DEB_LL(LBTF_DEB_ASSOC, " assoc", fmt, ##args)
 #define lbtf_deb_join(fmt, args...)      LBTF_DEB_LL(LBTF_DEB_JOIN, " join", fmt, ##args)
 #define lbtf_deb_11d(fmt, args...)       LBTF_DEB_LL(LBTF_DEB_11D, " 11d", fmt, ##args)
-#define lbtf_deb_debugfs(fmt, args...)   LBTF_DEB_LL(LBTF_DEB_DEBUGFS, " debugfs", fmt, ##args)
+#define lbtf_deb_defs(fmt, args...)   LBTF_DEB_LL(LBTF_DEB_DEFS, " defs", fmt, ##args)
 #define lbtf_deb_ethtool(fmt, args...)   LBTF_DEB_LL(LBTF_DEB_ETHTOOL, " ethtool", fmt, ##args)
 #define lbtf_deb_host(fmt, args...)      LBTF_DEB_LL(LBTF_DEB_HOST, " host", fmt, ##args)
 #define lbtf_deb_cmd(fmt, args...)       LBTF_DEB_LL(LBTF_DEB_CMD, " cmd", fmt, ##args)
@@ -86,14 +86,14 @@ do { if ((lbtf_debug & (grp)) == (grp)) \
 #define lbtf_deb_sdio(fmt, args...)      LBTF_DEB_LL(LBTF_DEB_SDIO, " thread", fmt, ##args)
 #define lbtf_deb_macops(fmt, args...)      LBTF_DEB_LL(LBTF_DEB_MACOPS, " thread", fmt, ##args)
 
-#ifdef DEBUG
+#ifdef DE
 static inline void lbtf_deb_hex(unsigned int grp, const char *prompt, u8 *buf, int len)
 {
 	char newprompt[32];
 
 	if (len &&
-	    (lbtf_debug & LBTF_DEB_HEX) &&
-	    (lbtf_debug & grp))	{
+	    (lbtf_de & LBTF_DEB_HEX) &&
+	    (lbtf_de & grp))	{
 		snprintf(newprompt, sizeof(newprompt), DRV_NAME " %s: ", prompt);
 		print_hex_dump_bytes(prompt, DUMP_PREFIX_NONE, buf, len);
 	}

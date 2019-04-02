@@ -24,7 +24,7 @@
 
 #define C2H_DBG_CONTENT_SEQ_OFFSET 1
 
-/* Rename from FW SysHalCom_Debug_RAM.h */
+/* Rename from FW SysHalCom_De_RAM.h */
 #define FW_REG_H2CPKT_DONE_SEQ 0x1C8
 #define fw_reg_wow_reason 0x1C7
 

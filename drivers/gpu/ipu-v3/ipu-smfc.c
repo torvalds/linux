@@ -198,7 +198,7 @@ int ipu_smfc_init(struct ipu_soc *ipu, struct device *dev,
 		priv->channel[i].chno = i;
 	}
 
-	pr_debug("%s: ioremap 0x%08lx -> %p\n", __func__, base, priv->base);
+	pr_de("%s: ioremap 0x%08lx -> %p\n", __func__, base, priv->base);
 
 	return 0;
 }

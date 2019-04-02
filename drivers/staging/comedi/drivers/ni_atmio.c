@@ -125,7 +125,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 10000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	}, {
 		.name		= "at-mio-16de-10",
 		.device_id	= 37,
@@ -139,7 +139,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 10000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 		.has_8255	= 1,
 	}, {
 		.name		= "at-mio-64e-3",
@@ -155,7 +155,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_ni_E_ao_ext,
 		.ao_speed	= 1000,
-		.caldac		= { ad8804_debug },
+		.caldac		= { ad8804_de },
 	}, {
 		.name		= "at-mio-16xe-50",
 		.device_id	= 39,

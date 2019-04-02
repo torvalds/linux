@@ -1230,7 +1230,7 @@ static void cxacru_unbind(struct usbatm_data *usbatm_instance,
 	}
 
 	mutex_lock(&instance->poll_state_serialize);
-	BUG_ON(instance->poll_state == CXPOLL_SHUTDOWN);
+	_ON(instance->poll_state == CXPOLL_SHUTDOWN);
 
 	/* ensure that status polling continues unless
 	 * it has already stopped */

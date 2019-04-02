@@ -272,7 +272,7 @@ static struct map_desc versatile_io_desc[] __initdata __maybe_unused = {
 
 static void __init versatile_map_io(void)
 {
-	debug_ll_io_init();
+	de_ll_io_init();
 	iotable_init(versatile_io_desc, ARRAY_SIZE(versatile_io_desc));
 }
 

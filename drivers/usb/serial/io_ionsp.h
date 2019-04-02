@@ -65,7 +65,7 @@ been a change, sends the following 10-byte packet:
 
 The first field is the 16-bit RxBytesAvail field, which indicates the
 number of bytes which may be read by the host from EP1. This is necessary:
-(a) because OSR2.1 has a bug which causes data loss if the peripheral returns
+(a) because OSR2.1 has a  which causes data loss if the peripheral returns
 fewer bytes than the host expects to read, and (b) because, on Microsoft
 platforms at least, an outstanding read posted on EP1 consumes about 35% of
 the CPU just polling the device for data.

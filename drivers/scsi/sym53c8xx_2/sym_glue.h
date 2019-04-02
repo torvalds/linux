@@ -82,7 +82,7 @@
 #define	printf_warning(args...)	printk(KERN_WARNING args)
 #define	printf_notice(args...)	printk(KERN_NOTICE args)
 #define	printf_info(args...)	printk(KERN_INFO args)
-#define	printf_debug(args...)	printk(KERN_DEBUG args)
+#define	printf_de(args...)	printk(KERN_DE args)
 #define	printf(args...)		printk(args)
 
 /*

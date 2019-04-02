@@ -37,13 +37,13 @@ static void tick_broadcast_setup_oneshot(struct clock_event_device *bc);
 static void tick_broadcast_clear_oneshot(int cpu);
 static void tick_resume_broadcast_oneshot(struct clock_event_device *bc);
 #else
-static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc) { BUG(); }
+static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc) { (); }
 static inline void tick_broadcast_clear_oneshot(int cpu) { }
 static inline void tick_resume_broadcast_oneshot(struct clock_event_device *bc) { }
 #endif
 
 /*
- * Debugging: see timer_list.c
+ * Deging: see timer_list.c
  */
 struct tick_device *tick_get_broadcast_device(void)
 {
@@ -519,7 +519,7 @@ static cpumask_var_t tick_broadcast_pending_mask __cpumask_var_read_mostly;
 static cpumask_var_t tick_broadcast_force_mask __cpumask_var_read_mostly;
 
 /*
- * Exposed for debugging: see timer_list.c
+ * Exposed for deging: see timer_list.c
  */
 struct cpumask *tick_get_broadcast_oneshot_mask(void)
 {

@@ -957,7 +957,7 @@ static int cmos_aie_poweroff(struct device *dev)
 
 	/*
 	 * When enabling "RTC wake-up" in BIOS setup, the machine reboots
-	 * automatically right after shutdown on some buggy boxes.
+	 * automatically right after shutdown on some gy boxes.
 	 * This automatic rebooting issue won't happen when the alarm
 	 * time is larger than now+1 seconds.
 	 *
@@ -1237,7 +1237,7 @@ static void cmos_wake_setup(struct device *dev)
 	acpi_rtc_info.wake_on = rtc_wake_on;
 	acpi_rtc_info.wake_off = rtc_wake_off;
 
-	/* workaround bug in some ACPI tables */
+	/* workaround  in some ACPI tables */
 	if (acpi_gbl_FADT.month_alarm && !acpi_gbl_FADT.day_alarm) {
 		dev_dbg(dev, "bogus FADT month_alarm (%d)\n",
 			acpi_gbl_FADT.month_alarm);

@@ -54,12 +54,12 @@
 /* The default timer value as per the sxgbe specification 1 sec(1000 ms) */
 #define SXGBE_DEFAULT_LPI_TIMER	1000
 
-static int debug = -1;
+static int de = -1;
 static int eee_timer = SXGBE_DEFAULT_LPI_TIMER;
 
 module_param(eee_timer, int, 0644);
 
-module_param(debug, int, 0644);
+module_param(de, int, 0644);
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 				      NETIF_MSG_LINK | NETIF_MSG_IFUP |
 				      NETIF_MSG_IFDOWN | NETIF_MSG_TIMER);
@@ -754,7 +754,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 			break;
 
 		if (netif_msg_tx_done(priv))
-			pr_debug("%s: curr %d, dirty %d\n",
+			pr_de("%s: curr %d, dirty %d\n",
 				 __func__, tqueue->cur_tx, tqueue->dirty_tx);
 
 		if (likely(tqueue->tx_skbuff_dma[entry])) {
@@ -779,7 +779,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 	if (unlikely(netif_tx_queue_stopped(dev_txq) &&
 	    sxgbe_tx_avail(tqueue, tx_rsize) > SXGBE_TX_THRESH(priv))) {
 		if (netif_msg_tx_done(priv))
-			pr_debug("%s: restart transmit\n", __func__);
+			pr_de("%s: restart transmit\n", __func__);
 		netif_tx_wake_queue(dev_txq);
 	}
 
@@ -898,7 +898,7 @@ static int sxgbe_get_hw_features(struct sxgbe_priv_data * const priv)
 		features->dcb_enable = SXGBE_HW_FEAT_DCB(rval);
 		features->splithead_enable = SXGBE_HW_FEAT_SPLIT_HDR(rval);
 		features->tcpseg_offload = SXGBE_HW_FEAT_TSO(rval);
-		features->debug_mem = SXGBE_HW_FEAT_DEBUG_MEM_IFACE(rval);
+		features->de_mem = SXGBE_HW_FEAT_DE_MEM_IFACE(rval);
 		features->rss_enable = SXGBE_HW_FEAT_RSS(rval);
 		features->hash_tsize = SXGBE_HW_FEAT_HASH_TABLE_SIZE(rval);
 		features->l3l4_filer_size = SXGBE_HW_FEAT_L3L4_FILTER_NUM(rval);
@@ -1471,7 +1471,7 @@ static void sxgbe_rx_refill(struct sxgbe_priv_data *priv)
 /**
  * sxgbe_rx: receive the frames from the remote host
  * @priv: driver private structure
- * @limit: napi bugget.
+ * @limit: napi get.
  * Description :  this the function called by the napi poll method.
  * It gets all the frames inside the ring.
  */
@@ -1891,8 +1891,8 @@ static void sxgbe_set_rx_mode(struct net_device *dev)
 			reg++;
 		}
 	}
-#ifdef FRAME_FILTER_DEBUG
-	/* Enable Receive all mode (to debug filtering_fail errors) */
+#ifdef FRAME_FILTER_DE
+	/* Enable Receive all mode (to de filtering_fail errors) */
 	value |= SXGBE_FRAME_FILTER_RA;
 #endif
 	writel(value, ioaddr + SXGBE_FRAME_FILTER);
@@ -2113,7 +2113,7 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 	ndev->min_mtu = MIN_MTU;
 	ndev->max_mtu = MAX_MTU;
 
-	priv->msg_enable = netif_msg_init(debug, default_msg_level);
+	priv->msg_enable = netif_msg_init(de, default_msg_level);
 
 	/* Enable TCP segmentation offload for all DMA channels */
 	if (priv->hw_cap.tcpseg_offload) {
@@ -2301,7 +2301,7 @@ __setup("sxgbeeth=", sxgbe_cmdline_opt);
 
 MODULE_DESCRIPTION("SAMSUNG 10G/2.5G/1G Ethernet PLATFORM driver");
 
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+MODULE_PARM_DESC(de, "Message Level (-1: default, 0: no output, 16: all)");
 MODULE_PARM_DESC(eee_timer, "EEE-LPI Default LS timer value");
 
 MODULE_AUTHOR("Siva Reddy Kallam <siva.kallam@samsung.com>");

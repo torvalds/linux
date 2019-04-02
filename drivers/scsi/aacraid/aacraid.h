@@ -113,7 +113,7 @@ enum {
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
 #define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
 
-#define AAC_DEBUG_INSTRUMENT_AIF_DELETE
+#define AAC_DE_INSTRUMENT_AIF_DELETE
 
 #define AAC_MAX_NATIVE_TARGETS		1024
 /* Thor: 5 phys. buses: #0: empty, 1-4: 256 targets each */
@@ -896,7 +896,7 @@ enum aac_log_level {
 	LOG_AAC_MEDIUM_ERROR		= 50,
 	LOG_AAC_HIGH_ERROR		= 60,
 	LOG_AAC_PANIC			= 70,
-	LOG_AAC_DEBUG			= 80,
+	LOG_AAC_DE			= 80,
 	LOG_AAC_WINDBG_PRINT		= 90
 };
 
@@ -1584,7 +1584,7 @@ struct aac_dev
 
 	resource_size_t		base_start;	/* main IO base */
 	resource_size_t		dbg_base;	/* address of UART
-						 * debug buffer */
+						 * de buffer */
 
 	resource_size_t		base_size, dbg_size;	/* Size of
 							 *  mapped in region */
@@ -2411,7 +2411,7 @@ struct aac_common
 	u32 zero_fibs;
 	u32 fib_timeouts;
 	/*
-	 *	Statistical counters in debug mode
+	 *	Statistical counters in de mode
 	 */
 #ifdef DBG
 	u32 FibsSent;
@@ -2482,7 +2482,7 @@ struct aac_hba_info {
 
 /*
  *	The following macro is used when sending and receiving FIBs. It is
- *	only used for debugging.
+ *	only used for deging.
  */
 
 #ifdef DBG

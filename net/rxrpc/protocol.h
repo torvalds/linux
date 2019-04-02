@@ -45,7 +45,7 @@ struct rxrpc_wire_header {
 #define RXRPC_PACKET_TYPE_ACKALL	5	/* ACK all outstanding packets on call */
 #define RXRPC_PACKET_TYPE_CHALLENGE	6	/* connection security challenge (SRVR->CLNT) */
 #define RXRPC_PACKET_TYPE_RESPONSE	7	/* connection secutity response (CLNT->SRVR) */
-#define RXRPC_PACKET_TYPE_DEBUG		8	/* debug info request */
+#define RXRPC_PACKET_TYPE_DE		8	/* de info request */
 #define RXRPC_PACKET_TYPE_PARAMS	9	/* Parameter negotiation (unspec'd, ignore) */
 #define RXRPC_PACKET_TYPE_10		10	/* Ignored */
 #define RXRPC_PACKET_TYPE_11		11	/* Ignored */

@@ -27,9 +27,9 @@
 #include <asm/switch_to.h>
 #include <linux/vmalloc.h>
 
-/* #define DEBUG */
+/* #define DE */
 
-#ifdef DEBUG
+#ifdef DE
 #define dprintk printk
 #else
 #define dprintk(...) do { } while(0);
@@ -639,7 +639,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	bool rcomp;
 	u32 cr;
-#ifdef DEBUG
+#ifdef DE
 	int i;
 #endif
 
@@ -674,7 +674,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	enable_kernel_fp();
 	/* Do we need to clear FE0 / FE1 here? Don't think so. */
 
-#ifdef DEBUG
+#ifdef DE
 	for (i = 0; i < ARRAY_SIZE(vcpu->arch.fp.fpr); i++) {
 		u32 f;
 		kvm_cvt_df(&VCPU_FPR(vcpu, i), &f);
@@ -1254,7 +1254,7 @@ int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		break;
 	}
 
-#ifdef DEBUG
+#ifdef DE
 	for (i = 0; i < ARRAY_SIZE(vcpu->arch.fp.fpr); i++) {
 		u32 f;
 		kvm_cvt_df(&VCPU_FPR(vcpu, i), &f);

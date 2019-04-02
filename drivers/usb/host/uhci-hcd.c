@@ -34,7 +34,7 @@
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/pm.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
@@ -64,22 +64,22 @@ module_param(ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
 
 /*
- * debug = 0, no debugging messages
- * debug = 1, dump failed URBs except for stalls
- * debug = 2, dump all failed URBs (including stalls)
- *            show all queues in /sys/kernel/debug/uhci/[pci_addr]
- * debug = 3, show all TDs in URBs when dumping
+ * de = 0, no deging messages
+ * de = 1, dump failed URBs except for stalls
+ * de = 2, dump all failed URBs (including stalls)
+ *            show all queues in /sys/kernel/de/uhci/[pci_addr]
+ * de = 3, show all TDs in URBs when dumping
  */
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 
-static int debug = 1;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug level");
+static int de = 1;
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "De level");
 static char *errbuf;
 
 #else
 
-#define debug 0
+#define de 0
 #define errbuf NULL
 
 #endif
@@ -121,7 +121,7 @@ static __hc32 uhci_frame_skel_link(struct uhci_hcd *uhci, int frame)
 	return LINK_TO_QH(uhci, uhci->skelqh[skelnum]);
 }
 
-#include "uhci-debug.c"
+#include "uhci-de.c"
 #include "uhci-q.c"
 #include "uhci-hub.c"
 
@@ -477,8 +477,8 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 			if (uhci->rh_state >= UHCI_RH_RUNNING) {
 				dev_err(uhci_dev(uhci),
 					"host controller halted, very bad!\n");
-				if (debug > 1 && errbuf) {
-					/* Print the schedule for debugging */
+				if (de > 1 && errbuf) {
+					/* Print the schedule for deging */
 					uhci_sprint_schedule(uhci, errbuf,
 						ERRBUF_LEN - EXTRA_SPACE);
 					lprintk(errbuf);
@@ -536,7 +536,7 @@ static void release_uhci(struct uhci_hcd *uhci)
 	uhci->is_initialized = 0;
 	spin_unlock_irq(&uhci->lock);
 
-	debugfs_remove(uhci->dentry);
+	defs_remove(uhci->dentry);
 
 	for (i = 0; i < UHCI_NUM_SKELQH; i++)
 		uhci_free_qh(uhci, uhci->skelqh[i]);
@@ -589,11 +589,11 @@ static int uhci_start(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 	init_waitqueue_head(&uhci->waitqh);
 
-#ifdef UHCI_DEBUG_OPS
-	uhci->dentry = debugfs_create_file(hcd->self.bus_name,
+#ifdef UHCI_DE_OPS
+	uhci->dentry = defs_create_file(hcd->self.bus_name,
 					   S_IFREG|S_IRUGO|S_IWUSR,
-					   uhci_debugfs_root, uhci,
-					   &uhci_debug_operations);
+					   uhci_defs_root, uhci,
+					   &uhci_de_operations);
 #endif
 
 	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
@@ -646,7 +646,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->skel_async_qh->link = UHCI_PTR_TERM(uhci);
 	uhci->skel_term_qh->link = LINK_TO_QH(uhci, uhci->skel_term_qh);
 
-	/* This dummy TD is to work around a bug in Intel PIIX controllers */
+	/* This dummy TD is to work around a  in Intel PIIX controllers */
 	uhci_fill_td(uhci, uhci->term_td, 0, uhci_explen(0) |
 			(0x7f << TD_TOKEN_DEVADDR_SHIFT) | USB_PID_IN, 0);
 	uhci->term_td->link = UHCI_PTR_TERM(uhci);
@@ -702,7 +702,7 @@ err_alloc_frame_cpu:
 			uhci->frame, uhci->frame_dma_handle);
 
 err_alloc_frame:
-	debugfs_remove(uhci->dentry);
+	defs_remove(uhci->dentry);
 
 	return retval;
 }
@@ -828,7 +828,7 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 		if (!(portstatus & 0x0080) || portstatus == 0xffff)
 			break;
 	}
-	if (debug)
+	if (de)
 		dev_info(uhci_dev(uhci), "detected %d ports\n", port);
 
 	/* Anything greater than 7 is weird so we'll ignore it. */
@@ -873,11 +873,11 @@ static int __init uhci_hcd_init(void)
 			ignore_oc ? ", overcurrent ignored" : "");
 	set_bit(USB_UHCI_LOADED, &usb_hcds_loaded);
 
-#ifdef CONFIG_DYNAMIC_DEBUG
+#ifdef CONFIG_DYNAMIC_DE
 	errbuf = kmalloc(ERRBUF_LEN, GFP_KERNEL);
 	if (!errbuf)
 		goto errbuf_failed;
-	uhci_debugfs_root = debugfs_create_dir("uhci", usb_debug_root);
+	uhci_defs_root = defs_create_dir("uhci", usb_de_root);
 #endif
 
 	uhci_up_cachep = kmem_cache_create("uhci_urb_priv",
@@ -909,8 +909,8 @@ clean0:
 	kmem_cache_destroy(uhci_up_cachep);
 
 up_failed:
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
-	debugfs_remove(uhci_debugfs_root);
+#if defined(DE) || defined(CONFIG_DYNAMIC_DE)
+	defs_remove(uhci_defs_root);
 
 	kfree(errbuf);
 
@@ -930,8 +930,8 @@ static void __exit uhci_hcd_cleanup(void)
 	pci_unregister_driver(&PCI_DRIVER);
 #endif
 	kmem_cache_destroy(uhci_up_cachep);
-	debugfs_remove(uhci_debugfs_root);
-#ifdef CONFIG_DYNAMIC_DEBUG
+	defs_remove(uhci_defs_root);
+#ifdef CONFIG_DYNAMIC_DE
 	kfree(errbuf);
 #endif
 	clear_bit(USB_UHCI_LOADED, &usb_hcds_loaded);

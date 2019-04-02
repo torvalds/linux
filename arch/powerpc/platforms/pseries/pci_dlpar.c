@@ -38,7 +38,7 @@ struct pci_controller *init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
 
-	pr_debug("PCI: Initializing new hotplug PHB %pOF\n", dn);
+	pr_de("PCI: Initializing new hotplug PHB %pOF\n", dn);
 
 	phb = pcibios_alloc_controller(dn);
 	if (!phb)
@@ -69,7 +69,7 @@ int remove_phb_dynamic(struct pci_controller *phb)
 	struct resource *res;
 	int rc, i;
 
-	pr_debug("PCI: Removing PHB %04x:%02x...\n",
+	pr_de("PCI: Removing PHB %04x:%02x...\n",
 		 pci_domain_nr(b), b->number);
 
 	/* We cannot to remove a root bus that has children */

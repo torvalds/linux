@@ -2046,7 +2046,7 @@ void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status)
 		return;
 	}
 
-	print_hex_dump_debug("PN533 RX: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
+	print_hex_dump_de("PN533 RX: ", DUMP_PREFIX_NONE, 16, 1, skb->data,
 			     dev->ops->rx_frame_size(skb->data), false);
 
 	if (!dev->ops->rx_is_frame_valid(skb->data, dev)) {

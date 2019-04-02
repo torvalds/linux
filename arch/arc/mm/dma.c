@@ -31,7 +31,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	 * (in include/linux/dma-mapping.h) so we should never get a
 	 * __GFP_HIGHMEM here.
 	 */
-	BUG_ON(gfp & __GFP_HIGHMEM);
+	_ON(gfp & __GFP_HIGHMEM);
 
 	page = alloc_pages(gfp | __GFP_ZERO, order);
 	if (!page)

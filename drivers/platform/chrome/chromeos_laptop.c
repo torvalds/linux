@@ -100,7 +100,7 @@ chromes_laptop_instantiate_i2c_device(struct i2c_adapter *adapter,
 		dummy = i2c_new_probed_device(adapter, &dummy_info,
 					      alt_addr_list, NULL);
 		if (dummy) {
-			pr_debug("%d-%02x is probed at %02x\n",
+			pr_de("%d-%02x is probed at %02x\n",
 				 adapter->nr, info->addr, dummy->addr);
 			i2c_unregister_device(dummy);
 			client = i2c_new_device(adapter, info);
@@ -108,10 +108,10 @@ chromes_laptop_instantiate_i2c_device(struct i2c_adapter *adapter,
 	}
 
 	if (!client)
-		pr_debug("failed to register device %d-%02x\n",
+		pr_de("failed to register device %d-%02x\n",
 			 adapter->nr, info->addr);
 	else
-		pr_debug("added i2c device %d-%02x\n",
+		pr_de("added i2c device %d-%02x\n",
 			 adapter->nr, info->addr);
 
 	return client;
@@ -887,11 +887,11 @@ static int __init chromeos_laptop_init(void)
 
 	dmi_id = dmi_first_match(chromeos_laptop_dmi_table);
 	if (!dmi_id) {
-		pr_debug("unsupported system\n");
+		pr_de("unsupported system\n");
 		return -ENODEV;
 	}
 
-	pr_debug("DMI Matched %s\n", dmi_id->ident);
+	pr_de("DMI Matched %s\n", dmi_id->ident);
 
 	cros_laptop = chromeos_laptop_prepare((void *)dmi_id->driver_data);
 	if (IS_ERR(cros_laptop))
@@ -899,7 +899,7 @@ static int __init chromeos_laptop_init(void)
 
 	if (!cros_laptop->num_i2c_peripherals &&
 	    !cros_laptop->num_acpi_peripherals) {
-		pr_debug("no relevant devices detected\n");
+		pr_de("no relevant devices detected\n");
 		error = -ENODEV;
 		goto err_destroy_cros_laptop;
 	}

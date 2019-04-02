@@ -361,7 +361,7 @@ $ ./bpf_asm -c foo
 In particular, as usage with xt_bpf or cls_bpf can result in more complex BPF
 filters that might not be obvious at first, it's good to test filters before
 attaching to a live system. For that purpose, there's a small tool called
-bpf_dbg under tools/bpf/ in the kernel source directory. This debugger allows
+bpf_dbg under tools/bpf/ in the kernel source directory. This deger allows
 for testing BPF filters against given pcap files, single stepping through the
 BPF code on the pcap's packets and to do BPF machine register dumps.
 
@@ -384,7 +384,7 @@ The usual workflow would be to ...
 > load bpf 6,40 0 0 12,21 0 3 2048,48 0 0 23,21 0 1 1,6 0 0 65535,6 0 0 0
   Loads a BPF filter from standard output of bpf_asm, or transformed via
   e.g. `tcpdump -iem1 -ddd port 22 | tr '\n' ','`. Note that for JIT
-  debugging (next section), this command creates a temporary socket and
+  deging (next section), this command creates a temporary socket and
   loads the BPF code into the kernel. Thus, this will also be useful for
   JIT developers.
 
@@ -658,7 +658,7 @@ Some core changes of the new internal format:
   so 32-bit eBPF registers would otherwise require to define register-pair
   ABI, thus, there won't be able to use a direct eBPF register to HW register
   mapping and JIT would need to do combine/split/move operations for every
-  register in and out of the function, which is complex, bug prone and slow.
+  register in and out of the function, which is complex,  prone and slow.
   Another reason is the use of atomic 64-bit counters.
 
 - Conditional jt/jf targets replaced with jt/fall-through:

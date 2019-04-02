@@ -568,7 +568,7 @@ int lbtf_execute_next_command(struct lbtf_private *priv)
 	unsigned long flags;
 	int ret = 0;
 
-	/* Debug group is lbtf_deb_THREAD and not lbtf_deb_HOST, because the
+	/* De group is lbtf_deb_THREAD and not lbtf_deb_HOST, because the
 	 * only caller to us is lbtf_thread() and we get even when a
 	 * data packet is received */
 	lbtf_deb_enter(LBTF_DEB_THREAD);

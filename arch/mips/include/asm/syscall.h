@@ -83,7 +83,7 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 #endif
 
 	default:
-		BUG();
+		();
 	}
 
 	unreachable();

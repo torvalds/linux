@@ -5,7 +5,7 @@
  * Copyright (C) 2008 Pekka Paalanen <pq@iki.fi>
  */
 
-#define DEBUG 1
+#define DE 1
 
 #include <linux/kernel.h>
 #include <linux/mmiotrace.h>
@@ -37,7 +37,7 @@ static void mmio_reset_data(struct trace_array *tr)
 
 static int mmio_trace_init(struct trace_array *tr)
 {
-	pr_debug("in %s\n", __func__);
+	pr_de("in %s\n", __func__);
 	mmio_trace_array = tr;
 
 	mmio_reset_data(tr);
@@ -47,7 +47,7 @@ static int mmio_trace_init(struct trace_array *tr)
 
 static void mmio_trace_reset(struct trace_array *tr)
 {
-	pr_debug("in %s\n", __func__);
+	pr_de("in %s\n", __func__);
 
 	disable_mmiotrace();
 	mmio_reset_data(tr);
@@ -56,7 +56,7 @@ static void mmio_trace_reset(struct trace_array *tr)
 
 static void mmio_trace_start(struct trace_array *tr)
 {
-	pr_debug("in %s\n", __func__);
+	pr_de("in %s\n", __func__);
 	mmio_reset_data(tr);
 }
 

@@ -463,7 +463,7 @@ int ocfs2_truncate_file(struct inode *inode,
 				  (unsigned long long)le64_to_cpu(fe->i_size),
 				  (unsigned long long)new_i_size);
 
-	mlog_bug_on_msg(le64_to_cpu(fe->i_size) != i_size_read(inode),
+	mlog__on_msg(le64_to_cpu(fe->i_size) != i_size_read(inode),
 			"Inode %llu, inode i_size = %lld != di "
 			"i_size = %llu, i_flags = 0x%x\n",
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -584,7 +584,7 @@ static int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	 * Unwritten extent only exists for file systems which
 	 * support holes.
 	 */
-	BUG_ON(mark_unwritten && !ocfs2_sparse_alloc(osb));
+	_ON(mark_unwritten && !ocfs2_sparse_alloc(osb));
 
 	status = ocfs2_read_inode_block(inode, &bh);
 	if (status < 0) {
@@ -594,7 +594,7 @@ static int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	fe = (struct ocfs2_dinode *) bh->b_data;
 
 restart_all:
-	BUG_ON(le32_to_cpu(fe->i_clusters) != OCFS2_I(inode)->ip_clusters);
+	_ON(le32_to_cpu(fe->i_clusters) != OCFS2_I(inode)->ip_clusters);
 
 	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), bh);
 	status = ocfs2_lock_allocators(inode, &et, clusters_to_add, 0,
@@ -669,7 +669,7 @@ restarted_transaction:
 			restart_func = 1;
 			status = 0;
 		} else {
-			BUG_ON(why != RESTART_TRANS);
+			_ON(why != RESTART_TRANS);
 
 			status = ocfs2_allocate_extend_trans(handle, 1);
 			if (status < 0) {
@@ -771,9 +771,9 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	unsigned zero_from, zero_to, block_start, block_end;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
-	BUG_ON(abs_from >= abs_to);
-	BUG_ON(abs_to > (((u64)index + 1) << PAGE_SHIFT));
-	BUG_ON(abs_from & (inode->i_blkbits - 1));
+	_ON(abs_from >= abs_to);
+	_ON(abs_to > (((u64)index + 1) << PAGE_SHIFT));
+	_ON(abs_from & (inode->i_blkbits - 1));
 
 	handle = ocfs2_zero_start_ordered_transaction(inode, di_bh);
 	if (IS_ERR(handle)) {
@@ -951,7 +951,7 @@ static int ocfs2_zero_extend_range(struct inode *inode, u64 range_start,
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
 			(unsigned long long)range_start,
 			(unsigned long long)range_end);
-	BUG_ON(range_start >= range_end);
+	_ON(range_start >= range_end);
 
 	while (zero_pos < range_end) {
 		next_pos = (zero_pos & PAGE_MASK) + PAGE_SIZE;
@@ -1025,8 +1025,8 @@ int ocfs2_extend_no_holes(struct inode *inode, struct buffer_head *di_bh,
 	 * Only quota files call this without a bh, and they can't be
 	 * refcounted.
 	 */
-	BUG_ON(!di_bh && ocfs2_is_refcount_inode(inode));
-	BUG_ON(!di_bh && !(oi->ip_flags & OCFS2_INODE_SYSTEM_FILE));
+	_ON(!di_bh && ocfs2_is_refcount_inode(inode));
+	_ON(!di_bh && !(oi->ip_flags & OCFS2_INODE_SYSTEM_FILE));
 
 	clusters_to_add = ocfs2_clusters_for_bytes(inode->i_sb, new_i_size);
 	if (clusters_to_add < oi->ip_clusters)
@@ -1063,7 +1063,7 @@ static int ocfs2_extend_file(struct inode *inode,
 	int ret = 0;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	BUG_ON(!di_bh);
+	_ON(!di_bh);
 
 	/* setattr sometimes calls us like this. */
 	if (new_i_size == 0)
@@ -1071,7 +1071,7 @@ static int ocfs2_extend_file(struct inode *inode,
 
 	if (i_size_read(inode) == new_i_size)
 		goto out;
-	BUG_ON(new_i_size < i_size_read(inode));
+	_ON(new_i_size < i_size_read(inode));
 
 	/*
 	 * The alloc sem blocks people in read/write from reading our
@@ -2343,7 +2343,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 
 	written = __generic_file_write_iter(iocb, from);
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(written == -EIOCBQUEUED && !direct_io);
+	_ON(written == -EIOCBQUEUED && !direct_io);
 
 	/*
 	 * deep in g_f_a_w_n()->ocfs2_direct_IO we pass in a ocfs2_dio_end_io
@@ -2463,7 +2463,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 	trace_generic_file_read_iter_ret(ret);
 
 	/* buffered aio wouldn't have proper lock coverage today */
-	BUG_ON(ret == -EIOCBQUEUED && !direct_io);
+	_ON(ret == -EIOCBQUEUED && !direct_io);
 
 	/* see ocfs2_file_write_iter */
 	if (ret == -EIOCBQUEUED || !ocfs2_iocb_is_rw_locked(iocb)) {

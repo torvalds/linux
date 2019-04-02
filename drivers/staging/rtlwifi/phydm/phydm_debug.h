@@ -15,9 +15,9 @@
 #ifndef __ODM_DBG_H__
 #define __ODM_DBG_H__
 
-/*#define DEBUG_VERSION	"1.1"*/ /*2015.07.29 YuChen*/
-/*#define DEBUG_VERSION	"1.2"*/ /*2015.08.28 Dino*/
-#define DEBUG_VERSION "1.3" /*2016.04.28 YuChen*/
+/*#define DE_VERSION	"1.1"*/ /*2015.07.29 YuChen*/
+/*#define DE_VERSION	"1.2"*/ /*2015.08.28 Dino*/
+#define DE_VERSION "1.3" /*2016.04.28 YuChen*/
 #define ODM_DBG_TRACE 5
 
 /*FW DBG MSG*/
@@ -65,7 +65,7 @@
 /* MAC Functions */
 #define ODM_COMP_EDCA_TURBO BIT(20)
 #define ODM_COMP_DYNAMIC_RX_PATH BIT(21)
-#define ODM_FW_DEBUG_TRACE BIT(22)
+#define ODM_FW_DE_TRACE BIT(22)
 /* RF Functions */
 /*BIT23 TBD*/
 #define ODM_COMP_TX_PWR_TRACK BIT(24)
@@ -86,20 +86,20 @@
 
 #define ODM_RT_TRACE(dm, comp, fmt, ...)                                       \
 	do {                                                                   \
-		if (((comp) & dm->debug_components) ||                         \
+		if (((comp) & dm->de_components) ||                         \
 		    ((comp) == ODM_COMP_UNCOND))                               \
 			RT_TRACE(dm->adapter, COMP_PHYDM, DBG_DMESG, fmt,      \
 				 ##__VA_ARGS__);                               \
 	} while (0)
 
-#define BB_DBGPORT_PRIORITY_3 3 /*Debug function (the highest priority)*/
+#define BB_DBGPORT_PRIORITY_3 3 /*De function (the highest priority)*/
 #define BB_DBGPORT_PRIORITY_2 2 /*Check hang function & Strong function*/
 #define BB_DBGPORT_PRIORITY_1 1 /*Watch dog function*/
 #define BB_DBGPORT_RELEASE 0 /*Init value (the lowest priority)*/
 
-void phydm_init_debug_setting(struct phy_dm_struct *dm);
+void phydm_init_de_setting(struct phy_dm_struct *dm);
 
-u8 phydm_set_bb_dbg_port(void *dm_void, u8 curr_dbg_priority, u32 debug_port);
+u8 phydm_set_bb_dbg_port(void *dm_void, u8 curr_dbg_priority, u32 de_port);
 
 void phydm_release_bb_dbg_port(void *dm_void);
 
@@ -152,7 +152,7 @@ void phydm_cmd_parser(struct phy_dm_struct *dm, char input[][16], u32 input_num,
 bool phydm_api_trx_mode(struct phy_dm_struct *dm, enum odm_rf_path tx_path,
 			enum odm_rf_path rx_path, bool is_tx2_path);
 
-void phydm_fw_trace_en_h2c(void *dm_void, bool enable, u32 fw_debug_component,
+void phydm_fw_trace_en_h2c(void *dm_void, bool enable, u32 fw_de_component,
 			   u32 monitor_mode, u32 macid);
 
 void phydm_fw_trace_handler(void *dm_void, u8 *cmd_buf, u8 cmd_len);

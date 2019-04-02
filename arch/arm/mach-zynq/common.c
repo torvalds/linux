@@ -168,7 +168,7 @@ static void __init zynq_scu_map_io(void)
 	zynq_cortex_a9_scu_map.virtual = base;
 	iotable_init(&zynq_cortex_a9_scu_map, 1);
 	zynq_scu_base = (void __iomem *)base;
-	BUG_ON(!zynq_scu_base);
+	_ON(!zynq_scu_base);
 }
 
 /**
@@ -176,7 +176,7 @@ static void __init zynq_scu_map_io(void)
  */
 static void __init zynq_map_io(void)
 {
-	debug_ll_io_init();
+	de_ll_io_init();
 	zynq_scu_map_io();
 }
 

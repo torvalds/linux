@@ -275,8 +275,8 @@ int hfi1_kern_exp_rcv_init(struct hfi1_ctxtdata *rcd, int reinit)
 	if (reinit)
 		return 0;
 
-	BUILD_BUG_ON(TID_RDMA_JKEY < HFI1_KERNEL_MIN_JKEY);
-	BUILD_BUG_ON(TID_RDMA_JKEY > HFI1_KERNEL_MAX_JKEY);
+	BUILD__ON(TID_RDMA_JKEY < HFI1_KERNEL_MIN_JKEY);
+	BUILD__ON(TID_RDMA_JKEY > HFI1_KERNEL_MAX_JKEY);
 	rcd->jkey = TID_RDMA_JKEY;
 	hfi1_set_ctxt_jkey(rcd->dd, rcd, rcd->jkey);
 	return hfi1_alloc_ctxt_rcv_groups(rcd);
@@ -696,7 +696,7 @@ static int kern_reserve_flow(struct hfi1_ctxtdata *rcd, int last)
 		return last;
 
 	nr = ffz(rcd->flow_mask);
-	BUILD_BUG_ON(RXE_NUM_TID_FLOWS >=
+	BUILD__ON(RXE_NUM_TID_FLOWS >=
 		     (sizeof(rcd->flow_mask) * BITS_PER_BYTE));
 	if (nr > (RXE_NUM_TID_FLOWS - 1))
 		return -EAGAIN;

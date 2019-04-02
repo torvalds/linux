@@ -249,7 +249,7 @@ TRACE_EVENT(rcu_exp_funnel_lock,
 #ifdef CONFIG_RCU_NOCB_CPU
 /*
  * Tracepoint for RCU no-CBs CPU callback handoffs.  This event is intended
- * to assist debugging of these handoffs.
+ * to assist deging of these handoffs.
  *
  * The first argument is the name of the RCU flavor, and the second is
  * the number of the offloaded CPU are extracted.  The third and final

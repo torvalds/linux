@@ -46,7 +46,7 @@
 #define FIMC_IS_CPU_BASE_MASK		((1 << 26) - 1)
 #define FIMC_IS_REGION_SIZE		0x5000
 
-#define FIMC_IS_DEBUG_REGION_OFFSET	0x0084b000
+#define FIMC_IS_DE_REGION_OFFSET	0x0084b000
 #define FIMC_IS_SHARED_REGION_OFFSET	0x008c0000
 #define FIMC_IS_FW_INFO_LEN		31
 #define FIMC_IS_FW_VER_LEN		7
@@ -210,8 +210,8 @@ struct h2i_cmd {
 	u32 entry_id;
 };
 
-#define FIMC_IS_DEBUG_MSG	0x3f
-#define FIMC_IS_DEBUG_LEVEL	3
+#define FIMC_IS_DE_MSG	0x3f
+#define FIMC_IS_DE_LEVEL	3
 
 struct fimc_is_setfile {
 	const struct firmware *info;
@@ -285,7 +285,7 @@ struct fimc_is {
 	struct is_share_region		*is_shared_region;
 	struct is_af_info		af;
 
-	struct dentry			*debugfs_entry;
+	struct dentry			*defs_entry;
 };
 
 static inline struct fimc_is *fimc_isp_to_is(struct fimc_isp *isp)

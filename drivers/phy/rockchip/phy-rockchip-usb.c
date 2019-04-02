@@ -545,7 +545,7 @@ static int __init rockchip_init_usb_uart(void)
 		return -ENOTSUPP;
 	}
 
-	pr_debug("%s: using settings for %s\n", __func__, match->compatible);
+	pr_de("%s: using settings for %s\n", __func__, match->compatible);
 	data = match->data;
 
 	if (!data->init_usb_uart) {

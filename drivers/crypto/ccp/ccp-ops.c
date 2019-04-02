@@ -490,8 +490,8 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_AES_KEY_SB_COUNT != 1);
-	BUILD_BUG_ON(CCP_AES_CTX_SB_COUNT != 1);
+	BUILD__ON(CCP_AES_KEY_SB_COUNT != 1);
+	BUILD__ON(CCP_AES_CTX_SB_COUNT != 1);
 
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
@@ -909,8 +909,8 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_AES_KEY_SB_COUNT != 1);
-	BUILD_BUG_ON(CCP_AES_CTX_SB_COUNT != 1);
+	BUILD__ON(CCP_AES_KEY_SB_COUNT != 1);
+	BUILD__ON(CCP_AES_CTX_SB_COUNT != 1);
 
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
@@ -1104,8 +1104,8 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 	if (!xts->key || !xts->iv || !xts->src || !xts->dst)
 		return -EINVAL;
 
-	BUILD_BUG_ON(CCP_XTS_AES_KEY_SB_COUNT != 1);
-	BUILD_BUG_ON(CCP_XTS_AES_CTX_SB_COUNT != 1);
+	BUILD__ON(CCP_XTS_AES_KEY_SB_COUNT != 1);
+	BUILD__ON(CCP_XTS_AES_CTX_SB_COUNT != 1);
 
 	ret = -EIO;
 	memset(&op, 0, sizeof(op));
@@ -1956,7 +1956,7 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_PASSTHRU_SB_COUNT != 1);
+	BUILD__ON(CCP_PASSTHRU_SB_COUNT != 1);
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;
@@ -2085,7 +2085,7 @@ static int ccp_run_passthru_nomap_cmd(struct ccp_cmd_queue *cmd_q,
 			return -EINVAL;
 	}
 
-	BUILD_BUG_ON(CCP_PASSTHRU_SB_COUNT != 1);
+	BUILD__ON(CCP_PASSTHRU_SB_COUNT != 1);
 
 	memset(&op, 0, sizeof(op));
 	op.cmd_q = cmd_q;

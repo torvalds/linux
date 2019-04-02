@@ -166,29 +166,29 @@ struct i40iw_terminate_hdr {
 	u8 rsvd;
 };
 
-enum i40iw_debug_flag {
-	I40IW_DEBUG_NONE	= 0x00000000,
-	I40IW_DEBUG_ERR		= 0x00000001,
-	I40IW_DEBUG_INIT	= 0x00000002,
-	I40IW_DEBUG_DEV		= 0x00000004,
-	I40IW_DEBUG_CM		= 0x00000008,
-	I40IW_DEBUG_VERBS	= 0x00000010,
-	I40IW_DEBUG_PUDA	= 0x00000020,
-	I40IW_DEBUG_ILQ		= 0x00000040,
-	I40IW_DEBUG_IEQ		= 0x00000080,
-	I40IW_DEBUG_QP		= 0x00000100,
-	I40IW_DEBUG_CQ		= 0x00000200,
-	I40IW_DEBUG_MR		= 0x00000400,
-	I40IW_DEBUG_PBLE	= 0x00000800,
-	I40IW_DEBUG_WQE		= 0x00001000,
-	I40IW_DEBUG_AEQ		= 0x00002000,
-	I40IW_DEBUG_CQP		= 0x00004000,
-	I40IW_DEBUG_HMC		= 0x00008000,
-	I40IW_DEBUG_USER	= 0x00010000,
-	I40IW_DEBUG_VIRT	= 0x00020000,
-	I40IW_DEBUG_DCB		= 0x00040000,
-	I40IW_DEBUG_CQE		= 0x00800000,
-	I40IW_DEBUG_ALL		= 0xFFFFFFFF
+enum i40iw_de_flag {
+	I40IW_DE_NONE	= 0x00000000,
+	I40IW_DE_ERR		= 0x00000001,
+	I40IW_DE_INIT	= 0x00000002,
+	I40IW_DE_DEV		= 0x00000004,
+	I40IW_DE_CM		= 0x00000008,
+	I40IW_DE_VERBS	= 0x00000010,
+	I40IW_DE_PUDA	= 0x00000020,
+	I40IW_DE_ILQ		= 0x00000040,
+	I40IW_DE_IEQ		= 0x00000080,
+	I40IW_DE_QP		= 0x00000100,
+	I40IW_DE_CQ		= 0x00000200,
+	I40IW_DE_MR		= 0x00000400,
+	I40IW_DE_PBLE	= 0x00000800,
+	I40IW_DE_WQE		= 0x00001000,
+	I40IW_DE_AEQ		= 0x00002000,
+	I40IW_DE_CQP		= 0x00004000,
+	I40IW_DE_HMC		= 0x00008000,
+	I40IW_DE_USER	= 0x00010000,
+	I40IW_DE_VIRT	= 0x00020000,
+	I40IW_DE_DCB		= 0x00040000,
+	I40IW_DE_CQE		= 0x00800000,
+	I40IW_DE_ALL		= 0xFFFFFFFF
 };
 
 enum i40iw_hw_stats_index_32b {
@@ -501,7 +501,7 @@ struct i40iw_sc_dev {
 	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
-	u32 debug_mask;
+	u32 de_mask;
 	u8 hmc_fn_id;
 	bool is_pf;
 	bool vchnl_up;
@@ -594,7 +594,7 @@ struct i40iw_device_init_info {
 	enum i40iw_status_code (*vchnl_send)(struct i40iw_sc_dev *, u32, u8 *, u16);
 	u8 hmc_fn_id;
 	bool is_pf;
-	u32 debug_mask;
+	u32 de_mask;
 };
 
 enum i40iw_cqp_hmc_profile {

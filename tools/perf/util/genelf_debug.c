@@ -1,5 +1,5 @@
 /*
- * genelf_debug.c
+ * genelf_de.c
  * Copyright (C) 2015, Google, Inc
  *
  * Contributed by:
@@ -101,7 +101,7 @@ buffer_ext_addr(struct buffer_ext *be)
 	return be->data;
 }
 
-struct debug_line_header {
+struct de_line_header {
 	// Not counting this field
 	uword total_length;
 	// version number (2 currently)
@@ -130,21 +130,21 @@ struct debug_line_header {
 
 /* DWARF 2 spec talk only about one possible compilation unit header while
  * binutils can handle two flavours of dwarf 2, 32 and 64 bits, this is not
- * related to the used arch, an ELF 32 can hold more than 4 Go of debug
+ * related to the used arch, an ELF 32 can hold more than 4 Go of de
  * information. For now we handle only DWARF 2 32 bits comp unit. It'll only
- * become a problem if we generate more than 4GB of debug information.
+ * become a problem if we generate more than 4GB of de information.
  */
 struct compilation_unit_header {
 	uword total_length;
 	uhalf version;
-	uword debug_abbrev_offset;
+	uword de_abbrev_offset;
 	ubyte pointer_size;
 } __packed;
 
 #define DW_LNS_num_opcode (DW_LNS_set_isa + 1)
 
 /* field filled at run time are marked with -1 */
-static struct debug_line_header const default_debug_line_header = {
+static struct de_line_header const default_de_line_header = {
 	.total_length = -1,
 	.version = 2,
 	.prolog_length = -1,
@@ -174,7 +174,7 @@ static ubyte standard_opcode_length[] =
 static struct compilation_unit_header default_comp_unit_header = {
 	.total_length = -1,
 	.version = 2,
-	.debug_abbrev_offset = 0,     /* we reuse the same abbrev entries for all comp unit */
+	.de_abbrev_offset = 0,     /* we reuse the same abbrev entries for all comp unit */
 	.pointer_size = sizeof(void *)
 };
 
@@ -292,7 +292,7 @@ static void emit_lne_set_address(struct buffer_ext *be,
 	emit_extended_opcode(be, DW_LNE_set_address, &address, sizeof(unsigned long));
 }
 
-static ubyte get_special_opcode(struct debug_entry *ent,
+static ubyte get_special_opcode(struct de_entry *ent,
 				unsigned int last_line,
 				unsigned long last_vma)
 {
@@ -302,24 +302,24 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 	/*
 	 * delta from line_base
 	 */
-	temp = (ent->lineno - last_line) - default_debug_line_header.line_base;
+	temp = (ent->lineno - last_line) - default_de_line_header.line_base;
 
-	if (temp >= default_debug_line_header.line_range)
+	if (temp >= default_de_line_header.line_range)
 		return 0;
 
 	/*
 	 * delta of addresses
 	 */
-	delta_addr = (ent->addr - last_vma) / default_debug_line_header.minimum_instruction_length;
+	delta_addr = (ent->addr - last_vma) / default_de_line_header.minimum_instruction_length;
 
 	/* This is not sufficient to ensure opcode will be in [0-256] but
 	 * sufficient to ensure when summing with the delta lineno we will
 	 * not overflow the unsigned long opcode */
 
-	if (delta_addr <= 256 / default_debug_line_header.line_range) {
+	if (delta_addr <= 256 / default_de_line_header.line_range) {
 		unsigned long opcode = temp +
-			(delta_addr * default_debug_line_header.line_range) +
-			default_debug_line_header.opcode_base;
+			(delta_addr * default_de_line_header.line_range) +
+			default_de_line_header.opcode_base;
 
 		return opcode <= 255 ? opcode : 0;
 	}
@@ -327,7 +327,7 @@ static ubyte get_special_opcode(struct debug_entry *ent,
 }
 
 static void emit_lineno_info(struct buffer_ext *be,
-			     struct debug_entry *ent, size_t nr_entry,
+			     struct de_entry *ent, size_t nr_entry,
 			     unsigned long code_addr)
 {
 	size_t i;
@@ -338,7 +338,7 @@ static void emit_lineno_info(struct buffer_ext *be,
 	 * file    = 1
 	 * line    = 1
 	 * column  = 0
-	 * is_stmt = default_is_stmt as given in the debug_line_header
+	 * is_stmt = default_is_stmt as given in the de_line_header
 	 * basic block = 0
 	 * end sequence = 0
 	 */
@@ -351,7 +351,7 @@ static void emit_lineno_info(struct buffer_ext *be,
 
 	emit_lne_set_address(be, (void *)code_addr);
 
-	for (i = 0; i < nr_entry; i++, ent = debug_entry_next(ent)) {
+	for (i = 0; i < nr_entry; i++, ent = de_entry_next(ent)) {
 		int need_copy = 0;
 		ubyte special_opcode;
 
@@ -396,17 +396,17 @@ static void emit_lineno_info(struct buffer_ext *be,
 	}
 }
 
-static void add_debug_line(struct buffer_ext *be,
-	struct debug_entry *ent, size_t nr_entry,
+static void add_de_line(struct buffer_ext *be,
+	struct de_entry *ent, size_t nr_entry,
 	unsigned long code_addr)
 {
-	struct debug_line_header * dbg_header;
+	struct de_line_header * dbg_header;
 	size_t old_size;
 
 	old_size = buffer_ext_size(be);
 
-	buffer_ext_add(be, (void *)&default_debug_line_header,
-		 sizeof(default_debug_line_header));
+	buffer_ext_add(be, (void *)&default_de_line_header,
+		 sizeof(default_de_line_header));
 
 	buffer_ext_add(be, &standard_opcode_length,  sizeof(standard_opcode_length));
 
@@ -418,7 +418,7 @@ static void add_debug_line(struct buffer_ext *be,
 
 	dbg_header = buffer_ext_addr(be) + old_size;
 	dbg_header->prolog_length = (buffer_ext_size(be) - old_size) -
-		offsetof(struct debug_line_header, minimum_instruction_length);
+		offsetof(struct de_line_header, minimum_instruction_length);
 
 	emit_lineno_info(be, ent, nr_entry, code_addr);
 
@@ -426,11 +426,11 @@ static void add_debug_line(struct buffer_ext *be,
 
 	dbg_header = buffer_ext_addr(be) + old_size;
 	dbg_header->total_length = (buffer_ext_size(be) - old_size) -
-		offsetof(struct debug_line_header, version);
+		offsetof(struct de_line_header, version);
 }
 
 static void
-add_debug_abbrev(struct buffer_ext *be)
+add_de_abbrev(struct buffer_ext *be)
 {
         emit_unsigned_LEB128(be, 1);
         emit_unsigned_LEB128(be, DW_TAG_compile_unit);
@@ -444,7 +444,7 @@ add_debug_abbrev(struct buffer_ext *be)
 
 static void
 add_compilation_unit(struct buffer_ext *be,
-		     size_t offset_debug_line)
+		     size_t offset_de_line)
 {
 	struct compilation_unit_header *comp_unit_header;
 	size_t old_size = buffer_ext_size(be);
@@ -453,7 +453,7 @@ add_compilation_unit(struct buffer_ext *be,
 		       sizeof(default_comp_unit_header));
 
 	emit_unsigned_LEB128(be, 1);
-	emit_uword(be, offset_debug_line);
+	emit_uword(be, offset_de_line);
 
 	comp_unit_header = buffer_ext_addr(be) + old_size;
 	comp_unit_header->total_length = (buffer_ext_size(be) - old_size) -
@@ -461,29 +461,29 @@ add_compilation_unit(struct buffer_ext *be,
 }
 
 static int
-jit_process_debug_info(uint64_t code_addr,
-		       void *debug, int nr_debug_entries,
+jit_process_de_info(uint64_t code_addr,
+		       void *de, int nr_de_entries,
 		       struct buffer_ext *dl,
 		       struct buffer_ext *da,
 		       struct buffer_ext *di)
 {
-	struct debug_entry *ent = debug;
+	struct de_entry *ent = de;
 	int i;
 
-	for (i = 0; i < nr_debug_entries; i++) {
+	for (i = 0; i < nr_de_entries; i++) {
 		ent->addr = ent->addr - code_addr;
-		ent = debug_entry_next(ent);
+		ent = de_entry_next(ent);
 	}
 	add_compilation_unit(di, buffer_ext_size(dl));
-	add_debug_line(dl, debug, nr_debug_entries, 0);
-	add_debug_abbrev(da);
+	add_de_line(dl, de, nr_de_entries, 0);
+	add_de_abbrev(da);
 	if (0) buffer_ext_dump(da, "abbrev");
 
 	return 0;
 }
 
 int
-jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries)
+jit_add_de_info(Elf *e, uint64_t code_addr, void *de, int nr_de_entries)
 {
 	Elf_Data *d;
 	Elf_Scn *scn;
@@ -495,11 +495,11 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 	buffer_ext_init(&di);
 	buffer_ext_init(&da);
 
-	ret = jit_process_debug_info(code_addr, debug, nr_debug_entries, &dl, &da, &di);
+	ret = jit_process_de_info(code_addr, de, nr_de_entries, &dl, &da, &di);
 	if (ret)
 		return -1;
 	/*
-	 * setup .debug_line section
+	 * setup .de_line section
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
@@ -526,14 +526,14 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 		return -1;
 	}
 
-	shdr->sh_name = 52; /* .debug_line */
+	shdr->sh_name = 52; /* .de_line */
 	shdr->sh_type = SHT_PROGBITS;
 	shdr->sh_addr = 0; /* must be zero or == sh_offset -> dynamic object */
 	shdr->sh_flags = 0;
 	shdr->sh_entsize = 0;
 
 	/*
-	 * setup .debug_info section
+	 * setup .de_info section
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
@@ -560,14 +560,14 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 		return -1;
 	}
 
-	shdr->sh_name = 64; /* .debug_info */
+	shdr->sh_name = 64; /* .de_info */
 	shdr->sh_type = SHT_PROGBITS;
 	shdr->sh_addr = 0; /* must be zero or == sh_offset -> dynamic object */
 	shdr->sh_flags = 0;
 	shdr->sh_entsize = 0;
 
 	/*
-	 * setup .debug_abbrev section
+	 * setup .de_abbrev section
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
@@ -594,7 +594,7 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 		return -1;
 	}
 
-	shdr->sh_name = 76; /* .debug_info */
+	shdr->sh_name = 76; /* .de_info */
 	shdr->sh_type = SHT_PROGBITS;
 	shdr->sh_addr = 0; /* must be zero or == sh_offset -> dynamic object */
 	shdr->sh_flags = 0;
@@ -604,7 +604,7 @@ jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries
 	 * now we update the ELF image with all the sections
 	 */
 	if (elf_update(e, ELF_C_WRITE) < 0) {
-		warnx("elf_update debug failed");
+		warnx("elf_update de failed");
 		return -1;
 	}
 	return 0;

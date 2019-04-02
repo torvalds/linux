@@ -151,7 +151,7 @@ static void mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvchip,
 		*offset = GPIO_EDGE_CAUSE_ARMADAXP_OFF(cpu);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -201,7 +201,7 @@ mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvchip,
 		*offset = GPIO_EDGE_MASK_ARMADAXP_OFF(cpu);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -251,7 +251,7 @@ mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip,
 		*offset = GPIO_LEVEL_MASK_ARMADAXP_OFF(cpu);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -841,7 +841,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	return pwmchip_add(&mvpwm->chip);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 #include <linux/seq_file.h>
 
 static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -967,7 +967,7 @@ static int mvebu_gpio_suspend(struct platform_device *pdev, pm_message_t state)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (IS_ENABLED(CONFIG_PWM))
@@ -1019,7 +1019,7 @@ static int mvebu_gpio_resume(struct platform_device *pdev)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	if (IS_ENABLED(CONFIG_PWM))
@@ -1197,7 +1197,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		}
 		break;
 	default:
-		BUG();
+		();
 	}
 
 	devm_gpiochip_add_data(&pdev->dev, &mvchip->chip, mvchip);

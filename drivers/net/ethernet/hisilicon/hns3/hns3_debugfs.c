@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Copyright (c) 2018-2019 Hisilicon Limited. */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 
 #include "hnae3.h"
@@ -363,14 +363,14 @@ void hns3_dbg_init(struct hnae3_handle *handle)
 	const char *name = pci_name(handle->pdev);
 	struct dentry *pfile;
 
-	handle->hnae3_dbgfs = debugfs_create_dir(name, hns3_dbgfs_root);
+	handle->hnae3_dbgfs = defs_create_dir(name, hns3_dbgfs_root);
 	if (!handle->hnae3_dbgfs)
 		return;
 
-	pfile = debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
+	pfile = defs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
 				    &hns3_dbg_cmd_fops);
 	if (!pfile) {
-		debugfs_remove_recursive(handle->hnae3_dbgfs);
+		defs_remove_recursive(handle->hnae3_dbgfs);
 		handle->hnae3_dbgfs = NULL;
 		dev_warn(&handle->pdev->dev, "create file for %s fail\n",
 			 name);
@@ -379,21 +379,21 @@ void hns3_dbg_init(struct hnae3_handle *handle)
 
 void hns3_dbg_uninit(struct hnae3_handle *handle)
 {
-	debugfs_remove_recursive(handle->hnae3_dbgfs);
+	defs_remove_recursive(handle->hnae3_dbgfs);
 	handle->hnae3_dbgfs = NULL;
 }
 
-void hns3_dbg_register_debugfs(const char *debugfs_dir_name)
+void hns3_dbg_register_defs(const char *defs_dir_name)
 {
-	hns3_dbgfs_root = debugfs_create_dir(debugfs_dir_name, NULL);
+	hns3_dbgfs_root = defs_create_dir(defs_dir_name, NULL);
 	if (!hns3_dbgfs_root) {
-		pr_warn("Register debugfs for %s fail\n", debugfs_dir_name);
+		pr_warn("Register defs for %s fail\n", defs_dir_name);
 		return;
 	}
 }
 
-void hns3_dbg_unregister_debugfs(void)
+void hns3_dbg_unregister_defs(void)
 {
-	debugfs_remove_recursive(hns3_dbgfs_root);
+	defs_remove_recursive(hns3_dbgfs_root);
 	hns3_dbgfs_root = NULL;
 }

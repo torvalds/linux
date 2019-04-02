@@ -29,14 +29,14 @@
  *					half is devoted to TIME_WAIT sockets
  *					and the rest go in the other half.
  *		Andi Kleen :		Add support for syncookies and fixed
- *					some bugs: ip options weren't passed to
+ *					some s: ip options weren't passed to
  *					the TCP layer, missed a check for an
  *					ACK bit.
  *		Andi Kleen :		Implemented fast path mtu discovery.
- *	     				Fixed many serious bugs in the
+ *	     				Fixed many serious s in the
  *					request_sock handling and moved
  *					most of it into the af independent code.
- *					Added tail drop and some other bugfixes.
+ *					Added tail drop and some other fixes.
  *					Added new listen semantics.
  *		Mike McLagan	:	Routing by source
  *	Juan Jose Ciarlante:		ip_dynaddr bits
@@ -644,7 +644,7 @@ EXPORT_SYMBOL(tcp_v4_send_check);
  *		      for reset.
  *	Answer: if a packet caused RST, it is not for a socket
  *		existing in our system, if it is matched to a socket,
- *		it is just duplicate segment or bug in other side's TCP.
+ *		it is just duplicate segment or  in other side's TCP.
  *		So that we build reply only basing on parameters
  *		arrived with segment.
  *	Exception: precedence violation. We do not implement it in any case.
@@ -765,7 +765,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 			trace_tcp_send_reset(sk, skb);
 	}
 
-	BUILD_BUG_ON(offsetof(struct sock, sk_bound_dev_if) !=
+	BUILD__ON(offsetof(struct sock, sk_bound_dev_if) !=
 		     offsetof(struct inet_timewait_sock, tw_bound_dev_if));
 
 	arg.tos = ip_hdr(skb)->tos;
@@ -2083,7 +2083,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash)
 		inet_put_port(sk);
 
-	BUG_ON(tp->fastopen_rsk);
+	_ON(tp->fastopen_rsk);
 
 	/* If socket is aborted during connect operation */
 	tcp_free_fastopen_req(tp);

@@ -16,7 +16,7 @@
  */
 
 /*
- * livepatch-shadow-mod.c - Shadow variables, buggy module demo
+ * livepatch-shadow-mod.c - Shadow variables, gy module demo
  *
  * Purpose
  * -------
@@ -28,13 +28,13 @@
  *
  * WARNING - even though the livepatch-shadow-fix modules patch the
  * memory leak, please load these modules at your own risk -- some
- * amount of memory may leaked before the bug is patched.
+ * amount of memory may leaked before the  is patched.
  *
  *
  * Usage
  * -----
  *
- * Step 1 - Load the buggy demonstration module:
+ * Step 1 - Load the gy demonstration module:
  *
  *   insmod samples/livepatch/livepatch-shadow-mod.ko
  *
@@ -83,7 +83,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Joe Lawrence <joe.lawrence@redhat.com>");
-MODULE_DESCRIPTION("Buggy module for shadow variable demo");
+MODULE_DESCRIPTION("gy module for shadow variable demo");
 
 /* Allocate new dummies every second */
 #define ALLOC_PERIOD	1

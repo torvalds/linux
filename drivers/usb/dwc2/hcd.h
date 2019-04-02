@@ -445,7 +445,7 @@ struct dwc2_qtd {
 	struct list_head qtd_list_entry;
 };
 
-#ifdef DEBUG
+#ifdef DE
 struct hc_xfer_info {
 	struct dwc2_hsotg *hsotg;
 	struct dwc2_host_chan *chan;
@@ -593,12 +593,12 @@ void dwc2_hcd_qh_free_ddma(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh);
 	((_qh_ptr_)->ep_type == USB_ENDPOINT_XFER_BULK || \
 	 (_qh_ptr_)->ep_type == USB_ENDPOINT_XFER_CONTROL)
 
-#ifdef CONFIG_USB_DWC2_DEBUG_PERIODIC
+#ifdef CONFIG_USB_DWC2_DE_PERIODIC
 static inline bool dbg_hc(struct dwc2_host_chan *hc) { return true; }
 static inline bool dbg_qh(struct dwc2_qh *qh) { return true; }
 static inline bool dbg_urb(struct urb *urb) { return true; }
 static inline bool dbg_perio(void) { return true; }
-#else /* !CONFIG_USB_DWC2_DEBUG_PERIODIC */
+#else /* !CONFIG_USB_DWC2_DE_PERIODIC */
 static inline bool dbg_hc(struct dwc2_host_chan *hc)
 {
 	return hc->ep_type == USB_ENDPOINT_XFER_BULK ||

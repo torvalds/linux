@@ -41,14 +41,14 @@
 #include <media/dvb_ca_en50221.h>
 #include <media/dvb_ringbuffer.h>
 
-static int dvb_ca_en50221_debug;
+static int dvb_ca_en50221_de;
 
-module_param_named(cam_debug, dvb_ca_en50221_debug, int, 0644);
-MODULE_PARM_DESC(cam_debug, "enable verbose debug messages");
+module_param_named(cam_de, dvb_ca_en50221_de, int, 0644);
+MODULE_PARM_DESC(cam_de, "enable verbose de messages");
 
 #define dprintk(fmt, arg...) do {					\
-	if (dvb_ca_en50221_debug)					\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt), __func__, ##arg);\
+	if (dvb_ca_en50221_de)					\
+		printk(KERN_DE pr_fmt("%s: " fmt), __func__, ##arg);\
 } while (0)
 
 #define INIT_TIMEOUT_SECS 10
@@ -847,7 +847,7 @@ static int dvb_ca_en50221_write_data(struct dvb_ca_private *ca, int slot,
 	 * be a race condition between the CAM, writing HC and our last
 	 * check for DA. This happens, if the CAM asserts DA, just after
 	 * checking DA before we are setting HC. In this case it might be
-	 * a bug in the CAM to keep the FR bit, the lower layer/HW
+	 * a  in the CAM to keep the FR bit, the lower layer/HW
 	 * communication requires a longer timeout or the CAM needs more
 	 * time internally. But this happens in reality!
 	 * We need to read the status from the HW again and do the same
@@ -1648,7 +1648,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
 	pktlen = 2;
 	do {
 		if (idx == -1) {
-			pr_err("dvb_ca adapter %d: BUG: read packet ended before last_fragment encountered\n",
+			pr_err("dvb_ca adapter %d: : read packet ended before last_fragment encountered\n",
 			       ca->dvbdev->adapter->num);
 			status = -EIO;
 			goto exit;

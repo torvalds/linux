@@ -553,8 +553,8 @@ static void *pt1_alloc_page(struct pt1 *pt1, dma_addr_t *addrp, u32 *pfnp)
 	if (page == NULL)
 		return NULL;
 
-	BUG_ON(addr & (PT1_PAGE_SIZE - 1));
-	BUG_ON(addr >> PT1_PAGE_SHIFT >> 31 >> 1);
+	_ON(addr & (PT1_PAGE_SIZE - 1));
+	_ON(addr >> PT1_PAGE_SHIFT >> 31 >> 1);
 
 	*addrp = addr;
 	*pfnp = addr >> PT1_PAGE_SHIFT;

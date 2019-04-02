@@ -40,7 +40,7 @@ void rmi_free_function_list(struct rmi_device *rmi_dev)
 	struct rmi_function *fn, *tmp;
 	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
 
-	rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev, "Freeing function list\n");
+	rmi_dbg(RMI_DE_CORE, &rmi_dev->dev, "Freeing function list\n");
 
 	/* Doing it in the reverse order so F01 will be removed last */
 	list_for_each_entry_safe_reverse(fn, tmp,
@@ -203,7 +203,7 @@ static irqreturn_t rmi_irq_fn(int irq, void *dev_id)
 
 	ret = rmi_process_interrupt_requests(rmi_dev);
 	if (ret)
-		rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev,
+		rmi_dbg(RMI_DE_CORE, &rmi_dev->dev,
 			"Failed to process interrupt request: %d\n", ret);
 
 	if (count) {
@@ -675,7 +675,7 @@ int rmi_read_register_desc(struct rmi_device *d, u16 addr,
 		item->num_subpackets = bitmap_weight(item->subpacket_map,
 						RMI_REG_DESC_SUBPACKET_BITS);
 
-		rmi_dbg(RMI_DEBUG_CORE, &d->dev,
+		rmi_dbg(RMI_DE_CORE, &d->dev,
 			"%s: reg: %d reg size: %ld subpackets: %d\n", __func__,
 			item->reg, item->reg_size, item->num_subpackets);
 
@@ -807,7 +807,7 @@ int rmi_initial_reset(struct rmi_device *rmi_dev, void *ctx,
 			return RMI_SCAN_DONE;
 		}
 
-		rmi_dbg(RMI_DEBUG_CORE, &rmi_dev->dev, "Sending reset\n");
+		rmi_dbg(RMI_DE_CORE, &rmi_dev->dev, "Sending reset\n");
 		error = rmi_write_block(rmi_dev, cmd_addr, &cmd_buf, 1);
 		if (error) {
 			dev_err(&rmi_dev->dev,
@@ -834,7 +834,7 @@ static int rmi_create_function(struct rmi_device *rmi_dev,
 	int i;
 	int error;
 
-	rmi_dbg(RMI_DEBUG_CORE, dev, "Initializing F%02X.\n",
+	rmi_dbg(RMI_DE_CORE, dev, "Initializing F%02X.\n",
 			pdt->function_number);
 
 	fn = kzalloc(sizeof(struct rmi_function) +
@@ -1026,7 +1026,7 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 	 * function can trigger events that result in the IRQ related storage
 	 * being accessed.
 	 */
-	rmi_dbg(RMI_DEBUG_CORE, dev, "%s: Counting IRQs.\n", __func__);
+	rmi_dbg(RMI_DE_CORE, dev, "%s: Counting IRQs.\n", __func__);
 	data->bootloader_mode = false;
 
 	retval = rmi_scan_pdt(rmi_dev, &irq_count, rmi_count_irqs);
@@ -1072,7 +1072,7 @@ int rmi_init_functions(struct rmi_driver_data *data)
 	int irq_count = 0;
 	int retval;
 
-	rmi_dbg(RMI_DEBUG_CORE, dev, "%s: Creating functions.\n", __func__);
+	rmi_dbg(RMI_DE_CORE, dev, "%s: Creating functions.\n", __func__);
 	retval = rmi_scan_pdt(rmi_dev, &irq_count, rmi_create_function);
 	if (retval < 0) {
 		dev_err(dev, "Function creation failed with code %d.\n",
@@ -1110,11 +1110,11 @@ static int rmi_driver_probe(struct device *dev)
 	struct rmi_device *rmi_dev;
 	int retval;
 
-	rmi_dbg(RMI_DEBUG_CORE, dev, "%s: Starting probe.\n",
+	rmi_dbg(RMI_DE_CORE, dev, "%s: Starting probe.\n",
 			__func__);
 
 	if (!rmi_is_physical_device(dev)) {
-		rmi_dbg(RMI_DEBUG_CORE, dev, "Not a physical device.\n");
+		rmi_dbg(RMI_DE_CORE, dev, "Not a physical device.\n");
 		return -ENODEV;
 	}
 

@@ -15,7 +15,7 @@
 #include <linux/err.h>
 #include <net/smc.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 
 #include "ism.h"
 
@@ -31,7 +31,7 @@ static const struct pci_device_id ism_device_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, ism_device_table);
 
-static debug_info_t *ism_debug_info;
+static de_info_t *ism_de_info;
 
 static int ism_cmd(struct ism_dev *ism, void *cmd)
 {
@@ -45,8 +45,8 @@ static int ism_cmd(struct ism_dev *ism, void *cmd)
 
 	memcpy_fromio(resp, ism->ctl, sizeof(*resp));
 	if (resp->ret) {
-		debug_text_event(ism_debug_info, 0, "cmd failure");
-		debug_event(ism_debug_info, 0, resp, sizeof(*resp));
+		de_text_event(ism_de_info, 0, "cmd failure");
+		de_event(ism_de_info, 0, resp, sizeof(*resp));
 		goto out;
 	}
 	memcpy_fromio(resp + 1, ism->ctl + sizeof(*resp),
@@ -77,8 +77,8 @@ static int query_info(struct ism_dev *ism)
 	if (ism_cmd(ism, &cmd))
 		goto out;
 
-	debug_text_event(ism_debug_info, 3, "query info");
-	debug_event(ism_debug_info, 3, &cmd.response, sizeof(cmd.response));
+	de_text_event(ism_de_info, 3, "query info");
+	de_event(ism_de_info, 3, &cmd.response, sizeof(cmd.response));
 out:
 	return 0;
 }
@@ -397,7 +397,7 @@ static void ism_handle_event(struct ism_dev *ism)
 			ism->ieq_idx = 0;
 
 		entry = &ism->ieq->entry[ism->ieq_idx];
-		debug_event(ism_debug_info, 2, entry, sizeof(*entry));
+		de_event(ism_de_info, 2, entry, sizeof(*entry));
 		smcd_handle_event(ism->smcd, entry);
 	}
 }
@@ -606,14 +606,14 @@ static int __init ism_init(void)
 {
 	int ret;
 
-	ism_debug_info = debug_register("ism", 2, 1, 16);
-	if (!ism_debug_info)
+	ism_de_info = de_register("ism", 2, 1, 16);
+	if (!ism_de_info)
 		return -ENODEV;
 
-	debug_register_view(ism_debug_info, &debug_hex_ascii_view);
+	de_register_view(ism_de_info, &de_hex_ascii_view);
 	ret = pci_register_driver(&ism_driver);
 	if (ret)
-		debug_unregister(ism_debug_info);
+		de_unregister(ism_de_info);
 
 	return ret;
 }
@@ -621,7 +621,7 @@ static int __init ism_init(void)
 static void __exit ism_exit(void)
 {
 	pci_unregister_driver(&ism_driver);
-	debug_unregister(ism_debug_info);
+	de_unregister(ism_de_info);
 }
 
 module_init(ism_init);

@@ -338,8 +338,8 @@ static int w83791d_read(struct i2c_client *client, u8 reg);
 static int w83791d_write(struct i2c_client *client, u8 reg, u8 value);
 static struct w83791d_data *w83791d_update_device(struct device *dev);
 
-#ifdef DEBUG
-static void w83791d_print_debug(struct w83791d_data *data, struct device *dev);
+#ifdef DE
+static void w83791d_print_de(struct w83791d_data *data, struct device *dev);
 #endif
 
 static void w83791d_init_client(struct i2c_client *client);
@@ -634,7 +634,7 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute *attr,
 		keep_mask = 0x8f;
 		new_shift = 4;
 		break;
-#ifdef DEBUG
+#ifdef DE
 	default:
 		dev_warn(dev, "store_fan_div: Unexpected nr seen: %d\n", nr);
 		count = -EINVAL;
@@ -663,7 +663,7 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute *attr,
 	data->fan_min[nr] = fan_to_reg(min, DIV_FROM_REG(data->fan_div[nr]));
 	w83791d_write(client, W83791D_REG_FAN_MIN[nr], data->fan_min[nr]);
 
-#ifdef DEBUG
+#ifdef DE
 err_exit:
 #endif
 	mutex_unlock(&data->update_lock);
@@ -1375,7 +1375,7 @@ static int w83791d_probe(struct i2c_client *client,
 	int i, err;
 	u8 has_fanpwm45;
 
-#ifdef DEBUG
+#ifdef DE
 	int val1;
 	val1 = w83791d_read(client, W83791D_REG_DID_VID4);
 	dev_dbg(dev, "Device ID version: %d.%d (0x%02x)\n",
@@ -1637,19 +1637,19 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 
 	mutex_unlock(&data->update_lock);
 
-#ifdef DEBUG
-	w83791d_print_debug(data, dev);
+#ifdef DE
+	w83791d_print_de(data, dev);
 #endif
 
 	return data;
 }
 
-#ifdef DEBUG
-static void w83791d_print_debug(struct w83791d_data *data, struct device *dev)
+#ifdef DE
+static void w83791d_print_de(struct w83791d_data *data, struct device *dev)
 {
 	int i = 0, j = 0;
 
-	dev_dbg(dev, "======Start of w83791d debug values======\n");
+	dev_dbg(dev, "======Start of w83791d de values======\n");
 	dev_dbg(dev, "%d set of Voltages: ===>\n", NUMBER_OF_VIN);
 	for (i = 0; i < NUMBER_OF_VIN; i++) {
 		dev_dbg(dev, "vin[%d] is:     0x%02x\n", i, data->in[i]);
@@ -1683,7 +1683,7 @@ static void w83791d_print_debug(struct w83791d_data *data, struct device *dev)
 	dev_dbg(dev, "beep_enable is: %d\n", data->beep_enable);
 	dev_dbg(dev, "vid is: 0x%02x\n", data->vid);
 	dev_dbg(dev, "vrm is: 0x%02x\n", data->vrm);
-	dev_dbg(dev, "=======End of w83791d debug values========\n");
+	dev_dbg(dev, "=======End of w83791d de values========\n");
 	dev_dbg(dev, "\n");
 }
 #endif

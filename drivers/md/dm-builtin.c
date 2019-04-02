@@ -35,7 +35,7 @@
  * Note that if the process that takes the foreign reference to dm kobject
  * has a low priority and the system is sufficiently loaded with
  * higher-priority processes that prevent the low-priority process from
- * being scheduled long enough, this bug may really happen.
+ * being scheduled long enough, this  may really happen.
  *
  * In order to fix this module unload race, we place the release method
  * into a helper code that is compiled directly into the kernel.

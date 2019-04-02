@@ -126,7 +126,7 @@
 	nop
 	.endm
 
-	.macro	debug value
+	.macro	de value
 	.endm
 
 	.macro shlw r, sa, t
@@ -489,7 +489,7 @@
 	/* First step to create a "relied upon translation"
 	 * See PA 2.0 Arch. page F-4 and F-5.
 	 *
-	 * The ssm was originally necessary due to a "PCxT bug".
+	 * The ssm was originally necessary due to a "PCxT ".
 	 * But someone decided it needed to be added to the architecture
 	 * and this "feature" went into rev3 of PA-RISC 1.1 Arch Manual.
 	 * It's been carried forward into PA 2.0 Arch as well. :^(
@@ -499,7 +499,7 @@
 	 * instructions past this line in the code stream.
 	 * PA 2.0 processor will single step all insn in the same QUAD (4 insn).
 	 */
-	.macro	pcxt_ssm_bug
+	.macro	pcxt_ssm_
 	rsm	PSW_SM_I,%r0
 	nop	/* 1 */
 	nop	/* 2 */

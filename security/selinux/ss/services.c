@@ -233,7 +233,7 @@ static void map_decision(struct selinux_map *map,
 				result |= 1<<i;
 		}
 		/*
-		 * In case the kernel has a bug and requests a permission
+		 * In case the kernel has a  and requests a permission
 		 * between num_perms and the maximum permission number, we
 		 * should audit that denial
 		 */
@@ -278,16 +278,16 @@ static int constraint_expr_eval(struct policydb *policydb,
 	for (e = cexpr; e; e = e->next) {
 		switch (e->expr_type) {
 		case CEXPR_NOT:
-			BUG_ON(sp < 0);
+			_ON(sp < 0);
 			s[sp] = !s[sp];
 			break;
 		case CEXPR_AND:
-			BUG_ON(sp < 1);
+			_ON(sp < 1);
 			sp--;
 			s[sp] &= s[sp + 1];
 			break;
 		case CEXPR_OR:
-			BUG_ON(sp < 1);
+			_ON(sp < 1);
 			sp--;
 			s[sp] |= s[sp + 1];
 			break;
@@ -369,12 +369,12 @@ mls_ops:
 				s[++sp] = mls_level_incomp(l2, l1);
 				continue;
 			default:
-				BUG();
+				();
 				return 0;
 			}
 			break;
 			default:
-				BUG();
+				();
 				return 0;
 			}
 
@@ -386,7 +386,7 @@ mls_ops:
 				s[++sp] = (val1 != val2);
 				break;
 			default:
-				BUG();
+				();
 				return 0;
 			}
 			break;
@@ -399,7 +399,7 @@ mls_ops:
 			else if (e->attr & CEXPR_XTARGET) {
 				c = xcontext;
 				if (!c) {
-					BUG();
+					();
 					return 0;
 				}
 			}
@@ -410,7 +410,7 @@ mls_ops:
 			else if (e->attr & CEXPR_TYPE)
 				val1 = c->type;
 			else {
-				BUG();
+				();
 				return 0;
 			}
 
@@ -422,17 +422,17 @@ mls_ops:
 				s[++sp] = !ebitmap_get_bit(&e->names, val1 - 1);
 				break;
 			default:
-				BUG();
+				();
 				return 0;
 			}
 			break;
 		default:
-			BUG();
+			();
 			return 0;
 		}
 	}
 
-	BUG_ON(sp != 0);
+	_ON(sp != 0);
 	return s[0];
 }
 
@@ -445,7 +445,7 @@ static int dump_masked_av_helper(void *k, void *d, void *args)
 	struct perm_datum *pdatum = d;
 	char **permission_names = args;
 
-	BUG_ON(pdatum->value < 1 || pdatum->value > 32);
+	_ON(pdatum->value < 1 || pdatum->value > 32);
 
 	permission_names[pdatum->value - 1] = (char *)k;
 
@@ -545,13 +545,13 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 	u32 masked = 0;
 
 	source = policydb->type_val_to_struct_array[scontext->type - 1];
-	BUG_ON(!source);
+	_ON(!source);
 
 	if (!source->bounds)
 		return;
 
 	target = policydb->type_val_to_struct_array[tcontext->type - 1];
-	BUG_ON(!target);
+	_ON(!target);
 
 	memset(&lo_avd, 0, sizeof(lo_avd));
 
@@ -651,9 +651,9 @@ static void context_struct_compute_av(struct policydb *policydb,
 	avkey.target_class = tclass;
 	avkey.specified = AVTAB_AV | AVTAB_XPERMS;
 	sattr = &policydb->type_attr_map_array[scontext->type - 1];
-	BUG_ON(!sattr);
+	_ON(!sattr);
 	tattr = &policydb->type_attr_map_array[tcontext->type - 1];
-	BUG_ON(!tattr);
+	_ON(!tattr);
 	ebitmap_for_each_positive_bit(sattr, snode, i) {
 		ebitmap_for_each_positive_bit(tattr, tnode, j) {
 			avkey.source_type = i + 1;
@@ -896,7 +896,7 @@ int security_bounded_transition(struct selinux_state *state,
 	index = new_context->type;
 	while (true) {
 		type = policydb->type_val_to_struct_array[index - 1];
-		BUG_ON(!type);
+		_ON(!type);
 
 		/* not bounded anymore */
 		rc = -EPERM;
@@ -958,7 +958,7 @@ void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 					xpermd->driver))
 			return;
 	} else {
-		BUG();
+		();
 	}
 
 	if (node->key.specified == AVTAB_XPERMS_ALLOWED) {
@@ -995,7 +995,7 @@ void services_compute_xperms_decision(struct extended_perms_decision *xpermd,
 					node->datum.u.xperms->perms.p[i];
 		}
 	} else {
-		BUG();
+		();
 	}
 }
 
@@ -1059,9 +1059,9 @@ void security_compute_xperms_decision(struct selinux_state *state,
 	avkey.target_class = tclass;
 	avkey.specified = AVTAB_XPERMS;
 	sattr = &policydb->type_attr_map_array[scontext->type - 1];
-	BUG_ON(!sattr);
+	_ON(!sattr);
 	tattr = &policydb->type_attr_map_array[tcontext->type - 1];
-	BUG_ON(!tattr);
+	_ON(!tattr);
 	ebitmap_for_each_positive_bit(sattr, snode, i) {
 		ebitmap_for_each_positive_bit(tattr, tnode, j) {
 			avkey.source_type = i + 1;

@@ -44,7 +44,7 @@
 #define IOAT_XFERCAP_32GB			0
 
 #define IOAT_GENCTRL_OFFSET			0x02	/*  8-bit */
-#define IOAT_GENCTRL_DEBUG_EN			0x01
+#define IOAT_GENCTRL_DE_EN			0x01
 
 #define IOAT_INTRCTRL_OFFSET			0x03	/*  8-bit */
 #define IOAT_INTRCTRL_MASTER_INT_EN		0x01	/* Master Interrupt Enable */

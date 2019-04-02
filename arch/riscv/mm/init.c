@@ -53,7 +53,7 @@ void __init paging_init(void)
 void __init mem_init(void)
 {
 #ifdef CONFIG_FLATMEM
-	BUG_ON(!mem_map);
+	_ON(!mem_map);
 #endif /* CONFIG_FLATMEM */
 
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
@@ -119,7 +119,7 @@ void __init setup_bootmem(void)
 			mem_size = min(reg->size, (phys_addr_t)-PAGE_OFFSET);
 		}
 	}
-	BUG_ON(mem_size == 0);
+	_ON(mem_size == 0);
 
 	set_max_mapnr(PFN_DOWN(mem_size));
 	max_low_pfn = PFN_DOWN(memblock_end_of_DRAM());
@@ -160,7 +160,7 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 	unsigned long addr = __fix_to_virt(idx);
 	pte_t *ptep;
 
-	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
+	_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	ptep = &fixmap_pte[pte_index(addr)];
 
@@ -183,8 +183,8 @@ asmlinkage void __init setup_vm(void)
 	pfn_base = PFN_DOWN(pa);
 
 	/* Sanity check alignment and size */
-	BUG_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
-	BUG_ON((pa % (PAGE_SIZE * PTRS_PER_PTE)) != 0);
+	_ON((PAGE_OFFSET % PGDIR_SIZE) != 0);
+	_ON((pa % (PAGE_SIZE * PTRS_PER_PTE)) != 0);
 
 #ifndef __PAGETABLE_PMD_FOLDED
 	trampoline_pg_dir[(PAGE_OFFSET >> PGDIR_SHIFT) % PTRS_PER_PGD] =

@@ -2,10 +2,10 @@
 #ifndef __PAT_INTERNAL_H_
 #define __PAT_INTERNAL_H_
 
-extern int pat_debug_enable;
+extern int pat_de_enable;
 
 #define dprintk(fmt, arg...) \
-	do { if (pat_debug_enable) pr_info("x86/PAT: " fmt, ##arg); } while (0)
+	do { if (pat_de_enable) pr_info("x86/PAT: " fmt, ##arg); } while (0)
 
 struct memtype {
 	u64			start;

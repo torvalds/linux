@@ -10,4 +10,4 @@ wimax-y :=		\
 	op-state-get.o	\
 	stack.o
 
-wimax-$(CONFIG_DEBUG_FS) += debugfs.o
+wimax-$(CONFIG_DE_FS) += defs.o

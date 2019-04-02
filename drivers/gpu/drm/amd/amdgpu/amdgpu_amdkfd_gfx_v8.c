@@ -270,7 +270,7 @@ static inline uint32_t get_sdma_base_addr(struct vi_sdma_mqd *m)
 
 	retval = m->sdma_engine_id * SDMA1_REGISTER_OFFSET +
 		m->sdma_queue_id * KFD_VI_SDMA_QUEUE_OFFSET;
-	pr_debug("kfd: sdma base address: 0x%x\n", retval);
+	pr_de("kfd: sdma base address: 0x%x\n", retval);
 
 	return retval;
 }
@@ -307,7 +307,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 		mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
 		pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
-		pr_debug("kfd: set HIQ, mec:%d, pipe:%d, queue:%d.\n",
+		pr_de("kfd: set HIQ, mec:%d, pipe:%d, queue:%d.\n",
 			mec, pipe, queue_id);
 		value = RREG32(mmRLC_CP_SCHEDULERS);
 		value = REG_SET_FIELD(value, RLC_CP_SCHEDULERS, scheduler1,
@@ -579,7 +579,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 	while (true) {
 		temp = RREG32(mmCP_HQD_IQ_TIMER);
 		if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, PROCESSING_IQ)) {
-			pr_debug("HW is processing IQ\n");
+			pr_de("HW is processing IQ\n");
 			goto loop;
 		}
 		if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, ACTIVE)) {
@@ -593,7 +593,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
 			if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, WAIT_TIME)
 					>= 10)
 				break;
-			pr_debug("IQ timer is active\n");
+			pr_de("IQ timer is active\n");
 		} else
 			break;
 loop:
@@ -609,7 +609,7 @@ loop:
 		temp = RREG32(mmCP_HQD_DEQUEUE_REQUEST);
 		if (!(temp & CP_HQD_DEQUEUE_REQUEST__IQ_REQ_PEND_MASK))
 			break;
-		pr_debug("Dequeue request is pending\n");
+		pr_de("Dequeue request is pending\n");
 
 		if (!retry) {
 			pr_err("CP HQD dequeue request time out\n");

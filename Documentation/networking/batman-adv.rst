@@ -74,9 +74,9 @@ All mesh wide settings can be found in batman's own interface folder::
   bridge_loop_avoidance gw_sel_class  network_coding
   distributed_arp_table hop_penalty   orig_interval
 
-There is a special folder for debugging information::
+There is a special folder for deging information::
 
-  $ ls /sys/kernel/debug/batman_adv/bat0/
+  $ ls /sys/kernel/de/batman_adv/bat0/
   bla_backbone_table log         neighbors         transtable_local
   bla_claim_table    mcast_flags originators
   dat_cache          nc          socket
@@ -86,7 +86,7 @@ Some of the files contain all sort of status information regarding the mesh
 network. For example, you can view the table of originators (mesh
 participants) with::
 
-  $ cat /sys/kernel/debug/batman_adv/bat0/originators
+  $ cat /sys/kernel/de/batman_adv/bat0/originators
 
 Other files allow to change batman's behaviour to better fit your requirements.
 For instance, you can check the current originator interval (value in
@@ -130,7 +130,7 @@ interfaces now used by batman advanced, e.g.::
   $ ip addr flush dev eth0
 
 
-Logging/Debugging
+Logging/Deging
 =================
 
 All error messages, warnings and information messages are sent to the kernel
@@ -142,23 +142,23 @@ are prefixed with "batman-adv:" So to see just these messages try::
   $ dmesg | grep batman-adv
 
 When investigating problems with your mesh network, it is sometimes necessary to
-see more detail debug messages. This must be enabled when compiling the
+see more detail de messages. This must be enabled when compiling the
 batman-adv module. When building batman-adv as part of kernel, use "make
-menuconfig" and enable the option ``B.A.T.M.A.N. debugging``
-(``CONFIG_BATMAN_ADV_DEBUG=y``).
+menuconfig" and enable the option ``B.A.T.M.A.N. deging``
+(``CONFIG_BATMAN_ADV_DE=y``).
 
-Those additional debug messages can be accessed using a special file in
-debugfs::
+Those additional de messages can be accessed using a special file in
+defs::
 
-  $ cat /sys/kernel/debug/batman_adv/bat0/log
+  $ cat /sys/kernel/de/batman_adv/bat0/log
 
-The additional debug output is by default disabled. It can be enabled during
+The additional de output is by default disabled. It can be enabled during
 run time. Following log_levels are defined:
 
 .. flat-table::
 
    * - 0
-     - All debug output disabled
+     - All de output disabled
    * - 1
      - Enable messages related to routing / flooding / broadcasting
    * - 2
@@ -178,12 +178,12 @@ run time. Following log_levels are defined:
    * - 255
      - Enable all messages
 
-The debug output can be changed at runtime using the file
+The de output can be changed at runtime using the file
 ``/sys/class/net/bat0/mesh/log_level``. e.g.::
 
   $ echo 6 > /sys/class/net/bat0/mesh/log_level
 
-will enable debug messages for when routes change.
+will enable de messages for when routes change.
 
 Counters for different types of packets entering and leaving the batman-adv
 module are available through ethtool::

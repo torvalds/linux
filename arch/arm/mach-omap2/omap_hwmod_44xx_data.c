@@ -406,24 +406,24 @@ static struct omap_hwmod omap44xx_ctrl_module_pad_wkup_hwmod = {
 };
 
 /*
- * 'debugss' class
- * debug and emulation sub system
+ * 'dess' class
+ * de and emulation sub system
  */
 
-static struct omap_hwmod_class omap44xx_debugss_hwmod_class = {
-	.name	= "debugss",
+static struct omap_hwmod_class omap44xx_dess_hwmod_class = {
+	.name	= "dess",
 };
 
-/* debugss */
-static struct omap_hwmod omap44xx_debugss_hwmod = {
-	.name		= "debugss",
-	.class		= &omap44xx_debugss_hwmod_class,
+/* dess */
+static struct omap_hwmod omap44xx_dess_hwmod = {
+	.name		= "dess",
+	.class		= &omap44xx_dess_hwmod_class,
 	.clkdm_name	= "emu_sys_clkdm",
 	.main_clk	= "trace_clk_div_ck",
 	.prcm = {
 		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_EMU_DEBUGSS_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_EMU_DEBUGSS_CONTEXT_OFFSET,
+			.clkctrl_offs = OMAP4_CM_EMU_DESS_CLKCTRL_OFFSET,
+			.context_offs = OMAP4_RM_EMU_DESS_CONTEXT_OFFSET,
 		},
 	},
 };
@@ -1234,8 +1234,8 @@ static struct omap_hwmod omap44xx_gpmc_hwmod = {
 	.name		= "gpmc",
 	.class		= &omap44xx_gpmc_hwmod_class,
 	.clkdm_name	= "l3_2_clkdm",
-	/* Skip reset for CONFIG_OMAP_GPMC_DEBUG for bootloader timings */
-	.flags		= DEBUG_OMAP_GPMC_HWMOD_FLAGS,
+	/* Skip reset for CONFIG_OMAP_GPMC_DE for bootloader timings */
+	.flags		= DE_OMAP_GPMC_HWMOD_FLAGS,
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_L3_2_GPMC_CLKCTRL_OFFSET,
@@ -2731,7 +2731,7 @@ static struct omap_hwmod omap44xx_uart3_hwmod = {
 	.name		= "uart3",
 	.class		= &omap44xx_uart_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.flags		= DEBUG_OMAP4UART3_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
+	.flags		= DE_OMAP4UART3_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -2747,7 +2747,7 @@ static struct omap_hwmod omap44xx_uart4_hwmod = {
 	.name		= "uart4",
 	.class		= &omap44xx_uart_hwmod_class,
 	.clkdm_name	= "l4_per_clkdm",
-	.flags		= DEBUG_OMAP4UART4_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
+	.flags		= DE_OMAP4UART4_FLAGS | HWMOD_SWSUP_SIDLE_ACT,
 	.main_clk	= "func_48m_fclk",
 	.prcm = {
 		.omap4 = {
@@ -3106,9 +3106,9 @@ static struct omap_hwmod_ocp_if omap44xx_mpu__l3_main_1 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* debugss -> l3_main_2 */
-static struct omap_hwmod_ocp_if omap44xx_debugss__l3_main_2 = {
-	.master		= &omap44xx_debugss_hwmod,
+/* dess -> l3_main_2 */
+static struct omap_hwmod_ocp_if omap44xx_dess__l3_main_2 = {
+	.master		= &omap44xx_dess_hwmod,
 	.slave		= &omap44xx_l3_main_2_hwmod,
 	.clk		= "dbgclk_mux_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
@@ -3370,10 +3370,10 @@ static struct omap_hwmod_ocp_if omap44xx_l4_wkup__ctrl_module_pad_wkup = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3_instr -> debugss */
-static struct omap_hwmod_ocp_if omap44xx_l3_instr__debugss = {
+/* l3_instr -> dess */
+static struct omap_hwmod_ocp_if omap44xx_l3_instr__dess = {
 	.master		= &omap44xx_l3_instr_hwmod,
-	.slave		= &omap44xx_debugss_hwmod,
+	.slave		= &omap44xx_dess_hwmod,
 	.clk		= "l3_div_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
@@ -4167,7 +4167,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_mmc1__l3_main_1,
 	&omap44xx_mmc2__l3_main_1,
 	&omap44xx_mpu__l3_main_1,
-	&omap44xx_debugss__l3_main_2,
+	&omap44xx_dess__l3_main_2,
 	&omap44xx_dma_system__l3_main_2,
 	&omap44xx_fdif__l3_main_2,
 	&omap44xx_gpu__l3_main_2,
@@ -4200,7 +4200,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__ctrl_module_pad_core,
 	&omap44xx_l4_wkup__ctrl_module_wkup,
 	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
-	&omap44xx_l3_instr__debugss,
+	&omap44xx_l3_instr__dess,
 	&omap44xx_l4_cfg__dma_system,
 	&omap44xx_l4_abe__dmic,
 	&omap44xx_dsp__iva,

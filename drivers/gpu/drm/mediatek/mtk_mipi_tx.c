@@ -51,7 +51,7 @@
 #define RG_DSI_LNT_IMP_CAL_CODE		(0xf << 4)
 #define RG_DSI_LNT_AIO_SEL		(7 << 8)
 #define RG_DSI_PAD_TIE_LOW_EN		BIT(11)
-#define RG_DSI_DEBUG_INPUT_EN		BIT(12)
+#define RG_DSI_DE_INPUT_EN		BIT(12)
 #define RG_DSI_PRESERVE			(7 << 13)
 
 #define MIPITX_DSI_BG_CON	0x44

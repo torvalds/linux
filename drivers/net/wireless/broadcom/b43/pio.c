@@ -344,7 +344,7 @@ static u16 tx_write_2byte_queue(struct b43_pio_txqueue *q,
 			sizeof(u16));
 	if (data_len & 1) {
 		u8 *tail = wl->pio_tailspace;
-		BUILD_BUG_ON(sizeof(wl->pio_tailspace) < 2);
+		BUILD__ON(sizeof(wl->pio_tailspace) < 2);
 
 		/* Write the last byte. */
 		ctl &= ~B43_PIO_TXCTL_WRITEHI;
@@ -398,7 +398,7 @@ static u32 tx_write_4byte_queue(struct b43_pio_txqueue *q,
 			sizeof(u32));
 	if (data_len & 3) {
 		u8 *tail = wl->pio_tailspace;
-		BUILD_BUG_ON(sizeof(wl->pio_tailspace) < 4);
+		BUILD__ON(sizeof(wl->pio_tailspace) < 4);
 
 		memset(tail, 0, 4);
 		/* Write the last few bytes. */
@@ -468,7 +468,7 @@ static int pio_tx_frame(struct b43_pio_txqueue *q,
 
 	cookie = generate_cookie(q, pack);
 	hdrlen = b43_txhdr_size(dev);
-	BUILD_BUG_ON(sizeof(wl->pio_scratchspace) < sizeof(struct b43_txhdr));
+	BUILD__ON(sizeof(wl->pio_scratchspace) < sizeof(struct b43_txhdr));
 	B43_WARN_ON(sizeof(wl->pio_scratchspace) < hdrlen);
 	err = b43_generate_txhdr(dev, (u8 *)txhdr, skb,
 				 info, cookie);
@@ -619,7 +619,7 @@ static bool pio_rx_frame(struct b43_pio_rxqueue *q)
 		(struct b43_rxhdr_fw4 *)wl->pio_scratchspace;
 	size_t rxhdr_size = sizeof(*rxhdr);
 
-	BUILD_BUG_ON(sizeof(wl->pio_scratchspace) < sizeof(*rxhdr));
+	BUILD__ON(sizeof(wl->pio_scratchspace) < sizeof(*rxhdr));
 	switch (dev->fw.hdr_format) {
 	case B43_FW_HDR_410:
 	case B43_FW_HDR_351:
@@ -720,7 +720,7 @@ data_ready:
 			       sizeof(u32));
 		if (len & 3) {
 			u8 *tail = wl->pio_tailspace;
-			BUILD_BUG_ON(sizeof(wl->pio_tailspace) < 4);
+			BUILD__ON(sizeof(wl->pio_tailspace) < 4);
 
 			/* Read the last few bytes. */
 			b43_block_read(dev, tail, 4,
@@ -747,7 +747,7 @@ data_ready:
 			       sizeof(u16));
 		if (len & 1) {
 			u8 *tail = wl->pio_tailspace;
-			BUILD_BUG_ON(sizeof(wl->pio_tailspace) < 2);
+			BUILD__ON(sizeof(wl->pio_tailspace) < 2);
 
 			/* Read the last byte. */
 			b43_block_read(dev, tail, 2,

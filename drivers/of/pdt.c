@@ -199,7 +199,7 @@ static void * __init kernel_tree_alloc(u64 size, u64 align)
 
 void __init of_pdt_build_devicetree(phandle root_node, struct of_pdt_ops *ops)
 {
-	BUG_ON(!ops);
+	_ON(!ops);
 	of_pdt_prom_ops = ops;
 
 	of_root = of_pdt_create_node(root_node, NULL);

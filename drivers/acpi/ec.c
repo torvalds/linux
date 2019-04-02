@@ -26,7 +26,7 @@
  */
 
 /* Uncomment next line to get verbose printout */
-/* #define DEBUG */
+/* #define DE */
 #define pr_fmt(fmt) "ACPI: EC: " fmt
 
 #include <linux/kernel.h>
@@ -199,14 +199,14 @@ static int EC_FLAGS_IGNORE_DSDT_GPE; /* Needs ECDT GPE as correction setting */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 
 /* --------------------------------------------------------------------------
- *                           Logging/Debugging
+ *                           Logging/Deging
  * -------------------------------------------------------------------------- */
 
 /*
  * Splitters used by the developers to track the boundary of the EC
  * handling processes.
  */
-#ifdef DEBUG
+#ifdef DE
 #define EC_DBG_SEP	" "
 #define EC_DBG_DRV	"+++++"
 #define EC_DBG_STM	"====="
@@ -223,7 +223,7 @@ static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
 #define ec_log_raw(fmt, ...) \
 	pr_info(fmt "\n", ##__VA_ARGS__)
 #define ec_dbg_raw(fmt, ...) \
-	pr_debug(fmt "\n", ##__VA_ARGS__)
+	pr_de(fmt "\n", ##__VA_ARGS__)
 #define ec_log(filter, fmt, ...) \
 	ec_log_raw(filter EC_DBG_SEP fmt EC_DBG_SEP filter, ##__VA_ARGS__)
 #define ec_dbg(filter, fmt, ...) \
@@ -323,7 +323,7 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	ec->timestamp = jiffies;
 }
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(DE) || defined(CONFIG_DYNAMIC_DE)
 static const char *acpi_ec_cmd_string(u8 cmd)
 {
 	switch (cmd) {
@@ -361,7 +361,7 @@ static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
 	if (open)
 		acpi_enable_gpe(NULL, ec->gpe);
 	else {
-		BUG_ON(ec->reference_count < 1);
+		_ON(ec->reference_count < 1);
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
 	}
 	if (acpi_ec_is_gpe_raised(ec)) {
@@ -380,7 +380,7 @@ static inline void acpi_ec_disable_gpe(struct acpi_ec *ec, bool close)
 	if (close)
 		acpi_disable_gpe(NULL, ec->gpe);
 	else {
-		BUG_ON(ec->reference_count < 1);
+		_ON(ec->reference_count < 1);
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 	}
 }
@@ -795,7 +795,7 @@ static int ec_poll(struct acpi_ec *ec)
 			advance_transaction(ec);
 			spin_unlock_irqrestore(&ec->lock, flags);
 		} while (time_before(jiffies, delay));
-		pr_debug("controller reset, restart transaction\n");
+		pr_de("controller reset, restart transaction\n");
 		spin_lock_irqsave(&ec->lock, flags);
 		start_transaction(ec);
 		spin_unlock_irqrestore(&ec->lock, flags);
@@ -1235,7 +1235,7 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 	/*
 	 * It is reported that _Qxx are evaluated in a parallel way on
 	 * Windows:
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=94411
+	 * https://zilla.kernel.org/show_.cgi?id=94411
 	 *
 	 * Put this log entry before schedule_work() in order to make
 	 * it appearing before any other log entries occurred during the
@@ -1620,7 +1620,7 @@ static int acpi_ec_add(struct acpi_device *device)
 			 * boot_ec->gpe to ec->gpe.
 			 */
 			boot_ec->handle = ec->handle;
-			acpi_handle_debug(ec->handle, "duplicated.\n");
+			acpi_handle_de(ec->handle, "duplicated.\n");
 			acpi_ec_free(ec);
 			ec = boot_ec;
 		}
@@ -1646,7 +1646,7 @@ static int acpi_ec_add(struct acpi_device *device)
 		/* Reprobe devices depending on the EC */
 		acpi_walk_dep_device_list(ec->handle);
 	}
-	acpi_handle_debug(ec->handle, "enumerated.\n");
+	acpi_handle_de(ec->handle, "enumerated.\n");
 	return 0;
 
 err_query:
@@ -1761,7 +1761,7 @@ void __init acpi_ec_dsdt_probe(void)
 /*
  * If the DSDT EC is not functioning, we still need to prepare a fully
  * functioning ECDT EC first in order to handle the events.
- * https://bugzilla.kernel.org/show_bug.cgi?id=115021
+ * https://zilla.kernel.org/show_.cgi?id=115021
  */
 static int __init acpi_ec_ecdt_start(void)
 {
@@ -1795,12 +1795,12 @@ static int __init acpi_ec_ecdt_start(void)
  * Some EC firmware variations refuses to respond QR_EC when SCI_EVT is not
  * set, for which case, we complete the QR_EC without issuing it to the
  * firmware.
- * https://bugzilla.kernel.org/show_bug.cgi?id=82611
- * https://bugzilla.kernel.org/show_bug.cgi?id=97381
+ * https://zilla.kernel.org/show_.cgi?id=82611
+ * https://zilla.kernel.org/show_.cgi?id=97381
  */
 static int ec_flag_query_handshake(const struct dmi_system_id *id)
 {
-	pr_debug("Detected the EC firmware requiring QR_EC issued when SCI_EVT set\n");
+	pr_de("Detected the EC firmware requiring QR_EC issued when SCI_EVT set\n");
 	EC_FLAGS_QUERY_HANDSHAKE = 1;
 	return 0;
 }
@@ -1811,7 +1811,7 @@ static int ec_flag_query_handshake(const struct dmi_system_id *id)
  * sleep. These ECs stop reporting GPEs until they are manually polled, if too
  * many events are accumulated. (e.g. Samsung Series 5/9 notebooks)
  *
- * https://bugzilla.kernel.org/show_bug.cgi?id=44161
+ * https://zilla.kernel.org/show_.cgi?id=44161
  *
  * Ideally, the EC should also be instructed NOT to accumulate events during
  * sleep (which Windows seems to do somehow), but the interface to control this
@@ -1825,7 +1825,7 @@ static int ec_flag_query_handshake(const struct dmi_system_id *id)
  */
 static int ec_clear_on_resume(const struct dmi_system_id *id)
 {
-	pr_debug("Detected system needing EC poll on resume.\n");
+	pr_de("Detected system needing EC poll on resume.\n");
 	EC_FLAGS_CLEAR_ON_RESUME = 1;
 	ec_event_clearing = ACPI_EC_EVT_TIMING_STATUS;
 	return 0;
@@ -1834,11 +1834,11 @@ static int ec_clear_on_resume(const struct dmi_system_id *id)
 /*
  * Some ECDTs contain wrong register addresses.
  * MSI MS-171F
- * https://bugzilla.kernel.org/show_bug.cgi?id=12461
+ * https://zilla.kernel.org/show_.cgi?id=12461
  */
 static int ec_correct_ecdt(const struct dmi_system_id *id)
 {
-	pr_debug("Detected system needing ECDT address correction.\n");
+	pr_de("Detected system needing ECDT address correction.\n");
 	EC_FLAGS_CORRECT_ECDT = 1;
 	return 0;
 }
@@ -1846,11 +1846,11 @@ static int ec_correct_ecdt(const struct dmi_system_id *id)
 /*
  * Some DSDTs contain wrong GPE setting.
  * Asus FX502VD/VE, GL702VMK, X550VXK, X580VD
- * https://bugzilla.kernel.org/show_bug.cgi?id=195651
+ * https://zilla.kernel.org/show_.cgi?id=195651
  */
 static int ec_honor_ecdt_gpe(const struct dmi_system_id *id)
 {
-	pr_debug("Detected system needing ignore DSDT GPE setting.\n");
+	pr_de("Detected system needing ignore DSDT GPE setting.\n");
 	EC_FLAGS_IGNORE_DSDT_GPE = 1;
 	return 0;
 }
@@ -1903,7 +1903,7 @@ void __init acpi_ec_ecdt_probe(void)
 	if (!ecdt_ptr->control.address || !ecdt_ptr->data.address) {
 		/*
 		 * Asus X50GL:
-		 * https://bugzilla.kernel.org/show_bug.cgi?id=11880
+		 * https://zilla.kernel.org/show_.cgi?id=11880
 		 */
 		return;
 	}
@@ -2106,7 +2106,7 @@ int __init acpi_ec_init(void)
 	 */
 	if (dmi_check_system(acpi_ec_no_wakeup)) {
 		ec_no_wakeup = true;
-		pr_debug("Disabling EC wakeup on suspend-to-idle\n");
+		pr_de("Disabling EC wakeup on suspend-to-idle\n");
 	}
 
 	/* Drivers must be started after acpi_ec_query_init() */
@@ -2115,7 +2115,7 @@ int __init acpi_ec_init(void)
 	 * Register ECDT to ACPI bus only when PNP0C09 probe fails. This is
 	 * useful for platforms (confirmed on ASUS X550ZE) with valid ECDT
 	 * settings but invalid DSDT settings.
-	 * https://bugzilla.kernel.org/show_bug.cgi?id=196847
+	 * https://zilla.kernel.org/show_.cgi?id=196847
 	 */
 	ecdt_fail = acpi_ec_ecdt_start();
 	return ecdt_fail && dsdt_fail ? -ENODEV : 0;

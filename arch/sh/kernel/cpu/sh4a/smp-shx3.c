@@ -70,7 +70,7 @@ static void shx3_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
-	BUILD_BUG_ON(SMP_MSG_NR >= 8);
+	BUILD__ON(SMP_MSG_NR >= 8);
 
 	for (i = 0; i < SMP_MSG_NR; i++)
 		request_irq(104 + i, ipi_interrupt_handler,
@@ -106,7 +106,7 @@ static void shx3_send_ipi(unsigned int cpu, unsigned int message)
 {
 	unsigned long addr = 0xfe410070 + (cpu * 4);
 
-	BUG_ON(cpu >= 4);
+	_ON(cpu >= 4);
 
 	__raw_writel(1 << (message << 2), addr); /* C0INTICI..CnINTICI */
 }

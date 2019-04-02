@@ -59,7 +59,7 @@ static int afu_open(struct inode *inode, struct file *file)
 	struct ocxl_context *ctx;
 	int rc;
 
-	pr_debug("%s for device %x\n", __func__, inode->i_rdev);
+	pr_de("%s for device %x\n", __func__, inode->i_rdev);
 
 	afu = find_and_get_afu(inode->i_rdev);
 	if (!afu)
@@ -90,7 +90,7 @@ static long afu_ioctl_attach(struct ocxl_context *ctx,
 	u64 amr = 0;
 	int rc;
 
-	pr_debug("%s for context %d\n", __func__, ctx->pasid);
+	pr_de("%s for context %d\n", __func__, ctx->pasid);
 
 	if (copy_from_user(&arg, uarg, sizeof(arg)))
 		return -EFAULT;
@@ -206,7 +206,7 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 	u64 irq_offset;
 	long rc;
 
-	pr_debug("%s for context %d, command %s\n", __func__, ctx->pasid,
+	pr_de("%s for context %d, command %s\n", __func__, ctx->pasid,
 		CMD_STR(cmd));
 
 	if (ctx->status == CLOSED)
@@ -282,7 +282,7 @@ static int afu_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct ocxl_context *ctx = file->private_data;
 
-	pr_debug("%s for context %d\n", __func__, ctx->pasid);
+	pr_de("%s for context %d\n", __func__, ctx->pasid);
 	return ocxl_context_mmap(ctx, vma);
 }
 
@@ -315,7 +315,7 @@ static unsigned int afu_poll(struct file *file, struct poll_table_struct *wait)
 	unsigned int mask = 0;
 	bool closed;
 
-	pr_debug("%s for context %d\n", __func__, ctx->pasid);
+	pr_de("%s for context %d\n", __func__, ctx->pasid);
 
 	poll_wait(file, &ctx->events_wq, wait);
 
@@ -447,7 +447,7 @@ static int afu_release(struct inode *inode, struct file *file)
 	struct ocxl_context *ctx = file->private_data;
 	int rc;
 
-	pr_debug("%s for device %x\n", __func__, inode->i_rdev);
+	pr_de("%s for device %x\n", __func__, inode->i_rdev);
 	rc = ocxl_context_detach(ctx);
 	mutex_lock(&ctx->mapping_lock);
 	ctx->mapping = NULL;

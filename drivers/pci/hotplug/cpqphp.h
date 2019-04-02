@@ -22,7 +22,7 @@
 
 #define MY_NAME	"cpqphp"
 
-#define dbg(fmt, arg...) do { if (cpqhp_debug) printk(KERN_DEBUG "%s: " fmt, MY_NAME, ## arg); } while (0)
+#define dbg(fmt, arg...) do { if (cpqhp_de) printk(KERN_DE "%s: " fmt, MY_NAME, ## arg); } while (0)
 #define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME, ## arg)
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME, ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME, ## arg)
@@ -306,7 +306,7 @@ struct controller {
 	u16 vendor_id;
 	struct work_struct int_task_event;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	struct dentry *dentry;		/* debugfs dentry */
+	struct dentry *dentry;		/* defs dentry */
 };
 
 struct irq_mapping {
@@ -389,11 +389,11 @@ struct resource_lists {
 #define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
 
 
-/* debugfs functions for the hotplug controller info */
-void cpqhp_initialize_debugfs(void);
-void cpqhp_shutdown_debugfs(void);
-void cpqhp_create_debugfs_files(struct controller *ctrl);
-void cpqhp_remove_debugfs_files(struct controller *ctrl);
+/* defs functions for the hotplug controller info */
+void cpqhp_initialize_defs(void);
+void cpqhp_shutdown_defs(void);
+void cpqhp_create_defs_files(struct controller *ctrl);
+void cpqhp_remove_defs_files(struct controller *ctrl);
 
 /* controller functions */
 void cpqhp_pushbutton_thread(struct timer_list *t);
@@ -430,13 +430,13 @@ int cpqhp_configure_device(struct controller *ctrl, struct pci_func *func);
 int cpqhp_unconfigure_device(struct pci_func *func);
 
 /* Global variables */
-extern int cpqhp_debug;
+extern int cpqhp_de;
 extern int cpqhp_legacy_mode;
 extern struct controller *cpqhp_ctrl_list;
 extern struct pci_func *cpqhp_slot_list[256];
 extern struct irq_routing_table *cpqhp_routing_table;
 
-/* these can be gotten rid of, but for debugging they are purty */
+/* these can be gotten rid of, but for deging they are purty */
 extern u8 cpqhp_nic_irq;
 extern u8 cpqhp_disk_irq;
 
@@ -721,7 +721,7 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 #include <asm/pci_x86.h>
 static inline int cpqhp_routing_table_length(void)
 {
-	BUG_ON(cpqhp_routing_table == NULL);
+	_ON(cpqhp_routing_table == NULL);
 	return ((cpqhp_routing_table->size - sizeof(struct irq_routing_table)) /
 		sizeof(struct irq_info));
 }

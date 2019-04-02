@@ -382,7 +382,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 	u8 data[2];
 
 	if (!ctx->prepared) {
-		DRM_DEBUG("lcd not ready yet for setting its backlight!\n");
+		DRM_DE("lcd not ready yet for setting its backlight!\n");
 		return -ENXIO;
 	}
 

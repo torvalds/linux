@@ -225,7 +225,7 @@ static inline void cheetah_flush_itlb_all(void)
  * instruction accesses to 8K non-locked translations, is 2 way
  * assosciative, and holds 128 entries.
  *
- * Cheetah has some bug where bogus data can be returned from
+ * Cheetah has some  where bogus data can be returned from
  * ASI_{D,I}TLB_DATA_ACCESS loads, doing the load twice fixes
  * the problem for me. -DaveM
  */

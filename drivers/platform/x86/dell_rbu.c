@@ -108,10 +108,10 @@ static int create_packet(void *data, size_t length)
 	void *packet_data_temp_buf = NULL;
 	unsigned int idx = 0;
 
-	pr_debug("create_packet: entry \n");
+	pr_de("create_packet: entry \n");
 
 	if (!rbu_data.packetsize) {
-		pr_debug("create_packet: packetsize not specified\n");
+		pr_de("create_packet: packetsize not specified\n");
 		retval = -EINVAL;
 		goto out_noalloc;
 	}
@@ -172,7 +172,7 @@ static int create_packet(void *data, size_t length)
 
 		if ((unsigned long)virt_to_phys(packet_data_temp_buf)
 				< allocation_floor) {
-			pr_debug("packet 0x%lx below floor at 0x%lx.\n",
+			pr_de("packet 0x%lx below floor at 0x%lx.\n",
 					(unsigned long)virt_to_phys(
 						packet_data_temp_buf),
 					allocation_floor);
@@ -189,7 +189,7 @@ static int create_packet(void *data, size_t length)
 
 	newpacket->data = packet_data_temp_buf;
 
-	pr_debug("create_packet: newpacket at physical addr %lx\n",
+	pr_de("create_packet: newpacket at physical addr %lx\n",
 		(unsigned long)virt_to_phys(newpacket->data));
 
 	/* packets may not have fixed size */
@@ -203,12 +203,12 @@ static int create_packet(void *data, size_t length)
 
 	memcpy(newpacket->data, data, length);
 
-	pr_debug("create_packet: exit \n");
+	pr_de("create_packet: exit \n");
 
 out_alloc_packet_array:
 	/* always free packet array */
 	for (;idx>0;idx--) {
-		pr_debug("freeing unused packet below floor 0x%lx.\n",
+		pr_de("freeing unused packet below floor 0x%lx.\n",
 			(unsigned long)virt_to_phys(
 				invalid_addr_packet_array[idx-1]));
 		free_pages((unsigned long)invalid_addr_packet_array[idx-1],
@@ -232,7 +232,7 @@ static int packetize_data(const u8 *data, size_t length)
 	int packet_length;
 	u8 *temp;
 	u8 *end = (u8 *) data + length;
-	pr_debug("packetize_data: data length %zd\n", length);
+	pr_de("packetize_data: data length %zd\n", length);
 	if (!rbu_data.packetsize) {
 		printk(KERN_WARNING
 			"dell_rbu: packetsize not specified\n");
@@ -254,7 +254,7 @@ static int packetize_data(const u8 *data, size_t length)
 		if ((rc = create_packet(temp, packet_length)))
 			return rc;
 
-		pr_debug("%p:%td\n", temp, (end - temp));
+		pr_de("%p:%td\n", temp, (end - temp));
 		temp += packet_length;
 	}
 
@@ -438,7 +438,7 @@ static int img_update_realloc(unsigned long size)
 		(unsigned char *)__get_free_pages(GFP_DMA32, ordernum);
 	spin_lock(&rbu_data.lock);
 	if (!image_update_buffer) {
-		pr_debug("Not enough memory for image update:"
+		pr_de("Not enough memory for image update:"
 			"size = %ld\n", size);
 		return -ENOMEM;
 	}
@@ -463,7 +463,7 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 
 	/* check to see if we have something to return */
 	if (rbu_data.num_packets == 0) {
-		pr_debug("read_packet_data: no packets written\n");
+		pr_de("read_packet_data: no packets written\n");
 		retval = -ENOMEM;
 		goto read_rbu_data_exit;
 	}
@@ -497,7 +497,7 @@ static ssize_t read_rbu_mono_data(char *buffer, loff_t pos, size_t count)
 	/* check to see if we have something to return */
 	if ((rbu_data.image_update_buffer == NULL) ||
 		(rbu_data.bios_image_size == 0)) {
-		pr_debug("read_rbu_data_mono: image_update_buffer %p ,"
+		pr_de("read_rbu_data_mono: image_update_buffer %p ,"
 			"bios_image_size %lu\n",
 			rbu_data.image_update_buffer,
 			rbu_data.bios_image_size);
@@ -521,7 +521,7 @@ static ssize_t read_rbu_data(struct file *filp, struct kobject *kobj,
 	else if (!strcmp(image_type, "packet"))
 		ret_count = read_packet_data(buffer, pos, count);
 	else
-		pr_debug("read_rbu_data: invalid image type specified\n");
+		pr_de("read_rbu_data: invalid image type specified\n");
 
 	spin_unlock(&rbu_data.lock);
 	return ret_count;
@@ -556,7 +556,7 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 			 */
 			packet_empty_list();
 	} else
-		pr_debug("invalid image type specified.\n");
+		pr_de("invalid image type specified.\n");
 	spin_unlock(&rbu_data.lock);
  out:
 	release_firmware(fw);

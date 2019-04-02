@@ -23,9 +23,9 @@
 #include "tape_std.h"
 
 /*
- * Pointer to debug area.
+ * Pointer to de area.
  */
-debug_info_t *TAPE_DBF_AREA = NULL;
+de_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
 #define TAPE34XX_FMT_3480	0
@@ -259,7 +259,7 @@ tape_34xx_erp_read_opposite(struct tape_device *device,
 }
 
 static int
-tape_34xx_erp_bug(struct tape_device *device, struct tape_request *request,
+tape_34xx_erp_(struct tape_device *device, struct tape_request *request,
 		  struct irb *irb, int no)
 {
 	if (request->op != TO_ASSIGN) {
@@ -283,7 +283,7 @@ tape_34xx_erp_overrun(struct tape_device *device, struct tape_request *request,
 			" the control unit and tape unit\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	}
-	return tape_34xx_erp_bug(device, request, irb, -1);
+	return tape_34xx_erp_(device, request, irb, -1);
 }
 
 /*
@@ -305,7 +305,7 @@ tape_34xx_erp_sequence(struct tape_device *device,
 	 * Record sequence error bit is set, but erpa does not
 	 * show record sequence error.
 	 */
-	return tape_34xx_erp_bug(device, request, irb, -2);
+	return tape_34xx_erp_(device, request, irb, -2);
 }
 
 /*
@@ -335,7 +335,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			/* medium is write protected */
 			return tape_34xx_erp_failed(request, -EACCES);
 		} else {
-			return tape_34xx_erp_bug(device, request, irb, -3);
+			return tape_34xx_erp_(device, request, irb, -3);
 		}
 	}
 
@@ -418,7 +418,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 				// data check is not permanent, may be
 				// recovered. We always use async-mode with
 				// cu-recovery, so this should *never* happen.
-				return tape_34xx_erp_bug(device, request,
+				return tape_34xx_erp_(device, request,
 							 irb, -4);
 
 			/* data check is permanent, CU recovery has failed */
@@ -432,7 +432,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 				// data check is not permanent, may be
 				// recovered. We always use async-mode with
 				// cu-recovery, so this should *never* happen.
-				return tape_34xx_erp_bug(device, request,
+				return tape_34xx_erp_(device, request,
 							 irb, -5);
 
 			// data check is permanent, cu-recovery has failed
@@ -462,7 +462,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			 * the above erpa-codes. For 3490, other data-check
 			 * conditions do exist. */
 			if (device->cdev->id.driver_info == tape_3480)
-				return tape_34xx_erp_bug(device, request,
+				return tape_34xx_erp_(device, request,
 							 irb, -6);
 		}
 	}
@@ -532,7 +532,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			return tape_34xx_erp_succeeded(request);
 		}
 		/* tape_34xx doesn't use read buffered log commands. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x2c:
 		/*
 		 * Permanent equipment check. CU has tried recovery, but
@@ -544,7 +544,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		if (request->op == TO_DSE)
 			return tape_34xx_erp_failed(request, -EIO);
 		/* Data security erase failure, but no such command issued. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x2e:
 		/*
 		 * Not capable. This indicates either that the drive fails
@@ -582,7 +582,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			" cartridge failed\n");
 		if (request->op == TO_RUN)
 			return tape_34xx_erp_failed(request, -EIO);
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x35:
 		/*
 		 * Drive equipment check. One of the following:
@@ -599,7 +599,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			/* End of data. */
 			return tape_34xx_erp_failed(request, -EIO);
 		/* This erpa is reserved for 3480 */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x37:
 		/*
 		 * Tape length error. The tape is shorter than reported in
@@ -661,7 +661,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		/* Locate Block unsuccessful. */
 		if (request->op != TO_BLOCK && request->op != TO_LBL)
 			/* No locate block was issued. */
-			return tape_34xx_erp_bug(device, request,
+			return tape_34xx_erp_(device, request,
 						 irb, sense[3]);
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x45:
@@ -719,7 +719,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			 */
 			return tape_34xx_erp_retry(request);
 		/* This erpa is reserved for 3480. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x4e:
 		if (device->cdev->id.driver_info == tape_3490) {
 			/*
@@ -732,7 +732,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			return tape_34xx_erp_failed(request, -ENOBUFS);
 		}
 		/* This erpa is reserved for 3480. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x50:
 		/*
 		 * Read buffered log (Overflow). CU is running in extended
@@ -756,7 +756,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			tape_34xx_delete_sbid_from(device, 0);
 			return tape_34xx_erp_succeeded(request);
 		}
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	case 0x53:
 		/* Global command intercept. */
 		return tape_34xx_erp_retry(request);
@@ -821,7 +821,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x41: /* Record sequence error. */
 		/* All other erpas are reserved for future use. */
 	default:
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_34xx_erp_(device, request, irb, sense[3]);
 	}
 }
 
@@ -1200,10 +1200,10 @@ tape_34xx_init (void)
 {
 	int rc;
 
-	TAPE_DBF_AREA = debug_register ( "tape_34xx", 2, 2, 4*sizeof(long));
-	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
+	TAPE_DBF_AREA = de_register ( "tape_34xx", 2, 2, 4*sizeof(long));
+	de_register_view(TAPE_DBF_AREA, &de_sprintf_view);
 #ifdef DBF_LIKE_HELL
-	debug_set_level(TAPE_DBF_AREA, 6);
+	de_set_level(TAPE_DBF_AREA, 6);
 #endif
 
 	DBF_EVENT(3, "34xx init\n");
@@ -1221,7 +1221,7 @@ tape_34xx_exit(void)
 {
 	ccw_driver_unregister(&tape_34xx_driver);
 
-	debug_unregister(TAPE_DBF_AREA);
+	de_unregister(TAPE_DBF_AREA);
 }
 
 MODULE_DEVICE_TABLE(ccw, tape_34xx_ids);

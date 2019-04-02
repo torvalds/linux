@@ -33,7 +33,7 @@
  *
  * The i915 driver checks for display fifo underruns using the interrupt signals
  * provided by the hardware. This is enabled by default and fairly useful to
- * debug display issues, especially watermark settings.
+ * de display issues, especially watermark settings.
  *
  * If an underrun is detected this is logged into dmesg. To avoid flooding logs
  * and occupying the cpu underrun interrupts are disabled after the first

@@ -15,7 +15,7 @@
  *	Dmitry Gorodchanin	:	Added CSLIP statistics.
  *	Stanislav Voronyi	:	Make line checking as created by
  *					Igor Chechik, RELCOM Corp.
- *	Craig Schlenter		:	Fixed #define bug that caused
+ *	Craig Schlenter		:	Fixed #define  that caused
  *					CSLIP telnets to hang in 1.3.61-6
  *
  * Author:	Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>

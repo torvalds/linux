@@ -639,8 +639,8 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 	 */
 #define PRIVATEER_MCHK__CORR_ECC		0x86	/* 630 */
 #define PRIVATEER_MCHK__DC_TAG_PERR		0x9E	/* 630 */
-#define PRIVATEER_MCHK__PAL_BUGCHECK		0x8E	/* 670 */
-#define PRIVATEER_MCHK__OS_BUGCHECK		0x90	/* 670 */
+#define PRIVATEER_MCHK__PAL_CHECK		0x8E	/* 670 */
+#define PRIVATEER_MCHK__OS_CHECK		0x90	/* 670 */
 #define PRIVATEER_MCHK__PROC_HRD_ERR		0x98	/* 670 */
 #define PRIVATEER_MCHK__ISTREAM_CMOV_PRX	0xA0	/* 670 */
 #define PRIVATEER_MCHK__ISTREAM_CMOV_FLT	0xA2	/* 670 */
@@ -660,8 +660,8 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 	/*
 	 * Vector 670 - Processor, Uncorrectable
 	 */
-	case PRIVATEER_MCHK__PAL_BUGCHECK:
-	case PRIVATEER_MCHK__OS_BUGCHECK:
+	case PRIVATEER_MCHK__PAL_CHECK:
+	case PRIVATEER_MCHK__OS_CHECK:
 	case PRIVATEER_MCHK__PROC_HRD_ERR:
 	case PRIVATEER_MCHK__ISTREAM_CMOV_PRX:
 	case PRIVATEER_MCHK__ISTREAM_CMOV_FLT:

@@ -223,7 +223,7 @@ static inline void free_image_page(void *addr, int clear_nosave_free)
 {
 	struct page *page;
 
-	BUG_ON(!virt_addr_valid(addr));
+	_ON(!virt_addr_valid(addr));
 
 	page = virt_to_page(addr);
 
@@ -748,7 +748,7 @@ zone_found:
 
 		index = block_nr >> ((i - 1) * BM_RTREE_LEVEL_SHIFT);
 		index &= BM_RTREE_LEVEL_MASK;
-		BUG_ON(node->data[index] == 0);
+		_ON(node->data[index] == 0);
 		node = (struct rtree_node *)node->data[index];
 	}
 
@@ -772,7 +772,7 @@ static void memory_bm_set_bit(struct memory_bitmap *bm, unsigned long pfn)
 	int error;
 
 	error = memory_bm_find_bit(bm, pfn, &addr, &bit);
-	BUG_ON(error);
+	_ON(error);
 	set_bit(bit, addr);
 }
 
@@ -796,7 +796,7 @@ static void memory_bm_clear_bit(struct memory_bitmap *bm, unsigned long pfn)
 	int error;
 
 	error = memory_bm_find_bit(bm, pfn, &addr, &bit);
-	BUG_ON(error);
+	_ON(error);
 	clear_bit(bit, addr);
 }
 
@@ -815,7 +815,7 @@ static int memory_bm_test_bit(struct memory_bitmap *bm, unsigned long pfn)
 	int error;
 
 	error = memory_bm_find_bit(bm, pfn, &addr, &bit);
-	BUG_ON(error);
+	_ON(error);
 	return test_bit(bit, addr);
 }
 
@@ -960,7 +960,7 @@ void __init __register_nosave_region(unsigned long start_pfn,
 	if (use_kmalloc) {
 		/* During init, this shouldn't fail */
 		region = kmalloc(sizeof(struct nosave_region), GFP_KERNEL);
-		BUG_ON(!region);
+		_ON(!region);
 	} else {
 		/* This allocation cannot fail */
 		region = memblock_alloc(sizeof(struct nosave_region),
@@ -1045,7 +1045,7 @@ static void mark_nosave_pages(struct memory_bitmap *bm)
 	list_for_each_entry(region, &nosave_regions, list) {
 		unsigned long pfn;
 
-		pr_debug("Marking nosave pages: [mem %#010llx-%#010llx]\n",
+		pr_de("Marking nosave pages: [mem %#010llx-%#010llx]\n",
 			 (unsigned long long) region->start_pfn << PAGE_SHIFT,
 			 ((unsigned long long) region->end_pfn << PAGE_SHIFT)
 				- 1);
@@ -1079,7 +1079,7 @@ int create_basic_memory_bitmaps(void)
 	if (forbidden_pages_map && free_pages_map)
 		return 0;
 	else
-		BUG_ON(forbidden_pages_map || free_pages_map);
+		_ON(forbidden_pages_map || free_pages_map);
 
 	bm1 = kzalloc(sizeof(struct memory_bitmap), GFP_KERNEL);
 	if (!bm1)
@@ -1101,7 +1101,7 @@ int create_basic_memory_bitmaps(void)
 	free_pages_map = bm2;
 	mark_nosave_pages(forbidden_pages_map);
 
-	pr_debug("Basic memory bitmaps created\n");
+	pr_de("Basic memory bitmaps created\n");
 
 	return 0;
 
@@ -1137,7 +1137,7 @@ void free_basic_memory_bitmaps(void)
 	memory_bm_free(bm2, PG_UNSAFE_CLEAR);
 	kfree(bm2);
 
-	pr_debug("Basic memory bitmaps freed\n");
+	pr_de("Basic memory bitmaps freed\n");
 }
 
 void clear_free_pages(void)
@@ -1222,7 +1222,7 @@ static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
 	if (!page || page_zone(page) != zone)
 		return NULL;
 
-	BUG_ON(!PageHighMem(page));
+	_ON(!PageHighMem(page));
 
 	if (swsusp_page_is_forbidden(page) ||  swsusp_page_is_free(page))
 		return NULL;
@@ -1286,7 +1286,7 @@ static struct page *saveable_page(struct zone *zone, unsigned long pfn)
 	if (!page || page_zone(page) != zone)
 		return NULL;
 
-	BUG_ON(PageHighMem(page));
+	_ON(PageHighMem(page));
 
 	if (swsusp_page_is_forbidden(page) || swsusp_page_is_free(page))
 		return NULL;
@@ -1342,7 +1342,7 @@ static inline void do_copy_page(long *dst, long *src)
  * safe_copy_page - Copy a page in a safe way.
  *
  * Check if the page we are going to copy is marked as present in the kernel
- * page tables (this always is the case if CONFIG_DEBUG_PAGEALLOC is not set
+ * page tables (this always is the case if CONFIG_DE_PAGEALLOC is not set
  * and in that case kernel_page_present() always returns 'true').
  */
 static void safe_copy_page(void *dst, struct page *s_page)
@@ -1876,7 +1876,7 @@ static int enough_free_mem(unsigned int nr_pages, unsigned int nr_highmem)
 			free += zone_page_state(zone, NR_FREE_PAGES);
 
 	nr_pages += count_pages_for_highmem(nr_highmem);
-	pr_debug("Normal pages needed: %u + %u, available pages: %u\n",
+	pr_de("Normal pages needed: %u + %u, available pages: %u\n",
 		 nr_pages, PAGES_FOR_IO, free);
 
 	return free > nr_pages + PAGES_FOR_IO;

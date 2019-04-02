@@ -37,7 +37,7 @@ int bpf_prog1(struct pt_regs *ctx)
 
 	if (devname[0] == 'l' && devname[1] == 'o') {
 		char fmt[] = "skb %p len %d\n";
-		/* using bpf_trace_printk() for DEBUG ONLY */
+		/* using bpf_trace_printk() for DE ONLY */
 		bpf_trace_printk(fmt, sizeof(fmt), skb, len);
 	}
 

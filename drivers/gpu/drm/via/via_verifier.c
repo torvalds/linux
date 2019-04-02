@@ -291,10 +291,10 @@ static __inline__ int finish_current_sequence(drm_via_state_t * cur_seq)
 {
 	switch (cur_seq->unfinished) {
 	case z_address:
-		DRM_DEBUG("Z Buffer start address is 0x%x\n", cur_seq->z_addr);
+		DRM_DE("Z Buffer start address is 0x%x\n", cur_seq->z_addr);
 		break;
 	case dest_address:
-		DRM_DEBUG("Destination start address is 0x%x\n",
+		DRM_DE("Destination start address is 0x%x\n",
 			  cur_seq->d_addr);
 		break;
 	case tex_address:

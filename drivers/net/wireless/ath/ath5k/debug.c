@@ -66,16 +66,16 @@
 
 #include <linux/seq_file.h>
 #include <linux/list.h>
-#include "debug.h"
+#include "de.h"
 #include "ath5k.h"
 #include "reg.h"
 #include "base.h"
 
-static unsigned int ath5k_debug;
-module_param_named(debug, ath5k_debug, uint, 0);
+static unsigned int ath5k_de;
+module_param_named(de, ath5k_de, uint, 0);
 
 
-/* debugfs: registers */
+/* defs: registers */
 
 struct reg {
 	const char *name;
@@ -189,7 +189,7 @@ static const struct file_operations fops_registers = {
 };
 
 
-/* debugfs: beacons */
+/* defs: beacons */
 
 static ssize_t read_file_beacon(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -253,10 +253,10 @@ static ssize_t write_file_beacon(struct file *file,
 	buf[count] = '\0';
 	if (strncmp(buf, "disable", 7) == 0) {
 		AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
-		pr_info("debugfs disable beacons\n");
+		pr_info("defs disable beacons\n");
 	} else if (strncmp(buf, "enable", 6) == 0) {
 		AR5K_REG_ENABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
-		pr_info("debugfs enable beacons\n");
+		pr_info("defs enable beacons\n");
 	}
 	return count;
 }
@@ -270,14 +270,14 @@ static const struct file_operations fops_beacon = {
 };
 
 
-/* debugfs: reset */
+/* defs: reset */
 
 static ssize_t write_file_reset(struct file *file,
 				 const char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
 	struct ath5k_hw *ah = file->private_data;
-	ATH5K_DBG(ah, ATH5K_DEBUG_RESET, "debug file triggered reset\n");
+	ATH5K_DBG(ah, ATH5K_DE_RESET, "de file triggered reset\n");
 	ieee80211_queue_work(ah->hw, &ah->reset_work);
 	return count;
 }
@@ -290,29 +290,29 @@ static const struct file_operations fops_reset = {
 };
 
 
-/* debugfs: debug level */
+/* defs: de level */
 
 static const struct {
-	enum ath5k_debug_level level;
+	enum ath5k_de_level level;
 	const char *name;
 	const char *desc;
 } dbg_info[] = {
-	{ ATH5K_DEBUG_RESET,	"reset",	"reset and initialization" },
-	{ ATH5K_DEBUG_INTR,	"intr",		"interrupt handling" },
-	{ ATH5K_DEBUG_MODE,	"mode",		"mode init/setup" },
-	{ ATH5K_DEBUG_XMIT,	"xmit",		"basic xmit operation" },
-	{ ATH5K_DEBUG_BEACON,	"beacon",	"beacon handling" },
-	{ ATH5K_DEBUG_CALIBRATE, "calib",	"periodic calibration" },
-	{ ATH5K_DEBUG_TXPOWER,	"txpower",	"transmit power setting" },
-	{ ATH5K_DEBUG_LED,	"led",		"LED management" },
-	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
-	{ ATH5K_DEBUG_DMA,	"dma",		"dma start/stop" },
-	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
-	{ ATH5K_DEBUG_DESC,	"desc",		"descriptor chains" },
-	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
+	{ ATH5K_DE_RESET,	"reset",	"reset and initialization" },
+	{ ATH5K_DE_INTR,	"intr",		"interrupt handling" },
+	{ ATH5K_DE_MODE,	"mode",		"mode init/setup" },
+	{ ATH5K_DE_XMIT,	"xmit",		"basic xmit operation" },
+	{ ATH5K_DE_BEACON,	"beacon",	"beacon handling" },
+	{ ATH5K_DE_CALIBRATE, "calib",	"periodic calibration" },
+	{ ATH5K_DE_TXPOWER,	"txpower",	"transmit power setting" },
+	{ ATH5K_DE_LED,	"led",		"LED management" },
+	{ ATH5K_DE_DUMPBANDS, "dumpbands",	"dump bands" },
+	{ ATH5K_DE_DMA,	"dma",		"dma start/stop" },
+	{ ATH5K_DE_ANI,	"ani",		"adaptive noise immunity" },
+	{ ATH5K_DE_DESC,	"desc",		"descriptor chains" },
+	{ ATH5K_DE_ANY,	"all",		"show all de levels" },
 };
 
-static ssize_t read_file_debug(struct file *file, char __user *user_buf,
+static ssize_t read_file_de(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct ath5k_hw *ah = file->private_data;
@@ -321,17 +321,17 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 	unsigned int i;
 
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"DEBUG LEVEL: 0x%08x\n\n", ah->debug.level);
+		"DE LEVEL: 0x%08x\n\n", ah->de.level);
 
 	for (i = 0; i < ARRAY_SIZE(dbg_info) - 1; i++) {
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"%10s %c 0x%08x - %s\n", dbg_info[i].name,
-			ah->debug.level & dbg_info[i].level ? '+' : ' ',
+			ah->de.level & dbg_info[i].level ? '+' : ' ',
 			dbg_info[i].level, dbg_info[i].desc);
 	}
 	len += snprintf(buf + len, sizeof(buf) - len,
 		"%10s %c 0x%08x - %s\n", dbg_info[i].name,
-		ah->debug.level == dbg_info[i].level ? '+' : ' ',
+		ah->de.level == dbg_info[i].level ? '+' : ' ',
 		dbg_info[i].level, dbg_info[i].desc);
 
 	if (len > sizeof(buf))
@@ -340,7 +340,7 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t write_file_debug(struct file *file,
+static ssize_t write_file_de(struct file *file,
 				 const char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
@@ -356,23 +356,23 @@ static ssize_t write_file_debug(struct file *file,
 	for (i = 0; i < ARRAY_SIZE(dbg_info); i++) {
 		if (strncmp(buf, dbg_info[i].name,
 					strlen(dbg_info[i].name)) == 0) {
-			ah->debug.level ^= dbg_info[i].level; /* toggle bit */
+			ah->de.level ^= dbg_info[i].level; /* toggle bit */
 			break;
 		}
 	}
 	return count;
 }
 
-static const struct file_operations fops_debug = {
-	.read = read_file_debug,
-	.write = write_file_debug,
+static const struct file_operations fops_de = {
+	.read = read_file_de,
+	.write = write_file_de,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
 
-/* debugfs: antenna */
+/* defs: antenna */
 
 static ssize_t read_file_antenna(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -460,19 +460,19 @@ static ssize_t write_file_antenna(struct file *file,
 	buf[count] = '\0';
 	if (strncmp(buf, "diversity", 9) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_DEFAULT);
-		pr_info("debug: enable diversity\n");
+		pr_info("de: enable diversity\n");
 	} else if (strncmp(buf, "fixed-a", 7) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_FIXED_A);
-		pr_info("debug: fixed antenna A\n");
+		pr_info("de: fixed antenna A\n");
 	} else if (strncmp(buf, "fixed-b", 7) == 0) {
 		ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_FIXED_B);
-		pr_info("debug: fixed antenna B\n");
+		pr_info("de: fixed antenna B\n");
 	} else if (strncmp(buf, "clear", 5) == 0) {
 		for (i = 0; i < ARRAY_SIZE(ah->stats.antenna_rx); i++) {
 			ah->stats.antenna_rx[i] = 0;
 			ah->stats.antenna_tx[i] = 0;
 		}
-		pr_info("debug: cleared antenna stats\n");
+		pr_info("de: cleared antenna stats\n");
 	}
 	return count;
 }
@@ -485,7 +485,7 @@ static const struct file_operations fops_antenna = {
 	.llseek = default_llseek,
 };
 
-/* debugfs: misc */
+/* defs: misc */
 
 static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -540,7 +540,7 @@ static const struct file_operations fops_misc = {
 };
 
 
-/* debugfs: frameerrors */
+/* defs: frameerrors */
 
 static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -644,7 +644,7 @@ static ssize_t write_file_frameerrors(struct file *file,
 		st->txerr_fifo = 0;
 		st->txerr_filt = 0;
 		st->tx_all_count = 0;
-		pr_info("debug: cleared frameerrors stats\n");
+		pr_info("de: cleared frameerrors stats\n");
 	}
 	return count;
 }
@@ -658,7 +658,7 @@ static const struct file_operations fops_frameerrors = {
 };
 
 
-/* debugfs: ani */
+/* defs: ani */
 
 static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -823,7 +823,7 @@ static const struct file_operations fops_ani = {
 };
 
 
-/* debugfs: queues etc */
+/* defs: queues etc */
 
 static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -895,7 +895,7 @@ static const struct file_operations fops_queue = {
 	.llseek = default_llseek,
 };
 
-/* debugfs: eeprom */
+/* defs: eeprom */
 
 struct eeprom_private {
 	u16 *buf;
@@ -994,38 +994,38 @@ static const struct file_operations fops_eeprom = {
 
 
 void
-ath5k_debug_init_device(struct ath5k_hw *ah)
+ath5k_de_init_device(struct ath5k_hw *ah)
 {
 	struct dentry *phydir;
 
-	ah->debug.level = ath5k_debug;
+	ah->de.level = ath5k_de;
 
-	phydir = debugfs_create_dir("ath5k", ah->hw->wiphy->debugfsdir);
+	phydir = defs_create_dir("ath5k", ah->hw->wiphy->defsdir);
 	if (!phydir)
 		return;
 
-	debugfs_create_file("debug", 0600, phydir, ah, &fops_debug);
-	debugfs_create_file("registers", 0400, phydir, ah, &fops_registers);
-	debugfs_create_file("beacon", 0600, phydir, ah, &fops_beacon);
-	debugfs_create_file("reset", 0200, phydir, ah, &fops_reset);
-	debugfs_create_file("antenna", 0600, phydir, ah, &fops_antenna);
-	debugfs_create_file("misc", 0400, phydir, ah, &fops_misc);
-	debugfs_create_file("eeprom", 0400, phydir, ah, &fops_eeprom);
-	debugfs_create_file("frameerrors", 0600, phydir, ah, &fops_frameerrors);
-	debugfs_create_file("ani", 0600, phydir, ah, &fops_ani);
-	debugfs_create_file("queue", 0600, phydir, ah, &fops_queue);
-	debugfs_create_bool("32khz_clock", 0600, phydir,
+	defs_create_file("de", 0600, phydir, ah, &fops_de);
+	defs_create_file("registers", 0400, phydir, ah, &fops_registers);
+	defs_create_file("beacon", 0600, phydir, ah, &fops_beacon);
+	defs_create_file("reset", 0200, phydir, ah, &fops_reset);
+	defs_create_file("antenna", 0600, phydir, ah, &fops_antenna);
+	defs_create_file("misc", 0400, phydir, ah, &fops_misc);
+	defs_create_file("eeprom", 0400, phydir, ah, &fops_eeprom);
+	defs_create_file("frameerrors", 0600, phydir, ah, &fops_frameerrors);
+	defs_create_file("ani", 0600, phydir, ah, &fops_ani);
+	defs_create_file("queue", 0600, phydir, ah, &fops_queue);
+	defs_create_bool("32khz_clock", 0600, phydir,
 			    &ah->ah_use_32khz_clock);
 }
 
 /* functions used in other places */
 
 void
-ath5k_debug_dump_bands(struct ath5k_hw *ah)
+ath5k_de_dump_bands(struct ath5k_hw *ah)
 {
 	unsigned int b, i;
 
-	if (likely(!(ah->debug.level & ATH5K_DEBUG_DUMPBANDS)))
+	if (likely(!(ah->de.level & ATH5K_DE_DUMPBANDS)))
 		return;
 
 	for (b = 0; b < NUM_NL80211_BANDS; b++) {
@@ -1039,23 +1039,23 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 			strcpy(bname, "5 GHz");
 			break;
 		default:
-			printk(KERN_DEBUG "Band not supported: %d\n",
+			printk(KERN_DE "Band not supported: %d\n",
 				band->band);
 			return;
 		}
-		printk(KERN_DEBUG "Band %s: channels %d, rates %d\n", bname,
+		printk(KERN_DE "Band %s: channels %d, rates %d\n", bname,
 				band->n_channels, band->n_bitrates);
-		printk(KERN_DEBUG " channels:\n");
+		printk(KERN_DE " channels:\n");
 		for (i = 0; i < band->n_channels; i++)
-			printk(KERN_DEBUG "  %3d %d %.4x %.4x\n",
+			printk(KERN_DE "  %3d %d %.4x %.4x\n",
 					ieee80211_frequency_to_channel(
 						band->channels[i].center_freq),
 					band->channels[i].center_freq,
 					band->channels[i].hw_value,
 					band->channels[i].flags);
-		printk(KERN_DEBUG " rates:\n");
+		printk(KERN_DE " rates:\n");
 		for (i = 0; i < band->n_bitrates; i++)
-			printk(KERN_DEBUG "  %4d %.4x %.4x %.4x\n",
+			printk(KERN_DE "  %4d %.4x %.4x %.4x\n",
 					band->bitrates[i].bitrate,
 					band->bitrates[i].hw_value,
 					band->bitrates[i].flags,
@@ -1064,13 +1064,13 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 }
 
 static inline void
-ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done,
+ath5k_de_printrxbuf(struct ath5k_buf *bf, int done,
 		       struct ath5k_rx_status *rs)
 {
 	struct ath5k_desc *ds = bf->desc;
 	struct ath5k_hw_all_rx_desc *rd = &ds->ud.ds_rx;
 
-	printk(KERN_DEBUG "R (%p %llx) %08x %08x %08x %08x %08x %08x %c\n",
+	printk(KERN_DE "R (%p %llx) %08x %08x %08x %08x %08x %08x %c\n",
 		ds, (unsigned long long)bf->daddr,
 		ds->ds_link, ds->ds_data,
 		rd->rx_ctl.rx_control_0, rd->rx_ctl.rx_control_1,
@@ -1079,17 +1079,17 @@ ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done,
 }
 
 void
-ath5k_debug_printrxbuffs(struct ath5k_hw *ah)
+ath5k_de_printrxbuffs(struct ath5k_hw *ah)
 {
 	struct ath5k_desc *ds;
 	struct ath5k_buf *bf;
 	struct ath5k_rx_status rs = {};
 	int status;
 
-	if (likely(!(ah->debug.level & ATH5K_DEBUG_DESC)))
+	if (likely(!(ah->de.level & ATH5K_DE_DESC)))
 		return;
 
-	printk(KERN_DEBUG "rxdp %x, rxlink %p\n",
+	printk(KERN_DE "rxdp %x, rxlink %p\n",
 		ath5k_hw_get_rxdp(ah), ah->rxlink);
 
 	spin_lock_bh(&ah->rxbuflock);
@@ -1097,25 +1097,25 @@ ath5k_debug_printrxbuffs(struct ath5k_hw *ah)
 		ds = bf->desc;
 		status = ah->ah_proc_rx_desc(ah, ds, &rs);
 		if (!status)
-			ath5k_debug_printrxbuf(bf, status == 0, &rs);
+			ath5k_de_printrxbuf(bf, status == 0, &rs);
 	}
 	spin_unlock_bh(&ah->rxbuflock);
 }
 
 void
-ath5k_debug_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf)
+ath5k_de_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf)
 {
 	struct ath5k_desc *ds = bf->desc;
 	struct ath5k_hw_5212_tx_desc *td = &ds->ud.ds_tx5212;
 	struct ath5k_tx_status ts = {};
 	int done;
 
-	if (likely(!(ah->debug.level & ATH5K_DEBUG_DESC)))
+	if (likely(!(ah->de.level & ATH5K_DE_DESC)))
 		return;
 
 	done = ah->ah_proc_tx_desc(ah, bf->desc, &ts);
 
-	printk(KERN_DEBUG "T (%p %llx) %08x %08x %08x %08x %08x %08x %08x "
+	printk(KERN_DE "T (%p %llx) %08x %08x %08x %08x %08x %08x %08x "
 		"%08x %c\n", ds, (unsigned long long)bf->daddr, ds->ds_link,
 		ds->ds_data, td->tx_ctl.tx_control_0, td->tx_ctl.tx_control_1,
 		td->tx_ctl.tx_control_2, td->tx_ctl.tx_control_3,

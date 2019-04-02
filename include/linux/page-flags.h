@@ -7,8 +7,8 @@
 #define PAGE_FLAGS_H
 
 #include <linux/types.h>
-#include <linux/bug.h>
-#include <linux/mmdebug.h>
+#include <linux/.h>
+#include <linux/mmde.h>
 #ifndef __GENERATING_BOUNDS_H
 #include <linux/mm_types.h>
 #include <generated/bounds.h>
@@ -192,7 +192,7 @@ static inline int PagePoisoned(const struct page *page)
 	return page->flags == PAGE_POISON_PATTERN;
 }
 
-#ifdef CONFIG_DEBUG_VM
+#ifdef CONFIG_DE_VM
 void page_init_poison(struct page *page, size_t size);
 #else
 static inline void page_init_poison(struct page *page, size_t size)
@@ -224,18 +224,18 @@ static inline void page_init_poison(struct page *page, size_t size)
  *     the page flag is not relevant for compound pages.
  */
 #define PF_POISONED_CHECK(page) ({					\
-		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
+		VM__ON_PGFLAGS(PagePoisoned(page), page);		\
 		page; })
 #define PF_ANY(page, enforce)	PF_POISONED_CHECK(page)
 #define PF_HEAD(page, enforce)	PF_POISONED_CHECK(compound_head(page))
 #define PF_ONLY_HEAD(page, enforce) ({					\
-		VM_BUG_ON_PGFLAGS(PageTail(page), page);		\
+		VM__ON_PGFLAGS(PageTail(page), page);		\
 		PF_POISONED_CHECK(page); })
 #define PF_NO_TAIL(page, enforce) ({					\
-		VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page);	\
+		VM__ON_PGFLAGS(enforce && PageTail(page), page);	\
 		PF_POISONED_CHECK(compound_head(page)); })
 #define PF_NO_COMPOUND(page, enforce) ({				\
-		VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page);	\
+		VM__ON_PGFLAGS(enforce && PageCompound(page), page);	\
 		PF_POISONED_CHECK(page); })
 
 /*
@@ -506,14 +506,14 @@ static inline int PageUptodate(struct page *page)
 
 static __always_inline void __SetPageUptodate(struct page *page)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 	smp_wmb();
 	__set_bit(PG_uptodate, &page->flags);
 }
 
 static __always_inline void SetPageUptodate(struct page *page)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 	/*
 	 * Memory barrier must be issued before setting the PG_uptodate bit,
 	 * so that all previous stores issued in order to bring the page
@@ -558,7 +558,7 @@ static __always_inline void clear_compound_head(struct page *page)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline void ClearPageCompound(struct page *page)
 {
-	BUG_ON(!PageHead(page));
+	_ON(!PageHead(page));
 	ClearPageHead(page);
 }
 #endif
@@ -591,7 +591,7 @@ static inline bool page_huge_active(struct page *page)
  */
 static inline int PageTransHuge(struct page *page)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(PageTail(page), page);
 	return PageHead(page);
 }
 
@@ -656,24 +656,24 @@ static inline int PageDoubleMap(struct page *page)
 
 static inline void SetPageDoubleMap(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageHead(page), page);
+	VM__ON_PAGE(!PageHead(page), page);
 	set_bit(PG_double_map, &page[1].flags);
 }
 
 static inline void ClearPageDoubleMap(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageHead(page), page);
+	VM__ON_PAGE(!PageHead(page), page);
 	clear_bit(PG_double_map, &page[1].flags);
 }
 static inline int TestSetPageDoubleMap(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageHead(page), page);
+	VM__ON_PAGE(!PageHead(page), page);
 	return test_and_set_bit(PG_double_map, &page[1].flags);
 }
 
 static inline int TestClearPageDoubleMap(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageHead(page), page);
+	VM__ON_PAGE(!PageHead(page), page);
 	return test_and_clear_bit(PG_double_map, &page[1].flags);
 }
 
@@ -719,12 +719,12 @@ static __always_inline int Page##uname(struct page *page)		\
 }									\
 static __always_inline void __SetPage##uname(struct page *page)		\
 {									\
-	VM_BUG_ON_PAGE(!PageType(page, 0), page);			\
+	VM__ON_PAGE(!PageType(page, 0), page);			\
 	page->page_type &= ~PG_##lname;					\
 }									\
 static __always_inline void __ClearPage##uname(struct page *page)	\
 {									\
-	VM_BUG_ON_PAGE(!Page##uname(page), page);			\
+	VM__ON_PAGE(!Page##uname(page), page);			\
 	page->page_type |= PG_##lname;					\
 }
 
@@ -764,25 +764,25 @@ __PAGEFLAG(Isolated, isolated, PF_ANY);
  */
 static inline int PageSlabPfmemalloc(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
+	VM__ON_PAGE(!PageSlab(page), page);
 	return PageActive(page);
 }
 
 static inline void SetPageSlabPfmemalloc(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
+	VM__ON_PAGE(!PageSlab(page), page);
 	SetPageActive(page);
 }
 
 static inline void __ClearPageSlabPfmemalloc(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
+	VM__ON_PAGE(!PageSlab(page), page);
 	__ClearPageActive(page);
 }
 
 static inline void ClearPageSlabPfmemalloc(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageSlab(page), page);
+	VM__ON_PAGE(!PageSlab(page), page);
 	ClearPageActive(page);
 }
 
@@ -806,7 +806,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
 /*
  * Flags checked when a page is prepped for return by the page allocator.
  * Pages being prepped should not have these flags set.  It they are set,
- * there has been a kernel bug or struct page corruption.
+ * there has been a kernel  or struct page corruption.
  *
  * __PG_HWPOISON is exceptional because it needs to be kept beyond page's
  * alloc-free cycle to prevent from reusing the page.

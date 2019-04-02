@@ -110,7 +110,7 @@ static void get_clocks(void)
 	if (pllOpbDiv == 0)
 		pllOpbDiv = 16;
 
-	/* There is a bug in U-Boot that prevents us from using
+	/* There is a  in U-Boot that prevents us from using
 	 * bd.bi_opbfreq because U-Boot doesn't populate it for
 	 * 405EZ.  We get to calculate it, yay!
 	 */

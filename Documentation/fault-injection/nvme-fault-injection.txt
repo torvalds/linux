@@ -1,15 +1,15 @@
 NVMe Fault Injection
 ====================
 Linux's fault injection framework provides a systematic way to support
-error injection via debugfs in the /sys/kernel/debug directory. When
+error injection via defs in the /sys/kernel/de directory. When
 enabled, the default NVME_SC_INVALID_OPCODE with no retry will be
 injected into the nvme_end_request. Users can change the default status
-code and no retry flag via the debugfs. The list of Generic Command
+code and no retry flag via the defs. The list of Generic Command
 Status can be found in include/linux/nvme.h
 
 Following examples show how to inject an error into the nvme.
 
-First, enable CONFIG_FAULT_INJECTION_DEBUG_FS kernel config,
+First, enable CONFIG_FAULT_INJECTION_DE_FS kernel config,
 recompile the kernel. After booting up the kernel, do the
 following.
 
@@ -17,8 +17,8 @@ Example 1: Inject default status code with no retry
 ---------------------------------------------------
 
 mount /dev/nvme0n1 /mnt
-echo 1 > /sys/kernel/debug/nvme0n1/fault_inject/times
-echo 100 > /sys/kernel/debug/nvme0n1/fault_inject/probability
+echo 1 > /sys/kernel/de/nvme0n1/fault_inject/times
+echo 100 > /sys/kernel/de/nvme0n1/fault_inject/probability
 cp a.file /mnt
 
 Expected Result:
@@ -70,10 +70,10 @@ Example 2: Inject default status code with retry
 ------------------------------------------------
 
 mount /dev/nvme0n1 /mnt
-echo 1 > /sys/kernel/debug/nvme0n1/fault_inject/times
-echo 100 > /sys/kernel/debug/nvme0n1/fault_inject/probability
-echo 1 > /sys/kernel/debug/nvme0n1/fault_inject/status
-echo 0 > /sys/kernel/debug/nvme0n1/fault_inject/dont_retry
+echo 1 > /sys/kernel/de/nvme0n1/fault_inject/times
+echo 100 > /sys/kernel/de/nvme0n1/fault_inject/probability
+echo 1 > /sys/kernel/de/nvme0n1/fault_inject/status
+echo 0 > /sys/kernel/de/nvme0n1/fault_inject/dont_retry
 
 cp a.file /mnt
 

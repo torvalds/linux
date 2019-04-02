@@ -460,7 +460,7 @@ static int reclaim_block(struct partition *part, u_long *old_sector)
 	part->current_block = -1;
 	part->reserved_block = best_block;
 
-	pr_debug("reclaim_block: reclaiming block #%d with %d used "
+	pr_de("reclaim_block: reclaiming block #%d with %d used "
 		 "%d free sectors\n", best_block,
 		 part->blocks[best_block].used_sectors,
 		 part->blocks[best_block].free_sectors);
@@ -673,7 +673,7 @@ static int rfd_ftl_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *
 	int i;
 	int rc = 0;
 
-	pr_debug("rfd_ftl_writesect(sector=0x%lx)\n", sector);
+	pr_de("rfd_ftl_writesect(sector=0x%lx)\n", sector);
 
 	if (part->reserved_block == -1) {
 		rc = -EACCES;
@@ -769,7 +769,7 @@ static void rfd_ftl_remove_dev(struct mtd_blktrans_dev *dev)
 	int i;
 
 	for (i=0; i<part->total_blocks; i++) {
-		pr_debug("rfd_ftl_remove_dev:'%s': erase unit #%02d: %d erases\n",
+		pr_de("rfd_ftl_remove_dev:'%s': erase unit #%02d: %d erases\n",
 			part->mbd.mtd->name, i, part->blocks[i].erases);
 	}
 

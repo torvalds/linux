@@ -107,9 +107,9 @@ static int create_dir(struct kobject *kobj)
 	 */
 	ops = kobj_child_ns_ops(kobj);
 	if (ops) {
-		BUG_ON(ops->type <= KOBJ_NS_TYPE_NONE);
-		BUG_ON(ops->type >= KOBJ_NS_TYPES);
-		BUG_ON(!kobj_ns_type_registered(ops->type));
+		_ON(ops->type <= KOBJ_NS_TYPE_NONE);
+		_ON(ops->type >= KOBJ_NS_TYPES);
+		_ON(!kobj_ns_type_registered(ops->type));
 
 		sysfs_enable_ns(kobj->sd);
 	}
@@ -148,7 +148,7 @@ static void fill_kobj_path(struct kobject *kobj, char *path, int length)
 		*(path + --length) = '/';
 	}
 
-	pr_debug("kobject: '%s' (%p): %s: path = '%s'\n", kobject_name(kobj),
+	pr_de("kobject: '%s' (%p): %s: path = '%s'\n", kobject_name(kobj),
 		 kobj, __func__, path);
 }
 
@@ -239,7 +239,7 @@ static int kobject_add_internal(struct kobject *kobj)
 		kobj->parent = parent;
 	}
 
-	pr_debug("kobject: '%s' (%p): %s: parent: '%s', set: '%s'\n",
+	pr_de("kobject: '%s' (%p): %s: parent: '%s', set: '%s'\n",
 		 kobject_name(kobj), kobj, __func__,
 		 parent ? kobject_name(parent) : "<NULL>",
 		 kobj->kset ? kobject_name(&kobj->kset->kobj) : "<NULL>");
@@ -283,7 +283,7 @@ int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 		return -ENOMEM;
 
 	/*
-	 * ewww... some of these buggers have '/' in the name ... If
+	 * ewww... some of these gers have '/' in the name ... If
 	 * that's the case, we need to make sure we have an actual
 	 * allocated copy to modify, since kvasprintf_const may have
 	 * returned something from .rodata.
@@ -635,41 +635,41 @@ static void kobject_cleanup(struct kobject *kobj)
 	struct kobj_type *t = get_ktype(kobj);
 	const char *name = kobj->name;
 
-	pr_debug("kobject: '%s' (%p): %s, parent %p\n",
+	pr_de("kobject: '%s' (%p): %s, parent %p\n",
 		 kobject_name(kobj), kobj, __func__, kobj->parent);
 
 	if (t && !t->release)
-		pr_debug("kobject: '%s' (%p): does not have a release() function, it is broken and must be fixed. See Documentation/kobject.txt.\n",
+		pr_de("kobject: '%s' (%p): does not have a release() function, it is broken and must be fixed. See Documentation/kobject.txt.\n",
 			 kobject_name(kobj), kobj);
 
 	/* send "remove" if the caller did not do it but sent "add" */
 	if (kobj->state_add_uevent_sent && !kobj->state_remove_uevent_sent) {
-		pr_debug("kobject: '%s' (%p): auto cleanup 'remove' event\n",
+		pr_de("kobject: '%s' (%p): auto cleanup 'remove' event\n",
 			 kobject_name(kobj), kobj);
 		kobject_uevent(kobj, KOBJ_REMOVE);
 	}
 
 	/* remove from sysfs if the caller did not do it */
 	if (kobj->state_in_sysfs) {
-		pr_debug("kobject: '%s' (%p): auto cleanup kobject_del\n",
+		pr_de("kobject: '%s' (%p): auto cleanup kobject_del\n",
 			 kobject_name(kobj), kobj);
 		kobject_del(kobj);
 	}
 
 	if (t && t->release) {
-		pr_debug("kobject: '%s' (%p): calling ktype release\n",
+		pr_de("kobject: '%s' (%p): calling ktype release\n",
 			 kobject_name(kobj), kobj);
 		t->release(kobj);
 	}
 
 	/* free name if we allocated it */
 	if (name) {
-		pr_debug("kobject: '%s': free name\n", name);
+		pr_de("kobject: '%s': free name\n", name);
 		kfree_const(name);
 	}
 }
 
-#ifdef CONFIG_DEBUG_KOBJECT_RELEASE
+#ifdef CONFIG_DE_KOBJECT_RELEASE
 static void kobject_delayed_cleanup(struct work_struct *work)
 {
 	kobject_cleanup(container_of(to_delayed_work(work),
@@ -680,7 +680,7 @@ static void kobject_delayed_cleanup(struct work_struct *work)
 static void kobject_release(struct kref *kref)
 {
 	struct kobject *kobj = container_of(kref, struct kobject, kref);
-#ifdef CONFIG_DEBUG_KOBJECT_RELEASE
+#ifdef CONFIG_DE_KOBJECT_RELEASE
 	unsigned long delay = HZ + HZ * (get_random_int() & 0x3);
 	pr_info("kobject: '%s' (%p): %s, parent %p (delayed %ld)\n",
 		 kobject_name(kobj), kobj, __func__, kobj->parent, delay);
@@ -712,7 +712,7 @@ EXPORT_SYMBOL(kobject_put);
 
 static void dynamic_kobj_release(struct kobject *kobj)
 {
-	pr_debug("kobject: (%p): %s\n", kobj, __func__);
+	pr_de("kobject: (%p): %s\n", kobj, __func__);
 	kfree(kobj);
 }
 
@@ -882,7 +882,7 @@ EXPORT_SYMBOL_GPL(kset_find_obj);
 static void kset_release(struct kobject *kobj)
 {
 	struct kset *kset = container_of(kobj, struct kset, kobj);
-	pr_debug("kobject: '%s' (%p): %s\n",
+	pr_de("kobject: '%s' (%p): %s\n",
 		 kobject_name(kobj), kobj, __func__);
 	kfree(kset);
 }

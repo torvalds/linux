@@ -27,7 +27,7 @@
 #define M5MOLS_JPEG_TAGS_SIZE		0x20000
 #define M5MOLS_MAIN_JPEG_SIZE_MAX	(5 * SZ_1M)
 
-extern int m5mols_debug;
+extern int m5mols_de;
 
 enum m5mols_restype {
 	M5MOLS_RESTYPE_MONITOR,

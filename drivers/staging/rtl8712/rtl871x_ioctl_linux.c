@@ -20,7 +20,7 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "wlan_bssdef.h"
-#include "rtl871x_debug.h"
+#include "rtl871x_de.h"
 #include "wifi.h"
 #include "rtl871x_mlme.h"
 #include "rtl871x_ioctl.h"

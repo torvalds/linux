@@ -274,7 +274,7 @@ struct smd_channel_info_word_pair {
 
 #define GET_RX_CHANNEL_FLAG(channel, param)				     \
 	({								     \
-		BUILD_BUG_ON(sizeof(channel->info->rx.param) != sizeof(u8)); \
+		BUILD__ON(sizeof(channel->info->rx.param) != sizeof(u8)); \
 		channel->info_word ?					     \
 			le32_to_cpu(channel->info_word->rx.param) :	     \
 			channel->info->rx.param;			     \
@@ -282,7 +282,7 @@ struct smd_channel_info_word_pair {
 
 #define GET_RX_CHANNEL_INFO(channel, param)				      \
 	({								      \
-		BUILD_BUG_ON(sizeof(channel->info->rx.param) != sizeof(u32)); \
+		BUILD__ON(sizeof(channel->info->rx.param) != sizeof(u32)); \
 		le32_to_cpu(channel->info_word ?			      \
 			channel->info_word->rx.param :			      \
 			channel->info->rx.param);			      \
@@ -290,7 +290,7 @@ struct smd_channel_info_word_pair {
 
 #define SET_RX_CHANNEL_FLAG(channel, param, value)			     \
 	({								     \
-		BUILD_BUG_ON(sizeof(channel->info->rx.param) != sizeof(u8)); \
+		BUILD__ON(sizeof(channel->info->rx.param) != sizeof(u8)); \
 		if (channel->info_word)					     \
 			channel->info_word->rx.param = cpu_to_le32(value);   \
 		else							     \
@@ -299,7 +299,7 @@ struct smd_channel_info_word_pair {
 
 #define SET_RX_CHANNEL_INFO(channel, param, value)			      \
 	({								      \
-		BUILD_BUG_ON(sizeof(channel->info->rx.param) != sizeof(u32)); \
+		BUILD__ON(sizeof(channel->info->rx.param) != sizeof(u32)); \
 		if (channel->info_word)					      \
 			channel->info_word->rx.param = cpu_to_le32(value);    \
 		else							      \
@@ -308,7 +308,7 @@ struct smd_channel_info_word_pair {
 
 #define GET_TX_CHANNEL_FLAG(channel, param)				     \
 	({								     \
-		BUILD_BUG_ON(sizeof(channel->info->tx.param) != sizeof(u8)); \
+		BUILD__ON(sizeof(channel->info->tx.param) != sizeof(u8)); \
 		channel->info_word ?					     \
 			le32_to_cpu(channel->info_word->tx.param) :          \
 			channel->info->tx.param;			     \
@@ -316,7 +316,7 @@ struct smd_channel_info_word_pair {
 
 #define GET_TX_CHANNEL_INFO(channel, param)				      \
 	({								      \
-		BUILD_BUG_ON(sizeof(channel->info->tx.param) != sizeof(u32)); \
+		BUILD__ON(sizeof(channel->info->tx.param) != sizeof(u32)); \
 		le32_to_cpu(channel->info_word ?			      \
 			channel->info_word->tx.param :			      \
 			channel->info->tx.param);			      \
@@ -324,7 +324,7 @@ struct smd_channel_info_word_pair {
 
 #define SET_TX_CHANNEL_FLAG(channel, param, value)			     \
 	({								     \
-		BUILD_BUG_ON(sizeof(channel->info->tx.param) != sizeof(u8)); \
+		BUILD__ON(sizeof(channel->info->tx.param) != sizeof(u8)); \
 		if (channel->info_word)					     \
 			channel->info_word->tx.param = cpu_to_le32(value);   \
 		else							     \
@@ -333,7 +333,7 @@ struct smd_channel_info_word_pair {
 
 #define SET_TX_CHANNEL_INFO(channel, param, value)			      \
 	({								      \
-		BUILD_BUG_ON(sizeof(channel->info->tx.param) != sizeof(u32)); \
+		BUILD__ON(sizeof(channel->info->tx.param) != sizeof(u32)); \
 		if (channel->info_word)					      \
 			channel->info_word->tx.param = cpu_to_le32(value);   \
 		else							      \

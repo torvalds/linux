@@ -139,7 +139,7 @@ do
 	    echo "test 5: $COUNT scatterlists, same size entries"
 	    do_test -t 5
 
-	    # try to trigger short OUT processing bugs
+	    # try to trigger short OUT processing s
 	    echo "test 7a: $COUNT scatterlists, variable size/short entries"
 	    do_test -t 7 -v 579
 	    BUFLEN=4096

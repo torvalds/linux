@@ -175,10 +175,10 @@ struct rockchip_vpu_fmt {
 /* Logging helpers */
 
 /**
- * debug - Module parameter to control level of debugging messages.
+ * de - Module parameter to control level of deging messages.
  *
- * Level of debugging messages can be controlled by bits of
- * module parameter called "debug". Meaning of particular
+ * Level of deging messages can be controlled by bits of
+ * module parameter called "de". Meaning of particular
  * bits is as follows:
  *
  * bit 0 - global information: mode, size, init, release
@@ -189,11 +189,11 @@ struct rockchip_vpu_fmt {
  * bit 5 - detail function enter/leave trace information
  * bit 6 - register write/read information
  */
-extern int rockchip_vpu_debug;
+extern int rockchip_vpu_de;
 
-#define vpu_debug(level, fmt, args...)				\
+#define vpu_de(level, fmt, args...)				\
 	do {							\
-		if (rockchip_vpu_debug & BIT(level))		\
+		if (rockchip_vpu_de & BIT(level))		\
 			pr_info("%s:%d: " fmt,	                \
 				 __func__, __LINE__, ##args);	\
 	} while (0)
@@ -211,13 +211,13 @@ static inline struct rockchip_vpu_ctx *fh_to_ctx(struct v4l2_fh *fh)
 static inline void vepu_write_relaxed(struct rockchip_vpu_dev *vpu,
 				      u32 val, u32 reg)
 {
-	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
+	vpu_de(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->enc_base + reg);
 }
 
 static inline void vepu_write(struct rockchip_vpu_dev *vpu, u32 val, u32 reg)
 {
-	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
+	vpu_de(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->enc_base + reg);
 }
 
@@ -225,7 +225,7 @@ static inline u32 vepu_read(struct rockchip_vpu_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->enc_base + reg);
 
-	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
+	vpu_de(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	return val;
 }
 

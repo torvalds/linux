@@ -608,18 +608,18 @@ setup_xfrm_tunnel()
 test_xfrm_tunnel()
 {
 	config_device
-	> /sys/kernel/debug/tracing/trace
+	> /sys/kernel/de/tracing/trace
 	setup_xfrm_tunnel
 	tc qdisc add dev veth1 clsact
 	tc filter add dev veth1 proto ip ingress bpf da obj test_tunnel_kern.o \
 		sec xfrm_get_state
 	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
 	sleep 1
-	grep "reqid 1" /sys/kernel/debug/tracing/trace
+	grep "reqid 1" /sys/kernel/de/tracing/trace
 	check_err $?
-	grep "spi 0x1" /sys/kernel/debug/tracing/trace
+	grep "spi 0x1" /sys/kernel/de/tracing/trace
 	check_err $?
-	grep "remote ip 0xac100164" /sys/kernel/debug/tracing/trace
+	grep "remote ip 0xac100164" /sys/kernel/de/tracing/trace
 	check_err $?
 	cleanup
 
@@ -678,13 +678,13 @@ check()
 	fi
 }
 
-enable_debug()
+enable_de()
 {
-	echo 'file ip_gre.c +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'file ip6_gre.c +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'file vxlan.c +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'file geneve.c +p' > /sys/kernel/debug/dynamic_debug/control
-	echo 'file ipip.c +p' > /sys/kernel/debug/dynamic_debug/control
+	echo 'file ip_gre.c +p' > /sys/kernel/de/dynamic_de/control
+	echo 'file ip6_gre.c +p' > /sys/kernel/de/dynamic_de/control
+	echo 'file vxlan.c +p' > /sys/kernel/de/dynamic_de/control
+	echo 'file geneve.c +p' > /sys/kernel/de/dynamic_de/control
+	echo 'file ipip.c +p' > /sys/kernel/de/dynamic_de/control
 }
 
 check_err()

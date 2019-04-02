@@ -14,14 +14,14 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _WCN36XX_DEBUG_H_
-#define _WCN36XX_DEBUG_H_
+#ifndef _WCN36XX_DE_H_
+#define _WCN36XX_DE_H_
 
 #include <linux/kernel.h>
 
 #define WCN36xx_MAX_DUMP_ARGS	5
 
-#ifdef CONFIG_WCN36XX_DEBUGFS
+#ifdef CONFIG_WCN36XX_DEFS
 struct wcn36xx_dfs_file {
 	struct dentry *dentry;
 	u32 value;
@@ -33,17 +33,17 @@ struct wcn36xx_dfs_entry {
 	struct wcn36xx_dfs_file file_dump;
 };
 
-void wcn36xx_debugfs_init(struct wcn36xx *wcn);
-void wcn36xx_debugfs_exit(struct wcn36xx *wcn);
+void wcn36xx_defs_init(struct wcn36xx *wcn);
+void wcn36xx_defs_exit(struct wcn36xx *wcn);
 
 #else
-static inline void wcn36xx_debugfs_init(struct wcn36xx *wcn)
+static inline void wcn36xx_defs_init(struct wcn36xx *wcn)
 {
 }
-static inline void wcn36xx_debugfs_exit(struct wcn36xx *wcn)
+static inline void wcn36xx_defs_exit(struct wcn36xx *wcn)
 {
 }
 
-#endif /* CONFIG_WCN36XX_DEBUGFS */
+#endif /* CONFIG_WCN36XX_DEFS */
 
-#endif	/* _WCN36XX_DEBUG_H_ */
+#endif	/* _WCN36XX_DE_H_ */

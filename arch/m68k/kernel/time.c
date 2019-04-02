@@ -47,7 +47,7 @@ static irqreturn_t timer_interrupt(int irq, void *dummy)
 
 #ifdef CONFIG_HEARTBEAT
 	/* use power LED as a heartbeat instead -- much more useful
-	   for debugging -- based on the version for PReP by Cort */
+	   for deging -- based on the version for PReP by Cort */
 	/* acts like an actual heart beat -- ie thump-thump-pause... */
 	if (mach_heartbeat) {
 	    static unsigned cnt = 0, period = 0, dist = 0;

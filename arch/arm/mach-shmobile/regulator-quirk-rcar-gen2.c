@@ -204,7 +204,7 @@ static int __init rcar_gen2_regulator_quirk(void)
 
 	mon = ioread32(irqc + IRQC_MONITOR);
 	if (mon & REGULATOR_IRQ_MASK) {
-		pr_debug("%s: IRQ2 is not asserted, not installing quirk\n",
+		pr_de("%s: IRQ2 is not asserted, not installing quirk\n",
 			 __func__);
 		ret = 0;
 		goto err_free;

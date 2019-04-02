@@ -1349,12 +1349,12 @@ static int hifn_setup_dma(struct hifn_device *dev,
 	n = nbytes;
 	while (n) {
 		if (t->length && rctx->walk.flags & ASYNC_FLAGS_MISALIGNED) {
-			BUG_ON(!sg_page(t));
+			_ON(!sg_page(t));
 			dpage = sg_page(t);
 			doff = 0;
 			len = t->length;
 		} else {
-			BUG_ON(!sg_page(dst));
+			_ON(!sg_page(dst));
 			dpage = sg_page(dst);
 			doff = dst->offset;
 			len = dst->length;
@@ -1429,7 +1429,7 @@ static int ablkcipher_add(unsigned int *drestp, struct scatterlist *dst,
 		drest -= copy;
 		nbytes -= copy;
 
-		pr_debug("%s: copy: %u, size: %u, drest: %u, nbytes: %u.\n",
+		pr_de("%s: copy: %u, size: %u, drest: %u, nbytes: %u.\n",
 			 __func__, copy, size, drest, nbytes);
 
 		dst++;
@@ -1457,7 +1457,7 @@ static int hifn_cipher_walk(struct ablkcipher_request *req,
 
 		dst = &req->dst[idx];
 
-		pr_debug("\n%s: dlen: %u, doff: %u, offset: %u, nbytes: %u.\n",
+		pr_de("\n%s: dlen: %u, doff: %u, offset: %u, nbytes: %u.\n",
 			 __func__, dst->length, dst->offset, offset, nbytes);
 
 		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
@@ -1501,7 +1501,7 @@ static int hifn_cipher_walk(struct ablkcipher_request *req,
 				       "this path under any condition but who "
 				       "knows how did you use crypto code.\n"
 				       "Thank you.\n",	__func__);
-				BUG();
+				();
 			} else {
 				copy += diff + nbytes;
 
@@ -1642,7 +1642,7 @@ static int ablkcipher_get(void *saddr, unsigned int *srestp, unsigned int offset
 		saddr += copy;
 		offset = 0;
 
-		pr_debug("%s: copy: %u, size: %u, srest: %u, nbytes: %u.\n",
+		pr_de("%s: copy: %u, size: %u, srest: %u, nbytes: %u.\n",
 			 __func__, copy, size, srest, nbytes);
 
 		dst++;
@@ -1666,7 +1666,7 @@ static inline void hifn_complete_sa(struct hifn_device *dev, int i)
 		dev_info(&dev->pdev->dev, "%s: started: %d.\n", __func__,
 			 dev->started);
 	spin_unlock_irqrestore(&dev->lock, flags);
-	BUG_ON(dev->started < 0);
+	_ON(dev->started < 0);
 }
 
 static void hifn_process_ready(struct ablkcipher_request *req, int error)
@@ -1683,7 +1683,7 @@ static void hifn_process_ready(struct ablkcipher_request *req, int error)
 			t = &rctx->walk.cache[idx];
 			dst = &req->dst[idx];
 
-			pr_debug("\n%s: sg_page(t): %p, t->length: %u, "
+			pr_de("\n%s: sg_page(t): %p, t->length: %u, "
 				"sg_page(dst): %p, dst->length: %u, "
 				"nbytes: %u.\n",
 				__func__, sg_page(t), t->length,
@@ -2644,7 +2644,7 @@ static int __init hifn_init(void)
 	int err;
 
 	/* HIFN supports only 32-bit addresses */
-	BUILD_BUG_ON(sizeof(dma_addr_t) != 4);
+	BUILD__ON(sizeof(dma_addr_t) != 4);
 
 	if (strncmp(hifn_pll_ref, "ext", 3) &&
 	    strncmp(hifn_pll_ref, "pci", 3)) {

@@ -348,7 +348,7 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 	if (unlikely((intlv_en != 0x01) &&
 		     (intlv_en != 0x03) &&
 		     (intlv_en != 0x07))) {
-		amd64_warn("DRAM Base[IntlvEn] junk value: 0x%x, BIOS bug?\n", intlv_en);
+		amd64_warn("DRAM Base[IntlvEn] junk value: 0x%x, BIOS ?\n", intlv_en);
 		return NULL;
 	}
 
@@ -634,7 +634,7 @@ static int num_node_interleave_bits(unsigned intlv_en)
 	static const int intlv_shift_table[] = { 0, 1, 0, 2, 0, 0, 0, 3 };
 	int n;
 
-	BUG_ON(intlv_en > 7);
+	_ON(intlv_en > 7);
 	n = intlv_shift_table[intlv_en];
 	return n;
 }
@@ -747,9 +747,9 @@ static unsigned long determine_edac_cap(struct amd64_pvt *pvt)
 	return edac_cap;
 }
 
-static void debug_display_dimm_sizes(struct amd64_pvt *, u8);
+static void de_display_dimm_sizes(struct amd64_pvt *, u8);
 
-static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
+static void de_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 {
 	edac_dbg(1, "F2x%d90 (DRAM Cfg Low): 0x%08x\n", chan, dclr);
 
@@ -781,11 +781,11 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 		 (dclr & BIT(15)) ?  "yes" : "no");
 }
 
-static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
+static void de_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
 {
 	int dimm, size0, size1, cs0, cs1;
 
-	edac_printk(KERN_DEBUG, EDAC_MC, "UMC%d chip selects:\n", ctrl);
+	edac_printk(KERN_DE, EDAC_MC, "UMC%d chip selects:\n", ctrl);
 
 	for (dimm = 0; dimm < 4; dimm++) {
 		size0 = 0;
@@ -843,14 +843,14 @@ static void __dump_misc_regs_df(struct amd64_pvt *pvt)
 					i, 1 << ((tmp >> 4) & 0x3));
 		}
 
-		debug_display_dimm_sizes_df(pvt, i);
+		de_display_dimm_sizes_df(pvt, i);
 	}
 
 	edac_dbg(1, "F0x104 (DRAM Hole Address): 0x%08x, base: 0x%08x\n",
 		 pvt->dhar, dhar_base(pvt));
 }
 
-/* Display and decode various NB registers for debug purposes. */
+/* Display and decode various NB registers for de purposes. */
 static void __dump_misc_regs(struct amd64_pvt *pvt)
 {
 	edac_dbg(1, "F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
@@ -862,7 +862,7 @@ static void __dump_misc_regs(struct amd64_pvt *pvt)
 		 (pvt->nbcap & NBCAP_SECDED) ? "yes" : "no",
 		 (pvt->nbcap & NBCAP_CHIPKILL) ? "yes" : "no");
 
-	debug_dump_dramcfg_low(pvt, pvt->dclr0, 0);
+	de_dump_dramcfg_low(pvt, pvt->dclr0, 0);
 
 	edac_dbg(1, "F3xB0 (Online Spare): 0x%08x\n", pvt->online_spare);
 
@@ -871,20 +871,20 @@ static void __dump_misc_regs(struct amd64_pvt *pvt)
 		 (pvt->fam == 0xf) ? k8_dhar_offset(pvt)
 				   : f10_dhar_offset(pvt));
 
-	debug_display_dimm_sizes(pvt, 0);
+	de_display_dimm_sizes(pvt, 0);
 
 	/* everything below this point is Fam10h and above */
 	if (pvt->fam == 0xf)
 		return;
 
-	debug_display_dimm_sizes(pvt, 1);
+	de_display_dimm_sizes(pvt, 1);
 
 	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
-		debug_dump_dramcfg_low(pvt, pvt->dclr1, 1);
+		de_dump_dramcfg_low(pvt, pvt->dclr1, 1);
 }
 
-/* Display and decode various NB registers for debug purposes. */
+/* Display and decode various NB registers for de purposes. */
 static void dump_misc_regs(struct amd64_pvt *pvt)
 {
 	if (pvt->umc)
@@ -2063,10 +2063,10 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 }
 
 /*
- * debug routine to display the memory sizes of all logical DIMMs and its
+ * de routine to display the memory sizes of all logical DIMMs and its
  * CSROWs
  */
-static void debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
+static void de_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 {
 	int dimm, size0, size1;
 	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
@@ -2093,7 +2093,7 @@ static void debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 	edac_dbg(1, "F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n",
 		 ctrl, dbam);
 
-	edac_printk(KERN_DEBUG, EDAC_MC, "DCT%d chip selects:\n", ctrl);
+	edac_printk(KERN_DE, EDAC_MC, "DCT%d chip selects:\n", ctrl);
 
 	/* Dump memory sizes for DIMM and its CSROWs */
 	for (dimm = 0; dimm < 4; dimm++) {
@@ -3227,7 +3227,7 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 }
 
 static const struct attribute_group *amd64_edac_attr_groups[] = {
-#ifdef CONFIG_EDAC_DEBUG
+#ifdef CONFIG_EDAC_DE
 	&amd64_edac_dbg_group,
 #endif
 #ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION

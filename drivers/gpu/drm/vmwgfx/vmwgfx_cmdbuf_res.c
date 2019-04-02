@@ -139,7 +139,7 @@ void vmw_cmdbuf_res_commit(struct list_head *list)
 			kfree(entry);
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 	}
@@ -175,7 +175,7 @@ void vmw_cmdbuf_res_revert(struct list_head *list)
 			entry->state = VMW_CMDBUF_RES_COMMITTED;
 			break;
 		default:
-			BUG();
+			();
 			break;
 		}
 	}
@@ -267,7 +267,7 @@ int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 		*res_p = entry->res;
 		break;
 	default:
-		BUG();
+		();
 		break;
 	}
 

@@ -146,7 +146,7 @@ static int ufx_reg_read(struct ufx_data *dev, u32 index, u32 *data)
 	u32 *buf = kmalloc(4, GFP_KERNEL);
 	int ret;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!buf)
 		return -ENOMEM;
@@ -172,7 +172,7 @@ static int ufx_reg_write(struct ufx_data *dev, u32 index, u32 data)
 	u32 *buf = kmalloc(4, GFP_KERNEL);
 	int ret;
 
-	BUG_ON(!dev);
+	_ON(!dev);
 
 	if (!buf)
 		return -ENOMEM;
@@ -621,7 +621,7 @@ static int ufx_config_pix_clk(struct ufx_data *dev, u32 pixclock)
 
 	/* convert pixclock (in ps) to frequency (in Hz) */
 	clk_pixel = PICOS2KHZ(pixclock) * 1000;
-	pr_debug("pixclock %d ps = clk_pixel %d Hz", pixclock, clk_pixel);
+	pr_de("pixclock %d ps = clk_pixel %d Hz", pixclock, clk_pixel);
 
 	/* clk_pixel = 1/2 clk_pixel_pll */
 	clk_pixel_pll = clk_pixel * 2;
@@ -791,7 +791,7 @@ static int ufx_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	pos = (unsigned long)info->fix.smem_start + offset;
 
-	pr_debug("mmap() framebuffer addr:%lu size:%lu\n",
+	pr_de("mmap() framebuffer addr:%lu size:%lu\n",
 		  pos, size);
 
 	while (size > 0) {
@@ -817,8 +817,8 @@ static void ufx_raw_rect(struct ufx_data *dev, u16 *cmd, int x, int y,
 	size_t packed_rect_len = packed_line_len * height;
 	int line;
 
-	BUG_ON(!dev);
-	BUG_ON(!dev->info);
+	_ON(!dev);
+	_ON(!dev->info);
 
 	/* command word */
 	*((u32 *)&cmd[0]) = cpu_to_le32(0x01);
@@ -871,7 +871,7 @@ static int ufx_handle_damage(struct ufx_data *dev, int x, int y,
 		}
 
 		/* assume we have enough space to transfer at least one line */
-		BUG_ON(urb->transfer_buffer_length < (24 + (width * 2)));
+		_ON(urb->transfer_buffer_length < (24 + (width * 2)));
 
 		/* calculate the maximum number of lines we could fit in */
 		urb_lines = (urb->transfer_buffer_length - 24) / packed_line_len;
@@ -978,8 +978,8 @@ static void ufx_dpy_deferred_io(struct fb_info *info,
 		int height = (PAGE_SIZE / (width * 2)) + 1;
 		height = min(height, (int)(dev->info->var.yres - y));
 
-		BUG_ON(y >= dev->info->var.yres);
-		BUG_ON((y + height) > dev->info->var.yres);
+		_ON(y >= dev->info->var.yres);
+		_ON((y + height) > dev->info->var.yres);
 
 		ufx_handle_damage(dev, x, y, width, height);
 	}
@@ -1096,7 +1096,7 @@ static int ufx_ops_open(struct fb_info *info, int user)
 		fb_deferred_io_init(info);
 	}
 
-	pr_debug("open /dev/fb%d user=%d fb_info=%p count=%d",
+	pr_de("open /dev/fb%d user=%d fb_info=%p count=%d",
 		info->node, user, info, dev->fb_count);
 
 	return 0;
@@ -1115,7 +1115,7 @@ static void ufx_free(struct kref *kref)
 	if (dev->urbs.count > 0)
 		ufx_free_urb_list(dev);
 
-	pr_debug("freeing ufx_data %p", dev);
+	pr_de("freeing ufx_data %p", dev);
 
 	kfree(dev);
 }
@@ -1150,7 +1150,7 @@ static void ufx_free_framebuffer_work(struct work_struct *work)
 	/* Assume info structure is freed after this point */
 	framebuffer_release(info);
 
-	pr_debug("fb_info for /dev/fb%d has been freed", node);
+	pr_de("fb_info for /dev/fb%d has been freed", node);
 
 	/* ref taken in probe() as part of registering framebfufer */
 	kref_put(&dev->kref, ufx_free);
@@ -1176,7 +1176,7 @@ static int ufx_ops_release(struct fb_info *info, int user)
 		info->fbops->fb_mmap = ufx_ops_mmap;
 	}
 
-	pr_debug("released /dev/fb%d user=%d count=%d",
+	pr_de("released /dev/fb%d user=%d count=%d",
 		  info->node, user, dev->fb_count);
 
 	kref_put(&dev->kref, ufx_free);
@@ -1190,18 +1190,18 @@ static int ufx_is_valid_mode(struct fb_videomode *mode,
 		struct fb_info *info)
 {
 	if ((mode->xres * mode->yres) > (2048 * 1152)) {
-		pr_debug("%dx%d too many pixels",
+		pr_de("%dx%d too many pixels",
 		       mode->xres, mode->yres);
 		return 0;
 	}
 
 	if (mode->pixclock < 5000) {
-		pr_debug("%dx%d %dps pixel clock too fast",
+		pr_de("%dx%d %dps pixel clock too fast",
 		       mode->xres, mode->yres, mode->pixclock);
 		return 0;
 	}
 
-	pr_debug("%dx%d (pixclk %dps %dMHz) valid mode", mode->xres, mode->yres,
+	pr_de("%dx%d (pixclk %dps %dMHz) valid mode", mode->xres, mode->yres,
 		mode->pixclock, (1000000 / mode->pixclock));
 	return 1;
 }
@@ -1245,7 +1245,7 @@ static int ufx_ops_set_par(struct fb_info *info)
 	u16 *pix_framebuffer;
 	int i;
 
-	pr_debug("set_par mode %dx%d", info->var.xres, info->var.yres);
+	pr_de("set_par mode %dx%d", info->var.xres, info->var.yres);
 	result = ufx_set_vid_mode(dev, &info->var);
 
 	if ((result == 0) && (dev->fb_count == 0)) {
@@ -1298,7 +1298,7 @@ static int ufx_realloc_framebuffer(struct ufx_data *dev, struct fb_info *info)
 	unsigned char *old_fb = info->screen_base;
 	unsigned char *new_fb;
 
-	pr_debug("Reallocating framebuffer. Addresses will change!");
+	pr_de("Reallocating framebuffer. Addresses will change!");
 
 	new_len = info->fix.line_length * info->var.yres;
 
@@ -1427,7 +1427,7 @@ static int ufx_read_edid(struct ufx_data *dev, u8 *edid, int edid_len)
 	int i, j, status;
 	u32 *edid_u32 = (u32 *)edid;
 
-	BUG_ON(edid_len != EDID_LENGTH);
+	_ON(edid_len != EDID_LENGTH);
 
 	status = ufx_i2c_configure(dev);
 	if (status < 0) {
@@ -1460,7 +1460,7 @@ static int ufx_read_edid(struct ufx_data *dev, u8 *edid, int edid_len)
 	/* all FF's in the first 16 bytes indicates nothing is connected */
 	for (i = 0; i < 16; i++) {
 		if (edid[i] != 0xFF) {
-			pr_debug("edid data read successfully");
+			pr_de("edid data read successfully");
 			return EDID_LENGTH;
 		}
 	}
@@ -1619,7 +1619,7 @@ static int ufx_usb_probe(struct usb_interface *interface,
 
 	/* usb initialization */
 	usbdev = interface_to_usbdev(interface);
-	BUG_ON(!usbdev);
+	_ON(!usbdev);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
@@ -1749,7 +1749,7 @@ static void ufx_usb_disconnect(struct usb_interface *interface)
 
 	dev = usb_get_intfdata(interface);
 
-	pr_debug("USB disconnect starting\n");
+	pr_de("USB disconnect starting\n");
 
 	/* we virtualize until all fb clients release. Then we free */
 	dev->virtualized = true;
@@ -1819,7 +1819,7 @@ static void ufx_free_urb_list(struct ufx_data *dev)
 	int ret;
 	unsigned long flags;
 
-	pr_debug("Waiting for completes and freeing all render urbs\n");
+	pr_de("Waiting for completes and freeing all render urbs\n");
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
@@ -1896,7 +1896,7 @@ static int ufx_alloc_urb_list(struct ufx_data *dev, int count, size_t size)
 	dev->urbs.count = i;
 	dev->urbs.available = i;
 
-	pr_debug("allocated %d %d byte urbs\n", i, (int) size);
+	pr_de("allocated %d %d byte urbs\n", i, (int) size);
 
 	return i;
 }
@@ -1920,7 +1920,7 @@ static struct urb *ufx_get_urb(struct ufx_data *dev)
 
 	spin_lock_irqsave(&dev->urbs.lock, flags);
 
-	BUG_ON(list_empty(&dev->urbs.list)); /* reserved one with limit_sem */
+	_ON(list_empty(&dev->urbs.list)); /* reserved one with limit_sem */
 	entry = dev->urbs.list.next;
 	list_del_init(entry);
 	dev->urbs.available--;
@@ -1938,7 +1938,7 @@ static int ufx_submit_urb(struct ufx_data *dev, struct urb *urb, size_t len)
 {
 	int ret;
 
-	BUG_ON(len > dev->urbs.size);
+	_ON(len > dev->urbs.size);
 
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_KERNEL);

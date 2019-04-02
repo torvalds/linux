@@ -277,8 +277,8 @@ sci_io_request_get_dma_addr(struct isci_request *ireq, void *virt_addr)
 	char *requested_addr = (char *)virt_addr;
 	char *base_addr = (char *)ireq;
 
-	BUG_ON(requested_addr < base_addr);
-	BUG_ON((requested_addr - base_addr) >= sizeof(*ireq));
+	_ON(requested_addr < base_addr);
+	_ON((requested_addr - base_addr) >= sizeof(*ireq));
 
 	return ireq->request_daddr + (requested_addr - base_addr);
 }

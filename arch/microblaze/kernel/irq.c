@@ -31,12 +31,12 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 	irq_enter();
 	irq = xintc_get_irq();
 next_irq:
-	BUG_ON(!irq);
+	_ON(!irq);
 	generic_handle_irq(irq);
 
 	irq = xintc_get_irq();
 	if (irq != -1U) {
-		pr_debug("next irq: %d\n", irq);
+		pr_de("next irq: %d\n", irq);
 		++concurrent_irq;
 		goto next_irq;
 	}

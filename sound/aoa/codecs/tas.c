@@ -904,7 +904,7 @@ static int tas_i2c_probe(struct i2c_client *client,
 	if (aoa_codec_register(&tas->codec)) {
 		goto fail;
 	}
-	printk(KERN_DEBUG
+	printk(KERN_DE
 	       "snd-aoa-codec-tas: tas found, addr 0x%02x on %pOF\n",
 	       (unsigned int)client->addr, node);
 	return 0;

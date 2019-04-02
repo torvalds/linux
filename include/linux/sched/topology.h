@@ -136,7 +136,7 @@ struct sched_domain {
 	unsigned int ttwu_move_affine;
 	unsigned int ttwu_move_balance;
 #endif
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	char *name;
 #endif
 	union {
@@ -188,14 +188,14 @@ struct sched_domain_topology_level {
 	int		    flags;
 	int		    numa_level;
 	struct sd_data      data;
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	char                *name;
 #endif
 };
 
 extern void set_sched_topology(struct sched_domain_topology_level *tl);
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 # define SD_INIT_NAME(type)		.name = #type
 #else
 # define SD_INIT_NAME(type)

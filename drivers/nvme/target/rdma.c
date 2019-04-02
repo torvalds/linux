@@ -733,7 +733,7 @@ static bool nvmet_rdma_execute_command(struct nvmet_rdma_rsp *rsp)
 
 	if (unlikely(atomic_sub_return(1 + rsp->n_rdma,
 			&queue->sq_wr_avail) < 0)) {
-		pr_debug("IB send queue full (needed %d): queue %u cntlid %u\n",
+		pr_de("IB send queue full (needed %d): queue %u cntlid %u\n",
 				1 + rsp->n_rdma, queue->idx,
 				queue->nvme_sq.ctrl->cntlid);
 		atomic_add(1 + rsp->n_rdma, &queue->sq_wr_avail);
@@ -960,7 +960,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	list_add(&ndev->entry, &device_list);
 out_unlock:
 	mutex_unlock(&device_list_mutex);
-	pr_debug("added %s.\n", ndev->device->name);
+	pr_de("added %s.\n", ndev->device->name);
 	return ndev;
 
 out_free_pd:
@@ -1029,7 +1029,7 @@ static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 
 	atomic_set(&queue->sq_wr_avail, qp_attr.cap.max_send_wr);
 
-	pr_debug("%s: max_cqe= %d max_sge= %d sq_size = %d cm_id= %p\n",
+	pr_de("%s: max_cqe= %d max_sge= %d sq_size = %d cm_id= %p\n",
 		 __func__, queue->cq->cqe, qp_attr.cap.max_send_sge,
 		 qp_attr.cap.max_send_wr, queue->cm_id);
 
@@ -1064,7 +1064,7 @@ static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 
 static void nvmet_rdma_free_queue(struct nvmet_rdma_queue *queue)
 {
-	pr_debug("freeing queue %d\n", queue->idx);
+	pr_de("freeing queue %d\n", queue->idx);
 
 	nvmet_sq_destroy(&queue->nvme_sq);
 
@@ -1125,7 +1125,7 @@ static int nvmet_rdma_cm_reject(struct rdma_cm_id *cm_id,
 {
 	struct nvme_rdma_cm_rej rej;
 
-	pr_debug("rejecting connect request: status %d (%s)\n",
+	pr_de("rejecting connect request: status %d (%s)\n",
 		 status, nvme_rdma_cm_msg(status));
 
 	rej.recfmt = cpu_to_le16(NVME_RDMA_CM_FMT_1_0);
@@ -1341,7 +1341,7 @@ static void __nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue)
 	bool disconnect = false;
 	unsigned long flags;
 
-	pr_debug("cm_id= %p queue->state= %d\n", queue->cm_id, queue->state);
+	pr_de("cm_id= %p queue->state= %d\n", queue->cm_id, queue->state);
 
 	spin_lock_irqsave(&queue->state_lock, flags);
 	switch (queue->state) {
@@ -1446,7 +1446,7 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	if (cm_id->qp)
 		queue = cm_id->qp->qp_context;
 
-	pr_debug("%s (%d): status %d id %p\n",
+	pr_de("%s (%d): status %d id %p\n",
 		rdma_event_msg(event->event), event->event,
 		event->status, cm_id);
 
@@ -1466,7 +1466,7 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		ret = nvmet_rdma_device_removal(cm_id, queue);
 		break;
 	case RDMA_CM_EVENT_REJECTED:
-		pr_debug("Connection rejected: %s\n",
+		pr_de("Connection rejected: %s\n",
 			 rdma_reject_msg(cm_id, event->status));
 		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_UNREACHABLE:

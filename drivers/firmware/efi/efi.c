@@ -108,7 +108,7 @@ static int __init parse_efi_cmdline(char *str)
 		return -EINVAL;
 	}
 
-	if (parse_option_str(str, "debug"))
+	if (parse_option_str(str, "de"))
 		set_bit(EFI_DBG, &efi.flags);
 
 	if (parse_option_str(str, "noruntime"))
@@ -463,7 +463,7 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 
 	/*
 	 * Some architectures (x86) reserve all boot services ranges
-	 * until efi_free_boot_services() because of buggy firmware
+	 * until efi_free_boot_services() because of gy firmware
 	 * implementations. This means the above memblock_reserve() is
 	 * superfluous on x86 and instead what it needs to do is
 	 * ensure the @start, @size is not freed.

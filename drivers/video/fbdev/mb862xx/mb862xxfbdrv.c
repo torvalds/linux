@@ -12,7 +12,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/fb.h>
 #include <linux/delay.h>

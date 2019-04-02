@@ -32,7 +32,7 @@ int __meminit vmemmap_create_mapping(unsigned long start,
 		_PAGE_KERNEL_RW;
 
 	/* PTEs only contain page size encodings up to 32M */
-	BUG_ON(mmu_psize_defs[mmu_vmemmap_psize].enc > 0xf);
+	_ON(mmu_psize_defs[mmu_vmemmap_psize].enc > 0xf);
 
 	/* Encode the size in the PTE */
 	flags |= mmu_psize_defs[mmu_vmemmap_psize].enc << 8;
@@ -42,7 +42,7 @@ int __meminit vmemmap_create_mapping(unsigned long start,
 	 * thus must have the low bits clear
 	 */
 	for (i = 0; i < page_size; i += PAGE_SIZE)
-		BUG_ON(map_kernel_page(start + i, phys, __pgprot(flags)));
+		_ON(map_kernel_page(start + i, phys, __pgprot(flags)));
 
 	return 0;
 }
@@ -81,7 +81,7 @@ int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	BUILD_BUG_ON(TASK_SIZE_USER64 > PGTABLE_RANGE);
+	BUILD__ON(TASK_SIZE_USER64 > PGTABLE_RANGE);
 	if (slab_is_available()) {
 		pgdp = pgd_offset_k(ea);
 		pudp = pud_alloc(&init_mm, pgdp, ea);
@@ -98,20 +98,20 @@ int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 #ifndef __PAGETABLE_PUD_FOLDED
 		if (pgd_none(*pgdp)) {
 			pudp = early_alloc_pgtable(PUD_TABLE_SIZE);
-			BUG_ON(pudp == NULL);
+			_ON(pudp == NULL);
 			pgd_populate(&init_mm, pgdp, pudp);
 		}
 #endif /* !__PAGETABLE_PUD_FOLDED */
 		pudp = pud_offset(pgdp, ea);
 		if (pud_none(*pudp)) {
 			pmdp = early_alloc_pgtable(PMD_TABLE_SIZE);
-			BUG_ON(pmdp == NULL);
+			_ON(pmdp == NULL);
 			pud_populate(&init_mm, pudp, pmdp);
 		}
 		pmdp = pmd_offset(pudp, ea);
 		if (!pmd_present(*pmdp)) {
 			ptep = early_alloc_pgtable(PAGE_SIZE);
-			BUG_ON(ptep == NULL);
+			_ON(ptep == NULL);
 			pmd_populate_kernel(&init_mm, pmdp, ptep);
 		}
 		ptep = pte_offset_kernel(pmdp, ea);

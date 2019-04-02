@@ -10,7 +10,7 @@
  */
 
 #include <linux/bitmap.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -381,7 +381,7 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
 	}
 	/* This should not happen, every IRQ has a bank */
 	if (i == ARRAY_SIZE(pc->irq))
-		BUG();
+		();
 
 	chained_irq_enter(host_chip, desc);
 
@@ -997,8 +997,8 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 	struct bcm2835_pinctrl *pc;
 	struct resource iomem;
 	int err, i;
-	BUILD_BUG_ON(ARRAY_SIZE(bcm2835_gpio_pins) != BCM2835_NUM_GPIOS);
-	BUILD_BUG_ON(ARRAY_SIZE(bcm2835_gpio_groups) != BCM2835_NUM_GPIOS);
+	BUILD__ON(ARRAY_SIZE(bcm2835_gpio_pins) != BCM2835_NUM_GPIOS);
+	BUILD__ON(ARRAY_SIZE(bcm2835_gpio_groups) != BCM2835_NUM_GPIOS);
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)

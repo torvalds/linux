@@ -48,7 +48,7 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	 * | snps,dw-apb-gpio |  | snps,dw-apb-gpio |
 	 * -------------------   -------------------
 	 *        | #12                     |
-	 *        |                 [ Debug UART on cpu card ]
+	 *        |                 [ De UART on cpu card ]
 	 *        |
 	 * ------------------------
 	 * | snps,dw-apb-intc (MB)|

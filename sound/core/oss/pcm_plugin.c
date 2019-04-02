@@ -21,7 +21,7 @@
  */
   
 #if 0
-#define PLUGIN_DEBUG
+#define PLUGIN_DE
 #endif
 
 #include <linux/slab.h>
@@ -62,7 +62,7 @@ static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t
 	if ((width = snd_pcm_format_physical_width(format->format)) < 0)
 		return width;
 	size = frames * format->channels * width;
-	if (snd_BUG_ON(size % 8))
+	if (snd__ON(size % 8))
 		return -ENXIO;
 	size /= 8;
 	if (plugin->buf_frames < frames) {
@@ -85,7 +85,7 @@ static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t
 			c->area.step = format->channels * width;
 		}
 	} else if (plugin->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED) {
-		if (snd_BUG_ON(size % format->channels))
+		if (snd__ON(size % format->channels))
 			return -EINVAL;
 		size /= format->channels;
 		for (channel = 0; channel < format->channels; channel++, c++) {
@@ -104,14 +104,14 @@ static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t
 int snd_pcm_plug_alloc(struct snd_pcm_substream *plug, snd_pcm_uframes_t frames)
 {
 	int err;
-	if (snd_BUG_ON(!snd_pcm_plug_first(plug)))
+	if (snd__ON(!snd_pcm_plug_first(plug)))
 		return -ENXIO;
 	if (snd_pcm_plug_stream(plug) == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct snd_pcm_plugin *plugin = snd_pcm_plug_first(plug);
 		while (plugin->next) {
 			if (plugin->dst_frames)
 				frames = plugin->dst_frames(plugin, frames);
-			if (snd_BUG_ON((snd_pcm_sframes_t)frames <= 0))
+			if (snd__ON((snd_pcm_sframes_t)frames <= 0))
 				return -ENXIO;
 			plugin = plugin->next;
 			err = snd_pcm_plugin_alloc(plugin, frames);
@@ -123,7 +123,7 @@ int snd_pcm_plug_alloc(struct snd_pcm_substream *plug, snd_pcm_uframes_t frames)
 		while (plugin->prev) {
 			if (plugin->src_frames)
 				frames = plugin->src_frames(plugin, frames);
-			if (snd_BUG_ON((snd_pcm_sframes_t)frames <= 0))
+			if (snd__ON((snd_pcm_sframes_t)frames <= 0))
 				return -ENXIO;
 			plugin = plugin->prev;
 			err = snd_pcm_plugin_alloc(plugin, frames);
@@ -153,9 +153,9 @@ int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 	struct snd_pcm_plugin *plugin;
 	unsigned int channels;
 	
-	if (snd_BUG_ON(!plug))
+	if (snd__ON(!plug))
 		return -ENXIO;
-	if (snd_BUG_ON(!src_format || !dst_format))
+	if (snd__ON(!src_format || !dst_format))
 		return -ENXIO;
 	plugin = kzalloc(sizeof(*plugin) + extra, GFP_KERNEL);
 	if (plugin == NULL)
@@ -166,10 +166,10 @@ int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 	plugin->access = SNDRV_PCM_ACCESS_RW_INTERLEAVED;
 	plugin->src_format = *src_format;
 	plugin->src_width = snd_pcm_format_physical_width(src_format->format);
-	snd_BUG_ON(plugin->src_width <= 0);
+	snd__ON(plugin->src_width <= 0);
 	plugin->dst_format = *dst_format;
 	plugin->dst_width = snd_pcm_format_physical_width(dst_format->format);
-	snd_BUG_ON(plugin->dst_width <= 0);
+	snd__ON(plugin->dst_width <= 0);
 	if (plugin->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		channels = src_format->channels;
 	else
@@ -201,7 +201,7 @@ snd_pcm_sframes_t snd_pcm_plug_client_size(struct snd_pcm_substream *plug, snd_p
 	struct snd_pcm_plugin *plugin, *plugin_prev, *plugin_next;
 	int stream;
 
-	if (snd_BUG_ON(!plug))
+	if (snd__ON(!plug))
 		return -ENXIO;
 	if (drv_frames == 0)
 		return 0;
@@ -223,7 +223,7 @@ snd_pcm_sframes_t snd_pcm_plug_client_size(struct snd_pcm_substream *plug, snd_p
 			plugin = plugin_next;
 		}
 	} else
-		snd_BUG();
+		snd_();
 	return drv_frames;
 }
 
@@ -233,7 +233,7 @@ snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *plug, snd_pc
 	snd_pcm_sframes_t frames;
 	int stream;
 	
-	if (snd_BUG_ON(!plug))
+	if (snd__ON(!plug))
 		return -ENXIO;
 	if (clt_frames == 0)
 		return 0;
@@ -262,7 +262,7 @@ snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *plug, snd_pc
 			plugin = plugin_prev;
 		}
 	} else
-		snd_BUG();
+		snd_();
 	return frames;
 }
 
@@ -398,7 +398,7 @@ int snd_pcm_plug_format_plugins(struct snd_pcm_substream *plug,
 		dst_access = SNDRV_PCM_ACCESS_RW_INTERLEAVED;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 	tmpformat = srcformat;
@@ -557,7 +557,7 @@ snd_pcm_sframes_t snd_pcm_plug_client_channels_buf(struct snd_pcm_substream *plu
 	int width, nchannels, channel;
 	int stream = snd_pcm_plug_stream(plug);
 
-	if (snd_BUG_ON(!buf))
+	if (snd__ON(!buf))
 		return -ENXIO;
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		plugin = snd_pcm_plug_first(plug);
@@ -571,7 +571,7 @@ snd_pcm_sframes_t snd_pcm_plug_client_channels_buf(struct snd_pcm_substream *plu
 	if ((width = snd_pcm_format_physical_width(format->format)) < 0)
 		return width;
 	nchannels = format->channels;
-	if (snd_BUG_ON(plugin->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
+	if (snd__ON(plugin->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
 		       format->channels > 1))
 		return -ENXIO;
 	for (channel = 0; channel < nchannels; channel++, v++) {

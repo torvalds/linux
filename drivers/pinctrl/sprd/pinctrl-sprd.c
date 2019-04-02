@@ -12,7 +12,7 @@
  * General Public License for more details.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -844,7 +844,7 @@ static const struct pinconf_generic_params sprd_dt_params[] = {
 	{"sprd,sleep-mode", SPRD_PIN_CONFIG_SLEEP_MODE, 0},
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static const struct pin_config_item sprd_conf_items[] = {
 	PCONFDUMP(SPRD_PIN_CONFIG_CONTROL, "global control", NULL, true),
 	PCONFDUMP(SPRD_PIN_CONFIG_SLEEP_MODE, "sleep mode", NULL, true),
@@ -857,7 +857,7 @@ static struct pinctrl_desc sprd_pinctrl_desc = {
 	.confops = &sprd_pinconf_ops,
 	.num_custom_params = ARRAY_SIZE(sprd_dt_params),
 	.custom_params = sprd_dt_params,
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	.custom_conf_items = sprd_conf_items,
 #endif
 	.owner = THIS_MODULE,

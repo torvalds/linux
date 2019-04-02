@@ -62,7 +62,7 @@ static void of_artpec6_clkctrl_setup(struct device_node *np)
 		clks[i] = ERR_PTR(-EPROBE_DEFER);
 
 	clkdata->syscon_base = of_iomap(np, 0);
-	BUG_ON(clkdata->syscon_base == NULL);
+	_ON(clkdata->syscon_base == NULL);
 
 	/* Read PLL1 factors configured by boot strap pins. */
 	pll_mode = (readl(clkdata->syscon_base) >> 6) & 3;

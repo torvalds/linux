@@ -125,7 +125,7 @@ static int smpboot_thread_fn(void *data)
 			__set_current_state(TASK_RUNNING);
 			preempt_enable();
 			if (ht->park && td->status == HP_THREAD_ACTIVE) {
-				BUG_ON(td->cpu != smp_processor_id());
+				_ON(td->cpu != smp_processor_id());
 				ht->park(td->cpu);
 				td->status = HP_THREAD_PARKED;
 			}
@@ -134,7 +134,7 @@ static int smpboot_thread_fn(void *data)
 			continue;
 		}
 
-		BUG_ON(td->cpu != smp_processor_id());
+		_ON(td->cpu != smp_processor_id());
 
 		/* Check for state change setup */
 		switch (td->status) {

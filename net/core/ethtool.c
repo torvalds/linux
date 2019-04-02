@@ -150,7 +150,7 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 	int i;
 
 	/* in case feature bits run out again */
-	BUILD_BUG_ON(ETHTOOL_DEV_FEATURE_WORDS * sizeof(u32) > sizeof(netdev_features_t));
+	BUILD__ON(ETHTOOL_DEV_FEATURE_WORDS * sizeof(u32) > sizeof(netdev_features_t));
 
 	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
 		features[i].available = (u32)(dev->hw_features >> (32 * i));
@@ -289,7 +289,7 @@ static netdev_features_t ethtool_get_feature_mask(u32 eth_cmd)
 	case ETHTOOL_SGRO:
 		return NETIF_F_GRO;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -995,7 +995,7 @@ u8 netdev_rss_key[NETDEV_RSS_KEY_LEN] __read_mostly;
 
 void netdev_rss_key_fill(void *buffer, size_t len)
 {
-	BUG_ON(len > sizeof(netdev_rss_key));
+	_ON(len > sizeof(netdev_rss_key));
 	net_get_random_once(netdev_rss_key, sizeof(netdev_rss_key));
 	memcpy(buffer, netdev_rss_key, len);
 }

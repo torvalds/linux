@@ -293,7 +293,7 @@
 		156 = /dev/lcd		Front panel LCD display
 		157 = /dev/ac		Applicom Intl Profibus card
 		158 = /dev/nwbutton	Netwinder external button
-		159 = /dev/nwdebug	Netwinder debug interface
+		159 = /dev/nwde	Netwinder de interface
 		160 = /dev/nwflash	Netwinder flash memory
 		161 = /dev/userdma	User-space DMA access
 		162 = /dev/smbus	System Management Bus
@@ -833,7 +833,7 @@
 		distributed; either obtain an official number or use
 		the local/experimental range.  The sudden addition or
 		removal of a driver with this number should not cause
-		ill effects to the system (bugs excepted.)
+		ill effects to the system (s excepted.)
 
 		IN PARTICULAR, ANY DISTRIBUTION WHICH CONTAINS A
 		DEVICE DRIVER USING MAJOR NUMBER 42 IS NONCOMPLIANT.
@@ -875,9 +875,9 @@
 		  0 = /dev/isdn0	First virtual B channel raw data
 		    ...
 		 63 = /dev/isdn63	64th virtual B channel raw data
-		 64 = /dev/isdnctrl0	First channel control/debug
+		 64 = /dev/isdnctrl0	First channel control/de
 		    ...
-		127 = /dev/isdnctrl63	64th channel control/debug
+		127 = /dev/isdnctrl63	64th channel control/de
 
 		128 = /dev/ippp0	First SyncPPP device
 		    ...
@@ -980,7 +980,7 @@
 
 		Partitions are handled as for major 48.
 
-  53 char	BDM interface for remote debugging MC683xx microcontrollers
+  53 char	BDM interface for remote deging MC683xx microcontrollers
 		  0 = /dev/pd_bdm0	PD BDM interface on lp0
 		  1 = /dev/pd_bdm1	PD BDM interface on lp1
 		  2 = /dev/pd_bdm2	PD BDM interface on lp2
@@ -989,7 +989,7 @@
 		  6 = /dev/icd_bdm2	ICD BDM interface on lp2
 
 		This device is used for the interfacing to the MC683xx
-		microcontrollers via Background Debug Mode by use of a
+		microcontrollers via Background De Mode by use of a
 		Parallel Port interface. PD is the Motorola Public
 		Domain Interface and ICD is the commercial interface
 		by P&E.
@@ -1112,14 +1112,14 @@
 		 65 = /dev/rplink1	Second plink device, raw
 		 66 = /dev/rplink2	Third plink device, raw
 		 67 = /dev/rplink3	Fourth plink device, raw
-		128 = /dev/plink0d	First plink device, debug
-		129 = /dev/plink1d	Second plink device, debug
-		130 = /dev/plink2d	Third plink device, debug
-		131 = /dev/plink3d	Fourth plink device, debug
-		192 = /dev/rplink0d	First plink device, raw, debug
-		193 = /dev/rplink1d	Second plink device, raw, debug
-		194 = /dev/rplink2d	Third plink device, raw, debug
-		195 = /dev/rplink3d	Fourth plink device, raw, debug
+		128 = /dev/plink0d	First plink device, de
+		129 = /dev/plink1d	Second plink device, de
+		130 = /dev/plink2d	Third plink device, de
+		131 = /dev/plink3d	Fourth plink device, de
+		192 = /dev/rplink0d	First plink device, raw, de
+		193 = /dev/rplink1d	Second plink device, raw, de
+		194 = /dev/rplink2d	Third plink device, raw, de
+		195 = /dev/rplink3d	Fourth plink device, raw, de
 
 		This is a commercial driver; contact James Howes
 		<jth@prosig.demon.co.uk> for information.
@@ -1206,7 +1206,7 @@
 		  0 = /dev/apscfg	Configuration interface
 		  1 = /dev/apsauth	Authentication interface
 		  2 = /dev/apslog	Logging interface
-		  3 = /dev/apsdbg	Debugging interface
+		  3 = /dev/apsdbg	Deging interface
 		 64 = /dev/apsisdn	ISDN command interface
 		 65 = /dev/apsasync	Async command interface
 		128 = /dev/apsmon	Monitor interface

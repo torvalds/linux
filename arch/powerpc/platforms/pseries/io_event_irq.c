@@ -92,7 +92,7 @@ static struct pseries_io_event * ioei_find_event(struct rtas_error_log *elog)
 	if (unlikely(!sect)) {
 		printk_once(KERN_WARNING "io_event_irq: RTAS extended event "
 			    "log does not contain an IO Event section. "
-			    "Could be a bug in system firmware!\n");
+			    "Could be a  in system firmware!\n");
 		return NULL;
 	}
 	return (struct pseries_io_event *) &sect->data;

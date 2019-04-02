@@ -616,7 +616,7 @@ ppc4xx_edac_generate_message(const struct mem_ctl_info *mci,
 	ppc4xx_edac_generate_plb_message(mci, status, buffer, size);
 }
 
-#ifdef DEBUG
+#ifdef DE
 /**
  * ppc4xx_ecc_dump_status - dump controller ECC status registers
  * @mci: A pointer to the EDAC memory controller instance
@@ -649,7 +649,7 @@ ppc4xx_ecc_dump_status(const struct mem_ctl_info *mci,
 			      status->bearl,
 			      message);
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 /**
  * ppc4xx_ecc_get_status - get controller ECC status
@@ -777,14 +777,14 @@ ppc4xx_edac_handle_ue(struct mem_ctl_info *mci,
 static void
 ppc4xx_edac_check(struct mem_ctl_info *mci)
 {
-#ifdef DEBUG
+#ifdef DE
 	static unsigned int count;
 #endif
 	struct ppc4xx_ecc_status status;
 
 	ppc4xx_ecc_get_status(mci, &status);
 
-#ifdef DEBUG
+#ifdef DE
 	if (count++ % 30 == 0)
 		ppc4xx_ecc_dump_status(mci, &status);
 #endif

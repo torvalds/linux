@@ -385,7 +385,7 @@ static void init_ldb_clks(struct device_node *np, void __iomem *ccm_base)
 		/* Then configure the top mux before switching back to it */
 		sel[i][2] = sel[i][3] | 4;
 
-		pr_debug("ccm: switching ldb_di%d_sel: %d->%d->%d->%d\n", i,
+		pr_de("ccm: switching ldb_di%d_sel: %d->%d->%d->%d\n", i,
 			 sel[i][0], sel[i][1], sel[i][2], sel[i][3]);
 	}
 
@@ -659,7 +659,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	} else {
 		/*
 		 * The LDB_DI0/1_SEL muxes are registered read-only due to a hardware
-		 * bug. Set the muxes to the requested values before registering the
+		 * . Set the muxes to the requested values before registering the
 		 * ldb_di_sel clocks.
 		 */
 		init_ldb_clks(np, base);

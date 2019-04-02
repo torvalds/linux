@@ -23,7 +23,7 @@
 #include <brcmu_utils.h>
 #include <defs.h>
 #include "core.h"
-#include "debug.h"
+#include "de.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "p2p.h"
@@ -302,7 +302,7 @@ static bool brcmf_p2p_is_gas_action(void *frame, u32 frame_len)
 }
 
 /**
- * brcmf_p2p_print_actframe() - debug print routine.
+ * brcmf_p2p_print_actframe() - de print routine.
  *
  * @tx: Received or to be transmitted
  * @frame: action frame data.
@@ -311,7 +311,7 @@ static bool brcmf_p2p_is_gas_action(void *frame, u32 frame_len)
  * Print information about the p2p action frame
  */
 
-#ifdef DEBUG
+#ifdef DE
 
 static void brcmf_p2p_print_actframe(bool tx, void *frame, u32 frame_len)
 {

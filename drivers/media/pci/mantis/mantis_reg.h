@@ -65,11 +65,11 @@
 #define MANTIS_DCAP_EN			(0x01 <<  1)
 #define MANTIS_RISC_EN			(0x01 <<  0)
 
-/* DEBUG */
-#define MANTIS_DEBUGREG			0x0c
+/* DE */
+#define MANTIS_DEREG			0x0c
 #define MANTIS_DATINV			(0x0e <<  7)
-#define MANTIS_TOP_DEBUGSEL		(0x07 <<  4)
-#define MANTIS_PCMCIA_DEBUGSEL		(0x0f <<  0)
+#define MANTIS_TOP_DESEL		(0x07 <<  4)
+#define MANTIS_PCMCIA_DESEL		(0x0f <<  0)
 
 #define MANTIS_RISC_START		0x10
 #define MANTIS_RISC_PC			0x14

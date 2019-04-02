@@ -72,7 +72,7 @@ static void wa_init_finish(struct i915_wa_list *wal)
 	if (!wal->count)
 		return;
 
-	DRM_DEBUG_DRIVER("Initialized %u %s workarounds\n",
+	DRM_DE_DRIVER("Initialized %u %s workarounds\n",
 			 wal->wa_count, wal->name);
 }
 
@@ -83,7 +83,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	const unsigned int grow = WA_LIST_CHUNK;
 	struct i915_wa *wa_;
 
-	GEM_BUG_ON(!is_power_of_2(grow));
+	GEM__ON(!is_power_of_2(grow));
 
 	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
 		struct i915_wa *list;
@@ -131,7 +131,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	*wa_ = *wa;
 
 	while (wa_-- > wal->list) {
-		GEM_BUG_ON(i915_mmio_reg_offset(wa_[0].reg) ==
+		GEM__ON(i915_mmio_reg_offset(wa_[0].reg) ==
 			   i915_mmio_reg_offset(wa_[1].reg));
 		if (i915_mmio_reg_offset(wa_[1].reg) >
 		    i915_mmio_reg_offset(wa_[0].reg))
@@ -299,10 +299,10 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 				  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
-	/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt,kbl,glk,cfl */
+	/* WaEnableYV12FixInHalfSliceChicken7:skl,bxt,kbl,glk,cfl */
 	/* WaEnableSamplerGPGPUPreemptionSupport:skl,bxt,kbl,cfl */
 	WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
-			  GEN9_ENABLE_YV12_BUGFIX |
+			  GEN9_ENABLE_YV12_FIX |
 			  GEN9_ENABLE_GPGPU_PREEMPTION);
 
 	/* Wa4x4STCOptimizationDisable:skl,bxt,kbl,glk,cfl */
@@ -425,7 +425,7 @@ static void bxt_ctx_workarounds_init(struct intel_engine_cs *engine)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  STALL_DOP_GATING_DISABLE);
 
-	/* WaToEnableHwFixForPushConstHWBug:bxt */
+	/* WaToEnableHwFixForPushConstHW:bxt */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 }
@@ -437,7 +437,7 @@ static void kbl_ctx_workarounds_init(struct intel_engine_cs *engine)
 
 	gen9_ctx_workarounds_init(engine);
 
-	/* WaToEnableHwFixForPushConstHWBug:kbl */
+	/* WaToEnableHwFixForPushConstHW:kbl */
 	if (IS_KBL_REVID(i915, KBL_REVID_C0, REVID_FOREVER))
 		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
@@ -453,7 +453,7 @@ static void glk_ctx_workarounds_init(struct intel_engine_cs *engine)
 
 	gen9_ctx_workarounds_init(engine);
 
-	/* WaToEnableHwFixForPushConstHWBug:glk */
+	/* WaToEnableHwFixForPushConstHW:glk */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 }
@@ -464,7 +464,7 @@ static void cfl_ctx_workarounds_init(struct intel_engine_cs *engine)
 
 	gen9_ctx_workarounds_init(engine);
 
-	/* WaToEnableHwFixForPushConstHWBug:cfl */
+	/* WaToEnableHwFixForPushConstHW:cfl */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
@@ -987,7 +987,7 @@ whitelist_reg(struct i915_wa_list *wal, i915_reg_t reg)
 		.reg = reg
 	};
 
-	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
+	if (GEM_DE_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
 		return;
 
 	_wa_add(wal, &wa);
@@ -1059,7 +1059,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	GEM_BUG_ON(engine->id != RCS);
+	GEM__ON(engine->id != RCS);
 
 	wa_init_start(w, "whitelist");
 

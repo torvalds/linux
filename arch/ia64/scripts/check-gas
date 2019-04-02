@@ -9,7 +9,7 @@ $CC -c $dir/check-gas-asm.S -o $out
 res=$($OBJDUMP -r --section .data $out | fgrep 00004 | tr -s ' ' |cut -f3 -d' ')
 rm -f $out
 if [ $res != ".text" ]; then
-	echo buggy
+	echo gy
 else
 	echo good
 fi

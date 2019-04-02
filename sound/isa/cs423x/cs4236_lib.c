@@ -5,7 +5,7 @@
  *  Note:
  *     -----
  *
- *  Bugs:
+ *  s:
  *     -----
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -172,7 +172,7 @@ static unsigned char divisor_to_rate_register(unsigned int divisor)
 	case 2558:	return 7;
 	default:
 		if (divisor < 21 || divisor > 192) {
-			snd_BUG();
+			snd_();
 			return 192;
 		}
 		return divisor;
@@ -302,10 +302,10 @@ int snd_cs4236_create(struct snd_card *card,
 	{
 		int idx;
 		for (idx = 0; idx < 8; idx++)
-			snd_printk(KERN_DEBUG "CD%i = 0x%x\n",
+			snd_printk(KERN_DE "CD%i = 0x%x\n",
 				   idx, inb(chip->cport + idx));
 		for (idx = 0; idx < 9; idx++)
-			snd_printk(KERN_DEBUG "C%i = 0x%x\n",
+			snd_printk(KERN_DE "C%i = 0x%x\n",
 				   idx, snd_cs4236_ctrl_in(chip, idx));
 	}
 #endif
@@ -950,7 +950,7 @@ static int snd_cs4236_get_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = chip->image[CS4231_ALT_FEATURE_1] & 0x02 ? 1 : 0;
 #if 0
-	printk(KERN_DEBUG "get valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
+	printk(KERN_DE "get valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
 	       "C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
 			snd_wss_in(chip, CS4231_ALT_FEATURE_1),
 			snd_cs4236_ctrl_in(chip, 3),
@@ -988,7 +988,7 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	mutex_unlock(&chip->mce_mutex);
 
 #if 0
-	printk(KERN_DEBUG "set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
+	printk(KERN_DE "set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
 	       "C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
 			snd_wss_in(chip, CS4231_ALT_FEATURE_1),
 			snd_cs4236_ctrl_in(chip, 3),
@@ -1036,7 +1036,7 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 	int err;
 	struct snd_kcontrol_new *kcontrol;
 
-	if (snd_BUG_ON(!chip || !chip->card))
+	if (snd__ON(!chip || !chip->card))
 		return -EINVAL;
 	card = chip->card;
 	strcpy(card->mixername, snd_wss_chip_id(chip));

@@ -247,7 +247,7 @@ static void aac_aif_callback(void *context, struct fib * fibptr)
 	int status;
 
 	fibctx = (struct fib *)context;
-	BUG_ON(fibptr == NULL);
+	_ON(fibptr == NULL);
 	dev = fibptr->dev;
 
 	if ((fibptr->hw_fib_va->header.XferState &

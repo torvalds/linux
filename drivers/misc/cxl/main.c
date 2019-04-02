@@ -156,10 +156,10 @@ int cxl_alloc_sst(struct cxl_context *ctx)
 	return 0;
 }
 
-/* print buffer content as integers when debugging */
-void cxl_dump_debug_buffer(void *buf, size_t buf_len)
+/* print buffer content as integers when deging */
+void cxl_dump_de_buffer(void *buf, size_t buf_len)
 {
-#ifdef DEBUG
+#ifdef DE
 	int i, *ptr;
 
 	/*
@@ -179,7 +179,7 @@ void cxl_dump_debug_buffer(void *buf, size_t buf_len)
 		else
 			pr_devel("%.8x\n", ptr[i]);
 	}
-#endif /* DEBUG */
+#endif /* DE */
 }
 
 /* Find a CXL adapter by it's number and increase it's refcount */
@@ -322,7 +322,7 @@ static int __init init_cxl(void)
 	if ((rc = cxl_file_init()))
 		return rc;
 
-	cxl_debugfs_init();
+	cxl_defs_init();
 
 	/*
 	 * we don't register the callback on P9. slb callack is only
@@ -352,7 +352,7 @@ err1:
 	if (cxl_is_power8())
 		unregister_cxl_calls(&cxl_calls);
 err:
-	cxl_debugfs_exit();
+	cxl_defs_exit();
 	cxl_file_exit();
 
 	return rc;
@@ -367,7 +367,7 @@ static void exit_cxl(void)
 		platform_driver_unregister(&cxl_of_driver);
 #endif
 
-	cxl_debugfs_exit();
+	cxl_defs_exit();
 	cxl_file_exit();
 	if (cxl_is_power8())
 		unregister_cxl_calls(&cxl_calls);

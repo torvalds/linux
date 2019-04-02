@@ -3,7 +3,7 @@
 
 #exit status
 #1: Internal error
-#2: sysfs/debugfs not mount
+#2: sysfs/defs not mount
 #3: insert module fail when gpio-mockup is a module.
 #4: Skip test including run as non-root user.
 #5: other reason.
@@ -11,8 +11,8 @@
 SYSFS=
 GPIO_SYSFS=
 GPIO_DRV_SYSFS=
-DEBUGFS=
-GPIO_DEBUGFS=
+DEFS=
+GPIO_DEFS=
 dev_type=
 module=
 
@@ -47,12 +47,12 @@ prerequisite()
 	fi
 	GPIO_SYSFS=`echo $SYSFS/class/gpio`
 	GPIO_DRV_SYSFS=`echo $SYSFS/devices/platform/$module/gpio`
-	DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-	if [ ! -d "$DEBUGFS" ]; then
-		echo $msg debugfs is not mounted >&2
+	DEFS=`mount -t defs | head -1 | awk '{ print $3 }'`
+	if [ ! -d "$DEFS" ]; then
+		echo $msg defs is not mounted >&2
 		exit 2
 	fi
-	GPIO_DEBUGFS=`echo $DEBUGFS/gpio`
+	GPIO_DEFS=`echo $DEFS/gpio`
 	source gpio-mockup-sysfs.sh
 }
 

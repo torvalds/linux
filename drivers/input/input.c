@@ -1081,7 +1081,7 @@ static void *input_devices_seq_start(struct seq_file *seq, loff_t *pos)
 	int error;
 
 	/* We need to fit into seq->private pointer */
-	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+	BUILD__ON(sizeof(union input_seq_state) != sizeof(seq->private));
 
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error) {
@@ -1205,7 +1205,7 @@ static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
 	int error;
 
 	/* We need to fit into seq->private pointer */
-	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
+	BUILD__ON(sizeof(union input_seq_state) != sizeof(seq->private));
 
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error) {

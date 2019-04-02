@@ -35,7 +35,7 @@
 #include <linux/page-flags.h>
 #include <linux/srcu.h>
 #include <linux/miscdevice.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -51,7 +51,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/asm-prototypes.h>
 #include <asm/archrandom.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
@@ -80,9 +80,9 @@
 #define CREATE_TRACE_POINTS
 #include "trace_hv.h"
 
-/* #define EXIT_DEBUG */
-/* #define EXIT_DEBUG_SIMPLE */
-/* #define EXIT_DEBUG_INT */
+/* #define EXIT_DE */
+/* #define EXIT_DE_SIMPLE */
+/* #define EXIT_DE_INT */
 
 /* Used to indicate that a guest page fault needs to be handled */
 #define RESUME_PAGE_FAULT	(RESUME_GUEST | RESUME_FLAG_ARCH1)
@@ -544,7 +544,7 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 		 * use 640 bytes of the structure though, so we should accept
 		 * clients that set a size of 640.
 		 */
-		BUILD_BUG_ON(sizeof(struct lppaca) != 640);
+		BUILD__ON(sizeof(struct lppaca) != 640);
 		if (len < sizeof(struct lppaca))
 			break;
 		vpap = &tvcpu->arch.vpa;
@@ -1054,7 +1054,7 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	return kvmppc_hcall_impl_hv_realmode(cmd);
 }
 
-static int kvmppc_emulate_debug_inst(struct kvm_run *run,
+static int kvmppc_emulate_de_inst(struct kvm_run *run,
 					struct kvm_vcpu *vcpu)
 {
 	u32 last_inst;
@@ -1069,8 +1069,8 @@ static int kvmppc_emulate_debug_inst(struct kvm_run *run,
 	}
 
 	if (last_inst == KVMPPC_INST_SW_BREAKPOINT) {
-		run->exit_reason = KVM_EXIT_DEBUG;
-		run->debug.arch.address = kvmppc_get_pc(vcpu);
+		run->exit_reason = KVM_EXIT_DE;
+		run->de.arch.address = kvmppc_get_pc(vcpu);
 		return RESUME_HOST;
 	} else {
 		kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
@@ -1183,7 +1183,7 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * of guest entry or the first stages of guest exit (i.e. after
 	 * setting paca->kvm_hstate.in_guest to KVM_GUEST_MODE_GUEST_HV
 	 * and before setting it to KVM_GUEST_MODE_HOST_HV).
-	 * That can happen due to a bug, or due to a machine check
+	 * That can happen due to a , or due to a machine check
 	 * occurring at just the wrong time.
 	 */
 	if (vcpu->arch.shregs.msr & MSR_HV) {
@@ -1297,8 +1297,8 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	/*
 	 * This occurs if the guest executes an illegal instruction.
-	 * If the guest debug is disabled, generate a program interrupt
-	 * to the guest. If guest debug is enabled, we need to check
+	 * If the guest de is disabled, generate a program interrupt
+	 * to the guest. If guest de is enabled, we need to check
 	 * whether the instruction is a software breakpoint instruction.
 	 * Accordingly return to Guest or Host.
 	 */
@@ -1307,8 +1307,8 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.last_inst = kvmppc_need_byteswap(vcpu) ?
 				swab32(vcpu->arch.emul_inst) :
 				vcpu->arch.emul_inst;
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP) {
-			r = kvmppc_emulate_debug_inst(run, vcpu);
+		if (vcpu->guest_de & KVM_GUESTDBG_USE_SW_BP) {
+			r = kvmppc_emulate_de_inst(run, vcpu);
 		} else {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
 			r = RESUME_GUEST;
@@ -1372,7 +1372,7 @@ static int kvmppc_handle_nested_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	 * of guest entry or the first stages of guest exit (i.e. after
 	 * setting paca->kvm_hstate.in_guest to KVM_GUEST_MODE_GUEST_HV
 	 * and before setting it to KVM_GUEST_MODE_HOST_HV).
-	 * That can happen due to a bug, or due to a machine check
+	 * That can happen due to a , or due to a machine check
 	 * occurring at just the wrong time.
 	 */
 	if (vcpu->arch.shregs.msr & MSR_HV) {
@@ -1552,7 +1552,7 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	long int i;
 
 	switch (id) {
-	case KVM_REG_PPC_DEBUG_INST:
+	case KVM_REG_PPC_DE_INST:
 		*val = get_reg_val(id, KVMPPC_INST_SW_BREAKPOINT);
 		break;
 	case KVM_REG_PPC_HIOR:
@@ -2029,7 +2029,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int id)
 }
 
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
-static struct debugfs_timings_element {
+static struct defs_timings_element {
 	const char *name;
 	size_t offset;
 } timings[] = {
@@ -2042,16 +2042,16 @@ static struct debugfs_timings_element {
 
 #define N_TIMINGS	(ARRAY_SIZE(timings))
 
-struct debugfs_timings_state {
+struct defs_timings_state {
 	struct kvm_vcpu	*vcpu;
 	unsigned int	buflen;
 	char		buf[N_TIMINGS * 100];
 };
 
-static int debugfs_timings_open(struct inode *inode, struct file *file)
+static int defs_timings_open(struct inode *inode, struct file *file)
 {
 	struct kvm_vcpu *vcpu = inode->i_private;
-	struct debugfs_timings_state *p;
+	struct defs_timings_state *p;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
@@ -2064,19 +2064,19 @@ static int debugfs_timings_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int debugfs_timings_release(struct inode *inode, struct file *file)
+static int defs_timings_release(struct inode *inode, struct file *file)
 {
-	struct debugfs_timings_state *p = file->private_data;
+	struct defs_timings_state *p = file->private_data;
 
 	kvm_put_kvm(p->vcpu->kvm);
 	kfree(p);
 	return 0;
 }
 
-static ssize_t debugfs_timings_read(struct file *file, char __user *buf,
+static ssize_t defs_timings_read(struct file *file, char __user *buf,
 				    size_t len, loff_t *ppos)
 {
-	struct debugfs_timings_state *p = file->private_data;
+	struct defs_timings_state *p = file->private_data;
 	struct kvm_vcpu *vcpu = p->vcpu;
 	char *s, *buf_end;
 	struct kvmhv_tb_accumulator tb;
@@ -2138,40 +2138,40 @@ static ssize_t debugfs_timings_read(struct file *file, char __user *buf,
 	return len;
 }
 
-static ssize_t debugfs_timings_write(struct file *file, const char __user *buf,
+static ssize_t defs_timings_write(struct file *file, const char __user *buf,
 				     size_t len, loff_t *ppos)
 {
 	return -EACCES;
 }
 
-static const struct file_operations debugfs_timings_ops = {
+static const struct file_operations defs_timings_ops = {
 	.owner	 = THIS_MODULE,
-	.open	 = debugfs_timings_open,
-	.release = debugfs_timings_release,
-	.read	 = debugfs_timings_read,
-	.write	 = debugfs_timings_write,
+	.open	 = defs_timings_open,
+	.release = defs_timings_release,
+	.read	 = defs_timings_read,
+	.write	 = defs_timings_write,
 	.llseek	 = generic_file_llseek,
 };
 
-/* Create a debugfs directory for the vcpu */
-static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+/* Create a defs directory for the vcpu */
+static void defs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
 {
 	char buf[16];
 	struct kvm *kvm = vcpu->kvm;
 
 	snprintf(buf, sizeof(buf), "vcpu%u", id);
-	if (IS_ERR_OR_NULL(kvm->arch.debugfs_dir))
+	if (IS_ERR_OR_NULL(kvm->arch.defs_dir))
 		return;
-	vcpu->arch.debugfs_dir = debugfs_create_dir(buf, kvm->arch.debugfs_dir);
-	if (IS_ERR_OR_NULL(vcpu->arch.debugfs_dir))
+	vcpu->arch.defs_dir = defs_create_dir(buf, kvm->arch.defs_dir);
+	if (IS_ERR_OR_NULL(vcpu->arch.defs_dir))
 		return;
-	vcpu->arch.debugfs_timings =
-		debugfs_create_file("timings", 0444, vcpu->arch.debugfs_dir,
-				    vcpu, &debugfs_timings_ops);
+	vcpu->arch.defs_timings =
+		defs_create_file("timings", 0444, vcpu->arch.defs_dir,
+				    vcpu, &defs_timings_ops);
 }
 
 #else /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
-static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+static void defs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
 {
 }
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
@@ -2245,7 +2245,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 			pr_devel("KVM: VCPU ID too high\n");
 			core = KVM_MAX_VCORES;
 		} else {
-			BUG_ON(kvm->arch.smt_mode != 1);
+			_ON(kvm->arch.smt_mode != 1);
 			core = kvmppc_pack_vcpu_id(kvm, id);
 		}
 	} else {
@@ -2280,7 +2280,7 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
 
-	debugfs_vcpu_init(vcpu, id);
+	defs_vcpu_init(vcpu, id);
 
 	return vcpu;
 
@@ -4822,13 +4822,13 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	kvm->arch.emul_smt_mode = 1;
 
 	/*
-	 * Create a debugfs directory for the VM
+	 * Create a defs directory for the VM
 	 */
 	snprintf(buf, sizeof(buf), "vm%d", current->pid);
-	kvm->arch.debugfs_dir = debugfs_create_dir(buf, kvm_debugfs_dir);
-	kvmppc_mmu_debugfs_init(kvm);
+	kvm->arch.defs_dir = defs_create_dir(buf, kvm_defs_dir);
+	kvmppc_mmu_defs_init(kvm);
 	if (radix_enabled())
-		kvmhv_radix_debugfs_init(kvm);
+		kvmhv_radix_defs_init(kvm);
 
 	return 0;
 }
@@ -4844,7 +4844,7 @@ static void kvmppc_free_vcores(struct kvm *kvm)
 
 static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 {
-	debugfs_remove_recursive(kvm->arch.debugfs_dir);
+	defs_remove_recursive(kvm->arch.defs_dir);
 
 	if (!kvm->arch.threads_indep)
 		kvm_hv_vm_deactivated();

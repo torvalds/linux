@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/kernel.h>

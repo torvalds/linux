@@ -259,7 +259,7 @@ void __init smp_init_pseries(void)
 {
 	int i;
 
-	pr_debug(" -> smp_init_pSeries()\n");
+	pr_de(" -> smp_init_pSeries()\n");
 	smp_ops = &pseries_smp_ops;
 
 	alloc_bootmem_cpumask_var(&of_spin_mask);
@@ -288,5 +288,5 @@ void __init smp_init_pseries(void)
 		smp_ops->take_timebase = rtas_take_timebase;
 	}
 
-	pr_debug(" <- smp_init_pSeries()\n");
+	pr_de(" <- smp_init_pSeries()\n");
 }

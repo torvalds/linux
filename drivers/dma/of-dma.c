@@ -38,7 +38,7 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 		if (ofdma->of_node == dma_spec->np)
 			return ofdma;
 
-	pr_debug("%s: can't find DMA controller %pOF\n", __func__,
+	pr_de("%s: can't find DMA controller %pOF\n", __func__,
 		 dma_spec->np);
 
 	return NULL;

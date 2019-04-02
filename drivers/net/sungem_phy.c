@@ -1175,7 +1175,7 @@ int sungem_phy_probe(struct mii_phy *phy, int mii_id)
 
 	/* Read ID and find matching entry */
 	id = (sungem_phy_read(phy, MII_PHYSID1) << 16 | sungem_phy_read(phy, MII_PHYSID2));
-	printk(KERN_DEBUG KBUILD_MODNAME ": " "PHY ID: %x, addr: %x\n",
+	printk(KERN_DE KBUILD_MODNAME ": " "PHY ID: %x, addr: %x\n",
 	       id, mii_id);
 	for (i=0; (def = mii_phy_table[i]) != NULL; i++)
 		if ((id & def->phy_id_mask) == def->phy_id)

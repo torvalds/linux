@@ -70,7 +70,7 @@ int wl1251_cmd_test(struct wl1251 *wl, void *buf, size_t buf_len, u8 answer)
 {
 	int ret;
 
-	wl1251_debug(DEBUG_CMD, "cmd test");
+	wl1251_de(DE_CMD, "cmd test");
 
 	ret = wl1251_cmd_send(wl, CMD_TEST, buf, buf_len);
 
@@ -112,7 +112,7 @@ int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	struct acx_header *acx = buf;
 	int ret;
 
-	wl1251_debug(DEBUG_CMD, "cmd interrogate");
+	wl1251_de(DE_CMD, "cmd interrogate");
 
 	acx->id = id;
 
@@ -150,7 +150,7 @@ int wl1251_cmd_configure(struct wl1251 *wl, u16 id, void *buf, size_t len)
 	struct acx_header *acx = buf;
 	int ret;
 
-	wl1251_debug(DEBUG_CMD, "cmd configure");
+	wl1251_de(DE_CMD, "cmd configure");
 
 	acx->id = id;
 
@@ -172,7 +172,7 @@ int wl1251_cmd_vbm(struct wl1251 *wl, u8 identity,
 	struct wl1251_cmd_vbm_update *vbm;
 	int ret;
 
-	wl1251_debug(DEBUG_CMD, "cmd vbm");
+	wl1251_de(DE_CMD, "cmd vbm");
 
 	vbm = kzalloc(sizeof(*vbm), GFP_KERNEL);
 	if (!vbm) {
@@ -210,7 +210,7 @@ int wl1251_cmd_data_path_rx(struct wl1251 *wl, u8 channel, bool enable)
 	int ret;
 	u16 cmd_rx;
 
-	wl1251_debug(DEBUG_CMD, "cmd data path");
+	wl1251_de(DE_CMD, "cmd data path");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -232,7 +232,7 @@ int wl1251_cmd_data_path_rx(struct wl1251 *wl, u8 channel, bool enable)
 		goto out;
 	}
 
-	wl1251_debug(DEBUG_BOOT, "rx %s cmd channel %d",
+	wl1251_de(DE_BOOT, "rx %s cmd channel %d",
 		     enable ? "start" : "stop", channel);
 
 out:
@@ -246,7 +246,7 @@ int wl1251_cmd_data_path_tx(struct wl1251 *wl, u8 channel, bool enable)
 	int ret;
 	u16 cmd_tx;
 
-	wl1251_debug(DEBUG_CMD, "cmd data path");
+	wl1251_de(DE_CMD, "cmd data path");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
@@ -264,7 +264,7 @@ int wl1251_cmd_data_path_tx(struct wl1251 *wl, u8 channel, bool enable)
 		wl1251_error("tx %s cmd for channel %d failed",
 			     enable ? "start" : "stop", channel);
 	else
-		wl1251_debug(DEBUG_BOOT, "tx %s cmd channel %d",
+		wl1251_de(DE_BOOT, "tx %s cmd channel %d",
 			     enable ? "start" : "stop", channel);
 
 	kfree(cmd);
@@ -284,7 +284,7 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 		goto out;
 	}
 
-	wl1251_debug(DEBUG_CMD, "cmd join%s ch %d %d/%d",
+	wl1251_de(DE_CMD, "cmd join%s ch %d %d/%d",
 		     bss_type == BSS_TYPE_IBSS ? " ibss" : "",
 		     channel, beacon_interval, dtim_interval);
 
@@ -321,7 +321,7 @@ int wl1251_cmd_ps_mode(struct wl1251 *wl, u8 ps_mode)
 	struct wl1251_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
 
-	wl1251_debug(DEBUG_CMD, "cmd set ps mode");
+	wl1251_de(DE_CMD, "cmd set ps mode");
 
 	ps_params = kzalloc(sizeof(*ps_params), GFP_KERNEL);
 	if (!ps_params) {
@@ -353,7 +353,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 	struct cmd_read_write_memory *cmd;
 	int ret = 0;
 
-	wl1251_debug(DEBUG_CMD, "cmd read memory");
+	wl1251_de(DE_CMD, "cmd read memory");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
@@ -394,7 +394,7 @@ int wl1251_cmd_template_set(struct wl1251 *wl, u16 cmd_id,
 	size_t cmd_len;
 	int ret = 0;
 
-	wl1251_debug(DEBUG_CMD, "cmd template %d", cmd_id);
+	wl1251_de(DE_CMD, "cmd template %d", cmd_id);
 
 	WARN_ON(buf_len > WL1251_MAX_TEMPLATE_SIZE);
 	buf_len = min_t(size_t, buf_len, WL1251_MAX_TEMPLATE_SIZE);
@@ -429,7 +429,7 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 	struct wl1251_cmd_scan *cmd;
 	int i, ret = 0;
 
-	wl1251_debug(DEBUG_CMD, "cmd scan channels %d", n_channels);
+	wl1251_de(DE_CMD, "cmd scan channels %d", n_channels);
 
 	WARN_ON(n_channels > SCAN_MAX_NUM_OF_CHANNELS);
 
@@ -445,7 +445,7 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 	/*
 	 * Use high priority scan when not associated to prevent fw issue
 	 * causing never-ending scans (sometimes 20+ minutes).
-	 * Note: This bug may be caused by the fw's DTIM handling.
+	 * Note: This  may be caused by the fw's DTIM handling.
 	 */
 	if (is_zero_ether_addr(wl->bssid))
 		cmd->params.scan_options |= cpu_to_le16(WL1251_SCAN_OPT_PRIORITY_HIGH);
@@ -495,7 +495,7 @@ int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout)
 	struct wl1251_cmd_trigger_scan_to *cmd;
 	int ret;
 
-	wl1251_debug(DEBUG_CMD, "cmd trigger scan to");
+	wl1251_de(DE_CMD, "cmd trigger scan to");
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)

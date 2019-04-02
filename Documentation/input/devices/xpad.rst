@@ -132,7 +132,7 @@ Driver Installation
 
 Once you have the adapter cable, if needed, and the controller connected
 the xpad module should be auto loaded. To confirm you can cat
-/sys/kernel/debug/usb/devices. There should be an entry like those:
+/sys/kernel/de/usb/devices. There should be an entry like those:
 
 .. code-block:: none
    :caption: dump from InterAct PowerPad Pro (Germany)

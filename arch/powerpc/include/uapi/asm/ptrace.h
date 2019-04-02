@@ -170,11 +170,11 @@ struct pt_regs
 #define PTRACE_SYSEMU_SINGLESTEP	0x1e
 
 /*
- * Get or set a debug register. The first 16 are DABR registers and the
+ * Get or set a de register. The first 16 are DABR registers and the
  * second 16 are IABR registers.
  */
-#define PTRACE_GET_DEBUGREG	0x19
-#define PTRACE_SET_DEBUGREG	0x1a
+#define PTRACE_GET_DEREG	0x19
+#define PTRACE_SET_DEREG	0x1a
 
 /* (new) PTRACE requests using the same numbers as x86 and the same
  * argument ordering. Additionally, they support more registers too
@@ -197,12 +197,12 @@ struct pt_regs
 #define PTRACE_SINGLEBLOCK	0x100	/* resume execution until next branch */
 
 #define PPC_PTRACE_GETHWDBGINFO	0x89
-#define PPC_PTRACE_SETHWDEBUG	0x88
-#define PPC_PTRACE_DELHWDEBUG	0x87
+#define PPC_PTRACE_SETHWDE	0x88
+#define PPC_PTRACE_DELHWDE	0x87
 
 #ifndef __ASSEMBLY__
 
-struct ppc_debug_info {
+struct ppc_de_info {
 	__u32 version;			/* Only version 1 exists to date */
 	__u32 num_instruction_bps;
 	__u32 num_data_bps;
@@ -217,11 +217,11 @@ struct ppc_debug_info {
 /*
  * features will have bits indication whether there is support for:
  */
-#define PPC_DEBUG_FEATURE_INSN_BP_RANGE		0x0000000000000001
-#define PPC_DEBUG_FEATURE_INSN_BP_MASK		0x0000000000000002
-#define PPC_DEBUG_FEATURE_DATA_BP_RANGE		0x0000000000000004
-#define PPC_DEBUG_FEATURE_DATA_BP_MASK		0x0000000000000008
-#define PPC_DEBUG_FEATURE_DATA_BP_DAWR		0x0000000000000010
+#define PPC_DE_FEATURE_INSN_BP_RANGE		0x0000000000000001
+#define PPC_DE_FEATURE_INSN_BP_MASK		0x0000000000000002
+#define PPC_DE_FEATURE_DATA_BP_RANGE		0x0000000000000004
+#define PPC_DE_FEATURE_DATA_BP_MASK		0x0000000000000008
+#define PPC_DE_FEATURE_DATA_BP_DAWR		0x0000000000000010
 
 #ifndef __ASSEMBLY__
 

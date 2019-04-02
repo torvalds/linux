@@ -6,10 +6,10 @@
  *  (GPL) Version 2, available from the file COPYING in the main directory of
  *  this source tree.
  */
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 #include <linux/uaccess.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 
 #include "qedf.h"
@@ -18,27 +18,27 @@
 static struct dentry *qedf_dbg_root;
 
 /**
- * qedf_dbg_host_init - setup the debugfs file for the pf
+ * qedf_dbg_host_init - setup the defs file for the pf
  * @pf: the pf that is starting up
  **/
 void
 qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
-		    const struct qedf_debugfs_ops *dops,
+		    const struct qedf_defs_ops *dops,
 		    const struct file_operations *fops)
 {
 	char host_dirname[32];
 
-	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "Creating debugfs host node\n");
+	QEDF_INFO(qedf, QEDF_LOG_DEFS, "Creating defs host node\n");
 	/* create pf dir */
 	sprintf(host_dirname, "host%u", qedf->host_no);
-	qedf->bdf_dentry = debugfs_create_dir(host_dirname, qedf_dbg_root);
+	qedf->bdf_dentry = defs_create_dir(host_dirname, qedf_dbg_root);
 
-	/* create debugfs files */
+	/* create defs files */
 	while (dops) {
 		if (!(dops->name))
 			break;
 
-		debugfs_create_file(dops->name, 0600, qedf->bdf_dentry, qedf,
+		defs_create_file(dops->name, 0600, qedf->bdf_dentry, qedf,
 				    fops);
 		dops++;
 		fops++;
@@ -46,49 +46,49 @@ qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
 }
 
 /**
- * qedf_dbg_host_exit - clear out the pf's debugfs entries
+ * qedf_dbg_host_exit - clear out the pf's defs entries
  * @pf: the pf that is stopping
  **/
 void
 qedf_dbg_host_exit(struct qedf_dbg_ctx *qedf)
 {
-	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "Destroying debugfs host "
+	QEDF_INFO(qedf, QEDF_LOG_DEFS, "Destroying defs host "
 		   "entry\n");
-	/* remove debugfs  entries of this PF */
-	debugfs_remove_recursive(qedf->bdf_dentry);
+	/* remove defs  entries of this PF */
+	defs_remove_recursive(qedf->bdf_dentry);
 	qedf->bdf_dentry = NULL;
 }
 
 /**
- * qedf_dbg_init - start up debugfs for the driver
+ * qedf_dbg_init - start up defs for the driver
  **/
 void
 qedf_dbg_init(char *drv_name)
 {
-	QEDF_INFO(NULL, QEDF_LOG_DEBUGFS, "Creating debugfs root node\n");
+	QEDF_INFO(NULL, QEDF_LOG_DEFS, "Creating defs root node\n");
 
-	/* create qed dir in root of debugfs. NULL means debugfs root */
-	qedf_dbg_root = debugfs_create_dir(drv_name, NULL);
+	/* create qed dir in root of defs. NULL means defs root */
+	qedf_dbg_root = defs_create_dir(drv_name, NULL);
 }
 
 /**
- * qedf_dbg_exit - clean out the driver's debugfs entries
+ * qedf_dbg_exit - clean out the driver's defs entries
  **/
 void
 qedf_dbg_exit(void)
 {
-	QEDF_INFO(NULL, QEDF_LOG_DEBUGFS, "Destroying debugfs root "
+	QEDF_INFO(NULL, QEDF_LOG_DEFS, "Destroying defs root "
 		   "entry\n");
 
-	/* remove qed dir in root of debugfs */
-	debugfs_remove_recursive(qedf_dbg_root);
+	/* remove qed dir in root of defs */
+	defs_remove_recursive(qedf_dbg_root);
 	qedf_dbg_root = NULL;
 }
 
-const struct qedf_debugfs_ops qedf_debugfs_ops[] = {
+const struct qedf_defs_ops qedf_defs_ops[] = {
 	{ "fp_int", NULL },
 	{ "io_trace", NULL },
-	{ "debug", NULL },
+	{ "de", NULL },
 	{ "stop_io_on_error", NULL},
 	{ "driver_stats", NULL},
 	{ "clear_stats", NULL},
@@ -111,7 +111,7 @@ qedf_dbg_fp_int_cmd_read(struct file *filp, char __user *buffer, size_t count,
 	struct qedf_ctx *qedf = container_of(qedf_dbg,
 	    struct qedf_ctx, dbg_ctx);
 
-	QEDF_INFO(qedf_dbg, QEDF_LOG_DEBUGFS, "entered\n");
+	QEDF_INFO(qedf_dbg, QEDF_LOG_DEFS, "entered\n");
 
 	cnt = sprintf(buffer, "\nFastpath I/O completions\n\n");
 
@@ -139,15 +139,15 @@ qedf_dbg_fp_int_cmd_write(struct file *filp, const char __user *buffer,
 }
 
 static ssize_t
-qedf_dbg_debug_cmd_read(struct file *filp, char __user *buffer, size_t count,
+qedf_dbg_de_cmd_read(struct file *filp, char __user *buffer, size_t count,
 			loff_t *ppos)
 {
 	int cnt;
 	struct qedf_dbg_ctx *qedf =
 				(struct qedf_dbg_ctx *)filp->private_data;
 
-	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "entered\n");
-	cnt = sprintf(buffer, "debug mask = 0x%x\n", qedf_debug);
+	QEDF_INFO(qedf, QEDF_LOG_DEFS, "entered\n");
+	cnt = sprintf(buffer, "de mask = 0x%x\n", qedf_de);
 
 	cnt = min_t(int, count, cnt - *ppos);
 	*ppos += cnt;
@@ -155,7 +155,7 @@ qedf_dbg_debug_cmd_read(struct file *filp, char __user *buffer, size_t count,
 }
 
 static ssize_t
-qedf_dbg_debug_cmd_write(struct file *filp, const char __user *buffer,
+qedf_dbg_de_cmd_write(struct file *filp, const char __user *buffer,
 			 size_t count, loff_t *ppos)
 {
 	uint32_t val;
@@ -177,11 +177,11 @@ qedf_dbg_debug_cmd_write(struct file *filp, const char __user *buffer,
 		return rval;
 
 	if (val == 1)
-		qedf_debug = QEDF_DEFAULT_LOG_MASK;
+		qedf_de = QEDF_DEFAULT_LOG_MASK;
 	else
-		qedf_debug = val;
+		qedf_de = val;
 
-	QEDF_INFO(qedf, QEDF_LOG_DEBUGFS, "Setting debug=0x%x.\n", val);
+	QEDF_INFO(qedf, QEDF_LOG_DEFS, "Setting de=0x%x.\n", val);
 	return count;
 }
 
@@ -195,7 +195,7 @@ qedf_dbg_stop_io_on_error_cmd_read(struct file *filp, char __user *buffer,
 	struct qedf_ctx *qedf = container_of(qedf_dbg,
 	    struct qedf_ctx, dbg_ctx);
 
-	QEDF_INFO(qedf_dbg, QEDF_LOG_DEBUGFS, "entered\n");
+	QEDF_INFO(qedf_dbg, QEDF_LOG_DEFS, "entered\n");
 	cnt = sprintf(buffer, "%s\n",
 	    qedf->stop_io_on_error ? "true" : "false");
 
@@ -215,7 +215,7 @@ qedf_dbg_stop_io_on_error_cmd_write(struct file *filp,
 	struct qedf_ctx *qedf = container_of(qedf_dbg, struct qedf_ctx,
 	    dbg_ctx);
 
-	QEDF_INFO(qedf_dbg, QEDF_LOG_DEBUGFS, "entered\n");
+	QEDF_INFO(qedf_dbg, QEDF_LOG_DEFS, "entered\n");
 
 	if (!count || *ppos)
 		return 0;
@@ -250,7 +250,7 @@ qedf_io_trace_show(struct seq_file *s, void *unused)
 		goto out;
 	}
 
-	QEDF_INFO(qedf_dbg, QEDF_LOG_DEBUGFS, "entered\n");
+	QEDF_INFO(qedf_dbg, QEDF_LOG_DEFS, "entered\n");
 
 	spin_lock_irqsave(&qedf->io_trace_lock, flags);
 	idx = qedf->io_trace_idx;
@@ -354,7 +354,7 @@ qedf_dbg_clear_stats_cmd_write(struct file *filp,
 	struct qedf_ctx *qedf = container_of(qedf_dbg, struct qedf_ctx,
 	    dbg_ctx);
 
-	QEDF_INFO(qedf_dbg, QEDF_LOG_DEBUGFS, "Clearing stat counters.\n");
+	QEDF_INFO(qedf_dbg, QEDF_LOG_DEFS, "Clearing stat counters.\n");
 
 	if (!count || *ppos)
 		return 0;
@@ -428,7 +428,7 @@ qedf_dbg_offload_stats_open(struct inode *inode, struct file *file)
 const struct file_operations qedf_dbg_fops[] = {
 	qedf_dbg_fileops(qedf, fp_int),
 	qedf_dbg_fileops_seq(qedf, io_trace),
-	qedf_dbg_fileops(qedf, debug),
+	qedf_dbg_fileops(qedf, de),
 	qedf_dbg_fileops(qedf, stop_io_on_error),
 	qedf_dbg_fileops_seq(qedf, driver_stats),
 	qedf_dbg_fileops(qedf, clear_stats),
@@ -437,9 +437,9 @@ const struct file_operations qedf_dbg_fops[] = {
 	{ },
 };
 
-#else /* CONFIG_DEBUG_FS */
+#else /* CONFIG_DE_FS */
 void qedf_dbg_host_init(struct qedf_dbg_ctx *);
 void qedf_dbg_host_exit(struct qedf_dbg_ctx *);
 void qedf_dbg_init(char *);
 void qedf_dbg_exit(void);
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */

@@ -10,7 +10,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the Licence, or (at your option) any later version.
  */
-//#define DEBUG
+//#define DE
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -246,7 +246,7 @@ follow_shortcut:
 	shortcut = assoc_array_ptr_to_shortcut(cursor);
 	pr_devel("shortcut to %d\n", shortcut->skip_to_level);
 	sc_level = level + ASSOC_ARRAY_LEVEL_STEP;
-	BUG_ON(sc_level > shortcut->skip_to_level);
+	_ON(sc_level > shortcut->skip_to_level);
 
 	do {
 		/* Check the leaf against the shortcut's index key a word at a
@@ -364,20 +364,20 @@ move_to_meta:
 	if (assoc_array_ptr_is_shortcut(cursor)) {
 		/* Descend through a shortcut */
 		pr_devel("[%d] shortcut\n", slot);
-		BUG_ON(!assoc_array_ptr_is_shortcut(cursor));
+		_ON(!assoc_array_ptr_is_shortcut(cursor));
 		shortcut = assoc_array_ptr_to_shortcut(cursor);
-		BUG_ON(shortcut->back_pointer != parent);
-		BUG_ON(slot != -1 && shortcut->parent_slot != slot);
+		_ON(shortcut->back_pointer != parent);
+		_ON(slot != -1 && shortcut->parent_slot != slot);
 		parent = cursor;
 		cursor = shortcut->next_node;
 		slot = -1;
-		BUG_ON(!assoc_array_ptr_is_node(cursor));
+		_ON(!assoc_array_ptr_is_node(cursor));
 	}
 
 	pr_devel("[%d] node\n", slot);
 	node = assoc_array_ptr_to_node(cursor);
-	BUG_ON(node->back_pointer != parent);
-	BUG_ON(slot != -1 && node->parent_slot != slot);
+	_ON(node->back_pointer != parent);
+	_ON(slot != -1 && node->parent_slot != slot);
 	slot = 0;
 
 continue_node:
@@ -409,7 +409,7 @@ continue_node:
 	 * the way up) */
 	if (assoc_array_ptr_is_shortcut(parent)) {
 		shortcut = assoc_array_ptr_to_shortcut(parent);
-		BUG_ON(shortcut->next_node != cursor);
+		_ON(shortcut->next_node != cursor);
 		cursor = parent;
 		parent = shortcut->back_pointer;
 		slot = shortcut->parent_slot;
@@ -418,7 +418,7 @@ continue_node:
 		if (!parent)
 			return;
 
-		BUG_ON(!assoc_array_ptr_is_node(parent));
+		_ON(!assoc_array_ptr_is_node(parent));
 	}
 
 	/* Ascend to next slot in parent node */
@@ -641,9 +641,9 @@ do_split_node:
 	}
 found_slot_for_multiple_occupancy:
 	pr_devel("same slot: %x %x [%02x]\n", i, j, slot);
-	BUG_ON(i >= ASSOC_ARRAY_FAN_OUT);
-	BUG_ON(j >= ASSOC_ARRAY_FAN_OUT + 1);
-	BUG_ON(slot >= ASSOC_ARRAY_FAN_OUT);
+	_ON(i >= ASSOC_ARRAY_FAN_OUT);
+	_ON(j >= ASSOC_ARRAY_FAN_OUT + 1);
+	_ON(slot >= ASSOC_ARRAY_FAN_OUT);
 
 	new_n1->parent_slot = slot;
 
@@ -653,7 +653,7 @@ found_slot_for_multiple_occupancy:
 			new_n0->slots[i] = node->slots[i];
 		else
 			new_n0->slots[i] = NULL;
-	BUG_ON(new_n0->slots[slot] != NULL);
+	_ON(new_n0->slots[slot] != NULL);
 	new_n0->slots[slot] = assoc_array_node_to_ptr(new_n1);
 
 	/* Filter the leaf pointers between the new nodes */
@@ -686,13 +686,13 @@ found_slot_for_multiple_occupancy:
 		edit->adjust_count_on = new_n1;
 	}
 
-	BUG_ON(next_slot <= 1);
+	_ON(next_slot <= 1);
 
 	edit->set_backpointers_to = assoc_array_node_to_ptr(new_n0);
 	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
 		if (edit->segment_cache[i] == 0xff) {
 			ptr = node->slots[i];
-			BUG_ON(assoc_array_ptr_is_leaf(ptr));
+			_ON(assoc_array_ptr_is_leaf(ptr));
 			if (assoc_array_ptr_is_node(ptr)) {
 				side = assoc_array_ptr_to_node(ptr);
 				edit->set_backpointers[i] = &side->back_pointer;
@@ -735,12 +735,12 @@ all_leaves_cluster_together:
 		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
 					  index_key);
 		if (x < diff) {
-			BUG_ON(x < 0);
+			_ON(x < 0);
 			diff = x;
 		}
 	}
-	BUG_ON(diff == INT_MAX);
-	BUG_ON(diff < level + ASSOC_ARRAY_LEVEL_STEP);
+	_ON(diff == INT_MAX);
+	_ON(diff < level + ASSOC_ARRAY_LEVEL_STEP);
 
 	keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
 	keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
@@ -762,7 +762,7 @@ all_leaves_cluster_together:
 
 	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
 	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
-	BUG_ON(level <= 0);
+	_ON(level <= 0);
 
 	for (i = 0; i < keylen; i++)
 		new_s0->index_key[i] =
@@ -831,7 +831,7 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
 		node = assoc_array_ptr_to_node(shortcut->back_pointer);
 		edit->set[0].ptr = &node->slots[shortcut->parent_slot];
 	} else {
-		BUG();
+		();
 	}
 
 	edit->excised_meta[0] = assoc_array_shortcut_to_ptr(shortcut);
@@ -980,7 +980,7 @@ struct assoc_array_edit *assoc_array_insert(struct assoc_array *array,
 	 * allowed as they indicate an empty slot but we have to allow them
 	 * here as they can be updated later.
 	 */
-	BUG_ON(assoc_array_ptr_is_meta(object));
+	_ON(assoc_array_ptr_is_meta(object));
 
 	edit = kzalloc(sizeof(struct assoc_array_edit), GFP_KERNEL);
 	if (!edit)
@@ -1034,7 +1034,7 @@ enomem:
  */
 void assoc_array_insert_set_object(struct assoc_array_edit *edit, void *object)
 {
-	BUG_ON(!object);
+	_ON(!object);
 	edit->leaf = assoc_array_leaf_to_ptr(object);
 }
 
@@ -1055,7 +1055,7 @@ static int assoc_array_delete_collapse_iterator(const void *leaf,
 	if (leaf == collapse->skip_leaf)
 		return 0;
 
-	BUG_ON(collapse->slot >= ASSOC_ARRAY_FAN_OUT);
+	_ON(collapse->slot >= ASSOC_ARRAY_FAN_OUT);
 
 	collapse->node->slots[collapse->slot++] = assoc_array_leaf_to_ptr(leaf);
 	return 0;
@@ -1127,7 +1127,7 @@ struct assoc_array_edit *assoc_array_delete(struct assoc_array *array,
 	}
 
 found_leaf:
-	BUG_ON(array->nr_leaves_on_tree <= 0);
+	_ON(array->nr_leaves_on_tree <= 0);
 
 	/* In the simplest form of deletion we just clear the slot and release
 	 * the leaf after a suitable interval.
@@ -1229,12 +1229,12 @@ found_leaf:
 						    assoc_array_delete_collapse_iterator,
 						    &collapse);
 			pr_devel("collapsed %d,%lu\n", collapse.slot, new_n0->nr_leaves_on_branch);
-			BUG_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
+			_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
 
 			if (!node->back_pointer) {
 				edit->set[1].ptr = &array->root;
 			} else if (assoc_array_ptr_is_leaf(node->back_pointer)) {
-				BUG();
+				();
 			} else if (assoc_array_ptr_is_node(node->back_pointer)) {
 				struct assoc_array_node *p =
 					assoc_array_ptr_to_node(node->back_pointer);
@@ -1317,7 +1317,7 @@ static void assoc_array_rcu_cleanup(struct rcu_head *head)
 			kfree(assoc_array_ptr_to_node(edit->excised_meta[i]));
 
 	if (edit->excised_subtree) {
-		BUG_ON(assoc_array_ptr_is_leaf(edit->excised_subtree));
+		_ON(assoc_array_ptr_is_leaf(edit->excised_subtree));
 		if (assoc_array_ptr_is_node(edit->excised_subtree)) {
 			struct assoc_array_node *n =
 				assoc_array_ptr_to_node(edit->excised_subtree);
@@ -1391,7 +1391,7 @@ void assoc_array_apply_edit(struct assoc_array_edit *edit)
 				if (!ptr)
 					break;
 			}
-			BUG_ON(!assoc_array_ptr_is_node(ptr));
+			_ON(!assoc_array_ptr_is_node(ptr));
 			node = assoc_array_ptr_to_node(ptr);
 		}
 
@@ -1586,7 +1586,7 @@ continue_node:
 			/* We would already have reaped an intervening shortcut
 			 * on the way back up the tree.
 			 */
-			BUG_ON(s);
+			_ON(s);
 
 			new_n->slots[slot] = NULL;
 			nr_free++;
@@ -1596,10 +1596,10 @@ continue_node:
 				struct assoc_array_ptr *p = child->slots[i];
 				if (!p)
 					continue;
-				BUG_ON(assoc_array_ptr_is_meta(p));
+				_ON(assoc_array_ptr_is_meta(p));
 				while (new_n->slots[next_slot])
 					next_slot++;
-				BUG_ON(next_slot >= ASSOC_ARRAY_FAN_OUT);
+				_ON(next_slot >= ASSOC_ARRAY_FAN_OUT);
 				new_n->slots[next_slot++] = p;
 				nr_free--;
 			}
@@ -1705,7 +1705,7 @@ ascend_old_tree:
 		slot = node->parent_slot;
 		cursor = ptr;
 	}
-	BUG_ON(!cursor);
+	_ON(!cursor);
 	node = assoc_array_ptr_to_node(cursor);
 	slot++;
 	goto continue_node;

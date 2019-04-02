@@ -304,14 +304,14 @@ char *brcmu_dotrev_str(u32 dotrev, char *buf)
 }
 EXPORT_SYMBOL(brcmu_dotrev_str);
 
-#if defined(DEBUG)
+#if defined(DE)
 /* pretty hex print a pkt buffer chain */
 void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 {
 	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
-		pr_debug("%s:\n", msg);
+		pr_de("%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, p->data, p->len);
@@ -328,7 +328,7 @@ void brcmu_dbg_hex_dump(const void *data, size_t size, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_debug("%pV", &vaf);
+	pr_de("%pV", &vaf);
 
 	va_end(args);
 
@@ -336,4 +336,4 @@ void brcmu_dbg_hex_dump(const void *data, size_t size, const char *fmt, ...)
 }
 EXPORT_SYMBOL(brcmu_dbg_hex_dump);
 
-#endif				/* defined(DEBUG) */
+#endif				/* defined(DE) */

@@ -179,7 +179,7 @@ raw3270_request_free (struct raw3270_request *rq)
 void
 raw3270_request_reset(struct raw3270_request *rq)
 {
-	BUG_ON(!list_empty(&rq->list));
+	_ON(!list_empty(&rq->list));
 	rq->ccw.cmd_code = 0;
 	rq->ccw.count = 0;
 	rq->ccw.cda = __pa(rq->buffer);

@@ -19,13 +19,13 @@ MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
-static int debug = -1;
-module_param(debug, int, 0644);
-#ifndef CONFIG_DYNAMIC_DEBUG
-MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all), hw debug_mask (0x8XXXXXXX)");
+static int de = -1;
+module_param(de, int, 0644);
+#ifndef CONFIG_DYNAMIC_DE
+MODULE_PARM_DESC(de, "netif level (0=none,...,16=all), hw de_mask (0x8XXXXXXX)");
 #else
-MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all)");
-#endif /* !CONFIG_DYNAMIC_DEBUG */
+MODULE_PARM_DESC(de, "netif level (0=none,...,16=all)");
+#endif /* !CONFIG_DYNAMIC_DE */
 
 static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_ops;
@@ -2124,11 +2124,11 @@ static int ice_probe(struct pci_dev *pdev,
 	hw->bus.func = PCI_FUNC(pdev->devfn);
 	ice_set_ctrlq_len(hw);
 
-	pf->msg_enable = netif_msg_init(debug, ICE_DFLT_NETIF_M);
+	pf->msg_enable = netif_msg_init(de, ICE_DFLT_NETIF_M);
 
-#ifndef CONFIG_DYNAMIC_DEBUG
-	if (debug < -1)
-		hw->debug_mask = debug;
+#ifndef CONFIG_DYNAMIC_DE
+	if (de < -1)
+		hw->de_mask = de;
 #endif
 
 	err = ice_init_hw(hw);

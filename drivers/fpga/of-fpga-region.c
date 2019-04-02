@@ -355,16 +355,16 @@ static int of_fpga_region_notify(struct notifier_block *nb,
 
 	switch (action) {
 	case OF_OVERLAY_PRE_APPLY:
-		pr_debug("%s OF_OVERLAY_PRE_APPLY\n", __func__);
+		pr_de("%s OF_OVERLAY_PRE_APPLY\n", __func__);
 		break;
 	case OF_OVERLAY_POST_APPLY:
-		pr_debug("%s OF_OVERLAY_POST_APPLY\n", __func__);
+		pr_de("%s OF_OVERLAY_POST_APPLY\n", __func__);
 		return NOTIFY_OK;       /* not for us */
 	case OF_OVERLAY_PRE_REMOVE:
-		pr_debug("%s OF_OVERLAY_PRE_REMOVE\n", __func__);
+		pr_de("%s OF_OVERLAY_PRE_REMOVE\n", __func__);
 		return NOTIFY_OK;       /* not for us */
 	case OF_OVERLAY_POST_REMOVE:
-		pr_debug("%s OF_OVERLAY_POST_REMOVE\n", __func__);
+		pr_de("%s OF_OVERLAY_POST_REMOVE\n", __func__);
 		break;
 	default:			/* should not happen */
 		return NOTIFY_OK;

@@ -436,7 +436,7 @@ static void s3c64xx_eint_gpio_irq(struct irq_desc *desc)
 		 * Something must be really wrong if an unmapped EINT
 		 * was unmasked...
 		 */
-		BUG_ON(!virq);
+		_ON(!virq);
 
 		generic_handle_irq(virq);
 	} while (1);
@@ -616,7 +616,7 @@ static inline void s3c64xx_irq_demux_eint(struct irq_desc *desc, u32 range)
 		 * Something must be really wrong if an unmapped EINT
 		 * was unmasked...
 		 */
-		BUG_ON(!virq);
+		_ON(!virq);
 
 		generic_handle_irq(virq);
 	}

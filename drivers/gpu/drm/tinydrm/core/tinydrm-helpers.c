@@ -256,7 +256,7 @@ tinydrm_dbg_spi_print(struct spi_device *spi, struct spi_transfer *tr,
 			   DIV_ROUND_UP(tr->bits_per_word, 8),
 			   linebuf, sizeof(linebuf), false);
 
-	printk(KERN_DEBUG
+	printk(KERN_DE
 	       "    tr(%i): speed=%u%s, bpw=%i, len=%u, %s_buf=[%s%s]\n", idx,
 	       speed_hz > 1000000 ? speed_hz / 1000000 : speed_hz / 1000,
 	       speed_hz > 1000000 ? "MHz" : "kHz", tr->bits_per_word, tr->len,
@@ -317,8 +317,8 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 
 	max_chunk = tinydrm_spi_max_transfer_size(spi, 0);
 
-	if (drm_debug & DRM_UT_DRIVER)
-		pr_debug("[drm:%s] bpw=%u, max_chunk=%zu, transfers:\n",
+	if (drm_de & DRM_UT_DRIVER)
+		pr_de("[drm:%s] bpw=%u, max_chunk=%zu, transfers:\n",
 			 __func__, bpw, max_chunk);
 
 	if (bpw == 16 && !tinydrm_spi_bpw_supported(spi, 16)) {

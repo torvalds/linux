@@ -395,7 +395,7 @@ static int __init feat_enable_pmu_power8(struct dt_cpu_feature *f)
 	cur_cpu_spec->cpu_features |= CPU_FTR_MMCRA;
 	cur_cpu_spec->cpu_user_features |= PPC_FEATURE_PSERIES_PERFMON_COMPAT;
 	if (pvr_version_is(PVR_POWER8E))
-		cur_cpu_spec->cpu_features |= CPU_FTR_PMAO_BUG;
+		cur_cpu_spec->cpu_features |= CPU_FTR_PMAO_;
 
 	cur_cpu_spec->num_pmcs		= 6;
 	cur_cpu_spec->pmc_type		= PPC_PMC_IBM;
@@ -532,7 +532,7 @@ static int __init feat_enable_hvi(struct dt_cpu_feature *f)
 	 * However LPES0 is not set here, in the chance that an EE does get
 	 * delivered to the host somehow, the EE handler would not expect it
 	 * to be delivered in LPES0 mode (e.g., using SRR[01]). This could
-	 * happen if there is a bug in interrupt controller code, or IC is
+	 * happen if there is a  in interrupt controller code, or IC is
 	 * misconfigured in systemsim.
 	 */
 
@@ -567,7 +567,7 @@ static struct dt_cpu_feature_match __initdata
 	{"interrupt-facilities", feat_enable, 0},
 	{"timer-facilities", feat_enable, 0},
 	{"timer-facilities-v3", feat_enable, 0},
-	{"debug-facilities", feat_enable, 0},
+	{"de-facilities", feat_enable, 0},
 	{"come-from-address-register", feat_enable, CPU_FTR_CFAR},
 	{"branch-tracing", feat_enable, 0},
 	{"floating-point", feat_enable_fp, 0},
@@ -585,7 +585,7 @@ static struct dt_cpu_feature_match __initdata
 	{"transactional-memory", feat_enable_tm, CPU_FTR_TM},
 	{"transactional-memory-v3", feat_enable_tm, 0},
 	{"tm-suspend-hypervisor-assist", feat_enable, CPU_FTR_P9_TM_HV_ASSIST},
-	{"tm-suspend-xer-so-bug", feat_enable, CPU_FTR_P9_TM_XER_SO_BUG},
+	{"tm-suspend-xer-so-", feat_enable, CPU_FTR_P9_TM_XER_SO_},
 	{"idle-nap", feat_enable_idle_nap, 0},
 	{"alignment-interrupt-dsisr", feat_enable_align_dsisr, 0},
 	{"idle-stop", feat_enable_idle_stop, 0},
@@ -684,9 +684,9 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 	}
 
 	if (known)
-		pr_debug("enabling: %s\n", f->name);
+		pr_de("enabling: %s\n", f->name);
 	else
-		pr_debug("enabling: %s (unknown)\n", f->name);
+		pr_de("enabling: %s (unknown)\n", f->name);
 
 	return true;
 }
@@ -704,7 +704,7 @@ static __init void cpufeatures_cpu_quirks(void)
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
 	else if ((version & 0xffffefff) == 0x004e0202) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_HV_ASSIST;
-		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_BUG;
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_;
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
 	} else if ((version & 0xffff0000) == 0x004e0000)
 		/* DD2.1 and up have DD2_1 */
@@ -712,7 +712,7 @@ static __init void cpufeatures_cpu_quirks(void)
 
 	if ((version & 0xffff0000) == 0x004e0000) {
 		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
-		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_BUG;
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_;
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TIDR;
 	}
 

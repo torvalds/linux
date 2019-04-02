@@ -176,8 +176,8 @@ int lbs_get_firmware(struct device *dev, u32 card_model,
 	const struct lbs_fw_table *iter;
 	int ret;
 
-	BUG_ON(helper == NULL);
-	BUG_ON(mainfw == NULL);
+	_ON(helper == NULL);
+	_ON(mainfw == NULL);
 
 	/* Search for firmware to use from the table. */
 	iter = fw_table;

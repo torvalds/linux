@@ -21,8 +21,8 @@
  * GNU General Public License for more details.
  */
 
-#define DEBUG
-#define VERBOSE_DEBUG
+#define DE
+#define VERBOSE_DE
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -84,7 +84,7 @@
 #define DMA_SUPPORTED	4
 
 static int reset = 0;
-static int atmdebug = 0;
+static int atmde = 0;
 static int firmware_upgrade = 0;
 static int fpga_upgrade = 0;
 static int db_firmware_upgrade = 0;
@@ -156,13 +156,13 @@ MODULE_FIRMWARE("solos-FPGA.bin");
 MODULE_FIRMWARE("solos-Firmware.bin");
 MODULE_FIRMWARE("solos-db-FPGA.bin");
 MODULE_PARM_DESC(reset, "Reset Solos chips on startup");
-MODULE_PARM_DESC(atmdebug, "Print ATM data");
+MODULE_PARM_DESC(atmde, "Print ATM data");
 MODULE_PARM_DESC(firmware_upgrade, "Initiate Solos firmware upgrade");
 MODULE_PARM_DESC(fpga_upgrade, "Initiate FPGA upgrade");
 MODULE_PARM_DESC(db_firmware_upgrade, "Initiate daughter board Solos firmware upgrade");
 MODULE_PARM_DESC(db_fpga_upgrade, "Initiate daughter board FPGA upgrade");
 module_param(reset, int, 0444);
-module_param(atmdebug, int, 0644);
+module_param(atmde, int, 0644);
 module_param(firmware_upgrade, int, 0444);
 module_param(fpga_upgrade, int, 0444);
 module_param(db_firmware_upgrade, int, 0444);
@@ -827,7 +827,7 @@ static void solos_bh(unsigned long card_arg)
 					      RX_BUF(card, port) + sizeof(*header),
 					      size);
 			}
-			if (atmdebug) {
+			if (atmde) {
 				dev_info(&card->dev->dev, "Received: port %d\n", port);
 				dev_info(&card->dev->dev, "size: %d VPI: %d VCI: %d\n",
 					 size, le16_to_cpu(header->vpi),
@@ -1024,15 +1024,15 @@ static int print_buffer(struct sk_buff *buf)
 		if(i % 8 == 7) {
 			sprintf(item, "\n");
 			strcat(msg, item);
-			printk(KERN_DEBUG "%s", msg);
+			printk(KERN_DE "%s", msg);
 		}
 	}
 	if (i % 8 != 0) {
 		sprintf(item, "\n");
 		strcat(msg, item);
-		printk(KERN_DEBUG "%s", msg);
+		printk(KERN_DE "%s", msg);
 	}
-	printk(KERN_DEBUG "\n");
+	printk(KERN_DE "\n");
 
 	return 0;
 }
@@ -1114,7 +1114,7 @@ static uint32_t fpga_tx(struct solos_card *card)
 				continue;
 
 			/* Clean up and free oldskb now it's gone */
-			if (atmdebug) {
+			if (atmde) {
 				struct pkt_hdr *header = (void *)oldskb->data;
 				int size = le16_to_cpu(header->size);
 
@@ -1494,7 +1494,7 @@ static struct pci_driver fpga_driver = {
 
 static int __init solos_pci_init(void)
 {
-	BUILD_BUG_ON(sizeof(struct solos_skb_cb) > sizeof(((struct sk_buff *)0)->cb));
+	BUILD__ON(sizeof(struct solos_skb_cb) > sizeof(((struct sk_buff *)0)->cb));
 
 	printk(KERN_INFO "Solos PCI Driver Version %s\n", VERSION);
 	return pci_register_driver(&fpga_driver);

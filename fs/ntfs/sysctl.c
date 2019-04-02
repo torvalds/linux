@@ -21,7 +21,7 @@
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifdef DEBUG
+#ifdef DE
 
 #include <linux/module.h>
 
@@ -31,14 +31,14 @@
 #include <linux/sysctl.h>
 
 #include "sysctl.h"
-#include "debug.h"
+#include "de.h"
 
 /* Definition of the ntfs sysctl. */
 static struct ctl_table ntfs_sysctls[] = {
 	{
-		.procname	= "ntfs-debug",
-		.data		= &debug_msgs,		/* Data pointer and size. */
-		.maxlen		= sizeof(debug_msgs),
+		.procname	= "ntfs-de",
+		.data		= &de_msgs,		/* Data pointer and size. */
+		.maxlen		= sizeof(de_msgs),
 		.mode		= 0644,			/* Mode, proc handler. */
 		.proc_handler	= proc_dointvec
 	},
@@ -59,20 +59,20 @@ static struct ctl_table sysctls_root[] = {
 static struct ctl_table_header *sysctls_root_table;
 
 /**
- * ntfs_sysctl - add or remove the debug sysctl
+ * ntfs_sysctl - add or remove the de sysctl
  * @add:	add (1) or remove (0) the sysctl
  *
- * Add or remove the debug sysctl. Return 0 on success or -errno on error.
+ * Add or remove the de sysctl. Return 0 on success or -errno on error.
  */
 int ntfs_sysctl(int add)
 {
 	if (add) {
-		BUG_ON(sysctls_root_table);
+		_ON(sysctls_root_table);
 		sysctls_root_table = register_sysctl_table(sysctls_root);
 		if (!sysctls_root_table)
 			return -ENOMEM;
 	} else {
-		BUG_ON(!sysctls_root_table);
+		_ON(!sysctls_root_table);
 		unregister_sysctl_table(sysctls_root_table);
 		sysctls_root_table = NULL;
 	}
@@ -80,4 +80,4 @@ int ntfs_sysctl(int add)
 }
 
 #endif /* CONFIG_SYSCTL */
-#endif /* DEBUG */
+#endif /* DE */

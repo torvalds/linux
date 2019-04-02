@@ -511,8 +511,8 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 			continue;
 		}
 
-		/* disable debug registers, as they are not normally needed */
-		control |= VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS;
+		/* disable de registers, as they are not normally needed */
+		control |= VIVS_HI_CLOCK_CONTROL_DISABLE_DE_REGISTERS;
 		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, control);
 
 		failed = false;
@@ -554,15 +554,15 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 
 	pmc = gpu_read(gpu, VIVS_PM_MODULE_CONTROLS);
 
-	/* Disable PA clock gating for GC400+ without bugfix except for GC420 */
+	/* Disable PA clock gating for GC400+ without fix except for GC420 */
 	if (gpu->identity.model >= chipModel_GC400 &&
 	    gpu->identity.model != chipModel_GC420 &&
-	    !(gpu->identity.minor_features3 & chipMinorFeatures3_BUG_FIXES12))
+	    !(gpu->identity.minor_features3 & chipMinorFeatures3__FIXES12))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_PA;
 
 	/*
 	 * Disable PE clock gating on revs < 5.0.0.0 when HZ is
-	 * present without a bug fix.
+	 * present without a  fix.
 	 */
 	if (gpu->identity.revision < 0x5000 &&
 	    gpu->identity.minor_features0 & chipMinorFeatures0_HZ &&
@@ -636,16 +636,16 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 	if ((etnaviv_is_model_rev(gpu, GC320, 0x5007) ||
 	     etnaviv_is_model_rev(gpu, GC320, 0x5220)) &&
 	    gpu_read(gpu, VIVS_HI_CHIP_TIME) != 0x2062400) {
-		u32 mc_memory_debug;
+		u32 mc_memory_de;
 
-		mc_memory_debug = gpu_read(gpu, VIVS_MC_DEBUG_MEMORY) & ~0xff;
+		mc_memory_de = gpu_read(gpu, VIVS_MC_DE_MEMORY) & ~0xff;
 
 		if (gpu->identity.revision == 0x5007)
-			mc_memory_debug |= 0x0c;
+			mc_memory_de |= 0x0c;
 		else
-			mc_memory_debug |= 0x08;
+			mc_memory_de |= 0x08;
 
-		gpu_write(gpu, VIVS_MC_DEBUG_MEMORY, mc_memory_debug);
+		gpu_write(gpu, VIVS_MC_DE_MEMORY, mc_memory_de);
 	}
 
 	/* enable module-level clock gating */
@@ -812,34 +812,34 @@ fail:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-struct dma_debug {
+#ifdef CONFIG_DE_FS
+struct dma_de {
 	u32 address[2];
 	u32 state[2];
 };
 
-static void verify_dma(struct etnaviv_gpu *gpu, struct dma_debug *debug)
+static void verify_dma(struct etnaviv_gpu *gpu, struct dma_de *de)
 {
 	u32 i;
 
-	debug->address[0] = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
-	debug->state[0]   = gpu_read(gpu, VIVS_FE_DMA_DEBUG_STATE);
+	de->address[0] = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
+	de->state[0]   = gpu_read(gpu, VIVS_FE_DMA_DE_STATE);
 
 	for (i = 0; i < 500; i++) {
-		debug->address[1] = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
-		debug->state[1]   = gpu_read(gpu, VIVS_FE_DMA_DEBUG_STATE);
+		de->address[1] = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
+		de->state[1]   = gpu_read(gpu, VIVS_FE_DMA_DE_STATE);
 
-		if (debug->address[0] != debug->address[1])
+		if (de->address[0] != de->address[1])
 			break;
 
-		if (debug->state[0] != debug->state[1])
+		if (de->state[0] != de->state[1])
 			break;
 	}
 }
 
-int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
+int etnaviv_gpu_defs(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
-	struct dma_debug debug;
+	struct dma_de de;
 	u32 dma_lo, dma_hi, axi, idle;
 	int ret;
 
@@ -854,7 +854,7 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 	axi = gpu_read(gpu, VIVS_HI_AXI_STATUS);
 	idle = gpu_read(gpu, VIVS_HI_IDLE_STATE);
 
-	verify_dma(gpu, &debug);
+	verify_dma(gpu, &de);
 
 	seq_puts(m, "\tfeatures\n");
 	seq_printf(m, "\t major_features: 0x%08x\n",
@@ -938,10 +938,10 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 	if (idle & VIVS_HI_IDLE_STATE_AXI_LP)
 		seq_puts(m, "\t AXI low power mode\n");
 
-	if (gpu->identity.features & chipFeatures_DEBUG_MODE) {
-		u32 read0 = gpu_read(gpu, VIVS_MC_DEBUG_READ0);
-		u32 read1 = gpu_read(gpu, VIVS_MC_DEBUG_READ1);
-		u32 write = gpu_read(gpu, VIVS_MC_DEBUG_WRITE);
+	if (gpu->identity.features & chipFeatures_DE_MODE) {
+		u32 read0 = gpu_read(gpu, VIVS_MC_DE_READ0);
+		u32 read1 = gpu_read(gpu, VIVS_MC_DE_READ1);
+		u32 write = gpu_read(gpu, VIVS_MC_DE_WRITE);
 
 		seq_puts(m, "\tMC\n");
 		seq_printf(m, "\t read0: 0x%08x\n", read0);
@@ -951,19 +951,19 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 	seq_puts(m, "\tDMA ");
 
-	if (debug.address[0] == debug.address[1] &&
-	    debug.state[0] == debug.state[1]) {
+	if (de.address[0] == de.address[1] &&
+	    de.state[0] == de.state[1]) {
 		seq_puts(m, "seems to be stuck\n");
-	} else if (debug.address[0] == debug.address[1]) {
+	} else if (de.address[0] == de.address[1]) {
 		seq_puts(m, "address is constant\n");
 	} else {
 		seq_puts(m, "is running\n");
 	}
 
-	seq_printf(m, "\t address 0: 0x%08x\n", debug.address[0]);
-	seq_printf(m, "\t address 1: 0x%08x\n", debug.address[1]);
-	seq_printf(m, "\t state 0: 0x%08x\n", debug.state[0]);
-	seq_printf(m, "\t state 1: 0x%08x\n", debug.state[1]);
+	seq_printf(m, "\t address 0: 0x%08x\n", de.address[0]);
+	seq_printf(m, "\t address 1: 0x%08x\n", de.address[1]);
+	seq_printf(m, "\t state 0: 0x%08x\n", de.state[0]);
+	seq_printf(m, "\t state 1: 0x%08x\n", de.state[1]);
 	seq_printf(m, "\t last fetch 64 bit word: 0x%08x 0x%08x\n",
 		   dma_lo, dma_hi);
 
@@ -1228,9 +1228,9 @@ static void sync_point_perfmon_sample_pre(struct etnaviv_gpu *gpu,
 	val &= ~VIVS_PM_POWER_CONTROLS_ENABLE_MODULE_CLOCK_GATING;
 	gpu_write(gpu, VIVS_PM_POWER_CONTROLS, val);
 
-	/* enable debug register */
+	/* enable de register */
 	val = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
-	val &= ~VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS;
+	val &= ~VIVS_HI_CLOCK_CONTROL_DISABLE_DE_REGISTERS;
 	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, val);
 
 	sync_point_perfmon_sample(gpu, event, ETNA_PM_PROCESS_PRE);
@@ -1251,9 +1251,9 @@ static void sync_point_perfmon_sample_post(struct etnaviv_gpu *gpu,
 		*pmr->bo_vma = pmr->sequence;
 	}
 
-	/* disable debug register */
+	/* disable de register */
 	val = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
-	val |= VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS;
+	val |= VIVS_HI_CLOCK_CONTROL_DISABLE_DE_REGISTERS;
 	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, val);
 
 	/* enable clock gating */

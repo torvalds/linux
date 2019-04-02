@@ -39,7 +39,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-/*#define DEBUG*/
+/*#define DE*/
 /*#define TEST_HITS*/
 
 #include <linux/errno.h>
@@ -263,7 +263,7 @@ static int lance_rx(struct net_device *dev)
 	}
 	buf[RX_RING_SIZE] = 0;
 
-	pr_debug("RxRing TestHits: [%s]\n", buf);
+	pr_de("RxRing TestHits: [%s]\n", buf);
 #endif
 
 	ll->rdp = LE_C0_RINT | LE_C0_INEA;
@@ -551,9 +551,9 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb,
 	if (!lance_tx_buffs_avail(lp))
 		goto out_free;
 
-#ifdef DEBUG
+#ifdef DE
 	/* dump the packet */
-	print_hex_dump(KERN_DEBUG, "skb->data: ", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_DE, "skb->data: ", DUMP_PREFIX_NONE,
 		       16, 1, skb->data, 64, true);
 #endif
 	entry = lp->tx_new & lp->tx_ring_mod_mask;

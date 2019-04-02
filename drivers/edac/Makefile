@@ -11,7 +11,7 @@ obj-$(CONFIG_EDAC)			:= edac_core.o
 edac_core-y	:= edac_mc.o edac_device.o edac_mc_sysfs.o
 edac_core-y	+= edac_module.o edac_device_sysfs.o wq.o
 
-edac_core-$(CONFIG_EDAC_DEBUG)		+= debugfs.o
+edac_core-$(CONFIG_EDAC_DE)		+= defs.o
 
 ifdef CONFIG_PCI
 edac_core-y	+= edac_pci.o edac_pci_sysfs.o
@@ -44,7 +44,7 @@ obj-$(CONFIG_EDAC_I82860)		+= i82860_edac.o
 obj-$(CONFIG_EDAC_R82600)		+= r82600_edac.o
 
 amd64_edac_mod-y := amd64_edac.o
-amd64_edac_mod-$(CONFIG_EDAC_DEBUG) += amd64_edac_dbg.o
+amd64_edac_mod-$(CONFIG_EDAC_DE) += amd64_edac_dbg.o
 amd64_edac_mod-$(CONFIG_EDAC_AMD64_ERROR_INJECTION) += amd64_edac_inj.o
 
 obj-$(CONFIG_EDAC_AMD64)		+= amd64_edac_mod.o

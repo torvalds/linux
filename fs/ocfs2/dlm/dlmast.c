@@ -68,7 +68,7 @@ static int dlm_should_cancel_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 
 	if (lock->ml.highest_blocked == LKM_IVMODE)
 		return 0;
-	BUG_ON(lock->ml.highest_blocked == LKM_NLMODE);
+	_ON(lock->ml.highest_blocked == LKM_NLMODE);
 
 	if (lock->bast_pending &&
 	    list_empty(&lock->bast_list))
@@ -92,8 +92,8 @@ void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 {
 	struct dlm_lock_resource *res;
 
-	BUG_ON(!dlm);
-	BUG_ON(!lock);
+	_ON(!dlm);
+	_ON(!lock);
 
 	res = lock->lockres;
 
@@ -106,7 +106,7 @@ void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ast_pending, lock->ml.type);
-		BUG();
+		();
 	}
 	if (lock->ast_pending)
 		mlog(0, "%s: res %.*s, lock %u:%llu, AST getting flushed\n",
@@ -145,8 +145,8 @@ void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 
 void dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 {
-	BUG_ON(!dlm);
-	BUG_ON(!lock);
+	_ON(!dlm);
+	_ON(!lock);
 
 	spin_lock(&dlm->ast_lock);
 	__dlm_queue_ast(dlm, lock);
@@ -158,14 +158,14 @@ void __dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 {
 	struct dlm_lock_resource *res;
 
-	BUG_ON(!dlm);
-	BUG_ON(!lock);
+	_ON(!dlm);
+	_ON(!lock);
 
 	assert_spin_locked(&dlm->ast_lock);
 
 	res = lock->lockres;
 
-	BUG_ON(!list_empty(&lock->bast_list));
+	_ON(!list_empty(&lock->bast_list));
 	if (lock->bast_pending)
 		mlog(0, "%s: res %.*s, lock %u:%llu, BAST getting flushed\n",
 		     dlm->name, res->lockname.len, res->lockname.name,
@@ -182,8 +182,8 @@ void __dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 
 void dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 {
-	BUG_ON(!dlm);
-	BUG_ON(!lock);
+	_ON(!dlm);
+	_ON(!lock);
 
 	spin_lock(&dlm->ast_lock);
 	__dlm_queue_bast(dlm, lock);
@@ -194,7 +194,7 @@ static void dlm_update_lvb(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 			   struct dlm_lock *lock)
 {
 	struct dlm_lockstatus *lksb = lock->lksb;
-	BUG_ON(!lksb);
+	_ON(!lksb);
 
 	/* only updates if this node masters the lockres */
 	spin_lock(&res->spinlock);
@@ -231,7 +231,7 @@ void dlm_do_local_ast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
 	fn = lock->ast;
-	BUG_ON(lock->ml.node != dlm->node_num);
+	_ON(lock->ml.node != dlm->node_num);
 
 	dlm_update_lvb(dlm, res, lock);
 	(*fn)(lock->astdata);
@@ -251,7 +251,7 @@ int dlm_do_remote_ast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
 	lksb = lock->lksb;
-	BUG_ON(lock->ml.node == dlm->node_num);
+	_ON(lock->ml.node == dlm->node_num);
 
 	lksbflags = lksb->flags;
 	dlm_update_lvb(dlm, res, lock);
@@ -267,7 +267,7 @@ void dlm_do_local_bast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 {
 	dlm_bastlockfunc_t *fn = lock->bast;
 
-	BUG_ON(lock->ml.node != dlm->node_num);
+	_ON(lock->ml.node != dlm->node_num);
 
 	mlog(0, "%s: res %.*s, lock %u:%llu, Local BAST, blocked %d\n",
 	     dlm->name, res->lockname.len, res->lockname.name,
@@ -300,7 +300,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 		return DLM_REJECTED;
 	}
 
-	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
+	mlog__on_msg(!dlm_domain_fully_joined(dlm),
 			"Domain %s not fully joined!\n", dlm->name);
 
 	name = past->name;
@@ -352,7 +352,7 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	/* cannot get a proxy ast message if this node owns it */
-	BUG_ON(res->owner == dlm->node_num);
+	_ON(res->owner == dlm->node_num);
 
 	mlog(0, "%s: res %.*s\n", dlm->name, res->lockname.len,
 	     res->lockname.name);
@@ -424,7 +424,7 @@ do_ast:
 
 		/* if we requested the lvb, fetch it into our lksb now */
 		if (flags & LKM_GET_LVB) {
-			BUG_ON(!(lock->lksb->flags & DLM_LKSB_GET_LVB));
+			_ON(!(lock->lksb->flags & DLM_LKSB_GET_LVB));
 			memcpy(lock->lksb->lvb, past->lvb, DLM_LVB_LEN);
 		}
 	}
@@ -486,11 +486,11 @@ int dlm_send_proxy_ast_msg(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 		if (status == DLM_RECOVERING) {
 			mlog(ML_ERROR, "sent AST to node %u, it thinks this "
 			     "node is dead!\n", lock->ml.node);
-			BUG();
+			();
 		} else if (status == DLM_MIGRATING) {
 			mlog(ML_ERROR, "sent AST to node %u, it returned "
 			     "DLM_MIGRATING!\n", lock->ml.node);
-			BUG();
+			();
 		} else if (status != DLM_NORMAL && status != DLM_IVLOCKID) {
 			mlog(ML_ERROR, "AST to node %u returned %d!\n",
 			     lock->ml.node, status);

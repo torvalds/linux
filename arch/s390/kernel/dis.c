@@ -21,14 +21,14 @@
 #include <linux/kallsyms.h>
 #include <linux/reboot.h>
 #include <linux/kprobes.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <asm/dis.h>
 #include <asm/io.h>
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/irq.h>
 
 /* Type of operand */

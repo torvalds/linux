@@ -33,9 +33,9 @@
 
 /* A few user-configurable values. */
 
-static int debug = 1;		/* 1 normal messages, 0 quiet .. 7 verbose.  */
+static int de = 1;		/* 1 normal messages, 0 quiet .. 7 verbose.  */
 #define final_version
-#define hamachi_debug debug
+#define hamachi_de de
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 40;
 static int mtu;
@@ -321,7 +321,7 @@ V.  Recent Changes
 
 01/15/1999 EPK In general, the overall bandwidth has increased and
     latencies are better (sometimes by a factor of 2).  Stalls are rare at
-    this point, however there still appears to be a bug somewhere between the
+    this point, however there still appears to be a  somewhere between the
     hardware and driver.  TCP checksum errors under load also appear to be
     eliminated at this point.
 
@@ -513,7 +513,7 @@ MODULE_LICENSE("GPL");
 
 module_param(max_interrupt_work, int, 0);
 module_param(mtu, int, 0);
-module_param(debug, int, 0);
+module_param(de, int, 0);
 module_param(min_rx_pkt, int, 0);
 module_param(max_rx_gap, int, 0);
 module_param(max_rx_latency, int, 0);
@@ -528,7 +528,7 @@ module_param_array(full_duplex, int, NULL, 0);
 module_param(force32, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "GNIC-II maximum events handled per interrupt");
 MODULE_PARM_DESC(mtu, "GNIC-II MTU (all boards)");
-MODULE_PARM_DESC(debug, "GNIC-II debug level (0-7)");
+MODULE_PARM_DESC(de, "GNIC-II de level (0-7)");
 MODULE_PARM_DESC(min_rx_pkt, "GNIC-II minimum Rx packets processed between interrupts");
 MODULE_PARM_DESC(max_rx_gap, "GNIC-II maximum Rx inter-packet gap in 8.192 microsecond units");
 MODULE_PARM_DESC(max_rx_latency, "GNIC-II time between Rx interrupts in 8.192 microsecond units");
@@ -629,7 +629,7 @@ static int hamachi_init_one(struct pci_dev *pdev,
 			: readb(ioaddr + StationAddr + i);
 
 #if ! defined(final_version)
-	if (hamachi_debug > 4)
+	if (hamachi_de > 4)
 		for (i = 0; i < 0x10; i++)
 			printk("%2.2x%s",
 				   read_eeprom(ioaddr, i), i % 16 != 15 ? " " : "\n");
@@ -798,7 +798,7 @@ static int read_eeprom(void __iomem *ioaddr, int location)
 	writeb(0x02, ioaddr + EECmdStatus);
 	bogus_cnt = 1000;
 	while ((readb(ioaddr + EECmdStatus) & 0x40)  && --bogus_cnt > 0);
-	if (hamachi_debug > 5)
+	if (hamachi_de > 5)
 		printk("   EEPROM status is %2.2x after %d ticks.\n",
 			   (int)readb(ioaddr + EECmdStatus), 1000- bogus_cnt);
 	return readb(ioaddr + EEData);
@@ -942,7 +942,7 @@ static int hamachi_open(struct net_device *dev)
 	rx_int_var = hmp->rx_int_var;
 	tx_int_var = hmp->tx_int_var;
 
-	if (hamachi_debug > 1) {
+	if (hamachi_de > 1) {
 		printk("max_tx_latency: %d, max_tx_gap: %d, min_tx_pkt: %d\n",
 			tx_int_var & 0x00ff, (tx_int_var & 0x00ff00) >> 8,
 			(tx_int_var & 0x00ff0000) >> 16);
@@ -974,8 +974,8 @@ static int hamachi_open(struct net_device *dev)
 #endif
 	writew(0x0001, ioaddr + RxCmd);
 
-	if (hamachi_debug > 2) {
-		printk(KERN_DEBUG "%s: Done hamachi_open(), status: Rx %x Tx %x.\n",
+	if (hamachi_de > 2) {
+		printk(KERN_DE "%s: Done hamachi_open(), status: Rx %x Tx %x.\n",
 			   dev->name, readw(ioaddr + RxStatus), readw(ioaddr + TxStatus));
 	}
 	/* Set the timer to check for link beat. */
@@ -1024,7 +1024,7 @@ static void hamachi_timer(struct timer_list *t)
 	void __iomem *ioaddr = hmp->base;
 	int next_tick = 10*HZ;
 
-	if (hamachi_debug > 2) {
+	if (hamachi_de > 2) {
 		printk(KERN_INFO "%s: Hamachi Autonegotiation status %4.4x, LPA "
 			   "%4.4x.\n", dev->name, readw(ioaddr + ANStatus),
 			   readw(ioaddr + ANLinkPartnerAbility));
@@ -1052,12 +1052,12 @@ static void hamachi_tx_timeout(struct net_device *dev)
 		   " resetting...\n", dev->name, (int)readw(ioaddr + TxStatus));
 
 	{
-		printk(KERN_DEBUG "  Rx ring %p: ", hmp->rx_ring);
+		printk(KERN_DE "  Rx ring %p: ", hmp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			printk(KERN_CONT " %8.8x",
 			       le32_to_cpu(hmp->rx_ring[i].status_n_length));
 		printk(KERN_CONT "\n");
-		printk(KERN_DEBUG"  Tx ring %p: ", hmp->tx_ring);
+		printk(KERN_DE"  Tx ring %p: ", hmp->tx_ring);
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_CONT " %4.4x",
 			       le32_to_cpu(hmp->tx_ring[i].status_n_length));
@@ -1277,8 +1277,8 @@ static netdev_tx_t hamachi_start_xmit(struct sk_buff *skb,
 		netif_stop_queue(dev);
 	}
 
-	if (hamachi_debug > 4) {
-		printk(KERN_DEBUG "%s: Hamachi transmit frame #%d queued in slot %d.\n",
+	if (hamachi_de > 4) {
+		printk(KERN_DE "%s: Hamachi transmit frame #%d queued in slot %d.\n",
 			   dev->name, hmp->cur_tx, entry);
 	}
 	return NETDEV_TX_OK;
@@ -1306,8 +1306,8 @@ static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 	do {
 		u32 intr_status = readl(ioaddr + InterruptClear);
 
-		if (hamachi_debug > 4)
-			printk(KERN_DEBUG "%s: Hamachi interrupt, status %4.4x.\n",
+		if (hamachi_de > 4)
+			printk(KERN_DE "%s: Hamachi interrupt, status %4.4x.\n",
 				   dev->name, intr_status);
 
 		if (intr_status == 0)
@@ -1370,8 +1370,8 @@ static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 		}
 	} while (1);
 
-	if (hamachi_debug > 3)
-		printk(KERN_DEBUG "%s: exiting interrupt, status=%#4.4x.\n",
+	if (hamachi_de > 3)
+		printk(KERN_DE "%s: exiting interrupt, status=%#4.4x.\n",
 			   dev->name, readl(ioaddr + IntrStatus));
 
 #ifndef final_version
@@ -1398,8 +1398,8 @@ static int hamachi_rx(struct net_device *dev)
 	int entry = hmp->cur_rx % RX_RING_SIZE;
 	int boguscnt = (hmp->dirty_rx + RX_RING_SIZE) - hmp->cur_rx;
 
-	if (hamachi_debug > 4) {
-		printk(KERN_DEBUG " In hamachi_rx(), entry %d status %4.4x.\n",
+	if (hamachi_de > 4) {
+		printk(KERN_DE " In hamachi_rx(), entry %d status %4.4x.\n",
 			   entry, hmp->rx_ring[entry].status_n_length);
 	}
 
@@ -1419,8 +1419,8 @@ static int hamachi_rx(struct net_device *dev)
 					    PCI_DMA_FROMDEVICE);
 		buf_addr = (u8 *) hmp->rx_skbuff[entry]->data;
 		frame_status = get_unaligned_le32(&(buf_addr[data_size - 12]));
-		if (hamachi_debug > 4)
-			printk(KERN_DEBUG "  hamachi_rx() status was %8.8x.\n",
+		if (hamachi_de > 4)
+			printk(KERN_DE "  hamachi_rx() status was %8.8x.\n",
 				frame_status);
 		if (--boguscnt < 0)
 			break;
@@ -1439,8 +1439,8 @@ static int hamachi_rx(struct net_device *dev)
 		} /* else  Omit for prototype errata??? */
 		if (frame_status & 0x00380000) {
 			/* There was an error. */
-			if (hamachi_debug > 2)
-				printk(KERN_DEBUG "  hamachi_rx() Rx error was %8.8x.\n",
+			if (hamachi_de > 2)
+				printk(KERN_DE "  hamachi_rx() Rx error was %8.8x.\n",
 					   frame_status);
 			dev->stats.rx_errors++;
 			if (frame_status & 0x00600000)
@@ -1461,12 +1461,12 @@ static int hamachi_rx(struct net_device *dev)
 
 
 #ifndef final_version
-			if (hamachi_debug > 4)
-				printk(KERN_DEBUG "  hamachi_rx() normal Rx pkt length %d"
+			if (hamachi_de > 4)
+				printk(KERN_DE "  hamachi_rx() normal Rx pkt length %d"
 					   " of %d, bogus_cnt %d.\n",
 					   pkt_len, data_size, boguscnt);
-			if (hamachi_debug > 5)
-				printk(KERN_DEBUG"%s:  rx status %8.8x %8.8x %8.8x %8.8x %8.8x.\n",
+			if (hamachi_de > 5)
+				printk(KERN_DE"%s:  rx status %8.8x %8.8x %8.8x %8.8x %8.8x.\n",
 					   dev->name,
 					   *(s32*)&(buf_addr[data_size - 20]),
 					   *(s32*)&(buf_addr[data_size - 16]),
@@ -1614,7 +1614,7 @@ static void hamachi_error(struct net_device *dev, int intr_status)
 	void __iomem *ioaddr = hmp->base;
 
 	if (intr_status & (LinkChange|NegotiationChange)) {
-		if (hamachi_debug > 1)
+		if (hamachi_de > 1)
 			printk(KERN_INFO "%s: Link changed: AutoNegotiation Ctrl"
 				   " %4.4x, Status %4.4x %4.4x Intr status %4.4x.\n",
 				   dev->name, readw(ioaddr + 0x0E0), readw(ioaddr + 0x0E2),
@@ -1632,7 +1632,7 @@ static void hamachi_error(struct net_device *dev, int intr_status)
 		readl(ioaddr + 0x3F0);
 	}
 	if ((intr_status & ~(LinkChange|StatsMax|NegotiationChange|IntrRxDone|IntrTxDone)) &&
-	    hamachi_debug)
+	    hamachi_de)
 		printk(KERN_ERR "%s: Something Wicked happened! %4.4x.\n",
 		       dev->name, intr_status);
 	/* Hmmmmm, it's not clear how to recover from PCI faults. */
@@ -1651,11 +1651,11 @@ static int hamachi_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	if (hamachi_debug > 1) {
-		printk(KERN_DEBUG "%s: Shutting down ethercard, status was Tx %4.4x Rx %4.4x Int %2.2x.\n",
+	if (hamachi_de > 1) {
+		printk(KERN_DE "%s: Shutting down ethercard, status was Tx %4.4x Rx %4.4x Int %2.2x.\n",
 			   dev->name, readw(ioaddr + TxStatus),
 			   readw(ioaddr + RxStatus), readl(ioaddr + IntrStatus));
-		printk(KERN_DEBUG "%s: Queue pointers were Tx %d / %d,  Rx %d / %d.\n",
+		printk(KERN_DE "%s: Queue pointers were Tx %d / %d,  Rx %d / %d.\n",
 			   dev->name, hmp->cur_tx, hmp->dirty_tx, hmp->cur_rx, hmp->dirty_rx);
 	}
 
@@ -1667,25 +1667,25 @@ static int hamachi_close(struct net_device *dev)
 	writew(2, ioaddr + TxCmd);
 
 #ifdef __i386__
-	if (hamachi_debug > 2) {
-		printk(KERN_DEBUG "  Tx ring at %8.8x:\n",
+	if (hamachi_de > 2) {
+		printk(KERN_DE "  Tx ring at %8.8x:\n",
 			   (int)hmp->tx_ring_dma);
 		for (i = 0; i < TX_RING_SIZE; i++)
-			printk(KERN_DEBUG " %c #%d desc. %8.8x %8.8x.\n",
+			printk(KERN_DE " %c #%d desc. %8.8x %8.8x.\n",
 				   readl(ioaddr + TxCurPtr) == (long)&hmp->tx_ring[i] ? '>' : ' ',
 				   i, hmp->tx_ring[i].status_n_length, hmp->tx_ring[i].addr);
-		printk(KERN_DEBUG "  Rx ring %8.8x:\n",
+		printk(KERN_DE "  Rx ring %8.8x:\n",
 			   (int)hmp->rx_ring_dma);
 		for (i = 0; i < RX_RING_SIZE; i++) {
-			printk(KERN_DEBUG " %c #%d desc. %4.4x %8.8x\n",
+			printk(KERN_DE " %c #%d desc. %4.4x %8.8x\n",
 				   readl(ioaddr + RxCurPtr) == (long)&hmp->rx_ring[i] ? '>' : ' ',
 				   i, hmp->rx_ring[i].status_n_length, hmp->rx_ring[i].addr);
-			if (hamachi_debug > 6) {
+			if (hamachi_de > 6) {
 				if (*(u8*)hmp->rx_skbuff[i]->data != 0x69) {
 					u16 *addr = (u16 *)
 						hmp->rx_skbuff[i]->data;
 					int j;
-					printk(KERN_DEBUG "Addr: ");
+					printk(KERN_DE "Addr: ");
 					for (j = 0; j < 0x50; j++)
 						printk(" %4.4x", addr[j]);
 					printk("\n");
@@ -1693,7 +1693,7 @@ static int hamachi_close(struct net_device *dev)
 			}
 		}
 	}
-#endif /* __i386__ debugging only */
+#endif /* __i386__ deging only */
 
 	free_irq(hmp->pci_dev->irq, dev);
 

@@ -28,16 +28,16 @@ static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 {
 	seq_printf(m,
-		   "fdiv_bug\t: %s\n"
-		   "f00f_bug\t: %s\n"
-		   "coma_bug\t: %s\n"
+		   "fdiv_\t: %s\n"
+		   "f00f_\t: %s\n"
+		   "coma_\t: %s\n"
 		   "fpu\t\t: %s\n"
 		   "fpu_exception\t: %s\n"
 		   "cpuid level\t: %d\n"
 		   "wp\t\t: yes\n",
-		   static_cpu_has_bug(X86_BUG_FDIV) ? "yes" : "no",
-		   static_cpu_has_bug(X86_BUG_F00F) ? "yes" : "no",
-		   static_cpu_has_bug(X86_BUG_COMA) ? "yes" : "no",
+		   static_cpu_has_(X86__FDIV) ? "yes" : "no",
+		   static_cpu_has_(X86__F00F) ? "yes" : "no",
+		   static_cpu_has_(X86__COMA) ? "yes" : "no",
 		   static_cpu_has(X86_FEATURE_FPU) ? "yes" : "no",
 		   static_cpu_has(X86_FEATURE_FPU) ? "yes" : "no",
 		   c->cpuid_level);
@@ -102,12 +102,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
 			seq_printf(m, " %s", x86_cap_flags[i]);
 
-	seq_puts(m, "\nbugs\t\t:");
-	for (i = 0; i < 32*NBUGINTS; i++) {
-		unsigned int bug_bit = 32*NCAPINTS + i;
+	seq_puts(m, "\ns\t\t:");
+	for (i = 0; i < 32*NINTS; i++) {
+		unsigned int _bit = 32*NCAPINTS + i;
 
-		if (cpu_has_bug(c, bug_bit) && x86_bug_flags[i])
-			seq_printf(m, " %s", x86_bug_flags[i]);
+		if (cpu_has_(c, _bit) && x86__flags[i])
+			seq_printf(m, " %s", x86__flags[i]);
 	}
 
 	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",

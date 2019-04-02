@@ -28,7 +28,7 @@
 
 #include <linux/adb.h>
 
-/*#define DEBUG_ADB_IOP*/
+/*#define DE_ADB_IOP*/
 
 static struct adb_request *current_req;
 static struct adb_request *last_req;
@@ -104,7 +104,7 @@ static void adb_iop_listen(struct iop_msg *msg)
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
 	struct adb_request *req;
 	unsigned long flags;
-#ifdef DEBUG_ADB_IOP
+#ifdef DE_ADB_IOP
 	int i;
 #endif
 
@@ -112,7 +112,7 @@ static void adb_iop_listen(struct iop_msg *msg)
 
 	req = current_req;
 
-#ifdef DEBUG_ADB_IOP
+#ifdef DE_ADB_IOP
 	printk("adb_iop_listen %p: rcvd packet, %d bytes: %02X %02X", req,
 	       (uint)amsg->count + 2, (uint)amsg->flags, (uint)amsg->cmd);
 	for (i = 0; i < amsg->count; i++)
@@ -163,7 +163,7 @@ static void adb_iop_start(void)
 	unsigned long flags;
 	struct adb_request *req;
 	struct adb_iopmsg amsg;
-#ifdef DEBUG_ADB_IOP
+#ifdef DE_ADB_IOP
 	int i;
 #endif
 
@@ -174,7 +174,7 @@ static void adb_iop_start(void)
 
 	local_irq_save(flags);
 
-#ifdef DEBUG_ADB_IOP
+#ifdef DE_ADB_IOP
 	printk("adb_iop_start %p: sending packet, %d bytes:", req, req->nbytes);
 	for (i = 0; i < req->nbytes; i++)
 		printk(" %02X", (uint)req->data[i]);

@@ -524,7 +524,7 @@ static int revo_init(struct snd_ice1712 *ice)
 		ice->num_total_adcs = 2;
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		return -EINVAL;
 	}
 

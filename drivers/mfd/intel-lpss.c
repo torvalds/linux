@@ -16,7 +16,7 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/idr.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -82,7 +82,7 @@ struct intel_lpss {
 	u32 caps;
 	u32 active_ltr;
 	u32 idle_ltr;
-	struct dentry *debugfs;
+	struct dentry *defs;
 };
 
 static const struct resource intel_lpss_dev_resources[] = {
@@ -128,7 +128,7 @@ static const struct mfd_cell intel_lpss_spi_cell = {
 };
 
 static DEFINE_IDA(intel_lpss_devid_ida);
-static struct dentry *intel_lpss_debugfs;
+static struct dentry *intel_lpss_defs;
 
 static int intel_lpss_request_dma_module(const char *name)
 {
@@ -147,28 +147,28 @@ static void intel_lpss_cache_ltr(struct intel_lpss *lpss)
 	lpss->idle_ltr = readl(lpss->priv + LPSS_PRIV_IDLELTR);
 }
 
-static int intel_lpss_debugfs_add(struct intel_lpss *lpss)
+static int intel_lpss_defs_add(struct intel_lpss *lpss)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir(dev_name(lpss->dev), intel_lpss_debugfs);
+	dir = defs_create_dir(dev_name(lpss->dev), intel_lpss_defs);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
 	/* Cache the values into lpss structure */
 	intel_lpss_cache_ltr(lpss);
 
-	debugfs_create_x32("capabilities", S_IRUGO, dir, &lpss->caps);
-	debugfs_create_x32("active_ltr", S_IRUGO, dir, &lpss->active_ltr);
-	debugfs_create_x32("idle_ltr", S_IRUGO, dir, &lpss->idle_ltr);
+	defs_create_x32("capabilities", S_IRUGO, dir, &lpss->caps);
+	defs_create_x32("active_ltr", S_IRUGO, dir, &lpss->active_ltr);
+	defs_create_x32("idle_ltr", S_IRUGO, dir, &lpss->idle_ltr);
 
-	lpss->debugfs = dir;
+	lpss->defs = dir;
 	return 0;
 }
 
-static void intel_lpss_debugfs_remove(struct intel_lpss *lpss)
+static void intel_lpss_defs_remove(struct intel_lpss *lpss)
 {
-	debugfs_remove_recursive(lpss->debugfs);
+	defs_remove_recursive(lpss->defs);
 }
 
 static void intel_lpss_ltr_set(struct device *dev, s32 val)
@@ -423,9 +423,9 @@ int intel_lpss_probe(struct device *dev,
 
 	intel_lpss_ltr_expose(lpss);
 
-	ret = intel_lpss_debugfs_add(lpss);
+	ret = intel_lpss_defs_add(lpss);
 	if (ret)
-		dev_warn(dev, "Failed to create debugfs entries\n");
+		dev_warn(dev, "Failed to create defs entries\n");
 
 	if (intel_lpss_has_idma(lpss)) {
 		/*
@@ -455,7 +455,7 @@ int intel_lpss_probe(struct device *dev,
 	return 0;
 
 err_remove_ltr:
-	intel_lpss_debugfs_remove(lpss);
+	intel_lpss_defs_remove(lpss);
 	intel_lpss_ltr_hide(lpss);
 	intel_lpss_unregister_clock(lpss);
 
@@ -471,7 +471,7 @@ void intel_lpss_remove(struct device *dev)
 	struct intel_lpss *lpss = dev_get_drvdata(dev);
 
 	mfd_remove_devices(dev);
-	intel_lpss_debugfs_remove(lpss);
+	intel_lpss_defs_remove(lpss);
 	intel_lpss_ltr_hide(lpss);
 	intel_lpss_unregister_clock(lpss);
 	ida_simple_remove(&intel_lpss_devid_ida, lpss->devid);
@@ -535,14 +535,14 @@ EXPORT_SYMBOL_GPL(intel_lpss_resume);
 
 static int __init intel_lpss_init(void)
 {
-	intel_lpss_debugfs = debugfs_create_dir("intel_lpss", NULL);
+	intel_lpss_defs = defs_create_dir("intel_lpss", NULL);
 	return 0;
 }
 module_init(intel_lpss_init);
 
 static void __exit intel_lpss_exit(void)
 {
-	debugfs_remove(intel_lpss_debugfs);
+	defs_remove(intel_lpss_defs);
 }
 module_exit(intel_lpss_exit);
 

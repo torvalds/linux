@@ -16,7 +16,7 @@ ensure data integrity.
 This documentation is provided for developers who want to utilize the
 functions provided by the library.
 
-Known Bugs And Assumptions
+Known s And Assumptions
 ==========================
 
 None.
@@ -204,7 +204,7 @@ The library code for encoding and decoding was written by Phil Karn.
 
 The wrapper functions and interfaces are written by Thomas Gleixner.
 
-Many users have provided bugfixes, improvements and helping hands for
+Many users have provided fixes, improvements and helping hands for
 testing. Thanks a lot.
 
 The following people have contributed to this document:

@@ -219,7 +219,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_init->func_params.log_page_size = p_params->log_page_size;
 	val = p_params->num_tasks;
 	p_init->func_params.num_tasks = cpu_to_le16(val);
-	p_init->debug_mode.flags = p_params->debug_mode;
+	p_init->de_mode.flags = p_params->de_mode;
 
 	DMA_REGPAIR_LE(p_queue->glbl_q_params_addr,
 		       p_params->glbl_q_params_addr);

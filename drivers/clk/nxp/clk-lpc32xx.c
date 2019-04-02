@@ -30,7 +30,7 @@
 #define PLL_CTRL_LOCK			BIT(0)
 
 /* Clock registers on System Control Block */
-#define LPC32XX_CLKPWR_DEBUG_CTRL	0x00
+#define LPC32XX_CLKPWR_DE_CTRL	0x00
 #define LPC32XX_CLKPWR_USB_DIV		0x1C
 #define LPC32XX_CLKPWR_HCLKDIV_CTRL	0x40
 #define LPC32XX_CLKPWR_PWR_CTRL		0x44
@@ -518,7 +518,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 		}
 	}
 
-	pr_debug("%s: %lu: 0x%x: %d/%d/%d, %lu/%lu/%d => %lu\n",
+	pr_de("%s: %lu: 0x%x: %d/%d/%d, %lu/%lu/%d => %lu\n",
 		 clk_hw_get_name(hw),
 		 parent_rate, val, is_direct, is_bypass, is_feedback,
 		 clk->n_div, clk->m_div, (1 << clk->p_div), rate);
@@ -592,7 +592,7 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	u64 m = 0, n = 0, p = 0;
 	int p_i, n_i;
 
-	pr_debug("%s: %lu/%lu\n", clk_hw_get_name(hw), *parent_rate, rate);
+	pr_de("%s: %lu/%lu\n", clk_hw_get_name(hw), *parent_rate, rate);
 
 	if (rate > 266500000)
 		return -EINVAL;
@@ -638,10 +638,10 @@ static long clk_hclk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	o = div64_u64(i * m, n * (1 << p));
 
 	if (!d)
-		pr_debug("%s: %lu: found exact match: %llu/%llu/%llu\n",
+		pr_de("%s: %lu: found exact match: %llu/%llu/%llu\n",
 			 clk_hw_get_name(hw), rate, m, n, p);
 	else
-		pr_debug("%s: %lu: found closest: %llu/%llu/%llu - %llu\n",
+		pr_de("%s: %lu: found closest: %llu/%llu/%llu - %llu\n",
 			 clk_hw_get_name(hw), rate, m, n, p, o);
 
 	return o;
@@ -654,7 +654,7 @@ static long clk_usb_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_hw *usb_div_hw, *osc_hw;
 	u64 d_i, n_i, m, o;
 
-	pr_debug("%s: %lu/%lu\n", clk_hw_get_name(hw), *parent_rate, rate);
+	pr_de("%s: %lu/%lu\n", clk_hw_get_name(hw), *parent_rate, rate);
 
 	/*
 	 * The only supported USB clock is 48MHz, with PLL internal constraints
@@ -804,7 +804,7 @@ static int clk_usb_enable(struct clk_hw *hw)
 	struct lpc32xx_usb_clk *clk = to_lpc32xx_usb_clk(hw);
 	u32 val, ctrl_val, count;
 
-	pr_debug("%s: 0x%x\n", clk_hw_get_name(hw), clk->enable);
+	pr_de("%s: 0x%x\n", clk_hw_get_name(hw), clk->enable);
 
 	if (clk->ctrl_mask) {
 		regmap_read(clk_regmap, LPC32XX_CLKPWR_USB_CTRL, &ctrl_val);
@@ -1255,7 +1255,7 @@ static struct clk_hw_proto clk_hw_proto[LPC32XX_CLK_HW_MAX] = {
 	LPC32XX_DEFINE_GATE(HCLK, PWR_CTRL, 0, CLK_GATE_SET_TO_DISABLE),
 	LPC32XX_DEFINE_GATE(ARM, PWR_CTRL, 0, CLK_GATE_SET_TO_DISABLE),
 
-	LPC32XX_DEFINE_GATE(ARM_VFP, DEBUG_CTRL, 4, 0),
+	LPC32XX_DEFINE_GATE(ARM_VFP, DE_CTRL, 4, 0),
 	LPC32XX_DEFINE_GATE(DMA, DMA_CLK_CTRL, 0, 0),
 	LPC32XX_DEFINE_CLK(DDRAM, HCLKDIV_CTRL, 0x0, BIT(8) | BIT(7),
 		   0x0, BIT(8) | BIT(7), 0x0, BIT(1) | BIT(0), clk_ddram_ops),
@@ -1396,7 +1396,7 @@ static struct clk * __init lpc32xx_clk_register(u32 id)
 	for (i = 0; i < lpc32xx_clk->num_parents; i++)
 		parents[i] = clk_proto[lpc32xx_clk->parents[i]].name;
 
-	pr_debug("%s: derived from '%s', clock type %d\n", lpc32xx_clk->name,
+	pr_de("%s: derived from '%s', clock type %d\n", lpc32xx_clk->name,
 		 parents[0], clk_hw->type);
 
 	switch (clk_hw->type) {

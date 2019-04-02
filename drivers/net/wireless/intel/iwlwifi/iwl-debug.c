@@ -60,7 +60,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include "iwl-drv.h"
-#include "iwl-debug.h"
+#include "iwl-de.h"
 #include "iwl-devtrace.h"
 
 #define __iwl_fn(fn)						\
@@ -106,7 +106,7 @@ void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
 }
 IWL_EXPORT_SYMBOL(__iwl_err);
 
-#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
+#if defined(CONFIG_IWLWIFI_DE) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
 void __iwl_dbg(struct device *dev,
 	       u32 level, bool limit, const char *function,
 	       const char *fmt, ...)
@@ -118,10 +118,10 @@ void __iwl_dbg(struct device *dev,
 
 	va_start(args, fmt);
 	vaf.va = &args;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_have_debug_level(level) &&
+#ifdef CONFIG_IWLWIFI_DE
+	if (iwl_have_de_level(level) &&
 	    (!limit || net_ratelimit()))
-		dev_printk(KERN_DEBUG, dev, "%c %s %pV",
+		dev_printk(KERN_DE, dev, "%c %s %pV",
 			   in_interrupt() ? 'I' : 'U', function, &vaf);
 #endif
 	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);

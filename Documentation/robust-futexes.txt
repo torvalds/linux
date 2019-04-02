@@ -49,7 +49,7 @@ the one that crashes, so it has no opportunity to clean up. Catch-22.
 
 In practice, when e.g. yum is kill -9-ed (or segfaults), a system reboot
 is needed to release that futex based lock. This is one of the leading
-bugreports against yum.
+reports against yum.
 
 To solve this problem, the traditional approach was to extend the vma
 (virtual memory area descriptor) concept to have a notion of 'pending

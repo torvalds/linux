@@ -7,7 +7,7 @@
  */
 
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -156,7 +156,7 @@ static void put_dev (struct dev_data *data)
 	if (likely (!refcount_dec_and_test (&data->count)))
 		return;
 	/* needs no more cleanup */
-	BUG_ON (waitqueue_active (&data->wait));
+	_ON (waitqueue_active (&data->wait));
 	kfree (data);
 }
 
@@ -212,8 +212,8 @@ static void put_ep (struct ep_data *data)
 		return;
 	put_dev (data->dev);
 	/* needs no more cleanup */
-	BUG_ON (!list_empty (&data->epfiles));
-	BUG_ON (waitqueue_active (&data->wait));
+	_ON (!list_empty (&data->epfiles));
+	_ON (waitqueue_active (&data->wait));
 	kfree (data);
 }
 
@@ -237,20 +237,20 @@ static const char *CHIP;
 #define xprintk(d,level,fmt,args...) \
 	printk(level "%s: " fmt , shortname , ## args)
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(dev,fmt,args...) \
-	xprintk(dev , KERN_DEBUG , fmt , ## args)
+	xprintk(dev , KERN_DE , fmt , ## args)
 #else
 #define DBG(dev,fmt,args...) \
 	do { } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
-#ifdef VERBOSE_DEBUG
-#define VDEBUG	DBG
+#ifdef VERBOSE_DE
+#define VDE	DBG
 #else
-#define VDEBUG(dev,fmt,args...) \
+#define VDE(dev,fmt,args...) \
 	do { } while (0)
-#endif /* DEBUG */
+#endif /* DE */
 
 #define ERROR(dev,fmt,args...) \
 	xprintk(dev , KERN_ERR , fmt , ## args)
@@ -316,7 +316,7 @@ nonblock:
 		break;
 	// case STATE_EP_DISABLED:		/* "can't happen" */
 	default:				/* error! */
-		pr_debug ("%s: ep %p not available, state %d\n",
+		pr_de ("%s: ep %p not available, state %d\n",
 				shortname, epdata, epdata->state);
 	}
 	mutex_unlock(&epdata->lock);
@@ -823,7 +823,7 @@ ep_open (struct inode *inode, struct file *fd)
 		data->state = STATE_EP_READY;
 		get_ep (data);
 		fd->private_data = data;
-		VDEBUG (data->dev, "%s ready\n", data->name);
+		VDE (data->dev, "%s ready\n", data->name);
 	} else
 		DBG (data->dev, "%s state %d\n",
 			data->name, data->state);
@@ -926,7 +926,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 	if ((state = dev->state) == STATE_DEV_SETUP) {
 
 		if (dev->setup_in) {		/* stall IN */
-			VDEBUG(dev, "ep0in stall\n");
+			VDE(dev, "ep0in stall\n");
 			(void) usb_ep_set_halt (dev->gadget->ep0);
 			retval = -EL2HLT;
 			dev->state = STATE_DEV_CONNECTED;
@@ -1104,11 +1104,11 @@ next_event (struct dev_data *dev, enum usb_gadgetfs_event_type type)
 		}
 		break;
 	default:
-		BUG ();
+		 ();
 	}
-	VDEBUG(dev, "event[%d] = %d\n", dev->ev_next, type);
+	VDE(dev, "event[%d] = %d\n", dev->ev_next, type);
 	event = &dev->event [dev->ev_next++];
-	BUG_ON (dev->ev_next > N_EVENT);
+	_ON (dev->ev_next > N_EVENT);
 	memset (event, 0, sizeof *event);
 	event->type = type;
 	return event;
@@ -1156,7 +1156,7 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 		/* can stall some OUT transfers */
 		} else if (dev->setup_can_stall) {
-			VDEBUG(dev, "ep0out stall\n");
+			VDE(dev, "ep0out stall\n");
 			(void) usb_ep_set_halt (dev->gadget->ep0);
 			retval = -EL2HLT;
 			dev->state = STATE_DEV_CONNECTED;
@@ -1174,7 +1174,7 @@ ep0_fasync (int f, struct file *fd, int on)
 {
 	struct dev_data		*dev = fd->private_data;
 	// caller must F_SETOWN before signal delivery happens
-	VDEBUG (dev, "%s %s\n", __func__, on ? "on" : "off");
+	VDE (dev, "%s %s\n", __func__, on ? "on" : "off");
 	return fasync_helper (f, fd, on, &dev->fasync);
 }
 
@@ -1456,7 +1456,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 	default:
 unrecognized:
-		VDEBUG (dev, "%s req%02x.%02x v%04x i%04x l%d\n",
+		VDE (dev, "%s req%02x.%02x v%04x i%04x l%d\n",
 			dev->usermode_setup ? "delegate" : "fail",
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, le16_to_cpu(ctrl->wIndex), w_length);
@@ -1882,7 +1882,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 fail:
 	spin_unlock_irq (&dev->lock);
-	pr_debug ("%s: %s fail %zd, %p\n", shortname, __func__, value, dev);
+	pr_de ("%s: %s fail %zd, %p\n", shortname, __func__, value, dev);
 	kfree (dev->buf);
 	dev->buf = NULL;
 	return value;
@@ -2089,7 +2089,7 @@ module_init (init);
 
 static void __exit cleanup (void)
 {
-	pr_debug ("unregister %s\n", shortname);
+	pr_de ("unregister %s\n", shortname);
 	unregister_filesystem (&gadgetfs_type);
 }
 module_exit (cleanup);

@@ -109,7 +109,7 @@ static char *rtas_event_type(int type)
  * 0-7		(8)	: rtas_error_log
  * 8-47		(40)	: extended info
  * 48-51	(4)	: vendor id
- * 52-1023 (vendor specific) : location code and debug data
+ * 52-1023 (vendor specific) : location code and de data
  */
 static void printk_log_rtas(char *buf, int len)
 {
@@ -120,7 +120,7 @@ static void printk_log_rtas(char *buf, int len)
 	char * str = "RTAS event";
 
 	if (full_rtas_msgs) {
-		printk(RTAS_DEBUG "%d -------- %s begin --------\n",
+		printk(RTAS_DE "%d -------- %s begin --------\n",
 		       error_log_cnt, str);
 
 		/*
@@ -142,17 +142,17 @@ static void printk_log_rtas(char *buf, int len)
 			n += sprintf(buffer+n, "%02x", (unsigned char)buf[i]);
 
 			if (j == (perline-1))
-				printk(KERN_DEBUG "%s\n", buffer);
+				printk(KERN_DE "%s\n", buffer);
 		}
 		if ((i % perline) != 0)
-			printk(KERN_DEBUG "%s\n", buffer);
+			printk(KERN_DE "%s\n", buffer);
 
-		printk(RTAS_DEBUG "%d -------- %s end ----------\n",
+		printk(RTAS_DE "%d -------- %s end ----------\n",
 		       error_log_cnt, str);
 	} else {
 		struct rtas_error_log *errlog = (struct rtas_error_log *)buf;
 
-		printk(RTAS_DEBUG "event: %d, Type: %s (%d), Severity: %d\n",
+		printk(RTAS_DE "event: %d, Type: %s (%d), Severity: %d\n",
 		       error_log_cnt,
 		       rtas_event_type(rtas_error_type(errlog)),
 		       rtas_error_type(errlog),
@@ -205,7 +205,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	unsigned long s;
 	int len = 0;
 
-	pr_debug("rtasd: logging event\n");
+	pr_de("rtasd: logging event\n");
 	if (buf == NULL)
 		return;
 
@@ -220,7 +220,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		break;
 	case ERR_TYPE_KERNEL_PANIC:
 	default:
-		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DE @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -242,7 +242,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 	/* Check to see if we need to or have stopped logging */
 	if (fatal || !logging_enabled) {
 		logging_enabled = 0;
-		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DE @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -265,13 +265,13 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		else
 			rtas_log_start += 1;
 
-		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DE @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		wake_up_interruptible(&rtas_log_wait);
 		break;
 	case ERR_TYPE_KERNEL_PANIC:
 	default:
-		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DEBUG @@@ */
+		WARN_ON_ONCE(!irqs_disabled()); /* @@@ DE @@@ */
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
@@ -407,7 +407,7 @@ static int enable_surveillance(int timeout)
 		return 0;
 
 	if (error == -EINVAL) {
-		printk(KERN_DEBUG "rtasd: surveillance not supported\n");
+		printk(KERN_DE "rtasd: surveillance not supported\n");
 		return 0;
 	}
 
@@ -467,9 +467,9 @@ static void rtas_event_scan(struct work_struct *w)
 			event_scan_delay = 30*HZ/rtas_event_scan_rate;
 
 			if (surveillance_timeout != -1) {
-				pr_debug("rtasd: enabling surveillance\n");
+				pr_de("rtasd: enabling surveillance\n");
 				enable_surveillance(surveillance_timeout);
-				pr_debug("rtasd: surveillance enabled\n");
+				pr_de("rtasd: surveillance enabled\n");
 			}
 		}
 	}
@@ -506,8 +506,8 @@ static void retrieve_nvram_error_log(void)
 
 static void start_event_scan(void)
 {
-	printk(KERN_DEBUG "RTAS daemon started\n");
-	pr_debug("rtasd: will sleep for %d milliseconds\n",
+	printk(KERN_DE "RTAS daemon started\n");
+	pr_de("rtasd: will sleep for %d milliseconds\n",
 		 (30000 / rtas_event_scan_rate));
 
 	/* Retrieve errors from nvram if any */
@@ -544,7 +544,7 @@ static int __init rtas_event_scan_init(void)
 
 	if (!rtas_event_scan_rate) {
 		/* Broken firmware: take a rate of zero to mean don't scan */
-		printk(KERN_DEBUG "rtasd: scan rate is 0, not scanning\n");
+		printk(KERN_DE "rtasd: scan rate is 0, not scanning\n");
 		return 0;
 	}
 

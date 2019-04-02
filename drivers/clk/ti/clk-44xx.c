@@ -662,7 +662,7 @@ static const struct omap_clkctrl_div_data omap4_stm_clk_div_ck_data __initconst 
 	.flags = CLK_DIVIDER_POWER_OF_TWO,
 };
 
-static const struct omap_clkctrl_bit_data omap4_debugss_bit_data[] __initconst = {
+static const struct omap_clkctrl_bit_data omap4_dess_bit_data[] __initconst = {
 	{ 20, TI_CLK_MUX, omap4_pmd_stm_clock_mux_ck_parents, NULL },
 	{ 22, TI_CLK_MUX, omap4_pmd_stm_clock_mux_ck_parents, NULL },
 	{ 24, TI_CLK_DIVIDER, omap4_trace_clk_div_div_ck_parents, &omap4_trace_clk_div_div_ck_data },
@@ -671,7 +671,7 @@ static const struct omap_clkctrl_bit_data omap4_debugss_bit_data[] __initconst =
 };
 
 static const struct omap_clkctrl_reg_data omap4_emu_sys_clkctrl_regs[] __initconst = {
-	{ OMAP4_DEBUGSS_CLKCTRL, omap4_debugss_bit_data, 0, "trace_clk_div_ck" },
+	{ OMAP4_DESS_CLKCTRL, omap4_dess_bit_data, 0, "trace_clk_div_ck" },
 	{ 0 },
 };
 

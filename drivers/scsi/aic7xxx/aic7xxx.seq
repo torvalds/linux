@@ -128,7 +128,7 @@ dma_queued_scb:
 	mov	A, ARG_1;
 BEGIN_CRITICAL;
 	cmp	NEXT_QUEUED_SCB, A jne abort_qinscb;
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		cmp	SCB_TAG, A je . + 2;
 		mvi	SCB_MISMATCH call set_seqint;
 	}
@@ -784,7 +784,7 @@ idle_sg_avail:
 	ret;
 }
 
-if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0 && ahc->pci_cachesize != 0) {
+if ((ahc->s & AHC_PCI_MWI_) != 0 && ahc->pci_cachesize != 0) {
 /*
  * Calculate the trailing portion of this S/G segment that cannot
  * be transferred using memory write and invalidate PCI transactions.  
@@ -868,7 +868,7 @@ data_phase_initialize:
 		mvi	DINDEX, SCB_RESIDUAL_DATACNT + 3;
 		mvi	SCB_DATACNT + 3 call bcopy_5;
 	}
-	if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0 && ahc->pci_cachesize != 0) {
+	if ((ahc->s & AHC_PCI_MWI_) != 0 && ahc->pci_cachesize != 0) {
 		call	calc_mwi_residual;
 	}
 	and	SCB_RESIDUAL_SGPTR[0], ~SG_FULL_RESID;
@@ -940,7 +940,7 @@ ultra2_dmafinish:
 		 * messages (save data pointers/disconnect and command
 		 * complete) that usually follow a data phase.
 		 */
-		if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
+		if ((ahc->s & AHC_AUTOFLUSH_) != 0) {
 			/*
 			 * On chips with broken auto-flush, start
 			 * the flushing process now.  We'll poke
@@ -1013,7 +1013,7 @@ residuals_correct:
 		test	DMAPARAMS, DIRECTION jnz ultra2_fifoempty;
 ultra2_fifoflush:
 		if ((ahc->features & AHC_DT) == 0) {
-			if ((ahc->bugs & AHC_AUTOFLUSH_BUG) != 0) {
+			if ((ahc->s & AHC_AUTOFLUSH_) != 0) {
 				/*
 				 * On Rev A of the aic7890, the autoflush
 				 * feature doesn't function correctly.
@@ -1091,14 +1091,14 @@ ultra2_dmahalt:
 		}
 	} else {
 		/* If we are the last SG block, tell the hardware. */
-		if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0
+		if ((ahc->s & AHC_PCI_MWI_) != 0
 		  && ahc->pci_cachesize != 0) {
 			test	MWI_RESIDUAL, 0xFF jnz dma_mid_sg;
 		}
 		test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz dma_mid_sg;
 		if ((ahc->flags & AHC_TARGETROLE) != 0) {
 			test	SSTAT0, TARGET jz dma_last_sg;
-			if ((ahc->bugs & AHC_TMODE_WIDEODD_BUG) != 0) {
+			if ((ahc->s & AHC_TMODE_WIDEODD_) != 0) {
 				test	DMAPARAMS, DIRECTION jz dma_mid_sg;
 			}
 		}
@@ -1146,7 +1146,7 @@ dma_halt:
 		 * the prefetched but unused data from the data fifo until
 		 * there is space for the input latch to drain.
 		 */
-		if ((ahc->bugs & AHC_PCI_2_1_RETRY_BUG) != 0) {
+		if ((ahc->s & AHC_PCI_2_1_RETRY_) != 0) {
 			mov	NONE, DFDAT;
 		}
 		test	DFCNTRL, (SCSIEN|SDMAEN|HDMAEN) jnz dma_halt;
@@ -1159,7 +1159,7 @@ dma_halt:
 		/*
 		 * Advance the scatter-gather pointers if needed 
 		 */
-		if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0
+		if ((ahc->s & AHC_PCI_MWI_) != 0
 		  && ahc->pci_cachesize != 0) {
 			test	MWI_RESIDUAL, 0xFF jz no_mwi_resid;
 			/*
@@ -1232,7 +1232,7 @@ sg_load:
 			 */
 			mov	HADDR, HADDR;
 		}
-		if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0
+		if ((ahc->s & AHC_PCI_MWI_) != 0
 		  && ahc->pci_cachesize != 0) {
 			call calc_mwi_residual;
 		}
@@ -1301,7 +1301,7 @@ data_phase_done:
 	 *
 	 */
 	test	SCB_RESIDUAL_SGPTR, SG_LIST_NULL jnz residual_update_done;
-	if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0
+	if ((ahc->s & AHC_PCI_MWI_) != 0
 	  && ahc->pci_cachesize != 0) {
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
 			test	MWI_RESIDUAL, 0xFF jz bmov_resid;
@@ -1818,7 +1818,7 @@ mesgin_identify:
 	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		add	SINDEX, SCB_64_BTT;
 		mov	SCBPTR, SAVED_LUN;
-		if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+		if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 			add	NONE, -SCB_64_BTT, SINDEX;
 			jc	. + 2;
 			mvi	INTSTAT, OUT_OF_RANGE;
@@ -1830,7 +1830,7 @@ mesgin_identify:
 		}
 	} else {
 		add	SINDEX, BUSY_TARGETS;
-		if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+		if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 			add	NONE, -BUSY_TARGETS, SINDEX;
 			jc	. + 2;
 			mvi	INTSTAT, OUT_OF_RANGE;
@@ -1878,16 +1878,16 @@ mesgin_identify:
  * SCB.
  */
 snoop_tag:
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x80;
 	}
 	mov	NONE,SCSIDATL;		/* ACK Identify MSG */
 	call	phase_lock;
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x1;
 	}
 	cmp	LASTPHASE, P_MESGIN	jne not_found;
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x2;
 	}
 	cmp	SCSIBUSL,MSG_SIMPLE_Q_TAG jne not_found;
@@ -1905,19 +1905,19 @@ get_tag:
  * an SCB transaction to the reconnecting target.
  */
 setup_SCB:
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x4;
 	}
 	mov	A, SCB_SCSIID;
 	cmp	SAVED_SCSIID, A	jne not_found_cleanup_scb;
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x8;
 	}
 setup_SCB_id_okay:
 	and	A, LID, SCB_LUN;
 	cmp	SAVED_LUN, A	jne not_found_cleanup_scb;
 setup_SCB_id_lun_okay:
-	if ((ahc->flags & AHC_SEQUENCER_DEBUG) != 0) {
+	if ((ahc->flags & AHC_SEQUENCER_DE) != 0) {
 		or	SEQ_FLAGS, 0x10;
 	}
 	test	SCB_CONTROL,DISCONNECTED jz not_found_cleanup_scb;
@@ -2213,7 +2213,7 @@ dma_scb_tohost:
 			bmov	CCSCBRAM, SCB_BASE, SCB_UPLOAD_SIZE;
 			or	CCSCBCTL, CCSCBEN|CCSCBRESET;
 			test	CCSCBCTL, CCSCBDONE jz .;
-		} else if ((ahc->bugs & AHC_SCBCHAN_UPLOAD_BUG) != 0) {
+		} else if ((ahc->s & AHC_SCBCHAN_UPLOAD_) != 0) {
 			mvi	CCSCBCTL, CCARREN|CCSCBRESET;
 			cmp	CCSCBCTL, ARRDONE|CCARREN jne .;
 			mvi	CCHCNT, SCB_UPLOAD_SIZE;
@@ -2244,7 +2244,7 @@ copy_scb_tofifo_loop:
 		jmp	dma_finish;
 dma_scb_fromhost:
 		mvi	DINDEX, SCB_BASE;
-		if ((ahc->bugs & AHC_PCI_2_1_RETRY_BUG) != 0) {
+		if ((ahc->s & AHC_PCI_2_1_RETRY_) != 0) {
 			/*
 			 * The PCI module will only issue a PCI
 			 * retry if the data FIFO is empty.  If the

@@ -60,9 +60,9 @@
 #include "fwcmd.h"
 #include "../regd.h"
 
-#ifdef CONFIG_CARL9170_DEBUGFS
-#include "debug.h"
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#ifdef CONFIG_CARL9170_DEFS
+#include "de.h"
+#endif /* CONFIG_CARL9170_DEFS */
 
 #define CARL9170FW_NAME	"carl9170-1.fw"
 
@@ -270,7 +270,7 @@ struct ar9170 {
 		unsigned int api_version;
 		unsigned int vif_num;
 		unsigned int err_counter;
-		unsigned int bug_counter;
+		unsigned int _counter;
 		u32 beacon_addr;
 		unsigned int beacon_max_len;
 		bool rx_stream;
@@ -434,10 +434,10 @@ struct ar9170 {
 	} wps;
 #endif /* CONFIG_CARL9170_WPC */
 
-#ifdef CONFIG_CARL9170_DEBUGFS
-	struct carl9170_debug debug;
-	struct dentry *debug_dir;
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#ifdef CONFIG_CARL9170_DEFS
+	struct carl9170_de de;
+	struct dentry *de_dir;
+#endif /* CONFIG_CARL9170_DEFS */
 
 	/* PSM */
 	struct work_struct ps_work;

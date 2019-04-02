@@ -194,7 +194,7 @@ nvkm_therm_program_alarms_polling(struct nvkm_therm *therm)
 {
 	struct nvbios_therm_sensor *sensor = &therm->bios_sensor;
 
-	nvkm_debug(&therm->subdev,
+	nvkm_de(&therm->subdev,
 		   "programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
 		   sensor->thrs_fan_boost.temp,
 		   sensor->thrs_fan_boost.hysteresis,
@@ -232,7 +232,7 @@ nvkm_therm_sensor_preinit(struct nvkm_therm *therm)
 	if (therm->func->temp_get(therm) < 0)
 		sensor_avail = "no";
 
-	nvkm_debug(&therm->subdev, "internal sensor: %s\n", sensor_avail);
+	nvkm_de(&therm->subdev, "internal sensor: %s\n", sensor_avail);
 }
 
 int

@@ -27,7 +27,7 @@ some terms we will be working with.
 
    No structure should EVER have more than one kobject embedded within it.
    If it does, the reference counting for the object is sure to be messed
-   up and incorrect, and your code will be buggy.  So do not do this.
+   up and incorrect, and your code will be gy.  So do not do this.
 
  - A ktype is the type of object that embeds a kobject.  Every structure
    that embeds a kobject needs a corresponding ktype.  The ktype controls

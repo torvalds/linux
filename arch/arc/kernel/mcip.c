@@ -51,7 +51,7 @@ static void mcip_update_gfrc_halt_mask(int cpu)
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
 }
 
-static void mcip_update_debug_halt_mask(int cpu)
+static void mcip_update_de_halt_mask(int cpu)
 {
 	u32 mcip_mask = 0;
 	unsigned long flags;
@@ -59,22 +59,22 @@ static void mcip_update_debug_halt_mask(int cpu)
 	raw_spin_lock_irqsave(&mcip_lock, flags);
 
 	/*
-	 * mcip_mask is same for CMD_DEBUG_SET_SELECT and CMD_DEBUG_SET_MASK
-	 * commands. So read it once instead of reading both CMD_DEBUG_READ_MASK
-	 * and CMD_DEBUG_READ_SELECT.
+	 * mcip_mask is same for CMD_DE_SET_SELECT and CMD_DE_SET_MASK
+	 * commands. So read it once instead of reading both CMD_DE_READ_MASK
+	 * and CMD_DE_READ_SELECT.
 	 */
-	__mcip_cmd(CMD_DEBUG_READ_SELECT, 0);
+	__mcip_cmd(CMD_DE_READ_SELECT, 0);
 	mcip_mask = read_aux_reg(ARC_REG_MCIP_READBACK);
 
 	mcip_mask |= BIT(cpu);
 
-	__mcip_cmd_data(CMD_DEBUG_SET_SELECT, 0, mcip_mask);
+	__mcip_cmd_data(CMD_DE_SET_SELECT, 0, mcip_mask);
 	/*
 	 * Parameter specified halt cause:
 	 * STATUS32[H]/actionpoint/breakpoint/self-halt
 	 * We choose all of them (0xF).
 	 */
-	__mcip_cmd_data(CMD_DEBUG_SET_MASK, 0xF, mcip_mask);
+	__mcip_cmd_data(CMD_DE_SET_MASK, 0xF, mcip_mask);
 
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
 }
@@ -92,9 +92,9 @@ static void mcip_setup_per_cpu(int cpu)
 	if (mp.gfrc)
 		mcip_update_gfrc_halt_mask(cpu);
 
-	/* Update MCIP debug mask as new CPU came online */
+	/* Update MCIP de mask as new CPU came online */
 	if (mp.dbg)
-		mcip_update_debug_halt_mask(cpu);
+		mcip_update_de_halt_mask(cpu);
 }
 
 static void mcip_ipi_send(int cpu)
@@ -166,7 +166,7 @@ static void mcip_probe_n_setup(void)
 		mp.ver, mp.num_cores,
 		IS_AVAIL1(mp.ipi, "IPI "),
 		IS_AVAIL1(mp.idu, "IDU "),
-		IS_AVAIL1(mp.dbg, "DEBUG "),
+		IS_AVAIL1(mp.dbg, "DE "),
 		IS_AVAIL1(mp.gfrc, "GFRC"));
 
 	cpuinfo_arc700[0].extn.gfrc = mp.gfrc;
@@ -365,7 +365,7 @@ idu_of_init(struct device_node *intc, struct device_node *parent)
 		 * as first level isr
 		 */
 		virq = irq_create_mapping(NULL, i + FIRST_EXT_IRQ);
-		BUG_ON(!virq);
+		_ON(!virq);
 		irq_set_chained_handler_and_data(virq, idu_cascade_isr, domain);
 	}
 

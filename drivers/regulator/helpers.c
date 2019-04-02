@@ -374,7 +374,7 @@ int regulator_map_voltage_linear(struct regulator_dev *rdev,
 	}
 
 	if (!rdev->desc->uV_step) {
-		BUG_ON(!rdev->desc->uV_step);
+		_ON(!rdev->desc->uV_step);
 		return -EINVAL;
 	}
 
@@ -414,7 +414,7 @@ int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 	int voltage, i;
 
 	if (!rdev->desc->n_linear_ranges) {
-		BUG_ON(!rdev->desc->n_linear_ranges);
+		_ON(!rdev->desc->n_linear_ranges);
 		return -EINVAL;
 	}
 
@@ -478,7 +478,7 @@ int regulator_map_voltage_pickable_linear_range(struct regulator_dev *rdev,
 	unsigned int selector = 0;
 
 	if (!rdev->desc->n_linear_ranges) {
-		BUG_ON(!rdev->desc->n_linear_ranges);
+		_ON(!rdev->desc->n_linear_ranges);
 		return -EINVAL;
 	}
 
@@ -570,7 +570,7 @@ int regulator_list_voltage_pickable_linear_range(struct regulator_dev *rdev,
 	unsigned int all_sels = 0;
 
 	if (!rdev->desc->n_linear_ranges) {
-		BUG_ON(!rdev->desc->n_linear_ranges);
+		_ON(!rdev->desc->n_linear_ranges);
 		return -EINVAL;
 	}
 
@@ -612,7 +612,7 @@ int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
 	int i;
 
 	if (!desc->n_linear_ranges) {
-		BUG_ON(!desc->n_linear_ranges);
+		_ON(!desc->n_linear_ranges);
 		return -EINVAL;
 	}
 
@@ -663,7 +663,7 @@ int regulator_list_voltage_table(struct regulator_dev *rdev,
 				 unsigned int selector)
 {
 	if (!rdev->desc->volt_table) {
-		BUG_ON(!rdev->desc->volt_table);
+		_ON(!rdev->desc->volt_table);
 		return -EINVAL;
 	}
 

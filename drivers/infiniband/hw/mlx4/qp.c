@@ -548,7 +548,7 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		memcpy(rss_ctx->rss_key, ucmd->rx_hash_key,
 		       MLX4_EN_RSS_KEY_SIZE);
 	} else {
-		pr_debug("RX Hash function is not supported\n");
+		pr_de("RX Hash function is not supported\n");
 		return (-EOPNOTSUPP);
 	}
 
@@ -561,7 +561,7 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 					  MLX4_IB_RX_HASH_SRC_PORT_UDP	|
 					  MLX4_IB_RX_HASH_DST_PORT_UDP  |
 					  MLX4_IB_RX_HASH_INNER)) {
-		pr_debug("RX Hash fields_mask has unsupported mask (0x%llx)\n",
+		pr_de("RX Hash fields_mask has unsupported mask (0x%llx)\n",
 			 ucmd->rx_hash_fields_mask);
 		return (-EOPNOTSUPP);
 	}
@@ -571,7 +571,7 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		rss_ctx->flags = MLX4_RSS_IPV4;
 	} else if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_IPV4) ||
 		   (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_IPV4)) {
-		pr_debug("RX Hash fields_mask is not supported - both IPv4 SRC and DST must be set\n");
+		pr_de("RX Hash fields_mask is not supported - both IPv4 SRC and DST must be set\n");
 		return (-EOPNOTSUPP);
 	}
 
@@ -580,14 +580,14 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		rss_ctx->flags |= MLX4_RSS_IPV6;
 	} else if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_IPV6) ||
 		   (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_IPV6)) {
-		pr_debug("RX Hash fields_mask is not supported - both IPv6 SRC and DST must be set\n");
+		pr_de("RX Hash fields_mask is not supported - both IPv6 SRC and DST must be set\n");
 		return (-EOPNOTSUPP);
 	}
 
 	if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_PORT_UDP) &&
 	    (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_PORT_UDP)) {
 		if (!(dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_UDP_RSS)) {
-			pr_debug("RX Hash fields_mask for UDP is not supported\n");
+			pr_de("RX Hash fields_mask for UDP is not supported\n");
 			return (-EOPNOTSUPP);
 		}
 
@@ -596,12 +596,12 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		if (rss_ctx->flags & MLX4_RSS_IPV6)
 			rss_ctx->flags |= MLX4_RSS_UDP_IPV6;
 		if (!(rss_ctx->flags & (MLX4_RSS_IPV6 | MLX4_RSS_IPV4))) {
-			pr_debug("RX Hash fields_mask is not supported - UDP must be set with IPv4 or IPv6\n");
+			pr_de("RX Hash fields_mask is not supported - UDP must be set with IPv4 or IPv6\n");
 			return (-EOPNOTSUPP);
 		}
 	} else if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_PORT_UDP) ||
 		   (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_PORT_UDP)) {
-		pr_debug("RX Hash fields_mask is not supported - both UDP SRC and DST must be set\n");
+		pr_de("RX Hash fields_mask is not supported - both UDP SRC and DST must be set\n");
 		return (-EOPNOTSUPP);
 	}
 
@@ -612,12 +612,12 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		if (rss_ctx->flags & MLX4_RSS_IPV6)
 			rss_ctx->flags |= MLX4_RSS_TCP_IPV6;
 		if (!(rss_ctx->flags & (MLX4_RSS_IPV6 | MLX4_RSS_IPV4))) {
-			pr_debug("RX Hash fields_mask is not supported - TCP must be set with IPv4 or IPv6\n");
+			pr_de("RX Hash fields_mask is not supported - TCP must be set with IPv4 or IPv6\n");
 			return (-EOPNOTSUPP);
 		}
 	} else if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_PORT_TCP) ||
 		   (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_PORT_TCP)) {
-		pr_debug("RX Hash fields_mask is not supported - both TCP SRC and DST must be set\n");
+		pr_de("RX Hash fields_mask is not supported - both TCP SRC and DST must be set\n");
 		return (-EOPNOTSUPP);
 	}
 
@@ -630,7 +630,7 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 			 */
 			rss_ctx->flags |= MLX4_RSS_BY_INNER_HEADERS_IPONLY;
 		} else {
-			pr_debug("RSS Hash for inner headers isn't supported\n");
+			pr_de("RSS Hash for inner headers isn't supported\n");
 			return (-EOPNOTSUPP);
 		}
 	}
@@ -706,7 +706,7 @@ static struct ib_qp *_mlx4_ib_create_qp_rss(struct ib_pd *pd,
 	int err;
 
 	if (!udata) {
-		pr_debug("RSS QP with NULL udata\n");
+		pr_de("RSS QP with NULL udata\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -716,12 +716,12 @@ static struct ib_qp *_mlx4_ib_create_qp_rss(struct ib_pd *pd,
 	required_cmd_sz = offsetof(typeof(ucmd), reserved1) +
 					sizeof(ucmd.reserved1);
 	if (udata->inlen < required_cmd_sz) {
-		pr_debug("invalid inlen\n");
+		pr_de("invalid inlen\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (ib_copy_from_udata(&ucmd, udata, min(sizeof(ucmd), udata->inlen))) {
-		pr_debug("copy failed\n");
+		pr_de("copy failed\n");
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -734,23 +734,23 @@ static struct ib_qp *_mlx4_ib_create_qp_rss(struct ib_pd *pd,
 	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
 				 udata->inlen - sizeof(ucmd))) {
-		pr_debug("inlen is not supported\n");
+		pr_de("inlen is not supported\n");
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
-		pr_debug("RSS QP with unsupported QP type %d\n",
+		pr_de("RSS QP with unsupported QP type %d\n",
 			 init_attr->qp_type);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (init_attr->create_flags) {
-		pr_debug("RSS QP doesn't support create flags\n");
+		pr_de("RSS QP doesn't support create flags\n");
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (init_attr->send_cq || init_attr->cap.max_send_wr) {
-		pr_debug("RSS QP with unsupported send attributes\n");
+		pr_de("RSS QP with unsupported send attributes\n");
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
@@ -967,14 +967,14 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (src == MLX4_IB_RWQ_SRC) {
 			if (ucmd.wq.comp_mask || ucmd.wq.reserved[0] ||
 			    ucmd.wq.reserved[1] || ucmd.wq.reserved[2]) {
-				pr_debug("user command isn't supported\n");
+				pr_de("user command isn't supported\n");
 				err = -EOPNOTSUPP;
 				goto err;
 			}
 
 			if (ucmd.wq.log_range_size >
 			    ilog2(dev->dev->caps.max_rss_tbl_sz)) {
-				pr_debug("WQN range size must be equal or smaller than %d\n",
+				pr_de("WQN range size must be equal or smaller than %d\n",
 					 dev->dev->caps.max_rss_tbl_sz);
 				err = -EOPNOTSUPP;
 				goto err;
@@ -987,7 +987,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (init_attr->create_flags & IB_QP_CREATE_SCATTER_FCS) {
 			if (!(dev->dev->caps.flags &
 			      MLX4_DEV_CAP_FLAG_FCS_KEEP)) {
-				pr_debug("scatter FCS is unsupported\n");
+				pr_de("scatter FCS is unsupported\n");
 				err = -EOPNOTSUPP;
 				goto err;
 			}
@@ -2645,7 +2645,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
 				attr_mask)) {
-		pr_debug("qpn 0x%x: invalid attribute mask specified "
+		pr_de("qpn 0x%x: invalid attribute mask specified "
 			 "for transition %d to %d. qp_type %d,"
 			 " attr_mask 0x%x\n",
 			 ibqp->qp_num, cur_state, new_state,
@@ -2658,7 +2658,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       (new_state == IB_QPS_INIT)) ||
 		      ((cur_state == IB_QPS_INIT)  &&
 		       (new_state == IB_QPS_RTR)))) {
-			pr_debug("qpn 0x%x: RSS QP unsupported transition %d to %d\n",
+			pr_de("qpn 0x%x: RSS QP unsupported transition %d to %d\n",
 				 ibqp->qp_num, cur_state, new_state);
 
 			err = -EOPNOTSUPP;
@@ -2666,7 +2666,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 
 		if (attr_mask & ~MLX4_IB_MODIFY_QP_RSS_SUP_ATTR_MSK) {
-			pr_debug("qpn 0x%x: RSS QP unsupported attribute mask 0x%x for transition %d to %d\n",
+			pr_de("qpn 0x%x: RSS QP unsupported attribute mask 0x%x for transition %d to %d\n",
 				 ibqp->qp_num, attr_mask, cur_state, new_state);
 
 			err = -EOPNOTSUPP;
@@ -2692,7 +2692,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > dev->num_ports)) {
-		pr_debug("qpn 0x%x: invalid port number (%d) specified "
+		pr_de("qpn 0x%x: invalid port number (%d) specified "
 			 "for transition %d to %d. qp_type %d\n",
 			 ibqp->qp_num, attr->port_num, cur_state,
 			 new_state, ibqp->qp_type);
@@ -2707,7 +2707,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		int p = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 		if (attr->pkey_index >= dev->dev->caps.pkey_table_len[p]) {
-			pr_debug("qpn 0x%x: invalid pkey index (%d) specified "
+			pr_de("qpn 0x%x: invalid pkey index (%d) specified "
 				 "for transition %d to %d. qp_type %d\n",
 				 ibqp->qp_num, attr->pkey_index, cur_state,
 				 new_state, ibqp->qp_type);
@@ -2717,7 +2717,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
 	    attr->max_rd_atomic > dev->dev->caps.max_qp_init_rdma) {
-		pr_debug("qpn 0x%x: max_rd_atomic (%d) too large. "
+		pr_de("qpn 0x%x: max_rd_atomic (%d) too large. "
 			 "Transition %d to %d. qp_type %d\n",
 			 ibqp->qp_num, attr->max_rd_atomic, cur_state,
 			 new_state, ibqp->qp_type);
@@ -2726,7 +2726,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
 	    attr->max_dest_rd_atomic > dev->dev->caps.max_qp_dest_rdma) {
-		pr_debug("qpn 0x%x: max_dest_rd_atomic (%d) too large. "
+		pr_de("qpn 0x%x: max_dest_rd_atomic (%d) too large. "
 			 "Transition %d to %d. qp_type %d\n",
 			 ibqp->qp_num, attr->max_dest_rd_atomic, cur_state,
 			 new_state, ibqp->qp_type);
@@ -4056,14 +4056,14 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 	required_cmd_sz = offsetof(typeof(ucmd), comp_mask) +
 			  sizeof(ucmd.comp_mask);
 	if (udata->inlen < required_cmd_sz) {
-		pr_debug("invalid inlen\n");
+		pr_de("invalid inlen\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
 				 udata->inlen - sizeof(ucmd))) {
-		pr_debug("inlen is not supported\n");
+		pr_de("inlen is not supported\n");
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
@@ -4073,12 +4073,12 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 	dev = to_mdev(pd->device);
 
 	if (init_attr->wq_type != IB_WQT_RQ) {
-		pr_debug("unsupported wq type %d\n", init_attr->wq_type);
+		pr_de("unsupported wq type %d\n", init_attr->wq_type);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (init_attr->create_flags & ~IB_WQ_FLAGS_SCATTER_FCS) {
-		pr_debug("unsupported create_flags %u\n",
+		pr_de("unsupported create_flags %u\n",
 			 init_attr->create_flags);
 		return ERR_PTR(-EOPNOTSUPP);
 	}
@@ -4155,7 +4155,7 @@ static int _mlx4_ib_modify_wq(struct ib_wq *ibwq, enum ib_wq_state new_state,
 					  attr_mask, IB_QPS_RESET, IB_QPS_INIT,
 					  udata);
 		if (err) {
-			pr_debug("WQN=0x%06x failed to apply RST->INIT on the HW QP\n",
+			pr_de("WQN=0x%06x failed to apply RST->INIT on the HW QP\n",
 				 ibwq->wq_num);
 			return err;
 		}
@@ -4283,7 +4283,7 @@ struct ib_rwq_ind_table
 
 	if (ind_tbl_size >
 	    device->attrs.rss_caps.max_rwq_indirection_table_size) {
-		pr_debug("log_ind_tbl_size = %d is bigger than supported = %d\n",
+		pr_de("log_ind_tbl_size = %d is bigger than supported = %d\n",
 			 ind_tbl_size,
 			 device->attrs.rss_caps.max_rwq_indirection_table_size);
 		return ERR_PTR(-EINVAL);
@@ -4292,14 +4292,14 @@ struct ib_rwq_ind_table
 	base_wqn = init_attr->ind_tbl[0]->wq_num;
 
 	if (base_wqn % ind_tbl_size) {
-		pr_debug("WQN=0x%x isn't aligned with indirection table size\n",
+		pr_de("WQN=0x%x isn't aligned with indirection table size\n",
 			 base_wqn);
 		return ERR_PTR(-EINVAL);
 	}
 
 	for (i = 1; i < ind_tbl_size; i++) {
 		if (++base_wqn != init_attr->ind_tbl[i]->wq_num) {
-			pr_debug("indirection table's WQNs aren't consecutive\n");
+			pr_de("indirection table's WQNs aren't consecutive\n");
 			return ERR_PTR(-EINVAL);
 		}
 	}

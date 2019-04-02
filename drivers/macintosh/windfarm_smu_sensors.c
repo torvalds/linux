@@ -25,9 +25,9 @@
 
 #define VERSION "0.2"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(args...)	printk(args)
 #else
 #define DBG(args...)	do { } while(0)
@@ -41,7 +41,7 @@ static struct smu_sdbp_cpuvcp *cpuvcp;
 static int  cpuvcp_version;
 static struct smu_sdbp_cpudiode *cpudiode;
 static struct smu_sdbp_slotspow *slotspow;
-static u8 *debugswitches;
+static u8 *deswitches;
 
 /*
  * SMU basic sensors objects
@@ -350,7 +350,7 @@ smu_cpu_power_create(struct wf_sensor *volts, struct wf_sensor *amps)
 	pow->amps = amps;
 
 	/* Some early machines need a faked voltage */
-	if (debugswitches && ((*debugswitches) & 0x80)) {
+	if (deswitches && ((*deswitches) & 0x80)) {
 		printk(KERN_INFO "windfarm: CPU Power sensor using faked"
 		       " voltage !\n");
 		pow->fake_volts = 1;
@@ -400,10 +400,10 @@ static void smu_fetch_param_partitions(void)
 	if (hdr != NULL)
 		slotspow = (struct smu_sdbp_slotspow *)&hdr[1];
 
-	/* Get debug switches if any */
-	hdr = smu_get_sdb_partition(SMU_SDB_DEBUG_SWITCHES_ID, NULL);
+	/* Get de switches if any */
+	hdr = smu_get_sdb_partition(SMU_SDB_DE_SWITCHES_ID, NULL);
 	if (hdr != NULL)
-		debugswitches = (u8 *)&hdr[1];
+		deswitches = (u8 *)&hdr[1];
 }
 
 static int __init smu_sensors_init(void)

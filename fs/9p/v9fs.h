@@ -74,7 +74,7 @@ enum p9_cache_modes {
  * struct v9fs_session_info - per-instance session information
  * @flags: session options of type &p9_session_flags
  * @nodev: set to 1 to disable device mapping
- * @debug: debug level
+ * @de: de level
  * @afid: authentication handle
  * @cache: cache mode of type &p9_cache_modes
  * @cachetag: the tag of the cache associated with this session
@@ -91,7 +91,7 @@ enum p9_cache_modes {
  * This structure holds state for each session instance established during
  * a sys_mount() .
  *
- * Bugs: there seems to be a lot of state which could be condensed and/or
+ * s: there seems to be a lot of state which could be condensed and/or
  * removed.
  */
 
@@ -99,7 +99,7 @@ struct v9fs_session_info {
 	/* options */
 	unsigned char flags;
 	unsigned char nodev;
-	unsigned short debug;
+	unsigned short de;
 	unsigned int afid;
 	unsigned int cache;
 #ifdef CONFIG_9P_FSCACHE

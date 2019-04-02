@@ -29,7 +29,7 @@ struct batadv_icmp_header;
 
 int batadv_socket_setup(struct batadv_priv *bat_priv);
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 
 void batadv_socket_init(void);
 void batadv_socket_receive_packet(struct batadv_icmp_header *icmph,

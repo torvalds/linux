@@ -1,7 +1,7 @@
 #include "util/mem-events.h"
 #include "util/symbol.h"
 #include "linux/perf_event.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include "tests.h"
 #include <string.h>
 

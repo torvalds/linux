@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/memblock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>

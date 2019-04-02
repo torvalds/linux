@@ -62,21 +62,21 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 		image.last = 1;
 	} else {
 		if (!shadow_fetch(bios, mthd, offset + 0x1000)) {
-			nvkm_debug(subdev, "%08x: header fetch failed\n",
+			nvkm_de(subdev, "%08x: header fetch failed\n",
 				   offset);
 			return 0;
 		}
 
 		if (!nvbios_image(bios, idx, &image)) {
-			nvkm_debug(subdev, "image %d invalid\n", idx);
+			nvkm_de(subdev, "image %d invalid\n", idx);
 			return 0;
 		}
 	}
-	nvkm_debug(subdev, "%08x: type %02x, %d bytes\n",
+	nvkm_de(subdev, "%08x: type %02x, %d bytes\n",
 		   image.base, image.type, image.size);
 
 	if (!shadow_fetch(bios, mthd, image.size)) {
-		nvkm_debug(subdev, "%08x: fetch failed\n", image.base);
+		nvkm_de(subdev, "%08x: fetch failed\n", image.base);
 		return 0;
 	}
 
@@ -84,7 +84,7 @@ shadow_image(struct nvkm_bios *bios, int idx, u32 offset, struct shadow *mthd)
 	case 0x00:
 		if (!mthd->func->ignore_checksum &&
 		    nvbios_checksum(&bios->data[image.base], image.size)) {
-			nvkm_debug(subdev, "%08x: checksum failed\n",
+			nvkm_de(subdev, "%08x: checksum failed\n",
 				   image.base);
 			if (!mthd->func->require_checksum) {
 				if (mthd->func->rw)
@@ -112,7 +112,7 @@ shadow_method(struct nvkm_bios *bios, struct shadow *mthd, const char *name)
 	const struct nvbios_source *func = mthd->func;
 	struct nvkm_subdev *subdev = &bios->subdev;
 	if (func->name) {
-		nvkm_debug(subdev, "trying %s...\n", name ? name : func->name);
+		nvkm_de(subdev, "trying %s...\n", name ? name : func->name);
 		if (func->init) {
 			mthd->data = func->init(bios, name);
 			if (IS_ERR(mthd->data)) {
@@ -123,7 +123,7 @@ shadow_method(struct nvkm_bios *bios, struct shadow *mthd, const char *name)
 		mthd->score = shadow_image(bios, 0, 0, mthd);
 		if (func->fini)
 			func->fini(mthd->data);
-		nvkm_debug(subdev, "scored %d\n", mthd->score);
+		nvkm_de(subdev, "scored %d\n", mthd->score);
 		mthd->data = bios->data;
 		mthd->size = bios->size;
 		bios->data  = NULL;
@@ -233,7 +233,7 @@ nvbios_shadow(struct nvkm_bios *bios)
 		return -EINVAL;
 	}
 
-	nvkm_debug(subdev, "using image from %s\n", best->func ?
+	nvkm_de(subdev, "using image from %s\n", best->func ?
 		   best->func->name : source);
 	bios->data = best->data;
 	bios->size = best->size;

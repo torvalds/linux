@@ -30,7 +30,7 @@ struct key *afs_request_key(struct afs_cell *cell)
 
 	_enter("{%x}", key_serial(cell->anonymous_key));
 
-	_debug("key %s", cell->anonymous_key->description);
+	_de("key %s", cell->anonymous_key->description);
 	key = request_key(&key_type_rxrpc, cell->anonymous_key->description,
 			  NULL);
 	if (IS_ERR(key)) {
@@ -295,7 +295,7 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 
 	/* check the permits to see if we've got one yet */
 	if (key == vnode->volume->cell->anonymous_key) {
-		_debug("anon");
+		_de("anon");
 		*_access = vnode->status.anon_access;
 		valid = true;
 	} else {
@@ -320,7 +320,7 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 		/* Check the status on the file we're actually interested in
 		 * (the post-processing will cache the result).
 		 */
-		_debug("no valid permit");
+		_de("no valid permit");
 
 		ret = afs_fetch_status(vnode, key, false);
 		if (ret < 0) {
@@ -369,7 +369,7 @@ int afs_permission(struct inode *inode, int mask)
 		goto error;
 
 	/* interpret the access mask */
-	_debug("REQ %x ACC %x on %s",
+	_de("REQ %x ACC %x on %s",
 	       mask, access, S_ISDIR(inode->i_mode) ? "dir" : "file");
 
 	if (S_ISDIR(inode->i_mode)) {

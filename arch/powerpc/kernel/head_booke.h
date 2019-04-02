@@ -86,7 +86,7 @@ END_BTB_FLUSH_SECTION
  *
  * On 40x critical is the only additional level
  * On 44x/e500 we have critical and machine check
- * On e200 we have critical and debug (machine check occurs via critical)
+ * On e200 we have critical and de (machine check occurs via critical)
  *
  * Additionally we reserve a SPRG for each priority level so we can free up a
  * GPR to use as the base for indirect access to the exception stacks.  This
@@ -94,8 +94,8 @@ END_BTB_FLUSH_SECTION
  * are offset from KERNELBASE.
  *
  * There is some space optimization to be had here if desired.  However
- * to allow for a common kernel with support for debug exceptions either
- * going to critical or their own debug level we aren't currently
+ * to allow for a common kernel with support for de exceptions either
+ * going to critical or their own de level we aren't currently
  * providing configurations that micro-optimize space usage.
  */
 
@@ -176,8 +176,8 @@ END_BTB_FLUSH_SECTION
 
 #define CRITICAL_EXCEPTION_PROLOG(intno) \
 		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, intno, SPRN_CSRR0, SPRN_CSRR1)
-#define DEBUG_EXCEPTION_PROLOG \
-		EXC_LEVEL_EXCEPTION_PROLOG(DBG, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
+#define DE_EXCEPTION_PROLOG \
+		EXC_LEVEL_EXCEPTION_PROLOG(DBG, DE, SPRN_DSRR0, SPRN_DSRR1)
 #define MCHECK_EXCEPTION_PROLOG \
 		EXC_LEVEL_EXCEPTION_PROLOG(MC, MACHINE_CHECK, \
 			SPRN_MCSRR0, SPRN_MCSRR1)
@@ -259,22 +259,22 @@ label:
 	EXC_XFER_TEMPLATE(hdlr, n+1, MSR_KERNEL, COPY_EE, transfer_to_handler, \
 			  ret_from_except)
 
-/* Check for a single step debug exception while in an exception
+/* Check for a single step de exception while in an exception
  * handler before state has been saved.  This is to catch the case
  * where an instruction that we are trying to single step causes
  * an exception (eg ITLB/DTLB miss) and thus the first instruction of
- * the exception handler generates a single step debug exception.
+ * the exception handler generates a single step de exception.
  *
- * If we get a debug trap on the first instruction of an exception handler,
- * we reset the MSR_DE in the _exception handler's_ MSR (the debug trap is
+ * If we get a de trap on the first instruction of an exception handler,
+ * we reset the MSR_DE in the _exception handler's_ MSR (the de trap is
  * a critical exception, so we are using SPRN_CSRR1 to manipulate the MSR).
  * The exception handler was handling a non-critical interrupt, so it will
  * save (and later restore) the MSR via SPRN_CSRR1, which will still have
  * the MSR_DE bit set.
  */
-#define DEBUG_DEBUG_EXCEPTION						      \
-	START_EXCEPTION(DebugDebug);					      \
-	DEBUG_EXCEPTION_PROLOG;						      \
+#define DE_DE_EXCEPTION						      \
+	START_EXCEPTION(DeDe);					      \
+	DE_EXCEPTION_PROLOG;						      \
 									      \
 	/*								      \
 	 * If there is a single step or branch-taken exception in an	      \
@@ -282,7 +282,7 @@ label:
 	 * the code where the exception occurred (since exception entry	      \
 	 * doesn't turn off DE automatically).  We simulate the effect	      \
 	 * of turning off DE on entry to an exception handler by turning      \
-	 * off DE in the DSRR1 value and clearing the debug status.	      \
+	 * off DE in the DSRR1 value and clearing the de status.	      \
 	 */								      \
 	mfspr	r10,SPRN_DBSR;		/* check single-step/branch taken */  \
 	andis.	r10,r10,(DBSR_IC|DBSR_BT)@h;				      \
@@ -298,7 +298,7 @@ label:
 	cmplw	r12,r10;						      \
 	bgt+	2f;			/* addr above exception vectors */    \
 									      \
-	/* here it looks like we got an inappropriate debug exception. */     \
+	/* here it looks like we got an inappropriate de exception. */     \
 1:	rlwinm	r9,r9,0,~MSR_DE;	/* clear DE in the CDRR1 value */     \
 	lis	r10,(DBSR_IC|DBSR_BT)@h;	/* clear the IC event */      \
 	mtspr	SPRN_DBSR,r10;						      \
@@ -312,7 +312,7 @@ label:
 	lwz	r9,GPR9(r11);						      \
 	lwz	r12,GPR12(r11);						      \
 	mtspr	SPRN_SPRG_WSCRATCH_DBG,r8;				      \
-	BOOKE_LOAD_EXC_LEVEL_STACK(DBG); /* r8 points to the debug stack */ \
+	BOOKE_LOAD_EXC_LEVEL_STACK(DBG); /* r8 points to the de stack */ \
 	lwz	r10,GPR10(r8);						      \
 	lwz	r11,GPR11(r8);						      \
 	mfspr	r8,SPRN_SPRG_RSCRATCH_DBG;				      \
@@ -320,14 +320,14 @@ label:
 	PPC_RFDI;							      \
 	b	.;							      \
 									      \
-	/* continue normal handling for a debug exception... */		      \
+	/* continue normal handling for a de exception... */		      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_TEMPLATE(DebugException, 0x2008, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, debug_transfer_to_handler, ret_from_debug_exc)
+	EXC_XFER_TEMPLATE(DeException, 0x2008, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, de_transfer_to_handler, ret_from_de_exc)
 
-#define DEBUG_CRIT_EXCEPTION						      \
-	START_EXCEPTION(DebugCrit);					      \
-	CRITICAL_EXCEPTION_PROLOG(DEBUG);				      \
+#define DE_CRIT_EXCEPTION						      \
+	START_EXCEPTION(DeCrit);					      \
+	CRITICAL_EXCEPTION_PROLOG(DE);				      \
 									      \
 	/*								      \
 	 * If there is a single step or branch-taken exception in an	      \
@@ -335,7 +335,7 @@ label:
 	 * the code where the exception occurred (since exception entry	      \
 	 * doesn't turn off DE automatically).  We simulate the effect	      \
 	 * of turning off DE on entry to an exception handler by turning      \
-	 * off DE in the CSRR1 value and clearing the debug status.	      \
+	 * off DE in the CSRR1 value and clearing the de status.	      \
 	 */								      \
 	mfspr	r10,SPRN_DBSR;		/* check single-step/branch taken */  \
 	andis.	r10,r10,(DBSR_IC|DBSR_BT)@h;				      \
@@ -351,7 +351,7 @@ label:
 	cmplw	r12,r10;						      \
 	bgt+	2f;			/* addr above exception vectors */    \
 									      \
-	/* here it looks like we got an inappropriate debug exception. */     \
+	/* here it looks like we got an inappropriate de exception. */     \
 1:	rlwinm	r9,r9,0,~MSR_DE;	/* clear DE in the CSRR1 value */     \
 	lis	r10,(DBSR_IC|DBSR_BT)@h;	/* clear the IC event */      \
 	mtspr	SPRN_DBSR,r10;						      \
@@ -365,7 +365,7 @@ label:
 	lwz	r9,GPR9(r11);						      \
 	lwz	r12,GPR12(r11);						      \
 	mtspr	SPRN_SPRG_WSCRATCH_CRIT,r8;				      \
-	BOOKE_LOAD_EXC_LEVEL_STACK(CRIT); /* r8 points to the debug stack */  \
+	BOOKE_LOAD_EXC_LEVEL_STACK(CRIT); /* r8 points to the de stack */  \
 	lwz	r10,GPR10(r8);						      \
 	lwz	r11,GPR11(r8);						      \
 	mfspr	r8,SPRN_SPRG_RSCRATCH_CRIT;				      \
@@ -376,7 +376,7 @@ label:
 	/* continue normal handling for a critical exception... */	      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, crit_transfer_to_handler, ret_from_crit_exc)
+	EXC_XFER_TEMPLATE(DeException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, crit_transfer_to_handler, ret_from_crit_exc)
 
 #define DATA_STORAGE_EXCEPTION						      \
 	START_EXCEPTION(DataStorage)					      \

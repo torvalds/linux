@@ -20,7 +20,7 @@
 #define MODE_MONO_LUMA	BIT(7)
 #define MODE_SCAN_INT	BIT(8)
 #define MODE_CLOCKDIV	BIT(9)
-#define MODE_DEBUG	BIT(14)
+#define MODE_DE	BIT(14)
 #define MODE_SELFTEST	BIT(15)
 
 #define DCON_REG_HRES		0x2

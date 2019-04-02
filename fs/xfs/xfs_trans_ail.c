@@ -17,12 +17,12 @@
 #include "xfs_error.h"
 #include "xfs_log.h"
 
-#ifdef DEBUG
+#ifdef DE
 /*
  * Check that the list is sorted as it should be.
  *
  * Called with the ail lock held, but we don't want to assert fail with it
- * held otherwise we'll lock everything up and won't be able to debug the
+ * held otherwise we'll lock everything up and won't be able to de the
  * cause. Hence we sample and check the state under the AIL lock and return if
  * everything is fine, otherwise we drop the lock and run the ASSERT checks.
  * Asserts may not be fatal, so pick the lock back up and continue onwards.
@@ -66,9 +66,9 @@ xfs_ail_check(
 	ASSERT(next_lsn == NULLCOMMITLSN || XFS_LSN_CMP(next_lsn, lsn) >= 0);
 	spin_lock(&ailp->ail_lock);
 }
-#else /* !DEBUG */
+#else /* !DE */
 #define	xfs_ail_check(a,l)
-#endif /* DEBUG */
+#endif /* DE */
 
 /*
  * Return a pointer to the last item in the AIL.  If the AIL is empty, then

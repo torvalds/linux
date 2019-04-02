@@ -26,7 +26,7 @@
 #include <linux/err.h>
 
 #include "../wlcore/wlcore.h"
-#include "../wlcore/debug.h"
+#include "../wlcore/de.h"
 #include "../wlcore/io.h"
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
@@ -39,7 +39,7 @@
 #include "acx.h"
 #include "scan.h"
 #include "event.h"
-#include "debugfs.h"
+#include "defs.h"
 #include "conf.h"
 
 static char *fref_param;
@@ -376,7 +376,7 @@ static struct wlcore_conf wl12xx_conf = {
 		.window_size                = 16,
 	},
 	.recovery = {
-		.bug_on_recovery	    = 0,
+		._on_recovery	    = 0,
 		.no_recovery		    = 0,
 	},
 };
@@ -667,7 +667,7 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		break;
 
 	case CHIP_ID_127X_PG20:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
+		wl1271_de(DE_BOOT, "chip id 0x%x (1271 PG20)",
 			     wl->chip.id);
 
 		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS |
@@ -692,7 +692,7 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		break;
 
 	case CHIP_ID_128X_PG20:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1283 PG20)",
+		wl1271_de(DE_BOOT, "chip id 0x%x (1283 PG20)",
 			     wl->chip.id);
 		wl->plt_fw_name = WL128X_PLT_FW_NAME;
 		wl->sr_fw_name = WL128X_FW_NAME_SINGLE;
@@ -1039,7 +1039,7 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl1271_debug(DEBUG_BOOT, "pause1 0x%x", pause);
+	wl1271_de(DE_BOOT, "pause1 0x%x", pause);
 
 	pause &= ~(WU_COUNTER_PAUSE_VAL);
 	pause |= WU_COUNTER_PAUSE_VAL;
@@ -1067,7 +1067,7 @@ static int wl1271_boot_soft_reset(struct wl1271 *wl)
 		if (ret < 0)
 			goto out;
 
-		wl1271_debug(DEBUG_BOOT, "soft reset bootdata 0x%x", boot_data);
+		wl1271_de(DE_BOOT, "soft reset bootdata 0x%x", boot_data);
 		if ((boot_data & ACX_SLV_SOFT_RESET_BIT) == 0)
 			break;
 
@@ -1129,7 +1129,7 @@ static int wl12xx_pre_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl1271_debug(DEBUG_BOOT, "clk2 0x%x", clk);
+	wl1271_de(DE_BOOT, "clk2 0x%x", clk);
 
 	if (wl->chip.id == CHIP_ID_128X_PG20)
 		clk |= ((selected_clock & 0x3) << 1) << 4;
@@ -1165,7 +1165,7 @@ static int wl12xx_pre_upload(struct wl1271 *wl)
 
 	/* write firmware's last address (ie. it's length) to
 	 * ACX_EEPROMLESS_IND_REG */
-	wl1271_debug(DEBUG_BOOT, "ACX_EEPROMLESS_IND_REG");
+	wl1271_de(DE_BOOT, "ACX_EEPROMLESS_IND_REG");
 
 	ret = wlcore_write32(wl, WL12XX_EEPROMLESS_IND, WL12XX_EEPROMLESS_IND);
 	if (ret < 0)
@@ -1175,7 +1175,7 @@ static int wl12xx_pre_upload(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl1271_debug(DEBUG_BOOT, "chip id 0x%x", tmp);
+	wl1271_de(DE_BOOT, "chip id 0x%x", tmp);
 
 	/* 6. read the EEPROM parameters */
 	ret = wlcore_read32(wl, WL12XX_SCR_PAD2, &tmp);
@@ -1330,7 +1330,7 @@ wl12xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 		desc->wl128x_mem.extra_bytes = aligned_len - skb->len;
 		desc->length = cpu_to_le16(aligned_len >> 2);
 
-		wl1271_debug(DEBUG_TX,
+		wl1271_de(DE_TX,
 			     "tx_fill_hdr: hlid: %d len: %d life: %d mem: %d extra: %d",
 			     desc->hlid,
 			     le16_to_cpu(desc->length),
@@ -1346,7 +1346,7 @@ wl12xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 		/* Store the aligned length in terms of words */
 		desc->length = cpu_to_le16(aligned_len >> 2);
 
-		wl1271_debug(DEBUG_TX,
+		wl1271_de(DE_TX,
 			     "tx_fill_hdr: pad: %d hlid: %d len: %d life: %d mem: %d",
 			     pad, desc->hlid,
 			     le16_to_cpu(desc->length),
@@ -1508,7 +1508,7 @@ static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 			supported = true;
 	}
 
-	wl1271_debug(DEBUG_PROBE,
+	wl1271_de(DE_PROBE,
 		     "PG Ver major = %d minor = %d, MAC %s present",
 		     major, minor, supported ? "is" : "is not");
 
@@ -1716,7 +1716,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.set_tx_desc_csum	= wl12xx_set_tx_desc_csum,
 	.set_rx_csum		= NULL,
 	.ap_get_mimo_wide_rate_mask = NULL,
-	.debugfs_init		= wl12xx_debugfs_add_files,
+	.defs_init		= wl12xx_defs_add_files,
 	.scan_start		= wl12xx_scan_start,
 	.scan_stop		= wl12xx_scan_stop,
 	.sched_scan_start	= wl12xx_sched_scan_start,
@@ -1809,9 +1809,9 @@ static int wl12xx_setup(struct wl1271 *wl)
 	struct wl12xx_priv *priv = wl->priv;
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&wl->pdev->dev);
 
-	BUILD_BUG_ON(WL12XX_MAX_LINKS > WLCORE_MAX_LINKS);
-	BUILD_BUG_ON(WL12XX_MAX_AP_STATIONS > WL12XX_MAX_LINKS);
-	BUILD_BUG_ON(WL12XX_CONF_SG_PARAMS_MAX > WLCORE_CONF_SG_PARAMS_MAX);
+	BUILD__ON(WL12XX_MAX_LINKS > WLCORE_MAX_LINKS);
+	BUILD__ON(WL12XX_MAX_AP_STATIONS > WL12XX_MAX_LINKS);
+	BUILD__ON(WL12XX_CONF_SG_PARAMS_MAX > WLCORE_CONF_SG_PARAMS_MAX);
 
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = WL12XX_NUM_TX_DESCRIPTORS;

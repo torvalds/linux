@@ -51,8 +51,8 @@ static int tilcdc_external_mode_valid(struct drm_connector *connector,
 	if (ret != MODE_OK)
 		return ret;
 
-	BUG_ON(priv->external_connector != connector);
-	BUG_ON(!priv->connector_funcs);
+	_ON(priv->external_connector != connector);
+	_ON(!priv->connector_funcs);
 
 	/* If the connector has its own mode_valid call it. */
 	if (!IS_ERR(priv->connector_funcs) &&

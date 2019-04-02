@@ -466,7 +466,7 @@ void do_signal(struct pt_regs *regs)
 
 	/*
 	 * Get signal to deliver. When running under ptrace, at this point
-	 * the debugger may change all our registers, including the system
+	 * the deger may change all our registers, including the system
 	 * call information.
 	 */
 	current->thread.system_call =

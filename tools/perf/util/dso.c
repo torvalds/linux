@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <asm/bug.h>
+#include <asm/.h>
 #include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -19,15 +19,15 @@
 #include "machine.h"
 #include "auxtrace.h"
 #include "util.h"
-#include "debug.h"
+#include "de.h"
 #include "string2.h"
 #include "vdso.h"
 
-static const char * const debuglink_paths[] = {
+static const char * const delink_paths[] = {
 	"%.0s%s",
 	"%s/%s",
-	"%s/.debug/%s",
-	"/usr/lib/debug%s/%s"
+	"%s/.de/%s",
+	"/usr/lib/de%s/%s"
 };
 
 char dso__symtab_origin(const struct dso *dso)
@@ -36,13 +36,13 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__KALLSYMS]			= 'k',
 		[DSO_BINARY_TYPE__VMLINUX]			= 'v',
 		[DSO_BINARY_TYPE__JAVA_JIT]			= 'j',
-		[DSO_BINARY_TYPE__DEBUGLINK]			= 'l',
+		[DSO_BINARY_TYPE__DELINK]			= 'l',
 		[DSO_BINARY_TYPE__BUILD_ID_CACHE]		= 'B',
-		[DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO]	= 'D',
-		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]		= 'f',
-		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]		= 'u',
-		[DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO]	= 'o',
-		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]		= 'b',
+		[DSO_BINARY_TYPE__BUILD_ID_CACHE_DEINFO]	= 'D',
+		[DSO_BINARY_TYPE__FEDORA_DEINFO]		= 'f',
+		[DSO_BINARY_TYPE__UBUNTU_DEINFO]		= 'u',
+		[DSO_BINARY_TYPE__OPENEMBEDDED_DEINFO]	= 'o',
+		[DSO_BINARY_TYPE__BUILDID_DEINFO]		= 'b',
 		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]		= 'd',
 		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]		= 'K',
 		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP]	= 'm',
@@ -66,7 +66,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	size_t len;
 
 	switch (type) {
-	case DSO_BINARY_TYPE__DEBUGLINK:
+	case DSO_BINARY_TYPE__DELINK:
 	{
 		const char *last_slash;
 		char dso_dir[PATH_MAX];
@@ -86,15 +86,15 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			break;
 		}
 
-		ret = filename__read_debuglink(filename, symfile, PATH_MAX);
+		ret = filename__read_delink(filename, symfile, PATH_MAX);
 		if (ret)
 			break;
 
-		/* Check predefined locations where debug file might reside */
+		/* Check predefined locations where de file might reside */
 		ret = -1;
-		for (i = 0; i < ARRAY_SIZE(debuglink_paths); i++) {
+		for (i = 0; i < ARRAY_SIZE(delink_paths); i++) {
 			snprintf(filename, size,
-					debuglink_paths[i], dso_dir, symfile);
+					delink_paths[i], dso_dir, symfile);
 			if (is_regular_file(filename)) {
 				ret = 0;
 				break;
@@ -108,22 +108,22 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			ret = -1;
 		break;
 
-	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEINFO:
 		if (dso__build_id_filename(dso, filename, size, true) == NULL)
 			ret = -1;
 		break;
 
-	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
-		len = __symbol__join_symfs(filename, size, "/usr/lib/debug");
-		snprintf(filename + len, size - len, "%s.debug", dso->long_name);
+	case DSO_BINARY_TYPE__FEDORA_DEINFO:
+		len = __symbol__join_symfs(filename, size, "/usr/lib/de");
+		snprintf(filename + len, size - len, "%s.de", dso->long_name);
 		break;
 
-	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
-		len = __symbol__join_symfs(filename, size, "/usr/lib/debug");
+	case DSO_BINARY_TYPE__UBUNTU_DEINFO:
+		len = __symbol__join_symfs(filename, size, "/usr/lib/de");
 		snprintf(filename + len, size - len, "%s", dso->long_name);
 		break;
 
-	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEINFO:
 	{
 		const char *last_slash;
 		size_t dir_size;
@@ -139,12 +139,12 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			break;
 		}
 		len += scnprintf(filename + len, dir_size, "%s",  dso->long_name);
-		len += scnprintf(filename + len , size - len, ".debug%s",
+		len += scnprintf(filename + len , size - len, ".de%s",
 								last_slash);
 		break;
 	}
 
-	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILDID_DEINFO:
 		if (!dso->has_build_id) {
 			ret = -1;
 			break;
@@ -153,8 +153,8 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		build_id__sprintf(dso->build_id,
 				  sizeof(dso->build_id),
 				  build_id_hex);
-		len = __symbol__join_symfs(filename, size, "/usr/lib/debug/.build-id/");
-		snprintf(filename + len, size - len, "%.2s/%s.debug",
+		len = __symbol__join_symfs(filename, size, "/usr/lib/de/.build-id/");
+		snprintf(filename + len, size - len, "%.2s/%s.de",
 			 build_id_hex, build_id_hex + 2);
 		break;
 
@@ -272,9 +272,9 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 	 * behind the 'name' can still be plain uncompressed object.
 	 *
 	 * The reason is behind the logic we open the DSO object files,
-	 * when we try all possible 'debug' objects until we find the
+	 * when we try all possible 'de' objects until we find the
 	 * data. So even if the DSO is represented by 'krava.xz' module,
-	 * we can end up here opening ~/.debug/....23432432/debug' file
+	 * we can end up here opening ~/.de/....23432432/de' file
 	 * which is not compressed.
 	 *
 	 * To keep this transparent, we detect this and return the file
@@ -448,7 +448,7 @@ static int do_open(char *name)
 		if (fd >= 0)
 			return fd;
 
-		pr_debug("dso open failed: %s\n",
+		pr_de("dso open failed: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
@@ -886,7 +886,7 @@ static ssize_t cached_read(struct dso *dso, struct machine *machine,
 		if (!ret)
 			break;
 
-		BUG_ON(ret > size);
+		_ON(ret > size);
 
 		r      += ret;
 		p      += ret;
@@ -1513,7 +1513,7 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 	"Decompression failure",
 	};
 
-	BUG_ON(buflen == 0);
+	_ON(buflen == 0);
 
 	if (errnum >= 0) {
 		const char *err = str_error_r(errnum, buf, buflen);

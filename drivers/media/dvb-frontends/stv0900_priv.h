@@ -43,8 +43,8 @@
 
 #define dprintk(args...) \
 	do { \
-		if (stvdebug) \
-			printk(KERN_DEBUG args); \
+		if (stvde) \
+			printk(KERN_DE args); \
 	} while (0)
 
 #define STV0900_MAXLOOKUPSIZE 500
@@ -342,7 +342,7 @@ struct stv0900_state {
 	int demod;
 };
 
-extern int stvdebug;
+extern int stvde;
 
 extern s32 ge2comp(s32 a, s32 width);
 

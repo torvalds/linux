@@ -70,7 +70,7 @@ features, we could write back the entire composited frame, and expose it as:
 - Writeback connector. This is useful for testing compositors if you don't have
   hardware with writeback support.
 
-- As a v4l device. This is useful for debugging compositors on special vkms
+- As a v4l device. This is useful for deging compositors on special vkms
   configurations, so that developers see what's really going on.
 
 Prime Buffer Sharing

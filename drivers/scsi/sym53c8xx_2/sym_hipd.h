@@ -63,25 +63,25 @@
 #endif
 
 /*
- *  Active debugging tags and verbosity.
- *  Both DEBUG_FLAGS and sym_verbose can be redefined 
+ *  Active deging tags and verbosity.
+ *  Both DE_FLAGS and sym_verbose can be redefined 
  *  by the platform specific code to something else.
  */
-#define DEBUG_ALLOC	(0x0001)
-#define DEBUG_PHASE	(0x0002)
-#define DEBUG_POLL	(0x0004)
-#define DEBUG_QUEUE	(0x0008)
-#define DEBUG_RESULT	(0x0010)
-#define DEBUG_SCATTER	(0x0020)
-#define DEBUG_SCRIPT	(0x0040)
-#define DEBUG_TINY	(0x0080)
-#define DEBUG_TIMING	(0x0100)
-#define DEBUG_NEGO	(0x0200)
-#define DEBUG_TAGS	(0x0400)
-#define DEBUG_POINTER	(0x0800)
+#define DE_ALLOC	(0x0001)
+#define DE_PHASE	(0x0002)
+#define DE_POLL	(0x0004)
+#define DE_QUEUE	(0x0008)
+#define DE_RESULT	(0x0010)
+#define DE_SCATTER	(0x0020)
+#define DE_SCRIPT	(0x0040)
+#define DE_TINY	(0x0080)
+#define DE_TIMING	(0x0100)
+#define DE_NEGO	(0x0200)
+#define DE_TAGS	(0x0400)
+#define DE_POINTER	(0x0800)
 
-#ifndef DEBUG_FLAGS
-#define DEBUG_FLAGS	(0x0000)
+#ifndef DE_FLAGS
+#define DE_FLAGS	(0x0000)
 #endif
 
 #ifndef sym_verbose

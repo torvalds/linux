@@ -141,7 +141,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 		mutex_lock(&subdev->mutex);
 		eobj = list_first_entry_or_null(&imem->lru, typeof(*eobj), lru);
 		if (eobj) {
-			nvkm_debug(subdev, "evict %016llx %016llx @ %016llx\n",
+			nvkm_de(subdev, "evict %016llx %016llx @ %016llx\n",
 				   nvkm_memory_addr(&eobj->base.memory),
 				   nvkm_memory_size(&eobj->base.memory),
 				   eobj->bar->addr);
@@ -202,7 +202,7 @@ nv50_instobj_release(struct nvkm_memory *memory)
 		 * unmapping it here, in case we need to map it again later.
 		 */
 		if (likely(iobj->lru.next) && iobj->map) {
-			BUG_ON(!list_empty(&iobj->lru));
+			_ON(!list_empty(&iobj->lru));
 			list_add_tail(&iobj->lru, &imem->lru);
 		}
 

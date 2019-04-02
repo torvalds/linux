@@ -156,7 +156,7 @@ int x509_note_OID(void *context, size_t hdrlen,
 	if (ctx->last_oid == OID__NR) {
 		char buffer[50];
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_debug("Unknown OID: [%lu] %s\n",
+		pr_de("Unknown OID: [%lu] %s\n",
 			 (unsigned long)value - ctx->data, buffer);
 	}
 	return 0;
@@ -172,7 +172,7 @@ int x509_note_tbs_certificate(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	pr_debug("x509_note_tbs_certificate(,%zu,%02x,%ld,%zu)!\n",
+	pr_de("x509_note_tbs_certificate(,%zu,%02x,%ld,%zu)!\n",
 		 hdrlen, tag, (unsigned long)value - ctx->data, vlen);
 
 	ctx->cert->tbs = value - hdrlen;
@@ -189,7 +189,7 @@ int x509_note_pkey_algo(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	pr_debug("PubKey Algo: %u\n", ctx->last_oid);
+	pr_de("PubKey Algo: %u\n", ctx->last_oid);
 
 	switch (ctx->last_oid) {
 	case OID_md2WithRSAEncryption:
@@ -238,7 +238,7 @@ int x509_note_signature(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	pr_debug("Signature type: %u size %zu\n", ctx->last_oid, vlen);
+	pr_de("Signature type: %u size %zu\n", ctx->last_oid, vlen);
 
 	if (ctx->last_oid != ctx->algo_oid) {
 		pr_warn("Got cert with pkey (%u) and sig (%u) algorithm OIDs\n",
@@ -436,7 +436,7 @@ int x509_process_extension(void *context, size_t hdrlen,
 	struct asymmetric_key_id *kid;
 	const unsigned char *v = value;
 
-	pr_debug("Extension: %u\n", ctx->last_oid);
+	pr_de("Extension: %u\n", ctx->last_oid);
 
 	if (ctx->last_oid == OID_subjectKeyIdentifier) {
 		/* Get hold of the key fingerprint */
@@ -453,7 +453,7 @@ int x509_process_extension(void *context, size_t hdrlen,
 		if (IS_ERR(kid))
 			return PTR_ERR(kid);
 		ctx->cert->skid = kid;
-		pr_debug("subjkeyid %*phN\n", kid->len, kid->data);
+		pr_de("subjkeyid %*phN\n", kid->len, kid->data);
 		return 0;
 	}
 
@@ -552,11 +552,11 @@ int x509_decode_time(time64_t *_t,  size_t hdrlen,
 	return 0;
 
 unsupported_time:
-	pr_debug("Got unsupported time [tag %02x]: '%*phN'\n",
+	pr_de("Got unsupported time [tag %02x]: '%*phN'\n",
 		 tag, (int)vlen, value);
 	return -EBADMSG;
 invalid_time:
-	pr_debug("Got invalid time [tag %02x]: '%*phN'\n",
+	pr_de("Got invalid time [tag %02x]: '%*phN'\n",
 		 tag, (int)vlen, value);
 	return -EBADMSG;
 }
@@ -588,7 +588,7 @@ int x509_akid_note_kid(void *context, size_t hdrlen,
 	struct x509_parse_context *ctx = context;
 	struct asymmetric_key_id *kid;
 
-	pr_debug("AKID: keyid: %*phN\n", (int)vlen, value);
+	pr_de("AKID: keyid: %*phN\n", (int)vlen, value);
 
 	if (ctx->cert->sig->auth_ids[1])
 		return 0;
@@ -596,7 +596,7 @@ int x509_akid_note_kid(void *context, size_t hdrlen,
 	kid = asymmetric_key_generate_id(value, vlen, "", 0);
 	if (IS_ERR(kid))
 		return PTR_ERR(kid);
-	pr_debug("authkeyid %*phN\n", kid->len, kid->data);
+	pr_de("authkeyid %*phN\n", kid->len, kid->data);
 	ctx->cert->sig->auth_ids[1] = kid;
 	return 0;
 }
@@ -610,7 +610,7 @@ int x509_akid_note_name(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	pr_debug("AKID: name: %*phN\n", (int)vlen, value);
+	pr_de("AKID: name: %*phN\n", (int)vlen, value);
 
 	ctx->akid_raw_issuer = value;
 	ctx->akid_raw_issuer_size = vlen;
@@ -627,7 +627,7 @@ int x509_akid_note_serial(void *context, size_t hdrlen,
 	struct x509_parse_context *ctx = context;
 	struct asymmetric_key_id *kid;
 
-	pr_debug("AKID: serial: %*phN\n", (int)vlen, value);
+	pr_de("AKID: serial: %*phN\n", (int)vlen, value);
 
 	if (!ctx->akid_raw_issuer || ctx->cert->sig->auth_ids[0])
 		return 0;
@@ -639,7 +639,7 @@ int x509_akid_note_serial(void *context, size_t hdrlen,
 	if (IS_ERR(kid))
 		return PTR_ERR(kid);
 
-	pr_debug("authkeyid %*phN\n", kid->len, kid->data);
+	pr_de("authkeyid %*phN\n", kid->len, kid->data);
 	ctx->cert->sig->auth_ids[0] = kid;
 	return 0;
 }

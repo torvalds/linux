@@ -161,7 +161,7 @@ static void i915_error_vprintf(struct drm_i915_error_state_buf *e,
 	if (!__i915_error_grow(e, len))
 		return;
 
-	GEM_BUG_ON(e->bytes >= e->size);
+	GEM__ON(e->bytes >= e->size);
 	len = vscnprintf(e->buf + e->bytes, e->size - e->bytes, fmt, args);
 	if (len < 0) {
 		e->err = len;
@@ -181,7 +181,7 @@ static void i915_error_puts(struct drm_i915_error_state_buf *e, const char *str)
 	if (!__i915_error_grow(e, len))
 		return;
 
-	GEM_BUG_ON(e->bytes + len > e->size);
+	GEM__ON(e->bytes + len > e->size);
 	memcpy(e->buf + e->bytes, str, len);
 	e->bytes += len;
 }
@@ -858,10 +858,10 @@ static int err_print_to_sgl(struct i915_gpu_state *error)
 		m.buf = NULL;
 	}
 	if (m.cur) {
-		GEM_BUG_ON(m.end < m.cur);
+		GEM__ON(m.end < m.cur);
 		sg_mark_end(m.cur - 1);
 	}
-	GEM_BUG_ON(m.sgl && !m.cur);
+	GEM__ON(m.sgl && !m.cur);
 
 	if (m.err) {
 		err_free_sgl(m.sgl);
@@ -902,7 +902,7 @@ ssize_t i915_gpu_state_copy_to_buffer(struct i915_gpu_state *error,
 
 		if (sg_is_chain(sg)) {
 			sg = sg_chain_ptr(sg);
-			GEM_BUG_ON(sg_is_chain(sg));
+			GEM__ON(sg_is_chain(sg));
 		}
 
 		len = sg->length;
@@ -913,14 +913,14 @@ ssize_t i915_gpu_state_copy_to_buffer(struct i915_gpu_state *error,
 
 		start = sg->offset;
 		if (pos < off) {
-			GEM_BUG_ON(off - pos > len);
+			GEM__ON(off - pos > len);
 			len -= off - pos;
 			start += off - pos;
 			pos = off;
 		}
 
 		len = min(len, rem);
-		GEM_BUG_ON(!len || len > sg->length);
+		GEM__ON(!len || len > sg->length);
 
 		memcpy(buf, page_address(sg_page(sg)) + start, len);
 
@@ -1133,7 +1133,7 @@ static u32 capture_error_bo(struct drm_i915_error_buffer *err,
 
 /*
  * Generate a semi-unique error code. The code is not meant to have meaning, The
- * code's only purpose is to try to prevent false duplicated bug reports by
+ * code's only purpose is to try to prevent false duplicated  reports by
  * grossly estimating a GPU error state.
  *
  * TODO Ideally, hashing the batchbuffer would be a very nice way to determine
@@ -1148,7 +1148,7 @@ static u32 i915_error_generate_code(struct i915_gpu_state *error,
 	 * IPEHR would be an ideal way to detect errors, as it's the gross
 	 * measure of "the command that hung." However, has some very common
 	 * synchronization commands which almost always appear in the case
-	 * strictly a client bug. Use instdone to differentiate those some.
+	 * strictly a client . Use instdone to differentiate those some.
 	 */
 	if (engine_mask) {
 		struct drm_i915_error_engine *ee =
@@ -1560,9 +1560,9 @@ static void capture_active_buffers(struct i915_gpu_state *error)
 {
 	int cnt = 0, i, j;
 
-	BUILD_BUG_ON(ARRAY_SIZE(error->engine) > ARRAY_SIZE(error->active_bo));
-	BUILD_BUG_ON(ARRAY_SIZE(error->active_bo) != ARRAY_SIZE(error->active_vm));
-	BUILD_BUG_ON(ARRAY_SIZE(error->active_bo) != ARRAY_SIZE(error->active_bo_count));
+	BUILD__ON(ARRAY_SIZE(error->engine) > ARRAY_SIZE(error->active_bo));
+	BUILD__ON(ARRAY_SIZE(error->active_bo) != ARRAY_SIZE(error->active_vm));
+	BUILD__ON(ARRAY_SIZE(error->active_bo) != ARRAY_SIZE(error->active_bo_count));
 
 	/* Scan each engine looking for unique active contexts/vm */
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -1851,7 +1851,7 @@ i915_capture_gpu_state(struct drm_i915_private *i915)
  *
  * Should be called when an error is detected (either a hang or an error
  * interrupt) to capture error state from the time of the error.  Fills
- * out a structure which becomes available in debugfs for user level tools
+ * out a structure which becomes available in defs for user level tools
  * to pick up.
  */
 void i915_capture_error_state(struct drm_i915_private *i915,
@@ -1890,8 +1890,8 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 
 	if (!warned &&
 	    ktime_get_real_seconds() - DRIVER_TIMESTAMP < DAY_AS_SECONDS(180)) {
-		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
-		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
+		DRM_INFO("GPU hangs can indicate a  anywhere in the entire gfx stack, including userspace.\n");
+		DRM_INFO("Please file a _new_  report on s.freedesktop.org against DRI -> DRM/Intel\n");
 		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
 		DRM_INFO("The gpu crash dump is required to analyze gpu hangs, so please always attach it.\n");
 		DRM_INFO("GPU crash dump saved to /sys/class/drm/card%d/error\n",

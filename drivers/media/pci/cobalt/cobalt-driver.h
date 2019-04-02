@@ -150,15 +150,15 @@
 #define COBALT_BYTES_PER_PIXEL_RGB24		3
 #define COBALT_BYTES_PER_PIXEL_RGB32		4
 
-/* debugging */
-extern int cobalt_debug;
+/* deging */
+extern int cobalt_de;
 extern int cobalt_ignore_err;
 
 #define cobalt_err(fmt, arg...)  v4l2_err(&cobalt->v4l2_dev, fmt, ## arg)
 #define cobalt_warn(fmt, arg...) v4l2_warn(&cobalt->v4l2_dev, fmt, ## arg)
 #define cobalt_info(fmt, arg...) v4l2_info(&cobalt->v4l2_dev, fmt, ## arg)
 #define cobalt_dbg(level, fmt, arg...) \
-	v4l2_dbg(level, cobalt_debug, &cobalt->v4l2_dev, fmt, ## arg)
+	v4l2_dbg(level, cobalt_de, &cobalt->v4l2_dev, fmt, ## arg)
 
 struct cobalt;
 struct cobalt_i2c_regs;

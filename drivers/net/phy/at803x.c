@@ -38,8 +38,8 @@
 #define AT803X_REG_CHIP_CONFIG			0x1f
 #define AT803X_BT_BX_REG_SEL			0x8000
 
-#define AT803X_DEBUG_ADDR			0x1D
-#define AT803X_DEBUG_DATA			0x1E
+#define AT803X_DE_ADDR			0x1D
+#define AT803X_DE_DATA			0x1E
 
 #define AT803X_MODE_CFG_MASK			0x0F
 #define AT803X_MODE_CFG_SGMII			0x01
@@ -47,11 +47,11 @@
 #define AT803X_PSSR			0x11	/*PHY-Specific Status Register*/
 #define AT803X_PSSR_MR_AN_COMPLETE	0x0200
 
-#define AT803X_DEBUG_REG_0			0x00
-#define AT803X_DEBUG_RX_CLK_DLY_EN		BIT(15)
+#define AT803X_DE_REG_0			0x00
+#define AT803X_DE_RX_CLK_DLY_EN		BIT(15)
 
-#define AT803X_DEBUG_REG_5			0x05
-#define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
+#define AT803X_DE_REG_5			0x05
+#define AT803X_DE_TX_CLK_DLY_EN		BIT(8)
 
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
@@ -75,24 +75,24 @@ struct at803x_context {
 	u16 led_control;
 };
 
-static int at803x_debug_reg_read(struct phy_device *phydev, u16 reg)
+static int at803x_de_reg_read(struct phy_device *phydev, u16 reg)
 {
 	int ret;
 
-	ret = phy_write(phydev, AT803X_DEBUG_ADDR, reg);
+	ret = phy_write(phydev, AT803X_DE_ADDR, reg);
 	if (ret < 0)
 		return ret;
 
-	return phy_read(phydev, AT803X_DEBUG_DATA);
+	return phy_read(phydev, AT803X_DE_DATA);
 }
 
-static int at803x_debug_reg_mask(struct phy_device *phydev, u16 reg,
+static int at803x_de_reg_mask(struct phy_device *phydev, u16 reg,
 				 u16 clear, u16 set)
 {
 	u16 val;
 	int ret;
 
-	ret = at803x_debug_reg_read(phydev, reg);
+	ret = at803x_de_reg_read(phydev, reg);
 	if (ret < 0)
 		return ret;
 
@@ -100,31 +100,31 @@ static int at803x_debug_reg_mask(struct phy_device *phydev, u16 reg,
 	val &= ~clear;
 	val |= set;
 
-	return phy_write(phydev, AT803X_DEBUG_DATA, val);
+	return phy_write(phydev, AT803X_DE_DATA, val);
 }
 
 static int at803x_enable_rx_delay(struct phy_device *phydev)
 {
-	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0, 0,
-				     AT803X_DEBUG_RX_CLK_DLY_EN);
+	return at803x_de_reg_mask(phydev, AT803X_DE_REG_0, 0,
+				     AT803X_DE_RX_CLK_DLY_EN);
 }
 
 static int at803x_enable_tx_delay(struct phy_device *phydev)
 {
-	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_5, 0,
-				     AT803X_DEBUG_TX_CLK_DLY_EN);
+	return at803x_de_reg_mask(phydev, AT803X_DE_REG_5, 0,
+				     AT803X_DE_TX_CLK_DLY_EN);
 }
 
 static int at803x_disable_rx_delay(struct phy_device *phydev)
 {
-	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0,
-				     AT803X_DEBUG_RX_CLK_DLY_EN, 0);
+	return at803x_de_reg_mask(phydev, AT803X_DE_REG_0,
+				     AT803X_DE_RX_CLK_DLY_EN, 0);
 }
 
 static int at803x_disable_tx_delay(struct phy_device *phydev)
 {
-	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_5,
-				     AT803X_DEBUG_TX_CLK_DLY_EN, 0);
+	return at803x_de_reg_mask(phydev, AT803X_DE_REG_5,
+				     AT803X_DE_TX_CLK_DLY_EN, 0);
 }
 
 /* save relevant PHY registers to private copy */
@@ -328,7 +328,7 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 
 	/*
 	 * Conduct a hardware reset for AT8030 every time a link loss is
-	 * signalled. This is necessary to circumvent a hardware bug that
+	 * signalled. This is necessary to circumvent a hardware  that
 	 * occurs when the cable is unplugged while TX packets are pending
 	 * in the FIFO. In such cases, the FIFO enters an error mode it
 	 * cannot recover from by software.

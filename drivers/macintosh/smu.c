@@ -52,10 +52,10 @@
 #define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."
 
-#undef DEBUG_SMU
+#undef DE_SMU
 
-#ifdef DEBUG_SMU
-#define DPRINTK(fmt, args...) do { printk(KERN_DEBUG fmt , ##args); } while (0)
+#ifdef DE_SMU
+#define DPRINTK(fmt, args...) do { printk(KERN_DE fmt , ##args); } while (0)
 #else
 #define DPRINTK(fmt, args...) do { } while (0)
 #endif
@@ -792,7 +792,7 @@ static void smu_i2c_low_completion(struct smu_cmd *scmd, void *misc)
 	 */
 	if (fail && --cmd->retries > 0) {
 		DPRINTK("SMU: i2c failure, starting timer...\n");
-		BUG_ON(cmd != smu->cmd_i2c_cur);
+		_ON(cmd != smu->cmd_i2c_cur);
 		if (!smu_irq_inited) {
 			mdelay(5);
 			smu_i2c_retry(NULL);
@@ -936,7 +936,7 @@ static int smu_read_datablock(u8 *dest, unsigned int addr, unsigned int len)
 		if (cmd.status != 0)
 			return rc;
 		if (cmd.reply_len != clen) {
-			printk(KERN_DEBUG "SMU: short read in "
+			printk(KERN_DE "SMU: short read in "
 			       "smu_read_datablock, got: %d, want: %d\n",
 			       cmd.reply_len, clen);
 			return -EIO;
@@ -989,19 +989,19 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 
 	/* Read the datablock */
 	if (smu_read_datablock((u8 *)hdr, addr, len)) {
-		printk(KERN_DEBUG "SMU: datablock read failed while reading "
+		printk(KERN_DE "SMU: datablock read failed while reading "
 		       "partition %02x !\n", id);
 		goto failure;
 	}
 
 	/* Got it, check a few things and create the property */
 	if (hdr->id != id) {
-		printk(KERN_DEBUG "SMU: Reading partition %02x and got "
+		printk(KERN_DE "SMU: Reading partition %02x and got "
 		       "%02x !\n", id, hdr->id);
 		goto failure;
 	}
 	if (of_add_property(smu->of_node, prop)) {
-		printk(KERN_DEBUG "SMU: Failed creating sdb-partition-%02x "
+		printk(KERN_DE "SMU: Failed creating sdb-partition-%02x "
 		       "property !\n", id);
 		goto failure;
 	}

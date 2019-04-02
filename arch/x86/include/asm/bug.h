@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_X86_BUG_H
-#define _ASM_X86_BUG_H
+#ifndef _ASM_X86__H
+#define _ASM_X86__H
 
 #include <linux/stringify.h>
 
@@ -20,66 +20,66 @@
 
 #define LEN_UD2		2
 
-#ifdef CONFIG_GENERIC_BUG
+#ifdef CONFIG_GENERIC_
 
 #ifdef CONFIG_X86_32
-# define __BUG_REL(val)	".long " __stringify(val)
+# define ___REL(val)	".long " __stringify(val)
 #else
-# define __BUG_REL(val)	".long " __stringify(val) " - 2b"
+# define ___REL(val)	".long " __stringify(val) " - 2b"
 #endif
 
-#ifdef CONFIG_DEBUG_BUGVERBOSE
+#ifdef CONFIG_DE_VERBOSE
 
-#define _BUG_FLAGS(ins, flags)						\
+#define __FLAGS(ins, flags)						\
 do {									\
 	asm volatile("1:\t" ins "\n"					\
-		     ".pushsection __bug_table,\"aw\"\n"		\
-		     "2:\t" __BUG_REL(1b) "\t# bug_entry::bug_addr\n"	\
-		     "\t"  __BUG_REL(%c0) "\t# bug_entry::file\n"	\
-		     "\t.word %c1"        "\t# bug_entry::line\n"	\
-		     "\t.word %c2"        "\t# bug_entry::flags\n"	\
+		     ".pushsection ___table,\"aw\"\n"		\
+		     "2:\t" ___REL(1b) "\t# _entry::_addr\n"	\
+		     "\t"  ___REL(%c0) "\t# _entry::file\n"	\
+		     "\t.word %c1"        "\t# _entry::line\n"	\
+		     "\t.word %c2"        "\t# _entry::flags\n"	\
 		     "\t.org 2b+%c3\n"					\
 		     ".popsection"					\
 		     : : "i" (__FILE__), "i" (__LINE__),		\
 			 "i" (flags),					\
-			 "i" (sizeof(struct bug_entry)));		\
+			 "i" (sizeof(struct _entry)));		\
 } while (0)
 
-#else /* !CONFIG_DEBUG_BUGVERBOSE */
+#else /* !CONFIG_DE_VERBOSE */
 
-#define _BUG_FLAGS(ins, flags)						\
+#define __FLAGS(ins, flags)						\
 do {									\
 	asm volatile("1:\t" ins "\n"					\
-		     ".pushsection __bug_table,\"aw\"\n"		\
-		     "2:\t" __BUG_REL(1b) "\t# bug_entry::bug_addr\n"	\
-		     "\t.word %c0"        "\t# bug_entry::flags\n"	\
+		     ".pushsection ___table,\"aw\"\n"		\
+		     "2:\t" ___REL(1b) "\t# _entry::_addr\n"	\
+		     "\t.word %c0"        "\t# _entry::flags\n"	\
 		     "\t.org 2b+%c1\n"					\
 		     ".popsection"					\
 		     : : "i" (flags),					\
-			 "i" (sizeof(struct bug_entry)));		\
+			 "i" (sizeof(struct _entry)));		\
 } while (0)
 
-#endif /* CONFIG_DEBUG_BUGVERBOSE */
+#endif /* CONFIG_DE_VERBOSE */
 
 #else
 
-#define _BUG_FLAGS(ins, flags)  asm volatile(ins)
+#define __FLAGS(ins, flags)  asm volatile(ins)
 
-#endif /* CONFIG_GENERIC_BUG */
+#endif /* CONFIG_GENERIC_ */
 
-#define HAVE_ARCH_BUG
-#define BUG()							\
+#define HAVE_ARCH_
+#define ()							\
 do {								\
-	_BUG_FLAGS(ASM_UD2, 0);					\
+	__FLAGS(ASM_UD2, 0);					\
 	unreachable();						\
 } while (0)
 
 #define __WARN_FLAGS(flags)					\
 do {								\
-	_BUG_FLAGS(ASM_UD2, BUGFLAG_WARNING|(flags));		\
+	__FLAGS(ASM_UD2, FLAG_WARNING|(flags));		\
 	annotate_reachable();					\
 } while (0)
 
-#include <asm-generic/bug.h>
+#include <asm-generic/.h>
 
-#endif /* _ASM_X86_BUG_H */
+#endif /* _ASM_X86__H */

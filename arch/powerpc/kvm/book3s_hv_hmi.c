@@ -18,7 +18,7 @@
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/types.h>
 #include <linux/compiler.h>

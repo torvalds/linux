@@ -54,9 +54,9 @@ struct nv04_crtc_reg {
 	uint32_t dither;
 	uint32_t fp_control;
 	uint32_t dither_regs[6];
-	uint32_t fp_debug_0;
-	uint32_t fp_debug_1;
-	uint32_t fp_debug_2;
+	uint32_t fp_de_0;
+	uint32_t fp_de_1;
+	uint32_t fp_de_2;
 	uint32_t fp_margin_color;
 	uint32_t ramdac_8c0;
 	uint32_t ramdac_a20;

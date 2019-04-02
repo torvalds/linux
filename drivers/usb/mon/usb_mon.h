@@ -22,7 +22,7 @@ struct mon_bus {
 
 	int text_inited;
 	int bin_inited;
-	struct dentry *dent_s;		/* Debugging file */
+	struct dentry *dent_s;		/* Deging file */
 	struct dentry *dent_t;		/* Text interface file */
 	struct dentry *dent_u;		/* Second text interface file */
 	struct device *classdev;	/* Device in usbmon class */

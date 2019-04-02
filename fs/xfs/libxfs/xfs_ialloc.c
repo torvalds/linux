@@ -231,7 +231,7 @@ xfs_inobt_insert(
 /*
  * Verify that the number of free inodes in the AGI is correct.
  */
-#ifdef DEBUG
+#ifdef DE
 STATIC int
 xfs_check_agi_freecount(
 	struct xfs_btree_cur	*cur,
@@ -641,7 +641,7 @@ xfs_ialloc_ag_alloc(
 	args.fsbno = NULLFSBLOCK;
 	args.oinfo = XFS_RMAP_OINFO_INODES;
 
-#ifdef DEBUG
+#ifdef DE
 	/* randomly do sparse inode allocations */
 	if (xfs_sb_version_hassparseinodes(&tp->t_mountp->m_sb) &&
 	    args.mp->m_ialloc_min_blks < args.mp->m_ialloc_blks)
@@ -2304,7 +2304,7 @@ xfs_imap(
 	agbno = XFS_AGINO_TO_AGBNO(mp, agino);
 	if (agno >= mp->m_sb.sb_agcount || agbno >= mp->m_sb.sb_agblocks ||
 	    ino != XFS_AGINO_TO_INO(mp, agno, agino)) {
-#ifdef DEBUG
+#ifdef DE
 		/*
 		 * Don't output diagnostic information for untrusted inodes
 		 * as they can be invalid without implying corruption.
@@ -2329,7 +2329,7 @@ xfs_imap(
 				XFS_AGINO_TO_INO(mp, agno, agino));
 		}
 		xfs_stack_trace();
-#endif /* DEBUG */
+#endif /* DE */
 		return -EINVAL;
 	}
 
@@ -2459,7 +2459,7 @@ xfs_ialloc_log_agi(
 		offsetof(xfs_agi_t, agi_free_level),
 		sizeof(xfs_agi_t)
 	};
-#ifdef DEBUG
+#ifdef DE
 	xfs_agi_t		*agi;	/* allocation group header */
 
 	agi = XFS_BUF_TO_AGI(bp);

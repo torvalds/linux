@@ -481,7 +481,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 				arm_volt, arm_volt_max);
 	}
 
-	printk(KERN_DEBUG "Perf changed[L%d]\n", index);
+	printk(KERN_DE "Perf changed[L%d]\n", index);
 
 exit:
 	mutex_unlock(&set_freq_lock);
@@ -597,7 +597,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	arm_regulator = regulator_get(NULL, "vddarm");
 	if (IS_ERR(arm_regulator)) {
 		if (PTR_ERR(arm_regulator) == -EPROBE_DEFER)
-			pr_debug("vddarm regulator not ready, defer\n");
+			pr_de("vddarm regulator not ready, defer\n");
 		else
 			pr_err("failed to get regulator vddarm\n");
 		return PTR_ERR(arm_regulator);
@@ -606,7 +606,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	int_regulator = regulator_get(NULL, "vddint");
 	if (IS_ERR(int_regulator)) {
 		if (PTR_ERR(int_regulator) == -EPROBE_DEFER)
-			pr_debug("vddint regulator not ready, defer\n");
+			pr_de("vddint regulator not ready, defer\n");
 		else
 			pr_err("failed to get regulator vddint\n");
 		result = PTR_ERR(int_regulator);

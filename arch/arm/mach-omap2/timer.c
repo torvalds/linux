@@ -380,7 +380,7 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 
 	res = omap_dm_timer_init_one(&clkev, fck_source, property,
 				     &clockevent_gpt.name, OMAP_TIMER_POSTED);
-	BUG_ON(res);
+	_ON(res);
 
 	omap2_gp_timer_irq.dev_id = &clkev;
 	setup_irq(clkev.irq, &omap2_gp_timer_irq);
@@ -521,7 +521,7 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 			omap_hwmod_lookup(clocksource_gpt.name);
 	}
 
-	BUG_ON(res);
+	_ON(res);
 
 	__omap_dm_timer_load_start(&clksrc,
 				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0,

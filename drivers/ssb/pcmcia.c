@@ -22,7 +22,7 @@
 
 
 /* Define the following to 1 to enable a printk on each coreswitch. */
-#define SSB_VERBOSE_PCMCIACORESWITCH_DEBUG		0
+#define SSB_VERBOSE_PCMCIACORESWITCH_DE		0
 
 
 /* PCMCIA configuration registers */
@@ -151,7 +151,7 @@ static int ssb_pcmcia_switch_core(struct ssb_bus *bus, struct ssb_device *dev)
 {
 	int err;
 
-#if SSB_VERBOSE_PCMCIACORESWITCH_DEBUG
+#if SSB_VERBOSE_PCMCIACORESWITCH_DE
 	pr_info("Switching to %s core, index %d\n",
 		ssb_core_name(dev->id.coreid), dev->core_index);
 #endif

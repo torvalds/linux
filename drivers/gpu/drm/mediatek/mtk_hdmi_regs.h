@@ -32,7 +32,7 @@
 #define I2S_UV_U			BIT(1)
 #define I2S_UV_CH_EN_MASK		0x3c
 #define I2S_UV_CH_EN(x)			BIT((x) + 2)
-#define I2S_UV_TMDS_DEBUG		BIT(6)
+#define I2S_UV_TMDS_DE		BIT(6)
 #define I2S_UV_NORMAL_INFO_INV		BIT(7)
 #define GRL_ACP_ISRC_CTRL	0x158
 #define VS_EN				BIT(0)
@@ -109,7 +109,7 @@
 #define CFG1_EDG_SEL			BIT(0)
 #define CFG1_SPDIF			BIT(1)
 #define CFG1_DVI			BIT(2)
-#define CFG1_HDCP_DEBUG			BIT(3)
+#define CFG1_HDCP_DE			BIT(3)
 #define GRL_CFG2		0x2c
 #define CFG2_MHL_DE_SEL			BIT(3)
 #define CFG2_MHL_FAKE_DE_SEL		BIT(4)

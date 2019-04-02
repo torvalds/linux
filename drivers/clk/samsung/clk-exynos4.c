@@ -1305,7 +1305,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 		exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
 			mout_core_p4210[0], mout_core_p4210[1], 0x14200,
 			e4210_armclk_d, ARRAY_SIZE(e4210_armclk_d),
-			CLK_CPU_NEEDS_DEBUG_ALT_DIV | CLK_CPU_HAS_DIV1);
+			CLK_CPU_NEEDS_DE_ALT_DIV | CLK_CPU_HAS_DIV1);
 	} else {
 		samsung_clk_register_mux(ctx, exynos4x12_mux_clks,
 			ARRAY_SIZE(exynos4x12_mux_clks));
@@ -1320,7 +1320,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 		exynos_register_cpu_clock(ctx, CLK_ARM_CLK, "armclk",
 			mout_core_p4x12[0], mout_core_p4x12[1], 0x14200,
 			e4412_armclk_d, ARRAY_SIZE(e4412_armclk_d),
-			CLK_CPU_NEEDS_DEBUG_ALT_DIV | CLK_CPU_HAS_DIV1);
+			CLK_CPU_NEEDS_DE_ALT_DIV | CLK_CPU_HAS_DIV1);
 	}
 
 	if (soc == EXYNOS4X12)

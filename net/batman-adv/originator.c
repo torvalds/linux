@@ -744,7 +744,7 @@ batadv_neigh_node_get_or_create(struct batadv_orig_node *orig_node,
 	return batadv_neigh_node_create(orig_node, hard_iface, neigh_addr);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 /**
  * batadv_hardif_neigh_seq_print_text() - print the single hop neighbour list
  * @seq: neighbour table seq_file struct
@@ -1392,7 +1392,7 @@ static void batadv_purge_orig(struct work_struct *work)
 			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 
 /**
  * batadv_orig_seq_print_text() - Print the originator table in a seq file
@@ -1432,7 +1432,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 /**
  * batadv_orig_hardif_seq_print_text() - writes originator infos for a specific
  *  outgoing interface
- * @seq: debugfs table seq_file struct
+ * @seq: defs table seq_file struct
  * @offset: not used
  *
  * Return: 0

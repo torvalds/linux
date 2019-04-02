@@ -511,7 +511,7 @@ static void ep0_rx_state(struct mtu3 *mtu)
 	mreq = next_ep0_request(mtu);
 	req = &mreq->request;
 
-	/* read packet and ack; or stall because of gadget driver bug */
+	/* read packet and ack; or stall because of gadget driver  */
 	if (req) {
 		void *buf = req->buf + req->actual;
 		unsigned int len = req->length - req->actual;

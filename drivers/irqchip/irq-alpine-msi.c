@@ -276,7 +276,7 @@ static int alpine_msix_init(struct device_node *node,
 		goto err_priv;
 	}
 
-	pr_debug("Registering %d msixs, starting at %d\n",
+	pr_de("Registering %d msixs, starting at %d\n",
 		 priv->num_spis, priv->spi_first);
 
 	ret = alpine_msix_init_domains(priv, node);

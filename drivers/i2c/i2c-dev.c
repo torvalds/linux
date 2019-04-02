@@ -151,7 +151,7 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 	if (tmp == NULL)
 		return -ENOMEM;
 
-	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
+	pr_de("i2c-dev: i2c-%d reading %zu bytes.\n",
 		iminor(file_inode(file)), count);
 
 	ret = i2c_master_recv(client, tmp, count);
@@ -175,7 +175,7 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
+	pr_de("i2c-dev: i2c-%d writing %zu bytes.\n",
 		iminor(file_inode(file)), count);
 
 	ret = i2c_master_send(client, tmp, count);
@@ -486,9 +486,9 @@ static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	default:
 		/* NOTE:  returning a fault code here could cause trouble
-		 * in buggy userspace code.  Some old kernel bugs returned
+		 * in gy userspace code.  Some old kernel s returned
 		 * zero in this case, and userspace code might accidentally
-		 * have depended on that bug.
+		 * have depended on that .
 		 */
 		return -ENOTTY;
 	}
@@ -664,7 +664,7 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 		goto error;
 	}
 
-	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
+	pr_de("i2c-dev: adapter [%s] registered as minor %d\n",
 		 adap->name, adap->nr);
 	return 0;
 error:
@@ -691,7 +691,7 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	put_i2c_dev(i2c_dev);
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 
-	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
+	pr_de("i2c-dev: adapter [%s] unregistered\n", adap->name);
 	return 0;
 }
 

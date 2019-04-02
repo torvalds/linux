@@ -30,7 +30,7 @@ enum {
 };
 
 static pid_t child_pid;
-static struct ppc_debug_info dbginfo;
+static struct ppc_de_info dbginfo;
 
 static void get_dbginfo(void)
 {
@@ -50,14 +50,14 @@ static bool hwbreak_present(void)
 
 static bool dawr_present(void)
 {
-	return !!(dbginfo.features & PPC_DEBUG_FEATURE_DATA_BP_DAWR);
+	return !!(dbginfo.features & PPC_DE_FEATURE_DATA_BP_DAWR);
 }
 
 static void set_breakpoint_addr(void *addr)
 {
 	int ret;
 
-	ret = ptrace(PTRACE_SET_DEBUGREG, child_pid, 0, addr);
+	ret = ptrace(PTRACE_SET_DEREG, child_pid, 0, addr);
 	if (ret) {
 		perror("Can't set breakpoint addr\n");
 		exit(-1);
@@ -80,7 +80,7 @@ static int set_hwbreakpoint_addr(void *addr, int range)
 	info.addr2 = (__u64)addr + range;
 	info.condition_value = 0;
 
-	ret = ptrace(PPC_PTRACE_SETHWDEBUG, child_pid, 0, &info);
+	ret = ptrace(PPC_PTRACE_SETHWDE, child_pid, 0, &info);
 	if (ret < 0) {
 		perror("Can't set breakpoint\n");
 		exit(-1);
@@ -92,7 +92,7 @@ static int del_hwbreakpoint_addr(int watchpoint_handle)
 {
 	int ret;
 
-	ret = ptrace(PPC_PTRACE_DELHWDEBUG, child_pid, 0, watchpoint_handle);
+	ret = ptrace(PPC_PTRACE_DELHWDE, child_pid, 0, watchpoint_handle);
 	if (ret < 0) {
 		perror("Can't delete hw breakpoint\n");
 		exit(-1);
@@ -212,7 +212,7 @@ static void check_success(const char *msg)
 }
 
 static void launch_watchpoints(char *buf, int mode, int len,
-			       struct ppc_debug_info *dbginfo, bool dawr)
+			       struct ppc_de_info *dbginfo, bool dawr)
 {
 	const char *mode_str;
 	unsigned long data = (unsigned long)(dummy_var);
@@ -232,7 +232,7 @@ static void launch_watchpoints(char *buf, int mode, int len,
 	/* Set DABR_TRANSLATION bit */
 	data |= (1UL << 2);
 
-	/* use PTRACE_SET_DEBUGREG breakpoints */
+	/* use PTRACE_SET_DEREG breakpoints */
 	set_breakpoint_addr((void *)data);
 	ptrace(PTRACE_CONT, child_pid, NULL, 0);
 	sprintf(buf, "Test %s watchpoint with len: %d ", mode_str, len);
@@ -242,8 +242,8 @@ static void launch_watchpoints(char *buf, int mode, int len,
 
 	data = (data & ~7); /* remove dabr control bits */
 
-	/* use PPC_PTRACE_SETHWDEBUG breakpoint */
-	if (!(dbginfo->features & PPC_DEBUG_FEATURE_DATA_BP_RANGE))
+	/* use PPC_PTRACE_SETHWDE breakpoint */
+	if (!(dbginfo->features & PPC_DE_FEATURE_DATA_BP_RANGE))
 		return; /* not supported */
 	wh = set_hwbreakpoint_addr((void *)data, 0);
 	ptrace(PTRACE_CONT, child_pid, NULL, 0);
@@ -270,15 +270,15 @@ static int launch_tests(bool dawr)
 	char buf[1024];
 	int len, i, status;
 
-	struct ppc_debug_info dbginfo;
+	struct ppc_de_info dbginfo;
 
 	i = ptrace(PPC_PTRACE_GETHWDBGINFO, child_pid, NULL, &dbginfo);
 	if (i) {
 		perror("Can't set breakpoint info\n");
 		exit(-1);
 	}
-	if (!(dbginfo.features & PPC_DEBUG_FEATURE_DATA_BP_RANGE))
-		printf("WARNING: Kernel doesn't support PPC_PTRACE_SETHWDEBUG\n");
+	if (!(dbginfo.features & PPC_DE_FEATURE_DATA_BP_RANGE))
+		printf("WARNING: Kernel doesn't support PPC_PTRACE_SETHWDE\n");
 
 	/* Write watchpoint */
 	for (len = 1; len <= sizeof(long); len <<= 1)

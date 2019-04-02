@@ -112,7 +112,7 @@ sisusb_set_cursor(struct sisusb_usb_data *sisusb, unsigned int location)
 
 	sisusb->sisusb_cursor_loc = location;
 
-	/* Hardware bug: Text cursor appears twice or not at all
+	/* Hardware : Text cursor appears twice or not at all
 	 * at some positions. Work around it with the cursor skew
 	 * bits.
 	 */
@@ -1141,7 +1141,7 @@ sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
 			/* Scan lines to actually display-1 */
 			maxscan = rows * fh - 1;
 
-			/*printk(KERN_DEBUG "sisusb recalc rows %d maxscan %d fh %d sl %d\n",
+			/*printk(KERN_DE "sisusb recalc rows %d maxscan %d fh %d sl %d\n",
 				rows, maxscan, fh, c->vc_scan_lines);*/
 
 			sisusb_getidxreg(sisusb, SISCR, 0x07, &ovr);
@@ -1474,7 +1474,7 @@ sisusb_console_exit(struct sisusb_usb_data *sisusb)
 	/* Now what do we do in case of disconnection:
 	 * One alternative would be to simply call
 	 * give_up_console(). Nah, not a good idea.
-	 * give_up_console() is obviously buggy as it
+	 * give_up_console() is obviously gy as it
 	 * only discards the consw pointer from the
 	 * driver_map, but doesn't adapt vc->vc_sw
 	 * of the affected consoles. Hence, the next

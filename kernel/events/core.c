@@ -566,7 +566,7 @@ static void cpu_ctx_sched_in(struct perf_cpu_context *cpuctx,
 static void update_context_time(struct perf_event_context *ctx);
 static u64 perf_event_time(struct perf_event *event);
 
-void __weak perf_event_print_debug(void)	{ }
+void __weak perf_event_print_de(void)	{ }
 
 extern __weak const char *perf_pmu_name(void)
 {
@@ -7754,7 +7754,7 @@ void perf_event_ksymbol(u16 ksym_type, u64 addr, u32 len, bool unregister,
 	name_len = strlen(name) + 1;
 	while (!IS_ALIGNED(name_len, sizeof(u64)))
 		name[name_len++] = '\0';
-	BUILD_BUG_ON(KSYM_NAME_LEN % sizeof(u64));
+	BUILD__ON(KSYM_NAME_LEN % sizeof(u64));
 
 	if (unregister)
 		flags |= PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER;
@@ -7885,7 +7885,7 @@ void perf_event_bpf_event(struct bpf_prog *prog,
 		},
 	};
 
-	BUILD_BUG_ON(BPF_TAG_SIZE % sizeof(u64));
+	BUILD__ON(BPF_TAG_SIZE % sizeof(u64));
 
 	memcpy(bpf_event.event_id.tag, prog->tag, BPF_TAG_SIZE);
 	perf_iterate_sb(perf_event_bpf_output, &bpf_event, NULL);
@@ -10006,7 +10006,7 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 		 */
 		ctx = perf_event_ctx_lock_nested(event->group_leader,
 						 SINGLE_DEPTH_NESTING);
-		BUG_ON(!ctx);
+		_ON(!ctx);
 	}
 
 	event->pmu = pmu;
@@ -12003,7 +12003,7 @@ void __init perf_event_init(void)
 	 * Build time assertion that we keep the data_head at the intended
 	 * location.  IOW, validation we got the __reserved[] size right.
 	 */
-	BUILD_BUG_ON((offsetof(struct perf_event_mmap_page, data_head))
+	BUILD__ON((offsetof(struct perf_event_mmap_page, data_head))
 		     != 1024);
 }
 

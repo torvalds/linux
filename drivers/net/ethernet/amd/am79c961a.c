@@ -39,7 +39,7 @@
 static irqreturn_t
 am79c961_interrupt (int irq, void *dev_id);
 
-static unsigned int net_debug = NET_DEBUG;
+static unsigned int net_de = NET_DE;
 
 static const char version[] =
 	"am79c961 ethernet driver (C) 1995-2001 Russell King v0.04\n";
@@ -653,7 +653,7 @@ static void __init am79c961_banner(void)
 {
 	static unsigned version_printed;
 
-	if (net_debug && version_printed++ == 0)
+	if (net_de && version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 }
 static const struct net_device_ops am79c961_netdev_ops = {

@@ -33,7 +33,7 @@
 #ifndef __ASSEMBLY__
 #ifdef __KERNEL__
 
-#include <linux/build_bug.h>
+#include <linux/build_.h>
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/stddef.h>
@@ -97,9 +97,9 @@
 extern phys_addr_t arm64_dma_phys_limit;
 #define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
 
-struct debug_info {
+struct de_info {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	/* Have we suspended stepping by a debugger? */
+	/* Have we suspended stepping by a deger? */
 	int			suspended_step;
 	/* Allow breakpoints and watchpoints to be disabled for this thread. */
 	int			bps_disabled;
@@ -146,7 +146,7 @@ struct thread_struct {
 	unsigned int		sve_vl_onexec;	/* SVE vl after next exec */
 	unsigned long		fault_address;	/* fault info */
 	unsigned long		fault_code;	/* ESR_EL1 value */
-	struct debug_info	debug;		/* debugging */
+	struct de_info	de;		/* deging */
 #ifdef CONFIG_ARM64_PTR_AUTH
 	struct ptrauth_keys	keys_user;
 #endif
@@ -156,7 +156,7 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 						unsigned long *size)
 {
 	/* Verify that there is no padding among the whitelisted fields: */
-	BUILD_BUG_ON(sizeof_field(struct thread_struct, uw) !=
+	BUILD__ON(sizeof_field(struct thread_struct, uw) !=
 		     sizeof_field(struct thread_struct, uw.tp_value) +
 		     sizeof_field(struct thread_struct, uw.tp2_value) +
 		     sizeof_field(struct thread_struct, uw.fpsimd_state));
@@ -309,7 +309,7 @@ extern void __init minsigstksz_setup(void);
 #define current_top_of_stack()							\
 ({										\
 	struct stack_info _info;						\
-	BUG_ON(!on_accessible_stack(current, current_stack_pointer, &_info));	\
+	_ON(!on_accessible_stack(current, current_stack_pointer, &_info));	\
 	_info.high;								\
 })
 #define on_thread_stack()	(on_task_stack(current, current_stack_pointer, NULL))

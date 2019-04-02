@@ -67,7 +67,7 @@ static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 	 * Branching into *another* alternate sequence is doomed, and
 	 * we're not even trying to fix it up.
 	 */
-	BUG();
+	();
 }
 
 #define align_down(x, a)	((unsigned long)(x) & ~(((unsigned long)(a)) - 1))
@@ -111,7 +111,7 @@ static u32 get_alt_insn(struct alt_instr *alt, __le32 *insnptr, __le32 *altinsnp
 		 * Disallow patching unhandled instructions using PC relative
 		 * literal addresses
 		 */
-		BUG();
+		();
 	}
 
 	return insn;
@@ -175,9 +175,9 @@ static void __apply_alternatives(void *alt_region,  bool is_module,
 			continue;
 
 		if (alt->cpufeature == ARM64_CB_PATCH)
-			BUG_ON(alt->alt_len != 0);
+			_ON(alt->alt_len != 0);
 		else
-			BUG_ON(alt->alt_len != alt->orig_len);
+			_ON(alt->alt_len != alt->orig_len);
 
 		pr_info_once("patching kernel code\n");
 
@@ -237,7 +237,7 @@ static int __apply_alternatives_multi_stop(void *unused)
 		bitmap_complement(remaining_capabilities, boot_capabilities,
 				  ARM64_NPATCHABLE);
 
-		BUG_ON(all_alternatives_applied);
+		_ON(all_alternatives_applied);
 		__apply_alternatives(&region, false, remaining_capabilities);
 		/* Barriers provided by the cache flushing */
 		WRITE_ONCE(all_alternatives_applied, 1);

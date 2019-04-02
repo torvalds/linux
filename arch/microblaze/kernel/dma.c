@@ -10,9 +10,9 @@
 #include <linux/device.h>
 #include <linux/dma-noncoherent.h>
 #include <linux/gfp.h>
-#include <linux/dma-debug.h>
+#include <linux/dma-de.h>
 #include <linux/export.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <asm/cacheflush.h>
 
 static void __dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
@@ -27,7 +27,7 @@ static void __dma_sync(struct device *dev, phys_addr_t paddr, size_t size,
 		invalidate_dcache_range(paddr, paddr + size);
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 

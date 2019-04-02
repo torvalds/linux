@@ -45,8 +45,8 @@ struct mtk_pwm_data {
 	unsigned int commit;
 	unsigned int commit_mask;
 
-	unsigned int bls_debug;
-	u32 bls_debug_mask;
+	unsigned int bls_de;
+	u32 bls_de_mask;
 };
 
 struct mtk_disp_pwm {
@@ -228,9 +228,9 @@ static int mtk_disp_pwm_probe(struct platform_device *pdev)
 	 * and select manual mode and use PWM_PERIOD/PWM_HIGH_WIDTH.
 	 */
 	if (!mdp->data->has_commit) {
-		mtk_disp_pwm_update_bits(mdp, mdp->data->bls_debug,
-					 mdp->data->bls_debug_mask,
-					 mdp->data->bls_debug_mask);
+		mtk_disp_pwm_update_bits(mdp, mdp->data->bls_de,
+					 mdp->data->bls_de_mask,
+					 mdp->data->bls_de_mask);
 		mtk_disp_pwm_update_bits(mdp, mdp->data->con0,
 					 mdp->data->con0_sel,
 					 mdp->data->con0_sel);
@@ -263,8 +263,8 @@ static const struct mtk_pwm_data mt2701_pwm_data = {
 	.con0_sel = 0x2,
 	.con1 = 0xac,
 	.has_commit = false,
-	.bls_debug = 0xb0,
-	.bls_debug_mask = 0x3,
+	.bls_de = 0xb0,
+	.bls_de_mask = 0x3,
 };
 
 static const struct mtk_pwm_data mt8173_pwm_data = {
@@ -283,8 +283,8 @@ static const struct mtk_pwm_data mt8183_pwm_data = {
 	.con0_sel = 0x0,
 	.con1 = 0x1c,
 	.has_commit = false,
-	.bls_debug = 0x80,
-	.bls_debug_mask = 0x3,
+	.bls_de = 0x80,
+	.bls_de_mask = 0x3,
 };
 
 static const struct of_device_id mtk_disp_pwm_of_match[] = {

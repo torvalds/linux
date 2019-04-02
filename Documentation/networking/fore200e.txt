@@ -60,5 +60,5 @@ configuration time:
 Feedback
 --------
 
-Feedback is welcome. Please send success stories/bug reports/
+Feedback is welcome. Please send success stories/ reports/
 patches/improvement/comments/flames to <lizzi@cnam.fr>.

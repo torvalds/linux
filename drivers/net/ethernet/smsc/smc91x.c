@@ -59,9 +59,9 @@
 static const char version[] =
 	"smc91x.c: v1.1, sep 22 2004 by Nicolas Pitre <nico@fluxnic.net>";
 
-/* Debugging level */
-#ifndef SMC_DEBUG
-#define SMC_DEBUG		0
+/* Deging level */
+#ifndef SMC_DE
+#define SMC_DE		0
 #endif
 
 
@@ -155,19 +155,19 @@ MODULE_ALIAS("platform:smc91x");
 
 #define DBG(n, dev, fmt, ...)					\
 	do {							\
-		if (SMC_DEBUG >= (n))				\
+		if (SMC_DE >= (n))				\
 			netdev_dbg(dev, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
 #define PRINTK(dev, fmt, ...)					\
 	do {							\
-		if (SMC_DEBUG > 0)				\
+		if (SMC_DE > 0)				\
 			netdev_info(dev, fmt, ##__VA_ARGS__);	\
 		else						\
 			netdev_dbg(dev, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
-#if SMC_DEBUG > 3
+#if SMC_DE > 3
 static void PRINT_PKT(u_char *buf, int length)
 {
 	int i;
@@ -179,7 +179,7 @@ static void PRINT_PKT(u_char *buf, int length)
 
 	for (i = 0; i < lines ; i ++) {
 		int cur;
-		printk(KERN_DEBUG);
+		printk(KERN_DE);
 		for (cur = 0; cur < 8; cur++) {
 			u_char a, b;
 			a = *buf++;
@@ -188,7 +188,7 @@ static void PRINT_PKT(u_char *buf, int length)
 		}
 		pr_cont("\n");
 	}
-	printk(KERN_DEBUG);
+	printk(KERN_DE);
 	for (i = 0; i < remainder/2 ; i++) {
 		u_char a, b;
 		a = *buf++;
@@ -481,7 +481,7 @@ static inline void  smc_rcv(struct net_device *dev)
 		/* Align IP header to 32 bits */
 		skb_reserve(skb, 2);
 
-		/* BUG: the LAN91C111 rev A never sets this bit. Force it. */
+		/* : the LAN91C111 rev A never sets this bit. Force it. */
 		if (lp->version == 0x90)
 			status |= RS_ODDFRAME;
 
@@ -648,7 +648,7 @@ smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DBG(3, dev, "%s\n", __func__);
 
-	BUG_ON(lp->pending_tx_skb != NULL);
+	_ON(lp->pending_tx_skb != NULL);
 
 	/*
 	 * The MMU wants the number of pages to be the number of 256 bytes
@@ -1390,7 +1390,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 		lp->rcr_cur_mode |= RCR_PRMS;
 	}
 
-/* BUG?  I never disable promiscuous mode if multicasting was turned on.
+/* ?  I never disable promiscuous mode if multicasting was turned on.
    Now, I turn off promiscuous mode, but I don't do anything to multicasting
    when promiscuous mode is turned on.
 */

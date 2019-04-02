@@ -24,7 +24,7 @@
 
 #include "dnet.h"
 
-#undef DEBUG
+#undef DE
 
 /* function for reading internal MAC register */
 static u16 dnet_readw_mac(struct dnet *bp, u16 reg)
@@ -126,7 +126,7 @@ static int dnet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 
 	value = dnet_readw_mac(bp, DNET_INTERNAL_GMII_MNG_DAT_REG);
 
-	pr_debug("mdio_read %02x:%02x <- %04x\n", mii_id, regnum, value);
+	pr_de("mdio_read %02x:%02x <- %04x\n", mii_id, regnum, value);
 
 	return value;
 }
@@ -137,7 +137,7 @@ static int dnet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	struct dnet *bp = bus->priv;
 	u16 tmp;
 
-	pr_debug("mdio_write %02x:%02x <- %04x\n", mii_id, regnum, value);
+	pr_de("mdio_write %02x:%02x <- %04x\n", mii_id, regnum, value);
 
 	while (!(dnet_readw_mac(bp, DNET_INTERNAL_GMII_MNG_CTL_REG)
 				& DNET_INTERNAL_GMII_MNG_CMD_FIN))
@@ -486,18 +486,18 @@ static irqreturn_t dnet_interrupt(int irq, void *dev_id)
 	}
 
 	if (!handled)
-		pr_debug("%s: irq %x remains\n", __func__, int_current);
+		pr_de("%s: irq %x remains\n", __func__, int_current);
 
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	return IRQ_RETVAL(handled);
 }
 
-#ifdef DEBUG
+#ifdef DE
 static inline void dnet_print_skb(struct sk_buff *skb)
 {
 	int k;
-	printk(KERN_DEBUG PFX "data:");
+	printk(KERN_DE PFX "data:");
 	for (k = 0; k < skb->len; k++)
 		printk(" %02x", (unsigned int)skb->data[k]);
 	printk("\n");
@@ -517,7 +517,7 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_status = dnet_readl(bp, TX_STATUS);
 
-	pr_debug("start_xmit: len %u head %p data %p\n",
+	pr_de("start_xmit: len %u head %p data %p\n",
 	       skb->len, skb->head, skb->data);
 	dnet_print_skb(skb);
 
@@ -660,35 +660,35 @@ static int dnet_close(struct net_device *dev)
 
 static inline void dnet_print_pretty_hwstats(struct dnet_stats *hwstat)
 {
-	pr_debug("%s\n", __func__);
-	pr_debug("----------------------------- RX statistics "
+	pr_de("%s\n", __func__);
+	pr_de("----------------------------- RX statistics "
 		 "-------------------------------\n");
-	pr_debug("RX_PKT_IGNR_CNT %-8x\n", hwstat->rx_pkt_ignr);
-	pr_debug("RX_LEN_CHK_ERR_CNT %-8x\n", hwstat->rx_len_chk_err);
-	pr_debug("RX_LNG_FRM_CNT %-8x\n", hwstat->rx_lng_frm);
-	pr_debug("RX_SHRT_FRM_CNT %-8x\n", hwstat->rx_shrt_frm);
-	pr_debug("RX_IPG_VIOL_CNT %-8x\n", hwstat->rx_ipg_viol);
-	pr_debug("RX_CRC_ERR_CNT %-8x\n", hwstat->rx_crc_err);
-	pr_debug("RX_OK_PKT_CNT %-8x\n", hwstat->rx_ok_pkt);
-	pr_debug("RX_CTL_FRM_CNT %-8x\n", hwstat->rx_ctl_frm);
-	pr_debug("RX_PAUSE_FRM_CNT %-8x\n", hwstat->rx_pause_frm);
-	pr_debug("RX_MULTICAST_CNT %-8x\n", hwstat->rx_multicast);
-	pr_debug("RX_BROADCAST_CNT %-8x\n", hwstat->rx_broadcast);
-	pr_debug("RX_VLAN_TAG_CNT %-8x\n", hwstat->rx_vlan_tag);
-	pr_debug("RX_PRE_SHRINK_CNT %-8x\n", hwstat->rx_pre_shrink);
-	pr_debug("RX_DRIB_NIB_CNT %-8x\n", hwstat->rx_drib_nib);
-	pr_debug("RX_UNSUP_OPCD_CNT %-8x\n", hwstat->rx_unsup_opcd);
-	pr_debug("RX_BYTE_CNT %-8x\n", hwstat->rx_byte);
-	pr_debug("----------------------------- TX statistics "
+	pr_de("RX_PKT_IGNR_CNT %-8x\n", hwstat->rx_pkt_ignr);
+	pr_de("RX_LEN_CHK_ERR_CNT %-8x\n", hwstat->rx_len_chk_err);
+	pr_de("RX_LNG_FRM_CNT %-8x\n", hwstat->rx_lng_frm);
+	pr_de("RX_SHRT_FRM_CNT %-8x\n", hwstat->rx_shrt_frm);
+	pr_de("RX_IPG_VIOL_CNT %-8x\n", hwstat->rx_ipg_viol);
+	pr_de("RX_CRC_ERR_CNT %-8x\n", hwstat->rx_crc_err);
+	pr_de("RX_OK_PKT_CNT %-8x\n", hwstat->rx_ok_pkt);
+	pr_de("RX_CTL_FRM_CNT %-8x\n", hwstat->rx_ctl_frm);
+	pr_de("RX_PAUSE_FRM_CNT %-8x\n", hwstat->rx_pause_frm);
+	pr_de("RX_MULTICAST_CNT %-8x\n", hwstat->rx_multicast);
+	pr_de("RX_BROADCAST_CNT %-8x\n", hwstat->rx_broadcast);
+	pr_de("RX_VLAN_TAG_CNT %-8x\n", hwstat->rx_vlan_tag);
+	pr_de("RX_PRE_SHRINK_CNT %-8x\n", hwstat->rx_pre_shrink);
+	pr_de("RX_DRIB_NIB_CNT %-8x\n", hwstat->rx_drib_nib);
+	pr_de("RX_UNSUP_OPCD_CNT %-8x\n", hwstat->rx_unsup_opcd);
+	pr_de("RX_BYTE_CNT %-8x\n", hwstat->rx_byte);
+	pr_de("----------------------------- TX statistics "
 		 "-------------------------------\n");
-	pr_debug("TX_UNICAST_CNT %-8x\n", hwstat->tx_unicast);
-	pr_debug("TX_PAUSE_FRM_CNT %-8x\n", hwstat->tx_pause_frm);
-	pr_debug("TX_MULTICAST_CNT %-8x\n", hwstat->tx_multicast);
-	pr_debug("TX_BRDCAST_CNT %-8x\n", hwstat->tx_brdcast);
-	pr_debug("TX_VLAN_TAG_CNT %-8x\n", hwstat->tx_vlan_tag);
-	pr_debug("TX_BAD_FCS_CNT %-8x\n", hwstat->tx_bad_fcs);
-	pr_debug("TX_JUMBO_CNT %-8x\n", hwstat->tx_jumbo);
-	pr_debug("TX_BYTE_CNT %-8x\n", hwstat->tx_byte);
+	pr_de("TX_UNICAST_CNT %-8x\n", hwstat->tx_unicast);
+	pr_de("TX_PAUSE_FRM_CNT %-8x\n", hwstat->tx_pause_frm);
+	pr_de("TX_MULTICAST_CNT %-8x\n", hwstat->tx_multicast);
+	pr_de("TX_BRDCAST_CNT %-8x\n", hwstat->tx_brdcast);
+	pr_de("TX_VLAN_TAG_CNT %-8x\n", hwstat->tx_vlan_tag);
+	pr_de("TX_BAD_FCS_CNT %-8x\n", hwstat->tx_bad_fcs);
+	pr_de("TX_JUMBO_CNT %-8x\n", hwstat->tx_jumbo);
+	pr_de("TX_BYTE_CNT %-8x\n", hwstat->tx_byte);
 }
 
 static struct net_device_stats *dnet_get_stats(struct net_device *dev)

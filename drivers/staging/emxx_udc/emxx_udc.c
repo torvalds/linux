@@ -90,7 +90,7 @@ static inline void _nbu2ss_bitclr(void __iomem *address, u32 udata)
 	__raw_writel(reg_dt, address);
 }
 
-#ifdef UDC_DEBUG_DUMP
+#ifdef UDC_DE_DUMP
 /*-------------------------------------------------------------------------*/
 static void _nbu2ss_dump_register(struct nbu2ss_udc *udc)
 {
@@ -123,7 +123,7 @@ static void _nbu2ss_dump_register(struct nbu2ss_udc *udc)
 
 	spin_lock(&udc->lock);
 }
-#endif /* UDC_DEBUG_DUMP */
+#endif /* UDC_DE_DUMP */
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 Callback (Complete) */
@@ -2270,9 +2270,9 @@ static inline void _nbu2ss_check_vbus(struct nbu2ss_udc *udc)
 
 			_nbu2ss_pullup(udc, 1);
 
-#ifdef UDC_DEBUG_DUMP
+#ifdef UDC_DE_DUMP
 			_nbu2ss_dump_register(udc);
-#endif /* UDC_DEBUG_DUMP */
+#endif /* UDC_DE_DUMP */
 
 		} else {
 			if (udc->devstate == USB_STATE_POWERED)
@@ -2667,7 +2667,7 @@ static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	}
 	if (&req->req != _req) {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		pr_debug("%s no queue(EINVAL)\n", __func__);
+		pr_de("%s no queue(EINVAL)\n", __func__);
 		return -EINVAL;
 	}
 

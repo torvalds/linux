@@ -10,7 +10,7 @@
  */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -37,8 +37,8 @@
 #include "fimc-lite.h"
 #include "fimc-lite-reg.h"
 
-static int debug;
-module_param(debug, int, 0644);
+static int de;
+module_param(de, int, 0644);
 
 static const struct fimc_fmt fimc_lite_formats[] = {
 	{
@@ -165,7 +165,7 @@ static int fimc_lite_hw_init(struct fimc_lite *fimc, bool isp_output)
 	flite_hw_set_interrupt_mask(fimc);
 	flite_hw_set_test_pattern(fimc, fimc->test_pattern->val);
 
-	if (debug > 0)
+	if (de > 0)
 		flite_hw_dump_regs(fimc, __func__);
 
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -339,7 +339,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		if (!test_and_set_bit(ST_SENSOR_STREAM, &fimc->state))
 			fimc_pipeline_call(&fimc->ve, set_stream, 1);
 	}
-	if (debug > 0)
+	if (de > 0)
 		flite_hw_dump_regs(fimc, __func__);
 
 	return 0;
@@ -603,7 +603,7 @@ static const struct fimc_fmt *fimc_lite_subdev_try_fmt(struct fimc_lite *fimc,
 
 	mf->field = V4L2_FIELD_NONE;
 
-	v4l2_dbg(1, debug, &fimc->subdev, "code: %#x (%d), %dx%d\n",
+	v4l2_dbg(1, de, &fimc->subdev, "code: %#x (%d), %dx%d\n",
 		 mf->code, mf->colorspace, mf->width, mf->height);
 
 	return fmt;
@@ -621,7 +621,7 @@ static void fimc_lite_try_crop(struct fimc_lite *fimc, struct v4l2_rect *r)
 	r->left = round_down(r->left, fimc->dd->win_hor_offs_align);
 	r->top  = clamp_t(u32, r->top, 0, frame->f_height - r->height);
 
-	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, sink fmt: %dx%d\n",
+	v4l2_dbg(1, de, &fimc->subdev, "(%d,%d)/%dx%d, sink fmt: %dx%d\n",
 		 r->left, r->top, r->width, r->height,
 		 frame->f_width, frame->f_height);
 }
@@ -641,7 +641,7 @@ static void fimc_lite_try_compose(struct fimc_lite *fimc, struct v4l2_rect *r)
 	r->left = round_down(r->left, fimc->dd->out_hor_offs_align);
 	r->top  = clamp_t(u32, r->top, 0, fimc->out_frame.f_height - r->height);
 
-	v4l2_dbg(1, debug, &fimc->subdev, "(%d,%d)/%dx%d, source fmt: %dx%d\n",
+	v4l2_dbg(1, de, &fimc->subdev, "(%d,%d)/%dx%d, source fmt: %dx%d\n",
 		 r->left, r->top, r->width, r->height,
 		 frame->f_width, frame->f_height);
 }
@@ -982,7 +982,7 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 	if (WARN_ON(fimc == NULL))
 		return 0;
 
-	v4l2_dbg(1, debug, sd, "%s: %s --> %s, flags: 0x%x. source_id: 0x%x\n",
+	v4l2_dbg(1, de, sd, "%s: %s --> %s, flags: 0x%x. source_id: 0x%x\n",
 		 __func__, remote->entity->name, local->entity->name,
 		 flags, fimc->source_subdev_grp_id);
 
@@ -1090,7 +1090,7 @@ static int fimc_lite_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct flite_frame *source = &fimc->out_frame;
 	const struct fimc_fmt *ffmt;
 
-	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %dx%d\n",
+	v4l2_dbg(1, de, sd, "pad%d: code: 0x%x, %dx%d\n",
 		 fmt->pad, mf->code, mf->width, mf->height);
 
 	mutex_lock(&fimc->lock);
@@ -1168,7 +1168,7 @@ static int fimc_lite_subdev_get_selection(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&fimc->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d\n",
+	v4l2_dbg(1, de, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d\n",
 		 __func__, f->rect.left, f->rect.top, f->rect.width,
 		 f->rect.height, f->f_width, f->f_height);
 
@@ -1202,7 +1202,7 @@ static int fimc_lite_subdev_set_selection(struct v4l2_subdev *sd,
 	}
 	mutex_unlock(&fimc->lock);
 
-	v4l2_dbg(1, debug, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d\n",
+	v4l2_dbg(1, de, sd, "%s: (%d,%d) %dx%d, f_w: %d, f_h: %d\n",
 		 __func__, f->rect.left, f->rect.top, f->rect.width,
 		 f->rect.height, f->f_width, f->f_height);
 

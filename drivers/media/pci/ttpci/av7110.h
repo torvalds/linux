@@ -39,11 +39,11 @@
 #define ANALOG_TUNER_VES1820 1
 #define ANALOG_TUNER_STV0297 2
 
-extern int av7110_debug;
+extern int av7110_de;
 
 #define dprintk(level, fmt, arg...) do {				\
-	if (level & av7110_debug)					\
-		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
+	if (level & av7110_de)					\
+		printk(KERN_DE KBUILD_MODNAME ": %s(): " fmt,	\
 		       __func__, ##arg);				\
 } while (0)
 

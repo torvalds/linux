@@ -15,8 +15,8 @@
  * valkyriefb.c, by Martin Costabel, Kevin Schoedel, Barry Nathan, Dan
  * Jacobowitz, Paul Mackerras, Fabio Riccardi, and Geert Uytterhoeven.
  *
- * The VideoToolbox "Bugs" web page at
- * http://rajsky.psych.nyu.edu/Tips/VideoBugs.html
+ * The VideoToolbox "s" web page at
+ * http://rajsky.psych.nyu.edu/Tips/Videos.html
  *
  * This code is free software.  You may copy, modify, and distribute
  * it subject to the terms and conditions of the GNU General Public

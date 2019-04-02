@@ -19,14 +19,14 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	int offset = 0;                                                       \
 	buffer_type *buf = (buffer_type *)par->buf;                           \
 									      \
-	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {                    \
+	if (unlikely(par->de & DE_WRITE_REGISTER)) {                    \
 		va_start(args, len);                                          \
 		for (i = 0; i < len; i++) {                                   \
 			buf[i] = modifier((data_type)va_arg(args,             \
 							    unsigned int));   \
 		}                                                             \
 		va_end(args);                                                 \
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,                  \
+		fbtft_par_dbg_hex(DE_WRITE_REGISTER, par,                  \
 				  par->info->device, buffer_type, buf, len,   \
 				  "%s: ", __func__);                          \
 	}                                                                     \
@@ -73,12 +73,12 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 	int pad = 0;
 	u16 *buf = (u16 *)par->buf;
 
-	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {
+	if (unlikely(par->de & DE_WRITE_REGISTER)) {
 		va_start(args, len);
 		for (i = 0; i < len; i++)
 			*(((u8 *)buf) + i) = (u8)va_arg(args, unsigned int);
 		va_end(args);
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,
+		fbtft_par_dbg_hex(DE_WRITE_REGISTER, par,
 				  par->info->device, u8, buf, len, "%s: ",
 				  __func__);
 	}
@@ -129,7 +129,7 @@ int fbtft_write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	int ret = 0;
 	size_t startbyte_size = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
+	fbtft_par_dbg(DE_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
 		      __func__, offset, len);
 
 	remain = len / 2;
@@ -183,7 +183,7 @@ int fbtft_write_vmem16_bus9(struct fbtft_par *par, size_t offset, size_t len)
 	int i;
 	int ret = 0;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
+	fbtft_par_dbg(DE_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
 		      __func__, offset, len);
 
 	if (!par->txbuf.buf) {
@@ -233,7 +233,7 @@ int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16;
 
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
+	fbtft_par_dbg(DE_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
 		      __func__, offset, len);
 
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);

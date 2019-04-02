@@ -100,7 +100,7 @@ static unsigned int calculate_min_delta(void)
 	if (min_delta < 0x300)
 		min_delta = 0x300;
 
-	pr_debug("%s: median 75th percentile=%#x, min_delta=%#x\n",
+	pr_de("%s: median 75th percentile=%#x, min_delta=%#x\n",
 		 __func__, buf2[ARRAY_SIZE(buf2) - 1], min_delta);
 	return min_delta;
 }

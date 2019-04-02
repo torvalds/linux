@@ -72,7 +72,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 	char info_string[60] = { 0 };
 
 	/* We DONOT expect err_src to go out of bounds */
-	BUG_ON(err_src > MAX_CLKDM_TARGETS);
+	_ON(err_src > MAX_CLKDM_TARGETS);
 
 	if (err_src < flag_mux->num_targ_data) {
 		l3_targ_inst = &flag_mux->l3_targ[err_src];
@@ -136,7 +136,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 		 ": %s in %s mode during %s access",
 		 (m_req_info & BIT(0)) ? "Opcode Fetch" : "Data Access",
 		 (m_req_info & BIT(1)) ? "Supervisor" : "User",
-		 (m_req_info & BIT(3)) ? "Debug" : "Functional");
+		 (m_req_info & BIT(3)) ? "De" : "Functional");
 
 	WARN(true,
 	     "%s:L3 %s Error: MASTER %s TARGET %s (%s)%s%s\n",
@@ -174,7 +174,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	struct l3_flagmux_data *flag_mux;
 
 	/* Get the Type of interrupt */
-	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
+	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DE_ERROR;
 
 	for (i = 0; i < l3->num_modules; i++) {
 		/*
@@ -205,7 +205,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 			if (ret) {
 				dev_err(l3->dev,
 					"L3 %s error: target %d mod:%d %s\n",
-					inttype ? "debug" : "application",
+					inttype ? "de" : "application",
 					err_src, i, "(unclearable)");
 
 				mask_reg = base + flag_mux->offset +
@@ -227,7 +227,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	}
 
 	dev_err(l3->dev, "L3 %s IRQ not handled!!\n",
-		inttype ? "debug" : "application");
+		inttype ? "de" : "application");
 
 	return IRQ_NONE;
 }
@@ -267,7 +267,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 
 		if (l3->l3_base[i] == L3_BASE_IS_SUBMODULE) {
 			/* First entry cannot be submodule */
-			BUG_ON(i == 0);
+			_ON(i == 0);
 			l3->l3_base[i] = l3->l3_base[i - 1];
 			continue;
 		}
@@ -283,12 +283,12 @@ static int omap_l3_probe(struct platform_device *pdev)
 	/*
 	 * Setup interrupt Handlers
 	 */
-	l3->debug_irq = platform_get_irq(pdev, 0);
-	ret = devm_request_irq(l3->dev, l3->debug_irq, l3_interrupt_handler,
+	l3->de_irq = platform_get_irq(pdev, 0);
+	ret = devm_request_irq(l3->dev, l3->de_irq, l3_interrupt_handler,
 			       0x0, "l3-dbg-irq", l3);
 	if (ret) {
 		dev_err(l3->dev, "request_irq failed for %d\n",
-			l3->debug_irq);
+			l3->de_irq);
 		return ret;
 	}
 
@@ -332,7 +332,7 @@ static int l3_resume_noirq(struct device *dev)
 
 		writel_relaxed(mask_val, mask_regx);
 		mask_regx = base + flag_mux->offset + L3_FLAGMUX_MASK0 +
-			   (L3_DEBUG_ERROR << 3);
+			   (L3_DE_ERROR << 3);
 		mask_val = readl_relaxed(mask_regx);
 		mask_val &= ~(flag_mux->mask_dbg_bits);
 

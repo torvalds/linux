@@ -39,13 +39,13 @@ MODULE_LICENSE("GPL");
 
 #define BUSY_LOOPS 100000
 
-#undef IO_DEBUG
+#undef IO_DE
 
 int snd_sbdsp_command(struct snd_sb *chip, unsigned char val)
 {
 	int i;
-#ifdef IO_DEBUG
-	snd_printk(KERN_DEBUG "command 0x%x\n", val);
+#ifdef IO_DE
+	snd_printk(KERN_DE "command 0x%x\n", val);
 #endif
 	for (i = BUSY_LOOPS; i; i--)
 		if ((inb(SBP(chip, STATUS)) & 0x80) == 0) {
@@ -63,8 +63,8 @@ int snd_sbdsp_get_byte(struct snd_sb *chip)
 	for (i = BUSY_LOOPS; i; i--) {
 		if (inb(SBP(chip, DATA_AVAIL)) & 0x80) {
 			val = inb(SBP(chip, READ));
-#ifdef IO_DEBUG
-			snd_printk(KERN_DEBUG "get_byte 0x%x\n", val);
+#ifdef IO_DE
+			snd_printk(KERN_DE "get_byte 0x%x\n", val);
 #endif
 			return val;
 		}
@@ -222,7 +222,7 @@ int snd_sbdsp_create(struct snd_card *card,
 		.dev_free =	snd_sbdsp_dev_free,
 	};
 
-	if (snd_BUG_ON(!r_chip))
+	if (snd__ON(!r_chip))
 		return -EINVAL;
 	*r_chip = NULL;
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);

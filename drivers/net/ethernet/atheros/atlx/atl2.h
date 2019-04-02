@@ -159,7 +159,7 @@ static void atl2_force_ps(struct atl2_hw *hw);
 
 /* Interrupt Status Register */
 #define ISR_TIMER	1	/* Interrupt when Timer counts down to zero */
-#define ISR_MANUAL	2	/* Software manual interrupt, for debug. Set
+#define ISR_MANUAL	2	/* Software manual interrupt, for de. Set
 				 * when SW_MAN_INT_EN is set in Table 51
 				 * Selene Master Control Register
 				 * (Offset 0x1400). */

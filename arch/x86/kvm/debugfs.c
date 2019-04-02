@@ -8,9 +8,9 @@
  *
  */
 #include <linux/kvm_host.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
-bool kvm_arch_has_vcpu_debugfs(void)
+bool kvm_arch_has_vcpu_defs(void)
 {
 	return true;
 }
@@ -41,24 +41,24 @@ static int vcpu_get_tsc_scaling_frac_bits(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(vcpu_tsc_scaling_frac_fops, vcpu_get_tsc_scaling_frac_bits, NULL, "%llu\n");
 
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+int kvm_arch_create_vcpu_defs(struct kvm_vcpu *vcpu)
 {
 	struct dentry *ret;
 
-	ret = debugfs_create_file("tsc-offset", 0444,
-							vcpu->debugfs_dentry,
+	ret = defs_create_file("tsc-offset", 0444,
+							vcpu->defs_dentry,
 							vcpu, &vcpu_tsc_offset_fops);
 	if (!ret)
 		return -ENOMEM;
 
 	if (kvm_has_tsc_control) {
-		ret = debugfs_create_file("tsc-scaling-ratio", 0444,
-							vcpu->debugfs_dentry,
+		ret = defs_create_file("tsc-scaling-ratio", 0444,
+							vcpu->defs_dentry,
 							vcpu, &vcpu_tsc_scaling_fops);
 		if (!ret)
 			return -ENOMEM;
-		ret = debugfs_create_file("tsc-scaling-ratio-frac-bits", 0444,
-							vcpu->debugfs_dentry,
+		ret = defs_create_file("tsc-scaling-ratio-frac-bits", 0444,
+							vcpu->defs_dentry,
 							vcpu, &vcpu_tsc_scaling_frac_fops);
 		if (!ret)
 			return -ENOMEM;

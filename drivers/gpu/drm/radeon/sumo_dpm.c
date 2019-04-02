@@ -1810,7 +1810,7 @@ void sumo_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
-void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void sumo_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 						      struct seq_file *m)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);

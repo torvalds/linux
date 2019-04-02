@@ -530,31 +530,31 @@ static void vmw_so_build_asserts(void) __attribute__((used));
 static void vmw_so_build_asserts(void)
 {
 	/* Assert that our vmw_view_cmd_to_type() function is correct. */
-	BUILD_BUG_ON(SVGA_3D_CMD_DX_DESTROY_SHADERRESOURCE_VIEW !=
+	BUILD__ON(SVGA_3D_CMD_DX_DESTROY_SHADERRESOURCE_VIEW !=
 		     SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW + 1);
-	BUILD_BUG_ON(SVGA_3D_CMD_DX_DEFINE_RENDERTARGET_VIEW !=
+	BUILD__ON(SVGA_3D_CMD_DX_DEFINE_RENDERTARGET_VIEW !=
 		     SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW + 2);
-	BUILD_BUG_ON(SVGA_3D_CMD_DX_DESTROY_RENDERTARGET_VIEW !=
+	BUILD__ON(SVGA_3D_CMD_DX_DESTROY_RENDERTARGET_VIEW !=
 		     SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW + 3);
-	BUILD_BUG_ON(SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW !=
+	BUILD__ON(SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW !=
 		     SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW + 4);
-	BUILD_BUG_ON(SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_VIEW !=
+	BUILD__ON(SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_VIEW !=
 		     SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW + 5);
 
 	/* Assert that our "one body fits all" assumption is valid */
-	BUILD_BUG_ON(sizeof(union vmw_view_destroy) != sizeof(u32));
+	BUILD__ON(sizeof(union vmw_view_destroy) != sizeof(u32));
 
 	/* Assert that the view key space can hold all view ids. */
-	BUILD_BUG_ON(SVGA_COTABLE_MAX_IDS >= ((1 << 20) - 1));
+	BUILD__ON(SVGA_COTABLE_MAX_IDS >= ((1 << 20) - 1));
 
 	/*
 	 * Assert that the offset of sid in all view define commands
 	 * is what we assume it to be.
 	 */
-	BUILD_BUG_ON(offsetof(struct vmw_view_define, sid) !=
+	BUILD__ON(offsetof(struct vmw_view_define, sid) !=
 		     offsetof(SVGA3dCmdDXDefineShaderResourceView, sid));
-	BUILD_BUG_ON(offsetof(struct vmw_view_define, sid) !=
+	BUILD__ON(offsetof(struct vmw_view_define, sid) !=
 		     offsetof(SVGA3dCmdDXDefineRenderTargetView, sid));
-	BUILD_BUG_ON(offsetof(struct vmw_view_define, sid) !=
+	BUILD__ON(offsetof(struct vmw_view_define, sid) !=
 		     offsetof(SVGA3dCmdDXDefineDepthStencilView, sid));
 }

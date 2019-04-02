@@ -117,7 +117,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				goto out_invalid_option;
 
 			opt_recv->dccpor_ndp = dccp_decode_value_var(value, len);
-			dccp_pr_debug("%s opt: NDP count=%llu\n", dccp_role(sk),
+			dccp_pr_de("%s opt: NDP count=%llu\n", dccp_role(sk),
 				      (unsigned long long)opt_recv->dccpor_ndp);
 			break;
 		case DCCPO_CHANGE_L ... DCCPO_CONFIRM_R:
@@ -152,7 +152,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 					dp->dccps_timestamp_echo = ntohl(opt_val);
 				dp->dccps_timestamp_time = dccp_timestamp();
 			}
-			dccp_pr_debug("%s rx opt: TIMESTAMP=%u, ackno=%llu\n",
+			dccp_pr_de("%s rx opt: TIMESTAMP=%u, ackno=%llu\n",
 				      dccp_role(sk), ntohl(opt_val),
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
@@ -166,7 +166,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			opt_val = get_unaligned((__be32 *)value);
 			opt_recv->dccpor_timestamp_echo = ntohl(opt_val);
 
-			dccp_pr_debug("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
+			dccp_pr_de("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
 				      "ackno=%llu", dccp_role(sk),
 				      opt_recv->dccpor_timestamp_echo,
 				      len + 2,
@@ -176,7 +176,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			value += 4;
 
 			if (len == 4) {		/* no elapsed time included */
-				dccp_pr_debug_cat("\n");
+				dccp_pr_de_cat("\n");
 				break;
 			}
 
@@ -188,7 +188,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				elapsed_time = ntohl(opt_val);
 			}
 
-			dccp_pr_debug_cat(", ELAPSED_TIME=%u\n", elapsed_time);
+			dccp_pr_de_cat(", ELAPSED_TIME=%u\n", elapsed_time);
 
 			/* Give precedence to the biggest ELAPSED_TIME */
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
@@ -211,7 +211,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
 				opt_recv->dccpor_elapsed_time = elapsed_time;
 
-			dccp_pr_debug("%s rx opt: ELAPSED_TIME=%d\n",
+			dccp_pr_de("%s rx opt: ELAPSED_TIME=%d\n",
 				      dccp_role(sk), elapsed_time);
 			break;
 		case DCCPO_MIN_RX_CCID_SPECIFIC ... DCCPO_MAX_RX_CCID_SPECIFIC:

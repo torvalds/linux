@@ -13,7 +13,7 @@
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -23,7 +23,7 @@
 #include <linux/mm.h>
 #include <linux/compat.h>
 #include <linux/smp.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/extable.h>
@@ -362,7 +362,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 			else
 				do_sigbus(regs);
 		} else
-			BUG();
+			();
 		break;
 	}
 }

@@ -7,7 +7,7 @@
 #define __HAL_BTCOEX_C__
 
 #include <hal_data.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <hal_btcoex.h>
 #include <Mp_Precomp.h>
 
@@ -108,7 +108,7 @@ void DBG_BT_INFO(u8 *dbgmsg)
 }
 
 /*  */
-/* 		Debug related function */
+/* 		De related function */
 /*  */
 static u8 halbtcoutsrc_IsBtCoexistAvailable(PBTC_COEXIST pBtCoexist)
 {
@@ -1598,7 +1598,7 @@ u32 hal_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 	pstr += count;
 	leftSize -= count;
 
-	count = rtw_sprintf(pstr, leftSize, "BTCOEX Debug Setting:\n");
+	count = rtw_sprintf(pstr, leftSize, "BTCOEX De Setting:\n");
 	if ((count < 0) || (count >= leftSize))
 		goto exit;
 	pstr += count;
@@ -1613,7 +1613,7 @@ u32 hal_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 	pstr += count;
 	leftSize -= count;
 
-	count = rtw_sprintf(pstr, leftSize, "INTERFACE Debug Setting Definition:\n");
+	count = rtw_sprintf(pstr, leftSize, "INTERFACE De Setting Definition:\n");
 	if ((count < 0) || (count >= leftSize))
 		goto exit;
 	pstr += count;
@@ -1631,7 +1631,7 @@ u32 hal_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 	pstr += count;
 	leftSize -= count;
 
-	count = rtw_sprintf(pstr, leftSize, "ALGORITHM Debug Setting Definition:\n");
+	count = rtw_sprintf(pstr, leftSize, "ALGORITHM De Setting Definition:\n");
 	if ((count < 0) || (count >= leftSize))
 		goto exit;
 	pstr += count;

@@ -33,14 +33,14 @@ static inline bool extent_state_in_tree(const struct extent_state *state)
 	return !RB_EMPTY_NODE(&state->rb_node);
 }
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 static LIST_HEAD(buffers);
 static LIST_HEAD(states);
 
 static DEFINE_SPINLOCK(leak_lock);
 
 static inline
-void btrfs_leak_debug_add(struct list_head *new, struct list_head *head)
+void btrfs_leak_de_add(struct list_head *new, struct list_head *head)
 {
 	unsigned long flags;
 
@@ -50,7 +50,7 @@ void btrfs_leak_debug_add(struct list_head *new, struct list_head *head)
 }
 
 static inline
-void btrfs_leak_debug_del(struct list_head *entry)
+void btrfs_leak_de_del(struct list_head *entry)
 {
 	unsigned long flags;
 
@@ -60,7 +60,7 @@ void btrfs_leak_debug_del(struct list_head *entry)
 }
 
 static inline
-void btrfs_leak_debug_check(void)
+void btrfs_leak_de_check(void)
 {
 	struct extent_state *state;
 	struct extent_buffer *eb;
@@ -84,9 +84,9 @@ void btrfs_leak_debug_check(void)
 	}
 }
 
-#define btrfs_debug_check_extent_io_range(tree, start, end)		\
-	__btrfs_debug_check_extent_io_range(__func__, (tree), (start), (end))
-static inline void __btrfs_debug_check_extent_io_range(const char *caller,
+#define btrfs_de_check_extent_io_range(tree, start, end)		\
+	__btrfs_de_check_extent_io_range(__func__, (tree), (start), (end))
+static inline void __btrfs_de_check_extent_io_range(const char *caller,
 		struct extent_io_tree *tree, u64 start, u64 end)
 {
 	struct inode *inode = tree->private_data;
@@ -97,16 +97,16 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 
 	isize = i_size_read(inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
-		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
+		btrfs_de_rl(BTRFS_I(inode)->root->fs_info,
 		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
 			caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
 	}
 }
 #else
-#define btrfs_leak_debug_add(new, head)	do {} while (0)
-#define btrfs_leak_debug_del(entry)	do {} while (0)
-#define btrfs_leak_debug_check()	do {} while (0)
-#define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
+#define btrfs_leak_de_add(new, head)	do {} while (0)
+#define btrfs_leak_de_del(entry)	do {} while (0)
+#define btrfs_leak_de_check()	do {} while (0)
+#define btrfs_de_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
 #define BUFFER_LRU_MAX 64
@@ -176,7 +176,7 @@ static void flush_write_bio(struct extent_page_data *epd)
 		int ret;
 
 		ret = submit_one_bio(epd->bio, 0, 0);
-		BUG_ON(ret < 0); /* -ENOMEM */
+		_ON(ret < 0); /* -ENOMEM */
 		epd->bio = NULL;
 	}
 }
@@ -220,7 +220,7 @@ free_state_cache:
 
 void __cold extent_io_exit(void)
 {
-	btrfs_leak_debug_check();
+	btrfs_leak_de_check();
 
 	/*
 	 * Make sure all delayed rcu free are flushed before we
@@ -257,7 +257,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	state->state = 0;
 	state->failrec = NULL;
 	RB_CLEAR_NODE(&state->rb_node);
-	btrfs_leak_debug_add(&state->leak_list, &states);
+	btrfs_leak_de_add(&state->leak_list, &states);
 	refcount_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
 	trace_alloc_extent_state(state, mask, _RET_IP_);
@@ -270,7 +270,7 @@ void free_extent_state(struct extent_state *state)
 		return;
 	if (refcount_dec_and_test(&state->refs)) {
 		WARN_ON(extent_state_in_tree(state));
-		btrfs_leak_debug_del(&state->leak_list);
+		btrfs_leak_de_del(&state->leak_list);
 		trace_free_extent_state(state, _RET_IP_);
 		kmem_cache_free(extent_state_cache, state);
 	}
@@ -548,7 +548,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 		btrfs_clear_delalloc_extent(tree->private_data, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
-	BUG_ON(ret < 0);
+	_ON(ret < 0);
 	state->state &= ~bits_to_clear;
 	if (wake)
 		wake_up(&state->wq);
@@ -610,7 +610,7 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err;
 	int clear = 0;
 
-	btrfs_debug_check_extent_io_range(tree, start, end);
+	btrfs_de_check_extent_io_range(tree, start, end);
 
 	if (bits & EXTENT_DELALLOC)
 		bits |= EXTENT_NORESERVE;
@@ -689,7 +689,7 @@ hit_next:
 
 	if (state->start < start) {
 		prealloc = alloc_extent_state_atomic(prealloc);
-		BUG_ON(!prealloc);
+		_ON(!prealloc);
 		err = split_state(tree, state, prealloc, start);
 		if (err)
 			extent_io_tree_panic(tree, err);
@@ -712,7 +712,7 @@ hit_next:
 	 */
 	if (state->start <= end && state->end > end) {
 		prealloc = alloc_extent_state_atomic(prealloc);
-		BUG_ON(!prealloc);
+		_ON(!prealloc);
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
 			extent_io_tree_panic(tree, err);
@@ -775,7 +775,7 @@ static void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct rb_node *node;
 
-	btrfs_debug_check_extent_io_range(tree, start, end);
+	btrfs_de_check_extent_io_range(tree, start, end);
 
 	spin_lock(&tree->lock);
 again:
@@ -830,7 +830,7 @@ static void set_state_bits(struct extent_io_tree *tree,
 		tree->dirty_bytes += range;
 	}
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
-	BUG_ON(ret < 0);
+	_ON(ret < 0);
 	state->state |= bits_to_set;
 }
 
@@ -879,7 +879,7 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_start;
 	u64 last_end;
 
-	btrfs_debug_check_extent_io_range(tree, start, end);
+	btrfs_de_check_extent_io_range(tree, start, end);
 
 again:
 	if (!prealloc && gfpflags_allow_blocking(mask)) {
@@ -909,7 +909,7 @@ again:
 	node = tree_search_for_insert(tree, start, &p, &parent);
 	if (!node) {
 		prealloc = alloc_extent_state_atomic(prealloc);
-		BUG_ON(!prealloc);
+		_ON(!prealloc);
 		err = insert_state(tree, prealloc, start, end,
 				   &p, &parent, &bits, changeset);
 		if (err)
@@ -974,7 +974,7 @@ hit_next:
 		}
 
 		prealloc = alloc_extent_state_atomic(prealloc);
-		BUG_ON(!prealloc);
+		_ON(!prealloc);
 		err = split_state(tree, state, prealloc, start);
 		if (err)
 			extent_io_tree_panic(tree, err);
@@ -1011,7 +1011,7 @@ hit_next:
 			this_end = last_start - 1;
 
 		prealloc = alloc_extent_state_atomic(prealloc);
-		BUG_ON(!prealloc);
+		_ON(!prealloc);
 
 		/*
 		 * Avoid to free 'prealloc' if it can be merged with
@@ -1041,7 +1041,7 @@ hit_next:
 		}
 
 		prealloc = alloc_extent_state_atomic(prealloc);
-		BUG_ON(!prealloc);
+		_ON(!prealloc);
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
 			extent_io_tree_panic(tree, err);
@@ -1111,7 +1111,7 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_end;
 	bool first_iteration = true;
 
-	btrfs_debug_check_extent_io_range(tree, start, end);
+	btrfs_de_check_extent_io_range(tree, start, end);
 
 again:
 	if (!prealloc) {
@@ -1305,7 +1305,7 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 * either fail with -EEXIST or changeset will record the whole
 	 * range.
 	 */
-	BUG_ON(bits & EXTENT_LOCKED);
+	_ON(bits & EXTENT_LOCKED);
 
 	return __set_extent_bit(tree, start, end, bits, 0, NULL, NULL, GFP_NOFS,
 				changeset);
@@ -1326,7 +1326,7 @@ int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 * Don't support EXTENT_LOCKED case, same reason as
 	 * set_record_extent_bits().
 	 */
-	BUG_ON(bits & EXTENT_LOCKED);
+	_ON(bits & EXTENT_LOCKED);
 
 	return __clear_extent_bit(tree, start, end, bits, 0, 0, NULL, GFP_NOFS,
 				  changeset);
@@ -1380,7 +1380,7 @@ void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 
 	while (index <= end_index) {
 		page = find_get_page(inode->i_mapping, index);
-		BUG_ON(!page); /* Pages should be in the extent_io_tree */
+		_ON(!page); /* Pages should be in the extent_io_tree */
 		clear_page_dirty_for_io(page);
 		put_page(page);
 		index++;
@@ -1395,7 +1395,7 @@ void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
 
 	while (index <= end_index) {
 		page = find_get_page(inode->i_mapping, index);
-		BUG_ON(!page); /* Pages should be in the extent_io_tree */
+		_ON(!page); /* Pages should be in the extent_io_tree */
 		__set_page_dirty_nobuffers(page);
 		account_page_redirty(page);
 		put_page(page);
@@ -1992,7 +1992,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 	int ret;
 
 	ASSERT(!(fs_info->sb->s_flags & SB_RDONLY));
-	BUG_ON(!mirror_num);
+	_ON(!mirror_num);
 
 	bio = btrfs_io_bio_alloc(1);
 	bio->bi_iter.bi_size = 0;
@@ -2027,7 +2027,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 			bio_put(bio);
 			return -EIO;
 		}
-		BUG_ON(mirror_num != bbio->mirror_num);
+		_ON(mirror_num != bbio->mirror_num);
 	}
 
 	sector = bbio->stripes[bbio->mirror_num - 1].physical >> 9;
@@ -2109,11 +2109,11 @@ int clean_io_failure(struct btrfs_fs_info *fs_info,
 	if (ret)
 		return 0;
 
-	BUG_ON(!failrec->this_mirror);
+	_ON(!failrec->this_mirror);
 
 	if (failrec->in_validation) {
 		/* there was no real error, just free the record */
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"clean_io_failure: freeing dummy error at %llu",
 			failrec->start);
 		goto out;
@@ -2229,7 +2229,7 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 						 em->compress_type);
 		}
 
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"Get IO Failure Record: (new) logical=%llu, start=%llu, len=%llu",
 			logical, start, failrec->len);
 
@@ -2249,7 +2249,7 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
 			return ret;
 		}
 	} else {
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"Get IO Failure Record: (found) logical=%llu, start=%llu, len=%llu, validation=%d",
 			failrec->logical, failrec->start, failrec->len,
 			failrec->in_validation);
@@ -2278,7 +2278,7 @@ bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
 		 * all the retry and error correction code that follows. no
 		 * matter what the error is, it is very likely to persist.
 		 */
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"Check Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d",
 			num_copies, failrec->this_mirror, failed_mirror);
 		return false;
@@ -2295,10 +2295,10 @@ bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
 		 * we don't want to rewrite any more than the failed ones. thus,
 		 * we need separate read requests for the failed bio
 		 *
-		 * if the following BUG_ON triggers, our validation request got
+		 * if the following _ON triggers, our validation request got
 		 * merged. we need separate requests for our algorithm to work.
 		 */
-		BUG_ON(failrec->in_validation);
+		_ON(failrec->in_validation);
 		failrec->in_validation = 1;
 		failrec->this_mirror = failed_mirror;
 	} else {
@@ -2308,7 +2308,7 @@ bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
 		 * everything for repair_io_failure to do the rest for us.
 		 */
 		if (failrec->in_validation) {
-			BUG_ON(failrec->this_mirror != failed_mirror);
+			_ON(failrec->this_mirror != failed_mirror);
 			failrec->in_validation = 0;
 			failrec->this_mirror = 0;
 		}
@@ -2319,7 +2319,7 @@ bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
 	}
 
 	if (failrec->this_mirror > num_copies) {
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"Check Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d",
 			num_copies, failrec->this_mirror, failed_mirror);
 		return false;
@@ -2382,7 +2382,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 	int ret;
 	unsigned failed_bio_pages = failed_bio->bi_iter.bi_size >> PAGE_SHIFT;
 
-	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
+	_ON(bio_op(failed_bio) == REQ_OP_WRITE);
 
 	ret = btrfs_get_io_failure_record(inode, start, end, &failrec);
 	if (ret)
@@ -2404,7 +2404,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 				      NULL);
 	bio->bi_opf = REQ_OP_READ | read_mode;
 
-	btrfs_debug(btrfs_sb(inode->i_sb),
+	btrfs_de(btrfs_sb(inode->i_sb),
 		"Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d",
 		read_mode, failrec->this_mirror, failrec->in_validation);
 
@@ -2534,7 +2534,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 		bool data_inode = btrfs_ino(BTRFS_I(inode))
 			!= BTRFS_BTREE_INODE_OBJECTID;
 
-		btrfs_debug(fs_info,
+		btrfs_de(fs_info,
 			"end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u",
 			(u64)bio->bi_iter.bi_sector, bio->bi_status,
 			io_bio->mirror_num);
@@ -2847,7 +2847,7 @@ __get_extent_map(struct inode *inode, struct page *page, size_t pg_offset,
 
 	em = get_extent(BTRFS_I(inode), page, pg_offset, start, len, 0);
 	if (em_cached && !IS_ERR_OR_NULL(em)) {
-		BUG_ON(*em_cached);
+		_ON(*em_cached);
 		refcount_inc(&em->refs);
 		*em_cached = em;
 	}
@@ -2890,7 +2890,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 
 	if (!PageUptodate(page)) {
 		if (cleancache_get_page(page) == 0) {
-			BUG_ON(blocksize != PAGE_SIZE);
+			_ON(blocksize != PAGE_SIZE);
 			unlock_extent(tree, start, end);
 			goto out;
 		}
@@ -2935,8 +2935,8 @@ static int __do_readpage(struct extent_io_tree *tree,
 			break;
 		}
 		extent_offset = cur - em->start;
-		BUG_ON(extent_map_end(em) <= cur);
-		BUG_ON(end < cur);
+		_ON(extent_map_end(em) <= cur);
+		_ON(end < cur);
 
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 			this_bio_flag |= EXTENT_BIO_COMPRESSED;
@@ -3349,8 +3349,8 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		extent_offset = cur - em->start;
 		em_end = extent_map_end(em);
-		BUG_ON(em_end <= cur);
-		BUG_ON(end < cur);
+		_ON(em_end <= cur);
+		_ON(end < cur);
 		iosize = min(em_end - cur, end - cur + 1);
 		iosize = ALIGN(iosize, blocksize);
 		offset = em->block_start + extent_offset;
@@ -3635,7 +3635,7 @@ static void set_btree_ioerr(struct page *page)
 		set_bit(BTRFS_FS_LOG2_ERR, &eb->fs_info->flags);
 		break;
 	default:
-		BUG(); /* unexpected, logic error */
+		(); /* unexpected, logic error */
 	}
 }
 
@@ -3651,7 +3651,7 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
 		struct page *page = bvec->bv_page;
 
 		eb = (struct extent_buffer *)page->private;
-		BUG_ON(!eb);
+		_ON(!eb);
 		done = atomic_dec_and_test(&eb->io_pages);
 
 		if (bio->bi_status ||
@@ -3799,7 +3799,7 @@ retry:
 			eb = (struct extent_buffer *)page->private;
 
 			/*
-			 * Shouldn't happen and normally this would be a BUG_ON
+			 * Shouldn't happen and normally this would be a _ON
 			 * but no sense in crashing the users box for something
 			 * we can survive anyway.
 			 */
@@ -4591,7 +4591,7 @@ out:
 
 static void __free_extent_buffer(struct extent_buffer *eb)
 {
-	btrfs_leak_debug_del(&eb->leak_list);
+	btrfs_leak_de_del(&eb->leak_list);
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
@@ -4611,7 +4611,7 @@ static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
 	int num_pages;
 	int mapped = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
 
-	BUG_ON(extent_buffer_under_io(eb));
+	_ON(extent_buffer_under_io(eb));
 
 	num_pages = num_extent_pages(eb);
 	for (i = 0; i < num_pages; i++) {
@@ -4630,9 +4630,9 @@ static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
 		 */
 		if (PagePrivate(page) &&
 		    page->private == (unsigned long)eb) {
-			BUG_ON(test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
-			BUG_ON(PageDirty(page));
-			BUG_ON(PageWriteback(page));
+			_ON(test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
+			_ON(PageDirty(page));
+			_ON(PageWriteback(page));
 			/*
 			 * We need to make sure we haven't be attached
 			 * to a new eb.
@@ -4682,7 +4682,7 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	init_waitqueue_head(&eb->write_lock_wq);
 	init_waitqueue_head(&eb->read_lock_wq);
 
-	btrfs_leak_debug_add(&eb->leak_list, &buffers);
+	btrfs_leak_de_add(&eb->leak_list, &buffers);
 
 	spin_lock_init(&eb->refs_lock);
 	atomic_set(&eb->refs, 1);
@@ -4691,9 +4691,9 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	/*
 	 * Sanity checks, currently the maximum is 64k covered by 16x 4k pages
 	 */
-	BUILD_BUG_ON(BTRFS_MAX_METADATA_BLOCKSIZE
+	BUILD__ON(BTRFS_MAX_METADATA_BLOCKSIZE
 		> MAX_INLINE_EXTENT_BUFFER_SIZE);
-	BUG_ON(len > MAX_INLINE_EXTENT_BUFFER_SIZE);
+	_ON(len > MAX_INLINE_EXTENT_BUFFER_SIZE);
 
 	return eb;
 }
@@ -5146,7 +5146,7 @@ bool set_extent_buffer_dirty(struct extent_buffer *eb)
 		for (i = 0; i < num_pages; i++)
 			set_page_dirty(eb->pages[i]);
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_DE
 	for (i = 0; i < num_pages; i++)
 		ASSERT(PageDirty(eb->pages[i]));
 #endif
@@ -5746,13 +5746,13 @@ void memcpy_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		btrfs_err(fs_info,
 			"memmove bogus src_offset %lu move len %lu dst len %lu",
 			 src_offset, len, dst->len);
-		BUG_ON(1);
+		_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
 		btrfs_err(fs_info,
 			"memmove bogus dst_offset %lu move len %lu dst len %lu",
 			 dst_offset, len, dst->len);
-		BUG_ON(1);
+		_ON(1);
 	}
 
 	while (len > 0) {
@@ -5793,13 +5793,13 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 		btrfs_err(fs_info,
 			  "memmove bogus src_offset %lu move len %lu len %lu",
 			  src_offset, len, dst->len);
-		BUG_ON(1);
+		_ON(1);
 	}
 	if (dst_offset + len > dst->len) {
 		btrfs_err(fs_info,
 			  "memmove bogus dst_offset %lu move len %lu len %lu",
 			  dst_offset, len, dst->len);
-		BUG_ON(1);
+		_ON(1);
 	}
 	if (dst_offset < src_offset) {
 		memcpy_extent_buffer(dst, dst_offset, src_offset, len);
@@ -5839,7 +5839,7 @@ int try_release_extent_buffer(struct page *page)
 	}
 
 	eb = (struct extent_buffer *)page->private;
-	BUG_ON(!eb);
+	_ON(!eb);
 
 	/*
 	 * This is a little awful but should be ok, we need to make sure that

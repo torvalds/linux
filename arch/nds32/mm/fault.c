@@ -121,7 +121,7 @@ void do_page_fault(unsigned long entry, unsigned long addr,
 	/*
 	 * As per x86, we may deadlock here. However, since the kernel only
 	 * validly references user space from well defined areas of the code,
-	 * we can bug out early if this is from code which shouldn't.
+	 * we can  out early if this is from code which shouldn't.
 	 */
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (!user_mode(regs) &&
@@ -135,7 +135,7 @@ retry:
 		 * case, we'll have missed the might_sleep() from down_read().
 		 */
 		might_sleep();
-		if (IS_ENABLED(CONFIG_DEBUG_VM)) {
+		if (IS_ENABLED(CONFIG_DE_VM)) {
 			if (!user_mode(regs) &&
 			    !search_exception_tables(instruction_pointer(regs)))
 				goto no_context;
@@ -188,7 +188,7 @@ good_area:
 			flags |= FAULT_FLAG_WRITE;
 			break;
 		case ACC_BIT:
-			BUG();
+			();
 		default:
 			break;
 		}
@@ -382,7 +382,7 @@ vmalloc_fault:
 		if (!pmd_present(*pmd))
 			set_pmd(pmd, *pmd_k);
 		else
-			BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+			_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 
 		/*
 		 * Since the vmalloc area is global, we don't

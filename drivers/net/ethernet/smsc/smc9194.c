@@ -30,11 +30,11 @@
  .
  . History:
  .	12/07/95  Erik Stahlman  written, got receive/xmit handled
- . 	01/03/96  Erik Stahlman  worked out some bugs, actually usable!!! :-)
+ . 	01/03/96  Erik Stahlman  worked out some s, actually usable!!! :-)
  .	01/06/96  Erik Stahlman	 cleaned up some, better testing, etc
  .	01/29/96  Erik Stahlman	 fixed autoirq, added multicast
  . 	02/01/96  Erik Stahlman	 1. disabled all interrupts in smc_reset
- .		   		 2. got rid of post-decrementing bug -- UGH.
+ .		   		 2. got rid of post-decrementing  -- UGH.
  .	02/13/96  Erik Stahlman  Tried to fix autoirq failure.  Added more
  .				 descriptive error messages.
  .	02/15/96  Erik Stahlman  Fixed typo that caused detection failure
@@ -44,10 +44,10 @@
  .	02/26/96  Erik Stahlman	 Trial support for Kernel 1.2.13
  .				 Kludge for automatic IRQ detection
  .	03/04/96  Erik Stahlman	 Fixed kernel 1.3.70 +
- .				 Fixed bug reported by Gardner Buchanan in
+ .				 Fixed  reported by Gardner Buchanan in
  .				   smc_enable, with outw instead of outb
  .	03/06/96  Erik Stahlman  Added hardware multicast from Peter Cammaert
- .	04/14/00  Heiko Pruessing (SMA Regelsysteme)  Fixed bug in chip memory
+ .	04/14/00  Heiko Pruessing (SMA Regelsysteme)  Fixed  in chip memory
  .				 allocation
  .      08/20/00  Arnaldo Melo   fix kfree(skb) in smc_hardware_send_packet
  .      12/15/00  Christian Jullien fix "Warning: kfree_skb on hard IRQ"
@@ -133,7 +133,7 @@ static struct devlist smc_devlist[] __initdata = {
 #define MEMORY_WAIT_TIME 16
 
 /*
- . DEBUGGING LEVELS
+ . DEGING LEVELS
  .
  . 0 for normal operation
  . 1 for slightly more details
@@ -141,21 +141,21 @@ static struct devlist smc_devlist[] __initdata = {
  .    2 for interrupt tracking, status flags
  .    3 for packet dumps, etc.
 */
-#define SMC_DEBUG 0
+#define SMC_DE 0
 
-#if (SMC_DEBUG > 2 )
+#if (SMC_DE > 2 )
 #define PRINTK3(x) printk x
 #else
 #define PRINTK3(x)
 #endif
 
-#if SMC_DEBUG > 1
+#if SMC_DE > 1
 #define PRINTK2(x) printk x
 #else
 #define PRINTK2(x)
 #endif
 
-#ifdef SMC_DEBUG
+#ifdef SMC_DE
 #define PRINTK(x) printk x
 #else
 #define PRINTK(x)
@@ -268,9 +268,9 @@ static inline void smc_tx( struct net_device * dev );
 static int smc_probe(struct net_device *dev, int ioaddr);
 
 /*
- . A rather simple routine to print out a packet for debugging purposes.
+ . A rather simple routine to print out a packet for deging purposes.
 */
-#if SMC_DEBUG > 2
+#if SMC_DE > 2
 static void print_packet( byte *, int );
 #endif
 
@@ -611,7 +611,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	outw( PTR_AUTOINC , ioaddr + POINTER );
 
 	PRINTK3((CARDNAME": Trying to xmit packet of length %x\n", length));
-#if SMC_DEBUG > 2
+#if SMC_DE > 2
 	print_packet( buf, length );
 #endif
 
@@ -1026,11 +1026,11 @@ err_out:
 	return retval;
 }
 
-#if SMC_DEBUG > 2
+#if SMC_DE > 2
 static void print_packet( byte * buf, int length )
 {
 #if 0
-	print_hex_dump_debug(DRV_NAME, DUMP_PREFIX_OFFSET, 16, 1,
+	print_hex_dump_de(DRV_NAME, DUMP_PREFIX_OFFSET, 16, 1,
 			     buf, length, true);
 #endif
 }
@@ -1203,7 +1203,7 @@ static void smc_rcv(struct net_device *dev)
 			*(data++) = inb( ioaddr + DATA_1 );
 		}
 #endif
-#if	SMC_DEBUG > 2
+#if	SMC_DE > 2
 			print_packet( data, packet_length );
 #endif
 
@@ -1380,7 +1380,7 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id)
 			lp->packets_waiting = 0;
 
 		} else if (status & IM_ALLOC_INT ) {
-			PRINTK2((KERN_DEBUG CARDNAME
+			PRINTK2((KERN_DE CARDNAME
 				": Allocation interrupt\n"));
 			/* clear this interrupt so it doesn't happen again */
 			mask &= ~IM_ALLOC_INT;
@@ -1455,7 +1455,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	if ( dev->flags & IFF_PROMISC )
 		outw( inw(ioaddr + RCR ) | RCR_PROMISC, ioaddr + RCR );
 
-/* BUG?  I never disable promiscuous mode if multicasting was turned on.
+/* ?  I never disable promiscuous mode if multicasting was turned on.
    Now, I turn off promiscuous mode, but I don't do anything to multicasting
    when promiscuous mode is turned on.
 */

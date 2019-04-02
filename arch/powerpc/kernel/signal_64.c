@@ -114,7 +114,7 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 	/* Force usr to alway see softe as 1 (interrupts enabled) */
 	unsigned long softe = 0x1;
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 #ifdef CONFIG_ALTIVEC
 	err |= __put_user(v_regs, &sc->v_regs);
@@ -214,9 +214,9 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	unsigned long msr = tsk->thread.regs->msr;
 	long err = 0;
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
-	BUG_ON(!MSR_TM_ACTIVE(regs->msr));
+	_ON(!MSR_TM_ACTIVE(regs->msr));
 
 	WARN_ON(tm_suspend_disabled);
 
@@ -343,7 +343,7 @@ static long restore_sigcontext(struct task_struct *tsk, sigset_t *set, int sig,
 	int i;
 #endif
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	/* If this is not a signal return, we preserve the TLS in r13 */
 	if (!sig)
@@ -440,7 +440,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	int i;
 #endif
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	if (tm_suspend_disabled)
 		return -EINVAL;
@@ -581,7 +581,7 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	 * put_user() or similar functions are *not* called. These
 	 * functions can generate page faults which will cause the process
 	 * to be de-scheduled with MSR[TS] set but without calling
-	 * tm_recheckpoint(). This can cause a bug.
+	 * tm_recheckpoint(). This can cause a .
 	 */
 	regs->msr |= MSR_TM;
 
@@ -799,7 +799,7 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 	long err = 0;
 	struct pt_regs *regs = tsk->thread.regs;
 
-	BUG_ON(tsk != current);
+	_ON(tsk != current);
 
 	frame = get_sigframe(ksig, get_tm_stackpointer(tsk), sizeof(*frame), 0);
 	if (unlikely(frame == NULL))

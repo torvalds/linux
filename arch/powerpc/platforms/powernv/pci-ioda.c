@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -36,7 +36,7 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/xics.h>
-#include <asm/debugfs.h>
+#include <asm/defs.h>
 #include <asm/firmware.h>
 #include <asm/pnv-pci.h>
 #include <asm/mmzone.h>
@@ -166,7 +166,7 @@ static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 	}
 
 	if (test_and_set_bit(pe_no, phb->ioda.pe_alloc))
-		pr_debug("%s: PE %x was reserved on PHB#%x\n",
+		pr_de("%s: PE %x was reserved on PHB#%x\n",
 			 __func__, pe_no, phb->hose->global_number);
 
 	pnv_ioda_init_pe(phb, pe_no);
@@ -1453,7 +1453,7 @@ static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe
 	pnv_pci_ioda2_set_bypass(pe, false);
 	if (pe->table_group.group) {
 		iommu_group_put(pe->table_group.group);
-		BUG_ON(pe->table_group.group);
+		_ON(pe->table_group.group);
 	}
 	iommu_tce_table_put(tbl);
 }
@@ -3041,7 +3041,7 @@ static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 	 * device based PE, for example SRIOV sensitive VF should
 	 * be figured out later.
 	 */
-	BUG_ON(!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)));
+	_ON(!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)));
 
 	list_for_each_entry(pdev, &pe->pbus->devices, bus_list) {
 		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
@@ -3060,7 +3060,7 @@ static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int pnv_pci_diag_data_set(void *data, u64 val)
 {
 	struct pci_controller *hose;
@@ -3090,11 +3090,11 @@ static int pnv_pci_diag_data_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(pnv_pci_diag_data_fops, NULL,
 			pnv_pci_diag_data_set, "%llu\n");
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 
 static void pnv_pci_ioda_create_dbgfs(void)
 {
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct pci_controller *hose, *tmp;
 	struct pnv_phb *phb;
 	char name[16];
@@ -3106,17 +3106,17 @@ static void pnv_pci_ioda_create_dbgfs(void)
 		phb->initialized = 1;
 
 		sprintf(name, "PCI%04x", hose->global_number);
-		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
+		phb->dbgfs = defs_create_dir(name, powerpc_defs_root);
 		if (!phb->dbgfs) {
-			pr_warn("%s: Error on creating debugfs on PHB#%x\n",
+			pr_warn("%s: Error on creating defs on PHB#%x\n",
 				__func__, hose->global_number);
 			continue;
 		}
 
-		debugfs_create_file("dump_diag_regs", 0200, phb->dbgfs, hose,
+		defs_create_file("dump_diag_regs", 0200, phb->dbgfs, hose,
 				    &pnv_pci_diag_data_fops);
 	}
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DE_FS */
 }
 
 static void pnv_pci_enable_bridge(struct pci_bus *bus)
@@ -3654,7 +3654,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		return;
 	}
 	phb_id = be64_to_cpup(prop64);
-	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
+	pr_de("  PHB-ID  : 0x%016llx\n", phb_id);
 
 	phb = memblock_alloc(sizeof(*phb), SMP_CACHE_BYTES);
 	if (!phb)

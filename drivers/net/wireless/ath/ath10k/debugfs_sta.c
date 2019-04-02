@@ -7,7 +7,7 @@
 #include "core.h"
 #include "wmi-ops.h"
 #include "txrx.h"
-#include "debug.h"
+#include "de.h"
 
 static void ath10k_rx_stats_update_amsdu_subfrm(struct ath10k *ar,
 						struct ath10k_sta_tid_stats *stats,
@@ -386,7 +386,7 @@ static const struct file_operations fops_delba = {
 	.llseek = default_llseek,
 };
 
-static ssize_t ath10k_dbg_sta_read_peer_debug_trigger(struct file *file,
+static ssize_t ath10k_dbg_sta_read_peer_de_trigger(struct file *file,
 						      char __user *user_buf,
 						      size_t count,
 						      loff_t *ppos)
@@ -399,27 +399,27 @@ static ssize_t ath10k_dbg_sta_read_peer_debug_trigger(struct file *file,
 
 	mutex_lock(&ar->conf_mutex);
 	len = scnprintf(buf, sizeof(buf) - len,
-			"Write 1 to once trigger the debug logs\n");
+			"Write 1 to once trigger the de logs\n");
 	mutex_unlock(&ar->conf_mutex);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
 static ssize_t
-ath10k_dbg_sta_write_peer_debug_trigger(struct file *file,
+ath10k_dbg_sta_write_peer_de_trigger(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
 	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
 	struct ath10k *ar = arsta->arvif->ar;
-	u8 peer_debug_trigger;
+	u8 peer_de_trigger;
 	int ret;
 
-	if (kstrtou8_from_user(user_buf, count, 0, &peer_debug_trigger))
+	if (kstrtou8_from_user(user_buf, count, 0, &peer_de_trigger))
 		return -EINVAL;
 
-	if (peer_debug_trigger != 1)
+	if (peer_de_trigger != 1)
 		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);
@@ -430,7 +430,7 @@ ath10k_dbg_sta_write_peer_debug_trigger(struct file *file,
 	}
 
 	ret = ath10k_wmi_peer_set_param(ar, arsta->arvif->vdev_id, sta->addr,
-					WMI_PEER_DEBUG, peer_debug_trigger);
+					WMI_PEER_DE, peer_de_trigger);
 	if (ret) {
 		ath10k_warn(ar, "failed to set param to trigger peer tid logs for station ret: %d\n",
 			    ret);
@@ -441,10 +441,10 @@ out:
 	return count;
 }
 
-static const struct file_operations fops_peer_debug_trigger = {
+static const struct file_operations fops_peer_de_trigger = {
 	.open = simple_open,
-	.read = ath10k_dbg_sta_read_peer_debug_trigger,
-	.write = ath10k_dbg_sta_write_peer_debug_trigger,
+	.read = ath10k_dbg_sta_read_peer_de_trigger,
+	.write = ath10k_dbg_sta_write_peer_de_trigger,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -747,24 +747,24 @@ static const struct file_operations fops_tx_stats = {
 	.llseek = default_llseek,
 };
 
-void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+void ath10k_sta_add_defs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
 	struct ath10k *ar = hw->priv;
 
-	debugfs_create_file("aggr_mode", 0644, dir, sta, &fops_aggr_mode);
-	debugfs_create_file("addba", 0200, dir, sta, &fops_addba);
-	debugfs_create_file("addba_resp", 0200, dir, sta, &fops_addba_resp);
-	debugfs_create_file("delba", 0200, dir, sta, &fops_delba);
-	debugfs_create_file("peer_debug_trigger", 0600, dir, sta,
-			    &fops_peer_debug_trigger);
-	debugfs_create_file("dump_tid_stats", 0400, dir, sta,
+	defs_create_file("aggr_mode", 0644, dir, sta, &fops_aggr_mode);
+	defs_create_file("addba", 0200, dir, sta, &fops_addba);
+	defs_create_file("addba_resp", 0200, dir, sta, &fops_addba_resp);
+	defs_create_file("delba", 0200, dir, sta, &fops_delba);
+	defs_create_file("peer_de_trigger", 0600, dir, sta,
+			    &fops_peer_de_trigger);
+	defs_create_file("dump_tid_stats", 0400, dir, sta,
 			    &fops_tid_stats_dump);
 
 	if (ath10k_peer_stats_enabled(ar) &&
-	    ath10k_debug_is_extd_tx_stats_enabled(ar))
-		debugfs_create_file("tx_stats", 0400, dir, sta,
+	    ath10k_de_is_extd_tx_stats_enabled(ar))
+		defs_create_file("tx_stats", 0400, dir, sta,
 				    &fops_tx_stats);
-	debugfs_create_file("peer_ps_state", 0400, dir, sta,
+	defs_create_file("peer_ps_state", 0400, dir, sta,
 			    &fops_peer_ps_state);
 }

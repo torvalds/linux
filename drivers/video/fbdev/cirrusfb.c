@@ -59,15 +59,15 @@
 
 /*****************************************************************
  *
- * debugging and utility macros
+ * deging and utility macros
  *
  */
 
 /* disable runtime assertions? */
-/* #define CIRRUSFB_NDEBUG */
+/* #define CIRRUSFB_NDE */
 
-/* debugging assertions */
-#ifndef CIRRUSFB_NDEBUG
+/* deging assertions */
+#ifndef CIRRUSFB_NDE
 #define assert(expr) \
 	if (!(expr)) { \
 		printk("Assertion failed! %s,%s,%s,line=%d\n", \
@@ -344,12 +344,12 @@ static const struct zorro_device_id cirrusfb_zorro_table[] = {
 MODULE_DEVICE_TABLE(zorro, cirrusfb_zorro_table);
 #endif /* CONFIG_ZORRO */
 
-#ifdef CIRRUSFB_DEBUG
+#ifdef CIRRUSFB_DE
 enum cirrusfb_dbg_reg_class {
 	CRT,
 	SEQ
 };
-#endif		/* CIRRUSFB_DEBUG */
+#endif		/* CIRRUSFB_DE */
 
 /* info about board */
 struct cirrusfb_info {
@@ -407,12 +407,12 @@ static void cirrusfb_RectFill(u8 __iomem *regbase, int bits_per_pixel,
 
 static void bestclock(long freq, int *nom, int *den, int *div);
 
-#ifdef CIRRUSFB_DEBUG
+#ifdef CIRRUSFB_DE
 static void cirrusfb_dbg_reg_dump(struct fb_info *info, caddr_t regbase);
 static void cirrusfb_dbg_print_regs(struct fb_info *info,
 				    caddr_t regbase,
 				    enum cirrusfb_dbg_reg_class reg_class, ...);
-#endif /* CIRRUSFB_DEBUG */
+#endif /* CIRRUSFB_DE */
 
 /*** END   PROTOTYPES ********************************************************/
 /*****************************************************************************/
@@ -747,7 +747,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	/* unlock register VGA_CRTC_H_TOTAL..CRT7 */
 	vga_wcrt(regbase, VGA_CRTC_V_SYNC_END, 0x20);	/* previously: 0x00) */
 
-	/* if debugging is enabled, all parameters get output before writing */
+	/* if deging is enabled, all parameters get output before writing */
 	dev_dbg(info->device, "CRT0: %d\n", htotal);
 	vga_wcrt(regbase, VGA_CRTC_H_TOTAL, htotal);
 
@@ -885,7 +885,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 		tmp = den << 1;
 		if (div != 0)
 			tmp |= 1;
-		/* 6 bit denom; ONLY 5434!!! (bugged me 10 days) */
+		/* 6 bit denom; ONLY 5434!!! (ged me 10 days) */
 		if ((cinfo->btype == BT_SD64) ||
 		    (cinfo->btype == BT_ALPINE) ||
 		    (cinfo->btype == BT_GD5480))
@@ -1258,7 +1258,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	vga_wseq(regbase, VGA_SEQ_CLOCK_MODE, tmp);
 	dev_dbg(info->device, "CL_SEQR1: %d\n", tmp);
 
-#ifdef CIRRUSFB_DEBUG
+#ifdef CIRRUSFB_DE
 	cirrusfb_dbg_reg_dump(info, NULL);
 #endif
 
@@ -2796,12 +2796,12 @@ static void bestclock(long freq, int *nom, int *den, int *div)
 
 /* -------------------------------------------------------------------------
  *
- * debugging functions
+ * deging functions
  *
  * -------------------------------------------------------------------------
  */
 
-#ifdef CIRRUSFB_DEBUG
+#ifdef CIRRUSFB_DE
 
 /**
  * cirrusfb_dbg_print_regs
@@ -2950,5 +2950,5 @@ static void cirrusfb_dbg_reg_dump(struct fb_info *info, caddr_t regbase)
 	dev_dbg(info->device, "\n");
 }
 
-#endif				/* CIRRUSFB_DEBUG */
+#endif				/* CIRRUSFB_DE */
 

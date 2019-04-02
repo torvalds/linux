@@ -214,9 +214,9 @@ enum {
  *     allocator by not wasting so much space. By default it is
  *     enabled.
  *
- * @debugfs_dentry: hookup for debugfs files.
+ * @defs_dentry: hookup for defs files.
  *     These have to be in a separate directory, a child of
- *     (wimax_dev->debugfs_dentry) so they can be removed when the
+ *     (wimax_dev->defs_dentry) so they can be removed when the
  *     module unloads, as we don't keep each dentry.
  */
 struct i2400mu {
@@ -238,7 +238,7 @@ struct i2400mu {
 	atomic_t do_autopm;
 	u8 rx_size_auto_shrink;
 
-	struct dentry *debugfs_dentry;
+	struct dentry *defs_dentry;
 	unsigned i6050:1;	/* 1 if this is a 6050 based SKU */
 };
 

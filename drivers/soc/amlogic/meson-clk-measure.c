@@ -8,7 +8,7 @@
 #include <linux/platform_device.h>
 #include <linux/bitfield.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/regmap.h>
 
 #define MSR_CLK_DUTY		0x0
@@ -493,10 +493,10 @@ static int meson_msr_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	root = debugfs_create_dir("meson-clk-msr", NULL);
-	clks = debugfs_create_dir("clks", root);
+	root = defs_create_dir("meson-clk-msr", NULL);
+	clks = defs_create_dir("clks", root);
 
-	debugfs_create_file("measure_summary", 0444, root,
+	defs_create_file("measure_summary", 0444, root,
 			    priv->msr_table, &clk_msr_summary_fops);
 
 	for (i = 0 ; i < CLK_MSR_MAX ; ++i) {
@@ -505,7 +505,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 
 		priv->msr_table[i].priv = priv;
 
-		debugfs_create_file(priv->msr_table[i].name, 0444, clks,
+		defs_create_file(priv->msr_table[i].name, 0444, clks,
 				    &priv->msr_table[i], &clk_msr_fops);
 	}
 

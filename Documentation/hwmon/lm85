@@ -109,7 +109,7 @@ to the temperature readings that is automatically applied during
 measurement. This offset can be used to zero out any errors due to traces
 and placement. The documentation says that the offset is in 0.25 degC
 steps, but in initial testing of the ADM1027 it was 1.00 degC steps. Analog
-Devices has confirmed this "bug". The ADT7463 is reported to work as
+Devices has confirmed this "". The ADT7463 is reported to work as
 described in the documentation. The current lm85 driver does not show the
 offset register.
 
@@ -196,7 +196,7 @@ configured individually according to the following options.
                          the behaviour of fans. Write 1 to let fans spinning at
 			 pwm#_auto_pwm_min or write 0 to let them off.
 
-NOTE: It has been reported that there is a bug in the LM85 that causes the flag
+NOTE: It has been reported that there is a  in the LM85 that causes the flag
 to be associated with the zones not the PWMs. This contradicts all the
 published documentation. Setting pwm#_min_ctl in this case actually affects all
 PWMs controlled by zone '#'.

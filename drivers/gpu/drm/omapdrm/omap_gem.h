@@ -47,7 +47,7 @@ void omap_gem_deinit(struct drm_device *dev);
 int omap_gem_resume(struct drm_device *dev);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif

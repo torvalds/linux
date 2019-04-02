@@ -8,7 +8,7 @@
 #include <evlist.h>
 #include <sys/prctl.h>
 #include "tests.h"
-#include "debug.h"
+#include "de.h"
 #include <errno.h>
 
 #define NR_ITERS 111
@@ -63,7 +63,7 @@ static int do_test(struct perf_evlist *evlist, int mmap_pages,
 
 	err = perf_evlist__mmap(evlist, mmap_pages);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_de("perf_evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		return TEST_FAIL;
 	}
@@ -101,13 +101,13 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_de("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_de("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -118,7 +118,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 	 */
 	err = parse_events(evlist, "syscalls:sys_enter_prctl/overwrite/", &parse_error);
 	if (err) {
-		pr_debug("Failed to parse tracepoint event, try use root\n");
+		pr_de("Failed to parse tracepoint event, try use root\n");
 		ret = TEST_SKIP;
 		goto out_delete_evlist;
 	}
@@ -127,7 +127,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
-		pr_debug("perf_evlist__open: %s\n",
+		pr_de("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}

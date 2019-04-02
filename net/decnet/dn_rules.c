@@ -244,8 +244,8 @@ void __init dn_fib_rules_init(void)
 {
 	dn_fib_rules_ops =
 		fib_rules_register(&dn_fib_rules_ops_template, &init_net);
-	BUG_ON(IS_ERR(dn_fib_rules_ops));
-	BUG_ON(fib_default_rule_add(dn_fib_rules_ops, 0x7fff,
+	_ON(IS_ERR(dn_fib_rules_ops));
+	_ON(fib_default_rule_add(dn_fib_rules_ops, 0x7fff,
 			            RT_TABLE_MAIN, 0));
 }
 

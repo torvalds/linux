@@ -75,7 +75,7 @@ static void __init capc7117_ide_init(void)
 /* TI16C752 UART support */
 #define	TI16C752_FLAGS		(UPF_BOOT_AUTOCONF | \
 					UPF_IOREMAP | \
-					UPF_BUGGY_UART | \
+					UPF_GY_UART | \
 					UPF_SKIP_TEST)
 #define	TI16C752_UARTCLK	(22118400)
 static struct plat_serial8250_port ti16c752_platform_data[] = {

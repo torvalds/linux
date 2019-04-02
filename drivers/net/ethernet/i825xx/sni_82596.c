@@ -41,8 +41,8 @@ MODULE_AUTHOR("Thomas Bogendoerfer");
 MODULE_DESCRIPTION("i82596 driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:snirm_82596");
-module_param(i596_debug, int, 0);
-MODULE_PARM_DESC(i596_debug, "82596 debug mask");
+module_param(i596_de, int, 0);
+MODULE_PARM_DESC(i596_de, "82596 de mask");
 
 static inline void ca(struct net_device *dev)
 {

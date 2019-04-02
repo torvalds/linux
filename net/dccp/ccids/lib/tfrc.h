@@ -20,17 +20,17 @@
 #include "loss_interval.h"
 #include "packet_history.h"
 
-#ifdef CONFIG_IP_DCCP_TFRC_DEBUG
-extern bool tfrc_debug;
-#define tfrc_pr_debug(format, a...)	DCCP_PR_DEBUG(tfrc_debug, format, ##a)
+#ifdef CONFIG_IP_DCCP_TFRC_DE
+extern bool tfrc_de;
+#define tfrc_pr_de(format, a...)	DCCP_PR_DE(tfrc_de, format, ##a)
 #else
-#define tfrc_pr_debug(format, a...)
+#define tfrc_pr_de(format, a...)
 #endif
 
 /* integer-arithmetic divisions of type (a * 1000000)/b */
 static inline u64 scaled_div(u64 a, u64 b)
 {
-	BUG_ON(b == 0);
+	_ON(b == 0);
 	return div64_u64(a * 1000000, b);
 }
 

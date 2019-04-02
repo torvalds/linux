@@ -47,7 +47,7 @@
  * Intel PCIe NTB Linux driver
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -81,8 +81,8 @@ static const struct intel_ntb_xlat_reg xeon_pri_xlat;
 static const struct intel_ntb_xlat_reg xeon_sec_xlat;
 static const struct ntb_dev_ops intel_ntb_ops;
 
-static const struct file_operations intel_ntb_debugfs_info;
-static struct dentry *debugfs_dir;
+static const struct file_operations intel_ntb_defs_info;
+static struct dentry *defs_dir;
 
 static int b2b_mw_idx = -1;
 module_param(b2b_mw_idx, int, 0644);
@@ -487,7 +487,7 @@ static void ndev_deinit_isr(struct intel_ntb_dev *ndev)
 	}
 }
 
-static ssize_t ndev_ntb_debugfs_read(struct file *filp, char __user *ubuf,
+static ssize_t ndev_ntb_defs_read(struct file *filp, char __user *ubuf,
 				     size_t count, loff_t *offp)
 {
 	struct intel_ntb_dev *ndev;
@@ -753,41 +753,41 @@ static ssize_t ndev_ntb_debugfs_read(struct file *filp, char __user *ubuf,
 	return ret;
 }
 
-static ssize_t ndev_debugfs_read(struct file *filp, char __user *ubuf,
+static ssize_t ndev_defs_read(struct file *filp, char __user *ubuf,
 				 size_t count, loff_t *offp)
 {
 	struct intel_ntb_dev *ndev = filp->private_data;
 
 	if (pdev_is_gen1(ndev->ntb.pdev))
-		return ndev_ntb_debugfs_read(filp, ubuf, count, offp);
+		return ndev_ntb_defs_read(filp, ubuf, count, offp);
 	else if (pdev_is_gen3(ndev->ntb.pdev))
-		return ndev_ntb3_debugfs_read(filp, ubuf, count, offp);
+		return ndev_ntb3_defs_read(filp, ubuf, count, offp);
 
 	return -ENXIO;
 }
 
-static void ndev_init_debugfs(struct intel_ntb_dev *ndev)
+static void ndev_init_defs(struct intel_ntb_dev *ndev)
 {
-	if (!debugfs_dir) {
-		ndev->debugfs_dir = NULL;
-		ndev->debugfs_info = NULL;
+	if (!defs_dir) {
+		ndev->defs_dir = NULL;
+		ndev->defs_info = NULL;
 	} else {
-		ndev->debugfs_dir =
-			debugfs_create_dir(pci_name(ndev->ntb.pdev),
-					   debugfs_dir);
-		if (!ndev->debugfs_dir)
-			ndev->debugfs_info = NULL;
+		ndev->defs_dir =
+			defs_create_dir(pci_name(ndev->ntb.pdev),
+					   defs_dir);
+		if (!ndev->defs_dir)
+			ndev->defs_info = NULL;
 		else
-			ndev->debugfs_info =
-				debugfs_create_file("info", S_IRUSR,
-						    ndev->debugfs_dir, ndev,
-						    &intel_ntb_debugfs_info);
+			ndev->defs_info =
+				defs_create_file("info", S_IRUSR,
+						    ndev->defs_dir, ndev,
+						    &intel_ntb_defs_info);
 	}
 }
 
-static void ndev_deinit_debugfs(struct intel_ntb_dev *ndev)
+static void ndev_deinit_defs(struct intel_ntb_dev *ndev)
 {
-	debugfs_remove_recursive(ndev->debugfs_dir);
+	defs_remove_recursive(ndev->defs_dir);
 }
 
 int intel_ntb_mw_count(struct ntb_dev *ntb, int pidx)
@@ -1903,7 +1903,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 
 	ndev->reg->poll_link(ndev);
 
-	ndev_init_debugfs(ndev);
+	ndev_init_defs(ndev);
 
 	rc = ntb_register_device(&ndev->ntb);
 	if (rc)
@@ -1914,7 +1914,7 @@ static int intel_ntb_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
-	ndev_deinit_debugfs(ndev);
+	ndev_deinit_defs(ndev);
 	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev))
 		xeon_deinit_dev(ndev);
 err_init_dev:
@@ -1930,7 +1930,7 @@ static void intel_ntb_pci_remove(struct pci_dev *pdev)
 	struct intel_ntb_dev *ndev = pci_get_drvdata(pdev);
 
 	ntb_unregister_device(&ndev->ntb);
-	ndev_deinit_debugfs(ndev);
+	ndev_deinit_defs(ndev);
 	if (pdev_is_gen1(pdev) || pdev_is_gen3(pdev))
 		xeon_deinit_dev(ndev);
 	intel_ntb_deinit_pci(ndev);
@@ -2029,10 +2029,10 @@ static const struct ntb_dev_ops intel_ntb_ops = {
 	.peer_spad_write	= intel_ntb_peer_spad_write,
 };
 
-static const struct file_operations intel_ntb_debugfs_info = {
+static const struct file_operations intel_ntb_defs_info = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = ndev_debugfs_read,
+	.read = ndev_defs_read,
 };
 
 static const struct pci_device_id intel_ntb_pci_tbl[] = {
@@ -2067,8 +2067,8 @@ static int __init intel_ntb_pci_driver_init(void)
 {
 	pr_info("%s %s\n", NTB_DESC, NTB_VER);
 
-	if (debugfs_initialized())
-		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (defs_initialized())
+		defs_dir = defs_create_dir(KBUILD_MODNAME, NULL);
 
 	return pci_register_driver(&intel_ntb_pci_driver);
 }
@@ -2078,6 +2078,6 @@ static void __exit intel_ntb_pci_driver_exit(void)
 {
 	pci_unregister_driver(&intel_ntb_pci_driver);
 
-	debugfs_remove_recursive(debugfs_dir);
+	defs_remove_recursive(defs_dir);
 }
 module_exit(intel_ntb_pci_driver_exit);

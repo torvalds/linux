@@ -42,7 +42,7 @@ static int mock_bind_ppgtt(struct i915_vma *vma,
 			   enum i915_cache_level cache_level,
 			   u32 flags)
 {
-	GEM_BUG_ON(flags & I915_VMA_GLOBAL_BIND);
+	GEM__ON(flags & I915_VMA_GLOBAL_BIND);
 	vma->flags |= I915_VMA_LOCAL_BIND;
 	return 0;
 }

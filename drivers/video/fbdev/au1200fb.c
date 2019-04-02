@@ -52,14 +52,14 @@
 #define DRIVER_NAME "au1200fb"
 #define DRIVER_DESC "LCD controller driver for AU1200 processors"
 
-#define DEBUG 0
+#define DE 0
 
 #define print_err(f, arg...) printk(KERN_ERR DRIVER_NAME ": " f "\n", ## arg)
 #define print_warn(f, arg...) printk(KERN_WARNING DRIVER_NAME ": " f "\n", ## arg)
 #define print_info(f, arg...) printk(KERN_INFO DRIVER_NAME ": " f "\n", ## arg)
 
-#if DEBUG
-#define print_dbg(f, arg...) printk(KERN_DEBUG __FILE__ ": " f "\n", ## arg)
+#if DE
+#define print_dbg(f, arg...) printk(KERN_DE __FILE__ ": " f "\n", ## arg)
 #else
 #define print_dbg(f, arg...) do {} while (0)
 #endif

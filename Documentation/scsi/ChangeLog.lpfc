@@ -135,7 +135,7 @@ Changes from 20050215 to 20050223
 	* Replaced wait_event() with wait_event_interruptible().
 	  wait_event() puts the woker thread in an UNINTERRUPTIBLE state
 	  causing it to figure in load average calculations. Also add a
-	  BUG_ON to the ret code of wait_event_interruptible() since the
+	  _ON to the ret code of wait_event_interruptible() since the
 	  premise is that the worker thread is signal-immune.
 
 Changes from 20050208 to 20050215
@@ -222,7 +222,7 @@ Changes from 20050124 to 20050201
 	* Make sure function which processes unsolicited IOCBs on ELS ring
 	  still is called with the lock held.
 	* Clear LA bit from work_ha when we are not supposed to handle LA.
-	* Fix double locking bug in the error handling part of
+	* Fix double locking  in the error handling part of
 	  lpfc_mbx_cmpl_read_la.
 	* Implemented fast IOCB processing for FCP ring.
 	* Since mboxes are now unconditionally allocated outside of the
@@ -269,7 +269,7 @@ Changes from 20050124 to 20050201
 	  lpfc_work_evt to comply with linux_scsi review coding style.
 	* Fixed some trailing whitespaces, spaces used for indentation and
 	  ill-formatting multiline comments.
-	* Bug fix for Raw IO errors.  Reuse of IOCBs now mandates setting
+	*  fix for Raw IO errors.  Reuse of IOCBs now mandates setting
 	  of ulpPU and fcpi_parm to avoid incorrect read check of Write IO
 	  and incorrect read length.
 
@@ -295,7 +295,7 @@ Changes from 20050110 to 20050124
 	  determine what result to return.
 	* Move modification of FC_UNLOADING flag under host_lock.
 	* Fix IOERR_RCV_BUFFER_WAITING handling for CT and ELS subsystem.
-	* Workaround firmware bug for IOERR_RCV_BUFFER_WAITING on ELS
+	* Workaround firmware  for IOERR_RCV_BUFFER_WAITING on ELS
 	  ring.
 	* Fixed a couple lpfc_post_buffer problems in lpfc_init.c.
 	* Add missing spaces to the parameter descriptions for
@@ -333,7 +333,7 @@ Changes from 20041229 to 20050110
 	* rport fixes: fix for rmmod crash
 	* rport fixes: when receiving PRLI's, set node/rport role values
 	* rport fixes: fix for unload and for fabric port deletes
-	* VPD info bug fix.
+	* VPD info  fix.
 	* lpfc_linkdown() should be able to process all outstanding events
 	  by calling lpfc_disc_done() even if it is called from
 	  lpfc_disc_done() Moving all events from phba->dpc_disc to local
@@ -352,7 +352,7 @@ Changes from 20041229 to 20050110
 	  lpfc_scsiport.c
 	* In remote port changes: no longer nulling target->pnode when
 	  removing from mapped list. Pnode get nulled when the node is
-	  freed (after nodev tmo). This bug was causing i/o received in
+	  freed (after nodev tmo). This  was causing i/o received in
 	  the small window while the device was blocked to be errored w/
 	  did_no_connect. With the fix, it returns host_busy
 	  (per the pre-remote port changes).
@@ -363,13 +363,13 @@ Changes from 20041229 to 20050110
 Changes from 20041220 to 20041229
 
 	* Changed version number to 8.0.19
-	* Fixed bug for handling RSCN type 3.  Terminate RSCN mode
+	* Fixed  for handling RSCN type 3.  Terminate RSCN mode
 	  properly after ADISC handling completes.
 	* Add list_remove_head macro.  Macro cleans up memory allocation
 	  list handling.  Also clean up lpfc_reset_bus_handler - routine
 	  does not need to allocate its own scsi_cmnd and scsi_device
 	  structures.
-	* Fixed potential discovery bug, nlp list corrutpion fix potential
+	* Fixed potential discovery , nlp list corrutpion fix potential
 	  memory leak
 	* Part 1 of the memory allocation rework request by linux-scsi.
 	  This effort fixes the number of bdes per scsi_buf to 64, makes
@@ -385,7 +385,7 @@ Changes from 20041220 to 20041229
 	  does not wakeup.  The sleep interval is MAX_SCHEDULE_TIMEOUT
 	  defined as ~0UL >> 1, a very large number.  Hacked it to 5*HZ
 	  for now.
-	* Fixed bug introduced when discovery thread implementation was
+	* Fixed  introduced when discovery thread implementation was
 	  moved to kthread. kthread_stop() is not able to wake up thread
 	  waiting on a semaphore and "modprobe -r lpfc" is not always
 	  (most of the times) able to complete. Fix is in not using
@@ -466,13 +466,13 @@ Changes from 20041130 to 20041207
 Changes from 20041123 to 20041130
 
 	* Changed version number to 8.0.15
-	* Ifdef'd unused "binary" attributes by DFC_DEBUG for clean
+	* Ifdef'd unused "binary" attributes by DFC_DE for clean
 	  compiles
 	* Stop DID_ERROR from showing up along with QUEUE_FULL set by the
 	  Clarion array (SCSI error ret. val.  0x70028) There is no need
 	  for driver to hard fail command which was failed by the target
 	  device.
-	* Fix for Scsi device scan bug reported on SourceForge.  Driver
+	* Fix for Scsi device scan  reported on SourceForge.  Driver
 	  was returning a DID_ERROR in lpfc_handle_fcp_error causing
 	  midlayer to mark report luns as failing even though it
 	  succeeded.
@@ -498,11 +498,11 @@ Changes from 20041018 to 20041123
 	  end).
 	* Reduced max_lun to 256 (due to issues reported to some arrays).
 	  Fixed comment, and macro values so def=256, min=1, max=32768.
-	* Fix an obvious typo/bug: kfree was used to free lpfc_scsi_buf
+	* Fix an obvious typo/: kfree was used to free lpfc_scsi_buf
 	  instead of mempool_free in lpfc_scsiport.c.
 	* Suppress nodev_tmo message for FABRIC nodes.
 	* Fixed some usage of plain integer as NULL pointer.
-	* Bug fix for FLOGI cmpl, lpfc_els_chk_latt error path code
+	*  fix for FLOGI cmpl, lpfc_els_chk_latt error path code
 	  cleanup.
 	* Fixup lpfc_els_chk_latt() to have Fabric NPorts go thru
 	  discovery state machine as well.
@@ -535,8 +535,8 @@ Changes from 20041018 to 20041123
 	  testing.
 	* Set hotplug to default 0 and lpfc_target_remove to not remove
 	  devices unless hotplug is enabled.
-	* Fixed discovery bug: plogi cmpl uses ndlp after its freed.
-	* Fixed discovery bug: rnid acc cmpl, can potentially use ndlp
+	* Fixed discovery : plogi cmpl uses ndlp after its freed.
+	* Fixed discovery : rnid acc cmpl, can potentially use ndlp
 	  after its freed.
 	* Modularize code path in lpfc_target_remove().
 	* Changes to support SCSI hotplug (ifdef'ed out because they need
@@ -556,7 +556,7 @@ Changes from 20041018 to 20041123
 	  events to use these routines.
 	* Add support for SCSI device hotplug.
 	* Take dummy lpfc_target's into account for lpfc_slave_destroy().
-	* Bug fix to store WWPN / WWNN in NameServer / FDMI lpfc_nodelist
+	*  fix to store WWPN / WWNN in NameServer / FDMI lpfc_nodelist
 	  entries.
 	* Added slavecnt in lpfc_target for diagnostic purposes.
 	* Added lpfc_hba load/unload flags to take care of special cases
@@ -620,8 +620,8 @@ Changes from 20041018 to 20041123
 Changes from 20040920 to 20041018
 
 	* Changed version number to 8.0.13
-	* Hide some attributes using #ifndef DFC_DEBUG ... #endif.
-	* Modify Makefile to (1) make BUILD_NO_DEBUG=1 will hide some
+	* Hide some attributes using #ifndef DFC_DE ... #endif.
+	* Modify Makefile to (1) make BUILD_NO_DE=1 will hide some
 	  (binary) attributes (2) make BUILD_FC_TRANS=0 will build driver
 	  for 2.6.5 kernel with block/unblock patch.
 	* Modified #ifdef names.
@@ -659,7 +659,7 @@ Changes from 20040920 to 20041018
 	  conflicts with scsi/scsi.h.  Remove inclusions of scsi/scsi.h
 	  from hbadisc.c, sli.c, and fcp.c since these modules had no
 	  dependencies on scsi.h.
-	* Fixed a bug with RSCN handling. A RSCN received on one device,
+	* Fixed a  with RSCN handling. A RSCN received on one device,
 	  shouldn't affect other devices not referenced by the RSCN.
 	* Moved #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,6) to include
 	  lpfc_jedec_to_ascii to prevent warning in SLES 9.
@@ -676,12 +676,12 @@ Changes from 20040920 to 20041018
 	* Fix for timeout of READ_LA or READ_SPARAM mailbox command
 	  causing panic.
 	* Cleanup list_del()'s for Discovery ndlp lists.
-	* Bug fixes for some insmod/rmmod crashes, link down crashes and
+	*  fixes for some insmod/rmmod crashes, link down crashes and
 	  device loss crashes.
 	* Removed NLP_SEARCH_DEQUE.
 	* Call lpfc_target_unblock only if the targetp is nonNull and with
 	  the host_lock held.
-	* Added qcmdcnt back along with misc bug fixes to discovery.
+	* Added qcmdcnt back along with misc  fixes to discovery.
 	* Changed tgt_io to outfcpio lpfc_fcp.c.
 	* Fixed errors caused by LIP and cable pulls both with and without
 	  block/unblock patch.
@@ -691,7 +691,7 @@ Changes from 20040920 to 20041018
 	  and pass back to dma_unmap_sg in error with seg_cnt.
 	* Incorporating block/unblock calls into driver with ifdefs.  This
 	  change is supported by scsi-target-2.6 kernel and forward only.
-	* Merged in some discovery bug fixes and added tgt io counters.
+	* Merged in some discovery  fixes and added tgt io counters.
 	* Added sysfs attributes/interfaces: read only attribute
 	  "management_version" and write only attribute "issue_lip".
 	* Fix build on big endian machines: while #if was OK with
@@ -842,7 +842,7 @@ Changes from 20040908 to 20040920
 	  Used host_lock for DPC to avoid race (remove dpc_lock)
 	* Fix some corner cases for PLOGI receive - simplify error case
 	  for cmpl_reglogin_reglogin_issue.
-	* Bug fix for ppc64 EEH MMIO panic - always do readl after
+	*  fix for ppc64 EEH MMIO panic - always do readl after
 	  writel's of HBA registers to force flush.
 	* Get rid of initial static routine declarations in lpfc_hbadisc.c
 	  and lpfc_els.c.
@@ -890,7 +890,7 @@ Changes from 20040810 to 20040823
 	* Additional timer changes as per Arjan / Christoph's comments.
 	* Used mod_timer() instead of del_timer_sync() where appropriate.
 	* Fixed a use after free case (panic on 2.6.8.1 with
-	  CONFIG_DEBUG_SLAB set).
+	  CONFIG_DE_SLAB set).
 	* Fix compile warning in lpfc_fcp.c.
 	* Minor fix for log message, that prints unassigned brdno which is
 	  zero.
@@ -1401,7 +1401,7 @@ Changes from 20040409 to 20040416
 	* The scsi_register and scsi_alloc_host OS calls can fail and
 	  return a zero-valued host pointer.  A ctrl-C on 2.6 kernels
 	  during driver load will cause this and the driver to panic.
-	  Fixed this bug.  Also found a bug in the error_x handling with
+	  Fixed this .  Also found a  in the error_x handling with
 	  lpfc_sli_hba_down - it was in the wrong place and the driver
 	  lock was not held, but needed to be (in lpfc_linux_attach) Fixed
 	  both.  Did some minor comment clean up.
@@ -1566,7 +1566,7 @@ Changes from 20040326 to 20040402
 	  ELX_READ_MEMSEG ELX_READ_BINFO ELX_READ_EINVAL ELX_READ_LHBA
 	  ELX_READ_LXHBA ELX_SET ELX_DBG LPFC_TRACE 
 	* Removed variable fc_dbg_flg
-	* Fixed a bug where HBA_Q_DEPTH was set incorrectly for
+	* Fixed a  where HBA_Q_DEPTH was set incorrectly for
 	  3-digit HBAs.  Also changed can_queue so midlayer will only
 	  send (HBA_Q_DEPTH - 10) cmds.
 	* Clean up code in the error path, check condition.  Remove
@@ -1583,9 +1583,9 @@ Changes from 20040326 to 20040402
 	  structure directly.  Moved DRVR_LOCK, putPaddr, getPaddr
 	  macros and some defines into elx.h since they are required
 	  by the whole driver.
-	* Migrated following ioctls (debug) ELX_DISPLAY_PCI_ALL
+	* Migrated following ioctls (de) ELX_DISPLAY_PCI_ALL
 	  ELX_DEVP ELX_READ_BPLIST ELX_RESET_QDEPTH ELX_STAT.
-	* Step 1 of attempt to move all Debug ioctls to sysfs.
+	* Step 1 of attempt to move all De ioctls to sysfs.
 	  Implemented the following IOCTLs in sysfs: ELX_WRITE_HC
 	  ELX_WRITE_HS ELX_WRITE_HA ELX_WRITE_CA ELX_READ_HC
 	  ELX_READ_HS ELX_READ_HA ELX_READ_CA ELX_READ_MB ELX_RESET
@@ -1596,7 +1596,7 @@ Changes from 20040326 to 20040402
 	  doesn't use them anymore
 	* Separated install rule so that BUILD_IPFC has to be set when
 	  make is called in order for the install rule to attempt to
-	  copy the lpfndd.o driver.  This change fixes a bug that
+	  copy the lpfndd.o driver.  This change fixes a  that
 	  occurs because the install rule by default attempted to
 	  install lpfndd.o, whereas the default make rule did not by
 	  default build lpfndd.o.
@@ -1646,7 +1646,7 @@ Changes from 20040326 to 20040402
 	* lpfc_fdmi_tmo() and lpfc_qthrottle_up() now use system
           timer.
 	* Removed num_bufs and num_iocbs configuration parameters.
-	* Fixed a memory corruption bug. This was caused by a memory
+	* Fixed a memory corruption . This was caused by a memory
 	  write to ndlp structure from lpfc_cmpl_els_acc function.
 	  This ndlp structure was freed from lpfc_els_unsol_event.
 	* lpfc_disc_timeout() and lpfc_establish_link_tmo() now use

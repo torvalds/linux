@@ -166,7 +166,7 @@ rave_sp_eeprom_page_access(struct rave_sp_eeprom *eeprom,
 	/*
 	 * This function will not work if data access we've been asked
 	 * to do is crossing EEPROM page boundary. Normally this
-	 * should never happen and getting here would indicate a bug
+	 * should never happen and getting here would indicate a 
 	 * in the code.
 	 */
 	if (WARN_ON(data_len > sizeof(page.data) - page_offset))

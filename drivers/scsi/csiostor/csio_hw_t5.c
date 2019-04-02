@@ -335,10 +335,10 @@ csio_t5_memory_rw(struct csio_hw *hw, u32 win, int mtype, u32 addr,
 }
 
 /*
- * csio_t5_dfs_create_ext_mem - setup debugfs for MC0 or MC1 to read the values
+ * csio_t5_dfs_create_ext_mem - setup defs for MC0 or MC1 to read the values
  * @hw: the csio_hw
  *
- * This function creates files in the debugfs with external memory region
+ * This function creates files in the defs with external memory region
  * MC0 & MC1.
  */
 static void
@@ -349,12 +349,12 @@ csio_t5_dfs_create_ext_mem(struct csio_hw *hw)
 
 	if (i & EXT_MEM_ENABLE_F) {
 		size = csio_rd_reg32(hw, MA_EXT_MEMORY_BAR_A);
-		csio_add_debugfs_mem(hw, "mc0", MEM_MC0,
+		csio_add_defs_mem(hw, "mc0", MEM_MC0,
 				     EXT_MEM_SIZE_G(size));
 	}
 	if (i & EXT_MEM1_ENABLE_F) {
 		size = csio_rd_reg32(hw, MA_EXT_MEMORY1_BAR_A);
-		csio_add_debugfs_mem(hw, "mc1", MEM_MC1,
+		csio_add_defs_mem(hw, "mc1", MEM_MC1,
 				     EXT_MEM_SIZE_G(size));
 	}
 }

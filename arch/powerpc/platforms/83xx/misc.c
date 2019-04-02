@@ -14,7 +14,7 @@
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <asm/io.h>
 #include <asm/hw_irq.h>
 #include <asm/ipic.h>
@@ -160,7 +160,7 @@ int machine_check_83xx(struct pt_regs *regs)
 		return machine_check_generic(regs);
 	ipic_clear_mcp_status(mask);
 
-	if (debugger_fault_handler(regs))
+	if (deger_fault_handler(regs))
 		return 1;
 
 	die("Watchdog NMI Reset", regs, 0);

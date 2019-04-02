@@ -142,9 +142,9 @@ static const struct export_operations ufs_export_ops = {
 	.get_parent	= ufs_get_parent,
 };
 
-#ifdef CONFIG_UFS_DEBUG
+#ifdef CONFIG_UFS_DE
 /*
- * Print contents of ufs_super_block, useful for debugging
+ * Print contents of ufs_super_block, useful for deging
  */
 static void ufs_print_super_stuff(struct super_block *sb,
 				  struct ufs_super_block_first *usb1,
@@ -153,23 +153,23 @@ static void ufs_print_super_stuff(struct super_block *sb,
 {
 	u32 magic = fs32_to_cpu(sb, usb3->fs_magic);
 
-	pr_debug("ufs_print_super_stuff\n");
-	pr_debug("  magic:     0x%x\n", magic);
+	pr_de("ufs_print_super_stuff\n");
+	pr_de("  magic:     0x%x\n", magic);
 	if (fs32_to_cpu(sb, usb3->fs_magic) == UFS2_MAGIC) {
-		pr_debug("  fs_size:   %llu\n", (unsigned long long)
+		pr_de("  fs_size:   %llu\n", (unsigned long long)
 			 fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_size));
-		pr_debug("  fs_dsize:  %llu\n", (unsigned long long)
+		pr_de("  fs_dsize:  %llu\n", (unsigned long long)
 			 fs64_to_cpu(sb, usb3->fs_un1.fs_u2.fs_dsize));
-		pr_debug("  bsize:         %u\n",
+		pr_de("  bsize:         %u\n",
 			 fs32_to_cpu(sb, usb1->fs_bsize));
-		pr_debug("  fsize:         %u\n",
+		pr_de("  fsize:         %u\n",
 			 fs32_to_cpu(sb, usb1->fs_fsize));
-		pr_debug("  fs_volname:  %s\n", usb2->fs_un.fs_u2.fs_volname);
-		pr_debug("  fs_sblockloc: %llu\n", (unsigned long long)
+		pr_de("  fs_volname:  %s\n", usb2->fs_un.fs_u2.fs_volname);
+		pr_de("  fs_sblockloc: %llu\n", (unsigned long long)
 			 fs64_to_cpu(sb, usb2->fs_un.fs_u2.fs_sblockloc));
-		pr_debug("  cs_ndir(No of dirs):  %llu\n", (unsigned long long)
+		pr_de("  cs_ndir(No of dirs):  %llu\n", (unsigned long long)
 			 fs64_to_cpu(sb, usb2->fs_un.fs_u2.cs_ndir));
-		pr_debug("  cs_nbfree(No of free blocks):  %llu\n",
+		pr_de("  cs_nbfree(No of free blocks):  %llu\n",
 			 (unsigned long long)
 			 fs64_to_cpu(sb, usb2->fs_un.fs_u2.cs_nbfree));
 		pr_info("  cs_nifree(Num of free inodes): %llu\n",
@@ -181,90 +181,90 @@ static void ufs_print_super_stuff(struct super_block *sb,
 		pr_info("  fs_maxsymlinklen: %u\n",
 			fs32_to_cpu(sb, usb3->fs_un2.fs_44.fs_maxsymlinklen));
 	} else {
-		pr_debug(" sblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_sblkno));
-		pr_debug(" cblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_cblkno));
-		pr_debug(" iblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_iblkno));
-		pr_debug(" dblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_dblkno));
-		pr_debug(" cgoffset:    %u\n",
+		pr_de(" sblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_sblkno));
+		pr_de(" cblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_cblkno));
+		pr_de(" iblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_iblkno));
+		pr_de(" dblkno:      %u\n", fs32_to_cpu(sb, usb1->fs_dblkno));
+		pr_de(" cgoffset:    %u\n",
 			 fs32_to_cpu(sb, usb1->fs_cgoffset));
-		pr_debug(" ~cgmask:     0x%x\n",
+		pr_de(" ~cgmask:     0x%x\n",
 			 ~fs32_to_cpu(sb, usb1->fs_cgmask));
-		pr_debug(" size:        %u\n", fs32_to_cpu(sb, usb1->fs_size));
-		pr_debug(" dsize:       %u\n", fs32_to_cpu(sb, usb1->fs_dsize));
-		pr_debug(" ncg:         %u\n", fs32_to_cpu(sb, usb1->fs_ncg));
-		pr_debug(" bsize:       %u\n", fs32_to_cpu(sb, usb1->fs_bsize));
-		pr_debug(" fsize:       %u\n", fs32_to_cpu(sb, usb1->fs_fsize));
-		pr_debug(" frag:        %u\n", fs32_to_cpu(sb, usb1->fs_frag));
-		pr_debug(" fragshift:   %u\n",
+		pr_de(" size:        %u\n", fs32_to_cpu(sb, usb1->fs_size));
+		pr_de(" dsize:       %u\n", fs32_to_cpu(sb, usb1->fs_dsize));
+		pr_de(" ncg:         %u\n", fs32_to_cpu(sb, usb1->fs_ncg));
+		pr_de(" bsize:       %u\n", fs32_to_cpu(sb, usb1->fs_bsize));
+		pr_de(" fsize:       %u\n", fs32_to_cpu(sb, usb1->fs_fsize));
+		pr_de(" frag:        %u\n", fs32_to_cpu(sb, usb1->fs_frag));
+		pr_de(" fragshift:   %u\n",
 			 fs32_to_cpu(sb, usb1->fs_fragshift));
-		pr_debug(" ~fmask:      %u\n", ~fs32_to_cpu(sb, usb1->fs_fmask));
-		pr_debug(" fshift:      %u\n", fs32_to_cpu(sb, usb1->fs_fshift));
-		pr_debug(" sbsize:      %u\n", fs32_to_cpu(sb, usb1->fs_sbsize));
-		pr_debug(" spc:         %u\n", fs32_to_cpu(sb, usb1->fs_spc));
-		pr_debug(" cpg:         %u\n", fs32_to_cpu(sb, usb1->fs_cpg));
-		pr_debug(" ipg:         %u\n", fs32_to_cpu(sb, usb1->fs_ipg));
-		pr_debug(" fpg:         %u\n", fs32_to_cpu(sb, usb1->fs_fpg));
-		pr_debug(" csaddr:      %u\n", fs32_to_cpu(sb, usb1->fs_csaddr));
-		pr_debug(" cssize:      %u\n", fs32_to_cpu(sb, usb1->fs_cssize));
-		pr_debug(" cgsize:      %u\n", fs32_to_cpu(sb, usb1->fs_cgsize));
-		pr_debug(" fstodb:      %u\n",
+		pr_de(" ~fmask:      %u\n", ~fs32_to_cpu(sb, usb1->fs_fmask));
+		pr_de(" fshift:      %u\n", fs32_to_cpu(sb, usb1->fs_fshift));
+		pr_de(" sbsize:      %u\n", fs32_to_cpu(sb, usb1->fs_sbsize));
+		pr_de(" spc:         %u\n", fs32_to_cpu(sb, usb1->fs_spc));
+		pr_de(" cpg:         %u\n", fs32_to_cpu(sb, usb1->fs_cpg));
+		pr_de(" ipg:         %u\n", fs32_to_cpu(sb, usb1->fs_ipg));
+		pr_de(" fpg:         %u\n", fs32_to_cpu(sb, usb1->fs_fpg));
+		pr_de(" csaddr:      %u\n", fs32_to_cpu(sb, usb1->fs_csaddr));
+		pr_de(" cssize:      %u\n", fs32_to_cpu(sb, usb1->fs_cssize));
+		pr_de(" cgsize:      %u\n", fs32_to_cpu(sb, usb1->fs_cgsize));
+		pr_de(" fstodb:      %u\n",
 			 fs32_to_cpu(sb, usb1->fs_fsbtodb));
-		pr_debug(" nrpos:       %u\n", fs32_to_cpu(sb, usb3->fs_nrpos));
-		pr_debug(" ndir         %u\n",
+		pr_de(" nrpos:       %u\n", fs32_to_cpu(sb, usb3->fs_nrpos));
+		pr_de(" ndir         %u\n",
 			 fs32_to_cpu(sb, usb1->fs_cstotal.cs_ndir));
-		pr_debug(" nifree       %u\n",
+		pr_de(" nifree       %u\n",
 			 fs32_to_cpu(sb, usb1->fs_cstotal.cs_nifree));
-		pr_debug(" nbfree       %u\n",
+		pr_de(" nbfree       %u\n",
 			 fs32_to_cpu(sb, usb1->fs_cstotal.cs_nbfree));
-		pr_debug(" nffree       %u\n",
+		pr_de(" nffree       %u\n",
 			 fs32_to_cpu(sb, usb1->fs_cstotal.cs_nffree));
 	}
-	pr_debug("\n");
+	pr_de("\n");
 }
 
 /*
- * Print contents of ufs_cylinder_group, useful for debugging
+ * Print contents of ufs_cylinder_group, useful for deging
  */
 static void ufs_print_cylinder_stuff(struct super_block *sb,
 				     struct ufs_cylinder_group *cg)
 {
-	pr_debug("\nufs_print_cylinder_stuff\n");
-	pr_debug("size of ucg: %zu\n", sizeof(struct ufs_cylinder_group));
-	pr_debug("  magic:        %x\n", fs32_to_cpu(sb, cg->cg_magic));
-	pr_debug("  time:         %u\n", fs32_to_cpu(sb, cg->cg_time));
-	pr_debug("  cgx:          %u\n", fs32_to_cpu(sb, cg->cg_cgx));
-	pr_debug("  ncyl:         %u\n", fs16_to_cpu(sb, cg->cg_ncyl));
-	pr_debug("  niblk:        %u\n", fs16_to_cpu(sb, cg->cg_niblk));
-	pr_debug("  ndblk:        %u\n", fs32_to_cpu(sb, cg->cg_ndblk));
-	pr_debug("  cs_ndir:      %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_ndir));
-	pr_debug("  cs_nbfree:    %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_nbfree));
-	pr_debug("  cs_nifree:    %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_nifree));
-	pr_debug("  cs_nffree:    %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_nffree));
-	pr_debug("  rotor:        %u\n", fs32_to_cpu(sb, cg->cg_rotor));
-	pr_debug("  frotor:       %u\n", fs32_to_cpu(sb, cg->cg_frotor));
-	pr_debug("  irotor:       %u\n", fs32_to_cpu(sb, cg->cg_irotor));
-	pr_debug("  frsum:        %u, %u, %u, %u, %u, %u, %u, %u\n",
+	pr_de("\nufs_print_cylinder_stuff\n");
+	pr_de("size of ucg: %zu\n", sizeof(struct ufs_cylinder_group));
+	pr_de("  magic:        %x\n", fs32_to_cpu(sb, cg->cg_magic));
+	pr_de("  time:         %u\n", fs32_to_cpu(sb, cg->cg_time));
+	pr_de("  cgx:          %u\n", fs32_to_cpu(sb, cg->cg_cgx));
+	pr_de("  ncyl:         %u\n", fs16_to_cpu(sb, cg->cg_ncyl));
+	pr_de("  niblk:        %u\n", fs16_to_cpu(sb, cg->cg_niblk));
+	pr_de("  ndblk:        %u\n", fs32_to_cpu(sb, cg->cg_ndblk));
+	pr_de("  cs_ndir:      %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_ndir));
+	pr_de("  cs_nbfree:    %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_nbfree));
+	pr_de("  cs_nifree:    %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_nifree));
+	pr_de("  cs_nffree:    %u\n", fs32_to_cpu(sb, cg->cg_cs.cs_nffree));
+	pr_de("  rotor:        %u\n", fs32_to_cpu(sb, cg->cg_rotor));
+	pr_de("  frotor:       %u\n", fs32_to_cpu(sb, cg->cg_frotor));
+	pr_de("  irotor:       %u\n", fs32_to_cpu(sb, cg->cg_irotor));
+	pr_de("  frsum:        %u, %u, %u, %u, %u, %u, %u, %u\n",
 	    fs32_to_cpu(sb, cg->cg_frsum[0]), fs32_to_cpu(sb, cg->cg_frsum[1]),
 	    fs32_to_cpu(sb, cg->cg_frsum[2]), fs32_to_cpu(sb, cg->cg_frsum[3]),
 	    fs32_to_cpu(sb, cg->cg_frsum[4]), fs32_to_cpu(sb, cg->cg_frsum[5]),
 	    fs32_to_cpu(sb, cg->cg_frsum[6]), fs32_to_cpu(sb, cg->cg_frsum[7]));
-	pr_debug("  btotoff:      %u\n", fs32_to_cpu(sb, cg->cg_btotoff));
-	pr_debug("  boff:         %u\n", fs32_to_cpu(sb, cg->cg_boff));
-	pr_debug("  iuseoff:      %u\n", fs32_to_cpu(sb, cg->cg_iusedoff));
-	pr_debug("  freeoff:      %u\n", fs32_to_cpu(sb, cg->cg_freeoff));
-	pr_debug("  nextfreeoff:  %u\n", fs32_to_cpu(sb, cg->cg_nextfreeoff));
-	pr_debug("  clustersumoff %u\n",
+	pr_de("  btotoff:      %u\n", fs32_to_cpu(sb, cg->cg_btotoff));
+	pr_de("  boff:         %u\n", fs32_to_cpu(sb, cg->cg_boff));
+	pr_de("  iuseoff:      %u\n", fs32_to_cpu(sb, cg->cg_iusedoff));
+	pr_de("  freeoff:      %u\n", fs32_to_cpu(sb, cg->cg_freeoff));
+	pr_de("  nextfreeoff:  %u\n", fs32_to_cpu(sb, cg->cg_nextfreeoff));
+	pr_de("  clustersumoff %u\n",
 		 fs32_to_cpu(sb, cg->cg_u.cg_44.cg_clustersumoff));
-	pr_debug("  clusteroff    %u\n",
+	pr_de("  clusteroff    %u\n",
 		 fs32_to_cpu(sb, cg->cg_u.cg_44.cg_clusteroff));
-	pr_debug("  nclusterblks  %u\n",
+	pr_de("  nclusterblks  %u\n",
 		 fs32_to_cpu(sb, cg->cg_u.cg_44.cg_nclusterblks));
-	pr_debug("\n");
+	pr_de("\n");
 }
 #else
 #  define ufs_print_super_stuff(sb, usb1, usb2, usb3) /**/
 #  define ufs_print_cylinder_stuff(sb, cg) /**/
-#endif /* CONFIG_UFS_DEBUG */
+#endif /* CONFIG_UFS_DE */
 
 static const struct super_operations ufs_super_ops;
 
@@ -1389,13 +1389,13 @@ static int ufs_show_options(struct seq_file *seq, struct dentry *root)
 
 	while (tp->token != Opt_onerror_panic && tp->token != mval)
 		++tp;
-	BUG_ON(tp->token == Opt_onerror_panic);
+	_ON(tp->token == Opt_onerror_panic);
 	seq_printf(seq, ",%s", tp->pattern);
 
 	mval = sbi->s_mount_opt & UFS_MOUNT_ONERROR;
 	while (tp->token != Opt_err && tp->token != mval)
 		++tp;
-	BUG_ON(tp->token == Opt_err);
+	_ON(tp->token == Opt_err);
 	seq_printf(seq, ",%s", tp->pattern);
 
 	return 0;

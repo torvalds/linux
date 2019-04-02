@@ -180,7 +180,7 @@
 #define CPCAP_REG_UIEF3		0x0e54	/* USB Interrupt Enable Falling 1 */
 #define CPCAP_REG_UIS		0x0e58	/* USB Interrupt Status */
 #define CPCAP_REG_UIL		0x0e5c	/* USB Interrupt Latch */
-#define CPCAP_REG_USBD		0x0e60	/* USB Debug */
+#define CPCAP_REG_USBD		0x0e60	/* USB De */
 #define CPCAP_REG_SCR1		0x0e64	/* Scratch 1 */
 #define CPCAP_REG_SCR2		0x0e68	/* Scratch 2 */
 #define CPCAP_REG_SCR3		0x0e6c	/* Scratch 3 */

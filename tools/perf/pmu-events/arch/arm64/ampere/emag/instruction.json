@@ -69,7 +69,7 @@
         "BriefDescription": "Instruction executed, TTBR write"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, branch. This event counts all branches, taken or not. This excludes exception entries, debug entries and CCFAIL branches",
+        "PublicDescription": "Instruction architecturally executed, branch. This event counts all branches, taken or not. This excludes exception entries, de entries and CCFAIL branches",
         "EventCode": "0x21",
         "EventName": "BR_RETIRED",
         "BriefDescription": "Branch retired"

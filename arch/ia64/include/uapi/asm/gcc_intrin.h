@@ -14,7 +14,7 @@
 #define ASM_SUPPORTED
 
 /* Optimization barrier */
-/* The "volatile" is due to gcc bugs */
+/* The "volatile" is due to gcc s */
 #define ia64_barrier()	asm volatile ("":::"memory")
 
 #define ia64_stop()	asm volatile (";;"::)

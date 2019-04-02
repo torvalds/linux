@@ -180,8 +180,8 @@ void idr_get_next_test(int base)
 
 int idr_u32_cb(int id, void *ptr, void *data)
 {
-	BUG_ON(id < 0);
-	BUG_ON(ptr != DUMMY_PTR);
+	_ON(id < 0);
+	_ON(ptr != DUMMY_PTR);
 	return 0;
 }
 
@@ -192,27 +192,27 @@ void idr_u32_test1(struct idr *idr, u32 handle)
 	int sid = 0;
 	void *ptr;
 
-	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL));
-	BUG_ON(id != handle);
-	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL) != -ENOSPC);
-	BUG_ON(id != handle);
+	_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL));
+	_ON(id != handle);
+	_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL) != -ENOSPC);
+	_ON(id != handle);
 	if (!warned && id > INT_MAX)
 		printk("vvv Ignore these warnings\n");
 	ptr = idr_get_next(idr, &sid);
 	if (id > INT_MAX) {
-		BUG_ON(ptr != NULL);
-		BUG_ON(sid != 0);
+		_ON(ptr != NULL);
+		_ON(sid != 0);
 	} else {
-		BUG_ON(ptr != DUMMY_PTR);
-		BUG_ON(sid != id);
+		_ON(ptr != DUMMY_PTR);
+		_ON(sid != id);
 	}
 	idr_for_each(idr, idr_u32_cb, NULL);
 	if (!warned && id > INT_MAX) {
 		printk("^^^ Warnings over\n");
 		warned = true;
 	}
-	BUG_ON(idr_remove(idr, id) != DUMMY_PTR);
-	BUG_ON(!idr_is_empty(idr));
+	_ON(idr_remove(idr, id) != DUMMY_PTR);
+	_ON(!idr_is_empty(idr));
 }
 
 void idr_u32_test(int base)
@@ -234,51 +234,51 @@ static void idr_align_test(struct idr *idr)
 	void *entry;
 
 	for (i = 0; i < 9; i++) {
-		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i);
+		_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i);
 		idr_for_each_entry(idr, entry, id);
 	}
 	idr_destroy(idr);
 
 	for (i = 1; i < 10; i++) {
-		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 1);
+		_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 1);
 		idr_for_each_entry(idr, entry, id);
 	}
 	idr_destroy(idr);
 
 	for (i = 2; i < 11; i++) {
-		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 2);
+		_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 2);
 		idr_for_each_entry(idr, entry, id);
 	}
 	idr_destroy(idr);
 
 	for (i = 3; i < 12; i++) {
-		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 3);
+		_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != i - 3);
 		idr_for_each_entry(idr, entry, id);
 	}
 	idr_destroy(idr);
 
 	for (i = 0; i < 8; i++) {
-		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != 0);
-		BUG_ON(idr_alloc(idr, &name[i + 1], 0, 0, GFP_KERNEL) != 1);
+		_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != 0);
+		_ON(idr_alloc(idr, &name[i + 1], 0, 0, GFP_KERNEL) != 1);
 		idr_for_each_entry(idr, entry, id);
 		idr_remove(idr, 1);
 		idr_for_each_entry(idr, entry, id);
 		idr_remove(idr, 0);
-		BUG_ON(!idr_is_empty(idr));
+		_ON(!idr_is_empty(idr));
 	}
 
 	for (i = 0; i < 8; i++) {
-		BUG_ON(idr_alloc(idr, NULL, 0, 0, GFP_KERNEL) != 0);
+		_ON(idr_alloc(idr, NULL, 0, 0, GFP_KERNEL) != 0);
 		idr_for_each_entry(idr, entry, id);
 		idr_replace(idr, &name[i], 0);
 		idr_for_each_entry(idr, entry, id);
-		BUG_ON(idr_find(idr, 0) != &name[i]);
+		_ON(idr_find(idr, 0) != &name[i]);
 		idr_remove(idr, 0);
 	}
 
 	for (i = 0; i < 8; i++) {
-		BUG_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != 0);
-		BUG_ON(idr_alloc(idr, NULL, 0, 0, GFP_KERNEL) != 1);
+		_ON(idr_alloc(idr, &name[i], 0, 0, GFP_KERNEL) != 0);
+		_ON(idr_alloc(idr, NULL, 0, 0, GFP_KERNEL) != 1);
 		idr_remove(idr, 1);
 		idr_for_each_entry(idr, entry, id);
 		idr_replace(idr, &name[i + 1], 0);
@@ -391,10 +391,10 @@ void ida_check_nomem(void)
 	int id;
 
 	id = ida_alloc_min(&ida, 256, GFP_NOWAIT);
-	IDA_BUG_ON(&ida, id != -ENOMEM);
+	IDA__ON(&ida, id != -ENOMEM);
 	id = ida_alloc_min(&ida, 1UL << 30, GFP_NOWAIT);
-	IDA_BUG_ON(&ida, id != -ENOMEM);
-	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
+	IDA__ON(&ida, id != -ENOMEM);
+	IDA__ON(&ida, !ida_is_empty(&ida));
 }
 
 /*
@@ -408,15 +408,15 @@ void ida_check_conv_user(void)
 	for (i = 0; i < 1000000; i++) {
 		int id = ida_alloc(&ida, GFP_NOWAIT);
 		if (id == -ENOMEM) {
-			IDA_BUG_ON(&ida, ((i % IDA_BITMAP_BITS) !=
+			IDA__ON(&ida, ((i % IDA_BITMAP_BITS) !=
 					  BITS_PER_XA_VALUE) &&
 					 ((i % IDA_BITMAP_BITS) != 0));
 			id = ida_alloc(&ida, GFP_KERNEL);
 		} else {
-			IDA_BUG_ON(&ida, (i % IDA_BITMAP_BITS) ==
+			IDA__ON(&ida, (i % IDA_BITMAP_BITS) ==
 					BITS_PER_XA_VALUE);
 		}
-		IDA_BUG_ON(&ida, id != i);
+		IDA__ON(&ida, id != i);
 	}
 	ida_destroy(&ida);
 }
@@ -438,7 +438,7 @@ void ida_check_random(void)
 			ida_free(&ida, bit);
 		} else {
 			__set_bit(bit, bitmap);
-			IDA_BUG_ON(&ida, ida_alloc_min(&ida, bit, GFP_KERNEL)
+			IDA__ON(&ida, ida_alloc_min(&ida, bit, GFP_KERNEL)
 					!= bit);
 		}
 	}

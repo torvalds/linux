@@ -58,7 +58,7 @@
 #include "jfs_imap.h"
 #include "jfs_dmap.h"
 #include "jfs_superblock.h"
-#include "jfs_debug.h"
+#include "jfs_de.h"
 
 /*
  *	transaction management structures
@@ -839,7 +839,7 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 			       sizeof(struct tblock), 0);
 		print_hex_dump(KERN_ERR, "Tlock: ", DUMP_PREFIX_ADDRESS, 16, 4,
 			       tlck, sizeof(*tlck), 0);
-		BUG();
+		();
 	}
 	INCREMENT(stattx.waitlock);	/* statistics */
 	TXN_UNLOCK();
@@ -1215,7 +1215,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		jfs_ip = JFS_IP(ip);
 
 		/*
-		 * BUGBUG - This code has temporarily been removed.  The
+		 *  - This code has temporarily been removed.  The
 		 * intent is to ensure that any file data is written before
 		 * the metadata is committed to the journal.  This prevents
 		 * uninitialized data from appearing in a file after the
@@ -2997,7 +2997,7 @@ int jfs_sync(void *arg)
 	return 0;
 }
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_DEBUG)
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_DE)
 int jfs_txanchor_proc_show(struct seq_file *m, void *v)
 {
 	char *freewait;

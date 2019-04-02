@@ -408,7 +408,7 @@ static int __init tcp_cdg_register(void)
 	if (!is_power_of_2(window))
 		return -EINVAL;
 
-	BUILD_BUG_ON(sizeof(struct cdg) > ICSK_CA_PRIV_SIZE);
+	BUILD__ON(sizeof(struct cdg) > ICSK_CA_PRIV_SIZE);
 	tcp_register_congestion_control(&tcp_cdg);
 	return 0;
 }

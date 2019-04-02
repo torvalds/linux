@@ -58,8 +58,8 @@ static void clear_pending_ints(struct IsdnCardState *cs);
 static void
 ph_command(struct IsdnCardState *cs, unsigned int command)
 {
-	if (cs->debug & L1_DEB_ISAC)
-		debugl1(cs, "ph_command (%#x) in (%#x)", command,
+	if (cs->de & L1_DEB_ISAC)
+		del1(cs, "ph_command (%#x) in (%#x)", command,
 			cs->dc.isac.ph_state);
 //###################################
 //	printk(KERN_INFO "ph_command (%#x)\n", command);
@@ -76,7 +76,7 @@ cic_int(struct IsdnCardState *cs)
 	u_char event;
 
 	event = cs->readisac(cs, IPACX_CIR0) >> 4;
-	if (cs->debug & L1_DEB_ISAC) debugl1(cs, "cic_int(event=%#x)", event);
+	if (cs->de & L1_DEB_ISAC) del1(cs, "cic_int(event=%#x)", event);
 //#########################################
 //	printk(KERN_INFO "cic_int(%x)\n", event);
 //#########################################
@@ -100,18 +100,18 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 
 	switch (pr) {
 	case (PH_DATA | REQUEST):
-		if (cs->debug & DEB_DLOG_HEX) LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE) dlogframe(cs, skb, 0);
+		if (cs->de & DEB_DLOG_HEX) LogFrame(cs, skb->data, skb->len);
+		if (cs->de & DEB_DLOG_VERBOSE) dlogframe(cs, skb, 0);
 		if (cs->tx_skb) {
 			skb_queue_tail(&cs->sq, skb);
-#ifdef L2FRAME_DEBUG
-			if (cs->debug & L1_DEB_LAPD) Logl2Frame(cs, skb, "PH_DATA Queued", 0);
+#ifdef L2FRAME_DE
+			if (cs->de & L1_DEB_LAPD) Logl2Frame(cs, skb, "PH_DATA Queued", 0);
 #endif
 		} else {
 			cs->tx_skb = skb;
 			cs->tx_cnt = 0;
-#ifdef L2FRAME_DEBUG
-			if (cs->debug & L1_DEB_LAPD) Logl2Frame(cs, skb, "PH_DATA", 0);
+#ifdef L2FRAME_DE
+			if (cs->de & L1_DEB_LAPD) Logl2Frame(cs, skb, "PH_DATA", 0);
 #endif
 			dch_fill_fifo(cs);
 		}
@@ -119,24 +119,24 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 
 	case (PH_PULL | INDICATION):
 		if (cs->tx_skb) {
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, " l2l1 tx_skb exist this shouldn't happen");
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, " l2l1 tx_skb exist this shouldn't happen");
 			skb_queue_tail(&cs->sq, skb);
 			break;
 		}
-		if (cs->debug & DEB_DLOG_HEX)     LogFrame(cs, skb->data, skb->len);
-		if (cs->debug & DEB_DLOG_VERBOSE) dlogframe(cs, skb, 0);
+		if (cs->de & DEB_DLOG_HEX)     LogFrame(cs, skb->data, skb->len);
+		if (cs->de & DEB_DLOG_VERBOSE) dlogframe(cs, skb, 0);
 		cs->tx_skb = skb;
 		cs->tx_cnt = 0;
-#ifdef L2FRAME_DEBUG
-		if (cs->debug & L1_DEB_LAPD) Logl2Frame(cs, skb, "PH_DATA_PULLED", 0);
+#ifdef L2FRAME_DE
+		if (cs->de & L1_DEB_LAPD) Logl2Frame(cs, skb, "PH_DATA_PULLED", 0);
 #endif
 		dch_fill_fifo(cs);
 		break;
 
 	case (PH_PULL | REQUEST):
-#ifdef L2FRAME_DEBUG
-		if (cs->debug & L1_DEB_LAPD) debugl1(cs, "-> PH_REQUEST_PULL");
+#ifdef L2FRAME_DE
+		if (cs->de & L1_DEB_LAPD) del1(cs, "-> PH_REQUEST_PULL");
 #endif
 		if (!cs->tx_skb) {
 			clear_bit(FLG_L1_PULL_REQ, &st->l1.Flags);
@@ -190,7 +190,7 @@ dch_l2l1(struct PStack *st, int pr, void *arg)
 		break;
 
 	default:
-		if (cs->debug & L1_DEB_WARN) debugl1(cs, "dch_l2l1 unknown %04x", pr);
+		if (cs->de & L1_DEB_WARN) del1(cs, "dch_l2l1 unknown %04x", pr);
 		break;
 	}
 }
@@ -207,8 +207,8 @@ dbusy_timer_handler(struct timer_list *t)
 	if (test_bit(FLG_DBUSY_TIMER, &cs->HW_Flags)) {
 		rbchd = cs->readisac(cs, IPACX_RBCHD);
 		stard = cs->readisac(cs, IPACX_STARD);
-		if (cs->debug)
-			debugl1(cs, "D-Channel Busy RBCHD %02x STARD %02x", rbchd, stard);
+		if (cs->de)
+			del1(cs, "D-Channel Busy RBCHD %02x STARD %02x", rbchd, stard);
 		if (!(stard & 0x40)) { // D-Channel Busy
 			set_bit(FLG_L1_DBUSY, &cs->HW_Flags);
 			for (st = cs->stlist; st; st = st->next) {
@@ -223,7 +223,7 @@ dbusy_timer_handler(struct timer_list *t)
 				cs->tx_skb = NULL;
 			} else {
 				printk(KERN_WARNING "HiSax: ISAC D-Channel Busy no skb\n");
-				debugl1(cs, "D-Channel Busy no skb");
+				del1(cs, "D-Channel Busy no skb");
 			}
 			cs->writeisac(cs, IPACX_CMDRD, 0x01); // Tx reset, generates XPR
 		}
@@ -238,13 +238,13 @@ dch_empty_fifo(struct IsdnCardState *cs, int count)
 {
 	u_char *ptr;
 
-	if ((cs->debug & L1_DEB_ISAC) && !(cs->debug & L1_DEB_ISAC_FIFO))
-		debugl1(cs, "dch_empty_fifo()");
+	if ((cs->de & L1_DEB_ISAC) && !(cs->de & L1_DEB_ISAC_FIFO))
+		del1(cs, "dch_empty_fifo()");
 
 	// message too large, remove
 	if ((cs->rcvidx + count) >= MAX_DFRAME_LEN_L1) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "dch_empty_fifo() incoming message too large");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "dch_empty_fifo() incoming message too large");
 		cs->writeisac(cs, IPACX_CMDRD, 0x80); // RMC
 		cs->rcvidx = 0;
 		return;
@@ -256,12 +256,12 @@ dch_empty_fifo(struct IsdnCardState *cs, int count)
 	cs->readisacfifo(cs, ptr, count);
 	cs->writeisac(cs, IPACX_CMDRD, 0x80); // RMC
 
-	if (cs->debug & L1_DEB_ISAC_FIFO) {
+	if (cs->de & L1_DEB_ISAC_FIFO) {
 		char *t = cs->dlog;
 
 		t += sprintf(t, "dch_empty_fifo() cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, "%s", cs->dlog);
+		del1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -274,8 +274,8 @@ dch_fill_fifo(struct IsdnCardState *cs)
 	int count;
 	u_char cmd, *ptr;
 
-	if ((cs->debug & L1_DEB_ISAC) && !(cs->debug & L1_DEB_ISAC_FIFO))
-		debugl1(cs, "dch_fill_fifo()");
+	if ((cs->de & L1_DEB_ISAC) && !(cs->de & L1_DEB_ISAC_FIFO))
+		del1(cs, "dch_fill_fifo()");
 
 	if (!cs->tx_skb) return;
 	count = cs->tx_skb->len;
@@ -296,18 +296,18 @@ dch_fill_fifo(struct IsdnCardState *cs)
 
 	// set timeout for transmission contol
 	if (test_and_set_bit(FLG_DBUSY_TIMER, &cs->HW_Flags)) {
-		debugl1(cs, "dch_fill_fifo dbusytimer running");
+		del1(cs, "dch_fill_fifo dbusytimer running");
 		del_timer(&cs->dbusytimer);
 	}
 	cs->dbusytimer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&cs->dbusytimer);
 
-	if (cs->debug & L1_DEB_ISAC_FIFO) {
+	if (cs->de & L1_DEB_ISAC_FIFO) {
 		char *t = cs->dlog;
 
 		t += sprintf(t, "dch_fill_fifo() cnt %d", count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, "%s", cs->dlog);
+		del1(cs, "%s", cs->dlog);
 	}
 }
 
@@ -330,14 +330,14 @@ dch_int(struct IsdnCardState *cs)
 		rstad = cs->readisac(cs, IPACX_RSTAD);
 		if ((rstad & 0xf0) != 0xa0) { // !(VFR && !RDO && CRC && !RAB)
 			if (!(rstad & 0x80))
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "dch_int(): invalid frame");
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "dch_int(): invalid frame");
 			if ((rstad & 0x40))
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "dch_int(): RDO");
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "dch_int(): RDO");
 			if (!(rstad & 0x20))
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "dch_int(): CRC error");
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "dch_int(): CRC error");
 			cs->writeisac(cs, IPACX_CMDRD, 0x80);  // RMC
 		} else {  // received frame ok
 			count = cs->readisac(cs, IPACX_RBCLD);
@@ -364,7 +364,7 @@ dch_int(struct IsdnCardState *cs)
 	}
 
 	if (istad & 0x20) {  // RFO
-		if (cs->debug & L1_DEB_WARN) debugl1(cs, "dch_int(): RFO");
+		if (cs->de & L1_DEB_WARN) del1(cs, "dch_int(): RFO");
 		cs->writeisac(cs, IPACX_CMDRD, 0x40); //RRES
 	}
 
@@ -395,14 +395,14 @@ dch_int(struct IsdnCardState *cs)
 afterXPR:
 
 	if (istad & 0x0C) {  // XDU or XMR
-		if (cs->debug & L1_DEB_WARN) debugl1(cs, "dch_int(): XDU");
+		if (cs->de & L1_DEB_WARN) del1(cs, "dch_int(): XDU");
 		if (cs->tx_skb) {
 			skb_push(cs->tx_skb, cs->tx_cnt); // retransmit
 			cs->tx_cnt = 0;
 			dch_fill_fifo(cs);
 		} else {
 			printk(KERN_WARNING "HiSax: ISAC XDU no skb\n");
-			debugl1(cs, "ISAC XDU no skb");
+			del1(cs, "ISAC XDU no skb");
 		}
 	}
 }
@@ -512,13 +512,13 @@ bch_empty_fifo(struct BCState *bcs, int count)
 
 	cs = bcs->cs;
 	hscx = bcs->hw.hscx.hscx;
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "bch_empty_fifo()");
+	if ((cs->de & L1_DEB_HSCX) && !(cs->de & L1_DEB_HSCX_FIFO))
+		del1(cs, "bch_empty_fifo()");
 
 	// message too large, remove
 	if (bcs->hw.hscx.rcvidx + count > HSCX_BUFMAX) {
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "bch_empty_fifo() incoming packet too large");
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "bch_empty_fifo() incoming packet too large");
 		cs->BC_Write_Reg(cs, hscx, IPACX_CMDRB, 0x80);  // RMC
 		bcs->hw.hscx.rcvidx = 0;
 		return;
@@ -532,12 +532,12 @@ bch_empty_fifo(struct BCState *bcs, int count)
 	ptr = bcs->hw.hscx.rcvbuf + bcs->hw.hscx.rcvidx;
 	bcs->hw.hscx.rcvidx += count;
 
-	if (cs->debug & L1_DEB_HSCX_FIFO) {
+	if (cs->de & L1_DEB_HSCX_FIFO) {
 		char *t = bcs->blog;
 
 		t += sprintf(t, "bch_empty_fifo() B-%d cnt %d", hscx, count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, "%s", bcs->blog);
+		del1(cs, "%s", bcs->blog);
 	}
 }
 
@@ -552,8 +552,8 @@ bch_fill_fifo(struct BCState *bcs)
 	u_char *ptr, *p, hscx;
 
 	cs = bcs->cs;
-	if ((cs->debug & L1_DEB_HSCX) && !(cs->debug & L1_DEB_HSCX_FIFO))
-		debugl1(cs, "bch_fill_fifo()");
+	if ((cs->de & L1_DEB_HSCX) && !(cs->de & L1_DEB_HSCX_FIFO))
+		del1(cs, "bch_fill_fifo()");
 
 	if (!bcs->tx_skb)           return;
 	if (bcs->tx_skb->len <= 0)  return;
@@ -575,12 +575,12 @@ bch_fill_fifo(struct BCState *bcs)
 	while (cnt--) cs->BC_Write_Reg(cs, hscx, IPACX_XFIFOB, *p++);
 	cs->BC_Write_Reg(cs, hscx, IPACX_CMDRB, (more ? 0x08 : 0x0a));
 
-	if (cs->debug & L1_DEB_HSCX_FIFO) {
+	if (cs->de & L1_DEB_HSCX_FIFO) {
 		char *t = bcs->blog;
 
 		t += sprintf(t, "%s() B-%d cnt %d", __func__, hscx, count);
 		QuickHex(t, ptr, count);
-		debugl1(cs, "%s", bcs->blog);
+		del1(cs, "%s", bcs->blog);
 	}
 }
 
@@ -607,14 +607,14 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 		rstab = cs->BC_Read_Reg(cs, hscx, IPACX_RSTAB);
 		if ((rstab & 0xf0) != 0xa0) { // !(VFR && !RDO && CRC && !RAB)
 			if (!(rstab & 0x80))
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "bch_int() B-%d: invalid frame", hscx);
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "bch_int() B-%d: invalid frame", hscx);
 			if ((rstab & 0x40) && (bcs->mode != L1_MODE_NULL))
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "bch_int() B-%d: RDO mode=%d", hscx, bcs->mode);
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "bch_int() B-%d: RDO mode=%d", hscx, bcs->mode);
 			if (!(rstab & 0x20))
-				if (cs->debug & L1_DEB_WARN)
-					debugl1(cs, "bch_int() B-%d: CRC error", hscx);
+				if (cs->de & L1_DEB_WARN)
+					del1(cs, "bch_int() B-%d: CRC error", hscx);
 			cs->BC_Write_Reg(cs, hscx, IPACX_CMDRB, 0x80);  // RMC
 		}
 		else {  // received frame ok
@@ -622,8 +622,8 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 			if (count == 0) count = B_FIFO_SIZE;
 			bch_empty_fifo(bcs, count);
 			if ((count = bcs->hw.hscx.rcvidx - 1) > 0) {
-				if (cs->debug & L1_DEB_HSCX_FIFO)
-					debugl1(cs, "bch_int Frame %d", count);
+				if (cs->de & L1_DEB_HSCX_FIFO)
+					del1(cs, "bch_int Frame %d", count);
 				if (!(skb = dev_alloc_skb(count)))
 					printk(KERN_WARNING "HiSax bch_int(): receive frame out of memory\n");
 				else {
@@ -655,8 +655,8 @@ bch_int(struct IsdnCardState *cs, u_char hscx)
 	}
 
 	if (istab & 0x20) {	// RFO
-		if (cs->debug & L1_DEB_WARN)
-			debugl1(cs, "bch_int() B-%d: RFO error", hscx);
+		if (cs->de & L1_DEB_WARN)
+			del1(cs, "bch_int() B-%d: RFO error", hscx);
 		cs->BC_Write_Reg(cs, hscx, IPACX_CMDRB, 0x40);  // RRES
 	}
 
@@ -701,8 +701,8 @@ afterXPR:
 				bcs->hw.hscx.count = 0;
 			}
 			cs->BC_Write_Reg(cs, hscx, IPACX_CMDRB, 0x01);  // XRES
-			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "bch_int() B-%d XDU error", hscx);
+			if (cs->de & L1_DEB_WARN)
+				del1(cs, "bch_int() B-%d XDU error", hscx);
 		}
 	}
 }
@@ -716,8 +716,8 @@ bch_mode(struct BCState *bcs, int mode, int bc)
 	int hscx = bcs->hw.hscx.hscx;
 
 	bc = bc ? 1 : 0;  // in case bc is greater than 1
-	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "mode_bch() switch B-%d mode %d chan %d", hscx, mode, bc);
+	if (cs->de & L1_DEB_HSCX)
+		del1(cs, "mode_bch() switch B-%d mode %d chan %d", hscx, mode, bc);
 	bcs->mode = mode;
 	bcs->channel = bc;
 

@@ -30,7 +30,7 @@ static int __init ras_init(void)
 {
 	int rc = 0;
 
-	ras_debugfs_init();
+	ras_defs_init();
 	rc = ras_add_daemon_trace();
 
 	return rc;

@@ -232,14 +232,14 @@ typedef struct keyspan_usa67_globalStatusMessage
 		resetStatusCount;	// as in request
 } keyspan_usa67_globalStatusMessage;
 
-typedef struct keyspan_usa67_globalDebugMessage
+typedef struct keyspan_usa67_globalDeMessage
 {
 	u8	port,				// 2
 		a,
 		b,
 		c,
 		d;
-} keyspan_usa67_globalDebugMessage;
+} keyspan_usa67_globalDeMessage;
 
 // ie: the maximum length of an FX1 endpoint buffer
 #define	MAX_DATA_LEN			64

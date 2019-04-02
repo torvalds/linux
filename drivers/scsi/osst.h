@@ -619,7 +619,7 @@ struct osst_tape {
   unsigned long cmd_start_time;
   unsigned long max_cmd_time;
 
-#if DEBUG
+#if DE
   unsigned char write_pending;
   int nbr_finished;
   int nbr_waits;

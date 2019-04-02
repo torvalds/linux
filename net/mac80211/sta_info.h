@@ -127,7 +127,7 @@ enum ieee80211_agg_stop_reason {
 	AGG_STOP_DESTROY_STA,
 };
 
-/* Debugfs flags to enable/disable use of RX/TX airtime in scheduler */
+/* Defs flags to enable/disable use of RX/TX airtime in scheduler */
 #define AIRTIME_USE_TX		BIT(0)
 #define AIRTIME_USE_RX		BIT(1)
 
@@ -219,7 +219,7 @@ struct tid_ampdu_tx {
  * The @reorder_lock is used to protect the members of this
  * struct, except for @timeout, @buf_size and @dialog_token,
  * which are constant across the lifetime of the struct (the
- * dialog token being used only for debugging).
+ * dialog token being used only for deging).
  */
 struct tid_ampdu_rx {
 	struct rcu_head rcu_head;
@@ -478,12 +478,12 @@ struct ieee80211_sta_rx_stats {
  * @airtime_weight: station weight for airtime fairness calculation purposes
  * @ampdu_mlme: A-MPDU state machine state
  * @mesh: mesh STA information
- * @debugfs_dir: debug filesystem directory dentry
+ * @defs_dir: de filesystem directory dentry
  * @dead: set to true when sta is unlinked
  * @removed: set to true when sta is being removed from sta_list
  * @uploaded: set to true when sta is uploaded to the driver
  * @sta: station information we share with the driver
- * @sta_state: duplicates information about station state (for debug)
+ * @sta_state: duplicates information about station state (for de)
  * @rcu_head: RCU head used for freeing this station struct
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
@@ -608,8 +608,8 @@ struct sta_info {
 	 */
 	struct sta_ampdu_mlme ampdu_mlme;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *debugfs_dir;
+#ifdef CONFIG_MAC80211_DEFS
+	struct dentry *defs_dir;
 #endif
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;

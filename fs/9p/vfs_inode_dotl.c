@@ -59,7 +59,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 
 static kgid_t v9fs_get_fsgid_for_create(struct inode *dir_inode)
 {
-	BUG_ON(dir_inode == NULL);
+	_ON(dir_inode == NULL);
 
 	if (dir_inode->i_mode & S_ISGID) {
 		/* set_gid bit is set.*/
@@ -272,13 +272,13 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	v9ses = v9fs_inode2v9ses(dir);
 
 	name = dentry->d_name.name;
-	p9_debug(P9_DEBUG_VFS, "name:%s flags:0x%x mode:0x%hx\n",
+	p9_de(P9_DE_VFS, "name:%s flags:0x%x mode:0x%hx\n",
 		 name, flags, omode);
 
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
-		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		p9_de(P9_DE_VFS, "fid lookup failed %d\n", err);
 		goto out;
 	}
 
@@ -286,7 +286,7 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	ofid = clone_fid(dfid);
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
-		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
+		p9_de(P9_DE_VFS, "p9_client_walk failed %d\n", err);
 		goto out;
 	}
 
@@ -296,14 +296,14 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	/* Update mode based on ACL value */
 	err = v9fs_acl_mode(dir, &mode, &dacl, &pacl);
 	if (err) {
-		p9_debug(P9_DEBUG_VFS, "Failed to get acl values in creat %d\n",
+		p9_de(P9_DE_VFS, "Failed to get acl values in creat %d\n",
 			 err);
 		goto error;
 	}
 	err = p9_client_create_dotl(ofid, name, v9fs_open_to_dotl_flags(flags),
 				    mode, gid, &qid);
 	if (err < 0) {
-		p9_debug(P9_DEBUG_VFS, "p9_client_open_dotl failed in creat %d\n",
+		p9_de(P9_DE_VFS, "p9_client_open_dotl failed in creat %d\n",
 			 err);
 		goto error;
 	}
@@ -313,14 +313,14 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
+		p9_de(P9_DE_VFS, "p9_client_walk failed %d\n", err);
 		fid = NULL;
 		goto error;
 	}
 	inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
-		p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n", err);
+		p9_de(P9_DE_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
 	/* Now set the ACL based on the default value */
@@ -393,7 +393,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	struct p9_qid qid;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
-	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
+	p9_de(P9_DE_VFS, "name %pd\n", dentry);
 	err = 0;
 	v9ses = v9fs_inode2v9ses(dir);
 
@@ -404,7 +404,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
-		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		p9_de(P9_DE_VFS, "fid lookup failed %d\n", err);
 		dfid = NULL;
 		goto error;
 	}
@@ -414,7 +414,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	/* Update mode based on ACL value */
 	err = v9fs_acl_mode(dir, &mode, &dacl, &pacl);
 	if (err) {
-		p9_debug(P9_DEBUG_VFS, "Failed to get acl values in mkdir %d\n",
+		p9_de(P9_DE_VFS, "Failed to get acl values in mkdir %d\n",
 			 err);
 		goto error;
 	}
@@ -426,7 +426,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n",
+		p9_de(P9_DE_VFS, "p9_client_walk failed %d\n",
 			 err);
 		fid = NULL;
 		goto error;
@@ -437,7 +437,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
-			p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
+			p9_de(P9_DE_VFS, "inode creation failed %d\n",
 				 err);
 			goto error;
 		}
@@ -478,7 +478,7 @@ v9fs_vfs_getattr_dotl(const struct path *path, struct kstat *stat,
 	struct p9_fid *fid;
 	struct p9_stat_dotl *st;
 
-	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
+	p9_de(P9_DE_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
 		generic_fillattr(d_inode(dentry), stat);
@@ -559,7 +559,7 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	struct p9_iattr_dotl p9attr;
 	struct inode *inode = d_inode(dentry);
 
-	p9_debug(P9_DEBUG_VFS, "\n");
+	p9_de(P9_DE_VFS, "\n");
 
 	retval = setattr_prepare(dentry, iattr);
 	if (retval)
@@ -693,13 +693,13 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 	struct v9fs_session_info *v9ses;
 
 	name = dentry->d_name.name;
-	p9_debug(P9_DEBUG_VFS, "%lu,%s,%s\n", dir->i_ino, name, symname);
+	p9_de(P9_DE_VFS, "%lu,%s,%s\n", dir->i_ino, name, symname);
 	v9ses = v9fs_inode2v9ses(dir);
 
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
-		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		p9_de(P9_DE_VFS, "fid lookup failed %d\n", err);
 		return err;
 	}
 
@@ -709,7 +709,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 	err = p9_client_symlink(dfid, name, symname, gid, &qid);
 
 	if (err < 0) {
-		p9_debug(P9_DEBUG_VFS, "p9_client_symlink failed %d\n", err);
+		p9_de(P9_DE_VFS, "p9_client_symlink failed %d\n", err);
 		goto error;
 	}
 
@@ -719,7 +719,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		fid = p9_client_walk(dfid, 1, &name, 1);
 		if (IS_ERR(fid)) {
 			err = PTR_ERR(fid);
-			p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n",
+			p9_de(P9_DE_VFS, "p9_client_walk failed %d\n",
 				 err);
 			fid = NULL;
 			goto error;
@@ -729,7 +729,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
-			p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
+			p9_de(P9_DE_VFS, "inode creation failed %d\n",
 				 err);
 			goto error;
 		}
@@ -770,7 +770,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 	struct p9_fid *dfid, *oldfid;
 	struct v9fs_session_info *v9ses;
 
-	p9_debug(P9_DEBUG_VFS, "dir ino: %lu, old_name: %pd, new_name: %pd\n",
+	p9_de(P9_DE_VFS, "dir ino: %lu, old_name: %pd, new_name: %pd\n",
 		 dir->i_ino, old_dentry, dentry);
 
 	v9ses = v9fs_inode2v9ses(dir);
@@ -785,7 +785,7 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 	err = p9_client_link(dfid, oldfid, dentry->d_name.name);
 
 	if (err < 0) {
-		p9_debug(P9_DEBUG_VFS, "p9_client_link failed %d\n", err);
+		p9_de(P9_DE_VFS, "p9_client_link failed %d\n", err);
 		return err;
 	}
 
@@ -827,7 +827,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	struct p9_qid qid;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
-	p9_debug(P9_DEBUG_VFS, " %lu,%pd mode: %hx MAJOR: %u MINOR: %u\n",
+	p9_de(P9_DE_VFS, " %lu,%pd mode: %hx MAJOR: %u MINOR: %u\n",
 		 dir->i_ino, dentry, omode,
 		 MAJOR(rdev), MINOR(rdev));
 
@@ -835,7 +835,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
-		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		p9_de(P9_DE_VFS, "fid lookup failed %d\n", err);
 		dfid = NULL;
 		goto error;
 	}
@@ -845,7 +845,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	/* Update mode based on ACL value */
 	err = v9fs_acl_mode(dir, &mode, &dacl, &pacl);
 	if (err) {
-		p9_debug(P9_DEBUG_VFS, "Failed to get acl values in mknod %d\n",
+		p9_de(P9_DE_VFS, "Failed to get acl values in mknod %d\n",
 			 err);
 		goto error;
 	}
@@ -859,7 +859,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n",
+		p9_de(P9_DE_VFS, "p9_client_walk failed %d\n",
 			 err);
 		fid = NULL;
 		goto error;
@@ -870,7 +870,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
-			p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n",
+			p9_de(P9_DE_VFS, "inode creation failed %d\n",
 				 err);
 			goto error;
 		}
@@ -918,7 +918,7 @@ v9fs_vfs_get_link_dotl(struct dentry *dentry,
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
 
-	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
+	p9_de(P9_DE_VFS, "%pd\n", dentry);
 
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))

@@ -355,7 +355,7 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 	clamp_t(int, order_base_2(sectors) - 3, 0, LATENCY_BUCKET_SIZE - 1)
 
 /**
- * throtl_log - log debug message via blktrace
+ * throtl_log - log de message via blktrace
  * @sq: the service_queue being reported
  * @fmt: printf format string
  * @args: printf args
@@ -819,7 +819,7 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	unsigned long nr_slices, time_elapsed, io_trim;
 	u64 bytes_trim, tmp;
 
-	BUG_ON(time_before(tg->slice_end[rw], tg->slice_start[rw]));
+	_ON(time_before(tg->slice_end[rw], tg->slice_start[rw]));
 
 	/*
 	 * If bps are unlimited (-1), then time slice don't get
@@ -977,7 +977,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	 * this function with a different bio if there are other bios
 	 * queued.
 	 */
-	BUG_ON(tg->service_queue.nr_queued[rw] &&
+	_ON(tg->service_queue.nr_queued[rw] &&
 	       bio != throtl_peek_queued(&tg->service_queue.queued[rw]));
 
 	/* If tg->bps = -1, then BW is unlimited */
@@ -1144,7 +1144,7 @@ static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw)
 	} else {
 		throtl_qnode_add_bio(bio, &tg->qnode_on_parent[rw],
 				     &parent_sq->queued[rw]);
-		BUG_ON(tg->td->nr_queued[rw] <= 0);
+		_ON(tg->td->nr_queued[rw] <= 0);
 		tg->td->nr_queued[rw]--;
 	}
 
@@ -2413,7 +2413,7 @@ int blk_throtl_init(struct request_queue *q)
 
 void blk_throtl_exit(struct request_queue *q)
 {
-	BUG_ON(!q->td);
+	_ON(!q->td);
 	throtl_shutdown_wq(q);
 	blkcg_deactivate_policy(q, &blkcg_policy_throtl);
 	free_percpu(q->td->latency_buckets[READ]);
@@ -2427,7 +2427,7 @@ void blk_throtl_register_queue(struct request_queue *q)
 	int i;
 
 	td = q->td;
-	BUG_ON(!td);
+	_ON(!td);
 
 	if (blk_queue_nonrot(q)) {
 		td->throtl_slice = DFL_THROTL_SLICE_SSD;

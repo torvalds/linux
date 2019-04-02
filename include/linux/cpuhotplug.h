@@ -110,7 +110,7 @@ enum cpuhp_state {
 	CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
 	CPUHP_AP_ARM_SDEI_STARTING,
 	CPUHP_AP_ARM_VFP_STARTING,
-	CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING,
+	CPUHP_AP_ARM64_DE_MONITORS_STARTING,
 	CPUHP_AP_PERF_ARM_HW_BREAKPOINT_STARTING,
 	CPUHP_AP_PERF_ARM_ACPI_STARTING,
 	CPUHP_AP_PERF_ARM_STARTING,
@@ -193,7 +193,7 @@ int __cpuhp_setup_state_cpuslocked(enum cpuhp_state state, const char *name,
 /**
  * cpuhp_setup_state - Setup hotplug state callbacks with calling the callbacks
  * @state:	The state for which the calls are installed
- * @name:	Name of the callback (will be used in debug output)
+ * @name:	Name of the callback (will be used in de output)
  * @startup:	startup callback function
  * @teardown:	teardown callback function
  *

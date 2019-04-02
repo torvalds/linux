@@ -63,7 +63,7 @@ static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 
 	switch (type) {
 	case SNDRV_OSS_DEVICE_TYPE_MIXER:
-		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
+		if (snd__ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
 		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIXER1 : SNDRV_MINOR_OSS_MIXER));
 		break;
@@ -74,12 +74,12 @@ static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 		minor = SNDRV_MINOR_OSS_MUSIC;
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_PCM:
-		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
+		if (snd__ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
 		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_PCM1 : SNDRV_MINOR_OSS_PCM));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_MIDI:
-		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
+		if (snd__ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
 		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIDI1 : SNDRV_MINOR_OSS_MIDI));
 		break;

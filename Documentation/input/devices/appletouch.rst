@@ -76,15 +76,15 @@ The appletouch driver tries to handle this noise and auto adapt itself, but it
 is not perfect. If finger movements are not recognized anymore, try reloading
 the driver.
 
-You can activate debugging using the 'debug' module parameter. A value of 0
-deactivates any debugging, 1 activates tracing of invalid samples, 2 activates
+You can activate deging using the 'de' module parameter. A value of 0
+deactivates any deging, 1 activates tracing of invalid samples, 2 activates
 full tracing (each sample is being traced)::
 
-	modprobe appletouch debug=1
+	modprobe appletouch de=1
 
 or::
 
-	echo "1" > /sys/module/appletouch/parameters/debug
+	echo "1" > /sys/module/appletouch/parameters/de
 
 
 .. Links:

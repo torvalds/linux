@@ -59,7 +59,7 @@ static int atmel_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	buf->private_data = NULL;
 	buf->area = dma_alloc_coherent(pcm->card->dev, size,
 			&buf->addr, GFP_KERNEL);
-	pr_debug("atmel-pcm: alloc dma buffer: area=%p, addr=%p, size=%zu\n",
+	pr_de("atmel-pcm: alloc dma buffer: area=%p, addr=%p, size=%zu\n",
 			(void *)buf->area, (void *)(long)buf->addr, size);
 
 	if (!buf->area)
@@ -88,7 +88,7 @@ static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
-		pr_debug("atmel-pcm: allocating PCM playback DMA buffer\n");
+		pr_de("atmel-pcm: allocating PCM playback DMA buffer\n");
 		ret = atmel_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
@@ -96,7 +96,7 @@ static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		pr_debug("atmel-pcm: allocating PCM capture DMA buffer\n");
+		pr_de("atmel-pcm: allocating PCM capture DMA buffer\n");
 		ret = atmel_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -229,7 +229,7 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 	prtd->dma_buffer_end = runtime->dma_addr + runtime->dma_bytes;
 	prtd->period_size = params_period_bytes(params);
 
-	pr_debug("atmel-pcm: "
+	pr_de("atmel-pcm: "
 		"hw_params: DMA for %s initialized "
 		"(dma_bytes=%zu, period_size=%zu)\n",
 		prtd->params->name,
@@ -272,7 +272,7 @@ static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
 	struct atmel_pcm_dma_params *params = prtd->params;
 	int ret = 0;
 
-	pr_debug("atmel-pcm:buffer_size = %ld,"
+	pr_de("atmel-pcm:buffer_size = %ld,"
 		"dma_area = %p, dma_bytes = %zu\n",
 		rtd->buffer_size, rtd->dma_area, rtd->dma_bytes);
 
@@ -291,7 +291,7 @@ static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
 		ssc_writex(params->ssc->regs, params->pdc->xncr,
 			   prtd->period_size / params->pdc_xfer_size);
 
-		pr_debug("atmel-pcm: trigger: "
+		pr_de("atmel-pcm: trigger: "
 			"period_ptr=%lx, xpr=%u, "
 			"xcr=%u, xnpr=%u, xncr=%u\n",
 			(unsigned long)prtd->period_ptr,
@@ -305,7 +305,7 @@ static int atmel_pcm_trigger(struct snd_pcm_substream *substream,
 		ssc_writex(params->ssc->regs, SSC_PDC_PTCR,
 			   params->mask->pdc_enable);
 
-		pr_debug("sr=%u imr=%u\n",
+		pr_de("sr=%u imr=%u\n",
 			ssc_readx(params->ssc->regs, SSC_SR),
 			ssc_readx(params->ssc->regs, SSC_IER));
 		break;		/* SNDRV_PCM_TRIGGER_START */

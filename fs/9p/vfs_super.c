@@ -126,7 +126,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	struct p9_fid *fid;
 	int retval = 0;
 
-	p9_debug(P9_DEBUG_VFS, "\n");
+	p9_de(P9_DE_VFS, "\n");
 
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
@@ -193,7 +193,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		goto release_sb;
 	v9fs_fid_add(root, fid);
 
-	p9_debug(P9_DEBUG_VFS, " simple set mount, return 0\n");
+	p9_de(P9_DE_VFS, " simple set mount, return 0\n");
 	return dget(sb->s_root);
 
 clunk_fid:
@@ -225,7 +225,7 @@ static void v9fs_kill_super(struct super_block *s)
 {
 	struct v9fs_session_info *v9ses = s->s_fs_info;
 
-	p9_debug(P9_DEBUG_VFS, " %p\n", s);
+	p9_de(P9_DE_VFS, " %p\n", s);
 
 	kill_anon_super(s);
 
@@ -233,7 +233,7 @@ static void v9fs_kill_super(struct super_block *s)
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
 	s->s_fs_info = NULL;
-	p9_debug(P9_DEBUG_VFS, "exiting kill_super\n");
+	p9_de(P9_DE_VFS, "exiting kill_super\n");
 }
 
 static void
@@ -305,7 +305,7 @@ static int v9fs_write_inode(struct inode *inode,
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+	p9_de(P9_DE_VFS, "%s: inode %p\n", __func__, inode);
 	v9inode = V9FS_I(inode);
 	if (!v9inode->writeback_fid)
 		return 0;
@@ -329,7 +329,7 @@ static int v9fs_write_inode_dotl(struct inode *inode,
 	 * wbc->sync_mode.
 	 */
 	v9inode = V9FS_I(inode);
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p, writeback_fid %p\n",
+	p9_de(P9_DE_VFS, "%s: inode %p, writeback_fid %p\n",
 		 __func__, inode, v9inode->writeback_fid);
 	if (!v9inode->writeback_fid)
 		return 0;

@@ -240,7 +240,7 @@ static int hdaps_device_init(void)
 		     __check_latch(0x1611, 0x01))
 		goto out;
 
-	printk(KERN_DEBUG "hdaps: initial latch check good (0x%02x)\n",
+	printk(KERN_DE "hdaps: initial latch check good (0x%02x)\n",
 	       __get_latch(0x1611));
 
 	outb(0x17, 0x1610);

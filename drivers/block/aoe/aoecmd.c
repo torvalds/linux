@@ -1212,7 +1212,7 @@ ktio(int id)
 		actual_id = f->t->d->aoeminor % ncpus;
 
 		if (!kts[actual_id].active) {
-			BUG_ON(id != 0);
+			_ON(id != 0);
 			mutex_lock(&ktio_spawn_lock);
 			if (!kts[actual_id].active
 				&& aoe_ktstart(&kts[actual_id]) == 0)

@@ -81,7 +81,7 @@ static int __init zevio_of_init(struct device_node *node,
 		return -EBUSY;
 
 	zevio_irq_io = of_iomap(node, 0);
-	BUG_ON(!zevio_irq_io);
+	_ON(!zevio_irq_io);
 
 	/* Do not invert interrupt status bits */
 	writel(~0, zevio_irq_io + IO_INVERT_SEL);
@@ -98,12 +98,12 @@ static int __init zevio_of_init(struct device_node *node,
 
 	zevio_irq_domain = irq_domain_add_linear(node, MAX_INTRS,
 						 &irq_generic_chip_ops, NULL);
-	BUG_ON(!zevio_irq_domain);
+	_ON(!zevio_irq_domain);
 
 	ret = irq_alloc_domain_generic_chips(zevio_irq_domain, MAX_INTRS, 1,
 					     "zevio_intc", handle_level_irq,
 					     clr, 0, IRQ_GC_INIT_MASK_CACHE);
-	BUG_ON(ret);
+	_ON(ret);
 
 	gc = irq_get_domain_generic_chip(zevio_irq_domain, 0);
 	gc->reg_base				= zevio_irq_io;

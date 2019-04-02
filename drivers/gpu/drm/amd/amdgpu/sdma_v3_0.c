@@ -271,7 +271,7 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 
-	DRM_DEBUG("\n");
+	DRM_DE("\n");
 
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
@@ -298,7 +298,7 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_STONEY:
 		chip_name = "stoney";
 		break;
-	default: BUG();
+	default: ();
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -1386,7 +1386,7 @@ static int sdma_v3_0_process_trap_irq(struct amdgpu_device *adev,
 
 	instance_id = (entry->ring_id & 0x3) >> 0;
 	queue_id = (entry->ring_id & 0xc) >> 2;
-	DRM_DEBUG("IH: SDMA trap\n");
+	DRM_DE("IH: SDMA trap\n");
 	switch (instance_id) {
 	case 0:
 		switch (queue_id) {

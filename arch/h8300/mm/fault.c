@@ -36,8 +36,8 @@ void die(const char *str, struct pt_regs *fp, unsigned long err);
 asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
 			      unsigned long error_code)
 {
-#ifdef DEBUG
-	pr_debug("regs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld\n",
+#ifdef DE
+	pr_de("regs->sr=%#x, regs->pc=%#lx, address=%#lx, %ld\n",
 		 regs->sr, regs->pc, address, error_code);
 #endif
 

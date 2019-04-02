@@ -141,7 +141,7 @@ struct finger_pos {
 struct elantech_device_info {
 	unsigned char capabilities[3];
 	unsigned char samples[3];
-	unsigned char debug;
+	unsigned char de;
 	unsigned char hw_version;
 	unsigned int fw_version;
 	unsigned int x_res;

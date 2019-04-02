@@ -139,12 +139,12 @@ I was a beta test site for the BT-948/958, and versions 1.2.1 and 1.3.1 of
 my BusLogic driver already included latent support for the BT-948/958.
 Additional cosmetic support for the Ultra SCSI MultiMaster cards was added
 subsequent releases.  As a result of this cooperative testing process,
-several firmware bugs were found and corrected.  My heavily loaded Linux
+several firmware s were found and corrected.  My heavily loaded Linux
 test system provided an ideal environment for testing error recovery
 processes that are much more rarely exercised in production systems, but
 are crucial to overall system stability.  It was especially convenient
 being able to work directly with their firmware engineer in demonstrating
-the problems under control of the firmware debugging environment; things
+the problems under control of the firmware deging environment; things
 sure have come a long way since the last time I worked on firmware for an
 embedded system.  I am presently working on some performance testing and
 expect to have some data to report in the not too distant future.

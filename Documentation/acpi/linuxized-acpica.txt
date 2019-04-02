@@ -168,7 +168,7 @@ upstream.
    for review, there is a quality assurance build test process to reduce
    porting issues.  Currently this build process only takes care of the
    following kernel configuration options:
-   CONFIG_ACPI/CONFIG_ACPI_DEBUG/CONFIG_ACPI_DEBUGGER
+   CONFIG_ACPI/CONFIG_ACPI_DE/CONFIG_ACPI_DEGER
 
 3. ACPICA Divergences
 

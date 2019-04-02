@@ -166,7 +166,7 @@ the SLIP/KISS driver, from which the 6pack driver has been derived.
 I haven't modified or removed them yet -- sorry! The code itself needs
 some cleaning and optimizing. This will be done in a later release.
 
-If you encounter a bug or if you have a question or suggestion concerning the
+If you encounter a  or if you have a question or suggestion concerning the
 driver, feel free to mail me, using the addresses given at the beginning of
 this file.
 

@@ -40,7 +40,7 @@
 #define BLIT	"s1d13xxxfb_bitblt: "
 
 /*
- * set this to enable debugging on general functions
+ * set this to enable deging on general functions
  */
 #if 0
 #define dbg(fmt, args...) do { printk(KERN_INFO fmt, ## args); } while(0)
@@ -49,7 +49,7 @@
 #endif
 
 /*
- * set this to enable debugging on 2D acceleration
+ * set this to enable deging on 2D acceleration
  */
 #if 0
 #define dbg_blit(fmt, args...) do { printk(KERN_INFO BLIT fmt, ## args); } while (0)

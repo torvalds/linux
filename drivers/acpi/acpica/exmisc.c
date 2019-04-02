@@ -54,7 +54,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 		switch (obj_desc->reference.class) {
 		case ACPI_REFCLASS_LOCAL:
 		case ACPI_REFCLASS_ARG:
-		case ACPI_REFCLASS_DEBUG:
+		case ACPI_REFCLASS_DE:
 
 			/* The referenced object is the pseudo-node for the local/arg */
 
@@ -95,7 +95,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 	reference_obj->reference.object = referenced_obj;
 	*return_desc = reference_obj;
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+	ACPI_DE_PRINT((ACPI_DB_EXEC,
 			  "Object %p Type [%s], returning Reference %p\n",
 			  obj_desc, acpi_ut_get_object_type_name(obj_desc),
 			  *return_desc));

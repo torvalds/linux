@@ -282,7 +282,7 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 		    (jit_enable == 2 && bpf_dump_raw_ok())) {
 			*(int *)table->data = jit_enable;
 			if (jit_enable == 2)
-				pr_warn("bpf_jit_enable = 2 was set! NEVER use this in production, only for JIT debugging!\n");
+				pr_warn("bpf_jit_enable = 2 was set! NEVER use this in production, only for JIT deging!\n");
 		} else {
 			ret = -EPERM;
 		}
@@ -614,7 +614,7 @@ static __net_exit void sysctl_core_net_exit(struct net *net)
 
 	tbl = net->core.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->core.sysctl_hdr);
-	BUG_ON(tbl == netns_core_table);
+	_ON(tbl == netns_core_table);
 	kfree(tbl);
 }
 

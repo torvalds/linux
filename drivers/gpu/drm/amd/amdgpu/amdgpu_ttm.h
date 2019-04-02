@@ -44,8 +44,8 @@ struct amdgpu_mman {
 	bool				initialized;
 	void __iomem			*aper_base_kaddr;
 
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*debugfs_entries[8];
+#if defined(CONFIG_DE_FS)
+	struct dentry			*defs_entries[8];
 #endif
 
 	/* buffer handling */

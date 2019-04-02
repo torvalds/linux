@@ -88,7 +88,7 @@ static int show_msp_pci_counts(struct seq_file *m, void *v)
  *  FUNCTION: gen_pci_cfg_wr_show
  *  _________________________________________________________________________
  *
- *  DESCRIPTION: Generates a configuration write cycle for debug purposes.
+ *  DESCRIPTION: Generates a configuration write cycle for de purposes.
  *		 The IDSEL line asserted and location and data written are
  *		 immaterial. Just want to be able to prove that a
  *		 configuration write can be correctly generated on the
@@ -153,7 +153,7 @@ static int gen_pci_cfg_wr_show(struct seq_file *m, void *v)
  *  FUNCTION: pci_proc_init
  *  _________________________________________________________________________
  *
- *  DESCRIPTION: Create entries in the /proc filesystem for debug access.
+ *  DESCRIPTION: Create entries in the /proc filesystem for de access.
  *
  *  INPUTS:	 none
  *

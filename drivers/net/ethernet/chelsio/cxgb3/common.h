@@ -47,7 +47,7 @@
 
 /*
  * More powerful macro that selectively prints messages based on msg_enable.
- * For info and debugging messages.
+ * For info and deging messages.
  */
 #define CH_MSG(adapter, level, category, fmt, ...) do { \
 	if ((adapter)->msg_enable & NETIF_MSG_##category) \
@@ -55,9 +55,9 @@
 			   ## __VA_ARGS__); \
 } while (0)
 
-#ifdef DEBUG
+#ifdef DE
 # define CH_DBG(adapter, category, fmt, ...) \
-	CH_MSG(adapter, DEBUG, category, fmt, ## __VA_ARGS__)
+	CH_MSG(adapter, DE, category, fmt, ## __VA_ARGS__)
 #else
 # define CH_DBG(adapter, category, fmt, ...)
 #endif

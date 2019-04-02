@@ -37,9 +37,9 @@ MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL v2");
 
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-2)");
+static int de;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level (0-2)");
 
 #define dprintk0(__dev, __arg...) dev_dbg_lvl(__dev, 0, 0, __arg)
 
@@ -282,7 +282,7 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 		break;
 	}
 
-	dev_dbg_lvl(sd->dev, 1, debug, "Selecting video route: route input=%i, output=%i => tvp5150 input=%i, opmode=%i\n",
+	dev_dbg_lvl(sd->dev, 1, de, "Selecting video route: route input=%i, output=%i => tvp5150 input=%i, opmode=%i\n",
 			decoder->input, decoder->output,
 			input, opmode);
 
@@ -620,7 +620,7 @@ static int tvp5150_g_sliced_vbi_cap(struct v4l2_subdev *sd,
 {
 	int line, i;
 
-	dev_dbg_lvl(sd->dev, 1, debug, "g_sliced_vbi_cap\n");
+	dev_dbg_lvl(sd->dev, 1, de, "g_sliced_vbi_cap\n");
 	memset(cap, 0, sizeof(*cap));
 
 	for (i = 0; i < ARRAY_SIZE(vbi_ram_default); i++) {
@@ -756,7 +756,7 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 			fmt = VIDEO_STD_SECAM_BIT;
 	}
 
-	dev_dbg_lvl(sd->dev, 1, debug, "Set video std register to %d.\n", fmt);
+	dev_dbg_lvl(sd->dev, 1, de, "Set video std register to %d.\n", fmt);
 	regmap_write(decoder->regmap, TVP5150_VIDEO_STD, fmt);
 	return 0;
 }
@@ -851,7 +851,7 @@ static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 
 		if (status & TVP5150_INT_A_LOCK) {
 			decoder->lock = !!(status & TVP5150_INT_A_LOCK_STATUS);
-			dev_dbg_lvl(decoder->sd.dev, 1, debug,
+			dev_dbg_lvl(decoder->sd.dev, 1, de,
 				    "sync lo%s signal\n",
 				    decoder->lock ? "ck" : "ss");
 			v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
@@ -1005,7 +1005,7 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 	f->field = TVP5150_FIELD;
 	f->colorspace = TVP5150_COLORSPACE;
 
-	dev_dbg_lvl(sd->dev, 1, debug, "width = %d, height = %d\n", f->width,
+	dev_dbg_lvl(sd->dev, 1, de, "width = %d, height = %d\n", f->width,
 		    f->height);
 	return 0;
 }
@@ -1023,7 +1023,7 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	    sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	dev_dbg_lvl(sd->dev, 1, debug, "%s left=%d, top=%d, width=%d, height=%d\n",
+	dev_dbg_lvl(sd->dev, 1, de, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
 
 	/* tvp5150 has some special limits */
@@ -1318,7 +1318,7 @@ static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	int res;
@@ -1395,7 +1395,7 @@ static const struct v4l2_ctrl_ops tvp5150_ctrl_ops = {
 static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.log_status = tvp5150_log_status,
 	.reset = tvp5150_reset,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
 #endif
@@ -1797,7 +1797,7 @@ static int tvp5150_probe(struct i2c_client *c,
 	if (res < 0)
 		goto err;
 
-	if (debug > 1)
+	if (de > 1)
 		tvp5150_log_status(sd);
 	return 0;
 
@@ -1811,7 +1811,7 @@ static int tvp5150_remove(struct i2c_client *c)
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	dev_dbg_lvl(sd->dev, 1, debug,
+	dev_dbg_lvl(sd->dev, 1, de,
 		"tvp5150.c: removing tvp5150 adapter on address 0x%x\n",
 		c->addr << 1);
 

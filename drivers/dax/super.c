@@ -97,21 +97,21 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	int err, id;
 
 	if (blocksize != PAGE_SIZE) {
-		pr_debug("%s: error: unsupported blocksize for dax\n",
+		pr_de("%s: error: unsupported blocksize for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
 	q = bdev_get_queue(bdev);
 	if (!q || !blk_queue_dax(q)) {
-		pr_debug("%s: error: request queue doesn't support dax\n",
+		pr_de("%s: error: request queue doesn't support dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
 	err = bdev_dax_pgoff(bdev, 0, PAGE_SIZE, &pgoff);
 	if (err) {
-		pr_debug("%s: error: unaligned partition for dax\n",
+		pr_de("%s: error: unaligned partition for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -119,14 +119,14 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	last_page = PFN_DOWN(i_size_read(bdev->bd_inode) - 1) * 8;
 	err = bdev_dax_pgoff(bdev, last_page, PAGE_SIZE, &pgoff_end);
 	if (err) {
-		pr_debug("%s: error: unaligned partition for dax\n",
+		pr_de("%s: error: unaligned partition for dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
 	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
 	if (!dax_dev) {
-		pr_debug("%s: error: device does not support dax\n",
+		pr_de("%s: error: device does not support dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -139,7 +139,7 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	put_dax(dax_dev);
 
 	if (len < 1 || len2 < 1) {
-		pr_debug("%s: error: dax access failed (%ld)\n",
+		pr_de("%s: error: dax access failed (%ld)\n",
 				bdevname(bdev, buf), len < 1 ? len : len2);
 		return false;
 	}
@@ -172,7 +172,7 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 	}
 
 	if (!dax_enabled) {
-		pr_debug("%s: error: dax support not enabled\n",
+		pr_de("%s: error: dax support not enabled\n",
 				bdevname(bdev, buf));
 		return false;
 	}

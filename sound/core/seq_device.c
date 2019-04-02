@@ -217,7 +217,7 @@ int snd_seq_device_new(struct snd_card *card, int device, const char *id,
 	if (result)
 		*result = NULL;
 
-	if (snd_BUG_ON(!id))
+	if (snd__ON(!id))
 		return -EINVAL;
 
 	dev = kzalloc(sizeof(*dev) + argsize, GFP_KERNEL);

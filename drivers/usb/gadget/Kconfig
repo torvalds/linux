@@ -46,51 +46,51 @@ menuconfig USB_GADGET
 
 if USB_GADGET
 
-config USB_GADGET_DEBUG
-	bool "Debugging messages (DEVELOPMENT)"
-	depends on DEBUG_KERNEL
+config USB_GADGET_DE
+	bool "Deging messages (DEVELOPMENT)"
+	depends on DE_KERNEL
 	help
-	   Many controller and gadget drivers will print some debugging
+	   Many controller and gadget drivers will print some deging
 	   messages if you use this option to ask for those messages.
 
 	   Avoid enabling these messages, even if you're actively
-	   debugging such a driver.  Many drivers will emit so many
+	   deging such a driver.  Many drivers will emit so many
 	   messages that the driver timings are affected, which will
 	   either create new failure modes or remove the one you're
 	   trying to track down.  Never enable these messages for a
 	   production build.
 
 config USB_GADGET_VERBOSE
-	bool "Verbose debugging Messages (DEVELOPMENT)"
-	depends on USB_GADGET_DEBUG
+	bool "Verbose deging Messages (DEVELOPMENT)"
+	depends on USB_GADGET_DE
 	help
-	   Many controller and gadget drivers will print verbose debugging
+	   Many controller and gadget drivers will print verbose deging
 	   messages if you use this option to ask for those messages.
 
 	   Avoid enabling these messages, even if you're actively
-	   debugging such a driver.  Many drivers will emit so many
+	   deging such a driver.  Many drivers will emit so many
 	   messages that the driver timings are affected, which will
 	   either create new failure modes or remove the one you're
 	   trying to track down.  Never enable these messages for a
 	   production build.
 
-config USB_GADGET_DEBUG_FILES
-	bool "Debugging information files (DEVELOPMENT)"
+config USB_GADGET_DE_FILES
+	bool "Deging information files (DEVELOPMENT)"
 	depends on PROC_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
-	   debugging information in files such as /proc/driver/udc
+	   deging information in files such as /proc/driver/udc
 	   (for a peripheral controller).  The information in these
 	   files may help when you're troubleshooting or bringing up a
 	   driver on a new board.   Enable these files by choosing "Y"
 	   here.  If in doubt, or to conserve kernel memory, say "N".
 
-config USB_GADGET_DEBUG_FS
-	bool "Debugging information files in debugfs (DEVELOPMENT)"
-	depends on DEBUG_FS
+config USB_GADGET_DE_FS
+	bool "Deging information files in defs (DEVELOPMENT)"
+	depends on DE_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
-	   debugging information in files under /sys/kernel/debug/.
+	   deging information in files under /sys/kernel/de/.
 	   The information in these files may help when you're
 	   troubleshooting or bringing up a driver on a new board.
 	   Enable these files by choosing "Y" here.  If in doubt, or
@@ -125,7 +125,7 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 	   an CPU on-demand governor. Especially if DMA is doing IO to
 	   offload the CPU. In this case the CPU will go into power
 	   save often and spin up occasionally to move data within VFS.
-	   If selecting USB_GADGET_DEBUG_FILES this value may be set by
+	   If selecting USB_GADGET_DE_FILES this value may be set by
 	   a module parameter as well.
 	   If unsure, say 2.
 

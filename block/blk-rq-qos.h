@@ -7,9 +7,9 @@
 #include <linux/atomic.h>
 #include <linux/wait.h>
 
-#include "blk-mq-debugfs.h"
+#include "blk-mq-defs.h"
 
-struct blk_mq_debugfs_attr;
+struct blk_mq_defs_attr;
 
 enum rq_qos_id {
 	RQ_QOS_WBT,
@@ -26,8 +26,8 @@ struct rq_qos {
 	struct request_queue *q;
 	enum rq_qos_id id;
 	struct rq_qos *next;
-#ifdef CONFIG_BLK_DEBUG_FS
-	struct dentry *debugfs_dir;
+#ifdef CONFIG_BLK_DE_FS
+	struct dentry *defs_dir;
 #endif
 };
 
@@ -40,7 +40,7 @@ struct rq_qos_ops {
 	void (*done_bio)(struct rq_qos *, struct bio *);
 	void (*cleanup)(struct rq_qos *, struct bio *);
 	void (*exit)(struct rq_qos *);
-	const struct blk_mq_debugfs_attr *debugfs_attrs;
+	const struct blk_mq_defs_attr *defs_attrs;
 };
 
 struct rq_depth {
@@ -96,8 +96,8 @@ static inline void rq_qos_add(struct request_queue *q, struct rq_qos *rqos)
 	rqos->next = q->rq_qos;
 	q->rq_qos = rqos;
 
-	if (rqos->ops->debugfs_attrs)
-		blk_mq_debugfs_register_rqos(rqos);
+	if (rqos->ops->defs_attrs)
+		blk_mq_defs_register_rqos(rqos);
 }
 
 static inline void rq_qos_del(struct request_queue *q, struct rq_qos *rqos)
@@ -114,7 +114,7 @@ static inline void rq_qos_del(struct request_queue *q, struct rq_qos *rqos)
 		prev = cur;
 	}
 
-	blk_mq_debugfs_unregister_rqos(rqos);
+	blk_mq_defs_unregister_rqos(rqos);
 }
 
 typedef bool (acquire_inflight_cb_t)(struct rq_wait *rqw, void *private_data);

@@ -238,7 +238,7 @@ void ocfs2_recovery_exit(struct ocfs2_super *osb)
 	 * freed,  the osb_lock is not taken here.
 	 */
 	rm = osb->recovery_map;
-	/* XXX: Should we bug if there are dirty entries? */
+	/* XXX: Should we  if there are dirty entries? */
 
 	kfree(rm);
 }
@@ -272,7 +272,7 @@ static int ocfs2_recovery_map_set(struct ocfs2_super *osb,
 	}
 
 	/* XXX: Can this be exploited? Not from o2dlm... */
-	BUG_ON(rm->rm_used >= osb->max_slots);
+	_ON(rm->rm_used >= osb->max_slots);
 
 	rm->rm_entries[rm->rm_used] = node_num;
 	rm->rm_used++;
@@ -350,13 +350,13 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 	journal_t *journal = osb->journal->j_journal;
 	handle_t *handle;
 
-	BUG_ON(!osb || !osb->journal->j_journal);
+	_ON(!osb || !osb->journal->j_journal);
 
 	if (ocfs2_is_hard_readonly(osb))
 		return ERR_PTR(-EROFS);
 
-	BUG_ON(osb->journal->j_state == OCFS2_JOURNAL_FREE);
-	BUG_ON(max_buffs <= 0);
+	_ON(osb->journal->j_state == OCFS2_JOURNAL_FREE);
+	_ON(max_buffs <= 0);
 
 	/* Nested transaction? Just return the handle... */
 	if (journal_current_handle())
@@ -391,7 +391,7 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 	int ret, nested;
 	struct ocfs2_journal *journal = osb->journal;
 
-	BUG_ON(!handle);
+	_ON(!handle);
 
 	nested = handle->h_ref > 1;
 	ret = jbd2_journal_stop(handle);
@@ -427,8 +427,8 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 {
 	int status, old_nblocks;
 
-	BUG_ON(!handle);
-	BUG_ON(nblocks < 0);
+	_ON(!handle);
+	_ON(nblocks < 0);
 
 	if (!nblocks)
 		return 0;
@@ -437,7 +437,7 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 
 	trace_ocfs2_extend_trans(old_nblocks, nblocks);
 
-#ifdef CONFIG_OCFS2_DEBUG_FS
+#ifdef CONFIG_OCFS2_DE_FS
 	status = 1;
 #else
 	status = jbd2_journal_extend(handle, nblocks);
@@ -472,7 +472,7 @@ int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
 {
 	int status, old_nblks;
 
-	BUG_ON(!handle);
+	_ON(!handle);
 
 	old_nblks = handle->h_buffer_credits;
 	trace_ocfs2_allocate_extend_trans(old_nblks, thresh);
@@ -655,9 +655,9 @@ static int __ocfs2_journal_access(handle_t *handle,
 	struct ocfs2_super *osb =
 		OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
 
-	BUG_ON(!ci || !ci->ci_ops);
-	BUG_ON(!handle);
-	BUG_ON(!bh);
+	_ON(!ci || !ci->ci_ops);
+	_ON(!handle);
+	_ON(!bh);
 
 	trace_ocfs2_journal_access(
 		(unsigned long long)ocfs2_metadata_cache_owner(ci),
@@ -835,7 +835,7 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	struct ocfs2_super *osb;
 	int inode_lock = 0;
 
-	BUG_ON(!journal);
+	_ON(!journal);
 
 	osb = journal->j_osb;
 
@@ -941,8 +941,8 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 
 	/* The journal bh on the osb always comes from ocfs2_journal_init()
 	 * and was validated there inside ocfs2_inode_lock_full().  It's a
-	 * code bug if we mess it up. */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+	 * code  if we mess it up. */
+	_ON(!OCFS2_IS_VALID_DINODE(fe));
 
 	flags = le32_to_cpu(fe->id1.journal1.ij_flags);
 	if (dirty)
@@ -973,7 +973,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	struct inode *inode = NULL;
 	int num_running_trans = 0;
 
-	BUG_ON(!osb);
+	_ON(!osb);
 
 	journal = osb->journal;
 	if (!journal)
@@ -986,7 +986,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 	/* need to inc inode use count - jbd2_journal_destroy will iput. */
 	if (!igrab(inode))
-		BUG();
+		();
 
 	num_running_trans = atomic_read(&(osb->journal->j_num_trans));
 	trace_ocfs2_journal_shutdown(num_running_trans);
@@ -1007,7 +1007,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 		osb->commit_task = NULL;
 	}
 
-	BUG_ON(atomic_read(&(osb->journal->j_num_trans)) != 0);
+	_ON(atomic_read(&(osb->journal->j_num_trans)) != 0);
 
 	if (ocfs2_mount_local(osb)) {
 		jbd2_journal_lock_updates(journal->j_journal);
@@ -1067,7 +1067,7 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local, int replayed)
 	int status = 0;
 	struct ocfs2_super *osb;
 
-	BUG_ON(!journal);
+	_ON(!journal);
 
 	osb = journal->j_osb;
 
@@ -1110,7 +1110,7 @@ int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 {
 	int status;
 
-	BUG_ON(!journal);
+	_ON(!journal);
 
 	status = jbd2_journal_wipe(journal->j_journal, full);
 	if (status < 0) {
@@ -1541,7 +1541,7 @@ static int ocfs2_read_journal_inode(struct ocfs2_super *osb,
 	int status = -EACCES;
 	struct inode *inode = NULL;
 
-	BUG_ON(slot_num >= osb->max_slots);
+	_ON(slot_num >= osb->max_slots);
 
 	inode = ocfs2_get_system_file_inode(osb, JOURNAL_SYSTEM_INODE,
 					    slot_num);
@@ -1660,7 +1660,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	if (status < 0) {
 		mlog_errno(status);
 		if (!igrab(inode))
-			BUG();
+			();
 		jbd2_journal_destroy(journal);
 		goto done;
 	}
@@ -1690,7 +1690,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 		mlog_errno(status);
 
 	if (!igrab(inode))
-		BUG();
+		();
 
 	jbd2_journal_destroy(journal);
 
@@ -1731,7 +1731,7 @@ static int ocfs2_recover_node(struct ocfs2_super *osb,
 
 	/* Should not ever be called to recover ourselves -- in that
 	 * case we should've called ocfs2_journal_load instead. */
-	BUG_ON(osb->node_num == node_num);
+	_ON(osb->node_num == node_num);
 
 	status = ocfs2_replay_journal(osb, node_num, slot_num);
 	if (status < 0) {

@@ -152,7 +152,7 @@
  *
  * - Minor version: needs to be increased if new messages/API calls are
  *   being added or some other consideration that doesn't impact the
- *   user-kernel interface too much (like some kind of bug fix) and
+ *   user-kernel interface too much (like some kind of  fix) and
  *   that is kind of left up in the air to common sense.
  *
  * User space code should not try to work if the major version it was
@@ -324,8 +324,8 @@ struct wimax_dev;
  *
  * @rf_hw: [private] State of the hardware radio switch (OFF/ON)
  *
- * @debugfs_dentry: [private] Used to hook up a debugfs entry. This
- *     shows up in the debugfs root as wimax\:DEVICENAME.
+ * @defs_dentry: [private] Used to hook up a defs entry. This
+ *     shows up in the defs root as wimax\:DEVICENAME.
  *
  * Description:
  * This structure defines a common interface to access all WiMAX
@@ -427,7 +427,7 @@ struct wimax_dev {
 	unsigned int rf_sw;
 	char name[32];
 
-	struct dentry *debugfs_dentry;
+	struct dentry *defs_dentry;
 };
 
 

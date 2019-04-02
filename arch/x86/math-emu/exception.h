@@ -39,7 +39,7 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef DEBUG
+#ifdef DE
 #define	EXCEPTION(x)	{ printk("exception in %s at line %d\n", \
 	__FILE__, __LINE__); FPU_exception(x); }
 #else

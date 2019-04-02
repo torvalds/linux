@@ -30,7 +30,7 @@ Receive-side scaling (RSS) is supported for multi-core scaling.
 The ENA driver and its corresponding devices implement health
 monitoring mechanisms such as watchdog, enabling the device and driver
 to recover in a manner transparent to the application, as well as
-debug logs.
+de logs.
 
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.

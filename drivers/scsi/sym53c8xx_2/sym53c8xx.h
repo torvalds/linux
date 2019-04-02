@@ -65,7 +65,7 @@
 #define	SYM_LINUX_PROC_INFO_SUPPORT
 #define SYM_LINUX_USER_COMMAND_SUPPORT
 #define SYM_LINUX_USER_INFO_SUPPORT
-#define SYM_LINUX_DEBUG_CONTROL_SUPPORT
+#define SYM_LINUX_DE_CONTROL_SUPPORT
 #endif
 
 /*
@@ -157,8 +157,8 @@ struct sym_driver_setup {
 }
 
 extern struct sym_driver_setup sym_driver_setup;
-extern unsigned int sym_debug_flags;
-#define DEBUG_FLAGS	sym_debug_flags
+extern unsigned int sym_de_flags;
+#define DE_FLAGS	sym_de_flags
 
 /*
  *  Max number of targets.

@@ -171,7 +171,7 @@ static int call_fext_func(struct acpi_device *device,
 		return -ENODEV;
 	}
 
-	acpi_handle_debug(device->handle,
+	acpi_handle_de(device->handle,
 			  "FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
 			  func, op, feature, state, (int)value);
 	return value;
@@ -200,7 +200,7 @@ static int set_lcd_level(struct acpi_device *device, int level)
 		break;
 	}
 
-	acpi_handle_debug(device->handle, "set lcd level via %s [%d]\n", method,
+	acpi_handle_de(device->handle, "set lcd level via %s [%d]\n", method,
 			  level);
 
 	if (level < 0 || level >= priv->max_brightness)
@@ -224,7 +224,7 @@ static int get_lcd_level(struct acpi_device *device)
 	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
-	acpi_handle_debug(device->handle, "get lcd level via GBLL\n");
+	acpi_handle_de(device->handle, "get lcd level via GBLL\n");
 
 	status = acpi_evaluate_integer(device->handle, "GBLL", NULL, &state);
 	if (ACPI_FAILURE(status))
@@ -241,7 +241,7 @@ static int get_max_brightness(struct acpi_device *device)
 	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
-	acpi_handle_debug(device->handle, "get max lcd level via RBLL\n");
+	acpi_handle_de(device->handle, "get max lcd level via RBLL\n");
 
 	status = acpi_evaluate_integer(device->handle, "RBLL", NULL, &state);
 	if (ACPI_FAILURE(status))
@@ -444,7 +444,7 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 	get_lcd_level(device);
 	newb = priv->brightness_level;
 
-	acpi_handle_debug(device->handle,
+	acpi_handle_de(device->handle,
 			  "brightness button event [%i -> %i]\n", oldb, newb);
 
 	if (oldb == newb)
@@ -811,7 +811,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	while (call_fext_func(device, FUNC_BUTTONS, 0x1, 0x0, 0x0) != 0 &&
 	       i++ < MAX_HOTKEY_RINGBUFFER_SIZE)
 		; /* No action, result is discarded */
-	acpi_handle_debug(device->handle, "Discarded %i ringbuffer entries\n",
+	acpi_handle_de(device->handle, "Discarded %i ringbuffer entries\n",
 			  i);
 
 	priv->flags_supported = call_fext_func(device, FUNC_FLAGS, 0x0, 0x0,

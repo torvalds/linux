@@ -332,7 +332,7 @@ int nfs_fscache_release_page(struct page *page, gfp_t gfp)
 	if (PageFsCache(page)) {
 		struct fscache_cookie *cookie = nfs_i_fscache(page->mapping->host);
 
-		BUG_ON(!cookie);
+		_ON(!cookie);
 		dfprintk(FSCACHE, "NFS: fscache releasepage (0x%p/0x%p/0x%p)\n",
 			 cookie, page, NFS_I(page->mapping->host));
 
@@ -354,14 +354,14 @@ void __nfs_fscache_invalidate_page(struct page *page, struct inode *inode)
 {
 	struct fscache_cookie *cookie = nfs_i_fscache(inode);
 
-	BUG_ON(!cookie);
+	_ON(!cookie);
 
 	dfprintk(FSCACHE, "NFS: fscache invalidatepage (0x%p/0x%p/0x%p)\n",
 		 cookie, page, NFS_I(inode));
 
 	fscache_wait_on_page_write(cookie, page);
 
-	BUG_ON(!PageLocked(page));
+	_ON(!PageLocked(page));
 	fscache_uncache_page(cookie, page);
 	nfs_inc_fscache_stats(page->mapping->host,
 			      NFSIOS_FSCACHE_PAGES_UNCACHED);
@@ -459,8 +459,8 @@ int __nfs_readpages_from_fscache(struct nfs_open_context *ctx,
 
 	switch (ret) {
 	case 0: /* read submitted to the cache for all pages */
-		BUG_ON(!list_empty(pages));
-		BUG_ON(*nr_pages != 0);
+		_ON(!list_empty(pages));
+		_ON(*nr_pages != 0);
 		dfprintk(FSCACHE,
 			 "NFS: nfs_getpages_from_fscache: submitted\n");
 

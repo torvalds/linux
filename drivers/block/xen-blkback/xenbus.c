@@ -170,7 +170,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
 	struct xen_blkif *blkif;
 
-	BUILD_BUG_ON(MAX_INDIRECT_PAGES > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
+	BUILD__ON(MAX_INDIRECT_PAGES > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
 
 	blkif = kmem_cache_zalloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
@@ -225,7 +225,7 @@ static int xen_blkif_map(struct xen_blkif_ring *ring, grant_ref_t *gref,
 		break;
 	}
 	default:
-		BUG();
+		();
 	}
 
 	err = bind_interdomain_evtchn_to_irqhandler(blkif->domid, evtchn,
@@ -295,12 +295,12 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 			i++;
 		}
 
-		BUG_ON(atomic_read(&ring->persistent_gnt_in_use) != 0);
-		BUG_ON(!list_empty(&ring->persistent_purge_list));
-		BUG_ON(!RB_EMPTY_ROOT(&ring->persistent_gnts));
-		BUG_ON(!list_empty(&ring->free_pages));
-		BUG_ON(ring->free_pages_num != 0);
-		BUG_ON(ring->persistent_gnt_c != 0);
+		_ON(atomic_read(&ring->persistent_gnt_in_use) != 0);
+		_ON(!list_empty(&ring->persistent_purge_list));
+		_ON(!RB_EMPTY_ROOT(&ring->persistent_gnts));
+		_ON(!list_empty(&ring->free_pages));
+		_ON(ring->free_pages_num != 0);
+		_ON(ring->persistent_gnt_c != 0);
 		WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
 		ring->active = false;
 	}
@@ -493,7 +493,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	if (q && blk_queue_secure_erase(q))
 		vbd->discard_secure = true;
 
-	pr_debug("Successful creation of handle=%04x (dom=%u)\n",
+	pr_de("Successful creation of handle=%04x (dom=%u)\n",
 		handle, blkif->domid);
 	return 0;
 }
@@ -501,7 +501,7 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
+	pr_de("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (be->major || be->minor)
 		xenvbd_sysfs_delif(dev);
@@ -606,8 +606,8 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	struct backend_info *be = kzalloc(sizeof(struct backend_info),
 					  GFP_KERNEL);
 
-	/* match the pr_debug in xen_blkbk_remove */
-	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
+	/* match the pr_de in xen_blkbk_remove */
+	pr_de("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (!be) {
 		xenbus_dev_fatal(dev, -ENOMEM,
@@ -683,7 +683,7 @@ static void backend_changed(struct xenbus_watch *watch,
 	unsigned long handle;
 	char *device_type;
 
-	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
+	pr_de("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	err = xenbus_scanf(XBT_NIL, dev->nodename, "physical-device", "%x:%x",
 			   &major, &minor);
@@ -766,7 +766,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
-	pr_debug("%s %p %s\n", __func__, dev, xenbus_strstate(frontend_state));
+	pr_de("%s %p %s\n", __func__, dev, xenbus_strstate(frontend_state));
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
@@ -845,7 +845,7 @@ static void connect(struct backend_info *be)
 	int err;
 	struct xenbus_device *dev = be->dev;
 
-	pr_debug("%s %s\n", __func__, dev->otherend);
+	pr_de("%s %s\n", __func__, dev->otherend);
 
 	/* Supply the information about the device the frontend needs */
 again:
@@ -1032,7 +1032,7 @@ static int connect_ring(struct backend_info *be)
 	unsigned int requested_num_queues = 0;
 	unsigned int ring_page_order;
 
-	pr_debug("%s %s\n", __func__, dev->otherend);
+	pr_de("%s %s\n", __func__, dev->otherend);
 
 	blkif->blk_protocol = BLKIF_PROTOCOL_DEFAULT;
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "protocol",
@@ -1062,7 +1062,7 @@ static int connect_ring(struct backend_info *be)
 						    1);
 	if (requested_num_queues > xenblk_max_queues
 	    || requested_num_queues == 0) {
-		/* Buggy or malicious guest. */
+		/* gy or malicious guest. */
 		xenbus_dev_fatal(dev, err,
 				"guest requested %u queues, exceeding the maximum of %u.",
 				requested_num_queues, xenblk_max_queues);

@@ -537,7 +537,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&priv->tx_contexts_lock, flags);
 
-	/* This should never happen; it implies a flow control bug */
+	/* This should never happen; it implies a flow control  */
 	if (!context) {
 		netdev_warn(netdev, "cannot find free context\n");
 

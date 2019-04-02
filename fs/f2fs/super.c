@@ -1079,7 +1079,7 @@ static void f2fs_put_super(struct super_block *sb)
 
 	f2fs_wait_on_all_pages_writeback(sbi);
 
-	f2fs_bug_on(sbi, sbi->fsync_node_num);
+	f2fs__on(sbi, sbi->fsync_node_num);
 
 	iput(sbi->node_inode);
 	sbi->node_inode = NULL;
@@ -1873,7 +1873,7 @@ static int f2fs_quota_enable(struct super_block *sb, int type, int format_id,
 	unsigned long qf_inum;
 	int err;
 
-	BUG_ON(!f2fs_sb_has_quota_ino(F2FS_SB(sb)));
+	_ON(!f2fs_sb_has_quota_ino(F2FS_SB(sb)));
 
 	qf_inum = f2fs_qf_ino(sb, type);
 	if (!qf_inum)
@@ -2696,7 +2696,7 @@ int f2fs_sanity_check_ckpt(struct f2fs_sb_info *sbi)
 	}
 
 	if (unlikely(f2fs_cp_error(sbi))) {
-		f2fs_msg(sbi->sb, KERN_ERR, "A bug case: need to run fsck");
+		f2fs_msg(sbi->sb, KERN_ERR, "A  case: need to run fsck");
 		return 1;
 	}
 	return 0;

@@ -77,7 +77,7 @@ struct hdlcdrv_ioctl {
 #define HDLCDRVCTL_GETSTAT          22
 
 /*
- * these are mainly for debugging purposes
+ * these are mainly for deging purposes
  */
 #define HDLCDRVCTL_GETSAMPLES       30
 #define HDLCDRVCTL_GETBITS          31

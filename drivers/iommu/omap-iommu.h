@@ -60,7 +60,7 @@ struct omap_iommu {
 	struct regmap	*syscfg;
 	struct device	*dev;
 	struct iommu_domain *domain;
-	struct dentry	*debug_dir;
+	struct dentry	*de_dir;
 
 	spinlock_t	iommu_lock;	/* global for this whole object */
 
@@ -232,18 +232,18 @@ struct cr_regs __iotlb_read_cr(struct omap_iommu *obj, int n);
 void iotlb_lock_get(struct omap_iommu *obj, struct iotlb_lock *l);
 void iotlb_lock_set(struct omap_iommu *obj, struct iotlb_lock *l);
 
-#ifdef CONFIG_OMAP_IOMMU_DEBUG
-void omap_iommu_debugfs_init(void);
-void omap_iommu_debugfs_exit(void);
+#ifdef CONFIG_OMAP_IOMMU_DE
+void omap_iommu_defs_init(void);
+void omap_iommu_defs_exit(void);
 
-void omap_iommu_debugfs_add(struct omap_iommu *obj);
-void omap_iommu_debugfs_remove(struct omap_iommu *obj);
+void omap_iommu_defs_add(struct omap_iommu *obj);
+void omap_iommu_defs_remove(struct omap_iommu *obj);
 #else
-static inline void omap_iommu_debugfs_init(void) { }
-static inline void omap_iommu_debugfs_exit(void) { }
+static inline void omap_iommu_defs_init(void) { }
+static inline void omap_iommu_defs_exit(void) { }
 
-static inline void omap_iommu_debugfs_add(struct omap_iommu *obj) { }
-static inline void omap_iommu_debugfs_remove(struct omap_iommu *obj) { }
+static inline void omap_iommu_defs_add(struct omap_iommu *obj) { }
+static inline void omap_iommu_defs_remove(struct omap_iommu *obj) { }
 #endif
 
 /*

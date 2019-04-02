@@ -503,8 +503,8 @@ struct snd_pcm_str {
 #endif
 #ifdef CONFIG_SND_VERBOSE_PROCFS
 	struct snd_info_entry *proc_root;
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	unsigned int xrun_debug;	/* 0 = disabled, 1 = verbose, 2 = stacktrace */
+#ifdef CONFIG_SND_PCM_XRUN_DE
+	unsigned int xrun_de;	/* 0 = disabled, 1 = verbose, 2 = stacktrace */
 #endif
 #endif
 	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
@@ -588,12 +588,12 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
 
 
-#ifdef CONFIG_SND_DEBUG
-void snd_pcm_debug_name(struct snd_pcm_substream *substream,
+#ifdef CONFIG_SND_DE
+void snd_pcm_de_name(struct snd_pcm_substream *substream,
 			   char *name, size_t len);
 #else
 static inline void
-snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
+snd_pcm_de_name(struct snd_pcm_substream *substream, char *buf, size_t size)
 {
 	*buf = 0;
 }
@@ -1346,7 +1346,7 @@ static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 					 (IEC958_AES1_CON_PCM_CODER<<8)|\
 					 (IEC958_AES3_CON_FS_48000<<24))
 
-#define PCM_RUNTIME_CHECK(sub) snd_BUG_ON(!(sub) || !(sub)->runtime)
+#define PCM_RUNTIME_CHECK(sub) snd__ON(!(sub) || !(sub)->runtime)
 
 const char *snd_pcm_format_name(snd_pcm_format_t format);
 

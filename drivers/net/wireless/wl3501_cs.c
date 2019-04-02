@@ -660,10 +660,10 @@ static void wl3501_mgmt_scan_confirm(struct wl3501_card *this, u16 addr)
 	int matchflag = 0;
 	struct wl3501_scan_confirm sig;
 
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &sig, sizeof(sig));
 	if (sig.status == WL3501_STATUS_SUCCESS) {
-		pr_debug("success");
+		pr_de("success");
 		if ((this->net_type == IW_MODE_INFRA &&
 		     (sig.cap_info & WL3501_MGMT_CAPABILITY_ESS)) ||
 		    (this->net_type == IW_MODE_ADHOC &&
@@ -697,7 +697,7 @@ static void wl3501_mgmt_scan_confirm(struct wl3501_card *this, u16 addr)
 			}
 		}
 	} else if (sig.status == WL3501_STATUS_TIMEOUT) {
-		pr_debug("timeout");
+		pr_de("timeout");
 		this->join_sta_bss = 0;
 		for (i = this->join_sta_bss; i < this->bss_cnt; i++)
 			if (!wl3501_mgmt_join(this, i))
@@ -854,7 +854,7 @@ static int wl3501_mgmt_auth(struct wl3501_card *this)
 		.timeout = 1000,
 	};
 
-	pr_debug("entry");
+	pr_de("entry");
 	memcpy(sig.mac_addr, this->bssid, ETH_ALEN);
 	return wl3501_esbq_exec(this, &sig, sizeof(sig));
 }
@@ -868,7 +868,7 @@ static int wl3501_mgmt_association(struct wl3501_card *this)
 		.cap_info	 = this->cap_info,
 	};
 
-	pr_debug("entry");
+	pr_de("entry");
 	memcpy(sig.mac_addr, this->bssid, ETH_ALEN);
 	return wl3501_esbq_exec(this, &sig, sizeof(sig));
 }
@@ -878,7 +878,7 @@ static void wl3501_mgmt_join_confirm(struct net_device *dev, u16 addr)
 	struct wl3501_card *this = netdev_priv(dev);
 	struct wl3501_join_confirm sig;
 
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &sig, sizeof(sig));
 	if (sig.status == WL3501_STATUS_SUCCESS) {
 		if (this->net_type == IW_MODE_INFRA) {
@@ -937,7 +937,7 @@ static inline void wl3501_md_confirm_interrupt(struct net_device *dev,
 {
 	struct wl3501_md_confirm sig;
 
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &sig, sizeof(sig));
 	wl3501_free_tx_buffer(this, sig.data);
 	if (netif_queue_stopped(dev))
@@ -992,7 +992,7 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 static inline void wl3501_get_confirm_interrupt(struct wl3501_card *this,
 						u16 addr, void *sig, int size)
 {
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &this->sig_get_confirm,
 			    sizeof(this->sig_get_confirm));
 	wake_up(&this->wait);
@@ -1004,7 +1004,7 @@ static inline void wl3501_start_confirm_interrupt(struct net_device *dev,
 {
 	struct wl3501_start_confirm sig;
 
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &sig, sizeof(sig));
 	if (sig.status == WL3501_STATUS_SUCCESS)
 		netif_wake_queue(dev);
@@ -1016,7 +1016,7 @@ static inline void wl3501_assoc_confirm_interrupt(struct net_device *dev,
 	struct wl3501_card *this = netdev_priv(dev);
 	struct wl3501_assoc_confirm sig;
 
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &sig, sizeof(sig));
 
 	if (sig.status == WL3501_STATUS_SUCCESS)
@@ -1028,7 +1028,7 @@ static inline void wl3501_auth_confirm_interrupt(struct wl3501_card *this,
 {
 	struct wl3501_auth_confirm sig;
 
-	pr_debug("entry");
+	pr_de("entry");
 	wl3501_get_from_wla(this, addr, &sig, sizeof(sig));
 
 	if (sig.status == WL3501_STATUS_SUCCESS)
@@ -1044,7 +1044,7 @@ static inline void wl3501_rx_interrupt(struct net_device *dev)
 	u8 sig_id;
 	struct wl3501_card *this = netdev_priv(dev);
 
-	pr_debug("entry");
+	pr_de("entry");
 loop:
 	morepkts = 0;
 	if (!wl3501_esbq_confirm(this))
@@ -1279,7 +1279,7 @@ static int wl3501_reset(struct net_device *dev)
 	wl3501_ack_interrupt(this);
 	wl3501_unblock_interrupt(this);
 	wl3501_mgmt_scan(this, 100);
-	pr_debug("%s: device reset", dev->name);
+	pr_de("%s: device reset", dev->name);
 	rc = 0;
 out:
 	spin_unlock_irqrestore(&this->lock, flags);
@@ -1349,7 +1349,7 @@ static int wl3501_open(struct net_device *dev)
 	link->open++;
 
 	/* Initial WL3501 firmware */
-	pr_debug("%s: Initialize WL3501 firmware...", dev->name);
+	pr_de("%s: Initialize WL3501 firmware...", dev->name);
 	if (wl3501_init_firmware(this))
 		goto fail;
 	/* Initial device variables */
@@ -1361,7 +1361,7 @@ static int wl3501_open(struct net_device *dev)
 	wl3501_unblock_interrupt(this);
 	wl3501_mgmt_scan(this, 100);
 	rc = 0;
-	pr_debug("%s: WL3501 opened", dev->name);
+	pr_de("%s: WL3501 opened", dev->name);
 	printk(KERN_INFO "%s: Card Name: %s\n"
 			 "%s: Firmware Date: %s\n",
 			 dev->name, this->card_name,

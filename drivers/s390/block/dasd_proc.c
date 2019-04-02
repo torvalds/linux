@@ -4,7 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
- * Bugreports.to..: <Linux390@de.ibm.com>
+ * reports.to..: <Linux390@de.ibm.com>
  * Coypright IBM Corp. 1999, 2002
  *
  * /proc interface for the dasd driver.
@@ -20,7 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>
 
-#include <asm/debug.h>
+#include <asm/de.h>
 #include <linux/uaccess.h>
 
 /* This is ugly... */

@@ -190,17 +190,17 @@ static int davinci_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry);
+#ifdef CONFIG_DE_FS
+static void davinci_pll_de_init(struct clk_hw *hw, struct dentry *dentry);
 #else
-#define davinci_pll_debug_init NULL
+#define davinci_pll_de_init NULL
 #endif
 
 static const struct clk_ops davinci_pll_ops = {
 	.recalc_rate	= davinci_pll_recalc_rate,
 	.determine_rate	= davinci_pll_determine_rate,
 	.set_rate	= davinci_pll_set_rate,
-	.debug_init	= davinci_pll_debug_init,
+	.de_init	= davinci_pll_de_init,
 };
 
 /* PLLM works differently on DM365 */
@@ -219,7 +219,7 @@ static unsigned long dm365_pll_recalc_rate(struct clk_hw *hw,
 
 static const struct clk_ops dm365_pll_ops = {
 	.recalc_rate	= dm365_pll_recalc_rate,
-	.debug_init	= davinci_pll_debug_init,
+	.de_init	= davinci_pll_de_init,
 };
 
 /**
@@ -952,47 +952,47 @@ static int __init davinci_pll_driver_init(void)
 /* has to be postcore_initcall because PSC devices depend on PLL parent clocks */
 postcore_initcall(davinci_pll_driver_init);
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
+#ifdef CONFIG_DE_FS
+#include <linux/defs.h>
 
-#define DEBUG_REG(n)	\
+#define DE_REG(n)	\
 {			\
 	.name	= #n,	\
 	.offset	= n,	\
 }
 
-static const struct debugfs_reg32 davinci_pll_regs[] = {
-	DEBUG_REG(REVID),
-	DEBUG_REG(PLLCTL),
-	DEBUG_REG(OCSEL),
-	DEBUG_REG(PLLSECCTL),
-	DEBUG_REG(PLLM),
-	DEBUG_REG(PREDIV),
-	DEBUG_REG(PLLDIV1),
-	DEBUG_REG(PLLDIV2),
-	DEBUG_REG(PLLDIV3),
-	DEBUG_REG(OSCDIV),
-	DEBUG_REG(POSTDIV),
-	DEBUG_REG(BPDIV),
-	DEBUG_REG(PLLCMD),
-	DEBUG_REG(PLLSTAT),
-	DEBUG_REG(ALNCTL),
-	DEBUG_REG(DCHANGE),
-	DEBUG_REG(CKEN),
-	DEBUG_REG(CKSTAT),
-	DEBUG_REG(SYSTAT),
-	DEBUG_REG(PLLDIV4),
-	DEBUG_REG(PLLDIV5),
-	DEBUG_REG(PLLDIV6),
-	DEBUG_REG(PLLDIV7),
-	DEBUG_REG(PLLDIV8),
-	DEBUG_REG(PLLDIV9),
+static const struct defs_reg32 davinci_pll_regs[] = {
+	DE_REG(REVID),
+	DE_REG(PLLCTL),
+	DE_REG(OCSEL),
+	DE_REG(PLLSECCTL),
+	DE_REG(PLLM),
+	DE_REG(PREDIV),
+	DE_REG(PLLDIV1),
+	DE_REG(PLLDIV2),
+	DE_REG(PLLDIV3),
+	DE_REG(OSCDIV),
+	DE_REG(POSTDIV),
+	DE_REG(BPDIV),
+	DE_REG(PLLCMD),
+	DE_REG(PLLSTAT),
+	DE_REG(ALNCTL),
+	DE_REG(DCHANGE),
+	DE_REG(CKEN),
+	DE_REG(CKSTAT),
+	DE_REG(SYSTAT),
+	DE_REG(PLLDIV4),
+	DE_REG(PLLDIV5),
+	DE_REG(PLLDIV6),
+	DE_REG(PLLDIV7),
+	DE_REG(PLLDIV8),
+	DE_REG(PLLDIV9),
 };
 
-static void davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
+static void davinci_pll_de_init(struct clk_hw *hw, struct dentry *dentry)
 {
 	struct davinci_pll_clk *pll = to_davinci_pll_clk(hw);
-	struct debugfs_regset32 *regset;
+	struct defs_regset32 *regset;
 
 	regset = kzalloc(sizeof(*regset), GFP_KERNEL);
 	if (!regset)
@@ -1002,6 +1002,6 @@ static void davinci_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	regset->nregs = ARRAY_SIZE(davinci_pll_regs);
 	regset->base = pll->base;
 
-	debugfs_create_regset32("registers", 0400, dentry, regset);
+	defs_create_regset32("registers", 0400, dentry, regset);
 }
 #endif

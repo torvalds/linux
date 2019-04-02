@@ -10,7 +10,7 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/energy_model.h>
 #include <linux/sched/topology.h>
 #include <linux/slab.h>
@@ -24,10 +24,10 @@ static DEFINE_PER_CPU(struct em_perf_domain *, em_data);
  */
 static DEFINE_MUTEX(em_pd_mutex);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static struct dentry *rootdir;
 
-static void em_debug_create_cs(struct em_cap_state *cs, struct dentry *pd)
+static void em_de_create_cs(struct em_cap_state *cs, struct dentry *pd)
 {
 	struct dentry *d;
 	char name[24];
@@ -35,21 +35,21 @@ static void em_debug_create_cs(struct em_cap_state *cs, struct dentry *pd)
 	snprintf(name, sizeof(name), "cs:%lu", cs->frequency);
 
 	/* Create per-cs directory */
-	d = debugfs_create_dir(name, pd);
-	debugfs_create_ulong("frequency", 0444, d, &cs->frequency);
-	debugfs_create_ulong("power", 0444, d, &cs->power);
-	debugfs_create_ulong("cost", 0444, d, &cs->cost);
+	d = defs_create_dir(name, pd);
+	defs_create_ulong("frequency", 0444, d, &cs->frequency);
+	defs_create_ulong("power", 0444, d, &cs->power);
+	defs_create_ulong("cost", 0444, d, &cs->cost);
 }
 
-static int em_debug_cpus_show(struct seq_file *s, void *unused)
+static int em_de_cpus_show(struct seq_file *s, void *unused)
 {
 	seq_printf(s, "%*pbl\n", cpumask_pr_args(to_cpumask(s->private)));
 
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(em_debug_cpus);
+DEFINE_SHOW_ATTRIBUTE(em_de_cpus);
 
-static void em_debug_create_pd(struct em_perf_domain *pd, int cpu)
+static void em_de_create_pd(struct em_perf_domain *pd, int cpu)
 {
 	struct dentry *d;
 	char name[8];
@@ -58,25 +58,25 @@ static void em_debug_create_pd(struct em_perf_domain *pd, int cpu)
 	snprintf(name, sizeof(name), "pd%d", cpu);
 
 	/* Create the directory of the performance domain */
-	d = debugfs_create_dir(name, rootdir);
+	d = defs_create_dir(name, rootdir);
 
-	debugfs_create_file("cpus", 0444, d, pd->cpus, &em_debug_cpus_fops);
+	defs_create_file("cpus", 0444, d, pd->cpus, &em_de_cpus_fops);
 
 	/* Create a sub-directory for each capacity state */
 	for (i = 0; i < pd->nr_cap_states; i++)
-		em_debug_create_cs(&pd->table[i], d);
+		em_de_create_cs(&pd->table[i], d);
 }
 
-static int __init em_debug_init(void)
+static int __init em_de_init(void)
 {
-	/* Create /sys/kernel/debug/energy_model directory */
-	rootdir = debugfs_create_dir("energy_model", NULL);
+	/* Create /sys/kernel/de/energy_model directory */
+	rootdir = defs_create_dir("energy_model", NULL);
 
 	return 0;
 }
-core_initcall(em_debug_init);
-#else /* CONFIG_DEBUG_FS */
-static void em_debug_create_pd(struct em_perf_domain *pd, int cpu) {}
+core_initcall(em_de_init);
+#else /* CONFIG_DE_FS */
+static void em_de_create_pd(struct em_perf_domain *pd, int cpu) {}
 #endif
 static struct em_perf_domain *em_create_pd(cpumask_t *span, int nr_states,
 						struct em_data_callback *cb)
@@ -157,7 +157,7 @@ static struct em_perf_domain *em_create_pd(cpumask_t *span, int nr_states,
 	pd->nr_cap_states = nr_states;
 	cpumask_copy(to_cpumask(pd->cpus), span);
 
-	em_debug_create_pd(pd, cpu);
+	em_de_create_pd(pd, cpu);
 
 	return pd;
 
@@ -249,7 +249,7 @@ int em_register_perf_domain(cpumask_t *span, unsigned int nr_states,
 		smp_store_release(per_cpu_ptr(&em_data, cpu), pd);
 	}
 
-	pr_debug("Created perf domain %*pbl\n", cpumask_pr_args(span));
+	pr_de("Created perf domain %*pbl\n", cpumask_pr_args(span));
 unlock:
 	mutex_unlock(&em_pd_mutex);
 

@@ -1181,7 +1181,7 @@
 #define ixTHM_TMON0_RDIR14_DATA                                                 0xc0300178
 #define ixTHM_TMON0_RDIR15_DATA                                                 0xc030017c
 #define ixTHM_TMON0_INT_DATA                                                    0xc0300300
-#define ixTHM_TMON0_DEBUG                                                       0xc0300310
+#define ixTHM_TMON0_DE                                                       0xc0300310
 #define ixGENERAL_PWRMGT                                                        0xc0200000
 #define ixCNB_PWRMGT_CNTL                                                       0xc0200004
 #define ixSCLK_PWRMGT_CNTL                                                      0xc0200008

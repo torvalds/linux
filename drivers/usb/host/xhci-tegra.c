@@ -995,7 +995,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	struct phy *phy;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct tegra_xusb_fw_header) != 256);
+	BUILD__ON(sizeof(struct tegra_xusb_fw_header) != 256);
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)

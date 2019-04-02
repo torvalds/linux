@@ -170,7 +170,7 @@ async_tx_submit(struct dma_chan *chan, struct dma_async_tx_descriptor *tx,
 		 * 2/ dependencies are 1:1 i.e. two transactions can
 		 * not depend on the same parent
 		 */
-		BUG_ON(async_tx_test_ack(depend_tx) || txd_next(depend_tx) ||
+		_ON(async_tx_test_ack(depend_tx) || txd_next(depend_tx) ||
 		       txd_parent(tx));
 
 		/* the lock prevents async_tx_run_dependencies from missing
@@ -253,11 +253,11 @@ async_trigger_callback(struct async_submit_ctl *submit)
 		tx = NULL;
 
 	if (tx) {
-		pr_debug("%s: (async)\n", __func__);
+		pr_de("%s: (async)\n", __func__);
 
 		async_tx_submit(chan, tx, submit);
 	} else {
-		pr_debug("%s: (sync)\n", __func__);
+		pr_de("%s: (sync)\n", __func__);
 
 		/* wait for any prerequisite operations */
 		async_tx_quiesce(&submit->depend_tx);
@@ -279,7 +279,7 @@ void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
 		/* if ack is already set then we cannot be sure
 		 * we are referring to the correct operation
 		 */
-		BUG_ON(async_tx_test_ack(*tx));
+		_ON(async_tx_test_ack(*tx));
 		if (dma_wait_for_async_tx(*tx) != DMA_COMPLETE)
 			panic("%s: DMA error waiting for transaction\n",
 			      __func__);

@@ -235,9 +235,9 @@ struct fnic {
 	unsigned int wq_count;
 	unsigned int cq_count;
 
-	struct dentry *fnic_stats_debugfs_host;
-	struct dentry *fnic_stats_debugfs_file;
-	struct dentry *fnic_reset_debugfs_file;
+	struct dentry *fnic_stats_defs_host;
+	struct dentry *fnic_stats_defs_file;
+	struct dentry *fnic_reset_defs_file;
 	unsigned int reset_stats;
 	atomic64_t io_cmpl_skip;
 	struct fnic_stats fnic_stats;

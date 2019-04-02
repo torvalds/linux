@@ -17,8 +17,8 @@ static int vbi_workaround(struct saa7146_dev *dev)
 
 	DEB_VBI("dev:%p\n", dev);
 
-	/* once again, a bug in the saa7146: the brs acquisition
-	   is buggy and especially the BXO-counter does not work
+	/* once again, a  in the saa7146: the brs acquisition
+	   is gy and especially the BXO-counter does not work
 	   as specified. there is this workaround, but please
 	   don't let me explain it. ;-) */
 
@@ -104,7 +104,7 @@ static int vbi_workaround(struct saa7146_dev *dev)
 
 		schedule();
 
-		DEB_VBI("brs bug workaround %d/1\n", i);
+		DEB_VBI("brs  workaround %d/1\n", i);
 
 		remove_wait_queue(&vv->vbi_wq, &wait);
 		__set_current_state(TASK_RUNNING);

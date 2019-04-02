@@ -105,7 +105,7 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 	/* Modifiers offset is a pointer to a struct with a 64 bit field so it
 	 * should be naturally aligned to 8B.
 	 */
-	BUILD_BUG_ON(sizeof(struct drm_format_modifier_blob) % 8);
+	BUILD__ON(sizeof(struct drm_format_modifier_blob) % 8);
 	blob_size += ALIGN(formats_size, 8);
 	blob_size += modifiers_size;
 
@@ -202,7 +202,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->format_types = kmalloc_array(format_count, sizeof(uint32_t),
 					    GFP_KERNEL);
 	if (!plane->format_types) {
-		DRM_DEBUG_KMS("out of memory when allocating plane\n");
+		DRM_DE_KMS("out of memory when allocating plane\n");
 		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
@@ -229,7 +229,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 					 GFP_KERNEL);
 
 	if (format_modifier_count && !plane->modifiers) {
-		DRM_DEBUG_KMS("out of memory when allocating plane\n");
+		DRM_DE_KMS("out of memory when allocating plane\n");
 		kfree(plane->format_types);
 		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
@@ -362,7 +362,7 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	kfree(plane->modifiers);
 	drm_mode_object_unregister(dev, &plane->base);
 
-	BUG_ON(list_empty(&plane->head));
+	_ON(list_empty(&plane->head));
 
 	/* Note that the plane_list is considered to be static; should we
 	 * remove the drm_plane at runtime we would have to decrement all
@@ -605,7 +605,7 @@ static int __setplane_check(struct drm_plane *plane,
 
 	/* Check whether this plane is usable on this CRTC */
 	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
-		DRM_DEBUG_KMS("Invalid crtc for plane\n");
+		DRM_DE_KMS("Invalid crtc for plane\n");
 		return -EINVAL;
 	}
 
@@ -615,7 +615,7 @@ static int __setplane_check(struct drm_plane *plane,
 	if (ret) {
 		struct drm_format_name_buf format_name;
 
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
+		DRM_DE_KMS("Invalid pixel format %s, modifier 0x%llx\n",
 			      drm_get_format_name(fb->format->format,
 						  &format_name),
 			      fb->modifier);
@@ -627,7 +627,7 @@ static int __setplane_check(struct drm_plane *plane,
 	    crtc_x > INT_MAX - (int32_t) crtc_w ||
 	    crtc_h > INT_MAX ||
 	    crtc_y > INT_MAX - (int32_t) crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+		DRM_DE_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
 			      crtc_w, crtc_h, crtc_x, crtc_y);
 		return -ERANGE;
 	}
@@ -805,7 +805,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	 */
 	plane = drm_plane_find(dev, file_priv, plane_req->plane_id);
 	if (!plane) {
-		DRM_DEBUG_KMS("Unknown plane ID %d\n",
+		DRM_DE_KMS("Unknown plane ID %d\n",
 			      plane_req->plane_id);
 		return -ENOENT;
 	}
@@ -813,7 +813,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	if (plane_req->fb_id) {
 		fb = drm_framebuffer_lookup(dev, file_priv, plane_req->fb_id);
 		if (!fb) {
-			DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
+			DRM_DE_KMS("Unknown framebuffer ID %d\n",
 				      plane_req->fb_id);
 			return -ENOENT;
 		}
@@ -821,7 +821,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		crtc = drm_crtc_find(dev, file_priv, plane_req->crtc_id);
 		if (!crtc) {
 			drm_framebuffer_put(fb);
-			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
+			DRM_DE_KMS("Unknown crtc ID %d\n",
 				      plane_req->crtc_id);
 			return -ENOENT;
 		}
@@ -859,7 +859,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	uint32_t src_w = 0, src_h = 0;
 	int ret = 0;
 
-	BUG_ON(!plane);
+	_ON(!plane);
 	WARN_ON(plane->crtc != crtc && plane->crtc != NULL);
 
 	/*
@@ -871,7 +871,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 		if (req->handle) {
 			fb = drm_internal_framebuffer_create(dev, &fbreq, file_priv);
 			if (IS_ERR(fb)) {
-				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
+				DRM_DE_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
 
@@ -942,7 +942,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 
 	crtc = drm_crtc_find(dev, file_priv, req->crtc_id);
 	if (!crtc) {
-		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
+		DRM_DE_KMS("Unknown CRTC ID %d\n", req->crtc_id);
 		return -ENOENT;
 	}
 
@@ -1075,7 +1075,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		switch (page_flip->flags & DRM_MODE_PAGE_FLIP_TARGET) {
 		case DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE:
 			if ((int)(target_vblank - current_vblank) > 1) {
-				DRM_DEBUG("Invalid absolute flip target %u, "
+				DRM_DE("Invalid absolute flip target %u, "
 					  "must be <= %u\n", target_vblank,
 					  current_vblank + 1);
 				drm_crtc_vblank_put(crtc);
@@ -1084,7 +1084,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			break;
 		case DRM_MODE_PAGE_FLIP_TARGET_RELATIVE:
 			if (target_vblank != 0 && target_vblank != 1) {
-				DRM_DEBUG("Invalid relative flip target %u, "
+				DRM_DE("Invalid relative flip target %u, "
 					  "must be 0 or 1\n", target_vblank);
 				drm_crtc_vblank_put(crtc);
 				return -EINVAL;
@@ -1146,7 +1146,7 @@ retry:
 		goto out;
 
 	if (old_fb->format != fb->format) {
-		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
+		DRM_DE_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;
 	}

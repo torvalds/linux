@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/ceph_de.h>
 
 #include <linux/spinlock.h>
 #include <linux/namei.h>
@@ -502,14 +502,14 @@ more:
 		ino_t ino;
 		u32 ftype;
 
-		BUG_ON(rde->offset < ctx->pos);
+		_ON(rde->offset < ctx->pos);
 
 		ctx->pos = rde->offset;
 		dout("readdir (%d/%d) -> %llx '%.*s' %p\n",
 		     i, rinfo->dir_nr, ctx->pos,
 		     rde->name_len, rde->name, &rde->inode.in);
 
-		BUG_ON(!rde->inode.in);
+		_ON(!rde->inode.in);
 		ftype = le32_to_cpu(rde->inode.in->mode) >> 12;
 		vino.ino = le64_to_cpu(rde->inode.in->ino);
 		vino.snap = le64_to_cpu(rde->inode.in->snapid);
@@ -564,7 +564,7 @@ more:
 			dout(" marking %p complete and ordered\n", inode);
 			/* use i_size to track number of entries in
 			 * readdir cache */
-			BUG_ON(dfi->readdir_cache_idx < 0);
+			_ON(dfi->readdir_cache_idx < 0);
 			i_size_write(inode, dfi->readdir_cache_idx *
 				     sizeof(struct dentry*));
 		} else {
@@ -676,7 +676,7 @@ int ceph_handle_snapdir(struct ceph_mds_request *req,
 		struct inode *inode = ceph_get_snapdir(parent);
 		dout("ENOENT on snapdir %p '%pd', linking to snapdir %p\n",
 		     dentry, dentry, inode);
-		BUG_ON(!d_unhashed(dentry));
+		_ON(!d_unhashed(dentry));
 		d_add(dentry, inode);
 		err = 0;
 	}

@@ -77,11 +77,11 @@
 
 
 /*
- * Debug macros
+ * De macros
  */
 #define uea_dbg(usb_dev, format, args...)	\
 	do { \
-		if (debug >= 1) \
+		if (de >= 1) \
 			dev_dbg(&(usb_dev)->dev, \
 				"[ueagle-atm dbg] %s: " format, \
 					__func__, ##args); \
@@ -89,7 +89,7 @@
 
 #define uea_vdbg(usb_dev, format, args...)	\
 	do { \
-		if (debug >= 2) \
+		if (de >= 2) \
 			dev_dbg(&(usb_dev)->dev, \
 				"[ueagle-atm vdbg]  " format, ##args); \
 	} while (0)
@@ -567,15 +567,15 @@ static const char * const chip_name[] = {
 	"ADI930", "Eagle I", "Eagle II", "Eagle III", "Eagle IV"};
 
 static int modem_index;
-static unsigned int debug;
+static unsigned int de;
 static unsigned int altsetting[NB_MODEM] = {
 				[0 ... (NB_MODEM - 1)] = FASTEST_ISO_INTF};
 static bool sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 static int annex[NB_MODEM];
 
-module_param(debug, uint, 0644);
-MODULE_PARM_DESC(debug, "module debug level (0=off,1=on,2=verbose)");
+module_param(de, uint, 0644);
+MODULE_PARM_DESC(de, "module de level (0=off,1=on,2=verbose)");
 module_param_array(altsetting, uint, NULL, 0644);
 MODULE_PARM_DESC(altsetting, "alternate setting for incoming traffic: 0=bulk, "
 			     "1=isoc slowest, ... , 8=isoc fastest (default)");
@@ -1119,7 +1119,7 @@ static void uea_load_page_e4(struct work_struct *work)
 
 static inline void wake_up_cmv_ack(struct uea_softc *sc)
 {
-	BUG_ON(sc->cmv_ack);
+	_ON(sc->cmv_ack);
 	sc->cmv_ack = 1;
 	wake_up(&sc->sync_q);
 }

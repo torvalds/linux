@@ -36,14 +36,14 @@
 #include <linux/uaccess.h>
 
 
-/* #define DEBUG 1 */
+/* #define DE 1 */
 
 #define DEFAULT_TIMEOUT     1		/* 1 minute */
 #define MAX_TIMEOUT         255
 
 #define VERSION             "1.1"
 #define MODNAME             "pc87413 WDT"
-#define DPFX                MODNAME " - DEBUG: "
+#define DPFX                MODNAME " - DE: "
 
 #define WDT_INDEX_IO_PORT   (io+0)	/* I/O port base (index register) */
 #define WDT_DATA_IO_PORT    (WDT_INDEX_IO_PORT+1)
@@ -86,7 +86,7 @@ static inline void pc87413_select_wdt_out(void)
 
 	outb_p(cr_data, WDT_DATA_IO_PORT);
 
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX
 		"Select multiple pin,pin55,as WDT output: Bit7 to 1: %d\n",
 								cr_data);
@@ -110,7 +110,7 @@ static inline void pc87413_enable_swc(void)
 	outb_p(0x30, WDT_INDEX_IO_PORT);
 	outb_p(cr_data, WDT_DATA_IO_PORT);	/* Index0x30_bit0P1 */
 
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "pc87413 - Enable SWC functions\n");
 #endif
 }
@@ -131,7 +131,7 @@ static void pc87413_get_swc_base_addr(void)
 	addr_l = inb(WDT_DATA_IO_PORT);
 
 	swc_base_addr = (addr_h << 8) + addr_l;
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX
 		"Read SWC I/O Base Address: low %d, high %d, res %d\n",
 						addr_l, addr_h, swc_base_addr);
@@ -144,7 +144,7 @@ static inline void pc87413_swc_bank3(void)
 {
 	/* Step 4: Select Bank3 of SWC */
 	outb_p(inb(swc_base_addr + 0x0f) | 0x03, swc_base_addr + 0x0f);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "Select Bank3 of SWC\n");
 #endif
 }
@@ -155,7 +155,7 @@ static inline void pc87413_programm_wdto(char pc87413_time)
 {
 	/* Step 5: Programm WDTO, Twd. */
 	outb_p(pc87413_time, swc_base_addr + WDTO);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "Set WDTO to %d minutes\n", pc87413_time);
 #endif
 }
@@ -166,7 +166,7 @@ static inline void pc87413_enable_wden(void)
 {
 	/* Step 6: Enable WDEN */
 	outb_p(inb(swc_base_addr + WDCTL) | 0x01, swc_base_addr + WDCTL);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "Enable WDEN\n");
 #endif
 }
@@ -176,7 +176,7 @@ static inline void pc87413_enable_sw_wd_tren(void)
 {
 	/* Enable SW_WD_TREN */
 	outb_p(inb(swc_base_addr + WDCFG) | 0x80, swc_base_addr + WDCFG);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "Enable SW_WD_TREN\n");
 #endif
 }
@@ -187,7 +187,7 @@ static inline void pc87413_disable_sw_wd_tren(void)
 {
 	/* Disable SW_WD_TREN */
 	outb_p(inb(swc_base_addr + WDCFG) & 0x7f, swc_base_addr + WDCFG);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "pc87413 - Disable SW_WD_TREN\n");
 #endif
 }
@@ -198,7 +198,7 @@ static inline void pc87413_enable_sw_wd_trg(void)
 {
 	/* Enable SW_WD_TRG */
 	outb_p(inb(swc_base_addr + WDCTL) | 0x80, swc_base_addr + WDCTL);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "pc87413 - Enable SW_WD_TRG\n");
 #endif
 }
@@ -209,7 +209,7 @@ static inline void pc87413_disable_sw_wd_trg(void)
 {
 	/* Disable SW_WD_TRG */
 	outb_p(inb(swc_base_addr + WDCTL) & 0x7f, swc_base_addr + WDCTL);
-#ifdef DEBUG
+#ifdef DE
 	pr_info(DPFX "Disable SW_WD_TRG\n");
 #endif
 }
@@ -424,7 +424,7 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 	}
 	case WDIOC_KEEPALIVE:
 		pc87413_refresh();
-#ifdef DEBUG
+#ifdef DE
 		pr_info(DPFX "keepalive\n");
 #endif
 		return 0;

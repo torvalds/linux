@@ -129,11 +129,11 @@ static int __init processor_probe(struct parisc_device *dev)
 		status = pdc_pat_cell_module(&bytecnt, dev->pcell_loc,
 			dev->mod_index, PA_VIEW, pa_pdc_cell);
 
-		BUG_ON(PDC_OK != status);
+		_ON(PDC_OK != status);
 
 		/* verify it's the same as what do_pat_inventory() found */
-		BUG_ON(dev->mod_info != pa_pdc_cell->mod_info);
-		BUG_ON(dev->pmod_loc != pa_pdc_cell->mod_location);
+		_ON(dev->mod_info != pa_pdc_cell->mod_info);
+		_ON(dev->pmod_loc != pa_pdc_cell->mod_location);
 
 		txn_addr = pa_pdc_cell->mod[0];   /* id_eid for IO sapic */
 
@@ -141,7 +141,7 @@ static int __init processor_probe(struct parisc_device *dev)
 
 		/* get the cpu number */
 		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa.start);
-		BUG_ON(PDC_OK != status);
+		_ON(PDC_OK != status);
 
 		pr_info("Logical CPU #%lu is physical cpu #%lu at location "
 			"0x%lx with hpa %pa\n",

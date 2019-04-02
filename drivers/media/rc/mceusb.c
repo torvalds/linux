@@ -8,7 +8,7 @@
  * in turn also based on the lirc_atiusb driver by Paul Miller. The
  * two mce drivers were merged into one by Jarod Wilson, with transmit
  * support for the 1st-gen device added primarily by Patrick Calhoun,
- * with a bit of tweaks by Jarod. Debugging improvements and proper
+ * with a bit of tweaks by Jarod. Deging improvements and proper
  * support for what appears to be 3rd-gen hardware added by Jarod.
  * Initial port from lirc driver to ir-core drivery by Jarod, based
  * partially on a port to an earlier proposed IR infrastructure by
@@ -604,7 +604,7 @@ static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 static void mceusb_dev_printdata(struct mceusb_dev *ir, u8 *buf, int buf_len,
 				 int offset, int len, bool out)
 {
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(DE) || defined(CONFIG_DYNAMIC_DE)
 	char *inout;
 	u8 cmd, subcmd, *data;
 	struct device *dev = ir->dev;
@@ -1081,7 +1081,7 @@ static int mceusb_set_rx_carrier_report(struct rc_dev *dev, int enable)
 }
 
 /*
- * We don't do anything but print debug spew for many of the command bits
+ * We don't do anything but print de spew for many of the command bits
  * we receive from the hardware, but some of them are useful information
  * we want to store so that we can use them.
  */

@@ -63,7 +63,7 @@ static struct test_sysctl_data test_data = {
 	.string_0001 = "(none)",
 };
 
-/* These are all under /proc/sys/debug/test_sysctl/ */
+/* These are all under /proc/sys/de/test_sysctl/ */
 static struct ctl_table test_table[] = {
 	{
 		.procname	= "int_0001",
@@ -117,7 +117,7 @@ static struct ctl_table test_sysctl_table[] = {
 
 static struct ctl_table test_sysctl_root_table[] = {
 	{
-		.procname	= "debug",
+		.procname	= "de",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= test_sysctl_table,

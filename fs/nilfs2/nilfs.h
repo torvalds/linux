@@ -137,7 +137,7 @@ struct nilfs_transaction_info {
 	void		       *ti_save;
 				/*
 				 * This should never be used.  If it happens,
-				 * one of other filesystems has a bug.
+				 * one of other filesystems has a .
 				 */
 	unsigned short		ti_flags;
 	unsigned short		ti_count;

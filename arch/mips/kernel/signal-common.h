@@ -11,12 +11,12 @@
 #ifndef __SIGNAL_COMMON_H
 #define __SIGNAL_COMMON_H
 
-/* #define DEBUG_SIG */
+/* #define DE_SIG */
 
-#ifdef DEBUG_SIG
-#  define DEBUGP(fmt, args...) printk("%s: " fmt, __func__, ##args)
+#ifdef DE_SIG
+#  define DEP(fmt, args...) printk("%s: " fmt, __func__, ##args)
 #else
-#  define DEBUGP(fmt, args...)
+#  define DEP(fmt, args...)
 #endif
 
 /*

@@ -47,9 +47,9 @@ static DEFINE_MUTEX(ft_mutex);
 static LIST_HEAD(fcoe_netdevs);
 static DEFINE_MUTEX(fn_mutex);
 
-unsigned int libfcoe_debug_logging;
-module_param_named(debug_logging, libfcoe_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+unsigned int libfcoe_de_logging;
+module_param_named(de_logging, libfcoe_de_logging, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(de_logging, "a bit mask of logging levels");
 
 module_param_call(show, NULL, fcoe_transport_show, NULL, S_IRUSR);
 __MODULE_PARM_TYPE(show, "string");

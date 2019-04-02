@@ -247,8 +247,8 @@ static int do_match_mnt(struct aa_dfa *dfa, unsigned int start,
 {
 	unsigned int state;
 
-	AA_BUG(!dfa);
-	AA_BUG(!perms);
+	AA_(!dfa);
+	AA_(!perms);
 
 	state = aa_dfa_match(dfa, start, mntpnt);
 	state = aa_dfa_null_transition(dfa, state);
@@ -295,8 +295,8 @@ static int do_match_mnt(struct aa_dfa *dfa, unsigned int start,
 
 static int path_flags(struct aa_profile *profile, const struct path *path)
 {
-	AA_BUG(!profile);
-	AA_BUG(!path);
+	AA_(!profile);
+	AA_(!path);
 
 	return profile->path_flags |
 		(S_ISDIR(path->dentry->d_inode->i_mode) ? PATH_IS_DIR : 0);
@@ -326,9 +326,9 @@ static int match_mnt_path_str(struct aa_profile *profile,
 	const char *mntpnt = NULL, *info = NULL;
 	int pos, error;
 
-	AA_BUG(!profile);
-	AA_BUG(!mntpath);
-	AA_BUG(!buffer);
+	AA_(!profile);
+	AA_(!mntpath);
+	AA_(!buffer);
 
 	if (!PROFILE_MEDIATES(profile, AA_CLASS_MOUNT))
 		return 0;
@@ -381,8 +381,8 @@ static int match_mnt(struct aa_profile *profile, const struct path *path,
 	const char *devname = NULL, *info = NULL;
 	int error = -EACCES;
 
-	AA_BUG(!profile);
-	AA_BUG(devpath && !devbuffer);
+	AA_(!profile);
+	AA_(devpath && !devbuffer);
 
 	if (!PROFILE_MEDIATES(profile, AA_CLASS_MOUNT))
 		return 0;
@@ -407,8 +407,8 @@ int aa_remount(struct aa_label *label, const struct path *path,
 	bool binary;
 	int error;
 
-	AA_BUG(!label);
-	AA_BUG(!path);
+	AA_(!label);
+	AA_(!path);
 
 	binary = path->dentry->d_sb->s_type->fs_flags & FS_BINARY_MOUNTDATA;
 
@@ -429,8 +429,8 @@ int aa_bind_mount(struct aa_label *label, const struct path *path,
 	struct path old_path;
 	int error;
 
-	AA_BUG(!label);
-	AA_BUG(!path);
+	AA_(!label);
+	AA_(!path);
 
 	if (!dev_name || !*dev_name)
 		return -EINVAL;
@@ -458,8 +458,8 @@ int aa_mount_change_type(struct aa_label *label, const struct path *path,
 	char *buffer = NULL;
 	int error;
 
-	AA_BUG(!label);
-	AA_BUG(!path);
+	AA_(!label);
+	AA_(!path);
 
 	/* These are the flags allowed by do_change_type() */
 	flags &= (MS_REC | MS_SILENT | MS_SHARED | MS_PRIVATE | MS_SLAVE |
@@ -482,8 +482,8 @@ int aa_move_mount(struct aa_label *label, const struct path *path,
 	struct path old_path;
 	int error;
 
-	AA_BUG(!label);
-	AA_BUG(!path);
+	AA_(!label);
+	AA_(!path);
 
 	if (!orig_name || !*orig_name)
 		return -EINVAL;
@@ -513,8 +513,8 @@ int aa_new_mount(struct aa_label *label, const char *dev_name,
 	int requires_dev = 0;
 	struct path tmp_path, *dev_path = NULL;
 
-	AA_BUG(!label);
-	AA_BUG(!path);
+	AA_(!label);
+	AA_(!path);
 
 	if (type) {
 		struct file_system_type *fstype;
@@ -562,8 +562,8 @@ static int profile_umount(struct aa_profile *profile, struct path *path,
 	unsigned int state;
 	int error;
 
-	AA_BUG(!profile);
-	AA_BUG(!path);
+	AA_(!profile);
+	AA_(!path);
 
 	if (!PROFILE_MEDIATES(profile, AA_CLASS_MOUNT))
 		return 0;
@@ -592,8 +592,8 @@ int aa_umount(struct aa_label *label, struct vfsmount *mnt, int flags)
 	int error;
 	struct path path = { .mnt = mnt, .dentry = mnt->mnt_root };
 
-	AA_BUG(!label);
-	AA_BUG(!mnt);
+	AA_(!label);
+	AA_(!mnt);
 
 	get_buffers(buffer);
 	error = fn_for_each_confined(label, profile,
@@ -619,9 +619,9 @@ static struct aa_label *build_pivotroot(struct aa_profile *profile,
 	unsigned int state;
 	int error;
 
-	AA_BUG(!profile);
-	AA_BUG(!new_path);
-	AA_BUG(!old_path);
+	AA_(!profile);
+	AA_(!new_path);
+	AA_(!old_path);
 
 	if (profile_unconfined(profile) ||
 	    !PROFILE_MEDIATES(profile, AA_CLASS_MOUNT))
@@ -667,9 +667,9 @@ int aa_pivotroot(struct aa_label *label, const struct path *old_path,
 	char *old_buffer = NULL, *new_buffer = NULL, *info = NULL;
 	int error;
 
-	AA_BUG(!label);
-	AA_BUG(!old_path);
-	AA_BUG(!new_path);
+	AA_(!label);
+	AA_(!old_path);
+	AA_(!new_path);
 
 	get_buffers(old_buffer, new_buffer);
 	target = fn_label_build(label, profile, GFP_ATOMIC,

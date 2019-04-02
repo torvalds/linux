@@ -356,7 +356,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		break;
 	}
 
-	DRM_DEBUG_KMS("cpp = %u\n", fb->format->cpp[0]);
+	DRM_DE_KMS("cpp = %u\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -561,7 +561,7 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 	struct decon_context *ctx = crtc->ctx;
 	int win, i, ret;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
+	DRM_DE_KMS("%s\n", __FILE__);
 
 	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
 		ret = clk_prepare_enable(ctx->clks[i]);

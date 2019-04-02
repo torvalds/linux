@@ -51,7 +51,7 @@ void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 	cb = conn_info->data_exchange_cb;
 	cb_context = conn_info->data_exchange_cb_context;
 
-	pr_debug("len %d, err %d\n", skb ? skb->len : 0, err);
+	pr_de("len %d, err %d\n", skb ? skb->len : 0, err);
 
 	/* data exchange is complete, stop the data timer */
 	del_timer_sync(&ndev->data_timer);
@@ -114,7 +114,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 	int frag_len;
 	int rc = 0;
 
-	pr_debug("conn_id 0x%x, total_len %d\n", conn_id, total_len);
+	pr_de("conn_id 0x%x, total_len %d\n", conn_id, total_len);
 
 	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
 	if (!conn_info) {
@@ -150,7 +150,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 		data += frag_len;
 		total_len -= frag_len;
 
-		pr_debug("frag_len %d, remaining total_len %d\n",
+		pr_de("frag_len %d, remaining total_len %d\n",
 			 frag_len, total_len);
 	}
 
@@ -181,7 +181,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 	struct nci_conn_info    *conn_info;
 	int rc = 0;
 
-	pr_debug("conn_id 0x%x, plen %d\n", conn_id, skb->len);
+	pr_de("conn_id 0x%x, plen %d\n", conn_id, skb->len);
 
 	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
 	if (!conn_info) {
@@ -283,9 +283,9 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	__u8 conn_id = nci_conn_id(skb->data);
 	struct nci_conn_info    *conn_info;
 
-	pr_debug("len %d\n", skb->len);
+	pr_de("len %d\n", skb->len);
 
-	pr_debug("NCI RX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
+	pr_de("NCI RX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
 		 nci_pbf(skb->data),
 		 nci_conn_id(skb->data),
 		 nci_plen(skb->data));
@@ -302,7 +302,7 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	    ndev->target_active_prot == NFC_PROTO_FELICA ||
 	    ndev->target_active_prot == NFC_PROTO_ISO15693) {
 		/* frame I/F => remove the status byte */
-		pr_debug("frame I/F => remove the status byte\n");
+		pr_de("frame I/F => remove the status byte\n");
 		status = skb->data[skb->len - 1];
 		skb_trim(skb, (skb->len - 1));
 	}

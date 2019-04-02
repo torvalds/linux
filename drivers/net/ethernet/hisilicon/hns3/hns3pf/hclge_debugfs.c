@@ -3,7 +3,7 @@
 
 #include <linux/device.h>
 
-#include "hclge_debugfs.h"
+#include "hclge_defs.h"
 #include "hclge_cmd.h"
 #include "hclge_main.h"
 #include "hclge_tm.h"

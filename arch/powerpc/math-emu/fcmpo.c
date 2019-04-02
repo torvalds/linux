@@ -16,14 +16,14 @@ fcmpo(u32 *ccr, int crfD, void *frA, void *frB)
 	int code[4] = { (1 << 3), (1 << 1), (1 << 2), (1 << 0) };
 	long cmp;
 
-#ifdef DEBUG
+#ifdef DE
 	printk("%s: %p (%08x) %d %p %p\n", __func__, ccr, *ccr, crfD, frA, frB);
 #endif
 
 	FP_UNPACK_DP(A, frA);
 	FP_UNPACK_DP(B, frB);
 
-#ifdef DEBUG
+#ifdef DE
 	printk("A: %ld %lu %lu %ld (%ld)\n", A_s, A_f1, A_f0, A_e, A_c);
 	printk("B: %ld %lu %lu %ld (%ld)\n", B_s, B_f1, B_f0, B_e, B_c);
 #endif
@@ -40,7 +40,7 @@ fcmpo(u32 *ccr, int crfD, void *frA, void *frB)
 	*ccr &= ~(15 << ((7 - crfD) << 2));
 	*ccr |= (cmp << ((7 - crfD) << 2));
 
-#ifdef DEBUG
+#ifdef DE
 	printk("CR: %08x\n", *ccr);
 #endif
 

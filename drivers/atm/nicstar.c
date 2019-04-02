@@ -68,36 +68,36 @@
 /* Configurable parameters */
 
 #undef PHY_LOOPBACK
-#undef TX_DEBUG
-#undef RX_DEBUG
-#undef GENERAL_DEBUG
-#undef EXTRA_DEBUG
+#undef TX_DE
+#undef RX_DE
+#undef GENERAL_DE
+#undef EXTRA_DE
 
 /* Do not touch these */
 
-#ifdef TX_DEBUG
+#ifdef TX_DE
 #define TXPRINTK(args...) printk(args)
 #else
 #define TXPRINTK(args...)
-#endif /* TX_DEBUG */
+#endif /* TX_DE */
 
-#ifdef RX_DEBUG
+#ifdef RX_DE
 #define RXPRINTK(args...) printk(args)
 #else
 #define RXPRINTK(args...)
-#endif /* RX_DEBUG */
+#endif /* RX_DE */
 
-#ifdef GENERAL_DEBUG
+#ifdef GENERAL_DE
 #define PRINTK(args...) printk(args)
 #else
 #define PRINTK(args...)
-#endif /* GENERAL_DEBUG */
+#endif /* GENERAL_DE */
 
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DE
 #define XPRINTK(args...) printk(args)
 #else
 #define XPRINTK(args...)
-#endif /* EXTRA_DEBUG */
+#endif /* EXTRA_DE */
 
 /* Macros */
 
@@ -142,7 +142,7 @@ static void dequeue_sm_buf(ns_dev * card, struct sk_buff *sb);
 static void dequeue_lg_buf(ns_dev * card, struct sk_buff *lb);
 static int ns_proc_read(struct atm_dev *dev, loff_t * pos, char *page);
 static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user * arg);
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DE
 static void which_list(ns_dev * card, struct sk_buff *skb);
 #endif
 static void ns_poll(struct timer_list *unused);
@@ -275,9 +275,9 @@ static int __init nicstar_init(void)
 
 	error = pci_register_driver(&nicstar_driver);
 
-	TXPRINTK("nicstar: TX debug enabled.\n");
-	RXPRINTK("nicstar: RX debug enabled.\n");
-	PRINTK("nicstar: General debug enabled.\n");
+	TXPRINTK("nicstar: TX de enabled.\n");
+	RXPRINTK("nicstar: RX de enabled.\n");
+	PRINTK("nicstar: General de enabled.\n");
 #ifdef PHY_LOOPBACK
 	printk("nicstar: using PHY loopback.\n");
 #endif /* PHY_LOOPBACK */
@@ -957,11 +957,11 @@ static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 			       DMA_TO_DEVICE);
 	NS_PRV_DMA(skb) = addr1; /* save so we can unmap later */
 
-#ifdef GENERAL_DEBUG
+#ifdef GENERAL_DE
 	if (!addr1)
 		printk("nicstar%d: push_rxbufs called with addr1 = 0.\n",
 		       card->index);
-#endif /* GENERAL_DEBUG */
+#endif /* GENERAL_DE */
 
 	stat = readl(card->membase + STAT);
 	card->sbfqc = ns_stat_sfbqc_get(stat);
@@ -1544,7 +1544,7 @@ static void ns_close(struct atm_vcc *vcc)
 	clear_bit(ATM_VF_PARTIAL, &vcc->flags);
 	clear_bit(ATM_VF_ADDR, &vcc->flags);
 
-#ifdef RX_DEBUG
+#ifdef RX_DE
 	{
 		u32 stat, cfg;
 		stat = readl(card->membase + STAT);
@@ -1566,7 +1566,7 @@ static void ns_close(struct atm_vcc *vcc)
 		printk("hbpool.count = %d  iovpool.count = %d \n",
 		       card->hbpool.count, card->iovpool.count);
 	}
-#endif /* RX_DEBUG */
+#endif /* RX_DE */
 }
 
 static void fill_tst(ns_dev * card, int n, vc_map * vc)
@@ -2101,7 +2101,7 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 	iov->iov_len = ns_rsqe_cellcount(rsqe) * 48;
 	iovb->len += iov->iov_len;
 
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DE
 	if (NS_PRV_IOVCNT(iovb) == 1) {
 		if (NS_PRV_BUFTYPE(skb) != BUF_SM) {
 			printk
@@ -2129,7 +2129,7 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 			return;
 		}
 	}
-#endif /* EXTRA_DEBUG */
+#endif /* EXTRA_DE */
 
 	if (ns_rsqe_eopdu(rsqe)) {
 		/* This works correctly regardless of the endianness of the host */
@@ -2299,12 +2299,12 @@ static void dequeue_rx(ns_dev * card, ns_rsqe * rsqe)
 					remaining -= tocopy;
 					push_rxbufs(card, lb);
 				}
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DE
 				if (remaining != 0 || hb->len != len)
 					printk
 					    ("nicstar%d: Huge buffer len mismatch.\n",
 					     card->index);
-#endif /* EXTRA_DEBUG */
+#endif /* EXTRA_DE */
 				ATM_SKB(hb)->vcc = vcc;
 				__net_timestamp(hb);
 				vcc->push(vcc, hb);
@@ -2428,7 +2428,7 @@ static int ns_proc_read(struct atm_dev *dev, loff_t * pos, char *page)
 #if 0
 	/* Dump 25.6 Mbps PHY registers */
 	/* Now there's a 25.6 Mbps PHY driver this code isn't needed. I left it
-	   here just in case it's needed for debugging. */
+	   here just in case it's needed for deging. */
 	if (card->max_pcr == ATM_25_PCR && !left--) {
 		u32 phy_regs[4];
 		u32 i;
@@ -2672,12 +2672,12 @@ static int ns_ioctl(struct atm_dev *dev, unsigned int cmd, void __user * arg)
 	}
 }
 
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DE
 static void which_list(ns_dev * card, struct sk_buff *skb)
 {
 	printk("skb buf_type: 0x%08x\n", NS_PRV_BUFTYPE(skb));
 }
-#endif /* EXTRA_DEBUG */
+#endif /* EXTRA_DE */
 
 static void ns_poll(struct timer_list *unused)
 {

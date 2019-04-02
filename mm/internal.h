@@ -34,7 +34,7 @@
 #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
 
 /* Do not use these with a slab allocator */
-#define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
+#define GFP_SLAB__MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
 
 void page_writeback_init(void);
 
@@ -73,8 +73,8 @@ static inline unsigned long ra_submit(struct file_ra_state *ra,
  */
 static inline void set_page_refcounted(struct page *page)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	VM_BUG_ON_PAGE(page_ref_count(page), page);
+	VM__ON_PAGE(PageTail(page), page);
+	VM__ON_PAGE(page_ref_count(page), page);
 	set_page_count(page, 1);
 }
 
@@ -361,7 +361,7 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 	end = start + PAGE_SIZE * (hpage_nr_pages(page) - 1);
 
 	/* page should be within @vma mapping range */
-	VM_BUG_ON_VMA(end < vma->vm_start || start >= vma->vm_end, vma);
+	VM__ON_VMA(end < vma->vm_start || start >= vma->vm_end, vma);
 
 	return max(start, vma->vm_start);
 }
@@ -401,14 +401,14 @@ static inline struct page *mem_map_next(struct page *iter,
 	return iter + 1;
 }
 
-/* Memory initialisation debug and verification */
+/* Memory initialisation de and verification */
 enum mminit_level {
 	MMINIT_WARNING,
 	MMINIT_VERIFY,
 	MMINIT_TRACE
 };
 
-#ifdef CONFIG_DEBUG_MEMORY_INIT
+#ifdef CONFIG_DE_MEMORY_INIT
 
 extern int mminit_loglevel;
 
@@ -418,7 +418,7 @@ do { \
 		if (level <= MMINIT_WARNING) \
 			pr_warn("mminit::" prefix " " fmt, ##arg);	\
 		else \
-			printk(KERN_DEBUG "mminit::" prefix " " fmt, ##arg); \
+			printk(KERN_DE "mminit::" prefix " " fmt, ##arg); \
 	} \
 } while (0)
 
@@ -438,9 +438,9 @@ static inline void mminit_verify_pageflags_layout(void)
 static inline void mminit_verify_zonelist(void)
 {
 }
-#endif /* CONFIG_DEBUG_MEMORY_INIT */
+#endif /* CONFIG_DE_MEMORY_INIT */
 
-/* mminit_validate_memmodel_limits is independent of CONFIG_DEBUG_MEMORY_INIT */
+/* mminit_validate_memmodel_limits is independent of CONFIG_DE_MEMORY_INIT */
 #if defined(CONFIG_SPARSEMEM)
 extern void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 				unsigned long *end_pfn);

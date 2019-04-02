@@ -2025,7 +2025,7 @@ void trinity_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
-void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+void trinity_dpm_defs_print_current_performance_level(struct radeon_device *rdev,
 							 struct seq_file *m)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);

@@ -13,7 +13,7 @@ i2400m-y :=		\
 	tx.o		\
 	rx.o
 
-i2400m-$(CONFIG_DEBUG_FS) += debugfs.o
+i2400m-$(CONFIG_DE_FS) += defs.o
 
 i2400m-usb-y :=			\
 	usb-fw.o		\

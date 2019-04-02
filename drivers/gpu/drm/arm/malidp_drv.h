@@ -39,7 +39,7 @@ struct malidp_drm {
 	struct drm_pending_vblank_event *event;
 	atomic_t config_valid;
 	u32 core_id;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct malidp_error_stats de_errors;
 	struct malidp_error_stats se_errors;
 	/* Protects errors stats */
@@ -90,7 +90,7 @@ struct malidp_crtc_state {
 int malidp_de_planes_init(struct drm_device *drm);
 int malidp_crtc_init(struct drm_device *drm);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 void malidp_error(struct malidp_drm *malidp,
 		  struct malidp_error_stats *error_stats, u32 status,
 		  u64 vblank);

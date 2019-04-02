@@ -15,7 +15,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
@@ -30,8 +30,8 @@
 
 #define VERSION "0.1"
 
-static struct dentry *lowpan_enable_debugfs;
-static struct dentry *lowpan_control_debugfs;
+static struct dentry *lowpan_enable_defs;
+static struct dentry *lowpan_control_defs;
 
 #define IFACE_NAME_TEMPLATE "bt%d"
 
@@ -1108,7 +1108,7 @@ static int lowpan_enable_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(lowpan_enable_fops, lowpan_enable_get,
+DEFINE_DEFS_ATTRIBUTE(lowpan_enable_fops, lowpan_enable_get,
 			 lowpan_enable_set, "%llu\n");
 
 static ssize_t lowpan_control_write(struct file *fp,
@@ -1278,12 +1278,12 @@ static struct notifier_block bt_6lowpan_dev_notifier = {
 
 static int __init bt_6lowpan_init(void)
 {
-	lowpan_enable_debugfs = debugfs_create_file_unsafe("6lowpan_enable",
-							   0644, bt_debugfs,
+	lowpan_enable_defs = defs_create_file_unsafe("6lowpan_enable",
+							   0644, bt_defs,
 							   NULL,
 							   &lowpan_enable_fops);
-	lowpan_control_debugfs = debugfs_create_file("6lowpan_control", 0644,
-						     bt_debugfs, NULL,
+	lowpan_control_defs = defs_create_file("6lowpan_control", 0644,
+						     bt_defs, NULL,
 						     &lowpan_control_fops);
 
 	return register_netdevice_notifier(&bt_6lowpan_dev_notifier);
@@ -1291,8 +1291,8 @@ static int __init bt_6lowpan_init(void)
 
 static void __exit bt_6lowpan_exit(void)
 {
-	debugfs_remove(lowpan_enable_debugfs);
-	debugfs_remove(lowpan_control_debugfs);
+	defs_remove(lowpan_enable_defs);
+	defs_remove(lowpan_control_defs);
 
 	if (listen_chan) {
 		l2cap_chan_close(listen_chan, 0);

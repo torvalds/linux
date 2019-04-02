@@ -154,7 +154,7 @@ static int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	if (params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
 	    params->cipher != WLAN_CIPHER_SUITE_WEP104) {
-		pr_debug("Unsupported cipher suite\n");
+		pr_de("Unsupported cipher suite\n");
 		return -EFAULT;
 	}
 

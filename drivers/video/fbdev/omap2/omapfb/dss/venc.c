@@ -390,7 +390,7 @@ static void venc_reset(void)
 
 #ifdef CONFIG_FB_OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 	/* the magical sleep that makes things work */
-	/* XXX more info? What bug this circumvents? */
+	/* XXX more info? What  this circumvents? */
 	msleep(20);
 #endif
 }
@@ -425,7 +425,7 @@ static const struct venc_config *venc_timings_to_config(
 	if (memcmp(&omap_dss_ntsc_timings, timings, sizeof(*timings)) == 0)
 		return &venc_config_ntsc_trm;
 
-	BUG();
+	();
 	return NULL;
 }
 
@@ -902,7 +902,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
-	dss_debugfs_create_file("venc", venc_dump_regs);
+	dss_defs_create_file("venc", venc_dump_regs);
 
 	venc_init_output(pdev);
 

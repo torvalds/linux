@@ -76,7 +76,7 @@ __snd_util_mem_alloc(struct snd_util_memhdr *hdr, int size)
 	unsigned int units, prev_offset;
 	struct list_head *p;
 
-	if (snd_BUG_ON(!hdr || size <= 0))
+	if (snd__ON(!hdr || size <= 0))
 		return NULL;
 
 	/* word alignment */
@@ -163,7 +163,7 @@ __snd_util_mem_free(struct snd_util_memhdr *hdr, struct snd_util_memblk *blk)
  */
 int snd_util_mem_free(struct snd_util_memhdr *hdr, struct snd_util_memblk *blk)
 {
-	if (snd_BUG_ON(!hdr || !blk))
+	if (snd__ON(!hdr || !blk))
 		return -EINVAL;
 
 	mutex_lock(&hdr->block_mutex);

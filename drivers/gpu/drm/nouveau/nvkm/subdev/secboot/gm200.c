@@ -120,7 +120,7 @@ gm200_secboot_oneinit(struct nvkm_secboot *sb)
 		return ret;
 
 	atomic_inc(&gsb->vmm->engref[NVKM_SUBDEV_PMU]);
-	gsb->vmm->debug = gsb->base.subdev.debug;
+	gsb->vmm->de = gsb->base.subdev.de;
 
 	ret = nvkm_vmm_join(gsb->vmm, gsb->inst);
 	if (ret)

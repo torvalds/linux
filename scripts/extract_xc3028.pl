@@ -22,7 +22,7 @@
 #use strict;
 use IO::Handle;
 
-my $debug=0;
+my $de=0;
 
 sub verify ($$)
 {
@@ -104,12 +104,12 @@ sub write_hunk($$)
 	my ($offset, $length) = @_;
 	my $out = get_hunk($offset, $length);
 
-	printf "(len %d) ",$length if ($debug);
+	printf "(len %d) ",$length if ($de);
 
 	for (my $i=0;$i<$length;$i++) {
-		printf "%02x ",ord(substr($out,$i,1)) if ($debug);
+		printf "%02x ",ord(substr($out,$i,1)) if ($de);
 	}
-	printf "\n" if ($debug);
+	printf "\n" if ($de);
 
 	syswrite(OUTFILE, $out);
 }
@@ -119,12 +119,12 @@ sub write_hunk_fix_endian($$)
 	my ($offset, $length) = @_;
 	my $out = get_hunk($offset, $length);
 
-	printf "(len_fix %d) ",$length if ($debug);
+	printf "(len_fix %d) ",$length if ($de);
 
 	for (my $i=0;$i<$length;$i++) {
-		printf "%02x ",ord(substr($out,$i,1)) if ($debug);
+		printf "%02x ",ord(substr($out,$i,1)) if ($de);
 	}
-	printf "\n" if ($debug);
+	printf "\n" if ($de);
 
 	my $i=0;
 	while ($i<$length) {

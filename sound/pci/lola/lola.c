@@ -71,13 +71,13 @@ MODULE_SUPPORTED_DEVICE("{{Digigram, Lola}}");
 MODULE_DESCRIPTION("Digigram Lola driver");
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
-static int debug;
-module_param(debug, int, 0644);
-#define verbose_debug(fmt, args...)			\
-	do { if (debug > 1) pr_debug(SFX fmt, ##args); } while (0)
+#ifdef CONFIG_SND_DE_VERBOSE
+static int de;
+module_param(de, int, 0644);
+#define verbose_de(fmt, args...)			\
+	do { if (de > 1) pr_de(SFX fmt, ##args); } while (0)
 #else
-#define verbose_debug(fmt, args...)
+#define verbose_de(fmt, args...)
 #endif
 
 /*
@@ -165,7 +165,7 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 			*val = chip->res;
 			if (extval)
 				*extval = chip->res_ex;
-			verbose_debug("get_response: %x, %x\n",
+			verbose_de("get_response: %x, %x\n",
 				      chip->res, chip->res_ex);
 			if (chip->res_ex & LOLA_RIRB_EX_ERROR) {
 				dev_warn(chip->card->dev, "RIRB ERROR: "
@@ -195,7 +195,7 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 int lola_codec_write(struct lola *chip, unsigned int nid, unsigned int verb,
 		     unsigned int data, unsigned int extdata)
 {
-	verbose_debug("codec_write NID=%x, verb=%x, data=%x, ext=%x\n",
+	verbose_de("codec_write NID=%x, verb=%x, data=%x, ext=%x\n",
 		      nid, verb, data, extdata);
 	return corb_send_verb(chip, nid, verb, data, extdata);
 }
@@ -207,7 +207,7 @@ int lola_codec_read(struct lola *chip, unsigned int nid, unsigned int verb,
 {
 	int err;
 
-	verbose_debug("codec_read NID=%x, verb=%x, data=%x, ext=%x\n",
+	verbose_de("codec_read NID=%x, verb=%x, data=%x, ext=%x\n",
 		      nid, verb, data, extdata);
 	err = corb_send_verb(chip, nid, verb, data, extdata);
 	if (err < 0)
@@ -738,7 +738,7 @@ static int lola_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 
-	lola_proc_debug_new(chip);
+	lola_proc_de_new(chip);
 
 	err = snd_card_register(card);
 	if (err < 0)

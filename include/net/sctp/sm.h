@@ -24,7 +24,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email addresses:
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -62,7 +62,7 @@ enum sctp_disposition {
 	SCTP_DISPOSITION_VIOLATION,	 /* The peer is misbehaving.  */
 	SCTP_DISPOSITION_NOT_IMPL,	 /* This entry is not implemented.  */
 	SCTP_DISPOSITION_ERROR,		 /* This is plain old user error.  */
-	SCTP_DISPOSITION_BUG,		 /* This is a bug.  */
+	SCTP_DISPOSITION_,		 /* This is a .  */
 };
 
 typedef enum sctp_disposition (sctp_state_fn_t) (
@@ -84,7 +84,7 @@ struct sctp_sm_table_entry {
 
 /* Prototypes for generic state functions. */
 sctp_state_fn_t sctp_sf_not_impl;
-sctp_state_fn_t sctp_sf_bug;
+sctp_state_fn_t sctp_sf_;
 
 /* Prototypes for gener timer state functions. */
 sctp_state_fn_t sctp_sf_timer_ignore;

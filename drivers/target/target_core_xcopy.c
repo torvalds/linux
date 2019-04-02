@@ -78,7 +78,7 @@ static int target_xcopy_locate_se_dev_e4_iter(struct se_device *se_dev,
 		return 0;
 
 	info->found_dev = se_dev;
-	pr_debug("XCOPY 0xe4: located se_dev: %p\n", se_dev);
+	pr_de("XCOPY 0xe4: located se_dev: %p\n", se_dev);
 
 	rc = target_depend_item(&se_dev->dev_group.cg_item);
 	if (rc != 0) {
@@ -87,7 +87,7 @@ static int target_xcopy_locate_se_dev_e4_iter(struct se_device *se_dev,
 		return rc;
 	}
 
-	pr_debug("Called configfs_depend_item for se_dev: %p se_dev->se_dev_group: %p\n",
+	pr_de("Called configfs_depend_item for se_dev: %p se_dev->se_dev_group: %p\n",
 		 se_dev, &se_dev->dev_group);
 	return 1;
 }
@@ -106,7 +106,7 @@ static int target_xcopy_locate_se_dev_e4(const unsigned char *dev_wwn,
 		*found_dev = info.found_dev;
 		return 0;
 	} else {
-		pr_debug_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
+		pr_de_ratelimited("Unable to locate 0xe4 descriptor for EXTENDED_COPY\n");
 		return -EINVAL;
 	}
 }
@@ -121,7 +121,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	 * Extract RELATIVE INITIATOR PORT IDENTIFIER
 	 */
 	ript = get_unaligned_be16(&desc[2]);
-	pr_debug("XCOPY 0xe4: RELATIVE INITIATOR PORT IDENTIFIER: %hu\n", ript);
+	pr_de("XCOPY 0xe4: RELATIVE INITIATOR PORT IDENTIFIER: %hu\n", ript);
 	/*
 	 * Check for supported code set, association, and designator type
 	 */
@@ -147,7 +147,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 		pr_err("XCOPY 0xe4: invalid desig_len: %d\n", (int)desig_len);
 		return -EINVAL;
 	}
-	pr_debug("XCOPY 0xe4: desig_len: %d\n", (int)desig_len);
+	pr_de("XCOPY 0xe4: desig_len: %d\n", (int)desig_len);
 	/*
 	 * Check for NAA IEEE Registered Extended Assigned header..
 	 */
@@ -158,7 +158,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 	}
 
 	if (cscd_index != xop->stdi && cscd_index != xop->dtdi) {
-		pr_debug("XCOPY 0xe4: ignoring CSCD entry %d - neither src nor "
+		pr_de("XCOPY 0xe4: ignoring CSCD entry %d - neither src nor "
 			 "dest\n", cscd_index);
 		return 0;
 	}
@@ -172,7 +172,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 				XCOPY_NAA_IEEE_REGEX_LEN)) {
 			xop->op_origin = XCOL_SOURCE_RECV_OP;
 			xop->src_dev = se_cmd->se_dev;
-			pr_debug("XCOPY 0xe4: Set xop->src_dev %p from source"
+			pr_de("XCOPY 0xe4: Set xop->src_dev %p from source"
 					" received xop\n", xop->src_dev);
 		}
 	}
@@ -189,7 +189,7 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 				XCOPY_NAA_IEEE_REGEX_LEN)) {
 			xop->op_origin = XCOL_DEST_RECV_OP;
 			xop->dst_dev = se_cmd->se_dev;
-			pr_debug("XCOPY 0xe4: Set xop->dst_dev: %p from destination"
+			pr_de("XCOPY 0xe4: Set xop->dst_dev: %p from destination"
 				" received xop\n", xop->dst_dev);
 		}
 	}
@@ -279,9 +279,9 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 		goto out;
 	}
 
-	pr_debug("XCOPY TGT desc: Source dev: %p NAA IEEE WWN: 0x%16phN\n",
+	pr_de("XCOPY TGT desc: Source dev: %p NAA IEEE WWN: 0x%16phN\n",
 		 xop->src_dev, &xop->src_tid_wwn[0]);
-	pr_debug("XCOPY TGT desc: Dest dev: %p NAA IEEE WWN: 0x%16phN\n",
+	pr_de("XCOPY TGT desc: Dest dev: %p NAA IEEE WWN: 0x%16phN\n",
 		 xop->dst_dev, &xop->dst_tid_wwn[0]);
 
 	return cscd_index;
@@ -314,20 +314,20 @@ static int target_xcopy_parse_segdesc_02(struct se_cmd *se_cmd, struct xcopy_op 
 		return -EINVAL;
 	}
 
-	pr_debug("XCOPY seg desc 0x02: desc_len: %hu stdi: %hu dtdi: %hu, DC: %d\n",
+	pr_de("XCOPY seg desc 0x02: desc_len: %hu stdi: %hu dtdi: %hu, DC: %d\n",
 		desc_len, xop->stdi, xop->dtdi, dc);
 
 	xop->nolb = get_unaligned_be16(&desc[10]);
 	xop->src_lba = get_unaligned_be64(&desc[12]);
 	xop->dst_lba = get_unaligned_be64(&desc[20]);
-	pr_debug("XCOPY seg desc 0x02: nolb: %hu src_lba: %llu dst_lba: %llu\n",
+	pr_de("XCOPY seg desc 0x02: nolb: %hu src_lba: %llu dst_lba: %llu\n",
 		xop->nolb, (unsigned long long)xop->src_lba,
 		(unsigned long long)xop->dst_lba);
 
 	if (dc != 0) {
 		xop->dbl = get_unaligned_be24(&desc[29]);
 
-		pr_debug("XCOPY seg desc 0x02: DC=1 w/ dbl: %u\n", xop->dbl);
+		pr_de("XCOPY seg desc 0x02: DC=1 w/ dbl: %u\n", xop->dbl);
 	}
 	return 0;
 }
@@ -413,7 +413,7 @@ static void xcopy_pt_undepend_remotedev(struct xcopy_op *xop)
 	else
 		remote_dev = xop->src_dev;
 
-	pr_debug("Calling configfs_undepend_item for"
+	pr_de("Calling configfs_undepend_item for"
 		  " remote_dev: %p remote_dev->dev_group: %p\n",
 		  remote_dev, &remote_dev->dev_group.cg_item);
 
@@ -526,10 +526,10 @@ static void target_xcopy_setup_pt_port(
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
 
-			pr_debug("Honoring local SRC port from ec_cmd->se_dev:"
+			pr_de("Honoring local SRC port from ec_cmd->se_dev:"
 				" %p\n", pt_cmd->se_dev);
 			pt_cmd->se_lun = ec_cmd->se_lun;
-			pr_debug("Honoring local SRC port from ec_cmd->se_lun: %p\n",
+			pr_de("Honoring local SRC port from ec_cmd->se_lun: %p\n",
 				pt_cmd->se_lun);
 		}
 	} else {
@@ -545,10 +545,10 @@ static void target_xcopy_setup_pt_port(
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
 
-			pr_debug("Honoring local DST port from ec_cmd->se_dev:"
+			pr_de("Honoring local DST port from ec_cmd->se_dev:"
 				" %p\n", pt_cmd->se_dev);
 			pt_cmd->se_lun = ec_cmd->se_lun;
-			pr_debug("Honoring local DST port from ec_cmd->se_lun: %p\n",
+			pr_de("Honoring local DST port from ec_cmd->se_lun: %p\n",
 				pt_cmd->se_lun);
 		}
 	}
@@ -563,7 +563,7 @@ static void target_xcopy_init_pt_lun(struct se_device *se_dev,
 	 * target_xcopy_setup_pt_port()
 	 */
 	if (remote_port) {
-		pr_debug("Setup emulated se_dev: %p from se_dev\n",
+		pr_de("Setup emulated se_dev: %p from se_dev\n",
 			pt_cmd->se_dev);
 		pt_cmd->se_lun = &se_dev->xcopy_lun;
 		pt_cmd->se_dev = se_dev;
@@ -623,7 +623,7 @@ static int target_xcopy_setup_pt_cmd(
 			goto out;
 		}
 
-		pr_debug("Setup PASSTHROUGH_NOALLOC t_data_sg: %p t_data_nents:"
+		pr_de("Setup PASSTHROUGH_NOALLOC t_data_sg: %p t_data_nents:"
 			 " %u\n", cmd->t_data_sg, cmd->t_data_nents);
 	}
 
@@ -647,7 +647,7 @@ static int target_xcopy_issue_pt_cmd(struct xcopy_pt_cmd *xpt_cmd)
 
 	wait_for_completion_interruptible(&xpt_cmd->xpt_passthrough_sem);
 
-	pr_debug("target_xcopy_issue_pt_cmd(): SCSI status: 0x%02x\n",
+	pr_de("target_xcopy_issue_pt_cmd(): SCSI status: 0x%02x\n",
 			se_cmd->scsi_status);
 
 	return (se_cmd->scsi_status) ? -EINVAL : 0;
@@ -679,7 +679,7 @@ static int target_xcopy_read_source(
 	cdb[0] = READ_16;
 	put_unaligned_be64(src_lba, &cdb[2]);
 	put_unaligned_be32(src_sectors, &cdb[10]);
-	pr_debug("XCOPY: Built READ_16: LBA: %llu Sectors: %u Length: %u\n",
+	pr_de("XCOPY: Built READ_16: LBA: %llu Sectors: %u Length: %u\n",
 		(unsigned long long)src_lba, src_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
@@ -696,7 +696,7 @@ static int target_xcopy_read_source(
 
 	xop->xop_data_sg = se_cmd->t_data_sg;
 	xop->xop_data_nents = se_cmd->t_data_nents;
-	pr_debug("XCOPY-READ: Saved xop->xop_data_sg: %p, num: %u for READ"
+	pr_de("XCOPY-READ: Saved xop->xop_data_sg: %p, num: %u for READ"
 		" memory\n", xop->xop_data_sg, xop->xop_data_nents);
 
 	rc = target_xcopy_issue_pt_cmd(xpt_cmd);
@@ -741,7 +741,7 @@ static int target_xcopy_write_destination(
 	cdb[0] = WRITE_16;
 	put_unaligned_be64(dst_lba, &cdb[2]);
 	put_unaligned_be32(dst_sectors, &cdb[10]);
-	pr_debug("XCOPY: Built WRITE_16: LBA: %llu Sectors: %u Length: %u\n",
+	pr_de("XCOPY: Built WRITE_16: LBA: %llu Sectors: %u Length: %u\n",
 		(unsigned long long)dst_lba, dst_sectors, length);
 
 	transport_init_se_cmd(se_cmd, &xcopy_pt_tfo, &xcopy_pt_sess, length,
@@ -809,15 +809,15 @@ static void target_xcopy_do_work(struct work_struct *work)
 
 	max_nolb = min_t(u16, max_sectors, ((u16)(~0U)));
 
-	pr_debug("target_xcopy_do_work: nolb: %hu, max_nolb: %hu end_lba: %llu\n",
+	pr_de("target_xcopy_do_work: nolb: %hu, max_nolb: %hu end_lba: %llu\n",
 			nolb, max_nolb, (unsigned long long)end_lba);
-	pr_debug("target_xcopy_do_work: Starting src_lba: %llu, dst_lba: %llu\n",
+	pr_de("target_xcopy_do_work: Starting src_lba: %llu, dst_lba: %llu\n",
 			(unsigned long long)src_lba, (unsigned long long)dst_lba);
 
 	while (src_lba < end_lba) {
 		cur_nolb = min(nolb, max_nolb);
 
-		pr_debug("target_xcopy_do_work: Calling read src_dev: %p src_lba: %llu,"
+		pr_de("target_xcopy_do_work: Calling read src_dev: %p src_lba: %llu,"
 			" cur_nolb: %hu\n", src_dev, (unsigned long long)src_lba, cur_nolb);
 
 		rc = target_xcopy_read_source(ec_cmd, xop, src_dev, src_lba, cur_nolb);
@@ -825,10 +825,10 @@ static void target_xcopy_do_work(struct work_struct *work)
 			goto out;
 
 		src_lba += cur_nolb;
-		pr_debug("target_xcopy_do_work: Incremented READ src_lba to %llu\n",
+		pr_de("target_xcopy_do_work: Incremented READ src_lba to %llu\n",
 				(unsigned long long)src_lba);
 
-		pr_debug("target_xcopy_do_work: Calling write dst_dev: %p dst_lba: %llu,"
+		pr_de("target_xcopy_do_work: Calling write dst_dev: %p dst_lba: %llu,"
 			" cur_nolb: %hu\n", dst_dev, (unsigned long long)dst_lba, cur_nolb);
 
 		rc = target_xcopy_write_destination(ec_cmd, xop, dst_dev,
@@ -839,7 +839,7 @@ static void target_xcopy_do_work(struct work_struct *work)
 		}
 
 		dst_lba += cur_nolb;
-		pr_debug("target_xcopy_do_work: Incremented WRITE dst_lba to %llu\n",
+		pr_de("target_xcopy_do_work: Incremented WRITE dst_lba to %llu\n",
 				(unsigned long long)dst_lba);
 
 		copied_nolb += cur_nolb;
@@ -854,12 +854,12 @@ static void target_xcopy_do_work(struct work_struct *work)
 	xcopy_pt_undepend_remotedev(xop);
 	kfree(xop);
 
-	pr_debug("target_xcopy_do_work: Final src_lba: %llu, dst_lba: %llu\n",
+	pr_de("target_xcopy_do_work: Final src_lba: %llu, dst_lba: %llu\n",
 		(unsigned long long)src_lba, (unsigned long long)dst_lba);
-	pr_debug("target_xcopy_do_work: Blocks copied: %hu, Bytes Copied: %u\n",
+	pr_de("target_xcopy_do_work: Blocks copied: %hu, Bytes Copied: %u\n",
 		copied_nolb, copied_nolb * dst_dev->dev_attrib.block_size);
 
-	pr_debug("target_xcopy_do_work: Setting X-COPY GOOD status -> sending response\n");
+	pr_de("target_xcopy_do_work: Setting X-COPY GOOD status -> sending response\n");
 	target_complete_cmd(ec_cmd, SAM_STAT_GOOD);
 	return;
 
@@ -927,7 +927,7 @@ static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop)
 		goto out;
 	}
 
-	pr_debug("Processing XCOPY with list_id: 0x%02x list_id_usage: 0x%02x"
+	pr_de("Processing XCOPY with list_id: 0x%02x list_id_usage: 0x%02x"
 		" tdll: %hu sdll: %u inline_dl: %u\n", list_id, list_id_usage,
 		tdll, sdll, inline_dl);
 
@@ -942,7 +942,7 @@ static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop)
 	if (rc <= 0)
 		goto out;
 
-	pr_debug("XCOPY: Processed %d segment descriptors, length: %u\n", rc,
+	pr_de("XCOPY: Processed %d segment descriptors, length: %u\n", rc,
 				rc * XCOPY_SEGMENT_DESC_LEN);
 
 	rc = target_xcopy_parse_target_descriptors(se_cmd, xop, &p[16], tdll, &ret);
@@ -960,7 +960,7 @@ static sense_reason_t target_parse_xcopy_cmd(struct xcopy_op *xop)
 		goto out;
 	}
 
-	pr_debug("XCOPY: Processed %d target descriptors, length: %u\n", rc,
+	pr_de("XCOPY: Processed %d target descriptors, length: %u\n", rc,
 				rc * XCOPY_TARGET_DESC_LEN);
 	transport_kunmap_data_sg(se_cmd);
 	return TCM_NO_SENSE;
@@ -1110,7 +1110,7 @@ sense_reason_t target_do_receive_copy_results(struct se_cmd *se_cmd)
 	int sa = (cdb[1] & 0x1f), list_id = cdb[2];
 	sense_reason_t rc = TCM_NO_SENSE;
 
-	pr_debug("Entering target_do_receive_copy_results: SA: 0x%02x, List ID:"
+	pr_de("Entering target_do_receive_copy_results: SA: 0x%02x, List ID:"
 		" 0x%02x, AL: %u\n", sa, list_id, se_cmd->data_length);
 
 	if (list_id != 0) {

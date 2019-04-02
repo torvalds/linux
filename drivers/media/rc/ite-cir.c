@@ -42,10 +42,10 @@
 
 /* module parameters */
 
-/* debug level */
-static int debug;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging output");
+/* de level */
+static int de;
+module_param(de, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(de, "Enable deging output");
 
 /* low limit for RX carrier freq, Hz, 0 for no RX demodulation */
 static int rx_low_carrier_freq;

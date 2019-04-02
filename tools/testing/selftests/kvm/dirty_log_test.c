@@ -19,7 +19,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define DEBUG printf
+#define DE printf
 
 #define VCPU_ID				1
 
@@ -142,7 +142,7 @@ static void *vcpu_worker(void *data)
 		}
 	}
 
-	DEBUG("Dirtied %"PRIu64" pages\n", pages_count);
+	DE("Dirtied %"PRIu64" pages\n", pages_count);
 
 	return NULL;
 }
@@ -271,7 +271,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);
 	}
 
-	DEBUG("Testing guest mode: %s\n", vm_guest_mode_string(mode));
+	DE("Testing guest mode: %s\n", vm_guest_mode_string(mode));
 
 #ifdef __x86_64__
 	/*
@@ -301,7 +301,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		guest_test_phys_mem = phys_offset;
 	}
 
-	DEBUG("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
+	DE("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	bmap = bitmap_alloc(host_num_pages);
 	host_bmap_track = bitmap_alloc(host_num_pages);
@@ -370,7 +370,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	host_quit = true;
 	pthread_join(vcpu_thread, NULL);
 
-	DEBUG("Total bits checked: dirty (%"PRIu64"), clear (%"PRIu64"), "
+	DE("Total bits checked: dirty (%"PRIu64"), clear (%"PRIu64"), "
 	      "track_next (%"PRIu64")\n", host_dirty_count, host_clear_count,
 	      host_track_next_count);
 
@@ -481,7 +481,7 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(iterations > 2, "Iterations must be greater than two");
 	TEST_ASSERT(interval > 0, "Interval must be greater than zero");
 
-	DEBUG("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
+	DE("Test iterations: %"PRIu64", interval: %"PRIu64" (ms)\n",
 	      iterations, interval);
 
 	srandom(time(0));

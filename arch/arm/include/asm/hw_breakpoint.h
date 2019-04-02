@@ -45,14 +45,14 @@ static inline void decode_ctrl_reg(u32 reg,
 	ctrl->mismatch	= reg & 0x1;
 }
 
-/* Debug architecture numbers. */
-#define ARM_DEBUG_ARCH_RESERVED	0	/* In case of ptrace ABI updates. */
-#define ARM_DEBUG_ARCH_V6	1
-#define ARM_DEBUG_ARCH_V6_1	2
-#define ARM_DEBUG_ARCH_V7_ECP14	3
-#define ARM_DEBUG_ARCH_V7_MM	4
-#define ARM_DEBUG_ARCH_V7_1	5
-#define ARM_DEBUG_ARCH_V8	6
+/* De architecture numbers. */
+#define ARM_DE_ARCH_RESERVED	0	/* In case of ptrace ABI updates. */
+#define ARM_DE_ARCH_V6	1
+#define ARM_DE_ARCH_V6_1	2
+#define ARM_DE_ARCH_V7_ECP14	3
+#define ARM_DE_ARCH_V7_MM	4
+#define ARM_DE_ARCH_V7_1	5
+#define ARM_DE_ARCH_V8	6
 
 /* Breakpoint */
 #define ARM_BREAKPOINT_EXECUTE	0
@@ -96,13 +96,13 @@ static inline void decode_ctrl_reg(u32 reg,
 #define ARM_OP2_WVR		6
 #define ARM_OP2_WCR		7
 
-/* Base register numbers for the debug registers. */
+/* Base register numbers for the de registers. */
 #define ARM_BASE_BVR		64
 #define ARM_BASE_BCR		80
 #define ARM_BASE_WVR		96
 #define ARM_BASE_WCR		112
 
-/* Accessor macros for the debug registers. */
+/* Accessor macros for the de registers. */
 #define ARM_DBG_READ(N, M, OP2, VAL) do {\
 	asm volatile("mrc p14, 0, %0, " #N "," #M ", " #OP2 : "=r" (VAL));\
 } while (0)
@@ -125,7 +125,7 @@ extern int hw_breakpoint_arch_parse(struct perf_event *bp,
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 					   unsigned long val, void *data);
 
-extern u8 arch_get_debug_arch(void);
+extern u8 arch_get_de_arch(void);
 extern u8 arch_get_max_wp_len(void);
 extern void clear_ptrace_hw_breakpoint(struct task_struct *tsk);
 

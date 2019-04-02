@@ -465,7 +465,7 @@ static int check_version(struct dlm_write_request *req)
 	    (req->version[0] == DLM_DEVICE_VERSION_MAJOR &&
 	     req->version[1] > DLM_DEVICE_VERSION_MINOR)) {
 
-		printk(KERN_DEBUG "dlm: process %s (%d) version mismatch "
+		printk(KERN_DE "dlm: process %s (%d) version mismatch "
 		       "user (%d.%d.%d) kernel (%d.%d.%d)\n",
 		       current->comm,
 		       task_pid_nr(current),

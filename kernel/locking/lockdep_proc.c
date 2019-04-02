@@ -16,7 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
-#include <linux/debug_locks.h>
+#include <linux/de_locks.h>
 #include <linux/vmalloc.h>
 #include <linux/sort.h>
 #include <linux/uaccess.h>
@@ -67,8 +67,8 @@ static int l_show(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "%p", class->key);
-#ifdef CONFIG_DEBUG_LOCKDEP
-	seq_printf(m, " OPS:%8ld", debug_class_ops_read(class));
+#ifdef CONFIG_DE_LOCKDEP
+	seq_printf(m, " OPS:%8ld", de_class_ops_read(class));
 #endif
 #ifdef CONFIG_PROVE_LOCKING
 	seq_printf(m, " FD:%5ld", lockdep_count_forward_deps(class));
@@ -131,7 +131,7 @@ static int lc_show(struct seq_file *m, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		if (nr_chain_hlocks > MAX_LOCKDEP_CHAIN_HLOCKS)
-			seq_printf(m, "(buggered) ");
+			seq_printf(m, "(gered) ");
 		seq_printf(m, "all lock chains:\n");
 		return 0;
 	}
@@ -160,32 +160,32 @@ static const struct seq_operations lockdep_chains_ops = {
 };
 #endif /* CONFIG_PROVE_LOCKING */
 
-static void lockdep_stats_debug_show(struct seq_file *m)
+static void lockdep_stats_de_show(struct seq_file *m)
 {
-#ifdef CONFIG_DEBUG_LOCKDEP
-	unsigned long long hi1 = debug_atomic_read(hardirqs_on_events),
-			   hi2 = debug_atomic_read(hardirqs_off_events),
-			   hr1 = debug_atomic_read(redundant_hardirqs_on),
-			   hr2 = debug_atomic_read(redundant_hardirqs_off),
-			   si1 = debug_atomic_read(softirqs_on_events),
-			   si2 = debug_atomic_read(softirqs_off_events),
-			   sr1 = debug_atomic_read(redundant_softirqs_on),
-			   sr2 = debug_atomic_read(redundant_softirqs_off);
+#ifdef CONFIG_DE_LOCKDEP
+	unsigned long long hi1 = de_atomic_read(hardirqs_on_events),
+			   hi2 = de_atomic_read(hardirqs_off_events),
+			   hr1 = de_atomic_read(redundant_hardirqs_on),
+			   hr2 = de_atomic_read(redundant_hardirqs_off),
+			   si1 = de_atomic_read(softirqs_on_events),
+			   si2 = de_atomic_read(softirqs_off_events),
+			   sr1 = de_atomic_read(redundant_softirqs_on),
+			   sr2 = de_atomic_read(redundant_softirqs_off);
 
 	seq_printf(m, " chain lookup misses:           %11llu\n",
-		debug_atomic_read(chain_lookup_misses));
+		de_atomic_read(chain_lookup_misses));
 	seq_printf(m, " chain lookup hits:             %11llu\n",
-		debug_atomic_read(chain_lookup_hits));
+		de_atomic_read(chain_lookup_hits));
 	seq_printf(m, " cyclic checks:                 %11llu\n",
-		debug_atomic_read(nr_cyclic_checks));
+		de_atomic_read(nr_cyclic_checks));
 	seq_printf(m, " redundant checks:              %11llu\n",
-		debug_atomic_read(nr_redundant_checks));
+		de_atomic_read(nr_redundant_checks));
 	seq_printf(m, " redundant links:               %11llu\n",
-		debug_atomic_read(nr_redundant));
+		de_atomic_read(nr_redundant));
 	seq_printf(m, " find-mask forwards checks:     %11llu\n",
-		debug_atomic_read(nr_find_usage_forwards_checks));
+		de_atomic_read(nr_find_usage_forwards_checks));
 	seq_printf(m, " find-mask backwards checks:    %11llu\n",
-		debug_atomic_read(nr_find_usage_backwards_checks));
+		de_atomic_read(nr_find_usage_backwards_checks));
 
 	seq_printf(m, " hardirq on events:             %11llu\n", hi1);
 	seq_printf(m, " hardirq off events:            %11llu\n", hi2);
@@ -245,8 +245,8 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 		sum_forward_deps += lockdep_count_forward_deps(class);
 #endif
 	}
-#ifdef CONFIG_DEBUG_LOCKDEP
-	DEBUG_LOCKS_WARN_ON(debug_atomic_read(nr_unused_locks) != nr_unused);
+#ifdef CONFIG_DE_LOCKDEP
+	DE_LOCKS_WARN_ON(de_atomic_read(nr_unused_locks) != nr_unused);
 #endif
 	seq_printf(m, " lock-classes:                  %11lu [max: %lu]\n",
 			nr_lock_classes, MAX_LOCKDEP_KEYS);
@@ -324,9 +324,9 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 	seq_printf(m, " max bfs queue depth:           %11u\n",
 			max_bfs_queue_depth);
 #endif
-	lockdep_stats_debug_show(m);
-	seq_printf(m, " debug_locks:                   %11u\n",
-			debug_locks);
+	lockdep_stats_de_show(m);
+	seq_printf(m, " de_locks:                   %11u\n",
+			de_locks);
 
 	return 0;
 }
@@ -511,8 +511,8 @@ static void seq_header(struct seq_file *m)
 {
 	seq_puts(m, "lock_stat version 0.4\n");
 
-	if (unlikely(!debug_locks))
-		seq_printf(m, "*WARNING* lock debugging disabled!! - possibly due to a lockdep warning\n");
+	if (unlikely(!de_locks))
+		seq_printf(m, "*WARNING* lock deging disabled!! - possibly due to a lockdep warning\n");
 
 	seq_line(m, '-', 0, 40 + 1 + 12 * (14 + 1));
 	seq_printf(m, "%40s %14s %14s %14s %14s %14s %14s %14s %14s %14s %14s "

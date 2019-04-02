@@ -34,7 +34,7 @@
  */
 static int sn_dma_supported(struct device *dev, u64 mask)
 {
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	if (mask < 0x7fffffff)
 		return 0;
@@ -50,7 +50,7 @@ static int sn_dma_supported(struct device *dev, u64 mask)
  */
 int sn_dma_set_mask(struct device *dev, u64 dma_mask)
 {
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	if (!sn_dma_supported(dev, dma_mask))
 		return 0;
@@ -85,7 +85,7 @@ static void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	/*
 	 * Allocate the memory.
@@ -143,7 +143,7 @@ static void sn_dma_free_coherent(struct device *dev, size_t size, void *cpu_addr
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	provider->dma_unmap(pdev, dma_handle, 0);
 	free_pages((unsigned long)cpu_addr, get_order(size));
@@ -184,7 +184,7 @@ static dma_addr_t sn_dma_map_page(struct device *dev, struct page *page,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	phys_addr = __pa(cpu_addr);
 	if (attrs & DMA_ATTR_WRITE_BARRIER)
@@ -220,7 +220,7 @@ static void sn_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	provider->dma_unmap(pdev, dma_addr, dir);
 }
@@ -244,7 +244,7 @@ static void sn_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 	struct scatterlist *sg;
 
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	for_each_sg(sgl, sg, nhwentries, i) {
 		provider->dma_unmap(pdev, sg->dma_address, dir);
@@ -278,7 +278,7 @@ static int sn_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 	struct sn_pcibus_provider *provider = SN_PCIDEV_BUSPROVIDER(pdev);
 	int i;
 
-	BUG_ON(!dev_is_pci(dev));
+	_ON(!dev_is_pci(dev));
 
 	/*
 	 * Setup a DMA address for each entry in the scatterlist.
@@ -351,7 +351,7 @@ int sn_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 	/*
 	 * If the above failed, retry using the SAL_PROBE call which should
 	 * be present in all proms (but which cannot work round PCI chipset
-	 * bugs).  This code is retained for compatibility with old
+	 * s).  This code is retained for compatibility with old
 	 * pre-4.10 proms, and should be removed at some point in the future.
 	 */
 
@@ -397,7 +397,7 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	/*
 	 * If the above failed, retry using the SAL_PROBE call which should
 	 * be present in all proms (but which cannot work round PCI chipset
-	 * bugs).  This code is retained for compatibility with old
+	 * s).  This code is retained for compatibility with old
 	 * pre-4.10 proms, and should be removed at some point in the future.
 	 */
 

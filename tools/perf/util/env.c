@@ -29,7 +29,7 @@ void perf_env__insert_bpf_prog_info(struct perf_env *env,
 		} else if (prog_id > node->info_linear->info.id) {
 			p = &(*p)->rb_right;
 		} else {
-			pr_debug("duplicated bpf prog info %u\n", prog_id);
+			pr_de("duplicated bpf prog info %u\n", prog_id);
 			goto out;
 		}
 	}
@@ -82,7 +82,7 @@ void perf_env__insert_btf(struct perf_env *env, struct btf_node *btf_node)
 		} else if (btf_id > node->id) {
 			p = &(*p)->rb_right;
 		} else {
-			pr_debug("duplicated btf %u\n", btf_id);
+			pr_de("duplicated btf %u\n", btf_id);
 			goto out;
 		}
 	}

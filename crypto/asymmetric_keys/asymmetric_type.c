@@ -58,7 +58,7 @@ struct key *find_asymmetric_key(struct key *keyring,
 	char *req, *p;
 	int len;
 
-	BUG_ON(!id_0 && !id_1);
+	_ON(!id_0 && !id_1);
 
 	if (id_0) {
 		lookup = id_0->data;
@@ -84,12 +84,12 @@ struct key *find_asymmetric_key(struct key *keyring,
 	p = bin2hex(p, lookup, len);
 	*p = 0;
 
-	pr_debug("Look up: \"%s\"\n", req);
+	pr_de("Look up: \"%s\"\n", req);
 
 	ref = keyring_search(make_key_ref(keyring, 1),
 			     &key_type_asymmetric, req);
 	if (IS_ERR(ref))
-		pr_debug("Request for key '%s' err %ld\n", req, PTR_ERR(ref));
+		pr_de("Request for key '%s' err %ld\n", req, PTR_ERR(ref));
 	kfree(req);
 
 	if (IS_ERR(ref)) {
@@ -109,11 +109,11 @@ struct key *find_asymmetric_key(struct key *keyring,
 		const struct asymmetric_key_ids *kids = asymmetric_key_ids(key);
 
 		if (!kids->id[1]) {
-			pr_debug("First ID matches, but second is missing\n");
+			pr_de("First ID matches, but second is missing\n");
 			goto reject;
 		}
 		if (!asymmetric_key_id_same(id_1, kids->id[1])) {
-			pr_debug("First ID matches, but second does not\n");
+			pr_de("First ID matches, but second does not\n");
 			goto reject;
 		}
 	}
@@ -384,11 +384,11 @@ static int asymmetric_key_preparse(struct key_preparsed_payload *prep)
 
 	ret = -EBADMSG;
 	list_for_each_entry(parser, &asymmetric_key_parsers, link) {
-		pr_debug("Trying parser '%s'\n", parser->name);
+		pr_de("Trying parser '%s'\n", parser->name);
 
 		ret = parser->parse(prep);
 		if (ret != -EBADMSG) {
-			pr_debug("Parser recognised the format (ret %d)\n",
+			pr_de("Parser recognised the format (ret %d)\n",
 				 ret);
 			break;
 		}

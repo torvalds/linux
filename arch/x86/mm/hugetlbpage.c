@@ -130,7 +130,7 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
 	 * allocations.
 	 */
 	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
+		VM__ON(addr != -ENOMEM);
 		info.flags = 0;
 		info.low_limit = TASK_UNMAPPED_BASE;
 		info.high_limit = TASK_SIZE_LOW;

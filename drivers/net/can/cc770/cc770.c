@@ -44,7 +44,7 @@ MODULE_DESCRIPTION(KBUILD_MODNAME "CAN netdevice driver");
 
 /*
  * The CC770 is a CAN controller from Bosch, which is 100% compatible
- * with the AN82527 from Intel, but with "bugs" being fixed and some
+ * with the AN82527 from Intel, but with "s" being fixed and some
  * additional functionality, mainly:
  *
  * 1. RX and TX error counters are readable.

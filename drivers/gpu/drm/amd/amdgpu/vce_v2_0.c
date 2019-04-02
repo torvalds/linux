@@ -532,7 +532,7 @@ static int vce_v2_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("IH: VCE\n");
+	DRM_DE("IH: VCE\n");
 	switch (entry->src_data[0]) {
 	case 0:
 	case 1:

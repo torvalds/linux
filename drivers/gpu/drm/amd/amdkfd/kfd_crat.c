@@ -146,7 +146,7 @@ static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 	if (cu->hsa_capability & CRAT_CU_FLAGS_IOMMU_PRESENT)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 
-	pr_debug("CU CPU: cores=%d id_base=%d\n", cu->num_cpu_cores,
+	pr_de("CU CPU: cores=%d id_base=%d\n", cu->num_cpu_cores,
 			cu->processor_id_low);
 }
 
@@ -164,7 +164,7 @@ static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 	dev->node_props.max_slots_scratch_cu = cu->max_slots_scatch_cu;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_HOT_PLUGGABLE)
 		dev->node_props.capability |= HSA_CAP_HOT_PLUGGABLE;
-	pr_debug("CU GPU: id_base=%d\n", cu->processor_id_low);
+	pr_de("CU GPU: id_base=%d\n", cu->processor_id_low);
 }
 
 /* kfd_parse_subtype_cu - parse compute unit subtypes and attach it to correct
@@ -175,7 +175,7 @@ static int kfd_parse_subtype_cu(struct crat_subtype_computeunit *cu,
 {
 	struct kfd_topology_device *dev;
 
-	pr_debug("Found CU entry in CRAT table with proximity_domain=%d caps=%x\n",
+	pr_de("Found CU entry in CRAT table with proximity_domain=%d caps=%x\n",
 			cu->proximity_domain, cu->hsa_capability);
 	list_for_each_entry(dev, device_list, list) {
 		if (cu->proximity_domain == dev->proximity_domain) {
@@ -219,7 +219,7 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 	uint32_t flags = 0;
 	uint32_t width;
 
-	pr_debug("Found memory entry in CRAT table with proximity_domain=%d\n",
+	pr_de("Found memory entry in CRAT table with proximity_domain=%d\n",
 			mem->proximity_domain);
 	list_for_each_entry(dev, device_list, list) {
 		if (mem->proximity_domain == dev->proximity_domain) {
@@ -288,7 +288,7 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 
 	id = cache->processor_id_low;
 
-	pr_debug("Found cache entry in CRAT table with processor_id=%d\n", id);
+	pr_de("Found cache entry in CRAT table with processor_id=%d\n", id);
 	list_for_each_entry(dev, device_list, list) {
 		total_num_of_cu = (dev->node_props.array_count *
 					dev->node_props.cu_per_simd_array);
@@ -355,7 +355,7 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	id_from = iolink->proximity_domain_from;
 	id_to = iolink->proximity_domain_to;
 
-	pr_debug("Found IO link entry in CRAT table with id_from=%d, id_to %d\n",
+	pr_de("Found IO link entry in CRAT table with id_from=%d, id_to %d\n",
 			id_from, id_to);
 	list_for_each_entry(dev, device_list, list) {
 		if (id_from == dev->proximity_domain) {
@@ -446,13 +446,13 @@ static int kfd_parse_subtype(struct crat_subtype_generic *sub_type_hdr,
 		/*
 		 * For now, nothing to do here
 		 */
-		pr_debug("Found TLB entry in CRAT table (not processing)\n");
+		pr_de("Found TLB entry in CRAT table (not processing)\n");
 		break;
 	case CRAT_SUBTYPE_CCOMPUTE_AFFINITY:
 		/*
 		 * For now, nothing to do here
 		 */
-		pr_debug("Found CCOMPUTE entry in CRAT table (not processing)\n");
+		pr_de("Found CCOMPUTE entry in CRAT table (not processing)\n");
 		break;
 	case CRAT_SUBTYPE_IOLINK_AFFINITY:
 		iolink = (struct crat_subtype_iolink *)sub_type_hdr;
@@ -716,7 +716,7 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		}
 	}
 
-	pr_debug("Added [%d] GPU cache entries\n", *num_of_entries);
+	pr_de("Added [%d] GPU cache entries\n", *num_of_entries);
 
 	return 0;
 }
@@ -1035,7 +1035,7 @@ static int kfd_fill_gpu_memory_affinity(int *avail_size,
 
 	sub_type_hdr->proximity_domain = proximity_domain;
 
-	pr_debug("Fill gpu memory affinity - type 0x%x size 0x%llx\n",
+	pr_de("Fill gpu memory affinity - type 0x%x size 0x%llx\n",
 			type, size);
 
 	sub_type_hdr->length_low = lower_32_bits(size);
@@ -1209,7 +1209,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 
-	if (debug_largebar)
+	if (de_largebar)
 		local_mem_info.local_mem_size_private = 0;
 
 	if (local_mem_info.local_mem_size_private == 0)

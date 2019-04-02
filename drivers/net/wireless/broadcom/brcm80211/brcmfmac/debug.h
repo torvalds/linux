@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef BRCMFMAC_DEBUG_H
-#define BRCMFMAC_DEBUG_H
+#ifndef BRCMFMAC_DE_H
+#define BRCMFMAC_DE_H
 
 #include <linux/net.h>	/* net_ratelimit() */
 
@@ -49,7 +49,7 @@ struct brcmf_bus;
 
 __printf(3, 4)
 void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
-/* Macro for error messages. When debugging / tracing the driver all error
+/* Macro for error messages. When deging / tracing the driver all error
  * messages are important to us.
  */
 #ifndef brcmf_err
@@ -71,9 +71,9 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 				  ##__VA_ARGS__);			\
 	} while (0)
 
-#if defined(DEBUG) || defined(CONFIG_BRCM_TRACING)
+#if defined(DE) || defined(CONFIG_BRCM_TRACING)
 
-/* For debug/tracing purposes treat info messages as errors */
+/* For de/tracing purposes treat info messages as errors */
 #define brcmf_info brcmf_err
 
 __printf(3, 4)
@@ -93,7 +93,7 @@ do {								\
 #define BRCMF_FWCON_ON()	(brcmf_msg_level & BRCMF_FWCON_VAL)
 #define BRCMF_SCAN_ON()		(brcmf_msg_level & BRCMF_SCAN_VAL)
 
-#else /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
+#else /* defined(DE) || defined(CONFIG_BRCM_TRACING) */
 
 #define brcmf_info(fmt, ...)						\
 	do {								\
@@ -112,7 +112,7 @@ do {								\
 #define BRCMF_FWCON_ON()	0
 #define BRCMF_SCAN_ON()		0
 
-#endif /* defined(DEBUG) || defined(CONFIG_BRCM_TRACING) */
+#endif /* defined(DE) || defined(CONFIG_BRCM_TRACING) */
 
 #define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
 do {									\
@@ -125,25 +125,25 @@ extern int brcmf_msg_level;
 
 struct brcmf_bus;
 struct brcmf_pub;
-#ifdef DEBUG
-struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr);
-int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
+#ifdef DE
+struct dentry *brcmf_defs_get_devdir(struct brcmf_pub *drvr);
+int brcmf_defs_add_entry(struct brcmf_pub *drvr, const char *fn,
 			    int (*read_fn)(struct seq_file *seq, void *data));
-int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
+int brcmf_de_create_memdump(struct brcmf_bus *bus, const void *data,
 			       size_t len);
 #else
 static inline
-int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
+int brcmf_defs_add_entry(struct brcmf_pub *drvr, const char *fn,
 			    int (*read_fn)(struct seq_file *seq, void *data))
 {
 	return 0;
 }
 static inline
-int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
+int brcmf_de_create_memdump(struct brcmf_bus *bus, const void *data,
 			       size_t len)
 {
 	return 0;
 }
 #endif
 
-#endif /* BRCMFMAC_DEBUG_H */
+#endif /* BRCMFMAC_DE_H */

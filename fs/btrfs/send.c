@@ -667,7 +667,7 @@ static int begin_cmd(struct send_ctx *sctx, int cmd)
 	if (WARN_ON(!sctx->send_buf))
 		return -EINVAL;
 
-	BUG_ON(sctx->send_size);
+	_ON(sctx->send_size);
 
 	sctx->send_size += sizeof(*hdr);
 	hdr = (struct btrfs_cmd_header *)sctx->send_buf;
@@ -708,7 +708,7 @@ static int send_rename(struct send_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
 
-	btrfs_debug(fs_info, "send_rename %s -> %s", from->start, to->start);
+	btrfs_de(fs_info, "send_rename %s -> %s", from->start, to->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_RENAME);
 	if (ret < 0)
@@ -733,7 +733,7 @@ static int send_link(struct send_ctx *sctx,
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
 
-	btrfs_debug(fs_info, "send_link %s -> %s", path->start, lnk->start);
+	btrfs_de(fs_info, "send_link %s -> %s", path->start, lnk->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_LINK);
 	if (ret < 0)
@@ -757,7 +757,7 @@ static int send_unlink(struct send_ctx *sctx, struct fs_path *path)
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
 
-	btrfs_debug(fs_info, "send_unlink %s", path->start);
+	btrfs_de(fs_info, "send_unlink %s", path->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_UNLINK);
 	if (ret < 0)
@@ -780,7 +780,7 @@ static int send_rmdir(struct send_ctx *sctx, struct fs_path *path)
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	int ret;
 
-	btrfs_debug(fs_info, "send_rmdir %s", path->start);
+	btrfs_de(fs_info, "send_rmdir %s", path->start);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_RMDIR);
 	if (ret < 0)
@@ -948,7 +948,7 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 					ret = PTR_ERR(start);
 					goto out;
 				}
-				BUG_ON(start < p->buf);
+				_ON(start < p->buf);
 			}
 			p->start = start;
 		} else {
@@ -1177,7 +1177,7 @@ struct backref_ctx {
 	/* data offset in the file extent item */
 	u64 data_offset;
 
-	/* Just to check for bugs in backref resolving */
+	/* Just to check for s in backref resolving */
 	int found_itself;
 };
 
@@ -1414,7 +1414,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		goto out;
 
 	if (!backref_ctx->found_itself) {
-		/* found a bug in backref code? */
+		/* found a  in backref code? */
 		ret = -EIO;
 		btrfs_err(fs_info,
 			  "did not find backref in send_root. inode=%llu, offset=%llu, disk_byte=%llu found extent=%llu",
@@ -1422,12 +1422,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 		goto out;
 	}
 
-	btrfs_debug(fs_info,
+	btrfs_de(fs_info,
 		    "find_extent_clone: data_offset=%llu, ino=%llu, num_bytes=%llu, logical=%llu",
 		    data_offset, ino, num_bytes, logical);
 
 	if (!backref_ctx->found)
-		btrfs_debug(fs_info, "no clones found");
+		btrfs_de(fs_info, "no clones found");
 
 	cur_clone_root = NULL;
 	for (i = 0; i < sctx->clone_roots_cnt; i++) {
@@ -1497,8 +1497,8 @@ static int read_symlink(struct btrfs_root *root,
 			struct btrfs_file_extent_item);
 	type = btrfs_file_extent_type(path->nodes[0], ei);
 	compression = btrfs_file_extent_compression(path->nodes[0], ei);
-	BUG_ON(type != BTRFS_FILE_EXTENT_INLINE);
-	BUG_ON(compression);
+	_ON(type != BTRFS_FILE_EXTENT_INLINE);
+	_ON(compression);
 
 	off = btrfs_file_extent_inline_start(ei);
 	len = btrfs_file_extent_ram_bytes(path->nodes[0], ei);
@@ -2414,7 +2414,7 @@ static int send_truncate(struct send_ctx *sctx, u64 ino, u64 gen, u64 size)
 	int ret = 0;
 	struct fs_path *p;
 
-	btrfs_debug(fs_info, "send_truncate %llu size=%llu", ino, size);
+	btrfs_de(fs_info, "send_truncate %llu size=%llu", ino, size);
 
 	p = fs_path_alloc();
 	if (!p)
@@ -2444,7 +2444,7 @@ static int send_chmod(struct send_ctx *sctx, u64 ino, u64 gen, u64 mode)
 	int ret = 0;
 	struct fs_path *p;
 
-	btrfs_debug(fs_info, "send_chmod %llu mode=%llu", ino, mode);
+	btrfs_de(fs_info, "send_chmod %llu mode=%llu", ino, mode);
 
 	p = fs_path_alloc();
 	if (!p)
@@ -2474,7 +2474,7 @@ static int send_chown(struct send_ctx *sctx, u64 ino, u64 gen, u64 uid, u64 gid)
 	int ret = 0;
 	struct fs_path *p;
 
-	btrfs_debug(fs_info, "send_chown %llu uid=%llu, gid=%llu",
+	btrfs_de(fs_info, "send_chown %llu uid=%llu, gid=%llu",
 		    ino, uid, gid);
 
 	p = fs_path_alloc();
@@ -2511,7 +2511,7 @@ static int send_utimes(struct send_ctx *sctx, u64 ino, u64 gen)
 	struct btrfs_key key;
 	int slot;
 
-	btrfs_debug(fs_info, "send_utimes %llu", ino);
+	btrfs_de(fs_info, "send_utimes %llu", ino);
 
 	p = fs_path_alloc();
 	if (!p)
@@ -2573,7 +2573,7 @@ static int send_create_inode(struct send_ctx *sctx, u64 ino)
 	u64 mode;
 	u64 rdev;
 
-	btrfs_debug(fs_info, "send_create_inode %llu", ino);
+	btrfs_de(fs_info, "send_create_inode %llu", ino);
 
 	p = fs_path_alloc();
 	if (!p)
@@ -3803,13 +3803,13 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	bool orphanized_dir = false;
 	bool orphanized_ancestor = false;
 
-	btrfs_debug(fs_info, "process_recorded_refs %llu", sctx->cur_ino);
+	btrfs_de(fs_info, "process_recorded_refs %llu", sctx->cur_ino);
 
 	/*
 	 * This should never happen as the root dir always has the same ref
 	 * which is always '..'
 	 */
-	BUG_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
+	_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
 	INIT_LIST_HEAD(&check_dirs);
 
 	valid_path = fs_path_alloc();
@@ -4864,7 +4864,7 @@ static int send_write(struct send_ctx *sctx, u64 offset, u32 len)
 	if (!p)
 		return -ENOMEM;
 
-	btrfs_debug(fs_info, "send_write offset=%llu, len=%d", offset, len);
+	btrfs_de(fs_info, "send_write offset=%llu, len=%d", offset, len);
 
 	num_read = fill_read_buf(sctx, offset, len);
 	if (num_read <= 0) {
@@ -4906,7 +4906,7 @@ static int send_clone(struct send_ctx *sctx,
 	struct fs_path *p;
 	u64 gen;
 
-	btrfs_debug(sctx->send_root->fs_info,
+	btrfs_de(sctx->send_root->fs_info,
 		    "send_clone offset=%llu, len=%d, clone_root=%llu, clone_inode=%llu, clone_offset=%llu",
 		    offset, len, clone_root->root->root_key.objectid,
 		    clone_root->ino, clone_root->offset);

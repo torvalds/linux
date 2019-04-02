@@ -7,7 +7,7 @@
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
 #include <linux/errno.h>

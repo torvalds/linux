@@ -42,7 +42,7 @@
 
 static const char* version = "HDLC support module revision 1.22";
 
-#undef DEBUG_LINK
+#undef DE_LINK
 
 static struct hdlc_proto *first_proto;
 
@@ -56,7 +56,7 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
-	BUG_ON(!hdlc->proto->netif_rx);
+	_ON(!hdlc->proto->netif_rx);
 	return hdlc->proto->netif_rx(skb);
 }
 
@@ -107,8 +107,8 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 
 	on = netif_carrier_ok(dev);
 
-#ifdef DEBUG_LINK
-	printk(KERN_DEBUG "%s: hdlc_device_event NETDEV_CHANGE, carrier %i\n",
+#ifdef DE_LINK
+	printk(KERN_DE "%s: hdlc_device_event NETDEV_CHANGE, carrier %i\n",
 	       dev->name, on);
 #endif
 
@@ -142,8 +142,8 @@ carrier_exit:
 int hdlc_open(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-#ifdef DEBUG_LINK
-	printk(KERN_DEBUG "%s: hdlc_open() carrier %i open %i\n", dev->name,
+#ifdef DE_LINK
+	printk(KERN_DE "%s: hdlc_open() carrier %i open %i\n", dev->name,
 	       hdlc->carrier, hdlc->open);
 #endif
 
@@ -176,8 +176,8 @@ int hdlc_open(struct net_device *dev)
 void hdlc_close(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-#ifdef DEBUG_LINK
-	printk(KERN_DEBUG "%s: hdlc_close() carrier %i open %i\n", dev->name,
+#ifdef DE_LINK
+	printk(KERN_DE "%s: hdlc_close() carrier %i open %i\n", dev->name,
 	       hdlc->carrier, hdlc->open);
 #endif
 
@@ -334,7 +334,7 @@ void unregister_hdlc_protocol(struct hdlc_proto *proto)
 	rtnl_lock();
 	p = &first_proto;
 	while (*p != proto) {
-		BUG_ON(!*p);
+		_ON(!*p);
 		p = &((*p)->next);
 	}
 	*p = proto->next;

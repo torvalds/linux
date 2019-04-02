@@ -61,8 +61,8 @@ static int snd_pcsp_create(struct snd_card *card)
 		min_div = MIN_DIV;
 	else
 		min_div = MAX_DIV;
-#if PCSP_DEBUG
-	printk(KERN_DEBUG "PCSP: lpj=%li, min_div=%i, res=%u\n",
+#if PCSP_DE
+	printk(KERN_DE "PCSP: lpj=%li, min_div=%i, res=%u\n",
 	       loops_per_jiffy, min_div, resolution);
 #endif
 
@@ -146,9 +146,9 @@ static int alsa_card_pcsp_init(struct device *dev)
 		return err;
 	}
 
-	/* Well, CONFIG_DEBUG_PAGEALLOC makes the sound horrible. Lets alert */
-	if (debug_pagealloc_enabled()) {
-		printk(KERN_WARNING "PCSP: CONFIG_DEBUG_PAGEALLOC is enabled, "
+	/* Well, CONFIG_DE_PAGEALLOC makes the sound horrible. Lets alert */
+	if (de_pagealloc_enabled()) {
+		printk(KERN_WARNING "PCSP: CONFIG_DE_PAGEALLOC is enabled, "
 		       "which may make the sound noisy.\n");
 	}
 

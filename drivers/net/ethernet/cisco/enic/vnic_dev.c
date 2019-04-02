@@ -591,7 +591,7 @@ int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
 	case 2: *(u16 *)value = (u16)a0; break;
 	case 4: *(u32 *)value = (u32)a0; break;
 	case 8: *(u64 *)value = a0; break;
-	default: BUG(); break;
+	default: (); break;
 	}
 
 	return err;

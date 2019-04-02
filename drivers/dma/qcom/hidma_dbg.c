@@ -1,5 +1,5 @@
 /*
- * Qualcomm Technologies HIDMA debug file
+ * Qualcomm Technologies HIDMA de file
  *
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/pm_runtime.h>
@@ -141,19 +141,19 @@ static int hidma_dma_show(struct seq_file *s, void *unused)
 DEFINE_SHOW_ATTRIBUTE(hidma_chan);
 DEFINE_SHOW_ATTRIBUTE(hidma_dma);
 
-void hidma_debug_uninit(struct hidma_dev *dmadev)
+void hidma_de_uninit(struct hidma_dev *dmadev)
 {
-	debugfs_remove_recursive(dmadev->debugfs);
+	defs_remove_recursive(dmadev->defs);
 }
 
-int hidma_debug_init(struct hidma_dev *dmadev)
+int hidma_de_init(struct hidma_dev *dmadev)
 {
 	int rc = 0;
 	int chidx = 0;
 	struct list_head *position = NULL;
 
-	dmadev->debugfs = debugfs_create_dir(dev_name(dmadev->ddev.dev), NULL);
-	if (!dmadev->debugfs) {
+	dmadev->defs = defs_create_dir(dev_name(dmadev->ddev.dev), NULL);
+	if (!dmadev->defs) {
 		rc = -ENODEV;
 		return rc;
 	}
@@ -165,14 +165,14 @@ int hidma_debug_init(struct hidma_dev *dmadev)
 		chan = list_entry(position, struct hidma_chan,
 				  chan.device_node);
 		sprintf(chan->dbg_name, "chan%d", chidx);
-		chan->debugfs = debugfs_create_dir(chan->dbg_name,
-						   dmadev->debugfs);
-		if (!chan->debugfs) {
+		chan->defs = defs_create_dir(chan->dbg_name,
+						   dmadev->defs);
+		if (!chan->defs) {
 			rc = -ENOMEM;
 			goto cleanup;
 		}
-		chan->stats = debugfs_create_file("stats", S_IRUGO,
-						  chan->debugfs, chan,
+		chan->stats = defs_create_file("stats", S_IRUGO,
+						  chan->defs, chan,
 						  &hidma_chan_fops);
 		if (!chan->stats) {
 			rc = -ENOMEM;
@@ -181,8 +181,8 @@ int hidma_debug_init(struct hidma_dev *dmadev)
 		chidx++;
 	}
 
-	dmadev->stats = debugfs_create_file("stats", S_IRUGO,
-					    dmadev->debugfs, dmadev,
+	dmadev->stats = defs_create_file("stats", S_IRUGO,
+					    dmadev->defs, dmadev,
 					    &hidma_dma_fops);
 	if (!dmadev->stats) {
 		rc = -ENOMEM;
@@ -191,6 +191,6 @@ int hidma_debug_init(struct hidma_dev *dmadev)
 
 	return 0;
 cleanup:
-	hidma_debug_uninit(dmadev);
+	hidma_de_uninit(dmadev);
 	return rc;
 }

@@ -68,28 +68,28 @@ static void *rtllib_tkip_init(int key_idx)
 	priv->key_idx = key_idx;
 	priv->tx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
-		pr_debug("Could not allocate crypto API arc4\n");
+		pr_de("Could not allocate crypto API arc4\n");
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
 	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		pr_debug("Could not allocate crypto API michael_mic\n");
+		pr_de("Could not allocate crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
 
 	priv->rx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
-		pr_debug("Could not allocate crypto API arc4\n");
+		pr_de("Could not allocate crypto API arc4\n");
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
 	priv->rx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		pr_debug("Could not allocate crypto API michael_mic\n");
+		pr_de("Could not allocate crypto API michael_mic\n");
 		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}

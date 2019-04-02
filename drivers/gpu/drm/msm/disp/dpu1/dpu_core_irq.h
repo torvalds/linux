@@ -129,11 +129,11 @@ int dpu_core_irq_unregister_callback(
 		struct dpu_irq_callback *irq_cb);
 
 /**
- * dpu_debugfs_core_irq_init - register core irq debugfs
+ * dpu_defs_core_irq_init - register core irq defs
  * @dpu_kms: pointer to kms
- * @parent: debugfs directory root
+ * @parent: defs directory root
  */
-void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
+void dpu_defs_core_irq_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent);
 
 #endif /* __DPU_CORE_IRQ_H__ */

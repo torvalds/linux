@@ -913,7 +913,7 @@ static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int nmk_gpio_get_mode(struct nmk_gpio_chip *nmk_chip, int offset)
 {
 	u32 afunc, bfunc;
@@ -1096,7 +1096,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	clk_prepare(clk);
 	nmk_chip->clk = clk;
 
-	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
+	_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 	nmk_gpio_chips[id] = nmk_chip;
 	return nmk_chip;
 }

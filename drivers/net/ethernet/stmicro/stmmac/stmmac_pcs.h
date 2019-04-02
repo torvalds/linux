@@ -103,7 +103,7 @@ static inline void dwmac_rane(void __iomem *ioaddr, u32 reg, bool restart)
  * @srgmi_ral: to manage MAC-2-MAC SGMII connections.
  * @loopback: to cause the PHY to loopback tx data into rx path.
  * Description: this is the main function to configure the AN control register
- * and init the ANE, select loopback (usually for debugging purpose) and
+ * and init the ANE, select loopback (usually for deging purpose) and
  * configure SGMII RAL.
  */
 static inline void dwmac_ctrl_ane(void __iomem *ioaddr, u32 reg, bool ane,

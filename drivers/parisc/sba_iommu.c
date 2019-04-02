@@ -54,38 +54,38 @@
 #define MODULE_NAME "SBA"
 
 /*
-** The number of debug flags is a clue - this code is fragile.
+** The number of de flags is a clue - this code is fragile.
 ** Don't even think about messing with it unless you have
 ** plenty of 710's to sacrifice to the computer gods. :^)
 */
-#undef DEBUG_SBA_INIT
-#undef DEBUG_SBA_RUN
-#undef DEBUG_SBA_RUN_SG
-#undef DEBUG_SBA_RESOURCE
+#undef DE_SBA_INIT
+#undef DE_SBA_RUN
+#undef DE_SBA_RUN_SG
+#undef DE_SBA_RESOURCE
 #undef ASSERT_PDIR_SANITY
-#undef DEBUG_LARGE_SG_ENTRIES
-#undef DEBUG_DMB_TRAP
+#undef DE_LARGE_SG_ENTRIES
+#undef DE_DMB_TRAP
 
-#ifdef DEBUG_SBA_INIT
+#ifdef DE_SBA_INIT
 #define DBG_INIT(x...)	printk(x)
 #else
 #define DBG_INIT(x...)
 #endif
 
-#ifdef DEBUG_SBA_RUN
+#ifdef DE_SBA_RUN
 #define DBG_RUN(x...)	printk(x)
 #else
 #define DBG_RUN(x...)
 #endif
 
-#ifdef DEBUG_SBA_RUN_SG
+#ifdef DE_SBA_RUN_SG
 #define DBG_RUN_SG(x...)	printk(x)
 #else
 #define DBG_RUN_SG(x...)
 #endif
 
 
-#ifdef DEBUG_SBA_RESOURCE
+#ifdef DE_SBA_RESOURCE
 #define DBG_RES(x...)	printk(x)
 #else
 #define DBG_RES(x...)
@@ -103,7 +103,7 @@ static unsigned long ioc_needs_fdc = 0;
 /* global count of IOMMUs in the system */
 static unsigned int global_ioc_cnt = 0;
 
-/* PA8700 (Piranha 2.2) bug workaround */
+/* PA8700 (Piranha 2.2)  workaround */
 static unsigned long piranha_bad_128k = 0;
 
 /* Looks nice and keeps the compiler happy */
@@ -141,12 +141,12 @@ MODULE_PARM_DESC(sba_reserve_agpgart, "Reserve half of IO pdir as AGPGART");
 #define WRITE_REG(value, addr)	WRITE_REG32(value, addr)
 #endif
 
-#ifdef DEBUG_SBA_INIT
+#ifdef DE_SBA_INIT
 
 /* NOTE: When CONFIG_64BIT isn't defined, READ_REG64() is two 32-bit reads */
 
 /**
- * sba_dump_ranges - debugging only - print ranges assigned to this IOA
+ * sba_dump_ranges - deging only - print ranges assigned to this IOA
  * @hpa: base address of the sba
  *
  * Print the MMIO and IO Port address ranges forwarded by an Astro/Ike/RIO
@@ -166,7 +166,7 @@ sba_dump_ranges(void __iomem *hpa)
 }
 
 /**
- * sba_dump_tlb - debugging only - print IOMMU operating parameters
+ * sba_dump_tlb - deging only - print IOMMU operating parameters
  * @hpa: base address of the IOMMU
  *
  * Print the size/location of the IO MMU PDIR.
@@ -183,13 +183,13 @@ static void sba_dump_tlb(void __iomem *hpa)
 #else
 #define sba_dump_ranges(x)
 #define sba_dump_tlb(x)
-#endif	/* DEBUG_SBA_INIT */
+#endif	/* DE_SBA_INIT */
 
 
 #ifdef ASSERT_PDIR_SANITY
 
 /**
- * sba_dump_pdir_entry - debugging only - print one IOMMU PDIR entry
+ * sba_dump_pdir_entry - deging only - print one IOMMU PDIR entry
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @msg: text to print ont the output line.
  * @pide: pdir index.
@@ -204,25 +204,25 @@ sba_dump_pdir_entry(struct ioc *ioc, char *msg, uint pide)
 	unsigned long *rptr = (unsigned long *) &(ioc->res_map[(pide >>3) & ~(sizeof(unsigned long) - 1)]);
 	uint rcnt;
 
-	printk(KERN_DEBUG "SBA: %s rp %p bit %d rval 0x%lx\n",
+	printk(KERN_DE "SBA: %s rp %p bit %d rval 0x%lx\n",
 		 msg,
 		 rptr, pide & (BITS_PER_LONG - 1), *rptr);
 
 	rcnt = 0;
 	while (rcnt < BITS_PER_LONG) {
-		printk(KERN_DEBUG "%s %2d %p %016Lx\n",
+		printk(KERN_DE "%s %2d %p %016Lx\n",
 			(rcnt == (pide & (BITS_PER_LONG - 1)))
 				? "    -->" : "       ",
 			rcnt, ptr, *ptr );
 		rcnt++;
 		ptr++;
 	}
-	printk(KERN_DEBUG "%s", msg);
+	printk(KERN_DE "%s", msg);
 }
 
 
 /**
- * sba_check_pdir - debugging only - consistency checker
+ * sba_check_pdir - deging only - consistency checker
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @msg: text to print ont the output line.
  *
@@ -265,7 +265,7 @@ sba_check_pdir(struct ioc *ioc, char *msg)
 
 
 /**
- * sba_dump_sg - debugging only - print Scatter-Gather list
+ * sba_dump_sg - deging only - print Scatter-Gather list
  * @ioc: IO MMU structure which owns the pdir we are interested in.
  * @startsg: head of the SG list
  * @nents: number of entries in SG list
@@ -276,7 +276,7 @@ static void
 sba_dump_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 {
 	while (nents-- > 0) {
-		printk(KERN_DEBUG " %d : %08lx/%05x %p/%05x\n",
+		printk(KERN_DE " %d : %08lx/%05x %p/%05x\n",
 				nents,
 				(unsigned long) sg_dma_address(startsg),
 				sg_dma_len(startsg),
@@ -349,7 +349,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 			      1ULL << IOVP_SHIFT) >> IOVP_SHIFT;
 
 #if defined(ZX1_SUPPORT)
-	BUG_ON(ioc->ibase & ~IOVP_MASK);
+	_ON(ioc->ibase & ~IOVP_MASK);
 	shift = ioc->ibase >> IOVP_SHIFT;
 #else
 	shift = 0;
@@ -656,7 +656,7 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 	** clear I/O PDIR entry "valid" bit.
 	** We have to R/M/W the cacheline regardless how much of the
 	** pdir entry that we clobber.
-	** The rest of the entry would be useful for debugging if we
+	** The rest of the entry would be useful for deging if we
 	** could dump core on HPMC.
 	*/
 	((u8 *) pdir_ptr)[7] = 0;
@@ -678,7 +678,7 @@ static int sba_dma_supported( struct device *dev, u64 mask)
 
 	if (dev == NULL) {
 		printk(KERN_ERR MODULE_NAME ": EISA/ISA/et al not supported\n");
-		BUG();
+		();
 		return(0);
 	}
 
@@ -933,7 +933,7 @@ sba_free(struct device *hwdev, size_t size, void *vaddr,
 #endif
 #include "iommu-helpers.h"
 
-#ifdef DEBUG_LARGE_SG_ENTRIES
+#ifdef DE_LARGE_SG_ENTRIES
 int dump_run_sg = 0;
 #endif
 
@@ -1143,7 +1143,7 @@ sba_alloc_pdir(unsigned int pdir_size)
 	**	OR newer than ver 2.2
 	**	OR in a system that doesn't need VINDEX bits from SBA,
 	**
-	** then we aren't exposed to the HW bug.
+	** then we aren't exposed to the HW .
 	*/
 	if ( ((boot_cpu_data.pdc.cpuid >> 5) & 0x7f) != 0x13
 			|| (boot_cpu_data.pdc.versions > 0x202)
@@ -1421,7 +1421,7 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	/*
 	** iova space must be log2() in size.
 	** thus, pdir/res_map will also be log2().
-	** PIRANHA BUG: Exception is when IO Pdir is 2MB (gets reduced)
+	** PIRANHA : Exception is when IO Pdir is 2MB (gets reduced)
 	*/
 	iov_order = get_order(iova_space_size << PAGE_SHIFT);
 
@@ -1588,7 +1588,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 
 		WRITE_REG(ioc_ctl, sba_dev->sba_hpa+IOC_CTRL);
 
-#ifdef DEBUG_SBA_INIT
+#ifdef DE_SBA_INIT
 		ioc_ctl = READ_REG64(sba_dev->sba_hpa+IOC_CTRL);
 		DBG_INIT(" 0x%Lx\n", ioc_ctl);
 #endif
@@ -1603,7 +1603,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		sba_dev->chip_resv.start = PCI_F_EXTEND | 0xfef00000UL;
 		sba_dev->chip_resv.end   = PCI_F_EXTEND | (0xff000000UL - 1) ;
 		err = request_resource(&iomem_resource, &(sba_dev->chip_resv));
-		BUG_ON(err < 0);
+		_ON(err < 0);
 
 	} else if (IS_PLUTO(sba_dev->dev)) {
 		int err;
@@ -1688,14 +1688,14 @@ sba_common_init(struct sba_device *sba_dev)
 	int i;
 
 	/* add this one to the head of the list (order doesn't matter)
-	** This will be useful for debugging - especially if we get coredumps
+	** This will be useful for deging - especially if we get coredumps
 	*/
 	sba_dev->next = sba_list;
 	sba_list = sba_dev;
 
 	for(i=0; i< sba_dev->num_ioc; i++) {
 		int res_size;
-#ifdef DEBUG_DMB_TRAP
+#ifdef DE_DMB_TRAP
 		extern void iterate_pages(unsigned long , unsigned long ,
 					  void (*)(pte_t * , unsigned long),
 					  unsigned long );
@@ -1704,7 +1704,7 @@ sba_common_init(struct sba_device *sba_dev)
 		/* resource map size dictated by pdir_size */
 		res_size = sba_dev->ioc[i].pdir_size/sizeof(u64); /* entries */
 
-		/* Second part of PIRANHA BUG */
+		/* Second part of PIRANHA  */
 		if (piranha_bad_128k) {
 			res_size -= (128*1024)/sizeof(u64);
 		}
@@ -1716,7 +1716,7 @@ sba_common_init(struct sba_device *sba_dev)
 		sba_dev->ioc[i].res_size = res_size;
 		sba_dev->ioc[i].res_map = (char *) __get_free_pages(GFP_KERNEL, get_order(res_size));
 
-#ifdef DEBUG_DMB_TRAP
+#ifdef DE_DMB_TRAP
 		iterate_pages( sba_dev->ioc[i].res_map, res_size,
 				set_data_memory_break, 0);
 #endif
@@ -1738,7 +1738,7 @@ sba_common_init(struct sba_device *sba_dev)
 		sba_dev->ioc[i].pdir_base[0] = 0xeeffc0addbba0080ULL;
 #endif
 
-		/* Third (and last) part of PIRANHA BUG */
+		/* Third (and last) part of PIRANHA  */
 		if (piranha_bad_128k) {
 			/* region from +1408K to +1536 is un-usable. */
 
@@ -1753,7 +1753,7 @@ sba_common_init(struct sba_device *sba_dev)
 				
 		}
 
-#ifdef DEBUG_DMB_TRAP
+#ifdef DE_DMB_TRAP
 		iterate_pages( sba_dev->ioc[i].res_map, res_size,
 				set_data_memory_break, 0);
 		iterate_pages( sba_dev->ioc[i].pdir_base, sba_dev->ioc[i].pdir_size,
@@ -1767,7 +1767,7 @@ sba_common_init(struct sba_device *sba_dev)
 	spin_lock_init(&sba_dev->sba_lock);
 	ioc_needs_fdc = boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC;
 
-#ifdef DEBUG_SBA_INIT
+#ifdef DE_SBA_INIT
 	/*
 	 * If the PDC_MODEL capabilities has Non-coherent IO-PDIR bit set
 	 * (bit #61, big endian), we have to flush and sync every time
@@ -2028,7 +2028,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 	int i;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
 
-	BUG_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
+	_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
 
 	r->start = r->end = 0;
 
@@ -2071,13 +2071,13 @@ void sba_distributed_lmmio(struct parisc_device *pci_hba, struct resource *r )
 	int base, size;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
 
-	BUG_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
+	_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
 
 	r->start = r->end = 0;
 
 	base = READ_REG32(sba->sba_hpa + LMMIO_DIST_BASE);
 	if ((base & 1) == 0) {
-		BUG();	/* Gah! Distr Range wasn't enabled! */
+		();	/* Gah! Distr Range wasn't enabled! */
 		return;
 	}
 

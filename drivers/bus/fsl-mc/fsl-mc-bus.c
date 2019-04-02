@@ -60,7 +60,7 @@ struct fsl_mc_addr_translation_range {
  * @minor: Minor version number: incremented on API additions (that are
  *		backward compatible); reset when major version is incremented
  * @revision: Internal revision number: incremented on implementation changes
- *		and/or bug fixes that have no impact on API
+ *		and/or  fixes that have no impact on API
  */
 struct mc_version {
 	u32 major;

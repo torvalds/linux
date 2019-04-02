@@ -95,13 +95,13 @@ struct mpc52xx_sdma {
 	u32 cReqSelect;		/* SDMA + 0x5c */
 	u32 task_size0;		/* SDMA + 0x60 */
 	u32 task_size1;		/* SDMA + 0x64 */
-	u32 MDEDebug;		/* SDMA + 0x68 */
-	u32 ADSDebug;		/* SDMA + 0x6c */
+	u32 MDEDe;		/* SDMA + 0x68 */
+	u32 ADSDe;		/* SDMA + 0x6c */
 	u32 Value1;		/* SDMA + 0x70 */
 	u32 Value2;		/* SDMA + 0x74 */
 	u32 Control;		/* SDMA + 0x78 */
 	u32 Status;		/* SDMA + 0x7c */
-	u32 PTDDebug;		/* SDMA + 0x80 */
+	u32 PTDDe;		/* SDMA + 0x80 */
 };
 
 /* GPT */

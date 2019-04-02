@@ -1631,7 +1631,7 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 		if (voltage->voltage && (voltage->voltage != rdev->pm.current_vddc)) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
-			DRM_DEBUG("Setting: vddc: %d\n", voltage->voltage);
+			DRM_DE("Setting: vddc: %d\n", voltage->voltage);
 		}
 
 		/* starting with BTC, there is one state that is used for both
@@ -1652,7 +1652,7 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 		if (voltage->vddci && (voltage->vddci != rdev->pm.current_vddci)) {
 			radeon_atom_set_voltage(rdev, voltage->vddci, SET_VOLTAGE_TYPE_ASIC_VDDCI);
 			rdev->pm.current_vddci = voltage->vddci;
-			DRM_DEBUG("Setting: vddci: %d\n", voltage->vddci);
+			DRM_DE("Setting: vddci: %d\n", voltage->vddci);
 		}
 	}
 }
@@ -1770,7 +1770,7 @@ void evergreen_hpd_init(struct radeon_device *rdev)
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 			/* don't try to enable hpd on eDP or LVDS avoid breaking the
 			 * aux dp channel on imac and help (but not completely fix)
-			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * https://zilla.redhat.com/show_.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
 			continue;
@@ -2237,14 +2237,14 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 		    !evergreen_average_bandwidth_vs_available_bandwidth(&wm_high) ||
 		    !evergreen_check_latency_hiding(&wm_high) ||
 		    (rdev->disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority a to high\n");
+			DRM_DE_KMS("force priority a to high\n");
 			priority_a_cnt |= PRIORITY_ALWAYS_ON;
 		}
 		if (!evergreen_average_bandwidth_vs_dram_bandwidth_for_display(&wm_low) ||
 		    !evergreen_average_bandwidth_vs_available_bandwidth(&wm_low) ||
 		    !evergreen_check_latency_hiding(&wm_low) ||
 		    (rdev->disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority b to high\n");
+			DRM_DE_KMS("force priority b to high\n");
 			priority_b_cnt |= PRIORITY_ALWAYS_ON;
 		}
 
@@ -3111,7 +3111,7 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_CNTL, tmp);
 
 	WREG32(CP_RB_BASE, ring->gpu_addr >> 8);
-	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
+	WREG32(CP_DE, (1 << 27) | (1 << 28));
 
 	evergreen_cp_start(rdev);
 	ring->ready = true;
@@ -3130,7 +3130,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
-	u32 sx_debug_1;
+	u32 sx_de_1;
 	u32 smx_dc_ctl0;
 	u32 sq_config;
 	u32 sq_lds_resource_mgmt;
@@ -3532,9 +3532,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 			     SYNC_WALKER |
 			     SYNC_ALIGNER));
 
-	sx_debug_1 = RREG32(SX_DEBUG_1);
-	sx_debug_1 |= ENABLE_NEW_SMX_ADDRESS;
-	WREG32(SX_DEBUG_1, sx_debug_1);
+	sx_de_1 = RREG32(SX_DE_1);
+	sx_de_1 |= ENABLE_NEW_SMX_ADDRESS;
+	WREG32(SX_DE_1, sx_de_1);
 
 
 	smx_dc_ctl0 = RREG32(SMX_DC_CTL0);
@@ -3881,7 +3881,7 @@ u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev)
 
 	/* Skip MC reset as it's mostly likely not hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
-		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		DRM_DE("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
 	}
 
@@ -4517,40 +4517,40 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	if (rdev->family >= CHIP_CAYMAN) {
 		/* enable CP interrupts on all rings */
 		if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
-			DRM_DEBUG("evergreen_irq_set: sw int gfx\n");
+			DRM_DE("evergreen_irq_set: sw int gfx\n");
 			cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 		}
 		if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_CP1_INDEX])) {
-			DRM_DEBUG("evergreen_irq_set: sw int cp1\n");
+			DRM_DE("evergreen_irq_set: sw int cp1\n");
 			cp_int_cntl1 |= TIME_STAMP_INT_ENABLE;
 		}
 		if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_CP2_INDEX])) {
-			DRM_DEBUG("evergreen_irq_set: sw int cp2\n");
+			DRM_DE("evergreen_irq_set: sw int cp2\n");
 			cp_int_cntl2 |= TIME_STAMP_INT_ENABLE;
 		}
 	} else {
 		if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
-			DRM_DEBUG("evergreen_irq_set: sw int gfx\n");
+			DRM_DE("evergreen_irq_set: sw int gfx\n");
 			cp_int_cntl |= RB_INT_ENABLE;
 			cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 		}
 	}
 
 	if (atomic_read(&rdev->irq.ring_int[R600_RING_TYPE_DMA_INDEX])) {
-		DRM_DEBUG("r600_irq_set: sw int dma\n");
+		DRM_DE("r600_irq_set: sw int dma\n");
 		dma_cntl |= TRAP_ENABLE;
 	}
 
 	if (rdev->family >= CHIP_CAYMAN) {
 		dma_cntl1 = RREG32(CAYMAN_DMA1_CNTL) & ~TRAP_ENABLE;
 		if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_DMA1_INDEX])) {
-			DRM_DEBUG("r600_irq_set: sw int dma1\n");
+			DRM_DE("r600_irq_set: sw int dma1\n");
 			dma_cntl1 |= TRAP_ENABLE;
 		}
 	}
 
 	if (rdev->irq.dpm_thermal) {
-		DRM_DEBUG("dpm thermal\n");
+		DRM_DE("dpm thermal\n");
 		thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
 	}
 
@@ -4722,7 +4722,7 @@ restart_ih:
 		return IRQ_NONE;
 
 	rptr = rdev->ih.rptr;
-	DRM_DEBUG("evergreen_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
+	DRM_DE("evergreen_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
 	/* Order reading of wptr vs. reading of IH ring data */
 	rmb();
@@ -4763,18 +4763,18 @@ restart_ih:
 				mask = LB_D1_VLINE_INTERRUPT;
 				event_name = "vline";
 			} else {
-				DRM_DEBUG("Unhandled interrupt: %d %d\n",
+				DRM_DE("Unhandled interrupt: %d %d\n",
 					  src_id, src_data);
 				break;
 			}
 
 			if (!(disp_int[crtc_idx] & mask)) {
-				DRM_DEBUG("IH: D%d %s - IH event w/o asserted irq bit?\n",
+				DRM_DE("IH: D%d %s - IH event w/o asserted irq bit?\n",
 					  crtc_idx + 1, event_name);
 			}
 
 			disp_int[crtc_idx] &= ~mask;
-			DRM_DEBUG("IH: D%d %s\n", crtc_idx + 1, event_name);
+			DRM_DE("IH: D%d %s\n", crtc_idx + 1, event_name);
 
 			break;
 		case 8: /* D1 page flip */
@@ -4783,7 +4783,7 @@ restart_ih:
 		case 14: /* D4 page flip */
 		case 16: /* D5 page flip */
 		case 18: /* D6 page flip */
-			DRM_DEBUG("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
+			DRM_DE("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
 			if (radeon_use_pflipirq > 0)
 				radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
 			break;
@@ -4801,22 +4801,22 @@ restart_ih:
 				event_name = "HPD_RX";
 
 			} else {
-				DRM_DEBUG("Unhandled interrupt: %d %d\n",
+				DRM_DE("Unhandled interrupt: %d %d\n",
 					  src_id, src_data);
 				break;
 			}
 
 			if (!(disp_int[hpd_idx] & mask))
-				DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+				DRM_DE("IH: IH event w/o asserted irq bit?\n");
 
 			disp_int[hpd_idx] &= ~mask;
-			DRM_DEBUG("IH: %s%d\n", event_name, hpd_idx + 1);
+			DRM_DE("IH: %s%d\n", event_name, hpd_idx + 1);
 
 			break;
 		case 44: /* hdmi */
 			afmt_idx = src_data;
 			if (!(afmt_status[afmt_idx] & AFMT_AZ_FORMAT_WTRIG))
-				DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
+				DRM_DE("IH: IH event w/o asserted irq bit?\n");
 
 			if (afmt_idx > 5) {
 				DRM_ERROR("Unhandled interrupt: %d %d\n",
@@ -4825,14 +4825,14 @@ restart_ih:
 			}
 			afmt_status[afmt_idx] &= ~AFMT_AZ_FORMAT_WTRIG;
 			queue_hdmi = true;
-			DRM_DEBUG("IH: HDMI%d\n", afmt_idx + 1);
+			DRM_DE("IH: HDMI%d\n", afmt_idx + 1);
 			break;
 		case 96:
 			DRM_ERROR("SRBM_READ_ERROR: 0x%x\n", RREG32(SRBM_READ_ERROR));
 			WREG32(SRBM_INT_ACK, 0x1);
 			break;
 		case 124: /* UVD */
-			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			DRM_DE("IH: UVD int: 0x%08x\n", src_data);
 			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
 			break;
 		case 146:
@@ -4853,11 +4853,11 @@ restart_ih:
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */
 		case 178: /* CP_INT in IB2 */
-			DRM_DEBUG("IH: CP int: 0x%08x\n", src_data);
+			DRM_DE("IH: CP int: 0x%08x\n", src_data);
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 181: /* CP EOP event */
-			DRM_DEBUG("IH: CP EOP\n");
+			DRM_DE("IH: CP EOP\n");
 			if (rdev->family >= CHIP_CAYMAN) {
 				switch (src_data) {
 				case 0:
@@ -4874,30 +4874,30 @@ restart_ih:
 				radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 224: /* DMA trap event */
-			DRM_DEBUG("IH: DMA trap\n");
+			DRM_DE("IH: DMA trap\n");
 			radeon_fence_process(rdev, R600_RING_TYPE_DMA_INDEX);
 			break;
 		case 230: /* thermal low to high */
-			DRM_DEBUG("IH: thermal low to high\n");
+			DRM_DE("IH: thermal low to high\n");
 			rdev->pm.dpm.thermal.high_to_low = false;
 			queue_thermal = true;
 			break;
 		case 231: /* thermal high to low */
-			DRM_DEBUG("IH: thermal high to low\n");
+			DRM_DE("IH: thermal high to low\n");
 			rdev->pm.dpm.thermal.high_to_low = true;
 			queue_thermal = true;
 			break;
 		case 233: /* GUI IDLE */
-			DRM_DEBUG("IH: GUI idle\n");
+			DRM_DE("IH: GUI idle\n");
 			break;
 		case 244: /* DMA trap event */
 			if (rdev->family >= CHIP_CAYMAN) {
-				DRM_DEBUG("IH: DMA1 trap\n");
+				DRM_DE("IH: DMA1 trap\n");
 				radeon_fence_process(rdev, CAYMAN_RING_TYPE_DMA1_INDEX);
 			}
 			break;
 		default:
-			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
+			DRM_DE("Unhandled interrupt: %d %d\n", src_id, src_data);
 			break;
 		}
 

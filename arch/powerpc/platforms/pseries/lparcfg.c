@@ -48,7 +48,7 @@
 #define MODULE_VERS "1.9"
 #define MODULE_NAME "lparcfg"
 
-/* #define LPARCFG_DEBUG */
+/* #define LPARCFG_DE */
 
 /*
  * Track sum of all purrs across all processors. This is used to further
@@ -327,7 +327,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 			kfree(local_buffer);
 			return;
 		}
-#ifdef LPARCFG_DEBUG
+#ifdef LPARCFG_DE
 		printk(KERN_INFO "success calling get-system-parameter\n");
 #endif
 		splpar_strlen = local_buffer[0] * 256 + local_buffer[1];
@@ -378,7 +378,7 @@ static int lparcfg_count_active_processors(void)
 	int count = 0;
 
 	for_each_node_by_type(cpus_dn, "cpu") {
-#ifdef LPARCFG_DEBUG
+#ifdef LPARCFG_DE
 		printk(KERN_ERR "cpus_dn %p\n", cpus_dn);
 #endif
 		count++;
@@ -530,10 +530,10 @@ static ssize_t update_ppp(u64 *entitlement, u8 *weight)
 	} else
 		return -EINVAL;
 
-	pr_debug("%s: current_entitled = %llu, current_weight = %u\n",
+	pr_de("%s: current_entitled = %llu, current_weight = %u\n",
 		 __func__, ppp_data.entitlement, ppp_data.weight);
 
-	pr_debug("%s: new_entitled = %llu, new_weight = %u\n",
+	pr_de("%s: new_entitled = %llu, new_weight = %u\n",
 		 __func__, new_entitled, new_weight);
 
 	retval = plpar_hcall_norets(H_SET_PPP, new_entitled, new_weight);
@@ -576,10 +576,10 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 	} else
 		return -EINVAL;
 
-	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
+	pr_de("%s: current_entitled = %lu, current_weight = %u\n",
 	         __func__, mpp_data.entitled_mem, mpp_data.mem_weight);
 
-	pr_debug("%s: new_entitled = %llu, new_weight = %u\n",
+	pr_de("%s: new_entitled = %llu, new_weight = %u\n",
 		 __func__, new_entitled, new_weight);
 
 	rc = plpar_hcall_norets(H_SET_MPP, new_entitled, new_weight);

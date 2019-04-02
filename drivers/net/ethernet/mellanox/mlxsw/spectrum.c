@@ -472,7 +472,7 @@ enum mlxsw_reg_spms_state mlxsw_sp_stp_spms_state(u8 state)
 	case BR_STATE_BLOCKING:
 		return MLXSW_REG_SPMS_STATE_DISCARDING;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -4391,7 +4391,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 
 	err = mlxsw_sp_dpipe_init(mlxsw_sp);
 	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to init pipeline debug\n");
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init pipeline de\n");
 		goto err_dpipe_init;
 	}
 

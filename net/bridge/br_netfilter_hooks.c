@@ -857,7 +857,7 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 	skb_pull(skb, ETH_HLEN);
 	nf_bridge->bridged_dnat = 0;
 
-	BUILD_BUG_ON(sizeof(nf_bridge->neigh_header) != (ETH_HLEN - ETH_ALEN));
+	BUILD__ON(sizeof(nf_bridge->neigh_header) != (ETH_HLEN - ETH_ALEN));
 
 	skb_copy_to_linear_data_offset(skb, -(ETH_HLEN - ETH_ALEN),
 				       nf_bridge->neigh_header,

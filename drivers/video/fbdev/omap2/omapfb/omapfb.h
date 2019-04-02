@@ -23,8 +23,8 @@
 #ifndef __DRIVERS_VIDEO_OMAP2_OMAPFB_H__
 #define __DRIVERS_VIDEO_OMAP2_OMAPFB_H__
 
-#ifdef CONFIG_FB_OMAP2_DEBUG_SUPPORT
-#define DEBUG
+#ifdef CONFIG_FB_OMAP2_DE_SUPPORT
+#define DE
 #endif
 
 #include <linux/rwsem.h>
@@ -32,12 +32,12 @@
 
 #include <video/omapfb_dss.h>
 
-#ifdef DEBUG
-extern bool omapfb_debug;
+#ifdef DE
+extern bool omapfb_de;
 #define DBG(format, ...) \
 	do { \
-		if (omapfb_debug) \
-			printk(KERN_DEBUG "OMAPFB: " format, ## __VA_ARGS__); \
+		if (omapfb_de) \
+			printk(KERN_DE "OMAPFB: " format, ## __VA_ARGS__); \
 	} while (0)
 #else
 #define DBG(format, ...)
@@ -167,7 +167,7 @@ static inline struct omapfb_display_data *get_display_data(
 			return &fbdev->displays[i];
 
 	/* This should never happen */
-	BUG();
+	();
 	return NULL;
 }
 

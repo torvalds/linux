@@ -37,7 +37,7 @@
  *  but this one obviously doesn't introduce deadlocks. Later. BTW, found
  *  one race (and leak) in BSD implementation.
  *  OK, that's better. ANOTHER race and leak in BSD variant. There always
- *  is one more bug... 10/11/98, AV.
+ *  is one more ... 10/11/98, AV.
  *
  *	Oh, fsck... Oopsable SMP race in do_process_acct() - we must hold
  * ->mmap_sem to walk the vma list of current->mm. Nasty, since it leaks

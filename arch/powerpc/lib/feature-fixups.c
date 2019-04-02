@@ -160,7 +160,7 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 		patch_instruction(dest + 2, instrs[2]);
 	}
 
-	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
+	printk(KERN_DE "stf-barrier: patched %d entry locations (%s barrier)\n", i,
 		(types == STF_BARRIER_NONE)                  ? "no" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
 		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
@@ -217,7 +217,7 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 		patch_instruction(dest + 4, instrs[4]);
 		patch_instruction(dest + 5, instrs[5]);
 	}
-	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
+	printk(KERN_DE "stf-barrier: patched %d exit locations (%s barrier)\n", i,
 		(types == STF_BARRIER_NONE)                  ? "no" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
 		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
@@ -268,7 +268,7 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 		patch_instruction(dest + 2, instrs[2]);
 	}
 
-	printk(KERN_DEBUG "rfi-flush: patched %d locations (%s flush)\n", i,
+	printk(KERN_DE "rfi-flush: patched %d locations (%s flush)\n", i,
 		(types == L1D_FLUSH_NONE)       ? "no" :
 		(types == L1D_FLUSH_FALLBACK)   ? "fallback displacement" :
 		(types &  L1D_FLUSH_ORI)        ? (types & L1D_FLUSH_MTTRIG)
@@ -301,7 +301,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 		patch_instruction(dest, instr);
 	}
 
-	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+	printk(KERN_DE "barrier-nospec: patched %d locations\n", i);
 }
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -345,7 +345,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 		patch_instruction(dest + 1, instr[1]);
 	}
 
-	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+	printk(KERN_DE "barrier-nospec: patched %d locations\n", i);
 }
 
 static void patch_btb_flush_section(long *curr)
@@ -690,7 +690,7 @@ static void test_lwsync_macros(void)
 
 static int __init test_feature_fixups(void)
 {
-	printk(KERN_DEBUG "Running feature fixup self-tests ...\n");
+	printk(KERN_DE "Running feature fixup self-tests ...\n");
 
 	test_basic_patching();
 	test_alternative_patching();

@@ -549,7 +549,7 @@ interrupt number dequeues the interrupt.
 This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 
-4.17 KVM_DEBUG_GUEST
+4.17 KVM_DE_GUEST
 
 Capability: basic
 Architectures: none
@@ -557,7 +557,7 @@ Type: vcpu ioctl
 Parameters: none)
 Returns: -1 on error
 
-Support for this has been removed.  Use KVM_SET_GUEST_DEBUG instead.
+Support for this has been removed.  Use KVM_SET_GUEST_DE instead.
 
 
 4.18 KVM_GET_MSRS
@@ -1061,17 +1061,17 @@ Set the pending SError exception state for this VCPU. It is not possible to
 See KVM_GET_VCPU_EVENTS for the data structure.
 
 
-4.33 KVM_GET_DEBUGREGS
+4.33 KVM_GET_DEREGS
 
-Capability: KVM_CAP_DEBUGREGS
+Capability: KVM_CAP_DEREGS
 Architectures: x86
 Type: vm ioctl
-Parameters: struct kvm_debugregs (out)
+Parameters: struct kvm_deregs (out)
 Returns: 0 on success, -1 on error
 
-Reads debug registers from the vcpu.
+Reads de registers from the vcpu.
 
-struct kvm_debugregs {
+struct kvm_deregs {
 	__u64 db[4];
 	__u64 dr6;
 	__u64 dr7;
@@ -1080,17 +1080,17 @@ struct kvm_debugregs {
 };
 
 
-4.34 KVM_SET_DEBUGREGS
+4.34 KVM_SET_DEREGS
 
-Capability: KVM_CAP_DEBUGREGS
+Capability: KVM_CAP_DEREGS
 Architectures: x86
 Type: vm ioctl
-Parameters: struct kvm_debugregs (in)
+Parameters: struct kvm_deregs (in)
 Returns: 0 on success, -1 on error
 
-Writes debug registers into the vcpu.
+Writes de registers into the vcpu.
 
-See KVM_GET_DEBUGREGS for the data structure. The flags field is unused
+See KVM_GET_DEREGS for the data structure. The flags field is unused
 yet and must be cleared on entry.
 
 
@@ -1834,7 +1834,7 @@ following algorithm:
   - resume the vcpu
 
 Some guests configure the LINT1 NMI input to cause a panic, aiding in
-debugging.
+deging.
 
 
 4.65 KVM_S390_UCAS_MAP
@@ -2796,26 +2796,26 @@ associated with the service will be forgotten, and subsequent RTAS
 calls by the guest for that service will be passed to userspace to be
 handled.
 
-4.87 KVM_SET_GUEST_DEBUG
+4.87 KVM_SET_GUEST_DE
 
-Capability: KVM_CAP_SET_GUEST_DEBUG
+Capability: KVM_CAP_SET_GUEST_DE
 Architectures: x86, s390, ppc, arm64
 Type: vcpu ioctl
-Parameters: struct kvm_guest_debug (in)
+Parameters: struct kvm_guest_de (in)
 Returns: 0 on success; -1 on error
 
-struct kvm_guest_debug {
+struct kvm_guest_de {
        __u32 control;
        __u32 pad;
-       struct kvm_guest_debug_arch arch;
+       struct kvm_guest_de_arch arch;
 };
 
-Set up the processor specific debug registers and configure vcpu for
-handling guest debug events. There are two parts to the structure, the
-first a control bitfield indicates the type of debug events to handle
+Set up the processor specific de registers and configure vcpu for
+handling guest de events. There are two parts to the structure, the
+first a control bitfield indicates the type of de events to handle
 when running. Common control bits are:
 
-  - KVM_GUESTDBG_ENABLE:        guest debugging is enabled
+  - KVM_GUESTDBG_ENABLE:        guest deging is enabled
   - KVM_GUESTDBG_SINGLESTEP:    the next run should single-step
 
 The top 16 bits of the control field are architecture specific control
@@ -2835,16 +2835,16 @@ we need to ensure the guest vCPUs architecture specific registers are
 updated to the correct (supplied) values.
 
 The second part of the structure is architecture specific and
-typically contains a set of debug registers.
+typically contains a set of de registers.
 
-For arm64 the number of debug registers is implementation defined and
-can be determined by querying the KVM_CAP_GUEST_DEBUG_HW_BPS and
-KVM_CAP_GUEST_DEBUG_HW_WPS capabilities which return a positive number
+For arm64 the number of de registers is implementation defined and
+can be determined by querying the KVM_CAP_GUEST_DE_HW_BPS and
+KVM_CAP_GUEST_DE_HW_WPS capabilities which return a positive number
 indicating the number of supported registers.
 
-When debug events exit the main run loop with the reason
-KVM_EXIT_DEBUG with the kvm_debug_exit_arch part of the kvm_run
-structure containing architecture specific debug information.
+When de events exit the main run loop with the reason
+KVM_EXIT_DE with the kvm_de_exit_arch part of the kvm_run
+structure containing architecture specific de information.
 
 4.88 KVM_GET_EMULATED_CPUID
 
@@ -4011,12 +4011,12 @@ data_offset describes where the data is located (KVM_EXIT_IO_OUT) or
 where kvm expects application code to place the data for the next
 KVM_RUN invocation (KVM_EXIT_IO_IN).  Data format is a packed array.
 
-		/* KVM_EXIT_DEBUG */
+		/* KVM_EXIT_DE */
 		struct {
-			struct kvm_debug_exit_arch arch;
-		} debug;
+			struct kvm_de_exit_arch arch;
+		} de;
 
-If the exit_reason is KVM_EXIT_DEBUG, then a vcpu is processing a debug event
+If the exit_reason is KVM_EXIT_DE, then a vcpu is processing a de event
 for which architecture specific information is returned.
 
 		/* KVM_EXIT_MMIO */

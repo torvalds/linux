@@ -93,7 +93,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 		struct nvkm_msgqueue_msg base;
 
 		u8 num_queues;
-		u16 os_debug_entry_point;
+		u16 os_de_entry_point;
 
 		struct {
 			u32 offset;
@@ -136,7 +136,7 @@ init_callback(struct nvkm_msgqueue *_queue, struct nvkm_msgqueue_hdr *hdr)
 			queue->tail_reg = 0xa04 + (queue->index * 8);
 		}
 
-		nvkm_debug(subdev,
+		nvkm_de(subdev,
 			   "queue %d: index %d, offset 0x%08x, size 0x%08x\n",
 			   id, queue->index, queue->offset, queue->size);
 	}
@@ -187,7 +187,7 @@ acr_boot_falcon_callback(struct nvkm_msgqueue *priv,
 		return;
 	}
 
-	nvkm_debug(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
+	nvkm_de(subdev, "%s booted\n", nvkm_secboot_falcon_name[falcon_id]);
 }
 
 enum {

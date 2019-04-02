@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright(c) 2009-2012  Realtek Corporation.*/
 
-#ifndef __RTL_DEBUG_H__
-#define __RTL_DEBUG_H__
+#ifndef __RTL_DE_H__
+#define __RTL_DE_H__
 
 /*--------------------------------------------------------------
-			Debug level
+			De level
 --------------------------------------------------------------*/
 /*
- *Fatal bug.
+ *Fatal .
  *For example, Tx/Rx/IO locked up,
  *memory access violation,
  *resource allocation failed,
- *unexpected HW behavior, HW BUG
+ *unexpected HW behavior, HW 
  *and so on.
  */
 /*#define DBG_EMERG			0 */
@@ -144,7 +144,7 @@ enum dbgp_flag_e {
 	DBGP_TYPE_MAX
 };
 
-#ifdef CONFIG_RTLWIFI_DEBUG
+#ifdef CONFIG_RTLWIFI_DE
 
 struct rtl_priv;
 
@@ -199,15 +199,15 @@ static inline void RT_PRINT_DATA(struct rtl_priv *rtlpriv,
 
 #endif
 
-#ifdef CONFIG_RTLWIFI_DEBUG
-void rtl_debug_add_one(struct ieee80211_hw *hw);
-void rtl_debug_remove_one(struct ieee80211_hw *hw);
-void rtl_debugfs_add_topdir(void);
-void rtl_debugfs_remove_topdir(void);
+#ifdef CONFIG_RTLWIFI_DE
+void rtl_de_add_one(struct ieee80211_hw *hw);
+void rtl_de_remove_one(struct ieee80211_hw *hw);
+void rtl_defs_add_topdir(void);
+void rtl_defs_remove_topdir(void);
 #else
-#define rtl_debug_add_one(hw)
-#define rtl_debug_remove_one(hw)
-#define rtl_debugfs_add_topdir()
-#define rtl_debugfs_remove_topdir()
+#define rtl_de_add_one(hw)
+#define rtl_de_remove_one(hw)
+#define rtl_defs_add_topdir()
+#define rtl_defs_remove_topdir()
 #endif
 #endif

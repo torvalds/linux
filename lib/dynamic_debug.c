@@ -1,7 +1,7 @@
 /*
- * lib/dynamic_debug.c
+ * lib/dynamic_de.c
  *
- * make pr_debug()/dev_dbg() calls runtime configurable based upon their
+ * make pr_de()/dev_dbg() calls runtime configurable based upon their
  * source module.
  *
  * Copyright (C) 2008 Jason Baron <jbaron@redhat.com>
@@ -28,8 +28,8 @@
 #include <linux/parser.h>
 #include <linux/string_helpers.h>
 #include <linux/uaccess.h>
-#include <linux/dynamic_debug.h>
-#include <linux/debugfs.h>
+#include <linux/dynamic_de.h>
+#include <linux/defs.h>
 #include <linux/slab.h>
 #include <linux/jump_label.h>
 #include <linux/hardirq.h>
@@ -37,17 +37,17 @@
 #include <linux/device.h>
 #include <linux/netdevice.h>
 
-extern struct _ddebug __start___verbose[];
-extern struct _ddebug __stop___verbose[];
+extern struct _dde __start___verbose[];
+extern struct _dde __stop___verbose[];
 
-struct ddebug_table {
+struct dde_table {
 	struct list_head link;
 	const char *mod_name;
-	unsigned int num_ddebugs;
-	struct _ddebug *ddebugs;
+	unsigned int num_ddes;
+	struct _dde *ddes;
 };
 
-struct ddebug_query {
+struct dde_query {
 	const char *filename;
 	const char *module;
 	const char *function;
@@ -55,20 +55,20 @@ struct ddebug_query {
 	unsigned int first_lineno, last_lineno;
 };
 
-struct ddebug_iter {
-	struct ddebug_table *table;
+struct dde_iter {
+	struct dde_table *table;
 	unsigned int idx;
 };
 
-static DEFINE_MUTEX(ddebug_lock);
-static LIST_HEAD(ddebug_tables);
+static DEFINE_MUTEX(dde_lock);
+static LIST_HEAD(dde_tables);
 static int verbose;
 module_param(verbose, int, 0644);
 
 /* Return the path relative to source root */
 static inline const char *trim_prefix(const char *path)
 {
-	int skip = strlen(__FILE__) - strlen("lib/dynamic_debug.c");
+	int skip = strlen(__FILE__) - strlen("lib/dynamic_de.c");
 
 	if (strncmp(path, __FILE__, skip))
 		skip = 0; /* prefix mismatch, don't skip */
@@ -85,14 +85,14 @@ static struct { unsigned flag:8; char opt_char; } opt_array[] = {
 	{ _DPRINTK_FLAGS_NONE, '_' },
 };
 
-/* format a string into buf[] which describes the _ddebug's flags */
-static char *ddebug_describe_flags(struct _ddebug *dp, char *buf,
+/* format a string into buf[] which describes the _dde's flags */
+static char *dde_describe_flags(struct _dde *dp, char *buf,
 				    size_t maxlen)
 {
 	char *p = buf;
 	int i;
 
-	BUG_ON(maxlen < 6);
+	_ON(maxlen < 6);
 	for (i = 0; i < ARRAY_SIZE(opt_array); ++i)
 		if (dp->flags & opt_array[i].flag)
 			*p++ = opt_array[i].opt_char;
@@ -109,7 +109,7 @@ do {								\
 		pr_info(fmt, ##__VA_ARGS__);			\
 } while (0)
 
-static void vpr_info_dq(const struct ddebug_query *query, const char *msg)
+static void vpr_info_dq(const struct dde_query *query, const char *msg)
 {
 	/* trim any trailing newlines */
 	int fmtlen = 0;
@@ -130,31 +130,31 @@ static void vpr_info_dq(const struct ddebug_query *query, const char *msg)
 }
 
 /*
- * Search the tables for _ddebug's which match the given `query' and
+ * Search the tables for _dde's which match the given `query' and
  * apply the `flags' and `mask' to them.  Returns number of matching
  * callsites, normally the same as number of changes.  If verbose,
- * logs the changes.  Takes ddebug_lock.
+ * logs the changes.  Takes dde_lock.
  */
-static int ddebug_change(const struct ddebug_query *query,
+static int dde_change(const struct dde_query *query,
 			unsigned int flags, unsigned int mask)
 {
 	int i;
-	struct ddebug_table *dt;
+	struct dde_table *dt;
 	unsigned int newflags;
 	unsigned int nfound = 0;
 	char flagbuf[10];
 
-	/* search for matching ddebugs */
-	mutex_lock(&ddebug_lock);
-	list_for_each_entry(dt, &ddebug_tables, link) {
+	/* search for matching ddes */
+	mutex_lock(&dde_lock);
+	list_for_each_entry(dt, &dde_tables, link) {
 
 		/* match against the module name */
 		if (query->module &&
 		    !match_wildcard(query->module, dt->mod_name))
 			continue;
 
-		for (i = 0; i < dt->num_ddebugs; i++) {
-			struct _ddebug *dp = &dt->ddebugs[i];
+		for (i = 0; i < dt->num_ddes; i++) {
+			struct _dde *dp = &dt->ddes[i];
 
 			/* match against the source filename */
 			if (query->filename &&
@@ -199,11 +199,11 @@ static int ddebug_change(const struct ddebug_query *query,
 			vpr_info("changed %s:%d [%s]%s =%s\n",
 				 trim_prefix(dp->filename), dp->lineno,
 				 dt->mod_name, dp->function,
-				 ddebug_describe_flags(dp, flagbuf,
+				 dde_describe_flags(dp, flagbuf,
 						       sizeof(flagbuf)));
 		}
 	}
-	mutex_unlock(&ddebug_lock);
+	mutex_unlock(&dde_lock);
 
 	if (!nfound && verbose)
 		pr_info("no matches for query\n");
@@ -217,7 +217,7 @@ static int ddebug_change(const struct ddebug_query *query,
  * embedded or escaped \".  Return the number of words
  * or <0 on error.
  */
-static int ddebug_tokenize(char *buf, char *words[], int maxwords)
+static int dde_tokenize(char *buf, char *words[], int maxwords)
 {
 	int nwords = 0;
 
@@ -243,7 +243,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 		} else {
 			for (end = buf; *end && !isspace(*end); end++)
 				;
-			BUG_ON(end == buf);
+			_ON(end == buf);
 		}
 
 		/* `buf' is start of word, `end' is one past its end */
@@ -275,7 +275,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
  */
 static inline int parse_lineno(const char *str, unsigned int *val)
 {
-	BUG_ON(str == NULL);
+	_ON(str == NULL);
 	if (*str == '\0') {
 		*val = 0;
 		return 0;
@@ -301,7 +301,7 @@ static int check_set(const char **dest, char *src, char *name)
 }
 
 /*
- * Parse words[] as a ddebug query specification, which is a series
+ * Parse words[] as a dde query specification, which is a series
  * of (keyword, value) pairs chosen from these possibilities:
  *
  * func <function-name>
@@ -315,8 +315,8 @@ static int check_set(const char **dest, char *src, char *name)
  * Only 1 of each type is allowed.
  * Returns 0 on success, <0 on error.
  */
-static int ddebug_parse_query(char *words[], int nwords,
-			struct ddebug_query *query, const char *modname)
+static int dde_parse_query(char *words[], int nwords,
+			struct dde_query *query, const char *modname)
 {
 	unsigned int i;
 	int rc = 0;
@@ -387,10 +387,10 @@ static int ddebug_parse_query(char *words[], int nwords,
 /*
  * Parse `str' as a flags specification, format [-+=][p]+.
  * Sets up *maskp and *flagsp to be used when changing the
- * flags fields of matched _ddebug's.  Returns 0 on success
+ * flags fields of matched _dde's.  Returns 0 on success
  * or <0 on error.
  */
-static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
+static int dde_parse_flags(const char *str, unsigned int *flagsp,
 			       unsigned int *maskp)
 {
 	unsigned flags = 0;
@@ -441,30 +441,30 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 	return 0;
 }
 
-static int ddebug_exec_query(char *query_string, const char *modname)
+static int dde_exec_query(char *query_string, const char *modname)
 {
 	unsigned int flags = 0, mask = 0;
-	struct ddebug_query query;
+	struct dde_query query;
 #define MAXWORDS 9
 	int nwords, nfound;
 	char *words[MAXWORDS];
 
-	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
+	nwords = dde_tokenize(query_string, words, MAXWORDS);
 	if (nwords <= 0) {
 		pr_err("tokenize failed\n");
 		return -EINVAL;
 	}
 	/* check flags 1st (last arg) so query is pairs of spec,val */
-	if (ddebug_parse_flags(words[nwords-1], &flags, &mask)) {
+	if (dde_parse_flags(words[nwords-1], &flags, &mask)) {
 		pr_err("flags parse failed\n");
 		return -EINVAL;
 	}
-	if (ddebug_parse_query(words, nwords-1, &query, modname)) {
+	if (dde_parse_query(words, nwords-1, &query, modname)) {
 		pr_err("query parse failed\n");
 		return -EINVAL;
 	}
 	/* actually go and implement the change */
-	nfound = ddebug_change(&query, flags, mask);
+	nfound = dde_change(&query, flags, mask);
 	vpr_info_dq(&query, nfound ? "applied" : "no-match");
 
 	return nfound;
@@ -474,7 +474,7 @@ static int ddebug_exec_query(char *query_string, const char *modname)
    last error or number of matching callsites.  Module name is either
    in param (for boot arg) or perhaps in query string.
 */
-static int ddebug_exec_queries(char *query, const char *modname)
+static int dde_exec_queries(char *query, const char *modname)
 {
 	char *split;
 	int i, errs = 0, exitcode = 0, rc, nfound = 0;
@@ -490,7 +490,7 @@ static int ddebug_exec_queries(char *query, const char *modname)
 
 		vpr_info("query %d: \"%s\"\n", i, query);
 
-		rc = ddebug_exec_query(query, modname);
+		rc = dde_exec_query(query, modname);
 		if (rc < 0) {
 			errs++;
 			exitcode = rc;
@@ -516,7 +516,7 @@ static int remaining(int wrote)
 	return 0;
 }
 
-static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
+static char *dynamic_emit_prefix(const struct _dde *desc, char *buf)
 {
 	int pos_after_tid;
 	int pos = 0;
@@ -548,34 +548,34 @@ static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
 	return buf;
 }
 
-void __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+void __dynamic_pr_de(struct _dde *descriptor, const char *fmt, ...)
 {
 	va_list args;
 	struct va_format vaf;
 	char buf[PREFIX_SIZE];
 
-	BUG_ON(!descriptor);
-	BUG_ON(!fmt);
+	_ON(!descriptor);
+	_ON(!fmt);
 
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "%s%pV", dynamic_emit_prefix(descriptor, buf), &vaf);
+	printk(KERN_DE "%s%pV", dynamic_emit_prefix(descriptor, buf), &vaf);
 
 	va_end(args);
 }
-EXPORT_SYMBOL(__dynamic_pr_debug);
+EXPORT_SYMBOL(__dynamic_pr_de);
 
-void __dynamic_dev_dbg(struct _ddebug *descriptor,
+void __dynamic_dev_dbg(struct _dde *descriptor,
 		      const struct device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	BUG_ON(!descriptor);
-	BUG_ON(!fmt);
+	_ON(!descriptor);
+	_ON(!fmt);
 
 	va_start(args, fmt);
 
@@ -583,11 +583,11 @@ void __dynamic_dev_dbg(struct _ddebug *descriptor,
 	vaf.va = &args;
 
 	if (!dev) {
-		printk(KERN_DEBUG "(NULL device *): %pV", &vaf);
+		printk(KERN_DE "(NULL device *): %pV", &vaf);
 	} else {
 		char buf[PREFIX_SIZE];
 
-		dev_printk_emit(LOGLEVEL_DEBUG, dev, "%s%s %s: %pV",
+		dev_printk_emit(LOGLEVEL_DE, dev, "%s%s %s: %pV",
 				dynamic_emit_prefix(descriptor, buf),
 				dev_driver_string(dev), dev_name(dev),
 				&vaf);
@@ -599,14 +599,14 @@ EXPORT_SYMBOL(__dynamic_dev_dbg);
 
 #ifdef CONFIG_NET
 
-void __dynamic_netdev_dbg(struct _ddebug *descriptor,
+void __dynamic_netdev_dbg(struct _dde *descriptor,
 			  const struct net_device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	BUG_ON(!descriptor);
-	BUG_ON(!fmt);
+	_ON(!descriptor);
+	_ON(!fmt);
 
 	va_start(args, fmt);
 
@@ -616,7 +616,7 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 	if (dev && dev->dev.parent) {
 		char buf[PREFIX_SIZE];
 
-		dev_printk_emit(LOGLEVEL_DEBUG, dev->dev.parent,
+		dev_printk_emit(LOGLEVEL_DE, dev->dev.parent,
 				"%s%s %s %s%s: %pV",
 				dynamic_emit_prefix(descriptor, buf),
 				dev_driver_string(dev->dev.parent),
@@ -624,10 +624,10 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 				netdev_name(dev), netdev_reg_state(dev),
 				&vaf);
 	} else if (dev) {
-		printk(KERN_DEBUG "%s%s: %pV", netdev_name(dev),
+		printk(KERN_DE "%s%s: %pV", netdev_name(dev),
 		       netdev_reg_state(dev), &vaf);
 	} else {
-		printk(KERN_DEBUG "(NULL net_device): %pV", &vaf);
+		printk(KERN_DE "(NULL net_device): %pV", &vaf);
 	}
 
 	va_end(args);
@@ -636,27 +636,27 @@ EXPORT_SYMBOL(__dynamic_netdev_dbg);
 
 #endif
 
-#define DDEBUG_STRING_SIZE 1024
-static __initdata char ddebug_setup_string[DDEBUG_STRING_SIZE];
+#define DDE_STRING_SIZE 1024
+static __initdata char dde_setup_string[DDE_STRING_SIZE];
 
-static __init int ddebug_setup_query(char *str)
+static __init int dde_setup_query(char *str)
 {
-	if (strlen(str) >= DDEBUG_STRING_SIZE) {
-		pr_warn("ddebug boot param string too large\n");
+	if (strlen(str) >= DDE_STRING_SIZE) {
+		pr_warn("dde boot param string too large\n");
 		return 0;
 	}
-	strlcpy(ddebug_setup_string, str, DDEBUG_STRING_SIZE);
+	strlcpy(dde_setup_string, str, DDE_STRING_SIZE);
 	return 1;
 }
 
-__setup("ddebug_query=", ddebug_setup_query);
+__setup("dde_query=", dde_setup_query);
 
 /*
- * File_ops->write method for <debugfs>/dynamic_debug/control.  Gathers the
+ * File_ops->write method for <defs>/dynamic_de/control.  Gathers the
  * command text from userspace, parses and executes it.
  */
 #define USER_BUF_PAGE 4096
-static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
+static ssize_t dde_proc_write(struct file *file, const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
 	char *tmpbuf;
@@ -673,7 +673,7 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 		return PTR_ERR(tmpbuf);
 	vpr_info("read %d bytes from userspace\n", (int)len);
 
-	ret = ddebug_exec_queries(tmpbuf, NULL);
+	ret = dde_exec_queries(tmpbuf, NULL);
 	kfree(tmpbuf);
 	if (ret < 0)
 		return ret;
@@ -683,102 +683,102 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 }
 
 /*
- * Set the iterator to point to the first _ddebug object
+ * Set the iterator to point to the first _dde object
  * and return a pointer to that first object.  Returns
- * NULL if there are no _ddebugs at all.
+ * NULL if there are no _ddes at all.
  */
-static struct _ddebug *ddebug_iter_first(struct ddebug_iter *iter)
+static struct _dde *dde_iter_first(struct dde_iter *iter)
 {
-	if (list_empty(&ddebug_tables)) {
+	if (list_empty(&dde_tables)) {
 		iter->table = NULL;
 		iter->idx = 0;
 		return NULL;
 	}
-	iter->table = list_entry(ddebug_tables.next,
-				 struct ddebug_table, link);
+	iter->table = list_entry(dde_tables.next,
+				 struct dde_table, link);
 	iter->idx = 0;
-	return &iter->table->ddebugs[iter->idx];
+	return &iter->table->ddes[iter->idx];
 }
 
 /*
- * Advance the iterator to point to the next _ddebug
+ * Advance the iterator to point to the next _dde
  * object from the one the iterator currently points at,
- * and returns a pointer to the new _ddebug.  Returns
- * NULL if the iterator has seen all the _ddebugs.
+ * and returns a pointer to the new _dde.  Returns
+ * NULL if the iterator has seen all the _ddes.
  */
-static struct _ddebug *ddebug_iter_next(struct ddebug_iter *iter)
+static struct _dde *dde_iter_next(struct dde_iter *iter)
 {
 	if (iter->table == NULL)
 		return NULL;
-	if (++iter->idx == iter->table->num_ddebugs) {
+	if (++iter->idx == iter->table->num_ddes) {
 		/* iterate to next table */
 		iter->idx = 0;
-		if (list_is_last(&iter->table->link, &ddebug_tables)) {
+		if (list_is_last(&iter->table->link, &dde_tables)) {
 			iter->table = NULL;
 			return NULL;
 		}
 		iter->table = list_entry(iter->table->link.next,
-					 struct ddebug_table, link);
+					 struct dde_table, link);
 	}
-	return &iter->table->ddebugs[iter->idx];
+	return &iter->table->ddes[iter->idx];
 }
 
 /*
  * Seq_ops start method.  Called at the start of every
- * read() call from userspace.  Takes the ddebug_lock and
+ * read() call from userspace.  Takes the dde_lock and
  * seeks the seq_file's iterator to the given position.
  */
-static void *ddebug_proc_start(struct seq_file *m, loff_t *pos)
+static void *dde_proc_start(struct seq_file *m, loff_t *pos)
 {
-	struct ddebug_iter *iter = m->private;
-	struct _ddebug *dp;
+	struct dde_iter *iter = m->private;
+	struct _dde *dp;
 	int n = *pos;
 
 	vpr_info("called m=%p *pos=%lld\n", m, (unsigned long long)*pos);
 
-	mutex_lock(&ddebug_lock);
+	mutex_lock(&dde_lock);
 
 	if (!n)
 		return SEQ_START_TOKEN;
 	if (n < 0)
 		return NULL;
-	dp = ddebug_iter_first(iter);
+	dp = dde_iter_first(iter);
 	while (dp != NULL && --n > 0)
-		dp = ddebug_iter_next(iter);
+		dp = dde_iter_next(iter);
 	return dp;
 }
 
 /*
  * Seq_ops next method.  Called several times within a read()
- * call from userspace, with ddebug_lock held.  Walks to the
- * next _ddebug object with a special case for the header line.
+ * call from userspace, with dde_lock held.  Walks to the
+ * next _dde object with a special case for the header line.
  */
-static void *ddebug_proc_next(struct seq_file *m, void *p, loff_t *pos)
+static void *dde_proc_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	struct ddebug_iter *iter = m->private;
-	struct _ddebug *dp;
+	struct dde_iter *iter = m->private;
+	struct _dde *dp;
 
 	vpr_info("called m=%p p=%p *pos=%lld\n",
 		 m, p, (unsigned long long)*pos);
 
 	if (p == SEQ_START_TOKEN)
-		dp = ddebug_iter_first(iter);
+		dp = dde_iter_first(iter);
 	else
-		dp = ddebug_iter_next(iter);
+		dp = dde_iter_next(iter);
 	++*pos;
 	return dp;
 }
 
 /*
  * Seq_ops show method.  Called several times within a read()
- * call from userspace, with ddebug_lock held.  Formats the
- * current _ddebug as a single human-readable line, with a
+ * call from userspace, with dde_lock held.  Formats the
+ * current _dde as a single human-readable line, with a
  * special case for the header line.
  */
-static int ddebug_proc_show(struct seq_file *m, void *p)
+static int dde_proc_show(struct seq_file *m, void *p)
 {
-	struct ddebug_iter *iter = m->private;
-	struct _ddebug *dp = p;
+	struct dde_iter *iter = m->private;
+	struct _dde *dp = p;
 	char flagsbuf[10];
 
 	vpr_info("called m=%p p=%p\n", m, p);
@@ -792,7 +792,7 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 	seq_printf(m, "%s:%u [%s]%s =%s \"",
 		   trim_prefix(dp->filename), dp->lineno,
 		   iter->table->mod_name, dp->function,
-		   ddebug_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
+		   dde_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
 	seq_escape(m, dp->format, "\t\r\n\"");
 	seq_puts(m, "\"\n");
 
@@ -801,52 +801,52 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 
 /*
  * Seq_ops stop method.  Called at the end of each read()
- * call from userspace.  Drops ddebug_lock.
+ * call from userspace.  Drops dde_lock.
  */
-static void ddebug_proc_stop(struct seq_file *m, void *p)
+static void dde_proc_stop(struct seq_file *m, void *p)
 {
 	vpr_info("called m=%p p=%p\n", m, p);
-	mutex_unlock(&ddebug_lock);
+	mutex_unlock(&dde_lock);
 }
 
-static const struct seq_operations ddebug_proc_seqops = {
-	.start = ddebug_proc_start,
-	.next = ddebug_proc_next,
-	.show = ddebug_proc_show,
-	.stop = ddebug_proc_stop
+static const struct seq_operations dde_proc_seqops = {
+	.start = dde_proc_start,
+	.next = dde_proc_next,
+	.show = dde_proc_show,
+	.stop = dde_proc_stop
 };
 
 /*
- * File_ops->open method for <debugfs>/dynamic_debug/control.  Does
+ * File_ops->open method for <defs>/dynamic_de/control.  Does
  * the seq_file setup dance, and also creates an iterator to walk the
- * _ddebugs.  Note that we create a seq_file always, even for O_WRONLY
+ * _ddes.  Note that we create a seq_file always, even for O_WRONLY
  * files where it's not needed, as doing so simplifies the ->release
  * method.
  */
-static int ddebug_proc_open(struct inode *inode, struct file *file)
+static int dde_proc_open(struct inode *inode, struct file *file)
 {
 	vpr_info("called\n");
-	return seq_open_private(file, &ddebug_proc_seqops,
-				sizeof(struct ddebug_iter));
+	return seq_open_private(file, &dde_proc_seqops,
+				sizeof(struct dde_iter));
 }
 
-static const struct file_operations ddebug_proc_fops = {
+static const struct file_operations dde_proc_fops = {
 	.owner = THIS_MODULE,
-	.open = ddebug_proc_open,
+	.open = dde_proc_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release_private,
-	.write = ddebug_proc_write
+	.write = dde_proc_write
 };
 
 /*
- * Allocate a new ddebug_table for the given module
+ * Allocate a new dde_table for the given module
  * and add it to the global list.
  */
-int ddebug_add_module(struct _ddebug *tab, unsigned int n,
+int dde_add_module(struct _dde *tab, unsigned int n,
 			     const char *name)
 {
-	struct ddebug_table *dt;
+	struct dde_table *dt;
 
 	dt = kzalloc(sizeof(*dt), GFP_KERNEL);
 	if (dt == NULL) {
@@ -857,29 +857,29 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 	 * For built-in modules, name lives in .rodata and is
 	 * immortal. For loaded modules, name points at the name[]
 	 * member of struct module, which lives at least as long as
-	 * this struct ddebug_table.
+	 * this struct dde_table.
 	 */
 	dt->mod_name = name;
-	dt->num_ddebugs = n;
-	dt->ddebugs = tab;
+	dt->num_ddes = n;
+	dt->ddes = tab;
 
-	mutex_lock(&ddebug_lock);
-	list_add_tail(&dt->link, &ddebug_tables);
-	mutex_unlock(&ddebug_lock);
+	mutex_lock(&dde_lock);
+	list_add_tail(&dt->link, &dde_tables);
+	mutex_unlock(&dde_lock);
 
-	vpr_info("%u debug prints in module %s\n", n, dt->mod_name);
+	vpr_info("%u de prints in module %s\n", n, dt->mod_name);
 	return 0;
 }
 
-/* helper for ddebug_dyndbg_(boot|module)_param_cb */
-static int ddebug_dyndbg_param_cb(char *param, char *val,
+/* helper for dde_dyndbg_(boot|module)_param_cb */
+static int dde_dyndbg_param_cb(char *param, char *val,
 				const char *modname, int on_err)
 {
 	char *sep;
 
 	sep = strchr(param, '.');
 	if (sep) {
-		/* needed only for ddebug_dyndbg_boot_param_cb */
+		/* needed only for dde_dyndbg_boot_param_cb */
 		*sep = '\0';
 		modname = param;
 		param = sep + 1;
@@ -887,17 +887,17 @@ static int ddebug_dyndbg_param_cb(char *param, char *val,
 	if (strcmp(param, "dyndbg"))
 		return on_err; /* determined by caller */
 
-	ddebug_exec_queries((val ? val : "+p"), modname);
+	dde_exec_queries((val ? val : "+p"), modname);
 
 	return 0; /* query failure shouldnt stop module load */
 }
 
 /* handle both dyndbg and $module.dyndbg params at boot */
-static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
+static int dde_dyndbg_boot_param_cb(char *param, char *val,
 				const char *unused, void *arg)
 {
 	vpr_info("%s=\"%s\"\n", param, val);
-	return ddebug_dyndbg_param_cb(param, val, NULL, 0);
+	return dde_dyndbg_param_cb(param, val, NULL, 0);
 }
 
 /*
@@ -905,13 +905,13 @@ static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
  * passes them to load_module().  This callback gets unknown params,
  * processes dyndbg params, rejects others.
  */
-int ddebug_dyndbg_module_param_cb(char *param, char *val, const char *module)
+int dde_dyndbg_module_param_cb(char *param, char *val, const char *module)
 {
 	vpr_info("module: %s %s=\"%s\"\n", module, param, val);
-	return ddebug_dyndbg_param_cb(param, val, module, -ENOENT);
+	return dde_dyndbg_param_cb(param, val, module, -ENOENT);
 }
 
-static void ddebug_table_free(struct ddebug_table *dt)
+static void dde_table_free(struct dde_table *dt)
 {
 	list_del_init(&dt->link);
 	kfree(dt);
@@ -919,63 +919,63 @@ static void ddebug_table_free(struct ddebug_table *dt)
 
 /*
  * Called in response to a module being unloaded.  Removes
- * any ddebug_table's which point at the module.
+ * any dde_table's which point at the module.
  */
-int ddebug_remove_module(const char *mod_name)
+int dde_remove_module(const char *mod_name)
 {
-	struct ddebug_table *dt, *nextdt;
+	struct dde_table *dt, *nextdt;
 	int ret = -ENOENT;
 
 	vpr_info("removing module \"%s\"\n", mod_name);
 
-	mutex_lock(&ddebug_lock);
-	list_for_each_entry_safe(dt, nextdt, &ddebug_tables, link) {
+	mutex_lock(&dde_lock);
+	list_for_each_entry_safe(dt, nextdt, &dde_tables, link) {
 		if (dt->mod_name == mod_name) {
-			ddebug_table_free(dt);
+			dde_table_free(dt);
 			ret = 0;
 			break;
 		}
 	}
-	mutex_unlock(&ddebug_lock);
+	mutex_unlock(&dde_lock);
 	return ret;
 }
 
-static void ddebug_remove_all_tables(void)
+static void dde_remove_all_tables(void)
 {
-	mutex_lock(&ddebug_lock);
-	while (!list_empty(&ddebug_tables)) {
-		struct ddebug_table *dt = list_entry(ddebug_tables.next,
-						      struct ddebug_table,
+	mutex_lock(&dde_lock);
+	while (!list_empty(&dde_tables)) {
+		struct dde_table *dt = list_entry(dde_tables.next,
+						      struct dde_table,
 						      link);
-		ddebug_table_free(dt);
+		dde_table_free(dt);
 	}
-	mutex_unlock(&ddebug_lock);
+	mutex_unlock(&dde_lock);
 }
 
-static __initdata int ddebug_init_success;
+static __initdata int dde_init_success;
 
-static int __init dynamic_debug_init_debugfs(void)
+static int __init dynamic_de_init_defs(void)
 {
 	struct dentry *dir, *file;
 
-	if (!ddebug_init_success)
+	if (!dde_init_success)
 		return -ENODEV;
 
-	dir = debugfs_create_dir("dynamic_debug", NULL);
+	dir = defs_create_dir("dynamic_de", NULL);
 	if (!dir)
 		return -ENOMEM;
-	file = debugfs_create_file("control", 0644, dir, NULL,
-					&ddebug_proc_fops);
+	file = defs_create_file("control", 0644, dir, NULL,
+					&dde_proc_fops);
 	if (!file) {
-		debugfs_remove(dir);
+		defs_remove(dir);
 		return -ENOMEM;
 	}
 	return 0;
 }
 
-static int __init dynamic_debug_init(void)
+static int __init dynamic_de_init(void)
 {
-	struct _ddebug *iter, *iter_start;
+	struct _dde *iter, *iter_start;
 	const char *modname = NULL;
 	char *cmdline;
 	int ret = 0;
@@ -983,7 +983,7 @@ static int __init dynamic_debug_init(void)
 	int verbose_bytes = 0;
 
 	if (__start___verbose == __stop___verbose) {
-		pr_warn("_ddebug table is empty in a CONFIG_DYNAMIC_DEBUG build\n");
+		pr_warn("_dde table is empty in a CONFIG_DYNAMIC_DE build\n");
 		return 1;
 	}
 	iter = __start___verbose;
@@ -996,7 +996,7 @@ static int __init dynamic_debug_init(void)
 
 		if (strcmp(modname, iter->modname)) {
 			modct++;
-			ret = ddebug_add_module(iter_start, n, modname);
+			ret = dde_add_module(iter_start, n, modname);
 			if (ret)
 				goto out_err;
 			n = 0;
@@ -1005,26 +1005,26 @@ static int __init dynamic_debug_init(void)
 		}
 		n++;
 	}
-	ret = ddebug_add_module(iter_start, n, modname);
+	ret = dde_add_module(iter_start, n, modname);
 	if (ret)
 		goto out_err;
 
-	ddebug_init_success = 1;
-	vpr_info("%d modules, %d entries and %d bytes in ddebug tables, %d bytes in (readonly) verbose section\n",
-		 modct, entries, (int)(modct * sizeof(struct ddebug_table)),
+	dde_init_success = 1;
+	vpr_info("%d modules, %d entries and %d bytes in dde tables, %d bytes in (readonly) verbose section\n",
+		 modct, entries, (int)(modct * sizeof(struct dde_table)),
 		 verbose_bytes + (int)(__stop___verbose - __start___verbose));
 
-	/* apply ddebug_query boot param, dont unload tables on err */
-	if (ddebug_setup_string[0] != '\0') {
-		pr_warn("ddebug_query param name is deprecated, change it to dyndbg\n");
-		ret = ddebug_exec_queries(ddebug_setup_string, NULL);
+	/* apply dde_query boot param, dont unload tables on err */
+	if (dde_setup_string[0] != '\0') {
+		pr_warn("dde_query param name is deprecated, change it to dyndbg\n");
+		ret = dde_exec_queries(dde_setup_string, NULL);
 		if (ret < 0)
-			pr_warn("Invalid ddebug boot param %s\n",
-				ddebug_setup_string);
+			pr_warn("Invalid dde boot param %s\n",
+				dde_setup_string);
 		else
-			pr_info("%d changes by ddebug_query\n", ret);
+			pr_info("%d changes by dde_query\n", ret);
 	}
-	/* now that ddebug tables are loaded, process all boot args
+	/* now that dde tables are loaded, process all boot args
 	 * again to find and activate queries given in dyndbg params.
 	 * While this has already been done for known boot params, it
 	 * ignored the unknown ones (dyndbg in particular).  Reusing
@@ -1034,16 +1034,16 @@ static int __init dynamic_debug_init(void)
 	 */
 	cmdline = kstrdup(saved_command_line, GFP_KERNEL);
 	parse_args("dyndbg params", cmdline, NULL,
-		   0, 0, 0, NULL, &ddebug_dyndbg_boot_param_cb);
+		   0, 0, 0, NULL, &dde_dyndbg_boot_param_cb);
 	kfree(cmdline);
 	return 0;
 
 out_err:
-	ddebug_remove_all_tables();
+	dde_remove_all_tables();
 	return 0;
 }
 /* Allow early initialization for boot messages via boot param */
-early_initcall(dynamic_debug_init);
+early_initcall(dynamic_de_init);
 
-/* Debugfs setup must be done later */
-fs_initcall(dynamic_debug_init_debugfs);
+/* Defs setup must be done later */
+fs_initcall(dynamic_de_init_defs);

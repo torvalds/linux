@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
- * Name: acoutput.h -- debug output
+ * Name: acoutput.h -- de output
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -11,12 +11,12 @@
 #define __ACOUTPUT_H__
 
 /*
- * Debug levels and component IDs. These are used to control the
- * granularity of the output of the ACPI_DEBUG_PRINT macro -- on a
+ * De levels and component IDs. These are used to control the
+ * granularity of the output of the ACPI_DE_PRINT macro -- on a
  * per-component basis and a per-exception-type basis.
  */
 
-/* Component IDs are used in the global "DebugLayer" */
+/* Component IDs are used in the global "DeLayer" */
 
 #define ACPI_UTILITIES              0x00000001
 #define ACPI_HARDWARE               0x00000002
@@ -27,7 +27,7 @@
 #define ACPI_DISPATCHER             0x00000040
 #define ACPI_EXECUTER               0x00000080
 #define ACPI_RESOURCES              0x00000100
-#define ACPI_CA_DEBUGGER            0x00000200
+#define ACPI_CA_DEGER            0x00000200
 #define ACPI_OS_SERVICES            0x00000400
 #define ACPI_CA_DISASSEMBLER        0x00000800
 
@@ -48,10 +48,10 @@
 #define ACPI_ALL_DRIVERS            0xFFFF0000
 
 /*
- * Raw debug output levels, do not use these in the ACPI_DEBUG_PRINT macros
+ * Raw de output levels, do not use these in the ACPI_DE_PRINT macros
  */
 #define ACPI_LV_INIT                0x00000001
-#define ACPI_LV_DEBUG_OBJECT        0x00000002
+#define ACPI_LV_DE_OBJECT        0x00000002
 #define ACPI_LV_INFO                0x00000004
 #define ACPI_LV_REPAIR              0x00000008
 #define ACPI_LV_TRACE_POINT         0x00000010
@@ -93,7 +93,7 @@
 #define ACPI_LV_INTERRUPTS          0x08000000
 #define ACPI_LV_VERBOSITY3          0x0F000000 | ACPI_LV_VERBOSITY2
 
-/* Exceptionally verbose output -- also used in the global "DebugLevel"  */
+/* Exceptionally verbose output -- also used in the global "DeLevel"  */
 
 #define ACPI_LV_AML_DISASSEMBLE     0x10000000
 #define ACPI_LV_VERBOSE_INFO        0x20000000
@@ -102,60 +102,60 @@
 #define ACPI_LV_VERBOSE             0xF0000000
 
 /*
- * Debug level macros that are used in the DEBUG_PRINT macros
+ * De level macros that are used in the DE_PRINT macros
  */
-#define ACPI_DEBUG_LEVEL(dl)        (u32) dl,ACPI_DEBUG_PARAMETERS
+#define ACPI_DE_LEVEL(dl)        (u32) dl,ACPI_DE_PARAMETERS
 
 /*
- * Exception level -- used in the global "DebugLevel"
+ * Exception level -- used in the global "DeLevel"
  *
  * Note: For errors, use the ACPI_ERROR or ACPI_EXCEPTION interfaces.
  * For warnings, use ACPI_WARNING.
  */
-#define ACPI_DB_INIT                ACPI_DEBUG_LEVEL (ACPI_LV_INIT)
-#define ACPI_DB_DEBUG_OBJECT        ACPI_DEBUG_LEVEL (ACPI_LV_DEBUG_OBJECT)
-#define ACPI_DB_INFO                ACPI_DEBUG_LEVEL (ACPI_LV_INFO)
-#define ACPI_DB_REPAIR              ACPI_DEBUG_LEVEL (ACPI_LV_REPAIR)
-#define ACPI_DB_TRACE_POINT         ACPI_DEBUG_LEVEL (ACPI_LV_TRACE_POINT)
-#define ACPI_DB_ALL_EXCEPTIONS      ACPI_DEBUG_LEVEL (ACPI_LV_ALL_EXCEPTIONS)
+#define ACPI_DB_INIT                ACPI_DE_LEVEL (ACPI_LV_INIT)
+#define ACPI_DB_DE_OBJECT        ACPI_DE_LEVEL (ACPI_LV_DE_OBJECT)
+#define ACPI_DB_INFO                ACPI_DE_LEVEL (ACPI_LV_INFO)
+#define ACPI_DB_REPAIR              ACPI_DE_LEVEL (ACPI_LV_REPAIR)
+#define ACPI_DB_TRACE_POINT         ACPI_DE_LEVEL (ACPI_LV_TRACE_POINT)
+#define ACPI_DB_ALL_EXCEPTIONS      ACPI_DE_LEVEL (ACPI_LV_ALL_EXCEPTIONS)
 
-/* Trace level -- also used in the global "DebugLevel" */
+/* Trace level -- also used in the global "DeLevel" */
 
-#define ACPI_DB_INIT_NAMES          ACPI_DEBUG_LEVEL (ACPI_LV_INIT_NAMES)
-#define ACPI_DB_THREADS             ACPI_DEBUG_LEVEL (ACPI_LV_THREADS)
-#define ACPI_DB_PARSE               ACPI_DEBUG_LEVEL (ACPI_LV_PARSE)
-#define ACPI_DB_DISPATCH            ACPI_DEBUG_LEVEL (ACPI_LV_DISPATCH)
-#define ACPI_DB_LOAD                ACPI_DEBUG_LEVEL (ACPI_LV_LOAD)
-#define ACPI_DB_EXEC                ACPI_DEBUG_LEVEL (ACPI_LV_EXEC)
-#define ACPI_DB_NAMES               ACPI_DEBUG_LEVEL (ACPI_LV_NAMES)
-#define ACPI_DB_OPREGION            ACPI_DEBUG_LEVEL (ACPI_LV_OPREGION)
-#define ACPI_DB_BFIELD              ACPI_DEBUG_LEVEL (ACPI_LV_BFIELD)
-#define ACPI_DB_TABLES              ACPI_DEBUG_LEVEL (ACPI_LV_TABLES)
-#define ACPI_DB_FUNCTIONS           ACPI_DEBUG_LEVEL (ACPI_LV_FUNCTIONS)
-#define ACPI_DB_OPTIMIZATIONS       ACPI_DEBUG_LEVEL (ACPI_LV_OPTIMIZATIONS)
-#define ACPI_DB_PARSE_TREES         ACPI_DEBUG_LEVEL (ACPI_LV_PARSE_TREES)
-#define ACPI_DB_VALUES              ACPI_DEBUG_LEVEL (ACPI_LV_VALUES)
-#define ACPI_DB_OBJECTS             ACPI_DEBUG_LEVEL (ACPI_LV_OBJECTS)
-#define ACPI_DB_ALLOCATIONS         ACPI_DEBUG_LEVEL (ACPI_LV_ALLOCATIONS)
-#define ACPI_DB_RESOURCES           ACPI_DEBUG_LEVEL (ACPI_LV_RESOURCES)
-#define ACPI_DB_IO                  ACPI_DEBUG_LEVEL (ACPI_LV_IO)
-#define ACPI_DB_INTERRUPTS          ACPI_DEBUG_LEVEL (ACPI_LV_INTERRUPTS)
-#define ACPI_DB_USER_REQUESTS       ACPI_DEBUG_LEVEL (ACPI_LV_USER_REQUESTS)
-#define ACPI_DB_PACKAGE             ACPI_DEBUG_LEVEL (ACPI_LV_PACKAGE)
-#define ACPI_DB_EVALUATION          ACPI_DEBUG_LEVEL (ACPI_LV_EVALUATION)
-#define ACPI_DB_MUTEX               ACPI_DEBUG_LEVEL (ACPI_LV_MUTEX)
-#define ACPI_DB_EVENTS              ACPI_DEBUG_LEVEL (ACPI_LV_EVENTS)
+#define ACPI_DB_INIT_NAMES          ACPI_DE_LEVEL (ACPI_LV_INIT_NAMES)
+#define ACPI_DB_THREADS             ACPI_DE_LEVEL (ACPI_LV_THREADS)
+#define ACPI_DB_PARSE               ACPI_DE_LEVEL (ACPI_LV_PARSE)
+#define ACPI_DB_DISPATCH            ACPI_DE_LEVEL (ACPI_LV_DISPATCH)
+#define ACPI_DB_LOAD                ACPI_DE_LEVEL (ACPI_LV_LOAD)
+#define ACPI_DB_EXEC                ACPI_DE_LEVEL (ACPI_LV_EXEC)
+#define ACPI_DB_NAMES               ACPI_DE_LEVEL (ACPI_LV_NAMES)
+#define ACPI_DB_OPREGION            ACPI_DE_LEVEL (ACPI_LV_OPREGION)
+#define ACPI_DB_BFIELD              ACPI_DE_LEVEL (ACPI_LV_BFIELD)
+#define ACPI_DB_TABLES              ACPI_DE_LEVEL (ACPI_LV_TABLES)
+#define ACPI_DB_FUNCTIONS           ACPI_DE_LEVEL (ACPI_LV_FUNCTIONS)
+#define ACPI_DB_OPTIMIZATIONS       ACPI_DE_LEVEL (ACPI_LV_OPTIMIZATIONS)
+#define ACPI_DB_PARSE_TREES         ACPI_DE_LEVEL (ACPI_LV_PARSE_TREES)
+#define ACPI_DB_VALUES              ACPI_DE_LEVEL (ACPI_LV_VALUES)
+#define ACPI_DB_OBJECTS             ACPI_DE_LEVEL (ACPI_LV_OBJECTS)
+#define ACPI_DB_ALLOCATIONS         ACPI_DE_LEVEL (ACPI_LV_ALLOCATIONS)
+#define ACPI_DB_RESOURCES           ACPI_DE_LEVEL (ACPI_LV_RESOURCES)
+#define ACPI_DB_IO                  ACPI_DE_LEVEL (ACPI_LV_IO)
+#define ACPI_DB_INTERRUPTS          ACPI_DE_LEVEL (ACPI_LV_INTERRUPTS)
+#define ACPI_DB_USER_REQUESTS       ACPI_DE_LEVEL (ACPI_LV_USER_REQUESTS)
+#define ACPI_DB_PACKAGE             ACPI_DE_LEVEL (ACPI_LV_PACKAGE)
+#define ACPI_DB_EVALUATION          ACPI_DE_LEVEL (ACPI_LV_EVALUATION)
+#define ACPI_DB_MUTEX               ACPI_DE_LEVEL (ACPI_LV_MUTEX)
+#define ACPI_DB_EVENTS              ACPI_DE_LEVEL (ACPI_LV_EVENTS)
 
-#define ACPI_DB_ALL                 ACPI_DEBUG_LEVEL (ACPI_LV_ALL)
+#define ACPI_DB_ALL                 ACPI_DE_LEVEL (ACPI_LV_ALL)
 
-/* Defaults for debug_level, debug and normal */
+/* Defaults for de_level, de and normal */
 
-#ifndef ACPI_DEBUG_DEFAULT
-#define ACPI_DEBUG_DEFAULT          (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_EVALUATION | ACPI_LV_REPAIR)
+#ifndef ACPI_DE_DEFAULT
+#define ACPI_DE_DEFAULT          (ACPI_LV_INIT | ACPI_LV_DE_OBJECT | ACPI_LV_EVALUATION | ACPI_LV_REPAIR)
 #endif
 
-#define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
-#define ACPI_DEBUG_ALL              (ACPI_LV_AML_DISASSEMBLE | ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_ALL)
+#define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DE_OBJECT | ACPI_LV_REPAIR)
+#define ACPI_DE_ALL              (ACPI_LV_AML_DISASSEMBLE | ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_ALL)
 
 /*
  * Global trace flags
@@ -164,24 +164,24 @@
 #define ACPI_TRACE_ONESHOT          ((u32) 2)
 #define ACPI_TRACE_OPCODE           ((u32) 1)
 
-/* Defaults for trace debugging level/layer */
+/* Defaults for trace deging level/layer */
 
 #define ACPI_TRACE_LEVEL_ALL        ACPI_LV_ALL
 #define ACPI_TRACE_LAYER_ALL        0x000001FF
 #define ACPI_TRACE_LEVEL_DEFAULT    ACPI_LV_TRACE_POINT
 #define ACPI_TRACE_LAYER_DEFAULT    ACPI_EXECUTER
 
-#if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
+#if defined (ACPI_DE_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
 /*
- * The module name is used primarily for error and debug messages.
+ * The module name is used primarily for error and de messages.
  * The __FILE__ macro is not very useful for this, because it
  * usually includes the entire pathname to the module making the
- * debug output difficult to read.
+ * de output difficult to read.
  */
 #define ACPI_MODULE_NAME(name)          static const char ACPI_UNUSED_VAR _acpi_module_name[] = name;
 #else
 /*
- * For the no-debug and no-error-msg cases, we must at least define
+ * For the no-de and no-error-msg cases, we must at least define
  * a null module name.
  */
 #define ACPI_MODULE_NAME(name)
@@ -197,7 +197,7 @@
 /*
  * Error reporting. Callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
- * These macros are used for both the debug and non-debug versions of the code.
+ * These macros are used for both the de and non-de versions of the code.
  */
 #define ACPI_INFO(plist)                acpi_info plist
 #define ACPI_WARNING(plist)             acpi_warning plist
@@ -206,7 +206,7 @@
 #define ACPI_BIOS_WARNING(plist)        acpi_bios_warning plist
 #define ACPI_BIOS_EXCEPTION(plist)      acpi_bios_exception plist
 #define ACPI_BIOS_ERROR(plist)          acpi_bios_error plist
-#define ACPI_DEBUG_OBJECT(obj,l,i)      acpi_ex_do_debug_object(obj,l,i)
+#define ACPI_DE_OBJECT(obj,l,i)      acpi_ex_do_de_object(obj,l,i)
 
 #else
 
@@ -219,14 +219,14 @@
 #define ACPI_BIOS_WARNING(plist)
 #define ACPI_BIOS_EXCEPTION(plist)
 #define ACPI_BIOS_ERROR(plist)
-#define ACPI_DEBUG_OBJECT(obj,l,i)
+#define ACPI_DE_OBJECT(obj,l,i)
 
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 
 /*
- * Debug macros that are conditionally compiled
+ * De macros that are conditionally compiled
  */
-#ifdef ACPI_DEBUG_OUTPUT
+#ifdef ACPI_DE_OUTPUT
 
 /*
  * If ACPI_GET_FUNCTION_NAME was not defined in the compiler-dependent header,
@@ -239,7 +239,7 @@
 /*
  * The Name parameter should be the procedure name as a non-quoted string.
  * The function name is also used by the function exit macros below.
- * Note: (const char) is used to be compatible with the debug interfaces
+ * Note: (const char) is used to be compatible with the de interfaces
  * and macros such as __func__.
  */
 #define ACPI_FUNCTION_NAME(name)        static const char _acpi_function_name[] = #name;
@@ -251,25 +251,25 @@
 #endif				/* ACPI_GET_FUNCTION_NAME */
 
 /*
- * Common parameters used for debug output functions:
+ * Common parameters used for de output functions:
  * line number, function name, module(file) name, component ID
  */
-#define ACPI_DEBUG_PARAMETERS \
+#define ACPI_DE_PARAMETERS \
 	__LINE__, ACPI_GET_FUNCTION_NAME, _acpi_module_name, _COMPONENT
 
-/* Check if debug output is currently dynamically enabled */
+/* Check if de output is currently dynamically enabled */
 
-#define ACPI_IS_DEBUG_ENABLED(level, component) \
+#define ACPI_IS_DE_ENABLED(level, component) \
 	((level & acpi_dbg_level) && (component & acpi_dbg_layer))
 
 /*
- * Master debug print macros
+ * Master de print macros
  * Print message if and only if:
- *    1) Debug print for the current component is enabled
- *    2) Debug error level or trace level for the print statement is enabled
+ *    1) De print for the current component is enabled
+ *    2) De error level or trace level for the print statement is enabled
  *
  * November 2012: Moved the runtime check for whether to actually emit the
- * debug message outside of the print function itself. This improves overall
+ * de message outside of the print function itself. This improves overall
  * performance at a relatively small code cost. Implementation involves the
  * use of variadic macros supported by C99.
  *
@@ -283,35 +283,35 @@
 #define ACPI_DO_WHILE0(a)               a
 #endif
 
-/* DEBUG_PRINT functions */
+/* DE_PRINT functions */
 
 #ifndef COMPILER_VA_MACRO
 
-#define ACPI_DEBUG_PRINT(plist)         acpi_debug_print plist
-#define ACPI_DEBUG_PRINT_RAW(plist)     acpi_debug_print_raw plist
+#define ACPI_DE_PRINT(plist)         acpi_de_print plist
+#define ACPI_DE_PRINT_RAW(plist)     acpi_de_print_raw plist
 
 #else
 
-/* Helper macros for DEBUG_PRINT */
+/* Helper macros for DE_PRINT */
 
-#define ACPI_DO_DEBUG_PRINT(function, level, line, filename, modulename, component, ...) \
+#define ACPI_DO_DE_PRINT(function, level, line, filename, modulename, component, ...) \
 	ACPI_DO_WHILE0 ({ \
-		if (ACPI_IS_DEBUG_ENABLED (level, component)) \
+		if (ACPI_IS_DE_ENABLED (level, component)) \
 		{ \
 			function (level, line, filename, modulename, component, __VA_ARGS__); \
 		} \
 	})
 
-#define ACPI_ACTUAL_DEBUG(level, line, filename, modulename, component, ...) \
-	ACPI_DO_DEBUG_PRINT (acpi_debug_print, level, line, \
+#define ACPI_ACTUAL_DE(level, line, filename, modulename, component, ...) \
+	ACPI_DO_DE_PRINT (acpi_de_print, level, line, \
 		filename, modulename, component, __VA_ARGS__)
 
-#define ACPI_ACTUAL_DEBUG_RAW(level, line, filename, modulename, component, ...) \
-	ACPI_DO_DEBUG_PRINT (acpi_debug_print_raw, level, line, \
+#define ACPI_ACTUAL_DE_RAW(level, line, filename, modulename, component, ...) \
+	ACPI_DO_DE_PRINT (acpi_de_print_raw, level, line, \
 		filename, modulename, component, __VA_ARGS__)
 
-#define ACPI_DEBUG_PRINT(plist)         ACPI_ACTUAL_DEBUG plist
-#define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
+#define ACPI_DE_PRINT(plist)         ACPI_ACTUAL_DE plist
+#define ACPI_DE_PRINT_RAW(plist)     ACPI_ACTUAL_DE_RAW plist
 
 #endif
 
@@ -326,13 +326,13 @@
 
 #define ACPI_TRACE_ENTRY(name, function, type, param) \
 	ACPI_FUNCTION_NAME (name) \
-	function (ACPI_DEBUG_PARAMETERS, (type) (param))
+	function (ACPI_DE_PARAMETERS, (type) (param))
 
 /* The actual entry trace macros */
 
 #define ACPI_FUNCTION_TRACE(name) \
 	ACPI_FUNCTION_NAME(name) \
-	acpi_ut_trace (ACPI_DEBUG_PARAMETERS)
+	acpi_ut_trace (ACPI_DE_PARAMETERS)
 
 #define ACPI_FUNCTION_TRACE_PTR(name, pointer) \
 	ACPI_TRACE_ENTRY (name, acpi_ut_trace_ptr, void *, pointer)
@@ -362,7 +362,7 @@
  *
  * A less-safe version of the macros is provided for optional use if the
  * compiler uses excessive CPU stack (for example, this may happen in the
- * debug case if code optimzation is disabled.)
+ * de case if code optimzation is disabled.)
  */
 
 /* Exit trace helper macro */
@@ -372,7 +372,7 @@
 #define ACPI_TRACE_EXIT(function, type, param) \
 	ACPI_DO_WHILE0 ({ \
 		register type _param = (type) (param); \
-		function (ACPI_DEBUG_PARAMETERS, _param); \
+		function (ACPI_DE_PARAMETERS, _param); \
 		return (_param); \
 	})
 
@@ -380,7 +380,7 @@
 
 #define ACPI_TRACE_EXIT(function, type, param) \
 	ACPI_DO_WHILE0 ({ \
-		function (ACPI_DEBUG_PARAMETERS, (type) (param)); \
+		function (ACPI_DE_PARAMETERS, (type) (param)); \
 		return (param); \
 	})
 
@@ -390,7 +390,7 @@
 
 #define return_VOID \
 	ACPI_DO_WHILE0 ({ \
-		acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
+		acpi_ut_exit (ACPI_DE_PARAMETERS); \
 		return; \
 	})
 
@@ -414,29 +414,29 @@
 
 /* Conditional execution */
 
-#define ACPI_DEBUG_EXEC(a)              a
-#define ACPI_DEBUG_ONLY_MEMBERS(a)      a;
+#define ACPI_DE_EXEC(a)              a
+#define ACPI_DE_ONLY_MEMBERS(a)      a;
 #define _VERBOSE_STRUCTURES
 
-/* Various object display routines for debug */
+/* Various object display routines for de */
 
 #define ACPI_DUMP_STACK_ENTRY(a)        acpi_ex_dump_operand((a), 0)
 #define ACPI_DUMP_OPERANDS(a, b ,c)     acpi_ex_dump_operands(a, b, c)
 #define ACPI_DUMP_ENTRY(a, b)           acpi_ns_dump_entry (a, b)
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  acpi_ns_dump_pathname(a, b, c, d)
-#define ACPI_DUMP_BUFFER(a, b)          acpi_ut_debug_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
+#define ACPI_DUMP_BUFFER(a, b)          acpi_ut_de_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
 #define ACPI_TRACE_POINT(a, b, c, d)    acpi_trace_point (a, b, c, d)
 
-#else				/* ACPI_DEBUG_OUTPUT */
+#else				/* ACPI_DE_OUTPUT */
 /*
- * This is the non-debug case -- make everything go away,
- * leaving no executable debug code!
+ * This is the non-de case -- make everything go away,
+ * leaving no executable de code!
  */
-#define ACPI_DEBUG_PRINT(pl)
-#define ACPI_DEBUG_PRINT_RAW(pl)
-#define ACPI_DEBUG_EXEC(a)
-#define ACPI_DEBUG_ONLY_MEMBERS(a)
+#define ACPI_DE_PRINT(pl)
+#define ACPI_DE_PRINT_RAW(pl)
+#define ACPI_DE_EXEC(a)
+#define ACPI_DE_ONLY_MEMBERS(a)
 #define ACPI_FUNCTION_NAME(a)
 #define ACPI_FUNCTION_TRACE(a)
 #define ACPI_FUNCTION_TRACE_PTR(a, b)
@@ -448,7 +448,7 @@
 #define ACPI_DUMP_ENTRY(a, b)
 #define ACPI_DUMP_PATHNAME(a, b, c, d)
 #define ACPI_DUMP_BUFFER(a, b)
-#define ACPI_IS_DEBUG_ENABLED(level, component) 0
+#define ACPI_IS_DE_ENABLED(level, component) 0
 #define ACPI_TRACE_POINT(a, b, c, d)
 
 /* Return macros must have a return statement at the minimum */
@@ -461,6 +461,6 @@
 #define return_UINT8(s)                 return(s)
 #define return_UINT32(s)                return(s)
 
-#endif				/* ACPI_DEBUG_OUTPUT */
+#endif				/* ACPI_DE_OUTPUT */
 
 #endif				/* __ACOUTPUT_H__ */

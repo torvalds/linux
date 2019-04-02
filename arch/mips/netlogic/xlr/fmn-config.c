@@ -286,7 +286,7 @@ void xlr_board_info_setup(void)
 
 	check_credit_distribution();
 
-#if 0 /* debug */
+#if 0 /* de */
 	print_credit_config(&cpu[0]);
 	print_credit_config(&gmac[0]);
 #endif

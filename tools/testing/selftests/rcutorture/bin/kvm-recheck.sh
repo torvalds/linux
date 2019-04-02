@@ -57,7 +57,7 @@ do
 		else
 			if test -f "$i/qemu-cmd"
 			then
-				print_bug qemu failed
+				print_ qemu failed
 				echo "   $i"
 			elif test -f "$i/buildonly"
 			then
@@ -65,7 +65,7 @@ do
 				configcheck.sh $i/.config $i/ConfigFragment
 				parse-build.sh $i/Make.out $configfile
 			else
-				print_bug Build failed
+				print_ Build failed
 				echo "   $i"
 			fi
 		fi

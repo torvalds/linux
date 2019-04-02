@@ -12,7 +12,7 @@ int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
 	void *vaddr;
 	int err;
 
-	GEM_BUG_ON(INTEL_GEN(i915) < 8);
+	GEM__ON(INTEL_GEN(i915) < 8);
 
 	memset(spin, 0, sizeof(*spin));
 	spin->i915 = i915;

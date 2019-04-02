@@ -381,7 +381,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
  * I hate such crazy directory structure.
  * It's easy to read but terrible to write.
  * I wrote this directory code 4 times.
- * I hope, now it's finally bug-free.
+ * I hope, now it's finally -free.
  */
 
 int hpfs_add_dirent(struct inode *i,

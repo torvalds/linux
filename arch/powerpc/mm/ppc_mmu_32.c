@@ -161,7 +161,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
 
 	if (__map_without_bats) {
-		pr_debug("RAM mapped without BATs\n");
+		pr_de("RAM mapped without BATs\n");
 		return base;
 	}
 
@@ -386,7 +386,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
 	 */
-	BUG_ON(first_memblock_base != 0);
+	_ON(first_memblock_base != 0);
 
 	/* 601 can only access 16MB at the moment */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)

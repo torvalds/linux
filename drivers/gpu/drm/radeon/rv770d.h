@@ -362,9 +362,9 @@
 #define	CP_RB_WPTR_DELAY				0x8704
 #define	CP_SEM_WAIT_TIMER				0x85BC
 
-#define	DB_DEBUG3					0x98B0
+#define	DB_DE3					0x98B0
 #define		DB_CLK_OFF_DELAY(x)				((x) << 11)
-#define DB_DEBUG4					0x9B8C
+#define DB_DE4					0x9B8C
 #define		DISABLE_TILE_COVERED_FOR_PS_ITER		(1 << 6)
 
 #define	DCP_TILING_CONFIG				0x6CA0
@@ -433,7 +433,7 @@
 #define	HDP_NONSURFACE_SIZE				0x2C0C
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
-#define HDP_DEBUG1                                      0x2F34
+#define HDP_DE1                                      0x2F34
 
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
@@ -588,7 +588,7 @@
 #define		NUM_GS_THREADS(x)				((x) << 16)
 #define		NUM_ES_THREADS(x)				((x) << 24)
 
-#define	SX_DEBUG_1					0x9058
+#define	SX_DE_1					0x9058
 #define		ENABLE_NEW_SMX_ADDRESS				(1 << 16)
 #define	SX_EXPORT_BUFFER_SIZES				0x900C
 #define		COLOR_BUFFER_SIZE(x)				((x) << 0)

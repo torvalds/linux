@@ -21,24 +21,24 @@
  */
 
 /*
- * DEBUG OUTPUT DEFINITIONS
+ * DE OUTPUT DEFINITIONS
  *
- * uncomment lines below to enable specific types of debug output
+ * uncomment lines below to enable specific types of de output
  *
  * DBGINFO   information - most verbose output
  * DBGERR    serious errors
- * DBGBH     bottom half service routine debugging
- * DBGISR    interrupt service routine debugging
+ * DBGBH     bottom half service routine deging
+ * DBGISR    interrupt service routine deging
  * DBGDATA   output receive and transmit data
  * DBGTBUF   output transmit DMA buffers and registers
  * DBGRBUF   output receive DMA buffers and registers
  */
 
-#define DBGINFO(fmt) if (debug_level >= DEBUG_LEVEL_INFO) printk fmt
-#define DBGERR(fmt) if (debug_level >= DEBUG_LEVEL_ERROR) printk fmt
-#define DBGBH(fmt) if (debug_level >= DEBUG_LEVEL_BH) printk fmt
-#define DBGISR(fmt) if (debug_level >= DEBUG_LEVEL_ISR) printk fmt
-#define DBGDATA(info, buf, size, label) if (debug_level >= DEBUG_LEVEL_DATA) trace_block((info), (buf), (size), (label))
+#define DBGINFO(fmt) if (de_level >= DE_LEVEL_INFO) printk fmt
+#define DBGERR(fmt) if (de_level >= DE_LEVEL_ERROR) printk fmt
+#define DBGBH(fmt) if (de_level >= DE_LEVEL_BH) printk fmt
+#define DBGISR(fmt) if (de_level >= DE_LEVEL_ISR) printk fmt
+#define DBGDATA(info, buf, size, label) if (de_level >= DE_LEVEL_DATA) trace_block((info), (buf), (size), (label))
 /*#define DBGTBUF(info) dump_tbufs(info)*/
 /*#define DBGRBUF(info) dump_rbufs(info)*/
 
@@ -121,15 +121,15 @@ static struct slgt_info *slgt_device_list;
 static int slgt_device_count;
 
 static int ttymajor;
-static int debug_level;
+static int de_level;
 static int maxframe[MAX_DEVICES];
 
 module_param(ttymajor, int, 0);
-module_param(debug_level, int, 0);
+module_param(de_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
 
 MODULE_PARM_DESC(ttymajor, "TTY major device number override: 0=auto assigned");
-MODULE_PARM_DESC(debug_level, "Debug syslog output: 0=disabled, 1 to 5=increasing detail");
+MODULE_PARM_DESC(de_level, "De syslog output: 0=disabled, 1 to 5=increasing detail");
 MODULE_PARM_DESC(maxframe, "Maximum frame size used by device (4096 to 65535)");
 
 /*
@@ -532,7 +532,7 @@ static int  claim_resources(struct slgt_info *info);
 static void release_resources(struct slgt_info *info);
 
 /*
- * DEBUG OUTPUT CODE
+ * DE OUTPUT CODE
  */
 #ifndef DBGINFO
 #define DBGINFO(fmt)

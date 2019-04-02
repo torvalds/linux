@@ -68,11 +68,11 @@
 #include "vpfe.h"
 #include "vpfe_mc_capture.h"
 
-static bool debug;
+static bool de;
 static bool interface;
 
 module_param(interface, bool, 0444);
-module_param(debug, bool, 0644);
+module_param(de, bool, 0644);
 
 /*
  * VPFE capture can be used for capturing video such as from TVP5146 or TVP7002
@@ -85,7 +85,7 @@ module_param(debug, bool, 0644);
  * Re-visit this when we fix the co-existence issue
  */
 MODULE_PARM_DESC(interface, "interface 0-1 (default:0)");
-MODULE_PARM_DESC(debug, "Debug level 0-1");
+MODULE_PARM_DESC(de, "De level 0-1");
 
 MODULE_DESCRIPTION("VPFE Video for Linux Capture Driver");
 MODULE_LICENSE("GPL");
@@ -158,7 +158,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_isr\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_isr\n");
 	vpfe_isif_buffer_isr(&vpfe_dev->vpfe_isif);
 	vpfe_resizer_buffer_isr(&vpfe_dev->vpfe_resizer);
 	return IRQ_HANDLED;
@@ -169,7 +169,7 @@ static irqreturn_t vpfe_vdint1_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_vdint1_isr\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_vdint1_isr\n");
 	vpfe_isif_vidint1_isr(&vpfe_dev->vpfe_isif);
 	return IRQ_HANDLED;
 }
@@ -179,7 +179,7 @@ static irqreturn_t vpfe_imp_dma_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_imp_dma_isr\n");
+	v4l2_dbg(1, de, &vpfe_dev->v4l2_dev, "vpfe_imp_dma_isr\n");
 	vpfe_ipipeif_ss_buffer_isr(&vpfe_dev->vpfe_ipipeif);
 	vpfe_resizer_dma_isr(&vpfe_dev->vpfe_resizer);
 	return IRQ_HANDLED;

@@ -507,7 +507,7 @@ static void ems_usb_write_bulk_callback(struct urb *urb)
 	struct ems_usb *dev;
 	struct net_device *netdev;
 
-	BUG_ON(!context);
+	_ON(!context);
 
 	dev = context->dev;
 	netdev = dev->netdev;

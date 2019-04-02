@@ -59,10 +59,10 @@
 /* Enable the speaker? */
 static int do_sound = 1;
 /* Skip strict UART tests? */
-static int buggy_uart;
+static int gy_uart;
 
 module_param(do_sound, int, 0444);
-module_param(buggy_uart, int, 0444);
+module_param(gy_uart, int, 0444);
 
 /*====================================================================*/
 
@@ -352,8 +352,8 @@ static int setup_serial(struct pcmcia_device *handle, struct serial_info *info,
 	uart.port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
 	uart.port.uartclk = 1843200;
 	uart.port.dev = &handle->dev;
-	if (buggy_uart)
-		uart.port.flags |= UPF_BUGGY_UART;
+	if (gy_uart)
+		uart.port.flags |= UPF_GY_UART;
 
 	if (info->quirk && info->quirk->setup)
 		info->quirk->setup(handle, &uart);

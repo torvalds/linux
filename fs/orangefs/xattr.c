@@ -70,7 +70,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	int fsuid;
 	int fsgid;
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "%s: name %s, buffer_size %zd\n",
 		     __func__, name, size);
 
@@ -83,7 +83,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	fsuid = from_kuid(&init_user_ns, current_fsuid());
 	fsgid = from_kgid(&init_user_ns, current_fsgid());
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "getxattr on inode %pU, name %s "
 		     "(uid %o, gid %o)\n",
 		     get_khandle_from_ino(inode),
@@ -112,7 +112,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 	if (ret != 0) {
 		if (ret == -ENOENT) {
 			ret = -ENODATA;
-			gossip_debug(GOSSIP_XATTR_DEBUG,
+			gossip_de(GOSSIP_XATTR_DE,
 				     "orangefs_inode_getxattr: inode %pU key %s"
 				     " does not exist!\n",
 				     get_khandle_from_ino(inode),
@@ -144,7 +144,7 @@ ssize_t orangefs_inode_getxattr(struct inode *inode, const char *name,
 
 	memcpy(buffer, new_op->downcall.resp.getxattr.val, length);
 	memset(buffer + length, 0, size - length);
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 	     "orangefs_inode_getxattr: inode %pU "
 	     "key %s key_sz %d, val_len %d\n",
 	     get_khandle_from_ino(inode),
@@ -187,7 +187,7 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 	strcpy(new_op->upcall.req.removexattr.key, name);
 	new_op->upcall.req.removexattr.key_sz = strlen(name) + 1;
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "orangefs_inode_removexattr: key %s, key_sz %d\n",
 		     (char *)new_op->upcall.req.removexattr.key,
 		     (int)new_op->upcall.req.removexattr.key_sz);
@@ -205,7 +205,7 @@ static int orangefs_inode_removexattr(struct inode *inode, const char *name,
 			ret = 0;
 	}
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "orangefs_inode_removexattr: returning %d\n", ret);
 
 	op_release(new_op);
@@ -228,7 +228,7 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 	int internal_flag = 0;
 	int ret = -ENOMEM;
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "%s: name %s, buffer_size %zd\n",
 		     __func__, name, size);
 
@@ -241,13 +241,13 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 
 	/* This is equivalent to a removexattr */
 	if (size == 0 && !value) {
-		gossip_debug(GOSSIP_XATTR_DEBUG,
+		gossip_de(GOSSIP_XATTR_DE,
 			     "removing xattr (%s)\n",
 			     name);
 		return orangefs_inode_removexattr(inode, name, flags);
 	}
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "setxattr on inode %pU, name %s\n",
 		     get_khandle_from_ino(inode),
 		     name);
@@ -270,7 +270,7 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 	memcpy(new_op->upcall.req.setxattr.keyval.val, value, size);
 	new_op->upcall.req.setxattr.keyval.val_sz = size;
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "orangefs_inode_setxattr: key %s, key_sz %d "
 		     " value size %zd\n",
 		     (char *)new_op->upcall.req.setxattr.keyval.key,
@@ -281,7 +281,7 @@ int orangefs_inode_setxattr(struct inode *inode, const char *name,
 				"orangefs_inode_setxattr",
 				get_interruptible_flag(inode));
 
-	gossip_debug(GOSSIP_XATTR_DEBUG,
+	gossip_de(GOSSIP_XATTR_DE,
 		     "orangefs_inode_setxattr: returning %d\n",
 		     ret);
 
@@ -382,7 +382,7 @@ try_again:
 				    key_size,
 				    new_op->downcall.resp.
 					listxattr.lengths[i])) {
-			gossip_debug(GOSSIP_XATTR_DEBUG, "Copying key %d -> %s\n",
+			gossip_de(GOSSIP_XATTR_DE, "Copying key %d -> %s\n",
 					i, new_op->downcall.resp.listxattr.key +
 						key_size);
 			memcpy(buffer + total,
@@ -391,7 +391,7 @@ try_again:
 			total += new_op->downcall.resp.listxattr.lengths[i];
 			count_keys++;
 		} else {
-			gossip_debug(GOSSIP_XATTR_DEBUG, "[RESERVED] key %d -> %s\n",
+			gossip_de(GOSSIP_XATTR_DE, "[RESERVED] key %d -> %s\n",
 					i, new_op->downcall.resp.listxattr.key +
 						key_size);
 		}
@@ -407,7 +407,7 @@ try_again:
 		goto try_again;
 
 done:
-	gossip_debug(GOSSIP_XATTR_DEBUG, "%s: returning %d"
+	gossip_de(GOSSIP_XATTR_DE, "%s: returning %d"
 		     " [size of buffer %ld] (filled in %d keys)\n",
 		     __func__,
 		     ret ? (int)ret : (int)total,

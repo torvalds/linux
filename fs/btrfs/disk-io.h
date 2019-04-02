@@ -145,7 +145,7 @@ int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int __init btrfs_end_io_wq_init(void);
 void __cold btrfs_end_io_wq_exit(void);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#ifdef CONFIG_DE_LOCK_ALLOC
 void btrfs_init_lockdep(void);
 void btrfs_set_buffer_lockdep_class(u64 objectid,
 			            struct extent_buffer *eb, int level);

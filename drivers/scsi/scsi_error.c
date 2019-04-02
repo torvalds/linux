@@ -195,7 +195,7 @@ scsi_abort_command(struct scsi_cmnd *scmd)
 		SCSI_LOG_ERROR_RECOVERY(3,
 			scmd_printk(KERN_INFO, scmd,
 				    "previous abort failed\n"));
-		BUG_ON(delayed_work_pending(&scmd->abort_work));
+		_ON(delayed_work_pending(&scmd->abort_work));
 		return FAILED;
 	}
 
@@ -991,7 +991,7 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	} else {
 		scmd->sc_data_direction = DMA_NONE;
 		if (cmnd) {
-			BUG_ON(cmnd_size > BLK_MAX_CDB);
+			_ON(cmnd_size > BLK_MAX_CDB);
 			memcpy(scmd->cmnd, cmnd, cmnd_size);
 			scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
 		}
@@ -2004,7 +2004,7 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (scsi_host_set_state(shost, SHOST_RUNNING))
 		if (scsi_host_set_state(shost, SHOST_CANCEL))
-			BUG_ON(scsi_host_set_state(shost, SHOST_DEL));
+			_ON(scsi_host_set_state(shost, SHOST_DEL));
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	wake_up(&shost->host_wait);

@@ -11,7 +11,7 @@
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
 #include <linux/stop_machine.h>
-#include <linux/kdebug.h>
+#include <linux/kde.h>
 #include <linux/uaccess.h>
 #include <linux/extable.h>
 #include <linux/module.h>
@@ -278,12 +278,12 @@ static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 	default:
 		/*
 		 * A kprobe on the code path to single step an instruction
-		 * is a BUG. The code path resides in the .kprobes.text
+		 * is a . The code path resides in the .kprobes.text
 		 * section and is executed with interrupts disabled.
 		 */
 		pr_err("Invalid kprobe detected.\n");
 		dump_kprobe(p);
-		BUG();
+		();
 	}
 }
 NOKPROBE_SYMBOL(kprobe_reenter_check);

@@ -407,7 +407,7 @@ static void dt282x_munge(struct comedi_device *dev,
 
 	if (nbytes % 2)
 		dev_err(dev->class_dev,
-			"bug! odd number of bytes from dma xfer\n");
+			"! odd number of bytes from dma xfer\n");
 
 	for (i = 0; i < nbytes / 2; i++) {
 		val = buf[i];

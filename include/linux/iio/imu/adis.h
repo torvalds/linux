@@ -270,14 +270,14 @@ static inline void adis_remove_trigger(struct adis *adis)
 
 #endif /* CONFIG_IIO_BUFFER */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
-int adis_debugfs_reg_access(struct iio_dev *indio_dev,
+int adis_defs_reg_access(struct iio_dev *indio_dev,
 	unsigned int reg, unsigned int writeval, unsigned int *readval);
 
 #else
 
-#define adis_debugfs_reg_access NULL
+#define adis_defs_reg_access NULL
 
 #endif
 

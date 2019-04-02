@@ -609,7 +609,7 @@ enum rtl8152_flags {
 	PHY_RESET,
 	SCHEDULE_NAPI,
 	GREEN_ETHERNET,
-	DELL_TB_RX_AGG_BUG,
+	DELL_TB_RX_AGG_,
 };
 
 /* Define these values to match your device */
@@ -1815,7 +1815,7 @@ static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 
 		remain = agg_buf_sz - (int)(tx_agg_align(tx_data) - agg->head);
 
-		if (test_bit(DELL_TB_RX_AGG_BUG, &tp->flags))
+		if (test_bit(DELL_TB_RX_AGG_, &tp->flags))
 			break;
 	}
 
@@ -4153,7 +4153,7 @@ static void r8153_init(struct r8152 *tp)
 	/* rx aggregation */
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_USB_CTRL);
 	ocp_data &= ~(RX_AGG_DISABLE | RX_ZERO_EN);
-	if (test_bit(DELL_TB_RX_AGG_BUG, &tp->flags))
+	if (test_bit(DELL_TB_RX_AGG_, &tp->flags))
 		ocp_data |= RX_AGG_DISABLE;
 
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
@@ -5235,7 +5235,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x3011 && udev->serial &&
 	    (!strcmp(udev->serial, "000001000000") || !strcmp(udev->serial, "000002000000"))) {
 		dev_info(&udev->dev, "Dell TB16 Dock, disable RX aggregation");
-		set_bit(DELL_TB_RX_AGG_BUG, &tp->flags);
+		set_bit(DELL_TB_RX_AGG_, &tp->flags);
 	}
 
 	netdev->ethtool_ops = &ops;

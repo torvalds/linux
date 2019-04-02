@@ -1290,7 +1290,7 @@ driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
 The pins are allocated for your device when you issue the devm_pinctrl_get()
-call, after this you should be able to see this in the debugfs listing of all
+call, after this you should be able to see this in the defs listing of all
 pins.
 
 NOTE: the pinctrl system will return -EPROBE_DEFER if it cannot find the

@@ -284,8 +284,8 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",errors=panic");
 	if (test_opt(sb, NO_UID32))
 		seq_puts(seq, ",nouid32");
-	if (test_opt(sb, DEBUG))
-		seq_puts(seq, ",debug");
+	if (test_opt(sb, DE))
+		seq_puts(seq, ",de");
 	if (test_opt(sb, OLDALLOC))
 		seq_puts(seq, ",oldalloc");
 
@@ -437,7 +437,7 @@ static unsigned long get_sb_block(void **data)
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic,
-	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
+	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_de,
 	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
 	Opt_acl, Opt_noacl, Opt_xip, Opt_dax, Opt_ignore, Opt_err, Opt_quota,
 	Opt_usrquota, Opt_grpquota, Opt_reservation, Opt_noreservation
@@ -459,7 +459,7 @@ static const match_table_t tokens = {
 	{Opt_nouid32, "nouid32"},
 	{Opt_nocheck, "check=none"},
 	{Opt_nocheck, "nocheck"},
-	{Opt_debug, "debug"},
+	{Opt_de, "de"},
 	{Opt_oldalloc, "oldalloc"},
 	{Opt_orlov, "orlov"},
 	{Opt_nobh, "nobh"},
@@ -558,8 +558,8 @@ static int parse_options(char *options, struct super_block *sb,
 				" will be removed in June 2020.");
 			clear_opt (opts->s_mount_opt, CHECK);
 			break;
-		case Opt_debug:
-			set_opt (opts->s_mount_opt, DEBUG);
+		case Opt_de:
+			set_opt (opts->s_mount_opt, DE);
 			break;
 		case Opt_oldalloc:
 			set_opt (opts->s_mount_opt, OLDALLOC);
@@ -686,7 +686,7 @@ static int ext2_setup_super (struct super_block * sb,
 	if (!le16_to_cpu(es->s_max_mnt_count))
 		es->s_max_mnt_count = cpu_to_le16(EXT2_DFL_MAX_MNT_COUNT);
 	le16_add_cpu(&es->s_mnt_count, 1);
-	if (test_opt (sb, DEBUG))
+	if (test_opt (sb, DE))
 		ext2_msg(sb, KERN_INFO, "%s, %s, bs=%lu, fs=%lu, gc=%lu, "
 			"bpg=%lu, ipg=%lu, mo=%04lx]",
 			EXT2FS_VERSION, EXT2FS_DATE, sb->s_blocksize,
@@ -703,7 +703,7 @@ static int ext2_check_descriptors(struct super_block *sb)
 	int i;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
-	ext2_debug ("Checking group descriptors");
+	ext2_de ("Checking group descriptors");
 
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		struct ext2_group_desc *gdp = ext2_get_group_desc(sb, i, NULL);
@@ -905,8 +905,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	opts.s_mount_opt = 0;
 	/* Set defaults before we parse the mount options */
 	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
-	if (def_mount_opts & EXT2_DEFM_DEBUG)
-		set_opt(opts.s_mount_opt, DEBUG);
+	if (def_mount_opts & EXT2_DEFM_DE)
+		set_opt(opts.s_mount_opt, DE);
 	if (def_mount_opts & EXT2_DEFM_BSDGROUPS)
 		set_opt(opts.s_mount_opt, GRPID);
 	if (def_mount_opts & EXT2_DEFM_UID16)
@@ -1288,7 +1288,7 @@ static int ext2_sync_fs(struct super_block *sb, int wait)
 
 	spin_lock(&sbi->s_lock);
 	if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {
-		ext2_debug("setting valid to 0\n");
+		ext2_de("setting valid to 0\n");
 		es->s_state &= cpu_to_le16(~EXT2_VALID_FS);
 	}
 	spin_unlock(&sbi->s_lock);

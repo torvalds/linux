@@ -505,7 +505,7 @@ struct cache_set {
 	struct list_head	list;
 	struct kobject		kobj;
 	struct kobject		internal;
-	struct dentry		*debug;
+	struct dentry		*de;
 	struct cache_accounting accounting;
 
 	unsigned long		flags;
@@ -658,7 +658,7 @@ struct cache_set {
 
 	struct btree		*root;
 
-#ifdef CONFIG_BCACHE_DEBUG
+#ifdef CONFIG_BCACHE_DE
 	struct btree		*verify_data;
 	struct bset		*verify_ondisk;
 	struct mutex		verify_lock;
@@ -717,7 +717,7 @@ struct cache_set {
 	unsigned int		error_decay;
 
 	unsigned short		journal_delay_ms;
-	bool			expensive_debug_checks;
+	bool			expensive_de_checks;
 	unsigned int		verify:1;
 	unsigned int		key_merging_disabled:1;
 	unsigned int		gc_always_rewrite:1;
@@ -831,28 +831,28 @@ static inline bool ptr_available(struct cache_set *c, const struct bkey *k,
 
 /* Error handling macros */
 
-#define btree_bug(b, ...)						\
+#define btree_(b, ...)						\
 do {									\
 	if (bch_cache_set_error((b)->c, __VA_ARGS__))			\
 		dump_stack();						\
 } while (0)
 
-#define cache_bug(c, ...)						\
+#define cache_(c, ...)						\
 do {									\
 	if (bch_cache_set_error(c, __VA_ARGS__))			\
 		dump_stack();						\
 } while (0)
 
-#define btree_bug_on(cond, b, ...)					\
+#define btree__on(cond, b, ...)					\
 do {									\
 	if (cond)							\
-		btree_bug(b, __VA_ARGS__);				\
+		btree_(b, __VA_ARGS__);				\
 } while (0)
 
-#define cache_bug_on(cond, c, ...)					\
+#define cache__on(cond, c, ...)					\
 do {									\
 	if (cond)							\
-		cache_bug(c, __VA_ARGS__);				\
+		cache_(c, __VA_ARGS__);				\
 } while (0)
 
 #define cache_set_err_on(cond, c, ...)					\
@@ -1021,8 +1021,8 @@ void bch_open_buckets_free(struct cache_set *c);
 
 int bch_cache_allocator_start(struct cache *ca);
 
-void bch_debug_exit(void);
-void bch_debug_init(void);
+void bch_de_exit(void);
+void bch_de_init(void);
 void bch_request_exit(void);
 int bch_request_init(void);
 

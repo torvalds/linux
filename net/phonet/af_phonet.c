@@ -496,7 +496,7 @@ void phonet_proto_unregister(unsigned int protocol,
 			const struct phonet_protocol *pp)
 {
 	mutex_lock(&proto_tab_lock);
-	BUG_ON(proto_tab[protocol] != pp);
+	_ON(proto_tab[protocol] != pp);
 	RCU_INIT_POINTER(proto_tab[protocol], NULL);
 	mutex_unlock(&proto_tab_lock);
 	synchronize_rcu();

@@ -24,7 +24,7 @@
 #include <brcmu_wifi.h>
 #include "core.h"
 #include "bus.h"
-#include "debug.h"
+#include "de.h"
 #include "tracepoint.h"
 #include "fwil.h"
 #include "proto.h"
@@ -32,7 +32,7 @@
 
 #define MAX_HEX_DUMP_LEN	64
 
-#ifdef DEBUG
+#ifdef DE
 static const char * const brcmf_fil_errstr[] = {
 	"BCME_OK",
 	"BCME_ERROR",
@@ -101,7 +101,7 @@ static const char *brcmf_fil_get_errstr(u32 err)
 {
 	return "";
 }
-#endif /* DEBUG */
+#endif /* DE */
 
 static s32
 brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)

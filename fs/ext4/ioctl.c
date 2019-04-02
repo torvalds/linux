@@ -717,7 +717,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned int flags;
 
-	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
+	ext4_de("cmd = %u, arg = %lu\n", cmd, arg);
 
 	switch (cmd) {
 	case FS_IOC_GETFSMAP:

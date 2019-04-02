@@ -108,7 +108,7 @@ void __init set_cpuinfo_static(struct cpuinfo *ci, struct device_node *cpu)
 	ci->irq_positive = fcpu(cpu, "xlnx,edge-is-positive");
 	ci->area_optimised = 0;
 
-	ci->hw_debug = fcpu(cpu, "xlnx,debug-enabled");
+	ci->hw_de = fcpu(cpu, "xlnx,de-enabled");
 	ci->num_pc_brk = fcpu(cpu, "xlnx,number-of-pc-brk");
 	ci->num_rd_brk = fcpu(cpu, "xlnx,number-of-rd-addr-brk");
 	ci->num_wr_brk = fcpu(cpu, "xlnx,number-of-wr-addr-brk");

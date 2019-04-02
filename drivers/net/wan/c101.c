@@ -35,8 +35,8 @@
 static const char* version = "Moxa C101 driver version: 1.15";
 static const char* devname = "C101";
 
-#undef DEBUG_PKT
-#define DEBUG_RINGS
+#undef DE_PKT
+#define DE_RINGS
 
 #define C101_PAGE 0x1D00
 #define C101_DTR 0x1E00
@@ -229,10 +229,10 @@ static int c101_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	sync_serial_settings __user *line = ifr->ifr_settings.ifs_ifsu.sync;
 	port_t *port = dev_to_port(dev);
 
-#ifdef DEBUG_RINGS
+#ifdef DE_RINGS
 	if (cmd == SIOCDEVPRIVATE) {
 		sca_dump_rings(dev);
-		printk(KERN_DEBUG "MSCI1: ST: %02x %02x %02x %02x\n",
+		printk(KERN_DE "MSCI1: ST: %02x %02x %02x %02x\n",
 		       sca_in(MSCI1_OFFSET + ST0, port),
 		       sca_in(MSCI1_OFFSET + ST1, port),
 		       sca_in(MSCI1_OFFSET + ST2, port),

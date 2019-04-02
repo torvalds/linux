@@ -209,7 +209,7 @@ static void bsp_init_hygon(struct cpuinfo_x86 *c)
 	if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
 		unsigned long pfn = tseg >> PAGE_SHIFT;
 
-		pr_debug("tseg: %010llx\n", tseg);
+		pr_de("tseg: %010llx\n", tseg);
 		if (pfn_range_is_mapped(pfn, pfn + 1))
 			set_memory_4k((unsigned long)__va(tseg), 1);
 	}
@@ -220,7 +220,7 @@ static void bsp_init_hygon(struct cpuinfo_x86 *c)
 
 		rdmsrl(MSR_K7_HWCR, val);
 		if (!(val & BIT(24)))
-			pr_warn(FW_BUG "TSC doesn't count with P0 frequency!\n");
+			pr_warn(FW_ "TSC doesn't count with P0 frequency!\n");
 	}
 
 	if (cpu_has(c, X86_FEATURE_MWAITX))
@@ -360,7 +360,7 @@ static void init_hygon(struct cpuinfo_x86 *c)
 
 	/* Hygon CPUs don't reset SS attributes on SYSRET, Xen does. */
 	if (!cpu_has(c, X86_FEATURE_XENPV))
-		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+		set_cpu_(c, X86__SYSRET_SS_ATTRS);
 }
 
 static void cpu_detect_tlb_hygon(struct cpuinfo_x86 *c)

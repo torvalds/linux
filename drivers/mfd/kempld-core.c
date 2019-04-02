@@ -346,7 +346,7 @@ static const char *kempld_get_type_string(struct kempld_device_data *pld)
 		version_type = "release";
 		break;
 	case 1:
-		version_type = "debug";
+		version_type = "de";
 		break;
 	case 2:
 		version_type = "custom";

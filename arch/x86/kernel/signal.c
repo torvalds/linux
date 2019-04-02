@@ -739,7 +739,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	/*
-	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
+	 * If TF is set due to a deger (TIF_FORCED_TF), clear TF now
 	 * so that register information in the sigcontext is correct and
 	 * then notify the tracer before entering the signal handler.
 	 */
@@ -753,10 +753,10 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		 * Clear the direction flag as per the ABI for function entry.
 		 *
 		 * Clear RF when entering the signal handler, because
-		 * it might disable possible debug exception from the
+		 * it might disable possible de exception from the
 		 * signal handler.
 		 *
-		 * Clear TF for the case when it wasn't set by debugger to
+		 * Clear TF for the case when it wasn't set by deger to
 		 * avoid the recursive send_sigtrap() in SIGTRAP handler.
 		 */
 		regs->flags &= ~(X86_EFLAGS_DF|X86_EFLAGS_RF|X86_EFLAGS_TF);

@@ -318,10 +318,10 @@ int zd_op_start(struct ieee80211_hw *hw);
 void zd_op_stop(struct ieee80211_hw *hw);
 int zd_restore_settings(struct zd_mac *mac);
 
-#ifdef DEBUG
+#ifdef DE
 void zd_dump_rx_status(const struct rx_status *status);
 #else
 #define zd_dump_rx_status(status)
-#endif /* DEBUG */
+#endif /* DE */
 
 #endif /* _ZD_MAC_H */

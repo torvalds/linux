@@ -92,7 +92,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	int ret;
 	struct sdio_mmc_card *card = NULL;
 
-	pr_debug("info: vendor=0x%4.04X device=0x%4.04X class=%d function=%d\n",
+	pr_de("info: vendor=0x%4.04X device=0x%4.04X class=%d function=%d\n",
 		 func->vendor, func->device, func->class, func->num);
 
 	card = devm_kzalloc(&func->dev, sizeof(*card), GFP_KERNEL);
@@ -421,7 +421,7 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	int ret = 0;
 
 	pm_flag = sdio_get_host_pm_caps(func);
-	pr_debug("cmd: %s: suspend: PM flag = 0x%x\n",
+	pr_de("cmd: %s: suspend: PM flag = 0x%x\n",
 		 sdio_func_id(func), pm_flag);
 	if (!(pm_flag & MMC_PM_KEEP_POWER)) {
 		dev_err(dev, "%s: cannot remain alive while host is"
@@ -1835,7 +1835,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
 
-		/* Save the last multi port tx aggreagation info to debug log */
+		/* Save the last multi port tx aggreagation info to de log */
 		index = adapter->dbg.last_sdio_mp_index;
 		index = (index + 1) % MWIFIEX_DBG_SDIO_MP_NUM;
 		adapter->dbg.last_sdio_mp_index = index;

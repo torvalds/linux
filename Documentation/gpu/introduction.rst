@@ -77,7 +77,7 @@ merge window. All patches must have landed in the drm-next tree by latest -rc7,
 but if your branch is not in linux-next then this must have happened by -rc6
 already.
 
-After that point only bugfixes (like after the upstream merge window has closed
+After that point only fixes (like after the upstream merge window has closed
 with the -rc1 release) are allowed. No new platform enabling or new drivers are
 allowed.
 
@@ -93,6 +93,6 @@ As a freedesktop.org project, dri-devel, and the DRM community, follows the
 Contributor Covenant, found at: https://www.freedesktop.org/wiki/CodeOfConduct
 
 Please conduct yourself in a respectful and civilised manner when
-interacting with community members on mailing lists, IRC, or bug
+interacting with community members on mailing lists, IRC, or 
 trackers. The community represents the project as a whole, and abusive
 or bullying behaviour is not tolerated by the project.

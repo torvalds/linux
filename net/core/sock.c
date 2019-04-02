@@ -29,12 +29,12 @@
  *		Alan Cox	:	sock_wfree/sock_rfree don't destroy sockets,
  *					instead they leave that for the DESTROY timer.
  *		Alan Cox	:	Clean up error flag in accept
- *		Alan Cox	:	TCP ack handling is buggy, the DESTROY timer
- *					was buggy. Put a remove_sock() in the handler
+ *		Alan Cox	:	TCP ack handling is gy, the DESTROY timer
+ *					was gy. Put a remove_sock() in the handler
  *					for memory when we hit 0. Also altered the timer
  *					code. The ACK stuff can wait and needs major
  *					TCP layer surgery.
- *		Alan Cox	:	Fixed TCP ack bug, removed remove sock
+ *		Alan Cox	:	Fixed TCP ack , removed remove sock
  *					and fixed timer/inet_bh race.
  *		Alan Cox	:	Added zapped flag for TCP
  *		Alan Cox	:	Move kfree_skb into skbuff.c and tidied up surplus code
@@ -56,11 +56,11 @@
  *		Alex		:	Removed restriction on inet fioctl
  *		Alan Cox	:	Splitting INET from NET core
  *		Alan Cox	:	Fixed bogus SO_TYPE handling in getsockopt()
- *		Adam Caldwell	:	Missing return in SO_DONTROUTE/SO_DEBUG code
+ *		Adam Caldwell	:	Missing return in SO_DONTROUTE/SO_DE code
  *		Alan Cox	:	Split IP from generic code
  *		Alan Cox	:	New kfree_skbmem()
- *		Alan Cox	:	Make SO_DEBUG superuser only.
- *		Alan Cox	:	Allow anyone to clear SO_DEBUG
+ *		Alan Cox	:	Make SO_DE superuser only.
+ *		Alan Cox	:	Allow anyone to clear SO_DE
  *					(compatibility fix)
  *		Alan Cox	:	Added optimistic memory grabbing for AF_UNIX throughput.
  *		Alan Cox	:	Allocator for a socket is settable.
@@ -325,7 +325,7 @@ int __sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	unsigned int noreclaim_flag;
 
 	/* these should have been dropped before queueing */
-	BUG_ON(!sock_flag(sk, SOCK_MEMALLOC));
+	_ON(!sock_flag(sk, SOCK_MEMALLOC));
 
 	noreclaim_flag = memalloc_noreclaim_save();
 	ret = sk->sk_backlog_rcv(sk, skb);
@@ -752,7 +752,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	lock_sock(sk);
 
 	switch (optname) {
-	case SO_DEBUG:
+	case SO_DE:
 		if (val && !capable(CAP_NET_ADMIN))
 			ret = -EACCES;
 		else
@@ -1238,7 +1238,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	memset(&v, 0, sizeof(v));
 
 	switch (optname) {
-	case SO_DEBUG:
+	case SO_DE:
 		v.val = sock_flag(sk, SOCK_DBG);
 		break;
 
@@ -1710,7 +1710,7 @@ static void __sk_destruct(struct rcu_head *head)
 	sock_disable_timestamp(sk, SK_FLAGS_TIMESTAMP);
 
 	if (atomic_read(&sk->sk_omem_alloc))
-		pr_debug("%s: optmem leakage (%d bytes) detected\n",
+		pr_de("%s: optmem leakage (%d bytes) detected\n",
 			 __func__, atomic_read(&sk->sk_omem_alloc));
 
 	if (sk->sk_frag.page) {
@@ -1868,7 +1868,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		/*
 		 * Increment the counter in the same struct proto as the master
-		 * sock (sk_refcnt_debug_inc uses newsk->sk_prot->socks, that
+		 * sock (sk_refcnt_de_inc uses newsk->sk_prot->socks, that
 		 * is the same as sk->sk_prot->socks, as this field was copied
 		 * with memcpy).
 		 *
@@ -1877,7 +1877,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		 * equivalent to tcp_prot->socks (inet_sock_nr), so this have
 		 * to be taken into account in all callers. -acme
 		 */
-		sk_refcnt_debug_inc(newsk);
+		sk_refcnt_de_inc(newsk);
 		sk_set_socket(newsk, NULL);
 		RCU_INIT_POINTER(newsk->sk_wq, NULL);
 
@@ -3166,7 +3166,7 @@ void sk_common_release(struct sock *sk)
 
 	xfrm_sk_free_policy(sk);
 
-	sk_refcnt_debug_release(sk);
+	sk_refcnt_de_release(sk);
 
 	sock_put(sk);
 }

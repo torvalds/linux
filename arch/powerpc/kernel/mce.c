@@ -19,7 +19,7 @@
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
  */
 
-#undef DEBUG
+#undef DE
 #define pr_fmt(fmt) "mce: " fmt
 
 #include <linux/hardirq.h>
@@ -501,14 +501,14 @@ long machine_check_early(struct pt_regs *regs)
 	return handled;
 }
 
-/* Possible meanings for HMER_DEBUG_TRIG bit being set on POWER9 */
+/* Possible meanings for HMER_DE_TRIG bit being set on POWER9 */
 static enum {
 	DTRIG_UNKNOWN,
 	DTRIG_VECTOR_CI,	/* need to emulate vector CI load instr */
 	DTRIG_SUSPEND_ESCAPE,	/* need to escape from TM suspend mode */
-} hmer_debug_trig_function;
+} hmer_de_trig_function;
 
-static int init_debug_trig_function(void)
+static int init_de_trig_function(void)
 {
 	int pvr;
 	struct device_node *cpun;
@@ -522,9 +522,9 @@ static int init_debug_trig_function(void)
 		of_property_for_each_string(cpun, "ibm,hmi-special-triggers",
 					    prop, str) {
 			if (strcmp(str, "bit17-vector-ci-load") == 0)
-				hmer_debug_trig_function = DTRIG_VECTOR_CI;
+				hmer_de_trig_function = DTRIG_VECTOR_CI;
 			else if (strcmp(str, "bit17-tm-suspend-escape") == 0)
-				hmer_debug_trig_function = DTRIG_SUSPEND_ESCAPE;
+				hmer_de_trig_function = DTRIG_SUSPEND_ESCAPE;
 		}
 		of_node_put(cpun);
 	}
@@ -539,49 +539,49 @@ static int init_debug_trig_function(void)
 	if ((PVR_VER(pvr) == PVR_POWER9) && (pvr & 0xe000) == 0) {
 		/* DD2.2 and later */
 		if ((pvr & 0xfff) >= 0x202)
-			hmer_debug_trig_function = DTRIG_SUSPEND_ESCAPE;
+			hmer_de_trig_function = DTRIG_SUSPEND_ESCAPE;
 		/* DD2.0 and DD2.1 - used for vector CI load emulation */
 		else if ((pvr & 0xfff) >= 0x200)
-			hmer_debug_trig_function = DTRIG_VECTOR_CI;
+			hmer_de_trig_function = DTRIG_VECTOR_CI;
 	}
 
  out:
-	switch (hmer_debug_trig_function) {
+	switch (hmer_de_trig_function) {
 	case DTRIG_VECTOR_CI:
-		pr_debug("HMI debug trigger used for vector CI load\n");
+		pr_de("HMI de trigger used for vector CI load\n");
 		break;
 	case DTRIG_SUSPEND_ESCAPE:
-		pr_debug("HMI debug trigger used for TM suspend escape\n");
+		pr_de("HMI de trigger used for TM suspend escape\n");
 		break;
 	default:
 		break;
 	}
 	return 0;
 }
-__initcall(init_debug_trig_function);
+__initcall(init_de_trig_function);
 
 /*
- * Handle HMIs that occur as a result of a debug trigger.
+ * Handle HMIs that occur as a result of a de trigger.
  * Return values:
  * -1 means this is not a HMI cause that we know about
  *  0 means no further handling is required
  *  1 means further handling is required
  */
-long hmi_handle_debugtrig(struct pt_regs *regs)
+long hmi_handle_detrig(struct pt_regs *regs)
 {
 	unsigned long hmer = mfspr(SPRN_HMER);
 	long ret = 0;
 
-	/* HMER_DEBUG_TRIG bit is used for various workarounds on P9 */
-	if (!((hmer & HMER_DEBUG_TRIG)
-	      && hmer_debug_trig_function != DTRIG_UNKNOWN))
+	/* HMER_DE_TRIG bit is used for various workarounds on P9 */
+	if (!((hmer & HMER_DE_TRIG)
+	      && hmer_de_trig_function != DTRIG_UNKNOWN))
 		return -1;
 		
-	hmer &= ~HMER_DEBUG_TRIG;
+	hmer &= ~HMER_DE_TRIG;
 	/* HMER is a write-AND register */
-	mtspr(SPRN_HMER, ~HMER_DEBUG_TRIG);
+	mtspr(SPRN_HMER, ~HMER_DE_TRIG);
 
-	switch (hmer_debug_trig_function) {
+	switch (hmer_de_trig_function) {
 	case DTRIG_VECTOR_CI:
 		/*
 		 * Now to avoid problems with soft-disable we
@@ -615,7 +615,7 @@ long hmi_exception_realmode(struct pt_regs *regs)
 
 	__this_cpu_inc(irq_stat.hmi_exceptions);
 
-	ret = hmi_handle_debugtrig(regs);
+	ret = hmi_handle_detrig(regs);
 	if (ret >= 0)
 		return ret;
 

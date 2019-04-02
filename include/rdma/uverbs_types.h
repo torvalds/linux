@@ -159,14 +159,14 @@ extern const struct uverbs_obj_type_class uverbs_idr_class;
 extern const struct uverbs_obj_type_class uverbs_fd_class;
 void uverbs_close_fd(struct file *f);
 
-#define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
+#define UVERBS_BUILD__ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
 				   sizeof(char))
 #define UVERBS_TYPE_ALLOC_FD(_obj_size, _context_closed, _fops, _name, _flags)\
 	((&((const struct uverbs_obj_fd_type)				\
 	 {.type = {							\
 		.type_class = &uverbs_fd_class,				\
 		.obj_size = (_obj_size) +				\
-			UVERBS_BUILD_BUG_ON((_obj_size) <               \
+			UVERBS_BUILD__ON((_obj_size) <               \
 					    sizeof(struct ib_uobject)), \
 	 },								\
 	 .context_closed = _context_closed,				\
@@ -178,7 +178,7 @@ void uverbs_close_fd(struct file *f);
 	 {.type = {							\
 		.type_class = &uverbs_idr_class,			\
 		.obj_size = (_size) +					\
-			UVERBS_BUILD_BUG_ON((_size) <			\
+			UVERBS_BUILD__ON((_size) <			\
 					    sizeof(struct ib_uobject))	\
 	 },								\
 	 .destroy_object = _destroy_object,}))->type)

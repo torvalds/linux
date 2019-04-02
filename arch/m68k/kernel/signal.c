@@ -582,55 +582,55 @@ static inline void siginfo_build_tests(void)
 	 */
 
 	/* This is part of the ABI and can never change in size: */
-	BUILD_BUG_ON(sizeof(siginfo_t) != 128);
+	BUILD__ON(sizeof(siginfo_t) != 128);
 
 	/* Ensure the known fields never change in location */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_signo) != 0);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_errno) != 4);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_code)  != 8);
+	BUILD__ON(offsetof(siginfo_t, si_signo) != 0);
+	BUILD__ON(offsetof(siginfo_t, si_errno) != 4);
+	BUILD__ON(offsetof(siginfo_t, si_code)  != 8);
 
 	/* _kill */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pid) != 0x0c);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_uid) != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_pid) != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_uid) != 0x10);
 
 	/* _timer */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_tid)     != 0x0c);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_overrun) != 0x10);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_value)   != 0x14);
+	BUILD__ON(offsetof(siginfo_t, si_tid)     != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_overrun) != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_value)   != 0x14);
 
 	/* _rt */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)   != 0x0c);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)   != 0x10);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_value) != 0x14);
+	BUILD__ON(offsetof(siginfo_t, si_pid)   != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_uid)   != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_value) != 0x14);
 
 	/* _sigchld */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)    != 0x0c);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)    != 0x10);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_status) != 0x14);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_utime)  != 0x18);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_stime)  != 0x1c);
+	BUILD__ON(offsetof(siginfo_t, si_pid)    != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_uid)    != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_status) != 0x14);
+	BUILD__ON(offsetof(siginfo_t, si_utime)  != 0x18);
+	BUILD__ON(offsetof(siginfo_t, si_stime)  != 0x1c);
 
 	/* _sigfault */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_addr) != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_addr) != 0x0c);
 
 	/* _sigfault._mcerr */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_addr_lsb) != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_addr_lsb) != 0x10);
 
 	/* _sigfault._addr_bnd */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_lower) != 0x12);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_upper) != 0x16);
+	BUILD__ON(offsetof(siginfo_t, si_lower) != 0x12);
+	BUILD__ON(offsetof(siginfo_t, si_upper) != 0x16);
 
 	/* _sigfault._addr_pkey */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_pkey) != 0x12);
+	BUILD__ON(offsetof(siginfo_t, si_pkey) != 0x12);
 
 	/* _sigpoll */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_band)   != 0x0c);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_fd)     != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_band)   != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_fd)     != 0x10);
 
 	/* _sigsys */
-	BUILD_BUG_ON(offsetof(siginfo_t, si_call_addr) != 0x0c);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_syscall)   != 0x10);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_arch)      != 0x14);
+	BUILD__ON(offsetof(siginfo_t, si_call_addr) != 0x0c);
+	BUILD__ON(offsetof(siginfo_t, si_syscall)   != 0x10);
+	BUILD__ON(offsetof(siginfo_t, si_arch)      != 0x14);
 
 	/* any new si_fields should be added here */
 }
@@ -643,7 +643,7 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		/*
 		 * user process trying to return with weird frame format
 		 */
-		pr_debug("user process returning with weird frame format\n");
+		pr_de("user process returning with weird frame format\n");
 		return 1;
 	}
 	if (!fsize) {
@@ -892,7 +892,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-		pr_debug("setup_frame: Unknown frame format %#x\n",
+		pr_de("setup_frame: Unknown frame format %#x\n",
 			 regs->format);
 		return -EFAULT;
 	}
@@ -949,7 +949,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-		pr_debug("Performing stackadjust=%04lx\n", regs->stkadj);
+		pr_de("Performing stackadjust=%04lx\n", regs->stkadj);
 		/* This must be copied with decreasing addresses to
                    handle overlaps.  */
 		tregs->vector = 0;
@@ -968,7 +968,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	int err = 0, sig = ksig->sig;
 
 	if (fsize < 0) {
-		pr_debug("setup_frame: Unknown frame format %#x\n",
+		pr_de("setup_frame: Unknown frame format %#x\n",
 			 regs->format);
 		return -EFAULT;
 	}
@@ -1033,7 +1033,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->stkadj) {
 		struct pt_regs *tregs =
 			(struct pt_regs *)((ulong)regs + regs->stkadj);
-		pr_debug("Performing stackadjust=%04lx\n", regs->stkadj);
+		pr_de("Performing stackadjust=%04lx\n", regs->stkadj);
 		/* This must be copied with decreasing addresses to
                    handle overlaps.  */
 		tregs->vector = 0;

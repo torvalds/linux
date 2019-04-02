@@ -7,7 +7,7 @@
 #define _RTW_EFUSE_C_
 
 #include <drv_types.h>
-#include <rtw_debug.h>
+#include <rtw_de.h>
 #include <hal_data.h>
 #include <linux/jiffies.h>
 
@@ -413,7 +413,7 @@ Efuse_PgPacketWrite(struct adapter *padapter,
  * Revised History:
  * When			Who		Remark
  * 11/16/2008	MHC		Create Version 0.
- * 11/21/2008	MHC		Fix Write bug when we only enable late word.
+ * 11/21/2008	MHC		Fix Write  when we only enable late word.
  *
  *---------------------------------------------------------------------------*/
 void

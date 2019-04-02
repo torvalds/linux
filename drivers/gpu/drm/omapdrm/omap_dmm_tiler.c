@@ -230,7 +230,7 @@ static void *alloc_dma(struct dmm_txn *txn, size_t sz, dma_addr_t *pa)
 	txn->current_pa += sz;
 	txn->current_va += sz;
 
-	BUG_ON((txn->current_va - engine->refill_va) > REFILL_BUFFER_SIZE);
+	_ON((txn->current_va - engine->refill_va) > REFILL_BUFFER_SIZE);
 
 	return ptr;
 }
@@ -334,7 +334,7 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	}
 	spin_unlock_irqrestore(&list_lock, flags);
 
-	BUG_ON(!engine);
+	_ON(!engine);
 
 	txn = &engine->txn;
 	engine->tcm = tcm;
@@ -414,7 +414,7 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	wmb();
 
 	/*
-	 * NOTE: the wmb() above should be enough, but there seems to be a bug
+	 * NOTE: the wmb() above should be enough, but there seems to be a 
 	 * in OMAP's memory barrier implementation, which in some rare cases may
 	 * cause the writes not to be observable after wmb().
 	 */
@@ -547,7 +547,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 	if (!block)
 		return ERR_PTR(-ENOMEM);
 
-	BUG_ON(!validfmt(fmt));
+	_ON(!validfmt(fmt));
 
 	/* convert width/height to slots */
 	w = DIV_ROUND_UP(w, geom[fmt].slot_w);
@@ -675,7 +675,7 @@ static u32 tiler_get_address(enum tiler_fmt fmt, u32 orient, u32 x, u32 y)
 
 dma_addr_t tiler_ssptr(struct tiler_block *block)
 {
-	BUG_ON(!validfmt(block->fmt));
+	_ON(!validfmt(block->fmt));
 
 	return TILVIEW_8BIT + tiler_get_address(block->fmt, 0,
 			block->area.p0.x * geom[block->fmt].slot_w,
@@ -686,7 +686,7 @@ dma_addr_t tiler_tsptr(struct tiler_block *block, u32 orient,
 		u32 x, u32 y)
 {
 	struct tcm_pt *p = &block->area.p0;
-	BUG_ON(!validfmt(block->fmt));
+	_ON(!validfmt(block->fmt));
 
 	return tiler_get_address(block->fmt, orient,
 			(p->x * geom[block->fmt].slot_w) + x,
@@ -695,14 +695,14 @@ dma_addr_t tiler_tsptr(struct tiler_block *block, u32 orient,
 
 void tiler_align(enum tiler_fmt fmt, u16 *w, u16 *h)
 {
-	BUG_ON(!validfmt(fmt));
+	_ON(!validfmt(fmt));
 	*w = round_up(*w, geom[fmt].slot_w);
 	*h = round_up(*h, geom[fmt].slot_h);
 }
 
 u32 tiler_stride(enum tiler_fmt fmt, u32 orient)
 {
-	BUG_ON(!validfmt(fmt));
+	_ON(!validfmt(fmt));
 
 	if (orient & MASK_XY_FLIP)
 		return 1 << (CONT_HEIGHT_BITS + geom[fmt].x_shft);
@@ -718,7 +718,7 @@ size_t tiler_size(enum tiler_fmt fmt, u16 w, u16 h)
 
 size_t tiler_vsize(enum tiler_fmt fmt, u16 w, u16 h)
 {
-	BUG_ON(!validfmt(fmt));
+	_ON(!validfmt(fmt));
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
@@ -998,10 +998,10 @@ fail:
 }
 
 /*
- * debugfs support
+ * defs support
  */
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static const char *alphabet = "abcdefghijklmnopqrstuvwxyz"
 				"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

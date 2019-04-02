@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
- * Module Name: nsdump - table dumping routines for debug
+ * Module Name: nsdump - table dumping routines for de
  *
  * Copyright (C) 2000 - 2019, Intel Corp.
  *
@@ -14,7 +14,7 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsdumpdv")
 #ifdef ACPI_OBSOLETE_FUNCTIONS
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DE_OUTPUT) || defined(ACPI_DEGER)
 #include "acnamesp.h"
 /*******************************************************************************
  *
@@ -50,10 +50,10 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 	if (ACPI_SUCCESS(status)) {
 		info = buffer.pointer;
 		for (i = 0; i < level; i++) {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_TABLES, " "));
+			ACPI_DE_PRINT_RAW((ACPI_DB_TABLES, " "));
 		}
 
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_TABLES,
+		ACPI_DE_PRINT_RAW((ACPI_DB_TABLES,
 				      "    HID: %s, ADR: %8.8X%8.8X\n",
 				      info->hardware_id.value,
 				      ACPI_FORMAT_UINT64(info->address)));
@@ -93,7 +93,7 @@ void acpi_ns_dump_root_devices(void)
 		return;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+	ACPI_DE_PRINT((ACPI_DB_TABLES,
 			  "Display of all devices in the namespace:\n"));
 
 	status = acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, sys_bus_handle,

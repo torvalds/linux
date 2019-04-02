@@ -15,9 +15,9 @@
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
 #include <linux/io.h>
-#include <linux/bug.h>
-#include <linux/debug_locks.h>
-#include <linux/kdebug.h>
+#include <linux/.h>
+#include <linux/de_locks.h>
+#include <linux/kde.h>
 #include <linux/limits.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>

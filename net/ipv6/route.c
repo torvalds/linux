@@ -1261,7 +1261,7 @@ static struct rt6_info *rt6_make_pcpu_route(struct net *net,
 	dst_hold(&pcpu_rt->dst);
 	p = this_cpu_ptr(rt->rt6i_pcpu);
 	prev = cmpxchg(p, NULL, pcpu_rt);
-	BUG_ON(prev);
+	_ON(prev);
 
 	return pcpu_rt;
 }
@@ -5053,7 +5053,7 @@ void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
 	err = rt6_fill_node(net, skb, rt, NULL, NULL, NULL, 0,
 			    event, info->portid, seq, nlm_flags);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
+		/* -EMSGSIZE implies  in rt6_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;

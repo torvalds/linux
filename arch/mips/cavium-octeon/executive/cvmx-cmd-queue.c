@@ -260,13 +260,13 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 		 */
 		cvmx_write_csr(CVMX_PKO_REG_READ_IDX, queue_id & 0xffff);
 		if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
-			union cvmx_pko_mem_debug9 debug9;
-			debug9.u64 = cvmx_read_csr(CVMX_PKO_MEM_DEBUG9);
-			return debug9.cn38xx.doorbell;
+			union cvmx_pko_mem_de9 de9;
+			de9.u64 = cvmx_read_csr(CVMX_PKO_MEM_DE9);
+			return de9.cn38xx.doorbell;
 		} else {
-			union cvmx_pko_mem_debug8 debug8;
-			debug8.u64 = cvmx_read_csr(CVMX_PKO_MEM_DEBUG8);
-			return debug8.cn50xx.doorbell;
+			union cvmx_pko_mem_de8 de8;
+			de8.u64 = cvmx_read_csr(CVMX_PKO_MEM_DE8);
+			return de8.cn50xx.doorbell;
 		}
 	case CVMX_CMD_QUEUE_ZIP:
 	case CVMX_CMD_QUEUE_DFA:

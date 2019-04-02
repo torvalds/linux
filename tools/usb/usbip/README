@@ -168,9 +168,9 @@ remember you can not export a USB hub.
 
 Mark the device of busid 3-3.2 as exportable:
 
-    trois:# usbip --debug bind --busid 3-3.2
+    trois:# usbip --de bind --busid 3-3.2
     ...
-    usbip debug: usbip_bind.c:162:[unbind_other] 3-3.2:1.0 -> usb-storage
+    usbip de: usbip_bind.c:162:[unbind_other] 3-3.2:1.0 -> usb-storage
     ...
     bind device on busid 3-3.2: complete
 
@@ -241,10 +241,10 @@ Detach the imported device:
 
 
 [Checklist]
-    - See 'Debug Tips' on the project wiki.
-	- http://usbip.wiki.sourceforge.net/how-to-debug-usbip
+    - See 'De Tips' on the project wiki.
+	- http://usbip.wiki.sourceforge.net/how-to-de-usbip
     - usbip-host.ko must be bound to the target device.
-	- See /sys/kernel/debug/usb/devices and find "Driver=..." lines of the device.
+	- See /sys/kernel/de/usb/devices and find "Driver=..." lines of the device.
     - Target USB gadget must be bound to vudc
       (using USB gadget susbsys, not usbip bind command)
     - Shutdown firewall.

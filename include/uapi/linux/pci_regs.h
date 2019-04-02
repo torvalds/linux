@@ -216,7 +216,7 @@
 #define  PCI_CAP_ID_PCIX	0x07	/* PCI-X */
 #define  PCI_CAP_ID_HT		0x08	/* HyperTransport */
 #define  PCI_CAP_ID_VNDR	0x09	/* Vendor-Specific */
-#define  PCI_CAP_ID_DBG		0x0A	/* Debug port */
+#define  PCI_CAP_ID_DBG		0x0A	/* De port */
 #define  PCI_CAP_ID_CCRC	0x0B	/* CompactPCI Central Resource Control */
 #define  PCI_CAP_ID_SHPC	0x0C	/* PCI Standard Hot-Plug Controller */
 #define  PCI_CAP_ID_SSVID	0x0D	/* Bridge subsystem vendor/device ID */

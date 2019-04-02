@@ -31,19 +31,19 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/module.h>
 
 #include "usnic.h"
 #include "usnic_log.h"
-#include "usnic_debugfs.h"
+#include "usnic_defs.h"
 #include "usnic_ib_qp_grp.h"
 #include "usnic_transport.h"
 
-static struct dentry *debugfs_root;
+static struct dentry *defs_root;
 static struct dentry *flows_dentry;
 
-static ssize_t usnic_debugfs_buildinfo_read(struct file *f, char __user *data,
+static ssize_t usnic_defs_buildinfo_read(struct file *f, char __user *data,
 						size_t count, loff_t *ppos)
 {
 	char buf[500];
@@ -60,10 +60,10 @@ static ssize_t usnic_debugfs_buildinfo_read(struct file *f, char __user *data,
 	return simple_read_from_buffer(data, count, ppos, buf, res);
 }
 
-static const struct file_operations usnic_debugfs_buildinfo_ops = {
+static const struct file_operations usnic_defs_buildinfo_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.read = usnic_debugfs_buildinfo_read
+	.read = usnic_defs_buildinfo_read
 };
 
 static ssize_t flowinfo_read(struct file *f, char __user *data,
@@ -110,34 +110,34 @@ static const struct file_operations flowinfo_ops = {
 	.read = flowinfo_read,
 };
 
-void usnic_debugfs_init(void)
+void usnic_defs_init(void)
 {
-	debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
+	defs_root = defs_create_dir(DRV_NAME, NULL);
 
-	flows_dentry = debugfs_create_dir("flows", debugfs_root);
+	flows_dentry = defs_create_dir("flows", defs_root);
 
-	debugfs_create_file("build-info", S_IRUGO, debugfs_root,
-				NULL, &usnic_debugfs_buildinfo_ops);
+	defs_create_file("build-info", S_IRUGO, defs_root,
+				NULL, &usnic_defs_buildinfo_ops);
 }
 
-void usnic_debugfs_exit(void)
+void usnic_defs_exit(void)
 {
-	debugfs_remove_recursive(debugfs_root);
-	debugfs_root = NULL;
+	defs_remove_recursive(defs_root);
+	defs_root = NULL;
 }
 
-void usnic_debugfs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
+void usnic_defs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
 {
 	scnprintf(qp_flow->dentry_name, sizeof(qp_flow->dentry_name),
 			"%u", qp_flow->flow->flow_id);
-	qp_flow->dbgfs_dentry = debugfs_create_file(qp_flow->dentry_name,
+	qp_flow->dbgfs_dentry = defs_create_file(qp_flow->dentry_name,
 							S_IRUGO,
 							flows_dentry,
 							qp_flow,
 							&flowinfo_ops);
 }
 
-void usnic_debugfs_flow_remove(struct usnic_ib_qp_grp_flow *qp_flow)
+void usnic_defs_flow_remove(struct usnic_ib_qp_grp_flow *qp_flow)
 {
-	debugfs_remove(qp_flow->dbgfs_dentry);
+	defs_remove(qp_flow->dbgfs_dentry);
 }

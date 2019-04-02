@@ -121,8 +121,8 @@ enum wl12xx_acx_int_reg {
   5 - EVENT_A	- Event Mailbox interrupt
   6 - EVENT_B	- Event Mailbox interrupt
   7 - WNONHST	- Wake On Host Interrupt
-  8 - TRACE_A	- Debug Trace interrupt
-  9 - TRACE_B	- Debug Trace interrupt
+  8 - TRACE_A	- De Trace interrupt
+  9 - TRACE_B	- De Trace interrupt
  10 - CDCMP		- Command Complete Interrupt
  11 -
  12 -
@@ -631,7 +631,7 @@ b12-b0 - Supported Rate indicator bits as defined below.
  */
 #define INTR_TRIG_RX_PROC0 BIT(3)
 
-#define INTR_TRIG_DEBUG_ACK BIT(4)
+#define INTR_TRIG_DE_ACK BIT(4)
 
 #define INTR_TRIG_STATE_CHANGED BIT(5)
 

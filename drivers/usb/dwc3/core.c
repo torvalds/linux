@@ -36,7 +36,7 @@
 #include "gadget.h"
 #include "io.h"
 
-#include "debug.h"
+#include "de.h"
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 
@@ -776,7 +776,7 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 		reg |= DWC3_GCTL_U2EXIT_LFPS;
 
 	/*
-	 * WORKAROUND: DWC3 revisions <1.90a have a bug
+	 * WORKAROUND: DWC3 revisions <1.90a have a 
 	 * where the device can fail to connect at SuperSpeed
 	 * and falls back to high-speed mode which causes
 	 * the device to enter a Connect/Disconnect loop
@@ -901,7 +901,7 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	/*
 	 * Write Linux Version Code to our GUID register so it's easy to figure
-	 * out which kernel version a bug was found.
+	 * out which kernel version a  was found.
 	 */
 	dwc3_writel(dwc->regs, DWC3_GUID, LINUX_VERSION_CODE);
 
@@ -1501,7 +1501,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err5;
 
-	dwc3_debugfs_init(dwc);
+	dwc3_defs_init(dwc);
 	pm_runtime_put(dev);
 
 	return 0;
@@ -1540,7 +1540,7 @@ static int dwc3_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	dwc3_debugfs_exit(dwc);
+	dwc3_defs_exit(dwc);
 	dwc3_core_exit_mode(dwc);
 
 	dwc3_core_exit(dwc);

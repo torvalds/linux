@@ -33,7 +33,7 @@ static int udl_attach_dma_buf(struct dma_buf *dmabuf,
 {
 	struct udl_drm_dmabuf_attachment *udl_attach;
 
-	DRM_DEBUG_PRIME("[DEV:%s] size:%zd\n", dev_name(attach->dev),
+	DRM_DE_PRIME("[DEV:%s] size:%zd\n", dev_name(attach->dev),
 			attach->dmabuf->size);
 
 	udl_attach = kzalloc(sizeof(*udl_attach), GFP_KERNEL);
@@ -55,7 +55,7 @@ static void udl_detach_dma_buf(struct dma_buf *dmabuf,
 	if (!udl_attach)
 		return;
 
-	DRM_DEBUG_PRIME("[DEV:%s] size:%zd\n", dev_name(attach->dev),
+	DRM_DE_PRIME("[DEV:%s] size:%zd\n", dev_name(attach->dev),
 			attach->dmabuf->size);
 
 	sgt = &udl_attach->sgt;
@@ -82,7 +82,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 	int page_count;
 	int nents, ret;
 
-	DRM_DEBUG_PRIME("[DEV:%s] size:%zd dir=%d\n", dev_name(attach->dev),
+	DRM_DE_PRIME("[DEV:%s] size:%zd dir=%d\n", dev_name(attach->dev),
 			attach->dmabuf->size, dir);
 
 	/* just return current sgt if already requested. */
@@ -146,7 +146,7 @@ static void udl_unmap_dma_buf(struct dma_buf_attachment *attach,
 			      enum dma_data_direction dir)
 {
 	/* Nothing to do. */
-	DRM_DEBUG_PRIME("[DEV:%s] size:%zd dir:%d\n", dev_name(attach->dev),
+	DRM_DE_PRIME("[DEV:%s] size:%zd dir:%d\n", dev_name(attach->dev),
 			attach->dmabuf->size, dir);
 }
 

@@ -148,7 +148,7 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 	 *    just do not read anything and return - the caller would not
 	 *    notice this. E.g., if we are reading a VID header, the buffer may
 	 *    contain a valid VID header from another PEB.
-	 * 2. The driver is buggy and returns us success or -EBADMSG or
+	 * 2. The driver is gy and returns us success or -EBADMSG or
 	 *    -EUCLEAN, but it does not actually put any data to the buffer.
 	 *
 	 * This may confuse UBI or upper layers - they may think the buffer
@@ -173,7 +173,7 @@ retry:
 			 * -EUCLEAN is reported if there was a bit-flip which
 			 * was corrected, so this is harmless.
 			 *
-			 * We do not report about it here unless debugging is
+			 * We do not report about it here unless deging is
 			 * enabled. A corresponding message will be printed
 			 * later, when it is has been scrubbed.
 			 */
@@ -196,7 +196,7 @@ retry:
 
 		/*
 		 * The driver should never return -EBADMSG if it failed to read
-		 * all the requested data. But some buggy drivers might do
+		 * all the requested data. But some gy drivers might do
 		 * this, so we change it to -EIO.
 		 */
 		if (read != len && mtd_is_eccerr(err)) {
@@ -1334,11 +1334,11 @@ static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 		dump_len = max_t(int, 128, len - i);
 		ubi_msg(ubi, "hex dump of the original buffer from %d to %d",
 			i, i + dump_len);
-		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       buf + i, dump_len, 1);
 		ubi_msg(ubi, "hex dump of the read buffer from %d to %d",
 			i, i + dump_len);
-		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       buf1 + i, dump_len, 1);
 		dump_stack();
 		err = -EINVAL;
@@ -1400,7 +1400,7 @@ int ubi_self_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 fail:
 	ubi_err(ubi, "self-check failed for PEB %d", pnum);
 	ubi_msg(ubi, "hex dump of the %d-%d region", offset, offset + len);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
+	print_hex_dump(KERN_DE, "", DUMP_PREFIX_OFFSET, 32, 1, buf, len, 1);
 	err = -EINVAL;
 error:
 	dump_stack();

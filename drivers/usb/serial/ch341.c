@@ -550,7 +550,7 @@ static void ch341_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(&port->dev, __func__, len, data);
+	usb_serial_de_data(&port->dev, __func__, len, data);
 	ch341_update_status(port, data, len);
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);

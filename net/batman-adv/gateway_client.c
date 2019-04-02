@@ -524,7 +524,7 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
 
-#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+#ifdef CONFIG_BATMAN_ADV_DEFS
 
 /**
  * batadv_gw_client_seq_print_text() - Print the gateway table in a seq file

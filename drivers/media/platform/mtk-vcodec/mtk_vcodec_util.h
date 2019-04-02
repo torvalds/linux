@@ -46,19 +46,19 @@ extern bool mtk_vcodec_dbg;
 	       ((struct mtk_vcodec_ctx *)h->ctx)->id, __func__, ##args)
 
 
-#if defined(DEBUG)
+#if defined(DE)
 
-#define mtk_v4l2_debug(level, fmt, args...)				 \
+#define mtk_v4l2_de(level, fmt, args...)				 \
 	do {								 \
 		if (mtk_v4l2_dbg_level >= level)			 \
 			pr_info("[MTK_V4L2] level=%d %s(),%d: " fmt "\n",\
 				level, __func__, __LINE__, ##args);	 \
 	} while (0)
 
-#define mtk_v4l2_debug_enter()  mtk_v4l2_debug(3, "+")
-#define mtk_v4l2_debug_leave()  mtk_v4l2_debug(3, "-")
+#define mtk_v4l2_de_enter()  mtk_v4l2_de(3, "+")
+#define mtk_v4l2_de_leave()  mtk_v4l2_de(3, "-")
 
-#define mtk_vcodec_debug(h, fmt, args...)				\
+#define mtk_vcodec_de(h, fmt, args...)				\
 	do {								\
 		if (mtk_vcodec_dbg)					\
 			pr_info("[MTK_VCODEC][%d]: %s() " fmt "\n",	\
@@ -66,18 +66,18 @@ extern bool mtk_vcodec_dbg;
 				__func__, ##args);			\
 	} while (0)
 
-#define mtk_vcodec_debug_enter(h)  mtk_vcodec_debug(h, "+")
-#define mtk_vcodec_debug_leave(h)  mtk_vcodec_debug(h, "-")
+#define mtk_vcodec_de_enter(h)  mtk_vcodec_de(h, "+")
+#define mtk_vcodec_de_leave(h)  mtk_vcodec_de(h, "-")
 
 #else
 
-#define mtk_v4l2_debug(level, fmt, args...) {}
-#define mtk_v4l2_debug_enter() {}
-#define mtk_v4l2_debug_leave() {}
+#define mtk_v4l2_de(level, fmt, args...) {}
+#define mtk_v4l2_de_enter() {}
+#define mtk_v4l2_de_leave() {}
 
-#define mtk_vcodec_debug(h, fmt, args...) {}
-#define mtk_vcodec_debug_enter(h) {}
-#define mtk_vcodec_debug_leave(h) {}
+#define mtk_vcodec_de(h, fmt, args...) {}
+#define mtk_vcodec_de_enter(h) {}
+#define mtk_vcodec_de_leave(h) {}
 
 #endif
 

@@ -22,9 +22,9 @@ expression E;
 |
   kzfree(E);
 |
-  debugfs_remove(E);
+  defs_remove(E);
 |
-  debugfs_remove_recursive(E);
+  defs_remove_recursive(E);
 |
   usb_free_urb(E);
 |
@@ -41,7 +41,7 @@ position p;
 @@
 
 * if (E != NULL)
-*	\(kfree@p\|kzfree@p\|debugfs_remove@p\|debugfs_remove_recursive@p\|
+*	\(kfree@p\|kzfree@p\|defs_remove@p\|defs_remove_recursive@p\|
 *         usb_free_urb@p\|kmem_cache_destroy@p\|mempool_destroy@p\|
 *         dma_pool_destroy@p\)(E);
 

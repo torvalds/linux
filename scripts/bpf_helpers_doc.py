@@ -248,7 +248,7 @@ kernel.
 
 These helpers are used by eBPF programs to interact with the system, or with
 the context in which they work. For instance, they can be used to print
-debugging messages, to get the time since the system was booted, to interact
+deging messages, to get the time since the system was booted, to interact
 with eBPF maps, or to manipulate network packets. Since there are several eBPF
 program types, and that they do not run in the same context, each program type
 can only call a subset of those helpers.

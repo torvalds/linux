@@ -272,7 +272,7 @@ static int cr0014114_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* setup recount work to workaround buggy firmware */
+	/* setup recount work to workaround gy firmware */
 	schedule_delayed_work(&priv->work, CR_RECOUNT_DELAY);
 
 	spi_set_drvdata(spi, priv);

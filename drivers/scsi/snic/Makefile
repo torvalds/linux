@@ -15,4 +15,4 @@ snic-y := \
 	vnic_dev.o \
 	vnic_wq.o
 
-snic-$(CONFIG_SCSI_SNIC_DEBUG_FS) += snic_debugfs.o snic_trc.o
+snic-$(CONFIG_SCSI_SNIC_DE_FS) += snic_defs.o snic_trc.o

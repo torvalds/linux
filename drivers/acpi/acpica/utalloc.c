@@ -9,7 +9,7 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acdebug.h"
+#include "acde.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utalloc")
@@ -219,7 +219,7 @@ acpi_status acpi_ut_delete_caches(void)
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
-	/* Debug only - display leftover memory allocation, if any */
+	/* De only - display leftover memory allocation, if any */
 
 	acpi_ut_dump_allocations(ACPI_UINT32_MAX, NULL);
 

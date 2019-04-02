@@ -161,7 +161,7 @@ static int hi6220_stub_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		break;
 	}
 
-	pr_debug("%s: set rate=%ldkHz\n", __func__, new_rate);
+	pr_de("%s: set rate=%ldkHz\n", __func__, new_rate);
 	return ret;
 }
 

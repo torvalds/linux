@@ -348,7 +348,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 	switch(drv_data->action) {
 	case MV64XXX_I2C_ACTION_SEND_RESTART:
 		/* We should only get here if we have further messages */
-		BUG_ON(drv_data->num_msgs == 0);
+		_ON(drv_data->num_msgs == 0);
 
 		drv_data->msgs++;
 		drv_data->num_msgs--;
@@ -715,7 +715,7 @@ mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	struct mv64xxx_i2c_data *drv_data = i2c_get_adapdata(adap);
 	int rc, ret = num;
 
-	BUG_ON(drv_data->msgs != NULL);
+	_ON(drv_data->msgs != NULL);
 	drv_data->msgs = msgs;
 	drv_data->num_msgs = num;
 

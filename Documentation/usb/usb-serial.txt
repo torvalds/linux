@@ -123,7 +123,7 @@ PocketPC PDA Driver
   Now start up PIE and browse away.
 
   If it doesn't work for some reason, load both the usbserial and ipaq module
-  with the module parameter "debug" set to 1 and examine the system log.
+  with the module parameter "de" set to 1 and examine the system log.
   You can also try soft-resetting your PDA before attempting a connection.
 
   Other functionality may be possible depending on your PDA. According to
@@ -273,7 +273,7 @@ Digi AccelePort Driver
   work under SMP with the uhci driver.
 
   The driver is generally working, though we still have a few more ioctls
-  to implement and final testing and debugging to do.  The parallel port
+  to implement and final testing and deging to do.  The parallel port
   on the USB 2 is supported as a serial to parallel converter; in other
   words, it appears as another USB serial port on Linux, even though
   physically it is really a parallel port.  The Digi Acceleport USB 8

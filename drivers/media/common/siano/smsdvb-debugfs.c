@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
 
@@ -18,9 +18,9 @@
 
 #include "smsdvb.h"
 
-static struct dentry *smsdvb_debugfs_usb_root;
+static struct dentry *smsdvb_defs_usb_root;
 
-struct smsdvb_debugfs {
+struct smsdvb_defs {
 	struct kref		refcount;
 	spinlock_t		lock;
 
@@ -31,19 +31,19 @@ struct smsdvb_debugfs {
 	wait_queue_head_t	stats_queue;
 };
 
-static void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
+static void smsdvb_print_dvb_stats(struct smsdvb_defs *de_data,
 			    struct sms_stats *p)
 {
 	int n = 0;
 	char *buf;
 
-	spin_lock(&debug_data->lock);
-	if (debug_data->stats_count) {
-		spin_unlock(&debug_data->lock);
+	spin_lock(&de_data->lock);
+	if (de_data->stats_count) {
+		spin_unlock(&de_data->lock);
 		return;
 	}
 
-	buf = debug_data->stats_data;
+	buf = de_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "is_rf_locked = %d\n", p->is_rf_locked);
@@ -129,24 +129,24 @@ static void smsdvb_print_dvb_stats(struct smsdvb_debugfs *debug_data,
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "num_mpe_received = %d\n", p->num_mpe_received);
 
-	debug_data->stats_count = n;
-	spin_unlock(&debug_data->lock);
-	wake_up(&debug_data->stats_queue);
+	de_data->stats_count = n;
+	spin_unlock(&de_data->lock);
+	wake_up(&de_data->stats_queue);
 }
 
-static void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
+static void smsdvb_print_isdb_stats(struct smsdvb_defs *de_data,
 			     struct sms_isdbt_stats *p)
 {
 	int i, n = 0;
 	char *buf;
 
-	spin_lock(&debug_data->lock);
-	if (debug_data->stats_count) {
-		spin_unlock(&debug_data->lock);
+	spin_lock(&de_data->lock);
+	if (de_data->stats_count) {
+		spin_unlock(&de_data->lock);
 		return;
 	}
 
-	buf = debug_data->stats_data;
+	buf = de_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "statistics_type = %d\t", p->statistics_type);
@@ -219,24 +219,24 @@ static void smsdvb_print_isdb_stats(struct smsdvb_debugfs *debug_data,
 			      p->layer_info[i].tmcc_errors);
 	}
 
-	debug_data->stats_count = n;
-	spin_unlock(&debug_data->lock);
-	wake_up(&debug_data->stats_queue);
+	de_data->stats_count = n;
+	spin_unlock(&de_data->lock);
+	wake_up(&de_data->stats_queue);
 }
 
-static void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
+static void smsdvb_print_isdb_stats_ex(struct smsdvb_defs *de_data,
 				struct sms_isdbt_stats_ex *p)
 {
 	int i, n = 0;
 	char *buf;
 
-	spin_lock(&debug_data->lock);
-	if (debug_data->stats_count) {
-		spin_unlock(&debug_data->lock);
+	spin_lock(&de_data->lock);
+	if (de_data->stats_count) {
+		spin_unlock(&de_data->lock);
 		return;
 	}
 
-	buf = debug_data->stats_data;
+	buf = de_data->stats_data;
 
 	n += snprintf(&buf[n], PAGE_SIZE - n,
 		      "statistics_type = %d\t", p->statistics_type);
@@ -312,64 +312,64 @@ static void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
 	}
 
 
-	debug_data->stats_count = n;
-	spin_unlock(&debug_data->lock);
+	de_data->stats_count = n;
+	spin_unlock(&de_data->lock);
 
-	wake_up(&debug_data->stats_queue);
+	wake_up(&de_data->stats_queue);
 }
 
 static int smsdvb_stats_open(struct inode *inode, struct file *file)
 {
 	struct smsdvb_client_t *client = inode->i_private;
-	struct smsdvb_debugfs *debug_data = client->debug_data;
+	struct smsdvb_defs *de_data = client->de_data;
 
-	kref_get(&debug_data->refcount);
+	kref_get(&de_data->refcount);
 
-	spin_lock(&debug_data->lock);
-	debug_data->stats_count = 0;
-	debug_data->stats_was_read = false;
-	spin_unlock(&debug_data->lock);
+	spin_lock(&de_data->lock);
+	de_data->stats_count = 0;
+	de_data->stats_was_read = false;
+	spin_unlock(&de_data->lock);
 
-	file->private_data = debug_data;
+	file->private_data = de_data;
 
 	return 0;
 }
 
-static void smsdvb_debugfs_data_release(struct kref *ref)
+static void smsdvb_defs_data_release(struct kref *ref)
 {
-	struct smsdvb_debugfs *debug_data;
+	struct smsdvb_defs *de_data;
 
-	debug_data = container_of(ref, struct smsdvb_debugfs, refcount);
-	kfree(debug_data);
+	de_data = container_of(ref, struct smsdvb_defs, refcount);
+	kfree(de_data);
 }
 
-static int smsdvb_stats_wait_read(struct smsdvb_debugfs *debug_data)
+static int smsdvb_stats_wait_read(struct smsdvb_defs *de_data)
 {
 	int rc = 1;
 
-	spin_lock(&debug_data->lock);
+	spin_lock(&de_data->lock);
 
-	if (debug_data->stats_was_read)
+	if (de_data->stats_was_read)
 		goto exit;
 
-	rc = debug_data->stats_count;
+	rc = de_data->stats_count;
 
 exit:
-	spin_unlock(&debug_data->lock);
+	spin_unlock(&de_data->lock);
 	return rc;
 }
 
 static __poll_t smsdvb_stats_poll(struct file *file, poll_table *wait)
 {
-	struct smsdvb_debugfs *debug_data = file->private_data;
+	struct smsdvb_defs *de_data = file->private_data;
 	int rc;
 
-	kref_get(&debug_data->refcount);
+	kref_get(&de_data->refcount);
 
-	poll_wait(file, &debug_data->stats_queue, wait);
+	poll_wait(file, &de_data->stats_queue, wait);
 
-	rc = smsdvb_stats_wait_read(debug_data);
-	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
+	rc = smsdvb_stats_wait_read(de_data);
+	kref_put(&de_data->refcount, smsdvb_defs_data_release);
 
 	return rc > 0 ? EPOLLIN | EPOLLRDNORM : 0;
 }
@@ -378,61 +378,61 @@ static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,
 				      size_t nbytes, loff_t *ppos)
 {
 	int rc = 0, len;
-	struct smsdvb_debugfs *debug_data = file->private_data;
+	struct smsdvb_defs *de_data = file->private_data;
 
-	kref_get(&debug_data->refcount);
+	kref_get(&de_data->refcount);
 
 	if (file->f_flags & O_NONBLOCK) {
-		rc = smsdvb_stats_wait_read(debug_data);
+		rc = smsdvb_stats_wait_read(de_data);
 		if (!rc) {
 			rc = -EWOULDBLOCK;
 			goto ret;
 		}
 	} else {
-		rc = wait_event_interruptible(debug_data->stats_queue,
-				      smsdvb_stats_wait_read(debug_data));
+		rc = wait_event_interruptible(de_data->stats_queue,
+				      smsdvb_stats_wait_read(de_data));
 		if (rc < 0)
 			goto ret;
 	}
 
-	if (debug_data->stats_was_read) {
+	if (de_data->stats_was_read) {
 		rc = 0;	/* EOF */
 		goto ret;
 	}
 
-	len = debug_data->stats_count - *ppos;
+	len = de_data->stats_count - *ppos;
 	if (len >= 0)
 		rc = simple_read_from_buffer(user_buf, nbytes, ppos,
-					     debug_data->stats_data, len);
+					     de_data->stats_data, len);
 	else
 		rc = 0;
 
-	if (*ppos >= debug_data->stats_count) {
-		spin_lock(&debug_data->lock);
-		debug_data->stats_was_read = true;
-		spin_unlock(&debug_data->lock);
+	if (*ppos >= de_data->stats_count) {
+		spin_lock(&de_data->lock);
+		de_data->stats_was_read = true;
+		spin_unlock(&de_data->lock);
 	}
 ret:
-	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
+	kref_put(&de_data->refcount, smsdvb_defs_data_release);
 	return rc;
 }
 
 static int smsdvb_stats_release(struct inode *inode, struct file *file)
 {
-	struct smsdvb_debugfs *debug_data = file->private_data;
+	struct smsdvb_defs *de_data = file->private_data;
 
-	spin_lock(&debug_data->lock);
-	debug_data->stats_was_read = true;	/* return EOF to read() */
-	spin_unlock(&debug_data->lock);
-	wake_up_interruptible_sync(&debug_data->stats_queue);
+	spin_lock(&de_data->lock);
+	de_data->stats_was_read = true;	/* return EOF to read() */
+	spin_unlock(&de_data->lock);
+	wake_up_interruptible_sync(&de_data->stats_queue);
 
-	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
+	kref_put(&de_data->refcount, smsdvb_defs_data_release);
 	file->private_data = NULL;
 
 	return 0;
 }
 
-static const struct file_operations debugfs_stats_ops = {
+static const struct file_operations defs_stats_ops = {
 	.open = smsdvb_stats_open,
 	.poll = smsdvb_stats_poll,
 	.read = smsdvb_stats_read,
@@ -444,88 +444,88 @@ static const struct file_operations debugfs_stats_ops = {
  * Functions used by smsdvb, in order to create the interfaces
  */
 
-int smsdvb_debugfs_create(struct smsdvb_client_t *client)
+int smsdvb_defs_create(struct smsdvb_client_t *client)
 {
 	struct smscore_device_t *coredev = client->coredev;
 	struct dentry *d;
-	struct smsdvb_debugfs *debug_data;
+	struct smsdvb_defs *de_data;
 
-	if (!smsdvb_debugfs_usb_root || !coredev->is_usb_device)
+	if (!smsdvb_defs_usb_root || !coredev->is_usb_device)
 		return -ENODEV;
 
-	client->debugfs = debugfs_create_dir(coredev->devpath,
-					     smsdvb_debugfs_usb_root);
-	if (IS_ERR_OR_NULL(client->debugfs)) {
-		pr_info("Unable to create debugfs %s directory.\n",
+	client->defs = defs_create_dir(coredev->devpath,
+					     smsdvb_defs_usb_root);
+	if (IS_ERR_OR_NULL(client->defs)) {
+		pr_info("Unable to create defs %s directory.\n",
 			coredev->devpath);
 		return -ENODEV;
 	}
 
-	d = debugfs_create_file("stats", S_IRUGO | S_IWUSR, client->debugfs,
-				client, &debugfs_stats_ops);
+	d = defs_create_file("stats", S_IRUGO | S_IWUSR, client->defs,
+				client, &defs_stats_ops);
 	if (!d) {
-		debugfs_remove(client->debugfs);
+		defs_remove(client->defs);
 		return -ENOMEM;
 	}
 
-	debug_data = kzalloc(sizeof(*client->debug_data), GFP_KERNEL);
-	if (!debug_data)
+	de_data = kzalloc(sizeof(*client->de_data), GFP_KERNEL);
+	if (!de_data)
 		return -ENOMEM;
 
-	client->debug_data        = debug_data;
+	client->de_data        = de_data;
 	client->prt_dvb_stats     = smsdvb_print_dvb_stats;
 	client->prt_isdb_stats    = smsdvb_print_isdb_stats;
 	client->prt_isdb_stats_ex = smsdvb_print_isdb_stats_ex;
 
-	init_waitqueue_head(&debug_data->stats_queue);
-	spin_lock_init(&debug_data->lock);
-	kref_init(&debug_data->refcount);
+	init_waitqueue_head(&de_data->stats_queue);
+	spin_lock_init(&de_data->lock);
+	kref_init(&de_data->refcount);
 
 	return 0;
 }
 
-void smsdvb_debugfs_release(struct smsdvb_client_t *client)
+void smsdvb_defs_release(struct smsdvb_client_t *client)
 {
-	if (!client->debugfs)
+	if (!client->defs)
 		return;
 
 	client->prt_dvb_stats     = NULL;
 	client->prt_isdb_stats    = NULL;
 	client->prt_isdb_stats_ex = NULL;
 
-	debugfs_remove_recursive(client->debugfs);
-	kref_put(&client->debug_data->refcount, smsdvb_debugfs_data_release);
+	defs_remove_recursive(client->defs);
+	kref_put(&client->de_data->refcount, smsdvb_defs_data_release);
 
-	client->debug_data = NULL;
-	client->debugfs = NULL;
+	client->de_data = NULL;
+	client->defs = NULL;
 }
 
-void smsdvb_debugfs_register(void)
+void smsdvb_defs_register(void)
 {
 	struct dentry *d;
 
 	/*
-	 * FIXME: This was written to debug Siano USB devices. So, it creates
-	 * the debugfs node under <debugfs>/usb.
+	 * FIXME: This was written to de Siano USB devices. So, it creates
+	 * the defs node under <defs>/usb.
 	 * A similar logic would be needed for Siano sdio devices, but, in that
-	 * case, usb_debug_root is not a good choice.
+	 * case, usb_de_root is not a good choice.
 	 *
 	 * Perhaps the right fix here would be to create another sysfs root
 	 * node for sdio-based boards, but this may need some logic at sdio
 	 * subsystem.
 	 */
-	d = debugfs_create_dir("smsdvb", usb_debug_root);
+	d = defs_create_dir("smsdvb", usb_de_root);
 	if (IS_ERR_OR_NULL(d)) {
 		pr_err("Couldn't create sysfs node for smsdvb\n");
 		return;
 	}
-	smsdvb_debugfs_usb_root = d;
+	smsdvb_defs_usb_root = d;
 }
 
-void smsdvb_debugfs_unregister(void)
+void smsdvb_defs_unregister(void)
 {
-	if (!smsdvb_debugfs_usb_root)
+	if (!smsdvb_defs_usb_root)
 		return;
-	debugfs_remove_recursive(smsdvb_debugfs_usb_root);
-	smsdvb_debugfs_usb_root = NULL;
+	defs_remove_recursive(smsdvb_defs_usb_root);
+	smsdvb_defs_usb_root = NULL;
 }

@@ -1,5 +1,5 @@
 /*
- * DebugFS code for ST-Ericsson CW1200 mac80211 driver
+ * DeFS code for ST-Ericsson CW1200 mac80211 driver
  *
  * Copyright (c) 2011, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
@@ -9,11 +9,11 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef CW1200_DEBUG_H_INCLUDED
-#define CW1200_DEBUG_H_INCLUDED
+#ifndef CW1200_DE_H_INCLUDED
+#define CW1200_DE_H_INCLUDED
 
-struct cw1200_debug_priv {
-	struct dentry *debugfs_phy;
+struct cw1200_de_priv {
+	struct dentry *defs_phy;
 	int tx;
 	int tx_agg;
 	int rx;
@@ -30,64 +30,64 @@ struct cw1200_debug_priv {
 	int ba_acc_rx;
 };
 
-int cw1200_debug_init(struct cw1200_common *priv);
-void cw1200_debug_release(struct cw1200_common *priv);
+int cw1200_de_init(struct cw1200_common *priv);
+void cw1200_de_release(struct cw1200_common *priv);
 
-static inline void cw1200_debug_txed(struct cw1200_common *priv)
+static inline void cw1200_de_txed(struct cw1200_common *priv)
 {
-	++priv->debug->tx;
+	++priv->de->tx;
 }
 
-static inline void cw1200_debug_txed_agg(struct cw1200_common *priv)
+static inline void cw1200_de_txed_agg(struct cw1200_common *priv)
 {
-	++priv->debug->tx_agg;
+	++priv->de->tx_agg;
 }
 
-static inline void cw1200_debug_txed_multi(struct cw1200_common *priv,
+static inline void cw1200_de_txed_multi(struct cw1200_common *priv,
 					   int count)
 {
-	++priv->debug->tx_multi;
-	priv->debug->tx_multi_frames += count;
+	++priv->de->tx_multi;
+	priv->de->tx_multi_frames += count;
 }
 
-static inline void cw1200_debug_rxed(struct cw1200_common *priv)
+static inline void cw1200_de_rxed(struct cw1200_common *priv)
 {
-	++priv->debug->rx;
+	++priv->de->rx;
 }
 
-static inline void cw1200_debug_rxed_agg(struct cw1200_common *priv)
+static inline void cw1200_de_rxed_agg(struct cw1200_common *priv)
 {
-	++priv->debug->rx_agg;
+	++priv->de->rx_agg;
 }
 
-static inline void cw1200_debug_tx_cache_miss(struct cw1200_common *priv)
+static inline void cw1200_de_tx_cache_miss(struct cw1200_common *priv)
 {
-	++priv->debug->tx_cache_miss;
+	++priv->de->tx_cache_miss;
 }
 
-static inline void cw1200_debug_tx_align(struct cw1200_common *priv)
+static inline void cw1200_de_tx_align(struct cw1200_common *priv)
 {
-	++priv->debug->tx_align;
+	++priv->de->tx_align;
 }
 
-static inline void cw1200_debug_tx_ttl(struct cw1200_common *priv)
+static inline void cw1200_de_tx_ttl(struct cw1200_common *priv)
 {
-	++priv->debug->tx_ttl;
+	++priv->de->tx_ttl;
 }
 
-static inline void cw1200_debug_tx_burst(struct cw1200_common *priv)
+static inline void cw1200_de_tx_burst(struct cw1200_common *priv)
 {
-	++priv->debug->tx_burst;
+	++priv->de->tx_burst;
 }
 
-static inline void cw1200_debug_ba(struct cw1200_common *priv,
+static inline void cw1200_de_ba(struct cw1200_common *priv,
 				   int ba_cnt, int ba_acc,
 				   int ba_cnt_rx, int ba_acc_rx)
 {
-	priv->debug->ba_cnt = ba_cnt;
-	priv->debug->ba_acc = ba_acc;
-	priv->debug->ba_cnt_rx = ba_cnt_rx;
-	priv->debug->ba_acc_rx = ba_acc_rx;
+	priv->de->ba_cnt = ba_cnt;
+	priv->de->ba_acc = ba_acc;
+	priv->de->ba_cnt_rx = ba_cnt_rx;
+	priv->de->ba_acc_rx = ba_acc_rx;
 }
 
-#endif /* CW1200_DEBUG_H_INCLUDED */
+#endif /* CW1200_DE_H_INCLUDED */

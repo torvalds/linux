@@ -117,7 +117,7 @@ static inline unsigned long cpu2cpm_addr(void *addr,
 		return pinfo->dma_addr + offset;
 	}
 	/* something nasty happened */
-	BUG();
+	();
 	return 0;
 }
 
@@ -133,7 +133,7 @@ static inline void *cpm2cpu_addr(unsigned long addr,
 		return pinfo->mem_addr + offset;
 	}
 	/* something nasty happened */
-	BUG();
+	();
 	return NULL;
 }
 

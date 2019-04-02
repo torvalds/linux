@@ -6,7 +6,7 @@
 
 %{
 
-#define YYDEBUG 1
+#define YYDE 1
 
 #include <fnmatch.h>
 #include <linux/compiler.h>
@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include "util.h"
 #include "pmu.h"
-#include "debug.h"
+#include "de.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
 

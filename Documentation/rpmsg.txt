@@ -45,8 +45,8 @@ OMAP4, remote cores and hardware accelerators may have direct access to the
 physical memory, gpio banks, dma controllers, i2c bus, gptimers, mailbox
 devices, hwspinlocks, etc..). Moreover, those remote processors might be
 running RTOS where every task can access the entire memory/devices exposed
-to the processor. To minimize the risks of rogue (or buggy) userland code
-exploiting remote bugs, and by that taking over the system, it is often
+to the processor. To minimize the risks of rogue (or gy) userland code
+exploiting remote s, and by that taking over the system, it is often
 desired to limit userland to specific rpmsg channels (see definition below)
 it can send messages on, and if possible, minimize how much control
 it has over the content of the messages.

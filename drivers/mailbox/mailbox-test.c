@@ -9,7 +9,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -44,7 +44,7 @@ struct mbox_test_device {
 	spinlock_t		lock;
 	wait_queue_head_t	waitq;
 	struct fasync_struct	*async_queue;
-	struct dentry		*root_debugfs_dir;
+	struct dentry		*root_defs_dir;
 };
 
 static ssize_t mbox_test_signal_write(struct file *filp,
@@ -256,22 +256,22 @@ static const struct file_operations mbox_test_message_ops = {
 	.llseek	= generic_file_llseek,
 };
 
-static int mbox_test_add_debugfs(struct platform_device *pdev,
+static int mbox_test_add_defs(struct platform_device *pdev,
 				 struct mbox_test_device *tdev)
 {
-	if (!debugfs_initialized())
+	if (!defs_initialized())
 		return 0;
 
-	tdev->root_debugfs_dir = debugfs_create_dir(dev_name(&pdev->dev), NULL);
-	if (!tdev->root_debugfs_dir) {
-		dev_err(&pdev->dev, "Failed to create Mailbox debugfs\n");
+	tdev->root_defs_dir = defs_create_dir(dev_name(&pdev->dev), NULL);
+	if (!tdev->root_defs_dir) {
+		dev_err(&pdev->dev, "Failed to create Mailbox defs\n");
 		return -EINVAL;
 	}
 
-	debugfs_create_file("message", 0600, tdev->root_debugfs_dir,
+	defs_create_file("message", 0600, tdev->root_defs_dir,
 			    tdev, &mbox_test_message_ops);
 
-	debugfs_create_file("signal", 0200, tdev->root_debugfs_dir,
+	defs_create_file("signal", 0200, tdev->root_defs_dir,
 			    tdev, &mbox_test_signal_ops);
 
 	return 0;
@@ -404,7 +404,7 @@ static int mbox_test_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
-	ret = mbox_test_add_debugfs(pdev, tdev);
+	ret = mbox_test_add_defs(pdev, tdev);
 	if (ret)
 		return ret;
 
@@ -418,7 +418,7 @@ static int mbox_test_remove(struct platform_device *pdev)
 {
 	struct mbox_test_device *tdev = platform_get_drvdata(pdev);
 
-	debugfs_remove_recursive(tdev->root_debugfs_dir);
+	defs_remove_recursive(tdev->root_defs_dir);
 
 	if (tdev->tx_channel)
 		mbox_free_channel(tdev->tx_channel);

@@ -165,7 +165,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DE_STACKOVERFLOW
 	seq_printf(p, "%*s: ", prec, "STK");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->kernel_stack_usage);
@@ -359,7 +359,7 @@ unsigned long txn_alloc_addr(unsigned int virt_irq)
 {
 	static int next_cpu = -1;
 
-	next_cpu++; /* assign to "next" CPU we want this bugger on */
+	next_cpu++; /* assign to "next" CPU we want this ger on */
 
 	/* validate entry */
 	while ((next_cpu < nr_cpu_ids) &&
@@ -407,7 +407,7 @@ int sysctl_panic_on_stackoverflow = 1;
 
 static inline void stack_overflow_check(struct pt_regs *regs)
 {
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DE_STACKOVERFLOW
 	#define STACK_MARGIN	(256*6)
 
 	/* Our stack starts directly behind the thread_info struct. */
@@ -548,7 +548,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	    !cpumask_test_cpu(smp_processor_id(), &dest)) {
 		int cpu = cpumask_first(&dest);
 
-		printk(KERN_DEBUG "redirecting irq %d from CPU %d to %d\n",
+		printk(KERN_DE "redirecting irq %d from CPU %d to %d\n",
 		       irq, smp_processor_id(), cpu);
 		gsc_writel(irq + CPU_IRQ_BASE,
 			   per_cpu(cpu_data, cpu).hpa);

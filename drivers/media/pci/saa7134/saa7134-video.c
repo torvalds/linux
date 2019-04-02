@@ -32,14 +32,14 @@
 
 /* ------------------------------------------------------------------ */
 
-unsigned int video_debug;
+unsigned int video_de;
 static unsigned int gbuffers      = 8;
 static unsigned int noninterlaced; /* 0 */
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
 static char secam[] = "--";
-module_param(video_debug, int, 0644);
-MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
+module_param(video_de, int, 0644);
+MODULE_PARM_DESC(video_de,"enable de messages [video]");
 module_param(gbuffers, int, 0444);
 MODULE_PARM_DESC(gbuffers,"number of capture buffers, range 2-32");
 module_param(noninterlaced, int, 0644);
@@ -49,8 +49,8 @@ MODULE_PARM_DESC(secam, "force SECAM variant, either DK,L or Lc");
 
 
 #define video_dbg(fmt, arg...) do { \
-	if (video_debug & 0x04) \
-		printk(KERN_DEBUG pr_fmt("video: " fmt), ## arg); \
+	if (video_de & 0x04) \
+		printk(KERN_DE pr_fmt("video: " fmt), ## arg); \
 	} while (0)
 
 /* ------------------------------------------------------------------ */
@@ -1910,7 +1910,7 @@ static int saa7134_overlay(struct file *file, void *priv, unsigned int on)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int vidioc_g_register (struct file *file, void *priv,
 			      struct v4l2_dbg_register *reg)
 {
@@ -2009,7 +2009,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_overlay			= saa7134_overlay,
 	.vidioc_g_frequency		= saa7134_g_frequency,
 	.vidioc_s_frequency		= saa7134_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.vidioc_g_register              = vidioc_g_register,
 	.vidioc_s_register              = vidioc_s_register,
 #endif

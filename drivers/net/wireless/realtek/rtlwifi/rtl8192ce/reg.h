@@ -1171,7 +1171,7 @@
 #define	RPMAC_TXLEGACYSIG			0x108
 #define	RPMAC_TXHTSIG1				0x10c
 #define	RPMAC_TXHTSIG2				0x110
-#define	RPMAC_PHYDEBUG				0x114
+#define	RPMAC_PHYDE				0x114
 #define	RPMAC_TXPACKETNUM			0x118
 #define	RPMAC_TXIDLE				0x11c
 #define	RPMAC_TXMACHEADER0			0x120
@@ -1246,7 +1246,7 @@
 #define	RFPGA1_RFMOD				0x900
 
 #define	RFPGA1_TXBLOCK				0x904
-#define	RFPGA1_DEBUGSELECT			0x908
+#define	RFPGA1_DESELECT			0x908
 #define	RFPGA1_TXINFO				0x90c
 
 #define	RCCK0_SYSTEM				0xa00
@@ -1264,7 +1264,7 @@
 
 #define	RCCK0_TXFILTER1				0xa20
 #define	RCCK0_TXFILTER2				0xa24
-#define	RCCK0_DEBUGPORT				0xa28
+#define	RCCK0_DEPORT				0xa28
 #define	RCCK0_FALSEALARMREPORT			0xa2c
 #define	RCCK0_TRSSIREPORT			0xa50
 #define	RCCK0_RXREPORT				0xa54
@@ -1459,7 +1459,7 @@
 #define	BGLOBALRESETB				0x200
 #define	BOFDMTXSTART				0x4
 #define	BCCKTXSTART				0x8
-#define	BCRC32DEBUG				0x100
+#define	BCRC32DE				0x100
 #define	BPMACLOOPBACK				0x10
 #define	BTXLSIG					0xffffff
 #define	BOFDMTXRATE				0xf
@@ -1596,7 +1596,7 @@
 #define	BDA6POWERUP				0x2000
 #define	BXTALPOWERUP				0x4000
 #define	B40MDCLKPOWERUP				0x8000
-#define	BDA6DEBUGMODE				0x20000
+#define	BDA6DEMODE				0x20000
 #define	BDA6SWING				0x380000
 
 #define	BADCLKPHASE				0x4000000
@@ -1645,8 +1645,8 @@
 #define	BOFDM_TXSC				0x30000000
 #define	BCCK_TXON				0x1
 #define	BOFDM_TXON				0x2
-#define	BDEBUG_PAGE				0xfff
-#define	BDEBUG_ITEM				0xff
+#define	BDE_PAGE				0xfff
+#define	BDE_ITEM				0xff
 #define	BANTL					0x10
 #define	BANT_NONHT				0x100
 #define	BANT_HT1				0x1000
@@ -1709,8 +1709,8 @@
 #define	BCCK_TXC5				0x3f000000
 #define	BCCK_TXC6				0x3f
 #define	BCCK_TXC7				0x3f00
-#define	BCCK_DEBUGPORT				0xff0000
-#define	BCCK_DAC_DEBUG				0x0f000000
+#define	BCCK_DEPORT				0xff0000
+#define	BCCK_DAC_DE				0x0f000000
 #define	BCCK_FALSEALARM_ENABLE			0x8000
 #define	BCCK_FALSEALARM_READ			0x4000
 #define	BCCK_TRSSI				0x7f

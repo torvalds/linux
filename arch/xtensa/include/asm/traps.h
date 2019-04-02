@@ -98,11 +98,11 @@ static inline void spill_registers(void)
 #endif
 }
 
-struct debug_table {
-	/* Pointer to debug exception handler */
-	void (*debug_exception)(void);
+struct de_table {
+	/* Pointer to de exception handler */
+	void (*de_exception)(void);
 	/* Temporary register save area */
-	unsigned long debug_save[1];
+	unsigned long de_save[1];
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	/* Save area for DBREAKC registers */
 	unsigned long dbreakc_save[XCHAL_NUM_DBREAK];
@@ -113,6 +113,6 @@ struct debug_table {
 #endif
 };
 
-void debug_exception(void);
+void de_exception(void);
 
 #endif /* _XTENSA_TRAPS_H */

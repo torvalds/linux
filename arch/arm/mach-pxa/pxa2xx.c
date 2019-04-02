@@ -51,6 +51,6 @@ void pxa2xx_transceiver_mode(struct device *dev, int mode)
 	} else if (mode & IR_FIRMODE) {
 		pxa2xx_mfp_config(pxa2xx_mfp_fir, ARRAY_SIZE(pxa2xx_mfp_fir));
 	} else
-		BUG();
+		();
 }
 EXPORT_SYMBOL_GPL(pxa2xx_transceiver_mode);

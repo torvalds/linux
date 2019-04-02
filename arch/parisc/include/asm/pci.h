@@ -105,7 +105,7 @@ struct pci_hba_data {
 **    are I/O coherent, it generally doesn't matter...but sometimes
 **    it does.
 **
-** I've helped device driver writers debug both types of problems.
+** I've helped device driver writers de both types of problems.
 */
 struct pci_port_ops {
 	  u8 (*inb)  (struct pci_hba_data *hba, u16 port);

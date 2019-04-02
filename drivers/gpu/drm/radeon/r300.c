@@ -77,14 +77,14 @@ void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 /*
  * rv370,rv380 PCIE GART
  */
-static int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev);
+static int rv370_defs_pcie_gart_info_init(struct radeon_device *rdev);
 
 void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 {
 	uint32_t tmp;
 	int i;
 
-	/* Workaround HW bug do flush 2 times */
+	/* Workaround HW  do flush 2 times */
 	for (i = 0; i < 2; i++) {
 		tmp = RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);
 		WREG32_PCIE(RADEON_PCIE_TX_GART_CNTL, tmp | RADEON_PCIE_TX_GART_INVALIDATE_TLB);
@@ -134,9 +134,9 @@ int rv370_pcie_gart_init(struct radeon_device *rdev)
 	r = radeon_gart_init(rdev);
 	if (r)
 		return r;
-	r = rv370_debugfs_pcie_gart_info_init(rdev);
+	r = rv370_defs_pcie_gart_info_init(rdev);
 	if (r)
-		DRM_ERROR("Failed to register debugfs file for PCIE gart !\n");
+		DRM_ERROR("Failed to register defs file for PCIE gart !\n");
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
 	rdev->asic->gart.tlb_flush = &rv370_pcie_gart_tlb_flush;
 	rdev->asic->gart.get_page_entry = &rv370_pcie_gart_get_page_entry;
@@ -583,8 +583,8 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 	}
 }
 
-#if defined(CONFIG_DEBUG_FS)
-static int rv370_debugfs_pcie_gart_info(struct seq_file *m, void *data)
+#if defined(CONFIG_DE_FS)
+static int rv370_defs_pcie_gart_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -609,14 +609,14 @@ static int rv370_debugfs_pcie_gart_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list rv370_pcie_gart_info_list[] = {
-	{"rv370_pcie_gart_info", rv370_debugfs_pcie_gart_info, 0, NULL},
+	{"rv370_pcie_gart_info", rv370_defs_pcie_gart_info, 0, NULL},
 };
 #endif
 
-static int rv370_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
+static int rv370_defs_pcie_gart_info_init(struct radeon_device *rdev)
 {
-#if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, rv370_pcie_gart_info_list, 1);
+#if defined(CONFIG_DE_FS)
+	return radeon_defs_add_files(rdev, rv370_pcie_gart_info_list, 1);
 #else
 	return 0;
 #endif
@@ -1326,9 +1326,9 @@ void r300_mc_program(struct radeon_device *rdev)
 	struct r100_mc_save save;
 	int r;
 
-	r = r100_debugfs_mc_info_init(rdev);
+	r = r100_defs_mc_info_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "Failed to create r100_mc debugfs file.\n");
+		dev_err(rdev->dev, "Failed to create r100_mc defs file.\n");
 	}
 
 	/* Stops all mc clients */

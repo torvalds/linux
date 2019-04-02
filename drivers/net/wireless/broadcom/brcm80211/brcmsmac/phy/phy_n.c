@@ -18283,7 +18283,7 @@ wlc_phy_rfctrlintc_override_nphy(struct brcms_phy *pi, u8 field, u16 value,
 
 void
 wlc_phy_cal_txgainctrl_nphy(struct brcms_phy *pi, s32 dBm_targetpower,
-			    bool debug)
+			    bool de)
 {
 	int gainctrl_loopidx;
 	uint core;
@@ -18325,7 +18325,7 @@ wlc_phy_cal_txgainctrl_nphy(struct brcms_phy *pi, s32 dBm_targetpower,
 					 RADIO_MIMO_CORESEL_CORE1 |
 					 RADIO_MIMO_CORESEL_CORE2);
 
-	if (!debug) {
+	if (!de) {
 		wlc_phy_rfctrlintc_override_nphy(pi,
 						 NPHY_RfctrlIntc_override_TRSW,
 						 0x2, RADIO_MIMO_CORESEL_CORE1);
@@ -18398,7 +18398,7 @@ wlc_phy_cal_txgainctrl_nphy(struct brcms_phy *pi, s32 dBm_targetpower,
 
 		pi->nphy_txcal_pwr_idx[core] = (u8) txpwrindex;
 
-		if (debug) {
+		if (de) {
 			u16 radio_gain;
 			u16 dbg_m0m1;
 
@@ -26232,7 +26232,7 @@ cal_try:
 	}
 
 	if (bcmerror != 0) {
-		pr_debug("%s: Failed, cnt = %d\n", __func__, cal_retry);
+		pr_de("%s: Failed, cnt = %d\n", __func__, cal_retry);
 
 		if (cal_retry < CAL_RETRY_CNT) {
 			cal_retry++;
@@ -27354,7 +27354,7 @@ wlc_phy_rc_sweep_nphy(struct brcms_phy *pi, u8 core_idx, u8 loopback_type)
 #define WAIT_FOR_SCOPE  4000
 static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
 				      struct nphy_txgains target_gain,
-				      u8 cal_type, bool debug)
+				      u8 cal_type, bool de)
 {
 	u16 orig_BBConfig;
 	u8 core_no, rx_core;
@@ -27412,7 +27412,7 @@ static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
 					     NPHY_RXCAL_TONEAMP, 0, cal_type,
 					     false);
 
-			if (debug)
+			if (de)
 				mdelay(WAIT_FOR_SCOPE);
 
 			wlc_phy_calc_rx_iq_comp_nphy(pi, rx_core + 1);
@@ -27515,7 +27515,7 @@ static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
 
 static int
 wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
-			   struct nphy_txgains target_gain, bool debug)
+			   struct nphy_txgains target_gain, bool de)
 {
 	struct phy_iq_est est[PHY_CORE_MAX];
 	u8 core_num, rx_core, tx_core;
@@ -27610,7 +27610,7 @@ wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
 
 		for (gain_pass = 0; gain_pass < 4; gain_pass++) {
 
-			if (debug)
+			if (de)
 				mdelay(WAIT_FOR_SCOPE);
 
 			if (gain_pass < 3) {
@@ -27732,16 +27732,16 @@ wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
 
 int
 wlc_phy_cal_rxiq_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
-		      u8 cal_type, bool debug)
+		      u8 cal_type, bool de)
 {
 	if (NREV_GE(pi->pubpi.phy_rev, 7))
 		cal_type = 0;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3))
 		return wlc_phy_cal_rxiq_nphy_rev3(pi, target_gain, cal_type,
-						  debug);
+						  de);
 	else
-		return wlc_phy_cal_rxiq_nphy_rev2(pi, target_gain, debug);
+		return wlc_phy_cal_rxiq_nphy_rev2(pi, target_gain, de);
 }
 
 void wlc_phy_txpwr_fixpower_nphy(struct brcms_phy *pi)

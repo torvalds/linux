@@ -1444,7 +1444,7 @@ static int netsec_netdev_init(struct net_device *ndev)
 	int ret;
 	u16 data;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(DESC_NUM);
+	BUILD__ON_NOT_POWER_OF_2(DESC_NUM);
 
 	ret = netsec_alloc_dring(priv, NETSEC_RING_TX);
 	if (ret)

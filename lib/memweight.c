@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/bitmap.h>
 
 /**
@@ -20,7 +20,7 @@ size_t memweight(const void *ptr, size_t bytes)
 
 	longs = bytes / sizeof(long);
 	if (longs) {
-		BUG_ON(longs >= INT_MAX / BITS_PER_LONG);
+		_ON(longs >= INT_MAX / BITS_PER_LONG);
 		ret += bitmap_weight((unsigned long *)bitmap,
 				longs * BITS_PER_LONG);
 		bytes -= longs * sizeof(long);

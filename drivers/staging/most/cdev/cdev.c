@@ -378,7 +378,7 @@ static int comp_rx_completion(struct mbo *mbo)
 	}
 	kfifo_in(&c->fifo, &mbo, 1);
 	spin_unlock(&c->unlink);
-#ifdef DEBUG_MESG
+#ifdef DE_MESG
 	if (kfifo_is_full(&c->fifo))
 		pr_info("WARN: Fifo is full\n");
 #endif

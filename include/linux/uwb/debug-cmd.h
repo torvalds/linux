@@ -1,6 +1,6 @@
 /*
  * Ultra Wide Band
- * Debug interface commands
+ * De interface commands
  *
  * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
  *
@@ -16,13 +16,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __LINUX__UWB__DEBUG_CMD_H__
-#define __LINUX__UWB__DEBUG_CMD_H__
+#ifndef __LINUX__UWB__DE_CMD_H__
+#define __LINUX__UWB__DE_CMD_H__
 
 #include <linux/types.h>
 
 /*
- * Debug interface commands
+ * De interface commands
  *
  * UWB_DBG_CMD_RSV_ESTABLISH: Establish a new unicast reservation.
  *
@@ -65,4 +65,4 @@ struct uwb_dbg_cmd {
 	};
 };
 
-#endif /* #ifndef __LINUX__UWB__DEBUG_CMD_H__ */
+#endif /* #ifndef __LINUX__UWB__DE_CMD_H__ */

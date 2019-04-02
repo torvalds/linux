@@ -9,7 +9,7 @@
  *
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -34,7 +34,7 @@
 
 #include "maple.h"
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(x...) printk(x)
 #else
 #define DBG(x...)

@@ -47,7 +47,7 @@ config SUNDANCE_MMIO
 	---help---
 	  Enable memory-mapped I/O for interaction with Sundance NIC registers.
 	  Do NOT enable this by default, PIO (enabled when MMIO is disabled)
-	  is known to solve bugs on certain chips.
+	  is known to solve s on certain chips.
 
 	  If unsure, say N.
 

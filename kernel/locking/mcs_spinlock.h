@@ -83,7 +83,7 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
 		 * only spin on its own node->locked value for lock acquisition.
 		 * However, since this thread can immediately acquire the lock
 		 * and does not proceed to spin on its own node->locked, this
-		 * value won't be used. If a debug mode is needed to
+		 * value won't be used. If a de mode is needed to
 		 * audit lock status, then set node->locked value here.
 		 */
 		return;

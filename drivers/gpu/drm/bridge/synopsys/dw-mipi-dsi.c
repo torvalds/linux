@@ -755,13 +755,13 @@ static void dw_mipi_dsi_dphy_enable(struct dw_mipi_dsi *dsi)
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS, val,
 				 val & PHY_LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("failed to wait phy lock state\n");
+		DRM_DE_DRIVER("failed to wait phy lock state\n");
 
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
 				 val, val & PHY_STOP_STATE_CLK_LANE, 1000,
 				 PHY_STATUS_TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("failed to wait phy clk lane stop state\n");
+		DRM_DE_DRIVER("failed to wait phy clk lane stop state\n");
 }
 
 static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
@@ -830,7 +830,7 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 	ret = phy_ops->get_lane_mbps(priv_data, adjusted_mode, dsi->mode_flags,
 				     lanes, dsi->format, &dsi->lane_mbps);
 	if (ret)
-		DRM_DEBUG_DRIVER("Phy get_lane_mbps() failed\n");
+		DRM_DE_DRIVER("Phy get_lane_mbps() failed\n");
 
 	pm_runtime_get_sync(dsi->dev);
 	dw_mipi_dsi_init(dsi);
@@ -850,7 +850,7 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 
 	ret = phy_ops->init(priv_data);
 	if (ret)
-		DRM_DEBUG_DRIVER("Phy init() failed\n");
+		DRM_DE_DRIVER("Phy init() failed\n");
 
 	dw_mipi_dsi_dphy_enable(dsi);
 

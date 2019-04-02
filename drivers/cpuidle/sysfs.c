@@ -375,7 +375,7 @@ static void cpuidle_add_s2idle_attr_group(struct cpuidle_state_kobj *kobj)
 
 	ret = sysfs_create_group(&kobj->kobj, &cpuidle_state_s2idle_group);
 	if (ret)
-		pr_debug("%s: sysfs attribute group not created\n", __func__);
+		pr_de("%s: sysfs attribute group not created\n", __func__);
 }
 
 static void cpuidle_remove_s2idle_attr_group(struct cpuidle_state_kobj *kobj)

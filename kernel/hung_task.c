@@ -18,7 +18,7 @@
 #include <linux/suspend.h>
 #include <linux/utsname.h>
 #include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/sched/sysctl.h>
 
 #include <trace/events/sched.h>
@@ -199,7 +199,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
  unlock:
 	rcu_read_unlock();
 	if (hung_task_show_lock)
-		debug_show_all_locks();
+		de_show_all_locks();
 	if (hung_task_call_panic) {
 		trigger_all_cpu_backtrace();
 		panic("hung_task: blocked tasks");

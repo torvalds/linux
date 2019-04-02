@@ -647,7 +647,7 @@ void __init imx6_pm_ccm_init(const char *ccm_compat)
 
 	np = of_find_compatible_node(NULL, NULL, ccm_compat);
 	ccm_base = of_iomap(np, 0);
-	BUG_ON(!ccm_base);
+	_ON(!ccm_base);
 
 	/*
 	 * Initialize CCM_CLPCR_LPM into RUN mode to avoid ARM core

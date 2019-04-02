@@ -27,19 +27,19 @@
 #include <linux/ioport.h>
 #include <sound/core.h>
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_DE
 
-#ifdef CONFIG_SND_DEBUG_VERBOSE
-#define DEFAULT_DEBUG_LEVEL	2
+#ifdef CONFIG_SND_DE_VERBOSE
+#define DEFAULT_DE_LEVEL	2
 #else
-#define DEFAULT_DEBUG_LEVEL	1
+#define DEFAULT_DE_LEVEL	1
 #endif
 
-static int debug = DEFAULT_DEBUG_LEVEL;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0 = disable)");
+static int de = DEFAULT_DE_LEVEL;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "De level (0 = disable)");
 
-#endif /* CONFIG_SND_DEBUG */
+#endif /* CONFIG_SND_DE */
 
 void release_and_free_resource(struct resource *res)
 {
@@ -61,7 +61,7 @@ static const char *sanity_file_name(const char *path)
 }
 #endif
 
-#if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
+#if defined(CONFIG_SND_DE) || defined(CONFIG_SND_VERBOSE_PRINTK)
 void __snd_printk(unsigned int level, const char *path, int line,
 		  const char *format, ...)
 {
@@ -73,8 +73,8 @@ void __snd_printk(unsigned int level, const char *path, int line,
 	bool level_found = false;
 #endif
 
-#ifdef CONFIG_SND_DEBUG
-	if (debug < level)
+#ifdef CONFIG_SND_DE
+	if (de < level)
 		return;
 #endif
 
@@ -96,7 +96,7 @@ void __snd_printk(unsigned int level, const char *path, int line,
 	}
 
 	if (!level_found && level)
-		memcpy(verbose_fmt, KERN_DEBUG, sizeof(KERN_DEBUG) - 1);
+		memcpy(verbose_fmt, KERN_DE, sizeof(KERN_DE) - 1);
 
 	printk(verbose_fmt, sanity_file_name(path), line, &vaf);
 #else

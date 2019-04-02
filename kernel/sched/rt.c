@@ -111,7 +111,7 @@ static void destroy_rt_bandwidth(struct rt_bandwidth *rt_b)
 
 static inline struct task_struct *rt_task_of(struct sched_rt_entity *rt_se)
 {
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 	WARN_ON_ONCE(!rt_entity_is_task(rt_se));
 #endif
 	return container_of(rt_se, struct task_struct, rt);
@@ -753,7 +753,7 @@ static void __disable_runtime(struct rq *rq)
 		 * We cannot be left wanting - that would mean some runtime
 		 * leaked out of the system.
 		 */
-		BUG_ON(want);
+		_ON(want);
 balanced:
 		/*
 		 * Disable all the borrow logic by pretending we have inf
@@ -996,12 +996,12 @@ dequeue_top_rt_rq(struct rt_rq *rt_rq)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
 
-	BUG_ON(&rq->rt != rt_rq);
+	_ON(&rq->rt != rt_rq);
 
 	if (!rt_rq->rt_queued)
 		return;
 
-	BUG_ON(!rq->nr_running);
+	_ON(!rq->nr_running);
 
 	sub_nr_running(rq, rt_rq->rt_nr_running);
 	rt_rq->rt_queued = 0;
@@ -1013,7 +1013,7 @@ enqueue_top_rt_rq(struct rt_rq *rt_rq)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
 
-	BUG_ON(&rq->rt != rt_rq);
+	_ON(&rq->rt != rt_rq);
 
 	if (rt_rq->rt_queued)
 		return;
@@ -1515,7 +1515,7 @@ static struct sched_rt_entity *pick_next_rt_entity(struct rq *rq,
 	int idx;
 
 	idx = sched_find_first_bit(array->bitmap);
-	BUG_ON(idx >= MAX_RT_PRIO);
+	_ON(idx >= MAX_RT_PRIO);
 
 	queue = array->queue + idx;
 	next = list_entry(queue->next, struct sched_rt_entity, run_list);
@@ -1530,7 +1530,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 
 	do {
 		rt_se = pick_next_rt_entity(rq, rt_rq);
-		BUG_ON(!rt_se);
+		_ON(!rt_se);
 		rt_rq = group_rt_rq(rt_se);
 	} while (rt_rq);
 
@@ -1784,12 +1784,12 @@ static struct task_struct *pick_next_pushable_task(struct rq *rq)
 	p = plist_first_entry(&rq->rt.pushable_tasks,
 			      struct task_struct, pushable_tasks);
 
-	BUG_ON(rq->cpu != task_cpu(p));
-	BUG_ON(task_current(rq, p));
-	BUG_ON(p->nr_cpus_allowed <= 1);
+	_ON(rq->cpu != task_cpu(p));
+	_ON(task_current(rq, p));
+	_ON(p->nr_cpus_allowed <= 1);
 
-	BUG_ON(!task_on_rq_queued(p));
-	BUG_ON(!rt_task(p));
+	_ON(!task_on_rq_queued(p));
+	_ON(!rt_task(p));
 
 	return p;
 }
@@ -2713,7 +2713,7 @@ int sched_rr_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-#ifdef CONFIG_SCHED_DEBUG
+#ifdef CONFIG_SCHED_DE
 void print_rt_stats(struct seq_file *m, int cpu)
 {
 	rt_rq_iter_t iter;
@@ -2724,4 +2724,4 @@ void print_rt_stats(struct seq_file *m, int cpu)
 		print_rt_rq(m, cpu, rt_rq);
 	rcu_read_unlock();
 }
-#endif /* CONFIG_SCHED_DEBUG */
+#endif /* CONFIG_SCHED_DE */

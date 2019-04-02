@@ -15,7 +15,7 @@
 
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/rtnetlink.h>
@@ -194,11 +194,11 @@ nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf,
 		return -EBUSY;
 
 	if (bpf->command == XDP_SETUP_PROG && !ns->bpf_xdpdrv_accept) {
-		NSIM_EA(bpf->extack, "driver XDP disabled in DebugFS");
+		NSIM_EA(bpf->extack, "driver XDP disabled in DeFS");
 		return -EOPNOTSUPP;
 	}
 	if (bpf->command == XDP_SETUP_PROG_HW && !ns->bpf_xdpoffload_accept) {
-		NSIM_EA(bpf->extack, "XDP offload disabled in DebugFS");
+		NSIM_EA(bpf->extack, "XDP offload disabled in DeFS");
 		return -EOPNOTSUPP;
 	}
 
@@ -228,16 +228,16 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 
 	/* Program id is not populated yet when we create the state. */
 	sprintf(name, "%u", ns->sdev->prog_id_gen++);
-	state->ddir = debugfs_create_dir(name, ns->sdev->ddir_bpf_bound_progs);
+	state->ddir = defs_create_dir(name, ns->sdev->ddir_bpf_bound_progs);
 	if (IS_ERR_OR_NULL(state->ddir)) {
 		kfree(state);
 		return -ENOMEM;
 	}
 
-	debugfs_create_u32("id", 0400, state->ddir, &prog->aux->id);
-	debugfs_create_file("state", 0400, state->ddir,
+	defs_create_u32("id", 0400, state->ddir, &prog->aux->id);
+	defs_create_file("state", 0400, state->ddir,
 			    &state->state, &nsim_bpf_string_fops);
-	debugfs_create_bool("loaded", 0400, state->ddir, &state->is_loaded);
+	defs_create_bool("loaded", 0400, state->ddir, &state->is_loaded);
 
 	list_add_tail(&state->l, &ns->sdev->bpf_bound_progs);
 
@@ -271,7 +271,7 @@ static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 	state = prog->aux->offload->dev_priv;
 	WARN(state->is_loaded,
 	     "offload state destroyed while program still bound");
-	debugfs_remove_recursive(state->ddir);
+	defs_remove_recursive(state->ddir);
 	list_del(&state->l);
 	kfree(state);
 }
@@ -585,7 +585,7 @@ int nsim_bpf_init(struct netdevsim *ns)
 		INIT_LIST_HEAD(&ns->sdev->bpf_bound_maps);
 
 		ns->sdev->ddir_bpf_bound_progs =
-			debugfs_create_dir("bpf_bound_progs", ns->sdev->ddir);
+			defs_create_dir("bpf_bound_progs", ns->sdev->ddir);
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
 
@@ -600,29 +600,29 @@ int nsim_bpf_init(struct netdevsim *ns)
 	if (err)
 		goto err_destroy_bdev;
 
-	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
+	defs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
 			   &ns->bpf_offloaded_id);
 
 	ns->bpf_bind_accept = true;
-	debugfs_create_bool("bpf_bind_accept", 0600, ns->ddir,
+	defs_create_bool("bpf_bind_accept", 0600, ns->ddir,
 			    &ns->bpf_bind_accept);
-	debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->ddir,
+	defs_create_u32("bpf_bind_verifier_delay", 0600, ns->ddir,
 			   &ns->bpf_bind_verifier_delay);
 
 	ns->bpf_tc_accept = true;
-	debugfs_create_bool("bpf_tc_accept", 0600, ns->ddir,
+	defs_create_bool("bpf_tc_accept", 0600, ns->ddir,
 			    &ns->bpf_tc_accept);
-	debugfs_create_bool("bpf_tc_non_bound_accept", 0600, ns->ddir,
+	defs_create_bool("bpf_tc_non_bound_accept", 0600, ns->ddir,
 			    &ns->bpf_tc_non_bound_accept);
 	ns->bpf_xdpdrv_accept = true;
-	debugfs_create_bool("bpf_xdpdrv_accept", 0600, ns->ddir,
+	defs_create_bool("bpf_xdpdrv_accept", 0600, ns->ddir,
 			    &ns->bpf_xdpdrv_accept);
 	ns->bpf_xdpoffload_accept = true;
-	debugfs_create_bool("bpf_xdpoffload_accept", 0600, ns->ddir,
+	defs_create_bool("bpf_xdpoffload_accept", 0600, ns->ddir,
 			    &ns->bpf_xdpoffload_accept);
 
 	ns->bpf_map_accept = true;
-	debugfs_create_bool("bpf_map_accept", 0600, ns->ddir,
+	defs_create_bool("bpf_map_accept", 0600, ns->ddir,
 			    &ns->bpf_map_accept);
 
 	return 0;

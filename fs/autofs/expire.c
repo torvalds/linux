@@ -36,7 +36,7 @@ static int autofs_mount_busy(struct vfsmount *mnt,
 	struct path path = {.mnt = mnt, .dentry = dentry};
 	int status = 1;
 
-	pr_debug("dentry %p %pd\n", dentry, dentry);
+	pr_de("dentry %p %pd\n", dentry, dentry);
 
 	path_get(&path);
 
@@ -68,7 +68,7 @@ static int autofs_mount_busy(struct vfsmount *mnt,
 
 	status = 0;
 done:
-	pr_debug("returning = %d\n", status);
+	pr_de("returning = %d\n", status);
 	path_put(&path);
 	return status;
 }
@@ -194,7 +194,7 @@ static int autofs_direct_busy(struct vfsmount *mnt,
 			      unsigned long timeout,
 			      unsigned int how)
 {
-	pr_debug("top %p %pd\n", top, top);
+	pr_de("top %p %pd\n", top, top);
 
 	/* Forced expire, user space handles busy mounts */
 	if (how & AUTOFS_EXP_FORCED)
@@ -229,7 +229,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 	struct autofs_info *top_ino = autofs_dentry_ino(top);
 	struct dentry *p;
 
-	pr_debug("top %p %pd\n", top, top);
+	pr_de("top %p %pd\n", top, top);
 
 	/* Negative dentry - give up */
 	if (!simple_positive(top))
@@ -237,7 +237,7 @@ static int autofs_tree_busy(struct vfsmount *mnt,
 
 	p = NULL;
 	while ((p = get_next_positive_dentry(p, top))) {
-		pr_debug("dentry %p %pd\n", p, p);
+		pr_de("dentry %p %pd\n", p, p);
 
 		/*
 		 * Is someone visiting anywhere in the subtree ?
@@ -287,11 +287,11 @@ static struct dentry *autofs_check_leaves(struct vfsmount *mnt,
 {
 	struct dentry *p;
 
-	pr_debug("parent %p %pd\n", parent, parent);
+	pr_de("parent %p %pd\n", parent, parent);
 
 	p = NULL;
 	while ((p = get_next_positive_dentry(p, parent))) {
-		pr_debug("dentry %p %pd\n", p, p);
+		pr_de("dentry %p %pd\n", p, p);
 
 		if (d_mountpoint(p)) {
 			/* Can we umount this guy */
@@ -379,7 +379,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 	 *	   offset (autofs-5.0+).
 	 */
 	if (d_mountpoint(dentry)) {
-		pr_debug("checking mountpoint %p %pd\n", dentry, dentry);
+		pr_de("checking mountpoint %p %pd\n", dentry, dentry);
 
 		/* Can we umount this guy */
 		if (autofs_mount_busy(mnt, dentry, how))
@@ -398,7 +398,7 @@ static struct dentry *should_expire(struct dentry *dentry,
 	}
 
 	if (d_really_is_positive(dentry) && d_is_symlink(dentry)) {
-		pr_debug("checking symlink %p %pd\n", dentry, dentry);
+		pr_de("checking symlink %p %pd\n", dentry, dentry);
 
 		/* Forced expire, user space handles busy mounts */
 		if (how & AUTOFS_EXP_FORCED)
@@ -520,7 +520,7 @@ next:
 	return NULL;
 
 found:
-	pr_debug("returning %p %pd\n", expired, expired);
+	pr_de("returning %p %pd\n", expired, expired);
 	ino->flags |= AUTOFS_INF_EXPIRING;
 	init_completion(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
@@ -556,12 +556,12 @@ retry:
 	if (state & AUTOFS_INF_EXPIRING) {
 		spin_unlock(&sbi->fs_lock);
 
-		pr_debug("waiting for expire %p name=%pd\n", dentry, dentry);
+		pr_de("waiting for expire %p name=%pd\n", dentry, dentry);
 
 		status = autofs_wait(sbi, path, NFY_NONE);
 		wait_for_completion(&ino->expire_complete);
 
-		pr_debug("expire done status=%d\n", status);
+		pr_de("expire done status=%d\n", status);
 
 		if (d_unhashed(dentry))
 			return -EAGAIN;

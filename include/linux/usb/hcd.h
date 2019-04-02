@@ -166,7 +166,7 @@ struct usb_hcd {
 	unsigned		uses_new_polling:1;
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		has_tt:1;	/* Integrated TT in root hub */
-	unsigned		amd_resume_bug:1; /* AMD remote wakeup quirk */
+	unsigned		amd_resume_:1; /* AMD remote wakeup quirk */
 	unsigned		can_do_streams:1; /* HC supports streams */
 	unsigned		tpl_support:1; /* OTG & EH TPL support */
 	unsigned		cant_recv_wakeups:1;

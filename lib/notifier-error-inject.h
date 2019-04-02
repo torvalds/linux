@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/atomic.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/notifier.h>
 
 struct notifier_err_inject_action {

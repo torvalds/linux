@@ -38,13 +38,13 @@
 #define __KVM_HAVE_IRQ_LINE
 #define __KVM_HAVE_MSI
 #define __KVM_HAVE_USER_NMI
-#define __KVM_HAVE_GUEST_DEBUG
+#define __KVM_HAVE_GUEST_DE
 #define __KVM_HAVE_MSIX
 #define __KVM_HAVE_MCE
 #define __KVM_HAVE_PIT_STATE2
 #define __KVM_HAVE_XEN_HVM
 #define __KVM_HAVE_VCPU_EVENTS
-#define __KVM_HAVE_DEBUGREGS
+#define __KVM_HAVE_DEREGS
 #define __KVM_HAVE_XSAVE
 #define __KVM_HAVE_XCRS
 #define __KVM_HAVE_READONLY_MEM
@@ -248,7 +248,7 @@ struct kvm_pit_channel_state {
 	__s64 count_load_time;
 };
 
-struct kvm_debug_exit_arch {
+struct kvm_de_exit_arch {
 	__u32 exception;
 	__u32 pad;
 	__u64 pc;
@@ -261,9 +261,9 @@ struct kvm_debug_exit_arch {
 #define KVM_GUESTDBG_INJECT_DB		0x00040000
 #define KVM_GUESTDBG_INJECT_BP		0x00080000
 
-/* for KVM_SET_GUEST_DEBUG */
-struct kvm_guest_debug_arch {
-	__u64 debugreg[8];
+/* for KVM_SET_GUEST_DE */
+struct kvm_guest_de_arch {
+	__u64 dereg[8];
 };
 
 struct kvm_pit_state {
@@ -328,8 +328,8 @@ struct kvm_vcpu_events {
 	__u64 exception_payload;
 };
 
-/* for KVM_GET/SET_DEBUGREGS */
-struct kvm_debugregs {
+/* for KVM_GET/SET_DEREGS */
+struct kvm_deregs {
 	__u64 db[4];
 	__u64 dr6;
 	__u64 dr7;

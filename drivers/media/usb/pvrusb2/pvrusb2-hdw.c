@@ -30,7 +30,7 @@
 #include "pvrusb2-eeprom.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-encoder.h"
-#include "pvrusb2-debug.h"
+#include "pvrusb2-de.h"
 #include "pvrusb2-fx2-cmd.h"
 #include "pvrusb2-wm8775.h"
 #include "pvrusb2-video-v4l.h"
@@ -2971,7 +2971,7 @@ static int pvr2_hdw_commit_setup(struct pvr2_hdw *hdw)
 		if (!cptr->info->is_dirty(cptr)) continue;
 		commit_flag = !0;
 
-		if (!(pvrusb2_debug & PVR2_TRACE_CTL)) continue;
+		if (!(pvrusb2_de & PVR2_TRACE_CTL)) continue;
 		bcnt = scnprintf(buf,sizeof(buf),"\"%s\" <-- ",
 				 cptr->info->name);
 		value = 0;
@@ -3615,13 +3615,13 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	}
 
 
-	hdw->cmd_debug_state = 1;
+	hdw->cmd_de_state = 1;
 	if (write_len && write_data)
-		hdw->cmd_debug_code = ((unsigned char *)write_data)[0];
+		hdw->cmd_de_code = ((unsigned char *)write_data)[0];
 	else
-		hdw->cmd_debug_code = 0;
-	hdw->cmd_debug_write_len = write_len;
-	hdw->cmd_debug_read_len = read_len;
+		hdw->cmd_de_code = 0;
+	hdw->cmd_de_write_len = write_len;
+	hdw->cmd_de_read_len = read_len;
 
 	/* Initialize common stuff */
 	init_completion(&hdw->ctl_done);
@@ -3632,7 +3632,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	timer.timer.expires = jiffies + timeout;
 
 	if (write_len && write_data) {
-		hdw->cmd_debug_state = 2;
+		hdw->cmd_de_state = 2;
 		/* Transfer write data to internal buffer */
 		for (idx = 0; idx < write_len; idx++) {
 			hdw->ctl_write_buffer[idx] =
@@ -3666,7 +3666,7 @@ status);
 	}
 
 	if (read_len) {
-		hdw->cmd_debug_state = 3;
+		hdw->cmd_de_state = 3;
 		memset(hdw->ctl_read_buffer,0x43,read_len);
 		/* Initiate a read request */
 		usb_fill_bulk_urb(hdw->ctl_read_urb,
@@ -3699,16 +3699,16 @@ status);
 	add_timer(&timer.timer);
 
 	/* Now wait for all I/O to complete */
-	hdw->cmd_debug_state = 4;
+	hdw->cmd_de_state = 4;
 	while (hdw->ctl_write_pend_flag || hdw->ctl_read_pend_flag) {
 		wait_for_completion(&hdw->ctl_done);
 	}
-	hdw->cmd_debug_state = 5;
+	hdw->cmd_de_state = 5;
 
 	/* Stop timer */
 	del_timer_sync(&timer.timer);
 
-	hdw->cmd_debug_state = 6;
+	hdw->cmd_de_state = 6;
 	status = 0;
 
 	if (hdw->ctl_timeout_flag) {
@@ -3784,7 +3784,7 @@ status);
 
  done:
 
-	hdw->cmd_debug_state = 0;
+	hdw->cmd_de_state = 0;
 	if ((status < 0) && (!probe_fl)) {
 		pvr2_hdw_render_useless(hdw);
 	}
@@ -3820,7 +3820,7 @@ static int pvr2_issue_simple_cmd(struct pvr2_hdw *hdw,u32 cmdcode)
 			hdw->cmd_buffer[2] = (cmdcode >> 24) & 0xffu;
 		}
 	}
-	if (pvrusb2_debug & PVR2_TRACE_INIT) {
+	if (pvrusb2_de & PVR2_TRACE_INIT) {
 		unsigned int idx;
 		unsigned int ccnt,bcnt;
 		char tbuf[50];
@@ -4880,7 +4880,7 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *hdw)
 
 	pvr2_trace(PVR2_TRACE_STBITS,
 		   "Drive state check START");
-	if (pvrusb2_debug & PVR2_TRACE_STBITS) {
+	if (pvrusb2_de & PVR2_TRACE_STBITS) {
 		pvr2_hdw_state_log_state(hdw);
 	}
 
@@ -4923,7 +4923,7 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *hdw)
 		wake_up(&hdw->state_wait_data);
 	}
 
-	if (pvrusb2_debug & PVR2_TRACE_STBITS) {
+	if (pvrusb2_de & PVR2_TRACE_STBITS) {
 		pvr2_hdw_state_log_state(hdw);
 	}
 	pvr2_trace(PVR2_TRACE_STBITS,

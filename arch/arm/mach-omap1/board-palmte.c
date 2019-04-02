@@ -106,7 +106,7 @@ static struct platform_device palmte_kp_device = {
 };
 
 static struct mtd_partition palmte_rom_partitions[] = {
-	/* PalmOS "Small ROM", contains the bootloader and the debugger */
+	/* PalmOS "Small ROM", contains the bootloader and the deger */
 	{
 		.name		= "smallrom",
 		.offset		= 0,

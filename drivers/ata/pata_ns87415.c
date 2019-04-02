@@ -174,7 +174,7 @@ static void ns87415_bmdma_stop(struct ata_queued_cmd *qc)
  *	ns87415_irq_clear		-	Clear interrupt
  *	@ap: Channel to clear
  *
- *	Erratum: Due to a chip bug regisers 02 and 0A bit 1 and 2 (the
+ *	Erratum: Due to a chip  regisers 02 and 0A bit 1 and 2 (the
  *	error bits) are reset by writing to register 00 or 08.
  */
 
@@ -217,13 +217,13 @@ static int ns87415_check_atapi_dma(struct ata_queued_cmd *qc)
 #define SUPERIO_IDE_MAX_RETRIES 25
 
 /**
- *	ns87560_read_buggy	-	workaround buggy Super I/O chip
+ *	ns87560_read_gy	-	workaround gy Super I/O chip
  *	@port: Port to read
  *
  *	Work around chipset problems in the 87560 SuperIO chip
  */
 
-static u8 ns87560_read_buggy(void __iomem *port)
+static u8 ns87560_read_gy(void __iomem *port)
 {
 	u8 tmp;
 	int retries = SUPERIO_IDE_MAX_RETRIES;
@@ -246,7 +246,7 @@ static u8 ns87560_read_buggy(void __iomem *port)
 
 static u8 ns87560_check_status(struct ata_port *ap)
 {
-	return ns87560_read_buggy(ap->ioaddr.status_addr);
+	return ns87560_read_gy(ap->ioaddr.status_addr);
 }
 
 /**
@@ -255,7 +255,7 @@ static u8 ns87560_check_status(struct ata_port *ap)
  *	@tf: ATA taskfile register set for storing input
  *
  *	Reads ATA taskfile registers for currently-selected device
- *	into @tf. Work around the 87560 bugs.
+ *	into @tf. Work around the 87560 s.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -270,7 +270,7 @@ void ns87560_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	tf->lbal = ioread8(ioaddr->lbal_addr);
 	tf->lbam = ioread8(ioaddr->lbam_addr);
 	tf->lbah = ioread8(ioaddr->lbah_addr);
-	tf->device = ns87560_read_buggy(ioaddr->device_addr);
+	tf->device = ns87560_read_gy(ioaddr->device_addr);
 
 	if (tf->flags & ATA_TFLAG_LBA48) {
 		iowrite8(tf->ctl | ATA_HOB, ioaddr->ctl_addr);
@@ -294,7 +294,7 @@ void ns87560_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 
 static u8 ns87560_bmdma_status(struct ata_port *ap)
 {
-	return ns87560_read_buggy(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+	return ns87560_read_gy(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 }
 #endif		/* 87560 SuperIO Support */
 

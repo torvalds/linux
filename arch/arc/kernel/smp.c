@@ -139,7 +139,7 @@ static volatile int wake_flag;
 
 static void arc_default_smp_cpu_kick(int cpu, unsigned long pc)
 {
-	BUG_ON(cpu == 0);
+	_ON(cpu == 0);
 
 	__boot_write(wake_flag, cpu);
 }
@@ -271,7 +271,7 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 	unsigned long old, new;
 	unsigned long flags;
 
-	pr_debug("%d Sending msg [%d] to %d\n", smp_processor_id(), msg, cpu);
+	pr_de("%d Sending msg [%d] to %d\n", smp_processor_id(), msg, cpu);
 
 	local_irq_save(flags);
 
@@ -370,7 +370,7 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 	unsigned long pending;
 	unsigned long __maybe_unused copy;
 
-	pr_debug("IPI [%ld] received on cpu %d\n",
+	pr_de("IPI [%ld] received on cpu %d\n",
 		 *this_cpu_ptr(&ipi_data), smp_processor_id());
 
 	if (plat_smp_ops.ipi_clear)

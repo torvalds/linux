@@ -113,7 +113,7 @@ config RESET_QCOM_PDC
 	  This enables the PDC (Power Domain Controller) reset driver
 	  for Qualcomm Technologies Inc SDM845 SoCs. Say Y if you want
 	  to control reset signals provided by PDC for Modem, Compute,
-	  Display, GPU, Debug, AOP, Sensors, Audio, SP and APPS.
+	  Display, GPU, De, AOP, Sensors, Audio, SP and APPS.
 
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST

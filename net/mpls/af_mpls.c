@@ -1192,7 +1192,7 @@ static void mpls_netconf_notify_devconf(struct net *net, int event,
 
 	err = mpls_netconf_fill_devconf(skb, mdev, 0, 0, event, 0, type);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in mpls_netconf_msgsize_devconf() */
+		/* -EMSGSIZE implies  in mpls_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -1286,7 +1286,7 @@ static int mpls_netconf_get_devconf(struct sk_buff *in_skb,
 					nlh->nlmsg_seq, RTM_NEWNETCONF, 0,
 					NETCONFA_ALL);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in mpls_netconf_msgsize_devconf() */
+		/* -EMSGSIZE implies  in mpls_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -2262,7 +2262,7 @@ static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 
 	err = mpls_dump_route(skb, portid, seq, event, label, rt, nlm_flags);
 	if (err < 0) {
-		/* -EMSGSIZE implies BUG in lfib_nlmsg_size */
+		/* -EMSGSIZE implies  in lfib_nlmsg_size */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
@@ -2389,7 +2389,7 @@ static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
 		err = mpls_dump_route(skb, portid, in_nlh->nlmsg_seq,
 				      RTM_NEWROUTE, in_label, rt, 0);
 		if (err < 0) {
-			/* -EMSGSIZE implies BUG in lfib_nlmsg_size */
+			/* -EMSGSIZE implies  in lfib_nlmsg_size */
 			WARN_ON(err == -EMSGSIZE);
 			goto errout_free;
 		}
@@ -2726,7 +2726,7 @@ static int __init mpls_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct mpls_shim_hdr) != 4);
+	BUILD__ON(sizeof(struct mpls_shim_hdr) != 4);
 
 	err = register_pernet_subsys(&mpls_net_ops);
 	if (err)

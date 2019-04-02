@@ -46,7 +46,7 @@ static struct fsr_info fsr_info[] = {
 static struct fsr_info ifsr_info[] = {
 	{ do_bad,		SIGBUS,  0,		"unknown 0"			   },
 	{ do_bad,		SIGBUS,  0,		"unknown 1"			   },
-	{ do_bad,		SIGBUS,  0,		"debug event"			   },
+	{ do_bad,		SIGBUS,  0,		"de event"			   },
 	{ do_bad,		SIGSEGV, SEGV_ACCERR,	"section access flag fault"	   },
 	{ do_bad,		SIGBUS,  0,		"unknown 4"			   },
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"section translation fault"	   },

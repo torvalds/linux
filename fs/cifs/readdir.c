@@ -29,7 +29,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_fs_sb.h"
 #include "cifsfs.h"
 
@@ -40,7 +40,7 @@
  */
 #define UNICODE_NAME_MAX ((4 * NAME_MAX) + 2)
 
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 static void dump_cifs_file_struct(struct file *file, char *label)
 {
 	struct cifsFileInfo *cf;
@@ -63,7 +63,7 @@ static void dump_cifs_file_struct(struct file *file, char *label)
 static inline void dump_cifs_file_struct(struct file *file, char *label)
 {
 }
-#endif /* DEBUG2 */
+#endif /* DE2 */
 
 /*
  * Attempt to preload the dcache with the results from the FIND_FIRST/NEXT
@@ -864,7 +864,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 			break;
 		}
 		/*
-		 * if buggy server returns . and .. late do we want to
+		 * if gy server returns . and .. late do we want to
 		 * check for that here?
 		 */
 		*tmp_buf = 0;

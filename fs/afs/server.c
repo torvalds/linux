@@ -165,7 +165,7 @@ static struct afs_server *afs_install_server(struct afs_net *net,
 	p = NULL;
 	while (*pp) {
 		p = *pp;
-		_debug("- consider %p", p);
+		_de("- consider %p", p);
 		server = rb_entry(p, struct afs_server, uuid_rb);
 		diff = memcmp(&candidate->uuid, &server->uuid, sizeof(uuid_t));
 		if (diff < 0)
@@ -442,7 +442,7 @@ void afs_manage_servers(struct work_struct *work)
 			rb_entry(cursor, struct afs_server, uuid_rb);
 		int usage = atomic_read(&server->usage);
 
-		_debug("manage %pU %u", &server->uuid, usage);
+		_de("manage %pU %u", &server->uuid, usage);
 
 		ASSERTCMP(usage, >=, 1);
 		ASSERTIFCMP(purging, usage, ==, 1);
@@ -504,7 +504,7 @@ void afs_purge_servers(struct afs_net *net)
 
 	afs_queue_server_manager(net);
 
-	_debug("wait");
+	_de("wait");
 	wait_var_event(&net->servers_outstanding,
 		       !atomic_read(&net->servers_outstanding));
 	_leave("");

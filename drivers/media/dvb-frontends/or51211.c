@@ -40,9 +40,9 @@
 #include <media/dvb_frontend.h>
 #include "or51211.h"
 
-static int debug;
+static int de;
 #define dprintk(args...) \
-	do { if (debug) pr_debug(args); } while (0)
+	do { if (de) pr_de(args); } while (0)
 
 static u8 run_buf[] = {0x7f,0x01};
 static u8 cmd_buf[] = {0x04,0x01,0x50,0x80,0x06}; // ATSC
@@ -554,8 +554,8 @@ static const struct dvb_frontend_ops or51211_ops = {
 	.read_ucblocks = or51211_read_ucblocks,
 };
 
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
+module_param(de, int, 0644);
+MODULE_PARM_DESC(de, "Turn on/off frontend deging (default:off).");
 
 MODULE_DESCRIPTION("Oren OR51211 VSB [pcHDTV HD-2000] Demodulator Driver");
 MODULE_AUTHOR("Kirk Lapray");

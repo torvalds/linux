@@ -287,7 +287,7 @@ void sst_dsp_mailbox_dump(struct sst_dsp *dsp, size_t bytes);
 int sst_dsp_register_poll(struct sst_dsp  *dsp, u32 offset, u32 mask,
 		 u32 expected_value, u32 timeout, char *operation);
 
-/* Debug */
+/* De */
 void sst_dsp_dump(struct sst_dsp *sst);
 
 #endif

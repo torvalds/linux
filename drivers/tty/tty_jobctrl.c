@@ -106,7 +106,7 @@ static void __proc_set_tty(struct tty_struct *tty)
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	tty->session = get_pid(task_session(current));
 	if (current->signal->tty) {
-		tty_debug(tty, "current tty %s not NULL!!\n",
+		tty_de(tty, "current tty %s not NULL!!\n",
 			  current->signal->tty->name);
 		tty_kref_put(current->signal->tty);
 	}

@@ -801,7 +801,7 @@ enum fw_cmd_opcodes {
 	FW_HMA_CMD                     = 0x3f,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
-	FW_DEBUG_CMD                   = 0x81,
+	FW_DE_CMD                   = 0x81,
 };
 
 enum fw_cmd_cap {
@@ -3552,11 +3552,11 @@ struct fw_error_cmd {
 	} u;
 };
 
-struct fw_debug_cmd {
+struct fw_de_cmd {
 	__be32 op_type;
 	__be32 len16_pkd;
-	union fw_debug {
-		struct fw_debug_assert {
+	union fw_de {
+		struct fw_de_assert {
 			__be32 fcid;
 			__be32 line;
 			__be32 x;
@@ -3565,7 +3565,7 @@ struct fw_debug_cmd {
 			u8 filename_8_15[8];
 			__be64 r3;
 		} assert;
-		struct fw_debug_prt {
+		struct fw_de_prt {
 			__be16 dprtstridx;
 			__be16 r3[3];
 			__be32 dprtstrparam0;
@@ -3576,10 +3576,10 @@ struct fw_debug_cmd {
 	} u;
 };
 
-#define FW_DEBUG_CMD_TYPE_S	0
-#define FW_DEBUG_CMD_TYPE_M	0xff
-#define FW_DEBUG_CMD_TYPE_G(x)	\
-	(((x) >> FW_DEBUG_CMD_TYPE_S) & FW_DEBUG_CMD_TYPE_M)
+#define FW_DE_CMD_TYPE_S	0
+#define FW_DE_CMD_TYPE_M	0xff
+#define FW_DE_CMD_TYPE_G(x)	\
+	(((x) >> FW_DE_CMD_TYPE_S) & FW_DE_CMD_TYPE_M)
 
 struct fw_hma_cmd {
 	__be32 op_pkd;
@@ -3746,7 +3746,7 @@ enum fw_devlog_level {
 	FW_DEVLOG_LEVEL_ERR	= 0x2,
 	FW_DEVLOG_LEVEL_NOTICE	= 0x3,
 	FW_DEVLOG_LEVEL_INFO	= 0x4,
-	FW_DEVLOG_LEVEL_DEBUG	= 0x5,
+	FW_DEVLOG_LEVEL_DE	= 0x5,
 	FW_DEVLOG_LEVEL_MAX	= 0x5,
 };
 

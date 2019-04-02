@@ -92,7 +92,7 @@ one when firmware is unable to.
 Please note: Firmware adds runtime configuration information to the
 device tree before booting the kernel. If dtb= is used to override
 the device tree, then any runtime data provided by firmware will be
-lost. The dtb= option should only be used either as a debug tool, or
+lost. The dtb= option should only be used either as a de tool, or
 as a last resort when a device tree is not provided in the EFI
 CONFIGURATION TABLE.
 

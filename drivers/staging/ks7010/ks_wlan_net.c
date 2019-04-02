@@ -91,7 +91,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 static
 void ks_wlan_update_phyinfo_timeout(struct timer_list *unused)
 {
-	pr_debug("in_interrupt = %ld\n", in_interrupt());
+	pr_de("in_interrupt = %ld\n", in_interrupt());
 	atomic_set(&update_phyinfo, 0);
 }
 

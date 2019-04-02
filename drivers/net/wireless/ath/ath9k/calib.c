@@ -162,7 +162,7 @@ static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,
 		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_2);
 		break;
 	default:
-		BUG_ON(1);
+		_ON(1);
 		return false;
 	}
 

@@ -20,7 +20,7 @@
  *
  * FIXME:
  *      - the initialization/deinitialization process is very dirty and should
- *        be rewritten. It may even be buggy.
+ *        be rewritten. It may even be gy.
  *
  * TODO:
  *	- document 24 keys keyboard (3 rows of 8 cols, 32 diodes + 2 inputs)

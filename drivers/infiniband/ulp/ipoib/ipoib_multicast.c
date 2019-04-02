@@ -47,12 +47,12 @@
 
 #include "ipoib.h"
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
-static int mcast_debug_level;
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
+static int mcast_de_level;
 
-module_param(mcast_debug_level, int, 0644);
-MODULE_PARM_DESC(mcast_debug_level,
-		 "Enable multicast debug tracing if > 0");
+module_param(mcast_de_level, int, 0644);
+MODULE_PARM_DESC(mcast_de_level,
+		 "Enable multicast de tracing if > 0");
 #endif
 
 struct ipoib_mcast_iter {
@@ -992,7 +992,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	}
 }
 
-#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+#ifdef CONFIG_INFINIBAND_IPOIB_DE
 
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
@@ -1062,4 +1062,4 @@ void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 	*send_only = iter->send_only;
 }
 
-#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
+#endif /* CONFIG_INFINIBAND_IPOIB_DE */

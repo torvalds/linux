@@ -84,7 +84,7 @@ void lkdtm_READ_AFTER_FREE(void)
 	if (saw != *val) {
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
-		BUG();
+		();
 	}
 	pr_info("Memory was not poisoned\n");
 
@@ -140,7 +140,7 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 	if (saw != *val) {
 		/* Good! Poisoning happened, so declare a win. */
 		pr_info("Memory correctly poisoned (%x)\n", saw);
-		BUG();
+		();
 	}
 	pr_info("Buddy page was not poisoned\n");
 

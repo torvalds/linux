@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/cache.h>
 #include <linux/rbtree.h>
 #include <linux/socket.h>
@@ -1506,10 +1506,10 @@ static inline bool skb_queue_is_first(const struct sk_buff_head *list,
 static inline struct sk_buff *skb_queue_next(const struct sk_buff_head *list,
 					     const struct sk_buff *skb)
 {
-	/* This BUG_ON may seem severe, but if we just return then we
+	/* This _ON may seem severe, but if we just return then we
 	 * are going to dereference garbage.
 	 */
-	BUG_ON(skb_queue_is_last(list, skb));
+	_ON(skb_queue_is_last(list, skb));
 	return skb->next;
 }
 
@@ -1524,10 +1524,10 @@ static inline struct sk_buff *skb_queue_next(const struct sk_buff_head *list,
 static inline struct sk_buff *skb_queue_prev(const struct sk_buff_head *list,
 					     const struct sk_buff *skb)
 {
-	/* This BUG_ON may seem severe, but if we just return then we
+	/* This _ON may seem severe, but if we just return then we
 	 * are going to dereference garbage.
 	 */
-	BUG_ON(skb_queue_is_first(list, skb));
+	_ON(skb_queue_is_first(list, skb));
 	return skb->prev;
 }
 
@@ -2102,9 +2102,9 @@ void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
 void skb_coalesce_rx_frag(struct sk_buff *skb, int i, int size,
 			  unsigned int truesize);
 
-#define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
-#define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frag_list(skb))
-#define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
+#define SKB_PAGE_ASSERT(skb) 	_ON(skb_shinfo(skb)->nr_frags)
+#define SKB_FRAG_ASSERT(skb) 	_ON(skb_has_frag_list(skb))
+#define SKB_LINEAR_ASSERT(skb)  _ON(skb_is_nonlinear(skb))
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_tail_pointer(const struct sk_buff *skb)
@@ -2213,7 +2213,7 @@ void *skb_pull(struct sk_buff *skb, unsigned int len);
 static inline void *__skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	skb->len -= len;
-	BUG_ON(skb->len < skb->data_len);
+	_ON(skb->len < skb->data_len);
 	return skb->data += len;
 }
 
@@ -2634,7 +2634,7 @@ static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
 static inline void pskb_trim_unique(struct sk_buff *skb, unsigned int len)
 {
 	int err = pskb_trim(skb, len);
-	BUG_ON(err);
+	_ON(err);
 }
 
 static inline int __skb_grow(struct sk_buff *skb, unsigned int len)
@@ -2666,7 +2666,7 @@ static inline void skb_orphan(struct sk_buff *skb)
 		skb->destructor = NULL;
 		skb->sk		= NULL;
 	} else {
-		BUG_ON(skb->sk);
+		_ON(skb->sk);
 	}
 }
 
@@ -4348,8 +4348,8 @@ static inline void skb_forward_csum(struct sk_buff *skb)
  */
 static inline void skb_checksum_none_assert(const struct sk_buff *skb)
 {
-#ifdef DEBUG
-	BUG_ON(skb->ip_summed != CHECKSUM_NONE);
+#ifdef DE
+	_ON(skb->ip_summed != CHECKSUM_NONE);
 #endif
 }
 

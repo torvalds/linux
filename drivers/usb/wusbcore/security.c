@@ -244,13 +244,13 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 	while (itr < top) {
 		etd = itr;
 		if (top - itr < sizeof(*etd)) {
-			dev_err(dev, "BUG: bad device security descriptor; "
+			dev_err(dev, ": bad device security descriptor; "
 				"not enough data (%zu vs %zu bytes left)\n",
 				top - itr, sizeof(*etd));
 			break;
 		}
 		if (etd->bLength < sizeof(*etd)) {
-			dev_err(dev, "BUG: bad device encryption descriptor; "
+			dev_err(dev, ": bad device encryption descriptor; "
 				"descriptor is too short "
 				"(%u vs %zu needed)\n",
 				etd->bLength, sizeof(*etd));

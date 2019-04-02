@@ -86,7 +86,7 @@ struct efm32_uart_port {
 	struct efm32_uart_pdata pdata;
 };
 #define to_efm_port(_port) container_of(_port, struct efm32_uart_port, port)
-#define efm_debug(efm_port, format, arg...)			\
+#define efm_de(efm_port, format, arg...)			\
 	dev_dbg(efm_port->port.dev, format, ##arg)
 
 static void efm32_uart_write32(struct efm32_uart_port *efm_port,
@@ -295,7 +295,7 @@ static int efm32_uart_startup(struct uart_port *port)
 
 	ret = clk_enable(efm_port->clk);
 	if (ret) {
-		efm_debug(efm_port, "failed to enable clk\n");
+		efm_de(efm_port, "failed to enable clk\n");
 		goto err_clk_enable;
 	}
 	port->uartclk = clk_get_rate(efm_port->clk);
@@ -309,7 +309,7 @@ static int efm32_uart_startup(struct uart_port *port)
 	ret = request_irq(port->irq, efm32_uart_rxirq, 0,
 			DRIVER_NAME, efm_port);
 	if (ret) {
-		efm_debug(efm_port, "failed to register rxirq\n");
+		efm_de(efm_port, "failed to register rxirq\n");
 		goto err_request_irq_rx;
 	}
 
@@ -319,7 +319,7 @@ static int efm32_uart_startup(struct uart_port *port)
 	ret = request_irq(efm_port->txirq, efm32_uart_txirq, 0,
 			DRIVER_NAME, efm_port);
 	if (ret) {
-		efm_debug(efm_port, "failed to register txirq\n");
+		efm_de(efm_port, "failed to register txirq\n");
 		free_irq(port->irq, efm_port);
 err_request_irq_rx:
 
@@ -448,14 +448,14 @@ static int efm32_uart_request_port(struct uart_port *port)
 	port->membase = ioremap(port->mapbase, 60);
 	if (!efm_port->port.membase) {
 		ret = -ENOMEM;
-		efm_debug(efm_port, "failed to remap\n");
+		efm_de(efm_port, "failed to remap\n");
 		goto err_ioremap;
 	}
 
 	efm_port->clk = clk_get(port->dev, NULL);
 	if (IS_ERR(efm_port->clk)) {
 		ret = PTR_ERR(efm_port->clk);
-		efm_debug(efm_port, "failed to get clock\n");
+		efm_de(efm_port, "failed to get clock\n");
 		goto err_clk_get;
 	}
 
@@ -588,7 +588,7 @@ static void efm32_uart_console_get_options(struct efm32_uart_port *efm_port,
 	*bits = (frame & UARTn_FRAME_DATABITS__MASK) -
 			UARTn_FRAME_DATABITS(4) + 4;
 
-	efm_debug(efm_port, "get_opts: options=%d%c%d\n",
+	efm_de(efm_port, "get_opts: options=%d%c%d\n",
 			*baud, *parity, *bits);
 }
 
@@ -686,10 +686,10 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 			dev_err(&pdev->dev, "invalid location\n");
 			return -EINVAL;
 		}
-		efm_debug(efm_port, "using location %u\n", location);
+		efm_de(efm_port, "using location %u\n", location);
 		efm_port->pdata.location = location;
 	} else {
-		efm_debug(efm_port, "fall back to location 0\n");
+		efm_de(efm_port, "fall back to location 0\n");
 	}
 
 	ret = of_alias_get_id(np, "serial");

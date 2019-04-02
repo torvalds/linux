@@ -68,7 +68,7 @@ struct isdn_ppp_compressor {
   void *(*alloc) (struct isdn_ppp_comp_data *);
   void (*free) (void *state);
   int  (*init) (void *state, struct isdn_ppp_comp_data *,
-		int unit,int debug);
+		int unit,int de);
   
   /* The reset entry needs to get more exact information about the
      ResetReq or ResetAck it was called with. The parameters are
@@ -183,7 +183,7 @@ struct ippp_struct {
   struct bpf_prog *pass_filter;   /* filter for packets to pass */
   struct bpf_prog *active_filter; /* filter for pkts to reset idle */
 #endif
-  unsigned long debug;
+  unsigned long de;
   struct isdn_ppp_compressor *compressor,*decompressor;
   struct isdn_ppp_compressor *link_compressor,*link_decompressor;
   void *decomp_stat,*comp_stat,*link_decomp_stat,*link_comp_stat;

@@ -459,7 +459,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	 * (vma->vm_flags & VM_SHARED) != 0, for performance reasons,
 	 * but for some reason VM_PFNMAP + x86 PAT + write-combine is very
 	 * bad for performance. Until that has been sorted out, use
-	 * VM_MIXEDMAP on all mappings. See freedesktop.org bug #75719
+	 * VM_MIXEDMAP on all mappings. See freedesktop.org  #75719
 	 */
 	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;

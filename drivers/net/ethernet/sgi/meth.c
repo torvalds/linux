@@ -36,16 +36,16 @@
 
 #include "meth.h"
 
-#ifndef MFE_DEBUG
-#define MFE_DEBUG 0
+#ifndef MFE_DE
+#define MFE_DE 0
 #endif
 
-#if MFE_DEBUG>=1
-#define DPRINTK(str,args...) printk(KERN_DEBUG "meth: %s: " str, __func__ , ## args)
-#define MFE_RX_DEBUG 2
+#if MFE_DE>=1
+#define DPRINTK(str,args...) printk(KERN_DE "meth: %s: " str, __func__ , ## args)
+#define MFE_RX_DE 2
 #else
 #define DPRINTK(str,args...)
-#define MFE_RX_DEBUG 0
+#define MFE_RX_DE 0
 #endif
 
 
@@ -145,7 +145,7 @@ static int mdio_probe(struct meth_private *priv)
 		priv->phy_addr=i;
 		p2=mdio_read(priv,2);
 		p3=mdio_read(priv,3);
-#if MFE_DEBUG>=2
+#if MFE_DE>=2
 		switch ((p2<<12)|(p3>>4)){
 		case PHY_QS6612X:
 			DPRINTK("PHY is QS6612X\n");
@@ -399,7 +399,7 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 				 priv->rx_ring_dmas[priv->rx_write],
 				 METH_RX_BUFF_SIZE, DMA_FROM_DEVICE);
 		status = priv->rx_ring[priv->rx_write]->status.raw;
-#if MFE_DEBUG
+#if MFE_DE
 		if (!(status & METH_RX_ST_VALID)) {
 			DPRINTK("Not received? status=%016lx\n",status);
 		}
@@ -408,7 +408,7 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 			int len = (status & 0xffff) - 4; /* omit CRC */
 			/* length sanity check */
 			if (len < 60 || len > 1518) {
-				printk(KERN_DEBUG "%s: bogus packet size: %ld, status=%#2Lx.\n",
+				printk(KERN_DE "%s: bogus packet size: %ld, status=%#2Lx.\n",
 				       dev->name, priv->rx_write,
 				       priv->rx_ring[priv->rx_write]->status.raw);
 				dev->stats.rx_errors++;
@@ -438,7 +438,7 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 		} else {
 			dev->stats.rx_errors++;
 			skb=priv->rx_skbs[priv->rx_write];
-#if MFE_DEBUG>0
+#if MFE_DE>0
 			printk(KERN_WARNING "meth: RX error: status=0x%016lx\n",status);
 			if(status&METH_RX_ST_RCV_CODE_VIOLATION)
 				printk(KERN_WARNING "Receive Code Violation\n");
@@ -494,7 +494,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 	while (priv->tx_read != rptr) {
 		skb = priv->tx_skbs[priv->tx_read];
 		status = priv->tx_ring[priv->tx_read].header.raw;
-#if MFE_DEBUG>=1
+#if MFE_DE>=1
 		if (priv->tx_read == priv->tx_write)
 			DPRINTK("Auchi! tx_read=%d,tx_write=%d,rptr=%d?\n", priv->tx_read, priv->tx_write,rptr);
 #endif
@@ -504,7 +504,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 				dev->stats.tx_bytes += skb->len;
 			} else {
 				dev->stats.tx_errors++;
-#if MFE_DEBUG>=1
+#if MFE_DE>=1
 				DPRINTK("TX error: status=%016lx <",status);
 				if(status & METH_TX_ST_SUCCESS)
 					printk(" SUCCESS");
@@ -716,7 +716,7 @@ static netdev_tx_t meth_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* If TX ring is full, tell the upper layer to stop sending packets */
 	if (meth_tx_full(dev)) {
-	        printk(KERN_DEBUG "TX full: stopping\n");
+	        printk(KERN_DE "TX full: stopping\n");
 		netif_stop_queue(dev);
 	}
 

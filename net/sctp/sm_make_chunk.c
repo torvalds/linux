@@ -26,7 +26,7 @@
  * along with GNU CC; see the file COPYING.  If not, see
  * <http://www.gnu.org/licenses/>.
  *
- * Please send any bug reports or fixes you make to the
+ * Please send any  reports or fixes you make to the
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
@@ -778,7 +778,7 @@ struct sctp_chunk *sctp_make_sack(struct sctp_association *asoc)
 	memset(gabs, 0, sizeof(gabs));
 	ctsn = sctp_tsnmap_get_ctsn(map);
 
-	pr_debug("%s: sackCTSNAck sent:0x%x\n", __func__, ctsn);
+	pr_de("%s: sackCTSNAck sent:0x%x\n", __func__, ctsn);
 
 	/* How much room is needed in the chunk? */
 	num_gabs = sctp_tsnmap_num_gabs(map, gabs);
@@ -814,7 +814,7 @@ struct sctp_chunk *sctp_make_sack(struct sctp_association *asoc)
 	 * destination transport addresses from which the DATA or
 	 * control chunks being acknowledged were received.
 	 *
-	 * [BUG:  We do not implement the following paragraph.
+	 * [:  We do not implement the following paragraph.
 	 * Perhaps we should remember the last transport we used for a
 	 * SACK and avoid that (if possible) if we have seen any
 	 * duplicates. --piggy]
@@ -1347,7 +1347,7 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 	if (!retval)
 		goto nodata;
 	if (!sk)
-		pr_debug("%s: chunkifying skb:%p w/o an sk\n", __func__, skb);
+		pr_de("%s: chunkifying skb:%p w/o an sk\n", __func__, skb);
 
 	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
@@ -1461,7 +1461,7 @@ static struct sctp_chunk *sctp_make_control(const struct sctp_association *asoc,
 /* Release the memory occupied by a chunk.  */
 static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 {
-	BUG_ON(!list_empty(&chunk->list));
+	_ON(!list_empty(&chunk->list));
 	list_del_init(&chunk->transmitted_list);
 
 	consume_skb(chunk->skb);
@@ -2243,7 +2243,7 @@ static enum sctp_ierror sctp_verify_param(struct net *net,
 		break;
 fallthrough:
 	default:
-		pr_debug("%s: unrecognized param:%d for chunk:%d\n",
+		pr_de("%s: unrecognized param:%d for chunk:%d\n",
 			 __func__, ntohs(param.p->type), cid);
 
 		retval = sctp_process_unk_param(asoc, param, chunk, err_chunk);
@@ -2562,7 +2562,7 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
-		pr_debug("%s: unimplemented SCTP_HOST_NAME_ADDRESS\n", __func__);
+		pr_de("%s: unimplemented SCTP_HOST_NAME_ADDRESS\n", __func__);
 		break;
 
 	case SCTP_PARAM_SUPPORTED_ADDRESS_TYPES:
@@ -2711,7 +2711,7 @@ fall_through:
 		 * called prior to this routine.  Simply log the error
 		 * here.
 		 */
-		pr_debug("%s: ignoring param:%d for association:%p.\n",
+		pr_de("%s: ignoring param:%d for association:%p.\n",
 			 __func__, ntohs(param.p->type), asoc);
 		break;
 	}
@@ -2854,7 +2854,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 			totallen += addr_param_len;
 			del_pickup = 1;
 
-			pr_debug("%s: picked same-scope del_pending addr, "
+			pr_de("%s: picked same-scope del_pending addr, "
 				 "totallen for all addresses is %d\n",
 				 __func__, totallen);
 		}

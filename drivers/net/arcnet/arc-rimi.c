@@ -66,7 +66,7 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum,
  */
 static int __init arcrimi_probe(struct net_device *dev)
 {
-	if (BUGLVL(D_NORMAL)) {
+	if (LVL(D_NORMAL)) {
 		pr_info("%s\n", "RIM I (entirely mem-mapped) support");
 		pr_info("E-mail me if you actually test the RIM I driver, please!\n");
 		pr_info("Given: node %02Xh, shmem %lXh, irq %d\n",
@@ -74,12 +74,12 @@ static int __init arcrimi_probe(struct net_device *dev)
 	}
 
 	if (dev->mem_start <= 0 || dev->irq <= 0) {
-		if (BUGLVL(D_NORMAL))
+		if (LVL(D_NORMAL))
 			pr_err("No autoprobe for RIM I; you must specify the shmem and irq!\n");
 		return -ENODEV;
 	}
 	if (dev->dev_addr[0] == 0) {
-		if (BUGLVL(D_NORMAL))
+		if (LVL(D_NORMAL))
 			pr_err("You need to specify your card's station ID!\n");
 		return -ENODEV;
 	}
@@ -89,7 +89,7 @@ static int __init arcrimi_probe(struct net_device *dev)
 	 * will be taken.
 	 */
 	if (!request_mem_region(dev->mem_start, MIRROR_SIZE, "arcnet (90xx)")) {
-		if (BUGLVL(D_NORMAL))
+		if (LVL(D_NORMAL))
 			pr_notice("Card memory already allocated\n");
 		return -ENODEV;
 	}

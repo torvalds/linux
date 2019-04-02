@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/sched/debug.h>
+#include <linux/sched/de.h>
 #include <linux/init_task.h>
 #include <linux/fs.h>
 
@@ -66,15 +66,15 @@ struct x86_hw_tss doublefault_tss __cacheline_aligned = {
 	.ds		= __USER_DS,
 	.fs		= __KERNEL_PERCPU,
 
-	.__cr3		= __pa_nodebug(swapper_pg_dir),
+	.__cr3		= __pa_node(swapper_pg_dir),
 };
 
 /* dummy for do_double_fault() call */
-void df_debug(struct pt_regs *regs, long error_code) {}
+void df_de(struct pt_regs *regs, long error_code) {}
 
 #else /* !CONFIG_X86_32 */
 
-void df_debug(struct pt_regs *regs, long error_code)
+void df_de(struct pt_regs *regs, long error_code)
 {
 	pr_emerg("PANIC: double fault, error_code: 0x%lx\n", error_code);
 	show_regs(regs);

@@ -68,7 +68,7 @@ struct vmci_qp_set_va_info {
  *
  * The Linux driver doesn't get an indication of the size of the
  * structure passed down from user space.  So, to fix a long standing
- * but unfiled bug, the _pad field has been renamed to version.
+ * but unfiled , the _pad field has been renamed to version.
  * Existing versions of VMX always initialize the PageFileInfo
  * structure so that _pad, er, version is set to 0.
  *

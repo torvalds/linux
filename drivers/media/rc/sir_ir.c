@@ -98,7 +98,7 @@ static void add_read_queue(int flag, unsigned long val)
 {
 	struct ir_raw_event ev = {};
 
-	pr_debug("add flag %d with val %lu\n", flag, val);
+	pr_de("add flag %d with val %lu\n", flag, val);
 
 	/*
 	 * statistically, pulses are ~TIME_CONST/2 too long. we could

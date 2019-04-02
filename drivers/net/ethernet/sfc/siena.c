@@ -156,7 +156,7 @@ static int siena_ptp_set_ts_config(struct efx_nic *efx,
 		init->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 		rc = efx_ptp_change_mode(efx, true,
 					 MC_CMD_PTP_MODE_V2_ENHANCED);
-		/* bug 33070 - old versions of the firmware do not support the
+		/*  33070 - old versions of the firmware do not support the
 		 * improved UUID filtering option. Similarly old versions of the
 		 * application do not expect it to be enabled. If the firmware
 		 * does not accept the enhanced mode, fall back to the standard
@@ -279,7 +279,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx->max_channels = EFX_MAX_CHANNELS;
 	efx->max_tx_channels = EFX_MAX_CHANNELS;
 
-	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
+	efx_reado(efx, &reg, FR_AZ_CS_DE);
 	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
 	rc = efx_mcdi_init(efx);
@@ -300,7 +300,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 				  GFP_KERNEL);
 	if (rc)
 		goto fail4;
-	BUG_ON(efx->irq_status.dma_addr & 0x0f);
+	_ON(efx->irq_status.dma_addr & 0x0f);
 
 	netif_dbg(efx, probe, efx->net_dev,
 		  "INT_KER at %llx (virt %p phys %llx)\n",
@@ -372,7 +372,7 @@ static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
 	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
 
 	/* Enable IPv6 RSS */
-	BUILD_BUG_ON(sizeof(efx->rss_context.rx_hash_key) <
+	BUILD__ON(sizeof(efx->rss_context.rx_hash_key) <
 		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
 		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
 	memcpy(&temp, efx->rss_context.rx_hash_key, sizeof(temp));
@@ -637,7 +637,7 @@ static int siena_mac_reconfigure(struct efx_nic *efx)
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
 	int rc;
 
-	BUILD_BUG_ON(MC_CMD_SET_MCAST_HASH_IN_LEN !=
+	BUILD__ON(MC_CMD_SET_MCAST_HASH_IN_LEN !=
 		     MC_CMD_SET_MCAST_HASH_IN_HASH0_OFST +
 		     sizeof(efx->multicast_hash));
 

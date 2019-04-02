@@ -398,7 +398,7 @@ void qla4_83xx_set_idc_dontreset(struct scsi_qla_host *ha)
 	idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
 	idc_ctrl |= DONTRESET_BIT0;
 	qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL, idc_ctrl);
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: idc_ctrl = %d\n", __func__,
+	DE2(ql4_printk(KERN_INFO, ha, "%s: idc_ctrl = %d\n", __func__,
 			  idc_ctrl));
 }
 
@@ -409,7 +409,7 @@ void qla4_83xx_clear_idc_dontreset(struct scsi_qla_host *ha)
 	idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
 	idc_ctrl &= ~DONTRESET_BIT0;
 	qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL, idc_ctrl);
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: idc_ctrl = %d\n", __func__,
+	DE2(ql4_printk(KERN_INFO, ha, "%s: idc_ctrl = %d\n", __func__,
 			  idc_ctrl));
 }
 
@@ -492,7 +492,7 @@ int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
 	 * precedence over iSCSI and FCOE and iSCSI over FCOE, based on drivers
 	 * present. */
 	if (!nic_present && (ha->func_num == iscsi_func_low)) {
-		DEBUG2(ql4_printk(KERN_INFO, ha,
+		DE2(ql4_printk(KERN_INFO, ha,
 				  "%s: can reset - NIC not present and lower iSCSI function is %d\n",
 				  __func__, ha->func_num));
 		return 1;
@@ -516,7 +516,7 @@ void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha)
 		   __func__);
 
 	if (!test_bit(AF_8XXX_RST_OWNER, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: reset acknowledged\n",
+		DE2(ql4_printk(KERN_INFO, ha, "%s: reset acknowledged\n",
 				  __func__));
 		qla4_8xxx_set_rst_ready(ha);
 
@@ -593,7 +593,7 @@ void qla4_83xx_get_idc_param(struct scsi_qla_host *ha)
 		ha->nx_reset_timeout = ROM_DRV_RESET_ACK_TIMEOUT;
 	}
 
-	DEBUG2(ql4_printk(KERN_DEBUG, ha,
+	DE2(ql4_printk(KERN_DE, ha,
 			  "%s: ha->nx_dev_init_timeout = %d, ha->nx_reset_timeout = %d\n",
 			  __func__, ha->nx_dev_init_timeout,
 			  ha->nx_reset_timeout));
@@ -613,7 +613,7 @@ static void qla4_83xx_dump_reset_seq_hdr(struct scsi_qla_host *ha)
 
 	phdr = ha->reset_tmplt.buff;
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "Reset Template: 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X\n",
 			  *phdr, *(phdr+1), *(phdr+2), *(phdr+3), *(phdr+4),
 			  *(phdr+5), *(phdr+6), *(phdr+7), *(phdr + 8),
@@ -654,7 +654,7 @@ static int qla4_83xx_copy_bootloader(struct scsi_qla_host *ha)
 			   __func__);
 		goto exit_copy_error;
 	}
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Read firmware from flash\n",
+	DE2(ql4_printk(KERN_INFO, ha, "%s: Read firmware from flash\n",
 			  __func__));
 
 	/* 128 bit/16 byte write to MS memory */
@@ -666,7 +666,7 @@ static int qla4_83xx_copy_bootloader(struct scsi_qla_host *ha)
 		goto exit_copy_error;
 	}
 
-	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Wrote firmware size %d to MS\n",
+	DE2(ql4_printk(KERN_INFO, ha, "%s: Wrote firmware size %d to MS\n",
 			  __func__, size));
 
 exit_copy_error:
@@ -684,7 +684,7 @@ static int qla4_83xx_check_cmd_peg_status(struct scsi_qla_host *ha)
 	do {
 		val = qla4_83xx_rd_reg(ha, QLA83XX_CMDPEG_STATE);
 		if (val == PHAN_INITIALIZE_COMPLETE) {
-			DEBUG2(ql4_printk(KERN_INFO, ha,
+			DE2(ql4_printk(KERN_INFO, ha,
 					  "%s: Command Peg initialization complete. State=0x%x\n",
 					  __func__, val));
 			ret_val = QLA_SUCCESS;
@@ -792,7 +792,7 @@ void qla4_83xx_read_reset_template(struct scsi_qla_host *ha)
 	tmplt_hdr_def_size = sizeof(struct qla4_83xx_reset_template_hdr) /
 				    sizeof(uint32_t);
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: Read template hdr size %d from Flash\n",
 			  __func__, tmplt_hdr_def_size));
 
@@ -822,7 +822,7 @@ void qla4_83xx_read_reset_template(struct scsi_qla_host *ha)
 	tmplt_hdr_def_size = (ha->reset_tmplt.hdr->size -
 			      ha->reset_tmplt.hdr->hdr_size) / sizeof(uint32_t);
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: Read rest of the template size %d\n",
 			  __func__, ha->reset_tmplt.hdr->size));
 
@@ -841,7 +841,7 @@ void qla4_83xx_read_reset_template(struct scsi_qla_host *ha)
 			   __func__);
 		goto exit_read_template_error;
 	}
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "%s: Reset Seq checksum passed, Get stop, start and init seq offsets\n",
 			  __func__));
 
@@ -1005,7 +1005,7 @@ static void qla4_83xx_poll_write_list(struct scsi_qla_host *ha,
 			if (qla4_83xx_poll_reg(ha, p_entry->ar_addr, delay,
 					       p_poll->test_mask,
 					       p_poll->test_value)) {
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "%s: Timeout Error: poll list, item_num %d, entry_num %d\n",
 						  __func__, i,
 						  ha->reset_tmplt.seq_index));
@@ -1064,7 +1064,7 @@ static void qla4_83xx_poll_read_list(struct scsi_qla_host *ha,
 			if (qla4_83xx_poll_reg(ha, p_entry->ar_addr, delay,
 					       p_poll->test_mask,
 					       p_poll->test_value)) {
-				DEBUG2(ql4_printk(KERN_INFO, ha,
+				DE2(ql4_printk(KERN_INFO, ha,
 						  "%s: Timeout Error: poll list, Item_num %d, entry_num %d\n",
 						  __func__, i,
 						  ha->reset_tmplt.seq_index));
@@ -1093,7 +1093,7 @@ static void qla4_83xx_template_end(struct scsi_qla_host *ha,
 	ha->reset_tmplt.template_end = 1;
 
 	if (ha->reset_tmplt.seq_error == 0) {
-		DEBUG2(ql4_printk(KERN_INFO, ha,
+		DE2(ql4_printk(KERN_INFO, ha,
 				  "%s: Reset sequence completed SUCCESSFULLY.\n",
 				  __func__));
 	} else {
@@ -1246,7 +1246,7 @@ int qla4_83xx_start_firmware(struct scsi_qla_host *ha)
 		ql4_printk(KERN_ERR, ha, "%s: Restart error\n", __func__);
 		goto exit_start_fw;
 	} else {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Restart done\n",
+		DE2(ql4_printk(KERN_INFO, ha, "%s: Restart done\n",
 				  __func__));
 	}
 
@@ -1366,7 +1366,7 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 			goto exit_isp_reset;
 		}
 
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: HW State: NEED RESET\n",
+		DE2(ql4_printk(KERN_INFO, ha, "%s: HW State: NEED RESET\n",
 				  __func__));
 		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 				    QLA8XXX_DEV_NEED_RESET);
@@ -1378,7 +1378,7 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 		 * the IDC_CTRL BIT0 to prevent Reset-owner from doing a Reset
 		 * and then forces a Reset by setting device_state to
 		 * NEED_RESET. */
-		DEBUG2(ql4_printk(KERN_INFO, ha,
+		DE2(ql4_printk(KERN_INFO, ha,
 				  "%s: HW state already set to NEED_RESET\n",
 				  __func__));
 	}
@@ -1409,54 +1409,54 @@ static void qla4_83xx_dump_pause_control_regs(struct scsi_qla_host *ha)
 	int i, status = QLA_SUCCESS;
 
 	status = qla4_83xx_rd_reg_indirect(ha, QLA83XX_SRE_SHIM_CONTROL, &val);
-	DEBUG2(ql4_printk(KERN_INFO, ha, "SRE-Shim Ctrl:0x%x\n", val));
+	DE2(ql4_printk(KERN_INFO, ha, "SRE-Shim Ctrl:0x%x\n", val));
 
 	/* Port 0 Rx Buffer Pause Threshold Registers. */
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 		"Port 0 Rx Buffer Pause Threshold Registers[TC7..TC0]:"));
 	for (i = 0; i < 8; i++) {
 		status = qla4_83xx_rd_reg_indirect(ha,
 				QLA83XX_PORT0_RXB_PAUSE_THRS + (i * 0x4), &val);
-		DEBUG2(pr_info("0x%x ", val));
+		DE2(pr_info("0x%x ", val));
 	}
 
-	DEBUG2(pr_info("\n"));
+	DE2(pr_info("\n"));
 
 	/* Port 1 Rx Buffer Pause Threshold Registers. */
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 		"Port 1 Rx Buffer Pause Threshold Registers[TC7..TC0]:"));
 	for (i = 0; i < 8; i++) {
 		status = qla4_83xx_rd_reg_indirect(ha,
 				QLA83XX_PORT1_RXB_PAUSE_THRS + (i * 0x4), &val);
-		DEBUG2(pr_info("0x%x  ", val));
+		DE2(pr_info("0x%x  ", val));
 	}
 
-	DEBUG2(pr_info("\n"));
+	DE2(pr_info("\n"));
 
 	/* Port 0 RxB Traffic Class Max Cell Registers. */
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 		"Port 0 RxB Traffic Class Max Cell Registers[3..0]:"));
 	for (i = 0; i < 4; i++) {
 		status = qla4_83xx_rd_reg_indirect(ha,
 			       QLA83XX_PORT0_RXB_TC_MAX_CELL + (i * 0x4), &val);
-		DEBUG2(pr_info("0x%x  ", val));
+		DE2(pr_info("0x%x  ", val));
 	}
 
-	DEBUG2(pr_info("\n"));
+	DE2(pr_info("\n"));
 
 	/* Port 1 RxB Traffic Class Max Cell Registers. */
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 		"Port 1 RxB Traffic Class Max Cell Registers[3..0]:"));
 	for (i = 0; i < 4; i++) {
 		status = qla4_83xx_rd_reg_indirect(ha,
 			       QLA83XX_PORT1_RXB_TC_MAX_CELL + (i * 0x4), &val);
-		DEBUG2(pr_info("0x%x  ", val));
+		DE2(pr_info("0x%x  ", val));
 	}
 
-	DEBUG2(pr_info("\n"));
+	DE2(pr_info("\n"));
 
 	/* Port 0 RxB Rx Traffic Class Stats. */
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "Port 0 RxB Rx Traffic Class Stats [TC7..TC0]"));
 	for (i = 7; i >= 0; i--) {
 		status = qla4_83xx_rd_reg_indirect(ha,
@@ -1468,13 +1468,13 @@ static void qla4_83xx_dump_pause_control_regs(struct scsi_qla_host *ha)
 		status = qla4_83xx_rd_reg_indirect(ha,
 						   QLA83XX_PORT0_RXB_TC_STATS,
 						   &val);
-		DEBUG2(pr_info("0x%x  ", val));
+		DE2(pr_info("0x%x  ", val));
 	}
 
-	DEBUG2(pr_info("\n"));
+	DE2(pr_info("\n"));
 
 	/* Port 1 RxB Rx Traffic Class Stats. */
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "Port 1 RxB Rx Traffic Class Stats [TC7..TC0]"));
 	for (i = 7; i >= 0; i--) {
 		status = qla4_83xx_rd_reg_indirect(ha,
@@ -1486,17 +1486,17 @@ static void qla4_83xx_dump_pause_control_regs(struct scsi_qla_host *ha)
 		status = qla4_83xx_rd_reg_indirect(ha,
 						   QLA83XX_PORT1_RXB_TC_STATS,
 						   &val);
-		DEBUG2(pr_info("0x%x  ", val));
+		DE2(pr_info("0x%x  ", val));
 	}
 
-	DEBUG2(pr_info("\n"));
+	DE2(pr_info("\n"));
 
 	status = qla4_83xx_rd_reg_indirect(ha, QLA83XX_PORT2_IFB_PAUSE_THRS,
 					   &val);
 	status = qla4_83xx_rd_reg_indirect(ha, QLA83XX_PORT3_IFB_PAUSE_THRS,
 					   &val1);
 
-	DEBUG2(ql4_printk(KERN_INFO, ha,
+	DE2(ql4_printk(KERN_INFO, ha,
 			  "IFB-Pause Thresholds: Port 2:0x%x, Port 3:0x%x\n",
 			  val, val1));
 }
@@ -1587,7 +1587,7 @@ int qla4_83xx_is_detached(struct scsi_qla_host *ha)
 
 	if (test_bit(AF_INIT_DONE, &ha->flags) &&
 	    !(drv_active & (1 << ha->func_num))) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: drv_active = 0x%X\n",
+		DE2(ql4_printk(KERN_INFO, ha, "%s: drv_active = 0x%X\n",
 				  __func__, drv_active));
 		return QLA_SUCCESS;
 	}

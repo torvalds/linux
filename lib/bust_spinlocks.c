@@ -5,7 +5,7 @@
  * Provides a minimal bust_spinlocks for architectures which don't
  * have one of their own.
  *
- * bust_spinlocks() clears any spinlocks which would prevent oops, die(), BUG()
+ * bust_spinlocks() clears any spinlocks which would prevent oops, die(), ()
  * and panic() information from reaching the user.
  */
 

@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -113,7 +113,7 @@ static int cns3xxx_pci_setup(int nr, struct pci_sys_data *sys)
 	struct resource *res_io = &cnspci->res_io;
 	struct resource *res_mem = &cnspci->res_mem;
 
-	BUG_ON(request_resource(&iomem_resource, res_io) ||
+	_ON(request_resource(&iomem_resource, res_io) ||
 	       request_resource(&iomem_resource, res_mem));
 
 	pci_add_resource_offset(&sys->resources, res_io, sys->io_offset);
@@ -200,7 +200,7 @@ static void __init cns3xxx_pcie_check_link(struct cns3xxx_pcie *cnspci)
 
 	time = jiffies;
 	while (1) {
-		reg = __raw_readl(MISC_PCIE_PM_DEBUG(port));
+		reg = __raw_readl(MISC_PCIE_PM_DE(port));
 		if (reg & 0x1) {
 			pr_info("Link up.\n");
 			cnspci->linked = 1;

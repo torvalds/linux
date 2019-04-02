@@ -24,9 +24,9 @@ config GENERIC_PINCONF
 	bool
 	select PINCONF
 
-config DEBUG_PINCTRL
-	bool "Debug PINCTRL calls"
-	depends on DEBUG_KERNEL
+config DE_PINCTRL
+	bool "De PINCTRL calls"
+	depends on DE_KERNEL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 

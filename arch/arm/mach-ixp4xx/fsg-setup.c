@@ -207,7 +207,7 @@ static void __init fsg_init(void)
 				ARRAY_SIZE(fsg_i2c_board_info));
 
 	/* This is only useful on a modified machine, but it is valuable
-	 * to have it first in order to see debug messages, and so that
+	 * to have it first in order to see de messages, and so that
 	 * it does *not* get removed if platform_add_devices fails!
 	 */
 	(void)platform_device_register(&fsg_uart);
@@ -217,14 +217,14 @@ static void __init fsg_init(void)
 	if (request_irq(gpio_to_irq(FSG_RB_GPIO), &fsg_reset_handler,
 			IRQF_TRIGGER_LOW, "FSG reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DE "Reset Button IRQ %d not available\n",
 			gpio_to_irq(FSG_RB_GPIO));
 	}
 
 	if (request_irq(gpio_to_irq(FSG_SB_GPIO), &fsg_power_handler,
 			IRQF_TRIGGER_LOW, "FSG power button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
+		printk(KERN_DE "Power Button IRQ %d not available\n",
 			gpio_to_irq(FSG_SB_GPIO));
 	}
 

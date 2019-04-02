@@ -42,9 +42,9 @@
 
 #define VERSION "0.2"
 
-#undef DEBUG
+#undef DE
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(args...)	printk(args)
 #else
 #define DBG(args...)	do { } while(0)
@@ -186,7 +186,7 @@ static ssize_t wf_show_control(struct device *dev,
 	return sprintf(buf, "%d%s\n", val, typestr);
 }
 
-/* This is really only for debugging... */
+/* This is really only for deging... */
 static ssize_t wf_store_control(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -447,7 +447,7 @@ static int __init windfarm_core_init(void)
 
 static void __exit windfarm_core_exit(void)
 {
-	BUG_ON(wf_client_count != 0);
+	_ON(wf_client_count != 0);
 
 	DBG("wf: core unloaded\n");
 

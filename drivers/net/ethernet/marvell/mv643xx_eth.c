@@ -693,7 +693,7 @@ static int skb_tx_csum(struct mv643xx_eth_private *mp, struct sk_buff *skb,
 		int hdr_len;
 		int tag_bytes;
 
-		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
+		_ON(skb->protocol != htons(ETH_P_IP) &&
 		       skb->protocol != htons(ETH_P_8021Q));
 
 		hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
@@ -1017,7 +1017,7 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	nq = netdev_get_tx_queue(dev, queue);
 
 	if (has_tiny_unaligned_frags(skb) && __skb_linearize(skb)) {
-		netdev_printk(KERN_DEBUG, dev,
+		netdev_printk(KERN_DE, dev,
 			      "failed to linearize skb with tiny unaligned fragment\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -1571,7 +1571,7 @@ mv643xx_eth_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	err = phy_ethtool_set_wol(dev->phydev, wol);
 	/* Given that mv643xx_eth works without the marvell-specific PHY driver,
-	 * this debugging hint is useful to have.
+	 * this deging hint is useful to have.
 	 */
 	if (err == -EOPNOTSUPP)
 		netdev_info(dev, "The PHY does not support set_wol, was CONFIG_MARVELL_PHY enabled?\n");
@@ -2132,7 +2132,7 @@ static void txq_deinit(struct tx_queue *txq)
 	txq_disable(txq);
 	txq_reclaim(txq, txq->tx_ring_size, 1);
 
-	BUG_ON(txq->tx_used_desc != txq->tx_curr_desc);
+	_ON(txq->tx_used_desc != txq->tx_curr_desc);
 
 	if (txq->index == 0 &&
 	    txq->tx_desc_area_size <= mp->tx_desc_sram_size)
@@ -2300,7 +2300,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		} else if (!mp->oom && (mp->work_rx_refill & queue_mask)) {
 			work_done += rxq_refill(mp->rxq + queue, work_tbd);
 		} else {
-			BUG();
+			();
 		}
 	}
 
@@ -3191,7 +3191,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	BUG_ON(!res);
+	_ON(!res);
 	dev->irq = res->start;
 
 	dev->netdev_ops = &mv643xx_eth_netdev_ops;

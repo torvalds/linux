@@ -108,7 +108,7 @@ used for these same concepts, so that
 "not in use" == SPIDER_NET_DESCR_NOT_IN_USE == 0xf
 
 
-The RX RAM full bug/feature
+The RX RAM full /feature
 ===========================
 
 As long as the OS can empty out the RX buffers at a rate faster than
@@ -120,7 +120,7 @@ The spidernet chip can save some limited number of these in local RAM.
 When this local ram fills up, the spider chip will issue an interrupt
 indicating this (GHIINT0STS will show ERRINT, and the GRMFLLINT bit
 will be set in GHIINT1STS).  When the RX ram full condition occurs,
-a certain bug/feature is triggered that has to be specially handled.
+a certain /feature is triggered that has to be specially handled.
 This section describes the special handling for this condition.
 
 When the OS finally has a chance to run, it will empty out the RX ring.
@@ -166,7 +166,7 @@ descr 254, since tail was at 255.) Thus, the system is deadlocked,
 and there can be no forward progress; the OS thinks there's nothing
 to do, and the hardware has nowhere to put incoming data.
 
-This bug/feature is worked around with the spider_net_resync_head_ptr()
+This /feature is worked around with the spider_net_resync_head_ptr()
 routine. When the driver receives RX interrupts, but an examination
 of the RX chain seems to show it is empty, then it is probable that
 the hardware has skipped a descr or two (sometimes dozens under heavy

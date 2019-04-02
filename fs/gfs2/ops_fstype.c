@@ -1107,11 +1107,11 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (error)
 		return error;
 
-	gfs2_create_debugfs_file(sdp);
+	gfs2_create_defs_file(sdp);
 
 	error = gfs2_lm_mount(sdp, silent);
 	if (error)
-		goto fail_debug;
+		goto fail_de;
 
 	error = init_locking(sdp, &mount_gh, DO);
 	if (error)
@@ -1190,8 +1190,8 @@ fail_lm:
 	complete_all(&sdp->sd_journal_ready);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
-fail_debug:
-	gfs2_delete_debugfs_file(sdp);
+fail_de:
+	gfs2_delete_defs_file(sdp);
 	free_percpu(sdp->sd_lkstats);
 	/* gfs2_sys_fs_del must be the last thing we do, since it causes
 	 * sysfs to call function gfs2_sbd_release, which frees sdp. */

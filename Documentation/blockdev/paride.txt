@@ -388,7 +388,7 @@ activity as they attempt to locate your drive.
 
 Use 'dmesg' to capture a log of all the PARIDE messages (any messages
 beginning with paride:, a protocol module's name or a driver's name) and
-include that with your bug report.  You can submit a bug report in one
+include that with your  report.  You can submit a  report in one
 of two ways.  Either send it directly to the author of the PARIDE suite,
 by e-mail to grant@torque.net, or join the linux-parport mailing list
 and post your report there.

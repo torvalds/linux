@@ -48,7 +48,7 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf,
 
 	/* virtual addr of the beginning of the buffer. */
 	skb = bf->bf_mpdu;
-	BUG_ON(skb == NULL);
+	_ON(skb == NULL);
 	ds->ds_vdata = skb->data;
 
 	/*
@@ -163,7 +163,7 @@ static void ath_rx_remove_buffer(struct ath_softc *sc,
 
 	while ((skb = __skb_dequeue(&rx_edma->rx_fifo)) != NULL) {
 		bf = SKB_CB_ATHBUF(skb);
-		BUG_ON(!bf);
+		_ON(!bf);
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
 	}
 }
@@ -640,7 +640,7 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 		return false;
 
 	bf = SKB_CB_ATHBUF(skb);
-	BUG_ON(!bf);
+	_ON(!bf);
 
 	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 				common->rx_bufsize, DMA_FROM_DEVICE);
@@ -662,7 +662,7 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 		skb = skb_peek(&rx_edma->rx_fifo);
 		if (skb) {
 			bf = SKB_CB_ATHBUF(skb);
-			BUG_ON(!bf);
+			_ON(!bf);
 
 			__skb_unlink(skb, &rx_edma->rx_fifo);
 			list_add_tail(&bf->list, &sc->rx.rxbuf);
@@ -860,7 +860,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	hdr = (struct ieee80211_hdr *) (skb->data + ah->caps.rx_status_len);
 
 	ath9k_process_tsf(rx_stats, rx_status, tsf);
-	ath_debug_stat_rx(sc, rx_stats);
+	ath_de_stat_rx(sc, rx_stats);
 
 	/*
 	 * Process PHY errors and return so that the packet
@@ -1197,7 +1197,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		ath9k_antenna_check(sc, &rs);
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
-		ath_debug_rate_stats(sc, &rs, skb);
+		ath_de_rate_stats(sc, &rs, skb);
 		ath_rx_count_airtime(sc, &rs, skb);
 
 		hdr = (struct ieee80211_hdr *)skb->data;

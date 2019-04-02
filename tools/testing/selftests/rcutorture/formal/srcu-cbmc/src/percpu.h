@@ -3,7 +3,7 @@
 #define PERCPU_H
 
 #include <stddef.h>
-#include "bug_on.h"
+#include "_on.h"
 #include "preempt.h"
 
 #define __percpu
@@ -16,13 +16,13 @@
 
 static inline void *__alloc_percpu(size_t size, size_t align)
 {
-	BUG();
+	();
 	return NULL;
 }
 
 static inline void free_percpu(void *ptr)
 {
-	BUG();
+	();
 }
 
 #define per_cpu_ptr(ptr, cpu) \
@@ -36,7 +36,7 @@ static inline void free_percpu(void *ptr)
 #define this_cpu_dec(pcp) this_cpu_sub(pcp, 1)
 #define this_cpu_sub(pcp, n) this_cpu_add(pcp, -(typeof(pcp)) (n))
 
-/* Make CBMC use atomics to work around bug. */
+/* Make CBMC use atomics to work around . */
 #ifdef RUN
 #define THIS_CPU_ADD_HELPER(ptr, x) (*(ptr) += (x))
 #else
@@ -65,7 +65,7 @@ static inline void free_percpu(void *ptr)
  */
 #define __this_cpu_add(pcp, n) \
 	do { \
-		BUG_ON(preemptible()); \
+		_ON(preemptible()); \
 		THIS_CPU_ADD_HELPER(per_cpu_ptr(&(pcp), thread_cpu_id), \
 				    (typeof(pcp)) (n)); \
 	} while (0)

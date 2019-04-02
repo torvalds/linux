@@ -9,7 +9,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/memblock.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/pfn_t.h>
@@ -69,14 +69,14 @@ bool pat_enabled(void)
 }
 EXPORT_SYMBOL_GPL(pat_enabled);
 
-int pat_debug_enable;
+int pat_de_enable;
 
-static int __init pat_debug_setup(char *str)
+static int __init pat_de_setup(char *str)
 {
-	pat_debug_enable = 1;
+	pat_de_enable = 1;
 	return 0;
 }
-__setup("debugpat", pat_debug_setup);
+__setup("depat", pat_de_setup);
 
 #ifdef CONFIG_X86_PAT
 /*
@@ -336,7 +336,7 @@ void pat_init(void)
 		/*
 		 * Full PAT support.  We put WT in slot 7 to improve
 		 * robustness in the presence of errata that might cause
-		 * the high PAT bit to be ignored.  This way, a buggy slot 7
+		 * the high PAT bit to be ignored.  This way, a gy slot 7
 		 * access will hit slot 3, and slot 3 is UC, so at worst
 		 * we lose performance without causing a correctness issue.
 		 * Pentium 4 erratum N46 is an example for such an erratum,
@@ -1096,7 +1096,7 @@ pgprot_t pgprot_writethrough(pgprot_t prot)
 }
 EXPORT_SYMBOL_GPL(pgprot_writethrough);
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
+#if defined(CONFIG_DE_FS) && defined(CONFIG_X86_PAT)
 
 static struct memtype *memtype_get_idx(loff_t pos)
 {
@@ -1172,12 +1172,12 @@ static const struct file_operations memtype_fops = {
 static int __init pat_memtype_list_init(void)
 {
 	if (pat_enabled()) {
-		debugfs_create_file("pat_memtype_list", S_IRUSR,
-				    arch_debugfs_dir, NULL, &memtype_fops);
+		defs_create_file("pat_memtype_list", S_IRUSR,
+				    arch_defs_dir, NULL, &memtype_fops);
 	}
 	return 0;
 }
 
 late_initcall(pat_memtype_list_init);
 
-#endif /* CONFIG_DEBUG_FS && CONFIG_X86_PAT */
+#endif /* CONFIG_DE_FS && CONFIG_X86_PAT */

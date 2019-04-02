@@ -83,7 +83,7 @@
 
 #define MPCORE_RESET_CTL		    0x64
 #define MPCORE_RESET_CTL_L2			BIT(0)
-#define MPCORE_RESET_CTL_DEBUG			BIT(16)
+#define MPCORE_RESET_CTL_DE			BIT(16)
 
 #define SRAM_PHYS_BASE  0xFFFF0000
 #define BOOTROM_BASE    0xFFF00000
@@ -301,7 +301,7 @@ int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 	"isb	"
 	: : "Ir" (CR_C) : "r0");
 
-	pr_debug("Failed to suspend the system\n");
+	pr_de("Failed to suspend the system\n");
 
 	return 0;
 }
@@ -446,12 +446,12 @@ static __init int armada_38x_cpuidle_init(void)
 	if (!np)
 		return -ENODEV;
 	mpsoc_base = of_iomap(np, 0);
-	BUG_ON(!mpsoc_base);
+	_ON(!mpsoc_base);
 
 	/* Set up reset mask when powering down the cpus */
 	reg = readl(mpsoc_base + MPCORE_RESET_CTL);
 	reg |= MPCORE_RESET_CTL_L2;
-	reg |= MPCORE_RESET_CTL_DEBUG;
+	reg |= MPCORE_RESET_CTL_DE;
 	writel(reg, mpsoc_base + MPCORE_RESET_CTL);
 	iounmap(mpsoc_base);
 

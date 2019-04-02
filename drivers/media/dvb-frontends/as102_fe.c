@@ -149,7 +149,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 
-	pr_debug("as102: tuner parameters: freq: %d  bw: 0x%02x  gi: 0x%02x\n",
+	pr_de("as102: tuner parameters: freq: %d  bw: 0x%02x  gi: 0x%02x\n",
 			c->frequency,
 			tune_args.bandwidth,
 			tune_args.guard_interval);
@@ -174,7 +174,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 			   as102_fe_get_code_rate(c->code_rate_LP);
 		}
 
-		pr_debug("as102: \thierarchy: 0x%02x  selected: %s  code_rate_%s: 0x%02x\n",
+		pr_de("as102: \thierarchy: 0x%02x  selected: %s  code_rate_%s: 0x%02x\n",
 			tune_args.hierarchy,
 			tune_args.hier_select == HIER_HIGH_PRIORITY ?
 			"HP" : "LP",
@@ -336,7 +336,7 @@ static int as102_fe_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		*status = TUNE_STATUS_NOT_TUNED;
 	}
 
-	pr_debug("as102: tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
+	pr_de("as102: tuner status: 0x%02x, strength %d, per: %d, ber: %d\n",
 		 tstate.tune_state, tstate.signal_strength,
 		 tstate.PER, tstate.BER);
 

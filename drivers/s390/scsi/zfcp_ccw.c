@@ -173,7 +173,7 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 	}
 
 	/* initialize request counter */
-	BUG_ON(!zfcp_reqlist_isempty(adapter->req_list));
+	_ON(!zfcp_reqlist_isempty(adapter->req_list));
 	adapter->req_no = 0;
 
 	zfcp_ccw_activate(cdev, 0, "ccsonl1");

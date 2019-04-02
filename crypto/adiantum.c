@@ -240,11 +240,11 @@ static void adiantum_hash_header(struct skcipher_request *req)
 
 	poly1305_core_init(&state);
 
-	BUILD_BUG_ON(sizeof(header) % POLY1305_BLOCK_SIZE != 0);
+	BUILD__ON(sizeof(header) % POLY1305_BLOCK_SIZE != 0);
 	poly1305_core_blocks(&state, &tctx->header_hash_key,
 			     &header, sizeof(header) / POLY1305_BLOCK_SIZE);
 
-	BUILD_BUG_ON(TWEAK_SIZE % POLY1305_BLOCK_SIZE != 0);
+	BUILD__ON(TWEAK_SIZE % POLY1305_BLOCK_SIZE != 0);
 	poly1305_core_blocks(&state, &tctx->header_hash_key, req->iv,
 			     TWEAK_SIZE / POLY1305_BLOCK_SIZE);
 
@@ -363,8 +363,8 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 					  rctx->rbuf.bytes);
 
 	/* Initialize the rest of the XChaCha IV (first part is C_M) */
-	BUILD_BUG_ON(BLOCKCIPHER_BLOCK_SIZE != 16);
-	BUILD_BUG_ON(XCHACHA_IV_SIZE != 32);	/* nonce || stream position */
+	BUILD__ON(BLOCKCIPHER_BLOCK_SIZE != 16);
+	BUILD__ON(XCHACHA_IV_SIZE != 32);	/* nonce || stream position */
 	rctx->rbuf.words[4] = cpu_to_le32(1);
 	rctx->rbuf.words[5] = 0;
 	rctx->rbuf.words[6] = 0;
@@ -434,7 +434,7 @@ static int adiantum_init_tfm(struct crypto_skcipher *tfm)
 	tctx->blockcipher = blockcipher;
 	tctx->hash = hash;
 
-	BUILD_BUG_ON(offsetofend(struct adiantum_request_ctx, u) !=
+	BUILD__ON(offsetofend(struct adiantum_request_ctx, u) !=
 		     sizeof(struct adiantum_request_ctx));
 	subreq_size = max(FIELD_SIZEOF(struct adiantum_request_ctx,
 				       u.hash_desc) +

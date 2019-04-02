@@ -56,7 +56,7 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 
-extern int mwave_debug;
+extern int mwave_de;
 extern int mwave_3780i_irq;
 extern int mwave_3780i_io;
 extern int mwave_uart_irq;
@@ -72,42 +72,42 @@ extern int mwave_uart_io;
 
 #ifdef MW_TRACE
 #define PRINTK_1(f,s)                       \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s);                              \
   }
 
 #define PRINTK_2(f,s,v1)                    \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1);                           \
   }
 
 #define PRINTK_3(f,s,v1,v2)                 \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1,v2);                        \
   }
 
 #define PRINTK_4(f,s,v1,v2,v3)              \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1,v2,v3);                     \
   }
 
 #define PRINTK_5(f,s,v1,v2,v3,v4)           \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1,v2,v3,v4);                  \
   }
 
 #define PRINTK_6(f,s,v1,v2,v3,v4,v5)        \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1,v2,v3,v4,v5);               \
   }
 
 #define PRINTK_7(f,s,v1,v2,v3,v4,v5,v6)     \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1,v2,v3,v4,v5,v6);            \
   }
 
 #define PRINTK_8(f,s,v1,v2,v3,v4,v5,v6,v7)  \
-  if (f & (mwave_debug)) {                  \
+  if (f & (mwave_de)) {                  \
     printk(s,v1,v2,v3,v4,v5,v6,v7);         \
   }
 

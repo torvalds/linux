@@ -310,7 +310,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 	/* Check for a null pointer */
 
 	if (!object) {
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "**** Null Object Ptr\n"));
+		ACPI_DE_PRINT((ACPI_DB_EXEC, "**** Null Object Ptr\n"));
 		return (FALSE);
 	}
 
@@ -325,7 +325,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 
 	default:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+		ACPI_DE_PRINT((ACPI_DB_EXEC,
 				  "%p is not an ACPI operand obj [%s]\n",
 				  object, acpi_ut_get_descriptor_name(object)));
 		break;
@@ -368,7 +368,7 @@ void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
 
 	ACPI_SET_DESCRIPTOR_TYPE(object, ACPI_DESC_TYPE_OPERAND);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "%p Size %X\n",
+	ACPI_DE_PRINT((ACPI_DB_ALLOCATIONS, "%p Size %X\n",
 			  object, (u32) sizeof(union acpi_operand_object)));
 
 	return_PTR(object);

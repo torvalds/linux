@@ -82,7 +82,7 @@ static mfp_cfg_t littleton_mfp_cfg[] __initdata = {
 	GPIO27_SSP2_TXD,
 	GPIO17_GPIO,	/* SFRM as chip-select */
 
-	/* Debug Ethernet */
+	/* De Ethernet */
 	GPIO90_GPIO,
 
 	/* Keypad */

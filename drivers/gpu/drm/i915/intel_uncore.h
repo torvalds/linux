@@ -124,7 +124,7 @@ struct intel_uncore {
 		unsigned int count;
 
 		int saved_mmio_check;
-		int saved_mmio_debug;
+		int saved_mmio_de;
 	} user_forcewake;
 
 	int unclaimed_mmio_check;

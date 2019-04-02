@@ -156,7 +156,7 @@ int __init omap_register_i2c_bus(int bus_id, u32 clkrate,
 {
 	int err;
 
-	BUG_ON(bus_id < 1 || bus_id > OMAP_I2C_MAX_CONTROLLERS);
+	_ON(bus_id < 1 || bus_id > OMAP_I2C_MAX_CONTROLLERS);
 
 	if (info) {
 		err = i2c_register_board_info(bus_id, info, len);

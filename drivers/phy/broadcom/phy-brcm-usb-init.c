@@ -660,7 +660,7 @@ static void brcmusb_usb3_ssc_enable(void __iomem *ctrl_base)
 	brcmusb_usb_mdio_write(ctrl_base, 0x01, val, MDIO_USB3);
 
 	/* Currently, USB 3.0 SSC is enabled via port 0 MDIO registers,
-	 * which should have been adequate. However, due to a bug in the
+	 * which should have been adequate. However, due to a  in the
 	 * USB 3.0 PHY, it must be enabled via both ports (HWUSB3DVT-26).
 	 */
 	brcmusb_usb_mdio_write(ctrl_base, 0x1f, 0x9040, MDIO_USB3);

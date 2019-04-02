@@ -86,7 +86,7 @@ static int __init sh7751_pci_init(void)
 	id = pci_read_reg(chan, SH7751_PCICONF0);
 	if (id != ((SH7751_DEVICE_ID << 16) | SH7751_VENDOR_ID) &&
 	    id != ((SH7751R_DEVICE_ID << 16) | SH7751_VENDOR_ID)) {
-		pr_debug("PCI: This is not an SH7751(R) (%x)\n", id);
+		pr_de("PCI: This is not an SH7751(R) (%x)\n", id);
 		return -ENODEV;
 	}
 
@@ -127,13 +127,13 @@ static int __init sh7751_pci_init(void)
 	 * the lowest PCI mapped address
 	 */
 	word = chan->resources[1].start & SH4_PCIMBR_MASK;
-	pr_debug("PCI: Setting upper bits of Memory window to 0x%x\n", word);
+	pr_de("PCI: Setting upper bits of Memory window to 0x%x\n", word);
 	pci_write_reg(chan, word , SH4_PCIMBR);
 
 	/* Make sure the MSB's of IO window are set to access PCI space
 	 * correctly */
 	word = chan->resources[0].start & SH4_PCIIOBR_MASK;
-	pr_debug("PCI: Setting upper bits of IO window to 0x%x\n", word);
+	pr_de("PCI: Setting upper bits of IO window to 0x%x\n", word);
 	pci_write_reg(chan, word, SH4_PCIIOBR);
 
 	/* Set PCI WCRx, BCRx's, copy from BSC locations */

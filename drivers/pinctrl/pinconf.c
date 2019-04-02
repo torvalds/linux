@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -210,7 +210,7 @@ int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
 	return ops->pin_config_set(pctldev, pin, configs, nconfigs);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static void pinconf_show_config(struct seq_file *s, struct pinctrl_dev *pctldev,
 		      unsigned long *configs, unsigned num_configs)
@@ -368,12 +368,12 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 DEFINE_SHOW_ATTRIBUTE(pinconf_pins);
 DEFINE_SHOW_ATTRIBUTE(pinconf_groups);
 
-void pinconf_init_device_debugfs(struct dentry *devroot,
+void pinconf_init_device_defs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
 {
-	debugfs_create_file("pinconf-pins", S_IFREG | S_IRUGO,
+	defs_create_file("pinconf-pins", S_IFREG | S_IRUGO,
 			    devroot, pctldev, &pinconf_pins_fops);
-	debugfs_create_file("pinconf-groups", S_IFREG | S_IRUGO,
+	defs_create_file("pinconf-groups", S_IFREG | S_IRUGO,
 			    devroot, pctldev, &pinconf_groups_fops);
 }
 

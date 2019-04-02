@@ -147,7 +147,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (xop->callback == NULL) {
 		rv = wait_event_interruptible(recv_wq, (op->done != 0));
 		if (rv == -ERESTARTSYS) {
-			log_debug(ls, "dlm_posix_lock: wait killed %llx",
+			log_de(ls, "dlm_posix_lock: wait killed %llx",
 				  (unsigned long long)number);
 			spin_lock(&ops_lock);
 			list_del(&op->list);

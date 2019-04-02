@@ -337,7 +337,7 @@ static unsigned int qs_qc_issue(struct ata_queued_cmd *qc)
 		return 0;
 
 	case ATAPI_PROT_DMA:
-		BUG();
+		();
 		break;
 
 	default:

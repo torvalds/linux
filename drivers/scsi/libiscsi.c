@@ -43,24 +43,24 @@
 #include <trace/events/iscsi.h>
 
 static int iscsi_dbg_lib_conn;
-module_param_named(debug_libiscsi_conn, iscsi_dbg_lib_conn, int,
+module_param_named(de_libiscsi_conn, iscsi_dbg_lib_conn, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_libiscsi_conn,
-		 "Turn on debugging for connections in libiscsi module. "
+MODULE_PARM_DESC(de_libiscsi_conn,
+		 "Turn on deging for connections in libiscsi module. "
 		 "Set to 1 to turn on, and zero to turn off. Default is off.");
 
 static int iscsi_dbg_lib_session;
-module_param_named(debug_libiscsi_session, iscsi_dbg_lib_session, int,
+module_param_named(de_libiscsi_session, iscsi_dbg_lib_session, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_libiscsi_session,
-		 "Turn on debugging for sessions in libiscsi module. "
+MODULE_PARM_DESC(de_libiscsi_session,
+		 "Turn on deging for sessions in libiscsi module. "
 		 "Set to 1 to turn on, and zero to turn off. Default is off.");
 
 static int iscsi_dbg_lib_eh;
-module_param_named(debug_libiscsi_eh, iscsi_dbg_lib_eh, int,
+module_param_named(de_libiscsi_eh, iscsi_dbg_lib_eh, int,
 		   S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug_libiscsi_eh,
-		 "Turn on debugging for error handling in libiscsi module. "
+MODULE_PARM_DESC(de_libiscsi_eh,
+		 "Turn on deging for error handling in libiscsi module. "
 		 "Set to 1 to turn on, and zero to turn off. Default is off.");
 
 #define ISCSI_DBG_CONN(_conn, dbg_fmt, arg...)			\
@@ -202,7 +202,7 @@ static int iscsi_prep_ecdb_ahs(struct iscsi_task *task)
 	ecdb_ahdr = iscsi_next_hdr(task);
 	rlen = cmd->cmd_len - ISCSI_CDB_SIZE;
 
-	BUG_ON(rlen > sizeof(ecdb_ahdr->ecdb));
+	_ON(rlen > sizeof(ecdb_ahdr->ecdb));
 	ahslength = rlen + sizeof(ecdb_ahdr->reserved);
 
 	pad_len = iscsi_padding(rlen);
@@ -538,7 +538,7 @@ static void iscsi_complete_task(struct iscsi_task *task, int state)
 
 	spin_lock_bh(&conn->taskqueuelock);
 	if (!list_empty(&task->running)) {
-		pr_debug_once("%s while task on list", __func__);
+		pr_de_once("%s while task on list", __func__);
 		list_del_init(&task->running);
 	}
 	spin_unlock_bh(&conn->taskqueuelock);
@@ -707,8 +707,8 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			return NULL;
 		}
 
-		BUG_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
-		BUG_ON(conn->c_stage == ISCSI_CONN_STOPPED);
+		_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
+		_ON(conn->c_stage == ISCSI_CONN_STOPPED);
 
 		if (!kfifo_out(&session->cmdpool.queue,
 				 (void*)&task, sizeof(void*)))
@@ -820,9 +820,9 @@ static void iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		/**
 		 * Transports that didn't implement check_protection
 		 * callback but still published T10-PI support to scsi-mid
-		 * deserve this BUG_ON.
+		 * deserve this _ON.
 		 **/
-		BUG_ON(!session->tt->check_protection);
+		_ON(!session->tt->check_protection);
 
 		ascq = session->tt->check_protection(task, &sector);
 		if (ascq) {

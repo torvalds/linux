@@ -23,11 +23,11 @@ config CARL9170_LEDS
 	help
 	  This option is necessary, if you want your device' LEDs to blink
 
-	  Say Y, unless you need the LEDs for firmware debugging.
+	  Say Y, unless you need the LEDs for firmware deging.
 
-config CARL9170_DEBUGFS
-	bool "DebugFS Support"
-	depends on CARL9170 && DEBUG_FS && MAC80211_DEBUGFS
+config CARL9170_DEFS
+	bool "DeFS Support"
+	depends on CARL9170 && DE_FS && MAC80211_DEFS
 	default n
 	help
 	  Export several driver and device internals to user space.

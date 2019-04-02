@@ -333,7 +333,7 @@ static void __init tcb_setup_single_chan(struct atmel_tc *tc, int mck_divisor_id
 static int __init tcb_clksrc_init(void)
 {
 	static char bootinfo[] __initdata
-		= KERN_DEBUG "%s: tc%d at %d.%03d MHz\n";
+		= KERN_DE "%s: tc%d at %d.%03d MHz\n";
 
 	struct platform_device *pdev;
 	struct atmel_tc *tc;
@@ -346,7 +346,7 @@ static int __init tcb_clksrc_init(void)
 
 	tc = atmel_tc_alloc(CONFIG_ATMEL_TCB_CLKSRC_BLOCK);
 	if (!tc) {
-		pr_debug("can't alloc TC for clocksource\n");
+		pr_de("can't alloc TC for clocksource\n");
 		return -ENODEV;
 	}
 	tcaddr = tc->regs;
@@ -355,7 +355,7 @@ static int __init tcb_clksrc_init(void)
 	t0_clk = tc->clk[0];
 	ret = clk_prepare_enable(t0_clk);
 	if (ret) {
-		pr_debug("can't enable T0 clk\n");
+		pr_de("can't enable T0 clk\n");
 		goto err_free_tc;
 	}
 
@@ -372,7 +372,7 @@ static int __init tcb_clksrc_init(void)
 		}
 
 		tmp = rate / divisor;
-		pr_debug("TC: %u / %-3u [%d] --> %u\n", rate, divisor, i, tmp);
+		pr_de("TC: %u / %-3u [%d] --> %u\n", rate, divisor, i, tmp);
 		if (best_divisor_idx > 0) {
 			if (tmp < 5 * 1000 * 1000)
 				continue;
@@ -397,7 +397,7 @@ static int __init tcb_clksrc_init(void)
 		 */
 		ret = clk_prepare_enable(tc->clk[1]);
 		if (ret) {
-			pr_debug("can't enable T1 clk\n");
+			pr_de("can't enable T1 clk\n");
 			goto err_disable_t0;
 		}
 		/* setup both channel 0 & 1 */

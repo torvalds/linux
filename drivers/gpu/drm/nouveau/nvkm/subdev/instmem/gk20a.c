@@ -149,7 +149,7 @@ gk20a_instobj_iommu_recycle_vaddr(struct gk20a_instobj_iommu *obj)
 	vunmap(obj->base.vaddr);
 	obj->base.vaddr = NULL;
 	imem->vaddr_use -= nvkm_memory_size(&obj->base.memory);
-	nvkm_debug(&imem->base.subdev, "vaddr used: %x/%x\n", imem->vaddr_use,
+	nvkm_de(&imem->base.subdev, "vaddr used: %x/%x\n", imem->vaddr_use,
 		   imem->vaddr_max);
 }
 
@@ -215,7 +215,7 @@ gk20a_instobj_acquire_iommu(struct nvkm_memory *memory)
 	}
 
 	imem->vaddr_use += size;
-	nvkm_debug(&imem->base.subdev, "vaddr used: %x/%x\n",
+	nvkm_de(&imem->base.subdev, "vaddr used: %x/%x\n",
 		   imem->vaddr_use, imem->vaddr_max);
 
 out:
@@ -519,7 +519,7 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	struct gk20a_instobj *node = NULL;
 	int ret;
 
-	nvkm_debug(subdev, "%s (%s): size: %x align: %x\n", __func__,
+	nvkm_de(subdev, "%s (%s): size: %x align: %x\n", __func__,
 		   imem->domain ? "IOMMU" : "DMA", size, align);
 
 	/* Round size and align to page bounds */
@@ -538,7 +538,7 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 
 	node->imem = imem;
 
-	nvkm_debug(subdev, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
+	nvkm_de(subdev, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
 		   size, align, (u64)node->mn->offset << 12);
 
 	return 0;

@@ -86,7 +86,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	jffs2_dbg(2, "%s(): ino #%lu, page at offset 0x%lx\n",
 		  __func__, inode->i_ino, pg->index << PAGE_SHIFT);
 
-	BUG_ON(!PageLocked(pg));
+	_ON(!PageLocked(pg));
 
 	pg_buf = kmap(pg);
 	/* FIXME: Can kmap fail? */
@@ -257,7 +257,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	   jffs2_garbage_collect_pass(). So the page must be
 	   up to date to prevent page_cache_read() from trying
 	   to re-lock it. */
-	BUG_ON(!PageUptodate(pg));
+	_ON(!PageUptodate(pg));
 
 	if (end == PAGE_SIZE) {
 		/* When writing out the end of a page, write out the

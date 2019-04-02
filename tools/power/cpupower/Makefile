@@ -36,7 +36,7 @@ include ../../scripts/Makefile.arch
 
 # Set the following to `true' to make a unstripped, unoptimized
 # binary. Leave this set to `false' for production use.
-DEBUG ?=	true
+DE ?=	true
 
 # make the build silent. Set this to something else to make it noisy again.
 V ?=		false
@@ -62,14 +62,14 @@ DESTDIR ?=
 
 
 # Package-related definitions. Distributions can modify the version
-# and _should_ modify the PACKAGE_BUGREPORT definition
+# and _should_ modify the PACKAGE_REPORT definition
 
 VERSION=			$(shell ./utils/version-gen.sh)
 LIB_MAJ=			0.0.1
 LIB_MIN=			0
 
 PACKAGE =			cpupower
-PACKAGE_BUGREPORT =		linux-pm@vger.kernel.org
+PACKAGE_REPORT =		linux-pm@vger.kernel.org
 LANGUAGES = 			de fr it cs pt
 
 
@@ -132,7 +132,7 @@ WARNINGS += $(call cc-supports,-Wdeclaration-after-statement)
 WARNINGS += -Wshadow
 
 override CFLAGS += -DVERSION=\"$(VERSION)\" -DPACKAGE=\"$(PACKAGE)\" \
-		-DPACKAGE_BUGREPORT=\"$(PACKAGE_BUGREPORT)\" -D_GNU_SOURCE
+		-DPACKAGE_REPORT=\"$(PACKAGE_REPORT)\" -D_GNU_SOURCE
 
 UTIL_OBJS =  utils/helpers/amd.o utils/helpers/msr.o \
 	utils/helpers/sysfs.o utils/helpers/misc.o utils/helpers/cpuid.o \
@@ -188,10 +188,10 @@ else
 endif
 export QUIET ECHO
 
-# if DEBUG is enabled, then we do not strip or optimize
-ifeq ($(strip $(DEBUG)),true)
-	override CFLAGS += -O1 -g -DDEBUG
-	STRIPCMD = /bin/true -Since_we_are_debugging
+# if DE is enabled, then we do not strip or optimize
+ifeq ($(strip $(DE)),true)
+	override CFLAGS += -O1 -g -DDE
+	STRIPCMD = /bin/true -Since_we_are_deging
 else
 	override CFLAGS += $(OPTIMIZATION) -fomit-frame-pointer
 	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment

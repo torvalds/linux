@@ -22,7 +22,7 @@
 #ifndef _ASIX_H
 #define _ASIX_H
 
-// #define	DEBUG			// error path messages, extra info
+// #define	DE			// error path messages, extra info
 // #define	VERBOSE			// more; success messages
 
 #include <linux/module.h>

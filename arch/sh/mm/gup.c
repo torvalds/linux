@@ -103,7 +103,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 			pte_unmap(ptep);
 			return 0;
 		}
-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+		VM__ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		get_page(page);
 		__flush_anon_page(page, addr);
@@ -246,7 +246,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	} while (pgdp++, addr = next, addr != end);
 	local_irq_enable();
 
-	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+	VM__ON(nr != (end - start) >> PAGE_SHIFT);
 	return nr;
 
 	{

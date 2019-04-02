@@ -25,7 +25,7 @@
 
 /*
  * Decides if HSI buffers should be prefilled with 0xFF pattern for easier
- * debugging. Both TX and RX buffers will be filled before the transfer.
+ * deging. Both TX and RX buffers will be filled before the transfer.
  */
 #define CFHSI_DBG_PREFILL		0
 

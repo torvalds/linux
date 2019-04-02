@@ -104,7 +104,7 @@ kernel driver and userspace tools needed.
 
 --------------------------------------
 
-BUGS:
+S:
 
 IRQ autoprobing often doesn't work on a cold boot.  To get around
 this, either compile the driver as a module, or pass the parameters

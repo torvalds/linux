@@ -88,8 +88,8 @@ static int occ_open(struct inode *inode, struct file *file)
 	file->private_data = client;
 
 	/* We allocate a 1-page buffer, make sure it all fits */
-	BUILD_BUG_ON((OCC_CMD_DATA_BYTES + 3) > PAGE_SIZE);
-	BUILD_BUG_ON((OCC_RESP_DATA_BYTES + 7) > PAGE_SIZE);
+	BUILD__ON((OCC_CMD_DATA_BYTES + 3) > PAGE_SIZE);
+	BUILD__ON((OCC_RESP_DATA_BYTES + 7) > PAGE_SIZE);
 
 	return 0;
 }
@@ -359,7 +359,7 @@ static int occ_trigger_attn(struct occ *occ)
 	size_t resp_len, resp_data_len;
 	int rc;
 
-	BUILD_BUG_ON(OCC_SBE_STATUS_WORDS < 7);
+	BUILD__ON(OCC_SBE_STATUS_WORDS < 7);
 	resp_len = OCC_SBE_STATUS_WORDS;
 
 	buf[0] = cpu_to_be32(0x5 + 0x2);        /* Chip-op length in words */

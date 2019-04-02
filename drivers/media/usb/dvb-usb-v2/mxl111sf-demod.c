@@ -17,14 +17,14 @@
 #include "mxl111sf-demod.h"
 #include "mxl111sf-reg.h"
 
-/* debug */
-static int mxl111sf_demod_debug;
-module_param_named(debug, mxl111sf_demod_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
+/* de */
+static int mxl111sf_demod_de;
+module_param_named(de, mxl111sf_demod_de, int, 0644);
+MODULE_PARM_DESC(de, "set deging level (1=info (or-able)).");
 
 #define mxl_dbg(fmt, arg...) \
-	if (mxl111sf_demod_debug) \
-		mxl_printk(KERN_DEBUG, fmt, ##arg)
+	if (mxl111sf_demod_de) \
+		mxl_printk(KERN_DE, fmt, ##arg)
 
 /* ------------------------------------------------------------------------ */
 

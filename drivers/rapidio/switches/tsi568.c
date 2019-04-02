@@ -117,7 +117,7 @@ tsi568_em_init(struct rio_dev *rdev)
 	u32 regval;
 	int portnum;
 
-	pr_debug("TSI568 %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
+	pr_de("TSI568 %s [%d:%d]\n", __func__, rdev->destid, rdev->hopcount);
 
 	/* Make sure that Port-Writes are disabled (for all ports) */
 	for (portnum = 0;
@@ -143,7 +143,7 @@ static struct rio_switch_ops tsi568_switch_ops = {
 
 static int tsi568_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 
 	spin_lock(&rdev->rswitch->lock);
 
@@ -159,7 +159,7 @@ static int tsi568_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 
 static void tsi568_remove(struct rio_dev *rdev)
 {
-	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	pr_de("RIO: %s for %s\n", __func__, rio_name(rdev));
 	spin_lock(&rdev->rswitch->lock);
 	if (rdev->rswitch->ops != &tsi568_switch_ops) {
 		spin_unlock(&rdev->rswitch->lock);

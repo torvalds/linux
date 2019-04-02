@@ -47,8 +47,8 @@
 #define IS_IWARP(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_IWARP)
 #define IS_ROCE(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_ROCE)
 
-#define DP_DEBUG(dev, module, fmt, ...)					\
-	pr_debug("(%s) " module ": " fmt,				\
+#define DP_DE(dev, module, fmt, ...)					\
+	pr_de("(%s) " module ": " fmt,				\
 		 DP_NAME(dev) ? DP_NAME(dev) : "", ## __VA_ARGS__)
 
 #define QEDR_MSG_INIT "INIT"

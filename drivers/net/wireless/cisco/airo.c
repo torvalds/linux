@@ -1273,7 +1273,7 @@ static int flashrestart(struct airo_info *ai,struct net_device *dev);
 	airo_print(KERN_INFO, name, fmt, ##args)
 
 #define airo_print_dbg(name, fmt, args...) \
-	airo_print(KERN_DEBUG, name, fmt, ##args)
+	airo_print(KERN_DE, name, fmt, ##args)
 
 #define airo_print_warn(name, fmt, args...) \
 	airo_print(KERN_WARNING, name, fmt, ##args)
@@ -7604,7 +7604,7 @@ static const struct iw_handler_def	airo_handler_def =
  *
  * TODO :
  *	o Check input value more carefully and fill correct values in range
- *	o Test and shakeout the bugs (if any)
+ *	o Test and shakeout the s (if any)
  *
  * Jean II
  *

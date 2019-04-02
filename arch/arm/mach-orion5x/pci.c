@@ -574,7 +574,7 @@ int __init orion5x_pci_sys_scan_bus(int nr, struct pci_host_bridge *bridge)
 		return pci_scan_root_bus_bridge(bridge);
 	}
 
-	BUG();
+	();
 	return -ENODEV;
 }
 

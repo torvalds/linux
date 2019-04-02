@@ -42,7 +42,7 @@ mwifiex-y += cfg80211.o
 mwifiex-y += ethtool.o
 mwifiex-y += 11h.o
 mwifiex-y += tdls.o
-mwifiex-$(CONFIG_DEBUG_FS) += debugfs.o
+mwifiex-$(CONFIG_DE_FS) += defs.o
 obj-$(CONFIG_MWIFIEX) += mwifiex.o
 
 mwifiex_sdio-y += sdio.o

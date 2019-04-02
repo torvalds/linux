@@ -16,7 +16,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/bug.h>
+#include <linux/.h>
 #include <linux/completion.h>
 #include <linux/crc-itu-t.h>
 #include <linux/device.h>

@@ -75,9 +75,9 @@
 #define REG_HIGH_LOW_WM(ie,fn)	CRA(0x2,ie&1,0x40+fn)	/* Flow Control Water Marks */
 #define REG_CT_THRHLD(ie,fn)	CRA(0x2,ie&1,0x50+fn)	/* Cut Through Threshold */
 #define REG_FIFO_DROP_CNT(ie,fn) CRA(0x2,ie&1,0x60+fn)	/* Drop & CRC Error Counter */
-#define REG_DEBUG_BUF_CNT(ie,fn) CRA(0x2,ie&1,0x70+fn)	/* Input Side Debug Counter */
-#define REG_BUCKI(fn) CRA(0x2,2,0x20+fn)	/* Input Side Debug Counter */
-#define REG_BUCKE(fn) CRA(0x2,3,0x20+fn)	/* Input Side Debug Counter */
+#define REG_DE_BUF_CNT(ie,fn) CRA(0x2,ie&1,0x70+fn)	/* Input Side De Counter */
+#define REG_BUCKI(fn) CRA(0x2,2,0x20+fn)	/* Input Side De Counter */
+#define REG_BUCKE(fn) CRA(0x2,3,0x20+fn)	/* Input Side De Counter */
 
 /* Traffic shaper buckets
  *   ie = 0 for ingress, 1 for egress
@@ -101,8 +101,8 @@
 #define REG_EGR_CONTROL		CRA(0x2,0x1,0x0f)	/* Egress control (alias) */
 #define REG_AGE_TIMER(ie)	CRA(0x2,ie&1,0x1f)	/* Aging timer */
 #define REG_AGE_INC(ie)		CRA(0x2,ie&1,0x2f)	/* Aging increment */
-#define DEBUG_OUT(ie)		CRA(0x2,ie&1,0x3f)	/* Output debug counter control */
-#define DEBUG_CNT(ie)		CRA(0x2,ie&1,0x4f)	/* Output debug counter */
+#define DE_OUT(ie)		CRA(0x2,ie&1,0x3f)	/* Output de counter control */
+#define DE_CNT(ie)		CRA(0x2,ie&1,0x4f)	/* Output de counter */
 
 /* SPI4 interface */
 #define REG_SPI4_MISC		CRA(0x5,0x0,0x00)	/* Misc Register */
@@ -111,8 +111,8 @@
 #define REG_SPI4_ING_SETUP1	CRA(0x5,0x0,0x03)	/* Ingress Data Training Setup */
 #define REG_SPI4_ING_SETUP2	CRA(0x5,0x0,0x04)	/* Ingress Data Burst Size Setup */
 #define REG_SPI4_EGR_SETUP0	CRA(0x5,0x0,0x05)	/* Egress Status Channel Setup */
-#define REG_SPI4_DBG_CNT(n)	CRA(0x5,0x0,0x10+n)	/* Debug counters 0-9 */
-#define REG_SPI4_DBG_SETUP	CRA(0x5,0x0,0x1A)	/* Debug counters setup */
+#define REG_SPI4_DBG_CNT(n)	CRA(0x5,0x0,0x10+n)	/* De counters 0-9 */
+#define REG_SPI4_DBG_SETUP	CRA(0x5,0x0,0x1A)	/* De counters setup */
 #define REG_SPI4_TEST		CRA(0x5,0x0,0x20)	/* Test Setup Register */
 #define REG_TPGEN_UP0		CRA(0x5,0x0,0x21)	/* Test Pattern generator user pattern 0 */
 #define REG_TPGEN_UP1		CRA(0x5,0x0,0x22)	/* Test Pattern generator user pattern 1 */
@@ -141,13 +141,13 @@
 #define REG_MISC_10G		CRA(0x1,0xa,0x00)	/* Misc 10GbE setup */
 #define REG_PAUSE_10G		CRA(0x1,0xa,0x01)	/* Pause register */
 #define REG_NORMALIZER_10G	CRA(0x1,0xa,0x05)	/* 10G normalizer */
-#define REG_STICKY_RX		CRA(0x1,0xa,0x06)	/* RX debug register */
+#define REG_STICKY_RX		CRA(0x1,0xa,0x06)	/* RX de register */
 #define REG_DENORM_10G		CRA(0x1,0xa,0x07)	/* Denormalizer  */
 #define REG_STICKY_TX		CRA(0x1,0xa,0x08)	/* TX sticky bits */
-#define REG_MAX_RXHIGH		CRA(0x1,0xa,0x0a)	/* XGMII lane 0-3 debug */
-#define REG_MAX_RXLOW		CRA(0x1,0xa,0x0b)	/* XGMII lane 4-7 debug */
-#define REG_MAC_TX_STICKY	CRA(0x1,0xa,0x0c)	/* MAC Tx state sticky debug */
-#define REG_MAC_TX_RUNNING	CRA(0x1,0xa,0x0d)	/* MAC Tx state running debug */
+#define REG_MAX_RXHIGH		CRA(0x1,0xa,0x0a)	/* XGMII lane 0-3 de */
+#define REG_MAX_RXLOW		CRA(0x1,0xa,0x0b)	/* XGMII lane 4-7 de */
+#define REG_MAC_TX_STICKY	CRA(0x1,0xa,0x0c)	/* MAC Tx state sticky de */
+#define REG_MAC_TX_RUNNING	CRA(0x1,0xa,0x0d)	/* MAC Tx state running de */
 #define REG_TX_ABORT_AGE	CRA(0x1,0xa,0x14)	/* Aged Tx frames discarded */
 #define REG_TX_ABORT_SHORT	CRA(0x1,0xa,0x15)	/* Short Tx frames discarded */
 #define REG_TX_ABORT_TAXI	CRA(0x1,0xa,0x16)	/* Taxi error frames discarded */
@@ -175,7 +175,7 @@
 #define REG_PAUSE_CFG(pn)	CRA(0x1,pn,0x01)	/* Pause configuration */
 #define REG_NORMALIZER(pn)	CRA(0x1,pn,0x05)	/* Normalizer */
 #define REG_TBI_STATUS(pn)	CRA(0x1,pn,0x06)	/* TBI status */
-#define REG_PCS_STATUS_DBG(pn)	CRA(0x1,pn,0x07)	/* PCS status debug */
+#define REG_PCS_STATUS_DBG(pn)	CRA(0x1,pn,0x07)	/* PCS status de */
 #define REG_PCS_CTRL(pn)	CRA(0x1,pn,0x08)	/* PCS control */
 #define REG_TBI_CONFIG(pn)	CRA(0x1,pn,0x09)	/* TBI configuration */
 #define REG_STICK_BIT(pn)	CRA(0x1,pn,0x0a)	/* Sticky bits */
@@ -188,7 +188,7 @@
 #define REG_SERDES_STAT(pn)	CRA(0x1,pn,0x11)	/* SerDes status */
 #define REG_SERDES_COM_CNT(pn)	CRA(0x1,pn,0x12)	/* SerDes comma counter */
 #define REG_DENORM(pn)		CRA(0x1,pn,0x15)	/* Frame denormalization */
-#define REG_DBG(pn)		CRA(0x1,pn,0x16)	/* Device 1G debug */
+#define REG_DBG(pn)		CRA(0x1,pn,0x16)	/* Device 1G de */
 #define REG_TX_IFG(pn)		CRA(0x1,pn,0x18)	/* Tx IFG config */
 #define REG_HDX(pn)		CRA(0x1,pn,0x19)	/* Half-duplex config */
 

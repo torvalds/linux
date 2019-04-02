@@ -482,7 +482,7 @@ static int mt9v022_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 static int mt9v022_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
@@ -770,7 +770,7 @@ static const struct v4l2_ctrl_ops mt9v022_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_VIDEO_ADV_DE
 	.g_register	= mt9v022_g_register,
 	.s_register	= mt9v022_s_register,
 #endif

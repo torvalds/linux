@@ -88,7 +88,7 @@ enum rxrpc_cmsg_type {
 #define RX_PROTOCOL_ERROR	-5	/* low-level protocol error */
 #define RX_USER_ABORT		-6	/* generic user abort */
 #define RX_ADDRINUSE		-7	/* UDP port in use */
-#define RX_DEBUGI_BADTYPE	-8	/* bad debugging packet type */
+#define RX_DEI_BADTYPE	-8	/* bad deging packet type */
 
 /*
  * (un)marshalling abort codes (rxgen)

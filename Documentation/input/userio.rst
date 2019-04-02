@@ -79,7 +79,7 @@ Userspace tools
 ===============
 
 The userio userspace tools are able to record PS/2 devices using some of the
-debugging information from i8042, and play back the devices on /dev/userio. The
+deging information from i8042, and play back the devices on /dev/userio. The
 latest version of these tools can be found at:
 
 	https://github.com/Lyude/ps2emu

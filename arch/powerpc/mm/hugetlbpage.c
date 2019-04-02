@@ -75,8 +75,8 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 
 	new = kmem_cache_alloc(cachep, pgtable_gfp_flags(mm, GFP_KERNEL));
 
-	BUG_ON(pshift > HUGEPD_SHIFT_MASK);
-	BUG_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
+	_ON(pshift > HUGEPD_SHIFT_MASK);
+	_ON((unsigned long)new & HUGEPD_SHIFT_MASK);
 
 	if (! new)
 		return -ENOMEM;
@@ -192,7 +192,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 	if (!hpdp)
 		return NULL;
 
-	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
+	_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
 
 	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr,
 						  pdshift, pshift, ptl))
@@ -634,7 +634,7 @@ static int __init add_huge_page_size(unsigned long long size)
 	}
 #endif
 
-	BUG_ON(mmu_psize_defs[mmu_psize].shift != shift);
+	_ON(mmu_psize_defs[mmu_psize].shift != shift);
 
 	/* Return if huge page size has already been setup */
 	if (size_to_hstate(size))
@@ -743,7 +743,7 @@ void flush_dcache_icache_hugepage(struct page *page)
 	int i;
 	void *start;
 
-	BUG_ON(!PageCompound(page));
+	_ON(!PageCompound(page));
 
 	for (i = 0; i < (1UL << compound_order(page)); i++) {
 		if (!PageHighMem(page)) {
@@ -879,14 +879,14 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 		return 0;
 
 	/* hugepages are never "special" */
-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+	VM__ON(!pfn_valid(pte_pfn(pte)));
 
 	refs = 0;
 	head = pte_page(pte);
 
 	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
 	do {
-		VM_BUG_ON(compound_head(page) != head);
+		VM__ON(compound_head(page) != head);
 		pages[*nr] = page;
 		(*nr)++;
 		page++;

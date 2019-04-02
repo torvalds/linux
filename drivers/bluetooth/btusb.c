@@ -314,11 +314,11 @@ static const struct usb_device_id blacklist_table[] = {
 	/* Kensington Bluetooth USB adapter */
 	{ USB_DEVICE(0x047d, 0x105e), .driver_info = BTUSB_WRONG_SCO_MTU },
 
-	/* RTX Telecom based adapters with buggy SCO support */
+	/* RTX Telecom based adapters with gy SCO support */
 	{ USB_DEVICE(0x0400, 0x0807), .driver_info = BTUSB_BROKEN_ISOC },
 	{ USB_DEVICE(0x0400, 0x080a), .driver_info = BTUSB_BROKEN_ISOC },
 
-	/* CONWISE Technology based adapters with buggy SCO support */
+	/* CONWISE Technology based adapters with gy SCO support */
 	{ USB_DEVICE(0x0e5e, 0x6622),
 	  .driver_info = BTUSB_BROKEN_ISOC | BTUSB_CW6622},
 
@@ -1786,7 +1786,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	/* The controller has a bug with the first HCI command sent to it
+	/* The controller has a  with the first HCI command sent to it
 	 * returning number of completed commands as zero. This would stall the
 	 * command processing in the Bluetooth core.
 	 *
@@ -2388,7 +2388,7 @@ done:
 
 	/* Set the event mask for Intel specific vendor events. This enables
 	 * a few extra events that are useful during general operation. It
-	 * does not enable any debugging related events.
+	 * does not enable any deging related events.
 	 *
 	 * The device will function correctly without these events enabled
 	 * and thus no need to fail the setup.
@@ -3257,7 +3257,7 @@ static int btusb_probe(struct usb_interface *intf,
 	}
 
 	if (id->driver_info & BTUSB_INTEL_BOOT) {
-		/* A bug in the bootloader causes that interrupt interface is
+		/* A  in the bootloader causes that interrupt interface is
 		 * only enabled after receiving SetInterface(0, AltSetting=0).
 		 */
 		err = usb_set_interface(data->udev, 0, 0);

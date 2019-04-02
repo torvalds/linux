@@ -37,8 +37,8 @@
 *  General Public License for more details.
 */
 
-#define SYM53C500_DEBUG 0
-#define VERBOSE_SYM53C500_DEBUG 0
+#define SYM53C500_DE 0
+#define VERBOSE_SYM53C500_DE 0
 
 /*
 *  Set this to 0 if you encounter kernel lockups while transferring 
@@ -134,13 +134,13 @@
 /* select register set 1 */
 #define REG1(x)		outb(C7_IMG, (x) + CONFIG7); outb(C5_IMG, (x) + CONFIG5)
 
-#if SYM53C500_DEBUG
+#if SYM53C500_DE
 #define DEB(x) x
 #else
 #define DEB(x)
 #endif
 
-#if VERBOSE_SYM53C500_DEBUG
+#if VERBOSE_SYM53C500_DE
 #define VDEB(x) x
 #else
 #define VDEB(x)
@@ -374,11 +374,11 @@ SYM53C500_intr(int irq, void *dev_id)
 	int_reg = inb(port_base + INT_REG);
 	DEB(fifo_size = inb(port_base + FIFO_FLAGS) & 0x1f);
 
-#if SYM53C500_DEBUG
+#if SYM53C500_DE
 	printk("status=%02x, seq_reg=%02x, int_reg=%02x, fifo_size=%02x", 
 	    status, seq_reg, int_reg, fifo_size);
 	printk(", pio=%02x\n", pio_status);
-#endif /* SYM53C500_DEBUG */
+#endif /* SYM53C500_DE */
 
 	if (int_reg & 0x80) {	/* SCSI reset intr */
 		DEB(printk("SYM53C500: reset intr received\n"));

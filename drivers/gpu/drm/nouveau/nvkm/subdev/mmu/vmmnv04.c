@@ -85,7 +85,7 @@ nv04_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	} *args = argv;
 	int ret = -ENOSYS;
 	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
-		VMM_DEBUG(vmm, "args");
+		VMM_DE(vmm, "args");
 	return ret;
 }
 

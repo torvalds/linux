@@ -323,7 +323,7 @@ static void nf_nat_sip_expected(struct nf_conn *ct,
 	struct nf_nat_range2 range;
 
 	/* This must be a fresh one. */
-	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
+	_ON(ct->status & IPS_NAT_DONE_MASK);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
@@ -674,7 +674,7 @@ static const struct nf_nat_sip_hooks sip_hooks = {
 
 static int __init nf_nat_sip_init(void)
 {
-	BUG_ON(nf_nat_sip_hooks != NULL);
+	_ON(nf_nat_sip_hooks != NULL);
 	RCU_INIT_POINTER(nf_nat_sip_hooks, &sip_hooks);
 	nf_ct_helper_expectfn_register(&sip_nat);
 	return 0;

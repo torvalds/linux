@@ -89,7 +89,7 @@ static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned idx)
 		}
 	}
 
-	BUG();
+	();
 }
 
 static int gpio_setup_data_regs(struct sh_pfc_chip *chip)

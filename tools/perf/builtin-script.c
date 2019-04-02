@@ -3,7 +3,7 @@
 
 #include "perf.h"
 #include "util/cache.h"
-#include "util/debug.h"
+#include "util/de.h"
 #include <subcmd/exec-cmd.h>
 #include "util/header.h"
 #include <subcmd/parse-options.h>
@@ -35,7 +35,7 @@
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <sys/utsname.h>
-#include "asm/bug.h"
+#include "asm/.h"
 #include "util/mem-events.h"
 #include "util/dump-insn.h"
 #include <dirent.h>
@@ -55,7 +55,7 @@ static char const		*script_name;
 static char const		*generate_script_lang;
 static bool			reltime;
 static u64			initial_time;
-static bool			debug_mode;
+static bool			de_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
 static bool			no_callchain;
@@ -363,7 +363,7 @@ static int perf_evsel__do_check_stype(struct perf_evsel *evsel,
 	/* user did not ask for it explicitly so remove from the default list */
 	output[type].fields &= ~field;
 	evname = perf_evsel__name(evsel);
-	pr_debug("Samples for '%s' event do not have %s attribute set. "
+	pr_de("Samples for '%s' event do not have %s attribute set. "
 		 "Skipping '%s' field.\n",
 		 evname, sample_msg, output_field2str(field));
 
@@ -885,25 +885,25 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	 * but the exit is not. Let the caller patch it up.
 	 */
 	if (kernel != machine__kernel_ip(machine, end)) {
-		pr_debug("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n", start, end);
+		pr_de("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n", start, end);
 		return -ENXIO;
 	}
 
 	memset(&al, 0, sizeof(al));
 	if (end - start > MAXBB - MAXINSN) {
 		if (last)
-			pr_debug("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
+			pr_de("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
 		else
-			pr_debug("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
+			pr_de("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
 		return 0;
 	}
 
 	if (!thread__find_map(thread, *cpumode, start, &al) || !al.map->dso) {
-		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_de("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR) {
-		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_de("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 
@@ -916,7 +916,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 
 	*is64bit = al.map->dso->is_64_bit;
 	if (len <= 0)
-		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
+		pr_de("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
 	return len;
 }
@@ -1035,7 +1035,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 	/* Print all blocks */
 	for (i = nr - 2; i >= 0; i--) {
 		if (br->entries[i].from || br->entries[i].to)
-			pr_debug("%d: %" PRIx64 "-%" PRIx64 "\n", i,
+			pr_de("%d: %" PRIx64 "-%" PRIx64 "\n", i,
 				 br->entries[i].from,
 				 br->entries[i].to);
 		start = br->entries[i + 1].to;
@@ -1045,7 +1045,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 		/* Patch up missing kernel transfers due to ring filters */
 		if (len == -ENXIO && i > 0) {
 			end = br->entries[--i].from;
-			pr_debug("\tpatching up to %" PRIx64 "-%" PRIx64 "\n", start, end);
+			pr_de("\tpatching up to %" PRIx64 "-%" PRIx64 "\n", start, end);
 			len = grab_bb(buffer, start, end, machine, thread, &x.is64bit, &x.cpumode, false);
 		}
 		if (len <= 0)
@@ -1936,7 +1936,7 @@ static int flush_scripting(void)
 
 static int cleanup_scripting(void)
 {
-	pr_debug("\nperf script stopped\n");
+	pr_de("\nperf script stopped\n");
 
 	return scripting_ops ? scripting_ops->stop_script() : 0;
 }
@@ -1962,7 +1962,7 @@ static int process_sample_event(struct perf_tool *tool,
 		return 0;
 	}
 
-	if (debug_mode) {
+	if (de_mode) {
 		if (sample->time < last_timestamp) {
 			pr_err("Samples misordered, previous: %" PRIu64
 				" this: %" PRIu64 "\n", last_timestamp,
@@ -2054,7 +2054,7 @@ static int process_comm_event(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(machine, event->comm.pid, event->comm.tid);
 	if (thread == NULL) {
-		pr_debug("problem processing COMM event, skipping it.\n");
+		pr_de("problem processing COMM event, skipping it.\n");
 		return -1;
 	}
 
@@ -2092,7 +2092,7 @@ static int process_namespaces_event(struct perf_tool *tool,
 	thread = machine__findnew_thread(machine, event->namespaces.pid,
 					 event->namespaces.tid);
 	if (thread == NULL) {
-		pr_debug("problem processing NAMESPACES event, skipping it.\n");
+		pr_de("problem processing NAMESPACES event, skipping it.\n");
 		return -1;
 	}
 
@@ -2131,7 +2131,7 @@ static int process_fork_event(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(machine, event->fork.pid, event->fork.tid);
 	if (thread == NULL) {
-		pr_debug("problem processing FORK event, skipping it.\n");
+		pr_de("problem processing FORK event, skipping it.\n");
 		return -1;
 	}
 
@@ -2163,7 +2163,7 @@ static int process_exit_event(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(machine, event->fork.pid, event->fork.tid);
 	if (thread == NULL) {
-		pr_debug("problem processing EXIT event, skipping it.\n");
+		pr_de("problem processing EXIT event, skipping it.\n");
 		return -1;
 	}
 
@@ -2201,7 +2201,7 @@ static int process_mmap_event(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(machine, event->mmap.pid, event->mmap.tid);
 	if (thread == NULL) {
-		pr_debug("problem processing MMAP event, skipping it.\n");
+		pr_de("problem processing MMAP event, skipping it.\n");
 		return -1;
 	}
 
@@ -2235,7 +2235,7 @@ static int process_mmap2_event(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(machine, event->mmap2.pid, event->mmap2.tid);
 	if (thread == NULL) {
-		pr_debug("problem processing MMAP2 event, skipping it.\n");
+		pr_de("problem processing MMAP2 event, skipping it.\n");
 		return -1;
 	}
 
@@ -2270,7 +2270,7 @@ static int process_switch_event(struct perf_tool *tool,
 	thread = machine__findnew_thread(machine, sample->pid,
 					 sample->tid);
 	if (thread == NULL) {
-		pr_debug("problem processing SWITCH event, skipping it.\n");
+		pr_de("problem processing SWITCH event, skipping it.\n");
 		return -1;
 	}
 
@@ -2431,7 +2431,7 @@ static int __cmd_script(struct perf_script *script)
 	if (script->per_event_dump)
 		perf_script__exit_per_event_dump_stats(script);
 
-	if (debug_mode)
+	if (de_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
 
 	return ret;
@@ -2705,7 +2705,7 @@ parse:
 
 	if (type >= 0) {
 		if (output[type].fields == 0) {
-			pr_debug("No fields requested for %s type. "
+			pr_de("No fields requested for %s type. "
 				 "Events will not be displayed.\n", event_type(type));
 		}
 	}
@@ -3372,7 +3372,7 @@ int cmd_script(int argc, const char **argv)
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-script.xx script in specified language"),
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
-	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
+	OPT_BOOLEAN('d', "de-mode", &de_mode,
 		   "do various checks like samples ordering and lost events"),
 	OPT_BOOLEAN(0, "header", &header, "Show data header."),
 	OPT_BOOLEAN(0, "header-only", &header_only, "Show only data header."),
@@ -3749,7 +3749,7 @@ int cmd_script(int argc, const char **argv)
 		err = scripting_ops->start_script(script_name, argc, argv);
 		if (err)
 			goto out_delete;
-		pr_debug("perf script started with script %s\n\n", script_name);
+		pr_de("perf script started with script %s\n\n", script_name);
 		script_started = true;
 	}
 

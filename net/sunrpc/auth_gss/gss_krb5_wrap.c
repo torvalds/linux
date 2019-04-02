@@ -35,7 +35,7 @@
 #include <linux/random.h>
 #include <linux/pagemap.h>
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+#if IS_ENABLED(CONFIG_SUNRPC_DE)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -88,7 +88,7 @@ gss_krb5_remove_padding(struct xdr_buf *buf, int blocksize)
 		goto out;
 	} else
 		len -= buf->page_len;
-	BUG_ON(len > buf->tail[0].iov_len);
+	_ON(len > buf->tail[0].iov_len);
 	pad = *(u8 *)(buf->tail[0].iov_base + len - 1);
 out:
 	/* XXX: NOTE: we do not adjust the page lengths--they represent
@@ -142,7 +142,7 @@ gss_krb5_make_confounder(char *p, u32 conflen)
 		*q++ = i++;
 		break;
 	default:
-		BUG();
+		();
 	}
 }
 
@@ -176,7 +176,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 
 	blocksize = crypto_sync_skcipher_blocksize(kctx->enc);
 	gss_krb5_add_padding(buf, offset, blocksize);
-	BUG_ON((buf->len - offset) % blocksize);
+	_ON((buf->len - offset) % blocksize);
 	plainlen = conflen + buf->len - offset;
 
 	headlen = g_token_size(&kctx->mech_used,
@@ -188,7 +188,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	xdr_extend_head(buf, offset, headlen);
 
 	/* XXX Would be cleverer to encrypt while copying. */
-	BUG_ON((buf->len - offset - headlen) % blocksize);
+	_ON((buf->len - offset - headlen) % blocksize);
 
 	g_make_token_header(&kctx->mech_used,
 				GSS_KRB5_TOK_HDR_LEN +
@@ -402,7 +402,7 @@ static void rotate_buf_a_little(struct xdr_buf *buf, unsigned int shift)
 	char tmp[LOCAL_BUF_LEN];
 	unsigned int this_len, i;
 
-	BUG_ON(shift > LOCAL_BUF_LEN);
+	_ON(shift > LOCAL_BUF_LEN);
 
 	read_bytes_from_xdr_buf(buf, 0, head, shift);
 	for (i = 0; i + shift < buf->len; i += LOCAL_BUF_LEN) {
@@ -591,7 +591,7 @@ gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
 
 	switch (kctx->enctype) {
 	default:
-		BUG();
+		();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 	case ENCTYPE_ARCFOUR_HMAC:
@@ -609,7 +609,7 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 
 	switch (kctx->enctype) {
 	default:
-		BUG();
+		();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 	case ENCTYPE_ARCFOUR_HMAC:

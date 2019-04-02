@@ -23,11 +23,11 @@
 #include <asm/apic.h>
 #include <asm/nospec-branch.h>
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
+#ifdef CONFIG_DE_STACKOVERFLOW
 
 int sysctl_panic_on_stackoverflow __read_mostly;
 
-/* Debugging check for stack overflow: is there less than 1KB free? */
+/* Deging check for stack overflow: is there less than 1KB free? */
 static int check_stack_overflow(void)
 {
 	long sp;
@@ -126,7 +126,7 @@ void irq_ctx_init(int cpu)
 					       THREAD_SIZE_ORDER));
 	per_cpu(softirq_stack, cpu) = irqstk;
 
-	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
+	printk(KERN_DE "CPU %u irqstacks, hard=%p soft=%p\n",
 	       cpu, per_cpu(hardirq_stack, cpu),  per_cpu(softirq_stack, cpu));
 }
 

@@ -12,7 +12,7 @@
 
 #define ACPI_WALK_OPERANDS          (&(walk_state->operands [walk_state->num_operands -1]))
 
-/* Macros for tables used for debug output */
+/* Macros for tables used for de output */
 
 #define ACPI_EXD_OFFSET(f)          (u8) ACPI_OFFSET (union acpi_operand_object,f)
 #define ACPI_EXD_NSOFFSET(f)        (u8) ACPI_OFFSET (struct acpi_namespace_node,f)
@@ -20,7 +20,7 @@
 
 /*
  * If possible, pack the following structures to byte alignment, since we
- * don't care about performance for debug output. Two cases where we cannot
+ * don't care about performance for de output. Two cases where we cannot
  * pack the structures:
  *
  * 1) Hardware does not support misaligned memory transfers
@@ -92,10 +92,10 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			       struct acpi_walk_state *walk_state);
 
 /*
- * exdebug - AML debug object
+ * exde - AML de object
  */
 void
-acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
+acpi_ex_do_de_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index);
 
 void
@@ -379,7 +379,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			 struct acpi_walk_state *walk_state);
 
 /*
- * exdump - Interpreter debug output routines
+ * exdump - Interpreter de output routines
  */
 void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth);
 

@@ -163,7 +163,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 
 	outw_p(GS_CLEAR_STS, SMB_GLOBAL_STATUS);
 
-#ifdef DEBUG
+#ifdef DE
 	if (((temp = inw_p(SMB_GLOBAL_STATUS)) & GS_CLEAR_STS) != 0x00) {
 		dev_dbg(&adap->dev,
 			"Failed reset at end of transaction (%04x)\n", temp);

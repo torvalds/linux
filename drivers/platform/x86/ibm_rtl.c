@@ -39,9 +39,9 @@ static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
 
-static bool debug;
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Show debug output");
+static bool de;
+module_param(de, bool, 0644);
+MODULE_PARM_DESC(de, "Show de output");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Keith Mannthey <kmmanth@us.ibm.com>");
@@ -72,9 +72,9 @@ struct ibm_rtl_table {
 #define RTL_SIGNATURE 0x0000005f4c54525fULL
 #define RTL_MASK      0x000000ffffffffffULL
 
-#define RTL_DEBUG(fmt, ...)				\
+#define RTL_DE(fmt, ...)				\
 do {							\
-	if (debug)					\
+	if (de)					\
 		pr_info(fmt, ##__VA_ARGS__);		\
 } while (0)
 
@@ -105,7 +105,7 @@ static int ibm_rtl_write(u8 value)
 	int ret = 0, count = 0;
 	u32 cmd_port_val;
 
-	RTL_DEBUG("%s(%d)\n", __func__, value);
+	RTL_DE("%s(%d)\n", __func__, value);
 
 	value = value == 1 ? RTL_CMD_ENTER_PRTM : RTL_CMD_EXIT_PRTM;
 
@@ -117,17 +117,17 @@ static int ibm_rtl_write(u8 value)
 		switch (rtl_cmd_width) {
 		case 8:
 			cmd_port_val = ioread8(&rtl_table->cmd_port_value);
-			RTL_DEBUG("cmd_port_val = %u\n", cmd_port_val);
+			RTL_DE("cmd_port_val = %u\n", cmd_port_val);
 			iowrite8((u8)cmd_port_val, rtl_cmd_addr);
 			break;
 		case 16:
 			cmd_port_val = ioread16(&rtl_table->cmd_port_value);
-			RTL_DEBUG("cmd_port_val = %u\n", cmd_port_val);
+			RTL_DE("cmd_port_val = %u\n", cmd_port_val);
 			iowrite16((u16)cmd_port_val, rtl_cmd_addr);
 			break;
 		case 32:
 			cmd_port_val = ioread32(&rtl_table->cmd_port_value);
-			RTL_DEBUG("cmd_port_val = %u\n", cmd_port_val);
+			RTL_DE("cmd_port_val = %u\n", cmd_port_val);
 			iowrite32(cmd_port_val, rtl_cmd_addr);
 			break;
 		}
@@ -144,7 +144,7 @@ static int ibm_rtl_write(u8 value)
 		}
 
 		if (ioread8(&rtl_table->command_status)) {
-			RTL_DEBUG("command_status reports failed command\n");
+			RTL_DE("command_status reports failed command\n");
 			ret = -EIO;
 		}
 	}
@@ -250,7 +250,7 @@ static int __init ibm_rtl_init(void) {
 	/* Get the address for the Extended BIOS Data Area */
 	ebda_addr = get_bios_ebda();
 	if (!ebda_addr) {
-		RTL_DEBUG("no BIOS EBDA found\n");
+		RTL_DE("no BIOS EBDA found\n");
 		return -ENODEV;
 	}
 
@@ -260,7 +260,7 @@ static int __init ibm_rtl_init(void) {
 
 	/* First word in the EDBA is the Size in KB */
 	ebda_kb = ioread16(ebda_map);
-	RTL_DEBUG("EBDA is %d kB\n", ebda_kb);
+	RTL_DE("EBDA is %d kB\n", ebda_kb);
 
 	if (ebda_kb == 0)
 		goto out;
@@ -280,19 +280,19 @@ static int __init ibm_rtl_init(void) {
 		if ((readq(&tmp->signature) & RTL_MASK) == RTL_SIGNATURE) {
 			phys_addr_t addr;
 			unsigned int plen;
-			RTL_DEBUG("found RTL_SIGNATURE at %p\n", tmp);
+			RTL_DE("found RTL_SIGNATURE at %p\n", tmp);
 			rtl_table = tmp;
 			/* The address, value, width and offset are platform
 			 * dependent and found in the ibm_rtl_table */
 			rtl_cmd_width = ioread8(&rtl_table->cmd_granularity);
 			rtl_cmd_type = ioread8(&rtl_table->cmd_address_type);
-			RTL_DEBUG("rtl_cmd_width = %u, rtl_cmd_type = %u\n",
+			RTL_DE("rtl_cmd_width = %u, rtl_cmd_type = %u\n",
 				  rtl_cmd_width, rtl_cmd_type);
 			addr = ioread32(&rtl_table->cmd_port_address);
-			RTL_DEBUG("addr = %#llx\n", (unsigned long long)addr);
+			RTL_DE("addr = %#llx\n", (unsigned long long)addr);
 			plen = rtl_cmd_width/sizeof(char);
 			rtl_cmd_addr = rtl_port_map(addr, plen);
-			RTL_DEBUG("rtl_cmd_addr = %p\n", rtl_cmd_addr);
+			RTL_DE("rtl_cmd_addr = %p\n", rtl_cmd_addr);
 			if (!rtl_cmd_addr) {
 				ret = -ENOMEM;
 				break;
@@ -314,7 +314,7 @@ out:
 static void __exit ibm_rtl_exit(void)
 {
 	if (rtl_table) {
-		RTL_DEBUG("cleaning up");
+		RTL_DE("cleaning up");
 		/* do not leave the machine in SMI-free mode */
 		ibm_rtl_write(0);
 		/* unmap, unlink and remove all traces */

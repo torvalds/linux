@@ -36,7 +36,7 @@
 #define ACPI_SIG_MTMR           "MTMR"	/* MID Timer table */
 #define ACPI_SIG_NFIT           "NFIT"	/* NVDIMM Firmware Interface Table */
 #define ACPI_SIG_PCCT           "PCCT"	/* Platform Communications Channel Table */
-#define ACPI_SIG_PDTT           "PDTT"	/* Platform Debug Trigger Table */
+#define ACPI_SIG_PDTT           "PDTT"	/* Platform De Trigger Table */
 #define ACPI_SIG_PMTT           "PMTT"	/* Platform Memory Topology Table */
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
@@ -1336,7 +1336,7 @@ struct acpi_pcct_ext_pcc_shared_memory {
 
 /*******************************************************************************
  *
- * PDTT - Platform Debug Trigger Table (ACPI 6.2)
+ * PDTT - Platform De Trigger Table (ACPI 6.2)
  *        Version 0
  *
  ******************************************************************************/

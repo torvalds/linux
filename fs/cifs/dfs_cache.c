@@ -16,7 +16,7 @@
 #include "smb2pdu.h"
 #include "smb2proto.h"
 #include "cifsproto.h"
-#include "cifs_debug.h"
+#include "cifs_de.h"
 #include "cifs_unicode.h"
 #include "smb2glob.h"
 
@@ -224,7 +224,7 @@ const struct file_operations dfscache_proc_fops = {
 	.write		= dfscache_proc_write,
 };
 
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 static inline void dump_tgts(const struct dfs_cache_entry *ce)
 {
 	struct dfs_cache_tgt *t;
@@ -488,7 +488,7 @@ static struct dfs_cache_entry *__find_cache_entry(unsigned int hash,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(ce, &dfs_cache_htable[hash], ce_hlist) {
 		if (!strcasecmp(path, ce->ce_path)) {
-#ifdef CONFIG_CIFS_DEBUG2
+#ifdef CONFIG_CIFS_DE2
 			char *name = get_tgt_name(ce);
 
 			if (unlikely(IS_ERR(name))) {

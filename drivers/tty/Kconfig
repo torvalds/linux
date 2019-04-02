@@ -318,7 +318,7 @@ config TRACE_ROUTER
 	  route trace data coming from a tty port (say UART for example) to
 	  the trace sink line discipline driver and to another tty port (say
 	  USB). This is part of a solution for the MIPI P1149.7, compact JTAG,
-	  standard, which is for debugging mobile devices. The PTI driver in
+	  standard, which is for deging mobile devices. The PTI driver in
 	  drivers/misc/pti.c defines the majority of this MIPI solution.
 
 	  You should select this driver if the target kernel is meant for
@@ -350,7 +350,7 @@ config PPC_EPAPR_HV_BYTECHAN
 	  channel, thereby allowing applications to communicate with byte
 	  channels as if they were serial ports.
 
-config PPC_EARLY_DEBUG_EHV_BC
+config PPC_EARLY_DE_EHV_BC
 	bool "Early console (udbg) support for ePAPR hypervisors"
 	depends on PPC_EPAPR_HV_BYTECHAN=y
 	help
@@ -358,9 +358,9 @@ config PPC_EARLY_DEBUG_EHV_BC
 	  via an ePAPR byte channel.  You also need to choose the byte channel
 	  handle below.
 
-config PPC_EARLY_DEBUG_EHV_BC_HANDLE
+config PPC_EARLY_DE_EHV_BC_HANDLE
 	int "Byte channel handle for early console (udbg)"
-	depends on PPC_EARLY_DEBUG_EHV_BC
+	depends on PPC_EARLY_DE_EHV_BC
 	default 0
 	help
 	  If you want early console (udbg) output through a byte channel,
@@ -390,10 +390,10 @@ config GOLDFISH_TTY_EARLY_CONSOLE
 	select SERIAL_EARLYCON
 
 config MIPS_EJTAG_FDC_TTY
-	bool "MIPS EJTAG Fast Debug Channel TTY"
+	bool "MIPS EJTAG Fast De Channel TTY"
 	depends on MIPS_CDMM
 	help
-	  This enables a TTY and console on the MIPS EJTAG Fast Debug Channels,
+	  This enables a TTY and console on the MIPS EJTAG Fast De Channels,
 	  if they are present. This can be useful when working with an EJTAG
 	  probe which supports it, to get console output and a login prompt via
 	  EJTAG without needing to connect a serial cable.
@@ -402,7 +402,7 @@ config MIPS_EJTAG_FDC_TTY
 	  CPU3).
 
 	  The console can be enabled with console=fdc1 (for FDC channel 1 on all
-	  CPUs). Do not use the console unless there is a debug probe attached
+	  CPUs). Do not use the console unless there is a de probe attached
 	  to drain the FDC TX FIFO.
 
 	  If unsure, say N.
@@ -412,10 +412,10 @@ config MIPS_EJTAG_FDC_EARLYCON
 	depends on MIPS_EJTAG_FDC_TTY
 	help
 	  This registers a console on FDC channel 1 very early during boot (from
-	  MIPS arch code). This is useful for bring-up and debugging early boot
+	  MIPS arch code). This is useful for bring-up and deging early boot
 	  issues.
 
-	  Do not enable unless there is a debug probe attached to drain the FDC
+	  Do not enable unless there is a de probe attached to drain the FDC
 	  TX FIFO.
 
 	  If unsure, say N.

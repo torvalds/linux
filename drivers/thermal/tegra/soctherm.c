@@ -15,7 +15,7 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -237,7 +237,7 @@ struct tegra_soctherm {
 
 	struct soctherm_throt_cfg throt_cfgs[THROTTLE_SIZE];
 
-	struct dentry *debugfs_dir;
+	struct dentry *defs_dir;
 };
 
 /**
@@ -638,7 +638,7 @@ set_throttle:
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 static int regs_show(struct seq_file *s, void *data)
 {
 	struct platform_device *pdev = s->private;
@@ -837,29 +837,29 @@ static int regs_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(regs);
 
-static void soctherm_debug_init(struct platform_device *pdev)
+static void soctherm_de_init(struct platform_device *pdev)
 {
 	struct tegra_soctherm *tegra = platform_get_drvdata(pdev);
 	struct dentry *root, *file;
 
-	root = debugfs_create_dir("soctherm", NULL);
+	root = defs_create_dir("soctherm", NULL);
 	if (!root) {
-		dev_err(&pdev->dev, "failed to create debugfs directory\n");
+		dev_err(&pdev->dev, "failed to create defs directory\n");
 		return;
 	}
 
-	tegra->debugfs_dir = root;
+	tegra->defs_dir = root;
 
-	file = debugfs_create_file("reg_contents", 0644, root,
+	file = defs_create_file("reg_contents", 0644, root,
 				   pdev, &regs_fops);
 	if (!file) {
-		dev_err(&pdev->dev, "failed to create debugfs file\n");
-		debugfs_remove_recursive(tegra->debugfs_dir);
-		tegra->debugfs_dir = NULL;
+		dev_err(&pdev->dev, "failed to create defs file\n");
+		defs_remove_recursive(tegra->defs_dir);
+		tegra->defs_dir = NULL;
 	}
 }
 #else
-static inline void soctherm_debug_init(struct platform_device *pdev) {}
+static inline void soctherm_de_init(struct platform_device *pdev) {}
 #endif
 
 static int soctherm_clk_enable(struct platform_device *pdev, bool enable)
@@ -1406,7 +1406,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 			goto disable_clocks;
 	}
 
-	soctherm_debug_init(pdev);
+	soctherm_de_init(pdev);
 
 	return 0;
 
@@ -1420,7 +1420,7 @@ static int tegra_soctherm_remove(struct platform_device *pdev)
 {
 	struct tegra_soctherm *tegra = platform_get_drvdata(pdev);
 
-	debugfs_remove_recursive(tegra->debugfs_dir);
+	defs_remove_recursive(tegra->defs_dir);
 
 	soctherm_clk_enable(pdev, false);
 

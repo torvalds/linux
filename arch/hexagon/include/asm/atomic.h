@@ -73,7 +73,7 @@ static inline void atomic_set(atomic_t *v, int new)
  * the memw_locked like we do (or it's broken or whatever).
  *
  * Kind of the lynchpin of the rest of the generically defined routines.
- * Remember V2 had that bug with dotnew predicate set by memw_locked.
+ * Remember V2 had that  with dotnew predicate set by memw_locked.
  *
  * "old" is "expected" old val, __oldval is actual old value
  */

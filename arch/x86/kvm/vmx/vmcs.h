@@ -70,7 +70,7 @@ static inline bool is_exception_n(u32 intr_info, u8 vector)
 		(INTR_TYPE_HARD_EXCEPTION | vector | INTR_INFO_VALID_MASK);
 }
 
-static inline bool is_debug(u32 intr_info)
+static inline bool is_de(u32 intr_info)
 {
 	return is_exception_n(intr_info, DB_VECTOR);
 }

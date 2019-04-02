@@ -18,7 +18,7 @@
 
 #include <asm/spec-ctrl.h>
 #include <asm/cmdline.h>
-#include <asm/bugs.h>
+#include <asm/s.h>
 #include <asm/processor.h>
 #include <asm/processor-flags.h>
 #include <asm/fpu/internal.h>
@@ -63,7 +63,7 @@ DEFINE_STATIC_KEY_FALSE(switch_mm_cond_ibpb);
 /* Control unconditional IBPB in switch_mm() */
 DEFINE_STATIC_KEY_FALSE(switch_mm_always_ibpb);
 
-void __init check_bugs(void)
+void __init check_s(void)
 {
 	identify_boot_cpu();
 
@@ -116,7 +116,7 @@ void __init check_bugs(void)
 		'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	alternative_instructions();
 
-	fpu__init_check_bugs();
+	fpu__init_check_s();
 #else /* CONFIG_X86_64 */
 	alternative_instructions();
 
@@ -287,7 +287,7 @@ static const struct {
 
 static void __init spec_v2_user_print_cond(const char *reason, bool secure)
 {
-	if (boot_cpu_has_bug(X86_BUG_SPECTRE_V2) != secure)
+	if (boot_cpu_has_(X86__SPECTRE_V2) != secure)
 		pr_info("spectre_v2_user=%s forced on command line.\n", reason);
 }
 
@@ -430,7 +430,7 @@ static const struct {
 
 static void __init spec_v2_print_cond(const char *reason, bool secure)
 {
-	if (boot_cpu_has_bug(X86_BUG_SPECTRE_V2) != secure)
+	if (boot_cpu_has_(X86__SPECTRE_V2) != secure)
 		pr_info("%s selected on command line.\n", reason);
 }
 
@@ -488,7 +488,7 @@ static void __init spectre_v2_select_mitigation(void)
 	 * If the CPU is not affected and the command line mode is NONE or AUTO
 	 * then nothing to do.
 	 */
-	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V2) &&
+	if (!boot_cpu_has_(X86__SPECTRE_V2) &&
 	    (cmd == SPECTRE_V2_CMD_NONE || cmd == SPECTRE_V2_CMD_AUTO))
 		return;
 
@@ -551,7 +551,7 @@ specv2_set_mode:
 	 * issues:
 	 *
 	 *	- RSB underflow (and switch to BTB) on Skylake+
-	 *	- SpectreRSB variant of spectre v2 on X86_BUG_SPECTRE_V2 CPUs
+	 *	- SpectreRSB variant of spectre v2 on X86__SPECTRE_V2 CPUs
 	 */
 	setup_force_cpu_cap(X86_FEATURE_RSB_CTXSW);
 	pr_info("Spectre v2 / SpectreRSB mitigation: Filling RSB on context switch\n");
@@ -706,7 +706,7 @@ static enum ssb_mitigation __init __ssb_select_mitigation(void)
 		return mode;
 
 	cmd = ssb_parse_cmdline();
-	if (!boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS) &&
+	if (!boot_cpu_has_(X86__SPEC_STORE_BYPASS) &&
 	    (cmd == SPEC_STORE_BYPASS_CMD_NONE ||
 	     cmd == SPEC_STORE_BYPASS_CMD_AUTO))
 		return mode;
@@ -735,7 +735,7 @@ static enum ssb_mitigation __init __ssb_select_mitigation(void)
 
 	/*
 	 * We have three CPU feature flags that are in play here:
-	 *  - X86_BUG_SPEC_STORE_BYPASS - CPU is susceptible.
+	 *  - X86__SPEC_STORE_BYPASS - CPU is susceptible.
 	 *  - X86_FEATURE_SSBD - CPU is able to turn off speculative store bypass
 	 *  - X86_FEATURE_SPEC_STORE_BYPASS_DISABLE - engage the mitigation
 	 */
@@ -762,7 +762,7 @@ static void ssb_select_mitigation(void)
 {
 	ssb_mode = __ssb_select_mitigation();
 
-	if (boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS))
+	if (boot_cpu_has_(X86__SPEC_STORE_BYPASS))
 		pr_info("%s\n", ssb_strings[ssb_mode]);
 }
 
@@ -901,7 +901,7 @@ static int ssb_prctl_get(struct task_struct *task)
 			return PR_SPEC_PRCTL | PR_SPEC_DISABLE;
 		return PR_SPEC_PRCTL | PR_SPEC_ENABLE;
 	default:
-		if (boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS))
+		if (boot_cpu_has_(X86__SPEC_STORE_BYPASS))
 			return PR_SPEC_ENABLE;
 		return PR_SPEC_NOT_AFFECTED;
 	}
@@ -909,7 +909,7 @@ static int ssb_prctl_get(struct task_struct *task)
 
 static int ib_prctl_get(struct task_struct *task)
 {
-	if (!boot_cpu_has_bug(X86_BUG_SPECTRE_V2))
+	if (!boot_cpu_has_(X86__SPECTRE_V2))
 		return PR_SPEC_NOT_AFFECTED;
 
 	switch (spectre_v2_user) {
@@ -1005,7 +1005,7 @@ static void __init l1tf_select_mitigation(void)
 {
 	u64 half_pa;
 
-	if (!boot_cpu_has_bug(X86_BUG_L1TF))
+	if (!boot_cpu_has_(X86__L1TF))
 		return;
 
 	override_cache_bits(&boot_cpu_data);
@@ -1045,7 +1045,7 @@ static void __init l1tf_select_mitigation(void)
 
 static int __init l1tf_cmdline(char *str)
 {
-	if (!boot_cpu_has_bug(X86_BUG_L1TF))
+	if (!boot_cpu_has_(X86__L1TF))
 		return 0;
 
 	if (!str)
@@ -1140,13 +1140,13 @@ static char *ibpb_state(void)
 }
 
 static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr,
-			       char *buf, unsigned int bug)
+			       char *buf, unsigned int )
 {
-	if (!boot_cpu_has_bug(bug))
+	if (!boot_cpu_has_())
 		return sprintf(buf, "Not affected\n");
 
-	switch (bug) {
-	case X86_BUG_CPU_MELTDOWN:
+	switch () {
+	case X86__CPU_MELTDOWN:
 		if (boot_cpu_has(X86_FEATURE_PTI))
 			return sprintf(buf, "Mitigation: PTI\n");
 
@@ -1155,10 +1155,10 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 
 		break;
 
-	case X86_BUG_SPECTRE_V1:
+	case X86__SPECTRE_V1:
 		return sprintf(buf, "Mitigation: __user pointer sanitization\n");
 
-	case X86_BUG_SPECTRE_V2:
+	case X86__SPECTRE_V2:
 		return sprintf(buf, "%s%s%s%s%s%s\n", spectre_v2_strings[spectre_v2_enabled],
 			       ibpb_state(),
 			       boot_cpu_has(X86_FEATURE_USE_IBRS_FW) ? ", IBRS_FW" : "",
@@ -1166,10 +1166,10 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 			       boot_cpu_has(X86_FEATURE_RSB_CTXSW) ? ", RSB filling" : "",
 			       spectre_v2_module_string());
 
-	case X86_BUG_SPEC_STORE_BYPASS:
+	case X86__SPEC_STORE_BYPASS:
 		return sprintf(buf, "%s\n", ssb_strings[ssb_mode]);
 
-	case X86_BUG_L1TF:
+	case X86__L1TF:
 		if (boot_cpu_has(X86_FEATURE_L1TF_PTEINV))
 			return l1tf_show_state(buf);
 		break;
@@ -1182,26 +1182,26 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 
 ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return cpu_show_common(dev, attr, buf, X86_BUG_CPU_MELTDOWN);
+	return cpu_show_common(dev, attr, buf, X86__CPU_MELTDOWN);
 }
 
 ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return cpu_show_common(dev, attr, buf, X86_BUG_SPECTRE_V1);
+	return cpu_show_common(dev, attr, buf, X86__SPECTRE_V1);
 }
 
 ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return cpu_show_common(dev, attr, buf, X86_BUG_SPECTRE_V2);
+	return cpu_show_common(dev, attr, buf, X86__SPECTRE_V2);
 }
 
 ssize_t cpu_show_spec_store_bypass(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return cpu_show_common(dev, attr, buf, X86_BUG_SPEC_STORE_BYPASS);
+	return cpu_show_common(dev, attr, buf, X86__SPEC_STORE_BYPASS);
 }
 
 ssize_t cpu_show_l1tf(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return cpu_show_common(dev, attr, buf, X86_BUG_L1TF);
+	return cpu_show_common(dev, attr, buf, X86__L1TF);
 }
 #endif

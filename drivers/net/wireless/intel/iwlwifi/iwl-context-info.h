@@ -62,7 +62,7 @@
  * enum iwl_context_info_flags - Context information control flags
  * @IWL_CTXT_INFO_AUTO_FUNC_INIT: If set, FW will not wait before interrupting
  *	the init done for driver command that configures several system modes
- * @IWL_CTXT_INFO_EARLY_DEBUG: enable early debug
+ * @IWL_CTXT_INFO_EARLY_DE: enable early de
  * @IWL_CTXT_INFO_ENABLE_CDMP: enable core dump
  * @IWL_CTXT_INFO_RB_CB_SIZE_POS: position of the RBD Cyclic Buffer Size
  *	exponent, the actual size is 2**value, valid sizes are 8-2048.
@@ -84,7 +84,7 @@
  */
 enum iwl_context_info_flags {
 	IWL_CTXT_INFO_AUTO_FUNC_INIT	= BIT(0),
-	IWL_CTXT_INFO_EARLY_DEBUG	= BIT(1),
+	IWL_CTXT_INFO_EARLY_DE	= BIT(1),
 	IWL_CTXT_INFO_ENABLE_CDMP	= BIT(2),
 	IWL_CTXT_INFO_RB_CB_SIZE_POS	= 4,
 	IWL_CTXT_INFO_TFD_FORMAT_LONG	= BIT(8),
@@ -161,7 +161,7 @@ struct iwl_context_info_hcmd_cfg {
 
 /*
  * struct iwl_context_info_dump_cfg - Core Dump configuration
- * @core_dump_addr: core dump (debug DRAM address) start address
+ * @core_dump_addr: core dump (de DRAM address) start address
  * @core_dump_size: size, in DWs
  */
 struct iwl_context_info_dump_cfg {
@@ -182,14 +182,14 @@ struct iwl_context_info_pnvm_cfg {
 } __packed;
 
 /*
- * struct iwl_context_info_early_dbg_cfg - early debug configuration for
+ * struct iwl_context_info_early_dbg_cfg - early de configuration for
  *	dumping DRAM addresses
- * @early_debug_addr: early debug start address
- * @early_debug_size: size in DWs
+ * @early_de_addr: early de start address
+ * @early_de_size: size in DWs
  */
 struct iwl_context_info_early_dbg_cfg {
-	__le64 early_debug_addr;
-	__le32 early_debug_size;
+	__le64 early_de_addr;
+	__le32 early_de_size;
 	__le32 reserved;
 } __packed;
 
@@ -200,7 +200,7 @@ struct iwl_context_info_early_dbg_cfg {
  * @rbd_cfg: default RX queue configuration
  * @hcmd_cfg: command queue configuration
  * @dump_cfg: core dump data
- * @edbg_cfg: early debug configuration
+ * @edbg_cfg: early de configuration
  * @pnvm_cfg: platform nvm configuration
  * @dram: firmware image addresses in DRAM
  */

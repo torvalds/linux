@@ -29,7 +29,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	unsigned long rflags, pa;
 	long slot, offset;
 
-	BUG_ON(shift != mmu_psize_defs[mmu_psize].shift);
+	_ON(shift != mmu_psize_defs[mmu_psize].shift);
 
 	/* Search the Linux page table for a match with va */
 	vpn = hpt_vpn(ea, vsid, ssize);
@@ -106,7 +106,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		 */
 		if (unlikely(slot == -2)) {
 			*ptep = __pte(old_pte);
-			hash_failure_debug(ea, access, vsid, trap, ssize,
+			hash_failure_de(ea, access, vsid, trap, ssize,
 					   mmu_psize, mmu_psize, old_pte);
 			return -1;
 		}

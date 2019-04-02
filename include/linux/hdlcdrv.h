@@ -16,8 +16,8 @@
 #define HDLCDRV_MAGIC      0x5ac6e778
 #define HDLCDRV_HDLCBUFFER  32 /* should be a power of 2 for speed reasons */
 #define HDLCDRV_BITBUFFER  256 /* should be a power of 2 for speed reasons */
-#undef HDLCDRV_LOOPBACK  /* define for HDLC debugging purposes */
-#define HDLCDRV_DEBUG
+#undef HDLCDRV_LOOPBACK  /* define for HDLC deging purposes */
+#define HDLCDRV_DE
 
 /* maximum packet length, excluding CRC */
 #define HDLCDRV_MAXFLEN             400	
@@ -29,7 +29,7 @@ struct hdlcdrv_hdlcbuffer {
 	unsigned short buf[HDLCDRV_HDLCBUFFER];
 };
 
-#ifdef HDLCDRV_DEBUG
+#ifdef HDLCDRV_DE
 struct hdlcdrv_bitbuffer {
 	unsigned int rd;
 	unsigned int wr;
@@ -61,7 +61,7 @@ static inline void hdlcdrv_add_bitbuffer_word(struct hdlcdrv_bitbuffer *buf,
 	buf->wr = (buf->wr+1) % sizeof(buf->buffer);
 
 }
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 
 /* -------------------------------------------------------------------- */
 /*
@@ -141,10 +141,10 @@ struct hdlcdrv_state {
 		unsigned char buffer[HDLCDRV_MAXFLEN+2];
 	} hdlctx;
 
-#ifdef HDLCDRV_DEBUG
+#ifdef HDLCDRV_DE
 	struct hdlcdrv_bitbuffer bitbuf_channel;
 	struct hdlcdrv_bitbuffer bitbuf_hdlc;
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 
 	int ptt_keyed;
 
@@ -243,9 +243,9 @@ static inline unsigned int hdlcdrv_getbits(struct hdlcdrv_state *s)
 
 static inline void hdlcdrv_channelbit(struct hdlcdrv_state *s, unsigned int bit)
 {
-#ifdef HDLCDRV_DEBUG
+#ifdef HDLCDRV_DE
 	hdlcdrv_add_bitbuffer(&s->bitbuf_channel, bit);
-#endif /* HDLCDRV_DEBUG */
+#endif /* HDLCDRV_DE */
 }
 
 static inline void hdlcdrv_setdcd(struct hdlcdrv_state *s, int dcd)

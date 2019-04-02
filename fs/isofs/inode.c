@@ -559,7 +559,7 @@ static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
 		Te.cdte_format=CDROM_LBA;
 		i = ioctl_by_bdev(bdev, CDROMREADTOCENTRY, (unsigned long) &Te);
 		if (!i) {
-			printk(KERN_DEBUG "ISOFS: Session %d start %d type %d\n",
+			printk(KERN_DE "ISOFS: Session %d start %d type %d\n",
 				session, Te.cdte_addr.lba,
 				Te.cdte_ctrl&CDROM_DATA_TRACK);
 			if ((Te.cdte_ctrl&CDROM_DATA_TRACK) == 4)
@@ -572,10 +572,10 @@ static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
 	if (session > 0)
 		printk(KERN_ERR "ISOFS: Invalid session number\n");
 #if 0
-	printk(KERN_DEBUG "isofs.inode: CDROMMULTISESSION: rc=%d\n",i);
+	printk(KERN_DE "isofs.inode: CDROMMULTISESSION: rc=%d\n",i);
 	if (i==0) {
-		printk(KERN_DEBUG "isofs.inode: XA disk: %s\n",ms_info.xa_flag?"yes":"no");
-		printk(KERN_DEBUG "isofs.inode: vol_desc_start = %d\n", ms_info.addr.lba);
+		printk(KERN_DE "isofs.inode: XA disk: %s\n",ms_info.xa_flag?"yes":"no");
+		printk(KERN_DE "isofs.inode: vol_desc_start = %d\n", ms_info.addr.lba);
 	}
 #endif
 	if (i==0)
@@ -652,7 +652,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	 * that value.
 	 */
 	/*
-	 * What if bugger tells us to go beyond page size?
+	 * What if ger tells us to go beyond page size?
 	 */
 	if (bdev_logical_block_size(s->s_bdev) > 2048) {
 		printk(KERN_WARNING
@@ -709,7 +709,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 						else if (sec->escape[2] == 0x45)
 							joliet_level = 3;
 
-						printk(KERN_DEBUG "ISO 9660 Extensions: "
+						printk(KERN_DE "ISO 9660 Extensions: "
 							"Microsoft Joliet Level %d\n",
 							joliet_level);
 					}
@@ -813,11 +813,11 @@ root_found:
 			  isonum_711(rootp->ext_attr_length);
 	sbi->s_firstdatazone = first_data_zone;
 #ifndef BEQUIET
-	printk(KERN_DEBUG "ISOFS: Max size:%ld   Log zone size:%ld\n",
+	printk(KERN_DE "ISOFS: Max size:%ld   Log zone size:%ld\n",
 		sbi->s_max_size, 1UL << sbi->s_log_zone_size);
-	printk(KERN_DEBUG "ISOFS: First datazone:%ld\n", sbi->s_firstdatazone);
+	printk(KERN_DE "ISOFS: First datazone:%ld\n", sbi->s_firstdatazone);
 	if(sbi->s_high_sierra)
-		printk(KERN_DEBUG "ISOFS: Disc in High Sierra format.\n");
+		printk(KERN_DE "ISOFS: Disc in High Sierra format.\n");
 #endif
 
 	/*
@@ -940,7 +940,7 @@ root_found:
 		sbi->s_rock = 0;
 		if (sbi->s_firstdatazone != first_data_zone) {
 			sbi->s_firstdatazone = first_data_zone;
-			printk(KERN_DEBUG
+			printk(KERN_DE
 				"ISOFS: changing to secondary root\n");
 			iput(inode);
 			inode = isofs_iget(s, sbi->s_firstdatazone, 0);
@@ -1065,7 +1065,7 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 	error = -EIO;
 	rv = 0;
 	if (iblock != b_off) {
-		printk(KERN_DEBUG "%s: block number too large\n", __func__);
+		printk(KERN_DE "%s: block number too large\n", __func__);
 		goto abort;
 	}
 
@@ -1086,7 +1086,7 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 		 * I/O errors.
 		 */
 		if (b_off > ((inode->i_size + PAGE_SIZE - 1) >> ISOFS_BUFFER_BITS(inode))) {
-			printk(KERN_DEBUG "%s: block >= EOF (%lu, %llu)\n",
+			printk(KERN_DE "%s: block >= EOF (%lu, %llu)\n",
 				__func__, b_off,
 				(unsigned long long)inode->i_size);
 			goto abort;
@@ -1112,9 +1112,9 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock,
 			iput(ninode);
 
 			if (++section > 100) {
-				printk(KERN_DEBUG "%s: More than 100 file sections ?!?"
+				printk(KERN_DE "%s: More than 100 file sections ?!?"
 					" aborting...\n", __func__);
-				printk(KERN_DEBUG "%s: block=%lu firstext=%u sect_size=%u "
+				printk(KERN_DE "%s: block=%lu firstext=%u sect_size=%u "
 					"nextblk=%lu nextoff=%lu\n", __func__,
 					b_off, firstext, (unsigned) sect_size,
 					nextblk, nextoff);
@@ -1149,7 +1149,7 @@ static int isofs_get_block(struct inode *inode, sector_t iblock,
 	int ret;
 
 	if (create) {
-		printk(KERN_DEBUG "%s: Kernel tries to allocate a block\n", __func__);
+		printk(KERN_DE "%s: Kernel tries to allocate a block\n", __func__);
 		return -EROFS;
 	}
 
@@ -1407,22 +1407,22 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 		inode->i_size &= 0x00ffffff;
 
 	if (de->interleave[0]) {
-		printk(KERN_DEBUG "ISOFS: Interleaved files not (yet) supported.\n");
+		printk(KERN_DE "ISOFS: Interleaved files not (yet) supported.\n");
 		inode->i_size = 0;
 	}
 
 	/* I have no idea what file_unit_size is used for, so
 	   we will flag it for now */
 	if (de->file_unit_size[0] != 0) {
-		printk(KERN_DEBUG "ISOFS: File unit size != 0 for ISO file (%ld).\n",
+		printk(KERN_DE "ISOFS: File unit size != 0 for ISO file (%ld).\n",
 			inode->i_ino);
 	}
 
 	/* I have no idea what other flag bits are used for, so
 	   we will flag it for now */
-#ifdef DEBUG
+#ifdef DE
 	if((de->flags[-high_sierra] & ~2)!= 0){
-		printk(KERN_DEBUG "ISOFS: Unusual flag settings for ISO file "
+		printk(KERN_DE "ISOFS: Unusual flag settings for ISO file "
 				"(%ld %x).\n",
 			inode->i_ino, de->flags[-high_sierra]);
 	}

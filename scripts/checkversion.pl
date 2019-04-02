@@ -10,7 +10,7 @@ use strict;
 
 $| = 1;
 
-my $debugging;
+my $deging;
 
 foreach my $file (@ARGV) {
     next if $file =~ "include/linux/version\.h";
@@ -58,8 +58,8 @@ foreach my $file (@ARGV) {
 	print "$file: $iLinuxVersion linux/version.h not needed.\n";
     }
 
-    # debug: report OK results:
-    if ($debugging) {
+    # de: report OK results:
+    if ($deging) {
         if ($iLinuxVersion && $fUseVersion) {
 	    print "$file: version use is OK ($iLinuxVersion)\n";
         }

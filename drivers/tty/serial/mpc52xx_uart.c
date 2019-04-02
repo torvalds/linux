@@ -26,7 +26,7 @@
  * Copyright (C) 2003 MontaVista, Software, Inc.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <linux/device.h>
 #include <linux/module.h>
@@ -414,7 +414,7 @@ struct psc_fifoc {
 	u32 fifoc_int;
 	u32 fifoc_dma;
 	u32 fifoc_axe;
-	u32 fifoc_debug;
+	u32 fifoc_de;
 };
 
 static struct psc_fifoc __iomem *psc_fifoc;
@@ -1540,7 +1540,7 @@ mpc52xx_console_get_options(struct uart_port *port,
 {
 	unsigned char mr1;
 
-	pr_debug("mpc52xx_console_get_options(port=%p)\n", port);
+	pr_de("mpc52xx_console_get_options(port=%p)\n", port);
 
 	/* Read the mode registers */
 	mr1 = psc_ops->get_mr1(port);
@@ -1618,32 +1618,32 @@ mpc52xx_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	pr_debug("mpc52xx_console_setup co=%p, co->index=%i, options=%s\n",
+	pr_de("mpc52xx_console_setup co=%p, co->index=%i, options=%s\n",
 		 co, co->index, options);
 
 	if ((co->index < 0) || (co->index >= MPC52xx_PSC_MAXNUM)) {
-		pr_debug("PSC%x out of range\n", co->index);
+		pr_de("PSC%x out of range\n", co->index);
 		return -EINVAL;
 	}
 
 	if (!np) {
-		pr_debug("PSC%x not found in device tree\n", co->index);
+		pr_de("PSC%x not found in device tree\n", co->index);
 		return -EINVAL;
 	}
 
-	pr_debug("Console on ttyPSC%x is %pOF\n",
+	pr_de("Console on ttyPSC%x is %pOF\n",
 		 co->index, mpc52xx_uart_nodes[co->index]);
 
 	/* Fetch register locations */
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
-		pr_debug("Could not get resources for PSC%x\n", co->index);
+		pr_de("Could not get resources for PSC%x\n", co->index);
 		return ret;
 	}
 
 	uartclk = mpc5xxx_get_bus_frequency(np);
 	if (uartclk == 0) {
-		pr_debug("Could not find uart clock frequency!\n");
+		pr_de("Could not find uart clock frequency!\n");
 		return -EINVAL;
 	}
 
@@ -1659,7 +1659,7 @@ mpc52xx_console_setup(struct console *co, char *options)
 	if (port->membase == NULL)
 		return -EINVAL;
 
-	pr_debug("mpc52xx-psc uart at %p, mapped to %p, irq=%x, freq=%i\n",
+	pr_de("mpc52xx-psc uart at %p, mapped to %p, irq=%x, freq=%i\n",
 		 (void *)port->mapbase, port->membase,
 		 port->irq, port->uartclk);
 
@@ -1669,7 +1669,7 @@ mpc52xx_console_setup(struct console *co, char *options)
 	else
 		mpc52xx_console_get_options(port, &baud, &parity, &bits, &flow);
 
-	pr_debug("Setting console parameters: %i %i%c1 flow=%c\n",
+	pr_de("Setting console parameters: %i %i%c1 flow=%c\n",
 		 baud, bits, parity, flow);
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
@@ -1752,7 +1752,7 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 			break;
 	if (idx >= MPC52xx_PSC_MAXNUM)
 		return -EINVAL;
-	pr_debug("Found %pOF assigned to ttyPSC%x\n",
+	pr_de("Found %pOF assigned to ttyPSC%x\n",
 		 mpc52xx_uart_nodes[idx], idx);
 
 	/* set the uart clock to the input clock of the psc, the different
@@ -1878,7 +1878,7 @@ mpc52xx_uart_of_enumerate(void)
 
 	for (i = 0; i < MPC52xx_PSC_MAXNUM; i++) {
 		if (mpc52xx_uart_nodes[i])
-			pr_debug("%pOF assigned to ttyPSC%x\n",
+			pr_de("%pOF assigned to ttyPSC%x\n",
 				 mpc52xx_uart_nodes[i], i);
 	}
 }

@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/workqueue.h>
@@ -156,7 +156,7 @@ void gfs2_glock_free(struct gfs2_glock *gl)
 
 void gfs2_glock_hold(struct gfs2_glock *gl)
 {
-	GLOCK_BUG_ON(gl, __lockref_is_dead(&gl->gl_lockref));
+	GLOCK__ON(gl, __lockref_is_dead(&gl->gl_lockref));
 	lockref_get(&gl->gl_lockref);
 }
 
@@ -221,7 +221,7 @@ static void __gfs2_glock_queue_work(struct gfs2_glock *gl, unsigned long delay) 
 		 * spinlock before dropping its glock reference(s), so it
 		 * cannot have dropped them in the meantime.
 		 */
-		GLOCK_BUG_ON(gl, gl->gl_lockref.count < 2);
+		GLOCK__ON(gl, gl->gl_lockref.count < 2);
 		gl->gl_lockref.count--;
 	}
 }
@@ -241,8 +241,8 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 
 	gfs2_glock_remove_from_lru(gl);
 	spin_unlock(&gl->gl_lockref.lock);
-	GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
-	GLOCK_BUG_ON(gl, mapping && mapping->nrpages);
+	GLOCK__ON(gl, !list_empty(&gl->gl_holders));
+	GLOCK__ON(gl, mapping && mapping->nrpages);
 	trace_gfs2_glock_put(gl);
 	sdp->sd_lockstruct.ls_ops->lm_put_lock(gl);
 }
@@ -414,7 +414,7 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 	held2 = (new_state != LM_ST_UNLOCKED);
 
 	if (held1 != held2) {
-		GLOCK_BUG_ON(gl, __lockref_is_dead(&gl->gl_lockref));
+		GLOCK__ON(gl, __lockref_is_dead(&gl->gl_lockref));
 		if (held2)
 			gl->gl_lockref.count++;
 		else
@@ -496,7 +496,7 @@ retry:
 		default: /* Everything else */
 			fs_err(gl->gl_name.ln_sbd, "wanted %u got %u\n",
 			       gl->gl_target, state);
-			GLOCK_BUG_ON(gl, 1);
+			GLOCK__ON(gl, 1);
 		}
 		spin_unlock(&gl->gl_lockref.lock);
 		return;
@@ -547,8 +547,8 @@ __acquires(&gl->gl_lockref.lock)
 		return;
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
 		      LM_FLAG_PRIORITY);
-	GLOCK_BUG_ON(gl, gl->gl_state == target);
-	GLOCK_BUG_ON(gl, gl->gl_state == gl->gl_target);
+	GLOCK__ON(gl, gl->gl_state == target);
+	GLOCK__ON(gl, gl->gl_state == gl->gl_target);
 	if ((target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) &&
 	    glops->go_inval) {
 		set_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
@@ -579,7 +579,7 @@ __acquires(&gl->gl_lockref.lock)
 		}
 		else if (ret) {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
-			GLOCK_BUG_ON(gl, !test_bit(SDF_SHUTDOWN,
+			GLOCK__ON(gl, !test_bit(SDF_SHUTDOWN,
 						   &sdp->sd_flags));
 		}
 	} else { /* lock_nolock */
@@ -624,7 +624,7 @@ __acquires(&gl->gl_lockref.lock)
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
 		return;
 
-	GLOCK_BUG_ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
+	GLOCK__ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
 
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_demote_state != gl->gl_state) {
@@ -633,7 +633,7 @@ __acquires(&gl->gl_lockref.lock)
 		if (nonblock)
 			goto out_sched;
 		set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
-		GLOCK_BUG_ON(gl, gl->gl_demote_state == LM_ST_EXCLUSIVE);
+		GLOCK__ON(gl, gl->gl_demote_state == LM_ST_EXCLUSIVE);
 		gl->gl_target = gl->gl_demote_state;
 	} else {
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
@@ -1001,7 +1001,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
  * @gh: the holder structure to add
  *
  * Eventually we should move the recursive locking trap to a
- * debugging option or something like that. This is the fast
+ * deging option or something like that. This is the fast
  * path and needs to have the minimum number of distractions.
  * 
  */
@@ -1016,9 +1016,9 @@ __acquires(&gl->gl_lockref.lock)
 	struct gfs2_holder *gh2;
 	int try_futile = 0;
 
-	BUG_ON(gh->gh_owner_pid == NULL);
+	_ON(gh->gh_owner_pid == NULL);
 	if (test_and_set_bit(HIF_WAIT, &gh->gh_iflags))
-		BUG();
+		();
 
 	if (gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) {
 		if (test_bit(GLF_LOCK, &gl->gl_flags))
@@ -1074,7 +1074,7 @@ trap_recursive:
 	fs_err(sdp, "lock type: %d req lock state : %d\n",
 	       gh->gh_gl->gl_name.ln_type, gh->gh_state);
 	gfs2_dump_glock(NULL, gl);
-	BUG();
+	();
 }
 
 /**
@@ -1148,7 +1148,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	clear_bit(HIF_HOLDER, &gh->gh_iflags);
 	if (find_first_holder(gl) == NULL) {
 		if (glops->go_unlock) {
-			GLOCK_BUG_ON(gl, test_and_set_bit(GLF_LOCK, &gl->gl_flags));
+			GLOCK__ON(gl, test_and_set_bit(GLF_LOCK, &gl->gl_flags));
 			spin_unlock(&gl->gl_lockref.lock);
 			glops->go_unlock(gh);
 			spin_lock(&gl->gl_lockref.lock);
@@ -1241,7 +1241,7 @@ static int glock_compare(const void *arg_a, const void *arg_b)
 		return 1;
 	if (a->ln_number < b->ln_number)
 		return -1;
-	BUG_ON(gh_a->gh_gl->gl_ops->go_type == gh_b->gh_gl->gl_ops->go_type);
+	_ON(gh_a->gh_gl->gl_ops->go_type == gh_b->gh_gl->gl_ops->go_type);
 	return 0;
 }
 
@@ -2131,33 +2131,33 @@ static const struct file_operations gfs2_sbstats_fops = {
 	.release = seq_release,
 };
 
-void gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
+void gfs2_create_defs_file(struct gfs2_sbd *sdp)
 {
-	sdp->debugfs_dir = debugfs_create_dir(sdp->sd_table_name, gfs2_root);
+	sdp->defs_dir = defs_create_dir(sdp->sd_table_name, gfs2_root);
 
-	debugfs_create_file("glocks", S_IFREG | S_IRUGO, sdp->debugfs_dir, sdp,
+	defs_create_file("glocks", S_IFREG | S_IRUGO, sdp->defs_dir, sdp,
 			    &gfs2_glocks_fops);
 
-	debugfs_create_file("glstats", S_IFREG | S_IRUGO, sdp->debugfs_dir, sdp,
+	defs_create_file("glstats", S_IFREG | S_IRUGO, sdp->defs_dir, sdp,
 			    &gfs2_glstats_fops);
 
-	debugfs_create_file("sbstats", S_IFREG | S_IRUGO, sdp->debugfs_dir, sdp,
+	defs_create_file("sbstats", S_IFREG | S_IRUGO, sdp->defs_dir, sdp,
 			    &gfs2_sbstats_fops);
 }
 
-void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp)
+void gfs2_delete_defs_file(struct gfs2_sbd *sdp)
 {
-	debugfs_remove_recursive(sdp->debugfs_dir);
-	sdp->debugfs_dir = NULL;
+	defs_remove_recursive(sdp->defs_dir);
+	sdp->defs_dir = NULL;
 }
 
-void gfs2_register_debugfs(void)
+void gfs2_register_defs(void)
 {
-	gfs2_root = debugfs_create_dir("gfs2", NULL);
+	gfs2_root = defs_create_dir("gfs2", NULL);
 }
 
-void gfs2_unregister_debugfs(void)
+void gfs2_unregister_defs(void)
 {
-	debugfs_remove(gfs2_root);
+	defs_remove(gfs2_root);
 	gfs2_root = NULL;
 }

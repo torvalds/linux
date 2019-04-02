@@ -31,7 +31,7 @@ static inline struct tfrc_loss_interval *tfrc_lh_peek(struct tfrc_loss_hist *lh)
 /* given i with 0 <= i <= k, return I_i as per the rfc3448bis notation */
 static inline u32 tfrc_lh_get_interval(struct tfrc_loss_hist *lh, const u8 i)
 {
-	BUG_ON(i >= lh->counter);
+	_ON(i >= lh->counter);
 	return lh->ring[LIH_INDEX(lh->counter - i - 1)]->li_length;
 }
 

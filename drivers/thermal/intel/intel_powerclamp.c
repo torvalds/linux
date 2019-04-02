@@ -47,7 +47,7 @@
 #include <linux/thermal.h>
 #include <linux/slab.h>
 #include <linux/tick.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/sched/rt.h>
 #include <uapi/linux/sched/types.h>
@@ -71,7 +71,7 @@
 #define DEFAULT_DURATION_JIFFIES (6)
 
 static unsigned int target_mwait;
-static struct dentry *debug_dir;
+static struct dentry *de_dir;
 
 /* user selected target */
 static unsigned int set_target_ratio;
@@ -576,7 +576,7 @@ static void end_power_clamp(void)
 	clamping = false;
 	if (bitmap_weight(cpu_clamping_mask, num_possible_cpus())) {
 		for_each_set_bit(i, cpu_clamping_mask, num_possible_cpus()) {
-			pr_debug("clamping worker for cpu %d alive, destroy\n",
+			pr_de("clamping worker for cpu %d alive, destroy\n",
 				 i);
 			stop_power_clamp_worker(i);
 		}
@@ -691,7 +691,7 @@ static int __init powerclamp_probe(void)
 	return 0;
 }
 
-static int powerclamp_debug_show(struct seq_file *m, void *unused)
+static int powerclamp_de_show(struct seq_file *m, void *unused)
 {
 	int i = 0;
 
@@ -708,22 +708,22 @@ static int powerclamp_debug_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(powerclamp_debug);
+DEFINE_SHOW_ATTRIBUTE(powerclamp_de);
 
-static inline void powerclamp_create_debug_files(void)
+static inline void powerclamp_create_de_files(void)
 {
-	debug_dir = debugfs_create_dir("intel_powerclamp", NULL);
-	if (!debug_dir)
+	de_dir = defs_create_dir("intel_powerclamp", NULL);
+	if (!de_dir)
 		return;
 
-	if (!debugfs_create_file("powerclamp_calib", S_IRUGO, debug_dir,
-					cal_data, &powerclamp_debug_fops))
+	if (!defs_create_file("powerclamp_calib", S_IRUGO, de_dir,
+					cal_data, &powerclamp_de_fops))
 		goto file_error;
 
 	return;
 
 file_error:
-	debugfs_remove_recursive(debug_dir);
+	defs_remove_recursive(de_dir);
 }
 
 static enum cpuhp_state hp_state;
@@ -770,7 +770,7 @@ static int __init powerclamp_init(void)
 	if (!duration)
 		duration = jiffies_to_msecs(DEFAULT_DURATION_JIFFIES);
 
-	powerclamp_create_debug_files();
+	powerclamp_create_de_files();
 
 	return 0;
 
@@ -793,7 +793,7 @@ static void __exit powerclamp_exit(void)
 	kfree(cpu_clamping_mask);
 
 	cancel_delayed_work_sync(&poll_pkg_cstate_work);
-	debugfs_remove_recursive(debug_dir);
+	defs_remove_recursive(de_dir);
 }
 module_exit(powerclamp_exit);
 

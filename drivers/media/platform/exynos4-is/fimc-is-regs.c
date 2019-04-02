@@ -121,7 +121,7 @@ void fimc_is_hw_set_isp_buf_mask(struct fimc_is *is, unsigned int mask)
 
 void fimc_is_hw_set_sensor_num(struct fimc_is *is)
 {
-	pr_debug("setting sensor index to: %d\n", is->sensor_index);
+	pr_de("setting sensor index to: %d\n", is->sensor_index);
 
 	mcuctl_write(IH_REPLY_DONE, is, MCUCTL_REG_ISSR(0));
 	mcuctl_write(is->sensor_index, is, MCUCTL_REG_ISSR(1));

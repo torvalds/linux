@@ -19,9 +19,9 @@
 #include <asm/io.h>
 #include <asm/sun3mmu.h>
 
-#undef SUN3_KMAP_DEBUG
+#undef SUN3_KMAP_DE
 
-#ifdef SUN3_KMAP_DEBUG
+#ifdef SUN3_KMAP_DE
 extern void print_pte_vaddr(unsigned long vaddr);
 #endif
 
@@ -39,7 +39,7 @@ static inline void do_page_mapin(unsigned long phys, unsigned long virt,
 
 	sun3_put_pte(virt, pte);
 
-#ifdef SUN3_KMAP_DEBUG
+#ifdef SUN3_KMAP_DE
 	pr_info("mapin:");
 	print_pte_vaddr(virt);
 #endif
@@ -80,7 +80,7 @@ void __iomem *sun3_ioremap(unsigned long phys, unsigned long size,
 	if((area = get_vm_area(size, VM_IOREMAP)) == NULL)
 		return NULL;
 
-#ifdef SUN3_KMAP_DEBUG
+#ifdef SUN3_KMAP_DE
 	pr_info("ioremap: got virt %p size %lx(%lx)\n", area->addr, size,
 		area->size);
 #endif

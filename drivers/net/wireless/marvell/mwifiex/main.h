@@ -170,9 +170,9 @@ enum {
 #define MWIFIEX_MAC_LOCAL_ADMIN_BIT		41
 
 /**
- *enum mwifiex_debug_level  -  marvell wifi debug level
+ *enum mwifiex_de_level  -  marvell wifi de level
  */
-enum MWIFIEX_DEBUG_LEVEL {
+enum MWIFIEX_DE_LEVEL {
 	MWIFIEX_DBG_MSG		= 0x00000001,
 	MWIFIEX_DBG_FATAL	= 0x00000002,
 	MWIFIEX_DBG_ERROR	= 0x00000004,
@@ -197,7 +197,7 @@ enum MWIFIEX_DEBUG_LEVEL {
 	MWIFIEX_DBG_ANY		= 0xffffffff
 };
 
-#define MWIFIEX_DEFAULT_DEBUG_MASK	(MWIFIEX_DBG_MSG | \
+#define MWIFIEX_DEFAULT_DE_MASK	(MWIFIEX_DBG_MSG | \
 					MWIFIEX_DBG_FATAL | \
 					MWIFIEX_DBG_ERROR)
 
@@ -207,11 +207,11 @@ void _mwifiex_dbg(const struct mwifiex_adapter *adapter, int mask,
 #define mwifiex_dbg(adapter, mask, fmt, ...)				\
 	_mwifiex_dbg(adapter, MWIFIEX_DBG_##mask, fmt, ##__VA_ARGS__)
 
-#define DEBUG_DUMP_DATA_MAX_LEN		128
+#define DE_DUMP_DATA_MAX_LEN		128
 #define mwifiex_dbg_dump(adapter, dbg_mask, str, buf, len)	\
 do {								\
-	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
-		print_hex_dump(KERN_DEBUG, str,			\
+	if ((adapter)->de_mask & MWIFIEX_DBG_##dbg_mask)	\
+		print_hex_dump(KERN_DE, str,			\
 			       DUMP_PREFIX_OFFSET, 16, 1,	\
 			       buf, len, false);		\
 } while (0)
@@ -646,7 +646,7 @@ struct mwifiex_private {
 	struct mwifiex_chan_freq_power cfp;
 	u32 versionstrsel;
 	char version_str[128];
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 	struct dentry *dfs_dev_dir;
 #endif
 	u16 current_key_index;
@@ -869,7 +869,7 @@ struct mwifiex_if_ops {
 
 struct mwifiex_adapter {
 	u8 iface_type;
-	unsigned int debug_mask;
+	unsigned int de_mask;
 	struct mwifiex_iface_comb iface_limit;
 	struct mwifiex_iface_comb curr_iface_comb;
 	struct mwifiex_private *priv[MWIFIEX_MAX_BSS_NUM];
@@ -1093,8 +1093,8 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 
 void mwifiex_cmd_timeout_func(struct timer_list *t);
 
-int mwifiex_get_debug_info(struct mwifiex_private *,
-			   struct mwifiex_debug_info *);
+int mwifiex_get_de_info(struct mwifiex_private *,
+			   struct mwifiex_de_info *);
 
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter);
 void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
@@ -1715,12 +1715,12 @@ int mwifiex_set_mac_address(struct mwifiex_private *priv,
 			    bool external, u8 *new_mac);
 void mwifiex_devdump_tmo_func(unsigned long function_context);
 
-#ifdef CONFIG_DEBUG_FS
-void mwifiex_debugfs_init(void);
-void mwifiex_debugfs_remove(void);
+#ifdef CONFIG_DE_FS
+void mwifiex_defs_init(void);
+void mwifiex_defs_remove(void);
 
-void mwifiex_dev_debugfs_init(struct mwifiex_private *priv);
-void mwifiex_dev_debugfs_remove(struct mwifiex_private *priv);
+void mwifiex_dev_defs_init(struct mwifiex_private *priv);
+void mwifiex_dev_defs_remove(struct mwifiex_private *priv);
 #endif
 int mwifiex_reinit_sw(struct mwifiex_adapter *adapter);
 int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter);

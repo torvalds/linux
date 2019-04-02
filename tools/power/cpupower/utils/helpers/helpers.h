@@ -39,12 +39,12 @@ extern struct bitmask *cpus_chosen;
 
 /* Global verbose (-d) stuff *********************************/
 /*
- * define DEBUG via global Makefile variable
- * Debug output is sent to stderr, do:
- * cpupower monitor 2>/tmp/debug
- * to split debug output away from normal output
+ * define DE via global Makefile variable
+ * De output is sent to stderr, do:
+ * cpupower monitor 2>/tmp/de
+ * to split de output away from normal output
 */
-#ifdef DEBUG
+#ifdef DE
 extern int be_verbose;
 
 #define dprint(fmt, ...) {					\

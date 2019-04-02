@@ -41,11 +41,11 @@ static void nci_core_reset_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	struct nci_core_reset_rsp *rsp = (void *) skb->data;
 
-	pr_debug("status 0x%x\n", rsp->status);
+	pr_de("status 0x%x\n", rsp->status);
 
 	if (rsp->status == NCI_STATUS_OK) {
 		ndev->nci_ver = rsp->nci_ver;
-		pr_debug("nci_ver 0x%x, config_status 0x%x\n",
+		pr_de("nci_ver 0x%x, config_status 0x%x\n",
 			 rsp->nci_ver, rsp->config_status);
 	}
 
@@ -57,7 +57,7 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nci_core_init_rsp_1 *rsp_1 = (void *) skb->data;
 	struct nci_core_init_rsp_2 *rsp_2;
 
-	pr_debug("status 0x%x\n", rsp_1->status);
+	pr_de("status 0x%x\n", rsp_1->status);
 
 	if (rsp_1->status != NCI_STATUS_OK)
 		goto exit;
@@ -89,29 +89,29 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	ndev->manufact_specific_info =
 		__le32_to_cpu(rsp_2->manufact_specific_info);
 
-	pr_debug("nfcc_features 0x%x\n",
+	pr_de("nfcc_features 0x%x\n",
 		 ndev->nfcc_features);
-	pr_debug("num_supported_rf_interfaces %d\n",
+	pr_de("num_supported_rf_interfaces %d\n",
 		 ndev->num_supported_rf_interfaces);
-	pr_debug("supported_rf_interfaces[0] 0x%x\n",
+	pr_de("supported_rf_interfaces[0] 0x%x\n",
 		 ndev->supported_rf_interfaces[0]);
-	pr_debug("supported_rf_interfaces[1] 0x%x\n",
+	pr_de("supported_rf_interfaces[1] 0x%x\n",
 		 ndev->supported_rf_interfaces[1]);
-	pr_debug("supported_rf_interfaces[2] 0x%x\n",
+	pr_de("supported_rf_interfaces[2] 0x%x\n",
 		 ndev->supported_rf_interfaces[2]);
-	pr_debug("supported_rf_interfaces[3] 0x%x\n",
+	pr_de("supported_rf_interfaces[3] 0x%x\n",
 		 ndev->supported_rf_interfaces[3]);
-	pr_debug("max_logical_connections %d\n",
+	pr_de("max_logical_connections %d\n",
 		 ndev->max_logical_connections);
-	pr_debug("max_routing_table_size %d\n",
+	pr_de("max_routing_table_size %d\n",
 		 ndev->max_routing_table_size);
-	pr_debug("max_ctrl_pkt_payload_len %d\n",
+	pr_de("max_ctrl_pkt_payload_len %d\n",
 		 ndev->max_ctrl_pkt_payload_len);
-	pr_debug("max_size_for_large_params %d\n",
+	pr_de("max_size_for_large_params %d\n",
 		 ndev->max_size_for_large_params);
-	pr_debug("manufact_id 0x%x\n",
+	pr_de("manufact_id 0x%x\n",
 		 ndev->manufact_id);
-	pr_debug("manufact_specific_info 0x%x\n",
+	pr_de("manufact_specific_info 0x%x\n",
 		 ndev->manufact_specific_info);
 
 exit:
@@ -123,7 +123,7 @@ static void nci_core_set_config_rsp_packet(struct nci_dev *ndev,
 {
 	struct nci_core_set_config_rsp *rsp = (void *) skb->data;
 
-	pr_debug("status 0x%x\n", rsp->status);
+	pr_de("status 0x%x\n", rsp->status);
 
 	nci_req_complete(ndev, rsp->status);
 }
@@ -133,7 +133,7 @@ static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 
 	nci_req_complete(ndev, status);
 }
@@ -143,7 +143,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nci_conn_info    *conn_info;
 	__u8 status = skb->data[0];
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 
 	if (status == NCI_STATUS_OK) {
 		atomic_set(&ndev->state, NCI_DISCOVERY);
@@ -173,7 +173,7 @@ static void nci_rf_disc_select_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 
 	/* Complete the request on intf_activated_ntf or generic_error_ntf */
 	if (status != NCI_STATUS_OK)
@@ -185,7 +185,7 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 
 	/* If target was active, complete the request only in deactivate_ntf */
 	if ((status != NCI_STATUS_OK) ||
@@ -218,7 +218,7 @@ static void nci_nfcee_mode_set_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 	nci_req_complete(ndev, status);
 }
 
@@ -229,7 +229,7 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 	struct nci_conn_info *conn_info = NULL;
 	struct nci_core_conn_create_rsp *rsp;
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 
 	if (status == NCI_STATUS_OK) {
 		rsp = (struct nci_core_conn_create_rsp *)skb->data;
@@ -283,7 +283,7 @@ static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
 	struct nci_conn_info *conn_info;
 	__u8 status = skb->data[0];
 
-	pr_debug("status 0x%x\n", status);
+	pr_de("status 0x%x\n", status);
 	if (status == NCI_STATUS_OK) {
 		conn_info = nci_get_conn_info_by_conn_id(ndev,
 							 ndev->cur_conn_id);
@@ -302,7 +302,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	/* we got a rsp, stop the cmd timer */
 	del_timer(&ndev->cmd_timer);
 
-	pr_debug("NCI RX: MT=rsp, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
+	pr_de("NCI RX: MT=rsp, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
 		 nci_pbf(skb->data),
 		 nci_opcode_gid(rsp_opcode),
 		 nci_opcode_oid(rsp_opcode),

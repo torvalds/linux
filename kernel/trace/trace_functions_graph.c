@@ -42,7 +42,7 @@ struct fgraph_data {
 unsigned int fgraph_max_depth;
 
 static struct tracer_opt trace_opts[] = {
-	/* Display overruns? (for self-debug purpose) */
+	/* Display overruns? (for self-de purpose) */
 	{ TRACER_OPT(funcgraph-overrun, TRACE_GRAPH_PRINT_OVERRUN) },
 	/* Display CPU ? */
 	{ TRACER_OPT(funcgraph-cpu, TRACE_GRAPH_PRINT_CPU) },

@@ -48,7 +48,7 @@ Scott Hill shill@gtcocalcomp.com
 
 
 
-/*#define DEBUG*/
+/*#define DE*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -219,7 +219,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 	__u32 globalval[TAG_GLOB_MAX];
 	__u32 oldval[TAG_GLOB_MAX];
 
-	/* Debug stuff */
+	/* De stuff */
 	char  maintype = 'x';
 	char  globtype[12];
 	int   indent = 0;
@@ -356,7 +356,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 				} else
 					dev_dbg(ddev, "======>>>>>>\n");
 
-				/* Indent the debug output */
+				/* Indent the de output */
 				indent++;
 				for (x = 0; x < indent; x++)
 					indentstr[x] = '-';
@@ -874,7 +874,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	 */
 	endpoint = &usbinterface->altsetting[0].endpoint[0].desc;
 
-	/* Some debug */
+	/* Some de */
 	dev_dbg(&usbinterface->dev, "gtco # interfaces: %d\n", usbinterface->num_altsetting);
 	dev_dbg(&usbinterface->dev, "num endpoints:     %d\n", usbinterface->cur_altsetting->desc.bNumEndpoints);
 	dev_dbg(&usbinterface->dev, "interface class:   %d\n", usbinterface->cur_altsetting->desc.bInterfaceClass);

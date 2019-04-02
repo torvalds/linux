@@ -22,9 +22,9 @@
 #define DMA_BUS_MODE			0x00001000
 #define DMA_SYS_BUS_MODE		0x00001004
 #define DMA_STATUS			0x00001008
-#define DMA_DEBUG_STATUS_0		0x0000100c
-#define DMA_DEBUG_STATUS_1		0x00001010
-#define DMA_DEBUG_STATUS_2		0x00001014
+#define DMA_DE_STATUS_0		0x0000100c
+#define DMA_DE_STATUS_1		0x00001010
+#define DMA_DE_STATUS_2		0x00001014
 #define DMA_AXI_BUS_MODE		0x00001028
 
 /* DMA Bus Mode bitmap */
@@ -50,9 +50,9 @@
 #define DMA_STATUS_CHAN1		BIT(1)
 #define DMA_STATUS_CHAN0		BIT(0)
 
-/* DMA debug status bitmap */
-#define DMA_DEBUG_STATUS_TS_MASK	0xf
-#define DMA_DEBUG_STATUS_RS_MASK	0xf
+/* DMA de status bitmap */
+#define DMA_DE_STATUS_TS_MASK	0xf
+#define DMA_DE_STATUS_RS_MASK	0xf
 
 /* DMA AXI bitmap */
 #define DMA_AXI_EN_LPI			BIT(31)

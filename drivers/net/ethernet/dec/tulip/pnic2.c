@@ -8,7 +8,7 @@
 	This software may be used and distributed according to the terms
 	of the GNU General Public License, incorporated herein by reference.
 
-        Please submit bugs to http://bugzilla.kernel.org/ .
+        Please submit s to http://zilla.kernel.org/ .
 */
 
 
@@ -83,7 +83,7 @@ void pnic2_timer(struct timer_list *t)
 	void __iomem *ioaddr = tp->base_addr;
 	int next_tick = 60*HZ;
 
-	if (tulip_debug > 3)
+	if (tulip_de > 3)
 		dev_info(&dev->dev, "PNIC2 negotiation status %08x\n",
 			 ioread32(ioaddr + CSR12));
 
@@ -121,7 +121,7 @@ void pnic2_start_nway(struct net_device *dev)
          */
         csr14 |= 0x00001184;
 
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		netdev_dbg(dev, "Restarting PNIC2 autonegotiation, csr14=%08x\n",
 			   csr14);
 
@@ -133,7 +133,7 @@ void pnic2_start_nway(struct net_device *dev)
         /* now we have to set up csr6 for NWAY state */
 
 	tp->csr6 = ioread32(ioaddr + CSR6);
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		netdev_dbg(dev, "On Entry to Nway, csr6=%08x\n", tp->csr6);
 
         /* mask off any bits not to touch
@@ -176,7 +176,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
         /* read the staus register to find out what is up */
 	int csr12 = ioread32(ioaddr + CSR12);
 
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		dev_info(&dev->dev,
 			 "PNIC2 link status interrupt %08x,  CSR5 %x, %08x\n",
 			 csr12, csr5, ioread32(ioaddr + CSR14));
@@ -210,7 +210,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 		        else if (negotiated & 0x0040)	dev->if_port = 4;
 			else if (negotiated & 0x0020)	dev->if_port = 0;
 			else {
-			     if (tulip_debug > 1)
+			     if (tulip_de > 1)
 				     dev_info(&dev->dev,
 					      "funny autonegotiate result csr12 %08x advertising %04x\n",
 					      csr12, tp->sym_advertise);
@@ -225,7 +225,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 			if ((dev->if_port == 4) || (dev->if_port == 5))
 			       tp->full_duplex = 1;
 
-			if (tulip_debug > 1) {
+			if (tulip_de > 1) {
 			       if (tp->nwayset)
 				       dev_info(&dev->dev,
 						"Switching to %s based on link negotiation %04x & %04x = %04x\n",
@@ -266,7 +266,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
 			iowrite32(1, ioaddr + CSR13);
 
-			if (tulip_debug > 2)
+			if (tulip_de > 2)
 				netdev_dbg(dev, "Setting CSR6 %08x/%x CSR12 %08x\n",
 					   tp->csr6,
 					   ioread32(ioaddr + CSR6),
@@ -320,7 +320,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
 		/* Link blew? Maybe restart NWay. */
 
-		if (tulip_debug > 2)
+		if (tulip_de > 2)
 			netdev_dbg(dev, "Ugh! Link blew?\n");
 
 		del_timer_sync(&tp->timer);
@@ -336,7 +336,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
 	        /* we are at 100mb and a potential link change occurred */
 
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev, "PNIC2 %s link beat %s\n",
 				 medianame[dev->if_port],
 				 (csr12 & 2) ? "failed" : "good");
@@ -361,7 +361,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 
 	        /* we are at 10mb and a potential link change occurred */
 
-		if (tulip_debug > 1)
+		if (tulip_de > 1)
 			dev_info(&dev->dev, "PNIC2 %s link beat %s\n",
 				 medianame[dev->if_port],
 				 (csr12 & 4) ? "failed" : "good");
@@ -382,7 +382,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
         }
 
 
-	if (tulip_debug > 1)
+	if (tulip_de > 1)
 		dev_info(&dev->dev, "PNIC2 Link Change Default?\n");
 
         /* if all else fails default to trying 10baseT-HD */

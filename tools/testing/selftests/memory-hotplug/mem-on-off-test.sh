@@ -227,8 +227,8 @@ fi
 # Test with memory notifier error injection
 #
 
-DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/memory
+DEFS=`mount -t defs | head -1 | awk '{ print $3 }'`
+NOTIFIER_ERR_INJECT_DIR=$DEFS/notifier-error-inject/memory
 
 prerequisite_extra()
 {
@@ -237,8 +237,8 @@ prerequisite_extra()
 	/sbin/modprobe -q -r memory-notifier-error-inject
 	/sbin/modprobe -q memory-notifier-error-inject priority=$priority
 
-	if [ ! -d "$DEBUGFS" ]; then
-		echo $msg debugfs is not mounted >&2
+	if [ ! -d "$DEFS" ]; then
+		echo $msg defs is not mounted >&2
 		exit $retval
 	fi
 

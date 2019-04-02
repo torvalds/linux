@@ -12,7 +12,7 @@
  * Copyright (C) 2000 Al Borchers (alborchers@steinerpoint.com)
  */
 
-/* #define VERBOSE_DEBUG */
+/* #define VERBOSE_DE */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -133,16 +133,16 @@ static struct portmaster {
 
 
 
-#ifdef VERBOSE_DEBUG
-#ifndef pr_vdebug
-#define pr_vdebug(fmt, arg...) \
-	pr_debug(fmt, ##arg)
-#endif /* pr_vdebug */
+#ifdef VERBOSE_DE
+#ifndef pr_vde
+#define pr_vde(fmt, arg...) \
+	pr_de(fmt, ##arg)
+#endif /* pr_vde */
 #else
-#ifndef pr_vdebug
-#define pr_vdebug(fmt, arg...) \
-	({ if (0) pr_debug(fmt, ##arg); })
-#endif /* pr_vdebug */
+#ifndef pr_vde
+#define pr_vde(fmt, arg...) \
+	({ if (0) pr_de(fmt, ##arg); })
+#endif /* pr_vde */
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -255,7 +255,7 @@ __acquires(&port->port_lock)
 		list_del(&req->list);
 		req->zero = kfifo_is_empty(&port->port_write_buf);
 
-		pr_vdebug("ttyGS%d: tx len=%d, 0x%02x 0x%02x 0x%02x ...\n",
+		pr_vde("ttyGS%d: tx len=%d, 0x%02x 0x%02x 0x%02x ...\n",
 			  port->port_num, len, *((u8 *)req->buf),
 			  *((u8 *)req->buf+1), *((u8 *)req->buf+2));
 
@@ -273,7 +273,7 @@ __acquires(&port->port_lock)
 		port->write_busy = false;
 
 		if (status) {
-			pr_debug("%s: %s %s err %d\n",
+			pr_de("%s: %s %s err %d\n",
 					__func__, "queue", in->name, status);
 			list_add(&req->list, pool);
 			break;
@@ -328,7 +328,7 @@ __acquires(&port->port_lock)
 		spin_lock(&port->port_lock);
 
 		if (status) {
-			pr_debug("%s: %s %s err %d\n",
+			pr_de("%s: %s %s err %d\n",
 					__func__, "queue", out->name, status);
 			list_add(&req->list, pool);
 			break;
@@ -376,7 +376,7 @@ static void gs_rx_push(struct work_struct *work)
 		switch (req->status) {
 		case -ESHUTDOWN:
 			disconnect = true;
-			pr_vdebug("ttyGS%d: shutdown\n", port->port_num);
+			pr_vde("ttyGS%d: shutdown\n", port->port_num);
 			break;
 
 		default:
@@ -410,7 +410,7 @@ static void gs_rx_push(struct work_struct *work)
 			if (count != size) {
 				/* stop pushing; TTY layer can't handle more */
 				port->n_read += count;
-				pr_vdebug("ttyGS%d: rx block %d/%d\n",
+				pr_vde("ttyGS%d: rx block %d/%d\n",
 					  port->port_num, count, req->actual);
 				break;
 			}
@@ -477,7 +477,7 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 
 	case -ESHUTDOWN:
 		/* disconnect */
-		pr_vdebug("%s: %s shutdown\n", __func__, ep->name);
+		pr_vde("%s: %s shutdown\n", __func__, ep->name);
 		break;
 	}
 
@@ -643,7 +643,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 		spin_lock_irq(&port->port_lock);
 
 		if (status) {
-			pr_debug("gs_open: ttyGS%d (%p,%p) no buffer\n",
+			pr_de("gs_open: ttyGS%d (%p,%p) no buffer\n",
 				port->port_num, tty, file);
 			port->openclose = false;
 			goto exit_unlock_port;
@@ -666,14 +666,14 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	if (port->port_usb) {
 		struct gserial	*gser = port->port_usb;
 
-		pr_debug("gs_open: start ttyGS%d\n", port->port_num);
+		pr_de("gs_open: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 
 		if (gser->connect)
 			gser->connect(gser);
 	}
 
-	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
+	pr_de("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
 
 	status = 0;
 
@@ -709,7 +709,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		goto exit;
 	}
 
-	pr_debug("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
+	pr_de("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
 
 	/* mark port as closing but in use; we can drop port lock
 	 * and sleep if necessary
@@ -746,7 +746,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 	port->openclose = false;
 
-	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
+	pr_de("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
 	wake_up(&port->close_wait);
@@ -759,7 +759,7 @@ static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
 
-	pr_vdebug("gs_write: ttyGS%d (%p) writing %d bytes\n",
+	pr_vde("gs_write: ttyGS%d (%p) writing %d bytes\n",
 			port->port_num, tty, count);
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -779,7 +779,7 @@ static int gs_put_char(struct tty_struct *tty, unsigned char ch)
 	unsigned long	flags;
 	int		status;
 
-	pr_vdebug("gs_put_char: (%d,%p) char=0x%x, called from %ps\n",
+	pr_vde("gs_put_char: (%d,%p) char=0x%x, called from %ps\n",
 		port->port_num, tty, ch, __builtin_return_address(0));
 
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -794,7 +794,7 @@ static void gs_flush_chars(struct tty_struct *tty)
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
 
-	pr_vdebug("gs_flush_chars: (%d,%p)\n", port->port_num, tty);
+	pr_vde("gs_flush_chars: (%d,%p)\n", port->port_num, tty);
 
 	spin_lock_irqsave(&port->port_lock, flags);
 	if (port->port_usb)
@@ -813,7 +813,7 @@ static int gs_write_room(struct tty_struct *tty)
 		room = kfifo_avail(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_write_room: (%d,%p) room=%d\n",
+	pr_vde("gs_write_room: (%d,%p) room=%d\n",
 		port->port_num, tty, room);
 
 	return room;
@@ -829,7 +829,7 @@ static int gs_chars_in_buffer(struct tty_struct *tty)
 	chars = kfifo_len(&port->port_write_buf);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	pr_vdebug("gs_chars_in_buffer: (%d,%p) chars=%d\n",
+	pr_vde("gs_chars_in_buffer: (%d,%p) chars=%d\n",
 		port->port_num, tty, chars);
 
 	return chars;
@@ -847,7 +847,7 @@ static void gs_unthrottle(struct tty_struct *tty)
 		 * rts/cts, or other handshaking with the host, but if the
 		 * read queue backs up enough we'll be NAKing OUT packets.
 		 */
-		pr_vdebug("ttyGS%d: unthrottle\n", port->port_num);
+		pr_vde("ttyGS%d: unthrottle\n", port->port_num);
 		schedule_delayed_work(&port->push, 0);
 	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
@@ -859,7 +859,7 @@ static int gs_break_ctl(struct tty_struct *tty, int duration)
 	int		status = 0;
 	struct gserial	*gser;
 
-	pr_vdebug("gs_break_ctl: ttyGS%d, send break (%d) \n",
+	pr_vde("gs_break_ctl: ttyGS%d, send break (%d) \n",
 			port->port_num, duration);
 
 	spin_lock_irq(&port->port_lock);
@@ -935,7 +935,7 @@ static void gs_complete_out(struct usb_ep *ep, struct usb_request *req)
 		break;
 	case -ESHUTDOWN:
 		/* disconnect */
-		pr_vdebug("%s: %s shutdown\n", __func__, ep->name);
+		pr_vde("%s: %s shutdown\n", __func__, ep->name);
 		break;
 	}
 }
@@ -965,7 +965,7 @@ static int gs_console_connect(int port_num)
 	spin_lock(&info->con_lock);
 	info->req_busy = 0;
 	spin_unlock(&info->con_lock);
-	pr_vdebug("port[%d] console connect!\n", port_num);
+	pr_vde("port[%d] console connect!\n", port_num);
 	return 0;
 }
 
@@ -1318,7 +1318,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 	 * protocol about open/close status (connect/disconnect).
 	 */
 	if (port->port.count) {
-		pr_debug("gserial_connect: start ttyGS%d\n", port->port_num);
+		pr_de("gserial_connect: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 		if (gser->connect)
 			gser->connect(gser);
@@ -1430,7 +1430,7 @@ static int userial_init(void)
 		goto fail;
 	}
 
-	pr_debug("%s: registered %d ttyGS* device%s\n", __func__,
+	pr_de("%s: registered %d ttyGS* device%s\n", __func__,
 			MAX_U_SERIAL_PORTS,
 			(MAX_U_SERIAL_PORTS == 1) ? "" : "s");
 

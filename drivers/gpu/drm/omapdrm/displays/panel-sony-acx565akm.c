@@ -109,7 +109,7 @@ static void acx565akm_transfer(struct panel_drv_data *ddata, int cmd,
 	struct spi_transfer	*x, xfer[5];
 	int			r;
 
-	BUG_ON(ddata->spi == NULL);
+	_ON(ddata->spi == NULL);
 
 	spi_message_init(&m);
 

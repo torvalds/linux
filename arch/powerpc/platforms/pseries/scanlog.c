@@ -75,14 +75,14 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 		memcpy(data, rtas_data_buf, RTAS_DATA_BUF_SIZE);
 		spin_unlock(&rtas_data_buf_lock);
 
-		pr_debug("scanlog: status=%d, data[0]=%x, data[1]=%x, " \
+		pr_de("scanlog: status=%d, data[0]=%x, data[1]=%x, " \
 			 "data[2]=%x\n", status, data[0], data[1], data[2]);
 		switch (status) {
 		    case SCANLOG_COMPLETE:
-			pr_debug("scanlog: hit eof\n");
+			pr_de("scanlog: hit eof\n");
 			return 0;
 		    case SCANLOG_HWERROR:
-			pr_debug("scanlog: hardware error reading data\n");
+			pr_de("scanlog: hardware error reading data\n");
 			return -EIO;
 		    case SCANLOG_CONTINUE:
 			/* We may or may not have data yet */
@@ -124,9 +124,9 @@ static ssize_t scanlog_write(struct file * file, const char __user * buf,
 
 	if (buf) {
 		if (strncmp(stkbuf, "reset", 5) == 0) {
-			pr_debug("scanlog: reset scanlog\n");
+			pr_de("scanlog: reset scanlog\n");
 			status = rtas_call(ibm_scan_log_dump, 2, 1, NULL, 0, 0);
-			pr_debug("scanlog: rtas returns %d\n", status);
+			pr_de("scanlog: rtas returns %d\n", status);
 		}
 	}
 	return count;

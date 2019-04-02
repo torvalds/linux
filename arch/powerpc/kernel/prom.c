@@ -13,7 +13,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#undef DE
 
 #include <stdarg.h>
 #include <linux/kernel.h>
@@ -62,7 +62,7 @@
 
 #include <mm/mmu_decl.h>
 
-#ifdef DEBUG
+#ifdef DE
 #define DBG(fmt...) printk(KERN_ERR fmt)
 #else
 #define DBG(fmt...)
@@ -694,17 +694,17 @@ void __init early_init_devtree(void *params)
 
 	DBG(" -> early_init_devtree(%px)\n", params);
 
-	/* Too early to BUG_ON(), do it by hand */
+	/* Too early to _ON(), do it by hand */
 	if (!early_init_dt_verify(params))
-		panic("BUG: Failed verifying flat device tree, bad version?");
+		panic(": Failed verifying flat device tree, bad version?");
 
 #ifdef CONFIG_PPC_RTAS
-	/* Some machines might need RTAS info for debugging, grab it now. */
+	/* Some machines might need RTAS info for deging, grab it now. */
 	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-	/* Some machines might need OPAL info for debugging, grab it now. */
+	/* Some machines might need OPAL info for deging, grab it now. */
 	of_scan_flat_dt(early_init_dt_scan_opal, NULL);
 #endif
 
@@ -770,7 +770,7 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);
 	if (boot_cpuid < 0) {
 		printk("Failed to identify boot CPU !\n");
-		BUG();
+		();
 	}
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PPC64)

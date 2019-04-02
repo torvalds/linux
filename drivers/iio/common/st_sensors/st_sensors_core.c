@@ -44,7 +44,7 @@ st_sensors_write_data_with_mask_error:
 	return err;
 }
 
-int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
+int st_sensors_defs_reg_access(struct iio_dev *indio_dev,
 				  unsigned reg, unsigned writeval,
 				  unsigned *readval)
 {
@@ -64,7 +64,7 @@ int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(st_sensors_debugfs_reg_access);
+EXPORT_SYMBOL(st_sensors_defs_reg_access);
 
 static int st_sensors_match_odr(struct st_sensor_settings *sensor_settings,
 			unsigned int odr, struct st_sensor_odr_avl *odr_out)

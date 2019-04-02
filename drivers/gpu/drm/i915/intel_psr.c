@@ -55,12 +55,12 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-static bool psr_global_enabled(u32 debug)
+static bool psr_global_enabled(u32 de)
 {
-	switch (debug & I915_PSR_DEBUG_MODE_MASK) {
-	case I915_PSR_DEBUG_DEFAULT:
+	switch (de & I915_PSR_DE_MODE_MASK) {
+	case I915_PSR_DE_DEFAULT:
 		return i915_modparams.enable_psr;
-	case I915_PSR_DEBUG_DISABLE:
+	case I915_PSR_DE_DISABLE:
 		return false;
 	default:
 		return true;
@@ -74,11 +74,11 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 	WARN_ON(crtc_state->dsc_params.compression_enable &&
 		crtc_state->has_psr2);
 
-	switch (dev_priv->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
-	case I915_PSR_DEBUG_DISABLE:
-	case I915_PSR_DEBUG_FORCE_PSR1:
+	switch (dev_priv->psr.de & I915_PSR_DE_MODE_MASK) {
+	case I915_PSR_DE_DISABLE:
+	case I915_PSR_DE_FORCE_PSR1:
 		return false;
-	case I915_PSR_DEBUG_DEFAULT:
+	case I915_PSR_DE_DEFAULT:
 		if (i915_modparams.enable_psr <= 0)
 			return false;
 	default:
@@ -103,9 +103,9 @@ static int edp_psr_shift(enum transcoder cpu_transcoder)
 	}
 }
 
-void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
+void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 de)
 {
-	u32 debug_mask, mask;
+	u32 de_mask, mask;
 	enum transcoder cpu_transcoder;
 	u32 transcoders = BIT(TRANSCODER_EDP);
 
@@ -114,57 +114,57 @@ void intel_psr_irq_control(struct drm_i915_private *dev_priv, u32 debug)
 			       BIT(TRANSCODER_B) |
 			       BIT(TRANSCODER_C);
 
-	debug_mask = 0;
+	de_mask = 0;
 	mask = 0;
 	for_each_cpu_transcoder_masked(dev_priv, cpu_transcoder, transcoders) {
 		int shift = edp_psr_shift(cpu_transcoder);
 
 		mask |= EDP_PSR_ERROR(shift);
-		debug_mask |= EDP_PSR_POST_EXIT(shift) |
+		de_mask |= EDP_PSR_POST_EXIT(shift) |
 			      EDP_PSR_PRE_ENTRY(shift);
 	}
 
-	if (debug & I915_PSR_DEBUG_IRQ)
-		mask |= debug_mask;
+	if (de & I915_PSR_DE_IRQ)
+		mask |= de_mask;
 
 	I915_WRITE(EDP_PSR_IMR, ~mask);
 }
 
 static void psr_event_print(u32 val, bool psr2_enabled)
 {
-	DRM_DEBUG_KMS("PSR exit events: 0x%x\n", val);
+	DRM_DE_KMS("PSR exit events: 0x%x\n", val);
 	if (val & PSR_EVENT_PSR2_WD_TIMER_EXPIRE)
-		DRM_DEBUG_KMS("\tPSR2 watchdog timer expired\n");
+		DRM_DE_KMS("\tPSR2 watchdog timer expired\n");
 	if ((val & PSR_EVENT_PSR2_DISABLED) && psr2_enabled)
-		DRM_DEBUG_KMS("\tPSR2 disabled\n");
+		DRM_DE_KMS("\tPSR2 disabled\n");
 	if (val & PSR_EVENT_SU_DIRTY_FIFO_UNDERRUN)
-		DRM_DEBUG_KMS("\tSU dirty FIFO underrun\n");
+		DRM_DE_KMS("\tSU dirty FIFO underrun\n");
 	if (val & PSR_EVENT_SU_CRC_FIFO_UNDERRUN)
-		DRM_DEBUG_KMS("\tSU CRC FIFO underrun\n");
+		DRM_DE_KMS("\tSU CRC FIFO underrun\n");
 	if (val & PSR_EVENT_GRAPHICS_RESET)
-		DRM_DEBUG_KMS("\tGraphics reset\n");
+		DRM_DE_KMS("\tGraphics reset\n");
 	if (val & PSR_EVENT_PCH_INTERRUPT)
-		DRM_DEBUG_KMS("\tPCH interrupt\n");
+		DRM_DE_KMS("\tPCH interrupt\n");
 	if (val & PSR_EVENT_MEMORY_UP)
-		DRM_DEBUG_KMS("\tMemory up\n");
+		DRM_DE_KMS("\tMemory up\n");
 	if (val & PSR_EVENT_FRONT_BUFFER_MODIFY)
-		DRM_DEBUG_KMS("\tFront buffer modification\n");
+		DRM_DE_KMS("\tFront buffer modification\n");
 	if (val & PSR_EVENT_WD_TIMER_EXPIRE)
-		DRM_DEBUG_KMS("\tPSR watchdog timer expired\n");
+		DRM_DE_KMS("\tPSR watchdog timer expired\n");
 	if (val & PSR_EVENT_PIPE_REGISTERS_UPDATE)
-		DRM_DEBUG_KMS("\tPIPE registers updated\n");
+		DRM_DE_KMS("\tPIPE registers updated\n");
 	if (val & PSR_EVENT_REGISTER_UPDATE)
-		DRM_DEBUG_KMS("\tRegister updated\n");
+		DRM_DE_KMS("\tRegister updated\n");
 	if (val & PSR_EVENT_HDCP_ENABLE)
-		DRM_DEBUG_KMS("\tHDCP enabled\n");
+		DRM_DE_KMS("\tHDCP enabled\n");
 	if (val & PSR_EVENT_KVMR_SESSION_ENABLE)
-		DRM_DEBUG_KMS("\tKVMR session enabled\n");
+		DRM_DE_KMS("\tKVMR session enabled\n");
 	if (val & PSR_EVENT_VBI_ENABLE)
-		DRM_DEBUG_KMS("\tVBI enabled\n");
+		DRM_DE_KMS("\tVBI enabled\n");
 	if (val & PSR_EVENT_LPSP_MODE_EXIT)
-		DRM_DEBUG_KMS("\tLPSP mode exited\n");
+		DRM_DE_KMS("\tLPSP mode exited\n");
 	if ((val & PSR_EVENT_PSR_DISABLE) && !psr2_enabled)
-		DRM_DEBUG_KMS("\tPSR disabled\n");
+		DRM_DE_KMS("\tPSR disabled\n");
 }
 
 void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
@@ -201,13 +201,13 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir)
 
 		if (psr_iir & EDP_PSR_PRE_ENTRY(shift)) {
 			dev_priv->psr.last_entry_attempt = time_ns;
-			DRM_DEBUG_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
+			DRM_DE_KMS("[transcoder %s] PSR entry attempt in 2 vblanks\n",
 				      transcoder_name(cpu_transcoder));
 		}
 
 		if (psr_iir & EDP_PSR_POST_EXIT(shift)) {
 			dev_priv->psr.last_exit = time_ns;
-			DRM_DEBUG_KMS("[transcoder %s] PSR exit completed\n",
+			DRM_DE_KMS("[transcoder %s] PSR exit completed\n",
 				      transcoder_name(cpu_transcoder));
 
 			if (INTEL_GEN(dev_priv) >= 9) {
@@ -256,7 +256,7 @@ static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 			      DP_SYNCHRONIZATION_LATENCY_IN_SINK, &val) == 1)
 		val &= DP_MAX_RESYNC_FRAME_COUNT_MASK;
 	else
-		DRM_DEBUG_KMS("Unable to get sink synchronization latency, assuming 8 frames\n");
+		DRM_DE_KMS("Unable to get sink synchronization latency, assuming 8 frames\n");
 	return val;
 }
 
@@ -274,7 +274,7 @@ static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
 
 	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &val, 2);
 	if (r != 2)
-		DRM_DEBUG_KMS("Unable to read DP_PSR2_SU_X_GRANULARITY\n");
+		DRM_DE_KMS("Unable to read DP_PSR2_SU_X_GRANULARITY\n");
 
 	/*
 	 * Spec says that if the value read is 0 the default granularity should
@@ -296,16 +296,16 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 
 	if (!intel_dp->psr_dpcd[0])
 		return;
-	DRM_DEBUG_KMS("eDP panel supports PSR version %x\n",
+	DRM_DE_KMS("eDP panel supports PSR version %x\n",
 		      intel_dp->psr_dpcd[0]);
 
 	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
-		DRM_DEBUG_KMS("PSR support not currently available for this panel\n");
+		DRM_DE_KMS("PSR support not currently available for this panel\n");
 		return;
 	}
 
 	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
-		DRM_DEBUG_KMS("Panel lacks power state control, PSR cannot be enabled\n");
+		DRM_DE_KMS("Panel lacks power state control, PSR cannot be enabled\n");
 		return;
 	}
 
@@ -334,7 +334,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		 * GTC first.
 		 */
 		dev_priv->psr.sink_psr2_support = y_req && alpm;
-		DRM_DEBUG_KMS("PSR2 %ssupported\n",
+		DRM_DE_KMS("PSR2 %ssupported\n",
 			      dev_priv->psr.sink_psr2_support ? "" : "not ");
 
 		if (dev_priv->psr.sink_psr2_support) {
@@ -396,7 +396,7 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 			   EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK |
 			   EDP_PSR_AUX_CTL_BIT_CLOCK_2X_MASK;
 
-	BUILD_BUG_ON(sizeof(aux_msg) > 20);
+	BUILD__ON(sizeof(aux_msg) > 20);
 	for (i = 0; i < sizeof(aux_msg); i += 4)
 		I915_WRITE(EDP_PSR_AUX_DATA(i >> 2),
 			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
@@ -544,7 +544,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	 * over PSR2.
 	 */
 	if (crtc_state->dsc_params.compression_enable) {
-		DRM_DEBUG_KMS("PSR2 cannot be enabled since DSC is enabled\n");
+		DRM_DE_KMS("PSR2 cannot be enabled since DSC is enabled\n");
 		return false;
 	}
 
@@ -557,7 +557,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
-		DRM_DEBUG_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
+		DRM_DE_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			      crtc_hdisplay, crtc_vdisplay,
 			      psr_max_h, psr_max_v);
 		return false;
@@ -570,7 +570,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	 * x granularity.
 	 */
 	if (crtc_hdisplay % dev_priv->psr.su_x_granularity) {
-		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
+		DRM_DE_KMS("PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
 			      crtc_hdisplay, dev_priv->psr.su_x_granularity);
 		return false;
 	}
@@ -601,31 +601,31 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	 * we can safely escape based on the port A.
 	 */
 	if (dig_port->base.port != PORT_A) {
-		DRM_DEBUG_KMS("PSR condition failed: Port not supported\n");
+		DRM_DE_KMS("PSR condition failed: Port not supported\n");
 		return;
 	}
 
 	if (dev_priv->psr.sink_not_reliable) {
-		DRM_DEBUG_KMS("PSR sink implementation is not reliable\n");
+		DRM_DE_KMS("PSR sink implementation is not reliable\n");
 		return;
 	}
 
 	if (IS_HASWELL(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
+		DRM_DE_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return;
 	}
 
 	psr_setup_time = drm_dp_psr_setup_time(intel_dp->psr_dpcd);
 	if (psr_setup_time < 0) {
-		DRM_DEBUG_KMS("PSR condition failed: Invalid PSR setup time (0x%02x)\n",
+		DRM_DE_KMS("PSR condition failed: Invalid PSR setup time (0x%02x)\n",
 			      intel_dp->psr_dpcd[1]);
 		return;
 	}
 
 	if (intel_usecs_to_scanlines(adjusted_mode, psr_setup_time) >
 	    adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vdisplay - 1) {
-		DRM_DEBUG_KMS("PSR condition failed: PSR setup time (%d us) too long\n",
+		DRM_DE_KMS("PSR condition failed: PSR setup time (%d us) too long\n",
 			      psr_setup_time);
 		return;
 	}
@@ -702,15 +702,15 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	 * runtime_pm besides preventing  other hw tracking issues now we
 	 * can rely on frontbuffer tracking.
 	 */
-	mask = EDP_PSR_DEBUG_MASK_MEMUP |
-	       EDP_PSR_DEBUG_MASK_HPD |
-	       EDP_PSR_DEBUG_MASK_LPSP |
-	       EDP_PSR_DEBUG_MASK_MAX_SLEEP;
+	mask = EDP_PSR_DE_MASK_MEMUP |
+	       EDP_PSR_DE_MASK_HPD |
+	       EDP_PSR_DE_MASK_LPSP |
+	       EDP_PSR_DE_MASK_MAX_SLEEP;
 
 	if (INTEL_GEN(dev_priv) < 11)
-		mask |= EDP_PSR_DEBUG_MASK_DISP_REG_WRITE;
+		mask |= EDP_PSR_DE_MASK_DISP_REG_WRITE;
 
-	I915_WRITE(EDP_PSR_DEBUG, mask);
+	I915_WRITE(EDP_PSR_DE, mask);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
@@ -721,7 +721,7 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 	if (dev_priv->psr.enabled)
 		return;
 
-	DRM_DEBUG_KMS("Enabling PSR%s\n",
+	DRM_DE_KMS("Enabling PSR%s\n",
 		      dev_priv->psr.psr2_enabled ? "2" : "1");
 	intel_psr_setup_vsc(intel_dp, crtc_state);
 	intel_psr_enable_sink(intel_dp);
@@ -753,7 +753,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 
 	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.prepared) {
-		DRM_DEBUG_KMS("PSR already in use\n");
+		DRM_DE_KMS("PSR already in use\n");
 		goto unlock;
 	}
 
@@ -762,10 +762,10 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	dev_priv->psr.prepared = true;
 	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
 
-	if (psr_global_enabled(dev_priv->psr.debug))
+	if (psr_global_enabled(dev_priv->psr.de))
 		intel_psr_enable_locked(dev_priv, crtc_state);
 	else
-		DRM_DEBUG_KMS("PSR disabled by flag\n");
+		DRM_DE_KMS("PSR disabled by flag\n");
 
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
@@ -805,7 +805,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	if (!dev_priv->psr.enabled)
 		return;
 
-	DRM_DEBUG_KMS("Disabling PSR%s\n",
+	DRM_DE_KMS("Disabling PSR%s\n",
 		      dev_priv->psr.psr2_enabled ? "2" : "1");
 
 	intel_psr_exit(dev_priv);
@@ -932,16 +932,16 @@ static bool switching_psr(struct drm_i915_private *dev_priv,
 	if (!crtc_state || !crtc_state->has_psr2)
 		return false;
 
-	if (dev_priv->psr.psr2_enabled && mode == I915_PSR_DEBUG_FORCE_PSR1)
+	if (dev_priv->psr.psr2_enabled && mode == I915_PSR_DE_FORCE_PSR1)
 		return true;
 
-	if (!dev_priv->psr.psr2_enabled && mode != I915_PSR_DEBUG_FORCE_PSR1)
+	if (!dev_priv->psr.psr2_enabled && mode != I915_PSR_DE_FORCE_PSR1)
 		return true;
 
 	return false;
 }
 
-int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
+int intel_psr_set_defs_mode(struct drm_i915_private *dev_priv,
 			       struct drm_modeset_acquire_ctx *ctx,
 			       u64 val)
 {
@@ -953,11 +953,11 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 	struct intel_dp *dp;
 	int ret;
 	bool enable;
-	u32 mode = val & I915_PSR_DEBUG_MODE_MASK;
+	u32 mode = val & I915_PSR_DE_MODE_MASK;
 
-	if (val & ~(I915_PSR_DEBUG_IRQ | I915_PSR_DEBUG_MODE_MASK) ||
-	    mode > I915_PSR_DEBUG_FORCE_PSR1) {
-		DRM_DEBUG_KMS("Invalid debug mask %llx\n", val);
+	if (val & ~(I915_PSR_DE_IRQ | I915_PSR_DE_MODE_MASK) ||
+	    mode > I915_PSR_DE_FORCE_PSR1) {
+		DRM_DE_KMS("Invalid de mask %llx\n", val);
 		return -EINVAL;
 	}
 
@@ -994,11 +994,11 @@ int intel_psr_set_debugfs_mode(struct drm_i915_private *dev_priv,
 	if (!enable || switching_psr(dev_priv, crtc_state, mode))
 		intel_psr_disable_locked(dev_priv->psr.dp);
 
-	dev_priv->psr.debug = val;
+	dev_priv->psr.de = val;
 	if (crtc)
 		dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 
-	intel_psr_irq_control(dev_priv, dev_priv->psr.debug);
+	intel_psr_irq_control(dev_priv, dev_priv->psr.de);
 
 	if (dev_priv->psr.prepared && enable)
 		intel_psr_enable_locked(dev_priv, crtc_state);
@@ -1174,7 +1174,7 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	val = I915_READ(EDP_PSR_IIR);
 	val &= EDP_PSR_ERROR(edp_psr_shift(TRANSCODER_EDP));
 	if (val) {
-		DRM_DEBUG_KMS("PSR interruption error set\n");
+		DRM_DE_KMS("PSR interruption error set\n");
 		dev_priv->psr.sink_not_reliable = true;
 		return;
 	}
@@ -1214,7 +1214,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	}
 
 	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
-		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+		DRM_DE_KMS("PSR sink internal error, disabling PSR\n");
 		intel_psr_disable_locked(intel_dp);
 		psr->sink_not_reliable = true;
 	}
@@ -1225,9 +1225,9 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	}
 
 	if (val & DP_PSR_RFB_STORAGE_ERROR)
-		DRM_DEBUG_KMS("PSR RFB storage error, disabling PSR\n");
+		DRM_DE_KMS("PSR RFB storage error, disabling PSR\n");
 	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
-		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
+		DRM_DE_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
 	if (val & DP_PSR_LINK_CRC_ERROR)
 		DRM_ERROR("PSR Link CRC error, disabling PSR\n");
 

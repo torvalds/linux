@@ -53,7 +53,7 @@
 #define B43_LPPHY_SFDDETECTBLOCKTIME		B43_PHY_CCK(0x40) /* SfdDetectBlockTIme */
 #define B43_LPPHY_SFDTO				B43_PHY_CCK(0x41) /* SFDTimeOut */
 #define B43_LPPHY_SFDCTL			B43_PHY_CCK(0x42) /* SFDControl */
-#define B43_LPPHY_RXDBG				B43_PHY_CCK(0x43) /* rxDebug */
+#define B43_LPPHY_RXDBG				B43_PHY_CCK(0x43) /* rxDe */
 #define B43_LPPHY_RX_DELAYCOMP			B43_PHY_CCK(0x44) /* RX DelayComp */
 #define B43_LPPHY_CRSDROPOUTTO			B43_PHY_CCK(0x45) /* CRSDropoutTimeout */
 #define B43_LPPHY_PSEUDOSHORTTO			B43_PHY_CCK(0x46) /* PseudoShortTimeout */
@@ -171,7 +171,7 @@
 #define B43_LPPHY_IQLO_CAL_CMD			B43_PHY_OFDM(0x51) /* iqlo Cal Cmd */
 #define B43_LPPHY_IQLO_CAL_CMD_N_NUM		B43_PHY_OFDM(0x52) /* iqlo Cal Cmd N num */
 #define B43_LPPHY_IQLO_CAL_CMD_G_CTL		B43_PHY_OFDM(0x53) /* iqlo Cal Cmd G control */
-#define B43_LPPHY_MACINT_DBG_REGISTER		B43_PHY_OFDM(0x54) /* macint Debug Register */
+#define B43_LPPHY_MACINT_DBG_REGISTER		B43_PHY_OFDM(0x54) /* macint De Register */
 #define B43_LPPHY_TABLE_ADDR			B43_PHY_OFDM(0x55) /* Table Address */
 #define B43_LPPHY_TABLEDATALO			B43_PHY_OFDM(0x56) /* TabledataLo */
 #define B43_LPPHY_TABLEDATAHI			B43_PHY_OFDM(0x57) /* TabledataHi */
@@ -396,10 +396,10 @@
 #define B2062_N_CALIB_CTL2			B43_LP_NORTH(0x060) /* Calibration Control 2 (north) */
 #define B2062_N_CALIB_CTL3			B43_LP_NORTH(0x061) /* Calibration Control 3 (north) */
 #define B2062_N_CALIB_CTL4			B43_LP_NORTH(0x062) /* Calibration Control 4 (north) */
-#define B2062_N_CALIB_DBG0			B43_LP_NORTH(0x063) /* Calibration Debug 0 (north) */
-#define B2062_N_CALIB_DBG1			B43_LP_NORTH(0x064) /* Calibration Debug 1 (north) */
-#define B2062_N_CALIB_DBG2			B43_LP_NORTH(0x065) /* Calibration Debug 2 (north) */
-#define B2062_N_CALIB_DBG3			B43_LP_NORTH(0x066) /* Calibration Debug 3 (north) */
+#define B2062_N_CALIB_DBG0			B43_LP_NORTH(0x063) /* Calibration De 0 (north) */
+#define B2062_N_CALIB_DBG1			B43_LP_NORTH(0x064) /* Calibration De 1 (north) */
+#define B2062_N_CALIB_DBG2			B43_LP_NORTH(0x065) /* Calibration De 2 (north) */
+#define B2062_N_CALIB_DBG3			B43_LP_NORTH(0x066) /* Calibration De 3 (north) */
 #define B2062_N_PSENSE_CTL0			B43_LP_NORTH(0x069) /* PSENSE Control 0 (north) */
 #define B2062_N_PSENSE_CTL1			B43_LP_NORTH(0x06A) /* PSENSE Control 1 (north) */
 #define B2062_N_PSENSE_CTL2			B43_LP_NORTH(0x06B) /* PSENSE Control 2 (north) */

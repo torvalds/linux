@@ -19,7 +19,7 @@ the fscrypt userspace tool, or other existing userspace tools such as
 management system
 <https://source.android.com/security/encryption/file-based>`_, over
 using the kernel's API directly.  Using existing tools reduces the
-chance of introducing your own security bugs.  (Nevertheless, for
+chance of introducing your own security s.  (Nevertheless, for
 completeness this documentation covers the kernel's API anyway.)
 
 Unlike dm-crypt, fscrypt operates at the filesystem level rather than

@@ -1440,7 +1440,7 @@ static int snd_rme9652_get_tc_value(void *private_data,
 
 	rme9652_write(s, RME9652_time_code, 0);
 
-	/* XXX bug alert: loop-based timing !!!! */
+	/* XXX  alert: loop-based timing !!!! */
 
 	for (i = 0; i < 50; i++) {
 		if (!(rme9652_read(s, i * 4) & RME9652_tc_busy))
@@ -1866,7 +1866,7 @@ static char *rme9652_channel_buffer_location(struct snd_rme9652 *rme9652,
 {
 	int mapped_channel;
 
-	if (snd_BUG_ON(channel < 0 || channel >= RME9652_NCHANNELS))
+	if (snd__ON(channel < 0 || channel >= RME9652_NCHANNELS))
 		return NULL;
         
 	if ((mapped_channel = rme9652->channel_map[channel]) < 0) {
@@ -1889,13 +1889,13 @@ static int snd_rme9652_playback_copy(struct snd_pcm_substream *substream,
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES))
+	if (snd__ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES))
 		return -EINVAL;
 
 	channel_buf = rme9652_channel_buffer_location (rme9652,
 						       substream->pstr->stream,
 						       channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	if (copy_from_user(channel_buf + pos, src, count))
 		return -EFAULT;
@@ -1912,7 +1912,7 @@ static int snd_rme9652_playback_copy_kernel(struct snd_pcm_substream *substream,
 	channel_buf = rme9652_channel_buffer_location(rme9652,
 						      substream->pstr->stream,
 						      channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	memcpy(channel_buf + pos, src, count);
 	return 0;
@@ -1925,13 +1925,13 @@ static int snd_rme9652_capture_copy(struct snd_pcm_substream *substream,
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES))
+	if (snd__ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES))
 		return -EINVAL;
 
 	channel_buf = rme9652_channel_buffer_location (rme9652,
 						       substream->pstr->stream,
 						       channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	if (copy_to_user(dst, channel_buf + pos, count))
 		return -EFAULT;
@@ -1948,7 +1948,7 @@ static int snd_rme9652_capture_copy_kernel(struct snd_pcm_substream *substream,
 	channel_buf = rme9652_channel_buffer_location(rme9652,
 						      substream->pstr->stream,
 						      channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	memcpy(dst, channel_buf + pos, count);
 	return 0;
@@ -1964,7 +1964,7 @@ static int snd_rme9652_hw_silence(struct snd_pcm_substream *substream,
 	channel_buf = rme9652_channel_buffer_location (rme9652,
 						       substream->pstr->stream,
 						       channel);
-	if (snd_BUG_ON(!channel_buf))
+	if (snd__ON(!channel_buf))
 		return -EIO;
 	memset(channel_buf + pos, 0, count);
 	return 0;
@@ -2067,7 +2067,7 @@ static int snd_rme9652_channel_info(struct snd_pcm_substream *substream,
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	int chn;
 
-	if (snd_BUG_ON(info->channel >= RME9652_NCHANNELS))
+	if (snd__ON(info->channel >= RME9652_NCHANNELS))
 		return -EINVAL;
 
 	chn = rme9652->channel_map[array_index_nospec(info->channel,
@@ -2122,7 +2122,7 @@ static int snd_rme9652_trigger(struct snd_pcm_substream *substream,
 		running &= ~(1 << substream->stream);
 		break;
 	default:
-		snd_BUG();
+		snd_();
 		spin_unlock(&rme9652->lock);
 		return -EINVAL;
 	}

@@ -176,7 +176,7 @@ extern unsigned long __zero_page(void);
  * correct high-order bits.
  *
  * This is extremely confusing until you realize that this is actually
- * just working around a userspace bug.  The X server was intending to
+ * just working around a userspace .  The X server was intending to
  * provide the physical address but instead provided the KSEG address.
  * Or tried to, except it's not representable.
  * 

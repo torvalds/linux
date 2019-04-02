@@ -72,7 +72,7 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *ofdt)
 {
 	unsigned int cpy, set;
 
-	BUG_ON(nfdt->max_fds < ofdt->max_fds);
+	_ON(nfdt->max_fds < ofdt->max_fds);
 
 	cpy = ofdt->max_fds * sizeof(struct file *);
 	set = (nfdt->max_fds - ofdt->max_fds) * sizeof(struct file *);
@@ -172,7 +172,7 @@ static int expand_fdtable(struct files_struct *files, unsigned int nr)
 		return -EMFILE;
 	}
 	cur_fdt = files_fdtable(files);
-	BUG_ON(nr < cur_fdt->max_fds);
+	_ON(nr < cur_fdt->max_fds);
 	copy_fdtable(new_fdt, cur_fdt);
 	rcu_assign_pointer(files->fdt, new_fdt);
 	if (cur_fdt != &files->fdtab)
@@ -595,7 +595,7 @@ void __fd_install(struct files_struct *files, unsigned int fd,
 		rcu_read_unlock_sched();
 		spin_lock(&files->file_lock);
 		fdt = files_fdtable(files);
-		BUG_ON(fdt->fd[fd] != NULL);
+		_ON(fdt->fd[fd] != NULL);
 		rcu_assign_pointer(fdt->fd[fd], file);
 		spin_unlock(&files->file_lock);
 		return;
@@ -603,7 +603,7 @@ void __fd_install(struct files_struct *files, unsigned int fd,
 	/* coupled with smp_wmb() in expand_fdtable() */
 	smp_rmb();
 	fdt = rcu_dereference_sched(files->fdt);
-	BUG_ON(fdt->fd[fd] != NULL);
+	_ON(fdt->fd[fd] != NULL);
 	rcu_assign_pointer(fdt->fd[fd], file);
 	rcu_read_unlock_sched();
 }

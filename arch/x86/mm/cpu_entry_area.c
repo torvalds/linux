@@ -14,13 +14,13 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(struct entry_stack_page, entry_stack_storage)
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
-	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
+	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DE_STKSZ]);
 #endif
 
 struct cpu_entry_area *get_cpu_entry_area(int cpu)
 {
 	unsigned long va = CPU_ENTRY_AREA_PER_CPU + cpu * CPU_ENTRY_AREA_SIZE;
-	BUILD_BUG_ON(sizeof(struct cpu_entry_area) % PAGE_SIZE != 0);
+	BUILD__ON(sizeof(struct cpu_entry_area) % PAGE_SIZE != 0);
 
 	return (struct cpu_entry_area *) va;
 }
@@ -52,7 +52,7 @@ cea_map_percpu_pages(void *cea_vaddr, void *ptr, int pages, pgprot_t prot)
 		cea_set_pte(cea_vaddr, per_cpu_ptr_to_phys(ptr), prot);
 }
 
-static void __init percpu_setup_debug_store(int cpu)
+static void __init percpu_setup_de_store(int cpu)
 {
 #ifdef CONFIG_CPU_SUP_INTEL
 	int npages;
@@ -61,18 +61,18 @@ static void __init percpu_setup_debug_store(int cpu)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return;
 
-	cea = &get_cpu_entry_area(cpu)->cpu_debug_store;
-	npages = sizeof(struct debug_store) / PAGE_SIZE;
-	BUILD_BUG_ON(sizeof(struct debug_store) % PAGE_SIZE != 0);
-	cea_map_percpu_pages(cea, &per_cpu(cpu_debug_store, cpu), npages,
+	cea = &get_cpu_entry_area(cpu)->cpu_de_store;
+	npages = sizeof(struct de_store) / PAGE_SIZE;
+	BUILD__ON(sizeof(struct de_store) % PAGE_SIZE != 0);
+	cea_map_percpu_pages(cea, &per_cpu(cpu_de_store, cpu), npages,
 			     PAGE_KERNEL);
 
-	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers;
+	cea = &get_cpu_entry_area(cpu)->cpu_de_buffers;
 	/*
 	 * Force the population of PMDs for not yet allocated per cpu
-	 * memory like debug store buffers.
+	 * memory like de store buffers.
 	 */
-	npages = sizeof(struct debug_store_buffers) / PAGE_SIZE;
+	npages = sizeof(struct de_store_buffers) / PAGE_SIZE;
 	for (; npages; npages--, cea += PAGE_SIZE)
 		cea_set_pte(cea, 0, PAGE_NONE);
 #endif
@@ -125,9 +125,9 @@ static void __init setup_cpu_entry_area(int cpu)
 	 * There are also a lot of errata involving the TSS spanning a page
 	 * boundary.  Assert that we're not doing that.
 	 */
-	BUILD_BUG_ON((offsetof(struct tss_struct, x86_tss) ^
+	BUILD__ON((offsetof(struct tss_struct, x86_tss) ^
 		      offsetofend(struct tss_struct, x86_tss)) & PAGE_MASK);
-	BUILD_BUG_ON(sizeof(struct tss_struct) % PAGE_SIZE != 0);
+	BUILD__ON(sizeof(struct tss_struct) % PAGE_SIZE != 0);
 	cea_map_percpu_pages(&get_cpu_entry_area(cpu)->tss,
 			     &per_cpu(cpu_tss_rw, cpu),
 			     sizeof(struct tss_struct) / PAGE_SIZE, tss_prot);
@@ -137,14 +137,14 @@ static void __init setup_cpu_entry_area(int cpu)
 #endif
 
 #ifdef CONFIG_X86_64
-	BUILD_BUG_ON(sizeof(exception_stacks) % PAGE_SIZE != 0);
-	BUILD_BUG_ON(sizeof(exception_stacks) !=
+	BUILD__ON(sizeof(exception_stacks) % PAGE_SIZE != 0);
+	BUILD__ON(sizeof(exception_stacks) !=
 		     sizeof(((struct cpu_entry_area *)0)->exception_stacks));
 	cea_map_percpu_pages(&get_cpu_entry_area(cpu)->exception_stacks,
 			     &per_cpu(exception_stacks, cpu),
 			     sizeof(exception_stacks) / PAGE_SIZE, PAGE_KERNEL);
 #endif
-	percpu_setup_debug_store(cpu);
+	percpu_setup_de_store(cpu);
 }
 
 static __init void setup_cpu_entry_area_ptes(void)
@@ -152,8 +152,8 @@ static __init void setup_cpu_entry_area_ptes(void)
 #ifdef CONFIG_X86_32
 	unsigned long start, end;
 
-	BUILD_BUG_ON(CPU_ENTRY_AREA_PAGES * PAGE_SIZE < CPU_ENTRY_AREA_MAP_SIZE);
-	BUG_ON(CPU_ENTRY_AREA_BASE & ~PMD_MASK);
+	BUILD__ON(CPU_ENTRY_AREA_PAGES * PAGE_SIZE < CPU_ENTRY_AREA_MAP_SIZE);
+	_ON(CPU_ENTRY_AREA_BASE & ~PMD_MASK);
 
 	start = CPU_ENTRY_AREA_BASE;
 	end = start + CPU_ENTRY_AREA_MAP_SIZE;

@@ -437,15 +437,15 @@ nv_save_state_ramdac(struct drm_device *dev, int head,
 	}
 
 	regp->fp_control = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_TG_CONTROL);
-	regp->fp_debug_0 = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_0);
+	regp->fp_de_0 = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_DE_0);
 	if (!nv_gf4_disp_arch(dev) && head == 0) {
 		/* early chips don't allow access to PRAMDAC_TMDS_* without
 		 * the head A FPCLK on (nv11 even locks up) */
-		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0 &
-			      ~NV_PRAMDAC_FP_DEBUG_0_PWRDOWN_FPCLK);
+		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_FP_DE_0, regp->fp_de_0 &
+			      ~NV_PRAMDAC_FP_DE_0_PWRDOWN_FPCLK);
 	}
-	regp->fp_debug_1 = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_1);
-	regp->fp_debug_2 = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_2);
+	regp->fp_de_1 = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_DE_1);
+	regp->fp_de_2 = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_DE_2);
 
 	regp->fp_margin_color = NVReadRAMDAC(dev, head, NV_PRAMDAC_FP_MARGIN_COLOR);
 
@@ -515,9 +515,9 @@ nv_load_state_ramdac(struct drm_device *dev, int head,
 	}
 
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_TG_CONTROL, regp->fp_control);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_0, regp->fp_debug_0);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_1, regp->fp_debug_1);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_2, regp->fp_debug_2);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DE_0, regp->fp_de_0);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DE_1, regp->fp_de_1);
+	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DE_2, regp->fp_de_2);
 
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_MARGIN_COLOR, regp->fp_margin_color);
 

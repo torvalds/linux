@@ -18,7 +18,7 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 		goto close_prog;
 
 	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
+		 "/sys/kernel/de/tracing/events/%s/id", probe_name);
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		goto close_prog;

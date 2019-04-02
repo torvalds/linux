@@ -68,7 +68,7 @@
 #include <linux/prctl.h>
 
 /*
- * User structures for general purpose, floating point and debug registers.
+ * User structures for general purpose, floating point and de registers.
  */
 struct user_pt_regs {
 	__u64		regs[31];
@@ -84,7 +84,7 @@ struct user_fpsimd_state {
 	__u32		__reserved[2];
 };
 
-struct user_hwdebug_state {
+struct user_hwde_state {
 	__u32		dbg_info;
 	__u32		pad;
 	struct {

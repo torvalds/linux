@@ -18,7 +18,7 @@
  * irq lines).  Therefore, this driver does not attempt to handle edge
  * and level interrupts differently.
  */
-#undef DEBUG
+#undef DE
 
 #include <linux/kernel.h>
 #include <linux/irq.h>

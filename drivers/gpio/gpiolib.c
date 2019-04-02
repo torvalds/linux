@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/debugfs.h>
+#include <linux/defs.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -42,13 +42,13 @@
  */
 
 
-/* When debugging, extend minimal trust to callers and platform code.
+/* When deging, extend minimal trust to callers and platform code.
  * Also emit diagnostic messages that may help initial bringup, when
- * board setup or driver bugs are most common.
+ * board setup or driver s are most common.
  *
  * Otherwise, minimize overhead in what may be bitbanging codepaths.
  */
-#ifdef	DEBUG
+#ifdef	DE
 #define	extra_checks	1
 #else
 #define	extra_checks	0
@@ -193,7 +193,7 @@ static int gpiochip_find_base(int ngpio)
 	}
 
 	if (gpio_is_valid(base)) {
-		pr_debug("%s: found new base at %d\n", __func__, base);
+		pr_de("%s: found new base at %d\n", __func__, base);
 		return base;
 	} else {
 		pr_err("%s: cannot find free range\n", __func__);
@@ -1191,7 +1191,7 @@ static int gpiochip_setup_dev(struct gpio_device *gdev)
 
 	/* From this point, the .release() function cleans up gpio_device */
 	gdev->dev.release = gpiodevice_release;
-	pr_debug("%s: registered GPIOs %d to %d on device: %s (%s)\n",
+	pr_de("%s: registered GPIOs %d to %d on device: %s (%s)\n",
 		 __func__, gdev->base, gdev->base + gdev->ngpio - 1,
 		 dev_name(&gdev->dev), gdev->chip->label ? : "generic");
 
@@ -2303,7 +2303,7 @@ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
 #endif /* CONFIG_PINCTRL */
 
 /* These "optional" allocation calls help prevent drivers from stomping
- * on each other, and help provide better diagnostics in debugfs.
+ * on each other, and help provide better diagnostics in defs.
  * They're called even less than the "set direction" calls.
  */
 static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
@@ -2558,7 +2558,7 @@ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
  *
  * As a rule these aren't called more than once (except for drivers
  * using the open-drain emulation idiom) so these are natural places
- * to accumulate extra debugging checks.  Note that we can't (yet)
+ * to accumulate extra deging checks.  Note that we can't (yet)
  * rely on gpio_request() having been called beforehand.
  */
 
@@ -2855,7 +2855,7 @@ EXPORT_SYMBOL_GPL(gpiod_is_active_low);
  * in memory, guaranteeing that these table lookups need no more locking
  * and that gpiochip_remove() will fail.
  *
- * REVISIT when debugging, consider adding some instrumentation to ensure
+ * REVISIT when deging, consider adding some instrumentation to ensure
  * that the GPIO was actually requested.
  */
 
@@ -4118,7 +4118,7 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 
 	/* No particular flag request, return here... */
 	if (!(dflags & GPIOD_FLAGS_BIT_DIR_SET)) {
-		pr_debug("no flags found for %s\n", con_id);
+		pr_de("no flags found for %s\n", con_id);
 		return 0;
 	}
 
@@ -4658,7 +4658,7 @@ static int __init gpiolib_dev_init(void)
 }
 core_initcall(gpiolib_dev_init);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DE_FS
 
 static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 {
@@ -4789,13 +4789,13 @@ static const struct file_operations gpiolib_operations = {
 	.release	= seq_release,
 };
 
-static int __init gpiolib_debugfs_init(void)
+static int __init gpiolib_defs_init(void)
 {
-	/* /sys/kernel/debug/gpio */
-	(void) debugfs_create_file("gpio", S_IFREG | S_IRUGO,
+	/* /sys/kernel/de/gpio */
+	(void) defs_create_file("gpio", S_IFREG | S_IRUGO,
 				NULL, NULL, &gpiolib_operations);
 	return 0;
 }
-subsys_initcall(gpiolib_debugfs_init);
+subsys_initcall(gpiolib_defs_init);
 
-#endif	/* DEBUG_FS */
+#endif	/* DE_FS */
